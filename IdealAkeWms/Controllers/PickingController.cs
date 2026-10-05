@@ -470,8 +470,22 @@ public class PickingController : Controller
     // PrintBom auch fuer vorbau + fa_completion: der Druck-Button bleibt in der
     // read-only Stueckliste der FA-Abarbeitungsliste (vorbau) sowie der
     // FA-Vervollstaendigung (fa_completion) sichtbar (v1.22.0, Spec §7 "Druck bleibt").
+    //
+    // Hotfix v1.30.1 (HTTP 404.15): die Liste der sichtbaren Positionen kommt per POST im Formular-Body —
+    // im GET-Query sprengte sie bei grossen Stuecklisten maxQueryString. GET bleibt fuer Lesezeichen/
+    // Alt-Links und druckt dann immer ALLE Positionen (eine gefilterte GET-Variante gibt es nicht mehr).
+    [HttpGet]
     [RequirePickingOrVorbauOrFaCompletionAccess]
-    public async Task<IActionResult> PrintBom(int id, string? visiblePositions, string? filterInfo, string? visibleColumns)
+    public Task<IActionResult> PrintBom(int id, string? filterInfo, string? visibleColumns)
+        => RenderPrintBomAsync(id, visiblePositions: null, filterInfo, visibleColumns);
+
+    [HttpPost, ValidateAntiForgeryToken, ActionName("PrintBom")]
+    [RequirePickingOrVorbauOrFaCompletionAccess]
+    public Task<IActionResult> PrintBomPost(int id,
+        [FromForm] string? visiblePositions, [FromForm] string? filterInfo, [FromForm] string? visibleColumns)
+        => RenderPrintBomAsync(id, visiblePositions, filterInfo, visibleColumns);
+
+    private async Task<IActionResult> RenderPrintBomAsync(int id, string? visiblePositions, string? filterInfo, string? visibleColumns)
     {
         var order = await _productionOrderRepository.GetByIdAsync(id);
         if (order == null)
@@ -545,7 +559,7 @@ public class PickingController : Controller
                 : visibleColumns.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList()
         };
 
-        return View(vm);
+        return View("PrintBom", vm);
     }
 
     [RequirePickingAccess]

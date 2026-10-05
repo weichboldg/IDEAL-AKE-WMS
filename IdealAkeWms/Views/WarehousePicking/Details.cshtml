@@ -48,6 +48,9 @@
 <form method="post" asp-action="Close" asp-route-id="@Model.Id" id="detailsForm">
     @Html.AntiForgeryToken()
     <input type="hidden" name="rowVersion" value="@Convert.ToBase64String(Model.RowVersion)" />
+    @* Hotfix v1.30.1: nicht Geliefertes muss bestaetigt sein. Bedienungshilfe — die massgebliche
+       Pruefung laeuft serverseitig in CloseAsync (Close UND PrintAndClose). *@
+    <div id="incomplete-alert" class="alert alert-warning d-none" role="alert"></div>
     <div class="table-responsive">
     <table class="table table-sm filterable-table" data-view-key="WarehousePickingDetails" data-fallback-sort-column="pos" data-fallback-sort-direction="asc">
         <thead>
@@ -71,7 +74,7 @@
                 var pickedInt = i.QuantityPicked.HasValue
                     ? (int?)Math.Round(i.QuantityPicked.Value, MidpointRounding.AwayFromZero)
                     : null;
-                <tr data-requested="@requestedInt">
+                <tr data-requested="@requestedInt" data-position="@i.Position" data-article="@i.ArticleNumber">
                     <td>@i.Position</td>
                     <td>@i.ArticleNumber</td>
                     <td>@i.ArticleDescription</td>
@@ -82,7 +85,7 @@
                         {
                             <input type="number" name="quantitiesPicked" step="1" min="0"
                                    value="@(pickedInt?.ToString() ?? string.Empty)"
-                                   placeholder="@requestedInt"
+                                   aria-label="Ist-Menge Pos @i.Position"
                                    class="form-control form-control-sm qty-input" style="width:90px;" />
                         }
                         else
@@ -180,22 +183,6 @@
     </div>
 </div>
 
-<div class="modal fade" id="close-confirm-modal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header"><h5 class="modal-title">Ist-Menge fehlt</h5></div>
-            <div class="modal-body">
-                Bei einigen Positionen wurde keine Ist-Menge eingegeben.<br />
-                <strong>Soll = Ist-Menge buchen?</strong>
-            </div>
-            <div class="modal-footer">
-                <button type="button" id="close-yes" class="btn btn-success">Ja</button>
-                <button type="button" id="close-no" class="btn btn-warning">Nein</button>
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-            </div>
-        </div>
-    </div>
-</div>
 
 <script type="application/json" id="view-config">
 { "viewKey": "WarehousePickingDetails", "supportsReorder": true, "supportsSortDefault": true }
@@ -290,12 +277,11 @@
     }
 
     function collectProgress() {
-        // WICHTIG: leere Strings als '0' senden, sonst skippt der
-        // ASP.NET-Model-Binder fuer int[] sie und die Array-Indices
-        // verschieben sich gegenueber itemIds (zerstoerter Mapping).
+        // Leere Ist-Felder als '' senden: SaveProgress bindet int?[] und setzt '' am selben Index
+        // auf null (NullableIntArrayBindingTests). Nie '0' — das waere eine nicht bestaetigte Menge.
         const itemIds = Array.from(form.querySelectorAll('input[name="itemIds"]')).map(i => i.value);
         const quantitiesPicked = Array.from(form.querySelectorAll('input[name="quantitiesPicked"]'))
-            .map(i => (i.value && i.value.trim()) || '0');
+            .map(i => i.value.trim());
         const notes = Array.from(form.querySelectorAll('input[name="notes"]')).map(i => i.value || '');
         const notesEinkauf = Array.from(form.querySelectorAll('input[name="notesEinkauf"]')).map(i => i.value || '');
         const shortageStatuses = Array.from(form.querySelectorAll('input.shortage-hidden')).map(i => i.value || '0');
@@ -353,70 +339,81 @@
 
     if (!closeBtn) return;
 
-    const modalEl = document.getElementById('close-confirm-modal');
-    const modal = new bootstrap.Modal(modalEl);
-    function emptyRows() {
-        // Ein Row gilt nur als "leer" wenn Ist=0/empty UND ShortageStatus=None.
-        // Wenn der Lager bewusst "Fehlteil" oder "Wird nicht nachgeliefert" markiert
-        // hat, ist Ist=0 eine bewusste Entscheidung — kein Soll=Ist-Modal.
-        return Array.from(form.querySelectorAll('input[name="quantitiesPicked"]'))
-            .filter(i => {
-                const isEmpty = !i.value || parseInt(i.value, 10) === 0;
-                if (!isEmpty) return false;
-                const tr = i.closest('tr');
-                const hidden = tr.querySelector('.shortage-hidden');
-                const statusValue = hidden ? hidden.value : '0';
-                return statusValue === '0';
-            });
-    }
-    function fillSollAsIst() {
-        emptyRows().forEach(inp => {
-            const tr = inp.closest('tr');
-            inp.value = tr.dataset.requested;
-            syncShortageRadios(tr);
+    const incompleteAlert = document.getElementById('incomplete-alert');
+
+    // Offen = kein Ist-Wert UND keine Fehlteil-Markierung. Eine getippte 0 ist eine Bestaetigung.
+    // Ungueltig (Komma-/Dezimalwert, negativ) zaehlt ebenfalls als offen — der Server wuerde abweisen.
+    function getIncompleteRows() {
+        return Array.from(form.querySelectorAll('input[name="quantitiesPicked"]')).filter(i => {
+            if (!i.checkValidity()) return true;
+            if (i.value.trim() !== '') return false;
+            const hidden = i.closest('tr').querySelector('.shortage-hidden');
+            return (hidden ? hidden.value : '0') === '0';
         });
+    }
+
+    // kind: 'incomplete' = Pflicht-Hinweis (wird beim Ergaenzen nachgefuehrt), 'server' = Server-Meldung
+    // (bleibt stehen, bis erneut abgeschlossen wird).
+    function showMessage(text, kind) {
+        incompleteAlert.dataset.kind = kind;
+        incompleteAlert.textContent = text;
+        incompleteAlert.classList.remove('d-none');
+        incompleteAlert.scrollIntoView({ block: 'nearest' });
+    }
+
+    function markIncomplete(rows) {
+        form.querySelectorAll('.qty-input.is-invalid').forEach(i => {
+            i.classList.remove('is-invalid');
+            i.removeAttribute('aria-invalid');
+        });
+        rows.forEach(i => {
+            i.classList.add('is-invalid');
+            i.setAttribute('aria-invalid', 'true');
+        });
+        if (rows.length === 0) { incompleteAlert.classList.add('d-none'); return; }
+        const list = rows.map(i => `Pos ${i.closest('tr').dataset.position} (${i.closest('tr').dataset.article})`).join(', ');
+        showMessage('Noch nicht abgeschlossen. Bitte je Position die Ist-Menge als ganze Zahl eintragen '
+            + '(auch 0) oder Fehlteil markieren: ' + list, 'incomplete');
+    }
+
+    // Markierung nachfuehren, sobald eine Zeile ergaenzt wird (nur wenn die Meldung schon sichtbar ist).
+    ['input', 'click'].forEach(ev => form.addEventListener(ev, () => {
+        if (!incompleteAlert.classList.contains('d-none') && incompleteAlert.dataset.kind === 'incomplete')
+            markIncomplete(getIncompleteRows());
+    }));
+
+    function guardComplete() {
+        const incomplete = getIncompleteRows();
+        if (incomplete.length === 0) return true;
+        markIncomplete(incomplete);
+        incomplete[0].focus();
+        return false;
     }
 
     closeBtn.addEventListener('click', () => {
-        const empties = emptyRows();
-        if (empties.length === 0) { normalizeEmptyQuantitiesToZero(); form.submit(); return; }
-        modal.show();
-        document.getElementById('close-yes').onclick = () => { fillSollAsIst(); normalizeEmptyQuantitiesToZero(); modal.hide(); form.submit(); };
-        document.getElementById('close-no').onclick = () => { normalizeEmptyQuantitiesToZero(); modal.hide(); form.submit(); };
+        if (guardComplete()) form.submit();
     });
 
     if (printAndCloseBtn) {
-        printAndCloseBtn.addEventListener('click', async () => {
-            const empties = emptyRows();
-            if (empties.length > 0) {
-                modal.show();
-                document.getElementById('close-yes').onclick = () => { fillSollAsIst(); modal.hide(); performPrintAndClose(); };
-                document.getElementById('close-no').onclick = () => { modal.hide(); performPrintAndClose(); };
-                return;
-            }
-            performPrintAndClose();
-        });
-    }
-    // Hinweis: performPrintAndClose() ruft normalizeEmptyQuantitiesToZero() selbst auf (siehe unten).
-
-    function normalizeEmptyQuantitiesToZero() {
-        // ASP.NET-Model-Binder fuer int[] skippt leere Strings, was die
-        // Array-Indices zwischen itemIds und quantitiesPicked verschiebt
-        // (Off-by-N Bug). Vor jedem Submit alle leeren quantitiesPicked-
-        // Inputs auf '0' setzen, damit die Arrays parallel bleiben.
-        form.querySelectorAll('input[name="quantitiesPicked"]').forEach(inp => {
-            if (!inp.value || inp.value.trim() === '') inp.value = '0';
+        printAndCloseBtn.addEventListener('click', () => {
+            if (guardComplete()) performPrintAndClose();
         });
     }
 
     async function performPrintAndClose() {
-        normalizeEmptyQuantitiesToZero();
         const printTab = window.open('about:blank', '_blank');
         const body = new FormData(form);
         try {
             const resp = await fetch(printAndCloseUrl, { method: 'POST', body });
             if (!resp.ok) {
                 if (printTab) printTab.close();
+                if (resp.status === 400) {
+                    // Serverseitige Pflicht-/Mengenpruefung liefert { error } — Eingaben bleiben erhalten.
+                    // 400 OHNE error (z. B. abgelaufenes Antiforgery-Token) faellt unten in Neu laden.
+                    let data = null;
+                    try { data = await resp.json(); } catch { }
+                    if (data && data.error) { showMessage(data.error, 'server'); return; }
+                }
                 alert('Fehler beim Abschliessen — bitte Liste neu laden.');
                 window.location.reload();
                 return;
