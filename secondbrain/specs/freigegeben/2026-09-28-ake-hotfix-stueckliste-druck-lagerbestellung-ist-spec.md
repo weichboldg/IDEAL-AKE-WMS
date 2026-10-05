@@ -2,9 +2,9 @@
 type: spec
 title: "AKE-Hotfix: Stuecklisten-Druck HTTP 404.15 (Teil 1) + Lagerbestellung IST nicht vorbefuellen (Teil 2)"
 slug: 2026-09-28-ake-hotfix-stueckliste-druck-lagerbestellung-ist-spec
-status: Testbereit
+status: Gemerged
 created: 2026-09-28
-updated: 2026-09-29
+updated: 2026-10-05
 source_backlog: "[[2026-09-28-ake-hotfix-stueckliste-druck-lagerbestellung-ist]]"
 task: "[[2026-09-29-ake-hotfix-stueckliste-druck-lagerbestellung-ist-umsetzung]]"
 worktree: ".claude/worktrees/2026-09-28-ake-hotfix-stueckliste-druck-lagerbestellung-ist"
