@@ -80,3 +80,29 @@ Tracking/Index.
   Mengen ein Kostenpunkt.
 - Mehrere Init-Reihenfolge-Fallen im Frontend (`column-preferences.js` vor `table-filter.js`,
   eine filterbare Tabelle pro gerenderter Seite) — siehe [[fallstricke]].
+
+## Spaltenpraeferenzen (Ergaenzung 2026-08-12)
+
+> **Additiver Nachtrag**, ergaenzt v1.31.0 (IDEAL-Teile-1-5-Buendel, Etappe 6, Commit `37e8752`).
+> Die Entscheidung oben bleibt unveraendert; dieser Abschnitt benennt einen Pflichtbestandteil,
+> den das urspruengliche Muster nur implizit voraussetzte.
+
+Das Listen-View-Pattern hat **vier** Pflichtbestandteile, nicht drei — neben Pagination,
+Filterkarte und Server-Spaltenfilter gehoert die **per-Benutzer-Spaltenauswahl** dazu:
+
+- In der View: `column-preferences.js` einbinden (**vor** `table-filter.js`, siehe [[fallstricke]])
+  plus die beiden Inline-JSON-Bloecke `#view-config` (traegt den `viewKey`) und `#column-config`
+  (Spaltenkatalog mit `defaultHidden`). Ohne diese speichert/liest die Liste keine Spaltenwahl.
+- Im Backend **zwingend**: der `viewKey` muss in `ColumnDefinitions.GetByViewKey` registriert sein.
+  Fehlt die Registrierung, antwortet `UserViewPreferencesApiController` mit **400** und speichert
+  **still nichts** — die Einstellung geht bei jedem Reload verloren, ohne Fehlermeldung fuer den
+  Anwender.
+
+**Warum der Nachtrag:** Die vier IDEAL-Listen (Teil 3-5) hatten Pagination, Filterkarte und
+Server-Spaltenfilter, aber die Spaltenpraeferenzen fehlten — schlicht weil das Muster sie nie
+ausdruecklich als Pflichtbestandteil benannte. Etappe 6 hat sie an alle vier Listen angeschlossen
+und die `viewKey` (`FaHierarchyKommissionierListen`, `FaHierarchyBeschichtung`,
+`FaHierarchyVormontageEinzeln`, `FaHierarchyVormontageSummiert`, spaeter `FaHierarchyStructure` fuer
+die Baumanzeige) in `ColumnDefinitions.GetByViewKey` registriert. Details der beiden Fallstricke
+(Registrierungspflicht + der bis `37e8752` nur das erste `<tbody>` sortierende Sort-Bug in
+`table-filter.js`) stehen in [[fallstricke]].

@@ -26,7 +26,7 @@ Decorator-Muster: [[0001-repository-pattern-mit-decorator-fuer-caching]].
 |---|---|
 | Fertigungsauftraege | `ProductionOrderRepository`, `ProductionOrderPickingStatusRepository`, `ProductionOrderBdeStatusRepository` |
 | Vorbau | `FaWorkStepRepository`, `FaAttributeRepository`, `WorkStepRepository` |
-| Stueckliste | `BomRepository` (Sage-View + OSEON-Fallback), `BomCacheRepository` (persistenter Cache), `PickingRepository` |
+| Stueckliste | `BomRepository` (Sage-View + OSEON-Fallback, AKE), `BomCacheRepository` (persistenter Cache, AKE), `FaHierarchyBomRepository` (IDEAL: beide Interfaces aus `FaHierarchyNode`, v1.36.0), `BomRepositoryMasterSwitch` (Weiche fuer `IBomRepository` **und** `IBomCacheRepository`, entscheidet pro Aufruf am Master, lazy Delegates — ersetzt den Guard `HierarchicalBomGuardRepository`), `PickingRepository` — siehe [[0013-bom-bridge-repository-schnittstelle-statt-cache-kopie]] |
 | Lager | `StockMovementRepository`, `StorageLocationRepository`, `ArticleRepository`, `ArticleCategoryRepository`, `ArticleAttributeRepository` |
 | Bestellwesen | `WarehouseRequisitionRepository`, `PartRequisitionRepository`, `OrderRecipientRepository` |
 | BDE | `BdeBookingRepository`, `BdeOperatorRepository`, `BdeActivityRepository`, `BdeTerminalRepository`, `WorkOperationRepository` |
@@ -56,7 +56,12 @@ Wichtige Verhaltensregeln, die in Repositories stecken (Details in [[fallstricke
 | `ActiveDirectoryService.cs` (`IActiveDirectoryService`) | LDAP-Abfrage der Berechtigungsgruppe fuer den AD-Benutzer-Picker (`[SupportedOSPlatform("windows")]`) |
 | `UserAgentHelper.cs` | `IsWindowsDesktop` — UA-Gate der SSO-Challenge |
 | `WindowsAccountHelper.cs` | SAM-Namen normalisieren |
-| `PrintService.cs` | Server-seitiger Druck |
+| `PrintService.cs` | Server-seitiger Druck (`rundll32 mshtml.dll,PrintHTML`; aktuell von keinem Controller konsumiert) |
+| `PdfRenderStatus.cs` | **Singleton**, Start-Probe (`Refresh()` in `Program.cs` nach `builder.Build()`): `msedge.exe`-Pfad aus `PdfRender:EdgePath` (gesetzt + fehlend ⇒ nicht verfuegbar) → Registry App Paths → Standardpfade → PATH; `IsAvailable` steuert den PDF-Knopf (v1.39.0, [[2026-08-06-pdf-erzeugung-fahierarchy-druck-spec]]) |
+| `PdfRenderService.cs` (`IPdfRenderService`) | **Singleton** (Waechter `PdfRenderServiceDiResolutionTests`): HTML rein, `byte[]` raus. `SemaphoreSlim(PdfRender:MaxConcurrent)` wartet statt abzuweisen; GUID-Laufverzeichnis `%TEMP%\IdealAkeWms-Pdf\<guid>\` (`in.html`/`out.pdf`/`profile`), `finally`-Loeschen + verwaiste Laeufe (> Timeout+5 min) beim naechsten Lauf; Laufzeit-Log `PDF erzeugt: … ms`; `PdfRenderException` (`NotConfigured`/`Failed`) traegt die Nutzermeldung |
+| `EdgeProcessRunner.cs` (`IEdgeProcessRunner`) | **Singleton**, einzige nicht InMemory-testbare Grenze (`EdgeProcessRunnerSmokeTests` ruft echtes Edge). Wartet auf die **fertige Datei** (exklusiv oeffenbar + `%%EOF`), nicht auf den Prozess — `msedge.exe` ist ein Launcher, siehe [[fallstricke]] §11; Timeout-Kill ueber das Startzeit-Fenster |
+| `RazorViewRenderer.cs` (`IRazorViewRenderer`) | Scoped; rendert eine Razor-View + Model zu String (`ICompositeViewEngine.FindView` + `ViewContext`), damit dieselbe `Print.cshtml` an Browser **und** PDF geht |
+| `PdfFileNameBuilder.cs` | reine Funktion `<Dokumentart>_<HauptFA>_<yyyyMMdd-HHmm>.pdf` |
 | `NaturalPositionComparer.cs` | Natuerliche Sortierung von BOM-Positionen |
 | `SyncLogger/` | `ISyncLogger`, `ISyncRun`, `SyncLogServices` (Service-Namen-Konstanten), `SyncLogger`, `SyncRun` → [[0010-aktivitaets-protokoll-mit-isolierten-dbcontexts]] |
 
@@ -77,6 +82,7 @@ Wichtige Verhaltensregeln, die in Repositories stecken (Details in [[fallstricke
 | `BdeTimeSplitService.cs` | Zeit-Split bei parallelen Buchungen |
 | `BdeShiftCalendarService.cs` | Schichten, Feiertage, Schichtende |
 | `BdeDefaultWorkOperationService.cs` | Default-AG im vereinfachten Modus |
+| `BdeScanResolver.cs` (`IBdeScanResolver`) | IDEAL Teil 8: werkbank-gescopte Auflösung eines gescannten FA-Segments auf einen buchbaren Sub-FA. `ResolveAsync` → Exact/Ambiguous/NotInScope/NotFound; Kandidat = Sub-FA (Normal per `WorkOperation`, NurFA per `ProductionOrder`). Aufgerufen von `BdeApiController.ResolveScan` (`GET /api/bde/resolve-scan`), Terminal-JS disambiguiert damit mehrdeutige `OrderNumber` nach der Schema-Inversion (Teil 7) |
 | `HolidayImportService.cs` | Feiertags-Import (date.nager.at) |
 
 ## Service-Projekt — `../../IDEALAKEWMSService/Services/`
@@ -91,9 +97,18 @@ Wichtige Verhaltensregeln, die in Repositories stecken (Details in [[fallstricke
 | `LagerbestandSyncService.cs` | Sage → Korrektur-Buchungen + Nullsetzen verwaister Paare | `Sync:LagerbestandEnabled` |
 | `OseonSyncService.cs` | OSEON → Auftraege, AGs, Artikelkategorien | `Sync:OseonTrackingEnabled`, `Sync:OseonArticleCategoryEnabled` |
 | `EnaioDmsSyncService.cs` | enaio-View → `EnaioDmsDocuments` (Full-Sync, kein Delta) | `Sync:EnaioDmsEnabled` |
-| `BomCacheSyncService.cs` | Stueckliste → `CachedBomHeader`/`CachedBomItem` (**raw SQL**) | `Sync:BomCacheEnabled` |
-| `CoatingDetectionService.cs` | BOM-Cache → `HasCoatingParts` | `Sync:CoatingDetectionEnabled` |
-| `FaWorkStepDetectionService.cs` | BOM-Cache → `FaWorkSteps` (nur-hinzufuegend) | `Sync:FaWorkStepDetectionEnabled` |
+| `BomCacheSyncService.cs` | Stueckliste → `CachedBomHeader`/`CachedBomItem` (**raw SQL**); **beide** Einstiege (`SyncBomCacheAsync`, `SyncSpecificArticleNumbersAsync` aus `SageImportService`) | `Sync:BomCacheEnabled` + **Klasse-D-Gate** (Master `true` → Skip, v1.36.0) |
+| `CoatingDetectionService.cs` | BOM-Cache → `HasCoatingParts` (AKE-Heuristik: Artikelkategorie = `LackierteilKategorieName`) | `Sync:CoatingDetectionEnabled` + **Klasse-D-Gate** |
+| `FaWorkStepDetectionService.cs` | BOM-Cache → `FaWorkSteps` (nur-hinzufuegend; AKE-Heuristik: `Bezeichnung`-Contains) | `Sync:FaWorkStepDetectionEnabled` + **Klasse-D-Gate** |
+| `ProductionWorkplaceSyncService.cs` | Sage `KHKPpsArbeitsplaetze` → `ProductionWorkplace` (**legt Werkbaenke an**, Sage fuehrend fuer Nummer/Name/Kuerzel; Abweichung nachziehen+melden; Reader `SageArbeitsplatzReader`, raw ADO.NET) | Doppel-Gate `ProduktionsauftragHierarchisch` + `Sync:ProductionWorkplaceSyncEnabled` (beide im `SyncWorker`) — v1.44.0 |
+| `WorkOperationStructureDetectionService.cs` | Struktur (`FaHierarchyNode.Arbeitsschritte`) → **`WorkOperation`** (nur-hinzufuegend; IDEAL: exakt ueber `ProductionWorkplace.ArbeitsschrittCode`, DirectChildren-Scope; unbekannt gemeldet, ausgeschlossen still, mehrdeutig gemeldet) | Doppel-Gate `ProduktionsauftragHierarchisch` + `Sync:WorkOperationStructureDetectionEnabled` (beide im `SyncWorker`, kein interner Gate) — v1.44.0, war `FaWorkStepStructureDetectionService`/v1.41.0 |
+
+**Klasse-D-Gate (BOM-Bridge, v1.36.0):** `Common/IHierarchicalModeReader.cs` kapselt den DB-first-Read
+`ServiceSettings.GetBoolSafeAsync("ProduktionsauftragHierarchisch")`; die drei Dienste (vier Einstiege)
+ueberspringen im hierarchischen Modus **ohne DB-Zugriff** und protokollieren
+`uebersprungen_hierarchisch`. Grund: die Heuristiken wuerden auf IDEAL-Daten Fehldaten erzeugen; IDEAL
+liefert `Beschichtet`/`Arbeitsschritte` explizit. Konstruktor-Signatur: Reader steht **vor** `ILogger`,
+`ISyncLogger` bleibt letzter Parameter. Siehe [[0013-bom-bridge-repository-schnittstelle-statt-cache-kopie]].
 | `HolidaySyncService.cs` | date.nager.at → `Holidays` | `Sync:FeiertagSyncEnabled` |
 | `PartRequisitionEmailService.cs` | Bedarfsmeldungen → Mail | `Sync:PartRequisitionEmailEnabled` |
 | `WarehouseRequisitionEmailService.cs` | Lager-/Glasbestellungen → Mail | `Sync:WarehouseRequisitionEmailEnabled` |
@@ -160,6 +175,10 @@ MUSS in den Katalog — sonst schlaegt der Drift-Guard-Test fehl.
 | `Sync:FaZusatzinfoAutoDoneMaxPerRun` | Int | `100` | **Cap**: mehr Auto-Erledigt-Kandidaten → kein Setzen + Warn + Fehlermail |
 | `Sync:CoatingDetectionEnabled` | Bool | `false` | Lackierteil-Erkennung als eigener Job |
 | `Sync:FaWorkStepDetectionEnabled` | Bool | `false` | FA-Arbeitsgang-Erkennung aus dem BOM-Cache |
+| `Sync:WorkOperationStructureDetectionEnabled` | Bool | `false` | IDEAL: WorkOperation-Arbeitsgang-Erkennung aus der Struktur (Match ueber `ProductionWorkplace.ArbeitsschrittCode`; nach FA-Materialisierung + Werkbank-Anlage, nur bei Master) — v1.44.0, war `Sync:FaWorkStepStructureDetectionEnabled` |
+| `Sync:ProductionWorkplaceSyncEnabled` | Bool | `false` | IDEAL: Werkbank-Anlage aus Sage `KHKPpsArbeitsplaetze` (nur bei Master) — v1.44.0 |
+| `Sync:ProductionWorkplaceSyncMandant` | Int | `1` | IDEAL: Mandant-Filter der Werkbank-Anlage (nicht das SData-Dataset) — v1.44.0 |
+| `Sync:ProductionWorkplaceSyncAusschlussliste` | String | `STO,XXX,x01,BS,BS2,FRE,AKE` | IDEAL: Kuerzel, die NICHT als Werkbank angelegt und NICHT als unbekannt gemeldet werden — v1.44.0 |
 
 ### BOM-Cache
 
@@ -235,3 +254,54 @@ Neuer `SyncLogServices.SageLagerbuchung`.
 > **Ein-Instanz-Voraussetzung:** Der Idempotenz-Baustein („Status auf `Gesendet` vor dem Call")
 > schuetzt nur bei **genau einer** laufenden Worker-Instanz — kein Doppel-Deploy/Failover auf
 > derselben Queue. Siehe [[fallstricke]].
+
+## IDEAL Teil 7 — Materialisierung + Einweg-Migrationstor (v1.32.0)
+
+Details/Entscheidung: [[0012-fa-hierarchie-einweg-migrationstor]]; Changelog [[2026-08-17-v1-32-0-ideal-teil-7]].
+
+**Web (`IdealAkeWms/Services/HierarchischeStruktur/` + `Data/Repositories/`):**
+- `HierarchischeStrukturGuard` (reiner Planer, unit-getestet) + `HierarchischeStrukturKeys`
+  (geschuetzte Keys: Master `ProduktionsauftragHierarchisch` + `Sync:FaZusatzinfoAutoErledigtEnabled`).
+- `GuardedServiceSettingRepository` — Decorator auf `IServiceSettingRepository.UpsertAsync/DeleteAsync`,
+  **einziger Choke-Point** (DI-registriert um das echte `ServiceSettingRepository`, ADR 0008-Muster).
+- `HierarchischeStrukturStatus` — Singleton, gecachter „ist gesperrt"-Anzeigezustand (Refresh am Start +
+  bei GET der Umschalt-Seite; Schreibpfad prueft live). Siehe [[fallstricke]] §9 (Cache cross-process).
+- `IProductionOrderRepository.HierarchicalDataExistsAsync()` (`AnyAsync(OrderNumber != SubOrderNumber)`).
+- `IWorkOperationRepository.GetAllByFaAndOperationAsync` (mengenwertige Naht, AK 10; Einzel-Lookup loggt
+  Mehrfachtreffer, Aufrufer-Umstellung = Teil 8).
+
+**Service (`IDEALAKEWMSService/Services/`):**
+- `FaMaterializationPlanner` (reiner Entscheidungs-Helper, unit-getestet) — 3 Sync-Regeln + Empty-Source-Guard.
+- `FaMaterializationSyncService` — Orchestrator (gated auf Master, nach FA-Hierarchie-Sync im `SyncWorker`,
+  liest lokale `FaHierarchyNodes`, EF-Apply mit App-Feld-Erhalt, Sammelmail via `IMailService`).
+  **v1.43.0 (ADR-0014-Korrektur):** die Werkbank-Ableitung aus dem `Arbeitsbereich` (`ApplyWorkplace`,
+  `IUnknownWorkplaceState`, Werkbank-Counter/-Mail) ist **zurückgebaut** — Arbeitsbereich = Zielort, keine
+  Werkbank ([[2026-09-21-adr-0014-arbeitsbereich-ist-zielort-spec]]). Bleibt: Coating-Ableitung (Z1),
+  Statuszeilen-Eager-Create, `SageMissingSince`.
+- `FaZusatzinfoSyncService.SyncAsync(...)` erweitert um `bool autoErledigtEnabled` (dreistufige
+  Auto-Erledigt-Sperre, AK 11).
+
+**SyncLog-Services (`SyncLogServices`):** neu `HierarchieUmstellung` (Audit Master-Flip/Ablehnung),
+`FaMaterialization` (Counts `angelegt/vermisst_neu/wieder_da/umhaengung_konflikt`),
+`WorkOperationStructureDetection` (v1.44.0, war `FaWorkStepStructureDetection`/v1.41.0; Counts
+`neu/uebersprungen/arbeitsschritt_mehrdeutig/arbeitsschritt_unbekannt/arbeitsschritt_unbekannt_auftraege`),
+`ProductionWorkplaceSync` (v1.44.0, Counts `neu/aktualisiert/abweichung/uebersprungen/problematisch`).
+
+**Arbeitsgang-Erkennung Struktur (v1.44.0, [[2026-09-21-ideal-bde-arbeitsgaenge-aus-struktur-spec]]; ersetzt v1.41.0):**
+- `WorkOperationStructureDetectionService` (2c-Umbau des frueheren `FaWorkStepStructureDetectionService`,
+  v1.41.0 nie deployt) — leitet **`WorkOperation`**-Zeilen aus `FaHierarchyNode.Arbeitsschritte` ab,
+  Match **exakt** ueber `ProductionWorkplace.ArbeitsschrittCode` (statt `WorkStep.Code`).
+  `OperationNumber`=Kuerzel, `Name`/`ProductionWorkplaceId` aus der Werkbank kopiert; Eindeutigkeit
+  `(ProductionOrderId, OperationNumber)`, Nur-hinzufuegen, kein Katalog-FK (kein Zwei-Lauf-Ablauf).
+  Unbekannte Kuerzel: melden (S1 via `IUnknownArbeitsschrittTokenState`); ausgeschlossene (Ausschlussliste
+  `Sync:ProductionWorkplaceSyncAusschlussliste`): still; mehrdeutige (mehrere Werkbaenke gleicher Code):
+  gemeldet, kein Insert. Doppel-Gate im `SyncWorker` (nach FA-Materialisierung UND Werkbank-Anlage).
+- `ProductionWorkplaceSyncService` — legt Werkbaenke aus Sage `KHKPpsArbeitsplaetze` an (Sage fuehrend),
+  siehe Sync-Services-Tabelle oben. Der Existenz-Check in `BdeDefaultWorkOperationService` prueft seit
+  v1.44.0 ueber `OperationNumber == "01"` (nicht ueber den Namen), damit eine NurFA-Buchung nie still auf
+  einen echten, namensgleichen Arbeitsgang bucht.
+
+**Neue ServiceSettings-Keys:** `ProduktionsauftragHierarchisch` (Bool, Default false, Kategorie
+FA-Hierarchie — **Einwegtor**, guard-geschuetzt, in `/ServiceSettings` read-only) +
+`Sync:FaZusatzinfoAutoErledigtEnabled` (Bool, Default true = AKE unveraendert; im hierarchischen Modus
+nicht einschaltbar, Master-Flip schaltet ab).

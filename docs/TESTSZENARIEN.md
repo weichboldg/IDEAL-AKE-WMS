@@ -24,7 +24,7 @@ Dokument aktualisiert werden (siehe CLAUDE.md → "Testszenarien-Pflicht").
 | 2. Lager | [→](#2-lager) | TS-2.1 – TS-2.21, TS-2.26 – TS-2.31 (inkl. TS-2.12 – TS-2.21 FA-Lagerplatz-Hinweis; TS-2.26 – TS-2.31 v1.30.0 Teil 4/5: Bewegungsart-/Datum-Spaltenfilter funktionsfaehig + Einbuchung-Standardmenge 1) |
 | 3. Stammdaten | [→](#3-stammdaten) | TS-3.1 – TS-3.16 |
 | 4. Fertigungsauftraege | [→](#4-fertigungsauftraege) | TS-4.1 – TS-4.19 (inkl. TS-4.9a/b/c/d Bulk-Freigabe + Filter-Persistenz, TS-4.11 – TS-4.19 Baugruppen-Flags VK/VL/VE/VT/VA) |
-| 5. Stueckliste (BOM) | [→](#5-stueckliste-bom) | TS-5.1 – TS-5.9 |
+| 5. Stueckliste (BOM) | [→](#5-stueckliste-bom) | TS-5.1 – TS-5.11 |
 | 6. Kommissionierung / Picking | [→](#6-kommissionierung--picking) | TS-6.1 – TS-6.10 |
 | 7. OSEON Teileverfolgung | [→](#7-oseon-teileverfolgung) | TS-7.1 – TS-7.10 (inkl. TS-7.6a/b/c/d Artikel-Filter + Sortierung) |
 | 8. BDE Phase 1 | [→](#8-bde-phase-1) | TS-8.1 – TS-8.15 |
@@ -37,7 +37,7 @@ Dokument aktualisiert werden (siehe CLAUDE.md → "Testszenarien-Pflicht").
 | 15. BDE Phase 2.3 — Schichtkalender + Auto-Pause | [→](#15-bde-phase-23--schichtkalender--auto-pause) | TS-15.1 – TS-15.12 |
 | 16. OSEON Reporting — AG-Übersicht | [→](#16-oseon-reporting--ag-übersicht) | TS-16.1 – TS-16.6 |
 | 17. OSEON Tracking — Artikel-Filter | [→](#17-oseon-tracking--artikel-filter) | TS-17.1 – TS-17.4 |
-| 18. Lagerbestellung aus der Produktion | [→](#18-lagerbestellung-aus-der-produktion) | TS-18.1 – TS-18.9 |
+| 18. Lagerbestellung aus der Produktion | [→](#18-lagerbestellung-aus-der-produktion) | TS-18.1 – TS-18.10 |
 | 19. Listen-Pagination & User-Default (v1.14.0) | [→](#19-listen-pagination--user-default-v1140) | TS-19.1 – TS-19.6 |
 | 20. Server-Side Spaltenfilter (v1.14.0) | [→](#20-server-side-spaltenfilter-v1140) | TS-20.1 – TS-20.7 |
 | 21. Leitstand als eigenes Hauptmenue (v1.14.0) | [→](#21-leitstand-als-eigenes-hauptmenue-v1140) | TS-21.1 – TS-21.2 |
@@ -2073,6 +2073,32 @@ Dokument aktualisiert werden (siehe CLAUDE.md → "Testszenarien-Pflicht").
   (unveraendertes Verhalten). Der FA-Abarbeitungslisten-Filter (Teil 8, TS-43.5) bleibt davon
   unberuehrt — die beiden Default-Filter sind getrennt.
 
+### TS-5.11 — Stueckliste mit vielen Positionen drucken (v1.30.1, Hotfix HTTP 404.15)
+
+**Hintergrund:** Bis v1.30.0 ging die Liste aller sichtbaren Positionen im Adressteil der Druck-URL mit;
+bei grossen Stuecklisten brach der Druck mit „HTTP-Fehler 404.15 — Abfragezeichenfolge zu lang" ab.
+Seit v1.30.1 wird per Formular (POST) gedruckt.
+
+**Vorbedingungen:** FA mit einer Stueckliste mit **mindestens 300 Positionen** (z. B. das FA aus dem
+Befund vom 2026-09-28, ID 3664 auf akenet01); Zugriff Kommissionierung, Vorbau oder FA-Vervollstaendigung.
+
+**Schritte + erwartetes Verhalten:**
+1. Stueckliste oeffnen, **keinen** Filter setzen, „Stueckliste drucken". **Erwartet:** neues Tab mit der
+   **vollstaendigen** Stueckliste, kein 404.15, keine Fehlerseite, kein Popup-Blocker-Hinweis.
+2. Einen Spaltenfilter setzen, der nur wenige Positionen uebrig laesst, erneut drucken. **Erwartet:** nur
+   die sichtbaren Positionen, Filter-Hinweis im Kopf, Spaltenauswahl wie am Bildschirm (Regression TS-5.9).
+3. Einen Filter setzen, der **nur wenige** der vielen Positionen ausblendet (z. B. eine Artikelgruppe
+   ausschliessen), drucken. **Erwartet:** Druck klappt trotz langer Positionsliste (das war der Fall,
+   den eine reine „alles sichtbar = keine Liste"-Loesung nicht abgedeckt haette).
+4. Dasselbe in der **read-only** Stueckliste der FA-Abarbeitungsliste (Vorbau). **Erwartet:** wie 1.
+
+**Negativfaelle:**
+- `/Picking/PrintBom/{id}` direkt in die Adresszeile eingeben (GET, auch mit alten Parametern
+  `?visiblePositions=…`). **Erwartet:** vollstaendiger Druck **aller** Positionen, kein Fehler — ein
+  GET-Aufruf filtert nicht mehr.
+- Popup-Blocker des Browsers aktiv (Standard in Edge/Chrome/Firefox). **Erwartet:** Druck-Tab oeffnet
+  trotzdem (Formular-Submit direkt aus dem Klick).
+
 ---
 
 ## 6. Kommissionierung / Picking
@@ -3803,6 +3829,51 @@ Erwartet: Tab 2 zeigt WarningMessage "Bestellung wurde inzwischen geaendert — 
 Vorbedingungen: DefaultLagerbestellempfaengerId leer.
 Schritte: Submit.
 Erwartet: WarningMessage "Default-Lagerbestellempfaenger nicht konfiguriert".
+
+### TS-18.10 — Ist-Menge muss bestaetigt werden: keine Vorbefuellung, Pflichtpruefung, Autosave (v1.30.1)
+
+**Grundsatz:** Nicht Geliefertes muss **bestaetigt** werden — durch eine eingetippte Ist-Menge (auch `0`)
+oder eine Fehlteil-Markierung („Fehlteil" / „Wird nicht nachgeliefert"). Nichts wird angenommen, ein
+leeres Ist-Feld wird nie still als 0 gebucht.
+
+**Vorbedingungen:** Lagerbestellung im Status **Offen/Submitted** mit mindestens drei Positionen, keine
+davon bearbeitet. Nach dem Deploy auf einem System mit Altbestand: Einmal-Skript
+`SQL/Einmalig/2026-09-28_Hotfix-1.30.1_ResetAutosaveZeroQuantityPicked.sql` wurde **genau einmal**
+ausgefuehrt (siehe Deploy).
+
+**Schritte + erwartetes Verhalten:**
+1. `WarehousePicking/Details` oeffnen. **Erwartet:** Die Ist-Felder sind **leer** und zeigen **keine**
+   graue Bestellt-Zahl mehr; die bestellte Menge steht nur in der Spalte „Bestellt".
+2. Pos 1: Ist = `5` eintragen; danach in eine Notiz klicken und wieder hinaus (loest den Autosave aus),
+   Seite neu laden. **Erwartet:** Pos 1 zeigt `5`, Pos 2 und 3 sind **leer — nicht `0`** (Autosave-Fix).
+3. „Speichern + Abschliessen" klicken, Pos 2/3 leer lassen. **Erwartet:** Es gibt **keinen** Dialog „Soll =
+   Ist-Menge buchen?" mehr. Stattdessen erscheint oben ein gelber Hinweis „Noch nicht abgeschlossen. Bitte je
+   Position die Ist-Menge eintragen (auch 0) oder Fehlteil markieren: Pos 2 (…), Pos 3 (…)", die Ist-Felder
+   von Pos 2/3 sind rot umrandet, der Cursor steht in Pos 2. Die Bestellung bleibt offen.
+4. Pos 2: Ist = `0` tippen. **Erwartet:** Pos 2 verliert die Markierung, der Hinweis nennt nur noch Pos 3.
+5. Pos 3: Ist leer lassen, aber „Fehlteil" anklicken. **Erwartet:** Hinweis verschwindet.
+6. „Speichern + Abschliessen". **Erwartet:** Bestellung wird abgeschlossen; Pos 2 ist mit `0` gebucht,
+   Pos 3 mit leerer Ist-Menge und Fehlteil-Markierung (Status Teilgeliefert, weil Restlieferung erwartet).
+7. Neue offene Bestellung: „Drucken und Abschliessen" mit einer leeren Position ohne Fehlteil.
+   **Erwartet:** gleicher gelber Hinweis, **kein** Druck-Tab bleibt offen, die Eingaben bleiben erhalten.
+
+**Negativfaelle:**
+- **Ohne JavaScript / direkter POST** (z. B. Browser-Entwicklerwerkzeuge: das Formular per Konsole
+  `document.getElementById('detailsForm').submit()` mit leerer Position absenden). **Erwartet:** Der Server
+  lehnt ab — Rueckkehr zur Detailansicht mit gelber Meldung, die die Positionen nennt; nichts gebucht.
+  (Automatisiert: `WarehousePickingControllerTests.Close_EmptyQuantityWithoutShortage_IsBlockedServerSide_NothingBooked`,
+  `…PrintAndClose_…_ReturnsBadRequest`.)
+- **Negative Menge** eintippen und abschliessen. **Erwartet:** wie bisher „Ist-Mengen duerfen nicht negativ sein."
+- **Dezimalwert** (`1,5` bzw. `1.5`) in ein Ist-Feld tippen und abschliessen. **Erwartet:** Das Feld wird
+  markiert, der Hinweis verlangt ganze Zahlen; ohne JavaScript lehnt der Server ab („Ist-Mengen muessen ganze
+  Zahlen ab 0 sein“) und bucht **nichts** — vorher rutschten dabei alle folgenden Mengen eine Zeile nach oben.
+- **Server lehnt „Speichern + Abschliessen“ ab** (z. B. leere Zeile ohne JavaScript). **Erwartet:** Die bis
+  dahin eingetragenen Mengen, Notizen und Fehlteil-Markierungen sind nach der Rueckkehr noch da (Zwischenstand
+  gesichert), leere Felder bleiben leer.
+- **Einmal-Skript (Deploy):** Vor dem Lauf die Zaehl-Abfrage im Skript notieren; nach dem Lauf: offene
+  (Submitted) Bestellungen, deren Positionen vorher `0` zeigten **ohne** Fehlteil, zeigen jetzt leere
+  Ist-Felder; Positionen mit Fehlteil-Markierung und alle teilgelieferten/abgeschlossenen Bestellungen sind
+  **unveraendert**. Das Skript wird **nicht** ein zweites Mal ausgefuehrt. Direkt danach alle offenen Lagerbestellungs-Seiten **neu laden** (eine vorher geladene Seite traegt sonst die alte 0 noch im Feld und schickt sie als bestaetigte 0 zurueck).
 
 ---
 

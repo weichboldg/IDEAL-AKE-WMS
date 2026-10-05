@@ -4,6 +4,12 @@ argument-hint: <pfad-zur-backlog-datei>
 ---
 Neue Backlog-Datei verarbeiten: $1
 
+Ist $1 eine bestehende Spec unter secondbrain/specs/entwurf/ statt einer Backlog-Datei:
+Ueberarbeitung. Den Subagenten spec-agent im REWORK MODE aufrufen (Entscheidungen in Rumpf,
+affected_code, Akzeptanzkriterien und Testszenarien ziehen; Antwort-, Pruef- und Nachtragsabschnitte
+unveraendert lassen; freigabe_* nicht setzen). Schritte 0-2 entfallen. Commit "spec: <slug>
+(nachgezogen)".
+
 0. Beruecksichtige das Frontmatter der Backlog-Datei:
    - split: true  -> in mehrere einzeln mergbare Teil-Specs zerlegen (spec-agent-Regeln, Teil-1/2/... + Uebersicht).
    - epic: true   -> EINE Spec mit epic: true und Etappen-Tabelle (ein Worktree, mehrere Etappen, ein Merge am Ende).

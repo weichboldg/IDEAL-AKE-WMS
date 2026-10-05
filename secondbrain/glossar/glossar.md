@@ -29,6 +29,14 @@ diese Asymmetrien sind meist bewusst.
 | Kommissioniertermin | Arbeitstage vor dem Fertigungstermin (`KommissionierTage`, Default 4). |
 | Vorkommissioniertermin | Tage vor dem Kommissioniertermin (`VorkommissionierTage`, Default 1). |
 | Storniert | `ProductionOrder.IsCancelled` — der FA existiert in Sage nicht mehr, gesetzt von der FA-Reconciliation. Verhaelt sich wie „erledigt": raus aus allen offenen Sichten. |
+| HauptFA | Der Kopf-Fertigungsauftrag einer IDEAL-Struktur (`FaHierarchyNode.HauptFA`, in `ProductionOrders` als `OrderNumber`). Alle Sub-FAs einer Struktur teilen ihn — er ist deshalb **nicht** eindeutig und taugt nicht als Zeilenschluessel. |
+| Arbeitsbereich | Sage-seitige Zuordnung eines Struktur-Knotens zu einem Produktionsbereich (`FaHierarchyNode.Arbeitsbereich`, z. B. `K-02`, `S-01`). Wird bei IDEAL per Name auf die **Werkbank** abgebildet; Sage ist dabei fuehrend ([[0014-werkbank-datenhoheit-sage-fuehrend-mit-abweichungsmeldung]]). |
+| Kombinationsgeraet | Ein HauptFA mit **mehreren** Auftragskoepfen (mehrere `FaHierarchyOrderInfo`-Zeilen, verschiedene Montage-Abteilungen). Kunde, Termine und Beschichter koennen je Variante abweichen — die Oberflaeche zeigt deshalb **alle** Varianten und waehlt nie still eine aus. |
+| Konstruktions-Termin (KO) | `FaHierarchyOrderInfo.KO_Termin` — wann die Konstruktion fertig sein muss. **Nicht** der Kommissioniertermin; der Tooltip in der FA-Struktur behauptete das bis 2026-09-09 faelschlich. |
+| FE-Termin | `FaHierarchyOrderInfo.FE_Termin` — Fertigstellungstermin. Speist bei IDEAL die Termin-Kaskade der FA-Liste (Fert.-Termin). |
+| BG-Termin | Spalte der FA-Liste: der **Vorkommissioniertermin**, rueckwaerts aus dem Kommissioniertermin minus `VorkommissionierTage` gerechnet — je Werkbank ueberschreibbar (`ProductionWorkplace.OverridePrePickingDays`). Kein Rohfeld. |
+| Komm. (Spalte) | Spalte der FA-Liste: der **berechnete** Kommissioniertermin (Fertigungstermin minus `KommissionierTage`), nicht der Kommissionier-**Status**. |
+| Lack-T | Icon-Spalte der FA-Liste fuer `HasCoatingParts`/`IsCoatingDone`. Bei AKE aus der Artikelkategorie erkannt, bei IDEAL aus `FaHierarchyNode.Beschichtet` abgeleitet — **nie beide zugleich**, der Master entscheidet. |
 
 ## Prozesse und Module
 
@@ -55,7 +63,7 @@ diese Asymmetrien sind meist bewusst.
 | Paused | BDE-Buchungszustand mit **gesetztem** `EndedAt`; die Fortsetzung ist eine neue Buchung mit `ParentBookingId`. |
 | Auto-Pause | Automatisches Pausieren offener Buchungen am exakten Schichtende (`BdeAutoPauseWorker`). |
 | Schichtkalender | Schichten + Feiertage als Basis der Auto-Pause (`BdeShift`, Gate `BdeSchichtkalenderAktiv`). |
-| Artikelinfo | Artikel-Detailsicht mit Bestand und „in welchen FAs kommt der Artikel vor" (aus dem BOM-Cache). |
+| Artikelinfo | Artikel-Detailsicht mit Bestand und „in welchen FAs kommt der Artikel vor" . Quelle ist der BOM-Cache; bei IDEAL seit v1.36.0 die FA-Struktur (Haupt-FA als Geraet plus Sub-FA als Baugruppe). |
 | Aktivitaets-Protokoll | UI-Name des Lauf-Protokolls der Hintergrund-Services. DB-Tabelle und Klassen heissen `SyncLog*`, Route `/SyncLog/Index` — bewusste Asymmetrie. |
 | Meldebestand | Mindestbestand je Artikel; Farbcodierung ueber `WarningThresholdPercent` / `CriticalThresholdPercent`. |
 | Hauptlagerplatz | Bevorzugter Lagerplatz eines Artikels. Aus Sage ⇒ in der App gesperrt; leer ⇒ app-editierbar. Badge ⭐ nur in der Bestandsuebersicht, sonst nur Sortierung. |
