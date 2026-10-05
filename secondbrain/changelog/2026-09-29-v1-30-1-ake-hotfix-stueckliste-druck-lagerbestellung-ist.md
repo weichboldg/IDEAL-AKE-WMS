@@ -42,5 +42,5 @@ weil v1.31.0 im IDEAL-Buendel bereits vergeben ist.
 
 ## Commits / Merge
 
-Worktree-Commits `3fc809c2` `f653f8a0` `9a725fd5` `d9705b75` `9becb394` `8cc23829` (Code-Review-Fixes in `8cc23829`; QA-Nachweis in der Spec). Merge-Commit: folgt (Schranke 2). Danach
+Worktree-Commits `3fc809c2` `f653f8a0` `9a725fd5` `d9705b75` `9becb394` `8cc23829` (Code-Review-Fixes in `8cc23829`; QA-Nachweis in der Spec). Merge-Commit: `f89c0124` (2026-10-05, `--no-ff`; Code identisch mit dem auf AKE deployten Stand `8cc23829`). Danach
 Vorwaerts-Merge `main` → `feature/2026-08-07-ideal-teile-1-5` (eigener Schritt).

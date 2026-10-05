@@ -1,7 +1,7 @@
 ---
 typ: notiz
 spec: "[[2026-09-28-ake-hotfix-stueckliste-druck-lagerbestellung-ist-spec]]"
-status: Testbereit
+status: Gemerged
 worktree: ".claude/worktrees/2026-09-28-ake-hotfix-stueckliste-druck-lagerbestellung-ist"
 branch: "feature/2026-09-28-ake-hotfix-stueckliste-druck-lagerbestellung-ist"
 ---
