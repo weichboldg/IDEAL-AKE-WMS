@@ -124,12 +124,6 @@
     </div>
 }
 
-@* Toolbar-Host fuer den column-preferences-Zahnrad-Button: MUSS ein immer sichtbares Element
-   direkt vor .table-responsive sein. Sonst haengt column-preferences.js das Zahnrad an das
-   vorige Geschwister — das waere #bomBulkActionBar (display:none bis zur Auswahl), wodurch das
-   Zahnrad nur bei aktiver Auswahl sichtbar waere. (analog PickingLeitstand) *@
-<div class="d-flex justify-content-end mb-1"></div>
-
 @* Sichtbarer Hinweis fuer aktive Standardfilter (Hausregel „sichtbar machen statt still filtern",
    alle vier still vorbelegten Default-Filter dieser Ansicht) + benannter Leerzustand Komm.-Ziel. *@
 <div id="bomDefaultFilterBadges" class="d-flex flex-wrap gap-2 align-items-center mb-2" hidden></div>
@@ -138,6 +132,14 @@
     <button type="button" class="btn btn-sm btn-outline-dark ms-3" id="bomKzEmptyStateReset">Alle Filter zurücksetzen</button>
 </div>
 
+@* Toolbar-Host fuer den column-preferences-Zahnrad-Button: MUSS ein immer sichtbares Element
+   direkt vor .table-responsive sein. Sonst haengt column-preferences.js das Zahnrad an das
+   vorige Geschwister — das waere #bomBulkActionBar (display:none bis zur Auswahl), wodurch das
+   Zahnrad nur bei aktiver Auswahl sichtbar waere. (analog PickingLeitstand)
+   Zwischen diesem Host und .table-responsive darf NICHTS eingefuegt werden — neue Hinweise/Badges
+   gehoeren DARUEBER (v1.47.3: Zahnrad landete im versteckten #bomKzEmptyState; Waechter
+   BomZahnradHostTests). *@
+<div class="d-flex justify-content-end mb-1"></div>
 <div class="table-responsive">
     <table class="table table-striped mb-0 table-sm filterable-table" id="bomTable" data-view-key="Bom">
         <thead>

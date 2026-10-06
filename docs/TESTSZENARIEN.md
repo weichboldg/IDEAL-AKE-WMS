@@ -8946,6 +8946,24 @@ Schritte sind unten mit **(Manual-UAT)** gekennzeichnet.
   Negativfall: AKE-Flachmodus (Sub == Order für jeden Datensatz) bleibt unverändert — jeder flache
   Auftrag gilt als HauptFA und erscheint weiterhin.
 
+- **TS-79.20 — Zahnrad (Spaltenauswahl) der Stückliste sichtbar (Bugfix v1.47.3).**
+  Vorbedingung: IDEAL-Testsystem, hierarchischer HauptFA mit Komm.-Ziel-Werten (z. B. FA 1035235),
+  Benutzer mit Picking-Zugriff.
+  Schritte und Erwartung **(Manual-UAT)**:
+  1. `/Picking/Bom` für den HauptFA öffnen, **ohne** aktiven Komm.-Ziel-Filter (ggf. vorher „Alle Filter
+     zurücksetzen"). Erwartung: Zahnrad-Button rechtsbündig direkt **oberhalb** der Tabelle sichtbar; Klick
+     öffnet die Spaltenauswahl (Offcanvas rechts), Spalten lassen sich ein-/ausblenden.
+  2. Komm.-Ziel-Filter auf ein Einzelziel setzen (Badge-Zeile erscheint). Erwartung: Zahnrad weiter oberhalb
+     der Tabelle, **unterhalb** der Badge-Zeile, nicht in ihr; Spaltenauswahl öffnet sich.
+  3. Leerzustand erzeugen: ein Ziel wählen, das in diesem FA keine Zeile hat, bzw. „Alle Ziele" bei einem FA
+     ohne kommissionier-relevante Positionen → gelber Hinweis „… ohne Treffer" erscheint. Erwartung: Zahnrad
+     steht **nicht** im gelben Hinweis, sondern darunter direkt über der Tabelle; Spaltenauswahl öffnet sich;
+     „Alle Filter zurücksetzen" im Hinweis funktioniert weiter.
+  4. F5. Erwartung: wie vor dem Neuladen, Zahnrad sichtbar.
+  Negativfall: Zahnrad fehlt oder erscheint nur zusammen mit dem gelben Hinweis → Regression (vor v1.47.3:
+  Zahnrad hing im versteckten `#bomKzEmptyState`). Automatisiert nur die Platzierung im Quelltext
+  (`BomZahnradHostTests`).
+
 **Hinweis (Out-of-Scope, manuell zu beachten statt zu testen):** Andere Picking/Bom-Einstiege für
 eine Sub-FA (z. B. der Zeilen-Link in der Kommissionierer-Warteschlange, `Articles/Info`,
 `PartRequisitions`, FA-Dokument-Links, das Select2-Auswahlfeld für Produktionsaufträge) enden am
