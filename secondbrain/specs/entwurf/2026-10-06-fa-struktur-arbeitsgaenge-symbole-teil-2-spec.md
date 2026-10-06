@@ -6,6 +6,8 @@ status: Entwurf
 created: 2026-10-06
 updated: 2026-10-06
 source_backlog: "[[2026-10-06-fa-struktur-arbeitsgaenge-symbole]]"
+anhaenge:
+  - "[[sage-fa-struktur-arbeitsschritte.png]]"
 depends_on: "[[2026-10-06-fa-struktur-arbeitsgaenge-symbole-teil-1-spec]]"
 task: ""
 worktree: ""
@@ -13,7 +15,8 @@ branch: ""
 affected_code:
   - "IdealAkeWms/Data/Repositories/IWorkOperationRepository.cs + WorkOperationRepository.cs — EINE gebuendelte Status-Abfrage fuer eine Menge WorkOperation-Ids (abgeschlossen = BdeBookingQuantity.IsFinal auf nicht stornierter Buchung, Praedikat wie BdeApiController.cs:252-256; ggf. IsReported je Rueckfrage 3; ggf. laufende Buchung je Rueckfrage 5)"
   - "IdealAkeWms/Models/ViewModels/FaHierarchyTreeViewModel.cs — WorkOperationSummary (Z.210) um Status erweitern; Ableitung offen/erledigt/ueberfaellig als reine, unit-testbare Funktion"
-  - "IdealAkeWms/Controllers/FaHierarchyController.cs — Status-Abfrage dort, wo Teil 1 die Arbeitsgaenge laedt (Variante A: Index Z.52-133; Variante B: WorkOperations Z.139-155); BDE-Aktiv-Gate je Rueckfrage 4 (IAppSettingRepository ist bereits injiziert, Z.29)"
+  - "IdealAkeWms/Controllers/FaHierarchyController.cs — Status-Abfrage dort, wo Teil 1 die Symbole laedt (Teil-1-Variante A: Index Z.52-133; Variante B: WorkOperations Z.139-155); BDE-Aktiv-Gate je Rueckfrage 4 (IAppSettingRepository ist bereits injiziert, Z.29); nur Teil-1-Quelle S: zusaetzlich die WorkOperations der angezeigten Strukturen laden (bei Variante A EINE gebuendelte Abfrage, Muster WorkOperationRepository.cs:120-128)"
+  - "IdealAkeWms/Models/ViewModels/FaHierarchyTreeViewModel.cs — nur Teil-1-Quelle S: Zuordnung Kuerzel -> WorkOperation als reine, unit-testbare Funktion (Schluessel OrderNumber == HauptFA, SubOrderNumber == SubFA bzw. VaterFA, OperationNumber == Kuerzel case-insensitiv; Regel je Rueckfrage 6)"
   - "IdealAkeWms/Views/FaHierarchy/_FaWorkOperationsModal.cshtml bzw. _FaHierarchyNode.cshtml — Statusdarstellung am Symbol aus Teil 1 (Form/Icon + Text + Farbe)"
   - "IdealAkeWms/wwwroot/css/site.css — Statusfarben mit WCAG-AA-Kontrast"
   - "IdealAkeWms.Tests — Status-Ableitung (Tabellentest), Repository-Abfrage (InMemory), ToQueryString-Test falls Contains ueber viele Ids"
@@ -24,6 +27,7 @@ open_questions:
   - "Was heisst 'erledigt' (gruen)? Am Code gibt es zwei getrennte Signale: das BDE-Terminal wertet eine Abschlussmeldung (BdeBookingQuantity.IsFinal auf nicht stornierter Buchung) aus, WorkOperation.IsReported setzt nur die manuelle Rueckmeldung im Tracking. Nur IsFinal, nur IsReported oder eines von beiden?"
   - "Was heisst 'bei aktivem BDE'? Globaler AppSetting-Schalter BdeAktiv oder je Werkbank ProductionWorkplace.BdeAktiv (oder beides)? Was zeigen die Symbole, wenn BDE nicht aktiv ist — neutral wie Teil 1?"
   - "Ein Arbeitsgang mit laufender (gestarteter, nicht abgeschlossener) Buchung: grau wie offen, oder ein eigener vierter Zustand 'laeuft'?"
+  - "Nur falls Teil 1 Rueckfrage 1 = S (Sage-Kuerzel): Zuordnung Kuerzel -> WorkOperation — Blattzeile ueber die Vater-Sub-FA, Sub-FA-Zeile ueber die eigene oder (Kuerzel doppelt erfasst) die des Vaters? Und welche Darstellung fuer Kuerzel ohne WorkOperation (unbekannt, ausgeschlossen, mehrdeutig, Auftrag erledigt/nicht materialisiert): neutral wie Teil 1, eigener Zustand 'nicht erfasst' oder ausblenden? WorkOperation ohne Kuerzel (Default-AG 01, in Sage entfernte Kuerzel): weglassen oder zusaetzlich zeigen?"
 epic: false
 etappen: []
 deploy:
@@ -44,7 +48,10 @@ freigabe_am: ""
 > Umsetzungszeitpunkt. `worktree`/`branch` setzt der Dev-Lauf.
 >
 > **Abhängigkeit:** setzt [[2026-10-06-fa-struktur-arbeitsgaenge-symbole-teil-1-spec]] voraus (die
-> Symbole, die hier eingefärbt werden). Wo die Status-Abfrage läuft, folgt aus Rückfrage 1 von Teil 1.
+> Symbole, die hier eingefärbt werden). Wo die Status-Abfrage läuft, folgt aus Rückfrage 2 von Teil 1
+> (Ort A/B); ob zusätzlich eine Zuordnung Kürzel → `WorkOperation` nötig ist, aus Rückfrage 1 von Teil 1
+> (Quelle S/W, siehe „Fachliche Anforderungen“ 8 und Rückfrage 6). Vorbild der Darstellung ist der
+> Sage-Screenshot im Anhang (Kürzel je Baumzeile in einer Spalte).
 
 ## Ziel / Nutzen (das Warum)
 
@@ -120,6 +127,27 @@ welche Arbeitsgänge fehlen oder hängen, ohne das BDE-Cockpit zu durchsuchen. S
    eine eigene Form/ein Icon **und** einen Text (sichtbar oder `aria-label`/visuell versteckt, nicht nur
    `title`, der an Touch-Terminals nicht erscheint). Kontrast WCAG AA (4,5:1 Text, 3:1 Konturen/Icons), auch
    bei Rot/Grün-Sehschwäche unterscheidbar. Die genaue Codierung legt Rückfrage 1 fest.
+8. **Status braucht eine `WorkOperation` — Folge von Teil 1 Rückfrage 1 (Quelle S/W).** Jede Statusquelle
+   oben hängt an einer `WorkOperation`: `BdeBookingQuantity.IsFinal` über `BdeBooking.WorkOperationId`
+   (`BdeApiController.cs:252-256`), `IsReported` an der `WorkOperation` selbst. Ein Sage-Kürzel aus
+   `FaHierarchyNode.Arbeitsschritte` hat keinen Status.
+   - *Quelle W:* Status direkt je angezeigter `WorkOperation`, keine Zuordnung nötig.
+   - *Quelle S:* Zuordnung Kürzel → `WorkOperation` nötig. Belegter Schlüssel: `WorkOperation` →
+     `ProductionOrder` (FK `ProductionOrderId`, `ApplicationDbContext.cs:807-810`), Knoten ↔ Auftrag über
+     `OrderNumber == HauptFA` und `SubOrderNumber == SubFA` (`FaHierarchyTreeViewModel.cs:171-176`), Kürzel
+     ↔ `OperationNumber` (= Token, `WorkOperationStructureDetectionService.cs:169`; Vergleich dort
+     case-insensitiv, `:80`, `:106`). Wegen des DirectChildren-Scopes (`:101-102`) gilt:
+     - Blattzeile (`SubFA = 0`): keine eigene `WorkOperation`; Kandidat ist die des **Vater**-Sub-FA
+       (`SubOrderNumber == VaterFA`).
+     - Sub-FA-Zeile: Kürzel der eigenen Zeile sind als eigene `WorkOperation` erfasst **und** — weil die Zeile
+       direktes Kind ihres Vaters ist — zusätzlich beim Vater-Sub-FA. Zwei Kandidaten mit eigenem Status.
+     - Kein Unique-Index auf (`ProductionOrderId`, `OperationNumber`) (`ApplicationDbContext.cs:804-805`);
+       Eindeutigkeit je Auftrag stellt nur die Erkennung sicher (`:151-163`). Der Default-AG `"01"`
+       (`BdeDefaultWorkOperationService.cs:27-40`) hat kein Kürzel und taucht unter S nicht auf.
+     - Kürzel ohne `WorkOperation`: unbekannt (`:129-132`), ausgeschlossen (`:116`), mehrdeutig (`:120-124`),
+       oder Auftrag beim Erkennungslauf erledigt/storniert/fertig kommissioniert bzw. nicht materialisiert
+       (`:142-145`). Dafür braucht es eine eigene Darstellung — Rückfrage 6, die Spec legt sie nicht fest.
+   - Diese Punkte entfallen, wenn Teil 1 Quelle W wählt.
 
 ## Technischer Loesungsentwurf
 
@@ -136,6 +164,11 @@ welche Arbeitsgänge fehlen oder hängen, ohne das BDE-Cockpit zu durchsuchen. S
   OrderInfos, `FaHierarchyController.cs:148` — dort ist der Kopf der einen HauptFA nachzuladen, z. B. über
   das vorhandene `IFaHierarchyOrderInfoRepository`, `:27`).
 - Statusableitung als reine Funktion (Eingaben: erledigt?, läuft?, Termin, heute) → Tabellentest.
+- Nur Teil-1-Quelle S: vor der Status-Abfrage die `WorkOperation`s der angezeigten Strukturen laden
+  (Variante A: **eine** gebündelte Abfrage über die HauptFA-Nummern, Muster `WorkOperationRepository.cs:120-128`;
+  Variante B: vorhandenes `GetByOrderNumberWithWorkplaceAsync`, `FaHierarchyController.cs:152`) und je
+  Knotenzeile + Kürzel per Zuordnungsfunktion (FA 8, Regel aus Rückfrage 6) auflösen. Die Status-Abfrage
+  bleibt dieselbe, nur über die aufgelösten Ids.
 - Variante A (Baum): Contains über viele Ids → EF 10 `OPENJSON` mit einem Parameter
   ([[fallstricke]] §8), per ToQueryString-Test belegen.
 - **frontend-design-Skill ist im Dev-Lauf Pflicht** (Views/CSS). Bootstrap-5-Farben/Icons der Anwendung,
@@ -182,6 +215,14 @@ Teil 1 (keine weitere Registrierung); ein Statusfilter in der Filterzeile wäre 
 10. Status-Ableitung durch Tabellentest abgedeckt (erledigt vor überfällig; Termin heute = nicht überfällig;
     Termin `null`; Kombigerät-Regel aus Rückfrage 2).
 
+Nur falls Teil 1 Quelle S (Sage-Kürzel):
+11. Zuordnung Kürzel → `WorkOperation` durch Unit-Test abgedeckt: Blattzeile → Vater-Sub-FA; Sub-FA-Zeile →
+    gemäß Rückfrage 6; Groß-/Kleinschreibung egal; fremde HauptFA mit gleicher Sub-FA-Nummer trifft nicht.
+12. Kürzel ohne `WorkOperation` (z. B. ein Kürzel der Ausschlussliste oder ein unbekanntes) wird nach der
+    Regel aus Rückfrage 6 dargestellt — nie grün, nie rot, ohne Fehler.
+13. Weiterhin genau **eine** zusätzliche Status-Abfrage plus höchstens **eine** `WorkOperation`-Abfrage je
+    Ladevorgang (Query-Zählung).
+
 ## Test-Szenarien
 
 Neues Kapitel in `docs/TESTSZENARIEN.md` (Nummer: nächste freie zum Umsetzungszeitpunkt), Index nachziehen.
@@ -196,6 +237,9 @@ Neues Kapitel in `docs/TESTSZENARIEN.md` (Nummer: nächste freie zum Umsetzungsz
 - **S5 Laufend:** AG gestartet, nicht beendet → Darstellung laut Rückfrage 5.
 - **S6 BDE aus:** BDE deaktivieren → neutrale Symbole.
 - **S7 Barrierefreiheit:** Graustufen-Ansicht + Screenreader + Kontrastmessung am Fertigungsterminal.
+- **S8 (nur Quelle S) Kürzel ↔ Arbeitsgang:** Blattzeile mit Kürzel `KA`, deren Vater-Sub-FA den AG `KA`
+  am Terminal abgeschlossen hat → Symbol nach Regel aus Rückfrage 6 (erwartet grün, falls Blatt → Vater gilt);
+  Kürzel ohne Werkbank (P-K2 b in Teil 1, `Werkbaenke = 0`) → Darstellung „nicht erfasst“ laut Rückfrage 6.
 - **Negativ:** Kombigerät mit abweichenden Terminen → Verhalten laut Rückfrage 2; Struktur ohne Kopfdaten
   (`FaHierarchyOrderInfo` fehlt) → nie überfällig, kein Fehler.
 
@@ -269,6 +313,17 @@ dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWM
    `BdeAktiv` der Werkbank des Arbeitsgangs, oder beides? Und: neutrale Symbole bei BDE aus — richtig?
 5. **Laufende Buchung** (neu, aus dem Code-Befund): grau wie „offen“ oder ein vierter Zustand „läuft“
    (eigene Form/Text)?
+6. **Nur falls Teil 1 Rückfrage 1 = S (Sage-Kürzel): Zuordnung Kürzel → `WorkOperation`** (neu, aus dem
+   Sage-Vorbild; Befund „Fachliche Anforderungen“ 8). Status gibt es nur über `WorkOperation`
+   (`IsFinal`/`IsReported`). Zu entscheiden:
+   - a) Welche `WorkOperation` gilt für ein Kürzel an einer **Sub-FA-Zeile** — die eigene (Sub-FA der Zeile)
+     oder die beim Vater erfasste (DirectChildren-Scope)? Für **Blattzeilen** gibt es nur den Vater.
+   - b) Darstellung für Kürzel **ohne** `WorkOperation` (unbekannt, ausgeschlossen, mehrdeutig, Auftrag
+     erledigt/nicht materialisiert): neutral wie Teil 1, eigener Zustand „nicht erfasst“ (eigene Form + Text),
+     oder ausblenden?
+   - c) `WorkOperation` **ohne** Kürzel (Default-AG `01`, in Sage nachträglich entfernte Kürzel): weglassen
+     oder zusätzlich als Symbol zeigen?
+   Entfällt bei Quelle W.
 
 ## Freigabe-Antworten (Mensch fuellt aus — Schranke 1)
 
@@ -285,3 +340,4 @@ dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWM
 3. Erledigt — IsFinal (BDE), IsReported (Tracking) oder eines von beiden? →
 4. BDE aktiv — globaler Schalter, Werkbank-Schalter oder beides; neutral bei BDE aus? →
 5. Laufende Buchung — grau oder eigener Zustand „läuft“? →
+6. Nur bei Teil-1-Quelle S: Zuordnung Kürzel → WorkOperation (Sub-FA-Zeile eigene oder Vater), Darstellung Kürzel ohne WorkOperation (neutral / „nicht erfasst“ / ausblenden), WorkOperation ohne Kürzel (weglassen / zeigen)? →
