@@ -28,13 +28,15 @@ ungeprüft (Prüfschritt P-K1 in Teil 1).
 
 | # | Teil | Zweck | depends_on | Offene Rückfragen |
 |---|------|-------|------------|-------------------|
-| 1 | [[2026-10-06-fa-struktur-arbeitsgaenge-symbole-teil-1-spec]] | Arbeitsgänge als Symbole statt Zeilen, reine Anzeige ohne Status | – | 3 |
-| 2 | [[2026-10-06-fa-struktur-arbeitsgaenge-symbole-teil-2-spec]] | Status-Farben grün/grau/rot bei aktivem BDE, nie Farbe allein | Teil 1 | 6 |
+| 1 | [[2026-10-06-fa-struktur-arbeitsgaenge-symbole-teil-1-spec]] | Arbeitsgänge als Symbole statt Zeilen, reine Anzeige ohne Status | – | 2 (Nr. 2, 3; Nr. 1 beantwortet) |
+| 2 | [[2026-10-06-fa-struktur-arbeitsgaenge-symbole-teil-2-spec]] | Status-Farben grün/grau/rot bei aktivem BDE, nie Farbe allein | Teil 1 | 6 (Nr. 1-5, neu Nr. 7 Widersprüche Antwort 6 ↔ Code; Nr. 6 beantwortet) |
 | 3 | [[2026-10-06-fa-struktur-arbeitsgaenge-symbole-teil-3-spec]] | Vorbereitung BDE-Auftragsanzeige — **Platzhalter**, erst nach Antworten spezifizieren | Teil 1 (ggf. Teil 2) | 5 |
 
 ## Querschnitt
 
-- **Rückfrage 1 von Teil 1 (Quelle: Sage-Kürzel S oder erkannte `WorkOperation` W) prägt Teil 2:** Status
+- **Entschieden: S** (Teil 1 Antwort 1, Gerald 2026-10-06 — Anzeige aus Sage-Kürzeln, Status aus W; Zuordnung
+  in Teil 2 Antwort 6, dort mit vier dokumentierten Widersprüchen zum Erkennungs-Code, Teil-2-Rückfrage 7).
+  Ursprünglicher Text: **Rückfrage 1 von Teil 1 (Quelle: Sage-Kürzel S oder erkannte `WorkOperation` W) prägt Teil 2:** Status
   gibt es nur über `WorkOperation`. Bei S braucht Teil 2 eine Zuordnung Kürzel → `WorkOperation` (Blätter und
   Kinder-Kürzel landen per DirectChildren-Scope beim Vater-Sub-FA) und eine Regel für Kürzel ohne
   `WorkOperation` (Teil 2 Rückfrage 6). Bei W entfällt das, die Zeile weicht aber vom Sage-Bild ab.
