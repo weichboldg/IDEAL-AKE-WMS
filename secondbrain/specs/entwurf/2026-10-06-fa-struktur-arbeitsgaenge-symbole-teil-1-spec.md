@@ -13,20 +13,22 @@ task: ""
 worktree: ""
 branch: ""
 affected_code:
-  - "IdealAkeWms/Views/FaHierarchy/_FaWorkOperationsModal.cshtml — heute je AG eine Tabellenzeile (Z.49-62: Kürzel-Badge Z.58, Werkbank Z.59, Sage-Nr. Z.60); Variante B: je Sub-FA EINE Zeile mit einer Symbolreihe statt n Zeilen"
-  - "IdealAkeWms/Views/FaHierarchy/_FaHierarchyNode.cshtml — nur Variante A: neue Zelle mit Symbolreihe je Knotenzeile (Zeile Z.55-108, Spalten mit data-col-key Z.72-107); bei Quelle S aus n.Arbeitsschritte des Knotens (Feld ist schon geladen), bei Quelle W aus den Arbeitsgaengen des Knotens"
+  - "Quelle S entschieden (Antwort 1, 2026-10-06): Symbole = Kuerzel aus FaHierarchyNode.Arbeitsschritte je Baumzeile, Ausschlussliste NICHT gefiltert. Alle Quelle-W-Pfade der Anzeige sind verworfen (unten als VERWORFEN markiert); den Status liefert W erst in Teil 2."
+  - "IdealAkeWms/Views/FaHierarchy/_FaWorkOperationsModal.cshtml — heute je AG eine Tabellenzeile (Z.49-62: Kürzel-Badge Z.58, Werkbank Z.59, Sage-Nr. Z.60); Variante B: je Knoten EINE Zeile mit Symbolreihe aus den Knoten-Kuerzeln (Quelle S)"
+  - "IdealAkeWms/Views/FaHierarchy/_FaHierarchyNode.cshtml — nur Variante A: neue Zelle mit Symbolreihe je Knotenzeile (Zeile Z.55-108, Spalten mit data-col-key Z.72-107) aus n.Arbeitsschritte des Knotens (Feld ist schon geladen). VERWORFEN (Antwort 1): Symbole aus den Arbeitsgaengen des Knotens (Quelle W)"
   - "IdealAkeWms/Views/FaHierarchy/Index.cshtml — nur Variante A: neue <th data-col-key> in Kopf- und Filterzeile (Z.105-126), colspan 8 -> 9 (Z.133, Z.204), column-config-JSON (ab Z.282)"
   - "IdealAkeWms/Models/ViewModels/ColumnDefinitions.cs — nur Variante A: neue Spalte in ViewConfig FaHierarchyStructure (Z.450)"
-  - "IdealAkeWms/Controllers/FaHierarchyController.cs — nur Variante A + Quelle W: Index (Z.52-133) laedt die Arbeitsgaenge der Seite gebuendelt (heute nur Existenz-Check Z.91-95); Variante A + Quelle S: keine AG-Abfrage, ggf. EIN Katalog-Lookup Kuerzel -> Werkbank-Name; Variante B: WorkOperations (Z.139-155) unveraendert (Quelle W) bzw. Knoten-Kuerzel statt AG (Quelle S)"
-  - "IdealAkeWms/Data/Repositories/IWorkOperationRepository.cs + WorkOperationRepository.cs — nur Variante A + Quelle W: EINE neue Projektion fuer viele HauptFAs (Muster OrderNumbersWithWorkOperationsQuery Z.120-128, Contains -> OPENJSON)"
-  - "IdealAkeWms/Models/ViewModels/FaHierarchyTreeViewModel.cs — Quelle W: WorkOperationSummary (Z.210) wird Datenquelle der Symbole, bei Variante A Arbeitsgaenge je FaHierarchyTreeNode; Quelle S: Tokenisierung von FaHierarchyNode.Arbeitsschritte als reine, unit-testbare Funktion (gleiche Regel wie WorkOperationStructureDetectionService.cs:33/:110-111)"
+  - "IdealAkeWms/Controllers/FaHierarchyController.cs — Variante A: keine AG-Abfrage, ggf. EIN Katalog-Lookup Kuerzel -> Werkbank-Name; Variante B: WorkOperations-Endpunkt (Z.139-155) liefert Knoten-Kuerzel statt AG. VERWORFEN (Antwort 1): gebuendelte AG-Abfrage im Index (Quelle W)"
+  - "VERWORFEN (Antwort 1): IdealAkeWms/Data/Repositories/IWorkOperationRepository.cs + WorkOperationRepository.cs — neue AG-Projektion fuer viele HauptFAs war nur fuer Quelle W noetig; Teil 1 aendert das Repository nicht (eine AG-Abfrage fuer den Status plant Teil 2)"
+  - "IdealAkeWms/Models/ViewModels/FaHierarchyTreeViewModel.cs — Tokenisierung von FaHierarchyNode.Arbeitsschritte als reine, unit-testbare Funktion (gleiche Regel wie WorkOperationStructureDetectionService.cs:33/:110-111); Variante B: FaWorkOperationsViewModel.Create (Z.168-199) auf Knoten-Kuerzel umstellen. VERWORFEN (Antwort 1): WorkOperationSummary (Z.210) als Datenquelle der Symbole"
   - "IdealAkeWms/Models/FaHierarchyNode.cs — nur lesen: Arbeitsschritte (Z.41), Arbeitsbereich (Z.40); keine Modellaenderung"
   - "IdealAkeWms/wwwroot/css/site.css — Symbol-Stil (Kontrast WCAG AA), falls Bootstrap-Badges nicht reichen"
   - "docs/TESTSZENARIEN.md + secondbrain/tests/testszenarien-index.md — TS-Kapitel naechste freie Nummer zum Umsetzungszeitpunkt"
+beantwortete_rueckfragen:
+  - "1 Symbol-Quelle -> S fuer die Anzeige (FaHierarchyNode.Arbeitsschritte je Baumzeile, 1:1 wie Sage, auch an Blaettern), W (WorkOperation) liefert den Status in Teil 2; Ausschlussliste in der Anzeige NICHT filtern (Gerald 2026-10-06, Freigabe-Block Nr. 1)"
 open_questions:
-  - "Symbol-Quelle: Zeigen die Symbole S die Sage-Kuerzel aus FaHierarchyNode.Arbeitsschritte (Models/FaHierarchyNode.cs:41, je Baumzeile wie im Sage-Screenshot, auch an Blaettern) oder W die im WMS erkannten WorkOperation-Eintraege (nur materialisierte Sub-FAs, Kuerzel der direkten Kinder eingerechnet, ohne unbekannte/ausgeschlossene/mehrdeutige Kuerzel, dazu ggf. Default-AG 01)? Folge fuer Teil 2: nur W traegt direkt einen Status; S braucht dort eine Zuordnung Kuerzel -> WorkOperation."
-  - "Wo erscheinen die Symbole: A direkt in den Baumzeilen je (Sub-)FA (widerspricht der v1.45-Freigabe 'Inhalt erst beim Oeffnen laden', braucht gebuendelte Abfrage je Seite, kein N+1) oder B im bestehenden Modal? Bei A: bleibt das Modal wie v1.45, wird es ebenfalls auf Symbole umgestellt, oder entfaellt es?"
-  - "Was zeigt ein Symbol: Kuerzel (OperationNumber) bzw. Werkbank-Nummer, Name im Tooltip (Empfehlung der Notiz)? Welches der beiden Kuerzel steht sichtbar im Symbol?"
+  - "(Freigabe-Block Nr. 2) Wo erscheinen die Symbole: A direkt in den Baumzeilen je (Sub-)FA (widerspricht der v1.45-Freigabe 'Inhalt erst beim Oeffnen laden', braucht gebuendelte Abfrage je Seite, kein N+1) oder B im bestehenden Modal? Bei A: bleibt das Modal wie v1.45, wird es ebenfalls auf Symbole umgestellt, oder entfaellt es?"
+  - "(Freigabe-Block Nr. 3) Was zeigt ein Symbol: Kuerzel (OperationNumber) bzw. Werkbank-Nummer, Name im Tooltip (Empfehlung der Notiz)? Welches der beiden Kuerzel steht sichtbar im Symbol? (Mit Quelle S ist der sichtbare Text das Sage-Kuerzel; offen bleibt v. a. der Namensweg auf Touch.)"
 epic: false
 etappen: []
 deploy:
@@ -53,6 +55,12 @@ Tabellenzeilen (Anforderung Gerald, [[2026-10-06-fa-struktur-arbeitsgaenge-symbo
 Darstellungsgrundlage, auf die Teil 2 (Status-Farben) und Teil 3 (BDE-Auftragsanzeige) aufsetzen.
 Standort: **IDEAL** — die angezeigten Arbeitsgänge legt die Struktur-Erkennung aus v1.44.0 an
 ([[2026-09-21-ideal-bde-arbeitsgaenge-aus-struktur-spec]]), die FA-Struktur liest die IDEAL-Sage-Views.
+
+**Entschieden (Antwort 1, Gerald 2026-10-06): Quelle S.** Die Symbole zeigen die Sage-Kürzel aus
+`FaHierarchyNode.Arbeitsschritte` (`Models/FaHierarchyNode.cs:41`) je Baumzeile, 1:1 wie Sage, auch an
+Blättern; Kürzel der Ausschlussliste werden **nicht** herausgefiltert. Den Status (Teil 2) liefert W: die
+`WorkOperation` des zuständigen Sub-FA mit `BdeBookingQuantity.IsFinal` (Zuordnungsregel: Antwort 6 in
+[[2026-10-06-fa-struktur-arbeitsgaenge-symbole-teil-2-spec]]). Teil 1 liest **keine** `WorkOperation`.
 
 **Vorbild aus Sage** (Anhang der Notiz, Screenshot Gerald 2026-10-06, für diesen Lauf lesbar):
 
@@ -81,13 +89,16 @@ Gleichheit, ist der Abteilungs-Teil des Vorbilds im Baum bereits umgesetzt; Teil
 ## Umfang (In-Scope / Out-of-Scope)
 
 **In-Scope**
-- Arbeitsgänge als Symbole statt als Zeilen — aus der in Rückfrage 1 gewählten Quelle (S: Sage-Kürzel je
-  Baumzeile wie im Vorbild, W: erkannte `WorkOperation` je Sub-FA), am in Rückfrage 2 gewählten Ort.
+- Arbeitsgänge als Symbole statt als Zeilen — Quelle S (Sage-Kürzel je Baumzeile wie im Vorbild,
+  Antwort 1), am in Rückfrage 2 (Freigabe-Block Nr. 2) gewählten Ort. ~~W: erkannte `WorkOperation` je
+  Sub-FA~~ — verworfen (Antwort 1, 2026-10-06).
 - Reine Anzeige: alle Symbole **einheitlich neutral**, kein Status.
 - Leitplanke aus Notiz-Punkt 3 (siehe „Fachliche Anforderungen“ 4).
 
 **Out-of-Scope**
-- Jeder Status (erledigt/offen/überfällig) und jede Statusfarbe → Teil 2.
+- Jeder Status (erledigt/offen/überfällig) und jede Statusfarbe → Teil 2 (dort aus W:
+  `WorkOperation`/`BdeBookingQuantity.IsFinal`).
+- Jedes Lesen von `WorkOperation` für die Symbole (Quelle W verworfen, Antwort 1).
 - BDE-Terminal, BDE-Auftragsanzeige → Teil 3.
 - Änderungen an Struktur-Erkennung, `WorkOperation`-Anlage, Sync, Datenmodell.
 - Zählzeile, Lückenanzeige „— kein Arbeitsgang“ und Warnung `UnmatchedOperations` aus v1.45 bleiben
@@ -96,18 +107,20 @@ Gleichheit, ist der Abteilungs-Teil des Vorbilds im Baum bereits umgesetzt; Teil
 
 ## Fachliche Anforderungen
 
-1. **Datenquelle — offen, Rückfrage 1.** (Bis zur Rework-Fassung 2026-10-06 stand hier „unverändert
-   `WorkOperation`“ — **überholt**, seit das Sage-Vorbild Kürzel je Baumzeile zeigt.)
-   - **Quelle W — erkannte `WorkOperation`:** je materialisiertem Knoten, Zuordnung Knoten → AG über
+1. **Datenquelle — entschieden: Quelle S (Antwort 1, 2026-10-06).** (Bis zur Rework-Fassung 2026-10-06 stand
+   hier „unverändert `WorkOperation`“, danach „offen, Rückfrage 1“ — beides **überholt**.)
+   - ~~**Quelle W — erkannte `WorkOperation`:** je materialisiertem Knoten, Zuordnung Knoten → AG über
      `SubFA == ProductionOrder.SubOrderNumber` und `OrderNumber == HauptFA`
      (`FaWorkOperationsViewModel.Create`, `FaHierarchyTreeViewModel.cs:168-199`). Reihenfolge der Symbole =
-     `Sequence` (dort Z.177).
-   - **Quelle S — Sage-Kürzel des Knotens:** `FaHierarchyNode.Arbeitsschritte` (`FaHierarchyNode.cs:41`)
+     `Sequence` (dort Z.177).~~ — **verworfen für die Anzeige (Antwort 1, 2026-10-06)**; W liefert nur den
+     Status in Teil 2.
+   - **Quelle S — Sage-Kürzel des Knotens (gilt):** `FaHierarchyNode.Arbeitsschritte` (`FaHierarchyNode.cs:41`)
      der Zeile selbst, tokenisiert wie die Erkennung (nur Leerzeichen, leere Teile weg, getrimmt —
      `WorkOperationStructureDetectionService.cs:33`, `:110-111`), Reihenfolge wie im Feld. Das Feld ist im
      Index bereits für **alle** Knoten geladen (`FaHierarchyController.cs:67`, `GetAllAsync` liefert ganze
      Entitäten, `FaHierarchyNodeRepository.cs:28-32`) — keine zusätzliche Abfrage für die Kürzel selbst.
-   - **Befund: Wie aus `Arbeitsschritte` eine `WorkOperation` wird** (Bündel,
+   - **Befund: Wie aus `Arbeitsschritte` eine `WorkOperation` wird** (bleibt als Grundlage für Teil 2 stehen;
+     für die Anzeige in Teil 1 nicht mehr umzusetzen; Bündel,
      `IDEALAKEWMSService/Services/WorkOperationStructureDetectionService.cs`):
      - Nur Knoten mit `SubFA != 0` erzeugen Arbeitsgänge (`:98`). **DirectChildren-Scope:** eigene Zeile
        **plus** alle direkten Kinder (`VaterFA == SubFA`) (`:73-76`, `:101-102`).
@@ -134,10 +147,17 @@ Gleichheit, ist der Abteilungs-Teil des Vorbilds im Baum bereits umgesetzt; Teil
        `G-KT-Korpus-1320-660-760-…` zeigt in Sage nur `PG`; unter W stünden dort `PG` plus die Kürzel seiner
        direkten Kinder (`LS`, `EG`, `KA`, `SW`, `VM` …, abzüglich ausgeschlossener/unbekannter).
      - *`WorkOperation` ohne Kürzel:* Default-AG `"01"`; Kürzel, die in Sage nachträglich entfernt wurden.
-     - Quelle S zeigt damit das Sage-Bild 1:1, Quelle W das, was BDE/Tracking kennen.
-2. **Symbol-Inhalt** gemäß Rückfrage 3. Bei Quelle S ist der sichtbare Text das Sage-Kürzel selbst; ein Name
-   ist nur über den Werkbank-Katalog (`ProductionWorkplace.ArbeitsschrittCode` → `Name`, wie `:80-88`)
-   auffindbar und fehlt bei unbekannten/ausgeschlossenen Kürzeln. Belegt am Code, was die Felder bei Quelle W
+     - Quelle S zeigt damit das Sage-Bild 1:1, Quelle W das, was BDE/Tracking kennen. Antwort 1 hält fest
+       „W und S sollen ja gleich sein“: W wird aus denselben Kürzeln erzeugt; **auf Zeilenebene** sind die
+       Mengen laut obigem Befund aber nicht gleich. Die Brücke Kürzel → `WorkOperation` ist Sache von Teil 2
+       (Antwort 6 dort, inkl. der dort dokumentierten Widersprüche zum Erkennungs-Scope).
+   - **Ausschlussliste:** Kürzel auf `Sync:ProductionWorkplaceSyncAusschlussliste` (z. B. `STO`, `XXX`)
+     werden in der Anzeige **nicht** gefiltert — sie erscheinen wie jedes andere Kürzel (Antwort 1). Teil 1
+     liest den Service-Key daher gar nicht.
+2. **Symbol-Inhalt** gemäß Rückfrage 3 (Freigabe-Block Nr. 3). Mit Quelle S ist der sichtbare Text das
+   Sage-Kürzel selbst; ein Name ist nur über den Werkbank-Katalog (`ProductionWorkplace.ArbeitsschrittCode` →
+   `Name`, wie `:80-88`) auffindbar und fehlt bei unbekannten/ausgeschlossenen Kürzeln. *Nur noch zur
+   Information (Quelle W verworfen, Antwort 1 — relevant für Teil 2):* was die Felder einer `WorkOperation`
    enthalten:
    - `OperationNumber` = Struktur-Kürzel (z. B. `KA`), gesetzt beim Anlegen durch
      `IDEALAKEWMSService/Services/WorkOperationStructureDetectionService.cs:169` (`OperationNumber = token`).
@@ -147,16 +167,16 @@ Gleichheit, ist der Abteilungs-Teil des Vorbilds im Baum bereits umgesetzt; Teil
      (`WorkOperationStructureDetectionService.cs:170`, `Name = val.Wp.Name`).
    - Werkbank-Nummer = `ProductionWorkplace.SageArbeitsplatznummer`, live über die FK
      (`WorkOperationSummary`, `FaHierarchyTreeViewModel.cs:210`; heute im Modal Z.60).
-3. Knoten ohne Arbeitsgang bleiben sichtbar mit Strich (Antwort 3 der v1.45-Freigabe). Bei Quelle S
+3. Knoten ohne Arbeitsgang bleiben sichtbar mit Strich (Antwort 3 der v1.45-Freigabe). Mit Quelle S
    heißt das: Knoten mit leerem `Arbeitsschritte` (im Vorbild z. B. die Wurzel).
-4. **Leitplanken (verbindlich, unabhängig von Rückfrage 1–3):**
+4. **Leitplanken (verbindlich, unabhängig von Rückfrage 2–3):**
    - Symbol-Inhalt ist **Text** (Kürzel), nicht nur Form oder Farbe. Farbe trägt in Teil 1 keine Bedeutung.
    - Kontrast WCAG AA: 4,5:1 für den Symboltext, 3:1 für die Symbolkontur gegen den Zeilenhintergrund
      (auch gegen Hover-/Hervorhebungsfarben der Baumzeile).
    - Der Name ist **nicht nur per `title`-Tooltip** erreichbar: `title` erscheint an Touch-Terminals der
      Fertigung nicht. Zusätzlich `aria-label` bzw. visuell versteckter Text je Symbol; wo der Name
-     sichtbar gebraucht wird, entscheidet Rückfrage 3. Bei Quelle S ohne Werkbank-Treffer: Kürzel als
-     `aria-label`-Text, kein erfundener Name.
+     sichtbar gebraucht wird, entscheidet Rückfrage 3. Ohne Werkbank-Treffer (unbekanntes oder
+     ausgeschlossenes Kürzel): Kürzel als `aria-label`-Text, kein erfundener Name.
    - Die Symbolreihe bricht um statt die Zeile horizontal zu sprengen.
 
 ## Technischer Loesungsentwurf
@@ -165,28 +185,34 @@ Muster: bestehende Badge-Darstellung des Kürzels (`_FaWorkOperationsModal.cshtm
 `badge bg-secondary`), Typ-Icons mit Form + Farbe + `title`/`aria-label` (`_FaHierarchyNode.cshtml:27-53`,
 `:85-88`). Keine neue UI-Bibliothek. **frontend-design-Skill ist im Dev-Lauf Pflicht** (Views/CSS).
 
-Rückfrage 1 (Quelle S/W) und Rückfrage 2 (Ort A/B) sind offen; alle Kombinationen werden skizziert,
-**keine** ist gewählt. Die Varianten A/B unten beschreiben den Ort; wie die Quelle sie verändert:
+Quelle ist entschieden: **S** (Antwort 1). Offen ist nur noch der Ort (Rückfrage 2, Freigabe-Block Nr. 2);
+beide Varianten werden skizziert, **keine** ist gewählt:
 
-| | Quelle S (Sage-Kürzel `Arbeitsschritte`) | Quelle W (`WorkOperation`) |
-|---|---|---|
-| **Variante A (Baum)** | Kürzel je Zeile **inkl. Blätter**, wie Sage. Keine AG-Abfrage — Feld ist geladen (`FaHierarchyController.cs:67`); für Namen höchstens **ein** Katalog-Lookup `ArbeitsschrittCode → Name` je Seitenaufbau. HTML-Wachstum (Kollision v1.45, unten) bleibt. | Symbole nur an materialisierten Knoten (`SubFA != 0`), inkl. Kürzel der direkten Kinder. Eine gebündelte AG-Abfrage je Seite (unten). |
-| **Variante B (Modal)** | Das Modal listet heute nur Wurzel und Sub-FAs (`FaHierarchyTreeViewModel.cs:185`); Kürzel der Blätter fehlten dort — Modal müsste alle Knoten listen oder Blätter weglassen (weitere Festlegung). | Wie bisher skizziert, kleinster Diff. |
+| | Quelle S (Sage-Kürzel `Arbeitsschritte`) — gilt |
+|---|---|
+| **Variante A (Baum)** | Kürzel je Zeile **inkl. Blätter**, wie Sage. Keine AG-Abfrage — Feld ist geladen (`FaHierarchyController.cs:67`); für Namen höchstens **ein** Katalog-Lookup `ArbeitsschrittCode → Name` je Seitenaufbau. HTML-Wachstum (Kollision v1.45, unten) bleibt. |
+| **Variante B (Modal)** | Das Modal listet heute nur Wurzel und Sub-FAs (`FaHierarchyTreeViewModel.cs:185`); Kürzel der Blätter fehlten dort — Modal müsste alle Knoten listen oder Blätter weglassen (weitere Festlegung, gehört zu Rückfrage 2). |
 
-**Variante A — Symbole direkt in den Baumzeilen** (Datenteil unten gilt für Quelle W)
+> [!failure]- Verworfen (Antwort 1, 2026-10-06): Spalte „Quelle W (`WorkOperation`)“
+> - ~~Variante A + W: Symbole nur an materialisierten Knoten (`SubFA != 0`), inkl. Kürzel der direkten
+>   Kinder. Eine gebündelte AG-Abfrage je Seite.~~
+> - ~~Variante B + W: wie bisher skizziert, kleinster Diff.~~
+
+**Variante A — Symbole direkt in den Baumzeilen**
 - Neue Spalte „Arbeitsgänge“ in der Tree-Table. Pflichten der bestehenden Baumtabelle:
   `<th data-col-key>` in Kopf- und Filterzeile (`Index.cshtml:105-126`), `colspan="8"` → 9 an den
   Struktur-Kopfzeilen (`Index.cshtml:133`, `:204`), Registrierung in `ColumnDefinitions.FaHierarchyStructure`
   (`ColumnDefinitions.cs:450`, sonst Prefs-API 400 — [[fallstricke]] §3 „Neuer viewKey ohne
   `ColumnDefinitions`-Registrierung“), Eintrag im column-config-JSON (`Index.cshtml:282ff`), optional
   `data-f-<key>` für den Baum-Spaltenfilter (`_FaHierarchyNode.cshtml:60-67`).
-- Daten: **eine** gebündelte Abfrage je Seitenaufbau über die HauptFA-Nummern der sichtbaren Strukturen,
-  schlanke Projektion (`OrderNumber`, `SubOrderNumber`, `OperationNumber`, `Name`, `Sequence`,
-  `SageArbeitsplatznummer`) — **kein N+1** je Struktur oder Knoten. Muster:
-  `OrderNumbersWithWorkOperationsQuery` (`WorkOperationRepository.cs:120-128`); EF 10 übersetzt das
-  `Contains` zu **einem** `OPENJSON`-Parameter ([[fallstricke]] §8 „`Contains` über eine lange Liste“).
-  Sie kann den heutigen Existenz-Check (`FaHierarchyController.cs:91-95`) ersetzen, weil
-  `HasWorkOperations` daraus ableitbar ist.
+- Daten (Quelle S): `n.Arbeitsschritte` je Knoten ist bereits geladen (`FaHierarchyController.cs:67`) —
+  **keine** AG-Abfrage; Tokenisierung in der reinen Funktion; für den Namen höchstens **ein** Katalog-Lookup
+  `ArbeitsschrittCode → Name` je Seitenaufbau (kein N+1). Der Existenz-Check `HasWorkOperations`
+  (`FaHierarchyController.cs:91-95`) bleibt unverändert.
+- ~~Daten (Quelle W): **eine** gebündelte AG-Abfrage je Seitenaufbau über die HauptFA-Nummern, Projektion
+  (`OrderNumber`, `SubOrderNumber`, `OperationNumber`, `Name`, `Sequence`, `SageArbeitsplatznummer`), Muster
+  `WorkOperationRepository.cs:120-128`, `Contains` → `OPENJSON`; ersetzt den Existenz-Check.~~ —
+  **verworfen (Antwort 1, 2026-10-06)**. Eine gebündelte AG-Abfrage plant erst Teil 2 für den Status.
 - **Kollision mit v1.45 (zu benennen, nicht zu verschweigen):** Die Freigabe von
   [[2026-09-23-fa-struktur-arbeitsgaenge-anzeige-spec]] lautet „Inhalt wird erst beim Öffnen geladen,
   Seitenaufbau nur schlanker Existenz-Check“. Grund dort: das Seiten-HTML wächst sonst mit der
@@ -195,25 +221,27 @@ Rückfrage 1 (Quelle S/W) und Rückfrage 2 (Ort A/B) sind offen; alle Kombinatio
   (`_FaHierarchyNode.cshtml:68`, `display:none`, aber im HTML). Variante A **hebt diese Freigabe auf**;
   das muss Rückfrage 2 ausdrücklich so entscheiden. Mögliche Begrenzung (nur falls A gewählt):
   Symbole nur bis zu einer Seitengröße, darüber Hinweis — wäre eine weitere Festlegung.
-- Erfordert (Quelle W) Index-Umbau, Repository-Methode, ViewModel-Feld je Knoten, Spalten-Registrierung,
-  Unit-Test der Zuordnung und ToQueryString-Test des `Contains`. Quelle S: View-Zelle, Tokenisierungs-
-  Funktion mit Unit-Test, Spalten-Registrierung; ggf. Katalog-Lookup für Namen.
+- Erfordert: View-Zelle, Tokenisierungs-Funktion mit Unit-Test, Spalten-Registrierung; ggf.
+  Katalog-Lookup für Namen. ~~(Quelle W) Index-Umbau, Repository-Methode, ViewModel-Feld je Knoten,
+  ToQueryString-Test des `Contains`~~ — verworfen (Antwort 1).
 
 **Variante B — Symbole im bestehenden Modal**
 - `_FaWorkOperationsModal.cshtml`: je Knoten **eine** Zeile; die Spalten „Kürzel/Werkbank/Sage-Nr.“
-  (Z.25-27) werden zu einer Spalte „Arbeitsgänge“ mit Symbolreihe. Zählzeile, Strich-Zeilen, Warnung
-  `UnmatchedOperations` bleiben.
-- Laden unverändert (v1.45-Freigabe bleibt gültig): Endpunkt `WorkOperations`
-  (`FaHierarchyController.cs:139-155`), keine Controller-/Repository-Änderung, kein neuer Listen-View.
-- Kleinster Diff (Quelle W): eine View, ggf. CSS. Quelle S: zusätzlich ViewModel-Änderung, weil die
-  Einträge heute nur Wurzel + Sub-FAs umfassen (`FaHierarchyTreeViewModel.cs:185`).
+  (Z.25-27) werden zu einer Spalte „Arbeitsgänge“ mit Symbolreihe aus den Knoten-Kürzeln. Zählzeile,
+  Strich-Zeilen, Warnung `UnmatchedOperations` bleiben.
+- Laden zeitlich unverändert (v1.45-Freigabe bleibt gültig, Inhalt erst beim Öffnen): Endpunkt
+  `WorkOperations` (`FaHierarchyController.cs:139-155`), kein neuer Listen-View. Quelle S verlangt eine
+  ViewModel-Änderung, weil die Einträge heute nur Wurzel + Sub-FAs umfassen (`FaHierarchyTreeViewModel.cs:185`)
+  und die Kürzel aus dem Knoten statt aus den AGs kommen.
+- ~~Kleinster Diff (Quelle W): eine View, ggf. CSS.~~ — verworfen (Antwort 1).
 
 **Zugriffsschutz:** unverändert `[RequirePickingOrTrackingOrLeitstandAccess]` auf Klassenebene
 (`FaHierarchyController.cs:23`); beide Varianten fügen keine Action hinzu.
 
 ## Migrations-/SQL-Auswirkungen
 
-Keine. Reine Lesedarstellung auf `WorkOperations`, `ProductionWorkplaces`, `FaHierarchyNodes`. Keine
+Keine. Reine Lesedarstellung auf `FaHierarchyNodes` und ggf. `ProductionWorkplaces` (Namens-Lookup);
+`WorkOperations` liest Teil 1 nicht mehr (Antwort 1). Keine
 Migration, kein `SQL/XX_*.sql`, `SQL/00_FreshInstall.sql` unverändert, `SQL/AgentJobs/` unberührt.
 
 ## Audit-Feld-Auswirkungen
@@ -234,14 +262,15 @@ Unverändert (siehe oben). Kein neuer Filter, keine Änderung an `controller.md`
 ## Akzeptanzkriterien
 
 Gemeinsam:
-1. Arbeitsgänge erscheinen als Symbole, nicht als je eine Tabellenzeile — je nach Rückfrage 1:
-   - *Quelle W:* je materialisiertem Knoten seine `WorkOperation`s in `Sequence`-Reihenfolge.
-   - *Quelle S:* je angezeigter Knotenzeile die Kürzel aus `Arbeitsschritte` in Feld-Reihenfolge; Prüfwerte
+1. Arbeitsgänge erscheinen als Symbole, nicht als je eine Tabellenzeile (Quelle S, Antwort 1):
+   - ~~*Quelle W:* je materialisiertem Knoten seine `WorkOperation`s in `Sequence`-Reihenfolge.~~ —
+     verworfen (Antwort 1, 2026-10-06).
+   - Je angezeigter Knotenzeile (auch Blätter) die Kürzel aus `Arbeitsschritte` in Feld-Reihenfolge; Prüfwerte
      laut Vorbild (sofern P-K1 sie bestätigt): `G-KT-A-BODEN-1320-660-V01` → `LS` `KA` `PG`;
      `FR-4301-40-20-1,25-1530,0MM-V01` → `ZS`; `G-KT-Mittelholmblende-40-760-V02` → `VM`;
      `G-KT-Korpus-Gepunktet` → `BE`.
 2. Jedes Symbol zeigt den in Rückfrage 3 festgelegten Text; der Name ist per Tastaturfokus/Screenreader
-   erreichbar (`aria-label` o. ä.), nicht nur per Maus-Hover (Quelle S ohne Werkbank-Treffer: Kürzel).
+   erreichbar (`aria-label` o. ä.), nicht nur per Maus-Hover (ohne Werkbank-Treffer: Kürzel).
 3. Alle Symbole sind gleich gestaltet (keine Status- oder Farbunterscheidung).
 4. Kontrast Symboltext ≥ 4,5:1, Symbolkontur ≥ 3:1 — gemessen am Testsystem.
 5. Knoten ohne Arbeitsgang zeigen weiterhin den Strich; Zählzeile und `UnmatchedOperations`-Warnung
@@ -251,22 +280,25 @@ Gemeinsam:
    `/FaHierarchy` verweigert).
 
 Nur Variante A:
-8. *Quelle W:* Seitenaufbau `/FaHierarchy` löst **genau eine** AG-Abfrage aus, unabhängig von der Anzahl
-   Strukturen (Query-Zählung im Dev-Lauf); ToQueryString-Test belegt `OPENJSON` mit einem Parameter.
-   *Quelle S:* Seitenaufbau löst **keine** AG-Abfrage aus und höchstens **eine** Katalog-Abfrage
-   (Query-Zählung im Dev-Lauf).
+8. Seitenaufbau `/FaHierarchy` löst **keine** zusätzliche AG-Abfrage aus (nur der bestehende
+   Existenz-Check) und höchstens **eine** Katalog-Abfrage (Query-Zählung im Dev-Lauf).
+   ~~*Quelle W:* genau eine AG-Abfrage, ToQueryString-Test `OPENJSON`.~~ — verworfen (Antwort 1).
 9. Neue Spalte ist ein-/ausblendbar und verschiebbar (column-prefs), `GET` der Prefs-API für
    `FaHierarchyStructure` liefert 200.
 
 Nur Variante B:
 10. Seitenaufbau unverändert (nur Existenz-Check); Modal lädt weiterhin genau eine Struktur.
 
-Nur Quelle S:
+Quelle S (gilt, Antwort 1 — vormals „Nur Quelle S“):
 11. Tokenisierung per Unit-Test belegt: `"LS EG KA PG"` → `LS`,`EG`,`KA`,`PG`; doppelte Leerzeichen und
     Rand-Leerzeichen erzeugen keine leeren Symbole; `null`/leer → Strich.
-12. Ausgeschlossene oder unbekannte Kürzel werden **angezeigt** wie alle anderen (Teil 1 hat keinen Status;
-    Grundannahme der Quelle S „Sage-Bild 1:1“ — soll die Ausschlussliste auch die Anzeige filtern, gehört das
-    in Antwort 1); die Unterscheidung „hat `WorkOperation`“ ist Sache von Teil 2.
+12. Kürzel der Ausschlussliste `Sync:ProductionWorkplaceSyncAusschlussliste` (z. B. `STO`, `XXX`) und
+    unbekannte Kürzel **werden angezeigt** wie alle anderen, in Feld-Reihenfolge, ohne Fehler (Antwort 1:
+    „Ausschlussliste in der Anzeige NICHT filtern“). Prüfbar: Knoten mit `Arbeitsschritte = "STO KA"` zeigt
+    `STO` und `KA`. Die Unterscheidung „hat `WorkOperation`“ ist Sache von Teil 2.
+13. Blattzeilen (`SubFA = 0`) mit nicht leerem `Arbeitsschritte` zeigen ihre eigenen Kürzel (nicht die des
+    Vaters); eine Sub-FA-Zeile zeigt nur die Kürzel ihrer eigenen Zeile, **nicht** die der direkten Kinder
+    (bei Variante B: ob Blätter im Modal erscheinen, legt Rückfrage 2 fest).
 
 ## Test-Szenarien
 
@@ -278,23 +310,27 @@ Darstellung prüfen.
   Kommissionierung/Tracking/Leitstand.
 - **S1 Symbole sichtbar:** Struktur mit `KA`/`SW`-AGs öffnen (Baum bzw. Modal) → Symbole in richtiger
   Reihenfolge, Text laut Rückfrage 3.
-- **S1a (Quelle S) Abgleich mit Sage:** Die Struktur aus dem Screenshot (`KTZ-L3-76-5Z1T RAL`) im WMS und
+- **S1a Abgleich mit Sage (Quelle S, gilt):** Die Struktur aus dem Screenshot (`KTZ-L3-76-5Z1T RAL`) im WMS und
   in Sage „Fertigungsaufträge bearbeiten“ nebeneinander öffnen → je Zeile dieselben Kürzel wie in Sage
   (Stichproben: A-BODEN `LS KA PG`, FR-4301-…-1530 `ZS`, Mittelholmblende `VM`, Korpus-Gepunktet `BE`);
   auch Blattzeilen tragen Symbole; Wurzel ohne Kürzel → Strich.
-- **S1b (Quelle W) Abgleich mit Erkennung:** Sub-FA mit Kindern öffnen → Symbole = Kürzel der eigenen Zeile
+- ~~**S1b (Quelle W) Abgleich mit Erkennung:** Sub-FA mit Kindern öffnen → Symbole = Kürzel der eigenen Zeile
   plus der direkten Kinder, ohne Kürzel der Ausschlussliste und ohne im Aktivitätsprotokoll als unbekannt
-  gemeldete; Blattzeilen ohne Symbole.
+  gemeldete; Blattzeilen ohne Symbole.~~ — **verworfen (Antwort 1, 2026-10-06).**
+- **S1c Ausschlussliste nicht gefiltert:** Knoten, dessen `Arbeitsschritte` ein Kürzel der Ausschlussliste
+  enthält (Wert des Service-Keys `Sync:ProductionWorkplaceSyncAusschlussliste`, z. B. `STO`), öffnen → das
+  Kürzel erscheint als Symbol wie jedes andere; Sub-FA-Zeile zeigt nur ihre eigenen Kürzel, nicht die der
+  Kinder.
 - **S2 Name erreichbar:** Tastatur-Fokus auf Symbol / Screenreader → Name wird angesagt; Touch-Gerät →
   Name auf dem in Rückfrage 3 festgelegten Weg erreichbar.
-- **S3 Lücke:** Sub-FA ohne AG (Quelle W) bzw. Knoten mit leerem `Arbeitsschritte` (Quelle S) → Strich,
-  Zählzeile stimmt.
+- **S3 Lücke:** Knoten mit leerem `Arbeitsschritte` → Strich, Zählzeile stimmt. (~~Sub-FA ohne AG,
+  Quelle W~~ — verworfen, Antwort 1.)
 - **S4 Viele AGs:** Umbruch, keine horizontale Scrollleiste in der Zeile.
 - **S5 Kontrast:** Messung am Fertigungsterminal/Testgerät (WCAG AA).
-- **S6 (nur A) Große Seite:** Seitengröße „Alle“ → eine AG-Abfrage (Quelle W) bzw. keine (Quelle S),
-  Ladezeit akzeptabel, Spalte per Spaltenauswahl aus-/einblendbar.
+- **S6 (nur A) Große Seite:** Seitengröße „Alle“ → keine zusätzliche AG-Abfrage (~~eine, Quelle W~~ —
+  verworfen), Ladezeit akzeptabel, Spalte per Spaltenauswahl aus-/einblendbar.
 - **Negativ:** Benutzer ohne Berechtigung → Zugriff verweigert; Struktur ohne materialisierten Auftrag →
-  keine Symbole (Quelle W) bzw. Sage-Kürzel ohne Fehler (Quelle S); Quelle S: unbekanntes Kürzel (nicht im
+  Sage-Kürzel ohne Fehler (~~keine Symbole, Quelle W~~ — verworfen); unbekanntes Kürzel (nicht im
   Werkbank-Katalog) → Symbol mit Kürzel, `aria-label` ohne Namen, kein Fehler.
 
 ## Pruefschritte fuer den Menschen (ungeprüft — WMS-Datenbank IDEAL)
@@ -315,7 +351,8 @@ WHERE Artnr IN ('G-KT-A-BODEN-1320-660-V01', 'FR-4301-40-20-1,25-1530,0MM-V01',
 --             Mittelholmblende = H2-02 / "VM"; Korpus-Gepunktet = (leer) / "BE"
 ```
 
-Stimmen alle vier Zeilen, gilt die Gleichheit für diese Stichprobe. Abweichung → vor Antwort 1 klären. Ob
+Stimmen alle vier Zeilen, gilt die Gleichheit für diese Stichprobe. Abweichung → vor dem Dev-Lauf klären
+(Antwort 1 setzt die Gleichheit voraus; ursprünglich „vor Antwort 1 klären“ — überholt, Antwort liegt vor). Ob
 „Abteilung“ fachlich dasselbe meint wie der WMS-`Arbeitsbereich`, beantwortet die Abfrage nur für die Werte,
 nicht für die Bedeutung (vgl. ADR-0014-Nachtrag oben).
 
@@ -356,9 +393,10 @@ Entfällt (`epic: false`).
 
 **Vorläufig — der QA-Lauf bestätigt gegen den echten Diff.**
 
-- **Web-App:** ja (View, ggf. CSS; Variante A zusätzlich ColumnDefinitions und — Quelle W — Controller,
-  Repository, ViewModel; Quelle S zusätzlich Tokenisierungs-Funktion, ggf. Katalog-Lookup).
-- **Vor Antwort 1:** Prüfschritte P-K1/P-K2 (oben) durch Gerald.
+- **Web-App:** ja (View, ggf. CSS, Tokenisierungs-Funktion, ggf. Katalog-Lookup; Variante A zusätzlich
+  ColumnDefinitions; Variante B zusätzlich `FaWorkOperationsViewModel`). ~~Quelle W: Controller-Umbau,
+  Repository~~ — verworfen (Antwort 1).
+- **Vor dem Dev-Lauf:** Prüfschritt P-K1 (oben) durch Gerald (vormals „vor Antwort 1“ — überholt).
 - **Service:** nein.
 - **Migration:** nein.
 - **Publish-Befehle:**
@@ -369,7 +407,12 @@ dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWM
 
 ## Offene Rueckfragen
 
-1. **Symbol-Quelle: Sage-Kürzel oder erkannte Arbeitsgänge?** (neu, aus dem Sage-Vorbild und dem
+> [!success] Frage 1 beantwortet (Antwort 1, Gerald 2026-10-06)
+> Quelle S für die Anzeige, W für den Status (Teil 2); Ausschlussliste in der Anzeige nicht filtern. Die Frage
+> ist in den Frontmatter-Schlüssel `beantwortete_rueckfragen` verschoben und bleibt unten als Audit-Trail
+> stehen. Die Nummerierung 2 und 3 bleibt unverändert und entspricht dem Freigabe-Block Nr. 2/3.
+
+1. ~~**Symbol-Quelle: Sage-Kürzel oder erkannte Arbeitsgänge?**~~ — **beantwortet (Antwort 1)** (neu, aus dem Sage-Vorbild und dem
    Notiz-Abschnitt „Vorbild aus Sage“) Zeigen die Symbole die Sage-Kürzel aus
    `FaHierarchyNode.Arbeitsschritte` (`Models/FaHierarchyNode.cs:41`, Bündel) oder die im WMS erkannten
    `WorkOperation`-Einträge? Befund und Differenz: „Fachliche Anforderungen“ 1.
@@ -386,14 +429,16 @@ dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWM
    - Zusatz bei S: Sollen Kürzel der Ausschlussliste (z. B. `STO`, `XXX`) trotzdem angezeigt werden
      (Annahme der Spec: ja, Sage 1:1)?
    - Vorher P-K1/P-K2 ausführen. Die Spec wählt nicht.
-2. **Wo erscheinen die Symbole?** (Notiz-Punkt 1; Folgen je Quelle siehe Tabelle im Lösungsentwurf)
+2. **Wo erscheinen die Symbole?** (offen; Notiz-Punkt 1; Folgen für Quelle S siehe Tabelle im Lösungsentwurf.
+   Mit Quelle S entfällt bei A die gebündelte AG-Abfrage — es bleibt das HTML-Wachstum; bei B die Frage, ob
+   das Modal auch Blätter listet.)
    - **A** direkt in den Baumzeilen je (Sub-)FA — widerspricht der v1.45-Freigabe „Inhalt erst beim
      Öffnen laden, Seitenaufbau nur schlanker Existenz-Check“ und braucht eine gebündelte Abfrage je Seite
      (kein N+1); das Seiten-HTML wächst mit der Seitengröße (bis 5000 Strukturen bei „Alle“).
      Zusatzfrage bei A: Bleibt das Modal wie v1.45, wird es auch auf Symbole umgestellt, oder entfällt es?
    - **B** im bestehenden Modal — v1.45-Freigabe bleibt gültig, kleinster Diff, aber kein Überblick ohne Klick.
    - Die Notiz gibt hier **keine** Empfehlung, sie benennt nur die Kollision. Die Spec wählt nicht.
-3. **Was zeigt ein Symbol?** (Notiz-Punkt 2; bei Quelle S ist das Kürzel gesetzt, offen bleibt dann nur
+3. **Was zeigt ein Symbol?** (offen; Notiz-Punkt 2; bei Quelle S ist das Kürzel gesetzt, offen bleibt dann nur
    der Namensweg) Empfehlung der Notiz: Kürzel/Nummer des Arbeitsgangs bzw.
    der Werkbank, Name im Tooltip. Zu entscheiden: welches Kürzel steht **sichtbar** im Symbol —
    `OperationNumber` (z. B. `KA`, beim Default-AG `01`) oder `SageArbeitsplatznummer` (z. B. `2300`)?
@@ -414,6 +459,6 @@ dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWM
   Bei Varianten-Specs zusaetzlich freigabe_entscheidung im Frontmatter setzen.
 -->
 
-1. Symbol-Quelle — S (Sage-Kürzel aus FaHierarchyNode.Arbeitsschritte) oder W (erkannte WorkOperation); bei S: Ausschlussliste auch in der Anzeige filtern? →
+1. Symbol-Quelle — S (Sage-Kürzel aus FaHierarchyNode.Arbeitsschritte) oder W (erkannte WorkOperation); bei S: Ausschlussliste auch in der Anzeige filtern? → **S für die Anzeige, W für den Status (Gerald 2026-10-06: „W und S sollen ja gleich sein“). Die Symbole zeigen die Sage-Kürzel aus `FaHierarchyNode.Arbeitsschritte` je Baumzeile, 1:1 wie Sage, auch an Blättern. W wird aus denselben Kürzeln erzeugt (`WorkOperationStructureDetectionService.cs:13`, `:90-110`, Scope = eigene Zeile + direkte Kinder des Sub-FA); den Status liefert der Arbeitsgang des zuständigen Sub-FA (Regel siehe Teil 2, Antwort 6). Ausschlussliste in der Anzeige NICHT filtern.**
 2. Wo erscheinen die Symbole — A (Baumzeilen) oder B (Modal); bei A: Modal behalten/umstellen/entfallen? →
 3. Was zeigt ein Symbol — OperationNumber oder SageArbeitsplatznummer sichtbar; Name nur aria-label oder auf Touch sichtbar? →
