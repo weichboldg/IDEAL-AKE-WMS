@@ -19,8 +19,10 @@ affected_code:
   - IdealAkeWms/Views/Beschichtungsauftraege/Print.cshtml (neu — Aussendokument; Briefkopf-Partial aus Teil 2, CSS eingebettet, Barcode als Data-URI)
   - IdealAkeWms/Views/FaHierarchyBeschichtung/Index.cshtml (Vorschlagsliste — Auswahl je Position/Gruppe, Button 'Aus Vorschlagsliste erstellen', Markierung bereits vergebener Positionen; heute reine Leseliste, Zeilen 34-122)
   - IdealAkeWms/Services/BeschichtungsauftragService.cs bzw. Controller (Vergabe-Info je Position fuer die Markierung, ueber das Repository aus Teil 3)
-  - IdealAkeWms/Models/Beschichtungsauftrag.cs (neue FK-Spalte auf den Kreditor — Entitaetsname laut Kreditoren-Spec)
-  - IdealAkeWms/Migrations/<Zeitstempel>_AddBeschichtungsauftragKreditor.cs + SQL/XX_AddBeschichtungsauftragKreditor.sql + SQL/00_FreshInstall.sql (zwei Stellen)
+  - IdealAkeWms/Models/Beschichtungsauftrag.cs (neue FK-Spalte CreditorId (int?) + Navigation Creditor auf Models/Creditor.cs, Tabelle dbo.Creditors — Namen vorlaeufig laut Kreditoren-Spec, Bestaetigung gemeinsam bei Schranke 1)
+  - IdealAkeWms/Data/ApplicationDbContext.cs (Beziehung Beschichtungsauftrag.Creditor, OnDelete Restrict, Index IX_Beschichtungsauftraege_CreditorId)
+  - NUR LESEN IdealAkeWms/Data/Repositories/ICreditorRepository.cs (GetAllAsync gefiltert auf IsActive fuer die Auswahl, GetByIdAsync fuer Empfaengerblock; entsteht mit der Kreditoren-Spec)
+  - IdealAkeWms/Migrations/<Zeitstempel>_AddBeschichtungsauftragCreditor.cs + SQL/XX_AddBeschichtungsauftragCreditor.sql + SQL/00_FreshInstall.sql (zwei Stellen)
   - IdealAkeWms/Services/PdfFileNameBuilder.cs (Variante fuer die Auftragsnummer; heute nur Build(string, int hauptFa, DateTime) bei :9)
   - IdealAkeWms/Filters/ + Models/RoleKeys.cs + Services/ICurrentUserService.cs + Services/CurrentUserService.cs (Schreibrolle laut Teil-3-Antwort 3)
   - secondbrain/codebase/controller.md + IdealAkeWms/Views/Users/RoleOverview.cshtml (Pflichtstellen 2 und 3 bei neuer Rolle)
@@ -56,9 +58,30 @@ freigabe_am: ""
 Teil 4 von 4 — Uebersicht: [[2026-10-06-beschichtungsauftrag-ausbau-uebersicht]]. Standort: **IDEAL**.
 
 **Abhaengigkeiten:** Teil 3 (Objekt, Workflow, Schreibrolle) und [[2026-10-06-kreditoren-stammdaten-spec]]
-(Kreditor-Entitaet). Die Kreditoren-Spec existiert zum Zeitpunkt dieser Spec noch nicht — Entitaets-,
-Feld- und Rollennamen des Kreditors sind hier Platzhalter und werden nach deren Freigabe eingesetzt.
+(Kreditor-Entitaet). ~~Die Kreditoren-Spec existiert zum Zeitpunkt dieser Spec noch nicht — Entitaets-,
+Feld- und Rollennamen des Kreditors sind hier Platzhalter und werden nach deren Freigabe eingesetzt.~~
+*(ueberholt 2026-10-06: die Kreditoren-Spec liegt vor, Namen sind unten eingesetzt — siehe Namensabgleich.)*
 Teil 2 (Briefkopf) ist weich vorausgesetzt (Rueckfrage 5).
+
+> [!note] Namensabgleich (2026-10-06)
+> Die Kreditor-Namen in dieser Spec stammen aus [[2026-10-06-kreditoren-stammdaten-spec]] und sind
+> **vorlaeufig**: Entitaet `Creditor`, Tabelle `Creditors`, Sage-Schluessel `SageCreditorNumber`, Felder
+> `ShortName`, `IsActive`, `Name`, `Street`, `PostalCode`, `City`, `Country`, Repository `ICreditorRepository`.
+> Abgeleitet hier: FK-Spalte `Beschichtungsauftrag.CreditorId`, Navigation `Creditor`, Migration
+> `AddBeschichtungsauftragCreditor`, EF-Konventionsnamen `FK_Beschichtungsauftraege_Creditors_CreditorId` und
+> `IX_Beschichtungsauftraege_CreditorId`. Alle diese Namen werden **zusammen** bei Schranke 1 beider Specs
+> bestaetigt. Der Tabellenteil `Beschichtungsauftraege` haengt zusaetzlich an Teil 3 („Namen im Dev-Lauf final",
+> [[2026-10-06-beschichtungsauftrag-ausbau-teil-3-spec]]) und zieht bei einer Aenderung dort mit. Rollennamen fuer den Kreditor braucht Teil 4 nicht — das Setzen des Kreditors am Auftrag laeuft
+> ueber die Schreibrolle aus Teil 3; die Stammdaten-Rollen (`masterdata`/`masterdata_read`) betreffen nur die
+> Pflege des Stamms.
+
+> [!warning] Hinweis Abgleich — Vorbelegung (nicht geloest, siehe Rueckfrage 4)
+> Rueckfrage 4 empfiehlt die Vorbelegung des Kreditors „ueber die Zuordnung der Kreditoren-Spec". Die
+> Kreditoren-Spec sieht dafuer nur eine **Meldefunktion** vor (`CreditorAssignment.FindUnassigned(infos, creditors)`,
+> Text → „nicht zugeordnet"/„inaktiv"), **keine** wiederverwendbare Abfrage „Dienstleister-Text → Kreditor".
+> Zudem ist `ShortName` nur bei bestaetigtem Kurzname-Abgleich (deren Rueckfrage 2) eindeutig. Wird die
+> Vorbelegung freigegeben, muss eine der beiden Specs die Zuordnungsfunktion als gemeinsame Methode vorsehen —
+> bei Schranke 1 gemeinsam entscheiden.
 
 ## Ziel / Nutzen (das Warum)
 
@@ -104,7 +127,7 @@ gepflegter Kreditor statt Sage-Freitext — damit das Dokument eine echte Empfae
 4. **Detail:** Kopf, Positionen, Statushistorie aus den Statusfeldern, Verweis Ursprungs-/Folgeauftrag;
    Bearbeitbarkeit laut Rueckfrage 7; Statuswechsel nur ueber die erlaubten Uebergaenge (Teil 3).
 5. **Reklamation** laut Rueckfrage 3 — der Button erzeugt den Folgeauftrag und oeffnet ihn editierbar.
-6. **Dienstleister:** Auswahl eines aktiven Kreditors; der Sage-Freitext (`Dienstleister`-Snapshot aus
+6. **Dienstleister:** Auswahl eines aktiven Kreditors (`Creditor.IsActive == true`); der Sage-Freitext (`Dienstleister`-Snapshot aus
    Teil 3) bleibt sichtbar, damit Abweichungen auffallen. Pflicht laut Rueckfrage 4. Fehlende Zuordnung wird
    gemeldet, nicht still leer gedruckt.
 7. **Druck/PDF** des Auftrags laut Rueckfragen 5, 6 und 8; Druck und PDF sind dasselbe Dokument (dieselbe
@@ -130,10 +153,12 @@ gepflegter Kreditor statt Sage-Freitext — damit das Dokument eine echte Empfae
   (`table-filter.js`) darf die Checkbox-Spalte nicht als Filterspalte behandeln — im Dev-Lauf pruefen.
 - **Vergabe-Markierung:** eine Abfrage „Schluessel → Auftragsnummer" fuer die Positionen der aktuellen Seite
   ueber `IBeschichtungsauftragRepository` (kein Join gegen den Cache, keine N+1-Abfrage je Zeile).
-- **Kreditor-FK:** `Beschichtungsauftrag.<Kreditor>Id` (int?, `OnDelete Restrict`) per eigener Migration.
-  Auswahlliste nur aktive Kreditoren (Feldname laut Kreditoren-Spec).
+- **Kreditor-FK:** `Beschichtungsauftrag.CreditorId` (int?) + Navigation `Creditor` auf `Creditor`
+  (Tabelle `Creditors`), `OnDelete Restrict`, per eigener Migration. Auswahlliste nur Kreditoren mit
+  `IsActive == true` ueber `ICreditorRepository.GetAllAsync()`; Anzeige in der Auswahl mit `ShortName` und
+  `Name`. Namen vorlaeufig (Namensabgleich oben).
 - **Druck:** `Views/Beschichtungsauftraege/Print.cshtml` mit `_PrintBriefkopf` (Teil 2), Empfaengerblock aus
-  Kreditor (Name + Adresse), Kopf, Positionen (laut Rueckfrage 6), CSS eingebettet, Barcode als Data-URI
+  `Creditor` (`Name`, `Street`, `PostalCode`, `City`, `Country`), Kopf, Positionen (laut Rueckfrage 6), CSS eingebettet, Barcode als Data-URI
   (`IBarcodeService.EncodeCode128Base64`, wie `FaHierarchyBeschichtungController.cs:94`).
 - **PDF:** `[HttpGet("Beschichtungsauftraege/Pdf/{id:int}")]`; Fehler `PdfRenderException` →
   `TempData["WarningMessage"]` + Redirect auf das Detail. `PdfFileNameBuilder` um eine Variante fuer eine
@@ -146,12 +171,14 @@ gepflegter Kreditor statt Sage-Freitext — damit das Dokument eine echte Empfae
 
 ## Migrations-/SQL-Auswirkungen
 
-Eine Spalte (Kreditor-FK) auf der Teil-3-Tabelle:
-- Model → `dotnet ef migrations add AddBeschichtungsauftragKreditor --project IdealAkeWms` →
-  `SQL/XX_AddBeschichtungsauftragKreditor.sql` idempotent (`COL_LENGTH(N'dbo.Beschichtungsauftraege', N'<Kreditor>Id') IS NULL`
-  fuer die Spalte, `OBJECT_ID` fuer FK-Constraint und `sys.indexes` fuer den Index; DDL je eigener Batch) →
-  `__EFMigrationsHistory`-Insert separat → `SQL/00_FreshInstall.sql` zwei Stellen.
-- XX = naechste freie Nummer in **beiden** Zweigen zum Umsetzungszeitpunkt; die Kreditoren-Tabelle muss vorher
+Eine Spalte (Kreditor-FK `CreditorId`) auf der Teil-3-Tabelle:
+- Model → `dotnet ef migrations add AddBeschichtungsauftragCreditor --project IdealAkeWms` →
+  `SQL/XX_AddBeschichtungsauftragCreditor.sql` idempotent (`COL_LENGTH(N'dbo.Beschichtungsauftraege', N'CreditorId') IS NULL`
+  fuer die Spalte `CreditorId INT NULL`, `OBJECT_ID(N'dbo.FK_Beschichtungsauftraege_Creditors_CreditorId', N'F')` fuer
+  den FK-Constraint auf `dbo.Creditors(Id)` ohne Cascade, `sys.indexes` fuer `IX_Beschichtungsauftraege_CreditorId`;
+  Namen exakt wie von EF erzeugt, DDL je eigener Batch) → `__EFMigrationsHistory`-Insert separat →
+  `SQL/00_FreshInstall.sql` zwei Stellen.
+- XX = naechste freie Nummer in **beiden** Zweigen zum Umsetzungszeitpunkt; die Tabelle `dbo.Creditors` muss vorher
   angelegt sein (Reihenfolge der Skripte im Deploy beachten).
 - Nicht daten-destruktiv (nullable Spalte). `SQL/AgentJobs/` unberuehrt.
 - Falls die Kreditoren-Spec und Teil 4 im selben Wartungsfenster deployt werden: Skriptreihenfolge
@@ -177,9 +204,11 @@ und jede Positions-/Kopfaenderung im Entwurf. Statuswechsel zusaetzlich Statusze
    Benutzer sichtbar.
 5. „Reklamation" erzeugt laut Rueckfrage 3 einen Folgeauftrag mit Verweis; Ursprung und Folge verlinken
    sich gegenseitig im Detail.
-6. Der Dienstleister ist aus aktiven Kreditoren waehlbar; der Sage-Freitext bleibt sichtbar; die Pflicht
+6. Der Dienstleister ist aus Kreditoren mit `IsActive == true` waehlbar (inaktive fehlen in der Auswahl); die
+   Wahl landet in `Beschichtungsauftraege.CreditorId`; der Sage-Freitext bleibt sichtbar; die Pflicht
    laut Rueckfrage 4 wird beim Statuswechsel geprueft und mit Klartext gemeldet.
-7. Druck und PDF des Auftrags zeigen Briefkopf (falls Teil 2 vorhanden), Empfaengeradresse aus dem Kreditor,
+7. Druck und PDF des Auftrags zeigen Briefkopf (falls Teil 2 vorhanden), Empfaengeradresse aus dem Kreditor
+   (`Name`, `Street`, `PostalCode`, `City`, `Country`),
    Kopf und Positionen laut Rueckfrage 6; PDF-Dateiname enthaelt die Auftragsnummer und keine Klarnamen.
 8. Benutzer nur mit Leserecht sehen Liste, Detail, Druck und PDF, aber keine Schreib-Buttons; ein direkter
    POST auf eine schreibende Action endet in AccessDenied.
@@ -218,8 +247,8 @@ Nicht zutreffend (`epic: false`).
 
 - **Web-App:** ja (Controller, Views, Filter, Layout, Migration-Modell).
 - **Service:** nein (nur Versions-Bump).
-- **Migration:** ja — `SQL/XX_AddBeschichtungsauftragKreditor.sql` + History-Insert vor dem IIS-Recycle;
-  setzt die Kreditoren-Tabelle und die Teil-3-Tabellen voraus.
+- **Migration:** ja — `SQL/XX_AddBeschichtungsauftragCreditor.sql` + History-Insert vor dem IIS-Recycle;
+  setzt `dbo.Creditors` (Kreditoren-Spec) und die Teil-3-Tabellen voraus.
 - **Betrieb:** neue Schreibrolle den zustaendigen Benutzern zuweisen (sonst sieht niemand die Buttons).
 - **Publish-Befehle:** `dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb`
 
