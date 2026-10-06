@@ -145,6 +145,15 @@ der Stammdaten ([[0006-rollenkonzept-statische-keys-mit-admin-wildcard]]), Liste
 
 **Modell** `Models/Creditor.cs : AuditableEntity` (Namen vorbehaltlich Rueckfrage 1):
 
+> [!note] Namensabgleich (2026-10-06)
+> Die Code-Namen dieser Spec sind **vorlaeufig**: Entitaet `Creditor`, Tabelle/`DbSet` `Creditors`,
+> Sage-Schluessel `SageCreditorNumber`, Felder `ShortName`, `IsActive`, `Name`, `Street`, `PostalCode`,
+> `City`, `Country`, Repository `ICreditorRepository`/`CreditorRepository`, Indexe
+> `IX_Creditors_SageCreditorNumber`/`IX_Creditors_ShortName`. [[2026-10-06-beschichtungsauftrag-ausbau-teil-4-spec]]
+> setzt darauf auf (FK `Beschichtungsauftrag.CreditorId`, Navigation `Creditor`, Auswahl ueber `IsActive`,
+> Empfaengeradresse aus `Name`/`Street`/`PostalCode`/`City`/`Country`). Die Namen werden **zusammen** bei
+> Schranke 1 beider Specs bestaetigt; aendert Rueckfrage 1 einen Namen, zieht Teil 4 im selben Zug mit.
+
 | Property | Typ / Laenge | Anmerkung |
 |---|---|---|
 | `Name` | `string`, 200, Pflicht | Firmenname |
