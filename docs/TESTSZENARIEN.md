@@ -8757,13 +8757,22 @@ Schritte sind unten mit **(Manual-UAT)** gekennzeichnet.
   gespeichert wird `!(leer)`, **kein** Hinweis (reine Schreibweisen-Korrektur ändert die Bedeutung
   nicht), Stückliste öffnet mit „Alle Ziele“ vorgewählt.
 
-- **TS-79.6 — Persistenz-Reload (AK 10, Regressionshinweis).**
-  Vorbedingung: Stückliste mit aktivem „Alle Ziele“.
-  Schritte: Seite per F5 neu laden.
-  Erwartung: Endzustand ist gefiltert, Badge sichtbar. Ein kurzes, ungefiltertes Zwischenbild beim
-  Laden ist möglich und besteht bereits heute für **jeden** Bom-Filter (Timing zwischen
-  `table-filter.js` und `bomMatchesFilter`) — **kein Fehler dieser Spec**.
-  Negativfall: keiner (bekanntes, vorbestehendes Verhalten).
+- **TS-79.6 — Persistenz-Reload (AK 10, Regressionshinweis; Befund B-ABN-1 behoben in v1.47.2).**
+  Vorbedingung: Hierarchische Stückliste einer HauptFA mit Komm.-Zielen; Testbenutzer **ohne**
+  gespeicherten Standard-Filter Kommissionierziel (Profil-Feld leer), sofern nicht anders angegeben.
+  Schritte und Erwartung:
+  a) „Alle Ziele“ wählen, Zeilenzahl notieren, Seite per F5 neu laden → Dropdown zeigt weiter „Alle
+     Ziele“, Badge sichtbar, Zeilenzahl wie vorher, Treffer-Äste aufgeklappt (nicht der zugeklappte Baum).
+  b) Ein **Einzelziel** (z. B. `KOM`) wählen, F5 → Dropdown zeigt dieses Ziel, Badge „Gefiltert: Komm.-Ziel =
+     KOM“, gleiche Zeilen wie vorher.
+  c) Mit gespeichertem Profil-Standard (z. B. `!(leer)`): Stückliste öffnen (zeigt „Alle Ziele“), auf ein
+     Einzelziel umstellen, F5 → das **Einzelziel bleibt** (die Auswahl der Sitzung gewinnt vor dem Profil).
+     Neuer Browser-Tab bzw. neue Sitzung → wieder der Profil-Standard.
+  Ein kurzes, ungefiltertes Zwischenbild beim Laden ist möglich und besteht bereits heute für **jeden**
+  Bom-Filter (Timing zwischen `table-filter.js` und `bomMatchesFilter`) — **kein Fehler dieser Spec**.
+  Negativfall: Auswahl über das Badge-Kreuz bzw. das Lösch-Kreuz im Dropdown leeren, F5 → kein Filter
+  (bzw. mit Profil-Standard: wieder dessen Wert). „Alle Filter zurücksetzen“ im gelben Hinweis, F5 → die
+  Filter kommen **nicht** zurück. Automatisierter Wächter: `BomKommissionierzielPersistenzTests`.
 
 - **TS-79.7 — Negativfall leeres Dropdown (AK 5, Regressionsschutz).**
   Vorbedingung: `!(leer)` als Standard im Profil gespeichert.

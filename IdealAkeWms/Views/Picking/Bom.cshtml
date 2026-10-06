@@ -1049,8 +1049,10 @@
             }
             // Leerzustand-Knopf: ALLE aktiven Spaltenfilter leeren (intuitiver „zeig wieder alles").
             function resetAllBomFilters() {
+                // Ueber window.setColumnFilter leeren, damit auch der sessionStorage-Eintrag verschwindet
+                // (direktes Leeren der Inputs liess die alten Filter nach F5 wieder aufleben, B-ABN-1).
                 document.querySelectorAll('#bomTable .filter-row input[data-col-key]').forEach(function (input) {
-                    input.value = '';
+                    if (input.value) window.setColumnFilter(input.getAttribute('data-col-key'), '');
                 });
                 var sel = document.getElementById('bomKommissionierzielSelect');
                 if (sel && window.jQuery) window.jQuery(sel).val(null).trigger('change.select2');
@@ -1115,9 +1117,11 @@
                         vals = vals.filter(function (v) { return v !== BOM_ALLE_ZIELE; });
                     if (vals.length !== ($sel.val() || []).length) { $sel.val(vals).trigger('change.select2'); }
                     lastVals = vals;
-                    input.value = vals.join(',');
-                    expandAncestorsOfMatching('kommissionieren', input.value);
-                    updateBomVisibility();
+                    // Ueber window.setColumnFilter statt input.value: nur dieser Weg laeuft durch
+                    // table-filter.js applyFilters() -> saveFiltersToStorage(), sonst uebersteht die
+                    // Auswahl kein F5 (B-ABN-1). Der Bom-Wrapper ruft danach updateBomVisibility().
+                    expandAncestorsOfMatching('kommissionieren', vals.join(','));
+                    window.setColumnFilter('kommissionieren', vals.join(','));
                     renderDefaultFilterBadges();
                     checkKommissionierzielEmptyState();
                 });
@@ -1198,7 +1202,10 @@
                     if (defaultBeschaffung) window.setColumnFilter('procurement', defaultBeschaffung);
                     if (defaultArtikelgruppe) window.setColumnFilter('article-group', defaultArtikelgruppe);
                     if (defaultBomDescription1) window.setColumnFilter('description1', defaultBomDescription1);
-                    if (defaultBomKommissionierziel) window.setColumnFilter('kommissionieren', defaultBomKommissionierziel);
+                    // Komm.-Ziel: eine aus dem sessionStorage wiederhergestellte Auswahl dieser Sitzung gewinnt vor
+                    // dem Profil-Standard (B-ABN-1) — sonst ueberschriebe F5 jede Aenderung mit dem Profilwert.
+                    // Der Profil-Standard bleibt der Startwert fuer eine neue Sitzung bzw. nach Leeren.
+                    if (defaultBomKommissionierziel && !bomFilterInputValue('kommissionieren')) window.setColumnFilter('kommissionieren', defaultBomKommissionierziel);
 
                     // Komm.-Ziel: Freitext-Input durch Select2-Mehrfach-Dropdown ersetzen (nur hierarchisch).
                     setupKommissionierzielDropdown();
@@ -1206,7 +1213,9 @@
                     // Aktive Standardfilter sichtbar machen (Badge + Reset), Treffer-Aeste aufklappen, Leerzustand pruefen.
                     // Kanonischer Wert aus dem Input (nicht der rohe Default-String): setupKommissionierzielDropdown()
                     // hat ihn ggf. bereits auf BOM_ALLE_ZIELE normalisiert (F1, Review-Runde 1).
-                    if (defaultBomKommissionierziel) expandAncestorsOfMatching('kommissionieren', bomFilterInputValue('kommissionieren'));
+                    // Aufklappen fuer jeden aktiven Komm.-Ziel-Wert, egal ob aus Profil oder sessionStorage —
+                    // sonst steht nach F5 nur der zugeklappte Baum da (B-ABN-1).
+                    if (bomFilterInputValue('kommissionieren')) expandAncestorsOfMatching('kommissionieren', bomFilterInputValue('kommissionieren'));
                     updateBomVisibility();
                     renderDefaultFilterBadges();
                     checkKommissionierzielEmptyState();
