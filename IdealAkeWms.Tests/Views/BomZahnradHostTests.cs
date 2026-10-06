@@ -8,7 +8,7 @@ namespace IdealAkeWms.Tests.Views;
 /// QUELLTEXT-WAECHTER (kein Verhaltenstest): column-preferences.js insertGearButton haengt das Zahnrad an
 /// das Element DIREKT vor .table-responsive (previousElementSibling). In Bom.cshtml muss das der leere
 /// Toolbar-Host sein — seit v1.42 standen dort #bomDefaultFilterBadges/#bomKzEmptyState (hidden) dazwischen,
-/// das Zahnrad landete im versteckten Leerzustand (v1.47.3). Sichtbarkeit selbst ist Manual-UAT (TS-79.7).
+/// das Zahnrad landete im versteckten Leerzustand (v1.47.3). Sichtbarkeit selbst ist Manual-UAT (TS-79.20).
 /// </summary>
 public class BomZahnradHostTests
 {

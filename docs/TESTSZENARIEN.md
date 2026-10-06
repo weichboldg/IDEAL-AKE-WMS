@@ -8960,6 +8960,9 @@ Schritte sind unten mit **(Manual-UAT)** gekennzeichnet.
      steht **nicht** im gelben Hinweis, sondern darunter direkt über der Tabelle; Spaltenauswahl öffnet sich;
      „Alle Filter zurücksetzen" im Hinweis funktioniert weiter.
   4. F5. Erwartung: wie vor dem Neuladen, Zahnrad sichtbar.
+  5. AKE-Flachmodus: Stückliste eines flachen AKE-FA öffnen (keine Komm.-Ziel-Spalte), ebenso die
+     read-only Stückliste (`FaWorklist/Bom`). Erwartung: Zahnrad oberhalb der Tabelle sichtbar, Spaltenauswahl
+     öffnet sich (gleiche Markup-Stelle, unabhängig vom Modus).
   Negativfall: Zahnrad fehlt oder erscheint nur zusammen mit dem gelben Hinweis → Regression (vor v1.47.3:
   Zahnrad hing im versteckten `#bomKzEmptyState`). Automatisiert nur die Platzierung im Quelltext
   (`BomZahnradHostTests`).
