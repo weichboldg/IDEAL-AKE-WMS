@@ -15,8 +15,8 @@ branch: ""
 affected_code:
   - "IdealAkeWms/Data/Repositories/IWorkOperationRepository.cs + WorkOperationRepository.cs — EINE gebuendelte Status-Abfrage fuer eine Menge WorkOperation-Ids (abgeschlossen = BdeBookingQuantity.IsFinal auf nicht stornierter Buchung, Praedikat wie BdeApiController.cs:252-256; ggf. IsReported je Rueckfrage 3; ggf. laufende Buchung je Rueckfrage 5)"
   - "IdealAkeWms/Models/ViewModels/FaHierarchyTreeViewModel.cs — WorkOperationSummary (Z.210) um Status erweitern; Ableitung offen/erledigt/ueberfaellig als reine, unit-testbare Funktion"
-  - "IdealAkeWms/Controllers/FaHierarchyController.cs — Status-Abfrage dort, wo Teil 1 die Symbole laedt (Teil-1-Variante A: Index Z.52-133; Variante B: WorkOperations Z.139-155); BDE-Aktiv-Gate je Rueckfrage 4 (IAppSettingRepository ist bereits injiziert, Z.29); nur Teil-1-Quelle S: zusaetzlich die WorkOperations der angezeigten Strukturen laden (bei Variante A EINE gebuendelte Abfrage, Muster WorkOperationRepository.cs:120-128)"
-  - "IdealAkeWms/Models/ViewModels/FaHierarchyTreeViewModel.cs — nur Teil-1-Quelle S: Zuordnung Kuerzel -> WorkOperation als reine, unit-testbare Funktion (Schluessel OrderNumber == HauptFA, SubOrderNumber == SubFA bzw. VaterFA, OperationNumber == Kuerzel case-insensitiv; Regel je Rueckfrage 6)"
+  - "IdealAkeWms/Controllers/FaHierarchyController.cs — Status-Abfrage dort, wo Teil 1 die Symbole laedt (Teil-1-Variante A: Index Z.52-133; Variante B: WorkOperations Z.139-155); BDE-Aktiv-Gate je Rueckfrage 4 (IAppSettingRepository ist bereits injiziert, Z.29); zusaetzlich die WorkOperations der angezeigten Strukturen laden, weil Teil 1 Quelle S zeigt (Antwort 1 Teil 1) — bei Variante A EINE gebuendelte Abfrage, Muster WorkOperationRepository.cs:120-128"
+  - "IdealAkeWms/Models/ViewModels/FaHierarchyTreeViewModel.cs — Zuordnung Kuerzel -> WorkOperation als reine, unit-testbare Funktion nach Antwort 6: Zeile mit SubFA != 0 -> eigene WorkOperation (SubOrderNumber == SubFA), sonst die des VaterFA (SubOrderNumber == VaterFA); OrderNumber == HauptFA; OperationNumber == Kuerzel case-insensitiv; kein Treffer -> Zustand 'kein BDE-Arbeitsgang'; WorkOperation ohne Kuerzel wird nicht angezeigt. Widersprueche W-1..W-4 (Fachliche Anforderungen 9) sind vor dem Dev-Lauf zu klaeren (Rueckfrage 7)"
   - "IdealAkeWms/Views/FaHierarchy/_FaWorkOperationsModal.cshtml bzw. _FaHierarchyNode.cshtml — Statusdarstellung am Symbol aus Teil 1 (Form/Icon + Text + Farbe)"
   - "IdealAkeWms/wwwroot/css/site.css — Statusfarben mit WCAG-AA-Kontrast"
   - "IdealAkeWms.Tests — Status-Ableitung (Tabellentest), Repository-Abfrage (InMemory), ToQueryString-Test falls Contains ueber viele Ids"
@@ -27,7 +27,9 @@ open_questions:
   - "Was heisst 'erledigt' (gruen)? Am Code gibt es zwei getrennte Signale: das BDE-Terminal wertet eine Abschlussmeldung (BdeBookingQuantity.IsFinal auf nicht stornierter Buchung) aus, WorkOperation.IsReported setzt nur die manuelle Rueckmeldung im Tracking. Nur IsFinal, nur IsReported oder eines von beiden?"
   - "Was heisst 'bei aktivem BDE'? Globaler AppSetting-Schalter BdeAktiv oder je Werkbank ProductionWorkplace.BdeAktiv (oder beides)? Was zeigen die Symbole, wenn BDE nicht aktiv ist — neutral wie Teil 1?"
   - "Ein Arbeitsgang mit laufender (gestarteter, nicht abgeschlossener) Buchung: grau wie offen, oder ein eigener vierter Zustand 'laeuft'?"
-  - "Nur falls Teil 1 Rueckfrage 1 = S (Sage-Kuerzel): Zuordnung Kuerzel -> WorkOperation — Blattzeile ueber die Vater-Sub-FA, Sub-FA-Zeile ueber die eigene oder (Kuerzel doppelt erfasst) die des Vaters? Und welche Darstellung fuer Kuerzel ohne WorkOperation (unbekannt, ausgeschlossen, mehrdeutig, Auftrag erledigt/nicht materialisiert): neutral wie Teil 1, eigener Zustand 'nicht erfasst' oder ausblenden? WorkOperation ohne Kuerzel (Default-AG 01, in Sage entfernte Kuerzel): weglassen oder zusaetzlich zeigen?"
+  - "(Neu, Rework 2026-10-06, Freigabe-Block Nr. 7) Widersprueche zwischen Antwort 6 und dem Erkennungs-Code (Fachliche Anforderungen 9): W-1 Kuerzel einer Sub-FA-Zeile, die Kind einer Sub-FA ist, erzeugt ZWEI WorkOperations (eigene + Vater, WorkOperationStructureDetectionService.cs:101-102) — Regel a zeigt nur die eigene, die des Vaters bleibt ohne Symbol; W-2 'materialisiert' ist nicht gleich 'SubFA != 0' — Fallback auf den Vater, wenn die eigene WorkOperation fehlt?; W-3 Waisen-Blatt (VaterFA ohne importierten Knoten) trifft ggf. eine alte WorkOperation, die nicht aus diesem Kuerzel stammt; W-4 Mehrfach-Treffer je Auftrag+Kuerzel moeglich (kein Unique-Index, Re-Add-Sperre case-sensitiv) — welcher Status gilt?"
+beantwortete_rueckfragen:
+  - "6 Zuordnung Kuerzel -> WorkOperation (Teil 1 = Quelle S) -> a) Zeile mit SubFA != 0: eigener Arbeitsgang mit gleicher OperationNumber, sonst der des VaterFA; b) Kuerzel ohne WorkOperation: anzeigen, neutral, ohne Status, Hinweis 'kein BDE-Arbeitsgang' (Text/aria-label, nicht nur Farbe); c) WorkOperation ohne Kuerzel: nicht als Symbol zeigen (Gerald 2026-10-06, Freigabe-Block Nr. 6)"
 epic: false
 etappen: []
 deploy:
@@ -49,9 +51,10 @@ freigabe_am: ""
 >
 > **Abhängigkeit:** setzt [[2026-10-06-fa-struktur-arbeitsgaenge-symbole-teil-1-spec]] voraus (die
 > Symbole, die hier eingefärbt werden). Wo die Status-Abfrage läuft, folgt aus Rückfrage 2 von Teil 1
-> (Ort A/B); ob zusätzlich eine Zuordnung Kürzel → `WorkOperation` nötig ist, aus Rückfrage 1 von Teil 1
-> (Quelle S/W, siehe „Fachliche Anforderungen“ 8 und Rückfrage 6). Vorbild der Darstellung ist der
-> Sage-Screenshot im Anhang (Kürzel je Baumzeile in einer Spalte).
+> (Ort A/B). Teil 1 zeigt **Quelle S** (Sage-Kürzel je Baumzeile, Teil-1-Antwort 1, 2026-10-06); daher ist
+> die Zuordnung Kürzel → `WorkOperation` Pflicht — Regel aus Antwort 6, siehe „Fachliche Anforderungen“ 8/9.
+> (Vorher: „ob zusätzlich eine Zuordnung nötig ist, folgt aus Rückfrage 1 von Teil 1“ — überholt.) Vorbild
+> der Darstellung ist der Sage-Screenshot im Anhang (Kürzel je Baumzeile in einer Spalte).
 
 ## Ziel / Nutzen (das Warum)
 
@@ -127,12 +130,13 @@ welche Arbeitsgänge fehlen oder hängen, ohne das BDE-Cockpit zu durchsuchen. S
    eine eigene Form/ein Icon **und** einen Text (sichtbar oder `aria-label`/visuell versteckt, nicht nur
    `title`, der an Touch-Terminals nicht erscheint). Kontrast WCAG AA (4,5:1 Text, 3:1 Konturen/Icons), auch
    bei Rot/Grün-Sehschwäche unterscheidbar. Die genaue Codierung legt Rückfrage 1 fest.
-8. **Status braucht eine `WorkOperation` — Folge von Teil 1 Rückfrage 1 (Quelle S/W).** Jede Statusquelle
+8. **Status braucht eine `WorkOperation` — Teil 1 zeigt Quelle S (Teil-1-Antwort 1).** Jede Statusquelle
    oben hängt an einer `WorkOperation`: `BdeBookingQuantity.IsFinal` über `BdeBooking.WorkOperationId`
    (`BdeApiController.cs:252-256`), `IsReported` an der `WorkOperation` selbst. Ein Sage-Kürzel aus
    `FaHierarchyNode.Arbeitsschritte` hat keinen Status.
-   - *Quelle W:* Status direkt je angezeigter `WorkOperation`, keine Zuordnung nötig.
-   - *Quelle S:* Zuordnung Kürzel → `WorkOperation` nötig. Belegter Schlüssel: `WorkOperation` →
+   - ~~*Quelle W:* Status direkt je angezeigter `WorkOperation`, keine Zuordnung nötig.~~ — verworfen
+     (Teil-1-Antwort 1, 2026-10-06).
+   - *Quelle S (gilt):* Zuordnung Kürzel → `WorkOperation` nötig. Belegter Schlüssel: `WorkOperation` →
      `ProductionOrder` (FK `ProductionOrderId`, `ApplicationDbContext.cs:807-810`), Knoten ↔ Auftrag über
      `OrderNumber == HauptFA` und `SubOrderNumber == SubFA` (`FaHierarchyTreeViewModel.cs:171-176`), Kürzel
      ↔ `OperationNumber` (= Token, `WorkOperationStructureDetectionService.cs:169`; Vergleich dort
@@ -146,8 +150,86 @@ welche Arbeitsgänge fehlen oder hängen, ohne das BDE-Cockpit zu durchsuchen. S
        (`BdeDefaultWorkOperationService.cs:27-40`) hat kein Kürzel und taucht unter S nicht auf.
      - Kürzel ohne `WorkOperation`: unbekannt (`:129-132`), ausgeschlossen (`:116`), mehrdeutig (`:120-124`),
        oder Auftrag beim Erkennungslauf erledigt/storniert/fertig kommissioniert bzw. nicht materialisiert
-       (`:142-145`). Dafür braucht es eine eigene Darstellung — Rückfrage 6, die Spec legt sie nicht fest.
-   - Diese Punkte entfallen, wenn Teil 1 Quelle W wählt.
+       (`:142-145`). Dafür braucht es eine eigene Darstellung — festgelegt durch Antwort 6 b (FA 9).
+   - ~~Diese Punkte entfallen, wenn Teil 1 Quelle W wählt.~~ — überholt (Teil 1 hat S gewählt).
+9. **Zuordnungsregel Kürzel → `WorkOperation` (Antwort 6, Gerald 2026-10-06) — verbindlich:**
+   - **a) Zuordnung:** Hat die Baumzeile selbst `SubFA ≠ 0`, gilt ihre **eigene** `WorkOperation` mit gleicher
+     `OperationNumber` (`ProductionOrder.SubOrderNumber == SubFA`); sonst (Blatt, `SubFA = 0`) die des
+     **VaterFA** (`ProductionOrder.SubOrderNumber == VaterFA`). Zusätzlich `ProductionOrder.OrderNumber ==
+     HauptFA` (Muster `FaHierarchyTreeViewModel.cs:171-176`), `OperationNumber` case-insensitiv wie die
+     Erkennung (`WorkOperationStructureDetectionService.cs:80`, `:106`, `:126`). Den Status liefert diese
+     `WorkOperation` (Signal laut Rückfrage 3).
+   - **b) Kürzel ohne `WorkOperation`** (Ausschlussliste, unbekannt, mehrdeutig, Auftrag bei Erkennung schon
+     fertig, kein Vater): Symbol bleibt sichtbar, **ohne Status**, neutral wie Teil 1, mit dem Hinweistext
+     **„kein BDE-Arbeitsgang“** — als Text (sichtbar oder `aria-label`/visuell versteckt), **nie nur über
+     Farbe**; nie grün, nie rot. Ob der Hinweis auch bei BDE aus erscheint, hängt an Rückfrage 4.
+   - **c) `WorkOperation` ohne Kürzel** (Default-AG `"01"`, `BdeDefaultWorkOperationService.cs:27-40`; in Sage
+     nachträglich entfernte Kürzel — Erkennung löscht nie, `:149-163`): **kein** Symbol.
+   - **Abgleich mit dem Erkennungs-Code** (Bündel, `IDEALAKEWMSService/Services/WorkOperationStructureDetectionService.cs`):
+     Die Erkennung läuft je Knoten mit `SubFA ≠ 0` (`:96-98`); ihr Scope ist die eigene Zeile plus alle Knoten
+     mit `VaterFA == SubFA` (`:73-76` gruppiert **über alle Knoten** nach `VaterFA`, `:101-102`). Je Sub-FA
+     zählt ein Kürzel einmal (`:106`, `:113`). Angelegt wird je `ProductionOrder` mit `SubOrderNumber == SubFA`
+     (`:142-146`, `:158-179`); `SubOrderNumber` ist eindeutig (`IdealAkeWms/Data/ApplicationDbContext.cs:430`).
+     - **(i) Blatt → VaterFA — stimmt.** Ein Blatt (`SubFA = 0`, nie selbst im Loop, `:98`) mit `VaterFA = X`
+       steht im Scope des Knotens mit `SubFA = X` (`:102`); dessen `ProductionOrder` hat `SubOrderNumber = X`
+       (`FaMaterializationSyncService.cs:146-148`). Trägt die Vater-Zeile dasselbe Kürzel selbst, zeigen Blatt
+       und Vater dieselbe `WorkOperation` (je Sub-FA ein Kürzel nur einmal, `:113`) — gewollt laut Regel.
+       Ausnahme: Waisen-Blatt → W-3.
+     - **(ii) Sub-FA-Zeile, die Kind einer Sub-FA ist — Erkennung erfasst doppelt, Regel zeigt einfach.**
+       Kürzel `K` einer Sub-FA-Zeile `S` (`VaterFA = P`) landet als `WorkOperation` bei `S` (eigene Zeile,
+       `:101`) **und** bei `P` (direktes Kind, `:102`). Regel a ordnet die Zeile `S` der eigenen zu — für die
+       Zeile `S` passt das zum Code. Die `WorkOperation` `K` an `P` erscheint aber nur, wenn `P`s eigene Zeile
+       oder ein **Blatt**-Kind von `P` ebenfalls `K` trägt; sonst hat sie kein Symbol. → **W-1**, **W-2**.
+     - **(iii) Wurzel und Vater ohne Sub-FA.** Wurzel = `VaterFA IS NULL` (`Models/FaHierarchyNode.cs:21`).
+       Wurzel mit `SubFA ≠ 0`: im Loop (`:98`) und materialisiert (`FaMaterializationSyncService.cs:71-77`,
+       `:146-148`) → eigene `WorkOperation`, Regel a passt. Wurzel mit `SubFA = 0`: kein Loop, kein Vater →
+       keine `WorkOperation`; Regel a greift nicht, „sonst VaterFA“ hat keinen Vater → b („kein
+       BDE-Arbeitsgang“) — passt zum Code. Ein Knoten mit `SubFA = 0` kann kein Vater sein (sein `SubFA`-Wert
+       0 ist nie im Loop, `:98`); ein Kind mit `VaterFA = 0` läuft also ebenfalls in b — passt. Blatt unter
+       der Wurzel: `VaterFA = Wurzel.SubFA` → Wurzel-`WorkOperation`, passt (`:102`). Ob `VaterFA = 0` bzw.
+       Wurzeln mit `SubFA = 0` vorkommen: ungeprüft, Prüfschritt P3 c.
+     - **(iv) Mehrfach-Treffer — möglich.** Kein Unique-Index auf (`ProductionOrderId`, `OperationNumber`)
+       (`ApplicationDbContext.cs:804-805`). Innerhalb eines Laufs dedupliziert die Erkennung case-insensitiv
+       (`:106`, `:126`), über Läufe hinweg sperrt sie das Re-Add aber mit einem `HashSet<(int, string)>` **ohne**
+       Comparer (`:151-156`, Prüfung `:163`) — case-sensitiv. Ändert Sage die Schreibweise eines Kürzels
+       (`KA` → `ka`), entsteht eine zweite `WorkOperation` am selben Auftrag. Der Default-AG `"01"` kollidiert
+       nur, wenn Sage ein Kürzel `01` führt. → **W-4**.
+     - Hinweis (kein Widerspruch zur Antwort, betrifft die `OrderNumber`-Bedingung aus FA 8): Die Erkennung
+       matcht nur über `SubOrderNumber` (`:143`), die Anzeige zusätzlich über `OrderNumber == HauptFA`.
+       `OrderNumber` wird nur beim Anlegen gesetzt (`FaMaterializationSyncService.cs:146`; keine weitere
+       Zuweisung in `IDEALAKEWMSService/Services`). Wandert eine Sub-FA in Sage unter eine andere HauptFA,
+       findet die Anzeige die `WorkOperation` nicht mehr (→ b). Umfang ungeprüft, P3 d.
+
+> [!warning] WIDERSPRUCH W-1 — Antwort 6 a „genau der Scope der Erkennung“ vs. doppelte Erfassung
+> Der Erkennungs-Scope ordnet ein Kürzel einer Sub-FA-Zeile **zwei** Arbeitsgängen zu (eigener Sub-FA
+> `:101` und Vater-Sub-FA `:102`); Regel a ordnet es **einem** zu (dem eigenen). Folge: Der Arbeitsgang am
+> Vater-Sub-FA bekommt kein Symbol, wenn das Kürzel nur an Sub-FA-Kindern steht — auch dann nicht, wenn
+> am BDE-Terminal genau auf ihn gebucht wurde: Das Terminal bietet jede offene `WorkOperation` der Werkbank
+> einzeln an (`BdeApiController.cs:245`, `:272-279`), mit der Beschriftung `OrderNumber / OperationNumber —
+> Name` (`:277`) — die beiden `K`-Arbeitsgänge von `S` und `P` tragen dieselbe `OrderNumber` (HauptFA) und
+> sind dort nicht unterscheidbar. Der Status des Vater-Arbeitsgangs ist in der Ansicht dann unsichtbar. Regel c („WorkOperation ohne
+> Kürzel → nicht zeigen“) nennt diesen Fall nicht (der Arbeitsgang **hat** ein Kürzel, nur an einer anderen
+> Zeile). Nicht aufgelöst — Rückfrage 7.
+
+> [!warning] WIDERSPRUCH W-2 — „materialisierter Sub-FA (SubFA ≠ 0)“ setzt zwei verschiedene Dinge gleich
+> `SubFA ≠ 0` heißt nicht, dass eine eigene `WorkOperation` existiert: Der `ProductionOrder` entsteht erst
+> durch die Materialisierung (`FaMaterializationSyncService.cs:71-72`, `:141-148`), und die Erkennung legt
+> nur für nicht erledigte, nicht stornierte, nicht fertig kommissionierte Aufträge an (`:142-145`). Fehlt
+> die eigene `WorkOperation`, während der Vater-Sub-FA eine für dasselbe Kürzel hat (über `:102`), liefert
+> Regel a wörtlich „kein BDE-Arbeitsgang“ (b), obwohl ein passender Arbeitsgang existiert. Ob dann auf den
+> Vater zurückgefallen wird, sagt die Antwort nicht. Nicht aufgelöst — Rückfrage 7.
+
+> [!warning] WIDERSPRUCH W-3 — Waisen-Blatt (Randfall)
+> Zeigt `VaterFA` eines Blatts auf keinen importierten Knoten (Waisen-Pseudowurzel,
+> `FaHierarchyTreeViewModel.cs:53-57`), war das Blatt-Kürzel nie im Scope einer Erkennung (kein Knoten mit
+> `SubFA == VaterFA` im Loop, `:96-102`). Ein früher materialisierter `ProductionOrder` mit
+> `SubOrderNumber == VaterFA` und seine alten Arbeitsgänge können aber noch existieren (Erkennung löscht nie,
+> `:149-163`). Regel a („sonst VaterFA“) würde dann einen Status zeigen, der nicht aus diesem Kürzel stammt.
+> Nicht aufgelöst — Rückfrage 7.
+
+> [!warning] WIDERSPRUCH W-4 — Antwort 6 a spricht von „ihrem eigenen Arbeitsgang“ (Einzahl)
+> Der Code garantiert die Einzahl nicht (siehe (iv)). Für mehrere Treffer je Auftrag + Kürzel fehlt eine
+> Regel (z. B. erledigt, wenn einer/alle erledigt). Nicht aufgelöst — Rückfrage 7. Umfang: P3 a.
 
 ## Technischer Loesungsentwurf
 
@@ -163,12 +245,19 @@ welche Arbeitsgänge fehlen oder hängen, ohne das BDE-Cockpit zu durchsuchen. S
   geladen, `FaHierarchyController.cs:68`; Variante B: der Modal-Endpunkt baut den Baum heute **ohne**
   OrderInfos, `FaHierarchyController.cs:148` — dort ist der Kopf der einen HauptFA nachzuladen, z. B. über
   das vorhandene `IFaHierarchyOrderInfoRepository`, `:27`).
-- Statusableitung als reine Funktion (Eingaben: erledigt?, läuft?, Termin, heute) → Tabellentest.
-- Nur Teil-1-Quelle S: vor der Status-Abfrage die `WorkOperation`s der angezeigten Strukturen laden
-  (Variante A: **eine** gebündelte Abfrage über die HauptFA-Nummern, Muster `WorkOperationRepository.cs:120-128`;
-  Variante B: vorhandenes `GetByOrderNumberWithWorkplaceAsync`, `FaHierarchyController.cs:152`) und je
-  Knotenzeile + Kürzel per Zuordnungsfunktion (FA 8, Regel aus Rückfrage 6) auflösen. Die Status-Abfrage
-  bleibt dieselbe, nur über die aufgelösten Ids.
+- Statusableitung als reine Funktion (Eingaben: hat `WorkOperation`?, erledigt?, läuft?, Termin, heute) →
+  Tabellentest. Ohne `WorkOperation` ist das Ergebnis immer „kein BDE-Arbeitsgang“ (Antwort 6 b), vor jeder
+  Termin-Prüfung.
+- Weil Teil 1 Quelle S zeigt (vormals „Nur Teil-1-Quelle S“ — jetzt unbedingt): vor der Status-Abfrage die
+  `WorkOperation`s der angezeigten Strukturen laden (Variante A: **eine** gebündelte Abfrage über die
+  HauptFA-Nummern, Muster `WorkOperationRepository.cs:120-128`; Variante B: vorhandenes
+  `GetByOrderNumberWithWorkplaceAsync`, `FaHierarchyController.cs:152`) und je Knotenzeile + Kürzel per
+  Zuordnungsfunktion (FA 9, Antwort 6 a) auflösen. Die Status-Abfrage bleibt dieselbe, nur über die
+  aufgelösten Ids. `WorkOperation`s ohne Symbol (Antwort 6 c) werden nicht dargestellt; die bestehende
+  Warnung `UnmatchedOperations` im Modal (Sub-FA nicht im Baum) bleibt unberührt.
+- Offene Punkte der Zuordnungsfunktion bis zur Antwort auf Rückfrage 7: Fallback bei fehlender eigener
+  `WorkOperation` (W-2), Waisen-Blatt (W-3), Mehrfach-Treffer (W-4); W-1 betrifft, ob zusätzliche Symbole
+  oder ein Hinweis für Vater-Arbeitsgänge nötig sind.
 - Variante A (Baum): Contains über viele Ids → EF 10 `OPENJSON` mit einem Parameter
   ([[fallstricke]] §8), per ToQueryString-Test belegen.
 - **frontend-design-Skill ist im Dev-Lauf Pflicht** (Views/CSS). Bootstrap-5-Farben/Icons der Anwendung,
@@ -215,13 +304,23 @@ Teil 1 (keine weitere Registrierung); ein Statusfilter in der Filterzeile wäre 
 10. Status-Ableitung durch Tabellentest abgedeckt (erledigt vor überfällig; Termin heute = nicht überfällig;
     Termin `null`; Kombigerät-Regel aus Rückfrage 2).
 
-Nur falls Teil 1 Quelle S (Sage-Kürzel):
-11. Zuordnung Kürzel → `WorkOperation` durch Unit-Test abgedeckt: Blattzeile → Vater-Sub-FA; Sub-FA-Zeile →
-    gemäß Rückfrage 6; Groß-/Kleinschreibung egal; fremde HauptFA mit gleicher Sub-FA-Nummer trifft nicht.
-12. Kürzel ohne `WorkOperation` (z. B. ein Kürzel der Ausschlussliste oder ein unbekanntes) wird nach der
-    Regel aus Rückfrage 6 dargestellt — nie grün, nie rot, ohne Fehler.
+Zuordnung Kürzel → `WorkOperation` (Teil 1 = Quelle S, Antwort 6; vormals „Nur falls Teil 1 Quelle S“):
+11. Zuordnung durch Unit-Test abgedeckt (Antwort 6 a): Sub-FA-Zeile (`SubFA ≠ 0`) mit Kürzel `KA` → die
+    `WorkOperation` `KA` ihres **eigenen** Auftrags, auch wenn der Vater-Sub-FA ebenfalls eine `KA` hat;
+    Blattzeile (`SubFA = 0`) mit `KA` → die `KA` des Auftrags mit `SubOrderNumber == VaterFA`; Wurzel mit
+    `SubFA = 0` → keine Zuordnung; Groß-/Kleinschreibung egal (`ka` trifft `KA`); fremde HauptFA mit gleicher
+    Sub-FA-Nummer trifft nicht.
+12. Kürzel ohne `WorkOperation` (Kürzel der Ausschlussliste, unbekanntes, mehrdeutiges, Auftrag bei Erkennung
+    schon fertig) erscheint als neutrales Symbol **mit dem Text „kein BDE-Arbeitsgang“** (sichtbar oder per
+    `aria-label`/visuell versteckt, per Screenreader angesagt; nicht nur Farbe) — nie grün, nie rot, nie
+    überfällig, ohne Fehler (Antwort 6 b).
 13. Weiterhin genau **eine** zusätzliche Status-Abfrage plus höchstens **eine** `WorkOperation`-Abfrage je
     Ladevorgang (Query-Zählung).
+14. Eine `WorkOperation` ohne passendes Kürzel in der Struktur (Default-AG `01`; Kürzel in Sage entfernt)
+    erzeugt **kein** Symbol (Antwort 6 c); Unit-Test: Auftrag mit AGs `01` und `KA`, Knotenzeile `"KA"` →
+    genau ein Symbol `KA`.
+15. Verhalten in den Fällen W-1 bis W-4 (FA 9) gemäß Antwort auf Rückfrage 7 — **vor** dem Dev-Lauf
+    festzulegen; bis dahin nicht abnahmefähig.
 
 ## Test-Szenarien
 
@@ -237,9 +336,17 @@ Neues Kapitel in `docs/TESTSZENARIEN.md` (Nummer: nächste freie zum Umsetzungsz
 - **S5 Laufend:** AG gestartet, nicht beendet → Darstellung laut Rückfrage 5.
 - **S6 BDE aus:** BDE deaktivieren → neutrale Symbole.
 - **S7 Barrierefreiheit:** Graustufen-Ansicht + Screenreader + Kontrastmessung am Fertigungsterminal.
-- **S8 (nur Quelle S) Kürzel ↔ Arbeitsgang:** Blattzeile mit Kürzel `KA`, deren Vater-Sub-FA den AG `KA`
-  am Terminal abgeschlossen hat → Symbol nach Regel aus Rückfrage 6 (erwartet grün, falls Blatt → Vater gilt);
-  Kürzel ohne Werkbank (P-K2 b in Teil 1, `Werkbaenke = 0`) → Darstellung „nicht erfasst“ laut Rückfrage 6.
+- **S8 Blatt → Vater (Antwort 6 a):** Blattzeile mit Kürzel `KA`, deren Vater-Sub-FA den AG `KA` am Terminal
+  abgeschlossen hat → Symbol `KA` an der Blattzeile grün/Erledigt-Form. (Vormals „nur Quelle S … laut
+  Rückfrage 6“ — jetzt unbedingt.)
+- **S9 Sub-FA-Zeile → eigener AG (Antwort 6 a):** Sub-FA `S` mit eigenem Kürzel `KA` unter Sub-FA `P`. Am
+  Terminal nur den `KA`-AG von `S` abschließen → Symbol `KA` an Zeile `S` grün. Gegenprobe: nur den `KA`-AG
+  von `P` abschließen → Zeile `S` bleibt offen/überfällig; Verhalten an Zeile `P` laut Antwort auf
+  Rückfrage 7 (W-1).
+- **S10 Kürzel ohne AG (Antwort 6 b):** Knoten mit einem Kürzel der Ausschlussliste (z. B. `STO`) und einem
+  ohne Werkbank (P-K2 b in Teil 1, `Werkbaenke = 0`) → beide Symbole neutral, Screenreader sagt „kein
+  BDE-Arbeitsgang“, kein Grün/Rot, auch bei Termin in der Vergangenheit.
+- **S11 AG ohne Kürzel (Antwort 6 c):** Sub-FA mit Default-AG `01` (NurFA-Buchung) → kein Symbol `01`.
 - **Negativ:** Kombigerät mit abweichenden Terminen → Verhalten laut Rückfrage 2; Struktur ohne Kopfdaten
   (`FaHierarchyOrderInfo` fehlt) → nie überfällig, kein Fehler.
 
@@ -271,6 +378,47 @@ HAVING COUNT(*) > 1;
 ```
 
 Gibt es Treffer mit `FE_Varianten > 1`, braucht Rückfrage 2 eine Regel (z. B. frühester Termin).
+
+**P3 — Umfang der Widersprüche W-1 bis W-4 (vor Antwort auf Rückfrage 7).** Auf der **IDEAL-WMS-Datenbank**
+(nicht Sage); vom Spec-Lauf nicht ausgeführt:
+
+```sql
+-- a) W-4: Mehrfach-Treffer je Auftrag und Kuerzel (UPPER, damit auch bei CS-Kollation)
+SELECT wo.ProductionOrderId, UPPER(wo.OperationNumber) AS Kuerzel, COUNT(*) AS Anzahl
+FROM dbo.WorkOperations wo
+GROUP BY wo.ProductionOrderId, UPPER(wo.OperationNumber)
+HAVING COUNT(*) > 1;
+
+-- b) W-1: Arbeitsgaenge eines Sub-FA, deren Kuerzel weder in der eigenen Zeile noch in einem Blatt-Kind
+--    steht (unter Antwort 6 a ohne Symbol); Spalte Gebucht zeigt, ob darauf schon gebucht wurde.
+--    Enthaelt auch in Sage entfernte Kuerzel (Antwort 6 c) — die sind gewollt ohne Symbol.
+SELECT po.OrderNumber, po.SubOrderNumber, wo.OperationNumber,
+       CASE WHEN EXISTS (SELECT 1 FROM dbo.BdeBookings b WHERE b.WorkOperationId = wo.Id) THEN 1 ELSE 0 END AS Gebucht
+FROM dbo.WorkOperations wo
+JOIN dbo.ProductionOrders po ON po.Id = wo.ProductionOrderId
+JOIN dbo.FaHierarchyNodes n ON n.SubFA <> 0 AND CAST(n.SubFA AS nvarchar(100)) = po.SubOrderNumber
+WHERE wo.OperationNumber <> '01'
+  AND NOT EXISTS (SELECT 1 FROM STRING_SPLIT(ISNULL(n.Arbeitsschritte, ''), ' ') t
+                  WHERE t.value = wo.OperationNumber)
+  AND NOT EXISTS (SELECT 1 FROM dbo.FaHierarchyNodes k
+                  CROSS APPLY STRING_SPLIT(ISNULL(k.Arbeitsschritte, ''), ' ') t
+                  WHERE k.VaterFA = n.SubFA AND k.SubFA = 0 AND t.value = wo.OperationNumber)
+ORDER BY Gebucht DESC, po.OrderNumber;
+
+-- c) (iii): Wurzeln ohne Sub-FA und Kinder mit VaterFA = 0
+SELECT SUM(CASE WHEN VaterFA IS NULL AND SubFA = 0 THEN 1 ELSE 0 END) AS WurzelnOhneSubFA,
+       SUM(CASE WHEN VaterFA = 0 THEN 1 ELSE 0 END) AS KnotenMitVaterFA0
+FROM dbo.FaHierarchyNodes;
+
+-- d) Hinweis OrderNumber: Auftraege, deren OrderNumber nicht (mehr) zur HauptFA des Knotens passt
+SELECT po.SubOrderNumber, po.OrderNumber, n.HauptFA
+FROM dbo.ProductionOrders po
+JOIN dbo.FaHierarchyNodes n ON n.SubFA <> 0 AND CAST(n.SubFA AS nvarchar(100)) = po.SubOrderNumber
+WHERE po.OrderNumber <> CAST(n.HauptFA AS nvarchar(100));
+```
+
+Viele Zeilen mit `Gebucht = 1` in b) machen W-1 dringend; a) leer heißt, W-4 tritt heute nicht auf (die
+Regel braucht es trotzdem, der Code verhindert es nicht).
 
 ## Etappen (nur bei epic: true)
 
@@ -313,7 +461,13 @@ dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWM
    `BdeAktiv` der Werkbank des Arbeitsgangs, oder beides? Und: neutrale Symbole bei BDE aus — richtig?
 5. **Laufende Buchung** (neu, aus dem Code-Befund): grau wie „offen“ oder ein vierter Zustand „läuft“
    (eigene Form/Text)?
-6. **Nur falls Teil 1 Rückfrage 1 = S (Sage-Kürzel): Zuordnung Kürzel → `WorkOperation`** (neu, aus dem
+> [!success] Frage 6 beantwortet (Antwort 6, Gerald 2026-10-06)
+> Regel a/b/c übernommen in „Fachliche Anforderungen“ 9, AK 11-14, Testszenarien S8-S11. Die Frage ist in den
+> Frontmatter-Schlüssel `beantwortete_rueckfragen` verschoben und bleibt unten als Audit-Trail stehen. Der
+> Code-Abgleich ergab vier Widersprüche (W-1 bis W-4) → neue Rückfrage 7.
+
+6. ~~**Nur falls Teil 1 Rückfrage 1 = S (Sage-Kürzel): Zuordnung Kürzel → `WorkOperation`**~~ —
+   **beantwortet (Antwort 6)** (neu, aus dem
    Sage-Vorbild; Befund „Fachliche Anforderungen“ 8). Status gibt es nur über `WorkOperation`
    (`IsFinal`/`IsReported`). Zu entscheiden:
    - a) Welche `WorkOperation` gilt für ein Kürzel an einer **Sub-FA-Zeile** — die eigene (Sub-FA der Zeile)
@@ -324,6 +478,20 @@ dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWM
    - c) `WorkOperation` **ohne** Kürzel (Default-AG `01`, in Sage nachträglich entfernte Kürzel): weglassen
      oder zusätzlich als Symbol zeigen?
    Entfällt bei Quelle W.
+7. **Widersprüche Antwort 6 ↔ Erkennungs-Code** (neu, Rework 2026-10-06; Befund und Belege „Fachliche
+   Anforderungen“ 9, Umfang per P3). Antwort 6 a nennt die Regel „genau den Scope der Erkennung“; der Code
+   weicht in vier Fällen ab. Zu entscheiden je Fall:
+   - **W-1** Kürzel einer Sub-FA-Zeile `S` unter Sub-FA `P` ist als `WorkOperation` an `S` **und** an `P`
+     erfasst; die Regel zeigt nur die an `S`. Soll der `P`-Arbeitsgang irgendwo sichtbar werden (z. B. an der
+     Zeile `P` zusätzlich, als Hinweis), oder bleibt er bewusst ohne Symbol?
+   - **W-2** Zeile mit `SubFA ≠ 0`, aber ohne eigene `WorkOperation` für das Kürzel (nicht materialisiert,
+     bei Erkennung schon fertig): „kein BDE-Arbeitsgang“ wörtlich nach Regel a, oder Rückfall auf den
+     Vater-Sub-FA wie bei Blättern?
+   - **W-3** Waisen-Blatt (VaterFA ohne importierten Knoten): alte `WorkOperation` des Vater-Auftrags
+     verwenden oder „kein BDE-Arbeitsgang“?
+   - **W-4** Mehrere `WorkOperation`s mit gleichem Kürzel am selben Auftrag: welcher Status gilt (z. B.
+     erledigt, wenn einer erledigt / wenn alle erledigt)?
+   Die Spec wählt nicht.
 
 ## Freigabe-Antworten (Mensch fuellt aus — Schranke 1)
 
@@ -340,4 +508,5 @@ dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWM
 3. Erledigt — IsFinal (BDE), IsReported (Tracking) oder eines von beiden? →
 4. BDE aktiv — globaler Schalter, Werkbank-Schalter oder beides; neutral bei BDE aus? →
 5. Laufende Buchung — grau oder eigener Zustand „läuft“? →
-6. Nur bei Teil-1-Quelle S: Zuordnung Kürzel → WorkOperation (Sub-FA-Zeile eigene oder Vater), Darstellung Kürzel ohne WorkOperation (neutral / „nicht erfasst“ / ausblenden), WorkOperation ohne Kürzel (weglassen / zeigen)? →
+6. Nur bei Teil-1-Quelle S: Zuordnung Kürzel → WorkOperation (Sub-FA-Zeile eigene oder Vater), Darstellung Kürzel ohne WorkOperation (neutral / „nicht erfasst“ / ausblenden), WorkOperation ohne Kürzel (weglassen / zeigen)? → **(Teil 1: Quelle S, Gerald 2026-10-06.) a) Zuordnung: Ist die Zeile selbst ein materialisierter Sub-FA (SubFA ≠ 0), gilt ihr eigener Arbeitsgang mit gleicher OperationNumber; sonst der des Vater-Sub-FA (VaterFA) – genau der Scope der Erkennung. b) Kürzel ohne WorkOperation (Ausschlussliste, unbekannt, mehrdeutig, Auftrag bei Erkennung schon fertig): anzeigen, ohne Status, neutral, mit Hinweis „kein BDE-Arbeitsgang“ (Text/aria-label, nicht nur Farbe). c) WorkOperation ohne Kürzel (Default `01`, in Sage entfernte Kürzel): nicht als Symbol zeigen.**
+7. Widersprüche Antwort 6 ↔ Code — W-1 Vater-AG eines Sub-FA-Kind-Kürzels sichtbar machen?; W-2 Rückfall auf den Vater, wenn die eigene WorkOperation fehlt?; W-3 Waisen-Blatt: alte Vater-WorkOperation oder „kein BDE-Arbeitsgang“?; W-4 Mehrfach-Treffer: welcher Status gilt? →
