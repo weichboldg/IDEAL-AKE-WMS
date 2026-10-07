@@ -4,7 +4,7 @@ title: "CSV-Export fuer alle Tabellen (querschnittlich)"
 slug: 2026-10-06-csv-export-alle-tabellen-spec
 status: Entwurf
 created: 2026-10-06
-updated: 2026-10-06
+updated: 2026-10-07
 source_backlog: "[[2026-10-06-csv-export-alle-tabellen]]"
 task: ""
 worktree: ""
@@ -12,28 +12,24 @@ branch: ""
 affected_code:
   - "NEU IdealAkeWms/wwwroot/js/csv-export.js — gemeinsamer Baustein (Variante A): Knopf je table.filterable-table, Zeilen holen, Spalten aus dem DOM, CSV erzeugen, Download"
   - "IdealAkeWms/Views/Shared/_Layout.cshtml — csv-export.js einmal einbinden (Variante A, Rueckfrage 6); bei Partial-Variante stattdessen je View"
-  - "IdealAkeWms/Views/Shared/_Pagination.cshtml Z. 6-12 + 25-26 — maschinenlesbares data-total-count/data-capped am .pagination-bar (Cap-Erkennung, Rueckfrage 9)"
+  - "IdealAkeWms/Views/Shared/_Pagination.cshtml Z. 6-12 + 25-26 — maschinenlesbares data-total-count/data-capped am .pagination-bar (Cap-Erkennung, Antwort 9: erste 5000 + Warnung)"
   - "IdealAkeWms/wwwroot/js/print-visible-columns.js Z. 14-19 — Sichtbarkeitsregel (style.display/d-none) wird wiederverwendet, nicht kopiert"
   - "IdealAkeWms/wwwroot/js/column-preferences.js Z. 162-175 (Ausblenden per style.display), Z. 227 (physisches Umordnen), Z. 387-388 (Einfuegeort Zahnrad-Knopf) — Bezugspunkte, keine Aenderung erwartet"
-  - "IdealAkeWms/wwwroot/js/table-filter.js Z. 333-345 (sortTable/compareRows) — nur falls Rueckfrage 10 = Sortierung uebernehmen: Comparator exportieren statt duplizieren"
+  - "IdealAkeWms/wwwroot/js/table-filter.js Z. 333-406 (sortTable, inneres compareRows Z. 345-378) — Antwort 10: Wertvergleich (Z. 352-377) als window-Funktion herausloesen und von sortTable UND csv-export.js nutzen, nicht duplizieren; Sortierzustand liegt in th[data-sort-dir] (Z. 246-255, 623-629)"
   - "IdealAkeWms/Services/PageSize.cs Z. 12 (AllCap = 5000) — Obergrenze des Exports, keine Aenderung"
   - "40 Tabellen-Views (Inventar im Abschnitt Technischer Loesungsentwurf) — bei Variante A nur dort, wo Opt-out oder Zell-Exportwerte noetig sind"
   - "IdealAkeWms/Views/Help/*.cshtml (Hilfeseite Listen) + Views/Help/Changelog.cshtml, beide AppVersion.cs"
   - "NEU IdealAkeWms.Tests/Helpers/CsvExportCoverageTests.cs — Quelltext-Waechter nach Muster TableScriptScopedSelectorTests.cs"
   - "docs/TESTSZENARIEN.md + secondbrain/tests/testszenarien-index.md — neues Kapitel TS-<naechste freie>"
 open_questions:
-  - "1 Welche Zeilen: alle Zeilen des aktuellen Filters ueber alle Seiten (Empfehlung) oder nur die sichtbare Seite?"
-  - "2 Welche Spalten: die beim Klick sichtbaren, in Bildschirm-Reihenfolge (Empfehlung, Druck/PDF-Konvention)? Aktions-/Checkbox-Spalten ohne Ueberschrift nie?"
   - "3 Format: Semikolon, UTF-8 mit BOM, Dezimalkomma, Datum dd.MM.yyyy ohne KW-Suffix, Dateiname <Ansicht>_yyyy-MM-dd_HHmm.csv (Empfehlung)?"
-  - "4 Gruppierte Listen flach mit Gruppenschluessel (HauptFA) als eigener Spalte (Empfehlung)? Gruppen-Kopfzeilen und Kombigeraete-Variantenzeile entfallen?"
   - "5 Sicherheit: CSV-Injection per Apostroph-Praefix bei = + - @ Tab CR, reine Zahlen ausgenommen; Export-Recht = Leserecht der Ansicht, kein eigenes Recht, kein Toggle, keine Export-Protokollierung (Empfehlung)?"
   - "6 Gemeinsamer Baustein: ein Skript im Layout, das sich an jede filterbare Tabelle haengt (Spec-Empfehlung, weicht von Helper+Button-Partial der Notiz ab) oder Button-Partial je View?"
   - "7 Umfang: alle 40 Tabellen mit Klasse filterable-table in EINER Spec; Baumansichten und Formular-/Detailtabellen ausserhalb (Empfehlung)? Teil-Specs noetig?"
   - "8 Variante: A = Erzeugung im Browser aus derselben Index-Action (Empfehlung, ein Dev-Lauf) oder B = Export-Action je Controller (Epic mit Etappen)?"
-  - "9 Mehr als 5000 Treffer (PageSize.AllCap, bei Gruppenlisten 5000 Gruppen): erste 5000 exportieren plus sichtbare Warnung (Empfehlung) oder Export sperren?"
-  - "10 Sortierung: aktive Bildschirm-Sortierung auf den Export anwenden, je Gruppe, mit dem Comparator aus table-filter.js (Empfehlung) oder Serverreihenfolge?"
-  - "11 Zellinhalt: Text inkl. Badges normalisiert, Checkbox als Ja/Nein, Eingabefelder mit Wert, Icon-Zellen ueber title (Empfehlung)? Nur farblich transportierter Zeilenstatus bleibt aussen vor?"
   - "12 Client-Mode-Listen (Stueckliste, Lagerbestellung-Details, Tracking je Werkbank, Artikelgruppen-Zuordnung, OSEON-Reporting): alle Filtertreffer, in der Stueckliste unabhaengig vom Klappzustand des Baums (Empfehlung)?"
+  - "13 Konflikt Antwort 9 x Antwort 10: Die Kappung waehlt die ersten 5000 in SERVER-Reihenfolge, die Sortierung greift erst danach. Bei gekapptem Export und aktiver Sortierung sind das nicht die ersten 5000 nach Bildschirm-Sortierung. Reicht die Warnung (Empfehlung) oder soll bei Kappung + Sortierung der Export gesperrt werden?"
+  - "14 Restpunkte ohne ausdrueckliche Antwort aus 2/4/11: Spalten ohne Ueberschrift (Aktionen, Bulk-Checkbox) weglassen; HauptFA aus tbody[data-group] als eigene erste Spalte, wo keine hauptfa-Spalte sichtbar ist; Badges als Teil des Zellwerts; Eingabefeld mit Wert, Select mit Auswahltext; Icon-Zelle ueber title/aria-label (je Spec-Empfehlung) - so bestaetigt?"
 epic: false
 etappen: []
 deploy:
@@ -71,8 +67,9 @@ Stellen erzeugt (siehe [[fallstricke]], „Lagerbestellungs-Druck: drei Stellen 
 - Ein CSV-Export-Knopf an jeder Tabelle mit der Klasse `filterable-table` (40 Tabellen in 38
   View-Dateien, Inventar unten). Das gilt fuer AKE- und IDEAL-Listen gleichermassen, also bei
   Master `ProduktionsauftragHierarchisch` `false` und `true`.
-- Export der gefilterten Zeilen mit den sichtbaren Spalten, Excel-tauglich (Rueckfragen 1-3).
-- Gruppierte Listen flach (Rueckfrage 4).
+- Export aller Filtertreffer ueber alle Seiten (Antwort 1) mit den eingeblendeten Spalten
+  (Antwort 2), in Bildschirm-Sortierung (Antwort 10), Excel-tauglich (Format: Rueckfrage 3).
+- Gruppierte Listen flach (Antwort 4).
 - CSV-Injection-Schutz und Rechtegleichheit mit der Ansicht (Rueckfrage 5).
 - Hilfeseite (Abschnitt Listen) und Anwender-Changelog, Testszenario-Kapitel.
 
@@ -96,18 +93,29 @@ Stellen erzeugt (siehe [[fallstricke]], „Lagerbestellungs-Druck: drei Stellen 
    Spaltenauswahl-Zahnrad bzw. ueber der Tabelle).
 2. Der Export enthaelt die Zeilen, die die Ansicht mit dem **aktuellen** Filterstand liefert
    (Filterkarte + Spaltenfilter `colf_*` + Ansichtsschalter wie `showDone`/`target`). Das gilt ueber
-   alle Seiten (Rueckfrage 1), begrenzt durch `PageSize.AllCap` (Rueckfrage 9).
-3. Der Export enthaelt genau die beim Klick sichtbaren Spalten in Bildschirm-Reihenfolge
-   (Rueckfrage 2). Kopfzeile = sichtbare Spaltenueberschriften.
+   **alle Seiten** (Antwort 1), begrenzt durch `PageSize.AllCap` (Antwort 9).
+3. Der Export enthaelt die Spalten **wie eingeblendet** (Antwort 2): genau die beim Klick sichtbaren
+   Spalten in Bildschirm-Reihenfolge. Kopfzeile = sichtbare Spaltenueberschriften. Spalten ohne
+   Ueberschrift entfallen (Spec-Empfehlung, Bestaetigung Rueckfrage 14).
 4. Der Export zeigt nie mehr als die Ansicht: weder Zeilen, die der Anwender mit seinem Recht nicht
    sieht, noch ausgeblendete Spalten (Rueckfrage 5).
 5. Die Datei oeffnet sich per Doppelklick in Excel (Windows, deutsches Gebietsschema) mit korrekten
    Umlauten, getrennten Spalten und als Zahl erkannten Mengen (Rueckfrage 3).
-6. Gruppierte Listen werden flach exportiert (Rueckfrage 4).
+6. Gruppierte Listen werden **flach** exportiert (Antwort 4): keine Gruppen-Kopfzeilen, keine
+   Kombigeraete-Variantenzeile als Zeile. Gruppenschluessel-Spalte siehe Rueckfrage 14.
 7. Zellinhalte, die mit `=`, `+`, `-` oder `@` beginnen, werden entschaerft (Rueckfrage 5).
-8. Ist die Treffermenge gekappt, erscheint vor oder mit dem Download ein sichtbarer Hinweis
-   (Rueckfrage 9). Ein stilles Abschneiden ist ausgeschlossen (Hausregel „Melden statt still
-   behandeln“).
+8. Ist die Treffermenge gekappt, werden die **ersten 5000** exportiert, und vor oder mit dem
+   Download erscheint ein **sichtbarer Hinweis** (Antwort 9). Ein stilles Abschneiden ist
+   ausgeschlossen (Hausregel „Melden statt still behandeln“). Variante „Export sperren“ ist
+   verworfen.
+9. Der Export uebernimmt die **aktive Bildschirm-Sortierung** (Antwort 10): Spalte und Richtung des
+   Spaltenkopfs mit Sortierindikator, auch wenn sie aus der Default-Sortierung der Spaltenauswahl
+   bzw. `data-fallback-sort-column` stammt. Sortiert wird ueber **alle** exportierten Zeilen, bei
+   Gruppenlisten innerhalb jeder Gruppe, Gruppenreihenfolge wie vom Server. Ohne aktive Sortierung
+   gilt die Serverreihenfolge. Variante „immer Serverreihenfolge“ ist verworfen.
+10. Checkboxen in Zellen werden als **„Ja“/„Nein“** exportiert (Antwort 11). Nur farblich
+    transportierte Kennzeichen (Zeilenklassen wie `table-secondary`/`table-danger`) werden **nicht**
+    exportiert (Antwort 11: „farbige Kennzeichen egal“).
 
 ## Technischer Loesungsentwurf
 
@@ -146,7 +154,9 @@ ausgelieferte HTML-Fassung hat die **Serverreihenfolge** und **keine** angewandt
 **Sortierung ist rein clientseitig** und wird nicht in der URL gefuehrt. `sortTable`/`compareRows`
 stehen in `table-filter.js` Z. 333-345, die Sortierung laeuft je `<tbody>` getrennt (siehe
 [[fallstricke]], Abschnitt Sort-Bug). Ein Export ueber alle Seiten kann die Bildschirmreihenfolge
-daher nur durch Nachsortieren treffen (Rueckfrage 10).
+daher nur durch Nachsortieren treffen (Antwort 10: uebernehmen). Keine Index-Action nimmt einen
+Sortierparameter entgegen (grep `(string|int)\?? (sort|sortBy|sortColumn|orderBy|sortDir)` in
+`Controllers/`: einziger Treffer `WarehousePickingController.Print` Z. 359, `sortCol`/`sortDir`).
 
 **Zahlenformat haengt teils an der Server-Kultur.** `Program.cs` enthaelt weder
 `RequestLocalization` noch eine Kultur-Festlegung (grep `RequestLocalization|CultureInfo\(|DefaultThreadCurrentCulture|de-AT|de-DE`
@@ -181,6 +191,33 @@ Gruppenkoepfe sind `td[colspan]`-Zeilen (z. B. `ProductionOrders/Index.cshtml` Z
 `FaHierarchyKommissionierListen/Index.cshtml` Z. 103-140). Die Kombigeraete-Variantenzeile enthaelt
 eine **verschachtelte Tabelle** (`ProductionOrders/Index.cshtml` Z. 176-203). Hier gilt die
 `:scope >`-Regel aus [[fallstricke]].
+
+### Abgleich Keyuser-Antworten ↔ Code (Rework 2026-10-07)
+
+Geprueft im Buendel-Worktree (Bezug dieser Spec) und gegen `main`. Ergebnis: alle sechs Antworten
+sind mit dem Bestand umsetzbar; eine Wechselwirkung (9 × 10) ist offen als Rueckfrage 13.
+
+| Antwort | Bestand (Beleg) | Vereinbar? |
+|---|---|---|
+| 1 alle Seiten | `pageSize=0` → `PageSize.Resolve` liefert `AllCap` 5000 (`Services/PageSize.cs` Z. 12, 25-30, in `main` identisch); Pagination laesst Filterparameter stehen (`site.js` Z. 91-129) | ja |
+| 2 wie eingeblendet | Spaltenauswahl wird **nicht** in sessionStorage gehalten, sondern je Benutzer serverseitig unter `/api/user-view-preferences/<viewKey>` (`column-preferences.js` Z. 25-27, 305-337; Speichern verzoegert um 1500 ms, Z. 20/297-303) und beim Laden ins DOM angewandt (Z. 162-175, 227). sessionStorage nutzt nur `table-filter.js` fuer **Filterwerte** im Client-Mode (Z. 18-37). Massgeblich ist deshalb der DOM-Zustand zur Klickzeit, nicht das gespeicherte Profil; das deckt auch die noch nicht gespeicherte Aenderung ab (AK 3). Tabellen ohne `#view-config` (Inventar, Prefs = nein) zeigen immer alle Spalten. Keine `<th>` im Scope traegt eine responsive `d-none`-Klasse (grep `<th[^>]*d-none` unter `Views/`: kein Treffer) | ja |
+| 4 flach | `:scope > tbody > tr` ohne `td[colspan]`, wie `sortTable` (`table-filter.js` Z. 392-394) | ja |
+| 9 erste 5000 + Warnung | `PaginationState.IsCappedAtAll` = `PageSizeRaw == 0 && TotalCount > AllCap` (`PaginationState.cs` Z. 32-33); die abgerufene `pageSize=0`-Antwort enthaelt den Banner `_Pagination.cshtml` Z. 6-12 bereits | ja, siehe Rueckfrage 13 |
+| 10 Bildschirm-Sortierung | rein clientseitig je `tbody` (`table-filter.js` Z. 333-406); Zustand in `th[data-sort-dir]`; Comparator nur als innere Funktion (Z. 345) → Herausloesen noetig (Variante A Schritt 9). Am Bildschirm sortiert die Klick-Sortierung im Server-Mode nur die **aktuelle Seite**; der Export sortiert dagegen alle Treffer. Das ist die gewollte Lesart „sortiert korrekt“, nicht eine Seite-fuer-Seite-Kopie | ja, mit Refactor |
+| 11 Checkbox Ja/Nein, Farbe egal | Checkboxen im Leitstand `_PickingLeitstandRow.cshtml` Z. 108-132, Zeilenstatus nur als Klasse `_ProductionOrderRow.cshtml` Z. 21 | ja |
+
+**Unterschiede `main` ↔ Buendel-Worktree** (relevant, weil die Umsetzung nach dem Buendel-Merge aus
+`main` startet — vorher passen die Zeilenangaben nicht):
+- `table-filter.js`: In `main` sortiert `sortTable` (Z. 314-358) nur das **erste** `tbody`
+  (`_tbody`), ohne `:scope >`, mit anonymem Inline-Comparator (Z. 322-353); die Gruppensortierung je
+  `tbody`, der Name `compareRows`, die Warnung B-2 und das Event `table-sorted` gibt es nur im
+  Buendel (Z. 333-406). Antwort 10 „je Gruppe“ setzt den Buendel-Stand voraus.
+- `print-visible-columns.js` existiert in `main` **nicht** (Glob ohne Treffer), nur im Buendel. Die
+  wiederverwendete Sichtbarkeitsregel (Variante A Schritt 2) setzt ebenfalls den Buendel-Merge
+  voraus.
+- `column-preferences.js`: gleiche Logik, Zeilen in `main` um 9 nach oben verschoben (Ausblenden
+  Z. 153-166, Zahnrad-Einfuegeort Z. 378-379, Speichern Z. 298).
+- `_Pagination.cshtml` und `PageSize.cs`: in den zitierten Zeilen identisch.
 
 ### Inventar der Tabellen (Buendel-Stand)
 
@@ -253,7 +290,8 @@ so:
 2. Beim Klick liest es die **sichtbaren** `thead th[data-col-key]` der Live-Tabelle in
    DOM-Reihenfolge. Dafuer gilt dieselbe Regel wie in `print-visible-columns.js` Z. 16. Spalten
    ohne Ueberschrifttext (Aktions- und Checkbox-Spalten wie `actions`/`row-actions`,
-   `ProductionOrders/Index.cshtml` Z. 80 und 111) fallen weg (Rueckfrage 2).
+   `ProductionOrders/Index.cshtml` Z. 80 und 111) fallen weg (Antwort 2 „wie eingeblendet“;
+   Weglassen der Spalten ohne Ueberschrift: Rueckfrage 14).
 3. **Server-Mode** (`data-server-column-filter="true"`): Das Skript holt per `fetch` dieselbe URL
    mit `pageSize=0&page=1` (same-origin, Windows-Auth-Cookie bzw. Negotiate wie die Seite),
    parst die Antwort mit `DOMParser` und ordnet die Zellen ueber den `data-col-key`-Index der
@@ -267,19 +305,33 @@ so:
    Kombigeraete-Variantenzeile und Leerzustand. Fuer jede DOM-Iteration gilt `:scope >`
    ([[fallstricke]]: „Jede DOM-Iteration im Tree-Table braucht `:scope >`“), sonst laesst die
    verschachtelte Variantentabelle Fremdzeilen ins CSV.
-5. Gruppenschluessel: Steht er in `tbody[data-group]` und hat die Tabelle keine sichtbare
-   `hauptfa`-Spalte, kommt eine erste Spalte „HauptFA“ hinzu (Rueckfrage 4).
-6. Zellwert: siehe Rueckfrage 11. Danach werden Whitespace normalisiert, der KW-Suffix an Datumswerten
+5. Gruppenschluessel (Antwort 4 „flach“; Spalte selbst: Rueckfrage 14): Steht er in
+   `tbody[data-group]` und hat die Tabelle keine sichtbare `hauptfa`-Spalte, kommt eine erste
+   Spalte „HauptFA“ hinzu.
+6. Zellwert (Antwort 11): `input[type=checkbox]` → „Ja“/„Nein“ nach `checked`. Zeilenklassen und
+   Farben werden nicht ausgewertet. Badges, Eingabefelder, Selects und Icon-Zellen gemaess
+   Spec-Empfehlung, Bestaetigung Rueckfrage 14. Danach werden Whitespace normalisiert, der KW-Suffix an Datumswerten
    entfernt (Rueckfrage 3) und die CSV-Injection entschaerft (Rueckfrage 5). Felder werden nach
    RFC 4180 maskiert: Anfuehrungszeichen bei `;`, `"`, Zeilenumbruch, `"` verdoppelt.
 7. Ausgabe als `Blob` mit UTF-8-BOM, Trenner `;`, Zeilenende CRLF. Download ueber `a[download]`,
    Dateiname `<data-view-key | Controller>_yyyy-MM-dd_HHmm.csv`.
-8. Cap: `_Pagination.cshtml` bekommt am `.pagination-bar` (Z. 25) die Attribute `data-total-count`
-   und `data-capped`. Ist `data-capped="true"`, zeigt das Skript sichtbar eine Warnung
-   (Rueckfrage 9).
-9. Sortierung: siehe Rueckfrage 10. Falls die Sortierung uebernommen wird, stellt
-   `table-filter.js` seinen Comparator bereit, z. B. `window.tableFilterCompare`. Kopieren ist
+8. Cap (Antwort 9): `_Pagination.cshtml` bekommt am `.pagination-bar` (Z. 25) die Attribute
+   `data-total-count` und `data-capped` (Wert = `PaginationState.IsCappedAtAll`,
+   `PaginationState.cs` Z. 32-33). Das Skript liest sie aus der **abgerufenen** Antwort
+   (`pageSize=0`), exportiert die gelieferten ersten 5000 Treffer (bei Gruppenlisten 5000 Gruppen)
+   und zeigt bei `data-capped="true"` sichtbar eine Warnung „auf 5.000 begrenzt, bitte Filter
+   eingrenzen“. Wechselwirkung mit der Sortierung: Rueckfrage 13.
+9. Sortierung (Antwort 10): Das Skript liest den aktiven Sortierzustand aus der **Live**-Tabelle,
+   `thead th[data-sort-dir]` mit `data-col-key` (gesetzt bei Klick `table-filter.js` Z. 246-255 und
+   bei Default-Sortierung ueber `window.triggerSort` Z. 263-266, 623-629). Es sortiert die
+   abgerufenen Zeilen je `tbody` (Gruppenreihenfolge bleibt) mit dem Wert der Sortierspalte aus der
+   **abgerufenen** Kopfzeile, auch wenn diese Spalte ausgeblendet ist. Der Vergleich ist heute eine
+   innere Funktion `compareRows` mit DOM-Zellzugriff ueber den physischen Index der Live-Tabelle
+   (Z. 345-378) und damit von aussen nicht nutzbar. Umsetzung: den Wertvergleich (Z. 352-377,
+   Datum → Zahl → `localeCompare('de')`) als `window.tableFilterCompareValues(valA, valB, dir)`
+   herausloesen und von `compareRows` **und** `csv-export.js` aufrufen. Kopieren ist
    ausgeschlossen, sonst entstuende die „drei Stellen synchron halten“-Klasse aus [[fallstricke]].
+   Kein Sortierindikator gesetzt → Serverreihenfolge.
 10. Waehrend des Abrufs wird der Knopf deaktiviert und zeigt einen Spinner. Ein Fehler (HTTP ≠ 200,
     Redirect auf Login/AccessDenied, keine Tabelle in der Antwort) zeigt eine sichtbare
     Fehlermeldung, und es wird **keine** Datei erzeugt. Ein leeres CSV ist ausgeschlossen.
@@ -292,7 +344,7 @@ laufen, sind damit **nicht** ausgeschlossen. Der Dev-Lauf prueft deshalb je Inde
 Aufrufpfad auf Schreibzugriffe und dokumentiert das Ergebnis im QA-Nachweis.
 
 Ponytail-Leiter: Wiederverwendet werden Index-Action, Rechte, Filter, `PageSize.AllCap`, die
-Sichtbarkeitsregel und optional der Sort-Comparator. Neu ist nur ein Skript plus zwei Attribute im
+Sichtbarkeitsregel und der Sort-Wertvergleich. Neu ist nur ein Skript plus zwei Attribute im
 Pagination-Partial. Bewusst entfaellt: neue Endpunkte, eine C#-CSV-Bibliothek und Code je
 Controller.
 
@@ -353,12 +405,13 @@ ist eine Ergaenzung des bestehenden Musters und wird beim Umsetzen als additiver
    Summe der Zeilen aller Gruppen).
 3. Spalte per Zahnrad ausgeblendet und **sofort** exportiert, also ohne Reload: Die Spalte fehlt im
    CSV. Spalten in anderer Reihenfolge angeordnet: Das CSV hat die Bildschirm-Reihenfolge.
-4. Aktions-, Knopf- und Auswahlspalten ohne Ueberschrift erscheinen nie im CSV.
+4. Aktions-, Knopf- und Auswahlspalten ohne Ueberschrift erscheinen nie im CSV (vorbehaltlich
+   Rueckfrage 14).
 5. Das CSV oeffnet sich per Doppelklick in Excel (de-AT) mit korrekten Umlaeufen (ä ö ü ß, „–“) und
    getrennten Spalten. Mengen wie `1.234,500` werden als Zahl erkannt. Ein Datum erscheint als
    `dd.MM.yyyy` ohne KW-Suffix, sofern Rueckfrage 3 so entschieden wird.
 6. Hierarchische FA-Liste (Master `true`): Das CSV ist flach. Eine Spalte „HauptFA“ steht vor den
-   Zeilenspalten. Gruppen-Kopfzeilen und die Kombigeraete-Variantentabelle erscheinen **nicht** als
+   Zeilenspalten (vorbehaltlich Rueckfrage 14). Gruppen-Kopfzeilen und die Kombigeraete-Variantentabelle erscheinen **nicht** als
    Zeilen. Keine Zeile hat eine abweichende Spaltenzahl.
 7. Eine Zelle mit Inhalt `=1+1`, `+43…`, `@SUMME(…)` oder `-x` beginnt im CSV mit `'` und wird in
    Excel als Text angezeigt, nicht berechnet. Die reine Zahl `-5,000` bleibt eine Zahl
@@ -366,8 +419,9 @@ ist eine Ergaenzung des bestehenden Musters und wird beim Umsetzen als additiver
 8. Ein Anwender ohne Leserecht der Ansicht, bzw. bei ausgeschaltetem Feature-Gate, erhaelt auch
    ueber den Export keine Daten. Das CSV enthaelt bei jedem Anwender genau die Zeilen, die seine
    Ansicht mit denselben Filtern zeigt.
-9. Mehr als 5000 Treffer: Es erscheint ein sichtbarer Hinweis „auf 5.000 begrenzt“. Das CSV enthaelt
-   die ersten 5000 Treffer, bzw. das in Rueckfrage 9 entschiedene Verhalten.
+9. Mehr als 5000 Treffer: Es erscheint ein sichtbarer Hinweis „auf 5.000 begrenzt“, und das CSV
+   enthaelt die ersten 5000 Treffer (bei Gruppenlisten: die Zeilen der ersten 5000 Gruppen), nicht
+   weniger und nicht mehr. Ohne Kappung erscheint kein Hinweis.
 10. Ein Abruf schlaegt fehl (z. B. Sitzung abgelaufen, Serverfehler): Es erscheint eine sichtbare
     Fehlermeldung, und es wird keine Datei heruntergeladen.
 11. AKE-Regression: Bei Master `false` sind alle Listen in Darstellung, Filterung, Sortierung,
@@ -377,6 +431,15 @@ ist eine Ergaenzung des bestehenden Musters und wird beim Umsetzen als additiver
 13. Der Quelltext-Waechter `CsvExportCoverageTests` ist gruen. Er prueft: Einbindung wirksam fuer
     alle Views mit `filterable-table` ausser den Opt-outs, und `:scope >` in `csv-export.js`.
 14. Build gruen, alle Web- und Service-Tests gruen.
+15. Sortierung (Antwort 10): Liste ueber mehrere Seiten, Spaltenkopf einer Datumsspalte absteigend
+    angeklickt → das CSV ist ueber **alle** Treffer nach dieser Spalte absteigend sortiert (Datum,
+    Zahl und Text wie am Bildschirm). Bei Gruppenlisten ist innerhalb jeder Gruppe sortiert, die
+    Gruppenreihenfolge entspricht dem Bildschirm. Ist die Sortierspalte per Zahnrad ausgeblendet
+    (Default-Sortierung), wird trotzdem nach ihr sortiert. Ohne Sortierindikator: Serverreihenfolge.
+    Die Bildschirm-Sortierung selbst verhaelt sich nach dem Herausloesen des Vergleichs unveraendert.
+16. Zellwerte (Antwort 11): Leitstand-Checkboxen Glas, Fremdbezug und Lack erscheinen als „Ja“ bzw.
+    „Nein“ entsprechend dem Haken, nie als leere Zelle. Erledigte/stornierte Zeilen haben keine
+    zusaetzliche Statusspalte.
 
 ## Test-Szenarien
 
@@ -405,14 +468,21 @@ danach `secondbrain/tests/testszenarien-index.md` nachziehen. Gliederung:
 - **.9 Feature-Gate aus (Negativfall):** Mit `FaHierarchyKommissionierlistenAktiv = false` gibt es
   weder Liste noch Export.
 - **.10 Cap:** Filter so waehlen, dass mehr als 5000 Treffer entstehen (z. B. Bewegungshistorie ohne
-  Filter). Warnung sichtbar, Inhalt entsprechend Rueckfrage 9.
+  Filter). Warnung sichtbar, CSV enthaelt genau 5000 Treffer (Antwort 9). Gegenprobe mit
+  eingegrenztem Filter unter 5000: keine Warnung.
 - **.11 Fehlerfall:** Sitzung ablaufen lassen bzw. Server stoppen, dann exportieren. Sichtbare
   Meldung, keine Datei.
 - **.12 Client-Mode-Listen:** Stueckliste mit Komm.-Ziel-Filter und teilweise zugeklapptem Baum,
   Lagerbestellung-Details, Tracking je Werkbank. Verhalten entsprechend Rueckfrage 12.
-- **.13 Zellwerte:** Leitstand mit Glas, Fremdbezug und Lack als Ja/Nein, Prio als Zahl; Lack-T-Icon;
-  FA-Nr. mit Badges. Ergebnis entsprechend Rueckfrage 11.
+- **.13 Zellwerte:** Leitstand mit Glas, Fremdbezug und Lack → „Ja“/„Nein“ je Haken (Antwort 11);
+  erledigte/stornierte Zeile ohne Statusspalte. Prio als Zahl, Lack-T-Icon und FA-Nr. mit Badges
+  entsprechend Rueckfrage 14.
 - **.14 Stammdaten-Stichprobe:** Artikel, Lagerplaetze, Benutzer (Admin) und BDE-Stammdaten je Tab.
+- **.15 Sortierung (Antwort 10):** Mehrseitige Liste, Datumsspalte absteigend klicken, exportieren:
+  CSV ueber alle Treffer absteigend. Dasselbe mit Zahlen- und Textspalte. IDEAL-Gruppenliste: je
+  Gruppe sortiert, Gruppenreihenfolge unveraendert. Default-Sortierung auf ausgeblendete Spalte:
+  CSV trotzdem danach sortiert. Regression: Bildschirm-Sortierung (Klick, Default, Gruppen,
+  Kombigeraete-Variantentabelle bleibt gefuellt) unveraendert.
 
 ## Etappen (nur bei epic: true)
 
@@ -429,7 +499,8 @@ Branch wird waehrend der Arbeit mit `scripts/sync-worktree.ps1` auf `main`-Stand
 > [!warning] Vorlaeufig
 > Die QA bestaetigt diesen Abschnitt am echten Diff.
 
-- **Web-App:** ja. Neues Skript, Layout bzw. Views, `_Pagination.cshtml`, Hilfe und Changelog.
+- **Web-App:** ja. Neues Skript, `table-filter.js` (herausgeloester Sort-Vergleich), Layout bzw.
+  Views, `_Pagination.cshtml`, Hilfe und Changelog.
 - **Service:** nein.
 - **Migration:** nein.
 - **Publish-Befehle** (im Worktree):
@@ -445,16 +516,23 @@ Branch wird waehrend der Arbeit mit `scripts/sync-worktree.ps1` auf `main`-Stand
 
 ## Offene Rueckfragen
 
-1. **Welche Zeilen?** Alle Zeilen des aktuellen Filters ueber alle Seiten oder nur die sichtbare
+> [!note] Stand 2026-10-07
+> 1, 2, 4, 9, 10 und 11 sind durch den Keyuser beantwortet (Freigabe-Antworten) und in den Rumpf
+> uebernommen; die jeweils verworfene Variante ist unten als *ueberholt* markiert. Offen bleiben
+> 3, 5, 6, 7, 8, 12 sowie neu 13 (Konflikt 9 × 10) und 14 (Restpunkte aus 2/4/11).
+
+1. **[Entschieden: alle Seiten]** **Welche Zeilen?** Alle Zeilen des aktuellen Filters ueber alle Seiten oder nur die sichtbare
    Seite?
    *Empfehlung (Notiz):* alle Zeilen des Filters. Technisch ueber `pageSize=0`, gekappt bei 5000
    (siehe 9).
-2. **Welche Spalten?** Die beim Klick sichtbaren, in Bildschirm-Reihenfolge? Spalten ohne
+   *Ueberholt:* „nur die sichtbare Seite“.
+2. **[Entschieden: wie eingeblendet]** **Welche Spalten?** Die beim Klick sichtbaren, in Bildschirm-Reihenfolge? Spalten ohne
    Ueberschrift (Aktionen, Knoepfe, Bulk-Checkbox) nie?
    *Empfehlung (Notiz):* sichtbare Spalten in Bildschirm-Reihenfolge, gleiche Konvention wie
    Druck/PDF in [[2026-09-25-kommissionierliste-summierung-pdf-spec]]. Dazu die Spec-Empfehlung:
    Spalten ohne Ueberschrifttext nie exportieren. Einen Server-Rueckfall wie beim Druck braucht es
    bei Variante A nicht, weil der Export immer aus der offenen Seite startet.
+   *Offen geblieben:* Weglassen der Spalten ohne Ueberschrift → Rueckfrage 14.
 3. **Format fuer Excel in Oesterreich?** Semikolon, UTF-8 mit BOM, Dezimalkomma, Datum `dd.MM.yyyy`.
    Datumszellen haben heute die Form `dd.MM.yyyy KWnn` (`_ProductionOrderRow.cshtml` Z. 6-11).
    Soll der KW-Suffix im Export entfallen, damit Excel ein Datum erkennt (a)? Oder bleibt er wie
@@ -464,7 +542,7 @@ Branch wird waehrend der Arbeit mit `scripts/sync-worktree.ps1` auf `main`-Stand
    und Zeitstempel. Daraus folgt (a). Keine `sep=;`-Zeile: Sie hebelt nach bekanntem Excel-Verhalten
    die BOM-Erkennung aus. Das ist unverifiziert und wird im UAT TS-.5 geprueft. Das Dezimalkomma
    haengt teils an der Server-Kultur (Pruefschritt im Abschnitt Deploy).
-4. **Gruppierte Listen?** Flach exportieren mit Gruppenschluessel als eigener Spalte? Gruppen-
+4. **[Entschieden: flach]** **Gruppierte Listen?** Flach exportieren mit Gruppenschluessel als eigener Spalte? Gruppen-
    Kopfzeilen samt deren Kopfdaten (Kunde und FE-Termin in der Kopfzeile, `ProductionOrders/Index.cshtml`
    Z. 152-162) und die Kombigeraete-Variantenzeile entfallen als Zeilen?
    *Empfehlung (Notiz):* flach, Gruppenschluessel als eigene Spalte. Dazu die Spec-Empfehlung:
@@ -472,6 +550,7 @@ Branch wird waehrend der Arbeit mit `scripts/sync-worktree.ps1` auf `main`-Stand
    Die Kopfdaten der FA-Liste stehen ohnehin in den Zeilenspalten (Kunde, Prio, AB-Nr.,
    KO-Termin, `_ProductionOrderRow.cshtml` Z. 69-76; Kommentar `ProductionOrders/Index.cshtml`
    Z. 147-151).
+   *Offen geblieben:* eigene Spalte „HauptFA“ aus `tbody[data-group]` → Rueckfrage 14.
 5. **Sicherheit?**
    (a) Zellen, die mit `=`, `+`, `-`, `@`, Tab oder CR beginnen, erhalten ein fuehrendes `'`.
    Ausgenommen sind Werte, die vollstaendig eine Zahl im Anzeigeformat sind (z. B. `-5,000`), sonst
@@ -507,18 +586,20 @@ Branch wird waehrend der Arbeit mit `scripts/sync-worktree.ps1` auf `main`-Stand
    (6) Client-Mode-Listen 36-40 + Doku/TS.
    Jede Etappe ist ein Commit, am Ende steht ein Merge.
    `freigabe_entscheidung` = A oder B.
-9. **Mehr als 5000 Treffer** (`PageSize.AllCap`; bei Gruppenlisten 5000 **Gruppen**, also
+9. **[Entschieden: erste 5000 + Warnung]** **Mehr als 5000 Treffer** (`PageSize.AllCap`; bei Gruppenlisten 5000 **Gruppen**, also
    potenziell deutlich mehr Zeilen)?
    *Spec-Empfehlung:* die ersten 5000 exportieren und eine sichtbare Warnung „auf 5.000 begrenzt,
    bitte Filter eingrenzen“ zeigen (analog Banner `_Pagination.cshtml` Z. 6-12). Alternative: Export
    sperren, bis der Filter eingrenzt. Die Notiz trifft dazu keine Aussage.
-10. **Sortierung:** Soll der Export die aktive Bildschirm-Sortierung uebernehmen? Sie ist rein
+   *Ueberholt:* „Export sperren“.
+10. **[Entschieden: Bildschirm-Sortierung uebernehmen]** **Sortierung:** Soll der Export die aktive Bildschirm-Sortierung uebernehmen? Sie ist rein
     clientseitig und gilt je Gruppe. Uebernahme ueber den Comparator, den `table-filter.js`
     bereitstellt; Alternative ist die Serverreihenfolge.
     *Spec-Empfehlung:* uebernehmen, weil Anwender „wie am Bildschirm“ erwarten. Ohne Uebernahme gilt
     die Default-Sortierung der Action (`data-fallback-sort-column` greift nur clientseitig). Die
     Notiz trifft dazu keine Aussage.
-11. **Zellinhalt:**
+    *Ueberholt:* „Serverreihenfolge“ (gilt nur noch, wenn keine Sortierung aktiv ist).
+11. **[Teilweise entschieden: Checkbox Ja/Nein, Farbkennzeichen nicht exportieren]** **Zellinhalt:**
     - Badges in Zellen, z. B. „HauptFA“, „In Sage gelöscht“, „BG 2“ und enaio: als Teil des Werts
       oder weglassen?
     - Checkboxen (Leitstand Glas/Fremdbezug/Lack): als „Ja“/„Nein“?
@@ -533,12 +614,29 @@ Branch wird waehrend der Arbeit mit `scripts/sync-worktree.ps1` auf `main`-Stand
     einen eigenen Exportwert setzen. Der nur farbliche Zeilenstatus bleibt ausserhalb. Er
     widerspricht schon am Bildschirm der Regel „Farbe nie alleiniger Bedeutungstraeger“ und gehoert
     in einen eigenen Backlog-Eintrag. Die Notiz trifft dazu keine Aussage.
+    *Offen geblieben:* Badges, Eingabefelder/Selects, Icon-Zellen → Rueckfrage 14.
 12. **Client-Mode-Listen** (Inventar 36-40): Exportiert werden die vom Client-Filter nicht
     ausgeblendeten Zeilen. Sollen in der Stueckliste auch Filtertreffer exportiert werden, die nur
     wegen eines **zugeklappten** Baumknotens unsichtbar sind (`updateBomVisibility`, [[fallstricke]]
     „BOM-Baum hat Vorrang vor dem Spaltenfilter“)?
     *Spec-Empfehlung:* ja, alle Filtertreffer unabhaengig vom Klappzustand. Der Klappzustand ist
     Navigation, kein Filter. Die Notiz trifft dazu keine Aussage.
+13. **Konflikt Antwort 9 × Antwort 10 (neu, Rework 2026-10-07):** Der Server kappt bei `pageSize=0`
+    auf die ersten 5000 Treffer (bzw. Gruppen) in **seiner** Reihenfolge (`PageSize.cs` Z. 29); keine
+    Index-Action kennt einen Sortierparameter (siehe Ausgangslage). Die Bildschirm-Sortierung wird
+    erst im Browser auf diese 5000 angewandt. Bei gekapptem Export mit aktiver Sortierung sind das
+    also **nicht** die ersten 5000 nach Bildschirm-Sortierung (z. B. nicht die 5000 juengsten
+    Bewegungen, wenn nach Datum absteigend sortiert ist).
+    *Spec-Empfehlung:* Warnung aus Antwort 9 um den Satz „Sortierung gilt nur innerhalb der
+    exportierten 5.000“ ergaenzen, sonst nichts bauen. Alternative: bei Kappung + aktiver Sortierung
+    Export sperren (widerspraeche Antwort 9) oder serverseitiges Sortieren je Action (Umfang wie
+    Variante B).
+14. **Restpunkte ohne ausdrueckliche Antwort (neu, Rework 2026-10-07):** Die Antworten 2, 4 und 11
+    entscheiden die Kernfrage, nicht diese Details. Bestaetigung der Spec-Empfehlungen:
+    (a) Spalten ohne Ueberschrift (Aktionen, Bulk-Checkbox) weglassen, obwohl sie „eingeblendet“
+    sind; (b) Gruppenschluessel als eigene erste Spalte „HauptFA“, wo keine `hauptfa`-Spalte sichtbar
+    ist; (c) Badges als Teil des Zellwerts; (d) Eingabefeld mit Wert, Select mit Auswahltext;
+    (e) Icon-Zelle ueber `title`/`aria-label`, sonst leer.
 
 ## Freigabe-Antworten (Mensch fuellt aus — Schranke 1)
 
@@ -550,15 +648,17 @@ Branch wird waehrend der Arbeit mit `scripts/sync-worktree.ps1` auf `main`-Stand
   Bei Varianten-Specs zusaetzlich freigabe_entscheidung im Frontmatter setzen.
 -->
 
-1. Welche Zeilen (alle Seiten / nur sichtbare Seite) →
-2. Welche Spalten (sichtbare in Bildschirm-Reihenfolge, ohne Aktionsspalten) →
+1. Welche Zeilen (alle Seiten / nur sichtbare Seite) → **Alle Treffer des Filters über alle Seiten (Keyuser 2026-10-07).**
+2. Welche Spalten (sichtbare in Bildschirm-Reihenfolge, ohne Aktionsspalten) → **Wie eingeblendet (Keyuser 2026-10-07).**
 3. Format (Semikolon, UTF-8-BOM, Dezimalkomma, Datum ohne KW a/b/c, Dateiname) →
-4. Gruppierte Listen (flach + HauptFA-Spalte, Kopf-/Variantenzeilen entfallen) →
+4. Gruppierte Listen (flach + HauptFA-Spalte, Kopf-/Variantenzeilen entfallen) → **Flach (Keyuser 2026-10-07).**
 5. Sicherheit (a Injection mit Zahlen-Ausnahme, b nur Leserecht ohne Toggle, c keine Protokollierung) →
 6. Baustein (Skript im Layout / Button-Partial je View) →
 7. Umfang (40 Tabellen in einer Spec, Baeume + Formulartabellen ausserhalb) →
 8. Variante (A Browser / B Export-Action je Controller = Epic) →
-9. Mehr als 5000 Treffer (erste 5000 + Warnung / sperren) →
-10. Sortierung (Bildschirm-Sortierung uebernehmen / Serverreihenfolge) →
-11. Zellinhalt (Badges, Checkbox Ja/Nein, Eingaben, Icons, Farbstatus) →
+9. Mehr als 5000 Treffer (erste 5000 + Warnung / sperren) → **Erste 5000 + sichtbare Warnung (mit Antwort 1 bestätigt) (Keyuser 2026-10-07).**
+10. Sortierung (Bildschirm-Sortierung uebernehmen / Serverreihenfolge) → **Bildschirm-Sortierung übernehmen („sortiert korrekt“) (Keyuser 2026-10-07).**
+11. Zellinhalt (Badges, Checkbox Ja/Nein, Eingaben, Icons, Farbstatus) → **Checkbox als Ja/Nein; farbige Kennzeichen egal (Keyuser 2026-10-07).**
 12. Client-Mode-Listen / Stueckliste unabhaengig vom Klappzustand →
+13. Kappung x Sortierung (Warnung ergaenzen / sperren / serverseitig sortieren) →
+14. Restpunkte a-e (ohne Ueberschrift weglassen, HauptFA-Spalte, Badges, Eingaben, Icons) →
