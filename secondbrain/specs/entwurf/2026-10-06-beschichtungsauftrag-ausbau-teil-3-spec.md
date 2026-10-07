@@ -4,19 +4,19 @@ title: "Beschichtungsauftrag-Ausbau Teil 3 — Beschichtungsauftrag als eigenes 
 slug: 2026-10-06-beschichtungsauftrag-ausbau-teil-3-spec
 status: Entwurf
 created: 2026-10-06
-updated: 2026-10-06
+updated: 2026-10-07
 source_backlog: "[[2026-10-06-beschichtungsauftrag-ausbau]]"
 depends_on: ""
 task: ""
 worktree: ""
 branch: ""
 affected_code:
-  - IdealAkeWms/Models/Beschichtungsauftrag.cs (neu, erbt AuditableEntity — Kopf, Nummer, Status, Statuszeitpunkte, RowVersion; Muster WarehouseRequisition.cs)
+  - IdealAkeWms/Models/Beschichtungsauftrag.cs (neu, erbt AuditableEntity — Kopf mit genau einem HauptFA, Nummer, Status, Statuszeitpunkte, Dienstleister als Freitext, RowVersion; Muster WarehouseRequisition.cs)
   - IdealAkeWms/Models/BeschichtungsauftragPosition.cs (neu, erbt AuditableEntity — Herkunftsschluessel + Snapshot; Muster WarehouseRequisitionItem.cs:5)
   - IdealAkeWms/Models/BeschichtungsauftragStatus.cs (neu, enum byte mit Luecken fuer den spaeteren Freigabe-Status; Muster WarehouseRequisitionStatus.cs)
   - IdealAkeWms/Data/ApplicationDbContext.cs (DbSets + Konfiguration: Laengen, decimal(18,4), Indizes, UNIQUE Nummer, RowVersion; Muster :1164-1189)
   - IdealAkeWms/Data/Repositories/IBeschichtungsauftragRepository.cs + BeschichtungsauftragRepository.cs (neu, ADR 0001; Registrierung in Program.cs)
-  - IdealAkeWms/Services/BeschichtungsauftragWorkflow.cs (neu — Anlegen aus Positionsschluesseln, Nummernvergabe, Statuswechsel, Doppelvergabe-Guard, ggf. Reklamations-Folgeauftrag; Name im Dev-Lauf frei)
+  - IdealAkeWms/Services/BeschichtungsauftragWorkflow.cs (neu — Anlegen je HauptFA aus allen beschichteten Positionen, Nummernvergabe, Statuswechsel, Entwurf bearbeiten, Bemerkung, Doppelvergabe-Guard, Reklamations-Folgeauftrag; Name im Dev-Lauf frei)
   - IdealAkeWms/Migrations/<Zeitstempel>_AddBeschichtungsauftrag.cs (neu)
   - SQL/XX_AddBeschichtungsauftrag.sql (neu, XX = naechste freie Nummer in BEIDEN Zweigen zum Umsetzungszeitpunkt; heute Buendel SQL/93, main SQL/88)
   - SQL/00_FreshInstall.sql (zwei Stellen — Schema-Objekte UND MigrationId)
@@ -26,15 +26,12 @@ affected_code:
   - IdealAkeWms/Views/Help/Changelog.cshtml + beide AppVersion.cs
   - docs/TESTSZENARIEN.md + secondbrain/tests/testszenarien-index.md
 open_questions:
-  - "Nummernformat (Notiz Punkt 3): z. B. BA-JJJJ-laufend, je Standort getrennt? Empfehlung: BA-JJJJ-NNNNN, Jahreswechsel startet bei 1; Trennung je Standort ergibt sich aus der eigenen Datenbank je Installation (bitte bestaetigen)."
-  - "Status-Automat (Notiz Punkt 4): Anfangsstatus, Uebergaenge, Storno? Reklamation als Status oder als Folgeauftrag mit Verweis? Empfehlung: Entwurf -> Uebergeben -> Erledigt, Storno nur aus Entwurf; Reklamation = neuer Folgeauftrag mit Verweis auf den Ursprungsauftrag."
-  - "Wer darf Auftraege anlegen und Status setzen (Notiz Punkt 4, Edit-Split nach ADR 0006)? Bestehende Rolle beschichtungsauftrag ist reine Lese-Ebene. Neue Schreibrolle oder bestehende Rolle zur Schreibrolle machen?"
-  - "Doppelvergabe (Notiz Punkt 5): Positionen, die schon in einem Auftrag stecken, in der Vorschlagsliste ausblenden oder markieren? Welche Status sperren eine Position?"
-  - "Kombigeraete und Kopf (Notiz Punkt 8): Darf ein Auftrag Positionen mehrerer HauptFA enthalten, und wie wird der Kopf (Dienstleister, RAL) bei mehrdeutigem Sage-Kopf bestimmt?"
   - "Freigabe-Schritt (Notiz Punkt 6, OUT OF SCOPE): Vorsorge im Datenmodell nur ueber einen reservierten Statuswert, keine Spalten und keinen Code — bestaetigen?"
   - "Vorgemerktes (Notiz Punkt 7, OUT OF SCOPE): Positionen als eigene Zeilen mit eigener Id plus Verweis Folgeauftrag -> Ursprungsauftrag als einzige Vorsorge — bestaetigen?"
-  - "Snapshot: Werden Positionsdaten (Menge, Masse, Artnr) bei der Anlage eingefroren, und was gilt, wenn Sage danach aendert oder die Position aus der FAListe verschwindet? Welche Menge wird uebernommen (Sollmenge) und ist sie im Auftrag aenderbar?"
-  - "Termine im Kopf: Start_Beschichtung/Beschichten_Retour aus Sage als Vorbelegung uebernehmen und im WMS aenderbar (ohne Rueckschreiben nach Sage), oder eigene WMS-Termine?"
+  - "Storno und Doppelvergabe: Antwort 4 erlaubt eine erneute Vergabe nur ueber Reklamation. Gibt ein stornierter Entwurf seine Positionen wieder frei (neuer Auftrag fuer denselben HauptFA moeglich)? Empfehlung: ja, Storniert sperrt nicht."
+  - "Reklamation aus welchem Status: nur aus Erledigt, oder auch aus Uebergeben? Empfehlung: nur aus Erledigt."
+  - "Restpositionen eines HauptFA: Was gilt fuer Positionen, die im Entwurf entfernt wurden oder nach der Anlage in Sage neu beschichtet markiert werden — frei fuer einen weiteren Auftrag desselben HauptFA (nur diese Positionen), oder nur ueber den bestehenden Auftrag? Duerfen im Entwurf Positionen (wieder) hinzugefuegt werden?"
+  - "Reklamations-Kopf: Teil-4-Antwort 3 sagt 'nichts vorbelegen', Teil-4-Antwort 4 'Standard-Beschichter aus der PPS-View, ueberschreibbar besonders bei Reklamation'. Gilt 'nichts vorbelegen' nur fuer die Teileauswahl (Kopf dann aus PPS-View bzw. Ursprung vorbelegt) oder auch fuer den Kopf?"
 epic: false
 etappen: []
 deploy:
@@ -54,8 +51,8 @@ freigabe_am: ""
 Teil 3 von 4 — Uebersicht: [[2026-10-06-beschichtungsauftrag-ausbau-uebersicht]]. Standort: **IDEAL**.
 
 **Keine Abhaengigkeit zu Teil 1:** Teil 3 speichert Positionen **je Strukturknoten** (das braucht der
-Doppelvergabe-Guard, Anforderung 6). Die Summierung ist Darstellung — ob der gedruckte Auftrag summiert
-wird, entscheidet Teil 4 (dort Rueckfrage 6). Fachlich ist Teil 1 daher nicht Voraussetzung.
+Doppelvergabe-Guard, Anforderung 6). Die Summierung ist Darstellung — der gedruckte Auftrag wird summiert
+(Teil-4-Antwort 6), das macht Teil 4 beim Druck. Fachlich ist Teil 1 daher nicht Voraussetzung.
 
 **Schnitt:** Teil 3 ist der **Backend-Baustein ohne Oberflaeche** (Modell, Migration, Repository,
 Workflow-Service, Tests). Er ist eigenstaendig mergbar („dunkel": nichts ist fuer Anwender sichtbar) und
@@ -81,16 +78,22 @@ Beschichtungsauftrag muss trotzdem lesbar bleiben. Deshalb: **Herkunftsschluesse
 **In-Scope**
 - Entitaeten `Beschichtungsauftrag` (Kopf) und `BeschichtungsauftragPosition`, Status-Enum.
 - Nummernkreis mit Eindeutigkeit unter Parallelitaet.
-- Status-Automat mit erlaubten Uebergaengen laut Antwort 2, Statuszeitpunkt + Benutzer je Uebergang.
-- Anlegen aus einer Menge von Positionsschluesseln (aktuell `Beschichtet == true`), mit Doppelvergabe-Guard
-  und Snapshot.
-- Reklamations-Folgeauftrag mit Verweis auf den Ursprungsauftrag — falls Antwort 2 so entscheidet.
+- Status-Automat `Entwurf → Uebergeben → Erledigt`, Storno nur aus `Entwurf` (Antwort 2), Statuszeitpunkt +
+  Benutzer je Uebergang.
+- Anlegen **je HauptFA** aus allen aktuell beschichteten Positionen dieses HauptFA (Teil-4-Antwort 2, Antwort 5),
+  mit Doppelvergabe-Guard und Snapshot. ~~Anlegen aus einer Menge von Positionsschluesseln~~ *(verworfen mit
+  Teil-4-Antwort 2: keine Einzelauswahl)*
+- Bearbeiten im `Entwurf` (Kopf, Positionsmenge, Position entfernen) und Bemerkung in jedem Status ausser
+  `Storniert` (Teil-4-Antwort 7, Antwort 8).
+- Reklamations-Folgeauftrag mit Verweis auf den Ursprungsauftrag (Antwort 2) aus ausgewaehlten Positionen des
+  Ursprungs (Teil-4-Antwort 3).
 - Migration dreifach (ADR 0004), Repository (ADR 0001), Unit-Tests.
 
 **Out-of-Scope**
 - Jede Oberflaeche (Liste, Detail, Buttons, Druck des Auftrags) → Teil 4.
-- Dienstleister aus dem Kreditoren-Stamm (Fremdschluessel) → Teil 4, nach [[2026-10-06-kreditoren-stammdaten-spec]].
-  Teil 3 speichert den Dienstleister als Text-Snapshot.
+- Dienstleister aus dem Kreditoren-Stamm (Fremdschluessel) — ~~Teil 4, nach [[2026-10-06-kreditoren-stammdaten-spec]]~~
+  *(ueberholt mit Teil-4-Antwort 4: Ueberschreiben als Freitext genuegt, Kreditoren-Auswahl spaeter, ausserhalb
+  dieses Pakets)*. Teil 3 speichert den Dienstleister als Freitext (vorbelegt aus Sage, ueberschreibbar).
 - **Freigabe-Schritt** (Notiz Punkt 6): wird **nicht** gebaut. Das Datenmodell darf ihn nur nicht verbauen
   (Rueckfrage 6).
 - **Vorgemerktes** (Notiz Punkt 7: Positions-Haekchen Reklamation/Neubeschichtung, Ursprungs-HauptFA bei
@@ -101,48 +104,83 @@ Beschichtungsauftrag muss trotzdem lesbar bleiben. Deshalb: **Herkunftsschluesse
 
 ## Fachliche Anforderungen
 
-1. **Nummer** laut Antwort 1, eindeutig, nie wiederverwendet (auch nicht nach Storno).
-2. **Kopf:** Dienstleister (Text), RAL (Text), Start Beschichtung, Retour (Termine laut Antwort 9), Bemerkung,
-   Status, ggf. Verweis auf Ursprungsauftrag. Vorbelegung aus `FaHierarchyOrderInfo` der beteiligten HauptFA.
+1. **Nummer** `BA-JJJJ-NNNNN` (fuenfstellig, fuehrende Nullen, Zaehler beginnt jedes Jahr bei 1), **ohne**
+   Standortkuerzel — AKE und IDEAL laufen auf getrennten Servern mit eigenen Datenbanken (Antwort 1).
+   Eindeutig, nie wiederverwendet (auch nicht nach Storno).
+2. **Kopf:** genau **ein** `HauptFA` (Antwort 5: pro HauptFA ein Auftrag), Dienstleister (Freitext), RAL (Text),
+   Start Beschichtung, Retour, Bemerkung, Status, ggf. Verweis auf Ursprungsauftrag. Vorbelegung aus
+   `FaHierarchyOrderInfo` des HauptFA: Dienstleister = „Standard-Beschichter aus der PPS-View"
+   (`FaHierarchyOrderInfo.Dienstleister`, `FaHierarchyOrderInfo.cs:27`), RAL (`:28`), Termine aus
+   `Start_Beschichtung`/`Beschichten_Retour` (`:33-34`, Antwort 9). Dienstleister, RAL und Termine sind im
+   `Entwurf` aenderbar (Teil-4-Antwort 7: Kopf nur im Entwurf; Teil-4-Antwort 4: Dienstleister am Auftrag
+   ueberschreibbar, als Freitext); kein Rueckschreiben nach Sage.
    Feldbedeutung belegt: `Dienstleister`, `RAL`, `Start_Beschichtung`, `Beschichten_Retour` werden nur vom Sync
    aus der Sage-View FAInfos geschrieben (`FaHierarchySyncService.cs:282-288`, Quelle `FaHierarchySql.cs:139-140`)
    und im WMS nur gelesen (Beschichtungs-Views; `Start_Beschichtung` zusaetzlich in der FA-Liste,
    `ProductionOrdersController.cs:307`). Was sie in Sage fachlich bedeuten (Plan- oder Ist-Termin), ist am Code
-   nicht ablesbar — Rueckfrage 9.
+   nicht ablesbar; Antwort 9 legt fest, dass sie als Beschichtungstermin bzw. „Beschichten retour" uebernommen
+   werden.
 3. **Position:** Herkunftsschluessel `HauptFA`, `VaterFA`, `SubFA`, `Position` (die Struktur-Felder aus
    `FaHierarchyNode.cs:19-28`) + Snapshot `HauptArtnr`, `Artnr`, `Matchcode`, Menge, `Breite`, `Hoehe`, `Tiefe`.
    **Unverifiziert:** dass dieser Schluessel eine FAListe-Zeile eindeutig bestimmt — weder das Modell
    (`ApplicationDbContext.cs:1032-1033`, nur nicht-eindeutige Indizes auf HauptFA und VaterFA) noch der Sync erzwingen das.
    Pruefabfrage in den Test-Szenarien; davon haengt der Doppelvergabe-Guard ab.
-4. **Kopf-Eindeutigkeit** bei Kombigeraeten und bei mehreren HauptFA laut Antwort 5. Nie still eine
-   Kopfvariante waehlen (Grundsatz aus [[2026-07-29-standort-ideal-teil-4-spec]], Antwort zu B-2).
-5. **Statuswechsel** nur entlang der erlaubten Uebergaenge (Antwort 2); jeder Wechsel setzt Zeitpunkt und
-   Benutzer des Uebergangs sowie die Audit-Felder. Unerlaubter Wechsel → Fehler mit Klartext, kein stiller
-   No-op.
-6. **Doppelvergabe:** Eine Position (Herkunftsschluessel) darf nicht gleichzeitig in zwei Auftraegen mit
-   sperrendem Status stecken (Antwort 4). Der Workflow lehnt das Anlegen ab und nennt die betroffenen
-   Positionen samt Auftragsnummer — nicht still ueberspringen.
-7. **Anlegen prueft gegen den aktuellen Cache:** Jeder uebergebene Schluessel muss im Cache existieren und
-   `Beschichtet == true` sein; sonst Ablehnung mit Liste der Abweichungen (Cache kann sich seit dem
-   Seitenaufbau durch einen Sync geaendert haben).
-8. **Snapshot-Regel** laut Antwort 8.
-9. **Zugriff:** Teil 3 hat keine Actions. Die Schreibrolle (Antwort 3) wird hier festgelegt und in Teil 4
-   als Action-Level-Filter umgesetzt; Class-Level bleiben `[RequireBeschichtungsauftragAccess]` +
-   `[RequireFaHierarchyBeschichtungAktiv]` (`FaHierarchyBeschichtungController.cs:27-28`).
+4. **Kopf-Eindeutigkeit** (Antwort 5): Ein Auftrag enthaelt nur Positionen **eines** HauptFA; ein Aufruf mit
+   Positionen mehrerer HauptFA wird abgelehnt. Kombigeraet (mehrere `FaHierarchyOrderInfo`-Zeilen je HauptFA,
+   `FaHierarchyOrderInfo.cs:7-9`): je Kopffeld wird nur vorbelegt, wenn alle Kopfzeilen denselben Wert
+   liefern; sonst bleibt das Feld leer und das Anlege-Ergebnis traegt den Hinweis „Kopf aus Sage mehrdeutig
+   (n Kopfzeilen)" mit den Varianten. Nie still eine Kopfvariante waehlen (Grundsatz aus
+   [[2026-07-29-standort-ideal-teil-4-spec]], Antwort zu B-2). ~~mehrere HauptFA je Auftrag~~ *(verworfen mit
+   Antwort 5)*
+5. **Statuswechsel** nur entlang `Entwurf → Uebergeben → Erledigt` und `Entwurf → Storniert` (Antwort 2);
+   keine Rueckwaertsschritte. Jeder Wechsel setzt Zeitpunkt und Benutzer des Uebergangs sowie die Audit-Felder.
+   Unerlaubter Wechsel → Fehler mit Klartext, kein stiller No-op.
+6. **Doppelvergabe** (Antwort 4): Eine Position (Herkunftsschluessel) darf nur ueber eine Reklamation erneut in
+   einen Auftrag; sonst ist Doppelvergabe ausgeschlossen. Sperrend sind alle Status ausser `Storniert` — ob
+   `Storniert` freigibt, ist Rueckfrage 10 (bis zur Antwort: Empfehlung „gibt frei"). Ausnahme: ein
+   Reklamations-Folgeauftrag darf Positionen seines Ursprungsauftrags enthalten. Der Workflow lehnt ab und nennt
+   die betroffenen Positionen samt Auftragsnummer — nicht still ueberspringen.
+7. **Anlegen je HauptFA prueft gegen den aktuellen Cache:** Der Workflow liest beim Anlegen alle Knoten des
+   HauptFA mit `Beschichtet == true` frisch aus dem Cache (nicht aus dem Seitenaufbau). Kein Treffer →
+   Ablehnung mit Klartext. Sind einzelne dieser Positionen bereits vergeben, gilt Rueckfrage 12; bis zur
+   Antwort lehnt der Workflow mit der Liste der vergebenen Positionen ab (sicherste Variante).
+8. **Snapshot-Regel** (Antwort 8): Positionsdaten werden bei der Anlage eingefroren; Menge = `Sollmenge`;
+   die Menge ist im `Entwurf` aenderbar; keine automatische Nachfuehrung bei spaeteren Sage-Aenderungen.
+9. **Zugriff** (Antwort 3): neue Berechtigungsgruppe „Beschichtungsaufträge" als **Schreibrolle** (ein Recht
+   fuer alle Schreibvorgaenge); die bestehende Rolle `beschichtungsauftrag` (`RoleKeys.cs:24`) bleibt reine
+   Lese-Ebene. Teil 3 hat keine Actions; Rolle, Filter und die drei Pflichtstellen setzt Teil 4 um.
+   Class-Level bleiben `[RequireBeschichtungsauftragAccess]` + `[RequireFaHierarchyBeschichtungAktiv]`
+   (`FaHierarchyBeschichtungController.cs:27-28`). Hinweis fuer Teil 4: der Anzeigename der Leserolle lautet
+   heute „Beschichtungsauftrag (IDEAL)" (`RoleOverview.cshtml:194`) — der neue Name „Beschichtungsaufträge"
+   muss in der Rollenuebersicht klar als Schreibrecht erkennbar sein.
+10. **Bearbeiten** (Teil-4-Antwort 7): Kopf und Positionen (Menge aendern, Position entfernen) nur im
+    `Entwurf`; danach nur Statuswechsel und Bemerkung. Ob Positionen im Entwurf hinzugefuegt werden duerfen und
+    ob entfernte Positionen frei werden, ist Rueckfrage 12.
+11. **Reklamation** (Antwort 2, Teil-4-Antwort 3): Folgeauftrag mit `UrsprungsauftragId`, aus `Erledigt`
+    (ob auch aus `Uebergeben`: Rueckfrage 11). Die Positionen waehlt der Anwender aus den Positionen des
+    Ursprungs; **nichts** wird vorausgewaehlt; leere Auswahl → Ablehnung. Snapshot-Werte kommen aus den
+    Ursprungspositionen (nicht aus dem Cache — der HauptFA kann dort schon fehlen). Der „Vermerk am
+    Ursprungsauftrag" ergibt sich aus dem Selbstverweis (Ursprung kennt seine Folgeauftraege ueber
+    `UrsprungsauftragId`); keine eigene Spalte, der Ursprung behaelt seinen Status `Erledigt`.
+    Kopf-Vorbelegung des Folgeauftrags: Rueckfrage 13 (bis zur Antwort wie beim Anlegen aus dem Cache des
+    HauptFA; fehlt der HauptFA dort, bleibt der Kopf leer mit Hinweis).
 
 ## Technischer Loesungsentwurf
 
-**Modell (Vorschlag, Feldliste nach den Antworten finalisieren):**
+**Modell (nach den Antworten 1, 2, 5, 9 und Teil-4-Antwort 4):**
 
 `Beschichtungsauftrag : AuditableEntity`
 - `Nummer` (string, max 20, Pflicht, UNIQUE), `Jahr` (int), `LaufendeNummer` (int), UNIQUE (`Jahr`, `LaufendeNummer`)
+- `HauptFA` (int, Pflicht, Index **nicht** UNIQUE — Reklamations-Folgeauftraege und stornierte Entwuerfe teilen
+  den HauptFA) — Antwort 5; auch Grundlage fuer Liste/Filter in Teil 4
 - `Status` (`BeschichtungsauftragStatus`, byte)
-- `Dienstleister` (string?, 200) — Text-Snapshot; Teil 4 ergaenzt den Kreditor-Fremdschluessel
-- `Ral` (string?, 200), `StartBeschichtung` (DateTime?), `BeschichtenRetour` (DateTime?)
+- `Dienstleister` (string?, 200 wie `ApplicationDbContext.cs:1044`) — Freitext, vorbelegt aus Sage, im Entwurf
+  ueberschreibbar. ~~Teil 4 ergaenzt den Kreditor-Fremdschluessel~~ *(verworfen mit Teil-4-Antwort 4)*
+- `Ral` (string?, 200 wie `:1045`), `StartBeschichtung` (DateTime?), `BeschichtenRetour` (DateTime?)
 - `Bemerkung` (string?, 1000)
-- `UrsprungsauftragId` (int?, Selbstverweis, `OnDelete Restrict`) — nur bei Antwort 2 = Folgeauftrag
+- `UrsprungsauftragId` (int?, Selbstverweis, `OnDelete Restrict`) — Reklamations-Folgeauftrag (Antwort 2)
 - Statuszeitpunkte je Uebergang: `UebergebenAt`/`UebergebenByUserId`, `ErledigtAt`/`ErledigtByUserId`,
-  ggf. `StorniertAt`/`StorniertByUserId` — Muster `WarehouseRequisition.cs:21-28`, User-Id aus
+  `StorniertAt`/`StorniertByUserId` — Muster `WarehouseRequisition.cs:21-28`, User-Id aus
   `ICurrentUserService.GetCurrentAppUserId()` (`ICurrentUserService.cs:7`)
 - `RowVersion` (`[Timestamp]`, Muster `WarehouseRequisition.cs:43-44`) gegen parallele Statuswechsel
 - `Positionen` (Collection)
@@ -158,7 +196,7 @@ Beschichtungsauftrag muss trotzdem lesbar bleiben. Deshalb: **Herkunftsschluesse
   nachweisen, weil EF InMemory UNIQUE-Indizes nicht erzwingt.
 
 `BeschichtungsauftragStatus : byte` — Werte mit Luecken, z. B. `Entwurf = 10`, `Uebergeben = 30`,
-`Erledigt = 40`, `Storniert = 90` (falls Antwort 2 Storno erlaubt). **Wert 20 bleibt fuer „Freigegeben"
+`Erledigt = 40`, `Storniert = 90` (Antwort 2). **Wert 20 bleibt fuer „Freigegeben"
 reserviert und wird nicht angelegt** — nur ein Kommentar im Enum (Rueckfrage 6).
 
 **Nummernvergabe:** `MAX(LaufendeNummer) + 1` fuer das laufende Jahr, Speichern; scheitert das Insert am
@@ -171,12 +209,20 @@ Sequence je Jahr.
 
 **Workflow-Service** (scoped, ueber `IBeschichtungsauftragRepository`, `IFaHierarchyNodeRepository`,
 `IFaHierarchyOrderInfoRepository`, `ICurrentUserService`):
-- `AnlegenAsync(positionsSchluessel, kopfVorgaben)` → prueft Anforderungen 4/6/7, bildet Snapshot, vergibt
-  Nummer, setzt `Entwurf`, `CreatedAt/By/ByWindows`; alles in einer Transaktion.
+- `AnlegenAsync(hauptFa)` → liest die beschichteten Knoten und die Kopfzeilen des HauptFA frisch aus dem
+  Cache, prueft Anforderungen 4/6/7, bildet Snapshot, belegt den Kopf vor, vergibt Nummer, setzt `Entwurf`,
+  `CreatedAt/By/ByWindows`; alles in einer Transaktion. ~~`AnlegenAsync(positionsSchluessel, kopfVorgaben)`~~
+  *(verworfen mit Teil-4-Antwort 2)*
+- `EntwurfBearbeitenAsync(id, kopf, positionsMengen, entfernteIds, rowVersion)` → nur im `Entwurf`; setzt
+  `ModifiedAt/By/ByWindows` an Kopf und geaenderten Positionen.
+- `BemerkungAendernAsync(id, text, rowVersion)` → in jedem Status ausser `Storniert`.
 - `StatusWechselnAsync(id, zielStatus, rowVersion)` → prueft Uebergang, setzt Statuszeitpunkt +
   `ModifiedAt/By/ByWindows`; Concurrency-Konflikt → verstaendliche Meldung.
-- `ReklamationAnlegenAsync(ursprungId, …)` → nur bei Antwort 2 = Folgeauftrag: neuer Auftrag `Entwurf`
-  mit `UrsprungsauftragId`, Positionen als Kopie (Doppelvergabe-Regel fuer Reklamationen laut Antwort 4).
+- Abfrage fuer Teil 4: „Herkunftsschluessel → Auftragsnummer(n)" je HauptFA-Menge (Vergabe-Markierung in der
+  Vorschlagsliste), im Repository, ohne N+1.
+- `ReklamationAnlegenAsync(ursprungId, positionIds)` → neuer Auftrag `Entwurf` mit `UrsprungsauftragId` und
+  demselben `HauptFA`, Positionen = Kopie der ausgewaehlten Ursprungspositionen (Doppelvergabe-Ausnahme,
+  Anforderung 6); Kopf laut Rueckfrage 13.
 - Ergebnisse als Ergebnisobjekt mit Klartext-Fehlerliste (Controller in Teil 4 uebersetzt in
   `ModelState`/`TempData["WarningMessage"]`; TempData kennt kein `ErrorMessage`).
 
@@ -208,29 +254,42 @@ Reihenfolge nach ADR 0004 / CLAUDE.md:
 - **Jeder** Update (Kopf-Aenderung, Statuswechsel, Positionsaenderung): `ModifiedAt`, `ModifiedBy`,
   `ModifiedByWindows`. Statuswechsel setzen zusaetzlich `<Status>At` + `<Status>ByUserId`.
 - Grenze, bewusst benannt: `AuditableEntity` haelt nur die **letzte** Aenderung. Eine lueckenlose
-  Statushistorie ergibt sich nur, weil bei der Empfehlung jeder Status hoechstens einmal erreicht wird
-  (Reklamation = neuer Auftrag). Entscheidet Antwort 2 „Reklamation als Status desselben Auftrags", wiederholen
-  sich Uebergaenge — dann braucht es eine eigene Historientabelle (neue Entitaet, gleiche Migrationspflichten).
+  Statushistorie ergibt sich, weil jeder Status hoechstens einmal erreicht wird (Antwort 2: keine
+  Rueckwaertsschritte, Reklamation = neuer Auftrag) — keine Historientabelle. ~~Entscheidet Antwort 2
+  „Reklamation als Status desselben Auftrags", wiederholen sich Uebergaenge — dann braucht es eine eigene
+  Historientabelle.~~ *(entfaellt mit Antwort 2)* Aenderungen an Kopf/Menge im Entwurf sind nur als letzte
+  Aenderung nachvollziehbar (`Modified*`) — fuer den Entwurf ausreichend, weil erst ab `Uebergeben` gedruckt
+  wird (Teil-4-Antwort 8).
 
 ## Akzeptanzkriterien
 
 1. Migration und `SQL/XX_*.sql` legen beide Tabellen an; das Skript laeuft zweimal hintereinander ohne
    Fehler (idempotent); `SQL/00_FreshInstall.sql` enthaelt Tabellen **und** `MigrationId`.
-2. Anlegen aus gueltigen Schluesseln erzeugt einen Auftrag im Status `Entwurf` mit Nummer im Format laut
-   Antwort 1, Positionen mit Snapshot-Werten und gesetzten `Created*`-Feldern.
-3. Zwei Anlagen im selben Jahr erhalten aufeinanderfolgende Nummern; im neuen Jahr beginnt die Folge laut
-   Antwort 1 neu.
+2. Anlegen fuer einen HauptFA erzeugt einen Auftrag im Status `Entwurf` mit Nummer `BA-JJJJ-NNNNN`, `HauptFA`
+   gesetzt, **allen** beschichteten Positionen dieses HauptFA mit Snapshot-Werten (Menge = `Sollmenge`),
+   vorbelegtem Kopf (Dienstleister, RAL, Start, Retour aus `FaHierarchyOrderInfo`) und gesetzten
+   `Created*`-Feldern.
+3. Zwei Anlagen im selben Jahr erhalten aufeinanderfolgende Nummern (`BA-2026-00001`, `BA-2026-00002`); im
+   neuen Jahr beginnt die Folge bei `00001`; die Nummer enthaelt kein Standortkuerzel.
 4. Ein Insert, der am UNIQUE-Index der Nummer scheitert, wird mit neuer Nummer wiederholt; erschoepfte
    Versuche enden mit Klartext-Fehler (Unit-Test ueber simulierten Konflikt; echter Parallelfall Manual-UAT
    bzw. SQL-Test).
-5. Erlaubte Uebergaenge laut Antwort 2 gelingen und setzen Statuszeitpunkt, Statusbenutzer und
-   `Modified*`; jeder andere Uebergang wird mit Klartext abgelehnt und aendert nichts.
-6. Eine Position, die in einem Auftrag mit sperrendem Status steckt (Antwort 4), kann nicht in einen zweiten
-   Auftrag uebernommen werden; die Ablehnung nennt Position und Auftragsnummer.
-7. Schluessel, die im Cache fehlen oder nicht mehr `Beschichtet == true` sind, fuehren zur Ablehnung mit
-   Abweichungsliste.
-8. Kopfvorbelegung bei Kombigeraet bzw. mehreren HauptFA folgt Antwort 5; nie wird still eine Variante
-   gewaehlt.
+5. `Entwurf → Uebergeben`, `Uebergeben → Erledigt` und `Entwurf → Storniert` gelingen und setzen
+   Statuszeitpunkt, Statusbenutzer und `Modified*`; jeder andere Uebergang (z. B. `Uebergeben → Storniert`,
+   `Erledigt → Entwurf`) wird mit Klartext abgelehnt und aendert nichts.
+6. Eine Position, die in einem nicht stornierten Auftrag steckt, kann nicht in einen zweiten Auftrag
+   uebernommen werden (Ausnahme: Reklamations-Folgeauftrag des Ursprungs); die Ablehnung nennt Position und
+   Auftragsnummer. Verhalten nach Storno laut Rueckfrage 10.
+7. Anlegen fuer einen HauptFA ohne beschichtete Positionen im Cache wird mit Klartext abgelehnt; Positionen
+   werden beim Anlegen frisch aus dem Cache gelesen.
+8. Kombigeraet: Kopffelder mit abweichenden Werten in den Kopfzeilen bleiben leer, das Ergebnis meldet „Kopf
+   aus Sage mehrdeutig" mit den Varianten; nie wird still eine Variante gewaehlt.
+8a. Ein Aufruf mit Positionen mehrerer HauptFA in einem Auftrag ist nicht moeglich bzw. wird abgelehnt.
+8b. Kopf, Menge und Positionsentfernung aendern sich nur im `Entwurf`; in `Uebergeben`/`Erledigt` wird nur die
+    Bemerkung angenommen, alles andere mit Klartext abgelehnt; jede Aenderung setzt `Modified*`.
+8c. Reklamation aus `Erledigt` mit ausgewaehlten Positionen erzeugt einen `Entwurf` mit `UrsprungsauftragId`,
+    demselben `HauptFA` und genau diesen Positionen; leere Auswahl wird abgelehnt; der Ursprung zeigt den
+    Folgeauftrag ueber den Selbstverweis und bleibt `Erledigt`.
 9. Nach einem simulierten Sync (Cache geloescht und neu befuellt, andere Ids) ist ein bestehender Auftrag
    vollstaendig lesbar und seine Positionen unveraendert.
 10. Paralleler Statuswechsel auf denselben Auftrag fuehrt beim Verlierer zu einer Concurrency-Meldung, nicht
@@ -255,8 +314,10 @@ Neues Kapitel (naechste freie Nummer), Schwerpunkt Datenbank und Workflow; Bedie
   welchem Kriterium faellt ein HauptFA aus der View (und damit aus dem Cache)? Bestimmt, wie oft Auftraege
   auf nicht mehr vorhandene Knoten zeigen.
 - SQL-Skript zweimal auf Test-DB ausfuehren; FreshInstall auf leerer DB.
-- Unit-Tests: Nummernkreis inkl. Jahreswechsel, Uebergangsmatrix, Doppelvergabe, Audit-Felder, Snapshot nach
-  simuliertem Sync.
+- Unit-Tests: Nummernkreis inkl. Jahreswechsel und Format `BA-JJJJ-NNNNN`, Uebergangsmatrix (alle erlaubten
+  und eine Auswahl verbotener Uebergaenge), Doppelvergabe inkl. Reklamations-Ausnahme, Anlegen je HauptFA
+  (alle Positionen, leerer HauptFA, Kombigeraet-Kopf), Bearbeiten nur im Entwurf, Bemerkung danach,
+  Reklamation (Auswahl, leere Auswahl, Status des Ursprungs), Audit-Felder, Snapshot nach simuliertem Sync.
 - Manual-UAT Concurrency (zwei Sessions, gleicher Auftrag) — sobald Teil 4 Bedienelemente liefert, dort.
 
 ## Etappen (nur bei epic: true)
@@ -281,7 +342,10 @@ Nicht zutreffend (`epic: false`).
 
 ## Offene Rueckfragen
 
+*Stand 2026-10-07: beantwortet 1–5, 8, 9 (eingearbeitet); offen 6, 7 und neu 10–13.*
+
 1. **Nummernformat (Notiz Punkt 3):** z. B. `BA-JJJJ-laufend`, je Standort getrennt?
+   *Beantwortet mit Antwort 1: `BA-JJJJ-NNNNN`, eigene Datenbank je Standort, kein Kuerzel.*
    *Empfehlung:* `BA-JJJJ-NNNNN` (fuenfstellig, fuehrende Nullen), Zaehler beginnt jedes Jahr bei 1.
    Trennung je Standort ohne Standortkennung in der Nummer — **unter der Annahme**, dass AKE und IDEAL je
    eine eigene Datenbank haben (Hinweis darauf: der Master-Schalter `ProduktionsauftragHierarchisch` ist ein
@@ -289,6 +353,7 @@ Nicht zutreffend (`epic: false`).
    Teilen sich beide Standorte eine Datenbank, braucht die Nummer ein Standortkuerzel.
 2. **Status-Automat (Notiz Punkt 4):** Anfangsstatus, dann uebergeben → erledigt; Reklamation als Status des
    Auftrags oder als neuer Folgeauftrag mit Verweis? Welche Uebergaenge sind erlaubt? Gibt es Storno?
+   *Beantwortet mit Antwort 2: wie vorgeschlagen (der Klammerteil „ggf. auch aus Uebergeben?" → Rueckfrage 11).*
    *Empfehlung der Koordination:* Folgeauftrag mit Verweis auf den Ursprungsauftrag (bereitet „urspruenglicher
    HauptFA ersichtlich" vor). *Ergaenzung:* `Entwurf → Uebergeben → Erledigt`; `Storniert` nur aus `Entwurf`;
    keine Rueckwaertsschritte (Korrektur = Storno + neuer Auftrag); Reklamation nur aus `Erledigt` (ggf. auch
@@ -298,10 +363,13 @@ Nicht zutreffend (`epic: false`).
    `CurrentUserService.cs:137-138`). Optionen: (a) neue Schreibrolle (z. B. `beschichtungsauftrag_edit`),
    bestehende bleibt Lesen — Muster `masterdata`/`masterdata_read` (`RoleKeys.cs:6-7`); (b) bestehende Rolle
    wird Schreibrolle, neue Leserolle. Getrennte Rechte je Uebergang (z. B. nur Lager setzt „Erledigt")?
+   *Beantwortet mit Antwort 3: Variante (a), neue Gruppe „Beschichtungsaufträge", bestehende bleibt Lesen.*
    *Empfehlung:* (a), ein Recht fuer alle Schreibvorgaenge. Neue Rolle = drei Stellen (Attribut,
    `secondbrain/codebase/controller.md`, `Views/Users/RoleOverview.cshtml`) — umgesetzt in Teil 4.
 4. **Doppelvergabe (Notiz Punkt 5):** Positionen, die schon in einem Auftrag stecken — in der Vorschlagsliste
    ausblenden oder markieren? Welche Status sperren?
+   *Beantwortet mit Antwort 4: erneute Vergabe nur ueber Reklamation (Storno-Fall → Rueckfrage 10; Darstellung
+   → Teil 4).*
    *Empfehlung:* sperrend sind `Entwurf`, `Uebergeben`, `Erledigt`; `Storniert` gibt frei. Reklamations-
    Folgeauftraege duerfen Positionen eines `Erledigt`-Ursprungs erneut enthalten. In der Vorschlagsliste
    **markieren** (mit Auftragsnummer) statt ausblenden — sonst sieht niemand, warum ein Teil fehlt (Umsetzung
@@ -309,10 +377,12 @@ Nicht zutreffend (`epic: false`).
 5. **Kombigeraete / mehrere HauptFA (Notiz Punkt 8):** Bei mehreren FAInfos-Zeilen je HauptFA sind mehrere
    Dienstleister/RAL moeglich ([[2026-08-06-kombinationsgeraete-montageabteilung]]). Darf ein Auftrag
    Positionen mehrerer HauptFA enthalten, und wie entsteht der Kopf?
-   *Empfehlung:* mehrere HauptFA erlaubt (eine Fahrt zum Beschichter), aber **ein** Dienstleister und **ein**
-   RAL je Auftrag. Vorbelegung nur, wenn alle beteiligten Kopfzeilen dasselbe Paar liefern; sonst bleibt der
-   Kopf leer, der Anwender waehlt, und der Auftrag zeigt sichtbar „Kopf aus Sage mehrdeutig". Positionen mit
-   abweichendem Sage-RAL im selben Auftrag → Warnung, nicht still.
+   *Beantwortet mit Antwort 5: nein, pro HauptFA ein Auftrag; Kombigeraete bleiben mehrdeutig gekennzeichnet.*
+   *Empfehlung:* ~~mehrere HauptFA erlaubt (eine Fahrt zum Beschichter), aber **ein** Dienstleister und **ein**
+   RAL je Auftrag.~~ *(verworfen mit Antwort 5)* Vorbelegung nur, wenn alle beteiligten Kopfzeilen dasselbe
+   liefern; sonst bleibt der Kopf leer, der Anwender waehlt, und der Auftrag zeigt sichtbar „Kopf aus Sage
+   mehrdeutig". ~~Positionen mit abweichendem Sage-RAL im selben Auftrag → Warnung, nicht still.~~ *(entfaellt
+   mit Antwort 5 — ein HauptFA je Auftrag)*
 6. **Freigabe-Schritt (Notiz Punkt 6) — OUT OF SCOPE:** wird nicht gebaut. Vorsorge nur: Statuswert 20 im
    Enum reserviert (Kommentar, kein Enum-Mitglied), keine Spalten, kein Code. Der spaetere Schritt ergaenzt
    Enum-Wert, `FreigegebenAt/ByUserId` und den Uebergang — additiv, ohne Umbau. Bestaetigen? (Die Frage „wer
@@ -325,6 +395,7 @@ Nicht zutreffend (`epic: false`).
    Sage-Aenderungen oder wenn die Position aus der FAListe verschwindet? Welche Menge (die Liste zeigt heute
    `Sollmenge`, `Index.cshtml:111`; `Fertigungmenge` existiert ebenfalls, `FaHierarchyNode.cs:47`) — und darf
    sie im Auftrag geaendert werden (Teilmenge)?
+   *Beantwortet mit Antwort 8: wie vorgeschlagen.*
    *Empfehlung:* Snapshot bei Anlage gilt; keine automatische Nachfuehrung. `Sollmenge` uebernehmen, im
    Status `Entwurf` aenderbar. Abweichungshinweis (Sage-Wert geaendert/Position weg) erst bei Bedarf als
    eigener Punkt.
@@ -332,6 +403,28 @@ Nicht zutreffend (`epic: false`).
    belegbar). Als Vorbelegung uebernehmen und im WMS aenderbar (ohne Rueckschreiben nach Sage) — oder eigene
    WMS-Termine (z. B. Uebergabe-/Rueckgabe-Soll) unabhaengig von Sage?
    *Empfehlung:* Vorbelegung aus Sage, im Entwurf aenderbar, kein Rueckschreiben.
+   *Beantwortet mit Antwort 9 (Uebernahme aus `Start_Beschichtung`/`Beschichten_Retour`); die dort offene
+   Aenderbarkeit im Entwurf ist durch Teil-4-Antwort 7 entschieden („Kopf und Positionen nur im Entwurf").*
+10. **Storno und Doppelvergabe (neu 2026-10-07):** Antwort 4 erlaubt eine erneute Vergabe nur ueber eine
+    Reklamation. Ein stornierter Entwurf (Storno nur im Entwurf, Antwort 2) ging nie an den Beschichter — gibt er
+    seine Positionen frei, sodass ein neuer Auftrag fuer denselben HauptFA moeglich ist?
+    *Empfehlung:* ja, `Storniert` sperrt nicht (sonst waeren die Positionen nach einem Fehlanlage-Storno nur noch
+    ueber eine Reklamation vergebbar, die einen `Erledigt`-Ursprung braucht).
+11. **Reklamation aus welchem Status (neu 2026-10-07):** Die Empfehlung zu Rueckfrage 2 nannte „nur aus
+    Erledigt (ggf. auch aus Uebergeben?)"; Antwort 2 „wie vorgeschlagen" klaert den Klammerteil nicht.
+    *Empfehlung:* nur aus `Erledigt`.
+12. **Restpositionen eines HauptFA (neu 2026-10-07):** Teil-4-Antwort 2 uebernimmt automatisch alle Positionen
+    des HauptFA und erlaubt Bearbeiten im Entwurf; Antwort 5 sagt „pro HauptFA ein Auftrag". Was gilt fuer
+    Positionen, die im Entwurf entfernt wurden oder nach der Anlage in Sage neu als beschichtet erscheinen —
+    frei fuer einen weiteren Auftrag desselben HauptFA (nur diese Positionen) oder nur ueber den bestehenden
+    Auftrag? Duerfen im Entwurf Positionen (wieder) hinzugefuegt werden?
+    *Empfehlung:* entfernte und neue Positionen sind frei; ein weiterer Auftrag fuer denselben HauptFA nimmt nur
+    freie Positionen; im Entwurf kein Hinzufuegen (kein Positions-Picker noetig).
+13. **Reklamations-Kopf (neu 2026-10-07):** Teil-4-Antwort 3 sagt „Teile auswaehlen, nichts vorbelegen",
+    Teil-4-Antwort 4 „Standard-Beschichter aus der PPS-View, am Auftrag ueberschreibbar — besonders bei
+    Reklamation". Gilt „nichts vorbelegen" nur fuer die Teileauswahl (Kopf dann aus PPS-View vorbelegt, Fallback
+    Ursprungskopf) oder auch fuer den Kopf?
+    *Empfehlung:* nur fuer die Teileauswahl; Kopf aus der PPS-View, fehlt der HauptFA im Cache, aus dem Ursprung.
 
 ## Freigabe-Antworten (Mensch fuellt aus — Schranke 1)
 
@@ -342,12 +435,16 @@ Nicht zutreffend (`epic: false`).
   als seinen Auftrag. Antworte je Frage in **fett** hinter dem Pfeil.
 -->
 
-1. Nummernformat / Standort →
-2. Status-Automat / Reklamation / Storno →
-3. Schreibrolle / Edit-Split →
-4. Doppelvergabe / sperrende Status →
-5. Mehrere HauptFA / Kopf bei Kombigeraet →
+1. Nummernformat / Standort → **`BA-JJJJ-NNNNN` ja (Keyuser 2026-10-07). Standortfrage (eigene Datenbank je Standort) offen bei Gerald.** **Nachtrag (Gerald 2026-10-07): AKE und IDEAL laufen auf zwei getrennten Servern mit eigenen Datenbanken – Nummer ohne Standortkürzel.**
+2. Status-Automat / Reklamation / Storno → **Wie vorgeschlagen (Keyuser 2026-10-07): Entwurf → Übergeben → Erledigt, Storno nur im Entwurf, Reklamation als Folgeauftrag mit Verweis.**
+3. Schreibrolle / Edit-Split → **Neue Berechtigungsgruppe „Beschichtungsaufträge“ (Schreibrolle) (Keyuser 2026-10-07); bestehende Rolle bleibt Lesen.**
+4. Doppelvergabe / sperrende Status → **Eine Position darf nur über eine Reklamation erneut in einen Auftrag; sonst ist Doppelvergabe ausgeschlossen (Keyuser 2026-10-07). Darstellung in der Vorschlagsliste: siehe Teil 4.**
+5. Mehrere HauptFA / Kopf bei Kombigeraet → **Nein – pro HauptFA ein Auftrag (Keyuser 2026-10-07) (abweichend vom Vorschlag). Kopf (Dienstleister/RAL) damit je HauptFA; Kombigeräte bleiben mehrdeutig gekennzeichnet.**
 6. Freigabe-Vorsorge bestaetigen →
 7. Vorgemerktes-Vorsorge bestaetigen →
-8. Snapshot / Menge →
-9. Termine im Kopf →
+8. Snapshot / Menge → **Wie vorgeschlagen (Keyuser 2026-10-07): Snapshot bei Anlage, Sollmenge, im Entwurf änderbar, keine automatische Nachführung.**
+9. Termine im Kopf → **Beschichtungstermin und „Beschichten retour“ aus den vorhandenen Terminen übernehmen (Keyuser 2026-10-07) – am Code `FaHierarchyOrderInfo.Start_Beschichtung` / `Beschichten_Retour` (Z. 33-34, aus der PPS-View). Änderbarkeit im Entwurf: Vorschlag, nicht ausdrücklich beantwortet.**
+10. Storno gibt Positionen frei →
+11. Reklamation aus welchem Status →
+12. Restpositionen eines HauptFA / Hinzufuegen im Entwurf →
+13. Reklamations-Kopf vorbelegen →
