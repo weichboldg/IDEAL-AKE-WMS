@@ -9,6 +9,26 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.47.4</strong> <span class="text-white-50 ms-2">07.10.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>BDE (IDEAL): Arbeitsgang nur noch am richtigen Auftrag</h6>
+                <ul>
+                    <li><strong>Korrigiert &ndash; doppelte Arbeitsgaenge:</strong> Steht ein Arbeitsschritt (z.&nbsp;B.
+                        <code>VM</code>) an einer Baugruppe, die einen eigenen Fertigungsauftrag hat (z.&nbsp;B. die
+                        Mittelholmblende), wurde er bisher zusaetzlich auch beim uebergeordneten Auftrag (z.&nbsp;B. dem
+                        Korpus) angelegt. Am BDE-Terminal standen dann zwei gleich beschriftete Arbeitsgaenge zur Wahl.
+                        Jetzt gehoert er nur noch zur Baugruppe selbst.</li>
+                    <li>Arbeitsschritte von Teilen <strong>ohne</strong> eigenen Auftrag (z.&nbsp;B. <code>LS KA</code>
+                        an einem Blech) bleiben wie bisher beim uebergeordneten Auftrag rueckmeldbar.</li>
+                    <li>Bereits angelegte doppelte Arbeitsgaenge werden beim Einspielen einmalig entfernt &mdash; solche,
+                        auf die schon gebucht wurde, bleiben stehen und werden gemeldet.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.47.3</strong> <span class="text-white-50 ms-2">06.10.2026</span>
             </div>
             <div class="card-body">

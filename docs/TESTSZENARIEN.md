@@ -8574,7 +8574,8 @@ Toggle-Gate (SyncWorker), Terminal-Anzeige. Die folgenden Szenarien am befüllte
 - **TS-77.10 — Baustein b Kürzel-Mehrdeutigkeit (AK 11).** Zwei aktive Werkbänke mit identischem
   `ArbeitsschrittCode`. Erwartung: keine `WorkOperation`, Meldung „mehrdeutig". *Automatisiert abgedeckt.*
 - **TS-77.11 — Baustein b DirectChildren-Gegenprobe (AK 13).** Wie TS-76.2, Zielentität `WorkOperation`.
-  *Automatisiert abgedeckt.*
+  *Automatisiert abgedeckt.* Seit v1.47.4 zählen nur direkte **Blatt**-Kinder zum Scope des Vaters
+  (siehe TS-77.18).
 - **TS-77.12 — Baustein c Terminal zeigt echten AG (AK 15). (Manual-UAT)** An einer `BdeAktiv`-Werkbank
   mit passendem Kürzel: gescannter Sub-FA zeigt im Normal-Modus den struktur-abgeleiteten Arbeitsgang,
   ohne Default-AG-Auswahl. **Nachweis, dass `BdeScanResolver.cs` NICHT geändert wurde:** Diff der Etappe
@@ -8595,6 +8596,22 @@ Toggle-Gate (SyncWorker), Terminal-Anzeige. Die folgenden Szenarien am befüllte
 - **TS-77.17 — Schlüssel-Behandlung (AK 21). (Manual-UAT)** Sage liefert `"0000"` und `" 2300 "`.
   Erwartung: `"0000"` bleibt `"0000"`; `" 2300 "` findet die bestehende Werkbank `"2300"`, keine
   Neuanlage. *Trim-Teil automatisiert.*
+- **TS-77.18 — Kürzel einer Sub-FA-Zeile nur am eigenen Sub-FA (v1.47.4, Freigabe-Nachtrag 2026-10-07).**
+  Struktur wie im Sage-Screenshot: Korpus (eigener Sub-FA, `PG`) → Mittelholmblende (eigener Sub-FA, `VM`)
+  und Blech-Blatt ohne eigenen FA (`LS KA`). Erkennung laufen lassen. Erwartung: Korpus hat `PG`, `LS`, `KA`
+  — **kein** `VM`; Mittelholmblende hat `VM`. Am BDE-Terminal (Werkbank mit Kürzel `VM`) erscheint der
+  Arbeitsgang nur **einmal** (Mittelholmblende), nicht zusätzlich mit gleicher Beschriftung am Korpus.
+  *Automatisiert:* `Detect_ChildSubFaToken_NotOnParent`, `Detect_LeafChildToken_StillOnParent`,
+  `Detect_GrandchildToken_LandsOnParentNotGrandparent` (nachgezogen). *Terminal-Teil Manual-UAT.*
+  **Negativfall:** Blatt-Kürzel (`LS`, `KA`) fehlen am Korpus → Fehler (darf nicht passieren).
+- **TS-77.19 — Altbestand bereinigen (v1.47.4, Einmal-Skript, Manual-UAT/Deploy).** Nach Deploy des
+  Windows-Service v1.47.4: `SQL/Einmalig/2026-10-07_v1.47.4_RemoveParentWorkOperationsFromChildSubFaTokens.sql`
+  **genau einmal** auf der IDEAL-DB. Zählung (Kandidaten / zu löschen / nur melden) und Meldeliste ins
+  Deploy-Protokoll. Erwartung: Vater-Arbeitsgänge, deren Kürzel nur von Kind-Sub-FA-Zeilen stammt und die
+  **keine** BDE-Buchung bzw. Tracking-Rückmeldung haben, sind weg; gebuchte stehen in der Meldeliste und
+  bleiben; Arbeitsgänge mit Kürzel an der eigenen Zeile oder an einem Blatt-Kind bleiben unverändert; der
+  nächste Erkennungslauf legt die gelöschten **nicht** wieder an. **Negativfall:** Skript vor dem
+  Service-Deploy ausgeführt → der alte Lauf legt sie wieder an (deshalb Reihenfolge einhalten).
 
 **Betriebshinweis:** Der „zuletzt gemeldete Kürzel-Stand" (unbekannte Token) und der problematische
 Werkbank-Stand liegen im Speicher (Singletons) — nach jedem Dienst-Neustart geht die jeweilige
