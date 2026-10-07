@@ -2,9 +2,9 @@
 type: spec
 title: "IDEAL: BDE-Arbeitsgaenge (WorkOperation) aus der Struktur + Werkbank-Anlage aus Sage-Arbeitsplaetzen"
 slug: 2026-09-21-ideal-bde-arbeitsgaenge-aus-struktur-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-09-21
-updated: 2026-09-22
+updated: 2026-10-07
 source_backlog: "[[2026-09-21-ideal-bde-arbeitsgaenge-aus-struktur]]"
 supersedes: "[[2026-09-08-arbeitsgaenge-aus-arbeitsschritte-spec]]"
 depends_on: "[[2026-09-21-adr-0014-arbeitsbereich-ist-zielort-spec]]"
@@ -1615,3 +1615,121 @@ deren Kuerzel nur von Kind-Sub-FA-Zeilen stammt, bereinigt ein Einmal-Skript in 
 gebuchte werden nur gemeldet, nicht geloescht. Umsetzung im Buendel als Patch **v1.47.4**.
 
 **Status:** zurueck auf `InUmsetzung` bis zum gruenen QA-Nachweis dieser Korrektur.
+
+## QA-Nachweis (2026-10-07, Freigabe-Nachtrag v1.47.4)
+
+QA-Agent, synchron, unabhaengig von der Umsetzung. Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`,
+Branch `feature/2026-08-07-ideal-teile-1-5`, geprueft: `git diff 3f47c442..HEAD` (Commits `abd3e16a` +
+`8fd1aa3d`, 7 Dateien, +184/-12). Worktree sauber (kein uncommitteter Stand).
+
+**1. Build und Tests (im Worktree, real ausgefuehrt)**
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler, 12 Warnungen (vorbestehend, z. B. CS8321 `PickingLeitstand/Index.cshtml`).
+- `dotnet test`:
+  - `IdealAkeWms.Tests`: 1453 bestanden, 1 uebersprungen (vorbestehend), 0 Fehler, gesamt 1454 — unveraendert zur Referenz.
+  - `IDEALAKEWMSService.Tests`: 270 bestanden, 0 uebersprungen, 0 Fehler, gesamt 270 (Referenz 268 + 2 neue Tests).
+
+**2. Code-Review (selbst, synchron) — keine blockierenden Befunde**
+
+Geprueft: `WorkOperationStructureDetectionService.cs` vollstaendig (nicht nur der Hunk), die drei Tests,
+Einmal-Skript, `AppVersion.cs` (Web + Service = 1.47.4 / 2026-10-07), `Views/Help/Changelog.cshtml`,
+`docs/TESTSZENARIEN.md`; repo-weit gesucht nach `childrenByParent`, `VaterFA ==`, `DirectChildren`,
+`Arbeitsschritte`, `WorkOperation`-Konsumenten in Web/JS sowie `SQL/AgentJobs/`.
+
+- **Scope-Aenderung korrekt und vollstaendig.** Einzige Stelle, die Arbeitsgaenge aus `Arbeitsschritte`
+  ableitet, ist `WorkOperationStructureDetectionService` (Zeile 104): `scope = node + kids.Where(k => k.SubFA == 0)`.
+  Blatt-Kinder bleiben unveraendert im Scope (belegt durch `Detect_LeafChildToken_StillOnParent`: Korpus
+  behaelt `PG LS KA`). `seen`/`seq`-Logik unveraendert: Erst-Auftauch-Reihenfolge ueber eigene Zeile, dann
+  Blatt-Kinder; ausgeschlossene/mehrdeutige/unbekannte Token verbrauchen weiter eine Position wie vorher.
+  Nebenwirkung (gewollt): Unbekannt-/Mehrdeutig-Meldungen zaehlen Kuerzel einer Kind-Sub-FA-Zeile nur noch
+  beim Kind, nicht mehr zusaetzlich beim Vater (`arbeitsschritt_unbekannt_auftraege` sinkt entsprechend).
+- **Keine auseinanderlaufende Zweitimplementierung derselben Regel.** Das Arbeitsgaenge-Modal
+  (`FaWorkOperationsViewModel.Create`), `BdeScanResolver`/BDE-Terminal und der FA-Baum lesen die gespeicherten
+  `WorkOperations` je `SubOrderNumber` — sie bilden den Scope nicht nach. `FaHierarchyBomRepository.BuildDirectChildren`
+  und `fa-hierarchy-tree.js` (`childrenByParent`) sind Stueckliste/Baum, keine Arbeitsgang-Logik. `SQL/AgentJobs/`
+  beruehren weder `WorkOperations` noch `FaHierarchyNodes`.
+- **Nicht blockierend N-1 (nur melden):** `FaMaterializationCoating.Derive` (Beschichtet-Flag, Spec K2) zaehlt
+  weiterhin **alle** direkten Kinder, also auch Kind-Sub-FAs — eine beschichtete Mittelholmblende macht den
+  Korpus „beschichtet". Das ist eine eigene, frueher bewusst entschiedene Regel, nicht dieselbe wie Baustein b;
+  fachlich aber dieselbe Frage („gehoert die Eigenschaft eines Kind-Sub-FA zum Vater?"). Bei Bedarf als
+  Rueckfrage an den Keyuser, nicht Teil dieses Fixes.
+- **Nicht blockierend N-2:** Ein direktes Kind mit `SubFA != 0`, das (noch) nicht materialisiert ist, liefert
+  seine Kuerzel jetzt nirgends mehr (frueher am Vater). Folgt aus der Regel und heilt mit der Materialisierung.
+- **Nicht blockierend N-3 (vorbestehend):** `nodes` werden ohne `OrderBy` geladen; die `Sequence` der
+  Blatt-Kinder haengt damit an der DB-Lesereihenfolge. Nicht durch diesen Diff eingefuehrt.
+- **Nicht blockierend N-4 (Doku):** [[testszenarien-index]] Zeile 77 nennt im Kopf noch „TS-77.1 – 77.17" und
+  „`WorkOperationStructureDetectionServiceTests` (13 ...)"; der v1.47.4-Nachsatz fuehrt TS-77.18/77.19 und die
+  neuen Tests korrekt. Kosmetisch, vom QA-Lauf nicht geaendert (Auftrag: nur diese Spec).
+- Wiederkehrende Defektklassen: kein `<script>`-Embedding, kein `hidden`+`d-*`, kein stiller `?? 0`-Fallback,
+  keine Parallel-Array-Bindung, keine reine Browser-Validierung im Diff. Eine Regel an zwei Stellen gibt es
+  bewusst: Service (C#) und Einmal-Skript (SQL) — Abweichungen siehe Skript-Befunde.
+
+**Einmal-Skript `SQL/Einmalig/2026-10-07_v1.47.4_RemoveParentWorkOperationsFromChildSubFaTokens.sql` (gelesen, NICHT ausgefuehrt)**
+- ADR 0015 erfuellt: Warnkopf „NICHT ERNEUT AUSFUEHREN" mit Grund, Zaehl-`SELECT` vor dem `DELETE`,
+  `@@ROWCOUNT` direkt nach dem `DELETE`, Reihenfolge Backup -> Service(+Web)-Deploy -> Skript im Kopf, kein
+  FreshInstall-/History-Eintrag. Audit-Felder entfallen (reines `DELETE`).
+- Tabellen/Spalten gegen `SQL/00_FreshInstall.sql` geprueft: `FaHierarchyNodes(SubFA, VaterFA, Arbeitsschritte)`,
+  `WorkOperations(Id, ProductionOrderId, OperationNumber, IsReported, CreatedBy)`, `ProductionOrders(Id,
+  OrderNumber, SubOrderNumber)`, `BdeBookings(WorkOperationId)` — vorhanden. Einziger FK auf `WorkOperations`
+  ist `FK_BdeBookings_WorkOperations` (kein Cascade); gebuchte Kandidaten werden ausgeschlossen und im `DELETE`
+  nochmals geprueft.
+- Logik deckungsgleich mit dem Service: Kandidat = `CreatedBy = 'WorkOperationStructureDetection'` am Vater-Sub-FA,
+  Kuerzel auf einer direkten Kind-Sub-FA-Zeile, **nicht** auf eigener Zeile und **nicht** auf einem Blatt-Kind;
+  Zuordnung `SubOrderNumber = CAST(SubFA AS NVARCHAR)` wie `node.SubFA.ToString()`; Token-Split auf `' '` wie
+  `TokenSeparators`. Mehrfach vorkommende SubFA-Zeilen faengt `SELECT DISTINCT` ab.
+- **Nicht blockierend S-1 (Whitespace):** Der Service trimmt mit `StringSplitOptions.TrimEntries` jeden
+  Whitespace (Tab, CR/LF, NBSP), das Skript mit `LTRIM/RTRIM` nur Leerzeichen. Steht ein Kuerzel z. B. als
+  `VM` + Tab in Sage, verfehlt das Skript den Kandidaten (harmlos) bzw. erkennt die Ausschluss-Bedingung
+  „eigene Zeile/Blatt-Kind" nicht — dann loescht es einen Arbeitsgang, den der naechste Erkennungslauf sofort
+  wieder anlegt (ungebucht, nur neue Id/Sequence). Kein Datenverlust.
+- **Nicht blockierend S-2 (Collation):** Vergleich case-insensitiv ueber `Latin1_General_CI_AS` (die Token
+  erben die Spalten-Collation, auch in `#Tok`), Service `OrdinalIgnoreCase`. Abweichungen nur bei Exoten
+  (z. B. `ß`/`ss`, Breiten-Varianten); bei realen Kuerzeln (`SÄ`, `VM`, `LS`) gleich.
+- **Nicht blockierend S-3:** Das Skript loescht auch an erledigten/stornierten FAs (der Service legt dort nichts
+  mehr an, hatte es aber frueher angelegt). Fachlich konsistent (Arbeitsgang war falsch), nur bewusst sein.
+- **Nicht blockierend S-4:** `STRING_SPLIT` braucht Kompatibilitaetsgrad >= 130; erstmalige Verwendung im Repo.
+  Bei zu niedrigem Grad bricht der Batch vor dem `DELETE` ab (kein Teilzustand). Vor dem Lauf
+  `SELECT compatibility_level FROM sys.databases WHERE name = DB_NAME();` pruefen.
+
+**3. Nachweisart je Akzeptanzkriterium (dieser Nachtrag)**
+
+| AK / TS | Nachweis |
+|---|---|
+| AK 13 (nachgezogen), Enkel -> nicht am Grossvater | automatisiert: `Detect_GrandchildToken_LandsOnParentNotGrandparent` |
+| AK 13, Kind-Sub-FA -> nur am Kind | automatisiert: `Detect_ChildSubFaToken_NotOnParent` (schlaegt mit dem alten Scope fehl) |
+| AK 13, Blatt-Kind -> weiter am Vater | automatisiert: `Detect_LeafChildToken_StillOnParent` |
+| TS-77.18 Terminal-Teil (ein statt zwei AG am Terminal) | **Manual-UAT** (BDE-Terminal) |
+| TS-77.19 Altbestand-Skript | **Manual-UAT/Deploy** (raw SQL, nicht InMemory-pruefbar) |
+
+**4. Geaenderte bestehende Tests**
+- `Detect_GrandchildToken_LandsOnParentNotGrandparent`: Verhalten bewusst durch den Nachtrag geaendert (AK 13).
+  Fixture erweitert (Y bekommt `VM`, Werkbank `VM`); alle frueheren Assertions bleiben (SÄ nur an Y, AV nur an X)
+  und pruefen zusaetzlich `VM` nur an Y — Verschaerfung, kein Aufweichen. Kein Befund.
+
+**Deploy (v1.47.4, Nachtrag)**
+- **Web: ja** (`AppVersion.cs`, `Views/Help/Changelog.cshtml` — nur Version/Changelog). **Service: ja**
+  (`WorkOperationStructureDetectionService.cs`, `AppVersion.cs`). **Migration: nein.**
+- Reihenfolge: 1. DB-Backup. 2. Service v1.47.4 und Web v1.47.4 aus dem Worktree publishen und deployen.
+  3. **Danach** das Einmal-Skript genau **einmal** auf der IDEAL-DB (vorher Kompatibilitaetsgrad pruefen, S-4).
+  4. Protokollzeile hier in der Spec: System, Datum, `KandidatenGesamt` / `ZuLoeschen_OhneBuchung` /
+  `NurMelden_GebuchtOderRueckgemeldet`, Meldeliste, `ArbeitsgaengeGeloescht`.
+  ```
+  dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb
+  dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService
+  ```
+  Nach dem Merge nur erneut aus `main` publishen, falls der Merge getestete Dateien mit parallelen
+  `main`-Aenderungen zusammengefuehrt hat.
+
+**Manuelle Test-Checkliste (Schranke 2, Nachtrag v1.47.4)**
+1. Service und Web laufen mit v1.47.4 (`/Help/Changelog` zeigt den Eintrag v1.47.4).
+2. TS-77.18: Struktur mit Korpus (Sub-FA, `PG`) -> Mittelholmblende (Sub-FA, `VM`) und Blech-Blatt (`LS KA`)
+   waehlen. Nach einem Erkennungslauf im Arbeitsgaenge-Modal der FA-Struktur pruefen: Korpus `PG LS KA`,
+   **kein** `VM`; Mittelholmblende `VM`. (Bei Altbestand erst nach Schritt 4 eindeutig.)
+3. TS-77.18 Terminal: an einer `BdeAktiv`-Werkbank mit Kuerzel `VM` den Korpus- und den Mittelholmblende-Sub-FA
+   scannen — `VM` erscheint nur bei der Mittelholmblende, nicht zusaetzlich am Korpus.
+4. TS-77.19: Kompatibilitaetsgrad pruefen, Einmal-Skript einmal ausfuehren; Zaehlung, Meldeliste und
+   `ArbeitsgaengeGeloescht` protokollieren. Stichprobe: ein gemeldeter (gebuchter) Arbeitsgang steht noch.
+5. TS-77.19 Gegenprobe: naechsten Erkennungslauf abwarten — das Aktivitaets-Protokoll
+   `WorkOperationStructureDetection` legt die geloeschten Vater-Arbeitsgaenge **nicht** wieder an; die
+   Blatt-Kuerzel am Korpus sind unveraendert vorhanden.
+6. Negativfall TS-77.18: fehlen am Korpus die Blatt-Kuerzel (`LS`, `KA`), ist das ein Fehler.
+7. Regression: Unbekannt-Meldung eines Kuerzels an einer Kind-Sub-FA-Zeile nennt nur noch den Kind-Auftrag.
