@@ -4,24 +4,22 @@ title: Vormontage-Listen — Montage-Abteilung als Spalte und Filter
 slug: 2026-10-06-vormontage-abteilung-spalte-filter-spec
 status: Entwurf
 created: 2026-10-06
-updated: 2026-10-06
+updated: 2026-10-07
 source_backlog: "[[2026-10-06-vormontage-abteilung-spalte-filter]]"
 task: ""
 worktree: ""
 branch: ""
 affected_code:
-  - "IdealAkeWms/Services/VormontageService.cs — ColumnMap :79-90 ein Eintrag (Knotenfeld Arbeitsbereich); AggregateSummiert :216-274 Vorfilter je Knoten vor der Aggregation (analog KW-Vorfilter :233-241) + Bereichs-Anzeige je Aggregatzeile"
+  - "IdealAkeWms/Services/VormontageService.cs — ColumnMap :79-90 ein Eintrag [\"arbeitsbereich\"] (Knotenfeld Arbeitsbereich); AggregateSummiert :216-274 Vorfilter je Knoten vor der Aggregation (analog KW-Vorfilter :233-241) + Bereichs-Anzeige je Aggregatzeile"
   - IdealAkeWms/Models/ViewModels/FaHierarchyVormontageAggregatViewModel.cs (:16-32) — neue Eigenschaft fuer die Arbeitsbereich-Anzeige in Sicht 2
-  - IdealAkeWms/Views/FaHierarchyVormontage/Index.cshtml (colCount :6, th :75-82, Zellen :131-140, column-config :153-164)
-  - IdealAkeWms/Views/FaHierarchyVormontage/Summiert.cshtml (colCount :7, th :80-82, Zellen :96-100, column-config :112-118)
-  - IdealAkeWms/Models/ViewModels/ColumnDefinitions.cs (FaHierarchyVormontageEinzeln :400-415, FaHierarchyVormontageSummiert :423-433)
+  - "IdealAkeWms/Views/FaHierarchyVormontage/Index.cshtml (colCount :6, th arbeitsbereich direkt nach hauptfa :75, Zellen :131-140, column-config :153-164)"
+  - "IdealAkeWms/Views/FaHierarchyVormontage/Summiert.cshtml (colCount :7, th arbeitsbereich direkt nach matchcode :80, Zellen :96-100, column-config :112-118)"
+  - "IdealAkeWms/Models/ViewModels/ColumnDefinitions.cs (FaHierarchyVormontageEinzeln :400-415 nach hauptfa :406, FaHierarchyVormontageSummiert :423-433 nach matchcode :429; ColumnDef(\"arbeitsbereich\", \"Arbeitsbereich\", Locked: false))"
   - IdealAkeWms.Tests/Services/VormontageServiceTests.cs — neue Faelle (Filter je Position, Vorfilter Sicht 2)
   - IdealAkeWms.Tests/Views/ (Drift-Waechter A/B/C fuer die beiden Vormontage-Views, Muster KommissionierSpaltenKonsistenzTests.cs)
   - docs/TESTSZENARIEN.md (neues Kapitel, naechste freie Nummer)
   - IdealAkeWms/AppVersion.cs + IDEALAKEWMSService/AppVersion.cs + Views/Help/Changelog.cshtml (Versions-Bump)
 open_questions:
-  - "1 (vorher 3) Summierte Ansicht: Arbeitsbereich nur Anzeige oder Teil des Summierschluessels — und wirkt der Filter vor oder nach der Matchcode-Aggregation? (Notiz: keine Empfehlung; Spec-Agent: Anzeige + Vorfilter je Position VOR der Aggregation)"
-  - "2 (vorher 4) Spaltenfilter im Server-Mode (ADR 0005) und Spaltenauswahl-Registrierung (fallstricke §3) — Bestaetigung inkl. Spaltenposition, Default-Sichtbarkeit und Label/Col-Key ('Abteilung' wie Sage oder 'Arbeitsbereich' wie Kommissionierlisten) (Notiz: keine Empfehlung; Spec-Agent: Server-Mode, alle drei Stellen, sichtbar, direkt nach HauptFA bzw. Matchcode)"
   - "3 (vorher 5) Loest diese Spec [[2026-08-06-kombinationsgeraete-montageabteilung]] teilweise mit, oder bleibt die Trennung dort ein eigener Schritt? (Notiz: keine Empfehlung; Spec-Agent: eigener Schritt, diese Spec trennt nichts; mit Variante A beruehrt sie die Kombigeraete-Trennung gar nicht)"
 epic: false
 etappen: []
@@ -55,6 +53,16 @@ freigabe_am: ""
 > steht nur noch im Abschnitt [[#Protokoll — verworfene Variante B (Antwort 1, 2026-10-06)]]. Rueckfrage 2
 > (Kombinationsgeraete, nur B) entfaellt mit Antwort 1. Die Rueckfragen sind neu nummeriert (alt 3/4/5 → neu 1/2/3).
 
+> [!info] Rework 2026-10-07 — Keyuser-Antworten zu Rueckfrage 1 und 2 eingearbeitet
+> - **Rueckfrage 1 (Sicht 2):** Anzeige, Gruppierschluessel bleibt `Matchcode`, Filter wirkt **vor** dem
+>   Zusammenzaehlen je Position. Die Alternative „Teil des Summierschluessels" ist **verworfen (Antwort 1 Offen,
+>   Keyuser 2026-10-07)**.
+> - **Rueckfrage 2 (Spalte):** Label **„Arbeitsbereich"**, Col-Key **`arbeitsbereich`** (wie Kommissionierlisten,
+>   `ColumnDefinitions.cs:341`); Server-Mode, Registrierung an allen drei Stellen, Position direkt nach `HauptFA`
+>   (Sicht 1) bzw. direkt nach `Matchcode` (Sicht 2), Default sichtbar, nicht `locked`. Das Label/der Col-Key
+>   **„Abteilung"/`abteilung` ist verworfen (Keyuser 2026-10-07)**.
+> - Offen bleibt nur Rueckfrage 3 (Kombigeraete-Backlog).
+
 ## Ziel / Nutzen (das Warum)
 
 Die Vormontage plant ihre Arbeit nach Abteilung. Die Sage-Maske „Fertigungsauftraege bearbeiten" zeigt
@@ -74,10 +82,10 @@ Vormontage-Listen sind hinter dem Toggle `FaHierarchyVormontageAktiv` (Default a
 ## Umfang (In-Scope / Out-of-Scope)
 
 **In-Scope**
-- Sicht 1 „Einzelne Teile" (`/FaHierarchyVormontage/Index`): neue Spalte (Label → Rueckfrage 2) mit dem
-  `Arbeitsbereich` **der Position** + Server-Spaltenfilter je Position.
-- Sicht 2 „Summiert" (`/FaHierarchyVormontage/Summiert`): Spalte + Filter — **Semantik haengt an Rueckfrage 1**
-  (Anzeige + Vorfilter oder Teil des Schluessels).
+- Sicht 1 „Einzelne Teile" (`/FaHierarchyVormontage/Index`): neue Spalte „Arbeitsbereich" (Col-Key
+  `arbeitsbereich`, direkt nach `HauptFA`) mit dem `Arbeitsbereich` **der Position** + Server-Spaltenfilter je Position.
+- Sicht 2 „Summiert" (`/FaHierarchyVormontage/Summiert`): Spalte „Arbeitsbereich" (direkt nach `Matchcode`) als
+  **Anzeige** + Filter als **Vorfilter je Position vor der Aggregation** (Antwort 1, Keyuser 2026-10-07).
 - Spaltenregistrierung an allen drei Stellen (`<th data-col-key>`, `#column-config`,
   `ColumnDefinitions`) + Drift-Waechter-Test fuer beide Vormontage-Views.
 - Automatisierte Tests, Testszenarien-Kapitel, Versions-Bump, Changelog (Anwender + Brain).
@@ -122,13 +130,16 @@ Belegte Ausgangslage (Buendel-Stand), Quelle festgelegt durch Antwort 1:
   ADR-0014-Nachtrag. Die Gleichsetzung „Sage-Spalte Abteilung = `Arbeitsbereich`" ist daher bis P5
   **unverifiziert** (siehe Vorbehalt oben).
 - **Begriffsnaehe zu `VMBedarf`:** Der Code nennt die `VMBedarf`-Reiter ebenfalls „Arbeitsbereich(e)"
-  (`VormontageService.cs:107,122`). Das ist ein **anderes** Feld (`n.VMBedarf`) und bleibt unberuehrt;
-  relevant fuer das Label (Rueckfrage 2).
+  (`VormontageService.cs:107,122`), und der sichtbare Untertitel von Sicht 2 sagt „summierte Mengensicht des
+  gewählten Arbeitsbereichs" (`Summiert.cshtml:68`) — gemeint ist dort der `VMBedarf`-Reiter. Das ist ein
+  **anderes** Feld (`n.VMBedarf`) und bleibt unberuehrt. Mit dem Label „Arbeitsbereich" (Antwort 2, Keyuser
+  2026-10-07) steht dasselbe Wort in Sicht 2 fuer zwei Felder; die Spec aendert den Untertitel nicht (nicht
+  beauftragt), der manuelle Test (Schritt 4) prueft nur, dass die Spalte die Knotenwerte zeigt.
 - **ADR-0014-Hinweis (nicht gedeutet):** Brain fuehrt `Arbeitsbereich` als „**Zielort** (wohin das Teil
   kommt) … keine Werkbank" ([[fallstricke]] §15, [[0014-werkbank-datenhoheit-sage-fuehrend-mit-abweichungsmeldung]]
   Nachtrag 2026-09-22, Rueckbau [[2026-09-21-adr-0014-arbeitsbereich-ist-zielort-spec]]). Diese Spec zeigt
   den Wert nur an und filtert danach; sie aendert an der Zielort-Einordnung nichts und leitet keine Werkbank
-  ab. Offen bleibt nur die **Spaltenbeschriftung** (Rueckfrage 2).
+  ab. Die Spaltenbeschriftung ist „Arbeitsbereich" (Antwort 2, Keyuser 2026-10-07).
 - **Kein Kopf-Join:** Die neue Spalte liest ausschliesslich den Knoten; `FaHierarchyOrderInfo` wird dafuer
   nicht herangezogen. Die bestehende fan-out-freie Kopfzuordnung fuer den Gruppenkopf
   (`FaHierarchyListBuilder.cs:151-163`) bleibt unveraendert.
@@ -137,17 +148,19 @@ Anforderungen:
 
 1. **Sicht 1:** Jede Positionszeile zeigt in einer neuen Spalte den `Arbeitsbereich` **dieser Position**
    (je Zeile verschieden moeglich). Positionsanzahl bleibt 1:1 (keine Verdopplung).
-2. **Sicht 1 Filter:** Server-Spaltenfilter (`colf_<key>`, Key → Rueckfrage 2) mit der bestehenden Mini-Syntax
+2. **Sicht 1 Filter:** Server-Spaltenfilter (`colf_arbeitsbereich`) mit der bestehenden Mini-Syntax
    (Komma = ODER, `!` = NICHT, Teilstring, case-insensitiv — `ColumnFilterHelper.cs:45-60,71-93`). Er wirkt
    **je Position**, wie die vorhandenen Filter `matchcode`/`artnr` (vor der Gruppierung,
    `FaHierarchyListBuilder.cs:135-137`): eine Gruppe bleibt, wenn mindestens eine Position passt, und zeigt
    dann **nur** die passenden Positionen.
-3. **Sicht 2:** Spalte + Filter **gemaess Rueckfrage 1** (Empfehlung siehe Loesungsentwurf A3).
+3. **Sicht 2:** Spalte zeigt je Aggregatzeile die `Arbeitsbereich`-Werte der beitragenden Positionen
+   (Anzeige, Schluessel bleibt `Matchcode`); der Filter wirkt **je Position vor dem Zusammenzaehlen**, die
+   Summen enthalten nur Mengen der passenden Positionen (Antwort 1, Keyuser 2026-10-07; Umsetzung A3).
 4. **Ohne Arbeitsbereich:** `Arbeitsbereich` NULL/leer an der Position (laut Screenshot z. B.
    `G-KT-Korpus-Gepunktet`) → Zelle **leer**. Der Gruppenkopf zeigt weiterhin die FAInfos-Abteilung bzw. „—"
    (`Index.cshtml:114`), unveraendert.
 5. **Spaltenauswahl:** Spalte ist ueber das Zahnrad ein-/ausblendbar und umsortierbar; Einstellung
-   ueberlebt einen Reload (Registrierung, Rueckfrage 2).
+   ueberlebt einen Reload (Registrierung an allen drei Stellen, Antwort 2). Default sichtbar, nicht `locked`.
 6. Keine Aenderung an Zugriff, Toggle, Reitern (`VMBedarf`), KW-Filter, Paging-Einheiten.
 
 ## Technischer Loesungsentwurf
@@ -160,12 +173,12 @@ Abhaengigkeit, kein zusaetzlicher Repository-Aufruf (beide Sichten laden die Kno
 ### Variante A — Knotenfeld `FaHierarchyNode.Arbeitsbereich` (festgelegt, Antwort 1)
 
 **A1. Sicht 1 — ein Map-Eintrag.** Der Wert haengt am Knoten, also reicht der statische
-`ColumnMap` (`VormontageService.cs:79-90`): `["<key>"] = n => n.Arbeitsbereich`; Zelle
+`ColumnMap` (`VormontageService.cs:79-90`): `["arbeitsbereich"] = n => n.Arbeitsbereich`; Zelle
 `<td>@pos.Arbeitsbereich</td>`. Vorbild: Kommissionierlisten (`KommissionierListenService.cs:64`,
-`FaHierarchyKommissionierListen/Index.cshtml:82,151`). Kein Formatierer, kein Request-Lookup, kein Join
-ueber `FaHierarchyOrderInfo`, kein Kombigeraete-Problem.
-Ob der Col-Key `abteilung` oder (wie in den Kommissionierlisten) `arbeitsbereich` heisst, folgt dem
-Label aus Rueckfrage 2 — in allen drei Registrierungen identisch. Im Folgenden steht `<key>` dafuer.
+`FaHierarchyKommissionierListen/Index.cshtml:82,151`, `ColumnDefinitions.cs:341`). Kein Formatierer, kein
+Request-Lookup, kein Join ueber `FaHierarchyOrderInfo`, kein Kombigeraete-Problem.
+Col-Key `arbeitsbereich`, Label „Arbeitsbereich" (Antwort 2, Keyuser 2026-10-07) — in allen drei
+Registrierungen identisch. ~~Col-Key `abteilung` / Label „Abteilung"~~ — verworfen (Keyuser 2026-10-07).
 
 **A2. Folgen fuer Gruppen-Paging/Seitenzaehler (Sicht 1).** Der Filter laeuft **je Position vor der
 Gruppierung** (`FaHierarchyListBuilder.cs:135-137`); gruppiert/gezaehlt wird danach (`:140-144`).
@@ -179,18 +192,18 @@ Gruppierung** (`FaHierarchyListBuilder.cs:135-137`); gruppiert/gezaehlt wird dan
   Test wird eine solche Abweichung nur beobachtet, nicht als Fehler gewertet.
 - `!X` blendet nur Positionen mit Bereich `X` aus, nicht ganze Gruppen.
 
-**A3. Sicht 2 — Vorfilter je Knoten (Empfehlung zu Rueckfrage 1).** Analog zum KW-Vorfilter
+**A3. Sicht 2 — Vorfilter je Knoten (festgelegt, Antwort 1 Keyuser 2026-10-07).** Analog zum KW-Vorfilter
 (`VormontageService.cs:233-241`) die Positionen **vor** der Aggregation per `ColumnFilterHelper.Apply` mit
-einer Ein-Key-Map (`["<key>"] = n => n.Arbeitsbereich`) einschraenken; `colf_<key>` **nicht** in
+einer Ein-Key-Map (`["arbeitsbereich"] = n => n.Arbeitsbereich`) einschraenken; `colf_arbeitsbereich` **nicht** in
 `AggregatColumnMap` (`:97-103`; `Apply` ignoriert unbekannte Keys, `ColumnFilterHelper.cs:81`), damit der
 Nachfilter auf der Projektion (`:259`) ihn nicht erneut auswertet. Die Summen enthalten dann exakt die
 Mengen der gefilterten Bereiche — keine Doppelzaehlung, kein Hinweis-Banner noetig. Anzeige: neue
 Eigenschaft an `FaHierarchyVormontageAggregatViewModel` (`:16-32`) = distinct, sortiert, kommagetrennt
 ueber die `Arbeitsbereich`-Werte der beitragenden Positionen (ein Matchcode kann in mehreren Bereichen
 vorkommen); Gruppierschluessel bleibt `Matchcode` (`:245-256`).
-Alternative „Teil des Schluessels" (falls Rueckfrage 1 so beantwortet): Gruppierung nach
-`(Matchcode, Arbeitsbereich)` — derselbe Matchcode erscheint dann je Bereich in einer eigenen Zeile,
-ohne Mischzeile; Filter dann auf der Projektion ueber `AggregatColumnMap`.
+~~Alternative „Teil des Schluessels": Gruppierung nach `(Matchcode, Arbeitsbereich)` — derselbe Matchcode
+erscheint dann je Bereich in einer eigenen Zeile, ohne Mischzeile; Filter dann auf der Projektion ueber
+`AggregatColumnMap`.~~ — **verworfen (Antwort 1, Keyuser 2026-10-07)**.
 
 ### Variante B — verworfen
 
@@ -200,18 +213,25 @@ bisheriger Text (B1–B3) im [[#Protokoll — verworfene Variante B (Antwort 1, 
 ### Gemeinsame Umsetzungsschritte
 
 **4. Views.**
-- `Index.cshtml`: `<th data-filterable data-col-key="<key>">…</th>` an der in Rueckfrage 2
-  bestaetigten Position, Zelle `@pos.Arbeitsbereich`, `colCount` 8 → 9 (`:6`), Eintrag im
-  `#column-config` (`:153-164`).
-- `Summiert.cshtml`: analog, `colCount` 3 → 4 (`:7`), `#column-config` (`:112-118`). Kein Hinweis-Alert.
+- `Index.cshtml`: `<th data-filterable data-col-key="arbeitsbereich">Arbeitsbereich</th>` direkt nach
+  `hauptfa` (`:75`), Zelle `@pos.Arbeitsbereich` an derselben Position, `colCount` 8 → 9 (`:6`), Eintrag im
+  `#column-config` (`:153-164`) direkt nach `hauptfa`, nicht `defaultHidden`, nicht `locked`.
+- `Summiert.cshtml`: `<th data-filterable data-col-key="arbeitsbereich">Arbeitsbereich</th>` direkt nach
+  `matchcode` (`:80`), `colCount` 3 → 4 (`:7`), `#column-config` (`:112-118`) direkt nach `matchcode`.
+  Kein Hinweis-Alert.
 - Skript-Reihenfolge `column-preferences.js` vor `table-filter.js` ist bereits richtig
   (`Index.cshtml:167-168`, `Summiert.cshtml:121-122`), nicht anfassen.
 - Bestandsnutzer mit gespeicherten Spalten-Prefs: `column-preferences.js` `mergeWithDefaults`
   (`:75-105`) fuegt neue Keys an der Nachbarposition des Configs ein, sichtbar gemaess `defaultHidden`.
 
-**5. `ColumnDefinitions`.** Neuer `ColumnDef("<key>", "<Label>", Locked: false)` in
-`FaHierarchyVormontageEinzeln` (`:400-415`) und `FaHierarchyVormontageSummiert` (`:423-433`), selbe
-Reihenfolge wie das `#column-config`. ViewKeys sind schon registriert (`:481-482`).
+**5. `ColumnDefinitions`.** Neuer `ColumnDef("arbeitsbereich", "Arbeitsbereich", Locked: false)` in
+`FaHierarchyVormontageEinzeln` (`:400-415`, direkt nach `hauptfa` `:406`) und `FaHierarchyVormontageSummiert`
+(`:423-433`, direkt nach `matchcode` `:429`), selbe Reihenfolge wie das `#column-config`. ViewKeys sind schon
+registriert (`:481-482`).
+
+**7. Anwender-Changelog.** Eintrag in `Views/Help/Changelog.cshtml` nennt die Spalte „Arbeitsbereich"
+(nicht „Abteilung") und erklaert in einem Satz: Wert je Position aus Sage; in „Summiert" wirkt der Filter vor
+dem Zusammenzaehlen. Einen Vormontage-Hilfeabschnitt gibt es nicht (siehe Out-of-Scope).
 
 **6. Drift-Waechter.** `KommissionierSpaltenKonsistenzTests` prueft A/B/C(+D Druck) nur fuer die
 Kommissionierlisten (`IdealAkeWms.Tests/Views/KommissionierSpaltenKonsistenzTests.cs:40-44`). Fuer die
@@ -263,27 +283,30 @@ keine neue Rolle, `RoleOverview` unberuehrt.
 
 ## Akzeptanzkriterien
 
-Variante A (Knotenfeld `Arbeitsbereich`) gilt laut Antwort 1. AK 4A gilt fuer die **empfohlene** Variante zu
-Rueckfrage 1 (Anzeige + Vorfilter); wird dort „Teil des Schluessels" gewaehlt, ist AK 4A im naechsten Rework
-anzupassen. `<key>`/Label gemaess Rueckfrage 2. AK 1B–6B: verworfen, siehe Protokoll-Abschnitt.
+Variante A (Knotenfeld `Arbeitsbereich`) gilt laut Antwort 1 (2026-10-06). Sicht 2 = Anzeige + Vorfilter
+(Antwort 1, Keyuser 2026-10-07). Col-Key `arbeitsbereich`, Label „Arbeitsbereich" (Antwort 2, Keyuser
+2026-10-07). AK 1B–6B: verworfen, siehe Protokoll-Abschnitt.
 
-1A. Sicht 1 zeigt die neue Spalte; jede Positionszeile zeigt **ihren eigenen** `Arbeitsbereich`
-   (zwei Positionen derselben Gruppe mit `H1-03` und `H2-02` zeigen verschiedene Werte).
+1A. Sicht 1 zeigt die Spalte **„Arbeitsbereich"** direkt rechts neben `HauptFA`; jede Positionszeile zeigt
+   **ihren eigenen** `Arbeitsbereich` (zwei Positionen derselben Gruppe mit `H1-03` und `H2-02` zeigen
+   verschiedene Werte).
 2A. Position mit `Arbeitsbereich` NULL/leer: Zelle leer; der Gruppenkopf ist unveraendert.
-3A. Sicht 1, Filter `colf_<key>=<Wert>`: nur Positionen, deren `Arbeitsbereich` den Wert (Teilstring,
+3A. Sicht 1, Filter `colf_arbeitsbereich=<Wert>`: nur Positionen, deren `Arbeitsbereich` den Wert (Teilstring,
    case-insensitiv) enthaelt; eine Gruppe mit mindestens einer passenden Position erscheint mit genau den
    passenden Positionen; `TotalCount` zaehlt Gruppen mit ≥ 1 Treffer; `!<Wert>` blendet nur die
    betroffenen Positionen aus.
-4A. Sicht 2 zeigt je Aggregatzeile die (distinct, sortiert, kommagetrennt) `Arbeitsbereich`-Werte der
-   beitragenden Positionen; Filter „A" reduziert die Summen auf Positionen mit Bereich A (Vorfilter vor
-   der Aggregation), `TotalCount` zaehlt Aggregatzeilen nach Filter.
+4A. Sicht 2 zeigt die Spalte **„Arbeitsbereich"** direkt rechts neben `Matchcode`, je Aggregatzeile die
+   (distinct, sortiert, kommagetrennt) `Arbeitsbereich`-Werte der beitragenden Positionen; je Matchcode
+   genau eine Zeile (Schluessel bleibt `Matchcode`); Filter „A" reduziert die Summen auf Positionen mit
+   Bereich A (Vorfilter vor der Aggregation), `TotalCount` zaehlt Aggregatzeilen nach Filter.
 5A. Ein Kombigeraet (zwei OrderInfo-Zeilen) hat keinen Einfluss auf Anzeige oder Filter der Spalte;
    es erscheint kein Hinweis-Banner.
 6A. (entfaellt)
-7. Spalte ist in beiden Sichten ueber das Zahnrad ausblendbar; nach Reload bleibt die Wahl erhalten
-   (keine 400 der Prefs-API).
+7. Spalte ist in beiden Sichten per Default sichtbar und ueber das Zahnrad (Eintrag „Arbeitsbereich")
+   ausblendbar; nach Reload bleibt die Wahl erhalten (keine 400 der Prefs-API).
 8. Fuer beide Vormontage-Views sind die Key-Mengen von `<th data-col-key>`, `#column-config` und
-   `ColumnDefinitions` identisch (Drift-Waechter-Test gruen), Reihenfolge `#column-config` = `ColumnDefinitions`.
+   `ColumnDefinitions` identisch und enthalten `arbeitsbereich` (kein Key `abteilung`) (Drift-Waechter-Test
+   gruen), Reihenfolge `#column-config` = `ColumnDefinitions`.
 9. Reiter (`VMBedarf`), KW-Filter und bestehende Spaltenfilter verhalten sich unveraendert
    (bestehende `VormontageServiceTests` gruen).
 10. `dotnet build` und `dotnet test` gruen.
@@ -301,21 +324,26 @@ Version = **naechste freie zum Umsetzungszeitpunkt** (Buendel aktuell v1.47.2). 
 - Sicht 1 Getter: eine Gruppe mit Positionen `H1-03`/`H2-02`, Filter „H1" → Gruppe bleibt mit nur
   der `H1-03`-Position; `TotalGroupCount` zaehlt Gruppen mit Treffer; „!H1" entfernt nur die Position.
 - Sicht 1: Position mit `Arbeitsbereich = null` → Getter liefert leer, Filter „H1" entfernt sie.
-- Sicht 2 Vorfilter: gleicher Matchcode an Positionen verschiedener Bereiche → Filter reduziert die
-  Summe auf den Bereich; Anzeige der Bereiche je Aggregatzeile korrekt (distinct, sortiert).
-- Drift-Waechter A/B/C fuer `Index.cshtml` und `Summiert.cshtml`.
+- Sicht 2 Vorfilter: gleicher Matchcode an Positionen verschiedener Bereiche → ohne Filter eine Zeile mit
+  beiden Bereichen; Filter reduziert die Summe auf den Bereich; Anzeige der Bereiche je Aggregatzeile korrekt
+  (distinct, sortiert).
+- Drift-Waechter A/B/C fuer `Index.cshtml` und `Summiert.cshtml` (Key `arbeitsbereich` in allen drei Quellen).
 
 **Manuell am IDEAL-Testsystem** (Vorbedingung: Toggle `FaHierarchyVormontageAktiv = true`, Benutzer mit
 `vorbau`/`admin`, produktivnahe Daten; P5 gelaufen und konform):
-1. Sicht 1 Grunddarstellung: neue Spalte vorhanden; Werte je Position stimmen mit der Sage-Spalte
-   „Abteilung" in „Fertigungsauftraege bearbeiten" fuer dieselbe Struktur ueberein (Abgleich wie P5).
+1. Sicht 1 Grunddarstellung: Spalte „Arbeitsbereich" direkt nach `HauptFA` vorhanden; Werte je Position
+   stimmen mit der Sage-Spalte „Abteilung" in „Fertigungsauftraege bearbeiten" fuer dieselbe Struktur ueberein
+   (Abgleich wie P5 — in Sage heisst die Spalte weiterhin „Abteilung", im WMS „Arbeitsbereich").
    Weicht der Gruppenkopf (FAInfos-Abteilung) davon ab, nur notieren.
-2. Spaltenfilter eintippen + ENTER: nur passende Positionen, Gruppen ohne Treffer verschwinden; Seitenzahl
-   passt; Negation `!<Wert>` entfernt nur Positionen; Filter entfernen.
+2. Spaltenfilter „Arbeitsbereich" eintippen + ENTER (URL enthaelt `colf_arbeitsbereich=`): nur passende
+   Positionen, Gruppen ohne Treffer verschwinden; Seitenzahl passt; Negation `!<Wert>` entfernt nur
+   Positionen; Filter entfernen.
 3. Kombigeraet (HauptFA mit zwei FAInfos-Zeilen) verhaelt sich wie jeder andere `HauptFA`.
-4. Sicht 2: Spalte vorhanden; Filter auf einen Bereich → Summen sinken plausibel; kein Hinweis-Banner.
-5. Zahnrad: Spalte ausblenden, verschieben, Reload — Einstellung bleibt; Benutzer mit alten Prefs sieht
-   die neue Spalte an der Nachbarposition.
+4. Sicht 2: Spalte „Arbeitsbereich" direkt nach `Matchcode` vorhanden, zeigt die Knotenwerte (nicht den
+   gewaehlten `VMBedarf`-Reiter); je Matchcode eine Zeile; Filter auf einen Bereich → Summen sinken plausibel
+   (nur Mengen dieses Bereichs, vor dem Zusammenzaehlen gefiltert); kein Hinweis-Banner.
+5. Zahnrad: Eintrag „Arbeitsbereich" ausblenden, verschieben, Reload — Einstellung bleibt; Benutzer mit alten
+   Prefs sieht die neue Spalte an der Nachbarposition.
 6. Kombination mit Reiterwechsel und KW-Filter: Filter bleibt wirksam, Ergebnisse konsistent.
 7. Negativ: Benutzer ohne Vorbau-Zugriff → AccessDenied; Toggle aus → Redirect Home (unveraendert).
 8. Regression: Kommissionierlisten/Beschichtung/FA-Liste unveraendert; AKE (Toggle aus) unberuehrt.
@@ -403,26 +431,9 @@ GROUP BY n.HauptFA, i.MontageAbteilung, n.Arbeitsbereich ORDER BY 1, 2, 3;
 
 ## Offene Rueckfragen
 
-Neu nummeriert im Rework 2026-10-06 nach Antwort 1 (alt 3 → 1, alt 4 → 2, alt 5 → 3).
+Neu nummeriert im Rework 2026-10-06 nach Antwort 1 (alt 3 → 1, alt 4 → 2, alt 5 → 3). Seit dem Rework
+2026-10-07 ist nur noch Rueckfrage 3 offen; die Nummer bleibt 3, damit sie zum Freigabe-Block passt.
 
-1. **Summierte Ansicht (aus der Notiz; vorher 3).** Arbeitsbereich nur Anzeige oder Teil des
-   Summierschluessels? *Notiz:* keine Empfehlung. *Spec-Agent empfiehlt:* Anzeige, Gruppierschluessel
-   bleibt `Matchcode`, der Filter wirkt **vor** der Aggregation je Position (wie der KW-Filter). Grund: ein
-   Filter auf der Aggregat-Projektion (heutiger Mechanismus, `VormontageService.cs:259`) wuerde eine Zeile
-   behalten, deren Summe Mengen anderer Bereiche enthaelt — fuer den Werker irrefuehrend. Der Vorfilter je
-   Position ist exakt, ein Kombi-Hinweis ist nicht noetig. Alternative „Teil des Schluessels": siehe
-   Loesungsentwurf A3. ~~Kombi-Hinweis, wenn Kombigeraete in der Summe stecken; Alternative B3~~ — verworfen
-   mit Antwort 1.
-2. **Server-Mode + Registrierung (aus der Notiz; vorher 4).** Spaltenfilter im Server-Mode (ADR 0005) und
-   Registrierung an allen Stellen ([[fallstricke]] §3). *Notiz:* keine Empfehlung (ist Pflicht laut
-   ADR 0005). *Spec-Agent:* bestaetigen; zusaetzlich zu entscheiden: Spaltenposition (Vorschlag:
-   direkt nach `HauptFA` in Sicht 1, direkt nach `Matchcode` in Sicht 2), Default sichtbar (nicht
-   `defaultHidden`), nicht `locked`, **Label und Col-Key**: „Abteilung" wie in Sage (Col-Key `abteilung`)
-   oder „Arbeitsbereich" wie in den Kommissionierlisten (`ColumnDefinitions.cs:341`, Col-Key `arbeitsbereich`)?
-   Hinweise, nicht gedeutet: ADR 0014 fuehrt das Feld als „Zielort"; die `VMBedarf`-Reiter heissen im Code
-   ebenfalls „Arbeitsbereich(e)" (`VormontageService.cs:107,122`); der Gruppenkopf zeigt unbeschriftet die
-   FAInfos-Abteilung (`Index.cshtml:114`). ~~„Montage-Abt." wie in der FA-Liste (`ColumnDefinitions.cs:36`)~~ —
-   das war das Label fuer Variante B, verworfen mit Antwort 1.
 3. **Bezug zu [[2026-08-06-kombinationsgeraete-montageabteilung]] (aus der Notiz; vorher 5).** Loest diese Spec
    sie teilweise mit, oder bleibt die Trennung ein eigener Schritt? *Notiz:* keine Empfehlung.
    *Spec-Agent empfiehlt:* eigener Schritt. Mit Variante A beruehrt diese Spec die Kombigeraete-Trennung
@@ -433,6 +444,20 @@ Neu nummeriert im Rework 2026-10-06 nach Antwort 1 (alt 3 → 1, alt 4 → 2, al
 > - **Alt 1 „Welches Feld ist Abteilung?"** — beantwortet: Variante A, vorbehaltlich P5 (Freigabe-Antwort 1).
 > - **Alt 2 „Kombinationsgeraete (nur Variante B)"** — entfaellt mit Antwort 1 (dort ausdruecklich: „Frage 2
 >   entfällt damit"); kein eigener Antworttext eingetragen.
+
+> [!note]- Erledigte Rueckfragen (Rework 2026-10-07)
+> - **1 (vorher 3) Summierte Ansicht** — beantwortet (Keyuser 2026-10-07): Anzeige, Gruppierschluessel bleibt
+>   `Matchcode`, Filter wirkt je Position **vor** dem Zusammenzaehlen (wie der KW-Vorfilter
+>   `VormontageService.cs:233-241`). Grund der Empfehlung war: ein Filter auf der Aggregat-Projektion
+>   (`VormontageService.cs:259`) wuerde eine Zeile behalten, deren Summe Mengen anderer Bereiche enthaelt.
+>   ~~Alternative „Teil des Summierschluessels"~~ — verworfen. ~~Kombi-Hinweis / Alternative B3~~ — verworfen
+>   mit Antwort 1 (2026-10-06). Eingearbeitet in Anforderung 3, A3, AK 4A.
+> - **2 (vorher 4) Server-Mode + Registrierung, Position, Sichtbarkeit, Label/Col-Key** — beantwortet (Keyuser
+>   2026-10-07): Label „Arbeitsbereich", Col-Key `arbeitsbereich` (wie `ColumnDefinitions.cs:341`); Server-Mode,
+>   Registrierung an allen drei Stellen, direkt nach `HauptFA` (Sicht 1) bzw. `Matchcode` (Sicht 2), Default
+>   sichtbar, nicht `locked`. ~~Label „Abteilung" wie Sage, Col-Key `abteilung`~~ — verworfen.
+>   ~~„Montage-Abt." wie FA-Liste (`ColumnDefinitions.cs:36`)~~ — verworfen mit Antwort 1 (2026-10-06).
+>   Eingearbeitet in In-Scope, Anforderungen 2/5, A1, Schritte 4/5/7, AK 1A/3A/4A/7/8, Testszenarien.
 
 ## Freigabe-Antworten (Mensch fuellt aus — Schranke 1)
 
@@ -453,6 +478,6 @@ Neu nummeriert im Rework 2026-10-06 nach Antwort 1 (alt 3 → 1, alt 4 → 2, al
 
 ### Offen
 
-1. (vorher 3) Summierte Ansicht — Anzeige oder Schluessel, Filter vor/nach Aggregation (Empfehlung: Anzeige + Vorfilter je Position; ~~Kombi-Hinweis nur bei B~~ verworfen mit Antwort 1) →
-2. (vorher 4) Server-Mode + Registrierung; Position, Sichtbarkeit, Label/Col-Key (Empfehlung: nach HauptFA/Matchcode, sichtbar; Label „Abteilung" wie Sage oder „Arbeitsbereich" wie Kommissionierlisten) →
+1. (vorher 3) Summierte Ansicht — Anzeige oder Schluessel, Filter vor/nach Aggregation (Empfehlung: Anzeige + Vorfilter je Position; ~~Kombi-Hinweis nur bei B~~ verworfen mit Antwort 1) → **Wie vorgeschlagen (Keyuser 2026-10-07): Anzeige, Filter wirkt vor dem Zusammenzählen.**
+2. (vorher 4) Server-Mode + Registrierung; Position, Sichtbarkeit, Label/Col-Key (Empfehlung: nach HauptFA/Matchcode, sichtbar; Label „Abteilung" wie Sage oder „Arbeitsbereich" wie Kommissionierlisten) → **Label „Arbeitsbereich“ (Keyuser 2026-10-07); Server-Mode/Registrierung, Position und Sichtbarkeit wie vorgeschlagen.**
 3. (vorher 5) Bezug Kombigeraete-Backlog (Empfehlung: eigener Schritt, nur Querverweis) →
