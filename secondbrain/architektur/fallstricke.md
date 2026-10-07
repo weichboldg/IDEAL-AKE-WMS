@@ -1065,6 +1065,20 @@ bestaetigten DirectChildren-Regel. Ein Enkel-Token dagegen landet **nur** beim E
 Grossvater (TS-76.2, unit-getestet). Beim ersten echten Datenlauf mit dem Fachbereich gegenpruefen, ob der
 Doppel-Kontext gewollt ist — nicht erst im Betrieb auffallen lassen.
 
+> [!warning] Entschieden 2026-10-07 (v1.47.4): der Doppel-Kontext war NICHT gewollt
+> Der Fachbereich hat die Gegenpruefung gemacht: Ein Kuerzel auf einer Zeile, die **selbst ein Sub-FA** ist,
+> gehoert **nur** zu diesem Sub-FA (Beispiel `VM` an der Mittelholmblende, nicht am Korpus). Scope jetzt:
+> eigene Zeile + direkte **Blatt**-Kinder (`SubFA == 0`) — `WorkOperationStructureDetectionService`,
+> `kids.Where(k => k.SubFA == 0)`. **Warum es weh tat:** Am BDE-Terminal standen dann zwei Arbeitsgaenge mit
+> identischer Beschriftung (`OrderNumber / OperationNumber`, `OrderNumber` = HauptFA) zur Wahl, und der am
+> Vater gehoerte zu keinem echten Arbeitsschritt — eine Buchung darauf landete am falschen Auftrag.
+> **Lehre:** Eine „mechanische Konsequenz einer bestaetigten Regel" ist noch keine fachliche Bestaetigung —
+> was als „zur Sichtung vormerken" dokumentiert wurde, gehoert vor dem ersten Terminal-Einsatz entschieden.
+> **Altbestand:** Die Erkennung loescht nie; die vor v1.47.4 angelegten Vater-Arbeitsgaenge entfernt das
+> Einmal-Skript `SQL/Einmalig/2026-10-07_v1.47.4_RemoveParentWorkOperationsFromChildSubFaTokens.sql`
+> (nur ungebuchte; erst NACH dem Service-Deploy, sonst legt der alte Lauf sie wieder an).
+> Spec: FREIGABE-NACHTRAG (2026-10-07) in [[2026-09-21-ideal-bde-arbeitsgaenge-aus-struktur-spec]].
+
 ### Das Token IST der Code — `SearchString` ist ausschliesslich der AKE-Mechanismus
 AKE muss raten (`FaWorkStepDetectionService`: `SearchString.Contains` ueber Bezeichnungen). IDEAL bekommt
 die Arbeitsschritte je Position **geliefert** — der Abgleich ist **exakt** ueber `WorkStep.Code`
