@@ -314,6 +314,10 @@ mechanische Konsequenz der bestaetigten DirectChildren-Regel — dieselbe Sage-S
 dieser Stelle zwei verschiedene, beide gueltige fachliche Sachverhalte (Position im Elternkontext vs.
 eigener Auftrag). Zur Sichtung beim ersten echten Datenlauf vormerken (siehe Testszenarien).
 
+> [!note] Entschieden 2026-10-07 — siehe FREIGABE-NACHTRAG (2026-10-07) in [[2026-09-21-ideal-bde-arbeitsgaenge-aus-struktur-spec]]
+> Kuerzel einer Zeile, die selbst ein Sub-FA ist, gehoeren nur zu diesem Sub-FA, nicht zusaetzlich zum Vater
+> (v1.47.4). Dieser Nebenbefund bleibt als Protokoll stehen.
+
 ## Migrations-/SQL-Auswirkungen
 
 **Keine Migration.** Verifiziert:

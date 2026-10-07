@@ -2,7 +2,7 @@
 type: spec
 title: "IDEAL: BDE-Arbeitsgaenge (WorkOperation) aus der Struktur + Werkbank-Anlage aus Sage-Arbeitsplaetzen"
 slug: 2026-09-21-ideal-bde-arbeitsgaenge-aus-struktur-spec
-status: Testbereit
+status: InUmsetzung
 created: 2026-09-21
 updated: 2026-09-22
 source_backlog: "[[2026-09-21-ideal-bde-arbeitsgaenge-aus-struktur]]"
@@ -576,7 +576,10 @@ zusaetzliche, korrekt geroutete Datenzeilen in bereits geschuetzte, bestehende A
     sie manuell geloescht/deaktiviert wurde (sofern eine entsprechende App-Semantik existiert).
 13. **Baustein b — DirectChildren, keine Doppelzaehlung.** Ein Token, das ausschliesslich auf einem
     Enkelknoten steht, erzeugt **keine** `WorkOperation` fuer den Grossvater-Sub-FA (identische Logik
-    wie v1.41.0 AK 5).
+    wie v1.41.0 AK 5). **Nachgezogen (FREIGABE-NACHTRAG 2026-10-07):** Ein Token, das ausschliesslich auf
+    einem direkten Kind steht, das **selbst ein Sub-FA** ist (`SubFA != 0`), erzeugt **keine**
+    `WorkOperation` fuer den Vater-Sub-FA, sondern nur fuer das Kind selbst. Tokens direkter **Blatt**-Kinder
+    (`SubFA == 0`) zaehlen unveraendert beim Vater-Sub-FA.
 14. **Baustein b — Fertig-/Storno-Filter.** Ein `ProductionOrder` mit `IsDone`/`IsCancelled`/
     `PickingStatus.IsDonePicking = true` bekommt keine neue `WorkOperation`, auch bei bekanntem Token.
 15. **Baustein c — Verifikation ohne Resolver-Aenderung.** An einer Werkbank mit
@@ -1587,3 +1590,28 @@ DryRun. Alle Schritte auf der IDEAL-Testinstanz, sofern nicht anders vermerkt.
     und dass ein Wechsel der Ausschlussliste bestehende Werkbaenke nicht rueckwirkend entfernt.
 17. **Freigabe fuer Merge.** Erst nach allen obigen Punkten (insbesondere TS-77.16 am echten SQL Server)
     grün: Schranke 2 (Merge) freigeben.
+
+## FREIGABE-NACHTRAG (2026-10-07) — Kuerzel einer Sub-FA-Zeile gehoeren nur zu diesem Sub-FA
+
+**Entscheidung Keyuser/Gerald (2026-10-07)**, aus [[2026-10-06-fa-struktur-arbeitsgaenge-symbole-teil-2-spec]]
+(Antwort 7, Befund W-1): Ein Kuerzel auf einer Zeile, die **selbst ein Sub-FA ist** (`SubFA != 0`), gehoert
+**nur zu diesem Sub-FA** — nicht zusaetzlich zum Vater. Beispiel: `VM` an `G-KT-Mittelholmblende` wird nicht
+am Korpus erfasst. Kuerzel von Zeilen **ohne eigenen FA** (Blaetter, `SubFA == 0`, z. B. `LS KA`) bleiben am
+Vater-Sub-FA rueckmeldbar.
+
+**Warum:** Bisher landete ein solches Kuerzel zweimal — als eigener Arbeitsgang des Kind-Sub-FA und als
+Arbeitsgang des Vaters (DirectChildren-Scope). Am BDE-Terminal waren dann zwei gleich beschriftete
+Arbeitsgaenge (`OrderNumber / OperationNumber`, `OrderNumber` = HauptFA) buchbar, und der am Vater gehoerte
+fachlich zu keinem Auftrag. Der „Doppel-Kontext"-Nebenbefund (Design E) aus
+[[2026-09-08-arbeitsgaenge-aus-arbeitsschritte-spec]] ist damit **entschieden statt nur vorgemerkt**.
+
+**Neue Scope-Regel (Baustein b):** je materialisiertem Sub-FA = eigene Zeile + direkte Kinder **mit
+`SubFA == 0`**. Direkte Kinder mit eigenem Sub-FA tragen nur zu ihrem eigenen Auftrag bei. AK 13 ist
+entsprechend nachgezogen.
+
+**Altbestand:** Die Erkennung loescht nie (Nur-hinzufuegen, AK 12). Bereits angelegte Vater-Arbeitsgaenge,
+deren Kuerzel nur von Kind-Sub-FA-Zeilen stammt, bereinigt ein Einmal-Skript in `SQL/Einmalig/`
+([[0015-einmal-datenskripte-ausserhalb-der-nummerierten-sql-reihe]]) — nur solche **ohne** BDE-Buchung;
+gebuchte werden nur gemeldet, nicht geloescht. Umsetzung im Buendel als Patch **v1.47.4**.
+
+**Status:** zurueck auf `InUmsetzung` bis zum gruenen QA-Nachweis dieser Korrektur.
