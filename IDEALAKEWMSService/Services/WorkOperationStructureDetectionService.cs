@@ -88,7 +88,9 @@ public class WorkOperationStructureDetectionService : IWorkOperationStructureDet
             }
 
             // 4) Je materialisiertem Sub-FA (SubFA != 0): DirectChildren-Scope = eigene Zeile + direkte
-            //    Kinder; Token in Erst-Auftauch-Reihenfolge (fuer WorkOperation.Sequence).
+            //    BLATT-Kinder (SubFA == 0); Token in Erst-Auftauch-Reihenfolge (fuer WorkOperation.Sequence).
+            //    Ein direktes Kind, das selbst ein Sub-FA ist, traegt NUR zu seinem eigenen Auftrag bei
+            //    (Freigabe-Nachtrag 2026-10-07: VM an der Mittelholmblende gehoert nicht zum Korpus).
             var desiredBySubOrder = new Dictionary<string, Dictionary<string, (ProductionWorkplace Wp, int Seq)>>(StringComparer.Ordinal);
             var unknownTokenToSubOrders = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
             var ambiguousTokenToSubOrders = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
@@ -99,7 +101,7 @@ public class WorkOperationStructureDetectionService : IWorkOperationStructureDet
                 ct.ThrowIfCancellationRequested();
 
                 var scope = new List<FaHierarchyNode> { node };
-                if (childrenByParent.TryGetValue(node.SubFA, out var kids)) scope.AddRange(kids);
+                if (childrenByParent.TryGetValue(node.SubFA, out var kids)) scope.AddRange(kids.Where(k => k.SubFA == 0));
 
                 var subOrder = node.SubFA.ToString();
                 var seq = 0;

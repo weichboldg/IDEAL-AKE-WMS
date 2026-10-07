@@ -110,17 +110,19 @@ public class WorkOperationStructureDetectionServiceTests
         r.Inserted.Should().Be(2);
     }
 
-    // --- AK 13 DirectChildren-Gegenprobe ---
+    // --- AK 13 DirectChildren-Gegenprobe (nachgezogen: Freigabe-Nachtrag 2026-10-07) ---
     [Fact]
     public async Task Detect_GrandchildToken_LandsOnParentNotGrandparent()
     {
         using var ctx = TestDbContextFactory.Create();
-        // X(10) -> Y(20) -> Z(0, Blatt). SÄ steht NUR auf Z; AV steht auf X.
+        // X(10) -> Y(20, eigener Sub-FA, VM) -> Z(0, Blatt, SÄ). AV steht auf X.
+        // Seit 2026-10-07: VM (Zeile ist selbst Sub-FA) NUR an Y, nicht zusaetzlich an X.
         ctx.FaHierarchyNodes.AddRange(
             Node(subFa: 10, vaterFa: null, arbeitsschritte: "AV"),
-            Node(subFa: 20, vaterFa: 10, arbeitsschritte: null),
+            Node(subFa: 20, vaterFa: 10, arbeitsschritte: "VM"),
             Node(subFa: 0, vaterFa: 20, arbeitsschritte: "SÄ"));
-        ctx.ProductionWorkplaces.AddRange(Workplace("AV", "Vormontage"), Workplace("SÄ", "Schäumerei W1"));
+        ctx.ProductionWorkplaces.AddRange(Workplace("AV", "Vormontage"), Workplace("SÄ", "Schäumerei W1"),
+            Workplace("VM", "Vormontage H2"));
         ctx.ProductionOrders.AddRange(Order("10"), Order("20"));
         await ctx.SaveChangesAsync();
 
@@ -128,9 +130,54 @@ public class WorkOperationStructureDetectionServiceTests
 
         var byOrder = await ctx.WorkOperations.Include(w => w.ProductionOrder).ToListAsync();
         byOrder.Where(w => w.ProductionOrder.SubOrderNumber == "20").Select(w => w.OperationNumber)
-            .Should().BeEquivalentTo(new[] { "SÄ" });
+            .Should().BeEquivalentTo(new[] { "VM", "SÄ" });
         byOrder.Where(w => w.ProductionOrder.SubOrderNumber == "10").Select(w => w.OperationNumber)
             .Should().BeEquivalentTo(new[] { "AV" });
+    }
+
+    // --- Freigabe-Nachtrag 2026-10-07: Kuerzel einer Sub-FA-Zeile gehoert nur zu diesem Sub-FA ---
+    [Fact]
+    public async Task Detect_ChildSubFaToken_NotOnParent()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        // Korpus(10, PG) -> Mittelholmblende(20, eigener Sub-FA, VM); beide materialisiert.
+        ctx.FaHierarchyNodes.AddRange(
+            Node(subFa: 10, vaterFa: null, arbeitsschritte: "PG"),
+            Node(subFa: 20, vaterFa: 10, arbeitsschritte: "VM"));
+        ctx.ProductionWorkplaces.AddRange(Workplace("PG", "Pulver"), Workplace("VM", "Vormontage H2"));
+        ctx.ProductionOrders.AddRange(Order("10"), Order("20"));
+        await ctx.SaveChangesAsync();
+
+        await Build(ctx).Svc.DetectAsync(dryRun: false);
+
+        var byOrder = await ctx.WorkOperations.Include(w => w.ProductionOrder).ToListAsync();
+        byOrder.Where(w => w.ProductionOrder.SubOrderNumber == "10").Select(w => w.OperationNumber)
+            .Should().BeEquivalentTo(new[] { "PG" }, "VM gehoert zur Mittelholmblende, nicht zum Korpus");
+        byOrder.Where(w => w.ProductionOrder.SubOrderNumber == "20").Select(w => w.OperationNumber)
+            .Should().BeEquivalentTo(new[] { "VM" });
+    }
+
+    [Fact]
+    public async Task Detect_LeafChildToken_StillOnParent()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        // Korpus(10, PG) -> Blatt(0, "LS KA") + Kind-Sub-FA(20, VM). Blatt-Kuerzel bleiben am Korpus.
+        ctx.FaHierarchyNodes.AddRange(
+            Node(subFa: 10, vaterFa: null, arbeitsschritte: "PG"),
+            Node(subFa: 0, vaterFa: 10, arbeitsschritte: "LS KA"),
+            Node(subFa: 20, vaterFa: 10, arbeitsschritte: "VM"));
+        ctx.ProductionWorkplaces.AddRange(Workplace("PG", "Pulver"), Workplace("LS", "Laser"),
+            Workplace("KA", "Kanterei W1"), Workplace("VM", "Vormontage H2"));
+        ctx.ProductionOrders.AddRange(Order("10"), Order("20"));
+        await ctx.SaveChangesAsync();
+
+        await Build(ctx).Svc.DetectAsync(dryRun: false);
+
+        var byOrder = await ctx.WorkOperations.Include(w => w.ProductionOrder).ToListAsync();
+        byOrder.Where(w => w.ProductionOrder.SubOrderNumber == "10").Select(w => w.OperationNumber)
+            .Should().BeEquivalentTo(new[] { "PG", "LS", "KA" });
+        byOrder.Where(w => w.ProductionOrder.SubOrderNumber == "20").Select(w => w.OperationNumber)
+            .Should().BeEquivalentTo(new[] { "VM" });
     }
 
     // --- AK 12 Nur-hinzufuegen: (ProductionOrderId, OperationNumber) existiert -> uebersprungen ---
