@@ -3874,7 +3874,7 @@ ausgefuehrt (siehe Deploy).
   (Submitted) Bestellungen, deren Positionen vorher `0` zeigten **ohne** Fehlteil, zeigen jetzt leere
   Ist-Felder; Positionen mit Fehlteil-Markierung und alle teilgelieferten/abgeschlossenen Bestellungen sind
   **unveraendert**. Das Skript wird **nicht** ein zweites Mal ausgefuehrt. Direkt danach alle offenen Lagerbestellungs-Seiten **neu laden** (eine vorher geladene Seite traegt sonst die alte 0 noch im Feld und schickt sie als bestaetigte 0 zurueck).
-
+
 **Zusatz v1.47.5 — Zahnrad (Spaltenauswahl) sichtbar, auch nach dem Pflicht-Hinweis (Manual-UAT):**
 1. Lagerbestellung im Status Offen öffnen. **Erwartet:** Zahnrad-Button rechtsbündig direkt **oberhalb** der
    Tabelle sichtbar; Klick öffnet die Spaltenauswahl (Offcanvas rechts), eine Spalte ein-/ausblenden funktioniert.
@@ -7594,7 +7594,7 @@ ist die Sichtprüfung am laufenden IDEAL-Testsystem und der produktive Freigabe-
   auf `true` gesetzten Zeilen.
   Negativfall: nur ein **Enkelkind** (nicht direktes Kind) ist beschichtet → `HasCoatingParts` bleibt
   für den Sub-FA `false` (Enkel zählen bewusst nicht).
-
+
 - **TS-71.10a — Kind-Sub-FA markiert den Vater nicht (v1.47.5, Freigabe-Nachtrag 2026-10-07).**
   Regel: Ein Sub-FA ist beschichtet, wenn er **selbst** beschichtet ist oder ein direktes **Blatt**-Kind
   (`SubFA = 0`) beschichtet ist. Eine Kind-Zeile mit eigenem Sub-FA zählt nur für sich (zum Lackierer gehen
@@ -7605,11 +7605,18 @@ ist die Sichtprüfung am laufenden IDEAL-Testsystem und der produktive Freigabe-
   ON k.HauptFA = v.HauptFA AND k.VaterFA = v.SubFA AND k.SubFA <> 0 AND k.Beschichtet = 1 WHERE v.SubFA <> 0
   AND v.Beschichtet = 0 AND NOT EXISTS (SELECT 1 FROM FaHierarchyNodes b WHERE b.HauptFA = v.HauptFA AND
   b.VaterFA = v.SubFA AND b.SubFA = 0 AND b.Beschichtet = 1)`.
-  Schritte **(Manual-UAT)**: Service-Sync abwarten (FA-Materialisierung läuft in jedem Zyklus, kein DryRun);
-  FA-Liste und Kommissionier-Leitstand für den HauptFA öffnen.
+  Für die Termin-Prüfung zusätzlich: HauptFA ist **kein** Kombigerät (ein eindeutiger Kopf) und
+  `Start_Beschichtung` im Kopf ist gesetzt — sonst ist der Beschichtungstermin im hierarchischen Modus
+  ohnehin leer (TS-71.11).
+  Schritte **(Manual-UAT)**:
+  1. **Vor** dem Service-Deploy von v1.47.5: in der FA-Liste an **V** „Beschichtung erledigt" setzen (V trägt
+     dort noch das Kennzeichen).
+  2. Service v1.47.5 deployen, einen Sync-Zyklus abwarten (FA-Materialisierung läuft in jedem Zyklus;
+     `WorkerSettings:SyncDryRun` muss aus sein).
+  3. FA-Liste und Kommissionier-Leitstand für den HauptFA öffnen.
   Erwartung: **K** trägt das Beschichtungs-Kennzeichen und einen Beschichtungstermin, **V** nicht (vor v1.47.5:
-  V ebenfalls). Ein vorher an V gesetztes „Beschichtung erledigt" ist nach dem Sync weg (Reset beim Kippen
-  auf `false`, TS-71.10).
+  V ebenfalls). Das in Schritt 1 an V gesetzte „Beschichtung erledigt" ist nach dem Sync weg (Reset beim
+  Kippen auf `false`, TS-71.10).
   Gegenprobe: Ein Sub-FA mit beschichtetem **Blatt**-Kind bleibt gekennzeichnet — auch wenn daneben ein
   beschichteter Kind-Sub-FA hängt.
   Automatisiert: `FaMaterializationCoatingTests.Derive_ChildSubFaCoated_ParentIsFalse`,
