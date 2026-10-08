@@ -3874,6 +3874,16 @@ ausgefuehrt (siehe Deploy).
   (Submitted) Bestellungen, deren Positionen vorher `0` zeigten **ohne** Fehlteil, zeigen jetzt leere
   Ist-Felder; Positionen mit Fehlteil-Markierung und alle teilgelieferten/abgeschlossenen Bestellungen sind
   **unveraendert**. Das Skript wird **nicht** ein zweites Mal ausgefuehrt. Direkt danach alle offenen Lagerbestellungs-Seiten **neu laden** (eine vorher geladene Seite traegt sonst die alte 0 noch im Feld und schickt sie als bestaetigte 0 zurueck).
+
+**Zusatz v1.47.5 — Zahnrad (Spaltenauswahl) sichtbar, auch nach dem Pflicht-Hinweis (Manual-UAT):**
+1. Lagerbestellung im Status Offen öffnen. **Erwartet:** Zahnrad-Button rechtsbündig direkt **oberhalb** der
+   Tabelle sichtbar; Klick öffnet die Spaltenauswahl (Offcanvas rechts), eine Spalte ein-/ausblenden funktioniert.
+2. Eine Position leer lassen und „Abschliessen" klicken → gelber Pflicht-Hinweis erscheint. **Erwartet:** Der
+   Hinweis steht **über** der Zahnrad-Zeile; das Zahnrad ist weiter sichtbar und öffnet die Spaltenauswahl
+   (vorher: Zahnrad unsichtbar im versteckten Hinweis bzw. beim Einblenden gelöscht).
+3. Leere Position ergänzen (Hinweis wird nachgeführt) und F5. **Erwartet:** Zahnrad sichtbar.
+- **Negativfall:** Zahnrad fehlt, erscheint im gelben Hinweis oder verschwindet nach Schritt 2 → Regression.
+  Automatisiert nur die Platzierung im Quelltext (`WarehousePickingDetailsZahnradHostTests`).
 
 ---
 
@@ -7584,6 +7594,26 @@ ist die Sichtprüfung am laufenden IDEAL-Testsystem und der produktive Freigabe-
   auf `true` gesetzten Zeilen.
   Negativfall: nur ein **Enkelkind** (nicht direktes Kind) ist beschichtet → `HasCoatingParts` bleibt
   für den Sub-FA `false` (Enkel zählen bewusst nicht).
+
+- **TS-71.10a — Kind-Sub-FA markiert den Vater nicht (v1.47.5, Freigabe-Nachtrag 2026-10-07).**
+  Regel: Ein Sub-FA ist beschichtet, wenn er **selbst** beschichtet ist oder ein direktes **Blatt**-Kind
+  (`SubFA = 0`) beschichtet ist. Eine Kind-Zeile mit eigenem Sub-FA zählt nur für sich (zum Lackierer gehen
+  die Teile, nicht der Korpus; gleiche Regel wie TS-77.18).
+  Vorbedingung: IDEAL-Testsystem, `ProduktionsauftragHierarchisch` an. Ein HauptFA mit Sub-FA **V** (Korpus,
+  selbst nicht beschichtet) und direktem Kind-Sub-FA **K** (`Beschichtet = 1`), V ohne beschichtetes Blatt-Kind.
+  Fundabfrage: `SELECT v.HauptFA, v.SubFA AS V, k.SubFA AS K FROM FaHierarchyNodes v JOIN FaHierarchyNodes k
+  ON k.HauptFA = v.HauptFA AND k.VaterFA = v.SubFA AND k.SubFA <> 0 AND k.Beschichtet = 1 WHERE v.SubFA <> 0
+  AND v.Beschichtet = 0 AND NOT EXISTS (SELECT 1 FROM FaHierarchyNodes b WHERE b.HauptFA = v.HauptFA AND
+  b.VaterFA = v.SubFA AND b.SubFA = 0 AND b.Beschichtet = 1)`.
+  Schritte **(Manual-UAT)**: Service-Sync abwarten (FA-Materialisierung läuft in jedem Zyklus, kein DryRun);
+  FA-Liste und Kommissionier-Leitstand für den HauptFA öffnen.
+  Erwartung: **K** trägt das Beschichtungs-Kennzeichen und einen Beschichtungstermin, **V** nicht (vor v1.47.5:
+  V ebenfalls). Ein vorher an V gesetztes „Beschichtung erledigt" ist nach dem Sync weg (Reset beim Kippen
+  auf `false`, TS-71.10).
+  Gegenprobe: Ein Sub-FA mit beschichtetem **Blatt**-Kind bleibt gekennzeichnet — auch wenn daneben ein
+  beschichteter Kind-Sub-FA hängt.
+  Automatisiert: `FaMaterializationCoatingTests.Derive_ChildSubFaCoated_ParentIsFalse`,
+  `…Derive_LeafChildCoated_ParentIsTrue_EvenNextToCoatedChildSubFa`.
 
 - **TS-71.11 — Beschichtungstermin nur bei eindeutigem Kopf und gesetztem Lack-Flag.**
   Vorbedingung: eindeutiger Haupt-FA, ein Sub-FA mit `HasCoatingParts = true`, Beschichtungstermin

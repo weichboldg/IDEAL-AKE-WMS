@@ -12,27 +12,41 @@ namespace IdealAkeWms.Tests.Views;
 /// </summary>
 public class BomZahnradHostTests
 {
-    private static readonly string BomCshtml;
+    internal const string GearHost = "<div class=\"d-flex justify-content-end mb-1\"></div>";
 
-    static BomZahnradHostTests()
+    /// <summary>Quelltext vor dem ersten <c>&lt;div class="table-responsive"&gt;</c>, ohne Razor-Kommentare (erzeugen kein DOM).</summary>
+    internal static string TextBeforeTableWrapper(params string[] viewPath)
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
         while (dir != null && !File.Exists(Path.Combine(dir.FullName, "IdealAkeWms", "wwwroot", "js", "table-filter.js")))
             dir = dir.Parent;
         var root = dir?.FullName ?? throw new FileNotFoundException("Repository-Root nicht gefunden");
-        BomCshtml = File.ReadAllText(Path.Combine(root, "IdealAkeWms", "Views", "Picking", "Bom.cshtml"));
+        var cshtml = File.ReadAllText(Path.Combine(new[] { root, "IdealAkeWms", "Views" }.Concat(viewPath).ToArray()));
+
+        var idx = cshtml.IndexOf("<div class=\"table-responsive\">", StringComparison.Ordinal);
+        idx.Should().BeGreaterThanOrEqualTo(0, "die View muss den Haupt-Tabellen-Wrapper enthalten");
+        return Regex.Replace(cshtml[..idx], @"@\*.*?\*@", "", RegexOptions.Singleline).TrimEnd();
     }
 
     [Fact]
     public void ElementDirektVorTableResponsive_IstDerZahnradToolbarHost()
     {
-        var idx = BomCshtml.IndexOf("<div class=\"table-responsive\">", StringComparison.Ordinal);
-        idx.Should().BeGreaterThanOrEqualTo(0, "Bom.cshtml muss den Haupt-Tabellen-Wrapper enthalten");
-
-        // Razor-Kommentare erzeugen kein DOM — vor dem Vergleich entfernen.
-        var davor = Regex.Replace(BomCshtml[..idx], @"@\*.*?\*@", "", RegexOptions.Singleline).TrimEnd();
-
-        davor.Should().EndWith("<div class=\"d-flex justify-content-end mb-1\"></div>",
+        TextBeforeTableWrapper("Picking", "Bom.cshtml").Should().EndWith(GearHost,
             "das Zahnrad (column-preferences.js insertGearButton) haengt am direkten Vorgaenger von .table-responsive");
+    }
+}
+
+/// <summary>
+/// Gleiche Regel fuer die Lagerbestellung-Detailseite (v1.47.5): vorher stand #incomplete-alert (d-none) direkt
+/// vor der Tabelle — Zahnrad unsichtbar und beim Einblenden des Pflicht-Hinweises per textContent geloescht.
+/// Sichtbarkeit ist Manual-UAT (TS-18.10).
+/// </summary>
+public class WarehousePickingDetailsZahnradHostTests
+{
+    [Fact]
+    public void ElementDirektVorTableResponsive_IstDerZahnradToolbarHost()
+    {
+        BomZahnradHostTests.TextBeforeTableWrapper("WarehousePicking", "Details.cshtml").Should().EndWith(BomZahnradHostTests.GearHost,
+            "das Zahnrad haengt am direkten Vorgaenger von .table-responsive; #incomplete-alert gehoert darueber");
     }
 }

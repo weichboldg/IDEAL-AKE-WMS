@@ -34,6 +34,26 @@ public class FaMaterializationCoatingTests
     }
 
     [Fact]
+    public void Derive_ChildSubFaCoated_ParentIsFalse()
+    {
+        // Freigabe-Nachtrag 2026-10-07: Kind-Zeile mit eigenem Sub-FA zaehlt nur fuer sich selbst.
+        var map = FaMaterializationCoating.Derive(new[] { N(1, 10, null, false), N(1, 20, 10, true) });
+        map["10"].Should().BeFalse();
+        map["20"].Should().BeTrue();
+    }
+
+    [Fact]
+    public void Derive_LeafChildCoated_ParentIsTrue_EvenNextToCoatedChildSubFa()
+    {
+        var map = FaMaterializationCoating.Derive(new[]
+        {
+            N(1, 10, null, false), N(1, 20, 10, true), N(1, 0, 10, true)
+        });
+        map["10"].Should().BeTrue();
+        map["20"].Should().BeTrue();
+    }
+
+    [Fact]
     public void Derive_NothingCoated_IsFalse()
         => FaMaterializationCoating.Derive(new[] { N(1, 10, null, false), N(1, 0, 10, false) })["10"].Should().BeFalse();
 }
