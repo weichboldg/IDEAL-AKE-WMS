@@ -459,6 +459,33 @@
                         </ul>
                     </dd>
 
+                    <dt>IDEAL: Beschichtungsauftrag &mdash; Summiert als Standard (seit v1.48.0)</dt>
+                    <dd>
+                        Der Menuepunkt <strong>Beschichtungsauftrag</strong> fuehrt jetzt direkt zur
+                        <strong>summierten Ansicht</strong>: je HauptFA eine Zeile pro
+                        <strong>Artikelnummer</strong> mit der Summe der Sollmenge und der Zahl der
+                        zusammengefassten Positionen &mdash; der Beschichter sieht die Stueckzahl je gleichem
+                        Teil. Die bisherige Einzelpositionen-Liste bleibt ueber den Umschalter
+                        &bdquo;Liste&ldquo; erreichbar (Druck und PDF dort unveraendert).
+                        <ul class="mt-1 mb-1">
+                            <li><strong>Maße:</strong> Breite, Hoehe und Tiefe werden angezeigt und
+                                mitgedruckt, sind aber kein Teil der Zusammenfassung. Haben Positionen
+                                derselben Artikelnummer unterschiedliche Maße, zeigt die Zeile die Maße der
+                                ersten Position und den Hinweis <strong>&bdquo;Maße uneinheitlich&ldquo;</strong>
+                                &mdash; dann die Strukturdaten pruefen. Ein fehlendes Mass erscheint als 0.</li>
+                            <li><strong>Kopf je HauptFA</strong> wie in der Liste: Dienstleister, RAL, Start,
+                                Retour, AB/Pos, Montage-Abteilung; bei mehreren Kopfzeilen (Kombigeraet) alle
+                                Varianten mit dem Hinweis &bdquo;mehrdeutig&ldquo;.</li>
+                            <li><strong>Spaltenfilter</strong> wirken auf die Summen: ein Filter auf
+                                &bdquo;Summe Sollmenge&ldquo; bzw. &bdquo;Positionen&ldquo; filtert den
+                                summierten Wert. Der Umschalter Liste/Summiert nimmt die Filter der
+                                gemeinsamen Spalten mit, nicht aber den Sollmengen-Filter.</li>
+                            <li><strong>Druck/PDF</strong> wie bei der Kommissionierliste: ein Ausdruck je
+                                HauptFA mit Barcode, nur die am Bildschirm sichtbaren Spalten; PDF-Knopf je
+                                Gruppe, wenn Edge auf dem Server installiert ist.</li>
+                        </ul>
+                    </dd>
+
                     <dt>Matchcode am Artikel (seit v1.40.0)</dt>
                     <dd>
                         Jeder Artikel hat jetzt einen <strong>Matchcode</strong> (Kurzbezeichnung

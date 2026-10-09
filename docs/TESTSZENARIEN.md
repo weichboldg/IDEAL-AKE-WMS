@@ -9277,6 +9277,65 @@ Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen (Hauptcheck
 
 ---
 
+## TS-81 — IDEAL: Beschichtungsauftrag — Summiert als Standard (v1.48.0)
+
+Spec: `2026-10-06-beschichtungsauftrag-ausbau-teil-1-spec`. Ergänzt TS-60 (Einzelliste, unverändert) und
+TS-74 (PDF). **Vorbedingungen (alle Fälle):** IDEAL-Testsystem, `ProduktionsauftragHierarchisch = true`,
+AppSetting `FaHierarchyBeschichtungAktiv` an, Benutzer mit Rolle `beschichtungsauftrag` (oder `admin`),
+FA-Struktur importiert (`FaHierarchyNodes` mit `Beschichtet = 1`). Automatisiert: `BeschichtungsauftragServiceTests`
+(Aggregation, `Summiert_*`), `FaHierarchyBeschichtungControllerTests`, `KommissionierSpaltenKonsistenzTests`
+(vier Spaltenquellen), `FaHierarchyBeschichtungSummiertZahnradHostTests`. Alles Sichtbare ist Manual-UAT.
+
+- **TS-81.1 — Prüfschritt Mengeneinheit (vor der Abnahme, kein UI-Test).** Auf der Sage-DB IDEAL:
+  `EXEC sp_helptext 'vw_IDEAL-AKE_Kommissionierung_FAListe';` → welche Tabelle liefert `Sollmenge`? Dann
+  `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '<Positionstabelle>' AND COLUMN_NAME LIKE '%einheit%';`
+  **Erwartet:** kein Treffer ⇒ Summierung je Artnr ist einheitensicher (Einheit = Artikeleigenschaft).
+  Treffer ⇒ **melden** (Einheit gehört in den Schlüssel), Abnahme von TS-81.3 bis dahin unter Vorbehalt. Ergebnis
+  hier notieren: ______ (gleicher Befund wie TS-80.1, falls dort schon geprüft).
+- **TS-81.2 — Navigation und Umschalter (AK 1).** Menüpunkt „Beschichtungsauftrag" klicken. **Erwartet:**
+  URL `/FaHierarchyBeschichtung/Summiert`, Umschalter „Liste | Summiert" mit „Summiert" aktiv, Menüpunkt
+  markiert. „Liste" klicken → `/FaHierarchyBeschichtung` (Einzelliste wie TS-60), dort „Liste" aktiv; „Summiert"
+  → zurück.
+- **TS-81.3 — Summenzeile (AK 2, 4a).** Testdaten: HauptFA mit mehrfach vorkommendem gleichem beschichtetem Teil
+  (`SELECT HauptFA, Artnr, COUNT(*) FROM dbo.FaHierarchyNodes WHERE Beschichtet = 1 GROUP BY HauptFA, Artnr HAVING COUNT(*) > 1;`).
+  **Erwartet:** genau eine Zeile je (HauptFA, Artnr), „Summe Sollmenge" = Summe der Einzelwerte aus der Liste,
+  „Positionen" = Anzahl, Breite/Höhe/Tiefe angezeigt.
+- **TS-81.4 — Negativfall andere Artnr / anderer HauptFA (AK 3, 4).** Im selben HauptFA zwei verschiedene
+  Artnr → zwei Zeilen. Dieselbe Artnr in zwei HauptFA → je HauptFA eine eigene Gruppe, nie zusammengefasst.
+- **TS-81.5 — Maße uneinheitlich (AK 4a).** Testdaten suchen:
+  `SELECT HauptFA, Artnr FROM dbo.FaHierarchyNodes WHERE Beschichtet = 1 GROUP BY HauptFA, Artnr HAVING COUNT(DISTINCT CONCAT(Breite,'|',Hoehe,'|',Tiefe)) > 1;`
+  Leer ⇒ Fall im Ist-Bestand nicht vorhanden, Ergebnis notieren: ______. Sonst die Zeile öffnen. **Erwartet:**
+  eine Zeile (nicht aufgeteilt), Maße der ersten Position, in der Matchcode-Spalte der gelbe Hinweis
+  **„Maße uneinheitlich"** (als Text lesbar); im Web-Log eine Warnung „Beschichtungsauftrag summiert: HauptFA …,
+  Artnr … — Masse uneinheitlich". Druck und PDF zeigen denselben Hinweis.
+- **TS-81.6 — Nur Beschichtet, alle Ebenen (AK 5).** Eine beschichtete Position mit `SubFA <> 0` im HauptFA →
+  zählt in der Summe mit; nicht beschichtete Positionen erscheinen nie.
+- **TS-81.7 — Kopf je HauptFA, Kombigerät (AK 6).** Gruppenkopf zeigt Dienstleister/RAL/Start/Retour/AB/Pos/
+  Montage-Abt. wie die Liste. Kombigerät (falls Testdaten: `SELECT HauptFA FROM dbo.FaHierarchyOrderInfos GROUP BY HauptFA HAVING COUNT(*) > 1;`)
+  → alle Kopfvarianten + Badge „mehrdeutig (mehrere Kopfzeilen)" + Log-Warnung. HauptFA ohne Kopfzeile →
+  „Keine Auftrags-Kopfdaten zu diesem HauptFA."
+- **TS-81.8 — Listen-Muster (AK 7, 8).** Seitengröße 25 → Paginierung zählt HauptFA-Gruppen, keine Gruppe reißt
+  über zwei Seiten. Spaltenfilter „Summe Sollmenge" auf einen Summenwert (ohne Komma eingeben, Komma = ODER)
+  → nur Zeilen, deren **Summe** passt. Spaltenfilter „Artnr." setzen, „Liste" klicken → Filter bleibt gesetzt;
+  ein Filter auf „Summe Sollmenge" wird **nicht** mitgenommen.
+- **TS-81.9 — Zahnrad (Spaltenauswahl).** Zahnrad steht rechts direkt über der Tabelle, öffnet die
+  Spaltenauswahl; „Tiefe" ausblenden → Spalte verschwindet; HauptFA und Matchcode sind nicht ausblendbar.
+- **TS-81.10 — Druck (AK 9).** „Drucken" → neues Fenster, ein Ausdruck je HauptFA mit Barcode, Kopf, Hinweis
+  „Summierte Ansicht", dieselben Zeilen wie am Bildschirm ohne Paging; vorher ausgeblendete Spalte („Tiefe") fehlt
+  auch im Druck. Mit aktivem Spaltenfilter zusätzlich der Hinweis „Gefilterte Ansicht".
+- **TS-81.11 — PDF (AK 9).** PDF-Knopf an einer Gruppe → Datei `Beschichtungsauftrag_<HauptFA>_<yyyyMMdd-HHmm>.pdf`,
+  Inhalt wie Druck dieser Gruppe. Ohne Edge auf dem Server → kein PDF-Knopf. PDF-Fehler (z. B. Timeout) → zurück
+  auf die summierte Ansicht mit gelber Meldung.
+- **TS-81.12 — Leerfall.** Spaltenfilter ohne Treffer (z. B. Artnr `XYZ-NICHTDA`) → Hinweis „Keine beschichteten
+  Positionen für die aktuelle Filterung gefunden."; „Drucken" → Hinweis „nichts zu drucken" statt leerem Blatt.
+- **TS-81.13 — Zugriff.** Ohne Rolle `beschichtungsauftrag`/`admin` → `/FaHierarchyBeschichtung/Summiert`,
+  `/PrintSummiert` und `/PdfSummiert/<HauptFA>` → AccessDenied; Toggle `FaHierarchyBeschichtungAktiv` aus →
+  gesperrt, Menüpunkt verborgen.
+- **TS-81.14 — Regression Einzelliste (AK 11).** TS-60 und TS-74 für die Liste wiederholen: Spalten, Kopf,
+  Druck, PDF unverändert (Kopf jetzt über dasselbe Partial wie die summierte Ansicht — Inhalt identisch).
+
+---
+
 *Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) + Teil 6 (Standorteinstellungen, v1.34.0) + BOM-Guard hierarchisch (2026-08-18, abgelöst) + FA-Liste-Hierarchie (v1.35.0) + BOM-Bridge (v1.36.0) + Materialisierung fachliche Felder K1/K2 (v1.37.0) + Skopierung der Tabellen-Selektoren (TS-72) + FA-Liste ausgebaut: Matchcode, Kopfdaten je Zeile, HauptFA-Zeile, Freigabe-Kaskade (v1.38.0, TS-73) + PDF-Erzeugung für FaHierarchy-Druckdokumente (v1.39.0, TS-74) + Matchcode im Artikelstamm (v1.40.0, TS-75) + FA-Arbeitsgang-Erkennung aus der Struktur (v1.41.0, TS-76, ersetzt durch TS-77) + Arbeitsgänge (WorkOperation) aus der Struktur + Werkbank-Anlage aus Sage (v1.44.0, TS-77) + Arbeitsgänge je (Sub-)FA im FA-Struktur-Modal (v1.45.0, TS-78) + Kommissionierung nur am HauptFA
-(v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80)*
+(v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80) + Beschichtungsauftrag Summiert als Standard (v1.48.0, TS-81)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*
