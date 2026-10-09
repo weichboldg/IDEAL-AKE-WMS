@@ -201,6 +201,56 @@ public sealed class BriefkopfVorlageServiceTests : IDisposable
         v.Styles.Should().Contain(".briefkopf{color:#053153}");
     }
 
+    // ----- Unausgeglichenes Markup (QA I-1): lieber Ersatz-Kopf + Hinweis als eine zerstoerte Druckseite -----
+
+    [Theory]
+    [InlineData("<p>Kopf</p><!-- vergessen zu schliessen <p>Rest</p>", "Kommentar")]
+    [InlineData("<p>Kopf</p><style>.briefkopf p{color:red}", "Element")]
+    [InlineData("<p>Kopf</p><textarea>offen", "Element")]
+    [InlineData("<div><p>Kopf</p></div></div>", "div")]
+    [InlineData("<div><div><p>Kopf</p></div>", "div")]
+    [InlineData("<style>.briefkopf{color:red}</style x><p>raus aus dem Style</p></style><p>Kopf</p>", "Style")]
+    public void Load_UnbalancedMarkup_IsErsatz_WithHint(string html, string grund)
+    {
+        var v = BriefkopfVorlageService.Load(Vorlage(html));
+
+        v.IstErsatz.Should().BeTrue();
+        v.Markup.Should().BeEmpty();
+        v.Styles.Should().BeEmpty();
+        v.Hinweise.Should().ContainSingle().Which.Should().Contain(grund);
+    }
+
+    [Fact]
+    public void Load_TextThatLooksLikeAnAttribute_StaysUntouched()
+    {
+        var v = BriefkopfVorlageService.Load(Vorlage("<p>Kontakt online = 24/7 · onsite=ja</p>"));
+
+        v.Markup.Should().Be("<p>Kontakt online = 24/7 · onsite=ja</p>");
+    }
+
+    [Fact]
+    public void Load_QuotedPath_IsAccepted()
+    {
+        var p = Vorlage("<p>Hallo</p>");
+
+        var v = BriefkopfVorlageService.Load("\"" + p + "\"");
+
+        v.IstErsatz.Should().BeFalse();
+        v.Markup.Should().Be("<p>Hallo</p>");
+    }
+
+    [Fact]
+    public void Load_ManyReferencesToSameFile_StopAtOutputBudget()
+    {
+        Datei("a.jpg", BriefkopfVorlageService.MaxDateiBytes);
+        var html = string.Concat(Enumerable.Repeat("<img src=\"a.jpg\">", 30));
+
+        var v = BriefkopfVorlageService.Load(Vorlage(html));
+
+        System.Text.RegularExpressions.Regex.Matches(v.Markup, "<img").Count.Should().BeLessThan(30);
+        v.Hinweise.Should().NotBeEmpty().And.OnlyContain(h => h.Contains("a.jpg"));
+    }
+
     // ----- Pfad-Ausbruch und fremde Quellen -----
 
     [Theory]

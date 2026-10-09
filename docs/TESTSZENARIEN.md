@@ -9357,7 +9357,9 @@ Alles Sichtbare, PDF und Seitenumbruch sind Manual-UAT.
   dann Empfänger (Dienstleister, fett), Dokument „Beschichtungsauftrag[ (summiert)] — HauptFA …", Datum. Kopftabelle,
   Positionen, Barcode und Banner darunter unverändert in Segoe UI. PDF → Eigenschaften → Schriftarten: Nimbus Sans Novus
   eingebettet; Logo im PDF sichtbar (kein Rahmen/kaputtes Bild).
-- **TS-82.3 — Nur Seite 1 (AK 8).** HauptFA mit vielen beschichteten Positionen (mehrseitig) als PDF. **Erwartet:**
+- **TS-82.3 — Nur Seite 1 (AK 8).** HauptFA mit vielen beschichteten Positionen (mehrseitig) als PDF — Kandidaten:
+  `SELECT TOP 5 HauptFA, COUNT(*) AS Positionen FROM dbo.FaHierarchyNodes WHERE Beschichtet = 1 GROUP BY HauptFA ORDER BY COUNT(*) DESC;`
+  (ab rund 35 Positionen in der Liste wird es mehrseitig; sonst die Einzelliste „Liste" drucken). **Erwartet:**
   Briefkopf nur auf Seite 1, Folgeseiten beginnen mit Positionen. Keine Seitenzählung „Seite X von Y" (bewusst
   weggelassen, AK 14 — Aufgabe im Brain).
 - **TS-82.4 — Änderung ohne Deploy (AK 3).** Telefonnummer in `briefkopf.html` ändern, Logo-Datei austauschen
@@ -9388,6 +9390,11 @@ Alles Sichtbare, PDF und Seitenumbruch sind Manual-UAT.
   Hinweistext; „Anschrift / Adresse" weiter einzeiliges Feld. Nicht-Admin → `/StandortEinstellungen` → AccessDenied.
 - **TS-82.13 — Regression (AK 10, 13).** Kommissionierliste (Liste und Summiert) drucken → kein Briefkopf. TS-60/TS-81:
   Inhalt unter dem Briefkopf unverändert.
+- **TS-82.15 — Fehlerhaftes Markup in der Vorlage (QA I-1).** Nacheinander je einen Fehler in `briefkopf.html`
+  einbauen und drucken: (a) `<!-- offen` ohne `-->`, (b) `<style>` ohne `</style>`, (c) ein überzähliges `</div>`,
+  (d) `<div>` ohne Gegenstück. **Erwartet:** jeweils Ersatz-Kopf + gelber Hinweis mit dem Grund („nicht geschlossenen
+  Kommentar" / „unvollständiges Element" / „ungleich viele <div>"); Kopftabelle, Positionen und alle weiteren HauptFA
+  stehen vollständig darunter (nichts verschluckt, keine zusätzliche Leerseite). Danach Vorlage wiederherstellen.
 - **TS-82.14 — CD-Abgleich (AK 11).** Am Ausdruck: Logo-Höhe 17,5 mm (Lineal), Logozone 37,125 mm frei, Farben laut
   CD-Auszug. Hinweis: die Seitenränder bleiben die heutigen der Druckansicht (kein `@page`-Umbau).
 
