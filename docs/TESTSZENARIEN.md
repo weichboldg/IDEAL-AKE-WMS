@@ -9336,6 +9336,63 @@ FA-Struktur importiert (`FaHierarchyNodes` mit `Beschichtet = 1`). Automatisiert
 
 ---
 
+## TS-82 — IDEAL: Briefkopf auf dem Beschichtungsauftrag (v1.49.0)
+
+Spec: `2026-10-06-beschichtungsauftrag-ausbau-teil-2-spec`. **Vorbedingungen (alle Fälle):** IDEAL-Testsystem,
+`FaHierarchyBeschichtungAktiv = true`, Tester mit Rolle `beschichtungsauftrag`, Edge auf dem Webserver (PDF).
+Ordner `Branding\` **neben** dem Web-Publish-Ordner mit `briefkopf.html` + `IDEAL_AKE_Logo_rgb_klein.jpg` (aus dem Repo
+`Branding/`) und den Nimbus-Schriftdateien (Dateinamen in `@font-face` angepasst); App-Pool-Identität hat Leserecht.
+Standorteinstellungen → Firmendaten: „Briefkopf-Vorlage (Pfad)" = voller Pfad zur Datei; Firmenname/Firmenanschrift
+gepflegt („In der Schörihub 28, 4810 Gmunden"). Automatisiert: `BriefkopfVorlageServiceTests` (Laden, Bereinigen,
+Einbetten, Grenzen, Muster-Vorlage), `BriefkopfEinbindungTests` (Empfänger, Einbindung, keine Kommissionierlisten).
+Alles Sichtbare, PDF und Seitenumbruch sind Manual-UAT.
+
+- **TS-82.1 — Prüfschritt Nebenbefund „Dienstleister? · RAL 0" (Sage, vor Abnahme).** Für den betroffenen HauptFA:
+  `SELECT [HauptFA],[Abteilung],[Dienstleister],[RAL],[Start_Beschichtung],[Beschichten_Retour] FROM [vw_IDEAL-AKE_Kommissionierung_FAInfos] WHERE [HauptFA] = <HauptFA>;`
+  und im WMS `SELECT HauptFA, MontageAbteilung, Dienstleister, RAL FROM dbo.FaHierarchyOrderInfos WHERE HauptFA = <HauptFA>;`
+  Gleich ⇒ Datenlücke in Sage; verschieden ⇒ Sync-Befund, melden. Ergebnis: ______
+- **TS-82.2 — Happy Path (AK 1, 2, 10).** Beschichtungsauftrag → „Drucken" (Summiert) und „Liste" → „Drucken", je ein
+  PDF. **Erwartet:** je HauptFA-Dokument oben Logo (Logozone frei von anderen Elementen), darunter die Absenderzeile
+  „IDEAL Kältetechnik GmbH · In der Schörihub 28, 4810 Gmunden · …" (Firmenname IDEAL Blau), dünne hellblaue Linie,
+  dann Empfänger (Dienstleister, fett), Dokument „Beschichtungsauftrag[ (summiert)] — HauptFA …", Datum. Kopftabelle,
+  Positionen, Barcode und Banner darunter unverändert in Segoe UI. PDF → Eigenschaften → Schriftarten: Nimbus Sans Novus
+  eingebettet; Logo im PDF sichtbar (kein Rahmen/kaputtes Bild).
+- **TS-82.3 — Nur Seite 1 (AK 8).** HauptFA mit vielen beschichteten Positionen (mehrseitig) als PDF. **Erwartet:**
+  Briefkopf nur auf Seite 1, Folgeseiten beginnen mit Positionen. Keine Seitenzählung „Seite X von Y" (bewusst
+  weggelassen, AK 14 — Aufgabe im Brain).
+- **TS-82.4 — Änderung ohne Deploy (AK 3).** Telefonnummer in `briefkopf.html` ändern, Logo-Datei austauschen
+  (gleicher Name) → nächster Druck zeigt beides, ohne Neustart.
+- **TS-82.5 — Pfad leer / Datei fehlt / falsche Endung (AK 6, 21).** (a) Pfad-Feld leeren, (b) Datei umbenennen,
+  (c) Pfad auf die `appsettings.json` des Webs setzen. **Erwartet:** jeweils Ersatz-Kopf „Firmenname · Anschrift" in
+  einer Zeile; am Bildschirm gelber Hinweis „Briefkopf: …" mit Grund („nicht konfiguriert" / „nicht gefunden: <Pfad>" /
+  „keine .html/.htm-Datei"); im Ausdruck und im PDF **kein** Hinweis; bei (c) kein Inhalt der JSON-Datei; Web-Log
+  Warnung „Briefkopf: …". PDF-Download funktioniert (keine gelbe Umleitungsmeldung).
+- **TS-82.6 — Bild fehlt (AK 16).** Logo-Datei umbenennen → Briefkopf ohne Logo, kein Broken-Image-Symbol, Hinweis +
+  Log nennen `IDEAL_AKE_Logo_rgb_klein.jpg`.
+- **TS-82.7 — Schrift fehlt (AK 17).** Schriftdateien umbenennen → Briefkopf in Segoe UI/Arial, Hinweis + Log nennen die
+  Dateien.
+- **TS-82.8 — Script in der Vorlage (AK 18).** In `briefkopf.html` einfügen: `<script>alert(1)</script>`,
+  `<img src="IDEAL_AKE_Logo_rgb_klein.jpg" onerror="alert(2)">`, `<a href="javascript:alert(3)">x</a>`.
+  **Erwartet:** kein Dialog (Bildschirm und PDF); Quelltext der Druckseite enthält weder `script` noch `onerror` noch
+  `javascript:`; Knöpfe „Drucken"/„Schliessen" funktionieren.
+- **TS-82.9 — Fremde Verweise (AK 9, 19).** In die Vorlage: `<img src="..\..\x.png">`, `<img src="C:\Windows\x.png">`,
+  `<img src="\\server\share\x.png">`, `<img src="https://www.ideal-ake.at/logo.png">`. **Erwartet:** nichts davon
+  eingebettet oder geladen (Browser-Netzwerk-Tab ohne Anfrage an ideal-ake.at), je ein Hinweis „abgelehnt". Quelltext
+  der Druckseite: im Briefkopf kein `<link>`, alle `src=`/`url(` beginnen mit `data:`.
+- **TS-82.10 — Größengrenzen (AK 20).** (a) `briefkopf.html` über 256 KB aufblähen (langer Kommentar) → Ersatz-Kopf +
+  Hinweis „zu groß"; (b) Logo durch eine Datei über 1 MB ersetzen → Briefkopf ohne Logo + Hinweis „zu groß".
+- **TS-82.11 — Empfänger (AK 4, 5).** HauptFA ohne Dienstleister in Sage → Empfänger „Empfänger fehlt — in Sage
+  nachpflegen" (auch im Ausdruck). Kombigerät (mehrere Kopfzeilen) → „mehrdeutig — siehe Kopfzeilen", die gelbe
+  Mehrdeutigkeits-Box darunter bleibt.
+- **TS-82.12 — Einstellung (AK 12, 15).** Standorteinstellungen → Firmendaten zeigt „Briefkopf-Vorlage (Pfad)" mit
+  Hinweistext; „Anschrift / Adresse" weiter einzeiliges Feld. Nicht-Admin → `/StandortEinstellungen` → AccessDenied.
+- **TS-82.13 — Regression (AK 10, 13).** Kommissionierliste (Liste und Summiert) drucken → kein Briefkopf. TS-60/TS-81:
+  Inhalt unter dem Briefkopf unverändert.
+- **TS-82.14 — CD-Abgleich (AK 11).** Am Ausdruck: Logo-Höhe 17,5 mm (Lineal), Logozone 37,125 mm frei, Farben laut
+  CD-Auszug. Hinweis: die Seitenränder bleiben die heutigen der Druckansicht (kein `@page`-Umbau).
+
+---
+
 *Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) + Teil 6 (Standorteinstellungen, v1.34.0) + BOM-Guard hierarchisch (2026-08-18, abgelöst) + FA-Liste-Hierarchie (v1.35.0) + BOM-Bridge (v1.36.0) + Materialisierung fachliche Felder K1/K2 (v1.37.0) + Skopierung der Tabellen-Selektoren (TS-72) + FA-Liste ausgebaut: Matchcode, Kopfdaten je Zeile, HauptFA-Zeile, Freigabe-Kaskade (v1.38.0, TS-73) + PDF-Erzeugung für FaHierarchy-Druckdokumente (v1.39.0, TS-74) + Matchcode im Artikelstamm (v1.40.0, TS-75) + FA-Arbeitsgang-Erkennung aus der Struktur (v1.41.0, TS-76, ersetzt durch TS-77) + Arbeitsgänge (WorkOperation) aus der Struktur + Werkbank-Anlage aus Sage (v1.44.0, TS-77) + Arbeitsgänge je (Sub-)FA im FA-Struktur-Modal (v1.45.0, TS-78) + Kommissionierung nur am HauptFA
-(v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80) + Beschichtungsauftrag Summiert als Standard (v1.48.0, TS-81)*
+(v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80) + Beschichtungsauftrag Summiert als Standard (v1.48.0, TS-81) + Briefkopf Beschichtungsauftrag (v1.49.0, TS-82)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*

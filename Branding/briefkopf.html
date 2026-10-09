@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Briefkopf IDEAL (Muster)</title>
+<!--
+  MUSTER-BRIEFKOPF fuer den Beschichtungsauftrag (IDEAL AKE WMS, ab v1.49.0) — Lieferumfang fuer die IT.
+
+  Ablage: Ordner Branding\ NEBEN dem Web-Publish-Ordner (nicht darin — ein Deploy wuerde ihn sonst loeschen).
+  In den Standorteinstellungen -> Firmendaten -> "Briefkopf-Vorlage (Pfad)" den vollen Pfad zu dieser Datei eintragen.
+  Aenderungen an dieser Datei oder am Logo wirken ab dem naechsten Druck, ohne Deploy und ohne Neustart.
+
+  Regeln (das WMS prueft sie beim Einlesen; Verstoesse erscheinen am Bildschirm als Hinweis und im Log):
+  - Nur Dateien aus DIESEM Ordner, mit relativem Namen (src="logo.jpg", url('schrift.woff2')).
+    Keine Unterordner ausserhalb, keine absoluten Pfade (C:\..., \\server\...), keine http(s)-Adressen.
+  - Erlaubte Dateitypen: png, jpg/jpeg (Bilder), woff, woff2, ttf, otf (Schriften). KEIN SVG.
+  - Groessen: diese Datei hoechstens 256 KB, jede eingebettete Datei hoechstens 1 MB, alle zusammen hoechstens 3 MB.
+  - Kein Script: <script>, on...-Attribute, javascript:-Links, iframe/object/embed/link/base/meta, @import werden entfernt.
+  - JEDE CSS-Regel unter .briefkopf schreiben (z. B. ".briefkopf .firma") — die Styles gelten fuer die ganze Druckseite,
+    nur so bleibt der Rest des Dokuments (Tabellen, Positionen) unveraendert.
+  - Schrift Nimbus Sans Novus: die lizenzierten Dateien hier ablegen und die Dateinamen in @font-face anpassen.
+    Fehlt eine Datei, druckt der Briefkopf in Segoe UI/Arial.
+  - Fehlt diese Datei ganz oder ist sie unlesbar, druckt das WMS einen Ersatz-Kopf aus Firmenname + Anschrift
+    (Standorteinstellungen) — der Druck bricht nie ab.
+
+  Gestaltung nach CD-Manual 01/23: Logozone 37,125 mm (Sperrzone, nur das Logo), Logo 17,5 mm hoch, vertikal mittig;
+  Firmenbezeichnung IDEAL Blau #053153, Lauftext Grau 85 #4a494a, AKE Blau #43a6e2 nur fuer die Linie (als Textfarbe
+  zu kontrastarm).
+-->
+<style>
+@font-face { font-family: 'Nimbus Sans Novus'; src: url('NimbusSansNovus-Regular.woff2') format('woff2'); font-weight: 400; font-style: normal; }
+@font-face { font-family: 'Nimbus Sans Novus'; src: url('NimbusSansNovus-SemiBold.woff2') format('woff2'); font-weight: 600; font-style: normal; }
+.briefkopf { font-family: 'Nimbus Sans Novus', 'Segoe UI', Arial, sans-serif; color: #4a494a; }
+.briefkopf .logozone { height: 37.125mm; display: flex; align-items: center; }
+.briefkopf .logo { height: 17.5mm; width: auto; display: block; }
+.briefkopf .absender { font-size: 8.5pt; line-height: 1.4; padding-bottom: 2.5mm; border-bottom: 0.5mm solid #43a6e2; }
+.briefkopf .firma { color: #053153; font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="logozone">
+    <img class="logo" src="IDEAL_AKE_Logo_rgb_klein.jpg" alt="IDEAL AKE">
+</div>
+<div class="absender">
+    <span class="firma">IDEAL Kältetechnik GmbH</span> · In der Schörihub 28, 4810 Gmunden · Österreich ·
+    +43 7612 660 61 · office@ideal-ake.at · www.ideal-ake.at
+</div>
+</body>
+</html>

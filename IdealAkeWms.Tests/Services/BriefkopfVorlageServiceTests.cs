@@ -281,6 +281,31 @@ public sealed class BriefkopfVorlageServiceTests : IDisposable
         v.Hinweise.Should().BeEmpty();
     }
 
+    // ----- Muster-Vorlage im Repo (Branding/briefkopf.html, Lieferumfang fuer die IT) -----
+
+    [Fact]
+    public void MusterVorlage_Laedt_LogoEingebettet_NurSchriftdateienFehlen_AlleRegelnUnterBriefkopf()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir != null && !File.Exists(Path.Combine(dir.FullName, "Branding", "briefkopf.html")))
+            dir = dir.Parent;
+        dir.Should().NotBeNull("Branding/briefkopf.html liegt in der Repo-Wurzel");
+
+        var v = BriefkopfVorlageService.Load(Path.Combine(dir!.FullName, "Branding", "briefkopf.html"));
+
+        v.IstErsatz.Should().BeFalse();
+        v.Markup.Should().Contain("data:image/jpeg;base64,").And.Contain("In der Schörihub 28, 4810 Gmunden");
+        // Schriftdateien sind lizenziert und bewusst NICHT im Repo -> genau diese zwei Hinweise.
+        v.Hinweise.Should().HaveCount(2).And.OnlyContain(h => h.Contains("NimbusSansNovus") && h.Contains("nicht gefunden"));
+
+        // AK 11: jede Regel ausser @font-face unter .briefkopf; AKE Blau nicht als Textfarbe.
+        var selectors = System.Text.RegularExpressions.Regex.Matches(v.Styles, @"(^|\})\s*([^{}@]+)\{")
+            .Select(m => m.Groups[2].Value.Trim()).Where(s => s.Length > 0).ToList();
+        selectors.Should().NotBeEmpty().And.OnlyContain(s => s.StartsWith(".briefkopf"));
+        v.Styles.Should().NotMatchRegex(@"(?<![-\w])color:\s*#43a6e2");
+        v.Styles.Should().Contain("color: #053153").And.Contain("color: #4a494a").And.Contain("height: 17.5mm");
+    }
+
     // ----- GetAsync: Einstellung, Firmendaten, Log, einmal je Anfrage -----
 
     [Fact]

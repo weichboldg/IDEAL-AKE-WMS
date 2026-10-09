@@ -486,6 +486,27 @@
                         </ul>
                     </dd>
 
+                    <dt>IDEAL: Briefkopf auf dem Beschichtungsauftrag (seit v1.49.0)</dt>
+                    <dd>
+                        Druck und PDF des Beschichtungsauftrags (Liste und summierte Ansicht) tragen oben auf der ersten
+                        Seite jedes HauptFA-Dokuments einen <strong>Briefkopf</strong> mit Logo, Absender und
+                        Kontaktdaten. Darunter stehen <strong>Empfänger</strong> (Dienstleister aus Sage),
+                        Dokument und Datum. Die Kommissionierlisten bekommen keinen Briefkopf.
+                        <ul class="mt-1 mb-1">
+                            <li><strong>Vorlage:</strong> Der Briefkopf kommt aus der Datei <code>briefkopf.html</code>,
+                                die die IT im Ordner <code>Branding\</code> auf dem Server pflegt. Den Pfad tragen Admins in den
+                                Standorteinstellungen unter <em>Firmendaten &rarr; Briefkopf-Vorlage (Pfad)</em> ein.
+                                Aenderungen an Datei oder Logo wirken ab dem naechsten Druck.</li>
+                            <li><strong>Fehlt etwas:</strong> Ist der Pfad leer oder die Datei nicht lesbar, druckt der
+                                Auftrag mit einem einfachen Kopf aus Firmenname und Anschrift. Fehlt nur das Logo oder die
+                                Schrift, fehlt nur dieses Teil. Der Grund steht als gelber Hinweis am Bildschirm
+                                (nicht im Ausdruck, nicht im PDF).</li>
+                            <li><strong>Empfänger fehlt:</strong> Ist in Sage kein Dienstleister hinterlegt, steht dort
+                                &bdquo;Empfänger fehlt &mdash; in Sage nachpflegen&ldquo;; bei Kombigeraeten
+                                &bdquo;mehrdeutig &mdash; siehe Kopfzeilen&ldquo;.</li>
+                        </ul>
+                    </dd>
+
                     <dt>Matchcode am Artikel (seit v1.40.0)</dt>
                     <dd>
                         Jeder Artikel hat jetzt einen <strong>Matchcode</strong> (Kurzbezeichnung

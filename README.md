@@ -411,6 +411,7 @@ Bei Änderungen der Tabellenstruktur müssen diese Scripts angepasst werden.
 | `FaHierarchyMaxTiefe` | `500` | IDEAL FA-Baumanzeige: Tiefen-Cap (Reissleine) je Struktur (Teil 2) |
 | `FaHierarchyKommissionierlistenAktiv` | `false` | Feature-Schalter IDEAL-Kommissionierlisten (Teil 3) — nur exakt `true` aktiviert (Default aus) |
 | `FaHierarchyBeschichtungAktiv` | `false` | Feature-Schalter IDEAL-Beschichtungsauftrag (Teil 4) — nur exakt `true` aktiviert (Default aus). Kumuliert mit Rolle `beschichtungsauftrag` |
+| `BriefkopfVorlagePfad` | (leer) | Voller Pfad zur `briefkopf.html` der IT im Ordner `Branding\` (neben dem Publish-Ordner) — Briefkopf des IDEAL-Beschichtungsauftrags (v1.49.0). Leer/Datei fehlt ⇒ Ersatz-Kopf aus `Firmenname` + `Firmenanschrift`. Pflege: Standorteinstellungen → Firmendaten (nur Admin) |
 | `FaHierarchyVormontageAktiv` | `false` | Feature-Schalter IDEAL-Vormontage-Listen (Teil 5, zwei Sichten: Einzelne Teile + Summiert) — nur exakt `true` aktiviert (Default aus). Kumuliert mit Vorbau-Zugriff (`vorbau`, wie FA-Abarbeitungsliste) |
 
 ## PDF-Erzeugung (appsettings.json)
@@ -443,6 +444,24 @@ automatisch auf, sobald ihre Erstellzeit älter ist als `TimeoutSeconds` + 5 Min
 - Secondary: `#43A6E2` (Hellblau)
 - Orange: `#E87A1E` (Warnung/Ausbuchung)
 - CSS-Variablen: `--ake-primary`, `--ake-secondary`, `--ake-orange`
+
+### Briefkopf-Vorlage (Druck Beschichtungsauftrag, seit v1.49.0)
+
+Der Beschichtungsauftrag (IDEAL) druckt oben auf Seite 1 jedes HauptFA-Dokuments einen Briefkopf aus einer HTML-Datei der
+IT. Muster im Repo: `Branding/briefkopf.html` + `Branding/IDEAL_AKE_Logo_rgb_klein.jpg` (nicht im Publish-Output).
+
+1. Ordner `Branding\` **neben** dem Web-Publish-Ordner anlegen (IIS-Manager → Site → Erweiterte Einstellungen →
+   Physischer Pfad: `Branding\` gehoert in dessen Elternordner), Inhalt von `Branding/` dorthin kopieren.
+2. Lizenzierte Schriftdateien Nimbus Sans Novus dazulegen und die Dateinamen in `@font-face` anpassen (nicht im Repo).
+3. Leserecht fuer die App-Pool-Identitaet.
+4. Standorteinstellungen → Firmendaten → „Briefkopf-Vorlage (Pfad)" = voller Pfad zur `briefkopf.html`.
+
+Regeln fuer die Datei (das WMS setzt sie beim Einlesen durch, Verstoesse = Hinweis am Bildschirm + Log-Warnung): nur
+relative Dateien aus demselben Ordner, Typen png/jpg/jpeg/woff/woff2/ttf/otf (kein SVG), Vorlage ≤ 256 KB, je Datei
+≤ 1 MB, Summe ≤ 3 MB; `<script>`, `on*`-Attribute, `javascript:`, `iframe`/`object`/`embed`/`link`/`base`/`meta`,
+`@import` werden entfernt; jede CSS-Regel unter `.briefkopf`. Bilder und Schriften werden als Data-URI eingebettet
+(Bildschirmdruck und Headless-Edge-PDF identisch). Datei fehlt/unlesbar/zu gross ⇒ Ersatz-Kopf, der Druck bricht nie ab.
+Aenderungen an Datei/Logo wirken ab dem naechsten Druck (kein Cache, kein Neustart). Folge-Deploys fassen `Branding\` nicht an.
 
 ## Projekt-Struktur
 
