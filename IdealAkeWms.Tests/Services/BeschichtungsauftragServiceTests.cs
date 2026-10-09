@@ -381,6 +381,20 @@ public class BeschichtungsauftragServiceTests
         recording.Warnings.Should().Contain(w => w.Contains("100") && w.Contains("Kopfzeilen"));
     }
 
+    [Fact]
+    public void Summiert_ToggleQuery_CarriesSharedFilters_ButNotSollmenge()
+    {
+        // AK 8: Einzel- vs. Summenwert — colf_sollmenge darf beim Umschalten nicht still umgedeutet werden.
+        var ctx = new Microsoft.AspNetCore.Http.DefaultHttpContext();
+        ctx.Request.QueryString = new Microsoft.AspNetCore.Http.QueryString(
+            "?colf_artnr=A1&colf_matchcode=Blende&colf_tiefe=3&colf_sollmenge=5&colf_positionen=2&page=3");
+
+        var query = BeschichtungsauftragService.BuildToggleQuery(ctx.Request);
+
+        query.Should().Contain("colf_artnr=A1").And.Contain("colf_matchcode=Blende").And.Contain("colf_tiefe=3");
+        query.Should().NotContain("colf_sollmenge").And.NotContain("colf_positionen").And.NotContain("page=");
+    }
+
     /// <summary>Minimaler ILogger, der Warnungs-Texte mitschreibt (fuer die Mehrdeutigkeits-Pruefung).</summary>
     private sealed class RecordingLogger<T> : ILogger<T>
     {
