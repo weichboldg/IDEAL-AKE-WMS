@@ -39,3 +39,63 @@ public class FaHierarchyBeschichtungPrintViewModel
     /// Kopf ausweisen (AK 18) — am Bildschirm sieht man die Filterzeile, im Druck/PDF nicht.</summary>
     public bool IsFiltered { get; init; }
 }
+
+/// <summary>
+/// Eine Aggregatzeile der <b>Summiert-Ansicht</b> des Beschichtungsauftrags (Spec
+/// 2026-10-06-beschichtungsauftrag-ausbau-teil-1, Antwort 1): eindeutig durch <c>(HauptFA, Artnr)</c>.
+/// Summiert wird nur die <c>Sollmenge</c>; Haupt-Artnr., Matchcode und die Maße kommen aus der
+/// ersten Position (nach <c>Position</c>, dann <c>SubFA</c>). Weichen die Maße innerhalb der Gruppe ab,
+/// ist <see cref="MasseUneinheitlich"/> gesetzt (Invarianten-Warnung, Gruppe wird nicht aufgeteilt).
+/// </summary>
+public class FaHierarchyBeschichtungSummiertRowViewModel
+{
+    public int HauptFA { get; init; }
+    public string? HauptArtnr { get; init; }
+    public string Artnr { get; init; } = string.Empty;
+    public string? Matchcode { get; init; }
+    public decimal SummeSollmenge { get; init; }
+    public int PositionCount { get; init; }
+    public decimal Breite { get; init; }
+    public decimal Hoehe { get; init; }
+    public decimal Tiefe { get; init; }
+
+    /// <summary>Maße der Positionen dieser Gruppe sind nicht alle gleich — angezeigt werden die der ersten Position.</summary>
+    public bool MasseUneinheitlich { get; init; }
+}
+
+/// <summary>Ergebnis der Beschichtungs-Summierung: Seitenzeilen, Gesamtzahlen VOR dem Paging und die
+/// Kopfzeilen (<see cref="FaHierarchyOrderInfo"/>) je HauptFA der Seite (fan-out-frei, eigene Menge).</summary>
+public class FaHierarchyBeschichtungSummiertResult
+{
+    public List<FaHierarchyBeschichtungSummiertRowViewModel> Rows { get; init; } = new();
+    public int TotalRowCount { get; init; }
+    public int TotalGroupCount { get; init; }
+    public IReadOnlyDictionary<int, List<FaHierarchyOrderInfo>> OrderInfos { get; init; } =
+        new Dictionary<int, List<FaHierarchyOrderInfo>>();
+}
+
+/// <summary>Bildschirm-ViewModel der Summiert-Ansicht (Gruppen-Paging, Seiteneinheit = HauptFA).</summary>
+public class FaHierarchyBeschichtungSummiertViewModel
+{
+    public List<FaHierarchyBeschichtungSummiertRowViewModel> Rows { get; init; } = new();
+    public IReadOnlyDictionary<int, List<FaHierarchyOrderInfo>> OrderInfos { get; init; } =
+        new Dictionary<int, List<FaHierarchyOrderInfo>>();
+    public PaginationState Pagination { get; init; } = new();
+    public bool PdfVerfuegbar { get; init; }
+}
+
+/// <summary>Druck-ViewModel der Summiert-Ansicht: ganze gefilterte Menge, ein Ausdruck je HauptFA.</summary>
+public class FaHierarchyBeschichtungSummiertPrintViewModel
+{
+    public List<FaHierarchyBeschichtungSummiertRowViewModel> Rows { get; init; } = new();
+    public IReadOnlyDictionary<int, List<FaHierarchyOrderInfo>> OrderInfos { get; init; } =
+        new Dictionary<int, List<FaHierarchyOrderInfo>>();
+
+    /// <summary>HauptFA -&gt; Barcode-PNG als Base64 (Code 128).</summary>
+    public IReadOnlyDictionary<int, string> Barcodes { get; init; } = new Dictionary<int, string>();
+
+    public bool IsFiltered { get; init; }
+
+    /// <summary>Sichtbare Spalten zur Klickzeit bzw. gespeicherte Praeferenz; leer = alle.</summary>
+    public IReadOnlyList<string> VisibleColumns { get; init; } = new List<string>();
+}

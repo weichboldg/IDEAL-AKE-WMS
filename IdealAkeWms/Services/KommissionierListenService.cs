@@ -222,11 +222,15 @@ public class KommissionierListenService
 
     /// <summary>Baut die Query fuer den Umschalter Liste&lt;-&gt;Summiert aus den geteilten Keys
     /// (<see cref="ToggleSharedQueryKeys"/>). Liefert <c>""</c> ohne passende Query-Werte.</summary>
-    public static string BuildToggleQuery(HttpRequest? request)
+    public static string BuildToggleQuery(HttpRequest? request) => BuildToggleQuery(request, ToggleSharedQueryKeys);
+
+    /// <summary>Baut eine Query aus den angegebenen Keys der aktuellen Anfrage (geteilt mit dem
+    /// Beschichtungsauftrag, <see cref="BeschichtungsauftragService.BuildToggleQuery"/>).</summary>
+    public static string BuildToggleQuery(HttpRequest? request, IEnumerable<string> keys)
     {
         if (request == null) return string.Empty;
         var qb = new QueryBuilder();
-        foreach (var key in ToggleSharedQueryKeys)
+        foreach (var key in keys)
         {
             var value = request.Query[key].ToString();
             if (!string.IsNullOrEmpty(value)) qb.Add(key, value);

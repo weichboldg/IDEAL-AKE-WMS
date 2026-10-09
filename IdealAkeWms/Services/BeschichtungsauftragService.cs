@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using IdealAkeWms.Data.Repositories;
 using IdealAkeWms.Models;
 using IdealAkeWms.Models.ViewModels;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 
 namespace IdealAkeWms.Services;
@@ -116,12 +117,138 @@ public class BeschichtungsauftragService
     public void LogAmbiguities(IEnumerable<FaHierarchyListGroupViewModel> groups)
     {
         foreach (var g in groups.Where(g => g.IsAmbiguous))
-        {
-            _logger.LogWarning(
-                "Beschichtungsauftrag: HauptFA {HauptFA} hat {Count} Kopfzeilen "
-                + "(Kombinationsgeraet) — Dokument ist mehrdeutig, alle Kopfvarianten werden "
-                + "aufgefuehrt. Zuordnung Dienstleister/RAL/Termin von Hand pruefen.",
-                g.HauptFA, g.OrderInfos.Count);
-        }
+            LogAmbiguity(g.HauptFA, g.OrderInfos.Count);
     }
+
+    private void LogAmbiguity(int hauptFa, int count) =>
+        _logger.LogWarning(
+            "Beschichtungsauftrag: HauptFA {HauptFA} hat {Count} Kopfzeilen "
+            + "(Kombinationsgeraet) — Dokument ist mehrdeutig, alle Kopfvarianten werden "
+            + "aufgefuehrt. Zuordnung Dienstleister/RAL/Termin von Hand pruefen.",
+            hauptFa, count);
+
+    // ----- Summiert-Ansicht (Spec 2026-10-06-beschichtungsauftrag-ausbau-teil-1, v1.48.0) -----
+
+    /// <summary>
+    /// Server-Side-Spaltenfilter-Map der <b>Summiert-Ansicht</b> ueber die Aggregat-Projektion. Die Getter
+    /// MUESSEN exakt das liefern, was <c>Summiert.cshtml</c> in der Zelle rendert (der Hinweis
+    /// "Masse uneinheitlich" in der Matchcode-Zelle ist Zusatz und bewusst nicht filterbar).
+    /// <c>sollmenge</c> filtert die SUMME, <c>positionen</c> die Anzahl.
+    /// </summary>
+    public static readonly IReadOnlyDictionary<string, Func<FaHierarchyBeschichtungSummiertRowViewModel, string?>> SummiertColumnMap =
+        new Dictionary<string, Func<FaHierarchyBeschichtungSummiertRowViewModel, string?>>
+        {
+            ["hauptfa"] = a => a.HauptFA.ToString(CultureInfo.InvariantCulture),
+            ["hauptartnr"] = a => a.HauptArtnr,
+            ["artnr"] = a => a.Artnr,
+            ["matchcode"] = a => a.Matchcode,
+            ["breite"] = a => FormatMass(a.Breite),
+            ["hoehe"] = a => FormatMass(a.Hoehe),
+            ["tiefe"] = a => FormatMass(a.Tiefe),
+            ["positionen"] = a => a.PositionCount.ToString(CultureInfo.InvariantCulture),
+            ["sollmenge"] = a => FormatMenge(a.SummeSollmenge),
+        };
+
+    /// <summary>
+    /// Laedt Positionen + Kopfzeilen, delegiert an die DB-freie <see cref="AggregateSummiert"/> und meldet
+    /// je Seitenzeile mit uneinheitlichen Massen sowie je mehrdeutigem Kopf eine <see cref="ILogger"/>-Warnung
+    /// (Hausregel "melden statt still behandeln").
+    /// </summary>
+    public async Task<FaHierarchyBeschichtungSummiertResult> BuildSummiertAsync(
+        IReadOnlyDictionary<string, string>? columnFilters, int page, int pageSize, bool paginate)
+    {
+        var allNodes = await _nodes.GetAllAsync();
+        var allInfos = await _orderInfos.GetAllAsync();
+        var result = AggregateSummiert(allNodes, allInfos, columnFilters, page, pageSize, paginate);
+
+        foreach (var row in result.Rows.Where(r => r.MasseUneinheitlich))
+            _logger.LogWarning(
+                "Beschichtungsauftrag summiert: HauptFA {HauptFA}, Artnr {Artnr} — Masse uneinheitlich "
+                + "({Count} Positionen). Angezeigt werden die Masse der ersten Position; Strukturdaten pruefen.",
+                row.HauptFA, row.Artnr, row.PositionCount);
+        foreach (var (hauptFa, infos) in result.OrderInfos.Where(kv => kv.Value.Count > 1))
+            LogAmbiguity(hauptFa, infos.Count);
+
+        return result;
+    }
+
+    /// <summary>
+    /// <b>Reine, DB-freie Aggregation der Summiert-Ansicht</b> (Muster
+    /// <see cref="KommissionierListenService.AggregateSummiert"/>): Flag <see cref="FlagPredicate"/> ueber alle
+    /// Ebenen, Gruppierung je <c>(HauptFA, Artnr)</c> (Antwort 1; leere Artnr = ein Schluessel, wie dort),
+    /// Summe nur <c>Sollmenge</c>, Eigenschaften und Masse der ersten Position (<c>Position</c>, dann <c>SubFA</c>),
+    /// <see cref="FaHierarchyBeschichtungSummiertRowViewModel.MasseUneinheitlich"/> bei Abweichung in irgendeiner
+    /// Dimension (<c>NULL</c> = <c>0</c>, im Cache nicht unterscheidbar), Spaltenfilter auf der Projektion,
+    /// Gruppen-Paging je HauptFA. Kopfzeilen werden nur fuer die HauptFA der Seite beigelegt.
+    /// </summary>
+    public static FaHierarchyBeschichtungSummiertResult AggregateSummiert(
+        IEnumerable<FaHierarchyNode> allNodes,
+        IEnumerable<FaHierarchyOrderInfo>? allInfos,
+        IReadOnlyDictionary<string, string>? columnFilters,
+        int page,
+        int pageSize,
+        bool paginate)
+    {
+        ArgumentNullException.ThrowIfNull(allNodes);
+
+        var aggregates = allNodes
+            .Where(FlagPredicate)
+            .GroupBy(n => (n.HauptFA, Artnr: (n.Artnr ?? string.Empty).Trim()))
+            .Select(g =>
+            {
+                var first = g.OrderBy(n => n.Position ?? int.MaxValue).ThenBy(n => n.SubFA).First();
+                return new FaHierarchyBeschichtungSummiertRowViewModel
+                {
+                    HauptFA = g.Key.HauptFA,
+                    Artnr = g.Key.Artnr,
+                    HauptArtnr = first.HauptArtnr,
+                    Matchcode = first.Matchcode,
+                    SummeSollmenge = g.Sum(n => n.Sollmenge),
+                    PositionCount = g.Count(),
+                    Breite = first.Breite,
+                    Hoehe = first.Hoehe,
+                    Tiefe = first.Tiefe,
+                    MasseUneinheitlich = g.Any(n => n.Breite != first.Breite || n.Hoehe != first.Hoehe || n.Tiefe != first.Tiefe),
+                };
+            })
+            .OrderBy(a => a.HauptFA)
+            .ThenBy(a => a.Artnr, StringComparer.OrdinalIgnoreCase)
+            .AsEnumerable();
+
+        var filtered = ColumnFilterHelper.Apply(aggregates, columnFilters, SummiertColumnMap).ToList();
+
+        // Gruppen-Paging: Seiteneinheit = HauptFA, nie ueber Seiten getrennt.
+        var groups = filtered.GroupBy(a => a.HauptFA).ToList();
+        var pageRows = (paginate
+                ? groups.Skip(Math.Max(0, (page - 1) * pageSize)).Take(pageSize)
+                : groups)
+            .SelectMany(g => g)
+            .ToList();
+
+        var pageHauptFas = pageRows.Select(r => r.HauptFA).ToHashSet();
+        var infos = (allInfos ?? Enumerable.Empty<FaHierarchyOrderInfo>())
+            .Where(i => pageHauptFas.Contains(i.HauptFA))
+            .GroupBy(i => i.HauptFA)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        return new FaHierarchyBeschichtungSummiertResult
+        {
+            Rows = pageRows,
+            TotalRowCount = filtered.Count,
+            TotalGroupCount = groups.Count,
+            OrderInfos = infos,
+        };
+    }
+
+    /// <summary>Query-Keys, die der Umschalter Liste/Summiert mitnimmt: die Spaltenfilter der in BEIDEN
+    /// Sichten vorhandenen Spalten. Bewusst OHNE <c>colf_sollmenge</c> (Einzel- vs. Summenwert) und ohne
+    /// <c>colf_positionen</c>/<c>colf_beschichtet</c> (nur in einer Sicht).</summary>
+    public static readonly string[] ToggleSharedQueryKeys =
+    [
+        "colf_hauptfa", "colf_hauptartnr", "colf_artnr", "colf_matchcode", "colf_breite", "colf_hoehe", "colf_tiefe",
+    ];
+
+    /// <summary>Query fuer den Umschalter Liste/Summiert (<see cref="ToggleSharedQueryKeys"/>).</summary>
+    public static string BuildToggleQuery(HttpRequest? request) =>
+        KommissionierListenService.BuildToggleQuery(request, ToggleSharedQueryKeys);
 }
