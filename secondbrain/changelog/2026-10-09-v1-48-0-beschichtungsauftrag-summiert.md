@@ -33,3 +33,8 @@ Stückzahl je gleichem Teil. Muster der Kommissionierliste v1.47.0, ohne neue Me
 Nur Web-Publish (Service-Version mitgezogen, keine Service-Änderung). Merge erst nach Schranke 2 des Bündels, dann diesen
 Zweig auf den Bündel-Stand bzw. `main` nachziehen. Vor der Abnahme Prüfschritt Mengeneinheit (TS-81.1, wie TS-80.1).
 Zusatzfund: Positionen ohne Artnr werden je HauptFA zusammengefasst (wie bei der Kommissionierliste) — Prüfabfrage in der Spec.
+
+## Ins Buendel uebernommen
+
+2026-10-09 per Fast-Forward ins Buendel uebernommen (`cc86d373`); Buendel `feature/2026-08-07-ideal-teile-1-5` steht damit auf v1.48.0 (Build + 1474 Web- / 272 Service-Tests
+gruen). Merge nach `main` mit dem ganzen Buendel nach Schranke 2.

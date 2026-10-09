@@ -8,8 +8,8 @@ updated: 2026-10-09
 source_backlog: "[[2026-10-06-beschichtungsauftrag-ausbau]]"
 depends_on: ""
 task: "[[2026-10-09-beschichtungsauftrag-ausbau-teil-1-umsetzung]]"
-worktree: ".claude/worktrees/2026-10-06-beschichtungsauftrag-ausbau-teil-1"
-branch: "feature/2026-10-06-beschichtungsauftrag-ausbau-teil-1"
+worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
+branch: "feature/2026-08-07-ideal-teile-1-5"
 affected_code:
   - IdealAkeWms/Controllers/FaHierarchyBeschichtungController.cs (neue Actions Summiert, PrintSummiert, PdfSummiert/{hauptFa}; Muster FaHierarchyKommissionierListenController.cs:122-156 und :220-275)
   - IdealAkeWms/Services/BeschichtungsauftragService.cs (neu BuildSummiertAsync + statische, DB-freie AggregateSummiert + SummiertColumnMap + Umschalter-Query; Muster KommissionierListenService.cs:75-84, :116-235)
@@ -463,3 +463,10 @@ bleiben Schranke 2 (Mensch); Merge erst nach Schranke 2 des Buendels `feature/20
 - **M1, M2, M4 nicht mitgebaut** (Log-Volumen bei Druck/PDF ueber die ganze Menge; explizites `visibleColumns` ohne
   Locked-Ergaenzung — geerbt aus der Kommissionierliste; Artnr-Gruppierung case-sensitiv wie dort). Kandidaten fuer eine
   gemeinsame Nachlese beider Summierungen, zusammen mit Zusatzfund 1 (leere Artnr).
+
+## Nachtrag: ins Buendel uebernommen (2026-10-09)
+
+2026-10-09 per Fast-Forward ins Buendel uebernommen (`cc86d373`): `git merge --ff-only feature/2026-10-06-beschichtungsauftrag-ausbau-teil-1` im Buendel-Worktree,
+HEAD `f102fbf5` -> `cc86d373`. Danach im Buendel: `dotnet build IdealAkeWms.slnx` 0 Fehler; Web-Tests 1474 gruen,
+1 uebersprungen; Service-Tests 272 gruen; AppVersion 1.48.0. **Status bleibt Testbereit** — Schranke 2 (Manual-UAT TS-81)
+und Merge nach `main` gehen mit dem ganzen Buendel. Zweig/Worktree `…-teil-1` bestehen weiter (Aufraeumen erst auf Freigabe).

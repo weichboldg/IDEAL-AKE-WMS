@@ -638,6 +638,22 @@ zurückgebaut, bevor die echten IDEAL-Werkbänke angelegt werden.
 > Build/Test grün, AK-Abgleich gegen echten Diff `ab10b57..0aceee8`). Build 0 Fehler, **Web 1391 +1
 > skip, Service 263** (−14 gelöschte Workplace-Tests). Wartet mit dem Bündel auf **Schranke 2**.
 
+### Beschichtungsauftrag summiert als Standard (v1.48.0, per Fast-Forward im Bündel)
+
+Spec [[2026-10-06-beschichtungsauftrag-ausbau-teil-1-spec]] (Teil 1 von 4, [[2026-10-06-beschichtungsauftrag-ausbau-uebersicht]]),
+Umsetzung [[2026-10-09-beschichtungsauftrag-ausbau-teil-1-umsetzung]], Changelog [[2026-10-09-v1-48-0-beschichtungsauftrag-summiert]].
+Zweig `feature/2026-10-06-beschichtungsauftrag-ausbau-teil-1`, abgezweigt vom Bündel @ `f102fbf5` (v1.47.5); 2026-10-09 per Fast-Forward ins Bündel übernommen (`cc86d373`).
+
+| Baustein | Stand | Code-Einstieg |
+|---|---|---|
+| Aggregation HauptFA + Artnr, Maße-Invariante, Gruppen-Paging, Kopf je HauptFA | **erledigt** `850258e3` | `BeschichtungsauftragService.AggregateSummiert`/`BuildSummiertAsync`/`SummiertColumnMap` |
+| Actions `Summiert`/`PrintSummiert`/`PdfSummiert`, gemeinsame Druckspalten-Auflösung | **erledigt** `578aec6b` | `FaHierarchyBeschichtungController`, `Services/PrintVisibleColumns.cs`, `ColumnDefinitions.FaHierarchyBeschichtungSummiert` |
+| Views, Umschalter, Kopf-Partials, Navigation → Summiert, Wächter | **erledigt** `c226a465` | `Views/FaHierarchyBeschichtung/Summiert.cshtml`, `PrintSummiert.cshtml`, `_BeschichtungKopf*.cshtml` |
+| v1.48.0, Changelog, Hilfe, TS-81; Test Umschalter-Query | **erledigt** `8d9cefd2`, `cc86d373` | `docs/TESTSZENARIEN.md` TS-81 |
+
+> **Deploy:** nur Web, keine Migration. **Status:** Testbereit (QA 2026-10-09, Build + 1474 Web- + 272 Service-Tests grün)
+> → Schranke 2 mit dem Bündel. Vor der Abnahme Prüfschritt Mengeneinheit TS-81.1.
+
 ## Offen / nicht gemerged
 
 | Vorhaben | Status | Quelle |
