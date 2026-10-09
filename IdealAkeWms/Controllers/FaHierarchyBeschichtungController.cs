@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
+using IdealAkeWms.Data.Repositories;
 using IdealAkeWms.Filters;
 using IdealAkeWms.Models.ViewModels;
 using IdealAkeWms.Services;
@@ -34,6 +35,7 @@ public class FaHierarchyBeschichtungController : Controller
     private readonly IRazorViewRenderer _viewRenderer;
     private readonly IPdfRenderService _pdfRenderService;
     private readonly PdfRenderStatus _pdfRenderStatus;
+    private readonly IUserViewPreferenceRepository _viewPrefs;
 
     public FaHierarchyBeschichtungController(
         BeschichtungsauftragService service,
@@ -41,7 +43,8 @@ public class FaHierarchyBeschichtungController : Controller
         ICurrentUserService currentUserService,
         IRazorViewRenderer viewRenderer,
         IPdfRenderService pdfRenderService,
-        PdfRenderStatus pdfRenderStatus)
+        PdfRenderStatus pdfRenderStatus,
+        IUserViewPreferenceRepository viewPrefs)
     {
         _service = service;
         _barcode = barcode;
@@ -49,6 +52,7 @@ public class FaHierarchyBeschichtungController : Controller
         _viewRenderer = viewRenderer;
         _pdfRenderService = pdfRenderService;
         _pdfRenderStatus = pdfRenderStatus;
+        _viewPrefs = viewPrefs;
     }
 
     /// <summary>Bildschirmliste: gruppiert nach HauptFA, Gruppen-Paging, Server-Spaltenfilter.</summary>
@@ -134,4 +138,94 @@ public class FaHierarchyBeschichtungController : Controller
             return RedirectToAction(nameof(Index));
         }
     }
+
+    // ----- Summiert-Ansicht (Spec 2026-10-06-beschichtungsauftrag-ausbau-teil-1, v1.48.0) -----
+    // Standardansicht (Navigationseintrag zeigt hierher). Zugriff/Toggle ueber die Class-Level-Filter.
+
+    /// <summary>Summiert-Ansicht: je HauptFA + Artnr summierte Sollmenge, Gruppen-Paging (Seiteneinheit = HauptFA),
+    /// Server-Spaltenfilter auf der Aggregat-Projektion.</summary>
+    public async Task<IActionResult> Summiert(int page = 1, int? pageSize = null)
+    {
+        if (page < 1) page = 1;
+
+        var userDefaultPageSize = await _currentUserService.GetDefaultPageSizeAsync();
+        var effectivePageSize = PageSize.Resolve(pageSize, userDefaultPageSize);
+        var rawPageSize = PageSize.ResolveRaw(pageSize, userDefaultPageSize);
+
+        var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
+        var result = await _service.BuildSummiertAsync(columnFilters, page, effectivePageSize, paginate: true);
+
+        var vm = new FaHierarchyBeschichtungSummiertViewModel
+        {
+            Rows = result.Rows,
+            OrderInfos = result.OrderInfos,
+            PdfVerfuegbar = _pdfRenderStatus.IsAvailable,
+            Pagination = new PaginationState
+            {
+                CurrentPage = page,
+                PageSize = effectivePageSize,
+                PageSizeRaw = rawPageSize,
+                TotalCount = result.TotalGroupCount
+            }
+        };
+
+        return View(vm);
+    }
+
+    /// <summary>Bildschirmdruck der Summiert-Ansicht: ganze gefilterte Menge ohne Paging, ein Ausdruck je HauptFA,
+    /// Barcode = HauptFA, nur sichtbare Spalten (<see cref="PrintVisibleColumns"/>).</summary>
+    public async Task<IActionResult> PrintSummiert(string? visibleColumns)
+    {
+        var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
+        var result = await _service.BuildSummiertAsync(columnFilters, 1, int.MaxValue, paginate: false);
+
+        var barcodes = result.Rows.Select(r => r.HauptFA).Distinct()
+            .ToDictionary(h => h, h => _barcode.EncodeCode128Base64(h.ToString(CultureInfo.InvariantCulture)));
+
+        var vm = new FaHierarchyBeschichtungSummiertPrintViewModel
+        {
+            Rows = result.Rows,
+            OrderInfos = result.OrderInfos,
+            Barcodes = barcodes,
+            IsFiltered = ColumnFilterHelper.HasAny(columnFilters),
+            VisibleColumns = await ResolveSummiertColumnsAsync(visibleColumns)
+        };
+        return View(vm);
+    }
+
+    /// <summary>PDF fuer GENAU EINE HauptFA-Gruppe der Summiert-Ansicht (dieselbe <c>PrintSummiert.cshtml</c>,
+    /// dieselben Filter). Fehler: <c>WarningMessage</c> und Rueckweg auf <see cref="Summiert"/>.</summary>
+    [HttpGet("FaHierarchyBeschichtung/PdfSummiert/{hauptFa:int}")]
+    public async Task<IActionResult> PdfSummiert(int hauptFa, string? visibleColumns)
+    {
+        var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
+        var result = await _service.BuildSummiertAsync(columnFilters, 1, int.MaxValue, paginate: false);
+        var rows = result.Rows.Where(r => r.HauptFA == hauptFa).ToList();
+        if (rows.Count == 0) return NotFound();
+
+        var vm = new FaHierarchyBeschichtungSummiertPrintViewModel
+        {
+            Rows = rows,
+            OrderInfos = result.OrderInfos.Where(kv => kv.Key == hauptFa).ToDictionary(kv => kv.Key, kv => kv.Value),
+            Barcodes = new Dictionary<int, string> { [hauptFa] = _barcode.EncodeCode128Base64(hauptFa.ToString(CultureInfo.InvariantCulture)) },
+            IsFiltered = ColumnFilterHelper.HasAny(columnFilters),
+            VisibleColumns = await ResolveSummiertColumnsAsync(visibleColumns)
+        };
+
+        try
+        {
+            var html = await _viewRenderer.RenderToStringAsync(ControllerContext, "PrintSummiert", vm);
+            var pdfBytes = await _pdfRenderService.RenderHtmlToPdfAsync(html, HttpContext?.RequestAborted ?? default);
+            return File(pdfBytes, "application/pdf", PdfFileNameBuilder.Build("Beschichtungsauftrag", hauptFa, DateTime.Now));
+        }
+        catch (PdfRenderException ex)
+        {
+            TempData["WarningMessage"] = ex.UserMessage;
+            return RedirectToAction(nameof(Summiert));
+        }
+    }
+
+    private Task<IReadOnlyList<string>> ResolveSummiertColumnsAsync(string? visibleColumns) =>
+        PrintVisibleColumns.ResolveAsync(visibleColumns, ColumnDefinitions.FaHierarchyBeschichtungSummiert.ViewKey,
+            ColumnDefinitions.FaHierarchyBeschichtungSummiert.Columns, _currentUserService, _viewPrefs);
 }

@@ -65,22 +65,9 @@ public class FaHierarchyKommissionierListenController : Controller
     /// verdrahtet). Locked-Spalten bleiben immer sichtbar. Kein Parameter, keine Praeferenz oder kein
     /// eingeloggter Anwender ⇒ leere Liste = alle Spalten.
     /// </summary>
-    private async Task<IReadOnlyList<string>> ResolveVisibleColumnsAsync(
-        string? visibleColumns, string viewKey, IReadOnlyList<ColumnDef> defs)
-    {
-        if (!string.IsNullOrWhiteSpace(visibleColumns))
-            return visibleColumns.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList();
-
-        var userId = _currentUserService.GetCurrentAppUserId();
-        if (!userId.HasValue) return Array.Empty<string>();
-
-        var pref = await _viewPrefs.GetByUserAndViewAsync(userId.Value, viewKey);
-        var prefs = WarehousePickingPrintLayout.ParsePrefs(pref?.SettingsJson);
-        if (prefs?.Columns == null || prefs.Columns.Count == 0) return Array.Empty<string>();
-
-        var hidden = new HashSet<string>(prefs.Columns.Where(c => !c.Visible).Select(c => c.Key));
-        return defs.Where(d => d.Locked || !hidden.Contains(d.Key)).Select(d => d.Key).ToList();
-    }
+    private Task<IReadOnlyList<string>> ResolveVisibleColumnsAsync(
+        string? visibleColumns, string viewKey, IReadOnlyList<ColumnDef> defs) =>
+        PrintVisibleColumns.ResolveAsync(visibleColumns, viewKey, defs, _currentUserService, _viewPrefs);
 
     /// <summary>Bildschirmliste: gruppiert nach HauptFA, Gruppen-Paging, Server-Spaltenfilter,
     /// Ziel-Dropdown. (Nachtrag 2026-08-13: kein Blattfilter/Anomalie-Banner mehr.)</summary>

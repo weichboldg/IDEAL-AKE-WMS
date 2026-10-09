@@ -392,6 +392,31 @@ public static class ColumnDefinitions
     };
 
     /// <summary>
+    /// FaHierarchyBeschichtung/Summiert.cshtml columns (Beschichtungsauftrag-Ausbau Teil 1, v1.48.0):
+    /// je HauptFA + Artnr summierte Sollmenge. Gruppierte Liste, Server-Spaltenfilter,
+    /// SupportsSortDefault: false. hauptfa + matchcode Locked (matchcode traegt auch den Hinweis
+    /// "Masse uneinheitlich" und muss deshalb immer sichtbar sein — Bildschirm UND Druck).
+    /// Spalten identisch zum inline #column-config JSON der View (Drift-Waechter KommissionierSpaltenKonsistenzTests).
+    /// </summary>
+    public static readonly ViewConfig FaHierarchyBeschichtungSummiert = new(
+        "FaHierarchyBeschichtungSummiert", "Beschichtungsauftrag — Summiert (IDEAL)",
+        SupportsReorder: true, SupportsSortDefault: false)
+    {
+        Columns =
+        [
+            new ColumnDef("hauptfa",    "HauptFA",          Locked: true),
+            new ColumnDef("hauptartnr", "Haupt-Artnr.",     Locked: false),
+            new ColumnDef("artnr",      "Artnr.",           Locked: false),
+            new ColumnDef("matchcode",  "Matchcode",        Locked: true),
+            new ColumnDef("breite",     "Breite",           Locked: false, DefaultWidth: 55),
+            new ColumnDef("hoehe",      "Höhe",             Locked: false, DefaultWidth: 55),
+            new ColumnDef("tiefe",      "Tiefe",            Locked: false, DefaultWidth: 55),
+            new ColumnDef("positionen", "Positionen",       Locked: false, DefaultWidth: 55),
+            new ColumnDef("sollmenge",  "Summe Sollmenge",  Locked: false, DefaultWidth: 55),
+        ]
+    };
+
+    /// <summary>
     /// FaHierarchyVormontage/Index.cshtml columns (IDEAL Teil 5, Sicht 1 "Einzelne Teile").
     /// Gruppierte Liste (je HauptFA ein eigenes &lt;tbody&gt;), Server-Spaltenfilter.
     /// SupportsSortDefault: false. hauptfa + matchcode Locked.
@@ -478,6 +503,7 @@ public static class ColumnDefinitions
         "FaHierarchyKommissionierListen" => FaHierarchyKommissionierListen,
         "FaHierarchyKommissionierSummiert" => FaHierarchyKommissionierSummiert,
         "FaHierarchyBeschichtung"        => FaHierarchyBeschichtung,
+        "FaHierarchyBeschichtungSummiert" => FaHierarchyBeschichtungSummiert,
         "FaHierarchyVormontageEinzeln"   => FaHierarchyVormontageEinzeln,
         "FaHierarchyVormontageSummiert"  => FaHierarchyVormontageSummiert,
         "FaHierarchyStructure"           => FaHierarchyStructure,
