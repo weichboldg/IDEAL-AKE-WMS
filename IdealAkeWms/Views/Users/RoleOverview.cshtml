@@ -195,7 +195,7 @@
                 <td>IDEAL Teil 4: Beschichtungsauftrag-Liste + Bildschirmdruck der zu beschichtenden Teile (Read-Ebene, keine Bearbeitung).</td>
                 <td>
                     <ul class="mb-0 small">
-                        <li>Beschichtungsauftrag (<code>/FaHierarchyBeschichtung</code>): Liste aller beschichteten Positionen (<code>Beschichtet == true</code>, alle Ebenen), gruppiert nach HauptFA</li>
+                        <li>Beschichtungsauftrag (<code>/FaHierarchyBeschichtung</code>): Liste aller beschichteten Positionen (<code>Beschichtet == true</code>, alle Ebenen), gruppiert nach HauptFA; Standard ist seit v1.48.0 die summierte Sicht (<code>/FaHierarchyBeschichtung/Summiert</code>, je HauptFA + Artnr), gleiche Rolle und gleicher Schalter</li>
                         <li>Bildschirmdruck je HauptFA (Dienstleister/RAL/Termine im Kopf)</li>
                         <li>Sichtbar nur wenn AppSetting <code>FaHierarchyBeschichtungAktiv</code> aktiv ist (Filter <code>RequireFaHierarchyBeschichtungAktiv</code>, invertierte Default-aus-Semantik)</li>
                     </ul>

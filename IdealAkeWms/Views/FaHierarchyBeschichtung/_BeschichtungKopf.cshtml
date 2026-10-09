@@ -1,0 +1,30 @@
+@model List<IdealAkeWms.Models.FaHierarchyOrderInfo>
+@* Kopfzeile je HauptFA-Gruppe (Bildschirm): Dienstleister/RAL/Termine/AB/Pos/Montage-Abt. aller
+   Kopfvarianten + Badge bei Mehrdeutigkeit (Kombigeraet). Geteilt von Index.cshtml und Summiert.cshtml. *@
+@if (Model.Count > 1)
+{
+    <span class="badge bg-warning text-dark ms-2" title="Mehrere Kopfzeilen (Kombigerät) — Dienstleister/RAL/Termine mehrdeutig, von Hand prüfen">
+        mehrdeutig (mehrere Kopfzeilen)
+    </span>
+}
+@if (Model.Any())
+{
+    <span class="text-muted small ms-2">
+        @foreach (var info in Model)
+        {
+            <span class="me-3">
+                @(!string.IsNullOrWhiteSpace(info.Dienstleister) ? info.Dienstleister : "— Dienstleister?")
+                @if (!string.IsNullOrWhiteSpace(info.RAL)) { <text> · RAL @info.RAL</text> }
+                @if (info.Start_Beschichtung.HasValue) { <text> · Start @info.Start_Beschichtung.Value.ToString("dd.MM.yyyy")</text> }
+                @if (info.Beschichten_Retour.HasValue) { <text> · Retour @info.Beschichten_Retour.Value.ToString("dd.MM.yyyy")</text> }
+                @if (!string.IsNullOrWhiteSpace(info.ABNr)) { <text> · AB @info.ABNr</text> }
+                @if (!string.IsNullOrWhiteSpace(info.Pos)) { <text> / @info.Pos</text> }
+                @if (!string.IsNullOrWhiteSpace(info.MontageAbteilung)) { <text> · @info.MontageAbteilung</text> }
+            </span>
+        }
+    </span>
+}
+else
+{
+    <span class="text-muted small ms-2">Keine Auftrags-Kopfdaten zu diesem HauptFA.</span>
+}

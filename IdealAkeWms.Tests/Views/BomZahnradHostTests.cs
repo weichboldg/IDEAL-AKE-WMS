@@ -50,3 +50,17 @@ public class WarehousePickingDetailsZahnradHostTests
             "das Zahnrad haengt am direkten Vorgaenger von .table-responsive; #incomplete-alert gehoert darueber");
     }
 }
+
+/// <summary>
+/// Gleiche Regel fuer die Summiert-Ansicht des Beschichtungsauftrags (v1.48.0, fallstricke §19): direkt vor
+/// .table-responsive steht der leere Host, Hinweise und die Filterkarte darueber.
+/// </summary>
+public class FaHierarchyBeschichtungSummiertZahnradHostTests
+{
+    [Fact]
+    public void ElementDirektVorTableResponsive_IstDerZahnradToolbarHost()
+    {
+        BomZahnradHostTests.TextBeforeTableWrapper("FaHierarchyBeschichtung", "Summiert.cshtml").Should().EndWith(BomZahnradHostTests.GearHost,
+            "das Zahnrad haengt am direkten Vorgaenger von .table-responsive");
+    }
+}

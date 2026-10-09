@@ -1,0 +1,117 @@
+@model IdealAkeWms.Models.ViewModels.FaHierarchyBeschichtungSummiertPrintViewModel
+@using IdealAkeWms.Models
+@using IdealAkeWms.Services
+@{
+    Layout = null;
+    bool ShowCol(string key) => !Model.VisibleColumns.Any() || Model.VisibleColumns.Contains(key);
+}
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="utf-8" />
+    <title>Beschichtungsauftrag (IDEAL) — Summiert</title>
+    @* CSS bewusst eingebettet (kein externer Verweis), damit dasselbe Markup als PDF (Headless Edge) gerendert
+       werden kann; Barcode als Data-URI aus demselben Grund (Spec 2026-08-06-pdf-erzeugung-fahierarchy-druck). *@
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; color: #000; background: #fff; padding: 20px; font-size: 11px; }
+        .screen-controls { padding: 15px; text-align: center; background: #053153; color: #fff; margin: -20px -20px 20px -20px; }
+        .screen-controls button { background: #fff; color: #053153; border: none; padding: 8px 24px; font-size: 16px; cursor: pointer; border-radius: 4px; margin: 0 5px; }
+        .sum-banner { border: 1px solid #053153; background: #eaf1fb; color: #053153; padding: 8px 10px; margin-bottom: 8px; font-size: 10px; }
+        .ambiguous-banner { border: 1px solid #b8860b; background: #fff8e1; color: #7a5900; padding: 8px 10px; margin-top: 6px; font-size: 10px; }
+        .filter-banner { border: 1px solid #b8860b; background: #fff8e1; color: #7a5900; padding: 8px 10px; margin-bottom: 8px; font-size: 10px; }
+        .fa-group { page-break-after: always; }
+        .fa-group:last-child { page-break-after: auto; }
+        .group-head { border-bottom: 2px solid #053153; padding-bottom: 8px; margin-bottom: 10px; }
+        .group-head h1 { font-size: 18px; color: #053153; }
+        .barcode img { height: 22mm; max-width: 100%; }
+        .head-table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+        .head-table th, .head-table td { border: 1px solid #aaa; padding: 3px 5px; text-align: left; font-size: 10px; }
+        .head-table th { background: #eef2f6; }
+        table.positions { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        table.positions th, table.positions td { border: 1px solid #888; padding: 4px 6px; text-align: left; }
+        table.positions th { background: #f0f0f0; }
+        .text-end { text-align: right; }
+        .note { color: #555; font-size: 10px; margin-top: 4px; }
+        .masse-warn { display: inline-block; margin-left: 4px; padding: 0 4px; border: 1px solid #7a5900; color: #7a5900; background: #fff8e1; font-weight: bold; }
+        @@media print { .screen-controls { display: none; } body { padding: 0; } }
+    </style>
+</head>
+<body>
+    <div class="screen-controls">
+        <button onclick="window.print()">Drucken</button>
+        <button onclick="window.close()">Schliessen</button>
+    </div>
+
+    @if (!Model.Rows.Any())
+    {
+        <p style="padding: 20px; text-align: center; color: #555;">
+            Keine beschichteten Positionen für die aktuelle Filterung — nichts zu drucken.
+        </p>
+    }
+    else
+    {
+        @foreach (var group in Model.Rows.GroupBy(r => r.HauptFA))
+        {
+            <div class="fa-group">
+                <div class="sum-banner">
+                    <strong>Summierte Ansicht</strong> — je Artikelnummer summierte Sollmenge, keine Einzelpositionen.
+                </div>
+                @if (Model.IsFiltered)
+                {
+                    <div class="filter-banner">
+                        <strong>Gefilterte Ansicht</strong> — dieses Dokument zeigt nur die gefilterten
+                        Positionen dieses HauptFA, nicht den vollständigen Beschichtungsauftrag.
+                    </div>
+                }
+                <div class="group-head">
+                    <h1>Beschichtungsauftrag (summiert) — HauptFA @group.Key</h1>
+                    <div class="barcode">
+                        @if (Model.Barcodes.TryGetValue(group.Key, out var bc))
+                        {
+                            <img src="data:image/png;base64,@bc" alt="@group.Key" />
+                        }
+                    </div>
+                    <partial name="_BeschichtungKopfDruck" model="Model.OrderInfos.GetValueOrDefault(group.Key) ?? new List<FaHierarchyOrderInfo>()" />
+                </div>
+
+                <table class="positions">
+                    <thead>
+                        <tr>
+                            @if (ShowCol("hauptartnr")) { <th>Haupt-Artnr.</th> }
+                            @if (ShowCol("artnr")) { <th>Artnr.</th> }
+                            @if (ShowCol("matchcode")) { <th>Matchcode</th> }
+                            @if (ShowCol("breite")) { <th class="text-end">Breite</th> }
+                            @if (ShowCol("hoehe")) { <th class="text-end">Höhe</th> }
+                            @if (ShowCol("tiefe")) { <th class="text-end">Tiefe</th> }
+                            @if (ShowCol("positionen")) { <th class="text-end">Positionen</th> }
+                            @if (ShowCol("sollmenge")) { <th class="text-end">Summe Sollmenge</th> }
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in group)
+                        {
+                            <tr>
+                                @if (ShowCol("hauptartnr")) { <td>@row.HauptArtnr</td> }
+                                @if (ShowCol("artnr")) { <td>@row.Artnr</td> }
+                                @if (ShowCol("matchcode"))
+                                {
+                                    <td>
+                                        @row.Matchcode
+                                        @if (row.MasseUneinheitlich) { <span class="masse-warn">Maße uneinheitlich</span> }
+                                    </td>
+                                }
+                                @if (ShowCol("breite")) { <td class="text-end">@BeschichtungsauftragService.FormatMass(row.Breite)</td> }
+                                @if (ShowCol("hoehe")) { <td class="text-end">@BeschichtungsauftragService.FormatMass(row.Hoehe)</td> }
+                                @if (ShowCol("tiefe")) { <td class="text-end">@BeschichtungsauftragService.FormatMass(row.Tiefe)</td> }
+                                @if (ShowCol("positionen")) { <td class="text-end">@row.PositionCount</td> }
+                                @if (ShowCol("sollmenge")) { <td class="text-end">@BeschichtungsauftragService.FormatMenge(row.SummeSollmenge)</td> }
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    }
+</body>
+</html>

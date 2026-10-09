@@ -1,0 +1,46 @@
+@model List<IdealAkeWms.Models.FaHierarchyOrderInfo>
+@* Kopf je HauptFA-Gruppe im Druck/PDF (CSS-Klassen kommen aus dem eingebetteten Style der aufrufenden
+   Druck-View). Geteilt von Print.cshtml und PrintSummiert.cshtml. *@
+@if (Model.Count > 1)
+{
+    <div class="ambiguous-banner">
+        <strong>Achtung — mehrdeutig:</strong> Zu diesem HauptFA existieren
+        @Model.Count Kopfzeilen (Kombinationsgerät). Dienstleister, RAL
+        und Termine sind nicht eindeutig — alle Varianten sind unten aufgeführt.
+        Vor dem Transport von Hand prüfen, welcher Dienstleister/RAL gilt.
+    </div>
+}
+@if (Model.Any())
+{
+    <table class="head-table">
+        <thead>
+            <tr>
+                <th>Dienstleister</th>
+                <th>RAL</th>
+                <th>Start Beschichtung</th>
+                <th>Retour</th>
+                <th>AB-Nr.</th>
+                <th>Pos</th>
+                <th>Montage-Abt.</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var info in Model)
+            {
+                <tr>
+                    <td>@info.Dienstleister</td>
+                    <td>@info.RAL</td>
+                    <td>@(info.Start_Beschichtung?.ToString("dd.MM.yyyy") ?? "—")</td>
+                    <td>@(info.Beschichten_Retour?.ToString("dd.MM.yyyy") ?? "—")</td>
+                    <td>@info.ABNr</td>
+                    <td>@info.Pos</td>
+                    <td>@info.MontageAbteilung</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+else
+{
+    <div class="note">Keine Auftrags-Kopfdaten (Dienstleister/RAL/Termine) zu diesem HauptFA.</div>
+}

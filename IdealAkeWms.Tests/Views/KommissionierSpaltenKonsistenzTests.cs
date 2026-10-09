@@ -25,7 +25,7 @@ namespace IdealAkeWms.Tests.Views;
 /// </summary>
 public class KommissionierSpaltenKonsistenzTests
 {
-    private static readonly string ViewsDir;
+    private static readonly string ViewsRoot;
 
     static KommissionierSpaltenKonsistenzTests()
     {
@@ -34,21 +34,23 @@ public class KommissionierSpaltenKonsistenzTests
             dir = dir.Parent;
 
         var root = dir?.FullName ?? throw new FileNotFoundException("Repository-Root nicht gefunden");
-        ViewsDir = Path.Combine(root, "IdealAkeWms", "Views", "FaHierarchyKommissionierListen");
+        ViewsRoot = Path.Combine(root, "IdealAkeWms", "Views");
     }
 
     public static IEnumerable<object[]> ViewPairs()
     {
-        yield return new object[] { "Index.cshtml", "Print.cshtml", ColumnDefinitions.FaHierarchyKommissionierListen };
-        yield return new object[] { "Summiert.cshtml", "PrintSummiert.cshtml", ColumnDefinitions.FaHierarchyKommissionierSummiert };
+        yield return new object[] { "FaHierarchyKommissionierListen", "Index.cshtml", "Print.cshtml", ColumnDefinitions.FaHierarchyKommissionierListen };
+        yield return new object[] { "FaHierarchyKommissionierListen", "Summiert.cshtml", "PrintSummiert.cshtml", ColumnDefinitions.FaHierarchyKommissionierSummiert };
+        // v1.48.0: Beschichtungsauftrag summiert (Einzelliste/Print ohne ShowCol — dort druckt Print alle Spalten).
+        yield return new object[] { "FaHierarchyBeschichtung", "Summiert.cshtml", "PrintSummiert.cshtml", ColumnDefinitions.FaHierarchyBeschichtungSummiert };
     }
 
     [Theory]
     [MemberData(nameof(ViewPairs))]
-    public void VierQuellen_HabenDieselbenSpaltenschluessel(string screenFile, string printFile, ViewConfig viewConfig)
+    public void VierQuellen_HabenDieselbenSpaltenschluessel(string folder, string screenFile, string printFile, ViewConfig viewConfig)
     {
-        var screenHtml = File.ReadAllText(Path.Combine(ViewsDir, screenFile));
-        var printHtml = File.ReadAllText(Path.Combine(ViewsDir, printFile));
+        var screenHtml = File.ReadAllText(Path.Combine(ViewsRoot, folder, screenFile));
+        var printHtml = File.ReadAllText(Path.Combine(ViewsRoot, folder, printFile));
 
         var thKeys = ExtractThDataColKeys(screenHtml);
         var configKeys = ExtractColumnConfigKeys(screenHtml);
@@ -75,6 +77,7 @@ public class KommissionierSpaltenKonsistenzTests
     {
         yield return new object[] { KommissionierListenService.ColumnMap.Keys, ColumnDefinitions.FaHierarchyKommissionierListen, "KommissionierListenService.ColumnMap" };
         yield return new object[] { KommissionierListenService.SummiertColumnMap.Keys, ColumnDefinitions.FaHierarchyKommissionierSummiert, "KommissionierListenService.SummiertColumnMap" };
+        yield return new object[] { BeschichtungsauftragService.SummiertColumnMap.Keys, ColumnDefinitions.FaHierarchyBeschichtungSummiert, "BeschichtungsauftragService.SummiertColumnMap" };
     }
 
     /// <summary>
