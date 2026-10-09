@@ -36,6 +36,7 @@
         .masse-warn { display: inline-block; margin-left: 4px; padding: 0 4px; border: 1px solid #7a5900; color: #7a5900; background: #fff8e1; font-weight: bold; }
         @@media print { .screen-controls { display: none; } body { padding: 0; } }
     </style>
+    <partial name="_PrintBriefkopfStyles" />
 </head>
 <body>
     <div class="screen-controls">
@@ -54,6 +55,7 @@
         @foreach (var group in Model.Rows.GroupBy(r => r.HauptFA))
         {
             <div class="fa-group">
+                <partial name="_PrintBriefkopf" model="new IdealAkeWms.Models.ViewModels.PrintBriefkopfModel(IdealAkeWms.Models.ViewModels.PrintBriefkopfModel.DokumentBeschichtungSummiert, group.Key, Model.OrderInfos.GetValueOrDefault(group.Key) ?? new List<FaHierarchyOrderInfo>())" />
                 <div class="sum-banner">
                     <strong>Summierte Ansicht</strong> — je Artikelnummer summierte Sollmenge, keine Einzelpositionen.
                 </div>

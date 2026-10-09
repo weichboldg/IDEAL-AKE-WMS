@@ -1,0 +1,26 @@
+@inject IdealAkeWms.Services.BriefkopfVorlageService Briefkopf
+@* Briefkopf-Styles EINMAL je Druckseite (im <head>): die Styles der IT-Vorlage inkl. @font-face mit eingebetteten
+   Schriften (stuenden sie je .fa-group, wuerde die Schrift-Data-URI je HauptFA wiederholt) + die Grundregeln des
+   WMS-Teils darunter. Spec 2026-10-06-beschichtungsauftrag-ausbau-teil-2. *@
+@{
+    var vorlage = await Briefkopf.GetAsync();
+}
+<style>
+    .briefkopf-block { margin-bottom: 10px; }
+    .briefkopf-ersatz { border-bottom: 2px solid #053153; padding: 6px 0 8px; margin-bottom: 8px; color: #4a494a; }
+    .briefkopf-ersatz strong { color: #053153; font-size: 14px; }
+    .briefkopf-meta { width: 100%; border-collapse: collapse; margin: 6px 0 4px; font-size: 11px; }
+    .briefkopf-meta th { text-align: left; font-weight: normal; color: #4a494a; width: 90px; padding: 2px 6px 2px 0; vertical-align: top; }
+    .briefkopf-meta td { padding: 2px 0; vertical-align: top; }
+    .briefkopf-meta .empfaenger { font-weight: bold; font-size: 13px; }
+    .briefkopf-meta .empfaenger-warnung { color: #7a5900; }
+    .briefkopf-hinweis { border: 1px solid #b8860b; background: #fff8e1; color: #7a5900; padding: 6px 10px; margin: 4px 0; font-size: 10px; }
+    @@media print { .briefkopf-hinweis { display: none; } }
+</style>
+@if (!vorlage.IstErsatz && !string.IsNullOrWhiteSpace(vorlage.Styles))
+{
+    @* Aus der bereinigten Vorlage; kann kein </style> enthalten (beim Herausloesen am ersten </style> getrennt). *@
+    <style>
+@Html.Raw(vorlage.Styles)
+    </style>
+}

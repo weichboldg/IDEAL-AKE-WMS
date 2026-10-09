@@ -1,0 +1,37 @@
+@model IdealAkeWms.Models.ViewModels.PrintBriefkopfModel
+@using IdealAkeWms.Models.ViewModels
+@inject IdealAkeWms.Services.BriefkopfVorlageService Briefkopf
+@* Briefkopf je HauptFA-Dokument (Spec 2026-10-06-beschichtungsauftrag-ausbau-teil-2): steht als erstes Element jeder
+   .fa-group und damit nur auf Seite 1 des Dokuments (die Gruppe beginnt mit Seitenumbruch). Oben das bereinigte
+   Markup der IT-Vorlage (Logo, Absender, Kontakt, eingebettet) bzw. der Ersatz-Kopf aus den Firmendaten, darunter
+   Empfaenger/Dokument/Datum aus dem WMS, zuletzt die Hinweise — nur am Bildschirm (@media print aus, also auch nicht
+   im PDF). Ein Baustein fuer alle Druckansichten mit Briefkopf. *@
+@{
+    var vorlage = await Briefkopf.GetAsync();
+    var empfaengerKlasse = Model.Empfaenger is PrintBriefkopfModel.EmpfaengerFehlt or PrintBriefkopfModel.EmpfaengerMehrdeutig
+        ? "empfaenger empfaenger-warnung" : "empfaenger";
+}
+<div class="briefkopf-block">
+    @if (!vorlage.IstErsatz)
+    {
+        @* ponytail: Logo-Data-URI steht je Dokument einmal im HTML; viele HauptFA im Bildschirmdruck = linear groessere
+           Seite. Upgrade, falls es stoert: Logo als background-image einer Klasse einmal im <head>. *@
+        <div class="briefkopf">@Html.Raw(vorlage.Markup)</div>
+    }
+    else
+    {
+        <div class="briefkopf-ersatz">
+            <strong>@(string.IsNullOrWhiteSpace(vorlage.Firmenname) ? "Firmenname nicht gepflegt" : vorlage.Firmenname)</strong>
+            @if (!string.IsNullOrWhiteSpace(vorlage.Firmenanschrift)) { <text> · @vorlage.Firmenanschrift</text> }
+        </div>
+    }
+    <table class="briefkopf-meta">
+        <tr><th>Empfänger</th><td class="@empfaengerKlasse">@Model.Empfaenger</td></tr>
+        <tr><th>Dokument</th><td>@Model.Dokument — HauptFA @Model.HauptFA</td></tr>
+        <tr><th>Datum</th><td>@DateTime.Now.ToString("dd.MM.yyyy")</td></tr>
+    </table>
+    @foreach (var hinweis in vorlage.Hinweise)
+    {
+        <div class="briefkopf-hinweis"><strong>Briefkopf:</strong> @hinweis</div>
+    }
+</div>
