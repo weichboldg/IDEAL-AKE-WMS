@@ -654,6 +654,21 @@ Zweig `feature/2026-10-06-beschichtungsauftrag-ausbau-teil-1`, abgezweigt vom B�
 > **Deploy:** nur Web, keine Migration. **Status:** Testbereit (QA 2026-10-09, Build + 1474 Web- + 272 Service-Tests grün)
 > → Schranke 2 mit dem Bündel. Vor der Abnahme Prüfschritt Mengeneinheit TS-81.1.
 
+### Briefkopf auf dem Beschichtungsauftrag (v1.49.0, direkt im Bündel)
+
+Spec [[2026-10-06-beschichtungsauftrag-ausbau-teil-2-spec]] (Teil 2 von 4), Umsetzung
+[[2026-10-09-beschichtungsauftrag-ausbau-teil-2-umsetzung]], Changelog [[2026-10-09-v1-49-0-briefkopf-beschichtungsauftrag]].
+
+| Baustein | Stand | Code-Einstieg |
+|---|---|---|
+| Vorlage laden/bereinigen/einbetten, Ersatz-Kopf, Grenzen; Einstellung „Briefkopf-Vorlage (Pfad)" | **erledigt** `1c560d30`, `020bf8af` | `Services/BriefkopfVorlageService.cs`, `AppSettingKeys.BriefkopfVorlagePfad`, `StandortSettingsCatalog` |
+| Kopf-Partials in Einzel- und Summiert-Druck (nur Seite 1), Empfänger-Regel | **erledigt** `1cda91dc` | `Views/Shared/_PrintBriefkopf*.cshtml`, `PrintBriefkopfModel` |
+| Muster `Branding/briefkopf.html` + Logo, README, Hilfe, v1.49.0, TS-82 | **erledigt** `742f7855` | `Branding/` (Repo-Wurzel, nicht im Publish) |
+
+> **Deploy:** nur Web, keine Migration; **manuell** `Branding\` neben dem Publish-Ordner + Einstellung setzen (ohne:
+> Ersatz-Kopf). **Status:** Testbereit (QA + Nachlauf 2026-10-09, Build + 1521 Web- + 272 Service-Tests grün) → Schranke 2
+> mit dem Bündel. Offen: [[2026-10-09-briefkopf-seitenzaehlung]], [[2026-10-09-briefkopf-csp-und-bereinigung]].
+
 ## Offen / nicht gemerged
 
 | Vorhaben | Status | Quelle |
