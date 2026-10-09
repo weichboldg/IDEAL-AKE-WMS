@@ -36,6 +36,8 @@ public static class StandortSettingsCatalog
         // Firmendaten — neue AppSettings-Keys (Definitionsort AppSettingKeys.cs, Fallback-Regel).
         new(AppSettingKeys.Firmenname,      "Firmenname",            StandortFieldType.String, StandortBackend.App,     GroupFirmendaten),
         new(AppSettingKeys.Firmenanschrift, "Anschrift / Adresse",   StandortFieldType.String, StandortBackend.App,     GroupFirmendaten),
+        new(AppSettingKeys.BriefkopfVorlagePfad, "Briefkopf-Vorlage (Pfad)", StandortFieldType.String, StandortBackend.App, GroupFirmendaten,
+            "Vollständiger Pfad zur briefkopf.html im Ordner Branding\\ des Installationsverzeichnisses. Leer oder Datei fehlt: Ersatz-Kopf aus Firmenname und Anschrift."),
 
         // Mandant + Sage-View-Namen (ServiceSettings).
         new("SData:Dataset",                        "Mandant / Dataset",              StandortFieldType.String, StandortBackend.Service, GroupMandantViews),

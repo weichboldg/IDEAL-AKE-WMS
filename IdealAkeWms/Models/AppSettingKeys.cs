@@ -73,4 +73,9 @@ public static class AppSettingKeys
     // die Keys bis zum Teil-6-Dev-Lauf nicht angelegt). Kein Seed, keine Migration.
     public const string Firmenname = "Firmenname";
     public const string Firmenanschrift = "Firmenanschrift";
+
+    // Beschichtungsauftrag-Ausbau Teil 2 (v1.49.0): voller Pfad zur briefkopf.html der IT im Ordner Branding\
+    // ausserhalb des Publish-Ordners (BriefkopfVorlageService). Kein Seed, keine Migration — die Zeile entsteht beim
+    // ersten Speichern der Standorteinstellungen (nur Admin). Leer/fehlt => Ersatz-Kopf aus Firmenname + Anschrift.
+    public const string BriefkopfVorlagePfad = "BriefkopfVorlagePfad";
 }
