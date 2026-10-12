@@ -26,7 +26,7 @@ Dokument aktualisiert werden (siehe CLAUDE.md → "Testszenarien-Pflicht").
 | 4. Fertigungsauftraege | [→](#4-fertigungsauftraege) | TS-4.1 – TS-4.19 (inkl. TS-4.9a/b/c/d Bulk-Freigabe + Filter-Persistenz, TS-4.11 – TS-4.19 Baugruppen-Flags VK/VL/VE/VT/VA) |
 | 5. Stueckliste (BOM) | [→](#5-stueckliste-bom) | TS-5.1 – TS-5.11 |
 | 6. Kommissionierung / Picking | [→](#6-kommissionierung--picking) | TS-6.1 – TS-6.10 |
-| 7. OSEON Teileverfolgung | [→](#7-oseon-teileverfolgung) | TS-7.1 – TS-7.10 (inkl. TS-7.6a/b/c/d Artikel-Filter + Sortierung) |
+| 7. OSEON Teileverfolgung | [→](#7-oseon-teileverfolgung) | TS-7.1 – TS-7.10 (inkl. TS-7.6a/b/c/d Artikel-Filter + Sortierung; Pflege der Offsets seit v1.54.0 in TS-87) |
 | 8. BDE Phase 1 | [→](#8-bde-phase-1) | TS-8.1 – TS-8.15 |
 | 9. BDE Phase 2.1 — Werkbank-Erweiterungen | [→](#9-bde-phase-21--werkbank-erweiterungen) | TS-9.1 – TS-9.10 |
 | 10. BDE Phase 2.2 — Mehrfachanmeldung + Zeit-Split | [→](#10-bde-phase-22--mehrfachanmeldung--zeit-split) | TS-10.1 – TS-10.15 |
@@ -194,6 +194,8 @@ Dokument aktualisiert werden (siehe CLAUDE.md → "Testszenarien-Pflicht").
 **Erwartetes Verhalten:**
 - Kein "BDE"-Menue-Eintrag sichtbar.
 - Direktaufruf `https://<server>/BdeTerminal` zeigt Warn-Toast "BDE ist nicht aktiviert." und leitet auf Dashboard weiter.
+- *(seit v1.54.0)* Ein **Admin** findet trotz `BdeAktiv = false` unter Stammdaten den Eintrag „Arbeitsgänge“; die Seite
+  „BDE Stammdaten“ zeigt dann nur den Reiter „Arbeitsgänge“ (TS-87.1).
 
 ---
 
@@ -2468,29 +2470,29 @@ Befund vom 2026-09-28, ID 3664 auf akenet01); Zugriff Kommissionierung, Vorbau o
 
 ---
 
-### TS-7.9 — Nur OSEON-relevante AGs anzeigen
+### TS-7.9 — Nur fremdsystem-relevante AGs anzeigen
 
 **Vorbedingungen:**
-- Arbeitsgang-Konfiguration: nicht alle AGs sind als OSEON-relevant markiert.
+- Arbeitsgang-Stammdaten (Stammdaten → Arbeitsgänge): nicht alle AGs sind als „Fremdsystem-relevant“ markiert.
 
 **Schritte:**
 1. OSEON-Liste oeffnen, Gruppe aufklappen bis Arbeitsgaenge sichtbar.
-2. Toggle "Nur OSEON-relevante AGs" ist aktiv (Standard).
+2. Toggle "Fremdsystem-Relevanz" ist aktiv (Standard; bis v1.53.0 „OSEON-Relevanz“).
 3. Toggle deaktivieren.
 
 **Erwartetes Verhalten:**
 - Deaktiviert: alle Arbeitsgaenge sichtbar (auch nicht-relevante).
-- Aktiviert: nur als OSEON-relevant konfigurierte AGs sichtbar.
+- Aktiviert: nur als fremdsystem-relevant markierte AGs sichtbar.
 
 ---
 
-### TS-7.10 — AG-Konfiguration pflegen (Soll-Termin Offset)
+### TS-7.10 — Arbeitsgang-Stammdaten pflegen (Offset zum Bezugstermin)
 
 **Vorbedingungen:**
-- Benutzer hat Rolle `masterdata` oder `admin`.
+- Benutzer hat Rolle `admin` (der Code liess nie `masterdata` zu; korrigiert v1.54.0).
 
 **Schritte:**
-1. Stammdaten → Einstellungen → AG-Konfiguration oeffnen.
+1. Stammdaten → Arbeitsgänge (BDE-Stammdaten, Reiter „Arbeitsgänge“) oeffnen.
 2. Fuer AG "10 — Fraesen" den Offset-Wert auf `3` setzen.
 3. Speichern.
 
@@ -3738,11 +3740,11 @@ Befund vom 2026-09-28, ID 3664 auf akenet01); Zugriff Kommissionierung, Vorbau o
 **Erwartet:** OSEON-Tracking-Seite öffnet in neuem Tab, vorgefilltert mit der FA-Nummer.
 
 ### TS-16.5 — Banner für ungepflegte Configs
-**Vorbedingungen:** AG-Name "FOO" in OSEON-Auftrag, KEIN Eintrag in OseonOperationConfig.
+**Vorbedingungen:** AG-Name "FOO" in OSEON-Auftrag, KEIN Eintrag in den Arbeitsgang-Stammdaten (`dbo.OperationConfigs`).
 **Schritte:**
 1. Reporting öffnen.
 
-**Erwartet:** Gelber Banner "X AG(s) ohne Config-Eintrag".
+**Erwartet:** Gelber Banner "X AG(s) ohne Config-Eintrag"; dessen Link fuehrt zu BDE-Stammdaten › Arbeitsgänge.
 
 ### TS-16.6 — Berechtigungs-Block
 **Vorbedingungen:** User OHNE Rolle reporting.
@@ -4669,6 +4671,7 @@ Terminals.
    wirkt nicht hinueber)
 5. Im Aktivitaeten-Tab eigenen Filter setzen → nur Aktivitaeten filtern
 6. Zurueck auf Tab "Mitarbeiter" → Filter dort ist zurueckgesetzt
+7. *(seit v1.54.0)* Als bde_shiftlead gibt es **keinen** vierten Reiter „Arbeitsgänge“; als Admin bei BDE an schon (TS-87.2).
 
 **Erwartet:** Jeder Tab hat eigenen view-key und eigene Filter. Tab-Wechsel
 resettet die Filter des vorherigen Tabs.
@@ -9622,8 +9625,54 @@ Zahlen-Ausnahme, KW-Kürzung, RFC 4180, BOM/CRLF, keine `sep=`-Zeile, Dateiname;
 - **TS-86.16 — Regression AKE (AK 11).** Listen in Darstellung, Filter, Sortierung, Spaltenauswahl und Druck unverändert;
   Zahnrad am alten Platz, CSV-Knopf daneben.
 
+## TS-87 — Arbeitsgang-Stammdaten: BDE-Stammdaten › Arbeitsgänge (v1.54.0)
+
+Spec: `2026-10-09-arbeitsgang-stammdaten-vereinheitlichen-spec`. Tabelle `OseonOperationConfigs` → `OperationConfigs`
+(Variante U, Migration `20261012140548_RenameOperationConfigsAndAddAudit` / `SQL/95`), Audit-Felder, Pflege im Reiter
+„Arbeitsgänge“ (nur Admin, unabhängig von `BdeAktiv`). **Vorbedingungen:** Testsystem mit Admin-, `bde_shiftlead`- und
+`masterdata`-Benutzer; ein OSEON-Auftrag mit einem AG-Namen ohne Eintrag (AKE) bzw. eine `WorkOperation` mit Kürzel ohne
+Eintrag (IDEAL); `BdeAktiv` umschaltbar; **Prüfschritte P1–P5 der Spec vor dem Deploy** (insbesondere P1: steht
+`20260330142035_AddOseonOperationConfig` in der History? Sonst anhalten). Automatisiert: `OperationConfigsMigrationSqlTests`
+(Namen in Migration/SQL/95/FreshInstall/Snapshot, keine strukturierte Operation, Batches wortgleich, MigrationId),
+`OperationConfigRepositoryTests` (Offset-Lookup case-insensitiv/getrimmt/0 vs. fehlend/kleinste Id, Liste „nicht
+konfiguriert“ aus zwei Quellen ohne `01`, Decorator, OSEON-Dictionary case-sensitiv), `OperationConfigsControllerTests`
+(Zugriff, Filter, Dubletten, Audit, 302, Begriffe).
+
+- **TS-87.1 — Erreichbar bei BDE aus (AK 1, 4).** `BdeAktiv = false`, Admin → Stammdaten → **Arbeitsgänge** → „BDE
+  Stammdaten“ mit genau dem Reiter „Arbeitsgänge“. `/BdeMasterData` → Home mit „BDE ist nicht aktiviert.“.
+- **TS-87.2 — Erreichbar bei BDE an (AK 2, 3).** `BdeAktiv = true`: Admin sieht Operatoren, Aktivitäten, Terminals,
+  Arbeitsgänge; Wechsel in beide Richtungen, aktiver Reiter markiert. `bde_shiftlead`: drei Reiter, `/OperationConfigs`
+  (GET und ein nachgebautes POST) → AccessDenied; ebenso `masterdata`. Nicht-Admins sehen den Menüeintrag nicht.
+- **TS-87.3 — Pflege (AK 6, 14).** Kürzel `KA`, Anzeigename „Kanten“, Offset `+3`, Fremdsystem-relevant aus → anlegen
+  (grün), ändern, löschen (Rückfrage, grün). Negativ: leeres Kürzel, `ka` bei vorhandenem `KA`, ` KA ` → gelbe Meldung,
+  kein Eintrag. Danach `SELECT CreatedBy, CreatedByWindows, ModifiedBy, ModifiedAt FROM dbo.OperationConfigs WHERE
+  OperationName = 'KA'` zeigt den Benutzer; Bestandszeile (z. B. `ST`) `CreatedBy = 'system'`, `ModifiedAt = NULL`.
+- **TS-87.4 — Nicht konfiguriert (AK 8).** IDEAL-Kürzel ohne Eintrag erscheint mit „WMS-Arbeitsgang“, OSEON-Name mit
+  „OSEON“, ein Kürzel aus beiden mit „OSEON + WMS-Arbeitsgang“; `01` erscheint nie; nach Anlegen verschwindet das Kürzel;
+  ohne Daten „Alle bekannten Kürzel sind konfiguriert.“. Das Anlege-Dropdown bietet dieselben Kürzel an.
+- **TS-87.5 — Alte URL (AK 5).** `/Settings/OperationConfig` → neue Seite (Netzwerk-Reiter: 302). Knopf „Arbeitsgänge
+  (BDE-Stammdaten)“ in `/Settings` und der Link im OSEON-Reporting-Banner führen auf die neue Seite.
+- **TS-87.6 — Begriffe (AK 7).** Spalte/Schalter „Fremdsystem-relevant“, Feld „Offset (Arbeitstage) zum Bezugstermin“,
+  Legende mit Stanztermin (OSEON), FE-Termin (IDEAL), Fertigungstermin (AKE-BDE) und dem Satz, dass Fremdsystem-relevant nur
+  für OSEON wirkt; Tracking-Schalter „Fremdsystem-Relevanz“.
+- **TS-87.7 — OSEON unverändert (AK 11, 12).** TS-7.9, TS-16.1–16.5 und Szenario 30.8 mit denselben Daten wie vor dem
+  Deploy → gleiche Ampeln, gleiche Soll-Termine, gleiche Reporting-Zeilen und Banner.
+- **TS-87.8 — Liste (AK 16).** Spaltenfilter Kürzel/Anzeigename/Offset (`+2`)/Relevanz (`nein`) filtern serverseitig,
+  Seitengröße „Alle“ und Seitenwechsel funktionieren; CSV-Export liefert alle Spalten mit Überschrift.
+- **TS-87.9 — Migration je DB-Form (AK 15, 20, 21, 22; Testsystem, vor dem Produktiv-Deploy).** Drei DBs: (a) EF-migrierte
+  Kopie (P1 zeigt `IX_OseonOperationConfigs_OperationName`), (b) Skript-/alte FreshInstall-Kopie (P1 zeigt
+  `UQ_OseonOperationConfigs_OperationName`), (c) leere DB per neuem `00_FreshInstall.sql`. (a)/(b) Zeilenanzahl notieren,
+  dann je einmal `SQL/95` (zweiter Lauf fehlerfrei, ändert nichts) und einmal nur App-Start (`Migrate()`); (c) nur
+  App-Start. **Erwartet:** App startet ohne Migrationsfehler, `/OperationConfigs` zeigt die Einträge, P6 liefert auf allen
+  drei DBs dasselbe (Tabelle `OperationConfigs`, Spalte `IsExternalSystemRelevant`, `PK_OperationConfigs`, genau ein
+  Unique-Index `IX_OperationConfigs_OperationName`, kein `UQ_`, sechs Audit-Spalten), Zeilenanzahl gleich, Bestand
+  `CreatedBy = 'system'`. Negativ: auf einer Wegwerf-Kopie zusätzlich leere `dbo.OperationConfigs` neben
+  `OseonOperationConfigs` → `SQL/95` bricht mit „… existieren beide - manuell klaeren …“ ab, nichts umbenannt.
+- **TS-87.10 — Negativ.** Spaltenfilter ohne Treffer → Hinweiszeile, kein Fehler; ungültige Id per manipuliertem POST →
+  404; keine `OseonWorkOperations`/`WorkOperations` → „Alle bekannten Kürzel sind konfiguriert.“.
+
 ---
 
 *Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) + Teil 6 (Standorteinstellungen, v1.34.0) + BOM-Guard hierarchisch (2026-08-18, abgelöst) + FA-Liste-Hierarchie (v1.35.0) + BOM-Bridge (v1.36.0) + Materialisierung fachliche Felder K1/K2 (v1.37.0) + Skopierung der Tabellen-Selektoren (TS-72) + FA-Liste ausgebaut: Matchcode, Kopfdaten je Zeile, HauptFA-Zeile, Freigabe-Kaskade (v1.38.0, TS-73) + PDF-Erzeugung für FaHierarchy-Druckdokumente (v1.39.0, TS-74) + Matchcode im Artikelstamm (v1.40.0, TS-75) + FA-Arbeitsgang-Erkennung aus der Struktur (v1.41.0, TS-76, ersetzt durch TS-77) + Arbeitsgänge (WorkOperation) aus der Struktur + Werkbank-Anlage aus Sage (v1.44.0, TS-77) + Arbeitsgänge je (Sub-)FA im FA-Struktur-Modal (v1.45.0, TS-78) + Kommissionierung nur am HauptFA
-(v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80) + Beschichtungsauftrag Summiert als Standard (v1.48.0, TS-81) + Briefkopf Beschichtungsauftrag (v1.49.0, TS-82) + Beschichtungsauftrag als eigenes Objekt (v1.50.0, TS-83) + Beschichtungsaufträge bedienen (v1.51.0, TS-84) + Arbeitsgänge als Symbole im FA-Baum (v1.52.0, TS-85) + CSV-Export für alle Tabellen (v1.53.0, TS-86)*
+(v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80) + Beschichtungsauftrag Summiert als Standard (v1.48.0, TS-81) + Briefkopf Beschichtungsauftrag (v1.49.0, TS-82) + Beschichtungsauftrag als eigenes Objekt (v1.50.0, TS-83) + Beschichtungsaufträge bedienen (v1.51.0, TS-84) + Arbeitsgänge als Symbole im FA-Baum (v1.52.0, TS-85) + CSV-Export für alle Tabellen (v1.53.0, TS-86) + Arbeitsgang-Stammdaten (v1.54.0, TS-87)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*

@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations;
 namespace IdealAkeWms.Models;
 
 /// <summary>
-/// Arbeitsgang-Stammdaten (bis v1.53.0 <c>OseonOperationConfig</c> / Tabelle <c>OseonOperationConfigs</c>, umbenannt mit
+/// Arbeitsgang-Stammdaten (bis v1.53.0 Klasse und Tabelle unter OSEON-Namen, umbenannt mit
 /// Migration <c>RenameOperationConfigsAndAddAudit</c> / <c>SQL/95</c>): je Arbeitsgang-Kuerzel ein Termin-Offset und das Flag
 /// „Fremdsystem-relevant". Gemeinsamer Schluessel fuer OSEON-AG-Namen und WMS-<c>WorkOperation.OperationNumber</c> (IDEAL).
 /// Spec 2026-10-09-arbeitsgang-stammdaten-vereinheitlichen.

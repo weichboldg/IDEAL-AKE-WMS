@@ -878,7 +878,7 @@ public class ApplicationDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
-        // OperationConfig — Arbeitsgang-Stammdaten (bis v1.53.0 OseonOperationConfigs; Umbenennung + Audit:
+        // OperationConfig — Arbeitsgang-Stammdaten (bis v1.53.0 unter OSEON-Namen; Umbenennung + Audit:
         // Migration RenameOperationConfigsAndAddAudit / SQL/95, guarded sp_rename je DB-Form, fallstricke §9).
         modelBuilder.Entity<OperationConfig>(entity =>
         {

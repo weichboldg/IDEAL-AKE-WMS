@@ -150,6 +150,7 @@ SQL-Scripte in Reihenfolge auf dem SQL Server ausführen:
 | 78 | `SQL/78_AddStockReadRole.sql` | Rolle `stock_read` (Lagerbestand nur lesen) |
 | 79 | `SQL/79_AddArticlePrimaryStorageLocation.sql` | Hauptlagerplatz am Artikel |
 | 80 | `SQL/80_AddProductionOrderCancellation.sql` | FA-Reconciliation: IsCancelled/CancelledAt/CancelledBy |
+| 95 | `SQL/95_RenameOperationConfigsAndAddAudit.sql` | Arbeitsgang-Stammdaten: `OseonOperationConfigs` → `OperationConfigs`, Audit-Felder (**Schema-Umbenennung — DB-Backup, App-Pool vorher stoppen**) |
 
 > **Backup-Hinweis:** Vor dem Einspielen von 65, 76 und 80 ein DB-Backup ziehen — diese Migrationen
 > konvertieren Daten; ihr Down() verliert Detail-Status.
