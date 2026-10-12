@@ -9612,6 +9612,13 @@ Zahlen-Ausnahme, KW-Kürzung, RFC 4180, BOM/CRLF, keine `sep=`-Zeile, Dateiname;
   dasselbe mit Zahl und Text. IDEAL-Gruppenliste: je Gruppe sortiert, Gruppenreihenfolge unverändert.
   Default-Sortierung auf ausgeblendete Spalte → trotzdem danach sortiert. **Regression:** Bildschirm-Sortierung (Klick,
   Default, Gruppen, Kombigeräte-Variantentabelle bleibt gefüllt) unverändert.
+- **TS-86.17 — Nachbesserung QA (I-1, I-2, M-2).** (a) Lagerbewegungen exportieren → Spalte „Menge" ist enthalten.
+  (b) Artikelgruppen-Zuordnung → je Bestellgruppe eine Spalte mit „Ja"/„Nein" je Haken. (c) Lagerbestellung-Details im
+  Bearbeitungszustand, Spalte „Fehlteil-Status" → CSV zeigt die Beschriftung der gewählten Option („Fehlteil" bzw. „Wird
+  nicht nachgeliefert"), ohne Auswahl leer. (d) BDE-Buchungen → Datum/Uhrzeit als `dd.MM.yyyy HH:mm` ohne KW. (e) Negativ:
+  Eine sichtbare Spalte mit Überschrift, die nicht zuordenbar ist (nur durch Fehlkonfiguration möglich, Wächter
+  `JedeUeberschriebeneSpalte_HatEinenSchluessel`), bricht mit roter Meldung „Die Spalte … ist nicht zuordenbar" ab — keine
+  Datei. (f) Beschichtungsauftrag-Detail im Entwurf → keine Spalte „Entfernen" im CSV.
 - **TS-86.16 — Regression AKE (AK 11).** Listen in Darstellung, Filter, Sortierung, Spaltenauswahl und Druck unverändert;
   Zahnrad am alten Platz, CSV-Knopf daneben.
 
