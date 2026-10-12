@@ -43,6 +43,15 @@ public class BeschichtungsauftragRepository : IBeschichtungsauftragRepository
             .ToList();
     }
 
+    public Task<Beschichtungsauftrag?> GetDetailAsync(int id) =>
+        _db.Beschichtungsauftraege
+            .AsNoTracking()
+            .Include(a => a.Positionen)
+            .Include(a => a.Ursprungsauftrag)
+            .Include(a => a.Folgeauftraege)
+            .AsSplitQuery()
+            .FirstOrDefaultAsync(a => a.Id == id);
+
     public Task<List<Beschichtungsauftrag>> GetAlleAsync() =>
         _db.Beschichtungsauftraege
             .AsNoTracking()

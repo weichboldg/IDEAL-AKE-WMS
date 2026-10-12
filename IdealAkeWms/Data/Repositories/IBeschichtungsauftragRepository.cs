@@ -41,6 +41,9 @@ public interface IBeschichtungsauftragRepository
     /// Ursprung/Folgeauftraege fuer die Verweise.</summary>
     Task<List<Beschichtungsauftrag>> GetAlleAsync();
 
+    /// <summary>Ein Auftrag ungetrackt mit Positionen, Ursprung und Folgeauftraegen (Detail, Reklamationsauswahl, Druck).</summary>
+    Task<Beschichtungsauftrag?> GetDetailAsync(int id);
+
     void Add(Beschichtungsauftrag auftrag);
     void Remove(BeschichtungsauftragPosition position);
 

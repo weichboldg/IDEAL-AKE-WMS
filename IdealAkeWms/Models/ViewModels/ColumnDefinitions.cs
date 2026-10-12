@@ -489,6 +489,54 @@ public static class ColumnDefinitions
         ]
     };
 
+    /// <summary>
+    /// Beschichtungsauftraege/Index.cshtml (Spec 2026-10-06-beschichtungsauftrag-ausbau-teil-4, Anforderung 3): Liste der
+    /// gespeicherten Auftraege, Server-Spaltenfilter, Pagination. nummer Locked. Spalten identisch zum inline
+    /// #column-config JSON der View (Drift-Waechter BeschichtungsauftraegeViewTests).
+    /// </summary>
+    public static readonly ViewConfig Beschichtungsauftraege = new(
+        "Beschichtungsauftraege", "Beschichtungsaufträge (IDEAL)",
+        SupportsReorder: true, SupportsSortDefault: false)
+    {
+        Columns =
+        [
+            new ColumnDef("nummer",        "Nummer",            Locked: true),
+            new ColumnDef("hauptfa",       "HauptFA",           Locked: false),
+            new ColumnDef("status",        "Status",            Locked: false),
+            new ColumnDef("dienstleister", "Dienstleister",     Locked: false),
+            new ColumnDef("ral",           "RAL",               Locked: false),
+            new ColumnDef("start",         "Start",             Locked: false, DefaultWidth: 90),
+            new ColumnDef("retour",        "Retour",            Locked: false, DefaultWidth: 90),
+            new ColumnDef("positionen",    "Positionen",        Locked: false, DefaultWidth: 55),
+            new ColumnDef("ursprung",      "Ursprungsauftrag",  Locked: false),
+            new ColumnDef("reklamiert",    "Reklamiert",        Locked: false),
+            new ColumnDef("angelegtam",    "Angelegt am",       Locked: false),
+            new ColumnDef("angelegtvon",   "Angelegt von",      Locked: false),
+        ]
+    };
+
+    /// <summary>
+    /// Positionstabelle in Beschichtungsauftraege/Details.cshtml (Teil 4): klein, unpaginiert, auf einen Auftrag
+    /// vorgefiltert ⇒ Client-Spaltenfilter (ADR-0005-Ausnahme). Dieselben Keys bestimmen die Druckspalten des Auftrags
+    /// (PrintVisibleColumns). artnr Locked.
+    /// </summary>
+    public static readonly ViewConfig BeschichtungsauftragPositionen = new(
+        "BeschichtungsauftragPositionen", "Beschichtungsauftrag — Positionen (IDEAL)",
+        SupportsReorder: true, SupportsSortDefault: false)
+    {
+        Columns =
+        [
+            new ColumnDef("herkunft",   "Vater / SubFA / Pos.", Locked: false),
+            new ColumnDef("hauptartnr", "Haupt-Artnr.",         Locked: false),
+            new ColumnDef("artnr",      "Artnr.",               Locked: true),
+            new ColumnDef("matchcode",  "Matchcode",            Locked: false),
+            new ColumnDef("breite",     "Breite",               Locked: false, DefaultWidth: 55),
+            new ColumnDef("hoehe",      "Höhe",                 Locked: false, DefaultWidth: 55),
+            new ColumnDef("tiefe",      "Tiefe",                Locked: false, DefaultWidth: 55),
+            new ColumnDef("menge",      "Menge",                Locked: false, DefaultWidth: 70),
+        ]
+    };
+
     public static ViewConfig? GetByViewKey(string viewKey) => viewKey switch
     {
         "ProductionOrders" => ProductionOrders,
@@ -507,6 +555,8 @@ public static class ColumnDefinitions
         "FaHierarchyVormontageEinzeln"   => FaHierarchyVormontageEinzeln,
         "FaHierarchyVormontageSummiert"  => FaHierarchyVormontageSummiert,
         "FaHierarchyStructure"           => FaHierarchyStructure,
+        "Beschichtungsauftraege"         => Beschichtungsauftraege,
+        "BeschichtungsauftragPositionen" => BeschichtungsauftragPositionen,
         _                  => null
     };
 }

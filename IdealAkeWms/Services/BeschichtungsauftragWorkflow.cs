@@ -487,7 +487,11 @@ public class BeschichtungsauftragWorkflow
 
     private static string? Leer(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
 
-    private static string Anzeige(BeschichtungsauftragStatus s) => s switch
+    /// <summary>Erlaubter Statuswechsel? (Teil 4 zeigt nur diese Knoepfe; der Workflow prueft ohnehin.)</summary>
+    public static bool IstErlaubt(BeschichtungsauftragStatus von, BeschichtungsauftragStatus nach) => ErlaubteUebergaenge.Contains((von, nach));
+
+    /// <summary>Anzeigetext eines Status (Umlaut statt Enum-Name).</summary>
+    public static string Anzeige(BeschichtungsauftragStatus s) => s switch
     {
         BeschichtungsauftragStatus.Uebergeben => "Übergeben",
         _ => s.ToString(),

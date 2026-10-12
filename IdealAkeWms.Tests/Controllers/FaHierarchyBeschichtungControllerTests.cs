@@ -37,6 +37,7 @@ public class FaHierarchyBeschichtungControllerTests
         public Mock<ICurrentUserService> User { get; } = new();
         public Mock<IRazorViewRenderer> ViewRenderer { get; } = new();
         public Mock<IPdfRenderService> PdfRenderService { get; } = new();
+        public Mock<IBeschichtungsauftragRepository> Vergaben { get; } = new();
         public FaHierarchyBeschichtungController Controller { get; }
 
         public Fixture(IEnumerable<FaHierarchyNode> nodes, string? queryString = null)
@@ -55,9 +56,10 @@ public class FaHierarchyBeschichtungControllerTests
             barcode.Setup(b => b.EncodeCode128Base64(It.IsAny<string>())).Returns("barcode");
             var pdfStatus = new PdfRenderStatus(new ConfigurationBuilder().Build(), NullLogger<PdfRenderStatus>.Instance);
 
+            Vergaben.Setup(r => r.GetVergabenAsync(It.IsAny<IReadOnlyCollection<int>>())).ReturnsAsync(new List<Vergabe>());
             Controller = new FaHierarchyBeschichtungController(
                 service, barcode.Object, User.Object, ViewRenderer.Object, PdfRenderService.Object,
-                pdfStatus, ViewPrefs.Object);
+                pdfStatus, ViewPrefs.Object, new BeschichtungsauftragVergabeAnzeige(Vergaben.Object, nodeRepo.Object));
 
             var httpContext = new DefaultHttpContext();
             if (!string.IsNullOrEmpty(queryString))
@@ -78,6 +80,33 @@ public class FaHierarchyBeschichtungControllerTests
         var vm = ((ViewResult)result).Model.Should().BeOfType<FaHierarchyBeschichtungSummiertViewModel>().Subject;
         vm.Pagination.TotalCount.Should().Be(2);
         vm.Rows.Should().HaveCount(3);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Summiert_Und_Index_TragenVergabeUndSchreibrecht(bool darfSchreiben)
+    {
+        // Teil 4 (AK 2, Review-Fokus 4): Nummern auch ohne Schreibrecht sichtbar, Button nur mit Schreibrecht (View).
+        var vergeben = Node(100, "A1");
+        vergeben.Position = 1;
+        var frei = Node(100, "A2");
+        frei.Position = 2;
+        var fx = new Fixture(new[] { vergeben, frei, Node(200, "A1") });
+        fx.User.Setup(x => x.HasBeschichtungsauftragWriteAccessAsync()).ReturnsAsync(darfSchreiben);
+        fx.Vergaben.Setup(r => r.GetVergabenAsync(It.IsAny<IReadOnlyCollection<int>>()))
+            .ReturnsAsync(new List<Vergabe> { new(PositionsSchluessel.Von(vergeben), 5, "BA-2026-00005", 100) });
+
+        var summiert = (FaHierarchyBeschichtungSummiertViewModel)((ViewResult)await fx.Controller.Summiert(page: 1, pageSize: 100)).Model!;
+        var index = (FaHierarchyBeschichtungListViewModel)((ViewResult)await fx.Controller.Index(page: 1, pageSize: 100)).Model!;
+
+        foreach (var (vergaben, darf) in new[] { (summiert.Vergaben, summiert.DarfSchreiben), (index.Vergaben, index.DarfSchreiben) })
+        {
+            darf.Should().Be(darfSchreiben);
+            vergaben[100].Auftraege.Should().Equal((5, "BA-2026-00005"));
+            vergaben[100].FreiePositionen.Should().Be(1);
+            vergaben[200].Auftraege.Should().BeEmpty();
+        }
     }
 
     [Fact]

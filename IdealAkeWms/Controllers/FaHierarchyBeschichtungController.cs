@@ -36,6 +36,7 @@ public class FaHierarchyBeschichtungController : Controller
     private readonly IPdfRenderService _pdfRenderService;
     private readonly PdfRenderStatus _pdfRenderStatus;
     private readonly IUserViewPreferenceRepository _viewPrefs;
+    private readonly BeschichtungsauftragVergabeAnzeige _vergaben;
 
     public FaHierarchyBeschichtungController(
         BeschichtungsauftragService service,
@@ -44,7 +45,8 @@ public class FaHierarchyBeschichtungController : Controller
         IRazorViewRenderer viewRenderer,
         IPdfRenderService pdfRenderService,
         PdfRenderStatus pdfRenderStatus,
-        IUserViewPreferenceRepository viewPrefs)
+        IUserViewPreferenceRepository viewPrefs,
+        BeschichtungsauftragVergabeAnzeige vergaben)
     {
         _service = service;
         _barcode = barcode;
@@ -53,6 +55,7 @@ public class FaHierarchyBeschichtungController : Controller
         _pdfRenderService = pdfRenderService;
         _pdfRenderStatus = pdfRenderStatus;
         _viewPrefs = viewPrefs;
+        _vergaben = vergaben;
     }
 
     /// <summary>Bildschirmliste: gruppiert nach HauptFA, Gruppen-Paging, Server-Spaltenfilter.</summary>
@@ -71,6 +74,8 @@ public class FaHierarchyBeschichtungController : Controller
         {
             Groups = result.Groups,
             PdfVerfuegbar = _pdfRenderStatus.IsAvailable,
+            Vergaben = await _vergaben.ErmittelnAsync(result.Groups.Select(g => g.HauptFA).ToList()),
+            DarfSchreiben = await _currentUserService.HasBeschichtungsauftragWriteAccessAsync(),
             Pagination = new PaginationState
             {
                 CurrentPage = page,
@@ -160,6 +165,8 @@ public class FaHierarchyBeschichtungController : Controller
             Rows = result.Rows,
             OrderInfos = result.OrderInfos,
             PdfVerfuegbar = _pdfRenderStatus.IsAvailable,
+            Vergaben = await _vergaben.ErmittelnAsync(result.Rows.Select(r => r.HauptFA).Distinct().ToList()),
+            DarfSchreiben = await _currentUserService.HasBeschichtungsauftragWriteAccessAsync(),
             Pagination = new PaginationState
             {
                 CurrentPage = page,

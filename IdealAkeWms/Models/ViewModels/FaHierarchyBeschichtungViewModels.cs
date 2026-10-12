@@ -19,6 +19,13 @@ public class FaHierarchyBeschichtungListViewModel
     /// <summary>Edge beim Start gefunden (<see cref="Services.PdfRenderStatus"/>): nur dann erscheint der
     /// PDF-Knopf an der Gruppen-Kopfzeile (Freigabe-Antwort 2).</summary>
     public bool PdfVerfuegbar { get; init; }
+
+    /// <summary>Vergabe-Stand je HauptFA der Seite (Teil 4): Auftragsnummern, freie Positionen, Nummern je Position.</summary>
+    public IReadOnlyDictionary<int, Services.BeschichtungsauftragVergabeInfo> Vergaben { get; init; } =
+        new Dictionary<int, Services.BeschichtungsauftragVergabeInfo>();
+
+    /// <summary>Schreibrecht (Rolle beschichtungsauftrag_schreiben): nur dann erscheint „Aus Vorschlagsliste erstellen".</summary>
+    public bool DarfSchreiben { get; init; }
 }
 
 /// <summary>
@@ -82,6 +89,13 @@ public class FaHierarchyBeschichtungSummiertViewModel
         new Dictionary<int, List<FaHierarchyOrderInfo>>();
     public PaginationState Pagination { get; init; } = new();
     public bool PdfVerfuegbar { get; init; }
+
+    /// <summary>Vergabe-Stand je HauptFA der Seite (Teil 4): Auftragsnummern, freie Positionen, Nummern je Position.</summary>
+    public IReadOnlyDictionary<int, Services.BeschichtungsauftragVergabeInfo> Vergaben { get; init; } =
+        new Dictionary<int, Services.BeschichtungsauftragVergabeInfo>();
+
+    /// <summary>Schreibrecht (Rolle beschichtungsauftrag_schreiben): nur dann erscheint „Aus Vorschlagsliste erstellen".</summary>
+    public bool DarfSchreiben { get; init; }
 }
 
 /// <summary>Druck-ViewModel der Summiert-Ansicht: ganze gefilterte Menge, ein Ausdruck je HauptFA.</summary>
