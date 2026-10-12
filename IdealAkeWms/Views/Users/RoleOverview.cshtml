@@ -198,6 +198,19 @@
                         <li>Beschichtungsauftrag (<code>/FaHierarchyBeschichtung</code>): Liste aller beschichteten Positionen (<code>Beschichtet == true</code>, alle Ebenen), gruppiert nach HauptFA; Standard ist seit v1.48.0 die summierte Sicht (<code>/FaHierarchyBeschichtung/Summiert</code>, je HauptFA + Artnr), gleiche Rolle und gleicher Schalter</li>
                         <li>Bildschirmdruck je HauptFA (Dienstleister/RAL/Termine im Kopf)</li>
                         <li>Sichtbar nur wenn AppSetting <code>FaHierarchyBeschichtungAktiv</code> aktiv ist (Filter <code>RequireFaHierarchyBeschichtungAktiv</code>, invertierte Default-aus-Semantik)</li>
+                        <li>Seit v1.51.0 zusaetzlich Lesen von <code>/Beschichtungsauftraege</code>: Liste, Detail, Druck und PDF der gespeicherten Auftraege (keine Schreib-Knoepfe)</li>
+                    </ul>
+                </td>
+            </tr>
+            <tr>
+                <td><code>beschichtungsauftrag_schreiben</code></td>
+                <td>Beschichtungsaufträge (Schreibrecht)</td>
+                <td>Beschichtungsauftrag-Ausbau Teil 4 (v1.51.0): gespeicherte Beschichtungsauftraege anlegen und bearbeiten. Schliesst das Lesen der Rolle <code>beschichtungsauftrag</code> ein.</td>
+                <td>
+                    <ul class="mb-0 small">
+                        <li>&bdquo;Aus Vorschlagsliste erstellen&ldquo; in <code>/FaHierarchyBeschichtung</code> (Liste und Summiert)</li>
+                        <li><code>/Beschichtungsauftraege</code>: Entwurf bearbeiten, Positionen hinzufuegen, Bemerkung, Statuswechsel, Reklamation (Action-Filter <code>RequireBeschichtungsauftragWriteAccess</code>)</li>
+                        <li>Gleicher Schalter <code>FaHierarchyBeschichtungAktiv</code> wie die Leserolle</li>
                     </ul>
                 </td>
             </tr>

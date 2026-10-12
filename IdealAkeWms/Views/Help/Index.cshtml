@@ -507,6 +507,36 @@
                         </ul>
                     </dd>
 
+                    <dt>IDEAL: Beschichtungsaufträge (seit v1.51.0)</dt>
+                    <dd>
+                        Aus der Vorschlagsliste wird ein gespeicherter <strong>Beschichtungsauftrag</strong> mit Nummer
+                        <code>BA-Jahr-laufende Nummer</code>. Ablauf: <em>Entwurf &rarr; Übergeben &rarr; Erledigt</em>,
+                        Storno nur im Entwurf (gibt die Positionen wieder frei).
+                        <ul class="mt-1 mb-1">
+                            <li><strong>Anlegen:</strong> Vorschlagsliste &rarr; Knopf &bdquo;Aus Vorschlagsliste
+                                erstellen&ldquo; am HauptFA. Uebernommen werden alle freien beschichteten Positionen. Sind schon
+                                Positionen in einem Auftrag, steht dessen Nummer im Gruppenkopf; der Knopf erscheint nur, solange
+                                noch Positionen frei sind. Eine vergebene Position kommt nur ueber eine Reklamation erneut in
+                                einen Auftrag.</li>
+                            <li><strong>Entwurf:</strong> Dienstleister (vorbelegt aus Sage, Freitext), RAL, Start, Retour und
+                                Mengen aendern, Positionen entfernen (Haken &bdquo;Entfernen&ldquo;) und mit &bdquo;Entwurf
+                                speichern&ldquo; sichern. Unter &bdquo;Positionen hinzufuegen&ldquo; stehen die freien Positionen
+                                des HauptFA. Weicht der Dienstleister von Sage ab, steht der Sage-Wert darunter.</li>
+                            <li><strong>Übergeben:</strong> nur mit Dienstleister. Danach sind nur noch Status und Bemerkung
+                                aenderbar; Druck und PDF (Briefkopf, Positionen je Artikel summiert, Barcode = Auftragsnummer)
+                                gibt es ab hier.</li>
+                            <li><strong>Reklamation:</strong> an einem erledigten Auftrag Teile waehlen (nichts ist
+                                vorausgewaehlt). Der Folgeauftrag startet als Entwurf mit Dienstleister, RAL und Terminen des
+                                Ursprungs; im Entwurf lassen sich weitere Ursprungspositionen hinzufuegen. Der Ursprung zeigt
+                                &bdquo;Reklamiert &rarr; BA-&hellip;&ldquo;.</li>
+                            <li><strong>Gleichzeitig bearbeitet:</strong> Hat jemand den Auftrag inzwischen geaendert, wird
+                                nichts gespeichert und eine Meldung bittet, die Seite neu zu laden.</li>
+                            <li><strong>Rechte:</strong> Lesen und Drucken mit Rolle <code>beschichtungsauftrag</code>; Anlegen,
+                                Bearbeiten, Status und Reklamation nur mit <code>beschichtungsauftrag_schreiben</code>. Ohne den
+                                Schalter <code>FaHierarchyBeschichtungAktiv</code> ist alles ausgeblendet.</li>
+                        </ul>
+                    </dd>
+
                     <dt>Matchcode am Artikel (seit v1.40.0)</dt>
                     <dd>
                         Jeder Artikel hat jetzt einen <strong>Matchcode</strong> (Kurzbezeichnung

@@ -9,6 +9,31 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.51.0</strong> <span class="text-white-50 ms-2">12.10.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>IDEAL: Beschichtungsauftraege anlegen, bearbeiten, uebergeben und drucken</h6>
+                <ul>
+                    <li>In der Vorschlagsliste (Menue <em>Beschichtungsauftrag</em>, Liste und Summiert) steht je HauptFA der
+                        Knopf <strong>&bdquo;Aus Vorschlagsliste erstellen&ldquo;</strong>. Er legt einen Auftrag im Entwurf mit
+                        allen freien beschichteten Positionen an. Bereits vergebene Positionen zeigen die Auftragsnummer;
+                        in der Liste traegt jede Position ein Kennzeichen &bdquo;in BA-&hellip;&ldquo;.</li>
+                    <li>Neuer Menuepunkt <strong>Beschichtungsaufträge</strong>: Liste mit Statusfilter, Detail mit
+                        Statusverlauf. Im Entwurf sind Dienstleister, RAL, Termine und Mengen aenderbar, Positionen lassen
+                        sich entfernen und wieder hinzufuegen. Danach nur noch Status und Bemerkung.</li>
+                    <li>Uebergeben geht nur mit Dienstleister. Ab &bdquo;Übergeben&ldquo; gibt es Druck und PDF mit
+                        Briefkopf: Empfaenger ist der Dienstleister des Auftrags, Positionen je Artikel summiert, Barcode
+                        = Auftragsnummer.</li>
+                    <li>An erledigten Auftraegen legt <strong>Reklamation</strong> einen Folgeauftrag mit den gewaehlten
+                        Teilen an (Kopf vom Ursprung, im Entwurf aenderbar).</li>
+                    <li>Anlegen und Bearbeiten brauchen die neue Rolle <code>beschichtungsauftrag_schreiben</code>; die
+                        bisherige Rolle <code>beschichtungsauftrag</code> darf weiterhin nur lesen und drucken.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.50.0</strong> <span class="text-white-50 ms-2">12.10.2026</span>
             </div>
             <div class="card-body">

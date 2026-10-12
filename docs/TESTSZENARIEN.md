@@ -9439,8 +9439,88 @@ FreshInstall). Nicht InMemory-testbar und deshalb hier: SQL-Skript, RowVersion-K
 - **TS-83.7 — Regression (AK 12).** Beschichtungsauftrag Liste/Summiert, Druck und PDF (TS-60, TS-74, TS-81, TS-82)
   unverändert; kein neuer Menüpunkt.
 
+## TS-84 — IDEAL: Beschichtungsaufträge bedienen — Vorschlagsliste, Detail, Reklamation, Druck (v1.51.0)
+
+Spec: `2026-10-06-beschichtungsauftrag-ausbau-teil-4-spec`. Manual-UAT am **IDEAL-Testsystem** mit produktivnahen
+beschichteten Positionen (Vorbedingung wie TS-60), Schalter `FaHierarchyBeschichtungAktiv = true`, Teil-3-Tabellen
+angelegt (TS-83.3). **Es entstehen echte Aufträge mit fortlaufender Nummer** — Testaufträge am Ende stornieren.
+Benutzer: **S** mit Rolle `beschichtungsauftrag_schreiben` (neu, im Deploy anlegen und zuweisen), **L** nur mit
+`beschichtungsauftrag`. Automatisiert: `BeschichtungsauftraegeControllerTests` (echter Teil-3-Workflow auf InMemory:
+Anlegen, Bearbeiten inkl. leerer/ungültiger Daten und Mengen mit Komma/Punkt, veraltete RowVersion, dieselbe freie
+Position in zwei Entwürfe, ungültiger Positionsschlüssel, Dienstleister-Pflicht, Reklamation nur aus Erledigt,
+Druck nur ab Übergeben, PDF-Fehler, Liste mit Status-/Spaltenfilter, Schreibfilter an jeder schreibenden Action),
+`BeschichtungsauftragVergabeAnzeigeTests`, `BeschichtungsauftraegeViewTests` (Spaltenquellen, Zahnrad-Host, Briefkopf),
+`CurrentUserServiceRoleTests`, `RequireBeschichtungsauftragWriteAccessFilterTests`.
+
+- **TS-84.1 — Anlegen aus der Vorschlagsliste (AK 1, 2).** S öffnet *Beschichtungsauftrag* (Summiert), wählt einen
+  HauptFA ohne Auftrag → im Gruppenkopf **„Aus Vorschlagsliste erstellen"** klicken. **Erwartet:** Detail des neuen
+  Auftrags, grüne Meldung mit Nummer `BA-JJJJ-NNNNN` und Positionsanzahl, Status *Entwurf*, alle beschichteten
+  Positionen des HauptFA, Dienstleister = Sage-Wert. Zurück in der Vorschlagsliste: Gruppenkopf zeigt „Aufträge: BA-…"
+  als Link, **kein** Knopf mehr; in der Liste (Einzelpositionen) trägt jede Position in der Spalte *Beschichtet* „in BA-…".
+  Spaltenfilter *Beschichtet* = „Ja" findet die Zeilen weiterhin.
+- **TS-84.2 — Teilvergabe (AK 2a).** Im Entwurf aus TS-84.1 eine Position per Haken *Entfernen* + „Entwurf speichern"
+  entfernen. **Erwartet:** Vorschlagsliste zeigt Nummer **und** Knopf mit „(1 Positionen frei)"; Klick legt einen zweiten
+  Auftrag nur mit dieser Position an, gelbe Meldung „… Positionen bereits in BA-… vergeben, nicht übernommen".
+- **TS-84.3 — Doppelvergabe/manipuliert (AK 2).** Knopf in einem zweiten Browser-Tab (Seite vor TS-84.1 geladen) erneut
+  absenden. **Erwartet:** zurück in der Vorschlagsliste, gelbe Sammelmeldung „Alle … Positionen … bereits vergeben" mit
+  Positionen und Auftragsnummer; kein neuer Auftrag.
+- **TS-84.4 — Entwurf bearbeiten (Anforderung 4, AK 6).** Dienstleister überschreiben, RAL ändern, Start leeren, Retour
+  setzen, eine Menge auf `2,5` und eine auf `3.25` setzen, speichern. **Erwartet:** „Entwurf gespeichert", Werte wie
+  eingegeben (Mengen 2,5 und 3,25), leeres Datum bleibt leer; unter dem Dienstleister „Sage (PPS-View): …". Negativ:
+  Menge `abc` → gelbe Meldung, **nichts** gespeichert.
+- **TS-84.5 — Positionen hinzufügen, Erst-Entwurf (AK 6c).** Im Entwurf eine Position entfernen → sie erscheint unter
+  **„Positionen hinzufügen"** (nichts angehakt) → anhaken, „Ausgewählte hinzufügen" → wieder im Auftrag mit Sollmenge,
+  grüne Meldung mit Anzahl. Ohne freie Position steht „Keine freien beschichteten Positionen für diesen HauptFA". Ohne
+  Haken absenden → gelbe Meldung. Der zweite Auftrag aus TS-84.2 zeigt Positionen des ersten **nicht**.
+- **TS-84.6 — Dienstleister-Pflicht (AK 6b).** Dienstleister leeren, speichern (gelingt; gelber Hinweis „Dienstleister
+  fehlt — zum Übergeben erforderlich") → „Auf „Übergeben" setzen" → gelbe Meldung „Dienstleister fehlt …", Status bleibt
+  *Entwurf*, kein Druckknopf. Dienstleister eintragen, speichern → Übergeben gelingt.
+- **TS-84.7 — Nach Übergeben (AK 4, 6a, 7a).** Statusverlauf zeigt *Entwurf angelegt* und *Übergeben* mit Zeit + Benutzer,
+  *Erledigt* „ausstehend". Kopf und Positionen sind nur noch Text (keine Eingabefelder, kein „Positionen hinzufügen"),
+  Bemerkung bleibt speicherbar. Vorher, im Entwurf: **kein** Drucken/PDF; direkter Aufruf
+  `/Beschichtungsauftraege/Print/<id>` bzw. `/Beschichtungsauftraege/Pdf/<id>` → zurück auf das Detail mit „Im Entwurf
+  nicht druckbar — erst übergeben.".
+- **TS-84.8 — Druck und PDF (AK 7).** Übergebenen Auftrag drucken und als PDF laden. **Erwartet:** Briefkopf aus Teil 2,
+  Empfänger = Dienstleister **des Auftrags** (auch wenn in Sage ein anderer steht), Dokument „Beschichtungsauftrag BA-… —
+  HauptFA …", Barcode scannt als Auftragsnummer, Kopf mit RAL/Start/Retour/Bemerkung, Positionen **je Artnr summiert**
+  mit Maßen und Spalte *Positionen*, bei abweichenden Maßen „Maße uneinheitlich". PDF-Dateiname
+  `Beschichtungsauftrag_BA-…_JJJJMMTT-HHMM.pdf`. Eine im Detail per Zahnrad ausgeblendete Spalte (z. B. *Tiefe*) fehlt
+  auch im Druck. Ohne Edge auf dem Server fehlt der PDF-Knopf; ein PDF-Fehler meldet gelb und bleibt im Detail.
+- **TS-84.9 — Reklamation (AK 5, 5a, 5b).** Auftrag auf *Erledigt* setzen → **„Reklamation"** → Auswahl ohne Haken;
+  ohne Haken absenden → gelbe Meldung, kein Auftrag. Zwei Teile wählen → neuer Entwurf mit genau diesen Teilen,
+  Dienstleister/RAL/Start/Retour **wie der Ursprung** (Vorbedingung: im Ursprung vorher einen vom Sage-Wert abweichenden
+  Dienstleister eingetragen — der Folgeauftrag trägt diesen). Kopf im Folgeauftrag änderbar. Ursprung zeigt
+  „Reklamiert → BA-…", Folgeauftrag „Reklamation zu BA-…", beide verlinkt; die Liste zeigt beides in den Spalten
+  *Ursprungsauftrag*/*Reklamiert*. Negativ: in *Entwurf*/*Übergeben*/*Storniert* kein Knopf;
+  `/Beschichtungsauftraege/Reklamation/<id>` direkt → gelbe Meldung, zurück auf das Detail.
+- **TS-84.10 — Positionen im Reklamations-Entwurf (AK 6d).** Reklamation mit einer von drei Ursprungspositionen →
+  Bereich **„Positionen des Ursprungs BA-… hinzufügen"** zeigt genau die zwei anderen (Menge/Maße des Ursprungs), keine
+  freien HauptFA-Positionen → eine hinzufügen → verschwindet aus der Auswahl; alle hinzugefügt → „Alle Positionen des
+  Ursprungs sind bereits enthalten".
+- **TS-84.11 — Mehrfach-/Ketten-Reklamation (AK 5c).** Zweite Reklamation derselben Position, während die erste
+  *Übergeben* ist → gelingt, Ursprung zeigt beide. Erste Reklamation erledigen → deren „Reklamation" → Folgeauftrag mit
+  Verweis auf die Reklamation. Vorschlagsliste: Gruppenkopf nennt Ursprung und Reklamationen, der Anlege-Knopf übernimmt
+  diese Position nicht.
+- **TS-84.12 — Storno.** Entwurf → „Stornieren" (Rückfrage bestätigen) → Status *Storniert*, Verlauf zeigt Storno mit
+  Zeit + Benutzer, kein Druck; die Positionen sind in der Vorschlagsliste wieder frei (Knopf erscheint).
+- **TS-84.13 — Parallelität (AK 10, schließt TS-83.6 ab).** Zwei Browser (S), derselbe Entwurf: in A speichern, in B
+  (Seite vorher geladen) Status wechseln → B erhält „… wurde inzwischen von jemand anderem geändert — bitte neu laden",
+  nichts geändert. Zwei Entwürfe desselben HauptFA mit derselben freien Position in „Positionen hinzufügen": in A
+  hinzufügen, dann in B → B erhält Klartext („vergeben" bzw. „bitte erneut versuchen"), **keine** Fehlerseite. Zwei
+  Browser klicken gleichzeitig „Aus Vorschlagsliste erstellen" für denselben HauptFA → nur einer übernimmt die Positionen.
+- **TS-84.14 — Rechte und Schalter (AK 8, 9, 11).** L sieht Menüpunkt *Beschichtungsaufträge*, Liste, Detail, Druck,
+  PDF, aber **keine** Schreib-Knöpfe (kein „Aus Vorschlagsliste erstellen", keine Eingabefelder, keine Status-/
+  Reklamations-Knöpfe); ein direkter POST (z. B. per Entwickler-Werkzeug nachgebautes Formular) endet auf AccessDenied.
+  Benutzer ohne beide Rollen: kein Menüpunkt, `/Beschichtungsauftraege` → AccessDenied. Schalter aus → beide Menüpunkte
+  weg, alle Seiten gesperrt. `/Users/RoleOverview` listet `beschichtungsauftrag_schreiben`.
+- **TS-84.15 — Liste (AK 3).** `/Beschichtungsauftraege`: Statusfilter (Filterkarte), Spaltenfilter je Spalte inkl.
+  *Start*/*Retour* (Text `11.2026`) und *Status* (`übergeben`), Pagination bei > 25 Aufträgen, neueste zuerst; Zahnrad
+  blendet Spalten aus und merkt sie sich.
+- **TS-84.16 — Regression (AK 12).** Vorschlagsliste (Liste und Summiert), deren Druck und PDF (TS-60, TS-74, TS-81,
+  TS-82) unverändert bis auf Gruppenkopf und Badge; L sieht dort keinen Anlege-Knopf.
+
 ---
 
 *Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) + Teil 6 (Standorteinstellungen, v1.34.0) + BOM-Guard hierarchisch (2026-08-18, abgelöst) + FA-Liste-Hierarchie (v1.35.0) + BOM-Bridge (v1.36.0) + Materialisierung fachliche Felder K1/K2 (v1.37.0) + Skopierung der Tabellen-Selektoren (TS-72) + FA-Liste ausgebaut: Matchcode, Kopfdaten je Zeile, HauptFA-Zeile, Freigabe-Kaskade (v1.38.0, TS-73) + PDF-Erzeugung für FaHierarchy-Druckdokumente (v1.39.0, TS-74) + Matchcode im Artikelstamm (v1.40.0, TS-75) + FA-Arbeitsgang-Erkennung aus der Struktur (v1.41.0, TS-76, ersetzt durch TS-77) + Arbeitsgänge (WorkOperation) aus der Struktur + Werkbank-Anlage aus Sage (v1.44.0, TS-77) + Arbeitsgänge je (Sub-)FA im FA-Struktur-Modal (v1.45.0, TS-78) + Kommissionierung nur am HauptFA
-(v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80) + Beschichtungsauftrag Summiert als Standard (v1.48.0, TS-81) + Briefkopf Beschichtungsauftrag (v1.49.0, TS-82) + Beschichtungsauftrag als eigenes Objekt (v1.50.0, TS-83)*
+(v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80) + Beschichtungsauftrag Summiert als Standard (v1.48.0, TS-81) + Briefkopf Beschichtungsauftrag (v1.49.0, TS-82) + Beschichtungsauftrag als eigenes Objekt (v1.50.0, TS-83) + Beschichtungsaufträge bedienen (v1.51.0, TS-84)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*
