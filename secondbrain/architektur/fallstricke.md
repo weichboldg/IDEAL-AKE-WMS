@@ -1297,3 +1297,26 @@ Treffer). Das Model-Binding parst `decimal` deshalb mit der Kultur des Servers (
 `CultureInfo.InvariantCulture`), Muster `BeschichtungsauftraegeController.TryMenge`; Anzeige ohne Tausenderpunkt
 (`0.###`), sonst wird „1.000,5" falsch gelesen. Bestehende Formulare mit `asp-for` auf `decimal` (z. B.
 `StockMovements/*`, `Articles/*`) hängen an der Server-Kultur — nicht geprüft, offener Befund der Teil-4-Spec.
+
+## 23. CSV-Export und Agenten-Werkzeuge (v1.53.0)
+
+### Jede Tabellenspalte mit Überschrift braucht `data-col-key`
+Der CSV-Export ordnet im Server-Mode die Zellen der nachgeladenen Gesamtliste über `data-col-key` den sichtbaren Spalten zu.
+Eine Spalte mit Überschrift ohne Key ist nicht zuordenbar — bis zum QA-Fund 2026-10-12 fiel sie still weg (Lagerbewegungen
+ohne „Menge", Artikelgruppen-Zuordnung ohne Gruppen-Spalten); jetzt bricht der Export mit Meldung ab.
+**Regel:** neue `<th>` mit Text in einer `filterable-table` immer mit `data-col-key`; reine Aktions-/Haken-Spalten ohne Text
+oder mit `data-csv-export="false"`. Wächter `CsvExportCoverageTests.JedeUeberschriebeneSpalte_HatEinenSchluessel`.
+
+### Eine Listen-Action darf im GET-Pfad nichts schreiben
+Der Export ruft sie ein zweites Mal mit `pageSize=0` (ADR 0005, Nachtrag 2026-10-12). Prüfung aller 37 Actions: sauber.
+Neue Listen: kein Zähler-/„zuletzt gesehen"-/Materialisierungs-Schreiben in `Index`.
+
+### Datei-Schreibwerkzeug der Agenten löst `\uXXXX` auf
+Beim Schreiben von JS/C# mit dem Write-Werkzeug wurde `'\uFEFF'` zu einem **unsichtbaren** BOM-Zeichen im Quelltext (ebenso
+`\u00a0`). Funktioniert, verschwindet aber beim nächsten Editor, der Steuerzeichen bereinigt. **Regel:** nach dem Schreiben
+byte-genau prüfen (`EF BB BF`, `C2 A0` zählen) und als sichtbares Escape einsetzen; Backslash im Skript über `chr(92)` bauen,
+nicht über Heredoc-Escapes.
+
+### Razor: `@` im Hilfetext ist Code
+`<code>@</code>` bricht den Build (RZ1005) — `@@` schreiben. Eine Befehlskette `build | grep Fehler && commit` committet
+trotzdem, weil `grep` die Fehlerzeile findet: vor dem Commit auf „0 Fehler" prüfen (Zwischen-Commit `400a7520`).

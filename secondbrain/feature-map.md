@@ -715,6 +715,19 @@ Spec [[2026-10-06-fa-struktur-arbeitsgaenge-symbole-teil-1-spec]] (Teil 1 von 3)
 > **Deploy:** nur Web, keine Migration. **Status:** Testbereit (QA 2026-10-12, Build + 1636 Web- + 272 Service-Tests grün)
 > → Schranke 2 mit dem Bündel. Status-Farben folgen mit Teil 2, BDE-Anzeige mit Teil 3.
 
+### CSV-Export für alle Tabellen (v1.53.0, direkt im Bündel)
+
+Spec [[2026-10-06-csv-export-alle-tabellen-spec]], Umsetzung [[2026-10-12-csv-export-alle-tabellen-umsetzung]], Changelog
+[[2026-10-12-v1-53-0-csv-export-alle-tabellen]].
+
+| Baustein | Stand | Code-Einstieg |
+|---|---|---|
+| Layout-Skript, Sortiervergleich, Pagination-/Stücklisten-Attribute, Wächter + Node-Kern | **erledigt** `2e6752a1`, QA-Fix `9ad794b1` | `wwwroot/js/csv-export.js`, `table-filter.js` `tableFilterCompareValues` |
+| v1.53.0, Changelog, Hilfe, TS-86 | **erledigt** `400a7520`, `b43edb25`, `87db96c8` | `docs/TESTSZENARIEN.md` TS-86 |
+
+> **Deploy:** nur Web, keine Migration. **Status:** Testbereit (QA + Nachlauf 2026-10-12, Build + 1767 Web- + 272
+> Service-Tests grün) → Schranke 2 mit dem Bündel.
+
 ## Offen / nicht gemerged
 
 | Vorhaben | Status | Quelle |

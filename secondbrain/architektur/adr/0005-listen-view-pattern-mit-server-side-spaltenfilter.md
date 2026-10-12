@@ -106,3 +106,15 @@ und die `viewKey` (`FaHierarchyKommissionierListen`, `FaHierarchyBeschichtung`,
 die Baumanzeige) in `ColumnDefinitions.GetByViewKey` registriert. Details der beiden Fallstricke
 (Registrierungspflicht + der bis `37e8752` nur das erste `<tbody>` sortierende Sort-Bug in
 `table-filter.js`) stehen in [[fallstricke]].
+
+## Nachtrag 2026-10-12 — CSV-Export ([[2026-10-06-csv-export-alle-tabellen-spec]], v1.53.0)
+
+Jede Tabelle mit `filterable-table` bekommt den CSV-Export **automatisch** über das Layout-Skript `csv-export.js`
+(Opt-out `data-csv-export="false"`). Server-Mode: dieselbe Action ein zweites Mal per GET mit `pageSize=0` (gleiche Rechte,
+Gates, Filter; Kappung `PageSize.AllCap` mit sichtbarer Warnung). Folgen für dieses Muster:
+- Eine paginierte Liste **muss** Server-Mode sein, sonst exportierte sie nur die aktuelle Seite (Wächter
+  `CsvExportCoverageTests.PaginierteTabelle_IstServerMode`).
+- Eine Listen-Action darf im GET-Pfad **nichts schreiben** — der Export ruft sie ein zweites Mal auf (Prüfung 2026-10-12:
+  alle 37 Actions ohne Schreibzugriff).
+- Der Exportwert ist der gerenderte Zellentext (wie die ColumnMap-Regel); wo das nicht reicht, setzt die Zelle `data-csv-value`.
+- Spaltenüberschriften ohne Text (Aktionen, Auswahlhaken) werden nicht exportiert.
