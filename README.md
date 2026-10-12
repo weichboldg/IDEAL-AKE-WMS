@@ -410,7 +410,7 @@ Bei Änderungen der Tabellenstruktur müssen diese Scripts angepasst werden.
 | `WindowsAuthBerechtigungsgruppe` | (leer) | AD-Gruppe (SAM) für den AD-Benutzer-Picker (v1.23.0) |
 | `FaHierarchyMaxTiefe` | `500` | IDEAL FA-Baumanzeige: Tiefen-Cap (Reissleine) je Struktur (Teil 2) |
 | `FaHierarchyKommissionierlistenAktiv` | `false` | Feature-Schalter IDEAL-Kommissionierlisten (Teil 3) — nur exakt `true` aktiviert (Default aus) |
-| `FaHierarchyBeschichtungAktiv` | `false` | Feature-Schalter IDEAL-Beschichtungsauftrag (Teil 4) — nur exakt `true` aktiviert (Default aus). Kumuliert mit Rolle `beschichtungsauftrag` |
+| `FaHierarchyBeschichtungAktiv` | `false` | Feature-Schalter IDEAL-Beschichtungsauftrag (Teil 4) — nur exakt `true` aktiviert (Default aus). Kumuliert mit Rolle `beschichtungsauftrag` (Lesen) bzw. `beschichtungsauftrag_schreiben` (Aufträge anlegen/bearbeiten, ab v1.51.0; Rolle unter `/Roles` mit genau diesem Key anlegen) |
 | `BriefkopfVorlagePfad` | (leer) | Voller Pfad zur `briefkopf.html` der IT im Ordner `Branding\` (neben dem Publish-Ordner) — Briefkopf des IDEAL-Beschichtungsauftrags (v1.49.0). Leer/Datei fehlt ⇒ Ersatz-Kopf aus `Firmenname` + `Firmenanschrift`. Pflege: Standorteinstellungen → Firmendaten (nur Admin) |
 | `FaHierarchyVormontageAktiv` | `false` | Feature-Schalter IDEAL-Vormontage-Listen (Teil 5, zwei Sichten: Einzelne Teile + Summiert) — nur exakt `true` aktiviert (Default aus). Kumuliert mit Vorbau-Zugriff (`vorbau`, wie FA-Abarbeitungsliste) |
 
