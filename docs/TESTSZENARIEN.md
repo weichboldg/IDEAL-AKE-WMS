@@ -9519,8 +9519,50 @@ Druck nur ab Übergeben, PDF-Fehler, Liste mit Status-/Spaltenfilter, Schreibfil
 - **TS-84.16 — Regression (AK 12).** Vorschlagsliste (Liste und Summiert), deren Druck und PDF (TS-60, TS-74, TS-81,
   TS-82) unverändert bis auf Gruppenkopf und Badge; L sieht dort keinen Anlege-Knopf.
 
+## TS-85 — IDEAL: Arbeitsgänge als Symbole im FA-Struktur-Baum (Teil 1, v1.52.0)
+
+Spec: `2026-10-06-fa-struktur-arbeitsgaenge-symbole-teil-1-spec`. Reine Anzeige, keine Migration, kein Status.
+**Vorbedingungen:** IDEAL-Testsystem mit synchronisierter FA-Struktur (`FaHierarchyNodes` mit `Arbeitsschritte`),
+Werkbank-Katalog mit `ArbeitsschrittCode` (Seite Werkbänke), Benutzer mit Kommissionierung, Tracking oder Leitstand.
+Vorab **Prüfschritt P-K1 der Spec** (WMS-Abfrage, ob `Arbeitsschritte` der Sage-Spalte „Arbeitsschritte" entspricht) —
+Ergebnis notieren: ______. Automatisiert: `FaArbeitsschrittSymboleTests` (Tokenisierung wie die Struktur-Erkennung,
+Feld-Reihenfolge, leeres Feld, Ausschluss-/unbekannte Kürzel bleiben, Namens-Lookup getrimmt/case-insensitiv,
+mehrdeutig ohne Namen, je Zeile nur eigene Kürzel inkl. Blatt), `FaHierarchyStrukturSpaltenTests` (Kopf, Filterzeile,
+Knotenzeile, column-config, `ColumnDefinitions`, colspan, `data-f-operations`).
+
+- **TS-85.1 — Symbole sichtbar (AK 1, 2, 3).** `/FaHierarchy`, Struktur mit `KA`/`SW` in den Arbeitsschritten aufklappen.
+  **Erwartet:** Spalte *Arbeitsgänge* (rechts neben *Arbeitsbereich*) zeigt je Zeile die Kürzel als gleich aussehende
+  Umriss-Kästchen in Feld-Reihenfolge; Mauszeiger auf ein Kürzel zeigt „KA – <Werkbank-Name>". Keine Farbe, kein
+  Status-Zeichen.
+- **TS-85.2 — Abgleich mit Sage (AK 1, 13).** Struktur `KTZ-L3-76-5Z1T RAL` im WMS und in Sage „Fertigungsaufträge
+  bearbeiten" nebeneinander: je Zeile dieselben Kürzel (Stichproben A-BODEN `LS KA PG`, FR-4301-…-1530 `ZS`,
+  Mittelholmblende `VM`, Korpus-Gepunktet `BE`); Blattzeilen tragen ihre eigenen Kürzel; die Sub-FA-Zeile *nicht*
+  die Kürzel ihrer Kinder (Korpus-1320-660-760 nur `PG`); Wurzel ohne Kürzel → Strich.
+- **TS-85.3 — Ausschlussliste und unbekannte Kürzel (AK 12).** Zeile mit einem Kürzel der Ausschlussliste
+  (Service-Einstellung `Sync:ProductionWorkplaceSyncAusschlussliste`, z. B. `STO`) bzw. einem Kürzel ohne Werkbank
+  suchen (Prüfabfrage P-K2 b der Spec) → Kürzel erscheint wie jedes andere; Tooltip/Ansage nur das Kürzel, kein Name,
+  keine Fehlermeldung.
+- **TS-85.4 — Name per Tastatur/Screenreader (AK 2).** Mit Tab in die Zeile → jedes Kürzel bekommt einen sichtbaren
+  blauen Fokusrahmen; Screenreader (NVDA/Sprachausgabe) sagt „KA – <Name>". Touch-Terminal: Antippen löst keinen
+  Fehler aus (Namensanzeige beim Antippen kommt später).
+- **TS-85.5 — Viele Kürzel (AK 6).** Zeile mit ≥ 8 Kürzeln (oder Fenster schmal ziehen) → Kürzel brechen in der Zelle um,
+  keine waagrechte Scrollleiste der Zeile.
+- **TS-85.6 — Kontrast (AK 4).** Am Fertigungsterminal: Kürzeltext und Rahmen gut lesbar, auch in einer
+  mit der Maus überfahrenen (grauen) und in einer per Suchfeld hervorgehobenen (blau/gelb) Zeile. Erwartet: Text ≥ 4,5:1,
+  Rahmen ≥ 3:1 (Werte laut Stylesheet 16:1 bzw. ≥ 7:1).
+- **TS-85.7 — Filter und Spaltenauswahl (AK 9).** Filterzeile *Arbeitsgänge* `ka` → nur Zeilen mit `KA` samt Pfad; Zahnrad →
+  Spalte aus-/einblenden und verschieben, nach Neuladen bleibt die Einstellung (Prefs-API antwortet 200).
+- **TS-85.8 — Modal unverändert (AK 5, 10).** Knopf *Arbeitsgänge* an der Kopfzeile → Fenster wie TS-78 (Zählzeile,
+  Strich-Zeilen, Unmatched-Warnung, je AG eine Zeile mit Kürzel/Werkbank/Sage-Nr.).
+- **TS-85.9 — Große Seite (AK 8).** Seitengröße „Alle" → Seite lädt in akzeptabler Zeit; im SQL-Profiler je Aufruf genau eine
+  Abfrage auf `ProductionWorkplaces` und keine zusätzliche auf `WorkOperations` (nur der bestehende Existenz-Check).
+- **TS-85.10 — Negativ (AK 7).** Benutzer ohne Kommissionierung/Tracking/Leitstand → `/FaHierarchy` verweigert; Struktur
+  ohne materialisierten Auftrag → Kürzel trotzdem sichtbar, kein Fehler.
+- **TS-85.11 — Regression.** TS-78 (Modal) und die übrigen Baum-Spalten/Filter (Arbeitsbereich, Komm.-Ziel, Status)
+  unverändert; „Alle auf/zu", Hervorheben-Suchfeld funktionieren wie vorher.
+
 ---
 
 *Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) + Teil 6 (Standorteinstellungen, v1.34.0) + BOM-Guard hierarchisch (2026-08-18, abgelöst) + FA-Liste-Hierarchie (v1.35.0) + BOM-Bridge (v1.36.0) + Materialisierung fachliche Felder K1/K2 (v1.37.0) + Skopierung der Tabellen-Selektoren (TS-72) + FA-Liste ausgebaut: Matchcode, Kopfdaten je Zeile, HauptFA-Zeile, Freigabe-Kaskade (v1.38.0, TS-73) + PDF-Erzeugung für FaHierarchy-Druckdokumente (v1.39.0, TS-74) + Matchcode im Artikelstamm (v1.40.0, TS-75) + FA-Arbeitsgang-Erkennung aus der Struktur (v1.41.0, TS-76, ersetzt durch TS-77) + Arbeitsgänge (WorkOperation) aus der Struktur + Werkbank-Anlage aus Sage (v1.44.0, TS-77) + Arbeitsgänge je (Sub-)FA im FA-Struktur-Modal (v1.45.0, TS-78) + Kommissionierung nur am HauptFA
-(v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80) + Beschichtungsauftrag Summiert als Standard (v1.48.0, TS-81) + Briefkopf Beschichtungsauftrag (v1.49.0, TS-82) + Beschichtungsauftrag als eigenes Objekt (v1.50.0, TS-83) + Beschichtungsaufträge bedienen (v1.51.0, TS-84)*
+(v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80) + Beschichtungsauftrag Summiert als Standard (v1.48.0, TS-81) + Briefkopf Beschichtungsauftrag (v1.49.0, TS-82) + Beschichtungsauftrag als eigenes Objekt (v1.50.0, TS-83) + Beschichtungsaufträge bedienen (v1.51.0, TS-84) + Arbeitsgänge als Symbole im FA-Baum (v1.52.0, TS-85)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*

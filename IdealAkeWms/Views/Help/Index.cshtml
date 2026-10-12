@@ -589,6 +589,25 @@
                         </ul>
                     </dd>
 
+                    <dt>IDEAL: Arbeitsgaenge als Kuerzel im FA-Struktur-Baum (seit v1.52.0)</dt>
+                    <dd>
+                        Die Spalte <strong>Arbeitsgaenge</strong> der <em>FA-Struktur (IDEAL)</em> zeigt je Baumzeile die
+                        Arbeitsschritte aus Sage als Kuerzel &mdash; genau wie die Spalte &bdquo;Arbeitsschritte&ldquo; in Sage
+                        &bdquo;Fertigungsauftraege bearbeiten&ldquo;, in derselben Reihenfolge und auch an Einzelteilen.
+                        <ul class="mt-1 mb-1">
+                            <li><strong>Name der Werkbank:</strong> Mauszeiger auf das Kuerzel oder mit der Tab-Taste
+                                hinspringen. Ist das Kuerzel keiner oder mehreren Werkbaenken zugeordnet, steht nur das
+                                Kuerzel da.</li>
+                            <li><strong>Alle Kuerzel erscheinen</strong>, auch solche, aus denen nie ein Arbeitsgang wird
+                                (z. B. <code>STO</code>, <code>XXX</code>). Die Spalte zeigt Sage, nicht das, was BDE kennt
+                                &mdash; dafuer gibt es das Fenster <em>Arbeitsgaenge</em> an der Kopfzeile.</li>
+                            <li><strong>Noch kein Status:</strong> Alle Kuerzel sehen gleich aus. Erledigt/offen kommt mit dem
+                                naechsten Ausbau.</li>
+                            <li><strong>Filtern:</strong> In der Filterzeile z. B. <code>ka</code> eingeben &mdash; der Baum zeigt
+                                die Zeilen mit diesem Kuerzel samt ihrem Pfad.</li>
+                        </ul>
+                    </dd>
+
                     <dt>IDEAL: Arbeitsgaenge einer FA-Struktur ansehen (seit v1.45.0)</dt>
                     <dd>
                         In der <em>FA-Struktur (IDEAL)</em> traegt die Kopfzeile einer Struktur den Knopf
