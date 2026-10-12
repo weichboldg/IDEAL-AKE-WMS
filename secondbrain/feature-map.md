@@ -685,6 +685,22 @@ Spec [[2026-10-06-beschichtungsauftrag-ausbau-teil-3-spec]] (Teil 3 von 4), Umse
 > 2026-10-12, Build + 1568 Web- + 272 Service-Tests grün) → Schranke 2 mit dem Bündel. Oberfläche (Liste, Detail, Druck,
 > Schreibrolle) folgt mit Teil 4; ein Workflow-Aufruf je Request.
 
+### Beschichtungsaufträge bedienen (v1.51.0, direkt im Bündel)
+
+Spec [[2026-10-06-beschichtungsauftrag-ausbau-teil-4-spec]] (Teil 4 von 4), Umsetzung
+[[2026-10-12-beschichtungsauftrag-ausbau-teil-4-umsetzung]], Changelog [[2026-10-12-v1-51-0-beschichtungsauftraege-oberflaeche]].
+
+| Baustein | Stand | Code-Einstieg |
+|---|---|---|
+| Schreibrolle `beschichtungsauftrag_schreiben`, Schreibfilter, Vergabe-Anzeige, PDF-Name mit Nummer | **erledigt** `3b5149af` | `Filters/RequireBeschichtungsauftragWriteAccessAttribute.cs`, `Services/BeschichtungsauftragVergabeAnzeige.cs` |
+| Controller + ViewModels (Liste, Detail, Entwurf, Positionen, Status, Reklamation, Druck/PDF) | **erledigt** `8d60cb10`, QA-Fix `5764c664` | `Controllers/BeschichtungsauftraegeController.cs` |
+| Views + Gruppenkopf Vorschlagsliste + Navigation + Briefkopf für den Auftrag | **erledigt** `17bbf3be` | `Views/Beschichtungsauftraege/*`, `Views/FaHierarchyBeschichtung/_VorschlagAuftraege.cshtml` |
+| v1.51.0, Changelog, Hilfe, Rollenübersicht, TS-84, README | **erledigt** `5af265f4`, `91c77105` | `docs/TESTSZENARIEN.md` TS-84 |
+
+> **Deploy:** nur Web, keine Migration (setzt Migration 94 aus Teil 3 voraus); Rolle `beschichtungsauftrag_schreiben`
+> anlegen + zuweisen. **Status:** Testbereit (QA 2026-10-12, Build + 1619 Web- + 272 Service-Tests grün) → Schranke 2
+> mit dem Bündel.
+
 ## Offen / nicht gemerged
 
 | Vorhaben | Status | Quelle |

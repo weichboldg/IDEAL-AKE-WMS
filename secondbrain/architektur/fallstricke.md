@@ -1275,3 +1275,25 @@ Positionseinheit führt. **Belegpflicht vor der Abnahme (TS-80.1):** auf der Sag
 LIKE '%einheit%'`. Kein Treffer ⇒ strukturell erledigt. Treffer ⇒ **melden, nicht still mitlösen** — die
 Spalte gehört dann in den Summierschlüssel (eigener Nacharbeitspunkt). Bis zum Beleg gilt dieser Eintrag
 unter dieser Bedingung. Das Risiko ist nicht neu: dieselbe Summierung besteht seit v1.31.0.
+
+## 22. Beschichtungsaufträge-Oberfläche (v1.51.0) — Tabellen-JS und Dezimal-Eingaben
+
+### `table-filter.js` und `column-preferences.js` bedienen genau EINE Tabelle je Seite
+Beide Skripte halten die Tabelle in einer Modul-Variablen (`_table` in `table-filter.js`) und lesen genau ein
+`#column-config`/`#view-config`. Eine zweite `.filterable-table` auf derselben Seite bekommt weder Filterzeile noch
+Zahnrad — still, ohne Fehlermeldung.
+**Warum es weh tut:** Die Pflicht „Spaltenfilter für jede Tabelle" (ADR 0005) lässt sich so auf Seiten mit zwei
+Tabellen nicht erfüllen; wer es trotzdem versucht, bekommt eine scheinbar gefilterte zweite Tabelle, die nicht reagiert.
+**Regel:** Je Seite eine filterbare Haupttabelle. Kleine Auswahltabellen daneben (Positionsauswahl im Detail,
+Reklamations-Teileauswahl in [[2026-10-06-beschichtungsauftrag-ausbau-teil-4-spec]]) bleiben bewusst ohne Filter und
+ohne `filterable-table`-Klasse. Mehrere Tabellen erst nach Umbau der Skripte auf Instanzen (eigene Entscheidung).
+
+### Die Anwendung hat keine feste Request-Kultur — Dezimal-Eingaben selbst lesen
+`Program.cs` konfiguriert weder `UseRequestLocalization` noch eine Thread-Kultur (Grep `Culture|Localization`: kein
+Treffer). Das Model-Binding parst `decimal` deshalb mit der Kultur des Servers (IIS-Konto) — „2.5" aus einem
+`type="number"`-Feld wird unter `de-AT` zu 25, „2,5" unter `en-US` zu 25.
+**Warum es weh tut:** Mengen landen um Faktor 10/100/1000 falsch in der DB, ohne Validierungsfehler.
+**Regel:** Neue Dezimal-Eingaben als `string` binden und kulturunabhängig lesen (Komma → Punkt,
+`CultureInfo.InvariantCulture`), Muster `BeschichtungsauftraegeController.TryMenge`; Anzeige ohne Tausenderpunkt
+(`0.###`), sonst wird „1.000,5" falsch gelesen. Bestehende Formulare mit `asp-for` auf `decimal` (z. B.
+`StockMovements/*`, `Articles/*`) hängen an der Server-Kultur — nicht geprüft, offener Befund der Teil-4-Spec.

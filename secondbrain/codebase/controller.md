@@ -73,9 +73,10 @@ Rollen-Bedeutungen: [[glossar]].
 | `[RequireBdeUserAccess]` | admin, bde_user, bde_shiftlead, bde_admin | BdeTerminalController, BdeApiController |
 | `[RequireBdeShiftleadAccess]` | admin, bde_shiftlead, bde_admin | BdeCockpitController, BdeBookingsController (Index), BdeMasterDataController |
 | `[RequireBdeAdminAccess]` | admin, bde_admin | BdeBookingsController (Edit/Cancel), BdeMasterDataController (Terminals) |
-| `[RequireBeschichtungsauftragAccess]` | admin, **`beschichtungsauftrag`** *(neue Rolle, v1.31.0)* | FaHierarchyBeschichtungController (class-level, Teil 4). Kumulativ dazu das AppSetting-Gate `[RequireFaHierarchyBeschichtungAktiv]`. |
+| `[RequireBeschichtungsauftragAccess]` | admin, **`beschichtungsauftrag`** *(neue Rolle, v1.31.0)*, seit v1.51.0 auch `beschichtungsauftrag_schreiben` | FaHierarchyBeschichtungController, BeschichtungsauftraegeController (class-level, Lesen). Kumulativ dazu das AppSetting-Gate `[RequireFaHierarchyBeschichtungAktiv]`. |
+| `[RequireBeschichtungsauftragWriteAccess]` | admin, **`beschichtungsauftrag_schreiben`** *(neue Rolle, v1.51.0)* | BeschichtungsauftraegeController — action-level an jeder schreibenden Action (Create, Bearbeiten, PositionenHinzufuegen, Bemerkung, Status, Reklamation GET+POST). Read/Edit-Split (ADR 0006); Waechter `BeschichtungsauftraegeControllerTests.JedeSchreibendeAction_HatSchreibfilter_UndPostsAntiforgery`. |
 | `[RequireFaHierarchyKommissionierlistenAktiv]` | *(kein Rollen-Filter — AppSetting-Gate)* | FaHierarchyKommissionierListenController (class-level), **kumulativ** zu `[RequireLagerProcessingAccess]`. Toggle `FaHierarchyKommissionierlistenAktiv` (Default false): MVC → Redirect Home + WarningMessage. Invert-default-Attribut-Muster (v1.31.0). |
-| `[RequireFaHierarchyBeschichtungAktiv]` | *(kein Rollen-Filter — AppSetting-Gate)* | FaHierarchyBeschichtungController (class-level), **kumulativ** zu `[RequireBeschichtungsauftragAccess]`. Toggle `FaHierarchyBeschichtungAktiv` (Default false). |
+| `[RequireFaHierarchyBeschichtungAktiv]` | *(kein Rollen-Filter — AppSetting-Gate)* | FaHierarchyBeschichtungController, BeschichtungsauftraegeController (class-level), **kumulativ** zu `[RequireBeschichtungsauftragAccess]`. Toggle `FaHierarchyBeschichtungAktiv` (Default false). |
 | `[RequireFaHierarchyVormontageAktiv]` | *(kein Rollen-Filter — AppSetting-Gate)* | FaHierarchyVormontageController (class-level), **kumulativ** zu `[RequireVorbauAccess]`. Toggle `FaHierarchyVormontageAktiv` (Default false). |
 | *(kein Filter)* | jeder eingeloggte User | UserViewPreferencesApiController (Login-Check, kein Rollen-Filter) |
 
@@ -104,6 +105,7 @@ unveraendert). Access-Filter Class-Level (Read); Edit gibt es nicht (Lesepfade).
 | `FaHierarchyController` (Teil 2, Baumanzeige `/FaHierarchy`) | `[RequirePickingOrTrackingOrLeitstandAccess]` *(bestehend, wiederverwendet)* | **keiner** — nur AppSetting `FaHierarchyMaxTiefe` als Tiefen-Cap (kein Ein/Aus-Toggle). Route nur per URL erreichbar (kein Nav-Link, Stand v1.31.0). |
 | `FaHierarchyKommissionierListenController` (Teil 3) | `[RequireLagerProcessingAccess]` *(bestehend)* | `[RequireFaHierarchyKommissionierlistenAktiv]` → `FaHierarchyKommissionierlistenAktiv` (Default false) |
 | `FaHierarchyBeschichtungController` (Teil 4) | `[RequireBeschichtungsauftragAccess]` → **neue Rolle `beschichtungsauftrag`** | `[RequireFaHierarchyBeschichtungAktiv]` → `FaHierarchyBeschichtungAktiv` (Default false) |
+| `BeschichtungsauftraegeController` (Beschichtungsauftrag-Ausbau Teil 4, v1.51.0 — `/Beschichtungsauftraege`: Liste, Detail, Print, `Pdf/{id}`) | `[RequireBeschichtungsauftragAccess]`; schreibende Actions zusaetzlich `[RequireBeschichtungsauftragWriteAccess]` → **neue Rolle `beschichtungsauftrag_schreiben`** | `[RequireFaHierarchyBeschichtungAktiv]` (derselbe Schalter wie die Vorschlagsliste). Je Request genau EIN Aufruf des `BeschichtungsauftragWorkflow`, danach Redirect (der Workflow verwirft nach Speicherfehler den Change-Tracker). |
 | `FaHierarchyVormontageController` (Teil 5) | `[RequireVorbauAccess]` *(bestehend)* | `[RequireFaHierarchyVormontageAktiv]` → `FaHierarchyVormontageAktiv` (Default false) |
 | `HierarchieUmstellungController` (Teil 7, v1.32.0 — Einweg-Umschalt-Seite `/HierarchieUmstellung`) | `[RequireAdminAccess]` | **kein Toggle** — der einzige sanktionierte Schreibweg auf den Master `ProduktionsauftragHierarchisch`. Die generische `ServiceSettingsController`-Maske zeigt den Master nur read-only; der Guard-Decorator (`GuardedServiceSettingRepository`) ist der harte Choke-Point. Siehe [[0012-fa-hierarchie-einweg-migrationstor]]. |
 
@@ -112,6 +114,14 @@ unveraendert). Access-Filter Class-Level (Read); Edit gibt es nicht (Lesepfade).
 `ICurrentUserService.HasBeschichtungsauftragAccessAsync`, `Views/Users/RoleOverview.cshtml`. **Nicht**
 im `Program.cs`-Seed (analog `vorbau`/`lagerbestellung`). Die drei Aktiv-Toggles sind AppSettings
 (ADR 0011), nicht ServiceSettings — reine Web-/Anzeige-Schalter.
+
+**Neue Rolle `beschichtungsauftrag_schreiben`** (v1.51.0, [[2026-10-06-beschichtungsauftrag-ausbau-teil-4-spec]]) an den drei
+Pflichtstellen: `RoleKeys.BeschichtungsauftragSchreiben` + `RequireBeschichtungsauftragWriteAccessAttribute` +
+`ICurrentUserService.HasBeschichtungsauftragWriteAccessAsync`, diese Datei, `Views/Users/RoleOverview.cshtml`. Die Schreibrolle
+**schliesst Lesen ein** (`HasBeschichtungsauftragAccessAsync` prueft admin, `beschichtungsauftrag`, `beschichtungsauftrag_schreiben`),
+damit eine Zuweisung genuegt. Kein Seed — der Admin legt die Rolle mit genau diesem Key unter `/Roles` an (Deploy-Schritt).
+Die Vorschlagsliste (`FaHierarchyBeschichtungController`) bleibt Lesen; den Knopf „Aus Vorschlagsliste erstellen" rendert
+sie nur bei Schreibrecht, der POST geht an `BeschichtungsauftraegeController.Create`.
 
 ## Abgeloeste Routen (Stub-Redirects)
 
