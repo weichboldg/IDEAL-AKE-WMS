@@ -112,6 +112,10 @@ builder.Services.AddScoped<FaHierarchyListBuilder>();
 builder.Services.AddScoped<KommissionierListenService>();
 builder.Services.AddScoped<BeschichtungsauftragService>();
 builder.Services.AddScoped<BriefkopfVorlageService>();
+// Beschichtungsauftrag als gespeichertes Objekt (Teil 3, v1.50.0): Repository + Workflow; Zeit ueber TimeProvider (Nummernkreis je Jahr).
+builder.Services.AddScoped<IBeschichtungsauftragRepository, BeschichtungsauftragRepository>();
+builder.Services.AddScoped<BeschichtungsauftragWorkflow>();
+builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<VormontageService>();
 builder.Services.AddSingleton<IBarcodeService, BarcodeService>();
 builder.Services.AddScoped<IPickingRepository, PickingRepository>();

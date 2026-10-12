@@ -55,6 +55,8 @@ public class ApplicationDbContext : DbContext
     public DbSet<UserViewPreference> UserViewPreferences => Set<UserViewPreference>();
     public DbSet<WarehouseRequisition> WarehouseRequisitions => Set<WarehouseRequisition>();
     public DbSet<WarehouseRequisitionItem> WarehouseRequisitionItems => Set<WarehouseRequisitionItem>();
+    public DbSet<Beschichtungsauftrag> Beschichtungsauftraege => Set<Beschichtungsauftrag>();
+    public DbSet<BeschichtungsauftragPosition> BeschichtungsauftragPositionen => Set<BeschichtungsauftragPosition>();
     public DbSet<SyncLog> SyncLogs => Set<SyncLog>();
     public DbSet<WorkStep> WorkSteps => Set<WorkStep>();
     public DbSet<FaWorkStep> FaWorkSteps => Set<FaWorkStep>();
@@ -1215,6 +1217,60 @@ public class ApplicationDbContext : DbContext
             entity.HasOne(e => e.WarehouseRequisition)
                 .WithMany(r => r.Items)
                 .HasForeignKey(e => e.WarehouseRequisitionId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Beschichtungsauftrag (IDEAL, Spec 2026-10-06-beschichtungsauftrag-ausbau-teil-3): gespeicherter Auftrag je HauptFA.
+        modelBuilder.Entity<Beschichtungsauftrag>(entity =>
+        {
+            entity.ToTable("Beschichtungsauftraege");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Nummer).HasMaxLength(20).IsRequired();
+            entity.Property(e => e.Dienstleister).HasMaxLength(200);
+            entity.Property(e => e.Ral).HasMaxLength(200);
+            entity.Property(e => e.Bemerkung).HasMaxLength(1000);
+            entity.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.ModifiedBy).HasMaxLength(200);
+            entity.Property(e => e.ModifiedByWindows).HasMaxLength(200);
+            entity.Property(e => e.RowVersion).IsRowVersion();
+
+            // Nummernkreis: der UNIQUE-Index entscheidet bei parallelem Anlegen, der Verlierer wiederholt (Workflow).
+            entity.HasIndex(e => e.Nummer).IsUnique();
+            entity.HasIndex(e => new { e.Jahr, e.LaufendeNummer }).IsUnique();
+            // HauptFA bewusst NICHT unique: stornierte Entwuerfe, Reklamationen und weitere Auftraege teilen ihn.
+            entity.HasIndex(e => e.HauptFA);
+            entity.HasIndex(e => e.Status);
+
+            entity.HasOne(e => e.Ursprungsauftrag)
+                .WithMany(e => e.Folgeauftraege)
+                .HasForeignKey(e => e.UrsprungsauftragId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<BeschichtungsauftragPosition>(entity =>
+        {
+            entity.ToTable("BeschichtungsauftragPositionen");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.HauptArtnr).HasMaxLength(200);
+            entity.Property(e => e.Artnr).HasMaxLength(200);
+            entity.Property(e => e.Matchcode).HasMaxLength(200);
+            entity.Property(e => e.Menge).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.Breite).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.Hoehe).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.Tiefe).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.ModifiedBy).HasMaxLength(200);
+            entity.Property(e => e.ModifiedByWindows).HasMaxLength(200);
+
+            // Herkunftsschluessel NICHT unique: dieselbe Position steht in stornierten und neuen Auftraegen bzw. in
+            // Reklamationen erneut. Die Doppelvergabe prueft der Workflow statusabhaengig.
+            entity.HasIndex(e => new { e.HauptFA, e.VaterFA, e.SubFA, e.Position });
+
+            entity.HasOne(e => e.Beschichtungsauftrag)
+                .WithMany(a => a.Positionen)
+                .HasForeignKey(e => e.BeschichtungsauftragId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
