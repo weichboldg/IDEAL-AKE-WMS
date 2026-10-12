@@ -9400,6 +9400,43 @@ Alles Sichtbare, PDF und Seitenumbruch sind Manual-UAT.
 
 ---
 
+## TS-83 — IDEAL: Beschichtungsauftrag als eigenes Objekt (Datenbank + Workflow, v1.50.0)
+
+Spec: `2026-10-06-beschichtungsauftrag-ausbau-teil-3-spec`. **Backend ohne Oberfläche** — die Bedienung kommt mit Teil 4
+(dort die Klick-Szenarien). Abnahme hier: Prüfschritte auf Sage/WMS-DB, SQL-Skript, Regression. Automatisiert:
+`BeschichtungsauftragWorkflowTests` (Nummernkreis inkl. Jahreswechsel und Konflikt-Wiederholung, Statusautomat,
+Dienstleister-Pflicht, Doppelvergabe je Status, Storno gibt frei, Anlegen nur freie Positionen, Bearbeiten,
+Hinzufügen im Erst- und Reklamations-Entwurf, Reklamation inkl. Kette und Mehrfach-Reklamation, Snapshot nach Sync),
+`BeschichtungsauftragDiResolutionTests`, `BeschichtungsauftragMigrationSqlTests` (Objektnamen Migration = SQL/94 =
+FreshInstall). Nicht InMemory-testbar und deshalb hier: SQL-Skript, RowVersion-Konflikt, Serializable-Transaktion.
+
+- **TS-83.1 — Prüfschritt Schlüssel-Eindeutigkeit (vor Abnahme, Ergebnis notieren).** Sage-DB IDEAL:
+  `SELECT [HauptFA],[VaterFA],[SubFA],[Position],COUNT(*) FROM [vw_IDEAL-AKE_Kommissionierung_FAListe] WHERE [Beschichtet] <> 0 GROUP BY [HauptFA],[VaterFA],[SubFA],[Position] HAVING COUNT(*) > 1;`
+  und WMS: `SELECT HauptFA,VaterFA,SubFA,Position,COUNT(*) FROM dbo.FaHierarchyNodes WHERE Beschichtet = 1 GROUP BY HauptFA,VaterFA,SubFA,Position HAVING COUNT(*) > 1;`
+  **Erwartet:** leer ⇒ der Herkunftsschlüssel trägt die Doppelvergabe-Prüfung. Treffer ⇒ **melden** (dann gehört z. B.
+  `Artnr` in den Schlüssel; der Workflow meldet doppelte Schlüssel beim Anlegen als Hinweis). Ergebnis: ______
+- **TS-83.2 — Prüfschritt View-Filter (Sage).** `EXEC sp_helptext 'vw_IDEAL-AKE_Kommissionierung_FAInfos';` — nach
+  welchem Kriterium fällt ein HauptFA aus der View (und damit aus dem Cache)? Ergebnis notieren: ______ (bestimmt, wie
+  oft gespeicherte Aufträge auf nicht mehr vorhandene Knoten zeigen; die Aufträge bleiben dank Snapshot lesbar).
+- **TS-83.3 — SQL-Skript idempotent (AK 1).** Auf einer Test-DB (Kopie) `SQL/94_AddBeschichtungsauftrag.sql` **zweimal**
+  hintereinander ausführen. **Erwartet:** erster Lauf meldet „Tabelle … angelegt", zweiter Lauf ohne Fehler und ohne
+  Meldung; `SELECT * FROM dbo.__EFMigrationsHistory WHERE MigrationId = '20261012073551_AddBeschichtungsauftrag'` genau
+  eine Zeile. Danach die Web-App starten — `Migrate()` darf nichts mehr anlegen (kein Fehler im Log).
+- **TS-83.4 — FreshInstall (AK 1).** `SQL/00_FreshInstall.sql` auf einer **leeren** DB. **Erwartet:** beide Tabellen mit
+  allen Indizes (`IX_Beschichtungsauftraege_Nummer` und `…_Jahr_LaufendeNummer` UNIQUE), History-Eintrag vorhanden.
+- **TS-83.5 — Nummer-Eindeutigkeit in der DB (AK 4, SQL).** Auf der Test-DB zweimal dieselbe Nummer einfügen:
+  `INSERT INTO dbo.Beschichtungsauftraege (Nummer,Jahr,LaufendeNummer,HauptFA,Status,CreatedAt,CreatedBy,CreatedByWindows) VALUES ('BA-2026-99999',2026,99999,1,10,GETDATE(),'test','test');`
+  zweimal ausführen. **Erwartet:** zweiter Insert scheitert am UNIQUE-Index (`IX_Beschichtungsauftraege_Nummer`).
+  Danach die Testzeile löschen. (Die Wiederholung mit neuer Nummer prüft der Unit-Test.)
+- **TS-83.6 — Parallelität (AK 10, Manual-UAT mit Teil 4).** Sobald Teil 4 die Bedienung liefert: zwei Sessions, derselbe
+  Auftrag, gleichzeitig Status wechseln → der zweite erhält „wurde inzwischen von jemand anderem geändert"; zwei Sessions
+  legen gleichzeitig einen Auftrag für denselben HauptFA an → nur einer übernimmt die freien Positionen, der andere
+  meldet sie als vergeben bzw. „bitte erneut versuchen".
+- **TS-83.7 — Regression (AK 12).** Beschichtungsauftrag Liste/Summiert, Druck und PDF (TS-60, TS-74, TS-81, TS-82)
+  unverändert; kein neuer Menüpunkt.
+
+---
+
 *Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) + Teil 6 (Standorteinstellungen, v1.34.0) + BOM-Guard hierarchisch (2026-08-18, abgelöst) + FA-Liste-Hierarchie (v1.35.0) + BOM-Bridge (v1.36.0) + Materialisierung fachliche Felder K1/K2 (v1.37.0) + Skopierung der Tabellen-Selektoren (TS-72) + FA-Liste ausgebaut: Matchcode, Kopfdaten je Zeile, HauptFA-Zeile, Freigabe-Kaskade (v1.38.0, TS-73) + PDF-Erzeugung für FaHierarchy-Druckdokumente (v1.39.0, TS-74) + Matchcode im Artikelstamm (v1.40.0, TS-75) + FA-Arbeitsgang-Erkennung aus der Struktur (v1.41.0, TS-76, ersetzt durch TS-77) + Arbeitsgänge (WorkOperation) aus der Struktur + Werkbank-Anlage aus Sage (v1.44.0, TS-77) + Arbeitsgänge je (Sub-)FA im FA-Struktur-Modal (v1.45.0, TS-78) + Kommissionierung nur am HauptFA
-(v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80) + Beschichtungsauftrag Summiert als Standard (v1.48.0, TS-81) + Briefkopf Beschichtungsauftrag (v1.49.0, TS-82)*
+(v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80) + Beschichtungsauftrag Summiert als Standard (v1.48.0, TS-81) + Briefkopf Beschichtungsauftrag (v1.49.0, TS-82) + Beschichtungsauftrag als eigenes Objekt (v1.50.0, TS-83)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*
