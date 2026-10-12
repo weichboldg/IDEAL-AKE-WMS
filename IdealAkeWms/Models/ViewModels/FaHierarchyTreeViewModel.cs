@@ -230,7 +230,7 @@ public static class FaArbeitsschrittSymbole
 {
     // Dieselbe Trennregel wie IDEALAKEWMSService WorkOperationStructureDetectionService (TokenSeparators + RemoveEmpty/Trim):
     // Anzeige und Erkennung sollen dieselben Kuerzel sehen. ponytail: Kopie statt gemeinsamer Bibliothek — Web und Service
-    // teilen kein Projekt; aendert sich die Regel dort, hier nachziehen (Test FaArbeitsschrittSymboleTests).
+    // teilen kein Projekt; aendert sich die Regel dort, hier von Hand nachziehen (FaArbeitsschrittSymboleTests prueft nur diese Kopie).
     private static readonly char[] Trenner = { ' ' };
 
     public static IReadOnlyList<string> Tokenize(string? arbeitsschritte) =>

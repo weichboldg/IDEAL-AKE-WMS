@@ -1347,8 +1347,8 @@ th:hover .col-resize-handle {
 /* Spaltenfilter-Treffer: hell-amber, klar unterscheidbar vom Hervorheben. */
 .fa-node-row.fa-filter-hit > td { background-color: #fff3cd; }
 
-/* Arbeitsgaenge-Symbole im FA-Baum (v1.52.0): neutraler Umriss-Chip mit eigenem weissen Grund — Text 16:1, Kontur
-   #495057 >= 7:1 gegen Zeile/Hover/Hervorhebung (WCAG AA). Bewusst KEINE Fuellfarbe: Farbe bleibt dem Status (Teil 2)
+/* Arbeitsgaenge-Symbole im FA-Baum (v1.52.0): neutraler Umriss-Chip mit eigenem weissen Grund — Text 15,4:1, Kontur
+   #495057 >= 7:1 gegen Zeile/Hover/Hervorhebung (WCAG AA; gedimmte Kontextzeile beim Spaltenfilter, opacity 0.6, liegt fuer ALLE Zellen darunter — vorbestehend). Bewusst KEINE Fuellfarbe: Farbe bleibt dem Status (Teil 2)
    vorbehalten. Umbruch statt Querscrollen. */
 .fa-ag-symbols { display: inline-flex; flex-wrap: wrap; gap: 0.2rem; }
 .fa-ag-symbol {

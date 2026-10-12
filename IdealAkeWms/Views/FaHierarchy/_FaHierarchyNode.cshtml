@@ -98,7 +98,7 @@
     <td data-col-key="operations">
         @if (Model.Arbeitsgaenge.Count == 0)
         {
-            <span class="text-muted" aria-label="keine Arbeitsschritte">—</span>
+            <span class="text-muted" aria-hidden="true">—</span><span class="visually-hidden">keine Arbeitsschritte</span>
         }
         else
         {
