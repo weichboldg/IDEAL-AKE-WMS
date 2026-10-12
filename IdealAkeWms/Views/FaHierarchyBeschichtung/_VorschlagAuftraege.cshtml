@@ -1,0 +1,27 @@
+@model (int HauptFA, IdealAkeWms.Services.BeschichtungsauftragVergabeInfo Info, bool DarfSchreiben, string Zurueck)
+@* Gruppenkopf der Vorschlagsliste (Spec 2026-10-06-beschichtungsauftrag-ausbau-teil-4, Anforderung 1): vorhandene
+   Auftraege (Erst- und Reklamationsauftraege, Status ≠ Storniert) als Links; Button „Aus Vorschlagsliste erstellen" nur
+   mit Schreibrecht UND freien Positionen — bei Teilvergabe Nummer(n) und Button. Geteilt von Index.cshtml und Summiert.cshtml. *@
+@if (Model.Info.Auftraege.Any())
+{
+    <span class="ms-2">
+        <span class="small">Aufträge:</span>
+        @foreach (var auftrag in Model.Info.Auftraege)
+        {
+            <a asp-controller="Beschichtungsauftraege" asp-action="Details" asp-route-id="@auftrag.Id" class="fw-semibold me-1">@auftrag.Nummer</a>
+        }
+        @if (Model.Info.FreiePositionen > 0)
+        {
+            <span class="small">(@Model.Info.FreiePositionen Positionen frei)</span>
+        }
+    </span>
+}
+@if (Model.DarfSchreiben && Model.Info.FreiePositionen > 0)
+{
+    <form method="post" asp-controller="Beschichtungsauftraege" asp-action="Create" class="d-inline ms-2">
+        <input type="hidden" name="hauptFa" value="@Model.HauptFA" />
+        <input type="hidden" name="zurueck" value="@Model.Zurueck" />
+        <button type="submit" class="btn btn-sm btn-primary py-0"
+                title="Auftrag im Entwurf mit allen freien beschichteten Positionen von HauptFA @Model.HauptFA anlegen">Aus Vorschlagsliste erstellen</button>
+    </form>
+}

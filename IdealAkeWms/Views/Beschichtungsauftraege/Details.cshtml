@@ -1,0 +1,357 @@
+@model IdealAkeWms.Models.ViewModels.BeschichtungsauftragDetailViewModel
+@using System.Globalization
+@using IdealAkeWms.Controllers
+@using IdealAkeWms.Models
+@using IdealAkeWms.Models.ViewModels
+@using IdealAkeWms.Services
+@{
+    var a = Model.Auftrag;
+    ViewData["Title"] = $"Beschichtungsauftrag {a.Nummer}";
+    var de = CultureInfo.GetCultureInfo("de-DE");
+    // Entwurf + Schreibrecht: Kopf und Positionen editierbar (Antwort 7); alle Eingaben gehoeren ueber form="entwurf-form"
+    // zu EINEM Formular, obwohl sie in Kopf-Karte und Tabelle stehen (keine verschachtelten Formulare).
+    var bearbeitbar = Model.IstEntwurf && Model.DarfSchreiben;
+    string Menge(decimal m) => m.ToString("0.###", de);
+    string Zeit(DateTime? d) => d?.ToString("dd.MM.yyyy HH:mm", de) ?? "";
+    var ursprungNummer = a.Ursprungsauftrag?.Nummer;
+}
+
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+    <h2 class="page-header">
+        Beschichtungsauftrag <span class="fw-semibold">@a.Nummer</span>
+        <partial name="_StatusBadge" model="a.Status" />
+    </h2>
+    <div class="d-flex flex-wrap gap-2 mt-1">
+        @if (Model.Druckbar)
+        {
+            <a asp-action="Print" asp-route-id="@a.Id" target="_blank" class="btn btn-sm btn-outline-secondary"
+               data-print-link="BeschichtungsauftragPositionen" title="Aussendokument mit Briefkopf drucken">Drucken</a>
+            @if (Model.PdfVerfuegbar)
+            {
+                <a href="@Url.Action("Pdf", new { id = a.Id })" class="btn btn-sm btn-outline-secondary"
+                   data-print-link="BeschichtungsauftragPositionen" title="Aussendokument als PDF herunterladen">PDF</a>
+            }
+        }
+        @if (Model.DarfSchreiben && a.Status == BeschichtungsauftragStatus.Erledigt)
+        {
+            <a asp-action="Reklamation" asp-route-id="@a.Id" class="btn btn-sm btn-outline-primary"
+               title="Folgeauftrag mit ausgewählten Teilen dieses Auftrags anlegen">Reklamation</a>
+        }
+        <a asp-action="Index" class="btn btn-sm btn-outline-secondary">Zur Liste</a>
+    </div>
+</div>
+
+@* Verweise Ursprung / Folgeauftraege (Anforderung 5): Vermerk am Ursprung und Ruecklink am Folgeauftrag. *@
+@if (ursprungNummer != null || a.Folgeauftraege.Any())
+{
+    <div class="alert alert-info py-2">
+        @if (ursprungNummer != null)
+        {
+            <div>Reklamation zu <a asp-action="Details" asp-route-id="@a.UrsprungsauftragId" class="fw-semibold">@ursprungNummer</a></div>
+        }
+        @if (a.Folgeauftraege.Any())
+        {
+            <div>
+                Reklamiert →
+                @foreach (var f in a.Folgeauftraege.OrderBy(f => f.Nummer))
+                {
+                    <a asp-action="Details" asp-route-id="@f.Id" class="fw-semibold me-1">@f.Nummer</a>
+                    <partial name="_StatusBadge" model="f.Status" />
+                    <span class="me-2"></span>
+                }
+            </div>
+        }
+    </div>
+}
+
+@* Statusverlauf = Historie (AK 4): der Ablauf ist eine echte Folge, daher nummeriert; jeder Schritt mit Zeitpunkt und
+   Benutzer, offene Schritte als „ausstehend" (Text, nicht nur Farbe). Storno ist der Seitenausgang aus dem Entwurf. *@
+<ol class="list-unstyled d-flex flex-wrap gap-2 mb-3" aria-label="Statusverlauf">
+    @{
+        var schritte = new (string Titel, DateTime? Am, string Von)[]
+        {
+            ("Entwurf angelegt", a.CreatedAt, a.CreatedBy),
+            ("Übergeben", a.UebergebenAt, Model.BenutzerName(a.UebergebenByUserId)),
+            ("Erledigt", a.ErledigtAt, Model.BenutzerName(a.ErledigtByUserId)),
+        };
+    }
+    @for (var i = 0; i < schritte.Length; i++)
+    {
+        var s = schritte[i];
+        var erreicht = s.Am.HasValue;
+        <li class="border rounded px-3 py-2 @(erreicht ? "border-primary" : "text-muted")">
+            <span class="badge rounded-pill @(erreicht ? "bg-primary" : "bg-light text-dark border") me-1">@(i + 1)</span>
+            <strong>@s.Titel</strong>
+            <div class="small">@(erreicht ? $"{Zeit(s.Am)} · {s.Von}" : "ausstehend")</div>
+        </li>
+    }
+    @if (a.StorniertAt.HasValue)
+    {
+        <li class="border border-dark rounded px-3 py-2">
+            <strong>Storniert</strong>
+            <div class="small">@Zeit(a.StorniertAt) · @Model.BenutzerName(a.StorniertByUserId)</div>
+        </li>
+    }
+</ol>
+
+@if (Model.DarfSchreiben && Model.ErlaubteZiele.Any())
+{
+    <div class="d-flex flex-wrap gap-2 mb-3">
+        @foreach (var ziel in Model.ErlaubteZiele)
+        {
+            <form method="post" asp-action="Status" asp-route-id="@a.Id" class="d-inline">
+                <input type="hidden" name="ziel" value="@ziel" />
+                <input type="hidden" name="rowVersion" value="@Model.RowVersion" />
+                @if (ziel == BeschichtungsauftragStatus.Storniert)
+                {
+                    <button type="submit" class="btn btn-sm btn-outline-danger"
+                            onclick="return confirm('@a.Nummer stornieren? Die Positionen werden wieder frei.');">Stornieren</button>
+                }
+                else
+                {
+                    <button type="submit" class="btn btn-sm btn-primary">Auf „@BeschichtungsauftragWorkflow.Anzeige(ziel)“ setzen</button>
+                }
+            </form>
+        }
+    </div>
+}
+
+@if (Model.IstEntwurf && string.IsNullOrWhiteSpace(a.Dienstleister))
+{
+    <div class="alert alert-warning py-2">Dienstleister fehlt — zum Übergeben erforderlich.</div>
+}
+
+@if (bearbeitbar)
+{
+    <form id="entwurf-form" method="post" asp-action="Bearbeiten" asp-route-id="@a.Id">
+        <input type="hidden" name="rowVersion" value="@Model.RowVersion" />
+    </form>
+}
+
+<div class="row g-3 mb-3">
+    <div class="col-lg-8">
+        <div class="card h-100">
+            <div class="card-header">Kopf · HauptFA @a.HauptFA</div>
+            <div class="card-body">
+                @if (bearbeitbar)
+                {
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label" for="dienstleister">Dienstleister</label>
+                            <input id="dienstleister" name="dienstleister" form="entwurf-form" class="form-control" maxlength="200" value="@a.Dienstleister" />
+                            @if (Model.SageDienstleisterAbweichend != null)
+                            {
+                                <div class="form-text">Sage (PPS-View): @Model.SageDienstleisterAbweichend</div>
+                            }
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="ral">RAL</label>
+                            <input id="ral" name="ral" form="entwurf-form" class="form-control" maxlength="200" value="@a.Ral" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="startBeschichtung">Start Beschichtung</label>
+                            <input id="startBeschichtung" name="startBeschichtung" form="entwurf-form" type="date" class="form-control"
+                                   value="@a.StartBeschichtung?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="beschichtenRetour">Retour</label>
+                            <input id="beschichtenRetour" name="beschichtenRetour" form="entwurf-form" type="date" class="form-control"
+                                   value="@a.BeschichtenRetour?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)" />
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <dl class="row mb-0">
+                        <dt class="col-sm-4">Dienstleister</dt>
+                        <dd class="col-sm-8">
+                            @(string.IsNullOrWhiteSpace(a.Dienstleister) ? "—" : a.Dienstleister)
+                            @if (Model.SageDienstleisterAbweichend != null)
+                            {
+                                <div class="small text-muted">Sage (PPS-View): @Model.SageDienstleisterAbweichend</div>
+                            }
+                        </dd>
+                        <dt class="col-sm-4">RAL</dt>
+                        <dd class="col-sm-8">@(a.Ral ?? "—")</dd>
+                        <dt class="col-sm-4">Start Beschichtung</dt>
+                        <dd class="col-sm-8">@(a.StartBeschichtung?.ToString("dd.MM.yyyy") ?? "—")</dd>
+                        <dt class="col-sm-4">Retour</dt>
+                        <dd class="col-sm-8">@(a.BeschichtenRetour?.ToString("dd.MM.yyyy") ?? "—")</dd>
+                    </dl>
+                }
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card h-100">
+            <div class="card-header">Bemerkung</div>
+            <div class="card-body">
+                @if (Model.DarfSchreiben && a.Status != BeschichtungsauftragStatus.Storniert)
+                {
+                    <form method="post" asp-action="Bemerkung" asp-route-id="@a.Id">
+                        <input type="hidden" name="rowVersion" value="@Model.RowVersion" />
+                        <label class="visually-hidden" for="bemerkung">Bemerkung</label>
+                        <textarea id="bemerkung" name="bemerkung" class="form-control mb-2" rows="4" maxlength="1000">@a.Bemerkung</textarea>
+                        <button type="submit" class="btn btn-sm btn-outline-primary">Bemerkung speichern</button>
+                    </form>
+                }
+                else
+                {
+                    <p class="mb-0" style="white-space: pre-line;">@(string.IsNullOrWhiteSpace(a.Bemerkung) ? "—" : a.Bemerkung)</p>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<h5>Positionen (@a.Positionen.Count)</h5>
+@* Client-Spaltenfilter (ADR-0005-Ausnahme: klein, unpaginiert, auf einen Auftrag vorgefiltert). Zahnrad-Host §19. *@
+<div class="d-flex justify-content-end mb-1"></div>
+<div class="table-responsive">
+    <table class="table table-sm table-striped mb-0 filterable-table" data-view-key="BeschichtungsauftragPositionen">
+        <thead>
+            <tr>
+                <th data-filterable data-col-key="herkunft">Vater / SubFA / Pos.</th>
+                <th data-filterable data-col-key="hauptartnr">Haupt-Artnr.</th>
+                <th data-filterable data-col-key="artnr">Artnr.</th>
+                <th data-filterable data-col-key="matchcode">Matchcode</th>
+                <th class="text-end" data-filterable data-col-key="breite">Breite</th>
+                <th class="text-end" data-filterable data-col-key="hoehe">Höhe</th>
+                <th class="text-end" data-filterable data-col-key="tiefe">Tiefe</th>
+                <th class="text-end" data-filterable data-col-key="menge">Menge</th>
+                @if (bearbeitbar) { <th class="text-center">Entfernen</th> }
+            </tr>
+        </thead>
+        <tbody>
+            @if (!a.Positionen.Any())
+            {
+                <tr><td colspan="9" class="text-center text-muted py-3">Keine Positionen — unten hinzufügen oder den Auftrag stornieren.</td></tr>
+            }
+            @foreach (var p in a.Positionen.OrderBy(p => p.Position ?? int.MaxValue).ThenBy(p => p.SubFA))
+            {
+                <tr>
+                    <td>@(p.VaterFA?.ToString() ?? "—") / @p.SubFA / @(p.Position?.ToString() ?? "—")</td>
+                    <td>@p.HauptArtnr</td>
+                    <td>@p.Artnr</td>
+                    <td>@p.Matchcode</td>
+                    <td class="text-end">@BeschichtungsauftragService.FormatMass(p.Breite)</td>
+                    <td class="text-end">@BeschichtungsauftragService.FormatMass(p.Hoehe)</td>
+                    <td class="text-end">@BeschichtungsauftragService.FormatMass(p.Tiefe)</td>
+                    <td class="text-end">
+                        @if (bearbeitbar)
+                        {
+                            @* Unsichtbarer Wert: Client-Filter/-Sortierung lesen textContent, ein <input> hat keinen. *@
+                            <span class="visually-hidden">@Menge(p.Menge)</span>
+                            <input name="mengen[@p.Id]" form="entwurf-form" value="@Menge(p.Menge)" inputmode="decimal"
+                                   class="form-control form-control-sm text-end ms-auto" style="max-width: 7rem;"
+                                   aria-label="Menge @p.Artnr Position @p.Position" />
+                        }
+                        else
+                        {
+                            @BeschichtungsauftragService.FormatMenge(p.Menge)
+                        }
+                    </td>
+                    @if (bearbeitbar)
+                    {
+                        <td class="text-center">
+                            <input type="checkbox" class="form-check-input" name="entfernen" value="@p.Id" form="entwurf-form"
+                                   aria-label="Position @p.Artnr entfernen" />
+                        </td>
+                    }
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@if (bearbeitbar)
+{
+    <div class="d-flex justify-content-end mt-2 mb-4">
+        <button type="submit" form="entwurf-form" class="btn btn-primary">Entwurf speichern</button>
+    </div>
+
+    @* Positionsauswahl (Anforderung 4a): Erst-Entwurf = freie HauptFA-Positionen, Reklamations-Entwurf = noch nicht
+       enthaltene Ursprungspositionen. Nichts vorausgewaehlt; Wert = Herkunftsschluessel, nie die Knoten-Id. *@
+    <div class="card mb-4">
+        <div class="card-header">
+            @if (Model.IstReklamation)
+            {
+                <text>Positionen des Ursprungs <a asp-action="Details" asp-route-id="@a.UrsprungsauftragId">@ursprungNummer</a> hinzufügen</text>
+            }
+            else
+            {
+                <text>Positionen hinzufügen</text>
+            }
+        </div>
+        <div class="card-body">
+            @if (!Model.Kandidaten.Any())
+            {
+                <p class="mb-0 text-muted">
+                    @(Model.IstReklamation ? "Alle Positionen des Ursprungs sind bereits enthalten." : "Keine freien beschichteten Positionen für diesen HauptFA.")
+                </p>
+            }
+            else
+            {
+                <form method="post" asp-action="PositionenHinzufuegen" asp-route-id="@a.Id">
+                    <input type="hidden" name="rowVersion" value="@Model.RowVersion" />
+                    <div class="table-responsive">
+                        <table class="table table-sm mb-2">
+                            <thead>
+                                <tr>
+                                    <th><span class="visually-hidden">Auswählen</span></th>
+                                    <th>Vater / SubFA / Pos.</th>
+                                    <th>Artnr.</th>
+                                    <th>Matchcode</th>
+                                    <th class="text-end">Breite</th>
+                                    <th class="text-end">Höhe</th>
+                                    <th class="text-end">Tiefe</th>
+                                    <th class="text-end">@(Model.IstReklamation ? "Menge (Ursprung)" : "Sollmenge")</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var k in Model.Kandidaten)
+                                {
+                                    var id = "k-" + BeschichtungsauftraegeController.SchluesselText(k.Schluessel).Replace('|', '-');
+                                    <tr>
+                                        <td><input type="checkbox" class="form-check-input" id="@id" name="schluessel"
+                                                   value="@BeschichtungsauftraegeController.SchluesselText(k.Schluessel)" /></td>
+                                        <td><label for="@id" class="mb-0">@(k.Schluessel.VaterFA?.ToString() ?? "—") / @k.Schluessel.SubFA / @(k.Schluessel.Position?.ToString() ?? "—")</label></td>
+                                        <td>@k.Artnr</td>
+                                        <td>@k.Matchcode</td>
+                                        <td class="text-end">@BeschichtungsauftragService.FormatMass(k.Breite)</td>
+                                        <td class="text-end">@BeschichtungsauftragService.FormatMass(k.Hoehe)</td>
+                                        <td class="text-end">@BeschichtungsauftragService.FormatMass(k.Tiefe)</td>
+                                        <td class="text-end">@BeschichtungsauftragService.FormatMenge(k.Menge)</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                    <button type="submit" class="btn btn-sm btn-outline-primary">Ausgewählte hinzufügen</button>
+                </form>
+            }
+        </div>
+    </div>
+}
+
+<script type="application/json" id="view-config">
+{ "viewKey": "BeschichtungsauftragPositionen", "supportsReorder": true, "supportsSortDefault": false }
+</script>
+<script type="application/json" id="column-config">
+[
+    { "key": "herkunft", "label": "Vater / SubFA / Pos.", "locked": false, "defaultWidth": null },
+    { "key": "hauptartnr", "label": "Haupt-Artnr.", "locked": false, "defaultWidth": null },
+    { "key": "artnr", "label": "Artnr.", "locked": true, "defaultWidth": null },
+    { "key": "matchcode", "label": "Matchcode", "locked": true, "defaultWidth": null },
+    { "key": "breite", "label": "Breite", "locked": false, "defaultWidth": 55 },
+    { "key": "hoehe", "label": "Höhe", "locked": false, "defaultWidth": 55 },
+    { "key": "tiefe", "label": "Tiefe", "locked": false, "defaultWidth": 55 },
+    { "key": "menge", "label": "Menge", "locked": false, "defaultWidth": 70 }
+]
+</script>
+
+@section Scripts {
+    <script src="~/js/column-preferences.js" asp-append-version="true"></script>
+    <script src="~/js/table-filter.js" asp-append-version="true"></script>
+    <script src="~/js/print-visible-columns.js" asp-append-version="true"></script>
+}

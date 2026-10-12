@@ -1,0 +1,55 @@
+@model IdealAkeWms.Models.ViewModels.BeschichtungsauftragReklamationViewModel
+@using IdealAkeWms.Services
+@{
+    var u = Model.Ursprung;
+    ViewData["Title"] = $"Reklamation zu {u.Nummer}";
+}
+
+<h2 class="page-header">Reklamation zu <a asp-action="Details" asp-route-id="@u.Id">@u.Nummer</a></h2>
+
+<p class="text-muted">
+    Teile wählen, die erneut zum Beschichter gehen. Nichts ist vorausgewählt. Der neue Auftrag übernimmt Dienstleister,
+    RAL und Termine von @u.Nummer und startet als Entwurf — dort sind Kopf und Mengen noch änderbar.
+</p>
+
+@* Teileauswahl (Anforderung 5): alle Ursprungspositionen, auch solche in einer anderen Reklamation (Teil-3-Antwort 15).
+   Kleine, feste Menge eines Auftrags — reine Auswahltabelle ohne Spaltenfilter. *@
+<form method="post" asp-action="Reklamation" asp-route-id="@u.Id">
+    <div class="table-responsive">
+        <table class="table table-sm table-striped mb-2">
+            <thead>
+                <tr>
+                    <th><span class="visually-hidden">Auswählen</span></th>
+                    <th>Vater / SubFA / Pos.</th>
+                    <th>Haupt-Artnr.</th>
+                    <th>Artnr.</th>
+                    <th>Matchcode</th>
+                    <th class="text-end">Breite</th>
+                    <th class="text-end">Höhe</th>
+                    <th class="text-end">Tiefe</th>
+                    <th class="text-end">Menge</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var p in u.Positionen.OrderBy(p => p.Position ?? int.MaxValue).ThenBy(p => p.SubFA))
+                {
+                    <tr>
+                        <td><input type="checkbox" class="form-check-input" id="p-@p.Id" name="positionIds" value="@p.Id" /></td>
+                        <td><label for="p-@p.Id" class="mb-0">@(p.VaterFA?.ToString() ?? "—") / @p.SubFA / @(p.Position?.ToString() ?? "—")</label></td>
+                        <td>@p.HauptArtnr</td>
+                        <td>@p.Artnr</td>
+                        <td>@p.Matchcode</td>
+                        <td class="text-end">@BeschichtungsauftragService.FormatMass(p.Breite)</td>
+                        <td class="text-end">@BeschichtungsauftragService.FormatMass(p.Hoehe)</td>
+                        <td class="text-end">@BeschichtungsauftragService.FormatMass(p.Tiefe)</td>
+                        <td class="text-end">@BeschichtungsauftragService.FormatMenge(p.Menge)</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary">Reklamation anlegen</button>
+        <a asp-action="Details" asp-route-id="@u.Id" class="btn btn-outline-secondary">Abbrechen</a>
+    </div>
+</form>

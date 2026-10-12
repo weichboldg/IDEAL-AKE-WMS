@@ -88,6 +88,7 @@
                                 </a>
                             }
                             <partial name="_BeschichtungKopf" model="Model.OrderInfos.GetValueOrDefault(group.Key) ?? new List<FaHierarchyOrderInfo>()" />
+                            <partial name="_VorschlagAuftraege" model='(group.Key, Model.Vergaben.GetValueOrDefault(group.Key) ?? BeschichtungsauftragVergabeInfo.Leer, Model.DarfSchreiben, "Summiert")' />
                         </td>
                     </tr>
                     @foreach (var row in group)

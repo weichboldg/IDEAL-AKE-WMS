@@ -8,8 +8,7 @@
    im PDF). Ein Baustein fuer alle Druckansichten mit Briefkopf. *@
 @{
     var vorlage = await Briefkopf.GetAsync();
-    var empfaengerKlasse = Model.Empfaenger is PrintBriefkopfModel.EmpfaengerFehlt or PrintBriefkopfModel.EmpfaengerMehrdeutig
-        ? "empfaenger empfaenger-warnung" : "empfaenger";
+    var empfaengerKlasse = Model.EmpfaengerIstWarnung ? "empfaenger empfaenger-warnung" : "empfaenger";
 }
 <div class="briefkopf-block">
     @if (!vorlage.IstErsatz)

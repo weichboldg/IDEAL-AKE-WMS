@@ -117,6 +117,11 @@
                                 <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "FaHierarchyBeschichtung" ? "active" : "")"
                                    asp-controller="FaHierarchyBeschichtung" asp-action="Summiert">Beschichtungsauftrag</a>
                             </li>
+                            @* Teil 4: gespeicherte Auftraege — dieselbe Bedingung (Lesen + Toggle). *@
+                            <li class="nav-item">
+                                <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Beschichtungsauftraege" ? "active" : "")"
+                                   asp-controller="Beschichtungsauftraege" asp-action="Index">Beschichtungsaufträge</a>
+                            </li>
                         }
                         @* IDEAL Teil 5: Vormontage-Listen — nur mit Vorbau-Zugriff
                            (RequireVorbauAccess, wie FA-Abarbeitungsliste) UND aktivem Feature-Toggle. *@

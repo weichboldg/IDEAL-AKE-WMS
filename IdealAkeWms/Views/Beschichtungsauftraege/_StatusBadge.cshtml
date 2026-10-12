@@ -1,0 +1,13 @@
+@model IdealAkeWms.Models.BeschichtungsauftragStatus
+@using IdealAkeWms.Models
+@* Status immer als Text im Badge (Farbe nie alleiniger Bedeutungstraeger). Weiss auf Bootstrap-Grundfarben >= 4,5:1. *@
+@{
+    var klasse = Model switch
+    {
+        BeschichtungsauftragStatus.Entwurf => "bg-secondary",
+        BeschichtungsauftragStatus.Uebergeben => "bg-primary",
+        BeschichtungsauftragStatus.Erledigt => "bg-success",
+        _ => "bg-dark",
+    };
+}
+<span class="badge @klasse">@IdealAkeWms.Services.BeschichtungsauftragWorkflow.Anzeige(Model)</span>

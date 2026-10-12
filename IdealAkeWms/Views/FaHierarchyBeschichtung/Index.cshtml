@@ -71,6 +71,7 @@
                client-seitige Sort aus table-filter.js kann Zeilen nie ueber Gruppengrenzen mischen. *@
             @foreach (var group in Model.Groups)
             {
+                var vergabe = Model.Vergaben.GetValueOrDefault(group.HauptFA) ?? BeschichtungsauftragVergabeInfo.Leer;
                 <tbody class="fa-besch-group">
                     <tr class="table-active">
                         <td colspan="@colCount">
@@ -84,6 +85,7 @@
                                 </a>
                             }
                             <partial name="_BeschichtungKopf" model="group.OrderInfos" />
+                            <partial name="_VorschlagAuftraege" model='(group.HauptFA, vergabe, Model.DarfSchreiben, "Index")' />
                         </td>
                     </tr>
                     @foreach (var pos in group.Positions)
@@ -94,7 +96,13 @@
                             <td>@pos.Artnr</td>
                             <td>@pos.Matchcode</td>
                             <td class="text-end">@BeschichtungsauftragService.FormatMenge(pos.Sollmenge)</td>
-                            <td>@(pos.Beschichtet ? "Ja" : "Nein")</td>
+                            <td>
+                                @(pos.Beschichtet ? "Ja" : "Nein")
+                                @if (vergabe.NummernJePosition.TryGetValue(IdealAkeWms.Data.Repositories.PositionsSchluessel.Von(pos), out var nummern))
+                                {
+                                    <span class="badge bg-light text-dark border ms-1" title="Position steckt in diesem Beschichtungsauftrag">in @string.Join(", ", nummern)</span>
+                                }
+                            </td>
                             <td class="text-end">@BeschichtungsauftragService.FormatMass(pos.Breite)</td>
                             <td class="text-end">@BeschichtungsauftragService.FormatMass(pos.Hoehe)</td>
                             <td class="text-end">@BeschichtungsauftragService.FormatMass(pos.Tiefe)</td>

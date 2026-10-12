@@ -1,0 +1,121 @@
+@model IdealAkeWms.Models.ViewModels.BeschichtungsauftragListViewModel
+@using IdealAkeWms.Models
+@using IdealAkeWms.Models.ViewModels
+@using IdealAkeWms.Services
+@{
+    ViewData["Title"] = "Beschichtungsaufträge (IDEAL)";
+    const int colCount = 12;
+}
+
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+    <h2 class="page-header">Beschichtungsaufträge (IDEAL)</h2>
+    <div class="d-flex gap-2 mt-1">
+        <a asp-controller="FaHierarchyBeschichtung" asp-action="Summiert" class="btn btn-sm btn-outline-secondary"
+           title="Vorschlagsliste: beschichtete Positionen je HauptFA — dort entstehen neue Aufträge">Zur Vorschlagsliste</a>
+    </div>
+</div>
+
+@* Filterkarte (ADR 0005): Status; Verfeinerung ueber die Server-Spaltenfilter je <th>. *@
+<div class="card filter-card mb-3">
+    <div class="card-header">Filter</div>
+    <div class="card-body">
+        <form method="get" asp-action="Index" class="row g-3 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label" for="status">Status</label>
+                <select id="status" name="status" class="form-select">
+                    <option value="">Alle</option>
+                    @foreach (var s in Enum.GetValues<BeschichtungsauftragStatus>())
+                    {
+                        <option value="@s" selected="@(Model.Status == s)">@BeschichtungsauftragWorkflow.Anzeige(s)</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-primary">Filtern</button>
+                <a asp-action="Index" class="btn btn-outline-secondary">Zurücksetzen</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@* Toolbar-Host fuer den Zahnrad-Button (fallstricke §19): leer und direkt vor .table-responsive. *@
+<div class="d-flex justify-content-end mb-1"></div>
+<div class="table-responsive">
+    <table class="table table-sm table-striped table-hover mb-0 filterable-table" data-view-key="Beschichtungsauftraege" data-server-column-filter="true">
+        <thead>
+            <tr>
+                <th data-filterable data-col-key="nummer">Nummer</th>
+                <th data-filterable data-col-key="hauptfa">HauptFA</th>
+                <th data-filterable data-col-key="status">Status</th>
+                <th data-filterable data-col-key="dienstleister">Dienstleister</th>
+                <th data-filterable data-col-key="ral">RAL</th>
+                <th data-filterable data-col-key="start">Start</th>
+                <th data-filterable data-col-key="retour">Retour</th>
+                <th class="text-end" data-filterable data-col-key="positionen">Positionen</th>
+                <th data-filterable data-col-key="ursprung">Ursprungsauftrag</th>
+                <th data-filterable data-col-key="reklamiert">Reklamiert</th>
+                <th data-filterable data-col-key="angelegtam">Angelegt am</th>
+                <th data-filterable data-col-key="angelegtvon">Angelegt von</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (!Model.Rows.Any())
+            {
+                <tr>
+                    <td colspan="@colCount" class="text-center text-muted py-4">
+                        Keine Aufträge für diese Filterung. Neue Aufträge entstehen in der Vorschlagsliste über „Aus Vorschlagsliste erstellen“.
+                    </td>
+                </tr>
+            }
+            @foreach (var r in Model.Rows)
+            {
+                <tr>
+                    <td><a asp-action="Details" asp-route-id="@r.Id" class="fw-semibold">@r.Nummer</a></td>
+                    <td>@r.HauptFA</td>
+                    <td><partial name="_StatusBadge" model="r.Status" /></td>
+                    <td>@r.Dienstleister</td>
+                    <td>@r.Ral</td>
+                    <td>@BeschichtungsauftragListRow.Datum(r.StartBeschichtung)</td>
+                    <td>@BeschichtungsauftragListRow.Datum(r.BeschichtenRetour)</td>
+                    <td class="text-end">@r.PositionCount</td>
+                    <td>@if (r.UrsprungId is int uid) { <a asp-action="Details" asp-route-id="@uid">@r.UrsprungNummer</a> }</td>
+                    <td>
+                        @for (var i = 0; i < r.Folgeauftraege.Count; i++)
+                        {
+                            @(i > 0 ? ", " : "")<a asp-action="Details" asp-route-id="@r.Folgeauftraege[i].Id">@r.Folgeauftraege[i].Nummer</a>
+                        }
+                    </td>
+                    <td>@BeschichtungsauftragListRow.Zeitpunkt(r.CreatedAt)</td>
+                    <td>@r.CreatedBy</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+<partial name="_Pagination" model="Model.Pagination" />
+
+<script type="application/json" id="view-config">
+{ "viewKey": "Beschichtungsauftraege", "supportsReorder": true, "supportsSortDefault": false }
+</script>
+<script type="application/json" id="column-config">
+[
+    { "key": "nummer", "label": "Nummer", "locked": true, "defaultWidth": null },
+    { "key": "hauptfa", "label": "HauptFA", "locked": false, "defaultWidth": null },
+    { "key": "status", "label": "Status", "locked": false, "defaultWidth": null },
+    { "key": "dienstleister", "label": "Dienstleister", "locked": false, "defaultWidth": null },
+    { "key": "ral", "label": "RAL", "locked": false, "defaultWidth": null },
+    { "key": "start", "label": "Start", "locked": false, "defaultWidth": 90 },
+    { "key": "retour", "label": "Retour", "locked": false, "defaultWidth": 90 },
+    { "key": "positionen", "label": "Positionen", "locked": false, "defaultWidth": 55 },
+    { "key": "ursprung", "label": "Ursprungsauftrag", "locked": false, "defaultWidth": null },
+    { "key": "reklamiert", "label": "Reklamiert", "locked": false, "defaultWidth": null },
+    { "key": "angelegtam", "label": "Angelegt am", "locked": false, "defaultWidth": null },
+    { "key": "angelegtvon", "label": "Angelegt von", "locked": false, "defaultWidth": null }
+]
+</script>
+
+@section Scripts {
+    <script src="~/js/column-preferences.js" asp-append-version="true"></script>
+    <script src="~/js/table-filter.js" asp-append-version="true"></script>
+}

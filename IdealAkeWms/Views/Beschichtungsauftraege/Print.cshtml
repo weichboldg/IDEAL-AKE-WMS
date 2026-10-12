@@ -1,0 +1,101 @@
+@model IdealAkeWms.Models.ViewModels.BeschichtungsauftragPrintViewModel
+@using IdealAkeWms.Models.ViewModels
+@using IdealAkeWms.Services
+@{
+    Layout = null;
+    var a = Model.Auftrag;
+}
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="utf-8" />
+    <title>Beschichtungsauftrag @a.Nummer</title>
+    @* Aussendokument des gespeicherten Auftrags (Spec 2026-10-06-beschichtungsauftrag-ausbau-teil-4, Anforderung 7):
+       dieselbe View fuer Bildschirmdruck und PDF (Headless Edge), daher CSS eingebettet und Barcode als Data-URI.
+       Aufbau wie FaHierarchyBeschichtung/PrintSummiert.cshtml. *@
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; color: #000; background: #fff; padding: 20px; font-size: 11px; }
+        .screen-controls { padding: 15px; text-align: center; background: #053153; color: #fff; margin: -20px -20px 20px -20px; }
+        .screen-controls button { background: #fff; color: #053153; border: none; padding: 8px 24px; font-size: 16px; cursor: pointer; border-radius: 4px; margin: 0 5px; }
+        .group-head { border-bottom: 2px solid #053153; padding-bottom: 8px; margin-bottom: 10px; }
+        .group-head h1 { font-size: 18px; color: #053153; }
+        .barcode img { height: 22mm; max-width: 100%; }
+        .head-table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+        .head-table th, .head-table td { border: 1px solid #aaa; padding: 3px 5px; text-align: left; font-size: 10px; }
+        .head-table th { background: #eef2f6; width: 22%; }
+        table.positions { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        table.positions th, table.positions td { border: 1px solid #888; padding: 4px 6px; text-align: left; }
+        table.positions th { background: #f0f0f0; }
+        .text-end { text-align: right; }
+        .masse-warn { display: inline-block; margin-left: 4px; padding: 0 4px; border: 1px solid #7a5900; color: #7a5900; background: #fff8e1; font-weight: bold; }
+        .bemerkung { margin-top: 8px; white-space: pre-line; }
+        @@media print { .screen-controls { display: none; } body { padding: 0; } }
+    </style>
+    <partial name="_PrintBriefkopfStyles" />
+</head>
+<body>
+    <div class="screen-controls">
+        <button onclick="window.print()">Drucken</button>
+        <button onclick="window.close()">Schliessen</button>
+    </div>
+
+    <div class="fa-group">
+        <partial name="_PrintBriefkopf" model="PrintBriefkopfModel.FuerAuftrag(a.Nummer, a.HauptFA, a.Dienstleister)" />
+        <div class="group-head">
+            <h1>Beschichtungsauftrag @a.Nummer — HauptFA @a.HauptFA</h1>
+            <div class="barcode"><img src="data:image/png;base64,@Model.Barcode" alt="@a.Nummer" /></div>
+            <table class="head-table">
+                <tr><th>RAL</th><td>@a.Ral</td></tr>
+                <tr><th>Start Beschichtung</th><td>@a.StartBeschichtung?.ToString("dd.MM.yyyy")</td></tr>
+                <tr><th>Retour</th><td>@a.BeschichtenRetour?.ToString("dd.MM.yyyy")</td></tr>
+                @if (a.Ursprungsauftrag != null)
+                {
+                    <tr><th>Reklamation zu</th><td>@a.Ursprungsauftrag.Nummer</td></tr>
+                }
+            </table>
+            @if (!string.IsNullOrWhiteSpace(a.Bemerkung))
+            {
+                <div class="bemerkung"><strong>Bemerkung:</strong> @a.Bemerkung</div>
+            }
+        </div>
+
+        @* Summiert je Artnr (Antwort 6): Summe der Auftragsmengen, Maße der ersten Position, Abweichung markiert. *@
+        <table class="positions">
+            <thead>
+                <tr>
+                    @if (Model.ShowCol("hauptartnr")) { <th>Haupt-Artnr.</th> }
+                    @if (Model.ShowCol("artnr")) { <th>Artnr.</th> }
+                    @if (Model.ShowCol("matchcode")) { <th>Matchcode</th> }
+                    @if (Model.ShowCol("breite")) { <th class="text-end">Breite</th> }
+                    @if (Model.ShowCol("hoehe")) { <th class="text-end">Höhe</th> }
+                    @if (Model.ShowCol("tiefe")) { <th class="text-end">Tiefe</th> }
+                    @if (Model.ShowCol("positionen")) { <th class="text-end">Positionen</th> }
+                    @if (Model.ShowCol("menge")) { <th class="text-end">Menge</th> }
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in Model.Rows)
+                {
+                    <tr>
+                        @if (Model.ShowCol("hauptartnr")) { <td>@row.HauptArtnr</td> }
+                        @if (Model.ShowCol("artnr")) { <td>@row.Artnr</td> }
+                        @if (Model.ShowCol("matchcode"))
+                        {
+                            <td>
+                                @row.Matchcode
+                                @if (row.MasseUneinheitlich) { <span class="masse-warn">Maße uneinheitlich</span> }
+                            </td>
+                        }
+                        @if (Model.ShowCol("breite")) { <td class="text-end">@BeschichtungsauftragService.FormatMass(row.Breite)</td> }
+                        @if (Model.ShowCol("hoehe")) { <td class="text-end">@BeschichtungsauftragService.FormatMass(row.Hoehe)</td> }
+                        @if (Model.ShowCol("tiefe")) { <td class="text-end">@BeschichtungsauftragService.FormatMass(row.Tiefe)</td> }
+                        @if (Model.ShowCol("positionen")) { <td class="text-end">@row.PositionCount</td> }
+                        @if (Model.ShowCol("menge")) { <td class="text-end">@BeschichtungsauftragService.FormatMenge(row.SummeSollmenge)</td> }
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>

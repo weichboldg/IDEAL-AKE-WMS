@@ -110,14 +110,14 @@ public class KommissionierSpaltenKonsistenzTests
     private static readonly Regex ThDataColKeyRegex = new(
         """<th\b[^>]*\bdata-col-key="([^"]+)"[^>]*>""", RegexOptions.Compiled);
 
-    private static List<string> ExtractThDataColKeys(string html) =>
+    internal static List<string> ExtractThDataColKeys(string html) =>
         ThDataColKeyRegex.Matches(html).Select(m => m.Groups[1].Value).ToList();
 
     private static readonly Regex ColumnConfigScriptRegex = new(
         """<script type="application/json" id="column-config">(.*?)</script>""",
         RegexOptions.Compiled | RegexOptions.Singleline);
 
-    private static List<string> ExtractColumnConfigKeys(string html)
+    internal static List<string> ExtractColumnConfigKeys(string html)
     {
         var match = ColumnConfigScriptRegex.Match(html);
         match.Success.Should().BeTrue("jeder Bildschirm-View braucht ein #column-config-Script fuer column-preferences.js");
@@ -131,6 +131,6 @@ public class KommissionierSpaltenKonsistenzTests
     private static readonly Regex ShowColRegex = new(
         """ShowCol\("([^"]+)"\)""", RegexOptions.Compiled);
 
-    private static List<string> ExtractShowColKeys(string html) =>
+    internal static List<string> ExtractShowColKeys(string html) =>
         ShowColRegex.Matches(html).Select(m => m.Groups[1].Value).Distinct().ToList();
 }

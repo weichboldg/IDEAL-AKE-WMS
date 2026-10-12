@@ -518,7 +518,7 @@ public static class ColumnDefinitions
     /// <summary>
     /// Positionstabelle in Beschichtungsauftraege/Details.cshtml (Teil 4): klein, unpaginiert, auf einen Auftrag
     /// vorgefiltert ⇒ Client-Spaltenfilter (ADR-0005-Ausnahme). Dieselben Keys bestimmen die Druckspalten des Auftrags
-    /// (PrintVisibleColumns). artnr Locked.
+    /// (PrintVisibleColumns). artnr + matchcode Locked (matchcode traegt im Druck „Maße uneinheitlich").
     /// </summary>
     public static readonly ViewConfig BeschichtungsauftragPositionen = new(
         "BeschichtungsauftragPositionen", "Beschichtungsauftrag — Positionen (IDEAL)",
@@ -529,7 +529,7 @@ public static class ColumnDefinitions
             new ColumnDef("herkunft",   "Vater / SubFA / Pos.", Locked: false),
             new ColumnDef("hauptartnr", "Haupt-Artnr.",         Locked: false),
             new ColumnDef("artnr",      "Artnr.",               Locked: true),
-            new ColumnDef("matchcode",  "Matchcode",            Locked: false),
+            new ColumnDef("matchcode",  "Matchcode",            Locked: true),
             new ColumnDef("breite",     "Breite",               Locked: false, DefaultWidth: 55),
             new ColumnDef("hoehe",      "Höhe",                 Locked: false, DefaultWidth: 55),
             new ColumnDef("tiefe",      "Tiefe",                Locked: false, DefaultWidth: 55),
