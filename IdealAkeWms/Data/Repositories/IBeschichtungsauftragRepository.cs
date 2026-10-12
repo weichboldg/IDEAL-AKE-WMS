@@ -15,7 +15,7 @@ public readonly record struct PositionsSchluessel(int? VaterFA, int SubFA, int? 
 }
 
 /// <summary>Eine Position steckt in einem sperrenden Auftrag (Status ≠ Storniert).</summary>
-public sealed record Vergabe(PositionsSchluessel Schluessel, int AuftragId, string Nummer);
+public sealed record Vergabe(PositionsSchluessel Schluessel, int AuftragId, string Nummer, int HauptFA);
 
 /// <summary>
 /// Datenzugriff fuer den gespeicherten Beschichtungsauftrag (ADR 0001; Spec 2026-10-06-beschichtungsauftrag-ausbau-teil-3).
@@ -32,6 +32,14 @@ public interface IBeschichtungsauftragRepository
     /// <summary>Alle Positionen des HauptFA in Auftraegen mit Status ≠ Storniert — inkl. Reklamationen
     /// (Spec Anforderung 6, Herleitung 2026-10-12) — mit Auftragsnummer. Eine Abfrage, kein N+1.</summary>
     Task<List<Vergabe>> GetVergabenAsync(int hauptFa);
+
+    /// <summary>Wie <see cref="GetVergabenAsync(int)"/>, fuer mehrere HauptFA in EINER Abfrage (Markierung der
+    /// Vorschlagsliste je Seite, Teil 4).</summary>
+    Task<List<Vergabe>> GetVergabenAsync(IReadOnlyCollection<int> hauptFas);
+
+    /// <summary>Alle Auftraege ohne Positionen-Tracking (Liste, Teil 4) — inkl. Positionen fuer die Anzahl und
+    /// Ursprung/Folgeauftraege fuer die Verweise.</summary>
+    Task<List<Beschichtungsauftrag>> GetAlleAsync();
 
     void Add(Beschichtungsauftrag auftrag);
     void Remove(BeschichtungsauftragPosition position);

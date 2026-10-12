@@ -32,6 +32,8 @@ public interface ICurrentUserService
     Task<bool> HasVorbauAccessAsync();
     /// <summary>Darf der User den IDEAL-Beschichtungsauftrag sehen (Rolle beschichtungsauftrag, Read-Ebene)?</summary>
     Task<bool> HasBeschichtungsauftragAccessAsync();
+    /// <summary>Darf der User Beschichtungsauftraege anlegen/bearbeiten (Rolle beschichtungsauftrag_schreiben, ADR 0006 Edit-Ebene)?</summary>
+    Task<bool> HasBeschichtungsauftragWriteAccessAsync();
     Task<bool> CanUseBdeAsync();
     Task<bool> CanManageBdeShiftleadAsync();
     Task<bool> CanManageBdeAdminAsync();

@@ -24,17 +24,21 @@ public class BeschichtungsauftragDiResolutionTests
         services.AddSingleton<ApplicationDbContext>(TestDbContextFactory.Create());
         services.AddScoped(_ => new Mock<ICurrentUserService>().Object);
         services.AddLogging();
+        services.AddMemoryCache();
 
         // --- Spiegel von Program.cs (FA-Hierarchie-Repositories + Teil 3) ---
         services.AddScoped<FaHierarchyNodeRepository>();
+        services.AddScoped<IFaHierarchyNodeRepository, CachedFaHierarchyNodeRepository>();
         services.AddScoped<IFaHierarchyOrderInfoRepository, FaHierarchyOrderInfoRepository>();
         services.AddScoped<IBeschichtungsauftragRepository, BeschichtungsauftragRepository>();
         services.AddScoped<BeschichtungsauftragWorkflow>();
+        services.AddScoped<BeschichtungsauftragVergabeAnzeige>();
         services.AddSingleton(TimeProvider.System);
 
         using var sp = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = true });
         using var scope = sp.CreateScope();
 
         scope.ServiceProvider.GetRequiredService<BeschichtungsauftragWorkflow>().Should().NotBeNull();
+        scope.ServiceProvider.GetRequiredService<BeschichtungsauftragVergabeAnzeige>().Should().NotBeNull();
     }
 }

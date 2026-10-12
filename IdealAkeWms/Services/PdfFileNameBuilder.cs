@@ -7,5 +7,9 @@ namespace IdealAkeWms.Services;
 public static class PdfFileNameBuilder
 {
     public static string Build(string documentArt, int hauptFa, DateTime timestamp)
-        => $"{documentArt}_{hauptFa.ToString(CultureInfo.InvariantCulture)}_{timestamp.ToString("yyyyMMdd-HHmm", CultureInfo.InvariantCulture)}.pdf";
+        => Build(documentArt, hauptFa.ToString(CultureInfo.InvariantCulture), timestamp);
+
+    /// <summary>Variante mit Text-Kennung (Auftragsnummer <c>BA-JJJJ-NNNNN</c>, systemvergeben und ASCII).</summary>
+    public static string Build(string documentArt, string kennung, DateTime timestamp)
+        => $"{documentArt}_{kennung}_{timestamp.ToString("yyyyMMdd-HHmm", CultureInfo.InvariantCulture)}.pdf";
 }

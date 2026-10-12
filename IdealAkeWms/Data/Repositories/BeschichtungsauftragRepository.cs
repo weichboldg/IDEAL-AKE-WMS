@@ -29,16 +29,28 @@ public class BeschichtungsauftragRepository : IBeschichtungsauftragRepository
             .Where(a => a.Jahr == jahr)
             .MaxAsync(a => (int?)a.LaufendeNummer) ?? 0;
 
-    public async Task<List<Vergabe>> GetVergabenAsync(int hauptFa)
+    public Task<List<Vergabe>> GetVergabenAsync(int hauptFa) => GetVergabenAsync(new[] { hauptFa });
+
+    public async Task<List<Vergabe>> GetVergabenAsync(IReadOnlyCollection<int> hauptFas)
     {
+        if (hauptFas.Count == 0) return new List<Vergabe>();
         var rows = await _db.BeschichtungsauftragPositionen
             .AsNoTracking()
-            .Where(p => p.HauptFA == hauptFa && p.Beschichtungsauftrag.Status != BeschichtungsauftragStatus.Storniert)
-            .Select(p => new { p.VaterFA, p.SubFA, p.Position, p.BeschichtungsauftragId, p.Beschichtungsauftrag.Nummer })
+            .Where(p => hauptFas.Contains(p.HauptFA) && p.Beschichtungsauftrag.Status != BeschichtungsauftragStatus.Storniert)
+            .Select(p => new { p.HauptFA, p.VaterFA, p.SubFA, p.Position, p.BeschichtungsauftragId, p.Beschichtungsauftrag.Nummer })
             .ToListAsync();
-        return rows.Select(r => new Vergabe(new PositionsSchluessel(r.VaterFA, r.SubFA, r.Position), r.BeschichtungsauftragId, r.Nummer))
+        return rows.Select(r => new Vergabe(new PositionsSchluessel(r.VaterFA, r.SubFA, r.Position), r.BeschichtungsauftragId, r.Nummer, r.HauptFA))
             .ToList();
     }
+
+    public Task<List<Beschichtungsauftrag>> GetAlleAsync() =>
+        _db.Beschichtungsauftraege
+            .AsNoTracking()
+            .Include(a => a.Positionen)
+            .Include(a => a.Ursprungsauftrag)
+            .Include(a => a.Folgeauftraege)
+            .AsSplitQuery()
+            .ToListAsync();
 
     public void Add(Beschichtungsauftrag auftrag) => _db.Beschichtungsauftraege.Add(auftrag);
 

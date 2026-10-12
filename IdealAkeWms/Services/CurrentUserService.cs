@@ -135,7 +135,10 @@ public class CurrentUserService : ICurrentUserService
         => await HasAnyRoleAsync(RoleKeys.Admin, RoleKeys.Vorbau);
 
     public async Task<bool> HasBeschichtungsauftragAccessAsync()
-        => await HasAnyRoleAsync(RoleKeys.Admin, RoleKeys.Beschichtungsauftrag);
+        => await HasAnyRoleAsync(RoleKeys.Admin, RoleKeys.Beschichtungsauftrag, RoleKeys.BeschichtungsauftragSchreiben);
+
+    public async Task<bool> HasBeschichtungsauftragWriteAccessAsync()
+        => await HasAnyRoleAsync(RoleKeys.Admin, RoleKeys.BeschichtungsauftragSchreiben);
 
     public async Task<bool> CanUseBdeAsync()
         => await HasAnyRoleAsync(RoleKeys.Admin, RoleKeys.BdeUser, RoleKeys.BdeShiftlead, RoleKeys.BdeAdmin);

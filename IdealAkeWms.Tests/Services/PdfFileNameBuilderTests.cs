@@ -18,6 +18,11 @@ public class PdfFileNameBuilderTests
         => PdfFileNameBuilder.Build("Kommissionierliste", 1, new DateTime(2026, 1, 2, 3, 4, 0))
             .Should().Be("Kommissionierliste_1_20260102-0304.pdf");
 
+    [Fact]
+    public void Build_MitAuftragsnummer_AsciiUndNummerImNamen()
+        => PdfFileNameBuilder.Build("Beschichtungsauftrag", "BA-2026-00042", new DateTime(2026, 10, 12, 9, 5, 0))
+            .Should().Be("Beschichtungsauftrag_BA-2026-00042_20261012-0905.pdf").And.MatchRegex("^[A-Za-z0-9_.-]+$");
+
     [Theory]
     [InlineData("Kommissionierliste")]
     [InlineData("Beschichtungsauftrag")]

@@ -22,4 +22,6 @@ public static class RoleKeys
 
     /// <summary>IDEAL Teil 4 — Beschichtungsauftrag (Read-Ebene: Liste + Bildschirmdruck).</summary>
     public const string Beschichtungsauftrag = "beschichtungsauftrag";
+    /// <summary>Beschichtungsauftrag-Ausbau Teil 4 — Schreibrecht (anlegen, bearbeiten, Status, Reklamation); schliesst Lesen ein.</summary>
+    public const string BeschichtungsauftragSchreiben = "beschichtungsauftrag_schreiben";
 }

@@ -454,4 +454,18 @@ public class CurrentUserServiceRoleTests
 
         (await service.CanAccessStockReadAsync()).Should().BeFalse();
     }
+    // ----- Beschichtungsauftrag: Lesen vs. Schreiben (Teil 4, v1.51.0, ADR 0006 Read/Edit-Split) -----
+
+    [Theory]
+    [InlineData(RoleKeys.Admin, true, true)]
+    [InlineData(RoleKeys.BeschichtungsauftragSchreiben, true, true)]
+    [InlineData(RoleKeys.Beschichtungsauftrag, true, false)]
+    [InlineData(RoleKeys.Picking, false, false)]
+    public async Task Beschichtungsauftrag_LesenUndSchreiben(string rolle, bool lesen, bool schreiben)
+    {
+        var (service, _) = CreateService(sessionUserId: 1, roleKeys: new List<string> { rolle });
+
+        (await service.HasBeschichtungsauftragAccessAsync()).Should().Be(lesen, "die Schreibrolle schliesst die Leseebene ein");
+        (await service.HasBeschichtungsauftragWriteAccessAsync()).Should().Be(schreiben);
+    }
 }

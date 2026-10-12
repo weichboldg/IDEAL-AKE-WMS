@@ -32,5 +32,6 @@ public class FakeCurrentUserService : ICurrentUserService
     public Task<bool> CanFaCompletionAsync() => Task.FromResult(true);
     public Task<bool> HasVorbauAccessAsync() => Task.FromResult(true);
     public Task<bool> HasBeschichtungsauftragAccessAsync() => Task.FromResult(true);
+    public Task<bool> HasBeschichtungsauftragWriteAccessAsync() => Task.FromResult(true);
     public Task<int?> GetDefaultPageSizeAsync() => Task.FromResult<int?>(null);
 }
