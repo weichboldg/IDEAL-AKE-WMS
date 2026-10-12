@@ -162,7 +162,7 @@ public class BeschichtungsauftraegeControllerTests
 
         await c.Bearbeiten(a.Id, "Neu AG", null, null, null, null, null, Rv(a));
 
-        Warnung(c).Should().Contain("Datum");
+        Warnung(c).Should().Contain("startBeschichtung");
         Laden(a.Id).Dienstleister.Should().Be("Huber GmbH");
     }
 

@@ -163,7 +163,8 @@ public class BeschichtungsauftraegeController : Controller
         DateTime? beschichtenRetour, Dictionary<int, string>? mengen, int[]? entfernen, string? rowVersion)
     {
         if (!ModelState.IsValid)
-            return Warnung(id, "Eingabe nicht gespeichert: ein Datum ist ungültig.");
+            return Warnung(id, "Eingabe nicht gespeichert: ungültiger Wert in " +
+                string.Join(", ", ModelState.Where(kv => kv.Value!.Errors.Count > 0).Select(kv => kv.Key)) + ".");
         if (!TryRowVersion(rowVersion, out var rv)) return VeralteterStand(id);
 
         var mengenWerte = new Dictionary<int, decimal>();

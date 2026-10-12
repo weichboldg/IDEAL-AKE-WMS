@@ -225,7 +225,7 @@
         <tbody>
             @if (!a.Positionen.Any())
             {
-                <tr><td colspan="9" class="text-center text-muted py-3">Keine Positionen — unten hinzufügen oder den Auftrag stornieren.</td></tr>
+                <tr><td colspan="@(bearbeitbar ? 9 : 8)" class="text-center text-muted py-3">Keine Positionen — unten hinzufügen oder den Auftrag stornieren.</td></tr>
             }
             @foreach (var p in a.Positionen.OrderBy(p => p.Position ?? int.MaxValue).ThenBy(p => p.SubFA))
             {
