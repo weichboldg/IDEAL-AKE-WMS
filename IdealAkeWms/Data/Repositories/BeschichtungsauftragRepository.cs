@@ -44,19 +44,15 @@ public class BeschichtungsauftragRepository : IBeschichtungsauftragRepository
 
     public void Remove(BeschichtungsauftragPosition position) => _db.BeschichtungsauftragPositionen.Remove(position);
 
-    public void VerwerfeNeue()
-    {
-        foreach (var e in _db.ChangeTracker.Entries().Where(e => e.State == EntityState.Added
-                     && e.Entity is Beschichtungsauftrag or BeschichtungsauftragPosition).ToList())
-            e.State = EntityState.Detached;
-    }
+    // Ein Workflow-Aufruf je Request (Teil 4) — der Context traegt dann nur diesen Vorgang.
+    public void VerwerfeAenderungen() => _db.ChangeTracker.Clear();
 
     public void SetOriginalRowVersion(Beschichtungsauftrag auftrag, byte[] rowVersion) =>
         _db.Entry(auftrag).Property(a => a.RowVersion).OriginalValue = rowVersion;
 
     public virtual Task SaveChangesAsync() => _db.SaveChangesAsync();
 
-    public async Task<T> InSerializableTransactionAsync<T>(Func<Task<T>> action)
+    public virtual async Task<T> InSerializableTransactionAsync<T>(Func<Task<T>> action)
     {
         if (!_db.Database.IsRelational()) return await action();
 

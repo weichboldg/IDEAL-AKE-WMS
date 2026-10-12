@@ -6,6 +6,7 @@ using IdealAkeWms.Data.Repositories;
 using IdealAkeWms.Models;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace IdealAkeWms.Services;
 
@@ -61,19 +62,22 @@ public class BeschichtungsauftragWorkflow
     private readonly IFaHierarchyOrderInfoRepository _infos;
     private readonly ICurrentUserService _user;
     private readonly TimeProvider _time;
+    private readonly ILogger<BeschichtungsauftragWorkflow> _logger;
 
     public BeschichtungsauftragWorkflow(
         IBeschichtungsauftragRepository repo,
         FaHierarchyNodeRepository nodes,
         IFaHierarchyOrderInfoRepository infos,
         ICurrentUserService user,
-        TimeProvider time)
+        TimeProvider time,
+        ILogger<BeschichtungsauftragWorkflow> logger)
     {
         _repo = repo;
         _nodes = nodes;
         _infos = infos;
         _user = user;
         _time = time;
+        _logger = logger;
     }
 
     private DateTime Jetzt => _time.GetLocalNow().DateTime;
@@ -251,7 +255,9 @@ public class BeschichtungsauftragWorkflow
             return await SpeichernAsync(a, rowVersion);
         }
 
-        return await _repo.InSerializableTransactionAsync(async () =>
+        // Fehlerbehandlung AUSSERHALB der Transaktion: scheitert ein Lesen oder Speichern darin (z. B. Deadlock-Opfer), ist
+        // die SQL-Server-Transaktion beendet — ein Commit danach wuerde selbst werfen (QA I-1).
+        return await MitFehlerbehandlungAsync(a.Nummer, () => _repo.InSerializableTransactionAsync(async () =>
         {
             var knoten = (await _nodes.GetByHauptFaAsync(a.HauptFA)).GroupBy(PositionsSchluessel.Von).ToDictionary(g => g.Key, g => g.First());
             var vergaben = VergabenJeSchluessel(await _repo.GetVergabenAsync(a.HauptFA));
@@ -268,8 +274,9 @@ public class BeschichtungsauftragWorkflow
 
             foreach (var k in keys) a.Positionen.Add(Snapshot(knoten[k]));
             Geaendert(a, Jetzt);
-            return await SpeichernAsync(a, rowVersion);
-        });
+            await SpeichernRohAsync(a, rowVersion);
+            return new BeschichtungsauftragErgebnis { Auftrag = a };
+        }));
     }
 
     // ===================== Bemerkung, Status (Anforderungen 5, 10) =====================
@@ -322,24 +329,46 @@ public class BeschichtungsauftragWorkflow
         return a;
     }
 
-    /// <summary>Speichert eine Aenderung mit optimistischer Nebenlaeufigkeit (RowVersion des Aufrufers).</summary>
-    private async Task<BeschichtungsauftragErgebnis> SpeichernAsync(Beschichtungsauftrag a, byte[] rowVersion)
+    /// <summary>Speichert eine Aenderung mit optimistischer Nebenlaeufigkeit (RowVersion des Aufrufers); Fehler werden
+    /// zu Klartext. Nicht innerhalb einer Transaktion verwenden — dort <see cref="SpeichernRohAsync"/> + aussen
+    /// <see cref="MitFehlerbehandlungAsync"/>.</summary>
+    private Task<BeschichtungsauftragErgebnis> SpeichernAsync(Beschichtungsauftrag a, byte[] rowVersion) =>
+        MitFehlerbehandlungAsync(a.Nummer, async () =>
+        {
+            await SpeichernRohAsync(a, rowVersion);
+            return new BeschichtungsauftragErgebnis { Auftrag = a };
+        });
+
+    private async Task SpeichernRohAsync(Beschichtungsauftrag a, byte[] rowVersion)
     {
         _repo.SetOriginalRowVersion(a, rowVersion);
+        await _repo.SaveChangesAsync();
+    }
+
+    /// <summary>Uebersetzt Speicherfehler in Klartext und verwirft danach ALLE ungespeicherten Aenderungen des Request-Contexts
+    /// (QA M-1: sonst stuenden halbgeaenderte Werte im Speicher und ein Folgeaufruf im selben Request saehe sie).
+    /// Nicht-Nebenlaeufigkeits-Fehler werden geloggt (QA M-2).</summary>
+    private async Task<BeschichtungsauftragErgebnis> MitFehlerbehandlungAsync(string nummer, Func<Task<BeschichtungsauftragErgebnis>> op)
+    {
         try
         {
-            await _repo.SaveChangesAsync();
-            return new BeschichtungsauftragErgebnis { Auftrag = a };
+            return await op();
         }
         catch (DbUpdateConcurrencyException)
         {
-            _repo.VerwerfeNeue();
-            return Fehler($"{a.Nummer} wurde inzwischen von jemand anderem geändert — bitte neu laden und erneut versuchen.");
+            _repo.VerwerfeAenderungen();
+            return Fehler($"{nummer} wurde inzwischen von jemand anderem geändert — bitte neu laden und erneut versuchen.");
         }
         catch (Exception ex) when (ex is DbUpdateException || IstDeadlock(ex))
         {
-            _repo.VerwerfeNeue();
-            return Fehler($"{a.Nummer} konnte wegen einer gleichzeitigen Änderung nicht gespeichert werden — bitte erneut versuchen.");
+            _repo.VerwerfeAenderungen();
+            if (IstDeadlock(ex))
+            {
+                _logger.LogWarning(ex, "Beschichtungsauftrag {Nummer}: Deadlock-Opfer bei gleichzeitiger Änderung.", nummer);
+                return Fehler($"{nummer} konnte wegen einer gleichzeitigen Änderung nicht gespeichert werden — bitte erneut versuchen.");
+            }
+            _logger.LogError(ex, "Beschichtungsauftrag {Nummer}: Speichern fehlgeschlagen.", nummer);
+            return Fehler($"{nummer} konnte nicht gespeichert werden (Datenbankfehler, Details im Log) — bitte erneut versuchen.");
         }
     }
 
@@ -355,10 +384,14 @@ public class BeschichtungsauftragWorkflow
             }
             catch (Exception ex) when (ex is DbUpdateException || IstDeadlock(ex))
             {
-                _repo.VerwerfeNeue();
+                // Jeder Versuch in einer neuen Transaktion; die alte ist mit der Ausnahme zurueckgerollt (Dispose).
+                // ponytail: es wird jeder DbUpdateException wiederholt (Unique-Konflikt der Nummer ist ohne SqlException-
+                // Nummer nicht sicher erkennbar); andere DB-Fehler kosten so 3 Versuche — deshalb jeder Versuch im Log.
+                _repo.VerwerfeAenderungen();
+                _logger.LogWarning(ex, "Beschichtungsauftrag anlegen: Versuch {Versuch}/{Max} gescheitert.", versuch, MaxNummerVersuche);
                 if (versuch >= MaxNummerVersuche)
-                    return Fehler($"Konnte nach {MaxNummerVersuche} Versuchen keine freie Nummer vergeben (gleichzeitige Anlage) — " +
-                                  "bitte erneut versuchen.");
+                    return Fehler($"Konnte nach {MaxNummerVersuche} Versuchen keine freie Nummer vergeben (gleichzeitige Anlage oder " +
+                                  "Datenbankfehler, Details im Log) — bitte erneut versuchen.");
             }
         }
     }

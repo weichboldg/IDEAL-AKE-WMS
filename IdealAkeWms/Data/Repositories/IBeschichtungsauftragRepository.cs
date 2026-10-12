@@ -36,9 +36,9 @@ public interface IBeschichtungsauftragRepository
     void Add(Beschichtungsauftrag auftrag);
     void Remove(BeschichtungsauftragPosition position);
 
-    /// <summary>Verwirft noch nicht gespeicherte neue Auftraege/Positionen aus dem Change-Tracker (Nummern-Konflikt,
-    /// neuer Versuch bzw. Abbruch) — sonst wuerde der naechste SaveChanges sie erneut einfuegen.</summary>
-    void VerwerfeNeue();
+    /// <summary>Verwirft alle ungespeicherten Aenderungen des Contexts nach einem gescheiterten Speichern (Nummern-Konflikt,
+    /// Concurrency, Deadlock): neue Zeilen fallen weg, geaenderte Werte werden beim naechsten Laden neu gelesen.</summary>
+    void VerwerfeAenderungen();
 
     /// <summary>Optimistische Nebenlaeufigkeit: der Aufrufer meldet die RowVersion, die er gesehen hat.</summary>
     void SetOriginalRowVersion(Beschichtungsauftrag auftrag, byte[] rowVersion);

@@ -23,6 +23,7 @@ public class BeschichtungsauftragDiResolutionTests
         var services = new ServiceCollection();
         services.AddSingleton<ApplicationDbContext>(TestDbContextFactory.Create());
         services.AddScoped(_ => new Mock<ICurrentUserService>().Object);
+        services.AddLogging();
 
         // --- Spiegel von Program.cs (FA-Hierarchie-Repositories + Teil 3) ---
         services.AddScoped<FaHierarchyNodeRepository>();

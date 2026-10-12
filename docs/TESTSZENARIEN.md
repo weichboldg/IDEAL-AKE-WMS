@@ -9427,11 +9427,15 @@ FreshInstall). Nicht InMemory-testbar und deshalb hier: SQL-Skript, RowVersion-K
 - **TS-83.5 — Nummer-Eindeutigkeit in der DB (AK 4, SQL).** Auf der Test-DB zweimal dieselbe Nummer einfügen:
   `INSERT INTO dbo.Beschichtungsauftraege (Nummer,Jahr,LaufendeNummer,HauptFA,Status,CreatedAt,CreatedBy,CreatedByWindows) VALUES ('BA-2026-99999',2026,99999,1,10,GETDATE(),'test','test');`
   zweimal ausführen. **Erwartet:** zweiter Insert scheitert am UNIQUE-Index (`IX_Beschichtungsauftraege_Nummer`).
-  Danach die Testzeile löschen. (Die Wiederholung mit neuer Nummer prüft der Unit-Test.)
+  Danach die Testzeile **löschen** — sonst wäre die nächste vergebene Nummer `BA-2026-100000`:
+  `DELETE FROM dbo.Beschichtungsauftraege WHERE Nummer = 'BA-2026-99999';` (Die Wiederholung mit neuer Nummer prüft der
+  Unit-Test.)
 - **TS-83.6 — Parallelität (AK 10, Manual-UAT mit Teil 4).** Sobald Teil 4 die Bedienung liefert: zwei Sessions, derselbe
   Auftrag, gleichzeitig Status wechseln → der zweite erhält „wurde inzwischen von jemand anderem geändert"; zwei Sessions
   legen gleichzeitig einen Auftrag für denselben HauptFA an → nur einer übernimmt die freien Positionen, der andere
-  meldet sie als vergeben bzw. „bitte erneut versuchen".
+  meldet sie als vergeben bzw. „bitte erneut versuchen"; zwei Sessions fügen gleichzeitig **dieselbe freie Position** in
+  zwei verschiedene Entwürfe desselben HauptFA ein → nur einer erhält sie, der andere eine Klartext-Meldung („bereits
+  vergeben" bzw. „… bitte erneut versuchen"), **keine** Fehlerseite/Ausnahme (Serializable-Transaktion, QA I-1).
 - **TS-83.7 — Regression (AK 12).** Beschichtungsauftrag Liste/Summiert, Druck und PDF (TS-60, TS-74, TS-81, TS-82)
   unverändert; kein neuer Menüpunkt.
 

@@ -69,7 +69,8 @@ public class BeschichtungsauftragWorkflowTests
             user.Setup(u => u.GetWindowsUserName()).Returns("DOM\\tester");
             user.Setup(u => u.GetCurrentAppUserId()).Returns(7);
             Wf = new BeschichtungsauftragWorkflow(Repo, new FaHierarchyNodeRepository(Db),
-                new FaHierarchyOrderInfoRepository(Db), user.Object, Time);
+                new FaHierarchyOrderInfoRepository(Db), user.Object, Time,
+                Microsoft.Extensions.Logging.Abstractions.NullLogger<BeschichtungsauftragWorkflow>.Instance);
         }
 
         public FaHierarchyNode Node(int vater, int subFa, int pos, bool beschichtet = true, decimal soll = 2m,
@@ -661,6 +662,65 @@ public class BeschichtungsauftragWorkflowTests
         erst.Erfolg.Should().BeFalse("alle Positionen stecken im Erledigt-Erstauftrag");
         foreach (var nr in new[] { u.Nummer, rek1.Nummer, rek2.Auftrag!.Nummer, rekVonRek.Auftrag.Nummer })
             erst.Fehler.Single().Should().Contain(nr);
+    }
+
+    // ===== Nebenlaeufigkeit und Fehlerpfade (QA I-1, M-1, M-3) =====
+
+    [Fact]
+    public async Task VeralteteRowVersion_ConcurrencyMeldung_UndContextSauber()
+    {
+        var fx = new Fx();
+        fx.Standard();
+        var a = await fx.Anlegen();
+
+        var r = await fx.Wf.StatusWechselnAsync(a.Id, BeschichtungsauftragStatus.Storniert, new byte[] { 1, 2, 3 });
+
+        r.Fehler.Single().Should().Contain("inzwischen von jemand anderem geändert");
+        fx.Db.ChangeTracker.Entries().Should().BeEmpty("nach einem Fehler bleibt nichts Halbgeaendertes im Request-Context (QA M-1)");
+        var neu = await fx.Repo.GetMitPositionenAsync(a.Id);
+        neu!.Status.Should().Be(BeschichtungsauftragStatus.Entwurf, "die Aenderung wurde nicht gespeichert");
+        (await fx.Wf.StatusWechselnAsync(a.Id, BeschichtungsauftragStatus.Storniert, neu.RowVersion)).Fehler.Should().BeEmpty();
+    }
+
+    /// <summary>Simuliert einen Deadlock beim Hinzufuegen im Erst-Entwurf UND die SQL-Server-Semantik dazu: ist ein Speichern
+    /// innerhalb der Transaktion gescheitert, ist die Transaktion beendet — ein Commit danach wirft (QA I-1).</summary>
+    private sealed class SpeicherFehlerRepository(ApplicationDbContext db) : BeschichtungsauftragRepository(db)
+    {
+        public bool Werfen { get; set; }
+        private bool _gescheitert;
+
+        public override Task SaveChangesAsync()
+        {
+            if (!Werfen) return base.SaveChangesAsync();
+            _gescheitert = true;
+            throw new DbUpdateException("Transaction was deadlocked … chosen as the deadlock victim");
+        }
+
+        public override async Task<T> InSerializableTransactionAsync<T>(Func<Task<T>> action)
+        {
+            _gescheitert = false;
+            var r = await action();
+            if (_gescheitert) throw new InvalidOperationException("This SqlTransaction has completed; it is no longer usable.");
+            return r;   // = Commit
+        }
+    }
+
+    [Fact]
+    public async Task Hinzufuegen_ErstEntwurf_SpeicherFehler_KlartextStattAusnahme_NichtsGeaendert()
+    {
+        SpeicherFehlerRepository? repo = null;
+        var fx = new Fx(repo: db => repo = new SpeicherFehlerRepository(db));
+        fx.Standard();
+        var a = await fx.Anlegen();
+        var neu = PositionsSchluessel.Von(fx.Node(100, 0, 5));
+        repo!.Werfen = true;
+
+        var r = await fx.Wf.PositionenHinzufuegenAsync(a.Id, new[] { neu }, a.RowVersion);
+
+        r.Fehler.Single().Should().Contain("bitte erneut versuchen");
+        repo.Werfen = false;
+        fx.Db.ChangeTracker.Clear();
+        (await fx.Repo.GetMitPositionenAsync(a.Id))!.Positionen.Should().HaveCount(3);
     }
 
     // ===== Sync, Enum (AK 9, 11) =====
