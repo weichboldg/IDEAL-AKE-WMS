@@ -8,13 +8,13 @@ namespace IdealAkeWms.Services.Oseon;
 public class OseonGroupViewModelBuilder : IOseonGroupViewModelBuilder
 {
     private readonly IOseonTrafficLightService _trafficLightService;
-    private readonly IOseonOperationConfigRepository _operationConfigRepository;
+    private readonly IOperationConfigRepository _operationConfigRepository;
     private readonly IBusinessDayService _businessDayService;
     private readonly IHolidayRepository _holidayRepository;
 
     public OseonGroupViewModelBuilder(
         IOseonTrafficLightService trafficLightService,
-        IOseonOperationConfigRepository operationConfigRepository,
+        IOperationConfigRepository operationConfigRepository,
         IBusinessDayService businessDayService,
         IHolidayRepository holidayRepository)
     {
@@ -41,7 +41,7 @@ public class OseonGroupViewModelBuilder : IOseonGroupViewModelBuilder
             foreach (var op in o.WorkOperations.OrderBy(op => op.PositionNumber))
             {
                 var hasConfig = opConfigs.TryGetValue(op.Name, out var opConfig);
-                var isRelevant = !hasConfig || opConfig!.IsOseonRelevant;
+                var isRelevant = !hasConfig || opConfig!.IsExternalSystemRelevant;
 
                 // AG-spezifischen Soll-Termin berechnen
                 DateTime? calculatedDueDate = null;

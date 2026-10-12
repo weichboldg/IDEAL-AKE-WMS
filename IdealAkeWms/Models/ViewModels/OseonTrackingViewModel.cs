@@ -70,8 +70,8 @@ public class OseonOperationViewModel
     public bool IsOseonRelevant { get; set; } = true;
 }
 
-public class OseonOperationConfigViewModel
+public class OperationConfigViewModel
 {
-    public List<OseonOperationConfig> Configs { get; set; } = new();
+    public List<OperationConfig> Configs { get; set; } = new();
     public List<string> UnconfiguredNames { get; set; } = new();
 }

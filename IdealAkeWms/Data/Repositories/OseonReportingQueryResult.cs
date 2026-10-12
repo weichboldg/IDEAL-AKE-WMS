@@ -5,7 +5,7 @@ namespace IdealAkeWms.Data.Repositories;
 public record OseonReportingQueryRow(
     OseonWorkOperation WorkOperation,
     OseonProductionOrder Order,
-    OseonOperationConfig? Config);
+    OperationConfig? Config);
 
 public record OseonReportingQueryResult(
     List<OseonReportingQueryRow> Rows,

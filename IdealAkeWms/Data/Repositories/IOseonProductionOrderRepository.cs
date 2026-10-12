@@ -27,7 +27,7 @@ public interface IOseonProductionOrderRepository : IRepository<OseonProductionOr
     /// <summary>
     /// Liefert relevante Arbeitsgaenge fuer das OSEON-Reporting.
     /// Filter: Aktive Auftragsstatus (20/30/60/90), DueDate NOT NULL, AGs nicht storniert (95),
-    /// nur AGs mit Config und IsOseonRelevant=true. AGs ohne Config werden gezaehlt aber nicht zurueckgegeben.
+    /// nur AGs mit Config und IsExternalSystemRelevant=true. AGs ohne Config werden gezaehlt aber nicht zurueckgegeben.
     /// </summary>
     Task<OseonReportingQueryResult> GetRelevantOperationsForReportingAsync(
         int? workplaceId,

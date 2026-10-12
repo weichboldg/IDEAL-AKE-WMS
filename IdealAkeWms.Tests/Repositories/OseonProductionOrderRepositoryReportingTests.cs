@@ -38,13 +38,13 @@ public class OseonProductionOrderRepositoryReportingTests
         };
     }
 
-    private static OseonOperationConfig NewConfig(string name, int offset, bool relevant = true)
+    private static OperationConfig NewConfig(string name, int offset, bool relevant = true)
     {
-        return new OseonOperationConfig
+        return new OperationConfig
         {
             OperationName = name,
             DueDateOffsetDays = offset,
-            IsOseonRelevant = relevant
+            IsExternalSystemRelevant = relevant
         };
     }
 
@@ -55,7 +55,7 @@ public class OseonProductionOrderRepositoryReportingTests
         var order = NewOrder(1, null, DateTime.Today, 95); // 95 = Storniert
         order.WorkOperations = new List<OseonWorkOperation> { NewWorkOp("10", "B", 60) };
         ctx.OseonProductionOrders.Add(order);
-        ctx.OseonOperationConfigs.Add(NewConfig("B", 0));
+        ctx.OperationConfigs.Add(NewConfig("B", 0));
         await ctx.SaveChangesAsync();
 
         var repo = new OseonProductionOrderRepository(ctx);
@@ -72,7 +72,7 @@ public class OseonProductionOrderRepositoryReportingTests
         var order = NewOrder(1, null, DateTime.Today, 60);
         order.WorkOperations = new List<OseonWorkOperation> { NewWorkOp("10", "B", 95) }; // 95 = Storniert
         ctx.OseonProductionOrders.Add(order);
-        ctx.OseonOperationConfigs.Add(NewConfig("B", 0));
+        ctx.OperationConfigs.Add(NewConfig("B", 0));
         await ctx.SaveChangesAsync();
 
         var repo = new OseonProductionOrderRepository(ctx);
@@ -89,7 +89,7 @@ public class OseonProductionOrderRepositoryReportingTests
         var order = NewOrder(1, null, null, 60); // DueDate null
         order.WorkOperations = new List<OseonWorkOperation> { NewWorkOp("10", "B", 60) };
         ctx.OseonProductionOrders.Add(order);
-        ctx.OseonOperationConfigs.Add(NewConfig("B", 0));
+        ctx.OperationConfigs.Add(NewConfig("B", 0));
         await ctx.SaveChangesAsync();
 
         var repo = new OseonProductionOrderRepository(ctx);
@@ -124,7 +124,7 @@ public class OseonProductionOrderRepositoryReportingTests
         var order = NewOrder(1, null, DateTime.Today, 60);
         order.WorkOperations = new List<OseonWorkOperation> { NewWorkOp("10", "B", 60) };
         ctx.OseonProductionOrders.Add(order);
-        ctx.OseonOperationConfigs.Add(NewConfig("B", 0, relevant: false));
+        ctx.OperationConfigs.Add(NewConfig("B", 0, relevant: false));
         await ctx.SaveChangesAsync();
 
         var repo = new OseonProductionOrderRepository(ctx);
@@ -148,7 +148,7 @@ public class OseonProductionOrderRepositoryReportingTests
         var orderB = NewOrder(2, wp2.Id, DateTime.Today, 60);
         orderB.WorkOperations = new List<OseonWorkOperation> { NewWorkOp("10", "B", 60) };
         ctx.OseonProductionOrders.AddRange(orderA, orderB);
-        ctx.OseonOperationConfigs.Add(NewConfig("B", 0));
+        ctx.OperationConfigs.Add(NewConfig("B", 0));
         await ctx.SaveChangesAsync();
 
         var repo = new OseonProductionOrderRepository(ctx);
@@ -170,7 +170,7 @@ public class OseonProductionOrderRepositoryReportingTests
             NewWorkOp("20", "ST", 60)
         };
         ctx.OseonProductionOrders.Add(order);
-        ctx.OseonOperationConfigs.AddRange(NewConfig("B", 0), NewConfig("ST", 0));
+        ctx.OperationConfigs.AddRange(NewConfig("B", 0), NewConfig("ST", 0));
         await ctx.SaveChangesAsync();
 
         var repo = new OseonProductionOrderRepository(ctx);
@@ -190,7 +190,7 @@ public class OseonProductionOrderRepositoryReportingTests
         var orderB = NewOrder(2, null, DateTime.Today, 60, custOrder: "K-9999");
         orderB.WorkOperations = new List<OseonWorkOperation> { NewWorkOp("10", "B", 60) };
         ctx.OseonProductionOrders.AddRange(orderA, orderB);
-        ctx.OseonOperationConfigs.Add(NewConfig("B", 0));
+        ctx.OperationConfigs.Add(NewConfig("B", 0));
         await ctx.SaveChangesAsync();
 
         var repo = new OseonProductionOrderRepository(ctx);
@@ -209,7 +209,7 @@ public class OseonProductionOrderRepositoryReportingTests
         order.LastChangedInOseon = new DateTime(2026, 4, 30, 14, 32, 0);
         order.WorkOperations = new List<OseonWorkOperation> { NewWorkOp("10", "B", 60) };
         ctx.OseonProductionOrders.Add(order);
-        ctx.OseonOperationConfigs.Add(NewConfig("B", 0));
+        ctx.OperationConfigs.Add(NewConfig("B", 0));
         await ctx.SaveChangesAsync();
 
         var repo = new OseonProductionOrderRepository(ctx);

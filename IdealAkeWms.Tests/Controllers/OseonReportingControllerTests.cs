@@ -21,7 +21,7 @@ public class OseonReportingControllerTests
         settings.Setup(s => s.GetValueAsync("OseonReportingHorizonDays")).ReturnsAsync("10");
 
         var orderRepo = new OseonProductionOrderRepository(ctx);
-        var configRepo = new OseonOperationConfigRepository(ctx);
+        var configRepo = new OperationConfigRepository(ctx);
         var holidayRepo = new HolidayRepository(ctx);
         var workplaces = new ProductionWorkplaceRepository(ctx);
 
@@ -62,10 +62,10 @@ public class OseonReportingControllerTests
             CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
         };
 
-    private static OseonOperationConfig NewCfg(string name, int offset = 0)
+    private static OperationConfig NewCfg(string name, int offset = 0)
         => new()
         {
-            OperationName = name, DueDateOffsetDays = offset, IsOseonRelevant = true
+            OperationName = name, DueDateOffsetDays = offset, IsExternalSystemRelevant = true
         };
 
     [Fact]
@@ -84,7 +84,7 @@ public class OseonReportingControllerTests
     public async Task OperationsOverview_KpiCountsAreCorrect()
     {
         var ctx = TestDbContextFactory.Create();
-        ctx.OseonOperationConfigs.Add(NewCfg("B", 0));
+        ctx.OperationConfigs.Add(NewCfg("B", 0));
 
         var today = DateTime.Today;
         var orderOverdue = NewOrder(1, today.AddDays(-2));
@@ -116,7 +116,7 @@ public class OseonReportingControllerTests
     public async Task OperationsOverview_TodayDoneRequiresLastStatusReportToday()
     {
         var ctx = TestDbContextFactory.Create();
-        ctx.OseonOperationConfigs.Add(NewCfg("B", 0));
+        ctx.OperationConfigs.Add(NewCfg("B", 0));
 
         var order = NewOrder(1, DateTime.Today);
         order.WorkOperations = new List<OseonWorkOperation> {

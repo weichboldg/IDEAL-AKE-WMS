@@ -16,16 +16,16 @@ public class TrackingControllerTests
     private static TrackingController BuildController(
         Mock<IOseonProductionOrderRepository>? oseonRepo = null,
         Mock<IOseonGroupViewModelBuilder>? builder = null,
-        Mock<IOseonOperationConfigRepository>? opConfigRepo = null,
+        Mock<IOperationConfigRepository>? opConfigRepo = null,
         Mock<IWorkOperationRepository>? workOpRepo = null,
         Mock<IServiceSettingRepository>? serviceSetting = null)
     {
         oseonRepo ??= new Mock<IOseonProductionOrderRepository>();
         builder ??= new Mock<IOseonGroupViewModelBuilder>();
-        opConfigRepo ??= new Mock<IOseonOperationConfigRepository>();
+        opConfigRepo ??= new Mock<IOperationConfigRepository>();
         opConfigRepo
             .Setup(r => r.GetAllAsDictionaryAsync())
-            .ReturnsAsync(new Dictionary<string, OseonOperationConfig>());
+            .ReturnsAsync(new Dictionary<string, OperationConfig>());
 
         workOpRepo ??= new Mock<IWorkOperationRepository>();
         var workplaceRepo = new Mock<IProductionWorkplaceRepository>();

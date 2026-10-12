@@ -122,8 +122,8 @@ builder.Services.AddSingleton<IBarcodeService, BarcodeService>();
 builder.Services.AddScoped<IPickingRepository, PickingRepository>();
 builder.Services.AddScoped<IWorkOperationRepository, WorkOperationRepository>();
 builder.Services.AddScoped<IOseonProductionOrderRepository, OseonProductionOrderRepository>();
-builder.Services.AddScoped<OseonOperationConfigRepository>();
-builder.Services.AddScoped<IOseonOperationConfigRepository, CachedOseonOperationConfigRepository>();
+builder.Services.AddScoped<OperationConfigRepository>();
+builder.Services.AddScoped<IOperationConfigRepository, CachedOperationConfigRepository>();
 builder.Services.AddScoped<IRoleRepository, RoleRepository>();
 builder.Services.AddScoped<IEnaioDmsDocumentRepository, EnaioDmsDocumentRepository>();
 builder.Services.AddScoped<IOrderRecipientRepository, OrderRecipientRepository>();
@@ -467,8 +467,8 @@ using (var scope = app.Services.CreateScope())
     }
     db.SaveChanges();
 
-    // Standard-Arbeitsgang-Konfigurationen (OSEON)
-    if (!db.OseonOperationConfigs.Any())
+    // Standard-Arbeitsgang-Stammdaten (OSEON-Kuerzel; Bedingung unveraendert, Spec 2026-10-09 Antwort 3)
+    if (!db.OperationConfigs.Any())
     {
         var defaultOpConfigs = new (string Name, string Display, int Offset, bool Relevant)[]
         {
@@ -487,12 +487,15 @@ using (var scope = app.Services.CreateScope())
         };
         foreach (var (name, display, offset, relevant) in defaultOpConfigs)
         {
-            db.OseonOperationConfigs.Add(new IdealAkeWms.Models.OseonOperationConfig
+            db.OperationConfigs.Add(new IdealAkeWms.Models.OperationConfig
             {
                 OperationName = name,
                 DisplayName = display,
                 DueDateOffsetDays = offset,
-                IsOseonRelevant = relevant
+                IsExternalSystemRelevant = relevant,
+                CreatedAt = DateTime.Now,
+                CreatedBy = "system",
+                CreatedByWindows = "system"
             });
         }
         db.SaveChanges();

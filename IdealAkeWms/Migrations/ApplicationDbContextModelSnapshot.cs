@@ -1679,6 +1679,61 @@ namespace IdealAkeWms.Migrations
                     b.ToTable("Holidays", "dbo");
                 });
 
+            modelBuilder.Entity("IdealAkeWms.Models.OperationConfig", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("CreatedByWindows")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("DisplayName")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("DueDateOffsetDays")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsExternalSystemRelevant")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ModifiedByWindows")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("OperationName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OperationName")
+                        .IsUnique();
+
+                    b.ToTable("OperationConfigs", "dbo");
+                });
+
             modelBuilder.Entity("IdealAkeWms.Models.OrderRecipient", b =>
                 {
                     b.Property<int>("Id")
@@ -1771,37 +1826,6 @@ namespace IdealAkeWms.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("OrderRecipientGroups", "dbo");
-                });
-
-            modelBuilder.Entity("IdealAkeWms.Models.OseonOperationConfig", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("DisplayName")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<int>("DueDateOffsetDays")
-                        .HasColumnType("int");
-
-                    b.Property<bool>("IsOseonRelevant")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("OperationName")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("OperationName")
-                        .IsUnique();
-
-                    b.ToTable("OseonOperationConfigs", "dbo");
                 });
 
             modelBuilder.Entity("IdealAkeWms.Models.OseonProductionOrder", b =>

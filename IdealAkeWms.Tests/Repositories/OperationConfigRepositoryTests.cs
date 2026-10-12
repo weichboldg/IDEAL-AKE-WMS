@@ -6,22 +6,22 @@ using Xunit;
 
 namespace IdealAkeWms.Tests.Repositories;
 
-public class OseonOperationConfigRepositoryTests
+public class OperationConfigRepositoryTests
 {
-    private static OseonOperationConfig CreateConfig(string name, int offset, bool relevant = true, string? display = null)
-        => new() { OperationName = name, DisplayName = display, DueDateOffsetDays = offset, IsOseonRelevant = relevant };
+    private static OperationConfig CreateConfig(string name, int offset, bool relevant = true, string? display = null)
+        => new() { OperationName = name, DisplayName = display, DueDateOffsetDays = offset, IsExternalSystemRelevant = relevant };
 
     [Fact]
     public async Task GetAllAsync_ReturnsOrderedByName()
     {
         using var context = TestDbContextFactory.Create();
-        context.OseonOperationConfigs.AddRange(
+        context.OperationConfigs.AddRange(
             CreateConfig("ZB", 0, false),
             CreateConfig("BG", 2),
             CreateConfig("A-BT", 0, false));
         await context.SaveChangesAsync();
 
-        var repo = new OseonOperationConfigRepository(context);
+        var repo = new OperationConfigRepository(context);
         var result = await repo.GetAllAsync();
 
         result.Should().HaveCount(3);
@@ -34,23 +34,23 @@ public class OseonOperationConfigRepositoryTests
     public async Task GetByNameAsync_FindsCorrectConfig()
     {
         using var context = TestDbContextFactory.Create();
-        context.OseonOperationConfigs.Add(CreateConfig("ST", 0, true, "Stanzen"));
+        context.OperationConfigs.Add(CreateConfig("ST", 0, true, "Stanzen"));
         await context.SaveChangesAsync();
 
-        var repo = new OseonOperationConfigRepository(context);
+        var repo = new OperationConfigRepository(context);
         var result = await repo.GetByNameAsync("ST");
 
         result.Should().NotBeNull();
         result!.DisplayName.Should().Be("Stanzen");
         result.DueDateOffsetDays.Should().Be(0);
-        result.IsOseonRelevant.Should().BeTrue();
+        result.IsExternalSystemRelevant.Should().BeTrue();
     }
 
     [Fact]
     public async Task GetByNameAsync_NotFound_ReturnsNull()
     {
         using var context = TestDbContextFactory.Create();
-        var repo = new OseonOperationConfigRepository(context);
+        var repo = new OperationConfigRepository(context);
 
         var result = await repo.GetByNameAsync("NOPE");
         result.Should().BeNull();
@@ -60,29 +60,29 @@ public class OseonOperationConfigRepositoryTests
     public async Task GetAllAsDictionaryAsync_ReturnsDictKeyedByName()
     {
         using var context = TestDbContextFactory.Create();
-        context.OseonOperationConfigs.AddRange(
+        context.OperationConfigs.AddRange(
             CreateConfig("B", -1),
             CreateConfig("ST", 0),
             CreateConfig("ZB", 0, false));
         await context.SaveChangesAsync();
 
-        var repo = new OseonOperationConfigRepository(context);
+        var repo = new OperationConfigRepository(context);
         var dict = await repo.GetAllAsDictionaryAsync();
 
         dict.Should().HaveCount(3);
         dict["B"].DueDateOffsetDays.Should().Be(-1);
-        dict["ST"].IsOseonRelevant.Should().BeTrue();
-        dict["ZB"].IsOseonRelevant.Should().BeFalse();
+        dict["ST"].IsExternalSystemRelevant.Should().BeTrue();
+        dict["ZB"].IsExternalSystemRelevant.Should().BeFalse();
     }
 
     [Fact]
     public async Task ExistsAsync_ReturnsTrueForExisting()
     {
         using var context = TestDbContextFactory.Create();
-        context.OseonOperationConfigs.Add(CreateConfig("BG", 2));
+        context.OperationConfigs.Add(CreateConfig("BG", 2));
         await context.SaveChangesAsync();
 
-        var repo = new OseonOperationConfigRepository(context);
+        var repo = new OperationConfigRepository(context);
 
         (await repo.ExistsAsync("BG")).Should().BeTrue();
         (await repo.ExistsAsync("XX")).Should().BeFalse();
@@ -92,12 +92,12 @@ public class OseonOperationConfigRepositoryTests
     public async Task AddAsync_PersistsConfig()
     {
         using var context = TestDbContextFactory.Create();
-        var repo = new OseonOperationConfigRepository(context);
+        var repo = new OperationConfigRepository(context);
 
         await repo.AddAsync(CreateConfig("MS", 4, true, "Maschinenschub"));
 
-        context.OseonOperationConfigs.Should().HaveCount(1);
-        var saved = context.OseonOperationConfigs.First();
+        context.OperationConfigs.Should().HaveCount(1);
+        var saved = context.OperationConfigs.First();
         saved.OperationName.Should().Be("MS");
         saved.DueDateOffsetDays.Should().Be(4);
     }
@@ -106,32 +106,32 @@ public class OseonOperationConfigRepositoryTests
     public async Task UpdateAsync_ModifiesConfig()
     {
         using var context = TestDbContextFactory.Create();
-        context.OseonOperationConfigs.Add(CreateConfig("SL", 5));
+        context.OperationConfigs.Add(CreateConfig("SL", 5));
         await context.SaveChangesAsync();
 
-        var repo = new OseonOperationConfigRepository(context);
+        var repo = new OperationConfigRepository(context);
         var config = await repo.GetByNameAsync("SL");
         config!.DueDateOffsetDays = 3;
-        config.IsOseonRelevant = false;
+        config.IsExternalSystemRelevant = false;
         await repo.UpdateAsync(config);
 
         var updated = await repo.GetByNameAsync("SL");
         updated!.DueDateOffsetDays.Should().Be(3);
-        updated.IsOseonRelevant.Should().BeFalse();
+        updated.IsExternalSystemRelevant.Should().BeFalse();
     }
 
     [Fact]
     public async Task DeleteAsync_RemovesConfig()
     {
         using var context = TestDbContextFactory.Create();
-        context.OseonOperationConfigs.Add(CreateConfig("RE", 5));
+        context.OperationConfigs.Add(CreateConfig("RE", 5));
         await context.SaveChangesAsync();
 
-        var repo = new OseonOperationConfigRepository(context);
+        var repo = new OperationConfigRepository(context);
         var config = await repo.GetByNameAsync("RE");
         await repo.DeleteAsync(config!.Id);
 
-        context.OseonOperationConfigs.Should().BeEmpty();
+        context.OperationConfigs.Should().BeEmpty();
     }
 
     [Fact]
@@ -140,7 +140,7 @@ public class OseonOperationConfigRepositoryTests
         using var context = TestDbContextFactory.Create();
 
         // Config nur fuer ST
-        context.OseonOperationConfigs.Add(CreateConfig("ST", 0));
+        context.OperationConfigs.Add(CreateConfig("ST", 0));
 
         // OSEON-Daten mit ST, BG und ZB
         var order = new OseonProductionOrder
@@ -158,7 +158,7 @@ public class OseonOperationConfigRepositoryTests
         );
         await context.SaveChangesAsync();
 
-        var repo = new OseonOperationConfigRepository(context);
+        var repo = new OperationConfigRepository(context);
         var unconfigured = await repo.GetUnconfiguredOperationNamesAsync();
 
         unconfigured.Should().Contain("BG");

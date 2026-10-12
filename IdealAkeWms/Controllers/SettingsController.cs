@@ -14,14 +14,14 @@ public class SettingsController : Controller
     private readonly IHolidayRepository _holidayRepository;
     private readonly ICurrentUserService _currentUserService;
     private readonly IHolidayImportService _holidayImportService;
-    private readonly IOseonOperationConfigRepository _operationConfigRepository;
+    private readonly IOperationConfigRepository _operationConfigRepository;
 
     public SettingsController(
         IAppSettingRepository settingRepository,
         IHolidayRepository holidayRepository,
         ICurrentUserService currentUserService,
         IHolidayImportService holidayImportService,
-        IOseonOperationConfigRepository operationConfigRepository)
+        IOperationConfigRepository operationConfigRepository)
     {
         _settingRepository = settingRepository;
         _holidayRepository = holidayRepository;
@@ -109,7 +109,7 @@ public class SettingsController : Controller
 
     public async Task<IActionResult> OperationConfig()
     {
-        var vm = new OseonOperationConfigViewModel
+        var vm = new OperationConfigViewModel
         {
             Configs = await _operationConfigRepository.GetAllAsync(),
             UnconfiguredNames = await _operationConfigRepository.GetUnconfiguredOperationNamesAsync()
@@ -133,12 +133,12 @@ public class SettingsController : Controller
             return RedirectToAction(nameof(OperationConfig));
         }
 
-        var config = new OseonOperationConfig
+        var config = new OperationConfig
         {
             OperationName = operationName.Trim(),
             DisplayName = string.IsNullOrWhiteSpace(displayName) ? null : displayName.Trim(),
             DueDateOffsetDays = dueDateOffsetDays,
-            IsOseonRelevant = isOseonRelevant
+            IsExternalSystemRelevant = isOseonRelevant
         };
 
         await _operationConfigRepository.AddAsync(config);
@@ -156,7 +156,7 @@ public class SettingsController : Controller
 
         config.DisplayName = string.IsNullOrWhiteSpace(displayName) ? null : displayName.Trim();
         config.DueDateOffsetDays = dueDateOffsetDays;
-        config.IsOseonRelevant = isOseonRelevant;
+        config.IsExternalSystemRelevant = isOseonRelevant;
 
         await _operationConfigRepository.UpdateAsync(config);
         TempData["SuccessMessage"] = $"Arbeitsgang '{config.OperationName}' aktualisiert.";

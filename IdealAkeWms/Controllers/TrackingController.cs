@@ -17,7 +17,7 @@ public class TrackingController : Controller
     private readonly ICurrentUserService _currentUserService;
     private readonly IOseonProductionOrderRepository _oseonRepository;
     private readonly IOseonTrafficLightService _trafficLightService;
-    private readonly IOseonOperationConfigRepository _operationConfigRepository;
+    private readonly IOperationConfigRepository _operationConfigRepository;
     private readonly IBusinessDayService _businessDayService;
     private readonly IHolidayRepository _holidayRepository;
     private readonly IOseonGroupViewModelBuilder _groupBuilder;
@@ -29,7 +29,7 @@ public class TrackingController : Controller
         ICurrentUserService currentUserService,
         IOseonProductionOrderRepository oseonRepository,
         IOseonTrafficLightService trafficLightService,
-        IOseonOperationConfigRepository operationConfigRepository,
+        IOperationConfigRepository operationConfigRepository,
         IBusinessDayService businessDayService,
         IHolidayRepository holidayRepository,
         IOseonGroupViewModelBuilder groupBuilder,
@@ -316,7 +316,7 @@ public class TrackingController : Controller
         if (useRelevanceFilter)
         {
             relevantOpNames = opConfigs
-                .Where(kvp => kvp.Value.IsOseonRelevant)
+                .Where(kvp => kvp.Value.IsExternalSystemRelevant)
                 .Select(kvp => kvp.Key)
                 .ToHashSet();
         }
@@ -383,7 +383,7 @@ public class TrackingController : Controller
         if (useRelevanceFilter)
         {
             relevantOpNames = opConfigs
-                .Where(kvp => kvp.Value.IsOseonRelevant)
+                .Where(kvp => kvp.Value.IsExternalSystemRelevant)
                 .Select(kvp => kvp.Key)
                 .ToHashSet();
         }

@@ -210,7 +210,7 @@ public class OseonProductionOrderRepository : Repository<OseonProductionOrder>, 
         // calculatedDueDate IN [fromDate, toDate]. Damit kein Auftrag durchs Raster faellt, dessen DueDate
         // ausserhalb [fromDate, toDate] liegt aber dessen calc'd Date innerhalb, erweitern wir den DB-Filter
         // um den groessten absoluten Offset (max ueber alle Configs).
-        var configs = await _context.OseonOperationConfigs.AsNoTracking().ToListAsync(ct);
+        var configs = await _context.OperationConfigs.AsNoTracking().ToListAsync(ct);
         var configByName = configs.ToDictionary(c => c.OperationName, StringComparer.OrdinalIgnoreCase);
         var maxOffsetMagnitude = configs.Count == 0 ? 0 : configs.Max(c => Math.Abs(c.DueDateOffsetDays));
         var dbFromDate = fromDate.AddDays(-maxOffsetMagnitude);
@@ -253,7 +253,7 @@ public class OseonProductionOrderRepository : Repository<OseonProductionOrder>, 
                     continue;
                 }
 
-                if (!cfg.IsOseonRelevant) continue;
+                if (!cfg.IsExternalSystemRelevant) continue;
 
                 rows.Add(new OseonReportingQueryRow(wo, order, cfg));
             }

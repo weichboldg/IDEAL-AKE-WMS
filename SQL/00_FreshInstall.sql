@@ -1218,21 +1218,33 @@ PRINT 'Views erstellt.';
 GO
 
 -- =============================================
--- 16b. OseonOperationConfigs
+-- 16b. OperationConfigs (Arbeitsgang-Stammdaten; bis v1.53.0 OseonOperationConfigs, umbenannt mit SQL/95)
 -- =============================================
-IF OBJECT_ID(N'[dbo].[OseonOperationConfigs]', N'U') IS NULL
+IF OBJECT_ID(N'[dbo].[OperationConfigs]', N'U') IS NULL AND OBJECT_ID(N'[dbo].[OseonOperationConfigs]', N'U') IS NULL
 BEGIN
-    CREATE TABLE [dbo].[OseonOperationConfigs] (
-        [Id]                 INT            IDENTITY(1,1) NOT NULL,
-        [OperationName]      NVARCHAR(100)  NOT NULL,
-        [DisplayName]        NVARCHAR(200)  NULL,
-        [DueDateOffsetDays]  INT            NOT NULL DEFAULT 0,
-        [IsOseonRelevant]    BIT            NOT NULL DEFAULT 1,
-        CONSTRAINT [PK_OseonOperationConfigs] PRIMARY KEY CLUSTERED ([Id]),
-        CONSTRAINT [UQ_OseonOperationConfigs_OperationName] UNIQUE ([OperationName])
+    CREATE TABLE [dbo].[OperationConfigs] (
+        [Id]                       INT            IDENTITY(1,1) NOT NULL,
+        [OperationName]            NVARCHAR(100)  NOT NULL,
+        [DisplayName]              NVARCHAR(200)  NULL,
+        [DueDateOffsetDays]        INT            NOT NULL DEFAULT 0,
+        [IsExternalSystemRelevant] BIT            NOT NULL DEFAULT 1,
+        [CreatedAt]                DATETIME2      NOT NULL,
+        [CreatedBy]                NVARCHAR(200)  NOT NULL,
+        [CreatedByWindows]         NVARCHAR(200)  NOT NULL,
+        [ModifiedAt]               DATETIME2      NULL,
+        [ModifiedBy]               NVARCHAR(200)  NULL,
+        [ModifiedByWindows]        NVARCHAR(200)  NULL,
+        CONSTRAINT [PK_OperationConfigs] PRIMARY KEY CLUSTERED ([Id])
     );
-    PRINT 'Tabelle [OseonOperationConfigs] erstellt.';
+    PRINT 'Tabelle [OperationConfigs] erstellt.';
 END
+ELSE IF OBJECT_ID(N'[dbo].[OseonOperationConfigs]', N'U') IS NOT NULL
+    PRINT 'WARNUNG: alte Tabelle [OseonOperationConfigs] vorhanden - SQL/95_RenameOperationConfigsAndAddAudit.sql ausfuehren (keine Neuanlage).';
+GO
+
+IF OBJECT_ID(N'[dbo].[OperationConfigs]', N'U') IS NOT NULL
+   AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_OperationConfigs_OperationName' AND object_id = OBJECT_ID(N'[dbo].[OperationConfigs]'))
+    CREATE UNIQUE INDEX [IX_OperationConfigs_OperationName] ON [dbo].[OperationConfigs] ([OperationName]);
 GO
 
 -- Performance-Indexes StockMovements (38)
@@ -1488,24 +1500,28 @@ BEGIN
 END
 GO
 
--- Standard-Arbeitsgang-Konfigurationen (OSEON)
-IF NOT EXISTS (SELECT 1 FROM [dbo].[OseonOperationConfigs])
+-- Standard-Arbeitsgang-Stammdaten (OSEON-Kuerzel; Audit 'system'). Verschachteltes IF: fehlt die Tabelle (nur alte
+-- OseonOperationConfigs vorhanden, siehe 16b), wird das INSERT nie ausgefuehrt (T-SQL garantiert kein Kurzschluss-AND).
+IF OBJECT_ID(N'[dbo].[OperationConfigs]', N'U') IS NOT NULL
 BEGIN
-    INSERT INTO [dbo].[OseonOperationConfigs] ([OperationName], [DisplayName], [DueDateOffsetDays], [IsOseonRelevant])
-    VALUES
-        (N'B',       N'Belegen',         -1, 1),
-        (N'ST',      N'Stanzen',          0, 1),
-        (N'EG',      N'Entgraten',        0, 1),
-        (N'BG',      N'Biegen',           2, 1),
-        (N'BG-SaP1', N'Biegen SaP1',     2, 1),
-        (N'RO',      N'Rollen',           2, 1),
-        (N'MS',      N'Maschinenschub',   4, 1),
-        (N'RS',      N'Restschweissen',   4, 1),
-        (N'SL',      N'Schlosser',        5, 1),
-        (N'RE',      N'Reinigen',         5, 1),
-        (N'ZB',      N'Zusammenbau',      0, 0),
-        (N'A-BT',    N'Anlegen BT',       0, 0);
-    PRINT 'Standard-Arbeitsgang-Konfigurationen eingefuegt.';
+    IF NOT EXISTS (SELECT 1 FROM [dbo].[OperationConfigs])
+    BEGIN
+        INSERT INTO [dbo].[OperationConfigs] ([OperationName], [DisplayName], [DueDateOffsetDays], [IsExternalSystemRelevant], [CreatedAt], [CreatedBy], [CreatedByWindows])
+        VALUES
+            (N'B',       N'Belegen',         -1, 1, GETDATE(), N'system', N'system'),
+            (N'ST',      N'Stanzen',          0, 1, GETDATE(), N'system', N'system'),
+            (N'EG',      N'Entgraten',        0, 1, GETDATE(), N'system', N'system'),
+            (N'BG',      N'Biegen',           2, 1, GETDATE(), N'system', N'system'),
+            (N'BG-SaP1', N'Biegen SaP1',     2, 1, GETDATE(), N'system', N'system'),
+            (N'RO',      N'Rollen',           2, 1, GETDATE(), N'system', N'system'),
+            (N'MS',      N'Maschinenschub',   4, 1, GETDATE(), N'system', N'system'),
+            (N'RS',      N'Restschweissen',   4, 1, GETDATE(), N'system', N'system'),
+            (N'SL',      N'Schlosser',        5, 1, GETDATE(), N'system', N'system'),
+            (N'RE',      N'Reinigen',         5, 1, GETDATE(), N'system', N'system'),
+            (N'ZB',      N'Zusammenbau',      0, 0, GETDATE(), N'system', N'system'),
+            (N'A-BT',    N'Anlegen BT',       0, 0, GETDATE(), N'system', N'system');
+        PRINT 'Standard-Arbeitsgang-Stammdaten eingefuegt.';
+    END
 END
 GO
 
@@ -2420,6 +2436,8 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
 
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261012073551_AddBeschichtungsauftrag')
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261012073551_AddBeschichtungsauftrag', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261012140548_RenameOperationConfigsAndAddAudit')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261012140548_RenameOperationConfigsAndAddAudit', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';

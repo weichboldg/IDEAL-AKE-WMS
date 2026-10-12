@@ -32,7 +32,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<ServiceSetting> ServiceSettings => Set<ServiceSetting>();
     public DbSet<Role> Roles => Set<Role>();
     public DbSet<UserRole> UserRoles => Set<UserRole>();
-    public DbSet<OseonOperationConfig> OseonOperationConfigs => Set<OseonOperationConfig>();
+    public DbSet<OperationConfig> OperationConfigs => Set<OperationConfig>();
     public DbSet<EnaioDmsDocument> EnaioDmsDocuments => Set<EnaioDmsDocument>();
     public DbSet<OrderRecipientGroup> OrderRecipientGroups => Set<OrderRecipientGroup>();
     public DbSet<OrderRecipient> OrderRecipients => Set<OrderRecipient>();
@@ -878,14 +878,19 @@ public class ApplicationDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
-        // OseonOperationConfig
-        modelBuilder.Entity<OseonOperationConfig>(entity =>
+        // OperationConfig — Arbeitsgang-Stammdaten (bis v1.53.0 OseonOperationConfigs; Umbenennung + Audit:
+        // Migration RenameOperationConfigsAndAddAudit / SQL/95, guarded sp_rename je DB-Form, fallstricke §9).
+        modelBuilder.Entity<OperationConfig>(entity =>
         {
-            entity.ToTable("OseonOperationConfigs");
+            entity.ToTable("OperationConfigs");
             entity.HasKey(e => e.Id);
             entity.Property(e => e.OperationName).HasMaxLength(100).IsRequired();
             entity.Property(e => e.DisplayName).HasMaxLength(200);
             entity.HasIndex(e => e.OperationName).IsUnique();
+            entity.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.ModifiedBy).HasMaxLength(200);
+            entity.Property(e => e.ModifiedByWindows).HasMaxLength(200);
         });
 
         // EnaioDmsDocument

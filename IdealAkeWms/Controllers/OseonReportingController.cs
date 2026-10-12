@@ -12,7 +12,7 @@ namespace IdealAkeWms.Controllers;
 public class OseonReportingController : Controller
 {
     private readonly IOseonProductionOrderRepository _orders;
-    private readonly IOseonOperationConfigRepository _configs;
+    private readonly IOperationConfigRepository _configs;
     private readonly IHolidayRepository _holidays;
     private readonly IProductionWorkplaceRepository _workplaces;
     private readonly IAppSettingRepository _settings;
@@ -20,7 +20,7 @@ public class OseonReportingController : Controller
 
     public OseonReportingController(
         IOseonProductionOrderRepository orders,
-        IOseonOperationConfigRepository configs,
+        IOperationConfigRepository configs,
         IHolidayRepository holidays,
         IProductionWorkplaceRepository workplaces,
         IAppSettingRepository settings,
@@ -145,7 +145,7 @@ public class OseonReportingController : Controller
 
         var allConfigs = await _configs.GetAllAsync();
         var availableOpNames = allConfigs
-            .Where(c => c.IsOseonRelevant)
+            .Where(c => c.IsExternalSystemRelevant)
             .Select(c => c.OperationName)
             .OrderBy(n => n)
             .ToList();
