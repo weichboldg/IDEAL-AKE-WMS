@@ -12,6 +12,7 @@
     var vMatchcode = n.Matchcode ?? "";
     var vDescription = string.Join(" ", new[] { n.Bezeichnung1, n.Bezeichnung2 }.Where(s => !string.IsNullOrEmpty(s)));
     var vWorkarea = n.Arbeitsbereich ?? "";
+    var vOperations = string.Join(" ", Model.Arbeitsgaenge.Select(a => a.Kuerzel));
     var vPickingTarget = n.Kommissionieren ?? "";
     var vQuantity = $"{n.Sollmenge:0.###} / {n.Fertigungmenge:0.###}";
     var vSubFa = n.SubFA.ToString();
@@ -61,6 +62,7 @@
     data-f-matchcode="@vMatchcode.ToLowerInvariant()"
     data-f-description="@vDescription.ToLowerInvariant()"
     data-f-workarea="@vWorkarea.ToLowerInvariant()"
+    data-f-operations="@vOperations.ToLowerInvariant()"
     data-f-picking-target="@vPickingTarget.ToLowerInvariant()"
     data-f-quantity="@vQuantity.ToLowerInvariant()"
     data-f-subfa="@vSubFa.ToLowerInvariant()"
@@ -91,6 +93,23 @@
     <td data-col-key="matchcode" class="fa-cell-matchcode text-muted small">@n.Matchcode</td>
     <td data-col-key="description">@vDescription</td>
     <td data-col-key="workarea">@n.Arbeitsbereich</td>
+    @* Arbeitsgaenge als Symbole (v1.52.0): Sage-Kuerzel dieser Zeile in Feld-Reihenfolge, alle gleich (kein Status —
+       der kommt mit Teil 2). Name nur in aria-label/title, fokussierbar fuer Tastatur/Screenreader. *@
+    <td data-col-key="operations">
+        @if (Model.Arbeitsgaenge.Count == 0)
+        {
+            <span class="text-muted" aria-label="keine Arbeitsschritte">—</span>
+        }
+        else
+        {
+            <span class="fa-ag-symbols">
+                @foreach (var ag in Model.Arbeitsgaenge)
+                {
+                    <span class="fa-ag-symbol" tabindex="0" role="img" aria-label="@ag.Beschriftung" title="@ag.Beschriftung">@ag.Kuerzel</span>
+                }
+            </span>
+        }
+    </td>
     <td data-col-key="picking-target">
         @if (!string.IsNullOrEmpty(n.Kommissionieren))
         {

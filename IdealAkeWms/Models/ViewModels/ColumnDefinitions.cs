@@ -482,6 +482,7 @@ public static class ColumnDefinitions
             new ColumnDef("matchcode",      "Matchcode",      Locked: true),
             new ColumnDef("description",    "Bezeichnung",    Locked: false),
             new ColumnDef("workarea",       "Arbeitsbereich", Locked: false),
+            new ColumnDef("operations",     "Arbeitsgänge",   Locked: false),
             new ColumnDef("picking-target", "Komm.-Ziel",     Locked: false),
             new ColumnDef("quantity",       "Soll / Fert.",   Locked: false),
             new ColumnDef("subfa",          "SubFA",          Locked: false),

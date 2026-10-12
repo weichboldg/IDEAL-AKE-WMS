@@ -1346,6 +1346,17 @@ th:hover .col-resize-handle {
 .fa-node-row.fa-hl > td { background-color: var(--ake-very-light-blue); }
 /* Spaltenfilter-Treffer: hell-amber, klar unterscheidbar vom Hervorheben. */
 .fa-node-row.fa-filter-hit > td { background-color: #fff3cd; }
+
+/* Arbeitsgaenge-Symbole im FA-Baum (v1.52.0): neutraler Umriss-Chip mit eigenem weissen Grund — Text 16:1, Kontur
+   #495057 >= 7:1 gegen Zeile/Hover/Hervorhebung (WCAG AA). Bewusst KEINE Fuellfarbe: Farbe bleibt dem Status (Teil 2)
+   vorbehalten. Umbruch statt Querscrollen. */
+.fa-ag-symbols { display: inline-flex; flex-wrap: wrap; gap: 0.2rem; }
+.fa-ag-symbol {
+    display: inline-block; min-width: 2.1em; padding: 0 0.3em; text-align: center;
+    font-size: 0.75rem; font-weight: 600; line-height: 1.5;
+    color: #212529; background-color: #fff; border: 1px solid #495057; border-radius: 0.2rem;
+}
+.fa-ag-symbol:focus-visible { outline: 2px solid #0d6efd; outline-offset: 1px; }
 /* Vorfahrenpfad als Kontext: gedimmt, als Nicht-Treffer erkennbar. */
 .fa-node-row.fa-node-context { opacity: 0.6; }
 

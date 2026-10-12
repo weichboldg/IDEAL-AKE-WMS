@@ -107,6 +107,7 @@ else
                     <th data-col-key="matchcode">Matchcode</th>
                     <th data-col-key="description">Bezeichnung</th>
                     <th data-col-key="workarea">Arbeitsbereich</th>
+                    <th data-col-key="operations">Arbeitsgänge</th>
                     <th data-col-key="picking-target">Komm.-Ziel</th>
                     <th data-col-key="quantity">Soll / Fert.</th>
                     <th data-col-key="subfa">SubFA</th>
@@ -119,6 +120,7 @@ else
                     <th data-col-key="matchcode"><input type="text" class="form-control form-control-sm fa-col-filter" data-filter-key="matchcode" placeholder="filtern..." aria-label="Matchcode filtern" /></th>
                     <th data-col-key="description"><input type="text" class="form-control form-control-sm fa-col-filter" data-filter-key="description" placeholder="filtern..." aria-label="Bezeichnung filtern" /></th>
                     <th data-col-key="workarea"><select class="form-select form-select-sm fa-col-filter" data-filter-key="workarea" aria-label="Arbeitsbereich filtern"><option value="">(alle)</option></select></th>
+                    <th data-col-key="operations"><input type="text" class="form-control form-control-sm fa-col-filter" data-filter-key="operations" placeholder="z. B. KA" aria-label="Arbeitsgänge filtern" /></th>
                     <th data-col-key="picking-target"><select class="form-select form-select-sm fa-col-filter" data-filter-key="picking-target" aria-label="Komm.-Ziel filtern"><option value="">(alle)</option></select></th>
                     <th data-col-key="quantity"><input type="text" class="form-control form-control-sm fa-col-filter" data-filter-key="quantity" placeholder="filtern..." aria-label="Soll/Fert. filtern" /></th>
                     <th data-col-key="subfa"><input type="text" class="form-control form-control-sm fa-col-filter" data-filter-key="subfa" placeholder="filtern..." aria-label="SubFA filtern" /></th>
@@ -130,7 +132,7 @@ else
                 var head = structure.OrderInfos.FirstOrDefault();
                 <tbody class="fa-structure-group" data-struct="@structure.HauptFA">
                     <tr class="fa-structure-group-head" data-struct="@structure.HauptFA">
-                        <td colspan="8" class="fa-structure-header">
+                        <td colspan="9" class="fa-structure-header">
                             <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                                 <div class="d-flex align-items-center flex-wrap gap-2">
                                     <span class="fa-struct-toggle" role="button" tabindex="0" title="Struktur auf-/zuklappen" aria-label="Struktur auf-/zuklappen" data-struct="@structure.HauptFA">
@@ -201,7 +203,7 @@ else
                         </td>
                     </tr>
                     <tr class="fa-structure-subhead">
-                        <td colspan="8">
+                        <td colspan="9">
                             @* Kopfdaten aus FaHierarchyOrderInfo (bei Kombigeräten alle Zeilen im Klartext).
                                Eigene kleine Tabelle — NICHT Teil der Baum-Spaltenlogik. *@
                             @if (structure.OrderInfos.Any())
@@ -285,6 +287,7 @@ else
     { "key": "matchcode",      "label": "Matchcode",      "locked": true,  "defaultWidth": null },
     { "key": "description",    "label": "Bezeichnung",    "locked": false, "defaultWidth": null },
     { "key": "workarea",       "label": "Arbeitsbereich", "locked": false, "defaultWidth": null },
+    { "key": "operations",     "label": "Arbeitsgänge",   "locked": false, "defaultWidth": null },
     { "key": "picking-target", "label": "Komm.-Ziel",     "locked": false, "defaultWidth": null },
     { "key": "quantity",       "label": "Soll / Fert.",   "locked": false, "defaultWidth": null },
     { "key": "subfa",          "label": "SubFA",          "locked": false, "defaultWidth": null },
