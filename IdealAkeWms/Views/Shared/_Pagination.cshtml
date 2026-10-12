@@ -23,7 +23,7 @@
 }
 
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-3 pagination-bar"
-     data-page-size-raw="@raw">
+     data-page-size-raw="@raw" data-total-count="@Model.TotalCount" data-capped="@(Model.IsCappedAtAll ? "true" : "false")">
     <div class="text-muted small">
         @if (Model.TotalCount == 0)
         {

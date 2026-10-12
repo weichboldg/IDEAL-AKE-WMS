@@ -141,7 +141,7 @@
    BomZahnradHostTests). *@
 <div class="d-flex justify-content-end mb-1"></div>
 <div class="table-responsive">
-    <table class="table table-striped mb-0 table-sm filterable-table" id="bomTable" data-view-key="Bom">
+    <table class="table table-striped mb-0 table-sm filterable-table" id="bomTable" data-view-key="Bom" data-csv-filter-source="attribute">
         <thead>
             <tr>
                 @if (!Model.ReadOnly)
@@ -904,6 +904,9 @@
                             }
                         }
                     }
+
+                    // CSV-Export (v1.53.0): reines Filterergebnis, unabhaengig vom Klappzustand (Antwort 12).
+                    row.setAttribute('data-csv-filter-match', filterVisible ? 'true' : 'false');
 
                     var shouldShow = treeVisible && filterVisible;
                     row.style.display = shouldShow ? '' : 'none';

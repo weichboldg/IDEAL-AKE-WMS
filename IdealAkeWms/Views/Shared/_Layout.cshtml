@@ -409,6 +409,9 @@
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
+    @* CSV-Export je table.filterable-table (v1.53.0, Opt-out data-csv-export="false") — vor den Seiten-Skripten, damit
+       der Knopf vor dem Zahnrad im Toolbar-Host steht; die Sortierung liest window.tableFilterCompareValues erst beim Klick. *@
+    <script src="~/js/csv-export.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

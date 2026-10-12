@@ -330,6 +330,35 @@
         dispatchFilterAppliedEvent();
     }
 
+    // Wertvergleich der Spaltensortierung (Datum dd.MM.yyyy[ KWnn] → Zahl mit Dezimalkomma → Text de). Herausgeloest fuer
+    // den CSV-Export (csv-export.js sortiert die exportierten Zeilen wie der Bildschirm) — EINE Stelle, keine Kopie.
+    function compareValues(valA, valB, dir) {
+        // Try date comparison (dd.MM.yyyy or dd.MM.yyyy KWxx)
+        var dateRegex = /^(\d{2})\.(\d{2})\.(\d{4})/;
+        var matchA = valA.match(dateRegex);
+        var matchB = valB.match(dateRegex);
+        if (matchA && matchB) {
+            var dateA = new Date(matchA[3], matchA[2] - 1, matchA[1]);
+            var dateB = new Date(matchB[3], matchB[2] - 1, matchB[1]);
+            return dir === 'asc' ? dateA - dateB : dateB - dateA;
+        }
+        // Empty dates sort to end
+        if (matchA && !matchB) return dir === 'asc' ? -1 : 1;
+        if (!matchA && matchB) return dir === 'asc' ? 1 : -1;
+
+        // Try numeric comparison
+        var numA = parseFloat(valA.replace(/\./g, '').replace(',', '.'));
+        var numB = parseFloat(valB.replace(/\./g, '').replace(',', '.'));
+        if (!isNaN(numA) && !isNaN(numB)) {
+            return dir === 'asc' ? numA - numB : numB - numA;
+        }
+
+        // String comparison
+        var cmp = valA.localeCompare(valB, 'de');
+        return dir === 'asc' ? cmp : -cmp;
+    }
+    window.tableFilterCompareValues = compareValues;
+
     function sortTable(colKey, dir) {
         if (!_table) return;
         var colIndex = getPhysicalIndex(colKey);
@@ -349,32 +378,7 @@
             var cellB = b.querySelectorAll(':scope > td')[colIndex];
             if (!cellA || !cellB) return 0;
 
-            var valA = cellA.textContent.trim();
-            var valB = cellB.textContent.trim();
-
-            // Try date comparison (dd.MM.yyyy or dd.MM.yyyy KWxx)
-            var dateRegex = /^(\d{2})\.(\d{2})\.(\d{4})/;
-            var matchA = valA.match(dateRegex);
-            var matchB = valB.match(dateRegex);
-            if (matchA && matchB) {
-                var dateA = new Date(matchA[3], matchA[2] - 1, matchA[1]);
-                var dateB = new Date(matchB[3], matchB[2] - 1, matchB[1]);
-                return dir === 'asc' ? dateA - dateB : dateB - dateA;
-            }
-            // Empty dates sort to end
-            if (matchA && !matchB) return dir === 'asc' ? -1 : 1;
-            if (!matchA && matchB) return dir === 'asc' ? 1 : -1;
-
-            // Try numeric comparison
-            var numA = parseFloat(valA.replace(/\./g, '').replace(',', '.'));
-            var numB = parseFloat(valB.replace(/\./g, '').replace(',', '.'));
-            if (!isNaN(numA) && !isNaN(numB)) {
-                return dir === 'asc' ? numA - numB : numB - numA;
-            }
-
-            // String comparison
-            var cmp = valA.localeCompare(valB, 'de');
-            return dir === 'asc' ? cmp : -cmp;
+            return compareValues(cellA.textContent.trim(), cellB.textContent.trim(), dir);
         }
 
         // Innerhalb JEDES <tbody> der Tabelle separat sortieren: gruppierte Listen
