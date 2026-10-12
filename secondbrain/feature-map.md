@@ -728,6 +728,21 @@ Spec [[2026-10-06-csv-export-alle-tabellen-spec]], Umsetzung [[2026-10-12-csv-ex
 > **Deploy:** nur Web, keine Migration. **Status:** Testbereit (QA + Nachlauf 2026-10-12, Build + 1767 Web- + 272
 > Service-Tests grün) → Schranke 2 mit dem Bündel.
 
+### Arbeitsgang-Stammdaten vereinheitlicht (v1.54.0, direkt im Bündel)
+
+Spec [[2026-10-09-arbeitsgang-stammdaten-vereinheitlichen-spec]], Umsetzung [[2026-10-12-arbeitsgang-stammdaten-vereinheitlichen-umsetzung]], Changelog
+[[2026-10-12-v1-54-0-arbeitsgang-stammdaten]]. Löst „AG-Konfiguration (Soll-Termine + Relevanz)“ (`Models/OseonOperationConfig.cs`)
+ab; Vorbedingung für FA-Struktur-Symbole Teil 2/3.
+
+| Baustein | Stand | Code-Einstieg |
+|---|---|---|
+| Umbenennung Code + Schema, Audit, Migration (guarded), `SQL/95`, FreshInstall, Drift-Wächter | **erledigt** `d4bb711a`, QA-Fix `d56a340e` | `Models/OperationConfig.cs`, `Migrations/20261012140548_RenameOperationConfigsAndAddAudit.cs`, `SQL/95_*` |
+| Offset-Lookup, Liste „nicht konfiguriert“, Controller, Reiter-Partial, Redirect, Begriffe | **erledigt** `5ac5ea16` | `Data/Repositories/OperationConfigRepository.cs`, `Controllers/OperationConfigsController.cs` |
+| v1.54.0, Changelog, Hilfe, TS-87 | **erledigt** `b5123529` | `docs/TESTSZENARIEN.md` TS-87 |
+
+> **Deploy:** Web + **SQL/95** (DB-Backup, App-Pool vorher stoppen). **Status:** Testbereit (QA + Nachlauf 2026-10-12,
+> Build + 1795 Web- + 272 Service-Tests grün) → Schranke 2 mit dem Bündel.
+
 ## Offen / nicht gemerged
 
 | Vorhaben | Status | Quelle |

@@ -1320,3 +1320,24 @@ nicht über Heredoc-Escapes.
 ### Razor: `@` im Hilfetext ist Code
 `<code>@</code>` bricht den Build (RZ1005) — `@@` schreiben. Eine Befehlskette `build | grep Fehler && commit` committet
 trotzdem, weil `grep` die Fehlerzeile findet: vor dem Commit auf „0 Fehler" prüfen (Zwischen-Commit `400a7520`).
+
+## 24. Arbeitsgang-Stammdaten (v1.54.0) — Tabellen-Umbenennung und zwei Lookups
+
+### Tabellen-Umbenennung: EF-Vorschlag nie uebernehmen, guarded sp_rename je DB-Form
+Bei Klassen- **und** Tabellen-Rename erzeugt `migrations add` `DropTable`+`CreateTable` (Datenverlust); bei reinem Rename
+`RenameIndex`/`DropPrimaryKey`, die auf Skript-/FreshInstall-DBs den `UQ_`-Constraint statt des `IX_`-Index treffen (§9).
+**Regel:** Snapshot/Designer so lassen, wie `migrations add` sie erzeugt; `Up()`/`Down()` komplett durch guarded
+`migrationBuilder.Sql` ersetzen (ein Aufruf = ein Batch), Batches fuer Migration und `SQL/XX` aus EINER Quelle schreiben;
+Doppelform UQ/IX beim Umbenennen auf die EF-Form konvergieren (erst Index anlegen, dann Constraint droppen). Pruefen offline:
+`has-pending-model-changes` leer, `migrations script` ohne `DROP TABLE`/`CREATE TABLE`/ungeguardetes `sp_rename`.
+Muster: [[2026-10-09-arbeitsgang-stammdaten-vereinheitlichen-spec]], Drift-Waechter `OperationConfigsMigrationSqlTests` (vergleicht die Batches wortgleich).
+
+### Zwei Offset-Lookups mit unterschiedlicher Gross/Klein-Regel — bewusst
+`GetAllAsDictionaryAsync` (OSEON-Teileverfolgung) bleibt **case-sensitiv**, `GetDueDateOffsetsAsync` (FA-Struktur Teil 2/3,
+Liste „nicht konfiguriert“) ist **case-insensitiv + getrimmt**. Grund: OSEON-Verhalten sollte bitgleich bleiben. Wer den
+OSEON-Pfad angleichen will, braucht eine eigene Entscheidung (Ampeln koennten sich aendern).
+
+### Reiter in einer gegateten Controller-Familie: eigener Controller statt Filter-Ausnahme
+Die BDE-Stammdaten haengen am Klassenfilter `[RequireBdeActive]`; der Reiter „Arbeitsgänge“ muss ohne BDE gehen. Loesung:
+eigener `OperationConfigsController` (`[RequireAdminAccess]`) + gemeinsames Reiter-Partial `_BdeMasterDataTabs`, nicht
+`[RequireBdeActive]` je Action oder ein Ausnahme-Attribut im geteilten Filter (fuenf Controller).

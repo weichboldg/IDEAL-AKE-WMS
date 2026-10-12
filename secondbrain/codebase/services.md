@@ -19,6 +19,7 @@ Decorator-Muster: [[0001-repository-pattern-mit-decorator-fuer-caching]].
 | `CachedSettingRepository` | `AppSettingRepository` | AppSettings werden auf fast jeder Seite gelesen |
 | `CachedHolidayRepository` | `HolidayRepository` | Feiertage fuer Arbeitstags-Rechnung |
 | `CachedOseonOperationConfigRepository` | `OseonOperationConfigRepository` | AG-Konfiguration fuer die Ampel |
+| `CachedOperationConfigRepository` *(v1.54.0, ersetzt die Zeile darueber)* | `OperationConfigRepository` | Arbeitsgang-Stammdaten: OSEON-Dictionary (case-sensitiv), `GetDueDateOffsetsAsync` (case-insensitiv, eigener Cache-Key), Invalidierung nach dem Schreiben |
 
 **Repositories nach Bereich:**
 

@@ -91,6 +91,8 @@ Fenster mit Cap. Grundlage fuer Artikelinfo, Lackierteil- und AG-Erkennung. Sieh
 
 `OseonProductionOrder`, `OseonWorkOperation`, `OseonOperationConfig` (Offset-Tage + Relevanz je AG),
 `EnaioDmsDocument` (`DocumentType`: Werkstattauftrag / Werkstattauftrag+Zeichnung / Zeichnung).
+*(Seit v1.54.0 umbenannt: Klasse `OperationConfig`, Tabelle `dbo.OperationConfigs`, Spalte `IsExternalSystemRelevant`, `AuditableEntity`; Migration `20261012140548_RenameOperationConfigsAndAddAudit` / `SQL/95` — [[2026-10-09-arbeitsgang-stammdaten-vereinheitlichen-spec]].)* Die Tabelle ist seitdem die gemeinsame **Arbeitsgang-Stammtabelle** (OSEON-AG-Namen und WMS-`WorkOperation.OperationNumber`
+teilen sich den Schluessel `OperationName`); Eindeutigkeit auf jeder DB-Form als Unique-Index `IX_OperationConfigs_OperationName`.
 Details: [[integrationen]].
 
 ## Benutzer, Rollen, Konfiguration

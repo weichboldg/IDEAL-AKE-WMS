@@ -19,7 +19,11 @@ diese Asymmetrien sind meist bewusst.
 | Ressourcenummer | **Bauteil**-Artikelnummer — immer diese fuer Bauteil-Operationen. |
 | Stueckliste / BOM | Bill of Materials — die Bauteile zu einem FA. Quelle: Sage-View, Fallback OSEON. |
 | Baugruppe | Zusammengehoerige BOM-Teilmenge; im BOM-Baum eine Ebene. |
-| Arbeitsgang | **Drei** verschiedene Dinge im Projekt: FA-Vorbau-AG (`WorkStep`), BDE-Arbeitsgang (`WorkOperation`) und OSEON-Arbeitsgang. Kontext beachten. |
+| Arbeitsgang | **Drei** verschiedene Dinge im Projekt: FA-Vorbau-AG (`WorkStep`), BDE-Arbeitsgang (`WorkOperation`) und OSEON-Arbeitsgang. Kontext beachten. Termin-Offsets je Kuerzel: siehe Arbeitsgang-Stammdaten. |
+| Arbeitsgang-Stammdaten | Tabelle `OperationConfigs` (Klasse `OperationConfig`; bis v1.53.0 `OseonOperationConfigs`): je Arbeitsgang-Kuerzel Offset und „Fremdsystem-relevant“. Schluessel fuer OSEON-AG-Namen **und** WMS-`OperationNumber`. Pflege: BDE-Stammdaten › Arbeitsgaenge (nur Admin). [[2026-10-09-arbeitsgang-stammdaten-vereinheitlichen-spec]] |
+| Fremdsystem-relevant | UI-Begriff fuer `OperationConfig.IsExternalSystemRelevant` (frueher `IsOseonRelevant`). Wirkt derzeit **nur** in OSEON-Teileverfolgung und -Reporting. Das OSEON-ViewModel-Property `OseonOperationViewModel.IsOseonRelevant` heisst bewusst weiter so. |
+| Bezugstermin | Termin, zu dem der Arbeitsgang-Offset zaehlt: OSEON Stanztermin (OSEON-Endtermin), IDEAL `FE_Termin`, AKE-BDE `ProductionDate`. |
+| Offset (Arbeitstage) | `DueDateOffsetDays`: Arbeitstage (Mo–Fr ohne Feiertage) relativ zum Bezugstermin; kein Eintrag = 0. |
 | FA-Vorbau-AG | UI-Label fuer den Vorbau-Arbeitsgang. Code/Entity/Route heissen weiterhin `WorkStep` / `/WorkSteps`. |
 | VK / VL / VE / VT / VA | Die 5 statischen Vorbau-AG-Spalten im Leitstand (Filter-Keys `cooling`/`fan`/`electric`/`doors`/`superstructure`). Der Katalog ist erweiterbar, diese Spalten sind es nicht. |
 | Werkbank | Produktionsarbeitsplatz (`ProductionWorkplace`) — wo gearbeitet wird. |

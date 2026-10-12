@@ -91,6 +91,8 @@ BOM-Stored-Procedure als Fallback.
 - Ampelsystem Rot/Gelb/Blau/Gruen/Grau aus Soll-Terminen und Status
   (`OseonTrafficLightService`, Schwellen `OseonAmpelGelbTage`, `OseonAmpelBlauTage`).
 - AG-Konfiguration in `OseonOperationConfig`: Offset-Tage und OSEON-Relevanz je Arbeitsgang.
+  *(Seit v1.54.0 umbenannt: Klasse `OperationConfig`, Tabelle `dbo.OperationConfigs`, Spalte `IsExternalSystemRelevant`, `AuditableEntity`; Migration `20261012140548_RenameOperationConfigsAndAddAudit` / `SQL/95` — [[2026-10-09-arbeitsgang-stammdaten-vereinheitlichen-spec]].)* Pflege: BDE-Stammdaten › Arbeitsgaenge (`OperationConfigsController`); das Flag heisst in der UI „Fremdsystem-relevant“
+  und wirkt weiterhin nur in OSEON-Teileverfolgung und -Reporting.
 - Status-Codes: 10 = Unvollstaendig, 20 = Gueltig, 30 = Freigegeben, 60 = In Arbeit,
   70 = Gesperrt, 90 = Fertig, 95 = Storniert.
 - Server-seitige Paginierung (25 Gruppen/Seite) + **Lazy-Load** der Sub-Ebenen ueber
