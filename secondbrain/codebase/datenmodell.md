@@ -144,3 +144,19 @@ konsolidiertes `../../SQL/00_FreshInstall.sql`. Der Workflow ist verbindlich —
   `LastAttemptAt`, `LastError` (nvarchar 2000), `SageResponseRaw` (nvarchar max), `SentAt`,
   `ConfirmedAt`. Enqueue durch den Web-Decorator, Statuswechsel durch den `SageBookingWorker`
   (`ModifiedBy` = `system:sage-booking`). Details [[2026-07-29-sage-lagerbuchungen-spec]].
+
+## Beschichtungsauftrag als gespeichertes Objekt (IDEAL, v1.50.0, Bündel)
+
+- **`Beschichtungsauftrag`** (neu, `AuditableEntity`, Migration 94 `20261012073551_AddBeschichtungsauftrag`, Tabelle
+  `Beschichtungsauftraege`): `Nummer` `BA-JJJJ-NNNNN` (UNIQUE) + `Jahr`/`LaufendeNummer` (UNIQUE), genau **ein** `HauptFA`
+  (Index, nicht unique), `Status` (`BeschichtungsauftragStatus` byte: Entwurf=10, Uebergeben=30, Erledigt=40,
+  Storniert=90; **20 reserviert** nur als Kommentar), Kopf `Dienstleister`/`Ral` (Freitext 200) +
+  `StartBeschichtung`/`BeschichtenRetour`, `Bemerkung` (1000), Selbstverweis `UrsprungsauftragId` (Reklamation,
+  `OnDelete Restrict`, Navigation `Folgeauftraege`), Statuszeitpunkt + `…ByUserId` je Übergang, `RowVersion`.
+- **`BeschichtungsauftragPosition`** (neu, `AuditableEntity`, Tabelle `BeschichtungsauftragPositionen`, FK Cascade):
+  Herkunftsschlüssel `HauptFA`/`VaterFA`/`SubFA`/`Position` (Index **nicht** unique) + Snapshot `HauptArtnr`/`Artnr`/
+  `Matchcode`/`Menge` (= Sollmenge bei Anlage)/`Breite`/`Hoehe`/`Tiefe` (decimal 18,4). **Kein FK auf
+  `FaHierarchyNode`** — der Sync ersetzt die Cache-Zeilen je Lauf (neue Ids), ein erledigter Auftrag muss lesbar bleiben.
+- Schreibweg nur über `Services/BeschichtungsauftragWorkflow.cs` (Regeln) und `IBeschichtungsauftragRepository`
+  (`GetVergabenAsync` = Positionen in Aufträgen mit Status ≠ Storniert, eine Abfrage). Spec
+  [[2026-10-06-beschichtungsauftrag-ausbau-teil-3-spec]].

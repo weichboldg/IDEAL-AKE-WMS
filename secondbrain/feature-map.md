@@ -669,6 +669,22 @@ Spec [[2026-10-06-beschichtungsauftrag-ausbau-teil-2-spec]] (Teil 2 von 4), Umse
 > Ersatz-Kopf). **Status:** Testbereit (QA + Nachlauf 2026-10-09, Build + 1521 Web- + 272 Service-Tests grün) → Schranke 2
 > mit dem Bündel. Offen: [[2026-10-09-briefkopf-seitenzaehlung]], [[2026-10-09-briefkopf-csp-und-bereinigung]].
 
+### Beschichtungsauftrag als eigenes Objekt (v1.50.0, direkt im Bündel, ohne Oberfläche)
+
+Spec [[2026-10-06-beschichtungsauftrag-ausbau-teil-3-spec]] (Teil 3 von 4), Umsetzung
+[[2026-10-12-beschichtungsauftrag-ausbau-teil-3-umsetzung]], Changelog [[2026-10-12-v1-50-0-beschichtungsauftrag-objekt]].
+
+| Baustein | Stand | Code-Einstieg |
+|---|---|---|
+| Modelle, DbContext, Repository (Vergabe-Abfrage), DI, TimeProvider | **erledigt** `1410fc5c` | `Models/Beschichtungsauftrag*.cs`, `Data/Repositories/BeschichtungsauftragRepository.cs` |
+| Workflow: Nummernkreis, Statusautomat, Doppelvergabe, Anlegen/Bearbeiten/Hinzufügen, Reklamation | **erledigt** `1410fc5c`, QA-Fix `a5b27550` | `Services/BeschichtungsauftragWorkflow.cs` |
+| Migration 94 dreifach (EF, `SQL/94`, FreshInstall zwei Stellen) + Drift-Wächter | **erledigt** `51c6bc79` | `SQL/94_AddBeschichtungsauftrag.sql`, `BeschichtungsauftragMigrationSqlTests` |
+| v1.50.0, Changelog, TS-83 | **erledigt** `a1f7fcfd` | `docs/TESTSZENARIEN.md` TS-83 |
+
+> **Deploy:** Web + **Migration 94** (SQL-Skript vor dem Recycle), kein Service. **Status:** Testbereit (QA + Nachlauf
+> 2026-10-12, Build + 1568 Web- + 272 Service-Tests grün) → Schranke 2 mit dem Bündel. Oberfläche (Liste, Detail, Druck,
+> Schreibrolle) folgt mit Teil 4; ein Workflow-Aufruf je Request.
+
 ## Offen / nicht gemerged
 
 | Vorhaben | Status | Quelle |
