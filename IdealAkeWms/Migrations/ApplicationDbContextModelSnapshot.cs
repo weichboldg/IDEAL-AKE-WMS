@@ -746,6 +746,197 @@ namespace IdealAkeWms.Migrations
                     b.ToTable("BdeTerminals", "dbo");
                 });
 
+            modelBuilder.Entity("IdealAkeWms.Models.Beschichtungsauftrag", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Bemerkung")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTime?>("BeschichtenRetour")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("CreatedByWindows")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Dienstleister")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime?>("ErledigtAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("ErledigtByUserId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("HauptFA")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Jahr")
+                        .HasColumnType("int");
+
+                    b.Property<int>("LaufendeNummer")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ModifiedByWindows")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Nummer")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Ral")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<DateTime?>("StartBeschichtung")
+                        .HasColumnType("datetime2");
+
+                    b.Property<byte>("Status")
+                        .HasColumnType("tinyint");
+
+                    b.Property<DateTime?>("StorniertAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("StorniertByUserId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UebergebenAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("UebergebenByUserId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("UrsprungsauftragId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("HauptFA");
+
+                    b.HasIndex("Nummer")
+                        .IsUnique();
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("UrsprungsauftragId");
+
+                    b.HasIndex("Jahr", "LaufendeNummer")
+                        .IsUnique();
+
+                    b.ToTable("Beschichtungsauftraege", "dbo");
+                });
+
+            modelBuilder.Entity("IdealAkeWms.Models.BeschichtungsauftragPosition", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Artnr")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("BeschichtungsauftragId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("Breite")
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("CreatedByWindows")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("HauptArtnr")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("HauptFA")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("Hoehe")
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("Matchcode")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<decimal>("Menge")
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ModifiedByWindows")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int?>("Position")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SubFA")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("Tiefe")
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<int?>("VaterFA")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BeschichtungsauftragId");
+
+                    b.HasIndex("HauptFA", "VaterFA", "SubFA", "Position");
+
+                    b.ToTable("BeschichtungsauftragPositionen", "dbo");
+                });
+
             modelBuilder.Entity("IdealAkeWms.Models.CachedBomHeader", b =>
                 {
                     b.Property<int>("Id")
@@ -3671,6 +3862,27 @@ namespace IdealAkeWms.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("IdealAkeWms.Models.Beschichtungsauftrag", b =>
+                {
+                    b.HasOne("IdealAkeWms.Models.Beschichtungsauftrag", "Ursprungsauftrag")
+                        .WithMany("Folgeauftraege")
+                        .HasForeignKey("UrsprungsauftragId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Ursprungsauftrag");
+                });
+
+            modelBuilder.Entity("IdealAkeWms.Models.BeschichtungsauftragPosition", b =>
+                {
+                    b.HasOne("IdealAkeWms.Models.Beschichtungsauftrag", "Beschichtungsauftrag")
+                        .WithMany("Positionen")
+                        .HasForeignKey("BeschichtungsauftragId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Beschichtungsauftrag");
+                });
+
             modelBuilder.Entity("IdealAkeWms.Models.CachedBomItem", b =>
                 {
                     b.HasOne("IdealAkeWms.Models.CachedBomHeader", "CachedBomHeader")
@@ -4120,6 +4332,13 @@ namespace IdealAkeWms.Migrations
             modelBuilder.Entity("IdealAkeWms.Models.BdeBooking", b =>
                 {
                     b.Navigation("Quantities");
+                });
+
+            modelBuilder.Entity("IdealAkeWms.Models.Beschichtungsauftrag", b =>
+                {
+                    b.Navigation("Folgeauftraege");
+
+                    b.Navigation("Positionen");
                 });
 
             modelBuilder.Entity("IdealAkeWms.Models.CachedBomHeader", b =>
