@@ -77,7 +77,7 @@
                             </td>
                             <td>
                                 <input type="number" name="dueDateOffsetDays" value="@c.DueDateOffsetDays" form="form-update-@c.Id"
-                                       class="form-control form-control-sm text-center" aria-label="Offset in Arbeitstagen @c.OperationName" />
+                                       class="form-control form-control-sm text-center" required aria-label="Offset in Arbeitstagen @c.OperationName" />
                             </td>
                             <td class="text-center">
                                 <input type="hidden" name="isExternalSystemRelevant" value="@(c.IsExternalSystemRelevant ? "true" : "false")"
@@ -146,7 +146,7 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-bold" for="addOffset">Offset (Arbeitstage) zum Bezugstermin</label>
-                        <input type="number" name="dueDateOffsetDays" id="addOffset" value="0" class="form-control" />
+                        <input type="number" name="dueDateOffsetDays" id="addOffset" value="0" class="form-control" required />
                         <small class="text-muted">Negativ = vor dem Bezugstermin, positiv = danach.</small>
                     </div>
                     <div class="mb-3">

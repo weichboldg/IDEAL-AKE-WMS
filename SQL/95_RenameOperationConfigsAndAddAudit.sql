@@ -16,6 +16,16 @@ IF OBJECT_ID(N'dbo.OseonOperationConfigs', N'U') IS NOT NULL
     EXEC sp_rename N'dbo.OseonOperationConfigs', N'OperationConfigs';
 GO
 
+-- B1a Nur im Skript (QA I-1): THROW beendet in SSMS/sqlcmd ohne -b nur SEINEN Batch, die folgenden GO-Batches liefen weiter
+-- (B5-B9 auf der leeren neuen Tabelle + History-Eintrag -> Migrate() ueberspraenge die Migration). Steht die alte Tabelle
+-- nach B1 noch da, wurde nicht umbenannt: ab hier NICHTS mehr ausfuehren (SET NOEXEC OFF am Skriptende).
+IF OBJECT_ID(N'dbo.OseonOperationConfigs', N'U') IS NOT NULL
+BEGIN
+    PRINT N'ABBRUCH: dbo.OseonOperationConfigs besteht weiter (siehe Meldung von B1) - keine weiteren Aenderungen, keine History-Zeile.';
+    SET NOEXEC ON;
+END
+GO
+
 -- B2 Primaerschluessel (beide DB-Formen heissen gleich)
 IF EXISTS (SELECT 1 FROM sys.key_constraints WHERE name = N'PK_OseonOperationConfigs' AND parent_object_id = OBJECT_ID(N'dbo.OperationConfigs'))
     EXEC sp_rename N'dbo.PK_OseonOperationConfigs', N'PK_OperationConfigs', N'OBJECT';
@@ -72,4 +82,7 @@ BEGIN
     VALUES ('20261012140548_RenameOperationConfigsAndAddAudit', '10.0.2');
     PRINT 'Migration 20261012140548_RenameOperationConfigsAndAddAudit eingetragen.';
 END
+GO
+
+SET NOEXEC OFF;
 GO

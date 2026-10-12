@@ -77,6 +77,11 @@ public class OperationConfigsController : Controller
             TempData["WarningMessage"] = "Kürzel darf nicht leer sein.";
             return RedirectToAction(nameof(Index));
         }
+        if (name.Length > 100 || (displayName?.Trim().Length ?? 0) > 200)
+        {
+            TempData["WarningMessage"] = "Kürzel höchstens 100, Anzeigename höchstens 200 Zeichen.";
+            return RedirectToAction(nameof(Index));
+        }
         if (await _repo.ExistsAsync(name))
         {
             TempData["WarningMessage"] = $"Kürzel „{name}“ existiert bereits (Groß-/Kleinschreibung und Leerzeichen zählen nicht).";
@@ -103,6 +108,11 @@ public class OperationConfigsController : Controller
     {
         var config = await _repo.GetByIdAsync(id);
         if (config == null) return NotFound();
+        if ((displayName?.Trim().Length ?? 0) > 200)
+        {
+            TempData["WarningMessage"] = "Anzeigename höchstens 200 Zeichen.";
+            return RedirectToAction(nameof(Index));
+        }
 
         config.DisplayName = string.IsNullOrWhiteSpace(displayName) ? null : displayName.Trim();
         config.DueDateOffsetDays = dueDateOffsetDays;

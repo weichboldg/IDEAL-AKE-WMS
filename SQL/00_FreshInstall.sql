@@ -2437,6 +2437,7 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261012073551_AddBeschichtungsauftrag')
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261012073551_AddBeschichtungsauftrag', '10.0.2');
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261012140548_RenameOperationConfigsAndAddAudit')
+   AND OBJECT_ID(N'[dbo].[OseonOperationConfigs]', N'U') IS NULL -- sonst steht die Umbenennung noch aus (SQL/95, siehe 16b)
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261012140548_RenameOperationConfigsAndAddAudit', '10.0.2');
 GO
 

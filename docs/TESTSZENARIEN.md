@@ -9667,7 +9667,9 @@ konfiguriert“ aus zwei Quellen ohne `01`, Decorator, OSEON-Dictionary case-sen
   drei DBs dasselbe (Tabelle `OperationConfigs`, Spalte `IsExternalSystemRelevant`, `PK_OperationConfigs`, genau ein
   Unique-Index `IX_OperationConfigs_OperationName`, kein `UQ_`, sechs Audit-Spalten), Zeilenanzahl gleich, Bestand
   `CreatedBy = 'system'`. Negativ: auf einer Wegwerf-Kopie zusätzlich leere `dbo.OperationConfigs` neben
-  `OseonOperationConfigs` → `SQL/95` bricht mit „… existieren beide - manuell klaeren …“ ab, nichts umbenannt.
+  `OseonOperationConfigs` → `SQL/95` (in SSMS ausgeführt) meldet „… existieren beide - manuell klaeren …“ und
+  „ABBRUCH: …“, nichts umbenannt, an der leeren `OperationConfigs` keine Audit-Spalten ergänzt und **keine** History-Zeile
+  `20261012140548_RenameOperationConfigsAndAddAudit` (QA I-1); der App-Start bricht mit derselben B1-Meldung ab.
 - **TS-87.10 — Negativ.** Spaltenfilter ohne Treffer → Hinweiszeile, kein Fehler; ungültige Id per manipuliertem POST →
   404; keine `OseonWorkOperations`/`WorkOperations` → „Alle bekannten Kürzel sind konfiguriert.“.
 

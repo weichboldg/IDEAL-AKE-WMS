@@ -42,7 +42,7 @@ public class OperationConfigsMigrationSqlTests
     {
         foreach (var (datei, text) in new[] { ("Migration", Migration), ("SQL/95", Sql95), ("FreshInstall", Fresh) })
             foreach (var name in Namen)
-                text.Should().Contain(name, $"{datei} muss {name} nennen");
+                Regex.IsMatch(text, $@"(?<!Oseon)\b{name}\b").Should().BeTrue($"{datei} muss {name} nennen (nicht nur als Teil des alten Namens)");
     }
 
     [Fact]
@@ -64,6 +64,24 @@ public class OperationConfigsMigrationSqlTests
         batches.Should().HaveCount(9);
         var sql = Norm(Sql95);
         foreach (var b in batches) sql.Should().Contain(b, "SQL/95 und die EF-Migration muessen dieselben Batches ausfuehren");
+    }
+
+    [Fact]
+    public void Sql95_KonvergenzReihenfolge_UndHaltNachAnomalie()
+    {
+        var b4 = Sql95.IndexOf("N'IX_OperationConfigs_OperationName', N'INDEX'", StringComparison.Ordinal);
+        var b5 = Sql95.IndexOf("CREATE UNIQUE INDEX [IX_OperationConfigs_OperationName]", StringComparison.Ordinal);
+        var b6 = Sql95.IndexOf("DROP CONSTRAINT [UQ_OseonOperationConfigs_OperationName]", StringComparison.Ordinal);
+        (b4 < b5 && b5 < b6 && b4 > 0).Should().BeTrue("erst EF-Index umbenennen, dann Ziel-Index anlegen, dann UQ droppen");
+
+        // QA I-1: nach B1 (THROW) haelt das Skript an, bevor B2..History laufen koennen; am Ende wieder ein.
+        var throwPos = Sql95.IndexOf("THROW 50001", StringComparison.Ordinal);
+        var noexecOn = Sql95.IndexOf("SET NOEXEC ON;", StringComparison.Ordinal);
+        var b2 = Sql95.IndexOf("PK_OseonOperationConfigs", StringComparison.Ordinal);
+        var history = Sql95.IndexOf("INSERT INTO dbo.__EFMigrationsHistory", StringComparison.Ordinal);
+        var noexecOff = Sql95.LastIndexOf("SET NOEXEC OFF;", StringComparison.Ordinal);
+        (throwPos < noexecOn && noexecOn < b2 && history < noexecOff).Should().BeTrue();
+        Regex.Matches(Sql95, @"^GO\s*$", RegexOptions.Multiline).Count.Should().BeGreaterThanOrEqualTo(12, "jeder Batch endet mit GO");
     }
 
     [Fact]
