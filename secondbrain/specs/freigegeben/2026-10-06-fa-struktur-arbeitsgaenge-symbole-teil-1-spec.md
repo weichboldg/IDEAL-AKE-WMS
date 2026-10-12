@@ -2,20 +2,20 @@
 type: spec
 title: "FA-Struktur Arbeitsgänge als Symbole — Teil 1: Symbole statt Zeilen (reine Anzeige)"
 slug: 2026-10-06-fa-struktur-arbeitsgaenge-symbole-teil-1-spec
-status: Entwurf
+status: Testbereit
 created: 2026-10-06
-updated: 2026-10-07
+updated: 2026-10-12
 source_backlog: "[[2026-10-06-fa-struktur-arbeitsgaenge-symbole]]"
 anhaenge:
   - "[[sage-fa-struktur-arbeitsschritte.png]]"
 depends_on: ""
-task: ""
+task: "[[2026-10-12-fa-struktur-arbeitsgaenge-symbole-teil-1-umsetzung]]"
 worktree: ""
 branch: ""
 affected_code:
   - "Quelle S entschieden (Antwort 1, 2026-10-06): Symbole = Kuerzel aus FaHierarchyNode.Arbeitsschritte je Baumzeile, Ausschlussliste NICHT gefiltert. Alle Quelle-W-Pfade der Anzeige sind verworfen (unten als VERWORFEN markiert); den Status liefert W erst in Teil 2."
   - "Ort entschieden (Antwort 2, Keyuser 2026-10-07): Variante A — Symbole direkt in den Baumzeilen. Symbol-Inhalt entschieden (Antwort 3): Sage-Kuerzel sichtbar, Name per aria-label + title; Anzeige beim Antippen spaeter (nicht in diesem Teil)."
-  - "VERWORFEN (Antwort 2): IdealAkeWms/Views/FaHierarchy/_FaWorkOperationsModal.cshtml als Ort der Symbole (Variante B). Das Modal bleibt inhaltlich wie v1.45 (Z.49-62 je AG eine Zeile) — Bestaetigung offen, Rueckfrage 4"
+  - "VERWORFEN (Antwort 2): IdealAkeWms/Views/FaHierarchy/_FaWorkOperationsModal.cshtml als Ort der Symbole (Variante B). Das Modal bleibt inhaltlich wie v1.45 (_FaWorkOperationsModal.cshtml:49-62 je AG eine Zeile, v1.49.0 geprueft) und wird NICHT geaendert — entschieden (Antwort 4, Gerald 2026-10-09), vormals 'Bestaetigung offen, Rueckfrage 4'"
   - "IdealAkeWms/Views/FaHierarchy/_FaHierarchyNode.cshtml — neue Zelle mit Symbolreihe je Knotenzeile (Zeile Z.55-108, Spalten mit data-col-key Z.72-107) aus n.Arbeitsschritte des Knotens (Feld ist schon geladen). VERWORFEN (Antwort 1): Symbole aus den Arbeitsgaengen des Knotens (Quelle W)"
   - "IdealAkeWms/Views/FaHierarchy/Index.cshtml — neue <th data-col-key> in Kopf- und Filterzeile (Z.105-126), colspan 8 -> 9 (Z.133, Z.204), column-config-JSON (ab Z.282)"
   - "IdealAkeWms/Models/ViewModels/ColumnDefinitions.cs — neue Spalte in ViewConfig FaHierarchyStructure (Z.450)"
@@ -29,26 +29,31 @@ beantwortete_rueckfragen:
   - "1 Symbol-Quelle -> S fuer die Anzeige (FaHierarchyNode.Arbeitsschritte je Baumzeile, 1:1 wie Sage, auch an Blaettern), W (WorkOperation) liefert den Status in Teil 2; Ausschlussliste in der Anzeige NICHT filtern (Gerald 2026-10-06, Freigabe-Block Nr. 1)"
   - "2 Ort -> A, Symbole direkt in den Baumzeilen (Keyuser 2026-10-07, Freigabe-Block Nr. 2); hebt die v1.45-Freigabe 'Inhalt erst beim Oeffnen laden' fuer die Symbole auf. Zusatz 'Modal bleibt fuer Details' ist laut Antwort nur Vorschlag der Koordination -> Rueckfrage 4"
   - "3 Symbol-Inhalt -> Sage-Kuerzel sichtbar (z. B. KA); Name per aria-label/Tooltip; Anzeige beim Antippen spaeter (Keyuser 2026-10-07, Freigabe-Block Nr. 3)"
-open_questions:
-  - "(Freigabe-Block Nr. 4, neu 2026-10-07; Rest aus Nr. 2) Modal bestaetigen: Bleibt das Arbeitsgaenge-Modal (v1.45, je AG eine Zeile mit Werkbank/Sage-Nr.) unveraendert neben den neuen Symbolen im Baum? Antwort 2 nennt das nur als Vorschlag der Koordination."
+  - "4 Modal -> bleibt unveraendert neben den Baum-Symbolen (Details), kein Rueckbau von Knopf/Endpunkt (Gerald 2026-10-09, Freigabe-Block Nr. 4)"
+open_questions: []
 epic: false
 etappen: []
 deploy:
   web: true
   service: false
   migration: false
-freigabe_entscheidung: ""
-freigabe_von: ""
-freigabe_am: ""
+freigabe_entscheidung: "Freigegeben wie Antworten 1-4: Sage-Kuerzel (S) als Symbole je Strukturzeile im FA-Baum, 1:1 wie Sage, ohne Ausschlussfilter; Status kommt erst mit Teil 2, Modal bleibt unveraendert. Keine Abhaengigkeit. Umsetzung direkt im Buendel nach Beschichtung Teil 4, vor CSV."
+freigabe_von: "Gerald Weichbold"
+freigabe_am: 2026-10-12
 # Flache Schluessel mit Absicht: Obsidians Property-Editor kann verschachtelte
 # YAML-Objekte NICHT bearbeiten - und genau diesen Block fuellt der Mensch aus.
 ---
 
-> **Umsetzungsort (Hinweis, keine Entscheidung):** nach Schranke 2 des IDEAL-Bündels, aus `main`
-> (neuer Worktree). Code-Grundlage dieser Spec ist der Bündel-Stand
-> `.claude/worktrees/2026-08-07-ideal-teile-1-5` (v1.47.1); alle Zeilenangaben beziehen sich darauf und
-> sind nach dem Merge gegen `main` nachzuprüfen. TS-Nummer und Version: nächste freie zum
-> Umsetzungszeitpunkt. `worktree`/`branch` setzt der Dev-Lauf.
+> **Umsetzungsort (Entscheidung Gerald 2026-10-09):** direkt im Bündel-Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`
+> auf Zweig `feature/2026-08-07-ideal-teile-1-5` (kein eigener Worktree, ein Lauf zur Zeit, kein Warten auf
+> Schranke 2 des Bündels). `worktree`/`branch` im Frontmatter bleiben leer — der Ort steht hier fest.
+> Code-Grundlage ist der Bündel-Stand; die Zeilenangaben stammen aus v1.47.1, die im Rework 2026-10-12
+> angefassten (Modal `_FaWorkOperationsModal.cshtml:49-62`, Endpunkt `FaHierarchyController.cs:139-155`) sind
+> gegen **v1.49.0** geprüft. Version und TS-Nummer: nächste freie **im Bündel** zum Umsetzungszeitpunkt
+> (Stand 2026-10-12: Bündel v1.49.0, höchstes Kapitel TS-82). Teil 1 hängt nicht an der Vorbedingungs-Spec
+> der Arbeitsgang-Stammdaten (die braucht erst Teil 2).
+> (Vormals: „Zeilenangaben … nach dem Merge gegen `main` nachzuprüfen … `worktree`/`branch` setzt der
+> Dev-Lauf“ — überholt durch die Entscheidung 2026-10-09.)
 
 ## Ziel / Nutzen (das Warum)
 
@@ -109,8 +114,10 @@ Gleichheit, ist der Abteilungs-Teil des Vorbilds im Baum bereits umgesetzt; Teil
   inhaltlich unverändert (`_FaWorkOperationsModal.cshtml:8-18`, `:39-46`, `:68-84`).
 - Spalte Arbeitsbereich/„Abteilung“ (besteht, siehe Vorbild); Knoten `FR-Zuschnitt` und Spalte Artikeltyp.
 - Name beim **Antippen** sichtbar machen (Popover o. ä.) — „später“ laut Antwort 3, nicht in diesem Teil.
-- Das Arbeitsgänge-Modal (v1.45) wird nicht umgebaut (Antwort 2 „Modal bleibt für Details“, Bestätigung
-  Rückfrage 4).
+- Das Arbeitsgänge-Modal (v1.45) wird nicht umgebaut und nicht zurückgebaut: Es bleibt unverändert neben
+  den Baum-Symbolen für Details (Antwort 4, Gerald 2026-10-09; vormals „Bestätigung Rückfrage 4“ —
+  überholt). Knopf an der Kopfzeile, Existenz-Check `FaHierarchyController.cs:91-95` und Endpunkt
+  `WorkOperations` (`:139-155`) bleiben, wie sie sind.
 
 ## Fachliche Anforderungen
 
@@ -244,7 +251,8 @@ Keyuser 2026-10-07). (Vormals „Offen ist nur noch der Ort … keine ist gewäh
   ToQueryString-Test des `Contains`~~ — verworfen (Antwort 1).
 
 ~~**Variante B — Symbole im bestehenden Modal**~~ — **verworfen (Antwort 2, Keyuser 2026-10-07).** Text bleibt
-als Historie; das Modal wird in Teil 1 nicht geändert (Bestätigung: Rückfrage 4).
+als Historie; das Modal wird in Teil 1 nicht geändert (Antwort 4, 2026-10-09; vormals „Bestätigung:
+Rückfrage 4“).
 - `_FaWorkOperationsModal.cshtml`: je Knoten **eine** Zeile; die Spalten „Kürzel/Werkbank/Sage-Nr.“
   (Z.25-27) werden zu einer Spalte „Arbeitsgänge“ mit Symbolreihe aus den Knoten-Kürzeln. Zählzeile,
   Strich-Zeilen, Warnung `UnmatchedOperations` bleiben.
@@ -310,7 +318,9 @@ Variante A (gilt, Antwort 2; vormals „Nur Variante A“):
 ~~Nur Variante B:~~
 10. ~~Seitenaufbau unverändert (nur Existenz-Check); Modal lädt weiterhin genau eine Struktur.~~ — verworfen
     (Antwort 2). Stattdessen: Das Arbeitsgänge-Modal (Knopf an der Kopfzeile) öffnet und zeigt unverändert wie
-    v1.45 (Bestätigung Rückfrage 4).
+    v1.45 — je erkanntem Arbeitsgang eine Zeile mit Kürzel/Werkbank/Sage-Nr., Zählzeile, Strich-Zeilen,
+    `UnmatchedOperations`-Warnung (Antwort 4, 2026-10-09; vormals „Bestätigung Rückfrage 4“). Kein Diff an
+    `_FaWorkOperationsModal.cshtml`, `FaWorkOperationsViewModel` und dem Endpunkt `WorkOperations`.
 
 Quelle S (gilt, Antwort 1 — vormals „Nur Quelle S“):
 11. Tokenisierung per Unit-Test belegt: `"LS EG KA PG"` → `LS`,`EG`,`KA`,`PG`; doppelte Leerzeichen und
@@ -325,9 +335,10 @@ Quelle S (gilt, Antwort 1 — vormals „Nur Quelle S“):
 
 ## Test-Szenarien
 
-Neues Kapitel in `docs/TESTSZENARIEN.md` (Nummer: nächste freie zum Umsetzungszeitpunkt), Index in
-`secondbrain/tests/testszenarien-index.md` nachziehen. Bestehendes Kapitel TS-78 (v1.45) auf geänderte
-Darstellung prüfen.
+Neues Kapitel in `docs/TESTSZENARIEN.md` des Bündel-Worktrees (Nummer: nächste freie im Bündel zum
+Umsetzungszeitpunkt; Stand 2026-10-12 ist TS-82 das höchste), Index in
+`secondbrain/tests/testszenarien-index.md` nachziehen. Bestehendes Kapitel TS-78 (v1.45, Modal) bleibt
+gültig (Antwort 4: Modal unverändert) — nur prüfen, dass es neben der neuen Spalte weiter zutrifft.
 
 - **Vorbedingungen:** IDEAL-Testsystem, Struktur-Erkennung (v1.44.0) hat AGs angelegt, Benutzer mit
   Kommissionierung/Tracking/Leitstand.
@@ -416,20 +427,27 @@ Entfällt (`epic: false`).
 
 ## Deploy
 
-**Vorläufig — der QA-Lauf bestätigt gegen den echten Diff.**
+**Final (QA 2026-10-12, aus dem echten Diff `5764c664..8f15833c`).**
 
-- **Web-App:** ja (`_FaHierarchyNode.cshtml`, `Index.cshtml`, ggf. CSS, Tokenisierungs-Funktion,
-  Katalog-Lookup im `FaHierarchyController.Index`, `ColumnDefinitions`). ~~Variante B zusätzlich
-  `FaWorkOperationsViewModel`~~ — verworfen (Antwort 2). ~~Quelle W: Controller-Umbau, Repository~~ — verworfen
-  (Antwort 1).
-- **Vor dem Dev-Lauf:** Prüfschritt P-K1 (oben) durch Gerald (vormals „vor Antwort 1“ — überholt).
-- **Service:** nein.
-- **Migration:** nein.
-- **Publish-Befehle:**
+- **Web-App: ja** — `IdealAkeWms/` geändert: `Controllers/FaHierarchyController.cs`, `Models/ViewModels/FaHierarchyTreeViewModel.cs`,
+  `Models/ViewModels/ColumnDefinitions.cs`, `Views/FaHierarchy/Index.cshtml`, `Views/FaHierarchy/_FaHierarchyNode.cshtml`,
+  `wwwroot/css/site.css`, `Views/Help/Changelog.cshtml`, `Views/Help/Index.cshtml`, `AppVersion.cs` (1.52.0).
+- **Service: nein (fachlich)** — einzige Änderung unter `IDEALAKEWMSService/` ist der Versions-Bump `AppVersion.cs` 1.51.0 → 1.52.0
+  (Pflicht „beide AppVersion.cs“). Ein Service-Publish ist nur nötig, wenn die angezeigte Service-Version gleichziehen soll;
+  funktional ändert sich am Service nichts.
+- **Migration: nein** — keine Datei unter `*/Migrations/`, kein `SQL/`-Diff, kein Einmal-Skript.
+- **Vor der Abnahme:** Prüfschritt P-K1 (oben) durch Gerald — der Bau hängt nicht daran, TS-85.2 schon.
+- **Ablauf:** Publish aus dem Worktree → Testsystem → TS-85 → Merge (Bündel). Reihenfolge ohne DB-Schritt: nur Web-App tauschen.
+- **Publish-Befehl** (im Worktree `C:\git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5`):
 
 ```bash
 dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb
+# optional, nur fuer die Versionsanzeige des Service:
+# dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService
 ```
+
+Nach dem Merge nur dann erneut aus `main` publishen, wenn der Merge getestete Dateien mit parallelen `main`-Änderungen
+zusammengeführt hat.
 
 ## Offene Rueckfragen
 
@@ -477,7 +495,12 @@ dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWM
    Hinweis: Ein reiner `title`-Tooltip erscheint an Touch-Terminals nicht; die Spec verlangt den Namen
    zusätzlich per `aria-label` (Leitplanke). Reicht das, oder soll der Name auf Touch sichtbar werden
    (z. B. Antippen öffnet Popover)?
-4. **Modal bestätigen** (neu 2026-10-07; Rest aus Nr. 2): Antwort 2 sagt „Modal bleibt für Details (Vorschlag
+> [!success] Frage 4 eingearbeitet (Antwort 4, Gerald 2026-10-09)
+> Modal bleibt unverändert neben den Baum-Symbolen, kein Rückbau. Übernommen in affected_code, Umfang,
+> Lösungsentwurf, AK 10, Testszenarien; in `beantwortete_rueckfragen` verschoben. Teil 1 hat **keine** offene
+> Rückfrage mehr.
+
+4. ~~**Modal bestätigen**~~ — **eingearbeitet (Antwort 4, 2026-10-09)** (neu 2026-10-07; Rest aus Nr. 2): Antwort 2 sagt „Modal bleibt für Details (Vorschlag
    Koordination, nicht ausdrücklich beantwortet)“. Bleibt das Arbeitsgänge-Modal (v1.45: Knopf an der
    HauptFA-Kopfzeile, je erkanntem Arbeitsgang eine Zeile mit Kürzel/Werkbank/Sage-Nr.,
    `_FaWorkOperationsModal.cshtml:49-62`) unverändert neben den Symbolen im Baum? Die Spec setzt „bleibt
@@ -485,7 +508,8 @@ dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWM
    `FaHierarchyController.cs:139-155`).
 
 > Pflicht-Leitplanke aus Notiz-Punkt 3 gilt hier schon (Text statt Farbe, WCAG AA); die Frage „wie genau
-> wird Status ohne Farbe codiert“ ist Rückfrage 1 in [[2026-10-06-fa-struktur-arbeitsgaenge-symbole-teil-2-spec]].
+> wird Status ohne Farbe codiert“ ist Rückfrage 1 in [[2026-10-06-fa-struktur-arbeitsgaenge-symbole-teil-2-spec]]
+> (dort beantwortet: Zeichen je Status + `aria-label`).
 
 ## Freigabe-Antworten (Mensch fuellt aus — Schranke 1)
 
@@ -500,4 +524,158 @@ dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWM
 1. Symbol-Quelle — S (Sage-Kürzel aus FaHierarchyNode.Arbeitsschritte) oder W (erkannte WorkOperation); bei S: Ausschlussliste auch in der Anzeige filtern? → **S für die Anzeige, W für den Status (Gerald 2026-10-06: „W und S sollen ja gleich sein“). Die Symbole zeigen die Sage-Kürzel aus `FaHierarchyNode.Arbeitsschritte` je Baumzeile, 1:1 wie Sage, auch an Blättern. W wird aus denselben Kürzeln erzeugt (`WorkOperationStructureDetectionService.cs:13`, `:90-110`, Scope = eigene Zeile + direkte Kinder des Sub-FA); den Status liefert der Arbeitsgang des zuständigen Sub-FA (Regel siehe Teil 2, Antwort 6). Ausschlussliste in der Anzeige NICHT filtern.**
 2. Wo erscheinen die Symbole — A (Baumzeilen) oder B (Modal); bei A: Modal behalten/umstellen/entfallen? → **A – Symbole direkt in den Baumzeilen (Keyuser 2026-10-07). Modal bleibt für Details (Vorschlag Koordination, nicht ausdrücklich beantwortet).**
 3. Was zeigt ein Symbol — OperationNumber oder SageArbeitsplatznummer sichtbar; Name nur aria-label oder auf Touch sichtbar? → **Sage-Kürzel sichtbar (z. B. `KA`) (Keyuser 2026-10-07). Name per aria-label/Tooltip; Anzeige beim Antippen später.**
-4. Modal bestätigen — bleibt das Arbeitsgänge-Modal (v1.45) unverändert neben den Baum-Symbolen, oder entfällt es? →
+4. Modal bestätigen — bleibt das Arbeitsgänge-Modal (v1.45) unverändert neben den Baum-Symbolen, oder entfällt es? → **Bleibt unverändert (Gerald 2026-10-09): Modal für Details neben den Baum-Symbolen; kein Rückbau.**
+
+## Umsetzung (2026-10-12, Dev-Lauf)
+
+Direkt im Bündel `feature/2026-08-07-ideal-teile-1-5` (Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`), Start
+`5764c664` (Endstand Beschichtungsauftrag Teil 4, v1.51.0). Plan
+`docs/superpowers/plans/2026-10-12-fa-struktur-arbeitsgaenge-symbole-teil-1.md`, native Ausführung. Aufgabe
+[[2026-10-12-fa-struktur-arbeitsgaenge-symbole-teil-1-umsetzung]]. **Version 1.52.0, TS-85, keine Migration.**
+`worktree`/`branch` im Frontmatter bleiben laut Umsetzungsort-Hinweis leer.
+
+| Commit | Inhalt |
+|---|---|
+| `f1a447cb` | `FaArbeitsschrittSymbol` + `FaArbeitsschrittSymbole.Tokenize/NamenLookup/Zuordnen` (`Models/ViewModels/FaHierarchyTreeViewModel.cs`), `FaHierarchyTreeNode.Arbeitsgaenge`; `FaHierarchyController.Index` ruft EINMAL `IProductionWorkplaceRepository.GetAllOrderedAsync`; `FaArbeitsschrittSymboleTests` (13) |
+| `1c86978d` | Spalte `operations` „Arbeitsgänge" (Kopf, Filterzeile, Knotenzeile mit `data-f-operations`, column-config, `ColumnDefinitions.FaHierarchyStructure`), `colspan` 8 → 9, `.fa-ag-symbol` in `site.css`; `FaHierarchyStrukturSpaltenTests` (4) |
+| `8f15833c` | v1.52.0 (beide `AppVersion.cs`), Anwender-Changelog, Hilfe, TS-85 — **feature-complete** |
+
+**Beweis (vor QA):** `dotnet build IdealAkeWms.slnx` 0 Fehler (Warnungen vorbestehend); `dotnet test IdealAkeWms.slnx`
+Web **1636 bestanden, 1 übersprungen** (vorher 1619), Service **272 bestanden**. `docs/TESTSZENARIEN.md` Index-Blob LF.
+Modal (`_FaWorkOperationsModal.cshtml`, `FaWorkOperationsViewModel`, Endpunkt `WorkOperations`): **kein Diff**.
+
+### Entscheidungen im Dev-Lauf (Rulings)
+
+- **R1 Tokenisierung** als Kopie der Erkennungsregel (Trenner nur Leerzeichen, `RemoveEmptyEntries | TrimEntries`) — Web und
+  Service teilen kein Projekt; `ponytail:`-Kommentar nennt die Stelle zum Nachziehen. **Kein Dedupe** (Sage 1:1; die
+  Erkennung dedupliziert nur für `WorkOperation`).
+- **R2 Name** nur bei genau einer Werkbank je `ArbeitsschrittCode` (getrimmt, case-insensitiv); mehrdeutig/unbekannt →
+  `aria-label` = Kürzel. Beschriftung „KA – Name".
+- **R3 Spaltenposition** direkt rechts neben *Arbeitsbereich* (wie Sage: Abteilung | Arbeitsschritte); per Zahnrad
+  verschiebbar. Baum-Spaltenfilter als Freitext (`data-f-operations` = Kürzel kleingeschrieben).
+- **R4 Stil:** neutraler Umriss-Chip mit eigenem weißen Grund (Text `#212529` ≈ 16:1, Rahmen `#495057` ≥ 7:1 gegen
+  Zeile/Hover/Hervorhebung), bewusst **ohne Füllfarbe** — Farbe bleibt dem Status aus Teil 2; gefüllte Badges im Baum
+  tragen schon Bedeutungen (Komm.-Ziel, beschichtet). Jedes Symbol `tabindex="0"`, `role="img"`, `aria-label` + `title`,
+  sichtbarer Fokusrahmen.
+- **R5 Kein Hervorheben-Suchtext:** die Kürzel stehen nicht im kombinierten Suchtext `data-search` (nicht verlangt); der
+  Spaltenfilter deckt die Suche ab.
+
+### Offen für den Menschen
+
+- **P-K1** (Feldgleichheit Sage ↔ WMS) war vor dem Lauf nicht notiert; der Bau hängt nicht daran, die Abnahme schon
+  (TS-85.2). **P-K2 b** liefert Kürzel ohne/mit mehreren Werkbänken für TS-85.3.
+- Tab-Stopps: bei „Alle" (bis 5000 Strukturen) viele fokussierbare Kürzel — die Zeilen sind eingeklappt (`display:none`,
+  nicht fokussierbar), sichtbar wird nur, was aufgeklappt ist.
+
+## QA (2026-10-12)
+
+Unabhängiger QA-Lauf (qa-agent), Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Diff `5764c664..HEAD`
+(`f1a447cb`, `1c86978d`, `8f15833c`), Review selbst in diesem Lauf. Web-App nicht gestartet, keine DB.
+
+**Urteil: Testbereit** — kein Critical/Important offen; drei Minor-Befunde (unten), keiner blockiert.
+
+### 1. Build und Tests (selbst ausgeführt)
+
+- `dotnet build IdealAkeWms.slnx` → **0 Fehler**, 12 Warnungen (vorbestehend, z. B. CS8321 `PickingLeitstand/Index.cshtml(8,12)`).
+- `dotnet test IdealAkeWms.slnx`:
+  - `IdealAkeWms.Tests` → **1636 bestanden, 1 übersprungen, 0 Fehler** (gesamt 1637; übersprungen ist der vorbestehende
+    `ProductionOrderEagerCreateAgentJobTests.EagerCreate_TwoMergesProduce2Rows_PerNewOrder_AndAreIdempotent`).
+  - `IDEALAKEWMSService.Tests` → **272 bestanden, 0 übersprungen, 0 Fehler**.
+- Neu: `FaArbeitsschrittSymboleTests` (13 Fälle), `FaHierarchyStrukturSpaltenTests` (4). Bestehender Prefs-Test
+  `UserViewPreferencesApiControllerTests.Get_FaHierarchyStructureViewKey_IsAccepted` grün (unverändert).
+
+### 2. Code-Review — Befunde und Umgang
+
+Geprüft: kompletter Code-Diff (Controller, ViewModel, ColumnDefinitions, beide Views, CSS, Tests, Hilfe/Changelog,
+TESTSZENARIEN), dazu `WorkOperationStructureDetectionService.cs` (Tokenisierung/Katalog), `fa-hierarchy-tree.js`
+(Filter-Lesepfad `:281-295`), `ProductionWorkplaceRepository.GetAllOrderedAsync`, DI-Registrierung `Program.cs:66`.
+
+Bestätigt (kein Befund):
+- **Tokenisierung identisch zur Erkennung:** Trenner nur `' '`, `RemoveEmptyEntries | TrimEntries`
+  (`FaHierarchyTreeViewModel.cs`, `FaArbeitsschrittSymbole.Tokenize`, vs. `WorkOperationStructureDetectionService.cs:33`, `:109-110`);
+  Feld-Reihenfolge, **kein** Dedupe (die Erkennung dedupliziert nur für `WorkOperation`, `:112`), Ausschlussliste nicht gelesen.
+- **Je Zeile nur eigenes Feld:** `Zuordnen` läuft per Stack über alle Knoten aller `Roots` und setzt je Knoten nur
+  `Tokenize(t.Node.Arbeitsschritte)` — Blatt eigenes Feld, Sub-FA ohne Kinder-Kürzel; Waisen-Pseudowurzeln sind ebenfalls `Roots`.
+  Gerendert wird nur über `Roots` (`Index.cshtml:254`, rekursiv `_FaHierarchyNode.cshtml:130`) → kein Knoten ohne Zuordnung.
+- **Abfragen:** Index ruft genau **eine** zusätzliche Abfrage (`_workplaceRepository.GetAllOrderedAsync()`,
+  `FaHierarchyController.cs:101-102`), keine weitere `WorkOperation`-Abfrage; Existenz-Check `:95-98` unverändert; kein N+1.
+- **Namens-Lookup:** getrimmt, `OrdinalIgnoreCase`, Code leer/null ausgeschlossen, Gruppe mit > 1 Werkbank fällt heraus →
+  wie Erkennung `:80-88`. `Name` ist nicht-nullbar (`ProductionWorkplace.cs:10`).
+- **Modal ohne Diff:** `_FaWorkOperationsModal.cshtml`, `FaWorkOperationsViewModel`, Endpunkt `WorkOperations` unberührt.
+- **Spaltenpflichten:** Kopf-th, Filter-th, Knoten-td, column-config, `ColumnDefinitions.FaHierarchyStructure`, `colspan` 9 an
+  beiden Stellen, `data-f-operations` — durch `FaHierarchyStrukturSpaltenTests` als Drift-Wächter belegt; JS liest
+  `data-f-<key>` generisch (`fa-hierarchy-tree.js:293`), Freitext → Teilstring-Treffer.
+- **Encoding / Fehlerklassen:** Kürzel und Name nur über Razor-`@` (Attribut- und Text-Encoding), kein `@Html.Raw`, kein Wert
+  im `<script>` (column-config ist statisches JSON). Kein `hidden` + `d-*`. Kein stiller Fallback (`TryGetValue ? n : null` →
+  sichtbar „nur Kürzel“). Keine Formular-Bindung, keine nur-Browser-Validierung (reine Anzeige).
+- **Barrierefreiheit:** sichtbares Kürzel als Text, `role="img"` + `aria-label` + `title`, `tabindex="0"`, `:focus-visible`-Rahmen,
+  keine Farbe als Bedeutung, `flex-wrap` für Umbruch. Kontrast (gerechnet, WCAG-Formel): Text `#212529` auf Chip-Weiß 15,4:1;
+  Kontur `#495057` gegen Zeile weiß 8,2:1, Hover `#F5F5F5` 7,5:1, `.fa-hl` `#D9F4FF` 7,1:1, `.fa-filter-hit` `#fff3cd` 7,4:1.
+
+| # | Schweregrad | Befund | Umgang |
+|---|---|---|---|
+| M1 | Minor | **Kontextzeilen des Spaltenfilters** (`.fa-node-row.fa-node-context { opacity: 0.6; }`, `site.css` direkt unter dem neuen Block; gesetzt in `fa-hierarchy-tree.js:330-333`): die ganze Zeile wird gedimmt, damit auch der Chip — Text effektiv **4,2:1** (< 4,5), Kontur **3,0:1** auf Weiß bzw. **2,7:1** auf Hover. Der CSS-Kommentar („≥ 7:1 gegen Zeile/Hover/Hervorhebung“) deckt diesen Zustand nicht ab. Vorbestehendes, bewusstes Dimmen („Nicht-Treffer“), trifft jeden Zelltext gleich (ebenfalls 4,2:1), nicht durch Teil 1 eingeführt. | Nicht blockierend. Checkliste Punkt 8 prüft eine Kontextzeile mit; bei Bedarf Folgeaufgabe „Kontextzeilen-Dimmung WCAG“ (Mensch entscheidet). |
+| M2 | Minor | Strich-Zelle `_FaHierarchyNode.cshtml` (Zweig `Arbeitsgaenge.Count == 0`): `aria-label="keine Arbeitsschritte"` auf einem `<span>` ohne Rolle — ARIA erlaubt keinen Namen an generischen Elementen, Screenreader lesen meist nur „—“. | Nicht blockierend (AK 5 verlangt nur den Strich). Optional in einem Folgelauf `<span class="visually-hidden">` statt `aria-label`. |
+| M3 | Minor | Regel an zwei Stellen (Web-Kopie der Tokenisierung vs. Service) — bewusst (R1, `ponytail:`-Kommentar). Der Kommentar nennt `FaArbeitsschrittSymboleTests` als Absicherung; der Test prüft nur die Web-Seite und erkennt eine Änderung im Service **nicht**. Kosmetisch: CSS-Kommentar „16:1“ ist gerechnet 15,4:1. | Nicht blockierend; Drift-Risiko ist benannt. Nachziehen nur bei Regeländerung. |
+
+Rulings R1–R5 gegen Spec-Rumpf und Antworten 1–4: **konform.** R1 = FA 1/Antwort 1 (kein Filter, kein Dedupe = Sage 1:1);
+R2 = FA 2/Leitplanke 4 (mehrdeutig/unbekannt → Kürzel); R3 Position/Freitextfilter = Lösungsentwurf („optional data-f“);
+R4 neutral ohne Füllfarbe = AK 3/Out-of-Scope Status; R5 (kein `data-search`) ist nicht verlangt — das Hervorheben-Suchfeld
+findet Kürzel nicht, der Spaltenfilter schon (so in der Hilfe beschrieben).
+
+### 3. Beweisart je Akzeptanzkriterium
+
+| AK | Beweis | Anmerkung |
+|---|---|---|
+| 1 Symbole je Zeile, Feld-Reihenfolge | Unit (`Tokenize_FeldReihenfolge_AK11`, `Zuordnen_…_AK13`) + **Manual-UAT TS-85.1/85.2** | Prüfwerte laut Vorbild hängen an P-K1 und Sage-Daten |
+| 2 Kürzel sichtbar, Name in aria-label/title, Tastatur | Unit (`Beschriftung_NameOderKuerzel`, `NamenLookup_*`) + **Manual-UAT TS-85.4** | Fokus/Screenreader nur im Browser |
+| 3 alle gleich gestaltet | **Manual-UAT TS-85.1** (Code-Review: eine CSS-Klasse) | |
+| 4 Kontrast | **Manual-UAT TS-85.6** (Rechnung oben, Befund M1) | |
+| 5 Strich; Zählzeile/Unmatched unverändert | Code-Review (Modal ohne Diff) + **Manual-UAT TS-85.2/85.8** | |
+| 6 Umbruch ≥ 8 | **Manual-UAT TS-85.5** | Browser-Layout |
+| 7 kein Schreibzugriff, Zugriffsschutz | Code-Review (keine neue Action, Klassenfilter unverändert) + **Manual-UAT TS-85.10** | |
+| 8 keine AG-Abfrage, ≤ 1 Katalog-Abfrage | Code-Review `FaHierarchyController.cs:95-102` + **Manual-UAT TS-85.9** (SQL-Profiler) | keine automatisierte Query-Zählung |
+| 9 Spalte ein-/ausblendbar, Prefs-API 200 | Unit (`FaHierarchyStrukturSpaltenTests`, `Get_FaHierarchyStructureViewKey_IsAccepted`) + **Manual-UAT TS-85.7** | Zahnrad/Verschieben = Browser-JS |
+| 10 Modal unverändert | Code-Review (kein Diff) + **Manual-UAT TS-85.8** | |
+| 11 Tokenisierung | **Unit** (`Tokenize_*`) — grün | |
+| 12 Ausschluss/unbekannt angezeigt | **Unit** (`Tokenize_AusschlusslisteUndUnbekanntBleiben_AK12`) + Manual-UAT TS-85.3 | |
+| 13 Blatt eigene, Sub-FA nicht Kinder | **Unit** (`Zuordnen_JeZeileNurEigeneKuerzel_AuchBlatt_AK13`) + Manual-UAT TS-85.2 | |
+
+Automatisch belegt: AK 11, 12, 13 (Logik). Alle übrigen zählen erst mit TS-85 als grün.
+
+### 4. Geänderte Bestandstests
+
+**Keine.** Der Diff ändert keinen bestehenden Test; nur zwei neue Testdateien. Der zusätzliche Ctor-Parameter von
+`FaHierarchyController` bricht keinen Test (kein Test konstruiert den Controller direkt; DI-Registrierung `Program.cs:66` vorhanden).
+
+### 5. Checkliste CLAUDE.md
+
+- Migration/SQL/FreshInstall/AgentJobs: entfällt (kein Schema). Audit-Felder: entfällt (kein Schreiben).
+- Version 1.52.0 in **beiden** `AppVersion.cs`; Anwender-Changelog `Views/Help/Changelog.cshtml` und Hilfe `Views/Help/Index.cshtml` ergänzt.
+- `docs/TESTSZENARIEN.md` TS-85 (85.1–85.11: Vorbedingungen, Schritte, Erwartung, Negativfall, Regression) vollständig;
+  Commit-Blob byte-genau per python: **CRLF 0** / LF 9568, Arbeitskopie CRLF 0.
+- Offen beim Aufrufer: `secondbrain/tests/testszenarien-index.md` (TS-85), `feature-map.md`, Brain-Changelog v1.52.0.
+- Keine neue Rolle, kein neuer Filter.
+
+### Manuelle Test-Checkliste (Mensch, Testsystem IDEAL)
+
+1. Web-App aus dem Worktree publishen (Deploy-Abschnitt), Testsystem aktualisieren; Version v1.52.0 sichtbar.
+2. P-K1-Abfrage auf der IDEAL-WMS-DB ausführen, Ergebnis in TS-85 notieren.
+3. TS-85.1: `/FaHierarchy`, Struktur aufklappen — Spalte *Arbeitsgänge* rechts neben *Arbeitsbereich*, gleiche Umriss-Kästchen, Hover zeigt „KA – Name“.
+4. TS-85.2: `KTZ-L3-76-5Z1T RAL` neben Sage — A-BODEN `LS KA PG`, FR-…-1530 `ZS`, Mittelholmblende `VM`, Korpus-Gepunktet `BE`, Korpus-1320-660-760 nur `PG`, Wurzel Strich.
+5. TS-85.3: Zeile mit `STO`/`XXX` bzw. Kürzel ohne Werkbank (P-K2 b) — Kürzel sichtbar, Tooltip nur Kürzel; ein mehrdeutiges Kürzel (P-K2 b `Werkbaenke > 1`) ebenfalls nur Kürzel.
+6. TS-85.4: Tab-Taste durch die Kürzel — blauer Fokusrahmen, Screenreader sagt „KA – Name“; am Touch-Terminal antippen ohne Fehler.
+7. TS-85.5: Zeile mit ≥ 8 Kürzeln bzw. schmales Fenster — Umbruch, keine Querscrollleiste.
+8. TS-85.6: Kontrast in normaler, Hover-, hervorgehobener (blau) und Filtertreffer-Zeile (gelb) **und in einer gedimmten Kontextzeile** (Spaltenfilter aktiv, Vorfahrenpfad; Befund M1) beurteilen.
+9. TS-85.7: Filter `ka` → nur Treffer samt Pfad; Zahnrad: Spalte aus-/einblenden, verschieben, Seite neu laden → Einstellung bleibt.
+10. TS-85.8: Knopf *Arbeitsgänge* an der Kopfzeile → Modal wie TS-78.
+11. TS-85.9: Seitengröße „Alle“ — Ladezeit notieren; SQL-Profiler: genau eine Abfrage auf `ProductionWorkplaces`, keine zusätzliche auf `WorkOperations`.
+12. TS-85.10: Benutzer ohne Kommissionierung/Tracking/Leitstand → `/FaHierarchy` verweigert; Struktur ohne materialisierten Auftrag → Kürzel sichtbar, kein Fehler.
+13. TS-85.11: Regression — Filter Arbeitsbereich/Komm.-Ziel/Status, „Alle auf/zu“, Hervorheben-Suchfeld wie vorher.
+
+### QA-Nachlauf (2026-10-12, Dev-Lauf)
+
+- **M2 behoben** (`d6d6beb0`): Strich bei leerem Feld `aria-hidden`, Ansage über `visually-hidden`-Text „keine Arbeitsschritte".
+- **M3 behoben** (`d6d6beb0`): Kommentare korrigiert (Kontrast 15,4:1; der Test prüft nur die Web-Kopie der Tokenisierung).
+- **M1 nicht behoben** — vorbestehend: die gedimmte Kontextzeile (opacity 0.6) liegt für alle Zellen unter WCAG AA; im CSS-Kommentar vermerkt, Entscheidung beim Menschen.
+- Nach den Fixes: `dotnet build IdealAkeWms.slnx` 0 Fehler; `dotnet test IdealAkeWms.slnx` Web 1636 bestanden / 1 übersprungen, Service 272 bestanden.

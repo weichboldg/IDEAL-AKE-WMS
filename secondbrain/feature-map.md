@@ -701,6 +701,20 @@ Spec [[2026-10-06-beschichtungsauftrag-ausbau-teil-4-spec]] (Teil 4 von 4), Umse
 > anlegen + zuweisen. **Status:** Testbereit (QA 2026-10-12, Build + 1619 Web- + 272 Service-Tests grün) → Schranke 2
 > mit dem Bündel.
 
+### Arbeitsgänge als Symbole im FA-Struktur-Baum (v1.52.0, Teil 1, direkt im Bündel)
+
+Spec [[2026-10-06-fa-struktur-arbeitsgaenge-symbole-teil-1-spec]] (Teil 1 von 3), Umsetzung [[2026-10-12-fa-struktur-arbeitsgaenge-symbole-teil-1-umsetzung]], Changelog
+[[2026-10-12-v1-52-0-fa-struktur-arbeitsgaenge-symbole]].
+
+| Baustein | Stand | Code-Einstieg |
+|---|---|---|
+| Tokenisierung, Namens-Lookup, Zuordnung je Baumzeile, eine Katalog-Abfrage | **erledigt** `f1a447cb` | `Models/ViewModels/FaHierarchyTreeViewModel.cs` (`FaArbeitsschrittSymbole`), `FaHierarchyController.Index` |
+| Spalte „Arbeitsgänge" im Baum + Symbol-Stil + Spalten-Wächter | **erledigt** `1c86978d`, QA-Fix `d6d6beb0` | `Views/FaHierarchy/_FaHierarchyNode.cshtml`, `site.css` `.fa-ag-symbol` |
+| v1.52.0, Changelog, Hilfe, TS-85 | **erledigt** `8f15833c` | `docs/TESTSZENARIEN.md` TS-85 |
+
+> **Deploy:** nur Web, keine Migration. **Status:** Testbereit (QA 2026-10-12, Build + 1636 Web- + 272 Service-Tests grün)
+> → Schranke 2 mit dem Bündel. Status-Farben folgen mit Teil 2, BDE-Anzeige mit Teil 3.
+
 ## Offen / nicht gemerged
 
 | Vorhaben | Status | Quelle |
