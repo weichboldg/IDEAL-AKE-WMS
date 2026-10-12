@@ -1,5 +1,5 @@
 // Node-Selbstpruefung des reinen CSV-Kerns (csv-export.js, Spec 2026-10-06-csv-export-alle-tabellen). Aufruf durch
-// CsvExportCoreTests: node csv-export.check.js <pfad zu csv-export.js>. Exit 0 = alles gruen, sonst Meldung + Exit 1.
+// CsvExportCoverageTests.Kern_NodeSelbstpruefung: node csv-export.check.js <pfad zu csv-export.js>. Exit 0 = alles gruen, sonst Meldung + Exit 1.
 'use strict';
 const assert = require('assert');
 const core = require(process.argv[2]);
@@ -22,6 +22,7 @@ assert.strictEqual(cleanValue('  12.10.2026  KW42 '), '12.10.2026');
 assert.strictEqual(cleanValue('12.10.2026\u00a0KW 7'), '12.10.2026');
 assert.strictEqual(cleanValue('4711\n   HauptFA'), '4711 HauptFA');
 assert.strictEqual(cleanValue('12.10.2026 bis 13.10.2026'), '12.10.2026 bis 13.10.2026');
+assert.strictEqual(cleanValue('12.10.2026 07:45 KW42'), '12.10.2026 07:45');
 assert.strictEqual(cleanValue(null), '');
 
 // RFC 4180

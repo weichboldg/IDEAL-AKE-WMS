@@ -73,6 +73,29 @@ public class CsvExportCoverageTests
             "eine paginierte Client-Mode-Tabelle exportierte nur die aktuelle Seite");
     }
 
+    /// <summary>QA I-1 (2026-10-12): Eine Spalte mit Ueberschrift, aber ohne <c>data-col-key</c> ist fuer den Export nicht
+    /// zuordenbar (Server-Mode mappt ueber den Key). Frueher fiel sie still weg (Bewegungen ohne „Menge"); jetzt bricht der
+    /// Export mit Meldung ab — dieser Waechter verhindert, dass es dazu kommt.</summary>
+    [Theory]
+    [MemberData(nameof(TableViews))]
+    public void JedeUeberschriebeneSpalte_HatEinenSchluessel(string view)
+    {
+        var html = File.ReadAllText(Path.Combine(Views, view));
+        var ohneKey = new List<string>();
+        foreach (Match table in TableTag.Matches(html))
+        {
+            var thead = html.IndexOf("<thead", table.Index, StringComparison.Ordinal);
+            if (thead < 0) continue;
+            var firstRowEnd = html.IndexOf("</tr>", thead, StringComparison.Ordinal);
+            foreach (Match th in Regex.Matches(html[thead..firstRowEnd], @"<th\b([^>]*)>(.*?)</th>", RegexOptions.Singleline))
+            {
+                var text = Regex.Replace(Regex.Replace(th.Groups[2].Value, @"@\*.*?\*@", "", RegexOptions.Singleline), "<[^>]+>", "").Trim();
+                if (text.Length > 0 && !th.Groups[1].Value.Contains("data-col-key") && !th.Groups[1].Value.Contains("data-csv-export=\"false\"")) ohneKey.Add(text);
+            }
+        }
+        ohneKey.Should().BeEmpty("jede Spalte mit Ueberschrift braucht data-col-key, sonst bricht der CSV-Export ab");
+    }
+
     [Fact]
     public void CsvExportJs_IteriertNurSkopiert()
     {

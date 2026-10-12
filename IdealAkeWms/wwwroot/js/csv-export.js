@@ -12,7 +12,7 @@
 
     // ===================== Reiner Kern (ohne DOM; per Node geprueft: IdealAkeWms.Tests/Js) =====================
 
-    var KW_DATE = /^(\d{2}\.\d{2}\.\d{4})\s*KW\s*\d{1,2}$/;
+    var KW_DATE = /^(\d{2}\.\d{2}\.\d{4}(?: \d{2}:\d{2})?)\s*KW\s*\d{1,2}$/;
     var PLAIN_NUMBER = /^[+-]?(\d{1,3}(\.\d{3})+|\d+)(,\d+)?$/;
     var DANGEROUS_START = /^[=+\-@\t\r]/;
 
@@ -78,6 +78,12 @@
     function cellValue(td) {
         if (!td) return '';
         if (td.hasAttribute('data-csv-value')) return td.getAttribute('data-csv-value');
+        if (td.querySelector('input[type=radio]')) {
+            var checked = td.querySelector('input[type=radio]:checked');
+            if (!checked) return '';
+            var label = checked.id ? td.querySelector('label[for="' + checked.id + '"]') : null;
+            return label ? label.textContent : checked.value;
+        }
         var input = td.querySelector('input:not([type=hidden]), select, textarea');
         if (input) {
             if (input.type === 'checkbox') return input.checked ? 'Ja' : 'Nein';
@@ -119,10 +125,13 @@
         var src = indexMap(sourceTable);
         var columns = [];
         Array.prototype.forEach.call(headerRow(liveTable).children, function (th) {
+            if (!isVisible(th) || th.getAttribute('data-csv-export') === 'false') return; // Spalten-Opt-out (z. B. Entfernen-Haken)
             var key = th.getAttribute('data-col-key');
-            if (!key || !isVisible(th)) return;
             var label = headerText(th);
-            if (label && src[key] !== undefined) columns.push({ key: key, label: label, idx: src[key] });
+            if (!label) return; // Aktions-/Auswahlspalten ohne Ueberschrift (Antwort 14 a)
+            if (!key || src[key] === undefined)
+                throw new Error('Export abgebrochen: Die Spalte „' + label + '" ist nicht zuordenbar. Bitte der IT melden.');
+            columns.push({ key: key, label: label, idx: src[key] });
         });
 
         var sort = activeSort(liveTable);
@@ -221,16 +230,21 @@
         }
     }
 
-    /** Knopf in den Toolbar-Host direkt vor .table-responsive (wie das Zahnrad, fallstricke §19); fehlt er, eigener Host. */
+    /** Knopf in dasselbe Element, in das column-preferences.js das Zahnrad haengt (insertGearButton: jedes direkt vorangehende
+     *  DIV der .table-responsive, sonst ein eigener d-flex-Host davor; fallstricke §19). Gleiche Regel ⇒ das Zahnrad bleibt an
+     *  seinem bisherigen Platz (AK 11) und steht rechts neben „CSV". Eigene Inline-Gruppe, damit der fremde Container
+     *  (Filterkarte, Zaehlzeile) keine Klassen bekommt. */
     function attach(table) {
         var wrapper = table.closest('.table-responsive') || table.parentElement;
-        var host = wrapper.previousElementSibling;
-        if (!host || host.tagName !== 'DIV' || !host.classList.contains('d-flex')) {
-            host = document.createElement('div');
-            host.className = 'd-flex justify-content-end mb-1';
-            wrapper.parentElement.insertBefore(host, wrapper);
+        var container = wrapper.previousElementSibling;
+        if (!container || !(container.classList.contains('d-flex') || container.tagName === 'DIV')) {
+            container = document.createElement('div');
+            container.className = 'd-flex justify-content-end mb-1';
+            wrapper.parentElement.insertBefore(container, wrapper);
         }
-        host.classList.add('flex-wrap', 'align-items-center', 'gap-1');
+        var host = document.createElement('span');
+        host.className = 'csv-export-host d-inline-flex flex-wrap align-items-center gap-1 ms-2';
+        container.appendChild(host);
         var button = document.createElement('button');
         button.type = 'button';
         button.className = 'btn btn-sm btn-outline-secondary csv-export-btn';

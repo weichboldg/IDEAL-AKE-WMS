@@ -31,7 +31,7 @@ else
                         <th data-filterable data-col-key="article-group">Artikelgruppe</th>
                         @foreach (var group in Model.AvailableGroups)
                         {
-                            <th class="text-center" style="min-width: 120px;">@group.Name</th>
+                            <th class="text-center" style="min-width: 120px;" data-col-key="group-@group.Id">@group.Name</th>
                         }
                     </tr>
                 </thead>
