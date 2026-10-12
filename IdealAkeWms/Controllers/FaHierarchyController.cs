@@ -30,6 +30,7 @@ public class FaHierarchyController : Controller
     private readonly ICurrentUserService _currentUserService;
     private readonly IUserRepository _userRepository;
     private readonly IWorkOperationRepository _workOperationRepository;
+    private readonly IProductionWorkplaceRepository _workplaceRepository;
 
     public FaHierarchyController(
         IFaHierarchyNodeRepository nodeRepository,
@@ -38,7 +39,8 @@ public class FaHierarchyController : Controller
         IAppSettingRepository settingRepository,
         ICurrentUserService currentUserService,
         IUserRepository userRepository,
-        IWorkOperationRepository workOperationRepository)
+        IWorkOperationRepository workOperationRepository,
+        IProductionWorkplaceRepository workplaceRepository)
     {
         _nodeRepository = nodeRepository;
         _orderInfoRepository = orderInfoRepository;
@@ -47,6 +49,7 @@ public class FaHierarchyController : Controller
         _currentUserService = currentUserService;
         _userRepository = userRepository;
         _workOperationRepository = workOperationRepository;
+        _workplaceRepository = workplaceRepository;
     }
 
     public async Task<IActionResult> Index(
@@ -93,6 +96,10 @@ public class FaHierarchyController : Controller
             pageStructures.Select(s => s.HauptFA.ToString()).Distinct().ToList());
         foreach (var s in pageStructures)
             s.HasWorkOperations = withOperations.Contains(s.HauptFA.ToString());
+
+        // Arbeitsgaenge-Symbole (v1.52.0): Kuerzel aus dem schon geladenen Knotenfeld, Namen aus EINER Katalog-Abfrage.
+        FaArbeitsschrittSymbole.Zuordnen(pageStructures,
+            FaArbeitsschrittSymbole.NamenLookup(await _workplaceRepository.GetAllOrderedAsync()));
 
         // Sichtbares UI-Signal (zusaetzlich zur ILogger-Warnung im Builder) — keine Mail, kein SyncLog.
         if (pageStructures.Any(s => s.HasError))

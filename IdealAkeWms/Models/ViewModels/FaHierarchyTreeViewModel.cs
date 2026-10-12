@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using IdealAkeWms.Models;
@@ -90,6 +91,10 @@ public class FaHierarchyTreeNode
     public int Level { get; set; }
 
     public bool HasChildren => Children.Count > 0;
+
+    /// <summary>Sage-Kuerzel dieser Zeile als Symbole (Arbeitsgaenge-Symbole Teil 1, v1.52.0) — gesetzt von
+    /// <see cref="FaArbeitsschrittSymbole.Zuordnen"/>; leer = Strich.</summary>
+    public List<FaArbeitsschrittSymbol> Arbeitsgaenge { get; set; } = new();
 
     /// <summary>Rein praesentativer Knotentyp fuer das Typ-Icon (kein DB-Feld).</summary>
     public FaNodeIconType IconType => FaNodeClassifier.Classify(Node);
@@ -208,3 +213,51 @@ public class FaWorkOperationsEntry
 
 /// <summary>Eine AG-Zeile im Modal: Kuerzel, Name (= Werkbank-Name, beim Anlegen kopiert), Sage-Nr. live ueber die FK.</summary>
 public record WorkOperationSummary(string OperationNumber, string Name, string? SageArbeitsplatznummer);
+
+/// <summary>Ein Arbeitsgang-Symbol im FA-Baum: sichtbares Sage-Kuerzel, Werkbank-Name nur bei eindeutigem Katalog-Treffer.</summary>
+public sealed record FaArbeitsschrittSymbol(string Kuerzel, string? Name)
+{
+    /// <summary>Text fuer <c>aria-label</c>/<c>title</c>: „KA – Name", ohne Treffer nur das Kuerzel (kein erfundener Name).</summary>
+    public string Beschriftung => Name is null ? Kuerzel : $"{Kuerzel} – {Name}";
+}
+
+/// <summary>
+/// Arbeitsgaenge als Symbole, Teil 1 (Spec 2026-10-06-fa-struktur-arbeitsgaenge-symbole-teil-1): Quelle S =
+/// <see cref="FaHierarchyNode.Arbeitsschritte"/> der Zeile selbst, 1:1 wie Sage — auch an Blaettern, Feld-Reihenfolge, kein
+/// Dedupe, Ausschlussliste NICHT gefiltert. Liest keine <c>WorkOperation</c> (den Status liefert erst Teil 2).
+/// </summary>
+public static class FaArbeitsschrittSymbole
+{
+    // Dieselbe Trennregel wie IDEALAKEWMSService WorkOperationStructureDetectionService (TokenSeparators + RemoveEmpty/Trim):
+    // Anzeige und Erkennung sollen dieselben Kuerzel sehen. ponytail: Kopie statt gemeinsamer Bibliothek — Web und Service
+    // teilen kein Projekt; aendert sich die Regel dort, hier nachziehen (Test FaArbeitsschrittSymboleTests).
+    private static readonly char[] Trenner = { ' ' };
+
+    public static IReadOnlyList<string> Tokenize(string? arbeitsschritte) =>
+        string.IsNullOrWhiteSpace(arbeitsschritte)
+            ? Array.Empty<string>()
+            : arbeitsschritte.Split(Trenner, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+    /// <summary>Kuerzel → Werkbank-Name aus dem Katalog (<c>ArbeitsschrittCode</c> getrimmt, case-insensitiv, wie die Erkennung).
+    /// Kuerzel auf mehreren Werkbaenken fallen heraus — dort gibt es keinen eindeutigen Namen.</summary>
+    public static IReadOnlyDictionary<string, string> NamenLookup(IEnumerable<ProductionWorkplace> werkbaenke) =>
+        werkbaenke
+            .Where(w => !string.IsNullOrWhiteSpace(w.ArbeitsschrittCode))
+            .GroupBy(w => w.ArbeitsschrittCode!.Trim(), StringComparer.OrdinalIgnoreCase)
+            .Where(g => g.Count() == 1)
+            .ToDictionary(g => g.Key, g => g.Single().Name, StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Setzt <see cref="FaHierarchyTreeNode.Arbeitsgaenge"/> fuer alle Knoten der Strukturen — je Zeile nur ihr eigenes Feld.</summary>
+    public static void Zuordnen(IEnumerable<FaHierarchyStructure> structures, IReadOnlyDictionary<string, string> namen)
+    {
+        var offen = new Stack<FaHierarchyTreeNode>(structures.SelectMany(s => s.Roots));
+        while (offen.Count > 0)
+        {
+            var t = offen.Pop();
+            t.Arbeitsgaenge = Tokenize(t.Node.Arbeitsschritte)
+                .Select(k => new FaArbeitsschrittSymbol(k, namen.TryGetValue(k, out var n) ? n : null))
+                .ToList();
+            foreach (var c in t.Children) offen.Push(c);
+        }
+    }
+}
