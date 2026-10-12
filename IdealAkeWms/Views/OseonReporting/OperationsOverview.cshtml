@@ -24,7 +24,7 @@
 {
     <div class="alert alert-warning mt-2 mb-2">
         <strong>@Model.OperationsWithoutConfigCount AG(s) ohne Config-Eintrag</strong> &mdash;
-        bitte unter <a asp-controller="Settings" asp-action="OperationConfig">Stammdaten &rarr; OSEON-Arbeitsgänge</a> pflegen.
+        bitte unter <a asp-controller="OperationConfigs" asp-action="Index">BDE-Stammdaten &rsaquo; Arbeitsgänge</a> pflegen.
     </div>
 }
 
@@ -151,7 +151,7 @@
 
 @if (Model.Rows.Count == 0)
 {
-    <div class="alert alert-info">Keine OSEON-relevanten Arbeitsgänge im gewählten Zeitraum.</div>
+    <div class="alert alert-info">Keine fremdsystem-relevanten Arbeitsgänge im gewählten Zeitraum.</div>
 }
 else if (Model.Filter.Slice == IdealAkeWms.Models.ViewModels.OseonReportingSlice.Future && Model.FutureDayGroups.Count > 0)
 {

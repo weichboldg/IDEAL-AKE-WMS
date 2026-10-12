@@ -311,6 +311,8 @@
                                         <li><a class="dropdown-item" asp-controller="Users" asp-action="Index">Benutzer</a></li>
                                         <li><a class="dropdown-item" asp-controller="Workstations" asp-action="Index">Arbeitsplätze</a></li>
                                         <li><a class="dropdown-item" asp-controller="Roles" asp-action="Index">Rollen</a></li>
+                                        @* Arbeitsgang-Stammdaten (v1.54.0): Admin, unabhaengig von BdeAktiv — das BDE-Menue fehlt bei BDE aus. *@
+                                        <li><a class="dropdown-item" asp-controller="OperationConfigs" asp-action="Index">Arbeitsgänge</a></li>
                                         <li><hr class="dropdown-divider" style="border-color: rgba(255,255,255,0.2);" /></li>
                                         <li><a class="dropdown-item" asp-controller="Settings" asp-action="Index">Einstellungen</a></li>
                                         <li><a class="dropdown-item" asp-controller="ServiceSettings" asp-action="Index">Service-Einstellungen</a></li>

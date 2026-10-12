@@ -534,6 +534,26 @@
                         </ul>
                     </dd>
 
+                    <dt>Arbeitsgang-Stammdaten (seit v1.54.0)</dt>
+                    <dd>
+                        Je Arbeitsgang-Kuerzel ein Soll-Termin als <strong>Offset in Arbeitstagen zum Bezugstermin</strong> und
+                        das Kennzeichen <strong>Fremdsystem-relevant</strong>. Ort: <em>Stammdaten &rarr; Arbeitsgänge</em> bzw.
+                        BDE-Stammdaten, Reiter <em>Arbeitsgänge</em> &mdash; nur Admin, auch wenn BDE ausgeschaltet ist.
+                        <ul class="mt-1 mb-1">
+                            <li><strong>Bezugstermin:</strong> OSEON = Stanztermin (OSEON-Endtermin), IDEAL = FE-Termin,
+                                AKE-BDE = Fertigungstermin. <code>-1</code> = ein Arbeitstag davor, <code>+2</code> = zwei danach
+                                (Mo–Fr ohne gepflegte Feiertage).</li>
+                            <li><strong>Kein Eintrag:</strong> Offset 0. Solche Kuerzel stehen oben unter &bdquo;Nicht konfigurierte
+                                Kürzel&ldquo; &mdash; aus OSEON und aus den Arbeitsgaengen der FA-Struktur (ohne den
+                                BDE-Standard-Arbeitsgang <code>01</code>). Anlegen rechts im Formular.</li>
+                            <li><strong>Fremdsystem-relevant:</strong> wirkt derzeit nur in der OSEON-Teileverfolgung und im
+                                OSEON-Reporting; fuer IDEAL und AKE-BDE ohne Wirkung.</li>
+                            <li><strong>Kuerzel:</strong> Gross-/Kleinschreibung und Leerzeichen zaehlen nicht &mdash; <code>ka</code>
+                                und <code>KA</code> sind dasselbe Kuerzel. Doppelte Eintraege meldet die Seite gelb.</li>
+                            <li><strong>Alte Adresse:</strong> <code>/Settings/OperationConfig</code> leitet auf die neue Seite um.</li>
+                        </ul>
+                    </dd>
+
                     <dt>IDEAL: Beschichtungsaufträge (seit v1.51.0)</dt>
                     <dd>
                         Aus der Vorschlagsliste wird ein gespeicherter <strong>Beschichtungsauftrag</strong> mit Nummer
@@ -818,12 +838,12 @@
                     <li><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#6c757d;vertical-align:middle;"></span> <strong>Grau</strong> — Kein Termin oder noch nicht relevant</li>
                 </ul>
                 <p class="mb-1 text-muted small">Die Auftrags-Ampel zeigt immer die &bdquo;schlimmste&ldquo; Farbe aller relevanten Arbeitsgaenge.
-                    Nicht-relevante Arbeitsgaenge (konfigurierbar unter Einstellungen &rarr; AG-Konfiguration) werden bei der Berechnung ignoriert.</p>
+                    Nicht fremdsystem-relevante Arbeitsgaenge (konfigurierbar unter <em>BDE-Stammdaten &rsaquo; Arbeitsgänge</em>) werden bei der Berechnung ignoriert.</p>
 
                 <h6 class="mt-3">Soll-Termine (Arbeitsgaenge)</h6>
                 <p class="mb-1">Jeder Arbeitsgang erhaelt einen berechneten Soll-Termin basierend auf dem Stanztermin plus einem konfigurierbaren Offset in Arbeitstagen.
                     Wochenenden und Feiertage werden bei der Berechnung beruecksichtigt.
-                    Die Offsets werden unter <em>Stammdaten &rarr; Einstellungen &rarr; AG-Konfiguration</em> gepflegt.</p>
+                    Die Offsets werden unter <em>Stammdaten &rarr; Arbeitsgänge</em> (BDE-Stammdaten, Reiter Arbeitsgänge) gepflegt.</p>
 
                 <h6 class="mt-3">Filter</h6>
                 <dl class="mb-0">
@@ -835,8 +855,8 @@
                     <dd>Filtert nach zugeordnetem Produktionsarbeitsplatz.</dd>
                     <dt>Fertige anzeigen</dt>
                     <dd>Standardmaessig werden nur Gruppen mit offenen Auftraegen angezeigt. Alle Subauftraege (inkl. fertige) einer Gruppe sind immer sichtbar.</dd>
-                    <dt>Nur OSEON-relevante AGs</dt>
-                    <dd>Standardmaessig aktiv — zeigt nur Arbeitsgaenge an, die als OSEON-relevant konfiguriert sind. Deaktivieren, um alle Arbeitsgaenge zu sehen.</dd>
+                    <dt>Fremdsystem-Relevanz</dt>
+                    <dd>Standardmaessig aktiv — zeigt nur Arbeitsgaenge an, die in den Arbeitsgang-Stammdaten als fremdsystem-relevant markiert sind. Deaktivieren, um alle Arbeitsgaenge zu sehen.</dd>
                 </dl>
             </div>
         </div>
@@ -1504,9 +1524,9 @@
                     <dd>Systemparameter wie Kommissioniertage, Vorkommissionierung, Meldebestand-Schwellen,
                         Feiertagsverwaltung und Feature-Schalter (Leitstand, Bestellungen, Teileverfolgung,
                         FA-Vervollstaendigung, BDE).
-                        <br />Unter <em>Einstellungen &rarr; AG-Konfiguration</em> werden die Arbeitsgang-Typen
-                        fuer die OSEON-Teileverfolgung konfiguriert: Anzeigename, Soll-Termin-Offset (Arbeitstage)
-                        und ob der Arbeitsgang OSEON-relevant ist.</dd>
+                        <br />Die Arbeitsgang-Stammdaten (Anzeigename, Offset in Arbeitstagen zum Bezugstermin,
+                        Fremdsystem-relevant) liegen seit v1.54.0 unter <em>Stammdaten &rarr; Arbeitsgänge</em>; der Knopf
+                        oben auf dieser Seite fuehrt dorthin.</dd>
 
                     <dt>Empfaenger</dt>
                     <dd>Verwaltung der Empfaengergruppen fuer Bedarfsmeldungen. Hier werden Empfaenger mit

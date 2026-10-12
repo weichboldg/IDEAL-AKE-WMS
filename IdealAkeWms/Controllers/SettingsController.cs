@@ -14,20 +14,17 @@ public class SettingsController : Controller
     private readonly IHolidayRepository _holidayRepository;
     private readonly ICurrentUserService _currentUserService;
     private readonly IHolidayImportService _holidayImportService;
-    private readonly IOperationConfigRepository _operationConfigRepository;
 
     public SettingsController(
         IAppSettingRepository settingRepository,
         IHolidayRepository holidayRepository,
         ICurrentUserService currentUserService,
-        IHolidayImportService holidayImportService,
-        IOperationConfigRepository operationConfigRepository)
+        IHolidayImportService holidayImportService)
     {
         _settingRepository = settingRepository;
         _holidayRepository = holidayRepository;
         _currentUserService = currentUserService;
         _holidayImportService = holidayImportService;
-        _operationConfigRepository = operationConfigRepository;
     }
 
     public async Task<IActionResult> Index()
@@ -106,74 +103,8 @@ public class SettingsController : Controller
     }
 
     // ========== Arbeitsgang-Konfiguration ==========
+    // Seit v1.54.0 in den BDE-Stammdaten (OperationConfigsController); alte URL bleibt als 302 (Spec 2026-10-09 Antwort 5),
+    // die frueheren POST-Actions AddOperationConfig/UpdateOperationConfig/DeleteOperationConfig entfallen.
 
-    public async Task<IActionResult> OperationConfig()
-    {
-        var vm = new OperationConfigViewModel
-        {
-            Configs = await _operationConfigRepository.GetAllAsync(),
-            UnconfiguredNames = await _operationConfigRepository.GetUnconfiguredOperationNamesAsync()
-        };
-        return View(vm);
-    }
-
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> AddOperationConfig(string operationName, string? displayName, int dueDateOffsetDays, bool isOseonRelevant)
-    {
-        if (string.IsNullOrWhiteSpace(operationName))
-        {
-            TempData["WarningMessage"] = "AG-Name darf nicht leer sein.";
-            return RedirectToAction(nameof(OperationConfig));
-        }
-
-        if (await _operationConfigRepository.ExistsAsync(operationName.Trim()))
-        {
-            TempData["WarningMessage"] = $"AG '{operationName}' existiert bereits.";
-            return RedirectToAction(nameof(OperationConfig));
-        }
-
-        var config = new OperationConfig
-        {
-            OperationName = operationName.Trim(),
-            DisplayName = string.IsNullOrWhiteSpace(displayName) ? null : displayName.Trim(),
-            DueDateOffsetDays = dueDateOffsetDays,
-            IsExternalSystemRelevant = isOseonRelevant
-        };
-
-        await _operationConfigRepository.AddAsync(config);
-        TempData["SuccessMessage"] = $"Arbeitsgang '{operationName}' hinzugefügt.";
-        return RedirectToAction(nameof(OperationConfig));
-    }
-
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> UpdateOperationConfig(int id, string? displayName, int dueDateOffsetDays, bool isOseonRelevant)
-    {
-        var config = await _operationConfigRepository.GetByIdAsync(id);
-        if (config == null)
-            return NotFound();
-
-        config.DisplayName = string.IsNullOrWhiteSpace(displayName) ? null : displayName.Trim();
-        config.DueDateOffsetDays = dueDateOffsetDays;
-        config.IsExternalSystemRelevant = isOseonRelevant;
-
-        await _operationConfigRepository.UpdateAsync(config);
-        TempData["SuccessMessage"] = $"Arbeitsgang '{config.OperationName}' aktualisiert.";
-        return RedirectToAction(nameof(OperationConfig));
-    }
-
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> DeleteOperationConfig(int id)
-    {
-        var config = await _operationConfigRepository.GetByIdAsync(id);
-        if (config == null)
-            return NotFound();
-
-        var name = config.OperationName;
-        await _operationConfigRepository.DeleteAsync(id);
-        TempData["SuccessMessage"] = $"Arbeitsgang '{name}' gelöscht.";
-        return RedirectToAction(nameof(OperationConfig));
-    }
+    public IActionResult OperationConfig() => RedirectToAction("Index", "OperationConfigs");
 }

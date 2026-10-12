@@ -134,15 +134,8 @@ public class OperationConfigRepositoryTests
         context.OperationConfigs.Should().BeEmpty();
     }
 
-    [Fact]
-    public async Task GetUnconfiguredOperationNamesAsync_FindsNamesWithoutConfig()
+    private static async Task<int> SeedOseonAsync(IdealAkeWms.Data.ApplicationDbContext context, params string[] names)
     {
-        using var context = TestDbContextFactory.Create();
-
-        // Config nur fuer ST
-        context.OperationConfigs.Add(CreateConfig("ST", 0));
-
-        // OSEON-Daten mit ST, BG und ZB
         var order = new OseonProductionOrder
         {
             OseonId = 1, OseonOrderNumber = "TEST", OseonStatus = 60,
@@ -150,19 +143,150 @@ public class OperationConfigRepositoryTests
         };
         context.OseonProductionOrders.Add(order);
         await context.SaveChangesAsync();
+        var pos = 10;
+        foreach (var n in names)
+            context.OseonWorkOperations.Add(new OseonWorkOperation
+            {
+                OseonProductionOrderId = order.Id, PositionNumber = (pos += 10).ToString(), Name = n, OseonStatus = 60,
+                CreatedAt = DateTime.UtcNow, CreatedBy = "Test", CreatedByWindows = "Test"
+            });
+        await context.SaveChangesAsync();
+        return order.Id;
+    }
 
-        context.OseonWorkOperations.AddRange(
-            new OseonWorkOperation { OseonProductionOrderId = order.Id, PositionNumber = "10", Name = "ST", OseonStatus = 90, CreatedAt = DateTime.UtcNow, CreatedBy = "Test", CreatedByWindows = "Test" },
-            new OseonWorkOperation { OseonProductionOrderId = order.Id, PositionNumber = "20", Name = "BG", OseonStatus = 60, CreatedAt = DateTime.UtcNow, CreatedBy = "Test", CreatedByWindows = "Test" },
-            new OseonWorkOperation { OseonProductionOrderId = order.Id, PositionNumber = "30", Name = "ZB", OseonStatus = 30, CreatedAt = DateTime.UtcNow, CreatedBy = "Test", CreatedByWindows = "Test" }
-        );
+    private static void SeedWms(IdealAkeWms.Data.ApplicationDbContext context, params string[] numbers)
+    {
+        foreach (var n in numbers)
+            context.WorkOperations.Add(new WorkOperation
+            {
+                ProductionOrderId = 1, OperationNumber = n, Name = n, CreatedAt = DateTime.UtcNow, CreatedBy = "Test", CreatedByWindows = "Test"
+            });
+        context.SaveChanges();
+    }
+
+    // ===== Liste „nicht konfiguriert" (Spec 2026-10-09 FA 5, AK 8) =====
+
+    [Fact]
+    public async Task GetUnconfiguredOperationsAsync_ZweiQuellen_OhneDefault01_CaseInsensitivGetrimmt()
+    {
+        using var context = TestDbContextFactory.Create();
+        context.OperationConfigs.AddRange(CreateConfig("ST", 0), CreateConfig("KA", 3));
+        await context.SaveChangesAsync();
+        await SeedOseonAsync(context, "ST", "BG", "ZB", "LS");
+        SeedWms(context, "ka", " LS ", "PG", "01", "PG");
+
+        var result = await new OperationConfigRepository(context).GetUnconfiguredOperationsAsync();
+
+        result.Select(u => u.Kuerzel).Should().Equal("BG", "LS", "PG", "ZB");
+        result.Single(u => u.Kuerzel == "LS").Quellen.Should().Equal("OSEON", "WMS-Arbeitsgang");
+        result.Single(u => u.Kuerzel == "PG").Quellen.Should().Equal("WMS-Arbeitsgang");
+        result.Single(u => u.Kuerzel == "BG").Quellen.Should().Equal("OSEON");
+    }
+
+    [Fact]
+    public async Task GetUnconfiguredOperationsAsync_NachAnlegenVerschwindetDasKuerzel()
+    {
+        using var context = TestDbContextFactory.Create();
+        SeedWms(context, "KA");
+        var repo = new OperationConfigRepository(context);
+        (await repo.GetUnconfiguredOperationsAsync()).Should().ContainSingle(u => u.Kuerzel == "KA");
+
+        await repo.AddAsync(CreateConfig("ka", 3));
+
+        (await repo.GetUnconfiguredOperationsAsync()).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetUnconfiguredOperationsAsync_OhneDaten_Leer()
+    {
+        using var context = TestDbContextFactory.Create();
+        (await new OperationConfigRepository(context).GetUnconfiguredOperationsAsync()).Should().BeEmpty();
+    }
+
+    // ===== Offset-Lookup (FA 6, AK 9, AK 17) =====
+
+    [Fact]
+    public async Task GetDueDateOffsetsAsync_CaseInsensitiv_Getrimmt_Null_Fehlend_NichtRelevantEnthalten()
+    {
+        using var context = TestDbContextFactory.Create();
+        context.OperationConfigs.AddRange(CreateConfig(" KA ", 3), CreateConfig("ST", 0), CreateConfig("ZB", 2, relevant: false));
         await context.SaveChangesAsync();
 
-        var repo = new OperationConfigRepository(context);
-        var unconfigured = await repo.GetUnconfiguredOperationNamesAsync();
+        var offsets = await new OperationConfigRepository(context).GetDueDateOffsetsAsync();
 
-        unconfigured.Should().Contain("BG");
-        unconfigured.Should().Contain("ZB");
-        unconfigured.Should().NotContain("ST");
+        offsets["ka"].Should().Be(3);
+        offsets[" KA ".Trim()].Should().Be(3);
+        offsets.ContainsKey("ST").Should().BeTrue();
+        offsets["ST"].Should().Be(0);
+        offsets.ContainsKey("XX").Should().BeFalse("kein Eintrag ist vom Wert 0 unterscheidbar");
+        offsets["ZB"].Should().Be(2, "der Lookup wertet Fremdsystem-relevant nicht aus");
+    }
+
+    [Fact]
+    public async Task GetDueDateOffsetsAsync_DoppelterNormalisierterSchluessel_KleinsteIdGewinnt()
+    {
+        using var context = TestDbContextFactory.Create();
+        context.OperationConfigs.Add(CreateConfig("KA", 1));
+        await context.SaveChangesAsync();
+        context.OperationConfigs.Add(CreateConfig("ka ", 9)); // InMemory erzwingt den Unique-Index nicht — Altdaten-Fall
+        await context.SaveChangesAsync();
+
+        (await new OperationConfigRepository(context).GetDueDateOffsetsAsync())["KA"].Should().Be(1);
+    }
+
+    [Fact]
+    public async Task ExistsAsync_GetrimmtUndCaseInsensitiv()
+    {
+        using var context = TestDbContextFactory.Create();
+        context.OperationConfigs.Add(CreateConfig("KA", 1));
+        await context.SaveChangesAsync();
+        var repo = new OperationConfigRepository(context);
+
+        (await repo.ExistsAsync(" ka ")).Should().BeTrue();
+        (await repo.ExistsAsync("kb")).Should().BeFalse();
+    }
+
+    // ===== Decorator (AK 10) =====
+
+    [Fact]
+    public async Task Decorator_CachtOffsets_UndInvalidiertNachSchreiben()
+    {
+        using var context = TestDbContextFactory.Create();
+        context.OperationConfigs.Add(CreateConfig("KA", 1));
+        await context.SaveChangesAsync();
+        var inner = new OperationConfigRepository(context);
+        var cached = new CachedOperationConfigRepository(inner, new Microsoft.Extensions.Caching.Memory.MemoryCache(
+            new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions()));
+
+        var first = await cached.GetDueDateOffsetsAsync();
+        context.OperationConfigs.Add(CreateConfig("PG", 4)); // an der Decorator-Kante vorbei
+        await context.SaveChangesAsync();
+        (await cached.GetDueDateOffsetsAsync()).Should().BeSameAs(first, "zweiter Aufruf aus dem Cache, ohne DB-Zugriff");
+
+        await cached.AddAsync(CreateConfig("LS", 2));
+        (await cached.GetDueDateOffsetsAsync()).Keys.Should().BeEquivalentTo(new[] { "KA", "PG", "LS" });
+
+        var ls = context.OperationConfigs.Single(c => c.OperationName == "LS");
+        ls.DueDateOffsetDays = 7;
+        await cached.UpdateAsync(ls);
+        (await cached.GetDueDateOffsetsAsync())["LS"].Should().Be(7);
+
+        await cached.DeleteAsync(ls.Id);
+        (await cached.GetDueDateOffsetsAsync()).ContainsKey("LS").Should().BeFalse();
+    }
+
+    // ===== OSEON-Regression (FA 7, AK 11) =====
+
+    [Fact]
+    public async Task GetAllAsDictionaryAsync_BleibtCaseSensitiv()
+    {
+        using var context = TestDbContextFactory.Create();
+        context.OperationConfigs.Add(CreateConfig("BG", 2));
+        await context.SaveChangesAsync();
+
+        var dict = await new OperationConfigRepository(context).GetAllAsDictionaryAsync();
+
+        dict.ContainsKey("BG").Should().BeTrue();
+        dict.ContainsKey("bg").Should().BeFalse("die OSEON-Teileverfolgung vergleicht bewusst case-sensitiv (unveraendert)");
     }
 }

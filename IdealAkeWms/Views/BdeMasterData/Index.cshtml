@@ -10,20 +10,7 @@
     <h2 class="page-header mb-0">BDE Stammdaten</h2>
 </div>
 
-<ul class="nav nav-tabs mb-3">
-    <li class="nav-item">
-        <a class="nav-link @(tab == "operators" ? "active" : "")"
-           asp-action="Index" asp-route-tab="operators">Operatoren</a>
-    </li>
-    <li class="nav-item">
-        <a class="nav-link @(tab == "activities" ? "active" : "")"
-           asp-action="Index" asp-route-tab="activities">Aktivitäten</a>
-    </li>
-    <li class="nav-item">
-        <a class="nav-link @(tab == "terminals" ? "active" : "")"
-           asp-action="Index" asp-route-tab="terminals">Terminals</a>
-    </li>
-</ul>
+<partial name="_BdeMasterDataTabs" model="tab" />
 
 <div class="tab-content">
     @if (tab == "operators")

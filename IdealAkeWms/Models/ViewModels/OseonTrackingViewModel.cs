@@ -69,9 +69,3 @@ public class OseonOperationViewModel
     public DateTime? CalculatedDueDate { get; set; }
     public bool IsOseonRelevant { get; set; } = true;
 }
-
-public class OperationConfigViewModel
-{
-    public List<OperationConfig> Configs { get; set; } = new();
-    public List<string> UnconfiguredNames { get; set; } = new();
-}

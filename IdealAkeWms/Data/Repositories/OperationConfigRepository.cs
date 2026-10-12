@@ -3,13 +3,28 @@ using Microsoft.EntityFrameworkCore;
 
 namespace IdealAkeWms.Data.Repositories;
 
+/// <summary>Kuerzel ohne Arbeitsgang-Stammdaten-Eintrag mit seiner Herkunft („OSEON", „WMS-Arbeitsgang"; beide moeglich).</summary>
+public sealed record UnconfiguredOperation(string Kuerzel, IReadOnlyList<string> Quellen);
+
 public interface IOperationConfigRepository
 {
     Task<List<OperationConfig>> GetAllAsync();
     Task<OperationConfig?> GetByIdAsync(int id);
     Task<OperationConfig?> GetByNameAsync(string operationName);
+    /// <summary>OSEON-Teileverfolgung: case-SENSITIVES Dictionary (Default-Comparer) — bewusst unveraendert (FA 7).</summary>
     Task<Dictionary<string, OperationConfig>> GetAllAsDictionaryAsync();
-    Task<List<string>> GetUnconfiguredOperationNamesAsync();
+
+    /// <summary>
+    /// Offset-Lookup fuer FA-Struktur Teil 2/3 (Spec 2026-10-09 FA 6): alle Zeilen (auch nicht fremdsystem-relevante),
+    /// Schluessel = <c>OperationName.Trim()</c>, Wert = <c>DueDateOffsetDays</c>, Comparer <c>OrdinalIgnoreCase</c>. Fehlender
+    /// Schluessel = kein Eintrag (Aufrufer rechnet Offset 0), unterscheidbar von Wert 0. Doppelter normalisierter Schluessel:
+    /// die Zeile mit der kleinsten Id gewinnt (die Seite meldet Dubletten). Aufrufer trimmen ihren Suchschluessel selbst.
+    /// </summary>
+    Task<IReadOnlyDictionary<string, int>> GetDueDateOffsetsAsync();
+
+    /// <summary>„Nicht konfigurierte Kuerzel" (FA 5): OSEON-AG-Namen und WMS-<c>WorkOperation.OperationNumber</c> ohne Eintrag,
+    /// Abgleich getrimmt + case-insensitiv wie <see cref="GetDueDateOffsetsAsync"/>; der BDE-Default-AG „01" nie.</summary>
+    Task<List<UnconfiguredOperation>> GetUnconfiguredOperationsAsync();
     Task AddAsync(OperationConfig config);
     Task UpdateAsync(OperationConfig config);
     Task DeleteAsync(int id);
@@ -49,21 +64,36 @@ public class OperationConfigRepository : IOperationConfigRepository
             .ToDictionaryAsync(c => c.OperationName, c => c);
     }
 
-    /// <summary>
-    /// Findet AG-Namen aus OSEON-Daten, die noch keine Konfiguration haben.
-    /// </summary>
-    public async Task<List<string>> GetUnconfiguredOperationNamesAsync()
+    public async Task<IReadOnlyDictionary<string, int>> GetDueDateOffsetsAsync()
     {
-        var configuredNames = await _context.OperationConfigs
-            .Select(c => c.OperationName)
+        var rows = await _context.OperationConfigs.AsNoTracking()
+            .OrderBy(c => c.Id)
+            .Select(c => new { c.OperationName, c.DueDateOffsetDays })
             .ToListAsync();
+        var result = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        foreach (var r in rows)
+            result.TryAdd(r.OperationName.Trim(), r.DueDateOffsetDays); // kleinste Id zuerst → gewinnt
+        return result;
+    }
 
-        return await _context.OseonWorkOperations
-            .Select(op => op.Name)
-            .Distinct()
-            .Where(name => !configuredNames.Contains(name))
-            .OrderBy(name => name)
-            .ToListAsync();
+    /// <summary>BDE-Default-Arbeitsgang (NurFA-Pfad, BdeDefaultWorkOperationService) — kein fachliches Kuerzel (Antwort 7).</summary>
+    public const string DefaultOperationNumber = "01";
+
+    public async Task<List<UnconfiguredOperation>> GetUnconfiguredOperationsAsync()
+    {
+        var configured = (await _context.OperationConfigs.AsNoTracking().Select(c => c.OperationName).ToListAsync())
+            .Select(n => n.Trim()).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var oseon = await _context.OseonWorkOperations.AsNoTracking().Select(op => op.Name).Distinct().ToListAsync();
+        var wms = await _context.WorkOperations.AsNoTracking().Select(op => op.OperationNumber).Distinct().ToListAsync();
+
+        return oseon.Select(k => (Kuerzel: k, Quelle: "OSEON"))
+            .Concat(wms.Select(k => (Kuerzel: k, Quelle: "WMS-Arbeitsgang")))
+            .Select(x => (Kuerzel: (x.Kuerzel ?? string.Empty).Trim(), x.Quelle))
+            .Where(x => x.Kuerzel.Length > 0 && x.Kuerzel != DefaultOperationNumber && !configured.Contains(x.Kuerzel))
+            .GroupBy(x => x.Kuerzel, StringComparer.OrdinalIgnoreCase)
+            .Select(g => new UnconfiguredOperation(g.First().Kuerzel, g.Select(x => x.Quelle).Distinct().OrderBy(q => q).ToList()))
+            .OrderBy(u => u.Kuerzel, StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 
     public async Task AddAsync(OperationConfig config)
@@ -88,9 +118,11 @@ public class OperationConfigRepository : IOperationConfigRepository
         }
     }
 
+    /// <summary>Existiert das Kuerzel getrimmt und case-insensitiv schon? Vergleich in C# (nicht collation-abhaengig, FA 5).</summary>
     public async Task<bool> ExistsAsync(string operationName)
     {
-        return await _context.OperationConfigs
-            .AnyAsync(c => c.OperationName == operationName);
+        var key = (operationName ?? string.Empty).Trim();
+        return (await _context.OperationConfigs.AsNoTracking().Select(c => c.OperationName).ToListAsync())
+            .Any(n => string.Equals(n.Trim(), key, StringComparison.OrdinalIgnoreCase));
     }
 }

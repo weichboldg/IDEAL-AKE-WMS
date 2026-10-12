@@ -1,0 +1,35 @@
+@model string
+@inject IdealAkeWms.Services.ICurrentUserService CurrentUser
+@inject IdealAkeWms.Data.Repositories.IAppSettingRepository AppSettings
+@* Reiterleiste der BDE-Stammdaten (Spec 2026-10-09): Operatoren/Aktivitaeten/Terminals nur bei BdeAktiv UND Schichtleiter
+   (wie BdeMasterDataController: RequireBdeActive + RequireBdeShiftleadAccess); „Arbeitsgänge" nur fuer Admin und
+   unabhaengig von BdeAktiv (OperationConfigsController). Model = aktiver Reiter. *@
+@{
+    var bdeAktiv = (await AppSettings.GetValueAsync(IdealAkeWms.Models.AppSettingKeys.BdeAktiv))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
+    var zeigeBde = bdeAktiv && await CurrentUser.CanManageBdeShiftleadAsync();
+    var zeigeArbeitsgaenge = await CurrentUser.IsAdminAsync();
+}
+<ul class="nav nav-tabs mb-3">
+    @if (zeigeBde)
+    {
+        <li class="nav-item">
+            <a class="nav-link @(Model == "operators" ? "active" : "")" aria-current="@(Model == "operators" ? "page" : null)"
+               asp-controller="BdeMasterData" asp-action="Index" asp-route-tab="operators">Operatoren</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link @(Model == "activities" ? "active" : "")" aria-current="@(Model == "activities" ? "page" : null)"
+               asp-controller="BdeMasterData" asp-action="Index" asp-route-tab="activities">Aktivitäten</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link @(Model == "terminals" ? "active" : "")" aria-current="@(Model == "terminals" ? "page" : null)"
+               asp-controller="BdeMasterData" asp-action="Index" asp-route-tab="terminals">Terminals</a>
+        </li>
+    }
+    @if (zeigeArbeitsgaenge)
+    {
+        <li class="nav-item">
+            <a class="nav-link @(Model == "operations" ? "active" : "")" aria-current="@(Model == "operations" ? "page" : null)"
+               asp-controller="OperationConfigs" asp-action="Index">Arbeitsgänge</a>
+        </li>
+    }
+</ul>

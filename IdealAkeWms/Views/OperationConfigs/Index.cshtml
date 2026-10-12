@@ -1,0 +1,208 @@
+@model IdealAkeWms.Models.ViewModels.OperationConfigIndexViewModel
+@using IdealAkeWms.Controllers
+@{
+    ViewData["Title"] = "BDE Stammdaten — Arbeitsgänge";
+}
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+    <h2 class="page-header mb-0">BDE Stammdaten</h2>
+</div>
+
+<partial name="_BdeMasterDataTabs" model="@("operations")" />
+
+<p class="text-muted mb-3">
+    Je Arbeitsgang-Kürzel der Soll-Termin als Offset in Arbeitstagen zum Bezugstermin des jeweiligen Systems
+    (siehe Legende). Gilt für OSEON-Arbeitsgänge und die Arbeitsgänge der FA-Struktur.
+</p>
+
+@if (Model.DuplicateNames.Any())
+{
+    <div class="alert alert-warning" role="alert">
+        <strong>Doppelte Kürzel:</strong> @string.Join(", ", Model.DuplicateNames) — gleich bis auf Groß-/Kleinschreibung
+        oder Leerzeichen. Für den Termin zählt der zuerst angelegte Eintrag; bitte die Dublette löschen.
+    </div>
+}
+
+@* Offene Arbeit oberhalb der Tabelle (nicht zwischen Toolbar-Host und .table-responsive, fallstricke §19); einfache Liste,
+   keine zweite filterbare Tabelle (fallstricke §22). *@
+<div class="card mb-3">
+    <div class="card-header">Nicht konfigurierte Kürzel</div>
+    <div class="card-body py-2">
+        @if (!Model.Unconfigured.Any())
+        {
+            <p class="mb-0 text-muted">Alle bekannten Kürzel sind konfiguriert.</p>
+        }
+        else
+        {
+            <p class="small text-muted mb-2">Ohne Eintrag gilt Offset 0 (Soll = Bezugstermin). Rechts unter „Neuen Arbeitsgang anlegen“ auswählen.</p>
+            <ul class="list-inline mb-0">
+                @foreach (var u in Model.Unconfigured)
+                {
+                    <li class="list-inline-item mb-1">
+                        <span class="badge bg-light text-dark border fs-6 fw-semibold">@u.Kuerzel</span>
+                        <span class="small text-muted me-2">@string.Join(" + ", u.Quellen)</span>
+                    </li>
+                }
+            </ul>
+        }
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8 mb-4">
+        <div class="table-responsive">
+            <table class="table table-striped mb-0 filterable-table" data-server-column-filter="true" data-view-key="OperationConfigs">
+                <thead>
+                    <tr>
+                        <th data-filterable data-col-key="name">Kürzel</th>
+                        <th data-filterable data-col-key="display">Anzeigename</th>
+                        <th data-filterable data-col-key="offset" style="width: 150px;" title="Offset (Arbeitstage) zum Bezugstermin">Offset (AT) zum Bezugstermin</th>
+                        <th data-filterable data-col-key="relevant" style="width: 130px;">Fremdsystem-relevant</th>
+                        <th data-col-key="actions" style="width: 100px;"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var c in Model.Configs)
+                    {
+                        <tr>
+                            <td>
+                                <strong>@c.OperationName</strong>
+                                <form asp-action="Update" method="post" id="form-update-@c.Id">
+                                    <input type="hidden" name="id" value="@c.Id" />
+                                </form>
+                            </td>
+                            <td>
+                                <input type="text" name="displayName" value="@c.DisplayName" form="form-update-@c.Id" maxlength="200"
+                                       class="form-control form-control-sm" placeholder="z. B. Stanzen" aria-label="Anzeigename @c.OperationName" />
+                            </td>
+                            <td>
+                                <input type="number" name="dueDateOffsetDays" value="@c.DueDateOffsetDays" form="form-update-@c.Id"
+                                       class="form-control form-control-sm text-center" aria-label="Offset in Arbeitstagen @c.OperationName" />
+                            </td>
+                            <td class="text-center">
+                                <input type="hidden" name="isExternalSystemRelevant" value="@(c.IsExternalSystemRelevant ? "true" : "false")"
+                                       form="form-update-@c.Id" id="hidden-relevant-@c.Id" />
+                                <input type="checkbox" class="form-check-input" @(c.IsExternalSystemRelevant ? "checked" : "")
+                                       aria-label="Fremdsystem-relevant @c.OperationName"
+                                       onchange="document.getElementById('hidden-relevant-@c.Id').value = this.checked ? 'true' : 'false'" />
+                            </td>
+                            <td>
+                                <div class="d-flex gap-1">
+                                    <button type="submit" form="form-update-@c.Id" class="btn btn-sm btn-outline-primary" title="Speichern" aria-label="@c.OperationName speichern">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                                            <path d="M12.736 3.97a.733.733 0 0 1 1.047 0c.286.289.29.756.01 1.05L7.88 12.01a.733.733 0 0 1-1.065.02L3.217 8.384a.757.757 0 0 1 0-1.06.733.733 0 0 1 1.047 0l3.052 3.093 5.4-6.425z"/>
+                                        </svg>
+                                    </button>
+                                    <form asp-action="Delete" method="post" class="d-inline">
+                                        <input type="hidden" name="id" value="@c.Id" />
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Löschen" aria-label="@c.OperationName löschen"
+                                                data-confirm-name="@c.OperationName" onclick="return confirm('Arbeitsgang „' + this.dataset.confirmName + '“ wirklich löschen?');">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                                                <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
+                                                <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/>
+                                            </svg>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                    @if (!Model.Configs.Any())
+                    {
+                        <tr><td colspan="5" class="text-center text-muted py-3">Keine Arbeitsgänge für diese Filterung. Rechts einen anlegen.</td></tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <partial name="_Pagination" model="Model.Pagination" />
+    </div>
+
+    <div class="col-lg-4 mb-4">
+        <div class="card">
+            <div class="card-header">Neuen Arbeitsgang anlegen</div>
+            <div class="card-body">
+                <form asp-action="Add" method="post">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold" for="operationNameSelect">Kürzel</label>
+                        @if (Model.Unconfigured.Any())
+                        {
+                            <select name="operationName" class="form-select" id="operationNameSelect">
+                                <option value="">— wählen oder unten eingeben —</option>
+                                @foreach (var u in Model.Unconfigured)
+                                {
+                                    <option value="@u.Kuerzel">@u.Kuerzel (@string.Join(" + ", u.Quellen))</option>
+                                }
+                            </select>
+                            <input type="text" id="operationNameInput" class="form-control mt-2" maxlength="100" placeholder="oder neues Kürzel eingeben" aria-label="Neues Kürzel eingeben" />
+                        }
+                        else
+                        {
+                            <input type="text" name="operationName" id="operationNameSelect" class="form-control" maxlength="100" placeholder="z. B. KA" required />
+                        }
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold" for="addDisplayName">Anzeigename</label>
+                        <input type="text" name="displayName" id="addDisplayName" class="form-control" maxlength="200" placeholder="z. B. Kantenanleimen" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold" for="addOffset">Offset (Arbeitstage) zum Bezugstermin</label>
+                        <input type="number" name="dueDateOffsetDays" id="addOffset" value="0" class="form-control" />
+                        <small class="text-muted">Negativ = vor dem Bezugstermin, positiv = danach.</small>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input type="hidden" name="isExternalSystemRelevant" value="true" id="hidden-add-relevant" />
+                            <input type="checkbox" class="form-check-input" id="addRelevant" checked
+                                   onchange="document.getElementById('hidden-add-relevant').value = this.checked ? 'true' : 'false'" />
+                            <label class="form-check-label" for="addRelevant">Fremdsystem-relevant</label>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Arbeitsgang anlegen</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-header">Legende</div>
+            <div class="card-body small">
+                <dl class="mb-0">
+                    <dt>Offset (Arbeitstage) zum Bezugstermin</dt>
+                    <dd>
+                        Arbeitstage (Mo–Fr ohne gepflegte Feiertage) relativ zum Bezugstermin: <code>-1</code> = ein Arbeitstag davor,
+                        <code>0</code> = am Bezugstermin, <code>+2</code> = zwei Arbeitstage danach.
+                    </dd>
+                    <dt>Bezugstermin je System</dt>
+                    <dd>
+                        <ul class="mb-0 ps-3">
+                            <li><strong>OSEON:</strong> Stanztermin (OSEON-Endtermin)</li>
+                            <li><strong>IDEAL:</strong> FE-Termin</li>
+                            <li><strong>AKE-BDE:</strong> Fertigungstermin</li>
+                        </ul>
+                    </dd>
+                    <dt>Kein Eintrag</dt>
+                    <dd>Offset 0 (Soll = Bezugstermin); das Kürzel steht unter „Nicht konfigurierte Kürzel“.</dd>
+                    <dt>Fremdsystem-relevant</dt>
+                    <dd class="mb-0">Wirkt derzeit nur in der OSEON-Teileverfolgung (Fertig-/Ampel-Berechnung) und im OSEON-Reporting;
+                        für IDEAL und AKE-BDE ohne Wirkung.</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/table-filter.js" asp-append-version="true"></script>
+    <script>
+        // Auswahl und freie Eingabe des Kuerzels: genau eines traegt den Formularnamen (uebernommen aus der alten Seite).
+        (function () {
+            var select = document.getElementById('operationNameSelect');
+            var input = document.getElementById('operationNameInput');
+            if (!select || !input) return;
+            select.addEventListener('change', function () { if (this.value) input.value = ''; });
+            input.addEventListener('input', function () {
+                if (this.value) { select.value = ''; select.name = ''; input.name = 'operationName'; }
+                else { select.name = 'operationName'; input.name = ''; }
+            });
+        })();
+    </script>
+}
