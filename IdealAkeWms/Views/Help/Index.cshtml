@@ -219,6 +219,33 @@
                         koennen alle Eintraege auf einmal angezeigt und gefiltert werden.
                     </dd>
 
+                    <dt>Liste als CSV exportieren (seit v1.53.0)</dt>
+                    <dd>
+                        Der Knopf <strong>CSV</strong> ueber der Tabelle (neben dem Zahnrad) laedt die Liste als Datei fuer
+                        Excel herunter.
+                        <ul class="mt-1 mb-1">
+                            <li><strong>Welche Zeilen:</strong> alle Treffer des aktuellen Filters ueber alle Seiten, nicht nur
+                                die angezeigte Seite. Listen ohne Seiten (z.&nbsp;B. Stueckliste, Lagerbestellung-Details)
+                                liefern alle Zeilen, die der Spaltenfilter zeigt; in der Stueckliste auch Treffer unter
+                                zugeklappten Baugruppen.</li>
+                            <li><strong>Welche Spalten:</strong> genau die eingeblendeten, in der Reihenfolge am Bildschirm.
+                                Spalten ohne Ueberschrift (Knoepfe, Auswahlhaken) fehlen.</li>
+                            <li><strong>Reihenfolge:</strong> wie am Bildschirm sortiert (Spaltenkopf mit Pfeil); ohne
+                                Sortierung in der Reihenfolge der Liste.</li>
+                            <li><strong>Mehr als 5.000 Treffer:</strong> exportiert werden die ersten 5.000, eine gelbe
+                                Meldung weist darauf hin; die Sortierung gilt dann nur innerhalb dieser 5.000. Filter
+                                eingrenzen und erneut exportieren.</li>
+                            <li><strong>Inhalt:</strong> Text wie angezeigt inkl. Kennzeichen (z.&nbsp;B. &bdquo;HauptFA&ldquo;,
+                                &bdquo;BG 2&ldquo;), Haken als &bdquo;Ja&ldquo;/&bdquo;Nein&ldquo;, Eingabefelder mit ihrem Wert,
+                                Datum ohne KW. Nur farbige Markierungen (z.&nbsp;B. erledigte Zeilen grau) sind nicht
+                                enthalten. Werte, die mit <code>=</code>, <code>+</code>, <code>-</code> oder <code>@</code>
+                                beginnen und keine Zahl sind, bekommen ein <code>'</code> davor, damit Excel nichts ausfuehrt.</li>
+                            <li><strong>Datei:</strong> <code>Liste_JJJJ-MM-TT_HHMM.csv</code>, Semikolon-getrennt, per
+                                Doppelklick in Excel lesbar. Kommt eine rote Meldung (z.&nbsp;B. Sitzung abgelaufen), entsteht
+                                keine Datei &mdash; Seite neu laden und erneut exportieren.</li>
+                        </ul>
+                    </dd>
+
                     <dt>Filter &amp; Pagination ueberleben Seitenwechsel</dt>
                     <dd>
                         Alle Filter und die gewaehlte Seitengroesse sind in der URL kodiert &mdash;

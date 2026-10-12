@@ -9561,8 +9561,62 @@ Knotenzeile, column-config, `ColumnDefinitions`, colspan, `data-f-operations`).
 - **TS-85.11 — Regression.** TS-78 (Modal) und die übrigen Baum-Spalten/Filter (Arbeitsbereich, Komm.-Ziel, Status)
   unverändert; „Alle auf/zu", Hervorheben-Suchfeld funktionieren wie vorher.
 
+## TS-86 — CSV-Export für alle Tabellen (v1.53.0)
+
+Spec: `2026-10-06-csv-export-alle-tabellen-spec` (Variante A, Erzeugung im Browser). Vorbedingungen: Testsystem AKE
+(Master `ProduktionsauftragHierarchisch = false`) und IDEAL (`true`), Excel (Windows, deutsches Gebietsschema),
+Hex-/Texteditor (z. B. Notepad++). Vor der Abnahme **Prüfschritt Server-Kultur** (Spec, Abschnitt Deploy): FA-Liste,
+Spalte „Stk." — `1,000` ⇒ deutsch, weiter; `1.000` im Sinne von eins ⇒ melden. Automatisiert: `CsvExportCoverageTests`
+(Layout bindet ein, jede Tabellen-View nutzt das Layout, paginiert ⇒ Server-Mode, skopierte Iteration, ein
+Sortiervergleich, Stücklisten-/Pagination-Attribute, Warntext) und `Kern_NodeSelbstpruefung` (Injection inkl.
+Zahlen-Ausnahme, KW-Kürzung, RFC 4180, BOM/CRLF, keine `sep=`-Zeile, Dateiname; braucht Node, sonst übersprungen).
+
+- **TS-86.1 — Grundfall AKE (AK 1, 2).** FA-Liste, Spaltenfilter „Werkbank" setzen, Seitengröße 25, mehrere Seiten →
+  Knopf **CSV** neben dem Zahnrad. **Erwartet:** Zeilenzahl im CSV = „von N" der Pagination, Spalten = sichtbare
+  Spalten, keine Aktionsspalte. Negativ: Baumansichten (`/FaHierarchy`, Tracking-Baum, OSEON-Tracking) und
+  Formular-/Druckseiten haben **keinen** Knopf.
+- **TS-86.2 — Spaltenauswahl sofort (AK 3).** Spalte per Zahnrad ausblenden und **ohne** Neuladen exportieren → fehlt
+  im CSV; Spalte nach vorn ziehen → CSV in Bildschirm-Reihenfolge.
+- **TS-86.3 — IDEAL hierarchisch (AK 6).** FA-Liste, Leitstand, FA-Vervollständigung, FA-Abarbeitungsliste,
+  Kommissionierung: erste Spalte „HauptFA", keine Gruppen-Kopfzeilen, Kombigerät ohne Fremdzeilen aus der
+  Variantentabelle, jede Zeile gleich viele Spalten.
+- **TS-86.4 — IDEAL-Listen (AK 6).** Kommissionierliste (Liste + Summiert), Beschichtung (Liste + Summiert; Gruppenkopf
+  mit Aufträgen/„Aus Vorschlagsliste erstellen" erscheint nicht als Zeile), Vormontage (beide), **Beschichtungsaufträge**
+  (`/Beschichtungsauftraege`, neu v1.51.0) und die Positionstabelle im Auftragsdetail (Entwurf: Menge = Wert des
+  Eingabefelds, Spalte „Entfernen" fehlt). Keine doppelte HauptFA-Spalte; `hauptfa` per Zahnrad aus → fehlt im CSV.
+- **TS-86.5 — Format (AK 5, 12).** Datei im Hex-Editor: beginnt mit `EF BB BF`, Trenner `;`, Zeilenende CRLF, keine
+  `sep=`-Zeile; Name `<Ansicht>_JJJJ-MM-TT_HHMM.csv`. Doppelklick in Excel: Umlaute (ä ö ü ß „–") korrekt, Spalten
+  getrennt, `1.234,500` als Zahl (Summenformel rechnet), Datum ohne KW als Datum erkannt.
+- **TS-86.6 — CSV-Injection (AK 7, Negativfall).** Testdatensatz mit Bemerkung `=HYPERLINK("http://x";"klick")`,
+  `@SUMME(A1:A2)`, `+43 664 1234567`, `-x` → im CSV mit `'` davor, Excel zeigt Text und führt nichts aus.
+- **TS-86.7 — Negative Mengen (AK 7).** Bestand/Bewegung mit negativer Menge (`-5,000`) → ohne `'`, als Zahl erkannt.
+- **TS-86.8 — Rechte (AK 8, Negativfall).** Benutzer ohne `stock_read` ruft die Bestandsliste auf → kein Zugriff, kein
+  Export. Benutzer mit Leitstand- aber ohne Picking-Recht: FA-Liste und CSV zeigen dieselben Spalten.
+- **TS-86.9 — Feature-Gate aus (AK 8).** `FaHierarchyKommissionierlistenAktiv = false` → weder Liste noch Export.
+- **TS-86.10 — Kappung (AK 9).** Bewegungshistorie ohne Filter (> 5000), Datum absteigend sortiert, exportieren →
+  gelbe Meldung „Export auf 5.000 Treffer begrenzt, bitte Filter eingrenzen. Sortierung gilt nur innerhalb der
+  exportierten 5.000." neben dem Knopf, Datei trotzdem da, genau 5000 Zeilen, innerhalb absteigend. Gegenprobe
+  < 5000: keine Meldung.
+- **TS-86.11 — Fehlerfall (AK 10).** Sitzung ablaufen lassen (bzw. in zweitem Tab abmelden), exportieren → rote Meldung,
+  **keine** Datei; während des Abrufs ist der Knopf deaktiviert und zeigt einen Kreisel.
+- **TS-86.12 — Client-Mode (AK 18).** Stückliste mit Komm.-Ziel-Filter und einer **zugeklappten** Baugruppe mit
+  Treffern darunter → Treffer im CSV; ohne Filter → ganze Stückliste unabhängig vom Klappzustand; Bildschirm
+  (Klappzustand, Filter, rekursive Suche) unverändert. Lagerbestellung-Details und Tracking je Werkbank mit
+  Spaltenfilter → nur sichtbare Zeilen. Artikelgruppen-Zuordnung und OSEON-Reporting (Arbeitsgang-Übersicht mit
+  Zukunftstag-Gruppen) → je Tabelle ein eigener Knopf, alle Zeilen dieser Tabelle.
+- **TS-86.13 — Zellwerte (AK 16, 17).** Leitstand: Glas/Fremdbezug/Lack als „Ja"/„Nein", Prio als Zahl;
+  erledigte/stornierte Zeile ohne Statusspalte; Lack-T als „Lackierteile erledigt" bzw. „–"; FA-Nr. mit Badge-Text
+  („… HauptFA", „… In Sage gelöscht"); Werkbank mit „BG n".
+- **TS-86.14 — Stammdaten-Stichprobe.** Artikel, Lagerplätze, Benutzer (Admin), BDE-Stammdaten je Tab.
+- **TS-86.15 — Sortierung (AK 15).** Mehrseitige Liste, Datumsspalte absteigend → CSV über alle Treffer absteigend;
+  dasselbe mit Zahl und Text. IDEAL-Gruppenliste: je Gruppe sortiert, Gruppenreihenfolge unverändert.
+  Default-Sortierung auf ausgeblendete Spalte → trotzdem danach sortiert. **Regression:** Bildschirm-Sortierung (Klick,
+  Default, Gruppen, Kombigeräte-Variantentabelle bleibt gefüllt) unverändert.
+- **TS-86.16 — Regression AKE (AK 11).** Listen in Darstellung, Filter, Sortierung, Spaltenauswahl und Druck unverändert;
+  Zahnrad am alten Platz, CSV-Knopf daneben.
+
 ---
 
 *Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) + Teil 6 (Standorteinstellungen, v1.34.0) + BOM-Guard hierarchisch (2026-08-18, abgelöst) + FA-Liste-Hierarchie (v1.35.0) + BOM-Bridge (v1.36.0) + Materialisierung fachliche Felder K1/K2 (v1.37.0) + Skopierung der Tabellen-Selektoren (TS-72) + FA-Liste ausgebaut: Matchcode, Kopfdaten je Zeile, HauptFA-Zeile, Freigabe-Kaskade (v1.38.0, TS-73) + PDF-Erzeugung für FaHierarchy-Druckdokumente (v1.39.0, TS-74) + Matchcode im Artikelstamm (v1.40.0, TS-75) + FA-Arbeitsgang-Erkennung aus der Struktur (v1.41.0, TS-76, ersetzt durch TS-77) + Arbeitsgänge (WorkOperation) aus der Struktur + Werkbank-Anlage aus Sage (v1.44.0, TS-77) + Arbeitsgänge je (Sub-)FA im FA-Struktur-Modal (v1.45.0, TS-78) + Kommissionierung nur am HauptFA
-(v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80) + Beschichtungsauftrag Summiert als Standard (v1.48.0, TS-81) + Briefkopf Beschichtungsauftrag (v1.49.0, TS-82) + Beschichtungsauftrag als eigenes Objekt (v1.50.0, TS-83) + Beschichtungsaufträge bedienen (v1.51.0, TS-84) + Arbeitsgänge als Symbole im FA-Baum (v1.52.0, TS-85)*
+(v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80) + Beschichtungsauftrag Summiert als Standard (v1.48.0, TS-81) + Briefkopf Beschichtungsauftrag (v1.49.0, TS-82) + Beschichtungsauftrag als eigenes Objekt (v1.50.0, TS-83) + Beschichtungsaufträge bedienen (v1.51.0, TS-84) + Arbeitsgänge als Symbole im FA-Baum (v1.52.0, TS-85) + CSV-Export für alle Tabellen (v1.53.0, TS-86)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*

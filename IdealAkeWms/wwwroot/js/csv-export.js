@@ -128,7 +128,7 @@
         var sort = activeSort(liveTable);
         if (sort && src[sort.key] !== undefined) {
             if (typeof root.tableFilterCompareValues !== 'function')
-                throw new Error('Sortierung nicht verfuegbar (table-filter.js fehlt) — Export abgebrochen.');
+                throw new Error('Export abgebrochen: Die Sortierung der Liste ist nicht verfügbar. Seite neu laden und erneut exportieren.');
             var si = src[sort.key];
             var byGroup = [];
             rows.forEach(function (r) {
@@ -190,11 +190,11 @@
         url.searchParams.set('pageSize', '0');
         url.searchParams.set('page', '1');
         var res = await fetch(url.toString(), { credentials: 'same-origin' });
-        if (!res.ok) throw new Error('Export fehlgeschlagen (HTTP ' + res.status + ').');
+        if (!res.ok) throw new Error('Export fehlgeschlagen: Der Server antwortet mit Fehler ' + res.status + '. Bitte erneut versuchen.');
         var doc = new DOMParser().parseFromString(await res.text(), 'text/html');
         var table = doc.querySelectorAll('table.filterable-table')[position];
         if (!table || (liveTable.id && table.id !== liveTable.id))
-            throw new Error('Export fehlgeschlagen: Die Liste kam nicht zurueck (Sitzung abgelaufen oder kein Zugriff?). Seite neu laden.');
+            throw new Error('Export fehlgeschlagen: Die Liste kam nicht zurück (Sitzung abgelaufen oder kein Zugriff). Seite neu laden und erneut exportieren.');
         var bar = doc.querySelector('.pagination-bar');
         return { table: table, capped: !!bar && bar.getAttribute('data-capped') === 'true' };
     }
@@ -202,6 +202,7 @@
     async function runExport(table, button, host) {
         showMessage(host, null, null);
         button.disabled = true;
+        button.setAttribute('aria-busy', 'true');
         var label = button.innerHTML;
         button.innerHTML = '<span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>CSV';
         try {
@@ -212,9 +213,10 @@
             download(toCsv(result.header, result.body), fileName(viewName(table), new Date()));
             if (fetched.capped) showMessage(host, 'warning', CAP_WARNING);
         } catch (e) {
-            showMessage(host, 'danger', e && e.message ? e.message : 'Export fehlgeschlagen.');
+            showMessage(host, 'danger', e && e.message ? e.message : 'Export fehlgeschlagen. Seite neu laden und erneut exportieren.');
         } finally {
             button.disabled = false;
+            button.removeAttribute('aria-busy');
             button.innerHTML = label;
         }
     }
