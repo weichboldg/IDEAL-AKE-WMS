@@ -2,7 +2,7 @@
 @using System.Globalization
 @using IdealAkeWms.Services
 @{
-    ViewData["Title"] = "Beschichtungsauftrag (IDEAL)";
+    ViewData["Title"] = "Vorschlagsliste Beschichtung (IDEAL)";
     var deCulture = CultureInfo.GetCultureInfo("de-DE");
     // Print-URL: exakt dieselben Query-Parameter (colf_*) wie die Bildschirmliste.
     var printUrl = Url.Action("Print") + Context.Request.QueryString.ToString();
@@ -12,7 +12,7 @@
 }
 
 <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
-    <h2 class="page-header">Beschichtungsauftrag (IDEAL)</h2>
+    <h2 class="page-header">Vorschlagsliste Beschichtung (IDEAL)</h2>
     <div class="d-flex gap-2 mt-1">
         <a href="@printUrl" target="_blank" class="btn btn-sm btn-outline-secondary" title="Aktuell gefilterte Liste drucken (ein Ausdruck je HauptFA)">
             Drucken

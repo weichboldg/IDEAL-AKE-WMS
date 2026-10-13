@@ -223,6 +223,16 @@
                     <dd>
                         Der Knopf <strong>CSV</strong> ueber der Tabelle (neben dem Zahnrad) laedt die Liste als Datei fuer
                         Excel herunter.
+                        <ol class="mt-1 mb-1">
+                            <li>Liste öffnen (z.&nbsp;B. <em>Fertigungsaufträge</em>).</li>
+                            <li>Filter setzen &mdash; Filterkarte und/oder Spaltenfilter in der Kopfzeile.</li>
+                            <li>Über das <strong>Zahnrad</strong> die gewünschten Spalten ein- oder ausblenden und ordnen.</li>
+                            <li>Knopf <strong>CSV</strong> neben dem Zahnrad klicken &mdash; die Datei wird heruntergeladen.</li>
+                            <li>Datei per Doppelklick in Excel öffnen.</li>
+                        </ol>
+                        <strong>Rechte:</strong> kein eigenes Recht &mdash; exportiert wird genau das, was die Liste Ihnen zeigt.
+                        <strong>Kein Knopf</strong> gibt es in Baumansichten (FA-Struktur, Tracking-Baum, OSEON-Tracking) und auf
+                        Formular- und Druckseiten.
                         <ul class="mt-1 mb-1">
                             <li><strong>Welche Zeilen:</strong> alle Treffer des aktuellen Filters ueber alle Seiten, nicht nur
                                 die angezeigte Seite. Listen ohne Seiten (z.&nbsp;B. Stueckliste, Lagerbestellung-Details)
@@ -420,7 +430,7 @@
                     <dt>IDEAL: PDF-Download der Druckdokumente (seit v1.39.0)</dt>
                     <dd>
                         Am Standort IDEAL (hierarchische Auftraege) gibt es in den Listen
-                        <strong>Kommissionierlisten</strong> und <strong>Beschichtungsauftrag</strong>
+                        <strong>Kommissionierlisten</strong> und <strong>Vorschlagsliste Beschichtung</strong>
                         je Haupt-FA-Gruppe einen <strong>PDF-Knopf</strong> in der Gruppen-Kopfzeile.
                         Er erzeugt dieselbe Ansicht wie der Bildschirmdruck als PDF-Datei zum
                         Herunterladen &mdash; zum Ablegen oder Weitergeben.
@@ -486,54 +496,6 @@
                         </ul>
                     </dd>
 
-                    <dt>IDEAL: Beschichtungsauftrag &mdash; Summiert als Standard (seit v1.48.0)</dt>
-                    <dd>
-                        Der Menuepunkt <strong>Beschichtungsauftrag</strong> fuehrt jetzt direkt zur
-                        <strong>summierten Ansicht</strong>: je HauptFA eine Zeile pro
-                        <strong>Artikelnummer</strong> mit der Summe der Sollmenge und der Zahl der
-                        zusammengefassten Positionen &mdash; der Beschichter sieht die Stueckzahl je gleichem
-                        Teil. Die bisherige Einzelpositionen-Liste bleibt ueber den Umschalter
-                        &bdquo;Liste&ldquo; erreichbar (Druck und PDF dort unveraendert).
-                        <ul class="mt-1 mb-1">
-                            <li><strong>Maße:</strong> Breite, Hoehe und Tiefe werden angezeigt und
-                                mitgedruckt, sind aber kein Teil der Zusammenfassung. Haben Positionen
-                                derselben Artikelnummer unterschiedliche Maße, zeigt die Zeile die Maße der
-                                ersten Position und den Hinweis <strong>&bdquo;Maße uneinheitlich&ldquo;</strong>
-                                &mdash; dann die Strukturdaten pruefen. Ein fehlendes Mass erscheint als 0.</li>
-                            <li><strong>Kopf je HauptFA</strong> wie in der Liste: Dienstleister, RAL, Start,
-                                Retour, AB/Pos, Montage-Abteilung; bei mehreren Kopfzeilen (Kombigeraet) alle
-                                Varianten mit dem Hinweis &bdquo;mehrdeutig&ldquo;.</li>
-                            <li><strong>Spaltenfilter</strong> wirken auf die Summen: ein Filter auf
-                                &bdquo;Summe Sollmenge&ldquo; bzw. &bdquo;Positionen&ldquo; filtert den
-                                summierten Wert. Der Umschalter Liste/Summiert nimmt die Filter der
-                                gemeinsamen Spalten mit, nicht aber den Sollmengen-Filter.</li>
-                            <li><strong>Druck/PDF</strong> wie bei der Kommissionierliste: ein Ausdruck je
-                                HauptFA mit Barcode, nur die am Bildschirm sichtbaren Spalten; PDF-Knopf je
-                                Gruppe, wenn Edge auf dem Server installiert ist.</li>
-                        </ul>
-                    </dd>
-
-                    <dt>IDEAL: Briefkopf auf dem Beschichtungsauftrag (seit v1.49.0)</dt>
-                    <dd>
-                        Druck und PDF des Beschichtungsauftrags (Liste und summierte Ansicht) tragen oben auf der ersten
-                        Seite jedes HauptFA-Dokuments einen <strong>Briefkopf</strong> mit Logo, Absender und
-                        Kontaktdaten. Darunter stehen <strong>Empfänger</strong> (Dienstleister aus Sage),
-                        Dokument und Datum. Die Kommissionierlisten bekommen keinen Briefkopf.
-                        <ul class="mt-1 mb-1">
-                            <li><strong>Vorlage:</strong> Der Briefkopf kommt aus der Datei <code>briefkopf.html</code>,
-                                die die IT im Ordner <code>Branding\</code> auf dem Server pflegt. Den Pfad tragen Admins in den
-                                Standorteinstellungen unter <em>Firmendaten &rarr; Briefkopf-Vorlage (Pfad)</em> ein.
-                                Aenderungen an Datei oder Logo wirken ab dem naechsten Druck.</li>
-                            <li><strong>Fehlt etwas:</strong> Ist der Pfad leer oder die Datei nicht lesbar, druckt der
-                                Auftrag mit einem einfachen Kopf aus Firmenname und Anschrift. Fehlt nur das Logo oder die
-                                Schrift, fehlt nur dieses Teil. Der Grund steht als gelber Hinweis am Bildschirm
-                                (nicht im Ausdruck, nicht im PDF).</li>
-                            <li><strong>Empfänger fehlt:</strong> Ist in Sage kein Dienstleister hinterlegt, steht dort
-                                &bdquo;Empfänger fehlt &mdash; in Sage nachpflegen&ldquo;; bei Kombigeraeten
-                                &bdquo;mehrdeutig &mdash; siehe Kopfzeilen&ldquo;.</li>
-                        </ul>
-                    </dd>
-
                     <dt>Arbeitsgang-Stammdaten (seit v1.54.0)</dt>
                     <dd>
                         Je Arbeitsgang-Kuerzel ein Soll-Termin als <strong>Offset in Arbeitstagen zum Bezugstermin</strong> und
@@ -551,36 +513,6 @@
                             <li><strong>Kuerzel:</strong> Gross-/Kleinschreibung und Leerzeichen zaehlen nicht &mdash; <code>ka</code>
                                 und <code>KA</code> sind dasselbe Kuerzel. Doppelte Eintraege meldet die Seite gelb.</li>
                             <li><strong>Alte Adresse:</strong> <code>/Settings/OperationConfig</code> leitet auf die neue Seite um.</li>
-                        </ul>
-                    </dd>
-
-                    <dt>IDEAL: Beschichtungsaufträge (seit v1.51.0)</dt>
-                    <dd>
-                        Aus der Vorschlagsliste wird ein gespeicherter <strong>Beschichtungsauftrag</strong> mit Nummer
-                        <code>BA-Jahr-laufende Nummer</code>. Ablauf: <em>Entwurf &rarr; Übergeben &rarr; Erledigt</em>,
-                        Storno nur im Entwurf (gibt die Positionen wieder frei).
-                        <ul class="mt-1 mb-1">
-                            <li><strong>Anlegen:</strong> Vorschlagsliste &rarr; Knopf &bdquo;Aus Vorschlagsliste
-                                erstellen&ldquo; am HauptFA. Uebernommen werden alle freien beschichteten Positionen. Sind schon
-                                Positionen in einem Auftrag, steht dessen Nummer im Gruppenkopf; der Knopf erscheint nur, solange
-                                noch Positionen frei sind. Eine vergebene Position kommt nur ueber eine Reklamation erneut in
-                                einen Auftrag.</li>
-                            <li><strong>Entwurf:</strong> Dienstleister (vorbelegt aus Sage, Freitext), RAL, Start, Retour und
-                                Mengen aendern, Positionen entfernen (Haken &bdquo;Entfernen&ldquo;) und mit &bdquo;Entwurf
-                                speichern&ldquo; sichern. Unter &bdquo;Positionen hinzufuegen&ldquo; stehen die freien Positionen
-                                des HauptFA. Weicht der Dienstleister von Sage ab, steht der Sage-Wert darunter.</li>
-                            <li><strong>Übergeben:</strong> nur mit Dienstleister. Danach sind nur noch Status und Bemerkung
-                                aenderbar; Druck und PDF (Briefkopf, Positionen je Artikel summiert, Barcode = Auftragsnummer)
-                                gibt es ab hier.</li>
-                            <li><strong>Reklamation:</strong> an einem erledigten Auftrag Teile waehlen (nichts ist
-                                vorausgewaehlt). Der Folgeauftrag startet als Entwurf mit Dienstleister, RAL und Terminen des
-                                Ursprungs; im Entwurf lassen sich weitere Ursprungspositionen hinzufuegen. Der Ursprung zeigt
-                                &bdquo;Reklamiert &rarr; BA-&hellip;&ldquo;.</li>
-                            <li><strong>Gleichzeitig bearbeitet:</strong> Hat jemand den Auftrag inzwischen geaendert, wird
-                                nichts gespeichert und eine Meldung bittet, die Seite neu zu laden.</li>
-                            <li><strong>Rechte:</strong> Lesen und Drucken mit Rolle <code>beschichtungsauftrag</code>; Anlegen,
-                                Bearbeiten, Status und Reklamation nur mit <code>beschichtungsauftrag_schreiben</code>. Ohne den
-                                Schalter <code>FaHierarchyBeschichtungAktiv</code> ist alles ausgeblendet.</li>
                         </ul>
                     </dd>
 
@@ -641,7 +573,19 @@
                         Die Spalte <strong>Arbeitsgaenge</strong> der <em>FA-Struktur (IDEAL)</em> zeigt je Baumzeile die
                         Arbeitsschritte aus Sage als Kuerzel &mdash; genau wie die Spalte &bdquo;Arbeitsschritte&ldquo; in Sage
                         &bdquo;Fertigungsauftraege bearbeiten&ldquo;, in derselben Reihenfolge und auch an Einzelteilen.
+                        Die FA-Struktur sehen Benutzer mit Kommissionierung, Teileverfolgung, Leitstand-Freigabe oder Vorbau.
+                        <ol class="mt-1 mb-1">
+                            <li><em>FA-Struktur</em> öffnen und eine Struktur aufklappen.</li>
+                            <li>In der Spalte <strong>Arbeitsgaenge</strong> die Kürzel der Zeile lesen &mdash; Reihenfolge wie in Sage.</li>
+                            <li>Mauszeiger auf ein Kürzel oder mit der Tab-Taste hinspringen: Name der Werkbank (und, bei
+                                eingeschaltetem BDE, der Status).</li>
+                            <li>Nach einem Kürzel filtern: in der Filterzeile der Spalte z.&nbsp;B. <code>ka</code> eingeben.</li>
+                            <li>Alle erkannten Arbeitsgänge der Struktur: Knopf <strong>Arbeitsgaenge</strong> an der Kopfzeile
+                                (siehe &bdquo;Arbeitsgaenge einer FA-Struktur ansehen&ldquo;).</li>
+                        </ol>
                         <ul class="mt-1 mb-1">
+                            <li><strong>Strich statt Kürzel:</strong> Die Zeile hat in Sage keine Arbeitsschritte.</li>
+                            <li><strong>Spalte fehlt:</strong> Über das Zahnrad wieder einblenden.</li>
                             <li><strong>Name der Werkbank:</strong> Mauszeiger auf das Kuerzel oder mit der Tab-Taste
                                 hinspringen. Ist das Kuerzel keiner oder mehreren Werkbaenken zugeordnet, steht nur das
                                 Kuerzel da.</li>
@@ -730,6 +674,123 @@
                         Ohne Aktivierung sind Menuepunkt und Endpoint verborgen, auch fuer Benutzer mit der Rolle.
                     </dd>
                 </dl>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header"><strong>Beschichtung (IDEAL)</strong></div>
+            <div class="card-body">
+                <p>
+                    Beschichtete Teile eines Fertigungsauftrags an den Dienstleister geben: aus der <strong>Vorschlagsliste</strong>
+                    wird ein gespeicherter <strong>Beschichtungsauftrag</strong> mit Nummer <code>BA-Jahr-laufende Nummer</code>,
+                    der gedruckt mitgeht. Menü <em>Beschichtung</em> mit den Einträgen <em>Vorschlagsliste</em> und
+                    <em>Aufträge</em>. Sichtbar mit der Rolle &bdquo;Beschichtungsauftrag (IDEAL)&ldquo; (lesen, drucken) oder
+                    &bdquo;Beschichtungsaufträge (Schreibrecht)&ldquo; (zusätzlich anlegen und bearbeiten) &mdash; nur am
+                    Standort IDEAL eingeschaltet.
+                </p>
+
+                <h6 class="mt-3">Kurzanleitung</h6>
+                <ol>
+                    <li><em>Beschichtung &rarr; Vorschlagsliste</em> öffnen.</li>
+                    <li>Den HauptFA suchen, z.&nbsp;B. über den Spaltenfilter <em>HauptFA</em>.</li>
+                    <li>Im Gruppenkopf <strong>&bdquo;Aus Vorschlagsliste erstellen&ldquo;</strong> klicken &mdash; der neue Auftrag
+                        öffnet sich als <em>Entwurf</em> mit allen freien beschichteten Positionen.</li>
+                    <li>Dienstleister, RAL, Start, Retour und Mengen prüfen, bei Bedarf ändern und
+                        <strong>&bdquo;Entwurf speichern&ldquo;</strong>.</li>
+                    <li><strong>&bdquo;Auf &bdquo;Übergeben&ldquo; setzen&ldquo;</strong> klicken.</li>
+                    <li><strong>Drucken</strong> oder <strong>PDF</strong> &mdash; das Dokument geht mit den Teilen zum Dienstleister.</li>
+                    <li>Sind die Teile zurück: Status <strong>Erledigt</strong> setzen.</li>
+                </ol>
+
+                <h6 class="mt-3">Vorschlagsliste</h6>
+                <ul>
+                    <li><strong>Summiert</strong> (Standard): je HauptFA eine Zeile pro <strong>Artikelnummer</strong> mit der Summe
+                        der Sollmenge und der Zahl der zusammengefassten Positionen &mdash; der Beschichter sieht die Stückzahl je
+                        gleichem Teil. Der Umschalter <strong>&bdquo;Liste&ldquo;</strong> zeigt die Einzelpositionen.</li>
+                    <li><strong>Maße:</strong> Breite, Hoehe und Tiefe werden angezeigt und mitgedruckt, sind aber kein Teil der
+                        Zusammenfassung. Haben Positionen derselben Artikelnummer unterschiedliche Maße, zeigt die Zeile die Maße
+                        der ersten Position und den Hinweis <strong>&bdquo;Maße uneinheitlich&ldquo;</strong> &mdash; dann die
+                        Strukturdaten pruefen. Ein fehlendes Mass erscheint als 0.</li>
+                    <li><strong>Kopf je HauptFA:</strong> Dienstleister, RAL, Start, Retour, AB/Pos, Montage-Abteilung; bei mehreren
+                        Kopfzeilen (Kombigeraet) alle Varianten mit dem Hinweis &bdquo;mehrdeutig&ldquo;.</li>
+                    <li><strong>Vorhandene Aufträge:</strong> Sind schon Positionen in einem Auftrag, steht dessen Nummer im
+                        Gruppenkopf (als Link). Der Knopf &bdquo;Aus Vorschlagsliste erstellen&ldquo; erscheint nur, solange noch
+                        Positionen frei sind (&bdquo;(n Positionen frei)&ldquo;), und übernimmt nur diese. In der Liste trägt jede
+                        vergebene Position in der Spalte <em>Beschichtet</em> &bdquo;in BA-&hellip;&ldquo;.</li>
+                    <li><strong>Spaltenfilter</strong> wirken auf die Summen: ein Filter auf &bdquo;Summe Sollmenge&ldquo; bzw.
+                        &bdquo;Positionen&ldquo; filtert den summierten Wert. Der Umschalter Liste/Summiert nimmt die Filter der
+                        gemeinsamen Spalten mit, nicht aber den Sollmengen-Filter.</li>
+                </ul>
+
+                <h6 class="mt-3">Status</h6>
+                <ul>
+                    <li><em>Entwurf &rarr; Übergeben &rarr; Erledigt</em>. Der Statusverlauf am Auftrag zeigt jeden Schritt mit Zeit
+                        und Benutzer.</li>
+                    <li><strong>Entwurf:</strong> Dienstleister (vorbelegt aus Sage, Freitext), RAL, Start, Retour und Mengen
+                        aendern, Positionen entfernen (Haken &bdquo;Entfernen&ldquo;) und mit &bdquo;Entwurf speichern&ldquo;
+                        sichern. Unter &bdquo;Positionen hinzufuegen&ldquo; stehen die freien Positionen des HauptFA. Weicht der
+                        Dienstleister von Sage ab, steht der Sage-Wert darunter.</li>
+                    <li><strong>Übergeben:</strong> nur mit Dienstleister. Danach sind nur noch Status und Bemerkung aenderbar.</li>
+                    <li><strong>Storno:</strong> nur im Entwurf (mit Rückfrage); die Positionen sind danach in der Vorschlagsliste
+                        wieder frei. Eine vergebene Position kommt sonst nur ueber eine Reklamation erneut in einen Auftrag.</li>
+                </ul>
+
+                <h6 class="mt-3">Reklamation</h6>
+                <ul>
+                    <li>An einem <strong>erledigten</strong> Auftrag &bdquo;Reklamation&ldquo; klicken und Teile waehlen (nichts ist
+                        vorausgewaehlt).</li>
+                    <li>Der Folgeauftrag startet als Entwurf mit Dienstleister, RAL und Terminen des Ursprungs; im Entwurf lassen
+                        sich weitere Ursprungspositionen hinzufuegen.</li>
+                    <li>Der Ursprung zeigt &bdquo;Reklamiert &rarr; BA-&hellip;&ldquo;, der Folgeauftrag
+                        &bdquo;Reklamation zu BA-&hellip;&ldquo;. Eine Position kann mehrfach reklamiert werden, auch eine
+                        Reklamation selbst.</li>
+                </ul>
+
+                <h6 class="mt-3">Druck und PDF</h6>
+                <ul>
+                    <li><strong>Auftrag:</strong> Drucken und PDF erst ab <em>Übergeben</em>. Oben der <strong>Briefkopf</strong>
+                        (Logo, Absender, Kontaktdaten), darunter Empfänger = Dienstleister <em>des Auftrags</em>, Dokument und
+                        Datum; Barcode = Auftragsnummer; Positionen je Artikel summiert. Eine per Zahnrad ausgeblendete Spalte
+                        fehlt auch im Druck.</li>
+                    <li><strong>Vorschlagsliste:</strong> ein Ausdruck je HauptFA mit Barcode und Briefkopf (Empfänger = Dienstleister aus Sage), nur die am Bildschirm
+                        sichtbaren Spalten (Liste und summierte Ansicht).</li>
+                    <li>Der Briefkopf steht nur auf der ersten Seite jedes Dokuments. Die Kommissionierlisten bekommen keinen.</li>
+                    <li><strong>PDF</strong>-Knopf je Auftrag bzw. HauptFA-Gruppe &mdash; Voraussetzungen siehe
+                        &bdquo;PDF-Download der Druckdokumente&ldquo; (Karte <em>Fertigungsaufträge</em>).</li>
+                </ul>
+
+                <h6 class="mt-3">Wenn etwas nicht klappt</h6>
+                <ul>
+                    <li><strong>Kein Menü <em>Beschichtung</em>:</strong> Rolle fehlt oder die Funktion ist am Standort
+                        ausgeschaltet &mdash; an den Admin wenden.</li>
+                    <li><strong>&bdquo;Dienstleister fehlt &hellip;&ldquo;:</strong> Dienstleister eintragen, speichern, dann
+                        übergeben.</li>
+                    <li><strong>&bdquo;&hellip; wurde inzwischen von jemand anderem geändert &mdash; bitte neu laden&ldquo;:</strong>
+                        Es wurde nichts gespeichert. Seite neu laden und die Änderung wiederholen.</li>
+                    <li><strong>&bdquo;&hellip; bereits vergeben&ldquo;:</strong> Die Positionen stecken schon in einem anderen
+                        Auftrag (Nummer steht in der Meldung); vergebene Positionen werden nicht übernommen.</li>
+                    <li><strong>&bdquo;Im Entwurf nicht druckbar &mdash; erst übergeben.&ldquo;:</strong> Auftrag zuerst auf
+                        <em>Übergeben</em> setzen.</li>
+                    <li><strong>Kein PDF-Knopf:</strong> Auf dem Server fehlt Microsoft Edge &mdash; Bildschirmdruck nutzen.
+                        Ein PDF-Fehler (z.&nbsp;B. Zeitüberschreitung) meldet sich gelb; erneut versuchen.</li>
+                    <li><strong>Gelber Hinweis &bdquo;Briefkopf: &hellip;&ldquo;:</strong> Ist der Pfad leer oder die Datei nicht
+                        lesbar, druckt der Auftrag mit einem einfachen Kopf aus Firmenname und Anschrift. Fehlt nur das Logo oder
+                        die Schrift, fehlt nur dieses Teil. Der Hinweis steht nur am Bildschirm, nicht im Ausdruck und nicht im
+                        PDF &mdash; den Admin informieren.</li>
+                    <li><strong>&bdquo;Empfänger fehlt &mdash; in Sage nachpflegen&ldquo;:</strong> In Sage ist kein Dienstleister
+                        hinterlegt; bei Kombigeraeten steht &bdquo;mehrdeutig &mdash; siehe Kopfzeilen&ldquo;.</li>
+                </ul>
+
+                <h6 class="mt-3">Einrichtung (Admin)</h6>
+                <p class="mb-0">
+                    Rollen unter <code>/Roles</code> mit genau diesen Schlüsseln anlegen und zuweisen: <code>beschichtungsauftrag</code>
+                    (Lesen und Drucken von Vorschlagsliste und Aufträgen) und <code>beschichtungsauftrag_schreiben</code>
+                    (zusätzlich Anlegen, Bearbeiten, Status und Reklamation). Eingeschaltet wird die Funktion mit der Einstellung
+                    <code>FaHierarchyBeschichtungAktiv</code> = <code>true</code>; ohne sie ist alles ausgeblendet. Der Briefkopf
+                    kommt aus der Datei <code>briefkopf.html</code>, die die IT im Ordner <code>Branding\</code> auf dem Server
+                    pflegt; den Pfad tragen Admins in den Standorteinstellungen unter <em>Firmendaten &rarr; Briefkopf-Vorlage
+                    (Pfad)</em> ein. Aenderungen an Datei oder Logo wirken ab dem naechsten Druck.
+                </p>
             </div>
         </div>
 

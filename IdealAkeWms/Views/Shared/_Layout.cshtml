@@ -109,18 +109,19 @@
                                    asp-controller="FaHierarchy" asp-action="Index">FA-Struktur</a>
                             </li>
                         }
-                        @* IDEAL Teil 4: Beschichtungsauftrag — nur mit Rolle beschichtungsauftrag
-                           (RequireBeschichtungsauftragAccess) UND aktivem Feature-Toggle. *@
+                        @* IDEAL Teil 4 + Ausbau Teil 4: Beschichtung — nur mit Lese- oder Schreibrolle
+                           (RequireBeschichtungsauftragAccess) UND aktivem Feature-Toggle. Seit v1.56.0 EIN Dropdown:
+                           beide Eintraege haben dieselbe Bedingung, Lese- und Schreibrolle sehen dieselben Eintraege. *@
                         @if (hasBeschichtungsauftragAccess && faBeschichtungAktiv)
                         {
-                            <li class="nav-item">
-                                <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "FaHierarchyBeschichtung" ? "active" : "")"
-                                   asp-controller="FaHierarchyBeschichtung" asp-action="Summiert">Beschichtungsauftrag</a>
-                            </li>
-                            @* Teil 4: gespeicherte Auftraege — dieselbe Bedingung (Lesen + Toggle). *@
-                            <li class="nav-item">
-                                <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Beschichtungsauftraege" ? "active" : "")"
-                                   asp-controller="Beschichtungsauftraege" asp-action="Index">Beschichtungsaufträge</a>
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle @((ViewContext.RouteData.Values["controller"]?.ToString() is "FaHierarchyBeschichtung" or "Beschichtungsauftraege") ? "active" : "")" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    Beschichtung
+                                </a>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" asp-controller="FaHierarchyBeschichtung" asp-action="Summiert">Vorschlagsliste</a></li>
+                                    <li><a class="dropdown-item" asp-controller="Beschichtungsauftraege" asp-action="Index">Aufträge</a></li>
+                                </ul>
                             </li>
                         }
                         @* IDEAL Teil 5: Vormontage-Listen — nur mit Vorbau-Zugriff
