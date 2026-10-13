@@ -9713,6 +9713,12 @@ BDE-Stammdaten › Arbeitsgänge für `KA` (Offset 1) — `SW` **ohne** Eintrag;
 - **TS-88.11 — Last (AK 9, 13).** Seitengröße „Alle“ mit BDE an: Seite lädt ohne spürbare Verzögerung gegenüber BDE aus; im
   SQL-Profiler je Aufruf eine `WorkOperations`-Abfrage (OPENJSON) und zwei Status-Abfragen (`BdeBookingQuantities`,
   `BdeBookings`), unabhängig von der Zahl der Strukturen.
+- **TS-88.12 — Zuordnung Blatt / Sub-FA / Default-AG (AK 11, 14, 16; QA-Nachtrag).** (a) Blattzeile (ohne eigene Sub-FA) mit
+  `KA`, deren Vater-Sub-FA `KA` am Terminal abgeschlossen hat → Blatt-Symbol `KA` grün mit Haken. (b) Sub-FA `S` mit eigenem
+  `KA` unter Sub-FA `P`: nur den `KA`-Arbeitsgang von `S` abschließen → `KA` an Zeile `S` grün; Zeile `P` zeigt `KA` nur, wenn
+  `P` selbst oder ein Blatt-Kind von `P` `KA` trägt (dann mit dem Status von `P`s eigenem `KA`). (c) Sub-FA mit Default-AG
+  `01` (NurFA-Buchung) → kein Symbol `01`. (d) Negativ: alle Einträge in BDE-Stammdaten › Arbeitsgänge fehlen (Testsystem)
+  → Seite lädt, Soll = FE-Termin, Sammelhinweis nennt alle Kürzel mit Status, kein Fehler.
 
 ---
 
