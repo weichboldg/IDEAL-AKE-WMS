@@ -1357,3 +1357,15 @@ Status. Wer einen Status ohne eigenen Grund einführt, muss alle Zeilengründe n
 ### FA-Baum-Status nur bei BDE an — produktiv derzeit unsichtbar
 `FaHierarchyController.Index` fragt Status, Feiertage und Offsets nur bei `BdeAktiv = true` ab. Solange BDE an keinem
 Standort an ist, zeigt Produktion keine Status — Abnahme und Fehlersuche am Testsystem mit BDE an.
+
+### Arbeitsgang-Status nur über `ArbeitsgangStatusRegel` (seit v1.57.0)
+FA-Baum (Teil 2) und BDE-Terminal (Teil 3) leiten den Status über **dieselbe** Regel ab (`Services/ArbeitsgangStatusRegel.cs`:
+Vorrang erledigt → läuft (+ überfällig) → überfällig → offen; Offset getrimmt, ohne Eintrag 0); Klasse/Zeichen kommen aus
+`FaAgStatusDarstellung`, die Farben aus den CSS-Variablen `--fa-ag-*` in `site.css`. Wer den Status irgendwo anders zeigt, ruft
+diese drei Stellen — keine Kopie, sonst laufen FA-Baum und Terminal auseinander. Bewusste Abweichung: Das Terminal fällt bei
+leerem `FE_Termin` auf `ProductionDate` zurück (Antwort 9), der FA-Baum nicht.
+
+### Terminal zeigt fremd gebuchte Arbeitsgänge (seit v1.57.0)
+`GetAvailableOperations` blendet nur noch **eigene** laufende und fertig gemeldete Arbeitsgänge aus; von anderen Werkern
+gebuchte erscheinen als „läuft“. Die Exklusivität sichert allein `BdeBookingService.StartPlannedAsync` (Rüsten immer,
+Produktion nur bei `BdeMehrfachBuchungProArbeitsgang` = aus). Wer die Startprüfung lockert, öffnet damit Doppelbuchungen aus der Liste.

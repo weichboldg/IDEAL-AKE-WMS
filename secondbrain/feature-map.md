@@ -770,6 +770,18 @@ Spec [[2026-10-13-menue-beschichtung-und-hilfe-kurzanleitungen-spec]], Umsetzung
 
 > **Deploy:** Web (Service nur Versionsanzeige), keine Migration. **Status:** Testbereit (QA 2026-10-13, Build + 1831 Web- + 272 Service-Tests grün, Fix `d3746373`) → Schranke 2 mit dem Bündel. Folgeaufgabe [[2026-10-13-spalteneinstellungen-anzeigename-vorschlagsliste]].
 
+### BDE-Terminal: offene Aufträge mit Arbeitsgang-Status (v1.57.0, FA-Struktur Teil 3, direkt im Bündel)
+
+Spec [[2026-10-06-fa-struktur-arbeitsgaenge-symbole-teil-3-spec]] (Teil 3 von 3), Umsetzung [[2026-10-13-fa-struktur-arbeitsgaenge-symbole-teil-3-umsetzung]], Changelog
+[[2026-10-13-v1-57-0-bde-terminal-arbeitsgang-status]].
+
+| Baustein | Stand | Code-Einstieg |
+|---|---|---|
+| Gemeinsame Status-Regel + Darstellung, Terminal-Termin/Sortierung, API mit Status + Fremdbuchung „läuft“ | **erledigt** `4c5d4e66` | `Services/ArbeitsgangStatusRegel.cs`, `BdeApiController.GetAvailableOperations` |
+| Terminal-Blöcke je Auftrag, v1.57.0, Hilfe, TS-90 | **erledigt** `d4f326ef` | `wwwroot/js/bde-terminal.js` `renderOrderBlocks`, `bde.css` |
+
+> **Deploy:** nur Web, keine Migration. **Status:** Testbereit (QA 2026-10-13, Build + 1845 Web- + 272 Service-Tests grün) → Schranke 2 mit dem Bündel; FA-Struktur-Symbole Teil 1–3 damit komplett.
+
 ## Offen / nicht gemerged
 
 | Vorhaben | Status | Quelle |
