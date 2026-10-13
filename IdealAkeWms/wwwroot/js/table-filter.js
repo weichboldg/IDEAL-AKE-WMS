@@ -158,6 +158,8 @@
             if (th.hasAttribute('data-filterable')) {
                 var colKey = th.getAttribute('data-col-key');
                 var isDateCol = th.hasAttribute('data-date-filter');
+                // Spaltentyp fuer die Suchsyntax (v1.58.0): Datum ueber data-date-filter, Zahl ueber data-filter-type="number".
+                var filterType = isDateCol ? 'date' : (th.getAttribute('data-filter-type') || 'text');
 
                 if (isDateCol) {
                     var wrapper = document.createElement('div');
@@ -172,6 +174,7 @@
                     input.style.minWidth = '0';
                     input.placeholder = 'Filter...';
                     input.setAttribute('data-col-key', colKey);
+                    prepareSyntaxInput(input, filterType);
                     // Server-Filter-Mode: Tippen navigiert NICHT (sonst Reload mitten im Tippen) —
                     // erst ENTER. Kalender-Auswahl wirkt weiterhin sofort.
                     if (isServerColumnFilter()) {
@@ -205,6 +208,7 @@
                     input.style.fontSize = '0.75rem';
                     input.placeholder = 'Filter...';
                     input.setAttribute('data-col-key', colKey);
+                    prepareSyntaxInput(input, filterType);
                     // Server-Filter-Mode: Tippen navigiert NICHT — erst ENTER.
                     if (isServerColumnFilter()) {
                         // Android-Tablets: ohne enterkeyhint zeigt die Soft-Tastatur bei mehreren
@@ -223,6 +227,7 @@
             _filterRow.appendChild(filterTd);
         });
         thead.appendChild(_filterRow);
+        addSyntaxHelp();
 
         if (isServerColumnFilter()) {
             restoreFiltersFromUrl();
@@ -231,6 +236,8 @@
             restoreFiltersFromStorage();
             applyFilters();
         }
+        // Ungueltige Teile auch nach Reload/URL/Standardfilter sichtbar (Antwort 6).
+        _filterRow.querySelectorAll('input[data-col-key]').forEach(validateSyntaxInput);
 
         // Sorting
         _headers.forEach(function (th) {
@@ -267,15 +274,85 @@
         }
     }
 
-    // Prüft ob ein Zelltext einem Filterwert entspricht.
-    // Unterstützt: "960,886" (OR-Logik), "!960" (Ausschluss), "!960,886" (beide ausschließen)
-    function matchesFilter(text, val) {
-        if (val.startsWith('!')) {
-            var excludes = val.substring(1).split(',').map(function (s) { return s.trim(); }).filter(Boolean);
-            return excludes.every(function (ex) { return text.indexOf(ex) === -1; });
+    // ----- Spaltenfilter-Suchsyntax (v1.58.0): EIN Kern fuer Browser und Server -----
+    // Die Bedeutung (7% beginnt, %7 endet, =x, a...b, >x, (leer), !, ;/,) steht NUR in column-filter-syntax.js (Spiegel von
+    // Services/ColumnFilterSyntax.cs, gemeinsame Testtabelle). Hier nur Typ, Anzeige ungueltiger Teile und Hilfe.
+    var SYNTAX_HINT_ID = 'colFilterSyntaxHint';
+
+    function prepareSyntaxInput(input, filterType) {
+        input.setAttribute('data-filter-type', filterType);
+        input.setAttribute('aria-describedby', SYNTAX_HINT_ID);
+        input.addEventListener('input', function () { validateSyntaxInput(input); });
+    }
+
+    // Ungueltige Teile (Bereich/Vergleich in Textspalte, unlesbare Zahl/Datum): Feld rot + Text, der Teil ist wirkungslos —
+    // der Server ignoriert ihn genauso (Antwort 6). Farbe nie allein: der Hinweis steht als Text darunter.
+    function validateSyntaxInput(input) {
+        var parsed = window.ColumnFilterSyntax.parse(input.value, input.getAttribute('data-filter-type') || 'text');
+        var cell = input.closest('th');
+        var fb = cell.querySelector('.col-filter-feedback');
+        if (!parsed.invalid.length) {
+            input.classList.remove('is-invalid');
+            input.removeAttribute('aria-invalid');
+            if (fb) fb.remove();
+            return;
         }
-        var parts = val.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
-        return parts.some(function (p) { return text.indexOf(p) !== -1; });
+        input.classList.add('is-invalid');
+        input.setAttribute('aria-invalid', 'true');
+        if (!fb) {
+            fb = document.createElement('div');
+            fb.className = 'invalid-feedback d-block col-filter-feedback';
+            fb.id = 'colFilterFb-' + input.getAttribute('data-col-key');
+            cell.appendChild(fb);
+        }
+        fb.textContent = parsed.invalid.join(' · ') + ' — ignoriert';
+        input.setAttribute('aria-describedby', SYNTAX_HINT_ID + ' ' + fb.id);
+    }
+
+    // „?“-Knopf in der ersten Filterzelle + Popover; ein versteckter Kurztext fuer aria-describedby aller Felder.
+    function addSyntaxHelp() {
+        if (!document.getElementById(SYNTAX_HINT_ID)) {
+            var hint = document.createElement('span');
+            hint.id = SYNTAX_HINT_ID;
+            hint.className = 'visually-hidden';
+            hint.textContent = 'Filter: 7% beginnt mit, %7 endet mit, =Wert genau, Semikolon oder, Ausrufezeichen am Anfang nicht, '
+                + '(leer) leer. Zahl und Datum: >5, <=01.10.2026, 40000...70000. Text: Komma oder.';
+            document.body.appendChild(hint);
+        }
+        var first = _filterRow.firstElementChild;
+        if (!first) return;
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn btn-sm btn-outline-secondary col-filter-help';
+        btn.textContent = '?';
+        btn.setAttribute('aria-label', 'Hilfe zur Filtersyntax');
+        var wrap = document.createElement('div');
+        wrap.className = 'col-filter-help-wrap';
+        while (first.firstChild) wrap.appendChild(first.firstChild);
+        wrap.insertBefore(btn, wrap.firstChild);
+        first.appendChild(wrap);
+        if (!window.bootstrap || !window.bootstrap.Popover) return;
+        var rows = [['7%', 'beginnt mit 7'], ['%7', 'endet mit 7'], ['=KA', 'genau KA'], ['KA;SW', 'KA oder SW'],
+            ['!KA;SW', 'weder KA noch SW'], ['(leer)', 'leeres Feld (!(leer) = nicht leer)'],
+            ['>5  <=5', 'Vergleich (Zahl, Datum)'], ['1...5', 'von bis (Zahl, Datum)'], ['KA,SW', 'oder – nur in Textspalten']];
+        var table = document.createElement('table');
+        table.className = 'table table-sm mb-1 col-filter-help-table';
+        rows.forEach(function (r) {
+            var tr = table.insertRow();
+            var c1 = document.createElement('th'); c1.scope = 'row'; c1.textContent = r[0];
+            var c2 = document.createElement('td'); c2.textContent = r[1];
+            tr.appendChild(c1); tr.appendChild(c2);
+        });
+        var note = document.createElement('div');
+        note.className = 'small';
+        note.textContent = 'In Zahl- und Datumsspalten ist das Komma Dezimalzeichen: „oder“ dort mit ; (kw41;kw42). Groß/Klein egal.';
+        var content = document.createElement('div');
+        content.appendChild(table);
+        content.appendChild(note);
+        var pop = new window.bootstrap.Popover(btn, { title: 'Filter-Syntax', content: content, html: true, trigger: 'click',
+            placement: 'bottom', sanitize: false });
+        btn.addEventListener('keydown', function (e) { if (e.key === 'Escape') pop.hide(); });
+        document.addEventListener('keydown', function (e) { if (e.key === 'Escape') pop.hide(); });
     }
 
     // Globale Funktion: Gibt die aktiven Filter zurück (für externe Verwendung z.B. BOM)
@@ -298,7 +375,10 @@
         var resolvedFilters = [];
         for (var colKey in filters) {
             var colIndex = getPhysicalIndex(colKey);
-            if (colIndex >= 0) resolvedFilters.push({ index: colIndex, value: filters[colKey] });
+            if (colIndex < 0) continue;
+            var typeInput = _filterRow.querySelector('input[data-col-key="' + colKey + '"]');
+            var type = (typeInput && typeInput.getAttribute('data-filter-type')) || 'text';
+            resolvedFilters.push({ index: colIndex, type: type, parsed: window.ColumnFilterSyntax.parse(filters[colKey], type) });
         }
 
         // ':scope > tr': nur die eigenen Zeilen dieses <tbody>. Ohne Skopierung wuerden Zeilen
@@ -315,8 +395,7 @@
             for (var i = 0; i < resolvedFilters.length; i++) {
                 var cell = cells[resolvedFilters[i].index];
                 if (cell) {
-                    var text = cell.textContent.toLowerCase();
-                    if (!matchesFilter(text, resolvedFilters[i].value)) {
+                    if (!window.ColumnFilterSyntax.matches(cell.textContent, resolvedFilters[i].parsed, resolvedFilters[i].type)) {
                         visible = false;
                         break;
                     }

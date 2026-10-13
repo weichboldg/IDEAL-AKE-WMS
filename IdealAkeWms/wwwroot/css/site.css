@@ -1380,6 +1380,15 @@ th:hover .col-resize-handle {
 .fa-node-row.fa-node-context > td { font-style: italic; }
 .fa-node-row.fa-node-context > td:first-child { box-shadow: inset 4px 0 0 #495057; }
 
+/* Spaltenfilter-Suchsyntax (v1.58.0): „?“-Knopf in der ersten Filterzelle, Popover als knappe Eingabe/Bedeutung-Tabelle,
+   ungueltige Teile als Text unter dem Feld (Bootstrap is-invalid/invalid-feedback, Farbe nie allein). */
+.col-filter-help-wrap { display: flex; gap: 2px; align-items: flex-start; }
+.col-filter-help-wrap > :not(.col-filter-help) { flex: 1; min-width: 0; }
+.col-filter-help { font-size: 0.75rem; line-height: 1.2; padding: 0.2rem 0.45rem; }
+.col-filter-help-table th { font-family: var(--bs-font-monospace); white-space: nowrap; font-weight: 600; }
+.col-filter-help-table td, .col-filter-help-table th { padding: 0.15rem 0.4rem; font-size: 0.8rem; }
+.col-filter-feedback { font-size: 0.7rem; font-weight: 400; white-space: normal; }
+
 @media (prefers-reduced-motion: reduce) {
     .fa-chevron, .fa-struct-chevron { transition: none !important; }
 }

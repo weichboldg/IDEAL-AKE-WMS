@@ -150,3 +150,34 @@ public class FaListePostfilterSyntaxTests
         => IdealAkeWms.Controllers.ProductionOrdersController.MatchFaListComputedFilter(
             new IdealAkeWms.Models.ViewModels.ProductionOrderListItem { Prio = prio }, "prio", N(filter)).Should().Be(erwartet);
 }
+
+/// <summary>Quelltext-Waechter Etappe A: table-filter.js hat keine eigene Syntax mehr, Hilfe + aria-describedby, Kern im Layout
+/// vor den Seiten-Skripten; FA-Liste Prio als Zahl markiert (AK 3, 7, 8). Bedienung/Kontrast: Manual-UAT TS-91.A.</summary>
+public class ColumnFilterSyntaxQuelltextTests
+{
+    private static string Root()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir != null && !File.Exists(Path.Combine(dir.FullName, "IdealAkeWms", "wwwroot", "js", "table-filter.js"))) dir = dir.Parent;
+        return dir!.FullName;
+    }
+    private static string Read(params string[] p) => File.ReadAllText(Path.Combine(new[] { Root(), "IdealAkeWms" }.Concat(p).ToArray()));
+
+    [Fact]
+    public void TableFilter_NutztKern_KeineEigeneSyntax_HilfeUndAria()
+    {
+        var js = Read("wwwroot", "js", "table-filter.js");
+        js.Should().NotContain("function matchesFilter").And.NotContain("split(',')");
+        js.Should().Contain("ColumnFilterSyntax.matches(").And.Contain("ColumnFilterSyntax.parse(")
+            .And.Contain("aria-describedby").And.Contain("Hilfe zur Filtersyntax").And.Contain("is-invalid");
+    }
+
+    [Fact]
+    public void Layout_BindetKernVorSeitenSkriptenEin_FaListePrioIstZahl()
+    {
+        var layout = Read("Views", "Shared", "_Layout.cshtml");
+        layout.IndexOf("column-filter-syntax.js", StringComparison.Ordinal).Should().BePositive()
+            .And.BeLessThan(layout.IndexOf("RenderSectionAsync(\"Scripts\"", StringComparison.Ordinal));
+        Read("Views", "ProductionOrders", "Index.cshtml").Should().Contain("data-col-key=\"prio\" data-filter-type=\"number\"");
+    }
+}
