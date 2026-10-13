@@ -1,5 +1,6 @@
 using FluentAssertions;
 using IdealAkeWms.Controllers;
+using IdealAkeWms.Data;
 using IdealAkeWms.Data.Repositories;
 using IdealAkeWms.Models;
 using IdealAkeWms.Services;
@@ -22,7 +23,8 @@ public class BdeApiControllerTests
     {
         var ctx = TestDbContextFactory.Create();
         return new(_ops.Object, _activities.Object, _bookings.Object, _workOps.Object,
-            _workplaces.Object, _settings.Object, ctx, new BdeScanResolver(ctx));
+            _workplaces.Object, _settings.Object, ctx, new BdeScanResolver(ctx), new FaHierarchyOrderInfoRepository(ctx),
+            new HolidayRepository(ctx), new BusinessDayService(), new OperationConfigRepository(ctx));
     }
 
     private static BdeOperator CreateOperator(int id, string personnelNumber, string firstName, string lastName)
@@ -276,7 +278,8 @@ public class BdeApiControllerTests
         await ctx.SaveChangesAsync();
 
         var controller = new BdeApiController(_ops.Object, _activities.Object, _bookings.Object,
-            _workOps.Object, _workplaces.Object, _settings.Object, ctx, new BdeScanResolver(ctx));
+            _workOps.Object, _workplaces.Object, _settings.Object, ctx, new BdeScanResolver(ctx), new FaHierarchyOrderInfoRepository(ctx),
+            new HolidayRepository(ctx), new BusinessDayService(), new OperationConfigRepository(ctx));
 
         var result = await controller.GetAvailableOperations(wpInactive.Id);
 
@@ -317,7 +320,8 @@ public class BdeApiControllerTests
         _settings.Setup(r => r.GetValueAsync("BdeNurFaMeldung")).ReturnsAsync("false");
 
         var controller = new BdeApiController(_ops.Object, _activities.Object, _bookings.Object,
-            _workOps.Object, _workplaces.Object, _settings.Object, ctx, new BdeScanResolver(ctx));
+            _workOps.Object, _workplaces.Object, _settings.Object, ctx, new BdeScanResolver(ctx), new FaHierarchyOrderInfoRepository(ctx),
+            new HolidayRepository(ctx), new BusinessDayService(), new OperationConfigRepository(ctx));
 
         var result = await controller.GetAvailableOperations(ids.WorkplaceId);
 
@@ -355,7 +359,8 @@ public class BdeApiControllerTests
         _settings.Setup(r => r.GetValueAsync("BdeNurFaMeldung")).ReturnsAsync("false");
 
         var controller = new BdeApiController(_ops.Object, _activities.Object, _bookings.Object,
-            _workOps.Object, _workplaces.Object, _settings.Object, ctx, new BdeScanResolver(ctx));
+            _workOps.Object, _workplaces.Object, _settings.Object, ctx, new BdeScanResolver(ctx), new FaHierarchyOrderInfoRepository(ctx),
+            new HolidayRepository(ctx), new BusinessDayService(), new OperationConfigRepository(ctx));
 
         var result = await controller.GetAvailableOperations(ids.WorkplaceId);
 
@@ -386,7 +391,8 @@ public class BdeApiControllerTests
         _settings.Setup(r => r.GetValueAsync("BdeNurFaMeldung")).ReturnsAsync("false");
 
         var controller = new BdeApiController(_ops.Object, _activities.Object, _bookings.Object,
-            _workOps.Object, _workplaces.Object, _settings.Object, ctx, new BdeScanResolver(ctx));
+            _workOps.Object, _workplaces.Object, _settings.Object, ctx, new BdeScanResolver(ctx), new FaHierarchyOrderInfoRepository(ctx),
+            new HolidayRepository(ctx), new BusinessDayService(), new OperationConfigRepository(ctx));
         var result = await controller.GetAvailableOperations(ids.WorkplaceId, operatorId: ids.OperatorId);
 
         var ok = result.Should().BeOfType<OkObjectResult>().Subject;
@@ -416,7 +422,8 @@ public class BdeApiControllerTests
         _settings.Setup(r => r.GetValueAsync("BdeNurFaMeldung")).ReturnsAsync("false");
 
         var controller = new BdeApiController(_ops.Object, _activities.Object, _bookings.Object,
-            _workOps.Object, _workplaces.Object, _settings.Object, ctx, new BdeScanResolver(ctx));
+            _workOps.Object, _workplaces.Object, _settings.Object, ctx, new BdeScanResolver(ctx), new FaHierarchyOrderInfoRepository(ctx),
+            new HolidayRepository(ctx), new BusinessDayService(), new OperationConfigRepository(ctx));
         // Kein operatorId → bisheriges Verhalten, kein Crash
         var result = await controller.GetAvailableOperations(ids.WorkplaceId);
 
@@ -480,7 +487,8 @@ public class BdeApiControllerTests
         _settings.Setup(r => r.GetValueAsync("BdeNurFaMeldung")).ReturnsAsync("true");
 
         var controller = new BdeApiController(_ops.Object, _activities.Object, _bookings.Object,
-            _workOps.Object, _workplaces.Object, _settings.Object, ctx, new BdeScanResolver(ctx));
+            _workOps.Object, _workplaces.Object, _settings.Object, ctx, new BdeScanResolver(ctx), new FaHierarchyOrderInfoRepository(ctx),
+            new HolidayRepository(ctx), new BusinessDayService(), new OperationConfigRepository(ctx));
 
         var result = await controller.GetAvailableOperations(wp.Id);
 
@@ -528,7 +536,8 @@ public class BdeApiControllerTests
         _settings.Setup(s => s.GetValueAsync(AppSettingKeys.BdeNurFaMeldung)).ReturnsAsync("false");
 
         var controller = new BdeApiController(_ops.Object, _activities.Object, _bookings.Object,
-            _workOps.Object, _workplaces.Object, _settings.Object, ctx, new BdeScanResolver(ctx));
+            _workOps.Object, _workplaces.Object, _settings.Object, ctx, new BdeScanResolver(ctx), new FaHierarchyOrderInfoRepository(ctx),
+            new HolidayRepository(ctx), new BusinessDayService(), new OperationConfigRepository(ctx));
 
         var result = await controller.ResolveScan("GRP-1", "01", workplaceId: 5);
 
@@ -567,7 +576,8 @@ public class BdeApiControllerTests
         _settings.Setup(s => s.GetValueAsync(AppSettingKeys.BdeNurFaMeldung)).ReturnsAsync("false");
 
         var controller = new BdeApiController(_ops.Object, _activities.Object, _bookings.Object,
-            _workOps.Object, _workplaces.Object, _settings.Object, ctx, new BdeScanResolver(ctx));
+            _workOps.Object, _workplaces.Object, _settings.Object, ctx, new BdeScanResolver(ctx), new FaHierarchyOrderInfoRepository(ctx),
+            new HolidayRepository(ctx), new BusinessDayService(), new OperationConfigRepository(ctx));
 
         var result = await controller.ResolveScan("GRP-1", "01", workplaceId: 5);
 
@@ -592,7 +602,8 @@ public class BdeApiControllerTests
         _settings.Setup(s => s.GetValueAsync(AppSettingKeys.BdeNurFaMeldung)).ReturnsAsync("true");
 
         var controller = new BdeApiController(_ops.Object, _activities.Object, _bookings.Object,
-            _workOps.Object, _workplaces.Object, _settings.Object, ctx, new BdeScanResolver(ctx));
+            _workOps.Object, _workplaces.Object, _settings.Object, ctx, new BdeScanResolver(ctx), new FaHierarchyOrderInfoRepository(ctx),
+            new HolidayRepository(ctx), new BusinessDayService(), new OperationConfigRepository(ctx));
 
         // NurFA: keine AG-Nummer im Scan
         var result = await controller.ResolveScan("GRP-1", null, workplaceId: 5);
@@ -602,5 +613,94 @@ public class BdeApiControllerTests
         json.Should().Contain("\"kind\":\"Exact\"");
         json.Should().Contain("\"nurFaMode\":true");
         json.Should().Contain("\"target\":\"ProductionOrder\"");
+    }
+    // ===== FA-Struktur Teil 3 (v1.57.0): Terminal-Liste mit Status, Fremdbuchung sichtbar (Antwort 6 = A) =====
+
+    private BdeApiController Ctrl(ApplicationDbContext ctx) => new(_ops.Object, _activities.Object, _bookings.Object,
+        _workOps.Object, _workplaces.Object, _settings.Object, ctx, new BdeScanResolver(ctx), new FaHierarchyOrderInfoRepository(ctx),
+        new HolidayRepository(ctx), new BusinessDayService(), new OperationConfigRepository(ctx));
+
+    private static System.Text.Json.JsonElement Productive(IActionResult r)
+        => System.Text.Json.JsonSerializer.SerializeToElement(((OkObjectResult)r).Value).GetProperty("productive");
+
+    [Fact]
+    public async Task GetAvailableOperations_FremdeLaufendeBuchung_SichtbarAlsLaeuft_EigeneAusgeblendet_AK2()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
+        var wo2Id = await BdeBookingTestSeed.AddSecondWorkOperationAsync(ctx, ids);
+        var werkerB = BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Setup, BdeBookingStatus.Running, DateTime.Now.AddMinutes(-5));
+        ctx.BdeBookings.Add(werkerB); // Buchung von Werker B (ids.OperatorId) auf WO1
+        await ctx.SaveChangesAsync();
+
+        var wo1 = await ctx.WorkOperations.FindAsync(ids.WorkOperationId);
+        var wo2 = await ctx.WorkOperations.FindAsync(wo2Id);
+        _workOps.Setup(r => r.GetOpenByWorkplaceIdAsync(ids.WorkplaceId, true)).ReturnsAsync(new List<WorkOperation> { wo1!, wo2! });
+        _bookings.Setup(r => r.GetActiveCockpitAsync()).ReturnsAsync(new List<BdeBooking> { werkerB });
+        _activities.Setup(r => r.GetAllActiveAsync()).ReturnsAsync(new List<BdeActivity>());
+        _settings.Setup(r => r.GetValueAsync("BdeNurFaMeldung")).ReturnsAsync("false");
+
+        var beiA = Productive(await Ctrl(ctx).GetAvailableOperations(ids.WorkplaceId, operatorId: ids.OperatorId + 1000))
+            .EnumerateArray().ToList();
+        beiA.Select(e => e.GetProperty("id").GetInt32()).Should().Equal(ids.WorkOperationId, wo2Id);
+        beiA[0].GetProperty("status").GetString().Should().Be("running");
+        beiA[1].GetProperty("status").GetString().Should().Be("open");
+        beiA[0].GetProperty("productionOrderId").GetInt32().Should().Be(ids.ProductionOrderId);
+        beiA[0].GetProperty("ariaLabel").GetString().Should().Be("10 – Test Operation – läuft");
+        beiA[0].GetProperty("statusClass").GetString().Should().Be("fa-ag-laeuft");
+
+        var beiB = Productive(await Ctrl(ctx).GetAvailableOperations(ids.WorkplaceId, operatorId: ids.OperatorId))
+            .EnumerateArray().Select(e => e.GetProperty("id").GetInt32());
+        beiB.Should().Equal(new[] { wo2Id }, "die eigene laufende Buchung steht unter „Aktuelle Buchungen“");
+    }
+
+    [Fact]
+    public async Task GetAvailableOperations_TerminUndUeberfaellig_AusProductionDateUndStammdaten_AK6_AK12()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
+        var po = await ctx.ProductionOrders.FindAsync(ids.ProductionOrderId);
+        po!.ProductionDate = new DateTime(2020, 4, 30); // AKE-Fall: keine Kopfzeile, nicht numerische OrderNumber
+        ctx.OperationConfigs.Add(new OperationConfig
+        {
+            OperationName = "10", DueDateOffsetDays = 1, CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
+        });
+        await ctx.SaveChangesAsync();
+
+        var wo1 = await ctx.WorkOperations.FindAsync(ids.WorkOperationId);
+        _workOps.Setup(r => r.GetOpenByWorkplaceIdAsync(ids.WorkplaceId, true)).ReturnsAsync(new List<WorkOperation> { wo1! });
+        _bookings.Setup(r => r.GetActiveCockpitAsync()).ReturnsAsync(new List<BdeBooking>());
+        _activities.Setup(r => r.GetAllActiveAsync()).ReturnsAsync(new List<BdeActivity>());
+        _settings.Setup(r => r.GetValueAsync("BdeNurFaMeldung")).ReturnsAsync("false");
+
+        var e = Productive(await Ctrl(ctx).GetAvailableOperations(ids.WorkplaceId)).EnumerateArray().Single();
+
+        e.GetProperty("productionDate").GetString().Should().Be("2020-04-30");
+        e.GetProperty("dueDate").GetString().Should().Be("2020-05-01", "Offset 1 Werktag (Fr 01.05.2020, kein Feiertag gepflegt)");
+        e.GetProperty("status").GetString().Should().Be("overdue");
+        e.GetProperty("isOverdue").GetBoolean().Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task GetAvailableOperations_NurFa_AusgabeUnveraendert_OhneStatus_AK8()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
+        var po = await ctx.ProductionOrders.FindAsync(ids.ProductionOrderId);
+        po!.ProductionWorkplaceId = ids.WorkplaceId;
+        po.ProductionDate = new DateTime(2026, 6, 1);
+        ctx.ProductionOrders.Add(new ProductionOrder
+        {
+            OrderNumber = "FA-FRUEHER", Description1 = "<b>x</b>", Quantity = 1, ProductionWorkplaceId = ids.WorkplaceId,
+            ProductionDate = new DateTime(2026, 5, 1), CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
+        });
+        await ctx.SaveChangesAsync();
+        _settings.Setup(r => r.GetValueAsync("BdeNurFaMeldung")).ReturnsAsync("true");
+
+        var liste = Productive(await Ctrl(ctx).GetAvailableOperations(ids.WorkplaceId)).EnumerateArray().ToList();
+
+        liste.Select(e => e.EnumerateObject().Select(p => p.Name).ToArray()).Should()
+            .AllSatisfy(n => n.Should().Equal("id", "label", "type"), "NurFA-Ausgabe byte-gleich: keine Status-/Termin-Felder");
+        liste.Select(e => e.GetProperty("label").GetString()).First().Should().Be("FA-FRUEHER — <b>x</b>", "sortiert nach ProductionDate");
     }
 }

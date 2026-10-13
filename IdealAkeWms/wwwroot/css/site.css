@@ -1361,18 +1361,19 @@ th:hover .col-resize-handle {
    Eigener Chip-Grund -> Kontrast unabhaengig vom Zeilenzustand (normal/Hover/Hervorhebung/Filtertreffer/Kontext).
    Gemessen: Text 10,2-13,0:1, Zeichen/Rand gegen Chip 4,9-6,9:1, Rand gegen Zeilengruende >= 5,6:1 (WCAG AA). Bedeutung
    traegt zusaetzlich die Form (Haken / Sanduhr / Dreieck / Kreis) und der Text in aria-label/title. */
-.fa-ag-sign { vertical-align: -0.1em; margin-right: 0.15em; }
-.fa-ag-erledigt { color: #0a3622; background-color: #d1e7dd; border-color: #146c43; }
-.fa-ag-erledigt .fa-ag-sign { color: #146c43; }
-.fa-ag-laeuft { color: #052c65; background-color: #cfe2ff; border-color: #0a58ca; }
-.fa-ag-laeuft .fa-ag-sign { color: #0a58ca; }
+/* Palette als Variablen (seit v1.57.0): dieselben Werte nutzt das BDE-Terminal fuer seine Knoepfe (bde.css .bde-ag-btn).
+   Zeichenfarbe = Randfarbe des Status. */
+.fa-ag-erledigt { --fa-ag-fg: #0a3622; --fa-ag-bg: #d1e7dd; --fa-ag-bd: #146c43; }
+.fa-ag-laeuft { --fa-ag-fg: #052c65; --fa-ag-bg: #cfe2ff; --fa-ag-bd: #0a58ca; }
+.fa-ag-ueberfaellig { --fa-ag-fg: #58151c; --fa-ag-bg: #f8d7da; --fa-ag-bd: #b02a37; }
+.fa-ag-offen { --fa-ag-fg: #212529; --fa-ag-bg: #e9ecef; --fa-ag-bd: #495057; }
+.fa-ag-erledigt, .fa-ag-laeuft, .fa-ag-ueberfaellig, .fa-ag-offen {
+    color: var(--fa-ag-fg); background-color: var(--fa-ag-bg); border-color: var(--fa-ag-bd);
+}
+.fa-ag-sign { vertical-align: -0.1em; margin-right: 0.15em; color: var(--fa-ag-bd, currentColor); }
 /* laeuft + ueberfaellig: Laeuft-Chip mit rotem 2px-Rand + Warndreieck als zweitem Zeichen (Antwort 10). */
 .fa-ag-laeuft-ueberfaellig { border: 2px solid #b02a37; }
 .fa-ag-laeuft-ueberfaellig .fa-ag-sign + .fa-ag-sign { color: #b02a37; }
-.fa-ag-ueberfaellig { color: #58151c; background-color: #f8d7da; border-color: #b02a37; }
-.fa-ag-ueberfaellig .fa-ag-sign { color: #b02a37; }
-.fa-ag-offen { color: #212529; background-color: #e9ecef; border-color: #495057; }
-.fa-ag-offen .fa-ag-sign { color: #495057; }
 /* Vorfahrenpfad als Kontext beim Spaltenfilter (Antwort 11 = C, v1.55.0): statt opacity 0.6 (zog alle Zellen unter AA)
    kursiv + grauer Randstreifen links; Schrift behaelt volle Deckkraft (#4A494A auf Zeile/Hover >= 8,2:1, Streifen
    #495057 >= 7,1:1). Nicht-Treffer bleibt ohne Farbe erkennbar (kursiv + Streifen; Treffer: amber Grund). */

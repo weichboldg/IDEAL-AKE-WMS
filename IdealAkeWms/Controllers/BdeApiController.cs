@@ -2,6 +2,7 @@ using IdealAkeWms.Data;
 using IdealAkeWms.Data.Repositories;
 using IdealAkeWms.Filters;
 using IdealAkeWms.Models;
+using IdealAkeWms.Models.ViewModels;
 using IdealAkeWms.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -22,11 +23,17 @@ public class BdeApiController : ControllerBase
     private readonly IAppSettingRepository _settings;
     private readonly ApplicationDbContext _ctx;
     private readonly IBdeScanResolver _scanResolver;
+    private readonly IFaHierarchyOrderInfoRepository _orderInfos;
+    private readonly IHolidayRepository _holidays;
+    private readonly IBusinessDayService _businessDays;
+    private readonly IOperationConfigRepository _operationConfigs;
 
     public BdeApiController(IBdeOperatorRepository ops, IBdeActivityRepository activities,
         IBdeBookingRepository bookings, IWorkOperationRepository workOps,
         IProductionWorkplaceRepository workplaces, IAppSettingRepository settings,
-        ApplicationDbContext ctx, IBdeScanResolver scanResolver)
+        ApplicationDbContext ctx, IBdeScanResolver scanResolver,
+        IFaHierarchyOrderInfoRepository orderInfos, IHolidayRepository holidays,
+        IBusinessDayService businessDays, IOperationConfigRepository operationConfigs)
     {
         _ops = ops;
         _activities = activities;
@@ -36,6 +43,10 @@ public class BdeApiController : ControllerBase
         _settings = settings;
         _ctx = ctx;
         _scanResolver = scanResolver;
+        _orderInfos = orderInfos;
+        _holidays = holidays;
+        _businessDays = businessDays;
+        _operationConfigs = operationConfigs;
     }
 
     [HttpGet("operator/{personnelNumber}")]
@@ -269,14 +280,41 @@ public class BdeApiController : ControllerBase
             : new List<int>();
         var myActiveWoIdSet = myActiveWoIds.ToHashSet();
 
-        var productive = workOps
-            .Where(wo => !activeWoIds.Contains(wo.Id) && !finishedWoIdSet.Contains(wo.Id) && !myActiveWoIdSet.Contains(wo.Id))
-            .Select(wo => new
-            {
-                id = wo.Id,
-                label = $"{wo.ProductionOrder.OrderNumber} / {wo.OperationNumber} — {wo.Name}",
-                type = "productive"
-            });
+        // FA-Struktur Teil 3 (v1.57.0, Antwort 6 = A): von ANDEREN Werkern gebuchte Arbeitsgaenge (activeWoIds) bleiben sichtbar
+        // als „laeuft“ — die Startpruefung bleibt im BdeBookingService. Eigene laufende und fertig gemeldete bleiben draussen.
+        var angebot = workOps.Where(wo => !finishedWoIdSet.Contains(wo.Id) && !myActiveWoIdSet.Contains(wo.Id)).ToList();
+        var productive = new List<object>();
+        if (angebot.Count > 0)
+        {
+            // Je Aufruf hoechstens drei Abfragen mehr: Kopfzeilen (IDEAL FE_Termin; AKE leer), Feiertage, Offsets (beide gecacht).
+            var hauptFas = angebot.Select(wo => int.TryParse(wo.ProductionOrder.OrderNumber, out var h) ? h : (int?)null)
+                .OfType<int>().Distinct().ToList();
+            var kopf = (await _orderInfos.GetByHauptFaKeysAsync(hauptFas)).ToLookup(o => o.HauptFA);
+            var holidays = await _holidays.GetHolidayDatesAsync();
+            var offsets = await _operationConfigs.GetDueDateOffsetsAsync();
+
+            productive.AddRange(BdeTerminalAuftraege.Ordnen(angebot, activeWoIds, kopf, offsets,
+                    (d, o) => OseonDueDateCalculator.Calculate(d, o, _businessDays, holidays), DateTime.Today)
+                .Select(a => (object)new
+                {
+                    id = a.Op.Id,
+                    label = $"{a.Op.ProductionOrder.OrderNumber} / {a.Op.OperationNumber} — {a.Op.Name}",
+                    type = "productive",
+                    productionOrderId = a.Op.ProductionOrderId,
+                    orderNumber = a.Op.ProductionOrder.OrderNumber,
+                    subOrderNumber = a.Op.ProductionOrder.SubOrderNumber,
+                    description = a.Op.ProductionOrder.Description1,
+                    productionDate = a.Fertigungstermin?.ToString("yyyy-MM-dd"),
+                    operationNumber = a.Op.OperationNumber,
+                    operationName = a.Op.Name,
+                    status = a.Symbol.Status is FaAgStatus.Laeuft or FaAgStatus.LaeuftUeberfaellig ? "running"
+                        : a.Symbol.Status == FaAgStatus.Ueberfaellig ? "overdue" : "open",
+                    isOverdue = a.Symbol.Status is FaAgStatus.Ueberfaellig or FaAgStatus.LaeuftUeberfaellig,
+                    dueDate = a.Symbol.Soll?.ToString("yyyy-MM-dd"),
+                    statusClass = FaAgStatusDarstellung.Fuer(a.Symbol.Status).Css,
+                    ariaLabel = a.Symbol.AriaLabel
+                }));
+        }
 
         // Unplanned activities
         var activities = (await _activities.GetAllActiveAsync())
