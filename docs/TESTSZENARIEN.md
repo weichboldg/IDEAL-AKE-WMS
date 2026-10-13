@@ -9295,7 +9295,8 @@ FA-Struktur importiert (`FaHierarchyNodes` mit `Beschichtet = 1`). Automatisiert
   **Erwartet:** kein Treffer ⇒ Summierung je Artnr ist einheitensicher (Einheit = Artikeleigenschaft).
   Treffer ⇒ **melden** (Einheit gehört in den Schlüssel), Abnahme von TS-81.3 bis dahin unter Vorbehalt. Ergebnis
   hier notieren: ______ (gleicher Befund wie TS-80.1, falls dort schon geprüft).
-- **TS-81.2 — Navigation und Umschalter (AK 1).** Menüpunkt „Beschichtungsauftrag" klicken. **Erwartet:**
+- **TS-81.2 — Navigation und Umschalter (AK 1).** Menüpunkt ~~„Beschichtungsauftrag"~~ (seit v1.56.0: *Beschichtung →
+  Vorschlagsliste*) klicken. **Erwartet:**
   URL `/FaHierarchyBeschichtung/Summiert`, Umschalter „Liste | Summiert" mit „Summiert" aktiv, Menüpunkt
   markiert. „Liste" klicken → `/FaHierarchyBeschichtung` (Einzelliste wie TS-60), dort „Liste" aktiv; „Summiert"
   → zurück.
@@ -9333,7 +9334,7 @@ FA-Struktur importiert (`FaHierarchyNodes` mit `Beschichtet = 1`). Automatisiert
   Positionen für die aktuelle Filterung gefunden."; „Drucken" → Hinweis „nichts zu drucken" statt leerem Blatt.
 - **TS-81.13 — Zugriff.** Ohne Rolle `beschichtungsauftrag`/`admin` → `/FaHierarchyBeschichtung/Summiert`,
   `/PrintSummiert` und `/PdfSummiert/<HauptFA>` → AccessDenied; Toggle `FaHierarchyBeschichtungAktiv` aus →
-  gesperrt, Menüpunkt verborgen.
+  gesperrt, Menüpunkt verborgen (seit v1.56.0: Menü *Beschichtung* verborgen).
 - **TS-81.14 — Regression Einzelliste (AK 11).** TS-60 und TS-74 für die Liste wiederholen: Spalten, Kopf,
   Druck, PDF unverändert (Kopf jetzt über dasselbe Partial wie die summierte Ansicht — Inhalt identisch).
 
@@ -9511,11 +9512,12 @@ Druck nur ab Übergeben, PDF-Fehler, Liste mit Status-/Spaltenfilter, Schreibfil
   nichts geändert. Zwei Entwürfe desselben HauptFA mit derselben freien Position in „Positionen hinzufügen": in A
   hinzufügen, dann in B → B erhält Klartext („vergeben" bzw. „bitte erneut versuchen"), **keine** Fehlerseite. Zwei
   Browser klicken gleichzeitig „Aus Vorschlagsliste erstellen" für denselben HauptFA → nur einer übernimmt die Positionen.
-- **TS-84.14 — Rechte und Schalter (AK 8, 9, 11).** L sieht Menüpunkt *Beschichtungsaufträge*, Liste, Detail, Druck,
+- **TS-84.14 — Rechte und Schalter (AK 8, 9, 11).** L sieht Menüpunkt ~~*Beschichtungsaufträge*~~ (seit v1.56.0:
+  *Beschichtung → Aufträge*), Liste, Detail, Druck,
   PDF, aber **keine** Schreib-Knöpfe (kein „Aus Vorschlagsliste erstellen", keine Eingabefelder, keine Status-/
   Reklamations-Knöpfe); ein direkter POST (z. B. per Entwickler-Werkzeug nachgebautes Formular) endet auf AccessDenied.
   Benutzer ohne beide Rollen: kein Menüpunkt, `/Beschichtungsauftraege` → AccessDenied. Schalter aus → beide Menüpunkte
-  weg, alle Seiten gesperrt. `/Users/RoleOverview` listet `beschichtungsauftrag_schreiben`.
+  (seit v1.56.0: das Menü *Beschichtung*) weg, alle Seiten gesperrt. `/Users/RoleOverview` listet `beschichtungsauftrag_schreiben`.
 - **TS-84.15 — Liste (AK 3).** `/Beschichtungsauftraege`: Statusfilter (Filterkarte), Spaltenfilter je Spalte inkl.
   *Start*/*Retour* (Text `11.2026`) und *Status* (`übergeben`), Pagination bei > 25 Aufträgen, neueste zuerst; Zahnrad
   blendet Spalten aus und merkt sie sich.
@@ -9720,8 +9722,49 @@ BDE-Stammdaten › Arbeitsgänge für `KA` (Offset 1) — `SW` **ohne** Eintrag;
   `01` (NurFA-Buchung) → kein Symbol `01`. (d) Negativ: alle Einträge in BDE-Stammdaten › Arbeitsgänge fehlen (Testsystem)
   → Seite lädt, Soll = FE-Termin, Sammelhinweis nennt alle Kürzel mit Status, kein Fehler.
 
+## TS-89 — IDEAL: Menü „Beschichtung“ + Kurzanleitungen in der Hilfe (v1.56.0)
+
+Spec: `2026-10-13-menue-beschichtung-und-hilfe-kurzanleitungen-spec`. **Vorbedingungen:** IDEAL-Testsystem, Benutzer **S**
+(`beschichtungsauftrag_schreiben`), **L** (nur `beschichtungsauftrag`), **N** (keine der beiden, aber z. B. Kommissionierung),
+**A** (`admin`); `FaHierarchyBeschichtungAktiv` umschaltbar. Automatisiert: Quelltext-Wächter in
+`BeschichtungsauftraegeViewTests` (Dropdown, Einträge, Active-Ausdruck, keine Alt-Links, Titel, Hilfe-Karte, Kurzanleitungen),
+Rollenlogik `CurrentUserServiceRoleTests`. Sichtbarkeit, Active-Zustand und Hilfetexte sind Manual-UAT.
+
+- **TS-89.1 — Dropdown sichtbar (AK 1, 2).** L meldet sich an → ein Menüpunkt „Beschichtung“ zwischen „FA-Struktur“ und
+  „Vormontage“, keine Einträge „Beschichtungsauftrag“/„Beschichtungsaufträge“ mehr in der Leiste. Aufklappen → genau zwei
+  Einträge **Vorschlagsliste** (`/FaHierarchyBeschichtung/Summiert`) und **Aufträge** (`/Beschichtungsauftraege`), keine
+  Trennlinie.
+- **TS-89.2 — Active-Markierung (AK 4).** Nacheinander Vorschlagsliste, Umschalter „Liste“ (`/FaHierarchyBeschichtung`),
+  Aufträge, ein Auftragsdetail, (S) Reklamationsseite → „Beschichtung“ jeweils markiert. FA-Struktur, FA-Liste →
+  „Beschichtung“ nicht markiert.
+- **TS-89.3 — Nur Schreibrolle (AK 3).** S sieht dasselbe Dropdown wie L; auf den Seiten zusätzlich die Schreib-Knöpfe
+  (Regression TS-84.14).
+- **TS-89.4 — Nur Leserolle (AK 3, 5).** L sieht das Dropdown, auf den Seiten keine Schreib-Knöpfe (Regression TS-84.14).
+- **TS-89.5 — Negativ: Rolle ohne Rechte (AK 3, 5).** N: kein „Beschichtung“ in der Leiste (auch nicht im Mobil-Menü);
+  `/FaHierarchyBeschichtung/Summiert` und `/Beschichtungsauftraege` direkt → AccessDenied.
+- **TS-89.6 — Negativ: Schalter aus (AK 3, 5).** A setzt `FaHierarchyBeschichtungAktiv = false` → für A, S, L kein
+  „Beschichtung“; Direktaufrufe gesperrt wie bisher. Schalter wieder an → Dropdown zurück.
+- **TS-89.7 — AKE (AK 3).** AKE-Testsystem (Schalter aus/nicht gesetzt) → kein Menüpunkt „Beschichtung“, Leiste sonst
+  unverändert.
+- **TS-89.8 — Bedienung (AK 6).** Nur Tastatur: Tab bis „Beschichtung“, Enter öffnet, Pfeiltasten wählen, Esc schließt.
+  Schmales Fenster/Tablet: Hamburger-Menü → „Beschichtung“ aufklappbar, beide Einträge erreichbar. Markierter Toggle sieht
+  aus wie bei „Bestellungen“.
+- **TS-89.9 — Seitentitel (AK 14).** Vorschlagsliste (Summiert und „Liste“): Überschrift und Browser-Tab
+  „Vorschlagsliste Beschichtung (IDEAL)“; „Drucken“ → Druckdokument weiter „Beschichtungsauftrag …“, PDF-Dateiname
+  unverändert.
+- **TS-89.10 — Hilfe Beschichtung (AK 7–9, 12, 13).** Hilfe → Karte „Beschichtung (IDEAL)“ direkt nach
+  „Fertigungsaufträge“ mit Kurzanleitung, Vorschlagsliste, Status, Reklamation, Druck und PDF, Wenn etwas nicht klappt,
+  Einrichtung (Admin). Kurzanleitung mit S einmal Schritt für Schritt nachgehen (anlegen bis Erledigt) — Knopf- und
+  Menütexte stimmen. Strg+F „Menuepunkt Beschichtungsauftrag“ → kein Treffer; in der Karte „Fertigungsaufträge“ stehen die
+  alten Abschnitte v1.48/v1.49/v1.51 nicht mehr. Rollen-Schlüssel und Schalter-Name nur im Absatz „Einrichtung (Admin)“.
+- **TS-89.11 — Hilfe Kürzel und CSV (AK 10, 11).** Beide Abschnitte beginnen mit nummerierten Schritten; am Testsystem
+  nachvollziehen (FA-Struktur: Kürzel, Tooltip, Filter `ka`, Knopf *Arbeitsgaenge*; FA-Liste: CSV mit Filter und
+  ausgeblendeter Spalte). Die Status-Punkte aus v1.55.0 stehen einmal, nicht doppelt.
+- **TS-89.12 — Regression.** TS-81.2 (neuer Menüweg), TS-84.14, TS-86.4 (CSV auf beiden Vorschlagslisten und Aufträgen)
+  unverändert bis auf den Menüweg; übrige Navigationspunkte (Lager, FA, Kommissionierung, Bestellungen) unverändert.
+
 ---
 
 *Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) + Teil 6 (Standorteinstellungen, v1.34.0) + BOM-Guard hierarchisch (2026-08-18, abgelöst) + FA-Liste-Hierarchie (v1.35.0) + BOM-Bridge (v1.36.0) + Materialisierung fachliche Felder K1/K2 (v1.37.0) + Skopierung der Tabellen-Selektoren (TS-72) + FA-Liste ausgebaut: Matchcode, Kopfdaten je Zeile, HauptFA-Zeile, Freigabe-Kaskade (v1.38.0, TS-73) + PDF-Erzeugung für FaHierarchy-Druckdokumente (v1.39.0, TS-74) + Matchcode im Artikelstamm (v1.40.0, TS-75) + FA-Arbeitsgang-Erkennung aus der Struktur (v1.41.0, TS-76, ersetzt durch TS-77) + Arbeitsgänge (WorkOperation) aus der Struktur + Werkbank-Anlage aus Sage (v1.44.0, TS-77) + Arbeitsgänge je (Sub-)FA im FA-Struktur-Modal (v1.45.0, TS-78) + Kommissionierung nur am HauptFA
-(v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80) + Beschichtungsauftrag Summiert als Standard (v1.48.0, TS-81) + Briefkopf Beschichtungsauftrag (v1.49.0, TS-82) + Beschichtungsauftrag als eigenes Objekt (v1.50.0, TS-83) + Beschichtungsaufträge bedienen (v1.51.0, TS-84) + Arbeitsgänge als Symbole im FA-Baum (v1.52.0, TS-85) + CSV-Export für alle Tabellen (v1.53.0, TS-86) + Arbeitsgang-Stammdaten (v1.54.0, TS-87) + Status je Arbeitsgang-Kürzel im FA-Baum (v1.55.0, TS-88)*
+(v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80) + Beschichtungsauftrag Summiert als Standard (v1.48.0, TS-81) + Briefkopf Beschichtungsauftrag (v1.49.0, TS-82) + Beschichtungsauftrag als eigenes Objekt (v1.50.0, TS-83) + Beschichtungsaufträge bedienen (v1.51.0, TS-84) + Arbeitsgänge als Symbole im FA-Baum (v1.52.0, TS-85) + CSV-Export für alle Tabellen (v1.53.0, TS-86) + Arbeitsgang-Stammdaten (v1.54.0, TS-87) + Status je Arbeitsgang-Kürzel im FA-Baum (v1.55.0, TS-88) + Menü Beschichtung + Kurzanleitungen (v1.56.0, TS-89)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*
