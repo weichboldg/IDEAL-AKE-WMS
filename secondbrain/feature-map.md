@@ -758,6 +758,18 @@ Spec [[2026-10-06-fa-struktur-arbeitsgaenge-symbole-teil-2-spec]] (Teil 2 von 3)
 
 > **Deploy:** nur Web, keine Migration. Produktiv ohne Wirkung, solange `BdeAktiv` aus ist. **Status:** Testbereit (QA 2026-10-13, Build + 1826 Web- + 272 Service-Tests grün, Fixes `57b762a9`, `627c992a`) → Schranke 2 mit dem Bündel.
 
+### Menü „Beschichtung“ gebündelt + Kurzanleitungen in der Hilfe (v1.56.0, direkt im Bündel)
+
+Spec [[2026-10-13-menue-beschichtung-und-hilfe-kurzanleitungen-spec]], Umsetzung [[2026-10-13-menue-beschichtung-und-hilfe-kurzanleitungen-umsetzung]], Changelog
+[[2026-10-13-v1-56-0-menue-beschichtung-hilfe]].
+
+| Baustein | Stand | Code-Einstieg |
+|---|---|---|
+| Dropdown „Beschichtung“, Titel Vorschlagsliste, Hilfe-Karte + Kurzanleitungen, Wächter | **erledigt** `14d1600d` | `Views/Shared/_Layout.cshtml`, `Views/Help/Index.cshtml`, `BeschichtungsauftraegeViewTests` |
+| v1.56.0, Changelog, TS-89, Menüweg TS-81/84 | **erledigt** `699586af` | `docs/TESTSZENARIEN.md` TS-89 |
+
+> **Deploy:** Web (Service nur Versionsanzeige), keine Migration. **Status:** Testbereit (QA 2026-10-13, Build + 1831 Web- + 272 Service-Tests grün, Fix `d3746373`) → Schranke 2 mit dem Bündel. Folgeaufgabe [[2026-10-13-spalteneinstellungen-anzeigename-vorschlagsliste]].
+
 ## Offen / nicht gemerged
 
 | Vorhaben | Status | Quelle |
