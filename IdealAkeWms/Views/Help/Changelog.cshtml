@@ -9,6 +9,29 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.55.0</strong> <span class="text-white-50 ms-2">13.10.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>FA-Struktur (IDEAL): Status je Arbeitsgang-Kuerzel</h6>
+                <ul>
+                    <li>Ist BDE eingeschaltet und die Werkbank des Arbeitsgangs BDE-aktiv, zeigt jedes Kuerzel im Baum seinen
+                        Stand: <strong>erledigt</strong> (gruen, Haken), <strong>laeuft</strong> (blau, Sanduhr),
+                        <strong>ueberfaellig</strong> (rot, Warndreieck), <strong>laeuft und ueberfaellig</strong> (blau mit
+                        rotem Rand, Sanduhr und Warndreieck) oder <strong>offen</strong> (grau, leerer Kreis). Mauszeiger oder
+                        Tab-Taste zeigt den Text, z. B. &bdquo;KA &ndash; Kanten &ndash; ueberfaellig (Soll 04.05.2026)&ldquo;.</li>
+                    <li>Ueberfaellig heisst: nicht erledigt und der Soll-Termin liegt vor heute. Soll = FE-Termin (bei
+                        Kombigeraeten der frueheste) plus Offset in Arbeitstagen aus den Arbeitsgang-Stammdaten. Fehlt ein
+                        Offset, gilt 0 und ein gelber Hinweis ueber dem Baum nennt die Kuerzel.</li>
+                    <li>Kuerzel ohne passenden BDE-Arbeitsgang bleiben neutral mit dem Text &bdquo;kein BDE-Arbeitsgang&ldquo;.</li>
+                    <li>Spaltenfilter: Die Zeilen auf dem Pfad zu einem Treffer sind jetzt kursiv mit grauem Streifen links
+                        statt blass &mdash; besser lesbar an hellen und dunklen Arbeitsplaetzen.</li>
+                    <li>Arbeitsgang-Stammdaten: Speichern ohne Offset wird abgewiesen (gelbe Meldung, nichts gespeichert).</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.54.0</strong> <span class="text-white-50 ms-2">12.10.2026</span>
             </div>
             <div class="card-body">

@@ -648,10 +648,17 @@
                             <li><strong>Alle Kuerzel erscheinen</strong>, auch solche, aus denen nie ein Arbeitsgang wird
                                 (z. B. <code>STO</code>, <code>XXX</code>). Die Spalte zeigt Sage, nicht das, was BDE kennt
                                 &mdash; dafuer gibt es das Fenster <em>Arbeitsgaenge</em> an der Kopfzeile.</li>
-                            <li><strong>Noch kein Status:</strong> Alle Kuerzel sehen gleich aus. Erledigt/offen kommt mit dem
-                                naechsten Ausbau.</li>
+                            <li><strong>Status (seit v1.55.0, nur bei BDE an und BDE-aktiver Werkbank):</strong>
+                                gruen mit Haken = erledigt (Endmeldung am BDE-Terminal), blau mit Sanduhr = laeuft (offene
+                                Buchung; pausiert zaehlt nicht), rot mit Warndreieck = ueberfaellig, blau mit rotem Rand und
+                                beiden Zeichen = laeuft und ueberfaellig, grau mit leerem Kreis = offen. Sonst sieht das Kuerzel
+                                aus wie bisher; &bdquo;kein BDE-Arbeitsgang&ldquo; heisst, zu diesem Kuerzel gibt es an dieser
+                                Zeile keinen Arbeitsgang (z. B. <code>STO</code>, oder die Baugruppe ist nicht angelegt).</li>
+                            <li><strong>Soll-Termin:</strong> FE-Termin der Struktur (bei Kombigeraeten der frueheste) plus
+                                Offset in Arbeitstagen aus <em>BDE-Stammdaten &rsaquo; Arbeitsgaenge</em>. Ohne FE-Termin nie
+                                ueberfaellig. Fehlt der Offset, gilt 0 und ein gelber Hinweis ueber dem Baum nennt die Kuerzel.</li>
                             <li><strong>Filtern:</strong> In der Filterzeile z. B. <code>ka</code> eingeben &mdash; der Baum zeigt
-                                die Zeilen mit diesem Kuerzel samt ihrem Pfad.</li>
+                                die Zeilen mit diesem Kuerzel samt ihrem Pfad (Pfadzeilen kursiv mit grauem Streifen links).</li>
                         </ul>
                     </dd>
 

@@ -9645,7 +9645,9 @@ konfiguriert“ aus zwei Quellen ohne `01`, Decorator, OSEON-Dictionary case-sen
   (GET und ein nachgebautes POST) → AccessDenied; ebenso `masterdata`. Nicht-Admins sehen den Menüeintrag nicht.
 - **TS-87.3 — Pflege (AK 6, 14).** Kürzel `KA`, Anzeigename „Kanten“, Offset `+3`, Fremdsystem-relevant aus → anlegen
   (grün), ändern, löschen (Rückfrage, grün). Negativ: leeres Kürzel, `ka` bei vorhandenem `KA`, ` KA ` → gelbe Meldung,
-  kein Eintrag. Danach `SELECT CreatedBy, CreatedByWindows, ModifiedBy, ModifiedAt FROM dbo.OperationConfigs WHERE
+  kein Eintrag. Negativ (v1.55.0, FA 4a): Offset-Feld leeren, per Entwicklerwerkzeug `required` entfernen und speichern
+  (anlegen **und** ändern) → gelbe Meldung „Offset (Arbeitstage) fehlt – nichts gespeichert.“, kein neuer Eintrag bzw.
+  Zeile unverändert (Offset, Anzeigename, Relevanz, `ModifiedAt`); Offset `0` und `-1` speichern weiterhin. Danach `SELECT CreatedBy, CreatedByWindows, ModifiedBy, ModifiedAt FROM dbo.OperationConfigs WHERE
   OperationName = 'KA'` zeigt den Benutzer; Bestandszeile (z. B. `ST`) `CreatedBy = 'system'`, `ModifiedAt = NULL`.
 - **TS-87.4 — Nicht konfiguriert (AK 8).** IDEAL-Kürzel ohne Eintrag erscheint mit „WMS-Arbeitsgang“, OSEON-Name mit
   „OSEON“, ein Kürzel aus beiden mit „OSEON + WMS-Arbeitsgang“; `01` erscheint nie; nach Anlegen verschwindet das Kürzel;
@@ -9673,8 +9675,47 @@ konfiguriert“ aus zwei Quellen ohne `01`, Decorator, OSEON-Dictionary case-sen
 - **TS-87.10 — Negativ.** Spaltenfilter ohne Treffer → Hinweiszeile, kein Fehler; ungültige Id per manipuliertem POST →
   404; keine `OseonWorkOperations`/`WorkOperations` → „Alle bekannten Kürzel sind konfiguriert.“.
 
+## TS-88 — IDEAL: Status je Arbeitsgang-Kürzel im FA-Struktur-Baum (Teil 2, v1.55.0)
+
+Spec: `2026-10-06-fa-struktur-arbeitsgaenge-symbole-teil-2-spec`. **Vorbedingungen:** Testsystem (nicht produktiv:
+`BdeAktiv` ist derzeit an keinem Standort an), `BdeAktiv = true`, IDEAL-Struktur mit materialisierten Sub-FAs und
+`WorkOperation`s (`KA`, `SW`, `PG`), Werkbänke `KA`/`SW` BDE-aktiv, `PG` nicht; FE-Termin der Struktur bekannt; Einträge in
+BDE-Stammdaten › Arbeitsgänge für `KA` (Offset 1) — `SW` **ohne** Eintrag; Feiertag 01.05. gepflegt. Automatisiert:
+`FaArbeitsgangStatusTests` (Status-Tabelle, Zuordnung, W-2/W-3/W-4, Offset, Kombigerät, Gate),
+`WorkOperationRepositoryFaStructureTests` (Projektion, erledigt/läuft-Prädikate, OPENJSON),
+`OperationConfigsControllerTests` (FA 4a).
+
+- **TS-88.1 — erledigt (AK 1).** Am BDE-Terminal `KA` der Sub-FA mit Menge beenden (Endmeldung) → `/FaHierarchy` neu laden:
+  `KA` grün mit Haken, Tab auf das Kürzel → „KA – <Werkbank> – erledigt“. Nur Tracking-Rückmeldung (ohne BDE) → nicht erledigt.
+- **TS-88.2 — läuft / pausiert (AK 3).** Buchung auf `SW` starten → blau mit Sanduhr „… – läuft“. Pausieren → wieder grau
+  „offen“ (bzw. rot, wenn überfällig).
+- **TS-88.3 — überfällig (AK 2, 3, 5).** FE-Termin so wählen, dass Soll < heute: offenes `KA` rot mit Warndreieck
+  „… – überfällig (Soll TT.MM.JJJJ)“; laufendes → blau mit rotem Rand, Sanduhr **und** Dreieck „… – läuft, überfällig
+  (Soll …)“. Soll = heute → nicht überfällig. Struktur ohne FE-Termin → nie überfällig.
+- **TS-88.4 — Storno / Korrektur (AK 4).** Endmeldung stornieren oder `IsFinal` per Korrektur zurücknehmen → nach Neuladen
+  wieder offen/überfällig.
+- **TS-88.5 — Gate (AK 6).** `PG` (Werkbank nicht BDE-aktiv) bleibt neutral wie v1.52.0, ohne Zeichen. `BdeAktiv = false`
+  → alle Kürzel neutral, kein Hinweis „kein BDE-Arbeitsgang“, kein gelber Offset-Hinweis.
+- **TS-88.6 — Offset nicht konfiguriert (AK 10a, 10c).** Gelber Hinweis über dem Baum „Für 1 Arbeitsgang-Kürzel ist kein
+  Termin-Offset konfiguriert …: SW“; Soll von `SW` = FE-Termin. Nach Anlegen von `SW` (Cache wird beim Speichern geleert,
+  also sofort) verschwindet der Hinweis. Mit Tiefen-Cap-Fehler auf derselben Seite sind beide Hinweise sichtbar.
+- **TS-88.7 — kein BDE-Arbeitsgang (AK 12, 15 W-2/W-3).** Kürzel `STO` bzw. ein Kürzel einer nicht materialisierten
+  Sub-FA → neutral, Tab-Text „… – kein BDE-Arbeitsgang“, nie grün/rot. Blatt in einer Waisen-Struktur → ebenso.
+- **TS-88.8 — Kombigerät (AK 10b).** HauptFA mit zwei Kopfzeilen (FE 10.05. und 05.05.) → Soll-Text bezieht sich auf 05.05.;
+  Kopfzeile zeigt weiterhin keinen Einzeltermin.
+- **TS-88.9 — Mehrfach-Treffer (AK 15 W-4, 17).** Testdaten per SQL: zweite `WorkOperation` `ka` neben `KA` am selben
+  Auftrag → Seite lädt, ein Symbol mit zusammengefasstem Status; im Serverprotokoll genau **eine** Warnung „FA-Struktur:
+  mehrere Arbeitsgaenge gleichen Kuerzels …“ je Seitenaufruf mit Auftrag, Kürzel, Anzahl, Ids.
+- **TS-88.10 — Kontrast / Farbe nie allein (AK 7, 8; Antwort 11).** Graustufen-Screenshot: Haken, Sanduhr, Dreieck, Kreis
+  unterscheidbar. Spaltenfilter „Arbeitsgänge“ = `ka`: Treffer amber, Pfadzeilen **kursiv mit grauem Streifen links**, volle
+  Schriftstärke (keine Blässe). Kontrastprüfung (z. B. DevTools) in normaler, Hover-, hervorgehobener, Treffer- und
+  Kontextzeile: Chip-Text ≥ 10:1, Zeichen/Rand ≥ 4,8:1, Zeilentext ≥ 4,5:1.
+- **TS-88.11 — Last (AK 9, 13).** Seitengröße „Alle“ mit BDE an: Seite lädt ohne spürbare Verzögerung gegenüber BDE aus; im
+  SQL-Profiler je Aufruf eine `WorkOperations`-Abfrage (OPENJSON) und zwei Status-Abfragen (`BdeBookingQuantities`,
+  `BdeBookings`), unabhängig von der Zahl der Strukturen.
+
 ---
 
 *Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) + Teil 6 (Standorteinstellungen, v1.34.0) + BOM-Guard hierarchisch (2026-08-18, abgelöst) + FA-Liste-Hierarchie (v1.35.0) + BOM-Bridge (v1.36.0) + Materialisierung fachliche Felder K1/K2 (v1.37.0) + Skopierung der Tabellen-Selektoren (TS-72) + FA-Liste ausgebaut: Matchcode, Kopfdaten je Zeile, HauptFA-Zeile, Freigabe-Kaskade (v1.38.0, TS-73) + PDF-Erzeugung für FaHierarchy-Druckdokumente (v1.39.0, TS-74) + Matchcode im Artikelstamm (v1.40.0, TS-75) + FA-Arbeitsgang-Erkennung aus der Struktur (v1.41.0, TS-76, ersetzt durch TS-77) + Arbeitsgänge (WorkOperation) aus der Struktur + Werkbank-Anlage aus Sage (v1.44.0, TS-77) + Arbeitsgänge je (Sub-)FA im FA-Struktur-Modal (v1.45.0, TS-78) + Kommissionierung nur am HauptFA
-(v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80) + Beschichtungsauftrag Summiert als Standard (v1.48.0, TS-81) + Briefkopf Beschichtungsauftrag (v1.49.0, TS-82) + Beschichtungsauftrag als eigenes Objekt (v1.50.0, TS-83) + Beschichtungsaufträge bedienen (v1.51.0, TS-84) + Arbeitsgänge als Symbole im FA-Baum (v1.52.0, TS-85) + CSV-Export für alle Tabellen (v1.53.0, TS-86) + Arbeitsgang-Stammdaten (v1.54.0, TS-87)*
+(v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80) + Beschichtungsauftrag Summiert als Standard (v1.48.0, TS-81) + Briefkopf Beschichtungsauftrag (v1.49.0, TS-82) + Beschichtungsauftrag als eigenes Objekt (v1.50.0, TS-83) + Beschichtungsaufträge bedienen (v1.51.0, TS-84) + Arbeitsgänge als Symbole im FA-Baum (v1.52.0, TS-85) + CSV-Export für alle Tabellen (v1.53.0, TS-86) + Arbeitsgang-Stammdaten (v1.54.0, TS-87) + Status je Arbeitsgang-Kürzel im FA-Baum (v1.55.0, TS-88)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*
