@@ -118,3 +118,12 @@ Gates, Filter; Kappung `PageSize.AllCap` mit sichtbarer Warnung). Folgen für di
   alle 37 Actions ohne Schreibzugriff).
 - Der Exportwert ist der gerenderte Zellentext (wie die ColumnMap-Regel); wo das nicht reicht, setzt die Zelle `data-csv-value`.
 - Spaltenüberschriften ohne Text (Aktionen, Auswahlhaken) werden nicht exportiert.
+
+## Nachtrag 2026-10-13 — Suchsyntax ([[2026-09-23-suchsyntax-spaltenfilter-erweitern-spec]], v1.58.0/v1.58.1)
+
+Die Zeile „Filter-Mini-Syntax: OR mit `,`, NOT mit `!`“ oben ist **überholt**. Seit v1.58.0/v1.58.1 gilt in allen Listen dieselbe
+erweiterte Syntax (`7%`, `%7`, `=x`, `a...b`, `>`/`<`/`>=`/`<=`, `(leer)`, `!` für alle Teile, ODER mit `;`, in Textspalten auch `,`),
+ausgewertet von **einem** Kern — siehe [[0017-ein-parser-fuer-die-spaltenfilter-syntax]]. Für dieses Muster heißt das zusätzlich:
+Zahl- und Datumsspalten tragen ihren Typ am `<th>` (`data-filter-type="number"` bzw. `data-date-filter`) **und** im Server-Register
+`ColumnFilterTypes` (Schlüssel = View-Pfad); `ColumnFilterHelper.Apply` bekommt das Register der Liste. Getter typisierter Spalten
+rendern wie die Zelle. Ein Drift-Wächter (`ColumnFilterTypesDriftTests`) hält `<th>` und Register gleich.

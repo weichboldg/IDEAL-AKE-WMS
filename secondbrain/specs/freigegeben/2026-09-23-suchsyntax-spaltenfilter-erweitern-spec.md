@@ -2,13 +2,13 @@
 type: spec
 title: "Spaltenfilter: Suchsyntax erweitern (beginnt/endet/genau/von-bis/Vergleich/leer) - EIN Parser fuer alle Listen"
 slug: 2026-09-23-suchsyntax-spaltenfilter-erweitern-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-10-13
 updated: 2026-10-13
 source_backlog: "[[2026-09-23-suchsyntax-spaltenfilter-erweitern]]"
 task: "[[2026-10-13-suchsyntax-spaltenfilter-erweitern-umsetzung]]"
-worktree: ""
-branch: ""
+worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
+branch: "feature/2026-08-07-ideal-teile-1-5"
 affected_code:
   - "IdealAkeWms/Services/ColumnFilterHelper.cs - Parse (45-60) liefert kuenftig strukturierte Tokens; Apply (71-93) wird der Speicher-Auswerter; NEU: SQL-Ausdrucksbauer (Expression-Trees, kein EF.Functions.Like) - Etappe A"
   - "IdealAkeWms/wwwroot/js/column-filter-syntax.js (NEU) - JS-Spiegel des Parsers/Auswerters, UMD-Waechter wie csv-export.js:47, eingebunden in Views/Shared/_Layout.cshtml vor RenderSection (418) - Etappe A"
@@ -40,7 +40,7 @@ etappen:
   - "B: Alle uebrigen Stellen: Leitstand-Postfilter, Artikel, Bewegungshistorie, BDE-Buchungen (Repo + Controller), Fehlteile, OSEON (nach Antwort 10), Stueckliste (bomMatchesFilter), FA-Baum (rowMatchesAll); Zahl-/Datums-Typmarkierung in allen Listen + Drift-Waechter; alte Parse-Signatur entfernt; TS-Kapitel, Brain-Pflichten. Eigener Commit, danach QA fuer das Epic."
 deploy:
   web: true
-  service: false
+  service: true
   migration: false
 freigabe_entscheidung: "Freigegeben wie Antworten 1-10 und Entscheidungen der Backlog-Notiz: Epic, Etappe A (zentraler Parser, SQL-Bauer, Speicher-Auswerter, JS-Spiegel, gemeinsame Testtabelle, Syntax-Hilfe, Referenz FA-Liste) mit STOPP zur Sichtpruefung, dann Etappe B. Von-bis nur Zahl/Datum, Komma/Semikolon-Regel, P-1 auf beiden Servern. Direkt im Buendel."
 freigabe_von: "Gerald Weichbold"
@@ -120,6 +120,9 @@ Regeln:
 4. Der erste Operator gewinnt: `=7%` heißt „genau `7%`".
 5. „enthält", `%` und `=` wirken in **allen** Spaltentypen auf den **angezeigten Zelltext** (ADR 0005:
    Getter liefert gerenderten Text). Dadurch bleibt `kw42` / `10.2026` in Datumsspalten gültig.
+   **Präzisiert 2026-10-13 (Gerald, bestätigt Ruling R1 aus Etappe A):** `=` mit einem **lesbaren** Zahl-/Datumswert vergleicht in
+   Zahl-/Datumsspalten den **Wert** (`=1` = gleich 1, `=01.10.2026` = ganzer Tag); nur ein nicht lesbarer Wert vergleicht den
+   Zelltext. „enthält“ und `%` bleiben auf dem Zelltext.
 6. Vergleiche und Bereiche wirken auf den **Wert**: Zahl im deutschen Format (`.` Tausender, `,` Dezimal –
    wie `tableFilterCompareValues`, `table-filter.js:350`; Fallstricke „Punkt ist Tausendertrenner"), Datum
    `dd.MM.yyyy` (auch `d.M.yyyy`, `dd.MM.yy` wie `StockMovementRepository.cs:642`). Der Zellwert wird aus dem
@@ -129,6 +132,9 @@ Regeln:
    `OrderNumber` ODER `SubOrderNumber`): ein Teil trifft, wenn er **eine** der Spalten trifft; `(leer)`
    trifft, wenn **alle** leer sind.
 9. Ungültiges (Bereich/Vergleich auf Text, unlesbare Zahl/Datum): siehe Antwort 6.
+   **Bestätigt 2026-10-13 (Gerald):** kein `LOWER` auf Spalten in SQL — Groß/Klein über die Kollation; Prüfschritt P-2 (Datenbank
+   **und** je gefilterter Spalte, auf beiden Servern) ist **Deploy-Pflicht**. Der Zwischenzustand aus Etappe A
+   (`data-filter-syntax="typed"`/`"legacy"`, Commit `10ccf1f5`) wird in Etappe B **vollständig zurückgebaut**.
 10. Zeilen ohne Wert (leere Zelle) treffen bei `!x` (wie heute `ProductionOrderRepository.cs:419-421`).
 
 Folgen, die in die Hilfe gehören: in Zahl-/Datumsspalten ist `kw41,kw42` künftig **kein** ODER mehr
@@ -407,7 +413,7 @@ Menschen über `scripts/sync-worktree.ps1`. Vor Etappe A: Zeilen neu messen (Tei
 | # | Etappe | Status | Commit |
 |---|--------|--------|--------|
 | A | Zentraler Parser (strukturierte Tokens), SQL-Ausdrucksbauer, Speicher-Auswerter, JS-Spiegel `column-filter-syntax.js`, gemeinsame Testtabelle (JSON + C#-Theory + Node-Skript), Syntax-Hilfe in `table-filter.js`, Hilfeseite, Typ-Register-Gerüst; Referenzliste **FA-Liste** (S1, M1; S1f/Antwort 8; Sub-FA-Filter/Antwort 9). **STOPP – Mensch prüft am Testsystem.** | **umgesetzt 2026-10-13, wartet auf Sichtprüfung** (v1.58.0, TS-91.A) | `3fe70103`, `fe8f531c`, `6dc74c9b`, `e5d0467b`, QA `c33f010b`, Fix `10ccf1f5` |
-| B | Alle übrigen Stellen (M2, S2, S3/Antwort 10, S4, S5, M3, S6/Antwort 5, J2, J3), Typmarkierung aller Zahl-/Datumsspalten + Drift-Wächter, alte `Parse`-Signatur entfernt, FaWorklist-Getter, TS-Kapitel, Brain-Pflichten. Danach QA für das Epic. | offen | |
+| B | Alle übrigen Stellen (M2, S2, S3/Antwort 10, S4, S5, M3, S6/Antwort 5, J2, J3), Typmarkierung aller Zahl-/Datumsspalten + Drift-Wächter, alte `Parse`-Signatur entfernt, FaWorklist-Getter, TS-Kapitel, Brain-Pflichten. Danach QA für das Epic. | **umgesetzt 2026-10-13** (v1.58.1, TS-91.B), **QA Epic bestanden → Testbereit** | `0e82363b`, `3816542d`, `404a1b49`, QA-Fix `ead16fc4` |
 
 Zwischenzustand nach A (bewusst, kein Merge dazwischen): Der Leitstand teilt S1 mit der FA-Liste, filtert seine
 SQL-Spalten also schon neu, seine C#-Postfilter (M2) noch alt; Zahl-/Datumsspalten der Apply-Listen gelten bis B als
@@ -424,14 +430,24 @@ Text.
 
 ## Deploy
 
-**Vorläufig – QA bestätigt gegen den echten Diff.**
-- **Web-App:** ja (Controller, Repositories, Views, JS).
-- **Service:** nein (kein Service-Code betroffen; `ColumnFilterHelper` wird im Service nicht aufgerufen).
-- **Migration:** nein.
-- **Vor dem Deploy:** Prüfabfrage P-1 (und Antwort 7 umsetzen), P-2 Kollation, P-3 Kultur.
-- **Publish-Befehle** (im Bündel-Worktree):
+**Final (QA Epic 2026-10-13, aus dem echten Diff `d4f326ef..ead16fc4`, 87 Dateien).**
+- **Web-App:** ja — `IdealAkeWms/` (Services, Controller, Repositories, ~30 Views, `wwwroot/js`, Hilfe, Changelog, `AppVersion` 1.58.1).
+- **Service:** ja, aber **nur Versionsanzeige** — einzige Änderung unter `IDEALAKEWMSService/` ist `AppVersion.cs` (1.58.1); kein
+  Service-Verhalten betroffen (`ColumnFilterHelper` wird im Service nicht aufgerufen). Mitpublizieren, damit Web und Service dieselbe
+  Version zeigen; funktional entbehrlich.
+- **Migration:** nein — keine Datei unter `*/Migrations/`, kein `SQL/XX_*.sql`, `00_FreshInstall.sql` und `SQL/AgentJobs/*` unberührt.
+  Kein Einmal-Skript.
+- **Vor dem Deploy (Pflicht, beide Server AKE und IDEAL, je DB `IDEAL_AKE_WMS`, nur lesen):**
+  1. **P-1** gespeicherte Standardfilter (Abfrage oben) — Treffer korrigiert ein Admin in der Benutzerpflege bzw. informiert den Benutzer (Antwort 7).
+  2. **P-2** Kollation: `SELECT DATABASEPROPERTYEX('IDEAL_AKE_WMS','Collation');` → `…_CI_…` **und** je Spalte (Abfrage in TS-91.B
+     „Vorbedingung“: `sys.columns … collation_name NOT LIKE '%[_]CI[_]%'` → leer). Sonst unterscheiden die SQL-Wege Groß/Klein — STOPP, melden.
+  3. **P-3** Server-Kultur: eine Zahlspalte mit Nachkommastellen zeigt `2,5` (nicht `2.5`). Bei `2.5` STOPP — Zahlvergleiche wären falsch.
+- **Reihenfolge:** P-1/P-2/P-3 → Publish aus dem Worktree → Testsystem → TS-91.A + TS-91.B → Merge (Schranke 2).
+- **Publish-Befehle** (im Bündel-Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`):
   `dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb`
-- Anwender informieren: in Zahl-/Datumsspalten ODER nur noch mit `;`.
+  `dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService` (nur Versionsanzeige)
+- Nach dem Merge nur dann erneut aus `main` publizieren, wenn der Merge getestete Dateien mit parallelen `main`-Änderungen kombiniert hat.
+- Anwender informieren: „oder“ heißt jetzt `;` (in Zahl-/Datumsspalten ist `,` das Dezimalzeichen); Fehlteile `!a;b` = weder a noch b.
 
 ## Offene Rueckfragen
 
@@ -698,3 +714,230 @@ Keine Kategorie „Sonstiges“.
 - **Etappe B muss:** `typed` in allen Listen setzen (bzw. Attribut entfernen und Typ immer aus `<th>`), `legacy` an der Stückliste
   entfernen, Regel 5 der Grammatik auf Ruling R1 präzisieren.
 - Beweis nach dem Fix: Build 0 Fehler; Web 1936 bestanden / 1 übersprungen (vorbestehend), Service 272; Node-Lauf bestanden.
+
+## Umsetzung Etappe B (2026-10-13, Dev-Lauf)
+
+Direkt im Bündel, Start `10ccf1f5` (Endstand Etappe A, Worktree sauber). Commits `0e82363b` (Register aller Listen, Server-Wege
+M2/S2/S4/S5/M3/S6, OSEON-Spaltenfilter entfernt, alte `Parse`-Signatur entfernt), `3816542d` (Typmarkierung + Register an
+`Apply`/Postfilter, Getter wie Zelle, Rückbau `typed`/`legacy`, Stückliste/FA-Baum über den Kern, „?“ wandert mit, Drift-Wächter,
+B-Fälle), `404a1b49` (v1.58.1, Hilfe, Changelog, TS-91.B). **Version 1.58.1, TS-91.B** (neu gemessen: v1.58.0 / TS-91.A belegt).
+Keine Migration, kein SQL-Skript.
+
+**Neu gemessen gegen `10ccf1f5`:** Zeilen der B-Stellen gegenüber der Erhebung (`d3746373`) unverändert bis auf
+`ColumnFilterHelper.cs` (A) und `ProductionOrderRepository.cs` (A); die 13 Aufrufe der alten `Parse`-Signatur waren 8 Stellen in
+6 Dateien plus `HasAny` (Grep `ColumnFilterHelper.Parse` / `(tokens, negate)`).
+
+**Umgesetzt:**
+- **Register** `ColumnFilterTypes.Lists` (32 Listen, Schlüssel = View-Pfad, weil mehrere Views keinen `data-view-key` haben),
+  `For(list)`/`Of(list, key)`; alle `Apply`-Aufrufe und C#-Postfilter mit Zahl-/Datumsspalten reichen ihr Register weiter
+  (`FaHierarchyListBuilder.Build` bekam `columnTypes`). `<th>`: Zahl `data-filter-type="number"`, Datum `data-date-filter`
+  (33 Datums-/48 Zahl-Spalten im Register, u. a. bisher unmarkierte „Erstellt am“, Beschichtungsauftrag Start/Retour/Angelegt).
+  OperationConfigs `offset` bleibt Text (Zelle „+2“, Vorzeichen wird nicht als Zahl gelesen).
+- **Getter wie Zelle (Regel 6):** FaWorklist und FaCompletion `quantity` (vorher `InvariantCulture`, jetzt wie `@item.Quantity`),
+  Bestandsübersicht Meldebestand/Bestand (`N3` wie die Zelle).
+- **M2 Leitstand:** `LeitstandMemoryText` + Kern (VK–VA, Matchcode, Termine als Datum). **S2 Artikel:** SQL-Bauer.
+  **S3 OSEON:** `ApplyOseonColumnFilter` und der `columnFilters`-Parameter von `GetPagedAsync` gelöscht (Antwort 10).
+  **S4 Bewegungshistorie:** Text-Keys über den Bauer; Bewegungsart über `ColumnFilterSyntax.MatchingValues` → `IN`/`NOT IN`;
+  Datum/Zeit über `ColumnFilterSql.DatePredicate` (Vergleich/Bereich/`=` tageweise, Tag/Monat/Jahr ohne Operator wie bisher).
+  **S5/M3 BDE-Buchungen:** Bauer + `MatchingValues` (Typ/Status), Start/Ende/Gut/Ausschuss über den Kern mit Typ.
+  **S6 Fehlteile:** `MissingPartsColumnPredicate` (Bauer, Artikelnummer + Matchcode per `ColumnFilterSql.Combine`/`Splice`),
+  `!` gilt für alle Teile (Antwort 5); vier alte `Build*`-Helfer entfernt.
+- **J2 Stückliste:** `bomMatchesFilter(text, val, colKey)` = Kern mit Spaltentyp (Menge = Zahl); „Alle Ziele“ ist `!(leer)` im Kern.
+  **J3 FA-Baum:** Textfilter über den Kern, Auswahlfilter exakt; Hilfe + Rot-Markierung wie überall.
+- **Browser-Hilfen** (Hilfe-Knopf, Kurztext, Rot-Markierung) in `column-filter-syntax.js` (eine Quelle für Listen, Stückliste,
+  FA-Baum); der „?“-Knopf sitzt in der **ersten sichtbaren** Filterzelle und wandert per `MutationObserver` mit, wenn
+  column-preferences Spalten ausblendet oder umordnet.
+- **Rückbau Zwischenzustand A** (`10ccf1f5`): kein `data-filter-syntax` mehr, Typ immer aus dem `<th>`.
+- **Drift-Wächter** `ColumnFilterTypesDriftTests`: je View mit Filterzeile `<th>`-Typen = Register (Theory über alle Views),
+  Register nur auf vorhandene Views, jede Server-Liste mit Typen ruft `ColumnFilterTypes.For/Of("<Liste>")`.
+- Hilfeseite: Etappe-A-Satz „nur FA-Liste“ ersetzt, Ankündigung „oder mit `;`“ (auch Fehlteile-Negation) als Info-Kasten.
+
+**Rulings B:**
+- B-R1: Register-Schlüssel = View-Pfad statt `data-view-key` (fehlt an 7 Views) — der Drift-Wächter liest Views direkt.
+- B-R2: **Sechs weitere Bestandstests** (BDE-Operator ×3, Fehlteile-Artikelnummer ×3) bekamen Testdaten in Kleinschreibung — gleiches
+  Muster wie A/R2 (SQL ohne `ToLower`, InMemory ordinal); zwei `StockMovementRepositoryTests` rufen `ApplyMovementColumnFilter`
+  mit der neuen Signatur (mechanisch).
+- B-R3: Datum in SQL nur für die Bewegungshistorie; ein Wert ohne Operator, der kein Tag/Monat/Jahr ist (z. B. `kw40`), liefert dort
+  wie bisher keine Treffer.
+- B-R4: Laufzeitmessung AK 12 kann der Dev-Lauf nicht ausführen (keine Datenbank außer der Produktion erreichbar, Web-App nicht
+  starten) — belegt ist der Code-Teil (`LIKE N'5000%'` ohne `LOWER`, Test `ArticleColumnFilterSqlTests`); die Messung
+  vorher/nachher (Artikel + FA-Liste, `SET STATISTICS TIME, IO`, Plan) steht als Prüfschritt TS-91.B1 mit fertigen Abfragen.
+
+**Beweis:** `dotnet build IdealAkeWms.slnx` → 0 Fehler; `dotnet test` → Web 1998 bestanden / 1 übersprungen (vorbestehend),
+Service 272; Node-Lauf der Tabelle (84 Fälle) bestanden, nicht übersprungen.
+
+## QA Epic (2026-10-13)
+
+qa-agent, eigener Lauf, Review synchron in diesem Lauf (nicht delegiert). Geprüft: Etappe B `10ccf1f5..404a1b49` (3 Commits) im
+Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Zweig `feature/2026-08-07-ideal-teile-1-5`, gegen AK 11–19, die Grenzen der
+Spec und die Rulings B-R1..B-R4; Etappe A war bereits geprüft (Abschnitt „QA Etappe A“). QA-Fix-Commit **`ead16fc4`**.
+**Ergebnis: Testbereit** — keine offenen Critical/Important.
+
+### Build und Tests (nach `ead16fc4`)
+
+- `dotnet build IdealAkeWms.slnx` → **0 Fehler**, 12 Warnungen (vorbestehend, keine in den geänderten Dateien).
+- `dotnet test` → **IdealAkeWms.Tests 1999 bestanden / 1 übersprungen / 0 Fehler** (vor QA-Fix 1998/1/0; +1 neuer Test),
+  **IDEALAKEWMSService.Tests 272 / 0 / 0**.
+- Übersprungen ist nur der vorbestehende `Integration.ProductionOrderEagerCreateAgentJobTests.EagerCreate_TwoMergesProduce2Rows_PerNewOrder_AndAreIdempotent`.
+- **Node-Lauf nicht übersprungen:** trx-Ergebnis `ColumnFilterSyntaxTests.Kern_NodeSelbstpruefung_GleicheTabelle` → `outcome="Passed"`
+  (beide Läufe, vor und nach dem Fix); direkter Lauf `node column-filter-syntax.check.js …` → `column-filter-syntax core ok (84 Faelle)`.
+- Gemeinsame Tabelle: die 70 Fälle aus Etappe A sind **inhaltlich unverändert** (per Skript Fall für Fall verglichen, nur Formatierung),
+  14 neue B-Fälle (`B01`–`B14`).
+
+### Review-Befunde
+
+Geprüft: `ColumnFilterSyntax.cs` (Register `ColumnFilterTypes`, `Combine`, `DatePredicate`, `MatchingValues`), `ColumnFilterHelper`
+(alte `Parse` entfernt, `HasAny`), alle `Apply`-Aufrufer mit Register, Getter jeder typisierten Spalte gegen die Zelle,
+`PickingLeitstandController` (M2), `ArticleRepository` (S2), OSEON (S3 gelöscht inkl. Interface/Aufrufer), `StockMovementRepository` (S4),
+`BdeBookingRepository`/`BdeBookingsController` (S5/M3), `WarehouseRequisitionRepository` (S6), `Picking/Bom.cshtml` (J2),
+`fa-hierarchy-tree.js` (J3), `column-filter-syntax.js` (Browser-Hilfen, `placeHelp`/`MutationObserver`), `table-filter.js`,
+`column-preferences.js` (Ausblenden/Umordnen), alle `<th>`-Markierungen (Diff), Drift-Wächter, Tests, Hilfe, Changelog, TS-91.B.
+
+**Critical:** keine.
+
+**Important**
+- **I-1 Druck/PDF zeigten eine per Zahl-Vergleich gefilterte Liste ohne Banner „Gefilterte Ansicht“ — behoben in `ead16fc4`.**
+  `ColumnFilterHelper.HasAny` parste jeden Filter als **Text**. Seit B sind Sollmenge/Breite/Höhe/Tiefe/Positionen Zahlspalten; `Apply`
+  filtert dort mit `>10` bzw. `1...5`, `HasAny` hielt denselben Wert aber für wirkungslos → `IsFiltered = false`
+  (`FaHierarchyBeschichtungController.cs:109/131/197/218`, `FaHierarchyKommissionierListenController.cs:164/189/224/248`). Folge: ein
+  gefilterter Beschichtungsauftrag bzw. eine gefilterte Kommissionierliste wurde ohne Warnung gedruckt (`FaHierarchyBeschichtung/Print.cshtml:57`
+  u. a.) — stille Falschaussage auf einem Fertigungsdokument. **Fix:** `HasAny(filters, types)` mit dem Register der Liste wie bei `Apply`;
+  die 8 Aufrufe reichen `ColumnFilterTypes.For("…")` weiter. Test `ColumnFilterHelperHasAnyTests.HasAny_VergleichInZahlspalte_GiltAlsFilter`.
+
+**Minor** (bewusst nicht behoben, Hinweis)
+- **M-1 Zwei Regeln für „Datum/Memory“ je Liste.** Der Typ kommt aus dem Register, die Weiche SQL ↔ C#-Postfilter aber weiter aus
+  Ad-hoc-Mengen (`PickingLeitstandController.cs:557` `LeitstandDateColumnKeys`, `ProductionOrdersController.cs:483` `FaListDateColumnKeys`,
+  BDE-Computed-Keys). Bekommt eine Liste künftig eine neue Datumsspalte nur im Register, landet sie im SQL-Zweig (`_ => q`) und filtert
+  still nicht. Heute konsistent (geprüft); kein Drift-Wächter dafür. Empfehlung bei der nächsten Änderung: Menge aus dem Register ableiten.
+- **M-2 Zahlenartige Spalten bleiben Text:** FA-Vervollständigung `applicable`/`completed` (Zähler), Stückliste `ebene`, FA-Baum
+  `quantity` (Soll/Fert.). Dort ist `>2` rot + wirkungslos — Client und Server gleich, also keine Drift, aber eine Funktionslücke gegenüber
+  AK 13 („jede … Zahlspalte“). Bei Bedarf Folgeaufgabe.
+- **M-3 `—` ist kein leerer Zelltext.** `WarehousePicking/Index` und `WarehouseRequisitions/Index` „Submit“ rendern (Zelle wie Getter) `—`;
+  `(leer)` findet nicht eingereichte Zeilen dort nicht (Regel 8 wörtlich: angezeigter Text leer). Client = Server.
+- **M-4 TS-91.B1 misst eine Ersatzabfrage.** AK 12 spricht vom „per `ToQueryString` erzeugten SQL“; TS-91.B1 nutzt `SELECT COUNT(*) … LIKE`
+  — für den Index-Seek-Nachweis ausreichend und **ohne Rückfrage ausführbar** (Tabellen `dbo.Articles`/`dbo.ProductionOrders`, Indizes
+  `UQ_Articles_ArticleNumber`, `IX_ProductionOrders_OrderNumber` gegen `SQL/00_FreshInstall.sql:162/1121` geprüft). „vorher (Stand v1.57)“
+  ist reines SQL und nicht versionsabhängig — beide Abfragen dürfen nacheinander auf demselben System laufen. Ergänzt in der Checkliste.
+- **M-5 Drift-Wächter `JedeServerListeMitTypen_ReichtIhrRegisterWeiter`** prüft nur, dass `ColumnFilterTypes.For("<Liste>")` irgendwo im Code
+  steht, nicht an welchem Aufruf (I-1 fiel deshalb nicht auf). Akzeptiert; I-1 hat jetzt einen eigenen Test.
+- **M-6 Datum in SQL mit gemischten Teilen:** `!kw40;01.10.2026` in der Bewegungshistorie negiert nur den Tag, `kw40` trägt in SQL nichts bei
+  (B-R3, wie bisher). Im Speicher-Kern würde `kw40` mit ausgeschlossen. Randfall, dokumentiert.
+
+**Ohne Befund geprüft**
+- **AK 11:** S2/S4/S5/S6 über `ColumnFilterSql.Predicate`/`Combine`/`DatePredicate`, Enums über `MatchingValues` → `IN`/`NOT IN`; M2/M3 über
+  `ColumnFilterSyntax.Matches` mit Registertyp; S3 inkl. `columnFilters`-Parameter gelöscht (Antwort 10, Interface + `TrackingController`).
+  Grep: kein `EF.Functions.Like(`, kein `ColumnFilterHelper.Parse(`, kein `(tokens, negate)` in `IdealAkeWms/**/*.cs` (Quelltext-Test);
+  kein eigenes `!`-/`split(',')`-Parsing außerhalb der beiden Kerne. `bomMatchesFilter`/`rowMatchesAll` rufen nur den Kern.
+- **AK 13 / Regel 6, Stichproben Getter = Zelle:** Datum mit Uhrzeit (`dd.MM.yyyy HH:mm[:ss]` in SageBookingQueue, Users, StorageLocations,
+  SyncLog, PartRequisitions, Beschichtungsaufträge `Zeitpunkt`); N3 (`StockOverview` jetzt `N3` wie die Zelle; Komm.-/Vormontage-/
+  Beschichtungs-Sollmenge `N3 de-DE` wie die Zelle); „3 Tage“/„Standard“ (`ProductionWorkplaces`, Fälle B01/B02); „—“ (B08); `priority`
+  (`Picking` „-“, B05); ids (`int.ToString()` = Zelle); WarehousePicking `requested` (gerundet, Zelle `requestedInt`); BDE Gut/Ausschuss
+  `0.##` = Zelle. Drift-Theory über alle 40 Views mit Filterzeile grün; Register zeigt nur auf vorhandene Views. Zahlwerte hängen an der
+  Server-Kultur (Zelle und Getter gleich) → P-3 bleibt Pflicht.
+- **AK 14 Stückliste:** `!(leer)` ist im Kern ein normaler Wert (B13); das Komm.-Ziel-Dropdown schreibt weiter `,`-Listen ins versteckte Feld
+  (Text → ODER wie vorher); Vorfahren-Aufklappen (`expandAncestorsOfMatching`) und Leerzustand nutzen dieselbe Funktion mit Spalten-Key;
+  `data-csv-filter-match` (`Bom.cshtml:907`) unverändert; `quantity` = Zahl über `data-filter-type`, Zelle `N3`.
+- **AK 15 FA-Baum:** Textfilter über den Kern (nur ungültige Teile → kein Filter), `<select>` weiter exakt (`hay !== f.val`), Kontext-/Zähler-Code
+  unverändert; „?“ + Rot-Markierung über `prepareInput`/`attachHelp`; der Kern ist über `_Layout.cshtml:419` geladen.
+- **AK 16 Bewegungshistorie:** `DatePredicate` — Tag/Monat/Jahr ohne Operator wie bisher (gleiche Formate inkl. `d.M.yy`), Vergleich/Bereich/`=`
+  tageweise (`>T` = ab Folgetag, `<=T` = `< T+1`); kein lesbares Datum → positiv leer, negiert alle (wie bisher). InMemory-Test mit
+  Grenzzeiten 23:59 belegt.
+- **AK 17:** Fehlteile `!` für alle Teile (Antwort 5, Test `NegationGiltFuerAlleTeile_Antwort5`), Matchcode-Subquery per `Combine`/`Splice`, bei
+  `(leer)` nur die Artikelnummer. BDE Start/Ende als Datum, Gut/Ausschuss als Zahl über den Registertyp.
+- **AK 18:** FaWorklist **und** FaCompletion `quantity` = `Quantity.ToString()` wie `@item.Quantity` (Server-Kultur).
+- **„?“-Knopf wandert:** `placeHelp` sucht die erste Zelle mit `style.display !== 'none'` (so blendet `column-preferences.js:160-175` aus) und
+  verschiebt nur Zellinhalt, nie Zellen. Keine Endlosschleife: steht der Knopf schon in der Zielzelle, kehrt `placeHelp` ohne DOM-Änderung
+  zurück; jede Verschiebung erzeugt genau einen weiteren Observer-Aufruf, der dann früh endet. Das Popover hängt am selben Button-Element
+  (wird umgehängt, nicht neu erzeugt) → funktioniert nach dem Verschieben. Escape schließt global.
+- **table-filter.js Regression:** Diff betrifft nur die Typ-Ermittlung und drei Delegationen an den Kern; Sortierung, Kalender, Server-Mode-ENTER
+  (`onServerFilterKeydown`), sessionStorage, `getActiveFilters` unverändert. Rückbau `typed`/`legacy` vollständig (Quelltext-Test: kein
+  `data-filter-syntax` in Views/JS). CSV-Export und `column-preferences.js` unverändert.
+- **Bekannte Fehlerklassen:** keine Werte neu in `<script>`-Blöcke eingebettet; kein `hidden` + `d-*` (Feedback wird entfernt, Bom-Leerzustand
+  unverändert); kein stiller `?? 0`; keine Parallel-Arrays; Regeln serverseitig erzwungen (Server ignoriert ungültige Teile selbst); die eine
+  Grammatik liegt in C#- und JS-Kern, durch die gemeinsame Tabelle (84 Fälle, beide Läufe grün) gegen Auseinanderlaufen gesichert —
+  verbleibende Mehrfachstelle siehe M-1.
+- **Doku:** Hilfeseite ersetzt „nur FA-Liste“ durch „alle Listen“, Info-Kasten „oder mit `;`“ + Fehlteile-Negation; Changelog v1.58.1; beide
+  `AppVersion.cs` = 1.58.1; TS-91.B1–B10 in `docs/TESTSZENARIEN.md` (`git show HEAD:docs/TESTSZENARIEN.md` → 0 CR, LF). Brain: ADR 0017,
+  Changelog v1.58.1, Testindex TS-91.B, feature-map, fallstricke „Spaltenfilter nie selbst auswerten“ vorhanden.
+- **CLAUDE.md-Checkliste:** keine Migration/kein SQL-Skript nötig (keine Schemaänderung), keine Audit-Felder berührt, keine neue Rolle.
+
+### Beweisart je Akzeptanzkriterium (Epic)
+
+| AK | Beweis | Art |
+|---|---|---|
+| 1 Text-Syntax FA-Liste | InMemory + Tabelle T01–T31; Groß/Klein in SQL = Kollation | Automatisiert (Semantik) + **Manual-UAT** TS-91.A1, P-2 |
+| 2 Datum FA-Liste | `FaListePostfilterSyntaxTests` | Automatisiert + Manual TS-91.A2 |
+| 3 Prio Zahl | `Prio_Numerisch_AK3` | Automatisiert + Manual TS-91.A2, P-3 |
+| 4 Escaping / kein Like | `ToQueryString`-Tests (SqlServer-Provider), Quelltext-Grep | Automatisiert (SQL-Text); Ausführung **Manual** TS-91.A3 |
+| 5 gemeinsame Tabelle | C#-Theory + Node-Lauf (84 Fälle), **Passed, nicht übersprungen** | Automatisiert |
+| 6 Client = Server | gleiche Tabelle beider Kerne | Teil automatisiert, **Manual-UAT** TS-91.A5 |
+| 7 Ungültig rot, auch nach Reload | Server: Tabelle T28–T30; Browser nur Quelltext | **Manual-UAT** TS-91.A4 |
+| 8 Hilfe „?“ / aria / Kontrast | Quelltext-Wächter | **Manual-UAT** TS-91.A6, TS-91.B9 |
+| 9 Hilfeseite | Diff gelesen | **Manual** (Sicht) |
+| 10 Freitext `A_1` / Sub-FA | SQL-Text + InMemory | Automatisiert + Manual TS-91.A3 |
+| 11 alle Stellen über den Kern | Quelltext-Tests (kein `EF.Functions.Like(`, keine alte `Parse`, Bom/Baum ohne eigene Syntax) + Review | Automatisiert (Quelltext) |
+| 12 Laufzeit Artikelliste | `ArticleColumnFilterSqlTests` (`LIKE N'5000%'` ohne `LOWER`) | **Manual-UAT** TS-91.B1 (Messung, Plan) — nicht grün gezählt |
+| 13 Markierung + Drift-Wächter | `ColumnFilterTypesDriftTests` (Theory über alle Views) | Automatisiert; Lücke M-2 |
+| 14 Stückliste | Kern-Fälle B13/B14, Quelltext-Test; Dropdown, Aufklappen, Leerzustand, CSV im Browser | **Manual-UAT** TS-91.B5 |
+| 15 FA-Baum | Quelltext-Test; Bedienung | **Manual-UAT** TS-91.B6 |
+| 16 Bewegungshistorie Datum | `Datumsspalte_TagMonatJahrWieBisher_…_AK16` (InMemory) | Automatisiert (Semantik) + Manual TS-91.B2 (echtes SQL) |
+| 17 Fehlteile / BDE | `NegationGiltFuerAlleTeile_Antwort5`; BDE Datum/Zahl nur über Kern-Tabelle + Review | Teil automatisiert, **Manual-UAT** TS-91.B3/B4 |
+| 18 FaWorklist `quantity` | Review (Getter = Zelle) + Kern-Fall N01 | **Manual-UAT** TS-91.B8 (kein Controller-Test) |
+| 19 Bestandstests grün, Doku | `dotnet test` grün; TESTSZENARIEN + Index gelesen | Automatisiert + Sicht |
+
+Nicht als grün gezählt: echtes SQL-Server-Verhalten (Kollation, LIKE-Ausführung, Plan), Browser-JavaScript, Bedienung, Server-Kultur.
+
+### Geänderte Bestandstests (Epic)
+
+| Test | Änderung | Einstufung |
+|---|---|---|
+| `ProductionOrderRepositoryTests` ×4 (Etappe A, siehe dort) | Testdaten klein | Verhalten bewusst geändert (R2: kein `ToLower`, Kollation P-2) |
+| `BdeBookingRepositoryTests.GetHistory_ColumnFilter_Operator` / `_Negate` / `_Or` (Seed `SeedThreeOperatorBookingsAsync`) | Nachnamen klein, Erwartungen klein | Verhalten bewusst geändert (B-R2: vorher `ToLower()` auf der Spalte, jetzt Kollation; InMemory ordinal) |
+| `WarehouseRequisitionRepositoryTests.GetMissingPartsAsync_AppliesColumnFilter_OnArticleNumber_WithOrSyntax`, `…_ArticleNumberColumnFilter_MatchesByMatchcode`, `…_ArticleNumberColumnFilter_NegatedMatchcode_ExcludesMatch` | Artikelnr./Matchcode klein, Eingaben weiter groß | Verhalten bewusst geändert (B-R2: der Kern senkt die Eingabe ab, vorher ging sie unverändert in `Contains`) |
+| `StockMovementRepositoryTests.ArticleColumnFilter_SqlServer_TranslatesMatchcodeOrClause`, `…_Negated_SqlServer_PreservesMatchcodeNullGuardUnderNot` | nur neue Signatur `ApplyMovementColumnFilter(q, key, ParsedColumnFilter)`, Assertions unverändert | Typ-Änderung (Compile-Fix) |
+| `ColumnFilterSyntaxQuelltextTests`: 3 Etappe-A-Wächter des Zwischenzustands (`typed`/`legacy`) ersetzt | prüfen jetzt den Rückbau | Verhalten bewusst geändert (Rückbau Zwischenzustand A, bestätigt 2026-10-13) |
+| `column-filter-cases.json` (70 Fälle aus A) | nur Formatierung, inhaltlich identisch | — |
+
+Keine Kategorie „Sonstiges“ — kein Test wurde passend gemacht, um einen Fehler zu verdecken. Die Kleinschreibung ist sauber begründet:
+EF-InMemory vergleicht `string.Contains` ordinal, SQL Server über die CI-Kollation; die Groß/Klein-Eigenschaft ist damit **Manual** (P-2).
+
+## Manuelle Test-Checkliste (Schranke 2)
+
+Vorher, beide Server (AKE und IDEAL), DB `IDEAL_AKE_WMS`, nur lesen:
+1. **P-1** Standardfilter-Abfrage (Abschnitt „Migrations-/SQL-Auswirkungen“) — Treffer notieren und mit dem Benutzer klären.
+2. **P-2** `SELECT DATABASEPROPERTYEX('IDEAL_AKE_WMS','Collation');` → `…_CI_…`; Spalten-Abfrage aus TS-91.B „Vorbedingung“ → leer. Sonst STOPP.
+3. **P-3** Beschichtungsauftrag `Breite` mit Nachkommastelle zeigt `2,5`, nicht `2.5`. Sonst STOPP.
+4. Web publizieren (Service nur für die Versionsanzeige); Testsystem zeigt **1.58.1**.
+
+Etappe A (TS-91.A, `docs/TESTSZENARIEN.md`):
+5. TS-91.A1 FA-Liste Text: `4711%`, `%-1`, `=KA`, `KA;SW`, `!KA;SW`, `(leer)`/`!(leer)`; Trefferzahl und Paginierung plausibel.
+6. TS-91.A2 FA-Liste Datum/Prio: `>=01.10.2026`, Bereich, `kw42`, Kalenderklick; Prio `>2`, `=1`.
+7. TS-91.A3 Escaping: Filterkarte FA-Nr. `A_1` trifft nicht `AX1`; `5%0` in Bezeichnung.
+8. TS-91.A4 Ungültig: `1...5` in Artikelnummer → rot + Text „… ignoriert“, Liste ungefiltert; Seite neu laden → Hinweis bleibt.
+9. TS-91.A5 WarehousePicking/Details filtern, Druck öffnen → dieselben Positionen.
+10. TS-91.A6 „?“ per Tab erreichbar, Enter/Leertaste öffnet, Escape schließt; Kontrast „?“/Hinweis gut lesbar.
+11. TS-91.A7–A9 mitgeschaltete Listen (Lagerplätze, eine Client-Liste) mit `=` und `;`; alte Eingaben `960,886` / `!960` in Textspalten unverändert.
+
+Etappe B (TS-91.B):
+12. TS-91.B1 Artikelliste `5000%`, `%-1`, `=<Nr>`, `a_1`. **Laufzeit** in SSMS (Strg+M „Tatsächlichen Ausführungsplan einschließen“,
+    `SET STATISTICS TIME, IO ON`): `LIKE N'%5000%'` mit und ohne `ESCAPE N'\'` → gleicher Plan, ähnliche Zeiten;
+    `LIKE N'5000%' ESCAPE N'\'` → **Index Seek** auf `UQ_Articles_ArticleNumber`. Beide Abfragen sind reines SQL und dürfen nacheinander
+    auf demselben System laufen (M-4). CPU-/Gesamtzeit, logische Lesevorgänge, Plan in TS-91.B1 eintragen.
+13. TS-91.B2 Bewegungshistorie Datum/Zeit: `01.10.2026`, `10.2026`, `2026` wie bisher; `>=01.10.2026`, `>01.10.2026` (ab 02.10.),
+    `<=01.10.2026` (inkl. 23:59), Bereich, `30.09.2026;02.11.2026`; Bewegungsart `=ausbuchung` (ohne Sage-Ausbuchung), `!ausbuchung`.
+14. TS-91.B3 BDE-Buchungen: Start `>=01.10.2026`, Ende `<01.10.2026`, Gut `>0`, Ausschuss `=0`; Operator `%huber` und `%HUBER` (Groß/Klein egal → P-2).
+15. TS-91.B4 Fehlteile + Fehlteile-Lager: Artikel-Nr. `!a;b` blendet **beide** aus; Matchcode-Treffer über die Artikel-Nr.-Spalte weiter da.
+16. TS-91.B5 Stückliste: Standardfilter „Alle Ziele“, Komm.-Ziel-Dropdown (Einzel- und Mehrfachauswahl), Vorfahren klappen auf,
+    Leerzustand bei 0 Treffern; Menge `>=10`, `1...5`; Bezeichnung `=x`, `(leer)`; „?“ sichtbar; **CSV-Export** enthält genau die Treffer.
+17. TS-91.B6 FA-Struktur-Baum: Textfilter `=KA`, `4711%`, `KA;SW`, `>5` → rot; Auswahlfilter exakt; Kontextzeilen + Zähler „X von Y“ wie vorher.
+18. TS-91.B7 Leitstand: VK `=fertig`, `!offen`; Matchcode `%x`; Termine `>=01.10.2026`, Bereich, `kw42` — Datumsvergleich wird **nicht** rot.
+19. TS-91.B8 Stichprobe: Beschichtungsaufträge Start `>=01.10.2026`, Positionen `>2`; Summiert-Sichten Sollmenge `>10`; Benutzer/Lagerplätze
+    „Erstellt am“ `<01.01.2026`; Sage-Buchungen „Vers.“ `>1`; Lagerbestellungen `#` `>100`; FA-Abarbeitungsliste Stk. `>1` trifft `2` (AK 18);
+    Kalenderknopf in jeder neu markierten Datumsspalte.
+20. **QA-Fix I-1:** Beschichtungsauftrag (Einzel- und Summiert-Sicht) und Kommissionierliste (Einzel- und Summiert-Sicht) **nur** mit
+    `Sollmenge >10` filtern → Drucken **und** PDF: Banner „Gefilterte Ansicht“ erscheint. Ohne Filter: kein Banner.
+21. TS-91.B9 erste Spalte per Zahnrad ausblenden → „?“ springt in die nächste sichtbare Filterzelle, Popover öffnet weiter; Spalte wieder
+    einblenden bzw. umordnen → „?“ folgt; Seite bleibt flüssig (kein Hängen). Hilfeseite: Info-Kasten „oder mit ;“.
+22. TS-91.B10 Negativ: P-1-Treffer vorher/nachher; `960,886` in einer Zahlspalte = Dezimalzahl (kein ODER mehr) — erwartete Änderung.
+23. Bekannte Grenzen ansehen (kein Fehler): `(leer)` in „Submit“ findet nicht eingereichte Zeilen nicht (M-3); `>2` in
+    FA-Vervollständigung „Anwendbar/Vervollständigt“, Stückliste „Ebene“, FA-Baum „Soll/Fert.“ wird rot (M-2).

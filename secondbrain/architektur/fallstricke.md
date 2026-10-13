@@ -1369,3 +1369,30 @@ leerem `FE_Termin` auf `ProductionDate` zurück (Antwort 9), der FA-Baum nicht.
 `GetAvailableOperations` blendet nur noch **eigene** laufende und fertig gemeldete Arbeitsgänge aus; von anderen Werkern
 gebuchte erscheinen als „läuft“. Die Exklusivität sichert allein `BdeBookingService.StartPlannedAsync` (Rüsten immer,
 Produktion nur bei `BdeMehrfachBuchungProArbeitsgang` = aus). Wer die Startprüfung lockert, öffnet damit Doppelbuchungen aus der Liste.
+
+## 26. Spaltenfilter-Suchsyntax (v1.58.0/v1.58.1) — ein Kern, Typ an zwei Stellen
+
+### Spaltenfilter nie selbst auswerten — Kern nutzen
+Die Bedeutung eines Filterwerts steht nur in `Services/ColumnFilterSyntax.cs` und `wwwroot/js/column-filter-syntax.js`, beide gegen
+`IdealAkeWms.Tests/Js/column-filter-cases.json` geprüft ([[0017-ein-parser-fuer-die-spaltenfilter-syntax]]). Neue Listen geben nur
+Getter/Selektoren und den Typ an den Kern (`ColumnFilterHelper.Apply`, `ColumnFilterSql.Predicate`, `ColumnFilterSyntax.Matches`) —
+kein eigenes `split(',')`, kein `EF.Functions.Like`, kein `tokens.Any(...)`. **Warum:** Vor v1.58 gab es sechs Umsetzungen mit eigener
+Bedeutung (Fehlteile werteten `!` je Wert), und `_`/`%` gingen unmaskiert in `LIKE`.
+
+### Typ an `<th>` UND im Register
+Zahl-/Datumsspalte = `<th data-filter-type="number">` bzw. `<th data-date-filter>` **und** Eintrag in `ColumnFilterTypes.Lists`
+(View-Pfad) **und** `ColumnFilterTypes.For("<View-Pfad>")` an `Apply`/Postfilter. Fehlt eine Stelle, markiert der Browser einen
+Vergleich anders als der Server filtert — ohne Meldung (QA-Befund I-1 aus Etappe A). Der Drift-Wächter schlägt an.
+
+### Getter rendern wie die Zelle
+Vergleiche lesen die Zahl/das Datum aus dem **gerenderten** Text (deutsches Format). Ein Getter mit `InvariantCulture` („2.5“) wird
+als 25 gelesen. Getter typisierter Spalten deshalb exakt wie die Zelle formatieren (Beispiel FaWorklist/FaCompletion `quantity`).
+
+### Groß/Klein in SQL macht die Kollation — Tests unter InMemory brauchen passende Schreibweise
+Der SQL-Bauer setzt kein `LOWER` (Index für „beginnt mit“). Die CI-Kollation ist damit Pflicht (Prüfschritt P-2, Datenbank und je
+Spalte, beide Server). EF-InMemory vergleicht ordinal und der Parser schreibt klein — Testdaten für SQL-Filter in Kleinschreibung
+anlegen (10 Bestandstests wurden so angepasst).
+
+### §17 erledigt
+Der `!(leer)`-Sonderfall in `bomMatchesFilter` (§17, „VIERTE Umsetzung“) ist seit v1.58.1 aufgegangen: die Stückliste nutzt den Kern,
+`!(leer)` ist dort ein normaler Filterwert.

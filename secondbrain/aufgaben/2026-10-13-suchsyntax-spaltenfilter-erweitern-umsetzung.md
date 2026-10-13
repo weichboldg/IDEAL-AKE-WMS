@@ -1,7 +1,7 @@
 ---
 typ: notiz
 spec: "[[2026-09-23-suchsyntax-spaltenfilter-erweitern-spec]]"
-status: InUmsetzung
+status: Testbereit
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
 branch: "feature/2026-08-07-ideal-teile-1-5"
 ---
@@ -19,3 +19,8 @@ Testtabelle) für `7%`, `%7`, `=x`, `a...b`, Vergleiche, `(leer)`, `!`, `;`/`,`.
   feature-map, Testindex (TS-91). **Für Etappe B offen:** additiver Nachtrag in [[0005-listen-view-pattern-mit-server-side-spaltenfilter]]
   (Zeile „Mini-Syntax: OR `,`, NOT `!`“ überholt), [[fallstricke]] §17 als erledigt + neuer Eintrag „Spaltenfilter nie selbst
   auswerten – Kern nutzen; Typ an `<th>` UND im Register“, TS-91.B.
+- 2026-10-13: **Etappe B umgesetzt** (v1.58.1, TS-91.B), Start `10ccf1f5`, Commits `0e82363b`, `3816542d`, `404a1b49`. Bestätigte
+  Entscheidungen (Gerald): `=` in Zahl/Datum = Wertvergleich, kein `LOWER` (P-2 je Spalte Pflicht), Zwischenzustand A
+  zurückgebaut. Build 0 Fehler, Web 1998 / Service 272, Node-Lauf (84 Fälle) bestanden. Brain: ADR-0005-Nachtrag,
+  [[fallstricke]] §26, Changelog [[2026-10-13-v1-58-1-suchsyntax-spaltenfilter-etappe-b]]. QA Epic → **Testbereit**, Fix `ead16fc4` (I-1: Banner „Gefilterte Ansicht“ bei Zahlvergleich, `HasAny` mit Typen), Minor M-1..M-6 in der Spec.
+- Offen für die Abnahme: Laufzeitmessung AK 12 am Testsystem (TS-91.B1), P-1/P-2/P-3 vor dem Deploy.

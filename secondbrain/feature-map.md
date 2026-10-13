@@ -792,9 +792,9 @@ Spec [[2026-09-23-suchsyntax-spaltenfilter-erweitern-spec]], Umsetzung [[2026-10
 | A: Grammatik-Kern C#/JS, SQL-Bauer, Apply über Kern, gemeinsame Testtabelle | **erledigt** `3fe70103` | `Services/ColumnFilterSyntax.cs`, `wwwroot/js/column-filter-syntax.js` |
 | A: FA-Liste (SQL-Bauer, Freitext-Escaping, Sub-FA, Datum/Prio) | **erledigt** `fe8f531c` | `ProductionOrderRepository.ApplyLeitstandColumnFilter` |
 | A: table-filter.js, Syntax-Hilfe, Hilfeseite, v1.58.0, TS-91.A | **erledigt** `6dc74c9b`, `e5d0467b`, QA `c33f010b`, Fix `10ccf1f5` | `wwwroot/js/table-filter.js` |
-| B: übrige Stellen (Leitstand-C#, Artikel, Bewegungen, BDE, Fehlteile, OSEON löschen, Stückliste, FA-Baum), Typmarkierung + Drift-Wächter | **offen** — erst nach Sichtprüfung A | — |
+| B: übrige Stellen (Leitstand-C#, Artikel, Bewegungen, BDE, Fehlteile, OSEON gelöscht, Stückliste, FA-Baum), Typmarkierung + Register + Drift-Wächter, Rückbau Zwischenzustand A, v1.58.1, TS-91.B | **erledigt** `0e82363b`, `3816542d`, `404a1b49`, QA-Fix `ead16fc4` (HasAny mit Listentypen) | `Services/ColumnFilterSyntax.cs` (`ColumnFilterTypes`) | (Changelog [[2026-10-13-v1-58-1-suchsyntax-spaltenfilter-etappe-b]]) | `Services/ColumnFilterSyntax.cs` (`ColumnFilterTypes`), `ColumnFilterTypesDriftTests` |
 
-> **Deploy:** nur Web, keine Migration; vorher P-1/P-2/P-3. **Status:** Etappe A umgesetzt, **STOPP zur Sichtprüfung**; Spec InUmsetzung.
+> **Deploy:** nur Web, keine Migration; vorher P-1 (beide Server), P-2 (Kollation DB + je Spalte, Pflicht), P-3. **Status:** Etappe A + B umgesetzt, **QA Epic 2026-10-13 bestanden → Testbereit** (wartet auf Schranke 2: TS-91.A + TS-91.B, dann Merge des Bündels).
 
 ## Offen / nicht gemerged
 
