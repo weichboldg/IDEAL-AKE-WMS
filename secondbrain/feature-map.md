@@ -782,6 +782,20 @@ Spec [[2026-10-06-fa-struktur-arbeitsgaenge-symbole-teil-3-spec]] (Teil 3 von 3)
 
 > **Deploy:** nur Web, keine Migration. **Status:** Testbereit (QA 2026-10-13, Build + 1845 Web- + 272 Service-Tests grün) → Schranke 2 mit dem Bündel; FA-Struktur-Symbole Teil 1–3 damit komplett.
 
+### Spaltenfilter-Suchsyntax — ein Parser für alle Listen (Epic, v1.58.0 Etappe A, direkt im Bündel)
+
+Spec [[2026-09-23-suchsyntax-spaltenfilter-erweitern-spec]], Umsetzung [[2026-10-13-suchsyntax-spaltenfilter-erweitern-umsetzung]], Changelog
+[[2026-10-13-v1-58-0-suchsyntax-spaltenfilter-etappe-a]].
+
+| Baustein | Stand | Code-Einstieg |
+|---|---|---|
+| A: Grammatik-Kern C#/JS, SQL-Bauer, Apply über Kern, gemeinsame Testtabelle | **erledigt** `3fe70103` | `Services/ColumnFilterSyntax.cs`, `wwwroot/js/column-filter-syntax.js` |
+| A: FA-Liste (SQL-Bauer, Freitext-Escaping, Sub-FA, Datum/Prio) | **erledigt** `fe8f531c` | `ProductionOrderRepository.ApplyLeitstandColumnFilter` |
+| A: table-filter.js, Syntax-Hilfe, Hilfeseite, v1.58.0, TS-91.A | **erledigt** `6dc74c9b`, `e5d0467b`, QA `c33f010b`, Fix `10ccf1f5` | `wwwroot/js/table-filter.js` |
+| B: übrige Stellen (Leitstand-C#, Artikel, Bewegungen, BDE, Fehlteile, OSEON löschen, Stückliste, FA-Baum), Typmarkierung + Drift-Wächter | **offen** — erst nach Sichtprüfung A | — |
+
+> **Deploy:** nur Web, keine Migration; vorher P-1/P-2/P-3. **Status:** Etappe A umgesetzt, **STOPP zur Sichtprüfung**; Spec InUmsetzung.
+
 ## Offen / nicht gemerged
 
 | Vorhaben | Status | Quelle |
