@@ -178,6 +178,18 @@ public class ColumnFilterSyntaxQuelltextTests
         var layout = Read("Views", "Shared", "_Layout.cshtml");
         layout.IndexOf("column-filter-syntax.js", StringComparison.Ordinal).Should().BePositive()
             .And.BeLessThan(layout.IndexOf("RenderSectionAsync(\"Scripts\"", StringComparison.Ordinal));
-        Read("Views", "ProductionOrders", "Index.cshtml").Should().Contain("data-col-key=\"prio\" data-filter-type=\"number\"");
+        Read("Views", "ProductionOrders", "Index.cshtml").Should().Contain("data-col-key=\"prio\" data-filter-type=\"number\"")
+            .And.Contain("data-filter-syntax=\"typed\"");
+    }
+
+    [Fact]
+    public void Zwischenzustand_NurFaListeTypisiert_StuecklisteLegacy_QaI1_I2()
+    {
+        var views = Path.Combine(Root(), "IdealAkeWms", "Views");
+        Directory.GetFiles(views, "*.cshtml", SearchOption.AllDirectories)
+            .Where(f => File.ReadAllText(f).Contains("data-filter-syntax=\"typed\""))
+            .Select(Path.GetFileName).Should().Equal(new[] { "Index.cshtml" }, "Etappe A: nur die FA-Liste versteht Zahl/Datum serverseitig");
+        Read("Views", "Picking", "Bom.cshtml").Should().Contain("data-filter-syntax=\"legacy\"");
+        Read("wwwroot", "js", "table-filter.js").Should().Contain("syntaxMode() !== 'typed' ? 'text'");
     }
 }

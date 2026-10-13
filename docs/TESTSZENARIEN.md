@@ -9853,6 +9853,10 @@ melden), P-3 Server-Kultur (Zahl mit Nachkommastellen zeigt `2,5`, nicht `2.5`).
 - **TS-91.A8 — Negativ / unverändert.** Alte Eingaben `960,886` und `!960` in Textspalten liefern dasselbe wie vor der
   Änderung; Leitstand: SQL-Spalten (FA-Nr., Kunde, Artikel) verstehen die neue Syntax, seine C#-Spalten (VK–VA, Termine) noch
   die alte (Zwischenzustand bis Etappe B, erwartet).
+- **TS-91.A9 — Zwischenzustand sichtbar korrekt (QA I-1/I-2).** Leitstand, BDE-Buchungen, FA-Abarbeitungsliste,
+  FA-Vervollständigung, Kommissionierliste: Datumsspalte `>=01.10.2026` → Feld rot „Vergleich nur in Zahl- und Datumsspalten —
+  ignoriert“ (diese Listen behandeln Datum bis Etappe B als Text). Stückliste: **kein** „?“-Knopf, keine Rot-Markierung, Filter
+  wie bisher (`!(leer)`, Komm.-Ziel) — die Stückliste kommt in Etappe B.
 
 ---
 

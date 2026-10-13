@@ -288,7 +288,7 @@ public class ProductionOrderRepositoryTests
     }
 
     [Fact]
-    public async Task GetForLeitstand_FiltersOnKaeltemittel_CaseInsensitive_WithNullGuard()
+    public async Task GetForLeitstand_FiltersOnKaeltemittel_WithNullGuard_CaseViaCollation()
     {
         // Spaltenfilter-Suchsyntax v1.58.0: SQL-Bauer ohne ToLower() auf der Spalte (Index); Gross/Klein macht in SQL die CI-Kollation (Pruefschritt P-2). EF-InMemory vergleicht ordinal -> Testdaten in Kleinschreibung.
         using var ctx = TestDbContextFactory.Create();

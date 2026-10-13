@@ -158,8 +158,11 @@
             if (th.hasAttribute('data-filterable')) {
                 var colKey = th.getAttribute('data-col-key');
                 var isDateCol = th.hasAttribute('data-date-filter');
-                // Spaltentyp fuer die Suchsyntax (v1.58.0): Datum ueber data-date-filter, Zahl ueber data-filter-type="number".
-                var filterType = isDateCol ? 'date' : (th.getAttribute('data-filter-type') || 'text');
+                // Spaltentyp fuer die Suchsyntax (v1.58.0): Datum ueber data-date-filter, Zahl ueber data-filter-type="number" —
+                // NUR in Tabellen mit data-filter-syntax="typed" (Server versteht Zahl/Datum, Etappe A: FA-Liste). Sonst Text wie
+                // der Server dieser Listen (QA I-1: sonst markiert der Browser einen Vergleich nicht, den der Server ignoriert).
+                var filterType = syntaxMode() !== 'typed' ? 'text'
+                    : (isDateCol ? 'date' : (th.getAttribute('data-filter-type') || 'text'));
 
                 if (isDateCol) {
                     var wrapper = document.createElement('div');
@@ -279,8 +282,13 @@
     // Services/ColumnFilterSyntax.cs, gemeinsame Testtabelle). Hier nur Typ, Anzeige ungueltiger Teile und Hilfe.
     var SYNTAX_HINT_ID = 'colFilterSyntaxHint';
 
+    // data-filter-syntax am <table>: "typed" = Zahl/Datum typisiert; "legacy" = Tabelle wertet selbst alt aus (Stueckliste bis
+    // Etappe B, QA I-2) — dann keine Syntax-Hilfe und keine Rot-Markierung, sonst verspraeche die Oberflaeche, was nicht wirkt.
+    function syntaxMode() { return _table ? _table.getAttribute('data-filter-syntax') : null; }
+
     function prepareSyntaxInput(input, filterType) {
         input.setAttribute('data-filter-type', filterType);
+        if (syntaxMode() === 'legacy') return;
         input.setAttribute('aria-describedby', SYNTAX_HINT_ID);
         input.addEventListener('input', function () { validateSyntaxInput(input); });
     }
@@ -288,6 +296,7 @@
     // Ungueltige Teile (Bereich/Vergleich in Textspalte, unlesbare Zahl/Datum): Feld rot + Text, der Teil ist wirkungslos —
     // der Server ignoriert ihn genauso (Antwort 6). Farbe nie allein: der Hinweis steht als Text darunter.
     function validateSyntaxInput(input) {
+        if (syntaxMode() === 'legacy') return;
         var parsed = window.ColumnFilterSyntax.parse(input.value, input.getAttribute('data-filter-type') || 'text');
         var cell = input.closest('th');
         var fb = cell.querySelector('.col-filter-feedback');
@@ -311,6 +320,7 @@
 
     // „?“-Knopf in der ersten Filterzelle + Popover; ein versteckter Kurztext fuer aria-describedby aller Felder.
     function addSyntaxHelp() {
+        if (syntaxMode() === 'legacy') return;
         if (!document.getElementById(SYNTAX_HINT_ID)) {
             var hint = document.createElement('span');
             hint.id = SYNTAX_HINT_ID;

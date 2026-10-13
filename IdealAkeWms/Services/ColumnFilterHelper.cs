@@ -67,7 +67,6 @@ public static class ColumnFilterHelper
     /// In-Memory-Variante fuer Listen die bereits geladene Daten paginieren.
     /// Spalten-Map: <c>col-key -&gt; getter(item) -&gt; searchable string</c>.
     /// Unbekannte col-keys werden ignoriert.
-
     /// Seit v1.58.0 (Spaltenfilter-Suchsyntax, Etappe A) ueber den Grammatik-Kern <see cref="ColumnFilterSyntax"/>: alle
     /// Aufrufer verstehen die neue Syntax ohne eigene Aenderung (Antwort 4); ohne <paramref name="types"/> gilt jede Spalte als Text.
     /// </summary>
