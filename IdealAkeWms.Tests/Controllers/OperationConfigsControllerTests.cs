@@ -138,6 +138,46 @@ public class OperationConfigsControllerTests
         bg.CreatedBy.Should().Be("system", "Anlage-Audit bleibt");
     }
 
+    // ===== FA 4a / AK 19 (FA-Struktur Teil 2, v1.55.0): leerer/fehlender Offset wird abgewiesen =====
+
+    [Fact]
+    public async Task Add_OhneOffset_Warnung_NichtsGespeichert()
+    {
+        var c = Ctrl();
+        await c.Add("KA", "Kanten", null, false);
+
+        c.TempData["WarningMessage"].Should().Be(OperationConfigsController.OffsetFehlt);
+        _db.OperationConfigs.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Update_OhneOffset_Warnung_EintragUnveraendert()
+    {
+        Seed(("KA", 3, true));
+        var id = _db.OperationConfigs.Single().Id;
+        _db.ChangeTracker.Clear();
+
+        var c = Ctrl();
+        await c.Update(id, "Neu", null, false);
+
+        c.TempData["WarningMessage"].Should().Be(OperationConfigsController.OffsetFehlt);
+        _db.ChangeTracker.Clear();
+        var ka = _db.OperationConfigs.Single();
+        (ka.DueDateOffsetDays, ka.DisplayName, ka.IsExternalSystemRelevant, ka.ModifiedAt).Should().Be((3, (string?)null, true, (DateTime?)null));
+    }
+
+    [Fact]
+    public async Task OffsetNullUndNegativ_BleibenGueltig()
+    {
+        await Ctrl().Add("KA", null, 0, true);
+        var id = _db.OperationConfigs.Single().Id;
+        _db.ChangeTracker.Clear();
+        await Ctrl().Update(id, null, -1, true);
+
+        _db.ChangeTracker.Clear();
+        _db.OperationConfigs.Single().DueDateOffsetDays.Should().Be(-1);
+    }
+
     [Fact]
     public async Task Update_Delete_UnbekannteId_NotFound()
     {

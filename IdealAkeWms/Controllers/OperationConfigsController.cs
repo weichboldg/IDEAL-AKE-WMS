@@ -67,9 +67,13 @@ public class OperationConfigsController : Controller
         });
     }
 
+    /// <summary>Hinweis, wenn der Offset im POST fehlt/leer/nicht numerisch ist (FA 4a Teil 2): nichts speichern — ein still
+    /// gespeicherter Offset 0 verschoebe ab FA-Struktur Teil 2 den Soll-Termin und damit „überfällig“ unbemerkt.</summary>
+    public const string OffsetFehlt = "Offset (Arbeitstage) fehlt – nichts gespeichert.";
+
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Add(string? operationName, string? displayName, int dueDateOffsetDays, bool isExternalSystemRelevant)
+    public async Task<IActionResult> Add(string? operationName, string? displayName, int? dueDateOffsetDays, bool isExternalSystemRelevant)
     {
         var name = (operationName ?? string.Empty).Trim();
         if (name.Length == 0)
@@ -82,6 +86,11 @@ public class OperationConfigsController : Controller
             TempData["WarningMessage"] = "Kürzel höchstens 100, Anzeigename höchstens 200 Zeichen.";
             return RedirectToAction(nameof(Index));
         }
+        if (dueDateOffsetDays is not int offset)
+        {
+            TempData["WarningMessage"] = OffsetFehlt;
+            return RedirectToAction(nameof(Index));
+        }
         if (await _repo.ExistsAsync(name))
         {
             TempData["WarningMessage"] = $"Kürzel „{name}“ existiert bereits (Groß-/Kleinschreibung und Leerzeichen zählen nicht).";
@@ -92,7 +101,7 @@ public class OperationConfigsController : Controller
         {
             OperationName = name,
             DisplayName = string.IsNullOrWhiteSpace(displayName) ? null : displayName.Trim(),
-            DueDateOffsetDays = dueDateOffsetDays,
+            DueDateOffsetDays = offset,
             IsExternalSystemRelevant = isExternalSystemRelevant,
             CreatedAt = DateTime.Now,
             CreatedBy = _currentUser.GetDisplayName(),
@@ -104,7 +113,7 @@ public class OperationConfigsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Update(int id, string? displayName, int dueDateOffsetDays, bool isExternalSystemRelevant)
+    public async Task<IActionResult> Update(int id, string? displayName, int? dueDateOffsetDays, bool isExternalSystemRelevant)
     {
         var config = await _repo.GetByIdAsync(id);
         if (config == null) return NotFound();
@@ -113,9 +122,14 @@ public class OperationConfigsController : Controller
             TempData["WarningMessage"] = "Anzeigename höchstens 200 Zeichen.";
             return RedirectToAction(nameof(Index));
         }
+        if (dueDateOffsetDays is not int offset)
+        {
+            TempData["WarningMessage"] = OffsetFehlt; // auch Anzeigename/Relevanz/Audit bleiben unveraendert
+            return RedirectToAction(nameof(Index));
+        }
 
         config.DisplayName = string.IsNullOrWhiteSpace(displayName) ? null : displayName.Trim();
-        config.DueDateOffsetDays = dueDateOffsetDays;
+        config.DueDateOffsetDays = offset;
         config.IsExternalSystemRelevant = isExternalSystemRelevant;
         config.ModifiedAt = DateTime.Now;
         config.ModifiedBy = _currentUser.GetDisplayName();
