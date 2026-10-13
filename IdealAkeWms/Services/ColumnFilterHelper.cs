@@ -67,11 +67,15 @@ public static class ColumnFilterHelper
     /// In-Memory-Variante fuer Listen die bereits geladene Daten paginieren.
     /// Spalten-Map: <c>col-key -&gt; getter(item) -&gt; searchable string</c>.
     /// Unbekannte col-keys werden ignoriert.
+
+    /// Seit v1.58.0 (Spaltenfilter-Suchsyntax, Etappe A) ueber den Grammatik-Kern <see cref="ColumnFilterSyntax"/>: alle
+    /// Aufrufer verstehen die neue Syntax ohne eigene Aenderung (Antwort 4); ohne <paramref name="types"/> gilt jede Spalte als Text.
     /// </summary>
     public static IEnumerable<T> Apply<T>(
         IEnumerable<T> source,
         IReadOnlyDictionary<string, string>? filters,
-        IReadOnlyDictionary<string, Func<T, string?>> colMap)
+        IReadOnlyDictionary<string, Func<T, string?>> colMap,
+        IReadOnlyDictionary<string, ColumnFilterType>? types = null)
     {
         if (filters == null || filters.Count == 0) return source;
 
@@ -79,15 +83,10 @@ public static class ColumnFilterHelper
         foreach (var (key, raw) in filters)
         {
             if (!colMap.TryGetValue(key, out var getter)) continue;
-            var (tokens, negate) = Parse(raw);
-            if (tokens.Count == 0) continue;
-
-            query = query.Where(item =>
-            {
-                var value = (getter(item) ?? string.Empty).ToLowerInvariant();
-                var hasMatch = tokens.Any(t => value.Contains(t));
-                return negate ? !hasMatch : hasMatch;
-            });
+            var type = types != null && types.TryGetValue(key, out var t) ? t : ColumnFilterType.Text;
+            var parsed = ColumnFilterSyntax.Parse(raw, type);
+            if (parsed.IsEmpty) continue;
+            query = query.Where(item => ColumnFilterSyntax.Matches(getter(item), parsed, type));
         }
         return query;
     }
