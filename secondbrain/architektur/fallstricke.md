@@ -1341,3 +1341,19 @@ OSEON-Pfad angleichen will, braucht eine eigene Entscheidung (Ampeln koennten si
 Die BDE-Stammdaten haengen am Klassenfilter `[RequireBdeActive]`; der Reiter „Arbeitsgänge“ muss ohne BDE gehen. Loesung:
 eigener `OperationConfigsController` (`[RequireAdminAccess]`) + gemeinsames Reiter-Partial `_BdeMasterDataTabs`, nicht
 `[RequireBdeActive]` je Action oder ein Ausnahme-Attribut im geteilten Filter (fuenf Controller).
+
+## 25. FA-Struktur-Status (v1.55.0) — Zeilenzustände und Statusfarben
+
+### Zeilenzustände nie über `opacity` kennzeichnen
+`opacity` wirkt auf **alle** Kinder einer Zeile: Text, Badges und Statusfarben fallen gemeinsam unter WCAG AA (gedimmte
+Kontextzeilen beim Baum-Spaltenfilter, Teil-1-QA M1). Seit v1.55.0 trägt die Kontextzeile Form statt Blässe (kursiv +
+Randstreifen `#495057` an der ersten Zelle). Neue Zeilenzustände: Grundfarbe oder Form ändern, Deckkraft bleibt 1.
+
+### Status-Chips mit eigenem Grund — Kontrast unabhängig vom Zeilenzustand
+Die Arbeitsgang-Chips (`.fa-ag-*`) setzen Text-, Grund- und Randfarbe selbst. So gilt der gemessene Kontrast in normaler,
+Hover-, hervorgehobener, Treffer- und Kontextzeile gleich, und ein neuer Zeilen-Hintergrund braucht keine Neuberechnung je
+Status. Wer einen Status ohne eigenen Grund einführt, muss alle Zeilengründe nachmessen.
+
+### FA-Baum-Status nur bei BDE an — produktiv derzeit unsichtbar
+`FaHierarchyController.Index` fragt Status, Feiertage und Offsets nur bei `BdeAktiv = true` ab. Solange BDE an keinem
+Standort an ist, zeigt Produktion keine Status — Abnahme und Fehlersuche am Testsystem mit BDE an.

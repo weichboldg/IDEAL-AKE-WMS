@@ -743,6 +743,21 @@ ab; Vorbedingung für FA-Struktur-Symbole Teil 2/3.
 > **Deploy:** Web + **SQL/95** (DB-Backup, App-Pool vorher stoppen). **Status:** Testbereit (QA + Nachlauf 2026-10-12,
 > Build + 1795 Web- + 272 Service-Tests grün) → Schranke 2 mit dem Bündel.
 
+### Status je Arbeitsgang-Kürzel im FA-Struktur-Baum (v1.55.0, Teil 2, direkt im Bündel)
+
+Spec [[2026-10-06-fa-struktur-arbeitsgaenge-symbole-teil-2-spec]] (Teil 2 von 3), Umsetzung [[2026-10-13-fa-struktur-arbeitsgaenge-symbole-teil-2-umsetzung]], Changelog
+[[2026-10-13-v1-55-0-fa-struktur-arbeitsgaenge-status]]. Baut auf Teil 1 (v1.52.0) und den Arbeitsgang-Stammdaten (v1.54.0) auf.
+
+| Baustein | Stand | Code-Einstieg |
+|---|---|---|
+| FA 4a: leerer Offset in der Stammdaten-Pflege abgewiesen | **erledigt** `539be27f` | `Controllers/OperationConfigsController.cs` (`OffsetFehlt`) |
+| Gebündelte Abfragen (WorkOperations der Seite, erledigt/läuft) | **erledigt** `e33cdc83` | `WorkOperationRepository.GetForFaStatusAsync` / `GetBdeStatusAsync` |
+| Reine Status-Ableitung (Zuordnung W-2/W-3, Gate, W-4, Soll/Offset, Kombigerät) | **erledigt** `7690d281` | `Models/ViewModels/FaArbeitsgangStatus.cs` |
+| Controller-Gate, Status-Chips + Zeichen, Sammelhinweis, Kontextzeilen ohne `opacity` | **erledigt** `6d85810b` | `FaHierarchyController.Index`, `_FaHierarchyNode.cshtml`, `site.css` |
+| v1.55.0, Changelog, Hilfe, TS-88 (+ TS-87.3) | **erledigt** `99a3b09e` | `docs/TESTSZENARIEN.md` TS-88 |
+
+> **Deploy:** nur Web, keine Migration. Produktiv ohne Wirkung, solange `BdeAktiv` aus ist. **Status:** Testbereit (QA 2026-10-13, Build + 1826 Web- + 272 Service-Tests grün, Fixes `57b762a9`, `627c992a`) → Schranke 2 mit dem Bündel.
+
 ## Offen / nicht gemerged
 
 | Vorhaben | Status | Quelle |
