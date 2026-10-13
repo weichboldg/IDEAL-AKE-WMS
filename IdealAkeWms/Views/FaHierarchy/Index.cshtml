@@ -72,6 +72,14 @@
     </div>
 </div>
 
+@if (Model.NichtKonfigurierteKuerzel.Count > 0)
+{
+    <div class="alert alert-warning" role="status">
+        Für @Model.NichtKonfigurierteKuerzel.Count Arbeitsgang-Kürzel ist kein Termin-Offset konfiguriert (Offset 0 angenommen):
+        <strong>@string.Join(", ", Model.NichtKonfigurierteKuerzel)</strong> — Pflege unter BDE-Stammdaten › Arbeitsgänge.
+    </div>
+}
+
 @if (!Model.Structures.Any())
 {
     <div class="alert alert-info">Keine Strukturen gefunden.</div>
@@ -81,7 +89,7 @@ else
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
         <div class="small text-muted">
             <span id="faNodeCounter"></span>
-            <span class="ms-2">Spaltenfilter (Kopfzeile) <strong>blendet</strong> nicht passende Zweige aus; der Trefferpfad bleibt gedimmt sichtbar.</span>
+            <span class="ms-2">Spaltenfilter (Kopfzeile) <strong>blendet</strong> nicht passende Zweige aus; der Pfad zu den Treffern bleibt als Kontext sichtbar (kursiv, grauer Streifen links).</span>
         </div>
         <div>
             <button type="button" id="btnFaExpandAll" class="btn btn-sm btn-outline-secondary me-1" title="Alle aufklappen" aria-label="Alle aufklappen">

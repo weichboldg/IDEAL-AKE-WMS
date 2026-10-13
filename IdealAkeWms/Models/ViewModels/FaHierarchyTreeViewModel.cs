@@ -29,6 +29,10 @@ public class FaHierarchyTreeViewModel
     /// <summary>Effektiver Tiefen-Cap (AppSettings, Default 500) — nur informativ fuer die UI.</summary>
     public int DepthCap { get; set; }
 
+    /// <summary>Kuerzel mit Status auf dieser Seite ohne Offset-Eintrag in den Arbeitsgang-Stammdaten (Teil 2, Offset 0
+    /// angenommen) — eigener Sammelhinweis, nicht TempData (das belegt der Tiefen-Cap-Hinweis).</summary>
+    public List<string> NichtKonfigurierteKuerzel { get; set; } = new();
+
     /// <summary>True, wenn eine Struktur auf dieser Seite wegen Tiefen-/Zyklenverstoss unvollstaendig ist.</summary>
     public bool HasErrorStructures => Structures.Any(s => s.HasError);
 }

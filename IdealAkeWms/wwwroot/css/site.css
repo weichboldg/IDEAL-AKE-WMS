@@ -1348,7 +1348,7 @@ th:hover .col-resize-handle {
 .fa-node-row.fa-filter-hit > td { background-color: #fff3cd; }
 
 /* Arbeitsgaenge-Symbole im FA-Baum (v1.52.0): neutraler Umriss-Chip mit eigenem weissen Grund — Text 15,4:1, Kontur
-   #495057 >= 7:1 gegen Zeile/Hover/Hervorhebung (WCAG AA; gedimmte Kontextzeile beim Spaltenfilter, opacity 0.6, liegt fuer ALLE Zellen darunter — vorbestehend). Bewusst KEINE Fuellfarbe: Farbe bleibt dem Status (Teil 2)
+   #495057 >= 7:1 gegen Zeile/Hover/Hervorhebung (WCAG AA, seit v1.55.0 auch in Kontextzeilen — keine opacity mehr). Bewusst KEINE Fuellfarbe: Farbe ist dem Status (Teil 2)
    vorbehalten. Umbruch statt Querscrollen. */
 .fa-ag-symbols { display: inline-flex; flex-wrap: wrap; gap: 0.2rem; }
 .fa-ag-symbol {
@@ -1357,8 +1357,27 @@ th:hover .col-resize-handle {
     color: #212529; background-color: #fff; border: 1px solid #495057; border-radius: 0.2rem;
 }
 .fa-ag-symbol:focus-visible { outline: 2px solid #0d6efd; outline-offset: 1px; }
-/* Vorfahrenpfad als Kontext: gedimmt, als Nicht-Treffer erkennbar. */
-.fa-node-row.fa-node-context { opacity: 0.6; }
+/* Status je Symbol (Teil 2, v1.55.0): Bootstrap-5.3-subtle-Gruende mit emphasis-Text, Zeichen + Rand in der Kernfarbe.
+   Eigener Chip-Grund -> Kontrast unabhaengig vom Zeilenzustand (normal/Hover/Hervorhebung/Filtertreffer/Kontext).
+   Gemessen: Text 10,2-13,0:1, Zeichen/Rand gegen Chip 4,9-6,9:1, Rand gegen Zeilengruende >= 5,6:1 (WCAG AA). Bedeutung
+   traegt zusaetzlich die Form (Haken / Sanduhr / Dreieck / Kreis) und der Text in aria-label/title. */
+.fa-ag-sign { vertical-align: -0.1em; margin-right: 0.15em; }
+.fa-ag-erledigt { color: #0a3622; background-color: #d1e7dd; border-color: #146c43; }
+.fa-ag-erledigt .fa-ag-sign { color: #146c43; }
+.fa-ag-laeuft { color: #052c65; background-color: #cfe2ff; border-color: #0a58ca; }
+.fa-ag-laeuft .fa-ag-sign { color: #0a58ca; }
+/* laeuft + ueberfaellig: Laeuft-Chip mit rotem 2px-Rand + Warndreieck als zweitem Zeichen (Antwort 10). */
+.fa-ag-laeuft-ueberfaellig { border: 2px solid #b02a37; }
+.fa-ag-laeuft-ueberfaellig .fa-ag-sign + .fa-ag-sign { color: #b02a37; }
+.fa-ag-ueberfaellig { color: #58151c; background-color: #f8d7da; border-color: #b02a37; }
+.fa-ag-ueberfaellig .fa-ag-sign { color: #b02a37; }
+.fa-ag-offen { color: #212529; background-color: #e9ecef; border-color: #495057; }
+.fa-ag-offen .fa-ag-sign { color: #495057; }
+/* Vorfahrenpfad als Kontext beim Spaltenfilter (Antwort 11 = C, v1.55.0): statt opacity 0.6 (zog alle Zellen unter AA)
+   kursiv + grauer Randstreifen links; Schrift behaelt volle Deckkraft (#4A494A auf Zeile/Hover >= 8,2:1, Streifen
+   #495057 >= 7,1:1). Nicht-Treffer bleibt ohne Farbe erkennbar (kursiv + Streifen; Treffer: amber Grund). */
+.fa-node-row.fa-node-context > td { font-style: italic; }
+.fa-node-row.fa-node-context > td:first-child { box-shadow: inset 4px 0 0 #495057; }
 
 @media (prefers-reduced-motion: reduce) {
     .fa-chevron, .fa-struct-chevron { transition: none !important; }

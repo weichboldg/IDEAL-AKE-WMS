@@ -9,7 +9,7 @@
 // Enthaelt: Expand/Collapse je Knoten UND je Struktur (ganzer <tbody>), "Alle auf/zu",
 // expandAncestors (fuer das Zeilen-/data-parent-id-Modell neu), #faClientFilter-Hervorheben
 // (blendet NICHTS aus), PLUS den lokalen Baum-Spaltenfilter (blendet nicht passende Zweige aus,
-// Vorfahrenpfad bleibt gedimmt als Kontext, Zaehler "X von Y Knoten", Auswahlfilter je Spalte).
+// Vorfahrenpfad bleibt als Kontext gekennzeichnet, Zaehler "X von Y Knoten", Auswahlfilter je Spalte).
 (function () {
     'use strict';
 
@@ -331,7 +331,7 @@
                     if (keep.has(r)) {
                         showRow(r);
                         if (selfMatch.has(r)) r.classList.add('fa-filter-hit');
-                        else r.classList.add('fa-node-context'); // Vorfahrenpfad, gedimmt
+                        else r.classList.add('fa-node-context'); // Vorfahrenpfad als Kontext (kursiv + Randstreifen, v1.55.0)
                         // Chevron offen zeigen, wenn ein behaltenes Kind sichtbar ist.
                         var openChild = directChildren(g, r).some(function (c) { return keep.has(c); });
                         setChevron(r, openChild);
