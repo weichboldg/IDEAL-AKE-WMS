@@ -89,7 +89,8 @@ public class FaHierarchyListBuilder
         int pageSize,
         bool paginate,
         bool leafOnly = true,
-        bool anomalyOnNonLeaf = true)
+        bool anomalyOnNonLeaf = true,
+        IReadOnlyDictionary<string, ColumnFilterType>? columnTypes = null)
     {
         ArgumentNullException.ThrowIfNull(allNodes);
         ArgumentNullException.ThrowIfNull(flagPredicate);
@@ -134,7 +135,7 @@ public class FaHierarchyListBuilder
 
         // (3) Server-Side-Spaltenfilter auf den Positionszeilen — VOR der Gruppierung (ADR 0005).
         if (columnMap != null)
-            leaves = ColumnFilterHelper.Apply(leaves, columnFilters, columnMap);
+            leaves = ColumnFilterHelper.Apply(leaves, columnFilters, columnMap, columnTypes);
 
         // (4) Gruppieren nach HauptFA; TotalCount zaehlt Gruppen.
         var groups = leaves

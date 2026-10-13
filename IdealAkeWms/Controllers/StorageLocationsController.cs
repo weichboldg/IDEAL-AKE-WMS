@@ -59,7 +59,7 @@ public class StorageLocationsController : Controller
         // Server-Side-Spaltenfilter: nach den Top-Filtern, vor der Pagination —
         // Filter muss ueber ALLE Eintraege wirken, nicht nur die aktuelle Seite.
         var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
-        var filtered = ColumnFilterHelper.Apply(query, columnFilters, ColumnMap).ToList();
+        var filtered = ColumnFilterHelper.Apply(query, columnFilters, ColumnMap, ColumnFilterTypes.For("StorageLocations/Index")).ToList();
 
         ViewBag.ShowInactive = showInactive;
         ViewBag.OnlyBookable = onlyBookable;

@@ -154,7 +154,7 @@ public class FaCompletionController : Controller
 
         var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
         var colMap = hierarchical ? FaCompletionColumnMapHierarchical : FaCompletionColumnMap;
-        var filteredItems = ColumnFilterHelper.Apply(allItems, columnFilters, colMap).ToList();
+        var filteredItems = ColumnFilterHelper.Apply(allItems, columnFilters, colMap, ColumnFilterTypes.For("FaCompletion/Index")).ToList();
 
         FaCompletionListViewModel vm;
 
@@ -239,7 +239,7 @@ public class FaCompletionController : Controller
         new(StringComparer.OrdinalIgnoreCase)
         {
             ["order-number"] = i => i.OrderNumber,
-            ["quantity"] = i => i.Quantity.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ["quantity"] = i => i.Quantity.ToString(), // wie die Zelle (@item.Quantity), Regel 6
             ["customer"] = i => i.Customer,
             ["article-number"] = i => i.ArticleNumber,
             ["matchcode"] = i => i.Matchcode,

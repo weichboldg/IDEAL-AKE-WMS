@@ -79,7 +79,7 @@ public class UsersController : Controller
         // Server-Side-Spaltenfilter: vor der Pagination —
         // Filter muss ueber ALLE Eintraege wirken, nicht nur die aktuelle Seite.
         var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
-        var ordered = ColumnFilterHelper.Apply(users, columnFilters, ColumnMap)
+        var ordered = ColumnFilterHelper.Apply(users, columnFilters, ColumnMap, ColumnFilterTypes.For("Users/Index"))
             .OrderBy(u => u.Name)
             .ToList();
 

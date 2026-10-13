@@ -82,7 +82,7 @@ public class PartRequisitionsController : Controller
         }).ToList();
 
         var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
-        var filtered = ColumnFilterHelper.Apply(allItems, columnFilters, ColumnMap).ToList();
+        var filtered = ColumnFilterHelper.Apply(allItems, columnFilters, ColumnMap, ColumnFilterTypes.For("PartRequisitions/Index")).ToList();
         var totalCount = filtered.Count;
         var pagedItems = filtered.Skip((page - 1) * effectivePageSize).Take(effectivePageSize).ToList();
 

@@ -103,7 +103,8 @@ public class BeschichtungsauftragService
         var result = _builder.Build(
             allNodes, allInfos, FlagPredicate, FlagName,
             columnFilters, ColumnMap, page, pageSize, paginate,
-            leafOnly: false, anomalyOnNonLeaf: false);
+            leafOnly: false, anomalyOnNonLeaf: false,
+            columnTypes: ColumnFilterTypes.For("FaHierarchyBeschichtung/Index"));
 
         LogAmbiguities(result.Groups);
         return result;
@@ -215,7 +216,7 @@ public class BeschichtungsauftragService
             .ThenBy(a => a.Artnr, StringComparer.OrdinalIgnoreCase)
             .AsEnumerable();
 
-        var filtered = ColumnFilterHelper.Apply(aggregates, columnFilters, SummiertColumnMap).ToList();
+        var filtered = ColumnFilterHelper.Apply(aggregates, columnFilters, SummiertColumnMap, ColumnFilterTypes.For("FaHierarchyBeschichtung/Summiert")).ToList();
 
         // Gruppen-Paging: Seiteneinheit = HauptFA, nie ueber Seiten getrennt.
         var groups = filtered.GroupBy(a => a.HauptFA).ToList();

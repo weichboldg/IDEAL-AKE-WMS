@@ -283,7 +283,12 @@
             var out = [];
             document.querySelectorAll('.fa-col-filter').forEach(function (el) {
                 var v = (el.value || '').trim().toLowerCase();
-                if (v) out.push({ key: el.getAttribute('data-filter-key'), val: v, exact: el.tagName === 'SELECT' });
+                if (!v) return;
+                var exact = el.tagName === 'SELECT';
+                // Textfilter: Grammatik-Kern (Spaltenfilter-Suchsyntax, ADR 0017) — =KA, KA%, KA;SW, !x, (leer) wie in allen Listen.
+                var parsed = exact ? null : window.ColumnFilterSyntax.parse(v, 'text');
+                if (parsed && !parsed.parts.length) return; // nur ungueltige/wirkungslose Teile -> filtert nicht
+                out.push({ key: el.getAttribute('data-filter-key'), val: v, exact: exact, parsed: parsed });
             });
             return out;
         }
@@ -291,7 +296,7 @@
             for (var i = 0; i < filters.length; i++) {
                 var f = filters[i];
                 var hay = row.getAttribute('data-f-' + f.key) || '';
-                if (f.exact ? (hay !== f.val) : (hay.indexOf(f.val) === -1)) return false;
+                if (f.exact ? (hay !== f.val) : !window.ColumnFilterSyntax.matches(hay, f.parsed, 'text')) return false;
             }
             return true;
         }
@@ -347,6 +352,10 @@
         }
 
         var filterDebounce = null;
+        // Dieselbe Syntax-Hilfe und Rot-Markierung wie in allen Listen (column-filter-syntax.js); Auswahlfilter bleiben exakt.
+        document.querySelectorAll('input.fa-col-filter').forEach(function (el) { window.ColumnFilterSyntax.prepareInput(el, 'text'); });
+        var faFilterRow = document.querySelector('.fa-col-filter') && document.querySelector('.fa-col-filter').closest('tr');
+        window.ColumnFilterSyntax.attachHelp(faFilterRow);
         document.querySelectorAll('.fa-col-filter').forEach(function (el) {
             var ev = el.tagName === 'SELECT' ? 'change' : 'input';
             el.addEventListener(ev, function () {

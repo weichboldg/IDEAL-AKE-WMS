@@ -55,7 +55,7 @@ public class RolesController : Controller
         // Server-Side-Spaltenfilter: vor der Pagination —
         // Filter muss ueber ALLE Eintraege wirken, nicht nur die aktuelle Seite.
         var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
-        var viewModels = ColumnFilterHelper.Apply(allViewModels, columnFilters, ColumnMap).ToList();
+        var viewModels = ColumnFilterHelper.Apply(allViewModels, columnFilters, ColumnMap, ColumnFilterTypes.For("Roles/Index")).ToList();
 
         ViewBag.Pagination = new Models.ViewModels.PaginationState
         {

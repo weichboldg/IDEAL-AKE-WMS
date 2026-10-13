@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Text.Json;
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
 using IdealAkeWms.Services;
 using Xunit;
 
@@ -151,45 +152,134 @@ public class FaListePostfilterSyntaxTests
             new IdealAkeWms.Models.ViewModels.ProductionOrderListItem { Prio = prio }, "prio", N(filter)).Should().Be(erwartet);
 }
 
-/// <summary>Quelltext-Waechter Etappe A: table-filter.js hat keine eigene Syntax mehr, Hilfe + aria-describedby, Kern im Layout
-/// vor den Seiten-Skripten; FA-Liste Prio als Zahl markiert (AK 3, 7, 8). Bedienung/Kontrast: Manual-UAT TS-91.A.</summary>
+/// <summary>Quelltext-Waechter (Etappe A + B): keine eigene Filtersyntax ausserhalb des Kerns, Hilfe + aria-describedby,
+/// Kern im Layout vor den Seiten-Skripten, Zwischenzustand aus A zurueckgebaut. Bedienung/Kontrast: Manual-UAT TS-91.</summary>
 public class ColumnFilterSyntaxQuelltextTests
 {
-    private static string Root()
+    internal static string Root()
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
         while (dir != null && !File.Exists(Path.Combine(dir.FullName, "IdealAkeWms", "wwwroot", "js", "table-filter.js"))) dir = dir.Parent;
         return dir!.FullName;
     }
-    private static string Read(params string[] p) => File.ReadAllText(Path.Combine(new[] { Root(), "IdealAkeWms" }.Concat(p).ToArray()));
+    internal static string Read(params string[] p) => File.ReadAllText(Path.Combine(new[] { Root(), "IdealAkeWms" }.Concat(p).ToArray()));
 
     [Fact]
-    public void TableFilter_NutztKern_KeineEigeneSyntax_HilfeUndAria()
+    public void TableFilter_NutztKern_TypImmerAusTh_KeinZwischenzustand()
     {
         var js = Read("wwwroot", "js", "table-filter.js");
-        js.Should().NotContain("function matchesFilter").And.NotContain("split(',')");
-        js.Should().Contain("ColumnFilterSyntax.matches(").And.Contain("ColumnFilterSyntax.parse(")
-            .And.Contain("aria-describedby").And.Contain("Hilfe zur Filtersyntax").And.Contain("is-invalid");
+        js.Should().NotContain("function matchesFilter").And.NotContain("split(',')").And.NotContain("syntaxMode").And.NotContain("data-filter-syntax");
+        js.Should().Contain("ColumnFilterSyntax.matches(").And.Contain("ColumnFilterSyntax.parse(").And.Contain("ColumnFilterSyntax.attachHelp(")
+            .And.Contain("isDateCol ? 'date' : (th.getAttribute('data-filter-type') || 'text')");
+        var core = Read("wwwroot", "js", "column-filter-syntax.js");
+        core.Should().Contain("aria-describedby").And.Contain("Hilfe zur Filtersyntax").And.Contain("is-invalid")
+            .And.Contain("MutationObserver", "der ?-Knopf wandert in die erste sichtbare Filterzelle, wenn Spalten ausgeblendet werden");
     }
 
     [Fact]
-    public void Layout_BindetKernVorSeitenSkriptenEin_FaListePrioIstZahl()
+    public void KeineView_TraegtNochDenZwischenzustandAusEtappeA()
+    {
+        var views = Path.Combine(Root(), "IdealAkeWms", "Views");
+        Directory.GetFiles(views, "*.cshtml", SearchOption.AllDirectories)
+            .Where(f => File.ReadAllText(f).Contains("data-filter-syntax=")).Select(Path.GetFileName).Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Layout_BindetKernVorSeitenSkriptenEin()
     {
         var layout = Read("Views", "Shared", "_Layout.cshtml");
         layout.IndexOf("column-filter-syntax.js", StringComparison.Ordinal).Should().BePositive()
             .And.BeLessThan(layout.IndexOf("RenderSectionAsync(\"Scripts\"", StringComparison.Ordinal));
-        Read("Views", "ProductionOrders", "Index.cshtml").Should().Contain("data-col-key=\"prio\" data-filter-type=\"number\"")
-            .And.Contain("data-filter-syntax=\"typed\"");
     }
 
     [Fact]
-    public void Zwischenzustand_NurFaListeTypisiert_StuecklisteLegacy_QaI1_I2()
+    public void Stueckliste_UndFaBaum_OhneEigeneSyntax_AK11_AK14_AK15()
     {
-        var views = Path.Combine(Root(), "IdealAkeWms", "Views");
-        Directory.GetFiles(views, "*.cshtml", SearchOption.AllDirectories)
-            .Where(f => File.ReadAllText(f).Contains("data-filter-syntax=\"typed\""))
-            .Select(Path.GetFileName).Should().Equal(new[] { "Index.cshtml" }, "Etappe A: nur die FA-Liste versteht Zahl/Datum serverseitig");
-        Read("Views", "Picking", "Bom.cshtml").Should().Contain("data-filter-syntax=\"legacy\"");
-        Read("wwwroot", "js", "table-filter.js").Should().Contain("syntaxMode() !== 'typed' ? 'text'");
+        var bom = Read("Views", "Picking", "Bom.cshtml");
+        var start = bom.IndexOf("function bomMatchesFilter(", StringComparison.Ordinal);
+        var body = bom.Substring(start, bom.IndexOf("function bomColKeyToIndex", start, StringComparison.Ordinal) - start);
+        body.Should().Contain("ColumnFilterSyntax.matches(").And.NotContain("split(").And.NotContain("startsWith('!')");
+        var tree = Read("wwwroot", "js", "fa-hierarchy-tree.js");
+        var rm = tree.Substring(tree.IndexOf("function rowMatchesAll(", StringComparison.Ordinal), 400);
+        rm.Should().Contain("ColumnFilterSyntax.matches(").And.NotContain("indexOf(f.val)");
+        tree.Should().Contain("ColumnFilterSyntax.attachHelp(");
+    }
+
+    [Fact]
+    public void Server_KeinEfFunctionsLikeMitEingabe_KeineAlteParseSignatur_AK11()
+    {
+        var src = Path.Combine(Root(), "IdealAkeWms");
+        var cs = Directory.GetFiles(src, "*.cs", SearchOption.AllDirectories)
+            .Where(f => !f.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}") && !f.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}")
+                        && !f.Contains($"{Path.DirectorySeparatorChar}Migrations{Path.DirectorySeparatorChar}"))
+            .ToList();
+        cs.Where(f => File.ReadAllText(f).Contains("EF.Functions.Like(")).Select(Path.GetFileName).Should().BeEmpty();
+        cs.Where(f => File.ReadAllText(f).Contains("ColumnFilterHelper.Parse(")).Select(Path.GetFileName).Should().BeEmpty();
+        cs.Where(f => System.Text.RegularExpressions.Regex.IsMatch(File.ReadAllText(f), @"\(tokens, negate\)")).Select(Path.GetFileName).Should().BeEmpty();
+    }
+}
+
+/// <summary>Drift-Waechter (AK 13): je Liste stimmen die typisierten <c>&lt;th&gt;</c> (data-date-filter = Datum,
+/// data-filter-type="number" = Zahl) mit dem Server-Register <see cref="ColumnFilterTypes"/> ueberein, und jede Server-Liste mit
+/// Typen reicht ihr Register an den Filter weiter — sonst filtern Browser und Server verschieden, ohne Meldung.</summary>
+public class ColumnFilterTypesDriftTests
+{
+    private static readonly string Views = Path.Combine(ColumnFilterSyntaxQuelltextTests.Root(), "IdealAkeWms", "Views");
+
+    private static Dictionary<string, ColumnFilterType> TypedThs(string html)
+        => System.Text.RegularExpressions.Regex.Matches(html, @"<th\b[^>]*data-filterable[^>]*>")
+            .Select(m => m.Value)
+            .Where(t => t.Contains("data-date-filter") || t.Contains("data-filter-type=\"number\""))
+            .ToDictionary(
+                t => System.Text.RegularExpressions.Regex.Match(t, "data-col-key=\"([^\"]+)\"").Groups[1].Value,
+                t => t.Contains("data-date-filter") ? ColumnFilterType.Date : ColumnFilterType.Number);
+
+    public static IEnumerable<object[]> FilterViews() => Directory.GetFiles(Views, "*.cshtml", SearchOption.AllDirectories)
+        .Where(f => File.ReadAllText(f).Contains("data-filterable"))
+        .Select(f => new object[] { Path.GetRelativePath(Views, f).Replace('\\', '/').Replace(".cshtml", "") });
+
+    [Theory]
+    [MemberData(nameof(FilterViews))]
+    public void View_UndRegister_GleicheTypen(string view)
+    {
+        var html = File.ReadAllText(Path.Combine(Views, view + ".cshtml"));
+        TypedThs(html).Should().BeEquivalentTo(ColumnFilterTypes.For(view), view);
+    }
+
+    [Fact]
+    public void Register_ZeigtNurAufVorhandeneViews()
+        => ColumnFilterTypes.Lists.Keys.Where(k => !File.Exists(Path.Combine(Views, k + ".cshtml"))).Should().BeEmpty();
+
+    [Fact]
+    public void JedeServerListeMitTypen_ReichtIhrRegisterWeiter()
+    {
+        var src = Path.Combine(ColumnFilterSyntaxQuelltextTests.Root(), "IdealAkeWms");
+        var code = string.Join("\n", Directory.GetFiles(src, "*.cs", SearchOption.AllDirectories)
+            .Where(f => !f.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}") && !f.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}"))
+            .Select(File.ReadAllText));
+        var clientOnly = new[] { "Beschichtungsauftraege/Details", "Picking/Bom", "Tracking/ByWorkplace" };
+        ColumnFilterTypes.Lists.Keys.Except(clientOnly)
+            .Where(k => !code.Contains($"ColumnFilterTypes.For(\"{k}\")") && !code.Contains($"ColumnFilterTypes.Of(\"{k}\""))
+            .Should().BeEmpty("jede Server-Liste mit Zahl-/Datumsspalten muss ihre Typen an Apply bzw. den Postfilter geben");
+    }
+}
+
+/// <summary>Artikelliste (S2, AK 12 auf Code-Ebene): „beginnt mit“ erzeugt ein indexfaehiges LIKE ohne LOWER; die Laufzeitmessung
+/// mit SET STATISTICS laeuft am Testsystem (TS-91.B1).</summary>
+public class ArticleColumnFilterSqlTests
+{
+    private static IdealAkeWms.Data.ApplicationDbContext SqlCtx() => new(new Microsoft.EntityFrameworkCore.DbContextOptionsBuilder<IdealAkeWms.Data.ApplicationDbContext>()
+        .UseSqlServer("Server=nonexistent-host-for-tests;Database=x;TrustServerCertificate=True;Connect Timeout=1").Options);
+
+    [Fact]
+    public void BeginntMit_LikeOhneLower_EnthaeltMitEscape()
+    {
+        using var ctx = SqlCtx();
+        string Sql(string key, string f) => Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ToQueryString(
+            IdealAkeWms.Data.Repositories.ArticleRepository.ApplyArticleColumnFilter(ctx.Articles, key, ColumnFilterSyntax.Parse(f, ColumnFilterType.Text)));
+
+        Sql("article-number", "5000%").Should().Contain("LIKE N'5000%'").And.NotContain("LOWER(");
+        Sql("description", "a_1").Should().Contain("ESCAPE");
+        Sql("category", "(leer)").Should().Contain("IS NULL");
     }
 }

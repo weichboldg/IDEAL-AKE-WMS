@@ -84,7 +84,7 @@ public class WarehouseRequisitionsController : Controller
             r.Comment)).ToList();
 
         var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
-        var filtered = ColumnFilterHelper.Apply(allItems, columnFilters, ColumnMap).ToList();
+        var filtered = ColumnFilterHelper.Apply(allItems, columnFilters, ColumnMap, ColumnFilterTypes.For("WarehouseRequisitions/Index")).ToList();
         var totalCount = filtered.Count;
         var paged = filtered.Skip((page - 1) * effectivePageSize).Take(effectivePageSize).ToList();
 

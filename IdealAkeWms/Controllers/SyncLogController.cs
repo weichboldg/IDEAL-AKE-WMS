@@ -36,7 +36,7 @@ public class SyncLogController : Controller
         var (rows, totalCount) = await _repo.GetPagedAsync(service, level, reference, page, effectivePageSize);
 
         var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
-        var filteredRows = ColumnFilterHelper.Apply(rows, columnFilters, SyncLogColumnMap).ToList();
+        var filteredRows = ColumnFilterHelper.Apply(rows, columnFilters, SyncLogColumnMap, ColumnFilterTypes.For("SyncLog/Index")).ToList();
 
         return View(new SyncLogIndexViewModel
         {

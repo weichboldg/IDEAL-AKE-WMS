@@ -1136,4 +1136,29 @@ public class WarehouseRequisitionRepositoryTests
 
         filtered.Should().ContainSingle().Which.ArticleNumber.Should().Be("bbb-2");
     }
+
+    // ===== Spaltenfilter-Suchsyntax, Etappe B (Antwort 5): ! gilt fuer alle Teile, wie in allen Listen =====
+    [Fact]
+    public async Task GetMissingPartsAsync_NegationGiltFuerAlleTeile_Antwort5()
+    {
+        using var db = TestDbContextFactory.Create();
+        db.ProductionWorkplaces.Add(new ProductionWorkplace { Id = 1, Name = "WB1" });
+        await db.SaveChangesAsync();
+        var repo = new WarehouseRequisitionRepository(db);
+        var id = await SeedRequisitionAsync(db, (10, 0m, ShortageStatus.NoRestock), (5, 0m, ShortageStatus.NoRestock), (3, 0m, ShortageStatus.NoRestock));
+        var items = db.WarehouseRequisitionItems.Where(i => i.WarehouseRequisitionId == id).OrderBy(i => i.Position).ToList();
+        items[0].ArticleNumber = "aaa-1";
+        items[1].ArticleNumber = "bbb-2";
+        items[2].ArticleNumber = "ccc-3";
+        await db.SaveChangesAsync();
+        await repo.CloseAsync(id,
+            items.ToDictionary(i => i.Id, i => (decimal?)0m), new Dictionary<int, string?>(), new Dictionary<int, string?>(),
+            items.ToDictionary(i => i.Id, i => ShortageStatus.NoRestock), 1, "u", "w", new byte[0]);
+
+        async Task<string[]> Run(string f) => (await repo.GetMissingPartsAsync(ShortageStatus.NoRestock, null, null,
+            new Dictionary<string, string> { ["ArticleNumber"] = f }, null, null, 1, 100)).Items.Select(r => r.ArticleNumber).OrderBy(x => x).ToArray();
+
+        (await Run("!aaa;bbb")).Should().Equal(new[] { "ccc-3" }, "weder aaa noch bbb (vorher: a UND NICHT b)");
+        (await Run("aaa%;=ccc-3")).Should().Equal("aaa-1", "ccc-3");
+    }
 }

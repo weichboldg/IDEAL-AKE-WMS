@@ -106,7 +106,8 @@ public class KommissionierListenService
         return _builder.Build(
             allNodes, allInfos, predicate, FlagName,
             columnFilters, ColumnMap, page, pageSize, paginate,
-            leafOnly: false, anomalyOnNonLeaf: false);
+            leafOnly: false, anomalyOnNonLeaf: false,
+            columnTypes: ColumnFilterTypes.For("FaHierarchyKommissionierListen/Index"));
     }
 
     /// <summary>
@@ -189,7 +190,7 @@ public class KommissionierListenService
             .AsEnumerable();
 
         // (5) Server-Spaltenfilter auf der Aggregat-Projektion.
-        aggregates = ColumnFilterHelper.Apply(aggregates, columnFilters, SummiertColumnMap);
+        aggregates = ColumnFilterHelper.Apply(aggregates, columnFilters, SummiertColumnMap, ColumnFilterTypes.For("FaHierarchyKommissionierListen/Summiert"));
 
         var filtered = aggregates.ToList();
         var totalRowCount = filtered.Count;

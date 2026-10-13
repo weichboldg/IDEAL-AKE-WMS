@@ -51,16 +51,16 @@
     <table class="table table-striped table-sm mb-0 filterable-table" data-server-column-filter="true">
         <thead>
             <tr>
-                <th data-filterable data-col-key="id">#</th>
+                <th data-filterable data-filter-type="number" data-col-key="id">#</th>
                 <th data-filterable data-col-key="status">Status</th>
                 <th data-filterable data-col-key="movement-type">Bewegung</th>
                 <th data-filterable data-col-key="article">Artikel</th>
                 <th data-filterable data-col-key="storage-location">Lagerplatz</th>
-                <th data-filterable data-col-key="quantity">Menge</th>
-                <th data-filterable data-col-key="created-at">Erstellt</th>
-                <th data-filterable data-col-key="sent-at">Gesendet</th>
-                <th data-filterable data-col-key="confirmed-at">Bestätigt</th>
-                <th data-filterable data-col-key="attempts">Vers.</th>
+                <th data-filterable data-filter-type="number" data-col-key="quantity">Menge</th>
+                <th data-filterable data-date-filter data-col-key="created-at">Erstellt</th>
+                <th data-filterable data-date-filter data-col-key="sent-at">Gesendet</th>
+                <th data-filterable data-date-filter data-col-key="confirmed-at">Bestätigt</th>
+                <th data-filterable data-filter-type="number" data-col-key="attempts">Vers.</th>
                 <th data-filterable data-col-key="error">Fehler</th>
                 <th data-col-key="actions" style="width: 90px;"></th>
             </tr>

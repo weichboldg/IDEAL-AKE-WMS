@@ -46,7 +46,7 @@ public class WorkStepsController : Controller
         // Server-Side-Spaltenfilter: vor der Pagination —
         // Filter muss ueber ALLE Eintraege wirken, nicht nur die aktuelle Seite.
         var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
-        var filtered = ColumnFilterHelper.Apply(steps, columnFilters, ColumnMap).ToList();
+        var filtered = ColumnFilterHelper.Apply(steps, columnFilters, ColumnMap, ColumnFilterTypes.For("WorkSteps/Index")).ToList();
 
         ViewBag.Pagination = new Models.ViewModels.PaginationState
         {

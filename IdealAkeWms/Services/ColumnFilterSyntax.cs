@@ -72,6 +72,7 @@ public static class ColumnFilterTypes
             ["WarehousePicking/Details"] = L(("pos", N), ("requested", N)),
             ["WarehousePicking/Index"] = L(("id", N), ("submitted", D), ("items", N)),
             ["WarehouseRequisitions/Index"] = L(("id", N), ("items", N), ("created", D), ("submitted", D)),
+            ["WorkSteps/Index"] = L(("sort-order", N)),
         };
 
     /// <summary>Typen einer Liste (View-Pfad wie <c>"FaWorklist/Index"</c>); unbekannte Liste = alles Text.</summary>

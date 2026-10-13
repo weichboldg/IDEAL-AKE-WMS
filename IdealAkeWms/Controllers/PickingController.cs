@@ -193,7 +193,7 @@ public class PickingController : Controller
         // Server-Side-Spaltenfilter VOR Pagination: filtern -> zaehlen -> Skip/Take.
         var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
         var colMap = hierarchical ? ColumnMapHierarchical : ColumnMap;
-        var filtered = ColumnFilterHelper.Apply(allItems, columnFilters, colMap).ToList();
+        var filtered = ColumnFilterHelper.Apply(allItems, columnFilters, colMap, ColumnFilterTypes.For("Picking/Index")).ToList();
         if (page < 1) page = 1;
 
         if (hierarchical)

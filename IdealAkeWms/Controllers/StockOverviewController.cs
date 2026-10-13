@@ -22,8 +22,8 @@ public class StockOverviewController : Controller
         ["description"] = i => i.ArticleDescription,
         ["storage-location"] = i => i.StorageLocationCode,
         ["unit"] = i => i.Unit,
-        ["reorder-level"] = i => i.ReorderLevel?.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture),
-        ["current-stock"] = i => i.CurrentQuantity.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture)
+        ["reorder-level"] = i => i.ReorderLevel?.ToString("N3"), // wie die Zelle, Regel 6
+        ["current-stock"] = i => i.CurrentQuantity.ToString("N3") // wie die Zelle, Regel 6
     };
 
     public StockOverviewController(
@@ -66,7 +66,7 @@ public class StockOverviewController : Controller
 
         // Server-Side Column Filter (in-memory ueber das schon geladene Set)
         var columnFilters = IdealAkeWms.Services.ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
-        items = IdealAkeWms.Services.ColumnFilterHelper.Apply(items, columnFilters, _stockOverviewColMap).ToList();
+        items = IdealAkeWms.Services.ColumnFilterHelper.Apply(items, columnFilters, _stockOverviewColMap, ColumnFilterTypes.For("StockOverview/Index")).ToList();
 
         var totalCount = items.Count;
         var pagedItems = items.Skip((page - 1) * effectivePageSize).Take(effectivePageSize).ToList();

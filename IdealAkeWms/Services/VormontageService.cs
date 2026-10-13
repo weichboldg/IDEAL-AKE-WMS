@@ -173,7 +173,8 @@ public class VormontageService
         var result = _builder.Build(
             nodes, allInfos, predicate, FlagName,
             columnFilters, ColumnMap, page, pageSize, paginate,
-            leafOnly: false, anomalyOnNonLeaf: false);
+            leafOnly: false, anomalyOnNonLeaf: false,
+            columnTypes: ColumnFilterTypes.For("FaHierarchyVormontage/Index"));
 
         LogAmbiguities(result.Groups);
         return result;
@@ -256,7 +257,7 @@ public class VormontageService
             .AsEnumerable();
 
         // (4) Server-Spaltenfilter auf der Aggregat-Projektion (nicht auf den Rohpositionen).
-        aggregates = ColumnFilterHelper.Apply(aggregates, columnFilters, AggregatColumnMap);
+        aggregates = ColumnFilterHelper.Apply(aggregates, columnFilters, AggregatColumnMap, ColumnFilterTypes.For("FaHierarchyVormontage/Summiert"));
 
         var filtered = aggregates.ToList();
         var totalRowCount = filtered.Count;

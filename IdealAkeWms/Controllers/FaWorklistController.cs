@@ -288,7 +288,7 @@ public class FaWorklistController : Controller
         // Schritt 7: ColumnMap (gerenderte Texte!) + Apply VOR Pagination.
         var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
         var columnMap = BuildColumnMap(vm.AttributeColumns, hierarchical);
-        var filteredRows = ColumnFilterHelper.Apply(rows, columnFilters, columnMap).ToList();
+        var filteredRows = ColumnFilterHelper.Apply(rows, columnFilters, columnMap, ColumnFilterTypes.For("FaWorklist/Index")).ToList();
 
         if (hierarchical)
         {
@@ -413,7 +413,7 @@ public class FaWorklistController : Controller
             ["matchcode"] = r => r.Matchcode,
             ["description1"] = r => r.Description1,
             ["description2"] = r => r.Description2,
-            ["quantity"] = r => r.Quantity.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ["quantity"] = r => r.Quantity.ToString(), // wie die Zelle (_FaWorklistRow: @item.Quantity), Regel 6
             ["coating-date"] = r => FormatDateForFilter(r.BeschichtungTermin),
             ["bg-date"] = r => FormatDateForFilter(r.VorkommissionierTermin),
             ["picking-date"] = r => FormatDateForFilter(r.KommissionierTermin),

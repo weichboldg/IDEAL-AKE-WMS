@@ -76,7 +76,7 @@ public class WarehousePickingController : Controller
             r.SubmittedAt, r.Items.Count, r.Status, r.Comment)).ToList();
 
         var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
-        var filtered = ColumnFilterHelper.Apply(allItems, columnFilters, ColumnMap).ToList();
+        var filtered = ColumnFilterHelper.Apply(allItems, columnFilters, ColumnMap, ColumnFilterTypes.For("WarehousePicking/Index")).ToList();
         var totalCount = filtered.Count;
         var pagedItems = filtered.Skip((page - 1) * effectivePageSize).Take(effectivePageSize).ToList();
 
@@ -383,7 +383,7 @@ public class WarehousePickingController : Controller
 
         // Filter (live aus ?colf_*) -> Sortierung (live ?sortCol/sortDir, sonst Default-Sort) -> sichtbare Spalten.
         var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
-        var filtered = ColumnFilterHelper.Apply(detailItems, columnFilters, WarehousePickingPrintLayout.ColumnMap);
+        var filtered = ColumnFilterHelper.Apply(detailItems, columnFilters, WarehousePickingPrintLayout.ColumnMap, ColumnFilterTypes.For("WarehousePicking/Details"));
         var sorted = WarehousePickingPrintLayout.SortItems(
             filtered, sortCol, sortDir, prefs?.DefaultSortColumn, prefs?.DefaultSortDirection);
         var columns = WarehousePickingPrintLayout.ResolveColumns(prefs);

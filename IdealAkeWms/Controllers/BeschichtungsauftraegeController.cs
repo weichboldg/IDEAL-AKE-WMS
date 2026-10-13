@@ -81,7 +81,7 @@ public class BeschichtungsauftraegeController : Controller
             .Where(a => status is null || a.Status == status)
             .OrderByDescending(a => a.Jahr).ThenByDescending(a => a.LaufendeNummer)
             .Select(BeschichtungsauftragListRow.Von);
-        var gefiltert = ColumnFilterHelper.Apply(rows, columnFilters, BeschichtungsauftragListRow.ColumnMap).ToList();
+        var gefiltert = ColumnFilterHelper.Apply(rows, columnFilters, BeschichtungsauftragListRow.ColumnMap, ColumnFilterTypes.For("Beschichtungsauftraege/Index")).ToList();
 
         return View(new BeschichtungsauftragListViewModel
         {

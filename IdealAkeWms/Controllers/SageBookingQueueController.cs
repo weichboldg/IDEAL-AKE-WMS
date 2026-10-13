@@ -72,7 +72,7 @@ public class SageBookingQueueController : Controller
 
         // Server-Side-Spaltenfilter ueber ALLE Eintraege, vor der Pagination.
         var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
-        var filtered = ColumnFilterHelper.Apply(all.AsQueryable(), columnFilters, ColumnMap).ToList();
+        var filtered = ColumnFilterHelper.Apply(all.AsQueryable(), columnFilters, ColumnMap, ColumnFilterTypes.For("SageBookingQueue/Index")).ToList();
 
         var sslRaw = await _serviceSettings.GetValueAsync(SageTlsPolicy.SettingKey);
 

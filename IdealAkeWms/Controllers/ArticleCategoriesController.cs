@@ -45,7 +45,7 @@ public class ArticleCategoriesController : Controller
 
         // Filter vor der Pagination — muss ueber ALLE Eintraege wirken, nicht nur die aktuelle Seite.
         var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
-        var filtered = ColumnFilterHelper.Apply(categories, columnFilters, columnMap).ToList();
+        var filtered = ColumnFilterHelper.Apply(categories, columnFilters, columnMap, ColumnFilterTypes.For("ArticleCategories/Index")).ToList();
 
         ViewBag.Pagination = new Models.ViewModels.PaginationState
         {

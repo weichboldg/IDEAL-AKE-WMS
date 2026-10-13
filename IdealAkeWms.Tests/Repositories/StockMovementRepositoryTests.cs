@@ -353,4 +353,55 @@ public class StockMovementRepositoryTests
             .Options;
         return new Data.ApplicationDbContext(options);
     }
+
+    // ===== Spaltenfilter-Suchsyntax, Etappe B (AK 16): Datum/Zeit tageweise + Zeitraum wie bisher, Bewegungsart =====
+
+    [Fact]
+    public async Task Datumsspalte_TagMonatJahrWieBisher_NeuVergleichUndBereich_Tageweise_AK16()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        var (article, loc1, _) = SeedBaseData(ctx);
+        foreach (var ts in new[] { new DateTime(2026, 9, 30, 23, 59, 0), new DateTime(2026, 10, 1, 8, 0, 0), new DateTime(2026, 10, 1, 23, 59, 0), new DateTime(2026, 11, 2, 7, 0, 0) })
+        {
+            var m = CreateMovement(article, loc1, 1, MovementType.Einbuchung);
+            m.Timestamp = ts;
+            ctx.StockMovements.Add(m);
+        }
+        await ctx.SaveChangesAsync();
+
+        int Count(string filter) => StockMovementRepository.ApplyMovementColumnFilter(ctx.StockMovements, "datetime",
+            IdealAkeWms.Services.ColumnFilterSyntax.Parse(filter, IdealAkeWms.Services.ColumnFilterType.Date)).Count();
+
+        Count("01.10.2026").Should().Be(2, "Tag wie bisher");
+        Count("10.2026").Should().Be(2, "Monat wie bisher");
+        Count("2026").Should().Be(4, "Jahr wie bisher");
+        Count(">=01.10.2026").Should().Be(3);
+        Count(">01.10.2026").Should().Be(1, "ab Folgetag 00:00 (Antwort 3)");
+        Count("<=01.10.2026").Should().Be(3, "bis Tagesende");
+        Count("<01.10.2026").Should().Be(1);
+        Count("=01.10.2026").Should().Be(2);
+        Count("01.10.2026...31.10.2026").Should().Be(2);
+        Count("!01.10.2026").Should().Be(2);
+        Count("30.09.2026;02.11.2026").Should().Be(2, "; ist in Datumsspalten das ODER");
+        Count("kw40").Should().Be(0, "kein lesbares Datum: positiv leer wie bisher");
+    }
+
+    [Fact]
+    public async Task Bewegungsart_UeberDenKern_GenauUndNegation()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        var (article, loc1, _) = SeedBaseData(ctx);
+        ctx.StockMovements.Add(CreateMovement(article, loc1, 1, MovementType.Ausbuchung));
+        ctx.StockMovements.Add(CreateMovement(article, loc1, 1, MovementType.SageAusbuchung));
+        ctx.StockMovements.Add(CreateMovement(article, loc1, 1, MovementType.Einbuchung));
+        await ctx.SaveChangesAsync();
+
+        int Count(string filter) => StockMovementRepository.ApplyMovementColumnFilter(ctx.StockMovements, "movement-type",
+            IdealAkeWms.Services.ColumnFilterSyntax.Parse(filter, IdealAkeWms.Services.ColumnFilterType.Text)).Count();
+
+        Count("ausbuchung").Should().Be(2);
+        Count("=ausbuchung").Should().Be(1);
+        Count("!ausbuchung").Should().Be(1);
+        Count("sage%").Should().Be(1);
+    }
 }

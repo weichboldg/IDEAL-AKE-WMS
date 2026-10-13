@@ -68,7 +68,7 @@ public class ProductionWorkplacesController : Controller
         // Server-Side-Spaltenfilter: vor der Pagination —
         // Filter muss ueber ALLE Eintraege wirken, nicht nur die aktuelle Seite.
         var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
-        var list = ColumnFilterHelper.Apply(workplaces, columnFilters, ColumnMap).ToList();
+        var list = ColumnFilterHelper.Apply(workplaces, columnFilters, ColumnMap, ColumnFilterTypes.For("ProductionWorkplaces/Index")).ToList();
         ViewBag.Pagination = new Models.ViewModels.PaginationState
         {
             CurrentPage = page,
