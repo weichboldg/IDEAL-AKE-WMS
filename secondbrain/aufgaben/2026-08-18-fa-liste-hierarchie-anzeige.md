@@ -14,7 +14,7 @@ updated: 2026-09-08
 > **STAND 2026-09-07 — WIEDEREINSTIEG:** Epic A–E **KOMPLETT**, **status Testbereit** (qa-agent,
 > v1.35.0). Build 0 Fehler · Web **1243 grün +1 skip** · Service **232 grün**. Deploy web:true/
 > service:false/migration:false. Alles committet — **Hauptcheckout HEAD `b8c6202`**, **Worktree HEAD
-> `dde9a17`**. **Nächster Schritt = Mensch macht Schranke 2** (Manual-UAT am IDEAL-Testsystem nach TS-69 +
+> `ea3932d`**. **Nächster Schritt = Mensch macht Schranke 2** (Manual-UAT am IDEAL-Testsystem nach TS-69 +
 > EIN Merge fürs ganze Bündel Teile 1–8 + dieser Epic). NICHT gemerged/gepusht/aufgeräumt.
 > **Offener F2-Befund (nicht-blockierend, in Manual-Checkliste):** `fa-liste-gruppierung.js` Auto-Expand
 > lauscht auf `[data-fa-liste-filter]` (keine View rendert es) → toter Code, keine Treffer-Hervorhebung;
@@ -24,9 +24,9 @@ updated: 2026-09-08
 
 > **STAND 2026-09-08 — Re-QA Nachtrag UAT-Lauf 1:** UAT-Lauf 1 am IDEAL-Testsystem fand Befund
 > **U2** (Kaskade-Dialog: Zähler „mit offener Buchung" nur bei `>0` sichtbar). Fix + Test im selben
-> Bündel-Worktree, Commit `a8d75de` (bündelt auch U1/BOM-Guard-Spec). **Weiterhin Testbereit** —
+> Bündel-Worktree, Commit `c02c6f9` (bündelt auch U1/BOM-Guard-Spec). **Weiterhin Testbereit** —
 > Build 0 Fehler, Web **1245 grün +1 skip**, Service **232 grün** unverändert. Worktree-HEAD jetzt
-> `a8d75de`. Details siehe Spec-Abschnitt „Re-QA Nachtrag UAT-Lauf 1 (2026-09-08)". **Pfadhinweis:**
+> `c02c6f9`. Details siehe Spec-Abschnitt „Re-QA Nachtrag UAT-Lauf 1 (2026-09-08)". **Pfadhinweis:**
 > die aktuell lebende Spec liegt unter `secondbrain/specs/freigegeben/…` (nicht `entwurf/` — dort
 > liegt eine verwaiste, nicht mehr aktuelle Kopie mit fremden unstaged Änderungen, unangetastet
 > gelassen). F2-Befund weiterhin offen, von diesem Nachtrag nicht berührt.
@@ -40,11 +40,11 @@ Z1/Z3-Sync). Buendel-Worktree, kein Zwischen-Merge, QA erst Etappe E. Gates gepr
 ## Etappen
 | # | Etappe | Status |
 |---|--------|--------|
-| A | Anzeige-Fundament + ProductionOrders-Referenz-View + Z4-ERHEBUNG. **STOPP nach A.** | **erledigt** (`30b7a8c`/`9315186`/`abd2620`) |
-| B | 5 weitere Views — **5/5 KOMPLETT**: FaCompletion `b150579`, PickingLeitstand `5b15caf`, Picking `960d5c8`, FaWorklist `10921e2`, Tracking/Index `7bba52b` | **erledigt** |
-| C | Kaskade Leitstand-Kopfzeile | **erledigt** (`a305d6f`) |
-| D | Z4-Sweep + Z1-Regressionstest **erledigt** (`d9de60c`); Z3 vertagt → Backlog | **erledigt (Z3 vertagt)** |
-| E | Testszenarien (TS-69) + v1.35.0 + Changelogs + qa-agent → Testbereit | **erledigt** (`dde9a17` Worktree, `b8c6202` Brain) |
+| A | Anzeige-Fundament + ProductionOrders-Referenz-View + Z4-ERHEBUNG. **STOPP nach A.** | **erledigt** (`43b6bde`/`e8d21d0`/`5ee8177`) |
+| B | 5 weitere Views — **5/5 KOMPLETT**: FaCompletion `4a74ea6`, PickingLeitstand `bf6863c`, Picking `d7df8a9`, FaWorklist `837a1f6`, Tracking/Index `087c311` | **erledigt** |
+| C | Kaskade Leitstand-Kopfzeile | **erledigt** (`8806016`) |
+| D | Z4-Sweep + Z1-Regressionstest **erledigt** (`e9eb089`); Z3 vertagt → Backlog | **erledigt (Z3 vertagt)** |
+| E | Testszenarien (TS-69) + v1.35.0 + Changelogs + qa-agent → Testbereit | **erledigt** (`ea3932d` Worktree, `b8c6202` Brain) |
 
 ## Verbindliche Entscheidungen (aus der Spec)
 - **Wirksam nur bei Master `ProduktionsauftragHierarchisch == true`** (Lese-Muster wie
@@ -83,11 +83,11 @@ Z1/Z3-Sync). Buendel-Worktree, kein Zwischen-Merge, QA erst Etappe E. Gates gepr
     "ProductionOrders"`, `data-server-column-filter="true"`, IsCancelled-Badge Z. 126-128.
     Repo `ProductionOrderRepository` hat noch **keine** gruppierte Abfrage.
   - **Etappe A Build-Fortschritt:**
-    - (a) **erledigt** (`30b7a8c`): Repo `GetForLeitstandGroupedAsync` (Gruppe=OrderNumber,
+    - (a) **erledigt** (`43b6bde`): Repo `GetForLeitstandGroupedAsync` (Gruppe=OrderNumber,
       TotalGroupCount/TotalRowCount, order-number matcht SubOrderNumber ODER OrderNumber, Z2-Sortierung,
       Z3b-showDone) + gemeinsamer `BuildLeitstandQuery`/`ProjectLeitstandRows` + 3 Unit-Tests grün.
       `LeitstandOrderRow` um SubOrderNumber/ParentSubOrderNumber/SageMissingSince erweitert.
-    - (b) **erledigt** (`9315186`): `ColumnDefinitions.ProductionOrders` +`parent-sub-order-number`
+    - (b) **erledigt** (`e8d21d0`): `ColumnDefinitions.ProductionOrders` +`parent-sub-order-number`
       (DefaultHidden); `wwwroot/js/fa-liste-gruppierung.js` (Chevron-Collapse je Gruppe, Auto-Expand F2,
       Alle-auf/zu; aktiv nur bei `data-hierarchical="true"`; kein Eingriff in table-filter.js).
     - (c) **OFFEN — Controller-Master-Gate + View-Umbau (der delikate Referenz-Teil):**
@@ -106,7 +106,7 @@ Z1/Z3-Sync). Buendel-Worktree, kein Zwischen-Merge, QA erst Etappe E. Gates gepr
          parent-Spalte, SageMissingSince-Badge); sonst flach wie heute. `fa-liste-gruppierung.js` einbinden.
          Zählformat „N Aufträge · M Sub-FAs" (Z4, nur hier; Sweep = D).
       **Grund für den Checkpoint:** Referenz-View, die B 5× repliziert — bewusst mit Fokus statt gehetzt.
-    - (c) **ERLEDIGT** (`abd2620`): Controller-Master-Gate + gemeinsame `MapItem`-Anreicherung (flach+
+    - (c) **ERLEDIGT** (`5ee8177`): Controller-Master-Gate + gemeinsame `MapItem`-Anreicherung (flach+
       gruppiert) + hierarchischer Zweig (Gruppen-Query, Gruppen-Mapping, Gruppen-Pagination, Datumsfilter-
       je-Gruppe/Z3b, Z4-Zahl). `_ProductionOrderRow.cshtml`-Partial (geteilt); im hierarchischen Modus
       order-number=SubOrderNumber, parent-Spalte, SageMissingSince-Badge. View: `data-hierarchical`,
@@ -143,7 +143,7 @@ liefern (dort bliebe unklar, ob ein Problem am Muster oder an der View liegt). N
   gruppiert schon — erst prüfen WONACH; falls OrderNumber, vermischen sich im hierarchischen Modus die
   AGs aller Sub-FAs → **Vorschlag mit Begründung vorlegen, nicht selbst entscheiden.**
 
-### B-View 1: FaCompletion — ERLEDIGT (`b150579`, 2026-08-20)
+### B-View 1: FaCompletion — ERLEDIGT (`4a74ea6`, 2026-08-20)
 **Reusability-Befund (der eigentliche Zweck des FaCompletion-first-Tauschs):** Das
 `_ProductionOrderRow`/MapItem-Muster ist **NICHT 1:1 übertragbar** — FaCompletion nutzt einen
 **anderen Datenpfad**: `GetAllOrderedAsync()` (volle Entities) + In-Memory-Filter/Map/Pagination über
@@ -177,7 +177,7 @@ Sub-FA-Zeilen zeigen Sub-Nummer; parent-Spalte per Zahnrad einblendbar; Z4-Zeile
 Sub **und** Haupt. Client-Sort-im-Grouped-Modus-Vorbehalt (nur erste tbody) gilt hier wie bei ProductionOrders
 — beobachten, Entschärfung sammelt sich für Etappe D.
 
-### B-View 2: PickingLeitstand — ERLEDIGT (`5b15caf`, 2026-08-20)
+### B-View 2: PickingLeitstand — ERLEDIGT (`bf6863c`, 2026-08-20)
 Datenpfad wie ProductionOrders (`GetForLeitstandAsync`→`GetForLeitstandGroupedAsync` direkt) — daher
 Controller-Teil nah an der Referenz: gemeinsame `MapItem`-Anreicherung (Pivot+PickingStatus+Termine) für
 flach **und** gruppiert; hierarchischer Zweig mit Gruppen-Pagination + Z4. `_PickingLeitstandRow.cshtml`
@@ -208,7 +208,7 @@ die verbleibenden Gruppen.
 **Client-Sort-im-Grouped-Modus-Vorbehalt** (nur erste tbody) gilt hier wie bei ProductionOrders/FaCompletion —
 sammelt sich für Etappe D.
 
-### B-View 3: Picking (Kommissionier-Liste) — ERLEDIGT (`960d5c8`, 2026-08-21)
+### B-View 3: Picking (Kommissionier-Liste) — ERLEDIGT (`d7df8a9`, 2026-08-21)
 **Klassifikations-Korrektur:** Die Picking-**Index-Liste** ist entgegen der ersten Heterogenitäts-Vermutung
 NICHT „fremde Entität je Zeile", sondern ProductionOrder-abgeleitet (freigegebene FAs → `PickingListItem`,
 In-Memory-Filter/Gruppierung) — **gleiche Form wie FaCompletion**. (Die „Picking-Status je Zeile"-Notiz bezog
@@ -236,7 +236,7 @@ Gruppe oben, innerhalb der Gruppe Prio-Reihenfolge — passt das zum Kommissioni
 SubOrderNumber sortiert werden? (2) Klick auf eine Sub-FA-Zeile öffnet deren Stückliste; (3) Chevron auf/zu;
 (4) FA-Nummer-Filter matcht Sub und Haupt; (5) Z4-Zeile. Client-Sort-im-Grouped-Vorbehalt wie überall (Etappe D).
 
-### B-View 4: FaWorklist (FA-Abarbeitungsliste) — ERLEDIGT (`10921e2`, 2026-08-21)
+### B-View 4: FaWorklist (FA-Abarbeitungsliste) — ERLEDIGT (`837a1f6`, 2026-08-21)
 **Klassifikations-Korrektur (wie bei Picking):** Auch FaWorklist ist ProductionOrder-abgeleitet — eine Zeile
 je offenem FA, der den **gewählten** FaWorkStep hat. Die „fremde Entität je Zeile" ist nur die **AG-Status-
 ZELLE** (das eine Auswahlfeld), NICHT die Zeilen-Körnung. Also FaCompletion-Muster: In-Memory-GroupBy über
@@ -268,12 +268,12 @@ Paginierung über die ProductionOrder-Gruppen. **Nutzt Bootstrap-collapse, NICHT
 aber es entstehen **mehrere Gruppen-Zeilen mit identischer HauptFA-Nummer** (eine je Sub-FA), nicht
 unterscheidbar; SubOrderNumber nicht sichtbar. Es ist real ein **3-Ebenen-Fall**: HauptFA → Sub-FA → AG.
 
-**ENTSCHEIDUNG (Mensch, 2026-08-21): Option 2 (echte 3-Ebenen), UMGESETZT (`7bba52b`).** Vorgaben:
+**ENTSCHEIDUNG (Mensch, 2026-08-21): Option 2 (echte 3-Ebenen), UMGESETZT (`087c311`).** Vorgaben:
 OseonIndex als Referenz übernehmen (nicht neu erfinden); zweistufiger Fortschritt (je HauptFA „fertige
 Sub-FAs / alle", je Sub-FA „rückgemeldete AGs / alle"); Perf-Kommentar zur Sortierung lesen; Lade-Strategie
 MESSEN; Bootstrap-collapse entfällt (nicht mit OSEON-Muster mischen).
 
-**Umsetzung (7bba52b):** Controller-Master-Gate; hierarchischer Zweig bündelt die bestehenden
+**Umsetzung (087c311):** Controller-Master-Gate; hierarchischer Zweig bündelt die bestehenden
 ProductionOrder-Gruppen (= Sub-FAs) zu HauptFA-Übergruppen (GroupBy OrderNumber, Z2 SubOrderNumber),
 Paginierung über HauptFA-Gruppen, Z4; FA-Nummer-Filter Sub-zuerst-dann-Haupt. **Flachmodus (AKE)
 bit-identisch** (2-Ebenen, Bootstrap-collapse unangetastet). VM: `TrackingHauptFaGroup` mit zweistufigem
@@ -316,7 +316,7 @@ Feld auf HauptFA-Körnung → möglicher Mismatch. Der `_ProductionOrderRow`-Lin
 `filterCustomerOrder=OrderNumber` (HauptFA-korrekt). **Gemeldet, nicht geändert (außer Umfang) — ggf. eigener
 Backlog-Punkt, ob OseonIndex Sub-FA-Scans auf HauptFA mappen soll.**
 
-## Etappe C — Kaskade „Alle Sub-FAs fertigmelden" — ERLEDIGT (`a305d6f`, 2026-09-05)
+## Etappe C — Kaskade „Alle Sub-FAs fertigmelden" — ERLEDIGT (`8806016`, 2026-09-05)
 Verbindlicher BL1-Ausgang der Spec: **Träger `IsDoneBde` (`ProductionOrderBdeStatus`), Wirt =
 PickingLeitstand-Gruppenkopfzeile, nur diese Aktion kaskadiert.** Umgesetzt:
 - **Kaskade-Ziel = alle `ProductionOrder`s mit dieser HauptFA-`OrderNumber`** — das ist genau die Menge,
@@ -349,7 +349,7 @@ fertigmelden"; Klick → Dialog mit N Sub-FAs + ggf. „davon M mit offener Buch
 `IsDoneBde=true` (auch tiefere Ebenen, auch aktuell ausgeblendete), TempData-Erfolg, ein Log-Eintrag; Abbruch →
 nichts. Master aus → kein Knopf (AK 10). BDE-Cockpit spiegelt die gesetzten Fertigmeldungen.
 
-## Etappe D — Z4-Sweep + Z1-Regressionstest — ERLEDIGT (`d9de60c`); Z3 vertagt (2026-09-07)
+## Etappe D — Z4-Sweep + Z1-Regressionstest — ERLEDIGT (`e9eb089`); Z3 vertagt (2026-09-07)
 - **Z4-Erhebung bestätigt:** Die **6 Listen-Views tragen die Z4-Zeile** „N Aufträge · M Sub-FAs" bereits
   aus Etappe A/B. Die **Home-Dashboard-Kacheln** + `_ArtikelinfoTile` zeigen **keine** Auftragszahl
   (reine Navigations-Kacheln, kein Count). Einzige verbleibende Nicht-Listen-Zählstelle:

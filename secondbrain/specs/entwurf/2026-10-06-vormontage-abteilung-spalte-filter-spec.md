@@ -32,8 +32,8 @@ freigabe_von: ""
 freigabe_am: ""
 ---
 
-> [!note] Umsetzungsort (Hinweis, keine Entscheidung)
-> Nach Schranke 2 des IDEAL-Buendels, aus `main` (neuer Worktree). Die Spec baut auf Teil 5
+> [!note] Umsetzungsort (Entscheidung Gerald 2026-10-09)
+> direkt im Bündel-Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5` auf Zweig `feature/2026-08-07-ideal-teile-1-5` (kein eigener Worktree, ein Lauf zur Zeit). Die Spec baut auf Teil 5
 > ([[2026-07-29-standort-ideal-teil-5-spec]]) auf, der nur im Buendel-Worktree
 > `feature/2026-08-07-ideal-teile-1-5` existiert. Alle Zeilenangaben unten beziehen sich auf den
 > Buendel-Stand `.claude/worktrees/2026-08-07-ideal-teile-1-5` (`AppVersion.cs:5` = **1.47.2**) und
@@ -480,4 +480,9 @@ Neu nummeriert im Rework 2026-10-06 nach Antwort 1 (alt 3 → 1, alt 4 → 2, al
 
 1. (vorher 3) Summierte Ansicht — Anzeige oder Schluessel, Filter vor/nach Aggregation (Empfehlung: Anzeige + Vorfilter je Position; ~~Kombi-Hinweis nur bei B~~ verworfen mit Antwort 1) → **Wie vorgeschlagen (Keyuser 2026-10-07): Anzeige, Filter wirkt vor dem Zusammenzählen.**
 2. (vorher 4) Server-Mode + Registrierung; Position, Sichtbarkeit, Label/Col-Key (Empfehlung: nach HauptFA/Matchcode, sichtbar; Label „Abteilung" wie Sage oder „Arbeitsbereich" wie Kommissionierlisten) → **Label „Arbeitsbereich“ (Keyuser 2026-10-07); Server-Mode/Registrierung, Position und Sichtbarkeit wie vorgeschlagen.**
-3. (vorher 5) Bezug Kombigeraete-Backlog (Empfehlung: eigener Schritt, nur Querverweis) →
+3. (vorher 5) Bezug Kombigeraete-Backlog (Empfehlung: eigener Schritt, nur Querverweis) → **Eigener Schritt, nur Querverweis im Kombigeraete-Backlog, nicht als erledigt markieren (Gerald 2026-10-09).**
+
+> **FREIGABE-NACHTRAG (Gerald 2026-10-09):** Untertitel der summierten Sicht (`Views/Vormontage/Summiert.cshtml:68`)
+> von „summierte Mengensicht des gewählten Arbeitsbereichs“ auf „… des gewählten VM-Bedarfs“ ändern, damit
+> „Arbeitsbereich“ nur noch die neue Spalte meint. Reiter-Beschriftungen der `VMBedarf`-Reiter mitprüfen und,
+> wo sie „Arbeitsbereich“ heißen, ebenso auf „VM-Bedarf“ umstellen. Geht dem Rumpf vor.

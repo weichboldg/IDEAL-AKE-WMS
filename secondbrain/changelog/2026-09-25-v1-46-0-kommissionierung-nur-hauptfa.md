@@ -35,9 +35,9 @@ Filter „nur was zu holen ist“.
 
 ## Commits
 
-`9208c3ff` (Plan) … `36911f2f` (Rückbau), `2291c950` (IsHauptFa/Queue), `35a65d36`/`23942f73`/`a3440bc3`/
-`8d8bf8a5` (Guards/Views/eine Definition), `7d1cd74e` (Relevanzfilter), `f6911db4` (Normalisierung),
-`e2d6e5d9`/`4fffeae9` (Stückliste), `2290c99c`/`1f128c61`/`787c5c90` (Version, Doku). Merge-Commit: folgt mit
+`d3daf7ed` (Plan) … `ee583ed7` (Rückbau), `a30e7647` (IsHauptFa/Queue), `cba1be97`/`ffb1572e`/`a5bc8367`/
+`b9991917` (Guards/Views/eine Definition), `855f7310` (Relevanzfilter), `f40053d3` (Normalisierung),
+`6a6adee6`/`4467b894` (Stückliste), `50582f81`/`c61cb796`/`30c9c20e` (Version, Doku). Merge-Commit: folgt mit
 dem Bündel.
 
 ## Deploy-Risiken

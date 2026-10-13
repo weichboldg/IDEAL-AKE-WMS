@@ -159,12 +159,12 @@ Epics). Uebergreifende Spec: [[2026-07-29-standort-ideal-uebersicht]]; Aufgaben-
 | Teil 3 — Kommissionierlisten + gemeinsamer Listen-/Druck-Baustein | **Testbereit** (v1.31.0) | [[2026-07-29-standort-ideal-teil-3-spec]] | `Controllers/FaHierarchyKommissionierListenController.cs`, `Services/FaHierarchyListBuilder.cs`, `IBarcodeService`; `[RequireLagerProcessingAccess]` + Toggle `FaHierarchyKommissionierlistenAktiv` (Default aus) |
 | Teil 4 — Beschichtungsauftrag (erweitert Baustein, ohne PDF) | **Testbereit** (v1.31.0) | [[2026-07-29-standort-ideal-teil-4-spec]] | `Controllers/FaHierarchyBeschichtungController.cs`, `Services/BeschichtungsauftragService.cs`; **neue Rolle `beschichtungsauftrag`** (`[RequireBeschichtungsauftragAccess]`) + Toggle `FaHierarchyBeschichtungAktiv` (Default aus) |
 | Teil 5 — Vormontage-Listen (zwei Sichten, Sicht 2 = Matchcode-Aggregat) | **Testbereit** (v1.31.0) | [[2026-07-29-standort-ideal-teil-5-spec]] | `Controllers/FaHierarchyVormontageController.cs`; `[RequireVorbauAccess]` + Toggle `FaHierarchyVormontageAktiv` (Default aus) |
-| UI-Nachtrag (Etappe 6) — per-Benutzer-Spaltenauswahl an den 4 IDEAL-Listen + `table-filter.js`-Sort-Fix (je `<tbody>` separat) | **Testbereit** (v1.31.0, Commit `37e8752`) | [[2026-08-12-listen-spaltenauswahl-spec]] | `wwwroot/js/column-preferences.js` + `#view-config`/`#column-config` je View, `viewKey` in `Models/ViewModels/ColumnDefinitions.cs` `GetByViewKey`, `wwwroot/js/table-filter.js` (`sortTable`) |
-| UI-Nachtrag (Etappe 7) — FA-Struktur seitenweite Tree-Table (OSEON-Stil) + Kontrast-Fix (WCAG AA) + 4 Knoten-Icons + Baum-Spaltenfilter + column-prefs | **Testbereit** (v1.31.0, Commits `961749f`+`767f06f`) | [[2026-08-12-fa-struktur-darstellung-spec]] | `Views/FaHierarchy/*`, `wwwroot/js/fa-hierarchy-tree.js`, `Services/FaNodeClassifier.cs`, `viewKey` `FaHierarchyStructure` in `ColumnDefinitions` |
-| UAT-Anpassung (Etappe 8, 2026-08-13) — SubFA=0-Blattannahme aufgehoben (alle Positionen mit Flag, Anomalie-Banner weg, Kommissionier+Vormontage) + Kommissionier-Summiert (je HauptFA/Artnr/Sollmenge/Ziel, KW auf `KO_Termin`) + Vormontage-Summiert-Wochenbezug (KW auf `FE_Termin`, HauptFA ignoriert) | **Testbereit** (v1.31.0, Commit `e83eb1c`) | Teil-3/5-Nachtraege in [[2026-07-29-standort-ideal-teil-3-spec]] / [[2026-07-29-standort-ideal-teil-5-spec]] | `KommissionierListenService`/`VormontageService` (`leafOnly:false`), neue `.../Summiert`-Views, `Services/IsoWeekRange.cs` |
+| UI-Nachtrag (Etappe 6) — per-Benutzer-Spaltenauswahl an den 4 IDEAL-Listen + `table-filter.js`-Sort-Fix (je `<tbody>` separat) | **Testbereit** (v1.31.0, Commit `3894e3d`) | [[2026-08-12-listen-spaltenauswahl-spec]] | `wwwroot/js/column-preferences.js` + `#view-config`/`#column-config` je View, `viewKey` in `Models/ViewModels/ColumnDefinitions.cs` `GetByViewKey`, `wwwroot/js/table-filter.js` (`sortTable`) |
+| UI-Nachtrag (Etappe 7) — FA-Struktur seitenweite Tree-Table (OSEON-Stil) + Kontrast-Fix (WCAG AA) + 4 Knoten-Icons + Baum-Spaltenfilter + column-prefs | **Testbereit** (v1.31.0, Commits `a372638`+`a864745`) | [[2026-08-12-fa-struktur-darstellung-spec]] | `Views/FaHierarchy/*`, `wwwroot/js/fa-hierarchy-tree.js`, `Services/FaNodeClassifier.cs`, `viewKey` `FaHierarchyStructure` in `ColumnDefinitions` |
+| UAT-Anpassung (Etappe 8, 2026-08-13) — SubFA=0-Blattannahme aufgehoben (alle Positionen mit Flag, Anomalie-Banner weg, Kommissionier+Vormontage) + Kommissionier-Summiert (je HauptFA/Artnr/Sollmenge/Ziel, KW auf `KO_Termin`) + Vormontage-Summiert-Wochenbezug (KW auf `FE_Termin`, HauptFA ignoriert) | **Testbereit** (v1.31.0, Commit `f07ea34`) | Teil-3/5-Nachtraege in [[2026-07-29-standort-ideal-teil-3-spec]] / [[2026-07-29-standort-ideal-teil-5-spec]] | `KommissionierListenService`/`VormontageService` (`leafOnly:false`), neue `.../Summiert`-Views, `Services/IsoWeekRange.cs` |
 
 > **Status:** UMGESETZT + QA-gruen im Worktree `feature/2026-08-07-ideal-teile-1-5` (zuletzt
-> `1173cf1`, qa-agent 2026-08-18: Build gruen, Web 1219/1 skip/0 Fehler, Service 231/0 Fehler),
+> `34ca168`, qa-agent 2026-08-18: Build gruen, Web 1219/1 skip/0 Fehler, Service 231/0 Fehler),
 > wartet auf **Schranke 2** (Manual-UAT am IDEAL-Testsystem + Merge durch den Menschen).
 > Merge-Commit noch offen. Offene UAT-Punkte + Deploy-Handgriffe: [[2026-08-07-ideal-teile-1-5]].
 
@@ -178,20 +178,20 @@ Changelog [[2026-08-17-v1-32-0-ideal-teil-7]].
 
 | Etappe | Status | Code-Einstieg |
 |---|---|---|
-| A — Schema-Inversion (`SubOrderNumber` unique, `ParentSubOrderNumber`, `SageMissingSince`, Index-Tausch, Backfill) | **erledigt** (`fe7299b`) | `Models/ProductionOrder.cs`, Migration `20260814105526`, `SQL/90` |
-| B — Einweg-Migrationstor `ProduktionsauftragHierarchisch` (Guard-Planer + Decorator-Choke-Point, Umschalt-Seite, Audit, Runbook) | **erledigt** (`aed9cb5..39f7813`) | `Services/HierarchischeStruktur/*`, `Data/Repositories/GuardedServiceSettingRepository.cs`, `Controllers/HierarchieUmstellungController.cs`, `docs/RUNBOOK-FA-HIERARCHIE-RUECKBAU.md` |
-| C — Materialisierungs-Sync (3 Sync-Regeln, `SageMissingSince` selbstheilend, Sammelmail) | **erledigt** (`dc297d9..bc7e3d6`) | `IDEALAKEWMSService/Services/FaMaterializationPlanner.cs` + `FaMaterializationSyncService.cs`; SyncLog `FaMaterialization` |
-| D — Lookup-Härtung (`GetAllByFaAndOperationAsync` + Multi-Hit-Log) + dreistufige Auto-Erledigt-Sperre + Reconcile-Test + `OrderNumber`-Sweep (7 kritisch → Teil 8) | **erledigt** (`fb07512..660a01b`) | `Data/Repositories/WorkOperationRepository.cs`, `IDEALAKEWMSService/Services/FaZusatzinfoSyncService.cs`, Key `Sync:FaZusatzinfoAutoErledigtEnabled` |
+| A — Schema-Inversion (`SubOrderNumber` unique, `ParentSubOrderNumber`, `SageMissingSince`, Index-Tausch, Backfill) | **erledigt** (`7440726`) | `Models/ProductionOrder.cs`, Migration `20260814105526`, `SQL/90` |
+| B — Einweg-Migrationstor `ProduktionsauftragHierarchisch` (Guard-Planer + Decorator-Choke-Point, Umschalt-Seite, Audit, Runbook) | **erledigt** (`e727329..0a8175a`) | `Services/HierarchischeStruktur/*`, `Data/Repositories/GuardedServiceSettingRepository.cs`, `Controllers/HierarchieUmstellungController.cs`, `docs/RUNBOOK-FA-HIERARCHIE-RUECKBAU.md` |
+| C — Materialisierungs-Sync (3 Sync-Regeln, `SageMissingSince` selbstheilend, Sammelmail) | **erledigt** (`ae9be6c..285909e`) | `IDEALAKEWMSService/Services/FaMaterializationPlanner.cs` + `FaMaterializationSyncService.cs`; SyncLog `FaMaterialization` |
+| D — Lookup-Härtung (`GetAllByFaAndOperationAsync` + Multi-Hit-Log) + dreistufige Auto-Erledigt-Sperre + Reconcile-Test + `OrderNumber`-Sweep (7 kritisch → Teil 8) | **erledigt** (`b9e2482..d9a4d1e`) | `Data/Repositories/WorkOperationRepository.cs`, `IDEALAKEWMSService/Services/FaZusatzinfoSyncService.cs`, Key `Sync:FaZusatzinfoAutoErledigtEnabled` |
 | E — Version-Bump v1.32.0 + Anwender-Changelog + Brain (ADR 0012, fallstricke §9, services/controller-Karte) | **erledigt** | `AppVersion.cs` (Web+Service), `Views/Help/Changelog.cshtml` |
 
-> **Status Teil 7:** QA-gruen im Worktree (`status: Testbereit`, qa-agent 2026-08-17, HEAD `5cf802e`,
+> **Status Teil 7:** QA-gruen im Worktree (`status: Testbereit`, qa-agent 2026-08-17, HEAD `db9ecab`,
 > Web 1186 (+1 skip) + Service 231 gruen). Master **default aus** — Umstellung ist ein bewusster
 > spaeterer Schritt am Zielsystem. **Mapping datenabhaengig** (Wurzel `HauptFA==SubFA`, Node-Dezimal
 > `NULL→0`) → erster echter Datenlauf, siehe manuelle Test-Checkliste in
 > [[2026-07-29-standort-ideal-teil-7]]. Wartet auf **Schranke 2** (Manual-UAT + Merge). Merge bringt
 > Teile 1–5 **und** Teil 7 zusammen (Schranke 2 fuers ganze Buendel, kein Zwischen-Merge).
 >
-> **Post-QA-Fix #2 (`5d3e723`, 2026-08-18):** beim echten App-Start freigelegter zweiter `SqlError 3701`
+> **Post-QA-Fix #2 (`2b305ba`, 2026-08-18):** beim echten App-Start freigelegter zweiter `SqlError 3701`
 > — EF-`AlterColumn` auf `SubOrderNumber` erzeugte ungeschützten Auto-`DROP INDEX`; durch geschütztes
 > Raw-SQL ersetzt (deckungsgleich SQL/90), offline via `dotnet ef migrations script` verifiziert.
 > [[fallstricke]] §9 Nachtrag.
@@ -204,12 +204,12 @@ ein Scan kann mehrere Sub-FAs treffen. Einstieg `Services/BdeScanResolver.cs` +
 
 | Etappe | Status | Code-Einstieg |
 |---|---|---|
-| 1 — Verifikation (Teil-7-Naht, OSEON-Urteil → Etappe 5 entfällt) | **erledigt** (`418f23a`) | `docs/TEIL-8-BDE-ETAPPE-1-VERIFIKATION.md` |
-| 2 — Serverseitige Auflösungslogik `BdeScanResolver` (Exact/Ambiguous/NotInScope/NotFound, werkbank-gescopt) + 14 Unit-Tests | **erledigt** (`f86a886`) | `Services/BdeScanResolver.cs`, `Program.cs` |
-| 3 — Scan-Auswahl-UI Normal-Modus + `resolve-scan`-Endpoint | **erledigt** (`5fd0070`) | `Controllers/BdeApiController.cs`, `Views/BdeTerminal/Index.cshtml`, `wwwroot/js/bde-terminal.js`, `wwwroot/css/bde.css` |
-| 4 — NurFA-Fix (kein last-wins) + Teileverfolgung bestätigt | **erledigt** (`58c26bd`) | `wwwroot/js/bde-terminal.js`; `Controllers/TrackingController.cs` (nur Filter, unverändert) |
+| 1 — Verifikation (Teil-7-Naht, OSEON-Urteil → Etappe 5 entfällt) | **erledigt** (`d95cb63`) | `docs/TEIL-8-BDE-ETAPPE-1-VERIFIKATION.md` |
+| 2 — Serverseitige Auflösungslogik `BdeScanResolver` (Exact/Ambiguous/NotInScope/NotFound, werkbank-gescopt) + 14 Unit-Tests | **erledigt** (`992d7e1`) | `Services/BdeScanResolver.cs`, `Program.cs` |
+| 3 — Scan-Auswahl-UI Normal-Modus + `resolve-scan`-Endpoint | **erledigt** (`14d3c18`) | `Controllers/BdeApiController.cs`, `Views/BdeTerminal/Index.cshtml`, `wwwroot/js/bde-terminal.js`, `wwwroot/css/bde.css` |
+| 4 — NurFA-Fix (kein last-wins) + Teileverfolgung bestätigt | **erledigt** (`5c0735d`) | `wwwroot/js/bde-terminal.js`; `Controllers/TrackingController.cs` (nur Filter, unverändert) |
 | 5 — OSEON-Seite | **entfällt** (Etappe-1-Urteil) | — |
-| 6 — Version v1.33.0 + Anwender-Changelog + Testszenarien TS-66 | **erledigt** (`8395394`) | `AppVersion.cs` (Web+Service), `Views/Help/Changelog.cshtml`, `docs/TESTSZENARIEN.md` |
+| 6 — Version v1.33.0 + Anwender-Changelog + Testszenarien TS-66 | **erledigt** (`b8847d2`) | `AppVersion.cs` (Web+Service), `Views/Help/Changelog.cshtml`, `docs/TESTSZENARIEN.md` |
 
 > **Status Teil 8:** alle Etappen erledigt (5 entfällt), Web-Suite **1205 grün**. Wartet auf **qa-agent**
 > (setzt `Testbereit`), danach **Schranke 2** zusammen mit Teilen 1–5 + Teil 7 (ein Merge, kein
@@ -225,7 +225,7 @@ Zwei-Backend-Write) + `Models/Standort/StandortSettingsCatalog.cs` (kuratierte F
 
 | Aspekt | Status | Detail |
 |---|---|---|
-| Maske + Gruppen (Firmendaten/Mandant-Views/Toggles/Import) | **umgesetzt** (`c8ae47f`) | admin-only, Nav-Link, Bootstrap-Konsistenz `/ServiceSettings` |
+| Maske + Gruppen (Firmendaten/Mandant-Views/Toggles/Import) | **umgesetzt** (`a99705f`) | admin-only, Nav-Link, Bootstrap-Konsistenz `/ServiceSettings` |
 | Atomarer Zwei-Backend-Write | **umgesetzt** | `IStandortSettingsWriter`, eine EF-Transaktion (`IsRelational`-Guard), Cache nach Commit, kein Partial-Save |
 | Master read-only + Allow-List-Schutz (AK 2) | **umgesetzt** | Badge + Link `/HierarchieUmstellung`, nie im POST, kein Guard-Aufruf |
 | Firmendaten neu (`Firmenname`/`Firmenanschrift`) | **umgesetzt** | AppSettings-Keys, kein Seed/Migration (Fallback-Regel) |
@@ -248,7 +248,7 @@ Spec [[2026-08-18-bom-guard-hierarchisch-spec]], Aufgabe [[2026-08-18-bom-guard-
 (`HierarchicalBomGuardRepository` + TS-68 → TS-70). Die ursprünglich geplante Volllösung
 [[2026-08-18-ake-view-abhaengigkeiten-hierarchisch-spec]] ist `Ueberholt` (superseded).
 
-> **Status:** `Testbereit` (qa-agent, 2026-08-18, Worktree `1173cf1`) — Build gruen, Web
+> **Status:** `Testbereit` (qa-agent, 2026-08-18, Worktree `34ca168`) — Build gruen, Web
 > **1219/1 skip/0 Fehler**, Service **231/0 Fehler**. Code-Review ohne Findings: alle 4
 > `IBomRepository`-Aufrufer (Picking-BOM/Druck, FaWorklist/FaCompletion via
 > `ReadOnlyBomBuilder` → gemeinsam `Views/Picking/Bom.cshtml`) laufen ueber denselben Guard,
@@ -268,11 +268,11 @@ Macht die Hierarchie in **6 Ansichten** sichtbar/bedienbar — master-gated, AKE
 
 | Etappe | Status | Code-Einstieg |
 |---|---|---|
-| A — Anzeige-Fundament + ProductionOrders-Referenz + Z4-Erhebung | **erledigt** (`30b7a8c`/`9315186`/`abd2620`) | `ProductionOrderRepository.GetForLeitstandGroupedAsync`, `ColumnDefinitions` +`parent-sub-order-number`, `fa-liste-gruppierung.js`, `Views/ProductionOrders/_ProductionOrderRow.cshtml` |
-| B — 5 weitere Views (FaCompletion/PickingLeitstand/Picking/FaWorklist/Tracking) | **erledigt** (`b150579`/`5b15caf`/`960d5c8`/`10921e2`/`7bba52b`) | je `_*Row.cshtml` + Master-Gate; Tracking/Index = 3-Ebenen-Baum (OSEON-Muster), Picking = Prio-Queue |
-| C — Kaskade „Alle Sub-FAs fertigmelden" (Leitstand-Kopfzeile) | **erledigt** (`a305d6f`) | `PickingLeitstandController.CascadeDone/Preview`, `ProductionOrderBdeStatusRepository.SetIsDoneBdeForOrderNumberAsync`, `BdeBookingRepository.CountSubFasWithOpenBooking…` |
-| D — Z4-Sweep (Articles/Info) + Z1-Regressionstest; **Z3 vertagt** | **erledigt** (`d9de60c`) | `ArticlesController`/`Views/Articles/Info.cshtml`, `FaMaterializationSyncServiceTests` (Z1); Z3 → [[2026-09-07-invariante-haupt-fertig-sub-erkennen]] |
-| E — Testszenarien TS-69 + v1.35.0 + Changelogs | **erledigt** (`dde9a17`) | `docs/TESTSZENARIEN.md`, `AppVersion.cs` (Web+Service), `Views/Help/Changelog.cshtml` |
+| A — Anzeige-Fundament + ProductionOrders-Referenz + Z4-Erhebung | **erledigt** (`43b6bde`/`e8d21d0`/`5ee8177`) | `ProductionOrderRepository.GetForLeitstandGroupedAsync`, `ColumnDefinitions` +`parent-sub-order-number`, `fa-liste-gruppierung.js`, `Views/ProductionOrders/_ProductionOrderRow.cshtml` |
+| B — 5 weitere Views (FaCompletion/PickingLeitstand/Picking/FaWorklist/Tracking) | **erledigt** (`4a74ea6`/`bf6863c`/`d7df8a9`/`837a1f6`/`087c311`) | je `_*Row.cshtml` + Master-Gate; Tracking/Index = 3-Ebenen-Baum (OSEON-Muster), Picking = Prio-Queue |
+| C — Kaskade „Alle Sub-FAs fertigmelden" (Leitstand-Kopfzeile) | **erledigt** (`8806016`) | `PickingLeitstandController.CascadeDone/Preview`, `ProductionOrderBdeStatusRepository.SetIsDoneBdeForOrderNumberAsync`, `BdeBookingRepository.CountSubFasWithOpenBooking…` |
+| D — Z4-Sweep (Articles/Info) + Z1-Regressionstest; **Z3 vertagt** | **erledigt** (`e9eb089`) | `ArticlesController`/`Views/Articles/Info.cshtml`, `FaMaterializationSyncServiceTests` (Z1); Z3 → [[2026-09-07-invariante-haupt-fertig-sub-erkennen]] |
+| E — Testszenarien TS-69 + v1.35.0 + Changelogs | **erledigt** (`ea3932d`) | `docs/TESTSZENARIEN.md`, `AppVersion.cs` (Web+Service), `Views/Help/Changelog.cshtml` |
 
 > **Status FA-Liste-Hierarchie:** alle Etappen A–E erledigt, Web **1243 grün / 1 Skip** / Service
 > **232 grün** (qa-agent-Lauf 2026-09-07, frisch verifiziert). **`status: Testbereit`** gesetzt —
@@ -298,14 +298,14 @@ Spec [[2026-09-08-bom-schnittstellen-bridge-hierarchisch-spec]], Aufgabe
 
 | Task | Status | Code-Einstieg |
 |---|---|---|
-| 1 — Typen/Flag/Signaturwechsel | **erledigt** (`f89659f`) | `BomKey`, `BomScope`, `BomQueryResult.MengeIstAuftragsmenge`, `BomQuantityResolver`, 3 Aufrufer |
-| 2 — `FaHierarchyBomRepository` | **erledigt** (`e99bcf3` + Fix `3784e4b`) | DirectChildren/FullStructure, Kollision `~n`, Waisen `W<n>`, Reverse-Lookup |
-| 3 — Master-Weiche, Guard raus, Mapping | **erledigt** (`611475d`) | `BomRepositoryMasterSwitch`, `Program.cs:91-104`, `PickingController.Bom`/`ReadOnlyBomBuilder` |
-| 4 — Klasse-D-Gates (Service) | **erledigt** (`56e8faa`) | `IHierarchicalModeReader`, Coating/WorkStep/BomCache×2 |
-| 5 — Views (Bom.cshtml, Artikelinfo, Nav) | **erledigt** (`cd34b08`/`86371ee`/`a3f125e`) | `Views/Picking/Bom.cshtml` (+`#column-config`), `ColumnDefinitions.Bom`, `ArticlesController`/`Info.cshtml`, `_Layout` |
-| 6 — v1.36.0, TS-70 (TS-68 abgelöst), Hilfe, DI-Test | **erledigt** (`8d9468d` + Fixwelle `22d31ae`) | `AppVersion.cs` ×2, `Help/Changelog.cshtml`, `Help/Index.cshtml`, `docs/TESTSZENARIEN.md`, `BomDiResolutionTests` |
+| 1 — Typen/Flag/Signaturwechsel | **erledigt** (`ea84284`) | `BomKey`, `BomScope`, `BomQueryResult.MengeIstAuftragsmenge`, `BomQuantityResolver`, 3 Aufrufer |
+| 2 — `FaHierarchyBomRepository` | **erledigt** (`7a93c2f` + Fix `e2cceae`) | DirectChildren/FullStructure, Kollision `~n`, Waisen `W<n>`, Reverse-Lookup |
+| 3 — Master-Weiche, Guard raus, Mapping | **erledigt** (`8877ef5`) | `BomRepositoryMasterSwitch`, `Program.cs:91-104`, `PickingController.Bom`/`ReadOnlyBomBuilder` |
+| 4 — Klasse-D-Gates (Service) | **erledigt** (`e75bcf3`) | `IHierarchicalModeReader`, Coating/WorkStep/BomCache×2 |
+| 5 — Views (Bom.cshtml, Artikelinfo, Nav) | **erledigt** (`62685c0`/`9f0f210`/`92de2b8`) | `Views/Picking/Bom.cshtml` (+`#column-config`), `ColumnDefinitions.Bom`, `ArticlesController`/`Info.cshtml`, `_Layout` |
+| 6 — v1.36.0, TS-70 (TS-68 abgelöst), Hilfe, DI-Test | **erledigt** (`5b83ea0` + Fixwelle `5226352`) | `AppVersion.cs` ×2, `Help/Changelog.cshtml`, `Help/Index.cshtml`, `docs/TESTSZENARIEN.md`, `BomDiResolutionTests` |
 
-> **Status:** `Testbereit` (qa-agent, 2026-09-08, Worktree-HEAD `22d31ae`) — Build 0 Fehler, Web
+> **Status:** `Testbereit` (qa-agent, 2026-09-08, Worktree-HEAD `5226352`) — Build 0 Fehler, Web
 > **1266 grün + 1 skip**, Service **236 grün**, AK 1–16 gegen den echten Diff abgeglichen, Guard-Grep
 > leer. Wartet mit dem ganzen Bündel (Teile 1–8 + FA-Liste-Hierarchie + BOM-Bridge, ein Merge) auf
 > **Schranke 2** (manueller Test + Merge durch den Menschen). Deploy: `web:true`, `service:true`
@@ -327,17 +327,17 @@ geschrieben; **K3** (Kommissionier-Status) bleibt leer.
 
 | Baustein | Stand | Code-Einstieg |
 |---|---|---|
-| Statuszeilen eager anlegen (behebt den Abnahme-Fehler) | **erledigt** (`ceaf5b3`) | `FaMaterializationSyncService.EnsureStatusRowsAsync` |
-| Lack-Ableitung „selbst oder direktes Kind" | **erledigt** (`af25bcd`) | `FaMaterializationCoating.Derive` (rein, DB-frei) |
-| Werkbank aus `Arbeitsbereich`, Variante B + drei Meldefaelle | **erledigt** (`ccc1d74`) | `FaMaterializationSyncService.ApplyWorkplace`, `IUnknownWorkplaceState` |
-| Lack-Kennzeichen schreiben (inkl. `IsCoatingDone`-Reset) | **erledigt** (`77aaac2`) | `ProductionOrderPickingStatusRepository.SetCoatingPartsAsync` |
-| Kombigeraet-Erkennung, einmal je Lauf | **erledigt** (`904e899`) | `FaHierarchySyncService.LogAmbiguousHauptFasAsync` |
-| Kopfdaten gebuendelt laden | **erledigt** (`47c6712`) | `FaHierarchyOrderInfoRepository.GetByHauptFaKeysAsync` |
-| Kunde-Freitext + Spaltenfilter ueber den Auftragskopf | **erledigt** (`79a174b` + `5022222`) | `ProductionOrderRepository.BuildLeitstandQuery` / `ApplyLeitstandColumnFilter` |
-| K1 im Anzeige-Modell, Termin-Kaskade auf den Gruppenwert | **erledigt** (`f160b1d` + `b3d5a15`) | `ProductionOrdersController.MapItem`, `ProductionOrderListGroup` |
-| Gruppen-Kopfzeile + Varianten-Tabelle | **erledigt** (`86cdc26`) | `Views/ProductionOrders/Index.cshtml` |
-| v1.37.0, Changelog, Hilfe, TS-71 | **erledigt** (`1f038f6`) | `AppVersion.cs` ×2, `docs/TESTSZENARIEN.md` |
-| Varianten-Tabelle klappt mit der Gruppe zu (Gesamt-Review) | **erledigt** (`be92ade`) | `Views/ProductionOrders/Index.cshtml` (`fa-liste-node-row`) |
+| Statuszeilen eager anlegen (behebt den Abnahme-Fehler) | **erledigt** (`7ac06cb`) | `FaMaterializationSyncService.EnsureStatusRowsAsync` |
+| Lack-Ableitung „selbst oder direktes Kind" | **erledigt** (`3b77f66`) | `FaMaterializationCoating.Derive` (rein, DB-frei) |
+| Werkbank aus `Arbeitsbereich`, Variante B + drei Meldefaelle | **erledigt** (`3371ff1`) | `FaMaterializationSyncService.ApplyWorkplace`, `IUnknownWorkplaceState` |
+| Lack-Kennzeichen schreiben (inkl. `IsCoatingDone`-Reset) | **erledigt** (`61e2d57`) | `ProductionOrderPickingStatusRepository.SetCoatingPartsAsync` |
+| Kombigeraet-Erkennung, einmal je Lauf | **erledigt** (`8531a29`) | `FaHierarchySyncService.LogAmbiguousHauptFasAsync` |
+| Kopfdaten gebuendelt laden | **erledigt** (`232c066`) | `FaHierarchyOrderInfoRepository.GetByHauptFaKeysAsync` |
+| Kunde-Freitext + Spaltenfilter ueber den Auftragskopf | **erledigt** (`f5fe6f7` + `c63a0d9`) | `ProductionOrderRepository.BuildLeitstandQuery` / `ApplyLeitstandColumnFilter` |
+| K1 im Anzeige-Modell, Termin-Kaskade auf den Gruppenwert | **erledigt** (`6418652` + `1a33b20`) | `ProductionOrdersController.MapItem`, `ProductionOrderListGroup` |
+| Gruppen-Kopfzeile + Varianten-Tabelle | **erledigt** (`b6d3c0e`) | `Views/ProductionOrders/Index.cshtml` |
+| v1.37.0, Changelog, Hilfe, TS-71 | **erledigt** (`7d5e067`) | `AppVersion.cs` ×2, `docs/TESTSZENARIEN.md` |
+| Varianten-Tabelle klappt mit der Gruppe zu (Gesamt-Review) | **erledigt** (`c958edc`) | `Views/ProductionOrders/Index.cshtml` (`fa-liste-node-row`) |
 
 > **Fünf stille Fehler im Lauf gefunden und behoben** — zwei davon erst beim Schreiben von Tests:
 > fehlende Statuszeilen, weggefilterte Blattebene in der Lack-Ableitung, eine Entprellung, die ein
@@ -349,8 +349,8 @@ geschrieben; **K3** (Kommissionier-Status) bleibt leer.
 > anlegen — `ProductionWorkplaceId` ist ein Fremdschluessel, sonst bleibt die Werkbank im ersten Lauf
 > leer (Zwei-Lauf-Ablauf). Deploy `web:true`, `service:true`, `migration:false`.
 
-> **Status:** `Testbereit` (qa-agent, 2026-09-09, Worktree-HEAD `be92ade`) — Build 0 Fehler, Web
-> **1284 grün + 1 skip**, Service **263 grün**, AK 1–13 gegen den echten Diff `a9ea910..be92ade`
+> **Status:** `Testbereit` (qa-agent, 2026-09-09, Worktree-HEAD `c958edc`) — Build 0 Fehler, Web
+> **1284 grün + 1 skip**, Service **263 grün**, AK 1–13 gegen den echten Diff `64eac53..c958edc`
 > abgeglichen, kein `SetValues`/`_ctx.Update`, keine Migration/SQL-Datei im Diff, beide
 > `AppVersion.cs` auf 1.37.0, TS-71 (13 Szenarien) vorhanden. Wartet mit dem ganzen Bündel (Teile
 > 1–8 + FA-Liste-Hierarchie + BOM-Bridge, ein Merge) auf **Schranke 2** (manueller Test + Merge
@@ -374,20 +374,20 @@ am Leitstand (widerruft die fruehere „keine Kaskade"-Festlegung aus v1.35.0).
 
 | Baustein | Stand | Code-Einstieg |
 |---|---|---|
-| Spalte `ProductionOrder.Matchcode` + Migration 91 | **erledigt** (`461d3e5`) | `ProductionOrder.cs`, `SQL/91_AddProductionOrderMatchcode.sql` |
-| Matchcode materialisiert (Anlege- + Update-Pfad, F1) | **erledigt** (`cbabdd9`) | `FaMaterializationSyncService.RunAsync` |
-| Matchcode-Anzeige in fünf FA-Zeilen-Ebene-Listen | **erledigt** (`f4e9a6d`) | `ColumnDefinitions.cs`, je View `#column-config` + `<th>` |
-| Matchcode-Filter null-sicher (F7), ohne `EF.Functions.Like` | **erledigt** (`48e1c87` + Fix `4a0563a`) | `ProductionOrderRepository.cs` (`BuildExtraInfoOrContains`) |
-| K1-Kopfdaten je Zeile im Anzeige-Modell | **erledigt** (`9b2a258` + `13693b7`) | `ProductionOrdersController.MapItem` |
-| Kunde-/K1-Postfilter C# statt SQL-Join (inkl. Flachmodus-Fix) | **erledigt** (`6ec37f8` + `cddb5b0` + `20686a2`) | `ProductionOrdersController.Index`, `PickingLeitstandController.Index` |
-| Vier Zeilenspalten bedingt auf `Model.Hierarchical` | **erledigt** (`9c95fb0`) | `Views/ProductionOrders/Index.cshtml` + `_ProductionOrderRow.cshtml` |
-| Selektor-Sweep (zweiter Anzeigefehler, eingeschoben) | **erledigt** (`b9bf342` + `94463f9`) | `table-filter.js`, `column-preferences.js`, `TableScriptScopedSelectorTests` |
-| Wiederholungswerte unterdrückt, client-seitig | **erledigt** (`203e23a` + Fix `a422e44`) | `fa-liste-wiederholung.js`, `site.css` (`.fa-liste-repeat-hidden`) |
-| HauptFA-Zeile gekennzeichnet, Kopfzeile verschlankt | **erledigt** (`fda7c7a`) | `Views/ProductionOrders/_ProductionOrderRow.cshtml` |
-| `SetReleaseForOrderNumberAsync` (Kaskade, atomar) | **erledigt** (`067f1b1`) | `ProductionOrderPickingStatusRepository.cs` |
-| `CascadeReleasePreview`/`CascadeRelease`, Picker-Pflicht unverändert | **erledigt** (`aad4b54`) | `PickingLeitstandController.cs` |
-| Knopf + Dialog in der Gruppen-Kopfzeile | **erledigt** (`fef12cf`) | `Views/PickingLeitstand/Index.cshtml` |
-| v1.38.0, Changelog, Hilfe, TS-73 | **erledigt** (`deff907`) | `AppVersion.cs` ×2, `docs/TESTSZENARIEN.md` |
+| Spalte `ProductionOrder.Matchcode` + Migration 91 | **erledigt** (`6c1e2c0`) | `ProductionOrder.cs`, `SQL/91_AddProductionOrderMatchcode.sql` |
+| Matchcode materialisiert (Anlege- + Update-Pfad, F1) | **erledigt** (`41fe040`) | `FaMaterializationSyncService.RunAsync` |
+| Matchcode-Anzeige in fünf FA-Zeilen-Ebene-Listen | **erledigt** (`8cd2856`) | `ColumnDefinitions.cs`, je View `#column-config` + `<th>` |
+| Matchcode-Filter null-sicher (F7), ohne `EF.Functions.Like` | **erledigt** (`b050910` + Fix `ab27ded`) | `ProductionOrderRepository.cs` (`BuildExtraInfoOrContains`) |
+| K1-Kopfdaten je Zeile im Anzeige-Modell | **erledigt** (`b879eea` + `0ca28ce`) | `ProductionOrdersController.MapItem` |
+| Kunde-/K1-Postfilter C# statt SQL-Join (inkl. Flachmodus-Fix) | **erledigt** (`93900a8` + `decbe56` + `3691cc3`) | `ProductionOrdersController.Index`, `PickingLeitstandController.Index` |
+| Vier Zeilenspalten bedingt auf `Model.Hierarchical` | **erledigt** (`5809092`) | `Views/ProductionOrders/Index.cshtml` + `_ProductionOrderRow.cshtml` |
+| Selektor-Sweep (zweiter Anzeigefehler, eingeschoben) | **erledigt** (`79ad96f` + `7093029`) | `table-filter.js`, `column-preferences.js`, `TableScriptScopedSelectorTests` |
+| Wiederholungswerte unterdrückt, client-seitig | **erledigt** (`7e54a77` + Fix `1662ae9`) | `fa-liste-wiederholung.js`, `site.css` (`.fa-liste-repeat-hidden`) |
+| HauptFA-Zeile gekennzeichnet, Kopfzeile verschlankt | **erledigt** (`a5e0922`) | `Views/ProductionOrders/_ProductionOrderRow.cshtml` |
+| `SetReleaseForOrderNumberAsync` (Kaskade, atomar) | **erledigt** (`901e9db`) | `ProductionOrderPickingStatusRepository.cs` |
+| `CascadeReleasePreview`/`CascadeRelease`, Picker-Pflicht unverändert | **erledigt** (`692956f`) | `PickingLeitstandController.cs` |
+| Knopf + Dialog in der Gruppen-Kopfzeile | **erledigt** (`daf7168`) | `Views/PickingLeitstand/Index.cshtml` |
+| v1.38.0, Changelog, Hilfe, TS-73 | **erledigt** (`24864e6`) | `AppVersion.cs` ×2, `docs/TESTSZENARIEN.md` |
 
 > **AKE-Regression als harte Nebenbedingung:** Bei Master `false` bleibt die FA-Liste bit-identisch
 > — die vier K1-Zeilenspalten sind **strukturell** (nicht nur inhaltlich) an `Model.Hierarchical`
@@ -398,8 +398,8 @@ am Leitstand (widerruft die fruehere „keine Kaskade"-Festlegung aus v1.35.0).
 > `migration:true` (Migration 91, additiv, kein Backfill-Zwang — Bestandszeilen füllen sich erst
 > beim nächsten Materialisierungs-Lauf).
 
-> **Status:** `Testbereit` (qa-agent, 2026-09-10, Worktree-HEAD `deff907`) — Build 0 Fehler, Web
-> **1322 grün + 1 skip**, Service **265 grün**, AK 1–20 gegen den echten Diff `be92ade..deff907`
+> **Status:** `Testbereit` (qa-agent, 2026-09-10, Worktree-HEAD `24864e6`) — Build 0 Fehler, Web
+> **1322 grün + 1 skip**, Service **265 grün**, AK 1–20 gegen den echten Diff `c958edc..24864e6`
 > abgeglichen, genau eine neue Migration im Diff, TS-73 (20 Szenarien) + TS-72 (5 Szenarien,
 > Selektor-Sweep) vorhanden. Wartet mit dem ganzen Bündel (Teile 1–8 + FA-Liste-Hierarchie +
 > BOM-Bridge + Materialisierung, ein Merge) auf **Schranke 2** (manueller Test + Merge durch den
@@ -505,11 +505,11 @@ und ein Sage-Arbeitsplatz IST die Werkbank — das BDE-Terminal bucht gegen `Wor
 
 | Baustein | Stand | Code-Einstieg |
 |---|---|---|
-| (a) `ProductionWorkplace`-Anlage aus Sage `KHKPpsArbeitsplaetze` (Sage fuehrend, Nummer/Name/Kuerzel) | **erledigt** `8be03982` | `ProductionWorkplaceSyncService`, `SageArbeitsplatzReader`, Migration `93`, Felder `SageArbeitsplatznummer`/`ArbeitsschrittCode` (eindeutiger gefilterter Index) |
-| (a) 3 ServiceSettings (Enabled/Mandant/Ausschlussliste) + Standorteinstellungen-Gruppe + SyncWorker-Doppel-Gate + UI read-only | **erledigt** `8be03982`/`be0695fb` | `ServiceSettingDefinitions.cs`, `StandortSettingsCatalog.cs`, `SyncWorker.cs`, `Views/ProductionWorkplaces/*` |
-| (b) 2c-Umbau `FaWorkStepStructureDetectionService` → `WorkOperationStructureDetectionService` (Ziel `WorkOperation`, Katalog `ProductionWorkplace.ArbeitsschrittCode`) | **erledigt** `920aabb7` | `WorkOperationStructureDetectionService.cs`, `IUnknownArbeitsschrittTokenState`, Key `Sync:WorkOperationStructureDetectionEnabled` |
-| (b) Kuerzel-Mehrdeutigkeit gemeldet, Ausschlussliste-Kuerzel weder AG noch Meldung, `FaWorkStepSources.Struktur` entfernt | **erledigt** `920aabb7` | `WorkOperationStructureDetectionService.DetectAsync` |
-| (c) Existenz-Check-Fix `BdeDefaultWorkOperationService` (OperationNumber "01" statt Name); `BdeScanResolver` UNVERAENDERT; Terminal-Routing schon ueber `ProductionWorkplaceId` | **erledigt** `920aabb7` | `BdeDefaultWorkOperationService.cs` |
+| (a) `ProductionWorkplace`-Anlage aus Sage `KHKPpsArbeitsplaetze` (Sage fuehrend, Nummer/Name/Kuerzel) | **erledigt** `8a6fd0c4` | `ProductionWorkplaceSyncService`, `SageArbeitsplatzReader`, Migration `93`, Felder `SageArbeitsplatznummer`/`ArbeitsschrittCode` (eindeutiger gefilterter Index) |
+| (a) 3 ServiceSettings (Enabled/Mandant/Ausschlussliste) + Standorteinstellungen-Gruppe + SyncWorker-Doppel-Gate + UI read-only | **erledigt** `8a6fd0c4`/`bc25ea21` | `ServiceSettingDefinitions.cs`, `StandortSettingsCatalog.cs`, `SyncWorker.cs`, `Views/ProductionWorkplaces/*` |
+| (b) 2c-Umbau `FaWorkStepStructureDetectionService` → `WorkOperationStructureDetectionService` (Ziel `WorkOperation`, Katalog `ProductionWorkplace.ArbeitsschrittCode`) | **erledigt** `6ba4e903` | `WorkOperationStructureDetectionService.cs`, `IUnknownArbeitsschrittTokenState`, Key `Sync:WorkOperationStructureDetectionEnabled` |
+| (b) Kuerzel-Mehrdeutigkeit gemeldet, Ausschlussliste-Kuerzel weder AG noch Meldung, `FaWorkStepSources.Struktur` entfernt | **erledigt** `6ba4e903` | `WorkOperationStructureDetectionService.DetectAsync` |
+| (c) Existenz-Check-Fix `BdeDefaultWorkOperationService` (OperationNumber "01" statt Name); `BdeScanResolver` UNVERAENDERT; Terminal-Routing schon ueber `ProductionWorkplaceId` | **erledigt** `6ba4e903` | `BdeDefaultWorkOperationService.cs` |
 | Tests + v1.44.0 + Changelog/Hilfe/README/TS-77 | **erledigt** | `WorkOperationStructureDetectionServiceTests` (13), `ProductionWorkplaceSyncServiceTests` (6), `BdeDefaultWorkOperationServiceTests` (+AK16), `AppVersion.cs` ×2, `docs/TESTSZENARIEN.md` |
 
 > **Deploy:** Web + Service + **Migration 93** (zwei nullable Spalten + eindeutiger gefilterter Index,
@@ -529,9 +529,9 @@ Spec [[2026-09-23-fa-struktur-arbeitsgaenge-anzeige-spec]], Umsetzung
 
 | Baustein | Stand | Code-Einstieg |
 |---|---|---|
-| Existenz-Check beim Seitenaufbau (Knopf nur bei ≥ 1 AG) + Modal-Endpunkt je HauptFA | **erledigt** `912e6bea`/`71ffeb18` | `FaHierarchyController.Index`/`WorkOperations`, `IWorkOperationRepository.GetOrderNumbersWithWorkOperationsAsync`/`GetByOrderNumberWithWorkplaceAsync` (gleicher Schlüssel `OrderNumber == HauptFA`) |
-| Modal (alle Sub-FAs inkl. Lücken + Zählzeile), Laden beim Öffnen | **erledigt** `71ffeb18` | `Views/FaHierarchy/_FaWorkOperationsModal.cshtml`, `FaWorkOperationsViewModel.Create`, `wwwroot/js/fa-hierarchy-tree.js` (`openWorkOperations`) |
-| Tests + v1.45.0 + Changelog/Hilfe/TS-78; Review-Fix Knopf/Modal-Schlüssel | **erledigt** `2d06d1f0` | `WorkOperationRepositoryFaStructureTests` (4), `FaWorkOperationsViewModelTests` (1) |
+| Existenz-Check beim Seitenaufbau (Knopf nur bei ≥ 1 AG) + Modal-Endpunkt je HauptFA | **erledigt** `49298f35`/`6064263f` | `FaHierarchyController.Index`/`WorkOperations`, `IWorkOperationRepository.GetOrderNumbersWithWorkOperationsAsync`/`GetByOrderNumberWithWorkplaceAsync` (gleicher Schlüssel `OrderNumber == HauptFA`) |
+| Modal (alle Sub-FAs inkl. Lücken + Zählzeile), Laden beim Öffnen | **erledigt** `6064263f` | `Views/FaHierarchy/_FaWorkOperationsModal.cshtml`, `FaWorkOperationsViewModel.Create`, `wwwroot/js/fa-hierarchy-tree.js` (`openWorkOperations`) |
+| Tests + v1.45.0 + Changelog/Hilfe/TS-78; Review-Fix Knopf/Modal-Schlüssel | **erledigt** `821d82a3` | `WorkOperationRepositoryFaStructureTests` (4), `FaWorkOperationsViewModelTests` (1) |
 
 > **Deploy:** nur Web, keine Migration. **Status:** QA → Schranke 2 mit dem ganzen Bündel.
 
@@ -544,12 +544,12 @@ Folgenotizen: [[2026-09-25-picking-warteschlange-gruppierung-rueckbau]], [[2026-
 
 | Baustein | Stand | Code-Einstieg |
 |---|---|---|
-| Eine Sub-FA-Definition + Warteschlange nur HauptFA + Bulk-Skip beidseitig | **erledigt** `2291c950`/`23942f73` | `ProductionOrder.IsHauptFa`/`IsSubFa`/`IsSubFaOf`, `ProductionOrderPickingStatusRepository` (4 Queue-Abfragen, `SetReleaseBatchAsync`), `BomScopes.ForOrder`, `HierarchicalDataExistsAsync` |
-| Server-Guards + Zeilen Leitstand/FA-Liste auf HauptFA beschränkt | **erledigt** `35a65d36`/`8d8bf8a5` | `PickingController.Bom`, `PickingLeitstandController.ToggleRelease`/`BulkRelease`, `_PickingLeitstandRow`/`_ProductionOrderRow` |
-| Rückbau Freigabe-Kaskade (aus [[2026-09-10-fa-liste-ausbau-matchcode-spec]] Block 4) | **erledigt** `36911f2f` | grep `CascadeRelease\|SetReleaseForOrderNumber\|CountReleasedByOrderNumber` = 0 |
-| „Alle Ziele“ `!(leer)` im Komm.-Ziel-Filter + Druck-Leerzustand | **erledigt** `e2d6e5d9`/`4fffeae9` | `Views/Picking/Bom.cshtml` (`bomMatchesFilter`, `setupKommissionierzielDropdown`, `btnPrintBom`) |
-| Normalisierung Profil-Standardfilter + Relevanzregel extrahiert | **erledigt** `f6911db4`/`7d1cd74e` | `KommissionierzielFilterWert.Normalize`, `KommissionierRelevanzFilter.IsRelevant` |
-| v1.46.0, Changelog, Hilfe, TS-79, TS-73-Rückbau-Vermerk | **erledigt** `2290c99c`/`1f128c61`/`787c5c90` | `docs/TESTSZENARIEN.md` TS-79 |
+| Eine Sub-FA-Definition + Warteschlange nur HauptFA + Bulk-Skip beidseitig | **erledigt** `a30e7647`/`ffb1572e` | `ProductionOrder.IsHauptFa`/`IsSubFa`/`IsSubFaOf`, `ProductionOrderPickingStatusRepository` (4 Queue-Abfragen, `SetReleaseBatchAsync`), `BomScopes.ForOrder`, `HierarchicalDataExistsAsync` |
+| Server-Guards + Zeilen Leitstand/FA-Liste auf HauptFA beschränkt | **erledigt** `cba1be97`/`b9991917` | `PickingController.Bom`, `PickingLeitstandController.ToggleRelease`/`BulkRelease`, `_PickingLeitstandRow`/`_ProductionOrderRow` |
+| Rückbau Freigabe-Kaskade (aus [[2026-09-10-fa-liste-ausbau-matchcode-spec]] Block 4) | **erledigt** `ee583ed7` | grep `CascadeRelease\|SetReleaseForOrderNumber\|CountReleasedByOrderNumber` = 0 |
+| „Alle Ziele“ `!(leer)` im Komm.-Ziel-Filter + Druck-Leerzustand | **erledigt** `6a6adee6`/`4467b894` | `Views/Picking/Bom.cshtml` (`bomMatchesFilter`, `setupKommissionierzielDropdown`, `btnPrintBom`) |
+| Normalisierung Profil-Standardfilter + Relevanzregel extrahiert | **erledigt** `f40053d3`/`855f7310` | `KommissionierzielFilterWert.Normalize`, `KommissionierRelevanzFilter.IsRelevant` |
+| v1.46.0, Changelog, Hilfe, TS-79, TS-73-Rückbau-Vermerk | **erledigt** `50582f81`/`c61cb796`/`30c9c20e` | `docs/TESTSZENARIEN.md` TS-79 |
 
 > **Deploy:** nur Web, keine Migration. **Einmaliger SQL-Lauf nur im Testsystem** (freigegebene Sub-FAs
 > zurücksetzen, `SELECT COUNT(*)` vorab) — siehe Spec. **Status:** Testbereit (QA 2026-09-25, Build +
@@ -566,12 +566,12 @@ Setzt v1.46.0 ([[2026-09-25-kommissionierung-nur-hauptfa-spec]]) voraus. Überho
 
 | Baustein | Stand | Code-Einstieg |
 |---|---|---|
-| Summiert: KW optional, Matchcode/Hauptlagerplatz, Gruppen-Paging je HauptFA, Umschalter-Query | **erledigt** `ab2beed2` | `KommissionierListenService.AggregateSummiert`, `ToggleSharedQueryKeys`/`BuildToggleQuery` |
-| ViewKey `FaHierarchyKommissionierSummiert` (6 Spalten) registriert | **erledigt** `e407596d` | `ColumnDefinitions.FaHierarchyKommissionierSummiert` |
-| Druck/PDF: sichtbare Spalten beim Klick (`visibleColumns`), Server-Rückfall auf Präferenz; `PrintSummiert`/`PdfSummiert` | **erledigt** `1fb2b59d`/`1977a819` | `FaHierarchyKommissionierListenController.ResolveVisibleColumnsAsync`, `wwwroot/js/print-visible-columns.js`, `Views/FaHierarchyKommissionierListen/PrintSummiert.cshtml` |
-| Menü → Summiert; Summiert gruppiert, 6 Spalten | **erledigt** `1977a819` | `_Layout.cshtml`, `Summiert.cshtml` |
-| Drift-Guard Vier-Stellen-Konsistenz | **erledigt** `58d50738` | `IdealAkeWms.Tests/Views/KommissionierSpaltenKonsistenzTests.cs` |
-| v1.47.0, Changelog, Hilfe, TS-80 | **erledigt** `e447a12c` | `docs/TESTSZENARIEN.md` TS-80 |
+| Summiert: KW optional, Matchcode/Hauptlagerplatz, Gruppen-Paging je HauptFA, Umschalter-Query | **erledigt** `06d611c7` | `KommissionierListenService.AggregateSummiert`, `ToggleSharedQueryKeys`/`BuildToggleQuery` |
+| ViewKey `FaHierarchyKommissionierSummiert` (6 Spalten) registriert | **erledigt** `e4c440cf` | `ColumnDefinitions.FaHierarchyKommissionierSummiert` |
+| Druck/PDF: sichtbare Spalten beim Klick (`visibleColumns`), Server-Rückfall auf Präferenz; `PrintSummiert`/`PdfSummiert` | **erledigt** `02817d79`/`ddd85403` | `FaHierarchyKommissionierListenController.ResolveVisibleColumnsAsync`, `wwwroot/js/print-visible-columns.js`, `Views/FaHierarchyKommissionierListen/PrintSummiert.cshtml` |
+| Menü → Summiert; Summiert gruppiert, 6 Spalten | **erledigt** `ddd85403` | `_Layout.cshtml`, `Summiert.cshtml` |
+| Drift-Guard Vier-Stellen-Konsistenz | **erledigt** `980108b8` | `IdealAkeWms.Tests/Views/KommissionierSpaltenKonsistenzTests.cs` |
+| v1.47.0, Changelog, Hilfe, TS-80 | **erledigt** `e380315c` | `docs/TESTSZENARIEN.md` TS-80 |
 
 > **Deploy:** nur Web, keine Migration. **Vor der Abnahme:** Einheiten-Prüfschritt TS-80.1 auf der
 > Sage-DB IDEAL ([[fallstricke]] §18). **Status:** Testbereit (QA 2026-09-28, Build + 1435 Web-Tests +
@@ -580,18 +580,27 @@ Setzt v1.46.0 ([[2026-09-25-kommissionierung-nur-hauptfa-spec]]) voraus. Überho
 
 ### AKE-Hotfix 1.30.1 uebernommen — Vorwaerts-Merge main → Buendel (v1.47.1, selber Branch)
 
-Merge-Commit `6c253c60` (Buendel), Quelle `main` `f89c0124`. Spec [[2026-09-28-ake-hotfix-stueckliste-druck-lagerbestellung-ist-spec]]
+Merge-Commit `b877e05a` (Buendel), Quelle `main` `f89c0124`. Spec [[2026-09-28-ake-hotfix-stueckliste-druck-lagerbestellung-ist-spec]]
 (Abschnitt „Uebertrag ins Buendel"), Changelog [[2026-10-05-v1-47-1-buendel-ake-hotfix-uebernommen]], Merge-Protokoll
 [[2026-10-05-vorwaerts-merge-ake-hotfix-ins-buendel]]. **Buendel-Stand jetzt v1.47.1.**
 
 | Baustein | Stand | Code-Einstieg |
 |---|---|---|
-| Stuecklisten-Druck per POST, nach der Leerzustand-Sperre | **uebernommen** `6c253c60` | `Bom.cshtml` (`btnPrintBom`), `PickingController.RenderPrintBomAsync` (Buendel-Rumpf) |
-| Lagerbestellung Ist-Menge bestaetigen (Pflichtpruefung, Autosave NULL, Laengen-Guard) | **uebernommen** `6c253c60` | `WarehouseRequisitionRepository.CloseAsync`, `WarehousePickingController`, `Details.cshtml` |
-| Pflicht-Nachzug 4 Buendel-Tests `GetMissingPartsAsync_*` (`decimal?`) | **erledigt** `6c253c60` | `WarehouseRequisitionRepositoryTests.cs` |
+| Stuecklisten-Druck per POST, nach der Leerzustand-Sperre | **uebernommen** `b877e05a` | `Bom.cshtml` (`btnPrintBom`), `PickingController.RenderPrintBomAsync` (Buendel-Rumpf) |
+| Lagerbestellung Ist-Menge bestaetigen (Pflichtpruefung, Autosave NULL, Laengen-Guard) | **uebernommen** `b877e05a` | `WarehouseRequisitionRepository.CloseAsync`, `WarehousePickingController`, `Details.cshtml` |
+| Pflicht-Nachzug 4 Buendel-Tests `GetMissingPartsAsync_*` (`decimal?`) | **erledigt** `b877e05a` | `WarehouseRequisitionRepositoryTests.cs` |
 
 > **Status:** im Buendel, wartet mit dem ganzen Buendel auf Schranke 2 (TS-5.11, TS-18.10 am IDEAL-System).
 > Einmal-Skript `SQL/Einmalig/…` auf IDEAL erst NACH dem Buendel-Deploy, genau einmal.
+
+### Bugfix B-ABN-1: Komm.-Ziel-Auswahl der Stückliste übersteht F5 (v1.47.2, selber Branch)
+
+Befund der Browser-Abnahme [[2026-10-06-ts-79-browser-testbericht]] zu [[2026-09-25-kommissionierung-nur-hauptfa-spec]],
+Changelog [[2026-10-06-v1-47-2-stueckliste-kommissionierziel-f5]]. Commit `1df7665c`, nur `Views/Picking/Bom.cshtml`
+(Speichern über `window.setColumnFilter`, Sitzung vor Profil-Standard). Wächter `BomKommissionierzielPersistenzTests`.
+**Bündel-Stand jetzt v1.47.2.**
+
+> **Status:** behoben, QA-Review ohne Critical/Important; Abnahme offen (TS-79.6 / Browser-Schritt B12 wiederholen).
 
 ### Stückliste: Komm.-Ziel-Filter + gespeicherter Standardfilter + Badge (v1.42.0, selber Branch)
 
@@ -614,7 +623,7 @@ Spec [[2026-09-18-stueckliste-kommissionierziel-filter-spec]], Umsetzung
 > (Client-Mode-Dropdown über verstecktem Input; getActiveFilters liefert col-keys).
 >
 > **Status:** `Testbereit` (qa-agent, 2026-09-21 — Build/Test gruen, AK-Abgleich gegen echten Diff
-> `f04a7e0~1..5f933f1`). Client-Mode = Bildschirm-Interaktion Manual-UAT, wartet mit dem Buendel auf
+> `1bef63d~1..95b611b`). Client-Mode = Bildschirm-Interaktion Manual-UAT, wartet mit dem Buendel auf
 > Schranke 2.
 > Wartet mit dem ganzen Bündel auf **Schranke 2**.
 
@@ -635,7 +644,7 @@ zurückgebaut, bevor die echten IDEAL-Werkbänke angelegt werden.
 | v1.43.0 + Changelog + TS-71-Rückbau (71.6–71.9 markiert, 71.14/71.15 neu) + ADR-0014-Nachtrag + [[fallstricke]] §15 | **erledigt** | `AppVersion.cs` ×2 |
 
 > **Deploy:** Web + Service, keine Migration. **Status:** `Testbereit` (qa-agent, 2026-09-22 —
-> Build/Test grün, AK-Abgleich gegen echten Diff `ab10b57..0aceee8`). Build 0 Fehler, **Web 1391 +1
+> Build/Test grün, AK-Abgleich gegen echten Diff `2200c47..cddb4f9`). Build 0 Fehler, **Web 1391 +1
 > skip, Service 263** (−14 gelöschte Workplace-Tests). Wartet mit dem Bündel auf **Schranke 2**.
 
 ### Beschichtungsauftrag summiert als Standard (v1.48.0, per Fast-Forward im Bündel)

@@ -17,8 +17,8 @@ etappen:
   - "4: Teil 4 — Beschichtungsauftrag (erweitert den Baustein aus Etappe 3, ohne PDF) — ERLEDIGT 08aa610 (Build+Test gruen; Baustein generalisiert leafOnly/anomaly opt-in)"
   - "5: Teil 5 — Vormontage-Listen, zwei Sichten (erweitert den Baustein aus Etappe 3) — ERLEDIGT df5931e (Build+Test gruen; Sicht 2 Matchcode-Aggregat; Wochenbezug bewusst offen)"
   - "6: UI-Nachtrag — Listen-Spaltenauswahl an die vier IDEAL-Listen anschliessen + ADR-0005-Ergaenzung + table-filter Sort-Fix ([[2026-08-12-listen-spaltenauswahl-spec]]) — offen"
-  - "7: UI-Nachtrag — FA-Struktur Darstellung: seitenweite Tree-Table (OSEON-Stil), Kontrast-Fix, Knoten-Icons, Baum-Spaltenfilter + column-preferences ([[2026-08-12-fa-struktur-darstellung-spec]]) — ERLEDIGT 767f06f (Build+Test gruen)"
-  - "8: UAT-Anpassung (2026-08-13) — SubFA-Sperre + Anomalie-Banner ENTFERNT (Kommissionier+Vormontage, leafOnly:false); NEU Kommissionier-Summiert (je HauptFA/Artnr/Sollmenge/je Ziel, KW auf KO_Termin); Vormontage-Summiert KW auf FE_Termin (HauptFA ignoriert). Teil-3/5-Spec-Nachtraege — ERLEDIGT e83eb1c (Build+Test gruen)"
+  - "7: UI-Nachtrag — FA-Struktur Darstellung: seitenweite Tree-Table (OSEON-Stil), Kontrast-Fix, Knoten-Icons, Baum-Spaltenfilter + column-preferences ([[2026-08-12-fa-struktur-darstellung-spec]]) — ERLEDIGT a864745 (Build+Test gruen)"
+  - "8: UAT-Anpassung (2026-08-13) — SubFA-Sperre + Anomalie-Banner ENTFERNT (Kommissionier+Vormontage, leafOnly:false); NEU Kommissionier-Summiert (je HauptFA/Artnr/Sollmenge/je Ziel, KW auf KO_Termin); Vormontage-Summiert KW auf FE_Termin (HauptFA ignoriert). Teil-3/5-Spec-Nachtraege — ERLEDIGT f07ea34 (Build+Test gruen)"
 deploy:
   web: true
   service: true
@@ -65,9 +65,9 @@ Tabelle gehoert nie in denselben Merge wie Kommissionierlisten.
 | 3 | Kommissionierlisten + gemeinsamer Baustein | [[2026-07-29-standort-ideal-teil-3-spec]] | erledigt | 9ca8141 |
 | 4 | Beschichtungsauftrag | [[2026-07-29-standort-ideal-teil-4-spec]] | erledigt | 08aa610 |
 | 5 | Vormontage-Listen | [[2026-07-29-standort-ideal-teil-5-spec]] | erledigt | df5931e |
-| 6 | UI-Nachtrag: Listen-Spaltenauswahl (+ ADR 0005 + Sort-Fix) | [[2026-08-12-listen-spaltenauswahl-spec]] | erledigt | 37e8752 |
-| 7 | UI-Nachtrag: FA-Struktur Tree-Table/Kontrast/Icons/Spaltenfilter | [[2026-08-12-fa-struktur-darstellung-spec]] | erledigt | 767f06f |
-| 8 | UAT-Anpassung: SubFA-Sperre/Banner weg + Kommissionier-Summiert + Vormontage-KW (Teil-3/5-Nachtraege) | [[2026-07-29-standort-ideal-teil-3-spec]] / [[2026-07-29-standort-ideal-teil-5-spec]] | erledigt | e83eb1c |
+| 6 | UI-Nachtrag: Listen-Spaltenauswahl (+ ADR 0005 + Sort-Fix) | [[2026-08-12-listen-spaltenauswahl-spec]] | erledigt | 3894e3d |
+| 7 | UI-Nachtrag: FA-Struktur Tree-Table/Kontrast/Icons/Spaltenfilter | [[2026-08-12-fa-struktur-darstellung-spec]] | erledigt | a864745 |
+| 8 | UAT-Anpassung: SubFA-Sperre/Banner weg + Kommissionier-Summiert + Vormontage-KW (Teil-3/5-Nachtraege) | [[2026-07-29-standort-ideal-teil-3-spec]] / [[2026-07-29-standort-ideal-teil-5-spec]] | erledigt | f07ea34 |
 
 **Epic am 2026-08-12 von `Testbereit` zurueck auf `InUmsetzung`** — zwei freigegebene UI-Nachtraege
 (Etappe 6/7) zu Teil 2–5 werden im SELBEN Worktree mitgebaut und **mitgemergt** (ein Merge). Reihenfolge:
@@ -545,13 +545,13 @@ merged nicht, pusht nicht, loescht den Worktree nicht).
 
 Diese QA-Runde prueft den **gesamten** Worktree-Stand nach den zwei nachtraeglich angehaengten
 UI-Etappen (Epic am 2026-08-12 von `Testbereit` zurueck auf `InUmsetzung` gesetzt, s. o.). Gepruefter
-Commit: **`767f06f`** (Etappe 7, letzter Commit des Worktrees), Etappe 6 = `37e8752`. Version bleibt
+Commit: **`a864745`** (Etappe 7, letzter Commit des Worktrees), Etappe 6 = `3894e3d`. Version bleibt
 **v1.31.0** — kein neuer Bump fuer das Buendel Etappe 6/7 (verifiziert: beide `AppVersion.cs`
 weiterhin `1.31.0`). Der QA-Nachweis vom 2026-08-10 (Commit `93e54c4`) oben ist damit **ueberholt**
 fuer Build-/Testzahlen und Status, bleibt aber inhaltlich gueltig fuer Teile 1–5 (Code, Migration,
 Deploy-Grundlagen, offene UAT-Punkte) — nichts davon wurde durch Etappe 6/7 veraendert.
 
-### Build- und Test-Beweis (Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Commit `767f06f`)
+### Build- und Test-Beweis (Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Commit `a864745`)
 
 ```
 dotnet build IdealAkeWms.slnx
@@ -573,15 +573,15 @@ eine uebersprungene Test ist weiterhin der vorbestehende, epic-unabhaengige
 
 ### Umfang Etappe 6/7 — real-diff-verifiziert (reine Web-Aenderung)
 
-`git diff --stat b6b6d83..767f06f` (letzter UAT-Commit vor Etappe 6 bis Etappe-7-Tip) zeigt
+`git diff --stat 5a5c2a7..a864745` (letzter UAT-Commit vor Etappe 6 bis Etappe-7-Tip) zeigt
 ausschliesslich: `IdealAkeWms/` (Views `FaHierarchy/Index.cshtml` + `_FaHierarchyNode.cshtml` +
 4 neue Listen-Views mit Spaltenauswahl-Snippet, `ColumnDefinitions.cs`,
 `FaHierarchyTreeViewModel.cs`, `wwwroot/css/site.css`, neues `wwwroot/js/fa-hierarchy-tree.js`,
 `wwwroot/js/table-filter.js` Sort-Fix), `IdealAkeWms.Tests/` (`FaNodeClassifierTests.cs`,
 `UserViewPreferencesApiControllerTests.cs`-Ergaenzung) und `docs/TESTSZENARIEN.md`. **Keine**
 Aenderung unter `IDEALAKEWMSService/`, **keine** neue Migration, **kein** `Program.cs`-Diff in
-diesem Fenster (der `Program.cs`-Change im Gesamtdiff `93e54c4..767f06f` stammt aus dem fruehreren
-UAT-Fix `2470578`, nicht aus Etappe 6/7). Bestaetigt exakt die Erwartung der Aufgabe.
+diesem Fenster (der `Program.cs`-Change im Gesamtdiff `93e54c4..a864745` stammt aus dem fruehreren
+UAT-Fix `f1f3190`, nicht aus Etappe 6/7). Bestaetigt exakt die Erwartung der Aufgabe.
 
 ### Testszenarien
 
@@ -637,7 +637,7 @@ dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publ
 
 Nach dem Merge (Schranke 2) nur dann erneut aus `main` publizieren, wenn der Merge tatsaechlich
 getestete Dateien mit parallelen main-Aenderungen zusammengefuehrt hat (sonst reicht der bereits
-getestete Worktree-Stand `767f06f`). Migrations-Reihenfolge, RCSI-Vorbedingung, View-Namen- und
+getestete Worktree-Stand `a864745`). Migrations-Reihenfolge, RCSI-Vorbedingung, View-Namen- und
 Toggle-Konfiguration: unveraendert wie im Deploy-Abschnitt der 2026-08-10-Runde oben beschrieben.
 
 ### Manuelle Test-Checkliste — Ergaenzung Etappe 6/7 (die 12-Punkte-Liste von 2026-08-10 oben bleibt vollstaendig gueltig und ist ZUERST abzuarbeiten, da Teil 2–5 die Datengrundlage fuer die UI-Nachtraege sind)
@@ -700,18 +700,18 @@ Worktree nicht).
 
 ## QA-Abnahme Gesamtstand inkl. Etappe 8 (2026-08-13) — status: Testbereit
 
-Re-QA nach der ersten manuellen UAT-Runde am IDEAL-Testsystem: Etappe 8 (Commit `e83eb1c`) setzt
+Re-QA nach der ersten manuellen UAT-Runde am IDEAL-Testsystem: Etappe 8 (Commit `f07ea34`) setzt
 zwei vom Menschen in der UAT (2026-08-13) getroffene, verbindliche Entscheidungen um — siehe die
 Nachtraege „## Nachtrag / Aenderung aus UAT (2026-08-13)" in
 [[2026-07-29-standort-ideal-teil-3-spec]] und [[2026-07-29-standort-ideal-teil-5-spec]]. Gepruefter
-Commit: **`e83eb1c`** (Branch `feature/2026-08-07-ideal-teile-1-5`, Worktree
+Commit: **`f07ea34`** (Branch `feature/2026-08-07-ideal-teile-1-5`, Worktree
 `.claude/worktrees/2026-08-07-ideal-teile-1-5`). Version bleibt **v1.31.0** — kein neuer Bump
-(verifiziert: `git diff 767f06f..e83eb1c -- IdealAkeWms/AppVersion.cs IDEALAKEWMSService/AppVersion.cs`
-liefert keinen Treffer). Der QA-Nachweis vom 2026-08-12 (Commit `767f06f`) oben ist damit fuer
+(verifiziert: `git diff a864745..f07ea34 -- IdealAkeWms/AppVersion.cs IDEALAKEWMSService/AppVersion.cs`
+liefert keinen Treffer). Der QA-Nachweis vom 2026-08-12 (Commit `a864745`) oben ist damit fuer
 Build-/Testzahlen und Status **ueberholt**, bleibt aber inhaltlich gueltig fuer Etappe 1–7 (Code,
 Migration, Deploy-Grundlagen) — nichts davon wurde durch Etappe 8 veraendert.
 
-### Build- und Test-Beweis (Worktree, Commit `e83eb1c`)
+### Build- und Test-Beweis (Worktree, Commit `f07ea34`)
 
 ```
 dotnet build IdealAkeWms.slnx
@@ -724,24 +724,24 @@ dotnet test
 ```
 
 Beide Suiten gruen, exakt die erwartete Groessenordnung (Web ~1174, Service 221 unveraendert — Etappe
-8 ist reines Web). Zuwachs gegenueber dem `767f06f`-Stand (Web 1147): **+27 Web-Tests**
+8 ist reines Web). Zuwachs gegenueber dem `a864745`-Stand (Web 1147): **+27 Web-Tests**
 (`KommissionierListenServiceTests` neu + erweitert, `VormontageServiceTests` erweitert,
 `IsoWeekRangeTests` neu — 4 Testfaelle fuer den neuen ISO-Wochen-Helfer). Service-Tests unveraendert
 bei 221 (keine Service-Aenderung). Der eine uebersprungene Test ist weiterhin der vorbestehende,
 epic-unabhaengige `ProductionOrderEagerCreateAgentJobTests`-Fall.
 
 **2026-08-14 — finaler Gate-Lauf vor Merge bestaetigt:** unabhaengige Re-Verifikation auf demselben
-Stand (Worktree-HEAD weiterhin `e83eb1c`, Working Tree sauber bis auf das vorbestehende, inhaltlich
-irrelevante `publish.zip`-Artefakt aus Commit `549c5db`, das sparse-checkout-bedingt auf der Platte
+Stand (Worktree-HEAD weiterhin `f07ea34`, Working Tree sauber bis auf das vorbestehende, inhaltlich
+irrelevante `publish.zip`-Artefakt aus Commit `950d872`, das sparse-checkout-bedingt auf der Platte
 fehlt — keine Quellcode-Aenderung). `dotnet build IdealAkeWms.slnx`: 0 Fehler (dieselben 8
 vorbestehenden NU1902-Warnungen). `dotnet test`: **IdealAkeWms.Tests 1174 bestanden, 1
 uebersprungen, 0 Fehler, gesamt 1175**; **IDEALAKEWMSService.Tests 221 bestanden, 0 Fehler, gesamt
-221** — zahlengleich zum `e83eb1c`-Nachweis oben. Status bleibt **Testbereit**; Schranke 2 (Merge)
+221** — zahlengleich zum `f07ea34`-Nachweis oben. Status bleibt **Testbereit**; Schranke 2 (Merge)
 weiterhin Sache des Menschen.
 
 ### Diff-Check — Etappe 8 real-diff-verifiziert (reine Web-Aenderung, kein Service/Migration/Version-Bump)
 
-`git diff --stat 767f06f..e83eb1c` (18 Dateien, +1090/-143):
+`git diff --stat a864745..f07ea34` (18 Dateien, +1090/-143):
 - **Neu:** `IdealAkeWms.Tests/Services/IsoWeekRangeTests.cs`,
   `IdealAkeWms.Tests/Services/KommissionierListenServiceTests.cs`,
   `IdealAkeWms/Services/IsoWeekRange.cs` (neuer ISO-Wochen-Helfer, Mo–So-Grenzen),
@@ -753,7 +753,7 @@ weiterhin Sache des Menschen.
   `FaHierarchyVormontageGruppeViewModel`), vier Views (`FaHierarchyKommissionierListen/Index.cshtml`
   + `Print.cshtml`, `FaHierarchyVormontage/Index.cshtml` + `Summiert.cshtml`),
   `IdealAkeWms.Tests/Services/VormontageServiceTests.cs`, `docs/TESTSZENARIEN.md`.
-- **Bestaetigt (explizit gegengeprueft):** `git diff --stat 767f06f..e83eb1c -- IDEALAKEWMSService/`
+- **Bestaetigt (explizit gegengeprueft):** `git diff --stat a864745..f07ea34 -- IDEALAKEWMSService/`
   liefert **keinen** Treffer (keine Service-Aenderung); `-- */Migrations/* SQL/*` liefert **keinen**
   Treffer (keine Migration); `-- IdealAkeWms/AppVersion.cs IDEALAKEWMSService/AppVersion.cs` liefert
   **keinen** Treffer (kein Version-Bump). Etappe 8 ist damit — wie in der Aufgabe erwartet —
@@ -775,7 +775,7 @@ in „Kapitel mit besonderem Gewicht" (57–61) aktualisiert — die SubFA=0-Bla
 durch die UAT widerlegt/entfernt dokumentiert, verbleibender manueller Rest ist der
 Doppelzaehl-Mengenabgleich. `updated: 2026-08-13`.
 
-### CLAUDE.md-Checkliste — Etappe 8 (Delta zum `767f06f`-Nachweis)
+### CLAUDE.md-Checkliste — Etappe 8 (Delta zum `a864745`-Nachweis)
 
 - **Migration:** keine — `SQL/89_AddFaHierarchy.sql` bleibt der einzige Migrationsstand des Epics.
 - **Audit-Felder:** entfaellt — keine neuen/geaenderten Entitaeten (nur ViewModels/Services).
@@ -790,7 +790,7 @@ Doppelzaehl-Mengenabgleich. `updated: 2026-08-13`.
 ### Skill-Durchlauf
 
 `superpowers:verification-before-completion` (Build+Test frisch ausgefuehrt vor dieser Behauptung,
-Ergebnisse oben) und Selbst-Code-Review des Diffs `767f06f..e83eb1c` durchlaufen — keine neuen
+Ergebnisse oben) und Selbst-Code-Review des Diffs `a864745..f07ea34` durchlaufen — keine neuen
 Befunde ueber die bereits im `93e54c4`-Nachweis dokumentierte Schema-Praefix-Anmerkung hinaus (die
 ist laengst durch den Pre-Merge-Fix `28cd3f6` behoben); die Aufrufstellen von
 `FaHierarchyListBuilder.Build` in `KommissionierListenService`/`VormontageService` uebergeben
@@ -814,7 +814,7 @@ dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publ
 
 Nach dem Merge (Schranke 2) nur dann erneut aus `main` publizieren, wenn der Merge tatsaechlich
 getestete Dateien mit parallelen main-Aenderungen zusammengefuehrt hat (sonst reicht der bereits
-getestete Worktree-Stand `e83eb1c`). Migrations-Reihenfolge, RCSI-Vorbedingung, View-Namen- und
+getestete Worktree-Stand `f07ea34`). Migrations-Reihenfolge, RCSI-Vorbedingung, View-Namen- und
 Toggle-Konfiguration: unveraendert wie im Deploy-Abschnitt der 2026-08-10-Runde oben beschrieben.
 
 ### Manuelle Test-Checkliste — Ergaenzung Etappe 8 (die Punkte 1–25 der bisherigen Runden bleiben vollstaendig gueltig; Punkte 7 und 9 der 2026-08-10-Runde sind durch die Etappe-8-Aenderung inhaltlich ueberholt — SubFA=0-Blattannahme + Banner sind entfallen — aber weiterhin als Beleg der urspruenglichen Arbeitsannahme stehen gelassen)

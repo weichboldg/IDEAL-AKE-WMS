@@ -20,7 +20,7 @@ der FA-Struktur-Ansicht.
 
 ## Umgesetzt (vier fachlich unabhaengige Bloecke, ein Worktree)
 
-- **Matchcode** (`461d3e5`, `cbabdd9`, `f4e9a6d`, `48e1c87`, `4a0563a`): neue Spalte
+- **Matchcode** (`6c1e2c0`, `41fe040`, `8cd2856`, `b050910`, `ab27ded`): neue Spalte
   `ProductionOrder.Matchcode` (`NVARCHAR(200)`), materialisiert im Anlege- UND Update-Pfad
   (F1-Muster, `FaMaterializationSyncService`), angezeigt in **fuenf** FA-Zeilen-Ebene-Listen
   (`ProductionOrders`, `PickingLeitstand`, `FaCompletion`, `FaWorklist`, `Picking`) — sichtbar per
@@ -28,16 +28,16 @@ der FA-Struktur-Ansicht.
   bewusst ausgeschlossen (eigener Baum-Mechanismus, kein `table-filter.js`-Pfad) und dokumentiert.
   Bei AKE bleibt die Spalte leer, bis die hausinterne Sage-View-Erweiterung liefert — kein Fehler
   (F7, null-sicherer Lesepfad).
-- **Kopfdaten je Zeile** (`9b2a258`, `13693b7`, `6ec37f8`, `cddb5b0`, `a2c7861`, `20686a2`,
-  `7b15d8a`, `9c95fb0`): Kunde/Prio/AB-Nummer/Montage-Abteilung/Konstruktions-Termin zusaetzlich
+- **Kopfdaten je Zeile** (`b879eea`, `0ca28ce`, `93900a8`, `decbe56`, `079f278`, `3691cc3`,
+  `b209fea`, `5809092`): Kunde/Prio/AB-Nummer/Montage-Abteilung/Konstruktions-Termin zusaetzlich
   als Zeilenwerte im Anzeige-Modell (nicht materialisiert, K1-Regel bleibt gewahrt), vier davon
   strukturell bedingt auf `Model.Hierarchical` (AKE bit-identisch). Kunde-Filter (Freitext +
   Spaltenfilter) laeuft hierarchisch jetzt ueber einen C#-Postfilter statt den SQL-Subquery-Join —
   betrifft `ProductionOrdersController` UND `PickingLeitstandController` (teilen `BuildLeitstandQuery`).
   Ein Fix unterwegs: der Postfilter hatte zunaechst den Kunde-Spaltenfilter **im AKE-Flachmodus**
-  mitgebrochen und dort die Paginierung abgeschaltet (`cddb5b0`).
-- **HauptFA-Zeile + schlankere Kopfzeile** (`0f14850`, eingeschobener Selektor-Sweep `b9bf342`,
-  `94463f9`, `9dfce86`, `203e23a`, `a422e44`, `fda7c7a`): Die Wurzelzeile ist jetzt eine normale
+  mitgebrochen und dort die Paginierung abgeschaltet (`decbe56`).
+- **HauptFA-Zeile + schlankere Kopfzeile** (`63bc795`, eingeschobener Selektor-Sweep `79ad96f`,
+  `7093029`, `e9ea2bd`, `7e54a77`, `1662ae9`, `a5e0922`): Die Wurzelzeile ist jetzt eine normale
   Zeile mit eigenem Badge „HauptFA" + `fw-semibold` (Erkennung `SubOrderNumber == OrderNumber`,
   kein neues ViewModel-Feld), **Schritt-1-Verifikationspflicht der Spec erfuellt** (Test fixiert die
   Modellannahme, Code-Beweiskette in der Aufgaben-Notiz). Gruppen-Kopfzeile zeigt nur noch
@@ -48,7 +48,7 @@ der FA-Struktur-Ansicht.
   Anzeigefehler gefunden — Tabellen-Selektoren griffen nicht skopiert in verschachtelte Tabellen
   (Kombigeraete-Varianten). Siehe [[2026-09-10-table-filter-selektoren-nicht-skopiert-bug]], behoben
   durch `:scope >`-Skopierung plus Quelltext-Waechter-Test (`TableScriptScopedSelectorTests`).
-- **Freigabe-Kaskade am Leitstand** (`067f1b1`, `aad4b54`, `fef12cf`): neue Aktion
+- **Freigabe-Kaskade am Leitstand** (`901e9db`, `692956f`, `daf7168`): neue Aktion
   `CascadeReleasePreview`/`CascadeRelease`, widerruft ausdruecklich die fruehere Festlegung „keine
   Kaskade" aus [[2026-08-18-fa-liste-hierarchie-anzeige-spec]] (dort nachgezogen). `BulkRelease`
   selbst bleibt unveraendert zeilenbasiert. **Harte Kommissionierer-Pflicht uebernommen, nicht
@@ -76,8 +76,8 @@ der FA-Struktur-Ansicht.
 
 ## Tests
 
-qa-agent, 2026-09-10, Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5` @ `deff907`
-(Diff-Basis `be92ade..deff907`, 48 Dateien):
+qa-agent, 2026-09-10, Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5` @ `24864e6`
+(Diff-Basis `c958edc..24864e6`, 48 Dateien):
 
 ```
 dotnet build IdealAkeWms.slnx        -> 0 Fehler, 12 Warnungen (bestehend, keine neuen)

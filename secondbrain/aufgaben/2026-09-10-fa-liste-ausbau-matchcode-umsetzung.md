@@ -84,40 +84,40 @@ wird es als Mangel gemeldet.
 
 - [x] Schritt 0 — Spec nachgebessert, Anzeige-Spec nachgezogen
 - [x] Vorab-Verifikation A (Wurzel materialisiert) + B (Zeilenebene Picking/OseonTracking)
-- [x] Plan geschrieben — 16 Tasks, 4 Bloecke, Worktree-Commit `940bab2`
-- [x] **Block 1 — Matchcode KOMPLETT** (Tasks 1-4, Stand `4a0563a`)
-  - Task 1 `461d3e5`: Spalte `NVARCHAR(200)` + Migration `20260910081155` + `SQL/91` + FreshInstall (beide Stellen)
-  - Task 2 `cbabdd9`: Materialisierung in Anlege- UND Update-Pfad (F1), 2 Tests
-  - Task 3 `f4e9a6d`: Anzeige in **fuenf** Listen (nicht sechs — `OseonTracking` faellt raus, siehe A1)
-  - Task 4 `48e1c87` + Fix `4a0563a`: serverseitiger Filter null-sicher (F7), Negation + Komma-OR getestet
+- [x] Plan geschrieben — 16 Tasks, 4 Bloecke, Worktree-Commit `ea2cbc8`
+- [x] **Block 1 — Matchcode KOMPLETT** (Tasks 1-4, Stand `ab27ded`)
+  - Task 1 `6c1e2c0`: Spalte `NVARCHAR(200)` + Migration `20260910081155` + `SQL/91` + FreshInstall (beide Stellen)
+  - Task 2 `41fe040`: Materialisierung in Anlege- UND Update-Pfad (F1), 2 Tests
+  - Task 3 `8cd2856`: Anzeige in **fuenf** Listen (nicht sechs — `OseonTracking` faellt raus, siehe A1)
+  - Task 4 `b050910` + Fix `ab27ded`: serverseitiger Filter null-sicher (F7), Negation + Komma-OR getestet
   - Nachweis: Web 1288 gruen + 1 uebersprungen, Service 265 gruen, Build 0 Fehler
-- [x] **Block 2 — Kopfdaten je Zeile KOMPLETT** (Tasks 5-8, Stand `9c95fb0`)
-  - Task 5 `9b2a258`+`13693b7`: K1-Felder je Zeile, AKE unveraendert. Fix: `??`-Fallback bei `Customer`
+- [x] **Block 2 — Kopfdaten je Zeile KOMPLETT** (Tasks 5-8, Stand `5809092`)
+  - Task 5 `b879eea`+`0ca28ce`: K1-Felder je Zeile, AKE unveraendert. Fix: `??`-Fallback bei `Customer`
     entfernt — die Leere bei Kombigeraeten hing an einer **Datenannahme** statt am Code.
-  - Task 6 `6ec37f8`+`cddb5b0`: C#-Postfilter. Fix: **Critical** — der Postfilter brach den
+  - Task 6 `93900a8`+`decbe56`: C#-Postfilter. Fix: **Critical** — der Postfilter brach den
     Kunde-Spaltenfilter im **Flachmodus** (AKE) und schaltete dort die Paginierung ab.
-  - Task 7 `a2c7861`+`20686a2`+`7b15d8a`: Freitext-Kunde ueber denselben Postfilter. Der geplante
+  - Task 7 `079f278`+`3691cc3`+`b209fea`: Freitext-Kunde ueber denselben Postfilter. Der geplante
     Repository-Umbau entfiel — Task 6 hatte das Ziel sicherer erreicht.
-  - Task 8 `9c95fb0`: vier Spalten, **bedingt auf `Model.Hierarchical`** (AK 20), `colCount` je Modus.
-- [x] **Block 3 — KOMPLETT** (Tasks 9-11 + eingeschobener Sweep, Stand `fda7c7a`)
-  - Task 9 `0f14850`: `table-sorted`-Hook **und Befund B-2 behoben** — ein Griff in die gemeinsam
+  - Task 8 `5809092`: vier Spalten, **bedingt auf `Model.Hierarchical`** (AK 20), `colCount` je Modus.
+- [x] **Block 3 — KOMPLETT** (Tasks 9-11 + eingeschobener Sweep, Stand `a5e0922`)
+  - Task 9 `63bc795`: `table-sorted`-Hook **und Befund B-2 behoben** — ein Griff in die gemeinsam
     genutzte Datei, ein Regressionsnachweis, wie vorgegeben.
-  - **Eingeschobener Sweep** `b9bf342`+`94463f9`+`9dfce86`: Selektor-Skopierung ueber die Fehlerklasse.
+  - **Eingeschobener Sweep** `79ad96f`+`7093029`+`e9ea2bd`: Selektor-Skopierung ueber die Fehlerklasse.
     Fand einen **zweiten, persistenten** Fehler, den niemand kannte → [[2026-09-10-table-filter-selektoren-nicht-skopiert-bug]]
-  - Task 10 `203e23a`+`a422e44`: Wiederholungswerte unterdrueckt. Fix: **Critical** — die CSS-Regel
+  - Task 10 `7e54a77`+`1662ae9`: Wiederholungswerte unterdrueckt. Fix: **Critical** — die CSS-Regel
     verlor gegen Bootstrap, das Feature war am Bildschirm ein No-op.
-  - Task 11 `fda7c7a`: HauptFA-Zeile gekennzeichnet, Kopfzeile auf Kunde + Leittermin verschlankt.
+  - Task 11 `a5e0922`: HauptFA-Zeile gekennzeichnet, Kopfzeile auf Kunde + Leittermin verschlankt.
   - Nachweis: Web **1309 erfolgreich + 1 uebersprungen**, Service 265, Build 0 Fehler.
-- [x] **Block 4 — Freigabe-Kaskade mit Pflicht-Picker KOMPLETT** (Tasks 12-14, Stand `fef12cf`)
+- [x] **Block 4 — Freigabe-Kaskade mit Pflicht-Picker KOMPLETT** (Tasks 12-14, Stand `daf7168`)
   > [!important] Bewusster Halt des Menschen (2026-09-10) — spaeter aufgehoben
   > Der Halt war, weil die Kaskade mit **einem Klick bis zu 39 Auftraege** freigibt und einen
   > Kommissionierer zuweist — das einzige Stueck dieses Blocks **mit Wirkung in der Halle**. Block 4
-  > wurde danach freigegeben und umgesetzt: `SetReleaseForOrderNumberAsync` (`067f1b1`),
-  > `CascadeReleasePreview`/`CascadeRelease` mit unveraenderter Picker-Pflicht (`aad4b54`), Knopf +
-  > Dialog in der Gruppen-Kopfzeile (`fef12cf`). Der Kaskaden-Test mit bis zu 39 Auftraegen bleibt
+  > wurde danach freigegeben und umgesetzt: `SetReleaseForOrderNumberAsync` (`901e9db`),
+  > `CascadeReleasePreview`/`CascadeRelease` mit unveraenderter Picker-Pflicht (`692956f`), Knopf +
+  > Dialog in der Gruppen-Kopfzeile (`daf7168`). Der Kaskaden-Test mit bis zu 39 Auftraegen bleibt
   > als manueller Checklistenpunkt fuer Schranke 2 (Spec-QA-Nachweis).
-- [x] Version/Changelog/TS-Index + QA (Task 15/16) — erledigt (`deff907` Version/Changelog/TS-73,
-      qa-agent 2026-09-10 auf `deff907`). **Auflage erfuellt:** belastbare Zahlen (Web 1322 + 1 Skip,
+- [x] Version/Changelog/TS-Index + QA (Task 15/16) — erledigt (`24864e6` Version/Changelog/TS-73,
+      qa-agent 2026-09-10 auf `24864e6`). **Auflage erfuellt:** belastbare Zahlen (Web 1322 + 1 Skip,
       Service 265, Build 0 Fehler) stehen im Brain-Changelog
       [[2026-09-10-v1-38-0-ideal-fa-liste-ausbau-matchcode]] und im QA-Nachweis der Spec.
 

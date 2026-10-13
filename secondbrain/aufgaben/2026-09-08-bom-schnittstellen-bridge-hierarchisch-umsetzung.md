@@ -13,22 +13,22 @@ updated: 2026-09-08
 
 Umsetzung der freigegebenen Spec [[2026-09-08-bom-schnittstellen-bridge-hierarchisch-spec]] im
 **bestehenden Buendel-Worktree** (Entscheidung des Menschen 2026-09-08: „im Buendel-Zweig, nicht aus
-`main`"; Ausgangs-HEAD `a8d75de`, Buendel-Stand `Testbereit` v1.35.0 → geht fuer diesen Block auf
+`main`"; Ausgangs-HEAD `c02c6f9`, Buendel-Stand `Testbereit` v1.35.0 → geht fuer diesen Block auf
 `InUmsetzung`, Re-QA am Ende fuer das ganze Buendel). Kein Merge, kein Push.
 
 > **STAND 2026-09-08 — QA durch → Testbereit.** Plan
-> `docs/superpowers/plans/2026-09-08-bom-bridge.md` (Worktree, Commit `25399be`); Umsetzung
+> `docs/superpowers/plans/2026-09-08-bom-bridge.md` (Worktree, Commit `8005eb3`); Umsetzung
 > subagent-getrieben (6 Tasks, je Task-Review; Fixrunden: Task 2 ×1, Task 5 ×1); Final-Review-Fixwelle
-> `22d31ae` (PrintPicking-Scope, deterministischer Kollisions-Tiebreak, Wurzel-Warnung,
+> `5226352` (PrintPicking-Scope, deterministischer Kollisions-Tiebreak, Wurzel-Warnung,
 > TS-70.7/Druck-Doku, Hilfe). Version **v1.36.0** (Web + Service), keine Migration. qa-agent-Lauf
 > 2026-09-08: Build 0 Fehler, Web **1266 grün + 1 skip**, Service **236 grün**, AK 1–16 abgeglichen,
-> Guard-Grep leer, `publish.zip` in keinem Commit. Worktree-HEAD `22d31ae`. Der SDD-Ledger
+> Guard-Grep leer, `publish.zip` in keinem Commit. Worktree-HEAD `5226352`. Der SDD-Ledger
 > (git-ignoriertes Scratch) wurde nach dem Abschluss entfernt — alle Rulings stehen unten, die
 > geparkten Befunde in [[2026-09-08-bom-bridge-nachlese]]. Wartet jetzt mit dem ganzen Buendel auf
 > Schranke 2 (Mensch: Manual-UAT + ein Merge). Der Git-Stash `task3-partial-429-abbruch` ist
 > **2026-09-09 auf Freigabe des Menschen gedroppt** (`58bb796`, Teil-Reste eines am Session-Limit
 > abgebrochenen Laufs; Task 3 ist neu gebaut, review- und QA-geprueft). Ebenfalls 2026-09-09:
-> `publish.zip` geloescht und `*.zip` ignoriert (Worktree-Commit `91d8d3e`, kein History-Rewrite).
+> `publish.zip` geloescht und `*.zip` ignoriert (Worktree-Commit `fec39be`, kein History-Rewrite).
 
 ## Verbindliche Vorgaben aus der Freigabe (Schranke 1)
 
@@ -45,12 +45,12 @@ Umsetzung der freigegebenen Spec [[2026-09-08-bom-schnittstellen-bridge-hierarch
 
 | # | Task | Status |
 |---|---|---|
-| 1 | Typen `BomKey`/`BomScope`, `BomQueryResult.MengeIstAuftragsmenge`, `BomQuantityResolver`; Signaturwechsel `IBomRepository`/`IBomCacheRepository.GetByArticleNumberAsync` + alle Aufrufer/Tests (AKE bit-identisch) | **erledigt** `f89659f` (Review clean) |
-| 2 | `FaHierarchyBomRepository` (beide Interfaces; DirectChildren/FullStructure mit rekursivem Pfad + Kollisionspruefung; Reverse-Lookup Artikelinfo; No-op-Schreibmethoden) + Tests inkl. Property-Test | **erledigt** `e99bcf3` + Fix `3784e4b` (Wurzel-Kopf `HauptArtnr`, Kollisions-Log DirectChildren) |
-| 3 | DI-Weiche `Program.cs` (beide Interfaces), Guard entfernen (+Tests), Scope-Regel in `PickingController.Bom` | **erledigt** `611475d` (Review clean; `BomRepositoryMasterSwitch`, lazy Delegates) |
-| 4 | Klasse-D-Gates: `CoatingDetectionService`, `FaWorkStepDetectionService`, `BomCacheSyncService` (beide Einstiege) + Tests | **erledigt** `56e8faa` (ueber `IHierarchicalModeReader`, Review clean) |
-| 5 | Views: `Bom.cshtml` (Kommissionieren/Hauptlagerplatz/Ebene/Vater-Sub-FA/Sage-Position, nur hierarchisch), `ColumnDefinitions.Bom`, `Articles/Info` (HauptFA primaer, Sub-FA Zusatz), `_Layout` Dropdown „Kommissionierung" | **erledigt** `cd34b08` + `86371ee` (Nav nur bei zwei Eintraegen) + Fix `a3f125e` (`#column-config`) |
-| 6 | Version v1.36.0, Changelog, TESTSZENARIEN TS-70 (TS-68 abgeloest), Hilfe, DI-Aufloesungstest; qa-agent → Testbereit; Brain (ADR 0013, fallstricke §10, services, feature-map, changelog, testindex) | **erledigt** `8d9468d` + Fixwelle `22d31ae`; qa-agent 2026-09-08: Build 0 Fehler, Web 1266 grün + 1 skip, Service 236 grün → **Testbereit** |
+| 1 | Typen `BomKey`/`BomScope`, `BomQueryResult.MengeIstAuftragsmenge`, `BomQuantityResolver`; Signaturwechsel `IBomRepository`/`IBomCacheRepository.GetByArticleNumberAsync` + alle Aufrufer/Tests (AKE bit-identisch) | **erledigt** `ea84284` (Review clean) |
+| 2 | `FaHierarchyBomRepository` (beide Interfaces; DirectChildren/FullStructure mit rekursivem Pfad + Kollisionspruefung; Reverse-Lookup Artikelinfo; No-op-Schreibmethoden) + Tests inkl. Property-Test | **erledigt** `7a93c2f` + Fix `e2cceae` (Wurzel-Kopf `HauptArtnr`, Kollisions-Log DirectChildren) |
+| 3 | DI-Weiche `Program.cs` (beide Interfaces), Guard entfernen (+Tests), Scope-Regel in `PickingController.Bom` | **erledigt** `8877ef5` (Review clean; `BomRepositoryMasterSwitch`, lazy Delegates) |
+| 4 | Klasse-D-Gates: `CoatingDetectionService`, `FaWorkStepDetectionService`, `BomCacheSyncService` (beide Einstiege) + Tests | **erledigt** `e75bcf3` (ueber `IHierarchicalModeReader`, Review clean) |
+| 5 | Views: `Bom.cshtml` (Kommissionieren/Hauptlagerplatz/Ebene/Vater-Sub-FA/Sage-Position, nur hierarchisch), `ColumnDefinitions.Bom`, `Articles/Info` (HauptFA primaer, Sub-FA Zusatz), `_Layout` Dropdown „Kommissionierung" | **erledigt** `62685c0` + `9f0f210` (Nav nur bei zwei Eintraegen) + Fix `92de2b8` (`#column-config`) |
+| 6 | Version v1.36.0, Changelog, TESTSZENARIEN TS-70 (TS-68 abgeloest), Hilfe, DI-Aufloesungstest; qa-agent → Testbereit; Brain (ADR 0013, fallstricke §10, services, feature-map, changelog, testindex) | **erledigt** `5b83ea0` + Fixwelle `5226352`; qa-agent 2026-09-08: Build 0 Fehler, Web 1266 grün + 1 skip, Service 236 grün → **Testbereit** |
 
 ## Entscheidungen im Dev-Lauf (Rulings, vollstaendig im Ledger)
 

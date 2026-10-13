@@ -21,9 +21,9 @@ Bezug: [[2026-08-18-ideal-nachlese-restarbeiten]] (die aeltere Restarbeiten-List
 
 ## Merge-Blocker (Repo-Hygiene)
 
-- [x] **B1 — `publish.zip` (226 MB) im Branch getrackt** (Blob in Commit `549c5db`; `.gitignore`
+- [x] **B1 — `publish.zip` (226 MB) im Branch getrackt** (Blob in Commit `950d872`; `.gitignore`
   deckte nur `publish/`, nicht `*.zip`). **Erledigt 2026-09-09:** Loeschung committet + `publish.zip`
-  und `*.zip` in `.gitignore` (Worktree-Commit `91d8d3e`). **History-Rewrite bewusst NICHT
+  und `*.zip` in `.gitignore` (Worktree-Commit `fec39be`). **History-Rewrite bewusst NICHT
   durchgefuehrt** — Entscheidung des Menschen; der Blob bleibt in der Historie.
   **Befund aus der Pruefung des Archivs (Meldepflicht):** das Zip enthielt vier
   `appsettings*.json` mit dem Abschnitt `ConnectionStrings` (WMS, Sage `ake`, Oseon/TRUMPF, enaio)
@@ -132,7 +132,7 @@ Bezug: [[2026-08-18-ideal-nachlese-restarbeiten]] (die aeltere Restarbeiten-List
 - [x] **U1 — JS-TypeError auf der BOM-Guard-Hinweisseite** · `Views/Picking/Bom.cshtml:41` (Zweig
   `HierarchicalUnavailable`) vs. Inline-Script `:916/:927/:972` (`getElementById(...).addEventListener`
   ohne Null-Guard) → `Cannot read properties of null` in der Konsole. Dazu zeigt die Kopfzeile die
-  HauptFA-Nr. statt der Sub-FA (Z4-Konsistenz). **Umgesetzt 2026-09-08, Worktree `a8d75de`:**
+  HauptFA-Nr. statt der Sub-FA (Z4-Konsistenz). **Umgesetzt 2026-09-08, Worktree `c02c6f9`:**
   Fruehabbruch ohne `#bomTable`, Druck-Knopf auf der Hinweisseite weg, `BomViewModel.SubOrderNumber`
   (Controller + `ReadOnlyBomBuilder`), Kopfzeile Sub-FA + „HauptFA" nur bei Abweichung; Test
   `Bom_ViewModel_CarriesSubOrderNumber`; TS-68.2 Nachtrag. Re-QA: siehe
@@ -140,7 +140,7 @@ Bezug: [[2026-08-18-ideal-nachlese-restarbeiten]] (die aeltere Restarbeiten-List
 - [x] **U2 — Kaskade-Dialog blendet „mit offener Buchung" nur bei >0 ein** ·
   `Views/PickingLeitstand/Index.cshtml:461-462`. Kein Bug, aber die Abnahme kann bei 0 nicht
   entscheiden, ob der Zaehler existiert → immer anzeigen („davon 0 …"). **Umgesetzt 2026-09-08,
-  Worktree `a8d75de`:** Zaehler nach Vorschau immer sichtbar (0 = `alert-secondary`, >0 =
+  Worktree `c02c6f9`:** Zaehler nach Vorschau immer sichtbar (0 = `alert-secondary`, >0 =
   `alert-warning`, `role=status`); TS-69.15 Nachtrag. Re-QA: siehe
   [[2026-08-18-fa-liste-hierarchie-anzeige-spec]].
 - [ ] **U3 — Toggle aus → `AccessDenied` statt Home+Warning** bei `FaCompletionAktiv`

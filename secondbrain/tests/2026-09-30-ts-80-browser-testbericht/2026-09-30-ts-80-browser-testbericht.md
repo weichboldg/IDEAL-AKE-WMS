@@ -12,7 +12,7 @@ Spalte „Screenshot“: ja = während des Laufs aufgenommen und angesehen. Als 
 
 | Schritt | Ergebnis | Beobachtung | Screenshot |
 |---|---|---|---|
-| B1 Einstieg | FEHLER (teilweise) | Dropdown Kommissionierung → Kommissionierlisten: /FaHierarchyKommissionierListen/Summiert ohne Parameter, summierte Ansicht erscheint. Einen zweiten, eigenen Navigationslink gibt es nicht: auf Startseite und FA-Struktur nur ein Link auf die Kommissionierlisten. | ja |
+| B1 Einstieg | PROTOKOLL PASST NICHT (korrigiert 2026-10-06, ursprünglich FEHLER) | Dropdown Kommissionierung → Kommissionierlisten: /FaHierarchyKommissionierListen/Summiert ohne Parameter, summierte Ansicht erscheint. Einen zweiten, eigenen Navigationslink gibt es nicht: auf Startseite und FA-Struktur nur ein Link auf die Kommissionierlisten. | ja |
 | B2 Summe richtig | NICHT PRÜFBAR | Testdaten Fall A fehlen. | nein |
 | B3 Ziele getrennt | NICHT PRÜFBAR | Testdaten Fall B fehlen. | nein |
 | B4 Gleicher Matchcode | NICHT PRÜFBAR | Testdaten Fall C fehlen. | nein |
@@ -28,8 +28,16 @@ Spalte „Screenshot“: ja = während des Laufs aufgenommen und angesehen. Als 
 | B14 Skript-Sicherheit | OK | Filter Artikelnummer mit dem Testtext: kein Meldungsfenster, Seite normal, leere Liste. Druckansicht mit diesem Filter: kein Meldungsfenster, „Keine Kommissionier-Positionen … — nichts zu drucken“. Filter danach gelöscht. | ja |
 | B15 Lagerbestellung-Druck | NICHT PRÜFBAR | Lagerbestellungen (Lager und Glas) des Testbenutzers: „Noch keine Listen erfasst.“ Keine Bestellung zum Öffnen; nichts angelegt. | nein |
 
-## FEHLER
-**B1:** Laut Spec gibt es zwei Einstiege, beide auf /Summiert: den Dropdown und einen eigenen Nav-Link in `_Layout.cshtml`. Auf der Seite gibt es nur den Dropdown-Eintrag unter „Kommissionierung“; einen zweiten Link auf die Kommissionierlisten gibt es nicht. Der vorhandene Einstieg führt korrekt auf /Summiert ohne Parameter. Möglicherweise hängt der zweite Link von der Rolle ab – das mit einem anderen Benutzer prüfen.
+## Korrektur 2026-10-06 (Koordination)
+**B1 ist kein FEHLER der Anwendung, sondern PROTOKOLL PASST NICHT.** Die beiden Einstiege stehen in
+`Views/Shared/_Layout.cshtml` in sich ausschließenden Zweigen: Dropdown-Eintrag (Z. 184) bei
+`canPick && canProcessLager` (Z. 172), eigener Menüpunkt (Z. 204) nur im `else if (canProcessLager …)` (Z. 200).
+Ein Benutzer sieht nie beide. Der vorhandene Einstieg führte korrekt auf /Summiert. Das Protokoll ist
+seither angepasst (Einstieg je Rolle, zweiter Einstieg in Teil C). Ursprünglicher Text:
+
+> **(alt) FEHLER**
+> **B1:** Laut Spec gibt es zwei Einstiege, beide auf /Summiert: den Dropdown und einen eigenen Nav-Link in `_Layout.cshtml`. Auf der Seite gibt es nur den Dropdown-Eintrag unter „Kommissionierung“; einen zweiten Link auf die Kommissionierlisten gibt es nicht. Der vorhandene Einstieg führt korrekt auf /Summiert ohne Parameter. Möglicherweise hängt der zweite Link von der Rolle ab – das mit einem anderen Benutzer prüfen.
+
 
 ## Beobachtungen (keine FEHLER)
 - „Drucken“ öffnete mehrfach erst beim zweiten Klick einen Tab: direkt nach dem Schließen des Spalten-Panels und direkt nach der Eingabe eines Spaltenfilters. Beim Umschalter „Summiert“ war es einmal genauso. Das kann an der Klick-Zeitfolge der Browser-Steuerung liegen. Bitte von Hand nachprüfen.

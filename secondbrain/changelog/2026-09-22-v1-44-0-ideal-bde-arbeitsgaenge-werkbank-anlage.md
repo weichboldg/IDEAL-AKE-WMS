@@ -17,7 +17,7 @@ Werkbänke ganz (0 Zeilen). Ein Arbeitsgang IST bei IDEAL ein Sage-Arbeitsplatz 
 und ein Sage-Arbeitsplatz IST die Werkbank — die Zuordnung existiert in Sage (`USER_ArbeitsSchritt`),
 keine neue Stammdatenpflege nötig.
 
-## Etappe A — Werkbank-Anlage aus Sage (Baustein a), Commits `8be03982` (Backend) + `be0695fb` (Views)
+## Etappe A — Werkbank-Anlage aus Sage (Baustein a), Commits `8a6fd0c4` (Backend) + `bc25ea21` (Views)
 
 - **`ProductionWorkplace`** +2 Felder: `SageArbeitsplatznummer` (NVARCHAR(31), Verknüpfungsschlüssel,
   **eindeutiger auf `IS NOT NULL` gefilterter Index**) und `ArbeitsschrittCode` (NVARCHAR(20), Match-Feld).
@@ -34,7 +34,7 @@ keine neue Stammdatenpflege nötig.
   `IUnknownArbeitsplatzState` (S1), SyncWorker-**Doppel-Gate**, DI. UI `/ProductionWorkplaces`:
   Sage-Felder read-only, 2 neue Spalten + Spaltenfilter.
 
-## Etappe B — WorkOperation-Struktur-Erkennung + Existenz-Check-Fix (Bausteine b+c), Commit `920aabb7`
+## Etappe B — WorkOperation-Struktur-Erkennung + Existenz-Check-Fix (Bausteine b+c), Commit `6ba4e903`
 
 - **2c-Umbau** `FaWorkStepStructureDetectionService` → **`WorkOperationStructureDetectionService`**:
   Ziel `WorkOperation` (statt `FaWorkStep`), Katalog `ProductionWorkplace.ArbeitsschrittCode` (statt

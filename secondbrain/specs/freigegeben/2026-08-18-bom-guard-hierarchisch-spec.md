@@ -183,7 +183,7 @@ einen Guard.
 ## QA-Nachweis (2026-08-18)
 
 - **Build:** `dotnet build IdealAkeWms.slnx` im Worktree `feature/2026-08-07-ideal-teile-1-5`
-  (Commit `1173cf1`) — **erfolgreich**, 0 Fehler (9 Vorbestehende Warnungen, keine davon aus diesem
+  (Commit `34ca168`) — **erfolgreich**, 0 Fehler (9 Vorbestehende Warnungen, keine davon aus diesem
   Diff).
 - **Web-Suite:** `dotnet test IdealAkeWms.Tests` — **1219 erfolgreich, 1 uebersprungen
   (Integrationstest, vorbestehend), 0 Fehler**, gesamt 1220.
@@ -281,9 +281,9 @@ zu → `TypeError: Cannot read properties of null (reading 'addEventListener')` 
 Konsole. Zusätzlich zeigte die Kopfzeile auf der Hinweisseite die HauptFA-Nummer statt der
 Sub-FA-Nummer (Z4-Konvention-Inkonsistenz zu den übrigen sechs Ansichten dieses Bündels).
 
-**Commit:** `a8d75de` (Worktree `feature/2026-08-07-ideal-teile-1-5`,
+**Commit:** `c02c6f9` (Worktree `feature/2026-08-07-ideal-teile-1-5`,
 `.claude/worktrees/2026-08-07-ideal-teile-1-5`) — Vorgänger-QA-Stand des Gesamtbündels war
-`dde9a17` (Testbereit, Web 1243/+1 skip, Service 232).
+`ea3932d` (Testbereit, Web 1243/+1 skip, Service 232).
 
 **1. Build:** `dotnet build IdealAkeWms.slnx` im Worktree — **erfolgreich, 0 Fehler** (12
 vorbestehende Warnungen, keine davon aus diesem Diff).
@@ -291,11 +291,11 @@ vorbestehende Warnungen, keine davon aus diesem Diff).
 **2. Tests, beide Suiten grün:**
 - `dotnet test IdealAkeWms.Tests` → **1245 erfolgreich, 0 Fehler, 1 übersprungen**
   (`ProductionOrderEagerCreateAgentJobTests…`, vorbestehender Integration-Skip), gesamt 1246 — +2
-  gegenüber `dde9a17` (neuer Theory-Test `Bom_ViewModel_CarriesSubOrderNumber`, 2 Fälle).
+  gegenüber `ea3932d` (neuer Theory-Test `Bom_ViewModel_CarriesSubOrderNumber`, 2 Fälle).
 - `dotnet test IDEALAKEWMSService.Tests` → **232 erfolgreich, 0 Fehler, 0 übersprungen** —
   unverändert (Diff berührt `IDEALAKEWMSService` nicht).
 
-**3. Diff-Review (`git show a8d75de`), Ergebnis: keine Befunde.**
+**3. Diff-Review (`git show c02c6f9`), Ergebnis: keine Befunde.**
 - **AKE-Flachmodus bit-identisch bestätigt:** Die Kopfzeile zeigt `Model.SubOrderNumber ??
   Model.OrderNumber`; der Zusatz „| HauptFA …" erscheint nur, wenn `SubOrderNumber !=
   OrderNumber` — im Flachmodus ist `SubOrderNumber == OrderNumber` (Teil-7-Backfill-Invariante),

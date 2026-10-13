@@ -5,7 +5,7 @@ date: 2026-10-05
 ---
 # v1.47.1 — IDEAL-Buendel: AKE-Hotfix 1.30.1 per Vorwaerts-Merge uebernommen
 
-Vorwaerts-Merge `main` → `feature/2026-08-07-ideal-teile-1-5` (Merge-Commit **`6c253c60`** im Buendel-Worktree),
+Vorwaerts-Merge `main` → `feature/2026-08-07-ideal-teile-1-5` (Merge-Commit **`b877e05a`** im Buendel-Worktree),
 Abschnitt „Uebertrag ins Buendel" von [[2026-09-28-ake-hotfix-stueckliste-druck-lagerbestellung-ist-spec]].
 Quelle in main: Merge-Commit `f89c0124` ([[2026-09-29-v1-30-1-ake-hotfix-stueckliste-druck-lagerbestellung-ist]]).
 Merge-Protokoll mit Konfliktvergleich: [[2026-10-05-vorwaerts-merge-ake-hotfix-ins-buendel]]. **Keine Migration.**

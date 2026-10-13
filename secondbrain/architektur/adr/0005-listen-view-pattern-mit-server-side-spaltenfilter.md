@@ -83,7 +83,7 @@ Tracking/Index.
 
 ## Spaltenpraeferenzen (Ergaenzung 2026-08-12)
 
-> **Additiver Nachtrag**, ergaenzt v1.31.0 (IDEAL-Teile-1-5-Buendel, Etappe 6, Commit `37e8752`).
+> **Additiver Nachtrag**, ergaenzt v1.31.0 (IDEAL-Teile-1-5-Buendel, Etappe 6, Commit `3894e3d`).
 > Die Entscheidung oben bleibt unveraendert; dieser Abschnitt benennt einen Pflichtbestandteil,
 > den das urspruengliche Muster nur implizit voraussetzte.
 
@@ -104,7 +104,7 @@ ausdruecklich als Pflichtbestandteil benannte. Etappe 6 hat sie an alle vier Lis
 und die `viewKey` (`FaHierarchyKommissionierListen`, `FaHierarchyBeschichtung`,
 `FaHierarchyVormontageEinzeln`, `FaHierarchyVormontageSummiert`, spaeter `FaHierarchyStructure` fuer
 die Baumanzeige) in `ColumnDefinitions.GetByViewKey` registriert. Details der beiden Fallstricke
-(Registrierungspflicht + der bis `37e8752` nur das erste `<tbody>` sortierende Sort-Bug in
+(Registrierungspflicht + der bis `3894e3d` nur das erste `<tbody>` sortierende Sort-Bug in
 `table-filter.js`) stehen in [[fallstricke]].
 
 ## Nachtrag 2026-10-12 — CSV-Export ([[2026-10-06-csv-export-alle-tabellen-spec]], v1.53.0)

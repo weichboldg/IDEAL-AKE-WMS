@@ -222,7 +222,7 @@ Pflichtbestandteil des Listen-View-Patterns — siehe
 [[0005-listen-view-pattern-mit-server-side-spaltenfilter]], Abschnitt „Spaltenpraeferenzen".
 
 ### `table-filter.js` sortierte bis 2026-08-12 nur das erste `<tbody>` einer Tabelle
-`sortTable()` fasste bis Commit `37e8752` (v1.31.0) nur das **erste** `<tbody>` an. Bei gruppierten
+`sortTable()` fasste bis Commit `3894e3d` (v1.31.0) nur das **erste** `<tbody>` an. Bei gruppierten
 Tabellen mit mehreren `<tbody>` (z. B. die HauptFA-Gruppen der IDEAL-Kommissionierlisten) sortierte
 also sichtbar nur die erste Gruppe, der Rest blieb unsortiert — ein offensichtlich falsches
 Ergebnis. Behoben: `sortTable()` sortiert jetzt **je `<tbody>` separat** (bei Ein-`<tbody>`-Tabellen
@@ -884,7 +884,7 @@ strukturierten `DropIndex`/`CreateIndex`-Operationen. `GO` gehoert NICHT in `mig
 (Client-Direktive; jeder `.Sql(...)`-Aufruf ist bereits ein eigener Batch).
 
 **Nachtrag (2026-08-18): Nicht nur `DropIndex`/`CreateIndex`, auch `AlterColumn` erzeugt ungeschuetzte
-Index-DDL.** Der OrderNumber-Fix (`abcd718`) legte in derselben Migration einen **zweiten** 3701 frei:
+Index-DDL.** Der OrderNumber-Fix (`b1153eb`) legte in derselben Migration einen **zweiten** 3701 frei:
 `migrationBuilder.AlterColumn<string>("SubOrderNumber", nullable:false)`. Weil der **Model-Snapshot**
 einen Unique-Index auf `SubOrderNumber` traegt, umschliesst EFs SQL-Server-Generator jeden `AlterColumn`
 auf einer indizierten Spalte **automatisch** mit `DROP INDEX [IX_...] ` (ungeschuetzt!) → `ALTER COLUMN`
@@ -1275,6 +1275,65 @@ Positionseinheit führt. **Belegpflicht vor der Abnahme (TS-80.1):** auf der Sag
 LIKE '%einheit%'`. Kein Treffer ⇒ strukturell erledigt. Treffer ⇒ **melden, nicht still mitlösen** — die
 Spalte gehört dann in den Summierschlüssel (eigener Nacharbeitspunkt). Bis zum Beleg gilt dieser Eintrag
 unter dieser Bedingung. Das Risiko ist nicht neu: dieselbe Summierung besteht seit v1.31.0.
+
+## 19. Spaltenauswahl (Zahnrad) — Platzierung (v1.47.3)
+
+### Zahnrad-Host muss direkter Vorgänger von `.table-responsive` sein
+`column-preferences.js` `insertGearButton` hängt das Zahnrad an `tableWrapper.previousElementSibling`, sofern
+das ein `DIV` ist — egal, ob dieses Element sichtbar ist oder was es sonst bedeutet. Nur wenn es keinen
+Vorgänger gibt, baut es sich einen eigenen Container.
+**Warum das eine Falle ist:** Die Regel steht nur im Kommentar am Toolbar-Host (`Views/Picking/Bom.cshtml`).
+Mit v1.42 ([[2026-09-18-stueckliste-kommissionierziel-filter-spec]]) kamen `#bomDefaultFilterBadges` und
+`#bomKzEmptyState` (`hidden`) **zwischen** Host und Tabelle; das Zahnrad landete im versteckten Leerzustand und
+war unsichtbar (Befund [[2026-10-06-stueckliste-zahnrad-bug-matchcode]]). Durch den globalen
+`[hidden]{display:none!important}` (§17) war der Hinweis wirklich unsichtbar, kein Restschimmer.
+**Regel:** Neue Hinweise, Badges, Alerts **über** den Host setzen, nie zwischen Host und `.table-responsive`.
+Ein bedingtes/verstecktes DIV direkt vor der Tabelle ohne Host verschluckt das Zahnrad ebenso.
+Wächter nur für die Stückliste: `BomZahnradHostTests` (Quelltext). Weitere Fundstelle derselben Klasse, nicht
+behoben: `Views/WarehousePicking/Details.cshtml` (`#incomplete-alert` mit `d-none` direkt vor der Tabelle;
+`textContent = …` überschreibt beim Einblenden zusätzlich das Zahnrad).
+**Nachtrag v1.47.5:** Lagerbestellung-Details behoben — Host direkt vor der Tabelle, `#incomplete-alert`
+darüber; Wächter `WarehousePickingDetailsZahnradHostTests` (gleicher Helfer wie `BomZahnradHostTests`). Auf `main` als
+AKE-Hotfix v1.30.2 (`0a6fb3cd`), Wächter-Datei wortgleich, damit der Vorwärts-Merge sie konfliktfrei übernimmt.
+
+## 20. IDEAL — Kind-Sub-FA zählt nur für sich (Lack-Flag, v1.47.5)
+
+### Ein beschichteter Kind-Sub-FA markiert seinen Vater-Sub-FA NICHT
+`FaMaterializationCoating.Derive` setzt `HasCoatingParts` eines Sub-FA, wenn er **selbst** `Beschichtet` ist
+oder ein direktes **Blatt**-Kind (`SubFA == 0`) beschichtet ist. Eine Kind-Zeile mit eigenem Sub-FA zählt nur
+für ihren eigenen Sub-FA. Bis v1.47.4 zählte jedes direkte Kind — ein lackierter Kind-Sub-FA (z. B. eine Blende)
+kennzeichnete damit auch den Korpus.
+**Warum:** Zum Lackierer gehen die Teile, nicht der Korpus (Entscheidung Gerald 2026-10-07). Das falsche Flag
+erzeugte am Vater einen Beschichtungstermin und eine „Beschichtung erledigt“-Checkbox in FA-Liste,
+Leitstand und FA-Abarbeitungsliste (`ProductionOrdersController.cs:209/226`, `CoatingDateCalculator` über
+`PickingLeitstandController.cs:172`, `FaWorklistController.cs:273`) — Planungsrauschen ohne echten Arbeitsschritt.
+Gleiche Regel und gleicher Ursprung wie die Arbeitsgang-Erkennung in §-Eintrag „Entschieden 2026-10-07
+(v1.47.4)“ ([[2026-10-07-v1-47-4-arbeitsgang-erkennung-kind-sub-fa]]): Was in der Struktur ein eigener Sub-FA
+ist, wird nie dem Vater zugeschlagen. **Neue Ableitungen aus der FA-Struktur** (Kennzeichen, Kürzel,
+Mengen) müssen diese Abgrenzung von Anfang an übernehmen.
+**Altbestand:** kein Skript nötig — die Materialisierung schreibt das Flag in **jedem** Lauf für alle
+materialisierten Sub-FAs neu (`FaMaterializationSyncService` → `SetCoatingPartsAsync`). Kippt es auf `false`,
+setzt die Repository-Methode `IsCoatingDone` mit zurück (Fallstrick #11). Nicht neu berechnet wird: im
+DryRun, bei übersprungenem Plan, bei einem Abbruch des Laufs vor dem Schreibschritt und für Sub-FAs, die nicht
+mehr in `FaHierarchyNodes` stehen (vermisst, nicht in `matKeys`) — dort bleibt das alte Flag stehen. Der Beschichtungsauftrag (`FaHierarchyBeschichtung`) liest `FaHierarchyNode.Beschichtet`
+direkt und ist nicht betroffen.
+Spec: FREIGABE-NACHTRAG (2026-10-07) in [[2026-08-20-materialisierung-fachliche-felder-spec]].
+
+## 21. Git/Windows — `docs/TESTSZENARIEN.md` landet als CRLF im Commit (2026-10-08)
+
+### Vor jedem Commit dieser Datei den Index-Blob byte-genau prüfen
+Mit `core.autocrlf=true` (System-Gitconfig) liegt der Arbeitsbaum in CRLF vor. Für die meisten Dateien normalisiert
+`git add` wieder auf LF — für `docs/TESTSZENARIEN.md` **nicht**: Zweimal (v1.47.5 `7e78f9a6`, AKE-Hotfix v1.30.2 vor
+dem Commit abgefangen) landete die ganze Datei als CRLF im Index. Ursache nicht geklärt (kein NUL, kein einzelnes
+CR, kein `.gitattributes`).
+**Warum es weh tut:** Ein Vollwechsel der Zeilenenden macht aus 30 Zeilen Diff 18.000 — Review am Merge-Diff
+blind, `git blame` für das ganze Abnahmedokument verloren, Vollkonflikt bei jeder Parallel-Änderung.
+**Regel:** Nach `git add docs/TESTSZENARIEN.md` prüfen:
+`git show :docs/TESTSZENARIEN.md | python -c "import sys;print(sys.stdin.buffer.read().count(b'
+'))"` muss `0`
+ergeben, sonst die Datei auf LF umschreiben und neu stagen. **Nicht** mit `grep -c $'$'` messen — das zählt unter
+Git Bash auch bei LF-Blobs jede Zeile (Fehlbefund 2026-10-08: v1.47.3-Commits fälschlich als CRLF gemeldet).
+Dauerhafte Lösung (nicht umgesetzt, eigene Entscheidung): `.gitattributes` mit `*.md text eol=lf`.
 
 ## 22. Beschichtungsaufträge-Oberfläche (v1.51.0) — Tabellen-JS und Dezimal-Eingaben
 

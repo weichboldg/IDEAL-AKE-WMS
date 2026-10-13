@@ -692,8 +692,8 @@ klein geworden, dass er mit Baustein (b) in einer Etappe Platz hat:
 
 | Etappe | Inhalt | Abschluss |
 |---|---|---|
-| A | Baustein (a): Modell (zwei Spalten), Migration, `ProductionWorkplaceSyncService`, ServiceSettings/Standorteinstellungen (Mandant, Ausschlussliste, Toggle), SyncWorker-Doppel-Gate, UI read-only | **ERLEDIGT 2026-09-22** — Commits `8be03982` (Backend) + `be0695fb` (Views) |
-| B | Bausteine (b)+(c): `WorkOperationStructureDetectionService`-Umbau (inkl. Kuerzel-Mehrdeutigkeit + Ausschlussliste-Sonderfall), Umbenennungen, `BdeDefaultWorkOperationService`-Existenz-Check-Fix, Terminal-Verifikations-AK, TS-77, Brain-Update | **ERLEDIGT 2026-09-22** — Commit `920aabb7` (v1.44.0). QA/Merge fuers Buendel offen (Schranke 2) |
+| A | Baustein (a): Modell (zwei Spalten), Migration, `ProductionWorkplaceSyncService`, ServiceSettings/Standorteinstellungen (Mandant, Ausschlussliste, Toggle), SyncWorker-Doppel-Gate, UI read-only | **ERLEDIGT 2026-09-22** — Commits `8a6fd0c4` (Backend) + `bc25ea21` (Views) |
+| B | Bausteine (b)+(c): `WorkOperationStructureDetectionService`-Umbau (inkl. Kuerzel-Mehrdeutigkeit + Ausschlussliste-Sonderfall), Umbenennungen, `BdeDefaultWorkOperationService`-Existenz-Check-Fix, Terminal-Verifikations-AK, TS-77, Brain-Update | **ERLEDIGT 2026-09-22** — Commit `6ba4e903` (v1.44.0). QA/Merge fuers Buendel offen (Schranke 2) |
 
 Etappe B ist die riskante (Umbenennung, Zieltabellen-Wechsel) — deshalb der Halt davor. Der Zweig muss
 waehrend der Arbeit ueber `scripts/sync-worktree.ps1` aktuell gehalten werden (mehrere andere IDEAL-Teile
@@ -728,7 +728,7 @@ laufen im selben Buendel-Worktree).
 
 ## Deploy
 
-**Finalisiert (QA, gegen den echten Diff `0aceee8d..920aabb7`, 38 Dateien, +5482/-393):**
+**Finalisiert (QA, gegen den echten Diff `cddb4f9b..6ba4e903`, 38 Dateien, +5482/-393):**
 
 - **Web-App: ja.** `IdealAkeWms/Models/ProductionWorkplace.cs` (+2 Felder), `ApplicationDbContext.cs`
   (Unique-Index), `ServiceSettingDefinitions.cs` (+3 Keys), `Models/Standort/StandortSettingsCatalog.cs`
@@ -1446,7 +1446,7 @@ nachgezogen. Nach dieser Korrektur ist der Rumpf konsistent zu den Entscheidunge
 ## QA-Nachweis (2026-09-22, EPIC-Abnahme beider Etappen)
 
 Geprueft im Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Diff-Basis
-`0aceee8d..920aabb7` (Etappe A: `8be03982` Backend + `be0695fb` Views; Etappe B: `920aabb7`,
+`cddb4f9b..6ba4e903` (Etappe A: `8a6fd0c4` Backend + `bc25ea21` Views; Etappe B: `6ba4e903`,
 v1.44.0), 38 Dateien geaendert (+5482/-393).
 
 **1. Build.**
@@ -1504,8 +1504,8 @@ alle drei Bausteine + Automatisierungs-/Manual-UAT-Aufteilung) und Zeile 102 (TS
 
 **5. AK 15 — `BdeScanResolver` unveraendert, per Diff bewiesen.**
 ```
-git log --oneline 8be03982^..HEAD -- IdealAkeWms/Services/BdeScanResolver.cs   -> leer
-git diff --stat  8be03982^..HEAD -- IdealAkeWms/Services/BdeScanResolver.cs    -> leer
+git log --oneline 8a6fd0c4^..HEAD -- IdealAkeWms/Services/BdeScanResolver.cs   -> leer
+git diff --stat  8a6fd0c4^..HEAD -- IdealAkeWms/Services/BdeScanResolver.cs    -> leer
 ```
 Keine Aenderung an dieser Datei in diesem Epic — Empfehlung F (Routing ueber
 `WorkOperation.ProductionWorkplaceId`, beim Anlegen in Baustein b materialisiert) haelt ohne
@@ -1513,7 +1513,7 @@ Resolver-Eingriff, wie in der Spec begruendet.
 
 **6. Skill-Kette durchlaufen.** `superpowers:verification-before-completion` (dieses Dokument ist das
 Ergebnis: frische Kommando-Ausgaben oben, keine Wiederholung aus dem Dev-Lauf) und
-`code-review`/`superpowers:requesting-code-review` (Diff-Review `0aceee8d..920aabb7` angestossen).
+`code-review`/`superpowers:requesting-code-review` (Diff-Review `cddb4f9b..6ba4e903` angestossen).
 
 **7. Ehrliche Abgrenzung — NICHT durch gruene Tests bewiesen, Manual-UAT (TS-77) Pflicht:**
 - **AK 20 (Doppelanlage/Unique-Index, TS-77.16).** EF InMemory erzwingt `IsUnique()`-Indizes **nicht** —

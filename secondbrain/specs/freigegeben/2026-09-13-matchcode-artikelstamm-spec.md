@@ -16,7 +16,7 @@ affected_code:
   - "SQL/91_AddProductionOrderMatchcode.sql (ENTFERNEN, nie deployt) → NEUE Datei SQL/91_AddArticleMatchcode.sql (COL_LENGTH-Guard auf `dbo.Articles`, siehe Migrations-Abschnitt) — Nummer 91 wird durch den Rückbau wieder frei"
   - "SQL/00_FreshInstall.sql (ZWEI Korrekturen: 1. `ProductionOrders`-CREATE TABLE-Block, Zeile ~269 `[Matchcode] NVARCHAR(200) NULL` entfernen; 2. `Articles`-CREATE-TABLE-Block um `[Matchcode] NVARCHAR(200) NULL` ergänzen; 3. `__EFMigrationsHistory`-Insert-Block: Zeile `20260910081155_AddProductionOrderMatchcode` entfernen, neue MigrationId für `AddArticleMatchcode` einfügen)"
   - "IDEALAKEWMSService/Services/FaMaterializationSyncService.cs (Zeilen ~176 `Matchcode = n.Matchcode,` im Anlege-Zweig UND ~200 `o.Matchcode = sn.Matchcode;` im Update-Zweig ENTFERNEN — `ProductionOrder.Matchcode` existiert nach dem Rückbau nicht mehr)"
-  - "IDEALAKEWMSService/Services/FaMaterializationPlanner.cs (`MaterializationSourceOrder`-Record: `Matchcode`-Property entfernen, falls dort separat deklariert — am Diff zu `461d3e5`/`cbabdd9` zu prüfen)"
+  - "IDEALAKEWMSService/Services/FaMaterializationPlanner.cs (`MaterializationSourceOrder`-Record: `Matchcode`-Property entfernen, falls dort separat deklariert — am Diff zu `6c1e2c0`/`41fe040` zu prüfen)"
   - "IDEALAKEWMSService/Services/SageImportService.cs (`SyncArticlesAsync`, Zeilen 382-421: `sageSql` UNION-Query um eine Matchcode-Spalte aus `KHKArtikel` erweitern, SOBALD Rückfrage 4 geklärt ist — realer Sage-Spaltenname unbekannt, siehe Offene Rückfrage 4; Upsert-SQL Zeilen 480-515: `[Matchcode]` in INSERT- und UPDATE-Zweig sowie in die `ISNULL(...)!=ISNULL(...)`-Änderungserkennung Zeilen 494-501 aufnehmen — sonst wird eine reine Matchcode-Änderung nicht erkannt)"
   - "IdealAkeWms/Data/Repositories/ArticleRepository.cs (`SearchAsync` Zeilen 22-23, `GetPaginatedAsync`-Freitext Zeilen 40-41, `ApplyArticleColumnFilter` Zeilen 62-85 — je um `a.Matchcode` ergänzen; neuer `\"matchcode\"`-Case im Column-Filter-Switch, null-sicher wie `\"description\"`)"
   - "IdealAkeWms/Models/ViewModels/ColumnDefinitions.cs (Artikelstammliste-`ViewConfig` — genauer viewKey am Diff zu verifizieren — neue `ColumnDef(\"matchcode\", \"Matchcode\", Locked: false)` neben `article-number`/`description`, analog dem bereits bestehenden Muster in den 5 FA-Zeilen-`ViewConfig`s)"
@@ -443,7 +443,7 @@ Skizze der Szenarien, `docs/TESTSZENARIEN.md` durch den Dev-Lauf vollständig au
 
 ## Deploy
 
-**QA-finalisiert (2026-09-15) — Quelle ist der reale Diff `9e90024..7fa71c1`, nicht die
+**QA-finalisiert (2026-09-15) — Quelle ist der reale Diff `00929ac..88ec297`, nicht die
 Vorab-Einschätzung der Spec.**
 
 - **Web-App:** ja — Repositories (`ArticleRepository`, `ProductionOrderRepository`,
@@ -804,14 +804,14 @@ aus Antwort 4 (Feldlaenge) und 5 (Entprellung/Mindestlaenge) in den pruefbaren S
 ## QA — Nachweis (2026-09-15, qa-agent)
 
 **Vorbereitung:** 8 Tasks umgesetzt und je einzeln review-approved (Quality/Spec), plus eine
-Whole-Branch-Review `9e90024..7fa71c1` (9 Commits) mit Ergebnis **MERGE-READY, keine
+Whole-Branch-Review `00929ac..88ec297` (9 Commits) mit Ergebnis **MERGE-READY, keine
 CRITICAL/MAJOR-Befunde** (Protokoll: `.superpowers/sdd/2026-09-15-matchcode-artikelstamm/progress.md`
 im Worktree). Der `superpowers:code-review`-Schritt der Skill-Kette ist damit für den gesamten Diff
 bereits erfolgt; dieser QA-Lauf hat zusätzlich `superpowers:verification-before-completion` frisch
 im Worktree ausgeführt (Befehle unten, in dieser Sitzung laufen gelassen, kein Rückgriff auf ältere
 Protokoll-Angaben).
 
-**1. `dotnet build IdealAkeWms.slnx`** (Worktree `2026-08-07-ideal-teile-1-5`, HEAD `7fa71c1`):
+**1. `dotnet build IdealAkeWms.slnx`** (Worktree `2026-08-07-ideal-teile-1-5`, HEAD `88ec297`):
 ```
 Der Buildvorgang wurde erfolgreich ausgeführt.
     12 Warnung(en)
@@ -840,11 +840,11 @@ Bestanden!   : Fehler:     0, erfolgreich:   263, übersprungen:     0, gesamt: 
 - Audit-Felder: Sage-Sync und `/Articles/Edit` setzen `ModifiedAt`/`ModifiedBy`/`ModifiedByWindows`
   wie beim bestehenden Muster (Task-4/Task-5-Reviews haben das bestätigt).
 - Version in beiden `AppVersion.cs` (Web + Service) auf 1.40.0, Anwender-Changelog
-  `Views/Help/Changelog.cshtml` ergänzt (Commit `e677d08`).
-- `docs/TESTSZENARIEN.md` um Kapitel **TS-75** (TS-75.1–75.9) ergänzt (Worktree, Commit `e677d08` +
-  Korrektur `7fa71c1`).
+  `Views/Help/Changelog.cshtml` ergänzt (Commit `0dc1c8c`).
+- `docs/TESTSZENARIEN.md` um Kapitel **TS-75** (TS-75.1–75.9) ergänzt (Worktree, Commit `0dc1c8c` +
+  Korrektur `88ec297`).
 
-**5. Diff-Umfang (Beweis für den Deploy-Abschnitt):** `git diff --stat 9e90024..HEAD` — 50 Dateien,
+**5. Diff-Umfang (Beweis für den Deploy-Abschnitt):** `git diff --stat 00929ac..HEAD` — 50 Dateien,
 u. a. `IdealAkeWms/**`, `IDEALAKEWMSService/Services/{SageImportService,FaMaterializationSyncService}.cs`,
 zwei Migrationsdateien unter `IdealAkeWms/Migrations/`, `SQL/00_FreshInstall.sql`,
 `SQL/91_AddArticleMatchcode.sql` (neu), `SQL/91_AddProductionOrderMatchcode.sql` (gelöscht) →

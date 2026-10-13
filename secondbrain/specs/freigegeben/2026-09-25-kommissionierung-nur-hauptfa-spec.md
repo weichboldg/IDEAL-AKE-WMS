@@ -736,7 +736,7 @@ jemand spaeter einen Platzhalter ("–") in die Komm.-Ziel-Zelle, kippt die Rele
 
 ## Kritische Pruefung (2026-09-25)
 
-Geprüft am Code des Bündel-Worktrees `.claude/worktrees/2026-08-07-ideal-teile-1-5` (HEAD `2d06d1f0`,
+Geprüft am Code des Bündel-Worktrees `.claude/worktrees/2026-08-07-ideal-teile-1-5` (HEAD `821d82a3`,
 AppVersion 1.45.0). Schwerpunkte laut Auftrag: AKE-Sicherheit der HauptFA-Regel, Vollständigkeit des
 Rückbaus, eine Regel für zwei Verbraucher, fünfter Standardfilter.
 
@@ -918,7 +918,7 @@ nur der Changelog.
 ## Kritische Pruefung — zweiter Durchgang (2026-09-25)
 
 Geprüft wird die Überarbeitung `71c923e6` gegen den Bündel-Worktree
-`.claude/worktrees/2026-08-07-ideal-teile-1-5` (HEAD `2d06d1f0`). Die Entscheidungen werden nicht neu
+`.claude/worktrees/2026-08-07-ideal-teile-1-5` (HEAD `821d82a3`). Die Entscheidungen werden nicht neu
 aufgerollt. Geprüft wird nur, ob das Nachziehen vollständig und widerspruchsfrei ist.
 
 **Vollständigkeit der Antworten:** Alle drei Freigabe-Antworten sind beantwortet und eindeutig, die
@@ -1167,7 +1167,7 @@ Grundsatzfragen; beide Korrekturen hier sind Praezisierungen bereits getroffener
 ## QA-Nachweis (2026-09-25)
 
 Geprüft im Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5` (Branch
-`feature/2026-08-07-ideal-teile-1-5`), HEAD `787c5c90`, Diff-Basis `2d06d1f0` (letzter Commit vor
+`feature/2026-08-07-ideal-teile-1-5`), HEAD `30c9c20e`, Diff-Basis `821d82a3` (letzter Commit vor
 dieser Spec). 36 Dateien geändert, 1452(+)/521(-).
 
 **1. Build**
@@ -1195,7 +1195,7 @@ dotnet test IDEALAKEWMSService.Tests --no-build
   meldet grep vier Treffer in `IdealAkeWms/bin|obj/Release/**/IdealAkeWms.dll` — das sind
   DLL-Binärartefakte eines älteren Release-Builds vor diesem Rückbau, keine Quelldateien; nach
   `dotnet build` (Debug, oben) unverändert stehen geblieben. Harmlos, kein Fund. AK 12 erfüllt.
-- `git diff 2d06d1f0..HEAD -- IdealAkeWms.Tests/Repositories/ProductionOrderPickingStatusRepositoryTests.cs IdealAkeWms.Tests/Controllers/PickingLeitstandControllerTests.cs`
+- `git diff 821d82a3..HEAD -- IdealAkeWms.Tests/Repositories/ProductionOrderPickingStatusRepositoryTests.cs IdealAkeWms.Tests/Controllers/PickingLeitstandControllerTests.cs`
   geprüft im Volltext: In beiden Dateien wurden ausschließlich die Kaskade-Tests entfernt
   (`SetReleaseForOrderNumber_*`, `CountReleasedByOrderNumberAsync_*`, `CascadeRelease*`,
   `CascadeReleasePreview_*`) und neue Sub-FA-Testfälle ergänzt
@@ -1386,7 +1386,7 @@ den Menschen zurückmelden (Schranke 2 ist die menschliche Entscheidung über Me
 ## QA-Nachtrag: nachgeholtes Code-Review (2026-09-25)
 
 Das im QA-Lauf gestartete Hintergrund-Code-Review hatte kein Ergebnis geliefert; nachgeholt über
-`/code-review high 2d06d1f0..787c5c90`. Zehn Befunde, drei behoben in Worktree-Commit `4a8cdb95`:
+`/code-review high 821d82a3..30c9c20e`. Zehn Befunde, drei behoben in Worktree-Commit `acad4972`:
 
 - **F-A (sichtbarer Fehler, vorbestehend seit v1.42.0):** `#bomKzEmptyState`/`#bomDefaultFilterBadges`
   blieben trotz `hidden` sichtbar (Bootstrap `.d-flex !important` nach `[hidden]`). Globale Regel
@@ -1409,3 +1409,122 @@ Alt-Freigaben (Testsystem-SQL-Lauf); `!(leer)` in allen Stücklisten-Spalten (ge
 **Manuelle Checkliste ergänzt:** TS-79.20 (Stückliste ohne aktiven Standardfilter → keine gelbe Box, keine
 leere Badge-Zeile), TS-79.21 (Standardfilter `KA'02` → Stückliste lädt normal), TS-79.22 (FA-Suche in
 Picking/IndexDropdown zeigt nur HauptFAs).
+## Befund aus der Browser-Abnahme (2026-10-06)
+
+**B-ABN-1 (FEHLER, TS-79.6 / Manuelle Checkliste „Persistenz-Reload“) — Komm.-Ziel-Auswahl übersteht F5 nicht.**
+Beobachtet ([[2026-10-06-ts-79-browser-testbericht]], Schritt B12): Stückliste `/Picking/Bom/24` (HauptFA
+1035235), „Alle Ziele“ gewählt → 73 Zeilen, Badge sichtbar. Nach F5: Auswahl leer, kein Badge, 12 Zeilen
+(zugeklappter Baum). Zweimal reproduziert; ein Einzelziel (KOM) geht ebenso verloren. `sessionStorage`
+blieb nach der Auswahl leer.
+Ursache (Koordination, am Code belegt, Worktree `2026-08-07-ideal-teile-1-5`): Filter der Stückliste
+werden nur in `applyFilters()` per `saveFiltersToStorage()` in den `sessionStorage` geschrieben
+(`wwwroot/js/table-filter.js:23`, Aufruf Z. 329). Der `change`-Handler des Komm.-Ziel-Select2
+(`Views/Picking/Bom.cshtml:1109` ff.) setzt nur das versteckte `input.value` und ruft
+`updateBomVisibility()`/`renderDefaultFilterBadges()`/`checkKommissionierzielEmptyState()` — `applyFilters()`
+läuft nicht, also wird nichts gespeichert. Die Spec setzt diese Persistenz voraus (Rumpf Z. 23: „aus
+`sessionStorage` wiederhergestellt“, H8; Checkliste „Persistenz-Reload“).
+Einordnung: betrifft jede Auswahl im Dropdown, nicht nur „Alle Ziele“; vorbestehend seit `17af86bd`
+(21.09., v1.42.0, Einführung des Dropdowns) — belegt im QA-Nachtrag unten. *Korrektur 2026-10-06:* Die
+ursprüngliche Vermutung, ein Profil-Standardfilter sei nicht betroffen, war falsch — beim Laden
+überschrieb der Profilwert jede Sitzungsauswahl, F5 setzte also auf den Profil-Standard zurück (siehe
+QA-Nachtrag, Entscheidung Sitzung vor Profil).
+Status: **behoben, Abnahme offen** (v1.47.2, Worktree-Commit `1df7665c`, 2026-10-06).
+
+**QA-Nachtrag B-ABN-1 (2026-10-06)**
+- *Ursache (belegt):* Der `change`-Handler des Komm.-Ziel-Select2 in `setupKommissionierzielDropdown`
+  (`Views/Picking/Bom.cshtml`) setzte `input.value` direkt. Gespeichert wird `sessionStorage['tableFilters:Bom']`
+  nur in `table-filter.js` `applyFilters()` → `saveFiltersToStorage()`; der einzige öffentliche Einstieg dorthin
+  ist `window.setColumnFilter` (in Bom zusätzlich um `updateBomVisibility()` gewickelt). Badge-Kreuz
+  (`resetDefaultFilter`) und Profil-Vorbelegung nutzten ihn schon, der Handler nicht. Gleicher Fehler in
+  `resetAllBomFilters` („Alle Filter zurücksetzen“ leerte die Inputs direkt → nach F5 kamen die Filter wieder).
+- *Vorbestehend, nicht durch v1.46.0:* direkte Zuweisung `input.value = vals.join(',')` seit Commit `17af86bd`
+  (2026-09-21, v1.42.0, Einführung des Dropdowns), `resetAllBomFilters` mit direktem Leeren seit `c870c5ce`
+  (2026-09-21). Sichtbar wurde es erst mit TS-79.6.
+- *Fix (nur `Bom.cshtml`, `table-filter.js` unverändert):* Handler und `resetAllBomFilters` schreiben über
+  `window.setColumnFilter` — dieselbe generische Filterung, die jeder getippte Bom-Filter auslöst; der
+  Bom-Wrapper korrigiert den Baum danach synchron per `updateBomVisibility()`. Beim Laden klappt die Stückliste
+  die Treffer-Äste für jeden aktiven Komm.-Ziel-Wert auf, nicht nur für einen Profil-Standard. Löschen über das
+  Kreuz im Dropdown (`allowClear`, Select2 4.1 löst `change` aus) läuft durch denselben Handler und entfernt
+  den Eintrag.
+- *Entscheidung Session vs. Profil:* Für das Komm.-Ziel **gewinnt die Auswahl dieser Sitzung** (aus dem
+  `sessionStorage` wiederhergestellt) vor dem Profil-Standard. Begründung: F5 soll zeigen, was der Anwender
+  zuletzt gewählt hat; der Profil-Standard ist der Startwert für eine neue Sitzung und gilt wieder, wenn die
+  Auswahl geleert wurde. Ohne diese Regel hätte jeder Anwender mit Profil-Standard B-ABN-1 weiter erlebt.
+- *Zusatzfund, nicht mitgebaut:* Für die drei anderen Standardfilter (Beschaffung, Artikelgruppe,
+  Bezeichnung 1) gewinnt beim Laden weiter der Profil-Standard vor einer Sitzungsauswahl — vorbestehend,
+  gleicher Mechanismus. Eigener Punkt, falls gewünscht.
+- *Nachweis:* RED → GREEN des neuen Quelltext-Wächters `BomKommissionierzielPersistenzTests` (3 Tests: Handler
+  und Zurücksetzen über `setColumnFilter`, Session vor Profil). `dotnet build IdealAkeWms.slnx` 0 Fehler;
+  `IdealAkeWms.Tests` 1452/1453 (1 übersprungen, vorbestehend); `IDEALAKEWMSService.Tests` 268/268.
+  TS-79.6 in `docs/TESTSZENARIEN.md` um a) „Alle Ziele“, b) Einzelziel, c) Profil vs. Sitzung und die
+  Negativfälle Leeren/„Alle Filter zurücksetzen“ erweitert. Das Browser-Verhalten selbst ist Manual-UAT
+  (Wiederholung von TS-79.6 bzw. Schritt B12 des Browser-Protokolls).
+
+**QA-Review B-ABN-1 (qa-agent, 2026-10-06)**
+- *Urteil:* **freigegeben zur erneuten Abnahme** (TS-79.6 a–c + Negativfälle, Schritt B12). Keine
+  Critical/Important-Befunde; Status B-ABN-1 bleibt „behoben, Abnahme offen“.
+- *Nachweis (selbst gelaufen, Worktree HEAD `1df7665c`):* `dotnet build IdealAkeWms.slnx` 0 Fehler,
+  12 Warnungen (vorbestehend); `IdealAkeWms.Tests` 1452 bestanden / 1 übersprungen (vorbestehend
+  `ProductionOrderEagerCreateAgentJobTests.EagerCreate_TwoMergesProduce2Rows_…`) / 0 Fehler von 1453;
+  `IDEALAKEWMSService.Tests` 268/268, 0 übersprungen. Version 1.47.2 in beiden `AppVersion.cs`,
+  Changelog-Karte v1.47.2 (06.10.2026) vorhanden, TS-79.6 in `docs/TESTSZENARIEN.md:8760` erweitert.
+- *Umfang geprüft:* `git show 1df7665c` — 6 Dateien (Bom.cshtml, Wächter-Test, 2× AppVersion, Changelog,
+  TESTSZENARIEN). `table-filter.js` **unverändert** (nicht im Commit, letzte Änderung `7093029b`). Kein
+  Server-Code, keine Profil-Speicherung, Flachmodus unberührt.
+- *Git-Historie bestätigt:* `git show 17af86bd:…/Bom.cshtml` Z. 1066 `input.value = vals.join(',');`
+  (WIP-Commit noch auf 1.41.0, ausgeliefert mit v1.42.0 `95b611bd`, Vorfahre bestätigt); `c870c5ce`
+  Z. 1037 `input.value = '';` in `resetAllBomFilters`; beide noch in `b877e05a` (Parent). Vorbestehend, belegt.
+- *Ablauf nachvollzogen:* `#bomTable` hat `data-view-key="Bom"`, kein `data-server-column-filter` →
+  Bom-Wrapper `setColumnFilter` (`Bom.cshtml:993-997`) → `table-filter.js:598` → `applyColumnFilterNow`
+  (Z. 79) → `applyFilters` (Z. 293) → `saveFiltersToStorage` (Z. 329/23). Der generische Pass setzt
+  `display` mit `matchesFilter`, `updateBomVisibility` überschreibt danach synchron jede Nicht-colspan-Zeile
+  → Endzustand identisch zum alten Pfad (gleich dem Tipp-Pfad). `table-filter-applied`-Listener gibt es in
+  Bom nicht. Handler (`Bom.cshtml:1111-1127`): Exklusivität/`lastVals` unverändert; `expandAncestorsOfMatching`
+  setzt `expandedState` VOR `setColumnFilter` → der Wrapper-`updateBomVisibility` sieht die Äste offen;
+  `trigger('change.select2')` ist namespaced und ruft den unnamespaced `change`-Handler nicht → keine
+  Rekursion. „Alle Ziele“ wird als `!(leer)` gespeichert (bereits lowercase), `isAlleZiele`/Mapping in
+  `setupKommissionierzielDropdown` case-insensitiv → Restore korrekt. Lösch-Kreuz (Select2 4.1.0-rc.0
+  `allowClear` löst `change` aus) und Chip-Entfernen laufen durch denselben Handler → Eintrag fällt weg.
+  `resetAllBomFilters` (`Bom.cshtml:1051-1062`): je nicht-leerem Input `setColumnFilter(key,'')`, letzter
+  Aufruf findet alle Filter leer → `sessionStorage.removeItem`; Select2-Leeren per `change.select2` ohne
+  Handler-Lauf, kein Seiteneffekt auf die anderen drei Filter (die ja selbst geleert werden sollen).
+  Badge-Kreuz `resetDefaultFilter` (`Bom.cshtml:1040`) persistierte schon vorher über `setColumnFilter`.
+  Init-Reihenfolge: `init()` restauriert + `applyFilters` → Bom-`setTimeout`: Profil-Standards (Komm.-Ziel
+  nur bei leerem Input, `Bom.cshtml:1208`) → `setupKommissionierzielDropdown` → Aufklappen bei jedem aktiven
+  Wert (`Bom.cshtml:1218`). Flachmodus: Spalte nicht gerendert (`Bom.cshtml:159-161`) → `bomFilterInputValue`
+  liefert `''`, `setColumnFilter` ist No-op, Aufklappen übersprungen, kein Fehler.
+- *Entscheidung Session vor Profil:* tragfähig begründet; Konsequenz (geleert + F5 → Profil-Standard kommt
+  zurück) ist gewollt und in TS-79.6 als Negativfall beschrieben.
+- *Befunde:*
+  - **Minor M1 (neu sichtbar durch den Fix, kein Code-Fehler)** — `Bom.cshtml:1084-1105` mit
+    `table-filter.js:19-21`: Der Schlüssel `tableFilters:Bom` gilt für **alle** Stücklisten der Sitzung. Ein
+    Einzelziel (z. B. `KOM`) aus Stückliste A wird in Stückliste B übernommen; fehlt dort die Option, verwirft
+    Select2 sie, das Dropdown sieht leer aus, der versteckte Input filtert aber weiter auf `kom`, und der
+    Profil-Standard greift nicht (Input nicht leer). Nicht still: Badge „Komm.-Ziel = kom“ und gelber
+    Leerzustand mit Reset-Knopf erscheinen. Für Beschaffung/Artikelgruppe/Bezeichnung 1 galt das schon immer.
+    Kein Nachbesserungsbedarf; bei der Abnahme bewusst ansehen (Checkliste Punkt 4).
+  - **Minor M2 (Randfall, vorbestehend im Mechanismus)** — Ein Seitenaufruf einer **flachen AKE-Stückliste**
+    speichert beim `init()` die Filter ohne `kommissionieren` (Spalte fehlt) → die IDEAL-Sitzungsauswahl ist
+    danach weg, die nächste IDEAL-Stückliste startet wieder mit dem Profil-Standard. Harmlos, nur notiert.
+  - **Minor M3 (Wächter-Test)** — `IdealAkeWms.Tests/Views/BomKommissionierzielPersistenzTests.cs:62-65`
+    prüft die Profil-Zeile als exakten String; jede kosmetische Umformulierung macht ihn rot. Für einen
+    Quelltext-Wächter vertretbar (der Test benennt selbst, dass er kein Verhaltenstest ist). Die beiden
+    anderen Tests schneiden Funktionskörper sauber über `FunctionBody` (CRLF-sicher). Keine Änderung nötig.
+  - Kein Befund: alter `lastVals`-Stand nach Badge-Kreuz/Zurücksetzen (vorbestehend, wirkt bei Einzelauswahl
+    nicht); `!(leer)`-Pass durch das generische `matchesFilter` (wird synchron überschrieben).
+- *Nachweisart:* Wächter-Test beweist nur den Aufrufweg (Quelltext). Speichern/Restore im Browser, Aufklappen
+  nach F5, Lösch-Kreuz und „Alle Filter zurücksetzen“ = **Manual-UAT**, nicht als grün gezählt.
+- *Manuelle Checkliste (Wiederholung):*
+  1. TS-79.6 a) „Alle Ziele“ + F5 → Dropdown, Badge, gleiche Zeilenzahl (73 bei `/Picking/Bom/24`), Äste offen;
+     DevTools: `sessionStorage['tableFilters:Bom']` enthält `"kommissionieren":"!(leer)"`.
+  2. TS-79.6 b) Einzelziel `KOM` + F5 → bleibt, Badge „Komm.-Ziel = KOM“.
+  3. TS-79.6 c) mit Profil-Standard: umstellen + F5 → Sitzungswahl bleibt; Dropdown per Kreuz leeren + F5 →
+     Profil-Standard zurück; neuer Tab → Profil-Standard.
+  4. M1: `KOM` in Stückliste A wählen, eine Stückliste B ohne `KOM` öffnen → Badge + gelber Leerzustand
+     sichtbar, „Alle Filter zurücksetzen“ bzw. Badge-Kreuz hebt auf; nach F5 kommt nichts zurück.
+  5. „Alle Filter zurücksetzen“ bei mehreren aktiven Filtern + F5 → alle bleiben leer; `sessionStorage`-Eintrag weg.
+  6. AKE-Stückliste (flach) öffnen → keine Konsolenfehler, Filter wie bisher.
+
+- Browser-Abnahme 2026-10-06: [[2026-10-06-ts-79-browser-testbericht]] - 13 OK, 1 FEHLER, 1 nicht pruefbar, 0 Protokoll passt nicht
+- Browser-Abnahme 2026-10-06 (Wiederholung B12, v1.47.2): [[2026-10-06-ts-79-browser-testbericht-2]] - 1 OK, 0 FEHLER, 0 nicht pruefbar, 0 Protokoll passt nicht
+- Browser-Abnahme 2026-10-06 (Teil C mit Freigabe durch Gerald): [[2026-10-06-ts-79-browser-testbericht-3]] - 4 OK, 0 FEHLER, 0 nicht pruefbar, 0 Protokoll passt nicht

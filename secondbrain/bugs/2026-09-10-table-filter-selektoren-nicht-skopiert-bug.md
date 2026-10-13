@@ -4,7 +4,7 @@ title: "table-filter.js: querySelectorAll('tbody') und ('thead tr:first-child th
 status: behoben (wartet Manual-UAT)
 severity: hoch
 created: 2026-09-10
-fixed_in: "Worktree-Commit b9bf342 (Sweep ueber die Fehlerklasse) + Quelltext-Waechter IdealAkeWms.Tests/Helpers/TableScriptScopedSelectorTests.cs; Abnahme TS-72. Erreicht main erst mit dem Buendel-Merge."
+fixed_in: "Worktree-Commit 79ad96f (Sweep ueber die Fehlerklasse) + Quelltext-Waechter IdealAkeWms.Tests/Helpers/TableScriptScopedSelectorTests.cs; Abnahme TS-72. Erreicht main erst mit dem Buendel-Merge."
 affected_code:
   - "IdealAkeWms/wwwroot/js/column-preferences.js — setColVisibility, reorderDomColumns (ZWEITER, aktiver Fund: /ProductionOrders und /FaHierarchy)"
   - "IdealAkeWms/wwwroot/js/table-filter.js — sortTable: `_table.querySelectorAll('tbody')`; getPhysicalIndex: `_table.querySelectorAll('thead tr:first-child th')`"
@@ -32,7 +32,7 @@ steht danach leer da, und in der Gruppe stehen Zeilen, die niemand dort erwartet
 
 Betroffen ist damit genau der Fall, den dieses Epic mehrfach als heikel markiert hat — die
 Kombigeraete-Anzeige, in der schon einmal ein stiller Fehler steckte (die Varianten-Tabelle blieb beim
-Zuklappen stehen, behoben in `be92ade`).
+Zuklappen stehen, behoben in `c958edc`).
 
 ## Ursache
 
@@ -131,8 +131,8 @@ eine aktive Fehlfunktion.
 ## Einordnung
 
 **Vorbestehend, nicht durch die Matchcode-/K1-Aufgabe verursacht.** Die `tbody`-Schleife kam mit
-`37e8752` (Etappe 6, der Fix gegen „nur die erste Gruppe wird sortiert"), die verschachtelte Tabelle
-mit `86cdc26`. Beide stammen aus **demselben Epic** wie dieser Befund, liegen aber vor ihm.
+`3894e3d` (Etappe 6, der Fix gegen „nur die erste Gruppe wird sortiert"), die verschachtelte Tabelle
+mit `b6d3c0e`. Beide stammen aus **demselben Epic** wie dieser Befund, liegen aber vor ihm.
 
 **Schwere: hoch.** Die Varianten-Tabelle verliert sichtbar ihren Inhalt, und in der Gruppe erscheinen
 Zeilen mit sieben Zellen in einer 25-spaltigen Tabelle — also genau der Fall „ein Wert steht unter der
@@ -200,7 +200,7 @@ diesem Lauf neu entstandene `fa-liste-wiederholung.js` nutzt es von Anfang an de
 dort hatte den richtigen Instinkt, bevor der Befund bekannt war.
 
 > [!important] Eigener Task, eigener Regressionsnachweis — aber VOR dem Merge
-> `table-filter.js` haengt an rund 30 Listen. Der Befund kam **nicht** in den Commit `0f14850`, weil
+> `table-filter.js` haengt an rund 30 Listen. Der Befund kam **nicht** in den Commit `63bc795`, weil
 > jener Griff seinen Nachweis schon fuer den `table-sorted`-Hook und
 > [[2026-08-20-fehlerprotokoll-anzeige-epic-ab]] B-2 verbraucht hatte — die Buendelungsregel verbietet
 > das Nachschieben ohne neuen Nachweis, sie verlangt aber keinen Verzicht auf die Behebung.

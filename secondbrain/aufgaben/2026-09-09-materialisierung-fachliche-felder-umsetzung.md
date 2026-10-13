@@ -15,7 +15,7 @@ Umsetzung der freigegebenen Spec [[2026-08-20-materialisierung-fachliche-felder-
 **bestehenden Buendel-Worktree** — die Spec bindet das im Frontmatter und begruendet es im
 Deploy-Abschnitt: der Code, auf dem sie aufsetzt (`FaMaterializationSyncService`,
 `ProductionOrderListGroup`, `SubOrderNumber`), existiert **nur** in diesem Zweig. Ausgangs-HEAD
-`73cea2a` (Buendel `Testbereit` v1.36.0). Kein Merge, kein Push.
+`c7acedc` (Buendel `Testbereit` v1.36.0). Kein Merge, kein Push.
 
 ## Warum jetzt — der zweite Auftrag dieses Laufs
 
@@ -98,39 +98,39 @@ Chevron und Beschriftung. Ein weiteres Icon waere Rauschen ohne Information.
 ## Etappen / Tasks
 
 Plan: `docs/superpowers/plans/2026-09-09-materialisierung-fachliche-felder.md` (Worktree, Commit
-`a9ea910`) — mit Pre-Flight-Scan, der drei Fehler im Plan selbst gefunden hat (Variable ausserhalb
+`64eac53`) — mit Pre-Flight-Scan, der drei Fehler im Plan selbst gefunden hat (Variable ausserhalb
 ihres Gueltigkeitsbereichs, anonymer Typ als Methodenparameter, geratener Feldname); alle drei vor
 dem Start korrigiert.
 
 | # | Task | Status |
 |---|---|---|
-| 1 | **Eager-Create beider Statuszeilen**, Anlege- und Update-Pfad — der gemeldete UAT-Fehler und Spec-F6 in einem | **erledigt** `ceaf5b3`, Review clean |
-| 2 | Quell-Record + reiner Helper `FaMaterializationCoating` | **erledigt** `af25bcd` — Umsetzer fand einen **Planfehler** (Blattebene weggefiltert), Review clean |
-| 3 | Werkbank aus `Arbeitsbereich` (Variante B) + drei Meldefaelle | **erledigt** `ccc1d74`, Review clean |
-| 4 | Lack-Kennzeichen ueber `SetCoatingPartsAsync` schreiben (+ `nodeByKey`-Nachzug `cc1a5f5`) | **erledigt** `77aaac2`, Review clean |
-| — | Nachzug: Test fuer die Mail-Entprellung + Fehler „Wiederauftreten wird nie gemeldet" | **erledigt** `520bafb` (vom Controller selbst gebaut) |
-| 5 | Kombigeraet-Erkennung im Struktur-Sync, einmal je Lauf | **erledigt** `904e899`, Review clean |
-| 6 | `GetByHauptFaKeysAsync` — eine Abfrage je Seite | **erledigt** `47c6712`, Review clean |
-| 7 | Kunde-Freitext + Spaltenfilter hierarchisch | **erledigt** `79a174b` + Fixrunde `5022222` (Flachmodus zurueckgenommen, Mehr-Token-Tests, SQL-Uebersetzungstest) |
-| 8 | ViewModel + Controller: K1, Termin-Kaskade, Beschichtungstermin | **erledigt** `f160b1d` + Fixrunde `b3d5a15` (geratener Beschichtungstermin) |
-| 9 | Gruppen-Kopfzeile + Varianten-Tabelle bei Kombigeraeten | **erledigt** `86cdc26` |
-| 10 | v1.37.0, Anwender-Changelog, Hilfe, TS-71 | **erledigt** `1f038f6` |
-| 11 | qa-agent: Build+Tests gruen, AK 1-13 gegen Diff `a9ea910..be92ade` abgeglichen, Deploy-Abschnitt finalisiert, manuelle Test-Checkliste | **erledigt**, Status `Testbereit` |
+| 1 | **Eager-Create beider Statuszeilen**, Anlege- und Update-Pfad — der gemeldete UAT-Fehler und Spec-F6 in einem | **erledigt** `7ac06cb`, Review clean |
+| 2 | Quell-Record + reiner Helper `FaMaterializationCoating` | **erledigt** `3b77f66` — Umsetzer fand einen **Planfehler** (Blattebene weggefiltert), Review clean |
+| 3 | Werkbank aus `Arbeitsbereich` (Variante B) + drei Meldefaelle | **erledigt** `3371ff1`, Review clean |
+| 4 | Lack-Kennzeichen ueber `SetCoatingPartsAsync` schreiben (+ `nodeByKey`-Nachzug `b13797a`) | **erledigt** `61e2d57`, Review clean |
+| — | Nachzug: Test fuer die Mail-Entprellung + Fehler „Wiederauftreten wird nie gemeldet" | **erledigt** `043c278` (vom Controller selbst gebaut) |
+| 5 | Kombigeraet-Erkennung im Struktur-Sync, einmal je Lauf | **erledigt** `8531a29`, Review clean |
+| 6 | `GetByHauptFaKeysAsync` — eine Abfrage je Seite | **erledigt** `232c066`, Review clean |
+| 7 | Kunde-Freitext + Spaltenfilter hierarchisch | **erledigt** `f5fe6f7` + Fixrunde `c63a0d9` (Flachmodus zurueckgenommen, Mehr-Token-Tests, SQL-Uebersetzungstest) |
+| 8 | ViewModel + Controller: K1, Termin-Kaskade, Beschichtungstermin | **erledigt** `6418652` + Fixrunde `1a33b20` (geratener Beschichtungstermin) |
+| 9 | Gruppen-Kopfzeile + Varianten-Tabelle bei Kombigeraeten | **erledigt** `b6d3c0e` |
+| 10 | v1.37.0, Anwender-Changelog, Hilfe, TS-71 | **erledigt** `7d5e067` |
+| 11 | qa-agent: Build+Tests gruen, AK 1-13 gegen Diff `64eac53..c958edc` abgeglichen, Deploy-Abschnitt finalisiert, manuelle Test-Checkliste | **erledigt**, Status `Testbereit` |
 
 ## Vier Fehler, im Lauf gefunden und behoben
 
 Alle vier waeren **still** gewesen — keiner haette eine Fehlermeldung erzeugt. Zwei fielen nicht
 beim Programmieren auf, sondern beim **Schreiben von Tests**:
 
-1. Der gemeldete Abnahme-Fehler (fehlende Statuszeilen) — `ceaf5b3`.
+1. Der gemeldete Abnahme-Fehler (fehlende Statuszeilen) — `7ac06cb`.
 2. **Blattebene weggefiltert:** Die Knotenabfrage filterte Blaetter weg, bevor die Lack-Ableitung
    sie sah. Da ein direktes Kind meistens ein Blatt ist, haette die Ableitung fuer die Mehrheit der
    Faelle `false` geliefert — und kein Test waere rot geworden, weil die Plan-Testdaten zufaellig
-   passend gewaehlt waren. `af25bcd`.
+   passend gewaehlt waren. `3b77f66`.
 3. **Wiederkehrendes Problem nie wieder gemeldet:** Die Mail-Entprellung wurde nur fortgeschrieben,
-   wenn es etwas zu melden gab. `520bafb`.
+   wenn es etwas zu melden gab. `043c278`.
 4. **Geratener Beschichtungstermin:** Bei gesetztem Fertigungstermin, aber leerem Kopf-Termin blieb
-   der aus der AKE-Formel zurueckgerechnete Wert stehen. `b3d5a15`.
+   der aus der AKE-Formel zurueckgerechnete Wert stehen. `1a33b20`.
 
 ## Geparkte Befunde
 

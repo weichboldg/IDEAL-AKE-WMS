@@ -14,8 +14,7 @@ teile:
 open_questions: []
 ---
 
-> **Umsetzungsort (Hinweis, keine Entscheidung):** jeder Teil nach Schranke 2 des IDEAL-Buendels
-> (`feature/2026-08-07-ideal-teile-1-5`, v1.47.1), aus main in einem eigenen neuen Worktree. SQL-, TS-Nummer
+> **Umsetzungsort (Entscheidung Gerald 2026-10-09):** jeder Teil direkt im Bündel-Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5` auf Zweig `feature/2026-08-07-ideal-teile-1-5` (kein eigener Worktree, ein Lauf zur Zeit). SQL-, TS-Nummer
 > und Version jeweils naechste freie zum Umsetzungszeitpunkt (SQL in beiden Zweigen pruefen: heute Buendel
 > `SQL/93`, main `SQL/88`).
 

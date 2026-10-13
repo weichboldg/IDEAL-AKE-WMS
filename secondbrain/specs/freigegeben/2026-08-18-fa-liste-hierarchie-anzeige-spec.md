@@ -32,7 +32,7 @@ beantwortete_rueckfragen:
   - "Rücknahme: Da die gefundenen Erledigt-Mechanismen heute EIN symmetrischer Toggle sind (kein eigenes Setzen/Ruecknehmen), existiert die im Beschluss vorausgesetzte 'Ruecknahme-Funktion' im engeren Sinn nicht. Wird der Toggle in zwei Pfade aufgespalten (Setzen mit Kaskade / Ruecknehmen ohne Kaskade), oder entfaellt der ganze Ruecknahme-Abschnitt ersatzlos, wie im Backlog fuer den Fall 'gibt es nicht' vorgesehen?"
   - "PickingLeitstand ist entgegen der Backlog-Einschaetzung technisch eine reguläre ADR-0005-Liste (verifiziert: ein `<tbody>`, `data-server-column-filter=\"true\"`, Pagination). Bekommt sie dieselbe Zwei-Ebenen-Behandlung wie die fuenf anderen Listen? Und falls ja: bezieht sich die Kaskade-Regel dort auf `BulkRelease` (Freigabe), oder hat Leitstand ueberhaupt keine Kaskade-Aktion?"
   - "BDE-Cockpit ist tatsaechlich kein Tabellen-Layout, sondern ein JS-Karten-Grid ohne `<table>`/`<tbody>` (verifiziert). Das Zwei-Ebenen-tbody-Muster ist dort strukturell nicht direkt uebertragbar. Ist ein eigener Kartengruppierungs-Entwurf Teil DIESER Spec, oder wird das Cockpit fuer die erste Umsetzungsrunde bewusst ausgeklammert (nur die 5 Tabellen-Listen + ggf. Leitstand)?"
-  - "SageMissingSince/Teil-7-AK-6: Der Sync-Mechanismus (Regel 2) ist laut Teil-7-Spec (AK 6/AK 12, Etappe C, Commits dc297d9..bc7e3d6) unit-getestet und funktionsfaehig — an der Erzeugung des Werts ist nichts nachzubessern. Ob im produktiven IDEAL-Bestand aktuell tatsaechlich ein Datensatz mit `SageMissingSince <> NULL` existiert, laesst sich aus Brain/Code nicht feststellen. Blockiert das den Dev-Lauf, oder wird die Anzeige unabhaengig vom aktuellen Datenstand gebaut (Empfehlung: Letzteres, siehe Fachliche Anforderungen)?"
+  - "SageMissingSince/Teil-7-AK-6: Der Sync-Mechanismus (Regel 2) ist laut Teil-7-Spec (AK 6/AK 12, Etappe C, Commits ae9be6c..285909e) unit-getestet und funktionsfaehig — an der Erzeugung des Werts ist nichts nachzubessern. Ob im produktiven IDEAL-Bestand aktuell tatsaechlich ein Datensatz mit `SageMissingSince <> NULL` existiert, laesst sich aus Brain/Code nicht feststellen. Blockiert das den Dev-Lauf, oder wird die Anzeige unabhaengig vom aktuellen Datenstand gebaut (Empfehlung: Letzteres, siehe Fachliche Anforderungen)?"
   - "Bestaetigungsdialog-Zahl 'davon offene Arbeitsgaenge/Rueckmeldungen': Welche konkrete Datenquelle zaehlt das — offene `FaWorkStep`, `ProductionOrderBdeStatus`/laufende BDE-Buchungen, ungebuchte `StockMovement`, oder eine Kombination? Ohne Festlegung kann der Dev-Lauf die Zahl nicht berechnen."
   - "Kaskaden-Audit (Anforderung D, 'als EINE Kaskade erkennbar'): Es existiert aktuell keine generische User-Aktions-Audit-Tabelle (nur `AuditableEntity`-Felder je Zeile und `ISyncLogger` fuer Hintergrund-Services, ADR 0010). Wie wird die Kaskaden-Zusammengehoerigkeit technisch sichtbar — z. B. eine gemeinsame Korrelations-ID je betroffene Zeile in einer neuen, kleinen Tabelle (dann eigene Migration), Wiederverwendung eines bestehenden Mechanismus, oder reicht ein gemeinsamer Zeitstempel plus TempData-Meldung mit Anzahl? Migrationsentscheidung wird hier bewusst NICHT vorweggenommen."
   - "Column-Mapping 'nicht mehr in Sage': Verifiziert im Code unterscheiden sich AKE (`IsCancelled`-Badge 'In Sage geloescht', Auftrag wird automatisch storniert und verschwindet aus offenen Sichten) und IDEAL (`SageMissingSince`, Auftrag bleibt sichtbar/rueckmeldefaehig, nur zeitgestempelt markiert, Sync-Regel 2) fachlich. Empfehlung dieser Spec: kein Feld-Mapping, sondern nur dieselbe Render-Position (Badge neben der FA-/Sub-FA-Nummer-Zelle) mit eigenem Text/Tooltip fuer den hierarchischen Fall — bestaetigen?"
@@ -119,11 +119,11 @@ sprengt. Inhalt/Entscheidungen unveraendert; nur in Etappen geschnitten. Ein lan
 
 | # | Etappe | Status | Commit |
 |---|--------|--------|--------|
-| A | Anzeige-Fundament (Repo-Gruppenabfrage master-gated, ColumnDefinitions `parent-sub-order-number`, JS-Modul `fa-liste-gruppierung.js`, Master-Lese-Muster) + **ProductionOrders als Referenz-View** + **Z4-ERHEBUNG** (Zaehlstellen katalogisieren, keine Umsetzung). **STOPP+Melden** nach A. | **erledigt** | `30b7a8c` (Repo) · `9315186` (ColumnDef+JS) · `abd2620` (View/Controller) |
+| A | Anzeige-Fundament (Repo-Gruppenabfrage master-gated, ColumnDefinitions `parent-sub-order-number`, JS-Modul `fa-liste-gruppierung.js`, Master-Lese-Muster) + **ProductionOrders als Referenz-View** + **Z4-ERHEBUNG** (Zaehlstellen katalogisieren, keine Umsetzung). **STOPP+Melden** nach A. | **erledigt** | `43b6bde` (Repo) · `e8d21d0` (ColumnDef+JS) · `5ee8177` (View/Controller) |
 | B | Muster auf die 5 weiteren Views replizieren (FaWorklist, FaCompletion, Tracking, Picking, PickingLeitstand — Anzeige-Teil) | offen | |
-| C | Kaskade auf PickingLeitstand-Gruppenkopfzeile („Alle Sub-FAs fertigmelden", `IsDoneBde` alle Nachfahren, atomar, Dialog mit Offene-Buchung-Zahl, ILogger); Zeilen-Toggle unveraendert; keine Gruppen-Ruecknahme | **erledigt** | `a305d6f` |
-| D | Z4-Zaehl-Sweep (Articles/Info; 6 Listen tragen die Z4-Zeile schon aus A/B) + Z1-Regressionstest. **Z3-Sync-Meldung vertagt** (Backlog [[2026-09-07-invariante-haupt-fertig-sub-erkennen]], Mensch-Entscheid 2026-09-07 — Deploy-Fork Service) | **erledigt** | `d9de60c` (Z4+Z1) |
-| E | Testszenarien (F1–F6 + Kaskade) + Brain + qa-agent → Testbereit | **erledigt** | `dde9a17` (Testszenarien+Changelog+Version) · `ebc3d45` (Brain: Changelog/feature-map/Index) |
+| C | Kaskade auf PickingLeitstand-Gruppenkopfzeile („Alle Sub-FAs fertigmelden", `IsDoneBde` alle Nachfahren, atomar, Dialog mit Offene-Buchung-Zahl, ILogger); Zeilen-Toggle unveraendert; keine Gruppen-Ruecknahme | **erledigt** | `8806016` |
+| D | Z4-Zaehl-Sweep (Articles/Info; 6 Listen tragen die Z4-Zeile schon aus A/B) + Z1-Regressionstest. **Z3-Sync-Meldung vertagt** (Backlog [[2026-09-07-invariante-haupt-fertig-sub-erkennen]], Mensch-Entscheid 2026-09-07 — Deploy-Fork Service) | **erledigt** | `e9eb089` (Z4+Z1) |
+| E | Testszenarien (F1–F6 + Kaskade) + Brain + qa-agent → Testbereit | **erledigt** | `ea3932d` (Testszenarien+Changelog+Version) · `ebc3d45` (Brain: Changelog/feature-map/Index) |
 
 ## Fachliche Anforderungen
 
@@ -507,7 +507,7 @@ Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen.
   bei den beiden Schwester-Specs vom 2026-08-12. Vor Umsetzungsbeginn `scripts/sync-worktree.ps1`
   laufen lassen, um den Branch aktuell zu halten.
 - **QA-finalisiert (2026-09-07):** `deploy.web: true / deploy.service: false / deploy.migration: false`
-  bestaetigt anhand des echten Diffs `f869bb0..dde9a17` (38 Dateien, ausschliesslich unter
+  bestaetigt anhand des echten Diffs `e2d96b4..ea3932d` (38 Dateien, ausschliesslich unter
   `IdealAkeWms/`; die einzige Aenderung unter `IDEALAKEWMSService/` ist der reine
   Versionsstring-Bump in `AppVersion.cs`, keine funktionale Service-Aenderung; kein neuer Ordner
   unter `*/Migrations/`).
@@ -543,7 +543,7 @@ Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen.
    übertragbar. Ist ein eigener Kartengruppierungs-Entwurf Teil DIESER Spec, oder wird das Cockpit für
    die erste Umsetzungsrunde bewusst ausgeklammert (nur die 5 Tabellen-Listen + ggf. Leitstand)?
 5. → **SageMissingSince/Teil-7-AK-6:** Der Sync-Mechanismus (Regel 2) ist laut Teil-7-Spec (AK 6/
-   AK 12, Etappe C, Commits dc297d9..bc7e3d6) unit-getestet und funktionsfähig — an der Erzeugung des
+   AK 12, Etappe C, Commits ae9be6c..285909e) unit-getestet und funktionsfähig — an der Erzeugung des
    Werts ist nichts nachzubessern. Ob im produktiven IDEAL-Bestand aktuell tatsächlich ein Datensatz
    mit `SageMissingSince <> NULL` existiert, lässt sich aus Brain/Code nicht feststellen. Blockiert
    das den Dev-Lauf, oder wird die Anzeige unabhängig vom aktuellen Datenstand gebaut (Empfehlung:
@@ -642,7 +642,7 @@ den Beweis nicht schuldig zu bleiben.
 > Fall laut dieser Spec **ausgeschlossen** ist und **keine Auflösungslogik** braucht, wurde das
 > Sicherheitsnetz (Log + Gruppen-Badge) als eigener Backlog-Eintrag herausgelöst. „Offen anlegen"
 > (der eigentlich kritische Teil) ist ohnehin bereits erfüllt (H2). Z4 + Z1 der Etappe D sind
-> umgesetzt (`d9de60c`).
+> umgesetzt (`e9eb089`).
 
 ### Z3b — Filterwirkung (folgt aus Z3)
 
@@ -956,8 +956,8 @@ Keine Einwaende; die Punkte sind in der Nachbesserung mitzuziehen.
 ## QA-Nachweis (2026-09-07, qa-agent → Testbereit)
 
 **Worktree:** `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Branch
-`feature/2026-08-07-ideal-teile-1-5`, geprueft am Stand `dde9a17` (Etappe E, v1.35.0).
-Diff-Basis fuer diese Spec: `f869bb0..dde9a17` (38 Dateien, ausschliesslich `IdealAkeWms/` +
+`feature/2026-08-07-ideal-teile-1-5`, geprueft am Stand `ea3932d` (Etappe E, v1.35.0).
+Diff-Basis fuer diese Spec: `e2d96b4..ea3932d` (38 Dateien, ausschliesslich `IdealAkeWms/` +
 Versionsstring in `IDEALAKEWMSService/AppVersion.cs`, kein `Migrations/`-Ordner).
 
 **1. Build** — `dotnet build IdealAkeWms.slnx` im Worktree: **erfolgreich, 0 Fehler**, 12 bereits
@@ -997,7 +997,7 @@ deckt sich mit den tatsächlich existierenden Testklassen).
 
 **5. Skills:** `superpowers:verification-before-completion` angewandt (Evidenz vor Behauptung,
 siehe Punkte 1–4 oben — Build/Test-Ausgabe wurde in diesem Lauf frisch erzeugt, nicht aus einem
-früheren Lauf übernommen); `code-review` (medium, Diff `f869bb0..dde9a17`) als Hintergrund-Agent
+früheren Lauf übernommen); `code-review` (medium, Diff `e2d96b4..ea3932d`) als Hintergrund-Agent
 gelaufen, 2 Befunde, **keiner blockierend**:
 1. **Bestätigt dieselbe F2-Lücke** wie unten unter „Gefundene Lücke" eigenständig per Code-Audit
    gefunden (`fa-liste-gruppierung.js:29-35`, `[data-fa-liste-filter]` wird in keiner View
@@ -1106,12 +1106,12 @@ Abnahme-Hindernis. **Hinweis zur Pfadkorrektur:** Der ursprüngliche Auftrag nan
 Nachtrag — dieser Pfad ist eine **verwaiste, nicht mehr aktuelle Entwurfskopie** (letzter Commit
 `679f702`, `status: Freigegeben`, `epic: false`, mit fremden, nicht committeten lokalen Änderungen
 im Hauptcheckout, die hier bewusst unangetastet blieben). Die tatsächlich lebende, mit dem
-Worktree-Stand `dde9a17`/`a8d75de` übereinstimmende Spec ist **diese Datei** unter
+Worktree-Stand `ea3932d`/`c02c6f9` übereinstimmende Spec ist **diese Datei** unter
 `secondbrain/specs/freigegeben/` (Historie durchgängig bis `b8c6202`) — dorthin gehört daher auch
 dieser Nachtrag.
 
-**Commit:** `a8d75de` (Worktree `feature/2026-08-07-ideal-teile-1-5`,
-`.claude/worktrees/2026-08-07-ideal-teile-1-5`) — Vorgänger-QA-Stand war `dde9a17` (Testbereit, Web
+**Commit:** `c02c6f9` (Worktree `feature/2026-08-07-ideal-teile-1-5`,
+`.claude/worktrees/2026-08-07-ideal-teile-1-5`) — Vorgänger-QA-Stand war `ea3932d` (Testbereit, Web
 1243/+1 skip, Service 232).
 
 **1. Build:** `dotnet build IdealAkeWms.slnx` im Worktree — **erfolgreich, 0 Fehler** (12
@@ -1119,14 +1119,14 @@ vorbestehende Warnungen, keine davon aus diesem Diff).
 
 **2. Tests, beide Suiten grün:**
 - `dotnet test IdealAkeWms.Tests` → **1245 erfolgreich, 0 Fehler, 1 übersprungen**, gesamt 1246 —
-  +2 gegenüber `dde9a17` (neuer Theory-Test in `PickingControllerTests`, betrifft U1; U2 selbst
+  +2 gegenüber `ea3932d` (neuer Theory-Test in `PickingControllerTests`, betrifft U1; U2 selbst
   bringt keinen neuen automatisierten Test, reine Client-JS-/Markup-Änderung ohne
   Controller-Vertragsänderung — `CascadeDonePreview` liefert unverändert `withOpenBooking` als
   Zahl, die bestehenden `CascadeDonePreview_*`-Tests aus Etappe C bleiben unverändert grün).
 - `dotnet test IDEALAKEWMSService.Tests` → **232 erfolgreich, 0 Fehler, 0 übersprungen** —
   unverändert.
 
-**3. Diff-Review (`git show a8d75de` für `Views/PickingLeitstand/Index.cshtml`), Ergebnis: keine
+**3. Diff-Review (`git show c02c6f9` für `Views/PickingLeitstand/Index.cshtml`), Ergebnis: keine
 Befunde.**
 - Der `div#cascadeDoneOpenWarning` verliert die feste Klasse `alert-warning` (jetzt nur `alert`)
   und bekommt `role="status"` statt `role="alert"` — passend, weil das Element nun dauerhaft

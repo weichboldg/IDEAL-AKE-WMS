@@ -62,11 +62,11 @@ Ausführliche Umsetzungsnotizen: [[2026-07-29-standort-ideal-teil-7]] (Aufgaben)
 
 | # | Etappe | Status | Commit |
 |---|--------|--------|--------|
-| A | Schema-Inversion + Migration (SubOrderNumber/ParentSubOrderNumber/SageMissingSince, Index-Tausch, Backfill) + FreshInstall + tote AgentJob-Artefakte | **erledigt** | `fe7299b` |
-| B | `HierarchischeStrukturGuard` (Choke-Point) + Einwegtor über Umschalt-Seite + Audit-SyncLog + Runbook | **erledigt** | `aed9cb5..39f7813` |
-| C | Materialisierungs-Sync + drei Sync-Regeln (unit-getestete Planer) | **erledigt** | `dc297d9..bc7e3d6` |
-| D | Lookup-Härtung (`OrderNumber`-Sweep) + `GetAllByFaAndOperationAsync` + adversariales FA-Zusatzinfos-Review + Auto-Erledigt-Sperre | **erledigt** | `fb07512..660a01b` |
-| E | Doku (README/Runbook), Testszenarien, Brain-Update, Version-Bump | **erledigt** | `5cf802e` (+ Brain auf main) |
+| A | Schema-Inversion + Migration (SubOrderNumber/ParentSubOrderNumber/SageMissingSince, Index-Tausch, Backfill) + FreshInstall + tote AgentJob-Artefakte | **erledigt** | `7440726` |
+| B | `HierarchischeStrukturGuard` (Choke-Point) + Einwegtor über Umschalt-Seite + Audit-SyncLog + Runbook | **erledigt** | `e727329..0a8175a` |
+| C | Materialisierungs-Sync + drei Sync-Regeln (unit-getestete Planer) | **erledigt** | `ae9be6c..285909e` |
+| D | Lookup-Härtung (`OrderNumber`-Sweep) + `GetAllByFaAndOperationAsync` + adversariales FA-Zusatzinfos-Review + Auto-Erledigt-Sperre | **erledigt** | `b9e2482..d9a4d1e` |
+| E | Doku (README/Runbook), Testszenarien, Brain-Update, Version-Bump | **erledigt** | `db9ecab` (+ Brain auf main) |
 
 > **Kopplungs-Hinweis:** Teil 7 liegt im selben Branch wie die bereits testbereiten Teile 1–5.
 > Etappe A invertiert die Kern-Tabelle `ProductionOrders` (Migration 90). Der Merge dieses Branches
@@ -444,7 +444,7 @@ Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen.
   (Spalten, Backfill, Index-Tausch) unabhaengig vom Master-Zustand. Wird das Epic nach Etappe A
   abgebrochen, ist die DB-Struktur bereits invertiert — das ist inhaerent (kein Fehler), aber im
   Runbook und in der Deploy-Planung zu benennen.
-- **Publish-Befehle (QA-final, gegen den echten Diff `git diff --stat main...5cf802e` bestaetigt —
+- **Publish-Befehle (QA-final, gegen den echten Diff `git diff --stat main...db9ecab` bestaetigt —
   85 Dateien in `IdealAkeWms/`+`IDEALAKEWMSService/`, davon 2 neue Migrationen unter
   `*/Migrations/*`; web/service/migration alle betroffen, deckungsgleich mit `deploy:` im
   Frontmatter):**

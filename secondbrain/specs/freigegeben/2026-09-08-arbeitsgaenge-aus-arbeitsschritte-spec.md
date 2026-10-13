@@ -41,7 +41,7 @@ freigabe_am: 2026-09-18
 > [[2026-09-21-ideal-bde-arbeitsgaenge-aus-struktur-spec]]. Sie zielte auf `FaWorkStep` und den
 > `WorkStep`-Katalog; das eigentliche BDE-Ziel ist aber `WorkOperation`. Der Nachfolger baut den hier
 > beschriebenen `FaWorkStepStructureDetectionService` im **selben Buendel-Worktree** zu
-> `WorkOperationStructureDetectionService` um (Commit `920aabb7`), bevor v1.41.0 je in Produktion ging —
+> `WorkOperationStructureDetectionService` um (Commit `6ba4e903`), bevor v1.41.0 je in Produktion ging —
 > es gibt daher **nichts aus dieser Spec zu deployen**. Der hier genannte Service/Interface/State/
 > ServiceSettings-Key/SyncLog-Dienst existiert unter den alten Namen nicht mehr. Status bleibt aus
 > Historie-Gruenden stehen; der maßgebliche Stand steht in [[feature-map]] (dort als superseded gefuehrt).
@@ -451,7 +451,7 @@ Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen (neue TS-76
 
 ## Deploy
 
-**Vom qa-agent gegen den echten Diff bestaetigt (2026-09-16, Commits `ce3feb0..1ba3918`).**
+**Vom qa-agent gegen den echten Diff bestaetigt (2026-09-16, Commits `a934053..d6eeb46`).**
 
 - **Web-App: ja (provisorisch, geringer Verhaltens-Impact).** `IdealAkeWms/Models/FaWorkStep.cs`
   (neue `FaWorkStepSources.Struktur`-Konstante) und `IdealAkeWms/Models/ServiceSettingDefinitions.cs`
@@ -865,8 +865,8 @@ Text miterledigt; H4–H6 sind Betriebs-/Pflegehinweise ohne Handlungszwang. Der
 ## QA-Nachweis (qa-agent, 2026-09-16)
 
 **Worktree:** `C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5`,
-Branch `feature/2026-08-07-ideal-teile-1-5`. **Feature-Commit-Range:** `716a676..1ba3918`
-(`ce3feb0` Kern, `3b5577f` Tests, `1ba3918` Doku/Version) — verifiziert per `git diff --stat`
+Branch `feature/2026-08-07-ideal-teile-1-5`. **Feature-Commit-Range:** `6b9f354..d6eeb46`
+(`a934053` Kern, `9edde1b` Tests, `d6eeb46` Doku/Version) — verifiziert per `git diff --stat`
 (16 Dateien, 786 Zeilen +, davon Kern-Service 235 Zeilen, Tests 328 Zeilen, keine ungeplante Datei).
 
 **Build:** `dotnet build IdealAkeWms.slnx` — **0 Fehler**, 12 Vorwarnungen (alle vorbestehend, keine

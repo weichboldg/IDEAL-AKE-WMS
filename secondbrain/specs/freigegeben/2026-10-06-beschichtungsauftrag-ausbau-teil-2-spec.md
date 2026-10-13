@@ -1013,3 +1013,4 @@ Geaenderte bestehende Tests: keine (nur Ergaenzungen in der im Zweig neuen Datei
 weiteren HauptFA vollstaendig, keine Leerseite; danach Vorlage wiederherstellen und pruefen, dass das Muster wieder laedt.
 
 **Status:** `Testbereit` (Schranke 2: Manual-UAT TS-82 + Merge durch den Menschen).
+- Entscheidung Gerald 2026-10-12 zur Auslegung von Antwort 8: bleibt wie umgesetzt – nur eine zu grosse Vorlage fuehrt zum Ersatz-Kopf; zu grosse Bilder/Schriften werden weggelassen (Hinweis + Log). Keine Code-Aenderung.

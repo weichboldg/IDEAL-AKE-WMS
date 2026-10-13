@@ -492,8 +492,8 @@ betrifft den durch Antwort 3 gewachsenen Umfang und die fehlende Mengengrenze.
 
 ## Umsetzung (Dev-Lauf 2026-09-24) — Abweichungen vom Entwurf, begründet
 
-Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Commits `912e6bea` (Repository + Tests),
-`71ffeb18` (feature-complete, v1.45.0), `2d06d1f0` (Review-Fix).
+Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Commits `49298f35` (Repository + Tests),
+`6064263f` (feature-complete, v1.45.0), `821d82a3` (Review-Fix).
 
 1. **Englische Code-Namen** (CLAUDE.md-Sprachregel hat Vorrang vor den deutschen Arbeitsnamen der Spec):
    `HatArbeitsgaenge` → `FaHierarchyStructure.HasWorkOperations`, Action `Arbeitsgaenge` → `WorkOperations`
@@ -518,7 +518,7 @@ Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Commits `912e6bea` (Rep
 ## QA-Nachweis (2026-09-24)
 
 **Umgebung:** Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Branch
-`feature/2026-08-07-ideal-teile-1-5`, HEAD `2d06d1f0`. Web-App bewusst **nicht** gestartet
+`feature/2026-08-07-ideal-teile-1-5`, HEAD `821d82a3`. Web-App bewusst **nicht** gestartet
 (`Program.cs` → `Database.Migrate()` gegen AKESQL20, siehe Abweichung 6 oben).
 
 **1) Build:**
@@ -545,7 +545,7 @@ dotnet test IdealAkeWms.Tests --filter FullyQualifiedName~OrderNumbersWithWorkOp
   (5000 Schluessel → EIN `@set nvarchar(max)` + OPENJSON, kein Mehrfach-Parameter-Modus)
 ```
 
-**4) Code gegen AK 1–12 geprüft (Diff `f829d00d..2d06d1f0`, 14 Dateien, nur `IdealAkeWms/` +
+**4) Code gegen AK 1–12 geprüft (Diff `e1d619b7..821d82a3`, 14 Dateien, nur `IdealAkeWms/` +
 Versions-Mirror `IDEALAKEWMSService/AppVersion.cs`):**
 
 | AK | Fundstelle | Befund |
@@ -575,7 +575,7 @@ bereits nachgezogen (inkl. Testzahlen 4+1 und AK-10-Beleg). Keine Ergaenzung noe
 frisch aus diesem QA-Lauf (nicht uebernommen). Code-Review-Fokus (Zugriffsfilter-Vererbung, N+1,
 Schluessel-Konsistenz Knopf/Modal, "kein leeres Modal") einzeln am Code nachvollzogen, siehe Tabelle
 oben — keine offenen Befunde. Der im Dev-Lauf dokumentierte Review-Fund (Schluessel-Inkonsistenz
-Sub-FA- vs. OrderNumber-Abfrage) ist bereits durch Commit `2d06d1f0` behoben und hier erneut bestaetigt.
+Sub-FA- vs. OrderNumber-Abfrage) ist bereits durch Commit `821d82a3` behoben und hier erneut bestaetigt.
 
 **Ergebnis: Testbereit.** Deploy-Abschnitt oben entspricht dem tatsaechlichen Diff (nur Web,
 `IDEALAKEWMSService/AppVersion.cs` ist reiner Versions-Mirror ohne Funktionsaenderung — kein

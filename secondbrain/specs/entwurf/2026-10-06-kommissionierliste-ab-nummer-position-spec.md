@@ -38,8 +38,8 @@ freigabe_von: ""
 freigabe_am: ""
 ---
 
-> [!info] Umsetzungsort (Hinweis, keine Entscheidung)
-> Nach Schranke 2 des IDEAL-Buendels, aus `main` (neuer Worktree). Der gesamte betroffene Code
+> [!info] Umsetzungsort (Entscheidung Gerald 2026-10-09)
+> direkt im Bündel-Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5` auf Zweig `feature/2026-08-07-ideal-teile-1-5` (kein eigener Worktree, ein Lauf zur Zeit). Der gesamte betroffene Code
 > (`FaHierarchyKommissionierListenController`, `KommissionierListenService`, die Views unter
 > `Views/FaHierarchyKommissionierListen/`) existiert heute nur im nicht gemergten Buendel-Worktree
 > `.claude/worktrees/2026-08-07-ideal-teile-1-5`; alle Zeilenangaben dieser Spec sind dort gemessen

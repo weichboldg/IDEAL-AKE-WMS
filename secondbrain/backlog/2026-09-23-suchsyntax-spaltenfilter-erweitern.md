@@ -122,3 +122,20 @@ Dasselbe Muster wie die Anzeige-Etappen A/B im August: erst eine Referenz, anseh
 [[2026-08-12-listen-spaltenauswahl-spec]] (Spaltenpraeferenzen),
 [[2026-09-18-stueckliste-kommissionierziel-filter-spec]] (gespeicherte Standardfilter mit Mini-Syntax),
 [[2026-09-13-matchcode-artikelstamm-spec]] (Artikelsuche, 108.818 Zeilen)
+
+## Entscheidungen Gerald 2026-10-13
+
+1. **Umfang:** alles – die drei angeforderten Operatoren (`7%`, `%7`, `a...b`) **plus** die Vorschläge 1–4
+   (`=KA` genau gleich, `>`/`<`/`>=`/`<=` für Zahl und Datum, `(leer)`/`!(leer)`, Syntax-Hilfe am Filterfeld).
+2. **Von-bis auf Textspalten:** **nicht erlaubt** (Hinweis am Feld); von-bis nur auf Zahl- und Datumsspalten.
+3. **Komma-Konflikt (neu, aus CSV-Export v1.53.0 TS-81.8/86):** In Zahl- und Datumsspalten ist `,` das
+   Dezimalkomma; ODER dort mit `;`. In Textspalten bleibt `,` ODER; `;` gilt überall als ODER.
+   Gespeicherte Standardfilter vorher prüfen (P4).
+4. **Umsetzungsort:** direkt im Bündel (wie alle Läufe), als Epic mit Etappen A (Parser + Referenzliste) und B
+   (alle übrigen Listen). Koordination hatte „nach Merge“ empfohlen, weil die Abnahme dann alle Listenfilter umfasst.
+5. Offen bleibt aus der Notiz: `*` zusätzlich zu `%` – Vorschlag Koordination: nein; Schreibweise `(leer)` wie in
+   der Stückliste (v1.4x, `!(leer)`) – Vorschlag: beibehalten.
+
+Seit der Notiz hinzugekommen (beim Spec-Lauf erheben): Filter-/Sortierlogik im CSV-Export (v1.53.0,
+Sortiervergleich aus `table-filter.js` ausgelagert), Filterzeile im FA-Baum (Arbeitsgang-Kürzel v1.52/1.55),
+Beschichtungsauftrags-Listen (v1.51). Erhebung nach weiteren Einzelumsetzungen in Views ist Pflicht.

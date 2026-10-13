@@ -9,7 +9,7 @@ branch: "feature/2026-08-07-ideal-teile-1-5"
 
 Pflicht-Deliverable laut Spec-Abschnitt „Uebertrag ins Buendel": tatsaechliche Konfliktdateien gegen die
 Vorhersage — erste Probe, wie weit `main` und das Buendel seit August auseinanderliegen.
-Merge-Commit **`6c253c60`** (Buendel), Quelle `main` mit `f89c0124`. Changelog
+Merge-Commit **`b877e05a`** (Buendel), Quelle `main` mit `f89c0124`. Changelog
 [[2026-10-05-v1-47-1-buendel-ake-hotfix-uebernommen]].
 
 ## Vorpruefung

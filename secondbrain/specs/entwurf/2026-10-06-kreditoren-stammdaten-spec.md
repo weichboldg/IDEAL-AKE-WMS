@@ -45,8 +45,8 @@ freigabe_von: ""
 freigabe_am: ""
 ---
 
-> [!info] Umsetzungsort (Hinweis, keine Entscheidung)
-> Umsetzung **nach Schranke 2 des IDEAL-Buendels, aus `main` (neuer Worktree)**. Die Code-Grundlage
+> [!info] Umsetzungsort (Entscheidung Gerald 2026-10-09)
+> Umsetzung direkt im Bündel-Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5` auf Zweig `feature/2026-08-07-ideal-teile-1-5` (kein eigener Worktree, ein Lauf zur Zeit). Die Code-Grundlage
 > dieser Spec ist der Buendel-Stand `.claude/worktrees/2026-08-07-ideal-teile-1-5` (v1.47.1); alle
 > Datei:Zeile-Angaben beziehen sich darauf. **Version**, **SQL-Nummer** und **TS-Kapitelnummer** sind
 > jeweils die **naechste freie zum Umsetzungszeitpunkt** (heute: Buendel v1.47.1, SQL/93, TS bis 80;
@@ -416,7 +416,7 @@ Controller-Liste und Zaehlung der Stammdaten-Controller), `codebase/datenmodell.
   Bei Varianten-Specs zusaetzlich freigabe_entscheidung im Frontmatter setzen.
 -->
 
-1. Felder und Pflichtfelder →
+1. Felder und Pflichtfelder → **Felder wie empfohlen, zusätzlich Matchcode und eine Ausprägung „Beschichter (ja/nein)“, damit der Stamm für weitere Abläufe filterbar ist (Gerald 2026-10-06). Pflichtfelder noch offen. Umsetzung zurückgestellt – Spec bleibt Entwurf.**
 2. Zuordnung Freitext → Kreditor →
 3. Datenhoheit und Sage-Quelle →
 4. Zugriff (bestehende oder neue Rolle) →

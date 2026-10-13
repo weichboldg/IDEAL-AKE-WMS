@@ -18,32 +18,32 @@ Struktur-Browser zu verwandeln (der bleibt `/FaHierarchy`). **Nur bei Master
 
 ## Umgesetzt (Etappen A–E)
 
-- **A — Anzeige-Fundament + ProductionOrders-Referenz** (`30b7a8c`/`9315186`/`abd2620`): gruppierte,
+- **A — Anzeige-Fundament + ProductionOrders-Referenz** (`43b6bde`/`e8d21d0`/`5ee8177`): gruppierte,
   master-gated Repo-Abfrage `GetForLeitstandGroupedAsync` (Gruppe = `OrderNumber`, Pagination über
   Gruppen, Z2 SubOrderNumber, Z3b showDone), `LeitstandOrderRow` +Sub/Parent/SageMissingSince;
   `ColumnDefinitions` +`parent-sub-order-number` (DefaultHidden); neues JS-Modul
   `fa-liste-gruppierung.js` (Chevron-Collapse + Auto-Expand F2, kein Eingriff in `table-filter.js`);
   ProductionOrders als Referenz-View (`_ProductionOrderRow.cshtml`, Z4-Zeile, SageMissingSince-Badge).
-- **B — 5 weitere Views** (`b150579` FaCompletion · `5b15caf` PickingLeitstand · `960d5c8` Picking ·
-  `10921e2` FaWorklist · `7bba52b` Tracking/Index): je eigenes Row-Partial + Master-Gate. **Befunde:**
+- **B — 5 weitere Views** (`4a74ea6` FaCompletion · `bf6863c` PickingLeitstand · `d7df8a9` Picking ·
+  `837a1f6` FaWorklist · `087c311` Tracking/Index): je eigenes Row-Partial + Master-Gate. **Befunde:**
   Picking/FaCompletion/FaWorklist sind ProductionOrder-abgeleitet (In-Memory-GroupBy, Z2), nicht das
   Repo-grouped-Muster; **Picking** ist eine Prioritäts-Warteschlange → Gruppen-Reihenfolge dringlichste
   zuerst, innerhalb Prio (bewusst nicht Z2); **PickingLeitstand** Bulk-Select über mehrere `<tbody>`
   gehärtet (eingeklappte Gruppen werden abgewählt, neues Event `fa-liste-group-toggled`);
   **Tracking/Index** ist real 3-Ebenen (HauptFA → Sub-FA → AG) → OSEON-Baum-Muster übernommen, eager
   (lokale Daten, kein Lazy nötig), zweistufiger Fortschritt.
-- **C — Kaskade „Alle Sub-FAs fertigmelden"** (`a305d6f`): auf der PickingLeitstand-Gruppenkopfzeile.
+- **C — Kaskade „Alle Sub-FAs fertigmelden"** (`8806016`): auf der PickingLeitstand-Gruppenkopfzeile.
   Träger **`IsDoneBde`** (`ProductionOrderBdeStatus`), **nur diese Aktion kaskadiert** (BL1-Ausgang der
   Spec). Setzt IsDoneBde für ALLE ProductionOrders der HauptFA-`OrderNumber` in **einem SaveChanges**
   (atomar, gemeinsamer Zeitstempel), **ein** `ILogger`-Eintrag je Kaskade. Bestätigungsdialog nennt
   Gesamtzahl + „mit offener Buchung" (jede `EndedAt==null && !IsCancelled`, inkl. Paused/AutoPaused).
   **Nur `true`, keine Gruppen-Rücknahme**; Zeilen unverändert.
-- **D — Z4-Sweep + Z1-Test** (`d9de60c`): Erhebung bestätigt — die 6 Listen tragen die Z4-Zeile aus A/B,
+- **D — Z4-Sweep + Z1-Test** (`e9eb089`): Erhebung bestätigt — die 6 Listen tragen die Z4-Zeile aus A/B,
   Home-Kacheln zählen nicht; einzige Nicht-Listen-Stelle `Articles/Info` → „N Aufträge · M Sub-FAs offen".
   Z1-Regressionstest (Service): Sync lässt `IsDoneBde`/`IsDone`/`IsDonePicking` unberührt. **Z3
   vertagt** (Mensch, 2026-09-07) → Backlog [[2026-09-07-invariante-haupt-fertig-sub-erkennen]]
   (Deploy-Fork Service; Fall ausgeschlossen; „offen anlegen" ohnehin erfüllt).
-- **E — Testszenarien + Version + Changelogs** (`dde9a17`): TS-69 (69.1–69.20) in
+- **E — Testszenarien + Version + Changelogs** (`ea3932d`): TS-69 (69.1–69.20) in
   `docs/TESTSZENARIEN.md`; Version 1.34.0 → **1.35.0** (Web+Service); Anwender-Changelog.
 
 ## Migration / Deploy

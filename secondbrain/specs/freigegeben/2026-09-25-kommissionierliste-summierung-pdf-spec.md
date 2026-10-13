@@ -1002,7 +1002,7 @@ Buendels begonnen hat — ihre Grundlage, die Summenansicht, wird dort mitgeprue
 ## QA-Nachweis (2026-09-28)
 
 Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Branch `feature/2026-08-07-ideal-teile-1-5`,
-geprüfter Bereich dieser Spec: Commits `323120d8..6a043456` (Basis `4a8cdb95`). Ledger:
+geprüfter Bereich dieser Spec: Commits `f8b58a9d..9f4ea1bc` (Basis `acad4972`). Ledger:
 `.superpowers/sdd/2026-09-28-kommissionierliste-summierung-pdf/progress.md` (Rulings S1–S6, Final
 Review: 0 Critical, 0 Important, 7 Minor — alle adressiert oder bewusst zurückgestellt, siehe unten).
 
@@ -1024,14 +1024,14 @@ dotnet test IDEALAKEWMSService.Tests
 Spec.)
 
 **Harte Prüfungen (Befund):**
-- `git diff 4a8cdb95..HEAD -- IdealAkeWms.Tests`: bestehende Tests unverändert bis auf **einen**
+- `git diff acad4972..HEAD -- IdealAkeWms.Tests`: bestehende Tests unverändert bis auf **einen**
   umgekehrten Test (`Summiert_NoKw_ReturnsEmpty_NoImplicitTotal` → `Summiert_NoKw_IncludesAllHauptFa`,
   gleiches Fixture, neue Assertion, Ruling S1) und einen Doc-Kommentar in der Klassen-Summary
   („ohne KW kein Ergebnis" → „ohne KW alle HauptFA"). Alle übrigen Diffs im Testprojekt sind
   ausschließlich neue Dateien/neue Testmethoden.
 - `BuildFlagPredicate`: keine `+`/`-`-Zeile im Diff, nur unveränderte Kontextzeilen — unberührt (AK 20
   sinngemäß, Regressionsschutz für die Vorgänger-Spec).
-- `WarehousePickingPrintLayout.cs`: `git diff --stat 4a8cdb95..HEAD` listet die Datei nicht — unberührt
+- `WarehousePickingPrintLayout.cs`: `git diff --stat acad4972..HEAD` listet die Datei nicht — unberührt
   (AK 20).
 - `grep -rn "Html.Raw" IdealAkeWms/Views/FaHierarchyKommissionierListen` → 0 Treffer (AK 18).
 - Beide `AppVersion.cs` (Web + Service): `1.47.0`.
@@ -1083,7 +1083,7 @@ Redirect, Sage-DB-Abfrage): AK 4 (Klickpfad), 6, 9, 10, 18 (Browser-Probe), plus
   am 2026-09-28 ausdrücklich per Dev-Lauf-Auftrag angestoßen, als erfüllt gewertet.
 - S6: versteckte KW-Inputs im Listen-Formular sind Code (nicht nur Doku), `PdfSummiert`-Fehlerpfad
   bewusst ohne `colf_*` (AK 16 verlangt exakt `target`/`kwVon`/`kwBis`) — beides am Code verifiziert.
-- Final-Review-Minor-Funde (7, davon 6 in der Fix-Welle `e447a12c..6a043456` adressiert, 1 als
+- Final-Review-Minor-Funde (7, davon 6 in der Fix-Welle `e380315c..9f4ea1bc` adressiert, 1 als
   vorbestehende/dokumentierte Grenze in TS-80.7/TS-80.8 festgehalten): keiner davon ist Critical/
   Important, keiner blockiert `Testbereit`.
 
@@ -1168,3 +1168,4 @@ Ausführbar ohne Rückfragen auf dem IDEAL-Testsystem. Schritt 1 **zuerst**, una
   `_Layout.cshtml` in sich ausschließenden Zweigen nach Rolle; kein Benutzer sieht beide. Offen:
   B2-B4, B7, B10 mit Testdaten; B6 mit einer KW, die Daten enthält; B15 mit einer Lagerbestellung;
   PDF-Download mit Freigabe; „Drucken erst beim zweiten Klick" von Hand prüfen.
+- Browser-Abnahme 2026-10-06: [[2026-10-06-ts-80-browser-testbericht]] - 5 OK, 0 FEHLER, 3 nicht pruefbar, 0 Protokoll passt nicht
