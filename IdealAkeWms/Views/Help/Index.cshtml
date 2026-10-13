@@ -226,8 +226,18 @@
                             <li>Zeichen wie <code>_</code> oder <code>[</code> werden als normale Zeichen gesucht.
                                 <code>%</code> wirkt nur am Anfang oder Ende.</li>
                         </ul>
-                        Vergleiche und von&ndash;bis wirken derzeit in der Fertigungsauftrags-Liste (Termine, Prio); in den
-                        uebrigen Listen gelten Zahl- und Datumsspalten bis zum naechsten Ausbau noch als Text.
+                        Seit v1.58.1 gilt das in <strong>allen</strong> Listen mit Spaltenfilter &mdash; auch in Stueckliste,
+                        FA-Struktur-Baum, Bewegungshistorie, BDE-Buchungen, Fehlteilen und Leitstand. Zahl- und Datumsspalten
+                        (Mengen, Termine, &bdquo;Erstellt am&ldquo; &hellip;) erkennt man am Kalenderknopf bzw. daran, dass
+                        <code>&gt;5</code> dort nicht rot wird. Datum mit Uhrzeit zaehlt tageweise: <code>&gt;01.10.2026</code> heisst
+                        ab dem 02.10. 00:00, <code>&lt;=01.10.2026</code> bis 01.10. 23:59.
+                        <div class="alert alert-info py-2 mt-2 mb-0">
+                            <strong>Neu: &bdquo;oder&ldquo; mit Semikolon.</strong> Mehrere Suchbegriffe trennt man jetzt mit
+                            <code>;</code> &mdash; das funktioniert in jeder Spalte (<code>KA;SW</code>, <code>kw41;kw42</code>).
+                            Das Komma geht nur noch in Textspalten; in Zahl- und Datumsspalten ist es das Dezimalzeichen.
+                            In den Fehlteil-Listen gilt das <code>!</code> jetzt wie ueberall fuer alle Begriffe:
+                            <code>!a;b</code> heisst weder a noch b.
+                        </div>
                     </dd>
 
                     <dt>Andere Listen</dt>

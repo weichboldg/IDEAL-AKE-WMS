@@ -9815,7 +9815,7 @@ sichtbar/eigene ausgeblendet, Termin + überfällig aus ProductionDate + Stammda
   BDE-aktiv → leer; Werkbank ohne offene Arbeitsgänge → „Keine offenen Arbeitsgänge an dieser Werkbank.“; Auftragstext mit
   `<b>x</b>` → als Text sichtbar.
 
-## TS-91 — Spaltenfilter-Suchsyntax (Epic, v1.58.0 ff.)
+## TS-91 — Spaltenfilter-Suchsyntax (Epic, v1.58.0 + v1.58.1)
 
 Spec: `2026-09-23-suchsyntax-spaltenfilter-erweitern-spec` (Epic, Etappe A + B). Grammatik: `7%` beginnt, `%7` endet, `=x` genau,
 `;` oder (Text auch `,`), `!` nicht (alle Teile), `(leer)`; Zahl/Datum zusätzlich `>`, `>=`, `<`, `<=`, `a...b`.
@@ -9858,8 +9858,50 @@ melden), P-3 Server-Kultur (Zahl mit Nachkommastellen zeigt `2,5`, nicht `2.5`).
   ignoriert“ (diese Listen behandeln Datum bis Etappe B als Text). Stückliste: **kein** „?“-Knopf, keine Rot-Markierung, Filter
   wie bisher (`!(leer)`, Komm.-Ziel) — die Stückliste kommt in Etappe B.
 
+### TS-91.B — Etappe B: alle übrigen Listen, Typmarkierung, Rückbau Zwischenzustand (v1.58.1)
+
+**Vorbedingung:** wie TS-91.A; P-2 (Kollation **der Datenbank und je gefilterter Spalte**, auf beiden Servern) ist
+**Deploy-Pflicht**: `SELECT t.name AS Tabelle, c.name AS Spalte, c.collation_name FROM sys.columns c JOIN sys.tables t ON t.object_id
+= c.object_id WHERE c.collation_name IS NOT NULL AND c.collation_name NOT LIKE '%[_]CI[_]%';` → erwartet leer (sonst Groß/Klein
+in dieser Spalte unterschieden — melden). Automatisiert: `ColumnFilterTypesDriftTests` (je View `<th>`-Typ = Register, jede
+Server-Liste reicht ihr Register weiter), `ColumnFilterSyntaxQuelltextTests` (kein `EF.Functions.Like`, keine alte
+`Parse`-Signatur, Stückliste/FA-Baum ohne eigene Syntax, kein `data-filter-syntax` mehr), gemeinsame Tabelle (84 Fälle C# + Node),
+`StockMovementRepositoryTests` (Datum/Zeit AK 16, Bewegungsart), `WarehouseRequisitionRepositoryTests` (Antwort 5),
+`ArticleColumnFilterSqlTests`.
+
+- **TS-91.B1 — Artikelliste + Laufzeit (AK 12).** Stammdaten › Artikel: Artikelnummer `5000%`, `%-1`, `=<Nr>`, Bezeichnung `a_1`
+  (findet nur echtes `a_1`). **Laufzeitmessung am Testsystem (vorher/nachher dokumentieren):** In SSMS `SET STATISTICS TIME, IO
+  ON;` dann (a) vorher (Stand v1.57): `SELECT COUNT(*) FROM dbo.Articles WHERE ArticleNumber LIKE N'%5000%';` und
+  `… WHERE Description LIKE N'%schraube%';` (b) nachher: `… WHERE ArticleNumber LIKE N'%5000%' ESCAPE N'\';` (enthält, gleicher
+  Plan erwartet), `… WHERE ArticleNumber LIKE N'5000%' ESCAPE N'\';` (beginnt mit — **Index Seek** auf dem UQ-Index von
+  `ArticleNumber` erwartet; im Ausführungsplan prüfen). Dasselbe für die FA-Liste: `SELECT COUNT(*) FROM dbo.ProductionOrders
+  WHERE OrderNumber LIKE N'4711%' ESCAPE N'\';` gegen `… LIKE N'%4711%'`. Ergebnis (CPU-/Gesamtzeit, logische Lesevorgänge, Plan):
+  ______
+- **TS-91.B2 — Bewegungshistorie Datum/Zeit (AK 16).** `01.10.2026`, `10.2026`, `2026` wie bisher; neu `>=01.10.2026`, `>01.10.2026`
+  (ab 02.10.), `<=01.10.2026` (bis 01.10. 23:59), `01.10.2026...31.10.2026`, `30.09.2026;02.11.2026`. Bewegungsart `=ausbuchung`
+  (nicht „Sage-Ausbuchung“), `!ausbuchung`.
+- **TS-91.B3 — BDE-Buchungen (AK 17).** Start `>=01.10.2026`, Ende `<01.10.2026`, Gut `>0`, Ausschuss `=0`; Operator `%huber`, Typ
+  und Status wie bisher (Enum-Namen).
+- **TS-91.B4 — Fehlteile (Antwort 5).** Artikel-Nr. `!a;b` blendet a **und** b aus (vorher: a UND NICHT b); `a%;=<Nr>`; Matchcode
+  aus dem Artikelstamm trifft weiter.
+- **TS-91.B5 — Stückliste (AK 14).** Standardfilter Komm.-Ziel „Alle Ziele“ (`!(leer)`) und das Komm.-Ziel-Dropdown wie vorher,
+  Vorfahren-Aufklappen, Leerzustand „keine Treffer“; neu Menge `>=10`, `1...5`, Bezeichnung `=x`, `(leer)`; „?“-Knopf vorhanden;
+  CSV-Export der gefilterten Stückliste enthält genau die Treffer.
+- **TS-91.B6 — FA-Struktur-Baum (AK 15).** Textfilter `=KA` (Arbeitsgänge), `4711%`, `KA;SW`; Auswahlfilter (Arbeitsbereich,
+  Komm.-Ziel, Status) unverändert exakt; Kontextzeilen und Zähler „X von Y“ wie vorher; „?“-Knopf in der Filterzeile.
+- **TS-91.B7 — Leitstand (M2).** VK-Spalte `=fertig`, `!offen`; Matchcode `%x`; Termine `>=01.10.2026`, Bereich, `kw42`.
+- **TS-91.B8 — Zahl-/Datumsspalten übriger Listen (Stichprobe).** Beschichtungsaufträge `start` `>=01.10.2026`, `positionen` `>2`;
+  Summiert-Sichten `sollmenge` `>10`; Benutzer/Lagerplätze „Erstellt am“ `<01.01.2026`; Sage-Buchungen „Vers.“ `>1`;
+  Lagerbestellungen `#` `>100`; FA-Abarbeitungsliste Stk. `>1` trifft Menge `2` (AK 18). Kalenderknopf in allen markierten
+  Datumsspalten.
+- **TS-91.B9 — Hilfe und Rückbau.** Stückliste und alle Listen zeigen den „?“-Knopf; erste Spalte per Zahnrad ausblenden → „?“
+  wandert in die nächste sichtbare Filterzelle (auch nach Neuladen). Datumsvergleich in Leitstand/BDE-Buchungen wird nicht mehr
+  rot (jetzt typisiert). Hilfeseite: Hinweis „oder mit ;“.
+- **TS-91.B10 — Negativ.** P-1-Treffer (falls vorhanden) vorher/nachher prüfen; alte Eingaben `960,886` und `!960` in
+  Textspalten unverändert; in Zahlspalten `960,886` = Dezimalzahl (kein ODER mehr) — erwartete Änderung.
+
 ---
 
 *Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) + Teil 6 (Standorteinstellungen, v1.34.0) + BOM-Guard hierarchisch (2026-08-18, abgelöst) + FA-Liste-Hierarchie (v1.35.0) + BOM-Bridge (v1.36.0) + Materialisierung fachliche Felder K1/K2 (v1.37.0) + Skopierung der Tabellen-Selektoren (TS-72) + FA-Liste ausgebaut: Matchcode, Kopfdaten je Zeile, HauptFA-Zeile, Freigabe-Kaskade (v1.38.0, TS-73) + PDF-Erzeugung für FaHierarchy-Druckdokumente (v1.39.0, TS-74) + Matchcode im Artikelstamm (v1.40.0, TS-75) + FA-Arbeitsgang-Erkennung aus der Struktur (v1.41.0, TS-76, ersetzt durch TS-77) + Arbeitsgänge (WorkOperation) aus der Struktur + Werkbank-Anlage aus Sage (v1.44.0, TS-77) + Arbeitsgänge je (Sub-)FA im FA-Struktur-Modal (v1.45.0, TS-78) + Kommissionierung nur am HauptFA
-(v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80) + Beschichtungsauftrag Summiert als Standard (v1.48.0, TS-81) + Briefkopf Beschichtungsauftrag (v1.49.0, TS-82) + Beschichtungsauftrag als eigenes Objekt (v1.50.0, TS-83) + Beschichtungsaufträge bedienen (v1.51.0, TS-84) + Arbeitsgänge als Symbole im FA-Baum (v1.52.0, TS-85) + CSV-Export für alle Tabellen (v1.53.0, TS-86) + Arbeitsgang-Stammdaten (v1.54.0, TS-87) + Status je Arbeitsgang-Kürzel im FA-Baum (v1.55.0, TS-88) + Menü Beschichtung + Kurzanleitungen (v1.56.0, TS-89) + BDE-Terminal mit Arbeitsgang-Status (v1.57.0, TS-90) + Spaltenfilter-Suchsyntax Etappe A (v1.58.0, TS-91.A)*
+(v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80) + Beschichtungsauftrag Summiert als Standard (v1.48.0, TS-81) + Briefkopf Beschichtungsauftrag (v1.49.0, TS-82) + Beschichtungsauftrag als eigenes Objekt (v1.50.0, TS-83) + Beschichtungsaufträge bedienen (v1.51.0, TS-84) + Arbeitsgänge als Symbole im FA-Baum (v1.52.0, TS-85) + CSV-Export für alle Tabellen (v1.53.0, TS-86) + Arbeitsgang-Stammdaten (v1.54.0, TS-87) + Status je Arbeitsgang-Kürzel im FA-Baum (v1.55.0, TS-88) + Menü Beschichtung + Kurzanleitungen (v1.56.0, TS-89) + BDE-Terminal mit Arbeitsgang-Status (v1.57.0, TS-90) + Spaltenfilter-Suchsyntax Etappe A + B (v1.58.0/v1.58.1, TS-91.A/B)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*

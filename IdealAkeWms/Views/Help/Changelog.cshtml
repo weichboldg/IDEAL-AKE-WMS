@@ -9,6 +9,26 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.58.1</strong> <span class="text-white-50 ms-2">13.10.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>Spaltenfilter: neue Suchmoeglichkeiten in allen Listen</h6>
+                <ul>
+                    <li>Die neue Filter-Syntax (<code>4711%</code>, <code>%-1</code>, <code>=KA</code>, <code>(leer)</code>,
+                        <code>&gt;</code>/<code>&lt;</code>, von&ndash;bis) gilt jetzt in <strong>allen</strong> Listen, auch in
+                        Stueckliste, FA-Struktur-Baum, Bewegungshistorie, BDE-Buchungen, Fehlteilen und Leitstand.</li>
+                    <li><strong>&bdquo;Oder&ldquo; heisst jetzt <code>;</code></strong> (z.&nbsp;B. <code>KA;SW</code>,
+                        <code>kw41;kw42</code>). Das Komma geht nur noch in Textspalten.</li>
+                    <li>Mengen, Zaehler und Termine lassen sich mit <code>&gt;</code>, <code>&lt;</code> und von&ndash;bis filtern;
+                        Datum mit Uhrzeit zaehlt tageweise.</li>
+                    <li>Fehlteil-Listen: <code>!</code> gilt jetzt fuer alle Begriffe (<code>!a;b</code> = weder a noch b).</li>
+                    <li>Der Hilfe-Knopf <strong>?</strong> bleibt sichtbar, auch wenn die erste Spalte ausgeblendet ist.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.58.0</strong> <span class="text-white-50 ms-2">13.10.2026</span>
             </div>
             <div class="card-body">
