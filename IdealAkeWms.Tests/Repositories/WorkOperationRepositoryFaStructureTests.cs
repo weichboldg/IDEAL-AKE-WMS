@@ -88,4 +88,74 @@ public class WorkOperationRepositoryFaStructureTests
         sql.Should().Contain("OPENJSON");
         System.Text.RegularExpressions.Regex.Matches(sql, @"DECLARE @").Count.Should().Be(1);
     }
+    // ===== FA-Struktur Teil 2 (v1.55.0): Status-Abfragen =====
+
+    private static BdeBooking Booking(WorkOperation wo, DateTime? endedAt, bool cancelled = false) => new()
+    {
+        WorkOperation = wo, BdeOperatorId = 1, BdeTerminalId = 1, ProductionWorkplaceId = 1, StartedAt = DateTime.Now.AddHours(-1),
+        EndedAt = endedAt, IsCancelled = cancelled, CreatedAt = DateTime.Now, CreatedBy = "Test", CreatedByWindows = @"TEST\user"
+    };
+
+    [Fact]
+    public async Task GetForFaStatusAsync_ProjiziertSchluessel_NurAngefragteHauptFas()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        var wp = new ProductionWorkplace { Name = "Kante", CreatedAt = DateTime.Now, CreatedBy = "T", CreatedByWindows = "T" };
+        var a = Order("100", "101"); var c = Order("300", "301");
+        ctx.ProductionOrders.AddRange(a, c);
+        ctx.WorkOperations.AddRange(Op(a, "KA", 1, wp), Op(c, "SW", 1));
+        await ctx.SaveChangesAsync();
+
+        var result = await new WorkOperationRepository(ctx).GetForFaStatusAsync(new[] { "100" });
+
+        result.Should().ContainSingle();
+        var r = result[0];
+        (r.OrderNumber, r.SubOrderNumber, r.OperationNumber, r.ProductionWorkplaceId).Should().Be(("100", "101", "KA", wp.Id));
+        (await new WorkOperationRepository(ctx).GetForFaStatusAsync(Array.Empty<string>())).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetBdeStatusAsync_ErledigtNurFinalUndNichtStorniert_LaeuftNurOffenUndNichtStorniert()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        var po = Order("100", "101");
+        ctx.ProductionOrders.Add(po);
+        var final = Op(po, "A", 1); var stornoFinal = Op(po, "B", 2); var nurMenge = Op(po, "C", 3);
+        var laeuft = Op(po, "D", 4); var pausiert = Op(po, "E", 5); var stornoLaeuft = Op(po, "F", 6); var fremd = Op(po, "G", 7);
+        ctx.WorkOperations.AddRange(final, stornoFinal, nurMenge, laeuft, pausiert, stornoLaeuft, fremd);
+        var bFinal = Booking(final, DateTime.Now); var bStorno = Booking(stornoFinal, DateTime.Now, cancelled: true);
+        var bMenge = Booking(nurMenge, DateTime.Now); var bFremd = Booking(fremd, null);
+        ctx.BdeBookings.AddRange(bFinal, bStorno, bMenge, Booking(laeuft, null), Booking(pausiert, DateTime.Now),
+            Booking(stornoLaeuft, null, cancelled: true), bFremd);
+        await ctx.SaveChangesAsync();
+        BdeBookingQuantity Q(BdeBooking b, bool isFinal) => new()
+            { BdeBookingId = b.Id, BdeOperatorId = 1, IsFinal = isFinal, ReportedAt = DateTime.Now, CreatedAt = DateTime.Now, CreatedBy = "T", CreatedByWindows = "T" };
+        ctx.BdeBookingQuantities.AddRange(Q(bFinal, true), Q(bStorno, true), Q(bMenge, false));
+        await ctx.SaveChangesAsync();
+
+        var ids = new[] { final.Id, stornoFinal.Id, nurMenge.Id, laeuft.Id, pausiert.Id, stornoLaeuft.Id };
+        var status = await new WorkOperationRepository(ctx).GetBdeStatusAsync(ids);
+
+        status.Erledigt.Should().BeEquivalentTo(new[] { final.Id });
+        status.Laeuft.Should().BeEquivalentTo(new[] { laeuft.Id }, "pausiert (EndedAt gesetzt), storniert und nicht angefragte zaehlen nicht");
+    }
+
+    [Fact]
+    public void FaStatusAbfragen_SqlServer_NutzenOpenJson_EinParameter()
+    {
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseSqlServer("Server=nonexistent-host-for-tests;Database=x;TrustServerCertificate=True;Connect Timeout=1")
+            .Options;
+        using var ctx = new ApplicationDbContext(options);
+        var repo = new WorkOperationRepository(ctx);
+
+        var ops = repo.FaStatusQuery(Enumerable.Range(1, 5000).Select(i => i.ToString()).ToList()).ToQueryString();
+        var (erledigt, laeuft) = repo.BdeStatusQueries(Enumerable.Range(1, 5000).ToList());
+
+        foreach (var sql in new[] { ops, erledigt.ToQueryString(), laeuft.ToQueryString() })
+        {
+            sql.Should().Contain("OPENJSON");
+            System.Text.RegularExpressions.Regex.Matches(sql, @"DECLARE @").Count.Should().Be(1);
+        }
+    }
 }

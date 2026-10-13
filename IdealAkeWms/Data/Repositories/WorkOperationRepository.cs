@@ -127,6 +127,47 @@ public class WorkOperationRepository : Repository<WorkOperation>, IWorkOperation
             .Distinct();
     }
 
+    public async Task<List<FaStatusWorkOperation>> GetForFaStatusAsync(IReadOnlyCollection<string> orderNumbers)
+    {
+        if (orderNumbers == null || orderNumbers.Count == 0) return new List<FaStatusWorkOperation>();
+        return await FaStatusQuery(orderNumbers).ToListAsync();
+    }
+
+    // internal fuer den ToQueryString-Test (OPENJSON statt Parameterliste bei Seitengroesse "Alle").
+    internal IQueryable<FaStatusWorkOperation> FaStatusQuery(IReadOnlyCollection<string> orderNumbers)
+    {
+        var set = orderNumbers.ToList();
+        return _dbSet
+            .AsNoTracking()
+            .Where(wo => set.Contains(wo.ProductionOrder.OrderNumber))
+            .Select(wo => new FaStatusWorkOperation(wo.Id, wo.ProductionOrder.OrderNumber, wo.ProductionOrder.SubOrderNumber!,
+                wo.OperationNumber, wo.ProductionWorkplaceId));
+    }
+
+    public async Task<FaBdeStatus> GetBdeStatusAsync(IReadOnlyCollection<int> workOperationIds)
+    {
+        if (workOperationIds == null || workOperationIds.Count == 0)
+            return new FaBdeStatus(new HashSet<int>(), new HashSet<int>());
+        var (erledigt, laeuft) = BdeStatusQueries(workOperationIds);
+        return new FaBdeStatus((await erledigt.ToListAsync()).ToHashSet(), (await laeuft.ToListAsync()).ToHashSet());
+    }
+
+    // Praedikate identisch zum Terminal (BdeApiController: IsFinal && !IsCancelled) bzw. BdeBookingRepository (EndedAt == null).
+    internal (IQueryable<int> Erledigt, IQueryable<int> Laeuft) BdeStatusQueries(IReadOnlyCollection<int> workOperationIds)
+    {
+        var ids = workOperationIds.ToList();
+        var erledigt = _context.BdeBookingQuantities.AsNoTracking()
+            .Where(q => q.IsFinal && !q.BdeBooking.IsCancelled && q.BdeBooking.WorkOperationId != null
+                        && ids.Contains(q.BdeBooking.WorkOperationId.Value))
+            .Select(q => q.BdeBooking.WorkOperationId!.Value)
+            .Distinct();
+        var laeuft = _context.BdeBookings.AsNoTracking()
+            .Where(b => b.EndedAt == null && !b.IsCancelled && b.WorkOperationId != null && ids.Contains(b.WorkOperationId.Value))
+            .Select(b => b.WorkOperationId!.Value)
+            .Distinct();
+        return (erledigt, laeuft);
+    }
+
     public async Task<List<WorkOperation>> GetByOrderNumberWithWorkplaceAsync(string orderNumber)
     {
         return await _dbSet

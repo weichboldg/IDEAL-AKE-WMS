@@ -2,6 +2,13 @@ using IdealAkeWms.Models;
 
 namespace IdealAkeWms.Data.Repositories;
 
+/// <summary>Arbeitsgang fuer den Status im FA-Baum (FA-Struktur Teil 2): nur die Schluessel, die die Zuordnung braucht.</summary>
+public sealed record FaStatusWorkOperation(int Id, string OrderNumber, string SubOrderNumber, string OperationNumber, int? ProductionWorkplaceId);
+
+/// <summary>BDE-Status je Arbeitsgang-Id: erledigt = IsFinal-Menge auf nicht stornierter Buchung (Praedikat wie das Terminal),
+/// laeuft = Buchung mit EndedAt == null und nicht storniert (pausierte haben EndedAt gesetzt, fallstricke §6).</summary>
+public sealed record FaBdeStatus(IReadOnlySet<int> Erledigt, IReadOnlySet<int> Laeuft);
+
 public interface IWorkOperationRepository : IRepository<WorkOperation>
 {
     Task<List<WorkOperation>> GetByProductionOrderIdAsync(int productionOrderId);
@@ -36,4 +43,11 @@ public interface IWorkOperationRepository : IRepository<WorkOperation>
     /// Mit ProductionOrder + ProductionWorkplace, sortiert nach SubOrderNumber, dann Sequence.
     /// </summary>
     Task<List<WorkOperation>> GetByOrderNumberWithWorkplaceAsync(string orderNumber);
+
+    /// <summary>FA-Struktur Teil 2: alle Arbeitsgaenge der uebergebenen HauptFA-Nummern als Projektion — EINE Abfrage je
+    /// Seitenaufbau (Contains → OPENJSON), gleicher Schluessel <c>OrderNumber</c> wie der Existenz-Check.</summary>
+    Task<List<FaStatusWorkOperation>> GetForFaStatusAsync(IReadOnlyCollection<string> orderNumbers);
+
+    /// <summary>FA-Struktur Teil 2: erledigt-/laeuft-Mengen fuer die uebergebenen Arbeitsgang-Ids (zwei Statements, eine Methode).</summary>
+    Task<FaBdeStatus> GetBdeStatusAsync(IReadOnlyCollection<int> workOperationIds);
 }
