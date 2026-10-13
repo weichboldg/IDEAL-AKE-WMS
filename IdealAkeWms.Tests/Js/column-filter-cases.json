@@ -55,5 +55,18 @@
   { "id": "D11 kleiner gleich bis Tagesende", "type": "date", "filter": "<=01.10.2026", "cell": "01.10.2026 23:59 kw40", "match": true },
   { "id": "D12 kurzes Jahr", "type": "date", "filter": ">=1.10.26", "cell": "02.10.2026 kw40", "match": true },
   { "id": "D13 unlesbar ungueltig", "type": "date", "filter": ">=32.10.2026", "cell": "02.10.2026 kw40", "match": true, "invalid": true },
-  { "id": "D14 leer", "type": "date", "filter": "(leer)", "cell": "", "match": true }
+  { "id": "D14 leer", "type": "date", "filter": "(leer)", "cell": "", "match": true },
+  { "id": "T32 leeres genau wirkungslos", "type": "text", "filter": "=", "cell": "x", "match": true },
+  { "id": "N13 kleiner", "type": "number", "filter": "<2", "cell": "1,5", "match": true },
+  { "id": "N14 ODER Semikolon Zahl", "type": "number", "filter": ">10;<2", "cell": "1", "match": true },
+  { "id": "N15 beginnt in Zahl", "type": "number", "filter": "12%", "cell": "12,5", "match": true },
+  { "id": "N16 endet in Zahl", "type": "number", "filter": "%,5", "cell": "12,5", "match": true },
+  { "id": "N17 genau unlesbar vergleicht Text", "type": "number", "filter": "=abc", "cell": "abc", "match": true },
+  { "id": "N18 leer Zahl", "type": "number", "filter": "(leer)", "cell": "", "match": true },
+  { "id": "N19 Vergleich ohne Wert ungueltig", "type": "number", "filter": ">", "cell": "5", "match": true, "invalid": true },
+  { "id": "D15 nicht leer Datum nein", "type": "date", "filter": "!(leer)", "cell": "", "match": false },
+  { "id": "D16 beginnt in Datum", "type": "date", "filter": "15.10%", "cell": "15.10.2026 kw42", "match": true },
+  { "id": "D17 genau unlesbar vergleicht Text", "type": "date", "filter": "=kw42", "cell": "kw42", "match": true },
+  { "id": "D18 Bereich vertauscht Datum", "type": "date", "filter": "31.10.2026...01.10.2026", "cell": "15.10.2026 kw42", "match": true },
+  { "id": "D19 Bereich ein Tag bis Tagesende", "type": "date", "filter": "01.10.2026...01.10.2026", "cell": "01.10.2026 23:59 kw40", "match": true }
 ]

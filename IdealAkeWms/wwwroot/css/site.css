@@ -1384,10 +1384,14 @@ th:hover .col-resize-handle {
    ungueltige Teile als Text unter dem Feld (Bootstrap is-invalid/invalid-feedback, Farbe nie allein). */
 .col-filter-help-wrap { display: flex; gap: 2px; align-items: flex-start; }
 .col-filter-help-wrap > :not(.col-filter-help) { flex: 1; min-width: 0; }
-.col-filter-help { font-size: 0.75rem; line-height: 1.2; padding: 0.2rem 0.45rem; }
+/* QA 2026-10-13: Bootstrap-Standard #6c757d bzw. #dc3545 auf #f8f9fa liegt bei 4,45:1 bzw. 4,3:1 (unter AA 4,5:1 fuer
+   kleine Schrift) -> dunklere Bootstrap-Toene (#495057 ~7,8:1, #b02a37 ~6,2:1). */
+.col-filter-help { font-size: 0.75rem; line-height: 1.2; padding: 0.2rem 0.45rem;
+    --bs-btn-color: #495057; --bs-btn-border-color: #495057; --bs-btn-hover-bg: #495057; --bs-btn-hover-border-color: #495057;
+    --bs-btn-active-bg: #495057; --bs-btn-active-border-color: #495057; }
 .col-filter-help-table th { font-family: var(--bs-font-monospace); white-space: nowrap; font-weight: 600; }
 .col-filter-help-table td, .col-filter-help-table th { padding: 0.15rem 0.4rem; font-size: 0.8rem; }
-.col-filter-feedback { font-size: 0.7rem; font-weight: 400; white-space: normal; }
+.col-filter-feedback { font-size: 0.7rem; font-weight: 400; white-space: normal; color: #b02a37; }
 
 @media (prefers-reduced-motion: reduce) {
     .fa-chevron, .fa-struct-chevron { transition: none !important; }
