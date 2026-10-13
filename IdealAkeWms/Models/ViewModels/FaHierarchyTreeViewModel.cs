@@ -219,6 +219,27 @@ public sealed record FaArbeitsschrittSymbol(string Kuerzel, string? Name)
 {
     /// <summary>Text fuer <c>aria-label</c>/<c>title</c>: „KA – Name", ohne Treffer nur das Kuerzel (kein erfundener Name).</summary>
     public string Beschriftung => Name is null ? Kuerzel : $"{Kuerzel} – {Name}";
+
+    /// <summary>Status aus Teil 2 (v1.55.0); <c>null</c> = neutral wie Teil 1 (BDE global aus oder Werkbank nicht BDE-aktiv).</summary>
+    public FaAgStatus? Status { get; init; }
+
+    /// <summary>Soll-Termin (FE_Termin + Offset), nur gesetzt, wenn ein Bezugstermin existiert.</summary>
+    public DateTime? Soll { get; init; }
+
+    /// <summary>Statusteil des Textes (Spec FA 7); <c>null</c> ohne Status.</summary>
+    public string? StatusText => Status switch
+    {
+        null => null,
+        FaAgStatus.KeinBdeArbeitsgang => "kein BDE-Arbeitsgang",
+        FaAgStatus.Erledigt => "erledigt",
+        FaAgStatus.Laeuft => "läuft",
+        FaAgStatus.LaeuftUeberfaellig => $"läuft, überfällig (Soll {Soll:dd.MM.yyyy})",
+        FaAgStatus.Ueberfaellig => $"überfällig (Soll {Soll:dd.MM.yyyy})",
+        _ => "offen"
+    };
+
+    /// <summary><c>aria-label</c>/<c>title</c>: Teil-1-Beschriftung, ergaenzt um „ – Status“ (Spec FA 7, Abgleich 2026-10-13).</summary>
+    public string AriaLabel => StatusText is null ? Beschriftung : $"{Beschriftung} – {StatusText}";
 }
 
 /// <summary>
