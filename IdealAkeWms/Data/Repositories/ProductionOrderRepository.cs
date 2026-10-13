@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using IdealAkeWms.Services;
 using IdealAkeWms.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -101,14 +102,16 @@ public class ProductionOrderRepository : Repository<ProductionOrder>, IProductio
     {
         IQueryable<ProductionOrder> q = _dbSet.AsNoTracking();
 
+        // Filterkarten-Freitext (Antwort 8 Suchsyntax-Spec, v1.58.0): weiter „enthaelt“ ohne Syntax, aber string.Contains statt
+        // EF.Functions.Like — EF maskiert %/_/[ im Parameter, „A_1“ trifft nicht mehr „AX1“.
         if (!string.IsNullOrWhiteSpace(filterOrderNumber))
             q = hierarchical
-                ? q.Where(o => EF.Functions.Like(o.OrderNumber, $"%{filterOrderNumber}%")
-                            || EF.Functions.Like(o.SubOrderNumber, $"%{filterOrderNumber}%"))
-                : q.Where(o => EF.Functions.Like(o.OrderNumber, $"%{filterOrderNumber}%"));
+                ? q.Where(o => o.OrderNumber.Contains(filterOrderNumber)
+                            || (o.SubOrderNumber != null && o.SubOrderNumber.Contains(filterOrderNumber)))
+                : q.Where(o => o.OrderNumber.Contains(filterOrderNumber));
 
         if (!string.IsNullOrWhiteSpace(filterArticleNumber))
-            q = q.Where(o => o.ArticleNumber != null && EF.Functions.Like(o.ArticleNumber, $"%{filterArticleNumber}%"));
+            q = q.Where(o => o.ArticleNumber != null && o.ArticleNumber.Contains(filterArticleNumber));
 
         if (!string.IsNullOrWhiteSpace(filterCustomer))
         {
@@ -123,16 +126,15 @@ public class ProductionOrderRepository : Repository<ProductionOrder>, IProductio
                 // indexnutzbar, aber eine vorab ermittelte HauptFA-Schluesselliste (IN-Liste) wiegt
                 // den Zusatzaufwand nicht auf — dasselbe Muster steht identisch im Spaltenfilter
                 // (BuildCustomerTokenPredicate).
-                var pattern = $"%{filterCustomer}%";
                 q = q.Where(o =>
-                    (o.Customer != null && EF.Functions.Like(o.Customer, pattern)) ||
+                    (o.Customer != null && o.Customer.Contains(filterCustomer)) ||
                     _context.FaHierarchyOrderInfos.Any(i =>
-                        i.Kunde != null && EF.Functions.Like(i.Kunde, pattern) &&
+                        i.Kunde != null && i.Kunde.Contains(filterCustomer) &&
                         i.HauptFA.ToString() == o.OrderNumber));
             }
             else
             {
-                q = q.Where(o => o.Customer != null && EF.Functions.Like(o.Customer, $"%{filterCustomer}%"));
+                q = q.Where(o => o.Customer != null && o.Customer.Contains(filterCustomer));
             }
         }
 
@@ -143,9 +145,10 @@ public class ProductionOrderRepository : Repository<ProductionOrder>, IProductio
         {
             foreach (var (key, raw) in columnFilters)
             {
-                var (tokens, negate) = Services.ColumnFilterHelper.Parse(raw);
-                if (tokens.Count == 0) continue;
-                q = ApplyLeitstandColumnFilter(q, key, tokens, negate, hierarchical);
+                // Alle SQL-Spalten dieser Liste sind Text (Datum/Zahl filtert der Controller in C#, ColumnFilterTypes.FaListe).
+                var parsed = ColumnFilterSyntax.Parse(raw, ColumnFilterType.Text);
+                if (parsed.IsEmpty) continue;
+                q = ApplyLeitstandColumnFilter(q, key, parsed, hierarchical);
             }
         }
 
@@ -263,82 +266,42 @@ public class ProductionOrderRepository : Repository<ProductionOrder>, IProductio
     }
 
     /// <summary>
-    /// Maps a <c>data-col-key</c> der FA-/Leitstand-Liste auf die entsprechende
-    /// Property von <see cref="ProductionOrder"/> und appliziert OR-/NOT-Tokens.
-    /// Date-Spalten werden bewusst NICHT serverseitig gefiltert
-    /// (clientseitiger Kalender/KW-Picker uebernimmt das auf der aktuellen Seite).
+    /// Maps a <c>data-col-key</c> der FA-/Leitstand-Liste auf die Spalte(n) von <see cref="ProductionOrder"/> und wendet den
+    /// geparsten Filter ueber den zentralen SQL-Bauer an (<see cref="ColumnFilterSql"/>, Spaltenfilter-Suchsyntax v1.58.0):
+    /// beginnt/endet/genau/enthaelt/(leer), Negation, ODER; EF maskiert Platzhalter (kein EF.Functions.Like mehr).
+    /// Date-Spalten werden hier NICHT gefiltert (C#-Postfilter im Controller nach der Termin-Berechnung).
+    /// Unbekannter Key → No-Op (z. B. ein evtl. noch gesendeter alter "matchcode"-SQL-Filter, siehe Controller).
     /// </summary>
     private IQueryable<ProductionOrder> ApplyLeitstandColumnFilter(
-        IQueryable<ProductionOrder> q, string key, List<string> tokens, bool negate, bool hierarchical = false)
+        IQueryable<ProductionOrder> q, string key, ParsedColumnFilter f, bool hierarchical = false)
     {
-        // Pattern: jeder Token wird zu "%token%" — EF Core kann lokale Listen in
-        // .Any(...) zu OR-LIKE-Chains uebersetzen.
-        var patterns = tokens.Select(t => $"%{t}%").ToList();
-
-        return key switch
+        var pred = key switch
         {
             // Im hierarchischen Modus zeigt die order-number-Zelle SubOrderNumber -> der Filter matcht
             // SubOrderNumber ODER OrderNumber (HauptFA bringt die ganze Gruppe, Sub-FA die Zeile).
             "order-number" => hierarchical
-                ? (negate
-                    ? q.Where(o => !patterns.Any(p => EF.Functions.Like(o.OrderNumber, p) || EF.Functions.Like(o.SubOrderNumber, p)))
-                    : q.Where(o => patterns.Any(p => EF.Functions.Like(o.OrderNumber, p) || EF.Functions.Like(o.SubOrderNumber, p))))
-                : (negate
-                    ? q.Where(o => !patterns.Any(p => EF.Functions.Like(o.OrderNumber, p)))
-                    : q.Where(o => patterns.Any(p => EF.Functions.Like(o.OrderNumber, p)))),
-
-            // K1 (Task 7): NUR im hierarchischen Modus zusaetzlich ueber den HauptFA-Kopf
-            // (FaHierarchyOrderInfo.Kunde) matchen, siehe BuildCustomerColumnFilterPredicate.
-            // Bei Master false (AKE, flach) bleibt der Ausdruck bit-identisch der Ur-Fassung
-            // stehen (F4/Fixrunde 1, Punkt a) — dieser Pfad hatte keinen Aenderungsbedarf und
-            // soll kein neues Risiko (z.B. Wegoptimierung der Null-Pruefung unter NOT) erben.
+                ? ColumnFilterSql.Predicate<ProductionOrder>(f, o => o.OrderNumber, o => o.SubOrderNumber)
+                : ColumnFilterSql.Predicate<ProductionOrder>(f, o => o.OrderNumber),
+            // K1 (Task 7): NUR im hierarchischen Modus zusaetzlich ueber den HauptFA-Kopf (FaHierarchyOrderInfo.Kunde).
             "customer" => hierarchical
-                ? q.Where(BuildCustomerColumnFilterPredicate(tokens, negate))
-                : (negate
-                    ? q.Where(o => o.Customer == null || !patterns.Any(p => EF.Functions.Like(o.Customer, p)))
-                    : q.Where(o => o.Customer != null && patterns.Any(p => EF.Functions.Like(o.Customer, p)))),
-
-            "article-number" => negate
-                ? q.Where(o => o.ArticleNumber == null || !patterns.Any(p => EF.Functions.Like(o.ArticleNumber, p)))
-                : q.Where(o => o.ArticleNumber != null && patterns.Any(p => EF.Functions.Like(o.ArticleNumber, p))),
-
-            "description1" => negate
-                ? q.Where(o => o.Description1 == null || !patterns.Any(p => EF.Functions.Like(o.Description1, p)))
-                : q.Where(o => o.Description1 != null && patterns.Any(p => EF.Functions.Like(o.Description1, p))),
-
-            // Matchcode (Task 2, Artikelstamm): der SQL-Case ist entfallen — der Matchcode lebt jetzt
-            // in Article (Equi-Join ueber ArticleNumber, kein FK auf ProductionOrder), eine
-            // korrelierte Subquery ist mit BuildExtraInfoOrContains NICHT baubar (A1: der Helper
-            // castet den Selektor-Body zu MemberExpression, eine Subquery ist ein
-            // MethodCallExpression). Der Matchcode-Spaltenfilter der FA-Liste laeuft seither als
-            // C#-Postfilter ueber ProductionOrdersController.FaListComputedColumnKeys /
-            // MatchFaListComputedFilter (auf dem bereits aus Article befuellten item.Matchcode).
-            // Der Leitstand (PickingLeitstandController) filtert analog ueber memoryFilters /
-            // MatchLeitstandTextFilter. Ein unbekannter Key faellt hier auf "_ => q" (No-Op) —
-            // absichtlich, damit ein evtl. noch gesendeter alter "matchcode"-SQL-Filter nicht wirft.
-
-            "description2" => negate
-                ? q.Where(o => o.Description2 == null || !patterns.Any(p => EF.Functions.Like(o.Description2, p)))
-                : q.Where(o => o.Description2 != null && patterns.Any(p => EF.Functions.Like(o.Description2, p))),
-
-            "workbench" => negate
-                ? q.Where(o => o.ProductionWorkplace == null || !patterns.Any(p => EF.Functions.Like(o.ProductionWorkplace.Name, p)))
-                : q.Where(o => o.ProductionWorkplace != null && patterns.Any(p => EF.Functions.Like(o.ProductionWorkplace.Name, p))),
-
-            // FA-Zusatzinfos (Sage, v1.26.0): Contains-basiert mit Null-Guards —
-            // KEIN EF.Functions.Like (InMemory-Testbarkeit, Spec §5.3). Tokens sind
-            // lowercase (ColumnFilterHelper.Parse), daher ToLower() auf dem Wert.
-            // OR-Kette als Expression-Tree (BdeBookings-Pattern): ein nested
-            // tokens.Any(...)-Lambda auf der nullable Navigation uebersetzt der
-            // InMemory-Provider nicht.
-            "kaeltemittel" => q.Where(BuildExtraInfoOrContains(o => o.ExtraInfo!.Kaeltemittel, tokens, negate)),
-            "ventil" => q.Where(BuildExtraInfoOrContains(o => o.ExtraInfo!.Ventil, tokens, negate)),
-            "ausfuehrung" => q.Where(BuildExtraInfoOrContains(o => o.ExtraInfo!.AusfuehrungEZ, tokens, negate)),
-            "maschine" => q.Where(BuildExtraInfoOrContains(o => o.ExtraInfo!.Maschine, tokens, negate)),
-            "sage-status" => q.Where(BuildExtraInfoOrContains(o => o.ExtraInfo!.SageStatus, tokens, negate)),
-
-            _ => q
+                ? BuildCustomerColumnFilterPredicate(f)
+                : ColumnFilterSql.Predicate<ProductionOrder>(f, o => o.Customer),
+            "article-number" => ColumnFilterSql.Predicate<ProductionOrder>(f, o => o.ArticleNumber),
+            "description1" => ColumnFilterSql.Predicate<ProductionOrder>(f, o => o.Description1),
+            // Matchcode laeuft als C#-Postfilter (Controller, FaListComputedColumnKeys) — hier bewusst kein Case.
+            "description2" => ColumnFilterSql.Predicate<ProductionOrder>(f, o => o.Description2),
+            "workbench" => ColumnFilterSql.Predicate<ProductionOrder>(f, o => o.ProductionWorkplace!.Name),
+            // Antwort 9: „Uebergeordnete Sub-FA“ war filterbar, aber ohne Mapping (fiel still auf No-Op).
+            "parent-sub-order-number" => ColumnFilterSql.Predicate<ProductionOrder>(f, o => o.ParentSubOrderNumber),
+            // FA-Zusatzinfos (Sage, v1.26.0); Null-Guard auf ExtraInfo setzt der Bauer.
+            "kaeltemittel" => ColumnFilterSql.Predicate<ProductionOrder>(f, o => o.ExtraInfo!.Kaeltemittel),
+            "ventil" => ColumnFilterSql.Predicate<ProductionOrder>(f, o => o.ExtraInfo!.Ventil),
+            "ausfuehrung" => ColumnFilterSql.Predicate<ProductionOrder>(f, o => o.ExtraInfo!.AusfuehrungEZ),
+            "maschine" => ColumnFilterSql.Predicate<ProductionOrder>(f, o => o.ExtraInfo!.Maschine),
+            "sage-status" => ColumnFilterSql.Predicate<ProductionOrder>(f, o => o.ExtraInfo!.SageStatus),
+            _ => null
         };
+        return pred == null ? q : q.Where(pred);
     }
 
     /// <summary>
@@ -361,32 +324,24 @@ public class ProductionOrderRepository : Repository<ProductionOrder>, IProductio
     /// SqlServer-<c>ToQueryString()</c>-Test gegen Wegoptimierung der Null-Pruefung abgesichert
     /// (Fixrunde 1, Punkt c).
     /// </summary>
-    private Expression<Func<ProductionOrder, bool>> BuildCustomerColumnFilterPredicate(
-        IReadOnlyList<string> tokens, bool negate)
+    private Expression<Func<ProductionOrder, bool>>? BuildCustomerColumnFilterPredicate(ParsedColumnFilter f)
     {
-        var combined = tokens
-            .Select(BuildCustomerTokenPredicate)
-            .Aggregate(OrElseProductionOrderPredicate);
-
-        return negate
-            ? Expression.Lambda<Func<ProductionOrder, bool>>(Expression.Not(combined.Body), combined.Parameters[0])
-            : combined;
-    }
-
-    /// <summary>Ein Token, ganz normale C#-Lambda-Syntax (Compiler-generierter, EF-uebersetzbarer
-    /// Ausdrucksbaum inkl. sauber korrelierter Subquery) — siehe Klassenkommentar oben. Nur fuer den
-    /// hierarchischen Fall — der Vergleich <c>i.HauptFA.ToString() == o.OrderNumber</c> erzeugt im
-    /// SQL-Server-Provider ein <c>CONVERT</c> im <c>EXISTS</c> und ist damit nicht indexnutzbar; das
-    /// wird bewusst in Kauf genommen, weil derselbe Vergleich ohnehin schon im Freitextpfad
-    /// (<see cref="BuildLeitstandQuery"/>) steht und eine vorab ermittelte HauptFA-Schluesselliste
-    /// (IN-Liste) den Zusatzaufwand (zweite Query, zusaetzlicher Zustand) hier nicht aufwiegt.</summary>
-    private Expression<Func<ProductionOrder, bool>> BuildCustomerTokenPredicate(string token)
-    {
-        var pattern = $"%{token}%";
-        return o => (o.Customer != null && EF.Functions.Like(o.Customer, pattern)) ||
-                    _context.FaHierarchyOrderInfos.Any(i =>
-                        i.Kunde != null && EF.Functions.Like(i.Kunde, pattern) &&
-                        i.HauptFA.ToString() == o.OrderNumber);
+        Expression<Func<ProductionOrder, bool>>? combined = null;
+        foreach (var part in f.Parts)
+        {
+            var value = ColumnFilterSql.ValuePredicate(part);
+            if (value == null) continue;
+            // (leer) trifft nur, wenn Zeile UND alle Kopfzeilen leer sind (Regel 8); sonst Zeile ODER ein Kopf.
+            Expression<Func<ProductionOrder, bool>> template = part.Op == ColumnFilterOp.Empty
+                ? o => ColumnFilterSql.Wert(o.Customer) &&
+                       !_context.FaHierarchyOrderInfos.Any(i => i.HauptFA.ToString() == o.OrderNumber && !ColumnFilterSql.Wert(i.Kunde))
+                : o => ColumnFilterSql.Wert(o.Customer) ||
+                       _context.FaHierarchyOrderInfos.Any(i => ColumnFilterSql.Wert(i.Kunde) && i.HauptFA.ToString() == o.OrderNumber);
+            var token = ColumnFilterSql.Splice(template, value);
+            combined = combined == null ? token : OrElseProductionOrderPredicate(combined, token);
+        }
+        if (combined == null || !f.Negate) return combined;
+        return Expression.Lambda<Func<ProductionOrder, bool>>(Expression.Not(combined.Body), combined.Parameters[0]);
     }
 
     /// <summary>Klassisches PredicateBuilder-Muster: verknuepft zwei separat gebaute Praedikate
@@ -410,54 +365,6 @@ public class ProductionOrderRepository : Repository<ProductionOrder>, IProductio
         }
 
         protected override Expression VisitParameter(ParameterExpression node) => node == _from ? _to : base.VisitParameter(node);
-    }
-
-    /// <summary>
-    /// FA-Zusatzinfos (Sage, v1.26.0): baut fuer ein ExtraInfo-Feld eine OR-Kette
-    /// von <c>value.ToLower().Contains(token)</c>-Calls als Expression-Tree mit
-    /// Null-Guards auf <c>ExtraInfo</c> UND dem Feld selbst.
-    /// Positiv: <c>ExtraInfo != null &amp;&amp; value != null &amp;&amp; (contains t1 || ...)</c>;
-    /// Negation: <c>ExtraInfo == null || value == null || !(contains t1 || ...)</c>
-    /// (leere Zelle matcht NOT — identisch zum Client-Filter).
-    /// KEIN EF.Functions.Like und KEIN nested tokens.Any(...)-Lambda — beides
-    /// scheitert am InMemory-Provider (Pattern aus BdeBookingRepository).
-    /// </summary>
-    private static Expression<Func<ProductionOrder, bool>> BuildExtraInfoOrContains(
-        Expression<Func<ProductionOrder, string?>> selector,
-        IReadOnlyList<string> tokens,
-        bool negate)
-    {
-        var param = selector.Parameters[0];
-        var valueExpr = (MemberExpression)selector.Body;          // o.ExtraInfo.X
-        var extraInfoExpr = valueExpr.Expression!;                // o.ExtraInfo
-
-        var toLowerMethod = typeof(string).GetMethod(nameof(string.ToLower), Type.EmptyTypes)!;
-        var containsMethod = typeof(string).GetMethod(nameof(string.Contains), new[] { typeof(string) })!;
-        var lowered = Expression.Call(valueExpr, toLowerMethod);
-
-        Expression? orChain = null;
-        foreach (var t in tokens)
-        {
-            var call = Expression.Call(lowered, containsMethod, Expression.Constant(t));
-            orChain = orChain == null ? (Expression)call : Expression.OrElse(orChain, call);
-        }
-
-        var nullExtraInfo = Expression.Constant(null, extraInfoExpr.Type);
-        var nullString = Expression.Constant(null, typeof(string));
-
-        Expression body = negate
-            ? Expression.OrElse(
-                Expression.Equal(extraInfoExpr, nullExtraInfo),
-                Expression.OrElse(
-                    Expression.Equal(valueExpr, nullString),
-                    Expression.Not(orChain!)))
-            : Expression.AndAlso(
-                Expression.NotEqual(extraInfoExpr, nullExtraInfo),
-                Expression.AndAlso(
-                    Expression.NotEqual(valueExpr, nullString),
-                    orChain!));
-
-        return Expression.Lambda<Func<ProductionOrder, bool>>(body, param);
     }
 
     public async Task<ProductionOrderExtraInfo?> GetExtraInfoAsync(int productionOrderId)

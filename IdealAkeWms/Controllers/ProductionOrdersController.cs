@@ -346,19 +346,19 @@ public class ProductionOrdersController : Controller
             {
                 foreach (var (key, raw) in dateFilters)
                 {
-                    var (tokens, negate) = ColumnFilterHelper.Parse(raw);
-                    if (tokens.Count == 0) continue;
+                    var parsed = ColumnFilterSyntax.Parse(raw, ColumnFilterType.Date);
+                    if (parsed.IsEmpty) continue;
                     foreach (var g in listGroups)
-                        g.Items = g.Items.Where(it => MatchFaListDateFilter(it, key, tokens, negate)).ToList();
+                        g.Items = g.Items.Where(it => MatchFaListDateFilter(it, key, parsed)).ToList();
                 }
                 // K1-Kopfdaten (Customer/Prio/AbNummer/MontageAbteilung): berechnete Zeilenfelder,
                 // existieren nicht in der DB -- gleicher Mechanismus wie die Datumsspalten.
                 foreach (var (key, raw) in computedFilters)
                 {
-                    var (tokens, negate) = ColumnFilterHelper.Parse(raw);
-                    if (tokens.Count == 0) continue;
+                    var parsed = ColumnFilterSyntax.Parse(raw, FaListType(key));
+                    if (parsed.IsEmpty) continue;
                     foreach (var g in listGroups)
-                        g.Items = g.Items.Where(it => MatchFaListComputedFilter(it, key, tokens, negate)).ToList();
+                        g.Items = g.Items.Where(it => MatchFaListComputedFilter(it, key, parsed)).ToList();
                 }
                 // K1 (Task 7, AK8): Kunde-FREITEXT der Filterkarte -- derselbe Postfilter-Mechanismus
                 // wie der Spaltenfilter oben, aber ohne Token-/Negate-Syntax (einfacher
@@ -429,17 +429,17 @@ public class ProductionOrdersController : Controller
         {
             foreach (var (key, raw) in dateFilters)
             {
-                var (tokens, negate) = ColumnFilterHelper.Parse(raw);
-                if (tokens.Count == 0) continue;
-                viewItems = viewItems.Where(it => MatchFaListDateFilter(it, key, tokens, negate)).ToList();
+                var parsed = ColumnFilterSyntax.Parse(raw, ColumnFilterType.Date);
+                if (parsed.IsEmpty) continue;
+                viewItems = viewItems.Where(it => MatchFaListDateFilter(it, key, parsed)).ToList();
             }
             // "matchcode" (Task 2): einziger FaListComputedColumnKeys-Eintrag, der im Flachmodus
             // (AKE) tatsaechlich etwas filtert -- siehe hasMatchcodeFilter oben.
             if (hasMatchcodeFilter)
             {
-                var (tokens, negate) = ColumnFilterHelper.Parse(computedFilters["matchcode"]);
-                if (tokens.Count > 0)
-                    viewItems = viewItems.Where(it => MatchFaListComputedFilter(it, "matchcode", tokens, negate)).ToList();
+                var parsed = ColumnFilterSyntax.Parse(computedFilters["matchcode"], ColumnFilterType.Text);
+                if (!parsed.IsEmpty)
+                    viewItems = viewItems.Where(it => MatchFaListComputedFilter(it, "matchcode", parsed)).ToList();
             }
             finalTotalCount = viewItems.Count;
             viewItems = viewItems.Skip((page - 1) * effectivePageSize).Take(effectivePageSize).ToList();
@@ -503,8 +503,11 @@ public class ProductionOrdersController : Controller
         return $"{d:dd.MM.yyyy} KW{kw}".ToLowerInvariant();
     }
 
-    private static bool MatchFaListDateFilter(
-        ProductionOrderListItem item, string key, List<string> tokens, bool negate)
+    // Spaltenfilter-Suchsyntax (v1.58.0): Typ je Key aus ColumnFilterTypes.FaListe (Datum/Zahl), sonst Text.
+    private static ColumnFilterType FaListType(string key)
+        => ColumnFilterTypes.FaListe.TryGetValue(key, out var t) ? t : ColumnFilterType.Text;
+
+    internal static bool MatchFaListDateFilter(ProductionOrderListItem item, string key, ParsedColumnFilter filter)
     {
         var text = key switch
         {
@@ -516,15 +519,14 @@ public class ProductionOrdersController : Controller
             "konstruktions-termin" => FormatDateForFilter(item.KonstruktionsTermin),
             _ => string.Empty
         };
-        var hasMatch = tokens.Any(t => text.Contains(t));
-        return negate ? !hasMatch : hasMatch;
+        // Vergleich/Bereich auf dem Datum (tageweise), „enthaelt“/% auf "dd.MM.yyyy kwNN" — kw42 und 10.2026 wie bisher.
+        return ColumnFilterSyntax.Matches(text, filter, ColumnFilterType.Date);
     }
 
     // ---------------------------------------------------------------------
     // K1-Gruppenkopf-Spaltenfilter (server-seitig, nach Anreicherung aus FaHierarchyOrderInfo)
     // ---------------------------------------------------------------------
-    private static bool MatchFaListComputedFilter(
-        ProductionOrderListItem item, string key, List<string> tokens, bool negate)
+    internal static bool MatchFaListComputedFilter(ProductionOrderListItem item, string key, ParsedColumnFilter filter)
     {
         var text = key switch
         {
@@ -535,11 +537,9 @@ public class ProductionOrdersController : Controller
             "matchcode" => item.Matchcode,
             _ => null
         };
-        // Leerer Wert matcht nie (string.Empty.Contains("x") == false) -- bei Kombigeraeten sind
-        // diese Felder absichtlich NULL; ein Filter darauf liefert dann korrekt keine Treffer.
-        text = (text ?? string.Empty).ToLowerInvariant();
-        var hasMatch = tokens.Any(t => text.Contains(t));
-        return negate ? !hasMatch : hasMatch;
+        // Leerer Wert matcht kein „enthaelt“ -- bei Kombigeraeten sind diese Felder absichtlich NULL; ein Filter darauf
+        // liefert korrekt keine Treffer, „(leer)“ findet sie. Prio ist Zahl (>2, 1...3, =1).
+        return ColumnFilterSyntax.Matches(text, filter, FaListType(key));
     }
 
     // ToggleCoatingDone wurde ersetzt durch /api/productionorders/toggle-field

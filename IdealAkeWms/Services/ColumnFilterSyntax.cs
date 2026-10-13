@@ -81,12 +81,27 @@ public static class ColumnFilterSql
         {
             var pred = ValuePredicate(part);
             if (pred == null) continue;
-            var perColumn = bodies.Select(b => Replace(pred.Body, pred.Parameters[0], b));
+            var empty = part.Op == ColumnFilterOp.Empty;
+            var perColumn = bodies.Select(b => Guarded(b, Replace(pred.Body, pred.Parameters[0], b), empty));
             var partExpr = part.Op == ColumnFilterOp.Empty ? perColumn.Aggregate(Expression.AndAlso) : perColumn.Aggregate(Expression.OrElse);
             chain = chain == null ? partExpr : Expression.OrElse(chain, partExpr);
         }
         if (chain == null) return null;
         return Expression.Lambda<Func<T, bool>>(filter.Negate ? Expression.Not(chain) : chain, param);
+    }
+
+    /// <summary>Null-Guards fuer Zwischenglieder einer Navigationskette (<c>o.ProductionWorkplace.Name</c>,
+    /// <c>o.ExtraInfo.Ventil</c>): fehlt das Zwischenglied, gilt der Wert als leer — unter EF-InMemory wie in SQL gleich.</summary>
+    private static Expression Guarded(Expression selectorBody, Expression predicate, bool empty)
+    {
+        var guards = new List<Expression>();
+        for (var e = (selectorBody as MemberExpression)?.Expression; e is MemberExpression m; e = m.Expression)
+            if (!m.Type.IsValueType) guards.Add(m);
+        foreach (var g in guards)
+            predicate = empty
+                ? Expression.OrElse(Expression.Equal(g, Expression.Constant(null, g.Type)), predicate)
+                : Expression.AndAlso(Expression.NotEqual(g, Expression.Constant(null, g.Type)), predicate);
+        return predicate;
     }
 
     /// <summary>Setzt das Teil-Praedikat an jeder Stelle <c>Wert(x)</c> der Vorlage ein (Compiler-Lambdas bleiben erhalten, z. B.

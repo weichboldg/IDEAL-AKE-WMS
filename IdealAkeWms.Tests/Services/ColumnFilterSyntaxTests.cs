@@ -118,3 +118,35 @@ public class ColumnFilterSyntaxTests
         }
     }
 }
+
+/// <summary>FA-Liste, C#-Postfilter (M1): Datumsspalten inkl. KO-Termin und Prio als Zahl (AK 2, 3).</summary>
+public class FaListePostfilterSyntaxTests
+{
+    private static ParsedColumnFilter D(string f) => ColumnFilterSyntax.Parse(f, ColumnFilterType.Date);
+    private static ParsedColumnFilter N(string f) => ColumnFilterSyntax.Parse(f, ColumnFilterType.Number);
+
+    [Fact]
+    public void Datum_VergleichBereichUndKwWieBisher_AK2()
+    {
+        var item = new IdealAkeWms.Models.ViewModels.ProductionOrderListItem
+        {
+            ProductionDate = new DateTime(2026, 10, 15), KonstruktionsTermin = new DateTime(2026, 9, 30)
+        };
+        IdealAkeWms.Controllers.ProductionOrdersController.MatchFaListDateFilter(item, "production-date", D(">=01.10.2026")).Should().BeTrue();
+        IdealAkeWms.Controllers.ProductionOrdersController.MatchFaListDateFilter(item, "production-date", D("01.10.2026...31.10.2026")).Should().BeTrue();
+        IdealAkeWms.Controllers.ProductionOrdersController.MatchFaListDateFilter(item, "konstruktions-termin", D("<01.10.2026")).Should().BeTrue();
+        IdealAkeWms.Controllers.ProductionOrdersController.MatchFaListDateFilter(item, "production-date", D("kw42")).Should().BeTrue();
+        IdealAkeWms.Controllers.ProductionOrdersController.MatchFaListDateFilter(item, "production-date", D("10.2026")).Should().BeTrue();
+        IdealAkeWms.Controllers.ProductionOrdersController.MatchFaListDateFilter(item, "delivery-date", D("(leer)")).Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData(">2", 3, true)]
+    [InlineData(">2", 2, false)]
+    [InlineData("1...3", 3, true)]
+    [InlineData("=1", 10, false)]
+    [InlineData("=1", 1, true)]
+    public void Prio_Numerisch_AK3(string filter, int prio, bool erwartet)
+        => IdealAkeWms.Controllers.ProductionOrdersController.MatchFaListComputedFilter(
+            new IdealAkeWms.Models.ViewModels.ProductionOrderListItem { Prio = prio }, "prio", N(filter)).Should().Be(erwartet);
+}

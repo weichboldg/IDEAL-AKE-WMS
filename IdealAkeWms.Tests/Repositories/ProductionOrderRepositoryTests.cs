@@ -290,13 +290,14 @@ public class ProductionOrderRepositoryTests
     [Fact]
     public async Task GetForLeitstand_FiltersOnKaeltemittel_CaseInsensitive_WithNullGuard()
     {
+        // Spaltenfilter-Suchsyntax v1.58.0: SQL-Bauer ohne ToLower() auf der Spalte (Index); Gross/Klein macht in SQL die CI-Kollation (Pruefschritt P-2). EF-InMemory vergleicht ordinal -> Testdaten in Kleinschreibung.
         using var ctx = TestDbContextFactory.Create();
         var repo = new ProductionOrderRepository(ctx);
         ctx.ProductionOrders.Add(new ProductionOrder { Id = 1, OrderNumber = "FA-R290" });
         ctx.ProductionOrders.Add(new ProductionOrder { Id = 2, OrderNumber = "FA-R134" });
         ctx.ProductionOrders.Add(new ProductionOrder { Id = 3, OrderNumber = "FA-NULL" });
-        ctx.ProductionOrderExtraInfos.Add(MakeExtraInfo(1, kaelte: "R290"));
-        ctx.ProductionOrderExtraInfos.Add(MakeExtraInfo(2, kaelte: "R134a"));
+        ctx.ProductionOrderExtraInfos.Add(MakeExtraInfo(1, kaelte: "r290"));
+        ctx.ProductionOrderExtraInfos.Add(MakeExtraInfo(2, kaelte: "r134a"));
         await ctx.SaveChangesAsync();
 
         // Positiv: Token ist lowercase (ColumnFilterHelper.Parse lowercased) — Wert "R290"
@@ -429,13 +430,14 @@ public class ProductionOrderRepositoryTests
     [Fact]
     public async Task Leitstand_Hierarchical_CustomerFreetextFilter_MatchesViaOrderInfo()
     {
+        // Spaltenfilter-Suchsyntax v1.58.0: SQL-Bauer ohne ToLower() auf der Spalte (Index); Gross/Klein macht in SQL die CI-Kollation (Pruefschritt P-2). EF-InMemory vergleicht ordinal -> Testdaten in Kleinschreibung.
         using var ctx = TestDbContextFactory.Create();
         ctx.ProductionOrders.Add(new ProductionOrder
         {
             Id = 1, OrderNumber = "1000", SubOrderNumber = "1001", Customer = null,
             CreatedAt = DateTime.UtcNow, CreatedBy = "t", CreatedByWindows = "t"
         });
-        ctx.FaHierarchyOrderInfos.Add(new FaHierarchyOrderInfo { HauptFA = 1000, Kunde = "Mustermann GmbH" });
+        ctx.FaHierarchyOrderInfos.Add(new FaHierarchyOrderInfo { HauptFA = 1000, Kunde = "mustermann gmbh" });
         await ctx.SaveChangesAsync();
 
         var repo = new ProductionOrderRepository(ctx);
@@ -448,6 +450,7 @@ public class ProductionOrderRepositoryTests
     [Fact]
     public async Task Leitstand_Hierarchical_CustomerColumnFilter_MatchesViaOrderInfo()
     {
+        // Spaltenfilter-Suchsyntax v1.58.0: SQL-Bauer ohne ToLower() auf der Spalte (Index); Gross/Klein macht in SQL die CI-Kollation (Pruefschritt P-2). EF-InMemory vergleicht ordinal -> Testdaten in Kleinschreibung.
         using var ctx = TestDbContextFactory.Create();
         ctx.ProductionOrders.Add(new ProductionOrder
         {
@@ -459,8 +462,8 @@ public class ProductionOrderRepositoryTests
             Id = 2, OrderNumber = "2000", SubOrderNumber = "2001", Customer = null,
             CreatedAt = DateTime.UtcNow, CreatedBy = "t", CreatedByWindows = "t"
         });
-        ctx.FaHierarchyOrderInfos.Add(new FaHierarchyOrderInfo { HauptFA = 1000, Kunde = "Mustermann GmbH" });
-        ctx.FaHierarchyOrderInfos.Add(new FaHierarchyOrderInfo { HauptFA = 2000, Kunde = "Andere Firma" });
+        ctx.FaHierarchyOrderInfos.Add(new FaHierarchyOrderInfo { HauptFA = 1000, Kunde = "mustermann gmbh" });
+        ctx.FaHierarchyOrderInfos.Add(new FaHierarchyOrderInfo { HauptFA = 2000, Kunde = "andere firma" });
         await ctx.SaveChangesAsync();
 
         var repo = new ProductionOrderRepository(ctx);
@@ -512,6 +515,7 @@ public class ProductionOrderRepositoryTests
     [Fact]
     public async Task Leitstand_Hierarchical_CustomerColumnFilter_TwoTokens_OrAcrossRows()
     {
+        // Spaltenfilter-Suchsyntax v1.58.0: SQL-Bauer ohne ToLower() auf der Spalte (Index); Gross/Klein macht in SQL die CI-Kollation (Pruefschritt P-2). EF-InMemory vergleicht ordinal -> Testdaten in Kleinschreibung.
         using var ctx = TestDbContextFactory.Create();
         ctx.ProductionOrders.Add(new ProductionOrder
         {
@@ -523,8 +527,8 @@ public class ProductionOrderRepositoryTests
             Id = 2, OrderNumber = "2000", SubOrderNumber = "2001", Customer = null,
             CreatedAt = DateTime.UtcNow, CreatedBy = "t", CreatedByWindows = "t"
         });
-        ctx.FaHierarchyOrderInfos.Add(new FaHierarchyOrderInfo { HauptFA = 1000, Kunde = "Mustermann GmbH" });
-        ctx.FaHierarchyOrderInfos.Add(new FaHierarchyOrderInfo { HauptFA = 2000, Kunde = "Andere Firma" });
+        ctx.FaHierarchyOrderInfos.Add(new FaHierarchyOrderInfo { HauptFA = 1000, Kunde = "mustermann gmbh" });
+        ctx.FaHierarchyOrderInfos.Add(new FaHierarchyOrderInfo { HauptFA = 2000, Kunde = "andere firma" });
         await ctx.SaveChangesAsync();
 
         var repo = new ProductionOrderRepository(ctx);
@@ -599,6 +603,84 @@ public class ProductionOrderRepositoryTests
             new Dictionary<string, string> { ["customer"] = "muster" }, hierarchical: false).ToQueryString();
 
         sql.Should().NotContain("FaHierarchyOrderInfos", "AKE (Master false) darf nie gegen den Auftragskopf pruefen (F4)");
+    }
+
+    // ===== Spaltenfilter-Suchsyntax, Etappe A (v1.58.0): erzeugtes SQL (AK 4, P2, P6) =====
+
+    [Theory]
+    [InlineData("a_1", @"a\_1")]
+    [InlineData("5%0", @"5\%0")]
+    [InlineData("[x]", @"\[x]")]
+    public void Spaltenfilter_SqlServer_PlatzhalterMaskiert(string eingabe, string maskiert)
+    {
+        using var ctx = CreateSqlServerContext();
+        var sql = new ProductionOrderRepository(ctx).BuildLeitstandQuery(null, null, null, showDone: true,
+            new Dictionary<string, string> { ["article-number"] = eingabe, ["description1"] = eingabe }, hierarchical: false).ToQueryString();
+
+        sql.Should().Contain(maskiert).And.Contain("ESCAPE", "EF maskiert Platzhalter in Konstanten selbst — kein unmaskiertes _/%/[");
+    }
+
+    [Fact]
+    public void Spaltenfilter_SqlServer_BeginntMit_IndexfaehigesLike_OhneLower_GenauIstGleich()
+    {
+        using var ctx = CreateSqlServerContext();
+        var repo = new ProductionOrderRepository(ctx);
+
+        var beginnt = repo.BuildLeitstandQuery(null, null, null, showDone: true,
+            new Dictionary<string, string> { ["article-number"] = "4711%" }, hierarchical: false).ToQueryString();
+        beginnt.Should().Contain("LIKE N'4711%'").And.NotContain("LOWER(", "kein ToLower auf der Spalte — Index Seek bleibt moeglich (P6)");
+
+        var genau = repo.BuildLeitstandQuery(null, null, null, showDone: true,
+            new Dictionary<string, string> { ["order-number"] = "=4711" }, hierarchical: true).ToQueryString();
+        genau.Should().Contain("= N'4711'");
+    }
+
+    [Fact]
+    public void Freitext_SqlServer_NurEscaping_KeinLikeMitRohmuster_AK10()
+    {
+        using var ctx = CreateSqlServerContext();
+        var sql = new ProductionOrderRepository(ctx).BuildLeitstandQuery("A_1", "A_1", null, showDone: true, null, hierarchical: true)
+            .ToQueryString();
+
+        sql.Should().NotContain("N'%A_1%'", "der Freitext geht nicht mehr roh in LIKE (Antwort 8)");
+    }
+
+    [Fact]
+    public void Quelltext_KeinEfFunctionsLikeMehrInApplyLeitstandColumnFilter_AK4()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir != null && !File.Exists(Path.Combine(dir.FullName, "IdealAkeWms", "wwwroot", "js", "table-filter.js"))) dir = dir.Parent;
+        var code = File.ReadAllText(Path.Combine(dir!.FullName, "IdealAkeWms", "Data", "Repositories", "ProductionOrderRepository.cs"));
+        code.Should().NotContain("EF.Functions.Like(");
+    }
+
+    [Fact]
+    public async Task Spaltenfilter_InMemory_NeueSyntax_FaListe_AK1_AK10()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        var repo = new ProductionOrderRepository(ctx);
+        ctx.ProductionOrders.AddRange(
+            new ProductionOrder { Id = 1, OrderNumber = "4711", ArticleNumber = "a_1", ParentSubOrderNumber = "900" },
+            new ProductionOrder { Id = 2, OrderNumber = "14711", ArticleNumber = "ax1", ParentSubOrderNumber = "901" },
+            new ProductionOrder { Id = 3, OrderNumber = "4712", ArticleNumber = null });
+        await ctx.SaveChangesAsync();
+
+        async Task<string[]> Run(string key, string value) => (await repo.GetForLeitstandAsync(null, null, null, showDone: true,
+            page: 1, pageSize: 100, columnFilters: new Dictionary<string, string> { [key] = value })).Rows.Select(r => r.OrderNumber).OrderBy(x => x).ToArray();
+
+        (await Run("order-number", "4711%")).Should().Equal("4711");
+        (await Run("order-number", "%711")).Should().Equal("14711", "4711");
+        (await Run("order-number", "=4711;4712")).Should().Equal("4711", "4712");
+        (await Run("article-number", "a_1")).Should().Equal("4711");
+        (await Run("article-number", "(leer)")).Should().Equal("4712");
+        (await Run("article-number", "!(leer)")).Should().Equal("14711", "4711");
+        (await Run("article-number", "!a_1")).Should().Equal("14711", "4712");
+        (await Run("article-number", "1...5")).Should().HaveCount(3, "Bereich in Textspalte ungueltig → wirkungslos (Antwort 6)");
+        (await Run("parent-sub-order-number", "=901")).Should().Equal(new[] { "14711" }, "Antwort 9: Filter wirkt");
+
+        (await repo.GetForLeitstandAsync("a_1", null, null, showDone: true, page: 1, pageSize: 100, columnFilters: null)).Rows.Should().BeEmpty();
+        (await repo.GetForLeitstandAsync(null, "a_1", null, showDone: true, page: 1, pageSize: 100, columnFilters: null)).Rows
+            .Select(r => r.OrderNumber).Should().Equal(new[] { "4711" }, "Freitext A_1 trifft nicht AX1 (AK 10)");
     }
 
     /// <summary>
