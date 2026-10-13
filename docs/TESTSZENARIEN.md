@@ -9815,8 +9815,47 @@ sichtbar/eigene ausgeblendet, Termin + überfällig aus ProductionDate + Stammda
   BDE-aktiv → leer; Werkbank ohne offene Arbeitsgänge → „Keine offenen Arbeitsgänge an dieser Werkbank.“; Auftragstext mit
   `<b>x</b>` → als Text sichtbar.
 
+## TS-91 — Spaltenfilter-Suchsyntax (Epic, v1.58.0 ff.)
+
+Spec: `2026-09-23-suchsyntax-spaltenfilter-erweitern-spec` (Epic, Etappe A + B). Grammatik: `7%` beginnt, `%7` endet, `=x` genau,
+`;` oder (Text auch `,`), `!` nicht (alle Teile), `(leer)`; Zahl/Datum zusätzlich `>`, `>=`, `<`, `<=`, `a...b`.
+**Vor dem Deploy:** P-1 (gespeicherte Standardfilter, auf AKE **und** IDEAL), P-2 Kollation
+`SELECT DATABASEPROPERTYEX('IDEAL_AKE_WMS', 'Collation');` → erwartet `…_CI_…` (sonst unterscheiden die SQL-Wege Groß/Klein —
+melden), P-3 Server-Kultur (Zahl mit Nachkommastellen zeigt `2,5`, nicht `2.5`). Automatisiert: `ColumnFilterSyntaxTests`
+(gemeinsame Tabelle `IdealAkeWms.Tests/Js/column-filter-cases.json`: C#-Auswerter, SQL-Bauer, Node-Lauf des JS-Kerns),
+`ProductionOrderRepositoryTests` (SQL per `ToQueryString`: ESCAPE, `LIKE N'4711%'` ohne `LOWER`, Freitext, InMemory-Syntax),
+`FaListePostfilterSyntaxTests`, Quelltext-Wächter.
+
+### TS-91.A — Etappe A: Kern, Hilfe, Referenzliste FA-Liste (v1.58.0)
+
+**Vorbedingung:** Testsystem mit IDEAL-Daten, Master `ProduktionsauftragHierarchisch` an; zusätzlich ein Lauf mit Master aus
+(AKE-Flachmodus).
+
+- **TS-91.A1 — FA-Liste Text (AK 1).** Spaltenfilter + ENTER: FA-Nr. `4711%`, `%-1`, `=<eine FA>`, `<FA1>;<FA2>`,
+  `!<FA1>;<FA2>`; Kunde/Matchcode/Artikel `(leer)` und `!(leer)`. **Erwartet:** Treffer plausibel, „von N“ der Paginierung
+  stimmt, Seitenwechsel behält den Filter.
+- **TS-91.A2 — FA-Liste Datum/Zahl (AK 2, 3).** Produktionsdatum `>=01.10.2026`, `01.10.2026...31.10.2026`, `<01.10.2026`;
+  KO-Termin ebenso; `kw42`, `10.2026` und Kalender-Klick wie bisher; `kw41;kw42` = beide Wochen, `kw41,kw42` = keine Treffer.
+  Prio `>2`, `1...3`, `=1`.
+- **TS-91.A3 — Escaping (AK 4, 10).** Spaltenfilter Artikelnummer `A_1` trifft nicht `AX1`; Filterkarte FA-Nr. bzw.
+  Artikelnummer `A_1` ebenso nicht. Bezeichnung mit `%` im Inneren (`5%0`) sucht das Zeichen.
+- **TS-91.A4 — Ungültig (AK 7, Antwort 6).** Artikelnummer `1...5` → Feld rot, darunter „1...5: Bereich nur in Zahl- und
+  Datumsspalten — ignoriert“, Liste ungefiltert; ENTER → nach dem Neuladen aus der URL weiterhin rot. Prio `>abc` → „Zahl nicht
+  lesbar“. `>5;4711` in FA-Nr.: rot, aber `4711` wirkt.
+- **TS-91.A5 — Client/Server gleich (AK 6).** Lager › Eingehende Listen › Details (Client-Filter): Bezeichnung `=x`, `a;b`,
+  `(leer)` setzen, dann Drucken → Druck zeigt dieselben Positionen.
+- **TS-91.A6 — Hilfe (AK 8, 9).** Tab bis „?“ (erste Filterzelle), Enter/Leertaste → Popover „Filter-Syntax“, Escape schließt;
+  Screenreader liest am Filterfeld den Kurztext (aria-describedby); Kontrast der Tabelle/Hinweise WCAG AA. Hilfeseite
+  „Filter-Syntax (seit v1.58.0)“ inkl. Hinweis `kw41;kw42`.
+- **TS-91.A7 — Mitgeschaltete Listen (Antwort 4).** Eine Liste mit Server-Filter über `Apply` (z. B. Stammdaten › Lagerplätze)
+  und eine Client-Liste (z. B. Beschichtungsauftrag-Detail, Positionen): `=`, `;`, `%`, `(leer)` wirken; Zahl-/Datumsspalten
+  dort zählen bis Etappe B als Text (`>5` → rot, ignoriert).
+- **TS-91.A8 — Negativ / unverändert.** Alte Eingaben `960,886` und `!960` in Textspalten liefern dasselbe wie vor der
+  Änderung; Leitstand: SQL-Spalten (FA-Nr., Kunde, Artikel) verstehen die neue Syntax, seine C#-Spalten (VK–VA, Termine) noch
+  die alte (Zwischenzustand bis Etappe B, erwartet).
+
 ---
 
 *Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) + Teil 6 (Standorteinstellungen, v1.34.0) + BOM-Guard hierarchisch (2026-08-18, abgelöst) + FA-Liste-Hierarchie (v1.35.0) + BOM-Bridge (v1.36.0) + Materialisierung fachliche Felder K1/K2 (v1.37.0) + Skopierung der Tabellen-Selektoren (TS-72) + FA-Liste ausgebaut: Matchcode, Kopfdaten je Zeile, HauptFA-Zeile, Freigabe-Kaskade (v1.38.0, TS-73) + PDF-Erzeugung für FaHierarchy-Druckdokumente (v1.39.0, TS-74) + Matchcode im Artikelstamm (v1.40.0, TS-75) + FA-Arbeitsgang-Erkennung aus der Struktur (v1.41.0, TS-76, ersetzt durch TS-77) + Arbeitsgänge (WorkOperation) aus der Struktur + Werkbank-Anlage aus Sage (v1.44.0, TS-77) + Arbeitsgänge je (Sub-)FA im FA-Struktur-Modal (v1.45.0, TS-78) + Kommissionierung nur am HauptFA
-(v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80) + Beschichtungsauftrag Summiert als Standard (v1.48.0, TS-81) + Briefkopf Beschichtungsauftrag (v1.49.0, TS-82) + Beschichtungsauftrag als eigenes Objekt (v1.50.0, TS-83) + Beschichtungsaufträge bedienen (v1.51.0, TS-84) + Arbeitsgänge als Symbole im FA-Baum (v1.52.0, TS-85) + CSV-Export für alle Tabellen (v1.53.0, TS-86) + Arbeitsgang-Stammdaten (v1.54.0, TS-87) + Status je Arbeitsgang-Kürzel im FA-Baum (v1.55.0, TS-88) + Menü Beschichtung + Kurzanleitungen (v1.56.0, TS-89) + BDE-Terminal mit Arbeitsgang-Status (v1.57.0, TS-90)*
+(v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80) + Beschichtungsauftrag Summiert als Standard (v1.48.0, TS-81) + Briefkopf Beschichtungsauftrag (v1.49.0, TS-82) + Beschichtungsauftrag als eigenes Objekt (v1.50.0, TS-83) + Beschichtungsaufträge bedienen (v1.51.0, TS-84) + Arbeitsgänge als Symbole im FA-Baum (v1.52.0, TS-85) + CSV-Export für alle Tabellen (v1.53.0, TS-86) + Arbeitsgang-Stammdaten (v1.54.0, TS-87) + Status je Arbeitsgang-Kürzel im FA-Baum (v1.55.0, TS-88) + Menü Beschichtung + Kurzanleitungen (v1.56.0, TS-89) + BDE-Terminal mit Arbeitsgang-Status (v1.57.0, TS-90) + Spaltenfilter-Suchsyntax Etappe A (v1.58.0, TS-91.A)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*

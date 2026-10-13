@@ -200,15 +200,34 @@
                         (z.&nbsp;B. <code>KW24</code>) wirken quer ueber Seiten.
                     </dd>
 
-                    <dt>Filter-Mini-Syntax</dt>
+                    <dt>Filter-Syntax (seit v1.58.0)</dt>
                     <dd>
-                        <ul class="mt-1 mb-0">
-                            <li><code>960</code> &rarr; enthaelt &bdquo;960&ldquo;</li>
-                            <li><code>960,886</code> &rarr; ODER-Suche (enthaelt &bdquo;960&ldquo; oder &bdquo;886&ldquo;)</li>
-                            <li><code>!960</code> &rarr; NICHT enthaelt &bdquo;960&ldquo;</li>
-                            <li><code>!960,886</code> &rarr; weder 960 noch 886</li>
-                            <li><code>KW24</code> in Datumsspalten &rarr; alle Termine in Kalenderwoche 24</li>
+                        In jedes Filterfeld der Kopfzeile kann man mehr als nur einen Suchbegriff schreiben. Der Knopf
+                        <strong>?</strong> in der Filterzeile zeigt die Kurzfassung. Gross-/Kleinschreibung zaehlt nicht.
+                        <ul class="mt-1 mb-1">
+                            <li><code>960</code> &rarr; enthaelt &bdquo;960&ldquo; (wie bisher)</li>
+                            <li><code>4711%</code> &rarr; beginnt mit &bdquo;4711&ldquo; &middot; <code>%-1</code> &rarr; endet mit &bdquo;-1&ldquo;</li>
+                            <li><code>=KA</code> &rarr; genau &bdquo;KA&ldquo; (trifft nicht &bdquo;KA2&ldquo;)</li>
+                            <li><code>KA;SW</code> &rarr; KA oder SW &middot; in Textspalten geht auch <code>KA,SW</code></li>
+                            <li><code>!KA;SW</code> &rarr; weder KA noch SW (das <code>!</code> am Anfang gilt fuer alle Teile;
+                                leere Felder bleiben dabei sichtbar)</li>
+                            <li><code>(leer)</code> &rarr; Feld ist leer &middot; <code>!(leer)</code> &rarr; Feld ist nicht leer</li>
+                            <li><strong>Zahl- und Datumsspalten:</strong> <code>&gt;2</code>, <code>&gt;=01.10.2026</code>,
+                                <code>&lt;01.10.2026</code>, <code>&lt;=5</code> und <code>1...3</code> bzw.
+                                <code>01.10.2026...31.10.2026</code> (von&ndash;bis, beide Grenzen inklusive). Datum als TT.MM.JJJJ,
+                                Zahl mit Komma als Dezimalzeichen (<code>1.234,5</code>). <code>=1</code> heisst dort &bdquo;gleich 1&ldquo;.</li>
+                            <li><code>KW42</code> oder <code>10.2026</code> in Datumsspalten &rarr; wie bisher alle Termine der
+                                Kalenderwoche bzw. des Monats.</li>
+                            <li><strong>Achtung:</strong> In Zahl- und Datumsspalten ist das Komma ein Dezimalzeichen. &bdquo;Oder&ldquo;
+                                schreibt man dort mit Semikolon: <code>kw41;kw42</code> (nicht mehr <code>kw41,kw42</code>).</li>
+                            <li><strong>Rot umrandet:</strong> ein Teil passt nicht zur Spalte (z.&nbsp;B. <code>1...5</code> in einer
+                                Textspalte oder ein unlesbares Datum). Darunter steht, was nicht stimmt; dieser Teil wird ignoriert,
+                                die uebrigen wirken.</li>
+                            <li>Zeichen wie <code>_</code> oder <code>[</code> werden als normale Zeichen gesucht.
+                                <code>%</code> wirkt nur am Anfang oder Ende.</li>
                         </ul>
+                        Vergleiche und von&ndash;bis wirken derzeit in der Fertigungsauftrags-Liste (Termine, Prio); in den
+                        uebrigen Listen gelten Zahl- und Datumsspalten bis zum naechsten Ausbau noch als Text.
                     </dd>
 
                     <dt>Andere Listen</dt>

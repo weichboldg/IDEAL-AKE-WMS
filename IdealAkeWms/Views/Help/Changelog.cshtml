@@ -9,6 +9,27 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.58.0</strong> <span class="text-white-50 ms-2">13.10.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>Spaltenfilter: mehr Suchmoeglichkeiten</h6>
+                <ul>
+                    <li>Neu in jedem Filterfeld: <code>4711%</code> beginnt mit, <code>%-1</code> endet mit, <code>=KA</code> genau,
+                        <code>KA;SW</code> oder, <code>(leer)</code> / <code>!(leer)</code>. Der Knopf <strong>?</strong> in der
+                        Filterzeile zeigt die Kurzfassung, die Hilfe die ganze Beschreibung.</li>
+                    <li>Fertigungsauftrags-Liste: Termine und Prio mit <code>&gt;</code>, <code>&lt;</code>, <code>&gt;=</code>,
+                        <code>&lt;=</code> und von&ndash;bis (<code>01.10.2026...31.10.2026</code>); der Filter
+                        &bdquo;Uebergeordnete Sub-FA&ldquo; wirkt jetzt.</li>
+                    <li>In Zahl- und Datumsspalten heisst &bdquo;oder&ldquo; jetzt <code>;</code> (z.&nbsp;B. <code>kw41;kw42</code>),
+                        weil das Komma dort Dezimalzeichen ist.</li>
+                    <li>Unpassende Eingaben werden rot markiert und ignoriert statt still eine leere Liste zu zeigen.</li>
+                    <li>Zeichen wie <code>_</code> in Suchfeldern werden jetzt genau gesucht (&bdquo;A_1&ldquo; findet nicht mehr &bdquo;AX1&ldquo;).</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.57.0</strong> <span class="text-white-50 ms-2">13.10.2026</span>
             </div>
             <div class="card-body">
