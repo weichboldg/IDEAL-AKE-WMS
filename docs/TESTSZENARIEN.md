@@ -9763,8 +9763,60 @@ Rollenlogik `CurrentUserServiceRoleTests`. Sichtbarkeit, Active-Zustand und Hilf
 - **TS-89.12 — Regression.** TS-81.2 (neuer Menüweg), TS-84.14, TS-86.4 (CSV auf beiden Vorschlagslisten und Aufträgen)
   unverändert bis auf den Menüweg; übrige Navigationspunkte (Lager, FA, Kommissionierung, Bestellungen) unverändert.
 
+## TS-90 — BDE-Terminal: offene Aufträge mit Arbeitsgang-Status (FA-Struktur Teil 3, v1.57.0)
+
+Spec: `2026-10-06-fa-struktur-arbeitsgaenge-symbole-teil-3-spec`. **Vorab-Prüfschritte (vor der Abnahme, kein UI-Test):**
+
+- **P-T1 (AKE-WMS-DB):** Welche Arbeitsgänge gibt es, ist NurFA an?
+  `SELECT wo.OperationNumber, COUNT(*) AS Anzahl, MIN(wo.CreatedBy) AS AngelegtVon, SUM(CASE WHEN wo.IsReported = 0 THEN 1 ELSE 0 END) AS Offen FROM dbo.WorkOperations wo GROUP BY wo.OperationNumber ORDER BY Anzahl DESC;`
+  und `SELECT [Key], [Value] FROM dbo.AppSettings WHERE [Key] IN ('BdeAktiv', 'BdeNurFaMeldung');`
+  Nur `01` bzw. `BdeNurFaMeldung = true` → an der AKE greift nur der NurFA-Zweig (T9). Ergebnis: ______
+- **P-T1 Kollision (AKE-WMS-DB):** OSEON-AG-Namen ↔ AKE-BDE-Kürzel in `dbo.OperationConfigs`:
+  `SELECT c.OperationName, c.DueDateOffsetDays, wo.Anzahl FROM dbo.OperationConfigs c JOIN (SELECT OperationNumber, COUNT(*) AS Anzahl FROM dbo.WorkOperations GROUP BY OperationNumber) wo ON UPPER(LTRIM(RTRIM(wo.OperationNumber))) = UPPER(LTRIM(RTRIM(c.OperationName)));`
+  Leer → kein Thema. Treffer → **vor der AKE-Abnahme melden** (das Terminal rechnet deren Offset auf den Fertigungstermin). Ergebnis: ______
+- **P-T2 (IDEAL-WMS-DB):** `SELECT COUNT(*) AS Auftraege, SUM(CASE WHEN ProductionDate IS NULL THEN 1 ELSE 0 END) AS OhneProductionDate FROM dbo.ProductionOrders WHERE IsDone = 0 AND IsCancelled = 0;` Ergebnis: ______
+
+**Vorbedingungen:** Testsystem mit **`BdeAktiv = true`** (Einstellung — freigabepflichtig, produktiv derzeit aus), Werkbank
+`BdeAktiv`, Terminal für den Testbenutzer, zwei Werker A und B (`bde_user`); an der Werkbank ≥ 3 Aufträge mit offenen
+Arbeitsgängen: Termin in der Vergangenheit, heute + 5 Werktage, ohne Termin; Arbeitsgang-Stammdaten (`SQL/95` gelaufen) mit
+einem Kürzel Offset ≠ 0 und einem ohne Eintrag; Feiertage gepflegt. IDEAL- **und** AKE-Testsystem. Automatisiert:
+`BdeTerminalAuftraegeTests` (Termin-Regel, Sortierung, Status, Offset, kein W-4), `BdeApiControllerTests` (Fremdbuchung
+sichtbar/eigene ausgeblendet, Termin + überfällig aus ProductionDate + Stammdaten, NurFA-Ausgabe unverändert), Teil-2-Tests
+(gemeinsame Regel).
+
+- **TS-90.1 — Gruppierung + Sortierung (AK 1, 3).** Werker A scannen → „2. Arbeitsgang wählen“ zeigt Blöcke je Auftrag (Kopf:
+  Auftrag, bei IDEAL `/ Sub-FA`, Bezeichnung, Termin bzw. „ohne Termin“); Reihenfolge: vergangener Termin, künftiger, ohne
+  Termin; je Block die Arbeitsgänge dieser Werkbank in Sequenz-Reihenfolge. Darunter „Ungeplante Tätigkeiten“ wie bisher.
+- **TS-90.2 — Überfällig / offen (AK 5, 6).** Auftrag mit vergangenem Termin → Knopf rot mit Warndreieck, Screenreader
+  „<Kürzel> – <Name> – überfällig (Soll TT.MM.JJJJ)“; künftiger → grau mit leerem Kreis „… – offen“. Termin heute + Offset 0 →
+  offen. Kürzel ohne Stammdaten-Eintrag → Soll = Termin, **kein** Hinweis am Terminal.
+- **TS-90.3 — Läuft (Antwort 6 = A, AK 2, 7).** Werker B startet einen Arbeitsgang dieser Werkbank → bei Werker A nach
+  Neuladen blau mit Sanduhr „… – läuft“; bei B steht er nicht in der Liste, sondern unter „Aktuelle Buchungen“. A wählt ihn →
+  „Rüsten“ → Modal „AG ist bereits in Arbeit durch B …“; „Produktion“ → Modal bei `BdeMehrfachBuchungProArbeitsgang` = aus,
+  sonst startet eine zweite Buchung. B pausiert → bei A nach Neuladen offen bzw. überfällig.
+- **TS-90.4 — Läuft + überfällig.** Arbeitsgang mit vergangenem Soll, von B gestartet → bei A Sanduhr **und** Warndreieck,
+  roter Rand, „… – läuft, überfällig (Soll …)“.
+- **TS-90.5 — Bedienung (AK 7).** Knopf antippen → Rüsten/Produktion wie bisher; Abschluss mit Menge → Arbeitsgang
+  verschwindet, Auftrag verschwindet mit seinem letzten Arbeitsgang. Scan „FA-Nr,AG-Nr“ und Sub-FA-Auswahl unverändert.
+- **TS-90.6 — IDEAL-Termin (AK 4).** HauptFA mit einer Kopfzeile → Termin = `FE_Termin` aus `/FaHierarchy`; Kombigerät →
+  frühester `FE_Termin`; Kopfzeile ohne `FE_Termin` → `ProductionDate` (Antwort 9), überfällig bezogen darauf; ohne
+  `ProductionDate` „ohne Termin“, am Ende. Gegenprobe `/FaHierarchy`: dieselbe Struktur zeigt dort nie „überfällig“ (bewusst).
+- **TS-90.7 — AKE (AK 12).** AKE-Testsystem, TS-90.1/.2 → Sortierung und Überfällig nach `ProductionDate` + Offset. Laut P-T1
+  nur `01`/NurFA → TS-90.9.
+- **TS-90.8 — Barrierefreiheit (AK 5).** Graustufen-Screenshot: Kreis, Dreieck, Sanduhr, Sanduhr + Dreieck unterscheidbar;
+  Screenreader liest Kürzel, Name, Status; Kontrast am Terminal: Knopftext ≥ 10:1, Zeichen/Rand ≥ 4,8:1 (Werte wie TS-88.10),
+  auch bei Hover/Druck. Knöpfe in Touch-Größe (≥ 60 px hoch).
+- **TS-90.9 — NurFA unverändert (AK 8, Antwort 8).** `BdeNurFaMeldung` an → „Produktionsaufträge“ wie vorher (Knöpfe
+  „FA — Bezeichnung“, nach `ProductionDate`), keine Blöcke, keine Zeichen; FA-Start wie bisher.
+- **TS-90.10 — Viele Aufträge (AK 10).** Werkbank mit ≥ 100 offenen Arbeitsgängen → lädt ohne spürbare Verzögerung, Blöcke
+  umbrechen, kein horizontales Scrollen; SQL-Profiler: gegenüber v1.56.0 höchstens drei zusätzliche Abfragen
+  (`FaHierarchyOrderInfos`, Feiertage, `OperationConfigs` — die letzten zwei gecacht).
+- **TS-90.11 — Negativ (AK 9, 11).** Benutzer ohne BDE-Rolle → `/api/bde/available-operations/<id>` verweigert; Werkbank nicht
+  BDE-aktiv → leer; Werkbank ohne offene Arbeitsgänge → „Keine offenen Arbeitsgänge an dieser Werkbank.“; Auftragstext mit
+  `<b>x</b>` → als Text sichtbar.
+
 ---
 
 *Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) + Teil 6 (Standorteinstellungen, v1.34.0) + BOM-Guard hierarchisch (2026-08-18, abgelöst) + FA-Liste-Hierarchie (v1.35.0) + BOM-Bridge (v1.36.0) + Materialisierung fachliche Felder K1/K2 (v1.37.0) + Skopierung der Tabellen-Selektoren (TS-72) + FA-Liste ausgebaut: Matchcode, Kopfdaten je Zeile, HauptFA-Zeile, Freigabe-Kaskade (v1.38.0, TS-73) + PDF-Erzeugung für FaHierarchy-Druckdokumente (v1.39.0, TS-74) + Matchcode im Artikelstamm (v1.40.0, TS-75) + FA-Arbeitsgang-Erkennung aus der Struktur (v1.41.0, TS-76, ersetzt durch TS-77) + Arbeitsgänge (WorkOperation) aus der Struktur + Werkbank-Anlage aus Sage (v1.44.0, TS-77) + Arbeitsgänge je (Sub-)FA im FA-Struktur-Modal (v1.45.0, TS-78) + Kommissionierung nur am HauptFA
-(v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80) + Beschichtungsauftrag Summiert als Standard (v1.48.0, TS-81) + Briefkopf Beschichtungsauftrag (v1.49.0, TS-82) + Beschichtungsauftrag als eigenes Objekt (v1.50.0, TS-83) + Beschichtungsaufträge bedienen (v1.51.0, TS-84) + Arbeitsgänge als Symbole im FA-Baum (v1.52.0, TS-85) + CSV-Export für alle Tabellen (v1.53.0, TS-86) + Arbeitsgang-Stammdaten (v1.54.0, TS-87) + Status je Arbeitsgang-Kürzel im FA-Baum (v1.55.0, TS-88) + Menü Beschichtung + Kurzanleitungen (v1.56.0, TS-89)*
+(v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80) + Beschichtungsauftrag Summiert als Standard (v1.48.0, TS-81) + Briefkopf Beschichtungsauftrag (v1.49.0, TS-82) + Beschichtungsauftrag als eigenes Objekt (v1.50.0, TS-83) + Beschichtungsaufträge bedienen (v1.51.0, TS-84) + Arbeitsgänge als Symbole im FA-Baum (v1.52.0, TS-85) + CSV-Export für alle Tabellen (v1.53.0, TS-86) + Arbeitsgang-Stammdaten (v1.54.0, TS-87) + Status je Arbeitsgang-Kürzel im FA-Baum (v1.55.0, TS-88) + Menü Beschichtung + Kurzanleitungen (v1.56.0, TS-89) + BDE-Terminal mit Arbeitsgang-Status (v1.57.0, TS-90)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*

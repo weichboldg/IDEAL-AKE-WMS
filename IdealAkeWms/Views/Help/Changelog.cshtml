@@ -9,6 +9,26 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.57.0</strong> <span class="text-white-50 ms-2">13.10.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>BDE-Terminal: offene Auftraege mit Status je Arbeitsgang</h6>
+                <ul>
+                    <li>Unter &bdquo;2. Arbeitsgang waehlen&ldquo; stehen die Arbeitsgaenge jetzt <strong>je Auftrag</strong> mit
+                        Bezeichnung und Fertigungstermin, der naechste faellige Auftrag zuerst.</li>
+                    <li>Jeder Knopf zeigt den Status wie in der FA-Struktur: <strong>offen</strong> (grau, Kreis),
+                        <strong>ueberfaellig</strong> (rot, Warndreieck), <strong>laeuft</strong> (blau, Sanduhr) und
+                        <strong>laeuft und ueberfaellig</strong> (blau mit rotem Rand). Ueberfaellig = Fertigungstermin plus
+                        Offset aus den Arbeitsgang-Stammdaten liegt vor heute.</li>
+                    <li>Arbeitsgaenge, die ein anderer Werker gerade bucht, bleiben sichtbar (&bdquo;laeuft&ldquo;). Ob ein
+                        zweiter Start erlaubt ist, entscheidet wie bisher die Startpruefung.</li>
+                    <li>Gilt an beiden Standorten; der Modus &bdquo;Nur FA-Meldung&ldquo; ist unveraendert.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.56.0</strong> <span class="text-white-50 ms-2">13.10.2026</span>
             </div>
             <div class="card-body">

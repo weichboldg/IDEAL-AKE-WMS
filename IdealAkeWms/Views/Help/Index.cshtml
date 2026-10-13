@@ -1063,7 +1063,17 @@
                 <h6 class="mt-3">Terminal-Bedienung (Schritt fuer Schritt)</h6>
                 <ol>
                     <li><strong>Operator anmelden:</strong> Personalnummer am Terminal scannen oder eingeben + &bdquo;Scannen&ldquo; klicken. Der Name wird als Badge angezeigt.</li>
-                    <li><strong>Arbeitsgang waehlen:</strong> Nach der Anmeldung erscheinen die verfuegbaren Arbeitsgaenge als Buttons, gruppiert nach produktiven (aus FA) und ungeplanten Taetigkeiten (Wartung, Reinigung, &hellip;). Alternativ: FA-Nummer und AG-Nummer vom Laufzettel scannen.</li>
+                    <li><strong>Arbeitsgang waehlen:</strong> Nach der Anmeldung erscheinen die verfuegbaren Arbeitsgaenge als Buttons, gruppiert nach produktiven (aus FA) und ungeplanten Taetigkeiten (Wartung, Reinigung, &hellip;). Alternativ: FA-Nummer und AG-Nummer vom Laufzettel scannen.
+                        <span class="d-block mt-1">Seit v1.57.0 stehen die produktiven Arbeitsgaenge <strong>je Auftrag</strong> in einem Block
+                        (Auftrag, ggf. Sub-FA, Bezeichnung, Fertigungstermin) &mdash; der naechste faellige Auftrag oben, Auftraege ohne Termin
+                        am Ende. Jeder Knopf zeigt den Status: grau mit leerem Kreis = offen, rot mit Warndreieck = ueberfaellig, blau mit
+                        Sanduhr = laeuft (ein <em>anderer</em> Werker bucht gerade), blau mit rotem Rand und beiden Zeichen = laeuft und
+                        ueberfaellig. Auch einen laufenden Arbeitsgang kann man waehlen; ob Ruesten bzw. Produktion starten darf,
+                        prueft das System wie bisher (sonst Meldung &bdquo;AG ist bereits in Arbeit durch &hellip;&ldquo;). Eigene laufende
+                        Arbeitsgaenge stehen unter &bdquo;Aktuelle Buchungen&ldquo;.
+                        Fertigungstermin: IDEAL = FE-Termin der Struktur (bei Kombigeraeten der frueheste), sonst bzw. bei AKE der
+                        Fertigungstermin des Auftrags. Ueberfaellig = Termin plus Offset in Arbeitstagen aus <em>BDE-Stammdaten &rsaquo;
+                        Arbeitsgaenge</em> liegt vor heute (ohne Eintrag Offset 0). Im Modus &bdquo;Nur FA-Meldung&ldquo; bleibt die Liste wie bisher.</span></li>
                     <li><strong>Ruesten starten:</strong> Fuer einen produktiven AG &rarr; &bdquo;Ruesten starten&ldquo; klicken. Ruestzeit wird erfasst.</li>
                     <li><strong>Produktion starten:</strong> Ruesten abgeschlossen &rarr; &bdquo;Produktion starten&ldquo; (schliesst Ruestung automatisch).</li>
                     <li><strong>Teilmenge melden:</strong> Waehrend laufender Produktion &rarr; &bdquo;Teilfertigmeldung&ldquo; &rarr; Gutmenge + Ausschuss eingeben.</li>

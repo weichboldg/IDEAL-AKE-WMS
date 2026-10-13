@@ -61,6 +61,16 @@
                 <div class="card-header">2. Arbeitsgang wählen</div>
                 <div class="card-body">
                     <div id="operationButtons"></div>
+                    @* Statuszeichen der Arbeitsgang-Knoepfe (FA-Struktur Teil 3, v1.57.0): dieselbe Quelle wie im FA-Baum, das JS klont
+                       sie je Knopf per data-status = CSS-Klasse aus der API. *@
+                    <div id="bdeAgZeichen" hidden>
+                        @foreach (var s in new[] { IdealAkeWms.Models.ViewModels.FaAgStatus.Offen, IdealAkeWms.Models.ViewModels.FaAgStatus.Laeuft,
+                                     IdealAkeWms.Models.ViewModels.FaAgStatus.LaeuftUeberfaellig, IdealAkeWms.Models.ViewModels.FaAgStatus.Ueberfaellig })
+                        {
+                            var d = IdealAkeWms.Models.ViewModels.FaAgStatusDarstellung.Fuer(s);
+                            <template data-status="@d.Css">@Html.Raw(d.Svg)</template>
+                        }
+                    </div>
                     <hr />
                     <div class="input-group mt-2">
                         <input type="text" id="scanFaAg" class="form-control" placeholder="Oder FA-Nr,AG-Nr scannen…" />

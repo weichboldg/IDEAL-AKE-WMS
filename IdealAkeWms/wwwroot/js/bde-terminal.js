@@ -447,6 +447,7 @@
             html += nurFaMode
                 ? '<h6 class="mt-2 text-muted">Produktionsaufträge</h6>'
                 : '<h6 class="mt-2 text-muted">Produktive Arbeitsgänge</h6>';
+            if (nurFaMode) {
             html += '<div class="d-flex flex-wrap gap-2 mb-3">';
             productive.forEach(function (op) {
                 if (op.type === 'fa') {
@@ -456,6 +457,9 @@
                 }
             });
             html += '</div>';
+            } else {
+                html += renderOrderBlocks(productive);
+            }
         }
 
         if (!nurFaMode && unplanned.length > 0) {
@@ -475,6 +479,32 @@
 
         container.innerHTML = html;
         bindOperationButtonHandlers();
+    }
+
+    // FA-Struktur Teil 3 (v1.57.0): je Auftrag ein Block (Reihenfolge = Server-Sortierung nach Fertigungstermin), je
+    // Arbeitsgang ein Knopf mit Statuszeichen + Farbe (Palette/Zeichen wie FA-Baum, Vorlagen #bdeAgZeichen) und aria-label.
+    // Sage-Texte nur escaped (AK 11).
+    function renderOrderBlocks(productive) {
+        let html = '';
+        let current = null;
+        productive.forEach(function (op) {
+            if (op.productionOrderId !== current) {
+                if (current !== null) html += '</div></section>';
+                current = op.productionOrderId;
+                const sub = op.subOrderNumber && op.subOrderNumber !== op.orderNumber ? ' / ' + escapeHtml(op.subOrderNumber) : '';
+                const termin = op.productionDate ? op.productionDate.split('-').reverse().join('.') : 'ohne Termin';
+                html += '<section class="bde-auftrag">'
+                    + '<div class="bde-auftrag-kopf"><span><strong>' + escapeHtml(op.orderNumber) + sub + '</strong> '
+                    + escapeHtml(op.description) + '</span><span class="bde-auftrag-termin">' + termin + '</span></div>'
+                    + '<div class="d-flex flex-wrap gap-2">';
+            }
+            const tpl = document.querySelector('#bdeAgZeichen template[data-status="' + op.statusClass + '"]');
+            html += '<button type="button" class="btn btn-lg bde-op-btn bde-ag-btn ' + escapeHtml(op.statusClass) + '" data-wo-id="' + op.id
+                + '" data-type="productive" aria-label="' + escapeHtml(op.ariaLabel) + '">' + (tpl ? tpl.innerHTML : '')
+                + '<strong>' + escapeHtml(op.operationNumber) + '</strong> ' + escapeHtml(op.operationName) + '</button>';
+        });
+        if (current !== null) html += '</div></section>';
+        return html;
     }
 
     function bindOperationButtonHandlers() {
