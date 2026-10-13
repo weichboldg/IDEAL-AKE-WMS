@@ -161,7 +161,7 @@ public class FaHierarchyKommissionierListenController : Controller
             Groups = result.Groups,
             Barcodes = barcodes,
             SelectedTarget = target,
-            IsFiltered = ColumnFilterHelper.HasAny(columnFilters) || !string.IsNullOrEmpty(target),
+            IsFiltered = ColumnFilterHelper.HasAny(columnFilters, ColumnFilterTypes.For("FaHierarchyKommissionierListen/Index")) || !string.IsNullOrEmpty(target),
             VisibleColumns = await ResolveVisibleColumnsAsync(
                 visibleColumns, "FaHierarchyKommissionierListen", ColumnDefinitions.FaHierarchyKommissionierListen.Columns)
         };
@@ -186,7 +186,7 @@ public class FaHierarchyKommissionierListenController : Controller
             Groups = new List<FaHierarchyListGroupViewModel> { group },
             Barcodes = new Dictionary<int, string> { [hauptFa] = _barcode.EncodeCode128Base64(hauptFa.ToString(CultureInfo.InvariantCulture)) },
             SelectedTarget = target,
-            IsFiltered = ColumnFilterHelper.HasAny(columnFilters) || !string.IsNullOrEmpty(target),
+            IsFiltered = ColumnFilterHelper.HasAny(columnFilters, ColumnFilterTypes.For("FaHierarchyKommissionierListen/Index")) || !string.IsNullOrEmpty(target),
             VisibleColumns = await ResolveVisibleColumnsAsync(
                 visibleColumns, "FaHierarchyKommissionierListen", ColumnDefinitions.FaHierarchyKommissionierListen.Columns)
         };
@@ -221,7 +221,7 @@ public class FaHierarchyKommissionierListenController : Controller
             Rows = result.Rows,
             Barcodes = barcodes,
             SelectedTarget = target,
-            IsFiltered = ColumnFilterHelper.HasAny(columnFilters) || !string.IsNullOrEmpty(target),
+            IsFiltered = ColumnFilterHelper.HasAny(columnFilters, ColumnFilterTypes.For("FaHierarchyKommissionierListen/Summiert")) || !string.IsNullOrEmpty(target),
             VisibleColumns = await ResolveVisibleColumnsAsync(visibleColumns, "FaHierarchyKommissionierSummiert",
                 ColumnDefinitions.FaHierarchyKommissionierSummiert.Columns)
         };
@@ -245,7 +245,7 @@ public class FaHierarchyKommissionierListenController : Controller
             Rows = rows,
             Barcodes = new Dictionary<int, string> { [hauptFa] = _barcode.EncodeCode128Base64(hauptFa.ToString(CultureInfo.InvariantCulture)) },
             SelectedTarget = target,
-            IsFiltered = ColumnFilterHelper.HasAny(columnFilters) || !string.IsNullOrEmpty(target),
+            IsFiltered = ColumnFilterHelper.HasAny(columnFilters, ColumnFilterTypes.For("FaHierarchyKommissionierListen/Summiert")) || !string.IsNullOrEmpty(target),
             VisibleColumns = await ResolveVisibleColumnsAsync(visibleColumns, "FaHierarchyKommissionierSummiert",
                 ColumnDefinitions.FaHierarchyKommissionierSummiert.Columns)
         };

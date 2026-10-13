@@ -29,9 +29,12 @@ public static class ColumnFilterHelper
         return result;
     }
 
-    /// <summary>True wenn mindestens ein Filter einen wirksamen Teil enthaelt (Grammatik-Kern, Text).</summary>
-    public static bool HasAny(IReadOnlyDictionary<string, string>? filters)
-        => filters != null && filters.Any(kv => !ColumnFilterSyntax.Parse(kv.Value, ColumnFilterType.Text).IsEmpty);
+    /// <summary>True wenn mindestens ein Filter einen wirksamen Teil enthaelt (Grammatik-Kern). <paramref name="types"/> = Register der
+    /// Liste wie bei <see cref="Apply{T}"/> — sonst gilt <c>&gt;10</c> in einer Zahlspalte als wirkungslos, obwohl Apply damit filtert
+    /// (Druck-Banner „Gefilterte Ansicht“ fehlte, QA Epic Suchsyntax I-1).</summary>
+    public static bool HasAny(IReadOnlyDictionary<string, string>? filters, IReadOnlyDictionary<string, ColumnFilterType>? types = null)
+        => filters != null && filters.Any(kv => !ColumnFilterSyntax.Parse(kv.Value,
+            types != null && types.TryGetValue(kv.Key, out var t) ? t : ColumnFilterType.Text).IsEmpty);
 
     /// <summary>
     /// In-Memory-Variante fuer Listen die bereits geladene Daten paginieren.

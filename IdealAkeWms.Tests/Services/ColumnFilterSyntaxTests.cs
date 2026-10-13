@@ -283,3 +283,18 @@ public class ArticleColumnFilterSqlTests
         Sql("category", "(leer)").Should().Contain("IS NULL");
     }
 }
+
+/// <summary>QA Epic I-1: HasAny kennt die Typen der Liste — ein Vergleich in einer Zahlspalte filtert per Apply und muss daher auch
+/// das Druck-Banner „Gefilterte Ansicht“ ausloesen.</summary>
+public class ColumnFilterHelperHasAnyTests
+{
+    [Fact]
+    public void HasAny_VergleichInZahlspalte_GiltAlsFilter()
+    {
+        var filters = new Dictionary<string, string> { ["sollmenge"] = ">10" };
+        ColumnFilterHelper.HasAny(filters, ColumnFilterTypes.For("FaHierarchyBeschichtung/Index")).Should().BeTrue();
+        ColumnFilterHelper.HasAny(filters).Should().BeFalse("ohne Typen ist >10 in einer Textspalte wirkungslos");
+        ColumnFilterHelper.HasAny(new Dictionary<string, string> { ["artnr"] = ">10" }, ColumnFilterTypes.For("FaHierarchyBeschichtung/Index"))
+            .Should().BeFalse("artnr ist Text, der Vergleich wirkt dort nicht");
+    }
+}

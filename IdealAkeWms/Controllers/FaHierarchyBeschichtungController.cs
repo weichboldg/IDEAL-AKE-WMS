@@ -106,7 +106,7 @@ public class FaHierarchyBeschichtungController : Controller
         {
             Groups = result.Groups,
             Barcodes = barcodes,
-            IsFiltered = ColumnFilterHelper.HasAny(columnFilters)
+            IsFiltered = ColumnFilterHelper.HasAny(columnFilters, ColumnFilterTypes.For("FaHierarchyBeschichtung/Index"))
         };
 
         return View(vm);
@@ -128,7 +128,7 @@ public class FaHierarchyBeschichtungController : Controller
         {
             Groups = new List<FaHierarchyListGroupViewModel> { group },
             Barcodes = new Dictionary<int, string> { [hauptFa] = _barcode.EncodeCode128Base64(hauptFa.ToString(CultureInfo.InvariantCulture)) },
-            IsFiltered = ColumnFilterHelper.HasAny(columnFilters)
+            IsFiltered = ColumnFilterHelper.HasAny(columnFilters, ColumnFilterTypes.For("FaHierarchyBeschichtung/Index"))
         };
 
         try
@@ -194,7 +194,7 @@ public class FaHierarchyBeschichtungController : Controller
             Rows = result.Rows,
             OrderInfos = result.OrderInfos,
             Barcodes = barcodes,
-            IsFiltered = ColumnFilterHelper.HasAny(columnFilters),
+            IsFiltered = ColumnFilterHelper.HasAny(columnFilters, ColumnFilterTypes.For("FaHierarchyBeschichtung/Summiert")),
             VisibleColumns = await ResolveSummiertColumnsAsync(visibleColumns)
         };
         return View(vm);
@@ -215,7 +215,7 @@ public class FaHierarchyBeschichtungController : Controller
             Rows = rows,
             OrderInfos = result.OrderInfos.Where(kv => kv.Key == hauptFa).ToDictionary(kv => kv.Key, kv => kv.Value),
             Barcodes = new Dictionary<int, string> { [hauptFa] = _barcode.EncodeCode128Base64(hauptFa.ToString(CultureInfo.InvariantCulture)) },
-            IsFiltered = ColumnFilterHelper.HasAny(columnFilters),
+            IsFiltered = ColumnFilterHelper.HasAny(columnFilters, ColumnFilterTypes.For("FaHierarchyBeschichtung/Summiert")),
             VisibleColumns = await ResolveSummiertColumnsAsync(visibleColumns)
         };
 
