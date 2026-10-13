@@ -224,17 +224,11 @@ public class PickingLeitstandController : Controller
             {
                 foreach (var (key, raw) in memoryFilters)
                 {
-                    var (tokens, negate) = ColumnFilterHelper.Parse(raw);
-                    if (tokens.Count == 0) continue;
-                    if (LeitstandWorkStepColumnKeys.TryGetValue(key, out var code))
-                        foreach (var g in listGroups)
-                            g.Items = g.Items.Where(it => MatchLeitstandWorkStepFilter(it, code, tokens, negate)).ToList();
-                    else if (key.Equals("matchcode", StringComparison.OrdinalIgnoreCase))
-                        foreach (var g in listGroups)
-                            g.Items = g.Items.Where(it => MatchLeitstandTextFilter(it.Matchcode, tokens, negate)).ToList();
-                    else
-                        foreach (var g in listGroups)
-                            g.Items = g.Items.Where(it => MatchLeitstandDateFilter(it, key, tokens, negate)).ToList();
+                    var type = ColumnFilterTypes.Of("PickingLeitstand/Index", key);
+                    var parsed = ColumnFilterSyntax.Parse(raw, type);
+                    if (parsed.IsEmpty) continue;
+                    foreach (var g in listGroups)
+                        g.Items = g.Items.Where(it => ColumnFilterSyntax.Matches(LeitstandMemoryText(it, key), parsed, type)).ToList();
                 }
                 listGroups = listGroups.Where(g => g.Items.Count > 0).ToList(); // leere Gruppen entfernen (Z3b)
                 totalGroupCount = listGroups.Count;
@@ -302,14 +296,10 @@ public class PickingLeitstandController : Controller
         {
             foreach (var (key, raw) in memoryFilters)
             {
-                var (tokens, negate) = ColumnFilterHelper.Parse(raw);
-                if (tokens.Count == 0) continue;
-                if (LeitstandWorkStepColumnKeys.TryGetValue(key, out var code))
-                    viewItems = viewItems.Where(it => MatchLeitstandWorkStepFilter(it, code, tokens, negate)).ToList();
-                else if (key.Equals("matchcode", StringComparison.OrdinalIgnoreCase))
-                    viewItems = viewItems.Where(it => MatchLeitstandTextFilter(it.Matchcode, tokens, negate)).ToList();
-                else
-                    viewItems = viewItems.Where(it => MatchLeitstandDateFilter(it, key, tokens, negate)).ToList();
+                var type = ColumnFilterTypes.Of("PickingLeitstand/Index", key);
+                var parsed = ColumnFilterSyntax.Parse(raw, type);
+                if (parsed.IsEmpty) continue;
+                viewItems = viewItems.Where(it => ColumnFilterSyntax.Matches(LeitstandMemoryText(it, key), parsed, type)).ToList();
             }
             finalTotalCount = viewItems.Count;
             viewItems = viewItems.Skip((page - 1) * effectivePageSize).Take(effectivePageSize).ToList();
@@ -601,25 +591,20 @@ public class PickingLeitstandController : Controller
         };
     }
 
-    private static bool MatchLeitstandWorkStepFilter(
-        PickingLeitstandItem item, string code, List<string> tokens, bool negate)
-    {
-        var text = FormatWorkStepForFilter(item, code);
-        var hasMatch = tokens.Any(t => text.Contains(t));
-        return negate ? !hasMatch : hasMatch;
-    }
-
-    /// <summary>
-    /// Matchcode-Spaltenfilter (Task 2, Artikelstamm): einfacher Contains-Match auf einem bereits
-    /// aus Article befuellten Zeilenfeld — kein Datumsformat, deshalb kein Fall in
-    /// <see cref="MatchLeitstandDateFilter"/>. Tokens sind bereits lowercase (ColumnFilterHelper.Parse).
-    /// </summary>
-    private static bool MatchLeitstandTextFilter(string? value, List<string> tokens, bool negate)
-    {
-        var text = (value ?? string.Empty).ToLowerInvariant();
-        var hasMatch = tokens.Any(t => text.Contains(t));
-        return negate ? !hasMatch : hasMatch;
-    }
+    /// <summary>Gerenderter Zelltext einer C#-gefilterten Leitstand-Spalte (VK–VA, Matchcode, Termine) — der Grammatik-Kern wertet
+    /// ihn aus (Spaltenfilter-Suchsyntax, Etappe B); Termine als Datum laut <c>ColumnFilterTypes "PickingLeitstand/Index"</c>.</summary>
+    private static string LeitstandMemoryText(PickingLeitstandItem item, string key)
+        => LeitstandWorkStepColumnKeys.TryGetValue(key, out var code) ? FormatWorkStepForFilter(item, code)
+            : key.Equals("matchcode", StringComparison.OrdinalIgnoreCase) ? item.Matchcode ?? string.Empty
+            : key switch
+            {
+                "coating-date" => FormatDateForFilter(item.BeschichtungTermin),
+                "bg-date" => FormatDateForFilter(item.VorkommissionierTermin),
+                "picking-date" => FormatDateForFilter(item.KommissionierTermin),
+                "production-date" => FormatDateForFilter(item.ProductionDate),
+                "delivery-date" => FormatDateForFilter(item.DeliveryDate),
+                _ => string.Empty
+            };
 
     /// <summary>
     /// Formatiert ein Datum identisch zur View (<c>dd.MM.yyyy KWxx</c>) und lowercased,
@@ -631,21 +616,5 @@ public class PickingLeitstandController : Controller
         var d = date.Value;
         var kw = System.Globalization.ISOWeek.GetWeekOfYear(d);
         return $"{d:dd.MM.yyyy} KW{kw}".ToLowerInvariant();
-    }
-
-    private static bool MatchLeitstandDateFilter(
-        PickingLeitstandItem item, string key, List<string> tokens, bool negate)
-    {
-        var text = key switch
-        {
-            "coating-date" => FormatDateForFilter(item.BeschichtungTermin),
-            "bg-date" => FormatDateForFilter(item.VorkommissionierTermin),
-            "picking-date" => FormatDateForFilter(item.KommissionierTermin),
-            "production-date" => FormatDateForFilter(item.ProductionDate),
-            "delivery-date" => FormatDateForFilter(item.DeliveryDate),
-            _ => string.Empty
-        };
-        var hasMatch = tokens.Any(t => text.Contains(t));
-        return negate ? !hasMatch : hasMatch;
     }
 }

@@ -3,12 +3,9 @@ using Microsoft.AspNetCore.Http;
 namespace IdealAkeWms.Services;
 
 /// <summary>
-/// Reads and parses column-filter query-string params (URL-Schema: <c>colf_&lt;col-key&gt;=value</c>)
-/// and supports the same OR (',') / NOT ('!') Mini-Syntax wie der bisherige
-/// clientseitige Filter in <c>table-filter.js</c>.
-///
-/// Pro Liste mappt der Controller / Repo dann die parsed Tokens auf konkrete
-/// LINQ-Expressions (z.B. <c>q.Where(o =&gt; tokens.Any(t =&gt; EF.Functions.Like(o.OrderNumber, $"%{t}%")))</c>).
+/// Liest die Spaltenfilter aus der Query (URL-Schema: <c>colf_&lt;col-key&gt;=value</c>) und filtert geladene Listen im Speicher.
+/// Die Bedeutung eines Filterwerts steht ausschliesslich im Grammatik-Kern <see cref="ColumnFilterSyntax"/> (C#) bzw.
+/// <c>wwwroot/js/column-filter-syntax.js</c> (Browser) — ADR 0017; SQL-Wege bauen ueber <see cref="ColumnFilterSql"/>.
 /// </summary>
 public static class ColumnFilterHelper
 {
@@ -32,36 +29,9 @@ public static class ColumnFilterHelper
         return result;
     }
 
-    /// <summary>
-    /// Parses a single filter value. Returns:
-    ///   - <c>Tokens</c>: comma-separated, trimmed, non-empty parts
-    ///   - <c>Negate</c>: true wenn der Filter mit <c>!</c> beginnt
-    ///
-    /// Beispiele:
-    ///   "960,886"   -&gt; Tokens=["960","886"], Negate=false  =&gt; OR-Match
-    ///   "!960"      -&gt; Tokens=["960"],        Negate=true   =&gt; NICHT enthalten
-    ///   "!960,886"  -&gt; Tokens=["960","886"], Negate=true   =&gt; beide NICHT enthalten (AND-Negation)
-    /// </summary>
-    public static (List<string> Tokens, bool Negate) Parse(string raw)
-    {
-        var trimmed = raw?.Trim() ?? string.Empty;
-        if (string.IsNullOrEmpty(trimmed)) return (new List<string>(), false);
-
-        var negate = trimmed.StartsWith("!", StringComparison.Ordinal);
-        var payload = negate ? trimmed.Substring(1) : trimmed;
-
-        var tokens = payload
-            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Where(p => !string.IsNullOrWhiteSpace(p))
-            .Select(p => p.ToLowerInvariant())
-            .ToList();
-
-        return (tokens, negate);
-    }
-
-    /// <summary>True wenn mindestens ein Filter ein Token enthaelt.</summary>
+    /// <summary>True wenn mindestens ein Filter einen wirksamen Teil enthaelt (Grammatik-Kern, Text).</summary>
     public static bool HasAny(IReadOnlyDictionary<string, string>? filters)
-        => filters != null && filters.Any(kv => Parse(kv.Value).Tokens.Count > 0);
+        => filters != null && filters.Any(kv => !ColumnFilterSyntax.Parse(kv.Value, ColumnFilterType.Text).IsEmpty);
 
     /// <summary>
     /// In-Memory-Variante fuer Listen die bereits geladene Daten paginieren.

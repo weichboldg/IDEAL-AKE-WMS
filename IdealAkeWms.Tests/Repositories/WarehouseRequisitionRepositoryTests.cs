@@ -477,14 +477,15 @@ public class WarehouseRequisitionRepositoryTests
     [Fact]
     public async Task GetMissingPartsAsync_AppliesColumnFilter_OnArticleNumber_WithOrSyntax()
     {
+        // Spaltenfilter-Suchsyntax (Etappe B): SQL-Bauer ohne ToLower() auf der Spalte; Gross/Klein macht in SQL die CI-Kollation (P-2). EF-InMemory vergleicht ordinal -> Testdaten in Kleinschreibung.
         using var db = TestDbContextFactory.Create();
         db.ProductionWorkplaces.Add(new ProductionWorkplace { Id = 1, Name = "WB1" });
         await db.SaveChangesAsync();
         var repo = new WarehouseRequisitionRepository(db);
         var id = await SeedRequisitionAsync(db, (10, 0m, ShortageStatus.NoRestock), (5, 0m, ShortageStatus.NoRestock));
         var items = db.WarehouseRequisitionItems.Where(i => i.WarehouseRequisitionId == id).OrderBy(i => i.Position).ToList();
-        items[0].ArticleNumber = "AAA-1";
-        items[1].ArticleNumber = "BBB-2";
+        items[0].ArticleNumber = "aaa-1";
+        items[1].ArticleNumber = "bbb-2";
         await db.SaveChangesAsync();
         await repo.CloseAsync(id,
             new Dictionary<int, decimal?> { [items[0].Id] = 0m, [items[1].Id] = 0m },
@@ -496,7 +497,7 @@ public class WarehouseRequisitionRepositoryTests
         var filters = new Dictionary<string, string> { ["ArticleNumber"] = "AAA" };
         var (filtered, _) = await repo.GetMissingPartsAsync(ShortageStatus.NoRestock, null, null, filters, null, null, 1, 100);
         filtered.Should().HaveCount(1);
-        filtered[0].ArticleNumber.Should().Be("AAA-1");
+        filtered[0].ArticleNumber.Should().Be("aaa-1");
 
         var filtersOr = new Dictionary<string, string> { ["ArticleNumber"] = "AAA,BBB" };
         var (both, _) = await repo.GetMissingPartsAsync(ShortageStatus.NoRestock, null, null, filtersOr, null, null, 1, 100);
@@ -1010,12 +1011,13 @@ public class WarehouseRequisitionRepositoryTests
     [Fact]
     public async Task GetMissingPartsAsync_ArticleNumberColumnFilter_MatchesByMatchcode()
     {
+        // Spaltenfilter-Suchsyntax (Etappe B): SQL-Bauer ohne ToLower() auf der Spalte; Gross/Klein macht in SQL die CI-Kollation (P-2). EF-InMemory vergleicht ordinal -> Testdaten in Kleinschreibung.
         using var db = TestDbContextFactory.Create();
         db.ProductionWorkplaces.Add(new ProductionWorkplace { Id = 1, Name = "WB1" });
         db.Articles.Add(new Article
         {
-            ArticleNumber = "AAA-1",
-            Matchcode = "MC-SONDERTEIL",
+            ArticleNumber = "aaa-1",
+            Matchcode = "mc-sonderteil",
             CreatedAt = DateTime.Now,
             CreatedBy = "test",
             CreatedByWindows = "test"
@@ -1024,8 +1026,8 @@ public class WarehouseRequisitionRepositoryTests
         var repo = new WarehouseRequisitionRepository(db);
         var id = await SeedRequisitionAsync(db, (10, 0m, ShortageStatus.NoRestock), (5, 0m, ShortageStatus.NoRestock));
         var items = db.WarehouseRequisitionItems.Where(i => i.WarehouseRequisitionId == id).OrderBy(i => i.Position).ToList();
-        items[0].ArticleNumber = "AAA-1";
-        items[1].ArticleNumber = "BBB-2";
+        items[0].ArticleNumber = "aaa-1";
+        items[1].ArticleNumber = "bbb-2";
         await db.SaveChangesAsync();
         await repo.CloseAsync(id,
             new Dictionary<int, decimal?> { [items[0].Id] = 0m, [items[1].Id] = 0m },
@@ -1037,7 +1039,7 @@ public class WarehouseRequisitionRepositoryTests
         var filters = new Dictionary<string, string> { ["ArticleNumber"] = "SONDERTEIL" };
         var (filtered, _) = await repo.GetMissingPartsAsync(ShortageStatus.NoRestock, null, null, filters, null, null, 1, 100);
 
-        filtered.Should().ContainSingle().Which.ArticleNumber.Should().Be("AAA-1");
+        filtered.Should().ContainSingle().Which.ArticleNumber.Should().Be("aaa-1");
     }
 
     [Fact]
@@ -1104,12 +1106,13 @@ public class WarehouseRequisitionRepositoryTests
     [Fact]
     public async Task GetMissingPartsAsync_ArticleNumberColumnFilter_NegatedMatchcode_ExcludesMatch()
     {
+        // Spaltenfilter-Suchsyntax (Etappe B): SQL-Bauer ohne ToLower() auf der Spalte; Gross/Klein macht in SQL die CI-Kollation (P-2). EF-InMemory vergleicht ordinal -> Testdaten in Kleinschreibung.
         using var db = TestDbContextFactory.Create();
         db.ProductionWorkplaces.Add(new ProductionWorkplace { Id = 1, Name = "WB1" });
         db.Articles.Add(new Article
         {
-            ArticleNumber = "AAA-1",
-            Matchcode = "MC-SONDERTEIL",
+            ArticleNumber = "aaa-1",
+            Matchcode = "mc-sonderteil",
             CreatedAt = DateTime.Now,
             CreatedBy = "test",
             CreatedByWindows = "test"
@@ -1118,8 +1121,8 @@ public class WarehouseRequisitionRepositoryTests
         var repo = new WarehouseRequisitionRepository(db);
         var id = await SeedRequisitionAsync(db, (10, 0m, ShortageStatus.NoRestock), (5, 0m, ShortageStatus.NoRestock));
         var items = db.WarehouseRequisitionItems.Where(i => i.WarehouseRequisitionId == id).OrderBy(i => i.Position).ToList();
-        items[0].ArticleNumber = "AAA-1";
-        items[1].ArticleNumber = "BBB-2";
+        items[0].ArticleNumber = "aaa-1";
+        items[1].ArticleNumber = "bbb-2";
         await db.SaveChangesAsync();
         await repo.CloseAsync(id,
             new Dictionary<int, decimal?> { [items[0].Id] = 0m, [items[1].Id] = 0m },
@@ -1131,6 +1134,6 @@ public class WarehouseRequisitionRepositoryTests
         var filters = new Dictionary<string, string> { ["ArticleNumber"] = "!SONDERTEIL" };
         var (filtered, _) = await repo.GetMissingPartsAsync(ShortageStatus.NoRestock, null, null, filters, null, null, 1, 100);
 
-        filtered.Should().ContainSingle().Which.ArticleNumber.Should().Be("BBB-2");
+        filtered.Should().ContainSingle().Which.ArticleNumber.Should().Be("bbb-2");
     }
 }

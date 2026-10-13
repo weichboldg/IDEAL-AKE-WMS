@@ -157,7 +157,8 @@ public class BdeBookingRepositoryTests
         var ids = await BdeBookingTestSeed.SeedAsync(ctx);
         var now = DateTime.Now;
 
-        var lastNames = new[] { "Maier", "Huber", "Schulz" };
+        // Kleinschreibung: Operator-Filter laeuft ueber den SQL-Bauer (Gross/Klein via Kollation, InMemory ordinal).
+        var lastNames = new[] { "maier", "huber", "schulz" };
         foreach (var lastName in lastNames)
         {
             var op = new BdeOperator
@@ -183,6 +184,7 @@ public class BdeBookingRepositoryTests
     [Fact]
     public async Task GetHistory_ColumnFilter_Operator()
     {
+        // Spaltenfilter-Suchsyntax (Etappe B): SQL-Bauer ohne ToLower() auf der Spalte; Gross/Klein macht in SQL die CI-Kollation (P-2). EF-InMemory vergleicht ordinal -> Testdaten in Kleinschreibung.
         using var ctx = TestDbContextFactory.Create();
         await SeedThreeOperatorBookingsAsync(ctx);
         var repo = new BdeBookingRepository(ctx);
@@ -192,13 +194,14 @@ public class BdeBookingRepositoryTests
         var count = await repo.GetHistoryCountAsync(null, null, null, null, filters);
 
         list.Should().HaveCount(1);
-        list[0].BdeOperator.LastName.Should().Be("Maier");
+        list[0].BdeOperator.LastName.Should().Be("maier");
         count.Should().Be(1);
     }
 
     [Fact]
     public async Task GetHistory_ColumnFilter_Negate()
     {
+        // Spaltenfilter-Suchsyntax (Etappe B): SQL-Bauer ohne ToLower() auf der Spalte; Gross/Klein macht in SQL die CI-Kollation (P-2). EF-InMemory vergleicht ordinal -> Testdaten in Kleinschreibung.
         using var ctx = TestDbContextFactory.Create();
         await SeedThreeOperatorBookingsAsync(ctx);
         var repo = new BdeBookingRepository(ctx);
@@ -208,7 +211,7 @@ public class BdeBookingRepositoryTests
         var count = await repo.GetHistoryCountAsync(null, null, null, null, filters);
 
         list.Should().HaveCount(2);
-        list.Select(b => b.BdeOperator.LastName).Should().BeEquivalentTo("Huber", "Schulz");
+        list.Select(b => b.BdeOperator.LastName).Should().BeEquivalentTo("huber", "schulz");
         count.Should().Be(2);
     }
 
@@ -261,6 +264,7 @@ public class BdeBookingRepositoryTests
     [Fact]
     public async Task GetHistory_ColumnFilter_Or()
     {
+        // Spaltenfilter-Suchsyntax (Etappe B): SQL-Bauer ohne ToLower() auf der Spalte; Gross/Klein macht in SQL die CI-Kollation (P-2). EF-InMemory vergleicht ordinal -> Testdaten in Kleinschreibung.
         using var ctx = TestDbContextFactory.Create();
         await SeedThreeOperatorBookingsAsync(ctx);
         var repo = new BdeBookingRepository(ctx);
@@ -270,7 +274,7 @@ public class BdeBookingRepositoryTests
         var count = await repo.GetHistoryCountAsync(null, null, null, null, filters);
 
         list.Should().HaveCount(2);
-        list.Select(b => b.BdeOperator.LastName).Should().BeEquivalentTo("Maier", "Huber");
+        list.Select(b => b.BdeOperator.LastName).Should().BeEquivalentTo("maier", "huber");
         count.Should().Be(2);
     }
 }

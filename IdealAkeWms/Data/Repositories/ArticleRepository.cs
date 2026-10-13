@@ -1,4 +1,5 @@
 using IdealAkeWms.Models;
+using IdealAkeWms.Services;
 using Microsoft.EntityFrameworkCore;
 
 namespace IdealAkeWms.Data.Repositories;
@@ -64,9 +65,9 @@ public class ArticleRepository : Repository<Article>, IArticleRepository
         {
             foreach (var (key, raw) in columnFilters)
             {
-                var (tokens, negate) = Services.ColumnFilterHelper.Parse(raw);
-                if (tokens.Count == 0) continue;
-                query = ApplyArticleColumnFilter(query, key, tokens, negate);
+                var parsed = ColumnFilterSyntax.Parse(raw, ColumnFilterType.Text);
+                if (parsed.IsEmpty) continue;
+                query = ApplyArticleColumnFilter(query, key, parsed);
             }
         }
 
@@ -90,31 +91,20 @@ public class ArticleRepository : Repository<Article>, IArticleRepository
     public async Task<Article?> GetByMatchcodeExactAsync(string matchcode)
         => await _dbSet.FirstOrDefaultAsync(a => a.Matchcode == matchcode);
 
-    private static IQueryable<Article> ApplyArticleColumnFilter(
-        IQueryable<Article> q, string key, List<string> tokens, bool negate)
+    /// <summary>Artikelliste: Spaltenfilter ueber den zentralen SQL-Bauer (Spaltenfilter-Suchsyntax, Etappe B). „beginnt mit“ auf
+    /// der Artikelnummer bleibt indexfaehig (<c>LIKE 'x%'</c> ohne <c>LOWER</c>, AK 12).</summary>
+    internal static IQueryable<Article> ApplyArticleColumnFilter(IQueryable<Article> q, string key, ParsedColumnFilter f)
     {
-        var patterns = tokens.Select(t => $"%{t}%").ToList();
-        return key switch
+        var pred = key switch
         {
-            "article-number" => negate
-                ? q.Where(a => !patterns.Any(p => EF.Functions.Like(a.ArticleNumber, p)))
-                : q.Where(a => patterns.Any(p => EF.Functions.Like(a.ArticleNumber, p))),
-            "description" => negate
-                ? q.Where(a => a.Description == null || !patterns.Any(p => EF.Functions.Like(a.Description, p)))
-                : q.Where(a => a.Description != null && patterns.Any(p => EF.Functions.Like(a.Description, p))),
-            "matchcode" => negate
-                ? q.Where(a => a.Matchcode == null || !patterns.Any(p => EF.Functions.Like(a.Matchcode, p)))
-                : q.Where(a => a.Matchcode != null && patterns.Any(p => EF.Functions.Like(a.Matchcode, p))),
-            "unit" => negate
-                ? q.Where(a => a.Unit == null || !patterns.Any(p => EF.Functions.Like(a.Unit, p)))
-                : q.Where(a => a.Unit != null && patterns.Any(p => EF.Functions.Like(a.Unit, p))),
-            "article-group" => negate
-                ? q.Where(a => a.ArticleGroup == null || !patterns.Any(p => EF.Functions.Like(a.ArticleGroup, p)))
-                : q.Where(a => a.ArticleGroup != null && patterns.Any(p => EF.Functions.Like(a.ArticleGroup, p))),
-            "category" => negate
-                ? q.Where(a => a.ArticleCategory == null || !patterns.Any(p => EF.Functions.Like(a.ArticleCategory.Name, p)))
-                : q.Where(a => a.ArticleCategory != null && patterns.Any(p => EF.Functions.Like(a.ArticleCategory.Name, p))),
-            _ => q
+            "article-number" => ColumnFilterSql.Predicate<Article>(f, a => a.ArticleNumber),
+            "description" => ColumnFilterSql.Predicate<Article>(f, a => a.Description),
+            "matchcode" => ColumnFilterSql.Predicate<Article>(f, a => a.Matchcode),
+            "unit" => ColumnFilterSql.Predicate<Article>(f, a => a.Unit),
+            "article-group" => ColumnFilterSql.Predicate<Article>(f, a => a.ArticleGroup),
+            "category" => ColumnFilterSql.Predicate<Article>(f, a => a.ArticleCategory!.Name),
+            _ => null
         };
+        return pred == null ? q : q.Where(pred);
     }
 }

@@ -321,7 +321,7 @@ public class StockMovementRepositoryTests
         var tokens = new List<string> { "sonderteil" };
 
         var sql = StockMovementRepository
-            .ApplyMovementColumnFilter(ctx.StockMovements, "article", tokens, negate: false)
+            .ApplyMovementColumnFilter(ctx.StockMovements, "article", IdealAkeWms.Services.ColumnFilterSyntax.Parse(tokens[0], IdealAkeWms.Services.ColumnFilterType.Text))
             .ToQueryString();
 
         sql.Should().Contain("Matchcode", "der Spaltenfilter 'article' muss auch gegen Article.Matchcode uebersetzt werden");
@@ -334,7 +334,7 @@ public class StockMovementRepositoryTests
         var tokens = new List<string> { "sonderteil" };
 
         var sql = StockMovementRepository
-            .ApplyMovementColumnFilter(ctx.StockMovements, "article", tokens, negate: true)
+            .ApplyMovementColumnFilter(ctx.StockMovements, "article", IdealAkeWms.Services.ColumnFilterSyntax.Parse("!" + tokens[0], IdealAkeWms.Services.ColumnFilterType.Text))
             .ToQueryString();
 
         sql.Should().Contain("Matchcode");

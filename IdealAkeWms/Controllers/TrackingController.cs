@@ -321,9 +321,9 @@ public class TrackingController : Controller
                 .ToHashSet();
         }
 
-        var columnFilters = IdealAkeWms.Services.ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
-        // Server-seitig gefiltert + paginiert laden
-        var pagedResult = await _oseonRepository.GetPagedAsync(filterCustomerOrder, filterWorkplace, showFinished, page, effectivePageSize, relevantOpNames, filterArticle, columnFilters);
+        // Server-seitig gefiltert + paginiert laden. Spaltenfilter gibt es hier nicht (keine Filterzeile; der nur per Hand-URL
+        // erreichbare OSEON-Spaltenfilter wurde mit der Suchsyntax-Spec entfernt, Antwort 10).
+        var pagedResult = await _oseonRepository.GetPagedAsync(filterCustomerOrder, filterWorkplace, showFinished, page, effectivePageSize, relevantOpNames, filterArticle);
 
         // Ampelfarben + AG-Termine berechnen
         var groups = new List<OseonOrderGroupViewModel>();

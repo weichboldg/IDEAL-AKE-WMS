@@ -145,7 +145,7 @@ public class ProductionOrderRepository : Repository<ProductionOrder>, IProductio
         {
             foreach (var (key, raw) in columnFilters)
             {
-                // Alle SQL-Spalten dieser Liste sind Text (Datum/Zahl filtert der Controller in C#, ColumnFilterTypes.FaListe).
+                // Alle SQL-Spalten dieser Liste sind Text (Datum/Zahl filtert der Controller in C#, ColumnFilterTypes "ProductionOrders/Index").
                 var parsed = ColumnFilterSyntax.Parse(raw, ColumnFilterType.Text);
                 if (parsed.IsEmpty) continue;
                 q = ApplyLeitstandColumnFilter(q, key, parsed, hierarchical);

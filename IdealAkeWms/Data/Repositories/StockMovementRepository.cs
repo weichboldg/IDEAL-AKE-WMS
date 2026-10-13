@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Linq.Expressions;
 using IdealAkeWms.Models;
 using IdealAkeWms.Models.ViewModels;
+using IdealAkeWms.Services;
 using Microsoft.EntityFrameworkCore;
 
 namespace IdealAkeWms.Data.Repositories;
@@ -343,9 +344,10 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
         {
             foreach (var (key, raw) in columnFilters)
             {
-                var (tokens, negate) = Services.ColumnFilterHelper.Parse(raw);
-                if (tokens.Count == 0) continue;
-                query = ApplyMovementColumnFilter(query, key, tokens, negate);
+                var type = ColumnFilterTypes.Of("StockMovements/Index", key);
+                var parsed = ColumnFilterSyntax.Parse(raw, type);
+                if (parsed.IsEmpty) continue;
+                query = ApplyMovementColumnFilter(query, key, parsed);
             }
         }
 
@@ -556,48 +558,34 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
     /// Context via ToQueryString() testbar, siehe ProductionOrderRepository.BuildLeitstandQuery
     /// (gleiches Muster). InternalsVisibleTo fuer IdealAkeWms.Tests siehe csproj.
     /// </remarks>
-    internal static IQueryable<StockMovement> ApplyMovementColumnFilter(
-        IQueryable<StockMovement> q, string key, List<string> tokens, bool negate)
+    internal static IQueryable<StockMovement> ApplyMovementColumnFilter(IQueryable<StockMovement> q, string key, ParsedColumnFilter f)
     {
-        var patterns = tokens.Select(t => $"%{t}%").ToList();
-        return key switch
+        switch (key)
         {
-            "article" => negate
-                ? q.Where(sm => !patterns.Any(p => EF.Functions.Like(sm.Article.ArticleNumber, p))
-                    && (sm.Article.Description == null || !patterns.Any(p => EF.Functions.Like(sm.Article.Description, p)))
-                    && (sm.Article.Matchcode == null || !patterns.Any(p => EF.Functions.Like(sm.Article.Matchcode, p))))
-                : q.Where(sm => patterns.Any(p => EF.Functions.Like(sm.Article.ArticleNumber, p))
-                    || (sm.Article.Description != null && patterns.Any(p => EF.Functions.Like(sm.Article.Description, p)))
-                    || (sm.Article.Matchcode != null && patterns.Any(p => EF.Functions.Like(sm.Article.Matchcode, p)))),
-
-            "storage-location" => negate
-                ? q.Where(sm => !patterns.Any(p => EF.Functions.Like(sm.StorageLocation.Code, p))
-                    && (sm.SourceStorageLocation == null || !patterns.Any(p => EF.Functions.Like(sm.SourceStorageLocation.Code, p))))
-                : q.Where(sm => patterns.Any(p => EF.Functions.Like(sm.StorageLocation.Code, p))
-                    || (sm.SourceStorageLocation != null && patterns.Any(p => EF.Functions.Like(sm.SourceStorageLocation.Code, p)))),
-
-            "user" => negate
-                ? q.Where(sm => (sm.User == null || !patterns.Any(p => EF.Functions.Like(sm.User.Name, p)))
-                    && (sm.WindowsUser == null || !patterns.Any(p => EF.Functions.Like(sm.WindowsUser, p))))
-                : q.Where(sm => (sm.User != null && patterns.Any(p => EF.Functions.Like(sm.User.Name, p)))
-                    || (sm.WindowsUser != null && patterns.Any(p => EF.Functions.Like(sm.WindowsUser, p)))),
-
-            "production-order" => negate
-                ? q.Where(sm => sm.ProductionOrder == null || !patterns.Any(p => EF.Functions.Like(sm.ProductionOrder, p)))
-                : q.Where(sm => sm.ProductionOrder != null && patterns.Any(p => EF.Functions.Like(sm.ProductionOrder, p))),
-
-            // Bewegungsart (Teil-4): matcht den deutschen Anzeigenamen der Bewegungsart (Contains),
-            // uebersetzt in ein IN ueber die passenden Enum-Werte. „ausbuchung" trifft damit auch
-            // „Sage-Ausbuchung" (bewusst, Contains-Semantik wie die uebrigen Spaltenfilter).
-            "movement-type" => ApplyMovementTypeFilter(q, tokens, negate),
-
-            // Datum/Zeit (Teil-4): matcht ein volles Datum (dd.MM.yyyy), einen Monat (MM.yyyy)
-            // oder ein Jahr (yyyy) als Zeitraum. Ergaenzt die von/bis-Filterkarte um einen
-            // Spaltenfilter, der ueber alle Seiten wirkt (server-seitig).
-            "datetime" => ApplyMovementDateFilter(q, tokens, negate),
-
-            _ => q
+            case "movement-type":
+            {
+                // Bewegungsart: Anzeigename gegen den Filter (Kern), in SQL ein IN ueber die passenden Enum-Werte.
+                var matching = ColumnFilterSyntax.MatchingValues(_movementTypeNames, kv => kv.Value, f).Select(kv => kv.Key).ToList();
+                if (f.IsEmpty) return q;
+                return f.Negate ? q.Where(sm => !matching.Contains(sm.MovementType)) : q.Where(sm => matching.Contains(sm.MovementType));
+            }
+            case "datetime":
+            {
+                // Datum/Zeit: Vergleich/Bereich tageweise (Antwort 3), Tag/Monat/Jahr ohne Operator wie bisher als Zeitraum.
+                var pred = ColumnFilterSql.DatePredicate<StockMovement>(f, sm => sm.Timestamp);
+                if (pred != null) return q.Where(pred);
+                return f.Negate || f.IsEmpty ? q : q.Where(sm => false); // kein lesbares Datum: positiv leer, negiert alle (wie bisher)
+            }
+        }
+        var text = key switch
+        {
+            "article" => ColumnFilterSql.Predicate<StockMovement>(f, sm => sm.Article.ArticleNumber, sm => sm.Article.Description, sm => sm.Article.Matchcode),
+            "storage-location" => ColumnFilterSql.Predicate<StockMovement>(f, sm => sm.StorageLocation.Code, sm => sm.SourceStorageLocation!.Code),
+            "user" => ColumnFilterSql.Predicate<StockMovement>(f, sm => sm.User!.Name, sm => sm.WindowsUser),
+            "production-order" => ColumnFilterSql.Predicate<StockMovement>(f, sm => sm.ProductionOrder),
+            _ => null
         };
+        return text == null ? q : q.Where(text);
     }
 
     private static readonly Dictionary<MovementType, string> _movementTypeNames = new()
@@ -608,71 +596,6 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
         [MovementType.SageEinbuchung] = "sage-einbuchung",
         [MovementType.SageAusbuchung] = "sage-ausbuchung",
     };
-
-    private static IQueryable<StockMovement> ApplyMovementTypeFilter(
-        IQueryable<StockMovement> q, List<string> tokens, bool negate)
-    {
-        var needles = tokens.Select(t => t.Trim().ToLowerInvariant())
-                            .Where(t => t.Length > 0).ToList();
-        var matching = _movementTypeNames
-            .Where(kv => needles.Any(n => kv.Value.Contains(n)))
-            .Select(kv => kv.Key)
-            .ToList();
-
-        if (matching.Count == 0)
-            return negate ? q : q.Where(sm => false); // kein Treffer: positiv -> leer, negiert -> alle
-
-        return negate
-            ? q.Where(sm => !matching.Contains(sm.MovementType))
-            : q.Where(sm => matching.Contains(sm.MovementType));
-    }
-
-    private static IQueryable<StockMovement> ApplyMovementDateFilter(
-        IQueryable<StockMovement> q, List<string> tokens, bool negate)
-    {
-        var de = CultureInfo.GetCultureInfo("de-AT");
-        Expression<Func<StockMovement, bool>>? pred = null;
-
-        foreach (var raw in tokens)
-        {
-            var t = raw.Trim();
-            if (t.Length == 0) continue;
-            Expression<Func<StockMovement, bool>>? clause = null;
-
-            if (DateTime.TryParseExact(t, new[] { "dd.MM.yyyy", "d.M.yyyy", "dd.MM.yy", "d.M.yy" },
-                    de, DateTimeStyles.None, out var day))
-            {
-                var start = day.Date;
-                var end = start.AddDays(1);
-                clause = sm => sm.Timestamp >= start && sm.Timestamp < end;
-            }
-            else if (DateTime.TryParseExact(t, new[] { "MM.yyyy", "M.yyyy" },
-                    de, DateTimeStyles.None, out var month))
-            {
-                var start = new DateTime(month.Year, month.Month, 1);
-                var end = start.AddMonths(1);
-                clause = sm => sm.Timestamp >= start && sm.Timestamp < end;
-            }
-            else if (t.Length == 4 && int.TryParse(t, out var year) && year >= 2000 && year <= 2100)
-            {
-                var start = new DateTime(year, 1, 1);
-                var end = start.AddYears(1);
-                clause = sm => sm.Timestamp >= start && sm.Timestamp < end;
-            }
-            // sonst: nicht als Datum interpretierbar -> Token traegt nichts bei
-
-            if (clause != null)
-                pred = pred == null ? clause : OrElse(pred, clause);
-        }
-
-        if (pred == null)
-            return negate ? q : q.Where(sm => false); // kein gueltiges Datum-Token
-
-        if (negate)
-            pred = Expression.Lambda<Func<StockMovement, bool>>(Expression.Not(pred.Body), pred.Parameters);
-
-        return q.Where(pred);
-    }
 
     private static Expression<Func<T, bool>> OrElse<T>(
         Expression<Func<T, bool>> a, Expression<Func<T, bool>> b)

@@ -123,78 +123,39 @@ public class BdeBookingRepository : IBdeBookingRepository
 
         foreach (var (key, raw) in columnFilters)
         {
-            var (tokens, negate) = ColumnFilterHelper.Parse(raw);
-            if (tokens.Count == 0) continue;
+            var parsed = ColumnFilterSyntax.Parse(raw, ColumnFilterType.Text);
+            if (parsed.IsEmpty) continue;
+
+            Expression<Func<BdeBooking, bool>>? pred = key switch
+            {
+                "operator" => ColumnFilterSql.Predicate<BdeBooking>(parsed, b => b.BdeOperator.FirstName + " " + b.BdeOperator.LastName),
+                "workplace" => ColumnFilterSql.Predicate<BdeBooking>(parsed, b => b.ProductionWorkplace.Name),
+                "target" => ColumnFilterSql.Predicate<BdeBooking>(parsed, b => b.WorkOperation != null
+                    ? b.WorkOperation.ProductionOrder.OrderNumber + "/" + b.WorkOperation.OperationNumber
+                    : (b.BdeActivity != null ? b.BdeActivity.Name : string.Empty)),
+                _ => null
+            };
+            if (pred != null) { q = q.Where(pred); continue; }
 
             switch (key)
             {
-                case "operator":
-                    q = q.Where(BuildOrContains(b => b.BdeOperator.FirstName + " " + b.BdeOperator.LastName, tokens, negate));
-                    break;
-                case "workplace":
-                    q = q.Where(BuildOrContains(b => b.ProductionWorkplace.Name, tokens, negate));
-                    break;
-                case "target":
-                    q = q.Where(BuildOrContains(b => b.WorkOperation != null
-                            ? b.WorkOperation.ProductionOrder.OrderNumber + "/" + b.WorkOperation.OperationNumber
-                            : (b.BdeActivity != null ? b.BdeActivity.Name : string.Empty),
-                        tokens, negate));
-                    break;
                 case "booking-type":
                 {
-                    var match = MatchingEnumValues<BdeBookingType>(tokens);
-                    q = negate
-                        ? q.Where(b => !match.Contains(b.BookingType))
-                        : q.Where(b => match.Contains(b.BookingType));
+                    var match = ColumnFilterSyntax.MatchingValues(Enum.GetValues<BdeBookingType>(), v => v.ToString(), parsed);
+                    q = parsed.Negate ? q.Where(b => !match.Contains(b.BookingType)) : q.Where(b => match.Contains(b.BookingType));
                     break;
                 }
                 case "status":
                 {
-                    var match = MatchingEnumValues<BdeBookingStatus>(tokens);
-                    q = negate
-                        ? q.Where(b => !match.Contains(b.Status))
-                        : q.Where(b => match.Contains(b.Status));
+                    var match = ColumnFilterSyntax.MatchingValues(Enum.GetValues<BdeBookingStatus>(), v => v.ToString(), parsed);
+                    q = parsed.Negate ? q.Where(b => !match.Contains(b.Status)) : q.Where(b => match.Contains(b.Status));
                     break;
                 }
-                // started-at / ended-at / good-qty / scrap-qty: C#-Filter im Controller
-                default:
-                    break;
+                // started-at / ended-at / good-qty / scrap-qty: C#-Filter im Controller (Typ laut Register)
             }
         }
 
         return q;
-    }
-
-    /// <summary>Enum-Werte deren gerenderter Name (ToString, lowercased) eines der Tokens enthaelt.</summary>
-    private static List<TEnum> MatchingEnumValues<TEnum>(IReadOnlyList<string> tokens) where TEnum : struct, Enum =>
-        Enum.GetValues<TEnum>()
-            .Where(v => tokens.Any(t => v.ToString().ToLowerInvariant().Contains(t)))
-            .ToList();
-
-    /// <summary>
-    /// Baut eine OR-Kette von <c>selector.ToLower().Contains(token)</c>-Calls als Expression-Tree
-    /// (Pattern aus WarehouseRequisitionRepository). KEIN EF.Functions.Like — der
-    /// InMemory-Provider (Test-Setup) unterstuetzt das nicht. Bei <paramref name="negate"/>
-    /// wird die gesamte OR-Kette negiert (Mini-Syntax "!a,b" = weder a noch b).
-    /// </summary>
-    private static Expression<Func<BdeBooking, bool>> BuildOrContains(
-        Expression<Func<BdeBooking, string>> selector,
-        IReadOnlyList<string> tokens,
-        bool negate)
-    {
-        var param = selector.Parameters[0];
-        var toLowerMethod = typeof(string).GetMethod(nameof(string.ToLower), Type.EmptyTypes)!;
-        var containsMethod = typeof(string).GetMethod(nameof(string.Contains), new[] { typeof(string) })!;
-        var lowered = Expression.Call(selector.Body, toLowerMethod);
-
-        Expression? body = null;
-        foreach (var t in tokens)
-        {
-            var call = Expression.Call(lowered, containsMethod, Expression.Constant(t));
-            body = body == null ? (Expression)call : Expression.OrElse(body, call);
-        }
-        if (negate) body = Expression.Not(body!);
-        return Expression.Lambda<Func<BdeBooking, bool>>(body!, param);
     }
 
     public async Task AddAsync(BdeBooking booking)

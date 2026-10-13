@@ -96,9 +96,10 @@ public class BdeBookingsController : Controller
         {
             foreach (var (key, raw) in computedFilters)
             {
-                var (tokens, negate) = ColumnFilterHelper.Parse(raw);
-                if (tokens.Count == 0) continue;
-                bookingVms = bookingVms.Where(b => MatchComputedColumnFilter(b, key, tokens, negate)).ToList();
+                var type = ColumnFilterTypes.Of("BdeBookings/Index", key);
+                var parsed = ColumnFilterSyntax.Parse(raw, type);
+                if (parsed.IsEmpty) continue;
+                bookingVms = bookingVms.Where(b => ColumnFilterSyntax.Matches(ComputedColumnText(b, key), parsed, type)).ToList();
             }
             totalCount = bookingVms.Count;
             bookingVms = bookingVms.Skip(skip).Take(effectivePageSize).ToList();
@@ -314,10 +315,9 @@ public class BdeBookingsController : Controller
         return $"{d:dd.MM.yyyy HH:mm} KW{kw}".ToLowerInvariant();
     }
 
-    private static bool MatchComputedColumnFilter(
-        BdeBookingListViewModel b, string key, List<string> tokens, bool negate)
-    {
-        var text = key.ToLowerInvariant() switch
+    // Start/Ende tageweise als Datum, Gut/Ausschuss als Zahl (Register "BdeBookings/Index"); der Kern liest den Wert aus dem Text.
+    private static string ComputedColumnText(BdeBookingListViewModel b, string key)
+        => key.ToLowerInvariant() switch
         {
             "started-at" => FormatDateForFilter(b.StartedAt),
             "ended-at" => FormatDateForFilter(b.EndedAt),
@@ -325,7 +325,4 @@ public class BdeBookingsController : Controller
             "scrap-qty" => b.TotalScrap.ToString("0.##").ToLowerInvariant(),
             _ => string.Empty
         };
-        var hasMatch = tokens.Any(t => text.Contains(t));
-        return negate ? !hasMatch : hasMatch;
-    }
 }

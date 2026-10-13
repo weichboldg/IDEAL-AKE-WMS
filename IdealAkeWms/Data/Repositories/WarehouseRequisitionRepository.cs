@@ -1,6 +1,7 @@
 using System.Linq.Expressions;
 using IdealAkeWms.Models;
 using IdealAkeWms.Models.ViewModels;
+using IdealAkeWms.Services;
 using Microsoft.EntityFrameworkCore;
 
 namespace IdealAkeWms.Data.Repositories;
@@ -411,16 +412,13 @@ public class WarehouseRequisitionRepository : IWarehouseRequisitionRepository
 
         if (columnFilters != null)
         {
-            if (columnFilters.TryGetValue("ArticleNumber", out var an) && !string.IsNullOrWhiteSpace(an))
-                q = ApplyMissingPartsTextFilter(q, an, isArticleNumber: true);
-            if (columnFilters.TryGetValue("ArticleDescription", out var ad) && !string.IsNullOrWhiteSpace(ad))
-                q = ApplyMissingPartsTextFilter(q, ad, isArticleNumber: false, isDescription: true);
-            if (columnFilters.TryGetValue("WorkplaceName", out var wn) && !string.IsNullOrWhiteSpace(wn))
-                q = ApplyMissingPartsTextFilter(q, wn, isArticleNumber: false, isDescription: false, isWorkplace: true);
-            if (columnFilters.TryGetValue("NoteLager", out var nl) && !string.IsNullOrWhiteSpace(nl))
-                q = ApplyMissingPartsNullableTextFilter(q, nl, isNoteLager: true);
-            if (columnFilters.TryGetValue("NoteEinkauf", out var ne) && !string.IsNullOrWhiteSpace(ne))
-                q = ApplyMissingPartsNullableTextFilter(q, ne, isNoteLager: false);
+            foreach (var (key, raw) in columnFilters)
+            {
+                var parsed = ColumnFilterSyntax.Parse(raw, ColumnFilterType.Text);
+                if (parsed.IsEmpty) continue;
+                var pred = MissingPartsColumnPredicate(key, parsed);
+                if (pred != null) q = q.Where(pred);
+            }
         }
 
         var total = await q.CountAsync();
@@ -448,139 +446,23 @@ public class WarehouseRequisitionRepository : IWarehouseRequisitionRepository
         return (rows, total);
     }
 
-    private IQueryable<WarehouseRequisitionItem> ApplyMissingPartsTextFilter(
-        IQueryable<WarehouseRequisitionItem> q,
-        string filterValue,
-        bool isArticleNumber,
-        bool isDescription = false,
-        bool isWorkplace = false)
+    /// <summary>Fehlteile + Fehlteile-Lager: Spaltenfilter ueber den zentralen SQL-Bauer (Spaltenfilter-Suchsyntax, Etappe B).
+    /// Antwort 5: das <c>!</c> am Anfang gilt fuer ALLE Teile wie ueberall (vorher je Wert). Artikelnummer trifft zusaetzlich den
+    /// Matchcode aus dem Artikelstamm (korrelierte Subquery per <see cref="ColumnFilterSql.Splice{T}"/>).</summary>
+    private Expression<Func<WarehouseRequisitionItem, bool>>? MissingPartsColumnPredicate(string key, ParsedColumnFilter f) => key switch
     {
-        var tokens = filterValue.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        if (tokens.Length == 0) return q;
-        var positives = tokens.Where(t => !t.StartsWith("!")).ToList();
-        var negatives = tokens.Where(t => t.StartsWith("!")).Select(t => t.Substring(1)).ToList();
-
-        // Artikelnummer-Spalte (Task 6, Matchcode): WarehouseRequisitionItem.ArticleNumber ist ein
-        // Snapshot-Feld (kein Article-Navigationsproperty) — Matchcode-Treffer daher ueber einen
-        // korrelierten Subquery gegen Article, kein neues Snapshot-Feld. InMemory-tauglich: reines
-        // .Contains() im Subquery, kein EF.Functions.Like. "positives.Any(v => ... verschachtelter
-        // Subquery ...)" laesst sich NICHT uebersetzen (InMemory wirft, siehe Task 6 Test-Nachlese)
-        // -- je positivem Token daher eine eigene gefilterte Query, ueber Union (statt Any-Lambda-
-        // ueber-Client-Liste) zusammengefuehrt. Negativfall bleibt ein einzelner Token pro Schleifen-
-        // durchlauf (AND-Verkettung wie zuvor) und braucht dieses Union nicht.
-        if (isArticleNumber)
-        {
-            if (positives.Count > 0)
-            {
-                IQueryable<WarehouseRequisitionItem>? matched = null;
-                foreach (var v in positives)
-                {
-                    var clause = q.Where(i => i.ArticleNumber.Contains(v) ||
-                        _context.Set<Article>().Any(a =>
-                            a.ArticleNumber == i.ArticleNumber && a.Matchcode != null && a.Matchcode.Contains(v)));
-                    matched = matched == null ? clause : matched.Union(clause);
-                }
-                q = matched!;
-            }
-            foreach (var n in negatives)
-            {
-                q = q.Where(i => !(i.ArticleNumber.Contains(n) ||
-                    _context.Set<Article>().Any(a =>
-                        a.ArticleNumber == i.ArticleNumber && a.Matchcode != null && a.Matchcode.Contains(n))));
-            }
-            return q;
-        }
-
-        Expression<Func<WarehouseRequisitionItem, string>> selector =
-            isDescription
-                ? i => i.ArticleDescription
-                : i => i.WarehouseRequisition.ProductionWorkplace.Name;
-
-        if (positives.Count > 0)
-        {
-            q = q.Where(BuildOrContains(selector, positives));
-        }
-        foreach (var n in negatives)
-        {
-            var notExpr = BuildNotContains(selector, n);
-            q = q.Where(notExpr);
-        }
-        return q;
-    }
-
-    private static IQueryable<WarehouseRequisitionItem> ApplyMissingPartsNullableTextFilter(
-        IQueryable<WarehouseRequisitionItem> q,
-        string filterValue,
-        bool isNoteLager)
-    {
-        var tokens = filterValue.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        if (tokens.Length == 0) return q;
-        var positives = tokens.Where(t => !t.StartsWith("!")).ToList();
-        var negatives = tokens.Where(t => t.StartsWith("!")).Select(t => t.Substring(1)).ToList();
-
-        if (positives.Count > 0)
-            q = q.Where(BuildNullableOrContains(isNoteLager, positives));
-        foreach (var n in negatives)
-            q = q.Where(BuildNullableNotContains(isNoteLager, n));
-        return q;
-    }
-
-    private static Expression<Func<WarehouseRequisitionItem, bool>> BuildNullableOrContains(
-        bool isNoteLager, IReadOnlyList<string> values)
-    {
-        var param = Expression.Parameter(typeof(WarehouseRequisitionItem), "i");
-        var prop = Expression.Property(param, isNoteLager ? nameof(WarehouseRequisitionItem.Note) : nameof(WarehouseRequisitionItem.NoteEinkauf));
-        var nullConst = Expression.Constant(null, typeof(string));
-        var notNull = Expression.NotEqual(prop, nullConst);
-        var containsMethod = typeof(string).GetMethod(nameof(string.Contains), new[] { typeof(string) })!;
-
-        Expression? orBody = null;
-        foreach (var v in values)
-        {
-            var call = Expression.Call(prop, containsMethod, Expression.Constant(v));
-            orBody = orBody == null ? (Expression)call : Expression.OrElse(orBody, call);
-        }
-        var body = Expression.AndAlso(notNull, orBody!);
-        return Expression.Lambda<Func<WarehouseRequisitionItem, bool>>(body, param);
-    }
-
-    private static Expression<Func<WarehouseRequisitionItem, bool>> BuildNullableNotContains(
-        bool isNoteLager, string value)
-    {
-        var param = Expression.Parameter(typeof(WarehouseRequisitionItem), "i");
-        var prop = Expression.Property(param, isNoteLager ? nameof(WarehouseRequisitionItem.Note) : nameof(WarehouseRequisitionItem.NoteEinkauf));
-        var nullConst = Expression.Constant(null, typeof(string));
-        var isNull = Expression.Equal(prop, nullConst);
-        var containsMethod = typeof(string).GetMethod(nameof(string.Contains), new[] { typeof(string) })!;
-        var call = Expression.Call(prop, containsMethod, Expression.Constant(value));
-        var body = Expression.OrElse(isNull, Expression.Not(call));
-        return Expression.Lambda<Func<WarehouseRequisitionItem, bool>>(body, param);
-    }
-
-    private static Expression<Func<WarehouseRequisitionItem, bool>> BuildOrContains(
-        Expression<Func<WarehouseRequisitionItem, string>> selector,
-        IReadOnlyList<string> values)
-    {
-        var param = selector.Parameters[0];
-        var containsMethod = typeof(string).GetMethod(nameof(string.Contains), new[] { typeof(string) })!;
-        Expression? body = null;
-        foreach (var v in values)
-        {
-            var call = Expression.Call(selector.Body, containsMethod, Expression.Constant(v));
-            body = body == null ? (Expression)call : Expression.OrElse(body, call);
-        }
-        return Expression.Lambda<Func<WarehouseRequisitionItem, bool>>(body!, param);
-    }
-
-    private static Expression<Func<WarehouseRequisitionItem, bool>> BuildNotContains(
-        Expression<Func<WarehouseRequisitionItem, string>> selector,
-        string value)
-    {
-        var param = selector.Parameters[0];
-        var containsMethod = typeof(string).GetMethod(nameof(string.Contains), new[] { typeof(string) })!;
-        var call = Expression.Call(selector.Body, containsMethod, Expression.Constant(value));
-        return Expression.Lambda<Func<WarehouseRequisitionItem, bool>>(Expression.Not(call), param);
-    }
+        "ArticleNumber" => ColumnFilterSql.Combine<WarehouseRequisitionItem>(f, (part, value) => ColumnFilterSql.Splice(
+            part.Op == ColumnFilterOp.Empty
+                ? (Expression<Func<WarehouseRequisitionItem, bool>>)(i => ColumnFilterSql.Wert(i.ArticleNumber))
+                : i => ColumnFilterSql.Wert(i.ArticleNumber) ||
+                       _context.Set<Article>().Any(a => a.ArticleNumber == i.ArticleNumber && ColumnFilterSql.Wert(a.Matchcode)),
+            value)),
+        "ArticleDescription" => ColumnFilterSql.Predicate<WarehouseRequisitionItem>(f, i => i.ArticleDescription),
+        "WorkplaceName" => ColumnFilterSql.Predicate<WarehouseRequisitionItem>(f, i => i.WarehouseRequisition.ProductionWorkplace.Name),
+        "NoteLager" => ColumnFilterSql.Predicate<WarehouseRequisitionItem>(f, i => i.Note),
+        "NoteEinkauf" => ColumnFilterSql.Predicate<WarehouseRequisitionItem>(f, i => i.NoteEinkauf),
+        _ => null
+    };
 
     public async Task<(int WaitingItemCount, int WaitingRequisitionCount,
                        int NoRestockItemCount, int NoRestockRequisitionCount)>

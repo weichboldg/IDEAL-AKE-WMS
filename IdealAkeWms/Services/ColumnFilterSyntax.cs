@@ -13,7 +13,7 @@ public enum ColumnFilterOp { Contains, StartsWith, EndsWith, Equals, Greater, Gr
 /// (Datum als <c>yyyyMMdd</c>-Zahl). Bei <c>=</c> in Zahl/Datum gesetzt, wenn der Wert lesbar ist (sonst Textvergleich).</summary>
 public sealed record ColumnFilterPart(ColumnFilterOp Op, string Value, decimal? Low = null, decimal? High = null);
 
-/// <summary>Ergebnis von <see cref="ColumnFilterHelper.ParseFilter"/>. Ungueltige Teile sind wirkungslos (Antwort 6), stehen aber mit
+/// <summary>Ergebnis von <see cref="ColumnFilterSyntax.Parse"/>. Ungueltige Teile sind wirkungslos (Antwort 6), stehen aber mit
 /// Grund in <see cref="Invalid"/> fuer die Anzeige.</summary>
 public sealed record ParsedColumnFilter(bool Negate, IReadOnlyList<ColumnFilterPart> Parts, IReadOnlyList<string> Invalid)
 {
@@ -21,19 +21,64 @@ public sealed record ParsedColumnFilter(bool Negate, IReadOnlyList<ColumnFilterP
     public bool IsEmpty => Parts.Count == 0;
 }
 
-/// <summary>Spaltentypen je Liste (Server-Seite). Etappe A: Geruest + FA-Liste; Etappe B registriert die uebrigen Listen
-/// (Spec 2026-09-23-suchsyntax-spaltenfilter-erweitern). Gegenstueck im Browser: <c>&lt;th data-date-filter&gt;</c> bzw.
-/// <c>&lt;th data-filter-type="number"&gt;</c>.</summary>
+/// <summary>
+/// Spaltentypen je Liste (Etappe B: alle Listen). Schluessel = View-Pfad unter <c>Views/</c> ohne <c>.cshtml</c>; Spalten ohne
+/// Eintrag sind Text. Gegenstueck im Browser: <c>&lt;th data-date-filter&gt;</c> (Datum, auch Kalenderknopf) bzw.
+/// <c>&lt;th data-filter-type="number"&gt;</c>. Der Drift-Waechter <c>ColumnFilterTypesDriftTests</c> vergleicht beide Seiten und
+/// prueft, dass jede Server-Liste mit Typen ihr Register an <c>Apply</c>/Postfilter uebergibt — sonst filtern Browser-Hinweis und
+/// Server verschieden. Getter typisierter Spalten muessen wie die Zelle rendern (Regel 6).
+/// </summary>
 public static class ColumnFilterTypes
 {
-    public static readonly IReadOnlyDictionary<string, ColumnFilterType> FaListe =
-        new Dictionary<string, ColumnFilterType>(StringComparer.OrdinalIgnoreCase)
+    private const ColumnFilterType N = ColumnFilterType.Number, D = ColumnFilterType.Date;
+
+    private static IReadOnlyDictionary<string, ColumnFilterType> L(params (string Key, ColumnFilterType Type)[] cols)
+        => cols.ToDictionary(c => c.Key, c => c.Type, StringComparer.OrdinalIgnoreCase);
+
+    private static readonly IReadOnlyDictionary<string, ColumnFilterType> None = L();
+
+    public static readonly IReadOnlyDictionary<string, IReadOnlyDictionary<string, ColumnFilterType>> Lists =
+        new Dictionary<string, IReadOnlyDictionary<string, ColumnFilterType>>(StringComparer.OrdinalIgnoreCase)
         {
-            ["coating-date"] = ColumnFilterType.Date, ["bg-date"] = ColumnFilterType.Date,
-            ["picking-date"] = ColumnFilterType.Date, ["production-date"] = ColumnFilterType.Date,
-            ["delivery-date"] = ColumnFilterType.Date, ["konstruktions-termin"] = ColumnFilterType.Date,
-            ["prio"] = ColumnFilterType.Number,
+            ["ArticleAttributes/Index"] = L(("sort-order", N)),
+            ["ArticleCategories/Index"] = L(("article-count", N)),
+            ["BdeBookings/Index"] = L(("started-at", D), ("ended-at", D), ("good-qty", N), ("scrap-qty", N)),
+            ["Beschichtungsauftraege/Details"] = L(("breite", N), ("hoehe", N), ("tiefe", N), ("menge", N)),
+            ["Beschichtungsauftraege/Index"] = L(("start", D), ("retour", D), ("positionen", N), ("angelegtam", D)),
+            ["FaAttributes/Index"] = L(("sort-order", N)),
+            ["FaCompletion/Index"] = L(("quantity", N), ("production-date", D), ("spec-count", N)),
+            ["FaHierarchyBeschichtung/Index"] = L(("sollmenge", N), ("breite", N), ("hoehe", N), ("tiefe", N)),
+            ["FaHierarchyBeschichtung/Summiert"] = L(("breite", N), ("hoehe", N), ("tiefe", N), ("positionen", N), ("sollmenge", N)),
+            ["FaHierarchyKommissionierListen/Index"] = L(("sollmenge", N)),
+            ["FaHierarchyKommissionierListen/Summiert"] = L(("sollmenge", N)),
+            ["FaHierarchyVormontage/Index"] = L(("sollmenge", N), ("fertigungmenge", N)),
+            ["FaHierarchyVormontage/Summiert"] = L(("sollmenge", N), ("fertigungmenge", N)),
+            ["FaWorklist/Index"] = L(("quantity", N), ("coating-date", D), ("bg-date", D), ("picking-date", D), ("production-date", D)),
+            ["PartRequisitions/Index"] = L(("quantity", N), ("ordered-at", D)),
+            ["Picking/Bom"] = L(("quantity", N)),
+            ["Picking/Index"] = L(("priority", N), ("picking-date", D)),
+            ["PickingLeitstand/Index"] = L(("coating-date", D), ("bg-date", D), ("picking-date", D), ("production-date", D), ("delivery-date", D)),
+            ["ProductionOrders/Index"] = L(("prio", N), ("konstruktions-termin", D), ("coating-date", D), ("bg-date", D),
+                ("picking-date", D), ("production-date", D), ("delivery-date", D)),
+            ["ProductionWorkplaces/Index"] = L(("pre-picking-days", N)),
+            ["Roles/Index"] = L(("user-count", N)),
+            ["SageBookingQueue/Index"] = L(("id", N), ("quantity", N), ("created-at", D), ("sent-at", D), ("confirmed-at", D), ("attempts", N)),
+            ["StockMovements/Index"] = L(("datetime", D)),
+            ["StockOverview/Index"] = L(("reorder-level", N), ("current-stock", N)),
+            ["StorageLocations/Index"] = L(("capacity", N), ("created-at", D)),
+            ["SyncLog/Index"] = L(("Timestamp", D)),
+            ["Tracking/ByWorkplace"] = L(("sequence", N)),
+            ["Users/Index"] = L(("created-at", D)),
+            ["WarehousePicking/Details"] = L(("pos", N), ("requested", N)),
+            ["WarehousePicking/Index"] = L(("id", N), ("submitted", D), ("items", N)),
+            ["WarehouseRequisitions/Index"] = L(("id", N), ("items", N), ("created", D), ("submitted", D)),
         };
+
+    /// <summary>Typen einer Liste (View-Pfad wie <c>"FaWorklist/Index"</c>); unbekannte Liste = alles Text.</summary>
+    public static IReadOnlyDictionary<string, ColumnFilterType> For(string list) => Lists.TryGetValue(list, out var t) ? t : None;
+
+    /// <summary>Typ einer Spalte einer Liste; ohne Eintrag Text.</summary>
+    public static ColumnFilterType Of(string list, string key) => For(list).TryGetValue(key, out var t) ? t : ColumnFilterType.Text;
 }
 
 /// <summary>
@@ -102,6 +147,66 @@ public static class ColumnFilterSql
                 ? Expression.OrElse(Expression.Equal(g, Expression.Constant(null, g.Type)), predicate)
                 : Expression.AndAlso(Expression.NotEqual(g, Expression.Constant(null, g.Type)), predicate);
         return predicate;
+    }
+
+    /// <summary>Je Teil ein Praedikat aus einer Vorlage (z. B. mit korrelierter Subquery, <see cref="Splice{T}"/>), ODER-verknuepft,
+    /// Negation ueber alles. <c>null</c>, wenn kein SQL-faehiger Teil bleibt.</summary>
+    public static Expression<Func<T, bool>>? Combine<T>(ParsedColumnFilter filter,
+        Func<ColumnFilterPart, Expression<Func<string?, bool>>, Expression<Func<T, bool>>> perPart)
+    {
+        Expression<Func<T, bool>>? combined = null;
+        foreach (var part in filter.Parts)
+        {
+            var value = ValuePredicate(part);
+            if (value == null) continue;
+            var p = perPart(part, value);
+            combined = combined == null ? p : Expression.Lambda<Func<T, bool>>(
+                Expression.OrElse(combined.Body, Replace(p.Body, p.Parameters[0], combined.Parameters[0])), combined.Parameters[0]);
+        }
+        if (combined == null || !filter.Negate) return combined;
+        return Expression.Lambda<Func<T, bool>>(Expression.Not(combined.Body), combined.Parameters[0]);
+    }
+
+    /// <summary>Datum in SQL (nur Bewegungshistorie, <c>Timestamp</c>): Vergleich/Bereich/<c>=</c> tageweise (Antwort 3); ein Wert
+    /// ohne Operator wie bisher als Zeitraum — Tag <c>01.10.2026</c>, Monat <c>10.2026</c>, Jahr <c>2026</c>; sonst traegt der Teil
+    /// nichts bei. <c>null</c>, wenn kein Teil bleibt (Aufrufer: positiv → leer wie bisher, negiert → alle).</summary>
+    public static Expression<Func<T, bool>>? DatePredicate<T>(ParsedColumnFilter filter, Expression<Func<T, DateTime>> selector)
+    {
+        var t = selector.Body;
+        Expression Between(DateTime from, DateTime to) => Expression.AndAlso(
+            Expression.GreaterThanOrEqual(t, Expression.Constant(from)), Expression.LessThan(t, Expression.Constant(to)));
+        Expression? chain = null;
+        foreach (var part in filter.Parts)
+        {
+            Expression? clause = null;
+            if (part.Low is decimal low)
+            {
+                var a = ColumnFilterSyntax.KeyToDate(low);
+                var b = ColumnFilterSyntax.KeyToDate(part.High ?? low);
+                clause = part.Op switch
+                {
+                    ColumnFilterOp.Greater => Expression.GreaterThanOrEqual(t, Expression.Constant(a.AddDays(1))),
+                    ColumnFilterOp.GreaterOrEqual => Expression.GreaterThanOrEqual(t, Expression.Constant(a)),
+                    ColumnFilterOp.Less => Expression.LessThan(t, Expression.Constant(a)),
+                    ColumnFilterOp.LessOrEqual => Expression.LessThan(t, Expression.Constant(a.AddDays(1))),
+                    _ => Between(a, b.AddDays(1)) // Equals, Range
+                };
+            }
+            else if (part.Op is ColumnFilterOp.Contains or ColumnFilterOp.StartsWith or ColumnFilterOp.Equals)
+            {
+                var v = part.Value.Trim();
+                var de = CultureInfo.GetCultureInfo("de-AT");
+                if (DateTime.TryParseExact(v, new[] { "dd.MM.yyyy", "d.M.yyyy", "dd.MM.yy", "d.M.yy" }, de, DateTimeStyles.None, out var day))
+                    clause = Between(day.Date, day.Date.AddDays(1));
+                else if (DateTime.TryParseExact(v, new[] { "MM.yyyy", "M.yyyy" }, de, DateTimeStyles.None, out var month))
+                    clause = Between(new DateTime(month.Year, month.Month, 1), new DateTime(month.Year, month.Month, 1).AddMonths(1));
+                else if (v.Length == 4 && int.TryParse(v, out var year) && year is >= 2000 and <= 2100)
+                    clause = Between(new DateTime(year, 1, 1), new DateTime(year + 1, 1, 1));
+            }
+            if (clause != null) chain = chain == null ? clause : Expression.OrElse(chain, clause);
+        }
+        if (chain == null) return null;
+        return Expression.Lambda<Func<T, bool>>(filter.Negate ? Expression.Not(chain) : chain, selector.Parameters[0]);
     }
 
     /// <summary>Setzt das Teil-Praedikat an jeder Stelle <c>Wert(x)</c> der Vorlage ein (Compiler-Lambdas bleiben erhalten, z. B.
@@ -219,6 +324,20 @@ public static class ColumnFilterSyntax
         if (y < 100) y += 2000;
         if (mo is < 1 or > 12 || d < 1 || d > DateTime.DaysInMonth(y, mo)) return null;
         return y * 10000 + mo * 100 + d;
+    }
+
+    /// <summary>Werte einer festen Menge (z. B. Enum mit Anzeigename), deren Text einen Teil trifft — OHNE Negation; der Aufrufer
+    /// baut daraus <c>IN</c> bzw. bei <see cref="ParsedColumnFilter.Negate"/> <c>NOT IN</c>.</summary>
+    public static List<T> MatchingValues<T>(IEnumerable<T> values, Func<T, string> text, ParsedColumnFilter filter)
+    {
+        var positive = filter with { Negate = false };
+        return values.Where(v => Matches(text(v), positive, ColumnFilterType.Text)).ToList();
+    }
+
+    internal static DateTime KeyToDate(decimal key)
+    {
+        var k = (int)key;
+        return new DateTime(k / 10000, k / 100 % 100, k % 100);
     }
 
     /// <summary>Speicher-Auswerter: <c>true</c>, wenn der angezeigte Zelltext den Filter erfuellt. Ohne gueltigen Teil wirkungslos.</summary>

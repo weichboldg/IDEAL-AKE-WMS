@@ -503,9 +503,8 @@ public class ProductionOrdersController : Controller
         return $"{d:dd.MM.yyyy} KW{kw}".ToLowerInvariant();
     }
 
-    // Spaltenfilter-Suchsyntax (v1.58.0): Typ je Key aus ColumnFilterTypes.FaListe (Datum/Zahl), sonst Text.
-    private static ColumnFilterType FaListType(string key)
-        => ColumnFilterTypes.FaListe.TryGetValue(key, out var t) ? t : ColumnFilterType.Text;
+    // Spaltenfilter-Suchsyntax: Typ je Key aus dem Register (Datum/Zahl), sonst Text.
+    private static ColumnFilterType FaListType(string key) => ColumnFilterTypes.Of("ProductionOrders/Index", key);
 
     internal static bool MatchFaListDateFilter(ProductionOrderListItem item, string key, ParsedColumnFilter filter)
     {
