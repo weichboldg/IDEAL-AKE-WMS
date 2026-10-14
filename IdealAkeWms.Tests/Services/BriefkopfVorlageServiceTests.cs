@@ -331,6 +331,111 @@ public sealed class BriefkopfVorlageServiceTests : IDisposable
         v.Hinweise.Should().BeEmpty();
     }
 
+    // ----- Fusszeile (Spec 2026-10-13-briefkopf-fusszeile-word-vorlage, v1.59.0) -----
+
+    private const string MitFuss = """
+        <body><div class="logozone"><img class="logo" src="logo.jpg"></div>
+        <footer class="briefkopf-fuss"><div class="fuss-spalten"><div>IDEAL Kältetechnik GmbH</div></div><img class="icon" src="ort.png" alt=""><div class="fuss-balken"></div></footer>
+        </body>
+        """;
+
+    [Fact]
+    public void Load_WithFooter_FussExtracted_NotInMarkup_ImagesEmbedded()
+    {
+        Datei("logo.jpg", 10); Datei("ort.png", 10);
+
+        var v = BriefkopfVorlageService.Load(Vorlage(MitFuss));
+
+        v.IstErsatz.Should().BeFalse();
+        v.HatFuss.Should().BeTrue();
+        v.Hinweise.Should().BeEmpty();
+        v.Fuss.Should().StartWith("<div class=\"fuss-spalten\">").And.Contain("IDEAL Kältetechnik GmbH")
+            .And.Contain("src=\"data:image/png;base64,").And.NotContain("<footer");
+        v.Markup.Should().Contain("data:image/jpeg;base64,").And.NotContain("footer").And.NotContain("Kältetechnik");
+    }
+
+    [Fact]
+    public void Load_WithoutFooter_FussEmpty_MarkupUnchanged()
+    {
+        Datei("logo.jpg", 10);
+        var v = BriefkopfVorlageService.Load(Vorlage(Html));
+
+        v.HatFuss.Should().BeFalse();
+        v.Fuss.Should().BeEmpty();
+        v.Markup.Should().Contain("IDEAL Kältetechnik GmbH");
+    }
+
+    [Fact]
+    public void Load_OtherFooterElement_StaysInKopf()
+    {
+        var v = BriefkopfVorlageService.Load(Vorlage("<p>Kopf</p><footer class=\"andere\">bleibt</footer>"));
+
+        v.HatFuss.Should().BeFalse();
+        v.Markup.Should().Contain("<footer class=\"andere\">bleibt</footer>");
+    }
+
+    [Fact]
+    public void Ersatz_HasNoFuss()
+    {
+        var v = BriefkopfVorlageService.Load(Path.Combine(_branding, "fehlt.html"));
+
+        v.IstErsatz.Should().BeTrue();
+        v.HatFuss.Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData("<p>Kopf</p><footer class=\"briefkopf-fuss\"><p>offen</p>", "footer")]
+    [InlineData("<p>Kopf</p><footer class=\"briefkopf-fuss\"><div><p>Fuss</p></footer>", "Fußzeile")]
+    [InlineData("<div><p>Kopf</p><footer class=\"briefkopf-fuss\"><p>Fuss</p></footer>", "Kopf")]
+    [InlineData("<p>Kopf</p><footer class=\"briefkopf-fuss\"><style>.briefkopf p{color:red}</footer>", "Element")]
+    public void Load_BrokenFooter_IsErsatz_WithHint(string html, string grund)
+    {
+        var v = BriefkopfVorlageService.Load(Vorlage(html));
+
+        v.IstErsatz.Should().BeTrue();
+        v.HatFuss.Should().BeFalse();
+        v.Hinweise.Should().ContainSingle().Which.Should().Contain(grund);
+    }
+
+    [Fact]
+    public void Load_TwoFooters_FirstWins_WithHint()
+    {
+        var v = BriefkopfVorlageService.Load(Vorlage(
+            "<p>Kopf</p><footer class=\"briefkopf-fuss\">eins</footer><footer class='x briefkopf-fuss'>zwei</footer>"));
+
+        v.IstErsatz.Should().BeFalse();
+        v.Fuss.Should().Be("eins");
+        v.Markup.Should().Be("<p>Kopf</p>");
+        v.Hinweise.Should().ContainSingle().Which.Should().Contain("2 Fußzeilen-Bereiche");
+    }
+
+    [Fact]
+    public void Load_Footer_ActiveContentAndForeignSourcesRemoved()
+    {
+        var v = BriefkopfVorlageService.Load(Vorlage(
+            "<p>Kopf</p><footer class=\"briefkopf-fuss\"><script>alert(1)</script><a href=\"javascript:alert(2)\" onclick=\"alert(3)\">w</a>" +
+            "<img src=\"https://x/icon.png\"><span style=\"background:url('http://x/a.png')\">ok</span></footer>"));
+
+        v.HatFuss.Should().BeTrue();
+        foreach (var bad in new[] { "<script", "alert(", "javascript:", "onclick", "https://x", "http://x", "<img" })
+            v.Fuss.Should().NotContainEquivalentOf(bad);
+        v.Fuss.Should().Contain(">ok</span>");
+        v.Hinweise.Should().HaveCount(2).And.OnlyContain(h => h.Contains("abgelehnt"));
+    }
+
+    [Fact]
+    public void Load_Footer_SharesSumLimitWithKopf()
+    {
+        var mb = BriefkopfVorlageService.MaxDateiBytes;
+        Datei("a.jpg", mb); Datei("b.jpg", mb); Datei("c.jpg", mb); Datei("d.png", 10);
+
+        var v = BriefkopfVorlageService.Load(Vorlage(
+            "<img src=\"a.jpg\"><img src=\"b.jpg\"><img src=\"c.jpg\"><footer class=\"briefkopf-fuss\"><img src=\"d.png\">x</footer>"));
+
+        v.Fuss.Should().Be("x");
+        v.Hinweise.Single().Should().Contain("d.png").And.Contain("Summe");
+    }
+
     // ----- Muster-Vorlage im Repo (Branding/briefkopf.html, Lieferumfang fuer die IT) -----
 
     [Fact]
@@ -344,15 +449,26 @@ public sealed class BriefkopfVorlageServiceTests : IDisposable
         var v = BriefkopfVorlageService.Load(Path.Combine(dir!.FullName, "Branding", "briefkopf.html"));
 
         v.IstErsatz.Should().BeFalse();
-        v.Markup.Should().Contain("data:image/jpeg;base64,").And.Contain("In der Schörihub 28, 4810 Gmunden");
+        v.Markup.Should().Contain("data:image/jpeg;base64,").And.NotContain("Schörihub", "die Anschrift steht seit v1.59.0 in der Fusszeile");
+        v.Styles.Should().Contain("justify-content: flex-end");
         // Schriftdateien sind lizenziert und bewusst NICHT im Repo -> genau diese zwei Hinweise.
-        v.Hinweise.Should().HaveCount(2).And.OnlyContain(h => h.Contains("NimbusSansNovus") && h.Contains("nicht gefunden"));
+        v.Hinweise.Should().HaveCount(2).And.OnlyContain(h => h.Contains("NimbusSanNov-") && h.Contains("nicht gefunden"));
 
-        // AK 11: jede Regel ausser @font-face unter .briefkopf; AKE Blau nicht als Textfarbe.
-        var selectors = System.Text.RegularExpressions.Regex.Matches(v.Styles, @"(^|\})\s*([^{}@]+)\{")
-            .Select(m => m.Groups[2].Value.Trim()).Where(s => s.Length > 0).ToList();
-        selectors.Should().NotBeEmpty().And.OnlyContain(s => s.StartsWith(".briefkopf"));
-        v.Styles.Should().NotMatchRegex(@"(?<![-\w])color:\s*#43a6e2");
+        // Fusszeile nach Word-Vorlage: beide Firmen, je office@ideal-ake.at, Web, Balken.
+        v.HatFuss.Should().BeTrue();
+        v.Fuss.Should().Contain("In der Schörihub 28, 4810 Gmunden, AT").And.Contain("Pichl 66, 8984 Bad Mitterndorf, AT")
+            .And.Contain("www.ideal-ake.at").And.Contain("fuss-balken").And.NotContain("office@ake.at");
+        System.Text.RegularExpressions.Regex.Matches(v.Fuss, "office@ideal-ake\\.at").Count.Should().Be(2);
+
+        // AK 11: jede Regel ausser @font-face unter .briefkopf; Schrift als OpenType.
+        var regeln = System.Text.RegularExpressions.Regex.Matches(v.Styles, @"(?<=^|\})\s*([^{}@]+)\{([^{}]*)\}")
+            .Select(m => (Sel: m.Groups[1].Value.Trim(), Body: m.Groups[2].Value)).Where(r => r.Sel.Length > 0).ToList();
+        regeln.Should().NotBeEmpty().And.OnlyContain(r => r.Sel.StartsWith(".briefkopf"));
+        v.Styles.Should().Contain("format('opentype')").And.NotContain("woff2");
+        // Kontrast (Freigabe 2026-10-14): AKE Blau als Textfarbe NUR fuer den AKE-Firmennamen.
+        regeln.Where(r => System.Text.RegularExpressions.Regex.IsMatch(r.Body, @"(?<![-\w])color:\s*#43a6e2"))
+            .Select(r => r.Sel).Should().Equal(".briefkopf .ake-firma");
+        v.Fuss.Should().Contain("<span class=\"ake-firma\">AKE Ausseer Kälte- und Edelstahltechnik GmbH</span>");
         v.Styles.Should().Contain("color: #053153").And.Contain("color: #4a494a").And.Contain("height: 17.5mm");
     }
 

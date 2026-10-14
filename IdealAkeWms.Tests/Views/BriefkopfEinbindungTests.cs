@@ -66,6 +66,38 @@ public class BriefkopfEinbindungTests
         html.Should().NotContain("class=\"briefkopf\"", "das Markup steht nur im Partial (AK 7)");
     }
 
+    // Fusszeile (Spec 2026-10-13-briefkopf-fusszeile-word-vorlage, v1.59.0): EIN Fuss-Partial je Druckseite, HINTER allen
+    // Dokumenten (nicht in .fa-group — sonst je HauptFA wiederholt); Seitenzaehlung nur bei genau einem Dokument.
+    [Theory]
+    [InlineData("FaHierarchyBeschichtung", "Print.cshtml", "Model.Groups.Count == 1")]
+    [InlineData("FaHierarchyBeschichtung", "PrintSummiert.cshtml", "Model.Rows.Select(r => r.HauptFA).Distinct().Count() == 1")]
+    [InlineData("Beschichtungsauftraege", "Print.cshtml", "true")]
+    public void BeschichtungDruck_BindetFussEinmalHinterDenDokumentenEin(string folder, string file, string einDokument)
+    {
+        var html = View(folder, file);
+
+        Regex.Matches(html, "<partial name=\"_PrintBriefkopfFuss\"").Count.Should().Be(1);
+        html.Should().Contain($"<partial name=\"_PrintBriefkopfFuss\" model=\"{einDokument}\" />");
+        html.IndexOf("_PrintBriefkopfFuss", StringComparison.Ordinal)
+            .Should().BeGreaterThan(html.LastIndexOf("</table>", StringComparison.Ordinal), "hinter dem letzten Dokument");
+        html.Should().NotContain("briefkopf-fussbereich", "das Fuss-Markup steht nur im Partial");
+    }
+
+    [Fact]
+    public void FussPartial_NurMitFussbereich_ZaehlerNurBeiEinemDokument()
+    {
+        var p = View("Shared", "_PrintBriefkopfFuss.cshtml");
+        p.Should().Contain("@if (vorlage.HatFuss)").And.Contain("<footer class=\"briefkopf briefkopf-fussbereich\">");
+        p.IndexOf("counter(pages)", StringComparison.Ordinal).Should().BeGreaterThan(p.IndexOf("@if (Model)", StringComparison.Ordinal));
+
+        // Abwaertskompatibel: die Druck-Regeln (@page, Polster) stehen nur im HatFuss-Zweig der Styles.
+        var s = View("Shared", "_PrintBriefkopfStyles.cshtml");
+        var zweig = s.IndexOf("@if (vorlage.HatFuss)", StringComparison.Ordinal);
+        zweig.Should().BeGreaterThan(-1);
+        s.IndexOf("@@page", StringComparison.Ordinal).Should().BeGreaterThan(zweig);
+        s.IndexOf("padding-bottom: 19.75mm", StringComparison.Ordinal).Should().BeGreaterThan(zweig);
+    }
+
     [Theory]
     [InlineData("Print.cshtml")]
     [InlineData("PrintSummiert.cshtml")]

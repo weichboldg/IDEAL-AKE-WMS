@@ -4,46 +4,77 @@
 <meta charset="utf-8">
 <title>Briefkopf IDEAL (Muster)</title>
 <!--
-  MUSTER-BRIEFKOPF fuer den Beschichtungsauftrag (IDEAL AKE WMS, ab v1.49.0) — Lieferumfang fuer die IT.
+  MUSTER-BRIEFKOPF fuer die Druckansichten mit Briefkopf (Beschichtungsauftrag), IDEAL AKE WMS ab v1.49.0,
+  Fusszeile ab v1.59.0 — Lieferumfang fuer die IT.
 
-  Ablage: Ordner Branding\ NEBEN dem Web-Publish-Ordner (nicht darin — ein Deploy wuerde ihn sonst loeschen).
-  In den Standorteinstellungen -> Firmendaten -> "Briefkopf-Vorlage (Pfad)" den vollen Pfad zu dieser Datei eintragen.
-  Aenderungen an dieser Datei oder am Logo wirken ab dem naechsten Druck, ohne Deploy und ohne Neustart.
+  Ablage: Unterordner Branding\ IM Programmordner der Web-App (z. B. C:\inetpub\wwwroot\IDEALAKEWMS_Test\Branding\),
+  NICHT im Unterordner wwwroot\ der App (der wird an Browser ausgeliefert). Nach jedem Deploy pruefen, dass der Ordner
+  noch da ist. Standorteinstellungen -> Firmendaten -> "Briefkopf-Vorlage (Pfad)": voller Pfad zu dieser Datei.
+  Aenderungen an dieser Datei oder an Logo/Schriften wirken ab dem naechsten Druck, ohne Deploy und ohne Neustart.
 
   Regeln (das WMS prueft sie beim Einlesen; Verstoesse erscheinen am Bildschirm als Hinweis und im Log):
-  - Nur Dateien aus DIESEM Ordner, mit relativem Namen (src="logo.jpg", url('schrift.woff2')).
+  - Nur Dateien aus DIESEM Ordner, mit relativem Namen (src="logo.jpg", url('schrift.otf')).
     Keine Unterordner ausserhalb, keine absoluten Pfade (C:\..., \\server\...), keine http(s)-Adressen.
   - Erlaubte Dateitypen: png, jpg/jpeg (Bilder), woff, woff2, ttf, otf (Schriften). KEIN SVG.
   - Groessen: diese Datei hoechstens 256 KB, jede eingebettete Datei hoechstens 1 MB, alle zusammen hoechstens 3 MB.
   - Kein Script: <script>, on...-Attribute, javascript:-Links, iframe/object/embed/link/base/meta, @import werden entfernt.
   - JEDE CSS-Regel unter .briefkopf schreiben (z. B. ".briefkopf .firma") — die Styles gelten fuer die ganze Druckseite,
-    nur so bleibt der Rest des Dokuments (Tabellen, Positionen) unveraendert.
-  - Schrift Nimbus Sans Novus: die lizenzierten Dateien hier ablegen und die Dateinamen in @font-face anpassen.
+    nur so bleibt der Rest des Dokuments (Tabellen, Positionen) unveraendert. Das gilt auch fuer die Fusszeile.
+  - Schrift Nimbus Sans Novus: die lizenzierten Dateien NimbusSanNov-Reg.otf und NimbusSanNov-SemBol.otf hier ablegen.
     Fehlt eine Datei, druckt der Briefkopf in Segoe UI/Arial.
   - Fehlt diese Datei ganz oder ist sie unlesbar, druckt das WMS einen Ersatz-Kopf aus Firmenname + Anschrift
-    (Standorteinstellungen) — der Druck bricht nie ab.
+    (Standorteinstellungen) und KEINE Fusszeile — der Druck bricht nie ab.
 
-  Gestaltung nach CD-Manual 01/23: Logozone 37,125 mm (Sperrzone, nur das Logo), Logo 17,5 mm hoch, vertikal mittig;
-  Firmenbezeichnung IDEAL Blau #053153, Lauftext Grau 85 #4a494a, AKE Blau #43a6e2 nur fuer die Linie (als Textfarbe
-  zu kontrastarm).
+  Kopf: alles in <body> ausser dem Fusszeilen-Bereich. Er steht auf Seite 1 jedes Dokuments; darunter setzt das WMS
+  Empfaenger, Dokument und Datum.
+
+  Fusszeile: der Bereich <footer class="briefkopf-fuss"> ... </footer> (genau einer). Das WMS druckt ihn auf JEDER Seite
+  unten und reserviert den Platz dafuer (unten 24,75 mm, davon 5 mm Abstand zur Blattkante). Die Fusszeile darf
+  hoechstens 17,75 mm hoch sein — was darueber hinausgeht, schneidet das WMS ab, damit nie Inhalt verdeckt wird.
+  Gleiche Datei-/Script-Regeln wie im Kopf. Fehlt der Bereich, gibt es keine Fusszeile und der Druck sieht aus wie
+  bisher. Icons (Ort/Telefon/Mail) sind moeglich: PNG hier ablegen und z. B. <img class="icon" src="ort.png" alt="">
+  vor die Zeile setzen (".briefkopf .icon { height: 2.6mm; vertical-align: -0.4mm; }").
+
+  Gestaltung nach Allg-Dokument-Vorlage_IDEAL_AKE.dotx und CD-Manual 01/23: Logo rechts oben, 17,5 mm hoch, in der
+  Logozone 37,125 mm; Firmenbezeichnung IDEAL Blau #053153, Text Grau 85 #4a494a. AKE Blau #43a6e2 ist als Textfarbe zu
+  kontrastarm und deshalb NUR fuer den AKE-Firmennamen in der Fusszeile erlaubt (Freigabe Gerald 2026-10-14) sowie fuer
+  den Balken. Der Balken liegt innerhalb der Seitenraender (nicht randabfallend) und ist 3 mm hoch, damit die Fusszeile
+  in 17,75 mm passt (Word: 5 mm).
 -->
 <style>
-@font-face { font-family: 'Nimbus Sans Novus'; src: url('NimbusSansNovus-Regular.woff2') format('woff2'); font-weight: 400; font-style: normal; }
-@font-face { font-family: 'Nimbus Sans Novus'; src: url('NimbusSansNovus-SemiBold.woff2') format('woff2'); font-weight: 600; font-style: normal; }
+@font-face { font-family: 'Nimbus Sans Novus'; src: url('NimbusSanNov-Reg.otf') format('opentype'); font-weight: 400; font-style: normal; }
+@font-face { font-family: 'Nimbus Sans Novus'; src: url('NimbusSanNov-SemBol.otf') format('opentype'); font-weight: 600; font-style: normal; }
 .briefkopf { font-family: 'Nimbus Sans Novus', 'Segoe UI', Arial, sans-serif; color: #4a494a; }
-.briefkopf .logozone { height: 37.125mm; display: flex; align-items: center; }
+.briefkopf .logozone { height: 37.125mm; display: flex; align-items: center; justify-content: flex-end; }
 .briefkopf .logo { height: 17.5mm; width: auto; display: block; }
-.briefkopf .absender { font-size: 8.5pt; line-height: 1.4; padding-bottom: 2.5mm; border-bottom: 0.5mm solid #43a6e2; }
-.briefkopf .firma { color: #053153; font-weight: 600; }
+.briefkopf .fuss-spalten { display: flex; justify-content: space-between; align-items: flex-end; font-size: 7pt; line-height: 1.25; color: #4a494a; }
+.briefkopf .ideal-firma { color: #053153; font-weight: 600; }
+.briefkopf .ake-firma { color: #43a6e2; font-weight: 600; }
+.briefkopf .fuss-web { color: #053153; font-weight: 600; text-align: right; }
+.briefkopf .fuss-balken { height: 3mm; margin-top: 2mm; background: linear-gradient(135deg, #053153 50%, #43a6e2 50%); -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 </style>
 </head>
 <body>
 <div class="logozone">
     <img class="logo" src="IDEAL_AKE_Logo_rgb_klein.jpg" alt="IDEAL AKE">
 </div>
-<div class="absender">
-    <span class="firma">IDEAL Kältetechnik GmbH</span> · In der Schörihub 28, 4810 Gmunden · Österreich ·
-    +43 7612 660 61 · office@ideal-ake.at · www.ideal-ake.at
-</div>
+<footer class="briefkopf-fuss">
+    <div class="fuss-spalten">
+        <div>
+            <span class="ideal-firma">IDEAL Kältetechnik GmbH</span><br>
+            In der Schörihub 28, 4810 Gmunden, AT<br>
+            +43 7612 660 61<br>
+            office@ideal-ake.at
+        </div>
+        <div>
+            <span class="ake-firma">AKE Ausseer Kälte- und Edelstahltechnik GmbH</span><br>
+            Pichl 66, 8984 Bad Mitterndorf, AT<br>
+            +43 3624 211 00<br>
+            office@ideal-ake.at
+        </div>
+        <div class="fuss-web">www.ideal-ake.at</div>
+    </div>
+    <div class="fuss-balken"></div>
+</footer>
 </body>
 </html>

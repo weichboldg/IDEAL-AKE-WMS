@@ -12,11 +12,14 @@ using Microsoft.Extensions.Logging;
 namespace IdealAkeWms.Services;
 
 /// <summary>Ergebnis fuer den Briefkopf einer Druckseite. <see cref="IstErsatz"/>: Vorlage nicht nutzbar, der
-/// Kopf-Partial zeigt Firmenname + Firmenanschrift. <see cref="Hinweise"/> erscheinen nur am Bildschirm.</summary>
+/// Kopf-Partial zeigt Firmenname + Firmenanschrift. <see cref="Hinweise"/> erscheinen nur am Bildschirm.
+/// <see cref="Fuss"/>: Inhalt des Fusszeilen-Bereichs der Vorlage (leer = keine Fusszeile; im Ersatz-Fall immer leer).</summary>
 public sealed record BriefkopfVorlage(bool IstErsatz, string Styles, string Markup, IReadOnlyList<string> Hinweise)
 {
     public string? Firmenname { get; init; }
     public string? Firmenanschrift { get; init; }
+    public string Fuss { get; init; } = string.Empty;
+    public bool HatFuss => !IstErsatz && !string.IsNullOrWhiteSpace(Fuss);
 }
 
 /// <summary>
@@ -46,6 +49,10 @@ public class BriefkopfVorlageService
     };
 
     private const RegexOptions Opt = RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant;
+
+    /// <summary>Fusszeilen-Bereich der Vorlage (Spec 2026-10-13-briefkopf-fusszeile-word-vorlage, E3): <c>footer</c> wird nie
+    /// verschachtelt, deshalb genuegt ein Treffer ohne Tiefenzaehlung.</summary>
+    private const string FussMuster = @"<footer\b[^>]*\bclass\s*=\s*[""'][^""']*\bbriefkopf-fuss\b[^""']*[""'][^>]*>(.*?)</footer\s*>";
 
     private readonly IAppSettingRepository _settings;
     private readonly ILogger<BriefkopfVorlageService> _logger;
@@ -123,19 +130,35 @@ public class BriefkopfVorlageService
             ? body.Groups[1].Value
             : Regex.Replace(html, @"<head\b[^>]*>.*?</head\s*>|<!doctype[^>]*>|</?(html|body)\b[^>]*>", "", Opt);
 
-        var offen = Regex.Match(markup, @"<(style|title|textarea|xmp|plaintext|noembed|noframes)\b", Opt);
+        // Fusszeile: der ERSTE <footer class="briefkopf-fuss"> wird herausgeloest und einmal je Druckseite gedruckt; weitere
+        // Bereiche fallen mit Hinweis weg. Ein Bereich ohne </footer> ist unvollstaendiges Markup wie <style> ohne Ende.
+        var fuss = string.Empty;
+        var fussAnzahl = 0;
+        markup = Regex.Replace(markup, FussMuster, m => { if (fussAnzahl++ == 0) fuss = m.Groups[1].Value; return ""; }, Opt);
+        if (Regex.IsMatch(markup, @"<footer\b[^>]*\bbriefkopf-fuss\b", Opt))
+            return Ersatz($"Briefkopf-Vorlage: unvollständiges Element <footer class=\"briefkopf-fuss\"> (ohne End-Tag): {vorlagePfad} — Ersatz-Kopf.");
+        if (fussAnzahl > 1)
+            hinweise.Add($"Briefkopf-Vorlage hat {fussAnzahl} Fußzeilen-Bereiche (<footer class=\"briefkopf-fuss\">) — nur der erste wird gedruckt.");
+
+        var offen = Regex.Match(markup + fuss, @"<(style|title|textarea|xmp|plaintext|noembed|noframes)\b", Opt);
         if (offen.Success)
             return Ersatz($"Briefkopf-Vorlage: unvollständiges Element <{offen.Groups[1].Value.ToLowerInvariant()}> (ohne End-Tag): {vorlagePfad} — Ersatz-Kopf.");
-        int auf = Regex.Matches(markup, @"<div\b", Opt).Count, zu = Regex.Matches(markup, @"</div\s*>", Opt).Count;
-        if (auf != zu)
-            return Ersatz($"Briefkopf-Vorlage: ungleich viele <div> ({auf}) und </div> ({zu}) — würde die Druckseite verschieben: {vorlagePfad} — Ersatz-Kopf.");
+        // div-Balance getrennt fuer Kopf und Fuss: eine Unwucht in einem der beiden wuerde sonst die Druckseite verschieben.
+        foreach (var (teil, name) in new[] { (markup, "Kopf"), (fuss, "Fußzeile") })
+        {
+            int auf = Regex.Matches(teil, @"<div\b", Opt).Count, zu = Regex.Matches(teil, @"</div\s*>", Opt).Count;
+            if (auf != zu)
+                return Ersatz($"Briefkopf-Vorlage ({name}): ungleich viele <div> ({auf}) und </div> ({zu}) — würde die Druckseite verschieben: {vorlagePfad} — Ersatz-Kopf.");
+        }
 
+        // EIN Embedder fuer Styles, Kopf und Fuss: Groessen- und Ausgabegrenzen gelten gemeinsam, eine von beiden genutzte
+        // Datei zaehlt einmal.
         var embedder = new Embedder(brandingDir, hinweise);
         var css = embedder.EmbedCssUrls(Regex.Replace(styles.ToString(), @"@import\b[^;]*;?", "", Opt), "CSS");
-        markup = embedder.EmbedCssUrls(markup, "style-Attribut");
-        markup = embedder.EmbedSrcAttributes(markup);
+        markup = embedder.EmbedSrcAttributes(embedder.EmbedCssUrls(markup, "style-Attribut"));
+        fuss = embedder.EmbedSrcAttributes(embedder.EmbedCssUrls(fuss, "style-Attribut"));
 
-        return new BriefkopfVorlage(false, css.Trim(), markup.Trim(), hinweise);
+        return new BriefkopfVorlage(false, css.Trim(), markup.Trim(), hinweise) { Fuss = fuss.Trim() };
     }
 
     private static BriefkopfVorlage Ersatz(string grund) => new(true, string.Empty, string.Empty, new[] { grund });

@@ -412,7 +412,7 @@ Bei Änderungen der Tabellenstruktur müssen diese Scripts angepasst werden.
 | `FaHierarchyMaxTiefe` | `500` | IDEAL FA-Baumanzeige: Tiefen-Cap (Reissleine) je Struktur (Teil 2) |
 | `FaHierarchyKommissionierlistenAktiv` | `false` | Feature-Schalter IDEAL-Kommissionierlisten (Teil 3) — nur exakt `true` aktiviert (Default aus) |
 | `FaHierarchyBeschichtungAktiv` | `false` | Feature-Schalter IDEAL-Beschichtungsauftrag (Teil 4) — nur exakt `true` aktiviert (Default aus). Kumuliert mit Rolle `beschichtungsauftrag` (Lesen) bzw. `beschichtungsauftrag_schreiben` (Aufträge anlegen/bearbeiten, ab v1.51.0; Rolle unter `/Roles` mit genau diesem Key anlegen) |
-| `BriefkopfVorlagePfad` | (leer) | Voller Pfad zur `briefkopf.html` der IT im Ordner `Branding\` (neben dem Publish-Ordner) — Briefkopf des IDEAL-Beschichtungsauftrags (v1.49.0). Leer/Datei fehlt ⇒ Ersatz-Kopf aus `Firmenname` + `Firmenanschrift`. Pflege: Standorteinstellungen → Firmendaten (nur Admin) |
+| `BriefkopfVorlagePfad` | (leer) | Voller Pfad zur `briefkopf.html` der IT im Unterordner `Branding\` des Programmordners (nicht `wwwroot\`) — Briefkopf des IDEAL-Beschichtungsauftrags (v1.49.0), Fusszeile ab v1.59.0. Leer/Datei fehlt ⇒ Ersatz-Kopf aus `Firmenname` + `Firmenanschrift`. Pflege: Standorteinstellungen → Firmendaten (nur Admin) |
 | `FaHierarchyVormontageAktiv` | `false` | Feature-Schalter IDEAL-Vormontage-Listen (Teil 5, zwei Sichten: Einzelne Teile + Summiert) — nur exakt `true` aktiviert (Default aus). Kumuliert mit Vorbau-Zugriff (`vorbau`, wie FA-Abarbeitungsliste) |
 
 ## PDF-Erzeugung (appsettings.json)
@@ -451,9 +451,10 @@ automatisch auf, sobald ihre Erstellzeit älter ist als `TimeoutSeconds` + 5 Min
 Der Beschichtungsauftrag (IDEAL) druckt oben auf Seite 1 jedes HauptFA-Dokuments einen Briefkopf aus einer HTML-Datei der
 IT. Muster im Repo: `Branding/briefkopf.html` + `Branding/IDEAL_AKE_Logo_rgb_klein.jpg` (nicht im Publish-Output).
 
-1. Ordner `Branding\` **neben** dem Web-Publish-Ordner anlegen (IIS-Manager → Site → Erweiterte Einstellungen →
-   Physischer Pfad: `Branding\` gehoert in dessen Elternordner), Inhalt von `Branding/` dorthin kopieren.
-2. Lizenzierte Schriftdateien Nimbus Sans Novus dazulegen und die Dateinamen in `@font-face` anpassen (nicht im Repo).
+1. Unterordner `Branding\` **im** Programmordner der Web-App anlegen (z. B. `C:\inetpub\wwwroot\IDEALAKEWMS_Test\Branding\`,
+   **nicht** im Unterordner `wwwroot\` — der wird an Browser ausgeliefert), Inhalt von `Branding/` dorthin kopieren.
+   **Nach jedem Deploy pruefen**, dass der Ordner noch da ist (ein Deploy, der den Programmordner leert, nimmt ihn mit).
+2. Lizenzierte Schriftdateien `NimbusSanNov-Reg.otf` und `NimbusSanNov-SemBol.otf` dazulegen (nicht im Repo).
 3. Leserecht fuer die App-Pool-Identitaet.
 4. Standorteinstellungen → Firmendaten → „Briefkopf-Vorlage (Pfad)" = voller Pfad zur `briefkopf.html`.
 
@@ -462,7 +463,15 @@ relative Dateien aus demselben Ordner, Typen png/jpg/jpeg/woff/woff2/ttf/otf (ke
 ≤ 1 MB, Summe ≤ 3 MB; `<script>`, `on*`-Attribute, `javascript:`, `iframe`/`object`/`embed`/`link`/`base`/`meta`,
 `@import` werden entfernt; jede CSS-Regel unter `.briefkopf`. Bilder und Schriften werden als Data-URI eingebettet
 (Bildschirmdruck und Headless-Edge-PDF identisch). Datei fehlt/unlesbar/zu gross ⇒ Ersatz-Kopf, der Druck bricht nie ab.
-Aenderungen an Datei/Logo wirken ab dem naechsten Druck (kein Cache, kein Neustart). Folge-Deploys fassen `Branding\` nicht an.
+Aenderungen an Datei/Logo wirken ab dem naechsten Druck (kein Cache, kein Neustart).
+
+**Fusszeile (seit v1.59.0):** Ein Bereich `<footer class="briefkopf-fuss"> … </footer>` in der Datei wird unten auf
+**jeder** Druckseite gedruckt (Bildschirmdruck und PDF); der Inhalt umbricht davor. Dafuer setzt die Druckseite dann
+`@page`-Raender 10/10/5/10 mm und reserviert unten 24,75 mm; die Fusszeile darf hoechstens 17,75 mm hoch sein (Ueberlaenge
+wird abgeschnitten). Gleiche Regeln wie im Kopf (Data-URI, kein Script, `.briefkopf`-Regeln, gemeinsame Groessengrenzen).
+Druck mit genau einem Dokument (Auftrag, PDF, Sammeldruck mit einem HauptFA): „Seite X von Y" unten rechts. Ohne Fussbereich
+oder im Ersatz-Kopf-Fall: keine Fusszeile, Druck wie vor v1.59.0. Ohne `</footer>` oder mit ungleicher `div`-Zahl im
+Fussbereich: Ersatz-Kopf + Hinweis; mehrere Fussbereiche: nur der erste, mit Hinweis.
 
 ## Projekt-Struktur
 

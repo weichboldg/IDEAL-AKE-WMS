@@ -9344,8 +9344,9 @@ FA-Struktur importiert (`FaHierarchyNodes` mit `Beschichtet = 1`). Automatisiert
 
 Spec: `2026-10-06-beschichtungsauftrag-ausbau-teil-2-spec`. **Vorbedingungen (alle Fälle):** IDEAL-Testsystem,
 `FaHierarchyBeschichtungAktiv = true`, Tester mit Rolle `beschichtungsauftrag`, Edge auf dem Webserver (PDF).
-Ordner `Branding\` **neben** dem Web-Publish-Ordner mit `briefkopf.html` + `IDEAL_AKE_Logo_rgb_klein.jpg` (aus dem Repo
-`Branding/`) und den Nimbus-Schriftdateien (Dateinamen in `@font-face` angepasst); App-Pool-Identität hat Leserecht.
+Unterordner `Branding\` **im** Programmordner der Web-App (nicht in `wwwroot\`; seit v1.59.0 korrigiert, vorher hieß es
+„neben dem Publish-Ordner") mit `briefkopf.html` + `IDEAL_AKE_Logo_rgb_klein.jpg` (aus dem Repo `Branding/`) und den
+Schriftdateien `NimbusSanNov-Reg.otf`/`NimbusSanNov-SemBol.otf`; App-Pool-Identität hat Leserecht.
 Standorteinstellungen → Firmendaten: „Briefkopf-Vorlage (Pfad)" = voller Pfad zur Datei; Firmenname/Firmenanschrift
 gepflegt („In der Schörihub 28, 4810 Gmunden"). Automatisiert: `BriefkopfVorlageServiceTests` (Laden, Bereinigen,
 Einbetten, Grenzen, Muster-Vorlage), `BriefkopfEinbindungTests` (Empfänger, Einbindung, keine Kommissionierlisten).
@@ -9372,11 +9373,11 @@ Alles Sichtbare, PDF und Seitenumbruch sind Manual-UAT.
   (c) Pfad auf die `appsettings.json` des Webs setzen. **Erwartet:** jeweils Ersatz-Kopf „Firmenname · Anschrift" in
   einer Zeile; am Bildschirm gelber Hinweis „Briefkopf: …" mit Grund („nicht konfiguriert" / „nicht gefunden: <Pfad>" /
   „keine .html/.htm-Datei"); im Ausdruck und im PDF **kein** Hinweis; bei (c) kein Inhalt der JSON-Datei; Web-Log
-  Warnung „Briefkopf: …". PDF-Download funktioniert (keine gelbe Umleitungsmeldung).
+  Warnung „Briefkopf: …". PDF-Download funktioniert (keine gelbe Umleitungsmeldung). Ab v1.59.0: **keine Fußzeile**.
 - **TS-82.6 — Bild fehlt (AK 16).** Logo-Datei umbenennen → Briefkopf ohne Logo, kein Broken-Image-Symbol, Hinweis +
   Log nennen `IDEAL_AKE_Logo_rgb_klein.jpg`.
 - **TS-82.7 — Schrift fehlt (AK 17).** Schriftdateien umbenennen → Briefkopf in Segoe UI/Arial, Hinweis + Log nennen die
-  Dateien.
+  Dateien (im Muster ab v1.59.0 `NimbusSanNov-Reg.otf`/`NimbusSanNov-SemBol.otf`).
 - **TS-82.8 — Script in der Vorlage (AK 18).** In `briefkopf.html` einfügen: `<script>alert(1)</script>`,
   `<img src="IDEAL_AKE_Logo_rgb_klein.jpg" onerror="alert(2)">`, `<a href="javascript:alert(3)">x</a>`.
   **Erwartet:** kein Dialog (Bildschirm und PDF); Quelltext der Druckseite enthält weder `script` noch `onerror` noch
@@ -9400,7 +9401,8 @@ Alles Sichtbare, PDF und Seitenumbruch sind Manual-UAT.
   Kommentar" / „unvollständiges Element" / „ungleich viele <div>"); Kopftabelle, Positionen und alle weiteren HauptFA
   stehen vollständig darunter (nichts verschluckt, keine zusätzliche Leerseite). Danach Vorlage wiederherstellen.
 - **TS-82.14 — CD-Abgleich (AK 11).** Am Ausdruck: Logo-Höhe 17,5 mm (Lineal), Logozone 37,125 mm frei, Farben laut
-  CD-Auszug. Hinweis: die Seitenränder bleiben die heutigen der Druckansicht (kein `@page`-Umbau).
+  CD-Auszug. Hinweis: ohne Fußbereich in der Vorlage bleiben die Seitenränder die heutigen der Druckansicht (kein
+  `@page`-Umbau); mit Fußbereich (ab v1.59.0, TS-92) `@page` 10/10/5/10 mm und unten 24,75 mm für die Fußzeile.
 
 ---
 
@@ -9484,7 +9486,8 @@ Druck nur ab Übergeben, PDF-Fehler, Liste mit Status-/Spaltenfilter, Schreibfil
   Bemerkung bleibt speicherbar. Vorher, im Entwurf: **kein** Drucken/PDF; direkter Aufruf
   `/Beschichtungsauftraege/Print/<id>` bzw. `/Beschichtungsauftraege/Pdf/<id>` → zurück auf das Detail mit „Im Entwurf
   nicht druckbar — erst übergeben.".
-- **TS-84.8 — Druck und PDF (AK 7).** Übergebenen Auftrag drucken und als PDF laden. **Erwartet:** Briefkopf aus Teil 2,
+- **TS-84.8 — Druck und PDF (AK 7).** Übergebenen Auftrag drucken und als PDF laden. **Erwartet:** Briefkopf aus Teil 2
+  (ab v1.59.0 mit Fußbereich in der Vorlage zusätzlich Fußzeile auf jeder Seite und „Seite X von Y", TS-92),
   Empfänger = Dienstleister **des Auftrags** (auch wenn in Sage ein anderer steht), Dokument „Beschichtungsauftrag BA-… —
   HauptFA …", Barcode scannt als Auftragsnummer, Kopf mit RAL/Start/Retour/Bemerkung, Positionen **je Artnr summiert**
   mit Maßen und Spalte *Positionen*, bei abweichenden Maßen „Maße uneinheitlich". PDF-Dateiname
@@ -9902,6 +9905,60 @@ Server-Liste reicht ihr Register weiter), `ColumnFilterSyntaxQuelltextTests` (ke
 
 ---
 
+## TS-92 — IDEAL: Fußzeile nach Word-Vorlage auf dem Beschichtungsauftrag (v1.59.0)
+
+Spec: `2026-10-13-briefkopf-fusszeile-word-vorlage-spec`. **Vorbedingungen:** wie TS-82. Zusätzlich `Branding\` im
+Programmordner der Web-App mit dem neuen Muster (Fußbereich `<footer class="briefkopf-fuss">`) und den Schriftdateien
+`NimbusSanNov-Reg.otf`/`NimbusSanNov-SemBol.otf`. **Vor dem Deploy** an einem mehrseitigen HauptFA (TS-92.1) die Seitenzahl
+von Druck und PDF notieren (für TS-92.6). Kandidaten mit vielen Positionen: Abfrage aus TS-82.3. Automatisiert:
+`BriefkopfVorlageServiceTests` (Fußbereich, Fehlerfälle, Muster inkl. Kontrast-Ausnahme), `BriefkopfEinbindungTests`
+(Fuß-Partial einmal hinter den Dokumenten, Zählung nur bei einem Dokument). Seitenumbruch und Darstellung sind Manual-UAT;
+Headless-Edge-PDF wurde im Dev-Lauf an einer statischen Testseite gemessen (Spec, Abschnitt Umsetzung).
+
+- **TS-92.1 — Bildschirmdruck, ein HauptFA, mehrseitig (AK 1, 3, 4).** „Liste" → HauptFA mit ≥ 40 Positionen →
+  „Drucken" → Druckvorschau (Edge, Ränder „Standard"; zusätzlich Chrome). **Erwartet:** Kopf nur Seite 1, Fußzeile auf
+  jeder Seite unten, letzte Zeile jeder Seite vollständig über der Fußzeile, nächste Zeile oben auf der Folgeseite;
+  unten rechts „Seite X von Y".
+- **TS-92.2 — Sammeldruck, mehrere HauptFA (AK 1, 4, 11, 16).** Summiert ohne HauptFA-Filter (≥ 3 HauptFA, einer davon
+  mehrseitig) → „Drucken". **Erwartet:** jeder HauptFA auf neuer Seite mit Kopf, Fußzeile auf allen Seiten, **keine**
+  Seitenzählung, keine leere letzte Seite. Quelltext (Strg+U): `briefkopf-fussbereich` genau einmal, kein `counter(pages)`.
+- **TS-92.3 — PDF (AK 2, 3, 16).** PDF-Knopf am mehrseitigen HauptFA (Liste und Summiert) und PDF eines übergebenen
+  Auftrags. **Erwartet:** wie TS-92.1, „Seite 1 von N" … „Seite N von N"; PDF → Eigenschaften → Schriftarten: Nimbus Sans
+  Novus eingebettet.
+- **TS-92.4 — Lange Positionsliste, Grenzzeile (AK 3).** HauptFA aus TS-92.1 und ein HauptFA mit Bemerkung bzw. gelbem
+  Banner unter der Tabelle: an jedem Seitenübergang die letzte Zeile am Ausdruck mit Lineal prüfen. **Erwartet:** ≥ 2 mm
+  Abstand zur Fußzeile, keine halbe Zeile, keine Zeile doppelt oder fehlend (Zeilenzahl am Ausdruck = am Bildschirm);
+  Bemerkung/Banner nie unter der Fußzeile.
+- **TS-92.5 — Inhalt und CD (AK 5, 6).** Am Ausdruck: links IDEAL-Block (Name IDEAL Blau, semibold), Mitte AKE-Block (Name
+  AKE Blau `#43a6e2`, semibold — die einzige Stelle mit AKE Blau als Schrift), rechts `www.ideal-ake.at`, beide Mails
+  `office@ideal-ake.at`, darunter Balken zweifarbig mit 45°-Übergang **innerhalb** der Seitenränder. Zusätzlich drucken mit
+  **ausgeschaltetem** „Hintergrundgrafiken": Der Balken bleibt sichtbar.
+- **TS-92.6 — Vorlage ohne Fußbereich (AK 7).** `<footer class="briefkopf-fuss">…</footer>` aus der Vorlage löschen,
+  TS-92.1 wiederholen. **Erwartet:** keine Fußzeile, keine Seitenzählung, kein gelber Hinweis, gleiche Seitenzahl wie vor
+  dem Deploy, Quelltext ohne `@page`.
+- **TS-92.7 — Ersatz-Kopf (AK 8).** Pfad in den Standorteinstellungen leeren. **Erwartet:** Ersatz-Kopf, keine Fußzeile,
+  gelber Hinweis nur am Bildschirm. Pfad wiederherstellen.
+- **TS-92.8 — Fehler im Fußbereich (AK 9, 10).** Nacheinander im Fuß: (a) `<img src="https://www.ideal-ake.at/x.png">`,
+  (b) `<img src="fehlt.png">`, (c) `<script>alert(1)</script>`, (d) `</footer>` löschen, (e) ein überzähliges `</div>`
+  im Fuß, (f) den Fußbereich verdoppeln. **Erwartet:** (a)/(b) Fuß ohne Bild + Hinweis „abgelehnt" bzw. „nicht
+  gefunden"; (c) kein Dialog, Quelltext ohne `script`; (d)/(e) Ersatz-Kopf + Hinweis („unvollständiges Element <footer…" bzw.
+  „(Fußzeile): ungleich viele <div>"), alle HauptFA vollständig; (f) eine Fußzeile + Hinweis „2 Fußzeilen-Bereiche". Im
+  Ausdruck/PDF nie ein Hinweis. Danach wiederherstellen.
+- **TS-92.9 — Am Bildschirm (AK 12).** Druckansicht öffnen, nicht drucken. **Erwartet:** Fußzeile einmal am Ende, nichts
+  überdeckt, beim Scrollen kein schwebender Balken.
+- **TS-92.10 — Regression Kommissionierliste (AK 13).** Kommissionierliste Liste und Summiert drucken. **Erwartet:** kein
+  Kopf, keine Fußzeile, Seitenränder wie bisher.
+- **TS-92.11 — Ablage nach Deploy (AK 15, E5).** Nach dem Publish auf das Testsystem prüfen, dass
+  `<Programmordner>\Branding\briefkopf.html` noch existiert und `https://<host>/Branding/briefkopf.html` **nicht**
+  ausgeliefert wird (404).
+- **TS-92.12 — Seitenzählung je Dokument (AK 16).** PDF eines mehrseitigen HauptFA: „Seite 1 von N" … „Seite N von N".
+  Sammeldruck mit drei HauptFA: keine Zählung (TS-92.2). Summiert gefiltert auf einen HauptFA: korrekte Zählung.
+  Auftragsdruck (`Beschichtungsaufträge` → Drucken): korrekte Zählung.
+- **TS-92.13 — Edge-Version Server (P0).** Auf dem Webserver `msedge.exe` → Eigenschaften → Details: Version notieren
+  (Dev-Messung: 155.0.4283.45). Bei deutlich älterer Version TS-92.3 besonders genau prüfen. Ergebnis: ______
+
+---
+
 *Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) + Teil 6 (Standorteinstellungen, v1.34.0) + BOM-Guard hierarchisch (2026-08-18, abgelöst) + FA-Liste-Hierarchie (v1.35.0) + BOM-Bridge (v1.36.0) + Materialisierung fachliche Felder K1/K2 (v1.37.0) + Skopierung der Tabellen-Selektoren (TS-72) + FA-Liste ausgebaut: Matchcode, Kopfdaten je Zeile, HauptFA-Zeile, Freigabe-Kaskade (v1.38.0, TS-73) + PDF-Erzeugung für FaHierarchy-Druckdokumente (v1.39.0, TS-74) + Matchcode im Artikelstamm (v1.40.0, TS-75) + FA-Arbeitsgang-Erkennung aus der Struktur (v1.41.0, TS-76, ersetzt durch TS-77) + Arbeitsgänge (WorkOperation) aus der Struktur + Werkbank-Anlage aus Sage (v1.44.0, TS-77) + Arbeitsgänge je (Sub-)FA im FA-Struktur-Modal (v1.45.0, TS-78) + Kommissionierung nur am HauptFA
-(v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80) + Beschichtungsauftrag Summiert als Standard (v1.48.0, TS-81) + Briefkopf Beschichtungsauftrag (v1.49.0, TS-82) + Beschichtungsauftrag als eigenes Objekt (v1.50.0, TS-83) + Beschichtungsaufträge bedienen (v1.51.0, TS-84) + Arbeitsgänge als Symbole im FA-Baum (v1.52.0, TS-85) + CSV-Export für alle Tabellen (v1.53.0, TS-86) + Arbeitsgang-Stammdaten (v1.54.0, TS-87) + Status je Arbeitsgang-Kürzel im FA-Baum (v1.55.0, TS-88) + Menü Beschichtung + Kurzanleitungen (v1.56.0, TS-89) + BDE-Terminal mit Arbeitsgang-Status (v1.57.0, TS-90) + Spaltenfilter-Suchsyntax Etappe A + B (v1.58.0/v1.58.1, TS-91.A/B)*
+(v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80) + Beschichtungsauftrag Summiert als Standard (v1.48.0, TS-81) + Briefkopf Beschichtungsauftrag (v1.49.0, TS-82) + Beschichtungsauftrag als eigenes Objekt (v1.50.0, TS-83) + Beschichtungsaufträge bedienen (v1.51.0, TS-84) + Arbeitsgänge als Symbole im FA-Baum (v1.52.0, TS-85) + CSV-Export für alle Tabellen (v1.53.0, TS-86) + Arbeitsgang-Stammdaten (v1.54.0, TS-87) + Status je Arbeitsgang-Kürzel im FA-Baum (v1.55.0, TS-88) + Menü Beschichtung + Kurzanleitungen (v1.56.0, TS-89) + BDE-Terminal mit Arbeitsgang-Status (v1.57.0, TS-90) + Spaltenfilter-Suchsyntax Etappe A + B (v1.58.0/v1.58.1, TS-91.A/B) + Fußzeile nach Word-Vorlage (v1.59.0, TS-92)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*

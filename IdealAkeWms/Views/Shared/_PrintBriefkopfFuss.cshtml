@@ -1,0 +1,20 @@
+@model bool
+@inject IdealAkeWms.Services.BriefkopfVorlageService Briefkopf
+@* Fusszeile der IT-Vorlage (Spec 2026-10-13-briefkopf-fusszeile-word-vorlage): EINMAL je Druckseite, hinter den Dokumenten —
+   am Bildschirm am Seitenende, im Druck/PDF per position: fixed auf JEDER Seite (_PrintBriefkopfStyles reserviert den
+   Platz). Klasse "briefkopf", damit die Regeln der IT (alle unter .briefkopf) auch hier greifen. Model = genau EIN
+   Dokument auf dieser Druckseite -> "Seite X von Y" (Freigabe 3 = B); bei mehreren HauptFA zaehlte @page ueber alle
+   Dokumente, deshalb dort keine Zaehlung. Ohne Fussbereich in der Vorlage / im Ersatz-Fall: nichts. *@
+@{
+    var vorlage = await Briefkopf.GetAsync();
+}
+@if (vorlage.HatFuss)
+{
+    <footer class="briefkopf briefkopf-fussbereich">@Html.Raw(vorlage.Fuss)</footer>
+    @if (Model)
+    {
+        <style>
+            @@page { @@bottom-right { content: "Seite " counter(page) " von " counter(pages); font: 7pt 'Segoe UI', Arial, sans-serif; color: #4a494a; } }
+        </style>
+    }
+}

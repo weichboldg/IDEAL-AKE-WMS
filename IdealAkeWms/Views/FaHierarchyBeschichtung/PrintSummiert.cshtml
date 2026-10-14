@@ -114,6 +114,7 @@
                 </table>
             </div>
         }
+        <partial name="_PrintBriefkopfFuss" model="Model.Rows.Select(r => r.HauptFA).Distinct().Count() == 1" />
     }
 </body>
 </html>

@@ -778,12 +778,15 @@
                 <h6 class="mt-3">Druck und PDF</h6>
                 <ul>
                     <li><strong>Auftrag:</strong> Drucken und PDF erst ab <em>Übergeben</em>. Oben der <strong>Briefkopf</strong>
-                        (Logo, Absender, Kontaktdaten), darunter Empfänger = Dienstleister <em>des Auftrags</em>, Dokument und
+                        (Logo), darunter Empfänger = Dienstleister <em>des Auftrags</em>, Dokument und
                         Datum; Barcode = Auftragsnummer; Positionen je Artikel summiert. Eine per Zahnrad ausgeblendete Spalte
                         fehlt auch im Druck.</li>
                     <li><strong>Vorschlagsliste:</strong> ein Ausdruck je HauptFA mit Barcode und Briefkopf (Empfänger = Dienstleister aus Sage), nur die am Bildschirm
                         sichtbaren Spalten (Liste und summierte Ansicht).</li>
-                    <li>Der Briefkopf steht nur auf der ersten Seite jedes Dokuments. Die Kommissionierlisten bekommen keinen.</li>
+                    <li>Der Briefkopf steht nur auf der ersten Seite jedes Dokuments. Hat die Vorlage eine <strong>Fußzeile</strong>
+                        (Anschrift und Kontaktdaten von IDEAL und AKE, Balken), steht sie unten auf <em>jeder</em> Seite; der
+                        Inhalt umbricht davor. Enthält ein Druck genau ein Dokument, steht unten rechts &bdquo;Seite X von Y&ldquo;.
+                        Die Kommissionierlisten bekommen weder Briefkopf noch Fußzeile.</li>
                     <li><strong>PDF</strong>-Knopf je Auftrag bzw. HauptFA-Gruppe &mdash; Voraussetzungen siehe
                         &bdquo;PDF-Download der Druckdokumente&ldquo; (Karte <em>Fertigungsaufträge</em>).</li>
                 </ul>
@@ -815,9 +818,10 @@
                     Rollen unter <code>/Roles</code> mit genau diesen Schlüsseln anlegen und zuweisen: <code>beschichtungsauftrag</code>
                     (Lesen und Drucken von Vorschlagsliste und Aufträgen) und <code>beschichtungsauftrag_schreiben</code>
                     (zusätzlich Anlegen, Bearbeiten, Status und Reklamation). Eingeschaltet wird die Funktion mit der Einstellung
-                    <code>FaHierarchyBeschichtungAktiv</code> = <code>true</code>; ohne sie ist alles ausgeblendet. Der Briefkopf
-                    kommt aus der Datei <code>briefkopf.html</code>, die die IT im Ordner <code>Branding\</code> auf dem Server
-                    pflegt; den Pfad tragen Admins in den Standorteinstellungen unter <em>Firmendaten &rarr; Briefkopf-Vorlage
+                    <code>FaHierarchyBeschichtungAktiv</code> = <code>true</code>; ohne sie ist alles ausgeblendet. Briefkopf und
+                    Fußzeile kommen aus der Datei <code>briefkopf.html</code>, die die IT im Unterordner <code>Branding\</code>
+                    des Programmordners der Web-App pflegt (nicht in <code>wwwroot\</code>; nach jedem Deploy prüfen, ob er
+                    noch da ist); den Pfad tragen Admins in den Standorteinstellungen unter <em>Firmendaten &rarr; Briefkopf-Vorlage
                     (Pfad)</em> ein. Aenderungen an Datei oder Logo wirken ab dem naechsten Druck.
                 </p>
             </div>
