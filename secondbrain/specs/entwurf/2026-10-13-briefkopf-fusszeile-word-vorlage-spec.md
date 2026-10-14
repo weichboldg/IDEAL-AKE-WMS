@@ -2,16 +2,16 @@
 type: spec
 title: "Briefkopf: Fußzeile nach Firmen-Word-Vorlage (+ Muster-Vorlage nachziehen)"
 slug: 2026-10-13-briefkopf-fusszeile-word-vorlage-spec
-status: Entwurf
+status: Testbereit
 created: 2026-10-13
-updated: 2026-10-13
+updated: 2026-10-14
 source_backlog: "[[2026-10-09-briefkopf-seitenzaehlung]]"
 anhaenge:
   - "[[2026-10-13-word-vorlage-fusszeile.png]]"
   - "[[2026-10-13-word-vorlage-seite.png]]"
   - "[[2026-10-13-briefkopf-gerald.html]]"
 depends_on: "[[2026-10-06-beschichtungsauftrag-ausbau-teil-2-spec]]"
-task: ""
+task: "[[2026-10-14-briefkopf-fusszeile-word-vorlage-umsetzung]]"
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
 branch: "feature/2026-08-07-ideal-teile-1-5"
 affected_code:
@@ -27,19 +27,16 @@ affected_code:
   - README.md (:415 und Abschnitt Briefkopf-Vorlage :449-465 - Ablage, Fußzeile)
   - IdealAkeWms/Views/Help/Index.cshtml (:780-786, :818-821) + Views/Help/Changelog.cshtml + beide AppVersion.cs
   - docs/TESTSZENARIEN.md (neues Kapitel; TS-82-Vorbedingung :9347 korrigieren) + secondbrain/tests/testszenarien-index.md
-open_questions:
-  - "AKE Blau #43a6e2 als TEXTfarbe für den AKE-Firmennamen in der Fußzeile (Kontrast 2,70:1) - widerspricht Teil-2 Anforderung 8 / AK 11, dem Test MusterVorlage_... (:355) und der CLAUDE.md-Kontrastregel. Ausnahme nur für diesen Namen in der Fußzeile zulassen? Empfehlung: ja."
-  - "Farbbalken: A) randabfallend bis zur Papierkante wie in Word, B) innerhalb der Seitenränder mit Abstand zur Papierkante? Empfehlung: B."
-  - "'Seite X von Y': A) weiter weglassen (Aufgabe bleibt offen), B) nur dort, wo ein Druck genau ein Dokument enthält (alle PDFs, Auftragsdruck, Sammeldruck mit genau einem HauptFA) - nur falls der Prüfschritt P3 positiv ist? Empfehlung: B, bei negativem P3 automatisch A."
+open_questions: []
 epic: false
 etappen: []
 deploy:
   web: true
   service: false
   migration: false
-freigabe_entscheidung: ""
-freigabe_von: ""
-freigabe_am: ""
+freigabe_entscheidung: "Freigegeben wie Empfehlungen: 1 ja (AKE Blau nur fuer AKE-Firmennamen in der Fusszeile), 2 B (Balken innerhalb der Seitenraender), 3 B (Seite X von Y nur bei genau einem Dokument je Druck, wenn P3 positiv, sonst A). Direkt im Buendel."
+freigabe_von: "Gerald Weichbold"
+freigabe_am: "2026-10-14"
 ---
 
 # Briefkopf: Fußzeile nach Firmen-Word-Vorlage
@@ -115,6 +112,17 @@ Positionen dürfen nie unter der Fußzeile verschwinden.
 6. **Bildschirmhinweise** zu Fehlern im Fußzeilen-Bereich (abgelehnte Bilder, fehlende Dateien usw.) erscheinen in
    derselben gelben Hinweisliste wie die des Kopfs (`_PrintBriefkopf.cshtml:32-35`) und als `LogWarning`
    (`BriefkopfVorlageService.cs:71-72`). Im Druck und im PDF erscheinen sie nicht.
+
+### Freigabe-Nachtrag 2026-10-14 (geht vor, Gerald)
+
+- **Rückfrage 1 = ja:** AKE Blau `#43a6e2` als Textfarbe ist **nur** für den AKE-Firmennamen in der Fußzeile erlaubt;
+  Anschrift/Telefon/Mail bleiben Grau 85. Der Kontrast-Test wird auf genau diese eine Regel eingegrenzt, sonst bleibt das Verbot.
+- **Rückfrage 2 = B:** Balken innerhalb der Seitenränder, etwa 5 mm über der Unterkante — nicht randabfallend.
+- **Rückfrage 3 = B:** „Seite X von Y" nur dort, wo ein Druck genau ein Dokument enthält (jedes PDF, Auftragsdruck,
+  Sammeldruck mit genau einer HauptFA); Sammeldruck mit mehreren HauptFA ohne Zählung. Ist P3 negativ, entfällt die
+  Zählung ganz (= A) und der Lauf meldet das. Aufgabe [[2026-10-09-briefkopf-seitenzaehlung]] bleibt für den Sammeldruck offen.
+- Übrige „Entscheidungen dieser Spec" unverändert bestätigt (Muster ohne Icons, Absenderzeile entfällt, `<footer class="briefkopf-fuss">`,
+  `@page`-Rand nur mit Fußzeilen-Bereich, Fußzeile einmal je Druckansicht, Branding-Ordner im Programmordner).
 
 ### Entscheidungen dieser Spec (ohne Rückfrage, Widerspruch an Schranke 1 möglich)
 
@@ -414,18 +422,25 @@ P0–P4 messen → Service + Tests → Partials/Styles → Muster → Doku.
 
 ## Deploy
 
-*Vorläufig. Der QA-Lauf bestätigt das am echten Diff.*
+*Vom QA-Lauf 2026-10-14 am echten Diff `ead16fc4..d4108f1a` bestätigt.* Geänderte Pfade: `IdealAkeWms/` (Service,
+3 Partials/Views, Hilfe, Changelog, AppVersion), `IDEALAKEWMSService/AppVersion.cs` (nur Versionsnummer/Datum),
+`Branding/briefkopf.html` (nicht im Publish-Output), Tests, README, `docs/`. Keine Datei unter `*/Migrations/`, kein `SQL/`.
 
-- **Web-App:** ja (Service, Partials, drei Views, Hilfe, Version).
-- **Service:** nein (`AppVersion.cs` des Service wird nach Hausregel mitgezählt, ein Deploy ist nicht nötig).
-- **Migration:** nein.
+- **Web-App:** ja.
+- **Service:** nein. Nur `AppVersion.cs` hat sich geändert (Hausregel). Ein Re-Deploy ist nicht nötig; danach zeigt der Service
+  im Log weiter v1.58.x. Das ist gewollt.
+- **Migration:** nein. Kein DB-Backup nötig, kein Einmal-Skript.
+- **Reihenfolge:** Publish Web aus dem Worktree → Testsystem → TS-92 (inkl. TS-92.11: `Branding\` noch da?) → Merge.
+  Nach dem Merge nur dann erneut aus `main` publishen, wenn der Merge getestete Dateien mit parallelen `main`-Änderungen
+  zusammengeführt hat.
 - **Zusätzlich, manuell (IT/Gerald):** neues Muster `Branding/briefkopf.html` als Vorlage nehmen, Geralds Datei im
   `Branding\` des Programmordners um den Fußbereich ergänzen. Nach dem Deploy prüfen, dass `Branding\` noch da ist
   (TS-NN.11). Ohne Fußbereich in der Datei ändert sich am Druck nichts (AK 7), die Reihenfolge Deploy/Datei ist also
   beliebig.
-- **Publish-Befehle** (im Worktree):
+- **Publish-Befehl** (im Worktree `C:\git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5`):
   `dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb`
-- Version und TS-Nummer beim `/dev` neu messen (Stand jetzt v1.58.1, TS-91).
+- Gemessen: v1.59.0, TS-92. Das Bündel enthält weitere nicht deployte Stände (v1.49–v1.58.1). Deren Deploy-Pflichten
+  (Migrationen, Einmal-Skripte) stehen in deren Specs und gelten beim Bündel-Deploy weiter.
 
 ## Offene Rueckfragen
 
@@ -456,6 +471,188 @@ P0–P4 messen → Service + Tests → Partials/Styles → Muster → Doku.
   Bei Varianten-Specs zusaetzlich freigabe_entscheidung im Frontmatter setzen.
 -->
 
-1. AKE Blau als Textfarbe nur für den AKE-Firmennamen in der Fußzeile zulassen? →
-2. Balken randabfallend (A) oder innerhalb der Seitenränder (B)? →
-3. „Seite X von Y": weglassen (A) oder nur bei genau einem Dokument je Druck (B, wenn P3 positiv)? →
+1. AKE Blau als Textfarbe nur für den AKE-Firmennamen in der Fußzeile zulassen? → **Ja (Gerald 2026-10-14).**
+2. Balken randabfallend (A) oder innerhalb der Seitenränder (B)? → **B (Gerald 2026-10-14).**
+3. „Seite X von Y": weglassen (A) oder nur bei genau einem Dokument je Druck (B, wenn P3 positiv)? → **B, bei negativem P3 automatisch A (Gerald 2026-10-14).**
+
+## Umsetzung (2026-10-14, Dev-Lauf)
+
+Direkt im Bündel `feature/2026-08-07-ideal-teile-1-5`, Start-HEAD `ead16fc4`, Code-Commit `c2d54f35`. Gemessen: Version
+vorher v1.58.1 → **v1.59.0**, höchstes TS-Kapitel TS-91 → **TS-92**. Hinweis: Die Datei liegt noch unter `specs/entwurf/`
+(Status Freigegeben, der Auftrag nannte `specs/freigegeben/`); nicht verschoben, damit keine Wikilinks brechen.
+
+### Prüfschritte P0–P4 (statische Testseite + lokales Edge, keine App)
+
+Testseite: drei `.fa-group` mit je 80 Tabellenzeilen, Bemerkung nach der Tabelle, Fußzeile laut Variante; PDF mit genau den
+Argumenten aus `EdgeProcessRunner` (`--headless --disable-gpu --no-first-run --no-default-browser-check --user-data-dir=…
+--no-pdf-header-footer --print-to-pdf=…`). Auswertung des PDFs mit PyMuPDF (nur im Scratchpad): Lage jeder Zeile und der
+Fußzeile je Seite, Pixelfarben des Balkens, Text „Seite n von N".
+
+| Prüfschritt | Ergebnis |
+|---|---|
+| **P0** Edge-Version | Arbeitsplatz **155.0.4283.45**. Server-Version **offen** → TS-92.13 (Gerald). |
+| **P1** Bildschirmdruck | **Nur indirekt**: gleiche Chromium-Druck-Engine wie P2; die Druckvorschau selbst wurde nicht angesehen (keine App, kein interaktiver Browser). Sichtprüfung = TS-92.1/92.4/92.5. |
+| **P2** Headless-PDF | **V1 scheitert:** `position: fixed` mit negativem `bottom` im `@page`-Rand wird oben auf jeder Seite über den Inhalt gezeichnet, Balken fehlt. **V2 scheitert an AK 3:** Platzhalter im `tfoot` schützt nur Tabellenzeilen, die Bemerkung nach der Tabelle lag 12,5 mm unter der Fußzeile. **V3 trägt:** Fußzeile auf jeder Seite an gleicher Stelle, Abstand letzte Zeile → Fußzeile auf allen Seiten ≥ 2,6 mm, Bemerkung nie darunter, jede Gruppe auf neuer Seite. |
+| **P3** Seitenzähler | **Positiv:** `@page { @bottom-right { content: "Seite " counter(page) " von " counter(pages) } }` erscheint trotz `--no-pdf-header-footer` („Seite 1 von 2", „Seite 2 von 2"). → Antwort 3 = **B** umgesetzt. |
+| **P4** Balken | **Positiv im PDF:** Pixel links `#043153`, rechts `#42a6e2`, 45°-Übergang. „Hintergrundgrafiken aus" im Druckdialog ist ohne App nicht messbar → TS-92.5 (`print-color-adjust: exact` gesetzt). |
+
+**Gegenmessung mit dem echten Muster** (`Branding/briefkopf.html` + Styles aus `_PrintBriefkopfStyles.cshtml`, 2 HauptFA à 80
+Zeilen bzw. 1 HauptFA mit Zähler): Fußtext 274,6–286,4 mm, Balken 289–292 mm (innerhalb der Ränder, 5 mm über der
+Blattkante), Abstand zum Inhalt ≥ 3,7 mm, 4 bzw. 2 Seiten ohne Leerblatt, „Seite 2 von 2" korrekt. Gemessen ohne
+Nimbus-Dateien (Fallback-Schrift); mit Nimbus kann die Höhe leicht abweichen — Überlänge wird abgeschnitten, nie überdeckt.
+
+### Entscheidungen im Lauf (Rulings)
+
+- **Bauweise V3:** `@page { margin: 10mm 10mm 5mm 10mm }`, Fußzeile `position: fixed; bottom: 0; max-height: 17.75mm;
+  overflow: hidden`, `.fa-group { box-decoration-break: clone; padding-bottom: 19.75mm }` (Polster auf jedem
+  Seitenfragment). Warum: einzige Variante, die AK 3 in P2 erfüllt. Kosten, wenn falsch: Sichtprüfung TS-92.4 zeigt es.
+- **Fuß-Partial hinter den Dokumenten** (nicht vor der Gruppenschleife wie im Lösungsentwurf): so steht die Fußzeile am
+  Bildschirm am Seitenende (Anforderung 5/AK 12). Dafür `.fa-group:last-of-type { page-break-after: auto }`, weil
+  `:last-child` nach dem angehängten `<footer>` nicht mehr greift (sonst Leerblatt — im Spike gesehen).
+- **Zähler** im 5-mm-Unterrand rechts unter dem Balken (7 pt, Grau 85); nur bei genau einem Dokument
+  (`Print`: `Groups.Count == 1`, `PrintSummiert`: genau ein HauptFA, Auftragsdruck immer).
+- **Balken 3 mm** statt 5 mm (Word), damit Fußzeile ≤ 17,75 mm bleibt (Unterrand gesamt 24,75 mm laut E4).
+- **Fußzeile gekappt** auf 17,75 mm (`overflow: hidden`): eine zu hohe IT-Fußzeile wird unten abgeschnitten statt Inhalt zu
+  verdecken. Steht im Muster-Kommentar und im README.
+- **Service:** erster `<footer class="briefkopf-fuss">` wird `Fuss`; ohne `</footer>` → Ersatz; mehrere → erster + Hinweis;
+  `div`-Balance getrennt für Kopf und Fußzeile; ein gemeinsamer `Embedder` (Grenzen gelten zusammen). `HatFuss` ist im
+  Ersatz-Fall immer false. Ohne Fußbereich wird **keine** zusätzliche Regel ausgegeben (AK 7, Wächter-Test).
+
+### Nachweis
+
+- `dotnet build IdealAkeWms.slnx` → **0 Fehler** (12 Warnungen, Bestand).
+- `dotnet test` → Web **2014 bestanden**, 1 übersprungen (Bestand), 0 Fehler; Service **272 bestanden**, 0 Fehler.
+- Neu/angepasst: `BriefkopfVorlageServiceTests` (+10 Fälle Fußbereich: mit/ohne/fremdes `footer`, Ersatz, vier kaputte
+  Fälle, zwei Bereiche, aktive Inhalte/Fremdquellen, gemeinsame Summengrenze; Muster-Test: `NimbusSanNov-*`, Anschrift im
+  Fuß, 2× `office@ideal-ake.at`, kein `office@ake.at`, `format('opentype')`, AKE Blau als Schrift **nur** in
+  `.briefkopf .ake-firma`), `BriefkopfEinbindungTests` (+4: Fuß-Partial genau einmal hinter dem letzten Dokument in allen
+  drei Drucken mit dem richtigen Zähler-Modell, Druckregeln nur im `HatFuss`-Zweig).
+- Doku: README (Ablage E5, Abschnitt Fußzeile), Hilfe (Druck + Einrichtung), Changelog v1.59.0, `docs/TESTSZENARIEN.md`
+  TS-92 neu (12 Fälle + P0-Schritt), TS-82-Vorbedingung/82.5/82.7/82.14 und TS-84.8 nachgezogen (LF erhalten).
+- Nicht angefasst: Testprotokolle unter `tests/` (Auswirkungen siehe Abschnitt Test-Szenarien), Aufgabe
+  [[2026-10-09-briefkopf-seitenzaehlung]] (hat fremde Änderungen; bleibt für den Sammeldruck mit mehreren HauptFA offen).
+
+## QA (2026-10-14, qa-agent)
+
+Geprüft im Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Diff `ead16fc4..c2d54f35`, danach QA-Commit
+`d4108f1a`. Web-App nicht gestartet (appsettings zeigen auf AKESQL20 mit Auto-Migration).
+
+### 1. Build und Tests (selbst ausgeführt, nach dem QA-Commit wiederholt)
+
+- `dotnet build IdealAkeWms.slnx` → **0 Fehler**, 12 Warnungen (Bestand).
+- `dotnet test` → `IdealAkeWms.Tests`: **2014 bestanden, 1 übersprungen** (`ProductionOrderEagerCreateAgentJobTests`, Bestand),
+  0 Fehler. `IDEALAKEWMSService.Tests`: **272 bestanden**, 0 übersprungen, 0 Fehler.
+
+### 2. Code-Review (selbst, in diesem Lauf)
+
+Gelesen: `BriefkopfVorlageService.cs` vollständig (Load, Sanitize, Embedder), `_PrintBriefkopfFuss.cshtml`,
+`_PrintBriefkopfStyles.cshtml`, `_PrintBriefkopf.cshtml`, die drei Druck-Views vollständig, die PDF-Aktionen
+(`FaHierarchyBeschichtungController.cs:120-136`, `:224`; `BeschichtungsauftraegeController.cs:258`), die Gruppenbildung
+`FaHierarchyListBuilder.cs:140-165`, `Branding/briefkopf.html`, beide Testdateien, README, Hilfe, Changelog,
+`docs/TESTSZENARIEN.md`, Testindex, `fallstricke.md` §27.
+
+Ergebnisse zu den gezielten Fragen:
+- **Script oder fremde Quelle über den Fußbereich?** Nein, nicht über neue Wege. `Sanitize` läuft über die ganze Datei,
+  **bevor** der Fuß herausgelöst wird (`BriefkopfVorlageService.cs:121` vor `:137`). `<style>` im Fuß landet vorher in den
+  globalen Styles (`:124`, mit `EmbedCssUrls` und `@import`-Entfernung). Der Fuß läuft über **dieselbe** `Embedder`-Instanz
+  (`:156-159`): `src=` aller Tags und `url(` in `style`-Attributen, http/absolut/außerhalb abgelehnt. Test
+  `Load_Footer_ActiveContentAndForeignSourcesRemoved` belegt das. Bekannte Lücken (`background`-/`poster`-Attribut,
+  `image-set()`) gelten für Kopf und Fuß gleich. Sie stehen schon in [[2026-10-09-briefkopf-csp-und-bereinigung]] (Zeile 15);
+  der Fuß bringt keinen neuen Weg dazu.
+- **Fehlerfälle:** `<footer class="briefkopf-fuss">` ohne Ende → Ersatz (`:138-139`); mehrere → erster + Hinweis (`:140-141`);
+  offene Rawtext-Elemente werden in Kopf **und** Fuß gesucht (`:143`); `div`-Balance getrennt (`:147-152`). Alle Fälle sind getestet.
+- **Styles nur im HatFuss-Zweig?** Ja. `@page`, Polster, `position: fixed` und `:last-of-type` stehen ausschließlich in
+  `@if (vorlage.HatFuss)` (`_PrintBriefkopfStyles.cshtml:20-37`). `HatFuss` ist im Ersatz-Fall false (Record `:22`).
+  Ohne Fußbereich gibt der Fuß-Partial nichts aus, `.fa-group:last-child` greift also weiter wie bisher (AK 7).
+- **Partial einmal, hinter den Dokumenten:** ja, in allen drei Views, außerhalb der `.fa-group`. In `Print`/`PrintSummiert`
+  steht er im `else`-Zweig (der Leerfall hat keine Fußzeile).
+- **`.fa-group:last-of-type`:** In allen drei Views ist die letzte `div` unter `<body>` die letzte `.fa-group`. Danach folgen
+  nur `<footer>` und `<style>` aus dem Partial, das IT-Markup steckt innerhalb von `<footer>`. In `Beschichtungsauftraege/Print`
+  gibt es nur eine Gruppe und keine Seitenumbruch-Regel. Die Regel aus dem Partial (Spezifität 0,2,0) steht im `<head>` nach
+  dem View-Style und gewinnt. Das Risiko für spätere Änderungen ist in `fallstricke.md` §27 festgehalten („hinter die Gruppen
+  nie ein `div` hängen").
+- **PDFs über dieselben Views:** ja. `Pdf` → `RenderToStringAsync(…, "Print", vm)` mit genau einer Gruppe
+  (`FaHierarchyBeschichtungController.cs:127-136`), `PdfSummiert` → `"PrintSummiert"` (`:224`), Auftrag-PDF → `"Print"`
+  (`BeschichtungsauftraegeController.cs:258`).
+- **Zähler-Modell:** `Print`: `Groups.Count == 1`. Die Gruppen sind nach HauptFA eindeutig (`FaHierarchyListBuilder.cs:141`
+  `GroupBy(n => n.HauptFA)`). `PrintSummiert`: `Rows.Select(HauptFA).Distinct().Count() == 1`, derselbe Schlüssel wie die
+  `GroupBy` der View. Auftrag: immer `true`. Das ist korrekt.
+- **Hausregel-Defektklassen:** keine Werte in `<script>`. Kein `hidden` mit `d-*`. Kein `?? 0`. Keine parallelen Arrays,
+  keine reine Client-Validierung. „Genau ein Dokument" wird in zwei Views mit verschiedenen Ausdrücken ermittelt, beide
+  folgen aber dem Gruppierungsschlüssel der jeweiligen View. Kein Drift-Risiko, das über die View selbst hinausgeht.
+
+Befunde:
+
+| # | Schwere | Befund | Behandlung |
+|---|---|---|---|
+| Q-1 | Minor | `AppVersion.Date` stand in beiden Projekten noch auf `2026-10-13`, der Changelog nennt für v1.59.0 aber den 14.10.2026. Bisher folgte `Date` immer dem Release-Tag (v1.57.0–v1.58.1). | **Behoben**, QA-Commit `d4108f1a` (beide `AppVersion.cs`). Build 0 Fehler, Tests unverändert grün. |
+| Q-2 | Minor | Bei `<footer class=briefkopf-fuss>` **ohne Anführungszeichen** passt `FussMuster` (`:55`) nicht, die Prüfung `:138` aber schon. Ergebnis: Ersatz-Kopf mit dem irreführenden Hinweis „ohne End-Tag". Das passiert nicht still, sondern wird gemeldet. Das Muster der IT quotet. | Offen, nicht behoben (Aufwand/Nutzen gering). Kommt die IT darüber, ist der Hinweis zu ändern. |
+| Q-3 | Minor | Ein **verschachteltes** fremdes `<footer>` im Fußbereich beendet den Treffer zu früh: Der Rest des Fußes erscheint im Kopf. E3 setzt bewusst voraus, dass `footer` nie verschachtelt wird. Das Ergebnis ist sichtbar, nicht still. | Offen, gewollt laut E3. |
+| Q-4 | Minor | Die Höhe der Muster-Fußzeile beträgt rechnerisch 4 × 7 pt × 1,25 + 2 mm + 3 mm ≈ 17,35 mm. Das sind nur ≈ 0,4 mm Luft zur Kappung bei 17,75 mm. Wird sie überschritten, schneidet `overflow: hidden` **unten**, also zuerst den Balken, ohne Hinweis. Das WMS kann die gerenderte Höhe nicht messen. Die Kappung ist dokumentiert (Muster-Kommentar, README). | Offen. Prüfen in TS-92.5 (Balken vollständig, auch mit echten Nimbus-Dateien). |
+| Q-5 | Minor (Nachweis) | AK 17: P0 (Edge-Version am Server) ist offen, P1 (Druckvorschau Edge/Chrome) nur indirekt über die Headless-Engine gemessen, P4 ohne „Hintergrundgrafiken" nicht gemessen. | Manual-UAT: TS-92.13, TS-92.1, TS-92.5. Zählt nicht als grün. |
+
+Keine Critical-, keine Important-Befunde.
+
+### 3. Beweisart je Akzeptanzkriterium
+
+| AK | Beweisart |
+|---|---|
+| 1 Fußzeile jede Seite, Bildschirmdruck | Spike-Messung (P2, Headless-Engine) + **Manual-UAT** TS-92.1/92.2 (P1 nur indirekt) |
+| 2 dasselbe im PDF | Spike-Messung P2 (statische Seite + echtes Muster) + **Manual-UAT** TS-92.3 |
+| 3 nichts darunter, ≥ 2 mm | Spike-Messung (≥ 2,6 mm bzw. ≥ 3,7 mm) + **Manual-UAT** TS-92.4 |
+| 4 Kopf nur Seite 1, HauptFA neue Seite | **Manual-UAT** TS-92.1/92.2 (Kopf-Lage unverändert, Struktur durch `BriefkopfEinbindungTests` gestützt) |
+| 5 Inhalt/Anordnung/Farbe, 2× office@ideal-ake.at | Automatisiert (`MusterVorlage_…`: Inhalte, Mails, kein `office@ake.at`) + **Manual-UAT** TS-92.5 (Anordnung/Farbe) |
+| 6 Balken zweifarbig 45°, ohne Hintergrundgrafiken | Spike P4 (PDF-Pixel) + **Manual-UAT** TS-92.5 (Druckdialog) |
+| 7 ohne Fußbereich unverändert | Automatisiert (Service `Load_WithoutFooter_…`, Wächter: Druckregeln nur im `HatFuss`-Zweig) + **Manual-UAT** TS-92.6 (Seitenzahl vorher/nachher) |
+| 8 Ersatz → keine Fußzeile | Automatisiert (`Ersatz_HasNoFuss`, `HatFuss`-Definition) + Manual-UAT TS-92.7 |
+| 9 Fehler im Fuß wie im Kopf | Automatisiert (`Load_Footer_ActiveContentAndForeignSourcesRemoved`); „nur am Bildschirm/LogWarning" ist **Manual-UAT** TS-92.8 |
+| 10 ohne `</footer>`/div-Unwucht/zwei Bereiche | Automatisiert (`Load_BrokenFooter_IsErsatz_WithHint` ×4, `Load_TwoFooters_FirstWins_WithHint`) |
+| 11 genau einmal im Quelltext, nur `data:` | Automatisiert (Einbindung einmal hinter den Dokumenten; Einbettung `data:`) + Manual-UAT TS-92.2 (Strg+U) |
+| 12 Bildschirm: einmal am Ende | **Manual-UAT** TS-92.9 (Lage hinter den Dokumenten automatisiert) |
+| 13 Kommissionierlisten ohne Kopf/Fuß | Automatisiert (bestehender `NotContain("_PrintBriefkopf")`) + Manual-UAT TS-92.10 |
+| 14 Muster | Automatisiert (`MusterVorlage_…`: Logo rechts, `NimbusSanNov-*`, `format('opentype')`, Fuß, keine Absenderzeile über „Schörihub nicht im Kopf") |
+| 15 README/Hilfe/TS-82 Ablage E5 | Review (Diff gelesen: README :415/:451-474, Hilfe :781-789/:821-825, TS-82-Vorbedingung) + Manual-UAT TS-92.11 |
+| 16 „Seite X von Y" nur bei einem Dokument | Automatisiert (Zähler-Modell je View, Zähler nur im `@if (Model)`) + Spike P3 + **Manual-UAT** TS-92.12 |
+| 17 P0–P4 festgehalten, V3 in fallstricke | Review: Spec-Abschnitt Umsetzung + `fallstricke.md` §27 vorhanden; P0 Server offen → TS-92.13 (Q-5) |
+
+### 4. Geänderte bestehende Tests
+
+- `BriefkopfVorlageServiceTests.MusterVorlage_…` (bisher `:337-357`): **Verhalten bewusst durch die Spec geändert**.
+  Anschrift aus `Markup` in `Fuss` (E2/AK 14), Schriftnamen `NimbusSanNov-*` (AK 14). Das Verbot `color: #43a6e2` wird auf
+  „nur `.briefkopf .ake-firma`" eingegrenzt (Freigabe 1, AK 5). Der Selektor-Regex ist semantisch gleich, er erfasst
+  zusätzlich den Regelrumpf. Der Muster-Test prüft weiterhin, dass jede Regel unter `.briefkopf` steht.
+- `BriefkopfEinbindungTests`: nur neue Fälle, kein bestehender verändert.
+- Kein Befund der Klasse „Sonstiges" (keine Fixture so lange verbogen, bis der Test grün ist).
+
+### 5. CLAUDE.md-Checkliste
+
+- Migration / `SQL/XX` / FreshInstall / AgentJobs: entfällt (kein Schema). Audit-Felder: entfällt (nur Lesen).
+- Version: beide `AppVersion.cs` auf 1.59.0 (Datum durch Q-1 korrigiert), Anwender-Changelog `Help/Changelog.cshtml` ✓.
+  Brain-Changelog `secondbrain/changelog/2026-10-14-v1-59-0-briefkopf-fusszeile.md` liegt im Hauptcheckout vor (uncommittet,
+  das übernimmt der Aufrufer).
+- `docs/TESTSZENARIEN.md`: TS-92.1–92.13 neu, TS-82-Vorbedingung/82.5/82.7/82.14 und TS-84.8 nachgezogen, Stand-Zeile
+  ergänzt. **LF** erhalten (`git ls-files --eol`: `i/lf w/lf`, 0 CR-Bytes). Testindex Zeile 119 (TS-92) ✓.
+- README und Hilfe ✓. `fallstricke.md` §27 ✓. Keine neue Rolle, kein neuer Filter. Keine Einmal-Skripte.
+
+## Manuelle Test-Checkliste (Schranke 2)
+
+1. **Vor dem Deploy:** an einem mehrseitigen HauptFA (≥ 40 Positionen) die Seitenzahl von Druck und PDF notieren (für Punkt 10).
+2. Web aus dem Worktree publishen (Befehl im Abschnitt Deploy) und auf das Testsystem bringen. Danach prüfen:
+   `<Programmordner>\Branding\briefkopf.html` existiert noch, `https://<host>/Branding/briefkopf.html` liefert 404 (TS-92.11).
+3. Edge-Version am Webserver notieren (TS-92.13).
+4. `Branding\briefkopf.html` um den Fußbereich aus dem neuen Muster ergänzen, die Schriften `NimbusSanNov-Reg.otf`/`-SemBol.otf` dazulegen.
+5. TS-92.1: Liste → mehrseitiger HauptFA → Drucken (Edge **und** Chrome, Ränder „Standard"). Fußzeile auf jeder Seite,
+   Kopf nur auf Seite 1, „Seite X von Y" unten rechts, keine Zeile unter der Fußzeile.
+6. TS-92.4 mit Lineal am Ausdruck: ≥ 2 mm Abstand, keine halbe Zeile. Dazu ein HauptFA bzw. Auftrag mit Bemerkung/Banner.
+7. TS-92.5: Farben/Anordnung. AKE-Name in AKE Blau, sonst Grau/IDEAL Blau. **Balken vollständig** (3 mm, nicht
+   angeschnitten, Q-4), zusätzlich mit ausgeschalteten „Hintergrundgrafiken".
+8. TS-92.2: Summiert ohne Filter (≥ 3 HauptFA): Fußzeile auf allen Seiten, **keine** Seitenzählung, keine leere letzte Seite,
+   Strg+U: `briefkopf-fussbereich` genau einmal.
+9. TS-92.3 + TS-92.12: PDF (Liste, Summiert, Auftrag): „Seite 1 von N" … „N von N", Nimbus im PDF eingebettet. Summiert
+   gefiltert auf einen HauptFA: Zählung korrekt.
+10. TS-92.6: Fußbereich aus der Vorlage löschen. Keine Fußzeile, keine Zählung, kein Hinweis, Quelltext ohne `@page`, Seitenzahl wie in Punkt 1.
+11. TS-92.7: Pfad leeren → Ersatz-Kopf, keine Fußzeile. Wiederherstellen.
+12. TS-92.8 (a)–(f) Fehlerfälle im Fuß, Hinweise nur am Bildschirm und im Web-Log. Wiederherstellen.
+13. TS-92.9: Druckansicht am Bildschirm, Fußzeile einmal am Ende, kein schwebender Balken.
+14. TS-92.10: Kommissionierliste (Liste und Summiert) ohne Kopf und Fuß, Ränder wie bisher.
+15. Erst danach mergen (Schranke 2). Nach dem Merge nur bei zusammengeführten parallelen `main`-Änderungen erneut aus `main` publishen.

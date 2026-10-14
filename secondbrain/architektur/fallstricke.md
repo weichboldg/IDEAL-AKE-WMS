@@ -1455,3 +1455,30 @@ anlegen (10 Bestandstests wurden so angepasst).
 ### §17 erledigt
 Der `!(leer)`-Sonderfall in `bomMatchesFilter` (§17, „VIERTE Umsetzung“) ist seit v1.58.1 aufgegangen: die Stückliste nutzt den Kern,
 `!(leer)` ist dort ein normaler Filterwert.
+
+## 27. Fußzeile auf jeder Druckseite (v1.59.0) — nur Bauweise V3 trägt
+
+### Warum nicht in den `@page`-Rand (V1)
+Ein `position: fixed`-Element mit negativem `bottom`, das in den `@page`-Unterrand ragen soll, zeichnet Chromium im
+Headless-PDF **oben** auf jeder Seite über den Inhalt; der Hintergrund-Balken fehlt. Fixed-Elemente leben im Seitenbereich,
+nicht im Rand (gemessen 2026-10-14, Edge 155).
+
+### Warum kein Platzhalter im `tfoot` (V2)
+Ein wiederholter `tfoot`-Platzhalter schützt nur Tabellenzeilen. Alles **nach** der Tabelle (Bemerkung, Banner) lief unter
+die Fußzeile (−12,5 mm). AK „nichts unter der Fußzeile" ist damit nicht haltbar.
+
+### Was trägt (V3)
+`@page`-Unterrand klein (5 mm), Fußzeile `fixed; bottom: 0` mit fester Höchsthöhe und `overflow: hidden`, und jedes
+Dokument (`.fa-group`) bekommt `padding-bottom` mit `box-decoration-break: clone` — das Polster wiederholt sich auf jedem
+Seitenfragment, also auch nach Bemerkungen. Die Fußzeile darf nie höher als das Polster minus Abstand sein, sonst
+überdeckt sie Inhalt → deshalb hart gekappt (17,75 mm bei 19,75 mm Polster).
+
+### `:last-child` bricht, sobald hinter den Dokumenten etwas steht
+Die Druck-Views hatten `.fa-group:last-child { page-break-after: auto }`. Hängt hinter der letzten Gruppe ein weiteres
+Element (hier der `<footer>`), greift `:last-child` nicht mehr → leere letzte Seite. Darum `.fa-group:last-of-type` (zählt
+nur `div`) — und hinter die Gruppen nie ein `div` hängen.
+
+### Seitenzähler und Sammeldruck
+`counter(pages)` zählt die ganze Druckseite, nicht ein Dokument. Bei mehreren HauptFA in einem Druck wäre „Seite 3 von 7"
+falsch → Zähler nur bei genau einem Dokument ([[2026-10-09-briefkopf-seitenzaehlung]] bleibt dafür offen). Die
+`@page`-Margin-Box erscheint auch mit `--no-pdf-header-footer`.

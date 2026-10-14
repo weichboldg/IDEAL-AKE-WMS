@@ -678,6 +678,20 @@ Spec [[2026-10-06-beschichtungsauftrag-ausbau-teil-2-spec]] (Teil 2 von 4), Umse
 > Ersatz-Kopf). **Status:** Testbereit (QA + Nachlauf 2026-10-09, Build + 1521 Web- + 272 Service-Tests grün) → Schranke 2
 > mit dem Bündel. Offen: [[2026-10-09-briefkopf-seitenzaehlung]], [[2026-10-09-briefkopf-csp-und-bereinigung]].
 
+### Briefkopf: Fußzeile nach Firmen-Word-Vorlage (v1.59.0, direkt im Bündel)
+
+Spec [[2026-10-13-briefkopf-fusszeile-word-vorlage-spec]], Umsetzung [[2026-10-14-briefkopf-fusszeile-word-vorlage-umsetzung]],
+Changelog [[2026-10-14-v1-59-0-briefkopf-fusszeile]].
+
+| Baustein | Stand | Code-Einstieg |
+|---|---|---|
+| Fußbereich `<footer class="briefkopf-fuss">` laden/prüfen/einbetten (`Fuss`, `HatFuss`) | **erledigt** `c2d54f35` | `Services/BriefkopfVorlageService.cs` |
+| Fußzeile auf jeder Druckseite (V3), „Seite X von Y" bei genau einem Dokument | **erledigt** `c2d54f35` | `Views/Shared/_PrintBriefkopfFuss.cshtml`, `_PrintBriefkopfStyles.cshtml`, drei Druck-Views |
+| Muster nach Word-Vorlage, README, Hilfe, v1.59.0, TS-92 | **erledigt** `c2d54f35` | `Branding/briefkopf.html` |
+
+> **Deploy:** nur Web, keine Migration; IT ergänzt den Fußbereich in der Server-Vorlage (ohne: Druck wie bisher).
+> `Branding\` im Programmordner, nicht `wwwroot\`. **Status:** Testbereit (QA 2026-10-14, Fix `d4108f1a`) → Schranke 2 mit dem Bündel.
+
 ### Beschichtungsauftrag als eigenes Objekt (v1.50.0, direkt im Bündel, ohne Oberfläche)
 
 Spec [[2026-10-06-beschichtungsauftrag-ausbau-teil-3-spec]] (Teil 3 von 4), Umsetzung
