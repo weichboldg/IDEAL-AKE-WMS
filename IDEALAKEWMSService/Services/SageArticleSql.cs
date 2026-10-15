@@ -53,22 +53,23 @@ public static class SageArticleSql
         """;
 
     /// <summary>
-    /// Select auf die WMS-Artikel-View. Spaltennamen = die des bisherigen Selects (Antwort 4 „sollten gleich sein“,
-    /// UNVERIFIZIERT bis Pruefabfrage P4). Fehlt eine Spalte, scheitert der Lauf laut (Fehler + Mail).
-    /// GROUP BY/MAX wie im bisherigen Select: Schutz gegen Dubletten in der View.
+    /// Select auf die WMS-Artikel-View. Die View liefert bereits die WMS-Spaltennamen (Pruefabfrage P4, Gerald
+    /// 2026-10-15: ArticleNumber, Description, Matchcode, Unit, ArticleGroup, ReorderLevel, PrimaryStorageLocation,
+    /// alle nvarchar) — v1.60.0 hatte faelschlich die Sage-Namen des alten Selects angenommen. Fehlt eine Spalte,
+    /// scheitert der Lauf laut (Fehler + Mail). CAST/MAX/GROUP BY wie im bisherigen Select: Schutz gegen Dubletten.
     /// </summary>
     public static string BuildViewSql(string quotedView) => $"""
         SELECT
-            CAST(Artikelnummer AS nvarchar(100))           AS ArticleNumber,
-            MAX(CAST(Bezeichnung1 AS nvarchar(500)))       AS Description,
-            MAX(CAST(Lagermengeneinheit AS nvarchar(20)))  AS Unit,
-            MAX(CAST(Artikelgruppe AS nvarchar(100)))      AS ArticleGroup,
-            MAX(CAST(Meldebestand AS nvarchar(20)))        AS ReorderLevel,
-            MAX(CAST(Kurzbezeichnung AS nvarchar(100)))    AS PrimaryStorageLocation,
-            MAX(CAST(Matchcode AS nvarchar(200)))          AS Matchcode
+            CAST(ArticleNumber AS nvarchar(100))                AS ArticleNumber,
+            MAX(CAST(Description AS nvarchar(500)))             AS Description,
+            MAX(CAST(Unit AS nvarchar(20)))                     AS Unit,
+            MAX(CAST(ArticleGroup AS nvarchar(100)))            AS ArticleGroup,
+            MAX(CAST(ReorderLevel AS nvarchar(20)))             AS ReorderLevel,
+            MAX(CAST(PrimaryStorageLocation AS nvarchar(100)))  AS PrimaryStorageLocation,
+            MAX(CAST(Matchcode AS nvarchar(200)))               AS Matchcode
         FROM {quotedView}
-        WHERE Artikelnummer IS NOT NULL AND CAST(Artikelnummer AS nvarchar(100)) != ''
-        GROUP BY CAST(Artikelnummer AS nvarchar(100))
+        WHERE ArticleNumber IS NOT NULL AND CAST(ArticleNumber AS nvarchar(100)) != ''
+        GROUP BY CAST(ArticleNumber AS nvarchar(100))
         """;
 
     /// <param name="quotedView">null = keine View konfiguriert; sonst bereits per ValidateAndQuote geprueft.</param>

@@ -165,7 +165,8 @@ SELECT @Geloescht AS Geloescht, @Gesichert AS Gesichert;   -- ins Deploy-Protoko
 
 -- =====================================================================================================
 -- RUECKWEG (nur bei Bedarf, von Hand; vorher pruefen, dass keine der Nummern inzwischen neu angelegt wurde —
--- sonst scheitert der INSERT am Unique-Index UQ_Articles_ArticleNumber). Alternativ: DB-Backup aus Schritt 6.
+-- sonst scheitert der INSERT am Unique-Index: UQ_Articles_ArticleNumber auf per SQL-Skript angelegten DBs,
+-- IX_Articles_ArticleNumber auf per EF angelegten DBs (fallstricke §9)). Alternativ: DB-Backup aus Schritt 6.
 -- =====================================================================================================
 -- SET IDENTITY_INSERT dbo.Articles ON;
 -- INSERT INTO dbo.Articles (Id, ArticleNumber, Description, Matchcode, Unit, ReorderLevel, ArticleGroup,

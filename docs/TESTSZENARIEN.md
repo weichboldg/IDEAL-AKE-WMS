@@ -9959,7 +9959,7 @@ Headless-Edge-PDF wurde im Dev-Lauf an einer statischen Testseite gemessen (Spec
 
 ---
 
-## TS-93 — IDEAL: Sage-Quellen auf die WMS-Views umstellen (v1.60.0)
+## TS-93 — IDEAL: Sage-Quellen auf die WMS-Views umstellen (v1.60.0, Fix v1.60.1)
 
 Spec: `2026-10-14-ideal-sage-views-umstellung-spec`. **Vorbedingungen:** IDEAL-Testsystem, Master
 `ProduktionsauftragHierarchisch = true`, `Sync:HierarchicalFaEnabled = true`, `Sync:ProductionWorkplaceSyncEnabled = true`,
@@ -9984,6 +9984,12 @@ mit gleichen Aliasen), `ProductionWorkplaceSyncServiceTests` (Default-Quelle, Qu
   (Bezeichnung, Einheit, Artikelgruppe **als Code**, Hauptlagerplatz, Matchcode). P6 „nachher“: keine neuen 00er,
   keine neuen Dubletten. Fehlt eine Spalte (Spaltennamen unverifiziert bis P4): Lauf schlägt fehl + Fehlermail →
   Befund an die Entwicklung, Key leeren.
+- **TS-93.4b — View mit WMS-Spaltennamen (Fix v1.60.1).** Befund v1.60.0: Lauf `Article` scheiterte mit „Ungültiger
+  Spaltenname Artikelnummer/Bezeichnung1/…“, weil die View laut P4 (2026-10-15) bereits `ArticleNumber, Description,
+  Matchcode, Unit, ArticleGroup, ReorderLevel, PrimaryStorageLocation` liefert. Mit v1.60.1 TS-93.4 wiederholen.
+  **Erwartet:** Lauf `Article` erfolgreich (kein „Ungültiger Spaltenname“), `gelesen` ≈ P4d, Stichprobe wie TS-93.4
+  (Artikelgruppe als reiner Code, P4b; keine Dubletten je `ArticleNumber`, P4a). **Negativ:** AKE (Key leer) — Lauf
+  `Article` unverändert mit dem bisherigen Select.
 - **TS-93.5 — Folgeprozesse (Risiko Nummernformat).** Kommissionierung an einem HauptFA mit 2 Positionen umbuchen.
   **Erwartet:** je Position eine `StockMovement` (kein stiller Skip). Eine Lagerbuchung erzeugen → Sage-Lagerbuchung
   erfolgreich. Lagerbestand-Sync ohne neue Warnungen „Artikel … nicht im WMS“.
@@ -10025,5 +10031,5 @@ mit gleichen Aliasen), `ProductionWorkplaceSyncServiceTests` (Default-Quelle, Qu
 ---
 
 *Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) + Teil 6 (Standorteinstellungen, v1.34.0) + BOM-Guard hierarchisch (2026-08-18, abgelöst) + FA-Liste-Hierarchie (v1.35.0) + BOM-Bridge (v1.36.0) + Materialisierung fachliche Felder K1/K2 (v1.37.0) + Skopierung der Tabellen-Selektoren (TS-72) + FA-Liste ausgebaut: Matchcode, Kopfdaten je Zeile, HauptFA-Zeile, Freigabe-Kaskade (v1.38.0, TS-73) + PDF-Erzeugung für FaHierarchy-Druckdokumente (v1.39.0, TS-74) + Matchcode im Artikelstamm (v1.40.0, TS-75) + FA-Arbeitsgang-Erkennung aus der Struktur (v1.41.0, TS-76, ersetzt durch TS-77) + Arbeitsgänge (WorkOperation) aus der Struktur + Werkbank-Anlage aus Sage (v1.44.0, TS-77) + Arbeitsgänge je (Sub-)FA im FA-Struktur-Modal (v1.45.0, TS-78) + Kommissionierung nur am HauptFA
-(v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80) + Beschichtungsauftrag Summiert als Standard (v1.48.0, TS-81) + Briefkopf Beschichtungsauftrag (v1.49.0, TS-82) + Beschichtungsauftrag als eigenes Objekt (v1.50.0, TS-83) + Beschichtungsaufträge bedienen (v1.51.0, TS-84) + Arbeitsgänge als Symbole im FA-Baum (v1.52.0, TS-85) + CSV-Export für alle Tabellen (v1.53.0, TS-86) + Arbeitsgang-Stammdaten (v1.54.0, TS-87) + Status je Arbeitsgang-Kürzel im FA-Baum (v1.55.0, TS-88) + Menü Beschichtung + Kurzanleitungen (v1.56.0, TS-89) + BDE-Terminal mit Arbeitsgang-Status (v1.57.0, TS-90) + Spaltenfilter-Suchsyntax Etappe A + B (v1.58.0/v1.58.1, TS-91.A/B) + Fußzeile nach Word-Vorlage (v1.59.0, TS-92) + Sage-Quellen auf WMS-Views (v1.60.0, TS-93)*
+(v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80) + Beschichtungsauftrag Summiert als Standard (v1.48.0, TS-81) + Briefkopf Beschichtungsauftrag (v1.49.0, TS-82) + Beschichtungsauftrag als eigenes Objekt (v1.50.0, TS-83) + Beschichtungsaufträge bedienen (v1.51.0, TS-84) + Arbeitsgänge als Symbole im FA-Baum (v1.52.0, TS-85) + CSV-Export für alle Tabellen (v1.53.0, TS-86) + Arbeitsgang-Stammdaten (v1.54.0, TS-87) + Status je Arbeitsgang-Kürzel im FA-Baum (v1.55.0, TS-88) + Menü Beschichtung + Kurzanleitungen (v1.56.0, TS-89) + BDE-Terminal mit Arbeitsgang-Status (v1.57.0, TS-90) + Spaltenfilter-Suchsyntax Etappe A + B (v1.58.0/v1.58.1, TS-91.A/B) + Fußzeile nach Word-Vorlage (v1.59.0, TS-92) + Sage-Quellen auf WMS-Views (v1.60.0/v1.60.1, TS-93)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*
