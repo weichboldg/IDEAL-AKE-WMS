@@ -792,7 +792,8 @@ Reihenfolge (zuerst IDEAL-Test, dann live; Prüfabfragen P1–P7 stehen in der S
 4. Arbeitsplätze: **P3b ist Pflicht** — View gegen `KHKPpsArbeitsplaetze` (Mandant + `Aktiv = -1`) per `EXCEPT` in beide
    Richtungen, erwartet leer:
    `SELECT CAST(Arbeitsplatznummer AS varchar(31)), Bezeichnung1, USER_ArbeitsSchritt FROM KHKPpsArbeitsplaetze WHERE Mandant = <M> AND Aktiv = -1`
-   `EXCEPT SELECT Arbeitsgangnummer, Bezeichnung, AG FROM vw_IDEAL_AKE_WMS_Arbeitsgaenge` (und umgekehrt).
+   `EXCEPT SELECT CAST(Arbeitsgangnummer AS varchar(31)), Bezeichnung, AG FROM vw_IDEAL_AKE_WMS_Arbeitsgaenge` (und umgekehrt;
+   beide Seiten als Text, sonst fällt `0000` gegen `0` nicht auf).
    Dann `Sync:ProductionWorkplaceSyncViewName = [vw_IDEAL_AKE_WMS_Arbeitsgaenge]` (die View liefert trotz ihres Namens
    **Arbeitsplätze**; Spalten `Arbeitsgangnummer` → Nummer, `Bezeichnung` → Name, `AG` → Kürzel; sie hat **keinen**
    Mandant/Aktiv-Filter — Quelle ≠ `KHKPpsArbeitsplaetze` ⇒ der Sync liest ungefiltert die View). Erster Lauf: `neu = 0`,

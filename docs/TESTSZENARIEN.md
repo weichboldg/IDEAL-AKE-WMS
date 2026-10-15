@@ -9977,7 +9977,7 @@ mit gleichen Aliasen), `ProductionWorkplaceSyncServiceTests` (Default-Quelle, Qu
   starten. **Erwartet:** Werte unverändert; die neuen Keys `Sync:ProductionWorkplaceSyncViewName` (`KHKPpsArbeitsplaetze`)
   und `Sync:ArticlesViewName` (leer) sind angelegt und in der Standort-Maske sichtbar.
 - **TS-93.3 — Arbeitsplätze (AK 5, 6).** Nach dem Deploy Zyklus abwarten. **Erwartet:** Lauf `ProductionWorkplaceSync`
-  erfolgreich mit denselben Counts wie davor. Dann (P3 = 0) Key auf `[vw_IDEAL_AKE_WMS_Arbeitsgaenge]`, Zyklus abwarten.
+  erfolgreich mit denselben Counts wie davor. Dann (P3b = 0, siehe TS-93.3b) Key auf `[vw_IDEAL_AKE_WMS_Arbeitsgaenge]`, Zyklus abwarten.
   **Erwartet:** erfolgreich, `neu = 0`, `abweichung = 0`, Werkbank-Liste unverändert.
 - **TS-93.3b — Arbeitsplätze aus der View mit deren Spalten (Fix v1.60.2).** Befund v1.60.1: Lauf
   `ProductionWorkplaceSync` scheiterte mit „Ungültiger Spaltenname Mandant/Aktiv/Arbeitsplatznummer/…“, weil die View
