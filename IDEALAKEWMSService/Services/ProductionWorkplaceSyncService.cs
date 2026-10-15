@@ -13,6 +13,10 @@ public class ProductionWorkplaceSyncService : IProductionWorkplaceSyncService
 {
     private const string ServiceUser = "ProductionWorkplaceSync";
 
+    /// <summary>Default/Fallback der Quelle = Katalog-Default von Sync:ProductionWorkplaceSyncViewName (Rueckfrage 8:
+    /// die heutige Tabelle, NICHT die View — ein neuer Key wird beim Web-Start mit seinem Default angelegt).</summary>
+    public const string DefaultSource = "KHKPpsArbeitsplaetze";
+
     private readonly ApplicationDbContext _ctx;
     private readonly IConfiguration _config;
     private readonly IMailService _mail;
@@ -50,10 +54,40 @@ public class ProductionWorkplaceSyncService : IProductionWorkplaceSyncService
             .Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
+        var sourceRaw = await ServiceSettings.GetValueSafeAsync(_config, "Sync:ProductionWorkplaceSyncViewName", ct);
+        string quotedSource;
+        try
+        {
+            quotedSource = FaHierarchySql.ValidateAndQuote(string.IsNullOrWhiteSpace(sourceRaw) ? DefaultSource : sourceRaw);
+        }
+        catch (FaHierarchyViewNameException ex)
+        {
+            // Kein SQL. Fehler + Fehlermail (throw -> RunResilientAsync), wie beim FA-Sync.
+            await run.LogErrorAsync($"Ungueltiger Quell-Name: {ex.Message}", ct: ct);
+            await run.FinishFailedAsync($"Ungueltiger Quell-Name: {ex.Message}", ct: ct);
+            throw new InvalidOperationException(
+                $"Werkbank-Anlage abgebrochen — ungueltiger Quell-Name (kein SQL ausgefuehrt): {ex.Message}", ex);
+        }
+
         List<SageArbeitsplatzDto> sageRows;
         try
         {
-            sageRows = await _reader.GetActiveAsync(mandant, ct);
+            var read = await _reader.GetActiveAsync(quotedSource, mandant, ct);
+            if (!read.SourceExists)
+            {
+                // Rueckfrage 6: fehlende Arbeitsplatz-Quelle = nur Warnung, keine Mail, keine Mutation.
+                await run.LogWarningAsync($"{FaHierarchySql.SourceMissingMessage(quotedSource)} — Sync uebersprungen.", ct: ct);
+                await run.FinishSuccessAsync(new Dictionary<string, int>
+                {
+                    ["neu"] = 0,
+                    ["aktualisiert"] = 0,
+                    ["abweichung"] = 0,
+                    ["uebersprungen"] = 0,
+                    ["problematisch"] = 0,
+                }, messageSuffix: dryRun ? "Quelle nicht vorhanden [DryRun]" : "Quelle nicht vorhanden", ct: ct);
+                return new SyncResult(0, 0, 0, "Quelle nicht vorhanden.");
+            }
+            sageRows = read.Rows;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

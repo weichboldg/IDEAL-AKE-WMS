@@ -16,6 +16,12 @@ public class FaHierarchySqlTests
     [InlineData("dbo.vw_IDEAL-AKE_Kommissionierung_FAListe", "[dbo].[vw_IDEAL-AKE_Kommissionierung_FAListe]")]
     [InlineData("[dbo].[vw_IDEAL-AKE_Kommissionierung_FAInfos]", "[dbo].[vw_IDEAL-AKE_Kommissionierung_FAInfos]")]
     [InlineData("Simple_Name", "[Simple_Name]")]
+    // Neue WMS-Views + Werkbank-Quelle (Spec 2026-10-14-ideal-sage-views-umstellung)
+    [InlineData("[vw_IDEAL_AKE_WMS_FAListe]", "[vw_IDEAL_AKE_WMS_FAListe]")]
+    [InlineData("[vw_IDEAL_AKE_WMS_FAInfos]", "[vw_IDEAL_AKE_WMS_FAInfos]")]
+    [InlineData("[vw_IDEAL_AKE_WMS_Arbeitsgaenge]", "[vw_IDEAL_AKE_WMS_Arbeitsgaenge]")]
+    [InlineData("[vw_IDEAL_AKE_WMS_Artikel]", "[vw_IDEAL_AKE_WMS_Artikel]")]
+    [InlineData("KHKPpsArbeitsplaetze", "[KHKPpsArbeitsplaetze]")]
     public void ValidateAndQuote_valid_names_are_accepted_and_quoted(string input, string expected)
     {
         FaHierarchySql.ValidateAndQuote(input).Should().Be(expected);

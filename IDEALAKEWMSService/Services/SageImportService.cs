@@ -379,55 +379,32 @@ public class SageImportService : ISageImportService
             if (dryRun)
                 _logger.LogInformation("[DryRun] Artikel-Sync — keine Änderungen werden geschrieben.");
 
-            const string sageSql = """
-                WITH RawArticles AS (
-                    SELECT DISTINCT
-                        CAST(r.Ressourcenummer AS nvarchar(100))   AS ArticleNumber,
-                        CAST(a.Bezeichnung1 AS nvarchar(500))      AS Description,
-                        CAST(a.Lagermengeneinheit AS nvarchar(20)) AS Unit,
-                        CAST(a.Artikelgruppe AS nvarchar(100))     AS ArticleGroup,
-                        CAST(v.Meldebestand AS nvarchar(20))       AS ReorderLevel,
-                        CAST(lp.Kurzbezeichnung AS nvarchar(100))  AS PrimaryStorageLocation,
-                        CAST(a.Matchcode AS nvarchar(200))         AS Matchcode
-                    FROM [dbo].[KHKPpsRessourcenPositionen] r
-                    LEFT JOIN [dbo].[KHKArtikel] a ON a.Artikelnummer = r.Ressourcenummer
-                    LEFT JOIN [dbo].[KHKArtikelvarianten] v ON a.Artikelnummer = v.Artikelnummer
-                    LEFT JOIN [dbo].[KHKLagerplaetze] lp ON a.PlatzID = lp.PlatzID
-                    WHERE r.Ressourcenummer IS NOT NULL AND r.Ressourcenummer != ''
-
-                    UNION
-
-                    SELECT
-                        CAST(a.Artikelnummer AS nvarchar(100))     AS ArticleNumber,
-                        CAST(a.Bezeichnung1 AS nvarchar(500))      AS Description,
-                        CAST(a.Lagermengeneinheit AS nvarchar(20)) AS Unit,
-                        CAST(a.Artikelgruppe AS nvarchar(100))     AS ArticleGroup,
-                        CAST(v.Meldebestand AS nvarchar(20))       AS ReorderLevel,
-                        CAST(lp.Kurzbezeichnung AS nvarchar(100))  AS PrimaryStorageLocation,
-                        CAST(a.Matchcode AS nvarchar(200))         AS Matchcode
-                    FROM [dbo].[KHKArtikel] a
-                    LEFT JOIN [dbo].[KHKArtikelvarianten] v ON a.Artikelnummer = v.Artikelnummer
-                    LEFT JOIN [dbo].[KHKLagerplaetze] lp ON a.PlatzID = lp.PlatzID
-                    WHERE a.IstBestellartikel = -1 AND a.Aktiv = -1
-                )
-                SELECT
-                    ArticleNumber,
-                    MAX(Description)  AS Description,
-                    MAX(Unit)         AS Unit,
-                    MAX(ArticleGroup) AS ArticleGroup,
-                    MAX(ReorderLevel) AS ReorderLevel,
-                    MAX(PrimaryStorageLocation) AS PrimaryStorageLocation,
-                    MAX(Matchcode) AS Matchcode
-                FROM RawArticles
-                WHERE ArticleNumber IS NOT NULL AND ArticleNumber != ''
-                GROUP BY ArticleNumber
-                """;
+            // Quelle (Spec 2026-10-14-ideal-sage-views-umstellung): leer = bisheriger Select zeichengleich (AKE + IDEAL bis
+            // zur Umstellung), gesetzt = View. Ungueltiger Name -> catch unten (Fehler + Mail, kein SQL).
+            var viewRaw = await ServiceSettings.GetValueAsync(_configuration, "Sync:ArticlesViewName", ct);
+            var quotedView = string.IsNullOrWhiteSpace(viewRaw) ? null : FaHierarchySql.ValidateAndQuote(viewRaw);
+            var sageSql = SageArticleSql.Select(quotedView);
 
             var sageArticles = new List<(string ArticleNumber, string? Description, string? Unit, string? ArticleGroup, decimal? ReorderLevel, string? PrimaryStorageLocation, string? Matchcode)>();
 
             await using (var sageConn = new SqlConnection(sageConnection))
             {
                 await sageConn.OpenAsync(ct);
+
+                // Fehlende View: Warnung + Skip, KEIN stiller Rueckfall auf den alten Select (der holte genau die
+                // Daten zurueck, die die View abloesen soll), keine Mail, keine Mutation (Rueckfrage 6).
+                if (quotedView != null && !await FaHierarchySql.SourceExistsAsync(sageConn, quotedView, ct))
+                {
+                    await run.LogWarningAsync($"{FaHierarchySql.SourceMissingMessage(quotedView)} — Sync uebersprungen.", ct: ct);
+                    await run.FinishSuccessAsync(new Dictionary<string, int>
+                    {
+                        ["gelesen"]      = 0,
+                        ["neu"]          = 0,
+                        ["aktualisiert"] = 0,
+                    }, messageSuffix: dryRun ? "Quelle nicht vorhanden [DryRun]" : "Quelle nicht vorhanden", ct: ct);
+                    return new SyncResult(0, 0, 0, "Quelle nicht vorhanden.");
+                }
+
                 await using var cmd = new SqlCommand(sageSql, sageConn);
                 cmd.CommandTimeout = 120;
                 await using var reader = await cmd.ExecuteReaderAsync(ct);

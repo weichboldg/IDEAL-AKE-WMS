@@ -21,10 +21,13 @@ public class ProductionWorkplaceSyncServiceTests
 {
     private static (ProductionWorkplaceSyncService Svc, FakeSyncLogger Log) Build(
         ApplicationDbContext ctx, params SageArbeitsplatzDto[] sageRows)
+        => Build(ctx, new Mock<ISageArbeitsplatzReader>(), true, sageRows);
+
+    private static (ProductionWorkplaceSyncService Svc, FakeSyncLogger Log) Build(
+        ApplicationDbContext ctx, Mock<ISageArbeitsplatzReader> reader, bool sourceExists, params SageArbeitsplatzDto[] sageRows)
     {
-        var reader = new Mock<ISageArbeitsplatzReader>();
-        reader.Setup(r => r.GetActiveAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
-              .ReturnsAsync(sageRows.ToList());
+        reader.Setup(r => r.GetActiveAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+              .ReturnsAsync(new SageArbeitsplatzReadResult(sourceExists, sageRows.ToList()));
         var log = new FakeSyncLogger();
         var svc = new ProductionWorkplaceSyncService(
             ctx, new ConfigurationBuilder().Build(), new Mock<IMailService>().Object,
@@ -38,6 +41,44 @@ public class ProductionWorkplaceSyncServiceTests
         SageArbeitsplatznummer = nummer, Name = name, ArbeitsschrittCode = code,
         CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
     };
+
+    // ----- Quelle (Spec 2026-10-14-ideal-sage-views-umstellung) -----
+
+    [Fact]
+    public async Task Run_OhneEinstellung_LiestDefaultTabelle()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        var reader = new Mock<ISageArbeitsplatzReader>();
+        var (svc, _) = Build(ctx, reader, true);
+
+        await svc.RunAsync(dryRun: false);
+
+        // Keine DB-Einstellung (Test ohne Settings-DB) -> Fallback = Katalog-Default, geklammert.
+        reader.Verify(r => r.GetActiveAsync("[KHKPpsArbeitsplaetze]", It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Once);
+        ProductionWorkplaceSyncService.DefaultSource.Should().Be(
+            IdealAkeWms.Models.ServiceSettingDefinitions.All.Single(d => d.Key == "Sync:ProductionWorkplaceSyncViewName").DefaultValue);
+    }
+
+    [Fact]
+    public async Task Run_QuelleFehlt_WarnungUndSkip_OhneMutationOhneException()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        ctx.ProductionWorkplaces.Add(Existing("2300", "Kanterei W1", "KA"));
+        await ctx.SaveChangesAsync();
+        var (svc, log) = Build(ctx, new Mock<ISageArbeitsplatzReader>(), false, new SageArbeitsplatzDto("4711", "Neu", "NE"));
+
+        var result = await svc.RunAsync(dryRun: false);
+
+        result.ErrorDetails.Should().Be("Quelle nicht vorhanden.");
+        (await ctx.ProductionWorkplaces.CountAsync()).Should().Be(1);
+        var run = log.Runs.Single();
+        run.FinishedSuccess.Should().BeTrue();
+        run.FinishedFailed.Should().BeFalse();
+        run.FinalMessageSuffix.Should().Be("Quelle nicht vorhanden");
+        run.FinalCounts!["neu"].Should().Be(0);
+        run.Events.Should().ContainSingle(e => e.Level == "Warning"
+            && e.Message.Contains("[KHKPpsArbeitsplaetze] nicht vorhanden oder keine Leseberechtigung"));
+    }
 
     [Fact]
     public async Task Run_NeuerArbeitsplatz_WirdAngelegt()

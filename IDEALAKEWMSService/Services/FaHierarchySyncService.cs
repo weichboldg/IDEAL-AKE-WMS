@@ -50,10 +50,10 @@ public class FaHierarchySyncService : IFaHierarchySyncService
         // 1) View-Namen aus ServiceSettings lesen + validieren (Whitelist + QUOTENAME).
         var listeRaw = await ServiceSettings.GetValueAsync(_config, "Sync:FaHierarchyListeViewName", ct);
         if (string.IsNullOrWhiteSpace(listeRaw))
-            listeRaw = "[vw_IDEAL-AKE_Kommissionierung_FAListe]";
+            listeRaw = "[vw_IDEAL_AKE_WMS_FAListe]";
         var infosRaw = await ServiceSettings.GetValueAsync(_config, "Sync:FaHierarchyInfosViewName", ct);
         if (string.IsNullOrWhiteSpace(infosRaw))
-            infosRaw = "[vw_IDEAL-AKE_Kommissionierung_FAInfos]";
+            infosRaw = "[vw_IDEAL_AKE_WMS_FAInfos]";
 
         string quotedListe, quotedInfos;
         try
@@ -82,6 +82,15 @@ public class FaHierarchySyncService : IFaHierarchySyncService
 
             await using var conn = new SqlConnection(sageConnStr);
             await conn.OpenAsync(ct);
+
+            // 1b) Existenz beider Views VOR jedem Read (Spec 2026-10-14-ideal-sage-views-umstellung, Rueckfrage 6):
+            //     Eine fehlende FA-View ist ein Ausfall der FA-Struktur und darf nicht still sein — throw in den catch
+            //     unten (LogError + FinishFailed), die Fehlermail schickt RunResilientAsync. Klare Meldung statt
+            //     SqlException; die Zieltabellen bleiben unberuehrt.
+            foreach (var quoted in new[] { quotedListe, quotedInfos })
+                if (!await FaHierarchySql.SourceExistsAsync(conn, quoted, ct))
+                    throw new InvalidOperationException(
+                        $"{FaHierarchySql.SourceMissingMessage(quoted)} — FA-Struktur-Sync abgebrochen.");
 
             // 2) Empty-Guard: ungefilterte Roh-Zeilenzahlen BEIDER Views VOR jeder Mutation
             //    (sonst maskiert die Existenzpruefung einen leeren FAInfos-Read als "0 Struktur-Zeilen").

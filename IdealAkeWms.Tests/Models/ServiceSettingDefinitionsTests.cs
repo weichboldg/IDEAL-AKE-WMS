@@ -102,6 +102,8 @@ public class ServiceSettingDefinitionsTests
     [InlineData("Sync:HierarchicalFaEnabled")]
     [InlineData("Sync:FaHierarchyListeViewName")]
     [InlineData("Sync:FaHierarchyInfosViewName")]
+    [InlineData("Sync:ArticlesViewName")]
+    [InlineData("Sync:ProductionWorkplaceSyncViewName")]
     [InlineData("Sync:CoatingDetectionEnabled")]
     [InlineData("Sync:BdeAutoPauseIntervalMinutes")]
     [InlineData("Sync:FeiertagSyncEnabled")]

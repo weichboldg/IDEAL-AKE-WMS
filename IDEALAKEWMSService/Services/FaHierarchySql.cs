@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Text.RegularExpressions;
+using Microsoft.Data.SqlClient;
 
 namespace IDEALAKEWMSService.Services;
 
@@ -105,6 +106,23 @@ public static class FaHierarchySql
         // Whitelist nicht auftreten, aber strukturell korrekt).
         return "[" + inner.Replace("]", "]]") + "]";
     }
+
+    /// <summary>
+    /// Existenz einer Sage-Quelle (Spec 2026-10-14-ideal-sage-views-umstellung). Bewusst OHNE Typfilter 'V':
+    /// auch eine Tabelle ist als Quelle zulaessig (Rueckweg Werkbank-Sync auf KHKPpsArbeitsplaetze). Der Name geht
+    /// als Parameter hinein (bereits validiert + geklammert). OBJECT_ID liefert auch NULL, wenn der Login das
+    /// Objekt nicht sehen darf — deshalb nennt <see cref="SourceMissingMessage"/> beide Ursachen.
+    /// </summary>
+    public static async Task<bool> SourceExistsAsync(SqlConnection conn, string quotedName, CancellationToken ct)
+    {
+        await using var cmd = new SqlCommand("SELECT OBJECT_ID(@name)", conn) { CommandTimeout = 30 };
+        cmd.Parameters.AddWithValue("@name", quotedName);
+        var v = await cmd.ExecuteScalarAsync(ct);
+        return v is not null and not DBNull;
+    }
+
+    public static string SourceMissingMessage(string quotedName) =>
+        $"Sage-Quelle {quotedName} nicht vorhanden oder keine Leseberechtigung";
 
     /// <summary>COUNT(*) auf einen bereits validiert+geklammerten View-Bezeichner — Empty-Guard auf
     /// der ungefilterten Roh-Zeilenzahl. Der Bezeichner ist vollstaendig (ggf. schema-qualifiziert),

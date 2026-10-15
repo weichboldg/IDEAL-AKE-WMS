@@ -43,6 +43,8 @@ public static class StandortSettingsCatalog
         new("SData:Dataset",                        "Mandant / Dataset",              StandortFieldType.String, StandortBackend.Service, GroupMandantViews),
         new("Sync:FaHierarchyListeViewName",        "Sage-View FAListe (Stückliste)", StandortFieldType.String, StandortBackend.Service, GroupMandantViews, ViewNameHint),
         new("Sync:FaHierarchyInfosViewName",        "Sage-View FAInfos (PPS/Auftrag)",StandortFieldType.String, StandortBackend.Service, GroupMandantViews, ViewNameHint),
+        new("Sync:ArticlesViewName",                "Sage-View Artikel (leer = bisheriger Select)", StandortFieldType.String, StandortBackend.Service, GroupMandantViews, ViewNameHint),
+        new("Sync:ProductionWorkplaceSyncViewName", "Sage-Quelle Arbeitsplätze",      StandortFieldType.String, StandortBackend.Service, GroupMandantViews, ViewNameHint),
 
         // Feature-Schalter der Teile 2–5 (AppSettings).
         new(AppSettingKeys.FaHierarchyMaxDepth,                 "Baum-Maximaltiefe",             StandortFieldType.Int,  StandortBackend.App, GroupToggles),

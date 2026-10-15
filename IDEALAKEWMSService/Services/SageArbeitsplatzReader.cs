@@ -13,7 +13,7 @@ public class SageArbeitsplatzReader : ISageArbeitsplatzReader
         _logger = logger;
     }
 
-    public async Task<List<SageArbeitsplatzDto>> GetActiveAsync(int mandant, CancellationToken ct = default)
+    public async Task<SageArbeitsplatzReadResult> GetActiveAsync(string quotedSource, int mandant, CancellationToken ct = default)
     {
         var sageConnection = _configuration.GetConnectionString("SageConnection")
             ?? throw new InvalidOperationException("SageConnection nicht konfiguriert.");
@@ -21,9 +21,10 @@ public class SageArbeitsplatzReader : ISageArbeitsplatzReader
         // Baustein a: Arbeitsplaetze je Mandant, aktiv (Sage-Konvention Aktiv = -1).
         // Arbeitsplatznummer bewusst typunabhaengig gelesen (GetValue().ToString()) — Sage fuehrt sie
         // laut Spec als varchar(31); der defensive Read traegt auch, falls die Spalte doch int ist.
-        const string sql = """
+        // Quelle konfigurierbar (Sync:ProductionWorkplaceSyncViewName), Spalten und Filter unveraendert.
+        var sql = $"""
             SELECT Arbeitsplatznummer, Bezeichnung1, USER_ArbeitsSchritt
-            FROM KHKPpsArbeitsplaetze
+            FROM {quotedSource}
             WHERE Mandant = @mandant
               AND Aktiv = -1
             """;
@@ -32,6 +33,12 @@ public class SageArbeitsplatzReader : ISageArbeitsplatzReader
 
         await using var conn = new SqlConnection(sageConnection);
         await conn.OpenAsync(ct);
+
+        if (!await FaHierarchySql.SourceExistsAsync(conn, quotedSource, ct))
+        {
+            _logger.LogWarning("{Msg} — Werkbank-Anlage wird uebersprungen.", FaHierarchySql.SourceMissingMessage(quotedSource));
+            return new SageArbeitsplatzReadResult(false, result);
+        }
         await using var cmd = new SqlCommand(sql, conn) { CommandTimeout = 60 };
         cmd.Parameters.AddWithValue("@mandant", mandant);
         await using var reader = await cmd.ExecuteReaderAsync(ct);
@@ -45,7 +52,7 @@ public class SageArbeitsplatzReader : ISageArbeitsplatzReader
             ));
         }
 
-        _logger.LogInformation("Sage liefert {Count} aktive Arbeitsplaetze (Mandant {Mandant}).", result.Count, mandant);
-        return result;
+        _logger.LogInformation("Sage liefert {Count} aktive Arbeitsplaetze aus {Source} (Mandant {Mandant}).", result.Count, quotedSource, mandant);
+        return new SageArbeitsplatzReadResult(true, result);
     }
 }
