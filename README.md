@@ -770,6 +770,34 @@ vollständiger Katalog". Wichtige Gruppen:
 | Mails | `Sync:PartRequisitionEmailEnabled`, `Sync:WarehouseRequisitionEmailEnabled`, `Notifications:*`, `ErrorNotification:Enabled`/`Recipients` |
 | Worker | `WorkerSettings:SyncIntervalMinutes`, `WorkerSettings:SyncDryRun`, `Sync:BdeAutoPauseIntervalMinutes` |
 | Bereinigung | `Cleanup:AktivitaetsprotokollAufbewahrungTage` (Default 180, `0` = nie löschen) |
+| Sage-Quellen (seit v1.60.0) | `Sync:FaHierarchyListeViewName`/`…InfosViewName` (Default `[vw_IDEAL_AKE_WMS_FAListe]`/`…FAInfos]`), `Sync:ProductionWorkplaceSyncViewName` (Default `KHKPpsArbeitsplaetze`), `Sync:ArticlesViewName` (Default leer = bisheriger Select) |
+
+### IDEAL: Sage-Quellen auf die WMS-Views umstellen (seit v1.60.0)
+
+Spec `2026-10-14-ideal-sage-views-umstellung-spec`. Alle drei Quellen werden **per Einstellung** umgestellt
+(Standorteinstellungen → Mandant / Sage-Views oder `/ServiceSettings`), wirksam ab dem nächsten Sync-Lauf.
+Ein geänderter Default wirkt **nicht** auf bestehende Installationen (der Seed legt nur fehlende Keys an) —
+die FA-View-Keys auf IDEAL also von Hand umstellen. AKE: nichts ändern.
+
+Fehlt eine eingestellte Quelle (oder fehlt dem Service-Login das `SELECT`-Recht — `OBJECT_ID` sieht dann
+nichts): FA-Struktur → Fehler im Aktivitäts-Protokoll **und Fehlermail**, Zieltabellen unberührt;
+Artikel/Arbeitsplätze → nur Warnung, Lauf übersprungen, keine Mail, **kein** Rückfall auf die alte Quelle.
+
+Reihenfolge (zuerst IDEAL-Test, dann live; Prüfabfragen P1–P7 stehen in der Spec):
+1. P1/P1b (Views + Leserecht), P2 (FA-Spalten und Inhalt inkl. `Artnr`), P3 (Arbeitsplätze), P4/P4a–e
+   (Artikel-Spalten, Gruppen als reiner Code, Nummern = `KHKArtikel`), P5/P5b auf **Sage**.
+2. FA: nach P2 = 0 die beiden FA-Keys auf `[vw_IDEAL_AKE_WMS_FAListe]`/`[vw_IDEAL_AKE_WMS_FAInfos]` (geht schon vor dem Deploy).
+3. DB-Backup, Web, dann Service deployen (der Web-Start legt die neuen Keys an).
+4. Arbeitsplätze: nach P3 = 0 `Sync:ProductionWorkplaceSyncViewName = [vw_IDEAL_AKE_WMS_Arbeitsgaenge]`
+   (die View liefert trotz ihres Namens **Arbeitsplätze**). Erster Lauf: `neu = 0`, `abweichung = 0`.
+5. Artikel: P6 „vorher“, dann `Sync:ArticlesViewName = [vw_IDEAL_AKE_WMS_Artikel]`, einen erfolgreichen
+   Lauf „Article“ abwarten, P6 „nachher“.
+6. 00er-Bereinigung: P7 auf der WMS-DB, dann `SQL/Einmalig/2026-10-15_IDEAL-Sage-Views_Bereinigung00erArtikel.sql`
+   mit `@Loeschen = 0` (Liste), Bestätigung der Liste, erneut DB-Backup, Lauf mit `@Loeschen = 1`. **Daten-destruktiv**,
+   nur IDEAL, nie zweimal (Kopf des Skripts). Danach `Sync:ArticlesViewName` nicht mehr leeren.
+
+Rückweg ohne Code-Rollback: FA-Keys auf die alten Namen, Arbeitsplatz-Key auf `KHKPpsArbeitsplaetze`,
+`Sync:ArticlesViewName` leeren (vor der Bereinigung; danach kämen die 00er zurück).
 
 ### Logging
 

@@ -9959,6 +9959,71 @@ Headless-Edge-PDF wurde im Dev-Lauf an einer statischen Testseite gemessen (Spec
 
 ---
 
+## TS-93 — IDEAL: Sage-Quellen auf die WMS-Views umstellen (v1.60.0)
+
+Spec: `2026-10-14-ideal-sage-views-umstellung-spec`. **Vorbedingungen:** IDEAL-Testsystem, Master
+`ProduktionsauftragHierarchisch = true`, `Sync:HierarchicalFaEnabled = true`, `Sync:ProductionWorkplaceSyncEnabled = true`,
+`Sync:ArticlesEnabled = true`. Auf der **Sage-Test-DB** sind P1 (inkl. P1b), P2–P4 und P5b ausgeführt und protokolliert
+(Prüfabfragen in der Spec; die Views existieren dort). DB-Backup der WMS-Test-DB liegt vor; P6 „vorher“ und P7 sind
+ausgeführt. Automatisiert: `FaHierarchySqlTests` (neue Namen), `SageArticleSqlTests` (leer = bisheriger Select, View-Select
+mit gleichen Aliasen), `ProductionWorkplaceSyncServiceTests` (Default-Quelle, Quelle fehlt = Skip), Drift-Guard
+`ServiceSettingDefinitionsTests`. Die Sage-Reads und das Einmal-Skript sind Manual-UAT.
+
+- **TS-93.1 — FA-Views per Einstellung (AK 1, Antwort 9).** Nach P2 = 0 (auch `Artnr`): in `/StandortEinstellungen`
+  FAListe = `[vw_IDEAL_AKE_WMS_FAListe]`, FAInfos = `[vw_IDEAL_AKE_WMS_FAInfos]`, nächsten Zyklus abwarten.
+  **Erwartet:** Lauf `FaHierarchy` erfolgreich, `neu` in der Größenordnung des Laufs davor; Stichprobe einer FA in
+  `/FaHierarchy` und in der Kommissionierliste unverändert.
+- **TS-93.2 — Bestehender Wert bleibt (AK 2).** Vor dem Deploy die Werte der FA-Keys notieren, deployen, Web neu
+  starten. **Erwartet:** Werte unverändert; die neuen Keys `Sync:ProductionWorkplaceSyncViewName` (`KHKPpsArbeitsplaetze`)
+  und `Sync:ArticlesViewName` (leer) sind angelegt und in der Standort-Maske sichtbar.
+- **TS-93.3 — Arbeitsplätze (AK 5, 6).** Nach dem Deploy Zyklus abwarten. **Erwartet:** Lauf `ProductionWorkplaceSync`
+  erfolgreich mit denselben Counts wie davor. Dann (P3 = 0) Key auf `[vw_IDEAL_AKE_WMS_Arbeitsgaenge]`, Zyklus abwarten.
+  **Erwartet:** erfolgreich, `neu = 0`, `abweichung = 0`, Werkbank-Liste unverändert.
+- **TS-93.4 — Artikel aus der View (AK 9, 11).** `Sync:ArticlesViewName = [vw_IDEAL_AKE_WMS_Artikel]`, Zyklus abwarten.
+  **Erwartet:** Lauf `Article` erfolgreich, `gelesen` ≈ P4d; Stichprobe 5 Artikel in `/Articles` gegen Sage
+  (Bezeichnung, Einheit, Artikelgruppe **als Code**, Hauptlagerplatz, Matchcode). P6 „nachher“: keine neuen 00er,
+  keine neuen Dubletten. Fehlt eine Spalte (Spaltennamen unverifiziert bis P4): Lauf schlägt fehl + Fehlermail →
+  Befund an die Entwicklung, Key leeren.
+- **TS-93.5 — Folgeprozesse (Risiko Nummernformat).** Kommissionierung an einem HauptFA mit 2 Positionen umbuchen.
+  **Erwartet:** je Position eine `StockMovement` (kein stiller Skip). Eine Lagerbuchung erzeugen → Sage-Lagerbuchung
+  erfolgreich. Lagerbestand-Sync ohne neue Warnungen „Artikel … nicht im WMS“.
+- **TS-93.6 — Negativ: Artikel-/Arbeitsplatz-Quelle fehlt (AK 7, 12).** `Sync:ArticlesViewName = [vw_GibtEsNicht]`.
+  **Erwartet:** Lauf `Article` mit Warnung „Sage-Quelle [vw_GibtEsNicht] nicht vorhanden oder keine Leseberechtigung —
+  Sync uebersprungen“, Suffix „Quelle nicht vorhanden“, **keine** Fehlermail, `Articles`-Anzahl unverändert, andere
+  Syncs im Zyklus laufen. Dasselbe mit `Sync:ProductionWorkplaceSyncViewName = [vw_GibtEsNicht]` (keine Mail,
+  `ProductionWorkplaces` unverändert). Keys danach zurücksetzen.
+- **TS-93.7 — Negativ: FA-View fehlt (AK 3).** FAListe-Key = `[vw_GibtEsNicht]` (danach dasselbe mit FAInfos).
+  **Erwartet:** Lauf `FaHierarchy` **fehlgeschlagen** mit „… nicht vorhanden oder keine Leseberechtigung — FA-Struktur-Sync
+  abgebrochen“, **Fehlermail** (bei `ErrorNotification:Enabled`), Zeilenzahl `FaHierarchyNodes`/`FaHierarchyOrderInfos`
+  unverändert, Service läuft weiter. Key zurücksetzen.
+- **TS-93.8 — Negativ: ungültiger Name (AK 4, 7, 12).** `Sync:ArticlesViewName = vw_x;DROP`. **Erwartet:** Lauf als
+  Fehler, Fehlermail, kein SQL. Dasselbe für den Arbeitsplatz-Key.
+- **TS-93.9 — Rückweg ohne Deploy.** `Sync:ArticlesViewName` leeren → nächster Lauf nutzt den alten Select (`gelesen`
+  wie vor der Umstellung); Arbeitsplatz-Key zurück auf `KHKPpsArbeitsplaetze` → Counts wie vorher. **Achtung:** den
+  Artikel-Rückweg erst **nach** TS-93.10–93.12 testen oder danach den View-Namen wieder setzen und einen Sync abwarten,
+  sonst holt der alte Select die 00er zurück.
+- **TS-93.10 — AKE unberührt (AK 8, 10; AKE-Testsystem).** Nach dem Deploy ohne Einstellungsänderung. **Erwartet:** Lauf
+  `Article` mit Counts wie zuvor, `Sync:ArticlesViewName` leer, kein Lauf `ProductionWorkplaceSync`, kein Lauf `FaHierarchy`.
+- **TS-93.11 — 00er-Bereinigung, Liste (AK 16, 17).** Vorbedingung TS-93.4 (View gesetzt, Artikel-Sync danach
+  erfolgreich). Testdaten: vier 00er-Zeilen ohne Sage-Bezug wählen/anlegen und je **eine** Referenz geben (eine
+  Bewegung, ein Artikel-Merkmal, eine `FaWorkStepSpec`, ein `PickingItem` mit dieser `BomArticleNumber`); `@Behalten` mit
+  dem P5b-Ergebnis füllen. Skript `SQL/Einmalig/2026-10-15_IDEAL-Sage-Views_Bereinigung00erArtikel.sql` mit
+  `@Loeschen = 0`. **Erwartet:** `Articles`-Anzahl unverändert; die vier Zeilen unter „referenziert“ mit der richtigen
+  Zählspalte; Zählzeile `Kandidaten` = P6-Anzahl00 minus `@Behalten`-Treffer. Bestätigung der Liste „loeschbar“ im
+  Protokoll vermerken.
+- **TS-93.12 — 00er-Bereinigung, Löschen (AK 18).** DB-Backup, Skript mit `@Loeschen = 1`. **Erwartet:** `Geloescht` =
+  `Gesichert` = „loeschbar“ aus TS-93.11 = Zeilen in `dbo.Articles_Bereinigung00er_Sicherung`; die vier referenzierten
+  Zeilen samt Merkmal/Spezifikation unverändert; nächster Artikel-Sync legt keine gelöschte Nummer neu an (P6 „nach
+  Bereinigung“). Kommissionierung des `PickingItem`-Testfalls bucht weiter. Zweiter Lauf mit `@Loeschen = 1`: Abbruch
+  „…Sicherung existiert bereits…“, keine Änderung.
+- **TS-93.13 — Negativ: Guards und Rückweg (AK 19).** (a) AKE-Testsystem: Skript ausführen → Abbruch „kein
+  IDEAL-System“, keine Änderung. (b) IDEAL-Test, `Sync:ArticlesViewName` kurz leeren → Abbruch mit Reihenfolge-Hinweis;
+  Key sofort wieder setzen (vor dem nächsten Zyklus). (c) Rückweg-Block ausführen → gelöschte Zeilen mit derselben `Id`
+  zurück (`COUNT` = Sicherung). Danach Sicherungstabelle droppen und TS-93.12 wiederholen oder Testsystem aus dem
+  Backup herstellen.
+
+---
+
 *Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) + Teil 6 (Standorteinstellungen, v1.34.0) + BOM-Guard hierarchisch (2026-08-18, abgelöst) + FA-Liste-Hierarchie (v1.35.0) + BOM-Bridge (v1.36.0) + Materialisierung fachliche Felder K1/K2 (v1.37.0) + Skopierung der Tabellen-Selektoren (TS-72) + FA-Liste ausgebaut: Matchcode, Kopfdaten je Zeile, HauptFA-Zeile, Freigabe-Kaskade (v1.38.0, TS-73) + PDF-Erzeugung für FaHierarchy-Druckdokumente (v1.39.0, TS-74) + Matchcode im Artikelstamm (v1.40.0, TS-75) + FA-Arbeitsgang-Erkennung aus der Struktur (v1.41.0, TS-76, ersetzt durch TS-77) + Arbeitsgänge (WorkOperation) aus der Struktur + Werkbank-Anlage aus Sage (v1.44.0, TS-77) + Arbeitsgänge je (Sub-)FA im FA-Struktur-Modal (v1.45.0, TS-78) + Kommissionierung nur am HauptFA
-(v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80) + Beschichtungsauftrag Summiert als Standard (v1.48.0, TS-81) + Briefkopf Beschichtungsauftrag (v1.49.0, TS-82) + Beschichtungsauftrag als eigenes Objekt (v1.50.0, TS-83) + Beschichtungsaufträge bedienen (v1.51.0, TS-84) + Arbeitsgänge als Symbole im FA-Baum (v1.52.0, TS-85) + CSV-Export für alle Tabellen (v1.53.0, TS-86) + Arbeitsgang-Stammdaten (v1.54.0, TS-87) + Status je Arbeitsgang-Kürzel im FA-Baum (v1.55.0, TS-88) + Menü Beschichtung + Kurzanleitungen (v1.56.0, TS-89) + BDE-Terminal mit Arbeitsgang-Status (v1.57.0, TS-90) + Spaltenfilter-Suchsyntax Etappe A + B (v1.58.0/v1.58.1, TS-91.A/B) + Fußzeile nach Word-Vorlage (v1.59.0, TS-92)*
+(v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80) + Beschichtungsauftrag Summiert als Standard (v1.48.0, TS-81) + Briefkopf Beschichtungsauftrag (v1.49.0, TS-82) + Beschichtungsauftrag als eigenes Objekt (v1.50.0, TS-83) + Beschichtungsaufträge bedienen (v1.51.0, TS-84) + Arbeitsgänge als Symbole im FA-Baum (v1.52.0, TS-85) + CSV-Export für alle Tabellen (v1.53.0, TS-86) + Arbeitsgang-Stammdaten (v1.54.0, TS-87) + Status je Arbeitsgang-Kürzel im FA-Baum (v1.55.0, TS-88) + Menü Beschichtung + Kurzanleitungen (v1.56.0, TS-89) + BDE-Terminal mit Arbeitsgang-Status (v1.57.0, TS-90) + Spaltenfilter-Suchsyntax Etappe A + B (v1.58.0/v1.58.1, TS-91.A/B) + Fußzeile nach Word-Vorlage (v1.59.0, TS-92) + Sage-Quellen auf WMS-Views (v1.60.0, TS-93)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*
