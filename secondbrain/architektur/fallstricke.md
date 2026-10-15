@@ -1229,6 +1229,11 @@ View-Select mit `Artikelnummer`, `Bezeichnung1` … Die View `vw_IDEAL_AKE_WMS_A
 das zaehlt:** Die View-Definition liegt nicht im Repo; „gleich“ ist mehrdeutig (gleich wie Sage oder wie das WMS).
 Spaltennamen kommen nur aus `INFORMATION_SCHEMA.COLUMNS` (Pruefabfrage P4); vorher die Quelle nicht umstellen. Der
 laute Fehlerpfad (Fehler + Mail, keine Mutation) hat hier gegriffen — deshalb nie einen stillen Rueckfall einbauen.
+**Nachtrag v1.60.2 — gilt fuer alle vier WMS-Views:** Dasselbe passierte bei `vw_IDEAL_AKE_WMS_Arbeitsgaenge` (angenommen:
+Spalten und Mandant/Aktiv wie `KHKPpsArbeitsplaetze`; tatsaechlich nur `Arbeitsgangnummer`, `Bezeichnung`, `AG`). Regel:
+**View-Spaltennamen nie aus Annahmen** (weder aus einer Antwort noch aus der Tabelle, die die View ersetzt) — vor jeder
+Umstellung `sys.columns`/`INFORMATION_SCHEMA.COLUMNS` fuer FAListe, FAInfos, Arbeitsgaenge **und** Artikel holen und mit den
+gelesenen Spalten abgleichen (Liste in der Spec, Abschnitt „Nachbesserung v1.60.2“).
 
 ## 17. IDEAL — Kommissionierung nur am HauptFA (v1.46.0)
 

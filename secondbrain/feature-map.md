@@ -690,6 +690,7 @@ Changelog [[2026-10-15-v1-60-0-ideal-sage-views-umstellung]].
 | Artikel-Quelle per Key (leer = alter Select) | **erledigt** `b53b99dd` | `SageArticleSql`, `SageImportService.SyncArticlesAsync` |
 | 00er-Bereinigung (Einmal-Skript), README, v1.60.0, TS-93 | **erledigt** `2524bb03` | `SQL/Einmalig/2026-10-15_IDEAL-Sage-Views_Bereinigung00erArtikel.sql` |
 | Fix v1.60.1: Artikel-View mit WMS-Spaltennamen, Hash-Wächter LegacySql | **erledigt** `63524941` (Changelog [[2026-10-15-v1-60-1-artikel-view-wms-spalten]]) | `SageArticleSql.BuildViewSql` |
+| Fix v1.60.2: Arbeitsplatz-View mit eigenen Spalten (ohne Mandant/Aktiv) | **erledigt** `73b37e55` (Changelog [[2026-10-15-v1-60-2-arbeitsplatz-view-spalten]]) | `SageArbeitsplatzSql` (`SageArbeitsplatzReader.cs`) |
 
 > **Deploy:** Web + Service, keine Migration; Prüfabfragen P1–P7 (Gerald), Umstellung per Einstellung, Skript nur IDEAL.
 > **Status:** Testbereit (QA 2026-10-15) → Schranke 2 mit dem Bündel.

@@ -58,7 +58,7 @@ AKE hat diese Views nicht und muss **unveraendert** bleiben.
    werden muessen.
 2. **Arbeitsgaenge:** Der Werkbank-Sync (`SageArbeitsplatzReader`) liest aus einer per Einstellung
    benannten Quelle. Default und Code-Fallback bleiben die heutige Tabelle `KHKPpsArbeitsplaetze`
-   (Rueckfrage 8, entschieden 2026-10-15). Gerald stellt nach P3 auf `[vw_IDEAL_AKE_WMS_Arbeitsgaenge]` um.
+   (Rueckfrage 8, entschieden 2026-10-15). Gerald stellt nach P3b auf `[vw_IDEAL_AKE_WMS_Arbeitsgaenge]` um.
 3. **Artikel:** Die Quelle des Artikel-Syncs wird je Standort umschaltbar: leer = bisheriger Select
    (AKE), gesetzt = View (IDEAL). Die WMS-Tabelle `Articles` bleibt (Rueckfrage 3, offen, Empfehlung ja).
 4. **00er-Artikelnummern:** Pruefabfragen vorher/nachher, Testfall **und** Bereinigung des Altbestands
@@ -203,7 +203,7 @@ Leitlinie (ponytail): **ein** Muster fuer alle drei Quellen, ausschliesslich aus
    `KHKPpsArbeitsplaetze`, Kategorie `FA-Hierarchie`; Rueckfrage 8, entschieden 2026-10-15). Warum nicht
    die View als Default: `Program.cs:453-467` legt einen neuen Key beim Web-Start mit seinem Default in jeder
    bestehenden DB an; ein View-Default wuerde IDEAL beim Deploy umschalten, bevor P3 belegt ist. Gerald
-   stellt nach P3 von Hand auf `[vw_IDEAL_AKE_WMS_Arbeitsgaenge]` um. Ihn liest `ProductionWorkplaceSyncService`
+   stellt nach P3b von Hand auf `[vw_IDEAL_AKE_WMS_Arbeitsgaenge]` um. Ihn liest `ProductionWorkplaceSyncService`
    (neben `:48-51`, `GetValueSafeAsync`). Leer bedeutet Fallback auf denselben Default `KHKPpsArbeitsplaetze`
    (Code-Konstante = Katalog-Default, der Drift-Guard prueft den Katalog). `ValidateAndQuote` macht daraus
    `[KHKPpsArbeitsplaetze]`; die Whitelist laesst den Namen durch (`FaHierarchySql.cs:28-29, 100-106`). Der
@@ -404,6 +404,24 @@ SELECT Arbeitsplatznummer, Bezeichnung1, USER_ArbeitsSchritt FROM KHKPpsArbeitsp
 EXCEPT SELECT Arbeitsplatznummer, Bezeichnung1, USER_ArbeitsSchritt FROM vw_IDEAL_AKE_WMS_Arbeitsgaenge WHERE Mandant = <M> AND Aktiv = -1;
 -- und umgekehrt. Erwartet 0 Zeilen; v. a. Arbeitsplatznummer identisch formatiert (sonst Neuanlagen, ProductionWorkplaceSyncService.cs:95).
 ```
+> [!warning] Ueberholt 2026-10-15 (v1.60.2): P3 oben setzt Spalten voraus, die die View nicht hat
+> Laut `sys.columns` (Gerald) liefert `vw_IDEAL_AKE_WMS_Arbeitsgaenge` nur `Arbeitsgangnummer`, `Bezeichnung`, `AG` (varchar),
+> **kein** `Mandant`/`Aktiv`. Gueltig ist **P3b** (Pflicht vor dem Umstellen):
+
+**P3b Arbeitsplaetze View vs. Tabelle (Pflicht vor dem Umstellen, erwartet in beide Richtungen 0 Zeilen)**
+```sql
+SELECT CAST(Arbeitsplatznummer AS varchar(31)) AS Nr, Bezeichnung1 AS Bez, USER_ArbeitsSchritt AS AG
+FROM KHKPpsArbeitsplaetze WHERE Mandant = <M> AND Aktiv = -1
+EXCEPT
+SELECT CAST(Arbeitsgangnummer AS varchar(31)), Bezeichnung, AG FROM vw_IDEAL_AKE_WMS_Arbeitsgaenge;
+
+SELECT CAST(Arbeitsgangnummer AS varchar(31)), Bezeichnung, AG FROM vw_IDEAL_AKE_WMS_Arbeitsgaenge
+EXCEPT
+SELECT CAST(Arbeitsplatznummer AS varchar(31)), Bezeichnung1, USER_ArbeitsSchritt
+FROM KHKPpsArbeitsplaetze WHERE Mandant = <M> AND Aktiv = -1;
+```
+Leer in beide Richtungen belegt die Annahme, dass die View genau die aktiven Arbeitsplaetze des Mandanten liefert, mit
+gleich formatierter Nummer.
 
 **P4 Artikel (Grundlage Rueckfrage 4).**
 ```sql
@@ -541,9 +559,11 @@ Audit-Felder unveraendert weiter:
    `StandortSettingsCatalog.Fields`. Der Code-Fallback bei leerem/fehlendem Wert ist derselbe Name. Die
    Beschreibung ist hoechstens 500 Zeichen lang, `All_FieldsFitServiceSettingsColumns` ist gruen.
 6. Der Werkbank-Sync liest bei IDEAL aus der konfigurierten Quelle mit **demselben** Filter
-   `Mandant = @mandant AND Aktiv = -1` und denselben drei Spalten. Nach dem Deploy (Default
+   `Mandant = @mandant AND Aktiv = -1` und denselben drei Spalten. *(geaendert 2026-10-15, v1.60.2: das gilt nur fuer die
+   Tabelle `KHKPpsArbeitsplaetze`; jede andere Quelle wird als View mit `Arbeitsgangnummer, Bezeichnung, AG` ohne
+   Mandant/Aktiv gelesen, Vorbedingung P3b.)* Nach dem Deploy (Default
    `KHKPpsArbeitsplaetze`) liefert der erste Lauf dieselben Counts wie die Laeufe davor. Nach Geralds
-   Umstellung auf `[vw_IDEAL_AKE_WMS_Arbeitsgaenge]` bei P3 = 0 Abweichungen liefert der erste Lauf `neu = 0`,
+   Umstellung auf `[vw_IDEAL_AKE_WMS_Arbeitsgaenge]` bei P3b = 0 Abweichungen liefert der erste Lauf `neu = 0`,
    `abweichung = 0` (Manual-UAT).
 7. Werkbank-Sync bei fehlender Quelle: Es gibt eine Warnzeile und Skip, an `ProductionWorkplaces` aendert sich
    nichts, es wird keine Exception geworfen und **keine** Fehlermail verschickt. Bei ungueltigem Namen gibt es
@@ -614,7 +634,7 @@ sind ausgefuehrt.
   starten. *Erwartet:* Wert unveraendert (Seed ueberschreibt nicht).
 - **TS-9X.3 Arbeitsgaenge aus View:** Nach dem Deploy steht `Sync:ProductionWorkplaceSyncViewName` mit Default
   `KHKPpsArbeitsplaetze` in `/ServiceSettings`. Zyklus abwarten. *Erwartet:* Lauf `ProductionWorkplaceSync`
-  erfolgreich mit denselben Counts wie vor dem Deploy. Dann (P3 = 0) den Key auf
+  erfolgreich mit denselben Counts wie vor dem Deploy. Dann (P3b = 0) den Key auf
   `[vw_IDEAL_AKE_WMS_Arbeitsgaenge]` setzen und Zyklus abwarten. *Erwartet:* Lauf erfolgreich, `neu = 0`,
   `abweichung = 0`. Werkbank-Liste unveraendert.
 - **TS-9X.4 Artikel aus View:** `Sync:ArticlesViewName = [vw_IDEAL_AKE_WMS_Artikel]` setzen und Zyklus
@@ -709,7 +729,7 @@ Entfaellt (`epic: false`).
    Key-Zeilen und der Service nimmt den Fallback im Code; das ist funktional gleich, aber in der Oberflaeche
    unsichtbar. Nach dem Deploy liest der Werkbank-Sync **unveraendert** aus `KHKPpsArbeitsplaetze`.
 3. Arbeitsgaenge: Gerald setzt `Sync:ProductionWorkplaceSyncViewName = [vw_IDEAL_AKE_WMS_Arbeitsgaenge]`,
-   **erst wenn P3 = 0**. Ersten Lauf pruefen (`neu = 0`, `abweichung = 0`).
+   **erst wenn P3b in beide Richtungen leer ist** *(QA v1.60.2: P3 ist ueberholt, die View hat kein Mandant/Aktiv)*. Ersten Lauf pruefen (`neu = 0`, `abweichung = 0`).
 4. Artikel: P4 und P6 „vorher“ protokollieren, dann `Sync:ArticlesViewName = [vw_IDEAL_AKE_WMS_Artikel]` setzen.
    **Einen erfolgreichen Lauf `Article` im Aktivitaets-Protokoll abwarten**, dann P6 „nachher“.
 5. P7 auf der WMS-DB ausfuehren (Referenz-Vollstaendigkeit). Weicht es ab: Skript ergaenzen, bevor es weitergeht.
@@ -993,7 +1013,7 @@ DB-Backup der WMS-Test-DB.
    danach dasselbe mit dem FAInfos-Key. Keys zuruecksetzen.
 7. TS-93.8: `vw_x;DROP` im Artikel- und im Arbeitsplatz-Key → Fehler + Fehlermail, kein SQL.
 8. TS-93.1 (nach P2 = 0): FA-Keys auf `[vw_IDEAL_AKE_WMS_FAListe]`/`[vw_IDEAL_AKE_WMS_FAInfos]`, Lauf erfolgreich, Stichprobe.
-9. TS-93.3 Teil 2 (nach P3 = 0): Arbeitsplatz-Key auf `[vw_IDEAL_AKE_WMS_Arbeitsgaenge]` → `neu = 0`, `abweichung = 0`.
+9. TS-93.3 Teil 2 / TS-93.3b (nach P3b leer, *QA v1.60.2: nicht P3*): Arbeitsplatz-Key auf `[vw_IDEAL_AKE_WMS_Arbeitsgaenge]` → `neu = 0`, `abweichung = 0`.
 10. TS-93.4 (nach P4): P6 „vorher“, `Sync:ArticlesViewName = [vw_IDEAL_AKE_WMS_Artikel]`, Lauf erfolgreich, `gelesen` ≈ P4d,
     5er-Stichprobe (Artikelgruppe als Code), P6 „nachher“. Fehlt eine Spalte → Fehlermail → Befund, Key leeren.
 11. TS-93.5: Umbuchung an einem HauptFA mit 2 Positionen (je eine `StockMovement`), Sage-Lagerbuchung, Lagerbestand-Sync
@@ -1083,3 +1103,104 @@ Versionsanzeige). Kein DB-Update.
 4. Stichprobe 5 Artikel (Bezeichnung, Einheit, Gruppe als Code, Hauptlagerplatz, Matchcode) gegen Sage.
 5. Negativ AKE: Key leer → Lauf `Article` wie bisher (Counts in der Groessenordnung der Vorlaeufe).
 6. Danach mit der Checkliste oben ab Punkt 10 (TS-93.4 ff.) weiter.
+
+## Nachbesserung v1.60.2 (2026-10-15, Dev-Lauf, Arbeitsplaetze)
+
+**Befund (Gerald, IDEAL-Test):** Mit `Sync:ProductionWorkplaceSyncViewName = [vw_IDEAL_AKE_WMS_Arbeitsgaenge]` scheiterte
+der Lauf mit „Ungueltiger Spaltenname Mandant/Aktiv/Arbeitsplatznummer/Bezeichnung1/USER_ArbeitsSchritt“. `sys.columns`:
+`Arbeitsgangnummer`, `Bezeichnung`, `AG` (varchar). Zuordnung (Koordination, P3b): `Arbeitsgangnummer` → Arbeitsplatznummer,
+`Bezeichnung` → Bezeichnung1, `AG` → USER_ArbeitsSchritt. **Ursache:** v1.60.0 hat fuer die View dieselben Spalten wie die
+Tabelle angenommen — wieder eine Spalten-Annahme statt `sys.columns` ([[fallstricke]] §16).
+
+**Behoben** im Bündel, Start `63524941` (HEAD geprüft), Commit `73b37e55` (v1.60.1 → **v1.60.2**, gemessen):
+- `SageArbeitsplatzSql` (in `SageArbeitsplatzReader.cs`): zwei Lesewege. Quelle = `KHKPpsArbeitsplaetze` → `TableSql`,
+  zeichengleich mit dem Select vor v1.60.0 (unqualifiziert, `WHERE Mandant = @mandant AND Aktiv = -1`, Parameter nur hier).
+  Jede andere Quelle → `SELECT Arbeitsgangnummer, Bezeichnung, AG FROM {quoted}` ohne Filter. Gleiche Spaltenreihenfolge,
+  dieselben DTO-Felder; Nummer weiter per `GetValue().ToString()`, getrimmt im Sync (`ProductionWorkplaceSyncService.cs:123`).
+- **Entscheidung Tabelle vs. View über den Namen:** letztes Segment ohne Klammern, Gross/Klein egal, Schema egal
+  (`KHKPpsArbeitsplaetze`, `[KHKPpsArbeitsplaetze]`, `[dbo].[KHKPpsArbeitsplaetze]` = Tabelle). Warum: Der Name ist das
+  Einzige, was der Sync sicher kennt; eine Spaltenprüfung per `sys.columns` wäre ein zusätzlicher Roundtrip und eine zweite
+  Wahrheit für genau einen bekannten Fall. Grenze: Die Tabelle wird im Default-Schema gelesen, ein konfiguriertes Fremd-Schema
+  vor `KHKPpsArbeitsplaetze` ändert daran nichts (es gibt nur `dbo`).
+- Tests `SageArbeitsplatzSqlTests` (6 Fälle): Tabelle in drei Schreibweisen = altes SQL zeichengleich (dauerhafter Wächter),
+  View in drei Schreibweisen (inkl. `KHKPpsArbeitsplaetze_Kopie`) ohne Mandant/Aktiv und ohne Tabellen-Spalten.
+- README: Schritt „Spaltennamen per `sys.columns` holen“ + P3b-Abfrage; TS-93.3b; Changelog; beide `AppVersion.cs`.
+
+**Nachweis:** `dotnet build IdealAkeWms.slnx` → 0 Fehler; `dotnet test` → Web 2016 / 1 übersprungen (Bestand), Service
+**288** (+6). Echter View-Read → TS-93.3b (Gerald, nach P3b).
+
+**Bericht (nur zur Information, nichts geändert): Spalten, die der FA-Struktur-Sync liest** — für den Abgleich mit
+`vw_IDEAL_AKE_WMS_FAListe` / `_FAInfos` per `sys.columns`. Zugriff per Spaltenname (`GetOrdinal`), Umwandlung tolerant per
+`Convert.*` (`FaHierarchySql.cs:137-160`, `FaHierarchySyncService.cs:206-313`). Fehlt eine Spalte, scheitert der Lauf laut.
+
+| View | Spalte (Name exakt) | gelesen als |
+|---|---|---|
+| FAListe | `HauptFA`, `SubFA` | int (NULL → 0) |
+| FAListe | `VaterFA`, `Position` | int, NULL erlaubt |
+| FAListe | `HauptArtnr`, `Artnr`, `Matchcode`, `Bezeichnung1`, `Bezeichnung2`, `Artikelgruppe`, `Hauptlagerplatz`, `BemerkungPN`, `FertigungsInfoPN`, `Kommissionieren`, `Arbeitsbereich`, `Arbeitsschritte`, `Artikeltyp`, `Material`, `VMBedarf` | Text |
+| FAListe | `Sollmenge`, `Fertigungmenge`, `Breite`, `Hoehe`, `Tiefe` | decimal (NULL → 0) |
+| FAListe | `Beschaffungsartikel`, `Beschichtet`, `EKBedarf` | Ja/Nein (`Ja`/`-1`/`1`/true = ja) |
+| FAInfos | `HauptFA` | int (auch im EXISTS des FAListe-Selects) |
+| FAInfos | `Abteilung` (Alias `MontageAbteilung`), `ABNr`, `Pos`, `Kunde`, `Status`, `Dienstleister`, `RAL`, `Bemerkung_Uhrzeit` | Text |
+| FAInfos | `KO_Termin`, `FE_Termin`, `Start_Beschichtung`, `Beschichten_Retour`, `Neuer_PT_PPS`, `Verladetermin_Vsl` | Datum, NULL erlaubt |
+| FAInfos | `Montagestunden` | decimal, NULL erlaubt |
+| FAInfos | `Prio` | int, NULL erlaubt |
+
+FAListe: 27 Spalten, FAInfos: 17. Schreibweise beachten: `Fertigungmenge` (ohne s), `Bemerkung_Uhrzeit`, `Verladetermin_Vsl`.
+
+
+## QA Nachbesserung v1.60.2 (2026-10-15, qa-agent)
+
+Diff `63524941..73b37e55` (1 Commit, 7 Dateien), Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Arbeitsbaum sauber.
+**Verdikt: gruen, keine Critical/Important — Status bleibt Testbereit.** Code nicht geaendert.
+
+**1. Build/Tests (selbst ausgefuehrt):** `dotnet build IdealAkeWms.slnx` → 0 Fehler (28 Warnungen, Bestand).
+`dotnet test` → Web 2016 bestanden / 1 uebersprungen / 0 Fehler; Service 288 bestanden / 0 / 0.
+
+**2. Review (selbst, in diesem Lauf).** Geprueft: `SageArbeitsplatzReader.cs` komplett, `FaHierarchySql.ValidateAndQuote`/
+`SourceExistsAsync`, `ProductionWorkplaceSyncService.cs:46-140`, neuer Test, README-/TS-/Changelog-Diff.
+- `TableSql` zeichengleich mit `git show d4108f1a:IDEALAKEWMSService/Services/SageArbeitsplatzReader.cs` Z. 24-29: beide
+  Raw-Literale per `cat -A` verglichen, nach Abzug der Schliess-Einrueckung identisch (4 Zeilen, keine Trailing Blanks).
+- `@mandant` nur bei `isTable` (`SageArbeitsplatzReader.cs:37-38`); View-SQL enthaelt keinen Parameter. Ordinal-Read 0/1/2
+  passt zu beiden Selects; Nummer `GetValue().ToString()`, Bezeichnung/Kuerzel `GetString` (varchar ok; ein Nicht-Text-Typ
+  scheitert laut, nicht still).
+- `IsTable`: letztes Segment nach `Split('.')`, `Trim('[',']')`, OrdinalIgnoreCase. Grenzfaelle per Test: `[dbo].[KHKPpsArbeitsplaetze]`,
+  `[khkppsarbeitsplaetze]` = Tabelle, `[KHKPpsArbeitsplaetze_Kopie]` = View. `Split('.')` ist sicher, weil
+  `ValidateAndQuote` (`FaHierarchySql.cs:42-106`) je Segment nur `[A-Za-z0-9_-]` zulaesst (kein Punkt im Namen).
+- Injection: `{quotedSource}` im View-SQL stammt ausschliesslich aus `ValidateAndQuote` (`ProductionWorkplaceSyncService.cs:61`,
+  einziger Aufrufer `:75`). Kein neuer Eingabeweg.
+- Sync-Service im Diff unberuehrt: Trimmung `:123-124`, Existenzpruefung im Reader vor dem Select, Skip-Pfad `:76-88`;
+  Bestandstests `ProductionWorkplaceSyncServiceTests` gruen.
+- Klassen aus der Defekt-Liste: keine Views/JS/Binder im Diff; kein stiller Fallback neu; die Tabelle/View-Regel existiert an
+  genau einer Stelle (`SageArbeitsplatzSql`).
+- FA-Spaltenliste im Abschnitt „Nachbesserung v1.60.2“ gegen `FaHierarchySql.cs:130-160` und `FaHierarchySyncService.cs:206-313`
+  gegengeprueft: FAListe 27, FAInfos 17 (`Abteilung` mit Alias), Typen passend zu `Int32`/`IntN`/`Str`/`Dec`/`DecN`/`DateN`/`Bool`.
+  Weitere View-Reads des FA-Syncs nur `COUNT_BIG(*)` (`:97-98`) — vollstaendig.
+
+| # | Schwere | Befund | Behandlung |
+|---|---|---|---|
+| Q2-1 | Minor | Deploy-Schritt 3 und Checkliste Punkt 9 verlangten noch „P3 = 0“; P3 laeuft auf der View mit „Ungueltiger Spaltenname“ (P3 ist oben als ueberholt markiert). | in dieser Spec korrigiert → P3b (Deploy ist QA-Pflicht) |
+| Q2-2 | Minor | `docs/TESTSZENARIEN.md` TS-93.3 Satz 2 „Dann (P3 = 0) Key auf `[vw_…Arbeitsgaenge]`“ ist durch TS-93.3b ueberholt, steht aber unkommentiert; ebenso Testindex Zeile 93 „Umstellung nach P3“ und Spec-Stellen :61/:168/:206/:566/:637. | offen, nicht geaendert (Branch-Doku/Brain nur geprueft); beim naechsten Doku-Lauf auf P3b ziehen. Wer TS-93.3 ausfuehrt, nimmt P3b. |
+| Q2-3 | Hinweis | P3b: Ist `Arbeitsgangnummer` in der View kein Texttyp (nur `AG` ist als varchar belegt), wandelt SQL Server im `EXCEPT` die gecastete Tabellenseite nach int zurueck — `0000` vs `0` faellt dann nicht auf. | Gerald: Typ von `Arbeitsgangnummer` aus dem `sys.columns`-Ergebnis ablesen; falls nicht varchar, auch die View-Seite `CAST(... AS varchar(31))`. Der Sync selbst ist typunabhaengig. |
+| Q2-4 | Hinweis | Fremd-Schema vor `KHKPpsArbeitsplaetze` (z. B. `[x].[KHKPpsArbeitsplaetze]`): Existenzpruefung prueft `[x]…`, gelesen wird unqualifiziert im Default-Schema. | akzeptiert, in der Nachbesserung als Grenze dokumentiert; es gibt nur `dbo`. |
+
+**3. Beweisart je AK (nur betroffene):** AK 6 Tabellenweg — SQL-Text automatisiert (`SageArbeitsplatzSqlTests`, Waechter);
+echter Read beider Wege (Tabelle mit Mandant, View ungefiltert, Spaltennamen der View) = **Manual-UAT** TS-93.3/93.3b (raw SQL
+auf Sage, InMemory nicht beweisbar). AK 7 (Skip/Warnung) unveraendert unit-getestet.
+
+**4. Geaenderte bestehende Tests:** keine. Nur neu: `IDEALAKEWMSService.Tests/Services/SageArbeitsplatzSqlTests.cs` (6 Faelle).
+
+**5. Checkliste:** keine Migration/SQL/FreshInstall/AgentJobs; keine Entity-Aenderung (Audit n/a); Version 1.60.2 in beiden
+`AppVersion.cs`; Anwender-Changelog v1.60.2 vorhanden; TS-93.3b in `docs/TESTSZENARIEN.md` (LF, 0 CR); Brain-Changelog
+[[2026-10-15-v1-60-2-arbeitsplatz-view-spalten]], feature-map, Testindex Zeile 93, Aufgaben-Notiz, [[fallstricke]] §16 Nachtrag
+vorhanden und stimmig.
+
+**Deploy v1.60.2:** web ja (nur `AppVersion.cs`, `Changelog.cshtml`), service ja (`SageArbeitsplatzReader.cs`, `AppVersion.cs`),
+migration nein — Frontmatter unveraendert gueltig. Publish-Befehle und Reihenfolge wie im Abschnitt „Deploy“.
+
+**Manuelle Checkliste v1.60.2 (Mensch, Schranke 2):**
+1. Web + Service aus dem Worktree publishen, Versionsanzeige 1.60.2.
+2. Mit Default `KHKPpsArbeitsplaetze`: Lauf `ProductionWorkplaceSync` erfolgreich, Counts wie die Vorlaeufe, Log-Text „aktive Arbeitsplaetze … (Mandant n)“.
+3. `sys.columns` der View notieren (Typ von `Arbeitsgangnummer`, siehe Q2-3), dann P3b in beide Richtungen → leer.
+4. Key `[vw_IDEAL_AKE_WMS_Arbeitsgaenge]` → Lauf erfolgreich, kein „Ungueltiger Spaltenname“, `neu = 0`, `abweichung = 0`, Werkbank-Liste unveraendert (Nummern mit fuehrenden Nullen).
+5. Negativ: Key `[dbo].[KHKPpsArbeitsplaetze]` → wieder Tabellenweg mit Mandant-Filter, Counts wie Schritt 2.

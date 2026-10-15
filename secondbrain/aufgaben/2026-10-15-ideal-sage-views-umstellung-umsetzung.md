@@ -23,4 +23,5 @@ Spec [[2026-10-14-ideal-sage-views-umstellung-spec]] · **direkt im Bündel**, S
 - 2026-10-15: Start `d4108f1a`, Commits `b53b99dd` (Service, Katalog, Tests), `2524bb03` (Einmal-Skript, Doku, v1.60.0). Build 0 Fehler, Web 2016 / Service 281 gruen. Changelog [[2026-10-15-v1-60-0-ideal-sage-views-umstellung]], [[fallstricke]] §16, TS-93.
 - 2026-10-15: QA gruen → **Testbereit**, keine Code-Aenderung durch QA, Minor M-1..M-7 in der Spec.
 - 2026-10-15: **Nachbesserung v1.60.1** `63524941`: Artikel-View liefert WMS-Spaltennamen (P4), `BuildViewSql` umgestellt, Hash-Waechter fuer LegacySql, TS-93.4b. Changelog [[2026-10-15-v1-60-1-artikel-view-wms-spalten]].
+- 2026-10-15: **Nachbesserung v1.60.2** `73b37e55`: Arbeitsplatz-View hat eigene Spalten (Arbeitsgangnummer/Bezeichnung/AG, ohne Mandant/Aktiv), zwei Lesewege nach Quellname, P3b, TS-93.3b. Changelog [[2026-10-15-v1-60-2-arbeitsplatz-view-spalten]]. FA-Spaltenliste fuer Geralds sys.columns-Abgleich in der Spec.
 - Offen fuer die Abnahme (Gerald): Pruefabfragen P1–P5b auf Sage (Test + live), P6/P7 auf der WMS-DB, Umstellung per Einstellung, Einmal-Skript nur IDEAL (Liste bestaetigen, dann loeschen).
