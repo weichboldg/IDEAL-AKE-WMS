@@ -678,6 +678,21 @@ Spec [[2026-10-06-beschichtungsauftrag-ausbau-teil-2-spec]] (Teil 2 von 4), Umse
 > Ersatz-Kopf). **Status:** Testbereit (QA + Nachlauf 2026-10-09, Build + 1521 Web- + 272 Service-Tests grün) → Schranke 2
 > mit dem Bündel. Offen: [[2026-10-09-briefkopf-seitenzaehlung]], [[2026-10-09-briefkopf-csp-und-bereinigung]].
 
+### IDEAL: Sage-Zugriffe auf die neuen WMS-Views (v1.60.0, direkt im Bündel)
+
+Spec [[2026-10-14-ideal-sage-views-umstellung-spec]], Umsetzung [[2026-10-15-ideal-sage-views-umstellung-umsetzung]],
+Changelog [[2026-10-15-v1-60-0-ideal-sage-views-umstellung]].
+
+| Baustein | Stand | Code-Einstieg |
+|---|---|---|
+| FA-Views Default + Existenzprüfung (Fehler + Mail) | **erledigt** `b53b99dd` | `FaHierarchySyncService`, `FaHierarchySql.SourceExistsAsync` |
+| Werkbank-Quelle per Key (Default `KHKPpsArbeitsplaetze`) | **erledigt** `b53b99dd` | `ProductionWorkplaceSyncService`, `SageArbeitsplatzReader` |
+| Artikel-Quelle per Key (leer = alter Select) | **erledigt** `b53b99dd` | `SageArticleSql`, `SageImportService.SyncArticlesAsync` |
+| 00er-Bereinigung (Einmal-Skript), README, v1.60.0, TS-93 | **erledigt** `2524bb03` | `SQL/Einmalig/2026-10-15_IDEAL-Sage-Views_Bereinigung00erArtikel.sql` |
+
+> **Deploy:** Web + Service, keine Migration; Prüfabfragen P1–P7 (Gerald), Umstellung per Einstellung, Skript nur IDEAL.
+> **Status:** Testbereit (QA 2026-10-15) → Schranke 2 mit dem Bündel.
+
 ### Briefkopf: Fußzeile nach Firmen-Word-Vorlage (v1.59.0, direkt im Bündel)
 
 Spec [[2026-10-13-briefkopf-fusszeile-word-vorlage-spec]], Umsetzung [[2026-10-14-briefkopf-fusszeile-word-vorlage-umsetzung]],

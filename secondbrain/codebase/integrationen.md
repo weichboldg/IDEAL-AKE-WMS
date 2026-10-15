@@ -35,6 +35,7 @@ Connection Strings bleiben **appsettings-only** und wandern nie in die per UI ed
 | Lagerplatz-Stammdaten | `StorageLocations` | `LagerplatzSyncService` (`Sync:LagerplaetzeEnabled`) |
 | Lagerbestand | Korrektur-Buchungen | `LagerbestandSyncService` (`Sync:LagerbestandEnabled`) |
 | Artikel inkl. Hauptlagerplatz + Meldebestand | `Articles` | `SageImportService.SyncArticlesAsync` (raw SQL) |
+| IDEAL ab v1.60.0, je Einstellung: `vw_IDEAL_AKE_WMS_FAListe`/`_FAInfos` (FA-Struktur), `vw_IDEAL_AKE_WMS_Arbeitsgaenge` (liefert Arbeitsplaetze), `vw_IDEAL_AKE_WMS_Artikel` | `FaHierarchyNodes`/`OrderInfos`, `ProductionWorkplaces`, `Articles` | Keys `Sync:FaHierarchy*ViewName`, `Sync:ProductionWorkplaceSyncViewName`, `Sync:ArticlesViewName`; Existenzpruefung `FaHierarchySql.SourceExistsAsync` (`OBJECT_ID`, ohne Typfilter): FA fehlt = Fehler + Mail, sonst Warnung + Skip. [[2026-10-14-ideal-sage-views-umstellung-spec]] |
 
 **Was zurueckgeschrieben wird:** nur Rueckmeldungen, und nur wenn `SageRueckmeldungAktiv` gesetzt
 ist.

@@ -2,13 +2,13 @@
 type: spec
 title: "IDEAL: Sage-Zugriffe auf die neuen WMS-Views umstellen (FAInfos, FAListe, Arbeitsgaenge, Artikel)"
 slug: 2026-10-14-ideal-sage-views-umstellung-spec
-status: Entwurf
+status: Testbereit
 created: 2026-10-14
 updated: 2026-10-15
 source_backlog: "[[2026-10-14-ideal-sage-views-umstellung]]"
-task: ""
-worktree: ""
-branch: ""
+task: "[[2026-10-15-ideal-sage-views-umstellung-umsetzung]]"
+worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
+branch: "feature/2026-08-07-ideal-teile-1-5"
 affected_code:
   - IdealAkeWms/Models/ServiceSettingDefinitions.cs (Defaults FAListe/FAInfos :38-39, zwei neue Keys; Arbeitsgaenge-Default KHKPpsArbeitsplaetze)
   - IdealAkeWms/Models/Standort/StandortSettingsCatalog.cs (:42-59, neue Keys in die Maske)
@@ -22,19 +22,16 @@ affected_code:
   - IDEALAKEWMSService.Tests (FaHierarchySqlTests, ProductionWorkplaceSyncServiceTests, neuer SQL-Builder-Test Artikel)
   - SQL/Einmalig/<Datum>_IDEAL-Sage-Views_Bereinigung00erArtikel.sql (neu, Einmal-Datenskript nach ADR 0015, daten-destruktiv, nur IDEAL)
   - docs/TESTSZENARIEN.md, README.md (Betriebshinweis), Views/Help/Changelog.cshtml, AppVersion.cs (Web + Service)
-open_questions:
-  - "Rueckfrage 3: Bestaetigung: Die WMS-Tabelle Articles bleibt, die View vw_IDEAL_AKE_WMS_Artikel ersetzt nur die QUELLE des Artikel-Syncs? Empfehlung: ja."
-  - "Rueckfrage 7: Standort-Schaltung des Artikel-Syncs ueber den neuen String-Key Sync:ArticlesViewName (leer = bisheriger Select) statt Kopplung an den Master ProduktionsauftragHierarchisch? Empfehlung: eigener Key."
-  - "Rueckfrage 9: FAListe/FAInfos schon VOR dem Deploy dieser Spec per Einstellung umstellen (geht ohne Code, sobald P2 null Abweichungen liefert)? Empfehlung: ja, sobald P2 = 0 auch in der Spalte Artnr."
+open_questions: []
 epic: false
 etappen: []
 deploy:
   web: true
   service: true
   migration: false
-freigabe_entscheidung: ""
-freigabe_von: ""
-freigabe_am: ""
+freigabe_entscheidung: "Freigegeben wie Empfehlungen: 1 00er loeschen, 2 Bereinigung in dieser Spec (Einmal-Skript, nur unreferenzierte Zeilen), 3 Articles bleibt (View = nur Sync-Quelle), 4 Spalten wie heute (P4 Pflicht), 5 Views in Sage-Test-DB vorhanden, 6 FA-View fehlt = Fehler+Mail / Artikel+Arbeitsplatz = nur Warnung, 7 eigener Key Sync:ArticlesViewName, 8 Default KHKPpsArbeitsplaetze, Umstellung nach P3, 9 FA-Views vorab per Einstellung nach P2 (inkl. Artnr = 0), IDEAL-Test erst nach den Abnahmelaeufen. Umsetzung nach dem Buendel-Merge ab main."
+freigabe_von: "Gerald Weichbold"
+freigabe_am: "2026-10-15"
 ---
 
 > [!note] Code-Grundlage und Zeilennummern
@@ -163,6 +160,15 @@ fachliche Fundstelle). Was der Code zulaesst:
 - **H3:** etwas anderes, das nur Gerald kennt.
 
 Die Pruefabfragen P5/P6 unterscheiden H1 und H2.
+
+### Freigabe-Nachtrag 2026-10-15 (geht vor, Gerald)
+
+Freigegeben wie die Empfehlungen; alle neun Antworten stehen im Freigabe-Block. Kurz: Articles bleibt (View nur
+Sync-Quelle, eigener Key `Sync:ArticlesViewName`, leer = alter Select); Arbeitsplaetze-Default `KHKPpsArbeitsplaetze`,
+Umstellung durch Gerald nach P3; fehlende FA-View = Fehler + Mail, fehlende Artikel-/Arbeitsplatz-Quelle = nur Warnung;
+00er-Bereinigung per Einmal-Skript in dieser Spec (nur unreferenzierte Zeilen, Ablauf und Kopf-Wortlaut siehe Skript-Aufbau);
+FA-Views vorab per Einstellung nach P2 (inkl. `Artnr`). ~~Umsetzung nach dem Buendel-Merge auf neuem Zweig ab `main`.~~ **Geaendert 2026-10-15 (Gerald: „bitte die dev"): Umsetzung
+direkt im Buendel** (stehende Regel 2026-10-09). Zeilennummern gegen den Buendel-HEAD messen; `SQL/Einmalig/` im Buendel neu anlegen.
 
 ## Technischer Loesungsentwurf
 
@@ -293,8 +299,11 @@ faellt nicht unter `00%`. Unverifiziert: ob es auf der IDEAL-DB Tabellen ausserh
 Artikelnummern halten (P7 prueft das).
 
 **Skript-Aufbau (Skizze, Dev-Lauf formuliert aus):**
-1. Kopf nach ADR 0015: „NICHT ERNEUT AUSFUEHREN“ mit Grund: Die Loeschliste hat Gerald fuer **einen**
-   Zeitpunkt bestaetigt; ein spaeterer Lauf loescht Zeilen, die niemand geprueft hat. Reihenfolge im Kopf (siehe
+1. Kopf nach ADR 0015: „NICHT ERNEUT AUSFUEHREN“ mit diesem Grund (Wortlaut, Freigabe 2026-10-15): „Die
+   Ausnahmeliste (Artikel, die die View noch liefert) ist von Hand aus P5b eingetragen und ein Stand vom Tag der
+   Bestaetigung. Ein spaeterer zweiter Lauf wuerde mit dieser veralteten Liste 00er-Artikel loeschen, die die View
+   inzwischen wieder liefert oder die seither neu angelegt wurden — ungeprueft. Deshalb bricht das Skript ab, sobald
+   die Sicherungstabelle existiert; ein neuer Lauf braucht eine neue Liste und eine neue Bestaetigung." Reihenfolge im Kopf (siehe
    Deploy). Kennzeichnung **daten-destruktiv, DB-Backup vor dem Lauf**.
 2. `SET NOCOUNT ON; SET XACT_ABORT ON;` Schalter `DECLARE @Loeschen bit = 0;` (0 = nur auflisten, 1 = loeschen)
    und `DECLARE @Behalten TABLE (ArticleNumber nvarchar(100) PRIMARY KEY);` mit dem P5b-Ergebnis.
@@ -666,16 +675,25 @@ Entfaellt (`epic: false`).
 
 ## Deploy
 
-*Vorlaeufig. Der QA-Lauf bestaetigt das gegen den echten Diff.*
+*Finalisiert im QA-Lauf 2026-10-15 am echten Diff `d4108f1a..2524bb03` (19 Dateien).*
 
-- **Web-App:** ja. Der Katalog (`ServiceSettingDefinitions`, `StandortSettingsCatalog`) liegt im Web-Projekt, der
-  Seed der neuen Keys laeuft beim **Web**-Start (`Program.cs:453-468`), dazu Changelog und AppVersion.
-- **Service:** ja. Reader und Sync-Services.
-- **Migration:** nein (kein Schema, keine EF-Migration, keine nummerierte SQL-Datei). **Aber:** ein
-  daten-destruktives Einmal-Datenskript in `SQL/Einmalig/` (ADR 0015), das der Mensch nur auf IDEAL ausfuehrt.
-- **Publish-Befehle** (aus dem Worktree, nach dem Merge aus dem Repo-Root):
+- **Web-App:** ja — Diff unter `IdealAkeWms/` (`ServiceSettingDefinitions.cs`, `StandortSettingsCatalog.cs`,
+  `Views/Help/Changelog.cshtml`, `AppVersion.cs`). Der Seed der zwei neuen Keys laeuft beim **Web**-Start
+  (`Program.cs:453-468`).
+- **Service:** ja — Diff unter `IDEALAKEWMSService/` (`FaHierarchySql.cs`, `FaHierarchySyncService.cs`,
+  `ISageArbeitsplatzReader.cs`, `SageArbeitsplatzReader.cs`, `ProductionWorkplaceSyncService.cs`, neu `SageArticleSql.cs`,
+  `SageImportService.cs`, `AppVersion.cs`).
+- **Migration:** nein — keine Datei unter `*/Migrations/`, `SQL/00_FreshInstall.sql` und `SQL/AgentJobs/` unberuehrt
+  (`git diff --stat` leer). **Aber:** daten-destruktives Einmal-Datenskript
+  `SQL/Einmalig/2026-10-15_IDEAL-Sage-Views_Bereinigung00erArtikel.sql` (ADR 0015) — **Mensch-Schritt, nur IDEAL**, nie
+  vom Agenten ausgefuehrt.
+- **Publish-Befehle** (aus dem Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5` → Testsystem → Test → Merge):
   `dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb`
   `dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService`
+- **Reihenfolge:** DB-Backup → Web (seedet die Keys) → Service → Einstellungen (Schritte 3/4 unten) → Einmal-Skript
+  (Schritte 5-9 unten). Kein DB-Update/keine Migration.
+- Nach dem Merge nur dann erneut aus `main` publishen, wenn der Merge getestete Dateien mit parallelen `main`-Aenderungen
+  zusammengefuehrt hat.
 
 **Reihenfolge IDEAL** *(neu gefasst 2026-10-15)*
 0. Gerald fuehrt P1-P5b auf Sage aus (live **und** Test-DB; die Views sind auf beiden vorhanden, Antwort 5).
@@ -781,11 +799,204 @@ bleiben die zwei neuen Key-Zeilen als verwaiste ServiceSettings-Zeilen liegen. S
 -->
 
 1. 00er-Problem (Beispielnummer, wo sichtbar, Ergebnis P5/P6) → **Gerald 2026-10-15: „die 00er können wir löschen". Keine Beispielnummer; Abgrenzung der 00er-Zeilen über P5/P6 (offen).**
-2. Altbestand 00er: nur messen, Bereinigung als Folgeaufgabe? → *entschieden 2026-10-15 durch die Koordination (abgeleitet aus Antwort 1): Bereinigung in dieser Spec — Bestaetigung durch Gerald mit der Freigabe*
-3. Articles bleibt, View ersetzt nur die Sync-Quelle? →
+2. Altbestand 00er: nur messen, Bereinigung als Folgeaufgabe? → *entschieden 2026-10-15 durch die Koordination (abgeleitet aus Antwort 1): Bereinigung in dieser Spec — **bestaetigt Gerald 2026-10-15***
+3. Articles bleibt, View ersetzt nur die Sync-Quelle? → **Ja (Gerald 2026-10-15).**
 4. Spaltenabbildung Artikel-View (Ergebnis P4, Artikelgruppe nur Code?) → **Gerald 2026-10-15: „sollte gleich sein" (Spalten wie heute, Artikelgruppe als Code) — unverifiziert, P4 bleibt Pflicht vor dem Umstellen.**
 5. Views in der Sage-Test-DB vorhanden / werden angelegt? → **Ja, vorhanden (Gerald 2026-10-15).**
-6. Fehlende View: Fehlermail ja/nein? → *entschieden 2026-10-15 durch die Koordination: FA-View fehlt = Fehler + Mail; Artikel-/Arbeitsplatz-Quelle fehlt = nur Warnung, keine Mail — Bestaetigung durch Gerald mit der Freigabe*
-7. Artikel-Schaltung ueber eigenen Key Sync:ArticlesViewName? →
-8. Arbeitsgaenge-Default View + Rueckweg per KHKPpsArbeitsplaetze? → *entschieden 2026-10-15 durch die Koordination: Default = KHKPpsArbeitsplaetze, Umstellung auf die View durch Gerald nach P3 — Bestaetigung durch Gerald mit der Freigabe*
-9. FA-Views vor dem Deploy per Einstellung umstellen? →
+6. Fehlende View: Fehlermail ja/nein? → *entschieden 2026-10-15 durch die Koordination: FA-View fehlt = Fehler + Mail; Artikel-/Arbeitsplatz-Quelle fehlt = nur Warnung, keine Mail — **bestaetigt Gerald 2026-10-15***
+7. Artikel-Schaltung ueber eigenen Key Sync:ArticlesViewName? → **Ja (Gerald 2026-10-15).**
+8. Arbeitsgaenge-Default View + Rueckweg per KHKPpsArbeitsplaetze? → *entschieden 2026-10-15 durch die Koordination: Default = KHKPpsArbeitsplaetze, Umstellung auf die View durch Gerald nach P3 — **bestaetigt Gerald 2026-10-15***
+9. FA-Views vor dem Deploy per Einstellung umstellen? → **Ja, sobald P2 inkl. Spalte Artnr 0 Abweichungen zeigt; auf IDEAL-Test erst nach den laufenden Abnahmelaeufen (Gerald 2026-10-15).**
+
+## Umsetzung (2026-10-15, Dev-Lauf)
+
+Direkt im Bündel `feature/2026-08-07-ideal-teile-1-5`, Start-HEAD `d4108f1a`, Commits `b53b99dd` (Service, Katalog, Tests)
+und `2524bb03` (Einmal-Skript, Doku, Version). Gemessen: v1.59.0 → **v1.60.0**, höchstes TS-Kapitel TS-92 → **TS-93**.
+Zeilennummern gegen den Bündel-HEAD geprüft; sie stimmen mit der Spec überein. `SQL/Einmalig/` **gab es im Bündel schon**
+(zwei Skripte, u. a. `2026-10-07_v1.47.4_…`); der Hinweis „neu anlegen" war überholt.
+
+**Was gebaut ist**
+- `FaHierarchySql.SourceExistsAsync` (`SELECT OBJECT_ID(@name)`, Name als Parameter, ohne Typfilter) +
+  `SourceMissingMessage` — ein Helfer für alle drei Quellen.
+- FA: Fallback in `FaHierarchySyncService` und Katalog-Default auf `[vw_IDEAL_AKE_WMS_FAListe]`/`[…FAInfos]`. Existenz beider
+  Views direkt nach `OpenAsync`, vor dem Empty-Guard; fehlt eine → `InvalidOperationException` mit Meldetext in den
+  bestehenden catch (LogError + FinishFailed + rethrow), Mail über `RunResilientAsync`. Kein eigener Mail-Aufruf nötig.
+- Werkbank: neuer Key `Sync:ProductionWorkplaceSyncViewName` (Default `KHKPpsArbeitsplaetze`, Code-Konstante
+  `ProductionWorkplaceSyncService.DefaultSource`, Test prüft Gleichheit mit dem Katalog). Reader nimmt die geklammerte
+  Quelle, liefert `SageArbeitsplatzReadResult(SourceExists, Rows)`; Spalten/Filter unverändert. Ungültiger Name →
+  FinishFailed + throw (Mail), kein SQL. Quelle fehlt → Warnung, FinishSuccess mit 0-Counts, Suffix „Quelle nicht vorhanden“.
+  Der Key wird mit `GetValueSafeAsync` gelesen (Muster der übrigen Werkbank-Keys): bei Settings-DB-Fehler gilt der Default.
+- Artikel: Select-Auswahl in der reinen Klasse `SageArticleSql` (`LegacySql` = bisheriger Text, beim Verschieben per
+  Skript auf Zeichengleichheit nach Raw-String-Dedent geprüft; `BuildViewSql` mit den Spaltennamen des heutigen Selects —
+  **unverifiziert bis P4**, Freigabe-Antwort 4). Key `Sync:ArticlesViewName` mit `GetValueAsync` (nicht Safe: ein
+  Settings-Fehler darf nicht still auf den alten Select zurückfallen). Ungültiger Name → bestehender catch (Fehler + Mail).
+  View fehlt → Warnung + Skip vor jedem Read.
+- Katalog: zwei Keys in `ServiceSettingDefinitions.All` (≤ 500 Zeichen), Drift-Guard-Liste, Standort-Maske (Gruppe
+  „Mandant / Sage-Views“).
+- `SQL/Einmalig/2026-10-15_IDEAL-Sage-Views_Bereinigung00erArtikel.sql` nach Skript-Aufbau 1–6, Kopf-Wortlaut aus der
+  Freigabe. Abweichung zur Skizze: `Referenzen` wird im `SELECT … INTO` über eine abgeleitete Tabelle berechnet (keine
+  berechnete Spalte per `ALTER TABLE` auf die Temp-Tabelle im selben Batch). **Nicht ausgeführt.**
+- Doku: README (Key-Gruppe + Abschnitt „IDEAL: Sage-Quellen …“ mit Reihenfolge P1–P7), Anwender-Changelog, beide
+  `AppVersion.cs` (1.60.0, 2026-10-15), TS-93 (13 Fälle), [[fallstricke]] §16, `codebase/services.md`,
+  `codebase/integrationen.md`, Testindex.
+
+**Nachweis**
+- `dotnet build IdealAkeWms.slnx` → **0 Fehler**.
+- `dotnet test` → Web **2016 bestanden**, 1 übersprungen (Bestand); Service **281 bestanden** (+9: 5 neue
+  `ValidateAndQuote`-Fälle, 2 `SageArticleSqlTests`, 2 `ProductionWorkplaceSyncServiceTests`), Web +2 Drift-Guard-Keys.
+- Nicht unit-testbar (raw SQL gegen Sage, fallstricke §8): Existenzprüfung, FA-Abbruch mit Mail, Artikel-Skip, View-Select,
+  Einmal-Skript → TS-93. Keine Sage-Abfrage ausgeführt (P1–P7 bleiben bei Gerald).
+
+**Befunde (nicht mitgebaut)**
+- Doc-Kommentare in `FaHierarchyNode.cs:6`/`FaHierarchyOrderInfo.cs:6` nennen noch die alten View-Namen (nur Kommentar).
+- `SageBestandReader.cs:33` Mandant 1 fest codiert (aus der Spec, weiter offen).
+
+## QA (2026-10-15, qa-agent)
+
+Geprueft im Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Diff `d4108f1a..2524bb03` (Commits `b53b99dd`, `2524bb03`).
+Kein Code geaendert, kein Commit. Web-App/Service nicht gestartet, keine Sage-Abfrage, Einmal-Skript **nicht** ausgefuehrt.
+
+**Verdikt: gruen, keine offenen Critical/Important → `status: Testbereit`.**
+
+### 1. Build und Tests (selbst ausgefuehrt, sauberer Arbeitsbaum)
+- `dotnet build IdealAkeWms.slnx` → **0 Fehler**, 24 Warnungen (vorbestehend, z. B. CS8601 in Testdateien).
+- `dotnet test --no-build`:
+  - `IDEALAKEWMSService.Tests` → **281 bestanden**, 0 uebersprungen, 0 fehlgeschlagen.
+  - `IdealAkeWms.Tests` → **2016 bestanden**, 1 uebersprungen (vorbestehend), 0 fehlgeschlagen.
+
+### 2. Code-Review (selbst, in diesem Lauf)
+Gelesen: kompletter Code-Diff; Umfeld `SyncWorker.cs:84-96, 335-392, 481-503` (`RunResilientAsync`/`NotifyErrorAsync`),
+`SageImportService.SyncArticlesAsync` inkl. catch (:369-575), `FaHierarchySyncService.RunAsync` (:46-165),
+`ProductionWorkplaceSyncService.RunAsync`, `ServiceSettings.cs` (Safe/Nicht-Safe), `StandortEinstellungenController.Save`,
+`StandortSettingsWriter`, Model-Snapshot (Articles-Spalten, alle `HasOne("…Article")`), `00_FreshInstall.sql`.
+
+- **(a) Zeichengleichheit `SageArticleSql.LegacySql`:** per Compiler nachgewiesen. Der alte Literal (`git show
+  d4108f1a:…/SageImportService.cs`, Zeilen 382-424, unveraendert inkl. Einrueckung) wurde in einen temporaeren xUnit-Test
+  kopiert und gegen `LegacySql`, `Select(null)` und die Laenge per `Assert.Equal` verglichen → **bestanden**. Der erste
+  Versuch scheiterte nur an `\n` vs `\r\n`: die Temp-Datei war LF, beide Quelldateien sind im Arbeitsbaum CRLF
+  (`core.autocrlf=true`, Index LF, `git ls-files --eol`). Bei gleicher Zeilenende-Konvention, die beim Build eines
+  Checkouts fuer beide Dateien gleich ist, sind die Strings identisch. Temp-Test danach entfernt.
+- **(b) Fehler-/Mail-Pfade gegen Rueckfrage 6:**
+  FA-View fehlt → `InvalidOperationException` im try (:90-93) → catch `LogError`+`FinishFailed`+rethrow (:156-164) →
+  `RunResilientAsync` → `NotifyErrorAsync` = Mail; die Pruefung liegt vor `ScalarCountAsync` und jeder Mutation. OK.
+  Artikel-View fehlt → Warnung, `FinishSuccess` mit Suffix „Quelle nicht vorhanden“, `return` vor jedem Read, kein
+  Rueckfall, keine Mail. OK. Artikel ungueltiger Name → `ValidateAndQuote` im try → catch → rethrow → Mail, kein Sage-SQL. OK.
+  Arbeitsplatz-Quelle fehlt → Reader liefert `SourceExists=false` → Warnung + `FinishSuccess` mit 0-Counts, kein throw. OK.
+  Arbeitsplatz ungueltiger Name → `LogError`+`FinishFailed`+throw vor dem Reader-Aufruf → Mail. OK.
+  Sage-Verbindungsfehler bei der Existenzpruefung im Reader → bestehender catch (:93-99) → FinishFailed + throw → Mail. OK.
+- **(c) SQL-Injection:** Jede Interpolation (`BuildViewSql`, Reader-`FROM {quotedSource}`, FA-Count/Selects) bekommt nur
+  das Ergebnis von `FaHierarchySql.ValidateAndQuote` (Whitelist, 1-2 Segmente, Negativfaelle `FaHierarchySqlTests`
+  :30-45). `OBJECT_ID(@name)` laeuft mit Parameter. Der Reader interpoliert seinen Parameter ungeprueft; der Vertrag steht
+  im Interface, und der einzige Aufrufer `ProductionWorkplaceSyncService.cs:75` validiert vorher. OK.
+- **(d) Reader-Signatur:** `GetActiveAsync(string, int, ct)`. Aufrufer: nur `ProductionWorkplaceSyncService.cs:75`;
+  DI `Program.cs:59` unveraendert; Mocks nur in `ProductionWorkplaceSyncServiceTests` (angepasst). Die uebrigen
+  `GetActiveAsync`-Treffer gehoeren zu `IWorkStepRepository` (andere Methode). OK.
+- **(e) Safe vs. Nicht-Safe:** Artikel nutzt `GetValueAsync`: ein Settings-Fehler wirft und fuehrt zu Fehler + Mail statt
+  zu einem stillen Rueckfall auf den alten Select. Das ist richtig. Arbeitsplatz nutzt `GetValueSafeAsync` wie die
+  uebrigen Werkbank-Keys, siehe M-2.
+- **(f) Katalog:** beide Keys in `ServiceSettingDefinitions.All` (Typ String, Defaults `""` / `KHKPpsArbeitsplaetze`),
+  in der Drift-Guard-Liste und in `StandortSettingsCatalog.Fields` (Gruppe „Mandant / Sage-Views“, `ViewNameHint`).
+  `DefaultSource` == Katalog-Default per Test. Beschreibungen ≤ 500: `All_FieldsFitServiceSettingsColumns` gruen.
+  Das Leeren des Artikel-Keys ueber die Maske geht (String → `val = raw`, `raw ??= ""`, `StandortEinstellungenController.cs:58-75`).
+- **(g) Einmal-Skript:** Guards mit `RAISERROR(…,16,1)` + `RETURN`, kein `GO` im Skript (ein Batch). OK. `SET NOCOUNT ON;
+  SET XACT_ABORT ON;` OK. `@Loeschen = 0` als Vorgabe, `@Behalten` vorhanden. OK. Sicherung per `SELECT a.* … INTO` vor
+  dem `DELETE` in **einer** Transaktion, `@@ROWCOUNT`-Abgleich mit `ROLLBACK` vor dem `RAISERROR`, Ausgabe
+  `Geloescht`/`Gesichert`. OK.
+  Die Referenzliste enthaelt alle 12 Zaehlspalten der Spec-Tabelle (11 Zeilen; Beschichtung und FaHierarchyNodes je 2
+  Spalten). Gegengeprueft: Der Snapshot hat genau 3 `HasOne("…Article")` (:3754 Cascade, :3998 SetNull, :4190 Restrict);
+  `00_FreshInstall.sql` hat genau 3 `REFERENCES [dbo].[Articles]` (:192, :520, :1382). Alle Snapshot-Properties
+  `*ArticleNumber*|Artnr|HauptArtnr|Artikelnummer|Ressourcenummer` liegen in Articles, BeschichtungsauftragPositionen,
+  CachedBomHeaders, CachedBomItems, FaHierarchyNodes, OseonProductionOrders, PartRequisitions, PickingItems,
+  ProductionOrders und WarehouseRequisitionItems; alle stehen im Skript. Tabellennamen gegen `ToTable(…)` geprueft.
+  Die Rueckweg-Spaltenliste (16 Spalten inkl. `ArticleCategoryId`) entspricht den Snapshot-Properties von `Article`
+  (16, :50-121; `ArticleCategoryId` in FreshInstall per ALTER :1287-1295). OK. Kopf: „NICHT ERNEUT AUSFUEHREN“,
+  Begruendung woertlich wie Skript-Aufbau Punkt 1, daten-destruktiv + DB-Backup, Reihenfolge, kein History-/FreshInstall-
+  Eintrag. OK. Datei LF/UTF-8.
+
+**Befunde**
+
+| # | Schwere | Befund | Behandlung |
+|---|---|---|---|
+| M-1 | Minor | Der Artikel-Skip-Pfad schreibt per `FinishSuccessAsync` nur `gelesen/neu/aktualisiert`, nicht `hauptlagerplatz_fehlt`; der Normal-Lauf hat 4 Keys. Kosmetik im Protokoll. | nicht geaendert, gemeldet |
+| M-2 | Minor | Arbeitsplatz-Key mit `GetValueSafeAsync`: faellt bei einem Settings-DB-Fehler nach der Umstellung still auf `KHKPpsArbeitsplaetze` zurueck. Akzeptiert: gleiches Muster wie Mandant/Ausschlussliste; der Lauf schreibt in dieselbe WMS-DB und scheitert dann ohnehin; P3 = 0 ist Vorbedingung, Tabelle und View sind dann gleich. | akzeptiert |
+| M-3 | Minor | Nachweisluecke: Der Pfad „ungueltiger Arbeitsplatz-Name → FinishFailed + throw, kein Reader-Aufruf“ ist nicht unit-getestet (der Key kommt aus der DB, der Safe-Read liefert im Test null). Abgedeckt durch die Negativ-Tests von `ValidateAndQuote`, das Code-Review und TS-93.8. | akzeptiert |
+| M-4 | Minor | Einmal-Skript: Die erneute Referenzpruefung in der Transaktion hat keine Lock-Hints. Eine Text-Referenz (z. B. `PickingItems`), die genau zwischen Pruefung und `DELETE` entsteht, wuerde nicht gesehen. FK-Referenzen scheitern laut (Restrict + XACT_ABORT). Abwehr: Deploy-Schritt „ruhiges Fenster“. | akzeptiert |
+| M-5 | Minor | Einmal-Skript: `@Behalten.ArticleNumber` hat kein `COLLATE DATABASE_DEFAULT`. Weicht die Kollation ab, scheitert der Vergleich laut vor jeder Aenderung (kein Datenrisiko). Optional haerten. | gemeldet |
+| M-6 | Minor | Der Kommentar im Rueckweg nennt `UQ_Articles_ArticleNumber` (FreshInstall); auf EF-erzeugten DBs heisst der Index `IX_Articles_ArticleNumber`. Nur Kommentar. | gemeldet |
+| M-7 | Minor | `SageArticleSqlTests` prueft `LegacySql` nur per StartWith/Contain, nicht gegen den alten Literal. Die Zeichengleichheit wurde in diesem QA-Lauf einmalig per Compiler nachgewiesen (siehe a); einen dauerhaften Regressionsschutz gibt es nicht. | akzeptiert |
+| (Dev) | Minor | Doc-Kommentare `FaHierarchyNode.cs:6`/`FaHierarchyOrderInfo.cs:6` mit alten View-Namen; `SageBestandReader.cs:33` Mandant 1 fest codiert. | aus dem Dev-Lauf, offen |
+
+Keine Critical-, keine Important-Befunde. Gezielt geprueft und ohne Befund: keine Werte in `<script>`-Bloecken, kein
+`hidden`+`d-*`, keine Parallel-Array-Bindung (keine View-/JS-Aenderung ausser der statischen Changelog-Karte) und keine
+Validierung nur im Browser (die Namen validiert der Service). Zur Frage „eine Regel an mehreren Orten“: Die
+Existenzpruefung liegt an EINER Stelle (`FaHierarchySql.SourceExistsAsync`), der Arbeitsplatz-Default ist per Test an
+den Katalog gebunden.
+
+### 3. Beweisart je Akzeptanzkriterium
+| AK | Beweis |
+|---|---|
+| 1 | automatisiert: `ValidateAndQuote` mit neuen Namen (`FaHierarchySqlTests`); Default/Fallback per Code-Review |
+| 2 | Manual-UAT TS-93.2; README-Hinweis per Code-Review |
+| 3 | Code-Review (Pfad oben) + Manual-UAT TS-93.7 (raw SQL gegen Sage, nicht InMemory-testbar) |
+| 4 | automatisiert (vorbestehende Negativ-Tests, Code unveraendert) + Manual-UAT TS-93.8 |
+| 5 | automatisiert: Drift-Guard, `DefaultSource` == Katalog, `All_FieldsFitServiceSettingsColumns`; Standort-Maske Code-Review + TS-93.2 |
+| 6 | automatisiert nur die Quelle `[KHKPpsArbeitsplaetze]` (`Run_OhneEinstellung_LiestDefaultTabelle`); Counts → Manual-UAT TS-93.3 |
+| 7 | automatisiert: `Run_QuelleFehlt_WarnungUndSkip_OhneMutationOhneException`; ungueltiger Name Code-Review + TS-93.8 (M-3) |
+| 8 | Code-Review (`SyncWorker.cs:377-378` nicht im Diff) + Manual-UAT TS-93.10 |
+| 9 | automatisiert Drift-Guard; Maske Code-Review + TS-93.2 |
+| 10 | automatisiert `Select(null)` same as `LegacySql` + QA-Compiler-Nachweis der Zeichengleichheit; AKE-Counts Manual-UAT TS-93.10 |
+| 11 | automatisiert: erzeugtes View-SQL (`SageArticleSqlTests`); echter Read Manual-UAT TS-93.4 (Spaltennamen unverifiziert bis P4) |
+| 12 | Code-Review + Manual-UAT TS-93.6/TS-93.8 |
+| 13 | Manual-UAT (P6 vor/nach, TS-93.4) |
+| 14 | automatisiert, gruen (oben) |
+| 15 | Code-Review: TS-93 in `docs/TESTSZENARIEN.md` (LF, 0 CR), Index-Zeile 93, `services.md`, `integrationen.md`, README, Changelog, beide `AppVersion.cs` 1.60.0/2026-10-15, fallstricke §16 („Die View … liefert ARBEITSPLAETZE“) |
+| 16 | Code-Review (oben, g) |
+| 17-19 | Manual-UAT TS-93.11 – 93.13 (raw SQL, nicht unit-testbar) |
+
+Gruen gezaehlt sind nur die automatisierten Anteile; Manual-UAT-Kriterien sind bis zur Abnahme offen.
+
+### 4. Geaenderte bestehende Tests
+| Test | Einordnung |
+|---|---|
+| `ProductionWorkplaceSyncServiceTests.Build(...)` (Helper) | reine Typ-Anpassung an die neue Reader-Signatur (`GetActiveAsync(string,int,ct)` → `SageArbeitsplatzReadResult(true, rows)`); bestehende Tests laufen mit `SourceExists = true` und unveraenderten Erwartungen |
+| `FaHierarchySqlTests.ValidateAndQuote_valid_names_are_accepted_and_quoted` | nur neue `InlineData` (AK 1), alte Faelle unveraendert |
+| `ServiceSettingDefinitionsTests` Drift-Guard | nur zwei neue `InlineData` (AK 5, 9) |
+
+Kein „Sonstiges“. Neu: `SageArticleSqlTests` (2), zwei neue Facts in `ProductionWorkplaceSyncServiceTests`.
+
+### 5. CLAUDE.md-Checkliste
+Migration/SQL-Skript/FreshInstall: entfaellt (kein Schema). AgentJobs unberuehrt. Audit-Felder: keine neuen
+Schreibwege, Upsert-Block unveraendert. Version 1.60.0 in beiden `AppVersion.cs` + Anwender-Changelog. Brain-Changelog
+[[2026-10-15-v1-60-0-ideal-sage-views-umstellung]] vorhanden. feature-map nachgezogen. TS-93 + Index vorhanden.
+Einmal-Skript unter `SQL/Einmalig/` (ADR 0015), nicht ausgefuehrt. Keine neue Rolle.
+
+## Manuelle Test-Checkliste (Mensch, Schranke 2)
+
+Vorher: P1/P1b, P2 (inkl. `Artnr`), P3, P4/P4a-e und P5/P5b auf der **Sage-Test-DB** ausfuehren und protokollieren;
+DB-Backup der WMS-Test-DB.
+
+1. Web + Service aus dem Worktree publishen (Befehle im Deploy-Abschnitt), Web zuerst.
+2. TS-93.2: FA-Key-Werte vorher/nachher gleich; `Sync:ProductionWorkplaceSyncViewName` = `KHKPpsArbeitsplaetze` und
+   `Sync:ArticlesViewName` = leer in `/ServiceSettings` und in der Standort-Maske sichtbar.
+3. TS-93.3 Teil 1: erster Lauf `ProductionWorkplaceSync` nach dem Deploy mit denselben Counts wie davor.
+4. TS-93.10 (AKE-Test): Lauf `Article` mit Counts wie zuvor, kein `ProductionWorkplaceSync`, kein `FaHierarchy`.
+5. TS-93.6: `Sync:ArticlesViewName = [vw_GibtEsNicht]` → Warnung, Suffix „Quelle nicht vorhanden“, **keine** Mail,
+   `Articles`-Anzahl gleich; dasselbe mit dem Arbeitsplatz-Key. Keys zuruecksetzen.
+6. TS-93.7: FAListe-Key = `[vw_GibtEsNicht]` → Lauf fehlgeschlagen, Fehlermail, `FaHierarchyNodes`/`…OrderInfos` gleich;
+   danach dasselbe mit dem FAInfos-Key. Keys zuruecksetzen.
+7. TS-93.8: `vw_x;DROP` im Artikel- und im Arbeitsplatz-Key → Fehler + Fehlermail, kein SQL.
+8. TS-93.1 (nach P2 = 0): FA-Keys auf `[vw_IDEAL_AKE_WMS_FAListe]`/`[vw_IDEAL_AKE_WMS_FAInfos]`, Lauf erfolgreich, Stichprobe.
+9. TS-93.3 Teil 2 (nach P3 = 0): Arbeitsplatz-Key auf `[vw_IDEAL_AKE_WMS_Arbeitsgaenge]` → `neu = 0`, `abweichung = 0`.
+10. TS-93.4 (nach P4): P6 „vorher“, `Sync:ArticlesViewName = [vw_IDEAL_AKE_WMS_Artikel]`, Lauf erfolgreich, `gelesen` ≈ P4d,
+    5er-Stichprobe (Artikelgruppe als Code), P6 „nachher“. Fehlt eine Spalte → Fehlermail → Befund, Key leeren.
+11. TS-93.5: Umbuchung an einem HauptFA mit 2 Positionen (je eine `StockMovement`), Sage-Lagerbuchung, Lagerbestand-Sync
+    ohne neue Warnungen „nicht im WMS“.
+12. P7 auf der WMS-Test-DB; weicht es ab, das Skript ergaenzen lassen, bevor es weitergeht.
+13. TS-93.11: Testdaten (4 Referenzarten), Skript mit `@Loeschen = 0` → `Articles`-Anzahl gleich, 4 Zeilen unter
+    „referenziert“; Liste „loeschbar“ bestaetigen und vermerken.
+14. TS-93.12: Backup, `@Loeschen = 1` → `Geloescht` = `Gesichert` = „loeschbar“; referenzierte Zeilen unveraendert; der naechste
+    Artikel-Sync legt keine geloeschte Nummer neu an; ein zweiter Lauf bricht am Sicherungstabellen-Guard ab.
+15. TS-93.13: Guard auf AKE-Test (Abbruch „kein IDEAL-System“), Guard bei leerem `Sync:ArticlesViewName` (Key danach sofort
+    wieder setzen), Rueckweg-Block stellt die Zeilen mit gleicher `Id` wieder her.
+16. TS-93.9 zuletzt: Rueckweg ohne Deploy (Artikel-Key erst nach 13-15 leeren, danach wieder setzen und Sync abwarten).
+17. Ergebnisse (System, Datum, Kandidaten, referenziert, `Geloescht`) ins Deploy-Protokoll dieser Spec eintragen; dann Merge.

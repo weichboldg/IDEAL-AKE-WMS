@@ -161,6 +161,7 @@ MUSS in den Katalog — sonst schlaegt der Drift-Guard-Test fehl.
 |---|---|---|---|
 | `Sync:ProductionOrdersEnabled` | Bool | `true` | Sage-FA-Import aktiv |
 | `Sync:ArticlesEnabled` | Bool | `true` | Sage-Artikel-Import aktiv |
+| `Sync:ArticlesViewName` | String | `""` | Quelle des Artikel-Syncs: leer = bisheriger Select (`SageArticleSql.LegacySql`, AKE), gesetzt = View (IDEAL `[vw_IDEAL_AKE_WMS_Artikel]`, erst nach P4). Fehlt die View: Warnung + Skip, keine Mail, kein Rueckfall — v1.60.0 |
 | `Sync:OseonArticleCategoryEnabled` | Bool | `false` | OSEON-Artikelkategorie-Sync (nach Artikel-Import) |
 | `Sync:OseonTrackingEnabled` | Bool | `false` | OSEON-Tracking- + Werkbank-Sync |
 | `Sync:EnaioDmsEnabled` | Bool | `false` | enaio DMS-Sync |
@@ -178,6 +179,7 @@ MUSS in den Katalog — sonst schlaegt der Drift-Guard-Test fehl.
 | `Sync:FaWorkStepDetectionEnabled` | Bool | `false` | FA-Arbeitsgang-Erkennung aus dem BOM-Cache |
 | `Sync:WorkOperationStructureDetectionEnabled` | Bool | `false` | IDEAL: WorkOperation-Arbeitsgang-Erkennung aus der Struktur (Match ueber `ProductionWorkplace.ArbeitsschrittCode`; nach FA-Materialisierung + Werkbank-Anlage, nur bei Master) — v1.44.0, war `Sync:FaWorkStepStructureDetectionEnabled` |
 | `Sync:ProductionWorkplaceSyncEnabled` | Bool | `false` | IDEAL: Werkbank-Anlage aus Sage `KHKPpsArbeitsplaetze` (nur bei Master) — v1.44.0 |
+| `Sync:ProductionWorkplaceSyncViewName` | String | `KHKPpsArbeitsplaetze` | IDEAL: Sage-Quelle der Werkbank-Anlage (Tabelle oder View); Umstellung auf `[vw_IDEAL_AKE_WMS_Arbeitsgaenge]` nach P3. Fehlt die Quelle: Warnung + Skip, keine Mail — v1.60.0 |
 | `Sync:ProductionWorkplaceSyncMandant` | Int | `1` | IDEAL: Mandant-Filter der Werkbank-Anlage (nicht das SData-Dataset) — v1.44.0 |
 | `Sync:ProductionWorkplaceSyncAusschlussliste` | String | `STO,XXX,x01,BS,BS2,FRE,AKE` | IDEAL: Kuerzel, die NICHT als Werkbank angelegt und NICHT als unbekannt gemeldet werden — v1.44.0 |
 

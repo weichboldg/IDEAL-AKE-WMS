@@ -1212,6 +1212,16 @@ eindeutige gefilterte Index auf `SageArbeitsplatznummer` (InMemory erzwingt UNIQ
 InMemory-testbar. Deren AKs (10, 20) stehen in TS-77 ausdrücklich als **Manual-UAT** — nicht unter die
 grünen Unit-Tests zählen.
 
+### Die View `vw_IDEAL_AKE_WMS_Arbeitsgaenge` liefert ARBEITSPLAETZE (seit v1.60.0)
+Trotz ihres Namens ersetzt die Sage-View die Tabelle `KHKPpsArbeitsplaetze` — sie liefert **Werkbaenke**
+(Sage-Arbeitsplaetze), nicht die BDE-Arbeitsgaenge (`WorkOperation`, siehe oben). Sie ist deshalb nur als
+Quelle der Werkbank-Anlage (`Sync:ProductionWorkplaceSyncViewName`) richtig, nie als Arbeitsgang-Quelle.
+**Warum der Default die alte Tabelle bleibt:** Der Web-Start seedet einen NEUEN Key mit seinem Default in jede
+bestehende DB (`Program.cs:453-468`). Ein View-Default haette IDEAL beim Deploy umgeschaltet, bevor P3 belegt,
+dass die View die Arbeitsplatznummern identisch formatiert — sonst legt der Abgleich (Ordinal auf
+`SageArbeitsplatznummer`) neue Werkbaenke an. Umstellen von Hand, erst nach P3.
+[[2026-10-14-ideal-sage-views-umstellung-spec]]
+
 ## 17. IDEAL — Kommissionierung nur am HauptFA (v1.46.0)
 
 ### Es gibt genau EINE Sub-FA-Definition: `ProductionOrder.IsHauptFa`
