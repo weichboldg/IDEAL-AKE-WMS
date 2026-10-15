@@ -784,12 +784,19 @@ nichts): FA-Struktur → Fehler im Aktivitäts-Protokoll **und Fehlermail**, Zie
 Artikel/Arbeitsplätze → nur Warnung, Lauf übersprungen, keine Mail, **kein** Rückfall auf die alte Quelle.
 
 Reihenfolge (zuerst IDEAL-Test, dann live; Prüfabfragen P1–P7 stehen in der Spec):
-1. P1/P1b (Views + Leserecht), P2 (FA-Spalten und Inhalt inkl. `Artnr`), P3 (Arbeitsplätze), P4/P4a–e
+1. **Spaltennamen jeder View vorher per `sys.columns` / `INFORMATION_SCHEMA.COLUMNS` holen** (nie annehmen — v1.60.1/v1.60.2
+   wurden genau daran nachgebessert). P1/P1b (Views + Leserecht), P2 (FA-Spalten und Inhalt inkl. `Artnr`), P3b (Arbeitsplätze), P4/P4a–e
    (Artikel-Spalten, Gruppen als reiner Code, Nummern = `KHKArtikel`), P5/P5b auf **Sage**.
 2. FA: nach P2 = 0 die beiden FA-Keys auf `[vw_IDEAL_AKE_WMS_FAListe]`/`[vw_IDEAL_AKE_WMS_FAInfos]` (geht schon vor dem Deploy).
 3. DB-Backup, Web, dann Service deployen (der Web-Start legt die neuen Keys an).
-4. Arbeitsplätze: nach P3 = 0 `Sync:ProductionWorkplaceSyncViewName = [vw_IDEAL_AKE_WMS_Arbeitsgaenge]`
-   (die View liefert trotz ihres Namens **Arbeitsplätze**). Erster Lauf: `neu = 0`, `abweichung = 0`.
+4. Arbeitsplätze: **P3b ist Pflicht** — View gegen `KHKPpsArbeitsplaetze` (Mandant + `Aktiv = -1`) per `EXCEPT` in beide
+   Richtungen, erwartet leer:
+   `SELECT CAST(Arbeitsplatznummer AS varchar(31)), Bezeichnung1, USER_ArbeitsSchritt FROM KHKPpsArbeitsplaetze WHERE Mandant = <M> AND Aktiv = -1`
+   `EXCEPT SELECT Arbeitsgangnummer, Bezeichnung, AG FROM vw_IDEAL_AKE_WMS_Arbeitsgaenge` (und umgekehrt).
+   Dann `Sync:ProductionWorkplaceSyncViewName = [vw_IDEAL_AKE_WMS_Arbeitsgaenge]` (die View liefert trotz ihres Namens
+   **Arbeitsplätze**; Spalten `Arbeitsgangnummer` → Nummer, `Bezeichnung` → Name, `AG` → Kürzel; sie hat **keinen**
+   Mandant/Aktiv-Filter — Quelle ≠ `KHKPpsArbeitsplaetze` ⇒ der Sync liest ungefiltert die View). Erster Lauf: `neu = 0`,
+   `abweichung = 0`.
 5. Artikel: P6 „vorher“, dann `Sync:ArticlesViewName = [vw_IDEAL_AKE_WMS_Artikel]`, einen erfolgreichen
    Lauf „Article“ abwarten, P6 „nachher“.
 6. 00er-Bereinigung: P7 auf der WMS-DB, dann `SQL/Einmalig/2026-10-15_IDEAL-Sage-Views_Bereinigung00erArtikel.sql`
