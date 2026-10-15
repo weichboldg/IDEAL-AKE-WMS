@@ -1222,6 +1222,14 @@ dass die View die Arbeitsplatznummern identisch formatiert — sonst legt der Ab
 `SageArbeitsplatznummer`) neue Werkbaenke an. Umstellen von Hand, erst nach P3.
 [[2026-10-14-ideal-sage-views-umstellung-spec]]
 
+### Spaltennamen einer Sage-View nie aus einer Antwort ableiten — P4 vor dem Umstellen (v1.60.1)
+v1.60.0 las Geralds Antwort „die Spalten sollten gleich sein“ als „gleich wie der alte Sage-Select“ und baute den
+View-Select mit `Artikelnummer`, `Bezeichnung1` … Die View `vw_IDEAL_AKE_WMS_Artikel` liefert aber schon die
+**WMS-Namen** (`ArticleNumber`, `Description` …) — der erste Lauf scheiterte mit „Ungueltiger Spaltenname“. **Warum
+das zaehlt:** Die View-Definition liegt nicht im Repo; „gleich“ ist mehrdeutig (gleich wie Sage oder wie das WMS).
+Spaltennamen kommen nur aus `INFORMATION_SCHEMA.COLUMNS` (Pruefabfrage P4); vorher die Quelle nicht umstellen. Der
+laute Fehlerpfad (Fehler + Mail, keine Mutation) hat hier gegriffen — deshalb nie einen stillen Rueckfall einbauen.
+
 ## 17. IDEAL — Kommissionierung nur am HauptFA (v1.46.0)
 
 ### Es gibt genau EINE Sub-FA-Definition: `ProductionOrder.IsHauptFa`

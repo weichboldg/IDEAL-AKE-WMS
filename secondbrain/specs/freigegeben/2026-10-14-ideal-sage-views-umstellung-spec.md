@@ -234,11 +234,16 @@ Leitlinie (ponytail): **ein** Muster fuer alle drei Quellen, ausschliesslich aus
      Die Platzhalter `<…>` werden mit den Spaltennamen aus dem **P4-Ergebnis** gefuellt (die View-Definition
      liegt nicht im Repo). Antwort 4 (2026-10-15): Die Spalten „sollten gleich sein“ wie heute, Artikelgruppe
      als Code. Das ist **unverifiziert**; P4 (inkl. P4b Gruppenformat, P4c Stammabgleich) bleibt Pflicht vor
-     dem Umstellen. Liegt beim Start des Dev-Laufs keine P4-Spaltenliste vor, baut der Dev-Lauf den Zweig mit
+     dem Umstellen. **Ueberholt 2026-10-15 (P4, Gerald, Fix v1.60.1):** Die View liefert bereits die
+     **WMS-Namen** `ArticleNumber, Description, Matchcode, Unit, ArticleGroup, ReorderLevel,
+     PrimaryStorageLocation` (alle nvarchar); `BuildViewSql` liest genau diese. Die folgende Annahme „Spaltennamen
+     des heutigen Selects“ war falsch (Lauf scheiterte mit „Ungueltiger Spaltenname“). Offen fuer Gerald bleiben
+     **P4a** (Dubletten je `ArticleNumber`), **P4b** (Artikelgruppe als reiner Code), **P4c** (Nummern 1:1 in
+     `KHKArtikel`) und **P4e** (Hauptlagerplatz = `KHKLagerplaetze.Kurzbezeichnung`). ~~Liegt beim Start des Dev-Laufs keine P4-Spaltenliste vor, baut der Dev-Lauf den Zweig mit
      den Spaltennamen des heutigen Selects (`Artikelnummer`, `Bezeichnung1`, `Lagermengeneinheit`,
      `Artikelgruppe`, `Meldebestand`, `Kurzbezeichnung`, `Matchcode`, `SageImportService.cs:401-407, 389-390`)
      und vermerkt das als **unverifiziert** im Spec-Nachweis; TS-9X.4 deckt eine Abweichung auf (Lauf
-     scheitert an fehlender Spalte, Fehlermail ueber den Fehlerpfad). `GROUP BY`/`MAX` bleibt als Schutz gegen Dubletten in der View, sonst wuerde der Upsert dieselbe
+     scheitert an fehlender Spalte, Fehlermail ueber den Fehlerpfad).~~ `GROUP BY`/`MAX` bleibt als Schutz gegen Dubletten in der View, sonst wuerde der Upsert dieselbe
      Zeile je Lauf mehrfach ueberschreiben. Das ist dasselbe Verhalten wie heute (:413-423).
    - Die Auswahl des Selects liegt in einer kleinen, **reinen** Funktion (Muster `FaHierarchySql`), damit beide
      Zweige ohne Sage unit-testbar sind.
@@ -552,8 +557,8 @@ Audit-Felder unveraendert weiter:
     heutigen Select. Ein Unit-Test prueft die reine Auswahlfunktion gegen die Konstante. AKE: Counts
     `gelesen/neu/aktualisiert` im ersten Lauf nach Deploy liegen in der Groessenordnung der Laeufe davor
     (Manual-UAT).
-11. Artikel-Sync bei gesetztem Namen: liest aus der View mit der Spaltenabbildung aus P4 (Antwort 4: wie heute,
-    Artikelgruppe als Code; unverifiziert bis P4),
+11. Artikel-Sync bei gesetztem Namen: liest aus der View mit der Spaltenabbildung aus P4 (*geaendert 2026-10-15,
+    v1.60.1:* View-Spalten = WMS-Namen `ArticleNumber … PrimaryStorageLocation`; Artikelgruppe als Code bis P4b offen),
     upsertet mit unveraendertem Upsert und unveraenderten Audit-Feldern, Counts-Keys unveraendert
     (`gelesen/neu/aktualisiert/hauptlagerplatz_fehlt`). Ein Unit-Test prueft das erzeugte SQL (geklammerter
     Name, Aliase, `GROUP BY`).
@@ -770,7 +775,9 @@ bleiben die zwei neuen Key-Zeilen als verwaiste ServiceSettings-Zeilen liegen. S
 4. ~~**Spaltenabbildung der Artikel-View**~~ **Beantwortet 2026-10-15 (Gerald, Antwort 4):** „sollte gleich
    sein“ (Spalten wie heute, Artikelgruppe als Code). **Unverifiziert**; P4 (inkl. P4a-P4e) bleibt Pflicht vor
    dem Umstellen. Urspruengliche Frage: welche View-Spalte liefert welches Feld, Artikelgruppe nur Code
-   (`OrderRecipientRepository.cs:98/111`), Eindeutigkeit (P4a).
+   (`OrderRecipientRepository.cs:98/111`), Eindeutigkeit (P4a). **Nachtrag 2026-10-15 (P4):** Die View liefert die
+   WMS-Namen (`ArticleNumber, Description, Matchcode, Unit, ArticleGroup, ReorderLevel, PrimaryStorageLocation`), nicht
+   die Sage-Namen — „gleich“ hiess „gleich wie das WMS“. Umgesetzt in v1.60.1; P4a/P4b bleiben offen.
 5. ~~**Views in der Sage-Test-DB vorhanden?**~~ **Beantwortet 2026-10-15 (Gerald, Antwort 5):** ja, vorhanden.
 6. ~~**Fehlende View: Fehlermail ja/nein?**~~ **Entschieden 2026-10-15 (Koordination; Gerald bestaetigt mit der
    Freigabe):** Fehlt eine **FA-View**, bleibt es bei Fehler + Fehlermail, weil ein Ausfall der FA-Struktur nicht
@@ -1000,3 +1007,79 @@ DB-Backup der WMS-Test-DB.
     wieder setzen), Rueckweg-Block stellt die Zeilen mit gleicher `Id` wieder her.
 16. TS-93.9 zuletzt: Rueckweg ohne Deploy (Artikel-Key erst nach 13-15 leeren, danach wieder setzen und Sync abwarten).
 17. Ergebnisse (System, Datum, Kandidaten, referenziert, `Geloescht`) ins Deploy-Protokoll dieser Spec eintragen; dann Merge.
+
+## Nachbesserung v1.60.1 (2026-10-15, Dev-Lauf)
+
+**Befund (Gerald, IDEAL):** Mit `Sync:ArticlesViewName = [vw_IDEAL_AKE_WMS_Artikel]` scheiterte der Lauf „Article“ mit
+„Ungueltiger Spaltenname Artikelnummer/Bezeichnung1/Lagermengeneinheit/Artikelgruppe/Meldebestand/Kurzbezeichnung“. P4: Die
+View liefert `ArticleNumber, Description, Matchcode, Unit, ArticleGroup, ReorderLevel, PrimaryStorageLocation` (alle
+nvarchar). **Ursache:** v1.60.0 hat die Antwort 4 („sollten gleich sein“) als „gleich wie der alte Sage-Select“ gelesen
+und die Spaltennamen daraus abgeleitet, statt auf P4 zu warten. Der Fehlerpfad hat wie vorgesehen laut gemeldet (Fehler +
+Mail, keine Mutation).
+
+**Behoben** im Bündel, Start `2524bb03`, Commit `63524941` (v1.60.0 → **v1.60.1**, gemessen):
+- `SageArticleSql.BuildViewSql` liest die WMS-Namen; CAST/MAX/GROUP BY wie bisher. `LegacySql` unverändert.
+- Dauerhafter Wächter `SageArticleSqlTests.LegacySql_IstZeichengleichMitDemBisherigenSelect`: Länge 1940 + SHA-256 über
+  den LF-normalisierten Text, gerechnet aus dem Literal in `SageImportService.cs` bei `d4108f1a` (QA-Minor M-7 erledigt).
+  View-Test prüft die WMS-Namen und das Fehlen der Sage-Namen.
+- Rückweg-Kommentar im Einmal-Skript nennt beide Indexnamen (`UQ_Articles_ArticleNumber` / `IX_Articles_ArticleNumber`,
+  [[fallstricke]] §9) (QA-Minor M-6 erledigt).
+- TS-93.4b, Anwender-Changelog, beide `AppVersion.cs`. [[fallstricke]] §16: View-Spaltennamen nie aus einer Antwort ableiten.
+
+**Nachweis:** `dotnet build IdealAkeWms.slnx` → 0 Fehler; `dotnet test` → Web 2016 bestanden / 1 übersprungen (Bestand),
+Service **282** bestanden (+1 Hash-Wächter). Nicht unit-testbar: der echte View-Read → TS-93.4b (Gerald).
+
+
+## QA Nachbesserung v1.60.1 (2026-10-15, qa-agent)
+
+Geprueft im Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Diff `2524bb03..63524941` (7 Dateien), HEAD
+`63524941`. Kein Code geaendert. **Verdikt: gruen, keine Critical/Important — Status bleibt Testbereit.**
+
+**1. Build + Tests (selbst ausgefuehrt):** `dotnet build IdealAkeWms.slnx` → 0 Fehler (28 Warnungen, Bestand).
+`dotnet test` → `IdealAkeWms.Tests` 2016 bestanden / 1 uebersprungen / 0 Fehler (2017); `IDEALAKEWMSService.Tests`
+282 bestanden / 0 / 0.
+
+**2. Review `BuildViewSql`** (`IDEALAKEWMSService/Services/SageArticleSql.cs`): liest genau die sieben P4-Spalten,
+Aliase in Reihenfolge ArticleNumber(0), Description(1), Unit(2), ArticleGroup(3), ReorderLevel(4),
+PrimaryStorageLocation(5), Matchcode(6) = Ordinal-Reader `SageImportService.cs:413-422`. `MAX(CAST(col …)) AS col`
+referenziert im Aggregat die Basisspalte (zulaessig). `WHERE` sieht in T-SQL keine SELECT-Aliase → Basisspalte;
+`GROUP BY CAST(ArticleNumber AS nvarchar(100))` ist ausdrucksgleich mit der nicht aggregierten SELECT-Spalte → gueltig.
+Kein stiller Rueckfall eingebaut. `LegacySql` unveraendert.
+
+**3. Hash-Waechter unabhaengig nachgerechnet:** Literal `sageSql` aus `git show d4108f1a:IDEALAKEWMSService/Services/SageImportService.cs`
+(Zeilen 383-423), CRLF→LF, Einrueckung der schliessenden `"""` (16 Leerzeichen) entfernt, per Python: Laenge **1940**,
+SHA-256 **8b97486eaa71ab616624be873bdedd9cf2aacb10716f09439071349ac30c5058** — identisch mit dem Test.
+
+**4. Begleitdateien:** Skript-Kommentar nennt `UQ_Articles_ArticleNumber` (`SQL/00_FreshInstall.sql:162`) und
+`IX_Articles_ArticleNumber` (EF-Default aus `HasIndex("ArticleNumber")`) — korrekt. TS-93.4b in `docs/TESTSZENARIEN.md`
+(0 CR, LF). `AppVersion.cs` Web + Service = 1.60.1. Anwender-Changelog v1.60.1-Karte (committet LF).
+
+**5. Brain gelesen:** Spec-Rumpf (Loesungsentwurf Artikel, AK 11, Rueckfrage 4) nachgezogen; Freigabe-Block
+unveraendert (kein Diff gegen HEAD); fallstricke §16 neuer Unterabschnitt (:1225); Changelog
+[[2026-10-15-v1-60-1-artikel-view-wms-spalten]]; feature-map (:692); Testindex Zeile 93.
+
+**Geaenderte Bestandstests:** `SageArticleSqlTests.Select_MitView_…` — Verhalten bewusst geaendert (AK 11, v1.60.1).
+Neu: `LegacySql_IstZeichengleichMitDemBisherigenSelect`. Keine Fixture-Anpassung „bis gruen“.
+
+**Nachweisart:** AK 11 — erzeugtes SQL automatisiert (`SageArticleSqlTests`); der echte View-Read ist **Manual-UAT**
+TS-93.4b (nicht gruen gezaehlt). AK 10 (Legacy zeichengleich) — jetzt automatisiert durch den Hash-Waechter.
+
+**Befunde (alle Minor, nicht behoben — Brain-Text, ausserhalb dieses Laufs):**
+- N-1: Nachweis-Tabelle AK 11 (QA-Abschnitt v1.60.0) und Testindex Zeile 93 sagen noch „Spalten unverifiziert bis P4“ —
+  durch diesen Abschnitt ueberholt.
+- N-2: Changelog/Nachbesserung nennen nur P4a/P4b als offen; laut Spec bleiben auch **P4c** (Nummern 1:1 in
+  `KHKArtikel`) und **P4e** (`PrimaryStorageLocation` = `KHKLagerplaetze.Kurzbezeichnung`) Vorbedingung.
+- N-3: Deploy-Abschnitt ist am Diff `d4108f1a..2524bb03` finalisiert; fuer v1.60.1 unveraendert gueltig: Web ja
+  (nur Version/Changelog), Service ja (`SageArticleSql.cs`), keine Migration, keine neue SQL-Datei.
+
+**Deploy v1.60.1:** beide Publish-Befehle wie im Deploy-Abschnitt (Service traegt den Fix; Web nur fuer die
+Versionsanzeige). Kein DB-Update.
+
+**Manuelle Checkliste v1.60.1 (Mensch):**
+1. Service (und Web) v1.60.1 aufs IDEAL-Testsystem publishen; Versionsanzeige 1.60.1 pruefen.
+2. Vorher P4a (Dubletten), P4b (Gruppe als Code), P4c, P4e auf der Sage-Test-DB protokollieren.
+3. `Sync:ArticlesViewName = [vw_IDEAL_AKE_WMS_Artikel]`, Lauf `Article` abwarten: erfolgreich, kein „Ungueltiger
+   Spaltenname“, `gelesen` ≈ P4d.
+4. Stichprobe 5 Artikel (Bezeichnung, Einheit, Gruppe als Code, Hauptlagerplatz, Matchcode) gegen Sage.
+5. Negativ AKE: Key leer → Lauf `Article` wie bisher (Counts in der Groessenordnung der Vorlaeufe).
+6. Danach mit der Checkliste oben ab Punkt 10 (TS-93.4 ff.) weiter.
