@@ -538,6 +538,25 @@ public static class ColumnDefinitions
         ]
     };
 
+    /// <summary>
+    /// Reiter „Arbeitsgänge" der BDE-Stammdaten (OperationConfigs/Index.cshtml, v1.61.0): Server-Spaltenfilter, Pagination.
+    /// name und Aktionsspalte Locked. Spalten identisch zum inline #column-config JSON (Drift-Waechter OperationConfigsViewTests).
+    /// </summary>
+    public static readonly ViewConfig OperationConfigs = new(
+        "OperationConfigs", "BDE-Stammdaten — Arbeitsgänge",
+        SupportsReorder: true, SupportsSortDefault: false)
+    {
+        Columns =
+        [
+            new ColumnDef("name",     "Kürzel",                       Locked: true),
+            new ColumnDef("display",  "Anzeigename",                  Locked: false),
+            new ColumnDef("offset",   "Offset (AT) zum Bezugstermin", Locked: false, DefaultWidth: 150),
+            new ColumnDef("relevant", "Fremdsystem-relevant",         Locked: false, DefaultWidth: 130),
+            new ColumnDef("source",   "Quelle",                       Locked: false, DefaultWidth: 110),
+            new ColumnDef("actions",  "",                             Locked: true,  DefaultWidth: 100),
+        ]
+    };
+
     public static ViewConfig? GetByViewKey(string viewKey) => viewKey switch
     {
         "ProductionOrders" => ProductionOrders,
@@ -558,6 +577,7 @@ public static class ColumnDefinitions
         "FaHierarchyStructure"           => FaHierarchyStructure,
         "Beschichtungsauftraege"         => Beschichtungsauftraege,
         "BeschichtungsauftragPositionen" => BeschichtungsauftragPositionen,
+        "OperationConfigs"               => OperationConfigs,
         _                  => null
     };
 }
