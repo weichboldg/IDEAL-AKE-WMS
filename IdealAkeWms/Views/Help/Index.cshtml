@@ -542,6 +542,40 @@
                             <li><strong>Kuerzel:</strong> Gross-/Kleinschreibung und Leerzeichen zaehlen nicht &mdash; <code>ka</code>
                                 und <code>KA</code> sind dasselbe Kuerzel. Doppelte Eintraege meldet die Seite gelb.</li>
                             <li><strong>Alte Adresse:</strong> <code>/Settings/OperationConfig</code> leitet auf die neue Seite um.</li>
+                            <li><strong>Spalte Quelle (seit v1.61.0):</strong> <em>Sage</em> = vom Arbeitsgang-Abgleich angelegt,
+                                <em>Manuell</em> = im Reiter angelegt, <em>Fremdsystem</em> = OSEON-Kuerzel und Altbestand. Die Quelle
+                                setzt das System; sie ist nicht aenderbar. Spaltenauswahl ueber das Zahnrad rechts ueber der Tabelle.</li>
+                        </ul>
+                    </dd>
+
+                    <dt>Arbeitsgang-Abgleich mit Sage (seit v1.61.0)</dt>
+                    <dd>
+                        Gleicht die Arbeitsgang-Stammdaten mit einer Sage-View ab (Spalten <code>Arbeitsgangnummer</code>,
+                        <code>Bezeichnung</code>, <code>AG</code>). Laeuft im Sync-Dienst, Ergebnis im Aktivitaets-Protokoll unter
+                        <em>OperationConfigSync</em>. Fuer beide Standorte nutzbar.
+                        <ul class="mt-1 mb-1">
+                            <li><strong>Einschalten:</strong> Service-Einstellungen &rarr; <code>Sync:OperationConfigSyncEnabled</code>
+                                = true. Die View steht in <code>Sync:OperationConfigSyncViewName</code> (Standard
+                                <code>[vw_IDEAL_AKE_WMS_Arbeitsgaenge]</code>, AKE traegt die eigene View gleicher Spalten ein, auch in
+                                den Standorteinstellungen). Vorher die Ausschlussliste
+                                <code>Sync:ProductionWorkplaceSyncAusschlussliste</code> des Standorts pruefen.</li>
+                            <li><strong>Anlegen:</strong> Jedes Kuerzel <code>AG</code> der View, das noch fehlt (Gross-/Kleinschreibung
+                                und Leerzeichen zaehlen nicht), wird mit Offset 0 und Quelle Sage angelegt; Anzeigename = Bezeichnung,
+                                wenn sie je Kuerzel eindeutig ist. <em>Fremdsystem-relevant</em> kommt aus
+                                <code>Sync:OperationConfigSyncFremdsystemRelevant</code> (Standard nein). Ausgeschlossene Kuerzel werden
+                                nie angelegt.</li>
+                            <li><strong>Nie ueberschreiben, nie loeschen:</strong> Offset, Anzeigename und Relevanz bleiben, wie sie
+                                gepflegt sind. Einzige Aenderung: Ein <em>manuell</em> angelegtes Kuerzel, das spaeter in Sage
+                                steht, wechselt auf Quelle <em>Sage</em>.</li>
+                            <li><strong>nicht in Sage:</strong> Nur bei eingeschaltetem Abgleich: Eintraege der Quelle Sage oder Manuell,
+                                deren Kuerzel nicht in der View steht, tragen das Kennzeichen und stehen im gelben Hinweis oben. Reiner
+                                Hinweis &mdash; der Eintrag bleibt, bitte pruefen und ggf. von Hand loeschen. <em>Fremdsystem</em>-Eintraege
+                                werden nie gekennzeichnet.</li>
+                            <li><strong>Verzoegerung:</strong> Die Tabelle zeigt neue Zeilen und Kennzeichen bis zu 10 Minuten spaeter
+                                (Zwischenspeicher); &bdquo;Nicht konfigurierte Kürzel&ldquo; ist sofort aktuell.</li>
+                            <li><strong>Betriebshinweis:</strong> Alte Eintraege erst <strong>nach</strong> dem ersten Abgleich-Lauf
+                                loeschen. Ist die Tabelle leer, legt der naechste Start der Web-App die OSEON-Standardkuerzel
+                                (Quelle Fremdsystem) neu an.</li>
                         </ul>
                     </dd>
 

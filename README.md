@@ -771,6 +771,7 @@ vollständiger Katalog". Wichtige Gruppen:
 | Worker | `WorkerSettings:SyncIntervalMinutes`, `WorkerSettings:SyncDryRun`, `Sync:BdeAutoPauseIntervalMinutes` |
 | Bereinigung | `Cleanup:AktivitaetsprotokollAufbewahrungTage` (Default 180, `0` = nie löschen) |
 | Sage-Quellen (seit v1.60.0) | `Sync:FaHierarchyListeViewName`/`…InfosViewName` (Default `[vw_IDEAL_AKE_WMS_FAListe]`/`…FAInfos]`), `Sync:ProductionWorkplaceSyncViewName` (Default `KHKPpsArbeitsplaetze`), `Sync:ArticlesViewName` (Default leer = bisheriger Select) |
+| Arbeitsgang-Abgleich (seit v1.61.0) | `Sync:OperationConfigSyncEnabled` (Default `false`), `Sync:OperationConfigSyncViewName` (Default `[vw_IDEAL_AKE_WMS_Arbeitsgaenge]`, Spalten `Arbeitsgangnummer, Bezeichnung, AG`), `Sync:OperationConfigSyncFremdsystemRelevant` (Default `false`) — legt fehlende Arbeitsgang-Kürzel aus der Sage-View an (nie überschreiben/löschen) und kennzeichnet Einträge „nicht in Sage“; standortneutral, Ausschlussliste wie Werkbank-Anlage |
 
 ### IDEAL: Sage-Quellen auf die WMS-Views umstellen (seit v1.60.0)
 

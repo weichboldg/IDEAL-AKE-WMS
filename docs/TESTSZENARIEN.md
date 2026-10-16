@@ -10038,6 +10038,83 @@ mit gleichen Aliasen), `ProductionWorkplaceSyncServiceTests` (Default-Quelle, Qu
 
 ---
 
+## TS-94 — Arbeitsgang-Stammdaten mit der Sage-View abgleichen (v1.61.0)
+
+Spec: `2026-10-16-arbeitsgang-stammdaten-abgleich-aus-sage-view-spec`. **Vorbedingungen:** Bündel-Stand v1.61.0 auf dem
+Testsystem (Web + Dienst + `SQL/96` bzw. Migration beim Web-Start); Admin-Login; Zugriff auf `/ServiceSettings`,
+Standorteinstellungen, Aktivitäts-Protokoll (Dienst `OperationConfigSync`). Prüfabfragen P1–P5 stehen in der Spec
+(P1/P2 nur Sage, P3/P4/P5 WMS-DB); **P5 vor dem Deploy** je Standort ausführen und protokollieren: P5a auf Systemen nach
+`SQL/95` (`dbo.OperationConfigs`, `CreatedBy = 'system'` → künftig Fremdsystem), P5b auf Live vor `SQL/95`
+(`dbo.OseonOperationConfigs` — jede Zeile wird Fremdsystem). Automatisiert: `OperationConfigSyncServiceTests` (Anlage,
+Ausschluss, Mehrdeutigkeit, Kennzeichnung, Quelle-Wechsel, gelöschter Eintrag während des Laufs, Quelle fehlt/leer, DryRun),
+`OperationConfigRepositoryTests.UpdateAsync_LaesstSourceUndSageMissingSinceUnveraendert` (rot gegen den alten Code),
+`OperationConfigsControllerTests` (Kennzeichnung nur bei Schalter an, nie Fremdsystem, Spaltenfilter Quelle),
+`OperationConfigsViewTests` (Zahnrad-Drift), `OperationConfigSourceMigrationSqlTests` (Bestandsbefüllung wortgleich).
+Sage-Read, Settings-DB, Unique-Index, Kollation, Skripte und Fehlermail sind Manual-UAT.
+
+- **TS-94.1 — Deploy mit Defaults (AKE und IDEAL, AK 3/16/19/21).** Web starten. **Erwartet:** `/ServiceSettings` zeigt
+  `Sync:OperationConfigSyncEnabled = false`, `Sync:OperationConfigSyncViewName = [vw_IDEAL_AKE_WMS_Arbeitsgaenge]`,
+  `Sync:OperationConfigSyncFremdsystemRelevant = false`; zwei Zyklen → kein Lauf `OperationConfigSync`. P4: Altspalten
+  unverändert, `Source` je Zeile wie P5 vorhergesagt, `SageMissingSince` überall leer. Reiter *Arbeitsgänge*: Spalte
+  „Quelle“, Zahnrad, kein Badge, kein Hinweis.
+- **TS-94.2 — Erster Lauf (IDEAL-Test, AK 4).** Schalter an, Zyklus abwarten. **Erwartet:** Lauf `OperationConfigSync`
+  erfolgreich, `neu` = P2-Kürzel ohne Bestandszeile (minus Ausschlussliste), Info „angelegt: KA (…), …“. Neue Zeilen: Offset 0,
+  Fremdsystem-relevant „Nein“, Quelle „Sage“, Anzeigename aus Sage, `CreatedBy = OperationConfigSync`; `SÄ` korrekt (P4).
+- **TS-94.3 — Bestand bleibt (AK 5).** Vorher ein vorhandenes Kürzel per UI auf Offset `+2`, Anzeigename „Test“. Nächster
+  Lauf. **Erwartet:** Werte unverändert, `vorhanden` zählt es.
+- **TS-94.4 — Ausschluss (AK 6).** Ausschlussliste um ein View-Kürzel ergänzen, das noch nicht angelegt ist (oder vorher
+  löschen). **Erwartet:** nicht angelegt, nicht gekennzeichnet, `uebersprungen` +1. Liste zurückstellen.
+- **TS-94.5 — Kennzeichnung + Bearbeiten (AK 8/15/22/28).** `ZZTEST` per UI anlegen (P4: Quelle `Manual`). Nächster Lauf,
+  Reiter nach bis zu 10 min (Web-Zwischenspeicher). **Erwartet:** Badge „nicht in Sage“ an `ZZTEST` (Datum im Tooltip),
+  gelber Hinweis oben listet ihn, Protokoll-Warnung „neu nicht in Sage: ZZTEST“; Folgelauf ohne neue Warnung,
+  `nicht_in_sage` stabil. Dann `ZZTEST` bearbeiten (Offset `+1`, speichern). **Erwartet:** Badge bleibt; P4:
+  `SageMissingSince` und `Source` unverändert, nur Offset und `Modified*` neu. `ZZTEST` löschen.
+- **TS-94.6 — Schalter aus (AK 16).** **Erwartet:** Badge und Hinweis sofort weg, kein Lauf mehr; Spalte „Quelle“ bleibt.
+- **TS-94.7 — Spaltenfilter Kürzel (AK 17).** Filter `=SL` (gekennzeichnet oder nicht). **Erwartet:** genau eine Zeile.
+- **TS-94.13 — Quelle anzeigen und filtern (AK 22/25).** **Erwartet:** „Sage“ (Abgleich), „Manuell“ (UI), „Fremdsystem“
+  (Bestand laut P5); Filter `=Manuell` → nur manuelle, `!Fremdsystem` → alle anderen; CSV-Export enthält „Quelle“ als
+  Klartext. Eintrag bearbeiten (Offset) → Quelle unverändert.
+- **TS-94.14 — Fremdsystem nie gekennzeichnet (AK 24).** Fremdsystem-Eintrag, dessen Kürzel nicht in der View steht
+  (P2/P4); nächster Lauf, Reiter nach bis zu 10 min. **Erwartet:** kein Badge, nicht im Hinweis, nicht in „neu nicht in Sage“.
+- **TS-94.15 — Quelle-Wechsel Manuell → Sage (AK 23).** Ein View-Kürzel, das noch nicht existiert (oder nach Löschen), per
+  UI anlegen (Quelle „Manuell“). Nächster Lauf (P4 sofort, Reiter nach bis zu 10 min). **Erwartet:** Quelle „Sage“, Info
+  „Quelle Manuell → Sage: …“, `quelle_sage` = 1, Offset/Anzeigename wie eingegeben; Folgelauf ohne Meldung. Gegenprobe:
+  Fremdsystem-Eintrag `SL`/`ST` (falls vorhanden) bleibt „Fremdsystem“.
+- **TS-94.16 — Spaltenauswahl (AK 26).** Zahnrad rechts über der Tabelle; „Quelle“ ausblenden, Reload → bleibt ausgeblendet;
+  einblenden, Reihenfolge ändern, Reload → bleibt; „Kürzel“ nicht ausblendbar. Netzwerk: kein 400 auf
+  `/api/user-view-preferences/OperationConfigs`.
+- **TS-94.17 — Fremdsystem-relevant-Key (AK 27).** Key `true`, ein View-Kürzel löschen, nächster Lauf. **Erwartet:** neu
+  angelegt mit Fremdsystem-relevant „Ja“; übrige Einträge unverändert. Key zurück auf `false`.
+- **TS-94.18 — Seeds (nur Wegwerf-DB, AK 18/22).** (a) `SQL/00_FreshInstall.sql` auf leerer DB → P4: 12 Zeilen, alle
+  `ExternalSystem`, `MigrationId` `20261016090641_AddOperationConfigSourceAndSageMissingSince` in der History. (b) Alle
+  `OperationConfigs` löschen, Web starten → 12 Seed-Zeilen mit Quelle „Fremdsystem“.
+- **Negativfälle:** **TS-94.8** View-Name `[vw_GibtEsNicht]` → Warnung „… nicht vorhanden oder keine Leseberechtigung — Lauf
+  übersprungen“, keine Mail, folgende Sync-Blöcke laufen (AK 10). **TS-94.9** View-Name `vw;DROP` → Fehler + Fehlermail, kein
+  Sage-SQL (AK 12). **TS-94.10** `WorkerSettings:SyncDryRun = true` → Counts, keine Änderung (AK 13). **TS-94.11** `SQL/96`
+  zweimal → nur `PRINT`, Bestandsbefüllung im zweiten Lauf 0 Zeilen (AK 18). **TS-94.12** nur falls P3 `_AI` zeigt: `SA` per UI,
+  dann `SÄ` aus der View → Warnung, `fehler` +1, Lauf fertig (AK 14). **TS-94.19** `SQL/96` auf einer Wegwerf-DB mit
+  `OseonOperationConfigs` (vor SQL/95) → Warnung, keine Spalte, **keine** History-Zeile (AK 18). AK 29 (Eintrag während des
+  Laufs gelöscht) ist nur per Unit-Test prüfbar.
+
+**Testprotokoll IDEAL-Test** (Reihenfolge: alte Zeilen erst **nach** dem ersten Lauf löschen; Erwartungen je Bestandszeile
+nach P5a): P5a `ExternalSystem` → nie gekennzeichnet; P5a `Manual` und Kürzel ∉ P2 → gekennzeichnet; P5a `Manual` und ∈ P2 →
+Quelle wechselt auf Sage.
+1. P1, P2, P3, P4, P5a ausführen, ins Protokoll (Erwartungsbasis für 3, 4, 6, 7).
+2. DB-Backup, Deploy (`SQL/96` bzw. Migration, Web, dann Dienst) → TS-94.1.
+3. Schalter an, ein Zyklus → TS-94.2; Bestandszeilen (z. B. SL/ST) `vorhanden`, unverändert; Kennzeichnung nach der Regel.
+4. Reiter öffnen (ggf. 10 min) → „Nicht konfigurierte Kürzel“ ohne die neuen; Quelle je Zeile; Badge genau an „`Manual` und ∉ P2“.
+5. Die 7 AKE-Zeilen per UI löschen (Tabelle nie leer → kein OSEON-Seed).
+6. Ein Zyklus → `neu` = gelöschte Kürzel, die in P2 stehen (erwartet SL „Schweißen Laser“, ST „Stanzen“) mit Quelle Sage.
+7. App-Pool recyceln → P4: keine OSEON-Seed-Zeilen (B, BG, MS …) aufgetaucht.
+8. Folgelauf → `neu = 0`, keine Warnungen.
+9. TS-94.3 bis TS-94.17 und TS-94.8–12.
+
+**AKE-Regression (Schalter aus):** P5 auf der AKE-DB vorher; Deploy, zwei Zyklen → TS-94.1; OSEON-Teileverfolgung und
+-Reporting stichprobenartig wie vorher (TS-16.5, TS-7.10 sinngemäß), P4 vorher/nachher: `IsExternalSystemRelevant` und
+Offsets unverändert; Reiter ohne Badge/Hinweis, Quelle „Fremdsystem“ laut P5.
+
+---
+
 *Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) + Teil 6 (Standorteinstellungen, v1.34.0) + BOM-Guard hierarchisch (2026-08-18, abgelöst) + FA-Liste-Hierarchie (v1.35.0) + BOM-Bridge (v1.36.0) + Materialisierung fachliche Felder K1/K2 (v1.37.0) + Skopierung der Tabellen-Selektoren (TS-72) + FA-Liste ausgebaut: Matchcode, Kopfdaten je Zeile, HauptFA-Zeile, Freigabe-Kaskade (v1.38.0, TS-73) + PDF-Erzeugung für FaHierarchy-Druckdokumente (v1.39.0, TS-74) + Matchcode im Artikelstamm (v1.40.0, TS-75) + FA-Arbeitsgang-Erkennung aus der Struktur (v1.41.0, TS-76, ersetzt durch TS-77) + Arbeitsgänge (WorkOperation) aus der Struktur + Werkbank-Anlage aus Sage (v1.44.0, TS-77) + Arbeitsgänge je (Sub-)FA im FA-Struktur-Modal (v1.45.0, TS-78) + Kommissionierung nur am HauptFA
-(v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80) + Beschichtungsauftrag Summiert als Standard (v1.48.0, TS-81) + Briefkopf Beschichtungsauftrag (v1.49.0, TS-82) + Beschichtungsauftrag als eigenes Objekt (v1.50.0, TS-83) + Beschichtungsaufträge bedienen (v1.51.0, TS-84) + Arbeitsgänge als Symbole im FA-Baum (v1.52.0, TS-85) + CSV-Export für alle Tabellen (v1.53.0, TS-86) + Arbeitsgang-Stammdaten (v1.54.0, TS-87) + Status je Arbeitsgang-Kürzel im FA-Baum (v1.55.0, TS-88) + Menü Beschichtung + Kurzanleitungen (v1.56.0, TS-89) + BDE-Terminal mit Arbeitsgang-Status (v1.57.0, TS-90) + Spaltenfilter-Suchsyntax Etappe A + B (v1.58.0/v1.58.1, TS-91.A/B) + Fußzeile nach Word-Vorlage (v1.59.0, TS-92) + Sage-Quellen auf WMS-Views (v1.60.0–v1.60.2, TS-93)*
+(v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80) + Beschichtungsauftrag Summiert als Standard (v1.48.0, TS-81) + Briefkopf Beschichtungsauftrag (v1.49.0, TS-82) + Beschichtungsauftrag als eigenes Objekt (v1.50.0, TS-83) + Beschichtungsaufträge bedienen (v1.51.0, TS-84) + Arbeitsgänge als Symbole im FA-Baum (v1.52.0, TS-85) + CSV-Export für alle Tabellen (v1.53.0, TS-86) + Arbeitsgang-Stammdaten (v1.54.0, TS-87) + Status je Arbeitsgang-Kürzel im FA-Baum (v1.55.0, TS-88) + Menü Beschichtung + Kurzanleitungen (v1.56.0, TS-89) + BDE-Terminal mit Arbeitsgang-Status (v1.57.0, TS-90) + Spaltenfilter-Suchsyntax Etappe A + B (v1.58.0/v1.58.1, TS-91.A/B) + Fußzeile nach Word-Vorlage (v1.59.0, TS-92) + Sage-Quellen auf WMS-Views (v1.60.0–v1.60.2, TS-93) + Arbeitsgang-Abgleich aus der Sage-View (v1.61.0, TS-94)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*
