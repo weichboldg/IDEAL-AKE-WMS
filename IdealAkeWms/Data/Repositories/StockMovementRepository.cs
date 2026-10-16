@@ -465,8 +465,11 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
             .GroupBy(x => x.ArticleNumber)
             .ToDictionary(
                 g => g.Key,
+                // Stuecklisten-Reihenfolge (v1.62.0, Spec 2026-10-16-stueckliste-matchcode-lagerplatz-limit):
+                // Hauptlagerplatz, dann Menge absteigend, bei Gleichstand Code. Wirkt auf Zelle, Popover, CSV und Druck.
                 g => g.Select(x => x.Info)
                       .OrderBy(i => i.IsPrimaryStorageLocation ? 0 : 1)
+                      .ThenByDescending(i => i.Quantity)
                       .ThenBy(i => i.Code)
                       .ToList()
             );

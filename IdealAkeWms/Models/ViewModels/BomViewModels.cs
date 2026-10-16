@@ -36,6 +36,10 @@ public class StockLocationInfo
 
 public class BomItemViewModel
 {
+    /// <summary>Sichtbare Bestandsplaetze in der Stuecklisten-Zelle, der Rest per „+n weitere“ (v1.62.0).</summary>
+    // ponytail: Konstante, AppSetting erst bei belegtem Bedarf (Spec 2026-10-16 Antwort 5a).
+    public const int MaxSichtbareLagerplaetze = 3;
+
     public string Artikelnummer { get; set; } = string.Empty;
     public string? Position { get; set; }
     public string? Baugruppe { get; set; }

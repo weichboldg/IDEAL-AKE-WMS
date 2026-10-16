@@ -170,7 +170,7 @@
                         <th data-filterable data-col-key="vater-sub-fa">Vater-Sub-FA</th>
                     }
                 }
-                <th data-col-key="storage-location">Lagerplatz</th>
+                <th data-filterable data-col-key="storage-location">Lagerplatz</th>
                 @if (!Model.ReadOnly)
                 {
                     <th data-col-key="source-location">Quell-Lagerplatz</th>
@@ -266,10 +266,25 @@
                             <td>@item.VaterSubFa</td>
                         }
                     }
-                    <td>
+                    @* Lagerplatz (v1.62.0): hoechstens MaxSichtbareLagerplaetze sichtbar, Rest per „+n weitere“-Popover.
+                       Die volle Liste steht als d-none-Liste in derselben Zelle: Filter, Sortierung und Leerzustand lesen
+                       textContent (inkl. versteckter Elemente); CSV liest data-csv-value (volle Liste, ohne „weitere“). *@
+                    <td data-csv-value="@(item.StockLocations.Any() ? string.Join(", ", item.StockLocations.Select(sl => $"{sl.Code} ({sl.Quantity:N3})")) : null)">
                         @if (item.StockLocations.Any())
                         {
-                            @string.Join(", ", item.StockLocations.Select(sl => $"{sl.Code} ({sl.Quantity:N3})"))
+                            @string.Join(", ", item.StockLocations.Take(BomItemViewModel.MaxSichtbareLagerplaetze).Select(sl => $"{sl.Code} ({sl.Quantity:N3})"))
+                            @if (item.StockLocations.Count > BomItemViewModel.MaxSichtbareLagerplaetze)
+                            {
+                                <a tabindex="0" role="button" class="badge text-bg-secondary ms-1 bom-lagerplatz-mehr"
+                                   data-bs-toggle="popover" data-anzahl="@item.StockLocations.Count"
+                                   aria-label="Alle @item.StockLocations.Count Lagerplätze anzeigen">+@(item.StockLocations.Count - BomItemViewModel.MaxSichtbareLagerplaetze) weitere</a>
+                                <ul class="d-none bom-lagerplatz-alle">
+                                    @foreach (var sl in item.StockLocations)
+                                    {
+                                        <li>@sl.Code (@sl.Quantity.ToString("N3"))@if (sl.IsPrimaryStorageLocation) {<text> – </text><strong>Hauptlagerplatz</strong>}</li>
+                                    }
+                                </ul>
+                            }
                         }
                         else
                         {
@@ -1263,7 +1278,8 @@
                     'description1': 'Bezeichnung 1', 'description2': 'Bezeichnung 2', 'matchcode': 'Matchcode', 'quantity': 'Menge',
                     'procurement': 'Beschaffung', 'article-group': 'Artikelgruppe', 'category': 'Kategorie',
                     'kommissionieren': 'Komm.-Ziel', 'hauptlagerplatz': 'Hauptlagerplatz',
-                    'sage-position': 'Sage-Pos.', 'ebene': 'Ebene', 'vater-sub-fa': 'Vater-Sub-FA'
+                    'sage-position': 'Sage-Pos.', 'ebene': 'Ebene', 'vater-sub-fa': 'Vater-Sub-FA',
+                    'storage-location': 'Lagerplatz'
                 };
                 for (var col in filters) {
                     if (col === 'kommissionieren' && isAlleZiele(filters[col])) {
@@ -1421,6 +1437,34 @@
                 });
             })();
                 </text>
+            }
+
+            // ========== Lagerplatz „+n weitere“ (v1.62.0) ==========
+            // Popover mit der vollen Platzliste aus der d-none-Liste derselben Zelle. Laeuft in BEIDEN Modi (auch
+            // Abarbeitungsliste/FA-Vervollstaendigung) — daher VOR `if (readOnly) return;`. container 'body': sonst
+            // beschneidet .table-responsive das Popover. 'hover focus': Maus per Hover, Klick/Tippen/Tab per Fokus
+            // (das <a tabindex> wird fokussiert), Klick/Tippen daneben nimmt den Fokus und schliesst; Escape schliesst.
+            var bomLagerplatzBadges = document.querySelectorAll('#bomTable .bom-lagerplatz-mehr');
+            bomLagerplatzBadges.forEach(function (badge) {
+                var liste = badge.parentElement.querySelector('.bom-lagerplatz-alle');
+                if (!liste) return;
+                var inhalt = liste.cloneNode(true);
+                inhalt.classList.remove('d-none');
+                inhalt.classList.add('list-unstyled', 'mb-0');
+                new bootstrap.Popover(badge, {
+                    trigger: 'hover focus', container: 'body', html: true, placement: 'auto',
+                    title: 'Lagerplätze (' + badge.getAttribute('data-anzahl') + ')', content: inhalt,
+                    customClass: 'bom-lagerplatz-popover'
+                });
+            });
+            if (bomLagerplatzBadges.length) {
+                document.addEventListener('keydown', function (e) {
+                    if (e.key !== 'Escape') return;
+                    bomLagerplatzBadges.forEach(function (badge) {
+                        var p = bootstrap.Popover.getInstance(badge);
+                        if (p) p.hide();
+                    });
+                });
             }
 
             // Sticky Bulk-Balken initial synchronisieren — laeuft in BEIDEN Modi (vor dem

@@ -1404,3 +1404,24 @@ th:hover .col-resize-handle {
     #faTree [data-col-key="subfa"],
     #faTree [data-col-key="quantity"] { display: none; }
 }
+
+/* Stueckliste: Lagerplatz „+n weitere“ (v1.62.0). Trefferflaeche >= 24x24 CSS-px (WCAG 2.2, 2.5.8 — Terminals mit
+   Handschuh), sichtbarer Fokus >= 3:1 auf allen Zeilengruenden (#212529), Text-Bedeutung statt Farbe.
+   Lange Listen scrollen im Popover (haengt am body, die nowrap-Regel der .table-responsive greift dort nicht). */
+.bom-lagerplatz-mehr {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 24px;
+    min-width: 24px;
+    cursor: pointer;
+    text-decoration: none;
+}
+.bom-lagerplatz-mehr:focus-visible {
+    outline: 2px solid #212529;
+    outline-offset: 2px;
+}
+.bom-lagerplatz-popover .popover-body {
+    max-height: 50vh;
+    overflow-y: auto;
+}

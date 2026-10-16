@@ -243,6 +243,35 @@ public class StockMovementRepositoryTests
         locs[1].IsPrimaryStorageLocation.Should().BeFalse();
     }
 
+    [Fact]
+    public async Task GetStockByArticleNumbers_HauptlagerplatzDannMengeAbsteigendDannCode()
+    {
+        // AK 11 (Spec 2026-10-16-stueckliste-matchcode-lagerplatz-limit): Primaer zuerst (auch bei kleiner Menge),
+        // dann Menge absteigend, bei Gleichstand Code aufsteigend.
+        using var ctx = TestDbContextFactory.Create();
+        var (article, loc1, loc2) = SeedBaseData(ctx);
+        StorageLocation Loc(string code)
+        {
+            var l = new StorageLocation { Code = code, CreatedAt = DateTime.Now, CreatedBy = "Test", CreatedByWindows = "TEST\\user" };
+            ctx.StorageLocations.Add(l);
+            ctx.SaveChanges();
+            return l;
+        }
+        var l03 = Loc("L03");
+        var l04 = Loc("L04");
+        var repo = new StockMovementRepository(ctx);
+
+        await repo.AddAsync(CreateMovement(article, loc1, 1, MovementType.Einbuchung));  // Primaer, kleinste Menge
+        await repo.AddAsync(CreateMovement(article, loc2, 3, MovementType.Einbuchung));
+        await repo.AddAsync(CreateMovement(article, l03, 5, MovementType.Einbuchung));
+        await repo.AddAsync(CreateMovement(article, l04, 3, MovementType.Einbuchung));  // Gleichstand mit L02
+        SetPrimaryLocation(ctx, article, loc1);
+
+        var locs = (await repo.GetStockByArticleNumbersAsync(new List<string> { "ART-001" }))["ART-001"];
+
+        locs.Select(l => l.Code).Should().Equal("L01", "L03", "L02", "L04");
+    }
+
     // ===== Matchcode (Artikelstamm, Task 6): sm.Article ist per Include schon geladen, daher
     // triviales zusaetzliches OR-Glied — InMemory-lauffaehig wie die bestehenden Freitextfilter. =====
 
