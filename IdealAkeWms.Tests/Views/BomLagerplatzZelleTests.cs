@@ -36,7 +36,7 @@ public class BomLagerplatzZelleTests
     {
         var html = Html();
         var init = html.IndexOf("new bootstrap.Popover(badge", StringComparison.Ordinal);
-        var readOnlyReturn = html.IndexOf("if (readOnly) return;", StringComparison.Ordinal);
+        var readOnlyReturn = Regex.Match(html, @"^\s*if \(readOnly\) return;", RegexOptions.Multiline).Index; // die Anweisung, nicht die Kommentare
         init.Should().BePositive();
         init.Should().BeLessThan(readOnlyReturn, "Read-only-Stuecklisten brauchen das Popover auch");
         Regex.IsMatch(html, @"trigger: 'hover focus', container: 'body'").Should().BeTrue();
