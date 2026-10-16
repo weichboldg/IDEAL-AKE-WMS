@@ -707,6 +707,14 @@ Items → `skipped`; alles skipped → BadRequest. Genau ein Typ betroffen → R
 
 ---
 
+### Stuecklisten-Reihenfolge der Bestandsplaetze: Hauptlagerplatz, Menge absteigend, Code (seit v1.62.0)
+
+`StockMovementRepository.GetStockByArticleNumbersAsync` sortiert zentral: Hauptlagerplatz (`Article.PrimaryStorageLocationId`)
+zuerst, dann Menge absteigend, bei Gleichstand Code. Wirkt auf Stuecklisten-Zelle, Popover, CSV und Druck. **Warum zentral:**
+ein Ort fuer alle vier Ausgaben; die uebrigen Aufrufer (Auto-Vorschlag, `PickingApiController.SearchSourceLocations`,
+`MissingPartsLagerController`) sortieren selbst und sind unberuehrt. An IDEAL fehlt vielen Artikeln der WMS-Hauptlagerplatz —
+dann gilt nur „Menge absteigend“, kein Fehler ([[2026-10-16-stueckliste-matchcode-lagerplatz-limit-spec]]).
+
 ## 8. Tests, EF, SQL Server
 
 ### InMemory-DB unterstuetzt kein `rowversion`
@@ -1044,6 +1052,14 @@ die Coverage-Frage selbst. Ist die Zahl im Betrieb > 0, ist der Weg **den `Artic
 (gefertigte Artikel aufnehmen), nicht den Matchcode am Auftrag zu duplizieren — eigene Aufgabe
 ([[2026-09-15-matchcode-nachlese]]).
 
+### Stueckliste: Matchcode an IDEAL aus der Struktur, sonst Artikelstamm (seit v1.62.0)
+
+Die Stueckliste zeigt an IDEAL `FaHierarchyNode.Matchcode` (ueber `FaHierarchyBomItem.Matchcode`, getrimmt, leer = null), sonst
+`Article.Matchcode` ueber `MatchcodeLookup` mit der **Ressourcenummer** (nie die Kopf-Artikelnummer). AKE nur Artikelstamm.
+**Warum Variante B** (Gerald 2026-10-16): Stueckliste und Kommissionierliste/Vormontage/Beschichtung sollen an IDEAL denselben
+Kurznamen zeigen; die FA-Listen bleiben beim Artikelstamm (bewusste Inkonsistenz wie oben). `BomItem` bekam **keine** Property
+(`SqlQueryRaw<BomItem>`, §10). Drei Projektionsstellen: `PickingController.Bom`, `RenderPrintBomAsync`, `ReadOnlyBomBuilder`.
+
 ## 13. IDEAL — FA-Arbeitsgang-Erkennung aus der Struktur (Arbeitsschritte, v1.41.0) — **teilweise überholt (v1.44.0)**
 
 > **Stand v1.44.0 (§16):** Ziel-Tabelle und Katalog haben sich geändert — nicht mehr `FaWorkStep` +
@@ -1123,6 +1139,22 @@ rohen col-key statt des Klartextnamens. Beim Ergaenzen der hierarchischen Druck-
 ein eigenes DTO — die hierarchischen Felder (`Kommissionieren`/`Hauptlagerplatz`/`Ebene`) fehlen dort und
 im Print-Mapping, obwohl `BomItemViewModel` (Bildschirm) sie laengst hat; der Druck kennt hierarchische
 Spalten **strukturell** nicht, bis DTO + Mapping + `ShowCol`-Kopf-/Zellbloecke ergaenzt sind.
+
+### Volle Liste in einer begrenzten Zelle: `d-none` fuer Filter, `data-csv-value` fuer CSV (seit v1.62.0)
+
+Die Lagerplatz-Zelle zeigt hoechstens 3 Plaetze + „+n weitere“ (Popover). Filter (`table-filter.js`), Sortierung und die
+Leerzustand-/Aufklapp-Pruefungen der Stueckliste lesen `cell.textContent` — das schliesst versteckte Elemente ein. **Darum**
+steht die volle Liste als `<ul class="d-none">` in derselben Zelle (kein Eingriff in den gemeinsamen Filter-Kern) und die CSV
+liest `data-csv-value` am `<td>` (`csv-export.js` vor dem Zelltext). Grenze: „weitere“ ist ebenfalls Zelltext. Das Popover
+haengt am `body` (`container: 'body'`), sonst beschneidet `.table-responsive` es; seine Initialisierung steht **vor**
+`if (readOnly) return;`, damit die Read-only-Stuecklisten es auch haben (Waechter `BomLagerplatzZelleTests` misst die
+Anweisung per Regex — ein `IndexOf` traf zuerst einen Kommentar mit demselben Text).
+
+### Stuecklisten-Zellen nie ueber feste Positionen lesen (seit v1.62.0)
+
+`Bom.cshtml` liest Zellen per `bomColKeyToIndex` (col-key), nie per `cells[n]`. **Warum:** Die neue Spalte Matchcode verschob
+den Bulk-Bestell-Fallback (`cells[4]/[6]/[8]`) — „Menge“ las den Matchcode (NaN). Spalten kommen bedingt (hierarchisch, ReadOnly,
+Gates) und per Zahnrad umsortiert hinzu; nur der col-key ist stabil. Waechter `BomLagerplatzZelleTests.Zellzugriff_NurPerColKey_KeinFesterIndex`.
 
 ## 15. IDEAL — Der Arbeitsbereich ist ein Zielort, keine Werkbank (Rückbau v1.43.0)
 

@@ -678,6 +678,21 @@ Spec [[2026-10-06-beschichtungsauftrag-ausbau-teil-2-spec]] (Teil 2 von 4), Umse
 > Ersatz-Kopf). **Status:** Testbereit (QA + Nachlauf 2026-10-09, Build + 1521 Web- + 272 Service-Tests grün) → Schranke 2
 > mit dem Bündel. Offen: [[2026-10-09-briefkopf-seitenzaehlung]], [[2026-10-09-briefkopf-csp-und-bereinigung]].
 
+### Stückliste: Matchcode + Lagerplatz-Limit (v1.62.0, direkt im Bündel)
+
+Spec [[2026-10-16-stueckliste-matchcode-lagerplatz-limit-spec]], Umsetzung [[2026-10-16-stueckliste-matchcode-lagerplatz-limit-umsetzung]],
+Changelog [[2026-10-16-v1-62-0-stueckliste-matchcode-lagerplatz-limit]], Bug [[2026-10-16-stueckliste-lagerplatz-zelle-tabellenbreite-bug]].
+
+| Baustein | Stand | Code-Einstieg |
+|---|---|---|
+| M: Spalte Matchcode (IDEAL Struktur, sonst Artikelstamm; AKE Artikelstamm), Druck, ColumnDefinitions (+ warehouse-order) | **erledigt** `c5d9b2b7` | `FaHierarchyBomItem.Matchcode`, `PickingController.Bom`, `ReadOnlyBomBuilder` |
+| L: Reihenfolge zentral, Zelle max. 3 + „+n weitere“-Popover, Spalte filterbar, CSV volle Liste | **erledigt** `c9bc382f`, `41c3c14e` | `StockMovementRepository.GetStockByArticleNumbersAsync`, `Views/Picking/Bom.cshtml` |
+| Hilfe, Changelog, v1.62.0, TS-95 | **erledigt** `6a452892` | `Views/Help/Index.cshtml` |
+| QA-Fix W-1: Bulk-Bestell-Fallback per col-key statt fester Zellpositionen | **erledigt** `9177db47`, TS `d75680f4` | `Views/Picking/Bom.cshtml` |
+
+> **Deploy:** nur Web, keine Migration. **Status:** Testbereit (QA 2026-10-16, Build + 2043 Web- / 307 Service-Tests grün) →
+> Schranke 2 mit dem Bündel.
+
 ### Arbeitsgang-Stammdaten mit der Sage-View abgleichen (v1.61.0, direkt im Bündel)
 
 Spec [[2026-10-16-arbeitsgang-stammdaten-abgleich-aus-sage-view-spec]], Umsetzung [[2026-10-16-arbeitsgang-stammdaten-abgleich-aus-sage-view-umsetzung]],

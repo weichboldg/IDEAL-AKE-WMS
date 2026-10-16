@@ -13,6 +13,9 @@ Beide zeigen bislang keinen Matchcode (In-Scope-Grenze v1.40.0):
   bestehenden Article-Join — ein Join waere zusaetzliche, ungepruefte Kopplung.
 - **BOM-Komponentenebene** (`Picking/Bom.cshtml`, `PrintBom`, `PrintPicking`, `WarehousePicking/Details`):
   von der Schwester-Spec (2026-09-10, Antwort 7) bereits ausgeschlossen.
+  - *Teilweise überholt (2026-10-16):* **Stückliste (`Picking/Bom.cshtml`) und `PrintBom` erledigt** mit v1.62.0
+    ([[2026-10-16-stueckliste-matchcode-lagerplatz-limit-spec]], IDEAL Strukturknoten, sonst Artikelstamm). Offen bleiben
+    `PrintPicking`, `WarehousePicking/Details` und OSEON.
 
 ## 2. FA-Struktur-Baum auf `Article.Matchcode` umstellen
 

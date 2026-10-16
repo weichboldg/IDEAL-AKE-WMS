@@ -71,7 +71,7 @@ Wichtige Verhaltensregeln, die in Repositories stecken (Details in [[fallstricke
 | Datei | Zweck |
 |---|---|
 | `PickingTransferService.cs` | Umbuchung bei der Kommissionierung (**betroffen von jeder `MovementType`-Erweiterung**) |
-| `ReadOnlyBomBuilder.cs` | Read-only Stueckliste (Vorbau, FA-Vervollstaendigung) |
+| `ReadOnlyBomBuilder.cs` | Read-only Stueckliste (Vorbau, FA-Vervollstaendigung); seit v1.62.0 mit `IArticleRepository` + `ILogger` fuer die Matchcode-Spalte (`MatchcodeLookup`, IDEAL zuerst Strukturknoten) |
 | `CoatingDateCalculator.cs` | Beschichtungstermin — zentrale Formel fuer Leitstand **und** Abarbeitungsliste |
 | `BusinessDayService.cs` | Arbeitstags-Rechnung (Kommissionier-/Vorkommissionier-/Beschichtungstage) |
 | `WorkbenchFilter.cs` | Komma-OR-Semantik des Werkbank-Filters (`Matches`) |
