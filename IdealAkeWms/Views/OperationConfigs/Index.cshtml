@@ -23,6 +23,14 @@
     </div>
 }
 
+@if (Model.NotInSage.Any())
+{
+    <div class="alert alert-warning" role="alert">
+        <strong>Nicht in Sage:</strong> @string.Join(", ", Model.NotInSage.Select(c => c.OperationName)) — diese Einträge stehen
+        nicht in der Sage-View (Arbeitsgang-Abgleich). Sie bleiben erhalten; bitte prüfen und ggf. löschen.
+    </div>
+}
+
 @* Offene Arbeit oberhalb der Tabelle (nicht zwischen Toolbar-Host und .table-responsive, fallstricke §19); einfache Liste,
    keine zweite filterbare Tabelle (fallstricke §22). *@
 <div class="card mb-3">
@@ -58,6 +66,7 @@
                         <th data-filterable data-col-key="display">Anzeigename</th>
                         <th data-filterable data-col-key="offset" style="width: 150px;" title="Offset (Arbeitstage) zum Bezugstermin">Offset (AT) zum Bezugstermin</th>
                         <th data-filterable data-col-key="relevant" style="width: 130px;">Fremdsystem-relevant</th>
+                        <th data-filterable data-col-key="source" style="width: 110px;">Quelle</th>
                         <th data-col-key="actions" style="width: 100px;"></th>
                     </tr>
                 </thead>
@@ -67,6 +76,10 @@
                         <tr>
                             <td>
                                 <strong>@c.OperationName</strong>
+                                @if (Model.MarkerActive && OperationConfigsController.IsNotInSage(c))
+                                {
+                                    <span class="badge text-bg-warning ms-1" title="Nicht in Sage seit @c.SageMissingSince!.Value.ToString("dd.MM.yyyy HH:mm") (Arbeitsgang-Abgleich)">nicht in Sage</span>
+                                }
                                 <form asp-action="Update" method="post" id="form-update-@c.Id">
                                     <input type="hidden" name="id" value="@c.Id" />
                                 </form>
@@ -86,6 +99,7 @@
                                        aria-label="Fremdsystem-relevant @c.OperationName"
                                        onchange="document.getElementById('hidden-relevant-@c.Id').value = this.checked ? 'true' : 'false'" />
                             </td>
+                            <td>@OperationConfigsController.FormatSource(c.Source)</td>
                             <td>
                                 <div class="d-flex gap-1">
                                     <button type="submit" form="form-update-@c.Id" class="btn btn-sm btn-outline-primary" title="Speichern" aria-label="@c.OperationName speichern">
@@ -109,7 +123,7 @@
                     }
                     @if (!Model.Configs.Any())
                     {
-                        <tr><td colspan="5" class="text-center text-muted py-3">Keine Arbeitsgänge für diese Filterung. Rechts einen anlegen.</td></tr>
+                        <tr><td colspan="6" class="text-center text-muted py-3">Keine Arbeitsgänge für diese Filterung. Rechts einen anlegen.</td></tr>
                     }
                 </tbody>
             </table>
@@ -182,8 +196,17 @@
                     <dt>Kein Eintrag</dt>
                     <dd>Offset 0 (Soll = Bezugstermin); das Kürzel steht unter „Nicht konfigurierte Kürzel“.</dd>
                     <dt>Fremdsystem-relevant</dt>
-                    <dd class="mb-0">Wirkt derzeit nur in der OSEON-Teileverfolgung (Fertig-/Ampel-Berechnung) und im OSEON-Reporting;
+                    <dd>Wirkt derzeit nur in der OSEON-Teileverfolgung (Fertig-/Ampel-Berechnung) und im OSEON-Reporting;
                         für IDEAL und AKE-BDE ohne Wirkung.</dd>
+                    <dt>Quelle</dt>
+                    <dd>
+                        <strong>Sage</strong> = vom Arbeitsgang-Abgleich aus der Sage-View angelegt; <strong>Manuell</strong> = hier angelegt
+                        (wechselt auf Sage, sobald das Kürzel in der Sage-View steht); <strong>Fremdsystem</strong> = OSEON-Kürzel und
+                        Altbestand. Die Quelle setzt das System, sie ist nicht änderbar.
+                    </dd>
+                    <dt>nicht in Sage</dt>
+                    <dd class="mb-0">Nur bei eingeschaltetem Arbeitsgang-Abgleich und Quelle Sage oder Manuell: das Kürzel steht nicht
+                        in der Sage-View. Reiner Hinweis, der Eintrag bleibt erhalten. Fremdsystem-Einträge werden nie gekennzeichnet.</dd>
                 </dl>
             </div>
         </div>

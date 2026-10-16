@@ -26,6 +26,7 @@ public class OperationConfigsControllerTests
 {
     private readonly ApplicationDbContext _db = TestDbContextFactory.Create(Guid.NewGuid().ToString());
     private readonly Mock<ICurrentUserService> _user = new();
+    private readonly Mock<IServiceSettingRepository> _settings = new();
 
     public OperationConfigsControllerTests()
     {
@@ -36,7 +37,7 @@ public class OperationConfigsControllerTests
 
     private OperationConfigsController Ctrl(string? query = null)
     {
-        var c = new OperationConfigsController(new OperationConfigRepository(_db), _user.Object);
+        var c = new OperationConfigsController(new OperationConfigRepository(_db), _user.Object, _settings.Object);
         var http = new DefaultHttpContext();
         if (query != null) http.Request.QueryString = new QueryString(query);
         c.ControllerContext = new ControllerContext { HttpContext = http };
@@ -201,6 +202,81 @@ public class OperationConfigsControllerTests
             .Invoke(new SettingsController(null!, null!, null!, null!), null)!;
         (result.ControllerName, result.ActionName, result.Permanent).Should().Be(("OperationConfigs", "Index", false));
         settings.GetMethods().Select(m => m.Name).Should().NotContain(new[] { "AddOperationConfig", "UpdateOperationConfig", "DeleteOperationConfig" });
+    }
+
+    // ===== Arbeitsgang-Abgleich: Quelle + Kennzeichnung „nicht in Sage" (Spec 2026-10-16, v1.61.0) =====
+
+    private void SeedSource(string name, string source, DateTime? missing)
+    {
+        _db.OperationConfigs.Add(new OperationConfig
+        {
+            OperationName = name, Source = source, SageMissingSince = missing,
+            CreatedAt = DateTime.Now, CreatedBy = "x", CreatedByWindows = "x"
+        });
+        _db.SaveChanges();
+    }
+
+    [Theory]
+    [InlineData("true", new[] { "ZZ", "SA" })]
+    [InlineData("false", new string[0])]
+    [InlineData(null, new string[0])]
+    public async Task Index_NichtInSage_NurBeiSchalterAn_NieFremdsystem(string? schalter, string[] erwartet)
+    {
+        var t = new DateTime(2026, 10, 16);
+        SeedSource("ZZ", OperationConfigSource.Manual, t);
+        SeedSource("SA", OperationConfigSource.Sage, t);
+        SeedSource("BR", OperationConfigSource.ExternalSystem, t); // Zeitstempel per SQL gesetzt -> trotzdem kein Badge (AK 24)
+        SeedSource("KA", OperationConfigSource.Sage, null);
+        _settings.Setup(s => s.GetValueAsync("Sync:OperationConfigSyncEnabled")).ReturnsAsync(schalter);
+
+        var vm = (OperationConfigIndexViewModel)((ViewResult)await Ctrl().Index()).Model!;
+
+        vm.MarkerActive.Should().Be(schalter == "true");
+        vm.NotInSage.Select(c => c.OperationName).Should().BeEquivalentTo(erwartet);
+    }
+
+    [Fact]
+    public async Task Add_SetztQuelleManuell()
+    {
+        await Ctrl().Add("ZZ", null, 0, true);
+
+        _db.OperationConfigs.Single().Source.Should().Be(OperationConfigSource.Manual);
+    }
+
+    [Fact]
+    public async Task Update_LaesstQuelleUndZeitstempelUnveraendert()
+    {
+        var t = new DateTime(2026, 10, 16, 8, 0, 0);
+        SeedSource("KA", OperationConfigSource.Sage, t);
+        var id = _db.OperationConfigs.Single().Id;
+        _db.ChangeTracker.Clear();
+
+        await Ctrl().Update(id, "Kanten", 2, false);
+
+        var ka = _db.OperationConfigs.Single();
+        (ka.Source, ka.SageMissingSince, ka.DueDateOffsetDays).Should().Be((OperationConfigSource.Sage, t, 2));
+    }
+
+    [Fact]
+    public async Task Index_Spaltenfilter_Quelle_WieAngezeigt()
+    {
+        SeedSource("SA", OperationConfigSource.Sage, null);
+        SeedSource("MA", OperationConfigSource.Manual, null);
+        SeedSource("FR", OperationConfigSource.ExternalSystem, null);
+
+        var manuell = (OperationConfigIndexViewModel)((ViewResult)await Ctrl("?colf_source=%3DManuell").Index()).Model!;
+        manuell.Configs.Select(c => c.OperationName).Should().Equal("MA");
+        var ohneFremd = (OperationConfigIndexViewModel)((ViewResult)await Ctrl("?colf_source=!Fremdsystem").Index()).Model!;
+        ohneFremd.Configs.Select(c => c.OperationName).Should().BeEquivalentTo("SA", "MA");
+    }
+
+    [Fact]
+    public void FormatSource_DreiWerte_UnbekanntRoh()
+    {
+        new[] { "Sage", "ExternalSystem", "Manual", "Xyz" }.Select(s => OperationConfigsController.FormatSource(s))
+            .Should().Equal("Sage", "Fremdsystem", "Manuell", "Xyz");
+        OperationConfigsController.ColumnMap["source"](new OperationConfig { Source = OperationConfigSource.ExternalSystem })
+            .Should().Be("Fremdsystem");
     }
 
     [Fact]

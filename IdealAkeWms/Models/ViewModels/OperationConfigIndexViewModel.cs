@@ -14,5 +14,11 @@ public class OperationConfigIndexViewModel
     /// <summary>Eintraege, die getrimmt und case-insensitiv gleich sind (Altdaten) — Warnhinweis, „melden statt still".</summary>
     public List<string> DuplicateNames { get; set; } = new();
 
+    /// <summary>Arbeitsgang-Abgleich eingeschaltet (<c>Sync:OperationConfigSyncEnabled</c>) — nur dann wird „nicht in Sage" angezeigt.</summary>
+    public bool MarkerActive { get; set; }
+
+    /// <summary>Alle gekennzeichneten Eintraege (seitenuebergreifend, fuer den Hinweis oberhalb der Tabelle).</summary>
+    public List<OperationConfig> NotInSage { get; set; } = new();
+
     public PaginationState Pagination { get; set; } = new();
 }

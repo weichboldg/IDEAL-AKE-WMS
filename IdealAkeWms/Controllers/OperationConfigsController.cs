@@ -20,12 +20,26 @@ public class OperationConfigsController : Controller
 {
     private readonly IOperationConfigRepository _repo;
     private readonly ICurrentUserService _currentUser;
+    private readonly IServiceSettingRepository _serviceSettings;
 
-    public OperationConfigsController(IOperationConfigRepository repo, ICurrentUserService currentUser)
+    public OperationConfigsController(IOperationConfigRepository repo, ICurrentUserService currentUser, IServiceSettingRepository serviceSettings)
     {
         _repo = repo;
         _currentUser = currentUser;
+        _serviceSettings = serviceSettings;
     }
+
+    /// <summary>Quelle wie angezeigt (Spec 2026-10-16 FA 6); unbekannter Wert roh, nicht still „Manuell".</summary>
+    public static string FormatSource(string? source) => source switch
+    {
+        OperationConfigSource.Sage => "Sage",
+        OperationConfigSource.ExternalSystem => "Fremdsystem",
+        OperationConfigSource.Manual => "Manuell",
+        _ => source ?? string.Empty,
+    };
+
+    /// <summary>„Nicht in Sage" (FA 4): gesetzter Zeitstempel und nie bei Quelle Fremdsystem. Gilt nur bei eingeschaltetem Abgleich.</summary>
+    public static bool IsNotInSage(OperationConfig c) => c.SageMissingSince != null && c.Source != OperationConfigSource.ExternalSystem;
 
     /// <summary>Offset wie angezeigt: Vorzeichen bei positiven Werten („+2"), sonst „0" bzw. „-1".</summary>
     public static string FormatOffset(int offset) => offset > 0 ? "+" + offset.ToString(CultureInfo.InvariantCulture) : offset.ToString(CultureInfo.InvariantCulture);
@@ -38,6 +52,7 @@ public class OperationConfigsController : Controller
             ["display"] = c => c.DisplayName,
             ["offset"] = c => FormatOffset(c.DueDateOffsetDays),
             ["relevant"] = c => c.IsExternalSystemRelevant ? "Ja" : "Nein",
+            ["source"] = c => FormatSource(c.Source),
         };
 
     public async Task<IActionResult> Index(int page = 1, int? pageSize = null)
@@ -50,6 +65,8 @@ public class OperationConfigsController : Controller
 
         var all = await _repo.GetAllAsync();
         var filtered = ColumnFilterHelper.Apply(all, columnFilters, ColumnMap).ToList();
+        // Schalter aus -> keine Kennzeichnung, auch wenn alte Zeitstempel stehen (AKE-Regression, AK 16).
+        var markerActive = string.Equals(await _serviceSettings.GetValueAsync("Sync:OperationConfigSyncEnabled"), "true", StringComparison.OrdinalIgnoreCase);
 
         return View(new OperationConfigIndexViewModel
         {
@@ -57,6 +74,10 @@ public class OperationConfigsController : Controller
             Unconfigured = await _repo.GetUnconfiguredOperationsAsync(),
             DuplicateNames = all.GroupBy(c => c.OperationName.Trim(), StringComparer.OrdinalIgnoreCase)
                 .Where(g => g.Count() > 1).Select(g => string.Join(" / ", g.Select(c => c.OperationName))).ToList(),
+            MarkerActive = markerActive,
+            NotInSage = markerActive
+                ? all.Where(IsNotInSage).OrderBy(c => c.OperationName, StringComparer.OrdinalIgnoreCase).ToList()
+                : new List<OperationConfig>(),
             Pagination = new PaginationState
             {
                 CurrentPage = page,
@@ -103,6 +124,7 @@ public class OperationConfigsController : Controller
             DisplayName = string.IsNullOrWhiteSpace(displayName) ? null : displayName.Trim(),
             DueDateOffsetDays = offset,
             IsExternalSystemRelevant = isExternalSystemRelevant,
+            Source = OperationConfigSource.Manual,
             CreatedAt = DateTime.Now,
             CreatedBy = _currentUser.GetDisplayName(),
             CreatedByWindows = _currentUser.GetWindowsUserName(),
