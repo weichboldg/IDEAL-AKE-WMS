@@ -27,6 +27,7 @@ public static class SyncLogServices
     public const string FaMaterialization = "FaMaterialization"; // Struktur -> ProductionOrders (Teil 7 Etappe C)
     public const string WorkOperationStructureDetection = "WorkOperationStructureDetection"; // IDEAL: WorkOperation-Arbeitsgaenge aus FaHierarchyNode.Arbeitsschritte, Match ueber ProductionWorkplace.ArbeitsschrittCode (v1.44.0, war FaWorkStepStructureDetection/v1.41.0)
     public const string ProductionWorkplaceSync = "ProductionWorkplaceSync"; // IDEAL: Werkbank-Anlage aus Sage KHKPpsArbeitsplaetze (v1.44.0)
+    public const string OperationConfigSync = "OperationConfigSync"; // Arbeitsgang-Abgleich aus der Sage-View in die Arbeitsgang-Stammdaten (v1.61.0)
 
     // Non-Sync-Aktivitaeten (seit v1.15.1)
     public const string PartRequisitionEmail = "PartRequisitionEmail";
@@ -43,7 +44,7 @@ public static class SyncLogServices
         EnaioDms, Holiday, CoatingDetection, FaWorkStepDetection,
         ProductionOrder, ProductionOrderReconciliation, Article, FaZusatzinfo,
         SageLagerbuchung, FaHierarchy, HierarchieUmstellung, FaMaterialization,
-        WorkOperationStructureDetection, ProductionWorkplaceSync,
+        WorkOperationStructureDetection, ProductionWorkplaceSync, OperationConfigSync,
         PartRequisitionEmail, WarehouseRequisitionEmail, BdeAutoPause,
         CleanupActivityLog,
     };

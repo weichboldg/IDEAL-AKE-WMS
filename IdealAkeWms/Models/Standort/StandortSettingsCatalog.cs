@@ -45,6 +45,8 @@ public static class StandortSettingsCatalog
         new("Sync:FaHierarchyInfosViewName",        "Sage-View FAInfos (PPS/Auftrag)",StandortFieldType.String, StandortBackend.Service, GroupMandantViews, ViewNameHint),
         new("Sync:ArticlesViewName",                "Sage-View Artikel (leer = bisheriger Select)", StandortFieldType.String, StandortBackend.Service, GroupMandantViews, ViewNameHint),
         new("Sync:ProductionWorkplaceSyncViewName", "Sage-Quelle Arbeitsplätze",      StandortFieldType.String, StandortBackend.Service, GroupMandantViews, ViewNameHint),
+        // Arbeitsgang-Abgleich (v1.61.0): nur der View-Name hier; Schalter + Fremdsystem-relevant-Default bleiben in /ServiceSettings.
+        new("Sync:OperationConfigSyncViewName",     "Sage-View Arbeitsgänge (Abgleich)", StandortFieldType.String, StandortBackend.Service, GroupMandantViews, ViewNameHint),
 
         // Feature-Schalter der Teile 2–5 (AppSettings).
         new(AppSettingKeys.FaHierarchyMaxDepth,                 "Baum-Maximaltiefe",             StandortFieldType.Int,  StandortBackend.App, GroupToggles),

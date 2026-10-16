@@ -389,6 +389,23 @@ public class SyncWorker : BackgroundService
                 }
 
                 // ---------------------------------------------------------------
+                // Arbeitsgang-Abgleich (v1.61.0, standortneutral): Sage-View -> OperationConfigs (nur anlegen,
+                // Kennzeichnung "nicht in Sage"). EIN Gate, kein Master (Spec 2026-10-16 Antwort 1).
+                // ---------------------------------------------------------------
+                if (await ServiceSettings.GetBoolSafeAsync(_configuration, "Sync:OperationConfigSyncEnabled", false, stoppingToken))
+                {
+                    await RunResilientAsync("Arbeitsgang-Abgleich (Sage-View)", async () =>
+                    {
+                        using var ocScope = _scopeFactory.CreateScope();
+                        var ocSvc = ocScope.ServiceProvider.GetRequiredService<IOperationConfigSyncService>();
+                        _logger.LogInformation("Arbeitsgang-Abgleich (Sage-View) startet (DryRun={DryRun})...", dryRun);
+                        var ocResult = await ocSvc.RunAsync(dryRun: dryRun, ct: stoppingToken);
+                        _logger.LogInformation("Arbeitsgang-Abgleich fertig: Neu={Ins}, Geaendert={Upd}, Fehler={Err}",
+                            ocResult.Inserted, ocResult.Updated, ocResult.Errors);
+                    }, stoppingToken);
+                }
+
+                // ---------------------------------------------------------------
                 // WorkOperation-Arbeitsgang-Erkennung (Struktur, IDEAL): FaHierarchyNode.Arbeitsschritte ->
                 // WorkOperation, Match ueber ProductionWorkplace.ArbeitsschrittCode. Doppel-Gate (Master +
                 // eigener Toggle); laeuft NACH der Materialisierung (ProductionOrder-Zeilen als Ziel) und

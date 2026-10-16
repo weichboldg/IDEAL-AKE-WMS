@@ -30,7 +30,7 @@ public class SageArbeitsplatzReader : ISageArbeitsplatzReader
 
         if (!await FaHierarchySql.SourceExistsAsync(conn, quotedSource, ct))
         {
-            _logger.LogWarning("{Msg} — Werkbank-Anlage wird uebersprungen.", FaHierarchySql.SourceMissingMessage(quotedSource));
+            _logger.LogWarning("{Msg} — Lauf wird uebersprungen.", FaHierarchySql.SourceMissingMessage(quotedSource));
             return new SageArbeitsplatzReadResult(false, result);
         }
         await using var cmd = new SqlCommand(sql, conn) { CommandTimeout = 60 };

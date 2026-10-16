@@ -186,6 +186,14 @@ public class SyncLoggerTests
         SyncLogServices.ProductionOrderReconciliation.Should().Be("ProductionOrderReconciliation");
     }
 
+    [Fact]
+    public void All_contains_OperationConfigSync()
+    {
+        // Arbeitsgang-Abgleich (v1.61.0) schreibt unter diesem Namen; der SyncLog-Filter muss ihn kennen.
+        SyncLogServices.All.Should().Contain(SyncLogServices.OperationConfigSync);
+        SyncLogServices.OperationConfigSync.Should().Be("OperationConfigSync");
+    }
+
     // Test helper: DbContextFactory that always throws — for robustness testing.
     private sealed class ThrowingDbContextFactory : IDbContextFactory<ApplicationDbContext>
     {
