@@ -10159,6 +10159,9 @@ Eine Komponente mit > 3 Bestandsplätzen in der geprüften Stückliste (Kandidat
   Weiß auf `#6c757d` 4,69:1; Fokusrahmen `#212529` ≥ 11,8:1; Trefferfläche ≥ 24 × 24 px.
 - **TS-95.16 — Regression (AK 16/19/20).** Ohne Bestand weiter „-“, keine Kommissionierwagen; TS-79.20 (Zahnrad bei
   Leerzustand), Baum auf/zu, Komm.-Ziel-Dropdown, Picking-Checkbox + Umbuchen, Quell-Lagerplatz-Select2 unverändert.
+  **QA-Fix:** Bestellen aktiv, eine **Baugruppen**-Zeile und eine Bauteil-Zeile anhaken → „Ausgewählte bestellen“. **Erwartet:**
+  im Bestell-Modal für die Baugruppe Bezeichnung 1, die echte Menge und die Artikelgruppe (nicht der Matchcode, nicht „NaN“);
+  dasselbe nach Umordnen der Spalten per Zahnrad.
 
 ---
 
