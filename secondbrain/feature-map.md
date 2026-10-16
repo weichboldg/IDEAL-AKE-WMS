@@ -678,6 +678,24 @@ Spec [[2026-10-06-beschichtungsauftrag-ausbau-teil-2-spec]] (Teil 2 von 4), Umse
 > Ersatz-Kopf). **Status:** Testbereit (QA + Nachlauf 2026-10-09, Build + 1521 Web- + 272 Service-Tests grün) → Schranke 2
 > mit dem Bündel. Offen: [[2026-10-09-briefkopf-seitenzaehlung]], [[2026-10-09-briefkopf-csp-und-bereinigung]].
 
+### Arbeitsgang-Stammdaten mit der Sage-View abgleichen (v1.61.0, direkt im Bündel)
+
+Spec [[2026-10-16-arbeitsgang-stammdaten-abgleich-aus-sage-view-spec]], Umsetzung [[2026-10-16-arbeitsgang-stammdaten-abgleich-aus-sage-view-umsetzung]],
+Changelog [[2026-10-16-v1-61-0-arbeitsgang-abgleich-sage-view]].
+
+| Baustein | Stand | Code-Einstieg |
+|---|---|---|
+| `Source` + `SageMissingSince`, Migration/`SQL/96`/FreshInstall, OSEON-Seed `ExternalSystem`, `UpdateAsync` nur Pflegefelder | **erledigt** `6993c774` | `Models/OperationConfig.cs`, `OperationConfigRepository.UpdateAsync` |
+| Arbeitsgang-Abgleich (Dienst, EIN Gate, 3 Keys, SyncLog) | **erledigt** `bc134c15` | `IDEALAKEWMSService/Services/OperationConfigSyncService.cs` |
+| Reiter: Spalte Quelle + Kennzeichnung „nicht in Sage“ | **erledigt** `7042efcb` | `OperationConfigsController`, `Views/OperationConfigs/Index.cshtml` |
+| Zahnrad/Spaltenauswahl im Reiter | **erledigt** `459cb7b5` | `ColumnDefinitions.OperationConfigs` |
+| Hilfe, Changelog, v1.61.0, README, TS-94 | **erledigt** `9731b38a` | `Views/Help/Index.cshtml` |
+| QA-Fix: kein falsches „wieder in Sage“ nach gelöschtem Eintrag, Test Detached-Pfad | **erledigt** `8773ba4f` | `OperationConfigSyncService` |
+
+> **Deploy:** Web + Dienst, Migration `SQL/96` (additiv, Voraussetzung `SQL/95`); P5 je Standort vorher. Schalter aus →
+> AKE unverändert bis auf Spalte Quelle und Zahnrad. **Status:** Testbereit (QA 2026-10-16, Build + 2036 Web- / 307 Service-Tests
+> grün) → Schranke 2 mit dem Bündel.
+
 ### IDEAL: Sage-Zugriffe auf die neuen WMS-Views (v1.60.0, direkt im Bündel)
 
 Spec [[2026-10-14-ideal-sage-views-umstellung-spec]], Umsetzung [[2026-10-15-ideal-sage-views-umstellung-umsetzung]],

@@ -102,6 +102,7 @@ Wichtige Verhaltensregeln, die in Repositories stecken (Details in [[fallstricke
 | `CoatingDetectionService.cs` | BOM-Cache → `HasCoatingParts` (AKE-Heuristik: Artikelkategorie = `LackierteilKategorieName`) | `Sync:CoatingDetectionEnabled` + **Klasse-D-Gate** |
 | `FaWorkStepDetectionService.cs` | BOM-Cache → `FaWorkSteps` (nur-hinzufuegend; AKE-Heuristik: `Bezeichnung`-Contains) | `Sync:FaWorkStepDetectionEnabled` + **Klasse-D-Gate** |
 | `ProductionWorkplaceSyncService.cs` | Sage `KHKPpsArbeitsplaetze` → `ProductionWorkplace` (**legt Werkbaenke an**, Sage fuehrend fuer Nummer/Name/Kuerzel; Abweichung nachziehen+melden; Reader `SageArbeitsplatzReader`, raw ADO.NET) | Doppel-Gate `ProduktionsauftragHierarchisch` + `Sync:ProductionWorkplaceSyncEnabled` (beide im `SyncWorker`) — v1.44.0 |
+| `OperationConfigSyncService.cs` | Sage-View (`Sync:OperationConfigSyncViewName`, Spalten `Arbeitsgangnummer, Bezeichnung, AG`) → `OperationConfigs` (**legt nur an**: Offset 0, Quelle `Sage`; nie ueberschreiben/loeschen; einzige Bestandsaenderung Quelle `Manual` → `Sage`; Kennzeichnung `SageMissingSince` fuer Quelle ≠ `ExternalSystem`; je Eintrag speichern, `DbUpdateConcurrencyException` = Warnung + `fehler`). Reader `SageArbeitsplatzReader` wiederverwendet, reine Entscheidung `Plan(...)` | EIN Gate `Sync:OperationConfigSyncEnabled` (kein Master), Block nach der Werkbank-Anlage — v1.61.0, standortneutral |
 | `WorkOperationStructureDetectionService.cs` | Struktur (`FaHierarchyNode.Arbeitsschritte`) → **`WorkOperation`** (nur-hinzufuegend; IDEAL: exakt ueber `ProductionWorkplace.ArbeitsschrittCode`, DirectChildren-Scope; unbekannt gemeldet, ausgeschlossen still, mehrdeutig gemeldet) | Doppel-Gate `ProduktionsauftragHierarchisch` + `Sync:WorkOperationStructureDetectionEnabled` (beide im `SyncWorker`, kein interner Gate) — v1.44.0, war `FaWorkStepStructureDetectionService`/v1.41.0 |
 
 **Klasse-D-Gate (BOM-Bridge, v1.36.0):** `Common/IHierarchicalModeReader.cs` kapselt den DB-first-Read
@@ -181,7 +182,10 @@ MUSS in den Katalog — sonst schlaegt der Drift-Guard-Test fehl.
 | `Sync:ProductionWorkplaceSyncEnabled` | Bool | `false` | IDEAL: Werkbank-Anlage aus Sage `KHKPpsArbeitsplaetze` (nur bei Master) — v1.44.0 |
 | `Sync:ProductionWorkplaceSyncViewName` | String | `KHKPpsArbeitsplaetze` | IDEAL: Sage-Quelle der Werkbank-Anlage (Tabelle oder View); Umstellung auf `[vw_IDEAL_AKE_WMS_Arbeitsgaenge]` nach P3. Fehlt die Quelle: Warnung + Skip, keine Mail — v1.60.0 |
 | `Sync:ProductionWorkplaceSyncMandant` | Int | `1` | IDEAL: Mandant-Filter der Werkbank-Anlage (nicht das SData-Dataset) — v1.44.0 |
-| `Sync:ProductionWorkplaceSyncAusschlussliste` | String | `STO,XXX,x01,BS,BS2,FRE,AKE` | IDEAL: Kuerzel, die NICHT als Werkbank angelegt und NICHT als unbekannt gemeldet werden — v1.44.0 |
+| `Sync:ProductionWorkplaceSyncAusschlussliste` | String | `STO,XXX,x01,BS,BS2,FRE,AKE` | IDEAL: Kuerzel, die NICHT als Werkbank angelegt und NICHT als unbekannt gemeldet werden — v1.44.0; gilt seit v1.61.0 auch fuer den Arbeitsgang-Abgleich (dort bei Read `null` Katalog-Default, nicht leer) |
+| `Sync:OperationConfigSyncEnabled` | Bool | `false` | Arbeitsgang-Abgleich Sage-View → Arbeitsgang-Stammdaten (beide Standorte, EIN Gate) — v1.61.0 |
+| `Sync:OperationConfigSyncViewName` | String | `[vw_IDEAL_AKE_WMS_Arbeitsgaenge]` | Sage-View des Abgleichs (Spalten `Arbeitsgangnummer, Bezeichnung, AG`); fehlt sie: Warnung + Skip — v1.61.0 |
+| `Sync:OperationConfigSyncFremdsystemRelevant` | Bool | `false` | „Fremdsystem-relevant“ fuer NEU angelegte Kuerzel (IDEAL false, AKE nach Bedarf) — v1.61.0 |
 
 ### BOM-Cache
 
@@ -288,7 +292,8 @@ Details/Entscheidung: [[0012-fa-hierarchie-einweg-migrationstor]]; Changelog [[2
 `FaMaterialization` (Counts `angelegt/vermisst_neu/wieder_da/umhaengung_konflikt`),
 `WorkOperationStructureDetection` (v1.44.0, war `FaWorkStepStructureDetection`/v1.41.0; Counts
 `neu/uebersprungen/arbeitsschritt_mehrdeutig/arbeitsschritt_unbekannt/arbeitsschritt_unbekannt_auftraege`),
-`ProductionWorkplaceSync` (v1.44.0, Counts `neu/aktualisiert/abweichung/uebersprungen/problematisch`).
+`ProductionWorkplaceSync` (v1.44.0, Counts `neu/aktualisiert/abweichung/uebersprungen/problematisch`),
+`OperationConfigSync` (v1.61.0, Counts `neu/vorhanden/uebersprungen/name_mehrdeutig/nicht_in_sage/wieder_in_sage/quelle_sage/fehler`).
 
 **Arbeitsgang-Erkennung Struktur (v1.44.0, [[2026-09-21-ideal-bde-arbeitsgaenge-aus-struktur-spec]]; ersetzt v1.41.0):**
 - `WorkOperationStructureDetectionService` (2c-Umbau des frueheren `FaWorkStepStructureDetectionService`,

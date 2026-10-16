@@ -1424,6 +1424,30 @@ Die BDE-Stammdaten haengen am Klassenfilter `[RequireBdeActive]`; der Reiter „
 eigener `OperationConfigsController` (`[RequireAdminAccess]`) + gemeinsames Reiter-Partial `_BdeMasterDataTabs`, nicht
 `[RequireBdeActive]` je Action oder ein Ausnahme-Attribut im geteilten Filter (fuenf Controller).
 
+### `CreatedBy = 'system'` ist auf `OperationConfigs` kein Seed-Beleg (seit v1.61.0)
+
+`SQL/95` B8 hat jeder Zeile, die vor v1.54.0 bestand, `CreatedBy = 'system'` eingetragen — auch von Hand gepflegten. Die
+Bestandsbefüllung der Quelle (`SQL/96`, Regel „`'system'` → `ExternalSystem`“, Antwort 7 der Spec
+[[2026-10-16-arbeitsgang-stammdaten-abgleich-aus-sage-view-spec]]) macht deshalb praktisch den gesamten Altbestand zu
+„Fremdsystem“, der nie „nicht in Sage“ gekennzeichnet wird. **Warum so gelassen:** Der Altbestand stammt nicht aus Sage, und die
+Datenlage unterscheidet Seed und Handanlage nicht. Wer künftig aus `CreatedBy` eine Herkunft ableiten will: nicht tun — dafür
+gibt es jetzt `Source`.
+
+### `Update(entity)` schreibt alle Spalten — bei geteilten Tabellen nur Pflegefelder markieren (seit v1.61.0)
+
+`_context.Set.Update(config)` markiert **jede** Property als geändert und schreibt den Stand beim Laden zurück. Schreibt ein
+zweiter Weg (hier der Arbeitsgang-Abgleich: `Source`, `SageMissingSince`) zwischen Laden und Speichern, dreht das Web dessen
+Werte still zurück, und der nächste Lauf meldet den Übergang doppelt. **Darum** markiert `OperationConfigRepository.UpdateAsync`
+nur die Pflegefelder (`IsModified` je Property, eine Konstante). Der Test dafür braucht zwei Kontexte auf **derselben**
+InMemory-DB (`TestApplicationDbContextFactory`); er war gegen das alte `Update()` rot.
+
+### Ausschlussliste fällt im Arbeitsgang-Abgleich bei `null` auf den Katalog-Default (seit v1.61.0)
+
+Die Werkbank-Anlage nimmt bei einem gescheiterten Settings-Read eine **leere** Ausschlussliste — dort harmlos, weil sie
+abgleicht. Der Arbeitsgang-Abgleich löscht nie: ein einmal fälschlich angelegtes `STO` bliebe für immer. **Darum** gilt dort
+bei `null` der Katalog-Default (`OperationConfigSyncService.DefaultAusschlussliste`, Test vergleicht mit dem Katalog); ein
+bewusst leer gesetzter Wert bleibt leer.
+
 ## 25. FA-Struktur-Status (v1.55.0) — Zeilenzustände und Statusfarben
 
 ### Zeilenzustände nie über `opacity` kennzeichnen

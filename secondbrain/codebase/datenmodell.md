@@ -93,6 +93,11 @@ Fenster mit Cap. Grundlage fuer Artikelinfo, Lackierteil- und AG-Erkennung. Sieh
 `EnaioDmsDocument` (`DocumentType`: Werkstattauftrag / Werkstattauftrag+Zeichnung / Zeichnung).
 *(Seit v1.54.0 umbenannt: Klasse `OperationConfig`, Tabelle `dbo.OperationConfigs`, Spalte `IsExternalSystemRelevant`, `AuditableEntity`; Migration `20261012140548_RenameOperationConfigsAndAddAudit` / `SQL/95` — [[2026-10-09-arbeitsgang-stammdaten-vereinheitlichen-spec]].)* Die Tabelle ist seitdem die gemeinsame **Arbeitsgang-Stammtabelle** (OSEON-AG-Namen und WMS-`WorkOperation.OperationNumber`
 teilen sich den Schluessel `OperationName`); Eindeutigkeit auf jeder DB-Form als Unique-Index `IX_OperationConfigs_OperationName`.
+Seit v1.61.0 ([[2026-10-16-arbeitsgang-stammdaten-abgleich-aus-sage-view-spec]], Migration
+`20261016090641_AddOperationConfigSourceAndSageMissingSince` / `SQL/96`): `Source` (`NVARCHAR(20) NOT NULL DEFAULT 'Manual'`,
+Werte `Sage | ExternalSystem | Manual`, UI „Quelle“; Bestand mit `CreatedBy = 'system'` → `ExternalSystem`) = **Herkunft**,
+`SageMissingSince` (`DATETIME2 NULL`) = **Zustand** „nicht in Sage seit“ (nur Arbeitsgang-Abgleich, nie bei `ExternalSystem`).
+`OperationConfigRepository.UpdateAsync` schreibt nur die Pflegefelder (DisplayName, Offset, Relevanz, `Modified*`).
 Details: [[integrationen]].
 
 ## Benutzer, Rollen, Konfiguration
