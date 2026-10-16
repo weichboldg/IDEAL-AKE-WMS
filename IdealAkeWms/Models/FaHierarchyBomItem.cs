@@ -26,4 +26,7 @@ public sealed class FaHierarchyBomItem : BomItem
     /// <summary>Zwei Geschwister mit gleicher Position unter demselben Eltern-FA — Pfad wurde mit Suffix
     /// eindeutig gemacht und der Fall protokolliert, nie still ueberschrieben (Freigabe-Bedingung b).</summary>
     public bool PositionsKollision { get; set; }
+    /// <summary>Matchcode des Strukturknotens (getrimmt, leer = null). Die Stueckliste zeigt ihn an IDEAL vor dem
+    /// Artikelstamm (Spec 2026-10-16-stueckliste-matchcode-lagerplatz-limit, Variante B) — wie Kommissionierliste/Vormontage.</summary>
+    public string? Matchcode { get; set; }
 }

@@ -30,7 +30,8 @@ public class ReadOnlyBomBuilderTests
         bomMock.Setup(b => b.GetBomItemsAsync(It.IsAny<BomKey>(), It.IsAny<BomScope>()))
             .ReturnsAsync(new BomQueryResult(bomItems, dataSource, mengeIstAuftragsmenge));
 
-        var builder = new ReadOnlyBomBuilder(prodRepo, bomMock.Object, stockRepo, articleAttrRepo, userRepo);
+        var builder = new ReadOnlyBomBuilder(prodRepo, bomMock.Object, stockRepo, articleAttrRepo, userRepo,
+            new ArticleRepository(ctx), Microsoft.Extensions.Logging.Abstractions.NullLogger<ReadOnlyBomBuilder>.Instance);
         return (ctx, builder);
     }
 
@@ -42,6 +43,58 @@ public class ReadOnlyBomBuilderTests
         var vm = await builder.BuildAsync(999_999, null, null);
 
         vm.Should().BeNull();
+    }
+
+    // ===== Matchcode (Spec 2026-10-16-stueckliste-matchcode-lagerplatz-limit, Variante B) =====
+
+    private static void SeedArticle(ApplicationDbContext ctx, string nr, string? matchcode)
+    {
+        ctx.Articles.Add(new Article
+        {
+            ArticleNumber = nr, Matchcode = matchcode, Description = nr, Unit = "Stk",
+            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
+        });
+        ctx.SaveChanges();
+    }
+
+    [Fact]
+    public async Task BuildAsync_Matchcode_IstDerDerKomponente_NichtDesKopfes_FehltLeer()
+    {
+        // AK 2/3: Kopf ART-1 und Komponente RES-1 haben verschiedene Matchcodes; RES-2 fehlt im Artikelstamm.
+        var bom = new List<BomItem>
+        {
+            new() { Artikelnummer = "ART-1", Position = "10", Ressourcenummer = "RES-1", Menge = 1m },
+            new() { Artikelnummer = "ART-1", Position = "20", Ressourcenummer = "RES-2", Menge = 1m },
+        };
+        var (ctx, builder) = Build(bom);
+        SeedArticle(ctx, "ART-1", "KOPF");
+        SeedArticle(ctx, "RES-1", "KOMPONENTE");
+        var o = TestDataHelper.CreateOrderWithStatuses(ctx, "FA-MC", articleNumber: "ART-1");
+
+        var vm = await builder.BuildAsync(o.Order.Id, null, null);
+
+        vm!.Items.Single(i => i.Ressourcenummer == "RES-1").Matchcode.Should().Be("KOMPONENTE");
+        vm.Items.Single(i => i.Ressourcenummer == "RES-2").Matchcode.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task BuildAsync_Hierarchisch_StrukturMatchcodeVorArtikelstamm_LeerFaelltZurueck()
+    {
+        // AK 8 / Variante B: IDEAL-Zeile zeigt den Strukturknoten, ohne ihn den Artikelstamm.
+        var bom = new List<BomItem>
+        {
+            new FaHierarchyBomItem { Artikelnummer = "ART-1", Position = "1", Ressourcenummer = "RES-1", Menge = 1m, Matchcode = "STRUKTUR" },
+            new FaHierarchyBomItem { Artikelnummer = "ART-1", Position = "2", Ressourcenummer = "RES-2", Menge = 1m, Matchcode = null },
+        };
+        var (ctx, builder) = Build(bom, BomDataSources.FaHierarchie, mengeIstAuftragsmenge: true);
+        SeedArticle(ctx, "RES-1", "STAMM-1");
+        SeedArticle(ctx, "RES-2", "STAMM-2");
+        var o = TestDataHelper.CreateOrderWithStatuses(ctx, "FA-MCH", articleNumber: "ART-1");
+
+        var vm = await builder.BuildAsync(o.Order.Id, null, null);
+
+        vm!.Items.Single(i => i.Ressourcenummer == "RES-1").Matchcode.Should().Be("STRUKTUR");
+        vm.Items.Single(i => i.Ressourcenummer == "RES-2").Matchcode.Should().Be("STAMM-2");
     }
 
     [Fact]

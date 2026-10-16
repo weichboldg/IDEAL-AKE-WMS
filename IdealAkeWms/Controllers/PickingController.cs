@@ -334,6 +334,7 @@ public class PickingController : Controller
 
         var articleNumbers = bomItems.Select(b => b.Ressourcenummer).Where(r => !string.IsNullOrEmpty(r)).Select(r => r!).Distinct().ToList();
         var stockByArticle = await _stockMovementRepository.GetStockByArticleNumbersAsync(articleNumbers);
+        var matchcodes = await MatchcodeLookup.BuildAsync(_articleRepository, articleNumbers, _logger, "Stueckliste");
 
         // Batch-load category names for BOM articles
         var categoryByArticle = await _articleAttributeRepository.GetCategoryNamesByArticleNumbersAsync(articleNumbers);
@@ -412,6 +413,7 @@ public class PickingController : Controller
                 Ressourcenummer = bom.Ressourcenummer,
                 Bezeichnung1 = bom.Bezeichnung1,
                 Bezeichnung2 = bom.Bezeichnung2,
+                Matchcode = (bom as FaHierarchyBomItem)?.Matchcode ?? matchcodes.GetValueOrDefault(bom.Ressourcenummer ?? ""),
                 Menge = BomQuantityResolver.Resolve(bomResult, bom, order),
                 Beschaffungsartikel = bom.Beschaffungsartikel,
                 Artikelgruppe = bom.Artikelgruppe,
@@ -602,6 +604,7 @@ public class PickingController : Controller
             .Distinct()
             .ToList();
         var stockByArticle = await _stockMovementRepository.GetStockByArticleNumbersAsync(articleNumbers);
+        var matchcodes = await MatchcodeLookup.BuildAsync(_articleRepository, articleNumbers, _logger, "Stueckliste-Druck");
 
         var baugruppen = bomItems
             .Where(b => !string.IsNullOrEmpty(b.Baugruppe))
@@ -625,6 +628,7 @@ public class PickingController : Controller
             Ressourcenummer = bom.Ressourcenummer,
             Bezeichnung1 = bom.Bezeichnung1,
             Bezeichnung2 = bom.Bezeichnung2,
+            Matchcode = (bom as FaHierarchyBomItem)?.Matchcode ?? matchcodes.GetValueOrDefault(bom.Ressourcenummer ?? ""),
             Menge = BomQuantityResolver.Resolve(bomResult, bom, order),
             Beschaffungsartikel = bom.Beschaffungsartikel,
             Artikelgruppe = bom.Artikelgruppe,

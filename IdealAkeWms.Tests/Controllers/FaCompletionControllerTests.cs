@@ -53,7 +53,8 @@ public class FaCompletionControllerTests
             }, "SAGE"));
 
         var readOnlyBomBuilder = new ReadOnlyBomBuilder(
-            prodRepo, bomMock.Object, stockRepo, articleAttrRepo, userRepo);
+            prodRepo, bomMock.Object, stockRepo, articleAttrRepo, userRepo,
+            new ArticleRepository(ctx), Microsoft.Extensions.Logging.Abstractions.NullLogger<ReadOnlyBomBuilder>.Instance);
 
         var userMock = new Mock<ICurrentUserService>();
         userMock.Setup(x => x.GetDisplayName()).Returns("Max Mustermann");

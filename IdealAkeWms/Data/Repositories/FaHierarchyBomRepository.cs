@@ -190,6 +190,7 @@ public sealed class FaHierarchyBomRepository : IBomRepository, IBomCacheReposito
             SagePosition = node.Position?.ToString(CultureInfo.InvariantCulture),
             IsWaise = isWaise,
             PositionsKollision = collided,
+            Matchcode = string.IsNullOrWhiteSpace(node.Matchcode) ? null : node.Matchcode.Trim(),
         };
     }
 

@@ -201,6 +201,7 @@
         if (ShowCol("resource-number")) visibleColCount++;
         if (ShowCol("description1")) visibleColCount++;
         if (ShowCol("description2")) visibleColCount++;
+        if (ShowCol("matchcode")) visibleColCount++;
         if (ShowCol("quantity")) visibleColCount++;
         if (ShowCol("procurement")) visibleColCount++;
         if (ShowCol("article-group")) visibleColCount++;
@@ -219,6 +220,7 @@
                 @if (ShowCol("resource-number")) { <th>Ressourcenummer</th> }
                 @if (ShowCol("description1")) { <th>Bezeichnung 1</th> }
                 @if (ShowCol("description2")) { <th>Bezeichnung 2</th> }
+                @if (ShowCol("matchcode")) { <th>Matchcode</th> }
                 @if (ShowCol("quantity")) { <th class="text-end">Menge</th> }
                 @if (ShowCol("procurement")) { <th>Beschaffung</th> }
                 @if (ShowCol("article-group")) { <th>Artikelgruppe</th> }
@@ -251,6 +253,7 @@
                     @if (ShowCol("resource-number")) { <td><strong>@item.Ressourcenummer</strong></td> }
                     @if (ShowCol("description1")) { <td>@item.Bezeichnung1</td> }
                     @if (ShowCol("description2")) { <td>@item.Bezeichnung2</td> }
+                    @if (ShowCol("matchcode")) { <td>@item.Matchcode</td> }
                     @if (ShowCol("quantity")) { <td class="text-end">@item.Menge.ToString("N3")</td> }
                     @if (ShowCol("procurement")) { <td>@item.Beschaffungsartikel</td> }
                     @if (ShowCol("article-group")) { <td>@item.Artikelgruppe</td> }

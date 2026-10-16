@@ -153,6 +153,7 @@
                 <th data-filterable data-col-key="resource-number">Ressourcenummer</th>
                 <th data-filterable data-col-key="description1">Bezeichnung 1</th>
                 <th data-filterable data-col-key="description2">Bezeichnung 2</th>
+                <th data-filterable data-col-key="matchcode">Matchcode</th>
                 <th class="text-end" data-filterable data-filter-type="number" data-col-key="quantity">Menge</th>
                 <th data-filterable data-col-key="procurement">Beschaffung</th>
                 <th data-filterable data-col-key="article-group">Artikelgruppe</th>
@@ -249,6 +250,7 @@
                     </td>
                     <td>@item.Bezeichnung1</td>
                     <td>@item.Bezeichnung2</td>
+                    <td>@item.Matchcode</td>
                     <td class="text-end">@item.Menge.ToString("N3")</td>
                     <td>@item.Beschaffungsartikel</td>
                     <td>@item.Artikelgruppe</td>
@@ -356,11 +358,11 @@
             }
             @if (!Model.Items.Any())
             {
-                // Spaltenzahl: 12 Basis (inkl. pick-control + source-location); ReadOnly -2;
+                // Spaltenzahl: 13 Basis (inkl. pick-control, matchcode, source-location); ReadOnly -2;
                 // Bestellen-Spalte +1; Lagerbestellung-Spalte +1.
                 // BOM-Bridge: hierarchisch +3 (Komm.-Ziel, Hauptlagerplatz, Sage-Pos.),
                 // bei voller Struktur nochmals +2 (Ebene, Vater-Sub-FA).
-                var emptyColspan = (Model.ReadOnly ? 10 : 12)
+                var emptyColspan = (Model.ReadOnly ? 11 : 13)
                     + (ViewBag.BestellungenAktiv == true && !Model.ReadOnly ? 1 : 0)
                     + (ViewBag.LagerbestellungAktiv == true && ViewBag.CanOrderWarehouse == true ? 1 : 0)
                     + (Model.Hierarchical ? 3 : 0)
@@ -665,6 +667,7 @@
     { "key": "resource-number", "label": "Ressourcenummer", "locked": false, "defaultWidth": null },
     { "key": "description1", "label": "Bezeichnung 1", "locked": false, "defaultWidth": null },
     { "key": "description2", "label": "Bezeichnung 2", "locked": false, "defaultWidth": null },
+    { "key": "matchcode", "label": "Matchcode", "locked": false, "defaultWidth": null },
     { "key": "quantity", "label": "Menge", "locked": false, "defaultWidth": null },
     { "key": "procurement", "label": "Beschaffung", "locked": false, "defaultWidth": null },
     { "key": "article-group", "label": "Artikelgruppe", "locked": false, "defaultWidth": null },
@@ -1257,7 +1260,7 @@
                 // inkl. der hierarchischen Spalten, damit der Druck-Filterhinweis den Spaltennamen kennt.
                 var colNames = {
                     'position': 'Position', 'assembly-group': 'Baugruppe', 'resource-number': 'Ressourcenr.',
-                    'description1': 'Bezeichnung 1', 'description2': 'Bezeichnung 2', 'quantity': 'Menge',
+                    'description1': 'Bezeichnung 1', 'description2': 'Bezeichnung 2', 'matchcode': 'Matchcode', 'quantity': 'Menge',
                     'procurement': 'Beschaffung', 'article-group': 'Artikelgruppe', 'category': 'Kategorie',
                     'kommissionieren': 'Komm.-Ziel', 'hauptlagerplatz': 'Hauptlagerplatz',
                     'sage-position': 'Sage-Pos.', 'ebene': 'Ebene', 'vater-sub-fa': 'Vater-Sub-FA'

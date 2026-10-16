@@ -42,6 +42,8 @@ public class BomItemViewModel
     public string? Ressourcenummer { get; set; }
     public string? Bezeichnung1 { get; set; }
     public string? Bezeichnung2 { get; set; }
+    /// <summary>Matchcode der Komponente (Ressourcenummer): IDEAL Strukturknoten, sonst Artikelstamm (Variante B).</summary>
+    public string? Matchcode { get; set; }
     public decimal Menge { get; set; }
     public string? Beschaffungsartikel { get; set; }
     public string? Artikelgruppe { get; set; }
@@ -155,6 +157,7 @@ public class PrintBomItem
     public string? Ressourcenummer { get; set; }
     public string? Bezeichnung1 { get; set; }
     public string? Bezeichnung2 { get; set; }
+    public string? Matchcode { get; set; }
     public decimal Menge { get; set; }
     public string? Beschaffungsartikel { get; set; }
     public string? Artikelgruppe { get; set; }

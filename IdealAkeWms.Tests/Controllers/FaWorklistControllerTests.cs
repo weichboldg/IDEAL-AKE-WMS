@@ -71,7 +71,8 @@ public class FaWorklistControllerTests
         userMock.Setup(x => x.GetCurrentAppUserId()).Returns((int?)null);
 
         var readOnlyBomBuilder = new ReadOnlyBomBuilder(
-            prodRepo, bomMock.Object, stockRepo, articleAttrRepo, userRepo);
+            prodRepo, bomMock.Object, stockRepo, articleAttrRepo, userRepo,
+            new ArticleRepository(ctx), Microsoft.Extensions.Logging.Abstractions.NullLogger<ReadOnlyBomBuilder>.Instance);
 
         // Master ProduktionsauftragHierarchisch: null -> Flachmodus (AKE), "true" -> hierarchisch (IDEAL).
         var serviceSettingMock = new Mock<IServiceSettingRepository>();

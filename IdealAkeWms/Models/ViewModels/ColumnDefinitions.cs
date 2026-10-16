@@ -229,16 +229,17 @@ public static class ColumnDefinitions
     };
 
     /// <summary>
-    /// Picking/Bom.cshtml columns.
-    /// Reorder/sort not supported (BOM is a structured tree by position).
+    /// Picking/Bom.cshtml columns (zweite Pflicht-Registrierung neben #column-config, fallstricke §10).
+    /// Reorder per Zahnrad wie in #column-config; Sortier-Default nicht (BOM ist ein Baum nach Position).
     /// Conditional columns:
     ///   - "order" : rendered only when ViewBag.BestellungenAktiv == true
     ///   - "kommissionieren", "hauptlagerplatz", "sage-position" : only when Model.Hierarchical (BOM-Bridge)
     ///   - "ebene", "vater-sub-fa" : only when Model.Hierarchical &amp;&amp; Model.FullStructure
     /// The first unnamed column (width 40px) contains the pick-checkbox/expand control.
-    /// The "storage-location" and "source-location" columns have no data-col attribute (not filterable).
+    ///   - "warehouse-order" : only when Lagerbestellung aktiv und berechtigt
+    /// "storage-location" ist seit v1.62.0 filterbar (Volltext aller Plaetze); "source-location" nicht.
     /// </summary>
-    public static readonly ViewConfig Bom = new("Bom", "Stueckliste (BOM)", SupportsReorder: false, SupportsSortDefault: false)
+    public static readonly ViewConfig Bom = new("Bom", "Stueckliste (BOM)", SupportsReorder: true, SupportsSortDefault: false)
     {
         Columns =
         [
@@ -249,6 +250,7 @@ public static class ColumnDefinitions
             new ColumnDef("resource-number",  "Ressourcenummer",Locked: false),
             new ColumnDef("description1",     "Bezeichnung 1",  Locked: false),
             new ColumnDef("description2",     "Bezeichnung 2",  Locked: false),
+            new ColumnDef("matchcode",        "Matchcode",      Locked: false),
             new ColumnDef("quantity",         "Menge",          Locked: false),
             new ColumnDef("procurement",      "Beschaffung",    Locked: false),
             new ColumnDef("article-group",    "Artikelgruppe",  Locked: false),
@@ -259,11 +261,13 @@ public static class ColumnDefinitions
             new ColumnDef("sage-position",    "Sage-Pos.",      Locked: false, DefaultHidden: true),
             new ColumnDef("ebene",            "Ebene",          Locked: false, DefaultWidth: 60),
             new ColumnDef("vater-sub-fa",     "Vater-Sub-FA",   Locked: false),
-            // Not filterable (no data-filterable) but always present
+            // Immer vorhanden; storage-location filterbar (v1.62.0), source-location nicht
             new ColumnDef("storage-location", "Lagerplatz",     Locked: false),
             new ColumnDef("source-location",  "Quell-Lagerplatz",Locked: false),
             // Conditional: only when ViewBag.BestellungenAktiv == true
             new ColumnDef("order",            "Bestellen",      Locked: false, DefaultWidth: 80),
+            // Conditional: only when Lagerbestellung aktiv und berechtigt
+            new ColumnDef("warehouse-order",  "Lagerbestellung",Locked: false, DefaultWidth: 90),
         ]
     };
 

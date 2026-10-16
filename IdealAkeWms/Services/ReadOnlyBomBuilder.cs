@@ -1,6 +1,7 @@
 using IdealAkeWms.Data.Repositories;
 using IdealAkeWms.Models;
 using IdealAkeWms.Models.ViewModels;
+using Microsoft.Extensions.Logging;
 
 namespace IdealAkeWms.Services;
 
@@ -19,19 +20,25 @@ public class ReadOnlyBomBuilder
     private readonly IStockMovementRepository _stockMovementRepository;
     private readonly IArticleAttributeRepository _articleAttributeRepository;
     private readonly IUserRepository _userRepository;
+    private readonly IArticleRepository _articleRepository;
+    private readonly ILogger<ReadOnlyBomBuilder> _logger;
 
     public ReadOnlyBomBuilder(
         IProductionOrderRepository productionOrderRepository,
         IBomRepository bomRepository,
         IStockMovementRepository stockMovementRepository,
         IArticleAttributeRepository articleAttributeRepository,
-        IUserRepository userRepository)
+        IUserRepository userRepository,
+        IArticleRepository articleRepository,
+        ILogger<ReadOnlyBomBuilder> logger)
     {
         _productionOrderRepository = productionOrderRepository;
         _bomRepository = bomRepository;
         _stockMovementRepository = stockMovementRepository;
         _articleAttributeRepository = articleAttributeRepository;
         _userRepository = userRepository;
+        _articleRepository = articleRepository;
+        _logger = logger;
     }
 
     /// <summary>
@@ -73,6 +80,7 @@ public class ReadOnlyBomBuilder
             .ToList();
         var stockByArticle = await _stockMovementRepository.GetStockByArticleNumbersAsync(articleNumbers);
         var categoryByArticle = await _articleAttributeRepository.GetCategoryNamesByArticleNumbersAsync(articleNumbers);
+        var matchcodes = await MatchcodeLookup.BuildAsync(_articleRepository, articleNumbers, _logger, "Stueckliste");
 
         // Baugruppen-Hierarchie: sammle alle Baugruppen-Werte (fuer Baum-Navigation).
         var baugruppen = bomItems
@@ -96,6 +104,7 @@ public class ReadOnlyBomBuilder
                 Ressourcenummer = bom.Ressourcenummer,
                 Bezeichnung1 = bom.Bezeichnung1,
                 Bezeichnung2 = bom.Bezeichnung2,
+                Matchcode = (bom as FaHierarchyBomItem)?.Matchcode ?? matchcodes.GetValueOrDefault(bom.Ressourcenummer ?? ""),
                 Menge = BomQuantityResolver.Resolve(bomResult, bom, order),
                 Beschaffungsartikel = bom.Beschaffungsartikel,
                 Artikelgruppe = bom.Artikelgruppe,

@@ -58,6 +58,21 @@ public class FaHierarchyBomRepositoryTests
             && i.Arguments[2]?.ToString()?.Contains(fragment, StringComparison.Ordinal) == true);
 
     [Fact]
+    public async Task Map_Matchcode_Getrimmt_LeerWirdNull()
+    {
+        // Variante B (Spec 2026-10-16-stueckliste-matchcode-lagerplatz-limit): leer -> null, damit der Artikelstamm greift.
+        var nodes = Sample();
+        nodes.Single(n => n.Artnr == "L2").Matchcode = "  MC-L2 ";
+        nodes.Single(n => n.Artnr == "A2").Matchcode = "   ";
+
+        var r = await Sut(nodes).GetBomItemsAsync(new BomKey("A1", "1043421", "100"), BomScope.DirectChildren);
+
+        var items = r.Items.OfType<FaHierarchyBomItem>().ToList();
+        items.Single(i => i.Ressourcenummer == "L2").Matchcode.Should().Be("MC-L2");
+        items.Single(i => i.Ressourcenummer == "A2").Matchcode.Should().BeNull();
+    }
+
+    [Fact]
     public async Task DirectChildren_OfSubFa_MapsFields_AndFlagsBaugruppe()
     {
         var r = await Sut(Sample()).GetBomItemsAsync(new BomKey("A1", "1043421", "100"), BomScope.DirectChildren);
