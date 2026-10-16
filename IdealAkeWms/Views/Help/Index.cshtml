@@ -1334,6 +1334,20 @@
                 </ul>
                 <p class="mb-0"><strong>Kommissionierwagen:</strong> Lagerplaetze vom Typ &bdquo;Wagen&ldquo; werden in der Stueckliste weder in der Bestandsanzeige (Spalte Lagerplatz) noch in den Quell-/Ziel-Lagerplatz-Dropdowns angezeigt.</p>
 
+                <h6 class="mt-3">Spalten Matchcode und Lagerplatz (seit v1.62.0)</h6>
+                <ul class="mb-2">
+                    <li><strong>Matchcode</strong> &mdash; der Kurzname der Komponente (Ressourcenummer), direkt nach
+                        &bdquo;Bezeichnung 2&ldquo;. IDEAL: aus der FA-Struktur, sonst aus dem Artikelstamm (wie Kommissionierliste,
+                        Vormontage und Beschichtung); AKE: aus dem Artikelstamm. Leer heisst: kein Matchcode vorhanden. Filterbar,
+                        in der Spaltenauswahl, im CSV-Export und im Druck.</li>
+                    <li><strong>Lagerplatz</strong> &mdash; hoechstens 3 Plaetze, der Hauptlagerplatz zuerst, dann nach Menge
+                        absteigend. Bei mehr Plaetzen zeigt <em>&bdquo;+n weitere&ldquo;</em> die volle Liste: mit der Maus
+                        darueberfahren, antippen oder mit Tab ansteuern; Escape oder ein Klick daneben schliesst sie. Der Hauptlagerplatz
+                        ist dort benannt.</li>
+                    <li>Der Spaltenfilter &bdquo;Lagerplatz&ldquo; findet auch Plaetze, die nur in der vollen Liste stehen.
+                        CSV-Export und Druck enthalten immer die volle Liste.</li>
+                </ul>
+
                 <h6 class="mt-3">Lagerbestellung aus der Stueckliste (seit v1.25.0)</h6>
                 <ul class="mb-2">
                     <li>Neben der Bedarfsmeldung gibt es je Bauteil-Zeile eine

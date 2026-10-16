@@ -10115,6 +10115,53 @@ Offsets unverändert; Reiter ohne Badge/Hinweis, Quelle „Fremdsystem“ laut P
 
 ---
 
+## TS-95 — Stückliste: Matchcode und Lagerplatz-Limit (v1.62.0)
+
+Spec: `2026-10-16-stueckliste-matchcode-lagerplatz-limit-spec` (Matchcode Variante B). Regressionen: Kapitel 5 Stückliste,
+TS-70 (BOM-Bridge), TS-79.20 (Zahnrad), TS-86 (CSV), TS-91 (Suchsyntax). **Vorbedingungen:** Testsysteme IDEAL
+(`ProduktionsauftragHierarchisch` an) und AKE (aus); Benutzer mit Rolle picking, einer mit vorbau bei `FaCompletionAktiv` an,
+einer mit fa_completion; ein Benutzer **mit** und einer **ohne** gespeicherte Spaltenauswahl „Bom“; Edge am PC und ein Tablet.
+Eine Komponente mit > 3 Bestandsplätzen in der geprüften Stückliste (Kandidaten: Abfrage in der Spec, notfalls per Einbuchung auf
+5 Plätze verteilen) — für TS-95.9 einen Artikel **mit** WMS-Hauptlagerplatz (viele IDEAL-Artikel haben keinen; dann gilt nur
+„Menge absteigend“, kein Fehler). Automatisiert: `ReadOnlyBomBuilderTests` (Kopf ≠ Komponente, Variante B mit Fallback),
+`FaHierarchyBomRepositoryTests.Map_Matchcode_Getrimmt_LeerWirdNull`, `StockMovementRepositoryTests` (Reihenfolge),
+`BomLagerplatzZelleTests` (Zelle, Popover vor dem Read-only-Return), `BomZahnradHostTests`, CSV-Abdeckung.
+
+- **TS-95.1 — Matchcode sichtbar (IDEAL, AK 1/2/8).** FA 1059463 → Stückliste. **Erwartet:** Spalte „Matchcode“ rechts von
+  „Bezeichnung 2“; Stichprobe 3 Zeilen = Matchcode der Ressourcenummer (Strukturknoten bzw. Artikelinfo, wenn der Knoten
+  keinen hat). **Negativ:** Matchcode des Kopfartikels → Fehler.
+- **TS-95.2 — Matchcode AKE (AK 1/2).** Stückliste eines AKE-FA (Quelle SAGE, wenn vorhanden auch OSEON). **Erwartet:** wie 95.1,
+  Wert aus dem Artikelstamm.
+- **TS-95.3 — Read-only-Varianten.** Abarbeitungsliste → Stückliste, FA-Vervollständigung → Stückliste, an IDEAL ein Sub-FA.
+  **Erwartet:** Matchcode-Spalte, Popover funktioniert, keine Picking-Spalten.
+- **TS-95.4 — Fehlender Matchcode (AK 3).** Komponente ohne Artikelstamm/ohne Matchcode. **Erwartet:** leere Zelle, Seite lädt;
+  Filter `(leer)` zeigt sie, `!(leer)` blendet sie aus; Log „Matchcode-Join … (Stueckliste)“.
+- **TS-95.5 — Matchcode filtern (AK 4).** Teil eines Matchcodes in Kleinschrift. **Erwartet:** Treffer; `a, b` und `!x` wie TS-91.
+- **TS-95.6 — Spaltenauswahl (AK 5).** Benutzer **mit** gespeicherter Auswahl. **Erwartet:** Matchcode sichtbar hinter
+  „Bezeichnung 2“; ausblenden, F5 → bleibt aus; nach vorne ziehen, F5 → bleibt; Netzwerk: PUT `/api/user-view-preferences/Bom`
+  200/204, nicht 400.
+- **TS-95.7 — CSV (AK 6/15).** **Erwartet:** Spalte Matchcode vorhanden (ausgeblendet → fehlt); Lagerplatz der Komponente mit
+  > 3 Plätzen = volle Liste `Code (Menge), …` ohne „weitere“.
+- **TS-95.8 — Druck (AK 7).** Mit sichtbarem Matchcode drucken. **Erwartet:** Spalte im Druck, Lagerplatz volle Liste in der
+  neuen Reihenfolge (umgebrochen); Filter auf Matchcode bzw. Lagerplatz → Druckkopf „Matchcode=…“ / „Lagerplatz=…“.
+- **TS-95.9 — Limit und Reihenfolge (AK 9/10/11).** **Erwartet:** genau 3 Plätze + „+n weitere“ mit n = Anzahl − 3; erster Platz
+  = Hauptlagerplatz (sofern dort Bestand), dann absteigende Menge; Zeile mit ≤ 3 Plätzen ohne Badge.
+- **TS-95.10 — Popover Maus (AK 12/13).** Hover → alle Plätze, Hauptlagerplatz benannt; wegbewegen schließt; Klick → bleibt offen,
+  Klick daneben schließt. Badge in der letzten Spalte/Zeile: nicht abgeschnitten. Lange Liste scrollt im Popover.
+- **TS-95.11 — Popover Touch (AK 12).** Tippen öffnet, daneben tippen schließt; zwei Badges nacheinander → nur ein Popover offen.
+- **TS-95.12 — Popover Tastatur (AK 12/17).** Tab → öffnet, Fokusrahmen sichtbar; Escape schließt; Tab weiter schließt.
+  Screenreader sagt „Alle n Lagerplätze anzeigen“ und die Liste.
+- **TS-95.13 — Filtern nach verdecktem Platz (AK 14).** Code eines Platzes an Position ≥ 4 in den Lagerplatz-Filter. **Erwartet:**
+  Zeile sichtbar, Platz im Popover; mit rekursiver Suche auch im zugeklappten Ast. **Negativ:** nicht vorhandener Code → keine Zeile.
+- **TS-95.14 — Viele Positionen (AK 18).** FA 1059463 (263 Positionen), „Alle aufklappen“. **Erwartet:** Lagerplatz-Spalte nicht
+  breiter als 3 Plätze + Badge; Hovern über mehrere Badges flüssig.
+- **TS-95.15 — Kontrast (AK 17).** Badge in normaler, gestreifter, grüner und grauer Zeile messen. **Erwartet (berechnet):** Text
+  Weiß auf `#6c757d` 4,69:1; Fokusrahmen `#212529` ≥ 11,8:1; Trefferfläche ≥ 24 × 24 px.
+- **TS-95.16 — Regression (AK 16/19/20).** Ohne Bestand weiter „-“, keine Kommissionierwagen; TS-79.20 (Zahnrad bei
+  Leerzustand), Baum auf/zu, Komm.-Ziel-Dropdown, Picking-Checkbox + Umbuchen, Quell-Lagerplatz-Select2 unverändert.
+
+---
+
 *Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) + Teil 6 (Standorteinstellungen, v1.34.0) + BOM-Guard hierarchisch (2026-08-18, abgelöst) + FA-Liste-Hierarchie (v1.35.0) + BOM-Bridge (v1.36.0) + Materialisierung fachliche Felder K1/K2 (v1.37.0) + Skopierung der Tabellen-Selektoren (TS-72) + FA-Liste ausgebaut: Matchcode, Kopfdaten je Zeile, HauptFA-Zeile, Freigabe-Kaskade (v1.38.0, TS-73) + PDF-Erzeugung für FaHierarchy-Druckdokumente (v1.39.0, TS-74) + Matchcode im Artikelstamm (v1.40.0, TS-75) + FA-Arbeitsgang-Erkennung aus der Struktur (v1.41.0, TS-76, ersetzt durch TS-77) + Arbeitsgänge (WorkOperation) aus der Struktur + Werkbank-Anlage aus Sage (v1.44.0, TS-77) + Arbeitsgänge je (Sub-)FA im FA-Struktur-Modal (v1.45.0, TS-78) + Kommissionierung nur am HauptFA
-(v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80) + Beschichtungsauftrag Summiert als Standard (v1.48.0, TS-81) + Briefkopf Beschichtungsauftrag (v1.49.0, TS-82) + Beschichtungsauftrag als eigenes Objekt (v1.50.0, TS-83) + Beschichtungsaufträge bedienen (v1.51.0, TS-84) + Arbeitsgänge als Symbole im FA-Baum (v1.52.0, TS-85) + CSV-Export für alle Tabellen (v1.53.0, TS-86) + Arbeitsgang-Stammdaten (v1.54.0, TS-87) + Status je Arbeitsgang-Kürzel im FA-Baum (v1.55.0, TS-88) + Menü Beschichtung + Kurzanleitungen (v1.56.0, TS-89) + BDE-Terminal mit Arbeitsgang-Status (v1.57.0, TS-90) + Spaltenfilter-Suchsyntax Etappe A + B (v1.58.0/v1.58.1, TS-91.A/B) + Fußzeile nach Word-Vorlage (v1.59.0, TS-92) + Sage-Quellen auf WMS-Views (v1.60.0–v1.60.2, TS-93) + Arbeitsgang-Abgleich aus der Sage-View (v1.61.0, TS-94)*
+(v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80) + Beschichtungsauftrag Summiert als Standard (v1.48.0, TS-81) + Briefkopf Beschichtungsauftrag (v1.49.0, TS-82) + Beschichtungsauftrag als eigenes Objekt (v1.50.0, TS-83) + Beschichtungsaufträge bedienen (v1.51.0, TS-84) + Arbeitsgänge als Symbole im FA-Baum (v1.52.0, TS-85) + CSV-Export für alle Tabellen (v1.53.0, TS-86) + Arbeitsgang-Stammdaten (v1.54.0, TS-87) + Status je Arbeitsgang-Kürzel im FA-Baum (v1.55.0, TS-88) + Menü Beschichtung + Kurzanleitungen (v1.56.0, TS-89) + BDE-Terminal mit Arbeitsgang-Status (v1.57.0, TS-90) + Spaltenfilter-Suchsyntax Etappe A + B (v1.58.0/v1.58.1, TS-91.A/B) + Fußzeile nach Word-Vorlage (v1.59.0, TS-92) + Sage-Quellen auf WMS-Views (v1.60.0–v1.60.2, TS-93) + Arbeitsgang-Abgleich aus der Sage-View (v1.61.0, TS-94) + Stückliste Matchcode und Lagerplatz-Limit (v1.62.0, TS-95)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*
