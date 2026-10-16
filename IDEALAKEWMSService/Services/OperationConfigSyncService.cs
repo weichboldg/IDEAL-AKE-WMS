@@ -193,7 +193,9 @@ public class OperationConfigSyncService : IOperationConfigSyncService
                 if (await Change(id, e => e.SageMissingSince = now)) neuNichtInSage.Add(byId[id].OperationName);
                 else { fehler++; nichtInSage--; }
             }
-            foreach (var id in plan.Unmark)
+            // Ein Eintrag kann in SourceToSage UND Unmark stehen; ist er beim Wechsel schon als geloescht abgehaengt (fehler gezaehlt),
+            // wuerde SaveChanges auf dem Detached-Objekt nichts schreiben und "wieder in Sage" falsch melden.
+            foreach (var id in plan.Unmark.Where(id => _ctx.Entry(byId[id]).State != EntityState.Detached))
             {
                 if (await Change(id, e => e.SageMissingSince = null)) { wiederInSage++; wieder.Add(byId[id].OperationName); }
                 else fehler++;

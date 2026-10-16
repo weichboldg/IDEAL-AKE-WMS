@@ -307,6 +307,40 @@ public class OperationConfigSyncServiceTests
     }
 
     [Fact]
+    public async Task Run_ManuellGekennzeichnetInSage_WaehrendDesLaufsGeloescht_KeinFalschesWiederInSage()
+    {
+        // QA 2026-10-16: Quelle-Wechsel UND Zuruecksetzen fuer denselben Eintrag; scheitert der Wechsel (geloescht), darf das
+        // Zuruecksetzen nicht auf dem abgehaengten Objekt "erfolgreich" zaehlen.
+        using var factory = new TestApplicationDbContextFactory();
+        await using (var seed = factory.CreateDbContext())
+        {
+            seed.OperationConfigs.Add(Existing("ZZA", OperationConfigSource.Manual, new DateTime(2026, 10, 1)));
+            await seed.SaveChangesAsync();
+        }
+        await using var ctx = factory.CreateDbContext();
+        var reader = new Mock<ISageArbeitsplatzReader>();
+        reader.Setup(r => r.GetActiveAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+              .Returns(async () =>
+              {
+                  await using var other = factory.CreateDbContext();
+                  other.OperationConfigs.Remove(other.OperationConfigs.Single(c => c.OperationName == "ZZA"));
+                  await other.SaveChangesAsync();
+                  return new SageArbeitsplatzReadResult(true, new List<SageArbeitsplatzDto> { Row("ZZA") });
+              });
+        var log = new FakeSyncLogger();
+        var svc = new OperationConfigSyncService(ctx, new ConfigurationBuilder().Build(), reader.Object,
+            NullLogger<OperationConfigSyncService>.Instance, log);
+
+        await svc.RunAsync(false, Defaults, default);
+
+        var run = log.Runs.Single();
+        run.FinalCounts!["fehler"].Should().Be(1);
+        run.FinalCounts!["quelle_sage"].Should().Be(0);
+        run.FinalCounts!["wieder_in_sage"].Should().Be(0);
+        run.Events.Should().NotContain(e => e.Message.StartsWith("wieder in Sage"));
+    }
+
+    [Fact]
     public async Task Run_QuelleFehlt_WarnungSkip_OhneMutation()
     {
         using var ctx = await Seed(Existing("ZZTEST", OperationConfigSource.Manual));

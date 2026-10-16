@@ -167,6 +167,43 @@ public class OperationConfigRepositoryTests
     }
 
     [Fact]
+    public async Task UpdateAsync_Detached_SchreibtNurPflegefelder()
+    {
+        // AK 28, Attach-Pfad (QA 2026-10-16): ein nicht getracktes Objekt darf ebenfalls nur die Pflegefelder schreiben.
+        using var factory = new TestApplicationDbContextFactory();
+        int id;
+        var missingSince = new DateTime(2026, 10, 16, 8, 0, 0);
+        await using (var seed = factory.CreateDbContext())
+        {
+            var row = new OperationConfig
+            {
+                OperationName = "KA", Source = OperationConfigSource.Sage, SageMissingSince = missingSince,
+                CreatedAt = DateTime.Now, CreatedBy = "x", CreatedByWindows = "x"
+            };
+            seed.OperationConfigs.Add(row);
+            await seed.SaveChangesAsync();
+            id = row.Id;
+        }
+
+        await using (var web = factory.CreateDbContext())
+        {
+            await new OperationConfigRepository(web).UpdateAsync(new OperationConfig
+            {
+                Id = id, OperationName = "KX", DisplayName = "Kanten", DueDateOffsetDays = 2, IsExternalSystemRelevant = false,
+                Source = OperationConfigSource.Manual, SageMissingSince = null,
+                CreatedAt = DateTime.MinValue, CreatedBy = "y", CreatedByWindows = "y", ModifiedBy = "tester"
+            });
+        }
+
+        await using var check = factory.CreateDbContext();
+        var saved = check.OperationConfigs.Single();
+        (saved.DisplayName, saved.DueDateOffsetDays, saved.IsExternalSystemRelevant, saved.ModifiedBy)
+            .Should().Be(("Kanten", 2, false, "tester"));
+        (saved.OperationName, saved.Source, saved.SageMissingSince, saved.CreatedBy)
+            .Should().Be(("KA", OperationConfigSource.Sage, (DateTime?)missingSince, "x"));
+    }
+
+    [Fact]
     public async Task DeleteAsync_RemovesConfig()
     {
         using var context = TestDbContextFactory.Create();
