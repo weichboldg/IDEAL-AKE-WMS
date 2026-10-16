@@ -32,4 +32,26 @@ public class OperationConfig : AuditableEntity
     /// im OSEON-Reporting: false = AG wird dort ignoriert. Fuer IDEAL und AKE-BDE ohne Wirkung.
     /// </summary>
     public bool IsExternalSystemRelevant { get; set; } = true;
+
+    /// <summary>
+    /// Herkunft des Eintrags (<see cref="OperationConfigSource"/>, UI „Quelle"): Sage-Abgleich, Fremdsystem (OSEON-Seed/Altbestand)
+    /// oder manuell im Reiter. Geschrieben nur bei der Anlage und vom Arbeitsgang-Abgleich (Wechsel Manual -> Sage), nie vom
+    /// Bearbeiten im Reiter. Spec 2026-10-16-arbeitsgang-stammdaten-abgleich-aus-sage-view.
+    /// </summary>
+    [StringLength(20)]
+    public string Source { get; set; } = OperationConfigSource.Manual;
+
+    /// <summary>
+    /// Zustand „nicht in Sage seit" (Arbeitsgang-Abgleich): gesetzt, wenn das Kuerzel im letzten Lauf nicht in der Sage-View stand;
+    /// NULL, sobald es wieder auftaucht. Nie fuer <see cref="OperationConfigSource.ExternalSystem"/>.
+    /// </summary>
+    public DateTime? SageMissingSince { get; set; }
+}
+
+/// <summary>Werte fuer <see cref="OperationConfig.Source"/> (DB-Klartext, UI uebersetzt im Controller).</summary>
+public static class OperationConfigSource
+{
+    public const string Sage = "Sage";
+    public const string ExternalSystem = "ExternalSystem";
+    public const string Manual = "Manual";
 }

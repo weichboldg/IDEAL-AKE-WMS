@@ -1234,6 +1234,8 @@ BEGIN
         [ModifiedAt]               DATETIME2      NULL,
         [ModifiedBy]               NVARCHAR(200)  NULL,
         [ModifiedByWindows]        NVARCHAR(200)  NULL,
+        [Source]                   NVARCHAR(20)   NOT NULL CONSTRAINT [DF_OperationConfigs_Source] DEFAULT N'Manual',
+        [SageMissingSince]         DATETIME2      NULL,
         CONSTRAINT [PK_OperationConfigs] PRIMARY KEY CLUSTERED ([Id])
     );
     PRINT 'Tabelle [OperationConfigs] erstellt.';
@@ -1523,6 +1525,12 @@ BEGIN
         PRINT 'Standard-Arbeitsgang-Stammdaten eingefuegt.';
     END
 END
+GO
+
+-- Quelle der Seed-/Altbestandszeilen (v1.61.0, Spec 2026-10-16): CreatedBy = 'system' -> ExternalSystem. Wortgleich mit SQL/96 und der
+-- EF-Migration (Drift-Test). EXEC, weil der Batch auf einer bestehenden Tabelle ohne die Spalte sonst schon beim Kompilieren scheitert.
+IF COL_LENGTH(N'dbo.OperationConfigs', N'Source') IS NOT NULL
+    EXEC(N'UPDATE [dbo].[OperationConfigs] SET [Source] = N''ExternalSystem'' WHERE [CreatedBy] = N''system'' AND [Source] = N''Manual'';');
 GO
 
 -- Admin-Benutzer bekommt admin-Rolle
@@ -2439,6 +2447,9 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261012140548_RenameOperationConfigsAndAddAudit')
    AND OBJECT_ID(N'[dbo].[OseonOperationConfigs]', N'U') IS NULL -- sonst steht die Umbenennung noch aus (SQL/95, siehe 16b)
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261012140548_RenameOperationConfigsAndAddAudit', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261016090641_AddOperationConfigSourceAndSageMissingSince')
+   AND COL_LENGTH(N'dbo.OperationConfigs', N'Source') IS NOT NULL AND COL_LENGTH(N'dbo.OperationConfigs', N'SageMissingSince') IS NOT NULL -- sonst steht SQL/95 bzw. SQL/96 noch aus
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261016090641_AddOperationConfigSourceAndSageMissingSince', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';

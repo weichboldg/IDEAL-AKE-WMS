@@ -121,6 +121,52 @@ public class OperationConfigRepositoryTests
     }
 
     [Fact]
+    public async Task UpdateAsync_LaesstSourceUndSageMissingSinceUnveraendert()
+    {
+        // AK 28 (Spec 2026-10-16): Zwischen Laden (Web) und Speichern schreibt der Abgleich Source/SageMissingSince —
+        // UpdateAsync darf nur die Pflegefelder schreiben und den Service-Stand nicht mit dem geladenen Stand ueberschreiben.
+        using var factory = new TestApplicationDbContextFactory();
+        await using (var seed = factory.CreateDbContext())
+        {
+            seed.OperationConfigs.Add(new OperationConfig
+            {
+                OperationName = "KA", DueDateOffsetDays = 0, Source = OperationConfigSource.Manual,
+                CreatedAt = DateTime.Now, CreatedBy = "x", CreatedByWindows = "x"
+            });
+            await seed.SaveChangesAsync();
+        }
+        var missingSince = new DateTime(2026, 10, 16, 8, 0, 0);
+
+        await using var web = factory.CreateDbContext();
+        var repo = new OperationConfigRepository(web);
+        var config = (await repo.GetByNameAsync("KA"))!;
+
+        await using (var service = factory.CreateDbContext())
+        {
+            var row = service.OperationConfigs.Single(c => c.OperationName == "KA");
+            row.Source = OperationConfigSource.Sage;
+            row.SageMissingSince = missingSince;
+            await service.SaveChangesAsync();
+        }
+
+        config.DueDateOffsetDays = 2;
+        config.DisplayName = "Kanten";
+        config.ModifiedBy = "tester";
+        config.Source = OperationConfigSource.ExternalSystem; // darf nicht geschrieben werden
+        config.OperationName = "KX";                          // darf nicht geschrieben werden
+        await repo.UpdateAsync(config);
+
+        await using var check = factory.CreateDbContext();
+        var saved = check.OperationConfigs.Single();
+        saved.DueDateOffsetDays.Should().Be(2);
+        saved.DisplayName.Should().Be("Kanten");
+        saved.ModifiedBy.Should().Be("tester");
+        saved.OperationName.Should().Be("KA");
+        saved.Source.Should().Be(OperationConfigSource.Sage);
+        saved.SageMissingSince.Should().Be(missingSince);
+    }
+
+    [Fact]
     public async Task DeleteAsync_RemovesConfig()
     {
         using var context = TestDbContextFactory.Create();

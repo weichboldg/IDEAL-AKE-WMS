@@ -102,9 +102,24 @@ public class OperationConfigRepository : IOperationConfigRepository
         await _context.SaveChangesAsync();
     }
 
+    /// <summary>Pflegefelder des Reiters — nur diese schreibt <see cref="UpdateAsync"/>.</summary>
+    private static readonly string[] EditableProperties =
+    {
+        nameof(OperationConfig.DisplayName), nameof(OperationConfig.DueDateOffsetDays), nameof(OperationConfig.IsExternalSystemRelevant),
+        nameof(OperationConfig.ModifiedAt), nameof(OperationConfig.ModifiedBy), nameof(OperationConfig.ModifiedByWindows),
+    };
+
+    /// <summary>
+    /// Schreibt nur die Pflegefelder (kein <c>Update(config)</c>, das alle Spalten mit dem Ladestand zurueckschreibt): Source,
+    /// SageMissingSince, OperationName und Created* gehoeren dem Arbeitsgang-Abgleich bzw. der Anlage (Spec 2026-10-16, AK 28).
+    /// </summary>
     public async Task UpdateAsync(OperationConfig config)
     {
-        _context.OperationConfigs.Update(config);
+        var entry = _context.Entry(config);
+        if (entry.State == EntityState.Detached)
+            _context.OperationConfigs.Attach(config);
+        foreach (var property in entry.Properties)
+            property.IsModified = EditableProperties.Contains(property.Metadata.Name);
         await _context.SaveChangesAsync();
     }
 

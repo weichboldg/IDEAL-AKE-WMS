@@ -493,6 +493,7 @@ using (var scope = app.Services.CreateScope())
                 DisplayName = display,
                 DueDateOffsetDays = offset,
                 IsExternalSystemRelevant = relevant,
+                Source = IdealAkeWms.Models.OperationConfigSource.ExternalSystem, // OSEON-Kuerzel: nie "nicht in Sage" (Spec 2026-10-16)
                 CreatedAt = DateTime.Now,
                 CreatedBy = "system",
                 CreatedByWindows = "system"

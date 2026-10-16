@@ -887,6 +887,7 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.OperationName).HasMaxLength(100).IsRequired();
             entity.Property(e => e.DisplayName).HasMaxLength(200);
             entity.HasIndex(e => e.OperationName).IsUnique();
+            entity.Property(e => e.Source).HasMaxLength(20).IsRequired().HasDefaultValue(OperationConfigSource.Manual);
             entity.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
             entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
             entity.Property(e => e.ModifiedBy).HasMaxLength(200);
