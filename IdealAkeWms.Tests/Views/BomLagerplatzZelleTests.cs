@@ -32,6 +32,13 @@ public class BomLagerplatzZelleTests
     }
 
     [Fact]
+    public void Zellzugriff_NurPerColKey_KeinFesterIndex()
+    {
+        // QA v1.62.0: die Matchcode-Spalte verschob den Bulk-Bestell-Fallback (cells[4]/[6]/[8]) — Menge las den Matchcode.
+        Regex.IsMatch(Html(), @"cells\[\d").Should().BeFalse("Spalten werden eingefuegt und per Zahnrad umgeordnet — bomColKeyToIndex nutzen");
+    }
+
+    [Fact]
     public void PopoverInit_VorReadOnlyReturn_ContainerBody_HoverFocus()
     {
         var html = Html();

@@ -1784,13 +1784,17 @@
                                 position: orderBtn.getAttribute('data-position')
                             });
                         } else if (articleNumber) {
-                            // Fallback: extract from row cells
-                            var cells = row.querySelectorAll('td');
+                            // Fallback: extract from row cells — per col-key, nicht per festem Index
+                            // (v1.62.0: neue Matchcode-Spalte und Zahnrad-Umordnung verschieben die Indizes).
+                            var cells = row.cells;
+                            var dCell = cells[bomColKeyToIndex('description1')];
+                            var qCell = cells[bomColKeyToIndex('quantity')];
+                            var gCell = cells[bomColKeyToIndex('article-group')];
                             items.push({
                                 articleNumber: articleNumber,
-                                description: cells[4] ? cells[4].textContent.trim() : '',
-                                quantity: cells[6] ? parseFloat(cells[6].textContent.replace(/\./g, '').replace(',', '.')) : 1,
-                                articleGroup: cells[8] ? cells[8].textContent.trim() : '',
+                                description: dCell ? dCell.textContent.trim() : '',
+                                quantity: qCell ? parseFloat(qCell.textContent.replace(/\./g, '').replace(',', '.')) : 1,
+                                articleGroup: gCell ? gCell.textContent.trim() : '',
                                 position: position || ''
                             });
                         }
