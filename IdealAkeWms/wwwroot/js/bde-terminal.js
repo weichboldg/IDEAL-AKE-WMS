@@ -249,6 +249,7 @@
         } else {
             // v1.64.0 (FA-3): Liste neu laden, Gruppe auf, Markierung, Knoepfe in den Sichtbereich.
             expanded.add(candidate.orderNumber);
+            if (hierarchisch) mustShow = candidate.orderNumber; // Gruppe auch jenseits der N-Grenze einblenden (qa, AK 10)
             currentWorkOp = { id: candidate.id, label: candidate.orderNumber ? auswahlText(candidate) : null };
             await loadAvailableOperations();
             await renderState();
@@ -268,8 +269,8 @@
         var ziel = subOrderNumber
             ? Array.from(kopf.parentElement.querySelectorAll('.bde-auftrag')).find(function (x) { return x.dataset.sub === subOrderNumber; })
             : null;
+        // Fokus bleibt im Scanfeld (qa): sonst landet der naechste Scanner-Scan im Kopf-Knopf und sein Enter klappt die Gruppe zu.
         (ziel || kopf).scrollIntoView({ block: 'nearest' });
-        kopf.focus({ preventScroll: true });
         return true;
     }
 

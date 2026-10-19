@@ -41,7 +41,7 @@
 /* v1.64.0 (FA-3.1): gewaehlter Arbeitsgang — dunkler Aussenrahmen + „✓“, ohne Farbe erkennbar (#212529 auf Weiss 15,4:1). NICHT
    ueber .active: die Active-Variablen oben sind die Statusfarben, die Auswahl waere unsichtbar. Zustand fuer Screenreader: aria-pressed. */
 .bde-ag-btn.bde-ag-gewaehlt { outline: 3px solid #212529; outline-offset: 2px; }
-.bde-ag-btn.bde-ag-gewaehlt::before { content: "¹3"; font-weight: 700; margin-right: 0.35em; }
+.bde-ag-btn.bde-ag-gewaehlt::before { content: "\2713"; font-weight: 700; margin-right: 0.35em; }
 .bde-gewaehlt { font-weight: 600; margin: 0 0.25rem 0.25rem; }
 
 /* v1.64.0 (FA-1.2): Gruppenkopf je Haupt-FA (IDEAL, Master an). Text #212529 auf Weiss/#f8f9fa >= 15:1, Rand #6c757d 4,7:1;
