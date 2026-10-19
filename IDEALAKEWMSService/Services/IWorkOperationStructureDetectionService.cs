@@ -11,7 +11,8 @@ namespace IDEALAKEWMSService.Services;
 /// <c>ProductionOrder</c>-Zeilen als Ziel) und NACH der Werkbank-Anlage (braucht deren Kuerzel-Katalog).
 /// Unbekannte Token werden gemeldet, nicht angelegt (Melden-statt-Anlegen, ADR 0014); Kuerzel auf der
 /// Ausschlussliste erzeugen weder Arbeitsgang noch Meldung; ein Kuerzel, das mehrere Werkbaenke trifft,
-/// wird als „mehrdeutig" gemeldet. (Bis zum WorkOperation-Umbau hiess dieser Service
+/// wird seit v1.63.0 an der bevorzugten Werkbank angelegt und gemeldet; Werkbaenke mit <c>SageMissingSince</c>
+/// zaehlen nicht. (Bis zum WorkOperation-Umbau hiess dieser Service
 /// <c>FaWorkStepStructureDetectionService</c>, v1.41.0 — reines Rename, nie deployt.)
 /// </summary>
 public interface IWorkOperationStructureDetectionService

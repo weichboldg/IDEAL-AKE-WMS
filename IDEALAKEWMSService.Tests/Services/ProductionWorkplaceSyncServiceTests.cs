@@ -170,4 +170,125 @@ public class ProductionWorkplaceSyncServiceTests
         log.Runs.Single().FinalCounts!["neu"].Should().Be(1);
         log.Runs.Single().FinalMessageSuffix.Should().Be("[DryRun]");
     }
+    // ----- v1.63.0: Kennzeichnung "nicht in Sage" (Spec 2026-10-19-bde-stufe-1, FA-b1..b8, AK 1-8) -----
+
+    private static ProductionWorkplace Ake(string name) => new()
+    {
+        Name = name, BdeAktiv = true, CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
+    };
+
+    [Fact]
+    public async Task Run_NichtMehrInQuelle_WirdGekennzeichnet_NieGeloescht_FelderUnveraendert()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        var w1 = Existing("2150", "Flächen entgr beendet", "EG");
+        w1.BdeAktiv = true;
+        ctx.ProductionWorkplaces.AddRange(w1, Existing("140", "Entgraten Fläche", "EG"), Ake("AKE Werkbank"));
+        await ctx.SaveChangesAsync();
+        var (svc, log) = Build(ctx, new SageArbeitsplatzDto("140", "Entgraten Fläche", "EG"));
+
+        await svc.RunAsync(dryRun: false);
+
+        var all = await ctx.ProductionWorkplaces.AsNoTracking().ToListAsync();
+        all.Should().HaveCount(3);
+        var alt = all.Single(w => w.SageArbeitsplatznummer == "2150");
+        alt.SageMissingSince.Should().NotBeNull();
+        alt.BdeAktiv.Should().BeTrue();
+        alt.Name.Should().Be("Flächen entgr beendet");
+        alt.ArbeitsschrittCode.Should().Be("EG");
+        alt.ModifiedBy.Should().Be("ProductionWorkplaceSync");
+        all.Single(w => w.SageArbeitsplatznummer == "140").SageMissingSince.Should().BeNull();
+        all.Single(w => w.SageArbeitsplatznummer == null).SageMissingSince.Should().BeNull(); // AK 7: nie AKE/manuell
+
+        var run = log.Runs.Single();
+        run.FinalCounts!["nicht_in_sage"].Should().Be(1);
+        run.FinalCounts!["nicht_in_sage_neu"].Should().Be(1);
+        run.FinalCounts!["wieder_in_sage"].Should().Be(0);
+        run.Events.Should().Contain(e => e.Level == "Warning" && e.Message.Contains("2150 Flächen entgr beendet (EG)"));
+        run.Events.Should().Contain(e => e.Level == "Warning"
+            && e.Message == "Werkbank Flächen entgr beendet (2150) ist BDE-aktiv, steht aber nicht mehr in Sage.");
+    }
+
+    [Fact]
+    public async Task Run_ZweiterLauf_ZeitstempelBleibt_NeuNull()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        var w1 = Existing("2150", "Alt", "EG");
+        var stamp = new DateTime(2026, 10, 1, 8, 0, 0);
+        w1.SageMissingSince = stamp;
+        ctx.ProductionWorkplaces.AddRange(w1, Existing("140", "Neu", "EG"));
+        await ctx.SaveChangesAsync();
+        var (svc, log) = Build(ctx, new SageArbeitsplatzDto("140", "Neu", "EG"));
+
+        await svc.RunAsync(dryRun: false);
+
+        (await ctx.ProductionWorkplaces.AsNoTracking().SingleAsync(w => w.SageArbeitsplatznummer == "2150")).SageMissingSince.Should().Be(stamp);
+        log.Runs.Single().FinalCounts!["nicht_in_sage"].Should().Be(1);
+        log.Runs.Single().FinalCounts!["nicht_in_sage_neu"].Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Run_WiederInQuelle_KennzeichnungAufgehoben()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        var w1 = Existing("2150", "Alt", "EG");
+        w1.SageMissingSince = new DateTime(2026, 10, 1);
+        ctx.ProductionWorkplaces.Add(w1);
+        await ctx.SaveChangesAsync();
+        var (svc, log) = Build(ctx, new SageArbeitsplatzDto(" 2150 ", "Alt", "EG"));
+
+        await svc.RunAsync(dryRun: false);
+
+        (await ctx.ProductionWorkplaces.AsNoTracking().SingleAsync()).SageMissingSince.Should().BeNull();
+        log.Runs.Single().FinalCounts!["wieder_in_sage"].Should().Be(1);
+        log.Runs.Single().Events.Should().Contain(e => e.Level == "Info" && e.Message.Contains("Wieder in Sage (1") && e.Message.Contains("2150 Alt (EG)"));
+    }
+
+    [Fact]
+    public async Task Run_LeereQuelle_KeineKennzeichnung_Warnung()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        var marked = Existing("2300", "Alt", "KA");
+        marked.SageMissingSince = new DateTime(2026, 10, 1);
+        ctx.ProductionWorkplaces.AddRange(Existing("140", "EG", "EG"), marked);
+        await ctx.SaveChangesAsync();
+        var (svc, log) = Build(ctx);
+
+        await svc.RunAsync(dryRun: false);
+
+        var all = await ctx.ProductionWorkplaces.AsNoTracking().ToListAsync();
+        all.Single(w => w.SageArbeitsplatznummer == "140").SageMissingSince.Should().BeNull();
+        all.Single(w => w.SageArbeitsplatznummer == "2300").SageMissingSince.Should().NotBeNull(); // nicht entkennzeichnet
+        log.Runs.Single().Events.Should().Contain(e => e.Level == "Warning" && e.Message.Contains("liefert keine Zeilen — keine Kennzeichnung"));
+        log.Runs.Single().FinalCounts!["nicht_in_sage_neu"].Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Run_QuellzeileOhneKuerzel_SchuetztIhreWerkbank()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        ctx.ProductionWorkplaces.Add(Existing("9999", "Reserve", "RS"));
+        await ctx.SaveChangesAsync();
+        // Zeile faellt durch den Pflicht-Filter (uebersprungen), steht aber in Sage -> keine Kennzeichnung (AK 5)
+        var (svc, log) = Build(ctx, new SageArbeitsplatzDto("9999", "Reserve", null));
+
+        await svc.RunAsync(dryRun: false);
+
+        (await ctx.ProductionWorkplaces.AsNoTracking().SingleAsync()).SageMissingSince.Should().BeNull();
+        log.Runs.Single().FinalCounts!["nicht_in_sage"].Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Run_DryRun_ZaehltKennzeichnungOhneSchreiben()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        ctx.ProductionWorkplaces.AddRange(Existing("2150", "Alt", "EG"), Existing("140", "Neu", "EG"));
+        await ctx.SaveChangesAsync();
+        var (svc, log) = Build(ctx, new SageArbeitsplatzDto("140", "Neu", "EG"));
+
+        await svc.RunAsync(dryRun: true);
+
+        (await ctx.ProductionWorkplaces.AsNoTracking().AllAsync(w => w.SageMissingSince == null)).Should().BeTrue();
+        log.Runs.Single().FinalCounts!["nicht_in_sage_neu"].Should().Be(1);
+    }
 }

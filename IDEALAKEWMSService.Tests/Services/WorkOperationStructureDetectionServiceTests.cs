@@ -229,27 +229,89 @@ public class WorkOperationStructureDetectionServiceTests
             e.Level == "Warning" && e.Message.Contains("ZZZ"));
     }
 
-    // --- AK 11 Kuerzel-Mehrdeutigkeit: zwei Werkbaenke gleicher Code -> kein Insert, melden ---
+    // --- v1.63.0 (Spec 2026-10-19 AK 11): Kuerzel an zwei aktuellen Werkbaenken -> EINMAL anlegen an der bevorzugten
+    //     (BDE-aktive vor inaktiver, dann kleinere Id), melden statt ueberspringen ---
     [Fact]
-    public async Task Detect_AmbiguousCode_NotInsertedButReported()
+    public async Task Detect_CodeOnTwoWorkplaces_InsertedOnceAtPreferred_Reported()
     {
         using var ctx = TestDbContextFactory.Create();
         ctx.FaHierarchyNodes.Add(Node(10, null, "KA"));
-        ctx.ProductionWorkplaces.AddRange(
-            Workplace("KA", "Kanterei W1", "2300"),
-            Workplace("KA", "Kanterei W2", "2301"));
+        var w1 = Workplace("KA", "Kanterei W1", "2300");
+        var w2 = Workplace("ka ", "Kanterei W2", "2301");
+        w2.BdeAktiv = true;
+        ctx.ProductionWorkplaces.AddRange(w1, w2);
         ctx.ProductionOrders.Add(Order("10"));
         await ctx.SaveChangesAsync();
 
         var (svc, log) = Build(ctx);
         var r = await svc.DetectAsync(dryRun: false);
 
-        r.Inserted.Should().Be(0);
-        (await ctx.WorkOperations.AnyAsync()).Should().BeFalse();
+        r.Inserted.Should().Be(1);
+        var wo = await ctx.WorkOperations.SingleAsync();
+        wo.ProductionWorkplaceId.Should().Be(w2.Id);
+        wo.Name.Should().Be("Kanterei W2");
         var run = log.Runs.Single();
-        run.FinalCounts!["arbeitsschritt_mehrdeutig"].Should().Be(1);
-        run.FinalCounts!["arbeitsschritt_unbekannt"].Should().Be(0); // mehrdeutig != unbekannt
-        run.Events.Should().Contain(e => e.Level == "Warning" && e.Message.Contains("Mehrdeutig"));
+        run.FinalCounts!["arbeitsschritt_mehrere_werkbaenke"].Should().Be(1);
+        run.FinalCounts!.Should().NotContainKey("arbeitsschritt_mehrdeutig");
+        run.FinalCounts!["arbeitsschritt_unbekannt"].Should().Be(0);
+        run.Events.Should().Contain(e => e.Level == "Info" && e.Message.Contains("Kürzel an mehreren Werkbänken (1)")
+            && e.Message.Contains("2301 Kanterei W2*") && e.Message.Contains("2300 Kanterei W1"));
+    }
+
+    [Fact]
+    public async Task Detect_CodeOnTwoInactiveWorkplaces_SmallestIdPreferred()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        ctx.FaHierarchyNodes.Add(Node(10, null, "KA"));
+        var w1 = Workplace("KA", "Kanterei W1", "2300");
+        var w2 = Workplace("KA", "Kanterei W2", "2301");
+        ctx.ProductionWorkplaces.AddRange(w1, w2);
+        ctx.ProductionOrders.Add(Order("10"));
+        await ctx.SaveChangesAsync();
+
+        var (svc, _) = Build(ctx);
+        await svc.DetectAsync(dryRun: false);
+
+        (await ctx.WorkOperations.SingleAsync()).ProductionWorkplaceId.Should().Be(Math.Min(w1.Id, w2.Id));
+    }
+
+    // --- v1.63.0 (AK 10/12, FA-b9): gekennzeichnete Werkbaenke zaehlen nicht fuer den Katalog ---
+    [Fact]
+    public async Task Detect_MarkedWorkplaceIgnored_SingleCurrentMatches()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        ctx.FaHierarchyNodes.Add(Node(10, null, "ST EG"));
+        var alt = Workplace("EG", "Flächen entgr beendet", "2150");
+        alt.SageMissingSince = new DateTime(2026, 10, 19);
+        var neu = Workplace("EG", "Entgraten Fläche", "140");
+        ctx.ProductionWorkplaces.AddRange(alt, neu, Workplace("ST", "Stanzen", "63"));
+        ctx.ProductionOrders.Add(Order("10"));
+        await ctx.SaveChangesAsync();
+
+        var (svc, log) = Build(ctx);
+        await svc.DetectAsync(dryRun: false);
+
+        (await ctx.WorkOperations.SingleAsync(w => w.OperationNumber == "EG")).ProductionWorkplaceId.Should().Be(neu.Id);
+        log.Runs.Single().FinalCounts!["arbeitsschritt_mehrere_werkbaenke"].Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Detect_CodeOnlyAtMarkedWorkplace_ReportedUnknown_NoInsert()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        ctx.FaHierarchyNodes.Add(Node(10, null, "VM"));
+        var alt = Workplace("VM", "Vormontage alt", "9000");
+        alt.SageMissingSince = new DateTime(2026, 10, 19);
+        ctx.ProductionWorkplaces.Add(alt);
+        ctx.ProductionOrders.Add(Order("10"));
+        await ctx.SaveChangesAsync();
+
+        var (svc, log) = Build(ctx, NoDigest);
+        await svc.DetectAsync(dryRun: false);
+
+        (await ctx.WorkOperations.AnyAsync()).Should().BeFalse();
+        log.Runs.Single().FinalCounts!["arbeitsschritt_unbekannt"].Should().Be(1);
+        log.Runs.Single().Events.Should().Contain(e => e.Level == "Warning" && e.Message.Contains("VM"));
     }
 
     // --- AK 14 abgeschlossener Auftrag: IsDone ---

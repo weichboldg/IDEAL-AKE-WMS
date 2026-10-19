@@ -24,8 +24,10 @@ namespace IDEALAKEWMSService.Services;
 /// KEIN interner Master-Gate — der Doppel-Gate (Master +
 /// <c>Sync:WorkOperationStructureDetectionEnabled</c>) sitzt im <c>SyncWorker</c>. Drei Sonderfaelle
 /// gegenueber v1.41.0: Kuerzel auf der Ausschlussliste (dieselbe Liste wie Baustein a) erzeugen weder
-/// Arbeitsgang noch Unbekannt-Meldung (bewusst BEKANNT); ein Kuerzel, das mehrere Werkbaenke trifft, wird
-/// als „mehrdeutig" gemeldet (kein Insert); unbekannte Kuerzel ohne Werkbank werden wie bisher gemeldet.
+/// Arbeitsgang noch Unbekannt-Meldung (bewusst BEKANNT); ein Kuerzel, das mehrere Werkbaenke trifft, wird seit
+/// v1.63.0 an der bevorzugten Werkbank angelegt (BDE-aktive zuerst, dann kleinste Id) und je Lauf gemeldet — stempelbar
+/// ist er ueber die Kuerzel-Familie an allen (<see cref="IdealAkeWms.Services.WerkbankKuerzelFamilie"/>); Werkbaenke mit
+/// <c>SageMissingSince</c> zaehlen nicht; unbekannte Kuerzel ohne Werkbank werden wie bisher gemeldet.
 /// </summary>
 public class WorkOperationStructureDetectionService : IWorkOperationStructureDetectionService
 {
@@ -75,11 +77,11 @@ public class WorkOperationStructureDetectionService : IWorkOperationStructureDet
                 .GroupBy(n => n.VaterFA!.Value)
                 .ToDictionary(g => g.Key, g => g.ToList());
 
-            // 3) Katalog: ProductionWorkplace je ArbeitsschrittCode (getrimmt, case-insensitiv). Liste je
-            //    Kuerzel, damit Mehrdeutigkeit (dasselbe Kuerzel auf mehreren Werkbaenken) erkennbar bleibt.
+            // 3) Katalog: ProductionWorkplace je ArbeitsschrittCode (getrimmt, case-insensitiv), nur Werkbaenke, die noch
+            //    in Sage stehen (v1.63.0, FA-b9). Liste je Kuerzel: mehrere -> bevorzugte Werkbank (FA-a5).
             var wpByCode = new Dictionary<string, List<ProductionWorkplace>>(StringComparer.OrdinalIgnoreCase);
             foreach (var wp in await _db.ProductionWorkplaces
-                         .Where(w => w.ArbeitsschrittCode != null && w.ArbeitsschrittCode != "")
+                         .Where(w => w.ArbeitsschrittCode != null && w.ArbeitsschrittCode != "" && w.SageMissingSince == null)
                          .ToListAsync(ct))
             {
                 var code = wp.ArbeitsschrittCode!.Trim();
@@ -93,7 +95,7 @@ public class WorkOperationStructureDetectionService : IWorkOperationStructureDet
             //    (Freigabe-Nachtrag 2026-10-07: VM an der Mittelholmblende gehoert nicht zum Korpus).
             var desiredBySubOrder = new Dictionary<string, Dictionary<string, (ProductionWorkplace Wp, int Seq)>>(StringComparer.Ordinal);
             var unknownTokenToSubOrders = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
-            var ambiguousTokenToSubOrders = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+            var multiTokenToSubOrders = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
 
             foreach (var node in nodes)
             {
@@ -119,14 +121,10 @@ public class WorkOperationStructureDetectionService : IWorkOperationStructureDet
 
                     if (wpByCode.TryGetValue(token, out var matches))
                     {
-                        if (matches.Count > 1)
-                        {
-                            AddTo(ambiguousTokenToSubOrders, token, subOrder);
-                            continue;
-                        }
+                        if (matches.Count > 1) AddTo(multiTokenToSubOrders, token, subOrder);
                         if (!desiredBySubOrder.TryGetValue(subOrder, out var map))
                             desiredBySubOrder[subOrder] = map = new Dictionary<string, (ProductionWorkplace, int)>(StringComparer.OrdinalIgnoreCase);
-                        map[token] = (matches[0], position);
+                        map[token] = (IdealAkeWms.Services.WerkbankKuerzelFamilie.Bevorzugt(matches), position);
                     }
                     else
                     {
@@ -190,18 +188,21 @@ public class WorkOperationStructureDetectionService : IWorkOperationStructureDet
                 if (!dryRun) await _db.SaveChangesAsync(ct);
             }
 
-            // 7) Kuerzel-Mehrdeutigkeit (Absicherung, laut Datenbefund heute nicht vorhanden): JEDER Lauf
-            //    loggt sie — kein Insert. Kein eigener S1-Mailzustand (kann derzeit nicht feuern, YAGNI).
-            int ambiguousTokenCount = ambiguousTokenToSubOrders.Count;
-            if (ambiguousTokenCount > 0)
+            // 7) Kuerzel an mehreren aktuellen Werkbaenken (v1.63.0, FA-a5): angelegt an der bevorzugten, stempelbar an
+            //    allen. JEDER Lauf meldet es in EINER Info-Zeile — kein Fehler, aber sichtbar (Melden statt still behandeln).
+            int multiTokenCount = multiTokenToSubOrders.Count;
+            if (multiTokenCount > 0)
             {
-                var detail = string.Join(", ", ambiguousTokenToSubOrders
-                    .OrderBy(kv => kv.Key, StringComparer.OrdinalIgnoreCase)
-                    .Select(kv => $"{kv.Key} ({kv.Value.Count} Auftraege)"));
-                await run.LogWarningAsync(
-                    $"Mehrdeutige Arbeitsschritt-Kuerzel ({ambiguousTokenCount}): {detail}. Je Kuerzel treffen mehrere " +
-                    "Werkbaenke (gleicher ArbeitsschrittCode) — kein Arbeitsgang angelegt. Doppelte Kuerzel in den " +
-                    "Sage-Arbeitsplaetzen bereinigen.", ct: ct);
+                var detail = string.Join("; ", multiTokenToSubOrders.Keys
+                    .OrderBy(k => k, StringComparer.OrdinalIgnoreCase)
+                    .Select(k =>
+                    {
+                        var bevorzugt = IdealAkeWms.Services.WerkbankKuerzelFamilie.Bevorzugt(wpByCode[k]);
+                        return $"{k} (" + string.Join(", ", wpByCode[k].OrderBy(w => w.Id).Select(w =>
+                            $"{w.SageArbeitsplatznummer} {w.Name}{(w.Id == bevorzugt.Id ? "*" : "")}")) + ")";
+                    }));
+                var line = $"Kürzel an mehreren Werkbänken ({multiTokenCount}): {detail} — Arbeitsgang angelegt an * (bevorzugt), stempelbar an allen.";
+                await run.LogInfoAsync(line.Length > 1000 ? line[..999] + "…" : line, ct: ct);
             }
 
             // 8) Unbekannte Token: JEDER Lauf loggt die Sammelmeldung; Sammelmail nur bei AENDERUNG der
@@ -225,14 +226,14 @@ public class WorkOperationStructureDetectionService : IWorkOperationStructureDet
 
             _logger.LogInformation(
                 "WorkOperation-Struktur-Erkennung abgeschlossen: {Added} neu, {Skipped} uebersprungen, " +
-                "{Ambig} mehrdeutig, {UnknownTok} unbekannte Token ({UnknownOrd} Auftraege){DryRun}",
-                added, skipped, ambiguousTokenCount, unknownTokenCount, unknownOrderCount, dryRun ? " [DryRun]" : "");
+                "{Multi} an mehreren Werkbaenken, {UnknownTok} unbekannte Token ({UnknownOrd} Auftraege){DryRun}",
+                added, skipped, multiTokenCount, unknownTokenCount, unknownOrderCount, dryRun ? " [DryRun]" : "");
 
             await run.FinishSuccessAsync(new Dictionary<string, int>
             {
                 ["neu"] = added,
                 ["uebersprungen"] = skipped,
-                ["arbeitsschritt_mehrdeutig"] = ambiguousTokenCount,
+                ["arbeitsschritt_mehrere_werkbaenke"] = multiTokenCount,
                 ["arbeitsschritt_unbekannt"] = unknownTokenCount,
                 ["arbeitsschritt_unbekannt_auftraege"] = unknownOrderCount,
             }, messageSuffix: dryRun ? "[DryRun]" : null, ct: ct);

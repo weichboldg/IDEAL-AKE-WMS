@@ -190,6 +190,54 @@ public class ProductionWorkplaceSyncService : IProductionWorkplaceSyncService
                 }
             }
 
+            // v1.63.0 (FA-b1..b8): Sage-Werkbaenke, deren Nummer nicht mehr in der Quelle steht, kennzeichnen — nie loeschen,
+            // BdeAktiv/Name/Kuerzel unberuehrt, selbstheilend. Praesenz aus den ROHEN Zeilen (vor Pflicht-/Ausschluss-Filter):
+            // eine ausgeschlossene oder kuerzellose Zeile steht trotzdem in Sage (Fallstrick §5 sagePresentKeys).
+            int nichtInSage = 0;
+            var neuMarkiert = new List<ProductionWorkplace>();
+            var wiederDa = new List<ProductionWorkplace>();
+            if (sageRows.Count == 0)
+            {
+                // Empty-Guard: sonst waere jede Sage-Werkbank "nicht in Sage".
+                await run.LogWarningAsync($"Sage-Quelle {quotedSource} liefert keine Zeilen — keine Kennzeichnung.", ct: ct);
+            }
+            else
+            {
+                var present = sageRows.Select(r => (r.Arbeitsplatznummer ?? string.Empty).Trim())
+                    .Where(n => n.Length > 0).ToHashSet(StringComparer.Ordinal);
+                foreach (var w in existing)
+                {
+                    var k = (w.SageArbeitsplatznummer ?? string.Empty).Trim();
+                    if (k.Length == 0) continue;
+                    if (!present.Contains(k))
+                    {
+                        nichtInSage++;
+                        if (w.SageMissingSince == null) neuMarkiert.Add(w);
+                    }
+                    else if (w.SageMissingSince != null) wiederDa.Add(w);
+                }
+                if (!dryRun)
+                {
+                    foreach (var w in neuMarkiert) w.SageMissingSince = now;
+                    foreach (var w in wiederDa) w.SageMissingSince = null;
+                    foreach (var w in neuMarkiert.Concat(wiederDa))
+                    {
+                        w.ModifiedAt = now; w.ModifiedBy = ServiceUser; w.ModifiedByWindows = ServiceUser;
+                        pendingUpdates = true;
+                    }
+                }
+                if (neuMarkiert.Count > 0)
+                    await run.LogWarningAsync(Kappen($"Nicht mehr in Sage ({neuMarkiert.Count} neu gekennzeichnet, zaehlen nicht fuer den " +
+                        $"Kuerzel-Abgleich): {Liste(neuMarkiert)}"), ct: ct);
+                if (wiederDa.Count > 0)
+                    await run.LogInfoAsync(Kappen($"Wieder in Sage ({wiederDa.Count}, Kennzeichnung aufgehoben): {Liste(wiederDa)}"), ct: ct);
+                // Antwort 5: nur melden, BDE nicht automatisch aus (laufende Buchungen muessen beendbar bleiben).
+                foreach (var w in existing.Where(w => w.BdeAktiv && (neuMarkiert.Contains(w) || (w.SageMissingSince != null && !wiederDa.Contains(w)))))
+                    await run.LogWarningAsync(
+                        $"Werkbank {w.Name} ({w.SageArbeitsplatznummer}) ist BDE-aktiv, steht aber nicht mehr in Sage.",
+                        reference: w.SageArbeitsplatznummer, ct: ct);
+            }
+
             if (!dryRun && pendingUpdates) await _ctx.SaveChangesAsync(ct);
 
             // Sammelmail (S1) nur bei Aenderung der problematischen Menge.
@@ -209,6 +257,9 @@ public class ProductionWorkplaceSyncService : IProductionWorkplaceSyncService
                 ["abweichung"] = deviations,
                 ["uebersprungen"] = skipped,
                 ["problematisch"] = problems.Count,
+                ["nicht_in_sage"] = nichtInSage,
+                ["nicht_in_sage_neu"] = neuMarkiert.Count,
+                ["wieder_in_sage"] = wiederDa.Count,
             }, messageSuffix: dryRun ? "[DryRun]" : null, ct: ct);
 
             return new SyncResult(inserted, updated, problems.Count);
@@ -221,6 +272,15 @@ public class ProductionWorkplaceSyncService : IProductionWorkplaceSyncService
             throw;
         }
     }
+
+    private const int MaxMessageLength = 1000; // SyncLogs.Message NVARCHAR(1000), laengere Zeilen gingen still verloren
+
+    private static string Kappen(string message) =>
+        message.Length > MaxMessageLength ? message[..(MaxMessageLength - 1)] + "…" : message;
+
+    private static string Liste(IEnumerable<ProductionWorkplace> werkbaenke) => string.Join(", ", werkbaenke
+        .OrderBy(w => w.SageArbeitsplatznummer, StringComparer.Ordinal)
+        .Select(w => $"{w.SageArbeitsplatznummer} {w.Name} ({w.ArbeitsschrittCode})"));
 
     private async Task SendProblemDigestAsync(IReadOnlyCollection<string> problems, CancellationToken ct)
     {
