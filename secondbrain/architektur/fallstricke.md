@@ -1561,3 +1561,46 @@ nur `div`) — und hinter die Gruppen nie ein `div` hängen.
 `counter(pages)` zählt die ganze Druckseite, nicht ein Dokument. Bei mehreren HauptFA in einem Druck wäre „Seite 3 von 7"
 falsch → Zähler nur bei genau einem Dokument ([[2026-10-09-briefkopf-seitenzaehlung]] bleibt dafür offen). Die
 `@page`-Margin-Box erscheint auch mit `--no-pdf-header-footer`.
+
+## 28. BDE — Kürzel-Familie, Werkbank-Prüfung beim Buchen, „nicht in Sage“ (v1.63.0)
+
+### Die Familie ist EINE Regel — Angebot, Scan, FA-Baum und Buchungs-Prüfung müssen sie teilen
+Seit v1.63.0 sieht und bucht eine Werkbank alle offenen `WorkOperation` der Werkbänke mit demselben `ArbeitsschrittCode`
+(`Services/WerkbankKuerzelFamilie.cs`). Benutzt in `BdeApiController.GetAvailableOperations`, `BdeScanResolver.BuildNormalCandidatesAsync`,
+`FaHierarchyController` (Gate `BdeRelevanteIds`) und `BdeBookingService.EnsureWorkOperationInFamilyAsync`.
+**Warum:** Was das Terminal anbietet und was der Server beim Start annimmt, darf nicht auseinanderlaufen — sonst zeigt das
+Terminal Knöpfe, die mit „gehört nicht zu dieser Werkbank“ scheitern, oder (vor v1.63.0) ein manipulierter POST bucht jeden
+AG an jeder BDE-aktiven Werkbank. **Regel:** Jede neue Stelle, die „AGs dieser Werkbank“ braucht, ruft den Helfer; nie
+`wo.ProductionWorkplaceId == workplaceId` neu schreiben. Ausnahme bewusst: `GetOpenByWorkplaceIdAsync` (Tracking je Werkbank)
+bleibt an der bevorzugten Werkbank. Vergleich in C# (Trim + OrdinalIgnoreCase), nicht in SQL (§26 Kollation).
+
+### Ohne Kürzel = nur die Werkbank selbst — darauf beruht „AKE unverändert“
+`ArbeitsschrittCode` schreibt nur die Werkbank-Anlage (IDEAL, Master an) bzw. seit v1.63.0 die Maske an Werkbänken **ohne**
+Sage-Nummer. AKE-Werkbänke haben keins → Familie `{Id}`. **Warum es weh tut:** Pflegt jemand bei AKE Kürzel ein, ändert sich
+das Terminal-Angebot sofort (gewollt, aber dann nicht mehr „AKE wie vorher“). Prüfabfrage P5 der Spec vor dem Deploy.
+
+### Die Buchungs-Prüfung muss VOR jedem Schreiben stehen
+`StartPlannedAsync`/`ResumeAsync` schließen in den Regeln 1–4 eigene Rüst-/Tätigkeitsbuchungen und speichern sofort. Steht die
+Familien-Prüfung dahinter, beendet ein abgewiesener Start trotzdem die laufende Tätigkeit des Werkers. **Regel:** Reihenfolge
+BDE-Gate → (Resume: Parent laden) → Start-Sperre → Familie → verpackt → Kollision → Regeln 1–4.
+Im NurFA-Modus prüft dieselbe Methode `ProductionOrder.ProductionWorkplaceId == Terminal-Werkbank` (Antwort 12), weil der
+Default-AG „01“ an der Werkbank des ersten Starters hängt. Pausierte **Tätigkeiten** (ohne AG) bleiben ungeprüft.
+**Auch Endpunkte, die vor der Buchung etwas ANLEGEN, prüfen vorher:** `StartProductionForOrder` legte den Default-AG
+„01“ an, bevor geprüft wurde — der neue AG hing dann an der Terminal-Werkbank und bestand FA-a9 (QA-Befund Q1, `b3daf566`).
+
+### Fortsetzen an fremder Werkbank: Liste zeigt es, Server weist ab (gewollt)
+`PausedBookings` filtert nur nach Werker (werkbank-übergreifend); seit v1.63.0 weist `ResumeAsync` außerhalb der Familie ab.
+**Bewusst nicht** gefiltert: Meldung statt stilles Ausblenden. Wer die Liste filtern will, entscheidet das neu.
+
+### „Nicht in Sage“: Präsenz aus den ROHEN Quellzeilen, Empty-Guard, nie löschen
+`ProductionWorkplaceSyncService` kennzeichnet `SageMissingSince` über die getrimmte Nummer **aller** gelesenen Zeilen — auch
+solcher, die der Pflicht-/Ausschluss-Filter verwirft (sie stehen in Sage). Liefert die Quelle 0 Zeilen: nichts kennzeichnen,
+Warnung (sonst wäre jede Sage-Werkbank „nicht in Sage“). `ProductionWorkplaceRepository.UpdateAsync` schreibt seit v1.63.0 nur
+Pflegefelder (§24-Muster), damit das Web die Kennzeichnung nicht mit dem Ladestand zurücksetzt.
+**Folge beim ersten Lauf:** Kürzel, die nur noch an gekennzeichneten Werkbänken hängen, erscheinen in der Struktur-Erkennung als
+„unbekannt“ (inkl. Sammelmail) — gewollt; vorher DryRun und P2 gegen P3 abgleichen.
+
+### Fertigmeldung = Buchung mit StartedAt == EndedAt
+Die Option „nur AG-Fertigmeldung“ speichert eine `Production/Finished`-Buchung mit Dauer 0 + `IsFinal`-Menge. Alle
+„erledigt“-Abfragen greifen ohne Änderung; die Zeitaufteilung blendet Dauer 0 aus (`BdeTimeSplitService.cs:43`). **Wer**
+Auswertungen über Ist-Zeiten baut: Werkbänke mit dieser Option liefern Ist-Zeit 0 — kein Datenfehler.

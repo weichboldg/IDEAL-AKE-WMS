@@ -678,6 +678,25 @@ Spec [[2026-10-06-beschichtungsauftrag-ausbau-teil-2-spec]] (Teil 2 von 4), Umse
 > Ersatz-Kopf). **Status:** Testbereit (QA + Nachlauf 2026-10-09, Build + 1521 Web- + 272 Service-Tests grün) → Schranke 2
 > mit dem Bündel. Offen: [[2026-10-09-briefkopf-seitenzaehlung]], [[2026-10-09-briefkopf-csp-und-bereinigung]].
 
+### BDE Stufe 1: Werkbank-Familie, veraltete Sage-Werkbänke, nur AG-Fertigmeldung (v1.63.0, direkt im Bündel)
+
+Spec [[2026-10-19-bde-stufe-1-werkbaenke-ag-fertigmeldung-spec]], Umsetzung [[2026-10-19-bde-stufe-1-werkbaenke-ag-fertigmeldung-umsetzung]],
+Changelog [[2026-10-19-v1-63-0-bde-stufe-1-werkbaenke-ag-fertigmeldung]], Backlog [[2026-10-19-bde-lastenheft-abgleich]] (Stufe 1),
+[[2026-10-19-werkbank-katalog-veraltete-sage-arbeitsplaetze]].
+
+| Baustein | Stand | Code-Einstieg |
+|---|---|---|
+| Schema `SageMissingSince`, `BdeNurAgFertigmeldung` (SQL/97, FreshInstall) | **erledigt** `4416aac8` | `Models/ProductionWorkplace.cs` |
+| (b) Kennzeichnung „nicht in Sage“ + Erkennung ohne gekennzeichnete; (a) mehrere Werkbänke → bevorzugte | **erledigt** `13681983` | `ProductionWorkplaceSyncService`, `WorkOperationStructureDetectionService`, `Services/WerkbankKuerzelFamilie.cs` |
+| (a) Terminal/Scan/FA-Baum über Kürzel-Familie | **erledigt** `27fdec11` | `BdeApiController.GetAvailableOperations`, `BdeScanResolver`, `WorkOperationRepository.GetOpenByWorkplaceIdsAsync` |
+| FA-a9 Familien-Prüfung, Start-Sperre, (c) Fertigmeldung | **erledigt** `8b51af5a` | `BdeBookingService.ReportCompletionAsync`/`EnsureWorkOperationInFamilyAsync`, `BdeTerminalController.ReportCompletion`, `bde-terminal.js` |
+| FA-a8 Kürzel-Pflege, Stammdaten-Spalte, Option | **erledigt** `3efba9a9` | `ProductionWorkplacesController`, `ProductionWorkplaceRepository.UpdateAsync` |
+| Hilfe, Changelog, README, v1.63.0, TS-96 | **erledigt** `501008f6` | `Views/Help/Index.cshtml` |
+| QA-Fix Q1: `StartProductionForOrder` prüft vor Default-AG-Anlage | **erledigt** `b3daf566` | `BdeTerminalController.StartProductionForOrder` |
+
+> **Deploy:** Web + Dienst + SQL/97 (additiv). IDEAL vor Scharfschalten DryRun + P1–P3/P6. **Status:** Testbereit (QA 2026-10-19,
+> Build + 2088 Web- / 316 Service-Tests grün) → Schranke 2 mit dem Bündel.
+
 ### Stückliste: Matchcode + Lagerplatz-Limit (v1.62.0, direkt im Bündel)
 
 Spec [[2026-10-16-stueckliste-matchcode-lagerplatz-limit-spec]], Umsetzung [[2026-10-16-stueckliste-matchcode-lagerplatz-limit-umsetzung]],
