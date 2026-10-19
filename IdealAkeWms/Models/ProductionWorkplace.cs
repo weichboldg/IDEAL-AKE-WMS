@@ -41,6 +41,17 @@ public class ProductionWorkplace : AuditableEntity
     [Display(Name = "Arbeitsschritt-Kürzel (Sage)")]
     public string? ArbeitsschrittCode { get; set; }
 
+    /// <summary>IDEAL: Erster Lauf der Werkbank-Anlage, in dem die Sage-Arbeitsplatznummer nicht mehr in der Quelle stand.
+    /// NULL = aktuell. Nur der <c>ProductionWorkplaceSyncService</c> setzt/loescht es (selbstheilend, nie loeschen);
+    /// gekennzeichnete Werkbaenke zaehlen nicht fuer den Kuerzel-Abgleich. (v1.63.0)</summary>
+    [Display(Name = "Nicht in Sage seit")]
+    public DateTime? SageMissingSince { get; set; }
+
+    /// <summary>BDE ohne Start/Stop: der Werker meldet den Arbeitsgang nur fertig (Buchung mit Start = Ende).
+    /// Ohne Wirkung, solange <c>BdeNurFaMeldung</c> global an ist. (v1.63.0)</summary>
+    [Display(Name = "Nur AG-Fertigmeldung (ohne Start/Stop)")]
+    public bool BdeNurAgFertigmeldung { get; set; }
+
     public ICollection<ProductionWorkplaceUser> ProductionWorkplaceUsers { get; set; } = new List<ProductionWorkplaceUser>();
     public ICollection<ProductionOrder> ProductionOrders { get; set; } = new List<ProductionOrder>();
     public ICollection<WorkOperation> WorkOperations { get; set; } = new List<WorkOperation>();

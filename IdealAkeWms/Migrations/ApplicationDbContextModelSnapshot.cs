@@ -2541,6 +2541,9 @@ namespace IdealAkeWms.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
+                    b.Property<bool>("BdeNurAgFertigmeldung")
+                        .HasColumnType("bit");
+
                     b.Property<bool>("BdeUseCustomShiftPlan")
                         .HasColumnType("bit");
 
@@ -2583,6 +2586,9 @@ namespace IdealAkeWms.Migrations
                     b.Property<string>("SageArbeitsplatznummer")
                         .HasMaxLength(31)
                         .HasColumnType("nvarchar(31)");
+
+                    b.Property<DateTime?>("SageMissingSince")
+                        .HasColumnType("datetime2");
 
                     b.HasKey("Id");
 

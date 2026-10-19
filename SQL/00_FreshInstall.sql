@@ -242,6 +242,8 @@ BEGIN
         [BdeUseCustomShiftPlan]  BIT               NOT NULL DEFAULT (0),
         [SageArbeitsplatznummer] NVARCHAR(31)      NULL,
         [ArbeitsschrittCode]     NVARCHAR(20)      NULL,
+        [SageMissingSince]       DATETIME2         NULL,
+        [BdeNurAgFertigmeldung]  BIT               NOT NULL CONSTRAINT [DF_ProductionWorkplaces_BdeNurAgFertigmeldung] DEFAULT (0),
         [CreatedAt]              DATETIME2         NOT NULL DEFAULT GETDATE(),
         [CreatedBy]              NVARCHAR(200)     NOT NULL,
         [CreatedByWindows]       NVARCHAR(200)     NOT NULL,
@@ -2450,6 +2452,9 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261016090641_AddOperationConfigSourceAndSageMissingSince')
    AND COL_LENGTH(N'dbo.OperationConfigs', N'Source') IS NOT NULL AND COL_LENGTH(N'dbo.OperationConfigs', N'SageMissingSince') IS NOT NULL -- sonst steht SQL/95 bzw. SQL/96 noch aus
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261016090641_AddOperationConfigSourceAndSageMissingSince', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261019092105_AddProductionWorkplaceSageMissingSinceAndNurAgFertigmeldung')
+   AND COL_LENGTH(N'dbo.ProductionWorkplaces', N'SageMissingSince') IS NOT NULL AND COL_LENGTH(N'dbo.ProductionWorkplaces', N'BdeNurAgFertigmeldung') IS NOT NULL -- sonst steht SQL/97 noch aus
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261019092105_AddProductionWorkplaceSageMissingSinceAndNurAgFertigmeldung', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';
