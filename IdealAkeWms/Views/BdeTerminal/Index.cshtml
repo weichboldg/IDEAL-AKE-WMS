@@ -199,6 +199,7 @@
     <input type="hidden" id="terminalId" value="@ViewBag.TerminalId" />
     <input type="hidden" id="workplaceId" value="@ViewBag.WorkplaceId" />
     <input type="hidden" id="nurFaMode" value="@(ViewBag.NurFaMode != null && (bool)ViewBag.NurFaMode ? "true" : "false")" />
+    <input type="hidden" id="nurAgFertigmeldung" value="@(ViewBag.NurAgFertigmeldung is true ? "true" : "false")" />
     @Html.AntiForgeryToken()
     <script src="~/js/bde-terminal.js" asp-append-version="true"></script>
 }

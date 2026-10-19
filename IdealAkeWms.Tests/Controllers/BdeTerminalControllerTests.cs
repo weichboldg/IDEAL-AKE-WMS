@@ -185,6 +185,30 @@ public class BdeTerminalControllerTests
         json.Should().Contain($"\"operatorId\":{op2}");
     }
 
+    // v1.63.0 (AK 30): Fertigmeldung bei erlaubter Mehrfachbuchung -> Antwort traegt die anderen Laufenden.
+    [Fact]
+    public async Task ReportCompletion_MultiMa_SavedAndIncludesOtherActiveBookings()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
+        (await ctx.ProductionWorkplaces.FindAsync(ids.WorkplaceId))!.BdeNurAgFertigmeldung = true;
+        var op2 = await BdeBookingTestSeed.AddSecondOperatorAsync(ctx);
+        ctx.BdeBookings.Add(new BdeBooking {
+            BdeOperatorId = op2, WorkOperationId = ids.WorkOperationId, BdeTerminalId = ids.TerminalId, ProductionWorkplaceId = ids.WorkplaceId,
+            BookingType = BdeBookingType.Production, Status = BdeBookingStatus.Running, StartedAt = DateTime.Now.AddMinutes(-30),
+            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
+        });
+        await ctx.SaveChangesAsync();
+
+        var controller = CreateTerminalController(ctx, multiMa: true);
+        var result = await controller.ReportCompletion(ids.OperatorId, ids.WorkOperationId, ids.WorkplaceId, ids.TerminalId, 10, 0);
+
+        var json = System.Text.Json.JsonSerializer.Serialize((result as JsonResult)!.Value);
+        json.Should().Contain("\"outcome\":\"Success\"");
+        json.Should().Contain($"\"operatorId\":{op2}");
+        json.Should().Contain($"\"workOperationId\":{ids.WorkOperationId}");
+    }
+
     [Fact]
     public async Task Finish_NoQuantity_EmptyOtherActiveBookings()
     {

@@ -46,15 +46,18 @@ public class BdeTerminalController : Controller
         }
 
         var activeWorkplaceId = workplaceId ?? terminal.DefaultProductionWorkplaceId;
+        var activeWorkplace = await _workplaces.GetByIdAsync(activeWorkplaceId);
         ViewBag.TerminalId = terminal.Id;
         ViewBag.WorkplaceId = activeWorkplaceId;
-        ViewBag.WorkplaceName = (await _workplaces.GetByIdAsync(activeWorkplaceId))?.Name;
+        ViewBag.WorkplaceName = activeWorkplace?.Name;
         ViewBag.AllWorkplaces = await _workplaces.GetBdeActiveAsync();
         ViewBag.DefaultWorkplaceId = terminal.DefaultProductionWorkplaceId;
 
         var nurFa = (await _settings.GetValueAsync(AppSettingKeys.BdeNurFaMeldung))
             ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
         ViewBag.NurFaMode = nurFa;
+        // v1.63.0 (FA-c2/c3): Werkbank meldet Arbeitsgaenge nur fertig (ohne Start/Stop); NurFA global gewinnt.
+        ViewBag.NurAgFertigmeldung = activeWorkplace != null && WerkbankKuerzelFamilie.NurAgFertigmeldungWirksam(activeWorkplace, nurFa);
 
         return View();
     }
@@ -164,31 +167,9 @@ public class BdeTerminalController : Controller
             // Normal single-finish flow
             var result = await _bookingSvc.FinishAsync(bookingId, goodQty, scrapQty);
 
-            object[] otherActiveBookings = Array.Empty<object>();
-
-            if (result.Outcome == BdeBookingOutcome.Success
-                && (goodQty.HasValue || scrapQty.HasValue)
-                && result.Booking?.WorkOperationId is int woId)
-            {
-                var multiMa = (await _settings.GetValueAsync(AppSettingKeys.BdeMehrfachBuchungProArbeitsgang))
-                    ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
-
-                if (multiMa)
-                {
-                    otherActiveBookings = await _ctx.BdeBookings
-                        .Include(b => b.BdeOperator)
-                        .Where(b => b.WorkOperationId == woId
-                                 && b.BdeOperatorId != result.Booking.BdeOperatorId
-                                 && b.EndedAt == null
-                                 && !b.IsCancelled)
-                        .Select(b => (object)new {
-                            operatorId = b.BdeOperatorId,
-                            operatorName = b.BdeOperator!.FirstName + " " + b.BdeOperator.LastName,
-                            startedAt = b.StartedAt
-                        })
-                        .ToArrayAsync();
-                }
-            }
+            var otherActiveBookings = goodQty.HasValue || scrapQty.HasValue
+                ? await OtherActiveBookingsAsync(result)
+                : Array.Empty<object>();
 
             return Json(MapResultWithOthers(result, otherActiveBookings));
         }
@@ -197,6 +178,39 @@ public class BdeTerminalController : Controller
             _logger.LogError(ex, "Finish failed for bookingId={BookingId}", bookingId);
             return Json(new { outcome = "Exception", message = $"Serverfehler: {ex.GetType().Name} — {ex.Message}" });
         }
+    }
+
+    /// <summary>v1.63.0 (FA-c4): Fertigmeldung ohne Start/Stop. Bei erlaubter Mehrfachbuchung je Arbeitsgang traegt die
+    /// Antwort die anderen Laufenden wie <see cref="Finish"/> (Andere-schliessen-Dialog).</summary>
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> ReportCompletion(int operatorId, int workOperationId, int workplaceId, int terminalId,
+        decimal? goodQty, decimal? scrapQty)
+    {
+        var result = await _bookingSvc.ReportCompletionAsync(operatorId, workOperationId, workplaceId, terminalId, goodQty, scrapQty);
+        return Json(MapResultWithOthers(result, await OtherActiveBookingsAsync(result)));
+    }
+
+    /// <summary>Nach einer Ende-Menge: bei BdeMehrfachBuchungProArbeitsgang die noch laufenden Buchungen anderer Werker.</summary>
+    private async Task<object[]> OtherActiveBookingsAsync(BdeBookingResult result)
+    {
+        if (result.Outcome != BdeBookingOutcome.Success || result.Booking?.WorkOperationId is not int woId)
+            return Array.Empty<object>();
+        var multiMa = (await _settings.GetValueAsync(AppSettingKeys.BdeMehrfachBuchungProArbeitsgang))
+            ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
+        if (!multiMa) return Array.Empty<object>();
+
+        return await _ctx.BdeBookings
+            .Include(b => b.BdeOperator)
+            .Where(b => b.WorkOperationId == woId
+                     && b.BdeOperatorId != result.Booking.BdeOperatorId
+                     && b.EndedAt == null
+                     && !b.IsCancelled)
+            .Select(b => (object)new {
+                operatorId = b.BdeOperatorId,
+                operatorName = b.BdeOperator!.FirstName + " " + b.BdeOperator.LastName,
+                startedAt = b.StartedAt
+            })
+            .ToArrayAsync();
     }
 
     [HttpPost, ValidateAntiForgeryToken]

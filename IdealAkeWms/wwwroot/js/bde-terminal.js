@@ -16,6 +16,9 @@
     let workplaceId = parseInt(workplaceIdEl.value);
     const token = tokenEl.value;
     const nurFaMode = document.getElementById('nurFaMode')?.value === 'true';
+    // v1.63.0: Werkbank meldet Arbeitsgaenge nur fertig (ohne Start/Stop); serverseitig gilt NurFA vor dieser Option.
+    const nurAgFertigmeldung = document.getElementById('nurAgFertigmeldung')?.value === 'true';
+    const targetQtyByWo = {}; // Sollmenge je Arbeitsgang aus dem Angebot (Vorbelegung "Fertig melden")
 
     console.log('BDE Terminal initialized:', { terminalId, workplaceId, nurFaMode });
 
@@ -53,7 +56,8 @@
             'finish': 'Beendet',
             'finishSetup': 'Rüsten beendet',
             'finishActivity': 'Aktivität beendet',
-            'reportPartial': 'Teilmenge gemeldet'
+            'reportPartial': 'Teilmenge gemeldet',
+            'reportCompletion': 'Fertig gemeldet'
         };
         return messages[action] || 'Aktion durchgeführt';
     }
@@ -307,11 +311,15 @@
     }
     function renderStartButtons() {
         if (nurFaMode) return buttons(['startProduction']);
+        if (nurAgFertigmeldung) return buttons(['reportCompletion']);
         return buttons(['startSetup','startProduction']);
     }
     function buttons(ids) {
-        var labels = { startSetup:'Rüsten starten', startProduction:'Produktion starten', pause:'Pause', finish:'Beenden (mit Mengen)', finishSetup:'Rüsten beenden', finishActivity:'Beenden', reportPartial:'Teilfertigmeldung' };
-        return ids.map(function (id) { return '<button data-action="' + id + '" class="btn btn-primary btn-lg m-1">' + labels[id] + '</button>'; }).join('');
+        var labels = { startSetup:'Rüsten starten', startProduction:'Produktion starten', pause:'Pause', finish:'Beenden (mit Mengen)', finishSetup:'Rüsten beenden', finishActivity:'Beenden', reportPartial:'Teilfertigmeldung', reportCompletion:'Fertig melden' };
+        return ids.map(function (id) {
+            var css = id === 'reportCompletion' ? 'btn-success' : 'btn-primary';
+            return '<button data-action="' + id + '" class="btn ' + css + ' btn-lg m-1">' + labels[id] + '</button>';
+        }).join('');
     }
 
     function bindActionHandlers() {
@@ -338,6 +346,18 @@
             case 'finishSetup': await post('/BdeTerminal/Finish', { bookingId: await activeId() }, action); break;
             case 'finishActivity': await post('/BdeTerminal/Finish', { bookingId: await activeId() }, action); break;
             case 'reportPartial': await promptQty(async function (good, scrap) { await post('/BdeTerminal/ReportPartial', { bookingId: await activeId(), goodQty: good, scrapQty: scrap }, action); }); break;
+            case 'reportCompletion': {
+                // Gut mit der FA-Sollmenge vorbelegt (Antwort 9), Ausschuss 0.
+                var target = targetQtyByWo[currentWorkOp.id];
+                await promptQty(async function (good, scrap) {
+                    const response = await post('/BdeTerminal/ReportCompletion', { operatorId: currentOperator.id, workOperationId: currentWorkOp.id, workplaceId: workplaceId, terminalId: terminalId, goodQty: good, scrapQty: scrap }, action);
+                    if (response && response.outcome === 'Success') {
+                        currentWorkOp = null;
+                        if (response.otherActiveBookings && response.otherActiveBookings.length > 0) showCloseOthersModal(response);
+                    }
+                }, target, target);
+                break;
+            }
         }
         await renderState();
         await loadAvailableOperations();
@@ -371,7 +391,7 @@
         return json;
     }
 
-    function promptQty(callback, targetQty) {
+    function promptQty(callback, targetQty, prefillGood) {
         return new Promise(function (resolve) {
             const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('quantityModal'));
             const hint = document.getElementById('qty-sollmenge-hint');
@@ -385,7 +405,7 @@
                 }
             }
             modal.show();
-            document.getElementById('inputGood').value = '';
+            document.getElementById('inputGood').value = prefillGood != null ? prefillGood : '';
             document.getElementById('inputScrap').value = '0';
             document.getElementById('btnQtyOk').onclick = async function () {
                 const g = parseFloat(document.getElementById('inputGood').value || '0');
@@ -498,6 +518,7 @@
                     + escapeHtml(op.description) + '</span><span class="bde-auftrag-termin">' + termin + '</span></div>'
                     + '<div class="d-flex flex-wrap gap-2">';
             }
+            targetQtyByWo[op.id] = op.targetQuantity;
             const tpl = document.querySelector('#bdeAgZeichen template[data-status="' + op.statusClass + '"]');
             html += '<button type="button" class="btn btn-lg bde-op-btn bde-ag-btn ' + escapeHtml(op.statusClass) + '" data-wo-id="' + op.id
                 + '" data-type="productive" aria-label="' + escapeHtml(op.ariaLabel) + '">' + (tpl ? tpl.innerHTML : '')

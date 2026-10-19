@@ -10,6 +10,9 @@ public interface IBdeBookingService
     Task<BdeBookingResult> PauseAsync(int bookingId, decimal? goodQty = null, decimal? scrapQty = null);
     Task<BdeBookingResult> ResumeAsync(int pausedBookingId, int operatorId, BdeBookingType resumeAs, int workplaceId, int terminalId);
     Task<BdeBookingResult> FinishAsync(int bookingId, decimal? goodQty = null, decimal? scrapQty = null);
+    /// <summary>Fertigmeldung ohne Start/Stop an einer Werkbank „nur AG-Fertigmeldung" (v1.63.0).</summary>
+    Task<BdeBookingResult> ReportCompletionAsync(int operatorId, int workOperationId, int workplaceId, int terminalId,
+        decimal? goodQty, decimal? scrapQty);
     Task<BdeBookingResult> ReportPartialQuantityAsync(int bookingId, decimal goodQty, decimal scrapQty);
     Task<CloseOthersResult> CloseOtherBookingsOnWorkOperationAsync(int workOperationId, int exceptOperatorId);
     Task<GroupFinishResult> FinishGroupAsync(int operatorId, IReadOnlyList<GroupFinishEntry> entries);

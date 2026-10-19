@@ -41,6 +41,13 @@ public class BdeBookingService : IBdeBookingService
             var gateError = await EnsureWorkplaceIsBdeActiveAsync(workplaceId);
             if (gateError != null) return gateError;
 
+            // v1.63.0: Start-Sperre an Fertigmeldungs-Werkbaenken (FA-c6), dann Familien-Pruefung (FA-a9) — beide VOR
+            // jedem Schreiben (Auto-Close der Regeln 1-4).
+            var noStartError = await EnsureStartAllowedAsync(workplaceId);
+            if (noStartError != null) return noStartError;
+            var familyError = await EnsureWorkOperationInFamilyAsync(workOperationId, workplaceId);
+            if (familyError != null) return familyError;
+
             // Fold 2 (Spec §10.6): FA in Sage bereits verpackt/abgeholt -> keine neue
             // Buchung. Liegt VOR der Auto-Close-Transition (Rule 1) — ein laufendes
             // Ruesten bleibt bei abgelehntem Produktion-Start unangetastet.
@@ -176,6 +183,13 @@ public class BdeBookingService : IBdeBookingService
             // (WorkOperationId NULL, erreichbar ueber das Paused-Panel) NICHT blocken.
             if (parent.WorkOperationId.HasValue)
             {
+                // v1.63.0: Start-Sperre (FA-c6) + Familien-Pruefung (FA-a9) nur fuer geplante Buchungen; eine pausierte
+                // Taetigkeit bleibt an jeder Werkbank fortsetzbar.
+                var noStartError = await EnsureStartAllowedAsync(workplaceId);
+                if (noStartError != null) return noStartError;
+                var familyError = await EnsureWorkOperationInFamilyAsync(parent.WorkOperationId.Value, workplaceId);
+                if (familyError != null) return familyError;
+
                 var packedError = await EnsureOrderNotPackedAsync(parent.WorkOperationId.Value);
                 if (packedError != null) return packedError;
             }
@@ -236,6 +250,71 @@ public class BdeBookingService : IBdeBookingService
             SetAuditModified(parent);
             await _ctx.SaveChangesAsync();
             return BdeBookingResult.Success(newBooking);
+        });
+    }
+
+    /// <summary>
+    /// v1.63.0 (FA-c4/c5): Fertigmeldung ohne Start/Stop an einer Werkbank mit wirksamer Option „nur AG-Fertigmeldung".
+    /// Speichert EINE Produktionsbuchung Finished mit StartedAt == EndedAt (Dauer 0) und eine End-Menge (IsFinal) — erfuellt
+    /// die bestehenden Constraints, jede „erledigt"-Abfrage greift unveraendert. Die Regeln 1-4 der Start-Logik gelten bewusst
+    /// nicht: die Buchung ist nie aktiv.
+    /// </summary>
+    public Task<BdeBookingResult> ReportCompletionAsync(int operatorId, int workOperationId, int workplaceId, int terminalId,
+        decimal? goodQty, decimal? scrapQty)
+    {
+        return InTransactionAsync(async () =>
+        {
+            var gateError = await EnsureWorkplaceIsBdeActiveAsync(workplaceId);
+            if (gateError != null) return gateError;
+
+            var workplace = await _ctx.ProductionWorkplaces.FindAsync(workplaceId);
+            if (!WerkbankKuerzelFamilie.NurAgFertigmeldungWirksam(workplace!, await ReadBoolSettingAsync(AppSettingKeys.BdeNurFaMeldung)))
+                return BdeBookingResult.Invalid("Diese Werkbank meldet nicht ohne Zeit fertig.");
+
+            var familyError = await EnsureWorkOperationInFamilyAsync(workOperationId, workplaceId);
+            if (familyError != null) return familyError;
+
+            var packedError = await EnsureOrderNotPackedAsync(workOperationId);
+            if (packedError != null) return packedError;
+
+            if ((goodQty ?? 0) == 0 && (scrapQty ?? 0) == 0)
+                return BdeBookingResult.Invalid("Bitte eine Gut- oder Ausschussmenge angeben.");
+
+            if (await _ctx.BdeBookingQuantities.AnyAsync(q => q.IsFinal && !q.BdeBooking!.IsCancelled
+                    && q.BdeBooking.WorkOperationId == workOperationId))
+                return BdeBookingResult.Invalid("Arbeitsgang ist bereits fertig gemeldet.");
+
+            var running = await _ctx.BdeBookings
+                .Include(b => b.BdeOperator).Include(b => b.ProductionWorkplace)
+                .Where(b => b.WorkOperationId == workOperationId && b.EndedAt == null && !b.IsCancelled)
+                .ToListAsync();
+            if (running.Any(b => b.BdeOperatorId == operatorId))
+                return BdeBookingResult.Invalid("Dieser Arbeitsgang läuft bei Ihnen — bitte dort beenden.");
+            // Antwort 7: dieselbe Regel wie beim Produktions-Start — Kollision nur ohne Mehrfachbuchung je Arbeitsgang.
+            if (running.Count > 0 && !await ReadBoolSettingAsync(AppSettingKeys.BdeMehrfachBuchungProArbeitsgang))
+                return BdeBookingResult.Collision(running[0]);
+
+            var now = DateTime.Now;
+            var booking = new BdeBooking
+            {
+                BdeOperatorId = operatorId,
+                WorkOperationId = workOperationId,
+                ProductionWorkplaceId = workplaceId,
+                BdeTerminalId = terminalId,
+                BookingType = BdeBookingType.Production,
+                Status = BdeBookingStatus.Finished,
+                StartedAt = now,
+                EndedAt = now
+            };
+            SetAudit(booking);
+            _ctx.BdeBookings.Add(booking);
+            await _ctx.SaveChangesAsync();
+            var quantity = CreatePartialQuantity(booking, goodQty ?? 0, scrapQty ?? 0);
+            quantity.IsFinal = true;
+            quantity.ReportedAt = now;
+            _ctx.BdeBookingQuantities.Add(quantity);
+            await _ctx.SaveChangesAsync();
+            return BdeBookingResult.Success(booking);
         });
     }
 
@@ -413,6 +492,40 @@ public class BdeBookingService : IBdeBookingService
         if (workplace == null || !workplace.BdeAktiv)
             return BdeBookingResult.Invalid("Werkbank ist nicht für BDE aktiviert.");
         return null;
+    }
+
+    /// <summary>v1.63.0 (FA-c6): an einer Werkbank mit wirksamer Option „nur AG-Fertigmeldung" kein Ruesten/Produktion.</summary>
+    private async Task<BdeBookingResult?> EnsureStartAllowedAsync(int workplaceId)
+    {
+        var workplace = await _ctx.ProductionWorkplaces.FindAsync(workplaceId);
+        if (workplace != null && WerkbankKuerzelFamilie.NurAgFertigmeldungWirksam(workplace, await ReadBoolSettingAsync(AppSettingKeys.BdeNurFaMeldung)))
+            return BdeBookingResult.Invalid("An dieser Werkbank wird nur fertig gemeldet.");
+        return null;
+    }
+
+    /// <summary>
+    /// v1.63.0 (FA-a9): der Arbeitsgang muss zu dem gehoeren, was das Terminal anbietet — sonst bucht ein manipulierter POST
+    /// jeden AG an jeder BDE-aktiven Werkbank. Normal-Modus: <c>WorkOperation.ProductionWorkplaceId</c> in der Kuerzel-Familie
+    /// der Terminal-Werkbank (ohne Kuerzel = nur sie selbst). NurFA-Modus (Antwort 12): <c>ProductionOrder.ProductionWorkplaceId</c>
+    /// == Terminal-Werkbank, deckungsgleich mit dem NurFA-Angebot (der Default-AG „01" haengt an der Werkbank des ersten Starters).
+    /// Unbekannter AG oder AG/FA ohne Werkbank: abgewiesen. Rueckgabe null bedeutet "OK, weiter".
+    /// </summary>
+    private async Task<BdeBookingResult?> EnsureWorkOperationInFamilyAsync(int workOperationId, int workplaceId)
+    {
+        var fremd = BdeBookingResult.Invalid("Dieser Arbeitsgang gehört nicht zu dieser Werkbank.");
+        var wo = await _ctx.WorkOperations.AsNoTracking()
+            .Where(w => w.Id == workOperationId)
+            .Select(w => new { w.ProductionWorkplaceId, OrderWorkplaceId = w.ProductionOrder.ProductionWorkplaceId })
+            .FirstOrDefaultAsync();
+        if (wo == null) return fremd;
+
+        if (await ReadBoolSettingAsync(AppSettingKeys.BdeNurFaMeldung))
+            return wo.OrderWorkplaceId == workplaceId ? null : fremd;
+
+        if (wo.ProductionWorkplaceId is not int woWorkplaceId) return fremd;
+        var alle = await _ctx.ProductionWorkplaces.AsNoTracking().ToListAsync();
+        var self = alle.FirstOrDefault(w => w.Id == workplaceId);
+        return self != null && WerkbankKuerzelFamilie.FamilieIds(self, alle).Contains(woWorkplaceId) ? null : fremd;
     }
 
     /// <summary>

@@ -308,6 +308,7 @@ public class BdeApiController : ControllerBase
                     productionDate = a.Fertigungstermin?.ToString("yyyy-MM-dd"),
                     operationNumber = a.Op.OperationNumber,
                     operationName = a.Op.Name,
+                    targetQuantity = a.Op.ProductionOrder.Quantity,
                     status = a.Symbol.Status is FaAgStatus.Laeuft or FaAgStatus.LaeuftUeberfaellig ? "running"
                         : a.Symbol.Status == FaAgStatus.Ueberfaellig ? "overdue" : "open",
                     isOverdue = a.Symbol.Status is FaAgStatus.Ueberfaellig or FaAgStatus.LaeuftUeberfaellig,
