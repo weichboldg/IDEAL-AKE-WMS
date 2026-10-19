@@ -19,6 +19,14 @@
     // v1.63.0: Werkbank meldet Arbeitsgaenge nur fertig (ohne Start/Stop); serverseitig gilt NurFA vor dieser Option.
     const nurAgFertigmeldung = document.getElementById('nurAgFertigmeldung')?.value === 'true';
     const targetQtyByWo = {}; // Sollmenge je Arbeitsgang aus dem Angebot (Vorbelegung "Fertig melden")
+    // v1.64.0 (FA-1): Liste nach Haupt-FA gruppiert nur bei Master an (IDEAL); hoechstens maxHauptFa Gruppen sichtbar.
+    const hierarchisch = document.getElementById('hierarchisch')?.value === 'true';
+    const maxHauptFa = Math.max(1, parseInt(document.getElementById('maxHauptFa')?.value, 10) || 5);
+    let expanded = new Set();      // aufgeklappte Gruppen (orderNumber), bleiben beim Neuladen erhalten (FA-2.3)
+    let shownGroups = maxHauptFa;  // eingeblendete Gruppen
+    let mustShow = null;           // Gruppe aus einem Scan: einblenden, auch jenseits der Grenze (FA-4.2)
+    let lastProductive = [];       // letztes Angebot (Zeile "Gewählt …", "Weitere" ohne Neuladen)
+    let lastUnplanned = [];
 
     console.log('BDE Terminal initialized:', { terminalId, workplaceId, nurFaMode });
 
@@ -134,6 +142,7 @@
     document.getElementById('btnChangeOperator').addEventListener('click', function () {
         currentOperator = null;
         currentWorkOp = null;
+        expanded = new Set(); shownGroups = maxHauptFa; mustShow = null; lastProductive = []; lastUnplanned = [];
         stopElapsedTicker();
         document.getElementById('operatorInfo').classList.add('d-none');
         document.getElementById('operatorScan').classList.remove('d-none');
@@ -174,13 +183,11 @@
             return;
         }
 
-        // Normaler Modus
+        // Normaler Modus: FA allein (Haupt- oder Sub-FA, v1.64.0 FA-4.1) oder FA,AG wie bisher.
         const parts = raw.split(/[,\/]/);
-        if (parts.length < 2) {
-            setScanFeedback('Format: FA-Nummer,AG-Nummer oder FA-Nummer/AG-Nummer', 'error');
-            return;
-        }
-        await resolveScanAndSelect(parts[0].trim(), parts[1].trim());
+        const fa = parts[0].trim();
+        if (!fa) return;
+        await resolveScanAndSelect(fa, parts.length > 1 && parts[1].trim() ? parts[1].trim() : null);
     }
 
     // IDEAL Teil 8: Scan ueber die werkbank-gescopte Aufloesung (/api/bde/resolve-scan), fuer BEIDE
@@ -198,12 +205,22 @@
         var resp = await fetch(url);
         if (!resp.ok) { setScanFeedback('Arbeitsgang nicht gefunden', 'error'); return; }
         var res = await resp.json();
+        // v1.64.0 (FA-4.2): IDEAL (Master an, Normal-Modus) - Haupt-FA ohne AG klappt die Gruppe auf (keine Vorauswahl, wie der
+        // Klick); Sub-FA oder FA,AG eindeutig waehlt; mehrdeutig klappt die Gruppe auf. Fehlt die Gruppe: bestehende Auswahl.
+        var gruppe = !nurFaMode && hierarchisch && res.candidates.length > 0;
         switch (res.kind) {
             case 'Exact':
-                await bookScannedCandidate(res.candidates[0]);
+                if (gruppe && !op && !res.viaSubOrderFallback) {
+                    if (!(await openGroup(res.candidates[0].orderNumber, null))) renderScanSelection(fa, res.candidates);
+                } else {
+                    await bookScannedCandidate(res.candidates[0]);
+                }
                 break;
             case 'Ambiguous':
-                renderScanSelection(fa, res.candidates);
+                if (!gruppe || !(await openGroup(res.candidates[0].orderNumber,
+                        res.viaSubOrderFallback ? res.candidates[0].subOrderNumber : null))) {
+                    renderScanSelection(fa, res.candidates);
+                }
                 break;
             case 'NotInScope':
                 renderScanNotice('Dieser Auftrag hat an dieser Werkbank keinen offenen Arbeitsgang.');
@@ -230,16 +247,47 @@
             await loadAvailableOperations();
             await loadTodayHistory();
         } else {
-            currentWorkOp = { id: candidate.id };
+            // v1.64.0 (FA-3): Liste neu laden, Gruppe auf, Markierung, Knoepfe in den Sichtbereich.
+            expanded.add(candidate.orderNumber);
+            currentWorkOp = { id: candidate.id, label: candidate.orderNumber ? auswahlText(candidate) : null };
+            await loadAvailableOperations();
             await renderState();
+            scrollPanel();
         }
+    }
+
+    // Gruppe einer Haupt-FA nach einem Scan einblenden + aufklappen (auch jenseits der Grenze), Liste neu geladen.
+    // false = Gruppe nicht im Angebot (darf nach "Scan-Kandidaten im Angebot" nicht vorkommen) -> Aufrufer meldet.
+    async function openGroup(orderNumber, subOrderNumber) {
+        expanded.add(orderNumber);
+        mustShow = orderNumber;
+        await loadAvailableOperations();
+        var kopf = Array.from(document.querySelectorAll('#operationButtons .bde-gruppe-kopf'))
+            .find(function (b) { return b.dataset.gruppe === orderNumber; });
+        if (!kopf) { expanded.delete(orderNumber); return false; }
+        var ziel = subOrderNumber
+            ? Array.from(kopf.parentElement.querySelectorAll('.bde-auftrag')).find(function (x) { return x.dataset.sub === subOrderNumber; })
+            : null;
+        (ziel || kopf).scrollIntoView({ block: 'nearest' });
+        kopf.focus({ preventScroll: true });
+        return true;
+    }
+
+    function auswahlText(op) {
+        var sub = op.subOrderNumber && op.subOrderNumber !== op.orderNumber ? ' / ' + op.subOrderNumber : '';
+        return op.orderNumber + sub + ' · ' + [op.operationNumber, op.operationName].filter(Boolean).join(' ');
+    }
+
+    function scrollPanel() {
+        actionPanel.scrollIntoView({ block: 'nearest' });
     }
 
     function renderScanSelection(fa, candidates) {
         const box = document.getElementById('scanSelection');
         if (!box) return;
+        // v1.64.0 (FA-4.3): Normal-Modus neutral - bei AKE unterscheiden sich die Treffer im AG, nicht im Sub-FA.
         let html = '<div class="bde-scan-heading">FA ' + escapeHtml(fa) + ': ' + candidates.length
-            + ' Sub-Aufträge – bitte auswählen</div>'
+            + (nurFaMode ? ' Sub-Aufträge' : ' Treffer') + ' – bitte auswählen</div>'
             + '<div class="d-flex flex-wrap gap-2">';
         candidates.forEach(function (c) {
             const line1 = 'Sub-FA ' + escapeHtml(c.subOrderNumber)
@@ -298,7 +346,7 @@
         if (active) {
             actionPanel.innerHTML = renderActionsForActive(active);
         } else {
-            actionPanel.innerHTML = currentWorkOp ? renderStartButtons() : '';
+            actionPanel.innerHTML = currentWorkOp ? gewaehltZeile() + renderStartButtons() : '';
         }
         bindActionHandlers();
     }
@@ -309,6 +357,13 @@
         if (b.status === 'Running' && b.bookingType === 'Activity') return buttons(['finishActivity']);
         return '';
     }
+    // v1.64.0 (FA-3.3): die Auswahl steht auch am Panel als Text (escaped).
+    function gewaehltZeile() {
+        var op = lastProductive.find(function (o) { return o.id === currentWorkOp.id; });
+        var text = op ? auswahlText(op) : currentWorkOp.label;
+        return text ? '<div class="bde-gewaehlt">Gewählt: ' + escapeHtml(text) + '</div>' : '';
+    }
+
     function renderStartButtons() {
         if (nurFaMode) return buttons(['startProduction']);
         if (nurAgFertigmeldung) return buttons(['reportCompletion']);
@@ -456,12 +511,14 @@
         const r = await fetch(`/api/bde/available-operations/${workplaceId}${opParam}`);
         if (!r.ok) return;
         const data = await r.json();
+        lastUnplanned = data.unplanned;
         renderOperationButtons(data.productive, data.unplanned);
     }
 
     function renderOperationButtons(productive, unplanned) {
         const container = document.getElementById('operationButtons');
         let html = '';
+        lastProductive = productive;
 
         if (productive.length > 0) {
             html += nurFaMode
@@ -478,7 +535,7 @@
             });
             html += '</div>';
             } else {
-                html += renderOrderBlocks(productive);
+                html += hierarchisch ? renderGroups(productive) : renderOrderBlocks(productive);
             }
         }
 
@@ -499,6 +556,58 @@
 
         container.innerHTML = html;
         bindOperationButtonHandlers();
+        markSelection();
+    }
+
+    // v1.64.0 (FA-1/FA-2): je Haupt-FA (orderNumber) ein Kopf-Knopf, Reihenfolge = Server (Prio, Termin, FA-Nr.); Rumpf = die
+    // bestehenden Sub-FA-Bloecke. Hoechstens shownGroups Gruppen, Rest ueber "Weitere". Die Grenze ist reine Darstellung.
+    function renderGroups(productive) {
+        const groups = [];
+        productive.forEach(function (op) {
+            const last = groups[groups.length - 1];
+            if (last && last.orderNumber === op.orderNumber) last.items.push(op);
+            else groups.push({ orderNumber: op.orderNumber, items: [op] });
+        });
+        if (currentWorkOp) {
+            const sel = productive.find(function (o) { return o.id === currentWorkOp.id; });
+            if (sel) expanded.add(sel.orderNumber); // FA-3.2: Gruppe des gewaehlten AG ist offen
+        }
+        if (mustShow !== null) {
+            const idx = groups.findIndex(function (g) { return g.orderNumber === mustShow; });
+            if (idx >= shownGroups) shownGroups = Math.ceil((idx + 1) / maxHauptFa) * maxHauptFa;
+            mustShow = null;
+        }
+        let html = '';
+        groups.slice(0, shownGroups).forEach(function (g, i) {
+            const first = g.items[0];
+            const open = expanded.has(g.orderNumber);
+            const termin = first.productionDate ? first.productionDate.split('-').reverse().join('.') : 'ohne Termin';
+            const n = g.items.length;
+            html += '<section class="bde-gruppe">'
+                + '<button type="button" class="bde-gruppe-kopf" data-gruppe="' + escapeHtml(g.orderNumber) + '" aria-expanded="' + open
+                + '" aria-controls="bde-gruppe-' + i + '"><span class="bde-gruppe-zeichen" aria-hidden="true">' + (open ? '▾' : '▸') + '</span>'
+                + '<strong>FA ' + escapeHtml(g.orderNumber) + '</strong>'
+                + (first.prio != null ? '<span class="badge bg-light text-dark border">Prio ' + escapeHtml(first.prio) + '</span>' : '')
+                + '<span>' + n + (n === 1 ? ' Arbeitsgang' : ' Arbeitsgänge') + '</span>'
+                + '<span class="bde-gruppe-termin">' + termin + '</span></button>'
+                + '<div class="bde-gruppe-rumpf" id="bde-gruppe-' + i + '"' + (open ? '' : ' hidden') + '>'
+                + renderOrderBlocks(g.items) + '</div></section>';
+        });
+        const rest = groups.length - shownGroups;
+        if (rest > 0) {
+            html += '<button type="button" class="btn btn-outline-secondary btn-lg bde-weitere mb-3">Weitere '
+                + Math.min(maxHauptFa, rest) + ' anzeigen (noch ' + rest + ')</button>';
+        }
+        return html;
+    }
+
+    // v1.64.0 (FA-3.1): genau der gewaehlte Arbeitsgang ist markiert (aria-pressed + Rahmen/Haken per CSS).
+    function markSelection() {
+        document.querySelectorAll('#operationButtons .bde-ag-btn').forEach(function (btn) {
+            const sel = !!currentWorkOp && parseInt(btn.dataset.woId, 10) === currentWorkOp.id;
+            btn.setAttribute('aria-pressed', sel ? 'true' : 'false');
+            btn.classList.toggle('bde-ag-gewaehlt', sel);
+        });
     }
 
     // FA-Struktur Teil 3 (v1.57.0): je Auftrag ein Block (Reihenfolge = Server-Sortierung nach Fertigungstermin), je
@@ -513,7 +622,7 @@
                 current = op.productionOrderId;
                 const sub = op.subOrderNumber && op.subOrderNumber !== op.orderNumber ? ' / ' + escapeHtml(op.subOrderNumber) : '';
                 const termin = op.productionDate ? op.productionDate.split('-').reverse().join('.') : 'ohne Termin';
-                html += '<section class="bde-auftrag">'
+                html += '<section class="bde-auftrag" data-sub="' + escapeHtml(op.subOrderNumber) + '">'
                     + '<div class="bde-auftrag-kopf"><span><strong>' + escapeHtml(op.orderNumber) + sub + '</strong> '
                     + escapeHtml(op.description) + '</span><span class="bde-auftrag-termin">' + termin + '</span></div>'
                     + '<div class="d-flex flex-wrap gap-2">';
@@ -546,8 +655,10 @@
                     await loadTodayHistory();
                 } else if (btn.dataset.type === 'productive') {
                     currentWorkOp = { id: parseInt(btn.dataset.woId) };
-                    // Show action buttons (Rüsten/Produktion)
+                    markSelection();
+                    // Show action buttons (Rüsten/Produktion), v1.64.0 direkt unter der Karte und in den Sichtbereich
                     await renderState();
+                    scrollPanel();
                 } else {
                     // Start unplanned activity directly
                     await post('/BdeTerminal/StartActivity', {
@@ -562,6 +673,23 @@
             });
         });
     }
+
+    // v1.64.0 (FA-2/FA-1.3): Gruppenkopf klappt auf/zu (ohne Neuladen), "Weitere" blendet die naechsten Gruppen ein.
+    document.getElementById('operationButtons').addEventListener('click', function (e) {
+        const kopf = e.target.closest('.bde-gruppe-kopf');
+        if (kopf) {
+            const open = kopf.getAttribute('aria-expanded') !== 'true';
+            kopf.setAttribute('aria-expanded', open ? 'true' : 'false');
+            kopf.querySelector('.bde-gruppe-zeichen').textContent = open ? '▾' : '▸';
+            document.getElementById(kopf.getAttribute('aria-controls')).hidden = !open;
+            if (open) expanded.add(kopf.dataset.gruppe); else expanded.delete(kopf.dataset.gruppe);
+            return;
+        }
+        if (e.target.closest('.bde-weitere')) {
+            shownGroups += maxHauptFa;
+            renderOperationButtons(lastProductive, lastUnplanned);
+        }
+    });
 
     function clearOperationButtons() {
         var container = document.getElementById('operationButtons');

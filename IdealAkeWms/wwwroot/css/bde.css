@@ -38,6 +38,25 @@
     --bs-btn-border-color: #b02a37; --bs-btn-hover-border-color: #b02a37; --bs-btn-active-border-color: #b02a37; border-width: 3px;
 }
 .bde-ag-btn .fa-ag-sign { width: 1.1em; height: 1.1em; margin-right: 0.35em; }
+/* v1.64.0 (FA-3.1): gewaehlter Arbeitsgang — dunkler Aussenrahmen + „✓“, ohne Farbe erkennbar (#212529 auf Weiss 15,4:1). NICHT
+   ueber .active: die Active-Variablen oben sind die Statusfarben, die Auswahl waere unsichtbar. Zustand fuer Screenreader: aria-pressed. */
+.bde-ag-btn.bde-ag-gewaehlt { outline: 3px solid #212529; outline-offset: 2px; }
+.bde-ag-btn.bde-ag-gewaehlt::before { content: "¹3"; font-weight: 700; margin-right: 0.35em; }
+.bde-gewaehlt { font-weight: 600; margin: 0 0.25rem 0.25rem; }
+
+/* v1.64.0 (FA-1.2): Gruppenkopf je Haupt-FA (IDEAL, Master an). Text #212529 auf Weiss/#f8f9fa >= 15:1, Rand #6c757d 4,7:1;
+   Zustand per aria-expanded + Zeichen, nicht nur Farbe. Touch-Hoehe wie .bde-op-btn. */
+.bde-gruppe { margin-bottom: 0.5rem; }
+.bde-gruppe-kopf {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.75rem; width: 100%; min-height: 50px;
+    padding: 0.5rem 0.75rem; background: #fff; color: #212529; border: 2px solid #6c757d; border-radius: 0.375rem;
+    text-align: left; font-size: 1.1rem;
+}
+.bde-gruppe-kopf[aria-expanded="true"] { border-color: #212529; background: #f8f9fa; }
+.bde-gruppe-kopf:focus-visible { outline: 3px solid #212529; outline-offset: 2px; }
+.bde-gruppe-zeichen { width: 1em; }
+.bde-gruppe-termin { margin-left: auto; font-weight: 600; white-space: nowrap; }
+.bde-gruppe-rumpf { padding: 0.75rem 0 0 0.5rem; }
 
 /* Scan-Disambiguierung (IDEAL Teil 8): Auswahl mehrerer Sub-FAs derselben FA. Baut auf .bde-op-btn
    auf (gleiche Touch-Groesse); Farbe traegt NIE allein die Bedeutung. */
