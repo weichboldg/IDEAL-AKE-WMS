@@ -678,6 +678,21 @@ Spec [[2026-10-06-beschichtungsauftrag-ausbau-teil-2-spec]] (Teil 2 von 4), Umse
 > Ersatz-Kopf). **Status:** Testbereit (QA + Nachlauf 2026-10-09, Build + 1521 Web- + 272 Service-Tests grün) → Schranke 2
 > mit dem Bündel. Offen: [[2026-10-09-briefkopf-seitenzaehlung]], [[2026-10-09-briefkopf-csp-und-bereinigung]].
 
+### BDE-Terminal: Liste nach Haupt-FA, Scan ohne AG, Prio (v1.64.0, direkt im Bündel)
+
+Spec [[2026-10-19-bde-terminal-liste-scan-ohne-ag-prio-spec]], Umsetzung [[2026-10-19-bde-terminal-liste-scan-ohne-ag-prio-umsetzung]],
+Changelog [[2026-10-19-v1-64-0-bde-terminal-liste-scan-ohne-ag-prio]], Backlog [[2026-10-19-bde-terminal-liste-und-scan-ohne-ag]].
+
+| Baustein | Stand | Code-Einstieg |
+|---|---|---|
+| Gruppen-Sortierung Prio/Termin, NotInScope Sub-FA, negative Mengen M1–M6, FA-Baum bevorzugte Werkbank, `BdeTerminalMaxHauptFa` | **erledigt** `63bf006c` | `BdeTerminalAuftraege.Ordnen`, `BdeScanResolver`, `BdeBookingService.IstNegativ`, `FaArbeitsschrittSymbole.NamenLookup`, `BdeTerminalController.Index` |
+| Terminal-UI: Gruppen, „Weitere“, Markierung `aria-pressed`, Panel unter Karte 2, Scan ohne AG | **erledigt** `96e90402` | `wwwroot/js/bde-terminal.js` (`renderGroups`, `openGroup`, `markSelection`), `bde.css` |
+| Hilfe, Changelog, README, v1.64.0, TS-97 | **erledigt** `5613e5a2` | `Views/Help/Index.cshtml` |
+| QA-Fix Q1–Q3: Haken-Zeichen CSS, kein Fokus nach Scan, Markierung jenseits der Grenze | **erledigt** `a9558301` | `bde.css`, `bde-terminal.js` |
+
+> **Deploy:** nur Web, keine Migration (AppSetting per Startup-Seed). **Status:** Testbereit (QA 2026-10-19, Build + 2111 Web- /
+> 316 Service-Tests grün) → Schranke 2 mit dem Bündel.
+
 ### BDE Stufe 1: Werkbank-Familie, veraltete Sage-Werkbänke, nur AG-Fertigmeldung (v1.63.0, direkt im Bündel)
 
 Spec [[2026-10-19-bde-stufe-1-werkbaenke-ag-fertigmeldung-spec]], Umsetzung [[2026-10-19-bde-stufe-1-werkbaenke-ag-fertigmeldung-umsetzung]],
