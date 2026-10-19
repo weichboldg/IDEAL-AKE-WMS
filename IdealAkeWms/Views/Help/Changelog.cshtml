@@ -9,6 +9,28 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.64.0</strong> <span class="text-white-50 ms-2">19.10.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>BDE-Terminal: Liste nach Haupt-FA, Scan ohne AG, Prio</h6>
+                <ul>
+                    <li><strong>IDEAL:</strong> Die Arbeitsgaenge am Terminal stehen je Haupt-FA in einer aufklappbaren Gruppe, sortiert
+                        nach Prio (kleinere Zahl zuerst, ohne Prio am Ende) und Fertigungstermin. Sichtbar sind zuerst 5 Haupt-FAs,
+                        &bdquo;Weitere anzeigen&ldquo; blendet die naechsten ein (Einstellung <code>BdeTerminalMaxHauptFa</code>).</li>
+                    <li>Der gewaehlte Arbeitsgang ist mit Rahmen und &#10003; markiert. Die Knoepfe &bdquo;Ruesten/Produktion starten&ldquo;
+                        stehen direkt unter der Liste, mit der Zeile &bdquo;Gewaehlt: &hellip;&ldquo;.</li>
+                    <li>Scan ohne AG: Die Haupt-FA vom Sage-Papier klappt ihre Gruppe auf, eine Sub-FA waehlt ihren Arbeitsgang direkt.
+                        <code>FA,AG</code> geht weiter. Eine Sub-FA ohne offenen Arbeitsgang an dieser Werkbank meldet das jetzt so
+                        (statt &bdquo;nicht gefunden&ldquo;).</li>
+                    <li>Negative Mengen werden bei Pause, Beenden, Teilfertigmeldung, &bdquo;Fertig melden&ldquo; und in der
+                        Buchungskorrektur abgewiesen.</li>
+                    <li>FA-Struktur: Steht ein Kuerzel an mehreren Werkbaenken, zeigt das Symbol den Namen der bevorzugten Werkbank.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.63.0</strong> <span class="text-white-50 ms-2">19.10.2026</span>
             </div>
             <div class="card-body">

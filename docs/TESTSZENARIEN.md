@@ -10240,8 +10240,54 @@ Automatisiert: `WerkbankKuerzelFamilieTests`, `ProductionWorkplaceSyncServiceTes
   b) Pausierte Tätigkeit an B, an A fortsetzen → geht. c) NurFA-Modus nur per Unit-Test (`NurFa_ChecksOrderWorkplace_NotAgWorkplace`):
   FA der Terminal-Werkbank angenommen (auch mit „01“ an alter Werkbank), FA einer anderen oder ohne Werkbank abgewiesen. d) Normal-Modus: `POST /BdeTerminal/StartProductionForOrder` mit einer beliebigen `productionOrderId` → `InvalidState` „Dieser Arbeitsgang gehört nicht zu dieser Werkbank.“, P4: kein neuer AG „01“ an diesem FA (QA-Fix, Unit-Test `StartProductionForOrder_NotOffered_Rejected_NoDefaultAgCreated`).
 
+## TS-97 — BDE-Terminal: Liste nach Haupt-FA, Scan ohne AG, Prio (v1.64.0)
+
+Spec: `2026-10-19-bde-terminal-liste-scan-ohne-ag-prio-spec` (Freigabe-Antworten 1–3). Regressionen: TS-90 (Terminal-Status),
+TS-96.3/96.7/96.10 (Familie, Fertigmeldung, manipulierte POSTs). **Vorbedingungen:** IDEAL-Testsystem mit BDE an,
+`ProduktionsauftragHierarchisch` an, `BdeNurFaMeldung` aus; Werkbank-Id 65 „Entgraten Fläche“ BDE-aktiv; Terminal-Benutzer mit
+Default-Werkbank 65; FA 1059463 mit Sub-FA 1065150 (EG offen, TS-96.2/96.3). Prüfabfragen P1–P6 aus der Spec vorher ausführen.
+Automatisiert: `BdeTerminalAuftraegeTests` (Gruppen-Sortierung), `BdeScanResolverTests` (Sub-FA-Scan, NotInScope),
+`BdeNegativeMengenTests` (M1–M6), `FaArbeitsschrittSymboleTests` (bevorzugte Werkbank), `BdeTerminalControllerTests.Index_*`.
+
+- **TS-97.1 — Gruppierung und Grenze (AK 1, 2, 6, 21).** Vorbedingung: an 65 mehr als 5 Haupt-FAs mit offenen EG-AGs (P1).
+  Schritte: 1. Operator scannen. 2. Gruppenköpfe zählen. 3. „Weitere 5 anzeigen“. 4. Eine Gruppe aufklappen, einen AG starten.
+  5. `/Settings` › BDE: `BdeTerminalMaxHauptFa = 3`, Terminal neu laden. **Erwartet:** 1. `/Settings` zeigt den Key mit 5. 2. 5 Köpfe,
+  alle zugeklappt (▸). 3. 10 Köpfe. 4. Nach dem Start bleibt die Gruppe offen. 5. 3 Köpfe. **Negativ:** a) Wert `0`, `-1` bzw. `abc`
+  → 5 Köpfe. b) Nur 2 Haupt-FAs → kein „Weitere“-Knopf. c) Operator wechseln → alle Gruppen wieder zu.
+- **TS-97.2 — Sortierung Prio/Termin (AK 3, 4).** Vorbedingung: P1 liefert Haupt-FAs mit und ohne Prio. Schritte: Reihenfolge der Köpfe
+  gegen P1 abgleichen. **Erwartet:** Prio gesetzt zuerst, kleinere Zahl oben, dann frühester Termin, dann FA-Nummer; ohne Prio nach
+  Termin. **Negativ:** Haupt-FA ohne FAInfos-Zeile steht bei „ohne Prio“ und zeigt kein Prio-Badge.
+- **TS-97.3 — Aufklappen 1059463 (AK 5).** Schritte: Kopf „FA 1059463“ antippen, danach erneut. **Erwartet:** Block Sub-FA 1065150 mit
+  Knopf EG (Status-Zeichen wie TS-90), kein ST; Kopf zeigt ▾ und ist hervorgehoben; zweites Antippen klappt zu (▸). **Negativ:** Ein von
+  Werker B laufender EG-AG erscheint als „läuft“ (blau, Sanduhr), nicht ausgeblendet.
+- **TS-97.4 — Markierung und Knöpfe (AK 7, 8, 22).** Schritte: EG von 1065150 antippen; DevTools › Rendering › „Emulate vision
+  deficiency: Achromatopsia“; DevTools-Accessibility-Baum. **Erwartet:** Dunkler Rahmen und „✓“ auch in Graustufen sichtbar,
+  `aria-pressed="true"`; Zeile „Gewählt: 1059463 / 1065150 · EG …“ und „Rüsten starten / Produktion starten“ direkt unter der Karte,
+  ohne Scrollen sichtbar; unter beiden Spalten keine Knöpfe mehr. **Negativ:** zweiten AG antippen → nur dieser markiert.
+- **TS-97.5 — Scan ohne AG (AK 9–12).** Schritte im Feld „Oder FA-Nr scannen (optional ,AG-Nr)…“: a) `1059463` b) `1065150`
+  c) `1059463,EG` d) Haupt-FA jenseits der ersten 5. **Erwartet:** a) Gruppe offen und im Sichtbereich, nichts vorgewählt. b) EG gewählt
+  und markiert, Knöpfe sichtbar. c) wie v1.63.0 gewählt, Gruppe offen. d) eingeblendet und aufgeklappt. **Negativ:** e) Sub-FA, deren
+  EG fertig gemeldet ist → „Dieser Auftrag hat an dieser Werkbank keinen offenen Arbeitsgang.“ f) `9999999` → „Arbeitsgang nicht
+  gefunden“. g) `1059463,ST` → Meldung wie TS-96.3 Negativ. h) Leere Eingabe → nichts. i) Echtes Sage-Etikett scannen (P3), Ergebnis: ______
+- **TS-97.6 — Negative Mengen (AK 13–16).** Schritte: Produktion starten, im Mengen-Dialog `-1` eintippen bei a) Pause,
+  b) Teilfertigmeldung, c) Beenden. d) Werkbank mit „nur AG-Fertigmeldung“: „Fertig melden“ mit Gut `-5`. e) Gruppen-Abschluss
+  (Mehrfach-Einstellungen an, zwei Produktionen) mit einem Eintrag `-1`. f) BDE-Admin: Buchungen › Bearbeiten › Gutmenge `-1` ›
+  Speichern. **Erwartet:** a–e Meldung „Mengen dürfen nicht negativ sein.“, Buchung unverändert (P5); f Formular mit „Menge darf nicht
+  negativ sein.“ am Feld, DB unverändert. **Negativ (Positivkontrolle):** `0`/`3` → wie v1.63.0.
+- **TS-97.7 — FA-Baum-Name (AK 17).** Vorbedingung: Werkbank „Entgraten 2 (Test)“ mit Kürzel EG aus TS-96.4. Schritte: FA-Struktur,
+  FA 1059463, EG-Symbol (Tooltip/aria-label). **Erwartet:** „EG – Entgraten Fläche“ (bevorzugt: BDE-aktiv, dann kleinste Id; P5b).
+  **Negativ:** Kürzel an „Entgraten 2“ leeren → weiterhin „EG – Entgraten Fläche“; Kürzel nur an gekennzeichneter Werkbank → ohne Namen.
+- **TS-97.8 — Hilfe (AK 18).** Hilfe › Listen: Absatz „Andere Listen“ lesen; BDE-Buchungen nach Operator filtern, Seite 2 enthält nur
+  Treffer. Hilfe › BDE › Terminal-Bedienung: Gruppierung, Prio, Auswahl, Scan ohne AG, `BdeTerminalMaxHauptFa` beschrieben.
+- **TS-97.9 — AKE-Regression (AK 19).** AKE-Testsystem (Master aus, BDE an, NurFA aus). Schritte: Operator scannen; Liste mit v1.63.0
+  vergleichen; AG antippen und starten; `FA,AG` scannen; Pause/Beenden mit Menge. **Erwartet:** gleiche Blöcke, gleiche Reihenfolge,
+  alle FAs, keine Gruppenköpfe, kein „Weitere“; neu nur Markierung und Knöpfe unter der Karte. **Negativ:** FA ohne AG scannen → bei
+  genau einem AG gewählt, bei mehreren Auswahl „FA …: n Treffer – bitte auswählen“. P4 = 0.
+- **TS-97.10 — NurFA unverändert (AK 20).** `BdeNurFaMeldung` an: Liste „Produktionsaufträge“, FA-Scan startet wie v1.63.0, keine
+  Gruppenköpfe.
+
 ---
 
 *Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) + Teil 6 (Standorteinstellungen, v1.34.0) + BOM-Guard hierarchisch (2026-08-18, abgelöst) + FA-Liste-Hierarchie (v1.35.0) + BOM-Bridge (v1.36.0) + Materialisierung fachliche Felder K1/K2 (v1.37.0) + Skopierung der Tabellen-Selektoren (TS-72) + FA-Liste ausgebaut: Matchcode, Kopfdaten je Zeile, HauptFA-Zeile, Freigabe-Kaskade (v1.38.0, TS-73) + PDF-Erzeugung für FaHierarchy-Druckdokumente (v1.39.0, TS-74) + Matchcode im Artikelstamm (v1.40.0, TS-75) + FA-Arbeitsgang-Erkennung aus der Struktur (v1.41.0, TS-76, ersetzt durch TS-77) + Arbeitsgänge (WorkOperation) aus der Struktur + Werkbank-Anlage aus Sage (v1.44.0, TS-77) + Arbeitsgänge je (Sub-)FA im FA-Struktur-Modal (v1.45.0, TS-78) + Kommissionierung nur am HauptFA
-(v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80) + Beschichtungsauftrag Summiert als Standard (v1.48.0, TS-81) + Briefkopf Beschichtungsauftrag (v1.49.0, TS-82) + Beschichtungsauftrag als eigenes Objekt (v1.50.0, TS-83) + Beschichtungsaufträge bedienen (v1.51.0, TS-84) + Arbeitsgänge als Symbole im FA-Baum (v1.52.0, TS-85) + CSV-Export für alle Tabellen (v1.53.0, TS-86) + Arbeitsgang-Stammdaten (v1.54.0, TS-87) + Status je Arbeitsgang-Kürzel im FA-Baum (v1.55.0, TS-88) + Menü Beschichtung + Kurzanleitungen (v1.56.0, TS-89) + BDE-Terminal mit Arbeitsgang-Status (v1.57.0, TS-90) + Spaltenfilter-Suchsyntax Etappe A + B (v1.58.0/v1.58.1, TS-91.A/B) + Fußzeile nach Word-Vorlage (v1.59.0, TS-92) + Sage-Quellen auf WMS-Views (v1.60.0–v1.60.2, TS-93) + Arbeitsgang-Abgleich aus der Sage-View (v1.61.0, TS-94) + Stückliste Matchcode und Lagerplatz-Limit (v1.62.0, TS-95) + BDE Stufe 1: Werkbänke, AG-Fertigmeldung (v1.63.0, TS-96)*
+(v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80) + Beschichtungsauftrag Summiert als Standard (v1.48.0, TS-81) + Briefkopf Beschichtungsauftrag (v1.49.0, TS-82) + Beschichtungsauftrag als eigenes Objekt (v1.50.0, TS-83) + Beschichtungsaufträge bedienen (v1.51.0, TS-84) + Arbeitsgänge als Symbole im FA-Baum (v1.52.0, TS-85) + CSV-Export für alle Tabellen (v1.53.0, TS-86) + Arbeitsgang-Stammdaten (v1.54.0, TS-87) + Status je Arbeitsgang-Kürzel im FA-Baum (v1.55.0, TS-88) + Menü Beschichtung + Kurzanleitungen (v1.56.0, TS-89) + BDE-Terminal mit Arbeitsgang-Status (v1.57.0, TS-90) + Spaltenfilter-Suchsyntax Etappe A + B (v1.58.0/v1.58.1, TS-91.A/B) + Fußzeile nach Word-Vorlage (v1.59.0, TS-92) + Sage-Quellen auf WMS-Views (v1.60.0–v1.60.2, TS-93) + Arbeitsgang-Abgleich aus der Sage-View (v1.61.0, TS-94) + Stückliste Matchcode und Lagerplatz-Limit (v1.62.0, TS-95) + BDE Stufe 1: Werkbänke, AG-Fertigmeldung (v1.63.0, TS-96) + BDE-Terminal Liste nach Haupt-FA, Scan ohne AG (v1.64.0, TS-97)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*

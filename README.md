@@ -401,6 +401,7 @@ Bei Änderungen der Tabellenstruktur müssen diese Scripts angepasst werden.
 | `BdeMehrfachBuchungProArbeitsgang` | `false` | Arbeitsgang darf mehrere parallele Buchungen haben |
 | `BdeGleichzeitigerAbschlussBeiMehrfachStart` | `false` | Parallel gestartete Buchungen gemeinsam fertigmelden |
 | `BdeSchichtkalenderAktiv` | `false` | Schichtkalender + Auto-Pause am Schichtende |
+| `BdeTerminalMaxHauptFa` | `5` | BDE-Terminal, nur IDEAL (hierarchische Struktur an): Anzahl Haupt-FA-Gruppen in der Arbeitsgang-Liste, Rest ueber „Weitere anzeigen“; ungueltig oder < 1 = 5 (seit v1.64.0) |
 | `OseonReportingHorizonDays` | `10` | Reporting: Tage in die Zukunft |
 | `OseonReportingOverdueLookbackDays` | `90` | Reporting: Rückblick für Überfällig-Slice |
 | `DefaultLagerbestellempfaengerId` | (leer) | Empfängergruppe für Lagerbestellungen (leer = Submit blockt) |

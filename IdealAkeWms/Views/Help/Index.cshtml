@@ -242,10 +242,10 @@
 
                     <dt>Andere Listen</dt>
                     <dd>
-                        Listen ohne Server-Side-Filter (z.&nbsp;B. Bedarfsmeldungen, BDE-Buchungen,
-                        Stammdaten) filtern weiterhin clientseitig &mdash; in diesem Fall wirkt der
-                        Spaltenfilter nur auf der aktuellen Seite. Mit der Drop-Down-Wahl &bdquo;Alle&ldquo;
-                        koennen alle Eintraege auf einmal angezeigt und gefiltert werden.
+                        Fast alle Listen filtern auf dem Server ueber alle Seiten, auch BDE-Buchungen,
+                        Bedarfsmeldungen und die Stammdaten. Nur kleine Ansichten ohne Seitenumbruch filtern im
+                        Browser (z.&nbsp;B. Stueckliste, Kommissionier-Details, Rueckmeldung je Werkbank); dort wirkt
+                        der Filter auf alle angezeigten Zeilen.
                     </dd>
 
                     <dt>Liste als CSV exportieren (seit v1.53.0)</dt>
@@ -1140,7 +1140,20 @@
                         Arbeitsgaenge stehen unter &bdquo;Aktuelle Buchungen&ldquo;.
                         Fertigungstermin: IDEAL = FE-Termin der Struktur (bei Kombigeraeten der frueheste), sonst bzw. bei AKE der
                         Fertigungstermin des Auftrags. Ueberfaellig = Termin plus Offset in Arbeitstagen aus <em>BDE-Stammdaten &rsaquo;
-                        Arbeitsgaenge</em> liegt vor heute (ohne Eintrag Offset 0). Im Modus &bdquo;Nur FA-Meldung&ldquo; bleibt die Liste wie bisher.</span></li>
+                        Arbeitsgaenge</em> liegt vor heute (ohne Eintrag Offset 0). Im Modus &bdquo;Nur FA-Meldung&ldquo; bleibt die Liste wie bisher.</span>
+                        <span class="d-block mt-1"><strong>Seit v1.64.0 (IDEAL, hierarchische Struktur an):</strong> je Haupt-FA ein Kopf mit
+                        FA-Nummer, Prio (falls gesetzt), Anzahl Arbeitsgaenge und Fertigungstermin. Reihenfolge: Prio aufsteigend (ohne Prio am
+                        Ende), dann frueherer Termin, dann FA-Nummer. Antippen klappt die Sub-FAs mit ihren Arbeitsgaengen auf und wieder zu.
+                        Sichtbar sind zuerst so viele Haupt-FAs, wie die Einstellung <code>BdeTerminalMaxHauptFa</code> sagt (Standard 5),
+                        &bdquo;Weitere &hellip; anzeigen&ldquo; blendet die naechsten ein. Offene Gruppen bleiben nach Start, Pause und Beenden offen.
+                        Bei AKE bleibt die Liste flach wie bisher.</span>
+                        <span class="d-block mt-1"><strong>Auswahl (beide Standorte):</strong> Der gewaehlte Arbeitsgang traegt einen dunklen
+                        Rahmen und ein &#10003;. Die Knoepfe stehen direkt unter der Karte &bdquo;2. Arbeitsgang waehlen&ldquo;, darueber
+                        &bdquo;Gewaehlt: FA / Sub-FA &middot; Kuerzel Name&ldquo;.</span>
+                        <span class="d-block mt-1"><strong>Scan:</strong> Die FA-Nummer allein genuegt. IDEAL: Haupt-FA (Barcode auf dem
+                        Sage-Papier) klappt die Gruppe auf, nichts ist vorgewaehlt; eine Sub-FA mit genau einem offenen Arbeitsgang an dieser
+                        Werkbank waehlt ihn direkt. AKE: genau ein Treffer wird gewaehlt, sonst erscheint eine Auswahl. <code>FA,AG</code> geht
+                        wie bisher.</span></li>
                     <li><strong>Ruesten starten:</strong> Fuer einen produktiven AG &rarr; &bdquo;Ruesten starten&ldquo; klicken. Ruestzeit wird erfasst.</li>
                     <li><strong>Produktion starten:</strong> Ruesten abgeschlossen &rarr; &bdquo;Produktion starten&ldquo; (schliesst Ruestung automatisch).</li>
                     <li><strong>Teilmenge melden:</strong> Waehrend laufender Produktion &rarr; &bdquo;Teilfertigmeldung&ldquo; &rarr; Gutmenge + Ausschuss eingeben.</li>
@@ -1204,7 +1217,8 @@
                 <ul>
                     <li><strong>Kuerzel-Familie:</strong> Tragen mehrere Werkbaenke dasselbe Arbeitsschritt-Kuerzel (z.&nbsp;B. <code>EG</code>),
                         sieht und bucht jede davon alle offenen Arbeitsgaenge mit diesem Kuerzel &mdash; im Terminal, beim Scan
-                        <code>FA,AG</code> und im Status der FA-Struktur. Die Buchung speichert die Werkbank, an der wirklich gearbeitet wurde.
+                        (FA, Sub-FA oder <code>FA,AG</code>) und im Status der FA-Struktur. Das Symbol im FA-Baum zeigt dann den Namen der
+                        bevorzugten Werkbank (BDE-aktive zuerst, dann die zuerst angelegte), dieselbe, an der die Erkennung den Arbeitsgang anlegt. Die Buchung speichert die Werkbank, an der wirklich gearbeitet wurde.
                         Eine Werkbank <strong>ohne</strong> Kuerzel (z.&nbsp;B. alle AKE-Werkbaenke) sieht nur ihre eigenen Arbeitsgaenge, wie bisher.</li>
                     <li><strong>Kuerzel pflegen:</strong> Bei Werkbaenken aus Sage kommt das Kuerzel aus Sage (Feld nur lesbar). Bei
                         Werkbaenken ohne Sage-Nummer kann es unter <em>Stammdaten &rarr; Werkbaenke &rarr; Bearbeiten</em> eingetragen werden.</li>
