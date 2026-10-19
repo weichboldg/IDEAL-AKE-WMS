@@ -122,7 +122,8 @@ public class FaHierarchyController : Controller
         {
             var ops = await _workOperationRepository.GetForFaStatusAsync(
                 pageStructures.Select(s => s.HauptFA.ToString()).Distinct().ToList());
-            var aktiveWerkbaenke = workplaces.Where(w => w.BdeAktiv).Select(w => w.Id).ToHashSet();
+            // v1.63.0 (FA-a7): BDE-aktive plus Werkbaenke, deren Kuerzel an einer BDE-aktiven, aktuellen Werkbank steht.
+            var aktiveWerkbaenke = WerkbankKuerzelFamilie.BdeRelevanteIds(workplaces);
             var bde = await _workOperationRepository.GetBdeStatusAsync(ops
                 .Where(o => o.ProductionWorkplaceId is int w && aktiveWerkbaenke.Contains(w)).Select(o => o.Id).ToList());
             var holidays = await _holidayRepository.GetHolidayDatesAsync();

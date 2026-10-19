@@ -21,6 +21,10 @@ public interface IWorkOperationRepository : IRepository<WorkOperation>
     /// Tracking-Verhalten (TrackingController.ByWorkplace bleibt ungefiltert).
     /// </summary>
     Task<List<WorkOperation>> GetOpenByWorkplaceIdAsync(int workplaceId, bool excludePackedOrders = false);
+
+    /// <summary>Wie <see cref="GetOpenByWorkplaceIdAsync"/>, aber fuer eine Werkbank-Menge — die Kuerzel-Familie des
+    /// BDE-Terminals (<see cref="IdealAkeWms.Services.WerkbankKuerzelFamilie"/>, v1.63.0).</summary>
+    Task<List<WorkOperation>> GetOpenByWorkplaceIdsAsync(IReadOnlyCollection<int> workplaceIds, bool excludePackedOrders = false);
     Task<WorkOperation?> GetByFaAndOperationAsync(string faNumber, string operationNumber);
 
     /// <summary>

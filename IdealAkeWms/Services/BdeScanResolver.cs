@@ -160,12 +160,16 @@ public class BdeScanResolver : IBdeScanResolver
     // GetOpenByWorkplaceIdAsync(excludePacked:true) minus aktiv/final gemeldet), gefiltert auf
     // OrderNumber (+ OperationNumber aus dem Scan). Der Arbeitsgang steht fest — die Auswahl geht
     // ueber die Sub-FAs (KP2-3).
-    private Task<List<BdeScanCandidate>> BuildNormalCandidatesAsync(int workplaceId, string value,
+    // v1.63.0 (FA-a3): Scope = Kuerzel-Familie der Werkbank, deckungsgleich mit dem Terminal-Angebot.
+    private async Task<List<BdeScanCandidate>> BuildNormalCandidatesAsync(int workplaceId, string value,
         bool bySubOrder, string? operationNumber, int? operatorId, CancellationToken ct)
     {
+        var alle = await _ctx.ProductionWorkplaces.AsNoTracking().ToListAsync(ct);
+        var self = alle.FirstOrDefault(w => w.Id == workplaceId);
+        var familie = self == null ? new HashSet<int> { workplaceId } : WerkbankKuerzelFamilie.FamilieIds(self, alle);
         var q = _ctx.WorkOperations.AsNoTracking()
             .Include(w => w.ProductionOrder)
-            .Where(w => w.ProductionWorkplaceId == workplaceId && !w.IsReported
+            .Where(w => w.ProductionWorkplaceId != null && familie.Contains(w.ProductionWorkplaceId.Value) && !w.IsReported
                 && (w.ProductionOrder.ExtraInfo == null || w.ProductionOrder.ExtraInfo.SageStatus == null
                     || (w.ProductionOrder.ExtraInfo.SageStatus.Trim().ToLower() != FaZusatzinfoStatus.Verpackt
                         && w.ProductionOrder.ExtraInfo.SageStatus.Trim().ToLower() != FaZusatzinfoStatus.Abgeholt)));
@@ -184,7 +188,7 @@ public class BdeScanResolver : IBdeScanResolver
             && !_ctx.BdeBookingQuantities.Any(bq =>
                 bq.IsFinal && !bq.BdeBooking.IsCancelled && bq.BdeBooking.WorkOperationId == w.Id));
 
-        return q
+        return await q
             .OrderBy(w => w.ProductionOrder.SubOrderNumber).ThenBy(w => w.Sequence)
             .Select(w => new BdeScanCandidate(
                 w.Id, BdeBookTarget.WorkOperation, w.ProductionOrderId,

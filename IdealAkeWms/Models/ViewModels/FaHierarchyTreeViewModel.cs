@@ -264,10 +264,11 @@ public static class FaArbeitsschrittSymbole
             : arbeitsschritte.Split(Trenner, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
     /// <summary>Kuerzel → Werkbank-Name aus dem Katalog (<c>ArbeitsschrittCode</c> getrimmt, case-insensitiv, wie die Erkennung).
-    /// Kuerzel auf mehreren Werkbaenken fallen heraus — dort gibt es keinen eindeutigen Namen.</summary>
+    /// Kuerzel auf mehreren Werkbaenken fallen heraus — dort gibt es keinen eindeutigen Namen. Werkbaenke „nicht in Sage"
+    /// zaehlen nicht mit (v1.63.0, FA-b10).</summary>
     public static IReadOnlyDictionary<string, string> NamenLookup(IEnumerable<ProductionWorkplace> werkbaenke) =>
         werkbaenke
-            .Where(w => !string.IsNullOrWhiteSpace(w.ArbeitsschrittCode))
+            .Where(w => !string.IsNullOrWhiteSpace(w.ArbeitsschrittCode) && w.SageMissingSince == null)
             .GroupBy(w => w.ArbeitsschrittCode!.Trim(), StringComparer.OrdinalIgnoreCase)
             .Where(g => g.Count() == 1)
             .ToDictionary(g => g.Key, g => g.Single().Name, StringComparer.OrdinalIgnoreCase);

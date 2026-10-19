@@ -173,6 +173,33 @@ public class WorkOperationRepositoryExtendedTests
         result.All(o => !o.IsReported).Should().BeTrue();
     }
 
+    // v1.63.0 (AK 13/18): Werkbank-Menge der Kuerzel-Familie; die Einzel-Variante (Tracking) bleibt bitgleich.
+    [Fact]
+    public async Task GetOpenByWorkplaceIdsAsync_ReturnsOpenOperationsOfAllGivenWorkplacesOnly()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        var repo = new WorkOperationRepository(ctx);
+
+        var a = CreateWorkplace("Entgraten Fläche");
+        var b = CreateWorkplace("Flächen entgr beendet");
+        var c = CreateWorkplace("Stanzen");
+        ctx.ProductionWorkplaces.AddRange(a, b, c);
+        var po = CreateProductionOrder("1059463");
+        ctx.ProductionOrders.Add(po);
+        await ctx.SaveChangesAsync();
+
+        ctx.WorkOperations.AddRange(
+            CreateOperation(po.Id, "EG", "an a", 1, a.Id, isReported: false),
+            CreateOperation(po.Id, "EG2", "an b", 2, b.Id, isReported: false),
+            CreateOperation(po.Id, "EG3", "an b gemeldet", 3, b.Id, isReported: true),
+            CreateOperation(po.Id, "ST", "an c", 4, c.Id, isReported: false));
+        await ctx.SaveChangesAsync();
+
+        (await repo.GetOpenByWorkplaceIdsAsync(new[] { a.Id, b.Id })).Select(o => o.OperationNumber)
+            .Should().BeEquivalentTo(new[] { "EG", "EG2" });
+        (await repo.GetOpenByWorkplaceIdAsync(a.Id)).Select(o => o.OperationNumber).Should().BeEquivalentTo(new[] { "EG" });
+    }
+
     [Fact]
     public async Task GetOpenByWorkplaceIdAsync_EmptyWhenAllReported()
     {

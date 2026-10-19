@@ -290,6 +290,41 @@ public class BdeApiControllerTests
         json.Should().Contain("\"nurFaMode\":false");
     }
 
+    // v1.63.0 (FA-a2, AK 13/16): das Angebot laedt die Kuerzel-Familie der Terminal-Werkbank, ohne Kuerzel nur sie selbst.
+    [Theory]
+    [InlineData("EG", true)]
+    [InlineData(null, false)]
+    public async Task GetAvailableOperations_QueriesKuerzelFamilie(string? code, bool expectOther)
+    {
+        var ctx = TestDbContextFactory.Create();
+        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
+        var wp = await ctx.ProductionWorkplaces.FindAsync(ids.WorkplaceId);
+        wp!.ArbeitsschrittCode = code;
+        var other = new ProductionWorkplace
+        {
+            Name = "Flächen entgr beendet", ArbeitsschrittCode = code, SageMissingSince = new DateTime(2026, 10, 19),
+            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
+        };
+        ctx.ProductionWorkplaces.Add(other);
+        await ctx.SaveChangesAsync();
+        IReadOnlyCollection<int>? asked = null;
+        _workOps.Setup(r => r.GetOpenByWorkplaceIdsAsync(It.IsAny<IReadOnlyCollection<int>>(), true))
+            .Callback<IReadOnlyCollection<int>, bool>((c, _) => asked = c)
+            .ReturnsAsync(new List<WorkOperation>());
+        _bookings.Setup(r => r.GetActiveCockpitAsync()).ReturnsAsync(new List<BdeBooking>());
+        _activities.Setup(r => r.GetAllActiveAsync()).ReturnsAsync(new List<BdeActivity>());
+        _settings.Setup(r => r.GetValueAsync("BdeNurFaMeldung")).ReturnsAsync("false");
+
+        var controller = new BdeApiController(_ops.Object, _activities.Object, _bookings.Object,
+            _workOps.Object, _workplaces.Object, _settings.Object, ctx, new BdeScanResolver(ctx), new FaHierarchyOrderInfoRepository(ctx),
+            new HolidayRepository(ctx), new BusinessDayService(), new OperationConfigRepository(ctx));
+        await controller.GetAvailableOperations(ids.WorkplaceId);
+
+        asked.Should().NotBeNull();
+        asked!.Should().Contain(ids.WorkplaceId);
+        asked.Contains(other.Id).Should().Be(expectOther);
+    }
+
     [Fact]
     public async Task GetAvailableOperations_FiltersOutFinishedWorkOperations()
     {
@@ -313,7 +348,7 @@ public class BdeApiControllerTests
         // Seed WorkOperations into the mocked repository
         var wo1 = await ctx.WorkOperations.FindAsync(ids.WorkOperationId);
         var wo2 = await ctx.WorkOperations.FindAsync(secondWoId);
-        _workOps.Setup(r => r.GetOpenByWorkplaceIdAsync(ids.WorkplaceId, true))
+        _workOps.Setup(r => r.GetOpenByWorkplaceIdsAsync(It.Is<IReadOnlyCollection<int>>(c => c.Contains(ids.WorkplaceId)), true))
             .ReturnsAsync(new List<WorkOperation> { wo1!, wo2! });
         _bookings.Setup(r => r.GetActiveCockpitAsync()).ReturnsAsync(new List<BdeBooking>());
         _activities.Setup(r => r.GetAllActiveAsync()).ReturnsAsync(new List<BdeActivity>());
@@ -352,7 +387,7 @@ public class BdeApiControllerTests
         await ctx.SaveChangesAsync();
 
         var wo = await ctx.WorkOperations.FindAsync(ids.WorkOperationId);
-        _workOps.Setup(r => r.GetOpenByWorkplaceIdAsync(ids.WorkplaceId, true))
+        _workOps.Setup(r => r.GetOpenByWorkplaceIdsAsync(It.Is<IReadOnlyCollection<int>>(c => c.Contains(ids.WorkplaceId)), true))
             .ReturnsAsync(new List<WorkOperation> { wo! });
         _bookings.Setup(r => r.GetActiveCockpitAsync()).ReturnsAsync(new List<BdeBooking>());
         _activities.Setup(r => r.GetAllActiveAsync()).ReturnsAsync(new List<BdeActivity>());
@@ -384,7 +419,7 @@ public class BdeApiControllerTests
 
         var wo1 = await ctx.WorkOperations.FindAsync(ids.WorkOperationId);
         var wo2 = await ctx.WorkOperations.FindAsync(wo2Id);
-        _workOps.Setup(r => r.GetOpenByWorkplaceIdAsync(ids.WorkplaceId, true))
+        _workOps.Setup(r => r.GetOpenByWorkplaceIdsAsync(It.Is<IReadOnlyCollection<int>>(c => c.Contains(ids.WorkplaceId)), true))
             .ReturnsAsync(new List<WorkOperation> { wo1!, wo2! });
         _bookings.Setup(r => r.GetActiveCockpitAsync()).ReturnsAsync(new List<BdeBooking>());
         _activities.Setup(r => r.GetAllActiveAsync()).ReturnsAsync(new List<BdeActivity>());
@@ -415,7 +450,7 @@ public class BdeApiControllerTests
         await ctx.SaveChangesAsync();
 
         var wo = await ctx.WorkOperations.FindAsync(ids.WorkOperationId);
-        _workOps.Setup(r => r.GetOpenByWorkplaceIdAsync(ids.WorkplaceId, true))
+        _workOps.Setup(r => r.GetOpenByWorkplaceIdsAsync(It.Is<IReadOnlyCollection<int>>(c => c.Contains(ids.WorkplaceId)), true))
             .ReturnsAsync(new List<WorkOperation> { wo! });
         _bookings.Setup(r => r.GetActiveCockpitAsync()).ReturnsAsync(new List<BdeBooking>());
         _activities.Setup(r => r.GetAllActiveAsync()).ReturnsAsync(new List<BdeActivity>());
@@ -635,7 +670,7 @@ public class BdeApiControllerTests
 
         var wo1 = await ctx.WorkOperations.FindAsync(ids.WorkOperationId);
         var wo2 = await ctx.WorkOperations.FindAsync(wo2Id);
-        _workOps.Setup(r => r.GetOpenByWorkplaceIdAsync(ids.WorkplaceId, true)).ReturnsAsync(new List<WorkOperation> { wo1!, wo2! });
+        _workOps.Setup(r => r.GetOpenByWorkplaceIdsAsync(It.Is<IReadOnlyCollection<int>>(c => c.Contains(ids.WorkplaceId)), true)).ReturnsAsync(new List<WorkOperation> { wo1!, wo2! });
         _bookings.Setup(r => r.GetActiveCockpitAsync()).ReturnsAsync(new List<BdeBooking> { werkerB });
         _activities.Setup(r => r.GetAllActiveAsync()).ReturnsAsync(new List<BdeActivity>());
         _settings.Setup(r => r.GetValueAsync("BdeNurFaMeldung")).ReturnsAsync("false");
@@ -668,7 +703,7 @@ public class BdeApiControllerTests
         await ctx.SaveChangesAsync();
 
         var wo1 = await ctx.WorkOperations.FindAsync(ids.WorkOperationId);
-        _workOps.Setup(r => r.GetOpenByWorkplaceIdAsync(ids.WorkplaceId, true)).ReturnsAsync(new List<WorkOperation> { wo1! });
+        _workOps.Setup(r => r.GetOpenByWorkplaceIdsAsync(It.Is<IReadOnlyCollection<int>>(c => c.Contains(ids.WorkplaceId)), true)).ReturnsAsync(new List<WorkOperation> { wo1! });
         _bookings.Setup(r => r.GetActiveCockpitAsync()).ReturnsAsync(new List<BdeBooking>());
         _activities.Setup(r => r.GetAllActiveAsync()).ReturnsAsync(new List<BdeActivity>());
         _settings.Setup(r => r.GetValueAsync("BdeNurFaMeldung")).ReturnsAsync("false");

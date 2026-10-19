@@ -69,6 +69,49 @@ public class BdeScanResolverTests
 
     private static BdeScanResolver Resolver(ApplicationDbContext ctx) => new(ctx);
 
+    // ---------------------------------------------------------------- v1.63.0 Kuerzel-Familie (FA-a3, AK 14/16)
+
+    private static void SeedWp(ApplicationDbContext ctx, int id, string? code, bool missing = false) =>
+        ctx.ProductionWorkplaces.Add(new ProductionWorkplace
+        {
+            Id = id, Name = $"WB {id}", ArbeitsschrittCode = code, BdeAktiv = true,
+            SageMissingSince = missing ? new DateTime(2026, 10, 19) : null,
+            CreatedAt = DateTime.Now, CreatedBy = "Test", CreatedByWindows = "TEST\\user"
+        });
+
+    [Fact]
+    public async Task Normal_Familie_FindsAgAtOtherWorkplaceWithSameCode_IncludingMarked()
+    {
+        var ctx = TestDbContextFactory.Create();
+        SeedWp(ctx, 65, "EG"); SeedWp(ctx, 19, "eg", missing: true); SeedWp(ctx, 63, "ST");
+        SeedPo(ctx, 1, "1059463", "1065150", 63);
+        SeedWo(ctx, 10, 1, 63, "ST", sequence: 0);
+        SeedWo(ctx, 11, 1, 19, "EG", sequence: 1);
+        await ctx.SaveChangesAsync();
+
+        var eg = await Resolver(ctx).ResolveAsync(65, "1059463", "EG", nurFaMode: false, operatorId: null);
+        eg.Kind.Should().Be(BdeScanResolutionKind.Exact);
+        eg.Single!.Id.Should().Be(11);
+
+        var st = await Resolver(ctx).ResolveAsync(65, "1059463", "ST", nurFaMode: false, operatorId: null);
+        st.Kind.Should().Be(BdeScanResolutionKind.NotInScope); // ST gehoert zur Familie Stanzen
+    }
+
+    [Fact]
+    public async Task Normal_MarkedOrCodelessWorkplace_SeesOnlyOwn()
+    {
+        var ctx = TestDbContextFactory.Create();
+        SeedWp(ctx, 65, "EG"); SeedWp(ctx, 19, "EG", missing: true); SeedWp(ctx, 7, null); SeedWp(ctx, 8, null);
+        SeedPo(ctx, 1, "GRP", "SUB", 65);
+        SeedWo(ctx, 10, 1, 65, "EG");
+        SeedWo(ctx, 11, 1, 8, "01");
+        await ctx.SaveChangesAsync();
+
+        (await Resolver(ctx).ResolveAsync(19, "GRP", "EG", false, null)).Kind.Should().Be(BdeScanResolutionKind.NotInScope);
+        (await Resolver(ctx).ResolveAsync(7, "GRP", "01", false, null)).Kind.Should().Be(BdeScanResolutionKind.NotInScope);
+        (await Resolver(ctx).ResolveAsync(8, "GRP", "01", false, null)).Single!.Id.Should().Be(11);
+    }
+
     // ---------------------------------------------------------------- Normal-Modus
 
     [Fact]

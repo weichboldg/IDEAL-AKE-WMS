@@ -252,8 +252,9 @@ public class BdeApiController : ControllerBase
             return Ok(new { productive = orders, unplanned = Array.Empty<object>(), nurFaMode = true });
         }
 
-        // Open WorkOperations at this workplace (not reported, not already in active booking)
-        var workOps = await _workOps.GetOpenByWorkplaceIdAsync(workplaceId, excludePackedOrders: true);
+        // Offene WorkOperations der Kuerzel-Familie dieser Werkbank (v1.63.0, FA-a2; ohne Kuerzel = nur diese Werkbank)
+        var familie = WerkbankKuerzelFamilie.FamilieIds(workplace, await _ctx.ProductionWorkplaces.AsNoTracking().ToListAsync());
+        var workOps = await _workOps.GetOpenByWorkplaceIdsAsync(familie, excludePackedOrders: true);
         var activeWoIds = (await _bookings.GetActiveCockpitAsync())
             .Where(b => b.WorkOperationId.HasValue)
             .Select(b => b.WorkOperationId!.Value)

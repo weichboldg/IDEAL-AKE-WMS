@@ -54,6 +54,15 @@ public class FaArbeitsschrittSymboleTests
         => FaArbeitsschrittSymbole.NamenLookup(new[] { Wp("PG", "Packen 1"), Wp("pg", "Packen 2"), Wp("LS", "Laser") })
             .Keys.Should().BeEquivalentTo(new[] { "LS" }, "ein Kuerzel auf mehreren Werkbaenken bekommt keinen erfundenen Namen");
 
+    // v1.63.0 (FA-b10, AK 17): eine gekennzeichnete Werkbank zaehlt nicht — EG hat wieder genau einen Namen.
+    [Fact]
+    public void NamenLookup_GekennzeichneteWerkbankZaehltNicht()
+    {
+        var alt = Wp("EG", "Flächen entgr beendet");
+        alt.SageMissingSince = new DateTime(2026, 10, 19);
+        FaArbeitsschrittSymbole.NamenLookup(new[] { alt, Wp("EG", "Entgraten Fläche") })["EG"].Should().Be("Entgraten Fläche");
+    }
+
     [Fact]
     public void Zuordnen_JeZeileNurEigeneKuerzel_AuchBlatt_AK13()
     {

@@ -56,13 +56,16 @@ public class WorkOperationRepository : Repository<WorkOperation>, IWorkOperation
             .ToListAsync();
     }
 
-    public async Task<List<WorkOperation>> GetOpenByWorkplaceIdAsync(int workplaceId, bool excludePackedOrders = false)
+    public Task<List<WorkOperation>> GetOpenByWorkplaceIdAsync(int workplaceId, bool excludePackedOrders = false)
+        => GetOpenByWorkplaceIdsAsync(new[] { workplaceId }, excludePackedOrders);
+
+    public async Task<List<WorkOperation>> GetOpenByWorkplaceIdsAsync(IReadOnlyCollection<int> workplaceIds, bool excludePackedOrders = false)
     {
         var query = _dbSet
             .AsNoTracking()
             .Include(wo => wo.ProductionOrder)
             .Include(wo => wo.ProductionWorkplace)
-            .Where(wo => wo.ProductionWorkplaceId == workplaceId && !wo.IsReported);
+            .Where(wo => wo.ProductionWorkplaceId != null && workplaceIds.Contains(wo.ProductionWorkplaceId.Value) && !wo.IsReported);
 
         if (excludePackedOrders)
         {
