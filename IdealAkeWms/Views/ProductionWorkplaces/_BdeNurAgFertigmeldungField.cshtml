@@ -1,0 +1,17 @@
+@model ProductionWorkplaceEditViewModel
+@* v1.63.0 (FA-c1/c8): Werkbank-Option "nur AG-Fertigmeldung"; bei globalem BdeNurFaMeldung ohne Wirkung. *@
+<div class="form-check form-switch mb-3">
+    <input asp-for="BdeNurAgFertigmeldung" class="form-check-input" role="switch" />
+    <label asp-for="BdeNurAgFertigmeldung" class="form-check-label"></label>
+    <div class="form-text">
+        Am Terminal gibt es dann statt „Rüsten starten“/„Produktion starten“ nur „Fertig melden“ mit Mengen-Eingabe.
+        Gespeichert wird, wer wann wo welche Menge gemeldet hat, ohne Zeit (Dauer 0). Tätigkeiten bleiben möglich.
+    </div>
+    @if (ViewBag.NurFaGlobal is true)
+    {
+        <div class="alert alert-warning small mt-2 mb-0" role="alert">
+            Die Einstellung <code>BdeNurFaMeldung</code> (Einstellungen › BDE) ist eingeschaltet. Solange sie gilt, hat
+            diese Option keine Wirkung.
+        </div>
+    }
+</div>

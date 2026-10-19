@@ -60,7 +60,7 @@ public static class ColumnFilterTypes
             ["PickingLeitstand/Index"] = L(("coating-date", D), ("bg-date", D), ("picking-date", D), ("production-date", D), ("delivery-date", D)),
             ["ProductionOrders/Index"] = L(("prio", N), ("konstruktions-termin", D), ("coating-date", D), ("bg-date", D),
                 ("picking-date", D), ("production-date", D), ("delivery-date", D)),
-            ["ProductionWorkplaces/Index"] = L(("pre-picking-days", N)),
+            ["ProductionWorkplaces/Index"] = L(("pre-picking-days", N), ("sage-missing", D)),
             ["Roles/Index"] = L(("user-count", N)),
             ["SageBookingQueue/Index"] = L(("id", N), ("quantity", N), ("created-at", D), ("sent-at", D), ("confirmed-at", D), ("attempts", N)),
             ["StockMovements/Index"] = L(("datetime", D)),

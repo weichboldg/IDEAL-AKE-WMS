@@ -16,11 +16,13 @@
                         <label asp-for="Name" class="form-label"></label>
                         <input asp-for="Name" class="form-control" autofocus />
                         <div class="form-text">
-                            Sage-Nummer und Arbeitsschritt-Kürzel werden nicht hier gepflegt: Werkbänke aus den
-                            Sage-Arbeitsplätzen legt der Sync automatisch an (Sage führend).
+                            Die Sage-Nummer wird nicht hier gepflegt: Werkbänke aus den Sage-Arbeitsplätzen legt der Sync
+                            automatisch an (Sage führend).
                         </div>
                         <span asp-validation-for="Name" class="text-danger"></span>
                     </div>
+
+                    <partial name="_ArbeitsschrittCodeField" model="Model" />
 
                     <div class="mb-3">
                         <label asp-for="Hall" class="form-label"></label>
@@ -73,6 +75,7 @@
                                 <label asp-for="BdeAktiv" class="form-check-label"></label>
                                 <div class="form-text">Werkbank erscheint in BDE-Cockpit, Terminal und Buchungsübersicht.</div>
                             </div>
+                            <partial name="_BdeNurAgFertigmeldungField" model="Model" />
                             <div class="mb-3">
                                 <label asp-for="BdeDefaultArbeitsgang" class="form-label"></label>
                                 <input asp-for="BdeDefaultArbeitsgang" class="form-control" placeholder="z.B. PRODUKTION (leer = globales Setting verwenden)" />

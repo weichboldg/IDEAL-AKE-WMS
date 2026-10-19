@@ -20,6 +20,48 @@ public class ProductionWorkplaceRepositoryTests
         };
     }
 
+    // v1.63.0 (Fallstrick §24, FA-a8): UpdateAsync schreibt nur Pflegefelder; Kuerzel nur ohne gespeicherte Sage-Nummer.
+    [Fact]
+    public async Task UpdateAsync_WritesOnlyEditableFields_SageCodeAndMarkerProtected()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        var repo = new ProductionWorkplaceRepository(ctx);
+        var wp = CreateWorkplace("Entgraten Fläche");
+        wp.SageArbeitsplatznummer = "140";
+        wp.ArbeitsschrittCode = "EG";
+        await repo.AddAsync(wp);
+
+        wp.Hall = "Halle 2";
+        wp.BdeNurAgFertigmeldung = true;
+        wp.ArbeitsschrittCode = "XX";                       // Sage-gefuehrt -> bleibt
+        wp.SageArbeitsplatznummer = null;                   // gehoert der Werkbank-Anlage -> bleibt
+        wp.SageMissingSince = new DateTime(2026, 10, 19);   // Web schreibt die Kennzeichnung nie
+        await repo.UpdateAsync(wp);
+
+        ctx.ChangeTracker.Clear();
+        var saved = await repo.GetByIdAsync(wp.Id);
+        saved!.Hall.Should().Be("Halle 2");
+        saved.BdeNurAgFertigmeldung.Should().BeTrue();
+        saved.ArbeitsschrittCode.Should().Be("EG");
+        saved.SageArbeitsplatznummer.Should().Be("140");
+        saved.SageMissingSince.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task UpdateAsync_NonSageWorkplace_WritesCode()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        var repo = new ProductionWorkplaceRepository(ctx);
+        var wp = CreateWorkplace("Entgraten 2");
+        await repo.AddAsync(wp);
+
+        wp.ArbeitsschrittCode = "EG";
+        await repo.UpdateAsync(wp);
+
+        ctx.ChangeTracker.Clear();
+        (await repo.GetByIdAsync(wp.Id))!.ArbeitsschrittCode.Should().Be("EG");
+    }
+
     [Fact]
     public async Task AddAsync_PersistsWorkplace_WithAllFields()
     {

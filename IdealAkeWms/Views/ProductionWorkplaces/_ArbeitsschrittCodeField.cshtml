@@ -1,0 +1,11 @@
+@model ProductionWorkplaceEditViewModel
+@* v1.63.0 (FA-a8): Kuerzel nur an Werkbaenken ohne Sage-Nummer pflegbar (Create/Edit); Sage-Werkbaenke zeigen es read-only. *@
+<div class="mb-3">
+    <label asp-for="ArbeitsschrittCode" class="form-label"></label>
+    <input asp-for="ArbeitsschrittCode" class="form-control" maxlength="20" placeholder="z.B. EG" />
+    <div class="form-text">
+        Optional. Werkbänke mit demselben Kürzel sehen und buchen dieselben offenen Arbeitsgänge
+        (z.B. eine zweite Entgrat-Werkbank mit EG). Leer = nur die Arbeitsgänge dieser Werkbank.
+    </div>
+    <span asp-validation-for="ArbeitsschrittCode" class="text-danger"></span>
+</div>

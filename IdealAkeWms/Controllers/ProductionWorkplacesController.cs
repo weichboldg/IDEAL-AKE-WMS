@@ -47,7 +47,8 @@ public class ProductionWorkplacesController : Controller
         ["sage-nr"] = wp => wp.SageArbeitsplatznummer,
         ["arbeitsschritt"] = wp => wp.ArbeitsschrittCode,
         ["hall"] = wp => wp.Hall,
-        ["bde"] = wp => wp.BdeAktiv ? "Aktiv" : "Inaktiv",
+        ["bde"] = wp => (wp.BdeAktiv ? "Aktiv" : "Inaktiv") + (wp.BdeNurAgFertigmeldung ? " nur Fertigmeldung" : ""),
+        ["sage-missing"] = wp => wp.SageMissingSince?.ToString("dd.MM.yyyy"),
         ["users"] = wp => wp.ProductionWorkplaceUsers.Any()
             ? $"{wp.ProductionWorkplaceUsers.Count} {string.Join(", ", wp.ProductionWorkplaceUsers.Select(wu => wu.User.Name))}"
             : "—",
@@ -87,7 +88,7 @@ public class ProductionWorkplacesController : Controller
             AvailableUsers = await _userRepository.GetActiveUsersAsync(),
             AllWorkSteps = await _workStepRepository.GetActiveAsync()
         };
-        ViewBag.GlobalDefaultArbeitsgang = await _appSettings.GetValueAsync(AppSettingKeys.BdeDefaultArbeitsgang) ?? "(nicht gesetzt)";
+        await SetFormViewBagAsync();
         return View(vm);
     }
 
@@ -101,7 +102,7 @@ public class ProductionWorkplacesController : Controller
             vm.AvailableUsers = await _userRepository.GetActiveUsersAsync();
             vm.AllWorkSteps = await _workStepRepository.GetActiveAsync();
             vm.SelectedWorkStepIds = workStepIds?.ToList() ?? new List<int>();
-            ViewBag.GlobalDefaultArbeitsgang = await _appSettings.GetValueAsync(AppSettingKeys.BdeDefaultArbeitsgang) ?? "(nicht gesetzt)";
+            await SetFormViewBagAsync();
             return View(vm);
         }
 
@@ -114,6 +115,9 @@ public class ProductionWorkplacesController : Controller
             BdeDefaultArbeitsgang = string.IsNullOrWhiteSpace(vm.BdeDefaultArbeitsgang)
                 ? null
                 : vm.BdeDefaultArbeitsgang.Trim(),
+            // Create setzt nie eine Sage-Nummer -> Kuerzel immer pflegbar (FA-a8)
+            ArbeitsschrittCode = NormalizeCode(vm.ArbeitsschrittCode),
+            BdeNurAgFertigmeldung = vm.BdeNurAgFertigmeldung,
             CreatedAt = DateTime.Now,
             CreatedBy = _currentUserService.GetDisplayName(),
             CreatedByWindows = _currentUserService.GetWindowsUserName()
@@ -161,6 +165,8 @@ public class ProductionWorkplacesController : Controller
             BdeUseCustomShiftPlan = workplace.BdeUseCustomShiftPlan,
             SageArbeitsplatznummer = workplace.SageArbeitsplatznummer,
             ArbeitsschrittCode = workplace.ArbeitsschrittCode,
+            BdeNurAgFertigmeldung = workplace.BdeNurAgFertigmeldung,
+            SageMissingSince = workplace.SageMissingSince,
             CustomShifts = await _ctx.BdeShifts
                 .Where(s => s.ProductionWorkplaceId == workplace.Id)
                 .OrderBy(s => s.DayOfWeek).ThenBy(s => s.StartTime)
@@ -171,7 +177,7 @@ public class ProductionWorkplacesController : Controller
             SelectedWorkStepIds = await _repository.GetWorkStepIdsAsync(workplace.Id)
         };
 
-        ViewBag.GlobalDefaultArbeitsgang = await _appSettings.GetValueAsync(AppSettingKeys.BdeDefaultArbeitsgang) ?? "(nicht gesetzt)";
+        await SetFormViewBagAsync();
         return View(vm);
     }
 
@@ -188,7 +194,7 @@ public class ProductionWorkplacesController : Controller
             vm.AvailableUsers = await _userRepository.GetActiveUsersAsync();
             vm.AllWorkSteps = await _workStepRepository.GetActiveAsync();
             vm.SelectedWorkStepIds = workStepIds?.ToList() ?? new List<int>();
-            ViewBag.GlobalDefaultArbeitsgang = await _appSettings.GetValueAsync(AppSettingKeys.BdeDefaultArbeitsgang) ?? "(nicht gesetzt)";
+            await SetFormViewBagAsync();
             return View(vm);
         }
 
@@ -204,6 +210,11 @@ public class ProductionWorkplacesController : Controller
             ? null
             : vm.BdeDefaultArbeitsgang.Trim();
         existing.BdeUseCustomShiftPlan = vm.BdeUseCustomShiftPlan;
+        existing.BdeNurAgFertigmeldung = vm.BdeNurAgFertigmeldung;
+        // FA-a8: Kuerzel nur an Werkbaenken OHNE Sage-Nummer — entschieden am gespeicherten Wert, nie am Formular
+        // (die Sage-Nummer kommt als readonly-Input zurueck und ist manipulierbar). Repository schuetzt zusaetzlich.
+        if (existing.SageArbeitsplatznummer == null)
+            existing.ArbeitsschrittCode = NormalizeCode(vm.ArbeitsschrittCode);
         existing.ModifiedAt = DateTime.Now;
         existing.ModifiedBy = _currentUserService.GetDisplayName();
         existing.ModifiedByWindows = _currentUserService.GetWindowsUserName();
@@ -222,5 +233,15 @@ public class ProductionWorkplacesController : Controller
 
         TempData["SuccessMessage"] = $"Werkbank '{existing.Name}' wurde aktualisiert.";
         return RedirectToAction(nameof(Index));
+    }
+
+    private static string? NormalizeCode(string? code) => string.IsNullOrWhiteSpace(code) ? null : code.Trim();
+
+    private async Task SetFormViewBagAsync()
+    {
+        ViewBag.GlobalDefaultArbeitsgang = await _appSettings.GetValueAsync(AppSettingKeys.BdeDefaultArbeitsgang) ?? "(nicht gesetzt)";
+        // FA-c8: Hinweis, dass die Werkbank-Option bei globalem NurFA ohne Wirkung ist
+        ViewBag.NurFaGlobal = (await _appSettings.GetValueAsync(AppSettingKeys.BdeNurFaMeldung))
+            ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
     }
 }

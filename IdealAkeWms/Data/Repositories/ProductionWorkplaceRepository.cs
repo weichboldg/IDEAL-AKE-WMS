@@ -9,6 +9,32 @@ public class ProductionWorkplaceRepository : Repository<ProductionWorkplace>, IP
     {
     }
 
+    /// <summary>Pflegefelder der Werkbank-Maske — nur diese schreibt <see cref="UpdateAsync"/>.</summary>
+    private static readonly string[] EditableProperties =
+    {
+        nameof(ProductionWorkplace.Name), nameof(ProductionWorkplace.Hall), nameof(ProductionWorkplace.OverridePrePickingDays),
+        nameof(ProductionWorkplace.BdeAktiv), nameof(ProductionWorkplace.BdeDefaultArbeitsgang),
+        nameof(ProductionWorkplace.BdeUseCustomShiftPlan), nameof(ProductionWorkplace.BdeNurAgFertigmeldung),
+        nameof(ProductionWorkplace.ModifiedAt), nameof(ProductionWorkplace.ModifiedBy), nameof(ProductionWorkplace.ModifiedByWindows),
+    };
+
+    /// <summary>
+    /// v1.63.0: schreibt nur die Pflegefelder (kein <c>Update(entity)</c>, das alle Spalten mit dem Ladestand zurueckschreibt,
+    /// Fallstrick §24): <c>SageMissingSince</c> und <c>SageArbeitsplatznummer</c> gehoeren der Werkbank-Anlage.
+    /// <c>ArbeitsschrittCode</c> nur, wenn die gespeicherte Sage-Nummer NULL ist (FA-a8, Sage-Werkbank bleibt Sage-gefuehrt).
+    /// </summary>
+    public override async Task UpdateAsync(ProductionWorkplace entity)
+    {
+        var entry = _context.Entry(entity);
+        if (entry.State == EntityState.Detached)
+            _dbSet.Attach(entity);
+        var sageWerkbank = entry.Property(e => e.SageArbeitsplatznummer).OriginalValue != null;
+        foreach (var property in entry.Properties)
+            property.IsModified = EditableProperties.Contains(property.Metadata.Name)
+                || (property.Metadata.Name == nameof(ProductionWorkplace.ArbeitsschrittCode) && !sageWerkbank);
+        await _context.SaveChangesAsync();
+    }
+
     public async Task<List<ProductionWorkplace>> GetAllOrderedAsync()
     {
         return await _dbSet

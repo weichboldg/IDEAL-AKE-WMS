@@ -22,6 +22,14 @@
                     <input type="hidden" asp-for="Id" />
                     <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
 
+                    @if (Model.SageMissingSince.HasValue)
+                    {
+                        <div class="alert alert-warning small" role="alert">
+                            <span class="badge bg-warning text-dark border border-dark me-1">Nicht in Sage</span>
+                            Steht seit <strong>@Model.SageMissingSince.Value.ToString("dd.MM.yyyy")</strong> nicht mehr in den
+                            Sage-Arbeitsplätzen; zählt nicht für den Kürzel-Abgleich.
+                        </div>
+                    }
                     @if (Model.IstSageGefuehrt)
                     {
                         <div class="alert alert-info small" role="alert">
@@ -54,6 +62,7 @@
                             <input asp-for="Name" class="form-control" />
                             <span asp-validation-for="Name" class="text-danger"></span>
                         </div>
+                        <partial name="_ArbeitsschrittCodeField" model="Model" />
                     }
 
                     <div class="mb-3">
@@ -107,6 +116,7 @@
                                 <label asp-for="BdeAktiv" class="form-check-label"></label>
                                 <div class="form-text">Werkbank erscheint in BDE-Cockpit, Terminal und Buchungsübersicht.</div>
                             </div>
+                            <partial name="_BdeNurAgFertigmeldungField" model="Model" />
                             <div class="mb-3">
                                 <label asp-for="BdeDefaultArbeitsgang" class="form-label"></label>
                                 <input asp-for="BdeDefaultArbeitsgang" class="form-control" placeholder="z.B. PRODUKTION (leer = globales Setting verwenden)" />

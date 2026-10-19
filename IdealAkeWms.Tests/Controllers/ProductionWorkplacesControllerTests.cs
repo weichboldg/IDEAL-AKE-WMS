@@ -9,6 +9,7 @@ using IdealAkeWms.Tests.Helpers;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
+using Microsoft.EntityFrameworkCore;
 using Moq;
 using Xunit;
 
@@ -89,6 +90,87 @@ public class ProductionWorkplacesControllerTests
         var junctions = ctx.ProductionWorkplaceWorkSteps.Where(x => x.ProductionWorkplaceId == wp.Id).ToList();
         junctions.Should().ContainSingle(x => x.WorkStepId == 11);
         junctions.Single().CreatedBy.Should().Be("tester");
+    }
+
+    // ----- v1.63.0 (Spec 2026-10-19-bde-stufe-1, FA-a8 AK 19/20, FA-c1 AK 25, FA-b11 AK 9) -----
+
+    private static ProductionWorkplace Wp(string name, string? sageNr = null, string? code = null) => new()
+    {
+        Name = name, SageArbeitsplatznummer = sageNr, ArbeitsschrittCode = code, BdeAktiv = true,
+        CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
+    };
+
+    [Fact]
+    public async Task Edit_NonSageWorkplace_SavesTrimmedCode_EmptyIsNull_AndOption_AK19()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var wp = Wp("Entgraten 2 (Test)");
+        ctx.ProductionWorkplaces.Add(wp);
+        await ctx.SaveChangesAsync();
+        var controller = CreateController(ctx);
+
+        await controller.Edit(wp.Id, new ProductionWorkplaceEditViewModel
+            { Id = wp.Id, Name = wp.Name, BdeAktiv = true, ArbeitsschrittCode = " EG ", BdeNurAgFertigmeldung = true });
+        ctx.ChangeTracker.Clear();
+        var saved = await ctx.ProductionWorkplaces.SingleAsync();
+        saved.ArbeitsschrittCode.Should().Be("EG");
+        saved.BdeNurAgFertigmeldung.Should().BeTrue();
+        saved.ModifiedBy.Should().Be("tester");
+
+        await CreateController(ctx).Edit(wp.Id, new ProductionWorkplaceEditViewModel { Id = wp.Id, Name = wp.Name, ArbeitsschrittCode = "  " });
+        ctx.ChangeTracker.Clear();
+        (await ctx.ProductionWorkplaces.SingleAsync()).ArbeitsschrittCode.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Create_SavesCodeAndOption_DefaultOff_AK19_AK25()
+    {
+        var ctx = TestDbContextFactory.Create();
+
+        await CreateController(ctx).Create(new ProductionWorkplaceEditViewModel { Name = "Neu", ArbeitsschrittCode = " KA" });
+        await CreateController(ctx).Create(new ProductionWorkplaceEditViewModel { Name = "Ohne" });
+
+        var all = await ctx.ProductionWorkplaces.AsNoTracking().ToListAsync();
+        all.Single(w => w.Name == "Neu").ArbeitsschrittCode.Should().Be("KA");
+        all.Single(w => w.Name == "Ohne").ArbeitsschrittCode.Should().BeNull();
+        all.Should().OnlyContain(w => !w.BdeNurAgFertigmeldung && w.SageArbeitsplatznummer == null);
+    }
+
+    [Fact]
+    public async Task Edit_SageWorkplace_ManipulatedPost_LeavesCodeAndSageNumberUnchanged_AK20()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var wp = Wp("Entgraten Fläche", "140", "EG");
+        ctx.ProductionWorkplaces.Add(wp);
+        await ctx.SaveChangesAsync();
+
+        // readonly entfernt, Kuerzel geaendert UND Sage-Nummer im Formular geleert
+        await CreateController(ctx).Edit(wp.Id, new ProductionWorkplaceEditViewModel
+            { Id = wp.Id, Name = wp.Name, BdeAktiv = true, ArbeitsschrittCode = "XX", SageArbeitsplatznummer = null });
+
+        ctx.ChangeTracker.Clear();
+        var saved = await ctx.ProductionWorkplaces.SingleAsync();
+        saved.ArbeitsschrittCode.Should().Be("EG");
+        saved.SageArbeitsplatznummer.Should().Be("140");
+    }
+
+    [Fact]
+    public async Task Index_SageMissingFilter_NotEmpty_ReturnsOnlyMarked_BeforePagination_AK9()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var alt = Wp("Flächen entgr beendet", "2150", "EG");
+        alt.SageMissingSince = new DateTime(2026, 10, 19);
+        ctx.ProductionWorkplaces.AddRange(alt, Wp("Entgraten Fläche", "140", "EG"), Wp("AKE"));
+        await ctx.SaveChangesAsync();
+        var controller = CreateController(ctx);
+        var httpCtx = new DefaultHttpContext();
+        httpCtx.Request.QueryString = new QueryString("?colf_sage-missing=" + Uri.EscapeDataString("!(leer)"));
+        controller.ControllerContext = new ControllerContext { HttpContext = httpCtx };
+
+        var model = (await controller.Index(pageSize: 1) as ViewResult)!.Model as List<ProductionWorkplace>;
+
+        model!.Should().ContainSingle(w => w.SageArbeitsplatznummer == "2150");
+        (controller.ViewBag.Pagination as PaginationState)!.TotalCount.Should().Be(1);
     }
 
     [Fact]

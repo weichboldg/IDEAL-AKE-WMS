@@ -24,6 +24,7 @@
             <tr>
                 <th data-filterable data-col-key="name">Bezeichnung</th>
                 <th data-filterable data-col-key="sage-nr">Sage-Nr.</th>
+                <th data-filterable data-date-filter data-col-key="sage-missing">Nicht in Sage seit</th>
                 <th data-filterable data-col-key="arbeitsschritt">Arbeitsschritt</th>
                 <th data-filterable data-col-key="hall">Halle</th>
                 <th data-filterable data-col-key="bde">BDE</th>
@@ -43,6 +44,13 @@
                             <span class="badge bg-info text-dark">@wp.SageArbeitsplatznummer</span>
                         }
                     </td>
+                    <td>
+                        @if (wp.SageMissingSince.HasValue)
+                        {
+                            @* Text traegt die Bedeutung, Farbe nur zusaetzlich (bg-warning + text-dark: AA) *@
+                            <span class="badge bg-warning text-dark" title="Steht nicht mehr in den Sage-Arbeitsplätzen; zählt nicht für den Kürzel-Abgleich">@wp.SageMissingSince.Value.ToString("dd.MM.yyyy")</span>
+                        }
+                    </td>
                     <td>@wp.ArbeitsschrittCode</td>
                     <td>@wp.Hall</td>
                     <td>
@@ -53,6 +61,10 @@
                         else
                         {
                             <span class="badge bg-secondary">Inaktiv</span>
+                        }
+                        @if (wp.BdeNurAgFertigmeldung)
+                        {
+                            <span class="badge bg-light text-dark border ms-1">nur Fertigmeldung</span>
                         }
                     </td>
                     <td>
@@ -87,7 +99,7 @@
             @if (!Model.Any())
             {
                 <tr>
-                    <td colspan="8" class="text-center text-muted py-4">Keine Werkbänke vorhanden.</td>
+                    <td colspan="9" class="text-center text-muted py-4">Keine Werkbänke vorhanden.</td>
                 </tr>
             }
         </tbody>

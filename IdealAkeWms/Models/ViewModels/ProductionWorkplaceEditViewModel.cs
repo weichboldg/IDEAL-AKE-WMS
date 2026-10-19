@@ -36,9 +36,18 @@ public class ProductionWorkplaceEditViewModel
     [Display(Name = "Sage-Arbeitsplatznummer")]
     public string? SageArbeitsplatznummer { get; set; }
 
-    [ValidateNever]
-    [Display(Name = "Arbeitsschritt-Kürzel (Sage)")]
+    /// <summary>Sage-Werkbank: read-only (Sage fuehrend). Werkbank ohne Sage-Nummer: im WMS pflegbar (v1.63.0, FA-a8) —
+    /// ob es uebernommen wird, entscheidet der Controller am DB-Wert, nie an <see cref="SageArbeitsplatznummer"/> aus dem Formular.</summary>
+    [MaxLength(20, ErrorMessage = "Höchstens 20 Zeichen.")]
+    [Display(Name = "Arbeitsschritt-Kürzel")]
     public string? ArbeitsschrittCode { get; set; }
+
+    [Display(Name = "Nur AG-Fertigmeldung (ohne Start/Stop)")]
+    public bool BdeNurAgFertigmeldung { get; set; }
+
+    /// <summary>Nur Anzeige: seit wann die Sage-Nummer nicht mehr in der Quelle steht (v1.63.0).</summary>
+    [ValidateNever]
+    public DateTime? SageMissingSince { get; set; }
 
     /// <summary>Sage-gespeiste Werkbank (Sage fuehrend): Bezeichnung ist dann read-only.</summary>
     public bool IstSageGefuehrt => !string.IsNullOrWhiteSpace(SageArbeitsplatznummer);
