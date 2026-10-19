@@ -14,7 +14,7 @@ namespace IdealAkeWms.Tests.Controllers;
 
 public class BdeTerminalControllerTests
 {
-    private static BdeTerminalController CreateTerminalController(ApplicationDbContext ctx, bool multiMa = false, bool multiOp = false, bool groupFinish = false)
+    private static BdeTerminalController CreateTerminalController(ApplicationDbContext ctx, bool multiMa = false, bool multiOp = false, bool groupFinish = false, bool nurFa = false)
     {
         var userSvc = new Mock<ICurrentUserService>();
         userSvc.Setup(u => u.GetDisplayName()).Returns("tester");
@@ -28,7 +28,7 @@ public class BdeTerminalControllerTests
         settings.Setup(s => s.GetValueAsync(AppSettingKeys.BdeGleichzeitigerAbschlussBeiMehrfachStart))
             .ReturnsAsync(groupFinish ? "true" : "false");
         settings.Setup(s => s.GetValueAsync("BdeNurFaMeldung"))
-            .ReturnsAsync("false");
+            .ReturnsAsync(nurFa ? "true" : "false");
 
         var bookingSvc = new BdeBookingService(ctx, userSvc.Object, settings.Object);
         var defaultWoSvc = new BdeDefaultWorkOperationService(ctx, settings.Object);
@@ -290,5 +290,46 @@ public class BdeTerminalControllerTests
         json.Should().Contain("\"outcome\":\"GroupFinishRequired\"");
         json.Should().Contain($"\"bookingId\":{b1.Id}");
         json.Should().Contain($"\"bookingId\":{b2.Id}");
+    }
+
+    // QA v1.63.0 (FA-a9/Antwort 12): StartProductionForOrder prueft VOR dem Anlegen des Default-AG „01".
+    [Theory]
+    [InlineData(true, false)]  // NurFA an, FA an anderer/keiner Werkbank
+    [InlineData(false, true)]  // Normal-Modus: Endpunkt wird nicht angeboten, auch FA der eigenen Werkbank
+    public async Task StartProductionForOrder_NotOffered_Rejected_NoDefaultAgCreated(bool nurFa, bool orderAtTerminal)
+    {
+        var ctx = TestDbContextFactory.Create();
+        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
+        if (orderAtTerminal)
+        {
+            (await ctx.ProductionOrders.FindAsync(ids.ProductionOrderId))!.ProductionWorkplaceId = ids.WorkplaceId;
+            await ctx.SaveChangesAsync();
+        }
+        var before = ctx.WorkOperations.Count();
+
+        var result = await CreateTerminalController(ctx, nurFa: nurFa)
+            .StartProductionForOrder(ids.OperatorId, ids.ProductionOrderId, ids.WorkplaceId, ids.TerminalId);
+
+        var json = System.Text.Json.JsonSerializer.Serialize((result as JsonResult)!.Value);
+        json.Should().Contain("\"outcome\":\"InvalidState\"");
+        ctx.WorkOperations.Count().Should().Be(before);
+        ctx.BdeBookings.Count().Should().Be(0);
+    }
+
+    [Fact]
+    public async Task StartProductionForOrder_NurFa_OrderOfTerminalWorkplace_Started()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
+        (await ctx.ProductionOrders.FindAsync(ids.ProductionOrderId))!.ProductionWorkplaceId = ids.WorkplaceId;
+        (await ctx.ProductionWorkplaces.FindAsync(ids.WorkplaceId))!.BdeDefaultArbeitsgang = "PRODUKTION";
+        await ctx.SaveChangesAsync();
+
+        var result = await CreateTerminalController(ctx, nurFa: true)
+            .StartProductionForOrder(ids.OperatorId, ids.ProductionOrderId, ids.WorkplaceId, ids.TerminalId);
+
+        var json = System.Text.Json.JsonSerializer.Serialize((result as JsonResult)!.Value);
+        json.Should().Contain("\"outcome\":\"Success\"");
+        ctx.WorkOperations.Should().Contain(w => w.ProductionOrderId == ids.ProductionOrderId && w.OperationNumber == "01");
     }
 }

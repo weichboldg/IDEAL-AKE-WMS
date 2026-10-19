@@ -65,6 +65,16 @@ public class BdeTerminalController : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> StartProductionForOrder(int operatorId, int productionOrderId, int workplaceId, int terminalId)
     {
+        // QA v1.63.0 (FA-a9/Antwort 12): VOR dem Anlegen des Default-AG „01" pruefen, deckungsgleich mit dem Angebot
+        // (nur NurFA-Modus, nur FAs der Terminal-Werkbank) — sonst legt ein manipulierter POST einen „01"-AG an einem
+        // fremden FA an der Terminal-Werkbank an und besteht danach die Familien-Pruefung im Normal-Modus.
+        var nurFa = (await _settings.GetValueAsync(AppSettingKeys.BdeNurFaMeldung))
+            ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
+        var orderWorkplaceId = await _ctx.ProductionOrders.Where(po => po.Id == productionOrderId)
+            .Select(po => po.ProductionWorkplaceId).FirstOrDefaultAsync();
+        if (!nurFa || orderWorkplaceId != workplaceId)
+            return Json(MapResult(BdeBookingResult.Invalid("Dieser Arbeitsgang gehört nicht zu dieser Werkbank.")));
+
         var workOperationId = await _defaultWoService.FindOrCreateDefaultAsync(productionOrderId, workplaceId);
         var result = await _bookingSvc.StartProductionAsync(operatorId, workOperationId, workplaceId, terminalId);
         return Json(MapResult(result));
