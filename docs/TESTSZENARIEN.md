@@ -10165,6 +10165,83 @@ Eine Komponente mit > 3 Bestandsplätzen in der geprüften Stückliste (Kandidat
 
 ---
 
+## TS-96 — BDE Stufe 1: Arbeitsgang an mehreren Werkbänken, veraltete Sage-Werkbänke, nur AG-Fertigmeldung (v1.63.0)
+
+Spec: `2026-10-19-bde-stufe-1-werkbaenke-ag-fertigmeldung-spec` (Variante B, Freigabe-Antworten 1–12). Regressionen: TS-77
+(Struktur-Erkennung), TS-90 (Terminal-Status), TS-94 (Arbeitsgang-Abgleich). **Vorbedingungen:** SQL/97 eingespielt; Testsysteme
+IDEAL (`ProduktionsauftragHierarchisch` an) und AKE (aus); BDE global an; Prüfabfragen P1–P6 aus der Spec ausgeführt, Ergebnisse
+hier notieren (abhängige Erwartungen bis dahin ungeprüft). Testdaten IDEAL: FA 1059463 / Sub-FA 1065150 (Teil 50000404, Struktur
+„ST EG KA“), EG an Werkbank Id 65 (Sage-Nr. 140, BDE aktiv) und Id 19 (2150, veraltet), KA an 150 (aktuell) und 2300 (veraltet).
+Automatisiert: `WerkbankKuerzelFamilieTests`, `ProductionWorkplaceSyncServiceTests` (Kennzeichnung), `WorkOperationStructureDetectionServiceTests`
+(Mehrfach, gekennzeichnet), `BdeScanResolverTests`/`BdeApiControllerTests` (Familie), `BdeBookingServiceStufe1Tests` (FA-a9, Fertigmeldung),
+`BdeTerminalControllerTests.ReportCompletion_*`, `ProductionWorkplacesControllerTests`/`ProductionWorkplaceRepositoryTests` (FA-a8).
+
+- **TS-96.1 — Kennzeichnung veralteter Sage-Werkbänke (IDEAL, AK 1–8).** Vorbedingung: `Sync:ProductionWorkplaceSyncEnabled` an,
+  Quelle = View (P1). Schritte: 1. DryRun-Zyklus → Aktivitäts-Protokoll `ProductionWorkplaceSync`. 2. Scharfer Zyklus. 3. Stammdaten
+  › Werkbänke, Filter „Nicht in Sage seit“ = `!(leer)`. 4. Zweiter Zyklus. **Erwartet:** 1. `nicht_in_sage_neu` = Anzahl aus P2 minus
+  P3, keine DB-Änderung. 2. Id 19 (2150) und die KA-Werkbank 2300 haben ein Datum, Id 65 (140) und 150 nicht; Warnzeile „Nicht mehr in
+  Sage (… neu gekennzeichnet …): 2150 Flächen entgr beendet (EG), …“. 3. genau die gekennzeichneten. 4. `nicht_in_sage_neu = 0`,
+  Datum unverändert. **Negativ:** a) Quelle testweise auf eine leere View → Warnung „liefert keine Zeilen — keine Kennzeichnung“,
+  nichts geändert. b) Quelle auf einen nicht existierenden Namen → bestehender Skip „Quelle nicht vorhanden“. c) Anzahl Werkbänke
+  (P2) vorher = nachher. d) Gekennzeichnete Werkbank BDE-aktiv setzen, Zyklus → Warnung „… ist BDE-aktiv, steht aber nicht mehr in
+  Sage.“, BDE bleibt an. e) Keine Mail wegen der Kennzeichnung.
+- **TS-96.2 — Struktur-Erkennung legt EG/KA an (Bug-Fix, AK 10–12).** Vorbedingung: TS-96.1, `Sync:WorkOperationStructureDetectionEnabled`
+  an, Sub-FA 1065150 offen. Schritte: Zyklus abwarten → P4 → Protokoll `WorkOperationStructureDetection`. **Erwartet:** Sub-FA 1065150
+  hat EG (`ProductionWorkplaceId` = 65) und KA (Werkbank 150) zusätzlich zu ST; kein Count `arbeitsschritt_mehrdeutig` mehr,
+  `arbeitsschritt_mehrere_werkbaenke` = 0, solange kein Kürzel doppelt aktuell ist. **Negativ:** MK, ZS, MO weiter unter „unbekannt“;
+  ST einmal (kein Doppel-Insert); ein Kürzel, das nur noch an gekennzeichneten Werkbänken hängt, steht unter „unbekannt“.
+- **TS-96.3 — Terminal Werkbank 65 findet EG (AK 13–15).** Vorbedingung: TS-96.2, Terminal-Benutzer mit Werkbank 65, Operator.
+  Schritte: 1. Terminal öffnen, Operator scannen. 2. Liste prüfen. 3. Scan `1059463,EG`. 4. „Produktion starten“, „Beenden (mit
+  Mengen)“. **Erwartet:** 2. Block FA 1059463 / 1065150 mit EG. 3. direkt gewählt bzw. Auswahl bei mehreren Sub-FAs. 4. Buchungsliste:
+  Werkbank = Entgraten Fläche; FA-Baum: EG erledigt. **Negativ:** Scan `1059463,ST` an 65 → „Dieser Auftrag hat an dieser Werkbank
+  keinen offenen Arbeitsgang.“
+- **TS-96.4 — Derselbe Arbeitsgang an zwei Werkbänken (AK 13/15/19).** Vorbedingung: manuelle Werkbank „Entgraten 2 (Test)“ ohne
+  Sage-Nr., Kürzel `EG` im WMS gepflegt, BDE aktiv, zweiter Terminal-Benutzer; `BdeMehrfachBuchungProArbeitsgang` aus. Schritte:
+  1. Beide Terminals zeigen den EG-AG von 1065150. 2. Werker A startet Produktion an „Entgraten 2“. 3. Werker B an 65 startet denselben
+  AG. 4. A beendet mit Menge. **Erwartet:** 1. gleicher AG. 2. Buchung mit Werkbank „Entgraten 2“, Cockpit-Kachel „Entgraten 2“ aktiv.
+  3. 65 zeigt den AG als „läuft“, Start → Kollisionsdialog „… durch A an Entgraten 2 …“. 4. AG an beiden Terminals weg. **Negativ:**
+  Werkbank ohne Kürzel zeigt den EG-AG nicht; „Entgraten 2“ auf BDE aus → nicht mehr in der Terminal-Auswahl, 65 sieht den AG weiter.
+- **TS-96.5 — Altbestand an einer W1-Werkbank (AK 13/24).** Vorbedingung: P6 ≥ 1 offener AG an 2150 (sonst „nicht anwendbar“
+  notieren). Schritte: Terminal 65. **Erwartet:** der AG an Werkbank 19 erscheint an 65 und ist buchbar; Buchung trägt Werkbank 65;
+  FA-Baum zeigt den Status.
+- **TS-96.6 — FA-Struktur-Symbole (AK 17).** Schritte: FA-Struktur, FA 1059463 aufklappen. **Erwartet:** EG mit Name „Entgraten
+  Fläche“ (nicht leer) und Status gemäß Buchung, egal an welcher Familien-Werkbank gebucht; KA ohne Buchung offen bzw. überfällig.
+- **TS-96.7 — Werkbank-Option „nur AG-Fertigmeldung“ (AK 25–33).** Vorbedingung: Werkbank 65 (oder Testwerkbank) → Edit → „Nur
+  AG-Fertigmeldung“ an; `BdeNurFaMeldung` aus; offener EG- oder KA-AG. Schritte: 1. Terminal, AG antippen. 2. „Fertig melden“,
+  Vorbelegung prüfen, bestätigen. 3. Buchungsliste und Tagesverlauf. 4. Cockpit. 5. FA-Baum. 6. Denselben AG noch einmal scannen.
+  **Erwartet:** 1. nur grüner Knopf „Fertig melden“ (kein Rüsten/Produktion). 2. Gut = Sollmenge, Ausschuss 0, Hinweis „Sollmenge: …“;
+  Toast „Fertig gemeldet“; AG an allen Familien-Werkbänken weg. 3. eine Produktionsbuchung, Start = Ende, Dauer 0, Werkbank 65,
+  Operator, Menge. 4. keine Aktivität. 5. AG erledigt. 6. Scan → „keinen offenen Arbeitsgang“. **Negativ:** a) Gut leeren und
+  bestätigen → „Bitte eine Gut- oder Ausschussmenge angeben.“ b) Werker B bucht den AG laufend an einer normalen Familien-Werkbank,
+  A meldet fertig → Kollisionsdialog; mit `BdeMehrfachBuchungProArbeitsgang` an → gespeichert + Andere-schließen-Dialog.
+  c) `BdeNurFaMeldung` an → Terminal im FA-Modus, Option wirkungslos, Edit zeigt Hinweis. d) Direkter POST `StartProduction` an der
+  Werkbank → „An dieser Werkbank wird nur fertig gemeldet.“ e) Tätigkeit starten geht. f) FA verpackt → bestehende Sperrmeldung.
+  g) Direkter POST `ReportCompletion` für einen schon gemeldeten AG → „Arbeitsgang ist bereits fertig gemeldet.“
+- **TS-96.8 — Stammdaten-Liste und Rechte (AK 9/19/20).** Schritte: als `masterdata_read` Liste öffnen; als `masterdata` Edit, Option
+  setzen; Spaltenfilter BDE = `Fertigmeldung`. **Erwartet:** Lesen ohne Bearbeiten-Knopf, Spalte „Nicht in Sage seit“ sichtbar;
+  Speichern setzt `ModifiedBy`; Filter trifft (Badge „nur Fertigmeldung“); Pagination korrekt. **Negativ:** a) Sage-Werkbank → Kürzel und
+  Name read-only. b) **Serverseitig (FA-a8):** Edit-Formular einer Sage-Werkbank in den Entwicklerwerkzeugen ändern (`readonly` am
+  Kürzel entfernen, Kürzel „XX“, Sage-Nummer leeren), speichern → P2/Edit: `ArbeitsschrittCode` und `SageArbeitsplatznummer`
+  unverändert. c) Nicht-Sage-Werkbank: Kürzel „ EG “ → gespeichert „EG“; leeren → NULL. d) Kürzel mit 21 Zeichen → Validierung.
+- **TS-96.9 — AKE-Regression (AK 34).** Vorbedingung: AKE-Test, Master aus, P5 = 0, BDE an, AKE-Werkbank mit offenen AGs. Schritte:
+  Terminal (Liste, Scan `FA,AG`, Start/Beenden), Cockpit, Tracking › je Werkbank, Stammdaten › Werkbänke. **Erwartet:** wie v1.62.0;
+  Spalte „Nicht in Sage seit“ leer; Option aus; kein Protokolleintrag `ProductionWorkplaceSync`. **Negativ:** AKE-Werkbank mit Option
+  an → Fertigmeldung geht auch bei AKE (gewollt).
+- **TS-96.10 — Familien-Prüfung beim Buchen, manipulierter POST (AK 21–24).** Vorbedingung: zwei BDE-aktive Werkbänke A (Kürzel EG,
+  z. B. 65) und B (anderes oder kein Kürzel); offener AG X an B, offener EG-AG Y an einer anderen EG-Werkbank (19 oder „Entgraten 2“);
+  Terminal an A, Operator angemeldet; Ids von X/Y per P4; `BdeNurFaMeldung` aus. Schritte (POSTs aus der Browser-Konsole mit dem
+  Antiforgery-Token der Seite): 1. Tätigkeit starten, dann `POST /BdeTerminal/StartProduction` mit `workOperationId = X`,
+  `workplaceId = A`. 2. Dasselbe mit `StartSetup`. 3. An B einen AG von B starten und pausieren, auf A umschalten, Pausiert-Liste
+  „Fortsetzen“. 4. A auf „Nur AG-Fertigmeldung“, `POST /BdeTerminal/ReportCompletion` mit X, `goodQty = 1`. 5. Option aus,
+  `StartProduction` mit Y an A. 6. `StartProduction` mit einer nicht existierenden Id. **Erwartet:** 1./2. `InvalidState`
+  „Dieser Arbeitsgang gehört nicht zu dieser Werkbank.“, keine neue Buchung, Tätigkeit läuft weiter. 3. Toast mit derselben Meldung,
+  Buchung bleibt pausiert; an B fortsetzen geht. 4. abgewiesen, keine Buchung, keine Menge. 5. angenommen, Buchung mit Werkbank A.
+  6. abgewiesen ohne Serverfehler. **Negativ:** a) AKE: AG einer anderen AKE-Werkbank per POST → abgewiesen; eigener → angenommen.
+  b) Pausierte Tätigkeit an B, an A fortsetzen → geht. c) NurFA-Modus nur per Unit-Test (`NurFa_ChecksOrderWorkplace_NotAgWorkplace`):
+  FA der Terminal-Werkbank angenommen (auch mit „01“ an alter Werkbank), FA einer anderen oder ohne Werkbank abgewiesen.
+
+---
+
 *Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) + Teil 6 (Standorteinstellungen, v1.34.0) + BOM-Guard hierarchisch (2026-08-18, abgelöst) + FA-Liste-Hierarchie (v1.35.0) + BOM-Bridge (v1.36.0) + Materialisierung fachliche Felder K1/K2 (v1.37.0) + Skopierung der Tabellen-Selektoren (TS-72) + FA-Liste ausgebaut: Matchcode, Kopfdaten je Zeile, HauptFA-Zeile, Freigabe-Kaskade (v1.38.0, TS-73) + PDF-Erzeugung für FaHierarchy-Druckdokumente (v1.39.0, TS-74) + Matchcode im Artikelstamm (v1.40.0, TS-75) + FA-Arbeitsgang-Erkennung aus der Struktur (v1.41.0, TS-76, ersetzt durch TS-77) + Arbeitsgänge (WorkOperation) aus der Struktur + Werkbank-Anlage aus Sage (v1.44.0, TS-77) + Arbeitsgänge je (Sub-)FA im FA-Struktur-Modal (v1.45.0, TS-78) + Kommissionierung nur am HauptFA
 (v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80) + Beschichtungsauftrag Summiert als Standard (v1.48.0, TS-81) + Briefkopf Beschichtungsauftrag (v1.49.0, TS-82) + Beschichtungsauftrag als eigenes Objekt (v1.50.0, TS-83) + Beschichtungsaufträge bedienen (v1.51.0, TS-84) + Arbeitsgänge als Symbole im FA-Baum (v1.52.0, TS-85) + CSV-Export für alle Tabellen (v1.53.0, TS-86) + Arbeitsgang-Stammdaten (v1.54.0, TS-87) + Status je Arbeitsgang-Kürzel im FA-Baum (v1.55.0, TS-88) + Menü Beschichtung + Kurzanleitungen (v1.56.0, TS-89) + BDE-Terminal mit Arbeitsgang-Status (v1.57.0, TS-90) + Spaltenfilter-Suchsyntax Etappe A + B (v1.58.0/v1.58.1, TS-91.A/B) + Fußzeile nach Word-Vorlage (v1.59.0, TS-92) + Sage-Quellen auf WMS-Views (v1.60.0–v1.60.2, TS-93) + Arbeitsgang-Abgleich aus der Sage-View (v1.61.0, TS-94) + Stückliste Matchcode und Lagerplatz-Limit (v1.62.0, TS-95)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*

@@ -9,6 +9,28 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.63.0</strong> <span class="text-white-50 ms-2">19.10.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>BDE: Arbeitsgang an mehreren Werkbaenken, veraltete Sage-Werkbaenke, nur Fertigmeldung</h6>
+                <ul>
+                    <li><strong>IDEAL, Fehlerbehebung:</strong> Werkbaenke, deren Sage-Nummer nicht mehr in den Sage-Arbeitsplaetzen steht,
+                        werden gekennzeichnet (Stammdaten &rarr; Werkbaenke, neue Spalte <strong>Nicht in Sage seit</strong>) und zaehlen nicht
+                        mehr fuer den Kuerzel-Abgleich. Dadurch legt die Struktur-Erkennung fehlende Arbeitsgaenge wie EG und KA wieder an.
+                        Es wird nichts geloescht.</li>
+                    <li>Werkbaenke mit demselben Arbeitsschritt-Kuerzel sehen und buchen dieselben offenen Arbeitsgaenge (Terminal, Scan,
+                        Status in der FA-Struktur). Ein Kuerzel an mehreren Werkbaenken verhindert die Anlage nicht mehr. An Werkbaenken
+                        ohne Sage-Nummer ist das Kuerzel im WMS pflegbar.</li>
+                    <li>Neue Werkbank-Option <strong>Nur AG-Fertigmeldung</strong>: am Terminal nur &bdquo;Fertig melden&ldquo; mit Menge,
+                        ohne Start/Stop (Standard: aus).</li>
+                    <li>Terminal: Start und Fortsetzen nehmen nur Arbeitsgaenge an, die zur Werkbank gehoeren. Eine pausierte Buchung
+                        laesst sich nur an einer Werkbank derselben Familie fortsetzen.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.62.0</strong> <span class="text-white-50 ms-2">16.10.2026</span>
             </div>
             <div class="card-body">

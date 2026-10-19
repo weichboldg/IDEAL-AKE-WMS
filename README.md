@@ -151,6 +151,7 @@ SQL-Scripte in Reihenfolge auf dem SQL Server ausführen:
 | 79 | `SQL/79_AddArticlePrimaryStorageLocation.sql` | Hauptlagerplatz am Artikel |
 | 80 | `SQL/80_AddProductionOrderCancellation.sql` | FA-Reconciliation: IsCancelled/CancelledAt/CancelledBy |
 | 95 | `SQL/95_RenameOperationConfigsAndAddAudit.sql` | Arbeitsgang-Stammdaten: `OseonOperationConfigs` → `OperationConfigs`, Audit-Felder (**Schema-Umbenennung — DB-Backup, App-Pool vorher stoppen**) |
+| 97 | `SQL/97_AddProductionWorkplaceSageMissingSinceAndNurAgFertigmeldung.sql` | Werkbank: „Nicht in Sage seit“ + Option „Nur AG-Fertigmeldung“ (additiv, v1.63.0) |
 
 > **Backup-Hinweis:** Vor dem Einspielen von 65, 76 und 80 ein DB-Backup ziehen — diese Migrationen
 > konvertieren Daten; ihr Down() verliert Detail-Status.
@@ -343,7 +344,7 @@ Die App startet und führt beim ersten Start automatisch `Database.Migrate()` au
 - **Benutzer**: lokal (Passwort) oder AD (WindowsUserName), Rollen-Zuweisung, Standard-BOM-Filter, Listen-Default, FA-Abarbeitungs-Defaults; Standard-Admin: `admin` / leer (admin-only)
 - **Rollen**: Berechtigungsrollen inkl. Rollen-Übersicht `/Users/RoleOverview` (admin-only)
 - **Arbeitsstationen**: Zuordnung Anwender + Default-Drucker (admin-only)
-- **Werkbänke**: Produktionsarbeitsplätze mit Bezeichnung, Halle, abweichenden Vorkommissioniertagen und FA-Vorbau-AG-Zuordnung
+- **Werkbänke**: Produktionsarbeitsplätze mit Bezeichnung, Halle, abweichenden Vorkommissioniertagen und FA-Vorbau-AG-Zuordnung. Seit v1.63.0: Arbeitsschritt-Kürzel (Sage-Werkbänke aus Sage, sonst im WMS pflegbar) — Werkbänke mit gleichem Kürzel sehen und buchen dieselben offenen BDE-Arbeitsgänge; Spalte „Nicht in Sage seit“ (von der Werkbank-Anlage gesetzt, nie gelöscht, zählt nicht für den Kürzel-Abgleich); BDE-Option **Nur AG-Fertigmeldung** (Default aus): Terminal nur „Fertig melden“ mit Menge, Buchung mit Start = Ende, Rüsten/Produktion gesperrt, wirkungslos bei `BdeNurFaMeldung`
 - **FA-Vorbau-AG + FA-Merkmale** (v1.22.0): Katalog der Vorbau-Arbeitsgänge (mit Erkennungs-Suchbegriffen) und der FA-Merkmale
 - **Empfänger**: Empfängergruppen + Artikelgruppen-Zuordnung für Bedarfsmeldungen/Bestellungen
 - **Einstellungen**: Key-Value AppSettings (Boolean-Werte als Toggle-Switches) + Feiertagsverwaltung (admin-only)

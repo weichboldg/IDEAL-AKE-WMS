@@ -1200,6 +1200,46 @@
                 </ol>
                 <p class="text-muted">Nur BDE-aktivierte Werkbaenke erscheinen im Cockpit, in Terminal-Auswahllisten und in den Dropdown-Filtern der Buchungsuebersicht.</p>
 
+                <h6 class="mt-3">Ein Arbeitsgang an mehreren Werkbaenken (seit v1.63.0)</h6>
+                <ul>
+                    <li><strong>Kuerzel-Familie:</strong> Tragen mehrere Werkbaenke dasselbe Arbeitsschritt-Kuerzel (z.&nbsp;B. <code>EG</code>),
+                        sieht und bucht jede davon alle offenen Arbeitsgaenge mit diesem Kuerzel &mdash; im Terminal, beim Scan
+                        <code>FA,AG</code> und im Status der FA-Struktur. Die Buchung speichert die Werkbank, an der wirklich gearbeitet wurde.
+                        Eine Werkbank <strong>ohne</strong> Kuerzel (z.&nbsp;B. alle AKE-Werkbaenke) sieht nur ihre eigenen Arbeitsgaenge, wie bisher.</li>
+                    <li><strong>Kuerzel pflegen:</strong> Bei Werkbaenken aus Sage kommt das Kuerzel aus Sage (Feld nur lesbar). Bei
+                        Werkbaenken ohne Sage-Nummer kann es unter <em>Stammdaten &rarr; Werkbaenke &rarr; Bearbeiten</em> eingetragen werden.</li>
+                    <li><strong>Neue Arbeitsgaenge</strong> legt die Struktur-Erkennung einmal an, an der bevorzugten Werkbank (BDE-aktive zuerst,
+                        dann die aelteste). Das Aktivitaets-Protokoll nennt solche Kuerzel in der Zeile &bdquo;Kuerzel an mehreren Werkbaenken&ldquo;.</li>
+                    <li><strong>Fortsetzen nur in der Familie:</strong> Eine pausierte Buchung laesst sich nur an einer Werkbank derselben Familie
+                        fortsetzen. Sonst kommt &bdquo;Dieser Arbeitsgang gehoert nicht zu dieser Werkbank.&ldquo; &mdash; dann an der passenden
+                        Werkbank fortsetzen. Dieselbe Meldung kommt, wenn ein Arbeitsgang einer fremden Werkbank gestartet werden soll.
+                        Pausierte Taetigkeiten (Wartung, Reinigung &hellip;) lassen sich ueberall fortsetzen.</li>
+                </ul>
+
+                <h6 class="mt-3">Werkbaenke &bdquo;nicht in Sage&ldquo; (seit v1.63.0, IDEAL)</h6>
+                <p>Steht die Sage-Nummer einer Werkbank nicht mehr in den Sage-Arbeitsplaetzen, kennzeichnet die Werkbank-Anlage sie mit
+                    dem Datum in der Spalte <strong>Nicht in Sage seit</strong> (Stammdaten &rarr; Werkbaenke; Filter <code>!(leer)</code>
+                    zeigt alle). Die Werkbank wird nie geloescht, BDE und Zuordnungen bleiben, aber ihr Kuerzel zaehlt nicht mehr fuer den
+                    Abgleich. So legt die Struktur-Erkennung Arbeitsgaenge wieder an der aktuellen Werkbank an. Steht die Nummer wieder in
+                    Sage, verschwindet die Kennzeichnung von selbst. Liefert Sage gar keine Zeilen, wird nichts gekennzeichnet.
+                    Ist eine gekennzeichnete Werkbank noch BDE-aktiv, steht eine Warnung im Aktivitaets-Protokoll.</p>
+
+                <h6 class="mt-3">Werkbank &bdquo;nur AG-Fertigmeldung&ldquo; (seit v1.63.0)</h6>
+                <ul>
+                    <li>Einschalten unter <em>Stammdaten &rarr; Werkbaenke &rarr; Bearbeiten &rarr; BDE-Einstellungen &rarr;
+                        Nur AG-Fertigmeldung (ohne Start/Stop)</em>. Standard: aus.</li>
+                    <li>Am Terminal gibt es nach Antippen oder Scan eines Arbeitsgangs nur <strong>&bdquo;Fertig melden&ldquo;</strong>. Die Gutmenge
+                        ist mit der Sollmenge des Auftrags vorbelegt, Ausschuss 0. Nach dem Bestaetigen ist der Arbeitsgang erledigt.</li>
+                    <li>Gespeichert wird eine Buchung mit Werker, Werkbank, Zeitpunkt und Menge, aber <strong>ohne Zeit</strong>: Start = Ende,
+                        Dauer 0. Die Ist-Zeit je Arbeitsgang ist an solchen Werkbaenken deshalb 0. Im Cockpit erscheint die Meldung nicht.</li>
+                    <li>Ruesten und Produktion starten sind an dieser Werkbank gesperrt (&bdquo;An dieser Werkbank wird nur fertig gemeldet.&ldquo;),
+                        ungeplante Taetigkeiten gehen weiter. Ein zweites Fertigmelden wird mit &bdquo;bereits fertig gemeldet&ldquo; abgelehnt.</li>
+                    <li>Laeuft der Arbeitsgang gerade bei einem anderen Werker, gilt dieselbe Regel wie beim Start: ohne
+                        &bdquo;Ein Arbeitsgang darf mehrere parallele Buchungen haben&ldquo; kommt der Hinweis &bdquo;AG ist bereits in Arbeit&ldquo;,
+                        mit der Einstellung wird gemeldet und das System bietet an, die anderen Buchungen zu schliessen.</li>
+                    <li>Ist die Einstellung <code>BdeNurFaMeldung</code> (Nur FA-Meldung) an, hat die Option keine Wirkung.</li>
+                </ul>
+
                 <h6 class="mt-3">Fehler &bdquo;Werkbank ist nicht fuer BDE aktiviert&ldquo;</h6>
                 <p>Tritt beim Scan am Terminal auf, wenn die zugewiesene Werkbank nicht als BDE-aktiv markiert ist. Loesung: Stammdaten &rarr; Werkbaenke &rarr; betroffene Werkbank bearbeiten &rarr; <em>BDE aktiv</em> einschalten.</p>
 
