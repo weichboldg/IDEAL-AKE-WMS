@@ -146,8 +146,14 @@ public class BdeBookingService : IBdeBookingService
         });
     }
 
+    /// <summary>Mengen-Eingaenge (v1.64.0 FA-5, Q4): negative Gut-/Ausschussmengen weist der Server ab, bevor etwas geschrieben wird.</summary>
+    private const string NegativeMengeMeldung = "Mengen dürfen nicht negativ sein.";
+
+    private static bool IstNegativ(decimal? goodQty, decimal? scrapQty) => (goodQty ?? 0) < 0 || (scrapQty ?? 0) < 0;
+
     public async Task<BdeBookingResult> PauseAsync(int bookingId, decimal? goodQty = null, decimal? scrapQty = null)
     {
+        if (IstNegativ(goodQty, scrapQty)) return BdeBookingResult.Invalid(NegativeMengeMeldung);
         var b = await _ctx.BdeBookings.FindAsync(bookingId);
         if (b == null) return BdeBookingResult.NotFound();
         if (b.Status != BdeBookingStatus.Running)
@@ -277,6 +283,7 @@ public class BdeBookingService : IBdeBookingService
             var packedError = await EnsureOrderNotPackedAsync(workOperationId);
             if (packedError != null) return packedError;
 
+            if (IstNegativ(goodQty, scrapQty)) return BdeBookingResult.Invalid(NegativeMengeMeldung);
             if ((goodQty ?? 0) == 0 && (scrapQty ?? 0) == 0)
                 return BdeBookingResult.Invalid("Bitte eine Gut- oder Ausschussmenge angeben.");
 
@@ -320,6 +327,7 @@ public class BdeBookingService : IBdeBookingService
 
     public async Task<BdeBookingResult> FinishAsync(int bookingId, decimal? goodQty = null, decimal? scrapQty = null)
     {
+        if (IstNegativ(goodQty, scrapQty)) return BdeBookingResult.Invalid(NegativeMengeMeldung);
         var b = await _ctx.BdeBookings.FindAsync(bookingId);
         if (b == null) return BdeBookingResult.NotFound();
         if (b.Status == BdeBookingStatus.Finished)
@@ -334,6 +342,7 @@ public class BdeBookingService : IBdeBookingService
 
     public async Task<BdeBookingResult> ReportPartialQuantityAsync(int bookingId, decimal goodQty, decimal scrapQty)
     {
+        if (IstNegativ(goodQty, scrapQty)) return BdeBookingResult.Invalid(NegativeMengeMeldung);
         var b = await _ctx.BdeBookings.FindAsync(bookingId);
         if (b == null) return BdeBookingResult.NotFound();
         if (b.Status != BdeBookingStatus.Running || b.BookingType != BdeBookingType.Production)
@@ -348,6 +357,8 @@ public class BdeBookingService : IBdeBookingService
     {
         if (entries.Count == 0)
             return new GroupFinishResult(0, "Keine Buchungen angegeben.");
+        if (entries.Any(e => IstNegativ(e.GoodQty, e.ScrapQty)))
+            return new GroupFinishResult(0, NegativeMengeMeldung);
 
         var bookingIds = entries.Select(e => e.BookingId).ToList();
         var bookings = await _ctx.BdeBookings

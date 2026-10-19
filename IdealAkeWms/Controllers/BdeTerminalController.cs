@@ -21,17 +21,22 @@ public class BdeTerminalController : Controller
     private readonly IProductionWorkplaceRepository _workplaces;
     private readonly IBdeDefaultWorkOperationService _defaultWoService;
     private readonly IAppSettingRepository _settings;
+    private readonly IServiceSettingRepository _serviceSettings;
     private readonly ApplicationDbContext _ctx;
     private readonly ILogger<BdeTerminalController> _logger;
 
     public BdeTerminalController(IBdeTerminalRepository terminals, IBdeBookingService bookingSvc,
         ICurrentUserService userSvc, IProductionWorkplaceRepository workplaces,
         IBdeDefaultWorkOperationService defaultWoService, IAppSettingRepository settings,
-        ApplicationDbContext ctx, ILogger<BdeTerminalController> logger)
+        IServiceSettingRepository serviceSettings, ApplicationDbContext ctx, ILogger<BdeTerminalController> logger)
     {
         _terminals = terminals; _bookingSvc = bookingSvc; _userSvc = userSvc; _workplaces = workplaces;
-        _defaultWoService = defaultWoService; _settings = settings; _ctx = ctx; _logger = logger;
+        _defaultWoService = defaultWoService; _settings = settings; _serviceSettings = serviceSettings; _ctx = ctx; _logger = logger;
     }
+
+    private static bool IsTrue(string? v) =>
+        v != null && (v.Equals("true", StringComparison.OrdinalIgnoreCase) || v == "1"
+                   || v.Equals("on", StringComparison.OrdinalIgnoreCase));
 
     public async Task<IActionResult> Index(int? workplaceId)
     {
@@ -58,6 +63,11 @@ public class BdeTerminalController : Controller
         ViewBag.NurFaMode = nurFa;
         // v1.63.0 (FA-c2/c3): Werkbank meldet Arbeitsgaenge nur fertig (ohne Start/Stop); NurFA global gewinnt.
         ViewBag.NurAgFertigmeldung = activeWorkplace != null && WerkbankKuerzelFamilie.NurAgFertigmeldungWirksam(activeWorkplace, nurFa);
+        // v1.64.0 (FA-1.1/1.3): Liste nach Haupt-FA gruppiert nur bei Master an (IDEAL); Anzeige-Grenze, ungueltig/< 1 → 5.
+        ViewBag.Hierarchisch = IsTrue(await _serviceSettings.GetValueAsync(
+            IdealAkeWms.Services.HierarchischeStruktur.HierarchischeStrukturKeys.Master));
+        var maxHauptFa = await _settings.GetIntValueAsync(AppSettingKeys.BdeTerminalMaxHauptFa, 5);
+        ViewBag.MaxHauptFa = maxHauptFa < 1 ? 5 : maxHauptFa;
 
         return View();
     }

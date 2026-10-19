@@ -68,6 +68,77 @@ public class BdeTerminalAuftraegeTests
             .Should().Equal("100/100/KA", "100/101/KA", "200//LS", "200//PG", "300//SW", "050//KA");
     }
 
+    // ===== v1.64.0 (Spec 2026-10-19-bde-terminal-liste-scan-ohne-ag-prio, FA-1.4, AK 3/4/19): Gruppen nach Haupt-FA =====
+
+    private static ILookup<int, FaHierarchyOrderInfo> KopfPrio(params (int HauptFa, int? Prio, DateTime? Fe)[] zeilen)
+        => zeilen.Select(z => new FaHierarchyOrderInfo { HauptFA = z.HauptFa, Prio = z.Prio, FE_Termin = z.Fe }).ToLookup(o => o.HauptFA);
+
+    private static string[] Reihe(IEnumerable<BdeTerminalArbeitsgang> r)
+        => r.Select(a => $"{a.Op.ProductionOrder.OrderNumber}/{a.Op.ProductionOrder.SubOrderNumber}/{a.Op.OperationNumber}").ToArray();
+
+    [Fact]
+    public void Gruppen_PrioAufsteigend_VorOhnePrio_DannTermin_DannFaNummer_AK3()
+    {
+        var mai = new DateTime(2026, 5, 4);
+        var juni = new DateTime(2026, 6, 1);
+        var kopf = KopfPrio((500, 2, juni), (600, 1, juni), (700, null, mai), (800, null, mai), (900, null, juni));
+        var ops = new[]
+        {
+            Op(Po("900", sub: "901"), "EG"), Op(Po("800", sub: "801"), "EG"), Op(Po("700", sub: "701"), "EG"),
+            Op(Po("500", sub: "501"), "EG"), Op(Po("600", sub: "601"), "EG")
+        };
+
+        var r = BdeTerminalAuftraege.Ordnen(ops, new HashSet<int>(), kopf, Offsets, Rechner, new DateTime(2026, 4, 1));
+
+        Reihe(r).Should().Equal("600/601/EG", "500/501/EG", "700/701/EG", "800/801/EG", "900/901/EG");
+        r.Select(a => a.Prio).Should().Equal(1, 2, null, null, null);
+    }
+
+    [Fact]
+    public void Gruppen_Kombigeraet_KleinsterGesetzterPrio_Antwort1()
+    {
+        var kopf = KopfPrio((500, 4, null), (500, null, null), (500, 2, null), (600, 3, null));
+        var ops = new[] { Op(Po("600", sub: "601"), "EG"), Op(Po("500", sub: "501"), "EG") };
+
+        var r = BdeTerminalAuftraege.Ordnen(ops, new HashSet<int>(), kopf, Offsets, Rechner, new DateTime(2026, 4, 1));
+
+        Reihe(r).Should().Equal("500/501/EG", "600/601/EG");
+        r[0].Prio.Should().Be(2, "Kombigeraet: kleinster gesetzter Wert");
+    }
+
+    [Fact]
+    public void Gruppen_SubFasBleibenZusammen_InnerhalbTerminSubSequence_GleichstandFaNummer()
+    {
+        // IDEAL ohne Kopfzeile: Sub-FAs derselben Haupt-FA mit verschiedenem ProductionDate bleiben zusammen (Gruppen-Termin = fruehester).
+        var a1 = Po("100", new DateTime(2026, 6, 1), "102");
+        var a2 = Po("100", new DateTime(2026, 5, 1), "101");
+        var b = Po("200", new DateTime(2026, 5, 15), "201");
+        var c = Po("050", new DateTime(2026, 5, 1), "051");
+        var ops = new[] { Op(a1, "EG"), Op(b, "EG"), Op(a2, "KA", 20), Op(a2, "EG", 10), Op(c, "EG") };
+
+        var r = BdeTerminalAuftraege.Ordnen(ops, new HashSet<int>(), KeinKopf, Offsets, Rechner, new DateTime(2026, 4, 1));
+
+        Reihe(r).Should().Equal("050/051/EG", "100/101/EG", "100/101/KA", "100/102/EG", "200/201/EG");
+    }
+
+    [Fact]
+    public void Ake_OhneKopf_EinFaJeGruppe_ReihenfolgeWieVorV164_AK19()
+    {
+        var ops = new[]
+        {
+            Op(Po("AKE-3", new DateTime(2026, 6, 1), "AKE-3"), "01"), Op(Po("AKE-1", null, "AKE-1"), "01"),
+            Op(Po("AKE-2", new DateTime(2026, 5, 1), "AKE-2"), "02", 20), Op(Po("AKE-4", new DateTime(2026, 5, 1), "AKE-4"), "01")
+        };
+
+        var r = BdeTerminalAuftraege.Ordnen(ops, new HashSet<int>(), KeinKopf, Offsets, Rechner, new DateTime(2026, 4, 1));
+
+        // Vor v1.64.0: Termin (leer zuletzt), OrderNumber, SubOrderNumber, Auftrag, Sequence.
+        var vorher = ops.OrderBy(o => o.ProductionOrder.ProductionDate is null).ThenBy(o => o.ProductionOrder.ProductionDate)
+            .ThenBy(o => o.ProductionOrder.OrderNumber, StringComparer.Ordinal).ThenBy(o => o.ProductionOrderId).ThenBy(o => o.Sequence);
+        r.Select(a => a.Op).Should().Equal(vorher);
+        r.Should().OnlyContain(a => a.Prio == null);
+    }
+
     // ===== AK 6 / AK 5 / Antwort 10: Status =====
 
     [Theory]

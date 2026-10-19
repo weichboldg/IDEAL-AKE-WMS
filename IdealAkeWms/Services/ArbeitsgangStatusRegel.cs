@@ -31,8 +31,9 @@ public static class ArbeitsgangStatusRegel
     }
 }
 
-/// <summary>Ein Arbeitsgang-Knopf am BDE-Terminal mit Fertigungstermin seines Auftrags und Status (Teil 3).</summary>
-public sealed record BdeTerminalArbeitsgang(WorkOperation Op, DateTime? Fertigungstermin, FaArbeitsschrittSymbol Symbol);
+/// <summary>Ein Arbeitsgang-Knopf am BDE-Terminal mit Fertigungstermin seines Auftrags, Status (Teil 3) und Prio seiner Haupt-FA
+/// (v1.64.0, FA-1.5; null = keine gesetzt).</summary>
+public sealed record BdeTerminalArbeitsgang(WorkOperation Op, DateTime? Fertigungstermin, FaArbeitsschrittSymbol Symbol, int? Prio = null);
 
 /// <summary>
 /// BDE-Terminal „Arbeitsgang waehlen“ (FA-Struktur Teil 3, v1.57.0): Fertigungstermin-Regel (FA 3), Status je Arbeitsgang
@@ -45,8 +46,13 @@ public static class BdeTerminalAuftraege
     public static DateTime? Fertigungstermin(ProductionOrder po, ILookup<int, FaHierarchyOrderInfo> kopf)
         => (int.TryParse(po.OrderNumber, out var hauptFa) ? kopf[hauptFa].Select(o => o.FE_Termin).Min() : null) ?? po.ProductionDate;
 
-    /// <summary>Aufsteigend nach Fertigungstermin (Datumsteil), ohne Termin am Ende; Gleichstand OrderNumber, SubOrderNumber;
-    /// je Auftrag zusammenhaengend nach Sequence.</summary>
+    /// <summary>Prio der Haupt-FA (v1.64.0, Antwort 1): kleinster gesetzter Wert der Kopfzeilen (Kombigeraet), sonst null.</summary>
+    public static int? Prio(ProductionOrder po, ILookup<int, FaHierarchyOrderInfo> kopf)
+        => int.TryParse(po.OrderNumber, out var hauptFa) ? kopf[hauptFa].Select(o => o.Prio).Min() : null;
+
+    /// <summary>Gruppiert nach Haupt-FA (<c>OrderNumber</c>, v1.64.0 FA-1.4): Gruppen nach Prio aufsteigend (leer zuletzt),
+    /// fruehestem Fertigungstermin (Datumsteil, leer zuletzt), OrderNumber; innerhalb nach Fertigungstermin, SubOrderNumber,
+    /// Auftrag, Sequence. Ohne Prio und mit einem Auftrag je OrderNumber (AKE) = die Reihenfolge vor v1.64.0.</summary>
     public static List<BdeTerminalArbeitsgang> Ordnen(IEnumerable<WorkOperation> ops, IReadOnlySet<int> laeuft,
         ILookup<int, FaHierarchyOrderInfo> kopf, IReadOnlyDictionary<string, int> offsets,
         Func<DateTime, int, DateTime> rechner, DateTime heute)
@@ -59,13 +65,20 @@ public static class BdeTerminalAuftraege
                 {
                     Status = ArbeitsgangStatusRegel.Ableiten(false, laeuft.Contains(op.Id), soll, heute),
                     Soll = soll
-                });
+                }, Prio(op.ProductionOrder, kopf));
             })
-            .OrderBy(a => a.Fertigungstermin is null)
-            .ThenBy(a => a.Fertigungstermin?.Date)
-            .ThenBy(a => a.Op.ProductionOrder.OrderNumber, StringComparer.Ordinal)
-            .ThenBy(a => a.Op.ProductionOrder.SubOrderNumber, StringComparer.Ordinal)
-            .ThenBy(a => a.Op.ProductionOrderId)
-            .ThenBy(a => a.Op.Sequence)
+            .GroupBy(a => a.Op.ProductionOrder.OrderNumber, StringComparer.Ordinal)
+            .Select(g => (Prio: g.Min(a => a.Prio), Termin: g.Min(a => a.Fertigungstermin?.Date), g.Key, Eintraege: g))
+            .OrderBy(g => g.Prio is null)
+            .ThenBy(g => g.Prio)
+            .ThenBy(g => g.Termin is null)
+            .ThenBy(g => g.Termin)
+            .ThenBy(g => g.Key, StringComparer.Ordinal)
+            .SelectMany(g => g.Eintraege
+                .OrderBy(a => a.Fertigungstermin is null)
+                .ThenBy(a => a.Fertigungstermin?.Date)
+                .ThenBy(a => a.Op.ProductionOrder.SubOrderNumber, StringComparer.Ordinal)
+                .ThenBy(a => a.Op.ProductionOrderId)
+                .ThenBy(a => a.Op.Sequence))
             .ToList();
 }

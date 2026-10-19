@@ -14,7 +14,9 @@ namespace IdealAkeWms.Tests.Controllers;
 
 public class BdeTerminalControllerTests
 {
-    private static BdeTerminalController CreateTerminalController(ApplicationDbContext ctx, bool multiMa = false, bool multiOp = false, bool groupFinish = false, bool nurFa = false)
+    private static BdeTerminalController CreateTerminalController(ApplicationDbContext ctx, bool multiMa = false, bool multiOp = false, bool groupFinish = false, bool nurFa = false,
+        string? master = null, string? maxHauptFa = null, Mock<IBdeTerminalRepository>? terminals = null,
+        Mock<IProductionWorkplaceRepository>? workplaces = null, ICurrentUserService? user = null)
     {
         var userSvc = new Mock<ICurrentUserService>();
         userSvc.Setup(u => u.GetDisplayName()).Returns("tester");
@@ -29,15 +31,20 @@ public class BdeTerminalControllerTests
             .ReturnsAsync(groupFinish ? "true" : "false");
         settings.Setup(s => s.GetValueAsync("BdeNurFaMeldung"))
             .ReturnsAsync(nurFa ? "true" : "false");
+        settings.Setup(s => s.GetIntValueAsync(AppSettingKeys.BdeTerminalMaxHauptFa, 5))
+            .ReturnsAsync(int.TryParse(maxHauptFa, out var max) ? max : 5);
+        var serviceSettings = new Mock<IServiceSettingRepository>();
+        serviceSettings.Setup(s => s.GetValueAsync(IdealAkeWms.Services.HierarchischeStruktur.HierarchischeStrukturKeys.Master))
+            .ReturnsAsync(master);
 
         var bookingSvc = new BdeBookingService(ctx, userSvc.Object, settings.Object);
         var defaultWoSvc = new BdeDefaultWorkOperationService(ctx, settings.Object);
 
-        var terminals = new Mock<IBdeTerminalRepository>();
-        var workplaces = new Mock<IProductionWorkplaceRepository>();
+        terminals ??= new Mock<IBdeTerminalRepository>();
+        workplaces ??= new Mock<IProductionWorkplaceRepository>();
 
-        return new BdeTerminalController(terminals.Object, bookingSvc, userSvc.Object,
-            workplaces.Object, defaultWoSvc, settings.Object, ctx, NullLogger<BdeTerminalController>.Instance);
+        return new BdeTerminalController(terminals.Object, bookingSvc, user ?? userSvc.Object,
+            workplaces.Object, defaultWoSvc, settings.Object, serviceSettings.Object, ctx, NullLogger<BdeTerminalController>.Instance);
     }
 
     [Fact]
@@ -331,5 +338,31 @@ public class BdeTerminalControllerTests
         var json = System.Text.Json.JsonSerializer.Serialize((result as JsonResult)!.Value);
         json.Should().Contain("\"outcome\":\"Success\"");
         ctx.WorkOperations.Should().Contain(w => w.ProductionOrderId == ids.ProductionOrderId && w.OperationNumber == "01");
+    }
+
+    // v1.64.0 (Spec 2026-10-19-bde-terminal-liste-scan-ohne-ag-prio, FA-1.1/1.3, AK 2/19): Master + Anzeige-Grenze an die View.
+    [Theory]
+    [InlineData("true", "3", true, 3)]
+    [InlineData("1", null, true, 5)]
+    [InlineData(null, "0", false, 5)]
+    [InlineData("false", "-1", false, 5)]
+    [InlineData("false", "abc", false, 5)]
+    public async Task Index_HierarchischUndMaxHauptFa(string? master, string? max, bool erwartetHierarchisch, int erwartetMax)
+    {
+        var ctx = TestDbContextFactory.Create();
+        var user = new Mock<ICurrentUserService>();
+        user.Setup(u => u.GetCurrentAppUserId()).Returns(1);
+        var terminals = new Mock<IBdeTerminalRepository>();
+        terminals.Setup(t => t.GetByUserIdAsync(1)).ReturnsAsync(new BdeTerminal { Id = 7, DefaultProductionWorkplaceId = 65 });
+        var workplaces = new Mock<IProductionWorkplaceRepository>();
+        workplaces.Setup(w => w.GetByIdAsync(65)).ReturnsAsync(new ProductionWorkplace { Id = 65, Name = "Entgraten Fläche", BdeAktiv = true });
+        workplaces.Setup(w => w.GetBdeActiveAsync()).ReturnsAsync(new List<ProductionWorkplace>());
+
+        var c = CreateTerminalController(ctx, master: master, maxHauptFa: max, terminals: terminals, workplaces: workplaces, user: user.Object);
+        var r = await c.Index(null) as ViewResult;
+
+        r.Should().NotBeNull();
+        ((bool)c.ViewBag.Hierarchisch).Should().Be(erwartetHierarchisch);
+        ((int)c.ViewBag.MaxHauptFa).Should().Be(erwartetMax);
     }
 }

@@ -390,6 +390,7 @@ using (var scope = app.Services.CreateScope())
         (IdealAkeWms.Models.AppSettingKeys.BdeMehrfachBuchungProArbeitsgang, "false", "Ein Arbeitsgang darf mehrere parallele Buchungen haben (durch verschiedene Mitarbeiter)"),
         (IdealAkeWms.Models.AppSettingKeys.BdeGleichzeitigerAbschlussBeiMehrfachStart, "false", "Alle parallel gestarteten Produktionsbuchungen eines Mitarbeiters muessen gemeinsam fertiggemeldet werden (nur wirksam wenn BdeMehrfachBuchungProOperator aktiv)"),
         (IdealAkeWms.Models.AppSettingKeys.BdeSchichtkalenderAktiv, "false", "Schichtkalender + Auto-Pause am Schichtende aktiv"),
+        (IdealAkeWms.Models.AppSettingKeys.BdeTerminalMaxHauptFa, "5", "BDE-Terminal (IDEAL, Master an): Anzahl Haupt-FAs in der Arbeitsgang-Liste; Rest ueber 'Weitere anzeigen'. Standard 5."),
     };
     foreach (var (key, value, description) in bdeSettings)
     {

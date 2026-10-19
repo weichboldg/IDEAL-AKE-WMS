@@ -19,8 +19,9 @@ namespace IdealAkeWms.Services;
 /// Aufloesungsreihenfolge (Spec „Fachliche Anforderungen"):
 /// 1. <c>OrderNumber</c>-Gruppe, werkbank-gescopt → 1 = direkt (Exact), mehrere = Auswahl (Ambiguous).
 /// 2. Kein Treffer im Scope, aber HauptFA existiert global → <see cref="BdeScanResolutionKind.NotInScope"/>.
-/// 3. HauptFA existiert gar nicht → Fallback-Lookup gegen <c>SubOrderNumber</c> (heute unerreichbare
-///    Vorruestung, AK 3), ebenfalls werkbank-gescopt.
+/// 3. HauptFA existiert gar nicht → Fallback-Lookup gegen <c>SubOrderNumber</c>, ebenfalls werkbank-gescopt
+///    (seit v1.64.0 erreichbar: Scan einer Sub-FA ohne AG).
+/// 3b. Kein Treffer im Scope, aber die Sub-FA existiert → <see cref="BdeScanResolutionKind.NotInScope"/> (v1.64.0 FA-4.5).
 /// 4. Kein Treffer → <see cref="BdeScanResolutionKind.NotFound"/>.
 ///
 /// Hinweis Etappe 3: <c>GetAvailableOperations</c> traegt heute dieselben Scope-Praedikate inline;
@@ -104,12 +105,16 @@ public class BdeScanResolver : IBdeScanResolver
         if (hauptFaExists)
             return new BdeScanResolution(BdeScanResolutionKind.NotInScope, Array.Empty<BdeScanCandidate>());
 
-        // 3. Fallback SubOrderNumber (heute unerreichbare Vorruestung, AK 3), ebenfalls werkbank-gescopt.
+        // 3. Fallback SubOrderNumber (Scan einer Sub-FA, seit v1.64.0 ohne AG erreichbar), ebenfalls werkbank-gescopt.
         var bySub = await BuildCandidatesAsync(workplaceId, fa, bySubOrder: true, operationNumber, nurFaMode, operatorId, ct);
         if (bySub.Count > 0)
             return new BdeScanResolution(
                 bySub.Count == 1 ? BdeScanResolutionKind.Exact : BdeScanResolutionKind.Ambiguous,
                 bySub, ViaSubOrderNumberFallback: true);
+
+        // 3b. Sub-FA existiert, hat aber an dieser Werkbank nichts Offenes → nicht „nicht gefunden“ melden (v1.64.0 FA-4.5).
+        if (await _ctx.ProductionOrders.AsNoTracking().AnyAsync(po => po.SubOrderNumber == fa, ct))
+            return new BdeScanResolution(BdeScanResolutionKind.NotInScope, Array.Empty<BdeScanCandidate>());
 
         // 4. Kein Treffer → bestehende Fehlerbehandlung.
         return BdeScanResolution.NotFound;

@@ -309,6 +309,7 @@ public class BdeApiController : ControllerBase
                     operationNumber = a.Op.OperationNumber,
                     operationName = a.Op.Name,
                     targetQuantity = a.Op.ProductionOrder.Quantity,
+                    prio = a.Prio,
                     status = a.Symbol.Status is FaAgStatus.Laeuft or FaAgStatus.LaeuftUeberfaellig ? "running"
                         : a.Symbol.Status == FaAgStatus.Ueberfaellig ? "overdue" : "open",
                     isOverdue = a.Symbol.Status is FaAgStatus.Ueberfaellig or FaAgStatus.LaeuftUeberfaellig,

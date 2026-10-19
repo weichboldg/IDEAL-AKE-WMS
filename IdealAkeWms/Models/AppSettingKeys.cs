@@ -13,6 +13,7 @@ public static class AppSettingKeys
     public const string BdeMehrfachBuchungProArbeitsgang = "BdeMehrfachBuchungProArbeitsgang";
     public const string BdeGleichzeitigerAbschlussBeiMehrfachStart = "BdeGleichzeitigerAbschlussBeiMehrfachStart";
     public const string BdeSchichtkalenderAktiv = "BdeSchichtkalenderAktiv";
+    public const string BdeTerminalMaxHauptFa = "BdeTerminalMaxHauptFa";
 
     // Picking / Leitstand / Warehouse Requisitions
     public const string LeitstandAktiv = "LeitstandAktiv";

@@ -17,8 +17,9 @@ public class BdeBookingEditViewModel
 public class BdeBookingQuantityEditRow
 {
     public int Id { get; set; }
-    public decimal GoodQuantity { get; set; }
-    public decimal ScrapQuantity { get; set; }
+    // v1.64.0 FA-5.3: negative Mengen auch in der Admin-Korrektur abweisen (Controller prueft ModelState).
+    [Range(0, double.MaxValue, ErrorMessage = "Menge darf nicht negativ sein.")] public decimal GoodQuantity { get; set; }
+    [Range(0, double.MaxValue, ErrorMessage = "Menge darf nicht negativ sein.")] public decimal ScrapQuantity { get; set; }
     public bool IsFinal { get; set; }
     public DateTime ReportedAt { get; set; }
     public bool Delete { get; set; }

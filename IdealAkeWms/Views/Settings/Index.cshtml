@@ -43,7 +43,7 @@
                             ("Windows-Anmeldung", new[] { "WindowsAuthAktiv", "WindowsAuthBerechtigungsgruppe" }),
                             ("IDEAL", new[] { "FaHierarchyKommissionierlistenAktiv", "FaHierarchyBeschichtungAktiv", "FaHierarchyVormontageAktiv", "FaHierarchyMaxTiefe" }),
                             ("Allgemein", new[] { "QrMitFaNummer" }),
-                            ("BDE", new[] { "BdeAktiv", "BdeNurFaMeldung", "BdeDefaultArbeitsgang", "BdeMehrfachBuchungProOperator", "BdeMehrfachBuchungProArbeitsgang", "BdeGleichzeitigerAbschlussBeiMehrfachStart", "BdeSchichtkalenderAktiv" }),
+                            ("BDE", new[] { "BdeAktiv", "BdeNurFaMeldung", "BdeDefaultArbeitsgang", "BdeMehrfachBuchungProOperator", "BdeMehrfachBuchungProArbeitsgang", "BdeGleichzeitigerAbschlussBeiMehrfachStart", "BdeSchichtkalenderAktiv", "BdeTerminalMaxHauptFa" }),
                         };
                         var groupedKeys = settingsGroups.SelectMany(g => g.Keys).ToHashSet(StringComparer.OrdinalIgnoreCase);
                         var ungrouped = Model.Settings.Where(s => !groupedKeys.Contains(s.Key)).ToList();

@@ -264,14 +264,13 @@ public static class FaArbeitsschrittSymbole
             : arbeitsschritte.Split(Trenner, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
     /// <summary>Kuerzel → Werkbank-Name aus dem Katalog (<c>ArbeitsschrittCode</c> getrimmt, case-insensitiv, wie die Erkennung).
-    /// Kuerzel auf mehreren Werkbaenken fallen heraus — dort gibt es keinen eindeutigen Namen. Werkbaenke „nicht in Sage"
-    /// zaehlen nicht mit (v1.63.0, FA-b10).</summary>
+    /// Kuerzel auf mehreren Werkbaenken zeigen die bevorzugte (<see cref="IdealAkeWms.Services.WerkbankKuerzelFamilie.Bevorzugt"/>, dieselbe Regel wie die
+    /// Struktur-Erkennung beim Anlegen, v1.64.0 FA-6). Werkbaenke „nicht in Sage" zaehlen nicht mit (v1.63.0, FA-b10).</summary>
     public static IReadOnlyDictionary<string, string> NamenLookup(IEnumerable<ProductionWorkplace> werkbaenke) =>
         werkbaenke
             .Where(w => !string.IsNullOrWhiteSpace(w.ArbeitsschrittCode) && w.SageMissingSince == null)
             .GroupBy(w => w.ArbeitsschrittCode!.Trim(), StringComparer.OrdinalIgnoreCase)
-            .Where(g => g.Count() == 1)
-            .ToDictionary(g => g.Key, g => g.Single().Name, StringComparer.OrdinalIgnoreCase);
+            .ToDictionary(g => g.Key, g => IdealAkeWms.Services.WerkbankKuerzelFamilie.Bevorzugt(g).Name, StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Setzt <see cref="FaHierarchyTreeNode.Arbeitsgaenge"/> fuer alle Knoten der Strukturen — je Zeile nur ihr eigenes Feld.</summary>
     public static void Zuordnen(IEnumerable<FaHierarchyStructure> structures, IReadOnlyDictionary<string, string> namen)

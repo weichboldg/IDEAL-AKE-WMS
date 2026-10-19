@@ -314,6 +314,39 @@ public class BdeScanResolverTests
         res.Single!.SubOrderNumber.Should().Be("SUB-7");
     }
 
+    // v1.64.0 (Spec 2026-10-19-bde-terminal-liste-scan-ohne-ag-prio, FA-4, AK 10/12): Scan einer Sub-FA ohne AG.
+
+    [Fact]
+    public async Task Normal_SubFaOhneAg_EinFamilienAg_Exact_ViaFallback_AK10()
+    {
+        var ctx = TestDbContextFactory.Create();
+        SeedPo(ctx, 1, "1059463", "1065150", Wp);
+        SeedWo(ctx, 10, 1, Wp, "EG");
+        SeedWo(ctx, 11, 1, OtherWp, "ST", sequence: 2);
+        await ctx.SaveChangesAsync();
+
+        var res = await Resolver(ctx).ResolveAsync(Wp, "1065150", null, nurFaMode: false, operatorId: null);
+
+        res.Kind.Should().Be(BdeScanResolutionKind.Exact);
+        res.ViaSubOrderNumberFallback.Should().BeTrue();
+        res.Single!.Id.Should().Be(10);
+    }
+
+    [Fact]
+    public async Task Normal_SubFaExistiert_OhneOffenenAgAnWerkbank_NotInScope_AK12()
+    {
+        var ctx = TestDbContextFactory.Create();
+        SeedPo(ctx, 1, "1059463", "1065150", Wp);
+        SeedWo(ctx, 10, 1, Wp, "EG", reported: true);
+        SeedWo(ctx, 11, 1, OtherWp, "ST", sequence: 2);
+        await ctx.SaveChangesAsync();
+
+        (await Resolver(ctx).ResolveAsync(Wp, "1065150", null, nurFaMode: false, operatorId: null))
+            .Kind.Should().Be(BdeScanResolutionKind.NotInScope, "die Sub-FA existiert — nicht „nicht gefunden“");
+        (await Resolver(ctx).ResolveAsync(Wp, "9999999", null, nurFaMode: false, operatorId: null))
+            .Kind.Should().Be(BdeScanResolutionKind.NotFound);
+    }
+
     [Fact]
     public async Task NotFound_WhenNoMatchAnywhere()
     {

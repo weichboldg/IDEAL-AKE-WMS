@@ -49,10 +49,32 @@ public class FaArbeitsschrittSymboleTests
         lookup.Should().ContainSingle();
     }
 
+    // v1.64.0 (FA-6, AK 17): ein Kuerzel an mehreren aktuellen Werkbaenken zeigt die bevorzugte — BDE-aktive zuerst, dann kleinste Id
+    // (dieselbe Regel wie die Struktur-Erkennung beim Anlegen); vorher fiel es ohne Namen heraus.
     [Fact]
-    public void NamenLookup_Mehrdeutig_OhneNamen()
-        => FaArbeitsschrittSymbole.NamenLookup(new[] { Wp("PG", "Packen 1"), Wp("pg", "Packen 2"), Wp("LS", "Laser") })
-            .Keys.Should().BeEquivalentTo(new[] { "LS" }, "ein Kuerzel auf mehreren Werkbaenken bekommt keinen erfundenen Namen");
+    public void NamenLookup_Mehrere_BevorzugteWerkbank()
+    {
+        var lookup = FaArbeitsschrittSymbole.NamenLookup(new[]
+        {
+            new ProductionWorkplace { Id = 3, ArbeitsschrittCode = "PG", Name = "Packen 1" },
+            new ProductionWorkplace { Id = 9, ArbeitsschrittCode = "pg", Name = "Packen 2", BdeAktiv = true },
+            new ProductionWorkplace { Id = 2, ArbeitsschrittCode = "EG", Name = "Entgraten 2" },
+            new ProductionWorkplace { Id = 1, ArbeitsschrittCode = "EG ", Name = "Entgraten Fläche" },
+            Wp("LS", "Laser")
+        });
+
+        lookup["PG"].Should().Be("Packen 2", "BDE-aktiv vor kleinerer Id");
+        lookup["EG"].Should().Be("Entgraten Fläche", "ohne BDE-aktive: kleinste Id");
+        lookup["LS"].Should().Be("Laser");
+    }
+
+    [Fact]
+    public void NamenLookup_NurGekennzeichnete_OhneNamen()
+    {
+        var alt = Wp("EG", "Flächen entgr beendet");
+        alt.SageMissingSince = new DateTime(2026, 10, 19);
+        FaArbeitsschrittSymbole.NamenLookup(new[] { alt }).Should().BeEmpty();
+    }
 
     // v1.63.0 (FA-b10, AK 17): eine gekennzeichnete Werkbank zaehlt nicht — EG hat wieder genau einen Namen.
     [Fact]
