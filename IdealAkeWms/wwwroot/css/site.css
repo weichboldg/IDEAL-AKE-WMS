@@ -209,8 +209,12 @@ body {
    1) Wrapper hat overflow-x: auto (Scrollbar-Mechanismus)
    2) Tabelle hat NICHT width: 100% (sonst wird sie nie breiter als der Wrapper)
    3) Zellen haben white-space: nowrap (sonst bricht Text um statt die Tabelle zu verbreitern)
-   Scrollbar wird immer sichtbar gehalten damit Nutzer sie finden. */
+   Scrollbar wird immer sichtbar gehalten damit Nutzer sie finden.
+   position: relative (v1.64.1): macht den Wrapper zum Bezugsrahmen absolut positionierter Kinder
+   (z. B. Select2-versteckte <select>). Sonst haengen sie an <html>, entgehen dem overflow-Clip und
+   ziehen das Dokument auf volle Tabellenbreite (Seiten-Querscrollleiste). */
 .table-responsive {
+    position: relative;
     overflow-x: auto !important;
     -webkit-overflow-scrolling: touch;
     border-radius: 8px;

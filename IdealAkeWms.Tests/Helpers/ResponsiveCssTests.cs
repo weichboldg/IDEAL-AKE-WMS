@@ -285,6 +285,26 @@ public class ResponsiveCssTests
             "wenn die echte Scrollbar sichtbar ist");
     }
 
+    [Fact]
+    public void Wrapper_IsContainingBlockForAbsoluteChildren()
+    {
+        // v1.64.1: Ohne position: relative haengen absolut positionierte Kinder (Select2-versteckte
+        // <select>) an <html>, entgehen dem overflow-Clip und ziehen die Seite auf volle Tabellenbreite.
+        ExtractCssBlock(".table-responsive {").Should().Contain("position: relative",
+            ".table-responsive muss Bezugsrahmen fuer absolut positionierte Kinder sein");
+    }
+
+    [Fact]
+    public void Js_StickyScrollbarSentinel_LiegtAusserhalbDesScrollbereichs()
+    {
+        // v1.64.1: Ein Sentinel IM Wrapper scrollt horizontal mit und faellt beim Rechtsscrollen aus
+        // dem Clip-Bereich -> sticky bar erscheint zusaetzlich zur echten Scrollbar (zwei Balken).
+        JsContent.Should().NotContain("wrapper.appendChild(sentinel)");
+        JsContent.Should().Contain("wrapper.parentNode.insertBefore(sentinel, stickyBar)");
+        // Breite nachziehen, wenn die Tabelle nach dem Laden waechst (Stueckliste „Alle aufklappen“).
+        JsContent.Should().Contain("ResizeObserver");
+    }
+
     // ========================================================================
     // Scrollbar Styling (immer sichtbar)
     // ========================================================================

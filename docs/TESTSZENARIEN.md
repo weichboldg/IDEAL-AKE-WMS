@@ -10162,6 +10162,22 @@ Eine Komponente mit > 3 Bestandsplätzen in der geprüften Stückliste (Kandidat
   **QA-Fix:** Bestellen aktiv, eine **Baugruppen**-Zeile und eine Bauteil-Zeile anhaken → „Ausgewählte bestellen“. **Erwartet:**
   im Bestell-Modal für die Baugruppe Bezeichnung 1, die echte Menge und die Artikelgruppe (nicht der Matchcode, nicht „NaN“);
   dasselbe nach Umordnen der Spalten per Zahnrad.
+- **TS-95.17 — Keine Seiten-Querscrollleiste (Bugfix v1.64.1).** Vorbedingung: IDEAL-Test, Fenster ca. 950 px breit. `Picking/Bom/131`
+  (FA 1059463), „Alle aufklappen“. **Erwartet:** unter der Navigation keine Querscrollleiste der Seite; DevTools-Konsole
+  `document.documentElement.scrollWidth === document.documentElement.clientWidth` → `true`. Kopfzeile, Filterkarte und
+  Zahnrad bleiben beim Querscrollen der Tabelle stehen. **Negativ:** Fenster breiter als die Tabelle → auch keine Tabellen-Scrollleiste.
+- **TS-95.18 — Genau ein blauer Balken (Bugfix v1.64.1).** Wie TS-95.17, Seite oben. **Erwartet:** am unteren Fensterrand ein
+  mitlaufender Balken; Tabelle damit ganz nach rechts ziehen → Tabelle folgt, der Balken reicht bis zur letzten Spalte. Dann nach
+  unten bis zum Tabellenende scrollen → der mitlaufende Balken verschwindet, nur der Balken der Tabelle bleibt (auch in der
+  rechten Endstellung). Zurück nach oben → mitlaufender Balken wieder da, auf derselben Position. Beide Balken bewegen die Tabelle.
+- **TS-95.19 — Quell-Lagerplatz-Dropdown (Bugfix v1.64.1).** Picking-Modus, Quell-Lagerplatz-Auswahl in der **letzten sichtbaren
+  Zeile** und in einer Zeile ganz rechts nach dem Querscrollen öffnen. **Erwartet:** Liste vollständig sichtbar, nicht im
+  Tabellenbereich abgeschnitten, keine zusätzliche senkrechte Scrollleiste in der Tabelle; Auswahl übernimmt den Platz. Ebenso:
+  Lagerplatz-Popover „+n weitere“, Spaltenfilter-Datums-Popup, Rechtsklick-Spaltenmenü, Spaltenbreite ziehen, Druckansicht.
+- **TS-95.20 — Gegenprobe andere Listen (Bugfix v1.64.1).** FA-Vervollständigung (`FaCompletion/Edit`, Tab Stückliste,
+  Artikel-Select2 in der Tabelle) und Mehrfach-Wareneingang (`StockMovements/InboundBulk`, Zeilen-Artikel). **Erwartet:**
+  Dropdown nicht abgeschnitten, keine Seiten-Querscrollleiste. Eine lange Liste ohne Select2 (z. B. Fertigungsaufträge):
+  genau ein Balken wie in TS-95.18.
 
 ---
 

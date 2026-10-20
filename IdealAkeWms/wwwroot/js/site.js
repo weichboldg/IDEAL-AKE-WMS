@@ -41,14 +41,16 @@
             syncing = false;
         });
 
-        // Sentinel am Ende des Wrappers: IntersectionObserver blendet sticky bar aus
-        // wenn die echte Scrollbar im Viewport sichtbar wird
+        // Sentinel direkt UNTER dem Wrapper: IntersectionObserver blendet sticky bar aus
+        // wenn die echte Scrollbar im Viewport sichtbar wird. Nicht IM Wrapper (v1.64.1): dort
+        // scrollt der Sentinel horizontal mit, faellt beim Rechtsscrollen aus dem Clip-Bereich
+        // und die sticky bar erschien zusaetzlich zur echten Scrollbar (zwei Balken).
         var sentinel = document.createElement('div');
         sentinel.className = 'table-scroll-sentinel';
         sentinel.style.height = '1px';
         sentinel.style.width = '100%';
         sentinel.style.marginTop = '-1px';
-        wrapper.appendChild(sentinel);
+        wrapper.parentNode.insertBefore(sentinel, stickyBar);
 
         var observer = new IntersectionObserver(function (entries) {
             entries.forEach(function (entry) {
@@ -60,13 +62,14 @@
         // Initiale Sync + laufende Updates
         syncWidths(wrapper, stickyBar, spacer);
 
-        // Bei Resize und nach kurzen Verzoegerungen nochmal synchronisieren
-        window.addEventListener('resize', function () {
+        // Bei jeder Groessenaenderung von Wrapper oder Tabelle nachziehen: Fenster-Resize,
+        // Filter-Rows, aufgeklappte Zeilen (z. B. Stueckliste „Alle aufklappen“ verbreitert die Tabelle
+        // erst nach dem Laden — sonst endet die sticky bar vor dem Tabellenende).
+        var resizeObserver = new ResizeObserver(function () {
             syncWidths(wrapper, stickyBar, spacer);
         });
-
-        // Nochmal nach 500ms (fuer spaet geladene Inhalte, Filter-Rows etc.)
-        setTimeout(function () { syncWidths(wrapper, stickyBar, spacer); }, 500);
+        resizeObserver.observe(wrapper);
+        if (wrapper.firstElementChild) resizeObserver.observe(wrapper.firstElementChild);
     }
 
     function syncWidths(wrapper, stickyBar, spacer) {
