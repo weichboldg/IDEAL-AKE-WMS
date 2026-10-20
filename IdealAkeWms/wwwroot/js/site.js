@@ -55,6 +55,9 @@
         var observer = new IntersectionObserver(function (entries) {
             entries.forEach(function (entry) {
                 stickyBar.classList.toggle('is-hidden', entry.isIntersecting);
+                // display:none verwirft die Scroll-Position der Bar: beim Wiedereinblenden auf die
+                // Tabelle setzen, sonst steht der Balken auf 0 und der naechste Zug springt die Tabelle zurueck.
+                if (!entry.isIntersecting) stickyBar.scrollLeft = wrapper.scrollLeft;
             });
         }, { threshold: 0.1 });
         observer.observe(sentinel);
