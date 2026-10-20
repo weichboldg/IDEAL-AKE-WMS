@@ -723,6 +723,7 @@ Changelog [[2026-10-16-v1-62-0-stueckliste-matchcode-lagerplatz-limit]], Bug [[2
 | L: Reihenfolge zentral, Zelle max. 3 + „+n weitere“-Popover, Spalte filterbar, CSV volle Liste | **erledigt** `c9bc382f`, `41c3c14e` | `StockMovementRepository.GetStockByArticleNumbersAsync`, `Views/Picking/Bom.cshtml` |
 | Hilfe, Changelog, v1.62.0, TS-95 | **erledigt** `6a452892` | `Views/Help/Index.cshtml` |
 | QA-Fix W-1: Bulk-Bestell-Fallback per col-key statt fester Zellpositionen | **erledigt** `9177db47`, TS `d75680f4` | `Views/Picking/Bom.cshtml` |
+| Bugfix v1.64.1: keine Seiten-Querscrollleiste (`.table-responsive` relativ), genau ein Scrollbalken (Sentinel unter dem Wrapper, ResizeObserver) — global für alle Listen. Bug [[2026-10-19-tabelle-seitenbreite-doppelter-scrollbalken-bug]] | **Testbereit** `4179e38d`, QA `d52bc44d` | `wwwroot/css/site.css` `.table-responsive`, `wwwroot/js/site.js` `initStickyScrollbar` |
 
 > **Deploy:** nur Web, keine Migration. **Status:** Testbereit (QA 2026-10-16, Build + 2043 Web- / 307 Service-Tests grün) →
 > Schranke 2 mit dem Bündel.
