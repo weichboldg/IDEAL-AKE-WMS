@@ -10362,8 +10362,62 @@ Selektoren), TS-86 (CSV-Inhalt), TS-95.17–95.20 (keine Seiten-Querscrollleiste
   Paginierung und CSV-Inhalt. **Erwartet:** wie v1.64.1. Dazu TS-95.17–95.20 auf der Stückliste: keine Seiten-Querscrollleiste, genau
   ein blauer Balken.
 
+## TS-99 — Hardware-Barcodescanner: Tastatur-Scan mit Präfix (v1.66.0)
+
+Spec `2026-10-15-scan-handler-hardware-scanner-spec` (Präfix-Variante B, kein AIM). Automatisiert: `HardwareScannerTests`
+(Node-Selbstprüfung `hardware-scanner.check.js`: Präfix erkannt/abgelehnt, Zeitgrenze, Enter-/Tab-Ende, Ende per Timeout, Replay bei
+Fehlstart, Präfix-Zeichen mitten im Text, Shift zwischen Zeichen; Quelltext-Wächter für Layout, Register, BDE, Katalog, Profil) und
+`StandortEinstellungenControllerTests.Save_EmptyInt_LeavesKeyUnchanged_AndSavesTheRest`. Alles am Gerät ist Manual-UAT.
+**Vorbedingungen:** Testsystem; Admin setzt Standorteinstellungen → Hardware-Scanner: aktiv, Präfix `~09`, Abstand leer (= 50).
+Testgerät **Netum AIDC** (Android) mit Scanner-Ausgabe als Tastendrücke, **DE-Layout**, Präfix `~09`, Suffix Enter. Etiketten:
+Lagerplatz (Code 128), Kommissionierliste mit Haupt-FA-Barcode, Beschichtungsauftrag (Code 128), Artikel-QR
+(`Artikelnummer;…;FA`), ein Code mit `y`, `z` und `-` im Inhalt.
+
+- **TS-99.1 — Kalibrierung und Tottaste (AK 1, Nachtrag 16.10. Punkt 3).** a) Schalter **aus**: Quelltext enthält kein
+  `hardware-scanner.js`, `<body>` hat keine `data-hw-scan-*`-Attribute; Scan in ein leeres Textfeld (z. B. Spaltenfilter). **Erwartet:**
+  Rohtext `~09<Code>` genau so, `y`/`z`/`-` richtig. b) **Tottaste:** Erscheint statt `~09` nur `09`, `˜09` oder das `~` erst nach dem
+  nächsten Zeichen, ist `~` auf dem Gerät eine Tottaste. Dann am Scanner und in den Standorteinstellungen einen anderen Präfix ohne
+  Tottaste setzen (z. B. `#09`) und a) wiederholen; Ergebnis notieren. c) Schalter **an**, Abstand 50 / 30 / 100 probieren; der
+  kleinste Wert, bei dem 10 Scans hintereinander erkannt werden, wird eingetragen.
+- **TS-99.2 — Wareneingang (AK 2, 3, 4).** StockMovements/Inbound, Artikel-Feld antippen, Artikel-QR scannen. **Erwartet:** Artikel im
+  Auswahlfeld gewählt, „✓ Gescannt: <Nr>“, kein Präfix oder Code als Text in einem Feld, **kein** Absenden des Formulars. Lagerplatz-Feld
+  antippen, Lagerplatz-Etikett scannen. **Erwartet:** Option gewählt wie beim Kamera-Scan.
+- **TS-99.3 — Umbuchung mit drei Zielen.** StockMovements/Transfer: nacheinander Artikel, Quell- und Ziel-Lagerplatz antippen und
+  scannen. **Erwartet:** jeder Scan im angetippten Feld. Ohne angetipptes Feld: Hinweis „bitte zuerst das Feld antippen“.
+- **TS-99.4 — Stückliste (AK 10, Variante B).** Picking/Bom im Kommissionier-Modus, nichts angetippt, Artikel-QR scannen. **Erwartet:**
+  gelber Hinweis oben „Code … gescannt – bitte zuerst das Feld antippen, in das er soll“. Knopf „Artikel scannen“ antippen (nicht
+  auslösen, nur Fokus) und scannen. **Erwartet:** Kommissionier-Ablauf wie beim Kamera-Scan. Ziel-Lagerplatz antippen, Wagen-Etikett
+  scannen. **Erwartet:** Wagen gewählt.
+- **TS-99.5 — FA-Liste und Leitstand.** ProductionOrders/Index: FA-Filter antippen, Haupt-FA-Barcode der Kommissionierliste scannen.
+  **Erwartet:** Filter gesetzt und angewendet wie nach dem Kamera-Scan. Artikel-Filter mit Artikel-QR. Dasselbe auf PickingLeitstand.
+- **TS-99.6 — Seite mit genau einem Ziel (AK 9).** Articles/Info, nichts antippen, Artikel-QR scannen. **Erwartet:** Artikelnummer gefüllt,
+  Info lädt.
+- **TS-99.7 — BDE-Terminal (AK 7, Schwerpunkt 3).** a) Vor der Anmeldung nichts antippen, Personalnummer scannen. **Erwartet:**
+  Anmeldung wie bisher, Feld ohne Präfix. b) Nach der Anmeldung nichts antippen, **Haupt-FA**-Barcode scannen. **Erwartet:** landet im
+  Feld „Oder FA-Nr scannen (optional ,AG-Nr)…“, die Gruppe der Haupt-FA klappt auf (Auflösung v1.64.0). c) **Sub-FA** scannen.
+  **Erwartet:** Sub-FA direkt gewählt. d) Mit angetipptem Feld `FA,AG` scannen. **Erwartet:** wie Eingabe von Hand plus Enter.
+- **TS-99.8 — Freies Feld (AK 8).** Server-Spaltenfilter der FA-Liste antippen, Code scannen. **Erwartet:** Code ohne Präfix im Filter, der
+  Filter wird angewendet (ENTER-Verhalten). Bemerkungsfeld (Textarea) einer Buchung: Code an der Cursorposition, kein Absenden.
+- **TS-99.9 — Kein Ziel (AK 11).** Startseite, nichts antippen, scannen. **Erwartet:** oben „⚠ Code … gescannt – auf dieser Seite nicht
+  verwendbar“, verschwindet nach ca. 5 s. Ein Code mit `<b>` im Inhalt (Testetikett oder Simulation TS-99.11) erscheint als Text, nicht
+  fett. Screenreader (TalkBack/NVDA) sagt den Hinweis an (`role="status"`). Kontrast: Bootstrap-`alert-warning` #664d03 auf #fff3cd =
+  7,2 : 1, Zeichen ⚠ plus Text (nicht nur Farbe).
+- **TS-99.10 — Geräte-Schalter (AK 12).** Mein Profil → „Dieses Gerät“ (nur sichtbar bei Schalter an) ausschalten. **Erwartet:** sofort,
+  ohne Speichern, verhält sich der Scanner wie bei TS-99.1 a) (Rohtext). Am PC desselben Benutzers bleibt er aktiv. Wieder einschalten.
+- **TS-99.11 — Simulation ohne Gerät (AK 5).** Am PC per Textersetzer/AutoHotkey `~09ABC{Enter}` mit < 20 ms je Zeichen senden.
+  **Erwartet:** Scan erkannt. `~09` von Hand langsam tippen in einem Textfeld. **Erwartet:** `~09` steht vollständig und in richtiger
+  Reihenfolge da (das `~` erscheint höchstens 50 ms verzögert). `a~b` normal tippen: steht als `a~b` da.
+- **TS-99.12 — Standorteinstellungen (AK 13).** Gruppe „Hardware-Scanner“ mit 3 Feldern; Speichern mit leerem Zeichenabstand gelingt
+  (kein Fehler „erwartet eine ganze Zahl“), Wert bleibt leer = 50. Abstand 80 speichern, Seite neu laden: `data-hw-scan-abstand="80"`.
+  Als Nicht-Admin: Maske nicht erreichbar.
+- **TS-99.13 — Regression Kamera (AK 14).** Kamera-Scan auf Inbound, Bom und ProductionOrders wie vorher.
+- **Negativfälle.** a) Passwortfeld (Mein Profil, neues Passwort), schnell `~09x` per Simulation: **Erwartet:** steht unverändert im Feld
+  (AK 6). b) Scanner auf **US-Layout**: **Erwartet:** kein Scan erkannt bzw. `y`/`z` vertauscht — dokumentiert die Pflicht zum DE-Layout.
+  c) Scan bei offenem Kamera-Modal: nach Regel Fokus/einziges Ziel behandelt, Modal bleibt offen. d) EAN-Etikett im Artikel-Feld:
+  „✗ Nicht gefunden“ (EAN eigene Spec). e) Normale Bildschirmtastatur-Eingabe auf Android: unverändert (IME wird nie abgefangen).
+
 ---
 
 *Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) + Teil 6 (Standorteinstellungen, v1.34.0) + BOM-Guard hierarchisch (2026-08-18, abgelöst) + FA-Liste-Hierarchie (v1.35.0) + BOM-Bridge (v1.36.0) + Materialisierung fachliche Felder K1/K2 (v1.37.0) + Skopierung der Tabellen-Selektoren (TS-72) + FA-Liste ausgebaut: Matchcode, Kopfdaten je Zeile, HauptFA-Zeile, Freigabe-Kaskade (v1.38.0, TS-73) + PDF-Erzeugung für FaHierarchy-Druckdokumente (v1.39.0, TS-74) + Matchcode im Artikelstamm (v1.40.0, TS-75) + FA-Arbeitsgang-Erkennung aus der Struktur (v1.41.0, TS-76, ersetzt durch TS-77) + Arbeitsgänge (WorkOperation) aus der Struktur + Werkbank-Anlage aus Sage (v1.44.0, TS-77) + Arbeitsgänge je (Sub-)FA im FA-Struktur-Modal (v1.45.0, TS-78) + Kommissionierung nur am HauptFA
-(v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80) + Beschichtungsauftrag Summiert als Standard (v1.48.0, TS-81) + Briefkopf Beschichtungsauftrag (v1.49.0, TS-82) + Beschichtungsauftrag als eigenes Objekt (v1.50.0, TS-83) + Beschichtungsaufträge bedienen (v1.51.0, TS-84) + Arbeitsgänge als Symbole im FA-Baum (v1.52.0, TS-85) + CSV-Export für alle Tabellen (v1.53.0, TS-86) + Arbeitsgang-Stammdaten (v1.54.0, TS-87) + Status je Arbeitsgang-Kürzel im FA-Baum (v1.55.0, TS-88) + Menü Beschichtung + Kurzanleitungen (v1.56.0, TS-89) + BDE-Terminal mit Arbeitsgang-Status (v1.57.0, TS-90) + Spaltenfilter-Suchsyntax Etappe A + B (v1.58.0/v1.58.1, TS-91.A/B) + Fußzeile nach Word-Vorlage (v1.59.0, TS-92) + Sage-Quellen auf WMS-Views (v1.60.0–v1.60.2, TS-93) + Arbeitsgang-Abgleich aus der Sage-View (v1.61.0, TS-94) + Stückliste Matchcode und Lagerplatz-Limit (v1.62.0, TS-95) + BDE Stufe 1: Werkbänke, AG-Fertigmeldung (v1.63.0, TS-96) + BDE-Terminal Liste nach Haupt-FA, Scan ohne AG (v1.64.0, TS-97) + Spaltenauswahl/Zahnrad zentraler Toolbar-Host (v1.65.0, TS-98)*
+(v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80) + Beschichtungsauftrag Summiert als Standard (v1.48.0, TS-81) + Briefkopf Beschichtungsauftrag (v1.49.0, TS-82) + Beschichtungsauftrag als eigenes Objekt (v1.50.0, TS-83) + Beschichtungsaufträge bedienen (v1.51.0, TS-84) + Arbeitsgänge als Symbole im FA-Baum (v1.52.0, TS-85) + CSV-Export für alle Tabellen (v1.53.0, TS-86) + Arbeitsgang-Stammdaten (v1.54.0, TS-87) + Status je Arbeitsgang-Kürzel im FA-Baum (v1.55.0, TS-88) + Menü Beschichtung + Kurzanleitungen (v1.56.0, TS-89) + BDE-Terminal mit Arbeitsgang-Status (v1.57.0, TS-90) + Spaltenfilter-Suchsyntax Etappe A + B (v1.58.0/v1.58.1, TS-91.A/B) + Fußzeile nach Word-Vorlage (v1.59.0, TS-92) + Sage-Quellen auf WMS-Views (v1.60.0–v1.60.2, TS-93) + Arbeitsgang-Abgleich aus der Sage-View (v1.61.0, TS-94) + Stückliste Matchcode und Lagerplatz-Limit (v1.62.0, TS-95) + BDE Stufe 1: Werkbänke, AG-Fertigmeldung (v1.63.0, TS-96) + BDE-Terminal Liste nach Haupt-FA, Scan ohne AG (v1.64.0, TS-97) + Spaltenauswahl/Zahnrad zentraler Toolbar-Host (v1.65.0, TS-98) + Hardware-Barcodescanner (v1.66.0, TS-99)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*

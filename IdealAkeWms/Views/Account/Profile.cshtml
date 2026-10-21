@@ -161,9 +161,37 @@
                 </form>
             </div>
         </div>
+
+        @* Geraete-Abschalter Hardware-Scanner (v1.66.0): gilt nur fuer diesen Browser (localStorage), kein Server-Schreiben.
+           Sichtbar nur, wenn der Standort-Schalter an ist (_Layout setzt dann data-hw-scan-praefix am body). *@
+        <div class="card mt-3" id="hwScanGeraet" hidden>
+            <div class="card-body">
+                <h6 class="text-muted">Dieses Gerät</h6>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" role="switch" id="hwScanGeraetAn" aria-describedby="hwScanGeraetText" />
+                    <label class="form-check-label" for="hwScanGeraetAn">Hardware-Scanner auf diesem Gerät verwenden</label>
+                </div>
+                <div class="form-text" id="hwScanGeraetText">
+                    Gilt nur für diesen Browser und wirkt sofort, ohne Speichern. Ausschalten, wenn Eingaben mit „~“ hier
+                    verzögert oder verschluckt werden. An anderen Geräten bleibt der Scanner aktiv.
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    <script>
+        (function () {
+            if (!document.body.hasAttribute('data-hw-scan-praefix')) return;
+            var KEY = 'wms.hardwareScanner.geraet';
+            var box = document.getElementById('hwScanGeraet'), sw = document.getElementById('hwScanGeraetAn');
+            try { sw.checked = localStorage.getItem(KEY) !== 'aus'; } catch (e) { return; }  // ohne localStorage kein Schalter
+            box.hidden = false;
+            sw.addEventListener('change', function () {
+                try { if (sw.checked) localStorage.removeItem(KEY); else localStorage.setItem(KEY, 'aus'); } catch (e) { }
+            });
+        })();
+    </script>
 }

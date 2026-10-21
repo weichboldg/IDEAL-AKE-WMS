@@ -105,6 +105,36 @@ public class StandortEinstellungenControllerTests
     }
 
     [Fact]
+    public async Task Save_EmptyInt_LeavesKeyUnchanged_AndSavesTheRest()
+    {
+        // v1.66.0: HardwareScannerMaxZeichenabstandMs hat ohne Seed keine Zeile -> die Maske schickt "". Das darf das Speichern
+        // nicht blockieren (sonst koennte kein Admin die Maske mehr speichern, ohne eine Zahl zu erfinden).
+        IReadOnlyDictionary<string, string?>? app = null;
+        _writer.Setup(w => w.SaveAtomicAsync(
+                It.IsAny<IReadOnlyDictionary<string, string?>>(),
+                It.IsAny<IReadOnlyList<(string, string, string?, string?)>>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<IReadOnlyDictionary<string, string?>, IReadOnlyList<(string, string, string?, string?)>, CancellationToken>(
+                (a, _, _) => app = a)
+            .Returns(Task.CompletedTask);
+
+        var settings = new Dictionary<string, string>
+        {
+            ["HardwareScannerMaxZeichenabstandMs"] = "",
+            ["HardwareScannerAktiv"] = "true",
+            ["HardwareScannerPraefix"] = "~09",
+        };
+        var ctrl = Create();
+        var result = await ctrl.Save(settings);
+
+        ctrl.ModelState.IsValid.Should().BeTrue();
+        result.Should().BeOfType<RedirectToActionResult>();
+        app!.Should().NotContainKey("HardwareScannerMaxZeichenabstandMs");
+        app["HardwareScannerAktiv"].Should().Be("true");
+        app["HardwareScannerPraefix"].Should().Be("~09");
+    }
+
+    [Fact]
     public async Task Save_MasterKeyInRequest_IsIgnored_NeverWritten()
     {
         IReadOnlyDictionary<string, string?>? app = null;

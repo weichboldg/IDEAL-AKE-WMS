@@ -415,6 +415,9 @@ Bei Änderungen der Tabellenstruktur müssen diese Scripts angepasst werden.
 | `FaHierarchyKommissionierlistenAktiv` | `false` | Feature-Schalter IDEAL-Kommissionierlisten (Teil 3) — nur exakt `true` aktiviert (Default aus) |
 | `FaHierarchyBeschichtungAktiv` | `false` | Feature-Schalter IDEAL-Beschichtungsauftrag (Teil 4) — nur exakt `true` aktiviert (Default aus). Kumuliert mit Rolle `beschichtungsauftrag` (Lesen) bzw. `beschichtungsauftrag_schreiben` (Aufträge anlegen/bearbeiten, ab v1.51.0; Rolle unter `/Roles` mit genau diesem Key anlegen) |
 | `BriefkopfVorlagePfad` | (leer) | Voller Pfad zur `briefkopf.html` der IT im Unterordner `Branding\` des Programmordners (nicht `wwwroot\`) — Briefkopf des IDEAL-Beschichtungsauftrags (v1.49.0), Fusszeile ab v1.59.0. Leer/Datei fehlt ⇒ Ersatz-Kopf aus `Firmenname` + `Firmenanschrift`. Pflege: Standorteinstellungen → Firmendaten (nur Admin) |
+| `HardwareScannerAktiv` | `false` | Hardware-Barcodescanner (v1.66.0): Tastatur-Scanner füllen auf allen Scan-Seiten dieselben Ziele wie der Kamera-Scan (`wwwroot/js/hardware-scanner.js`, nur bei exakt `true` geladen). Geräte-Abschalter in „Mein Profil“ (Browser-`localStorage`, kein Server-Wert). Pflege: Standorteinstellungen → Hardware-Scanner (nur Admin) |
+| `HardwareScannerPraefix` | `~09` (leer) | Präfix, den der Scanner vor jeden Code setzt; Abschluss Enter. Scanner auf DE-Layout stellen — `~` ist dort AltGr++ und auf manchen Geräten eine Tottaste (dann anderen Präfix wählen, TS-99.1) |
+| `HardwareScannerMaxZeichenabstandMs` | `50` (leer) | Größter Abstand zwischen zwei Scanner-Zeichen in ms; langsamer Getipptes gilt als normale Eingabe. Kalibrieren nach TS-99.1 |
 | `FaHierarchyVormontageAktiv` | `false` | Feature-Schalter IDEAL-Vormontage-Listen (Teil 5, zwei Sichten: Einzelne Teile + Summiert) — nur exakt `true` aktiviert (Default aus). Kumuliert mit Vorbau-Zugriff (`vorbau`, wie FA-Abarbeitungsliste) |
 
 ## PDF-Erzeugung (appsettings.json)

@@ -12,7 +12,20 @@
     <link rel="icon" type="image/svg+xml" href="~/images/ideal-ake-logo.svg" />
     <link rel="icon" href="~/favicon.ico" sizes="any" />
 </head>
-<body>
+@{
+    // Hardware-Barcodescanner (v1.66.0): nur bei exakt "true" Skript + Konfiguration ausliefern (Default aus, ADR 0011).
+    var hwScanAktiv = string.Equals(await AppSettings.GetValueAsync(IdealAkeWms.Models.AppSettingKeys.HardwareScannerAktiv), "true", StringComparison.OrdinalIgnoreCase);
+    // null-Attribute laesst Razor weg: bei Schalter aus traegt <body> keine data-hw-scan-*-Attribute (Mein Profil liest das).
+    string? hwScanPraefix = null, hwScanAbstand = null;
+    if (hwScanAktiv)
+    {
+        var hwP = await AppSettings.GetValueAsync(IdealAkeWms.Models.AppSettingKeys.HardwareScannerPraefix);
+        var hwA = await AppSettings.GetValueAsync(IdealAkeWms.Models.AppSettingKeys.HardwareScannerMaxZeichenabstandMs);
+        hwScanPraefix = string.IsNullOrEmpty(hwP) ? "~09" : hwP;
+        hwScanAbstand = string.IsNullOrWhiteSpace(hwA) ? "50" : hwA.Trim();
+    }
+}
+<body data-hw-scan-praefix="@hwScanPraefix" data-hw-scan-abstand="@hwScanAbstand">
     <header>
         <nav class="navbar navbar-expand-lg">
             <div class="container-fluid">
@@ -417,6 +430,11 @@
     <script src="~/js/csv-export.js" asp-append-version="true"></script>
     @* Spaltenfilter-Suchsyntax (v1.58.0): reiner Kern, VOR den Seiten-Skripten (table-filter.js u. a. nutzen ihn). *@
     <script src="~/js/column-filter-syntax.js" asp-append-version="true"></script>
+    @if (hwScanAktiv)
+    {
+        @* Hardware-Scanner (v1.66.0): vor den Seiten-Skripten, damit das Ereignis 'wms:hardware-scan' steht, bevor barcode-scanner.js lauscht. *@
+        <script src="~/js/hardware-scanner.js" asp-append-version="true"></script>
+    }
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

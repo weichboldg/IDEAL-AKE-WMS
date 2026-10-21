@@ -79,4 +79,11 @@ public static class AppSettingKeys
     // ausserhalb des Publish-Ordners (BriefkopfVorlageService). Kein Seed, keine Migration — die Zeile entsteht beim
     // ersten Speichern der Standorteinstellungen (nur Admin). Leer/fehlt => Ersatz-Kopf aus Firmenname + Anschrift.
     public const string BriefkopfVorlagePfad = "BriefkopfVorlagePfad";
+
+    // Hardware-Barcodescanner (v1.66.0): Standort-Hauptschalter (nur exakt "true" aktiviert, Default aus), Praefix der Scanner-
+    // Ausgabe (leer => "~09") und groesster Zeichenabstand in ms (leer/ungueltig => 50). Kein Seed, keine Migration — die Zeilen
+    // entstehen beim ersten Speichern der Standorteinstellungen. Gelesen nur im _Layout (body-data-Attribute fuer hardware-scanner.js).
+    public const string HardwareScannerAktiv = "HardwareScannerAktiv";
+    public const string HardwareScannerPraefix = "HardwareScannerPraefix";
+    public const string HardwareScannerMaxZeichenabstandMs = "HardwareScannerMaxZeichenabstandMs";
 }

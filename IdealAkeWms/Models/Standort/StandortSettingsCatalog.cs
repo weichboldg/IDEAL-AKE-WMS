@@ -27,6 +27,7 @@ public static class StandortSettingsCatalog
     public const string GroupToggles = "Feature-Schalter";
     public const string GroupImport = "Struktur-Import";
     public const string GroupWerkbaenke = "Werkbänke (Sage-Arbeitsplätze)";
+    public const string GroupHardwareScanner = "Hardware-Scanner";
 
     private const string ViewNameHint =
         "Wird roh gespeichert; ein ungültiger Name fällt erst beim nächsten Sync-Lauf als Fehlermail auf.";
@@ -61,6 +62,14 @@ public static class StandortSettingsCatalog
         // Sync:ProductionWorkplaceSyncEnabled bleibt bewusst in /ServiceSettings, nicht hier.
         new("Sync:ProductionWorkplaceSyncMandant",         "Mandant (Sage-Arbeitsplätze)",     StandortFieldType.Int,    StandortBackend.Service, GroupWerkbaenke),
         new("Sync:ProductionWorkplaceSyncAusschlussliste", "Ausschluss-Kürzel (kommagetrennt)", StandortFieldType.String, StandortBackend.Service, GroupWerkbaenke),
+
+        // Hardware-Barcodescanner (v1.66.0, AppSettings). Geraete-Abschalter liegt im Browser (Mein Profil), nicht hier.
+        new(AppSettingKeys.HardwareScannerAktiv, "Hardware-Scanner aktiv", StandortFieldType.Bool, StandortBackend.App, GroupHardwareScanner,
+            "Scanner, die wie eine Tastatur schreiben, füllen dann auf allen Scan-Seiten dieselben Felder wie der Kamera-Scan. Jedes Gerät kann es unter „Mein Profil“ für sich ausschalten."),
+        new(AppSettingKeys.HardwareScannerPraefix, "Präfix der Scanner-Ausgabe", StandortFieldType.String, StandortBackend.App, GroupHardwareScanner,
+            "Zeichen, die der Scanner vor jeden Code setzt; als Abschluss Enter einstellen. Leer = ~09. Scanner auf deutsches Tastaturlayout stellen."),
+        new(AppSettingKeys.HardwareScannerMaxZeichenabstandMs, "Größter Zeichenabstand (ms)", StandortFieldType.Int, StandortBackend.App, GroupHardwareScanner,
+            "Schneller als dieser Abstand getippte Zeichen gelten als Scan. Leer = 50."),
     };
 
     /// <summary>Der Master-Key — NUR read-only in dieser Maske angezeigt, nie geschrieben.</summary>
@@ -68,6 +77,6 @@ public static class StandortSettingsCatalog
 
     public static readonly IReadOnlyList<string> GroupOrder = new[]
     {
-        GroupFirmendaten, GroupMandantViews, GroupToggles, GroupImport, GroupWerkbaenke
+        GroupFirmendaten, GroupMandantViews, GroupToggles, GroupImport, GroupWerkbaenke, GroupHardwareScanner
     };
 }

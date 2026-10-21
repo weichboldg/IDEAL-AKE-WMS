@@ -65,6 +65,10 @@ public class StandortEinstellungenController : Controller
                     val = IsTrue(raw) ? "true" : "false"; // Checkbox+Hidden -> "true"/"false"
                     break;
                 case StandortFieldType.Int:
+                    // Leer = unverändert lassen: Int-Keys ohne Seed (HardwareScannerMaxZeichenabstandMs) haben keine Zeile, die Maske
+                    // schickt dann "" — das darf das Speichern der übrigen Felder nicht blockieren; der Lesende nimmt seinen Default.
+                    if (string.IsNullOrWhiteSpace(raw))
+                        continue;
                     if (!int.TryParse(raw.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var i))
                     {
                         ModelState.AddModelError(f.Key, $"'{f.Label}' erwartet eine ganze Zahl (war: '{raw}').");

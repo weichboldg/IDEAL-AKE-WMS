@@ -44,7 +44,7 @@
                     </div>
                     <div id="operatorScan">
                         <div class="input-group">
-                            <input type="text" id="scanOperator" class="form-control form-control-lg" placeholder="Personalnummer scannen…" autofocus />
+                            <input type="text" id="scanOperator" class="form-control form-control-lg" placeholder="Personalnummer scannen…" autofocus data-hw-scan-ziel />
                             <button id="btnScanOperator" class="btn btn-primary btn-lg">Scannen</button>
                         </div>
                         <div id="operatorFeedback" class="small text-danger mt-1"></div>
@@ -72,8 +72,10 @@
                         }
                     </div>
                     <hr />
+                    @* data-hw-scan-ziel (v1.66.0): ohne Fokus landet ein Hardware-Scan im einzigen SICHTBAREN Feld — vor der Anmeldung
+                       scanOperator, danach scanFaAg; Enter loest die bestehende Auswertung aus (bde-terminal.js unveraendert). *@
                     <div class="input-group mt-2">
-                        <input type="text" id="scanFaAg" class="form-control" placeholder="Oder FA-Nr scannen (optional ,AG-Nr)…" />
+                        <input type="text" id="scanFaAg" class="form-control" placeholder="Oder FA-Nr scannen (optional ,AG-Nr)…" data-hw-scan-ziel />
                         <button id="btnScanFaAg" class="btn btn-outline-primary">Scannen</button>
                     </div>
                     <div id="faAgFeedback" class="small text-danger mt-1"></div>

@@ -89,6 +89,33 @@
                 <p>
                     <strong>Unterstützte Formate:</strong> QR-Code (Artikel), Code 128, Code 39, EAN-13, EAN-8, Code 93 (Lagerplätze).
                 </p>
+                <h6 class="mt-3">Hardware-Scanner (seit v1.66.0)</h6>
+                <p>
+                    Geräte mit eingebautem Scanner, der wie eine Tastatur schreibt (Android-Handheld, Handscanner), füllen dieselben
+                    Felder wie der Kamera-Scan. Welches Feld, entscheidet diese Reihenfolge:
+                </p>
+                <ol>
+                    <li>Das angetippte Scan-Feld (oder sein Scannen-Knopf).</li>
+                    <li>Ein anderes angetipptes Textfeld, z.&nbsp;B. ein Spaltenfilter: Der Code wird eingefügt, Enter wirkt wie gedrückt.</li>
+                    <li>Nichts angetippt: das einzige Scan-Feld der Seite. Am BDE-Terminal ist das vor der Anmeldung
+                        &bdquo;Personalnummer&ldquo;, danach &bdquo;FA-Nr scannen&ldquo;.</li>
+                    <li>Sonst erscheint oben ein gelber Hinweis &bdquo;bitte zuerst das Feld antippen&ldquo; bzw. &bdquo;auf dieser Seite
+                        nicht verwendbar&ldquo;, z.&nbsp;B. auf der Stückliste (Artikel und Ziel-Lagerplatz).</li>
+                </ol>
+                <dl class="mb-0">
+                    <dt>Einschalten (Admin)</dt>
+                    <dd>Standorteinstellungen &rarr; Gruppe &bdquo;Hardware-Scanner&ldquo;: <code>HardwareScannerAktiv</code> (Standard aus),
+                        <code>HardwareScannerPraefix</code> (leer = <code>~09</code>), <code>HardwareScannerMaxZeichenabstandMs</code>
+                        (leer = 50).</dd>
+                    <dt>Scanner einrichten</dt>
+                    <dd>Am Scanner einstellen: deutsches Tastaturlayout, derselbe Präfix vor jedem Code, Enter als Abschluss, Ausgabe als
+                        Tastendrücke (nicht über die Bildschirmtastatur). Codes: Code 128 (Lagerplatz, Haupt-FA, Beschichtungsauftrag)
+                        und Artikel-QR. EAN-Codes kennt das WMS nicht.</dd>
+                    <dt>Auf einem Gerät ausschalten</dt>
+                    <dd>&bdquo;Mein Profil&ldquo; &rarr; &bdquo;Dieses Gerät&ldquo;. Gilt nur für diesen Browser, sofort, ohne Speichern.</dd>
+                    <dt>Passwortfelder</dt>
+                    <dd>Werden nie abgefangen.</dd>
+                </dl>
             </div>
         </div>
 

@@ -4,6 +4,8 @@
 
 var _activeScanner = null;
 var _scannerClosing = false;
+// Ziele fuer den Hardware-Scanner (v1.66.0): jeder initScanner/initTextInputScanner-Aufruf traegt sich ein.
+var _hwScanTargets = [];
 
 function initScanner(buttonId, targetSelectId, scanType) {
     const button = document.getElementById(buttonId);
@@ -15,6 +17,7 @@ function initScanner(buttonId, targetSelectId, scanType) {
     button.addEventListener('click', function () {
         openScannerModal(targetSelectId, scanType, qrFaEnabled, faTargetId);
     });
+    _hwScanTargets.push({ buttonId: buttonId, targetId: targetSelectId, scanType: scanType, qrFaEnabled: qrFaEnabled, faTargetId: faTargetId });
 }
 
 function isCameraSupported() {
@@ -402,6 +405,8 @@ function initTextInputScanner(buttonId, targetInputId, valueExtractor, onScanned
         };
         openScannerModal(targetInputId, valueExtractor === 'fa' ? 'productionOrder' : 'article', false, null);
     });
+    _hwScanTargets.push({ buttonId: buttonId, targetId: targetInputId, scanType: valueExtractor === 'fa' ? 'productionOrder' : 'article',
+        qrFaEnabled: false, faTargetId: null, textInput: { targetInputId: targetInputId, valueExtractor: valueExtractor, onScanned: onScanned || null } });
 }
 
 var _textInputScanCallback = null;
@@ -424,6 +429,36 @@ processScannedValue = function (value, targetSelectId, scanType, qrFaEnabled, fa
         _textInputScanCallback = null;
     }
 };
+
+// --- Hardware-Scanner (v1.66.0, hardware-scanner.js) ---
+// Regel (a): Fokus im Ziel, seinem Scan-Knopf, derselben .input-group oder im offenen Select2-Dropdown -> dieses Ziel.
+// Regel (d): kein Ziel im Fokus und kein freies Textfeld fokussiert -> genau ein Ziel der Seite, sonst ambiguous (Hinweis).
+// Ausgewertet wird wie beim Kamera-Scan ueber die GLOBALE (gewrappte) processScannedValue.
+function hwScanFokusIn(ziel, aktiv) {
+    var el = document.getElementById(ziel.targetId);
+    if (!el || !aktiv) return false;
+    if (aktiv === el || aktiv.id === ziel.buttonId) return true;
+    var gruppe = el.closest('.input-group');
+    if (gruppe && gruppe.contains(aktiv)) return true;
+    var select2 = el.nextElementSibling;  // Select2-Container steht direkt hinter dem <select>, das Suchfeld am body-Ende
+    return !!(select2 && select2.classList.contains('select2-container--open') && aktiv.closest('.select2-dropdown'));
+}
+
+document.addEventListener('wms:hardware-scan', function (e) {
+    var d = e.detail, aktiv = document.activeElement;
+    var vorhanden = _hwScanTargets.filter(function (z) { return document.getElementById(z.targetId); });
+    var ziel = vorhanden.filter(function (z) { return hwScanFokusIn(z, aktiv); })[0];
+    if (!ziel) {
+        if (d.freiesFeld) return;  // Regel (b) im Layout-Skript
+        if (vorhanden.length !== 1) { d.ambiguous = vorhanden.length > 1; return; }
+        ziel = vorhanden[0];
+    }
+    var el = document.getElementById(ziel.targetId);
+    if (window.jQuery && $(el).hasClass('select2-hidden-accessible')) $(el).select2('close');
+    if (ziel.textInput) _textInputScanCallback = ziel.textInput;  // wie der Klick-Handler: onScanned feuert nach dem Fuellen
+    processScannedValue(d.code, ziel.targetId, ziel.scanType, ziel.qrFaEnabled, ziel.faTargetId);
+    d.handled = true;
+});
 
 // Initialisierung wenn DOM bereit
 document.addEventListener('DOMContentLoaded', function () {
