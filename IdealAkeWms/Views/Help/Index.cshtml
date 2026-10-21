@@ -100,13 +100,14 @@
                     <li>Nichts angetippt: das einzige Scan-Feld der Seite. Am BDE-Terminal ist das vor der Anmeldung
                         &bdquo;Personalnummer&ldquo;, danach &bdquo;FA-Nr scannen&ldquo;.</li>
                     <li>Sonst erscheint oben ein gelber Hinweis &bdquo;bitte zuerst das Feld antippen&ldquo; bzw. &bdquo;auf dieser Seite
-                        nicht verwendbar&ldquo;, z.&nbsp;B. auf der Stückliste (Artikel und Ziel-Lagerplatz).</li>
+                        nicht verwendbar&ldquo;, z.&nbsp;B. auf der Stückliste (Artikel und Ziel-Lagerplatz). Auf der Stückliste
+                        kommissioniert ein Scan bei offenem Kamera-Fenster (&bdquo;Artikel scannen&ldquo;) den Artikel (seit v1.66.1).</li>
                 </ol>
                 <dl class="mb-0">
                     <dt>Einschalten (Admin)</dt>
                     <dd>Standorteinstellungen &rarr; Gruppe &bdquo;Hardware-Scanner&ldquo;: <code>HardwareScannerAktiv</code> (Standard aus),
                         <code>HardwareScannerPraefix</code> (leer = <code>~09</code>), <code>HardwareScannerMaxZeichenabstandMs</code>
-                        (leer = 50).</dd>
+                        (10 bis 500 ms, leer = 50).</dd>
                     <dt>Scanner einrichten</dt>
                     <dd>Am Scanner einstellen: deutsches Tastaturlayout, derselbe Präfix vor jedem Code, Enter als Abschluss, Ausgabe als
                         Tastendrücke (nicht über die Bildschirmtastatur). Codes: Code 128 (Lagerplatz, Haupt-FA, Beschichtungsauftrag)

@@ -10389,7 +10389,8 @@ Lagerplatz (Code 128), Kommissionierliste mit Haupt-FA-Barcode, Beschichtungsauf
   Tab-Taste fokussieren (nicht auslösen) und scannen. **Erwartet:** Kommissionier-Ablauf wie beim Kamera-Scan. Am **Touch-Gerät** löst
   Antippen des Knopfs die Kamera aus (es gibt kein antippbares Artikelfeld): Scan bei offenem Kamera-Fenster ergibt ebenfalls den Hinweis
   — Ergebnis notieren (QA-Befund N-1: Artikel-Kommissionierung per Hardware-Scanner am Touch-Gerät auf der Stückliste nicht erreichbar,
-  Variante-B-Grenze). Ziel-Lagerplatz antippen, Wagen-Etikett scannen. **Erwartet:** Wagen gewählt.
+  Variante-B-Grenze). **Ab v1.66.1 für den Touch-Fall überholt durch TS-99.14.** Ziel-Lagerplatz antippen, Wagen-Etikett scannen.
+  **Erwartet:** Wagen gewählt.
 - **TS-99.5 — FA-Liste und Leitstand.** ProductionOrders/Index: FA-Filter antippen, Haupt-FA-Barcode der Kommissionierliste scannen.
   **Erwartet:** Filter gesetzt und angewendet wie nach dem Kamera-Scan. Artikel-Filter mit Artikel-QR. Dasselbe auf PickingLeitstand.
 - **TS-99.6 — Seite mit genau einem Ziel (AK 9).** Articles/Info, nichts antippen, Artikel-QR scannen. **Erwartet:** Artikelnummer gefüllt,
@@ -10417,8 +10418,21 @@ Lagerplatz (Code 128), Kommissionierliste mit Haupt-FA-Barcode, Beschichtungsauf
 - **TS-99.13 — Regression Kamera (AK 14).** Kamera-Scan auf Inbound, Bom und ProductionOrders wie vorher.
 - **Negativfälle.** a) Passwortfeld (Mein Profil, neues Passwort), schnell `~09x` per Simulation: **Erwartet:** steht unverändert im Feld
   (AK 6). b) Scanner auf **US-Layout**: **Erwartet:** kein Scan erkannt bzw. `y`/`z` vertauscht — dokumentiert die Pflicht zum DE-Layout.
-  c) Scan bei offenem Kamera-Modal: nach Regel Fokus/einziges Ziel behandelt, Modal bleibt offen. d) EAN-Etikett im Artikel-Feld:
+  c) Scan bei offenem Kamera-Modal (außer Stückliste, TS-99.14): nach Regel Fokus/einziges Ziel behandelt, Modal bleibt offen. d) EAN-Etikett im Artikel-Feld:
   „✗ Nicht gefunden“ (EAN eigene Spec). e) Normale Bildschirmtastatur-Eingabe auf Android: unverändert (IME wird nie abgefangen).
+- **TS-99.14 — Stückliste am Handheld: Kamera-Fenster nimmt den Scan an (v1.66.1, Nachtrag 2 Punkt 1).** Picking/Bom im
+  Kommissionier-Modus am Netum: „Artikel scannen“ antippen, das Kamera-Fenster ist offen; Artikel-QR mit dem **eingebauten Scanner**
+  lesen. **Erwartet:** gleicher Ablauf wie ein Kamera-Treffer — Zeile gefunden, Kommissionier-Häkchen gesetzt, Kamera-Fenster schließt
+  sich, kein gelber Hinweis. Negativ: a) Fenster mit „Abbrechen“ schließen, nichts antippen, scannen → Hinweis „bitte zuerst das Feld
+  antippen“ (bisherige Regel). b) Kamera-Fenster „Lagerplatz“ (Ziel-Lagerplatz, Kamera-Knopf daneben) offen, Wagen-Etikett mit dem
+  Scanner: **Erwartet:** Verhalten wie vor v1.66.1 (Ziel per Fokus-Regel, Fenster bleibt offen) — das Fenster-Ziel gilt nur für die
+  Artikel-Erfassung. c) Artikel-QR eines Artikels, der nicht in der Stückliste steht: Meldung wie beim Kamera-Scan.
+- **TS-99.15 — Zeichenabstand prüfen (v1.66.1, Nachtrag 2 Punkt 2).** Standorteinstellungen → Hardware-Scanner, „Größter
+  Zeichenabstand (ms)“: a) `5`, `0`, `-5`, `501` speichern. **Erwartet:** „Nicht gespeichert: 'Größter Zeichenabstand (ms)' muss zwischen
+  10 und 500 liegen (war: …)“, auch die übrigen Felder bleiben ungespeichert, die Eingabe bleibt sichtbar. b) `10` und `500` speichern:
+  gespeichert, `data-hw-scan-abstand` zeigt den Wert. c) Feld leeren und speichern: gespeichert, `data-hw-scan-abstand="50"`. d) Frisches
+  System (Zeile nie gespeichert), nur Firmenname ändern und speichern: gespeichert, kein Fehler. e) Wert per SQL auf `-5` setzen (Web-Cache
+  abwarten oder Web neu starten): Scanner erkennt weiterhin mit 50 ms (Client nimmt bei ungültigem Wert den Standard).
 
 ---
 

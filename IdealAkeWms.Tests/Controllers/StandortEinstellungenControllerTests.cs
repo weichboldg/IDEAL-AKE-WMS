@@ -105,10 +105,10 @@ public class StandortEinstellungenControllerTests
     }
 
     [Fact]
-    public async Task Save_EmptyInt_LeavesKeyUnchanged_AndSavesTheRest()
+    public async Task Save_EmptyInt_NeverBlocks_ScannerResetsToDefault_OtherIntsStayUnchanged()
     {
-        // v1.66.0: HardwareScannerMaxZeichenabstandMs hat ohne Seed keine Zeile -> die Maske schickt "". Das darf das Speichern
-        // nicht blockieren (sonst koennte kein Admin die Maske mehr speichern, ohne eine Zahl zu erfinden).
+        // v1.66.0/v1.66.1: HardwareScannerMaxZeichenabstandMs hat ohne Seed keine Zeile -> die Maske schickt "". Das darf das Speichern
+        // nicht blockieren. Mit EmptyResetsToDefault wird "" gespeichert (Layout nimmt 50); andere Int-Felder bleiben bei leer unveraendert.
         IReadOnlyDictionary<string, string?>? app = null;
         _writer.Setup(w => w.SaveAtomicAsync(
                 It.IsAny<IReadOnlyDictionary<string, string?>>(),
@@ -121,6 +121,7 @@ public class StandortEinstellungenControllerTests
         var settings = new Dictionary<string, string>
         {
             ["HardwareScannerMaxZeichenabstandMs"] = "",
+            ["FaHierarchyMaxTiefe"] = " ",
             ["HardwareScannerAktiv"] = "true",
             ["HardwareScannerPraefix"] = "~09",
         };
@@ -129,9 +130,48 @@ public class StandortEinstellungenControllerTests
 
         ctrl.ModelState.IsValid.Should().BeTrue();
         result.Should().BeOfType<RedirectToActionResult>();
-        app!.Should().NotContainKey("HardwareScannerMaxZeichenabstandMs");
+        app!["HardwareScannerMaxZeichenabstandMs"].Should().Be("", "leer speichern setzt auf den Standard 50 zurueck");
+        app.Should().NotContainKey("FaHierarchyMaxTiefe");
         app["HardwareScannerAktiv"].Should().Be("true");
         app["HardwareScannerPraefix"].Should().Be("~09");
+    }
+
+    [Theory]
+    [InlineData("9")]
+    [InlineData("0")]
+    [InlineData("-5")]
+    [InlineData("501")]
+    public async Task Save_ScannerAbstandAusserhalb10Bis500_WritesNothing_WithMessage(string value)
+    {
+        var ctrl = Create();
+        var result = await ctrl.Save(new Dictionary<string, string> { ["HardwareScannerMaxZeichenabstandMs"] = value, ["Firmenname"] = "X" });
+
+        ctrl.ModelState.IsValid.Should().BeFalse();
+        ctrl.ModelState["HardwareScannerMaxZeichenabstandMs"]!.Errors.Single().ErrorMessage
+            .Should().Be($"'Größter Zeichenabstand (ms)' muss zwischen 10 und 500 liegen (war: {int.Parse(value)}).");
+        _writer.Verify(w => w.SaveAtomicAsync(It.IsAny<IReadOnlyDictionary<string, string?>>(),
+            It.IsAny<IReadOnlyList<(string, string, string?, string?)>>(), It.IsAny<CancellationToken>()), Times.Never);
+        result.Should().BeOfType<ViewResult>();
+    }
+
+    [Theory]
+    [InlineData("10")]
+    [InlineData("500")]
+    public async Task Save_ScannerAbstandAnDenGrenzen_IsSaved(string value)
+    {
+        IReadOnlyDictionary<string, string?>? app = null;
+        _writer.Setup(w => w.SaveAtomicAsync(
+                It.IsAny<IReadOnlyDictionary<string, string?>>(),
+                It.IsAny<IReadOnlyList<(string, string, string?, string?)>>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<IReadOnlyDictionary<string, string?>, IReadOnlyList<(string, string, string?, string?)>, CancellationToken>(
+                (a, _, _) => app = a)
+            .Returns(Task.CompletedTask);
+
+        var result = await Create().Save(new Dictionary<string, string> { ["HardwareScannerMaxZeichenabstandMs"] = value });
+
+        result.Should().BeOfType<RedirectToActionResult>();
+        app!["HardwareScannerMaxZeichenabstandMs"].Should().Be(value);
     }
 
     [Fact]

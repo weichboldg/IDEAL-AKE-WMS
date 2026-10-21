@@ -72,13 +72,20 @@
         };
     }
 
-    var api = { create: create };
+    // Zeichenabstand aus dem body-Attribut: nur 10..500 ms (wie StandortSettingsCatalog), sonst Standard 50 - ein negativer oder
+    // unsinniger Wert darf die Erkennung nie still abschalten.
+    function abstand(raw) {
+        var n = parseInt(raw, 10);
+        return n >= 10 && n <= 500 ? n : 50;
+    }
+
+    var api = { create: create, abstand: abstand };
     if (typeof module !== 'undefined' && module.exports) { module.exports = api; return; }
     root.HwScanCore = api;
 
     // --- DOM-Anbindung ---
     var body = document.body;
-    var maxGapMs = parseInt(body.getAttribute('data-hw-scan-abstand'), 10) || 50;
+    var maxGapMs = abstand(body.getAttribute('data-hw-scan-abstand'));
     var core = create({ prefix: body.getAttribute('data-hw-scan-praefix') || '~09', maxGapMs: maxGapMs });
     var timer = null;
 

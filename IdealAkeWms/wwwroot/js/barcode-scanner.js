@@ -72,6 +72,7 @@ async function openScannerModal(targetSelectId, scanType, qrFaEnabled, faTargetI
 
     modal = document.createElement('div');
     modal.id = 'scannerModal';
+    modal.dataset.zielId = targetSelectId;  // Hardware-Scanner (v1.66.1): offenes Fenster als Ziel, siehe hwScanKameraZiel
     modal.className = 'scanner-modal';
     modal.innerHTML = `
         <div class="scanner-modal-content">
@@ -444,9 +445,30 @@ function hwScanFokusIn(ziel, aktiv) {
     return !!(select2 && select2.classList.contains('select2-container--open') && aktiv.closest('.select2-dropdown'));
 }
 
+// v1.66.1: Ist das Kamera-Fenster eines Ziels offen, dessen Knopf data-hw-scan-kamera-ziel traegt (Stueckliste: Artikel kommissionieren,
+// bomScanArticle ist hidden und nie fokussierbar), gilt das Fenster als angetipptes Ziel - vor allen anderen Regeln.
+function hwScanKameraZiel(ziele) {
+    var modal = document.getElementById('scannerModal');
+    if (!modal) return null;
+    return ziele.filter(function (z) {
+        var btn = document.getElementById(z.buttonId);
+        return z.targetId === modal.dataset.zielId && btn && btn.hasAttribute('data-hw-scan-kamera-ziel');
+    })[0] || null;
+}
+
 document.addEventListener('wms:hardware-scan', function (e) {
     var d = e.detail, aktiv = document.activeElement;
     var vorhanden = _hwScanTargets.filter(function (z) { return document.getElementById(z.targetId); });
+    var kamera = hwScanKameraZiel(vorhanden);
+    if (kamera) {
+        // Wie ein Kamera-Treffer (startCameraScanner): sperren, auswerten, Fenster schliessen.
+        _scannerClosing = true;
+        if (kamera.textInput) _textInputScanCallback = kamera.textInput;
+        processScannedValue(d.code, kamera.targetId, kamera.scanType, kamera.qrFaEnabled, kamera.faTargetId);
+        closeScannerModal();
+        d.handled = true;
+        return;
+    }
     var ziel = vorhanden.filter(function (z) { return hwScanFokusIn(z, aktiv); })[0];
     if (!ziel) {
         if (d.freiesFeld) return;  // Regel (b) im Layout-Skript

@@ -71,4 +71,9 @@ ok(r.replay === '~' && r.res[1].action === 'pass', 'Kuerzel');
 r = feed(['#', '#', '5', 'Enter'], 5, { prefix: '##' });
 ok(r.scans[0] && r.scans[0].code === '5', 'anderer Praefix');
 
+// v1.66.1 N-2: Zeichenabstand nur 10..500, sonst Standard 50 - negativ/0/unsinnig schaltet die Erkennung nie still ab
+for (const [raw, soll] of [['50', 50], ['80', 80], ['10', 10], ['500', 500], ['9', 50], ['501', 50], ['0', 50], ['-5', 50], ['abc', 50], ['', 50], [null, 50]]) {
+    ok(core.abstand(raw) === soll, `abstand(${raw}) = ${soll}`);
+}
+
 console.log(`hardware-scanner core ok (${n} Pruefungen)`);

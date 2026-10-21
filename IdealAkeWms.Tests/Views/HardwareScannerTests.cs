@@ -92,6 +92,26 @@ public class HardwareScannerTests
     }
 
     [Fact]
+    public void Stueckliste_OffenesKameraFenster_IstZiel_WieKameraTreffer()
+    {
+        // v1.66.1 N-1: offenes Kamera-Fenster eines Knopfs mit data-hw-scan-kamera-ziel = angetipptes Ziel, VOR Regel (a)/(d).
+        var js = Read("wwwroot", "js", "barcode-scanner.js");
+        js.Should().Contain("modal.dataset.zielId = targetSelectId;");
+        js.Should().Contain("btn.hasAttribute('data-hw-scan-kamera-ziel')");
+        var listener = js[js.IndexOf("document.addEventListener('wms:hardware-scan'", StringComparison.Ordinal)..];
+        listener.IndexOf("hwScanKameraZiel(vorhanden)", StringComparison.Ordinal)
+            .Should().BePositive().And.BeLessThan(listener.IndexOf("hwScanFokusIn(z, aktiv)", StringComparison.Ordinal));
+        listener.Should().Contain("_scannerClosing = true;").And.Contain("closeScannerModal();",
+            "dieselbe Abfolge wie der Kamera-Treffer in startCameraScanner: sperren, auswerten, schliessen");
+
+        var bom = Read("Views", "Picking", "Bom.cshtml");
+        System.Text.RegularExpressions.Regex.IsMatch(bom, @"id=""btnScanBomArticle""[^>]*\bdata-hw-scan-kamera-ziel\b").Should().BeTrue();
+        System.Text.RegularExpressions.Regex.Matches(string.Concat(Directory.EnumerateFiles(Path.Combine(Root, "IdealAkeWms", "Views"),
+                "*.cshtml", SearchOption.AllDirectories).Select(File.ReadAllText)), @"<[^>]*\bdata-hw-scan-kamera-ziel\b[^>]*>").Count
+            .Should().Be(1, "nur die Stueckliste (Freigabe-Nachtrag 2); andere Seiten erst nach Entscheidung");
+    }
+
+    [Fact]
     public void BdeTerminal_BeideScanfelderSindZiele_OhneEigeneLogik()
     {
         var view = Read("Views", "BdeTerminal", "Index.cshtml");
@@ -109,6 +129,10 @@ public class HardwareScannerTests
                 (AppSettingKeys.HardwareScannerAktiv, StandortFieldType.Bool, StandortBackend.App),
                 (AppSettingKeys.HardwareScannerPraefix, StandortFieldType.String, StandortBackend.App),
                 (AppSettingKeys.HardwareScannerMaxZeichenabstandMs, StandortFieldType.Int, StandortBackend.App));
+        var abstand = StandortSettingsCatalog.Fields.Single(f => f.Key == AppSettingKeys.HardwareScannerMaxZeichenabstandMs);
+        (abstand.Min, abstand.Max, abstand.EmptyResetsToDefault).Should().Be((10, 500, true), "v1.66.1 N-2, gleiche Grenzen wie HwScanCore.abstand");
+        Read("wwwroot", "js", "hardware-scanner.js").Should().Contain("return n >= 10 && n <= 500 ? n : 50;")
+            .And.Contain("var maxGapMs = abstand(body.getAttribute('data-hw-scan-abstand'));");
     }
 
     [Fact]

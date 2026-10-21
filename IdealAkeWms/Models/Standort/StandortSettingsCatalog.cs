@@ -9,7 +9,10 @@ public sealed record StandortField(
     StandortFieldType Type,
     StandortBackend Backend,
     string Group,
-    string? Hint = null);
+    string? Hint = null,
+    int? Min = null,
+    int? Max = null,
+    bool EmptyResetsToDefault = false);
 
 public enum StandortBackend { App, Service }
 
@@ -68,8 +71,12 @@ public static class StandortSettingsCatalog
             "Scanner, die wie eine Tastatur schreiben, füllen dann auf allen Scan-Seiten dieselben Felder wie der Kamera-Scan. Jedes Gerät kann es unter „Mein Profil“ für sich ausschalten."),
         new(AppSettingKeys.HardwareScannerPraefix, "Präfix der Scanner-Ausgabe", StandortFieldType.String, StandortBackend.App, GroupHardwareScanner,
             "Zeichen, die der Scanner vor jeden Code setzt; als Abschluss Enter einstellen. Leer = ~09. Scanner auf deutsches Tastaturlayout stellen."),
+        // 10..500 ms: unter 10 ms schwanken Browser-Zeitstempel und Android-Ereignistakt mehr als ein Scanner-Zeichen braucht (Scans
+        // brechen ab); ab ~500 ms laege der Wert im Tempo schnellen menschlichen Tippens (Praefix wuerde als Scan erkannt) und ein
+        // getipptes ~ stuende sichtbar verzoegert. Gleiche Grenzen im Client (hardware-scanner.js HwScanCore.abstand).
         new(AppSettingKeys.HardwareScannerMaxZeichenabstandMs, "Größter Zeichenabstand (ms)", StandortFieldType.Int, StandortBackend.App, GroupHardwareScanner,
-            "Schneller als dieser Abstand getippte Zeichen gelten als Scan. Leer = 50."),
+            "Schneller als dieser Abstand getippte Zeichen gelten als Scan. Erlaubt 10 bis 500. Leer = Standard 50.",
+            Min: 10, Max: 500, EmptyResetsToDefault: true),
     };
 
     /// <summary>Der Master-Key — NUR read-only in dieser Maske angezeigt, nie geschrieben.</summary>
