@@ -1264,10 +1264,13 @@ eindeutige gefilterte Index auf `SageArbeitsplatznummer` (InMemory erzwingt UNIQ
 InMemory-testbar. Deren AKs (10, 20) stehen in TS-77 ausdrücklich als **Manual-UAT** — nicht unter die
 grünen Unit-Tests zählen.
 
-### Die View `vw_IDEAL_AKE_WMS_Arbeitsgaenge` liefert ARBEITSPLAETZE (seit v1.60.0)
-Trotz ihres Namens ersetzt die Sage-View die Tabelle `KHKPpsArbeitsplaetze` — sie liefert **Werkbaenke**
-(Sage-Arbeitsplaetze), nicht die BDE-Arbeitsgaenge (`WorkOperation`, siehe oben). Sie ist deshalb nur als
-Quelle der Werkbank-Anlage (`Sync:ProductionWorkplaceSyncViewName`) richtig, nie als Arbeitsgang-Quelle.
+### Die View `vw_IDEAL_AKE_WMS_Arbeitsgaenge` ist der Arbeitsgang-KATALOG, nicht die FA-Arbeitsgaenge (seit v1.60.0)
+Die View ersetzt die Tabelle `KHKPpsArbeitsplaetze` und liefert die IDEAL-Arbeitsgaenge. Bei IDEAL ist ein
+Arbeitsgang ein Sage-Arbeitsplatz und der ist im WMS die Werkbank (`ProductionWorkplace`, `AG` ->
+`ArbeitsschrittCode`; Begriffsklaerung [[2026-09-21-ideal-bde-arbeitsgaenge-aus-struktur-spec]], Gerald 2026-10-15).
+Die BDE-Arbeitsgaenge je FA (`WorkOperation`, siehe oben) entstehen daraus erst ueber die Struktur-Erkennung —
+die View hat keinen FA-Bezug. Sie ist deshalb die Quelle der Werkbank-Anlage (`Sync:ProductionWorkplaceSyncViewName`),
+nie ein direkter Schreibweg nach `WorkOperation`.
 **Warum der Default die alte Tabelle bleibt:** Der Web-Start seedet einen NEUEN Key mit seinem Default in jede
 bestehende DB (`Program.cs:453-468`). Ein View-Default haette IDEAL beim Deploy umgeschaltet, bevor P3 belegt,
 dass die View die Arbeitsplatznummern identisch formatiert — sonst legt der Abgleich (Ordinal auf
