@@ -10385,9 +10385,11 @@ Lagerplatz (Code 128), Kommissionierliste mit Haupt-FA-Barcode, Beschichtungsauf
 - **TS-99.3 — Umbuchung mit drei Zielen.** StockMovements/Transfer: nacheinander Artikel, Quell- und Ziel-Lagerplatz antippen und
   scannen. **Erwartet:** jeder Scan im angetippten Feld. Ohne angetipptes Feld: Hinweis „bitte zuerst das Feld antippen“.
 - **TS-99.4 — Stückliste (AK 10, Variante B).** Picking/Bom im Kommissionier-Modus, nichts angetippt, Artikel-QR scannen. **Erwartet:**
-  gelber Hinweis oben „Code … gescannt – bitte zuerst das Feld antippen, in das er soll“. Knopf „Artikel scannen“ antippen (nicht
-  auslösen, nur Fokus) und scannen. **Erwartet:** Kommissionier-Ablauf wie beim Kamera-Scan. Ziel-Lagerplatz antippen, Wagen-Etikett
-  scannen. **Erwartet:** Wagen gewählt.
+  gelber Hinweis oben „Code … gescannt – bitte zuerst das Feld antippen, in das er soll“. Am **PC** den Knopf „Artikel scannen“ per
+  Tab-Taste fokussieren (nicht auslösen) und scannen. **Erwartet:** Kommissionier-Ablauf wie beim Kamera-Scan. Am **Touch-Gerät** löst
+  Antippen des Knopfs die Kamera aus (es gibt kein antippbares Artikelfeld): Scan bei offenem Kamera-Fenster ergibt ebenfalls den Hinweis
+  — Ergebnis notieren (QA-Befund N-1: Artikel-Kommissionierung per Hardware-Scanner am Touch-Gerät auf der Stückliste nicht erreichbar,
+  Variante-B-Grenze). Ziel-Lagerplatz antippen, Wagen-Etikett scannen. **Erwartet:** Wagen gewählt.
 - **TS-99.5 — FA-Liste und Leitstand.** ProductionOrders/Index: FA-Filter antippen, Haupt-FA-Barcode der Kommissionierliste scannen.
   **Erwartet:** Filter gesetzt und angewendet wie nach dem Kamera-Scan. Artikel-Filter mit Artikel-QR. Dasselbe auf PickingLeitstand.
 - **TS-99.6 — Seite mit genau einem Ziel (AK 9).** Articles/Info, nichts antippen, Artikel-QR scannen. **Erwartet:** Artikelnummer gefüllt,
@@ -10396,6 +10398,8 @@ Lagerplatz (Code 128), Kommissionierliste mit Haupt-FA-Barcode, Beschichtungsauf
   Anmeldung wie bisher, Feld ohne Präfix. b) Nach der Anmeldung nichts antippen, **Haupt-FA**-Barcode scannen. **Erwartet:** landet im
   Feld „Oder FA-Nr scannen (optional ,AG-Nr)…“, die Gruppe der Haupt-FA klappt auf (Auflösung v1.64.0). c) **Sub-FA** scannen.
   **Erwartet:** Sub-FA direkt gewählt. d) Mit angetipptem Feld `FA,AG` scannen. **Erwartet:** wie Eingabe von Hand plus Enter.
+  e) b) zusätzlich am PC in **Firefox** wiederholen (je nach Browser bleibt der Fokus auf dem ausgeblendeten Personalnummer-Feld). **Erwartet:**
+  FA landet im FA-Feld, **kein** Operator-Wechsel und keine Meldung „Unbekannte Personalnummer“ (QA-Befund B-1).
 - **TS-99.8 — Freies Feld (AK 8).** Server-Spaltenfilter der FA-Liste antippen, Code scannen. **Erwartet:** Code ohne Präfix im Filter, der
   Filter wird angewendet (ENTER-Verhalten). Bemerkungsfeld (Textarea) einer Buchung: Code an der Cursorposition, kein Absenden.
 - **TS-99.9 — Kein Ziel (AK 11).** Startseite, nichts antippen, scannen. **Erwartet:** oben „⚠ Code … gescannt – auf dieser Seite nicht

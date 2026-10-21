@@ -86,9 +86,10 @@
         try { return localStorage.getItem('wms.hardwareScanner.geraet') === 'aus'; } catch (e) { return false; }
     }
 
-    // Text-Eingabefeld, in das Zeichen gehoeren (nie Passwort).
+    // Text-Eingabefeld, in das Zeichen gehoeren (nie Passwort). Unsichtbar zaehlt nicht: je nach Browser bleibt der Fokus auf einem
+    // ausgeblendeten Feld (BDE: scanOperator nach der Anmeldung) - der Scan muss dann nach Regel (d) ins sichtbare scanFaAg.
     function freiesFeld(el) {
-        if (!el || el.disabled || el.readOnly) return false;
+        if (!el || el.disabled || el.readOnly || !el.getClientRects().length) return false;
         if (el.tagName === 'TEXTAREA') return true;
         return el.tagName === 'INPUT' && /^(text|search|tel|url|email|number)$/i.test(el.type || 'text');
     }

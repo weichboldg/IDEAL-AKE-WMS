@@ -70,6 +70,8 @@ public class HardwareScannerTests
         js.Should().Contain("if (!e.isTrusted || e.isComposing || e.keyCode === 229 || geraetAus()) return;",
             "das eigene synthetische Enter darf nicht erneut verarbeitet werden; IME ist nicht abfangbar");
         js.Should().Contain("aktiv.type === 'password') return;", "AK 6");
+        js.Should().Contain("el.readOnly || !el.getClientRects().length) return false;",
+            "ein ausgeblendetes, noch fokussiertes Feld (BDE scanOperator nach der Anmeldung) ist kein freies Feld (QA-Befund B-1)");
         js.Should().Contain("getModifierState('AltGraph')", "~ kommt auf DE-Layout per AltGr und ist kein Tastenkuerzel");
         js.Should().Contain("window.addEventListener('keydown'").And.Contain("}, true);", "Capture vor den Seiten-Handlern");
         js.Should().Contain("box.textContent = ", "Wert nie als HTML (AK 11)");
