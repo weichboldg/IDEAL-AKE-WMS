@@ -39,6 +39,17 @@ freigabe_am: "2026-10-21"
 > Standorte: **AKE und IDEAL** gleichermassen - die Scan-Seiten und `barcode-scanner.js` sind
 > standortneutral, keine Verzweigung nach `ProduktionsauftragHierarchisch`.
 
+> [!important] Freigabe-Nachtrag 2 vom 2026-10-21 — Nachbesserung v1.66.1 (geht dem Rumpf und AK 10 vor)
+> Gerald 2026-10-21 nach dem QA-Bericht (Befunde N-1/N-2 im Abschnitt „QA-Nachweis“):
+> 1. **Stückliste am Handheld:** Ist das Kamera-Fenster der Artikel-Erfassung auf der Stückliste geöffnet, gilt es als
+>    angetipptes Ziel. Ein Hardware-Scan landet dort und läuft durch dieselbe Auswertung wie ein Kamera-Treffer (Artikel-QR
+>    kommissionieren). AK 10 Variante B (nur Hinweis) ist damit für diesen Fall überholt. Ohne offenes Fenster gilt die
+>    bisherige Ziel-Regel.
+> 2. **Bereichsprüfung „Größter Zeichenabstand“** (`HardwareScannerMaxZeichenabstandMs`): Werte < 1 oder unplausibel groß werden
+>    beim Speichern mit Meldung abgewiesen (Grenzen im Dev-Lauf festlegen und begründen). Leer speichern setzt auf den
+>    Standard 50 zurück; das noch nie gespeicherte Feld blockiert das Speichern der Maske weiterhin nicht.
+> 3. Version **v1.66.1**, Tests und Szenarien als Erweiterung von **TS-99** (neue Unterpunkte), bestehende TS-99-Punkte bleiben.
+
 > [!important] Freigabe-Nachtrag 2026-10-21 (geht dem Rumpf und Punkt 1 des Nachtrags vom 16.10. vor)
 > **Ort geändert (Gerald 2026-10-21):** Umsetzung **im Bündel-Worktree** `.claude/worktrees/2026-08-07-ideal-teile-1-5`
 > (Zweig `feature/2026-08-07-ideal-teile-1-5`), **nach** der Zahnrad-Sammel-Spec (v1.65.0). Zeilennummern gegen den dann
@@ -430,15 +441,17 @@ Profil-Schalter, Hilfe/README, ein Node-Check - passt in einen Dev-Lauf.
 
 ## Deploy
 
-*Final (QA-Lauf 2026-10-21) aus dem echten Diff `c27f3b6d..789d0a78`.*
+*Final (QA-Lauf v1.66.1, 2026-10-21) aus dem echten Diff `c27f3b6d..1d78e7f5` (v1.66.0 + Nachbesserung v1.66.1 + QA-Fix).*
 
-- **Web-App:** ja — `IdealAkeWms/` (hardware-scanner.js neu, barcode-scanner.js, _Layout, BdeTerminal/Index, Account/Profile,
-  Help, AppSettingKeys, StandortSettingsCatalog, StandortEinstellungenController, AppVersion).
-- **Service:** ja, aber **nur Versionsstand** — einzige Änderung `IDEALAKEWMSService/AppVersion.cs` (1.65.0 → 1.66.0), funktional
-  nichts. Mitpublizieren, damit Web und Dienst dieselbe Version zeigen.
-- **Migration:** nein (kein neuer Ordner-Eintrag unter `*/Migrations/`, kein `SQL/`-Skript, FreshInstall und `SQL/AgentJobs/`
-  unberührt). AppSettings-Zeilen entstehen beim ersten Speichern der Standorteinstellungen.
-- **Ablauf des Menschen:** aus dem Worktree publizieren → Testsystem → TS-99 testen → Merge.
+- **Web-App:** ja — `IdealAkeWms/` (v1.66.0: hardware-scanner.js neu, barcode-scanner.js, _Layout, BdeTerminal/Index, Account/Profile,
+  Help, AppSettingKeys, StandortSettingsCatalog, StandortEinstellungenController; v1.66.1 zusätzlich Picking/Bom.cshtml,
+  barcode-scanner.js, hardware-scanner.js, StandortSettingsCatalog, StandortEinstellungenController, Help/Index + Changelog, AppVersion).
+- **Service:** ja, aber **nur Versionsstand** — einzige Änderung `IDEALAKEWMSService/AppVersion.cs` (→ 1.66.1), funktional nichts.
+  Mitpublizieren, damit Web und Dienst dieselbe Version zeigen.
+- **Migration:** nein (kein neuer Eintrag unter `*/Migrations/`, kein `SQL/`-Skript, FreshInstall und `SQL/AgentJobs/` unberührt).
+  AppSettings-Zeilen entstehen beim ersten Speichern der Standorteinstellungen (ab v1.66.1 auch `HardwareScannerMaxZeichenabstandMs`
+  mit `""` = Standard 50).
+- **Ablauf des Menschen:** aus dem Worktree publizieren → Testsystem → TS-99 (inkl. 99.14/99.15) testen → Merge.
   ```
   dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb
   dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService
@@ -446,7 +459,8 @@ Profil-Schalter, Hilfe/README, ein Node-Check - passt in einen Dev-Lauf.
 - Nach dem Merge nur dann erneut aus `main` publizieren, wenn der Merge getestete Dateien mit parallelen `main`-Änderungen
   zusammengeführt hat.
 - Nach Deploy: Schalter bleibt aus, bis ein Admin ihn je Standort einschaltet; Scanner-Konfiguration der Geräte (DE-Layout,
-  Präfix `~09` bzw. Ersatz ohne Tottaste, Enter-Suffix, Ausgabe als Tastendrücke) vor dem Einschalten.
+  Präfix `~09` bzw. Ersatz ohne Tottaste, Enter-Suffix, Ausgabe als Tastendrücke) vor dem Einschalten. Ein vorher gespeicherter
+  Zeichenabstand außerhalb 10–500 wirkt als 50 und muss vor dem nächsten Speichern der Maske korrigiert werden.
 
 ## Offene Rueckfragen
 
@@ -519,6 +533,50 @@ Bündel-Worktree, Basis `c27f3b6d` (v1.65.0), Commit `cb49f262` (wip feature-com
 - `dotnet test`: Web **2146 bestanden, 1 übersprungen** (Bestand), Dienst **316 bestanden**.
 - `node IdealAkeWms.Tests/Js/hardware-scanner.check.js …/hardware-scanner.js` → `hardware-scanner core ok (16 Pruefungen)` (auch im
   Testlauf über `HardwareScannerTests.Kern_NodeSelbstpruefung`, Node v24.22.0).
+
+## Nachbesserung v1.66.1 (Dev-Lauf 2026-10-21, Freigabe-Nachtrag 2)
+
+Basis `789d0a78` (v1.66.0), Commit `c72be07e` (wip feature-complete), **v1.66.1**, TS-99.14/99.15 neu.
+
+**N-1 Stückliste am Handheld**
+- `barcode-scanner.js openScannerModal`: Das Kamera-Fenster merkt sich sein Ziel (`modal.dataset.zielId`).
+- Neu `hwScanKameraZiel`: Ist das Fenster offen und trägt der Knopf seines Ziels `data-hw-scan-kamera-ziel`, wird der Scan vor allen
+  anderen Regeln verarbeitet, in derselben Abfolge wie ein Kamera-Treffer (`startCameraScanner`): `_scannerClosing = true`, globale
+  `processScannedValue`, `closeScannerModal()`.
+- Opt-in nur an `btnScanBomArticle` (`Picking/Bom.cshtml:67-68`). Ein Wächter verlangt genau eine Stelle mit dem Attribut.
+- Ohne offenes Fenster gilt die bisherige Regel. Ebenso bei offenem Fenster eines anderen Knopfs, z. B. Ziel-Lagerplatz der Stückliste.
+
+**N-2 Zeichenabstand**
+- `StandortField` hat neu die optionalen Werte `Min`/`Max`/`EmptyResetsToDefault`.
+- `HardwareScannerMaxZeichenabstandMs`: Min 10, Max 500, leer = Standard. Leer speichern schreibt `""`, das Layout nimmt dann 50. Das
+  nie gespeicherte Feld blockiert nicht. Andere Int-Felder bleiben bei leer unverändert, wie in v1.66.0.
+- Außerhalb von 10–500 erscheint „'Größter Zeichenabstand (ms)' muss zwischen 10 und 500 liegen (war: …)“ und es wird nichts
+  gespeichert, wie beim bestehenden Fehler bei ungültigen Zahlen.
+- **Begründung der Grenzen:**
+  - Unter 10 ms schwanken Browser-Zeitstempel und der Ereignistakt unter Android stärker, als ein Scanner pro Zeichen braucht. Scans
+    würden abbrechen.
+  - Ab etwa 500 ms läge der Wert im Bereich schnellen menschlichen Tippens. Ein getippter Präfix würde als Scan erkannt, und ein
+    getipptes `~` erschiene sichtbar verzögert.
+- Client: `HwScanCore.abstand(raw)` nimmt nur 10–500, sonst 50 (`hardware-scanner.js`). Ein negativer Wert schaltet die Erkennung nicht
+  mehr still ab.
+
+**Andere Seiten mit Kamera-Fenster (nur geprüft, nicht ausgeweitet)**
+- Alle 14 Scan-Seiten öffnen dasselbe Fenster über `openScannerModal`.
+- Bei offenem Fenster gilt dort weiter die normale Regel: Ein Ziel im Fokus bekommt den Scan, das Fenster bleibt offen. Liegt der Fokus
+  nicht auf dem Knopf (am Touch-Gerät üblich), erscheint der Hinweis bzw. greift das einzige Ziel.
+- Kandidaten für dasselbe Attribut, falls gewünscht: alle Knöpfe, deren Ziel ohne Fokus mehrdeutig ist. Das sind Inbound, Outbound und
+  Transfer (Artikel + Lagerplatz), LocationTransfer, StockOverview, ProductionOrders und PickingLeitstand (FA + Artikel), OseonIndex sowie
+  der Ziel-Lagerplatz der Stückliste.
+- Je Knopf genügt eine Zeile `data-hw-scan-kamera-ziel` und eine Anpassung des Wächters. Das wäre deine Entscheidung.
+
+**Nachweis**
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler, 28 Warnungen (Bestand).
+- `dotnet test`: Web **2153 bestanden, 1 übersprungen** (Bestand), Dienst **316 bestanden**.
+- `node …/hardware-scanner.check.js`: `hardware-scanner core ok (27 Pruefungen)`, 11 davon neu für `abstand`.
+- **Geänderter Bestandstest** (eigener Test aus v1.66.0, nur im Bündel): `Save_EmptyInt_LeavesKeyUnchanged_AndSavesTheRest` heißt jetzt
+  `Save_EmptyInt_NeverBlocks_ScannerResetsToDefault_OtherIntsStayUnchanged`. Erwartet ist für den Scanner-Abstand nun `""` statt
+  „Key fehlt“, laut Nachtrag 2. Neu sind `Save_ScannerAbstandAusserhalb10Bis500_WritesNothing_WithMessage` (9/0/−5/501),
+  `Save_ScannerAbstandAnDenGrenzen_IsSaved` (10/500) und `HardwareScannerTests.Stueckliste_OffenesKameraFenster_IstZiel_WieKameraTreffer`.
 
 ## Freigabe-Antworten (Mensch fuellt aus — Schranke 1)
 
@@ -657,6 +715,89 @@ Enter-/keyup-/keypress-Handler in `wwwroot/js/*.js` und `Views/`.
   in TS-99.1 b vollständig beschrieben: Symptom, Ersatz-Präfix, Wiederholung. [[testszenarien-index]] Zeile 99 ✓.
 - Keine neue Rolle und kein neuer Filter.
 
+## QA-Nachweis v1.66.1 (qa-agent, 2026-10-21, Freigabe-Nachtrag 2)
+
+Geprüft im Bündel-Worktree, Diff `789d0a78..c72be07e` plus QA-Fix `1d78e7f5`. Web und Dienst **nicht** lokal gestartet (Auftrag).
+
+### 1. Build und Tests (selbst ausgeführt, vor und nach dem QA-Fix)
+- `dotnet build IdealAkeWms.slnx`: **0 Fehler**, 28 bzw. 25 Warnungen (Bestand, inkrementell unterschiedlich gezählt).
+- `dotnet test` (vor und nach dem QA-Fix identisch):
+  - `IdealAkeWms.Tests`: **2153 bestanden, 1 übersprungen, 0 fehlgeschlagen** (übersprungen = Bestand
+    `ProductionOrderEagerCreateAgentJobTests.EagerCreate_TwoMergesProduce2Rows_PerNewOrder_AndAreIdempotent`).
+  - `IDEALAKEWMSService.Tests`: **316 bestanden, 0 übersprungen, 0 fehlgeschlagen**.
+- Direkt: `node IdealAkeWms.Tests/Js/hardware-scanner.check.js <absoluter Pfad>/hardware-scanner.js` → `hardware-scanner core ok (27 Pruefungen)`
+  (Node v24.22.0; der Testlauf übergibt den absoluten Pfad, ein relativer scheitert an `require` — nur Aufruf-Detail).
+- Index-Zeilenenden: `git ls-files --eol` → `i/lf` für alle 14 Dateien des Diffs und die 3 Dateien des QA-Fixes.
+
+### 2. Unabhängiges Code-Review (selbst, in diesem Lauf)
+Geprüft: kompletter Diff; `barcode-scanner.js` ganz (Modal-Aufbau, `startCameraScanner`, `scanFromFile`, `closeScannerModal`, Wrapper,
+Listener); html5-qrcode `scanContext`/`foreverScan`/`stop` (`wwwroot/lib/html5-qrcode/html5-qrcode.min.js`); `Picking/Bom.cshtml`
+(`bomScanArticle`-Change-Handler ab :767, Retry-Knopf um :1608, Init :726-727); `StandortEinstellungenController.Save` +
+`BuildViewModelAsync`; `StandortEinstellungen/Index.cshtml` (Fehlerliste :15-24, Int-Feld :84); `StandortSettingsWriter.SaveAtomicAsync`;
+`_Layout.cshtml:15-28`; `AppSettingKeys.cs:50`; Tests, TS-99.14/99.15, Hilfe, Changelog, README.
+
+**Befunde**
+- **Q-1 (behoben in `1d78e7f5`)** — Race Hardware-Scan und laufender Kamera-Decode. html5-qrcode ruft den Treffer-Callback aus
+  `decodeAsync().then(...)` ohne erneute `shouldScan`-Prüfung; ein Decode, der vor `stop()` begann, meldet sich danach noch.
+  `closeScannerModal` setzt `_scannerClosing` sofort wieder auf `false` (`barcode-scanner.js:271`), der bisherige Wächter griff also nicht.
+  Nach einem Hardware-Scan im Fenster (N-1-Pfad `:463-472`) konnte der Kamera-Callback `bomScanArticle` ein zweites Mal füllen: bei
+  gleichem Artikel das Modal „nicht in der Kommissionierliste“ (Zeilen schon abgehakt), bei einem anderen sichtbaren QR eine **zweite
+  Kommissionierung**. Derselbe Fehler bestand schon vorher bei „Abbrechen“ während eines Decodes.
+  Fix `:193`: `if (_scannerClosing || _activeScanner !== html5QrCode) return;` — `stopScanner` setzt `_activeScanner = null` synchron,
+  ein normaler Treffer bleibt unverändert. Wächter in `HardwareScannerTests.Stueckliste_OffenesKameraFenster_IstZiel_WieKameraTreffer`,
+  Manual-UAT TS-99.14 e und Checkliste 21.
+- **Q-2 (nicht blockierend, Grenze)** — `openScannerModal` ist `async`: Das Fenster entsteht erst nach `await requestCameraPermission()`
+  (`:63`, angehängt `:118`). Ein Hardware-Scan in dieser Zeit (beim ersten Aufruf mit Freigabe-Dialog spürbar) läuft nach der alten Regel
+  und zeigt den Hinweis. Kein Datenfehler; TS-99.14 d.
+- **Q-3 (nicht blockierend, nicht behoben)** — Reiter „Bild hochladen“: Läuft `scanFile` noch (`:246-249`) und kommt ein Hardware-Scan,
+  schließt der Hardware-Pfad das Fenster; das spätere Datei-Ergebnis wertet trotzdem aus. Setzt gleichzeitiges Foto und Scan voraus.
+- **Q-4 (nicht blockierend, Hinweis)** — Die Bereichsmeldung (`StandortEinstellungenController.cs:82-86`) setzt Min **und** Max voraus;
+  mit nur einer Grenze stünde „zwischen 10 und “ da. Heute hat genau ein Feld Grenzen, und zwar beide.
+- **Q-5 (Info, specgemäß)** — Jedes Speichern der Maske mit leerem Abstand schreibt `HardwareScannerMaxZeichenabstandMs = ""`
+  (`StandortSettingsWriter.cs:56-62`, Cache-Invalidierung nach Commit); `_Layout.cshtml:25` macht daraus `50`.
+
+**Gezielt geprüft, ohne Befund**
+- **Fenster eines anderen Knopfs:** `hwScanKameraZiel` (`:451-458`) verlangt `targetId === modal.dataset.zielId` **und** das Attribut am
+  Knopf genau dieses Ziels. Ziel-Lagerplatz-Fenster der Stückliste (`btnScanTargetLocation`, ohne Attribut) → `null` → alte Regel,
+  Fenster bleibt offen; ebenso alle Fenster anderer Seiten inkl. `initTextInputScanner`. Der Wächter-Test zählt genau eine Stelle mit dem
+  Attribut in allen Views.
+- **Gleiche Abfolge wie der Kamera-Treffer:** sperren → globale (gewrappte) `processScannedValue` → `closeScannerModal`; `bomScanArticle`
+  ist `INPUT type=hidden` → `change` synchron → Kommissionier-Handler. `_textInputScanCallback` nur bei Text-Zielen (Stückliste nicht).
+- **Übrige Int-Felder:** `FaHierarchyMaxTiefe` und `Sync:ProductionWorkplaceSyncMandant` haben weder Grenzen noch
+  `EmptyResetsToDefault` → leer unverändert, `abc` weiter Fehler (Bestandstest `Save_InvalidInt_WritesNothing_AndKeepsEnteredValues` grün).
+  Der geänderte Test nutzt den echten Key-String (`AppSettingKeys.cs:50` = `FaHierarchyMaxTiefe`), seine Aussage ist nicht leer.
+- **Fehler-Redisplay:** Bereichsfehler → `continue`, `ModelState` ungültig → `View(Index, BuildViewModelAsync(settings))` mit den
+  eingegebenen Werten, nichts geschrieben (Test verifiziert `SaveAtomicAsync` **nie**). Anzeige „Nicht gespeichert:“ + Liste
+  (`Index.cshtml:15-24`), Meldung Razor-encodiert.
+- **Writer mit `""`:** `value ?? string.Empty` (`StandortSettingsWriter.cs:58`), Layout prüft `IsNullOrWhiteSpace`.
+- **Fehlerklassen:** keine neuen Werte in `<script>`; kein `hidden` + `d-*`; der Client-Rückfall auf 50 bei ungültigem Wert ist gewollt
+  (Nachtrag 2) und nur per SQL erreichbar, der Server erzwingt 10–500; keine parallelen Arrays; Regel 10–500 an zwei Orten (Katalog,
+  `hardware-scanner.js:77-80`), gegen Drift durch `HardwareScannerTests` gesichert (Tupel `(10, 500, true)` **und** JS-Literal). Default 50
+  jetzt an drei Stellen (`_Layout.cshtml:25`, `abstand`, Hinweistext) — Ergänzung zu N-6.
+
+### 3. Beweisart je Punkt des Nachtrags 2
+| Punkt | Beweis | Zählt grün? |
+|---|---|---|
+| N-1 Fenster = Ziel, gleiche Auswertung wie Kamera | Quelltext-Wächter (vor Regel a, Attribut genau einmal, Abfolge, Q-1); Verhalten **Manual-UAT** TS-99.14 | nein |
+| N-1 ohne Fenster / anderes Fenster = alte Regel | Review; **Manual-UAT** TS-99.14 a/b | nein |
+| N-2 Server 10–500 mit Meldung, nichts gespeichert | automatisiert `Save_ScannerAbstandAusserhalb10Bis500_WritesNothing_WithMessage` (9/0/−5/501), `Save_ScannerAbstandAnDenGrenzen_IsSaved` (10/500); echtes Form-Binding **Manual-UAT** TS-99.15 a/b | ja (Controller) |
+| N-2 leer = 50, nie gespeichertes Feld blockiert nicht | automatisiert `Save_EmptyInt_NeverBlocks_…`; Layout-Ausgabe **Manual-UAT** TS-99.15 c/d | teilweise |
+| N-2 Client ignoriert ungültige Werte | Node `abstand` (11 Fälle) + Quelltext-Wächter der Verdrahtung; am Gerät **Manual-UAT** TS-99.15 e | ja (Kern) |
+| Version, Changelog, Hilfe, README | Review: beide `AppVersion.cs` = 1.66.1, `Help/Changelog.cshtml`, `Help/Index.cshtml`, README | Review |
+
+### 4. Geänderte Bestandstests
+- `StandortEinstellungenControllerTests.Save_EmptyInt_LeavesKeyUnchanged_AndSavesTheRest` → `Save_EmptyInt_NeverBlocks_ScannerResetsToDefault_OtherIntsStayUnchanged`:
+  **Verhalten absichtlich geändert** durch Nachtrag 2 Punkt 2 (leer = Standard statt „Key fehlt“); zusätzlich geprüft, dass ein anderes
+  Int-Feld leer unverändert bleibt. Test stammt aus v1.66.0 dieses Zweigs (nicht in `main`).
+- `HardwareScannerTests` (v1.66.0, Zweig): nur **ergänzt** (Grenzen-Tupel, JS-Literal; QA-Fix: eine Assertion). Kein Fixture angepasst,
+  keine Änderung der Klasse „sonstiges“.
+
+### 5. CLAUDE.md-Checkliste
+- Migration / SQL / FreshInstall / AgentJobs: entfällt (keine Schemaänderung, im Diff geprüft). Audit: keine Entität geändert.
+- Version 1.66.1 in **beiden** `AppVersion.cs` ✓, `Help/Changelog.cshtml` ✓, Brain-Changelog
+  [[2026-10-21-v1-66-1-hardware-scanner-nachbesserung]] ✓ (QA-Fix ergänzt), feature-map ✓ (QA-Fix + Status). README ✓, Hilfe ✓.
+- `docs/TESTSZENARIEN.md` TS-99.14/99.15 ✓, im QA-Lauf TS-99.14 d/e ergänzt; [[testszenarien-index]] Zeile 99 ✓ (Testnamen aktualisiert).
+
 ## Manuelle Test-Checkliste (Schranke 2, Mensch)
 
 Vorher: aus dem Worktree publizieren (Deploy-Abschnitt) → Testsystem. Admin: Standorteinstellungen → Hardware-Scanner aktiv, Präfix
@@ -686,3 +827,17 @@ Vorher: aus dem Worktree publizieren (Deploy-Abschnitt) → Testsystem. Admin: S
 16. **TS-99.13:** Kamera-Scan auf Inbound, Bom und ProductionOrders unverändert.
 17. **Negativfälle a–e:** Passwortfeld, US-Layout, offenes Kamera-Modal, EAN „Nicht gefunden“, Bildschirmtastatur unverändert.
 18. **Entscheidung N-1:** Stückliste-Artikel per Hardware-Scanner am Handheld nötig? Wenn ja, Folgespec.
+
+**Ergänzung v1.66.1** (Punkt 3 „als Zahl speichern“ und Punkt 18 sind damit überholt; Touch-Fall aus Punkt 6 siehe 19):
+
+19. **TS-99.14:** Stückliste am Netum: „Artikel scannen“ antippen, bei offenem Kamera-Fenster Artikel-QR mit dem eingebauten Scanner →
+    Zeile abgehakt, Fenster schließt, kein Hinweis. Negativ: a) Fenster abgebrochen → Hinweis; b) Fenster Ziel-Lagerplatz offen → alte
+    Regel, Fenster bleibt; c) fremder Artikel → Meldung wie Kamera; d) Scan vor dem Erscheinen des Fensters → Hinweis; e) Kamera sieht einen
+    anderen QR der Liste, gleichzeitig Hardware-Scan → genau **ein** Artikel abgehakt, danach kein „nicht gefunden“ (QA-Fix Q-1).
+20. **TS-99.15:** Zeichenabstand `5`/`0`/`-5`/`501` → „Nicht gespeichert … zwischen 10 und 500“, Eingaben bleiben stehen, nichts
+    gespeichert. `10`/`500` gespeichert und in `data-hw-scan-abstand` sichtbar. Leer → gespeichert, `data-hw-scan-abstand="50"`. Frisches
+    System, nur Firmenname ändern → speichert. Wert per SQL auf `-5` → Scanner erkennt weiter (50 ms).
+21. **TS-99.13 erneut:** Kamera-Scan auf Inbound, Bom (Artikel + Ziel-Lagerplatz) und ProductionOrders unverändert, dazu „Abbrechen“,
+    während die Kamera einen Code sieht → nichts übernommen (der QA-Fix berührt `startCameraScanner`).
+22. **Entscheidung:** `data-hw-scan-kamera-ziel` auf weitere Seiten ausweiten (Kandidaten im Abschnitt „Nachbesserung v1.66.1“)? Wenn ja,
+    Folgespec.

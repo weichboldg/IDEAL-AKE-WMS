@@ -422,6 +422,11 @@ Personalnummer-Suche, und es kam eine unsichtbare Meldung oder ein falscher Oper
 `HardwareScannerMaxZeichenabstandMs`) haben keine Zeile, und die Maske schickt `""`. Die alte Validierung hätte **jedes** Speichern der
 Maske blockiert. Folge: Ein einmal gespeicherter Wert lässt sich in der Maske nicht mehr auf „leer = Default“ zurücksetzen (QA N-2).
 [[2026-10-15-scan-handler-hardware-scanner-spec]].
+**Nachtrag v1.66.1:** Für den Zeichenabstand ist die Folge behoben. `StandortField` trägt `Min`/`Max`/`EmptyResetsToDefault`. Leer
+speichern schreibt `""`, der Lesende nimmt den Default. Außerhalb von 10–500 erscheint eine Meldung, und nichts wird gespeichert. Andere
+Int-Felder bleiben bei leer unverändert. **Regel:** Wer einen Wert mit Default ohne Seed einführt, setzt `EmptyResetsToDefault` und
+prüft denselben Bereich auch im Client: Die DB kann per SQL oder einen alten Stand trotzdem einen Wert außerhalb enthalten
+(`HwScanCore.abstand`).
 
 ---
 

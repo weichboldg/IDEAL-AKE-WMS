@@ -691,11 +691,14 @@ Changelog [[2026-10-21-v1-66-0-hardware-barcodescanner]].
 | Standort-Schalter (3 AppSettings, Gruppe „Hardware-Scanner“), Geräte-Abschalter „Mein Profil“ | **erledigt** `cb49f262` | `StandortSettingsCatalog`, `_Layout`, `Account/Profile.cshtml` |
 | Hilfe, Changelog, README, v1.66.0, TS-99 | **erledigt** `cb49f262` | `Views/Help/Index.cshtml` |
 | QA-Fix: ausgeblendetes Fokusfeld ist kein freies Feld (BDE nach Anmeldung) | **erledigt** `789d0a78` | `hardware-scanner.js freiesFeld` |
+| v1.66.1 N-1: offenes Kamera-Fenster der Stückliste-Artikelerfassung nimmt den Scan an (opt-in `data-hw-scan-kamera-ziel`) | **erledigt** `c72be07e` | `barcode-scanner.js hwScanKameraZiel`, `Picking/Bom.cshtml` |
+| v1.66.1 N-2: Zeichenabstand 10–500 mit Meldung, leer = 50 (Server `StandortField.Min/Max/EmptyResetsToDefault`, Client `HwScanCore.abstand`) | **erledigt** `c72be07e` | `StandortEinstellungenController.Save` |
+| QA-Fix v1.66.1: Kamera-Treffer eines gestoppten Scanners ignorieren (Race Hardware-Scan/laufender Decode) | **erledigt** `1d78e7f5` | `barcode-scanner.js startCameraScanner` |
 
 > **Deploy:** Web; Dienst nur wegen `AppVersion.cs`. Keine Migration. Default aus; vor dem Einschalten Geräte einrichten (DE-Layout,
 > Präfix, Enter, Tasten-Ausgabe).
-> **Status:** **Testbereit** (qa-agent 2026-10-21) — wartet auf Schranke 2 (Manual-UAT TS-99 + Bündel-Merge). Offen zur Entscheidung:
-> Stückliste-Artikel am Handheld (N-1 in der Spec).
+> **Status:** **Testbereit** v1.66.1 (qa-agent 2026-10-21) — wartet auf Schranke 2 (Manual-UAT TS-99 inkl. 99.14/99.15 + Bündel-Merge).
+> N-1 (Stückliste am Handheld) mit v1.66.1 umgesetzt; Ausweitung auf andere Seiten offen zur Entscheidung (Kandidaten in der Spec).
 
 ### Spaltenauswahl/Zahnrad: zentraler Toolbar-Host, Gruppenkopf, Speicherfehler (v1.65.0, direkt im Bündel)
 
