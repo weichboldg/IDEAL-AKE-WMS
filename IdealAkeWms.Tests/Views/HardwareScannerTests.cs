@@ -103,6 +103,8 @@ public class HardwareScannerTests
             .Should().BePositive().And.BeLessThan(listener.IndexOf("hwScanFokusIn(z, aktiv)", StringComparison.Ordinal));
         listener.Should().Contain("_scannerClosing = true;").And.Contain("closeScannerModal();",
             "dieselbe Abfolge wie der Kamera-Treffer in startCameraScanner: sperren, auswerten, schliessen");
+        // QA v1.66.1: html5-qrcode ruft den Treffer-Callback auch fuer einen Decode, der vor stop() lief - nach dem Schliessen ignorieren.
+        js.Should().Contain("if (_scannerClosing || _activeScanner !== html5QrCode) return;");
 
         var bom = Read("Views", "Picking", "Bom.cshtml");
         System.Text.RegularExpressions.Regex.IsMatch(bom, @"id=""btnScanBomArticle""[^>]*\bdata-hw-scan-kamera-ziel\b").Should().BeTrue();

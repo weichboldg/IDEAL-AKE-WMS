@@ -189,7 +189,8 @@ function startCameraScanner(targetSelectId, scanType, qrFaEnabled, faTargetId) {
         { facingMode: "environment" },
         config,
         function (decodedText) {
-            if (_scannerClosing) return;
+            // Gestoppter Scanner (Fenster per Hardware-Scan/Abbrechen geschlossen): ein noch laufender Decode darf nicht nachtraeglich auswerten.
+            if (_scannerClosing || _activeScanner !== html5QrCode) return;
             _scannerClosing = true;
 
             // Zuerst Wert verarbeiten, dann Modal schließen

@@ -10426,7 +10426,11 @@ Lagerplatz (Code 128), Kommissionierliste mit Haupt-FA-Barcode, Beschichtungsauf
   sich, kein gelber Hinweis. Negativ: a) Fenster mit „Abbrechen“ schließen, nichts antippen, scannen → Hinweis „bitte zuerst das Feld
   antippen“ (bisherige Regel). b) Kamera-Fenster „Lagerplatz“ (Ziel-Lagerplatz, Kamera-Knopf daneben) offen, Wagen-Etikett mit dem
   Scanner: **Erwartet:** Verhalten wie vor v1.66.1 (Ziel per Fokus-Regel, Fenster bleibt offen) — das Fenster-Ziel gilt nur für die
-  Artikel-Erfassung. c) Artikel-QR eines Artikels, der nicht in der Stückliste steht: Meldung wie beim Kamera-Scan.
+  Artikel-Erfassung. c) Artikel-QR eines Artikels, der nicht in der Stückliste steht: Meldung wie beim Kamera-Scan. d) Scan
+  sofort nach dem Antippen, bevor das Kamera-Fenster sichtbar ist (erste Kamera-Freigabe läuft noch): **Erwartet:** Hinweis „bitte
+  zuerst das Feld antippen“ — erst das offene Fenster ist Ziel. e) Kamera auf einen anderen Artikel-QR der Liste richten und
+  gleichzeitig mit dem Scanner scannen: **Erwartet:** genau ein Artikel kommissioniert, kein zweiter Treffer, kein „nicht gefunden“
+  nach dem Schließen (QA-Fix v1.66.1).
 - **TS-99.15 — Zeichenabstand prüfen (v1.66.1, Nachtrag 2 Punkt 2).** Standorteinstellungen → Hardware-Scanner, „Größter
   Zeichenabstand (ms)“: a) `5`, `0`, `-5`, `501` speichern. **Erwartet:** „Nicht gespeichert: 'Größter Zeichenabstand (ms)' muss zwischen
   10 und 500 liegen (war: …)“, auch die übrigen Felder bleiben ungespeichert, die Eingabe bleibt sichtbar. b) `10` und `500` speichern:
