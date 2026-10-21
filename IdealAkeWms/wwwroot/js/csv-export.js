@@ -230,18 +230,10 @@
         }
     }
 
-    /** Knopf in dasselbe Element, in das column-preferences.js das Zahnrad haengt (insertGearButton: jedes direkt vorangehende
-     *  DIV der .table-responsive, sonst ein eigener d-flex-Host davor; fallstricke §19). Gleiche Regel ⇒ das Zahnrad bleibt an
-     *  seinem bisherigen Platz (AK 11) und steht rechts neben „CSV". Eigene Inline-Gruppe, damit der fremde Container
-     *  (Filterkarte, Zaehlzeile) keine Klassen bekommt. */
+    /** Knopf in den gemeinsamen Toolbar-Host (site.js tableToolbarHost, v1.65.0), in den column-preferences.js danach das
+     *  Zahnrad haengt ⇒ CSV links, Zahnrad rechts. Eigene Inline-Gruppe fuer Knopf und Meldung. */
     function attach(table) {
-        var wrapper = table.closest('.table-responsive') || table.parentElement;
-        var container = wrapper.previousElementSibling;
-        if (!container || !(container.classList.contains('d-flex') || container.tagName === 'DIV')) {
-            container = document.createElement('div');
-            container.className = 'd-flex justify-content-end mb-1';
-            wrapper.parentElement.insertBefore(container, wrapper);
-        }
+        var container = root.tableToolbarHost(table);
         var host = document.createElement('span');
         host.className = 'csv-export-host d-inline-flex flex-wrap align-items-center gap-1 ms-2';
         container.appendChild(host);

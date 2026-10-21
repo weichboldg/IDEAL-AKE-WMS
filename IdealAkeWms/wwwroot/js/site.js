@@ -1,6 +1,27 @@
 // Please see documentation at https://learn.microsoft.com/aspnet/core/client-side/bundling-and-minification
 // for details on configuring this project to bundle and minify static web assets.
 
+// Toolbar-Host ueber einer Tabelle: EIN Ort fuer Zahnrad (column-preferences.js) und CSV-Knopf (csv-export.js), v1.65.0.
+// Ersetzt die Nachbar-Heuristik „das DIV direkt vor .table-responsive“ (fallstricke §19).
+// 1. Element mit data-table-toolbar direkt vor dem Wrapper (vorhandener oder hier angelegter Host);
+// 2. sonst ein explizit gesetzter Marker der View (z. B. ueber der Zaehlzeile, in der Werkzeugzeile);
+// 3. sonst wird ein Host direkt vor dem Wrapper angelegt. Er traegt data-table-toolbar="auto" und wird nur ueber Stufe 1
+//    gefunden — sonst landeten auf Seiten mit mehreren Tabellen (BdeMasterData) alle Knoepfe ueber der ersten.
+// ponytail: Stufe 2 sucht dokumentweit, Grenze = eine Tabelle je Seite mit explizitem Marker; bei mehreren solchen
+// Tabellen den Marker relativ zur Tabelle suchen.
+window.tableToolbarHost = function (table) {
+    var wrapper = table.closest('.table-responsive') || table.parentElement;
+    var prev = wrapper.previousElementSibling;
+    if (prev && prev.hasAttribute('data-table-toolbar')) return prev;
+    var marked = document.querySelector('[data-table-toolbar]:not([data-table-toolbar="auto"])');
+    if (marked) return marked;
+    var host = document.createElement('div');
+    host.className = 'd-flex justify-content-end mb-1';
+    host.setAttribute('data-table-toolbar', 'auto');
+    wrapper.parentElement.insertBefore(host, wrapper);
+    return host;
+};
+
 // Responsive table: sticky scrollbar
 // Bei langen Tabellen ist die echte horizontale Scrollbar weit unten (nach allen Zeilen).
 // Dieses Script erstellt eine synchronisierte Scrollbar die am unteren Viewport-Rand klebt.

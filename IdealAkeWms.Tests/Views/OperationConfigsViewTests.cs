@@ -8,7 +8,7 @@ namespace IdealAkeWms.Tests.Views;
 /// <summary>
 /// QUELLTEXT-WAECHTER des Reiters „Arbeitsgänge" (Spec 2026-10-16-arbeitsgang-stammdaten-abgleich-aus-sage-view, AK 26; Muster
 /// <see cref="BeschichtungsauftraegeViewTests"/>): Spaltenschluessel aus th, #column-config, ColumnDefinitions und Server-Filter-Map
-/// stimmen ueberein (fallstricke §3), Zahnrad-Host direkt vor .table-responsive (§19), column-preferences.js vor table-filter.js.
+/// stimmen ueberein (fallstricke §3), column-preferences.js vor table-filter.js.
 /// Speichern der Praeferenz und Aussehen sind Manual-UAT (TS-94.16).
 /// </summary>
 public class OperationConfigsViewTests
@@ -34,10 +34,6 @@ public class OperationConfigsViewTests
         ColumnDefinitions.GetByViewKey("OperationConfigs").Should().BeSameAs(ColumnDefinitions.OperationConfigs);
         ColumnDefinitions.OperationConfigs.Columns.Where(c => c.Locked).Select(c => c.Key).Should().Equal("name", "actions");
     }
-
-    [Fact]
-    public void ZahnradHost_DirektVorTableResponsive()
-        => BomZahnradHostTests.TextBeforeTableWrapper("OperationConfigs", "Index.cshtml").Should().EndWith(BomZahnradHostTests.GearHost);
 
     [Fact]
     public void ColumnPreferences_VorTableFilter()

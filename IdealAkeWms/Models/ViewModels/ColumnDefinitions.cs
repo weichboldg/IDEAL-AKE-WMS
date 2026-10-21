@@ -378,7 +378,7 @@ public static class ColumnDefinitions
     /// Spalten identisch zum inline #column-config JSON der View.
     /// </summary>
     public static readonly ViewConfig FaHierarchyBeschichtung = new(
-        "FaHierarchyBeschichtung", "Beschichtungsauftrag (IDEAL)",
+        "FaHierarchyBeschichtung", "Vorschlagsliste Beschichtung (IDEAL)",
         SupportsReorder: true, SupportsSortDefault: false)
     {
         Columns =
@@ -403,7 +403,7 @@ public static class ColumnDefinitions
     /// Spalten identisch zum inline #column-config JSON der View (Drift-Waechter KommissionierSpaltenKonsistenzTests).
     /// </summary>
     public static readonly ViewConfig FaHierarchyBeschichtungSummiert = new(
-        "FaHierarchyBeschichtungSummiert", "Beschichtungsauftrag — Summiert (IDEAL)",
+        "FaHierarchyBeschichtungSummiert", "Vorschlagsliste Beschichtung — Summiert (IDEAL)",
         SupportsReorder: true, SupportsSortDefault: false)
     {
         Columns =

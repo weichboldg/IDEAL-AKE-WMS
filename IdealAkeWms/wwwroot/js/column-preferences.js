@@ -16,6 +16,7 @@
     var _dragState = null;       // for list drag-and-drop in offcanvas
     var _resizeState = null;     // for column resize
     var _contextMenu = null;     // active context menu DOM node
+    var _prefsMsg = null;        // aktueller Fehlerhinweis (Host + Panel), null = keiner
 
     var SAVE_DELAY = 1500;
 
@@ -168,9 +169,11 @@
             if (filterCells[physicalIdx]) filterCells[physicalIdx].style.display = display;
         }
 
-        // tbody cells
+        // tbody cells — Gruppenkopf- und Leerzustandszeilen (eine <td colspan>) bleiben stehen (v1.65.0): sonst
+        // verschwaende die ganze Zeile, sobald die physisch erste Spalte ausgeblendet wird.
         var tbodyRows = _table.querySelectorAll(ROWS_SELECTOR);
         tbodyRows.forEach(function (row) {
+            if (row.querySelector(':scope > td[colspan]')) return;
             var cells = row.querySelectorAll(':scope > td, :scope > th');
             if (cells[physicalIdx]) cells[physicalIdx].style.display = display;
         });
@@ -302,22 +305,68 @@
         }, SAVE_DELAY);
     }
 
-    function saveSettings() {
+    // Fehler beim Laden/Speichern/Zuruecksetzen sichtbar melden (v1.65.0, Hausregel „melden statt still behandeln“):
+    // hoechstens ein Hinweis im Toolbar-Host, bei offenem Panel zusaetzlich oben im Panel. text = null entfernt ihn.
+    function showPrefsMessage(text) {
+        _prefsMsg = text || null;
+        var host = window.tableToolbarHost(_table);
+        var old = host.querySelector(':scope > .column-prefs-msg');
+        if (old) old.remove();
+        if (_prefsMsg) {
+            var div = document.createElement('div');
+            div.className = 'column-prefs-msg alert alert-warning d-inline-block py-1 px-2 mb-0 me-2 small';
+            div.setAttribute('role', 'alert');
+            div.textContent = _prefsMsg;
+            host.insertBefore(div, host.firstChild);
+        }
+        refreshOffcanvas();
+    }
+
+    function failureText(prefix, resp, suffix) {
+        return prefix + ' (' + (resp ? 'Fehler ' + resp.status : 'keine Verbindung') + '). ' + suffix;
+    }
+
+    var SAVE_FAILED = ['Spaltenauswahl konnte nicht gespeichert werden', 'Die Anzeige gilt nur bis zum Neuladen.'];
+
+    function saveSettings(keepalive) {
         if (!_viewConfig) return;
         fetch(getApiUrl(), {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(JSON.stringify(_settings))
+            body: JSON.stringify(JSON.stringify(_settings)),
+            keepalive: !!keepalive
+        }).then(function (resp) {
+            if (resp.ok) { if (_prefsMsg) showPrefsMessage(null); return; }
+            console.warn('[column-preferences] save failed: HTTP ' + resp.status);
+            showPrefsMessage(failureText(SAVE_FAILED[0], resp, SAVE_FAILED[1]));
         }).catch(function (err) {
             console.warn('[column-preferences] save failed:', err);
+            showPrefsMessage(failureText(SAVE_FAILED[0], null, SAVE_FAILED[1]));
         });
     }
+
+    // Z2: Wer innerhalb von SAVE_DELAY wegnavigiert (z. B. ENTER im Server-Spaltenfilter), verloere sonst die Aenderung.
+    window.addEventListener('pagehide', function () {
+        if (!_saveTimer) return;
+        clearTimeout(_saveTimer);
+        _saveTimer = null;
+        saveSettings(true);
+    });
+
+    var _loadFailedResp = null;
+    var LOAD_FAILED = ['Gespeicherte Spaltenauswahl konnte nicht geladen werden', 'Standardansicht wird gezeigt.'];
 
     function loadSettings(callback) {
         fetch(getApiUrl())
             .then(function (resp) {
                 if (resp.status === 204) return null;
-                if (!resp.ok) return null;
+                if (!resp.ok) {
+                    // Z1: nicht still als „keine Einstellungen“ behandeln — sonst ueberschreibt die naechste Aenderung
+                    // die gespeicherte Auswahl, ohne dass der Anwender es merkt.
+                    console.warn('[column-preferences] load failed: HTTP ' + resp.status);
+                    _loadFailedResp = resp;
+                    return null;
+                }
                 return resp.json();
             })
             .then(function (data) {
@@ -329,21 +378,27 @@
                 }
                 _settings = mergeWithDefaults(saved);
                 callback();
+                if (_loadFailedResp) showPrefsMessage(failureText(LOAD_FAILED[0], _loadFailedResp, LOAD_FAILED[1]));
             })
-            .catch(function () {
+            .catch(function (err) {
+                console.warn('[column-preferences] load failed:', err);
                 _settings = buildDefaultSettings();
                 callback();
+                showPrefsMessage(failureText(LOAD_FAILED[0], null, LOAD_FAILED[1]));
             });
     }
 
     function resetToDefault() {
+        var failed = ['Zurücksetzen fehlgeschlagen', 'Die gespeicherte Spaltenauswahl ist unverändert.'];
         fetch(getApiUrl(), { method: 'DELETE' })
-            .then(function () {
-                window.location.reload();
+            .then(function (resp) {
+                if (resp.ok) { window.location.reload(); return; }
+                console.warn('[column-preferences] reset failed: HTTP ' + resp.status);
+                showPrefsMessage(failureText(failed[0], resp, failed[1]));
             })
             .catch(function (err) {
                 console.warn('[column-preferences] reset failed:', err);
-                window.location.reload();
+                showPrefsMessage(failureText(failed[0], null, failed[1]));
             });
     }
 
@@ -364,29 +419,9 @@
         return btn;
     }
 
+    // Zahnrad in den gemeinsamen Toolbar-Host (site.js tableToolbarHost, v1.65.0) — rechts neben CSV.
     function insertGearButton() {
-        // Find or create a container div above the table
-        var tableWrapper = _table.closest('.table-responsive') || _table.parentElement;
-
-        // Look for an existing toolbar row above the table wrapper
-        var gearContainer = tableWrapper.previousElementSibling;
-        var insertedInToolbar = false;
-
-        if (gearContainer && (gearContainer.classList.contains('d-flex') || gearContainer.tagName === 'DIV')) {
-            // Try to append to existing toolbar
-            var btn = createGearButton();
-            gearContainer.appendChild(btn);
-            insertedInToolbar = true;
-        }
-
-        if (!insertedInToolbar) {
-            // Create a small right-aligned container above the table
-            var wrapper = document.createElement('div');
-            wrapper.className = 'd-flex justify-content-end mb-1';
-            var btn = createGearButton();
-            wrapper.appendChild(btn);
-            tableWrapper.parentElement.insertBefore(wrapper, tableWrapper);
-        }
+        window.tableToolbarHost(_table).appendChild(createGearButton());
     }
 
     function createOffcanvasEl() {
@@ -422,6 +457,14 @@
         var content = document.getElementById('columnPrefsContent');
         if (!content) return;
         content.innerHTML = '';
+
+        if (_prefsMsg) {
+            var msg = document.createElement('div');
+            msg.className = 'alert alert-warning py-1 px-2 small';
+            msg.setAttribute('role', 'alert');
+            msg.textContent = _prefsMsg;
+            content.appendChild(msg);
+        }
 
         // ----- Column list -----
         var listLabel = document.createElement('h6');

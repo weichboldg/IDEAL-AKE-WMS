@@ -162,6 +162,15 @@ public class TableScriptScopedSelectorTests
     }
 
     [Fact]
+    public void ColumnPreferences_SetColVisibility_SkipsColspanRows()
+    {
+        // v1.65.0: Gruppenkopf-/Leerzustandszeilen haben genau eine <td colspan>; ohne Skip verschwand die ganze Zeile,
+        // sobald die physisch erste Spalte ausgeblendet war. ':scope >', weil Varianten-Zeilen eine Kindtabelle tragen.
+        ColumnPreferencesJs.Should().Contain("if (row.querySelector(':scope > td[colspan]')) return;");
+        ColumnPreferencesJs.Should().NotContain("querySelector('td[colspan]')");
+    }
+
+    [Fact]
     public void ColumnPreferences_HasNoUnscopedTableIteration()
     {
         ColumnPreferencesJs.Should().NotContain("querySelectorAll('tbody tr')",

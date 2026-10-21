@@ -51,11 +51,8 @@
     @* Hotfix v1.30.1: nicht Geliefertes muss bestaetigt sein. Bedienungshilfe — die massgebliche
        Pruefung laeuft serverseitig in CloseAsync (Close UND PrintAndClose). *@
     <div id="incomplete-alert" class="alert alert-warning d-none" role="alert"></div>
-    @* Toolbar-Host fuer den column-preferences-Zahnrad-Button: MUSS ein immer sichtbares, leeres Element
-       direkt vor .table-responsive sein und darf von keinem Skript ueberschrieben werden. Zwischen Host und
-       .table-responsive NICHTS einfuegen — Hinweise gehoeren DARUEBER (v1.47.5: Zahnrad hing im versteckten
-       #incomplete-alert; Waechter WarehousePickingDetailsZahnradHostTests). *@
-    <div class="d-flex justify-content-end mb-1"></div>
+    @* Toolbar-Host (data-table-toolbar, site.js tableToolbarHost): Zahnrad und CSV. Hinweise duerfen davor oder dahinter stehen (v1.65.0). *@
+    <div class="d-flex justify-content-end mb-1" data-table-toolbar></div>
     <div class="table-responsive">
     <table class="table table-sm filterable-table" data-view-key="WarehousePickingDetails" data-fallback-sort-column="pos" data-fallback-sort-direction="asc">
         <thead>

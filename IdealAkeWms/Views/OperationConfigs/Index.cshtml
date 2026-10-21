@@ -58,8 +58,8 @@
 
 <div class="row">
     <div class="col-lg-8 mb-4">
-        @* Toolbar-Host fuer den Zahnrad-Button (fallstricke §19): leer und direkt vor .table-responsive. *@
-        <div class="d-flex justify-content-end mb-1"></div>
+        @* Toolbar-Host (data-table-toolbar, site.js tableToolbarHost): Zahnrad und CSV. Hinweise duerfen davor oder dahinter stehen (v1.65.0). *@
+        <div class="d-flex justify-content-end mb-1" data-table-toolbar></div>
         <div class="table-responsive">
             <table class="table table-striped mb-0 filterable-table" data-server-column-filter="true" data-view-key="OperationConfigs">
                 <thead>

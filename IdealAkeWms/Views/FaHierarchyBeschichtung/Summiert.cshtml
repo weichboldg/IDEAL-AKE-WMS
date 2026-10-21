@@ -42,10 +42,8 @@
     </div>
 </div>
 
-@* Toolbar-Host fuer den column-preferences-Zahnrad-Button: MUSS ein immer sichtbares, leeres Element direkt vor
-   .table-responsive sein. Zwischen Host und .table-responsive NICHTS einfuegen — Hinweise gehoeren DARUEBER
-   (fallstricke §19; Waechter FaHierarchyBeschichtungSummiertZahnradHostTests). *@
-<div class="d-flex justify-content-end mb-1"></div>
+@* Toolbar-Host (data-table-toolbar, site.js tableToolbarHost): Zahnrad und CSV. Hinweise duerfen davor oder dahinter stehen (v1.65.0). *@
+<div class="d-flex justify-content-end mb-1" data-table-toolbar></div>
 <div class="table-responsive">
     <table class="table table-sm table-striped mb-0 filterable-table" data-view-key="FaHierarchyBeschichtungSummiert" data-server-column-filter="true">
         <thead>

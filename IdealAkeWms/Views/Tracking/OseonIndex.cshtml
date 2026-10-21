@@ -82,7 +82,8 @@ else
 {
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
         <small class="text-muted">@Model.TotalGroupCount Kundenaufträge gesamt — Seite @Model.CurrentPage von @Model.TotalPages</small>
-        <div>
+        @* Toolbar-Host (data-table-toolbar): Zahnrad rechts neben „Alle auf/zu“ (v1.65.0). *@
+        <div data-table-toolbar>
             <button type="button" id="btnExpandAll" class="btn btn-sm btn-outline-secondary me-1" title="Alle aufklappen">
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
                     <path fill-rule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708"/>

@@ -7,8 +7,7 @@ namespace IdealAkeWms.Tests.Views;
 
 /// <summary>
 /// QUELLTEXT-WAECHTER der Teil-4-Views (Spec 2026-10-06-beschichtungsauftrag-ausbau-teil-4, v1.51.0): Spaltenschluessel-
-/// Quellen (fallstricke §3: th, #column-config, ColumnDefinitions, Server-Filter-Map, Druck-ShowCol), Zahnrad-Host vor
-/// .table-responsive (§19), Briefkopf-Einbindung im Auftragsdruck, Gruppenkopf-Partial in beiden Vorschlagslisten.
+/// Quellen (fallstricke §3: th, #column-config, ColumnDefinitions, Server-Filter-Map, Druck-ShowCol), Briefkopf-Einbindung im Auftragsdruck, Gruppenkopf-Partial in beiden Vorschlagslisten.
 /// Aussehen und Bedienung sind Manual-UAT (TS-84).
 /// </summary>
 public class BeschichtungsauftraegeViewTests
@@ -52,12 +51,6 @@ public class BeschichtungsauftraegeViewTests
         KommissionierSpaltenKonsistenzTests.ExtractShowColKeys(View("Beschichtungsauftraege", "Print.cshtml"))
             .Should().BeEquivalentTo(definition.Where(k => k != "herkunft").Append("positionen"));
     }
-
-    [Theory]
-    [InlineData("Index.cshtml")]
-    [InlineData("Details.cshtml")]
-    public void ZahnradHost_DirektVorTableResponsive(string file)
-        => BomZahnradHostTests.TextBeforeTableWrapper("Beschichtungsauftraege", file).Should().EndWith(BomZahnradHostTests.GearHost);
 
     [Fact]
     public void Druck_BriefkopfAlsErstesElement_EmpfaengerVomAuftrag()
