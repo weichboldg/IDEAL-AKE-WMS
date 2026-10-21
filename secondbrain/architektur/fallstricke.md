@@ -403,6 +403,15 @@ Reihenfolge als der Bildschirm, und niemand traut dem Ausdruck mehr.
 **Warum:** Die `.picking-checkbox`-Elemente existieren nur bei `!ReadOnly`. Der
 Lagerbestellungs-Button muss aber auch in der read-only Vorbau-BOM greifen.
 
+### Spalte ausblenden darf Ein-Zellen-Zeilen (`<td colspan>`) nicht anfassen (v1.65.0)
+`column-preferences.js setColVisibility` blendet je Zeile `cells[physicalIdx]` aus. Gruppenkopf- und Leerzustandszeilen haben
+genau **eine** `<td colspan>`. War die physisch erste Spalte ausgeblendet (etwa die gesperrte `hauptfa` nach hinten gezogen, dann die
+neue erste Spalte aus), traf es genau diese Zelle. Die ganze Zeile verschwand, samt PDF-Link und Varianten-Tabelle.
+**Regel:** Zeilen mit `:scope > td[colspan]` werden übersprungen. `:scope >` ist Pflicht, weil Varianten- und Kopfdaten-Zeilen eine
+Kindtabelle tragen und ein Descendant-`td[colspan]` dort fälschlich greifen würde. Annahme, im Bestand belegt: Keine Datenzeile hat
+eine `colspan`-Zelle neben anderen Zellen. Wer so eine Zeile einführt, muss den Skip verfeinern. Wächter
+`TableScriptScopedSelectorTests.ColumnPreferences_SetColVisibility_SkipsColspanRows`.
+
 ---
 
 ## 4. Authentifizierung, Session, Antiforgery
@@ -1350,6 +1359,15 @@ behoben: `Views/WarehousePicking/Details.cshtml` (`#incomplete-alert` mit `d-non
 **Nachtrag v1.47.5:** Lagerbestellung-Details behoben — Host direkt vor der Tabelle, `#incomplete-alert`
 darüber; Wächter `WarehousePickingDetailsZahnradHostTests` (gleicher Helfer wie `BomZahnradHostTests`). Auf `main` als
 AKE-Hotfix v1.30.2 (`0a6fb3cd`), Wächter-Datei wortgleich, damit der Vorwärts-Merge sie konfliktfrei übernimmt.
+**Nachtrag v1.65.0 — Regel „direkt vor `.table-responsive`“ überholt** ([[2026-10-14-spaltenauswahl-zahnrad-sammel-spec]]):
+Die Nachbar-Heuristik steckte doppelt in `insertGearButton` und `csv-export.js attach`. Ersetzt durch `site.js`
+`window.tableToolbarHost(table)` in dieser Reihenfolge: (1) Element mit `data-table-toolbar` direkt vor dem Wrapper, (2) ein **expliziter**
+Marker der View irgendwo im Dokument, (3) sonst ein neuer Host direkt vor dem Wrapper mit `data-table-toolbar="auto"`.
+**Warum der Fallback `="auto"` heißt und Stufe 2 ihn nicht findet:** `BdeMasterData/Index` hat drei `filterable-table` auf einer Seite.
+Bei rein dokumentweiter Suche fänden die zweite und dritte Tabelle den Host der ersten, alle CSV-Knöpfe stünden über Reiter 1.
+**Regel jetzt:** Hinweise dürfen vor oder hinter einem Marker stehen. Einen expliziten Marker gibt es höchstens einmal je View, nie an
+einem `hidden`/`d-none`-Tag. Brauchen zwei Tabellen einer Seite je einen eigenen Marker, muss Stufe 2 relativ zur Tabelle suchen
+(`ponytail:`-Kommentar in `site.js`). Wächter `TableToolbarHostTests` (ersetzt alle `*ZahnradHostTests`).
 
 ## 20. IDEAL — Kind-Sub-FA zählt nur für sich (Lack-Flag, v1.47.5)
 
