@@ -3885,7 +3885,7 @@ ausgefuehrt (siehe Deploy).
    (vorher: Zahnrad unsichtbar im versteckten Hinweis bzw. beim Einblenden gelöscht).
 3. Leere Position ergänzen (Hinweis wird nachgeführt) und F5. **Erwartet:** Zahnrad sichtbar.
 - **Negativfall:** Zahnrad fehlt, erscheint im gelben Hinweis oder verschwindet nach Schritt 2 → Regression.
-  Automatisiert nur die Platzierung im Quelltext (`WarehousePickingDetailsZahnradHostTests`).
+  Automatisiert nur die Platzierung im Quelltext (`WarehousePickingDetailsZahnradHostTests`, seit v1.65.0 `TableToolbarHostTests`, TS-98).
 
 ---
 
@@ -9022,7 +9022,7 @@ Schritte sind unten mit **(Manual-UAT)** gekennzeichnet.
      öffnet sich (gleiche Markup-Stelle, unabhängig vom Modus).
   Negativfall: Zahnrad fehlt oder erscheint nur zusammen mit dem gelben Hinweis → Regression (vor v1.47.3:
   Zahnrad hing im versteckten `#bomKzEmptyState`). Automatisiert nur die Platzierung im Quelltext
-  (`BomZahnradHostTests`).
+  (`BomZahnradHostTests`, seit v1.65.0 `TableToolbarHostTests`, TS-98).
 
 **Hinweis (Out-of-Scope, manuell zu beachten statt zu testen):** Andere Picking/Bom-Einstiege für
 eine Sub-FA (z. B. der Zeilen-Link in der Kommissionierer-Warteschlange, `Articles/Info`,
@@ -9287,7 +9287,7 @@ TS-74 (PDF). **Vorbedingungen (alle Fälle):** IDEAL-Testsystem, `Produktionsauf
 AppSetting `FaHierarchyBeschichtungAktiv` an, Benutzer mit Rolle `beschichtungsauftrag` (oder `admin`),
 FA-Struktur importiert (`FaHierarchyNodes` mit `Beschichtet = 1`). Automatisiert: `BeschichtungsauftragServiceTests`
 (Aggregation, `Summiert_*`), `FaHierarchyBeschichtungControllerTests`, `KommissionierSpaltenKonsistenzTests`
-(vier Spaltenquellen), `FaHierarchyBeschichtungSummiertZahnradHostTests`. Alles Sichtbare ist Manual-UAT.
+(vier Spaltenquellen), `FaHierarchyBeschichtungSummiertZahnradHostTests` (seit v1.65.0 `TableToolbarHostTests`). Alles Sichtbare ist Manual-UAT.
 
 - **TS-81.1 — Prüfschritt Mengeneinheit (vor der Abnahme, kein UI-Test).** Auf der Sage-DB IDEAL:
   `EXEC sp_helptext 'vw_IDEAL-AKE_Kommissionierung_FAListe';` → welche Tabelle liefert `Sollmenge`? Dann
@@ -9455,7 +9455,7 @@ Benutzer: **S** mit Rolle `beschichtungsauftrag_schreiben` (neu, im Deploy anleg
 Anlegen, Bearbeiten inkl. leerer/ungültiger Daten und Mengen mit Komma/Punkt, veraltete RowVersion, dieselbe freie
 Position in zwei Entwürfe, ungültiger Positionsschlüssel, Dienstleister-Pflicht, Reklamation nur aus Erledigt,
 Druck nur ab Übergeben, PDF-Fehler, Liste mit Status-/Spaltenfilter, Schreibfilter an jeder schreibenden Action),
-`BeschichtungsauftragVergabeAnzeigeTests`, `BeschichtungsauftraegeViewTests` (Spaltenquellen, Zahnrad-Host, Briefkopf),
+`BeschichtungsauftragVergabeAnzeigeTests`, `BeschichtungsauftraegeViewTests` (Spaltenquellen, Briefkopf; Zahnrad-Host seit v1.65.0 in `TableToolbarHostTests`),
 `CurrentUserServiceRoleTests`, `RequireBeschichtungsauftragWriteAccessFilterTests`.
 
 - **TS-84.1 — Anlegen aus der Vorschlagsliste (AK 1, 2).** S öffnet *Beschichtungsauftrag* (Summiert), wählt einen
@@ -9628,7 +9628,8 @@ Zahlen-Ausnahme, KW-Kürzung, RFC 4180, BOM/CRLF, keine `sep=`-Zeile, Dateiname;
   `JedeUeberschriebeneSpalte_HatEinenSchluessel`), bricht mit roter Meldung „Die Spalte … ist nicht zuordenbar" ab — keine
   Datei. (f) Beschichtungsauftrag-Detail im Entwurf → keine Spalte „Entfernen" im CSV.
 - **TS-86.16 — Regression AKE (AK 11).** Listen in Darstellung, Filter, Sortierung, Spaltenauswahl und Druck unverändert;
-  Zahnrad am alten Platz, CSV-Knopf daneben.
+  Zahnrad am alten Platz, CSV-Knopf daneben. *Überholt mit v1.65.0 (TS-98.1): Zahnrad und CSV stehen überall rechts über
+  der Tabelle, auch auf den AKE-Listen.*
 
 ## TS-87 — Arbeitsgang-Stammdaten: BDE-Stammdaten › Arbeitsgänge (v1.54.0)
 
@@ -10125,7 +10126,7 @@ Eine Komponente mit > 3 Bestandsplätzen in der geprüften Stückliste (Kandidat
 5 Plätze verteilen) — für TS-95.9 einen Artikel **mit** WMS-Hauptlagerplatz (viele IDEAL-Artikel haben keinen; dann gilt nur
 „Menge absteigend“, kein Fehler). Automatisiert: `ReadOnlyBomBuilderTests` (Kopf ≠ Komponente, Variante B mit Fallback),
 `FaHierarchyBomRepositoryTests.Map_Matchcode_Getrimmt_LeerWirdNull`, `StockMovementRepositoryTests` (Reihenfolge),
-`BomLagerplatzZelleTests` (Zelle, Popover vor dem Read-only-Return), `BomZahnradHostTests`, CSV-Abdeckung.
+`BomLagerplatzZelleTests` (Zelle, Popover vor dem Read-only-Return), `BomZahnradHostTests` (seit v1.65.0 `TableToolbarHostTests`), CSV-Abdeckung.
 
 - **TS-95.1 — Matchcode sichtbar (IDEAL, AK 1/2/8).** FA 1059463 → Stückliste. **Erwartet:** Spalte „Matchcode“ rechts von
   „Bezeichnung 2“; Stichprobe 3 Zeilen = Matchcode der Ressourcenummer (Strukturknoten bzw. Artikelinfo, wenn der Knoten
@@ -10302,8 +10303,67 @@ Automatisiert: `BdeTerminalAuftraegeTests` (Gruppen-Sortierung), `BdeScanResolve
 - **TS-97.10 — NurFA unverändert (AK 20).** `BdeNurFaMeldung` an: Liste „Produktionsaufträge“, FA-Scan startet wie v1.63.0, keine
   Gruppenköpfe.
 
+## TS-98 — Spaltenauswahl/Zahnrad: zentraler Toolbar-Host, Gruppenkopf, Speicherfehler, Anzeigename (v1.65.0)
+
+Spec `2026-10-14-spaltenauswahl-zahnrad-sammel-spec`. Automatisiert (Quelltext-Wächter): `TableToolbarHostTests` (kein
+`previousElementSibling`, Marker höchstens einmal je View und nie versteckt, Marker über der Zählzeile, jeder `viewKey` registriert,
+Anzeigename), `ColumnPreferencesFehlerhinweisTests` (Laden/Speichern/Zurücksetzen, `pagehide`), `TableScriptScopedSelectorTests`
+(`:scope > td[colspan]`). Alles Sichtbare ist Manual-UAT. **Vorbedingung allgemein:** Testsystem, Edge; einmal IDEAL
+(`ProduktionsauftragHierarchisch` an), einmal AKE (aus); ein Benutzer mit und einer ohne gespeicherte Spaltenauswahl.
+**Regression:** TS-18.10 (Lagerbestellung-Hinweis), TS-79.20 (Stückliste-Leerzustand), TS-91.B9 („?“-Knopf), TS-72 (skopierte
+Selektoren), TS-86 (CSV-Inhalt), TS-95.17–95.20 (keine Seiten-Querscrollleiste, genau ein Scrollbalken).
+
+- **TS-98.1 — Platz von Zahnrad und CSV (Matrix, AK 1–4).** Jede der 18 Ansichten öffnen, in beiden Modi: FA-Liste, Leitstand,
+  Kommissionierung, FA-Vervollständigung, Abarbeitungsliste (mit AG), Stückliste, Lagerbestellung-Details, Kommissionierlisten
+  Liste/Summiert, Vorschlagsliste Beschichtung Liste/Summiert, Vormontage Einzeln/Summiert, Beschichtungsaufträge Liste/Details,
+  FA-Struktur, OSEON-Teileverfolgung, BDE-Stammdaten › Arbeitsgänge. **Erwartet:** genau ein Zahnrad rechts über der Tabelle, CSV direkt
+  links daneben (wo vorhanden). Auf FA-Struktur und OSEON steht das Zahnrad rechts neben „Alle auf/zu“. Stichprobe CSV-only: Bestand,
+  Lagerbewegungen, BDE-Stammdaten (drei Reiter: **jeder** Reiter hat seinen eigenen CSV-Knopf über seiner Tabelle). **Negativ:** Ein
+  Knopf in der Filterkarte, in der Zählzeile, im Schalterblock oder in einem Hinweis, oder ein doppelter Knopf, ist ein Fehler.
+- **TS-98.2 — Leitstand hierarchisch (AK 5).** **Erwartet:** Das Zahnrad steht **über** der Zeile „… Aufträge · … Sub-FAs“, nicht darin.
+  Dasselbe gilt für FA-Liste, Kommissionierung, FA-Vervollständigung und Abarbeitungsliste.
+- **TS-98.3 — Lagerbestellung-Details, Pflichthinweis (AK 6).** Bestellung mit nicht vollständig gelieferter Position schließen
+  wollen. **Erwartet:** Der gelbe Hinweis erscheint, das Zahnrad bleibt sichtbar und öffnet das Panel.
+- **TS-98.4 — Stückliste, Leerzustand (AK 7).** Kommissionierziel ohne Treffer wählen. **Erwartet:** gelber Hinweis über dem
+  Zahnrad, das Zahnrad bleibt sichtbar.
+- **TS-98.5 — Nur-Lesen Rollen (AK 8).** Benutzer ohne Stammdatenrecht öffnet Rollen. **Erwartet:** CSV rechts über der Tabelle,
+  nicht im blauen Hinweis.
+- **TS-98.6 — Gruppenkopf bleibt (AK 10–12).** Kommissionierlisten (IDEAL): Panel öffnen, `HauptFA` ans Ende ziehen, die nun erste
+  Spalte („Haupt-Artnr.“) ausblenden. **Erwartet:** Alle HauptFA-Köpfe mit PDF-Link sind sichtbar, der PDF-Link lädt. Nach F5 ist der
+  Stand unverändert. Wiederholen in: Summiert, Vorschlagsliste Beschichtung, Vormontage Einzeln, FA-Struktur (Struktur nach hinten,
+  „Bezeichnung“ ausblenden → Strukturkopf **und** Kopfdaten-Zeile sichtbar), FA-Liste hierarchisch mit Kombigerät (Varianten-Tabelle
+  bleibt gefüllt). Filter auf nicht vorhandenen Wert → Leerzustandszeile sichtbar. **Negativ:** Daten unter falscher Überschrift sind
+  ein Fehler. Spalte wieder einblenden → Ausgangsbild.
+- **TS-98.7 — „?“-Knopf (AK 13).** Erste Spalte ausblenden. **Erwartet:** „?“ steht in der nächsten sichtbaren Filterzelle, das
+  Popover öffnet (wie TS-91.B9).
+- **TS-98.8 — Speicherfehler 400 (AK 15–17).** Liste öffnen, in der Konsole `columnPreferences.getViewConfig().viewKey = 'Unbekannt'`,
+  dann eine Spalte ausblenden und 2 s warten. **Erwartet:** über der Tabelle (links vor CSV/Zahnrad) der Hinweis „Spaltenauswahl konnte
+  nicht gespeichert werden (Fehler 400). Die Anzeige gilt nur bis zum Neuladen.“ Bei offenem Panel steht derselbe Text oben im Panel.
+  Die Liste bleibt bedienbar, der Fokus bleibt, wo er war. Zweite Änderung → weiterhin nur **ein** Hinweis. F5 → Spalte wieder
+  sichtbar.
+- **TS-98.9 — Verbindungsfehler (AK 15, 17).** DevTools › Netzwerk › Anforderungs-URL `/api/user-view-preferences/*` blockieren,
+  Spalte ausblenden. **Erwartet:** „… (keine Verbindung) …“. Sperre aufheben, nächste Änderung → Hinweis verschwindet, F5 zeigt den
+  neuen Stand.
+- **TS-98.10 — Zurücksetzen scheitert (AK 18).** Sperre wie TS-98.9, Panel › „Auf Standard zurücksetzen“. **Erwartet:** kein
+  Neuladen, Hinweis „Zurücksetzen fehlgeschlagen (keine Verbindung). Die gespeicherte Spaltenauswahl ist unverändert.“ Ohne Sperre:
+  Die Seite lädt im Standard neu.
+- **TS-98.11 — Erfolgsfall (AK 19).** Ohne Eingriff Spalten ändern. **Erwartet:** kein Hinweis, nach F5 bleibt der Stand erhalten.
+- **TS-98.12 — Anzeigename (AK 22).** Als Admin einen Benutzer mit gespeicherter Auswahl der Vorschlagsliste Beschichtung bearbeiten.
+  **Erwartet:** „Vorschlagsliste Beschichtung (IDEAL)“ bzw. „Vorschlagsliste Beschichtung — Summiert (IDEAL)“. „Zurücksetzen“ meldet
+  denselben Namen. Die vorher gespeicherte Auswahl wirkte bis dahin unverändert.
+- **TS-98.13 — Laden scheitert (Z1) und Wegnavigieren (Z2) (AK 21).** a) GET `/api/user-view-preferences/*` blockieren, Liste laden.
+  **Erwartet:** „Gespeicherte Spaltenauswahl konnte nicht geladen werden (keine Verbindung). Standardansicht wird gezeigt.“ b) Ohne
+  Sperre auf der FA-Liste eine Spalte ausblenden und **sofort** (< 1 s) ENTER im Server-Spaltenfilter. **Erwartet:** Nach dem Laden
+  bleibt die Spalte ausgeblendet (Netzwerk: PUT mit `keepalive`).
+- **TS-98.14 — Tastatur und Kontrast (AK 20).** Tab erreicht CSV und Zahnrad in Lesereihenfolge, der Screenreader sagt den Hinweis an
+  (`role="alert"`). Kontrast des Hinweistexts: Bootstrap-`alert-warning` #664d03 auf #fff3cd = 7,2 : 1 (gemessen, Ziel ≥ 4,5 : 1).
+- **TS-98.15 — Bestandsverhalten (AK 23).** Auf drei Ansichten (Stückliste, FA-Liste AKE, Kommissionierlisten): Spalten ein/aus,
+  umordnen, Breite ziehen und Doppelklick, Kontextmenü, Standard-Sortierung, Laden gespeicherter Einstellungen; Filter, Sortierung,
+  Paginierung und CSV-Inhalt. **Erwartet:** wie v1.64.1. Dazu TS-95.17–95.20 auf der Stückliste: keine Seiten-Querscrollleiste, genau
+  ein blauer Balken.
+
 ---
 
 *Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) + Teil 6 (Standorteinstellungen, v1.34.0) + BOM-Guard hierarchisch (2026-08-18, abgelöst) + FA-Liste-Hierarchie (v1.35.0) + BOM-Bridge (v1.36.0) + Materialisierung fachliche Felder K1/K2 (v1.37.0) + Skopierung der Tabellen-Selektoren (TS-72) + FA-Liste ausgebaut: Matchcode, Kopfdaten je Zeile, HauptFA-Zeile, Freigabe-Kaskade (v1.38.0, TS-73) + PDF-Erzeugung für FaHierarchy-Druckdokumente (v1.39.0, TS-74) + Matchcode im Artikelstamm (v1.40.0, TS-75) + FA-Arbeitsgang-Erkennung aus der Struktur (v1.41.0, TS-76, ersetzt durch TS-77) + Arbeitsgänge (WorkOperation) aus der Struktur + Werkbank-Anlage aus Sage (v1.44.0, TS-77) + Arbeitsgänge je (Sub-)FA im FA-Struktur-Modal (v1.45.0, TS-78) + Kommissionierung nur am HauptFA
-(v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80) + Beschichtungsauftrag Summiert als Standard (v1.48.0, TS-81) + Briefkopf Beschichtungsauftrag (v1.49.0, TS-82) + Beschichtungsauftrag als eigenes Objekt (v1.50.0, TS-83) + Beschichtungsaufträge bedienen (v1.51.0, TS-84) + Arbeitsgänge als Symbole im FA-Baum (v1.52.0, TS-85) + CSV-Export für alle Tabellen (v1.53.0, TS-86) + Arbeitsgang-Stammdaten (v1.54.0, TS-87) + Status je Arbeitsgang-Kürzel im FA-Baum (v1.55.0, TS-88) + Menü Beschichtung + Kurzanleitungen (v1.56.0, TS-89) + BDE-Terminal mit Arbeitsgang-Status (v1.57.0, TS-90) + Spaltenfilter-Suchsyntax Etappe A + B (v1.58.0/v1.58.1, TS-91.A/B) + Fußzeile nach Word-Vorlage (v1.59.0, TS-92) + Sage-Quellen auf WMS-Views (v1.60.0–v1.60.2, TS-93) + Arbeitsgang-Abgleich aus der Sage-View (v1.61.0, TS-94) + Stückliste Matchcode und Lagerplatz-Limit (v1.62.0, TS-95) + BDE Stufe 1: Werkbänke, AG-Fertigmeldung (v1.63.0, TS-96) + BDE-Terminal Liste nach Haupt-FA, Scan ohne AG (v1.64.0, TS-97)*
+(v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80) + Beschichtungsauftrag Summiert als Standard (v1.48.0, TS-81) + Briefkopf Beschichtungsauftrag (v1.49.0, TS-82) + Beschichtungsauftrag als eigenes Objekt (v1.50.0, TS-83) + Beschichtungsaufträge bedienen (v1.51.0, TS-84) + Arbeitsgänge als Symbole im FA-Baum (v1.52.0, TS-85) + CSV-Export für alle Tabellen (v1.53.0, TS-86) + Arbeitsgang-Stammdaten (v1.54.0, TS-87) + Status je Arbeitsgang-Kürzel im FA-Baum (v1.55.0, TS-88) + Menü Beschichtung + Kurzanleitungen (v1.56.0, TS-89) + BDE-Terminal mit Arbeitsgang-Status (v1.57.0, TS-90) + Spaltenfilter-Suchsyntax Etappe A + B (v1.58.0/v1.58.1, TS-91.A/B) + Fußzeile nach Word-Vorlage (v1.59.0, TS-92) + Sage-Quellen auf WMS-Views (v1.60.0–v1.60.2, TS-93) + Arbeitsgang-Abgleich aus der Sage-View (v1.61.0, TS-94) + Stückliste Matchcode und Lagerplatz-Limit (v1.62.0, TS-95) + BDE Stufe 1: Werkbänke, AG-Fertigmeldung (v1.63.0, TS-96) + BDE-Terminal Liste nach Haupt-FA, Scan ohne AG (v1.64.0, TS-97) + Spaltenauswahl/Zahnrad zentraler Toolbar-Host (v1.65.0, TS-98)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*
