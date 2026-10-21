@@ -26,3 +26,5 @@ gilt das heutige Verhalten. Marker in allen betroffenen Views setzen, Drift-Guar
 ## Reihenfolge
 
 Querschnittlich über viele Views → **nach dem Merge des Bündels**, nicht als Hotfix.
+
+> Umgesetzt in [[2026-10-14-spaltenauswahl-zahnrad-sammel-spec]] (v1.65.0, Bündel, 2026-10-21).

@@ -26,3 +26,5 @@ Wie v1.47.3 bei der Stückliste: leerer Zahnrad-Host als direkter Vorgänger von
 ## Entscheidung offen (Gerald)
 
 Hotfix auf `main` (v1.30.2, eigener Deploy AKE) oder Korrektur im Bündel (kommt mit dessen Merge nach AKE).
+
+> Umgesetzt in [[2026-10-14-spaltenauswahl-zahnrad-sammel-spec]] (v1.65.0, Bündel, 2026-10-21).

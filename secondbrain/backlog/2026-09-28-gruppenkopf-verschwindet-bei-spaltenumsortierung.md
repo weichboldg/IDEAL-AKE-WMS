@@ -20,3 +20,5 @@ Position 0 weg und blendet dann die nun **erste physische** Spalte aus, trifft `
 In `column-preferences.js` Zeilen mit `td[colspan]` (wie `table-filter.js` es bereits tut:
 `if (row.querySelector('td[colspan]')) return;`) beim Ein-/Ausblenden überspringen. Gemeinsames JS — alle
 Listen mit Gruppen-Kopfzeile und Spaltenkonfiguration regressionsprüfen.
+
+> Umgesetzt in [[2026-10-14-spaltenauswahl-zahnrad-sammel-spec]] (v1.65.0, Bündel, 2026-10-21).

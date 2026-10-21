@@ -2,9 +2,9 @@
 type: spec
 title: Spaltenauswahl/Zahnrad — Sammel-Spec (zentraler Toolbar-Host, Gruppenkopf, Speicherfehler, Anzeigename)
 slug: 2026-10-14-spaltenauswahl-zahnrad-sammel-spec
-status: Entwurf
+status: Testbereit
 created: 2026-10-14
-updated: 2026-10-14
+updated: 2026-10-21
 source_backlog: "[[2026-10-06-zahnrad-host-zentral-marker]]"
 sources:
   - "[[2026-10-06-zahnrad-host-zentral-marker]]"
@@ -13,9 +13,9 @@ sources:
   - "[[2026-09-28-gruppenkopf-verschwindet-bei-spaltenumsortierung]]"
   - "[[2026-09-28-spaltenpraeferenz-speicherfehler-still]]"
   - "[[2026-10-13-spalteneinstellungen-anzeigename-vorschlagsliste]]"
-task: ""
-worktree: ""
-branch: ""
+task: "[[2026-10-14-spaltenauswahl-zahnrad-sammel-umsetzung]]"
+worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
+branch: "feature/2026-08-07-ideal-teile-1-5"
 affected_code:
   - IdealAkeWms/wwwroot/js/site.js (neu window.tableToolbarHost)
   - IdealAkeWms/wwwroot/js/column-preferences.js (insertGearButton Z. 367-390, setColVisibility Z. 159-177, saveSettings Z. 305-314, resetToDefault Z. 339-348, renderOffcanvasContent Z. 421-559)
@@ -25,19 +25,16 @@ affected_code:
   - IdealAkeWms/Views/Help/Index.cshtml (Abschnitt Spalten-Einstellungen, Z. 134-146)
   - IdealAkeWms.Tests/Views/BomZahnradHostTests.cs + BeschichtungsauftraegeViewTests.cs Z. 59-60 (abgeloest durch neuen Waechter)
   - IdealAkeWms.Tests/Helpers/TableScriptScopedSelectorTests.cs (ergaenzen)
-open_questions:
-  - "Zahnrad-Position auf AKE-Listen (FA-Liste, FA-Vervollstaendigung, FA-Abarbeitungsliste, Kommissionierung mit Kommissionierer-Zuordnung) wechselt vom Filterkasten bzw. Schalterblock einheitlich nach rechts ueber die Tabelle - einverstanden?"
-  - "Zusatzfunde Z1 (Laden der Spaltenauswahl scheitert still, Standard wird gezeigt und beim naechsten Klick ueber die gespeicherte Auswahl geschrieben) und Z2 (Seite innerhalb 1,5 s nach einer Aenderung verlassen verwirft die Aenderung still) mit beheben?"
-  - "Matchcode-Spalte in der Stueckliste (zweiter Teil der Notiz 2026-10-06-stueckliste-zahnrad-bug-matchcode) nicht hier, sondern in der Matchcode-Nachlese Punkt 1 umsetzen?"
+open_questions: []
 epic: false
 etappen: []
 deploy:
   web: true
   service: false
   migration: false
-freigabe_entscheidung: ""
-freigabe_von: ""
-freigabe_am: ""
+freigabe_entscheidung: "Freigegeben wie Empfehlungen: 1 ja (Zahnrad einheitlich rechts ueber der Tabelle, auch AKE), 2 ja (Z1 und Z2 mit beheben), 3 ja (Matchcode Stueckliste in die Matchcode-Nachlese). Umsetzung nach dem Merge des IDEAL-Buendels auf neuem Zweig ab main; Zeilennummern gegen main nachmessen."
+freigabe_von: "Gerald Weichbold"
+freigabe_am: "2026-10-14"
 ---
 
 # Spaltenauswahl/Zahnrad — Sammel-Spec
@@ -48,6 +45,11 @@ freigabe_am: ""
 > Zweig ab `main` (worktree/branch bleiben bis dahin leer). **Vor dem /dev alle Zeilennummern gegen `main`
 > nachmessen.** Git-Historie konnte der Spec-Lauf nicht abfragen (keine Shell); Commit-Belege stammen aus den
 > Brain-Changelogs und sind am Code gegengeprüft.
+
+> [!important] Freigabe-Nachtrag 2026-10-21 (geht dem Rumpf und dem Nachtrag vom 14.10. vor)
+> **Ort geändert (Gerald 2026-10-21):** Umsetzung **im Bündel-Worktree** `.claude/worktrees/2026-08-07-ideal-teile-1-5`
+> (Zweig `feature/2026-08-07-ideal-teile-1-5`, Stand v1.64.1), nicht nach dem Merge ab `main`. Zeilennummern gegen v1.64.1
+> nachmessen. Version **v1.65.0**, Testszenario **TS-98** (TS-93 ist an die Sage-Views vergeben). Die Antworten 1–3 gelten unverändert.
 
 ## Ziel / Nutzen (das Warum)
 
@@ -77,7 +79,7 @@ Speicherfehler unsichtbar) und ein Anzeigename.
 - **B** Gruppen-Kopfzeilen und Leerzustandszeilen bleiben beim Aus-/Einblenden von Spalten stehen.
 - **C** Fehlgeschlagenes Speichern/Zurücksetzen der Spaltenauswahl wird sichtbar gemeldet.
 - **D** Anzeigename der beiden Vorschlagslisten-Einträge angleichen.
-- Z1/Z2 nur nach Antwort auf Rückfrage 2.
+- Z1/Z2 (Rückfrage 2 = ja, Gerald 2026-10-14).
 
 ### Out-of-Scope
 
@@ -112,6 +114,16 @@ Speicherfehler unsichtbar) und ein Anzeigename.
 Standorte: A–C wirken auf **AKE und IDEAL** (gemeinsames JS). Die Gruppenköpfe aus B gibt es nur im
 hierarchischen Modus (IDEAL, `ProduktionsauftragHierarchisch`) und auf den IDEAL-Listen; im AKE-Flachmodus betrifft
 B nur die Leerzustandszeilen. D betrifft nur IDEAL-Listen.
+
+### Freigabe-Nachtrag 2026-10-14 (geht vor, Gerald)
+
+- **Rückfrage 1 = ja:** Zahnrad (und CSV) stehen auf allen Listen einheitlich rechts über der Tabelle — auch auf den
+  AKE-Listen FA-Liste, FA-Vervollständigung, FA-Abarbeitungsliste und Kommissionierung (bisher Filterkasten bzw. unter dem
+  Schalter). Changelog-Text für Anwender: „Das Zahnrad steht jetzt überall rechts über der Tabelle neben CSV."
+- **Rückfrage 2 = ja:** Z1 (Laden scheitert still) und Z2 (Verlassen innerhalb 1,5 s verliert die Änderung) sind
+  **In-Scope**; die „nur bei Ja"-Abschnitte (Lösungsentwurf C, AK 21, TS 93.13) gelten unbedingt.
+- **Rückfrage 3 = ja:** Matchcode-Spalte der Stückliste ist **Out-of-Scope**; Umsetzung in [[2026-09-15-matchcode-nachlese]] Punkt 1.
+- Umsetzung **nach** dem Merge des IDEAL-Bündels auf neuem Zweig ab `main`; Zeilennummern vor dem Start gegen `main` nachmessen.
 
 ## Technischer Loesungsentwurf
 
@@ -244,9 +256,9 @@ Druck-`<title>`, nicht `DisplayName`).
 
 | Skript | Wirkt auf | Absicherung |
 |---|---|---|
-| `site.js` (neu `tableToolbarHost`) | alle 42 Views mit `filterable-table` (CSV) + FA-Struktur/OSEON (nur Zahnrad) | Wächter A, TS-93.1 Matrix |
-| `csv-export.js attach` | wie oben; CSV-Platz ändert sich auf CSV-only-Listen — CSV kam mit v1.53 im Bündel, in Produktion noch nicht ausgerollt | TS-93.1, Regression CSV-Szenario (Kapitel der v1.53) |
-| `column-preferences.js` | 17 Zahnrad-Ansichten, beide Standorte | AK „Bestandsverhalten“, TS-93.5–93.7, TS-91.B9, TS-72 |
+| `site.js` (neu `tableToolbarHost`) | alle 42 Views mit `filterable-table` (CSV) + FA-Struktur/OSEON (nur Zahnrad) | Wächter A, TS-98.1 Matrix |
+| `csv-export.js attach` | wie oben; CSV-Platz ändert sich auf CSV-only-Listen — CSV kam mit v1.53 im Bündel, in Produktion noch nicht ausgerollt | TS-98.1, Regression CSV-Szenario (Kapitel der v1.53) |
+| `column-preferences.js` | 17 Zahnrad-Ansichten, beide Standorte | AK „Bestandsverhalten“, TS-98.5–98.7, TS-91.B9, TS-72 |
 
 Die v1.53-Zusage „Zahnrad bleibt an seinem bisherigen Platz“ (`csv-export.js:235`) wird bewusst abgelöst. Der
 Dev-Lauf prüft `docs/TESTSZENARIEN.md` auf Aussagen zum Platz von Zahnrad/CSV (u. a. TS-18.10, TS-79.20,
@@ -340,7 +352,7 @@ Namen aus D nur in der Benutzerverwaltung (`[RequireAdminAccess]`, `UsersControl
 
 ## Test-Szenarien
 
-Neues Kapitel **TS-93 Spaltenauswahl/Zahnrad** (Nummer beim /dev gegen `docs/TESTSZENARIEN.md` messen; letzte
+Neues Kapitel **TS-98 Spaltenauswahl/Zahnrad** (Nummer beim /dev gegen `docs/TESTSZENARIEN.md` messen; letzte
 vergebene laut [[testszenarien-index]] ist TS-92). Regressionen: TS-18.10, TS-79.20, TS-91.B9, TS-72, CSV-Kapitel
 (v1.53). Vorbedingung allgemein: Testsystem, Benutzer mit gespeicherten und ohne gespeicherte Einstellungen, einmal
 IDEAL (`ProduktionsauftragHierarchisch` an), einmal AKE (aus); Browser Edge.
@@ -394,15 +406,27 @@ Entfällt — flache Spec (Begründung im Lösungsentwurf, „Empfohlene Commit-
 
 ## Deploy
 
-*Vorläufig — der QA-Lauf bestätigt gegen den echten Diff.*
+**Von der QA am 2026-10-21 gegen den echten Diff `d52bc44d..c27f3b6d` bestätigt** (`git diff --stat`: 27 Dateien, +420/−161;
+kein QA-Fix-Commit).
 
-- **Web-App:** ja (JS, Views, `ColumnDefinitions`).
-- **Service:** nein (nur Versionsanzeige mitziehen, keine Service-Änderung).
-- **Migration:** nein.
-- **Publish-Befehle** (im Worktree):
+- **Web-App:** ja. Geändert unter `IdealAkeWms/`: `wwwroot/js/site.js`, `wwwroot/js/column-preferences.js`, `wwwroot/js/csv-export.js`,
+  `Models/ViewModels/ColumnDefinitions.cs` (zwei `DisplayName`), 13 Views mit `data-table-toolbar` (Picking/Bom, Picking/Index,
+  WarehousePicking/Details, Beschichtungsauftraege/Index+Details, FaHierarchyBeschichtung/Summiert, PickingLeitstand/Index,
+  OperationConfigs/Index, FaHierarchy/Index, Tracking/OseonIndex, ProductionOrders/Index, FaCompletion/Index, FaWorklist/Index),
+  `Views/Help/Index.cshtml`, `Views/Help/Changelog.cshtml`, `AppVersion.cs` (1.65.0).
+- **Service:** in diesem Spec-Diff nur `IDEALAKEWMSService/AppVersion.cs` (1.65.0), keine Verhaltensänderung. Für diese Spec allein
+  nicht nötig; im Bündel wird der Dienst ohnehin neu publiziert (v1.63.0, [[fallstricke]] §5).
+- **Migration:** nein. Keine Datei unter `*/Migrations/`, kein `SQL/`-Skript, nichts unter `SQL/Einmalig/`, `00_FreshInstall.sql` und
+  `SQL/AgentJobs/` unberührt.
+- **Reihenfolge:** Publish Web aus dem Worktree, App-Pool neu starten. Browser-Cache: `site.js`, `csv-export.js` (`_Layout.cshtml:414/417`)
+  und `column-preferences.js` laufen über `asp-append-version`, kein harter Reload nötig.
+- **Publish-Befehle (im Worktree):**
   `dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb`
-- Hinweis: Wirkt an **beiden** Standorten; erst nach dem Bündel-Merge umsetzen und ausrollen. Browser-Cache ist durch
-  `asp-append-version` abgedeckt.
+  (Dienst nur im Bündel: `dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService`)
+- **Ablauf Mensch:** Publish aus dem Worktree → Testsystem → TS-98 testen → Merge. Nach dem Merge nur dann erneut aus `main`
+  publizieren, wenn der Merge getestete Dateien mit parallelen `main`-Änderungen zusammengeführt hat. (Geprüft: `BomZahnradHostTests.cs`
+  liegt entgegen Spec-Rumpf Z. 189 **nicht** auf `main` — `git ls-tree main IdealAkeWms.Tests/Views/` ohne Treffer; kein Löschkonflikt.)
+- Wirkt an **beiden** Standorten (gemeinsames JS).
 
 **Brain-Pflichten des Dev-Laufs:** [[fallstricke]] §19 additiv nachtragen („Nachbar-Regel abgelöst durch
 `data-table-toolbar` + Fallback; Regel ‚direkt vor `.table-responsive`‘ überholt“), §3 Eintrag zum `colspan`-Skip,
@@ -435,6 +459,168 @@ Quell-Notizen per Wikilink auf diese Spec verweisen lassen.
   als seinen Auftrag. Antworte je Frage in **fett** hinter dem Pfeil.
 -->
 
-1. Zahnrad-Platz auf AKE-Listen einheitlich rechts über der Tabelle →
-2. Zusatzfunde Z1 (Laden still) und Z2 (Verlassen < 1,5 s) mit beheben →
-3. Matchcode-Spalte Stückliste in die Matchcode-Nachlese ausgliedern →
+1. Zahnrad-Platz auf AKE-Listen einheitlich rechts über der Tabelle → **Ja (Gerald 2026-10-14).**
+2. Zusatzfunde Z1 (Laden still) und Z2 (Verlassen < 1,5 s) mit beheben → **Ja, beide (Gerald 2026-10-14).**
+3. Matchcode-Spalte Stückliste in die Matchcode-Nachlese ausgliedern → **Ja (Gerald 2026-10-14).**
+
+## Umsetzung (Dev-Lauf 2026-10-21)
+
+Im Bündel-Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Basis `d52bc44d` (v1.64.1). Commits `f1108e94` (A–D + Wächter),
+`c27f3b6d` (Doku, Hilfe, v1.65.0, TS-98). Aufgabe [[2026-10-14-spaltenauswahl-zahnrad-sammel-umsetzung]].
+
+### Nachmessung gegen v1.64.1
+
+Alle Fundstellen des Rumpfs stimmen mit v1.64.1 überein: Hosts Bom `:142`, WarehousePicking/Details `:58`, Beschichtungsauftraege
+`:42`/`:209`, BeschichtungSummiert `:48`, Leitstand `:90`, Zählzeilen ProductionOrders `:66`, FaCompletion `:54`, FaWorklist `:90`,
+Picking/Index `:39`, Werkzeugzeilen FaHierarchy `:94`, Oseon `:85`. In `column-preferences.js` sind die Zeilen unverändert. Ausnahme: Der
+Scrollbalken-Fix v1.64.1 hat nur `site.js` `initStickyScrollbar` geändert, und der Host steht davor als eigene Funktion. Der Fix ist
+unangetastet.
+
+### Abweichungen vom Rumpf (begründet)
+
+1. **Host-Suche zweistufig statt dokumentweit.** Der Rumpf sah vor: „erstes `[data-table-toolbar]` im Dokument, sonst anlegen“. Dabei
+   finden auf `BdeMasterData/Index.cshtml:27/79/129` (drei `filterable-table`, drei Reiter) die Tabellen 2 und 3 den Fallback-Host von
+   Tabelle 1, alle CSV-Knöpfe stünden über Reiter 1. Umgesetzt ist deshalb: (1) Marker direkt vor dem eigenen Wrapper, (2) expliziter
+   Marker im Dokument, (3) Fallback `data-table-toolbar="auto"`, den Stufe 2 nicht findet. AK 1 („zweiter Aufruf liefert dasselbe
+   Element“) gilt weiter, über Stufe 1.
+2. **18 statt 17 Zahnrad-Ansichten:** `OperationConfigs/Index` (v1.61.0) hat einen Host an `:62`. Er bekommt ebenfalls den Marker.
+   Damit sind es 13 markierte Views (7 Hosts, 2 Werkzeugzeilen, 4 neue Hosts).
+3. **Wächter ersetzt mehr als genannt:** zusätzlich `OperationConfigsViewTests.ZahnradHost_DirektVorTableResponsive` (dieselbe abgelöste
+   Regel). Neu dazu `ColumnPreferencesFehlerhinweisTests` für C/Z1/Z2 (Quelltext). Der Anzeigename-Test steckt in `TableToolbarHostTests`.
+4. **Hinweis im Host mit `d-inline-block`:** In den Werkzeugzeilen FA-Struktur/OSEON ist der Host ein einfacher `<div>`, kein Flex-Container.
+   So bleibt der Hinweis in der Zeile der Knöpfe.
+
+### Prüfungen
+
+- Matchcode Stückliste (Antwort 3): seit v1.62.0 vorhanden. Belege: `Bom.cshtml:150` `data-col-key="matchcode"`, `ColumnDefinitions.cs:40`,
+  `Bom.cshtml:679` `#column-config`, `PrintBom.cshtml:223/256`. Nichts gebaut.
+- `colspan` in den 18 Ansichten und ihren Partials: keine Datenzeile hat eine `colspan`-Zelle neben anderen `<td>`. Der einzige Treffer,
+  `_FaWorkOperationsModal.cshtml:43`, ist eine Modal-Tabelle ohne `data-view-key`.
+- Kontrast des Hinweises: Bootstrap 5.3.3 `alert-warning` #664d03 auf #fff3cd = **7,2 : 1** (berechnet nach WCAG-Formel, Ziel 4,5),
+  `site.css` überschreibt nichts.
+- Aussagen zum Platz in `docs/TESTSZENARIEN.md` nachgezogen: TS-18.10/v1.47.5, TS-79.20, TS-81, TS-84, TS-86.16 (als überholt markiert),
+  TS-95.
+- EOL im Index (§21): `docs/TESTSZENARIEN.md`, alle JS, Views und Tests stehen auf `i/lf`.
+
+### Beweis Build/Test (Dev-Lauf)
+
+- `dotnet build IdealAkeWms.slnx`: **0 Fehler**, 28 Warnungen (Bestand).
+- `dotnet test IdealAkeWms.slnx`: Web **2138 bestanden, 1 übersprungen, 0 Fehler** (2139). Service **316 bestanden, 0 Fehler**.
+- `node vm.Script` Syntaxprüfung von `site.js`, `csv-export.js`, `column-preferences.js`: ok.
+
+### Nicht gebaut (Befunde)
+
+- Z3 (18 Listen binden `column-preferences.js` ohne `#view-config` ein) bleibt Out-of-Scope, wie in der Spec festgelegt.
+- `Help/Index.cshtml` „Verfügbar in: Fertigungsaufträge, Kommissionierliste, OSEON Teileverfolgung, Stückliste“ ist veraltet (18 Ansichten).
+  Das ist vorbestehend und nicht angefasst.
+
+## QA (2026-10-21)
+
+Unabhängiger QA-Lauf (qa-agent), synchron in diesem Lauf, Diff `d52bc44d..c27f3b6d` (Commits `f1108e94`, `c27f3b6d`) im Worktree
+`.claude/worktrees/2026-08-07-ideal-teile-1-5`. Kein QA-Fix-Commit nötig.
+
+### 1. Build und Tests (selbst ausgeführt)
+
+- `dotnet build IdealAkeWms.slnx`: **0 Fehler**, 28 Warnungen (Bestand, z. B. CS8601 `BdeTerminalAuftraegeTests.cs:23`).
+- `dotnet test IdealAkeWms.slnx --no-build`:
+  - `IdealAkeWms.Tests`: **2138 bestanden, 1 übersprungen, 0 Fehler** (gesamt 2139).
+  - `IDEALAKEWMSService.Tests`: **316 bestanden, 0 übersprungen, 0 Fehler** (gesamt 316).
+
+### 2. Code-Review — Befunde
+
+Geprüft: `site.js` (neu `tableToolbarHost`, `initStickyScrollbar` unverändert), `column-preferences.js` (`insertGearButton`,
+`setColVisibility`, `showPrefsMessage`/`failureText`, `saveSettings`, `pagehide`, `loadSettings`, `resetToDefault`,
+`renderOffcanvasContent`, Init-Reihenfolge `loadSettingsAndApply`), `csv-export.js attach`, 13 Views mit Marker, `ColumnDefinitions`,
+`UserViewPreferencesApiController` (401/400-Wege), `_Layout.cshtml` Skriptreihenfolge, alle Views mit `filterable-table`/`data-view-key`,
+neue und gelöschte Tests, `docs/TESTSZENARIEN.md` TS-98, Index.
+
+| # | Befund | Schwere | Behandlung |
+|---|---|---|---|
+| Q1 | **Scrollbalken-Fix v1.64.1 unberührt.** Diff in `site.js` ist nur die vorangestellte Funktion (Z. 4–23); `initStickyScrollbar` fügt Sticky-Bar und Sentinel **nach** dem Wrapper ein (`site.js:48`, `:74`), der Host kommt **davor** (`site.js:21`) — keine Wechselwirkung mit Stufe 1 (`previousElementSibling` des Wrappers). | – (Prüfung) | keine Aktion; Regression TS-95.17–95.20 in TS-98.15 |
+| Q2 | **Fehlplatzierung durch Stufe 2 (dokumentweite Marker-Suche)** wäre nur möglich, wenn eine markierte Seite eine zweite `filterable-table` hat. Geprüft: alle 13 markierten Views haben genau eine `filterable-table` (FaHierarchy/OseonIndex: keine, nur Zahnrad), auch keine in ihren Partials; `WarehousePicking/Details.cshtml:313` ist JS-Text. Mehrtabellen-Seite `BdeMasterData/Index` (3) ist unmarkiert → je Tabelle eigener `auto`-Host (Stufe 3). Kein JS fügt Elemente zwischen Host und Wrapper ein (Grep `insertBefore`/`.before(` in `wwwroot/js` und `Views`). | – (Prüfung) | keine Aktion; Grenze steht als `ponytail:`-Kommentar `site.js:9-10`, Wächter `JedeView_HoechstensEinMarker_NieVersteckt` |
+| Q3 | Reihenfolge CSV vor Zahnrad: `csv-export.js` hängt auf `DOMContentLoaded` an (`_Layout.cshtml:417`, vor Seiten-Skripten), `column-preferences.js` erst per `requestIdleCallback` nach dem Laden (`loadSettingsAndApply`) → `appendChild` setzt Zahnrad rechts von CSV. Fehlerhinweis per `insertBefore(host.firstChild)` links davon. | – (Prüfung) | keine Aktion; Manual-UAT TS-98.1 |
+| Q4 | Bedingte Marker `FaWorklist/Index` und `Picking/Index` stehen im `else`-Zweig; im `if`-Zweig gibt es keine Tabelle (nur `alert-info`) → kein Zahnrad nötig. `OseonIndex`/`FaHierarchy` dito. | – (Prüfung) | keine Aktion |
+| Q5 | Fehlerklassen-Durchsicht: keine Werte in `<script>`-Blöcke eingebettet; kein `hidden` an Elementen mit `d-*` (Host `d-flex`, Hinweis `d-inline-block` ohne `hidden`); keine stille Ersatzlogik (im Gegenteil: drei stille Wege jetzt gemeldet); keine Parallel-Array-Bindung; serverseitige Regel unverändert (API prüft `viewKey`/64 KB selbst, `UserViewPreferencesApiController.cs:45-49`); Platzregel jetzt an **einem** Ort (`site.js`) statt zwei Kopien. | – (Prüfung) | keine Aktion |
+| Q6 | 401 der Präferenz-API entsteht nur ohne Session-App-Benutzer (`CurrentUserService.cs:55-58`); Listen-Seiten setzen Anmeldung voraus → praktisch nur bei abgelaufener Session. Dann erscheint jetzt der Hinweis „Fehler 401“ statt still — gewollt („melden statt still“). | Hinweis | keine Aktion |
+| Q7 | `loadSettings`: Wirft `resp.json()` (ungültige Antwort) oder der Callback, landet das im `.catch` und meldet „(keine Verbindung)“ — Text unpräzise; die doppelte Callback-Ausführung im Fehlerfall ist vorbestehend. | gering | nicht behoben (Randfall, kein Datenverlust); bei Bedarf Text „Antwort unlesbar“ unterscheiden |
+| Q8 | Z2: Der `keepalive`-PUT startet erst auf `pagehide`; die Folgeseite liest per GET erst nach `requestIdleCallback`. PUT vor GET ist praktisch gegeben, aber nicht garantiert (zwei Verbindungen). | Hinweis | Manual-UAT TS-98.13b deckt es ab |
+| Q9 | Die Wächter sind Quelltext-Prüfungen (Contain-Assertions auf exakte Zeilen); Verhalten im Browser beweisen sie nicht. | Hinweis | AK-Zuordnung unten, Rest Manual-UAT |
+| Q10 | `Help/Index.cshtml` „Verfügbar in: …“ nennt nur vier Ansichten (18 tatsächlich) — vorbestehend, vom Dev-Lauf gemeldet. | gering, vorbestehend | nicht im Umfang; Folgearbeit |
+| Q11 | Spec-Rumpf Z. 189 („`BomZahnradHostTests.cs` liegt wortgleich auch auf `main`“) stimmt nicht: `git ls-tree main IdealAkeWms.Tests/Views/` ohne Treffer. Folge: kein Löschkonflikt beim Merge. | Hinweis (Doku) | im Deploy-Abschnitt vermerkt |
+
+**Ergebnis Review:** keine blockierenden Befunde.
+
+### 3. Beweisart je Akzeptanzkriterium
+
+| AK | Beweis | Beleg |
+|---|---|---|
+| 1 | Quelltext automatisiert; Verhalten „zweiter Aufruf = dasselbe Element“ **Manual-UAT** | `TableToolbarHostTests.SiteJs_StelltHostBereit_FallbackNurUeberEigenenWrapper`; TS-98.1 |
+| 2 | automatisiert (Quelltext) | `Skripte_PlatzierenNurUeberTableToolbarHost` (2 Fälle) |
+| 3 | automatisiert (Quelltext) | `MarkerGesetzt` (13 Fälle), `Marker_StehtUeberDerZaehlzeile` (5 Fälle) |
+| 4 | **Manual-UAT** | TS-98.1 |
+| 5 | Quelltext-Reihenfolge automatisiert, Sichtbild **Manual-UAT** | `Marker_StehtUeberDerZaehlzeile`; TS-98.2 |
+| 6 | **Manual-UAT** | TS-98.3 |
+| 7 | **Manual-UAT** | TS-98.4 |
+| 8 | **Manual-UAT** | TS-98.5 |
+| 9 | automatisiert (Quelltext) | `JedeView_HoechstensEinMarker_NieVersteckt`, `JederViewKeyAusViewConfig_IstRegistriert` |
+| 10–12 | **Manual-UAT** (Browser-JS) | TS-98.6 |
+| 13 | **Manual-UAT** | TS-98.7 |
+| 14 | automatisiert (Quelltext) | `TableScriptScopedSelectorTests.ColumnPreferences_SetColVisibility_SkipsColspanRows`, `ColumnPreferences_HasNoUnscopedTableIteration` |
+| 15–17 | Quelltext automatisiert, Verhalten **Manual-UAT** | `ColumnPreferencesFehlerhinweisTests.Hinweis_IstAlertImToolbarHost`, `Speichern_PrueftResponseOk`, `Panel_ZeigtDenselbenHinweis`; TS-98.8/98.9 |
+| 18 | Quelltext automatisiert, Verhalten **Manual-UAT** | `Zuruecksetzen_LaedtNurBeiErfolgNeu`; TS-98.10 |
+| 19 | **Manual-UAT** | TS-98.11 |
+| 20 | **Manual-UAT** (Kontrast rechnerisch 7,2 : 1, Bootstrap 5.3 `alert-warning`) | TS-98.14 |
+| 21 | Quelltext automatisiert, Verhalten **Manual-UAT** | `Laden_MeldetFehler_Z1`, `AusstehendesSpeichern_BeiPagehideMitKeepalive_Z2`; TS-98.13 |
+| 22 | `DisplayName` automatisiert, Anzeige in der Benutzerverwaltung **Manual-UAT** | `Vorschlagsliste_AnzeigenameWieSeitentitel`; TS-98.12 |
+| 23 | **Manual-UAT** | TS-98.15 |
+| 24 | automatisiert/geprüft | Build+Tests oben; beide `AppVersion.cs` 1.65.0; `Help/Changelog.cshtml` v1.65.0; `Help/Index.cshtml` Abschnitt Fehlerhinweis |
+
+Nicht grün gezählt: alles mit **Manual-UAT** — Platz der Knöpfe, Gruppenköpfe, Hinweise und `keepalive` sind Browser-JavaScript.
+
+### 4. Geänderte/gelöschte Bestandstests
+
+| Test | Änderung | Klassifikation |
+|---|---|---|
+| `Views/BomZahnradHostTests.cs` (3 Klassen: `BomZahnradHostTests`, `WarehousePickingDetailsZahnradHostTests`, `FaHierarchyBeschichtungSummiertZahnradHostTests`) | gelöscht | Verhalten bewusst durch die Spec geändert (Lösungsentwurf A „Wächter ersetzt“, AK 2/9): Regel „Host direkt vor `.table-responsive`“ abgelöst; Ersatz `TableToolbarHostTests` |
+| `BeschichtungsauftraegeViewTests.ZahnradHost_DirektVorTableResponsive` (Theory, 2 Fälle) + Doc-Kommentar | entfernt | wie oben (Spec Z. 180 nennt ihn ausdrücklich) |
+| `OperationConfigsViewTests.ZahnradHost_DirektVorTableResponsive` + Doc-Kommentar | entfernt | wie oben; in der Spec nicht genannt, Dev-Abweichung 3 begründet (dieselbe abgelöste Regel); Ersatz `MarkerGesetzt("OperationConfigs/Index.cshtml")` |
+| `TableScriptScopedSelectorTests` | nur ergänzt (neuer Fact) | keine Änderung an Bestandsfällen |
+
+Kein Fall „sonstiges“ (keine Fixture-Anpassung bis grün).
+
+### 5. CLAUDE.md-Checkliste
+
+- Migration/SQL/FreshInstall/AgentJobs: entfällt (kein Schema). Audit-Felder: unverändert (einziger Schreibweg `Put` wie bisher).
+- Version 1.65.0 in **beiden** `AppVersion.cs`, Anwender-Changelog und Hilfe gepflegt.
+- `docs/TESTSZENARIEN.md` TS-98.1–98.15 vorhanden (ab `docs/TESTSZENARIEN.md:10306`), Platz-Aussagen bei TS-18.10/TS-79.20/TS-86
+  nachgezogen (`:3888`, `:9025`, `:9631`); Index-Zeile 98 in [[testszenarien-index]] (Hauptcheckout, Z. 145) vorhanden.
+- EOL ([[fallstricke]] §21): `git ls-files --eol` über alle 26 im Diff verbliebenen Dateien → **alle `i/lf`**.
+- Brain des Dev-Laufs: [[fallstricke]], `codebase/module.md`, [[feature-map]] erwähnen `tableToolbarHost`/v1.65.0; Brain-Changelog
+  `2026-10-21-v1-65-0-spaltenauswahl-zahnrad-toolbar-host.md` vorhanden. Die Aufgabe [[2026-10-14-spaltenauswahl-zahnrad-sammel-umsetzung]]
+  steht noch auf `InUmsetzung` (vom QA-Lauf nicht geändert).
+
+## Manuelle Test-Checkliste (Schranke 2)
+
+Testsystem nach Publish Web aus dem Worktree; Edge; je einmal IDEAL (`ProduktionsauftragHierarchisch` an) und AKE (aus).
+
+1. TS-98.1: alle 18 Zahnrad-Ansichten in beiden Modi — genau ein Zahnrad rechts über der Tabelle, CSV direkt links daneben; FA-Struktur
+   und OSEON rechts neben „Alle auf/zu“. Nie in Filterkarte, Zählzeile, Schalterblock, Hinweis.
+2. TS-98.1 Stichprobe CSV-only: Bestand, Lagerbewegungen, **BDE-Stammdaten alle drei Reiter** (jeder Reiter eigener CSV-Knopf über seiner Tabelle).
+3. TS-98.2: Leitstand, FA-Liste, Kommissionierung, FA-Vervollständigung, Abarbeitungsliste hierarchisch — Zahnrad über der Zählzeile.
+4. TS-98.3: Lagerbestellung-Details, Pflichthinweis auslösen → Zahnrad sichtbar, Panel öffnet.
+5. TS-98.4: Stückliste mit Kommissionierziel ohne Treffer → Hinweis darüber, Zahnrad sichtbar.
+6. TS-98.5: Rollen als Nur-Lesen-Benutzer → CSV nicht im blauen Hinweis.
+7. TS-98.6: Kommissionierlisten `HauptFA` ans Ende, erste Spalte ausblenden → alle Köpfe + PDF-Link sichtbar, nach F5 ebenso; wiederholen
+   in Summiert, Vorschlagsliste Beschichtung, Vormontage, FA-Struktur (Kopf + Kopfdaten), FA-Liste mit Kombigerät; Leerzustandszeile.
+8. TS-98.7: erste Spalte ausblenden → „?“ in der nächsten sichtbaren Filterzelle.
+9. TS-98.8: Konsole `columnPreferences.getViewConfig().viewKey = "Unbekannt"`, Spalte ausblenden → Hinweis „… (Fehler 400) …“, auch im
+   offenen Panel; bei zweiter Änderung nur ein Hinweis; F5 → Spalte wieder sichtbar.
+10. TS-98.9: `/api/user-view-preferences/*` im Netzwerk blockieren → „(keine Verbindung)“; Sperre aufheben, Änderung → Hinweis weg.
+11. TS-98.10: mit Sperre „Auf Standard zurücksetzen“ → kein Neuladen, „Zurücksetzen fehlgeschlagen …“; ohne Sperre → Neuladen im Standard.
+12. TS-98.11: Erfolgsfall ohne Hinweis, F5 behält den Stand.
+13. TS-98.12: Benutzerverwaltung → „Vorschlagsliste Beschichtung (IDEAL)“ / „… — Summiert (IDEAL)“, gespeicherte Auswahl wirkt weiter.
+14. TS-98.13: a) GET blockieren → „… nicht geladen …“; b) FA-Liste Spalte ausblenden und sofort ENTER im Spaltenfilter → Spalte bleibt
+    ausgeblendet (Netzwerk: PUT mit `keepalive` vor dem GET der Folgeseite — Q8).
+15. TS-98.14: Tab-Reihenfolge CSV → Zahnrad; Screenreader sagt den Hinweis an.
+16. TS-98.15 + TS-95.17–95.20: Bestandsverhalten (ein/aus, umordnen, Breite, Kontextmenü, Sortierung, CSV-Inhalt); Stückliste mit genau
+    einem Scrollbalken, keine Seiten-Querscrollleiste.

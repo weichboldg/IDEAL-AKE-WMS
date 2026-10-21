@@ -678,6 +678,22 @@ Spec [[2026-10-06-beschichtungsauftrag-ausbau-teil-2-spec]] (Teil 2 von 4), Umse
 > Ersatz-Kopf). **Status:** Testbereit (QA + Nachlauf 2026-10-09, Build + 1521 Web- + 272 Service-Tests grün) → Schranke 2
 > mit dem Bündel. Offen: [[2026-10-09-briefkopf-seitenzaehlung]], [[2026-10-09-briefkopf-csp-und-bereinigung]].
 
+### Spaltenauswahl/Zahnrad: zentraler Toolbar-Host, Gruppenkopf, Speicherfehler (v1.65.0, direkt im Bündel)
+
+Spec [[2026-10-14-spaltenauswahl-zahnrad-sammel-spec]], Umsetzung [[2026-10-14-spaltenauswahl-zahnrad-sammel-umsetzung]],
+Changelog [[2026-10-21-v1-65-0-spaltenauswahl-zahnrad-toolbar-host]].
+
+| Baustein | Stand | Code-Einstieg |
+|---|---|---|
+| A: `window.tableToolbarHost` (Marker `data-table-toolbar`, Fallback `="auto"` je Wrapper), Zahnrad + CSV darüber, 13 Views markiert | **erledigt** `f1108e94` | `wwwroot/js/site.js`, `column-preferences.js insertGearButton`, `csv-export.js attach` |
+| B: Gruppenkopf/Leerzustand bleiben (`:scope > td[colspan]`-Skip) | **erledigt** `f1108e94` | `column-preferences.js setColVisibility` |
+| C + Z1/Z2: Hinweis bei Speicher-/Lade-/Zurücksetzen-Fehler, `pagehide`-Flush mit keepalive | **erledigt** `f1108e94` | `column-preferences.js showPrefsMessage` |
+| D: Anzeigename „Vorschlagsliste Beschichtung (…)“ | **erledigt** `f1108e94` | `ColumnDefinitions.cs` |
+| Hilfe, Changelog, v1.65.0, TS-98 | **erledigt** `c27f3b6d` | `Views/Help/Index.cshtml` |
+
+> **Deploy:** nur Web, keine Migration. Wirkt an **beiden** Standorten (AKE: Zahnrad wandert aus dem Filterkasten).
+> **Status:** Testbereit (QA 2026-10-21, Build + 2138 Web- / 316 Service-Tests grün) → Schranke 2 mit dem Bündel.
+
 ### BDE-Terminal: Liste nach Haupt-FA, Scan ohne AG, Prio (v1.64.0, direkt im Bündel)
 
 Spec [[2026-10-19-bde-terminal-liste-scan-ohne-ag-prio-spec]], Umsetzung [[2026-10-19-bde-terminal-liste-scan-ohne-ag-prio-umsetzung]],

@@ -47,3 +47,5 @@ kein Blockieren der Liste.
 
 [[2026-09-25-kommissionierliste-summierung-pdf-spec]] (Kritische Pruefung S3, Antwort B1) ·
 [[0005-listen-view-pattern-mit-server-side-spaltenfilter]] (Spaltenpraeferenzen) · [[fallstricke]] §3
+
+> Umgesetzt in [[2026-10-14-spaltenauswahl-zahnrad-sammel-spec]] (v1.65.0, Bündel, 2026-10-21).
