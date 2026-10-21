@@ -678,6 +678,25 @@ Spec [[2026-10-06-beschichtungsauftrag-ausbau-teil-2-spec]] (Teil 2 von 4), Umse
 > Ersatz-Kopf). **Status:** Testbereit (QA + Nachlauf 2026-10-09, Build + 1521 Web- + 272 Service-Tests grün) → Schranke 2
 > mit dem Bündel. Offen: [[2026-10-09-briefkopf-seitenzaehlung]], [[2026-10-09-briefkopf-csp-und-bereinigung]].
 
+### Hardware-Barcodescanner: Tastatur-Scan mit Präfix (v1.66.0, direkt im Bündel)
+
+Spec [[2026-10-15-scan-handler-hardware-scanner-spec]], Umsetzung [[2026-10-15-scan-handler-hardware-scanner-umsetzung]],
+Changelog [[2026-10-21-v1-66-0-hardware-barcodescanner]].
+
+| Baustein | Stand | Code-Einstieg |
+|---|---|---|
+| Kern + DOM: Präfix `~09` (Variante B), Zeitgrenze, Replay, Ereignis `wms:hardware-scan`, Regel (b)/(d)/Hinweis | **erledigt** `cb49f262` | `wwwroot/js/hardware-scanner.js` |
+| Ziel-Register + Regel (a) über `processScannedValue` (alle 14 Scan-Seiten automatisch) | **erledigt** `cb49f262` | `barcode-scanner.js` `_hwScanTargets` |
+| BDE-Terminal: `data-hw-scan-ziel` an `scanOperator`/`scanFaAg` | **erledigt** `cb49f262` | `Views/BdeTerminal/Index.cshtml` |
+| Standort-Schalter (3 AppSettings, Gruppe „Hardware-Scanner“), Geräte-Abschalter „Mein Profil“ | **erledigt** `cb49f262` | `StandortSettingsCatalog`, `_Layout`, `Account/Profile.cshtml` |
+| Hilfe, Changelog, README, v1.66.0, TS-99 | **erledigt** `cb49f262` | `Views/Help/Index.cshtml` |
+| QA-Fix: ausgeblendetes Fokusfeld ist kein freies Feld (BDE nach Anmeldung) | **erledigt** `789d0a78` | `hardware-scanner.js freiesFeld` |
+
+> **Deploy:** Web; Dienst nur wegen `AppVersion.cs`. Keine Migration. Default aus; vor dem Einschalten Geräte einrichten (DE-Layout,
+> Präfix, Enter, Tasten-Ausgabe).
+> **Status:** **Testbereit** (qa-agent 2026-10-21) — wartet auf Schranke 2 (Manual-UAT TS-99 + Bündel-Merge). Offen zur Entscheidung:
+> Stückliste-Artikel am Handheld (N-1 in der Spec).
+
 ### Spaltenauswahl/Zahnrad: zentraler Toolbar-Host, Gruppenkopf, Speicherfehler (v1.65.0, direkt im Bündel)
 
 Spec [[2026-10-14-spaltenauswahl-zahnrad-sammel-spec]], Umsetzung [[2026-10-14-spaltenauswahl-zahnrad-sammel-umsetzung]],

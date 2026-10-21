@@ -412,6 +412,17 @@ Kindtabelle tragen und ein Descendant-`td[colspan]` dort fälschlich greifen wü
 eine `colspan`-Zelle neben anderen Zellen. Wer so eine Zeile einführt, muss den Skip verfeinern. Wächter
 `TableScriptScopedSelectorTests.ColumnPreferences_SetColVisibility_SkipsColspanRows`.
 
+### Hardware-Scanner: unsichtbares Fokusfeld ist kein Ziel, leeres Int-Feld der Standorteinstellungen bleibt (v1.66.0)
+`hardware-scanner.js` fügt einen Scan ins fokussierte Textfeld ein (Regel b), bevor es das einzige `[data-hw-scan-ziel]` sucht (Regel d).
+**Warum `freiesFeld` `getClientRects().length` prüft:** Je nach Browser behält ein per `d-none` ausgeblendetes Feld den Fokus. Am
+BDE-Terminal ist das `scanOperator` nach der Anmeldung. Ohne die Prüfung ging der FA-Scan dort hinein, das synthetische Enter startete die
+Personalnummer-Suche, und es kam eine unsichtbare Meldung oder ein falscher Operator-Wechsel (QA-Befund B-1, `789d0a78`).
+**Regel:** Wer „ist das Feld bedienbar?“ fragt, prüft auch die Sichtbarkeit, nicht nur `disabled`/`readOnly`.
+**Leeres Int-Feld:** `StandortEinstellungenController.Save` lässt ein leeres Int-Feld unverändert. Keys ohne Seed (hier
+`HardwareScannerMaxZeichenabstandMs`) haben keine Zeile, und die Maske schickt `""`. Die alte Validierung hätte **jedes** Speichern der
+Maske blockiert. Folge: Ein einmal gespeicherter Wert lässt sich in der Maske nicht mehr auf „leer = Default“ zurücksetzen (QA N-2).
+[[2026-10-15-scan-handler-hardware-scanner-spec]].
+
 ---
 
 ## 4. Authentifizierung, Session, Antiforgery
