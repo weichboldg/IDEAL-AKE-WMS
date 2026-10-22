@@ -2,8 +2,9 @@
 @*
     Einheitliche FA-Vorbau-Dokument-Buttons in fester Reihenfolge/Optik:
       1. read-only BOM-Button (FaCompletion/Bom bzw. FaWorklist/Bom)
-      2. enaio-Badges (shared Partial _EnaioDmsBadges, nur wenn EnaioLinks vorhanden)
-      3. Vault-Link (nur wenn ArticleNumber vorhanden)
+      2. enaio-Badges (shared Partial _EnaioDmsBadges, nur wenn EnaioLinks vorhanden, EnaioLinksAktiv an und Vorlage gefuellt)
+      3. Vault-Link (shared Partial _VaultLink, nur wenn ArticleNumber vorhanden, VaultLinksAktiv an und Vorlage gefuellt)
+    Der BOM-Button (1) bleibt immer - er traegt zwar die Klasse vault-link, abgeschaltet wird aber nur in den Partials (v1.67.0).
     Wird in FaCompletion/Index, FaWorklist/Index (Listen-Zellen, ShowEnaioLabel=false)
     und FaCompletion/Edit (Kopf, ShowEnaioLabel=true) verwendet.
 *@
