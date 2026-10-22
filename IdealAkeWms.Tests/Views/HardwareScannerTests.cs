@@ -92,9 +92,9 @@ public class HardwareScannerTests
     }
 
     [Fact]
-    public void Stueckliste_OffenesKameraFenster_IstZiel_WieKameraTreffer()
+    public void OffenesKameraFenster_IstZiel_WieKameraTreffer()
     {
-        // v1.66.1 N-1: offenes Kamera-Fenster eines Knopfs mit data-hw-scan-kamera-ziel = angetipptes Ziel, VOR Regel (a)/(d).
+        // v1.66.1 N-1 / v1.66.2 Nachtrag 3: offenes Kamera-Fenster eines Knopfs mit data-hw-scan-kamera-ziel = angetipptes Ziel, VOR Regel (a)/(d).
         var js = Read("wwwroot", "js", "barcode-scanner.js");
         js.Should().Contain("modal.dataset.zielId = targetSelectId;");
         js.Should().Contain("btn.hasAttribute('data-hw-scan-kamera-ziel')");
@@ -106,11 +106,31 @@ public class HardwareScannerTests
         // QA v1.66.1: html5-qrcode ruft den Treffer-Callback auch fuer einen Decode, der vor stop() lief - nach dem Schliessen ignorieren.
         js.Should().Contain("if (_scannerClosing || _activeScanner !== html5QrCode) return;");
 
-        var bom = Read("Views", "Picking", "Bom.cshtml");
-        System.Text.RegularExpressions.Regex.IsMatch(bom, @"id=""btnScanBomArticle""[^>]*\bdata-hw-scan-kamera-ziel\b").Should().BeTrue();
-        System.Text.RegularExpressions.Regex.Matches(string.Concat(Directory.EnumerateFiles(Path.Combine(Root, "IdealAkeWms", "Views"),
-                "*.cshtml", SearchOption.AllDirectories).Select(File.ReadAllText)), @"<[^>]*\bdata-hw-scan-kamera-ziel\b[^>]*>").Count
-            .Should().Be(1, "nur die Stueckliste (Freigabe-Nachtrag 2); andere Seiten erst nach Entscheidung");
+        // Kamera-Treffer gibt es nur ueber openScannerModal/startCameraScanner: keine Seite baut einen eigenen Html5Qrcode, damit gilt der
+        // QA-Fix (kein Treffer nach dem Schliessen) auf allen Seiten.
+        var viewsRoot = Path.Combine(Root, "IdealAkeWms", "Views");
+        var views = Directory.EnumerateFiles(viewsRoot, "*.cshtml", SearchOption.AllDirectories)
+            .ToDictionary(f => Path.GetRelativePath(viewsRoot, f).Replace('\\', '/'), File.ReadAllText);
+        views.Where(v => v.Value.Contains("new Html5Qrcode")).Select(v => v.Key).Should().BeEmpty();
+
+        // Freigabe-Nachtrag 3: jeder Kamera-Knopf jeder Seite mit mehr als einem Scan-Feld - und nur diese.
+        var erwartet = new[]
+        {
+            "Picking/Bom.cshtml|btnScanBomArticle", "Picking/Bom.cshtml|btnScanTargetLocation",
+            "StockMovements/Inbound.cshtml|btnScanArticle", "StockMovements/Inbound.cshtml|btnScanStorageLocation",
+            "StockMovements/InboundBulk.cshtml|btnScanStorageLocation", "StockMovements/InboundBulk.cshtml|btnScanArticleBulk",
+            "StockMovements/Outbound.cshtml|btnScanArticle", "StockMovements/Outbound.cshtml|btnScanStorageLocation",
+            "StockMovements/Transfer.cshtml|btnScanArticle", "StockMovements/Transfer.cshtml|btnScanSourceLocation",
+            "StockMovements/Transfer.cshtml|btnScanStorageLocation",
+            "StockMovements/LocationTransfer.cshtml|btnScanSourceLocation", "StockMovements/LocationTransfer.cshtml|btnScanTargetLocation",
+            "StockOverview/Index.cshtml|btnScanArticleFilter", "StockOverview/Index.cshtml|btnScanLocationFilter", "StockOverview/Index.cshtml|btnScanPO",
+            "ProductionOrders/Index.cshtml|btnScanOrderNumber", "ProductionOrders/Index.cshtml|btnScanArticleNumber",
+            "PickingLeitstand/Index.cshtml|btnScanOrderNumber", "PickingLeitstand/Index.cshtml|btnScanArticleNumber",
+            "Tracking/OseonIndex.cshtml|btnScanCustomerOrder", "Tracking/OseonIndex.cshtml|btnScanArticle",
+        };
+        views.SelectMany(v => System.Text.RegularExpressions.Regex.Matches(v.Value, @"<[^>]*\bdata-hw-scan-kamera-ziel\b[^>]*>")
+                .Select(m => v.Key + "|" + System.Text.RegularExpressions.Regex.Match(m.Value, @"\bid=""([^""]+)""").Groups[1].Value))
+            .Should().BeEquivalentTo(erwartet, "Kamera-Knopf je Seite mit mehr als einem Scan-Feld (Freigabe-Nachtrag 3)");
     }
 
     [Fact]

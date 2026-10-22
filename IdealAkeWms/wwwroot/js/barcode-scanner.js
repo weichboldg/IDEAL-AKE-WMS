@@ -446,8 +446,9 @@ function hwScanFokusIn(ziel, aktiv) {
     return !!(select2 && select2.classList.contains('select2-container--open') && aktiv.closest('.select2-dropdown'));
 }
 
-// v1.66.1: Ist das Kamera-Fenster eines Ziels offen, dessen Knopf data-hw-scan-kamera-ziel traegt (Stueckliste: Artikel kommissionieren,
-// bomScanArticle ist hidden und nie fokussierbar), gilt das Fenster als angetipptes Ziel - vor allen anderen Regeln.
+// v1.66.1/v1.66.2: Ist das Kamera-Fenster eines Ziels offen, dessen Knopf data-hw-scan-kamera-ziel traegt (jede Seite mit mehr als einem
+// Scan-Feld, Freigabe-Nachtrag 3), gilt das Fenster als angetipptes Ziel - vor allen anderen Regeln. Am Touch-Geraet oeffnet Antippen des
+// Knopfs die Kamera, der Fokus liegt dann auf keinem Ziel.
 function hwScanKameraZiel(ziele) {
     var modal = document.getElementById('scannerModal');
     if (!modal) return null;

@@ -10418,19 +10418,36 @@ Lagerplatz (Code 128), Kommissionierliste mit Haupt-FA-Barcode, Beschichtungsauf
 - **TS-99.13 — Regression Kamera (AK 14).** Kamera-Scan auf Inbound, Bom und ProductionOrders wie vorher.
 - **Negativfälle.** a) Passwortfeld (Mein Profil, neues Passwort), schnell `~09x` per Simulation: **Erwartet:** steht unverändert im Feld
   (AK 6). b) Scanner auf **US-Layout**: **Erwartet:** kein Scan erkannt bzw. `y`/`z` vertauscht — dokumentiert die Pflicht zum DE-Layout.
-  c) Scan bei offenem Kamera-Modal (außer Stückliste, TS-99.14): nach Regel Fokus/einziges Ziel behandelt, Modal bleibt offen. d) EAN-Etikett im Artikel-Feld:
+  c) Scan bei offenem Kamera-Modal auf einer Seite mit genau einem Scan-Feld (Articles/Info, Ausgang „Alles“, Bewegungsliste):
+  nach Regel einziges Ziel behandelt, Modal bleibt offen (Seiten mit mehreren Scan-Feldern: TS-99.14/99.16). d) EAN-Etikett im Artikel-Feld:
   „✗ Nicht gefunden“ (EAN eigene Spec). e) Normale Bildschirmtastatur-Eingabe auf Android: unverändert (IME wird nie abgefangen).
 - **TS-99.14 — Stückliste am Handheld: Kamera-Fenster nimmt den Scan an (v1.66.1, Nachtrag 2 Punkt 1).** Picking/Bom im
   Kommissionier-Modus am Netum: „Artikel scannen“ antippen, das Kamera-Fenster ist offen; Artikel-QR mit dem **eingebauten Scanner**
   lesen. **Erwartet:** gleicher Ablauf wie ein Kamera-Treffer — Zeile gefunden, Kommissionier-Häkchen gesetzt, Kamera-Fenster schließt
   sich, kein gelber Hinweis. Negativ: a) Fenster mit „Abbrechen“ schließen, nichts antippen, scannen → Hinweis „bitte zuerst das Feld
   antippen“ (bisherige Regel). b) Kamera-Fenster „Lagerplatz“ (Ziel-Lagerplatz, Kamera-Knopf daneben) offen, Wagen-Etikett mit dem
-  Scanner: **Erwartet:** Verhalten wie vor v1.66.1 (Ziel per Fokus-Regel, Fenster bleibt offen) — das Fenster-Ziel gilt nur für die
-  Artikel-Erfassung. c) Artikel-QR eines Artikels, der nicht in der Stückliste steht: Meldung wie beim Kamera-Scan. d) Scan
+  Scanner: **Ab v1.66.2:** Wagen gewählt, Fenster schließt sich (TS-99.16 e). c) Artikel-QR eines Artikels, der nicht in der Stückliste steht: Meldung wie beim Kamera-Scan. d) Scan
   sofort nach dem Antippen, bevor das Kamera-Fenster sichtbar ist (erste Kamera-Freigabe läuft noch): **Erwartet:** Hinweis „bitte
   zuerst das Feld antippen“ — erst das offene Fenster ist Ziel. e) Kamera auf einen anderen Artikel-QR der Liste richten und
   gleichzeitig mit dem Scanner scannen: **Erwartet:** genau ein Artikel kommissioniert, kein zweiter Treffer, kein „nicht gefunden“
   nach dem Schließen (QA-Fix v1.66.1).
+- **TS-99.16 — Kamera-Fenster als Ziel auf allen Seiten mit mehreren Scan-Feldern (v1.66.2, Nachtrag 3).** Am Netum, Hardware-Scanner
+  an. Je Seite den genannten Kamera-Knopf antippen, warten bis das Kamera-Fenster offen ist, dann mit dem **eingebauten Scanner** scannen.
+  **Erwartet** jeweils: gleiches Ergebnis wie ein Kamera-Treffer in diesem Feld, das Fenster schließt sich, kein gelber Hinweis.
+  a) **Buchungsmasken mit Auswahlfeld** — StockMovements/Inbound (Artikel-QR, Lagerplatz), Outbound (Artikel, Lagerplatz), Transfer
+  (Artikel, Quell- und Ziel-Lagerplatz), LocationTransfer (Quell-, Ziel-Lagerplatz): Option gewählt, „✓ Gescannt“, Formular **nicht**
+  abgeschickt.
+  b) **Wareneingang Sammel** — StockMovements/InboundBulk: Lagerplatz-Knopf → Lagerplatz gewählt; Artikel-Knopf → Artikel-Zeile wie
+  beim Kamera-Scan.
+  c) **Bestandsübersicht** — StockOverview: Artikel-, Lagerplatz- und FA-Knopf je einmal; Filter gesetzt wie beim Kamera-Scan.
+  d) **Filterlisten mit Absenden** — ProductionOrders, PickingLeitstand (FA-Nummer, Artikelnummer), Tracking/OseonIndex (Kundenauftrag,
+  Artikel): Filter gefüllt und angewendet (Seite lädt gefiltert), genau einmal.
+  e) **Stückliste Ziel-Lagerplatz** — Picking/Bom, Kamera-Knopf am Ziel-Lagerplatz, Wagen-Etikett: Wagen gewählt. „Artikel scannen“
+  wie TS-99.14.
+  Negativ: f) Fenster per „Abbrechen“ schließen, nichts antippen, scannen → Hinweis „bitte zuerst das Feld antippen“ (bisherige Regel).
+  g) Kamera auf einen Code richten und gleichzeitig mit dem Scanner scannen (je eine Seite aus a und d): genau **eine** Auswertung,
+  kein zweiter Treffer nach dem Schließen (QA-Fix v1.66.1; alle Seiten nutzen dasselbe Kamera-Fenster).
+  h) Gerät **ohne** Hardware-Scanner (oder Geräte-Schalter aus): Kamera-Knöpfe und Kamera-Scan unverändert.
 - **TS-99.15 — Zeichenabstand prüfen (v1.66.1, Nachtrag 2 Punkt 2).** Standorteinstellungen → Hardware-Scanner, „Größter
   Zeichenabstand (ms)“: a) `5`, `0`, `-5`, `501` speichern. **Erwartet:** „Nicht gespeichert: 'Größter Zeichenabstand (ms)' muss zwischen
   10 und 500 liegen (war: …)“, auch die übrigen Felder bleiben ungespeichert, die Eingabe bleibt sichtbar. b) `10` und `500` speichern:
@@ -10441,5 +10458,5 @@ Lagerplatz (Code 128), Kommissionierliste mit Haupt-FA-Barcode, Beschichtungsauf
 ---
 
 *Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) + Teil 6 (Standorteinstellungen, v1.34.0) + BOM-Guard hierarchisch (2026-08-18, abgelöst) + FA-Liste-Hierarchie (v1.35.0) + BOM-Bridge (v1.36.0) + Materialisierung fachliche Felder K1/K2 (v1.37.0) + Skopierung der Tabellen-Selektoren (TS-72) + FA-Liste ausgebaut: Matchcode, Kopfdaten je Zeile, HauptFA-Zeile, Freigabe-Kaskade (v1.38.0, TS-73) + PDF-Erzeugung für FaHierarchy-Druckdokumente (v1.39.0, TS-74) + Matchcode im Artikelstamm (v1.40.0, TS-75) + FA-Arbeitsgang-Erkennung aus der Struktur (v1.41.0, TS-76, ersetzt durch TS-77) + Arbeitsgänge (WorkOperation) aus der Struktur + Werkbank-Anlage aus Sage (v1.44.0, TS-77) + Arbeitsgänge je (Sub-)FA im FA-Struktur-Modal (v1.45.0, TS-78) + Kommissionierung nur am HauptFA
-(v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80) + Beschichtungsauftrag Summiert als Standard (v1.48.0, TS-81) + Briefkopf Beschichtungsauftrag (v1.49.0, TS-82) + Beschichtungsauftrag als eigenes Objekt (v1.50.0, TS-83) + Beschichtungsaufträge bedienen (v1.51.0, TS-84) + Arbeitsgänge als Symbole im FA-Baum (v1.52.0, TS-85) + CSV-Export für alle Tabellen (v1.53.0, TS-86) + Arbeitsgang-Stammdaten (v1.54.0, TS-87) + Status je Arbeitsgang-Kürzel im FA-Baum (v1.55.0, TS-88) + Menü Beschichtung + Kurzanleitungen (v1.56.0, TS-89) + BDE-Terminal mit Arbeitsgang-Status (v1.57.0, TS-90) + Spaltenfilter-Suchsyntax Etappe A + B (v1.58.0/v1.58.1, TS-91.A/B) + Fußzeile nach Word-Vorlage (v1.59.0, TS-92) + Sage-Quellen auf WMS-Views (v1.60.0–v1.60.2, TS-93) + Arbeitsgang-Abgleich aus der Sage-View (v1.61.0, TS-94) + Stückliste Matchcode und Lagerplatz-Limit (v1.62.0, TS-95) + BDE Stufe 1: Werkbänke, AG-Fertigmeldung (v1.63.0, TS-96) + BDE-Terminal Liste nach Haupt-FA, Scan ohne AG (v1.64.0, TS-97) + Spaltenauswahl/Zahnrad zentraler Toolbar-Host (v1.65.0, TS-98) + Hardware-Barcodescanner (v1.66.0, TS-99)*
+(v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80) + Beschichtungsauftrag Summiert als Standard (v1.48.0, TS-81) + Briefkopf Beschichtungsauftrag (v1.49.0, TS-82) + Beschichtungsauftrag als eigenes Objekt (v1.50.0, TS-83) + Beschichtungsaufträge bedienen (v1.51.0, TS-84) + Arbeitsgänge als Symbole im FA-Baum (v1.52.0, TS-85) + CSV-Export für alle Tabellen (v1.53.0, TS-86) + Arbeitsgang-Stammdaten (v1.54.0, TS-87) + Status je Arbeitsgang-Kürzel im FA-Baum (v1.55.0, TS-88) + Menü Beschichtung + Kurzanleitungen (v1.56.0, TS-89) + BDE-Terminal mit Arbeitsgang-Status (v1.57.0, TS-90) + Spaltenfilter-Suchsyntax Etappe A + B (v1.58.0/v1.58.1, TS-91.A/B) + Fußzeile nach Word-Vorlage (v1.59.0, TS-92) + Sage-Quellen auf WMS-Views (v1.60.0–v1.60.2, TS-93) + Arbeitsgang-Abgleich aus der Sage-View (v1.61.0, TS-94) + Stückliste Matchcode und Lagerplatz-Limit (v1.62.0, TS-95) + BDE Stufe 1: Werkbänke, AG-Fertigmeldung (v1.63.0, TS-96) + BDE-Terminal Liste nach Haupt-FA, Scan ohne AG (v1.64.0, TS-97) + Spaltenauswahl/Zahnrad zentraler Toolbar-Host (v1.65.0, TS-98) + Hardware-Barcodescanner (v1.66.0–v1.66.2, TS-99)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*
