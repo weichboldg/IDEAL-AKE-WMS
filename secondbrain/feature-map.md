@@ -701,6 +701,24 @@ Changelog [[2026-10-21-v1-66-0-hardware-barcodescanner]].
 > **Status:** **Testbereit** v1.66.2 (qa-agent 2026-10-22) — wartet auf Schranke 2 (Manual-UAT TS-99 inkl. 99.14–99.16 + Bündel-Merge).
 > Offen zur Entscheidung: doppelter Klick-Handler am OSEON-Artikelknopf (QA Q3-2, vorbestehend).
 
+### Vault- und enaio-Links konfigurierbar (v1.67.0, direkt im Bündel)
+
+Spec [[2026-10-21-vault-links-per-schalter-spec]], Umsetzung [[2026-10-21-vault-links-per-schalter-umsetzung]],
+Changelog [[2026-10-22-v1-67-0-vault-enaio-links-konfigurierbar]]. TS-100.
+
+| Baustein | Status | Code-Einstieg |
+|---|---|---|
+| Eine Regel für Schalter (nur `false` sperrt), Vorlage mit Platzhalter, leerer Wert, URL-Kodierung | **erledigt** `b1cb87e1` | `Helpers/LinkVorlage.Build` |
+| Vault: zehn Stellen über ein Partial, Artikelinfo mit Text; Stücklisten-Knopf bleibt | **erledigt** `b1cb87e1` | `Views/Shared/_VaultLink.cshtml` |
+| enaio: Badges aus `EnaioLinkVorlage`, bei Schalter aus keine Badges | **erledigt** `b1cb87e1` | `Views/Shared/_EnaioDmsBadges.cshtml` |
+| Laufzeit-Seed der vier AppSettings (AKE-Adressen), Gruppen „Vault (Zeichnungen)“ / „enaio (Dokumente)“ | **erledigt** `b1cb87e1` | `Program.cs`, `StandortSettingsCatalog` |
+| enaio-Sync-Quelle `Sync:EnaioDmsViewName` (bis drei Teile, Prüfung vor dem `try`) | **erledigt** `b1cb87e1` | `EnaioDmsSyncService.ResolveSource`, `FaHierarchySql.ValidateAndQuote(…, maxSegments)` |
+| Hilfe, README, TS-100, v1.67.0 | **erledigt** `9fe7553f`, `4bfa4576` (qa) | `Views/Help/Index.cshtml` |
+
+> **Deploy:** Web und Dienst, keine Migration. AKE: nichts tun (Seed). IDEAL: Vault-Links beim Einspielen ausschalten; enaio
+> entscheidet Gerald.
+> **Status:** **Testbereit** (qa-agent 2026-10-22) — wartet auf Schranke 2 (Manual-UAT TS-100 + Bündel-Merge).
+
 ### Spaltenauswahl/Zahnrad: zentraler Toolbar-Host, Gruppenkopf, Speicherfehler (v1.65.0, direkt im Bündel)
 
 Spec [[2026-10-14-spaltenauswahl-zahnrad-sammel-spec]], Umsetzung [[2026-10-14-spaltenauswahl-zahnrad-sammel-umsetzung]],

@@ -428,6 +428,21 @@ Int-Felder bleiben bei leer unverändert. **Regel:** Wer einen Wert mit Default 
 prüft denselben Bereich auch im Client: Die DB kann per SQL oder einen alten Stand trotzdem einen Wert außerhalb enthalten
 (`HwScanCore.abstand`).
 
+### Default-an-Schalter und Vorlagen in den Standorteinstellungen brauchen eine geseedete Zeile; Abschalten nie über CSS-Klassen (v1.67.0)
+`StandortEinstellungenController` zeigt ein Bool nur bei `true` als an. Beim Speichern schickt die Maske **alle** Felder und schreibt
+Bool als `"true"`/`"false"`, Text roh.
+**Warum der Seed Pflicht ist:** Ein Default-an-Schalter ohne DB-Zeile (Lesart „nur `false` sperrt“) stünde nach dem **nächsten
+Speichern irgendeines** Standortwerts auf `false`. Eine Default-Vorlage ohne Zeile würde zu `""`. AKE hätte die Vault-/enaio-Links
+verloren, ohne dass jemand sie angefasst hat. Darum legt `Program.cs` `VaultLinksAktiv`, `VaultLinkVorlage`, `EnaioLinksAktiv` und
+`EnaioLinkVorlage` beim Start an, wenn sie fehlen.
+**Regel:** Wer in `StandortSettingsCatalog` einen Bool mit Default an oder einen Text mit Default-Wert aufnimmt, seedet die Zeile.
+Default-aus-Schalter (nur `"true"` aktiviert) brauchen keinen Seed.
+**Stücklisten-Knopf:** `_FaDocumentLinks` gibt dem Knopf „Stückliste öffnen“ dieselbe Klasse `vault-link` wie dem Vault-Link.
+`.vault-link` und `.dms-link` sind reine Optik-Klassen. Abgeschaltet wird **nur serverseitig** im Partial (`_VaultLink`,
+`_EnaioDmsBadges`: kein `<a>`), nie über CSS `display:none` oder `querySelectorAll('.vault-link')`; das würde den Stücklisten-Knopf
+mit verstecken. Ein Wächter in `VaultEnaioLinksTests` sichert beides.
+[[2026-10-21-vault-links-per-schalter-spec]].
+
 ---
 
 ## 4. Authentifizierung, Session, Antiforgery
