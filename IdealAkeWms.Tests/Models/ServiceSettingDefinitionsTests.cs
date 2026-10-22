@@ -84,6 +84,7 @@ public class ServiceSettingDefinitionsTests
     [InlineData("Sync:OseonArticleCategoryEnabled")]
     [InlineData("Sync:OseonTrackingEnabled")]
     [InlineData("Sync:EnaioDmsEnabled")]
+    [InlineData("Sync:EnaioDmsViewName")]
     [InlineData("Sync:PartRequisitionEmailEnabled")]
     [InlineData("Sync:WarehouseRequisitionEmailEnabled")]
     [InlineData("Sync:LagerplaetzeEnabled")]

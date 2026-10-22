@@ -52,13 +52,7 @@
             <div class="card mb-3">
                 <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
                     <strong>@Model.ArticleNumber</strong>
-                    <a href="@Model.VaultUrl" target="_blank" class="vault-link">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="me-1" viewBox="0 0 16 16">
-                            <path d="M4.715 6.542 3.343 7.914a3 3 0 1 0 4.243 4.243l1.828-1.829A3 3 0 0 0 8.586 5.5L8 6.086a1 1 0 0 0-.154.199 2 2 0 0 1 .861 3.337L6.88 11.45a2 2 0 1 1-2.83-2.83l.793-.792a4 4 0 0 1-.128-1.287z"/>
-                            <path d="M6.586 4.672A3 3 0 0 0 7.414 9.5l.775-.776a2 2 0 0 1-.896-3.346L9.12 3.55a2 2 0 1 1 2.83 2.83l-.793.792c.112.42.155.855.128 1.287l1.372-1.372a3 3 0 1 0-4.243-4.243z"/>
-                        </svg>
-                        Im VAULT öffnen
-                    </a>
+                    @await Html.PartialAsync("_VaultLink", new VaultLinkViewModel(Model.ArticleNumber, ShowLabel: true))
                 </div>
                 <div class="card-body">
                     <dl class="row mb-0">

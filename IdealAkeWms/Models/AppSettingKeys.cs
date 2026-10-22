@@ -86,4 +86,13 @@ public static class AppSettingKeys
     public const string HardwareScannerAktiv = "HardwareScannerAktiv";
     public const string HardwareScannerPraefix = "HardwareScannerPraefix";
     public const string HardwareScannerMaxZeichenabstandMs = "HardwareScannerMaxZeichenabstandMs";
+
+    // Vault- und enaio-Links (v1.67.0): Schalter mit DEFAULT-AN-Lesart wie LagerbestellungAktiv (nur "false" sperrt) und Link-
+    // Vorlagen mit Platzhalter ({Artikelnummer} / {ObjektId}, leer = keine Links). Laufzeit-SEED in Program.cs mit den AKE-Werten —
+    // Pflicht, weil die Standorteinstellungen ein Bool ohne Zeile als "aus" zeigen und beim naechsten Speichern "false" schreiben.
+    // Regel an EINEM Ort: Helpers/LinkVorlage.Build (gelesen in _VaultLink und _EnaioDmsBadges).
+    public const string VaultLinksAktiv = "VaultLinksAktiv";
+    public const string VaultLinkVorlage = "VaultLinkVorlage";
+    public const string EnaioLinksAktiv = "EnaioLinksAktiv";
+    public const string EnaioLinkVorlage = "EnaioLinkVorlage";
 }

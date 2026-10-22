@@ -314,7 +314,6 @@ public class ArticlesController : Controller
             Unit = article.Unit,
             ArticleGroup = article.ArticleGroup,
             ReorderLevel = article.ReorderLevel ?? 0,
-            VaultUrl = $"http://akevault24.ake.at/AutodeskTC/AKE-VAULT01/explore?search={Uri.EscapeDataString(article.ArticleNumber)}&searchContext=0",
             StockByLocation = stock,
             PlannedConsumption = plannedConsumption,
             CategoryName = categoryName,

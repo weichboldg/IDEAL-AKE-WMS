@@ -1,4 +1,5 @@
 using System.Data;
+using IDEALAKEWMSService.Common;
 using IdealAkeWms.Services.SyncLogger;
 using Microsoft.Data.SqlClient;
 
@@ -6,6 +7,9 @@ namespace IDEALAKEWMSService.Services;
 
 public class EnaioDmsSyncService : IEnaioDmsSyncService
 {
+    /// <summary>Default/Fallback der Quelle = Katalog-Default von Sync:EnaioDmsViewName (v1.67.0; bis dahin fest im SQL).</summary>
+    public const string DefaultViewName = "[enaio].[dbo].[vw_IDEAL-AKE_Fertigungsauftraege]";
+
     private readonly IConfiguration _configuration;
     private readonly ILogger<EnaioDmsSyncService> _logger;
     private readonly ISyncLogger _syncLogger;
@@ -27,6 +31,22 @@ public class EnaioDmsSyncService : IEnaioDmsSyncService
         if (dryRun)
             _logger.LogInformation("[DryRun] enaio DMS-Sync — keine Aenderungen werden geschrieben.");
 
+        // Quelle aus Sync:EnaioDmsViewName (leer/fehlt/DB-Fehler -> Default). Pruefung VOR dem try: dessen catch beendet den Lauf
+        // selbst - hier drin wuerde ein ungueltiger Name den Lauf zweimal als fehlgeschlagen abschliessen.
+        string quotedSource;
+        try
+        {
+            quotedSource = ResolveSource(await ServiceSettings.GetValueSafeAsync(_configuration, "Sync:EnaioDmsViewName", ct));
+        }
+        catch (FaHierarchyViewNameException ex)
+        {
+            // Kein SQL. Fehler + Fehlermail (throw -> RunResilientAsync).
+            await run.LogErrorAsync($"Ungültiger View-Name: {ex.Message}", ct: ct);
+            await run.FinishFailedAsync($"Ungültiger View-Name: {ex.Message}", ct: ct);
+            throw new InvalidOperationException(
+                $"enaio DMS-Sync abgebrochen — ungueltiger View-Name (kein SQL ausgefuehrt): {ex.Message}", ex);
+        }
+
         try
         {
             var enaioDmsConnection = _configuration.GetConnectionString("EnaioDmsConnection")
@@ -34,7 +54,7 @@ public class EnaioDmsSyncService : IEnaioDmsSyncService
             var wmsConnection = _configuration.GetConnectionString("DefaultConnection")
                 ?? throw new InvalidOperationException("DefaultConnection nicht konfiguriert.");
             // Alle relevanten Fertigungsauftrags-Dokumente aus enaio lesen (Full-Sync).
-            // Quelle ist die View vw_IDEAL-AKE_Fertigungsauftraege, die die Indexdaten
+            // Quelle ist die View vw_IDEAL-AKE_Fertigungsauftraege (Default, konfigurierbar), die die Indexdaten
             // bereits aufbereitet liefert: Typ, WaNummer (mit Suffix -01/-02) und
             // WaNummerTrimmed (die FA-Match-Nummer ohne Suffix). Kein Typ-Filter mehr
             // noetig — die View liefert die relevanten Zeilen.
@@ -47,9 +67,9 @@ public class EnaioDmsSyncService : IEnaioDmsSyncService
             {
                 await enaioDmsConn.OpenAsync(ct);
 
-                var sql = @"
+                var sql = $@"
                     SELECT id, angelegt, Typ, WaNummer, WaNummerTrimmed
-                    FROM [enaio].[dbo].[vw_IDEAL-AKE_Fertigungsauftraege]";
+                    FROM {quotedSource}";
 
                 await using var cmd = new SqlCommand(sql, enaioDmsConn) { CommandTimeout = 120 };
 
@@ -172,6 +192,10 @@ public class EnaioDmsSyncService : IEnaioDmsSyncService
             throw;
         }
     }
+
+    /// <summary>Konfigurierter Name (leer = <see cref="DefaultViewName"/>), geprueft und geklammert, bis zu drei Teile.</summary>
+    internal static string ResolveSource(string? configured) =>
+        FaHierarchySql.ValidateAndQuote(string.IsNullOrWhiteSpace(configured) ? DefaultViewName : configured, maxSegments: 3);
 
     private class EnaioDmsRawRow
     {

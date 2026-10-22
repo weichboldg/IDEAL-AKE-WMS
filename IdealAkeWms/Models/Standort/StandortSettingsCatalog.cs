@@ -31,6 +31,8 @@ public static class StandortSettingsCatalog
     public const string GroupImport = "Struktur-Import";
     public const string GroupWerkbaenke = "Werkbänke (Sage-Arbeitsplätze)";
     public const string GroupHardwareScanner = "Hardware-Scanner";
+    public const string GroupVault = "Vault (Zeichnungen)";
+    public const string GroupEnaio = "enaio (Dokumente)";
 
     private const string ViewNameHint =
         "Wird roh gespeichert; ein ungültiger Name fällt erst beim nächsten Sync-Lauf als Fehlermail auf.";
@@ -77,6 +79,19 @@ public static class StandortSettingsCatalog
         new(AppSettingKeys.HardwareScannerMaxZeichenabstandMs, "Größter Zeichenabstand (ms)", StandortFieldType.Int, StandortBackend.App, GroupHardwareScanner,
             "Schneller als dieser Abstand getippte Zeichen gelten als Scan. Erlaubt 10 bis 500. Leer = Standard 50.",
             Min: 10, Max: 500, EmptyResetsToDefault: true),
+
+        // Vault- und enaio-Links (v1.67.0, AppSettings mit Seed in Program.cs) + Quelle des enaio-Syncs (ServiceSetting, Katalog-Seed).
+        // Der Sync-Schalter Sync:EnaioDmsEnabled bleibt bewusst in /ServiceSettings, nicht hier (wie bei den Sage-Views).
+        new(AppSettingKeys.VaultLinksAktiv, "Vault-Links anzeigen", StandortFieldType.Bool, StandortBackend.App, GroupVault,
+            "Zeichnungs-Symbol und „Im VAULT öffnen“ an Artikelnummern. Ohne Vault (IDEAL) ausschalten."),
+        new(AppSettingKeys.VaultLinkVorlage, "Vault-Adresse (Vorlage)", StandortFieldType.String, StandortBackend.App, GroupVault,
+            "{Artikelnummer} wird durch die kodierte Nummer ersetzt. Leer = keine Links."),
+        new(AppSettingKeys.EnaioLinksAktiv, "enaio-Dokument-Links anzeigen", StandortFieldType.Bool, StandortBackend.App, GroupEnaio,
+            "Dokument-Symbole an FA-Nummern (FA-Liste, Leitstand, FA-Vervollständigung, FA-Abarbeitung). Ohne enaio ausschalten."),
+        new(AppSettingKeys.EnaioLinkVorlage, "enaio-Adresse (Vorlage)", StandortFieldType.String, StandortBackend.App, GroupEnaio,
+            "{ObjektId} wird durch die enaio-Objekt-ID ersetzt. Leer = keine Links."),
+        new("Sync:EnaioDmsViewName", "enaio-View (Sync-Quelle)", StandortFieldType.String, StandortBackend.Service, GroupEnaio,
+            ViewNameHint + " Format [Datenbank].[Schema].[Name]; Spalten id, angelegt, Typ, WaNummer, WaNummerTrimmed. Leer = Standard. Sync-Schalter in den Service-Einstellungen."),
     };
 
     /// <summary>Der Master-Key — NUR read-only in dieser Maske angezeigt, nie geschrieben.</summary>
@@ -84,6 +99,6 @@ public static class StandortSettingsCatalog
 
     public static readonly IReadOnlyList<string> GroupOrder = new[]
     {
-        GroupFirmendaten, GroupMandantViews, GroupToggles, GroupImport, GroupWerkbaenke, GroupHardwareScanner
+        GroupFirmendaten, GroupMandantViews, GroupToggles, GroupImport, GroupWerkbaenke, GroupHardwareScanner, GroupVault, GroupEnaio
     };
 }

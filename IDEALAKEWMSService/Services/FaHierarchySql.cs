@@ -38,8 +38,10 @@ public static class FaHierarchySql
     /// Bezeichner unveraendert (ohne eigenes <c>dbo.</c>-Praefix) einsetzen, ist ein
     /// schema-qualifiziert konfigurierter View-Name jetzt gleichwertig moeglich — der frueher
     /// noetige Betriebshinweis „ohne Schema-Praefix konfigurieren" entfaellt.
+    /// <paramref name="maxSegments"/> = 3 erlaubt zusaetzlich <c>[Datenbank].[Schema].[Name]</c> (nur der enaio-Sync, v1.67.0:
+    /// dessen Quelle liegt in der Datenbank enaio); alle Sage-Aufrufer bleiben bei hoechstens zwei Teilen.
     /// </summary>
-    public static string ValidateAndQuote(string? viewName)
+    public static string ValidateAndQuote(string? viewName, int maxSegments = 2)
     {
         if (string.IsNullOrWhiteSpace(viewName))
             throw new FaHierarchyViewNameException("View-Name ist leer/nicht konfiguriert.");
@@ -52,7 +54,7 @@ public static class FaHierarchySql
 
         // Segmente an '.' trennen (Trenner zwischen Schema und Name).
         var segments = raw.Split('.');
-        if (segments.Length is < 1 or > 2)
+        if (segments.Length < 1 || segments.Length > maxSegments)
             throw new FaHierarchyViewNameException(
                 $"View-Name '{viewName}' hat eine unzulaessige Anzahl an Segmenten ({segments.Length}).");
 

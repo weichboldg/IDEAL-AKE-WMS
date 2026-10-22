@@ -360,6 +360,28 @@ using (var scope = app.Services.CreateScope())
     }
     db.SaveChanges();
 
+    // Vault- und enaio-Links (v1.67.0): heutige AKE-Adressen, nur anlegen wenn die Zeile fehlt (IDEAL schaltet Vault beim Deploy aus).
+    var linkSettings = new (string Key, string Value, string Description)[]
+    {
+        (IdealAkeWms.Models.AppSettingKeys.VaultLinksAktiv, "true", "Vault-Zeichnungslinks an Artikelnummern anzeigen. Default true. Nur 'false' blendet aus (IDEAL ohne Vault)."),
+        (IdealAkeWms.Models.AppSettingKeys.VaultLinkVorlage, "http://akevault24.ake.at/AutodeskTC/AKE-VAULT01/explore?search={Artikelnummer}&searchContext=0", "Vault-Adresse; {Artikelnummer} wird ersetzt. Leer = keine Links."),
+        (IdealAkeWms.Models.AppSettingKeys.EnaioLinksAktiv, "true", "enaio-Dokument-Links an FA-Nummern anzeigen. Default true. Nur 'false' blendet aus."),
+        (IdealAkeWms.Models.AppSettingKeys.EnaioLinkVorlage, "http://akeosapp.ake.at/oscontentviewer/viewer/{ObjektId}/?pagecount=1", "enaio-Viewer-Adresse; {ObjektId} wird ersetzt. Leer = keine Links."),
+    };
+    foreach (var (key, value, description) in linkSettings)
+    {
+        if (!db.AppSettings.Any(s => s.Key == key))
+        {
+            db.AppSettings.Add(new IdealAkeWms.Models.AppSetting
+            {
+                Key = key,
+                Value = value,
+                Description = description
+            });
+        }
+    }
+    db.SaveChanges();
+
     // Windows-Auth / AD AppSettings
     var windowsAuthSettings = new (string Key, string Value, string Description)[]
     {

@@ -9,7 +9,7 @@ namespace IdealAkeWms.Models.ViewModels;
 /// </summary>
 public class FaDocumentLinksViewModel
 {
-    /// <summary>Artikelnummer fuer den Vault-Link. NULL/leer = kein Vault-Link.</summary>
+    /// <summary>Artikelnummer fuer den Vault-Link. NULL/leer, Schalter VaultLinksAktiv aus oder Vorlage leer = kein Vault-Link.</summary>
     public string? ArticleNumber { get; set; }
 
     /// <summary>FA-Nummer (Anzeige/Identifikation).</summary>
@@ -21,7 +21,7 @@ public class FaDocumentLinksViewModel
     /// <summary>Ziel-Controller des read-only BOM-Buttons ("FaCompletion" bzw. "FaWorklist").</summary>
     public string BomController { get; set; } = string.Empty;
 
-    /// <summary>enaio-DMS-Links der FA (bereits sortiert). NULL/leer = keine enaio-Badges.</summary>
+    /// <summary>enaio-DMS-Links der FA (bereits sortiert). NULL/leer, Schalter EnaioLinksAktiv aus oder Vorlage leer = keine enaio-Badges.</summary>
     public List<EnaioDmsDocumentLink>? EnaioLinks { get; set; }
 
     /// <summary>

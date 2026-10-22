@@ -8,7 +8,6 @@ public class ArticleInfoViewModel
     public string? Unit { get; set; }
     public string? ArticleGroup { get; set; }
     public decimal ReorderLevel { get; set; }
-    public string VaultUrl { get; set; } = string.Empty;
     public List<StockOverviewItem> StockByLocation { get; set; } = new();
     public decimal TotalStock => StockByLocation.Sum(s => s.CurrentQuantity);
 

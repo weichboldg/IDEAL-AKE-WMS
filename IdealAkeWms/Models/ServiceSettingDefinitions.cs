@@ -22,6 +22,7 @@ public static class ServiceSettingDefinitions
         new("Sync:OseonArticleCategoryEnabled",      ServiceSettingType.Bool, "false", "Sync", "OSEON-Artikelkategorie-Sync aktiv (laeuft nach Artikel-Import)"),
         new("Sync:OseonTrackingEnabled",             ServiceSettingType.Bool, "false", "Sync", "OSEON-Tracking-Sync + Werkbank-Sync aktiv"),
         new("Sync:EnaioDmsEnabled",                  ServiceSettingType.Bool, "false", "Sync", "enaio DMS-Sync aktiv"),
+        new("Sync:EnaioDmsViewName",                 ServiceSettingType.String, "[enaio].[dbo].[vw_IDEAL-AKE_Fertigungsauftraege]", "Sync", "Quelle des enaio DMS-Syncs (Whitelist + QUOTENAME, bis zu drei Teile [Datenbank].[Schema].[Name]; Spalten id, angelegt, Typ, WaNummer, WaNummerTrimmed). Leer = Default. Ungueltiger Name: kein SQL, Fehler + Fehlermail. Der Default wirkt nur, wo die Zeile fehlt."),
         new("Sync:PartRequisitionEmailEnabled",      ServiceSettingType.Bool, "false", "Sync", "Bedarfsmeldungs-E-Mail-Versand aktiv"),
         new("Sync:WarehouseRequisitionEmailEnabled", ServiceSettingType.Bool, "false", "Sync", "E-Mail-Versand fuer Lagerbestellungen aktiv"),
         new("Sync:LagerplaetzeEnabled",              ServiceSettingType.Bool, "false", "Sync", "Sage-Lagerplatz-Stammdaten-Sync aktiv"),
