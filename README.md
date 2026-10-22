@@ -418,6 +418,10 @@ Bei Änderungen der Tabellenstruktur müssen diese Scripts angepasst werden.
 | `HardwareScannerAktiv` | `false` | Hardware-Barcodescanner (v1.66.0): Tastatur-Scanner füllen auf allen Scan-Seiten dieselben Ziele wie der Kamera-Scan (`wwwroot/js/hardware-scanner.js`, nur bei exakt `true` geladen). Geräte-Abschalter in „Mein Profil“ (Browser-`localStorage`, kein Server-Wert). Pflege: Standorteinstellungen → Hardware-Scanner (nur Admin) |
 | `HardwareScannerPraefix` | `~09` (leer) | Präfix, den der Scanner vor jeden Code setzt; Abschluss Enter. Scanner auf DE-Layout stellen — `~` ist dort AltGr++ und auf manchen Geräten eine Tottaste (dann anderen Präfix wählen, TS-99.1) |
 | `HardwareScannerMaxZeichenabstandMs` | `50` (leer) | Größter Abstand zwischen zwei Scanner-Zeichen in ms; langsamer Getipptes gilt als normale Eingabe. Erlaubt 10–500 (Maske weist anderes ab, der Client nimmt bei ungültigem Wert 50); leer speichern = 50 (v1.66.1). Kalibrieren nach TS-99.1 |
+| `VaultLinksAktiv` | `true` (Seed) | Vault-Zeichnungslinks an Artikelnummern (v1.67.0, Standorteinstellungen „Vault (Zeichnungen)“) — nur `false` blendet aus. IDEAL ohne Vault: ausschalten. Laufzeit-Seed in `Program.cs`, Pflicht: die Maske zeigt ein Bool ohne Zeile als aus. |
+| `VaultLinkVorlage` | AKE-Vault-Adresse (Seed) | Vault-Adresse mit Platzhalter `{Artikelnummer}` (URL-kodiert eingesetzt; ohne Platzhalter angehängt). Leer = keine Links. |
+| `EnaioLinksAktiv` | `true` (Seed) | enaio-Dokument-Symbole an FA-Nummern (v1.67.0, Gruppe „enaio (Dokumente)“) — nur `false` blendet aus. Unabhängig vom Sync-Schalter `Sync:EnaioDmsEnabled`. |
+| `EnaioLinkVorlage` | `http://akeosapp.ake.at/oscontentviewer/viewer/{ObjektId}/?pagecount=1` (Seed) | enaio-Viewer-Adresse mit Platzhalter `{ObjektId}`. Leer = keine Links. |
 | `FaHierarchyVormontageAktiv` | `false` | Feature-Schalter IDEAL-Vormontage-Listen (Teil 5, zwei Sichten: Einzelne Teile + Summiert) — nur exakt `true` aktiviert (Default aus). Kumuliert mit Vorbau-Zugriff (`vorbau`, wie FA-Abarbeitungsliste) |
 
 ## PDF-Erzeugung (appsettings.json)
@@ -777,6 +781,7 @@ vollständiger Katalog". Wichtige Gruppen:
 | Bereinigung | `Cleanup:AktivitaetsprotokollAufbewahrungTage` (Default 180, `0` = nie löschen) |
 | Sage-Quellen (seit v1.60.0) | `Sync:FaHierarchyListeViewName`/`…InfosViewName` (Default `[vw_IDEAL_AKE_WMS_FAListe]`/`…FAInfos]`), `Sync:ProductionWorkplaceSyncViewName` (Default `KHKPpsArbeitsplaetze`), `Sync:ArticlesViewName` (Default leer = bisheriger Select) |
 | Arbeitsgang-Abgleich (seit v1.61.0) | `Sync:OperationConfigSyncEnabled` (Default `false`), `Sync:OperationConfigSyncViewName` (Default `[vw_IDEAL_AKE_WMS_Arbeitsgaenge]`, Spalten `Arbeitsgangnummer, Bezeichnung, AG`), `Sync:OperationConfigSyncFremdsystemRelevant` (Default `false`) — legt fehlende Arbeitsgang-Kürzel aus der Sage-View an (nie überschreiben/löschen) und kennzeichnet Einträge „nicht in Sage“; standortneutral, Ausschlussliste wie Werkbank-Anlage |
+| enaio-Sync-Quelle (seit v1.67.0) | `Sync:EnaioDmsViewName` (Default `[enaio].[dbo].[vw_IDEAL-AKE_Fertigungsauftraege]`, bis zu drei Teile `[Datenbank].[Schema].[Name]`, Spalten `id, angelegt, Typ, WaNummer, WaNummerTrimmed`). Gepflegt in den Standorteinstellungen „enaio (Dokumente)“; leer = Default; ungültiger Name: kein SQL, Lauf fehlgeschlagen + Fehlermail. Wirksam ab dem nächsten Lauf. Der Schalter `Sync:EnaioDmsEnabled` bleibt hier. |
 
 ### IDEAL: Sage-Quellen auf die WMS-Views umstellen (seit v1.60.0)
 

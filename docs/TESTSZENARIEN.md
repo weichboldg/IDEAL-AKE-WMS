@@ -357,7 +357,8 @@ Dokument aktualisiert werden (siehe CLAUDE.md → "Testszenarien-Pflicht").
 **Erwartetes Verhalten:**
 - Bezeichnung, Einheit, Artikelgruppe, Meldebestand, Gesamtbestand werden angezeigt.
 - Tabelle "Lagerbestand nach Lagerplatz" zeigt alle Lagerplaetze mit Menge.
-- Link "VAULT" oeffnet Artikel im VAULT-System (neuer Tab).
+- Link "VAULT" oeffnet Artikel im VAULT-System (neuer Tab) — nur bei eingeschalteten Vault-Links (`VaultLinksAktiv`, Standard an,
+  ab v1.67.0; ausgeschaltet fehlt der Link, siehe TS-100.2).
 
 **Negativfall:**
 - Artikelnummer die nicht existiert eingeben → "Artikel nicht gefunden" Hinweis.
@@ -1158,7 +1159,8 @@ Dokument aktualisiert werden (siehe CLAUDE.md → "Testszenarien-Pflicht").
 ### TS-4.5 — enaio DMS-Dokument oeffnen
 
 **Vorbedingungen:**
-- AppSetting `EnaioDmsEnabled = true` (Service-Einstellungen).
+- ServiceSetting `Sync:EnaioDmsEnabled = true` (Service-Einstellungen).
+- `EnaioLinksAktiv` an (Standard, ab v1.67.0) und `EnaioLinkVorlage` gefüllt (Standorteinstellungen → „enaio (Dokumente)“).
 - FA `FA-2604002` hat ein Dokument in enaio.
 
 **Schritte:**
@@ -1174,7 +1176,8 @@ Dokument aktualisiert werden (siehe CLAUDE.md → "Testszenarien-Pflicht").
 ### TS-4.5a — enaio "Werkstattauftrag + Zeichnung": eigenes Icon, zuerst angezeigt
 
 **Vorbedingungen:**
-- AppSetting `EnaioDmsEnabled = true` (Service-Einstellungen).
+- ServiceSetting `Sync:EnaioDmsEnabled = true` (Service-Einstellungen).
+- `EnaioLinksAktiv` an (Standard, ab v1.67.0) und `EnaioLinkVorlage` gefüllt.
 - Eine FA (z. B. `FA-2604002`) hat in enaio mehrere Dokumente: einen `Werkstattauftrag+Zeichnung` (Zeichnung direkt am WA), zusaetzlich einen reinen `Werkstattauftrag` und eine `Zeichnung`.
 
 **Schritte:**
@@ -4080,7 +4083,8 @@ Wie 27.1, mit Service-Filter "Lagerbestand".
 Service-Filter "OseonTracking".
 
 ### Szenario 27.5: EnaioDmsSyncService — Lifecycle
-Service-Filter "EnaioDms".
+Service-Filter "EnaioDms". Quelle ab v1.67.0 aus `Sync:EnaioDmsViewName` (Standard `[enaio].[dbo].[vw_IDEAL-AKE_Fertigungsauftraege]`);
+ungültiger Name: genau ein Eintrag „fehlgeschlagen — Ungültiger View-Name“ (TS-100.10).
 
 ### Szenario 27.6: HolidaySyncService — Lifecycle und HTTP-Fehlerpfad
 **Schritt:** Service-Filter "Holiday".
@@ -5088,6 +5092,8 @@ Admin).
 **Erwartet:** BOM-, enaio- und Vault-Buttons sind in beiden FA-Views vorhanden und
 einheitlich dargestellt (gemeinsames Partial `_FaDocumentLinks`); die Links fuehren
 zur read-only Stueckliste bzw. zum Vault.
+**Ab v1.67.0:** enaio- und Vault-Buttons nur bei eingeschaltetem Schalter (`EnaioLinksAktiv` / `VaultLinksAktiv`, Standard an);
+der BOM-Button erscheint **immer**, auch wenn beide aus sind (TS-100.4).
 
 ---
 
@@ -10457,6 +10463,51 @@ Lagerplatz (Code 128), Kommissionierliste mit Haupt-FA-Barcode, Beschichtungsauf
 
 ---
 
+## TS-100 — Vault- und enaio-Links konfigurierbar (v1.67.0)
+
+Spec `2026-10-21-vault-links-per-schalter-spec`. Pflege: Standorteinstellungen (Admin), Gruppen „Vault (Zeichnungen)“ und
+„enaio (Dokumente)“. Keys: `VaultLinksAktiv`, `VaultLinkVorlage` (`{Artikelnummer}`), `EnaioLinksAktiv`, `EnaioLinkVorlage`
+(`{ObjektId}`), ServiceSetting `Sync:EnaioDmsViewName`. Die zehn Vault-Stellen: Artikelinfo, Artikel-Liste, Bestandsübersicht,
+Bewegungshistorie, Stückliste, FA-Liste, Kommissionier-Leitstand, FA-Vervollständigung (Liste und Edit-Kopf), FA-Abarbeitung.
+
+- **TS-100.1 — AKE-Regression (Seed, nichts eingestellt).** Vorbedingung: frisches Deploy, keine Einstellung angefasst; eine FA mit
+  enaio-Dokument und gepflegter Artikelnummer. Schritte: alle zehn Vault-Stellen öffnen, je einen Vault-Link und ein enaio-Badge
+  klicken. **Erwartet:** alles wie vor dem Deploy; neuer Tab, Vault-Suche bzw. enaio-Viewer mit der richtigen Nummer/ID. Die
+  Standorteinstellungen zeigen beide Gruppen mit „an“, den AKE-Vorlagen und dem View-Namen `[enaio].[dbo].[vw_IDEAL-AKE_Fertigungsauftraege]`.
+- **TS-100.2 — Vault aus (IDEAL-Fall).** Standorteinstellungen → „Vault-Links anzeigen“ aus → Speichern; die zehn Stellen öffnen.
+  **Erwartet:** kein Vault-Symbol, kein „Im VAULT öffnen“; die Artikelnummer steht überall; keine Lücke, keine leere Spalte; die
+  enaio-Badges unverändert da. Sichtprüfung Desktop und Handheld.
+- **TS-100.3 — enaio aus.** „enaio-Dokument-Links anzeigen“ aus → Speichern; FA-Liste, Leitstand, FA-Vervollständigung (Liste,
+  Edit), FA-Abarbeitung. **Erwartet:** keine enaio-Symbole, im Edit-Kopf kein Badge mit Text; FA-Nummer steht; keine Lücke; Vault-Links
+  unverändert. Der enaio-Sync läuft weiter, wenn `Sync:EnaioDmsEnabled=true` (Aktivitäts-Protokoll).
+- **TS-100.4 — Stücklisten-Knopf bleibt.** Vault und enaio aus, FA-Vervollständigung → Edit. **Erwartet:** Knopf „Stückliste öffnen“
+  sichtbar, Klick öffnet die read-only Stückliste. Ebenso der Knopf „Stückliste“ in den Listen von FA-Vervollständigung und
+  FA-Abarbeitung.
+- **TS-100.5 — Vorlage leer.** Schalter an, Vault-Vorlage leeren → Speichern. **Erwartet:** keine Vault-Links. Dasselbe mit der
+  enaio-Vorlage: keine enaio-Badges. Vorlagen wiederherstellen → Links wieder da.
+- **TS-100.6 — Vorlage ändern.** Vault-Vorlage `https://test.example/s?q={Artikelnummer}&x=1`, enaio-Vorlage
+  `https://test.example/view?id={ObjektId}`. **Erwartet:** die Links zeigen genau diese Adressen mit Nummer bzw. ID an der
+  Platzhalter-Stelle, sofort beim nächsten Seitenaufruf.
+- **TS-100.7 — URL-Kodierung.** Artikel mit Leerzeichen oder `&` in der Nummer (falls vorhanden, sonst Unit-Test
+  `LinkVorlageTests.Wert_wird_url_kodiert_eingesetzt` als Nachweis). **Erwartet:** im `href` steht `%20` bzw. `%26`.
+- **TS-100.8 — Masken-Regression.** Schalter an; in den Standorteinstellungen nur den Firmennamen ändern → Speichern. **Erwartet:**
+  beide Schalter weiterhin an, Vorlagen und View-Name unverändert, Links da.
+- **TS-100.9 — CSV.** Bei Schaltern an und aus je ein CSV-Export aus Artikel-Liste, Stückliste und FA-Liste. **Erwartet:** keine URL in
+  der Datei, Artikel- und FA-Nummer-Spalte gleich. Stücklistenzeile ohne Ressourcennummer: Zelle leer (nicht „Zeichnung in Vault öffnen“).
+- **TS-100.10 — enaio-View-Name (Dienst, Testsystem).** Vorbedingung `Sync:EnaioDmsEnabled=true`, `ErrorNotification:Enabled=true`.
+  a) Default unverändert → nächster Lauf „erfolgreich“ mit Zählern wie vorher. b) enaio-View auf `vw;DROP` → Speichern → nächster
+  Lauf: **genau ein** Eintrag „fehlgeschlagen — Ungültiger View-Name“, Fehlermail, `EnaioDmsDocuments` unverändert. c)
+  `[enaio].[dbo].[vw_gibtsnicht]` → Lauf „fehlgeschlagen“ wie bei fehlender View, Fehlermail. d) Feld leeren → Speichern → nächster
+  Lauf nimmt den Default, „erfolgreich“. e) Wert zurück auf den Default. Kein Dienst-Neustart zwischen den Schritten.
+- **TS-100.11 — Sync-Schalter unverändert.** `/ServiceSettings` → `Sync:EnaioDmsEnabled` steht dort wie bisher (Kategorie Sync), nicht in
+  den Standorteinstellungen; aus → kein enaio-Lauf im Aktivitäts-Protokoll, auch bei gültigem View-Namen.
+- **TS-100.12 — Hilfe.** Hilfe → Abschnitt „Vault- und enaio-Links“, Artikelinfo, FA-Liste (enaio), FA-Vervollständigung,
+  FA-Abarbeitung. **Erwartet:** Texte nennen die Bedingung und alle Keys.
+- **Negativfälle.** a) In `/Settings` `VaultLinksAktiv=FALSE` → aus. b) Wert `nein` → an (nur `false` sperrt). c) Nicht-Admin ruft
+  `/StandortEinstellungen` auf → kein Zugriff. d) Vorlage ohne Platzhalter (`https://test.example/?q=`) → Nummer bzw. ID wird angehängt.
+
+---
+
 *Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) + Teil 6 (Standorteinstellungen, v1.34.0) + BOM-Guard hierarchisch (2026-08-18, abgelöst) + FA-Liste-Hierarchie (v1.35.0) + BOM-Bridge (v1.36.0) + Materialisierung fachliche Felder K1/K2 (v1.37.0) + Skopierung der Tabellen-Selektoren (TS-72) + FA-Liste ausgebaut: Matchcode, Kopfdaten je Zeile, HauptFA-Zeile, Freigabe-Kaskade (v1.38.0, TS-73) + PDF-Erzeugung für FaHierarchy-Druckdokumente (v1.39.0, TS-74) + Matchcode im Artikelstamm (v1.40.0, TS-75) + FA-Arbeitsgang-Erkennung aus der Struktur (v1.41.0, TS-76, ersetzt durch TS-77) + Arbeitsgänge (WorkOperation) aus der Struktur + Werkbank-Anlage aus Sage (v1.44.0, TS-77) + Arbeitsgänge je (Sub-)FA im FA-Struktur-Modal (v1.45.0, TS-78) + Kommissionierung nur am HauptFA
-(v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80) + Beschichtungsauftrag Summiert als Standard (v1.48.0, TS-81) + Briefkopf Beschichtungsauftrag (v1.49.0, TS-82) + Beschichtungsauftrag als eigenes Objekt (v1.50.0, TS-83) + Beschichtungsaufträge bedienen (v1.51.0, TS-84) + Arbeitsgänge als Symbole im FA-Baum (v1.52.0, TS-85) + CSV-Export für alle Tabellen (v1.53.0, TS-86) + Arbeitsgang-Stammdaten (v1.54.0, TS-87) + Status je Arbeitsgang-Kürzel im FA-Baum (v1.55.0, TS-88) + Menü Beschichtung + Kurzanleitungen (v1.56.0, TS-89) + BDE-Terminal mit Arbeitsgang-Status (v1.57.0, TS-90) + Spaltenfilter-Suchsyntax Etappe A + B (v1.58.0/v1.58.1, TS-91.A/B) + Fußzeile nach Word-Vorlage (v1.59.0, TS-92) + Sage-Quellen auf WMS-Views (v1.60.0–v1.60.2, TS-93) + Arbeitsgang-Abgleich aus der Sage-View (v1.61.0, TS-94) + Stückliste Matchcode und Lagerplatz-Limit (v1.62.0, TS-95) + BDE Stufe 1: Werkbänke, AG-Fertigmeldung (v1.63.0, TS-96) + BDE-Terminal Liste nach Haupt-FA, Scan ohne AG (v1.64.0, TS-97) + Spaltenauswahl/Zahnrad zentraler Toolbar-Host (v1.65.0, TS-98) + Hardware-Barcodescanner (v1.66.0–v1.66.2, TS-99)*
+(v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80) + Beschichtungsauftrag Summiert als Standard (v1.48.0, TS-81) + Briefkopf Beschichtungsauftrag (v1.49.0, TS-82) + Beschichtungsauftrag als eigenes Objekt (v1.50.0, TS-83) + Beschichtungsaufträge bedienen (v1.51.0, TS-84) + Arbeitsgänge als Symbole im FA-Baum (v1.52.0, TS-85) + CSV-Export für alle Tabellen (v1.53.0, TS-86) + Arbeitsgang-Stammdaten (v1.54.0, TS-87) + Status je Arbeitsgang-Kürzel im FA-Baum (v1.55.0, TS-88) + Menü Beschichtung + Kurzanleitungen (v1.56.0, TS-89) + BDE-Terminal mit Arbeitsgang-Status (v1.57.0, TS-90) + Spaltenfilter-Suchsyntax Etappe A + B (v1.58.0/v1.58.1, TS-91.A/B) + Fußzeile nach Word-Vorlage (v1.59.0, TS-92) + Sage-Quellen auf WMS-Views (v1.60.0–v1.60.2, TS-93) + Arbeitsgang-Abgleich aus der Sage-View (v1.61.0, TS-94) + Stückliste Matchcode und Lagerplatz-Limit (v1.62.0, TS-95) + BDE Stufe 1: Werkbänke, AG-Fertigmeldung (v1.63.0, TS-96) + BDE-Terminal Liste nach Haupt-FA, Scan ohne AG (v1.64.0, TS-97) + Spaltenauswahl/Zahnrad zentraler Toolbar-Host (v1.65.0, TS-98) + Hardware-Barcodescanner (v1.66.0–v1.66.2, TS-99) + Vault- und enaio-Links konfigurierbar (v1.67.0, TS-100)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*
