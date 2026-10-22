@@ -4,7 +4,7 @@ title: Scan-Handler fuer Hardware-Barcodescanner (Tastatur-Eingabe mit Praefix)
 slug: 2026-10-15-scan-handler-hardware-scanner-spec
 status: Testbereit
 created: 2026-10-15
-updated: 2026-10-21
+updated: 2026-10-22
 source_backlog: "[[2026-10-15-scan-handler-hardware-scanner]]"
 task: "[[2026-10-15-scan-handler-hardware-scanner-umsetzung]]"
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
@@ -38,6 +38,17 @@ freigabe_am: "2026-10-21"
 > (HEAD `2524bb03`, v1.60.0), nur gelesen. Abweichungen zu `main` stehen in Rueckfrage 1.
 > Standorte: **AKE und IDEAL** gleichermassen - die Scan-Seiten und `barcode-scanner.js` sind
 > standortneutral, keine Verzweigung nach `ProduktionsauftragHierarchisch`.
+
+> [!important] Freigabe-Nachtrag 3 vom 2026-10-22 — Nachbesserung v1.66.2 (geht dem Rumpf und Nachtrag 2 vor)
+> Gerald 2026-10-22 auf die Rückfrage aus dem Bericht v1.66.1:
+> 1. Das Verhalten aus Nachtrag 2 Punkt 1 (offenes Kamera-Fenster nimmt den Hardware-Scan an, Auswertung wie ein
+>    Kamera-Treffer, Fenster schließt) gilt auf **allen Seiten mit mehr als einem Scan-Feld**: Wareneingang, Ausgang,
+>    Umbuchung, Lagerplatz, Bestandsübersicht, FA-Liste, Leitstand, OSEON und der Ziel-Lagerplatz auf der Stückliste.
+>    Je Kamera-Knopf freischalten wie bei „Artikel scannen“ (eine Zeile im HTML); der Wächter-Test aus v1.66.1, der genau
+>    eine freigeschaltete Stelle sichert, wird auf die vollständige Liste umgestellt.
+> 2. **Der Kamera-Knopf bleibt überall unverändert** (nicht alle Geräte haben einen Barcode-Scanner). Ohne offenes
+>    Fenster gilt die bisherige Ziel-Regel.
+> 3. Version **v1.66.2**, Tests und TS-99-Unterpunkte ergänzen.
 
 > [!important] Freigabe-Nachtrag 2 vom 2026-10-21 — Nachbesserung v1.66.1 (geht dem Rumpf und AK 10 vor)
 > Gerald 2026-10-21 nach dem QA-Bericht (Befunde N-1/N-2 im Abschnitt „QA-Nachweis“):
@@ -441,17 +452,19 @@ Profil-Schalter, Hilfe/README, ein Node-Check - passt in einen Dev-Lauf.
 
 ## Deploy
 
-*Final (QA-Lauf v1.66.1, 2026-10-21) aus dem echten Diff `c27f3b6d..1d78e7f5` (v1.66.0 + Nachbesserung v1.66.1 + QA-Fix).*
+*Final (QA-Lauf v1.66.2, 2026-10-22) aus dem echten Diff `c27f3b6d..845e38c9` (v1.66.0, v1.66.1 + QA-Fix, v1.66.2 + QA-Fix Datum).
+v1.66.2 (`1d78e7f5..845e38c9`) ändert nur `IdealAkeWms/` (10 Scan-Views: Attribut `data-hw-scan-kamera-ziel`; `barcode-scanner.js`: nur
+Kommentar; Help/Index + Changelog; AppVersion), `IDEALAKEWMSService/AppVersion.cs`, Tests und `docs/`.*
 
 - **Web-App:** ja — `IdealAkeWms/` (v1.66.0: hardware-scanner.js neu, barcode-scanner.js, _Layout, BdeTerminal/Index, Account/Profile,
   Help, AppSettingKeys, StandortSettingsCatalog, StandortEinstellungenController; v1.66.1 zusätzlich Picking/Bom.cshtml,
   barcode-scanner.js, hardware-scanner.js, StandortSettingsCatalog, StandortEinstellungenController, Help/Index + Changelog, AppVersion).
-- **Service:** ja, aber **nur Versionsstand** — einzige Änderung `IDEALAKEWMSService/AppVersion.cs` (→ 1.66.1), funktional nichts.
+- **Service:** ja, aber **nur Versionsstand** — einzige Änderung `IDEALAKEWMSService/AppVersion.cs` (→ 1.66.2, Datum 2026-10-22), funktional nichts.
   Mitpublizieren, damit Web und Dienst dieselbe Version zeigen.
 - **Migration:** nein (kein neuer Eintrag unter `*/Migrations/`, kein `SQL/`-Skript, FreshInstall und `SQL/AgentJobs/` unberührt).
   AppSettings-Zeilen entstehen beim ersten Speichern der Standorteinstellungen (ab v1.66.1 auch `HardwareScannerMaxZeichenabstandMs`
   mit `""` = Standard 50).
-- **Ablauf des Menschen:** aus dem Worktree publizieren → Testsystem → TS-99 (inkl. 99.14/99.15) testen → Merge.
+- **Ablauf des Menschen:** aus dem Worktree publizieren → Testsystem → TS-99 (inkl. 99.14–99.16) testen → Merge.
   ```
   dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb
   dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService
@@ -577,6 +590,56 @@ Basis `789d0a78` (v1.66.0), Commit `c72be07e` (wip feature-complete), **v1.66.1*
   `Save_EmptyInt_NeverBlocks_ScannerResetsToDefault_OtherIntsStayUnchanged`. Erwartet ist für den Scanner-Abstand nun `""` statt
   „Key fehlt“, laut Nachtrag 2. Neu sind `Save_ScannerAbstandAusserhalb10Bis500_WritesNothing_WithMessage` (9/0/−5/501),
   `Save_ScannerAbstandAnDenGrenzen_IsSaved` (10/500) und `HardwareScannerTests.Stueckliste_OffenesKameraFenster_IstZiel_WieKameraTreffer`.
+
+## Nachbesserung v1.66.2 (Dev-Lauf 2026-10-22, Freigabe-Nachtrag 3)
+
+Basis `1d78e7f5` (v1.66.1), Commit `543edbe2` (wip feature-complete), **v1.66.2**, TS-99.16 neu, TS-99.14 b) und Negativfall c) angepasst.
+
+**Seiten-Liste gegen den Code belegt.** Regel des Nachtrags: jede Seite mit mehr als einem Scan-Feld. Erfasst sind alle Kamera-Knöpfe
+(`id="btnScan…"` in `Views/**`). Ihre Register-Einträge kommen aus `initScanner`/`initTextInputScanner`, auch aus dem globalen Teil
+`barcode-scanner.js:488-491`.
+
+| Seite | freigeschaltete Knöpfe (`data-hw-scan-kamera-ziel`) |
+|---|---|
+| StockMovements/Inbound (Wareneingang) | `btnScanArticle`, `btnScanStorageLocation` |
+| StockMovements/InboundBulk (Wareneingang Sammel) | `btnScanStorageLocation`, `btnScanArticleBulk` |
+| StockMovements/Outbound (Ausgang) | `btnScanArticle`, `btnScanStorageLocation` |
+| StockMovements/Transfer (Umbuchung) | `btnScanArticle`, `btnScanSourceLocation`, `btnScanStorageLocation` |
+| StockMovements/LocationTransfer (Lagerplatz) | `btnScanSourceLocation`, `btnScanTargetLocation` |
+| StockOverview/Index (Bestandsübersicht) | `btnScanArticleFilter`, `btnScanLocationFilter`, `btnScanPO` |
+| ProductionOrders/Index (FA-Liste) | `btnScanOrderNumber`, `btnScanArticleNumber` |
+| PickingLeitstand/Index (Leitstand) | `btnScanOrderNumber`, `btnScanArticleNumber` |
+| Tracking/OseonIndex (OSEON) | `btnScanCustomerOrder`, `btnScanArticle` |
+| Picking/Bom (Stückliste) | `btnScanTargetLocation` (neu), `btnScanBomArticle` (seit v1.66.1) |
+
+- 21 neue Knöpfe, insgesamt 22.
+- **Abweichung von der Aufzählung:** InboundBulk ist nicht namentlich genannt. Die Seite hat aber zwei Scan-Felder und fällt damit unter die
+  Regel „mehr als ein Scan-Feld“. Ihr Artikel-Ziel `bulkScanBuffer` ist wie `bomScanArticle` ein verstecktes Feld und ohne Fenster nur über
+  den Knopf erreichbar.
+- **Bewusst nicht freigeschaltet** (genau ein Scan-Feld, dort greift schon Regel d):
+  - Articles/Info (`btnScanArticleInfo`)
+  - StockMovements/OutboundAll (`btnScanStorageLocation`)
+  - StockMovements/Index (`btnScanProductionOrder`)
+- BDE-Terminal: nicht betroffen, es nutzt sein eigenes Scan-Feld ohne Kamera-Register.
+
+**Unverändert:** Kamera-Knöpfe, Klick-Handler und Kamera-Erfassung. Geändert ist je Knopf nur das Attribut sowie ein Kommentar in
+`barcode-scanner.js` (`hwScanKameraZiel`); die Logik ist dieselbe wie in v1.66.1. Ohne offenes Fenster gilt die bisherige Ziel-Regel.
+
+**QA-Fix v1.66.1 auf allen Seiten:** Der Wächter belegt, dass keine View einen eigenen `Html5Qrcode` baut. Jeder Kamera-Treffer läuft also
+über `startCameraScanner` und dessen Sperre `if (_scannerClosing || _activeScanner !== html5QrCode) return;`.
+
+**Wächter-Test:** `HardwareScannerTests.OffenesKameraFenster_IstZiel_WieKameraTreffer`, vormals `Stueckliste_…`. Er prüft jetzt die
+vollständige Liste Seite|Knopf (22 Einträge, `BeEquivalentTo`, keiner mehr und keiner weniger) und dazu „keine View mit
+`new Html5Qrcode`“.
+
+**Zusatzfund (nicht mitgebaut):** Auf OSEON bindet der globale `initScanner('btnScanArticle','ArticleId')` (`barcode-scanner.js:488`)
+einen zweiten Klick-Handler an den Artikel-Knopf, obwohl die Seite kein `ArticleId` hat. Beide öffnen das Fenster. Ohne Kamera gewinnt
+das Fenster der Seite (`filterArticle`). Mit Kamera entscheidet die Reihenfolge der zwei Kamera-Freigaben, siehe QA-Befund Q3-2. Der Fehler bestand schon vorher. Abhilfe wäre eine Zeile in `initScanner`: ohne Ziel-Element nicht
+binden.
+
+**Nachweis**
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler.
+- `dotnet test`: Web **2153 bestanden, 1 übersprungen** (Bestand), Dienst **316 bestanden**.
 
 ## Freigabe-Antworten (Mensch fuellt aus — Schranke 1)
 
@@ -798,6 +861,104 @@ Listener); html5-qrcode `scanContext`/`foreverScan`/`stop` (`wwwroot/lib/html5-q
   [[2026-10-21-v1-66-1-hardware-scanner-nachbesserung]] ✓ (QA-Fix ergänzt), feature-map ✓ (QA-Fix + Status). README ✓, Hilfe ✓.
 - `docs/TESTSZENARIEN.md` TS-99.14/99.15 ✓, im QA-Lauf TS-99.14 d/e ergänzt; [[testszenarien-index]] Zeile 99 ✓ (Testnamen aktualisiert).
 
+## QA-Nachweis v1.66.2 (qa-agent, 2026-10-22, Freigabe-Nachtrag 3)
+
+Geprüft: `git diff 1d78e7f5..543edbe2` (17 Dateien) im Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, dazu der vollständige
+`wwwroot/js/barcode-scanner.js`, `hardware-scanner.js` (Ereignis-Abfolge :141-153), alle `id="btnScan…"` in `IdealAkeWms/Views/**`, alle
+`initScanner`/`initTextInputScanner`-Aufrufe (Views + `barcode-scanner.js:488-493`) und die Ziel-Elemente je Seite. QA-Commit `845e38c9`.
+
+### 1. Build und Tests (selbst ausgeführt, HEAD `845e38c9`)
+- `dotnet build IdealAkeWms.slnx`: **0 Fehler**, 28 Warnungen (Bestand).
+- `dotnet test`: **IdealAkeWms.Tests 2153 bestanden, 1 übersprungen, 0 Fehler** (gesamt 2154; der übersprungene ist Bestand);
+  **IDEALAKEWMSService.Tests 316 bestanden, 0 übersprungen, 0 Fehler**. Gleiches Ergebnis schon auf `543edbe2` vor dem QA-Commit.
+- `HardwareScannerTests` einzeln (`-v n`): alle 8 bestanden, darunter `OffenesKameraFenster_IstZiel_WieKameraTreffer` und
+  `Kern_NodeSelbstpruefung` (läuft, nicht übersprungen).
+- Web und Dienst wurden nicht gestartet (Auftrag).
+
+### 2. Code-Review
+
+**Punkt 1 – Liste der freigeschalteten Knöpfe: vollständig und korrekt.** Alle 27 `id="btnScan…"` in Views gegen die Register gelegt:
+
+| Seite | Scan-Felder laut Register (Knopf → Ziel) | Anzahl | `data-hw-scan-kamera-ziel` |
+|---|---|---|---|
+| StockMovements/Inbound | btnScanArticle → ArticleId, btnScanStorageLocation → StorageLocationId (beide global :489/:490) | 2 | beide ✓ |
+| StockMovements/InboundBulk | btnScanStorageLocation → StorageLocationId (global), btnScanArticleBulk → bulkScanBuffer (Seite :293) | 2 | beide ✓ |
+| StockMovements/Outbound | wie Inbound | 2 | beide ✓ |
+| StockMovements/Transfer | btnScanArticle, btnScanSourceLocation → SourceStorageLocationId, btnScanStorageLocation (alle global) | 3 | alle ✓ |
+| StockMovements/LocationTransfer | btnScanSourceLocation (global :491 **und** Seite :128, gleiches Ziel), btnScanTargetLocation (Seite :129) | 2 | beide ✓ |
+| StockOverview/Index | btnScanLocationFilter, btnScanArticleFilter, btnScanPO (Seite :163-165) | 3 | alle ✓ |
+| ProductionOrders/Index | btnScanOrderNumber, btnScanArticleNumber (Seite :288/:294, Text) | 2 | beide ✓ |
+| PickingLeitstand/Index | wie ProductionOrders (Seite :487/:493) | 2 | beide ✓ |
+| Tracking/OseonIndex | btnScanArticle → filterArticle, btnScanCustomerOrder (Seite :312/:321); global btnScanArticle → ArticleId, Ziel fehlt auf der Seite | 2 | beide ✓ |
+| Picking/Bom | btnScanTargetLocation, btnScanBomArticle (Seite :726/:727) | 2 | beide ✓ |
+| Articles/Info | btnScanArticleInfo → articleNumber (global :492) | 1 | – (richtig) |
+| StockMovements/OutboundAll | btnScanStorageLocation → StorageLocationId (global) | 1 | – (richtig) |
+| StockMovements/Index | btnScanProductionOrder → filterProductionOrder (Seite :167) | 1 | – (richtig) |
+| BdeTerminal/Index | btnScanOperator/btnScanFaAg sind keine Kamera-Knöpfe (`bde-terminal.js:99/:165`, kein Register) | – | – (richtig) |
+
+22 Attribute, genau die Liste des Wächters. **InboundBulk:** nicht namentlich genannt, fällt aber unter die Regel „mehr als ein Scan-Feld“.
+Das Artikel-Ziel `bulkScanBuffer` ist ein `<input type="hidden">` (:106) und ohne Fenster nie fokussierbar. Die Aufnahme ist regelkonform
+und fachlich nötig; Bestätigung durch Gerald an Schranke 2 (Checkliste Punkt 24). **Ausgelassene Seiten** (Info, OutboundAll,
+Bewegungsliste): Dort steht im Register genau ein vorhandenes Ziel, Regel (d) wertet den Scan schon aus – das Fenster bleibt dabei offen
+(TS-99 Negativ c). Das ist nachtragskonform, kann am Gerät aber überraschen (Checkliste Punkt 25).
+
+**Punkt 2 – Ergebnis gleich dem Kamera-Treffer.** `hwScanKameraZiel` (`barcode-scanner.js:452-459`) nimmt den Register-Eintrag, dessen
+`targetId` dem `modal.dataset.zielId` (:75) entspricht. Der Eintrag trägt dieselben Werte, die der Klick-Handler an `openScannerModal`
+übergibt (`initScanner` :17-20, `initTextInputScanner` :401-411). Abfolge :467-471 = `startCameraScanner` :193-198 (sperren, globale
+`processScannedValue`, schließen); `_textInputScanCallback` wird wie im Klick-Handler gesetzt. Je Seitentyp nachvollzogen:
+- Select2-Artikel (Inbound/Outbound/Transfer): gleicher AJAX-Lookup, FA-Feld über `qrFaEnabled`/`faTargetId` aus dem Register ✓.
+- Native Selects (Lagerplätze, Bom `TargetStorageLocationId`, StockOverview Lagerplatz): Option-Iteration ✓.
+- Text-Input mit `onScanned`/Formular-Absenden (FA-Liste, Leitstand, OSEON): Wrapper :418-433 feuert `input` + `onScanned` genau einmal ✓.
+- InboundBulk-Puffer: hidden INPUT → `change`, Wrapper → `onArticleScanned` ✓.
+- StockOverview `btnScanPO` (`productionOrder`, 3. QR-Teil) und `btnScanArticleFilter` (FA in `filterProductionOrder`) ✓.
+- `d.handled = true` verhindert Regel (b)/(d)/Hinweis in `hardware-scanner.js:143` ✓. Ohne Fenster bzw. bei Fenster eines Knopfs ohne
+  Attribut liefert `hwScanKameraZiel` `null`, die bisherige Regel läuft unverändert ✓. Kamera-Knöpfe, Klick-Handler und Kamera-Erfassung
+  sind im Diff unberührt ✓.
+- QA-Fix v1.66.1 auf allen Seiten: Die einzige Stelle mit `new Html5Qrcode` ist `barcode-scanner.js` (Grep über `wwwroot/js` und Views).
+  Alle Kamera-Knöpfe öffnen über `openScannerModal` → `startCameraScanner` mit der Sperre :193 ✓.
+
+**Befunde**
+
+| Nr | Schwere | Befund | Behandlung |
+|---|---|---|---|
+| Q3-1 | niedrig | `AppVersion.Date` stand in beiden `AppVersion.cs` noch auf `2026-10-21`, der Changelog nennt 22.10.2026. Konvention des Zweigs: Datum mit Version (`c27f3b6d`, `4179e38d`). Der Dienst schreibt das Datum ins Startlog (`SyncWorker.cs:27` u. a.). | **Behoben** in `845e38c9` (`qa: …`). |
+| Q3-2 | mittel, vorbestehend, nicht blockierend | Zusatzfund des Berichts bestätigt, aber die Begründung „das Seiten-Fenster gewinnt, weil es zuletzt registriert ist“ stimmt nur ohne Kamera. Beide Klick-Handler rufen `openScannerModal`, beide warten auf `requestCameraPermission()` (:63). Welches Fenster bleibt, entscheidet die Reihenfolge, in der die zwei `getUserMedia`-Zusagen zurückkommen. Gewinnt das globale (`zielId = ArticleId`), trifft weder ein Kamera-Treffer noch der Hardware-Scan das Fenster (`processScannedValue` endet an :302; `hwScanKameraZiel` = null → alte Regel). Zusätzlich wird der erste `Html5Qrcode` nie gestoppt, nur `_activeScanner`. Dasselbe Doppel-Öffnen gibt es auf **LocationTransfer** (`btnScanSourceLocation` global + Seite, gleiches Ziel – Ziel stimmt, nur zwei Kamera-Starts). | Im QA-Lauf nicht gebaut (Zusatzfund, vorbestehend, betrifft die Kamera genauso). Abhilfe-Vorschlag: in `initScanner` `if (!button \|\| !document.getElementById(targetSelectId)) return;` (OSEON) und `LocationTransfer.cshtml:128` streichen, wie in InboundBulk :290-291 kommentiert. Am Gerät beobachten (Checkliste Punkt 26); Entscheidung Gerald. |
+| Q3-3 | niedrig, vorbestehend | `scanFromFile` (Bild hochladen, :233-259) hat keine Sperre wie :193. Wählt jemand ein Bild und scannt vor Ende der Bild-Auswertung mit dem Hardware-Scanner, wird das Bild danach zusätzlich ausgewertet. | Nur gemeldet (am Handheld kaum erreichbar, dort läuft die Kamera-Lasche). |
+| Q3-4 | Info | Der Wächter pinnt die Liste als Quelltext (`BeEquivalentTo`, 22 Einträge). Er beweist nicht die Regel „mehr als ein Scan-Feld“, zwingt aber jede neue Scan-Seite zur bewussten Entscheidung. Gewollt. | keine |
+
+Klassen aus dem Pflichtkatalog: keine Werte neu in `<script>` eingebettet, kein `hidden` + `d-*` neu, keine stillen Fallbacks neu, keine
+parallelen Arrays, keine serverseitige Regel betroffen (rein clientseitiges Ziel-Routing). Die Ziel-Regel bleibt an einer Stelle
+(`barcode-scanner.js` + Markup-Attribut).
+
+**Punkt 3 – Doku/Version:** Wächter vollständig (22 Seite|Knopf, dazu „keine View mit `new Html5Qrcode`“) ✓. `docs/TESTSZENARIEN.md`:
+TS-99.16 a–h, TS-99.14 b) auf v1.66.2 umgestellt, Negativ c) auf Seiten mit genau einem Scan-Feld eingegrenzt, Endzeile v1.66.0–v1.66.2 ✓.
+v1.66.2 in beiden `AppVersion.cs` ✓, `Help/Changelog.cshtml` Karte v1.66.2 (Struktur wie die Nachbarkarten) ✓. `Help/Index.cshtml`: neuer
+`<p>` zwischen `</ol>` und `<dl>`, Tags geschlossen, der Stückliste-Satz aus Punkt 4 der Liste ist konsistent umgezogen ✓.
+[[testszenarien-index]] Zeile 99 um TS-99.16 und den Testnamen ergänzt (QA-Lauf).
+
+### 3. Beweisart je Punkt des Nachtrags 3
+| Punkt | Beweis | Zählt grün? |
+|---|---|---|
+| 1 Knopf-Liste vollständig | Quelltext-Wächter `OffenesKameraFenster_IstZiel_WieKameraTreffer` + Review-Tabelle oben | ja (Markup) |
+| 1 Verhalten am Gerät (Fenster nimmt Scan, schließt) | Browser-JavaScript → **Manual-UAT** TS-99.16 a–e | nein |
+| 2 Kamera unverändert, ohne Fenster alte Regel | Review (Diff berührt Klick-/Kamera-Pfad nicht); **Manual-UAT** TS-99.16 f/h, TS-99.13 | nein |
+| 2 kein zweiter Treffer nach dem Schließen, alle Seiten | Wächter (Sperre + keine eigene `Html5Qrcode`-Instanz); **Manual-UAT** TS-99.16 g | teilweise |
+| 3 Version, Changelog, Hilfe, Szenarien | Review | Review |
+
+### 4. Geänderte Bestandstests
+- `HardwareScannerTests.Stueckliste_OffenesKameraFenster_IstZiel_WieKameraTreffer` → `OffenesKameraFenster_IstZiel_WieKameraTreffer`:
+  **Verhalten absichtlich geändert** durch Nachtrag 3 Punkt 1/3 (von „genau eine Stelle“ auf die vollständige Liste). Die JS-Assertions
+  davor sind unverändert, neu ist „keine View baut `Html5Qrcode`“. Der Test stammt aus v1.66.1 dieses Zweigs (nicht in `main`). Kein
+  weiterer Bestandstest geändert, kein Fixture angepasst.
+
+### 5. CLAUDE.md-Checkliste
+- Migration / `SQL/` / FreshInstall / `SQL/AgentJobs/`: entfällt (kein Eintrag unter `*/Migrations/`, kein SQL im Diff). Audit: keine Entität.
+- Version 1.66.2 in beiden `AppVersion.cs` ✓ (Datum per QA-Fix), Anwender-Changelog ✓, Hilfe ✓. README: keine neue Einstellung.
+- Brain-Changelog v1.66.2 und feature-map: nicht Teil dieses QA-Laufs; vom Auftraggeber mit dem Brain-Commit nachzuziehen, falls offen.
+- `docs/TESTSZENARIEN.md` ✓, [[testszenarien-index]] ✓.
+
+**Ergebnis:** grün, keine offenen Blocker → `status: Testbereit`.
+
 ## Manuelle Test-Checkliste (Schranke 2, Mensch)
 
 Vorher: aus dem Worktree publizieren (Deploy-Abschnitt) → Testsystem. Admin: Standorteinstellungen → Hardware-Scanner aktiv, Präfix
@@ -841,3 +1002,19 @@ Vorher: aus dem Worktree publizieren (Deploy-Abschnitt) → Testsystem. Admin: S
     während die Kamera einen Code sieht → nichts übernommen (der QA-Fix berührt `startCameraScanner`).
 22. **Entscheidung:** `data-hw-scan-kamera-ziel` auf weitere Seiten ausweiten (Kandidaten im Abschnitt „Nachbesserung v1.66.1“)? Wenn ja,
     Folgespec.
+
+**Ergänzung v1.66.2** (Punkt 22 ist mit Nachtrag 3 entschieden; Punkt 19 b gilt jetzt wie TS-99.16 e):
+
+23. **TS-99.16 a–e:** Am Netum je Seite den Kamera-Knopf antippen, Fenster abwarten, mit dem eingebauten Scanner scannen → Ergebnis wie ein
+    Kamera-Treffer, Fenster schließt, kein Hinweis: Inbound, Outbound, Transfer (3 Knöpfe), LocationTransfer (2), InboundBulk (Lagerplatz
+    + Artikel-Zeile), StockOverview (Artikel/Lagerplatz/FA), FA-Liste und Leitstand (FA + Artikel, Filter genau einmal angewendet), OSEON
+    (Kundenauftrag + Artikel), Stückliste Ziel-Lagerplatz (Wagen gewählt). Negativ: f) abgebrochenes Fenster → Hinweis; g) Kamera sieht
+    einen Code und gleichzeitig Hardware-Scan (je eine Seite aus a und d) → genau eine Auswertung; h) Gerät ohne Scanner bzw.
+    Geräte-Schalter aus → Kamera unverändert.
+24. **InboundBulk-Entscheidung:** Die Seite war im Nachtrag nicht genannt, ist aber nach der Regel „mehr als ein Scan-Feld“ freigeschaltet.
+    Bestätigen oder Rücknahme anordnen.
+25. **Seiten mit genau einem Scan-Feld** (Articles/Info, Ausgang „Alles“, Bewegungsliste): Kamera-Knopf antippen, Hardware-Scan → Feld
+    gefüllt, **Fenster bleibt offen** (TS-99 Negativ c). Am Gerät so gewollt? Sonst Folgeauftrag: Attribut auch dort.
+26. **Q3-2 beobachten:** OSEON „Artikel“-Kamera-Knopf 5× hintereinander öffnen, abwechselnd mit Kamera und Scanner scannen → Filter wird
+    jedes Mal gesetzt. Schlägt es sporadisch fehl (Fenster bleibt, nichts gefiltert), ist das der vorbestehende Doppel-Handler (Abhilfe im
+    QA-Nachweis v1.66.2). Auf LocationTransfer „Quell-Lagerplatz“ prüfen, ob die Kamera nach dem Schließen wirklich aus ist.

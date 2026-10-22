@@ -694,11 +694,12 @@ Changelog [[2026-10-21-v1-66-0-hardware-barcodescanner]].
 | v1.66.1 N-1: offenes Kamera-Fenster der Stückliste-Artikelerfassung nimmt den Scan an (opt-in `data-hw-scan-kamera-ziel`) | **erledigt** `c72be07e` | `barcode-scanner.js hwScanKameraZiel`, `Picking/Bom.cshtml` |
 | v1.66.1 N-2: Zeichenabstand 10–500 mit Meldung, leer = 50 (Server `StandortField.Min/Max/EmptyResetsToDefault`, Client `HwScanCore.abstand`) | **erledigt** `c72be07e` | `StandortEinstellungenController.Save` |
 | QA-Fix v1.66.1: Kamera-Treffer eines gestoppten Scanners ignorieren (Race Hardware-Scan/laufender Decode) | **erledigt** `1d78e7f5` | `barcode-scanner.js startCameraScanner` |
+| v1.66.2 (Nachtrag 3): Kamera-Fenster als Scan-Ziel an allen 22 Kamera-Knöpfen der Seiten mit mehr als einem Scan-Feld; Wächter mit vollständiger Liste | **erledigt** `543edbe2`, `845e38c9` (qa) | `data-hw-scan-kamera-ziel` in 10 Views, `HardwareScannerTests` |
 
 > **Deploy:** Web; Dienst nur wegen `AppVersion.cs`. Keine Migration. Default aus; vor dem Einschalten Geräte einrichten (DE-Layout,
 > Präfix, Enter, Tasten-Ausgabe).
-> **Status:** **Testbereit** v1.66.1 (qa-agent 2026-10-21) — wartet auf Schranke 2 (Manual-UAT TS-99 inkl. 99.14/99.15 + Bündel-Merge).
-> N-1 (Stückliste am Handheld) mit v1.66.1 umgesetzt; Ausweitung auf andere Seiten offen zur Entscheidung (Kandidaten in der Spec).
+> **Status:** **Testbereit** v1.66.2 (qa-agent 2026-10-22) — wartet auf Schranke 2 (Manual-UAT TS-99 inkl. 99.14–99.16 + Bündel-Merge).
+> Offen zur Entscheidung: doppelter Klick-Handler am OSEON-Artikelknopf (QA Q3-2, vorbestehend).
 
 ### Spaltenauswahl/Zahnrad: zentraler Toolbar-Host, Gruppenkopf, Speicherfehler (v1.65.0, direkt im Bündel)
 
