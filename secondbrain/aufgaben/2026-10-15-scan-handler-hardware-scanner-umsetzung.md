@@ -44,3 +44,22 @@ Gerätelogik. `processScannedValue`, das Kamera-Modal und `bde-terminal.js` blei
 
 Shift zwischen Scanner-Zeichen (Großbuchstaben) darf den Scan nicht abbrechen · AltGr-`~` (ctrl+alt) ist kein Kürzel · langsames `~`
 erscheint vollständig · synthetisches Enter wird vom eigenen Listener nicht erneut verarbeitet · Tottaste `~` (TS-99).
+
+## Nachbesserung v1.67.1 (Freigabe-Nachtrag 4, 2026-10-23)
+
+Plan (kompakt):
+1. **Kern:** `createText`/`eingefuegt` mit Node-Prüfungen.
+2. **DOM:**
+   - `beforeinput`/`focusin` merken den Feldwert, `input` (Capture) setzt bei Präfix zurück und stellt zu.
+   - Enter vor der 229-Ausnahme abfangen.
+3. **Kamera-Fenster:** Feld „Handscanner“ (`inputmode="none"`, Fokus); `hwScanKameraZiel` greift auch, wenn der Fokus in diesem
+   Feld liegt.
+4. **Diagnose:** Profil-Schalter und Karte vor dem Seitenfuß.
+5. **Doku:** Hilfe, Hinweistext, TS-99.17/18, v1.67.1 ×2, Changelog.
+
+Review-Fokus:
+- Select2-Suche sieht den Präfix nie.
+- Das Enter-Suffix schickt kein Formular ab.
+- Keine Doppelauswertung bei Tasten-Scanner + `input`.
+- Passwort nie protokolliert.
+- Eine Hand-Eingabe von `~09` bleibt Text.

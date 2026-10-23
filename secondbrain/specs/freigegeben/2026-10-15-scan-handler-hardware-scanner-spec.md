@@ -4,7 +4,7 @@ title: Scan-Handler fuer Hardware-Barcodescanner (Tastatur-Eingabe mit Praefix)
 slug: 2026-10-15-scan-handler-hardware-scanner-spec
 status: Testbereit
 created: 2026-10-15
-updated: 2026-10-22
+updated: 2026-10-23
 source_backlog: "[[2026-10-15-scan-handler-hardware-scanner]]"
 task: "[[2026-10-15-scan-handler-hardware-scanner-umsetzung]]"
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
@@ -38,6 +38,23 @@ freigabe_am: "2026-10-21"
 > (HEAD `2524bb03`, v1.60.0), nur gelesen. Abweichungen zu `main` stehen in Rueckfrage 1.
 > Standorte: **AKE und IDEAL** gleichermassen - die Scan-Seiten und `barcode-scanner.js` sind
 > standortneutral, keine Verzweigung nach `ProduktionsauftragHierarchisch`.
+
+> [!important] Freigabe-Nachtrag 4 vom 2026-10-23 — Fokus-Eingabe-Geräte (Netum), v1.67.1 (geht dem Rumpf und Nachtrag 1–3 vor)
+> Befund am Gerät (Gerald 2026-10-23): Der Netum AIDC hat keinen Tastatur-Emulationsmodus. Seine Ausgabe „Fokus-Eingabe“ schreibt den
+> ganzen Code (`~09<Code>` + Enter) direkt in das Feld mit Fokus; einzelne Tastenanschläge kommen nicht (Android meldet keyCode 229 bzw.
+> nur `input`-Ereignisse). Ohne Feld mit Fokus gibt das Gerät nichts aus; „Broadcast senden“ ist für den Browser unbrauchbar.
+> 1. **Erkennung am eingefügten Text:** Landet in einem Eingabefeld (inkl. Select2-Suchfeld, Kamera-Fenster-Kontext, BDE-Scanfeld)
+>    ein Text, der mit dem Präfix beginnt, wird der Präfix entfernt und der Rest wie ein Hardware-Scan über dieselbe Kette ausgewertet
+>    (Auswahlfeld wählen, Filter anwenden, Stückliste kommissionieren, offenes Kamera-Fenster als Ziel). Das Feld enthält danach nicht den
+>    Präfix. Ein Enter-Suffix beendet den Scan; ohne Enter gilt die bisherige Zeitgrenze.
+> 2. **Tastenanschlag-Erkennung bleibt** unverändert für Scanner mit Tastatur-Emulation.
+> 3. **Diagnose-Anzeige:** Schalter „Scanner-Diagnose“ in Mein Profil, nur für dieses Gerät (localStorage wie „Dieses Gerät“), Standard aus.
+>    Bei an: unten auf jeder Seite die letzten ca. 30 `keydown`- und `input`-Ereignisse mit Taste/keyCode/isComposing/Abstand in ms bzw.
+>    eingefügtem Text und der Entscheidung des Skripts (z. B. „Präfix erkannt (Text)“, „ignoriert: keyCode 229“, „Scan an Feld X“,
+>    „kein Ziel“); Knopf „Kopieren“. Keine Daten an den Server.
+> 4. **Grenze dokumentieren** (Hilfe, Hinweistext): Bei Geräten mit Fokus-Eingabe zuerst Feld oder Kamera-Knopf antippen; ohne Fokus
+>    kommt nichts an, Regel (d) „einziges Ziel“ und der Hinweis „bitte zuerst das Feld antippen“ greifen dort nicht.
+> 5. Version **v1.67.1** (Bündel steht auf v1.67.0), Tests (Node-Kern, Quelltext-Wächter) und neue TS-99-Unterpunkte; nur Web.
 
 > [!important] Freigabe-Nachtrag 3 vom 2026-10-22 — Nachbesserung v1.66.2 (geht dem Rumpf und Nachtrag 2 vor)
 > Gerald 2026-10-22 auf die Rückfrage aus dem Bericht v1.66.1:
@@ -452,6 +469,19 @@ Profil-Schalter, Hilfe/README, ein Node-Check - passt in einen Dev-Lauf.
 
 ## Deploy
 
+*Nachtrag QA-Lauf v1.67.1 (2026-10-23) aus dem echten Diff `4bfa4576..a2651019` (`eb4b28ea` + QA-Fix `a2651019`):* geändert sind nur
+`IdealAkeWms/` (`wwwroot/js/hardware-scanner.js`, `wwwroot/js/barcode-scanner.js`, `wwwroot/css/site.css`, `Views/Account/Profile.cshtml`,
+`Views/Help/Index.cshtml` + `Changelog.cshtml`, `Models/Standort/StandortSettingsCatalog.cs` nur Hinweistext, `AppVersion.cs`),
+`IDEALAKEWMSService/AppVersion.cs` (nur Version 1.67.1 / 2026-10-23), Tests und `docs/TESTSZENARIEN.md`.
+- **Web-App:** ja. **Service:** nur Versionsstand, funktional nichts. Mitpublizieren, damit beide 1.67.1 zeigen (wie bei v1.66.x).
+  **Migration:** nein (kein Eintrag unter `*/Migrations/`, kein `SQL/`, FreshInstall und `SQL/AgentJobs/` unberührt, keine neue AppSetting).
+- Ablauf: aus dem Worktree publizieren (beide Befehle unten) → Testsystem → TS-99.17/99.18 (+ Regression TS-99.1 ff., 99.16) → Merge.
+  Nach dem Merge nur dann erneut aus `main` publizieren, wenn der Merge getestete Dateien mit parallelen `main`-Änderungen zusammengeführt hat.
+- Am Netum vor dem Test: Ausgabe „Fokus-Eingabe“, Präfix `~09`, Suffix Enter. Browser-Cache am Gerät leeren bzw. hart neu laden
+  (geänderte JS-Dateien).
+
+*Stand v1.66.2 (darunter, unverändert gültig für die älteren Teile):*
+
 *Final (QA-Lauf v1.66.2, 2026-10-22) aus dem echten Diff `c27f3b6d..845e38c9` (v1.66.0, v1.66.1 + QA-Fix, v1.66.2 + QA-Fix Datum).
 v1.66.2 (`1d78e7f5..845e38c9`) ändert nur `IdealAkeWms/` (10 Scan-Views: Attribut `data-hw-scan-kamera-ziel`; `barcode-scanner.js`: nur
 Kommentar; Help/Index + Changelog; AppVersion), `IDEALAKEWMSService/AppVersion.cs`, Tests und `docs/`.*
@@ -640,6 +670,74 @@ binden.
 **Nachweis**
 - `dotnet build IdealAkeWms.slnx`: 0 Fehler.
 - `dotnet test`: Web **2153 bestanden, 1 übersprungen** (Bestand), Dienst **316 bestanden**.
+
+## Nachbesserung v1.67.1 (Dev-Lauf 2026-10-23, Freigabe-Nachtrag 4)
+
+Basis `4bfa4576` (v1.67.0). Commit `eb4b28ea` (wip feature-complete). Nur Web, keine Migration.
+
+**Text-Erkennung (Punkt 1):**
+- `hardware-scanner.js`: neuer reiner Kern `createText` + `eingefuegt(alt, neu)` (Diff über gemeinsamen Anfang/Ende).
+  - Eine Eingabe-Folge (Abstand ≤ Zeichenabstand) wird gegen den Feldwert **vor** der Folge verglichen (`beforeinput`/`focusin`).
+  - Beginnt der eingefügte Text mit dem Präfix: Feld sofort auf den Stand davor zurück, Cursor an die Einfügestelle.
+    `stopImmediatePropagation` in der Capture-Phase, damit Seiten-Handler (Select2-Suche, Live-Filter) den Präfix nie sehen.
+  - Ende: Enter (`keydown` key `Enter`/keyCode 13, **vor** der 229-Ausnahme abgefangen und verschluckt), Zeilenumbruch im Text oder
+    `beforeinput insertLineBreak`, sonst die Zeitgrenze.
+  - Danach `zustellen(scan)`, dieselbe Kette wie der Tasten-Scan: Kamera-Fenster → Regel (a) Fokus → (b) freies Feld (einfügen +
+    synthetisches Enter) → (d) → Hinweis. Damit sind Select2-Suchfeld (Regel a), BDE `scanFaAg` und Spaltenfilter (Regel b) abgedeckt.
+  - Zeichenweise Fokus-Eingabe (jede Taste ein `input`, keyCode 229) läuft über denselben Kern: der Präfix-Anfang geht durch, ab dem
+    vollen Präfix wird zurückgesetzt.
+- **Keine Doppelauswertung:** Nur `isTrusted`-Ereignisse; eigene `input`-Ereignisse aus `feldFuellen`/Replay sind synthetisch. Während
+  ein Tasten-Scan läuft (`core.pending()`), wird Text ignoriert. Tasten, die der Tasten-Kern verschluckt, erzeugen kein `input`.
+- Passwortfelder: `freiesFeld` kennt `password` nicht; auch in der Diagnose ohne Taste/Text.
+- **Kamera-Fenster:** Ein Fokus-Eingabe-Gerät gibt ohne Feld mit Fokus nichts aus, und das Fenster hatte kein Feld. Darum bekommt es bei
+  Standort-Schalter an ein Feld „Handscanner“ (`inputmode="none"`, keine Bildschirmtastatur), das beim Öffnen den Fokus bekommt.
+  `hwScanKameraZiel` erkennt das offene Fenster als Ziel, wenn der Knopf `data-hw-scan-kamera-ziel` trägt **oder** der Fokus im
+  Handscanner-Feld liegt. Sonst würde auf Seiten mit einem Scan-Feld (Artikel-Info) Regel (b) den Code ins Fensterfeld schreiben.
+
+**Tasten-Erkennung (Punkt 2):** Kern `create` unverändert: die bisherige Node-Prüfung (Stand `4bfa4576`, 27 Prüfungen) läuft gegen das neue Skript grün. Der `keydown`-Kopf ist umgebaut:
+Diagnose-Zeile je Entscheidung, Enter der Fokus-Eingabe vor der 229-Ausnahme. Die Regeln sind gleich: nur `isTrusted`, IME/229
+nicht abfangbar, Passwort, Gerät aus, AltGr.
+
+**Diagnose (Punkt 3):**
+- „Mein Profil“ → Karte „Dieses Gerät“ → Schalter „Scanner-Diagnose“ (`localStorage` `wms.hardwareScanner.diagnose` = `an`, Standard
+  aus, wirkt ab dem nächsten Seitenaufruf).
+- `hardware-scanner.js` baut eine Bootstrap-Karte vor dem Seitenfuß: `pre` mit den letzten 30 Zeilen `+… ms`, Taste/keyCode/isComposing
+  bzw. `input`-Typ und Text sowie die Entscheidung (z. B. „Präfix erkannt (Text)“, „ignoriert: keyCode 229 / Komposition“,
+  `Scan "…" an Feld #…`, „kein Ziel“).
+- Knopf „Kopieren“ (Clipboard-API, sonst Text markieren mit Hinweis), mit Präfix, Zeichenabstand und Browser-Kennung. Keine
+  Server-Anfrage (Wächter-Test).
+- Grenze: Die Diagnose läuft im Scanner-Skript und ist daher nur bei Standort-Schalter an verfügbar (die Profil-Karte ist dann auch
+  nur sichtbar).
+
+**Hilfe/Hinweis (Punkt 4):**
+- Hilfe, Scanner-Abschnitt: Absatz „Geräte mit Fokus-Eingabe“ (zuerst Feld oder Kamera-Knopf antippen; Regel 3/4 greifen nicht);
+  „Scanner einrichten“ nennt Fokus-Eingabe und dass Broadcast im Browser nicht geht; neuer Punkt „Scanner kommt nicht an?“ (Diagnose).
+- Hinweistext in den Standorteinstellungen (`HardwareScannerAktiv`) ergänzt.
+
+**Tests (Punkt 5):**
+- `hardware-scanner.check.js` +18 Prüfungen zum Text-Kern, jetzt 45: ganzer Code, Zeilenumbruch, Zeitgrenze, zeichenweise, zwei
+  Ereignisse, Hand-Eingabe bleibt Text, Präfix ohne Code, Löschen, verpasste Zeitgrenze, anderer Präfix.
+- `HardwareScannerTests`: neu `FokusEingabe_TextErkennung_NurEchteEingaben_KeineDoppelauswertung`,
+  `Diagnose_NurDiesesGeraet_NichtsAnDenServer` und `KameraFenster_HandscannerFeld_FuerFokusEingabe`.
+- TS-99.17 (Netum, Fokus-Eingabe, a–m) und TS-99.18 (Diagnose, a–g). v1.67.1 ×2, Changelog.
+
+**Abweichungen:**
+- **Geänderter Bestandstest:** `DomTeil_PasswortIMEUndSynthetischeTastenNieAbfangen` prüfte die alte Kopfzeile
+  `if (!e.isTrusted || e.isComposing || e.keyCode === 229 || geraetAus()) return;` wörtlich. Er prüft jetzt dieselben Regeln einzeln:
+  `isTrusted` als erste Zeile, 229/Komposition, Gerät aus und Passwort ohne Protokoll der Taste.
+- **Neues Bedienelement:** das Feld „Handscanner“ im Kamera-Fenster. Nötig, weil Punkt 1 „offenes Kamera-Fenster“ für
+  Fokus-Eingabe-Geräte sonst nicht erreichbar ist.
+- DOM-Teil nur per Wegwerf-Mock in Node durchgespielt (Netum ganzer Text + Enter, zeichenweise 229). Kein jsdom, keine neue
+  Abhängigkeit. Nachweis am Gerät: Manual-UAT TS-99.17.
+
+**Grenzen (bewusst):**
+- Ein von Hand **eingefügter** Text (Strg+V), der mit dem Präfix beginnt, gilt als Scan.
+- Setzt das Gerät Text per IME-Komposition (`insertCompositionText`), kann das Zurücksetzen des Feldwerts die Komposition stören
+  (TS-99.17 am Netum).
+- Ob `inputmode="none"` die Fokus-Eingabe des Netum zulässt, zeigt erst TS-99.17 c.
+
+**Nachweis:** `dotnet build IdealAkeWms.slnx` ergibt 0 Fehler, 28 Warnungen (alle schon vorher vorhanden). `dotnet test`: Web **2181
+bestanden, 1 übersprungen** (schon vorher), Dienst **328 bestanden**. Node-Kern: „hardware-scanner core ok (45 Pruefungen)“.
 
 ## Freigabe-Antworten (Mensch fuellt aus — Schranke 1)
 
@@ -959,6 +1057,105 @@ v1.66.2 in beiden `AppVersion.cs` ✓, `Help/Changelog.cshtml` Karte v1.66.2 (St
 
 **Ergebnis:** grün, keine offenen Blocker → `status: Testbereit`.
 
+## QA-Nachweis v1.67.1 (qa-agent, 2026-10-23, Freigabe-Nachtrag 4)
+
+Geprüft wurde `git diff 4bfa4576..eb4b28ea` (12 Dateien, +386/−18) im Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`. Dazu der
+umgebende Code: `hardware-scanner.js` komplett, in `barcode-scanner.js` Modal, Ziel-Register und `wms:hardware-scan`-Listener,
+die Scan-Handler in `bde-terminal.js`, `Profile.cshtml` und die Modal-Farben in `site.css`. QA-Fix `a2651019` (nur Doku). Das Review lief
+selbst, in diesem Lauf.
+
+### 1. Build und Tests (selbst ausgeführt, vor und nach dem QA-Fix)
+- `dotnet build IdealAkeWms.slnx`: **0 Fehler**, 28 bzw. 27 Warnungen (alle schon vorher vorhanden, u. a. CS8601 in Tests).
+- `dotnet test`: **IdealAkeWms.Tests 2181 bestanden, 1 übersprungen, 0 fehlgeschlagen (2182)**; **IDEALAKEWMSService.Tests 328 bestanden,
+  0 übersprungen, 0 fehlgeschlagen**. `HardwareScannerTests` 11/11 bestanden, `Kern_NodeSelbstpruefung` lief (nicht übersprungen).
+- Node direkt: `hardware-scanner.check.js` → „hardware-scanner core ok (45 Pruefungen)“. Die **alte Prüfung von `4bfa4576`** läuft gegen
+  das neue Skript mit „ok (27 Pruefungen)“ durch. Damit ist belegt, dass der Tasten-Kern `create` unverändert ist.
+
+### 2. Code-Review: Befunde und Behandlung
+| # | Schwere | Fundstelle | Befund | Behandlung |
+|---|---|---|---|---|
+| Q4-1 | mittel (Doku-Drift) | `barcode-scanner.js:127-128`, `:467-469`; `Help/Index.cshtml` Absatz „Kamera-Fenster offen“; `docs/TESTSZENARIEN.md` TS-99 Negativ c | Das Feld „Handscanner“ bekommt beim Öffnen **immer** den Fokus. Über das ODER ist das Fenster damit auf **jeder** Seite Ziel, auch für Tastatur-Scanner und auf Seiten mit einem Scan-Feld (Articles/Info, Ausgang „Alles“, Bewegungsliste). TS-99 Negativ c („Modal bleibt offen“) und der Hilfe-Satz „auf allen Seiten mit mehreren Scan-Feldern“ widersprachen dem neuen Verhalten (TS-99.17 d). Fachlich ist das gewollt (Nachtrag 4 Punkt 1 „offenes Kamera-Fenster als Ziel“) und beantwortet Checklistenpunkt 25. | **Behoben** `a2651019`: Hilfe-Satz ergänzt, TS-99 Negativ c als ab v1.67.1 überholt markiert. Der alte Fall gilt nur noch, wenn der Fokus im Fenster woanders liegt. |
+| Q4-2 | niedrig (Restrisiko, Manual-UAT) | `hardware-scanner.js:304-309`, `:335-340` | Das Enter-Suffix wird nur als `keydown` mit key `Enter`/keyCode 13 abgefangen, in einer Textarea zusätzlich als `beforeinput insertLineBreak/Paragraph`. Meldet ein Gerät Enter als keyCode 229 bzw. `Unidentified`, greift das nicht. Dann kann ein Formular per impliziter Übermittlung abgeschickt werden, bevor die Zeitgrenze den Scan liefert. | Ohne Gerät nicht änderbar. TS-99.17 prüft „das Formular wird **nicht** abgeschickt“, die Diagnose zeigt den keyCode des Enters. Checkliste Punkt 27. |
+| Q4-3 | niedrig (Grenze) | `hardware-scanner.js:115-116` (`createText.eingabe`) | Erkannt wird nur reines **Einfügen** (`entfernt === 0`). Ist im Feld Text **markiert** und das Gerät ersetzt ihn, bleibt `~09<Code>` als Text stehen. Kein Feld markiert seinen Inhalt beim Fokus (`.select()` in Views und JS: kein Treffer), relevant ist das also nur bei manueller Markierung. Ebenso kann der Diff über gemeinsamen Anfang und Ende den Präfix verfehlen, wenn direkt hinter dem Cursor ein `~` steht (Feld `A~`, `~09B` an Position 1). | Hingenommen (Randfall), hier dokumentiert. |
+| Q4-4 | niedrig (Grenze) | `hardware-scanner.js:94-100` (`createText.ende`), `:292-298` | Präfix ohne Code plus Enter innerhalb der Zeitgrenze (von Hand `~09` und Enter in ≤ 50 ms): Der Präfix kommt zurück ins Feld, das Enter bleibt aber verschluckt. Bei verpasster Zeitgrenze (Timer gedrosselt) wird der alte Code **nach** der neuen Eingabe eingefügt, die Reihenfolge ist also vertauscht. Das ist schon mit `ponytail:` markiert. | Hingenommen (in der Praxis nicht relevant). |
+| Q4-5 | Hinweis | `barcode-scanner.js:113-128` | Das Feld „Handscanner“ erscheint und nimmt den Fokus auch dann, wenn „Dieses Gerät“ aus ist, denn die Bedingung ist nur `data-hw-scan-praefix`. Von Hand Getipptes plus Enter bewirkt in diesem Feld nichts. | Hingenommen, harmlos. Ggf. als Folgewunsch. |
+
+Gezielt geprüft, ohne Befund:
+- **Präfix nie im Feld, Seiten-Handler sehen ihn nicht:** Der `input`-Listener sitzt in der Capture-Phase am `window`. Bei
+  `zuruecksetzen` ruft er `stopImmediatePropagation` auf und setzt Wert und Cursor zurück (`:320-324`). Eigene Ereignisse aus
+  `feldFuellen`, Replay und `zurueck` sind synthetisch und fallen über `isTrusted` heraus (`:303`, `:315`, `:330`). Bei zeichenweiser Eingabe
+  erreichen `~` und `~0` die Seite kurz (Select2 sucht kurz nach `~`), ab dem vollen Präfix wird zurückgesetzt. Das entspricht der
+  Beschreibung.
+- **Dieselbe Kette:** `textAuswerten` → `zustellen` (`:258-281`) → `wms:hardware-scan` → `hwScanKameraZiel`/`hwScanFokusIn` → globale
+  (gewrappte) `processScannedValue` (`barcode-scanner.js:473-497`).
+  - Select2-Suchfeld: Regel (a) über `.select2-dropdown`. Das echte Enter erreicht Select2 nicht, es wählt also keinen markierten Eintrag;
+    danach `select2('close')`.
+  - BDE `scanOperator`/`scanFaAg`: Regel (b), Code einfügen plus synthetisches Enter an die `keydown`-Handler
+    `bde-terminal.js:100-102` bzw. `:166-168`. Das echte Enter ist vorher verschluckt, es gibt keinen doppelten Aufruf.
+  - Spaltenfilter: Regel (b).
+  - Der eigene Code hat keine `keyup`/`keypress`-Handler (grep). Ein durchgelassenes `keyup` Enter löst daher nichts doppelt aus.
+- **Keine Doppelauswertung:** Text wird ignoriert, solange der Tasten-Kern läuft (`:318`). Tasten, die der Tasten-Kern verschluckt,
+  erzeugen kein `input`. Offen bleibt nur der Fall, dass ein Gerät echte Tasten **und** einen IME-Commit sendet; das prüfen TS-99.17 m
+  und die Diagnose.
+- **Regelgleichheit im `keydown`-Kopf:** Alt war `!isTrusted || isComposing || 229 || geraetAus → return; !pending && password → return`.
+  Neu ist die Reihenfolge `isTrusted`, Passwort (`!pending`), Gerät aus, **[neu: Enter bei `textCore.aktiv()`]**, 229/Komposition.
+  - Alle Zweige vor dem Enter-Zweig enden wie vorher mit `return`. Dass Passwort jetzt vor 229 steht, ändert nichts: beide enden mit
+    `return`, und bei `pending` fällt 229 weiter auf `return`.
+  - Der Enter-Zweig greift nur innerhalb der Zeitgrenze nach einem erkannten Text-Präfix (`aktiv()` heißt `code !== null`, sonst beendet
+    der Timer nach `maxGapMs + 5`). Normales Enter auf anderen Seiten bleibt unberührt.
+  - `preventDefault` auf `keydown` unterbindet die implizite Formular-Übermittlung.
+- **Passwort:** `freiesFeld` kennt `password` nicht (`:218`). `input`/`beforeinput` werden dort also gar nicht ausgewertet oder
+  protokolliert. `keydown` im Passwortfeld wird ohne Taste protokolliert (`:333`).
+- **Diagnose:**
+  - Gespeichert nur in `localStorage` `wms.hardwareScanner.diagnose` = `an` (Profil `Profile.cshtml:204-208`), Standard aus.
+  - Ringpuffer mit 30 Zeilen (`:162`), Ausgabe nur per `textContent` (kein HTML).
+  - Kein `fetch`/XHR/`sendBeacon`/`$.ajax` in der Datei (Wächter-Test).
+  - Kopieren über die Clipboard-API, ohne HTTPS oder ohne Recht wird der Text stattdessen markiert.
+  - Darstellung: Karte vor `footer.footer`, `pre` mit Umbruch, 0,875 rem, `max-height:50vh`, per Tab erreichbar. Knopf ohne `btn-sm`,
+    das Touch-Ziel reicht.
+- **Bekannte Fehlerklassen des Projekts:**
+  - Keine Werte per `@Html.Raw` in `<script>`.
+  - `hidden` nur an `#hwScanGeraet`, das die Klassen `card mt-3` trägt, also kein `d-*`.
+  - Keine stillen `?? 0`-Fallbacks. Präfix-Default `~09` und Abstand-Default 50 sind bewusst gesetzt und dokumentiert.
+  - Keine Arrays, kein Model-Binding. Keine Server-Regel betroffen: alles läuft im Browser, nichts wird gespeichert.
+  - Die Präfix-Regel liegt jetzt in **zwei** Kernen, `create` für Tasten und `createText` für Text. Das sind zwei Eingabekanäle; Präfix
+    und Abstand kommen aus denselben body-Attributen, jeder Kern hat seine eigene Node-Prüfung. Bei den Einstellungen gibt es daher kein
+    Drift-Risiko.
+- **WCAG AA:**
+  - Kamera-Fenster auf `#1a1a1a`: Label `#fff` ≈ 17,4:1, Hilfetext `#ced4da` ≈ 11,6:1, Eingabefeld im Bootstrap-Standard (dunkel auf weiß).
+  - Diagnose-Karte im Bootstrap-Standard: Fließtext auf weiß, `btn-outline-secondary` `#6c757d` ≈ 4,7:1.
+  - Bedeutung hängt nie allein an der Farbe.
+
+### 3. Beweisart je Punkt des Nachtrags 4
+| Punkt | Beweis |
+|---|---|
+| 1 Erkennung am eingefügten Text (Kern): ganzer Code, Zeilenumbruch, Zeitgrenze, zeichenweise, Hand-Eingabe bleibt Text, Präfix ohne Code, Löschen, anderer Präfix | **automatisiert**: Node `hardware-scanner.check.js` (18 neue Prüfungen) |
+| 1 DOM: Präfix nie im Feld, Zustellung an Select2, Kamera-Fenster, BDE und Spaltenfilter, Enter verschluckt, kein Submit | Quelltext-Wächter `FokusEingabe_*` und `KameraFenster_HandscannerFeld_*` sichern nur die Code-Stellen. **Manual-UAT** TS-99.17 a–h (Browser-JS, Gerät) |
+| 1 Verhalten am Netum: `inputmode="none"` mit Fokus-Eingabe, keyCode des Enters, IME-Komposition | **Manual-UAT** TS-99.17 c/h/m (Gerät) |
+| 2 Tasten-Erkennung unverändert | **automatisiert**: alte Node-Prüfung (27) gegen das neue Skript grün. Kopf: Wächter plus Review. Am Gerät **Manual-UAT** TS-99.17 m, TS-99.1 ff. |
+| 3 Diagnose: localStorage, Standard aus, 30 Zeilen, nichts an den Server | Wächter `Diagnose_NurDiesesGeraet_NichtsAnDenServer` (Quelltext). Anzeige, Kopieren und Netzwerk: **Manual-UAT** TS-99.18 |
+| 4 Hilfe und Hinweistext | Review (Text gelesen), Sichtprüfung als **Manual-UAT** |
+| 5 Version, Tests, TS | Review: 1.67.1 / 2026-10-23 in beiden `AppVersion.cs`, Changelog, TS-99.17/99.18 |
+
+Was als „Manual-UAT“ markiert ist, zählt nicht als grün.
+
+### 4. Geänderte Bestandstests
+- `HardwareScannerTests.DomTeil_PasswortIMEUndSynthetischeTastenNieAbfangen` prüfte die alte Kopfzeile wörtlich. Jetzt prüft er dieselben
+  Regeln einzeln: erste Zeile `isTrusted`, 229/Komposition, Gerät aus, Passwort.
+  - **Einordnung:** Quelltext-Wächter an den umgebauten Kopf angepasst. Umgebaut wurde er durch Nachtrag 4 Punkt 3 (Diagnose-Zeile je
+    Entscheidung) und Punkt 1 (Enter vor 229).
+  - Die Regelgleichheit ist im Review bestätigt (§2). Kein Fixture wurde angeglichen.
+- `hardware-scanner.check.js` wurde nur ergänzt, die bestehenden Prüfungen sind unverändert.
+
+### 5. CLAUDE.md-Checkliste
+- Migration, `SQL/`, FreshInstall, `SQL/AgentJobs/`: entfällt. Audit: keine Entität. README: keine neue Einstellung, denn die Diagnose
+  ist Browser-lokal.
+- Version 1.67.1 in beiden `AppVersion.cs` ✓, Anwender-Changelog ✓, Hilfe ✓ (+ QA-Fix), Brain-Changelog
+  [[2026-10-23-v1-67-1-hardware-scanner-fokus-eingabe]] ✓, feature-map ✓.
+- `docs/TESTSZENARIEN.md` TS-99.17/99.18 ✓ (+ Negativ c angepasst), [[testszenarien-index]] Zeile 99 ✓.
+
+**Ergebnis:** grün, keine offenen Blocker → `status: Testbereit`.
+
 ## Manuelle Test-Checkliste (Schranke 2, Mensch)
 
 Vorher: aus dem Worktree publizieren (Deploy-Abschnitt) → Testsystem. Admin: Standorteinstellungen → Hardware-Scanner aktiv, Präfix
@@ -1018,3 +1215,22 @@ Vorher: aus dem Worktree publizieren (Deploy-Abschnitt) → Testsystem. Admin: S
 26. **Q3-2 beobachten:** OSEON „Artikel“-Kamera-Knopf 5× hintereinander öffnen, abwechselnd mit Kamera und Scanner scannen → Filter wird
     jedes Mal gesetzt. Schlägt es sporadisch fehl (Fenster bleibt, nichts gefiltert), ist das der vorbestehende Doppel-Handler (Abhilfe im
     QA-Nachweis v1.66.2). Auf LocationTransfer „Quell-Lagerplatz“ prüfen, ob die Kamera nach dem Schließen wirklich aus ist.
+
+**Ergänzung v1.67.1** (Nachtrag 4). Punkt 25 ist damit beantwortet: Das Fenster schließt, solange das Feld „Handscanner“ den Fokus hat.
+
+27. **TS-99.17 a–m** am Netum, Ausgabe „Fokus-Eingabe“, Diagnose an. In keinem Feld darf je `~09` stehen, kein Formular darf abgeschickt
+    werden. Geprüft werden Inbound, Outbound, das Kamera-Fenster auf Transfer, Stückliste, Articles/Info, BDE, der Spaltenfilter der
+    FA-Liste und ein Bemerkungsfeld. In der Diagnose die `keydown`-Zeile des Enters ansehen. Steht dort `keyCode=229` bzw.
+    `key="Unidentified"` statt `Enter`/13, wird das Enter nicht abgefangen (Q4-2): Diagnose kopieren und melden.
+28. **TS-99.17 c:** Kamera-Knopf antippen. Öffnet sich **keine** Bildschirmtastatur, und kommt der Scan im Feld „Handscanner“ an? Gibt
+    der Netum bei `inputmode="none"` nichts aus, bitte melden.
+29. **TS-99.17 m + TS-99.1/99.11:** USB-Scanner bzw. Simulation am PC verhalten sich wie vorher, genau eine Auswertung je Scan. Neu dazu:
+    auf Articles/Info Kamera-Fenster offen, Tastatur-Scan → Feld gefüllt, Fenster **schließt** (TS-99 Negativ c ist angepasst).
+30. **TS-99.18 a–g:**
+    - Diagnose ist standardmäßig aus.
+    - Die Karte steht vor dem Seitenfuß und zeigt höchstens 30 Zeilen.
+    - „Kopieren“ legt den Text unter HTTPS in die Zwischenablage, unter HTTP wird er markiert.
+    - Der Netzwerk-Tab zeigt keine Anfragen.
+    - Am Handheld lesbar.
+    - Passwortfeld erscheint ohne Taste.
+31. **Regression TS-99.16** stichprobenhaft mit dem Netum (Inbound, Stückliste Artikel): Das Fenster ist Ziel wie vorher.

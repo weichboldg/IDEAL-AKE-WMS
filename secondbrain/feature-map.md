@@ -695,6 +695,7 @@ Changelog [[2026-10-21-v1-66-0-hardware-barcodescanner]].
 | v1.66.1 N-2: Zeichenabstand 10–500 mit Meldung, leer = 50 (Server `StandortField.Min/Max/EmptyResetsToDefault`, Client `HwScanCore.abstand`) | **erledigt** `c72be07e` | `StandortEinstellungenController.Save` |
 | QA-Fix v1.66.1: Kamera-Treffer eines gestoppten Scanners ignorieren (Race Hardware-Scan/laufender Decode) | **erledigt** `1d78e7f5` | `barcode-scanner.js startCameraScanner` |
 | v1.66.2 (Nachtrag 3): Kamera-Fenster als Scan-Ziel an allen 22 Kamera-Knöpfen der Seiten mit mehr als einem Scan-Feld; Wächter mit vollständiger Liste | **erledigt** `543edbe2`, `845e38c9` (qa) | `data-hw-scan-kamera-ziel` in 10 Views, `HardwareScannerTests` |
+| v1.67.1 (Nachtrag 4): Fokus-Eingabe-Geräte (Netum) – Präfix am eingefügten Text, Feld „Handscanner“ im Kamera-Fenster, Scanner-Diagnose in Mein Profil | **erledigt** `eb4b28ea`, `a2651019` (qa) | `HwScanCore.createText`, `hardware-scanner.js` (input/beforeinput), [[2026-10-23-v1-67-1-hardware-scanner-fokus-eingabe]] |
 
 > **Deploy:** Web; Dienst nur wegen `AppVersion.cs`. Keine Migration. Default aus; vor dem Einschalten Geräte einrichten (DE-Layout,
 > Präfix, Enter, Tasten-Ausgabe).
