@@ -10425,7 +10425,9 @@ Lagerplatz (Code 128), Kommissionierliste mit Haupt-FA-Barcode, Beschichtungsauf
 - **Negativfälle.** a) Passwortfeld (Mein Profil, neues Passwort), schnell `~09x` per Simulation: **Erwartet:** steht unverändert im Feld
   (AK 6). b) Scanner auf **US-Layout**: **Erwartet:** kein Scan erkannt bzw. `y`/`z` vertauscht — dokumentiert die Pflicht zum DE-Layout.
   c) Scan bei offenem Kamera-Modal auf einer Seite mit genau einem Scan-Feld (Articles/Info, Ausgang „Alles“, Bewegungsliste):
-  nach Regel einziges Ziel behandelt, Modal bleibt offen (Seiten mit mehreren Scan-Feldern: TS-99.14/99.16). d) EAN-Etikett im Artikel-Feld:
+  nach Regel einziges Ziel behandelt, Modal bleibt offen (Seiten mit mehreren Scan-Feldern: TS-99.14/99.16). **Ab v1.67.1 überholt,
+  solange das Feld „Handscanner“ im Fenster den Fokus hat (Standard beim Öffnen):** Feld gefüllt, Fenster schließt (TS-99.17 d); nur
+  nach Antippen von z. B. „Bild hochladen“ (Fokus weg) gilt noch „Modal bleibt offen“. d) EAN-Etikett im Artikel-Feld:
   „✗ Nicht gefunden“ (EAN eigene Spec). e) Normale Bildschirmtastatur-Eingabe auf Android: unverändert (IME wird nie abgefangen).
 - **TS-99.14 — Stückliste am Handheld: Kamera-Fenster nimmt den Scan an (v1.66.1, Nachtrag 2 Punkt 1).** Picking/Bom im
   Kommissionier-Modus am Netum: „Artikel scannen“ antippen, das Kamera-Fenster ist offen; Artikel-QR mit dem **eingebauten Scanner**
