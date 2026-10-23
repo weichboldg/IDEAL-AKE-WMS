@@ -464,6 +464,16 @@ body {
     font-size: 1rem;
 }
 
+/* v1.67.1 Handscanner-Feld im Kamera-Fenster (Fokus-Eingabe); helle Schrift auf #1a1a1a */
+.scanner-hw-feld {
+    padding: 8px 16px 0;
+    color: #fff;
+}
+
+.scanner-hw-feld .form-text {
+    color: #ced4da;
+}
+
 .scanner-modal-footer {
     padding: 12px 16px;
     text-align: center;

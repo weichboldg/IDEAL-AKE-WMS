@@ -67,9 +67,14 @@ public class HardwareScannerTests
     public void DomTeil_PasswortIMEUndSynthetischeTastenNieAbfangen()
     {
         var js = Read("wwwroot", "js", "hardware-scanner.js");
-        js.Should().Contain("if (!e.isTrusted || e.isComposing || e.keyCode === 229 || geraetAus()) return;",
-            "das eigene synthetische Enter darf nicht erneut verarbeitet werden; IME ist nicht abfangbar");
-        js.Should().Contain("aktiv.type === 'password') return;", "AK 6");
+        // v1.67.1: Kopf umgebaut (Diagnose-Zeile je Entscheidung, Enter-Suffix der Fokus-Eingabe vor der 229-Ausnahme), Regeln gleich.
+        var lf = js.Replace("\r\n", "\n");
+        var taste = lf[lf.IndexOf("window.addEventListener('keydown'", StringComparison.Ordinal)..];
+        taste.Should().StartWith("window.addEventListener('keydown', function (e) {\n        if (!e.isTrusted) return;",
+            "das eigene synthetische Enter darf nicht erneut verarbeitet werden");
+        taste.Should().Contain("if (e.isComposing || e.keyCode === 229) {", "IME ist nicht abfangbar");
+        taste.Should().Contain("if (geraetAus()) {");
+        taste.Should().Contain("aktiv.type === 'password' && !core.pending()) { diag('keydown (Passwortfeld) → ignoriert'); return; }", "AK 6, Taste nie protokolliert");
         js.Should().Contain("el.readOnly || !el.getClientRects().length) return false;",
             "ein ausgeblendetes, noch fokussiertes Feld (BDE scanOperator nach der Anmeldung) ist kein freies Feld (QA-Befund B-1)");
         js.Should().Contain("getModifierState('AltGraph')", "~ kommt auf DE-Layout per AltGr und ist kein Tastenkuerzel");
@@ -155,6 +160,46 @@ public class HardwareScannerTests
         (abstand.Min, abstand.Max, abstand.EmptyResetsToDefault).Should().Be((10, 500, true), "v1.66.1 N-2, gleiche Grenzen wie HwScanCore.abstand");
         Read("wwwroot", "js", "hardware-scanner.js").Should().Contain("return n >= 10 && n <= 500 ? n : 50;")
             .And.Contain("var maxGapMs = abstand(body.getAttribute('data-hw-scan-abstand'));");
+    }
+
+    [Fact]
+    public void FokusEingabe_TextErkennung_NurEchteEingaben_KeineDoppelauswertung()
+    {
+        // Freigabe-Nachtrag 4 (Netum): Praefix am eingefuegten Text erkennen, ueber dieselbe Zustellung wie der Tasten-Scan.
+        var js = Read("wwwroot", "js", "hardware-scanner.js");
+        js.Should().Contain("window.addEventListener('input', function (e) {").And.Contain("window.addEventListener('beforeinput', function (e) {");
+        js.Should().Contain("if (!e.isTrusted || !freiesFeld(el)) return;", "synthetische Ereignisse (feldFuellen) nie erneut; Passwort ist kein freies Feld");
+        js.Should().Contain("/^(text|search|tel|url|email|number)$/i").And.NotContain("|password", "Passwortfelder ausgenommen");
+        js.Should().Contain("if (core.pending()) { diag(info + ' → ignoriert: Tasten-Scan läuft'); return; }", "keine Doppelauswertung");
+        js.Should().Contain("e.stopImmediatePropagation();  // Seiten-Handler").And.Contain("el.value = r.wert;", "der Praefix bleibt nie im Feld");
+        js.Should().Contain("if (r.scan) zustellen(r.scan);", "dieselbe Zustellung (Kamera-Fenster, Regel a/b/d, Hinweis) wie der Tasten-Scan");
+        var taste = js[js.IndexOf("window.addEventListener('keydown'", StringComparison.Ordinal)..];
+        taste.IndexOf("textCore.aktiv() && (e.key === 'Enter' || e.keyCode === 13)", StringComparison.Ordinal)
+            .Should().BePositive().And.BeLessThan(taste.IndexOf("e.keyCode === 229) {", StringComparison.Ordinal),
+                "das Enter-Suffix wird abgefangen, bevor es ein Formular absendet - auch wenn das Geraet sonst 229 meldet");
+    }
+
+    [Fact]
+    public void Diagnose_NurDiesesGeraet_NichtsAnDenServer()
+    {
+        var js = Read("wwwroot", "js", "hardware-scanner.js");
+        js.Should().Contain("localStorage.getItem('wms.hardwareScanner.diagnose') === 'an'").And.Contain("if (diagZeilen.length > 30)");
+        js.Should().Contain("diagPre.textContent = ").And.NotContain("innerHTML");
+        foreach (var weg in new[] { "fetch(", "XMLHttpRequest", "sendBeacon", "$.ajax", "$.post" })
+            js.Should().NotContain(weg, "Diagnose-Daten bleiben im Browser");
+        var view = Read("Views", "Account", "Profile.cshtml");
+        view.Should().Contain("id=\"hwScanDiagnoseAn\"").And.Contain("'wms.hardwareScanner.diagnose'")
+            .And.Contain("if (diag.checked) localStorage.setItem(DIAG, 'an'); else localStorage.removeItem(DIAG);", "Standard aus");
+    }
+
+    [Fact]
+    public void KameraFenster_HandscannerFeld_FuerFokusEingabe()
+    {
+        var js = Read("wwwroot", "js", "barcode-scanner.js");
+        js.Should().Contain("${document.body.hasAttribute('data-hw-scan-praefix') ? `", "nur bei Standort-Schalter an");
+        js.Should().Contain("id=\"scannerHwInput\" class=\"form-control\" inputmode=\"none\"", "keine Bildschirmtastatur ueber dem Kamerabild");
+        js.Should().Contain("if (hwFeld) hwFeld.focus({ preventScroll: true });", "ohne Fokus gibt ein Fokus-Eingabe-Geraet nichts aus");
+        js.Should().Contain("|| document.activeElement === document.getElementById('scannerHwInput')", "auch auf Seiten mit einem Scan-Feld");
     }
 
     [Fact]

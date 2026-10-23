@@ -110,12 +110,22 @@ async function openScannerModal(targetSelectId, scanType, qrFaEnabled, faTargetI
             <div id="scannerResult" class="scanner-result" style="display:none;">
                 <span id="scannerResultText"></span>
             </div>
+            ${document.body.hasAttribute('data-hw-scan-praefix') ? `
+                <div class="scanner-hw-feld">
+                    <label for="scannerHwInput" class="form-label mb-1">Handscanner</label>
+                    <input type="text" id="scannerHwInput" class="form-control" inputmode="none" autocomplete="off" aria-describedby="scannerHwText" />
+                    <div class="form-text" id="scannerHwText">Code mit dem Handscanner scannen – das Feld ist schon ausgewählt, die Kamera läuft weiter.</div>
+                </div>
+            ` : ''}
             <div class="scanner-modal-footer">
                 <button type="button" class="btn btn-outline-light" id="scannerCancelBtn">Abbrechen</button>
             </div>
         </div>
     `;
     document.body.appendChild(modal);
+    // v1.67.1 Fokus-Eingabe (Netum): ohne Feld mit Fokus gibt das Geraet nichts aus; inputmode="none" haelt die Bildschirmtastatur zu.
+    var hwFeld = document.getElementById('scannerHwInput');
+    if (hwFeld) hwFeld.focus({ preventScroll: true });
 
     // Event-Handler mit addEventListener (robuster als onclick)
     document.getElementById('scannerCloseBtn').addEventListener('click', closeScannerModal);
@@ -454,7 +464,9 @@ function hwScanKameraZiel(ziele) {
     if (!modal) return null;
     return ziele.filter(function (z) {
         var btn = document.getElementById(z.buttonId);
-        return z.targetId === modal.dataset.zielId && btn && btn.hasAttribute('data-hw-scan-kamera-ziel');
+        // v1.67.1: Fokus im Handscanner-Feld des Fensters macht es auch auf Seiten mit einem Scan-Feld zum Ziel (sonst Regel (b) ins Fensterfeld).
+        return z.targetId === modal.dataset.zielId && btn
+            && (btn.hasAttribute('data-hw-scan-kamera-ziel') || document.activeElement === document.getElementById('scannerHwInput'));
     })[0] || null;
 }
 
@@ -468,7 +480,7 @@ document.addEventListener('wms:hardware-scan', function (e) {
         if (kamera.textInput) _textInputScanCallback = kamera.textInput;
         processScannedValue(d.code, kamera.targetId, kamera.scanType, kamera.qrFaEnabled, kamera.faTargetId);
         closeScannerModal();
-        d.handled = true;
+        d.handled = true; d.ziel = kamera.targetId + ' (Kamera-Fenster)';
         return;
     }
     var ziel = vorhanden.filter(function (z) { return hwScanFokusIn(z, aktiv); })[0];
@@ -481,7 +493,7 @@ document.addEventListener('wms:hardware-scan', function (e) {
     if (window.jQuery && $(el).hasClass('select2-hidden-accessible')) $(el).select2('close');
     if (ziel.textInput) _textInputScanCallback = ziel.textInput;  // wie der Klick-Handler: onScanned feuert nach dem Fuellen
     processScannedValue(d.code, ziel.targetId, ziel.scanType, ziel.qrFaEnabled, ziel.faTargetId);
-    d.handled = true;
+    d.handled = true; d.ziel = ziel.targetId;
 });
 
 // Initialisierung wenn DOM bereit

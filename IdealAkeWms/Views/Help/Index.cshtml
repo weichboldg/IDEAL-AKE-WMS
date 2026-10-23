@@ -108,6 +108,12 @@
                     Seiten mit mehreren Scan-Feldern: Wareneingang (auch Sammel), Ausgang, Umbuchung, Lagerplatz-Umbuchung,
                     Bestandsübersicht, FA-Liste, Leitstand, OSEON und Stückliste (Artikel und Ziel-Lagerplatz).
                 </p>
+                <p>
+                    <strong>Geräte mit Fokus-Eingabe (seit v1.67.1, z.&nbsp;B. Netum):</strong> Sie schreiben den ganzen Code in das Feld,
+                    das gerade angetippt ist &ndash; ohne angetipptes Feld kommt nichts an. Deshalb <strong>zuerst das Feld oder den
+                    Kamera-Knopf antippen</strong>, dann scannen. Im Kamera-Fenster ist dafür das Feld &bdquo;Handscanner&ldquo; schon
+                    ausgewählt. Punkt 3 und 4 der Reihenfolge (einziges Scan-Feld, gelber Hinweis) greifen bei diesen Geräten nicht.
+                </p>
                 <dl class="mb-0">
                     <dt>Einschalten (Admin)</dt>
                     <dd>Standorteinstellungen &rarr; Gruppe &bdquo;Hardware-Scanner&ldquo;: <code>HardwareScannerAktiv</code> (Standard aus),
@@ -115,10 +121,15 @@
                         (10 bis 500 ms, leer = 50).</dd>
                     <dt>Scanner einrichten</dt>
                     <dd>Am Scanner einstellen: deutsches Tastaturlayout, derselbe Präfix vor jedem Code, Enter als Abschluss, Ausgabe als
-                        Tastendrücke (nicht über die Bildschirmtastatur). Codes: Code 128 (Lagerplatz, Haupt-FA, Beschichtungsauftrag)
+                        Tastendrücke (nicht über die Bildschirmtastatur) oder &bdquo;Fokus-Eingabe&ldquo;; &bdquo;Broadcast&ldquo; geht im
+                        Browser nicht. Codes: Code 128 (Lagerplatz, Haupt-FA, Beschichtungsauftrag)
                         und Artikel-QR. EAN-Codes kennt das WMS nicht.</dd>
                     <dt>Auf einem Gerät ausschalten</dt>
                     <dd>&bdquo;Mein Profil&ldquo; &rarr; &bdquo;Dieses Gerät&ldquo;. Gilt nur für diesen Browser, sofort, ohne Speichern.</dd>
+                    <dt>Scanner kommt nicht an?</dt>
+                    <dd>&bdquo;Mein Profil&ldquo; &rarr; &bdquo;Scanner-Diagnose&ldquo; einschalten. Unten auf jeder Seite stehen dann die
+                        letzten 30 Ereignisse und was der Scanner daraus gemacht hat; &bdquo;Kopieren&ldquo; und an die IT schicken. Nur dieses
+                        Gerät, nichts wird gesendet.</dd>
                     <dt>Passwortfelder</dt>
                     <dd>Werden nie abgefangen.</dd>
                 </dl>

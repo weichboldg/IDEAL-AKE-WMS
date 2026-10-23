@@ -76,4 +76,62 @@ for (const [raw, soll] of [['50', 50], ['80', 80], ['10', 10], ['500', 500], ['9
     ok(core.abstand(raw) === soll, `abstand(${raw}) = ${soll}`);
 }
 
+// v1.67.1 Fokus-Eingabe (Freigabe-Nachtrag 4, Netum): Erkennung am eingefuegten Text
+const tx = () => core.createText({ prefix: '~09', maxGapMs: 50 });
+let e = core.eingefuegt('ab', 'a~09Xb');
+ok(e.pos === 1 && e.text === '~09X' && e.entfernt === 0, 'eingefuegt in der Mitte');
+e = core.eingefuegt('abc', 'ac');
+ok(e.entfernt === 1 && e.text === '', 'eingefuegt: Loeschung');
+
+// Ganzer Code auf einmal, Enter als eigenes keydown: Feld zurueck auf den Stand davor, Scan erst mit Enter
+let c = tx(), x = c.eingabe('', '~09A-1', 1000);
+ok(x.action === 'zuruecksetzen' && x.wert === '' && x.pos === 0 && !x.scan && c.aktiv(), 'Text mit Praefix: zuruecksetzen, Scan offen');
+x = c.enter();
+ok(x.scan && x.scan.code === 'A-1' && x.scan.endedWithEnter && !c.aktiv(), 'Enter beendet Text-Scan');
+
+// Zeilenumbruch im Text beendet sofort
+c = tx(); x = c.eingabe('', '~09ABC\n', 1000);
+ok(x.action === 'zuruecksetzen' && x.scan && x.scan.code === 'ABC' && x.scan.endedWithEnter, 'Zeilenumbruch = Enter-Suffix');
+
+// Ohne Enter: Zeitgrenze; Text mitten im vorhandenen Wert, Cursor-Position bleibt
+c = tx(); x = c.eingabe('x', 'x~0977', 1000);
+ok(x.wert === 'x' && x.pos === 1, 'vorhandener Text bleibt, Praefix nie im Feld');
+ok(!c.tick(1040).scan, 'vor der Zeitgrenze kein Ende');
+x = c.tick(1100);
+ok(x.scan && x.scan.code === '77' && !x.scan.endedWithEnter, 'Ende per Zeitgrenze');
+
+// Zeichenweise (keyCode 229, jede Taste ein input): Praefix-Anfang geht durch, ab vollem Praefix wird zurueckgesetzt
+c = tx();
+ok(c.eingabe('', '~', 1000).action === 'pass' && c.eingabe('~', '~0', 1005).action === 'pass', 'Praefix-Anfang durchgelassen');
+x = c.eingabe('~0', '~09', 1010);
+ok(x.action === 'zuruecksetzen' && x.wert === '', 'voller Praefix: Feld zurueck auf den Stand vor der Folge');
+x = c.eingabe('', 'Q', 1015);
+ok(x.action === 'zuruecksetzen' && c.enter().scan.code === 'Q', 'Zeichen nach dem Praefix landen im Code');
+
+// Zwei input-Ereignisse kurz hintereinander (Praefix, dann Code)
+c = tx(); c.eingabe('', '~09', 1000); c.eingabe('', 'Z1', 1020);
+ok(c.enter().scan.code === 'Z1', 'Code in zweitem Ereignis');
+
+// Langsames Tippen von Hand: nie ein Scan, nie zurueckgesetzt
+c = tx();
+const langsam = [c.eingabe('', '~', 1000), c.eingabe('~', '~0', 1200), c.eingabe('~0', '~09', 1400), c.eingabe('~09', '~09a', 1600), c.tick(3000)];
+ok(langsam.every(y => !y.scan && y.action !== 'zuruecksetzen'), 'Hand-Eingabe ~09 bleibt Text');
+
+// Text ohne Praefix und Praefix ohne Code
+c = tx(); ok(c.eingabe('', 'abc', 1000).action === 'pass' && !c.aktiv(), 'Text ohne Praefix');
+c = tx(); c.eingabe('ab', 'a~09b', 1000); x = c.enter();
+ok(!x.scan && x.zurueck === '~09' && x.pos === 1, 'Praefix ohne Code kommt als Text zurueck');
+
+// Feld waehrend des Scans anders geaendert (Loeschen): Scan endet mit dem bisherigen Code, Eingabe geht durch
+c = tx(); c.eingabe('ab', 'ab~09K', 1000); x = c.eingabe('ab', 'a', 1010);
+ok(x.action === 'pass' && x.scan && x.scan.code === 'K', 'Loeschen beendet Text-Scan');
+
+// Zeitgrenze verpasst (Timer gedrosselt): naechste Eingabe liefert den alten Scan und geht selbst durch
+c = tx(); c.eingabe('', '~095', 1000); x = c.eingabe('', 'n', 2000);
+ok(x.action === 'pass' && x.scan && x.scan.code === '5', 'verpasste Zeitgrenze');
+
+// Anderer Praefix
+c = core.createText({ prefix: '##', maxGapMs: 50 }); c.eingabe('', '##7', 1000);
+ok(c.enter().scan.code === '7', 'Text: anderer Praefix');
+
 console.log(`hardware-scanner core ok (${n} Pruefungen)`);

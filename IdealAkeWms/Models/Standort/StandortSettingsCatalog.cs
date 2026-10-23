@@ -70,7 +70,7 @@ public static class StandortSettingsCatalog
 
         // Hardware-Barcodescanner (v1.66.0, AppSettings). Geraete-Abschalter liegt im Browser (Mein Profil), nicht hier.
         new(AppSettingKeys.HardwareScannerAktiv, "Hardware-Scanner aktiv", StandortFieldType.Bool, StandortBackend.App, GroupHardwareScanner,
-            "Scanner, die wie eine Tastatur schreiben, füllen dann auf allen Scan-Seiten dieselben Felder wie der Kamera-Scan. Jedes Gerät kann es unter „Mein Profil“ für sich ausschalten."),
+            "Scanner, die wie eine Tastatur schreiben, füllen dann auf allen Scan-Seiten dieselben Felder wie der Kamera-Scan. Jedes Gerät kann es unter „Mein Profil“ für sich ausschalten. Geräte mit Fokus-Eingabe (z. B. Netum): zuerst Feld oder Kamera-Knopf antippen, sonst kommt nichts an."),
         new(AppSettingKeys.HardwareScannerPraefix, "Präfix der Scanner-Ausgabe", StandortFieldType.String, StandortBackend.App, GroupHardwareScanner,
             "Zeichen, die der Scanner vor jeden Code setzt; als Abschluss Enter einstellen. Leer = ~09. Scanner auf deutsches Tastaturlayout stellen."),
         // 10..500 ms: unter 10 ms schwanken Browser-Zeitstempel und Android-Ereignistakt mehr als ein Scanner-Zeichen braucht (Scans

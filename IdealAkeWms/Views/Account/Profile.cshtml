@@ -175,6 +175,15 @@
                     Gilt nur für diesen Browser und wirkt sofort, ohne Speichern. Ausschalten, wenn Eingaben mit „~“ hier
                     verzögert oder verschluckt werden. An anderen Geräten bleibt der Scanner aktiv.
                 </div>
+                @* v1.67.1: Scanner-Diagnose, ebenfalls nur localStorage, Standard aus. *@
+                <div class="form-check form-switch mt-3">
+                    <input class="form-check-input" type="checkbox" role="switch" id="hwScanDiagnoseAn" aria-describedby="hwScanDiagnoseText" />
+                    <label class="form-check-label" for="hwScanDiagnoseAn">Scanner-Diagnose</label>
+                </div>
+                <div class="form-text" id="hwScanDiagnoseText">
+                    Zeigt unten auf jeder Seite die letzten 30 Tasten- und Eingabe-Ereignisse und was der Scanner daraus gemacht hat,
+                    mit Knopf „Kopieren“. Nur für die Fehlersuche; nichts wird gesendet. Wirkt ab dem nächsten Seitenaufruf.
+                </div>
             </div>
         </div>
     </div>
@@ -191,6 +200,11 @@
             box.hidden = false;
             sw.addEventListener('change', function () {
                 try { if (sw.checked) localStorage.removeItem(KEY); else localStorage.setItem(KEY, 'aus'); } catch (e) { }
+            });
+            var DIAG = 'wms.hardwareScanner.diagnose', diag = document.getElementById('hwScanDiagnoseAn');
+            try { diag.checked = localStorage.getItem(DIAG) === 'an'; } catch (e) { }
+            diag.addEventListener('change', function () {
+                try { if (diag.checked) localStorage.setItem(DIAG, 'an'); else localStorage.removeItem(DIAG); } catch (e) { }
             });
         })();
     </script>

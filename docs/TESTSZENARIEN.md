@@ -10454,6 +10454,30 @@ Lagerplatz (Code 128), Kommissionierliste mit Haupt-FA-Barcode, Beschichtungsauf
   g) Kamera auf einen Code richten und gleichzeitig mit dem Scanner scannen (je eine Seite aus a und d): genau **eine** Auswertung,
   kein zweiter Treffer nach dem Schließen (QA-Fix v1.66.1; alle Seiten nutzen dasselbe Kamera-Fenster).
   h) Gerät **ohne** Hardware-Scanner (oder Geräte-Schalter aus): Kamera-Knöpfe und Kamera-Scan unverändert.
+- **TS-99.17 — Fokus-Eingabe am Netum (v1.67.1, Nachtrag 4).** Vorbedingung: Standort-Schalter Hardware-Scanner an, Präfix `~09`,
+  Netum auf Ausgabe **„Fokus-Eingabe“**, Präfix `~09`, Suffix Enter. „Mein Profil“ → „Scanner-Diagnose“ an (zum Mitlesen).
+  Je Fall das Feld bzw. den Knopf **antippen**, dann scannen. **Erwartet** jeweils: im Feld steht nie `~09`; Diagnose zeigt
+  `input … "~09…" → Präfix erkannt (Text)`, danach `Scan "…" an Feld #…`; das Formular wird **nicht** abgeschickt.
+  a) StockMovements/Inbound: Select2 „Artikel“ öffnen (Suchfeld hat Fokus), Artikel-QR scannen → Artikel gewählt, Dropdown zu, „✓ Gescannt“.
+  b) Outbound: Lagerplatz-Auswahl öffnen, Lagerplatz-Code 128 → Lagerplatz gewählt.
+  c) Kamera-Fenster: auf Transfer den Kamera-Knopf „Quell-Lagerplatz“ antippen → Feld „Handscanner“ im Fenster ist ausgewählt, **keine**
+  Bildschirmtastatur; scannen → Lagerplatz gewählt, Fenster zu. Ebenso Picking/Bom „Artikel scannen“ → Artikel kommissioniert (wie TS-99.14).
+  d) Auf einer Seite mit **einem** Scan-Feld (Artikel-Info) den Kamera-Knopf antippen und scannen → Artikel gesucht, Fenster zu.
+  e) BDE-Terminal nach der Anmeldung: „FA-Nr scannen“ antippen, Haupt-FA scannen → Gruppe klappt auf (wie TS-99 BDE); Sub-FA → direkt gewählt.
+  f) FA-Liste: Spaltenfilter „FA-Nummer“ antippen, FA scannen → Filter angewendet, im Filterfeld steht die Nummer ohne `~09`.
+  g) Normales Textfeld (z. B. Bemerkung): Code wird an der Cursor-Position eingefügt, vorhandener Text bleibt.
+  Negativ: h) Netum-Suffix auf „kein Enter“: Scan wird nach der Zeitgrenze trotzdem ausgewertet (Diagnose „Zeitgrenze → Text-Scan
+  beendet“). i) Nichts antippen und scannen: es kommt nichts an (Gerätegrenze, Hilfe-Text), kein Fehler. j) Passwortfeld der Anmeldung
+  antippen und scannen: Text landet unverändert im Feld, Diagnose ohne Inhalt. k) Von Hand `~09abc` langsam tippen: bleibt Text.
+  l) „Dieses Gerät“ aus: Text landet unverändert, Diagnose „ignoriert: Gerät aus“. m) USB-Scanner mit Tastatur-Emulation am PC: TS-99.1 ff.
+  unverändert, genau **eine** Auswertung je Scan (keine Doppelauswertung).
+- **TS-99.18 — Scanner-Diagnose (v1.67.1, Nachtrag 4 Punkt 3).** a) Frisches Gerät: „Mein Profil“ → Schalter „Scanner-Diagnose“ ist
+  **aus**, keine Liste am Seitenende. b) Einschalten, Seite neu laden: Karte „Scanner-Diagnose – nur dieses Gerät, nichts wird gesendet“
+  vor dem Seitenfuß, Text „Noch keine Ereignisse…“. c) Tippen und scannen: je Ereignis eine Zeile mit `+… ms`, Taste/keyCode/isComposing
+  bzw. eingefügtem Text und Entscheidung; höchstens 30 Zeilen. d) „Kopieren“ → „In die Zwischenablage kopiert.“, eingefügt in eine Mail:
+  Präfix, Zeichenabstand, Browser-Kennung und die Zeilen; ohne Zwischenablage (HTTP) ist der Text markiert mit Hinweis. e) Browser-
+  Entwicklertools → Netzwerk: beim Tippen/Scannen/Kopieren **keine** Anfrage. f) Am Handheld lesbar (Schrift nicht kleiner als die
+  Tabellen, Zeilen umbrechen, kein Querscrollen der Seite). g) Ausschalten → nach dem Neuladen keine Liste.
 - **TS-99.15 — Zeichenabstand prüfen (v1.66.1, Nachtrag 2 Punkt 2).** Standorteinstellungen → Hardware-Scanner, „Größter
   Zeichenabstand (ms)“: a) `5`, `0`, `-5`, `501` speichern. **Erwartet:** „Nicht gespeichert: 'Größter Zeichenabstand (ms)' muss zwischen
   10 und 500 liegen (war: …)“, auch die übrigen Felder bleiben ungespeichert, die Eingabe bleibt sichtbar. b) `10` und `500` speichern:
