@@ -10480,8 +10480,11 @@ Lagerplatz (Code 128), Kommissionierliste mit Haupt-FA-Barcode, Beschichtungsauf
   Präfix, Zeichenabstand, Browser-Kennung und die Zeilen; ohne Zwischenablage (HTTP) ist der Text markiert mit Hinweis. e) Browser-
   Entwicklertools → Netzwerk: beim Tippen/Scannen/Kopieren **keine** Anfrage. f) Am Handheld lesbar (Schrift nicht kleiner als die
   Tabellen, Zeilen umbrechen, kein Querscrollen der Seite). g) Ausschalten → nach dem Neuladen keine Liste.
-- **TS-99.19 — Einbuchung ohne Antippen am Netum (v1.67.2, Nachtrag 5).** Vorbedingung: wie TS-99.17 (Netum „Fokus-Eingabe“, Präfix
-  `~09`, Suffix Enter), „Mein Profil“ → **„Scannen ohne Feld“ an**, „Scanner-Diagnose“ an. StockMovements/Inbound öffnen, **nichts antippen**.
+- **TS-99.19 — Einbuchung ohne Antippen am Netum (v1.67.2, Nachtrag 5; v1.68.1 sichtbares Feld, Nachtrag 6).** Vorbedingung: wie TS-99.17
+  (Netum „Fokus-Eingabe“, Präfix `~09`, Suffix Enter), „Mein Profil“ → **„Scannen ohne Feld“ an**, „Scanner-Diagnose“ an.
+  StockMovements/Inbound öffnen. **v1.68.1:** Oben steht das Feld **„✓ Scan bereit“ grün** (Diagnose: „Scan-Feld Fokus an … [aktiv:
+  #hwScanOhneFeld]“). Ist es grau „Scan: tippen zum Aktivieren“, einmal antippen → grün, keine Bildschirmtastatur. Danach **kein
+  Formularfeld antippen**. Jede Diagnose-Zeile endet mit `[aktiv: …]`; nach jedem Scan ist das Scan-Feld leer.
   a) Artikel-QR `G-KT-FRR-510-2010--1760B-250-V01;;1065141;09` bzw. `102044;;1065141;09` scannen → Artikel gewählt („✓ Gescannt“); FA
   `1065141` nur bei `QrMitFaNummer` an, sonst bleibt FA leer. Diagnose: `Scan "…" über Scan-Feld (ohne Fokus) → ArticleId (Artikel-QR)`.
   b) Lagerplatz-Code 128 scannen → Lagerplatz gewählt, Diagnose `… → StorageLocationId (Lagerplatz)`. c) Reihenfolge umgekehrt (erst
@@ -10494,7 +10497,8 @@ Lagerplatz (Code 128), Kommissionierliste mit Haupt-FA-Barcode, Beschichtungsauf
   nicht in Artikel/Lagerplatz (Vorrang angetipptes Feld, TS-99.17 g; nicht „Menge“ nehmen, ein Zahlenfeld kann `~09…` nicht aufnehmen).
   Kamera-Knopf Lagerplatz antippen und scannen → Lagerplatz über das Kamera-Fenster (TS-99.17 c). k) Schalter aus → Seite exakt wie
   v1.67.1: ohne Antippen kommt nichts an (TS-99.17 i). l) Andere Seite (z. B. Warenausgang) mit Schalter an → unverändert wie TS-99.17 i.
-  m) Screenreader (TalkBack): das unsichtbare Feld wird nicht vorgelesen.
+  m) Screenreader (TalkBack): das Scan-Feld wird als „Scan-Feld“ vorgelesen (v1.68.1, nicht mehr verborgen). n) Schalter aus: **kein** Scan-Feld
+  sichtbar, Seite wie v1.68.0.
 - **TS-99.15 — Zeichenabstand prüfen (v1.66.1, Nachtrag 2 Punkt 2).** Standorteinstellungen → Hardware-Scanner, „Größter
   Zeichenabstand (ms)“: a) `5`, `0`, `-5`, `501` speichern. **Erwartet:** „Nicht gespeichert: 'Größter Zeichenabstand (ms)' muss zwischen
   10 und 500 liegen (war: …)“, auch die übrigen Felder bleiben ungespeichert, die Eingabe bleibt sichtbar. b) `10` und `500` speichern:

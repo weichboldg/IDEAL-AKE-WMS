@@ -214,7 +214,9 @@ public class HardwareScannerTests
         var inbound = Read("Views", "StockMovements", "Inbound.cshtml");
         var feld = inbound[inbound.IndexOf("<input type=\"text\" id=\"hwScanOhneFeld\"", StringComparison.Ordinal)..];
         feld = feld[..feld.IndexOf("/>", StringComparison.Ordinal)];
-        feld.Should().Contain("inputmode=\"none\"", "keine Bildschirmtastatur").And.Contain("aria-hidden=\"true\"").And.Contain("tabindex=\"-1\"")
+        // v1.68.1 (Freigabe-Nachtrag 6): sichtbares, antippbares Feld - nicht mehr fuer Screenreader verborgen, nicht aus der Tab-Folge
+        feld.Should().Contain("inputmode=\"none\"", "keine Bildschirmtastatur").And.Contain("autocomplete=\"off\"").And.Contain(" hidden")
+            .And.NotContain("aria-hidden").And.NotContain("tabindex=\"-1\"")
             .And.Contain("data-artikel-ziel=\"ArticleId\"").And.Contain("data-lagerplatz-ziel=\"StorageLocationId\"");
         inbound.IndexOf("id=\"hwScanOhneFeld\"", StringComparison.Ordinal).Should().BeLessThan(inbound.IndexOf("<form", StringComparison.Ordinal),
             "ausserhalb des Formulars: ein Enter im Feld kann nie absenden");
@@ -229,7 +231,15 @@ public class HardwareScannerTests
             .Should().BePositive().And.BeGreaterThan(bs.IndexOf("var kamera = hwScanKameraZiel(vorhanden);", StringComparison.Ordinal),
                 "offenes Kamera-Fenster hat Vorrang");
         bs.Should().Contain("HwScanCore.zuordnung(d.code,").And.Contain("'Code ' + d.code + ' nicht zuordenbar'");
-        Read("wwwroot", "css", "site.css").Should().Contain(".hw-scan-ohne-feld { position: fixed;");
+        var css = Read("wwwroot", "css", "site.css").Replace("\r\n", "\n");
+        var regel = css[css.IndexOf(".hw-scan-ohne-feld {", StringComparison.Ordinal)..];
+        regel = regel[..regel.IndexOf("}", StringComparison.Ordinal)];
+        regel.Should().Contain("height: 30px;").And.NotContain("opacity").And.NotContain("pointer-events").And.NotContain("1px;");
+        css.Should().Contain(".hw-scan-ohne-feld:focus {", "Fokus-Anzeige gruen");
+        js.Should().Contain("ohneFeld.hidden = false;", "nur bei Schalter an sichtbar")
+            .And.Contain("diag('Scan-Feld Fokus an')").And.Contain("diag('Scan-Feld Fokus aus')")
+            .And.Contain("'✓ Scan bereit'").And.Contain("if (ohne) ohneFeld.value = '';", "nach jedem Scan leer")
+            .And.Contain("'  [aktiv: '", "jede Diagnose-Zeile mit aktivem Element");
         var profil = Read("Views", "Account", "Profile.cshtml");
         profil.Should().Contain("id=\"hwScanOhneFeldAn\"").And.Contain("'wms.hardwareScanner.ohneFeld'")
             .And.Contain("if (ohne.checked) localStorage.setItem(OHNE, 'an'); else localStorage.removeItem(OHNE);", "Standard aus");

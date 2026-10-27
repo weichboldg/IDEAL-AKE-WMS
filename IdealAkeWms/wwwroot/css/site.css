@@ -1440,6 +1440,10 @@ th:hover .col-resize-handle {
     overflow-y: auto;
 }
 
-/* v1.67.2 Scannen ohne Feld (Einbuchung): unsichtbar, aber fokussierbar (display:none/visibility nehmen keinen Fokus an);
-   fixed oben links, damit das Fokussieren nie scrollt. */
-.hw-scan-ohne-feld { position: fixed; top: 0; left: 0; width: 1px; height: 1px; padding: 0; border: 0; opacity: 0; pointer-events: none; caret-color: transparent; }
+/* v1.68.1 Scannen ohne Feld (Einbuchung, Freigabe-Nachtrag 6): sichtbares, antippbares Scan-Feld. Zustand an Text + Rahmenform, nicht nur
+   Farbe: ohne Fokus grau gestrichelt "Scan: tippen zum Aktivieren" (8:1), mit Fokus gruen durchgezogen "✓ Scan bereit" (11:1). */
+.hw-scan-ohne-feld { width: 15em; height: 30px; padding: 0 .5rem; font-size: .8125rem; border: 2px dashed #6c757d; border-radius: .375rem;
+    background: #f8f9fa; color: #495057; caret-color: transparent; }
+.hw-scan-ohne-feld::placeholder { color: #495057; opacity: 1; }
+.hw-scan-ohne-feld:focus { outline: none; border-style: solid; border-color: #198754; background: #d1e7dd; color: #0a3622; box-shadow: 0 0 0 .2rem rgba(25, 135, 84, .25); }
+.hw-scan-ohne-feld:focus::placeholder { color: #0a3622; font-weight: 600; }

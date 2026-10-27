@@ -168,7 +168,9 @@
     function diag(text) {
         if (!diagAn) return;
         var t = performance.now();
-        diagZeilen.push('+' + (diagZeit ? Math.round(t - diagZeit) : 0) + ' ms  ' + text);
+        var a = document.activeElement;  // v1.68.1: jede Zeile mit dem aktiven Element (Freigabe-Nachtrag 6 Punkt 4)
+        diagZeilen.push('+' + (diagZeit ? Math.round(t - diagZeit) : 0) + ' ms  ' + text + '  [aktiv: '
+            + (!a || a === body ? 'body' : a.id ? '#' + a.id : a.tagName.toLowerCase()) + ']');
         diagZeit = t;
         if (diagZeilen.length > 30) diagZeilen.shift();
         if (diagPre) diagPre.textContent = diagZeilen.join('\n');
@@ -273,8 +275,9 @@
             handled: false, ambiguous: false, ziel: null,
             hinweis: function (text) { diag('  ' + text); hinweis(text); } };  // auch spaeter (AJAX-Ergebnis) aufrufbar
         document.dispatchEvent(new CustomEvent('wms:hardware-scan', { detail: detail }));
+        if (ohne) ohneFeld.value = '';  // v1.68.1: Text im Scan-Feld ist nur Durchlauf, nach jedem Scan leer
         if (detail.handled) { diag('  Scan "' + scan.code + '" ' + (ohne && !/Kamera/.test(detail.ziel) ? 'über Scan-Feld (ohne Fokus) → ' : 'an Feld #') + detail.ziel); return; }
-        if (ohne) return;  // nie Regel (b) ins unsichtbare Feld; Zuordnung und Hinweis macht barcode-scanner.js
+        if (ohne) return;  // nie Regel (b) ins Scan-Feld; Zuordnung und Hinweis macht barcode-scanner.js
 
         if (detail.freiesFeld) {  // (b)
             diag('  Scan "' + scan.code + '" an Feld ' + feldName(aktiv));
@@ -306,6 +309,10 @@
     var ohneFeld = null;
     try { if (localStorage.getItem('wms.hardwareScanner.ohneFeld') === 'an' && !geraetAus()) ohneFeld = document.querySelector('[data-hw-scan-ohne-feld]'); } catch (e) { }
     if (ohneFeld) {
+        // v1.68.1 (Freigabe-Nachtrag 6): sichtbar und antippbar; Anzeige des Fokus ueber Platzhalter + CSS :focus.
+        ohneFeld.hidden = false;
+        ohneFeld.addEventListener('focus', function () { ohneFeld.placeholder = '✓ Scan bereit'; diag('Scan-Feld Fokus an'); });
+        ohneFeld.addEventListener('blur', function () { ohneFeld.placeholder = 'Scan: tippen zum Aktivieren'; diag('Scan-Feld Fokus aus'); });
         var parken = function () {
             setTimeout(function () {
                 var a = document.activeElement;
