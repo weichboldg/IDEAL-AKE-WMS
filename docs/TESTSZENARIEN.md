@@ -10490,7 +10490,8 @@ Lagerplatz (Code 128), Kommissionierliste mit Haupt-FA-Barcode, Beschichtungsauf
   Auswahl eines Artikels im Select2-Dropdown von Hand und nach dem Schließen des Kamera-Fensters: nächster Scan ohne Antippen kommt an.
   g) Menge eintippen, dann auf eine freie Stelle tippen und scannen → kommt an. h) Formular wird durch keinen Scan abgeschickt.
   Negativ: i) Unbekannter Code ohne `;` (z. B. `XYZ999`) → gelber Hinweis „Code XYZ999 nicht zuordenbar“, Artikel und Lagerplatz
-  unverändert. j) Feld „Menge“ angetippt und scannen → Code landet wie bisher in „Menge“ (Vorrang angetipptes Feld, TS-99.17 g).
+  unverändert. j) Textfeld „Fertigungsauftrag“ angetippt und scannen → Code landet wie bisher an der Cursor-Position in diesem Feld,
+  nicht in Artikel/Lagerplatz (Vorrang angetipptes Feld, TS-99.17 g; nicht „Menge“ nehmen, ein Zahlenfeld kann `~09…` nicht aufnehmen).
   Kamera-Knopf Lagerplatz antippen und scannen → Lagerplatz über das Kamera-Fenster (TS-99.17 c). k) Schalter aus → Seite exakt wie
   v1.67.1: ohne Antippen kommt nichts an (TS-99.17 i). l) Andere Seite (z. B. Warenausgang) mit Schalter an → unverändert wie TS-99.17 i.
   m) Screenreader (TalkBack): das unsichtbare Feld wird nicht vorgelesen.
