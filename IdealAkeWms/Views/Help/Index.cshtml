@@ -91,7 +91,9 @@
                 </p>
                 <h6 class="mt-3">QR-Code: erstes Feld (seit v1.68.0)</h6>
                 <p>
-                    Ein Artikel-QR hat das Format <code>Feld1;Feld2;FA-Nummer;…</code>. Was im ersten Feld steht, legt die Einstellung
+                    Ein Artikel-QR hat das Format <code>Feld1;Feld2;FA-Nummer;…</code> bzw. mit Komma <code>Feld1,Feld2,FA-Nummer,…</code>
+                    &ndash; welches Zeichen die Felder trennt, legt die Einstellung <code>QrTrennzeichen</code> fest (<code>;</code> Standard oder
+                    <code>,</code>, seit v1.69.0; genau ein Zeichen, Etiketten mit dem anderen Zeichen werden nicht zerlegt). Was im ersten Feld steht, legt die Einstellung
                     <code>QrErstesFeld</code> fest, ob Feld 3 als FA übernommen wird, die Einstellung <code>QrMitFaNummer</code>:
                 </p>
                 <div class="table-responsive">
@@ -117,7 +119,8 @@
                     <li>Lagerplatz- und FA-Scans sind von der Einstellung nicht betroffen.</li>
                 </ul>
                 <p><strong>Einschalten (Admin):</strong> Einstellungen (<code>/Settings</code>) &rarr; Allgemein &rarr; <code>QrErstesFeld</code>
-                    = <code>Matchcode</code>. Andere Werte werden beim Speichern abgewiesen.</p>
+                    = <code>Matchcode</code>, ggf. <code>QrTrennzeichen</code> = <code>,</code>. Beide Einstellungen sind Auswahllisten (seit v1.69.0);
+                    andere Werte werden beim Speichern abgewiesen.</p>
                 <h6 class="mt-3">Hardware-Scanner (seit v1.66.0)</h6>
                 <p>
                     Geräte mit eingebautem Scanner, der wie eine Tastatur schreibt (Android-Handheld, Handscanner), füllen dieselben
@@ -209,7 +212,7 @@
                 <dl>
                     <dt>QR-Code scannen</dt>
                     <dd>Artikelnummer eingeben oder QR-Code scannen. Das QR-Format <code>Artikelnummer;Feld2;FA-Nummer</code>
-                        wird automatisch erkannt — nur die Artikelnummer wird uebernommen. Das erste Feld ist je nach Einstellung
+                        (bzw. mit <code>,</code>, Einstellung <code>QrTrennzeichen</code>) wird automatisch erkannt — nur die Artikelnummer wird uebernommen. Das erste Feld ist je nach Einstellung
                         <code>QrErstesFeld</code> die Artikelnummer oder der Matchcode (seit v1.68.0). Ein eingetippter Matchcode, der zu
                         mehreren Artikeln passt, ergibt die Meldung &bdquo;mehrdeutig&ldquo; mit den Artikelnummern.</dd>
 

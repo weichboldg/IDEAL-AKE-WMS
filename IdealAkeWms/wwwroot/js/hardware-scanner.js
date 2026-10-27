@@ -136,12 +136,12 @@
     }
 
     // v1.67.2 Scannen ohne Feld (Freigabe-Nachtrag 5, Pilot Einbuchung): Zuordnung eines Scans ueber das unsichtbare Scan-Feld nach Inhalt.
-    // istLagerplatz(code) = es gibt eine Lagerplatz-Option mit genau diesem Code.
+    // istLagerplatz(code) = es gibt eine Lagerplatz-Option mit genau diesem Code. trenn = QR-Trennzeichen (v1.69.0, ; oder ,; Standard ;).
     //   -> { feld: 'artikel' | 'lagerplatz' | null, art } ; null = nicht zuordenbar.
-    function zuordnung(code, istLagerplatz) {
+    function zuordnung(code, istLagerplatz, trenn) {
         var c = String(code == null ? '' : code).trim();
         if (!c) return { feld: null, art: 'leer' };
-        if (c.indexOf(';') >= 0) return { feld: 'artikel', art: 'Artikel-QR' };
+        if (c.indexOf(trenn || ';') >= 0) return { feld: 'artikel', art: 'Artikel-QR' };
         if (istLagerplatz(c)) return { feld: 'lagerplatz', art: 'Lagerplatz' };
         return { feld: 'artikel', art: 'Artikelnummer' };
     }

@@ -147,4 +147,11 @@ ok(z.feld === 'artikel' && z.art === 'Artikelnummer', 'nur Anfang eines Lagerpla
 ok(core.zuordnung('102044', lager).art === 'Artikelnummer', 'unbekannter Code -> Artikelnummer');
 ok(core.zuordnung('', lager).feld === null && core.zuordnung('   ', lager).feld === null, 'leer -> nicht zuordenbar');
 
+// v1.69.0 QrTrennzeichen: dasselbe mit ',' (Standard ';' ohne Argument unveraendert, s. oben)
+ok(core.zuordnung('G-KT-FRR-510-2010--1760B-250-V01,,1065141,09', lager, ',').art === 'Artikel-QR', 'mit , und Trennzeichen , -> Artikel-QR');
+ok(core.zuordnung('A-01,x', lager, ',').feld === 'artikel', 'mit , immer Artikel');
+ok(core.zuordnung('A-01;x', lager, ',').art === 'Artikelnummer', 'bei Trennzeichen , ist ; kein QR-Trenner');
+ok(core.zuordnung('A-01', lager, ',').feld === 'lagerplatz', 'Trennzeichen , : Lagerplatz unveraendert');
+ok(core.zuordnung('102044;;1', lager, ';').art === 'Artikel-QR' && core.zuordnung('102044,1', lager, ';').art === 'Artikelnummer', 'Trennzeichen ; ausdruecklich');
+
 console.log(`hardware-scanner core ok (${n} Pruefungen)`);

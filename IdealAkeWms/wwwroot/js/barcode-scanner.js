@@ -281,14 +281,19 @@ function closeScannerModal() {
     _scannerClosing = false;
 }
 
+// v1.69.0 QrTrennzeichen (body data-qr-trennzeichen, nur bei ","): Trennzeichen der Artikel-QR-Felder, sonst ";".
+function qrTrennzeichen() {
+    return document.body.getAttribute('data-qr-trennzeichen') === ',' ? ',' : ';';
+}
+
 // nichtGefunden (optional, v1.67.2 Scannen ohne Feld): Rueckruf, wenn Artikel/Lagerplatz nicht gefunden wurde.
 function processScannedValue(value, targetSelectId, scanType, qrFaEnabled, faTargetId, nichtGefunden) {
     var searchValue = value;
     var faNumber = null;
 
     if (scanType === 'article' || scanType === 'productionOrder') {
-        // QR-Code-Format: Artikelnummer;Feld2;FA-Nummer[,Suffix];...
-        var parts = value.split(';');
+        // QR-Code-Format: Artikelnummer;Feld2;FA-Nummer[,Suffix];... (Trennzeichen laut QrTrennzeichen, ; oder ,)
+        var parts = value.split(qrTrennzeichen());
 
         if (scanType === 'productionOrder') {
             // FA-Nummer extrahieren (3. Position), Komma-Suffix abschneiden
@@ -299,7 +304,7 @@ function processScannedValue(value, targetSelectId, scanType, qrFaEnabled, faTar
                 searchValue = value.trim().split(',')[0];
             }
         } else {
-            // Artikel: Erster Teil vor ; ist die Artikelnummer
+            // Artikel: Erster Teil vor dem Trennzeichen ist die Artikelnummer
             searchValue = parts[0].trim();
 
             // FA-Nummer aus QR extrahieren (Index 2) wenn Setting aktiv und >= 3 Teile
@@ -452,7 +457,7 @@ function _processScannedValueSync(value, targetSelectId, scanType, qrFaEnabled, 
 // Kein Treffer / mehrdeutig / Fehler: Meldung, nichts befuellen, keine FA, kein Callback (kein Submit).
 processScannedValue = function (value, targetSelectId, scanType, qrFaEnabled, faTargetId, nichtGefunden) {
     var matchcode = scanType === 'article' && document.body.getAttribute('data-qr-erstes-feld') === 'Matchcode'
-        ? String(value).split(';')[0].trim() : '';
+        ? String(value).split(qrTrennzeichen())[0].trim() : '';
     if (!matchcode) {
         _processScannedValueSync(value, targetSelectId, scanType, qrFaEnabled, faTargetId, nichtGefunden);
         return;
@@ -471,7 +476,7 @@ processScannedValue = function (value, targetSelectId, scanType, qrFaEnabled, fa
         success: function (data) {
             var treffer = (data && data.articles) || [];
             if (treffer.length === 1 && !data.more) {
-                var i = String(value).indexOf(';');
+                var i = String(value).indexOf(qrTrennzeichen());
                 _textInputScanCallback = cb || _textInputScanCallback;
                 _processScannedValueSync(treffer[0].articleNumber + (i >= 0 ? String(value).slice(i) : ''), targetSelectId, scanType, qrFaEnabled, faTargetId, nichtGefunden);
             } else if (treffer.length === 0) {
@@ -556,7 +561,7 @@ document.addEventListener('wms:hardware-scan', function (e) {
 });
 
 // v1.67.2 Scannen ohne Feld (Freigabe-Nachtrag 5, Pilot Einbuchung): Scan ueber das unsichtbare Feld, Zuordnung nach Inhalt
-// (HwScanCore.zuordnung): mit ';' Artikel-QR, sonst Lagerplatz mit genau diesem Code, sonst Artikelnummer. Nie Formular-Submit.
+// (HwScanCore.zuordnung): mit QR-Trennzeichen Artikel-QR, sonst Lagerplatz mit genau diesem Code, sonst Artikelnummer. Nie Formular-Submit.
 function hwScanOhneFeld(d, vorhanden) {
     var feld = document.querySelector('[data-hw-scan-ohne-feld]');
     var nichtZuordenbar = function () { d.hinweis('Code ' + d.code + ' nicht zuordenbar'); };
@@ -565,7 +570,7 @@ function hwScanOhneFeld(d, vorhanden) {
     var option = function (c) {
         return lager ? Array.prototype.filter.call(lager.options, function (o) { return o.value && o.text.trim() === c; })[0] : null;
     };
-    var z = HwScanCore.zuordnung(d.code, function (c) { return !!option(c); });
+    var z = HwScanCore.zuordnung(d.code, function (c) { return !!option(c); }, qrTrennzeichen());
     d.handled = true;
     if (z.feld === 'lagerplatz') {
         var o = option(d.code.trim());

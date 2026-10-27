@@ -267,7 +267,30 @@ public class HardwareScannerTests
         var layout = Read("Views", "Shared", "_Layout.cshtml");
         layout.Should().Contain("data-qr-erstes-feld=\"@qrErstesFeld\"").And.Contain("? \"Matchcode\" : null;", "bei Artikelnummer kein Attribut");
         Read("Program.cs").Should().Contain("(\"QrErstesFeld\", \"Artikelnummer\",", "Laufzeit-Seed, sonst zeigt /Settings die Zeile nicht");
-        Read("Views", "Settings", "Index.cshtml").Should().Contain("(\"Allgemein\", new[] { \"QrMitFaNummer\", \"QrErstesFeld\" })");
+        Read("Views", "Settings", "Index.cshtml").Should().Contain("(\"Allgemein\", new[] { \"QrMitFaNummer\", \"QrErstesFeld\", \"QrTrennzeichen\" })");
+    }
+
+    [Fact]
+    public void QrTrennzeichen_KeinFestesSemikolonInDerQrZerlegung_StandardOhneAttribut()
+    {
+        // Spec 2026-10-23-qr-code-matchcode-statt-artikelnummer, Freigabe-Nachtrag 2 Punkt 2/3 (v1.69.0).
+        var bs = Read("wwwroot", "js", "barcode-scanner.js");
+        bs.Should().Contain("return document.body.getAttribute('data-qr-trennzeichen') === ',' ? ',' : ';';", "Standard ;")
+            .And.Contain("var parts = value.split(qrTrennzeichen());")
+            .And.Contain("String(value).split(qrTrennzeichen())[0].trim()").And.Contain("String(value).indexOf(qrTrennzeichen())")
+            .And.Contain("HwScanCore.zuordnung(d.code, function (c) { return !!option(c); }, qrTrennzeichen());");
+        bs.Should().NotContain("split(';')").And.NotContain("indexOf(';')");
+        var hw = Read("wwwroot", "js", "hardware-scanner.js");
+        hw.Should().Contain("c.indexOf(trenn || ';') >= 0").And.NotContain("c.indexOf(';')");
+
+        Read("Views", "Shared", "_Layout.cshtml").Should().Contain("data-qr-trennzeichen=\"@qrTrennzeichen\"")
+            .And.Contain("?.Trim() == \",\" ? \",\" : null;", "bei ; kein Attribut = Seite wie v1.68.x");
+        Read("Program.cs").Should().Contain("(\"QrTrennzeichen\", \";\",", "Laufzeit-Anlage, Standard ;");
+        var settings = Read("Views", "Settings", "Index.cshtml");
+        settings.Split("AppSettingKeys.FesteWerte.TryGetValue(setting.Key, out var festeWerte)").Length
+            .Should().Be(3, "Dropdown in Gruppen- und Sonstige-Ausgabe");
+        AppSettingKeys.FesteWerte[AppSettingKeys.QrTrennzeichen].Select(w => w.Wert).Should().Equal(";", ",");
+        AppSettingKeys.FesteWerte[AppSettingKeys.QrErstesFeld].Select(w => w.Wert).Should().Equal("Artikelnummer", "Matchcode");
     }
 
     [Fact]

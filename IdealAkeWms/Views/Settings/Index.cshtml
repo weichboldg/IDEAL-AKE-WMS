@@ -42,7 +42,7 @@
                             ("FA-Vervollständigung", new[] { "FaCompletionAktiv" }),
                             ("Windows-Anmeldung", new[] { "WindowsAuthAktiv", "WindowsAuthBerechtigungsgruppe" }),
                             ("IDEAL", new[] { "FaHierarchyKommissionierlistenAktiv", "FaHierarchyBeschichtungAktiv", "FaHierarchyVormontageAktiv", "FaHierarchyMaxTiefe" }),
-                            ("Allgemein", new[] { "QrMitFaNummer", "QrErstesFeld" }),
+                            ("Allgemein", new[] { "QrMitFaNummer", "QrErstesFeld", "QrTrennzeichen" }),
                             ("BDE", new[] { "BdeAktiv", "BdeNurFaMeldung", "BdeDefaultArbeitsgang", "BdeMehrfachBuchungProOperator", "BdeMehrfachBuchungProArbeitsgang", "BdeGleichzeitigerAbschlussBeiMehrfachStart", "BdeSchichtkalenderAktiv", "BdeTerminalMaxHauptFa" }),
                         };
                         var groupedKeys = settingsGroups.SelectMany(g => g.Keys).ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -79,6 +79,21 @@
                                         </label>
                                     </div>
                                 }
+                                else if (IdealAkeWms.Models.AppSettingKeys.FesteWerte.TryGetValue(setting.Key, out var festeWerte))
+                                {
+                                    @* v1.69.0: feste Werte als Dropdown; ein ungueltiger gespeicherter Wert bleibt sichtbar (Speichern meldet ihn) *@
+                                    var gueltig = festeWerte.Any(w => string.Equals(w.Wert, setting.Value?.Trim(), StringComparison.OrdinalIgnoreCase));
+                                    <select name="settings[@setting.Key]" class="form-select" aria-label="@setting.Key" disabled="@(!canEdit)">
+                                        @if (!gueltig)
+                                        {
+                                            <option value="@setting.Value" selected>&bdquo;@setting.Value&ldquo; (ungültig – bitte wählen)</option>
+                                        }
+                                        @foreach (var w in festeWerte)
+                                        {
+                                            <option value="@w.Wert" selected="@(gueltig && string.Equals(w.Wert, setting.Value?.Trim(), StringComparison.OrdinalIgnoreCase))">@w.Text</option>
+                                        }
+                                    </select>
+                                }
                                 else
                                 {
                                     <input type="text" name="settings[@setting.Key]" value="@setting.Value" class="form-control" disabled="@(!canEdit)" />
@@ -110,6 +125,21 @@
                                             @(isChecked ? "Aktiviert" : "Deaktiviert")
                                         </label>
                                     </div>
+                                }
+                                else if (IdealAkeWms.Models.AppSettingKeys.FesteWerte.TryGetValue(setting.Key, out var festeWerte))
+                                {
+                                    @* v1.69.0: feste Werte als Dropdown; ein ungueltiger gespeicherter Wert bleibt sichtbar (Speichern meldet ihn) *@
+                                    var gueltig = festeWerte.Any(w => string.Equals(w.Wert, setting.Value?.Trim(), StringComparison.OrdinalIgnoreCase));
+                                    <select name="settings[@setting.Key]" class="form-select" aria-label="@setting.Key" disabled="@(!canEdit)">
+                                        @if (!gueltig)
+                                        {
+                                            <option value="@setting.Value" selected>&bdquo;@setting.Value&ldquo; (ungültig – bitte wählen)</option>
+                                        }
+                                        @foreach (var w in festeWerte)
+                                        {
+                                            <option value="@w.Wert" selected="@(gueltig && string.Equals(w.Wert, setting.Value?.Trim(), StringComparison.OrdinalIgnoreCase))">@w.Text</option>
+                                        }
+                                    </select>
                                 }
                                 else
                                 {

@@ -53,4 +53,33 @@ public class SettingsControllerQrErstesFeldTests
         repo.Verify(r => r.SetValueAsync(It.IsAny<string>(), It.IsAny<string>()), Times.Never, "kein Wert der Maske wird gespeichert");
         ctrl.TempData["WarningMessage"].Should().Be("QrErstesFeld: erlaubt sind „Artikelnummer“ oder „Matchcode“ – nichts gespeichert.");
     }
+
+    // v1.69.0 QrTrennzeichen (Freigabe-Nachtrag 2): gleicher Mechanismus ueber AppSettingKeys.FesteWerte, genau ; oder ,
+    [Theory]
+    [InlineData(";", ";")]
+    [InlineData(" , ", ",")]
+    public async Task Save_QrTrennzeichen_Gueltig_Gespeichert(string eingabe, string gespeichert)
+    {
+        var (ctrl, repo) = Build();
+
+        await ctrl.SaveSettings(new Dictionary<string, string> { [AppSettingKeys.QrTrennzeichen] = eingabe, [AppSettingKeys.QrErstesFeld] = "Matchcode" });
+
+        repo.Verify(r => r.SetValueAsync(AppSettingKeys.QrTrennzeichen, gespeichert), Times.Once);
+        repo.Verify(r => r.SetValueAsync(AppSettingKeys.QrErstesFeld, "Matchcode"), Times.Once);
+        ctrl.TempData["SuccessMessage"].Should().NotBeNull();
+    }
+
+    [Theory]
+    [InlineData(";,")]
+    [InlineData("|")]
+    [InlineData("")]
+    public async Task Save_QrTrennzeichen_Ungueltig_NichtsGespeichert_Meldung(string eingabe)
+    {
+        var (ctrl, repo) = Build();
+
+        await ctrl.SaveSettings(new Dictionary<string, string> { [AppSettingKeys.QrErstesFeld] = "Matchcode", [AppSettingKeys.QrTrennzeichen] = eingabe });
+
+        repo.Verify(r => r.SetValueAsync(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+        ctrl.TempData["WarningMessage"].Should().Be("QrTrennzeichen: erlaubt sind „;“ oder „,“ – nichts gespeichert.");
+    }
 }
