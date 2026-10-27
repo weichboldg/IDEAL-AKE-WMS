@@ -39,6 +39,25 @@ freigabe_am: "2026-10-21"
 > Standorte: **AKE und IDEAL** gleichermassen - die Scan-Seiten und `barcode-scanner.js` sind
 > standortneutral, keine Verzweigung nach `ProduktionsauftragHierarchisch`.
 
+> [!important] Freigabe-Nachtrag 6 vom 2026-10-27 — Sichtbares Scan-Feld „Scan bereit“ auf der Einbuchung, v1.68.1 (geht dem Rumpf und Nachtrag 1–5 vor)
+> Gerald 2026-10-27: Pilot aus Nachtrag 5 greift am Netum nicht. Befund Diagnose (v1.68.0, alle drei Geräte-Schalter an, Einbuchung):
+> nur `keydown key="Unidentified" keyCode=0` und `Enter`, **keine** `input`-Zeile, kein „über Scan-Feld (ohne Fokus)“ – der Text
+> erreicht das unsichtbare Feld nicht. Stand v1.68.0: Feld `#hwScanOhneFeld` mit `aria-hidden="true"`, `tabindex="-1"`,
+> `inputmode="none"` (`Views/StockMovements/Inbound.cshtml:11-12`), CSS 1×1 px, `opacity:0`, `pointer-events:none` (`site.css:1445`),
+> Fokus nur per Skript (`hardware-scanner.js:308-320`). Ursache ungeprüft: vermutlich findet die Netum-Fokus-Eingabe ein verborgenes/
+> unsichtbares Feld nicht, oder das Feld hat beim Scan keinen Fokus. Ändert Nachtrag 5 Punkt 2; Punkte 1, 3, 4, 5 gelten weiter.
+> 1. **Sichtbares, echtes Eingabefeld statt unsichtbarem**: kleines Feld „Scan bereit“ (ca. 140×30 px) gut sichtbar oben auf der
+>    Einbuchung, nur wenn der Geräte-Schalter „Scannen ohne Feld“ an ist. **Ohne** `aria-hidden`, **ohne** `opacity:0`/1-px-Trick,
+>    **ohne** `pointer-events:none`; antippbar. `inputmode="none"` bleibt (keine Bildschirmtastatur), `autocomplete="off"`.
+>    Eingegebener Text ist nur Durchlauf: nach jedem Scan wird das Feld geleert.
+> 2. **Fokus-Anzeige**: Hat das Feld den Fokus → deutlich hervorgehoben (z. B. grüner Rahmen, Text „Scan bereit“); sonst grau
+>    („Scan: tippen zum Aktivieren“). Antippen setzt den Fokus selbst (Benutzergeste).
+> 3. **Automatischer Fokus wie bisher** (Laden, Blur eines Feldes, Schließen Fenster/Dropdown), nur ohne Scrollen/Springen.
+> 4. **Diagnose erweitern**: Jede Diagnose-Zeile (auch einzelne `keydown`) zeigt das aktive Element (`#id`, sonst Tag, bzw. `body`).
+>    Zusätzlich je Fokuswechsel des Scan-Felds eine Zeile „Scan-Feld Fokus an/aus“.
+> 5. Version **v1.68.1**, Tests (Quelltext-Wächter an das neue Feld anpassen: kein `aria-hidden`, kein `opacity:0`), TS-99-Unterpunkt
+>    aus Nachtrag 5 anpassen (Netum, Einbuchung: „Scan bereit“ grün → Scan ohne Antippen eines Formularfelds), Hilfe; nur Web.
+
 > [!important] Freigabe-Nachtrag 5 vom 2026-10-23 — Pilot „Scannen ohne Feld“ nur auf der Einbuchung, v1.67.2 (geht dem Rumpf und Nachtrag 1–4 vor)
 > Gerald 2026-10-23 nach dem Netum-Test (TS-99.17 a bestanden): Die Erkennung soll auch funktionieren, ohne dass ein Textfeld aktiv ist.
 > Befund Diagnose: Ohne Feld mit Fokus sendet der Netum („Fokus-Eingabe“) nur `keydown key="Unidentified" keyCode=0` und Enter, keinen Text.
@@ -488,6 +507,19 @@ Profil-Schalter, Hilfe/README, ein Node-Check - passt in einen Dev-Lauf.
 
 ## Deploy
 
+*Final QA-Lauf v1.68.1 (2026-10-27), aus dem echten Diff `ca48b22d..8540c4d6` (`69bb4fd1` + QA-Fix `8540c4d6`):* geändert sind nur
+`IdealAkeWms/` (`wwwroot/js/hardware-scanner.js`, `wwwroot/css/site.css`, `Views/StockMovements/Inbound.cshtml`, `Views/Help/Index.cshtml` +
+`Changelog.cshtml`, `AppVersion.cs`), `IDEALAKEWMSService/AppVersion.cs` (nur Version 1.68.1), Tests und `docs/TESTSZENARIEN.md`.
+- **Web-App:** ja. **Service:** funktional nichts, nur die Version; mitpublizieren, damit beide 1.68.1 zeigen. **Migration:** nein (nichts
+  unter `*/Migrations/`, kein `SQL/`, FreshInstall und `SQL/AgentJobs/` unberührt, kein Seed, keine neue AppSetting).
+  ```
+  dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb
+  dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService
+  ```
+- Ablauf: aus dem Worktree publizieren → Testsystem → TS-99.19 (a–q) + Regression TS-99.17 a/i → Merge. Nach dem Merge nur dann erneut aus
+  `main` publizieren, wenn der Merge getestete Dateien mit parallelen `main`-Änderungen zusammengeführt hat.
+- Am Netum vor dem Test: Browser-Cache leeren bzw. hart neu laden (JS und CSS geändert), „Scannen ohne Feld“ und Diagnose an.
+
 *Final QA-Lauf v1.67.2 (2026-10-27), aus dem echten Diff `a2651019..a9462036` (`20b573de` + QA-Fix `a9462036`, nur Doku):* geändert sind
 nur `IdealAkeWms/` (`wwwroot/js/hardware-scanner.js`, `wwwroot/js/barcode-scanner.js`, `wwwroot/css/site.css`, `Views/StockMovements/Inbound.cshtml`,
 `Views/Account/Profile.cshtml`, `Views/Help/Index.cshtml` + `Changelog.cshtml`, `AppVersion.cs`), `IDEALAKEWMSService/AppVersion.cs` (nur
@@ -817,6 +849,43 @@ Regel (b), Feld leer).
 
 **Nachweis:** `dotnet build IdealAkeWms.slnx` 0 Fehler, 28 Warnungen (unverändert). `dotnet test`: Web **2182 bestanden, 1 übersprungen**
 (vorher 2181 + neuer Wächter), Dienst **328 bestanden**. Node-Kern „hardware-scanner core ok (52 Pruefungen)“.
+
+## Nachbesserung v1.68.1 (Dev-Lauf 2026-10-27, Freigabe-Nachtrag 6)
+
+Basis `ca48b22d` (v1.68.0). Commit `69bb4fd1` (wip feature-complete). Nur Web (Dienst nur `AppVersion.cs`), keine Migration, kein Seed.
+Nur Einbuchung. `processScannedValue` und die Zuordnung aus Nachtrag 5 Punkt 4 (`hwScanOhneFeld`, `HwScanCore.zuordnung`) unverändert.
+
+**Sichtbares Feld (Punkt 1/2):**
+- `Inbound.cshtml`: `#hwScanOhneFeld` bleibt vor dem `<form>`, jetzt **ohne** `aria-hidden` und `tabindex="-1"`, mit
+  `aria-label="Scan-Feld"`, `placeholder="Scan: tippen zum Aktivieren"` und `hidden`. `inputmode="none"`, `autocomplete="off"` bleiben.
+- `hardware-scanner.js`: nur bei Geräte-Schalter an `ohneFeld.hidden = false`; `focus`/`blur` setzen den Platzhalter „✓ Scan bereit“ /
+  „Scan: tippen zum Aktivieren“ und schreiben die Diagnose „Scan-Feld Fokus an/aus“. Schalter aus → Feld bleibt `hidden`, nie fokussiert.
+- `site.css` `.hw-scan-ohne-feld`: 30 px hoch, 15em breit (≈ 195 px), ohne Fokus grau gestrichelt (`#495057` auf `#f8f9fa`, ca. 8:1), mit Fokus
+  grün durchgezogen + Schatten (`#0a3622` auf `#d1e7dd`, ca. 11:1). Zustand an Text **und** Rahmenform, nicht nur Farbe. Kein `opacity`,
+  kein 1 px, kein `pointer-events`.
+- Nach jedem Scan über das Feld: `ohneFeld.value = ''` in `zustellen` (vor der Auswertung).
+
+**Fokus (Punkt 3):** `parken()` unverändert (Laden, `focusout`, MutationObserver, Select2 nach dem Schließen, `preventScroll`). `freiesFeld()`
+lässt das sichtbare Feld wie bisher als Ziel der Text-Erkennung zu; „ohne Fokus“ bestimmt weiterhin `aktiv === ohneFeld`
+(`[data-hw-scan-ohne-feld]`).
+
+**Diagnose (Punkt 4):** `diag()` hängt an **jede** Zeile `[aktiv: #id | tag | body]` an (auch einzelne `keydown`).
+
+**Tests/Doku (Punkt 5):** Wächter `ScannenOhneFeld_*` umgestellt (kein `aria-hidden`/`tabindex="-1"`, `hidden`, CSS-Regel ohne
+`opacity`/`pointer-events`/`1px`, `:focus`-Regel, `hidden = false`, Fokus-Diagnose, Leeren, `[aktiv:`). TS-99.19 Vorbedingung um „Scan
+bereit“ ergänzt, m) Screenreader liest „Scan-Feld“, neu n) Schalter aus = kein Feld. Hilfe-Absatz, Changelog, v1.68.1 ×2.
+DOM-Teil per Wegwerf-Mock in Node durchgespielt (Feld wird sichtbar, `[aktiv: #hwScanOhneFeld]` je Zeile).
+
+**Abweichungen:**
+- **Geänderter Bestandstest:** `HardwareScannerTests.ScannenOhneFeld_NurAufEinbuchung_UnsichtbarOhneTastatur_NurMitSchalter` prüfte
+  `aria-hidden="true"`, `tabindex="-1"` und `position: fixed` – vom Nachtrag ausdrücklich ersetzt (Testname bleibt).
+- Breite ≈ 195 px statt ca. 140 px: Bei 140 px wird „Scan: tippen zum Aktivieren“ abgeschnitten.
+- `tabindex="-1"` entfernt (Nachtrag nennt es nicht): ein sichtbares, antippbares Feld gehört in die Tab-Folge; am PC ohne Schalter ist es
+  ohnehin `hidden`.
+- Die Diagnose-Ergänzung `[aktiv: …]` wirkt bei Diagnose an auf allen Seiten (gemeinsames Skript), unabhängig vom Schalter „Scannen ohne Feld“.
+
+**Nachweis:** `dotnet build IdealAkeWms.slnx` 0 Fehler, 28 Warnungen (unverändert). `dotnet test`: Web **2195 bestanden, 1 übersprungen**,
+Dienst **328 bestanden**. Node-Kern „hardware-scanner core ok (52 Pruefungen)“.
 
 ## Freigabe-Antworten (Mensch fuellt aus — Schranke 1)
 
@@ -1336,6 +1405,79 @@ Keine. `git diff a2651019..20b573de -- IdealAkeWms.Tests` enthält nur hinzugef�
 
 **Ergebnis:** grün, keine Blocker → `status: Testbereit`.
 
+## QA-Nachweis v1.68.1 (qa-agent, 2026-10-27, Freigabe-Nachtrag 6)
+
+Geprüft `git diff ca48b22d..69bb4fd1` (9 Dateien, +63/−18) im Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, dazu der umgebende
+Code: `hardware-scanner.js` komplett (Kerne `create`/`createText`, `diag`, `freiesFeld`, `zustellen`, `parken`, `input`/`beforeinput`/`keydown`),
+`barcode-scanner.js` `wms:hardware-scan`-Listener und `hwScanOhneFeld` (`:535-584`), Bootstrap-Regel `[hidden]{display:none!important}`.
+Review selbst, in diesem Lauf. QA-Fix `8540c4d6`.
+
+### 1. Build und Tests (selbst ausgeführt, nach dem QA-Fix wiederholt, HEAD `8540c4d6`)
+- `dotnet build IdealAkeWms.slnx`: **0 Fehler** (vor dem Fix 28 Warnungen, nach dem Fix inkrementell 25; alle vorbestehend, u. a. CS8601).
+- `dotnet test`: **IdealAkeWms.Tests 2195 bestanden, 1 übersprungen, 0 fehlgeschlagen (2196)**; **IDEALAKEWMSService.Tests 328 bestanden,
+  0 übersprungen, 0 fehlgeschlagen** – vor und nach dem Fix gleich. `HardwareScannerTests` 13/13 bestanden (`Kern_NodeSelbstpruefung` lief).
+- Node direkt: `node IdealAkeWms.Tests/Js/hardware-scanner.check.js <pfad>` → „hardware-scanner core ok (52 Pruefungen)“; `node --check` ok.
+- Web/Dienst nicht gestartet (Auftrag).
+
+### 2. Code-Review: Befunde und Behandlung
+| # | Schwere | Fundstelle | Befund | Behandlung |
+|---|---|---|---|---|
+| Q6-1 | mittel | `hardware-scanner.js:278` (`69bb4fd1`) gegen `textAuswerten` `:337` | Neues Leeren `ohneFeld.value = ''` läuft **nach** `textAuswerten`, das `vor = { wert: el.value }` schon gesetzt hat. Steht Rest-Text im Feld (Scan ohne Präfix, PC-Tastatur, `~09` ohne Code), vergleicht der nächste Text-Scan gegen den alten Wert: `eingefuegt('xx', '~09B')` → `entfernt ≠ 0` → nicht erkannt, `~09B` bleibt im Feld; erst der übernächste Scan klappt wieder. Nachgestellt mit dem echten `createText` in Node: ohne Fix „Scan A \| nicht erkannt \| Scan C“, mit Fix „A \| B \| C“. Vor v1.68.1 gab es kein Leeren, darum kein Fehler. | **Behoben** `8540c4d6`: `if (ohne) { ohneFeld.value = ''; vor = { el: ohneFeld, wert: '' }; }`; Wächter angepasst; TS-99.19 o. |
+| Q6-2 | niedrig (kosmetisch) | `Inbound.cshtml:11-14` | Der Wrapper `<div class="mb-2">` bleibt bei Schalter aus stehen: 0,5 rem mehr Abstand unter der Überschrift als in v1.68.0. Sonst Seite gleich (Feld `hidden`, nie fokussiert). | Hingenommen, Checkliste 39. |
+| Q6-3 | niedrig | `hardware-scanner.js:314-315`, `site.css` | Der Zustandstext steht im Platzhalter. Steht Rest-Text im Feld, ist er verdeckt; der Zustand ist dann nur an Rahmenform (gestrichelt/durchgezogen) und Farbe erkennbar. Rest-Text ist jetzt sichtbar (Q5-3 damit entschärft) und verschwindet beim nächsten erkannten Scan. | Hingenommen (Pilot). |
+| Q6-4 | Hinweis | `:314-315`, `parken` | Fokus-Diagnose: jedes Antippen eines Formularfelds bzw. einer freien Stelle schreibt genau eine Zeile „aus“ bzw. „an“. Keine Schleife: `parken` hängt nur an `focusout`/`childList` von `body`, `focus()` ändert keine `body`-Kinder, `diag` schreibt nur in `<pre>`-Text (Observer ohne `subtree`). Viele Taps können Scan-Zeilen aus dem 30er-Puffer schieben. | Hingenommen, TS-99.19 p. |
+| Q6-5 | Hinweis | `HardwareScannerTests.cs` | Testname `ScannenOhneFeld_NurAufEinbuchung_UnsichtbarOhneTastatur_NurMitSchalter` sagt noch „Unsichtbar“. | Nicht umbenannt (Dev-Lauf bewusst), kein Einfluss. |
+
+Gezielt geprüft, ohne Befund:
+- **Grenzen:** Diff berührt nur `Inbound.cshtml` als View; `barcode-scanner.js` unverändert (also `processScannedValue`, `hwScanOhneFeld`), Kern
+  `zuordnung` und `create`/`createText` unverändert (Node-Prüfung 52 grün). Kein Seed, keine Migration, kein `SQL/`.
+- **Schalter aus = v1.68.0:** `ohneFeld` bleibt `null` (`:310`), `hidden` wird nie entfernt, keine Listener; Bootstrap `[hidden]{display:none!important}`,
+  das Feld trägt keine `d-*`-Klasse und die eigene Regel kein `display`. Nicht fokussierbar, weil `display:none`. Einzige Abweichung Q6-2.
+- **Sichtbares Feld:** kein `aria-hidden`, kein `tabindex="-1"`, CSS ohne `opacity`/1 px/`pointer-events`/`position:fixed`; `inputmode="none"`,
+  `autocomplete="off"`, `aria-label="Scan-Feld"`, außerhalb `<form>`, kein `name` → kann nichts absenden oder mitsenden.
+- **Kontrast (nachgerechnet):** grau `#495057` auf `#f8f9fa` ≈ 7,8:1, Rahmen `#6c757d` auf Weiß ≈ 4,7:1; grün `#0a3622` auf `#d1e7dd` ≈ 10:1,
+  Rahmen `#198754` ≈ 4,5:1. Zustand zusätzlich über Text (Platzhalter) und Rahmenform – nicht nur Farbe.
+- **Leeren vs. Erkennung:** Text-Pfad setzt das Feld schon per `zuruecksetzen` auf den Stand vor der Folge, der Tasten-Pfad verschluckt die Zeichen;
+  das Leeren wirkt also nur auf Rest-Text (siehe Q6-1). `hwScanOhneFeld` liest `feld.value` nicht (nur `data-*`), ein späteres AJAX-Ergebnis
+  ist unberührt. Leeren erst nach dem Dispatch.
+- **`freiesFeld`:** das sichtbare Feld ist `text`, sichtbar → Text-Erkennung greift; „ohne Fokus“ bleibt `aktiv === ohneFeld` (`:273`),
+  Regel (b)/(d) nie ins Scan-Feld (`if (ohne) return`).
+- **Auto-Fokus:** `parken` unverändert, `focus({ preventScroll: true })`. Ob Android beim Antippen trotz `inputmode="none"` eine Tastatur zeigt
+  oder scrollt: Manual-UAT.
+- **Diagnose:** `[aktiv: #id | tag | body]` an jeder Zeile (auch `keydown`), nur `id`/Tag, nie Feldinhalt (Passwortfeld unkritisch). Gilt bei
+  Diagnose an auf allen Seiten – so verlangt („jede Diagnose-Zeile“).
+- **Fehlerklassen:** kein `@Html.Raw` in `<script>`; `hidden` nicht an `d-*`; kein stiller Fallback; keine Arrays/Model-Binding/Server-Regel
+  (nichts gespeichert); keine neue Regel an zwei Orten.
+
+### 3. Beweisart je Punkt des Nachtrags 6
+| Punkt | Beweis |
+|---|---|
+| 1 Sichtbares Feld (kein `aria-hidden`/`opacity`/1 px/`pointer-events`, `inputmode`, `autocomplete`, nur mit Schalter, leer nach Scan) | Markup/CSS/Codestellen: **Quelltext-Wächter** `ScannenOhneFeld_*`. Wirkung (Netum schreibt hinein, keine Tastatur, antippbar, leer): **Manual-UAT** TS-99.19 Vorbedingung, a–e, o, q |
+| 2 Fokus-Anzeige grün/grau, Antippen fokussiert | `:focus`-Regel und Platzhaltertexte: Wächter. Darstellung, Kontrast am Gerät: **Manual-UAT** TS-99.19 Vorbedingung, p, q |
+| 3 Auto-Fokus wie bisher | Code unverändert (Review). Verhalten: **Manual-UAT** TS-99.19 f/g |
+| 4 Diagnose `[aktiv: …]`, „Scan-Feld Fokus an/aus“ | Wächter (Strings). Inhalt am Gerät: **Manual-UAT** TS-99.19 Vorbedingung, p |
+| 5 Version, Tests, TS, Hilfe, nur Web | Review: 1.68.1 in beiden `AppVersion.cs`, Changelog, Hilfe-Absatz, TS-99.19 a–q (Vorbedingung, Schritte, Erwartung, Negativ i–n) |
+| Q6-1-Fix | Node-Nachstellung mit echtem `createText` (Wegwerfskript, nicht eingecheckt) + Wächter; am Gerät **Manual-UAT** TS-99.19 o |
+
+Browser-JS und Fokusverhalten sind nicht automatisiert beweisbar – alles „Manual-UAT“ zählt nicht als grün.
+
+### 4. Geänderte Bestandstests
+- `HardwareScannerTests.ScannenOhneFeld_NurAufEinbuchung_UnsichtbarOhneTastatur_NurMitSchalter` (`69bb4fd1`): Prüfungen `aria-hidden="true"`,
+  `tabindex="-1"`, `.hw-scan-ohne-feld { position: fixed;` ersetzt durch `NotContain("aria-hidden")`, `NotContain("tabindex=\"-1\"")`, `hidden`,
+  CSS ohne `opacity`/`pointer-events`/`1px`, `:focus`, Fokus-Diagnose, Leeren, `[aktiv:`. **Verhalten absichtlich geändert** durch Nachtrag 6
+  Punkt 1 und 5 (Nachtrag nennt den Wächter ausdrücklich). `tabindex` nennt der Nachtrag nicht; die Entfernung folgt aus „sichtbar, antippbar“
+  (Abweichung im Dev-Lauf begründet). Kein Fixture-Trick.
+- QA-Fix `8540c4d6`: dieselbe Prüfung des Leerens auf die neue Zeile umgestellt (folgt der Code-Korrektur Q6-1).
+- `hardware-scanner.check.js` unverändert.
+
+### 5. CLAUDE.md-Checkliste
+- Migration, `SQL/`, FreshInstall, `SQL/AgentJobs/`: entfällt. Audit: keine Entität. README: keine neue AppSetting.
+- Version 1.68.1 in beiden `AppVersion.cs` ✓, Anwender-Changelog ✓, Hilfe ✓, Brain-Changelog [[2026-10-27-v1-68-1-scan-feld-sichtbar]] ✓ (QA-Fix
+  nachgetragen), feature-map ✓.
+- `docs/TESTSZENARIEN.md` TS-99.19 ✓ (QA o–q ergänzt), [[testszenarien-index]] Zeile 99 nachgezogen ✓.
+
+**Ergebnis:** grün, Q6-1 behoben, keine Blocker → `status: Testbereit`.
+
 ## Manuelle Test-Checkliste (Schranke 2, Mensch)
 
 Vorher: aus dem Worktree publizieren (Deploy-Abschnitt) → Testsystem. Admin: Standorteinstellungen → Hardware-Scanner aktiv, Präfix
@@ -1433,3 +1575,17 @@ Vorher: aus dem Worktree publizieren (Deploy-Abschnitt) → Testsystem. Admin: S
 37. **Q5-2 (optional):** Gibt es Lagerplatz-Codes, die Anfang eines anderen sind (z. B. `A-1`/`A-10`)? Dann denselben Code einmal ohne Feld
     und einmal über den Kamera-Knopf scannen und vergleichen. Ohne Feld wird genau dieser Platz gewählt, über den Kamera-Knopf ggf. der
     erste per Anfang passende.
+
+**Ergänzung v1.68.1** (Nachtrag 6). Punkt 34 „TalkBack liest das Feld nicht vor“ ist überholt (jetzt „Scan-Feld“, TS-99.19 m); Punkt 35 ist
+entschärft (Rest-Text ist sichtbar). Vorher am Netum Cache leeren, „Scannen ohne Feld“ und Diagnose an.
+
+38. **TS-99.19 Vorbedingung:** Inbound öffnen → oben Feld grün „✓ Scan bereit“, Diagnose „Scan-Feld Fokus an … [aktiv: #hwScanOhneFeld]“.
+    Ist es grau, einmal antippen → grün, **keine** Bildschirmtastatur. **Kernfrage des Nachtrags:** Kommt jetzt eine `input`-Zeile in der
+    Diagnose und wird der Scan zugeordnet (a–d)? Wenn nicht: Diagnose kopieren und melden (dann trägt auch ein sichtbares Feld nicht).
+39. **TS-99.19 n:** Schalter aus → kein Scan-Feld, Seite wie v1.68.0 (bis auf ca. 8 px Abstand unter der Überschrift, Q6-2 – stört das?).
+40. **TS-99.19 o (QA-Fix Q6-1):** drei Codes direkt hintereinander → jeder erkannt, Feld nach jedem leer. Zusätzlich am PC mit Schalter an:
+    `xx` ins Scan-Feld tippen, dann zweimal hintereinander (Simulation) scannen → beide erkannt.
+41. **TS-99.19 p:** Formularfeld antippen / freie Stelle antippen → je genau eine Zeile „Fokus aus“ / „Fokus an“, keine Wiederholung.
+42. **TS-99.19 q:** Am Handheld hochkant Feld ganz sichtbar, Text nicht abgeschnitten, kein Querscrollen; Zustand ohne Farbe erkennbar.
+43. **TS-99.19 a–m** wie Punkte 32–34 erneut (Zuordnung unverändert), dazu **TS-99.17 a/i** auf einer anderen Seite: Diagnose-Zeilen tragen
+    dort ebenfalls `[aktiv: …]`, sonst unverändert.

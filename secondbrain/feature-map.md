@@ -697,6 +697,7 @@ Changelog [[2026-10-21-v1-66-0-hardware-barcodescanner]].
 | v1.66.2 (Nachtrag 3): Kamera-Fenster als Scan-Ziel an allen 22 Kamera-Knöpfen der Seiten mit mehr als einem Scan-Feld; Wächter mit vollständiger Liste | **erledigt** `543edbe2`, `845e38c9` (qa) | `data-hw-scan-kamera-ziel` in 10 Views, `HardwareScannerTests` |
 | v1.67.1 (Nachtrag 4): Fokus-Eingabe-Geräte (Netum) – Präfix am eingefügten Text, Feld „Handscanner“ im Kamera-Fenster, Scanner-Diagnose in Mein Profil | **erledigt** `eb4b28ea`, `a2651019` (qa) | `HwScanCore.createText`, `hardware-scanner.js` (input/beforeinput), [[2026-10-23-v1-67-1-hardware-scanner-fokus-eingabe]] |
 | v1.67.2 (Nachtrag 5): Scannen ohne Feld, Pilot nur Einbuchung – unsichtbares Scan-Feld, Zuordnung nach Inhalt (Artikel-QR / Lagerplatz / Artikelnummer), Profil-Schalter | **erledigt** `20b573de`, `a9462036` (qa) | `HwScanCore.zuordnung`, `hwScanOhneFeld` (barcode-scanner.js), `#hwScanOhneFeld` in Inbound, [[2026-10-23-v1-67-2-einbuchung-scannen-ohne-feld]] |
+| v1.68.1 (Nachtrag 6): sichtbares Scan-Feld „Scan bereit“ (grün/grau) statt unsichtbarem, Diagnose mit aktivem Element und Fokuswechsel | **erledigt** `69bb4fd1`, `8540c4d6` (qa) | `#hwScanOhneFeld`, `.hw-scan-ohne-feld`, [[2026-10-27-v1-68-1-scan-feld-sichtbar]] |
 
 > **Deploy:** Web; Dienst nur wegen `AppVersion.cs`. Keine Migration. Default aus; vor dem Einschalten Geräte einrichten (DE-Layout,
 > Präfix, Enter, Tasten-Ausgabe).
