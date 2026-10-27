@@ -238,7 +238,7 @@ public class HardwareScannerTests
         css.Should().Contain(".hw-scan-ohne-feld:focus {", "Fokus-Anzeige gruen");
         js.Should().Contain("ohneFeld.hidden = false;", "nur bei Schalter an sichtbar")
             .And.Contain("diag('Scan-Feld Fokus an')").And.Contain("diag('Scan-Feld Fokus aus')")
-            .And.Contain("'✓ Scan bereit'").And.Contain("if (ohne) ohneFeld.value = '';", "nach jedem Scan leer")
+            .And.Contain("'✓ Scan bereit'").And.Contain("if (ohne) { ohneFeld.value = ''; vor = { el: ohneFeld, wert: '' }; }", "nach jedem Scan leer, Basis der Text-Erkennung mit")
             .And.Contain("'  [aktiv: '", "jede Diagnose-Zeile mit aktivem Element");
         var profil = Read("Views", "Account", "Profile.cshtml");
         profil.Should().Contain("id=\"hwScanOhneFeldAn\"").And.Contain("'wms.hardwareScanner.ohneFeld'")

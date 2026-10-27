@@ -10499,6 +10499,12 @@ Lagerplatz (Code 128), Kommissionierliste mit Haupt-FA-Barcode, Beschichtungsauf
   v1.67.1: ohne Antippen kommt nichts an (TS-99.17 i). l) Andere Seite (z. B. Warenausgang) mit Schalter an → unverändert wie TS-99.17 i.
   m) Screenreader (TalkBack): das Scan-Feld wird als „Scan-Feld“ vorgelesen (v1.68.1, nicht mehr verborgen). n) Schalter aus: **kein** Scan-Feld
   sichtbar, Seite wie v1.68.0.
+  o) (QA v1.68.1) Drei Codes direkt hintereinander scannen, ohne dazwischen etwas anzutippen (z. B. Artikel, Lagerplatz, Artikel) → **jeder**
+  wird erkannt (Diagnose je Scan „über Scan-Feld (ohne Fokus)“), das Scan-Feld ist nach jedem Scan leer, nie steht `~09…` darin.
+  p) (QA v1.68.1) Feld „Fertigungsauftrag“ antippen → Scan-Feld grau, Diagnose genau eine Zeile „Scan-Feld Fokus aus“; auf eine freie Stelle
+  tippen → wieder grün, genau eine Zeile „Scan-Feld Fokus an“ – keine sich wiederholenden Fokus-Zeilen. q) (QA v1.68.1) Am Handheld hochkant:
+  Scan-Feld ganz sichtbar, Text „Scan: tippen zum Aktivieren“ nicht abgeschnitten, kein Querscrollen; Zustand auch ohne Farbe am Text und
+  an der Rahmenform (gestrichelt/durchgezogen) erkennbar.
 - **TS-99.15 — Zeichenabstand prüfen (v1.66.1, Nachtrag 2 Punkt 2).** Standorteinstellungen → Hardware-Scanner, „Größter
   Zeichenabstand (ms)“: a) `5`, `0`, `-5`, `501` speichern. **Erwartet:** „Nicht gespeichert: 'Größter Zeichenabstand (ms)' muss zwischen
   10 und 500 liegen (war: …)“, auch die übrigen Felder bleiben ungespeichert, die Eingabe bleibt sichtbar. b) `10` und `500` speichern:

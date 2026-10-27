@@ -275,7 +275,9 @@
             handled: false, ambiguous: false, ziel: null,
             hinweis: function (text) { diag('  ' + text); hinweis(text); } };  // auch spaeter (AJAX-Ergebnis) aufrufbar
         document.dispatchEvent(new CustomEvent('wms:hardware-scan', { detail: detail }));
-        if (ohne) ohneFeld.value = '';  // v1.68.1: Text im Scan-Feld ist nur Durchlauf, nach jedem Scan leer
+        // v1.68.1: Text im Scan-Feld ist nur Durchlauf, nach jedem Scan leer. vor mitziehen, sonst vergleicht der naechste Text-Scan gegen
+        // den alten Feldwert und wird nicht erkannt (QA v1.68.1, Rest-Text im Feld).
+        if (ohne) { ohneFeld.value = ''; vor = { el: ohneFeld, wert: '' }; }
         if (detail.handled) { diag('  Scan "' + scan.code + '" ' + (ohne && !/Kamera/.test(detail.ziel) ? 'über Scan-Feld (ohne Fokus) → ' : 'an Feld #') + detail.ziel); return; }
         if (ohne) return;  // nie Regel (b) ins Scan-Feld; Zuordnung und Hinweis macht barcode-scanner.js
 
