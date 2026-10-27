@@ -63,3 +63,16 @@ Review-Fokus:
 - Keine Doppelauswertung bei Tasten-Scanner + `input`.
 - Passwort nie protokolliert.
 - Eine Hand-Eingabe von `~09` bleibt Text.
+
+## v1.67.2 – Scannen ohne Feld, Pilot Einbuchung (Freigabe-Nachtrag 5, 2026-10-23)
+
+Plan (kompakt, superpowers:writing-plans):
+1. Kern `HwScanCore.zuordnung(code, istLagerplatz)` (mit `;` Artikel-QR, sonst genauer Lagerplatz-Code, sonst Artikelnummer, leer = null) + Node-Prüfungen.
+2. Unsichtbares Feld `#hwScanOhneFeld` nur in `StockMovements/Inbound.cshtml`, außerhalb des Formulars (`inputmode="none"`, `aria-hidden`,
+   `tabindex=-1`, CSS `.hw-scan-ohne-feld` fixed, opacity 0).
+3. `hardware-scanner.js`: Schalter `wms.hardwareScanner.ohneFeld`; Fokus parken (Laden, `focusout`, MutationObserver am body für
+   Select2/Kamera-Fenster, Select2-Auswahl nach dem Schließen); `zustellen` setzt `detail.ohneFeld`, nie Regel (b) ins Feld; `detail.hinweis`.
+4. `barcode-scanner.js`: `hwScanOhneFeld` nach dem Kamera-Fenster-Vorrang; optionaler Rückruf `nichtGefunden` an `processScannedValue`.
+5. Profil-Schalter „Scannen ohne Feld“, Hilfe, Changelog, TS-99.19, Wächter-Test, v1.67.2.
+
+Stand: umgesetzt, Commit `20b573de` (wip feature-complete), QA folgt.

@@ -4,7 +4,7 @@ title: Scan-Handler fuer Hardware-Barcodescanner (Tastatur-Eingabe mit Praefix)
 slug: 2026-10-15-scan-handler-hardware-scanner-spec
 status: Testbereit
 created: 2026-10-15
-updated: 2026-10-23
+updated: 2026-10-27
 source_backlog: "[[2026-10-15-scan-handler-hardware-scanner]]"
 task: "[[2026-10-15-scan-handler-hardware-scanner-umsetzung]]"
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
@@ -38,6 +38,25 @@ freigabe_am: "2026-10-21"
 > (HEAD `2524bb03`, v1.60.0), nur gelesen. Abweichungen zu `main` stehen in Rueckfrage 1.
 > Standorte: **AKE und IDEAL** gleichermassen - die Scan-Seiten und `barcode-scanner.js` sind
 > standortneutral, keine Verzweigung nach `ProduktionsauftragHierarchisch`.
+
+> [!important] Freigabe-Nachtrag 5 vom 2026-10-23 — Pilot „Scannen ohne Feld“ nur auf der Einbuchung, v1.67.2 (geht dem Rumpf und Nachtrag 1–4 vor)
+> Gerald 2026-10-23 nach dem Netum-Test (TS-99.17 a bestanden): Die Erkennung soll auch funktionieren, ohne dass ein Textfeld aktiv ist.
+> Befund Diagnose: Ohne Feld mit Fokus sendet der Netum („Fokus-Eingabe“) nur `keydown key="Unidentified" keyCode=0` und Enter, keinen Text.
+> 1. **Nur Seite Einbuchung** (`StockMovements/Inbound`) als Pilot. Andere Seiten unverändert.
+> 2. **Unsichtbares Scan-Feld** (kein Bildschirmtastatur: `inputmode="none"`, für Screenreader verborgen, kein Scrollen/Springen beim
+>    Fokussieren). Es erhält den Fokus, wenn kein anderes Eingabefeld/Knopf den Fokus hat: beim Laden, nach Blur eines Feldes, nach
+>    dem Schließen eines Fensters/Dropdowns. Text darin läuft durch die Text-Erkennung aus Nachtrag 4 (Präfix).
+> 3. **Nur mit Geräte-Schalter** „Scannen ohne Feld“ in Mein Profil (nur dieses Gerät, localStorage, Standard aus). Aus → Seite
+>    verhält sich exakt wie v1.67.1.
+> 4. **Zuordnung nach Inhalt** (nur für Scans über das unsichtbare Feld):
+>    - Code mit `;` (Artikel-QR) → Feld **Artikel** (wie Kamera/Hardware-Scan; FA-Übernahme nur bei `QrMitFaNummer`).
+>    - Code ohne `;` → gibt es einen Lagerplatz mit genau diesem Code, wird er im Feld **Lagerplatz** gewählt; sonst als Artikelnummer
+>      ins Feld Artikel.
+>    - Passt nichts → Hinweis „Code … nicht zuordenbar“, nichts geändert.
+>    Reihenfolge Artikel/Lagerplatz beliebig. Das Formular wird nie durch den Scan abgeschickt.
+> 5. Antippen eines Feldes oder Kamera-Knopfs hat Vorrang (bisherige Regeln). Scanner-Diagnose zeigt „über Scan-Feld (ohne Fokus)“ und
+>    die Zuordnung.
+> 6. Version **v1.67.2**, Tests (Node-Kern/Quelltext-Wächter), neuer TS-99-Unterpunkt (Netum, Einbuchung ohne Antippen), Hilfe; nur Web.
 
 > [!important] Freigabe-Nachtrag 4 vom 2026-10-23 — Fokus-Eingabe-Geräte (Netum), v1.67.1 (geht dem Rumpf und Nachtrag 1–3 vor)
 > Befund am Gerät (Gerald 2026-10-23): Der Netum AIDC hat keinen Tastatur-Emulationsmodus. Seine Ausgabe „Fokus-Eingabe“ schreibt den
@@ -469,6 +488,21 @@ Profil-Schalter, Hilfe/README, ein Node-Check - passt in einen Dev-Lauf.
 
 ## Deploy
 
+*Final QA-Lauf v1.67.2 (2026-10-27), aus dem echten Diff `a2651019..a9462036` (`20b573de` + QA-Fix `a9462036`, nur Doku):* geändert sind
+nur `IdealAkeWms/` (`wwwroot/js/hardware-scanner.js`, `wwwroot/js/barcode-scanner.js`, `wwwroot/css/site.css`, `Views/StockMovements/Inbound.cshtml`,
+`Views/Account/Profile.cshtml`, `Views/Help/Index.cshtml` + `Changelog.cshtml`, `AppVersion.cs`), `IDEALAKEWMSService/AppVersion.cs` (nur
+Version 1.67.2, Datum bleibt 2026-10-23), Tests und `docs/TESTSZENARIEN.md`.
+- **Web-App:** ja. **Service:** funktional nichts, nur die Version. Mitpublizieren, damit beide 1.67.2 zeigen.
+  **Migration:** nein (nichts unter `*/Migrations/`, kein `SQL/`, FreshInstall und `SQL/AgentJobs/` unberührt, keine neue AppSetting; der
+  Schalter „Scannen ohne Feld“ liegt nur im `localStorage` des Geräts).
+  ```
+  dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb
+  dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService
+  ```
+- Ablauf: aus dem Worktree publizieren → Testsystem → TS-99.19 (+ Regression TS-99.17 a/i, TS-99.16 Inbound) → Merge.
+  Nach dem Merge nur dann erneut aus `main` publizieren, wenn der Merge getestete Dateien mit parallelen `main`-Änderungen zusammengeführt hat.
+- Am Netum vor dem Test: Browser-Cache leeren bzw. hart neu laden (geänderte JS/CSS-Dateien), dann in „Mein Profil“ „Scannen ohne Feld“ einschalten.
+
 *Nachtrag QA-Lauf v1.67.1 (2026-10-23) aus dem echten Diff `4bfa4576..a2651019` (`eb4b28ea` + QA-Fix `a2651019`):* geändert sind nur
 `IdealAkeWms/` (`wwwroot/js/hardware-scanner.js`, `wwwroot/js/barcode-scanner.js`, `wwwroot/css/site.css`, `Views/Account/Profile.cshtml`,
 `Views/Help/Index.cshtml` + `Changelog.cshtml`, `Models/Standort/StandortSettingsCatalog.cs` nur Hinweistext, `AppVersion.cs`),
@@ -738,6 +772,51 @@ nicht abfangbar, Passwort, Gerät aus, AltGr.
 
 **Nachweis:** `dotnet build IdealAkeWms.slnx` ergibt 0 Fehler, 28 Warnungen (alle schon vorher vorhanden). `dotnet test`: Web **2181
 bestanden, 1 übersprungen** (schon vorher), Dienst **328 bestanden**. Node-Kern: „hardware-scanner core ok (45 Pruefungen)“.
+
+## Nachbesserung v1.67.2 (Dev-Lauf 2026-10-23, Freigabe-Nachtrag 5)
+
+Basis `a2651019` (v1.67.1). Commit `20b573de` (wip feature-complete). Nur Web, keine Migration. Nur Seite Einbuchung.
+
+**Unsichtbares Scan-Feld (Punkt 1/2):**
+- `Views/StockMovements/Inbound.cshtml`: `<input id="hwScanOhneFeld" data-hw-scan-ohne-feld data-artikel-ziel="ArticleId"
+  data-lagerplatz-ziel="StorageLocationId" inputmode="none" tabindex="-1" aria-hidden="true">` **vor** dem `<form>` (ein Enter darin kann nie
+  absenden). CSS `.hw-scan-ohne-feld`: `position: fixed` oben links, 1 px, `opacity: 0`, `pointer-events: none`. Nicht `display:none`/
+  `visibility:hidden`, die nehmen keinen Fokus; `freiesFeld` braucht `getClientRects()`, darum 1 px statt 0.
+- `hardware-scanner.js`: nur wenn `localStorage wms.hardwareScanner.ohneFeld = an` (Profil „Scannen ohne Feld“, Standard aus) und das Gerät
+  nicht aus ist. `parken()` fokussiert das Feld mit `preventScroll`, wenn `activeElement` body/html ist oder Select2 den Fokus nach dem Schließen
+  an seine Auswahl zurückgegeben hat (kein Dropdown offen). Auslöser: Laden, `focusout` (Capture), MutationObserver auf `body` (Select2-Dropdown
+  und Kamera-Fenster hängen dort; Entfernen eines fokussierten Elements löst kein verlässliches `blur` aus).
+- Text im Feld läuft unverändert durch die Text-Erkennung aus v1.67.1; ein Tasten-Scanner (USB) ebenso über den Tasten-Kern.
+
+**Zuordnung (Punkt 3/4):**
+- `zustellen` setzt `detail.ohneFeld`, wenn der Fokus im unsichtbaren Feld liegt; dann **nie** Regel (b)/(d) (sonst landete der Code im
+  unsichtbaren Feld). `detail.hinweis(text)` zeigt den gelben Hinweis und schreibt die Diagnose, auch später aus dem AJAX-Ergebnis.
+- `barcode-scanner.js` `hwScanOhneFeld`, aufgerufen **nach** `hwScanKameraZiel` (offenes Kamera-Fenster hat Vorrang): reiner Kern
+  `HwScanCore.zuordnung` — mit `;` Artikel-QR → `processScannedValue(…, 'article', qrFaEnabled, faTargetId)` des Artikel-Ziels (FA nur bei
+  `QrMitFaNummer`, wie Kamera); ohne `;` und Option mit **genau** diesem Code (getrimmt) → Lagerplatz direkt gesetzt + `change` +
+  „✓ Gescannt“ (nicht über `processScannedValue`, das auch per `startsWith` trifft); sonst als Artikelnummer ins Artikel-Feld. Kein Treffer
+  (AJAX 404) oder leer → Hinweis „Code … nicht zuordenbar“, nichts geändert.
+- `processScannedValue` bekommt einen optionalen 6. Parameter `nichtGefunden` (Wrapper reicht ihn durch); alle anderen Aufrufer übergeben ihn
+  nicht, Verhalten unverändert.
+- Diagnose: `Scan "…" über Scan-Feld (ohne Fokus) → ArticleId (Artikel-QR | Artikelnummer)` bzw. `→ StorageLocationId (Lagerplatz)`.
+- Angetipptes Feld/Knopf: hat den Fokus, `parken` greift nicht, es gelten die bisherigen Regeln (a)/(b).
+
+**Tests (Punkt 5):** `hardware-scanner.check.js` +7 Prüfungen (52), u. a. beide Hannes-Etiketten, genauer Lagerplatz statt `startsWith`,
+Trim, leer. Neu `HardwareScannerTests.ScannenOhneFeld_NurAufEinbuchung_UnsichtbarOhneTastatur_NurMitSchalter` (Feld nur in Inbound,
+`inputmode`/`aria-hidden`/`tabindex`, vor `<form>`, Schalter Standard aus, Kamera-Vorrang, Diagnose-Text). TS-99.19 (a–m). Hilfe, Changelog,
+v1.67.2 ×2 (Datum bleibt 2026-10-23). DOM-Teil per Wegwerf-Mock in Node durchgespielt (Netum-Text im unsichtbaren Feld → `ohneFeld`, keine
+Regel (b), Feld leer).
+
+**Abweichungen / Grenzen:**
+- Nach einer Auswahl in einer **nativen** Liste (Lagerplatz von Hand) behält das `<select>` den Fokus; dann kommt ein Fokus-Eingabe-Scan erst
+  nach Tippen auf eine freie Stelle an (Spec nennt Blur, Select2 und Kamera-Fenster; in Hilfe und TS-99.19 g beschrieben). Nicht mitgebaut.
+- Mit Schalter an nimmt das Parken Select2 nach dem Schließen den Fokus ab; Tastatur-Bedienung am PC (Tab-Reihenfolge) ist dann gestört.
+  Gedacht nur für den Handheld, Schalter je Gerät.
+- Fokus auf einem `aria-hidden`-Element ist laut ARIA unschön, aber so verlangt („für Screenreader verborgen“); TS-99.19 m prüft TalkBack.
+- Ob Android trotz `inputmode="none"` beim Fokussieren scrollt oder die Tastatur zeigt: TS-99.19 e am Gerät.
+
+**Nachweis:** `dotnet build IdealAkeWms.slnx` 0 Fehler, 28 Warnungen (unverändert). `dotnet test`: Web **2182 bestanden, 1 übersprungen**
+(vorher 2181 + neuer Wächter), Dienst **328 bestanden**. Node-Kern „hardware-scanner core ok (52 Pruefungen)“.
 
 ## Freigabe-Antworten (Mensch fuellt aus — Schranke 1)
 
@@ -1156,6 +1235,107 @@ Was als „Manual-UAT“ markiert ist, zählt nicht als grün.
 
 **Ergebnis:** grün, keine offenen Blocker → `status: Testbereit`.
 
+## QA-Nachweis v1.67.2 (qa-agent, 2026-10-23, Freigabe-Nachtrag 5)
+
+*Lauf am 2026-10-27.* Geprüft wurde `git diff a2651019..20b573de` (12 Dateien, +184/−8) im Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`.
+Dazu der umgebende Code: `hardware-scanner.js` DOM-Teil komplett (`freiesFeld`, `zustellen`, Text- und Tasten-Erkennung),
+`barcode-scanner.js` komplett (Modal öffnen/schließen, `processScannedValue` + Wrapper, Ziel-Register, `wms:hardware-scan`-Listener),
+`Inbound.cshtml` komplett (Formular-Grenze, Lagerplatz-Optionstext = `Code`, Seiten-Skripte), Skript-Reihenfolge im `_Layout`
+(`RenderBody` Z. 411 vor `hardware-scanner.js` Z. 436 vor `Scripts`), globale `keydown`-Handler in `wwwroot/js`. QA-Fix `a9462036` (nur Doku).
+Das Review lief selbst, in diesem Lauf.
+
+### 1. Build und Tests (selbst ausgeführt, HEAD `20b573de`)
+- `dotnet build IdealAkeWms.slnx`: **0 Fehler**, 28 Warnungen (alle schon vorher vorhanden, u. a. CS8601 in Tests).
+- `dotnet test`: **IdealAkeWms.Tests 2182 bestanden, 1 übersprungen, 0 fehlgeschlagen (2183)**; **IDEALAKEWMSService.Tests 328 bestanden,
+  0 übersprungen, 0 fehlgeschlagen**. `HardwareScannerTests` 12/12 bestanden (`Kern_NodeSelbstpruefung` lief, nicht übersprungen).
+- Node direkt: neue Prüfung → „hardware-scanner core ok (52 Pruefungen)“. Die **alte Prüfung von `a2651019`** läuft gegen das neue Skript
+  mit „ok (45 Pruefungen)“. Die Kerne `create` und `createText` sind damit unverändert.
+- Der QA-Fix `a9462036` ändert nur `docs/`, deshalb kein erneuter Lauf.
+
+### 2. Code-Review: Befunde und Behandlung
+| # | Schwere | Fundstelle | Befund | Behandlung |
+|---|---|---|---|---|
+| Q5-1 | niedrig (Doku) | `docs/TESTSZENARIEN.md` TS-99.19 j | Der Vorrang-Test nahm das Feld „Menge“. Das ist `type="number"` (`Inbound.cshtml:45`): Es kann `~09…` nicht aufnehmen, der Browser leert den Wert, und das erwartete „Code landet in Menge“ ist so nicht prüfbar. | **Behoben** `a9462036`: j) nutzt jetzt das Textfeld „Fertigungsauftrag“ (`ProductionOrder`, Regel (b)). |
+| Q5-2 | niedrig (eine Regel, zwei Orte) | `barcode-scanner.js:510-512` gegen `:351-353` | Ohne Feld wird der Lagerplatz **genau** gesucht (`o.text.trim() === c`). Kamera und angetipptes Feld finden ihn weiter über `processScannedValue` mit `===` **oder** `startsWith`, der erste Treffer gewinnt. Derselbe Code kann deshalb über den Kamera-Knopf einen anderen Platz wählen als ohne Feld, z. B. `A-1` → `A-10`, wenn `A-10` vor `A-1` sortiert ist. | So gewollt: Nachtrag 5 Punkt 4 verlangt „genau diesem Code“. Das alte `startsWith` ist nicht Teil dieses Auftrags. Kandidat für eine Folgeaufgabe, kein Blocker. |
+| Q5-3 | niedrig (Grenze) | `hardware-scanner.js:303-321`, `Inbound.cshtml:11` | Ist der Schalter an und nichts angetippt, landet von Hand Getipptes (PC-Tastatur) und ein Scan **ohne** Präfix (Gerät falsch eingestellt) unsichtbar im Scan-Feld. Das Feld wird nie geleert, und es erscheint kein Hinweis, weil ohne Präfix kein Scan erkannt wird. Die Diagnose zeigt dann „durchgelassen“. Formular und Daten betrifft das nicht: Das Feld liegt außerhalb von `<form>` und hat kein `name`. | Hingenommen (Pilot, nur Handheld, Schalter je Gerät). In Checkliste Punkt 35 aufgenommen. |
+| Q5-4 | niedrig (Grenze, schon vorbestehend) | `barcode-scanner.js:390-396` `clearAndFillFaNumber` | Nach einem gefundenen Artikel wird das FA-Feld immer überschrieben. Ohne `QrMitFaNummer` bzw. ohne FA im QR wird es geleert. Wer zuerst die FA von Hand eintippt und dann den Artikel scannt, verliert die FA. Bei Kamera und angetipptem Feld ist das schon so. | Nicht geändert, weil vorbestehend. TS-99.19 a („sonst bleibt FA leer“) passt dazu. Checkliste Punkt 36: fachlich bestätigen. |
+| Q5-5 | Hinweis (a11y) | `Inbound.cshtml:11-12` | Das Feld ist fokussierbar und trägt `aria-hidden="true"`. axe meldet das als `aria-hidden-focus`. Der Nachtrag verlangt „für Screenreader verborgen“, und der Dev-Lauf hat das schon als Grenze notiert. | Hingenommen. TS-99.19 m (TalkBack) prüft es am Gerät. |
+
+Gezielt geprüft, ohne Befund:
+- **Schalter aus = v1.67.1.**
+  - `ohneFeld` bleibt `null` (`hardware-scanner.js:306-307`). Dann ist `ohne` falsch, `freiesFeld` wird wie vorher berechnet, `if (ohne) return` greift nicht, die Diagnose zeigt wie vorher `an Feld #`, `d.ohneFeld` ist falsch, und `parken` samt Listener und Observer wird nicht registriert.
+  - Das Feld bleibt im DOM, wird aber nie fokussiert: `tabindex="-1"`, `pointer-events:none`, kein `data-hw-scan-ziel` (Regel (d) unberührt), kein `name`, außerhalb des Formulars.
+  - Kein Skript auf der Seite oder im Layout fokussiert „das erste Feld“. In `site.js` gibt es kein `.focus(`.
+- **Andere Seiten:** Das Attribut steht nur in `Inbound.cshtml` (Wächter `ScannenOhneFeld_*`). Ohne Feld ist `ohneFeld` `null`, es gilt also derselbe Pfad wie bei Schalter aus.
+  - Das neue Feld `detail.hinweis` liest kein Bestands-Listener.
+- **`processScannedValue`, 6. Parameter:** Alle 5 Bestandsaufrufer (`barcode-scanner.js:207, 258, 484, 499` und Wrapper `:432`) übergeben ihn nicht. `if (nichtGefunden)` ist dann falsch, das Verhalten bleibt gleich.
+  - Der Wrapper reicht den Parameter nur durch. `_textInputScanCallback` greift nur bei passendem `targetId`, und `ArticleId` ist kein Text-Ziel.
+  - Außerhalb von `barcode-scanner.js` ruft niemand `processScannedValue` auf (grep über `IdealAkeWms/`).
+- **Doppelauswertung:**
+  - Ein Netum-Scan im unsichtbaren Feld läuft genau einmal durch `createText`. Das Enter wird bei `textCore.aktiv()` verschluckt (`:370-374`).
+  - Ein Tasten-Scanner läuft über den Tasten-Kern, der Text-Pfad ist dann über `core.pending()` gesperrt (`:353`).
+  - `hwScanOhneFeld` setzt `d.handled = true`. Danach folgen weder Regel (b) noch (d) noch der Hinweis aus `zustellen`, und `processScannedValue` wird höchstens einmal aufgerufen.
+  - Ein Kamera-Treffer und ein Hardware-Scan zugleich sind über `_scannerClosing` gesperrt wie bisher.
+- **Nie Submit:**
+  - Das Feld steht **vor** `<form>` (`Inbound.cshtml:11` gegen `:21`). Das Layout umschließt `RenderBody` mit keinem Formular, die Logout-Formulare liegen in der Navigation (`_Layout.cshtml:357/379`). Ein Enter dort kann nichts implizit absenden, auch wenn es als keyCode 229 nicht abgefangen wird (Restrisiko Q4-2 entfällt hier).
+  - Die Zuordnung setzt nur Werte und löst `change` aus.
+  - Globale `keydown`-Handler (`column-preferences.js:795`, `column-filter-syntax.js:223`) reagieren nur auf Escape.
+- **Fokus-Parken, keine Schleife:** `parken` läuft verzögert (`setTimeout 0`) und fokussiert nur, wenn `body`/`html` oder eine geschlossene Select2-Auswahl den Fokus hat.
+  - Das Fokussieren selbst ändert keine `body`-Kinder. Ein `focusout` der Select2-Auswahl führt zu einem zweiten `parken`, das dann nichts mehr tut, weil der Fokus schon im Feld liegt.
+  - Der Hinweis-Kasten und die Diagnose-Karte werden je einmal eingehängt und lösen ein `parken` ohne Wirkung aus.
+- **Kein Fokusraub beim Antippen:**
+  - Feld antippen: `focusout` → Zeitgeber → `activeElement` ist das neue Feld, also nichts. Ein Knopf, den Chrome Android fokussiert, wird ebenso behandelt.
+  - Select2 öffnen: Die Klasse `--open` steht schon, bevor `parken` prüft, deshalb nichts.
+  - Select2 schließen: Der Fokus geht an `.select2-selection`, es ist kein Dropdown offen, also wird geparkt.
+  - Native `<select>` und offene Picker behalten den Fokus. Das ist die dokumentierte Grenze (TS-99.19 g, Hilfe).
+- **Kamera-Fenster:**
+  - Öffnen: Das Fenster hängt am `body`, und `scannerHwInput` bekommt den Fokus synchron (`barcode-scanner.js:125-128`), also kein Parken.
+  - Schließen: `modal.remove()` (`:278`) löst den Observer aus, der Fokus liegt auf `body`, also wird geparkt.
+  - Tippt man im Fenster auf eine freie Stelle, wird das Seitenfeld geparkt, während das Fenster offen ist. Der Scan geht trotzdem ans Fenster, weil `hwScanKameraZiel` vor `d.ohneFeld` geprüft wird (`:479-489`) und beide Inbound-Knöpfe `data-hw-scan-kamera-ziel` tragen. Die Diagnose zeigt in diesem Fall `an Feld #… (Kamera-Fenster)`.
+- **Zuordnung:** Die Lagerplatz-Optionen tragen als Text genau `Code` (`SelectList(…, "Id", "Code")`, `Inbound.cshtml:53`), der genaue Vergleich trifft also. Die leere Option ist über `o.value` ausgeschlossen.
+  - Codes mit `;` gehen immer an den Artikel, auch wenn der erste Teil ein Lagerplatz wäre (Node-Prüfung).
+  - Bei einer Artikelnummer ohne Treffer liefert der AJAX-Aufruf 404. Dann erscheinen „✗ Nicht gefunden“ und der gelbe Hinweis „Code … nicht zuordenbar“, und nichts wird geändert.
+  - `change` als nicht-bubbelndes `Event` ist dasselbe Muster wie das Seiten-Skript (`Inbound.cshtml:253`).
+- **Unsichtbar ohne Tastatur:**
+  - Das Feld trägt `inputmode="none"` und `autocomplete="off"`, und die CSS-Regel macht es `fixed`, 1 px groß, mit `opacity:0`. `freiesFeld` braucht `getClientRects`, deshalb 1 px statt `display:none`.
+  - `focus({ preventScroll: true })`.
+  - Ob Android trotzdem scrollt oder die Tastatur zeigt, prüft TS-99.19 e am Gerät.
+- **Diagnose-Text:** `über Scan-Feld (ohne Fokus) → ArticleId (Artikel-QR|Artikelnummer)` bzw. `→ StorageLocationId (Lagerplatz)` bzw. `→ nicht zuordenbar` plus Hinweis-Zeile (`hardware-scanner.js:274-276`). Der Hinweis aus dem AJAX-Fehler wird über `detail.hinweis` nachträglich protokolliert.
+- **Bekannte Fehlerklassen:**
+  - Keine Werte per `@Html.Raw` in `<script>`.
+  - Kein `hidden` an `d-*`-Elementen, das neue Feld nutzt eine eigene Klasse.
+  - Kein stiller `?? 0`-Fallback: Ein leerer Code wird als „nicht zuordenbar“ gemeldet.
+  - Keine Arrays, kein Model-Binding, keine Server-Regel: Es wird nichts gespeichert, das Absenden prüft der Server wie bisher.
+  - Lagerplatz-Vergleich an zwei Orten, siehe Q5-2.
+- **Profil-Schalter:** wie „Scanner-Diagnose“ nur im `localStorage` (`wms.hardwareScanner.ohneFeld` = `an`, aus = Schlüssel entfernt), Standard aus, mit `aria-describedby`.
+
+### 3. Beweisart je Punkt des Nachtrags 5
+| Punkt | Beweis |
+|---|---|
+| 1 Nur Einbuchung | **automatisiert** (Quelltext-Wächter: Attribut nur in `StockMovements/Inbound.cshtml`). Regression anderer Seiten: Review + **Manual-UAT** TS-99.19 l |
+| 2 Unsichtbares Feld: `inputmode`, `aria-hidden`, `tabindex`, außerhalb `<form>`, `preventScroll` | Markup und Codestellen: **Quelltext-Wächter**. Wirkung (keine Tastatur, kein Springen, TalkBack still): **Manual-UAT** TS-99.19 e/m |
+| 2 Fokus-Parken (Laden, Blur, Select2, Kamera-Fenster) | **Manual-UAT** TS-99.19 a/f/g (Browser-JS, Fokusverhalten). Review §2 |
+| 3 Schalter, Standard aus, aus = v1.67.1 | Wächter (Profil-Code, Bedingung im Skript). Verhalten: **Manual-UAT** TS-99.19 k |
+| 4 Zuordnung nach Inhalt (`;`, genauer Lagerplatz, Trim, leer → nicht zuordenbar) | **automatisiert**: Node `zuordnung` (7 neue Prüfungen) |
+| 4 DOM-Zuordnung (Artikel per AJAX, Lagerplatz setzen, Hinweis, nichts geändert, kein Submit) | **Manual-UAT** TS-99.19 a–d/h/i (Browser-JS, `/api/articles/by-number` gegen echte Daten) |
+| 5 Vorrang angetipptes Feld/Kamera-Knopf, Diagnose-Text | Reihenfolge Kamera vor ohne Feld: Wächter. Verhalten: **Manual-UAT** TS-99.19 j, Diagnose-Zeilen a/b/d |
+| 6 Version, Tests, TS, Hilfe | Review: 1.67.2 in beiden `AppVersion.cs`, Changelog, Hilfe-Absatz, TS-99.19 a–m vollständig (Vorbedingung, Schritte, Erwartung, Negativ i–m) |
+
+Was als „Manual-UAT“ markiert ist, zählt nicht als grün.
+
+### 4. Geänderte Bestandstests
+Keine. `git diff a2651019..20b573de -- IdealAkeWms.Tests` enthält nur hinzugefügte Zeilen: `hardware-scanner.check.js` +13 und
+`HardwareScannerTests.ScannenOhneFeld_*` neu. Die alte Node-Prüfung (45) läuft unverändert gegen das neue Skript.
+
+### 5. CLAUDE.md-Checkliste
+- Migration, `SQL/`, FreshInstall, `SQL/AgentJobs/`: entfällt. Audit: keine Entität. README: keine neue AppSetting, der Schalter ist Browser-lokal.
+- Version 1.67.2 in beiden `AppVersion.cs` ✓, Anwender-Changelog ✓, Hilfe ✓, Brain-Changelog [[2026-10-23-v1-67-2-einbuchung-scannen-ohne-feld]] ✓,
+  feature-map ✓.
+- `docs/TESTSZENARIEN.md` TS-99.19 ✓ (+ QA-Fix j), [[testszenarien-index]] Zeile 99 nennt v1.67.2 / TS-99.19 ✓.
+- Frontend: Es gibt keine neue sichtbare Oberfläche außer dem Profil-Schalter, und der folgt dem Muster der Diagnose. Der Kontrast entspricht dem Bootstrap-Standard.
+
+**Ergebnis:** grün, keine Blocker → `status: Testbereit`.
+
 ## Manuelle Test-Checkliste (Schranke 2, Mensch)
 
 Vorher: aus dem Worktree publizieren (Deploy-Abschnitt) → Testsystem. Admin: Standorteinstellungen → Hardware-Scanner aktiv, Präfix
@@ -1234,3 +1414,22 @@ Vorher: aus dem Worktree publizieren (Deploy-Abschnitt) → Testsystem. Admin: S
     - Am Handheld lesbar.
     - Passwortfeld erscheint ohne Taste.
 31. **Regression TS-99.16** stichprobenhaft mit dem Netum (Inbound, Stückliste Artikel): Das Fenster ist Ziel wie vorher.
+
+**Ergänzung v1.67.2** (Nachtrag 5, Pilot nur Einbuchung). Vorher am Netum: Cache leeren, „Mein Profil“ → „Scannen ohne Feld“ an, Diagnose an.
+
+32. **TS-99.19 a–d:** Inbound öffnen, **nichts antippen**. Artikel-QR (mit und ohne FA), Lagerplatz-Etikett und eine reine Artikelnummer
+    scannen, in beiden Reihenfolgen. Jedes Mal wird das richtige Feld gesetzt („✓ Gescannt“). Die Diagnose zeigt `über Scan-Feld (ohne Fokus) → …`
+    mit der Zuordnung.
+33. **TS-99.19 e–h:** keine Bildschirmtastatur, die Seite springt nicht. Nach einer Select2-Auswahl von Hand und nach dem Schließen des
+    Kamera-Fensters kommt der nächste Scan ohne Antippen an. Nach der Lagerplatz-Liste von Hand einmal auf eine freie Stelle tippen. Kein
+    Scan schickt das Formular ab (es gibt auch keine Meldung „gespeichert“).
+34. **TS-99.19 i–m:** Bei `XYZ999` erscheint der Hinweis „nicht zuordenbar“, und nichts ändert sich. Ein angetipptes Feld „Fertigungsauftrag“
+    bekommt den Code. Mit dem Kamera-Knopf geht der Code wie bisher an das Fenster. Mit dem Schalter aus kommt nichts an, wie in v1.67.1.
+    Auf Warenausgang ändert sich nichts. TalkBack liest das Feld nicht vor (Q5-5).
+35. **Q5-3 beobachten:** Am PC mit Schalter an auf der Einbuchung ohne Fokus tippen: Die Zeichen verschwinden unsichtbar. Für den Pilot am
+    Handheld hinnehmbar? Scannt der Netum ohne Präfix (Einstellung verloren), passiert sichtbar nichts. Dann zeigt die Diagnose „durchgelassen“.
+36. **Q5-4 entscheiden:** Zuerst die FA von Hand eintippen, dann den Artikel scannen. Die FA wird geleert bzw. durch die FA aus dem QR
+    ersetzt. Bei Kamera und angetipptem Feld ist das seit jeher so. Gewollt? Sonst als Folgeauftrag.
+37. **Q5-2 (optional):** Gibt es Lagerplatz-Codes, die Anfang eines anderen sind (z. B. `A-1`/`A-10`)? Dann denselben Code einmal ohne Feld
+    und einmal über den Kamera-Knopf scannen und vergleichen. Ohne Feld wird genau dieser Platz gewählt, über den Kamera-Knopf ggf. der
+    erste per Anfang passende.
