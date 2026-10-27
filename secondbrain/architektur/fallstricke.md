@@ -445,6 +445,17 @@ mit verstecken. Ein Wächter in `VaultEnaioLinksTests` sichert beides.
 
 ---
 
+### Matchcode ist nicht eindeutig; asynchrone Scan-Übersetzung gehört in den Wrapper (v1.68.0)
+
+- **Matchcode:** nie `FirstOrDefault`. `Articles.Matchcode` hat weder Index noch Constraint, Sync und Handpflege trimmen nicht. Es gibt genau eine
+  Suche, `ArticleRepository.GetByMatchcodeExactAsync(matchcode, limit)`: Trim + ToUpper auf beiden Seiten, Liste. Der Aufrufer unterscheidet
+  keins / eindeutig / mehrdeutig und meldet „mehrdeutig“ sichtbar.
+  **Warum:** Die Artikelinfo wählte bei zwei gleichen Matchcodes still einen Artikel. P1 an IDEAL ist heute leer, Sage garantiert aber nichts.
+- **Scan-Übersetzung (Matchcode → Artikelnummer) im globalen `processScannedValue`-Wrapper, nicht in der inneren Funktion.**
+  **Warum:** Der Wrapper feuert direkt nach der inneren Auswertung synchron den `onScanned`-Callback (Filterseiten-Submit, Sammel-
+  Wareneingang). Eine asynchrone Übersetzung weiter innen käme zu spät, der Callback liefe mit dem unübersetzten Wert. Den passenden
+  `_textInputScanCallback` beim Scan reservieren und nur bei Treffer wieder setzen.
+
 ## 4. Authentifizierung, Session, Antiforgery
 
 Siehe auch [[0002-dual-auth-session-login-plus-windows-sso]].

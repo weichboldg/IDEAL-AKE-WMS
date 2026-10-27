@@ -703,6 +703,20 @@ Changelog [[2026-10-21-v1-66-0-hardware-barcodescanner]].
 > **Status:** **Testbereit** v1.66.2 (qa-agent 2026-10-22) — wartet auf Schranke 2 (Manual-UAT TS-99 inkl. 99.14–99.16 + Bündel-Merge).
 > Offen zur Entscheidung: doppelter Klick-Handler am OSEON-Artikelknopf (QA Q3-2, vorbestehend).
 
+### QR-Code: Matchcode statt Artikelnummer (v1.68.0, direkt im Bündel)
+
+Spec [[2026-10-23-qr-code-matchcode-statt-artikelnummer-spec]], Umsetzung [[2026-10-23-qr-code-matchcode-statt-artikelnummer-umsetzung]],
+Changelog [[2026-10-27-v1-68-0-qr-matchcode]]. TS-101.
+
+| Baustein | Status | Code-Einstieg |
+|---|---|---|
+| AppSetting `QrErstesFeld` (Artikelnummer/Matchcode), Seed, `/Settings` Allgemein, Wertprüfung, body-Attribut | **erledigt** `ca48b22d` | `SettingsController.SaveSettings`, `_Layout.cshtml` |
+| Eine Matchcode-Suche (getrimmt, ohne Groß/Klein, Liste) für Endpunkt und Artikelinfo (mehrdeutig = Meldung) | **erledigt** `ca48b22d` | `ArticleRepository.GetByMatchcodeExactAsync`, `GET /api/articles/by-matchcode` |
+| Matchcode-Zweig im globalen `processScannedValue`-Wrapper (alle Scan-Wege), drei Meldungen | **erledigt** `ca48b22d` | `barcode-scanner.js` |
+
+> **Deploy:** Web; Dienst nur wegen `AppVersion.cs`. Keine Migration. Standard `Artikelnummer` = bisheriges Verhalten.
+> **Status:** **Testbereit** v1.68.0 (qa-agent 2026-10-27) — wartet auf Schranke 2 (Manual-UAT TS-101 + Bündel-Merge).
+
 ### Vault- und enaio-Links konfigurierbar (v1.67.0, direkt im Bündel)
 
 Spec [[2026-10-21-vault-links-per-schalter-spec]], Umsetzung [[2026-10-21-vault-links-per-schalter-umsetzung]],
