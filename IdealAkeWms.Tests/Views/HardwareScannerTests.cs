@@ -203,6 +203,39 @@ public class HardwareScannerTests
     }
 
     [Fact]
+    public void ScannenOhneFeld_NurAufEinbuchung_UnsichtbarOhneTastatur_NurMitSchalter()
+    {
+        // Freigabe-Nachtrag 5 (v1.67.2): Pilot nur auf StockMovements/Inbound.
+        var views = Path.Combine(Root, "IdealAkeWms", "Views");
+        Directory.GetFiles(views, "*.cshtml", SearchOption.AllDirectories)
+            .Where(f => File.ReadAllText(f).Contains("data-hw-scan-ohne-feld"))
+            .Select(f => Path.GetRelativePath(views, f).Replace('\\', '/'))
+            .Should().Equal(new[] { "StockMovements/Inbound.cshtml" }, "andere Seiten bleiben unveraendert");
+        var inbound = Read("Views", "StockMovements", "Inbound.cshtml");
+        var feld = inbound[inbound.IndexOf("<input type=\"text\" id=\"hwScanOhneFeld\"", StringComparison.Ordinal)..];
+        feld = feld[..feld.IndexOf("/>", StringComparison.Ordinal)];
+        feld.Should().Contain("inputmode=\"none\"", "keine Bildschirmtastatur").And.Contain("aria-hidden=\"true\"").And.Contain("tabindex=\"-1\"")
+            .And.Contain("data-artikel-ziel=\"ArticleId\"").And.Contain("data-lagerplatz-ziel=\"StorageLocationId\"");
+        inbound.IndexOf("id=\"hwScanOhneFeld\"", StringComparison.Ordinal).Should().BeLessThan(inbound.IndexOf("<form", StringComparison.Ordinal),
+            "ausserhalb des Formulars: ein Enter im Feld kann nie absenden");
+
+        var js = Read("wwwroot", "js", "hardware-scanner.js");
+        js.Should().Contain("localStorage.getItem('wms.hardwareScanner.ohneFeld') === 'an' && !geraetAus()", "nur mit Geraete-Schalter, sonst wie v1.67.1")
+            .And.Contain("ohneFeld.focus({ preventScroll: true });", "Fokus ohne Scrollen")
+            .And.Contain("if (ohne) return;", "nie Regel (b) ins unsichtbare Feld")
+            .And.Contain("'über Scan-Feld (ohne Fokus) → '", "Diagnose zeigt den Weg und die Zuordnung");
+        var bs = Read("wwwroot", "js", "barcode-scanner.js");
+        bs.IndexOf("if (d.ohneFeld) { hwScanOhneFeld(d, vorhanden); return; }", StringComparison.Ordinal)
+            .Should().BePositive().And.BeGreaterThan(bs.IndexOf("var kamera = hwScanKameraZiel(vorhanden);", StringComparison.Ordinal),
+                "offenes Kamera-Fenster hat Vorrang");
+        bs.Should().Contain("HwScanCore.zuordnung(d.code,").And.Contain("'Code ' + d.code + ' nicht zuordenbar'");
+        Read("wwwroot", "css", "site.css").Should().Contain(".hw-scan-ohne-feld { position: fixed;");
+        var profil = Read("Views", "Account", "Profile.cshtml");
+        profil.Should().Contain("id=\"hwScanOhneFeldAn\"").And.Contain("'wms.hardwareScanner.ohneFeld'")
+            .And.Contain("if (ohne.checked) localStorage.setItem(OHNE, 'an'); else localStorage.removeItem(OHNE);", "Standard aus");
+    }
+
+    [Fact]
     public void Profil_GeraeteSchalter_NurLocalStorage()
     {
         var view = Read("Views", "Account", "Profile.cshtml");

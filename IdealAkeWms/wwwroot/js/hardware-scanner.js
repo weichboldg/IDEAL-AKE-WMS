@@ -135,7 +135,18 @@
         return n >= 10 && n <= 500 ? n : 50;
     }
 
-    var api = { create: create, createText: createText, eingefuegt: eingefuegt, abstand: abstand };
+    // v1.67.2 Scannen ohne Feld (Freigabe-Nachtrag 5, Pilot Einbuchung): Zuordnung eines Scans ueber das unsichtbare Scan-Feld nach Inhalt.
+    // istLagerplatz(code) = es gibt eine Lagerplatz-Option mit genau diesem Code.
+    //   -> { feld: 'artikel' | 'lagerplatz' | null, art } ; null = nicht zuordenbar.
+    function zuordnung(code, istLagerplatz) {
+        var c = String(code == null ? '' : code).trim();
+        if (!c) return { feld: null, art: 'leer' };
+        if (c.indexOf(';') >= 0) return { feld: 'artikel', art: 'Artikel-QR' };
+        if (istLagerplatz(c)) return { feld: 'lagerplatz', art: 'Lagerplatz' };
+        return { feld: 'artikel', art: 'Artikelnummer' };
+    }
+
+    var api = { create: create, createText: createText, eingefuegt: eingefuegt, abstand: abstand, zuordnung: zuordnung };
     if (typeof module !== 'undefined' && module.exports) { module.exports = api; return; }
     root.HwScanCore = api;
 
@@ -257,9 +268,13 @@
 
     function zustellen(scan) {
         var aktiv = document.activeElement;
-        var detail = { code: scan.code, endedWithEnter: scan.endedWithEnter, freiesFeld: freiesFeld(aktiv), handled: false, ambiguous: false, ziel: null };
+        var ohne = !!(aktiv && aktiv === ohneFeld);  // v1.67.2: Fokus im unsichtbaren Scan-Feld = kein Feld angetippt
+        var detail = { code: scan.code, endedWithEnter: scan.endedWithEnter, freiesFeld: !ohne && freiesFeld(aktiv), ohneFeld: ohne,
+            handled: false, ambiguous: false, ziel: null,
+            hinweis: function (text) { diag('  ' + text); hinweis(text); } };  // auch spaeter (AJAX-Ergebnis) aufrufbar
         document.dispatchEvent(new CustomEvent('wms:hardware-scan', { detail: detail }));
-        if (detail.handled) { diag('  Scan "' + scan.code + '" an Feld #' + detail.ziel); return; }
+        if (detail.handled) { diag('  Scan "' + scan.code + '" ' + (ohne && !/Kamera/.test(detail.ziel) ? 'über Scan-Feld (ohne Fokus) → ' : 'an Feld #') + detail.ziel); return; }
+        if (ohne) return;  // nie Regel (b) ins unsichtbare Feld; Zuordnung und Hinweis macht barcode-scanner.js
 
         if (detail.freiesFeld) {  // (b)
             diag('  Scan "' + scan.code + '" an Feld ' + feldName(aktiv));
@@ -283,6 +298,26 @@
     function auswerten(r) {
         if (r.replay && freiesFeld(document.activeElement)) einfuegen(document.activeElement, r.replay);
         if (r.scan) zustellen(r.scan);
+    }
+
+    // --- Scannen ohne Feld (v1.67.2, Freigabe-Nachtrag 5, nur Einbuchung): ein Fokus-Eingabe-Geraet (Netum) gibt ohne Feld mit Fokus
+    // keinen Text aus. Das unsichtbare Feld [data-hw-scan-ohne-feld] bekommt darum den Fokus, sobald kein anderes Feld/Knopf ihn hat;
+    // sein Text laeuft durch die Text-Erkennung unten. Nur mit Geraete-Schalter 'Scannen ohne Feld' (Mein Profil), sonst wie v1.67.1.
+    var ohneFeld = null;
+    try { if (localStorage.getItem('wms.hardwareScanner.ohneFeld') === 'an' && !geraetAus()) ohneFeld = document.querySelector('[data-hw-scan-ohne-feld]'); } catch (e) { }
+    if (ohneFeld) {
+        var parken = function () {
+            setTimeout(function () {
+                var a = document.activeElement;
+                // frei = nichts fokussiert, oder Select2 hat den Fokus nach dem Schliessen an seine Auswahl zurueckgegeben
+                var frei = !a || a === body || a === document.documentElement
+                    || (a.closest && a.closest('.select2-container') && !document.querySelector('.select2-container--open'));
+                if (frei) ohneFeld.focus({ preventScroll: true });
+            }, 0);
+        };
+        document.addEventListener('focusout', parken, true);
+        new MutationObserver(parken).observe(body, { childList: true });  // Select2-Dropdown und Kamera-Fenster haengen direkt am body
+        parken();
     }
 
     // --- Fokus-Eingabe (v1.67.1): Erkennung am eingefuegten Text, Kern createText ---

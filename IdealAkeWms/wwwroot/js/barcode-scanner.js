@@ -281,7 +281,8 @@ function closeScannerModal() {
     _scannerClosing = false;
 }
 
-function processScannedValue(value, targetSelectId, scanType, qrFaEnabled, faTargetId) {
+// nichtGefunden (optional, v1.67.2 Scannen ohne Feld): Rueckruf, wenn Artikel/Lagerplatz nicht gefunden wurde.
+function processScannedValue(value, targetSelectId, scanType, qrFaEnabled, faTargetId, nichtGefunden) {
     var searchValue = value;
     var faNumber = null;
 
@@ -339,6 +340,7 @@ function processScannedValue(value, targetSelectId, scanType, qrFaEnabled, faTar
             },
             error: function () {
                 showScanFeedback(feedbackTarget, false, searchValue);
+                if (nichtGefunden) nichtGefunden();
             }
         });
         return;
@@ -359,6 +361,7 @@ function processScannedValue(value, targetSelectId, scanType, qrFaEnabled, faTar
 
     if (!found) {
         showScanFeedback(select, false, searchValue);
+        if (nichtGefunden) nichtGefunden();
     }
 }
 
@@ -425,8 +428,8 @@ var _textInputScanCallback = null;
 
 // Hook into processScannedValue: after filling an INPUT, call the stored callback
 var _origProcessScannedValue = processScannedValue;
-processScannedValue = function (value, targetSelectId, scanType, qrFaEnabled, faTargetId) {
-    _origProcessScannedValue(value, targetSelectId, scanType, qrFaEnabled, faTargetId);
+processScannedValue = function (value, targetSelectId, scanType, qrFaEnabled, faTargetId, nichtGefunden) {
+    _origProcessScannedValue(value, targetSelectId, scanType, qrFaEnabled, faTargetId, nichtGefunden);
 
     // If there's a pending text-input callback and the target matches, fire it
     if (_textInputScanCallback && _textInputScanCallback.targetInputId === targetSelectId) {
@@ -483,6 +486,7 @@ document.addEventListener('wms:hardware-scan', function (e) {
         d.handled = true; d.ziel = kamera.targetId + ' (Kamera-Fenster)';
         return;
     }
+    if (d.ohneFeld) { hwScanOhneFeld(d, vorhanden); return; }
     var ziel = vorhanden.filter(function (z) { return hwScanFokusIn(z, aktiv); })[0];
     if (!ziel) {
         if (d.freiesFeld) return;  // Regel (b) im Layout-Skript
@@ -495,6 +499,34 @@ document.addEventListener('wms:hardware-scan', function (e) {
     processScannedValue(d.code, ziel.targetId, ziel.scanType, ziel.qrFaEnabled, ziel.faTargetId);
     d.handled = true; d.ziel = ziel.targetId;
 });
+
+// v1.67.2 Scannen ohne Feld (Freigabe-Nachtrag 5, Pilot Einbuchung): Scan ueber das unsichtbare Feld, Zuordnung nach Inhalt
+// (HwScanCore.zuordnung): mit ';' Artikel-QR, sonst Lagerplatz mit genau diesem Code, sonst Artikelnummer. Nie Formular-Submit.
+function hwScanOhneFeld(d, vorhanden) {
+    var feld = document.querySelector('[data-hw-scan-ohne-feld]');
+    var nichtZuordenbar = function () { d.hinweis('Code ' + d.code + ' nicht zuordenbar'); };
+    var artikel = vorhanden.filter(function (z) { return z.targetId === feld.getAttribute('data-artikel-ziel'); })[0];
+    var lager = document.getElementById(feld.getAttribute('data-lagerplatz-ziel'));
+    var option = function (c) {
+        return lager ? Array.prototype.filter.call(lager.options, function (o) { return o.value && o.text.trim() === c; })[0] : null;
+    };
+    var z = HwScanCore.zuordnung(d.code, function (c) { return !!option(c); });
+    d.handled = true;
+    if (z.feld === 'lagerplatz') {
+        var o = option(d.code.trim());
+        lager.value = o.value;
+        lager.dispatchEvent(new Event('change'));
+        showScanFeedback(lager, true, o.text.trim());
+        d.ziel = lager.id + ' (' + z.art + ')';
+    } else if (z.feld === 'artikel' && artikel) {
+        // Artikel-QR wie Kamera/Hardware-Scan, FA nur bei QrMitFaNummer (data-qr-fa-enabled am Knopf)
+        processScannedValue(d.code, artikel.targetId, 'article', artikel.qrFaEnabled, artikel.faTargetId, nichtZuordenbar);
+        d.ziel = artikel.targetId + ' (' + z.art + ')';
+    } else {
+        d.ziel = 'nicht zuordenbar';
+        nichtZuordenbar();
+    }
+}
 
 // Initialisierung wenn DOM bereit
 document.addEventListener('DOMContentLoaded', function () {

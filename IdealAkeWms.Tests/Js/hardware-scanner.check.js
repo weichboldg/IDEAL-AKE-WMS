@@ -134,4 +134,17 @@ ok(x.action === 'pass' && x.scan && x.scan.code === '5', 'verpasste Zeitgrenze')
 c = core.createText({ prefix: '##', maxGapMs: 50 }); c.eingabe('', '##7', 1000);
 ok(c.enter().scan.code === '7', 'Text: anderer Praefix');
 
+// v1.67.2 Scannen ohne Feld: Zuordnung nach Inhalt (Freigabe-Nachtrag 5 Punkt 4)
+const lager = c2 => ['A-01', 'HL-3'].indexOf(c2) >= 0;
+let z = core.zuordnung('G-KT-FRR-510-2010--1760B-250-V01;;1065141;09', lager);
+ok(z.feld === 'artikel' && z.art === 'Artikel-QR', 'mit ; -> Artikel-QR');
+ok(core.zuordnung('A-01;x', lager).feld === 'artikel', 'mit ; immer Artikel, auch wenn der erste Teil ein Lagerplatz waere');
+z = core.zuordnung('A-01', lager);
+ok(z.feld === 'lagerplatz', 'ohne ; und genau ein Lagerplatz-Code -> Lagerplatz');
+ok(core.zuordnung(' HL-3 ', lager).feld === 'lagerplatz', 'Rand-Leerzeichen getrimmt');
+z = core.zuordnung('A-0', lager);
+ok(z.feld === 'artikel' && z.art === 'Artikelnummer', 'nur Anfang eines Lagerplatz-Codes -> Artikelnummer (genau, kein startsWith)');
+ok(core.zuordnung('102044', lager).art === 'Artikelnummer', 'unbekannter Code -> Artikelnummer');
+ok(core.zuordnung('', lager).feld === null && core.zuordnung('   ', lager).feld === null, 'leer -> nicht zuordenbar');
+
 console.log(`hardware-scanner core ok (${n} Pruefungen)`);

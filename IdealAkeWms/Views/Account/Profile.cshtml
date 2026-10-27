@@ -184,6 +184,16 @@
                     Zeigt unten auf jeder Seite die letzten 30 Tasten- und Eingabe-Ereignisse und was der Scanner daraus gemacht hat,
                     mit Knopf „Kopieren“. Nur für die Fehlersuche; nichts wird gesendet. Wirkt ab dem nächsten Seitenaufruf.
                 </div>
+                @* v1.67.2: Scannen ohne Feld (Pilot Einbuchung), ebenfalls nur localStorage, Standard aus. *@
+                <div class="form-check form-switch mt-3">
+                    <input class="form-check-input" type="checkbox" role="switch" id="hwScanOhneFeldAn" aria-describedby="hwScanOhneFeldText" />
+                    <label class="form-check-label" for="hwScanOhneFeldAn">Scannen ohne Feld</label>
+                </div>
+                <div class="form-text" id="hwScanOhneFeldText">
+                    Für Scanner mit Fokus-Eingabe (z.&nbsp;B. Netum), vorerst nur auf der Einbuchung: Der Scan kommt an, ohne dass vorher ein
+                    Feld angetippt wird. Artikel-QR und Artikelnummer gehen ins Feld Artikel, ein Lagerplatz-Code ins Feld Lagerplatz. Wirkt
+                    ab dem nächsten Seitenaufruf.
+                </div>
             </div>
         </div>
     </div>
@@ -205,6 +215,11 @@
             try { diag.checked = localStorage.getItem(DIAG) === 'an'; } catch (e) { }
             diag.addEventListener('change', function () {
                 try { if (diag.checked) localStorage.setItem(DIAG, 'an'); else localStorage.removeItem(DIAG); } catch (e) { }
+            });
+            var OHNE = 'wms.hardwareScanner.ohneFeld', ohne = document.getElementById('hwScanOhneFeldAn');
+            try { ohne.checked = localStorage.getItem(OHNE) === 'an'; } catch (e) { }
+            ohne.addEventListener('change', function () {
+                try { if (ohne.checked) localStorage.setItem(OHNE, 'an'); else localStorage.removeItem(OHNE); } catch (e) { }
             });
         })();
     </script>

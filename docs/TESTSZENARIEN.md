@@ -10480,6 +10480,20 @@ Lagerplatz (Code 128), Kommissionierliste mit Haupt-FA-Barcode, Beschichtungsauf
   Präfix, Zeichenabstand, Browser-Kennung und die Zeilen; ohne Zwischenablage (HTTP) ist der Text markiert mit Hinweis. e) Browser-
   Entwicklertools → Netzwerk: beim Tippen/Scannen/Kopieren **keine** Anfrage. f) Am Handheld lesbar (Schrift nicht kleiner als die
   Tabellen, Zeilen umbrechen, kein Querscrollen der Seite). g) Ausschalten → nach dem Neuladen keine Liste.
+- **TS-99.19 — Einbuchung ohne Antippen am Netum (v1.67.2, Nachtrag 5).** Vorbedingung: wie TS-99.17 (Netum „Fokus-Eingabe“, Präfix
+  `~09`, Suffix Enter), „Mein Profil“ → **„Scannen ohne Feld“ an**, „Scanner-Diagnose“ an. StockMovements/Inbound öffnen, **nichts antippen**.
+  a) Artikel-QR `G-KT-FRR-510-2010--1760B-250-V01;;1065141;09` bzw. `102044;;1065141;09` scannen → Artikel gewählt („✓ Gescannt“); FA
+  `1065141` nur bei `QrMitFaNummer` an, sonst bleibt FA leer. Diagnose: `Scan "…" über Scan-Feld (ohne Fokus) → ArticleId (Artikel-QR)`.
+  b) Lagerplatz-Code 128 scannen → Lagerplatz gewählt, Diagnose `… → StorageLocationId (Lagerplatz)`. c) Reihenfolge umgekehrt (erst
+  Lagerplatz, dann Artikel) → beide gesetzt. d) Reine Artikelnummer (Code ohne `;`, kein Lagerplatz) → Artikel gewählt
+  (`ArticleId (Artikelnummer)`). e) Beim Laden, Scrollen und Scannen: **keine** Bildschirmtastatur, die Seite springt nicht. f) Nach
+  Auswahl eines Artikels im Select2-Dropdown von Hand und nach dem Schließen des Kamera-Fensters: nächster Scan ohne Antippen kommt an.
+  g) Menge eintippen, dann auf eine freie Stelle tippen und scannen → kommt an. h) Formular wird durch keinen Scan abgeschickt.
+  Negativ: i) Unbekannter Code ohne `;` (z. B. `XYZ999`) → gelber Hinweis „Code XYZ999 nicht zuordenbar“, Artikel und Lagerplatz
+  unverändert. j) Feld „Menge“ angetippt und scannen → Code landet wie bisher in „Menge“ (Vorrang angetipptes Feld, TS-99.17 g).
+  Kamera-Knopf Lagerplatz antippen und scannen → Lagerplatz über das Kamera-Fenster (TS-99.17 c). k) Schalter aus → Seite exakt wie
+  v1.67.1: ohne Antippen kommt nichts an (TS-99.17 i). l) Andere Seite (z. B. Warenausgang) mit Schalter an → unverändert wie TS-99.17 i.
+  m) Screenreader (TalkBack): das unsichtbare Feld wird nicht vorgelesen.
 - **TS-99.15 — Zeichenabstand prüfen (v1.66.1, Nachtrag 2 Punkt 2).** Standorteinstellungen → Hardware-Scanner, „Größter
   Zeichenabstand (ms)“: a) `5`, `0`, `-5`, `501` speichern. **Erwartet:** „Nicht gespeichert: 'Größter Zeichenabstand (ms)' muss zwischen
   10 und 500 liegen (war: …)“, auch die übrigen Felder bleiben ungespeichert, die Eingabe bleibt sichtbar. b) `10` und `500` speichern:

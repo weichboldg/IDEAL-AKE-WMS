@@ -1439,3 +1439,7 @@ th:hover .col-resize-handle {
     max-height: 50vh;
     overflow-y: auto;
 }
+
+/* v1.67.2 Scannen ohne Feld (Einbuchung): unsichtbar, aber fokussierbar (display:none/visibility nehmen keinen Fokus an);
+   fixed oben links, damit das Fokussieren nie scrollt. */
+.hw-scan-ohne-feld { position: fixed; top: 0; left: 0; width: 1px; height: 1px; padding: 0; border: 0; opacity: 0; pointer-events: none; caret-color: transparent; }
