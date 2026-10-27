@@ -714,9 +714,10 @@ Changelog [[2026-10-27-v1-68-0-qr-matchcode]]. TS-101.
 | AppSetting `QrErstesFeld` (Artikelnummer/Matchcode), Seed, `/Settings` Allgemein, Wertprüfung, body-Attribut | **erledigt** `ca48b22d` | `SettingsController.SaveSettings`, `_Layout.cshtml` |
 | Eine Matchcode-Suche (getrimmt, ohne Groß/Klein, Liste) für Endpunkt und Artikelinfo (mehrdeutig = Meldung) | **erledigt** `ca48b22d` | `ArticleRepository.GetByMatchcodeExactAsync`, `GET /api/articles/by-matchcode` |
 | Matchcode-Zweig im globalen `processScannedValue`-Wrapper (alle Scan-Wege), drei Meldungen | **erledigt** `ca48b22d` | `barcode-scanner.js` |
+| v1.69.0 (Nachtrag 2): Auswahllisten für Einstellungen mit festen Werten, neue Einstellung `QrTrennzeichen` (`;` \| `,`) für alle QR-Zerlegungen | **erledigt** `2c1e3a6d` | `AppSettingKeys.FesteWerte`, `qrTrennzeichen()` in `barcode-scanner.js`, [[2026-10-27-v1-69-0-qr-trennzeichen]] |
 
 > **Deploy:** Web; Dienst nur wegen `AppVersion.cs`. Keine Migration. Standard `Artikelnummer` = bisheriges Verhalten.
-> **Status:** **Testbereit** v1.68.0 (qa-agent 2026-10-27) — wartet auf Schranke 2 (Manual-UAT TS-101 + Bündel-Merge).
+> **Status:** **Testbereit** v1.69.0 (qa-agent 2026-10-27) — wartet auf Schranke 2 (Manual-UAT TS-101 inkl. 101.15–101.21 + Bündel-Merge).
 
 ### Vault- und enaio-Links konfigurierbar (v1.67.0, direkt im Bündel)
 

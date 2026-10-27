@@ -23,7 +23,11 @@ Keine Migration. Deploy: Web (Dienst nur Version).
 - 2026-10-27: **Testbereit** (qa-agent): Build 0 Fehler, Web 2195 bestanden / 1 übersprungen, Dienst 328, keine Befunde mittel/hoch
   (Q1–Q6 niedrig/Doku, siehe Spec „QA-Nachweis v1.68.0“). Wartet auf Schranke 2 (Manual-UAT TS-101 + Bündel-Merge).
 
+- 2026-10-27: v1.69.0 (Freigabe-Nachtrag 2: Auswahllisten `AppSettingKeys.FesteWerte`, `QrTrennzeichen`), Commit `2c1e3a6d`.
+  **Testbereit** (qa-agent): Build 0 Fehler, Web 2201 / 1 übersprungen, Dienst 328, Node 57; Q7–Q12 niedrig/Prozess.
+
 ## Offen nach UAT
 
 - An IDEAL nach TS-101 `QrErstesFeld` = `Matchcode` stellen, AKE bleibt `Artikelnummer`.
+- `QrTrennzeichen` = `,` erst nach der Prüfabfrage „Lagerplatz-Codes mit Komma“ (TS-101, QA Q9).
 - Backlog-Punkt Bestandsübersicht (FA-Übernahme hart an, Antwort 4) ist eigene Notiz.

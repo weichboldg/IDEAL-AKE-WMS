@@ -49,6 +49,24 @@ freigabe_am: "2026-10-27"
 > **Standorte:** AKE und IDEAL gleich. `barcode-scanner.js` und die Scan-Seiten verzweigen nicht nach
 > `ProduktionsauftragHierarchisch`. Nur die OSEON-Seite (`Tracking/OseonIndex`) gibt es fachlich nur an AKE.
 
+> [!important] Freigabe-Nachtrag 2 vom 2026-10-27 — Dropdown für QrErstesFeld, neue Einstellung QrTrennzeichen (geht Rumpf und Nachtrag 1 vor)
+> Gerald 2026-10-27: Tippfehler vermeiden, Trennzeichen `;` oder `,` als Einstellung.
+> 1. **Dropdown statt Textfeld für `QrErstesFeld`** (Artikelnummer | Matchcode). `Views/Settings/Index.cshtml:62-84` kennt heute nur
+>    Schalter und Textfeld. Dafür ein **allgemeiner Mechanismus** „Einstellung mit festen Werten → Dropdown“ (eine zentrale Liste
+>    Key → erlaubte Werte, aus der Ansicht und `SaveSettings` lesen; die Werte stehen heute in `SettingsController.cs:30`). Die
+>    Server-Prüfung (`SettingsController.cs:46-55`) bleibt. Gilt in Gruppen- und „Sonstige“-Ausgabe gleich.
+> 2. **Neue Einstellung `QrTrennzeichen`** (Dropdown `;` | `,`, Standard `;`), Gruppe Allgemein neben `QrMitFaNummer`/`QrErstesFeld`,
+>    Laufzeit-Anlage wie `QrErstesFeld` (`Program.cs:461`), Server prüft auf genau diese zwei Werte. Genau **ein** Zeichen je
+>    Installation, kein „beide“/„Automatisch“. Weitergabe an den Browser wie `data-qr-erstes-feld` (`_Layout.cshtml:28`).
+> 3. **Alle fest eingebauten `;` der QR-Zerlegung** nutzen das eingestellte Zeichen: `barcode-scanner.js:291`
+>    (`processScannedValue`), `:455`, `:474` (Matchcode-Zweig), `hardware-scanner.js:144` (Pilot „Scannen ohne Feld“: mit
+>    Trennzeichen → Artikel-QR). Vor dem Start nach weiteren Stellen suchen (JS, Views, C#); `csv-export.js:35` ist CSV, **nicht** betroffen.
+>    Hilfe- und Hinweistexte, die das QR-Format mit `;` nennen (u. a. `Articles/Info.cshtml:31`, `Help/Index.cshtml`), zeigen das
+>    eingestellte Zeichen oder nennen beide Möglichkeiten.
+> 4. **Ergebnis Prüfung (Gerald 2026-10-27):** In Sage enthält keine Artikelnummer und kein Matchcode ein Komma. Lagerplatz-Codes ungeprüft.
+> 5. Neue Minor-Version (vergibt der Dev-Lauf), **nicht parallel** zu Scan-Handler-Nachtrag 7 (beide ändern `hardware-scanner.js`). Tests (Controller-Prüfung, Laufzeit-Anlage,
+>    Node-Kern/Quelltext-Wächter mit beiden Zeichen), TS-101 erweitern, Hilfe, README AppSettings-Tabelle. Nur Web, keine Migration.
+
 > [!important] Freigabe-Nachtrag 2026-10-27 (geht dem Rumpf vor)
 > Antworten 1–4 wie empfohlen (Block „Freigabe-Antworten“). P1: keine doppelten Matchcodes an IDEAL.
 > **Keine zweite Suche:** Statt eines neuen `GetByMatchcodeAsync` wird die vorhandene `GetByMatchcodeExactAsync` (genutzt in
@@ -460,6 +478,14 @@ Entfällt (`epic: false`). Die Spec ist ein Einzelschritt im Bündel-Worktree.
   erst nach bestandenem TS-101 auf `Matchcode` stellen, AKE bleibt `Artikelnummer`.
 - **Browser-Cache:** `barcode-scanner.js` mit `asp-append-version`, kein Hard-Reload nötig.
 
+> [!note] Nachtrag v1.69.0 (qa-agent 2026-10-27) aus dem echten Diff `8540c4d6..2c1e3a6d`.
+> - **Web: ja** (`SettingsController`, `AppSettingKeys`, `Program.cs` Seed, `Settings/Index.cshtml`, `_Layout.cshtml`, `Articles/Info.cshtml`,
+>   `Help/*`, `barcode-scanner.js`, `hardware-scanner.js`, `AppVersion.cs`). **Dienst: ja, nur `AppVersion.cs`** (1.69.0). **Migration: nein**
+>   (keine Datei unter `*/Migrations/`, kein `SQL/`, kein `SQL/Einmalig/`); die Zeile `QrTrennzeichen = ;` legt der Web-Start an.
+> - Publish-Befehle und Ablauf wie oben (Web, dann Dienst nur Version). Nach dem Start `/Settings` → Allgemein: `QrTrennzeichen` = „; (Semikolon)“.
+>   Auf `,` erst stellen, wenn die Prüfabfrage Lagerplatz-Codes mit Komma (TS-101 vor 101.15) gelaufen ist.
+> - `hardware-scanner.js` und `barcode-scanner.js` mit `asp-append-version`, kein Hard-Reload nötig.
+
 ## Prüfabfragen für den Menschen (vor UAT; Ergebnis in die Spec)
 
 Die Aussagen „E1 ist Matchcode von 50002134“, „Matchcodes sind eindeutig“ und „Matchcodes haben keine
@@ -779,3 +805,156 @@ Vorbedingung: Prüfabfragen P1–P5 gelaufen (P1 IDEAL erledigt, keine Dubletten
 12. Lagerplatz-Scan und FA-Scan („FA Nummer“ der FA-Liste, Ziel-Lagerplatz der Stückliste) mit E1 im Modus Matchcode unverändert, FA 1065141 (AK 22).
 13. Entwicklertools offline, E1 → „konnte nicht geprüft werden“, nicht „nicht gefunden“ (AK 23).
 14. Danach an AKE `QrErstesFeld` = `Artikelnummer` lassen, an IDEAL erst nach bestandenem Test auf `Matchcode` stellen.
+
+## Umsetzung v1.69.0 (Dev-Lauf 2026-10-27, Freigabe-Nachtrag 2)
+
+Basis `8540c4d6` (v1.68.1). Commit `2c1e3a6d` (wip feature-complete). Nur Web (Dienst nur `AppVersion.cs`), **keine Migration**, keine
+SQL-Datei; `QrTrennzeichen` legt der Laufzeit-Seed in `Program.cs` an.
+
+Skill `frontend-design` vor der Änderung an `Settings/Index.cshtml` aufgerufen (Bootstrap-`form-select`, Konsistenz vor Eigenstil, WCAG AA).
+
+**Punkt 1 – Dropdown-Mechanismus:** eine zentrale Liste `AppSettingKeys.FesteWerte` (Key → `(Wert, Text)[]`, Key ohne Groß/Klein).
+`Views/Settings/Index.cshtml` zeigt dafür in Gruppen- **und** „Sonstige“-Ausgabe ein `form-select` (Zweig vor dem Textfeld, `aria-label` = Key,
+gesperrt ohne Bearbeitungsrecht). Ein ungültiger gespeicherter Wert bleibt als erste Option „„x“ (ungültig – bitte wählen)“ sichtbar, statt
+still durch den ersten Wert ersetzt zu werden. `SettingsController.SaveSettings` prüft per Schleife über dieselbe Liste (ersetzt
+`QrErstesFeldWerte`), speichert kanonisch, bei ungültigem Wert nichts und meldet `<Key>: erlaubt sind „a“ oder „b“ – nichts gespeichert.`
+(für `QrErstesFeld` wortgleich zu v1.68.0).
+
+**Punkt 2 – `QrTrennzeichen`:** Werte `;` („; (Semikolon)“, Standard) | `,` („, (Komma)“), Gruppe Allgemein nach `QrErstesFeld`,
+Laufzeit-Anlage `("QrTrennzeichen", ";", …)`. `_Layout.cshtml`: `data-qr-trennzeichen=","` nur bei `,`, sonst kein Attribut (= v1.68.x).
+
+**Punkt 3 – feste `;`:** `barcode-scanner.js` neu `qrTrennzeichen()` (`,` nur bei Attribut `,`, sonst `;`), genutzt in
+`processScannedValue` (`value.split`), im Matchcode-Wrapper (Feld 1 und Rest) und als drittes Argument an `HwScanCore.zuordnung`.
+`hardware-scanner.js`: `zuordnung(code, istLagerplatz, trenn)` mit `trenn || ';'` – Scan-Feld-Logik sonst unverändert. Weitere Suche (JS, Views, C#):
+- `csv-export.js:35` (CSV), `ColumnFilterSyntax.cs:247` (Filter-Syntax), `BriefkopfVorlageService.cs:229` (Data-URI): kein QR, unverändert.
+- `bde-terminal.js:182-190` zerlegt FA-/AG-Scans an `,` bzw. `/` – eigenes Format, kein Artikel-QR, unverändert.
+- Komma-Suffix der FA (`parts[2].split(',')[0]` in `processScannedValue`): bei Trennzeichen `,` wirkungslos (Feld 3 enthält dann kein Komma),
+  bei `;` wie bisher – unverändert gelassen.
+
+**Punkt 4 – Texte:** Artikelinfo-Hinweis „… weitere Felder durch ; oder , (je nach Einstellung)“; Hilfe „QR-Code: erstes Feld“ und
+Artikelinfo-Abschnitt nennen beide Zeichen und `QrTrennzeichen`; der Einschalt-Absatz nennt die Auswahllisten.
+
+**Punkt 5 – Tests/Doku:** `SettingsControllerQrErstesFeldTests` +5 Fälle (`;`, ` , ` gültig; `;,`, `|`, leer ungültig mit Meldung);
+Wächter `HardwareScannerTests.QrTrennzeichen_KeinFestesSemikolonInDerQrZerlegung_StandardOhneAttribut` (kein `split(';')`/`indexOf(';')` mehr in
+`barcode-scanner.js`, Attribut nur bei `,`, Laufzeit-Seed, Dropdown an zwei Stellen, Werte der Liste). Node-Kern +5 Prüfungen (`zuordnung`
+mit `,` und `;`). TS-101.15–101.21, README (Abschnitt + AppSettings-Tabelle), Hilfe, Changelog, v1.69.0 ×2. Wegwerf-Rauchtest des
+Browser-Pfads (Node-Mock, `processScannedValue` + Matchcode-Wrapper mit `;` und `,`) grün, nicht im Repo.
+
+**Abweichungen / Befunde:**
+- **Geänderter Bestandstest:** `HardwareScannerTests.QrErstesFeld_MatchcodeZweigNurImGlobalenWrapper_ModusArtikelnummerSynchron` erwartet die
+  Gruppe jetzt mit `QrTrennzeichen` (vom Nachtrag verlangt). Die v1.68.0-Controller-Tests laufen unverändert.
+- Lagerplatz-Codes mit Komma sind ungeprüft (Nachtrag Punkt 4): Bei `,` würde „Scannen ohne Feld“ einen solchen Code als Artikel-QR lesen.
+  Prüfabfrage für den Menschen (TS-101, vor 101.15): `SELECT Code, BarcodeValue FROM StorageLocations WHERE Code LIKE '%,%' OR BarcodeValue LIKE '%,%'`.
+- Die Ansicht wurde nicht gerendert (Web lokal nicht starten); die Dropdown-Ausgabe ist nur per Build und Quelltext-Wächter belegt → TS-101.15/101.20.
+
+**Nachweis:** `dotnet build IdealAkeWms.slnx` 0 Fehler, 28 Warnungen (unverändert). `dotnet test`: Web **2201 bestanden, 1 übersprungen**
+(vorher 2195), Dienst **328 bestanden**. Node-Kern „hardware-scanner core ok (57 Pruefungen)“.
+
+## QA-Nachweis v1.69.0 (qa-agent, 2026-10-27)
+
+Geprüft: `git diff 8540c4d6 2c1e3a6d` im Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5` (17 Dateien, +170/−29), HEAD = `2c1e3a6d`,
+Arbeitsbaum sauber. Im Worktree ist kein `secondbrain/` sichtbar. Web und Dienst wurden nicht gestartet.
+
+### 1. Build und Tests (selbst ausgeführt)
+
+| Prüfung | Ergebnis |
+|---|---|
+| `dotnet build IdealAkeWms.slnx` | **0 Fehler**, 28 Warnungen (vorbestehend, z. B. CS8601 `BdeTerminalAuftraegeTests.cs:23`) |
+| `dotnet test` – `IdealAkeWms.Tests` | **2201 bestanden, 1 übersprungen, 0 fehlgeschlagen** (gesamt 2202; v1.68.1: 2195+1) |
+| `dotnet test` – `IDEALAKEWMSService.Tests` | **328 bestanden, 0 übersprungen, 0 fehlgeschlagen** |
+| `node IdealAkeWms.Tests/Js/hardware-scanner.check.js <Worktree>/IdealAkeWms/wwwroot/js/hardware-scanner.js` | „hardware-scanner core ok (57 Pruefungen)“ |
+
+### 2. Code-Review (selbst, in diesem Lauf)
+
+Gelesen: der ganze Diff; `barcode-scanner.js` um `processScannedValue` (`:284-315`), Matchcode-Wrapper (`:455-490`), `hwScanOhneFeld` (`:563-575`);
+`hardware-scanner.js` `zuordnung`; `Settings/Index.cshtml` Gruppen- und „Sonstige“-Ausgabe samt Bool-/Textzweig; `AppSettingRepository`
+(`GetValueAsync`, `SetValueAsync` null → leer); `AppSetting.Value` (nicht null). Suche nach weiteren festen `;` der QR-Zerlegung in `wwwroot/js`
+(ohne `lib/`), `Views`, `Controllers`, `Services`: nur `csv-export.js:35` (CSV), `ColumnFilterSyntax.cs:247` (Filter), `BriefkopfVorlageService.cs:229`
+(Data-URI), `PickingTransferService.cs:78` (FA-Liste mit `;`) – alle kein Artikel-QR. Kein C#-Pfad zerlegt einen QR (Artikelinfo, Bestandsübersicht
+bekommen den bereits zerlegten Wert).
+
+**Geprüfte Punkte (ohne Befund):**
+- **Grenzen eingehalten:** kein „beide“/„Automatisch“ (`qrTrennzeichen()` liefert genau `,` oder `;`). Bei `;` rendert `_Layout.cshtml` kein
+  `data-qr-trennzeichen` (`null` lässt Razor weg), `qrTrennzeichen()` liefert `;`, `zuordnung(…, ';')` = bisheriges `indexOf(';')` → Verhalten wie
+  v1.68.x. `hardware-scanner.js` ändert nur `zuordnung` (dritter Parameter, Standard `;`), Scan-Feld-Logik aus Nachtrag 5/6 unberührt. Nur Web,
+  keine Migration, Server-Prüfung in `SaveSettings` bleibt (jetzt über die Liste).
+- **Razor `form-select`:** `selected="@(bool)"` und `disabled="@(!canEdit)"` sind bedingte Attribute (false → weggelassen, true →
+  `selected="selected"`), gleiches Muster wie die vorhandenen `disabled` an Textfeld/Schalter. Ohne `asp-for` setzt der `OptionTagHelper` nichts
+  selbst. Gültiger Wert → genau eine Option `selected`; ungültiger Wert → nur die vorangestellte Option „„x“ (ungültig – bitte wählen)“ `selected`,
+  Wert HTML-kodiert. Speichern ohne Auswahl schickt `x` → Server lehnt ab (kein stilles Ersetzen durch den ersten Wert). Leerer DB-Wert →
+  `value=""` → bindet als `null` → abgelehnt.
+- **Controller:** Schleife über die statische, nie veränderte `FesteWerte`; geschrieben wird nur in `settings` (nicht in die iterierte Sammlung).
+  Fehlt ein Key im Formular → übersprungen. Getrimmt, ohne Groß/Klein, kanonisch gespeichert; ungültig → `WarningMessage` + Redirect **vor**
+  jedem `SetValueAsync`. Text für `QrErstesFeld` wortgleich v1.68.0 (Bestandstest unverändert grün).
+- **Rand-Fälle:** ` , ` → `,` (Test); `;,`, `|`, leer → abgelehnt (Tests). Layout trimmt ebenfalls. Groß/Klein ist bei Satzzeichen bedeutungslos.
+- **Komma-Suffix der FA bei `,`:** `parts[2].split(',')[0]` ist bei `,` wirkungslos (Feld 3 enthält kein Komma mehr). FA-Scan ohne QR
+  (`1065141,09`, 2 Teile) fällt auf `value.split(',')[0]` = `1065141` zurück – wie bisher. Kein Fehlverhalten.
+- **Matchcode-Wrapper mit `,`:** Feld 1 = Text vor dem ersten `,`, Rest ab dem ersten `,` angehängt, innere Auswertung zerlegt wieder an `,` → konsistent.
+- **Barrierefreiheit:** `aria-label` = Key = sichtbarer Label-Text (Label in Name erfüllt); natives `<select>` tastaturbedienbar; Ungültig-Zustand
+  steht als Text, nicht nur als Farbe; Bootstrap-`form-select`-Kontrast unverändert.
+- **Fehlerklassen-Check:** keine Werte in `<script>` (body-Attribut, Razor-kodiert); kein `hidden` + `d-*`; kein stiller Rückfall auf einen Wert
+  (ungültige Einstellung wird angezeigt und beim Speichern gemeldet; der Laufzeit-Rückfall „nicht `,` → `;`“ ist die Standardregel);
+  kein Parallel-Array-Binding; der Server erzwingt die Werte.
+
+**Befunde:**
+
+| # | Schwere | Befund | Behandlung |
+|---|---|---|---|
+| Q7 | niedrig | Der Dropdown-Zweig (15 Zeilen) steht zweimal in `Settings/Index.cshtml` (Gruppen- und „Sonstige“-Ausgabe) – Drift möglich. | Akzeptiert: die Bool-/Textzweige sind dort schon doppelt; der Wächter prüft beide Vorkommen. Kein Fix. |
+| Q8 | niedrig | Die Regel „nur `,` gilt, sonst `;`“ steht dreimal (Layout C#, `qrTrennzeichen()` JS, Standardwert in `zuordnung`). | Akzeptiert: alle drei fallen auf `;` zurück, die Werteliste steht nur in `FesteWerte`; Quelltext-Wächter prüft Layout und JS. |
+| Q9 | niedrig | Lagerplatz-Codes mit Komma ungeprüft: bei `,` liest „Scannen ohne Feld“ sie als Artikel-QR (Trennzeichen-Prüfung vor dem Lagerplatz-Abgleich). | Vom Dev gemeldet, Prüfabfrage in TS-101 vor 101.15 (Tabelle/Spalten gegen `SQL/00_FreshInstall.sql:113/119` geprüft). Erst danach an IDEAL auf `,` stellen. |
+| Q10 | niedrig | `FesteWerte` ist ohne Groß/Klein, das gebundene Formular-Dictionary nicht: Stünde ein Key in der DB in anderer Schreibweise (nur bei Handanlage), zeigte die Maske das Dropdown, `SaveSettings` prüfte den Wert aber nicht. | Akzeptiert: der Seed legt die Keys exakt an. Nur vermerkt. |
+| Q11 | Prozess | Brain-Changelog für v1.69.0 fehlt in `secondbrain/changelog/`, [[feature-map]] hat noch keine Zeile für `QrTrennzeichen`/Auswahllisten. | An den Auftraggeber zurück (Brain-Commit). Testindex Zeile 101 von QA nachgezogen. |
+| Q12 | Prozess | Ob der Skill `frontend-design` für die View-Änderung aufgerufen wurde, nennt der Umsetzungsabschnitt nicht. | Nur vermerkt; die Ansicht nutzt das vorhandene `form-select`-Muster. |
+
+Keine Befunde der Schwere mittel oder hoch. Kein Worktree-Commit nötig.
+
+### 3. Beweisart je Punkt des Nachtrags 2
+
+| Punkt | Beweis | Anmerkung |
+|---|---|---|
+| 1 Dropdown-Mechanismus (Ansicht) | Quelltext-Wächter + **Manual-UAT** | `HardwareScannerTests.QrTrennzeichen_*` prüft zwei Vorkommen und die Werteliste; Rendering (selected, gesperrt, ungültiger Wert) nur im Browser → TS-101.15, 101.20 |
+| 1 Server-Prüfung | automatisiert (Logik) + Manual-UAT | `SettingsControllerQrErstesFeldTests` (v1.68.0-Fälle + 5 neue). Echtes Form-Binding `Dictionary<string,string>` nicht InMemory-beweisbar → TS-101.20 |
+| 2 Einstellung `QrTrennzeichen` (Seed, Gruppe, Layout-Attribut) | Quelltext-Wächter + **Manual-UAT** | Seed-Text, Gruppe, Attribut-Ausdruck per Wächter; Anlage nach Start und `<body>`-Ausgabe → TS-101.15–101.17 |
+| 3 `zuordnung` mit Trennzeichen | automatisiert (Node) | `hardware-scanner.check.js` +5 Prüfungen, `,` und `;` |
+| 3 `barcode-scanner.js` ohne festes `;` | Quelltext-Wächter + **Manual-UAT** | kein `split(';')`/`indexOf(';')` mehr; Browser-Verhalten (alle Seiten, Matchcode-Wrapper, Netum) → TS-101.16–101.19 |
+| 4 Texte (Artikelinfo, Hilfe) | **Manual-UAT** | TS-101.21 |
+| 5 Version/Doku | Sichtprüfung QA | v1.69.0 in beiden `AppVersion.cs`, Changelog, README, TS-101.15–101.21 |
+
+Grün gezählt sind nur die Server-Prüfung (Logik), `zuordnung` und die Quelltext-Wächter. Alles andere ist bis zur Abnahme offen.
+
+### 4. Geänderte Bestandstests
+
+| Test | Klasse |
+|---|---|
+| `HardwareScannerTests.QrErstesFeld_MatchcodeZweigNurImGlobalenWrapper_ModusArtikelnummerSynchron` | Erwartete Gruppe „Allgemein“ um `QrTrennzeichen` erweitert – Verhalten bewusst durch Nachtrag 2 Punkt 2 geändert. Kein Befund |
+
+`SettingsControllerQrErstesFeldTests` und `hardware-scanner.check.js` nur ergänzt (bestehende Fälle und Fixtures unverändert). Kein Test der Klasse „sonstige“.
+
+### 5. CLAUDE.md-Checkliste
+
+Migration/SQL/FreshInstall/AgentJobs: entfällt (nur Laufzeit-Seed). Audit: entfällt (`AppSetting` ohne `AuditableEntity`). Version 1.69.0 in
+beiden `AppVersion.cs` + `Help/Changelog.cshtml`: ja. README (QR-Abschnitt + AppSettings-Tabelle) und Hilfe: ja. `docs/TESTSZENARIEN.md`
+TS-101.15–101.21: ja (Worktree). `tests/testszenarien-index.md` Zeile 101: von QA nachgezogen. Brain-Changelog und [[feature-map]]: **offen** (Q11).
+Keine neue Rolle. `SQL/Einmalig/`: nichts.
+
+**Ergebnis:** Testbereit gesetzt (qa-agent 2026-10-27). Wartet auf Schranke 2 (Manual-UAT TS-101 inkl. 101.15–101.21 + Bündel-Merge).
+
+## Manuelle Test-Checkliste v1.69.0 (Mensch, vor dem Merge)
+
+Vorbedingung: Web aus dem Worktree auf dem Testsystem, Prüfabfrage Lagerplatz-Codes mit Komma (TS-101, vor 101.15) gelaufen und Treffer notiert.
+
+1. `/Settings` → Allgemein: `QrErstesFeld` und `QrTrennzeichen` sind Auswahllisten, `QrTrennzeichen` = „; (Semikolon)“; mit Tastatur bedienbar;
+   als Benutzer ohne Bearbeitungsrecht gesperrt (TS-101.15).
+2. Seitenquelltext bei `;`: `<body>` ohne `data-qr-trennzeichen`. TS-101.1–101.4 verhalten sich wie v1.68.x; E2k → „Nicht gefunden: 102044,,1065141,09“ (TS-101.16).
+3. `QrTrennzeichen` = `,`, `QrErstesFeld` = Artikelnummer, `QrMitFaNummer` an: `<body data-qr-trennzeichen=",">`; E2k → 102044 + FA 1065141;
+   E2 → „Nicht gefunden: 102044;;1065141;09“, FA leer (TS-101.17).
+4. `,` + Matchcode + FA an: E1k auf Ein-, Ausgang, Umbuchung, Sammel-Wareneingang, Artikelinfo, Bestandsübersicht → 50002134 (+ FA 1065141, wo
+   übernommen); Netzwerk-Tab `by-matchcode?matchcode=G-KT-FRR-510-2010--1760B-250-V01` ohne Rest (TS-101.18).
+5. FA-Scan („FA Nummer“ der FA-Liste) mit E1k bei `,` → 1065141; eingetipptes `1065141,09` → 1065141.
+6. Einbuchung „Scannen ohne Feld“ am Netum bei `,`: E2k → Artikel-QR, Lagerplatz-Etikett → Lagerplatz, E2 → nicht gefunden + „Code … nicht zuordenbar“ (TS-101.19).
+7. Entwicklertools: Option auf `|` ändern, speichern → gelbe Meldung „QrTrennzeichen: erlaubt sind „;“ oder „,“ – nichts gespeichert.“, auch
+   andere geänderte Werte ungespeichert. Per SQL `Value='x'` → Liste zeigt „„x“ (ungültig – bitte wählen)“, Speichern meldet dasselbe, Scan-Seiten
+   trennen wie mit `;` (TS-101.20). Danach auf `;` zurück.
+8. Artikelinfo-Hinweis und Hilfe „QR-Code: erstes Feld“ nennen `;` oder `,` und `QrTrennzeichen` (TS-101.21).
+9. Danach AKE und IDEAL auf `;` lassen, bis feststeht, welche Etiketten `,` nutzen.
