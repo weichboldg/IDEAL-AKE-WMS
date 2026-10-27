@@ -10547,6 +10547,33 @@ Bewegungshistorie, Stückliste, FA-Liste, Kommissionier-Leitstand, FA-Vervollst�
 - **Negativfälle.** a) In `/Settings` `VaultLinksAktiv=FALSE` → aus. b) Wert `nein` → an (nur `false` sperrt). c) Nicht-Admin ruft
   `/StandortEinstellungen` auf → kein Zugriff. d) Vorlage ohne Platzhalter (`https://test.example/?q=`) → Nummer bzw. ID wird angehängt.
 
+## TS-101 — QR-Code: erstes Feld Matchcode (v1.68.0)
+
+Spec `2026-10-23-qr-code-matchcode-statt-artikelnummer-spec`. Regressionsbezug: QR mit FA (TS zu `QrMitFaNummer`), TS-99 (Hardware-Scanner).
+
+**Vorbedingungen:** Testsystem IDEAL (für OSEON zusätzlich AKE), Prüfabfragen P1–P5 der Spec gelaufen (P1: keine Dubletten an IDEAL),
+Artikel 50002134 mit Bestand, ein FA mit 50002134 als Komponente (Stückliste). Etiketten **E1** = `G-KT-FRR-510-2010--1760B-250-V01;;1065141;09`
+(Matchcode von 50002134), **E2** = `102044;;1065141;09`. Für Groß/Klein, Leerzeichen und „kein Treffer“ QR-Bilder erzeugen und über „Bild
+hochladen“ scannen, ersatzweise in der Browser-Konsole `processScannedValue('<Text>', 'ArticleId', 'article', true, 'ProductionOrder')`.
+Einstellungen unter `/Settings` → Allgemein.
+
+| Nr | Einstellung | Schritte | Erwartung |
+|---|---|---|---|
+| 101.1 | Artikelnummer / FA aus | Wareneingang: E2, dann E1 | E2: Artikel 102044, FA leer, im Netzwerk-Tab **kein** `by-matchcode`. E1: „Nicht gefunden: G-KT-FRR-510-2010--1760B-250-V01“ wie bisher. `<body>` ohne `data-qr-erstes-feld`. |
+| 101.2 | Artikelnummer / FA an | Wareneingang: E2 | Artikel 102044, FA `1065141`. |
+| 101.3 | Matchcode / FA aus | Wareneingang: E1, dann E2 | E1: Artikel 50002134, FA leer. E2: „✗ Matchcode „102044“ nicht gefunden“, kein Artikel gewählt, FA unverändert (Ausnahme: P2 zeigt 102044 als Matchcode). `<body data-qr-erstes-feld="Matchcode">`. |
+| 101.4 | Matchcode / FA an | Ein-, Ausgang, Umbuchung: je E1 | Artikel 50002134 und FA `1065141`. |
+| 101.5 | Matchcode | Sammel-Wareneingang: E1 zweimal | Eine Zeile 50002134, Menge 1, dann 2. |
+| 101.6 | Matchcode | Stückliste mit 50002134 bzw. ohne: E1 | Mit: Zeile abgehakt/hervorgehoben. Ohne: bestehendes Modal „nicht in der Kommissionierliste“ mit `50002134`. |
+| 101.7 | Matchcode | Artikelinfo, Bestandsübersicht, FA-Liste, Leitstand, OSEON (AKE): E1 | Artikelinfo zeigt 50002134. Bestandsübersicht: Artikelfilter `50002134`, FA-Filter `1065141`. FA-Liste/Leitstand/OSEON: Filter „Artikelnummer“ `50002134`, Formular abgeschickt. |
+| 101.8 | Matchcode | 101.3 mit Kamera, Bild-Upload, Hardware-Scanner (Tastatur-Emulation **und** Netum Fokus-Eingabe) sowie Einbuchung mit „Scannen ohne Feld“ (TS-99.19) | jeweils wie 101.3. Bei „Scannen ohne Feld“ und kein Treffer zusätzlich der gelbe Hinweis „Code … nicht zuordenbar“. |
+| 101.9 | Matchcode | `G-KT-GIBT-ES-NICHT;;1065141;09`; `g-kt-frr-510-2010--1760b-250-v01;;1065141;09`; `  G-KT-FRR-510-2010--1760B-250-V01  ;;1065141;09`; `;;1065141;09` | „Matchcode „G-KT-GIBT-ES-NICHT“ nicht gefunden“, nichts befüllt, auf Filterseiten **kein** Submit. Groß/Klein und Leerzeichen → 50002134. Leeres Feld 1: **kein** `by-matchcode`, Verhalten wie im Modus Artikelnummer. |
+| 101.10 | Matchcode | An einem zweiten Artikel („Artikel bearbeiten“) den Matchcode von E1 eintragen, E1 scannen; danach zurücksetzen | „Matchcode „…“ ist mehrdeutig (2 Artikel: 50002134, …) – bitte den Artikel von Hand wählen“, ca. 10 s sichtbar, nichts gewählt/abgeschickt. Artikelinfo mit dem Matchcode eingetippt: Meldung „… ist mehrdeutig (2 Artikel: …) – bitte die Artikelnummer eingeben.“ **Hinweis:** Der nächste Artikel-Sync überschreibt den Hand-Wert, zügig testen. |
+| 101.11 | Matchcode | Lagerplatz-Scan; FA-Scan mit E1 („FA Nummer“ in der FA-Liste, Ziel-Lagerplatz der Stückliste) | unverändert: Lagerplatz wie bisher, FA `1065141`. |
+| 101.12 | Matchcode | Netzwerk im Browser trennen (Entwicklertools offline), E1 | „Matchcode „…“ konnte nicht geprüft werden“, nicht „nicht gefunden“. |
+| 101.13 | — | `/Settings`: `QrErstesFeld` = `matchcode` speichern, dann `Matchcod` | `matchcode` → gespeichert als `Matchcode`. `Matchcod` → gelbe Meldung „QrErstesFeld: erlaubt sind „Artikelnummer“ oder „Matchcode“ – nichts gespeichert.“, auch andere geänderte Werte der Maske bleiben ungespeichert. |
+| 101.14 | — | Meldungen auf Stückliste und Sammel-Wareneingang (verstecktes Ziel) | Meldung steht am Scan-Knopf, Text mit ✗ (nicht nur Farbe), lesbar. |
+
 ---
 
 *Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) + Teil 6 (Standorteinstellungen, v1.34.0) + BOM-Guard hierarchisch (2026-08-18, abgelöst) + FA-Liste-Hierarchie (v1.35.0) + BOM-Bridge (v1.36.0) + Materialisierung fachliche Felder K1/K2 (v1.37.0) + Skopierung der Tabellen-Selektoren (TS-72) + FA-Liste ausgebaut: Matchcode, Kopfdaten je Zeile, HauptFA-Zeile, Freigabe-Kaskade (v1.38.0, TS-73) + PDF-Erzeugung für FaHierarchy-Druckdokumente (v1.39.0, TS-74) + Matchcode im Artikelstamm (v1.40.0, TS-75) + FA-Arbeitsgang-Erkennung aus der Struktur (v1.41.0, TS-76, ersetzt durch TS-77) + Arbeitsgänge (WorkOperation) aus der Struktur + Werkbank-Anlage aus Sage (v1.44.0, TS-77) + Arbeitsgänge je (Sub-)FA im FA-Struktur-Modal (v1.45.0, TS-78) + Kommissionierung nur am HauptFA

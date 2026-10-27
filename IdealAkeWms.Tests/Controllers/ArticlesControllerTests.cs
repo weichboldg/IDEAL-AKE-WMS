@@ -233,8 +233,8 @@ public class ArticlesControllerTests
 
         // Kein Treffer über Artikelnummer, aber exakter Matchcode-Treffer (D4).
         article.Setup(a => a.GetByArticleNumberAsync("SCHRAUBE")).ReturnsAsync((Article?)null);
-        article.Setup(a => a.GetByMatchcodeExactAsync("SCHRAUBE"))
-            .ReturnsAsync(new Article { Id = 1, ArticleNumber = "1000042", Matchcode = "SCHRAUBE", Unit = "Stk" });
+        article.Setup(a => a.GetByMatchcodeExactAsync("SCHRAUBE", 6))
+            .ReturnsAsync(new List<Article> { new() { Id = 1, ArticleNumber = "1000042", Matchcode = "SCHRAUBE", Unit = "Stk" } });
         stock.Setup(s => s.GetCurrentStockAsync("1000042", null, null, null))
             .ReturnsAsync(new List<StockOverviewItem>());
         bom.Setup(b => b.GetDeviceArticleNumbersByComponentAsync("1000042"))
@@ -254,8 +254,8 @@ public class ArticlesControllerTests
         var (ctrl, article, _, _, _, _, _) = Build();
 
         article.Setup(a => a.GetByArticleNumberAsync("SCHRAUBE")).ReturnsAsync((Article?)null);
-        // GetByMatchcodeExactAsync ist exakt, ein Substring-Treffer liefert hier null zurück.
-        article.Setup(a => a.GetByMatchcodeExactAsync("SCHRAUBE")).ReturnsAsync((Article?)null);
+        // GetByMatchcodeExactAsync ist exakt, ein Substring-Treffer liefert hier keinen Treffer.
+        article.Setup(a => a.GetByMatchcodeExactAsync("SCHRAUBE", 6)).ReturnsAsync(new List<Article>());
 
         var result = await ctrl.Info("SCHRAUBE");
 
@@ -268,13 +268,33 @@ public class ArticlesControllerTests
         var (ctrl, article, _, _, _, _, _) = Build();
 
         article.Setup(a => a.GetByArticleNumberAsync("UNBEKANNT")).ReturnsAsync((Article?)null);
-        article.Setup(a => a.GetByMatchcodeExactAsync("UNBEKANNT")).ReturnsAsync((Article?)null);
+        article.Setup(a => a.GetByMatchcodeExactAsync("UNBEKANNT", 6)).ReturnsAsync(new List<Article>());
 
         var result = await ctrl.Info("UNBEKANNT");
 
         var view = result.Should().BeOfType<ViewResult>().Subject;
         view.Model.Should().BeNull();
         view.ViewData["NotFound"].Should().Be("UNBEKANNT");
+    }
+
+    [Fact]
+    public async Task Info_MatchcodeMehrdeutig_MeldungStattStillErsterTreffer()
+    {
+        var (ctrl, article, _, _, _, _, _) = Build();
+
+        article.Setup(a => a.GetByArticleNumberAsync("DOPPELT")).ReturnsAsync((Article?)null);
+        article.Setup(a => a.GetByMatchcodeExactAsync("DOPPELT", 6)).ReturnsAsync(new List<Article>
+        {
+            new() { Id = 1, ArticleNumber = "A1", Matchcode = "DOPPELT" },
+            new() { Id = 2, ArticleNumber = "B2", Matchcode = "doppelt" }
+        });
+
+        var result = await ctrl.Info("DOPPELT");
+
+        var view = result.Should().BeOfType<ViewResult>().Subject;
+        view.Model.Should().BeNull("bei mehreren Treffern wird kein Artikel still gewählt");
+        view.ViewData["NotFound"].Should().BeNull();
+        ((string)view.ViewData["Mehrdeutig"]!).Should().Be("Matchcode „DOPPELT“ ist mehrdeutig (2 Artikel: A1, B2) – bitte die Artikelnummer eingeben.");
     }
 
     [Fact]

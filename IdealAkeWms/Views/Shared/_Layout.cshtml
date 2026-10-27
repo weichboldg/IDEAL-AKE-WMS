@@ -24,8 +24,11 @@
         hwScanPraefix = string.IsNullOrEmpty(hwP) ? "~09" : hwP;
         hwScanAbstand = string.IsNullOrWhiteSpace(hwA) ? "50" : hwA.Trim();
     }
+    // v1.68.0 QR erstes Feld: nur bei exakt "Matchcode" das Attribut (barcode-scanner.js), sonst weggelassen = Artikelnummer.
+    var qrErstesFeld = string.Equals((await AppSettings.GetValueAsync(IdealAkeWms.Models.AppSettingKeys.QrErstesFeld))?.Trim(), "Matchcode",
+        StringComparison.OrdinalIgnoreCase) ? "Matchcode" : null;
 }
-<body data-hw-scan-praefix="@hwScanPraefix" data-hw-scan-abstand="@hwScanAbstand">
+<body data-hw-scan-praefix="@hwScanPraefix" data-hw-scan-abstand="@hwScanAbstand" data-qr-erstes-feld="@qrErstesFeld">
     <header>
         <nav class="navbar navbar-expand-lg">
             <div class="container-fluid">

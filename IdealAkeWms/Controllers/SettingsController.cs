@@ -27,6 +27,8 @@ public class SettingsController : Controller
         _holidayImportService = holidayImportService;
     }
 
+    private static readonly string[] QrErstesFeldWerte = { "Artikelnummer", "Matchcode" };
+
     public async Task<IActionResult> Index()
     {
         var vm = new SettingsViewModel
@@ -41,6 +43,18 @@ public class SettingsController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> SaveSettings(Dictionary<string, string> settings)
     {
+        // v1.68.0: QrErstesFeld ist ein Textfeld der Maske - ein Tippfehler fiele sonst still auf "Artikelnummer" zurueck.
+        if (settings.TryGetValue(AppSettingKeys.QrErstesFeld, out var qrErstesFeld))
+        {
+            var kanonisch = QrErstesFeldWerte.FirstOrDefault(w => string.Equals(w, qrErstesFeld?.Trim(), StringComparison.OrdinalIgnoreCase));
+            if (kanonisch == null)
+            {
+                TempData["WarningMessage"] = "QrErstesFeld: erlaubt sind „Artikelnummer“ oder „Matchcode“ – nichts gespeichert.";
+                return RedirectToAction(nameof(Index));
+            }
+            settings[AppSettingKeys.QrErstesFeld] = kanonisch;
+        }
+
         foreach (var kvp in settings)
         {
             await _settingRepository.SetValueAsync(kvp.Key, kvp.Value);

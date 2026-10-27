@@ -42,7 +42,7 @@
                             ("FA-Vervollständigung", new[] { "FaCompletionAktiv" }),
                             ("Windows-Anmeldung", new[] { "WindowsAuthAktiv", "WindowsAuthBerechtigungsgruppe" }),
                             ("IDEAL", new[] { "FaHierarchyKommissionierlistenAktiv", "FaHierarchyBeschichtungAktiv", "FaHierarchyVormontageAktiv", "FaHierarchyMaxTiefe" }),
-                            ("Allgemein", new[] { "QrMitFaNummer" }),
+                            ("Allgemein", new[] { "QrMitFaNummer", "QrErstesFeld" }),
                             ("BDE", new[] { "BdeAktiv", "BdeNurFaMeldung", "BdeDefaultArbeitsgang", "BdeMehrfachBuchungProOperator", "BdeMehrfachBuchungProArbeitsgang", "BdeGleichzeitigerAbschlussBeiMehrfachStart", "BdeSchichtkalenderAktiv", "BdeTerminalMaxHauptFa" }),
                         };
                         var groupedKeys = settingsGroups.SelectMany(g => g.Keys).ToHashSet(StringComparer.OrdinalIgnoreCase);

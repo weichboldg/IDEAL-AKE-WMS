@@ -89,6 +89,35 @@
                 <p>
                     <strong>Unterstützte Formate:</strong> QR-Code (Artikel), Code 128, Code 39, EAN-13, EAN-8, Code 93 (Lagerplätze).
                 </p>
+                <h6 class="mt-3">QR-Code: erstes Feld (seit v1.68.0)</h6>
+                <p>
+                    Ein Artikel-QR hat das Format <code>Feld1;Feld2;FA-Nummer;…</code>. Was im ersten Feld steht, legt die Einstellung
+                    <code>QrErstesFeld</code> fest, ob Feld 3 als FA übernommen wird, die Einstellung <code>QrMitFaNummer</code>:
+                </p>
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered w-auto">
+                        <thead><tr><th>QrErstesFeld</th><th>QrMitFaNummer</th><th>Feld 1</th><th>Feld 3</th></tr></thead>
+                        <tbody>
+                            <tr><td>Artikelnummer (Standard)</td><td>aus</td><td>Artikelnummer</td><td>ignoriert</td></tr>
+                            <tr><td>Artikelnummer</td><td>an</td><td>Artikelnummer</td><td>FA-Nummer</td></tr>
+                            <tr><td>Matchcode</td><td>aus</td><td>Matchcode &rarr; Artikelnummer</td><td>ignoriert</td></tr>
+                            <tr><td>Matchcode</td><td>an</td><td>Matchcode &rarr; Artikelnummer</td><td>FA-Nummer</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <ul>
+                    <li>Gesucht wird der ganze Matchcode im Artikelstamm, ohne Unterschied von Groß/Klein; Leerzeichen am Rand zählen nicht.</li>
+                    <li><strong>Im Modus Matchcode gehen Etiketten mit Artikelnummer im ersten Feld nicht mehr</strong> (sie werden als Matchcode gesucht).</li>
+                    <li>Meldungen: &bdquo;Matchcode &hellip; nicht gefunden&ldquo; &ndash; Artikelstamm prüfen (Matchcode gepflegt? Artikel im WMS?);
+                        &bdquo;Matchcode &hellip; ist mehrdeutig (&hellip;) &ndash; bitte den Artikel von Hand wählen&ldquo; &ndash; mehrere Artikel tragen
+                        diesen Matchcode, Artikel von Hand wählen; &bdquo;Matchcode &hellip; konnte nicht geprüft werden&ldquo; &ndash; Verbindung zum Server
+                        prüfen und erneut scannen. In allen drei Fällen wird nichts ausgefüllt und nichts abgeschickt.</li>
+                    <li>Die FA aus Feld 3 wird übernommen bei Ein-, Aus- und Umbuchung (nur mit <code>QrMitFaNummer</code>) und in der
+                        Bestandsübersicht (immer); sonst nie.</li>
+                    <li>Lagerplatz- und FA-Scans sind von der Einstellung nicht betroffen.</li>
+                </ul>
+                <p><strong>Einschalten (Admin):</strong> Einstellungen (<code>/Settings</code>) &rarr; Allgemein &rarr; <code>QrErstesFeld</code>
+                    = <code>Matchcode</code>. Andere Werte werden beim Speichern abgewiesen.</p>
                 <h6 class="mt-3">Hardware-Scanner (seit v1.66.0)</h6>
                 <p>
                     Geräte mit eingebautem Scanner, der wie eine Tastatur schreibt (Android-Handheld, Handscanner), füllen dieselben
@@ -178,7 +207,9 @@
                 <dl>
                     <dt>QR-Code scannen</dt>
                     <dd>Artikelnummer eingeben oder QR-Code scannen. Das QR-Format <code>Artikelnummer;Feld2;FA-Nummer</code>
-                        wird automatisch erkannt — nur die Artikelnummer wird uebernommen.</dd>
+                        wird automatisch erkannt — nur die Artikelnummer wird uebernommen. Das erste Feld ist je nach Einstellung
+                        <code>QrErstesFeld</code> die Artikelnummer oder der Matchcode (seit v1.68.0). Ein eingetippter Matchcode, der zu
+                        mehreren Artikeln passt, ergibt die Meldung &bdquo;mehrdeutig&ldquo; mit den Artikelnummern.</dd>
 
                     <dt>Artikeldetails</dt>
                     <dd>Zeigt Bezeichnung, Einheit, Artikelgruppe, Meldebestand und Gesamtbestand an.
@@ -1689,7 +1720,7 @@
                 </p>
                 <dl>
                     <dt>Artikel-QR-Scan</dt>
-                    <dd>Neben dem Artikelfilter gibt es einen QR-Scan-Button. Beim Scannen eines Artikel-QR-Codes wird die Artikelnummer automatisch als Filter gesetzt. Enthaelt der QR-Code eine Fertigungsauftragsnummer, wird diese ebenfalls in das FA-Feld uebernommen.</dd>
+                    <dd>Neben dem Artikelfilter gibt es einen QR-Scan-Button. Beim Scannen eines Artikel-QR-Codes wird die Artikelnummer automatisch als Filter gesetzt. Enthaelt der QR-Code eine Fertigungsauftragsnummer, wird diese ebenfalls in das FA-Feld uebernommen. Das erste Feld ist je nach Einstellung <code>QrErstesFeld</code> die Artikelnummer oder der Matchcode. Hinweis: Eine uebernommene FA uebersteuert den Artikelfilter.</dd>
 
                     <dt>Fertigungsauftrag-Filter (Bestaende FA)</dt>
                     <dd>Zeigt den Netto-Bestand aller Artikel, die mit diesem Fertigungsauftrag gebucht wurden &mdash; aufgeschluesselt nach Lagerplatz.

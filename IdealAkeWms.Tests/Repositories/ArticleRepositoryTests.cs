@@ -73,10 +73,9 @@ public class ArticleRepositoryTests
         await context.SaveChangesAsync();
 
         var repo = new ArticleRepository(context);
-        var result = await repo.GetByMatchcodeExactAsync("SCHRAUBE");
+        var result = await repo.GetByMatchcodeExactAsync("SCHRAUBE", 6);
 
-        result.Should().NotBeNull();
-        result!.ArticleNumber.Should().Be("A1");
+        result.Select(a => a.ArticleNumber).Should().Equal("A1");
     }
 
     [Fact]
@@ -87,9 +86,9 @@ public class ArticleRepositoryTests
         await context.SaveChangesAsync();
 
         var repo = new ArticleRepository(context);
-        var result = await repo.GetByMatchcodeExactAsync("SCHRAUBE");
+        var result = await repo.GetByMatchcodeExactAsync("SCHRAUBE", 6);
 
-        result.Should().BeNull();
+        result.Should().BeEmpty();
     }
 
     [Fact]
@@ -100,9 +99,40 @@ public class ArticleRepositoryTests
         await context.SaveChangesAsync();
 
         var repo = new ArticleRepository(context);
-        var result = await repo.GetByMatchcodeExactAsync("NOPE");
+        var result = await repo.GetByMatchcodeExactAsync("NOPE", 6);
 
-        result.Should().BeNull();
+        result.Should().BeEmpty();
+    }
+
+    // v1.68.0 QR erstes Feld = Matchcode: getrimmt, ohne Gross/Klein, mehrdeutig sichtbar, DUMMY nie, limit greift.
+    [Fact]
+    public async Task GetByMatchcodeExactAsync_TrimUndGrossKlein_BeideSeiten()
+    {
+        using var context = TestDbContextFactory.Create();
+        context.Articles.AddRange(
+            CreateArticle("50002134", "G-KT-FRR-510-2010--1760B-250-V01 "),
+            CreateArticle("102044", "ANDERES"));
+        await context.SaveChangesAsync();
+
+        var result = await new ArticleRepository(context).GetByMatchcodeExactAsync("  g-kt-frr-510-2010--1760b-250-v01  ", 6);
+
+        result.Select(a => a.ArticleNumber).Should().Equal("50002134");
+    }
+
+    [Fact]
+    public async Task GetByMatchcodeExactAsync_Mehrdeutig_AlleSortiert_DummyAus_LimitGreift()
+    {
+        using var context = TestDbContextFactory.Create();
+        context.Articles.AddRange(
+            CreateArticle("B2", "DOPPELT"), CreateArticle("A1", "doppelt"),
+            CreateArticle(Article.DummyArticleNumber, "DOPPELT"));
+        for (var i = 0; i < 7; i++) context.Articles.Add(CreateArticle("V" + i, "VIELE"));
+        await context.SaveChangesAsync();
+        var repo = new ArticleRepository(context);
+
+        (await repo.GetByMatchcodeExactAsync("DOPPELT", 6)).Select(a => a.ArticleNumber).Should().Equal("A1", "B2");
+        (await repo.GetByMatchcodeExactAsync("VIELE", 6)).Should().HaveCount(6);
+        (await repo.GetByMatchcodeExactAsync("102044", 6)).Should().BeEmpty("kein Fallback auf die Artikelnummer");
     }
 
     [Fact]

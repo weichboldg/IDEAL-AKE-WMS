@@ -54,6 +54,26 @@ public class ArticlesApiController : ControllerBase
         }));
     }
 
+    // v1.68.0 QR erstes Feld = Matchcode: Uebersetzung Matchcode -> Artikel. Query-String statt Route-Segment, weil ein Matchcode
+    // '/', '#' oder '%' enthalten kann. Der Client unterscheidet 0 / 1 / mehrdeutig (articles.length, more).
+    [HttpGet("by-matchcode")]
+    public async Task<IActionResult> GetByMatchcode([FromQuery] string? matchcode)
+    {
+        if (string.IsNullOrWhiteSpace(matchcode))
+            return BadRequest();
+        var treffer = await _articleRepository.GetByMatchcodeExactAsync(matchcode, 6);
+        return Ok(new
+        {
+            articles = treffer.Take(5).Select(a => new
+            {
+                id = a.Id,
+                articleNumber = a.ArticleNumber,
+                text = a.ArticleNumber + (a.Description != null ? " - " + a.Description : "")
+            }),
+            more = treffer.Count > 5
+        });
+    }
+
     [HttpGet("by-number/{articleNumber}")]
     public async Task<IActionResult> GetByNumber(string articleNumber)
     {

@@ -34,6 +34,39 @@ public class ArticlesApiControllerTests
         ctx.SaveChanges();
     }
 
+    // v1.68.0: GET /api/articles/by-matchcode
+    [Theory]
+    [InlineData(null)]
+    [InlineData("   ")]
+    public async Task GetByMatchcode_Leer_BadRequest(string? matchcode)
+    {
+        var (ctrl, _) = Setup();
+        (await ctrl.GetByMatchcode(matchcode)).Should().BeOfType<BadRequestResult>();
+    }
+
+    [Theory]
+    [InlineData(0, 0, false)]
+    [InlineData(1, 1, false)]
+    [InlineData(6, 5, true)]
+    public async Task GetByMatchcode_KeinsEinsMehrdeutig(int anzahl, int erwartet, bool more)
+    {
+        var (ctrl, ctx) = Setup();
+        for (var i = 0; i < anzahl; i++)
+            ctx.Articles.Add(new Article { ArticleNumber = "M" + i, Description = "Teil", Matchcode = "G-KT-FRR-510-2010--1760B-250-V01", Unit = "Stk", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" });
+        ctx.SaveChanges();
+
+        var ok = (await ctrl.GetByMatchcode("g-kt-frr-510-2010--1760b-250-v01")).Should().BeOfType<OkObjectResult>().Subject;
+        using var doc = JsonDocument.Parse(JsonSerializer.Serialize(ok.Value));
+        doc.RootElement.GetProperty("articles").GetArrayLength().Should().Be(erwartet);
+        doc.RootElement.GetProperty("more").GetBoolean().Should().Be(more);
+        if (anzahl == 1)
+        {
+            var a = doc.RootElement.GetProperty("articles")[0];
+            a.GetProperty("articleNumber").GetString().Should().Be("M0");
+            a.GetProperty("text").GetString().Should().Be("M0 - Teil", "Select2-Textformat wie by-number");
+        }
+    }
+
     [Fact]
     public async Task Search_TypGlas_NurGlasUndEuzGruppen()
     {

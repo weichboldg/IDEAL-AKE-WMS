@@ -365,7 +365,8 @@ function processScannedValue(value, targetSelectId, scanType, qrFaEnabled, faTar
     }
 }
 
-function showScanFeedback(element, success, value) {
+// meldung (optional, v1.68.0): eigener Fehlertext statt "Nicht gefunden: <Wert>", 10 s sichtbar (laengerer Text bei "mehrdeutig").
+function showScanFeedback(element, success, value, meldung) {
     var parent = element.parentNode;
     if (!parent) return;
     var existing = parent.querySelector('.scan-feedback');
@@ -377,14 +378,14 @@ function showScanFeedback(element, success, value) {
     if (success) {
         feedback.innerHTML = '<small class="text-success"><strong>&#10003;</strong> Gescannt: ' + escapeHtml(value) + '</small>';
     } else {
-        feedback.innerHTML = '<small class="text-danger"><strong>&#10007;</strong> Nicht gefunden: ' + escapeHtml(value) + '</small>';
+        feedback.innerHTML = '<small class="text-danger"><strong>&#10007;</strong> ' + (meldung ? escapeHtml(meldung) : 'Nicht gefunden: ' + escapeHtml(value)) + '</small>';
     }
 
     parent.appendChild(feedback);
 
     setTimeout(function () {
         feedback.remove();
-    }, 5000);
+    }, meldung ? 10000 : 5000);
 }
 
 function clearAndFillFaNumber(faNumber, faTargetId) {
@@ -428,7 +429,7 @@ var _textInputScanCallback = null;
 
 // Hook into processScannedValue: after filling an INPUT, call the stored callback
 var _origProcessScannedValue = processScannedValue;
-processScannedValue = function (value, targetSelectId, scanType, qrFaEnabled, faTargetId, nichtGefunden) {
+function _processScannedValueSync(value, targetSelectId, scanType, qrFaEnabled, faTargetId, nichtGefunden) {
     _origProcessScannedValue(value, targetSelectId, scanType, qrFaEnabled, faTargetId, nichtGefunden);
 
     // If there's a pending text-input callback and the target matches, fire it
@@ -443,7 +444,61 @@ processScannedValue = function (value, targetSelectId, scanType, qrFaEnabled, fa
         }
         _textInputScanCallback = null;
     }
+}
+
+// v1.68.0 QR erstes Feld = Matchcode (AppSetting QrErstesFeld, body data-qr-erstes-feld): Feld 1 eines Artikel-Scans wird ueber
+// /api/articles/by-matchcode in die Artikelnummer uebersetzt, danach die unveraenderte Auswertung. Steht im Wrapper, weil der
+// onScanned-Callback (Filterseiten, Sammel-Wareneingang) sonst vor der asynchronen Antwort feuert. Modus Artikelnummer: synchron wie bisher.
+// Kein Treffer / mehrdeutig / Fehler: Meldung, nichts befuellen, keine FA, kein Callback (kein Submit).
+processScannedValue = function (value, targetSelectId, scanType, qrFaEnabled, faTargetId, nichtGefunden) {
+    var matchcode = scanType === 'article' && document.body.getAttribute('data-qr-erstes-feld') === 'Matchcode'
+        ? String(value).split(';')[0].trim() : '';
+    if (!matchcode) {
+        _processScannedValueSync(value, targetSelectId, scanType, qrFaEnabled, faTargetId, nichtGefunden);
+        return;
+    }
+    // Callback jetzt merken: bis zur Antwort darf ihn kein anderer Scan verbrauchen
+    var cb = _textInputScanCallback && _textInputScanCallback.targetInputId === targetSelectId ? _textInputScanCallback : null;
+    if (cb) _textInputScanCallback = null;
+    var fehler = function (text) {
+        _qrMatchcodeMeldung(targetSelectId, matchcode, text);
+        if (nichtGefunden) nichtGefunden();
+    };
+    $.ajax({
+        url: '/api/articles/by-matchcode?matchcode=' + encodeURIComponent(matchcode),
+        type: 'GET',
+        dataType: 'json',
+        success: function (data) {
+            var treffer = (data && data.articles) || [];
+            if (treffer.length === 1 && !data.more) {
+                var i = String(value).indexOf(';');
+                _textInputScanCallback = cb || _textInputScanCallback;
+                _processScannedValueSync(treffer[0].articleNumber + (i >= 0 ? String(value).slice(i) : ''), targetSelectId, scanType, qrFaEnabled, faTargetId, nichtGefunden);
+            } else if (treffer.length === 0) {
+                fehler('Matchcode „' + matchcode + '“ nicht gefunden');
+            } else {
+                fehler('Matchcode „' + matchcode + '“ ist mehrdeutig (' + (data.more ? 'mehr als 5' : treffer.length) + ' Artikel: '
+                    + treffer.map(function (a) { return a.articleNumber; }).join(', ') + (data.more ? ', …' : '') + ') – bitte den Artikel von Hand wählen');
+            }
+        },
+        error: function () {
+            fehler('Matchcode „' + matchcode + '“ konnte nicht geprüft werden');
+        }
+    });
 };
+
+// Meldungsort wie showScanFeedback: Select2 an der .input-group, verstecktes Ziel (Stueckliste, Sammel-Wareneingang) am Scan-Knopf.
+function _qrMatchcodeMeldung(targetSelectId, matchcode, text) {
+    var el = document.getElementById(targetSelectId);
+    if (!el) return;
+    if (el.type === 'hidden') {
+        var ziel = _hwScanTargets.filter(function (z) { return z.targetId === targetSelectId; })[0];
+        el = (ziel && document.getElementById(ziel.buttonId)) || el;
+    } else if (el.closest('.input-group')) {
+        el = el.closest('.input-group');
+    }
+    showScanFeedback(el, false, matchcode, text);
+}
 
 // --- Hardware-Scanner (v1.66.0, hardware-scanner.js) ---
 // Regel (a): Fokus im Ziel, seinem Scan-Knopf, derselben .input-group oder im offenen Select2-Dropdown -> dieses Ziel.

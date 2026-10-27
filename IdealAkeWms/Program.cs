@@ -458,6 +458,7 @@ using (var scope = app.Services.CreateScope())
         ("OseonAmpelGelbTage", "1", "OSEON Ampel: Gelb ab X Tagen vor Termin"),
         ("OseonAmpelBlauTage", "2", "OSEON Ampel: Blau ab X Tagen vor Termin"),
         ("QrMitFaNummer", "false", "QR-Code enthaelt Fertigungsauftragsnummer"),
+        ("QrErstesFeld", "Artikelnummer", "QR-Code: erstes Feld ist Artikelnummer oder Matchcode (Werte: Artikelnummer | Matchcode)"),
     };
     foreach (var (key, value, description) in missingSettings)
     {

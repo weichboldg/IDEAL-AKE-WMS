@@ -1,0 +1,56 @@
+using FluentAssertions;
+using IdealAkeWms.Controllers;
+using IdealAkeWms.Data.Repositories;
+using IdealAkeWms.Models;
+using IdealAkeWms.Services;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ViewFeatures;
+using Moq;
+using Xunit;
+
+namespace IdealAkeWms.Tests.Controllers;
+
+/// <summary>v1.68.0 QrErstesFeld (Spec 2026-10-23-qr-code-matchcode-statt-artikelnummer AK 2): Freitext der /Settings-Maske wird
+/// kanonisch gespeichert, ein ungueltiger Wert speichert nichts und meldet sich.</summary>
+public class SettingsControllerQrErstesFeldTests
+{
+    private static (SettingsController ctrl, Mock<IAppSettingRepository> repo) Build()
+    {
+        var repo = new Mock<IAppSettingRepository>();
+        var ctrl = new SettingsController(repo.Object, Mock.Of<IHolidayRepository>(), Mock.Of<ICurrentUserService>(), Mock.Of<IHolidayImportService>())
+        {
+            ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
+        };
+        ctrl.TempData = new TempDataDictionary(ctrl.HttpContext, Mock.Of<ITempDataProvider>());
+        return (ctrl, repo);
+    }
+
+    [Theory]
+    [InlineData("matchcode", "Matchcode")]
+    [InlineData(" ARTIKELNUMMER ", "Artikelnummer")]
+    public async Task Save_GueltigerWert_KanonischGespeichert(string eingabe, string gespeichert)
+    {
+        var (ctrl, repo) = Build();
+
+        await ctrl.SaveSettings(new Dictionary<string, string> { [AppSettingKeys.QrErstesFeld] = eingabe, [AppSettingKeys.QrMitFaNummer] = "true" });
+
+        repo.Verify(r => r.SetValueAsync(AppSettingKeys.QrErstesFeld, gespeichert), Times.Once);
+        repo.Verify(r => r.SetValueAsync(AppSettingKeys.QrMitFaNummer, "true"), Times.Once);
+        ctrl.TempData["SuccessMessage"].Should().NotBeNull();
+    }
+
+    [Theory]
+    [InlineData("Matchcod")]
+    [InlineData("")]
+    public async Task Save_UngueltigerWert_NichtsGespeichert_Meldung(string eingabe)
+    {
+        var (ctrl, repo) = Build();
+
+        var result = await ctrl.SaveSettings(new Dictionary<string, string> { [AppSettingKeys.QrMitFaNummer] = "true", [AppSettingKeys.QrErstesFeld] = eingabe });
+
+        result.Should().BeOfType<RedirectToActionResult>();
+        repo.Verify(r => r.SetValueAsync(It.IsAny<string>(), It.IsAny<string>()), Times.Never, "kein Wert der Maske wird gespeichert");
+        ctrl.TempData["WarningMessage"].Should().Be("QrErstesFeld: erlaubt sind „Artikelnummer“ oder „Matchcode“ – nichts gespeichert.");
+    }
+}

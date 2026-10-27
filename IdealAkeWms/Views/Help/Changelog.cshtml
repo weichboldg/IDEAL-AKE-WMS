@@ -9,6 +9,23 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.68.0</strong> <span class="text-white-50 ms-2">27.10.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>QR-Code: Matchcode statt Artikelnummer im ersten Feld</h6>
+                <ul>
+                    <li>Neue Einstellung <code>QrErstesFeld</code> unter Einstellungen &rarr; Allgemein: &bdquo;Artikelnummer&ldquo; (wie bisher)
+                        oder &bdquo;Matchcode&ldquo;. Bei Matchcode sucht das WMS den Artikel zum Matchcode im ersten QR-Feld und arbeitet dann wie
+                        mit der Artikelnummer weiter &ndash; auf allen Scan-Seiten, mit Kamera, Bild-Upload und Hardware-Scanner.</li>
+                    <li>Nicht gefunden, mehrdeutig oder Server nicht erreichbar: eine eigene Meldung, es wird nichts ausgefüllt und nichts
+                        abgeschickt.</li>
+                    <li>Artikelinfo: Passt ein eingegebener Matchcode zu mehreren Artikeln, kommt eine Meldung statt still des ersten.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.67.2</strong> <span class="text-white-50 ms-2">23.10.2026</span>
             </div>
             <div class="card-body">

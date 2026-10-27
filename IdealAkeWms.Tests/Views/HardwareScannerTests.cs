@@ -60,7 +60,7 @@ public class HardwareScannerTests
         var guard = layout.LastIndexOf("@if (hwScanAktiv)", script, StringComparison.Ordinal);
         guard.Should().BePositive("das Skript steht im Schalter-Block");
         script.Should().BeLessThan(layout.IndexOf("RenderSectionAsync(\"Scripts\"", StringComparison.Ordinal));
-        layout.Should().Contain("<body data-hw-scan-praefix=\"@hwScanPraefix\" data-hw-scan-abstand=\"@hwScanAbstand\">");
+        layout.Should().Contain("<body data-hw-scan-praefix=\"@hwScanPraefix\" data-hw-scan-abstand=\"@hwScanAbstand\"");  // v1.68.0: weitere body-Attribute dahinter
     }
 
     [Fact]
@@ -233,6 +233,31 @@ public class HardwareScannerTests
         var profil = Read("Views", "Account", "Profile.cshtml");
         profil.Should().Contain("id=\"hwScanOhneFeldAn\"").And.Contain("'wms.hardwareScanner.ohneFeld'")
             .And.Contain("if (ohne.checked) localStorage.setItem(OHNE, 'an'); else localStorage.removeItem(OHNE);", "Standard aus");
+    }
+
+    [Fact]
+    public void QrErstesFeld_MatchcodeZweigNurImGlobalenWrapper_ModusArtikelnummerSynchron()
+    {
+        // Spec 2026-10-23-qr-code-matchcode-statt-artikelnummer AK 27: eine Abfrage-Stelle, innere Auswertung unveraendert.
+        var js = Read("wwwroot", "js", "barcode-scanner.js").Replace("\r\n", "\n");
+        js.Split("url: '/api/articles/by-matchcode").Length.Should().Be(2, "genau eine Abfrage-Stelle");
+        var innen = js[js.IndexOf("function processScannedValue(", StringComparison.Ordinal)..js.IndexOf("function showScanFeedback(", StringComparison.Ordinal)];
+        innen.Should().NotContain("by-matchcode").And.NotContain("data-qr-erstes-feld");
+        var wrapper = js[js.IndexOf("processScannedValue = function (", StringComparison.Ordinal)..];
+        wrapper.IndexOf("by-matchcode", StringComparison.Ordinal).Should().BePositive();
+        wrapper.Should().Contain("""
+    if (!matchcode) {
+        _processScannedValueSync(value, targetSelectId, scanType, qrFaEnabled, faTargetId, nichtGefunden);
+        return;
+    }
+""", "Modus Artikelnummer (kein Attribut) und Nicht-Artikel-Scans: synchron, ohne Abfrage, mit dem optionalen nichtGefunden");
+        wrapper.Should().Contain("scanType === 'article' && document.body.getAttribute('data-qr-erstes-feld') === 'Matchcode'");
+        wrapper.Should().Contain("'“ nicht gefunden'").And.Contain("'“ ist mehrdeutig ('").And.Contain("'“ konnte nicht geprüft werden'");
+
+        var layout = Read("Views", "Shared", "_Layout.cshtml");
+        layout.Should().Contain("data-qr-erstes-feld=\"@qrErstesFeld\"").And.Contain("? \"Matchcode\" : null;", "bei Artikelnummer kein Attribut");
+        Read("Program.cs").Should().Contain("(\"QrErstesFeld\", \"Artikelnummer\",", "Laufzeit-Seed, sonst zeigt /Settings die Zeile nicht");
+        Read("Views", "Settings", "Index.cshtml").Should().Contain("(\"Allgemein\", new[] { \"QrMitFaNummer\", \"QrErstesFeld\" })");
     }
 
     [Fact]

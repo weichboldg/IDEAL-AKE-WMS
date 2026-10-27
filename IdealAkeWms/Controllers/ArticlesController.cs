@@ -222,8 +222,19 @@ public class ArticlesController : Controller
             return View((ArticleInfoViewModel?)null);
 
         var article = await _articleRepository.GetByArticleNumberAsync(articleNumber.Trim());
-        // Kein Treffer über Artikelnummer: exakt (kein Teilstring) über Matchcode nachschlagen (D4).
-        article ??= await _articleRepository.GetByMatchcodeExactAsync(articleNumber.Trim());
+        // Kein Treffer über Artikelnummer: exakt (kein Teilstring) über Matchcode nachschlagen (D4). Mehrdeutig: Meldung statt
+        // still des ersten Treffers (v1.68.0).
+        if (article == null)
+        {
+            var treffer = await _articleRepository.GetByMatchcodeExactAsync(articleNumber.Trim(), 6);
+            if (treffer.Count > 1)
+            {
+                ViewBag.Mehrdeutig = $"Matchcode „{articleNumber.Trim()}“ ist mehrdeutig ({(treffer.Count > 5 ? "mehr als 5" : treffer.Count.ToString())} Artikel: "
+                    + string.Join(", ", treffer.Take(5).Select(a => a.ArticleNumber)) + (treffer.Count > 5 ? ", …" : "") + ") – bitte die Artikelnummer eingeben.";
+                return View((ArticleInfoViewModel?)null);
+            }
+            article = treffer.FirstOrDefault();
+        }
         if (article == null)
         {
             ViewBag.NotFound = articleNumber.Trim();

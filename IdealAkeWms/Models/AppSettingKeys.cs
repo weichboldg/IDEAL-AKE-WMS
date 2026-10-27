@@ -30,6 +30,8 @@ public static class AppSettingKeys
     public const string NegativeBuchungErlaubt = "NegativeBuchungErlaubt";
     public const string NegativeBuchungLagerplatz = "NegativeBuchungLagerplatz";
     public const string QrMitFaNummer = "QrMitFaNummer";
+    /// <summary>v1.68.0: erstes QR-Feld ist "Artikelnummer" (Standard) oder "Matchcode" (Uebersetzung per /api/articles/by-matchcode).</summary>
+    public const string QrErstesFeld = "QrErstesFeld";
 
     // Tracking / Beschichtung
     public const string TeileverfolgungAktiv = "TeileverfolgungAktiv";

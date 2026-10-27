@@ -88,8 +88,16 @@ public class ArticleRepository : Repository<Article>, IArticleRepository
         return rows.ToDictionary(r => r.ArticleNumber, r => r.Matchcode, StringComparer.OrdinalIgnoreCase);
     }
 
-    public async Task<Article?> GetByMatchcodeExactAsync(string matchcode)
-        => await _dbSet.FirstOrDefaultAsync(a => a.Matchcode == matchcode);
+    public async Task<List<Article>> GetByMatchcodeExactAsync(string matchcode, int limit)
+    {
+        // ToUpper/Trim auf beiden Seiten: kollationsunabhaengig und unter InMemory gleich (EF: UPPER(LTRIM(RTRIM()))). Sync und
+        // Handpflege trimmen den Matchcode nicht. ponytail: ohne Index ein Tabellenscan je Scan; Index erst bei gemessener Latenz.
+        var key = matchcode.Trim().ToUpper();
+        return await _dbSet.Where(a => a.Matchcode != null && a.Matchcode.Trim().ToUpper() == key && a.ArticleNumber != Article.DummyArticleNumber)
+                           .OrderBy(a => a.ArticleNumber)
+                           .Take(limit)
+                           .ToListAsync();
+    }
 
     /// <summary>Artikelliste: Spaltenfilter ueber den zentralen SQL-Bauer (Spaltenfilter-Suchsyntax, Etappe B). „beginnt mit“ auf
     /// der Artikelnummer bleibt indexfaehig (<c>LIKE 'x%'</c> ohne <c>LOWER</c>, AK 12).</summary>
