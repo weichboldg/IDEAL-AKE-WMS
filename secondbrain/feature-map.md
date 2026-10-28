@@ -704,6 +704,19 @@ Changelog [[2026-10-21-v1-66-0-hardware-barcodescanner]].
 > **Status:** **Testbereit** v1.66.2 (qa-agent 2026-10-22) — wartet auf Schranke 2 (Manual-UAT TS-99 inkl. 99.14–99.16 + Bündel-Merge).
 > Offen zur Entscheidung: doppelter Klick-Handler am OSEON-Artikelknopf (QA Q3-2, vorbestehend).
 
+### Aktivitäts-Protokoll: Spaltenfilter über alle Einträge, deutsche Namen (v1.70.0, direkt im Bündel)
+
+Spec [[2026-10-16-aktivitaetsprotokoll-filter-und-namen-spec]], Umsetzung [[2026-10-16-aktivitaetsprotokoll-filter-und-namen-umsetzung]],
+Bug [[2026-10-28-aktivitaetsprotokoll-spaltenfilter-nach-paging-bug]], Changelog [[2026-10-28-v1-70-0-aktivitaetsprotokoll-filter-namen]]. TS-102.
+
+| Baustein | Status | Code-Einstieg |
+|---|---|---|
+| Spaltenfilter in SQL vor Count/Skip/Take, Zeitpunkt tageweise, Seiten-Guard | **erledigt** `badbedcc` | `SyncLogRepository.ApplyColumnFilter`, `GetPagedAsync` |
+| Deutsche Anzeigenamen an einer Stelle, Auswahlfeld alphabetisch, Filter über Anzeige- oder technischen Namen | **erledigt** `badbedcc` | `SyncLogServices.DisplayNames`/`DisplayName` |
+
+> **Deploy:** Web; Dienst nur wegen `AppVersion.cs`. Keine Migration, kein Index. Vor Abnahme P-2 (Kollation) und P-3.
+> **Status:** **Testbereit** v1.70.0 (qa-agent 2026-10-28, Nachbesserung `d7dc3d03`) — wartet auf Schranke 2 (Manual-UAT TS-102 + Bündel-Merge).
+
 ### QR-Code: Matchcode statt Artikelnummer (v1.68.0, direkt im Bündel)
 
 Spec [[2026-10-23-qr-code-matchcode-statt-artikelnummer-spec]], Umsetzung [[2026-10-23-qr-code-matchcode-statt-artikelnummer-umsetzung]],
