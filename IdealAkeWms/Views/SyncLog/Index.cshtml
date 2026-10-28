@@ -1,4 +1,5 @@
 @model SyncLogIndexViewModel
+@using IdealAkeWms.Services.SyncLogger
 @{
     ViewData["Title"] = "Aktivitaets-Protokoll";
 }
@@ -11,7 +12,7 @@
             <option value="">&mdash; alle &mdash;</option>
             @foreach (var s in Model.AvailableServices)
             {
-                <option value="@s" selected="@(s == Model.FilterService)">@s</option>
+                <option value="@s" title="@s" selected="@(s == Model.FilterService)">@SyncLogServices.DisplayName(s)</option>
             }
         </select>
     </div>
@@ -56,7 +57,7 @@
                 };
                 <tr>
                     <td>@e.Timestamp.ToString("dd.MM.yyyy HH:mm:ss")</td>
-                    <td>@e.Service</td>
+                    <td title="@e.Service">@SyncLogServices.DisplayName(e.Service)</td>
                     <td><span class="badge @badgeClass">@badgeText</span></td>
                     <td>@e.Reference</td>
                     <td>@e.Message</td>

@@ -11,7 +11,9 @@ namespace IdealAkeWms.Controllers;
 [RequireAdminAccess]
 public class SyncLogController : Controller
 {
-    private static readonly IReadOnlyList<string> KnownServices = SyncLogServices.All;
+    // v1.70.0: Auswahlfeld alphabetisch nach Anzeigename (Antwort 1).
+    private static readonly IReadOnlyList<string> KnownServices =
+        SyncLogServices.All.OrderBy(SyncLogServices.DisplayName, StringComparer.OrdinalIgnoreCase).ToList();
 
     private readonly ISyncLogRepository _repo;
     private readonly ICurrentUserService _currentUser;
@@ -33,35 +35,23 @@ public class SyncLogController : Controller
         var effectivePageSize = PageSize.Resolve(pageSize, userDefaultPageSize);
         var rawPageSize = PageSize.ResolveRaw(pageSize, userDefaultPageSize);
 
-        var (rows, totalCount) = await _repo.GetPagedAsync(service, level, reference, page, effectivePageSize);
-
         var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
-        var filteredRows = ColumnFilterHelper.Apply(rows, columnFilters, SyncLogColumnMap, ColumnFilterTypes.For("SyncLog/Index")).ToList();
+        var (rows, totalCount) = await _repo.GetPagedAsync(service, level, reference, page, effectivePageSize, columnFilters);
 
         return View(new SyncLogIndexViewModel
         {
-            Entries = filteredRows,
+            Entries = rows,
             FilterService = service,
             FilterLevel = level,
             FilterReference = reference,
             AvailableServices = KnownServices.ToList(),
             Pagination = new PaginationState
             {
-                CurrentPage = page,
+                CurrentPage = Math.Max(page, 1),
                 PageSize = effectivePageSize,
                 PageSizeRaw = rawPageSize,
                 TotalCount = totalCount,
             },
         });
     }
-
-    private static readonly Dictionary<string, Func<SyncLog, string?>> SyncLogColumnMap =
-        new(StringComparer.OrdinalIgnoreCase)
-        {
-            ["Timestamp"] = e => e.Timestamp.ToString("dd.MM.yyyy HH:mm:ss"),
-            ["Service"] = e => e.Service,
-            ["Level"] = e => e.Level,
-            ["Reference"] = e => e.Reference,
-            ["Message"] = e => e.Message,
-        };
 }

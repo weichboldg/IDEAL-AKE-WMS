@@ -48,4 +48,38 @@ public static class SyncLogServices
         PartRequisitionEmail, WarehouseRequisitionEmail, BdeAutoPause,
         CleanupActivityLog,
     };
+
+    /// <summary>Deutsche Anzeigenamen fuer Auswahlfeld, Tabellenspalte und Spaltenfilter im Aktivitaets-Protokoll (v1.70.0).
+    /// Namen nach dem Text, mit dem der Dienst den Lauf im Log nennt. Technischer Name bleibt Wert/Tooltip.</summary>
+    public static IReadOnlyDictionary<string, string> DisplayNames { get; } = new Dictionary<string, string>
+    {
+        [Lagerplatz] = "Lagerplatz-Sync",
+        [Lagerbestand] = "Lagerbestand-Sync",
+        [BomCache] = "BOM-Cache-Sync",
+        [OseonTracking] = "OSEON-Tracking-Sync",
+        [OseonWorkplaces] = "Werkbank-Sync (OSEON → Produktionsaufträge)",
+        [OseonArticleCategories] = "OSEON-Artikelkategorie-Sync",
+        [EnaioDms] = "enaio DMS-Sync",
+        [Holiday] = "Feiertags-Sync",
+        [CoatingDetection] = "Lackierteil-Erkennung",
+        [FaWorkStepDetection] = "FA-Arbeitsgang-Erkennung (BOM-Cache)",
+        [ProductionOrder] = "Produktionsaufträge-Sync",
+        [ProductionOrderReconciliation] = "FA-Reconciliation (Storno verwaister FAs)",
+        [Article] = "Artikel-Sync",
+        [FaZusatzinfo] = "FA-Zusatzinfo-Sync",
+        [SageLagerbuchung] = "Sage-Lagerbuchung",
+        [FaHierarchy] = "FA-Hierarchie-Sync",
+        [HierarchieUmstellung] = "FA-Hierarchie-Umstellung",
+        [FaMaterialization] = "FA-Materialisierung",
+        [WorkOperationStructureDetection] = "Arbeitsgang-Erkennung (Struktur)",
+        [ProductionWorkplaceSync] = "Werkbank-Anlage (Sage-Arbeitsplätze)",
+        [OperationConfigSync] = "Arbeitsgang-Abgleich (Sage-View)",
+        [PartRequisitionEmail] = "Bedarfsmeldungs-E-Mail-Versand",
+        [WarehouseRequisitionEmail] = "Lagerbestellungs-E-Mail-Versand",
+        [BdeAutoPause] = "BDE-AutoPause",
+        [CleanupActivityLog] = "Aktivitätsprotokoll-Bereinigung",
+    };
+
+    /// <summary>Anzeigename; unbekannter Name (Altzeile) bleibt technisch.</summary>
+    public static string DisplayName(string service) => DisplayNames.TryGetValue(service, out var name) ? name : service;
 }

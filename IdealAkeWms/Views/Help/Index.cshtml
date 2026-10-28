@@ -1944,7 +1944,7 @@
                 <h3>Aktivitaets-Protokoll</h3>
                 <p>
                     Alle Background-Sync-Jobs schreiben Lifecycle- und Diagnose-Eintraege ins Aktivitaets-Protokoll
-                    (verfuegbar unter <em>Stammdaten &rarr; Aktivitaets-Protokoll</em>, Rolle <code>masterdata</code> oder
+                    (verfuegbar unter <em>Stammdaten &rarr; Aktivitaets-Protokoll</em>, nur Rolle
                     <code>admin</code>):
                 </p>
                 <ul>
@@ -1955,11 +1955,16 @@
                         aktualisiert=5, uebersprungen=0" bzw. "Run fehlgeschlagen: {grund} &mdash; counts".</li>
                 </ul>
                 <p>
-                    Aktivitaet-Filter im Dropdown: Lagerplatz, Lagerbestand, BomCache, OseonTracking,
-                    OseonWorkplaces, OseonArticleCategories, EnaioDms, Holiday, CoatingDetection,
-                    FaWorkStepDetection, ProductionOrder, ProductionOrderReconciliation, Article,
-                    FaZusatzinfo, PartRequisitionEmail, WarehouseRequisitionEmail, BdeAutoPause,
-                    CleanupAktivitaetsprotokoll.
+                    Aktivitäten im Auswahlfeld (seit v1.70.0 deutsch, alphabetisch; der technische Name steht in Klammern und
+                    als Tooltip, Lesezeichen mit <code>?service=&hellip;</code> bleiben gültig): Aktivitätsprotokoll-Bereinigung (<code>CleanupAktivitaetsprotokoll</code>), Arbeitsgang-Abgleich (Sage-View) (<code>OperationConfigSync</code>), Arbeitsgang-Erkennung (Struktur) (<code>WorkOperationStructureDetection</code>), Artikel-Sync (<code>Article</code>), BDE-AutoPause (<code>BdeAutoPause</code>), Bedarfsmeldungs-E-Mail-Versand (<code>PartRequisitionEmail</code>), BOM-Cache-Sync (<code>BomCache</code>), enaio DMS-Sync (<code>EnaioDms</code>), FA-Arbeitsgang-Erkennung (BOM-Cache) (<code>FaWorkStepDetection</code>), FA-Hierarchie-Sync (<code>FaHierarchy</code>), FA-Hierarchie-Umstellung (<code>HierarchieUmstellung</code>), FA-Materialisierung (<code>FaMaterialization</code>), FA-Reconciliation (Storno verwaister FAs) (<code>ProductionOrderReconciliation</code>), FA-Zusatzinfo-Sync (<code>FaZusatzinfo</code>), Feiertags-Sync (<code>Holiday</code>), Lackierteil-Erkennung (<code>CoatingDetection</code>), Lagerbestand-Sync (<code>Lagerbestand</code>), Lagerbestellungs-E-Mail-Versand (<code>WarehouseRequisitionEmail</code>), Lagerplatz-Sync (<code>Lagerplatz</code>), OSEON-Artikelkategorie-Sync (<code>OseonArticleCategories</code>), OSEON-Tracking-Sync (<code>OseonTracking</code>), Produktionsaufträge-Sync (<code>ProductionOrder</code>), Sage-Lagerbuchung (<code>SageLagerbuchung</code>), Werkbank-Anlage (Sage-Arbeitsplätze) (<code>ProductionWorkplaceSync</code>), Werkbank-Sync (OSEON &rarr; Produktionsaufträge) (<code>OseonWorkplaces</code>).
+                    Ältere Einträge mit einem früheren technischen Namen erscheinen unverändert technisch.
+                </p>
+                <p>
+                    <strong>Spaltenfilter (seit v1.70.0):</strong> Die Spaltenfilter durchsuchen alle Einträge, nicht nur die angezeigte
+                    Seite; Trefferzahl, Seitenleiste und CSV-Export zählen nur Treffer. &bdquo;Aktivität&ldquo; trifft den deutschen
+                    oder den technischen Namen (z.&nbsp;B. <code>abgleich</code> oder <code>OperationConfig%</code>). &bdquo;Zeitpunkt&ldquo;
+                    filtert tageweise wie die Bewegungshistorie (Tag, Monat, Jahr, <code>&gt;=</code>, <code>a...b</code>); Uhrzeit-Teile
+                    wie <code>14:3</code> wirken nicht.
                 </p>
                 <h6 class="mt-3">Automatische Bereinigung (seit v1.25.0)</h6>
                 <p class="mb-1">
