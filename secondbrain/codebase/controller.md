@@ -62,7 +62,7 @@ Rollen-Bedeutungen: [[glossar]].
 | `[RequireStockReadAccess]` | admin, stock, stock_keyuser, picking, stock_read | StockOverviewController (class-level), StockMovementsController.Index — read-only Bestaende + Bewegungshistorie (seit v1.25.0) |
 | `[RequireLagerProcessingAccess]` | admin, stock, stock_keyuser | WarehousePickingController, MissingPartsLagerController (picker explizit ausgeschlossen) |
 | `[RequireStockKeyUserAccess]` | admin, stock_keyuser, picking | StockMovementsController (Lagerplatz ausbuchen/umbuchen) |
-| `[RequirePickingOrTrackingOrLeitstandAccess]` | admin, picking ODER tracking ODER leitstand | ProductionOrdersController (slim Index) |
+| `[RequirePickingOrTrackingOrLeitstandAccess]` | admin, picking ODER tracking ODER leitstand **ODER vorbau** (seit v1.25.0, Filter-Name unveraendert; Code: `CanPick \|\| CanViewTracking \|\| CanManagePickingRelease \|\| HasVorbauAccess`) | ProductionOrdersController (slim Index), FaHierarchyController (class-level), SageSdataFaController (class-level, v1.71.0; plus Gate `SageSdataFaAnsichtAktiv` inline) |
 | `[RequirePickingOrLeitstandAccess]` | admin, picking ODER leitstand | PickingLeitstandController (class-level) |
 | `[RequirePickingOrStockAccess]` | picking ODER stock | PartRequisitionsController |
 | `[RequirePickingOrStockOrLagerbestellungAccess]` | admin, picking, stock, stock_keyuser, lagerbestellung ODER glasbestellung | WarehouseRequisitionsController, WarehouseRequisitionsApiController |

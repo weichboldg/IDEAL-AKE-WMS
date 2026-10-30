@@ -2,11 +2,11 @@
 type: spec
 title: FA-Struktur und Stückliste live aus Sage per SData anzeigen (Machbarkeitsnachweis, nur lesen)
 slug: 2026-10-30-sage-sdata-fa-ansicht-spec
-status: Entwurf
+status: Testbereit
 created: 2026-10-30
 updated: 2026-10-30
 source_backlog: "[[2026-10-30-sage-sdata-fa-ansicht]]"
-task: ""
+task: "[[2026-10-30-sage-sdata-fa-ansicht-umsetzung]]"
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
 branch: "feature/2026-08-07-ideal-teile-1-5"
 version_vorschlag: "1.71.0"
@@ -40,9 +40,9 @@ deploy:
   web: true
   service: false
   migration: false
-freigabe_entscheidung: ""
-freigabe_von: ""
-freigabe_am: ""
+freigabe_entscheidung: "Antworten 1-4 wie Vorschlag Koordination; Review-Vorschlaege uebernommen (siehe Freigabe-Nachtrag)"
+freigabe_von: "Gerald Weichbold (per Auftrag /dev an die Koordination)"
+freigabe_am: "2026-10-30"
 ---
 
 # FA-Struktur und Stückliste live aus Sage per SData anzeigen
@@ -431,12 +431,22 @@ Entfällt (`epic: false`). Eine Umsetzung, ein Commit im Bündel-Worktree.
 
 ## Deploy
 
-*Vorläufig, der QA-Lauf bestätigt das gegen den echten Diff.*
+*Finalisiert im QA-Lauf 2026-10-30 aus dem echten Diff `d7dc3d03..0fe5e7c7` (Commits 00c368d6, 8c09ab87, QA-Fix 0fe5e7c7).*
 
-- **Web-App:** ja (neuer Controller/View/Client, Layout, Program.cs).
-- **Service:** nein (nur der Versions-Bump in `IDEALAKEWMSService/AppVersion.cs`; ein Service-Deploy ist allein dafür
-  nicht nötig).
-- **Migration:** nein.
+- **Web-App:** ja (`IdealAkeWms/`: neuer Controller/View/Client/ViewModel, Program.cs, Layout, AppSettingKeys,
+  StandortSettingsCatalog, Beschreibungstext ServiceSettingDefinitions/SageTlsPolicy, Hilfe, Changelog, AppVersion).
+- **Service:** nein. Unter `IDEALAKEWMSService/` hat sich nur `AppVersion.cs` (1.71.0) geändert; ein Service-Deploy ist
+  allein dafür nicht nötig (der Dienst zeigt dann weiter 1.70.0 an – bewusst).
+- **Migration:** nein. Kein neuer Ordner-Eintrag unter `*/Migrations/`, `SQL/` und `SQL/00_FreshInstall.sql` unverändert,
+  kein `SQL/Einmalig/`-Skript. Kein DB-Backup speziell für diesen Stand nötig.
+- **Reihenfolge am Testsystem:** (1) `appsettings.Production.json` im Web-Ordner anlegen (siehe Server-Konfiguration
+  unten, Nachtrag 3), (2) Web publishen und kopieren – Zielordner **nicht** vorher leeren, sonst ist die Datei weg, (3)
+  App-Pool recyceln, (4) `/ServiceSettings` `SData:BaseUrl`/`SData:Dataset` prüfen, (5) Schalter einschalten, (6) TS-103.
+- **Server-Konfiguration (gilt statt des Rumpf-Absatzes darunter, Freigabe-Nachtrag 3):** Zugangsdaten in
+  `appsettings.Production.json` im Web-Ordner auf dem Server (`{"SageLagerbuchung":{"Username":"…","Password":"…"}}`),
+  nicht im Repo; die Repo-`appsettings.json` ist im Diff unverändert. README „Web-App: Sage-Zugangsdaten“.
+- **Nach dem Merge:** nur dann erneut aus `main` publishen, wenn der Merge getestete Dateien mit parallelen
+  `main`-Änderungen zusammengeführt hat.
 - **Version:** Worktree steht auf **1.70.0** (IdealAkeWms/AppVersion.cs:5, IDEALAKEWMSService/AppVersion.cs:5,
   2026-10-28) → Vorschlag **1.71.0** in beiden `AppVersion.cs` + `Views/Help/Changelog.cshtml` + Brain-Changelog
   `secondbrain/changelog/2026-10-30-v1-71-0-sage-sdata-fa-ansicht.md`. Keine andere Spec reserviert 1.71.
@@ -474,6 +484,40 @@ Entfällt (`epic: false`). Eine Umsetzung, ein Commit im Bündel-Worktree.
    `CsvExportCoverageTests` sie nicht erfasst)? Oder als `filterable-table` im Client-Mode? *Empfehlung:* Ausnahme,
    weil es eine Detail- und Diagnoseansicht einer einzigen Struktur ist und keine Datenliste.
 
+## Freigabe-Nachtrag (Koordination 2026-10-30, nach /review – geht dem Rumpf vor)
+
+Der Review-Lauf ([[2026-10-30-sage-sdata-fa-ansicht-spec]], Abschnitt Review) hat drei einfachere Lösungen und Lücken genannt. Gerald hat
+mit dem Auftrag zum Dev-Lauf die Antworten 1–4 und die folgenden Punkte bestätigt. Sie **ersetzen** die betroffenen Stellen im Rumpf:
+
+1. **Aufrufe (ersetzt F-3, F-6, Aufrufzahl, AK 5/12, TS-103.3):** Je Quelle **ein** Aufruf mit `or`-verknüpftem `where` über alle BelIDs der
+   Struktur, **höchstens 50 BelIDs je Aufruf**, darüber stückeln. Gilt für Positionen (`dtsTeileverwendungsnachweis`), Rückmeldungen
+   (`dtsRueckKorrektur`) und Fertigmeldungen (`dtsFertigmeldungen`). Belegt 2026-10-30: `or` liefert 200 auf allen vier Quellen, 7 BelIDs
+   in einem Positionsaufruf → 17 Zeilen. Seitenaufbau Struktur 835 = **5 Aufrufe** (BelID→StrukturID, Struktur, Positionen,
+   Rückmeldungen, Fertigmeldungen). Positionen werden im Builder nach `BelID` gruppiert.
+2. **Fehlerpfad (ergänzt F-9):** Nach dem **ersten Verbindungsfehler** (Status 0: nicht erreichbar, Timeout, TLS) werden die übrigen Aufrufe
+   übersprungen und in der Diagnose als „übersprungen“ geführt. HTTP-Fehler (401/403/500) einer Quelle brechen nicht ab.
+3. **Zugangsdaten (ersetzt Deploy „Server-Konfiguration“):** `SageLagerbuchung:Username/Password` für die Web-App in einer
+   **`appsettings.Production.json` im Web-Ordner auf dem Server** (nicht im Repo, nicht im Publish-Ordner-Inhalt; `web.config` setzt
+   `ASPNETCORE_ENVIRONMENT=Production`, die Datei wird automatisch geladen und vom Publish nicht überschrieben). Im Repo bleibt die
+   `appsettings.json` **ohne** diesen Abschnitt. README: Abschnitt „Web-App: Sage-Zugangsdaten“ mit Hinweis, dass Dienst und Web zwei
+   Stellen sind.
+4. **TLS-Schalter (ersetzt Baustein 2, Registrierung):** Den Wert von `SageLagerbuchungSslZertifikatPruefen` liest der **Controller** einmal je
+   Seitenaufbau aus `IServiceSettingRepository` und gibt ihn **je Anfrage über `HttpRequestMessage.Options`** mit; der
+   `ServerCertificateCustomValidationCallback` liest nur diese Option (Default: prüfen). Kein DB-Zugriff, kein Scope, kein Warten im
+   Callback. TS-103.11 ergänzen: Umschalten wirkt erst auf neue Verbindungen.
+5. **Wurzel-Kriterium (präzisiert F-1/F-5c):** `StrukturID ≤ 0` oder fehlend → Meldung „Struktur ohne gültige StrukturID“, keine
+   Folgeaufrufe. Unit-Test und **TS-103.3b** mit `belId=846` (Wurzel `VerursacherTyp = VK`, 3 FAs).
+6. **Konfigurationsprüfung (ergänzt F-8):** Eine `SData:BaseUrl` mit Userinfo (`user:pw@`) wird als „nicht konfiguriert: BaseUrl enthält
+   Zugangsdaten“ abgelehnt; kein Aufruf.
+7. **Mengen (Antwort 3, in F-3):** Spaltenkopf „Menge je Einheit“, keine Bedarfsrechnung.
+8. **ADR-0005-Ausnahme (Antwort 4, in Baustein 5):** Positionstabellen **ohne** `filterable-table`, ohne Pagination/Spaltenfilter/
+   Spaltenauswahl/CSV; Begründung „hierarchische Detail-/Diagnoseansicht einer Struktur“ im Code-Kommentar und in der Spec.
+9. **Artikelstückliste (Antwort 2):** nicht in diesem Lauf; Folgeaufgabe in `secondbrain/aufgaben/` anlegen.
+10. **Tests (Review-Schwerpunkt 6):** zusätzliche Fälle synthetisch im Testcode, keine weiteren JSON-Dateien: VK-Wurzel, zweistufige
+    Struktur, derselbe Artikel an zwei Positionen, zwei Sub-FAs gleicher Artikel, Sub-FA ohne Position, Termin ohne Zeitzone, Eingabe einer
+    Sub-FA, `StrukturID ≤ 0`, Stückelung bei > 50 BelIDs, Abbruch nach Verbindungsfehler. `RequestUri.AbsoluteUri` prüfen (Leerzeichen
+    `%20`, `'` und `;` literal).
+
 ## Freigabe-Antworten (Mensch fuellt aus — Schranke 1)
 
 <!--
@@ -484,7 +528,8 @@ Entfällt (`epic: false`). Eine Umsetzung, ein Commit im Bündel-Worktree.
   Bei Varianten-Specs zusaetzlich freigabe_entscheidung im Frontmatter setzen.
 -->
 
-*Vorschlag der Koordination 2026-10-30 nach den Prüfergebnissen; von Gerald noch nicht bestätigt – gilt erst mit der Freigabe.*
+*Vorschlag der Koordination 2026-10-30 nach den Prüfergebnissen; **von Gerald bestätigt am 2026-10-30** (Auftrag /dev). Details und
+Review-Übernahmen im Freigabe-Nachtrag oben.*
 
 1. Rückmeldestand: A (alle mitladen) / B (auf Klick) / C (ein or-Aufruf je Quelle, nach P-3) → **C.** P-3 belegt `or` auf
    dtsRueckKorrektur, dtsFertigmeldungen (gleiche Quelle-Art) und dtsFaBelegsuche. Zwei Aufrufe je Seitenaufbau, kein JS.
@@ -655,3 +700,167 @@ Keine Freigabe, keine Antwort im Freigabe-Block geändert.*
 
 **Empfehlung:** NACHBESSERUNG NOETIG: Antworten von Gerald bestätigen lassen (B-1), P-3 für dtsFertigmeldungen nachholen
 oder Rückfall festlegen (B-2), Entscheidungen in Rumpf/AK/TS ziehen (B-3). S-3 bis S-5 vor dem Dev-Lauf entscheiden.
+
+## Umsetzung (Dev-Lauf 2026-10-30)
+
+Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Zweig `feature/2026-08-07-ideal-teile-1-5`, Start `d7dc3d03` (v1.70.0).
+Commits: `00c368d6` (wip: Client, Builder, Controller, View), `8c09ab87` (wip: feature-complete, v1.71.0, TS-103).
+Umgesetzt nach Rumpf **und Freigabe-Nachtrag** (Nachtrag geht vor).
+
+**Bausteine**
+- `Services/SageSdata/SageSdataFaModels.cs`: Records `SageFaKopf`, `SageFaPosition`, `SageRueckmeldung`, `SdataFeed<T>`, `SdataCall`
+  (Status 0 = Verbindungsfehler, `Uebersprungen`), `SdataErgebnis<T>`, `SdataLeseZiel` (ToString ohne Zugangsdaten), `SageBool`,
+  `SageSdataQuellen` (Quellen, Selects, `OrBloecke` à 50).
+- `Services/SageSdata/SageSdataReadClient.cs`: Interface + Client in **einer** Datei (Abweichung von `affected_code`, die zwei Dateien
+  nannte; ponytail). Nur GET, Contract-Konstante `RealTimeData`, leeres `where` → `ArgumentException`, TLS-Schalter je Anfrage in
+  `HttpRequestMessage.Options`, `ZertifikatAkzeptieren` als reine Funktion (Default prüfen).
+- `Services/SageSdata/SageSdataFaTreeBuilder.cs`: Wurzel `BelID = StrukturID` (VerursacherTyp egal), Zuordnung nur eindeutig, Meldungen
+  statt stiller Zuordnung, fremde BelIDs gemeldet, Zyklenschutz, `Summiere` je BelID.
+- `Controllers/SageSdataFaController.cs` + `Models/ViewModels/SageSdataFaViewModel.cs` + `Views/SageSdataFa/Index.cshtml`: Gate inline,
+  Konfigurationsprüfung (BaseUrl/Dataset/Username, `@` in BaseUrl), 5 Aufrufe sequenziell, Abbruch nach erstem Status 0 (Rest
+  „übersprungen“), HTTP-Fehler einer Quelle ohne Abbruch (an den betroffenen FAs „… nicht geladen (HTTP n)“). View ohne
+  `filterable-table` (ADR-0005-Ausnahme als Razor-Kommentar), `table-responsive`, Status-Badges mit Text, kein JS.
+- `Program.cs`: `AddHttpClient` (Timeout 20 s), Callback liest nur die Anfrage-Option — kein DB-Zugriff, kein Scope.
+- Schalter `AppSettingKeys.SageSdataFaAnsichtAktiv` + Katalogzeile „Sage-Live-Ansicht FA-Struktur aktiv“ (Feature-Schalter), Menüpunkt
+  „FA-Struktur (Sage live)“ hinter `showFaHierarchy && sageSdataFaAktiv`.
+- Beschreibungstexte `SageLagerbuchungSslZertifikatPruefen` (Katalog) und `SageTlsPolicy` auf „Sage-SData-Clients“ angepasst; Key/Default unverändert.
+- **Web-`appsettings.json` unverändert** (Nachtrag 3): Zugangsdaten nur in `appsettings.Production.json` auf dem Server; README-Abschnitt
+  „Web-App: Sage-Zugangsdaten“.
+- Doku: Hilfe „FA-Struktur live aus Sage (seit v1.71.0)“, Changelog v1.71.0, README (AppSetting + Abschnitt), TS-103 (103.1–103.13 inkl.
+  103.3b), beide `AppVersion.cs` 1.71.0 / 2026-10-30. Brain: [[testszenarien-index]], Folgeaufgabe
+  [[2026-10-30-sage-sdata-artikelstueckliste-soll-spalte]].
+
+**Nicht angefasst (Diff-Nachweis für AK 17):** `FaHierarchy*`, `FaHierarchyNode`, `FaHierarchySyncService`, `SageLagerbuchungClient`,
+Buchungs-Queue, Migrationen, `SQL/`, `IdealAkeWms/appsettings.json`.
+
+**Beweis (Worktree, 2026-10-30, nach `8c09ab87`):**
+- `dotnet build IdealAkeWms.slnx` → `0 Fehler`.
+- `dotnet test IdealAkeWms.slnx` → Web `Bestanden! Fehler: 0, erfolgreich: 2254, übersprungen: 1, gesamt: 2255`; Dienst
+  `Bestanden! Fehler: 0, erfolgreich: 328, übersprungen: 0, gesamt: 328`.
+- Neu: 41 Tests (`SageSdataFaTreeBuilderTests` 14, `SageSdataReadClientTests` 12, `SageSdataFaControllerTests` 15). `CsvExportCoverageTests`
+  und `ResponsiveCssTests` grün.
+
+**Nicht automatisiert prüfbar (Manual-UAT TS-103):** echter SData-Aufruf, Netz/Firewall vom IIS-Host, TLS-Kette, Zugangsdaten aus
+`appsettings.Production.json`, Rendering/Sprungmarken, Mehrdeutigkeit mit echten Daten (Test-Mandant hat keinen Fall).
+
+**Zusatzfund (nicht gebaut):** Sprungmarke „Sub-FA …“ auf eine zugeklappte Sub-FA-Karte zeigt nur deren Kopfzeile; aufklappen per Klick.
+Bewusst ohne JS gelassen (Spec Baustein 5).
+
+## QA-Nachweis (qa-agent, 2026-10-30)
+
+Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Diff `d7dc3d03..8c09ab87` geprüft, QA-Fix-Commit **`0fe5e7c7`**.
+Review synchron in diesem Lauf, nicht delegiert.
+
+### 1. Build und Tests (nach QA-Fix 0fe5e7c7)
+
+- `dotnet build IdealAkeWms.slnx` → `0 Fehler`, 27 Warnungen (alle vorbestehend, keine in neuen Dateien).
+- `dotnet test IdealAkeWms.slnx`:
+  - `IdealAkeWms.Tests`: `Bestanden! Fehler: 0, erfolgreich: 2254, übersprungen: 1, gesamt: 2255`
+  - `IDEALAKEWMSService.Tests`: `Bestanden! Fehler: 0, erfolgreich: 328, übersprungen: 0, gesamt: 328`
+- Vor dem Fix identisch (2254/1/2255 bzw. 328/0/328).
+
+### 2. Code-Review – Befunde und Behandlung
+
+| # | Schwere | Befund | Behandlung |
+|---|---|---|---|
+| Q-1 | mittel | **Stille Umdeutung:** Ein 2xx-Body, der kein JSON ist (z. B. HTML-Loginseite eines Proxys), lieferte `SdataCall` mit Status 200 + Fehler „Antwort nicht lesbar“, aber `Erfolgreich = true` (`SageSdataFaModels.cs`, nur Statusbereich geprüft). Folge: Suche → „BelID … in Sage nicht gefunden“, Positionen → „Keine Positionen.“ ohne Banner. Klasse „fehlend wird zu einem Wert“. | **behoben** 0fe5e7c7: `Erfolgreich` verlangt zusätzlich `Fehler is null`. Damit greifen Banner, „Positionen nicht geladen (…)“ und Diagnose-Badge „200 Fehler“. Test `UnlesbaresJson_KeineException` prüft jetzt `Erfolgreich == false`, `Verbindungsfehler == false`. |
+| Q-2 | niedrig | Übersprungene Aufrufe trugen immer „übersprungen (vorheriger Verbindungsfehler)“, auch wenn Suche/Struktur mit HTTP 401/403 scheiterte (TS-103.10) – irreführende Diagnose. | **behoben** 0fe5e7c7: Text „übersprungen (vorheriger Aufruf fehlgeschlagen)“. |
+| Q-3 | niedrig (Bedienbarkeit) | `<summary class="card-header d-flex …">`: `display:flex` nimmt dem `<summary>` das Auf/Zu-Dreieck (Marker hängt an `display:list-item`). Zugeklappte Sub-FA-Karten hätten kein sichtbares Bedien-Signal. | **behoben** 0fe5e7c7: Flex auf inneres `<span class="d-inline-flex …">`, `summary` behält den Marker; `cursor:pointer`. Sichtprüfung siehe Checkliste Punkt 5. |
+| Q-4 | Hinweis | `Summiere`: `MengeGut ?? 0m` – eine Rückmeldung ohne `MengeGut` zählt in der Anzahl, trägt 0 zur Summe bei. Feldtyp/Nullbarkeit ungeprüft (P-4, Test-Mandant leer). | offen gelassen, P-4 klärt; Anzahl wird getrennt angezeigt, also nicht verdeckt. |
+| Q-5 | Hinweis | View: Schlägt nur `dtsFertigmeldungen` fehl, zeigen **beide** Felder „nicht geladen“ (ein gemeinsames `RueckmeldungenNichtGeladen`); der Warnungstext darunter nennt die richtige Quelle. | offen gelassen (kosmetisch). |
+| Q-6 | Hinweis | Sprungmarke auf eine zugeklappte Sub-FA zeigt nur deren Kopfzeile (bereits im Dev-Lauf als Zusatzfund vermerkt, ohne JS bewusst). | offen gelassen. |
+| Q-7 | Hinweis | TLS-Schalter wirkt je Verbindung: eine mit `false` aufgebaute Verbindung bedient bis zum Ablauf der Handler-Lebensdauer (2 min) auch Anfragen nach dem Umschalten auf `true`. Dokumentiert (Program.cs-Kommentar, TS-103.11). | so gewollt (Nachtrag 4). |
+
+**Geprüft ohne Befund:**
+- *Baumaufbau/Zuordnung* (`SageSdataFaTreeBuilder.cs`): Wurzel nur `BelID = StrukturID`; Zuordnung nur bei genau 1 Sub-FA
+  je Artikel **und** genau 1 MA-Position über alle FAs der Struktur; Mehrdeutigkeit, Sub-FA ohne Position, ohne Artikel, fremde
+  BelIDs, Zyklus/unerreichbar → Meldung + `NichtZugeordnet` mit Positionen; `besucht`-Menge; Positionen per `BelID` gruppiert.
+- *or-Blöcke à 50*: `SageSdataQuellen.OrBloecke` und der Controller-`Zip` teilen dieselbe `Distinct`-Folge in gleicher
+  Reihenfolge → Block-where und Block-IDs passen zusammen (Test `MehrAlsFuenfzigFas_JeQuelleZweiBloecke`).
+- *Abbruch*: erster Status 0 setzt `abgebrochen`, alle Folgeaufrufe (auch weitere Blöcke) „übersprungen“, betroffene FAs
+  „… nicht geladen (übersprungen)“; HTTP-Fehler bei Positionen/Rückmeldungen brechen nicht ab (Banner + Kennzeichnung an den
+  FAs des Blocks); HTTP-Fehler bei Suche/Struktur → Abbruch mit Banner (Review S-5.1).
+- *Sicherheit*: nur `HttpMethod.Get`; Basic-Auth nur im Header; `SdataLeseZiel.ToString` ohne Zugangsdaten; Logs nur URL;
+  Exception-Texte nennen Host/Grund; `BaseUrl` mit `@` → „nicht konfiguriert“; `where` nur aus `int` (`belId`, `StrukturID`,
+  `BelID` aus der Sage-Antwort), `orderBy` Konstante; TLS-Callback liest nur `HttpRequestMessage.Options`, fehlende Option →
+  prüfen (Test `ZertifikatsCallback_LiestNurDieOptionDerAnfrage_DefaultPruefen`); kein DB-Zugriff im Handshake.
+- *Server-Validierung*: `belId` ≤ 0 und nicht bindbarer Text werden im Controller abgewiesen (`ModelState`), nicht nur per
+  `min="1"` im Browser.
+- *View*: keine `<script>`-Blöcke, kein `@Html.Raw`, Razor kodiert Rohdaten/Fehlertexte; kein `hidden` + `d-*`; Status- und
+  Typ-Badges tragen Text (Eingelastet/Begonnen/Beendet/Gesperrt/Nicht eingelastet, MA/AG/VS); Eingabe mit `<label for>` und
+  `aria-describedby`; Banner mit `role`.
+- *Hausmuster*: TempData nur `WarningMessage`; Gate „nur true“ (OrdinalIgnoreCase wie
+  `RequireFaHierarchyKommissionierlistenAktivAttribute.cs:47` und Layout); Default aus, kein Seed; Class-Level-Filter
+  `[RequirePickingOrTrackingOrLeitstandAccess]` wie FaHierarchyController; ADR-0005-Ausnahme als Razor-Kommentar, Tabellen
+  ohne `filterable-table` (`CsvExportCoverageTests` grün); UI-Texte deutsch.
+- *Grenzen (AK 17)*: `git diff --stat d7dc3d03..8c09ab87 -- '*FaHierarchy*' '*Migrations*' SQL IdealAkeWms/appsettings.json
+  IDEALAKEWMSService/Services IDEALAKEWMSService/Workers` → **leer**. Kein neuer ServiceSettings-Key (nur Beschreibungstext).
+- Bewusste Abweichung Interface + Client in einer Datei: akzeptiert.
+
+### 3. Beweisart je Akzeptanzkriterium
+
+| AK | Beweis |
+|---|---|
+| 1 Gate aus | Unit `GateAus_RedirectHomeMitWarnung_KeinAufruf`; Menü: **Manual-UAT TS-103.1** |
+| 2 ohne Rolle → AccessDenied | **Manual-UAT TS-103.2** (Filter-Attribut, kein Controller-Test) |
+| 3 Menüpunkt, ohne belId kein Aufruf | Unit `OhneBelId_NurFormular_KeinAufruf`; Menü **Manual-UAT TS-103.2** |
+| 4 nicht konfiguriert (+ Nachtrag 6) | Unit `NichtKonfiguriert_NenntKeys_KeinAufruf`, `BaseUrlMitZugangsdaten_NichtKonfiguriert_KeinAufruf`; TS-103.8 |
+| 5 Struktur 835 (Nachtrag 1: 5 Aufrufe) | Unit `Fixture835_HauptFaMitSechsSubFas_KeineMeldung`, `Struktur835_FuenfAufrufe_OrJeQuelle_TlsSchalterImZiel` (Mock-Client); echte Sage-Antwort/Rendering **Manual-UAT TS-103.3**; VK-Wurzel Unit `VkWurzel_IstHauptFa_KeineMeldung` + TS-103.3b |
+| 6 Sub-FA-Eingabe | Unit `SubFaEingabe_HinweisUndGanzeStruktur`; TS-103.4 |
+| 7 unbekannte BelID | Unit `UnbekannteBelId_NichtGefunden_EinAufruf`; TS-103.5 |
+| 8 ungültige Eingabe | Unit `UngueltigeBelId_Validierung_KeinAufruf`, `TextEingabe_Validierung_KeinAufruf` (ModelState simuliert – echte Modellbindung **Manual-UAT TS-103.5**) |
+| 9 Mehrdeutigkeit | Unit `ZweiSubFasGleicherArtikel_Meldung_BeideNichtZugeordnet`, `GleicherArtikelAnZweiPositionen_Meldung_KeineZuordnung`; manuell nur mit Datensatz (TS-103.6, Test-Mandant ohne Fall) |
+| 10 nicht erreichbar/Timeout/TLS (+ Nachtrag 2) | Unit `Verbindungsfehler_Status0_MeldungOhneZugangsdaten`, `Timeout_Status0_Zeitueberschreitung`, `VerbindungsfehlerBeiSuche_AlleWeiterenUebersprungen`, `VerbindungsfehlerBeiPositionen_RestUebersprungen`; echtes Netz/TLS **Manual-UAT TS-103.9/103.11** |
+| 11 HTTP 401/403/500 | Unit `Http403_LeereListe_StatusUndBody_OhneException`, `Http403BeiRueckmeldungen_BrichtNichtAb`; TS-103.10 |
+| 12 Diagnose ohne Zugangsdaten, Rohdaten ≤ 4000 | Unit `Rohdaten_AufViertausendZeichenGekuerzt`, `LeseZiel_ToString_OhneZugangsdaten`, `Verbindungsfehler_Status0_MeldungOhneZugangsdaten`; Darstellung TS-103.12 |
+| 13 URL-Form, where-Sperre | Unit `Struktur_GesendeteUrl_MethodeUndAuth`, `StringWhere_ApostrophUndSemikolonBleibenLiteral` (`AbsoluteUri`), `LeeresWhere_ArgumentException_OhneRequest`, `OrBloecke_HoechstensFuenfzigJeBlock_OhneDoppelte`, `MehrAlsFuenfzigFas_JeQuelleZweiBloecke` |
+| 14 TLS-Schalter (Nachtrag 4) | Unit `ZertifikatsCallback_LiestNurDieOptionDerAnfrage_DefaultPruefen` (reine Funktion); echter Handshake **Manual-UAT TS-103.11** |
+| 15 Rückmeldestand getrennt | Unit `Summiere_JeBelId_AnzahlUndMengeGut`; „keine Rückmeldung“ **Manual-UAT TS-103.3/103.7**; Feldtyp ungeprüft (P-4) |
+| 16 Badges/Booleans/Termine | Unit `Fixture_SageBooleanUndTermine`, `TerminOhneZeitzone_WirdGelesen`; Badge-Text **Manual-UAT TS-103.3** |
+| 17 keine FaHierarchy-/Migrations-Änderung | Diff-Prüfung oben (leer) |
+| 18 Build/Test grün | Abschnitt 1 |
+
+Nicht als grün gezählt (Manual-UAT): echte SData-Antworten, Netzwerk/Firewall vom IIS-Host, TLS-Kette, Laden der
+`appsettings.Production.json`, echte Modellbindung, Rendering/Sprungmarken/`<details>`, Rollenfilter, Menü.
+
+### 4. Geänderte bestehende Tests
+
+Keine. Unter `IdealAkeWms.Tests/` ändert der Diff nur `IdealAkeWms.Tests.csproj` (Fixture-Kopierregel); alle Testdateien
+sind neu (`SageSdataFaTreeBuilderTests` 14, `SageSdataReadClientTests` 12, `SageSdataFaControllerTests` 15 Fälle).
+Im QA-Fix wurde nur der eigene neue Test `UnlesbaresJson_KeineException` um zwei Assertions verschärft.
+
+### 5. CLAUDE.md-Checkliste
+
+- Migration / SQL / FreshInstall / AgentJobs / `SQL/Einmalig/`: entfällt (keine Schemaänderung) – bestätigt.
+- Audit-Felder: entfällt (keine Entität geschrieben).
+- Version 1.71.0 in **beiden** `AppVersion.cs` (2026-10-30) + `Views/Help/Changelog.cshtml` – vorhanden. Brain-Changelog
+  in `secondbrain/changelog/` – Sache der Koordination.
+- `docs/TESTSZENARIEN.md` TS-103 (103.1–103.13 + 103.3b) vorhanden, deckt Nachtrag 1/2/4/5/6 ab (5 Aufrufe, Rest
+  übersprungen, TLS erst bei neuer Verbindung, 846/VK, BaseUrl mit `user:pw@`); Index-Eintrag 103 in
+  [[testszenarien-index]] vorhanden und stimmig.
+- README (AppSetting + „Web-App: Sage-Zugangsdaten“), Hilfeseite mit konkretem Abschnitt – vorhanden.
+- Keine neue Rolle. `secondbrain/` im Worktree nicht vorhanden (sparse-checkout wirkt).
+- Offen für die Koordination: [[feature-map]], [[controller]] (Zeile + Vorbau-Korrektur Z. 65), [[integrationen]],
+  [[sage-sdata-uebersicht]], Brain-Changelog.
+
+### Manuelle Testcheckliste (Mensch, Schranke 2)
+
+1. Web aus dem Worktree publishen: `dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb`
+   (kein Service-Publish nötig).
+2. Am Testsystem akenet01 `appsettings.Production.json` mit `SageLagerbuchung:Username/Password` neben `IdealAkeWms.dll`
+   anlegen, Publish-Inhalt darüber kopieren (Ordner nicht leeren), App-Pool recyceln. Vom IIS-Host aus
+   `sagetest01.ake.at:5493` erreichbar?
+3. TS-103.1/103.2: Schalter aus → kein Menü, URL → Home + Warnung; Schalter an → Menü für picking; Benutzer ohne Rolle →
+   Zugriff verweigert.
+4. TS-103.3: `835` → 7 FAs, 11 Positionen, AG 999/9999, 6 Sprungmarken, 836 mit 00722001 / 0,6; Diagnose **5** Aufrufe,
+   alle 200, URL ohne Zugangsdaten.
+5. QA Q-3: zugeklappte Sub-FA-Karten zeigen ein Auf/Zu-Dreieck in der Kopfzeile; Klick klappt auf.
+6. TS-103.3b (`846`, VK), TS-103.4 (`836` → Hinweis), TS-103.5 (`999999999`, `0`, `?belId=abc`).
+7. TS-103.8 (BaseUrl leer / mit `user:pw@`), TS-103.9 (Port 5999 → ≤ 20 s, 4 × „übersprungen“, Text „vorheriger Aufruf
+   fehlgeschlagen“), TS-103.10 (falsches Passwort → 401/403, Rest übersprungen).
+8. TS-103.11 TLS-Schalter (Umschalten erst nach 2 min oder Recycle wirksam), TS-103.12 Rohdaten ≤ 4000 Zeichen.
+9. TS-103.6/103.13 protokollieren (Mehrdeutigkeit „nur Unit-Test belegt“; Vergleich informativ).
+10. Danach Merge (Schranke 2). Erneut aus `main` publishen nur, wenn der Merge parallele `main`-Änderungen
+    zusammengeführt hat.
+
+**Ergebnis:** grün, `status: Testbereit` gesetzt (QA 2026-10-30).

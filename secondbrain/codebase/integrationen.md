@@ -196,3 +196,12 @@ werden asynchron ueber eine Queue an die Sage-SData-REST-API gemeldet. Details:
   `SyncLogServices.SageLagerbuchung`.
 - **Nicht in Scope (Step 1):** Umbuchung, BDE-Rueckmeldung, Serien/Chargen. Manual-UAT
   (`../../docs/TESTSZENARIEN.md` Kap. 56), da HTTP/SData nicht InMemory-testbar.
+
+### SData lesend: FA-Struktur live (v1.71.0)
+
+`SageSdataReadClient` (Web, typed HttpClient, Timeout 20 s) liest per `GET {SData:BaseUrl}/sdata/{SData:Application}/RealTimeData/{SData:Dataset}/…`
+die Quellen `dtsFaBelegsuche`, `dtsTeileverwendungsnachweis`, `dtsRueckKorrektur`, `dtsFertigmeldungen` — nur Anzeige, keine
+Persistenz. Contract `RealTimeData` ist Konstante (nicht `SData:ServiceContract`, der gehört der Lagerbuchung). Zugang aus
+`SageLagerbuchung:Username/Password` der **Web**-Konfiguration (`appsettings.Production.json` auf dem Server, nicht im Repo).
+TLS-Schalter `SageLagerbuchungSslZertifikatPruefen` gilt für beide SData-Clients; im Web reist er je Anfrage in
+`HttpRequestMessage.Options`. Spec [[2026-10-30-sage-sdata-fa-ansicht-spec]].

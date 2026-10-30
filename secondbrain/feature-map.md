@@ -704,6 +704,20 @@ Changelog [[2026-10-21-v1-66-0-hardware-barcodescanner]].
 > **Status:** **Testbereit** v1.66.2 (qa-agent 2026-10-22) — wartet auf Schranke 2 (Manual-UAT TS-99 inkl. 99.14–99.16 + Bündel-Merge).
 > Offen zur Entscheidung: doppelter Klick-Handler am OSEON-Artikelknopf (QA Q3-2, vorbestehend).
 
+### FA-Struktur live aus Sage (v1.71.0, direkt im Bündel)
+
+Spec [[2026-10-30-sage-sdata-fa-ansicht-spec]], Umsetzung [[2026-10-30-sage-sdata-fa-ansicht-umsetzung]],
+Changelog [[2026-10-30-v1-71-0-sage-sdata-fa-ansicht]]. TS-103. Folgeaufgabe [[2026-10-30-sage-sdata-artikelstueckliste-soll-spalte]].
+
+| Baustein | Status | Code-Einstieg |
+|---|---|---|
+| Lese-Client SData RealTimeData (nur GET, or-Blöcke à 50, TLS je Anfrage) | **erledigt** `8c09ab87` | `Services/SageSdata/SageSdataReadClient.cs` |
+| Baumaufbau Haupt-FA → Sub-FAs → Positionen, Meldungen statt stiller Zuordnung | **erledigt** `8c09ab87` | `SageSdataFaTreeBuilder.Build` |
+| Seite „FA-Struktur (Sage live)“, Gate `SageSdataFaAnsichtAktiv`, Diagnose | **erledigt** `8c09ab87`, QA-Fix `0fe5e7c7` | `SageSdataFaController.Index`, `Views/SageSdataFa/Index.cshtml` |
+
+> **Deploy:** Web; Dienst nur wegen `AppVersion.cs`. Keine Migration. `appsettings.Production.json` mit `SageLagerbuchung` im Web-Ordner.
+> **Status:** **Testbereit** v1.71.0 (qa-agent 2026-10-30) — wartet auf Schranke 2 (Manual-UAT TS-103 am AKE-Testsystem + Bündel-Merge).
+
 ### Aktivitäts-Protokoll: Spaltenfilter über alle Einträge, deutsche Namen (v1.70.0, direkt im Bündel)
 
 Spec [[2026-10-16-aktivitaetsprotokoll-filter-und-namen-spec]], Umsetzung [[2026-10-16-aktivitaetsprotokoll-filter-und-namen-umsetzung]],
