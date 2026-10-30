@@ -97,7 +97,7 @@ Belegte Fakten zu Sage (Quelle: Backlog-Anhänge, aufgezeichnet 2026-10-30 am AK
 | Fakt | Beleg |
 |---|---|
 | `dtsFaBelegsuche.Sage.PPS?where=StrukturID eq 835` liefert 7 FAs (835 + 836–841) | Anhang `dtsFaBelegsuche-struktur-835.json` Z. 2, 5–11 |
-| Haupt-FA: `BelID = StrukturID`, `VerursacherTyp = "MAN"`; Sub-FAs `VerursacherTyp = "FA"` | ebd. Z. 5 bzw. 6–11 |
+| Haupt-FA: `BelID = StrukturID`; Sub-FAs `VerursacherTyp = "FA"`. **`VerursacherTyp` des Haupt-FA ist `MAN` (manuell) ODER `VK` (aus Verkaufsauftrag) – im Test-Mandanten 12 von 14 Wurzeln `VK`, nur 835 und 819 `MAN`** | ebd. Z. 5 bzw. 6–11; Prüfabfrage Koordination 2026-10-30 (alle 35 FAs) |
 | Sage-Booleans kommen als `-1`/`0` (`IstEingelastet: -1`, `IstBegonnen: 0`) | ebd. Z. 5; [[sage-sdata-uebersicht]] Fallstricke |
 | Termine kommen **mit** Offset (`2026-02-03T08:45:00+01:00`) | ebd. Z. 5 |
 | Termine kommen laut Brain auch **ohne** Offset (`2026-02-03T00:00:00`) | [[sage-sdata-realtimedata]] Z. 14 |
@@ -139,7 +139,8 @@ Anforderungen:
   a) zwei oder mehr Sub-FAs dieselbe Artikelnummer haben („Sub-FAs 837, 842 haben denselben Artikel 86003866 –
   Zuordnung nicht eindeutig“) **oder** dieselbe Artikelnummer bei mehreren MA-Positionen vorkommt,
   b) eine Sub-FA keiner Position zugeordnet werden kann,
-  c) die Struktur keinen Haupt-FA (`BelID = StrukturID`) hat, oder der Haupt-FA nicht `VerursacherTyp = "MAN"` trägt.
+  c) die Struktur keinen Haupt-FA (`BelID = StrukturID`) hat. *(Nachgezogen Koordination 2026-10-30: `VerursacherTyp` des
+  Haupt-FA ist **kein** Kriterium – `MAN` und `VK` sind beide normal; er wird nur angezeigt.)*
   Betroffene Sub-FAs erscheinen dann unter einer eigenen Überschrift „Nicht eindeutig zugeordnete Sub-FAs“ am Ende,
   mit ihren Positionen. Nichts wird weggelassen.
 - **F-6 Rückmeldestand:** je FA aus `dtsRueckKorrektur` (Anzahl, Σ `MengeGut`) und `dtsFertigmeldungen` (Anzahl,
@@ -300,6 +301,20 @@ nach der Antwort angepasst.
   Seite. Am IDEAL-System prüfbar mit
   `SELECT TOP 5 HauptFA, VaterFA, SubFA, Artnr FROM [vw_IDEAL-AKE_Kommissionierung_FAListe] WHERE HauptFA = <n>`
   gegen `SELECT BelID, StrukturID, Artikelnummer FROM KHKPpsFaBelege WHERE StrukturID = <n>`.
+
+## Prüfergebnisse (Koordination 2026-10-30, AKE-Test per SData, nur GET)
+
+- **P-1 erledigt:** Struktur 835, alle 7 FAs: `IstGesperrt 0`, `Aktiv -1`, `IstReaktiviert 0`, `IstGedruckt -1`, `IstCadFreigegeben 0`.
+  Wertebereich -1/0 bestätigt.
+- **P-3 erledigt:** `where=BelID eq 835 or BelID eq 836` → `dtsFaBelegsuche` 200/2 Zeilen, `dtsTeileverwendungsnachweis` 200/12 Zeilen
+  (11 + 1), `dtsRueckKorrektur` 200/0 Zeilen. **`or` funktioniert** auf allen drei Quellen → Variante C ist machbar.
+- **P-2 (Kandidaten):** über alle 35 FAs des Test-Mandanten (`where=BelID gt 0`) keine Struktur mit zwei Sub-FAs gleichen Artikels;
+  14 Strukturen, 7 davon mit Sub-FAs (819:8, 835:7, 846:3, 849:3, 855:3, 842:2, 852:2). TS-103.6 bleibt „nur Unit-Test“, bis Sage-SQL
+  (P-2, Gerald) etwas anderes zeigt. 8 FAs `IstBeendet -1`, 0 inaktiv.
+- **Befund Wurzel-Kriterium:** `VerursacherTyp` der Wurzeln: `MAN` (835, 819) oder `VK` (12 Strukturen); alle Sub-FAs `FA`. F-5c und die
+  Faktentabelle wurden entsprechend nachgezogen. Die Fixture `dtsFaBelegsuche-struktur-835.json` zeigt nur den `MAN`-Fall – der
+  Unit-Test braucht zusätzlich eine Wurzel mit `VK`.
+- **P-4, P-5 offen** (Sage-SQL bzw. Mandant mit Rückmeldungen, Gerald).
 
 ## Migrations-/SQL-Auswirkungen
 
@@ -469,7 +484,174 @@ Entfällt (`epic: false`). Eine Umsetzung, ein Commit im Bündel-Worktree.
   Bei Varianten-Specs zusaetzlich freigabe_entscheidung im Frontmatter setzen.
 -->
 
-1. Rückmeldestand: A (alle mitladen) / B (auf Klick) / C (ein or-Aufruf je Quelle, nach P-3) →
-2. Artikelstückliste (Herkunft 1) als Soll-Spalte anzeigen? →
-3. Mengen: nur Menge oder zusätzlich Bedarf = Sollmenge × Menge? →
-4. Positionstabellen als ADR-0005-Ausnahme (ohne filterable-table) oder Client-Mode-Spaltenfilter? →
+*Vorschlag der Koordination 2026-10-30 nach den Prüfergebnissen; von Gerald noch nicht bestätigt – gilt erst mit der Freigabe.*
+
+1. Rückmeldestand: A (alle mitladen) / B (auf Klick) / C (ein or-Aufruf je Quelle, nach P-3) → **C.** P-3 belegt `or` auf
+   dtsRueckKorrektur, dtsFertigmeldungen (gleiche Quelle-Art) und dtsFaBelegsuche. Zwei Aufrufe je Seitenaufbau, kein JS.
+2. Artikelstückliste (Herkunft 1) als Soll-Spalte anzeigen? → **Nein**, als Folgeaufgabe festhalten (ohne BelPosID kein
+   Positionsschlüssel für den Abgleich).
+3. Mengen: nur Menge oder zusätzlich Bedarf = Sollmenge × Menge? → **Nur Menge**, Spaltenkopf „Menge je Einheit“. Semantik bei
+   Sollmenge 1 nicht unterscheidbar; keine Rechnung auf ungeprüfter Basis.
+4. Positionstabellen als ADR-0005-Ausnahme (ohne filterable-table) oder Client-Mode-Spaltenfilter? → **ADR-0005-Ausnahme**
+   (Detail-/Diagnoseansicht einer einzelnen Struktur, wie BOM-Tree; Tabellen ohne `filterable-table`).
+
+## Kritische Pruefung (2026-10-30)
+
+*Anwalt des Teufels vor Schranke 1. Stichproben gegen den Worktree `feature/2026-08-07-ideal-teile-1-5` (HEAD d7dc3d03).
+Keine Freigabe, keine Antwort im Freigabe-Block geändert.*
+
+### BLOCKER
+
+- **B-1 Antworten sind nicht vom Menschen.** Der Freigabe-Block trägt den Vermerk „Vorschlag der Koordination … von Gerald
+  noch nicht bestätigt“. Formal ist damit **keine** der vier Rückfragen beantwortet.
+  → *Frage an Gerald:* Bestätigst du die Vorschläge 1–4 (C / Nein / Nur Menge / Ausnahme) so, oder änderst du einzelne?
+  Danach den Vermerk entfernen.
+- **B-2 Antwort 1 stützt sich auf eine Prüfung, die es nicht gibt.** Antwort 1 sagt: „P-3 belegt `or` auf dtsRueckKorrektur,
+  **dtsFertigmeldungen** … und dtsFaBelegsuche“. Laut „Prüfergebnisse“ (P-3) geprüft wurden aber **dtsFaBelegsuche,
+  dtsTeileverwendungsnachweis und dtsRueckKorrektur**. dtsFertigmeldungen ist ungeprüft („gleiche Quelle-Art“ ist eine
+  Deutung aus dem Namen).
+  → *Frage:* P-3 für `dtsFertigmeldungen.Sage.PPS?where=BelID eq 835 or BelID eq 836&select=BelID,MengeGut&format=json`
+  nachholen (ein GET), **oder** eine Rückfallregel festlegen: liefert der `or`-Aufruf ≠ 200, dann je FA einzeln.
+- **B-3 Entscheidungen stehen nur im Antwortblock, nicht im Rumpf.** Der Dev-Lauf arbeitet nach dem Rumpf. Offen gelassen
+  sind dort noch:
+  - F-6, AK 15, TS-103.3 und der Absatz „Aufrufzahl je Seitenaufbau“ sagen „je Rückfrage 1“. Das müsste heißen: Variante
+    C, je Quelle **ein** `or`-Aufruf über alle BelIDs, Zeilen per `BelID` den FAs zuordnen. Aufrufzahl für 835 ohne
+    weitere Änderung: 1 + 1 + 7 + 2 = **11**.
+  - Frage 3 ist im Rumpf offen: F-3 nennt die Spalte nur „Menge“. Der Spaltenkopf „Menge je Einheit“ fehlt dort, ebenso
+    der Ausschluss einer Bedarf-Spalte.
+  - Frage 4 ist im Rumpf offen: F-3 und View-Beschreibung (Baustein 5) sagen nicht „ohne `filterable-table`,
+    ADR-0005-Ausnahme“. Ohne diesen Satz baut der Dev-Lauf nach CLAUDE.md-Musterpflicht Spaltenfilter ein oder
+    scheitert am `CsvExportCoverageTests`-Wächter.
+  - Frage 2: „als Folgeaufgabe festhalten“ fehlt in der Liste „Brain-Update beim Umsetzen“ (Aufgabe in
+    `secondbrain/aufgaben/` anlegen).
+  - Frontmatter `open_questions` beim Nachziehen leeren bzw. als beantwortet markieren.
+
+### SOLLTE
+
+- **S-1 Wurzel-Kriterium (Schwerpunkt 1): Regel konsistent, Nachweis lückenhaft.** F-5c, Faktentabelle und Builder
+  („Root bestimmen (F-5c)“) verwenden einheitlich nur `BelID = StrukturID`; `VerursacherTyp` wird nirgends geprüft.
+  Gut. Es fehlt aber:
+  - ein Unit-Test mit **`VK`-Wurzel**. Er steht nur in „Prüfergebnisse“, nicht in „Test-Szenarien“ → dort aufnehmen
+    (Root `VK` und Root `MAN` → beide Root, keine Meldung).
+  - ein manueller Fall mit `VK`-Wurzel. 12 von 14 Wurzeln im Test-Mandanten sind `VK`, TS-103 testet aber nur 835
+    (`MAN`). Vorschlag: **TS-103.3b** `belId=846` (3 FAs; Wurzeltyp vor dem Test per Diagnose bestätigen) → gleiche
+    Darstellung, keine Meldung.
+  - ein Wächter gegen `StrukturID ≤ 0`/`null` aus dem ersten Aufruf. Sonst würde `where=StrukturID eq 0` abgesetzt,
+    dessen Treffermenge unbekannt ist. Vorschlag: Meldung „BelID <n> hat keine Struktur-ID in Sage“, kein Folgeaufruf.
+    Ob es Einzel-FAs ohne `StrukturID` gibt, ist ungeprüft (im Test-Mandanten 14 Strukturen für 35 FAs, Einzel-FAs also
+    vermutlich mit `StrukturID = BelID`).
+- **S-2 Variante C: URL-Länge und Kodierung (Schwerpunkt 2).**
+  - *Länge:* je BelID ca. 20 Zeichen (` or BelID eq 123456`). Das Limit des Sage-SData-Hosts ist unbekannt. HTTP.sys
+    erlaubt standardmäßig 16 KB Request-Zeile (`MaxFieldLength`), das wären rund 700 FAs. Ob Sage auf HTTP.sys läuft, ist
+    ungeprüft. Vorschlag (eine Schleife): BelIDs in **Blöcken zu höchstens 50** abfragen. Bei Strukturen ≤ 50 FAs bleibt
+    es bei einem Aufruf je Quelle, der Code ist derselbe.
+  - *Kodierung:* `new Uri(...)` kodiert Leerzeichen im Query als `%20` und lässt `'` sowie `;` literal. Das entspricht
+    der URL, die am 2026-10-30 im Browser funktioniert hat. Die Spec verbietet `Uri.EscapeDataString` bereits richtig.
+    **Fallstrick im Test:** `RequestUri.ToString()` liefert die **unkodierte** Form. Die Assertion
+    `where=StrukturID%20eq%20835` muss gegen `RequestUri.AbsoluteUri` laufen, sonst prüft der Test das Falsche.
+  - *Positionen auch per `or`?* P-3 hat `or` auf `dtsTeileverwendungsnachweis` belegt (200, 12 Zeilen = 11 + 1), und
+    `SageFaPosition` trägt bereits `BelID`. Damit würden aus 7 Positionsaufrufen **1** (835: insgesamt 1 + 1 + 1 + 2 =
+    **5** statt 11). Der Preis: F-9 „Fehler bei Positionen **einer** FA“ entfällt, ein Fehler trifft dann den ganzen
+    Block. → *Entscheidung für Gerald:* Positionen einzeln (wie Rumpf) oder gebündelt? Empfehlung: gebündelt, weil das
+    auch S-5 entschärft.
+- **S-3 Zugangsdaten der Web-App (Schwerpunkt 3): `appsettings.Production.json` statt `appsettings.json`.**
+  - *Belege:* `IdealAkeWms/web.config:18` setzt `ASPNETCORE_ENVIRONMENT=Production`. `Program.cs:11` nutzt
+    `WebApplication.CreateBuilder`, das lädt `appsettings.Production.json` automatisch und lässt es `appsettings.json`
+    überschreiben. Die Datei liegt nicht im Repo, also bringt der Publish sie auch nicht mit und überschreibt sie nicht.
+  - *Lücke in der Deploy-Doku:* Das README kennt die Regel „appsettings.json beim Update nie überschreiben“ nur für den
+    **Dienst** (README.md:688-698). Für die Web-App gibt es keine Update-Prozedur. Die Web-`appsettings.json` im Repo
+    trägt die echten Connection Strings, wird also heute vermutlich mitkopiert. Eingetragene Zugangsdaten wären damit
+    beim nächsten Publish weg, genau der Fall, den die Spec mit „nach jedem Publish prüfen“ abfangen will.
+  - *Umgebungsvariable* ist schlechter: Sie gehört in `web.config` `<environmentVariables>`, und `web.config` kommt mit
+    jedem Publish neu. Alternativ ginge sie auf App-Pool-Ebene, was mehr IIS-Handarbeit ist.
+  - **Vorschlag:**
+    - Web-`appsettings.json` bekommt **keinen** `SageLagerbuchung`-Abschnitt (aus `affected_code` streichen).
+    - Auf dem Server einmalig `appsettings.Production.json` neben die DLL legen, mit
+      `{"SageLagerbuchung":{"Username":"…","Password":"…"}}`.
+    - Deploy-Abschnitt und README (neuer Unterabschnitt „Web-App: Sage-SData-Zugang“) entsprechend formulieren.
+    - Einschränkung: Ein Publish, der das Zielverzeichnis vorher leert, löscht auch diese Datei. Das gehört als Satz in
+      den Deploy-Abschnitt.
+  - *Hinweis:* Benutzer und Passwort liegen dann an zwei Stellen (Dienst-`appsettings.json` und Web-Production-Datei).
+    Ein Passwortwechsel muss beide treffen. Das gehört in [[sage-sdata-uebersicht]] „Zugang“.
+- **S-4 TLS-Callback (Schwerpunkt 4): DB-Zugriff aus dem Handshake herausnehmen.**
+  - *Stand der Spec:* Der Callback öffnet je Zertifikatsfehler einen Scope und liest synchron
+    (`.GetAwaiter().GetResult()`) über `IServiceSettingRepository`.
+  - *Deadlock:* gibt es in ASP.NET Core nicht, dort fehlt der `SynchronizationContext`. Der Aufruf blockiert aber einen
+    Threadpool-Thread mitten im TLS-Handshake.
+  - *DB-Ausfall:* Der SQL-Connect-Timeout (Standard 15 s) läuft **innerhalb** des HttpClient-Timeouts von 20 s. Ein
+    DB-Ausfall zeigt sich deshalb als „Timeout“ statt als TLS-Fehler, also eine irreführende Diagnose.
+  - *Fehlender Schutz:* Anders als im Dienst (`ServiceSettings.GetValueSafeAsync`, IDEALAKEWMSService/Program.cs:115-117)
+    fängt das Web-Repository keine Ausnahme ab (`ServiceSettingRepository.GetValueAsync` Z. 31-35 ohne try/catch). Das
+    try/catch → `null` → „prüfen“ müsste explizit im Callback stehen.
+  - *Schwere Abhängigkeit:* `IServiceSettingRepository` ist im Web der `GuardedServiceSettingRepository` mit
+    `IProductionOrderRepository` (Program.cs:84-87). Pro Handshake würde also ein zusätzliches Repository samt
+    DbContext aufgelöst.
+  - *Lebensdauer:* Der `sp` aus `ConfigurePrimaryHttpMessageHandler` ist der Handler-Scope und lebt so lange wie der
+    Handler (2 min). Wer daraus direkt einen scoped Dienst zieht, teilt einen DbContext über parallele Handshakes.
+  - **Vorschlag (eine Sprosse tiefer):**
+    - Der Controller liest den Schalter ohnehin für den Banner (F-10). Er gibt ihn im `SdataLeseZiel` mit.
+    - Der Client schreibt ihn je Request in `HttpRequestMessage.Options` (`HttpRequestOptionsKey<bool>`).
+    - Der Callback bekommt die `request` als ersten Parameter und liest dort: fehlt der Wert, wird geprüft (fail-safe).
+    - Damit entfallen DB, Scope und blockierender Aufruf im Handshake vollständig.
+  - Bleibt es beim Scope-Weg, sind drei Pflichtsätze nötig: neuer Scope **je Callback-Aufruf**, konkreter
+    `ServiceSettingRepository` statt der Guarded-Variante, explizites try/catch.
+  - *Für beide Wege gilt:* Der Callback läuft nur beim **Aufbau** einer Verbindung. Ein Umschalten wirkt erst auf neue
+    Verbindungen, also nach Ablauf der Handler-Lebensdauer (2 min) oder nach einem App-Pool-Recycle. TS-103.11 muss das
+    als Schritt nennen, sonst wirkt der Test wie ein Fehler.
+- **S-5 Fehlerpfad und Zeitbudget (Schwerpunkt 5).**
+  - *Worst Case heute:* 9–11 Aufrufe × 20 s = 180–220 s. `web.config` `requestTimeout="00:05:00"` (Z. 16) fängt das zwar
+    noch, für einen Machbarkeitsnachweis an einem Terminal ist das aber nicht akzeptabel.
+  - *Lücke:* Die Spec sagt nicht, was nach einem Fehler beim **ersten** Aufruf (BelID → StrukturID) oder beim
+    Strukturaufruf passiert. F-9 regelt nur „nicht gefunden“ und Positionsfehler.
+  - **Vorschlag:**
+    1. Fehler oder Status 0 bei Lookup oder Struktur → Abbruch, Banner, keine Folgeaufrufe.
+    2. Bei Status 0 (nicht erreichbar/Timeout/TLS) in **irgendeinem** Aufruf werden alle restlichen Aufrufe nicht mehr
+       abgesetzt und erscheinen in der Diagnose als „übersprungen (vorheriger Verbindungsfehler)“.
+    3. HTTP-Fehler (401/403/500) einzelner Positionsaufrufe brechen **nicht** ab, wie bisher in F-9.
+  - Damit gilt der Worst Case „≤ 20 s bis zum Banner“ aus TS-103.9 wirklich. Ein zusätzliches Gesamtbudget per
+    CancellationTokenSource ist dann nicht nötig. AK 10 entsprechend ergänzen.
+- **S-6 Testfälle unvollständig (Schwerpunkt 6).** Vorhanden: gleicher Artikel in zwei Sub-FAs, Sub-FA ohne Position, ohne
+  Root, zweistufig, Zyklus. Ergänzen:
+  - (a) `VK`-Wurzel (S-1).
+  - (b) **zweite Hälfte von F-5a**: eine Sub-FA, aber derselbe Artikel an **zwei** MA-Positionen. Erwartet: Meldung,
+    keine Zuordnung.
+  - (c) Termin **ohne** Offset (`"2026-02-03T00:00:00"`). AK 16 fordert den Test, eine Quelle dafür nennt die Spec nicht.
+    Synthetischer String; vorher festlegen, ob er als lokale Zeit gilt.
+  - (d) VS-Position wird angezeigt, aber nie zugeordnet.
+  - (e) bei Variante C: `or`-Antwort mit Zeilen mehrerer BelIDs wird korrekt auf die FAs verteilt; Zeilen einer fremden
+    BelID werden ignoriert und gemeldet.
+  - (f) Controller: Eingabe einer Sub-FA (836) → Hinweis „gehört zur Struktur 835“.
+  - (g) `StrukturID ≤ 0` (S-1).
+  - Die Form der synthetischen Daten festlegen. Vorschlag: im Testcode als Records aufgebaut, **keine** zusätzlichen
+    JSON-Dateien. Die zwei echten Fixtures bleiben unverändert, damit sie Sage-Wirklichkeit bleiben.
+- **S-7 Diagnose ohne Zugangsdaten (Schwerpunkt 7).**
+  - *Header:* Basic-Auth steht nur im Header und erscheint weder in `RequestUri` noch in den Meldungen von
+    `HttpRequestException`/`AuthenticationException`/`TaskCanceledException`. Diese nennen Host/Port bzw. den
+    TLS-Grund.
+  - *Restrisiko:* Ein `SData:BaseUrl` mit UserInfo (`https://user:pw@host`) landet über `SdataUrlBuilder` 1:1 in der
+    angezeigten URL und im Rohtext. Den Wert pflegt ein Admin in `/ServiceSettings`, unwahrscheinlich, aber genau der
+    Fall „nie in der Diagnose“.
+  - *Vorschlag:* F-8 behandelt eine `BaseUrl` mit `@` vor dem Host als „nicht konfiguriert (Zugangsdaten gehören nicht in
+    die URL)“. Das ist eine Prüfung statt eines Maskierungs-Codes.
+  - Außerdem festlegen, dass der Client die URL **nicht** zusätzlich mit Zugangsdaten loggt. Ein Logging wie im
+    Lagerbuchungs-Client mit URL ist unkritisch.
+
+### HINWEIS
+
+- **H-1 Seitengröße der Quellen ungeprüft.** `count` wird bei `dtsTeileverwendungsnachweis` ignoriert (unbegrenzt). Ob
+  `dtsFaBelegsuche` ohne `count` eine Standard-Seitengröße hat, ist offen: Der größte Test lieferte 35 Zeilen. Bei sehr
+  großen Strukturen könnte Sage still kürzen. Prüfabfrage, sobald ein Mandant mit > 100 FAs erreichbar ist:
+  `dtsFaBelegsuche?where=BelID gt 0&select=BelID&format=json` → Zeilenzahl gegen `SELECT COUNT(*) FROM KHKPpsFaBelege`.
+  Bis dahin genügt eine Diagnosezeile mit der Zeilenzahl, die es laut F-7 ohnehin gibt.
+- **H-2 Größe:** Rund 12 Dateien plus Tests in einer Schicht (Client, Builder, Controller, View) und keine Migration.
+  Das passt in einen Dev-Lauf, kein Split nötig.
+- **H-3 Regression:** gering. Geteilt sind nur `SdataUrlBuilder` (nur gelesen) und zwei Beschreibungstexte
+  (`ServiceSettingDefinitions.cs:63`, `SageTlsPolicy.cs:5`). Kein Test prüft diese Texte (Grep in `IdealAkeWms.Tests`
+  ohne Treffer). AK 17 (Diff ohne `FaHierarchy*`) ist als harte Bedingung vorhanden.
+- **H-4 Stichproben bestätigt:** `SdataUrlBuilder.cs:26-39`, `SageTlsPolicy.cs:15/22-23`,
+  `IDEALAKEWMSService/Program.cs:98-122`, `SageLagerbuchungClient.cs:49-74, 77-78`, `ServiceSettingDefinitions.cs:63`,
+  `_Layout.cshtml:71-73, 90, 123-129`, `Program.cs:84, 152`. Die Fundstellen der Spec stimmen.
+- **H-5 Zusatzfund `controller.md:65` (Vorbau)** ist richtig als Brain-Update-Punkt vorgemerkt, nicht Teil dieses Auftrags.
+
+**Empfehlung:** NACHBESSERUNG NOETIG: Antworten von Gerald bestätigen lassen (B-1), P-3 für dtsFertigmeldungen nachholen
+oder Rückfall festlegen (B-2), Entscheidungen in Rumpf/AK/TS ziehen (B-3). S-3 bis S-5 vor dem Dev-Lauf entscheiden.
