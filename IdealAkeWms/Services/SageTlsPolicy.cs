@@ -2,7 +2,7 @@ namespace IdealAkeWms.Services;
 
 /// <summary>
 /// Reine Policy: soll das TLS-Zertifikat des Sage-SData-Servers geprueft werden?
-/// Steuert ausschliesslich den Sage-Lagerbuchungs-Client (kein globaler Effekt).
+/// Steuert ausschliesslich die Sage-SData-Clients (Lagerbuchung + FA-Ansicht Sage live, v1.71.0) — kein globaler Effekt.
 ///
 /// <b>Fail-safe:</b> Fehlt der Wert oder ist er nicht parsebar, wird GEPRUEFT (true) — niemals
 /// stillschweigend die Pruefung abschalten. Nur ein explizit parsebares <c>false</c> deaktiviert sie.

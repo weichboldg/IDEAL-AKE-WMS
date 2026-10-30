@@ -792,6 +792,33 @@
                         </ul>
                     </dd>
 
+                    <dt>FA-Struktur live aus Sage (seit v1.71.0)</dt>
+                    <dd>
+                        Der Menüpunkt <strong>FA-Struktur (Sage live)</strong> zeigt eine FA-Struktur direkt aus Sage, ohne sie ins
+                        WMS zu übernehmen &mdash; zum Vergleich mit der materialisierten <em>FA-Struktur</em>. Es wird nichts
+                        gespeichert und nichts an Sage geschrieben.
+                        <ul class="mt-1 mb-1">
+                            <li><strong>Eingabe:</strong> FA-Nummer (Sage-BelID) einer Haupt- oder Sub-FA, dann
+                                &bdquo;Aus Sage laden&ldquo;. Angezeigt wird immer die ganze Struktur; bei einer Sub-FA steht oben,
+                                zu welcher Struktur sie gehört.</li>
+                            <li><strong>Baum:</strong> Haupt-FA offen, Sub-FAs eingerückt und zum Aufklappen. Je FA Status
+                                (Eingelastet, Begonnen, Beendet, Gesperrt), Mengen, Termine, Rückmeldungen und Fertigmeldungen
+                                getrennt, darunter die Positionen mit Typ MA (Material), AG (Arbeitsgang) oder VS (Verschnitt) und
+                                &bdquo;Menge je Einheit&ldquo;. Ein Link &bdquo;Sub-FA &hellip;&ldquo; springt zur Karte der Sub-FA.</li>
+                            <li><strong>Zuordnung:</strong> Sage kennt kein Vater-Kind-Feld. Eine Material-Position gehört zu einer
+                                Sub-FA, wenn ihre Artikelnummer genau einer Sub-FA und genau einer Position entspricht. Alles andere
+                                erscheint als gelbe Warnung &bdquo;Zuordnung prüfen&ldquo; und unter &bdquo;Nicht eindeutig
+                                zugeordnete Sub-FAs&ldquo; &mdash; nichts wird weggelassen.</li>
+                            <li><strong>Diagnose:</strong> unten aufklappbar, je Sage-Aufruf Adresse, Status, Dauer, Zeilenzahl und
+                                die Rohdaten. Ist Sage nicht erreichbar, werden die übrigen Aufrufe übersprungen.</li>
+                            <li><strong>Voraussetzungen:</strong> Schalter unter Standorteinstellungen &rarr; Feature-Schalter
+                                &bdquo;Sage-Live-Ansicht FA-Struktur aktiv&ldquo; (Standard aus), <code>SData:BaseUrl</code> und
+                                <code>SData:Dataset</code> unter Service-Einstellungen und die Sage-Zugangsdaten der Web-App (README
+                                &bdquo;Web-App: Sage-Zugangsdaten&ldquo;). Fehlt etwas, nennt die Seite die fehlenden Werte.
+                                Sichtbar für Benutzer mit Kommissionierung, Teileverfolgung, Leitstand-Freigabe oder Vorbau.</li>
+                        </ul>
+                    </dd>
+
                     <dt>IDEAL: Arbeitsgaenge einer FA-Struktur ansehen (seit v1.45.0)</dt>
                     <dd>
                         In der <em>FA-Struktur (IDEAL)</em> traegt die Kopfzeile einer Struktur den Knopf

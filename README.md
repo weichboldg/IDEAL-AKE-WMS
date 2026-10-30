@@ -426,6 +426,26 @@ Bei Änderungen der Tabellenstruktur müssen diese Scripts angepasst werden.
 | `EnaioLinksAktiv` | `true` (Seed) | enaio-Dokument-Symbole an FA-Nummern (v1.67.0, Gruppe „enaio (Dokumente)“) — nur `false` blendet aus. Unabhängig vom Sync-Schalter `Sync:EnaioDmsEnabled`. |
 | `EnaioLinkVorlage` | `http://akeosapp.ake.at/oscontentviewer/viewer/{ObjektId}/?pagecount=1` (Seed) | enaio-Viewer-Adresse mit Platzhalter `{ObjektId}`. Leer = keine Links. |
 | `FaHierarchyVormontageAktiv` | `false` | Feature-Schalter IDEAL-Vormontage-Listen (Teil 5, zwei Sichten: Einzelne Teile + Summiert) — nur exakt `true` aktiviert (Default aus). Kumuliert mit Vorbau-Zugriff (`vorbau`, wie FA-Abarbeitungsliste) |
+| `SageSdataFaAnsichtAktiv` | `false` | Feature-Schalter „FA-Struktur (Sage live)" (v1.71.0): liest FA-Struktur, Stückliste und Rückmeldungen direkt per SData `RealTimeData` aus Sage, nur lesen. Nur exakt `true` aktiviert. Zugriff wie FA-Struktur (Kommissionierung, Teileverfolgung, Leitstand-Freigabe, Vorbau). Braucht `SData:BaseUrl`, `SData:Dataset` und die Web-App-Zugangsdaten (siehe „Web-App: Sage-Zugangsdaten"). |
+
+## Web-App: Sage-Zugangsdaten
+
+Seit v1.71.0 liest die Web-App für „FA-Struktur (Sage live)" selbst aus Sage (SData, nur GET). Benutzer und Passwort
+stehen **nicht** im Repo und nicht in der `appsettings.json` der Web-App, sondern in einer eigenen Datei
+`appsettings.Production.json` im Web-Ordner auf dem Server (neben `IdealAkeWms.dll`):
+
+```json
+{ "SageLagerbuchung": { "Username": "<SData-Servicebenutzer>", "Password": "<Passwort>" } }
+```
+
+- Die `web.config` setzt `ASPNETCORE_ENVIRONMENT=Production`; die Datei wird automatisch geladen. Der Publish bringt sie
+  nicht mit und überschreibt sie daher nicht. **Ausnahme:** Ein Publish oder Kopiervorgang, der den Zielordner vorher
+  leert, löscht sie mit – dann neu anlegen.
+- Nach dem Anlegen oder Ändern den App-Pool recyceln.
+- **Zwei Stellen:** Der Dienst liest dieselben Zugangsdaten aus seiner eigenen `appsettings.json` (Sage-Lagerbuchung). Ein
+  Passwortwechsel muss beide Dateien treffen.
+- Fehlen die Werte, zeigt die Seite „Sage-SData nicht konfiguriert" und setzt keinen Aufruf ab. Eine `SData:BaseUrl` mit
+  `benutzer:passwort@` wird abgelehnt – Zugangsdaten gehören nie in die URL.
 
 ## PDF-Erzeugung (appsettings.json)
 
