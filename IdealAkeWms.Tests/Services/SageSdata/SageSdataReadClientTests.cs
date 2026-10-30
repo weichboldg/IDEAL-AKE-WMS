@@ -45,6 +45,8 @@ public class SageSdataReadClientTests
         req.Method.Should().Be(HttpMethod.Get);
         req.RequestUri!.AbsoluteUri.Should().Be(
             "https://sagetest01.ake.at:5493/sdata/ol/RealTimeData/ake_TEST2026;1/dtsFaBelegsuche.Sage.PPS?where=StrukturID%20eq%20835&select=BelID,StrukturID&orderBy=BelID&format=json");
+        // Ohne Accept liefert Sage trotz format=json Atom-XML (gemessen 2026-10-30 an akenet/DEV, Fehler „'<' is an invalid start“).
+        req.Headers.Accept.Select(a => a.MediaType).Should().Equal("application/json");
         req.Headers.Authorization!.Scheme.Should().Be("Basic");
         Encoding.UTF8.GetString(Convert.FromBase64String(req.Headers.Authorization.Parameter!)).Should().Be("sdatauser:geheim!Pw");
         req.Options.TryGetValue(SageSdataReadClient.ZertifikatPruefenOption, out var pruefen).Should().BeTrue();

@@ -69,6 +69,8 @@ public sealed class SageSdataReadClient : ISageSdataReadClient
         {
             using var message = new HttpRequestMessage(HttpMethod.Get, url);
             message.Options.Set(ZertifikatPruefenOption, ziel.ZertifikatPruefen);
+            // format=json allein reicht nicht: ohne Accept-Header liefert Sage Atom-XML (UAT 2026-10-30).
+            message.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
             message.Headers.Authorization = new AuthenticationHeaderValue("Basic",
                 Convert.ToBase64String(Encoding.UTF8.GetBytes($"{ziel.Username}:{ziel.Password}")));
 
