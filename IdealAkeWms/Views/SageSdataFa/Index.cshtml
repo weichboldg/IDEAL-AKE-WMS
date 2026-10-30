@@ -147,12 +147,15 @@ else
         var rolle = fa.BelID == fa.StrukturID ? "Haupt-FA" : $"Sub-FA, Ebene {k.Ebene}";
         <details id="fa-@fa.BelID" class="card mb-2 border-start border-3 @(fa.BelID == fa.StrukturID ? "border-primary" : "border-secondary")"
                  style="margin-left:@(einzug.ToString(System.Globalization.CultureInfo.InvariantCulture))rem" open="@offen">
-            <summary class="card-header d-flex flex-wrap align-items-center gap-2 py-2">
-                <span class="fw-semibold">FA @fa.BelID</span>
-                <span class="text-body-secondary small">@rolle</span>
-                <span>@fa.Artikelnummer – @fa.Matchcode</span>
-                <span class="badge @klasse">@text</span>
-                <span class="badge text-bg-light border">@(fa.VerursacherTyp ?? "–")</span>
+            @* QA Q-3: summary selbst NICHT display:flex — sonst verschwindet das Auf/Zu-Dreieck (Marker haengt an display:list-item). *@
+            <summary class="card-header py-2" style="cursor:pointer;">
+                <span class="d-inline-flex flex-wrap align-items-center gap-2">
+                    <span class="fw-semibold">FA @fa.BelID</span>
+                    <span class="text-body-secondary small">@rolle</span>
+                    <span>@fa.Artikelnummer – @fa.Matchcode</span>
+                    <span class="badge @klasse">@text</span>
+                    <span class="badge text-bg-light border">@(fa.VerursacherTyp ?? "–")</span>
+                </span>
             </summary>
             <div class="card-body py-2">
                 <dl class="row small mb-2">

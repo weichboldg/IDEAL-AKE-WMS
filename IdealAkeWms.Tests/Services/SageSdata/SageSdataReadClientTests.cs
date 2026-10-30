@@ -126,6 +126,8 @@ public class SageSdataReadClientTests
 
         e.Zeilen.Should().BeEmpty();
         e.Call.Fehler.Should().StartWith("Antwort nicht lesbar");
+        e.Call.Erfolgreich.Should().BeFalse("ein unlesbarer 200-Body darf nicht als 'nicht gefunden' erscheinen (QA Q-1)");
+        e.Call.Verbindungsfehler.Should().BeFalse();
     }
 
     [Theory]

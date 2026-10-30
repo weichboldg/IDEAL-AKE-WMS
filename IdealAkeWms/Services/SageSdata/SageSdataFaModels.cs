@@ -32,11 +32,14 @@ public sealed class SdataFeed<T>
 public sealed record SdataCall(
     string Quelle, string? Url, int Status, long DauerMs, int Zeilen, string? Fehler, string? Rohdaten, bool Uebersprungen = false)
 {
-    public bool Erfolgreich => !Uebersprungen && Status is >= 200 and < 300;
+    // QA Q-1: 2xx mit unlesbarem Body (z. B. HTML-Loginseite) ist KEIN Erfolg — sonst wuerde daraus still
+    // "nicht gefunden" bzw. "Keine Positionen".
+    public bool Erfolgreich => !Uebersprungen && Status is >= 200 and < 300 && Fehler is null;
     public bool Verbindungsfehler => !Uebersprungen && Status == 0;
 
+    // QA Q-2: neutral formuliert — uebersprungen wird nach Verbindungsfehler UND nach HTTP-Fehler bei Suche/Struktur.
     public static SdataCall Uebersprungene(string quelle) =>
-        new(quelle, null, 0, 0, 0, "übersprungen (vorheriger Verbindungsfehler)", null, true);
+        new(quelle, null, 0, 0, 0, "übersprungen (vorheriger Aufruf fehlgeschlagen)", null, true);
 }
 
 /// <summary>Ergebnis eines Lese-Aufrufs: Zeilen (bei Fehler leer) + Diagnose.</summary>
