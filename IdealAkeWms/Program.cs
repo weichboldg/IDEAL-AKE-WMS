@@ -150,6 +150,16 @@ builder.Services.AddScoped<IActiveDirectoryService, ActiveDirectoryService>();
 builder.Services.AddScoped<IPasswordService, PasswordService>();
 builder.Services.AddScoped<IBusinessDayService, BusinessDayService>();
 builder.Services.AddHttpClient<IHolidayImportService, HolidayImportService>();
+// Sage-SData FA-Ansicht (v1.71.0, nur GET): Der TLS-Callback liest den Schalter aus der Anfrage
+// (HttpRequestMessage.Options, je Seitenaufbau vom Controller gesetzt) — kein DB-Zugriff im Handshake. Er laeuft nur
+// beim Verbindungsaufbau: Umschalten wirkt erst auf neue Verbindungen (Handler-Lebensdauer 2 min oder App-Pool-Recycle).
+builder.Services.AddHttpClient<IdealAkeWms.Services.SageSdata.ISageSdataReadClient, IdealAkeWms.Services.SageSdata.SageSdataReadClient>(
+        c => c.Timeout = TimeSpan.FromSeconds(20))
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+    {
+        ServerCertificateCustomValidationCallback = (request, _, _, errors) =>
+            IdealAkeWms.Services.SageSdata.SageSdataReadClient.ZertifikatAkzeptieren(request, errors)
+    });
 builder.Services.AddScoped<IPrintService, PrintService>();
 
 // PDF-Erzeugung (Spec 2026-08-06): Status + Renderdienst SINGLETON — das SemaphoreSlim im Dienst

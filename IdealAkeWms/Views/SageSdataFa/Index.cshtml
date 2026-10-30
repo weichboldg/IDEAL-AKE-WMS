@@ -1,0 +1,216 @@
+@model IdealAkeWms.Models.ViewModels.SageSdataFaViewModel
+@using IdealAkeWms.Services.SageSdata
+@{
+    ViewData["Title"] = "FA-Struktur (Sage live)";
+    var de = System.Globalization.CultureInfo.GetCultureInfo("de-AT");
+    string Zahl(decimal? v) => v?.ToString("0.###", de) ?? "–";
+    string Termin(DateTimeOffset? v) => v?.ToString("dd.MM.yyyy HH:mm", de) ?? "–";
+}
+@*
+    Spec 2026-10-30-sage-sdata-fa-ansicht (v1.71.0). ADR-0005-AUSNAHME: Die Positionstabellen sind eine hierarchische
+    Detail-/Diagnoseansicht EINER Struktur, keine Datenliste — daher bewusst ohne filterable-table, ohne Pagination,
+    Spaltenfilter, Spaltenauswahl und CSV (wie BOM-Tree). Kein eigenes JS: Auf/Zu per <details>.
+*@
+
+@functions {
+    static (string Klasse, string Text) Status(SageFaKopf fa) =>
+        SageBool.IsTrue(fa.IstGesperrt) ? ("text-bg-danger", "Gesperrt")
+        : SageBool.IsTrue(fa.IstBeendet) ? ("text-bg-success", "Beendet")
+        : SageBool.IsTrue(fa.IstBegonnen) ? ("text-bg-primary", "Begonnen")
+        : SageBool.IsTrue(fa.IstEingelastet) ? ("text-bg-info", "Eingelastet")
+        : ("text-bg-secondary", "Nicht eingelastet");
+}
+
+<h2 class="page-header">FA-Struktur (Sage live)</h2>
+<p class="text-body-secondary small mb-3">
+    Liest FA-Struktur, Stückliste und Rückmeldungen direkt aus Sage (nur lesen, nichts wird gespeichert).
+</p>
+
+@if (Model.ZertifikatPruefungAus)
+{
+    <div class="alert alert-warning" role="alert">
+        <strong>Achtung:</strong> Die TLS-Zertifikatsprüfung für Sage ist deaktiviert (SageLagerbuchungSslZertifikatPruefen = false) – nur für Testsysteme zulässig.
+    </div>
+}
+
+@if (Model.NichtKonfiguriert.Count > 0)
+{
+    <div class="alert alert-info" role="status">
+        <strong>Sage-SData nicht konfiguriert:</strong> @string.Join(", ", Model.NichtKonfiguriert).
+        Werte unter Service-Einstellungen bzw. in der appsettings.Production.json der Web-App ergänzen.
+    </div>
+}
+else
+{
+    <div class="card filter-card mb-3">
+        <div class="card-body py-2">
+            <form method="get" asp-action="Index" class="row g-2 align-items-end">
+                <div class="col-sm-6 col-md-3">
+                    <label for="belId" class="form-label mb-0 small">FA-Nummer (Sage-BelID)</label>
+                    <input type="number" id="belId" name="belId" min="1" step="1" inputmode="numeric" value="@Model.BelId"
+                           class="form-control form-control-sm" placeholder="z. B. 835" aria-describedby="belIdHilfe" />
+                </div>
+                <div class="col-auto">
+                    <button type="submit" class="btn btn-primary btn-sm">Aus Sage laden</button>
+                </div>
+                <div class="col-12">
+                    <div id="belIdHilfe" class="form-text mt-0">Haupt- oder Sub-FA; angezeigt wird immer die ganze Struktur.</div>
+                    @Html.ValidationMessage("belId", null, new { @class = "text-danger small" })
+                </div>
+            </form>
+        </div>
+    </div>
+}
+
+@foreach (var f in Model.Fehler)
+{
+    <div class="alert alert-danger" role="alert">@f</div>
+}
+@if (Model.Hinweis is not null)
+{
+    <div class="alert alert-info" role="status">@Model.Hinweis</div>
+}
+
+@if (Model.Struktur is { } s)
+{
+    @foreach (var m in s.Meldungen)
+    {
+        <div class="alert alert-warning" role="alert"><strong>Zuordnung prüfen:</strong> @m</div>
+    }
+
+    @foreach (var k in s.Knoten)
+    {
+        FaKarte(k, k.Ebene == 0);
+    }
+
+    @if (s.NichtZugeordnet.Count > 0)
+    {
+        <h3 class="h5 mt-4">Nicht eindeutig zugeordnete Sub-FAs</h3>
+        @foreach (var k in s.NichtZugeordnet)
+        {
+            FaKarte(k, false);
+        }
+    }
+}
+
+@if (Model.Aufrufe.Count > 0)
+{
+    <details class="mt-4 mb-3">
+        <summary>Diagnose: @Model.Aufrufe.Count Sage-Aufruf(e), @Model.Aufrufe.Sum(a => a.DauerMs) ms</summary>
+        <div class="table-responsive mt-2">
+            <table class="table table-sm align-middle small">
+                <thead>
+                    <tr><th>Quelle</th><th>Status</th><th class="text-end">Dauer (ms)</th><th class="text-end">Zeilen</th><th>URL / Meldung</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var a in Model.Aufrufe)
+                    {
+                        <tr>
+                            <td>@a.Quelle</td>
+                            <td>
+                                @if (a.Uebersprungen) { <span class="badge text-bg-secondary">übersprungen</span> }
+                                else if (a.Erfolgreich) { <span class="badge text-bg-success">@a.Status OK</span> }
+                                else if (a.Verbindungsfehler) { <span class="badge text-bg-danger">0 keine Verbindung</span> }
+                                else { <span class="badge text-bg-danger">@a.Status Fehler</span> }
+                            </td>
+                            <td class="text-end">@a.DauerMs</td>
+                            <td class="text-end">@a.Zeilen</td>
+                            <td class="text-break">
+                                @if (a.Url is not null) { <code>@a.Url</code> }
+                                @if (a.Fehler is not null) { <div class="text-danger">@a.Fehler</div> }
+                                @if (a.Rohdaten is not null)
+                                {
+                                    <details>
+                                        <summary>Rohdaten anzeigen</summary>
+                                        <pre class="small mb-0 text-wrap">@a.Rohdaten</pre>
+                                    </details>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </details>
+}
+
+@{
+    void FaKarte(SageFaKnoten k, bool offen)
+    {
+        var fa = k.Fa;
+        var (klasse, text) = Status(fa);
+        var hatRm = Model.Rueckmeldungen.TryGetValue(fa.BelID, out var rm);
+        var hatFm = Model.Fertigmeldungen.TryGetValue(fa.BelID, out var fm);
+        Model.PositionenNichtGeladen.TryGetValue(fa.BelID, out var posFehler);
+        Model.RueckmeldungenNichtGeladen.TryGetValue(fa.BelID, out var rmFehler);
+        var einzug = Math.Min(k.Ebene, 6) * 1.5;
+        var rolle = fa.BelID == fa.StrukturID ? "Haupt-FA" : $"Sub-FA, Ebene {k.Ebene}";
+        <details id="fa-@fa.BelID" class="card mb-2 border-start border-3 @(fa.BelID == fa.StrukturID ? "border-primary" : "border-secondary")"
+                 style="margin-left:@(einzug.ToString(System.Globalization.CultureInfo.InvariantCulture))rem" open="@offen">
+            <summary class="card-header d-flex flex-wrap align-items-center gap-2 py-2">
+                <span class="fw-semibold">FA @fa.BelID</span>
+                <span class="text-body-secondary small">@rolle</span>
+                <span>@fa.Artikelnummer – @fa.Matchcode</span>
+                <span class="badge @klasse">@text</span>
+                <span class="badge text-bg-light border">@(fa.VerursacherTyp ?? "–")</span>
+            </summary>
+            <div class="card-body py-2">
+                <dl class="row small mb-2">
+                    <dt class="col-6 col-md-2">Sollmenge</dt><dd class="col-6 col-md-2">@Zahl(fa.Sollmenge)</dd>
+                    <dt class="col-6 col-md-2">Fertigungsmenge</dt><dd class="col-6 col-md-2">@Zahl(fa.Fertigungmenge)</dd>
+                    <dt class="col-6 col-md-2">Istmenge</dt><dd class="col-6 col-md-2">@Zahl(fa.Istmenge)</dd>
+                    <dt class="col-6 col-md-2">Sollstart</dt><dd class="col-6 col-md-2">@Termin(fa.Sollstarttermin)</dd>
+                    <dt class="col-6 col-md-2">Sollende</dt><dd class="col-6 col-md-2">@Termin(fa.Sollendtermin)</dd>
+                    <dt class="col-6 col-md-2">Geändert am</dt><dd class="col-6 col-md-2">@Termin(fa.GeaendertAm)</dd>
+                    <dt class="col-6 col-md-2">Rückmeldungen</dt>
+                    <dd class="col-6 col-md-2">@(rmFehler is not null ? "nicht geladen" : hatRm ? $"{rm.Anzahl} × Gut {Zahl(rm.MengeGut)}" : "keine Rückmeldung")</dd>
+                    <dt class="col-6 col-md-2">Fertigmeldungen</dt>
+                    <dd class="col-6 col-md-2">@(rmFehler is not null ? "nicht geladen" : hatFm ? $"{fm.Anzahl} × Gut {Zahl(fm.MengeGut)}" : "keine Fertigmeldung")</dd>
+                </dl>
+                @if (rmFehler is not null)
+                {
+                    <div class="alert alert-warning py-1 small mb-2" role="alert">@rmFehler</div>
+                }
+                @if (posFehler is not null)
+                {
+                    <div class="alert alert-warning py-1 small mb-0" role="alert">@posFehler</div>
+                }
+                else if (k.Positionen.Count == 0)
+                {
+                    <p class="small text-body-secondary mb-0">Keine Positionen.</p>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-sm table-striped align-middle small mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Typ</th><th>Ressource</th><th>Matchcode</th><th class="text-end">Menge je Einheit</th>
+                                    <th>Arbeitsgang</th><th>Arbeitsplatz</th><th>Materialteileart</th><th>Beendet</th><th>Sub-FA</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var z in k.Positionen)
+                                {
+                                    var p = z.Position;
+                                    var typ = p.Ressourcetyp?.Trim();
+                                    <tr>
+                                        <td><span class="badge @(typ == "AG" ? "text-bg-warning" : typ == "VS" ? "text-bg-secondary" : "text-bg-light border")">@(typ ?? "–")</span></td>
+                                        <td>@p.Ressourcenummer</td>
+                                        <td>@p.Matchcode</td>
+                                        <td class="text-end">@Zahl(p.Menge)</td>
+                                        <td>@p.Arbeitsgangnummer</td>
+                                        <td>@p.Arbeitsplatznummer</td>
+                                        <td>@p.Materialteileart</td>
+                                        <td>@(SageBool.IsTrue(p.IstBeendet) ? "ja" : "nein")</td>
+                                        <td>@if (z.SubFaBelId is int sub) { <a href="#fa-@sub">Sub-FA @sub</a> }</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </details>
+    }
+}

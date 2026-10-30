@@ -27,6 +27,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Sage-SData FA-Ansicht (v1.71.0): echte Antworten vom AKE-Test 2026-10-30 (Kopie der Backlog-Anhaenge). -->
+    <None Include="Fixtures\SageSdata\*.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\IdealAkeWms\IdealAkeWms.csproj" />
   </ItemGroup>
 

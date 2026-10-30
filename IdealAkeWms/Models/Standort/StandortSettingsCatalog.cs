@@ -59,6 +59,8 @@ public static class StandortSettingsCatalog
         new(AppSettingKeys.FaHierarchyKommissionierlistenAktiv, "Kommissionierlisten aktiv",     StandortFieldType.Bool, StandortBackend.App, GroupToggles),
         new(AppSettingKeys.FaHierarchyBeschichtungAktiv,        "Beschichtungsauftrag aktiv",    StandortFieldType.Bool, StandortBackend.App, GroupToggles),
         new(AppSettingKeys.FaHierarchyVormontageAktiv,          "Vormontage-Listen aktiv",       StandortFieldType.Bool, StandortBackend.App, GroupToggles),
+        new(AppSettingKeys.SageSdataFaAnsichtAktiv,             "Sage-Live-Ansicht FA-Struktur aktiv", StandortFieldType.Bool, StandortBackend.App, GroupToggles,
+            "Menüpunkt „FA-Struktur (Sage live)“: liest FA-Struktur und Stückliste direkt aus Sage (SData, nur lesen). Braucht SData:BaseUrl, SData:Dataset und die Sage-Zugangsdaten der Web-App."),
 
         // Struktur-Import (ServiceSettings).
         new("Sync:HierarchicalFaEnabled",           "FA-Struktur-Import aktiv",       StandortFieldType.Bool,   StandortBackend.Service, GroupImport),

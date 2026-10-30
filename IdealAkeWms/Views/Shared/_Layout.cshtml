@@ -71,6 +71,10 @@
                             var faKommListenAktiv = string.Equals(
                                 await AppSettings.GetValueAsync(IdealAkeWms.Models.AppSettingKeys.FaHierarchyKommissionierlistenAktiv),
                                 "true", StringComparison.OrdinalIgnoreCase);
+                            // Sage-SData FA-Ansicht (v1.71.0): Default aus, nur exakt "true" aktiviert.
+                            var sageSdataFaAktiv = string.Equals(
+                                await AppSettings.GetValueAsync(IdealAkeWms.Models.AppSettingKeys.SageSdataFaAnsichtAktiv),
+                                "true", StringComparison.OrdinalIgnoreCase);
                             // IDEAL Teil 4: Beschichtungsauftrag — Feature-Toggle mit invertierter
                             // Default-aus-Semantik (nur exakt "true" aktiviert).
                             var faBeschichtungAktiv = string.Equals(
@@ -125,6 +129,14 @@
                             <li class="nav-item">
                                 <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "FaHierarchy" ? "active" : "")"
                                    asp-controller="FaHierarchy" asp-action="Index">FA-Struktur</a>
+                            </li>
+                        }
+                        @* Sage-SData FA-Ansicht (v1.71.0): Live-Lesen aus Sage, Gate SageSdataFaAnsichtAktiv + Zugriff wie FA-Struktur. *@
+                        @if (showFaHierarchy && sageSdataFaAktiv)
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "SageSdataFa" ? "active" : "")"
+                                   asp-controller="SageSdataFa" asp-action="Index">FA-Struktur (Sage live)</a>
                             </li>
                         }
                         @* IDEAL Teil 4 + Ausbau Teil 4: Beschichtung — nur mit Lese- oder Schreibrolle
