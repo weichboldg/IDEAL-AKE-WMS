@@ -313,8 +313,42 @@
     if (ohneFeld) {
         // v1.68.1 (Freigabe-Nachtrag 6): sichtbar und antippbar; Anzeige des Fokus ueber Platzhalter + CSS :focus.
         ohneFeld.hidden = false;
-        ohneFeld.addEventListener('focus', function () { ohneFeld.placeholder = '✓ Scan bereit'; diag('Scan-Feld Fokus an'); });
-        ohneFeld.addEventListener('blur', function () { ohneFeld.placeholder = 'Scan: tippen zum Aktivieren'; diag('Scan-Feld Fokus aus'); });
+        // v1.71.1 (Freigabe-Nachtrag 7): Skript-Fokus startet am Netum keine Eingabemethode, nur ein Tipp. Darum gruen erst nach einer
+        // Geste; inputmode="none" erst ~300 ms danach (Tastatur einklappen, Verbindung bleibt), bei blur wieder weg fuer den naechsten Tipp.
+        var gesteAm = -1e9, bereitTimer = null;  // Zeitpunkt des letzten Tipps; ohne folgenden Fokus (Wischen) verfaellt er
+        var inputmode = function () { return ohneFeld.getAttribute('inputmode') || '–'; };
+        var anzeige = function (bereit) {
+            ohneFeld.classList.toggle('hw-scan-bereit', bereit);
+            ohneFeld.placeholder = bereit ? '✓ Scan bereit' : 'Zum Scannen hier tippen';
+        };
+        var nachTipp = function () {
+            clearTimeout(bereitTimer);
+            bereitTimer = setTimeout(function () {
+                if (document.activeElement !== ohneFeld) return;
+                ohneFeld.setAttribute('inputmode', 'none');
+                anzeige(true);
+                diag('Scan-Feld bereit, inputmode=' + inputmode());
+            }, 300);
+        };
+        var tipp = function () {
+            if (document.activeElement !== ohneFeld) { gesteAm = performance.now(); return; }  // focus folgt und wertet aus
+            diag('Scan-Feld Tipp bei Fokus, inputmode=' + inputmode());  // schon per Skript fokussiert: der Tipp startet die Eingabemethode
+            nachTipp();
+        };
+        ohneFeld.addEventListener('pointerdown', tipp);  // auch Touch (Chrome Android); touchstart zusaetzlich gaebe je Tipp zwei Zeilen
+        ohneFeld.addEventListener('focus', function () {
+            var durchTipp = performance.now() - gesteAm < 1000;
+            gesteAm = -1e9;
+            diag('Scan-Feld Fokus an (' + (durchTipp ? 'durch Tipp' : 'per Skript') + '), inputmode=' + inputmode());
+            if (durchTipp) nachTipp();
+        });
+        ohneFeld.addEventListener('blur', function () {
+            clearTimeout(bereitTimer);
+            gesteAm = -1e9;
+            ohneFeld.removeAttribute('inputmode');
+            anzeige(false);
+            diag('Scan-Feld Fokus aus');
+        });
         var parken = function () {
             setTimeout(function () {
                 var a = document.activeElement;

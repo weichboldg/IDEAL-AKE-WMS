@@ -215,7 +215,10 @@ public class HardwareScannerTests
         var feld = inbound[inbound.IndexOf("<input type=\"text\" id=\"hwScanOhneFeld\"", StringComparison.Ordinal)..];
         feld = feld[..feld.IndexOf("/>", StringComparison.Ordinal)];
         // v1.68.1 (Freigabe-Nachtrag 6): sichtbares, antippbares Feld - nicht mehr fuer Screenreader verborgen, nicht aus der Tab-Folge
-        feld.Should().Contain("inputmode=\"none\"", "keine Bildschirmtastatur").And.Contain("autocomplete=\"off\"").And.Contain(" hidden")
+        // v1.71.1 (Freigabe-Nachtrag 7): KEIN inputmode im Markup - sonst startet ein Tipp am Netum keine Eingabemethode
+        feld.Should().NotContain("inputmode", "erst nach einem Tipp setzt das Skript inputmode=none").And.Contain("autocomplete=\"off\"").And.Contain(" hidden")
+            .And.Contain("autocorrect=\"off\"").And.Contain("autocapitalize=\"off\"").And.Contain("spellcheck=\"false\"")
+            .And.Contain("form-control form-control-lg", "Daumengroesse").And.Contain("placeholder=\"Zum Scannen hier tippen\"")
             .And.NotContain("aria-hidden").And.NotContain("tabindex=\"-1\"")
             .And.Contain("data-artikel-ziel=\"ArticleId\"").And.Contain("data-lagerplatz-ziel=\"StorageLocationId\"");
         inbound.IndexOf("id=\"hwScanOhneFeld\"", StringComparison.Ordinal).Should().BeLessThan(inbound.IndexOf("<form", StringComparison.Ordinal),
@@ -234,10 +237,17 @@ public class HardwareScannerTests
         var css = Read("wwwroot", "css", "site.css").Replace("\r\n", "\n");
         var regel = css[css.IndexOf(".hw-scan-ohne-feld {", StringComparison.Ordinal)..];
         regel = regel[..regel.IndexOf("}", StringComparison.Ordinal)];
-        regel.Should().Contain("height: 30px;").And.NotContain("opacity").And.NotContain("pointer-events").And.NotContain("1px;");
-        css.Should().Contain(".hw-scan-ohne-feld:focus {", "Fokus-Anzeige gruen");
+        regel.Should().Contain("dashed").And.NotContain("opacity").And.NotContain("pointer-events").And.NotContain("1px;");
+        // v1.71.1: gruen nur mit .hw-scan-bereit (nach Tipp); reiner :focus (Skript-Fokus) bleibt grau
+        var fokus = css[css.IndexOf(".hw-scan-ohne-feld:focus {", StringComparison.Ordinal)..];
+        fokus[..fokus.IndexOf("}", StringComparison.Ordinal)].Should().NotContain("#198754").And.NotContain("#d1e7dd");
+        css.Should().Contain(".hw-scan-ohne-feld.hw-scan-bereit:focus {", "Fokus-Anzeige gruen erst nach Tipp");
         js.Should().Contain("ohneFeld.hidden = false;", "nur bei Schalter an sichtbar")
-            .And.Contain("diag('Scan-Feld Fokus an')").And.Contain("diag('Scan-Feld Fokus aus')")
+            .And.Contain("diag('Scan-Feld Fokus an (' + (durchTipp ? 'durch Tipp' : 'per Skript') + '), inputmode=' + inputmode());")
+            .And.Contain("diag('Scan-Feld Fokus aus')")
+            .And.Contain("ohneFeld.addEventListener('pointerdown', tipp);", "Benutzergeste von Skript-Fokus unterscheiden")
+            .And.Contain("if (durchTipp) nachTipp();", "inputmode=none und gruen nur nach Geste")
+            .And.Contain("ohneFeld.removeAttribute('inputmode');", "bei blur weg, damit der naechste Tipp neu startet")
             .And.Contain("'✓ Scan bereit'").And.Contain("if (ohne) { ohneFeld.value = ''; vor = { el: ohneFeld, wert: '' }; }", "nach jedem Scan leer, Basis der Text-Erkennung mit")
             .And.Contain("'  [aktiv: '", "jede Diagnose-Zeile mit aktivem Element");
         var profil = Read("Views", "Account", "Profile.cshtml");

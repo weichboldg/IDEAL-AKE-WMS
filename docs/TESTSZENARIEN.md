@@ -10505,6 +10505,20 @@ Lagerplatz (Code 128), Kommissionierliste mit Haupt-FA-Barcode, Beschichtungsauf
   tippen → wieder grün, genau eine Zeile „Scan-Feld Fokus an“ – keine sich wiederholenden Fokus-Zeilen. q) (QA v1.68.1) Am Handheld hochkant:
   Scan-Feld ganz sichtbar, Text „Scan: tippen zum Aktivieren“ nicht abgeschnitten, kein Querscrollen; Zustand auch ohne Farbe am Text und
   an der Rahmenform (gestrichelt/durchgezogen) erkennbar.
+  **v1.71.1 (Freigabe-Nachtrag 7, geht der Vorbedingung oben sowie p) und q) vor):** Grün „✓ Scan bereit“ erst nach einem **Tipp** auf das
+  Scan-Feld; Skript-Fokus (beim Laden, nach freier Stelle, nach Select2/Kamera-Fenster) zeigt grau „Zum Scannen hier tippen“. Das Feld ist so
+  breit wie die Formularkarte, Höhe wie `form-control-lg`. Netum, **Browser-Cache leeren**, Schalter wie oben:
+  a7) Einbuchung frisch öffnen → Feld **grau** „Zum Scannen hier tippen“, obwohl der Cursor drin steht; Diagnose „Scan-Feld Fokus an (per Skript),
+  inputmode=–“. Ein Scan jetzt kommt nicht an (Befund 1, festhalten). b7) Einmal auf das Scan-Feld tippen → Diagnose „Scan-Feld Tipp bei Fokus,
+  inputmode=–“ (bzw. „Fokus an (durch Tipp)“), nach ca. 0,3 s „Scan-Feld bereit, inputmode=none“, Feld **grün durchgezogen** „✓ Scan bereit“;
+  Bildschirmtastatur klappt ein **oder** bleibt stehen und lässt sich mit Zurück schließen – Beobachtung festhalten. c7) Ohne weiteren Tipp einen
+  Artikel-QR scannen → Artikel gewählt, Diagnose „über Scan-Feld (ohne Fokus) → ArticleId“. d7) Drei Codes hintereinander (Artikel, Lagerplatz,
+  Artikel) ohne Tipp → jeder zugeordnet, Feld bleibt grün und nach jedem Scan leer. e7) Feld „Fertigungsauftrag“ antippen (Tastatur erscheint),
+  etwas tippen → Scan-Feld grau, „Scan-Feld Fokus aus“; danach auf das Scan-Feld tippen → wieder grün nach ca. 0,3 s, nächster Scan kommt an.
+  Nur auf eine freie Stelle tippen → grau (Skript-Fokus), Scan kommt nicht an. f7) Einbuchung speichern bzw. Seite wechseln und zurück → wieder
+  **grau**, erst nach einem Tipp grün. g7) PC (Chrome/Edge) mit Schalter an: Feld per Maus anklickbar, wird grün, Tastatur-Fokus (Tab) sichtbar
+  (grau mit Ring), Formular sonst unverändert bedienbar, keine Störung. h7) Schalter aus → **kein** Scan-Feld, Seite wie v1.68.0.
+  Negativ: Ohne Farbe (Graustufen-Ansicht) sind grau/grün an Text und Rahmenform (gestrichelt/durchgezogen) unterscheidbar.
 - **TS-99.15 — Zeichenabstand prüfen (v1.66.1, Nachtrag 2 Punkt 2).** Standorteinstellungen → Hardware-Scanner, „Größter
   Zeichenabstand (ms)“: a) `5`, `0`, `-5`, `501` speichern. **Erwartet:** „Nicht gespeichert: 'Größter Zeichenabstand (ms)' muss zwischen
   10 und 500 liegen (war: …)“, auch die übrigen Felder bleiben ungespeichert, die Eingabe bleibt sichtbar. b) `10` und `500` speichern:

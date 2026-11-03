@@ -7,10 +7,15 @@
 
 @* v1.67.2/v1.68.1 Scannen ohne Feld (Pilot, Freigabe-Nachtrag 5/6): sichtbares Scan-Feld "Scan bereit" fuer Fokus-Eingabe-Geraete
    (Netum findet ein unsichtbares Feld nicht). Ausserhalb des Formulars (kein Submit), ohne Bildschirmtastatur. Nur mit Profil-Schalter
-   "Scannen ohne Feld" sichtbar (hardware-scanner.js nimmt hidden weg), sonst nie fokussiert. *@
-<div class="mb-2">
-    <input type="text" id="hwScanOhneFeld" data-hw-scan-ohne-feld data-artikel-ziel="ArticleId" data-lagerplatz-ziel="StorageLocationId"
-           class="hw-scan-ohne-feld" inputmode="none" autocomplete="off" aria-label="Scan-Feld" placeholder="Scan: tippen zum Aktivieren" hidden />
+   "Scannen ohne Feld" sichtbar (hardware-scanner.js nimmt hidden weg), sonst nie fokussiert.
+   v1.71.1 (Freigabe-Nachtrag 7): KEIN inputmode im Markup - erst ein Tipp startet am Netum die Eingabemethode; inputmode="none" setzt
+   hardware-scanner.js erst danach. Volle Kartenbreite, Daumengroesse (form-control-lg). *@
+<div class="row mb-2">
+    <div class="col-md-8 col-lg-6">
+        <input type="text" id="hwScanOhneFeld" data-hw-scan-ohne-feld data-artikel-ziel="ArticleId" data-lagerplatz-ziel="StorageLocationId"
+               class="form-control form-control-lg hw-scan-ohne-feld" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+               aria-label="Scan-Feld" placeholder="Zum Scannen hier tippen" hidden />
+    </div>
 </div>
 
 <div class="row">

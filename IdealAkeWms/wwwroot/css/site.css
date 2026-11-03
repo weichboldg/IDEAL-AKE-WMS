@@ -1442,8 +1442,12 @@ th:hover .col-resize-handle {
 
 /* v1.68.1 Scannen ohne Feld (Einbuchung, Freigabe-Nachtrag 6): sichtbares, antippbares Scan-Feld. Zustand an Text + Rahmenform, nicht nur
    Farbe: ohne Fokus grau gestrichelt "Scan: tippen zum Aktivieren" (8:1), mit Fokus gruen durchgezogen "✓ Scan bereit" (11:1). */
-.hw-scan-ohne-feld { width: 15em; height: 30px; padding: 0 .5rem; font-size: .8125rem; border: 2px dashed #6c757d; border-radius: .375rem;
-    background: #f8f9fa; color: #495057; caret-color: transparent; }
+/* v1.71.1 (Freigabe-Nachtrag 7): drei Zustaende, Text + Rahmenform tragen ihn, Farbe nur zusaetzlich. Groesse kommt aus form-control-lg.
+   1 kein Fokus: grau gestrichelt "Zum Scannen hier tippen" (#495057 auf #f8f9fa ca. 8:1, Rahmen #6c757d ca. 4,5:1)
+   2 nur Skript-Fokus (am Netum NICHT scanbereit): wie 1 + Fokusring (sichtbarer Tastatur-Fokus)
+   3 nach Tipp (.hw-scan-bereit): gruen durchgezogen "✓ Scan bereit" (#0a3622 auf #d1e7dd ca. 11:1, Rahmen #198754 ca. 3,5:1) */
+.hw-scan-ohne-feld { border: 2px dashed #6c757d; background-color: #f8f9fa; color: #495057; caret-color: transparent; }
 .hw-scan-ohne-feld::placeholder { color: #495057; opacity: 1; }
-.hw-scan-ohne-feld:focus { outline: none; border-style: solid; border-color: #198754; background: #d1e7dd; color: #0a3622; box-shadow: 0 0 0 .2rem rgba(25, 135, 84, .25); }
-.hw-scan-ohne-feld:focus::placeholder { color: #0a3622; font-weight: 600; }
+.hw-scan-ohne-feld:focus { border-color: #6c757d; background-color: #f8f9fa; color: #495057; box-shadow: 0 0 0 .25rem rgba(73, 80, 87, .35); }
+.hw-scan-ohne-feld.hw-scan-bereit:focus { border-style: solid; border-color: #198754; background-color: #d1e7dd; color: #0a3622; box-shadow: 0 0 0 .25rem rgba(25, 135, 84, .3); }
+.hw-scan-ohne-feld.hw-scan-bereit:focus::placeholder { color: #0a3622; font-weight: 600; }
