@@ -240,7 +240,12 @@ public class HardwareScannerTests
         regel.Should().Contain("dashed").And.NotContain("opacity").And.NotContain("pointer-events").And.NotContain("1px;");
         // v1.71.1: gruen nur mit .hw-scan-bereit (nach Tipp); reiner :focus (Skript-Fokus) bleibt grau
         var fokus = css[css.IndexOf(".hw-scan-ohne-feld:focus {", StringComparison.Ordinal)..];
-        fokus[..fokus.IndexOf("}", StringComparison.Ordinal)].Should().NotContain("#198754").And.NotContain("#d1e7dd");
+        fokus[..fokus.IndexOf("}", StringComparison.Ordinal)].Should().NotContain("#198754").And.NotContain("#d1e7dd")
+            .And.Contain("outline: 2px solid #495057", "QA v1.71.1: Fokusring im Zustand 2 mit mindestens 3:1, nicht halbtransparent");
+        // QA v1.71.1: inputmode=none genau einmal gesetzt, und zwar im Timer nach der Geste (nachTipp), nie beim Laden oder im parken
+        var setzen = js.IndexOf("ohneFeld.setAttribute('inputmode', 'none');", StringComparison.Ordinal);
+        setzen.Should().BeGreaterThan(js.IndexOf("var nachTipp = function", StringComparison.Ordinal)).And.BeLessThan(js.IndexOf("var tipp = function", StringComparison.Ordinal));
+        js.IndexOf("ohneFeld.setAttribute('inputmode', 'none');", setzen + 1, StringComparison.Ordinal).Should().Be(-1, "kein zweiter Setz-Ort");
         css.Should().Contain(".hw-scan-ohne-feld.hw-scan-bereit:focus {", "Fokus-Anzeige gruen erst nach Tipp");
         js.Should().Contain("ohneFeld.hidden = false;", "nur bei Schalter an sichtbar")
             .And.Contain("diag('Scan-Feld Fokus an (' + (durchTipp ? 'durch Tipp' : 'per Skript') + '), inputmode=' + inputmode());")

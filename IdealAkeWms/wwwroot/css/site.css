@@ -1448,6 +1448,8 @@ th:hover .col-resize-handle {
    3 nach Tipp (.hw-scan-bereit): gruen durchgezogen "✓ Scan bereit" (#0a3622 auf #d1e7dd ca. 11:1, Rahmen #198754 ca. 3,5:1) */
 .hw-scan-ohne-feld { border: 2px dashed #6c757d; background-color: #f8f9fa; color: #495057; caret-color: transparent; }
 .hw-scan-ohne-feld::placeholder { color: #495057; opacity: 1; }
-.hw-scan-ohne-feld:focus { border-color: #6c757d; background-color: #f8f9fa; color: #495057; box-shadow: 0 0 0 .25rem rgba(73, 80, 87, .35); }
-.hw-scan-ohne-feld.hw-scan-bereit:focus { border-style: solid; border-color: #198754; background-color: #d1e7dd; color: #0a3622; box-shadow: 0 0 0 .25rem rgba(25, 135, 84, .3); }
+/* QA v1.71.1: Fokusring als Outline mit Abstand (#495057 ca. 8:1, #198754 ca. 4,5:1 auf Weiss). Der halbtransparente Ring lag bei ca. 1,8:1
+   und war im Zustand 2 der einzige Unterschied zu Zustand 1; der Abstand laesst die gestrichelte Rahmenform sichtbar. */
+.hw-scan-ohne-feld:focus { border-color: #6c757d; background-color: #f8f9fa; color: #495057; box-shadow: none; outline: 2px solid #495057; outline-offset: 2px; }
+.hw-scan-ohne-feld.hw-scan-bereit:focus { border-style: solid; border-color: #198754; background-color: #d1e7dd; color: #0a3622; outline-color: #198754; }
 .hw-scan-ohne-feld.hw-scan-bereit:focus::placeholder { color: #0a3622; font-weight: 600; }
