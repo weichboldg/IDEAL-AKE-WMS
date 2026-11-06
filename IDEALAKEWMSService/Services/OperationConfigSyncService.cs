@@ -2,6 +2,7 @@ using IdealAkeWms.Data;
 using IdealAkeWms.Models;
 using IdealAkeWms.Services.SyncLogger;
 using IDEALAKEWMSService.Common;
+using IDEALAKEWMSService.Services.Sdata;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -117,6 +118,17 @@ public class OperationConfigSyncService : IOperationConfigSyncService
                 return new SyncResult(0, 0, 0, "Quelle nicht vorhanden.");
             }
             rows = read.Rows;
+            if (_reader is SageQuelleWeiche { GenutzteQuelle: { } quelle })
+                await run.LogInfoAsync($"Quelle: {quelle}", ct: ct); // F1
+            if (!read.ArbeitsschrittGeliefert)
+            {
+                // E6a/G12, TODO(P-A1): SData liefert USER_ArbeitsSchritt (noch) nicht. Ohne Kuerzel waere jeder Eintrag "nicht in Sage" —
+                // daher kein Abgleich (keine Anlage, keine Kennzeichnung), sichtbar als Warnung.
+                await run.LogWarningAsync("Quelle liefert kein Arbeitsschritt-Kuerzel (USER_ArbeitsSchritt, Pruefabfrage P-A1) — " +
+                    "keine Anlage, keine Kennzeichnung.", ct: ct);
+                await run.FinishSuccessAsync(EmptyCounts(), messageSuffix: dryRun ? "Kuerzel nicht geliefert [DryRun]" : "Kuerzel nicht geliefert", ct: ct);
+                return new SyncResult(0, 0, 0, "Kuerzel nicht geliefert.");
+            }
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

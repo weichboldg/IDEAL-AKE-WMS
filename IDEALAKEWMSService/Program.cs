@@ -59,7 +59,8 @@ try
     IDEALAKEWMSService.Services.Sdata.SdataRegistrierung.AddArtikelQuelle(builder.Services);
     // Lagerplaetze: Quellen-Weiche (Sync:Quelle:Lagerplaetze, Default View = SQL-Reader unveraendert), v1.73.0 E1.
     IDEALAKEWMSService.Services.Sdata.SdataRegistrierung.AddLagerplatzQuelle(builder.Services);
-    builder.Services.AddScoped<ISageArbeitsplatzReader, SageArbeitsplatzReader>();
+    // Arbeitsplaetze (Werkbank-Anlage + Arbeitsgang-Kuerzel): Quellen-Weiche (Sync:Quelle:Arbeitsplaetze, Default View = SQL-Reader unveraendert), v1.73.0 E6a.
+    IDEALAKEWMSService.Services.Sdata.SdataRegistrierung.AddArbeitsplatzQuelle(builder.Services);
     // Lagerbestand: Quellen-Weiche (Sync:Quelle:Lagerbestand, Default View = SQL-Reader unveraendert), v1.73.0 E2.
     IDEALAKEWMSService.Services.Sdata.SdataRegistrierung.AddBestandQuelle(builder.Services);
     builder.Services.AddScoped<ISageZusatzinfoReader, SageZusatzinfoReader>();

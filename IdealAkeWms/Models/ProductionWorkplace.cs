@@ -52,6 +52,24 @@ public class ProductionWorkplace : AuditableEntity
     [Display(Name = "Nur AG-Fertigmeldung (ohne Start/Stop)")]
     public bool BdeNurAgFertigmeldung { get; set; }
 
+    // v1.73.0 (Spec 2026-11-06-sage-sdata-stammdaten-sync E6a, F8): nur der SData-Weg (PpsArbeitsplaetzeInfo) liefert diese Felder.
+    // Der ProductionWorkplaceSyncService schreibt sie nur, wenn die Quelle sie liefert (nicht null) — ein View-Lauf laesst sie unveraendert.
+
+    /// <summary>Sage <c>BdeTerminalId</c> (string(20), P-S1). (v1.73.0)</summary>
+    [StringLength(20)]
+    [Display(Name = "BDE-Terminal (Sage)")]
+    public string? SageBdeTerminalId { get; set; }
+
+    /// <summary>Sage <c>Kostenstelle</c> (string(20), P-S1). (v1.73.0)</summary>
+    [StringLength(20)]
+    [Display(Name = "Kostenstelle (Sage)")]
+    public string? SageKostenstelle { get; set; }
+
+    /// <summary>Sage <c>Schichtplannummer</c> (string(31), P-S1). (v1.73.0)</summary>
+    [StringLength(31)]
+    [Display(Name = "Schichtplannummer (Sage)")]
+    public string? SageSchichtplannummer { get; set; }
+
     public ICollection<ProductionWorkplaceUser> ProductionWorkplaceUsers { get; set; } = new List<ProductionWorkplaceUser>();
     public ICollection<ProductionOrder> ProductionOrders { get; set; } = new List<ProductionOrder>();
     public ICollection<WorkOperation> WorkOperations { get; set; } = new List<WorkOperation>();

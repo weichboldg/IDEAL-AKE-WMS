@@ -681,6 +681,14 @@ C:\Services\IDEALAKEWMSService\
 > `BelPosID`, Ressource, Menge, `PlatzID` + Kurzbezeichnung aus `LagerplaetzeInfo`; Count-Key `positionen`) in eigener Transaktion; leere
 > Antwort oder Schreibfehler lassen den alten Stand stehen (Warnung bzw. Fehler + Mail). `View` fasst die Tabelle nie an. `SQL/101` legt
 > außerdem `SageFaStates` an (Lesemodell des Rückmelde-Epics, bleibt bis dahin leer). Keine neuen Einstellungen.
+> **`Sync:Quelle:Arbeitsplaetze`** (E6a): gilt für **beide** Leser der Sage-Arbeitsplätze – Werkbank-Anlage und Arbeitsgang-Abgleich (kein
+> eigener Schalter). `SData` liest `PpsArbeitsplaetzeInfo` (nur `Aktiv`, im Code gefiltert; `Sync:ProductionWorkplaceSyncViewName` und
+> `…Mandant` wirken dort nicht – den Mandanten legt das Dataset fest) und schreibt zusätzlich `SageBdeTerminalId`, `SageKostenstelle`,
+> `SageSchichtplannummer` an vorhandene Werkbänke (Migration `SQL/102`, nur nicht-leere Werte; ein View-Lauf lässt sie unverändert).
+> Das Arbeitsschritt-Kürzel (`USER_ArbeitsSchritt`) liefert SData am AKE-Test **nicht** (Prüfabfrage P-A1): im Modus `SData` legt die
+> Werkbank-Anlage dann keine Werkbank an und gleicht Name/Kürzel nicht ab (Warnung; Kennzeichnung „nicht in Sage“ läuft weiter), der
+> Arbeitsgang-Abgleich setzt mit Warnung aus („Kuerzel nicht geliefert“, keine Anlage, keine Kennzeichnung). `Vergleich` vergleicht je
+> Arbeitsplatznummer den Namen. SData-Fehler: Lauf mit Fehler + Fehlermail wie bisher bei Lesefehlern.
 > Die übrigen Schalter wirken mit den folgenden Etappen.
 
 #### Schritt 3 — Windows Service registrieren

@@ -343,6 +343,9 @@ BEGIN
         [ArbeitsschrittCode]     NVARCHAR(20)      NULL,
         [SageMissingSince]       DATETIME2         NULL,
         [BdeNurAgFertigmeldung]  BIT               NOT NULL CONSTRAINT [DF_ProductionWorkplaces_BdeNurAgFertigmeldung] DEFAULT (0),
+        [SageBdeTerminalId]      NVARCHAR(20)      NULL,  -- v1.73.0 / SQL/102 (SData PpsArbeitsplaetzeInfo)
+        [SageKostenstelle]       NVARCHAR(20)      NULL,  -- v1.73.0 / SQL/102
+        [SageSchichtplannummer]  NVARCHAR(31)      NULL,  -- v1.73.0 / SQL/102
         [CreatedAt]              DATETIME2         NOT NULL DEFAULT GETDATE(),
         [CreatedBy]              NVARCHAR(200)     NOT NULL,
         [CreatedByWindows]       NVARCHAR(200)     NOT NULL,
@@ -2631,6 +2634,9 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261106191438_AddProductionOrderPositions')
    AND OBJECT_ID(N'dbo.ProductionOrderPositions', N'U') IS NOT NULL AND OBJECT_ID(N'dbo.SageFaStates', N'U') IS NOT NULL -- sonst steht SQL/101 noch aus
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261106191438_AddProductionOrderPositions', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261106192342_AddProductionWorkplaceSdataFields')
+   AND COL_LENGTH(N'dbo.ProductionWorkplaces', N'SageBdeTerminalId') IS NOT NULL AND COL_LENGTH(N'dbo.ProductionWorkplaces', N'SageSchichtplannummer') IS NOT NULL -- sonst steht SQL/102 noch aus
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261106192342_AddProductionWorkplaceSdataFields', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';

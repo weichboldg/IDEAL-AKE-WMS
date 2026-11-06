@@ -2,6 +2,7 @@ using IdealAkeWms.Data;
 using IdealAkeWms.Models;
 using IdealAkeWms.Services.SyncLogger;
 using IDEALAKEWMSService.Common;
+using IDEALAKEWMSService.Services.Sdata;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -88,6 +89,11 @@ public class ProductionWorkplaceSyncService : IProductionWorkplaceSyncService
                 return new SyncResult(0, 0, 0, "Quelle nicht vorhanden.");
             }
             sageRows = read.Rows;
+            await LogQuelleAsync(run, ct);
+            if (!read.ArbeitsschrittGeliefert)
+                // TODO(P-A1): entfaellt, sobald SData USER_ArbeitsSchritt liefert. Melden statt still alle Zeilen ueberspringen.
+                await run.LogWarningAsync("Quelle liefert kein Arbeitsschritt-Kuerzel (USER_ArbeitsSchritt, Pruefabfrage P-A1) — " +
+                    "keine Werkbank-Anlage, kein Name-/Kuerzel-Abgleich; nur Sage-Zusatzfelder und Kennzeichnung \"nicht in Sage\".", ct: ct);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -99,7 +105,7 @@ public class ProductionWorkplaceSyncService : IProductionWorkplaceSyncService
 
         try
         {
-            int inserted = 0, updated = 0, skipped = 0, deviations = 0;
+            int inserted = 0, updated = 0, skipped = 0, deviations = 0, zusatzfelder = 0;
             var problems = new HashSet<string>(StringComparer.Ordinal); // mehrdeutig / Insert-Verstoss
 
             var existing = await _ctx.ProductionWorkplaces
@@ -121,6 +127,21 @@ public class ProductionWorkplaceSyncService : IProductionWorkplaceSyncService
                 ct.ThrowIfCancellationRequested();
 
                 var nummer = (row.Arbeitsplatznummer ?? string.Empty).Trim();
+
+                // E6a: SData-only-Felder an der vorhandenen Werkbank — unabhaengig vom Kuerzel-Filter, nur nicht-null Werte (F1).
+                // Beim View-Weg sind sie null -> keine Aenderung.
+                if (nummer.Length > 0 && byNummer.TryGetValue(nummer, out var treffer) && treffer.Count == 1
+                    && SageZusatzfelderAbweichend(treffer[0], row))
+                {
+                    zusatzfelder++;
+                    if (!dryRun)
+                    {
+                        SageZusatzfelderSetzen(treffer[0], row);
+                        treffer[0].ModifiedAt = now; treffer[0].ModifiedBy = ServiceUser; treffer[0].ModifiedByWindows = ServiceUser;
+                        pendingUpdates = true;
+                    }
+                }
+
                 var code = (row.Arbeitsschritt ?? string.Empty).Trim();
                 // Pflicht-Filter: Nummer + Kuerzel gefuellt, Kuerzel nicht auf der Ausschlussliste.
                 if (nummer.Length == 0 || code.Length == 0 || ausschluss.Contains(code)) { skipped++; continue; }
@@ -137,6 +158,9 @@ public class ProductionWorkplaceSyncService : IProductionWorkplaceSyncService
                             SageArbeitsplatznummer = nummer,
                             Name = name,
                             ArbeitsschrittCode = code,
+                            SageBdeTerminalId = row.BdeTerminalId,
+                            SageKostenstelle = row.Kostenstelle,
+                            SageSchichtplannummer = row.Schichtplannummer,
                             CreatedAt = now, CreatedBy = ServiceUser, CreatedByWindows = ServiceUser,
                         });
                         try
@@ -238,6 +262,10 @@ public class ProductionWorkplaceSyncService : IProductionWorkplaceSyncService
                         reference: w.SageArbeitsplatznummer, ct: ct);
             }
 
+            if (zusatzfelder > 0)
+                await run.LogInfoAsync($"Sage-Zusatzfelder (BDE-Terminal, Kostenstelle, Schichtplan) aktualisiert: {zusatzfelder}" +
+                    (dryRun ? " [DryRun]" : ""), ct: ct);
+
             if (!dryRun && pendingUpdates) await _ctx.SaveChangesAsync(ct);
 
             // Sammelmail (S1) nur bei Aenderung der problematischen Menge.
@@ -271,6 +299,26 @@ public class ProductionWorkplaceSyncService : IProductionWorkplaceSyncService
             await run.FinishFailedAsync(ex.Message, ct: ct);
             throw;
         }
+    }
+
+    /// <summary>Info-Zeile „Quelle: View|SData|Vergleich“ (F1), nur wenn der Reader die Quellen-Weiche ist.</summary>
+    private async Task LogQuelleAsync(ISyncRun run, CancellationToken ct)
+    {
+        if (_reader is SageQuelleWeiche { GenutzteQuelle: { } quelle })
+            await run.LogInfoAsync($"Quelle: {quelle}", ct: ct);
+    }
+
+    /// <summary>E6a/F1: null = Quelle liefert das Feld nicht = nicht schreiben, also auch keine Abweichung.</summary>
+    internal static bool SageZusatzfelderAbweichend(ProductionWorkplace w, SageArbeitsplatzDto r) =>
+        (r.BdeTerminalId is not null && !string.Equals(r.BdeTerminalId, w.SageBdeTerminalId, StringComparison.Ordinal))
+        || (r.Kostenstelle is not null && !string.Equals(r.Kostenstelle, w.SageKostenstelle, StringComparison.Ordinal))
+        || (r.Schichtplannummer is not null && !string.Equals(r.Schichtplannummer, w.SageSchichtplannummer, StringComparison.Ordinal));
+
+    private static void SageZusatzfelderSetzen(ProductionWorkplace w, SageArbeitsplatzDto r)
+    {
+        if (r.BdeTerminalId is not null) w.SageBdeTerminalId = r.BdeTerminalId;
+        if (r.Kostenstelle is not null) w.SageKostenstelle = r.Kostenstelle;
+        if (r.Schichtplannummer is not null) w.SageSchichtplannummer = r.Schichtplannummer;
     }
 
     private const int MaxMessageLength = 1000; // SyncLogs.Message NVARCHAR(1000), laengere Zeilen gingen still verloren

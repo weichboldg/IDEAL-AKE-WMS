@@ -66,6 +66,21 @@ public static class SdataRegistrierung
         return services;
     }
 
+    /// <summary>E6a: <see cref="ISageArbeitsplatzReader"/> = <see cref="ArbeitsplatzQuelleSwitch"/> (Werkbank-Anlage + Arbeitsgang-Kuerzel,
+    /// Muster wie <see cref="AddLagerplatzQuelle"/>).</summary>
+    public static IServiceCollection AddArbeitsplatzQuelle(this IServiceCollection services)
+    {
+        services.AddScoped<SageArbeitsplatzReader>();
+        services.AddScoped<SdataArbeitsplatzReader>();
+        services.AddScoped<ISageArbeitsplatzReader>(sp => new ArbeitsplatzQuelleSwitch(
+            sp.GetRequiredService<SageArbeitsplatzReader>(),
+            sp.GetRequiredService<SdataArbeitsplatzReader>(),
+            sp.GetRequiredService<IConfiguration>(),
+            sp.GetRequiredService<ISyncErrorNotifier>(),
+            sp.GetRequiredService<IdealAkeWms.Services.SyncLogger.ISyncLogger>()));
+        return services;
+    }
+
     /// <summary>E4a: <see cref="ISageFaStrukturReader"/> = <see cref="FaStrukturQuelleSwitch"/> (Muster wie <see cref="AddLagerplatzQuelle"/>).</summary>
     public static IServiceCollection AddFaStrukturQuelle(this IServiceCollection services)
     {

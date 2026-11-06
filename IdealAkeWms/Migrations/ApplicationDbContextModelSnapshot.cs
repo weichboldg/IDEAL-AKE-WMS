@@ -2884,8 +2884,20 @@ namespace IdealAkeWms.Migrations
                         .HasMaxLength(31)
                         .HasColumnType("nvarchar(31)");
 
+                    b.Property<string>("SageBdeTerminalId")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("SageKostenstelle")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
                     b.Property<DateTime?>("SageMissingSince")
                         .HasColumnType("datetime2");
+
+                    b.Property<string>("SageSchichtplannummer")
+                        .HasMaxLength(31)
+                        .HasColumnType("nvarchar(31)");
 
                     b.HasKey("Id");
 

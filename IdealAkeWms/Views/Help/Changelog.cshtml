@@ -61,6 +61,16 @@
                         aus Sage übernommen (Grundlage der späteren Rückmeldungen an Sage, noch ohne Anzeige). Dabei zählen nur eingelastete und aktive
                         Fertigungsaufträge; nicht eingelastete werden im Lauf &bdquo;FA-Hierarchie-Sync&ldquo; gemeldet.</li>
                 </ul>
+                <h6>Arbeitsplätze über SData (IDEAL)</h6>
+                <ul>
+                    <li><code>Sync:Quelle:Arbeitsplaetze</code> wirkt für die Werkbank-Anlage und den Arbeitsgang-Abgleich: <code>SData</code> liest die
+                        Sage-Arbeitsplätze über die Sage-Schnittstelle, <code>Vergleich</code> liest beide Quellen und schreibt nur aus der View. Beide Läufe
+                        nennen die genutzte Quelle.</li>
+                    <li>Über SData werden zusätzlich BDE-Terminal, Kostenstelle und Schichtplannummer des Sage-Arbeitsplatzes an der Werkbank gespeichert
+                        (noch ohne Anzeige); ein späterer Lauf über die View lässt sie unverändert.</li>
+                    <li>Das Arbeitsschritt-Kürzel liefert die Sage-Schnittstelle noch nicht: im Modus <code>SData</code> werden keine Werkbänke und keine
+                        Kürzel angelegt, beide Läufe zeigen dazu eine Warnung.</li>
+                </ul>
             </div>
         </div>
 
