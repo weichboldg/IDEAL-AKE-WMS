@@ -82,6 +82,8 @@ public class FaHierarchySyncService : IFaHierarchySyncService
                 _logger.LogInformation(
                     "FaHierarchy-Sync [DryRun]: wuerde {Nodes} Knoten + {Infos} OrderInfos ersetzen.",
                     nodes.Count, infos.Count);
+                if (lesung.Positionen is { } p)
+                    await run.LogInfoAsync($"[DryRun] ProductionOrderPositions: würde {p.Count} Positionen aus SData ersetzen.", ct: ct);
                 await run.FinishSuccessAsync(new Dictionary<string, int>
                 {
                     ["neu"] = nodes.Count + infos.Count,
@@ -109,12 +111,16 @@ public class FaHierarchySyncService : IFaHierarchySyncService
 
             var ambiguousCount = await LogAmbiguousHauptFasAsync(run, infos, ct);
 
-            await run.FinishSuccessAsync(new Dictionary<string, int>
+            var counts = new Dictionary<string, int>
             {
                 ["neu"] = nodes.Count + infos.Count,
                 ["geloescht"] = deletedNodes + deletedInfos,
                 ["hauptfa_mehrdeutig"] = ambiguousCount,
-            }, ct: ct);
+            };
+            // E4b: nur wenn SData gelesen wurde (Vergleich/SData) — im View-Betrieb Count-Keys und Tabelle unveraendert.
+            if (lesung.Positionen is { } positionen)
+                counts["positionen"] = await PositionenErsetzenAsync(run, positionen, ct);
+            await run.FinishSuccessAsync(counts, ct: ct);
 
             return new FaHierarchySyncResult(nodes.Count, infos.Count, deletedNodes, deletedInfos, Skipped: false, DryRun: false);
         }
@@ -139,6 +145,40 @@ public class FaHierarchySyncService : IFaHierarchySyncService
             await run.LogErrorAsync(ex.Message, ct: ct);
             await run.FinishFailedAsync(ex.Message, ct: ct);
             throw;
+        }
+    }
+
+    /// <summary>
+    /// E4b (Spec 2026-11-06-sage-sdata-stammdaten-sync F6): Full-Refresh von <c>ProductionOrderPositions</c> in einer EIGENEN Transaktion
+    /// NACH dem Struktur-Commit — ein Fehler hier rollt die (im Vergleich aus der View geschriebene) Struktur nicht zurueck. Leere Liste:
+    /// nichts ersetzen + Warnung (nie leeren). Fehler: Protokoll-Fehler + Mail, der Lauf endet trotzdem erfolgreich (Struktur ist geschrieben).
+    /// Gibt die Zahl der geschriebenen Positionen zurueck (0 bei Warnung/Fehler).
+    /// </summary>
+    internal async Task<int> PositionenErsetzenAsync(ISyncRun run, List<ProductionOrderPosition> positionen, CancellationToken ct)
+    {
+        if (positionen.Count == 0)
+        {
+            await run.LogWarningAsync("ProductionOrderPositions: SData liefert keine Positionen – Tabelle bleibt unverändert.", ct: ct);
+            return 0;
+        }
+        try
+        {
+            await using var tx = await _ctx.Database.BeginTransactionAsync(ct);
+            var geloescht = await _ctx.Database.ExecuteSqlRawAsync("DELETE FROM dbo.ProductionOrderPositions", ct);
+            await _ctx.ProductionOrderPositions.AddRangeAsync(positionen, ct);
+            await _ctx.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+            await run.LogInfoAsync($"ProductionOrderPositions: {positionen.Count} Positionen aus SData ersetzt ({geloescht} gelöscht).", ct: ct);
+            return positionen.Count;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _ctx.ChangeTracker.Clear();
+            _logger.LogError(ex, "FaHierarchy-Sync: ProductionOrderPositions nicht ersetzt.");
+            var msg = $"ProductionOrderPositions nicht ersetzt (alter Stand bleibt): {ex.Message}";
+            await run.LogErrorAsync(msg.Length <= 600 ? msg : msg[..600], ct: ct); // SyncLogs.Message = 1000
+            await _errorNotifier.NotifyAsync("FaHierarchy-Sync: FA-Positionen nicht ersetzt", ex, ct);
+            return 0;
         }
     }
 

@@ -7,7 +7,8 @@ namespace IDEALAKEWMSService.Services.Sdata;
 /// Spec 2026-11-06-sage-sdata-stammdaten-sync (E4a/F6): Quellen-Weiche fuer <see cref="ISageFaStrukturReader"/> (Schalter
 /// <c>Sync:Quelle:FaStruktur</c>, Default View). View = <see cref="SageFaStrukturReader"/> (bisheriger Lese-Code unveraendert),
 /// SData = <see cref="SdataFaStrukturReader"/> (nur Kanten, G11). <c>SData</c> ist gesperrt bis P-F2 und wirkt wie <c>View</c> mit
-/// Warnung; <c>Vergleich</c> ist erlaubt, vergleicht die Kanten und gibt immer die View-Daten zurueck.
+/// Warnung; <c>Vergleich</c> ist erlaubt, vergleicht die Kanten und gibt die View-Daten zurueck — ergaenzt um die FA-Positionen aus
+/// SData (E4b, <see cref="FaStrukturLesung.Positionen"/>).
 /// Registrierung: <see cref="SdataRegistrierung.AddFaStrukturQuelle"/>.
 /// </summary>
 public class FaStrukturQuelleSwitch : SageQuelleWeiche, ISageFaStrukturReader
@@ -48,21 +49,30 @@ public class FaStrukturQuelleSwitch : SageQuelleWeiche, ISageFaStrukturReader
     public IReadOnlyList<SdataHinweis> SdataHinweise =>
         GenutzteQuelle is SageQuelle.SData or SageQuelle.Vergleich && _sdata is SdataFaStrukturReader r ? r.Hinweise : Array.Empty<SdataHinweis>();
 
-    public Task<FaStrukturLesung> LesenAsync(CancellationToken ct = default)
+    public async Task<FaStrukturLesung> LesenAsync(CancellationToken ct = default)
     {
         // Der View-Knoten-Select nimmt nur Strukturen mit FAInfos-Zeile (EXISTS, FaHierarchySql.BuildNodeSelectSql); dieselbe Grenze
         // gilt fuer die SData-Seite des Vergleichs, sonst erschiene jede Struktur ohne PPS-Daten als „fehlt in View“.
         HashSet<int>? mitInfos = null;
-        return LeseAsync<FaStrukturLesung, FaHierarchyNode>(
+        List<ProductionOrderPosition>? positionen = null;
+        var lesung = await LeseAsync<FaStrukturLesung, FaHierarchyNode>(
             async c =>
             {
                 var v = await _view.LesenAsync(c);
                 mitInfos = v.InfosAnzahl == 0 ? null : v.Infos.Select(i => i.HauptFA).ToHashSet();
                 return v;
             },
-            _sdata.LesenAsync,
+            async c =>
+            {
+                var s = await _sdata.LesenAsync(c);
+                positionen = s.Positionen;
+                return s;
+            },
             l => mitInfos is null ? l.Knoten : l.Knoten.Where(k => mitInfos.Contains(k.HauptFA)),
             Schluessel, VergleichsFelder, ct);
+        // E4b/F6: Positionen gibt es nur aus SData (keine View-Quelle) — sie werden geschrieben, sobald SData gelesen wurde, also auch im
+        // Vergleichsmodus. View und gesperrtes SData lesen SData nicht; scheitert der SData-Read im Vergleich, bleibt positionen null.
+        return positionen is null || ReferenceEquals(lesung.Positionen, positionen) ? lesung : lesung with { Positionen = positionen };
     }
 
     /// <summary>FA-Knoten (Wurzel, Baugruppe) ueber die eigene BelID (<c>SubFA</c>, global eindeutig) — so vergleicht das Feld

@@ -2729,6 +2729,96 @@ namespace IdealAkeWms.Migrations
                     b.ToTable("ProductionOrderPickingStatus", "dbo");
                 });
 
+            modelBuilder.Entity("IdealAkeWms.Models.ProductionOrderPosition", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ArbeitsgangNummer")
+                        .HasMaxLength(31)
+                        .HasColumnType("nvarchar(31)");
+
+                    b.Property<DateTime?>("Bedarfstermin")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("BelID")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("BelIDNachfolger")
+                        .HasColumnType("int");
+
+                    b.Property<int>("BelPosID")
+                        .HasColumnType("int");
+
+                    b.Property<decimal?>("IstRuestzeit")
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal?>("IstStueckzeit")
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal?>("Istmenge")
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("LagerplatzKurzbezeichnung")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<decimal?>("Menge")
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<int?>("PlatzID")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("Position")
+                        .HasColumnType("int");
+
+                    b.Property<string>("RessourceNummer")
+                        .HasMaxLength(31)
+                        .HasColumnType("nvarchar(31)");
+
+                    b.Property<string>("RessourceTyp")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<decimal?>("Schwund")
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal?>("SollRuestzeit")
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal?>("SollStueckzeit")
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal?>("Sollmenge")
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<int?>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<int>("StrukturID")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("SyncedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BelID")
+                        .HasDatabaseName("IX_ProductionOrderPositions_BelID");
+
+                    b.HasIndex("BelPosID")
+                        .IsUnique()
+                        .HasDatabaseName("UQ_ProductionOrderPositions_BelPosID");
+
+                    b.HasIndex("StrukturID")
+                        .HasDatabaseName("IX_ProductionOrderPositions_StrukturID");
+
+                    b.ToTable("ProductionOrderPositions", "dbo");
+                });
+
             modelBuilder.Entity("IdealAkeWms.Models.ProductionWorkplace", b =>
                 {
                     b.Property<int>("Id")
@@ -3028,6 +3118,56 @@ namespace IdealAkeWms.Migrations
                         .IsUnique();
 
                     b.ToTable("SageBookingQueueItems", "dbo");
+                });
+
+            modelBuilder.Entity("IdealAkeWms.Models.SageFaState", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BelID")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IstBeendet")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IstBegonnen")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IstEingelastet")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IstGesperrt")
+                        .HasColumnType("bit");
+
+                    b.Property<bool?>("IstReaktiviert")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("Mandant")
+                        .HasColumnType("int");
+
+                    b.Property<decimal?>("MengeGutFertiggemeldet")
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal?>("MengeGutRueckgemeldet")
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<int>("StrukturID")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("SyncedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Mandant", "BelID")
+                        .IsUnique()
+                        .HasDatabaseName("UQ_SageFaStates_Mandant_BelID");
+
+                    b.ToTable("SageFaStates", "dbo");
                 });
 
             modelBuilder.Entity("IdealAkeWms.Models.ServiceSetting", b =>

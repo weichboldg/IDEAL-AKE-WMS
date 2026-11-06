@@ -54,6 +54,8 @@ public class ApplicationDbContext : DbContext
     public DbSet<CachedBomItem> CachedBomItems => Set<CachedBomItem>();
     public DbSet<FaHierarchyNode> FaHierarchyNodes => Set<FaHierarchyNode>();
     public DbSet<FaHierarchyOrderInfo> FaHierarchyOrderInfos => Set<FaHierarchyOrderInfo>();
+    public DbSet<ProductionOrderPosition> ProductionOrderPositions => Set<ProductionOrderPosition>();
+    public DbSet<SageFaState> SageFaStates => Set<SageFaState>();
     public DbSet<UserViewPreference> UserViewPreferences => Set<UserViewPreference>();
     public DbSet<WarehouseRequisition> WarehouseRequisitions => Set<WarehouseRequisition>();
     public DbSet<WarehouseRequisitionItem> WarehouseRequisitionItems => Set<WarehouseRequisitionItem>();
@@ -1125,6 +1127,34 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.Montagestunden).HasColumnType("decimal(18,2)");
 
             entity.HasIndex(e => e.HauptFA).HasDatabaseName("IX_FaHierarchyOrderInfos_HauptFA");
+        });
+
+        // ProductionOrderPosition (SData PpsFaBelegePositionenInfo, Spec 2026-11-06-sage-sdata-stammdaten-sync E4b) — Cache, KEIN AuditableEntity.
+        modelBuilder.Entity<ProductionOrderPosition>(entity =>
+        {
+            entity.ToTable("ProductionOrderPositions");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.RessourceTyp).HasMaxLength(20); // TODO(P-S1): Laenge/Typ unbelegt, lieber zu lang
+            entity.Property(e => e.RessourceNummer).HasMaxLength(31);
+            entity.Property(e => e.ArbeitsgangNummer).HasMaxLength(31);
+            entity.Property(e => e.LagerplatzKurzbezeichnung).HasMaxLength(50);
+            foreach (var p in new[] { nameof(ProductionOrderPosition.Menge), nameof(ProductionOrderPosition.Sollmenge), nameof(ProductionOrderPosition.Istmenge),
+                         nameof(ProductionOrderPosition.SollRuestzeit), nameof(ProductionOrderPosition.IstRuestzeit), nameof(ProductionOrderPosition.SollStueckzeit),
+                         nameof(ProductionOrderPosition.IstStueckzeit), nameof(ProductionOrderPosition.Schwund) })
+                entity.Property(p).HasColumnType("decimal(18,4)");
+            entity.HasIndex(e => e.BelPosID).IsUnique().HasDatabaseName("UQ_ProductionOrderPositions_BelPosID");
+            entity.HasIndex(e => e.BelID).HasDatabaseName("IX_ProductionOrderPositions_BelID");
+            entity.HasIndex(e => e.StrukturID).HasDatabaseName("IX_ProductionOrderPositions_StrukturID");
+        });
+
+        // SageFaState (Lesemodell des Rueckmelde-Epics, angelegt in E4b laut G15) — Cache, KEIN AuditableEntity.
+        modelBuilder.Entity<SageFaState>(entity =>
+        {
+            entity.ToTable("SageFaStates");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.MengeGutRueckgemeldet).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.MengeGutFertiggemeldet).HasColumnType("decimal(18,4)");
+            entity.HasIndex(e => new { e.Mandant, e.BelID }).IsUnique().HasDatabaseName("UQ_SageFaStates_Mandant_BelID");
         });
 
         // UserViewPreference

@@ -1960,6 +1960,63 @@ BEGIN
 END
 GO
 
+-- 17g2. ProductionOrderPositions + SageFaStates (v1.73.0 / SQL/101, Spec 2026-11-06-sage-sdata-stammdaten-sync E4b)
+--       Reine Cache-Tabellen ohne FK/Audit. Positionen: Full-Refresh durch den FaHierarchySyncService (nur SData-Weg).
+--       SageFaStates: Lesemodell des Rueckmelde-Epics (G15), hier nur angelegt.
+IF OBJECT_ID(N'dbo.ProductionOrderPositions', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[ProductionOrderPositions] (
+        [Id]                        INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_ProductionOrderPositions PRIMARY KEY,
+        [BelPosID]                  INT               NOT NULL,
+        [BelID]                     INT               NOT NULL,
+        [StrukturID]                INT               NOT NULL,
+        [Position]                  INT               NULL,
+        [RessourceTyp]              NVARCHAR(20)      NULL,
+        [RessourceNummer]           NVARCHAR(31)      NULL,
+        [ArbeitsgangNummer]         NVARCHAR(31)      NULL,
+        [BelIDNachfolger]           INT               NULL,
+        [Menge]                     DECIMAL(18,4)     NULL,
+        [Sollmenge]                 DECIMAL(18,4)     NULL,
+        [Istmenge]                  DECIMAL(18,4)     NULL,
+        [SollRuestzeit]             DECIMAL(18,4)     NULL,
+        [IstRuestzeit]              DECIMAL(18,4)     NULL,
+        [SollStueckzeit]            DECIMAL(18,4)     NULL,
+        [IstStueckzeit]             DECIMAL(18,4)     NULL,
+        [Status]                    INT               NULL,
+        [PlatzID]                   INT               NULL,
+        [LagerplatzKurzbezeichnung] NVARCHAR(50)      NULL,
+        [Schwund]                   DECIMAL(18,4)     NULL,
+        [Bedarfstermin]             DATETIME2         NULL,
+        [SyncedAt]                  DATETIME2         NOT NULL
+    );
+    CREATE UNIQUE INDEX [UQ_ProductionOrderPositions_BelPosID] ON [dbo].[ProductionOrderPositions]([BelPosID]);
+    CREATE INDEX [IX_ProductionOrderPositions_BelID] ON [dbo].[ProductionOrderPositions]([BelID]);
+    CREATE INDEX [IX_ProductionOrderPositions_StrukturID] ON [dbo].[ProductionOrderPositions]([StrukturID]);
+    PRINT 'Tabelle ProductionOrderPositions erstellt.';
+END
+GO
+
+IF OBJECT_ID(N'dbo.SageFaStates', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[SageFaStates] (
+        [Id]                     INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_SageFaStates PRIMARY KEY,
+        [Mandant]                INT               NOT NULL,
+        [BelID]                  INT               NOT NULL,
+        [StrukturID]             INT               NOT NULL,
+        [IstEingelastet]         BIT               NOT NULL,
+        [IstBegonnen]            BIT               NOT NULL,
+        [IstBeendet]             BIT               NOT NULL,
+        [IstGesperrt]            BIT               NOT NULL,
+        [IstReaktiviert]         BIT               NULL,
+        [MengeGutRueckgemeldet]  DECIMAL(18,4)     NULL,
+        [MengeGutFertiggemeldet] DECIMAL(18,4)     NULL,
+        [SyncedAt]               DATETIME2         NOT NULL
+    );
+    CREATE UNIQUE INDEX [UQ_SageFaStates_Mandant_BelID] ON [dbo].[SageFaStates]([Mandant], [BelID]);
+    PRINT 'Tabelle SageFaStates erstellt.';
+END
+GO
+
 IF OBJECT_ID(N'dbo.UserViewPreferences', N'U') IS NULL
 BEGIN
     CREATE TABLE [dbo].[UserViewPreferences] (
@@ -2571,6 +2628,9 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261106185149_AddArticleAttributeValueTextValue')
    AND COL_LENGTH(N'dbo.ArticleAttributeValues', N'TextValue') IS NOT NULL -- sonst steht SQL/100 noch aus
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261106185149_AddArticleAttributeValueTextValue', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261106191438_AddProductionOrderPositions')
+   AND OBJECT_ID(N'dbo.ProductionOrderPositions', N'U') IS NOT NULL AND OBJECT_ID(N'dbo.SageFaStates', N'U') IS NOT NULL -- sonst steht SQL/101 noch aus
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261106191438_AddProductionOrderPositions', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';

@@ -13,11 +13,16 @@ using Moq;
 namespace IDEALAKEWMSService.Tests.Services.Sdata;
 
 /// <summary>Spec 2026-11-06-sage-sdata-stammdaten-sync, E4a: FA-Struktur-Kanten aus SData (Regel F6), Weiche inkl. Sperre P-F2,
-/// Vergleich der Kanten, Abgleich ueber das Reader-Interface (Empty-Guard, ungueltiger View-Name), DI.</summary>
+/// Vergleich der Kanten, Abgleich ueber das Reader-Interface (Empty-Guard, ungueltiger View-Name), DI.
+/// E4b: Lesefilter eingelastet/aktiv, Positionen-Projektion (ProductionOrderPositions), Schreibregel (nur wenn SData gelesen wurde).</summary>
 public class FaStrukturSdataTests
 {
     private static readonly SdataLeseZiel Ziel = new("https://sagetest01:5493", "ol", "ake_TEST2026;1", "u", "p", true);
     private static readonly DateTime Jetzt = new(2026, 11, 6, 12, 0, 0);
+
+    /// <summary>Kopfzeile; Default eingelastet + aktiv (E4b-Filter laesst sie durch).</summary>
+    private static SdataFaKopfZeile K(int? belId, int? struktur, string? art, bool? eingelastet = true, bool? aktiv = true) =>
+        new(belId, struktur, art, eingelastet, aktiv);
 
     private static SdataFaPositionZeile Pos(int belPosId, int belId, int position, int? nachfolger, string typ, string nr, decimal menge = 1m) =>
         new(belPosId, belId, position, nachfolger, typ, nr, menge);
@@ -25,8 +30,8 @@ public class FaStrukturSdataTests
     /// <summary>Struktur 835 am AKE-Test (sage-sdata-commonwawiservicesresources): 7 FAs, 17 Positionen.</summary>
     private static (SdataFaKopfZeile[] Koepfe, SdataFaPositionZeile[] Positionen) Struktur835()
     {
-        var koepfe = new[] { new SdataFaKopfZeile(835, 835, "86003871") }
-            .Concat(Enumerable.Range(836, 6).Select(id => new SdataFaKopfZeile(id, 835, "BG-" + id))).ToArray();
+        var koepfe = new[] { K(835, 835, "86003871") }
+            .Concat(Enumerable.Range(836, 6).Select(id => K(id, 835, "BG-" + id))).ToArray();
         var pos = new List<SdataFaPositionZeile>();
         for (var i = 1; i <= 6; i++) pos.Add(Pos(10600 + i, 835, i, 835 + i, "MA", "BG-" + (835 + i)));
         pos.Add(Pos(10607, 835, 7, 0, "MA", "KAUF-1"));
@@ -66,7 +71,7 @@ public class FaStrukturSdataTests
     [Fact]
     public void Projizieren_Zwischenebene_VaterIstSubFaDerEbeneDarueber_HauptFaBleibtStruktur()
     {
-        var koepfe = new[] { new SdataFaKopfZeile(900, 900, "GERAET"), new SdataFaKopfZeile(901, 900, "BG1"), new SdataFaKopfZeile(902, 900, "BG2") };
+        var koepfe = new[] { K(900, 900, "GERAET"), K(901, 900, "BG1"), K(902, 900, "BG2") };
         var pos = new[]
         {
             Pos(1, 900, 1, 901, "MA", "BG1"),
@@ -88,7 +93,7 @@ public class FaStrukturSdataTests
     {
         var hinweise = new List<SdataHinweis>();
         var k = SdataFaStrukturReader.Projizieren(
-            new[] { new SdataFaKopfZeile(951, 950, "BG") },
+            new[] { K(951, 950, "BG") },
             new[] { Pos(1, 951, 1, 0, "MA", "T"), Pos(2, 777, 1, 0, "MA", "FREMD") }, Jetzt, hinweise);
 
         k.Should().ContainSingle().Which.Should().Match<FaHierarchyNode>(n => n.HauptFA == 950 && n.VaterFA == 951 && n.HauptArtnr == null);
@@ -98,9 +103,9 @@ public class FaStrukturSdataTests
     [Fact]
     public void Projizieren_ZeileOhneBelId_Wirft()
     {
-        ((Action)(() => SdataFaStrukturReader.Projizieren(new[] { new SdataFaKopfZeile(null, 1, "A") },
+        ((Action)(() => SdataFaStrukturReader.Projizieren(new[] { K(null, 1, "A") },
             Array.Empty<SdataFaPositionZeile>(), Jetzt))).Should().Throw<SdataLeseException>();
-        ((Action)(() => SdataFaStrukturReader.Projizieren(new[] { new SdataFaKopfZeile(1, 1, "A") },
+        ((Action)(() => SdataFaStrukturReader.Projizieren(new[] { K(1, 1, "A") },
             new[] { new SdataFaPositionZeile(1, null, 1, 0, "MA", "X", 1m) }, Jetzt))).Should().Throw<SdataLeseException>();
     }
 
@@ -128,6 +133,119 @@ public class FaStrukturSdataTests
         l.Knoten.Should().HaveCount(15);
         (l.Infos.Count, l.InfosAnzahl).Should().Be((0, 0L), "G11: FAInfos bleiben SQL – im Modus SData wuerde der Empty-Guard greifen");
         reader.Hinweise.Should().Contain(h => h.Text.Contains("PpsFaBelegePositionenInfo") && h.Text.Contains("1 Block"));
+    }
+
+    // ----- E4b: Lesefilter eingelastet/aktiv -----
+
+    [Fact]
+    public void KoepfeFiltern_NurEingelastetUndAktiv_AusgefilterteWerdenGemeldet()
+    {
+        var hinweise = new List<SdataHinweis>();
+        var menge = SdataFaStrukturReader.KoepfeFiltern(new[]
+        {
+            K(835, 835, "G"), K(836, 835, "BG", eingelastet: false), K(837, 835, "EK", aktiv: false), K(838, 835, "BG"),
+        }, hinweise);
+
+        menge.Select(k => k.BelID).Should().Equal(835, 838);
+        hinweise.Should().ContainSingle().Which.Text.Should().Contain("2 FA(s)").And.Contain("836, 837");
+    }
+
+    [Fact]
+    public void KoepfeFiltern_FeldFehltInAntwort_Wirft_StattAllesAuszufiltern() =>
+        ((Action)(() => SdataFaStrukturReader.KoepfeFiltern(new[] { K(835, 835, "G"), K(836, 835, "BG", eingelastet: null) })))
+            .Should().Throw<SdataLeseException>().WithMessage("*IstEingelastet/Aktiv*");
+
+    [Fact]
+    public void Projizieren_NachFilter_InaktiverUnterFaFehlt_SeineKanteBleibtAlsVerweis()
+    {
+        // Unter-FA 836 inaktiv (z. B. Fertigungsart Einkauf): er fehlt in der Menge -> keine Knoten unter 836; die MA-Position von 835
+        // zeigt weiter auf 836 (wie in Sage). Die Materialisierung behandelt 836 dann wie verschwunden (SageMissingSince, AK 14).
+        var menge = SdataFaStrukturReader.KoepfeFiltern(new[] { K(835, 835, "G"), K(836, 835, "BG", aktiv: false) });
+        var k = SdataFaStrukturReader.Projizieren(menge, new[] { Pos(1, 835, 1, 836, "MA", "BG"), Pos(2, 836, 1, 0, "MA", "BLECH") }, Jetzt);
+
+        k.Select(n => (n.VaterFA, n.SubFA)).Should().Equal(((int?)null, 835), (835, 836));
+    }
+
+    // ----- E4b: Positionen-Projektion -----
+
+    private static readonly SdataLagerplatzZeile[] Plaetze =
+    {
+        new(11, null, "HR 0 0 0 ", null, null, null, null, null, null, null, null),
+        new(2864, null, "WE", null, null, null, null, null, null, null, null),
+    };
+
+    [Fact]
+    public void PositionenProjizieren_Struktur835_AllePositionenJederArt_MitStrukturUndLagerplatz()
+    {
+        var (koepfe, pos) = Struktur835();
+        pos = pos.Select(p => p.BelPosID == 10641 ? p with { PlatzID = 11, Status = 0, Schwund = 0.5m, Bedarfstermin = "2026-02-03T00:00:00" } : p).ToArray();
+
+        var r = SdataFaStrukturReader.PositionenProjizieren(koepfe, pos, Plaetze, Jetzt);
+
+        r.Should().HaveCount(17, "alle Positionen der Menge, auch AG und Blaetter");
+        r.Should().OnlyContain(x => x.StrukturID == 835 && x.SyncedAt == Jetzt);
+        r.Select(x => x.BelPosID).Should().OnlyHaveUniqueItems();
+        var p836 = r.Single(x => x.BelPosID == 10641);
+        (p836.BelID, p836.Position, p836.RessourceTyp, p836.RessourceNummer, p836.Menge, p836.PlatzID, p836.LagerplatzKurzbezeichnung)
+            .Should().Be((836, (int?)1, "MA", "00722001", (decimal?)0.6m, (int?)11, "HR 0 0 0"));
+        (p836.Status, p836.Schwund, p836.Bedarfstermin).Should().Be(((int?)0, (decimal?)0.5m, (DateTime?)new DateTime(2026, 2, 3)));
+        r.Single(x => x.BelPosID == 10656).RessourceTyp.Should().Be("AG");
+        r.Single(x => x.BelPosID == 11437).RessourceTyp.Should().Be("MA", "getrimmt (Sage liefert \"MA \")");
+    }
+
+    [Fact]
+    public void PositionenProjizieren_FremdeFaWeg_DoppelteBelPosIdEinmal_UnbekannterPlatzUndTerminGemeldet()
+    {
+        var hinweise = new List<SdataHinweis>();
+        var r = SdataFaStrukturReader.PositionenProjizieren(
+            new[] { K(900, 900, "G") },
+            new[]
+            {
+                Pos(1, 900, 1, 0, "MA", "A") with { PlatzID = 4711 },
+                Pos(1, 900, 1, 0, "MA", "A"),
+                Pos(2, 900, 2, 0, "MA", "B") with { PlatzID = 0, Bedarfstermin = "kein Datum" },
+                Pos(3, 777, 1, 0, "MA", "FREMD"),
+            }, Plaetze, Jetzt, hinweise);
+
+        r.Select(x => x.BelPosID).Should().Equal(1, 2);
+        r[0].LagerplatzKurzbezeichnung.Should().BeNull();
+        r[1].Bedarfstermin.Should().BeNull();
+        hinweise.Should().HaveCount(3).And.OnlyContain(h => h.Warnung);
+        hinweise.Should().Contain(h => h.Text.Contains("doppelte BelPosID")).And.Contain(h => h.Text.Contains("4711"))
+            .And.Contain(h => h.Text.Contains("Bedarfstermin"));
+    }
+
+    [Fact]
+    public void PositionenProjizieren_OhneBelPosId_Wirft() =>
+        ((Action)(() => SdataFaStrukturReader.PositionenProjizieren(new[] { K(900, 900, "G") },
+            new[] { new SdataFaPositionZeile(null, 900, 1, 0, "MA", "A", 1m) }, Plaetze, Jetzt)))
+            .Should().Throw<SdataLeseException>().WithMessage("*BelPosID*");
+
+    [Fact]
+    public async Task LesenAsync_FiltertKoepfe_PositionenNurDerMenge_LagerplatzUeberLagerplaetzeInfo()
+    {
+        var (koepfe, pos) = Struktur835();
+        koepfe = koepfe.Append(K(842, 835, "NICHT-EINGELASTET", eingelastet: false)).ToArray();
+        pos = pos.Select(p => p.BelPosID == 10641 ? p with { PlatzID = 11 } : p).ToArray();
+        var client = new Mock<ISageSdataReadClient>();
+        client.Setup(c => c.QueryAllAsync<SdataFaKopfZeile>(Ziel, SageSdataReadClient.VertragResources, "PpsFaBelegeInfo",
+                SdataFaStrukturReader.WhereKoepfe(Jetzt), SdataFaStrukturReader.SelectKoepfe, "BelID", It.IsAny<CancellationToken>(), It.IsAny<int>()))
+            .ReturnsAsync(new SdataSeiten<SdataFaKopfZeile>(koepfe, "PpsFaBelegeInfo", 1, koepfe.Length, 1));
+        client.Setup(c => c.QueryAllAsync<SdataFaPositionZeile>(Ziel, SageSdataReadClient.VertragResources, "PpsFaBelegePositionenInfo",
+                "BelID eq 835 or BelID eq 836 or BelID eq 837 or BelID eq 838 or BelID eq 839 or BelID eq 840 or BelID eq 841",
+                SdataFaStrukturReader.SelectPositionen, "BelPosID", It.IsAny<CancellationToken>(), It.IsAny<int>()))
+            .ReturnsAsync(new SdataSeiten<SdataFaPositionZeile>(pos, "PpsFaBelegePositionenInfo", 1, pos.Length, 1));
+        client.Setup(c => c.QueryAllAsync<SdataLagerplatzZeile>(Ziel, SageSdataReadClient.VertragResources, "LagerplaetzeInfo",
+                null, "PlatzID,Kurzbezeichnung", "PlatzID", It.IsAny<CancellationToken>(), It.IsAny<int>()))
+            .ReturnsAsync(new SdataSeiten<SdataLagerplatzZeile>(Plaetze, "LagerplaetzeInfo", 1, Plaetze.Length, 1));
+        var reader = new SdataFaStrukturReader(client.Object, new ConfigurationBuilder().Build(), NullLogger<SdataFaStrukturReader>.Instance);
+
+        var l = await reader.LesenAsync(Ziel, Jetzt, CancellationToken.None);
+
+        l.Knoten.Should().HaveCount(15, "842 ist nicht eingelastet und fehlt in der Menge");
+        l.Positionen.Should().HaveCount(17).And.Contain(p => p.BelPosID == 10641 && p.LagerplatzKurzbezeichnung == "HR 0 0 0");
+        reader.Hinweise.Should().Contain(h => h.Text.Contains("nicht eingelastet") && h.Text.Contains("842"));
+        client.VerifyAll();
     }
 
     // ----- Weiche -----
@@ -227,6 +345,34 @@ public class FaStrukturSdataTests
         notifier.Verify(n => n.NotifyAsync(It.IsAny<string>(), It.IsAny<Exception>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
+    private static readonly List<ProductionOrderPosition> SdataPositionen = new() { new() { BelPosID = 10641, BelID = 836, StrukturID = 835 } };
+
+    [Fact]
+    public async Task Weiche_Positionen_NurWennSdataGelesen()
+    {
+        foreach (var (schalter, erwartet) in new[] { ("View", false), ("SData", false), ("Neu", false), ("Vergleich", true) })
+        {
+            var (w, view, sdata, _, _) = Weiche(schalter);
+            sdata.Lesung = sdata.Lesung with { Positionen = SdataPositionen };
+
+            var l = await w.LesenAsync();
+
+            l.Knoten.Should().BeSameAs(view.Lesung.Knoten, $"{schalter}: geschrieben wird die Struktur nur aus der View");
+            if (erwartet) l.Positionen.Should().BeSameAs(SdataPositionen, "Vergleich: Positionen aus SData (keine View-Quelle, F6)");
+            else l.Positionen.Should().BeNull($"{schalter}: SData nicht gelesen -> Tabelle bleibt unberuehrt");
+        }
+    }
+
+    [Fact]
+    public async Task Weiche_Vergleich_SdataFehler_KeinePositionen()
+    {
+        var (w, _, sdata, _, _) = Weiche("Vergleich");
+        sdata.Lesung = sdata.Lesung with { Positionen = SdataPositionen };
+        sdata.ThrowOnRead = new SdataLeseException("PpsFaBelegePositionenInfo", 500, "Ungültiger Spaltenname 'Status'");
+
+        (await w.LesenAsync()).Positionen.Should().BeNull("ein gescheiterter SData-Read darf die Positionen nie leeren");
+    }
+
     [Fact]
     public void Schluessel_FaUeberBelId_BlattUeberPlatzImVater()
     {
@@ -281,6 +427,47 @@ public class FaStrukturSdataTests
 
         (r.Nodes, r.OrderInfos, r.DryRun).Should().Be((1, 1, true));
         logger.Runs.Single().FinalCounts!["neu"].Should().Be(2);
+    }
+
+    [Fact]
+    public async Task Abgleich_DryRun_MitPositionen_CountKeysUnveraendert_InfoZeile()
+    {
+        var reader = new FakeReader
+        {
+            Lesung = new(new() { N(1, null, null, 1) }, new() { new FaHierarchyOrderInfo { HauptFA = 1 } }, 1, 1, SdataPositionen),
+        };
+        var (s, logger, _) = Abgleich(reader);
+
+        await s.RunAsync(dryRun: true);
+
+        var lauf = logger.Runs.Single();
+        lauf.FinalCounts!.Keys.Should().BeEquivalentTo("neu", "geloescht");
+        lauf.Events.Should().Contain(e => e.Level == "Info" && e.Message.Contains("würde 1 Positionen"));
+    }
+
+    [Fact]
+    public async Task PositionenErsetzen_LeereListe_ErsetztNicht_Warnung_KeineMail()
+    {
+        var (s, logger, notifier) = Abgleich(new FakeReader());
+        var run = (FakeSyncRun)await logger.BeginRunAsync(SyncLogServices.FaHierarchy);
+
+        (await s.PositionenErsetzenAsync(run, new(), CancellationToken.None)).Should().Be(0);
+
+        run.Events.Should().ContainSingle(e => e.Level == "Warning" && e.Message.Contains("keine Positionen"));
+        notifier.VerifyNoOtherCalls();
+    }
+
+    [Fact]
+    public async Task PositionenErsetzen_SchreibFehler_FehlerImProtokoll_Mail_KeinThrow()
+    {
+        // InMemory kennt keine Transaktion/kein Raw-SQL -> derselbe Pfad wie ein Fehler am SQL Server (z. B. UNIQUE BelPosID).
+        var (s, logger, notifier) = Abgleich(new FakeReader());
+        var run = (FakeSyncRun)await logger.BeginRunAsync(SyncLogServices.FaHierarchy);
+
+        (await s.PositionenErsetzenAsync(run, SdataPositionen, CancellationToken.None)).Should().Be(0);
+
+        run.Events.Should().ContainSingle(e => e.Level == "Error" && e.Message.StartsWith("ProductionOrderPositions nicht ersetzt"));
+        notifier.Verify(n => n.NotifyAsync("FaHierarchy-Sync: FA-Positionen nicht ersetzt", It.IsAny<Exception>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]

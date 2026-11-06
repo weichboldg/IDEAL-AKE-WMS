@@ -676,6 +676,11 @@ C:\Services\IDEALAKEWMSService\
 > beendete der letzten 30 Tage) + `PpsFaBelegePositionenInfo` (MA-Positionen, `BelIDNachfolger` = Unter-FA) und vergleicht `HauptFA`/
 > `VaterFA`/`Position`/`SubFA`/`Artnr`/Mengen je Knoten mit der FA-Struktur-View; geschrieben wird nur aus der View. FAInfos (PPSImport) und
 > die übrigen Knotenfelder bleiben SQL; `SData` ist bis zur Prüfabfrage P-F2 gesperrt und wirkt wie `View` + Warnung. Keine Migration.
+> E4b (`SQL/101`): die SData-Menge enthält nur FAs mit `IstEingelastet` und `Aktiv` (im Code gefiltert). Sobald SData gelesen wird
+> (`Vergleich`, später `SData`), ersetzt der FA-Struktur-Sync die Cache-Tabelle `ProductionOrderPositions` (alle Positionen dieser FAs mit
+> `BelPosID`, Ressource, Menge, `PlatzID` + Kurzbezeichnung aus `LagerplaetzeInfo`; Count-Key `positionen`) in eigener Transaktion; leere
+> Antwort oder Schreibfehler lassen den alten Stand stehen (Warnung bzw. Fehler + Mail). `View` fasst die Tabelle nie an. `SQL/101` legt
+> außerdem `SageFaStates` an (Lesemodell des Rückmelde-Epics, bleibt bis dahin leer). Keine neuen Einstellungen.
 > Die übrigen Schalter wirken mit den folgenden Etappen.
 
 #### Schritt 3 — Windows Service registrieren
