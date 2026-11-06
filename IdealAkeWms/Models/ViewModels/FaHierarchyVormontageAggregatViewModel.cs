@@ -18,7 +18,7 @@ public class FaHierarchyVormontageAggregatViewModel
     /// <summary>Aggregations-Schluessel: der Matchcode (kann leer sein, dann eine eigene Sammelzeile).</summary>
     public string? Matchcode { get; init; }
 
-    /// <summary>Der Arbeitsbereich (<c>VMBedarf</c>-Reiter), auf den diese Aggregatzeile bezogen ist.</summary>
+    /// <summary>Der VM-Bedarf (<c>VMBedarf</c>-Reiter), auf den diese Aggregatzeile bezogen ist.</summary>
     public string? VMBedarf { get; init; }
 
     /// <summary>Summe der <c>Sollmenge</c> ueber alle Blattpositionen dieses Matchcodes.</summary>
@@ -29,6 +29,15 @@ public class FaHierarchyVormontageAggregatViewModel
 
     /// <summary>Anzahl der aggregierten Blattpositionen (informativ).</summary>
     public int PositionCount { get; init; }
+
+    // v1.72.0: Anzeige der neuen Spalten: verschiedene Werte der beitragenden Positionen als Text (", "-getrennt, leer = null).
+    // Gefuellt in VormontageService.AggregateSummiert; gefiltert wird je Position VOR dem Zusammenzaehlen, nicht auf diesen Texten.
+    public string? Arbeitsbereiche { get; init; }
+    public string? HauptFas { get; init; }
+    public string? Kunden { get; init; }
+    public string? FeTermine { get; init; }
+    public string? BemerkungenPN { get; init; }
+    public string? FertigungsInfosPN { get; init; }
 }
 
 /// <summary>
@@ -58,7 +67,7 @@ public class FaHierarchyVormontageSummiertViewModel
     /// <summary>Paging-State (Seiteneinheit = Aggregatzeile; <c>TotalCount</c> zaehlt Aggregatzeilen).</summary>
     public PaginationState Pagination { get; init; } = new();
 
-    /// <summary>Vorkommende <c>VMBedarf</c>-Arbeitsbereiche (Reiter, ohne NULL/Leer, sortiert).</summary>
+    /// <summary>Vorkommende <c>VMBedarf</c>-Werte (VM-Bedarf-Reiter, ohne NULL/Leer, sortiert).</summary>
     public IReadOnlyList<string> AvailableBereiche { get; init; } = new List<string>();
 
     /// <summary>Aktiver Reiter (<c>VMBedarf</c>-Wert) oder null (nur wenn gar kein Bereich existiert).</summary>

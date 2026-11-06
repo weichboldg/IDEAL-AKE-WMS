@@ -73,8 +73,9 @@ public class VormontageService
     public static string FormatMenge(decimal value) => value.ToString("N3", De);
 
     /// <summary>
-    /// Server-Side-Spaltenfilter-Map fuer <b>Sicht 1</b> (Col-Key -&gt; gerenderter Zelltext). Die
-    /// Getter MUESSEN exakt das liefern, was die View in der Zelle rendert.
+    /// Statischer Teil der Sicht-1-Map (Col-Key -&gt; gerenderter Zelltext, nur Positionsfelder). Die vollstaendige Map je Request
+    /// baut <see cref="BuildEinzelnColumnMap"/> (dazu die Kopfwerte Kunde/FE-Termin). Die Getter MUESSEN exakt das liefern, was die
+    /// View in der Zelle rendert.
     /// </summary>
     public static readonly IReadOnlyDictionary<string, Func<FaHierarchyNode, string?>> ColumnMap =
         new Dictionary<string, Func<FaHierarchyNode, string?>>
@@ -88,6 +89,66 @@ public class VormontageService
             ["vmbedarf"] = n => n.VMBedarf,
             ["material"] = n => n.Material,
         };
+
+    // ---- v1.72.0: neue Spalten (Spec 2026-11-06-lagerplatz-etikett-rolle-und-vormontage-felder, Teil 2) ----
+
+    /// <summary>Kopfwerte eines HauptFA als gerenderter Text (Kunde, FE-Termin). Bei mehreren Kopfzeilen (Kombigeraet) alle
+    /// verschiedenen Werte, nie still eine Variante waehlen (Glossar "Kombinationsgeraet").</summary>
+    public sealed record KopfWerte(string? Kunde, string? FeTermin);
+
+    /// <summary>Verschiedene, nicht leere Texte (getrimmt), sortiert ordinal-ignore-case, getrennt mit ", "; nichts =&gt; null (leere Zelle).</summary>
+    public static string? FormatTexte(IEnumerable<string?> werte)
+    {
+        var liste = werte.Where(w => !string.IsNullOrWhiteSpace(w)).Select(w => w!.Trim())
+            .Distinct(StringComparer.Ordinal).OrderBy(w => w, StringComparer.OrdinalIgnoreCase).ToList();
+        return liste.Count == 0 ? null : string.Join(", ", liste);
+    }
+
+    /// <summary>Verschiedene Tage aufsteigend als dd.MM.yyyy, getrennt mit ", ". Der Datumsfilter liest nur das ERSTE Datum einer Zelle
+    /// (ColumnFilterSyntax.CellDate ist an ^ verankert): durch die Sortierung vergleicht er bei Kombigeraeten den fruehesten FE-Termin.</summary>
+    public static string? FormatDaten(IEnumerable<DateTime?> werte)
+    {
+        var liste = werte.Where(d => d.HasValue).Select(d => d!.Value.Date).Distinct().OrderBy(d => d).ToList();
+        return liste.Count == 0 ? null : string.Join(", ", liste.Select(d => d.ToString("dd.MM.yyyy", De)));
+    }
+
+    /// <summary>Kopfwerte aus den FAInfos-Zeilen EINES HauptFA (Zelle Sicht 1 und Getter benutzen dieselbe Methode).</summary>
+    public static KopfWerte BuildKopfWerte(IEnumerable<FaHierarchyOrderInfo>? infos)
+    {
+        var liste = (infos ?? Enumerable.Empty<FaHierarchyOrderInfo>()).ToList();
+        return new KopfWerte(FormatTexte(liste.Select(i => i.Kunde)), FormatDaten(liste.Select(i => i.FE_Termin)));
+    }
+
+    /// <summary>HauptFA -&gt; Kopfwerte, fan-out-frei (je HauptFA einmal, nie als Join gegen die Positionen).</summary>
+    public static IReadOnlyDictionary<int, KopfWerte> BuildKopfLookup(IEnumerable<FaHierarchyOrderInfo>? allInfos) =>
+        (allInfos ?? Enumerable.Empty<FaHierarchyOrderInfo>())
+            .GroupBy(o => o.HauptFA)
+            .ToDictionary(g => g.Key, g => BuildKopfWerte(g));
+
+    /// <summary>
+    /// Die neuen Positions-Spalten beider Sichten mit Gettern je Position (ein Ort). Sicht 1 nimmt sie in die Filtermap, Sicht 2 nutzt
+    /// sie als VORFILTER vor dem Zusammenzaehlen (bewusst NICHT in <see cref="AggregatColumnMap"/>; Apply ignoriert unbekannte Keys).
+    /// </summary>
+    public static IReadOnlyDictionary<string, Func<FaHierarchyNode, string?>> BuildPositionsSpalten(IReadOnlyDictionary<int, KopfWerte> kopf) =>
+        new Dictionary<string, Func<FaHierarchyNode, string?>>
+        {
+            ["arbeitsbereich"] = n => n.Arbeitsbereich,
+            ["hauptfa"] = n => n.HauptFA.ToString(CultureInfo.InvariantCulture),
+            ["kunde"] = n => kopf.TryGetValue(n.HauptFA, out var k) ? k.Kunde : null,
+            ["fe-termin"] = n => kopf.TryGetValue(n.HauptFA, out var k) ? k.FeTermin : null,
+            ["bemerkungpn"] = n => n.BemerkungPN,
+            ["fertigungsinfopn"] = n => n.FertigungsInfoPN,
+        };
+
+    /// <summary>Vollstaendige Sicht-1-Filtermap je Request: <see cref="ColumnMap"/> + neue Spalten. Mit leerem Lookup DB-frei aufrufbar
+    /// (Drift-Waechter gegen ColumnDefinitions.FaHierarchyVormontageEinzeln).</summary>
+    public static IReadOnlyDictionary<string, Func<FaHierarchyNode, string?>> BuildEinzelnColumnMap(IReadOnlyDictionary<int, KopfWerte> kopf)
+    {
+        var map = new Dictionary<string, Func<FaHierarchyNode, string?>>(ColumnMap);
+        foreach (var (key, getter) in BuildPositionsSpalten(kopf))
+            map[key] = getter;
+        return map;
+    }
 
     /// <summary>
     /// Server-Side-Spaltenfilter-Map fuer <b>Sicht 2</b> ueber die <b>Aggregat-Projektion</b>
@@ -104,7 +165,7 @@ public class VormontageService
 
     /// <summary>
     /// Flag-Praedikat: gesetztes <c>VMBedarf</c> (<c>IS NOT NULL AND &lt;&gt; ''</c>), optional auf
-    /// einen konkreten Reiter (Arbeitsbereich) eingeschraenkt. Wird im Baustein sowohl auf Blaetter
+    /// einen konkreten Reiter (VM-Bedarf) eingeschraenkt. Wird im Baustein sowohl auf Blaetter
     /// als auch auf Anomalie-Zeilen angewandt, damit eine Reiter-Einschraenkung in Liste und Banner
     /// konsistent wirkt.
     /// </summary>
@@ -119,7 +180,7 @@ public class VormontageService
     }
 
     /// <summary>
-    /// Distinct-Liste der am Datenbestand vorkommenden <c>VMBedarf</c>-Arbeitsbereiche, alphabetisch
+    /// Distinct-Liste der am Datenbestand vorkommenden <c>VMBedarf</c>-Werte (VM-Bedarf), alphabetisch
     /// — Quelle der Reiter. Derselbe NULL/Leer-Ausschluss wie der Filter, damit kein leerer Reiter
     /// entsteht (AK 1).
     ///
@@ -172,7 +233,7 @@ public class VormontageService
 
         var result = _builder.Build(
             nodes, allInfos, predicate, FlagName,
-            columnFilters, ColumnMap, page, pageSize, paginate,
+            columnFilters, BuildEinzelnColumnMap(BuildKopfLookup(allInfos)), page, pageSize, paginate,
             leafOnly: false, anomalyOnNonLeaf: false,
             columnTypes: ColumnFilterTypes.For("FaHierarchyVormontage/Index"));
 
@@ -241,23 +302,43 @@ public class VormontageService
             leaves = leaves.Where(n => included.Contains(n.HauptFA));
         }
 
+        // (2b, v1.72.0) Filter auf den neuen Spalten je POSITION vor dem Zusammenzaehlen (Keyuser 2026-10-07, Rueckfrage 3 A):
+        //     die Summen enthalten dann nur Mengen der passenden Positionen. Gleiches Typ-Register wie der Nachfilter.
+        var infosJeHauptFa = (allInfos ?? Enumerable.Empty<FaHierarchyOrderInfo>())
+            .GroupBy(o => o.HauptFA).ToDictionary(g => g.Key, g => g.ToList());
+        var kopf = infosJeHauptFa.ToDictionary(e => e.Key, e => BuildKopfWerte(e.Value));
+        var types = ColumnFilterTypes.For("FaHierarchyVormontage/Summiert");
+        leaves = ColumnFilterHelper.Apply(leaves, columnFilters, BuildPositionsSpalten(kopf), types);
+
         // (3) Aggregation je Matchcode (Schluessel; Trim, damit " X " und "X" nicht auseinanderfallen;
         //     ordinal, damit unterschiedliche Matchcodes bewusst getrennte Zeilen bleiben).
         var aggregates = leaves
             .GroupBy(n => (n.Matchcode ?? string.Empty).Trim(), StringComparer.Ordinal)
-            .Select(g => new FaHierarchyVormontageAggregatViewModel
+            .Select(g =>
             {
-                Matchcode = g.Key,
-                VMBedarf = bereich,
-                SummeSollmenge = g.Sum(n => n.Sollmenge),
-                SummeFertigungmenge = g.Sum(n => n.Fertigungmenge),
-                PositionCount = g.Count()
+                var hauptFas = g.Select(n => n.HauptFA).Distinct().OrderBy(h => h).ToList();
+                var infos = hauptFas.SelectMany(h => infosJeHauptFa.TryGetValue(h, out var l) ? l : new List<FaHierarchyOrderInfo>()).ToList();
+                return new FaHierarchyVormontageAggregatViewModel
+                {
+                    Matchcode = g.Key,
+                    VMBedarf = bereich,
+                    SummeSollmenge = g.Sum(n => n.Sollmenge),
+                    SummeFertigungmenge = g.Sum(n => n.Fertigungmenge),
+                    PositionCount = g.Count(),
+                    // Anzeige: verschiedene Werte der beitragenden Positionen (Text sortiert, HauptFA numerisch, Datum aufsteigend).
+                    Arbeitsbereiche = FormatTexte(g.Select(n => n.Arbeitsbereich)),
+                    HauptFas = string.Join(", ", hauptFas.Select(h => h.ToString(CultureInfo.InvariantCulture))),
+                    Kunden = FormatTexte(infos.Select(i => i.Kunde)),
+                    FeTermine = FormatDaten(infos.Select(i => i.FE_Termin)),
+                    BemerkungenPN = FormatTexte(g.Select(n => n.BemerkungPN)),
+                    FertigungsInfosPN = FormatTexte(g.Select(n => n.FertigungsInfoPN)),
+                };
             })
             .OrderBy(a => a.Matchcode, StringComparer.OrdinalIgnoreCase)
             .AsEnumerable();
 
         // (4) Server-Spaltenfilter auf der Aggregat-Projektion (nicht auf den Rohpositionen).
-        aggregates = ColumnFilterHelper.Apply(aggregates, columnFilters, AggregatColumnMap, ColumnFilterTypes.For("FaHierarchyVormontage/Summiert"));
+        aggregates = ColumnFilterHelper.Apply(aggregates, columnFilters, AggregatColumnMap, types);
 
         var filtered = aggregates.ToList();
         var totalRowCount = filtered.Count;

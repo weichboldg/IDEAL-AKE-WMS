@@ -3,7 +3,7 @@
 @{
     ViewData["Title"] = "Vormontage — Einzelne Teile (IDEAL)";
     var deCulture = CultureInfo.GetCultureInfo("de-DE");
-    const int colCount = 8; // Anzahl der Positionsspalten (colspan der Gruppen-Kopfzeile)
+    const int colCount = 13; // Anzahl der Positionsspalten (colspan der Gruppen-Kopfzeile)
 }
 
 <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
@@ -20,7 +20,7 @@
     </li>
 </ul>
 
-@* Reiter je Arbeitsbereich (VMBedarf-Wert) — kein leerer Reiter (NULL/Leer ausgeschlossen). *@
+@* Reiter je VM-Bedarf (VMBedarf-Wert) — kein leerer Reiter (NULL/Leer ausgeschlossen). *@
 @if (Model.AvailableBereiche.Any())
 {
     <ul class="nav nav-tabs mb-3">
@@ -73,6 +73,7 @@ else
         <thead>
             <tr>
                 <th data-filterable data-col-key="hauptfa">HauptFA</th>
+                <th data-filterable data-col-key="arbeitsbereich">Arbeitsbereich</th>
                 <th data-filterable data-col-key="hauptartnr">Haupt-Artnr.</th>
                 <th data-filterable data-col-key="artnr">Artnr.</th>
                 <th data-filterable data-col-key="matchcode">Matchcode</th>
@@ -80,6 +81,10 @@ else
                 <th class="text-end" data-filterable data-filter-type="number" data-col-key="fertigungmenge">Fertigungmenge</th>
                 <th data-filterable data-col-key="vmbedarf">VMBedarf</th>
                 <th data-filterable data-col-key="material">Material</th>
+                <th data-filterable data-col-key="kunde">Kunde</th>
+                <th class="text-nowrap" data-filterable data-col-key="fe-termin" data-date-filter>FE-Termin</th>
+                <th data-filterable data-col-key="bemerkungpn">Bemerkung PN</th>
+                <th data-filterable data-col-key="fertigungsinfopn">Fertigungsinfo PN</th>
             </tr>
         </thead>
         @if (!Model.Groups.Any())
@@ -95,6 +100,8 @@ else
             @* Je HauptFA-Gruppe ein eigenes <tbody>: Gruppen bleiben visuell zusammen. *@
             @foreach (var group in Model.Groups)
             {
+                @* v1.72.0: Kunde/FE-Termin je HauptFA, dieselbe Methode wie der Filter-Getter (Getter rendern wie die Zelle). *@
+                var kopf = IdealAkeWms.Services.VormontageService.BuildKopfWerte(group.OrderInfos);
                 <tbody class="fa-vm-group">
                     <tr class="table-active">
                         <td colspan="@colCount">
@@ -130,6 +137,7 @@ else
                     {
                         <tr>
                             <td>@pos.HauptFA</td>
+                            <td>@pos.Arbeitsbereich</td>
                             <td>@pos.HauptArtnr</td>
                             <td>@pos.Artnr</td>
                             <td>@pos.Matchcode</td>
@@ -137,6 +145,10 @@ else
                             <td class="text-end">@pos.Fertigungmenge.ToString("N3", deCulture)</td>
                             <td>@pos.VMBedarf</td>
                             <td>@pos.Material</td>
+                            <td>@kopf.Kunde</td>
+                            <td class="text-nowrap">@kopf.FeTermin</td>
+                            <td>@pos.BemerkungPN</td>
+                            <td>@pos.FertigungsInfoPN</td>
                         </tr>
                     }
                 </tbody>
@@ -153,13 +165,18 @@ else
 <script type="application/json" id="column-config">
 [
     { "key": "hauptfa", "label": "HauptFA", "locked": true, "defaultWidth": null },
+    { "key": "arbeitsbereich", "label": "Arbeitsbereich", "locked": false, "defaultWidth": null },
     { "key": "hauptartnr", "label": "Haupt-Artnr.", "locked": false, "defaultWidth": null },
     { "key": "artnr", "label": "Artnr.", "locked": false, "defaultWidth": null },
     { "key": "matchcode", "label": "Matchcode", "locked": true, "defaultWidth": null },
     { "key": "sollmenge", "label": "Sollmenge", "locked": false, "defaultWidth": 55 },
     { "key": "fertigungmenge", "label": "Fertigungmenge", "locked": false, "defaultWidth": 55 },
     { "key": "vmbedarf", "label": "VMBedarf", "locked": false, "defaultWidth": null },
-    { "key": "material", "label": "Material", "locked": false, "defaultWidth": null }
+    { "key": "material", "label": "Material", "locked": false, "defaultWidth": null },
+    { "key": "kunde", "label": "Kunde", "locked": false, "defaultWidth": null },
+    { "key": "fe-termin", "label": "FE-Termin", "locked": false, "defaultWidth": null },
+    { "key": "bemerkungpn", "label": "Bemerkung PN", "locked": false, "defaultWidth": null },
+    { "key": "fertigungsinfopn", "label": "Fertigungsinfo PN", "locked": false, "defaultWidth": null }
 ]
 </script>
 

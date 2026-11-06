@@ -10662,8 +10662,55 @@ Ein Benutzer mit Rolle picking und einer ohne picking/tracking/Leitstand-Freigab
 | 103.12 | Diagnose aufklappen, bei einem Aufruf „Rohdaten anzeigen“ | JSON-Antwort, höchstens 4000 Zeichen; URL ohne Benutzer/Passwort. |
 | 103.13 | Vergleich (informativ): dieselbe Struktur unter „FA-Struktur“ (materialisiert) öffnen | Nur Beobachtung für den Entscheid zur Materialisierung, keine Abnahmebedingung (P-5). |
 
+## TS-104 — Lagerplatz-Etiketten im Rollenformat 93 × 55 mm (v1.72.0)
+
+Bezug: Spec [[2026-11-06-lagerplatz-etikett-rolle-und-vormontage-felder-spec]], Teil 1. Beide Standorte. Querverweis TS-67 (Standorteinstellungen).
+Automatisiert: `LagerplatzEtikettRolleTests` (Katalog + Quelltext-Wächter). Das Druckbild ist nur manuell prüfbar.
+
+**Vorbedingungen:** Rollendrucker mit Etiketten 93 × 55 mm (fortlaufend) am Arbeitsplatz installiert; Modell/dpi notieren. Ein Admin und ein
+Benutzer mit `masterdata_read`. Mindestens 4 Lagerplätze, einer mit Beschreibung und Zone, einer ohne beides, einer mit 200 Zeichen Beschreibung,
+der längste Barcode-Wert laut P9 (IDEAL-Test: `Magazin-W1;0;0;0`, 16 Zeichen) und ein manueller 12-stelliger Code.
+
+| Nr | Schritte | Erwartung |
+|---|---|---|
+| 104.1 | Schalter aus (bzw. nie gespeichert): Lagerplätze → „Alle Etiketten drucken“, Druckvorschau; dann Einzeldruck eines Platzes | Wie bisher: A4 hoch, drei Etiketten je Seite mit Rahmen, Seitenzahl ⌈n/3⌉; Einzeldruck eine A4-Seite. Kein Hinweis zum Rollenformat in der blauen Leiste. |
+| 104.2 | Admin: Standorteinstellungen → Gruppe „Druck“ → „Lagerplatz-Etiketten im Rollenformat 93 × 55 mm“ an, Speichern, neu laden | Feld mit Hinweistext (Rollendrucker, Papierformat 93 × 55 mm, Ränder „Keine“); Haken bleibt nach dem Neuladen. In `/Settings` steht der Key in der Gruppe „Lager“. |
+| 104.3 | Einzeldruck eines Platzes mit Beschreibung und Zone; Druckdialog: Rollendrucker, Papier 93 × 55 mm, Ränder „Keine“ | Leiste zeigt den Treiber-Hinweis. Vorschau: genau **eine** Seite 93 × 55 mm, ohne Rahmen; Code, Beschreibung, Barcode, Zone vollständig auf der Seite; Barcode nicht verzerrt. Ausdruck auf dem Rollendrucker entspricht der Vorschau. |
+| 104.4 | „Alle Etiketten drucken“ | n Seiten zu je einem Etikett, **keine leere Schlussseite**. Einige Etiketten drucken. |
+| 104.5 | Scan mit dem Handscanner (Netum): manueller 12-stelliger Code, dann der längste Code aus P9 | Gelesener Wert = Code. Ergebnis je Code protokollieren: ______ (nicht lesbar ⇒ melden, nicht still beheben). |
+| 104.6 | Negativ: Platz ohne Beschreibung und Zone; Platz mit 200 Zeichen Beschreibung | Keine Lücken-Artefakte; lange Beschreibung nach zwei Zeilen abgeschnitten, nichts ragt über den Rand oder auf eine zweite Seite. |
+| 104.7 | Negativ: Benutzer ohne Stammdaten-Lesezugriff ruft `/StorageLocations/PrintLabels` auf | Zugriff verweigert (unverändert). |
+| 104.8 | Ausdruck: blaue Leiste „Drucken/Zurück“ | Erscheint nicht im Ausdruck. |
+| 104.9 | Schalter wieder aus, Speichern, Sammeldruck | A4 wie in 104.1. |
+
+## TS-105 — Vormontage-Listen: neue Spalten Arbeitsbereich, HauptFA, Kunde, FE-Termin, Bemerkung PN, Fertigungsinfo PN (v1.72.0)
+
+Bezug: Spec [[2026-11-06-lagerplatz-etikett-rolle-und-vormontage-felder-spec]], Teil 2 (nimmt [[2026-10-06-vormontage-abteilung-spalte-filter-spec]] auf).
+Nur **IDEAL**. Querverweise TS-61 (Vormontage), TS-86 (CSV-Export), TS-91 (Suchsyntax), TS-98 (Zahnrad).
+Automatisiert: `VormontageNeueSpaltenTests` (Formatierer, Filter Sicht 1, Vorfilter Sicht 2, Drift-Wächter), bestehende `VormontageServiceTests`.
+**Hinweis:** Dass „Arbeitsbereich“ der Sage-Spalte „Abteilung“ in „Fertigungsaufträge bearbeiten“ entspricht, ist **ungeprüft** (P5 entfällt,
+Gerald 2026-11-06) – Schritt 105.1 vergleicht nur informativ.
+
+**Vorbedingungen:** IDEAL-Testsystem, `FaHierarchyVormontageAktiv = true`, Benutzer mit `vorbau` (oder admin) und einer ohne. Daten nach
+aktuellem Sync; ein HauptFA mit zwei Kopfzeilen (Kombigerät, P8) und Positionen mit verschiedenem Arbeitsbereich; P7 bekannt
+(IDEAL-Test: BemerkungPN 6 gefüllt, FertigungsInfoPN 0).
+
+| Nr | Schritte | Erwartung |
+|---|---|---|
+| 105.1 | „Einzelne Teile“ öffnen | Spalten: HauptFA, **Arbeitsbereich**, Haupt-Artnr., Artnr., Matchcode, Sollmenge, Fertigungmenge, VMBedarf, Material, **Kunde**, **FE-Termin**, **Bemerkung PN**, **Fertigungsinfo PN**. Arbeitsbereich je Position (zwei Positionen einer Gruppe können verschieden sein). Kunde/FE-Termin in allen Positionen einer Gruppe gleich wie im Gruppenkopf. Informativ: Arbeitsbereich mit Sage-Spalte „Abteilung“ vergleichen (Befund notieren). |
+| 105.2 | Leere Werte | Position ohne Arbeitsbereich/Bemerkung: leere Zelle, kein Platzhalter. Gruppenkopf unverändert. |
+| 105.3 | Filter je neuer Spalte (Arbeitsbereich `H1`, Kunde, Bemerkung PN) mit ENTER, dann `!H1`, Filter entfernen | URL enthält `colf_<key>=`; nur passende Positionen, Gruppe bleibt mit genau diesen Positionen; Seitenzahl/Anzahl Gruppen passt; `!H1` blendet nur betroffene Positionen aus. |
+| 105.4 | FE-Termin-Filter `>=01.12.2026`, dann `01.12.2026...31.12.2026` | Filtert wie andere Datumsspalten. Kombigerät zeigt „A, B“ bzw. zwei Termine aufsteigend; der Datumsfilter vergleicht den **früheren** Termin. Positionszahl des Kombigeräts unverändert. |
+| 105.5 | „Summiert“ öffnen | Spalten: Matchcode, **Arbeitsbereich**, Summe Sollmenge, Summe Fertigungmenge, **HauptFA**, **Kunde**, **FE-Termin**, **Bemerkung PN**, **Fertigungsinfo PN**. Je Matchcode eine Zeile, neue Spalten zeigen die verschiedenen Werte (", "-getrennt). Hinweistext: „… summierte Mengensicht des gewählten VM-Bedarfs …“. |
+| 105.6 | „Summiert“: Filter Arbeitsbereich `H1`, dann HauptFA = eine Nummer | Summen sinken auf die Mengen der passenden Positionen (Vergleich mit „Einzelne Teile“ gleicher Filter); Matchcodes ohne passende Position verschwinden. Filter auf Summe Sollmenge wirkt weiter auf die Summe. |
+| 105.7 | Zahnrad beider Sichten: jede neue Spalte aus- und einblenden, verschieben, neu laden; Benutzer mit alten gespeicherten Spalten | Wahl bleibt, kein Fehler (Prefs-API nicht 400). Alte Prefs: neue Spalten erscheinen an der Nachbarposition, sichtbar. |
+| 105.8 | CSV-Export beider Sichten mit allen Spalten, dann mit ausgeblendetem „Kunde“ | Neue Spalten mit angezeigtem Text; ausgeblendete fehlen. |
+| 105.9 | Reiterwechsel und KW-Filter kombiniert mit einem Spaltenfilter | Ergebnisse konsistent; Reiter und KW verhalten sich wie bisher. |
+| 105.10 | Negativ: Benutzer ohne Vorbau-Zugriff; Toggle aus | Zugriff verweigert; Toggle aus ⇒ Weiterleitung Startseite. |
+| 105.11 | Regression: Kommissionierlisten, Beschichtung, FA-Liste, FA-Struktur; AKE (Toggle aus) | Unverändert. |
+
 ---
 
 *Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) + Teil 6 (Standorteinstellungen, v1.34.0) + BOM-Guard hierarchisch (2026-08-18, abgelöst) + FA-Liste-Hierarchie (v1.35.0) + BOM-Bridge (v1.36.0) + Materialisierung fachliche Felder K1/K2 (v1.37.0) + Skopierung der Tabellen-Selektoren (TS-72) + FA-Liste ausgebaut: Matchcode, Kopfdaten je Zeile, HauptFA-Zeile, Freigabe-Kaskade (v1.38.0, TS-73) + PDF-Erzeugung für FaHierarchy-Druckdokumente (v1.39.0, TS-74) + Matchcode im Artikelstamm (v1.40.0, TS-75) + FA-Arbeitsgang-Erkennung aus der Struktur (v1.41.0, TS-76, ersetzt durch TS-77) + Arbeitsgänge (WorkOperation) aus der Struktur + Werkbank-Anlage aus Sage (v1.44.0, TS-77) + Arbeitsgänge je (Sub-)FA im FA-Struktur-Modal (v1.45.0, TS-78) + Kommissionierung nur am HauptFA
-(v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80) + Beschichtungsauftrag Summiert als Standard (v1.48.0, TS-81) + Briefkopf Beschichtungsauftrag (v1.49.0, TS-82) + Beschichtungsauftrag als eigenes Objekt (v1.50.0, TS-83) + Beschichtungsaufträge bedienen (v1.51.0, TS-84) + Arbeitsgänge als Symbole im FA-Baum (v1.52.0, TS-85) + CSV-Export für alle Tabellen (v1.53.0, TS-86) + Arbeitsgang-Stammdaten (v1.54.0, TS-87) + Status je Arbeitsgang-Kürzel im FA-Baum (v1.55.0, TS-88) + Menü Beschichtung + Kurzanleitungen (v1.56.0, TS-89) + BDE-Terminal mit Arbeitsgang-Status (v1.57.0, TS-90) + Spaltenfilter-Suchsyntax Etappe A + B (v1.58.0/v1.58.1, TS-91.A/B) + Fußzeile nach Word-Vorlage (v1.59.0, TS-92) + Sage-Quellen auf WMS-Views (v1.60.0–v1.60.2, TS-93) + Arbeitsgang-Abgleich aus der Sage-View (v1.61.0, TS-94) + Stückliste Matchcode und Lagerplatz-Limit (v1.62.0, TS-95) + BDE Stufe 1: Werkbänke, AG-Fertigmeldung (v1.63.0, TS-96) + BDE-Terminal Liste nach Haupt-FA, Scan ohne AG (v1.64.0, TS-97) + Spaltenauswahl/Zahnrad zentraler Toolbar-Host (v1.65.0, TS-98) + Hardware-Barcodescanner (v1.66.0–v1.66.2, TS-99) + Vault- und enaio-Links konfigurierbar (v1.67.0, TS-100) + QR erstes Feld Matchcode / Trennzeichen (v1.68.0/v1.69.0, TS-101) + Aktivitäts-Protokoll Spaltenfilter/Namen (v1.70.0, TS-102) + FA-Struktur live aus Sage (v1.71.0, TS-103)*
+(v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80) + Beschichtungsauftrag Summiert als Standard (v1.48.0, TS-81) + Briefkopf Beschichtungsauftrag (v1.49.0, TS-82) + Beschichtungsauftrag als eigenes Objekt (v1.50.0, TS-83) + Beschichtungsaufträge bedienen (v1.51.0, TS-84) + Arbeitsgänge als Symbole im FA-Baum (v1.52.0, TS-85) + CSV-Export für alle Tabellen (v1.53.0, TS-86) + Arbeitsgang-Stammdaten (v1.54.0, TS-87) + Status je Arbeitsgang-Kürzel im FA-Baum (v1.55.0, TS-88) + Menü Beschichtung + Kurzanleitungen (v1.56.0, TS-89) + BDE-Terminal mit Arbeitsgang-Status (v1.57.0, TS-90) + Spaltenfilter-Suchsyntax Etappe A + B (v1.58.0/v1.58.1, TS-91.A/B) + Fußzeile nach Word-Vorlage (v1.59.0, TS-92) + Sage-Quellen auf WMS-Views (v1.60.0–v1.60.2, TS-93) + Arbeitsgang-Abgleich aus der Sage-View (v1.61.0, TS-94) + Stückliste Matchcode und Lagerplatz-Limit (v1.62.0, TS-95) + BDE Stufe 1: Werkbänke, AG-Fertigmeldung (v1.63.0, TS-96) + BDE-Terminal Liste nach Haupt-FA, Scan ohne AG (v1.64.0, TS-97) + Spaltenauswahl/Zahnrad zentraler Toolbar-Host (v1.65.0, TS-98) + Hardware-Barcodescanner (v1.66.0–v1.66.2, TS-99) + Vault- und enaio-Links konfigurierbar (v1.67.0, TS-100) + QR erstes Feld Matchcode / Trennzeichen (v1.68.0/v1.69.0, TS-101) + Aktivitäts-Protokoll Spaltenfilter/Namen (v1.70.0, TS-102) + FA-Struktur live aus Sage (v1.71.0, TS-103) + Lagerplatz-Etikett 93 × 55 mm und Vormontage-Felder (v1.72.0, TS-104/TS-105)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*

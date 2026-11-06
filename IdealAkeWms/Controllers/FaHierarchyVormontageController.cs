@@ -13,7 +13,7 @@ namespace IdealAkeWms.Controllers;
 /// IDEAL Teil 5 — Vormontage-Listen (read-only) auf den in Teil 1 importierten
 /// <see cref="Models.FaHierarchyNode"/>/<see cref="Models.FaHierarchyOrderInfo"/>-Tabellen. Zwei
 /// Sichten auf dieselbe Blattbasis (Blattpositionen <c>SubFA = 0</c> mit gesetztem <c>VMBedarf</c>),
-/// je Arbeitsbereich (<c>VMBedarf</c>-Reiter):
+/// je VM-Bedarf (<c>VMBedarf</c>-Reiter):
 /// <list type="bullet">
 ///   <item><see cref="Index"/> — <b>Sicht 1 (Einzelne Teile)</b>: gruppiert nach <c>HauptFA</c>
 ///     ueber den gemeinsamen <see cref="FaHierarchyListBuilder"/> (wie Teil 3).</item>

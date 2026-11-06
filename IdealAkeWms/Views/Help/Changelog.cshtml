@@ -9,6 +9,33 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.72.0</strong> <span class="text-white-50 ms-2">06.11.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>Lagerplatz-Etiketten im Rollenformat 93 &times; 55 mm</h6>
+                <ul>
+                    <li>Neuer Schalter in den Standorteinstellungen (Gruppe &bdquo;Druck&ldquo;, nur Admin): ein Etikett 93 &times; 55 mm je Seite,
+                        ohne Rahmen, für Rollendrucker. Gilt für &bdquo;Alle Etiketten drucken&ldquo; und den Einzeldruck.</li>
+                    <li>Im Druckdialog den Rollendrucker wählen, Papierformat 93 &times; 55 mm, Ränder &bdquo;Keine&ldquo;.</li>
+                    <li>Ausgeschaltet (Standard) bleibt alles wie bisher: A4 mit drei Etiketten je Seite.</li>
+                </ul>
+                <h6>Vormontage-Listen (IDEAL): neue Spalten</h6>
+                <ul>
+                    <li>&bdquo;Einzelne Teile&ldquo; und &bdquo;Summiert&ldquo;: neue Spalten Arbeitsbereich (je Position), Kunde, FE-Termin,
+                        Bemerkung PN und Fertigungsinfo PN; in &bdquo;Summiert&ldquo; zusätzlich HauptFA. Alle filterbar, über das Zahnrad
+                        ein- und ausblendbar, im CSV-Export enthalten.</li>
+                    <li>&bdquo;Summiert&ldquo; zeigt je Matchcode die verschiedenen Werte der beteiligten Positionen. Ein Filter auf diesen
+                        Spalten wirkt je Position <strong>vor</strong> dem Zusammenzählen &ndash; die Summen enthalten dann nur die passenden Positionen.</li>
+                    <li>Kombigeräte (mehrere Kopfzeilen je HauptFA): Kunde und FE-Termin zeigen alle Werte; ein Datumsfilter auf FE-Termin
+                        vergleicht den frühesten Termin.</li>
+                    <li>Der Hinweis unter &bdquo;Summiert&ldquo; spricht jetzt vom gewählten VM-Bedarf (die Reiter), &bdquo;Arbeitsbereich&ldquo;
+                        meint nur noch die neue Spalte.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.71.1</strong> <span class="text-white-50 ms-2">03.11.2026</span>
             </div>
             <div class="card-body">
