@@ -11,22 +11,29 @@ namespace IDEALAKEWMSService.Services.Sdata;
 /// <item><c>View</c>: nur der bestehende SQL-Reader (Verhalten unveraendert).</item>
 /// <item><c>SData</c>: nur der SData-Reader; dessen Fehler werfen durch (kein stiller Rueckfall auf View).</item>
 /// <item><c>Vergleich</c>: beide, Rueckgabe = View-Ergebnis; Abweichungen per <see cref="SdataVergleich"/> in den Lauf
-/// <see cref="SyncLogServices.SageQuellenvergleich"/> (Referenz = Bereich). Ein SData-Fehler beendet den Vergleichslauf mit
-/// Fehler und wirft weiter (G10: auch im Vergleich Fehlermail ueber den Abgleich).</item>
+/// <see cref="SyncLogServices.SageQuellenvergleich"/> (Referenz = Bereich). Ein SData-Fehler beendet nur den Vergleichslauf mit
+/// Fehler, loest die Fehlermail aus (G10) und blockiert den Abgleich NICHT: er laeuft mit den View-Zeilen weiter (E1-Korrektur).</item>
 /// </list>
 /// Warnungen (unbekannter Wert, SData gesperrt) landen je Aufruf genau einmal im Lauf <c>SageQuellenvergleich</c>.
-/// Die Abgleich-Services bleiben unveraendert — sie sehen nur ihr Reader-Interface.
+/// Die Abgleich-Services bleiben unveraendert — sie sehen nur ihr Reader-Interface. <see cref="GenutzteQuelle"/> nennt die
+/// tatsaechlich gewaehlte Quelle des letzten Aufrufs (Info-Zeile „Quelle: …“ im Protokolllauf des Bereichs, F1).
 /// </summary>
 public abstract class SageQuelleWeiche
 {
     private readonly IConfiguration _configuration;
+    private readonly ISyncErrorNotifier _errorNotifier;
     private readonly ISyncLogger _syncLogger;
 
-    protected SageQuelleWeiche(IConfiguration configuration, ISyncLogger syncLogger)
+    protected SageQuelleWeiche(IConfiguration configuration, ISyncErrorNotifier errorNotifier, ISyncLogger syncLogger)
     {
         _configuration = configuration;
+        _errorNotifier = errorNotifier;
         _syncLogger = syncLogger;
     }
+
+    /// <summary>Quelle des letzten Aufrufs nach Auswertung des Schalters (unbekannt/gesperrt = View); null = noch kein Aufruf.
+    /// Wird VOR dem Lesen gesetzt, damit der Abgleich auch im Fehlerfall weiss, welche Quelle gelesen hat (G10).</summary>
+    public SageQuelle? GenutzteQuelle { get; private set; }
 
     /// <summary>Key-Suffix, eine Konstante aus <see cref="SageQuelleSchalter"/>.</summary>
     protected abstract string Bereich { get; }
@@ -47,6 +54,7 @@ public abstract class SageQuelleWeiche
         CancellationToken ct)
     {
         var wahl = SageQuelleSchalter.Parse(Bereich, await LeseSchalterAsync(ct), SdataGesperrtBis);
+        GenutzteQuelle = wahl.Quelle;
         if (wahl.Warnung is not null)
         {
             await using var warnLauf = await _syncLogger.BeginRunAsync(SyncLogServices.SageQuellenvergleich, ct);
@@ -73,8 +81,10 @@ public abstract class SageQuelleWeiche
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
+            // Vergleich darf den View-Abgleich nie blockieren: Fehler protokollieren + melden (G10), mit den View-Zeilen weiter.
             await lauf.FinishFailedAsync($"{Bereich}: SData nicht lesbar – {ex.Message}", ct: ct);
-            throw;
+            await _errorNotifier.NotifyAsync($"Sage-Quellenvergleich {Bereich}", ex, ct);
+            return viewErgebnis;
         }
 
         var e = SdataVergleich.Vergleiche(zeilen(viewErgebnis), zeilen(sdataErgebnis), schluessel, felder);

@@ -18,7 +18,18 @@
                         Quellenschalter <code>Sync:Quelle:…</code> mit <code>View</code> (Standard), <code>SData</code> oder <code>Vergleich</code>,
                         dazu die Schalter für PPS-Mitarbeiter, Stillstandsgründe, Kreditoren, Debitoren und Artikel-Lieferanten (alle aus).</li>
                     <li>Im Aktivitäts-Protokoll gibt es den neuen Lauf &bdquo;Sage-Quellenvergleich (View/SData)&ldquo;.</li>
-                    <li>Das Verhalten aller Abgleiche ist unverändert: noch liest kein Abgleich aus SData, die Schalter wirken erst mit den folgenden Etappen.</li>
+                    <li>Mit Standard-Schaltern (<code>View</code>) verhalten sich alle Abgleiche wie bisher.</li>
+                </ul>
+                <h6>Lagerplätze und Lagerorte über SData</h6>
+                <ul>
+                    <li><code>Sync:Quelle:Lagerplaetze</code> wirkt: <code>SData</code> liest Lagerorte und Lagerplätze über die Sage-Schnittstelle,
+                        <code>Vergleich</code> liest beide Quellen und schreibt nur aus der View. Der Lauf &bdquo;Lagerplatz&ldquo; im Aktivitäts-Protokoll
+                        nennt die genutzte Quelle (&bdquo;Quelle: View/SData/Vergleich&ldquo;).</li>
+                    <li>Neue Lagerplatz-Spalten <strong>Lagerort</strong> und <strong>Sperre (Sage)</strong> (gesperrt bzw. für Inventur gesperrt), mit Spaltenfilter;
+                        über das Zahnrad lassen sich die Spalten der Lagerplatzliste ein- und ausblenden. Befüllt werden die neuen Felder nur beim Abgleich über SData;
+                        ein späterer Lauf über die View lässt sie unverändert.</li>
+                    <li>Kann SData beim Lagerplatz-Abgleich nicht gelesen werden, geht eine Fehlermail an die Sync-Fehler-Empfänger; im Modus
+                        <code>Vergleich</code> läuft der Abgleich trotzdem mit den View-Daten weiter.</li>
                 </ul>
             </div>
         </div>

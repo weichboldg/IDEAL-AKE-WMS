@@ -106,6 +106,31 @@ END
 GO
 
 -- =============================================
+-- 4a. StorageAreas (Sage-Lagerorte, v1.73.0 / SQL/98) - vor StorageLocations (FK-Ziel)
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'StorageAreas')
+BEGIN
+    CREATE TABLE [dbo].[StorageAreas] (
+        [Id]                INT IDENTITY(1,1) NOT NULL,
+        [Lagerkennung]      NVARCHAR(10)      NOT NULL,
+        [Bezeichnung]       NVARCHAR(40)      NULL,
+        [Lagertechnik]      NVARCHAR(10)      NULL,
+        [IstDispoLager]     BIT               NOT NULL,
+        [IsActive]          BIT               NOT NULL CONSTRAINT [DF_StorageAreas_IsActive] DEFAULT 1,
+        [SageMissingSince]  DATETIME2         NULL,
+        [CreatedAt]         DATETIME2         NOT NULL,
+        [CreatedBy]         NVARCHAR(200)     NOT NULL,
+        [CreatedByWindows]  NVARCHAR(200)     NOT NULL,
+        [ModifiedAt]        DATETIME2         NULL,
+        [ModifiedBy]        NVARCHAR(200)     NULL,
+        [ModifiedByWindows] NVARCHAR(200)     NULL,
+        CONSTRAINT [PK_StorageAreas] PRIMARY KEY CLUSTERED ([Id])
+    );
+    PRINT 'Tabelle StorageAreas erstellt.';
+END
+GO
+
+-- =============================================
 -- 4. StorageLocations
 -- =============================================
 IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'StorageLocations')
@@ -124,6 +149,14 @@ BEGIN
         [SageBuchungErlaubt] BIT              NOT NULL DEFAULT 0,
         [SageLagerkennung]  NVARCHAR(50)      NULL,
         [SageLagerplatzId]  INT               NULL,
+        [StorageAreaId]     INT               NULL,
+        [SageIstGesperrt]   BIT               NULL,
+        [SageIstGesperrtInventur] BIT         NULL,
+        [SageBreite]        DECIMAL(18,3)     NULL,
+        [SageHoehe]         DECIMAL(18,3)     NULL,
+        [SageLaenge]        DECIMAL(18,3)     NULL,
+        [SageVolumen]       DECIMAL(18,3)     NULL,
+        [SageTragkraft]     DECIMAL(18,3)     NULL,
         [CreatedAt]         DATETIME2         NOT NULL DEFAULT GETDATE(),
         [CreatedBy]         NVARCHAR(200)     NOT NULL,
         [CreatedByWindows]  NVARCHAR(200)     NOT NULL,
@@ -131,7 +164,8 @@ BEGIN
         [ModifiedBy]        NVARCHAR(200)     NULL,
         [ModifiedByWindows] NVARCHAR(200)     NULL,
         CONSTRAINT [PK_StorageLocations] PRIMARY KEY CLUSTERED ([Id]),
-        CONSTRAINT [UQ_StorageLocations_Code] UNIQUE ([Code])
+        CONSTRAINT [UQ_StorageLocations_Code] UNIQUE ([Code]),
+        CONSTRAINT [FK_StorageLocations_StorageAreas_StorageAreaId] FOREIGN KEY ([StorageAreaId]) REFERENCES [dbo].[StorageAreas]([Id]) ON DELETE SET NULL
     );
     PRINT 'Tabelle StorageLocations erstellt.';
 END
@@ -1110,6 +1144,11 @@ IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_StorageLocations_Sourc
     CREATE NONCLUSTERED INDEX [IX_StorageLocations_Source] ON [dbo].[StorageLocations]([Source]);
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_StorageLocations_IstBuchbar')
     CREATE NONCLUSTERED INDEX [IX_StorageLocations_IstBuchbar] ON [dbo].[StorageLocations]([IstBuchbar]);
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_StorageLocations_StorageAreaId')
+   AND COL_LENGTH(N'dbo.StorageLocations', N'StorageAreaId') IS NOT NULL -- sonst steht SQL/98 noch aus
+    CREATE NONCLUSTERED INDEX [IX_StorageLocations_StorageAreaId] ON [dbo].[StorageLocations]([StorageAreaId]);
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_StorageAreas_Lagerkennung')
+    CREATE UNIQUE NONCLUSTERED INDEX [IX_StorageAreas_Lagerkennung] ON [dbo].[StorageAreas]([Lagerkennung]);
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_SyncLogs_Timestamp_Desc')
     CREATE NONCLUSTERED INDEX [IX_SyncLogs_Timestamp_Desc] ON [dbo].[SyncLogs]([Timestamp] DESC);
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_SyncLogs_Service_Level')
@@ -2455,6 +2494,9 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261019092105_AddProductionWorkplaceSageMissingSinceAndNurAgFertigmeldung')
    AND COL_LENGTH(N'dbo.ProductionWorkplaces', N'SageMissingSince') IS NOT NULL AND COL_LENGTH(N'dbo.ProductionWorkplaces', N'BdeNurAgFertigmeldung') IS NOT NULL -- sonst steht SQL/97 noch aus
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261019092105_AddProductionWorkplaceSageMissingSinceAndNurAgFertigmeldung', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261106181707_AddStorageAreasAndStorageLocationSageFields')
+   AND COL_LENGTH(N'dbo.StorageLocations', N'StorageAreaId') IS NOT NULL AND COL_LENGTH(N'dbo.StorageLocations', N'SageTragkraft') IS NOT NULL -- sonst steht SQL/98 noch aus
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261106181707_AddStorageAreasAndStorageLocationSageFields', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';

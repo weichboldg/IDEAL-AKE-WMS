@@ -1,4 +1,5 @@
 using FluentAssertions;
+using IDEALAKEWMSService.Services;
 using IDEALAKEWMSService.Services.Sdata;
 using IdealAkeWms.Models;
 using IdealAkeWms.Services.SageSdata;
@@ -72,7 +73,7 @@ public class SageQuelleTests
         public Func<List<Zeile>> View { get; set; } = () => new();
         public Func<List<Zeile>> Sdata { get; set; } = () => new();
 
-        public TestWeiche(ISyncLogger logger) : base(new ConfigurationBuilder().Build(), logger) { }
+        public TestWeiche(ISyncLogger logger, ISyncErrorNotifier? notifier = null) : base(new ConfigurationBuilder().Build(), notifier ?? new Mock<ISyncErrorNotifier>().Object, logger) { }
         protected override string Bereich => SageQuelleSchalter.Lagerplaetze;
         protected override string? SdataGesperrtBis => Gesperrt;
         protected override Task<string?> LeseSchalterAsync(CancellationToken ct) => Task.FromResult(Schalter);
@@ -164,15 +165,35 @@ public class SageQuelleTests
     }
 
     [Fact]
-    public async Task Weiche_Vergleich_SDataFehler_LaufFehlgeschlagen_UndWirft()
+    public async Task Weiche_Vergleich_SDataFehler_LaufFehlgeschlagen_Mail_UndViewZeilen()
     {
-        var (w, _, run) = Baue("Vergleich");
+        // E1-Korrektur: SData-Ausfall im Vergleich blockiert den View-Abgleich nicht (Fehler protokollieren + melden, View weiter).
+        var run = new Mock<ISyncRun>();
+        var logger = new Mock<ISyncLogger>();
+        logger.Setup(l => l.BeginRunAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(run.Object);
+        var notifier = new Mock<ISyncErrorNotifier>();
+        var w = new TestWeiche(logger.Object, notifier.Object) { Schalter = "Vergleich" };
+        w.View = () => new() { new("A", "x", 1) };
         w.Sdata = () => throw new SdataLeseException("LagerplaetzeInfo", 0, "Zeitüberschreitung");
 
-        await ((Func<Task>)w.GetAllAsync).Should().ThrowAsync<SdataLeseException>();
+        var ergebnis = await w.GetAllAsync();
 
-        w.ViewAufrufe.Should().Be(1);
+        ergebnis.Should().ContainSingle(z => z.Code == "A");
+        w.GenutzteQuelle.Should().Be(SageQuelle.Vergleich);
         run.Verify(r => r.FinishFailedAsync(It.Is<string>(m => m.Contains("Zeitüberschreitung")), It.IsAny<IReadOnlyDictionary<string, int>?>(), It.IsAny<CancellationToken>()), Times.Once);
+        notifier.Verify(n => n.NotifyAsync(It.Is<string>(s => s.Contains(SageQuelleSchalter.Lagerplaetze)), It.IsAny<SdataLeseException>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Theory]
+    [InlineData(null, SageQuelle.View)]
+    [InlineData("Neu", SageQuelle.View)]
+    [InlineData("SData", SageQuelle.SData)]
+    public async Task Weiche_GenutzteQuelle_NachAufruf(string? schalter, SageQuelle erwartet)
+    {
+        var (w, _, _) = Baue(schalter);
+        w.GenutzteQuelle.Should().BeNull();
+        await w.GetAllAsync();
+        w.GenutzteQuelle.Should().Be(erwartet);
     }
 
     // ----- SdataVergleich -----

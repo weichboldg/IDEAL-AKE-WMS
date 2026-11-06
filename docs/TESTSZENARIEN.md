@@ -10734,6 +10734,31 @@ Werkbank/Arbeitsgang, FA-Hierarchie – je nach aktivierten `Sync:*Enabled`).
 | 106.0.8 | Negativ: `Sync:KreditorenEnabled = true` setzen, einen Zyklus abwarten | Keine Wirkung in E0 (Abgleich folgt mit E8c), kein Fehler. Danach auf `false` zurück. |
 | 106.0.9 | Regression AKE (Default-Schalter) | Artikel-, Lagerplatz-, Lagerbestand-Abgleich, Sage-Lagerbuchung und FA-Ansicht „Sage live“ (falls aktiv) wie vorher. |
 
+### TS-106.1 — E1: Lagerorte und Lagerplätze über SData
+
+**Vorbedingungen:** wie TS-106.0; Migration `SQL/98_AddStorageAreasAndStorageLocationSageFields.sql` eingespielt; `Sync:LagerplaetzeEnabled = true`;
+`SData:BaseUrl`/`SData:Dataset` auf `sagetest01` / `ake_TEST2026;1`, Zugangsdaten `SageLagerbuchung:Username/Password` in appsettings;
+`SageLagerbuchungSslZertifikatPruefen` passend zum Testsystem; Sync-Fehlermail aktiv mit Empfänger. Ein **manueller** Lagerplatz mit
+demselben Code wie ein Sage-Platz (z. B. Code des Platzes PlatzID 11 „HR 0 0 0“) angelegt. Vor dem Test notieren (SQL):
+`SELECT COUNT(*) FROM StorageLocations WHERE Source='Sage' AND IsActive=1`, sowie `IstBuchbar`/`SageBuchungErlaubt` von drei Sage-Plätzen.
+Automatisiert: `LagerplatzSdataTests` (Reader-Mapping, Weiche alle Modi inkl. SData-Fehler im Vergleich, Nicht-null-Regel, Lagerorte, G10, DI),
+`StorageLocationsControllerTests.Index_ColumnFilter_LagerortUndSperreAusSage_v1_73`, `SageQuelleTests`.
+
+| Nr | Schritte | Erwartung |
+|---|---|---|
+| 106.1.a | Default: `Sync:Quelle:Lagerplaetze` = `View`, einen Zyklus abwarten | Lauf „Lagerplatz“ mit denselben Count-Keys/Zählern wie vor dem Deploy, eine Info-Zeile „Quelle: View“, **kein** Lauf „Sage-Quellenvergleich“, keine Mail. `StorageAreas` leer, neue Spalten der Lagerplätze leer. |
+| 106.1.a-neg | Wert `Neu` eintragen, einen Zyklus | Wirkt wie `View` („Quelle: View“); genau eine Warnung im Lauf „Sage-Quellenvergleich“ mit Text „Unbekannter Wert 'Neu'“. Danach zurück auf `View`. |
+| 106.1.b | `Vergleich`, einen Zyklus | Lagerplätze unverändert wie bei `View` (DB-Stichprobe, `StorageAreas` weiter leer). Lauf „Sage-Quellenvergleich“ (Referenz `Lagerplaetze`) mit „… abweichende Schlüssel (View n, SData m)“ und höchstens 20 Beispielen; erwartet am AKE-Test 0 Abweichungen bei Zone/Description/SageLagerplatzId (AK 8). |
+| 106.1.b-neg | In Sage eine Platzbezeichnung ändern (Testsystem), Zyklus mit `Vergleich` | Abweichung erscheint als Beispiel „[Kurzbezeichnung] Description: View '…' / SData '…'“. Danach in Sage zurückändern. |
+| 106.1.c | `SData`, einen Zyklus | Lauf „Lagerplatz“ mit „Quelle: SData“ und Info „Lagerorte: x neu, …“. `StorageAreas` enthält je aktivem Lagerort eine Zeile (AKE-Test 36 abzüglich inaktiver); jeder aktive Sage-Platz hat `StorageAreaId`; `SageIstGesperrt`/`…Inventur` gesetzt. `IstBuchbar`/`SageBuchungErlaubt` der drei notierten Plätze **unverändert**. Der manuelle Platz bleibt Konflikt (Warnung) ohne Lagerort. |
+| 106.1.c2 | `/StorageLocations` öffnen | Neue Spalten „Lagerort“ (Bezeichnung des Lagerorts, ohne Bezeichnung die Lagerkennung) und „Sperre (Sage)“ (Badge „Gesperrt“ bzw. „Inventur“, Text lesbar ohne Farbe). Spaltenfilter „Lagerort“ = Teil einer Bezeichnung filtert über alle Seiten; Filter „Sperre“ = `Gesperrt` zeigt nur gesperrte. Zahnrad über der Tabelle: Spalten ein-/ausblenden, nach Neuladen erhalten. Mit „Auch inaktive zeigen“ erscheint die Spalte Aktiv weiterhin. |
+| 106.1.d | Zurück auf `View`, einen Zyklus | „Quelle: View“; per SQL vor/nach: `StorageAreaId`, `SageIstGesperrt*`, `SageBreite…SageTragkraft` unverändert (nicht genullt), `StorageAreas` unverändert (kein `SageMissingSince`). Keine Deaktivierungen aus dem Wechsel. |
+| 106.1.e | `SData`, `SData:BaseUrl` auf nicht erreichbaren Host (bzw. falsches Passwort), einen Zyklus | Lauf „Lagerplatz“ endet mit Fehler („Quelle: SData“, Sage-Connection fehlgeschlagen: SData …), **keine** Deaktivierung (Zähler aktiver Sage-Plätze unverändert), Fehlermail „Lagerplatz-Sync“. Andere Abgleiche des Zyklus laufen weiter. |
+| 106.1.e2 | Wie 106.1.e, aber Modus `Vergleich` | Lauf „Sage-Quellenvergleich“ endet mit Fehler „Lagerplaetze: SData nicht lesbar …“, Fehlermail „Sage-Quellenvergleich Lagerplaetze“; Lauf „Lagerplatz“ **erfolgreich** aus den View-Daten („Quelle: Vergleich“). |
+| 106.1.e3 | Negativ: Antwort ist HTML (z. B. Proxy-Seite statt SData), Modus `SData` | Fehler wie 106.1.e, nicht „0 Zeilen“; keine Deaktivierung. |
+| 106.1.f | Negativ: Lagerort in Sage inaktiv setzen (Testsystem), Zyklus mit `SData` | Seine Plätze werden wie heute deaktiviert (Info je Platz); der Lagerort bleibt in `StorageAreas` mit `SageMissingSince` und `IsActive = 0` (Info „nicht (mehr) aktiv in Sage“). Wieder aktiv setzen → nächster Lauf leert `SageMissingSince`. |
+| 106.1.g | Rechte: Benutzer nur mit Stammdaten-Lesen öffnet `/StorageLocations` | Liste mit den neuen Spalten sichtbar, keine Bearbeiten-Knöpfe (unverändert). |
+
 ---
 
 *Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) + Teil 6 (Standorteinstellungen, v1.34.0) + BOM-Guard hierarchisch (2026-08-18, abgelöst) + FA-Liste-Hierarchie (v1.35.0) + BOM-Bridge (v1.36.0) + Materialisierung fachliche Felder K1/K2 (v1.37.0) + Skopierung der Tabellen-Selektoren (TS-72) + FA-Liste ausgebaut: Matchcode, Kopfdaten je Zeile, HauptFA-Zeile, Freigabe-Kaskade (v1.38.0, TS-73) + PDF-Erzeugung für FaHierarchy-Druckdokumente (v1.39.0, TS-74) + Matchcode im Artikelstamm (v1.40.0, TS-75) + FA-Arbeitsgang-Erkennung aus der Struktur (v1.41.0, TS-76, ersetzt durch TS-77) + Arbeitsgänge (WorkOperation) aus der Struktur + Werkbank-Anlage aus Sage (v1.44.0, TS-77) + Arbeitsgänge je (Sub-)FA im FA-Struktur-Modal (v1.45.0, TS-78) + Kommissionierung nur am HauptFA

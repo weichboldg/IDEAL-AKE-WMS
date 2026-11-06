@@ -11,7 +11,8 @@ public class StorageLocationRepository : Repository<StorageLocation>, IStorageLo
 
     public async Task<List<StorageLocation>> GetAllOrderedAsync()
     {
-        return await _dbSet.OrderBy(sl => sl.Code).ToListAsync();
+        // StorageArea fuer die Lagerort-Spalte der Lagerplatzliste (v1.73.0); kleine Tabelle, ein LEFT JOIN.
+        return await _dbSet.Include(sl => sl.StorageArea).OrderBy(sl => sl.Code).ToListAsync();
     }
 
     public async Task<List<StorageLocation>> GetAllOrderedExcludingPickingTransportAsync()

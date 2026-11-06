@@ -70,6 +70,38 @@ public class StorageLocation : AuditableEntity, IValidatableObject
     [Display(Name = "Sage-Lagerplatz-Id")]
     public int? SageLagerplatzId { get; set; }
 
+    // ----- Sage-Felder aus SData (Spec 2026-11-06-sage-sdata-stammdaten-sync, E1/F3) -----
+    // Nur der Lagerplatz-Abgleich mit Quelle SData schreibt sie, und nur wenn SData den Wert liefert (null = nicht schreiben).
+    // Ein View-Lauf laesst sie unveraendert (F1, Notfall-Rueckfall ohne Datenverlust).
+
+    /// <summary>Sage-Lagerort; null bei manuellen Plaetzen und solange kein SData-Lauf ihn gesetzt hat.</summary>
+    [Display(Name = "Lagerort")]
+    public int? StorageAreaId { get; set; }
+    public StorageArea? StorageArea { get; set; }
+
+    [Display(Name = "In Sage gesperrt")]
+    public bool? SageIstGesperrt { get; set; }
+
+    [Display(Name = "In Sage für Inventur gesperrt")]
+    public bool? SageIstGesperrtInventur { get; set; }
+
+    // TODO(P-S1): Genauigkeit der Sage-Dezimalfelder nicht im $schema (nur Byte-Groesse); decimal(18,3) angenommen,
+    // der SData-Reader rundet auf 3 Nachkommastellen. Pruefabfrage INFORMATION_SCHEMA.COLUMNS KHKLagerplaetze (Spec P-S1).
+    [Display(Name = "Breite (Sage)")]
+    public decimal? SageBreite { get; set; }
+
+    [Display(Name = "Höhe (Sage)")]
+    public decimal? SageHoehe { get; set; }
+
+    [Display(Name = "Länge (Sage)")]
+    public decimal? SageLaenge { get; set; }
+
+    [Display(Name = "Volumen (Sage)")]
+    public decimal? SageVolumen { get; set; }
+
+    [Display(Name = "Tragkraft (Sage)")]
+    public decimal? SageTragkraft { get; set; }
+
     public ICollection<StockMovement> StockMovements { get; set; } = new List<StockMovement>();
 
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)

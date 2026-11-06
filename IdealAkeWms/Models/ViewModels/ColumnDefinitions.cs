@@ -572,6 +572,32 @@ public static class ColumnDefinitions
         ]
     };
 
+    /// <summary>
+    /// StorageLocations/Index.cshtml — Lagerplatzliste (Spaltenauswahl seit v1.73.0, mit Lagerort- und Sperr-Spalte aus Sage-SData).
+    /// "is-active" steht nur bei "Auch inaktive zeigen" in der Tabelle; fehlende Spalten ueberspringt column-preferences.js.
+    /// </summary>
+    public static readonly ViewConfig StorageLocations = new(
+        "StorageLocations", "Lagerplätze",
+        SupportsReorder: false, SupportsSortDefault: false)
+    {
+        Columns =
+        [
+            new ColumnDef("code",         "Code",          Locked: true),
+            new ColumnDef("description",  "Bezeichnung",   Locked: false),
+            new ColumnDef("zone",         "Bereich/Zone",  Locked: false),
+            new ColumnDef("storage-area", "Lagerort",      Locked: false),
+            new ColumnDef("sage-locked",  "Sperre (Sage)", Locked: false),
+            new ColumnDef("capacity",     "Kapazität",     Locked: false),
+            new ColumnDef("type",         "Typ",           Locked: false),
+            new ColumnDef("source",       "Quelle",        Locked: false),
+            new ColumnDef("bookable",     "Buchbar",       Locked: false),
+            new ColumnDef("sage-buchung", "Sage-Buchung",  Locked: false),
+            new ColumnDef("is-active",    "Aktiv",         Locked: false),
+            new ColumnDef("created-at",   "Erstellt am",   Locked: false),
+            new ColumnDef("actions",      "",              Locked: true,  DefaultWidth: 100),
+        ]
+    };
+
     public static ViewConfig? GetByViewKey(string viewKey) => viewKey switch
     {
         "ProductionOrders" => ProductionOrders,
@@ -593,6 +619,7 @@ public static class ColumnDefinitions
         "Beschichtungsauftraege"         => Beschichtungsauftraege,
         "BeschichtungsauftragPositionen" => BeschichtungsauftragPositionen,
         "OperationConfigs"               => OperationConfigs,
+        "StorageLocations"               => StorageLocations,
         _                  => null
     };
 }

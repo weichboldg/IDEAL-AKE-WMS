@@ -20,4 +20,21 @@ public static class SdataRegistrierung
             });
         return services;
     }
+
+    /// <summary>
+    /// E1: <see cref="ISageLagerplatzReader"/> = <see cref="LagerplatzQuelleSwitch"/>; der SQL-Reader und der SData-Reader als
+    /// konkrete Typen (die Weiche nimmt beide ueber das Interface, daher Factory statt Ctor-Aufloesung).
+    /// </summary>
+    public static IServiceCollection AddLagerplatzQuelle(this IServiceCollection services)
+    {
+        services.AddScoped<SageLagerplatzReader>();
+        services.AddScoped<SdataLagerplatzReader>();
+        services.AddScoped<ISageLagerplatzReader>(sp => new LagerplatzQuelleSwitch(
+            sp.GetRequiredService<SageLagerplatzReader>(),
+            sp.GetRequiredService<SdataLagerplatzReader>(),
+            sp.GetRequiredService<IConfiguration>(),
+            sp.GetRequiredService<ISyncErrorNotifier>(),
+            sp.GetRequiredService<IdealAkeWms.Services.SyncLogger.ISyncLogger>()));
+        return services;
+    }
 }

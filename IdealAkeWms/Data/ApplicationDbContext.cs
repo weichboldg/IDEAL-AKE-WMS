@@ -14,6 +14,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<Workstation> Workstations => Set<Workstation>();
     public DbSet<WorkstationUser> WorkstationUsers => Set<WorkstationUser>();
     public DbSet<StorageLocation> StorageLocations => Set<StorageLocation>();
+    public DbSet<StorageArea> StorageAreas => Set<StorageArea>();
     public DbSet<Article> Articles => Set<Article>();
     public DbSet<StockMovement> StockMovements => Set<StockMovement>();
     public DbSet<SageBookingQueueItem> SageBookingQueueItems => Set<SageBookingQueueItem>();
@@ -204,6 +205,34 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.SageLagerkennung).HasMaxLength(50);
 
             entity.HasIndex(e => e.Code).IsUnique();
+
+            // Spec 2026-11-06-sage-sdata-stammdaten-sync (E1): Sage-Felder aus SData, alle nullable.
+            entity.Property(e => e.SageBreite).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.SageHoehe).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.SageLaenge).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.SageVolumen).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.SageTragkraft).HasColumnType("decimal(18,3)");
+            entity.HasOne(e => e.StorageArea)
+                .WithMany(a => a.StorageLocations)
+                .HasForeignKey(e => e.StorageAreaId)
+                .OnDelete(DeleteBehavior.SetNull);
+            entity.HasIndex(e => e.StorageAreaId).HasDatabaseName("IX_StorageLocations_StorageAreaId");
+        });
+
+        // StorageArea (Sage-Lagerort, Spec 2026-11-06-sage-sdata-stammdaten-sync E1)
+        modelBuilder.Entity<StorageArea>(entity =>
+        {
+            entity.ToTable("StorageAreas");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Lagerkennung).HasMaxLength(10).IsRequired();
+            entity.Property(e => e.Bezeichnung).HasMaxLength(40);
+            entity.Property(e => e.Lagertechnik).HasMaxLength(10);
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+            entity.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.ModifiedBy).HasMaxLength(200);
+            entity.Property(e => e.ModifiedByWindows).HasMaxLength(200);
+            entity.HasIndex(e => e.Lagerkennung).IsUnique().HasDatabaseName("IX_StorageAreas_Lagerkennung");
         });
 
         // ProductionWorkplace: Sage-Verknuepfungsschluessel (Baustein a, v1.44.0) — eindeutiger,

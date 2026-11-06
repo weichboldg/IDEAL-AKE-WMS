@@ -654,8 +654,12 @@ C:\Services\IDEALAKEWMSService\
 > erzeugt eine Warnung. Rückfall im Notfall: Schalter auf `View`, der nächste Lauf liest wieder per SQL. Dazu `Sync:ArtikelBenutzerfelder`
 > (Liste der Sage-USER-Felder) und die Schalter `Sync:PpsMitarbeiterEnabled`, `Sync:StillstandsgruendeEnabled`, `Sync:KreditorenEnabled`,
 > `Sync:DebitorenEnabled`, `Sync:ArtikelLieferantEnabled` (Default `false`). Endpunkt, Zugangsdaten und TLS-Schalter wie die
-> Sage-Lagerbuchung (Vertrag `CommonWawiServicesResources`, nur GET). **In v1.73.0 liest noch kein Abgleich aus SData** – die
-> Schalter wirken mit den folgenden Etappen.
+> Sage-Lagerbuchung (Vertrag `CommonWawiServicesResources`, nur GET). Bisher wirkt **`Sync:Quelle:Lagerplaetze`** (E1): `SData` liest
+> `LagerorteInfo` + `LagerplaetzeInfo` (nur Plätze aktiver Lagerorte, `Mandant eq 1`) und schreibt zusätzlich Lagerort (Tabelle
+> `StorageAreas`), Sperr-Kennzeichen und Maße an die Lagerplätze; ein View-Lauf lässt diese Felder unverändert. SData-Lesefehler: im
+> Modus `SData` endet der Lagerplatz-Lauf mit Fehler (keine Deaktivierung) und es geht eine Fehlermail raus; im Modus `Vergleich`
+> wird der Vergleichslauf als Fehler protokolliert und gemeldet, der Abgleich läuft mit den View-Zeilen weiter. Die übrigen Schalter
+> wirken mit den folgenden Etappen.
 
 #### Schritt 3 — Windows Service registrieren
 

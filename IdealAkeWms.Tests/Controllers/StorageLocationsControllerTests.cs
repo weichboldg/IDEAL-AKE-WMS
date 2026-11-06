@@ -207,4 +207,35 @@ public class StorageLocationsControllerTests
         var pagination = ctrl.ViewBag.Pagination as IdealAkeWms.Models.ViewModels.PaginationState;
         pagination!.TotalCount.Should().Be(1);
     }
+
+    [Theory]
+    [InlineData("?colf_storage-area=Hochregal", "LP-A1")]
+    [InlineData("?colf_storage-area=ALT", "LP-B2")]        // ohne Bezeichnung: Lagerkennung
+    [InlineData("?colf_sage-locked=Gesperrt", "LP-A1")]
+    [InlineData("?colf_sage-locked=Inventur", "LP-B2")]
+    public async Task Index_ColumnFilter_LagerortUndSperreAusSage_v1_73(string query, string erwartet)
+    {
+        using var ctx = TestDbContextFactory.Create();
+        var hr = new StorageArea { Lagerkennung = "HR", Bezeichnung = "Hochregal", CreatedBy = "t", CreatedByWindows = "t" };
+        var alt = new StorageArea { Lagerkennung = "ALT", CreatedBy = "t", CreatedByWindows = "t" };
+        ctx.StorageLocations.AddRange(
+            new StorageLocation { Code = "LP-A1", StorageArea = hr, SageIstGesperrt = true, IsActive = true, CreatedBy = "t", CreatedByWindows = "t" },
+            new StorageLocation { Code = "LP-B2", StorageArea = alt, SageIstGesperrtInventur = true, IsActive = true, CreatedBy = "t", CreatedByWindows = "t" },
+            new StorageLocation { Code = "LP-C3", IsActive = true, CreatedBy = "t", CreatedByWindows = "t" });
+        await ctx.SaveChangesAsync();
+        ctx.ChangeTracker.Clear(); // Include im Repository beweisen, nicht die Fixup-Navigation
+
+        var userSvc = new Mock<ICurrentUserService>();
+        userSvc.Setup(x => x.GetDefaultPageSizeAsync()).ReturnsAsync((int?)null);
+        var ctrl = new StorageLocationsController(new StorageLocationRepository(ctx), userSvc.Object);
+        var httpCtx = new Microsoft.AspNetCore.Http.DefaultHttpContext();
+        httpCtx.Request.QueryString = new Microsoft.AspNetCore.Http.QueryString(query);
+        ctrl.ControllerContext = new ControllerContext { HttpContext = httpCtx };
+
+        var model = (await ctrl.Index() as ViewResult)!.Model as List<StorageLocation>;
+
+        model!.Select(l => l.Code).Should().Equal(erwartet);
+        IdealAkeWms.Models.ViewModels.ColumnDefinitions.GetByViewKey("StorageLocations")!.Columns.Select(c => c.Key)
+            .Should().Contain(new[] { "storage-area", "sage-locked" });
+    }
 }

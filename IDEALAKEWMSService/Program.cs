@@ -55,7 +55,8 @@ try
 
     // Services (Scoped für Worker über IServiceScopeFactory)
     builder.Services.AddScoped<ISageImportService, SageImportService>();
-    builder.Services.AddScoped<ISageLagerplatzReader, SageLagerplatzReader>();
+    // Lagerplaetze: Quellen-Weiche (Sync:Quelle:Lagerplaetze, Default View = SQL-Reader unveraendert), v1.73.0 E1.
+    IDEALAKEWMSService.Services.Sdata.SdataRegistrierung.AddLagerplatzQuelle(builder.Services);
     builder.Services.AddScoped<ISageArbeitsplatzReader, SageArbeitsplatzReader>();
     builder.Services.AddScoped<ISageBestandReader, SageBestandReader>();
     builder.Services.AddScoped<ISageZusatzinfoReader, SageZusatzinfoReader>();

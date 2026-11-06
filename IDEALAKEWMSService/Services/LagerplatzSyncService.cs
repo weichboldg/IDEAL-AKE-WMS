@@ -1,6 +1,7 @@
 using IdealAkeWms.Data;
 using IdealAkeWms.Models;
 using IdealAkeWms.Services.SyncLogger;
+using IDEALAKEWMSService.Services.Sdata;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -13,9 +14,14 @@ public class LagerplatzSyncService : ILagerplatzSyncService
     private const int MaxCodeLength = 50;
     private const int MaxDescriptionLength = 200;
     private const string SyncUser = "system:sync";
+    // StorageAreas-Laengen laut SData-$schema (P-S1): Lagerkennung(10), Bezeichnung(40), Lagertechnik(10).
+    private const int MaxLagerkennungLength = 10;
+    private const int MaxLagerortBezeichnungLength = 40;
+    private const int MaxLagertechnikLength = 10;
 
     private readonly ApplicationDbContext _ctx;
     private readonly ISageLagerplatzReader _reader;
+    private readonly ISyncErrorNotifier _errorNotifier;
     private readonly ISyncLogger _syncLogger;
     private readonly ILogger<LagerplatzSyncService> _logger;
 
@@ -23,10 +29,12 @@ public class LagerplatzSyncService : ILagerplatzSyncService
         ApplicationDbContext ctx,
         ISageLagerplatzReader reader,
         ILogger<LagerplatzSyncService> logger,
+        ISyncErrorNotifier errorNotifier,
         ISyncLogger syncLogger)
     {
         _ctx = ctx;
         _reader = reader;
+        _errorNotifier = errorNotifier;
         _syncLogger = syncLogger;
         _logger = logger;
     }
@@ -46,7 +54,11 @@ public class LagerplatzSyncService : ILagerplatzSyncService
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 _logger.LogError(ex, "Sage-Connection fehlgeschlagen.");
+                await LogQuelleAsync(run, ct);
                 await run.LogErrorAsync($"Sage-Connection fehlgeschlagen: {ex.Message}", ct: ct);
+                // G10: bei Quelle SData/Vergleich zusaetzlich Fehlermail; Quelle View wie bisher ohne Mail.
+                if (_reader is SageQuelleWeiche { GenutzteQuelle: SageQuelle.SData or SageQuelle.Vergleich })
+                    await _errorNotifier.NotifyAsync("Lagerplatz-Sync", ex, ct);
                 errors++;
                 await run.FinishFailedAsync($"Sage-Connection fehlgeschlagen: {ex.Message}", counts: new Dictionary<string, int>
                 {
@@ -59,6 +71,10 @@ public class LagerplatzSyncService : ILagerplatzSyncService
                 }, ct: ct);
                 return new LagerplatzSyncResult(0, 0, 0, 0, 0, 1);
             }
+            await LogQuelleAsync(run, ct);
+
+            // E1: Sage-Lagerorte (nur wenn die Quelle sie liefert = SData; vor der Dubletten-Bereinigung, alle Zeilen zaehlen)
+            var areaByKennung = await SyncStorageAreasAsync(sageRecords, run, ct);
 
             // Sage-Duplikate erkennen und entfernen
             var dupGroups = sageRecords
@@ -133,6 +149,14 @@ public class LagerplatzSyncService : ILagerplatzSyncService
                         // Lagerkennung; SageLagerplatzId = KHKLagerplaetze.PlatzID.
                         SageLagerkennung = code,
                         SageLagerplatzId = dto.PlatzId,
+                        StorageArea = Area(areaByKennung, dto),
+                        SageIstGesperrt = dto.IstGesperrt,
+                        SageIstGesperrtInventur = dto.IstGesperrtInventur,
+                        SageBreite = dto.Breite,
+                        SageHoehe = dto.Hoehe,
+                        SageLaenge = dto.Laenge,
+                        SageVolumen = dto.Volumen,
+                        SageTragkraft = dto.Tragkraft,
                         Capacity = null,
                         IsPickingTransport = false,
                         CreatedAt = DateTime.Now,
@@ -146,7 +170,17 @@ public class LagerplatzSyncService : ILagerplatzSyncService
                     var existingLoc = byCode[code];
                     if (existingLoc.Source == StorageLocationSource.Sage)
                     {
+                        // E1/F1: SData-only-Felder nur vergleichen/schreiben, wenn die Quelle sie liefert (null = nicht schreiben).
+                        var area = Area(areaByKennung, dto);
                         var diff = existingLoc.Zone != zone
+                                || (area is not null && existingLoc.StorageArea != area)
+                                || Abweichend(existingLoc.SageIstGesperrt, dto.IstGesperrt)
+                                || Abweichend(existingLoc.SageIstGesperrtInventur, dto.IstGesperrtInventur)
+                                || Abweichend(existingLoc.SageBreite, dto.Breite)
+                                || Abweichend(existingLoc.SageHoehe, dto.Hoehe)
+                                || Abweichend(existingLoc.SageLaenge, dto.Laenge)
+                                || Abweichend(existingLoc.SageVolumen, dto.Volumen)
+                                || Abweichend(existingLoc.SageTragkraft, dto.Tragkraft)
                                 || existingLoc.Description != description
                                 || existingLoc.BarcodeValue != code
                                 || existingLoc.SageLagerkennung != code
@@ -160,6 +194,14 @@ public class LagerplatzSyncService : ILagerplatzSyncService
                             existingLoc.BarcodeValue = code;
                             existingLoc.SageLagerkennung = code;
                             existingLoc.SageLagerplatzId = dto.PlatzId;
+                            existingLoc.StorageArea = area ?? existingLoc.StorageArea;
+                            existingLoc.SageIstGesperrt = dto.IstGesperrt ?? existingLoc.SageIstGesperrt;
+                            existingLoc.SageIstGesperrtInventur = dto.IstGesperrtInventur ?? existingLoc.SageIstGesperrtInventur;
+                            existingLoc.SageBreite = dto.Breite ?? existingLoc.SageBreite;
+                            existingLoc.SageHoehe = dto.Hoehe ?? existingLoc.SageHoehe;
+                            existingLoc.SageLaenge = dto.Laenge ?? existingLoc.SageLaenge;
+                            existingLoc.SageVolumen = dto.Volumen ?? existingLoc.SageVolumen;
+                            existingLoc.SageTragkraft = dto.Tragkraft ?? existingLoc.SageTragkraft;
                             existingLoc.IsActive = true;
                             existingLoc.ModifiedAt = DateTime.Now;
                             existingLoc.ModifiedBy = SyncUser;
@@ -227,5 +269,99 @@ public class LagerplatzSyncService : ILagerplatzSyncService
             }, ct: ct);
             throw;
         }
+    }
+
+    /// <summary>Info-Zeile „Quelle: View|SData|Vergleich“ (F1), nur wenn der Reader die Quellen-Weiche ist.</summary>
+    private async Task LogQuelleAsync(ISyncRun run, CancellationToken ct)
+    {
+        if (_reader is SageQuelleWeiche { GenutzteQuelle: { } quelle })
+            await run.LogInfoAsync($"Quelle: {quelle}", ct: ct);
+    }
+
+    private static bool Abweichend<T>(T? alt, T? neu) where T : struct => neu.HasValue && !Equals(alt, neu);
+
+    private static StorageArea? Area(Dictionary<string, StorageArea>? areaByKennung, SageLagerplatzDto dto) =>
+        dto.Lagerort is null || areaByKennung is null ? null : areaByKennung.GetValueOrDefault(dto.Lagerort.Lagerkennung.Trim());
+
+    /// <summary>
+    /// E1/F3: Sage-Lagerorte upserten (Schluessel Lagerkennung, Gross/Klein egal). Liefert die Quelle keine Lagerort-Daten
+    /// (View-Reader), bleibt die Tabelle unberuehrt (null). Lagerorte werden nie geloescht: fehlt einer (oder ist er in Sage
+    /// inaktiv — der Reader liefert nur aktive), bekommt er SageMissingSince und IsActive = false.
+    /// ponytail: liefert SData gar keinen aktiven Lagerort, gilt das wie "keine Lagerort-Daten" (nichts wird als fehlend markiert);
+    /// der Platz-Abgleich deaktiviert dann ohnehin alle Sage-Plaetze und meldet das je Platz.
+    /// </summary>
+    private async Task<Dictionary<string, StorageArea>?> SyncStorageAreasAsync(List<SageLagerplatzDto> records, ISyncRun run, CancellationToken ct)
+    {
+        var orte = records.Where(r => r.Lagerort is not null).Select(r => r.Lagerort!)
+            .GroupBy(o => o.Lagerkennung.Trim(), StringComparer.OrdinalIgnoreCase)
+            .Select(g => g.First())
+            .ToList();
+        if (orte.Count == 0)
+            return null;
+
+        int neu = 0, aktualisiert = 0, fehlend = 0;
+        var now = DateTime.Now;
+        var areas = await _ctx.StorageAreas.ToListAsync(ct);
+        var byKennung = areas.ToDictionary(a => a.Lagerkennung, StringComparer.OrdinalIgnoreCase);
+        foreach (var o in orte)
+        {
+            var kennung = o.Lagerkennung.Trim();
+            if (kennung.Length > MaxLagerkennungLength)
+            {
+                await run.LogWarningAsync($"Lagerkennung '{kennung}' ist zu lang ({kennung.Length} > {MaxLagerkennungLength}), Lagerort uebersprungen.",
+                    reference: kennung, ct: ct);
+                continue;
+            }
+            var bezeichnung = Kappe(o.Bezeichnung, MaxLagerortBezeichnungLength);
+            var technik = Kappe(o.Lagertechnik, MaxLagertechnikLength);
+
+            if (!byKennung.TryGetValue(kennung, out var area))
+            {
+                area = new StorageArea
+                {
+                    Lagerkennung = kennung, Bezeichnung = bezeichnung, Lagertechnik = technik, IstDispoLager = o.IstDispoLager,
+                    IsActive = true, CreatedAt = now, CreatedBy = SyncUser, CreatedByWindows = Environment.MachineName,
+                };
+                _ctx.StorageAreas.Add(area);
+                byKennung[kennung] = area;
+                neu++;
+            }
+            else if (area.Bezeichnung != bezeichnung || area.Lagertechnik != technik || area.IstDispoLager != o.IstDispoLager
+                     || !area.IsActive || area.SageMissingSince is not null)
+            {
+                area.Bezeichnung = bezeichnung;
+                area.Lagertechnik = technik;
+                area.IstDispoLager = o.IstDispoLager;
+                area.IsActive = true;
+                area.SageMissingSince = null;
+                area.ModifiedAt = now;
+                area.ModifiedBy = SyncUser;
+                area.ModifiedByWindows = Environment.MachineName;
+                aktualisiert++;
+            }
+        }
+
+        var imFeed = orte.Select(o => o.Lagerkennung.Trim()).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var area in areas.Where(a => a.SageMissingSince is null && !imFeed.Contains(a.Lagerkennung)))
+        {
+            area.SageMissingSince = now;
+            area.IsActive = false;
+            area.ModifiedAt = now;
+            area.ModifiedBy = SyncUser;
+            area.ModifiedByWindows = Environment.MachineName;
+            fehlend++;
+            await run.LogInfoAsync($"Lagerort {area.Lagerkennung} nicht (mehr) aktiv in Sage -> 'nicht in Sage seit' gesetzt.",
+                reference: area.Lagerkennung, ct: ct);
+        }
+
+        await run.LogInfoAsync($"Lagerorte: {neu} neu, {aktualisiert} aktualisiert, {fehlend} nicht mehr in Sage.", ct: ct);
+        return byKennung;
+    }
+
+    private static string? Kappe(string? s, int max)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return null;
+        var t = s.Trim();
+        return t.Length > max ? t[..max] : t;
     }
 }

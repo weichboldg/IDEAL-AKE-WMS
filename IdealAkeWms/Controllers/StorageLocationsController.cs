@@ -32,6 +32,8 @@ public class StorageLocationsController : Controller
         ["code"] = l => l.Code,
         ["description"] = l => l.Description,
         ["zone"] = l => l.Zone,
+        ["storage-area"] = l => StorageAreaText(l),
+        ["sage-locked"] = l => SageSperreText(l),
         ["capacity"] = l => l.Capacity?.ToString("N2"),
         ["type"] = l => l.IsPickingTransport ? "Wagen" : "",
         ["source"] = l => l.Source == StorageLocationSource.Sage ? "Sage" : "Manuell",
@@ -40,6 +42,14 @@ public class StorageLocationsController : Controller
         ["is-active"] = l => l.IsActive ? "Ja" : "Nein",
         ["created-at"] = l => l.CreatedAt.ToString("dd.MM.yyyy HH:mm"),
     };
+
+    /// <summary>Zelltext der Lagerort-Spalte (Sage-Lagerort, v1.73.0): Bezeichnung, sonst Lagerkennung; leer ohne Lagerort.</summary>
+    public static string? StorageAreaText(StorageLocation l) =>
+        l.StorageArea is null ? null : string.IsNullOrWhiteSpace(l.StorageArea.Bezeichnung) ? l.StorageArea.Lagerkennung : l.StorageArea.Bezeichnung;
+
+    /// <summary>Zelltext der Sperr-Spalte (aus Sage): "Gesperrt", "Inventur", beides oder leer (nicht gesperrt bzw. nie aus SData gelesen).</summary>
+    public static string SageSperreText(StorageLocation l) =>
+        string.Join(", ", new[] { l.SageIstGesperrt == true ? "Gesperrt" : null, l.SageIstGesperrtInventur == true ? "Inventur" : null }.OfType<string>());
 
     public async Task<IActionResult> Index(bool showInactive = false, bool onlyBookable = false,
         int page = 1, int? pageSize = null)

@@ -2937,6 +2937,71 @@ namespace IdealAkeWms.Migrations
                     b.ToTable("StockMovements", "dbo");
                 });
 
+            modelBuilder.Entity("IdealAkeWms.Models.StorageArea", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Bezeichnung")
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("CreatedByWindows")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool>("IstDispoLager")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Lagerkennung")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<string>("Lagertechnik")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ModifiedByWindows")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime?>("SageMissingSince")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Lagerkennung")
+                        .IsUnique()
+                        .HasDatabaseName("IX_StorageAreas_Lagerkennung");
+
+                    b.ToTable("StorageAreas", "dbo");
+                });
+
             modelBuilder.Entity("IdealAkeWms.Models.StorageLocation", b =>
                 {
                     b.Property<int>("Id")
@@ -2998,10 +3063,25 @@ namespace IdealAkeWms.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
+                    b.Property<decimal?>("SageBreite")
+                        .HasColumnType("decimal(18,3)");
+
                     b.Property<bool>("SageBuchungErlaubt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bit")
                         .HasDefaultValue(false);
+
+                    b.Property<decimal?>("SageHoehe")
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<bool?>("SageIstGesperrt")
+                        .HasColumnType("bit");
+
+                    b.Property<bool?>("SageIstGesperrtInventur")
+                        .HasColumnType("bit");
+
+                    b.Property<decimal?>("SageLaenge")
+                        .HasColumnType("decimal(18,3)");
 
                     b.Property<string>("SageLagerkennung")
                         .HasMaxLength(50)
@@ -3010,12 +3090,21 @@ namespace IdealAkeWms.Migrations
                     b.Property<int?>("SageLagerplatzId")
                         .HasColumnType("int");
 
+                    b.Property<decimal?>("SageTragkraft")
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<decimal?>("SageVolumen")
+                        .HasColumnType("decimal(18,3)");
+
                     b.Property<string>("Source")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)")
                         .HasDefaultValue("Manual");
+
+                    b.Property<int?>("StorageAreaId")
+                        .HasColumnType("int");
 
                     b.Property<string>("Zone")
                         .HasMaxLength(100)
@@ -3031,6 +3120,9 @@ namespace IdealAkeWms.Migrations
                     b.HasIndex("IstBuchbar");
 
                     b.HasIndex("Source");
+
+                    b.HasIndex("StorageAreaId")
+                        .HasDatabaseName("IX_StorageLocations_StorageAreaId");
 
                     b.ToTable("StorageLocations", "dbo");
                 });
@@ -4234,6 +4326,16 @@ namespace IdealAkeWms.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("IdealAkeWms.Models.StorageLocation", b =>
+                {
+                    b.HasOne("IdealAkeWms.Models.StorageArea", "StorageArea")
+                        .WithMany("StorageLocations")
+                        .HasForeignKey("StorageAreaId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("StorageArea");
+                });
+
             modelBuilder.Entity("IdealAkeWms.Models.User", b =>
                 {
                     b.HasOne("IdealAkeWms.Models.WorkStep", "DefaultWorkStep")
@@ -4433,6 +4535,11 @@ namespace IdealAkeWms.Migrations
             modelBuilder.Entity("IdealAkeWms.Models.Role", b =>
                 {
                     b.Navigation("UserRoles");
+                });
+
+            modelBuilder.Entity("IdealAkeWms.Models.StorageArea", b =>
+                {
+                    b.Navigation("StorageLocations");
                 });
 
             modelBuilder.Entity("IdealAkeWms.Models.StorageLocation", b =>

@@ -7,8 +7,8 @@
     var hasInactive = (bool?)ViewBag.HasInactive == true;
     var hasNonBookable = (bool?)ViewBag.HasNonBookable == true;
     var canEdit = await _user.HasMasterDataAccessAsync();
-    // Spalten: code, description, zone, capacity, type, source, bookable, sage-buchung, [is-active], created-at, actions
-    var colCount = showInactive ? 11 : 10;
+    // Spalten: code, description, zone, storage-area, sage-locked, capacity, type, source, bookable, sage-buchung, [is-active], created-at, actions
+    var colCount = showInactive ? 13 : 12;
 }
 
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
@@ -59,13 +59,17 @@
     </form>
 }
 
+@* Toolbar-Host (data-table-toolbar, site.js tableToolbarHost): Zahnrad fuer die Spaltenauswahl (v1.73.0). *@
+<div class="d-flex justify-content-end mb-1" data-table-toolbar></div>
 <div class="table-responsive">
-    <table class="table table-striped mb-0 filterable-table" data-server-column-filter="true">
+    <table class="table table-striped mb-0 filterable-table" data-server-column-filter="true" data-view-key="StorageLocations">
         <thead>
             <tr>
                 <th data-filterable data-col-key="code">Code</th>
                 <th data-filterable data-col-key="description">Bezeichnung</th>
                 <th data-filterable data-col-key="zone">Bereich/Zone</th>
+                <th data-filterable data-col-key="storage-area" title="Lagerort aus Sage (nur bei Abgleich über SData befüllt)">Lagerort</th>
+                <th data-filterable data-col-key="sage-locked" title="Sperre aus Sage (nur bei Abgleich über SData befüllt)">Sperre (Sage)</th>
                 <th data-filterable data-filter-type="number" data-col-key="capacity">Kapazität</th>
                 <th data-filterable data-col-key="type">Typ</th>
                 <th data-filterable data-col-key="source">Quelle</th>
@@ -86,6 +90,17 @@
                     <td><strong>@location.Code</strong></td>
                     <td>@location.Description</td>
                     <td>@location.Zone</td>
+                    <td data-col-key="storage-area">@IdealAkeWms.Controllers.StorageLocationsController.StorageAreaText(location)</td>
+                    <td data-col-key="sage-locked">
+                        @if (location.SageIstGesperrt == true)
+                        {
+                            <span class="badge bg-warning text-dark">Gesperrt</span>
+                        }
+                        @if (location.SageIstGesperrtInventur == true)
+                        {
+                            <span class="badge bg-secondary">Inventur</span>
+                        }
+                    </td>
                     <td>@location.Capacity?.ToString("N2")</td>
                     <td>@if (location.IsPickingTransport) { <span class="badge bg-info">Wagen</span> }</td>
                     <td data-col-key="source">
@@ -152,6 +167,28 @@
     <partial name="_Pagination" model="paginationState" />
 }
 
+<script type="application/json" id="view-config">
+{ "viewKey": "StorageLocations", "supportsReorder": false, "supportsSortDefault": false }
+</script>
+<script type="application/json" id="column-config">
+[
+    { "key": "code", "label": "Code", "locked": true, "defaultWidth": null },
+    { "key": "description", "label": "Bezeichnung", "locked": false, "defaultWidth": null },
+    { "key": "zone", "label": "Bereich/Zone", "locked": false, "defaultWidth": null },
+    { "key": "storage-area", "label": "Lagerort", "locked": false, "defaultWidth": null },
+    { "key": "sage-locked", "label": "Sperre (Sage)", "locked": false, "defaultWidth": null },
+    { "key": "capacity", "label": "Kapazität", "locked": false, "defaultWidth": null },
+    { "key": "type", "label": "Typ", "locked": false, "defaultWidth": null },
+    { "key": "source", "label": "Quelle", "locked": false, "defaultWidth": null },
+    { "key": "bookable", "label": "Buchbar", "locked": false, "defaultWidth": null },
+    { "key": "sage-buchung", "label": "Sage-Buchung", "locked": false, "defaultWidth": null },
+    { "key": "is-active", "label": "Aktiv", "locked": false, "defaultWidth": null },
+    { "key": "created-at", "label": "Erstellt am", "locked": false, "defaultWidth": null },
+    { "key": "actions", "label": "", "locked": true, "defaultWidth": 100 }
+]
+</script>
+
 @section Scripts {
+    <script src="~/js/column-preferences.js" asp-append-version="true"></script>
     <script src="~/js/table-filter.js" asp-append-version="true"></script>
 }
