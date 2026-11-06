@@ -1,0 +1,22 @@
+@model Debitor
+@{
+    ViewData["Title"] = "Debitor anlegen";
+}
+
+<h2 class="page-header">Debitor anlegen</h2>
+
+<div class="row">
+    <div class="col-md-8 col-lg-6">
+        <div class="card">
+            <div class="card-body">
+                <form asp-action="Create" method="post">
+                    <partial name="_Form" model="Model" />
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">Debitor anlegen</button>
+                        <a asp-action="Index" class="btn btn-secondary">Abbrechen</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

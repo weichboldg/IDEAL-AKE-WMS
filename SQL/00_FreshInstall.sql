@@ -2195,6 +2195,48 @@ BEGIN
 END
 GO
 
+-- Debitors (v1.73.0 / SQL/105, E8b): Debitoren-Stamm wie Creditors ohne IsCoater/SageEKMindestbestellwert, mit SageVertreter/SageKundenNameFA.
+IF OBJECT_ID(N'dbo.Debitors', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[Debitors] (
+        [Id]                        INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_Debitors PRIMARY KEY,
+        [Name]                      NVARCHAR(200)     NOT NULL,
+        [ShortName]                 NVARCHAR(50)      NULL,
+        [Matchcode]                 NVARCHAR(50)      NULL,
+        [Street]                    NVARCHAR(200)     NULL,
+        [PostalCode]                NVARCHAR(20)      NULL,
+        [City]                      NVARCHAR(100)     NULL,
+        [Country]                   NVARCHAR(100)     NULL,
+        [Email]                     NVARCHAR(200)     NULL,
+        [Phone]                     NVARCHAR(50)      NULL,
+        [ContactPerson]             NVARCHAR(200)     NULL,
+        [Remark]                    NVARCHAR(1000)    NULL,
+        [IsActive]                  BIT               NOT NULL CONSTRAINT [DF_Debitors_IsActive] DEFAULT (1),
+        [Source]                    NVARCHAR(20)      NOT NULL CONSTRAINT [DF_Debitors_Source] DEFAULT (N'Manual'),
+        [SageKto]                   NVARCHAR(20)      NULL,
+        [SageMatchcode]             NVARCHAR(50)      NULL,
+        [SageGruppe]                NVARCHAR(10)      NULL,
+        [SageEUUStID]               NVARCHAR(15)      NULL,
+        [SageZahlungskondition]     NVARCHAR(10)      NULL,
+        [SageVertreter]             NVARCHAR(10)      NULL,
+        [SageKundenNameFA]          NVARCHAR(20)      NULL,
+        [SageMissingSince]          DATETIME2         NULL,
+        [SageUebergabeStatus]       INT               NOT NULL CONSTRAINT [DF_Debitors_SageUebergabeStatus] DEFAULT (0),
+        [SageUebergabeAm]           DATETIME2         NULL,
+        [SageUebergabeFehler]       NVARCHAR(1000)    NULL,
+        [CreatedAt]                 DATETIME2         NOT NULL,
+        [CreatedBy]                 NVARCHAR(200)     NOT NULL,
+        [CreatedByWindows]          NVARCHAR(200)     NOT NULL,
+        [ModifiedAt]                DATETIME2         NULL,
+        [ModifiedBy]                NVARCHAR(200)     NULL,
+        [ModifiedByWindows]         NVARCHAR(200)     NULL
+    );
+    CREATE UNIQUE INDEX [IX_Debitors_SageKto] ON [dbo].[Debitors]([SageKto]) WHERE [SageKto] IS NOT NULL;
+    CREATE UNIQUE INDEX [IX_Debitors_ShortName] ON [dbo].[Debitors]([ShortName]) WHERE [ShortName] IS NOT NULL;
+    PRINT 'Tabelle Debitors erstellt.';
+END
+GO
+
 -- BdeActivities
 IF OBJECT_ID(N'dbo.BdeActivities', N'U') IS NULL
 BEGIN
@@ -2735,6 +2777,9 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261106195956_AddCreditors')
    AND OBJECT_ID(N'dbo.Creditors', N'U') IS NOT NULL -- sonst steht SQL/104 noch aus
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261106195956_AddCreditors', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261106200713_AddDebitors')
+   AND OBJECT_ID(N'dbo.Debitors', N'U') IS NOT NULL -- sonst steht SQL/105 noch aus
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261106200713_AddDebitors', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';

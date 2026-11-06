@@ -1,0 +1,92 @@
+@model Debitor
+@using IdealAkeWms.Controllers
+@{
+    // Sage-gefuehrt: Name, Adresse, Kontakt, Sage-Konto nur lesbar (der Controller ignoriert sie ohnehin, entschieden am gespeicherten Wert).
+    var sage = DebitorsController.IstSageGefuehrt(Model);
+}
+
+<div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+@if (sage)
+{
+    <div class="alert alert-info small" role="alert">
+        Dieser Debitor stammt aus Sage. Name, Adresse, Kontakt und Sage-Konto sind <strong>Sage-geführt</strong> und hier nur lesbar.
+        Kurzname, Matchcode und Bemerkung pflegen Sie im WMS.
+    </div>
+}
+
+<fieldset class="mb-3">
+    <legend class="fs-6 fw-bold">Im WMS gepflegt</legend>
+    <div class="row g-2">
+        <div class="col-sm-6 mb-2">
+            <label asp-for="ShortName" class="form-label">Kurzname @if (!sage) { <span class="text-danger" aria-hidden="true">*</span> }</label>
+            <input asp-for="ShortName" class="form-control" maxlength="50" aria-describedby="shortNameHelp" />
+            <div id="shortNameHelp" class="form-text">Eindeutig (Groß-/Kleinschreibung zählt nicht).</div>
+            <span asp-validation-for="ShortName" class="text-danger"></span>
+        </div>
+        <div class="col-sm-6 mb-2">
+            <label asp-for="Matchcode" class="form-label"></label>
+            <input asp-for="Matchcode" class="form-control" maxlength="50" />
+            <span asp-validation-for="Matchcode" class="text-danger"></span>
+        </div>
+    </div>
+    <div class="mb-2">
+        <label asp-for="Remark" class="form-label"></label>
+        <textarea asp-for="Remark" class="form-control" rows="3" maxlength="1000"></textarea>
+        <span asp-validation-for="Remark" class="text-danger"></span>
+    </div>
+</fieldset>
+
+<fieldset class="mb-3">
+    <legend class="fs-6 fw-bold">@(sage ? "Aus Sage (nur lesbar)" : "Stammdaten")</legend>
+    <div class="mb-2">
+        <label asp-for="Name" class="form-label">Name @if (!sage) { <span class="text-danger" aria-hidden="true">*</span> }</label>
+        <input asp-for="Name" class="form-control" maxlength="200" readonly="@sage" />
+        <span asp-validation-for="Name" class="text-danger"></span>
+    </div>
+    <div class="mb-2">
+        <label asp-for="Street" class="form-label"></label>
+        <input asp-for="Street" class="form-control" maxlength="200" readonly="@sage" />
+        <span asp-validation-for="Street" class="text-danger"></span>
+    </div>
+    <div class="row g-2">
+        <div class="col-sm-4 mb-2">
+            <label asp-for="PostalCode" class="form-label"></label>
+            <input asp-for="PostalCode" class="form-control" maxlength="20" readonly="@sage" />
+            <span asp-validation-for="PostalCode" class="text-danger"></span>
+        </div>
+        <div class="col-sm-8 mb-2">
+            <label asp-for="City" class="form-label"></label>
+            <input asp-for="City" class="form-control" maxlength="100" readonly="@sage" />
+            <span asp-validation-for="City" class="text-danger"></span>
+        </div>
+    </div>
+    <div class="mb-2">
+        <label asp-for="Country" class="form-label"></label>
+        <input asp-for="Country" class="form-control" maxlength="100" readonly="@sage" />
+        <span asp-validation-for="Country" class="text-danger"></span>
+    </div>
+    <div class="row g-2">
+        <div class="col-sm-6 mb-2">
+            <label asp-for="ContactPerson" class="form-label"></label>
+            <input asp-for="ContactPerson" class="form-control" maxlength="200" readonly="@sage" />
+            <span asp-validation-for="ContactPerson" class="text-danger"></span>
+        </div>
+        <div class="col-sm-6 mb-2">
+            <label asp-for="Phone" class="form-label"></label>
+            <input asp-for="Phone" class="form-control" maxlength="50" readonly="@sage" />
+            <span asp-validation-for="Phone" class="text-danger"></span>
+        </div>
+    </div>
+    <div class="mb-2">
+        <label asp-for="Email" class="form-label"></label>
+        <input asp-for="Email" type="email" class="form-control" maxlength="200" readonly="@sage" />
+        <span asp-validation-for="Email" class="text-danger"></span>
+    </div>
+    <div class="mb-2">
+        <label asp-for="SageKto" class="form-label"></label>
+        <input asp-for="SageKto" class="form-control" maxlength="20" readonly="@sage" aria-describedby="sageKtoHelp" />
+        <div id="sageKtoHelp" class="form-text">Optional. Kontonummer aus Sage, eindeutig; wird als Text gespeichert.</div>
+        <span asp-validation-for="SageKto" class="text-danger"></span>
+    </div>
+</fieldset>

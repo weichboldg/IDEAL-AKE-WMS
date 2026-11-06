@@ -11017,6 +11017,31 @@ Automatisiert: `CreditorsControllerTests` (Read/Edit-Split, Audit, Schreibschutz
 | 106.10.o | Regression Beschichtungsauftrag (IDEAL): Beschichtung → Liste und Druck eines Auftrags | Dienstleister weiterhin als Text wie vorher, unabhängig von Kreditoren. |
 | 106.10.p | DB: `SQL/104` ein zweites Mal ausführen; auf einer FreshInstall-DB `SQL/00_FreshInstall.sql` | Zweiter Lauf ohne Fehler und ohne Änderung; FreshInstall legt `Creditors` mit `IX_Creditors_SageKto`/`IX_Creditors_ShortName` (gefiltert `IS NOT NULL`) an und trägt `20261106195956_AddCreditors` ein. Negativ: `INSERT` mit doppeltem `SageKto` per SQL → Fehler 2601 (Index als zweite Linie). |
 
+### TS-106.11 — E8b: Debitoren-Stamm und Pflege-Oberfläche
+
+**Standort:** beide. **Migration:** `SQL/105_AddDebitors.sql` (neue Tabelle `Debitors`, rein additiv).
+**Vorbedingungen:** `SQL/104` und `SQL/105` eingespielt; Benutzer **P** mit `masterdata`, **L** mit nur `masterdata_read`, **O** ohne Stammdaten-Rolle,
+**A** `admin`. Für 106.11.a: ≥ 30 Debitoren (wiederholtes Anlegen oder SQL-Insert mit `Source = 'Manual'`), davon einige inaktiv.
+**Regeln:** wie TS-106.10 (Kreditoren), aber ohne Beschichter-Filter/-Feld und ohne Dienstleister-Karte; zusätzlich zeigt die Detailseite
+„Vertreter“ und „Kundenname FA“ (Sage-Felder, füllt erst der Lese-Abgleich E8c). Kein Löschen.
+Automatisiert: `DebitorsControllerTests` (Read/Edit-Split, Audit, Schreibschutz, Duplikat-Guards, Status-Filter, Spaltenfilter vor Pagination),
+`DebitorRepositoryTests`, `DebitorsViewTests` (Spaltenschlüssel, viewKey, Menüpunkt). Index-DDL ist Manual-UAT.
+
+| Nr | Schritte | Erwartung |
+|---|---|---|
+| 106.11.a | P: Stammdaten → Debitoren | Menüpunkt „Debitoren“ direkt unter „Kreditoren“. Liste mit Filterkarte (Status **Aktiv** vorgewählt, **kein** „Nur Beschichter“), Pagination 25/50/100/Alle (Benutzer-Default greift), Spaltenfilter auf jeder Spalte, Zahnrad. „Inaktiv“/„Alle“ filtern richtig; Spaltenfilter (auch `a,b` und `!x`) wirkt über alle Seiten, „x Einträge“ stimmt. Spalte ausblenden, Reload → bleibt ausgeblendet (kein 400 in der Konsole). Keine gelbe Dienstleister-Karte. |
+| 106.11.b | Negativ Filter: Spaltenfilter Name = `zzzz` | „Keine Debitoren für diese Filterung.“, Gesamtzahl 0. |
+| 106.11.c | P: „Debitor anlegen“ ohne Name und Kurzname speichern; dann E-Mail `abc` | Feldfehler „Name ist ein Pflichtfeld.“ / „Kurzname ist ein Pflichtfeld.“ bzw. „Bitte eine gültige E-Mail-Adresse eingeben.“; nichts gespeichert. Formular ohne Beschichter-Schalter. |
+| 106.11.d | Anlegen Kurzname ` Hofer `, Name `Hofer & Co 'KG' <AT>`, Sage-Konto ` D10001 ` | Erfolgsmeldung „Debitor 'Hofer' wurde angelegt.“; Liste zeigt `Hofer`, `D10001`, Herkunft „WMS“, Sonderzeichen korrekt. DB: `CreatedAt/By/ByWindows` gesetzt, `Source = 'Manual'`, `SageUebergabeStatus = 0`, `SageVertreter`/`SageKundenNameFA` NULL. |
+| 106.11.e | Negativ Duplikate: Kurzname `HOFER`; Sage-Konto `D10001 `; zwei Debitoren ohne Konto | Feldfehler „Kurzname 'HOFER' ist bereits vergeben …“ bzw. „Sage-Konto 'D10001' ist bereits einem anderen Debitor zugeordnet.“; zwei ohne Konto erlaubt. Ein Kreditor mit gleichem Kurznamen/Konto stört **nicht** (getrennte Stämme). |
+| 106.11.f | P: Details → Bearbeiten, Ort ändern; eigenen Kurznamen nur in Schreibweise ändern | Gespeichert, `Modified*` gesetzt; kein Duplikatfehler. |
+| 106.11.g | P: Details → „Deaktivieren“, danach „Reaktivieren“ | „… wurde deaktiviert“ / „… reaktiviert“, Listenfilter folgt, `Modified*` jeweils gesetzt. Kein Lösch-Knopf. |
+| 106.11.h | Herkunft Sage simulieren: `UPDATE Debitors SET Source='Sage', ShortName=NULL, SageVertreter='V01', SageKundenNameFA='HOFER LINZ' WHERE Id=<id>`; P: Details, dann Bearbeiten | Details: Herkunft „Sage“, Vertreter `V01`, Kundenname FA `HOFER LINZ`. Bearbeiten: Hinweis „Dieser Debitor stammt aus Sage …“; Name, Adresse, Kontakt, E-Mail, Sage-Konto readonly; Kurzname ohne Stern. Bemerkung ändern, Kurzname leer → gespeichert. Readonly-Feld per Entwicklertools ändern → DB unverändert; `SageVertreter`/`SageKundenNameFA` bleiben. |
+| 106.11.i | Rollen: L öffnet Liste und Details; ruft `/Debitors/Create`, `/Debitors/Edit/<id>` direkt auf, sendet POST `/Debitors/SetActive` | Liste + Details sichtbar mit „Nur-Lesen-Zugriff“, keine Knöpfe; Direktaufrufe und POST → AccessDenied. |
+| 106.11.j | Rollen: O; A | O: kein Menüpunkt, `/Debitors` → AccessDenied. A: alles wie P. Rollenübersicht und Hilfe nennen Debitoren bei `masterdata`/`masterdata_read`. |
+| 106.11.k | DB: `SQL/105` zweimal ausführen; FreshInstall-DB mit `SQL/00_FreshInstall.sql` | Zweiter Lauf fehlerfrei ohne Änderung; FreshInstall legt `Debitors` mit `IX_Debitors_SageKto`/`IX_Debitors_ShortName` (gefiltert) an und trägt `20261106200713_AddDebitors` ein. Negativ: doppeltes `SageKto` per SQL-`INSERT` → Fehler 2601. |
+| 106.11.l | Regression Kreditoren | TS-106.10.a und .k unverändert (Beschichter-Filter, Meldekarte nur bei Kreditoren). |
+
 ---
 
 *Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) + Teil 6 (Standorteinstellungen, v1.34.0) + BOM-Guard hierarchisch (2026-08-18, abgelöst) + FA-Liste-Hierarchie (v1.35.0) + BOM-Bridge (v1.36.0) + Materialisierung fachliche Felder K1/K2 (v1.37.0) + Skopierung der Tabellen-Selektoren (TS-72) + FA-Liste ausgebaut: Matchcode, Kopfdaten je Zeile, HauptFA-Zeile, Freigabe-Kaskade (v1.38.0, TS-73) + PDF-Erzeugung für FaHierarchy-Druckdokumente (v1.39.0, TS-74) + Matchcode im Artikelstamm (v1.40.0, TS-75) + FA-Arbeitsgang-Erkennung aus der Struktur (v1.41.0, TS-76, ersetzt durch TS-77) + Arbeitsgänge (WorkOperation) aus der Struktur + Werkbank-Anlage aus Sage (v1.44.0, TS-77) + Arbeitsgänge je (Sub-)FA im FA-Struktur-Modal (v1.45.0, TS-78) + Kommissionierung nur am HauptFA

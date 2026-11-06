@@ -1,0 +1,135 @@
+@model List<Debitor>
+@using IdealAkeWms.Controllers
+@inject IdealAkeWms.Services.ICurrentUserService _user
+@{
+    ViewData["Title"] = "Debitoren";
+    var canEdit = await _user.HasMasterDataAccessAsync();
+    var status = (string?)ViewBag.Status ?? CreditorsController.StatusAktiv;
+}
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+    <h2 class="page-header mb-0">Debitoren</h2>
+    @if (canEdit)
+    {
+        <a asp-action="Create" class="btn btn-primary">Debitor anlegen</a>
+    }
+</div>
+
+@if (!canEdit)
+{
+    <div class="alert alert-info small">Sie haben Nur-Lesen-Zugriff. Aenderungen sind nicht moeglich.</div>
+}
+
+<div class="card filter-card mb-3">
+    <div class="card-header">Filter</div>
+    <div class="card-body">
+        <form method="get" asp-action="Index" class="row g-3 align-items-end">
+            <div class="col-sm-4 col-md-3">
+                <label class="form-label" for="filterStatus">Status</label>
+                <select id="filterStatus" name="status" class="form-select">
+                    <option value="@CreditorsController.StatusAktiv" selected="@(status == CreditorsController.StatusAktiv)">Aktiv</option>
+                    <option value="@CreditorsController.StatusInaktiv" selected="@(status == CreditorsController.StatusInaktiv)">Inaktiv</option>
+                    <option value="@CreditorsController.StatusAlle" selected="@(status == CreditorsController.StatusAlle)">Alle</option>
+                </select>
+            </div>
+            <div class="col-sm-4 col-md-3">
+                <button type="submit" class="btn btn-primary">Filtern</button>
+                <a asp-action="Index" class="btn btn-outline-secondary">Zurücksetzen</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@* Toolbar-Host (data-table-toolbar, site.js tableToolbarHost): Zahnrad fuer die Spaltenauswahl. *@
+<div class="d-flex justify-content-end mb-1" data-table-toolbar></div>
+<div class="table-responsive">
+    <table class="table table-striped mb-0 filterable-table" data-server-column-filter="true" data-view-key="Debitors">
+        <thead>
+            <tr>
+                <th data-filterable data-col-key="short-name">Kurzname</th>
+                <th data-filterable data-col-key="name">Name</th>
+                <th data-filterable data-col-key="matchcode">Matchcode</th>
+                <th data-filterable data-col-key="city">PLZ / Ort</th>
+                <th data-filterable data-col-key="country">Land</th>
+                <th data-filterable data-col-key="contact">Ansprechpartner</th>
+                <th data-filterable data-col-key="phone">Telefon</th>
+                <th data-filterable data-col-key="email">E-Mail</th>
+                <th data-filterable data-col-key="sage-kto">Sage-Konto</th>
+                <th data-filterable data-col-key="source">Herkunft</th>
+                <th data-filterable data-col-key="status">Status</th>
+                <th data-col-key="actions" style="width: 100px;"></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var d in Model)
+            {
+                <tr>
+                    <td><strong>@d.ShortName</strong></td>
+                    <td>@d.Name</td>
+                    <td>@d.Matchcode</td>
+                    <td>@DebitorsController.ColumnMap["city"](d)</td>
+                    <td>@d.Country</td>
+                    <td>@d.ContactPerson</td>
+                    <td>@d.Phone</td>
+                    <td>
+                        @if (!string.IsNullOrWhiteSpace(d.Email))
+                        {
+                            <a href="mailto:@d.Email">@d.Email</a>
+                        }
+                    </td>
+                    <td>@d.SageKto</td>
+                    <td>@CreditorsController.SourceText(d.Source)</td>
+                    <td>
+                        @if (d.IsActive)
+                        {
+                            <span class="badge bg-success">Aktiv</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-secondary">Inaktiv</span>
+                        }
+                    </td>
+                    <td class="text-nowrap">
+                        <a asp-action="Details" asp-route-id="@d.Id" class="btn btn-sm btn-outline-secondary">Details</a>
+                    </td>
+                </tr>
+            }
+            @if (!Model.Any())
+            {
+                <tr>
+                    <td colspan="12" class="text-center text-muted py-4">Keine Debitoren für diese Filterung.</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@if (ViewBag.Pagination is IdealAkeWms.Models.ViewModels.PaginationState paginationState)
+{
+    <partial name="_Pagination" model="paginationState" />
+}
+
+<script type="application/json" id="view-config">
+{ "viewKey": "Debitors", "supportsReorder": false, "supportsSortDefault": false }
+</script>
+<script type="application/json" id="column-config">
+[
+    { "key": "short-name", "label": "Kurzname", "locked": true, "defaultWidth": null },
+    { "key": "name", "label": "Name", "locked": false, "defaultWidth": null },
+    { "key": "matchcode", "label": "Matchcode", "locked": false, "defaultWidth": null },
+    { "key": "city", "label": "PLZ / Ort", "locked": false, "defaultWidth": null },
+    { "key": "country", "label": "Land", "locked": false, "defaultWidth": null },
+    { "key": "contact", "label": "Ansprechpartner", "locked": false, "defaultWidth": null },
+    { "key": "phone", "label": "Telefon", "locked": false, "defaultWidth": null },
+    { "key": "email", "label": "E-Mail", "locked": false, "defaultWidth": null },
+    { "key": "sage-kto", "label": "Sage-Konto", "locked": false, "defaultWidth": null },
+    { "key": "source", "label": "Herkunft", "locked": false, "defaultWidth": null },
+    { "key": "status", "label": "Status", "locked": false, "defaultWidth": null },
+    { "key": "actions", "label": "", "locked": true, "defaultWidth": 100 }
+]
+</script>
+
+@section Scripts {
+    <script src="~/js/column-preferences.js" asp-append-version="true"></script>
+    <script src="~/js/table-filter.js" asp-append-version="true"></script>
+}

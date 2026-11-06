@@ -1863,6 +1863,14 @@
                         </ul>
                     </dd>
 
+                    <dt>Debitoren (seit v1.73.0)</dt>
+                    <dd>Kunden (<em>Stammdaten &rarr; Debitoren</em>). Bedienung, Rechte und Regeln wie bei den Kreditoren: Pflicht Name und
+                        Kurzname (eindeutig, Groß-/Kleinschreibung zählt nicht), Sage-Konto optional und eindeutig, Herkunft <em>WMS</em> oder
+                        <em>Sage</em> (dann Name, Adresse, Kontakt und Sage-Konto nur lesbar), Deaktivieren statt Löschen. Es gibt keinen
+                        Beschichter-Filter und keine Dienstleister-Karte. Vertreter und Kundenname FA zeigt die Detailseite; beide füllt künftig der
+                        Sage-Abgleich.
+                    </dd>
+
                     <dt>FA-Vorbau-AG (seit v1.22.0)</dt>
                     <dd>Katalog der FA-Vorbau-AG (Standard: VK Kuehlung, VL Lueftung, VE Elektro,
                         VT Tueren, VA Aufbau) &mdash; erweiterbar um eigene Eintraege.
@@ -1904,7 +1912,7 @@
                             </thead>
                             <tbody>
                                 <tr><td>Administrator</td><td>Vollzugriff auf alle Bereiche (Benutzer, Rollen, Arbeitsplaetze, Einstellungen, Service-Einstellungen, Aktivitaets-Protokoll sind admin-only)</td></tr>
-                                <tr><td>Stammdaten</td><td>Operative Stammdaten lesen + aendern (Artikel, Lagerplaetze, Werkbaenke, Artikelkategorien, Artikelmerkmale, Empfaenger, Kreditoren)</td></tr>
+                                <tr><td>Stammdaten</td><td>Operative Stammdaten lesen + aendern (Artikel, Lagerplaetze, Werkbaenke, Artikelkategorien, Artikelmerkmale, Empfaenger, Kreditoren, Debitoren)</td></tr>
                                 <tr><td>Stammdaten ansehen</td><td>Dieselben Stammdaten-Sichten nur lesen (seit v1.20.0)</td></tr>
                                 <tr><td>Kommissionierer</td><td>Kommissionierung + vollstaendiger Lagerzugriff</td></tr>
                                 <tr><td>Lager</td><td>Einbuchung, Ausbuchung, Bestaende einsehen</td></tr>
