@@ -29,6 +29,8 @@ public static class SyncLogServices
     public const string ProductionWorkplaceSync = "ProductionWorkplaceSync"; // IDEAL: Werkbank-Anlage aus Sage KHKPpsArbeitsplaetze (v1.44.0)
     public const string OperationConfigSync = "OperationConfigSync"; // Arbeitsgang-Abgleich aus der Sage-View in die Arbeitsgang-Stammdaten (v1.61.0)
     public const string SageQuellenvergleich = "SageQuellenvergleich"; // Quellen-Weichen View|SData|Vergleich: Abweichungen + Schalter-Warnungen (v1.73.0)
+    public const string PpsMitarbeiter = "PpsMitarbeiter"; // Sage-PPS-Mitarbeiter (SData) -> Cache SagePpsMitarbeiter (v1.73.0 E6b)
+    public const string Stillstandsgruende = "Stillstandsgruende"; // Sage-Stillstandsbegruendungen (SData) -> Stillstandsgruende (v1.73.0 E6b)
 
     // Non-Sync-Aktivitaeten (seit v1.15.1)
     public const string PartRequisitionEmail = "PartRequisitionEmail";
@@ -46,6 +48,7 @@ public static class SyncLogServices
         ProductionOrder, ProductionOrderReconciliation, Article, FaZusatzinfo,
         SageLagerbuchung, FaHierarchy, HierarchieUmstellung, FaMaterialization,
         WorkOperationStructureDetection, ProductionWorkplaceSync, OperationConfigSync, SageQuellenvergleich,
+        PpsMitarbeiter, Stillstandsgruende,
         PartRequisitionEmail, WarehouseRequisitionEmail, BdeAutoPause,
         CleanupActivityLog,
     };
@@ -76,6 +79,8 @@ public static class SyncLogServices
         [ProductionWorkplaceSync] = "Werkbank-Anlage (Sage-Arbeitsplätze)",
         [OperationConfigSync] = "Arbeitsgang-Abgleich (Sage-View)",
         [SageQuellenvergleich] = "Sage-Quellenvergleich (View/SData)",
+        [PpsMitarbeiter] = "PPS-Mitarbeiter-Abgleich (Sage)",
+        [Stillstandsgruende] = "Stillstandsgründe-Abgleich (Sage)",
         [PartRequisitionEmail] = "Bedarfsmeldungs-E-Mail-Versand",
         [WarehouseRequisitionEmail] = "Lagerbestellungs-E-Mail-Versand",
         [BdeAutoPause] = "BDE-AutoPause",

@@ -4,6 +4,8 @@
     var operators = ViewBag.Operators as List<IdealAkeWms.Models.BdeOperator> ?? new List<IdealAkeWms.Models.BdeOperator>();
     var activities = ViewBag.Activities as List<IdealAkeWms.Models.BdeActivity> ?? new List<IdealAkeWms.Models.BdeActivity>();
     var terminals = ViewBag.Terminals as List<IdealAkeWms.Models.BdeTerminal> ?? new List<IdealAkeWms.Models.BdeTerminal>();
+    var sageZeilen = ViewBag.SageZeilen as List<IdealAkeWms.Models.ViewModels.BdeSageZuordnungZeile> ?? new List<IdealAkeWms.Models.ViewModels.BdeSageZuordnungZeile>();
+    var freieOperatoren = ViewBag.FreieOperatoren as List<IdealAkeWms.Models.BdeOperator> ?? new List<IdealAkeWms.Models.BdeOperator>();
 }
 
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
@@ -31,6 +33,7 @@
                             <th data-filterable data-col-key="name">Name</th>
                             <th data-filterable data-col-key="active">Aktiv</th>
                             <th data-filterable data-col-key="user">WMS-Benutzer</th>
+                            <th data-filterable data-col-key="sage-number">Sage-Nr.</th>
                             <th data-col-key="actions" style="width: 100px;"></th>
                         </tr>
                     </thead>
@@ -51,6 +54,7 @@
                                     }
                                 </td>
                                 <td>@(op.User?.Name ?? "-")</td>
+                                <td>@(op.SageMitarbeiternummer ?? "-")</td>
                                 <td>
                                     <a asp-action="EditOperator" asp-route-id="@op.Id" class="btn btn-sm btn-secondary">Bearbeiten</a>
                                 </td>
@@ -59,7 +63,7 @@
                         @if (!operators.Any())
                         {
                             <tr>
-                                <td colspan="5" class="text-center text-muted py-4">Keine Operatoren vorhanden.</td>
+                                <td colspan="6" class="text-center text-muted py-4">Keine Operatoren vorhanden.</td>
                             </tr>
                         }
                     </tbody>
@@ -151,6 +155,128 @@
                         {
                             <tr>
                                 <td colspan="4" class="text-center text-muted py-4">Keine Terminals vorhanden.</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+    else if (tab == "sage")
+    {
+        @* E6b/G14: Sage-PPS-Mitarbeiter -> BDE-Mitarbeiter. Vorschlag nur bei gleicher Personalnummer, Zuordnung immer per Knopf. *@
+        var sageStand = ViewBag.SageStand as DateTime?;
+        var bdeOhneSageNummer = ViewBag.BdeOhneSageNummer as int? ?? 0;
+        var sageNichtZugeordnet = ViewBag.SageNichtZugeordnet as int? ?? 0;
+        <div class="tab-pane active">
+            <div class="d-flex justify-content-between align-items-baseline flex-wrap gap-2 mb-2">
+                <h5 class="mb-0">Sage-Zuordnung</h5>
+                @if (sageStand.HasValue)
+                {
+                    <span class="text-muted small">Sage-Stand: @sageStand.Value.ToString("dd.MM.yyyy HH:mm"), davon @sageNichtZugeordnet nicht zugeordnet</span>
+                }
+            </div>
+            <p class="text-muted mb-3">
+                Verknüpft Sage-PPS-Mitarbeiter mit BDE-Mitarbeitern. Vorgeschlagen wird nur ein BDE-Mitarbeiter mit gleicher Personalnummer –
+                übernommen wird erst mit „Zuordnen“. Kartennummer und externe Nummer dienen nur zur Information.
+            </p>
+
+            @if (!sageStand.HasValue)
+            {
+                <div class="alert alert-info" role="status">
+                    Es wurden noch keine Sage-Mitarbeiter gelesen. Der Abgleich läuft, sobald in den Diensteinstellungen
+                    <code>Sync:PpsMitarbeiterEnabled</code> eingeschaltet ist und Sage PPS-Mitarbeiter liefert.
+                </div>
+            }
+            @if (bdeOhneSageNummer > 0)
+            {
+                <div class="alert alert-warning" role="status">
+                    @bdeOhneSageNummer aktive BDE-Mitarbeiter haben noch keine Sage-Mitarbeiternummer. Ohne Zuordnung kann ihre Arbeit nicht an Sage zurückgemeldet werden.
+                </div>
+            }
+
+            <div class="table-responsive">
+                <table class="table table-striped align-middle mb-0 filterable-table" data-server-column-filter="true" data-view-key="BdeMasterDataSage">
+                    <thead>
+                        <tr>
+                            <th data-filterable data-col-key="number">Sage-Nr.</th>
+                            <th data-filterable data-col-key="name">Name (Sage)</th>
+                            <th data-filterable data-col-key="matchcode">Matchcode</th>
+                            <th data-filterable data-col-key="card">Kartennr.</th>
+                            <th data-filterable data-col-key="external">Externe Nr.</th>
+                            <th data-filterable data-col-key="active">Aktiv (Sage)</th>
+                            <th data-filterable data-col-key="status">Status</th>
+                            <th data-col-key="assigned" style="min-width: 220px;">BDE-Mitarbeiter</th>
+                            <th data-col-key="actions" style="width: 110px;"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @{ var zeileNr = 0; }
+                        @foreach (var z in sageZeilen)
+                        {
+                            var formId = $"sage-zuordnung-{zeileNr++}";
+                            <tr>
+                                <td>@z.Sage.Nummer</td>
+                                <td>@z.Name</td>
+                                <td>@z.Sage.Matchcode</td>
+                                <td>@(z.Sage.Kartennummer ?? "-")</td>
+                                <td>@(z.Sage.ExterneNummer?.ToString() ?? "-")</td>
+                                <td>@z.AktivText</td>
+                                <td>
+                                    @if (z.Zugeordnet == null)
+                                    {
+                                        <span class="badge bg-warning text-dark">Nicht zugeordnet</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge badge-active">Zugeordnet</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (z.Zugeordnet != null)
+                                    {
+                                        @z.ZugeordnetText
+                                    }
+                                    else
+                                    {
+                                        <select name="operatorId" form="@formId" class="form-select form-select-sm" required
+                                                aria-label="BDE-Mitarbeiter für Sage-Nr. @z.Sage.Nummer">
+                                            <option value="">– auswählen –</option>
+                                            @foreach (var o in freieOperatoren)
+                                            {
+                                                <option value="@o.Id" selected="@(z.Vorschlag?.Id == o.Id)">@o.PersonnelNumber @o.LastName @o.FirstName@(o.IsActive ? "" : " (inaktiv)")</option>
+                                            }
+                                        </select>
+                                        @if (z.Vorschlag != null)
+                                        {
+                                            <div class="form-text">Vorschlag: gleiche Personalnummer</div>
+                                        }
+                                    }
+                                </td>
+                                <td>
+                                    @if (z.Zugeordnet != null)
+                                    {
+                                        <form asp-action="SageZuordnungLoesen" method="post" class="d-inline">
+                                            <input type="hidden" name="operatorId" value="@z.Zugeordnet.Id" />
+                                            <button type="submit" class="btn btn-sm btn-outline-secondary"
+                                                    aria-label="Zuordnung von Sage-Nr. @z.Sage.Nummer lösen">Lösen</button>
+                                        </form>
+                                    }
+                                    else
+                                    {
+                                        <form id="@formId" asp-action="SageZuordnen" method="post" class="d-inline">
+                                            <input type="hidden" name="nummer" value="@z.Sage.Nummer" />
+                                            <button type="submit" class="btn btn-sm btn-primary"
+                                                    aria-label="Sage-Nr. @z.Sage.Nummer zuordnen">Zuordnen</button>
+                                        </form>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                        @if (!sageZeilen.Any())
+                        {
+                            <tr>
+                                <td colspan="9" class="text-center text-muted py-4">Keine Sage-Mitarbeiter vorhanden.</td>
                             </tr>
                         }
                     </tbody>

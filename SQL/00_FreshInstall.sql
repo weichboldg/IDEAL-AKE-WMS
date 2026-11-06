@@ -2084,6 +2084,7 @@ BEGIN
         [LastName] NVARCHAR(100) NOT NULL,
         [IsActive] BIT NOT NULL DEFAULT 1,
         [UserId] INT NULL,
+        [SageMitarbeiternummer] NVARCHAR(20) NULL,  -- v1.73.0 / SQL/103 (G14, nur manuelle Zuordnung)
         [CreatedAt] DATETIME2 NOT NULL,
         [CreatedBy] NVARCHAR(200) NOT NULL,
         [CreatedByWindows] NVARCHAR(200) NOT NULL,
@@ -2102,6 +2103,54 @@ GO
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_BdeOperators_UserId' AND object_id = OBJECT_ID(N'dbo.BdeOperators'))
     CREATE UNIQUE INDEX [IX_BdeOperators_UserId] ON [dbo].[BdeOperators]([UserId]) WHERE [UserId] IS NOT NULL;
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_BdeOperators_SageMitarbeiternummer' AND object_id = OBJECT_ID(N'dbo.BdeOperators'))
+   AND COL_LENGTH(N'dbo.BdeOperators', N'SageMitarbeiternummer') IS NOT NULL -- Alt-DB ohne Spalte: SQL/103 legt Spalte + Index an
+    CREATE UNIQUE INDEX [IX_BdeOperators_SageMitarbeiternummer] ON [dbo].[BdeOperators]([SageMitarbeiternummer]) WHERE [SageMitarbeiternummer] IS NOT NULL;
+GO
+
+-- SagePpsMitarbeiter (v1.73.0 / SQL/103, E6b): Cache der Sage-PPS-Mitarbeiter, kein Audit, Vollersatz je Lauf.
+IF OBJECT_ID(N'dbo.SagePpsMitarbeiter', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[SagePpsMitarbeiter] (
+        [Id]                INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_SagePpsMitarbeiter PRIMARY KEY,
+        [Nummer]            NVARCHAR(20)      NOT NULL,
+        [Matchcode]         NVARCHAR(50)      NULL,
+        [Vorname]           NVARCHAR(35)      NULL,
+        [Nachname]          NVARCHAR(35)      NULL,
+        [Gruppe]            NVARCHAR(10)      NULL,
+        [Kartennummer]      NVARCHAR(20)      NULL,
+        [ExterneNummer]     INT               NULL,
+        [Aktiv]             BIT               NULL,
+        [Schichtplannummer] NVARCHAR(31)      NULL,
+        [Kostenstelle]      NVARCHAR(20)      NULL,
+        [UserName]          NVARCHAR(128)     NULL,
+        [SyncedAt]          DATETIME2         NOT NULL
+    );
+    CREATE UNIQUE INDEX [IX_SagePpsMitarbeiter_Nummer] ON [dbo].[SagePpsMitarbeiter]([Nummer]);
+    PRINT 'Tabelle SagePpsMitarbeiter erstellt.';
+END
+GO
+
+-- Stillstandsgruende (v1.73.0 / SQL/103, E6b): Sage-Stillstandsbegruendungen, Audit, nie geloescht (SageMissingSince).
+IF OBJECT_ID(N'dbo.Stillstandsgruende', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[Stillstandsgruende] (
+        [Id]                INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_Stillstandsgruende PRIMARY KEY,
+        [Nummer]            NVARCHAR(31)      NOT NULL,
+        [Bezeichnung]       NVARCHAR(50)      NULL,
+        [SageMissingSince]  DATETIME2         NULL,
+        [CreatedAt]         DATETIME2         NOT NULL,
+        [CreatedBy]         NVARCHAR(200)     NOT NULL,
+        [CreatedByWindows]  NVARCHAR(200)     NOT NULL,
+        [ModifiedAt]        DATETIME2         NULL,
+        [ModifiedBy]        NVARCHAR(200)     NULL,
+        [ModifiedByWindows] NVARCHAR(200)     NULL
+    );
+    CREATE UNIQUE INDEX [IX_Stillstandsgruende_Nummer] ON [dbo].[Stillstandsgruende]([Nummer]);
+    PRINT 'Tabelle Stillstandsgruende erstellt.';
+END
 GO
 
 -- BdeActivities
@@ -2637,6 +2686,10 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261106192342_AddProductionWorkplaceSdataFields')
    AND COL_LENGTH(N'dbo.ProductionWorkplaces', N'SageBdeTerminalId') IS NOT NULL AND COL_LENGTH(N'dbo.ProductionWorkplaces', N'SageSchichtplannummer') IS NOT NULL -- sonst steht SQL/102 noch aus
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261106192342_AddProductionWorkplaceSdataFields', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261106193321_AddSagePpsMitarbeiterAndStillstandsgruende')
+   AND COL_LENGTH(N'dbo.BdeOperators', N'SageMitarbeiternummer') IS NOT NULL AND OBJECT_ID(N'dbo.SagePpsMitarbeiter', N'U') IS NOT NULL
+   AND OBJECT_ID(N'dbo.Stillstandsgruende', N'U') IS NOT NULL -- sonst steht SQL/103 noch aus
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261106193321_AddSagePpsMitarbeiterAndStillstandsgruende', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';

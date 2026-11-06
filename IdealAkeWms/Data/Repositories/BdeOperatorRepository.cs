@@ -32,4 +32,10 @@ public class BdeOperatorRepository : IBdeOperatorRepository
         _ctx.BdeOperators.Update(op);
         await _ctx.SaveChangesAsync();
     }
+
+    public Task<List<SagePpsMitarbeiter>> GetSagePpsMitarbeiterAsync() =>
+        _ctx.SagePpsMitarbeiter.AsNoTracking().OrderBy(m => m.Nummer).ToListAsync();
+
+    public Task<BdeOperator?> GetBySageMitarbeiternummerAsync(string sageMitarbeiternummer) =>
+        _ctx.BdeOperators.FirstOrDefaultAsync(o => o.SageMitarbeiternummer == sageMitarbeiternummer);
 }

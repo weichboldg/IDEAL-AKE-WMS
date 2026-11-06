@@ -48,6 +48,8 @@ public class ApplicationDbContext : DbContext
     public DbSet<BdeBooking> BdeBookings => Set<BdeBooking>();
     public DbSet<BdeBookingQuantity> BdeBookingQuantities => Set<BdeBookingQuantity>();
     public DbSet<BdeOperator> BdeOperators => Set<BdeOperator>();
+    public DbSet<SagePpsMitarbeiter> SagePpsMitarbeiter => Set<SagePpsMitarbeiter>();
+    public DbSet<Stillstandsgrund> Stillstandsgruende => Set<Stillstandsgrund>();
     public DbSet<BdeShift> BdeShifts => Set<BdeShift>();
     public DbSet<BdeTerminal> BdeTerminals => Set<BdeTerminal>();
     public DbSet<CachedBomHeader> CachedBomHeaders => Set<CachedBomHeader>();
@@ -1192,6 +1194,40 @@ public class ApplicationDbContext : DbContext
             entity.HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId).OnDelete(DeleteBehavior.SetNull);
             entity.HasIndex(e => e.PersonnelNumber).IsUnique();
             entity.HasIndex(e => e.UserId).IsUnique().HasFilter("[UserId] IS NOT NULL");
+            // Spec 2026-11-06-sage-sdata-stammdaten-sync (E6b/G14): Sage-Mitarbeiternummer, gefiltert eindeutig (App-Guard zusaetzlich, InMemory).
+            entity.Property(e => e.SageMitarbeiternummer).HasMaxLength(20);
+            entity.HasIndex(e => e.SageMitarbeiternummer).IsUnique().HasFilter("[SageMitarbeiternummer] IS NOT NULL")
+                .HasDatabaseName("IX_BdeOperators_SageMitarbeiternummer");
+        });
+
+        // E6b: Cache der Sage-PPS-Mitarbeiter (kein Audit, SyncedAt) + Stillstandsgruende (Audit, SageMissingSince).
+        modelBuilder.Entity<SagePpsMitarbeiter>(entity =>
+        {
+            entity.ToTable("SagePpsMitarbeiter");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Nummer).HasMaxLength(20).IsRequired();
+            entity.Property(e => e.Matchcode).HasMaxLength(50);
+            entity.Property(e => e.Vorname).HasMaxLength(35);
+            entity.Property(e => e.Nachname).HasMaxLength(35);
+            entity.Property(e => e.Gruppe).HasMaxLength(10);
+            entity.Property(e => e.Kartennummer).HasMaxLength(20);
+            entity.Property(e => e.Schichtplannummer).HasMaxLength(31);
+            entity.Property(e => e.Kostenstelle).HasMaxLength(20);
+            entity.Property(e => e.UserName).HasMaxLength(128);
+            entity.HasIndex(e => e.Nummer).IsUnique().HasDatabaseName("IX_SagePpsMitarbeiter_Nummer");
+        });
+
+        modelBuilder.Entity<Stillstandsgrund>(entity =>
+        {
+            entity.ToTable("Stillstandsgruende");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Nummer).HasMaxLength(31).IsRequired();
+            entity.Property(e => e.Bezeichnung).HasMaxLength(50);
+            entity.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.ModifiedBy).HasMaxLength(200);
+            entity.Property(e => e.ModifiedByWindows).HasMaxLength(200);
+            entity.HasIndex(e => e.Nummer).IsUnique().HasDatabaseName("IX_Stillstandsgruende_Nummer");
         });
 
         // BDE: Activities

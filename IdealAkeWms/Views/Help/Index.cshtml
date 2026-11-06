@@ -1354,6 +1354,15 @@
 
                     <dt>Terminals</dt>
                     <dd>Welcher WMS-Benutzer an welcher Werkbank angemeldet ist (nur Admin).</dd>
+
+                    <dt>Sage-Zuordnung (seit v1.73.0)</dt>
+                    <dd>Verknuepft die Sage-PPS-Mitarbeiter mit den Operatoren &mdash; Voraussetzung fuer spaetere Rueckmeldungen an Sage.
+                        Die Liste zeigt alle Sage-Mitarbeiter, nicht zugeordnete zuerst. Hat ein Operator genau dieselbe Personalnummer wie die
+                        Sage-Nummer, ist er als Vorschlag vorausgewaehlt; uebernommen wird erst mit <strong>Zuordnen</strong>. Ueber den Namen wird
+                        nie etwas vorgeschlagen. Jede Sage-Nummer gehoert hoechstens einem Operator, jeder Operator hat hoechstens eine; eine
+                        falsche Zuordnung mit <strong>Loesen</strong> aufheben. Kartennummer und externe Nummer sind nur zur Information.
+                        Die Liste fuellt der Dienst, wenn <code>Sync:PpsMitarbeiterEnabled</code> eingeschaltet ist; aktive Operatoren ohne
+                        Sage-Nummer meldet er im Aktivitaets-Protokoll (&bdquo;PPS-Mitarbeiter-Abgleich (Sage)&ldquo;).</dd>
                 </dl>
 
                 <h6 class="mt-3">Werkbank fuer BDE konfigurieren</h6>

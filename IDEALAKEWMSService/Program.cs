@@ -75,6 +75,9 @@ try
     builder.Services.AddScoped<IFaMaterializationSyncService, FaMaterializationSyncService>();
     builder.Services.AddScoped<IProductionWorkplaceSyncService, ProductionWorkplaceSyncService>();
     builder.Services.AddScoped<IOperationConfigSyncService, OperationConfigSyncService>();
+    // Neue SData-Lese-Abgleiche ohne View-Weg (v1.73.0 E6b), Gates Sync:PpsMitarbeiterEnabled / Sync:StillstandsgruendeEnabled (Default false).
+    builder.Services.AddScoped<IDEALAKEWMSService.Services.Sdata.PpsMitarbeiterSyncService>();
+    builder.Services.AddScoped<IDEALAKEWMSService.Services.Sdata.StillstandsgruendeSyncService>();
     builder.Services.AddScoped<IStockMovementRepository, StockMovementRepository>();
     builder.Services.AddScoped<IProductionOrderPickingStatusRepository, ProductionOrderPickingStatusRepository>();
     builder.Services.AddScoped<ISageBookingQueueRepository, SageBookingQueueRepository>();

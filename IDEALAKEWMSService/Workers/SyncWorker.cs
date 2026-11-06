@@ -406,6 +406,33 @@ public class SyncWorker : BackgroundService
                 }
 
                 // ---------------------------------------------------------------
+                // PPS-Mitarbeiter + Stillstandsgruende aus Sage (SData, v1.73.0 E6b): neue Lese-Abgleiche ohne View-Weg,
+                // je eigenes Gate (Default false). Kein Master-Gate: beide schreiben nur eigene Tabellen (Cache bzw. Stammtabelle).
+                // ---------------------------------------------------------------
+                if (await ServiceSettings.GetBoolSafeAsync(_configuration, "Sync:PpsMitarbeiterEnabled", false, stoppingToken))
+                {
+                    await RunResilientAsync("PPS-Mitarbeiter-Abgleich (Sage)", async () =>
+                    {
+                        using var pmScope = _scopeFactory.CreateScope();
+                        var pmSvc = pmScope.ServiceProvider.GetRequiredService<IDEALAKEWMSService.Services.Sdata.PpsMitarbeiterSyncService>();
+                        var pmResult = await pmSvc.RunAsync(dryRun, stoppingToken);
+                        _logger.LogInformation("PPS-Mitarbeiter-Abgleich fertig: Gelesen={Ins}, Uebersprungen={Err}", pmResult.Inserted, pmResult.Errors);
+                    }, stoppingToken);
+                }
+
+                if (await ServiceSettings.GetBoolSafeAsync(_configuration, "Sync:StillstandsgruendeEnabled", false, stoppingToken))
+                {
+                    await RunResilientAsync("Stillstandsgruende-Abgleich (Sage)", async () =>
+                    {
+                        using var sgScope = _scopeFactory.CreateScope();
+                        var sgSvc = sgScope.ServiceProvider.GetRequiredService<IDEALAKEWMSService.Services.Sdata.StillstandsgruendeSyncService>();
+                        var sgResult = await sgSvc.RunAsync(dryRun, stoppingToken);
+                        _logger.LogInformation("Stillstandsgruende-Abgleich fertig: Neu={Ins}, Aktualisiert={Upd}, Uebersprungen={Err}",
+                            sgResult.Inserted, sgResult.Updated, sgResult.Errors);
+                    }, stoppingToken);
+                }
+
+                // ---------------------------------------------------------------
                 // WorkOperation-Arbeitsgang-Erkennung (Struktur, IDEAL): FaHierarchyNode.Arbeitsschritte ->
                 // WorkOperation, Match ueber ProductionWorkplace.ArbeitsschrittCode. Doppel-Gate (Master +
                 // eigener Toggle); laeuft NACH der Materialisierung (ProductionOrder-Zeilen als Ziel) und

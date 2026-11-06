@@ -27,5 +27,11 @@ public class BdeOperator : AuditableEntity
 
     public User? User { get; set; }
 
+    /// <summary>Sage-PPS-Mitarbeiternummer (<c>PpsMitarbeiterInfo.Nummer</c>, string(20)); nur manuell zugeordnet (G14),
+    /// eindeutig (gefilterter UNIQUE-Index + App-Guard). Null = nicht zugeordnet.</summary>
+    [StringLength(20)]
+    [Display(Name = "Sage-Mitarbeiternummer")]
+    public string? SageMitarbeiternummer { get; set; }
+
     public string DisplayName => $"{FirstName} {LastName}";
 }

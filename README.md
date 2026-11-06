@@ -689,6 +689,13 @@ C:\Services\IDEALAKEWMSService\
 > Werkbank-Anlage dann keine Werkbank an und gleicht Name/Kürzel nicht ab (Warnung; Kennzeichnung „nicht in Sage“ läuft weiter), der
 > Arbeitsgang-Abgleich setzt mit Warnung aus („Kuerzel nicht geliefert“, keine Anlage, keine Kennzeichnung). `Vergleich` vergleicht je
 > Arbeitsplatznummer den Namen. SData-Fehler: Lauf mit Fehler + Fehlermail wie bisher bei Lesefehlern.
+> **`Sync:PpsMitarbeiterEnabled`** / **`Sync:StillstandsgruendeEnabled`** (E6b, Default `false`, keine Quellenweiche – es gibt keinen
+> View-Weg): lesen `PpsMitarbeiterInfo` in den Cache `SagePpsMitarbeiter` (Vollersatz je Lauf) bzw. `PpsStillstandsbegruendungenInfo` in
+> `Stillstandsgruende` (anlegen/aktualisieren, nie löschen, fehlende mit `SageMissingSince`). Migration `SQL/103` (beide Tabellen +
+> `BdeOperators.SageMitarbeiternummer`, gefiltert eindeutig). Leere Antwort ändert nichts (Warnung). Der PPS-Mitarbeiter-Abgleich legt
+> **keine** BDE-Mitarbeiter an und verknüpft nichts; die Zuordnung macht die BDE-Schichtleitung unter BDE-Stammdaten › Sage-Zuordnung
+> (Vorschlag nur bei exakt gleicher Personalnummer). Warnungen: aktive BDE-Mitarbeiter ohne Sage-Nummer, zugeordnete Nummern, die es in
+> Sage nicht mehr gibt. Läufe „PPS-Mitarbeiter-Abgleich (Sage)“ / „Stillstandsgründe-Abgleich (Sage)“; SData-Fehler: Lauf Fehler + Fehlermail.
 > Die übrigen Schalter wirken mit den folgenden Etappen.
 
 #### Schritt 3 — Windows Service registrieren

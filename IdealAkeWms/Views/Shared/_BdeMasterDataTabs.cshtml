@@ -24,6 +24,10 @@
             <a class="nav-link @(Model == "terminals" ? "active" : "")" aria-current="@(Model == "terminals" ? "page" : null)"
                asp-controller="BdeMasterData" asp-action="Index" asp-route-tab="terminals">Terminals</a>
         </li>
+        <li class="nav-item">
+            <a class="nav-link @(Model == "sage" ? "active" : "")" aria-current="@(Model == "sage" ? "page" : null)"
+               asp-controller="BdeMasterData" asp-action="Index" asp-route-tab="sage">Sage-Zuordnung</a>
+        </li>
     }
     @if (zeigeArbeitsgaenge)
     {

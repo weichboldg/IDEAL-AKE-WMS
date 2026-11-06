@@ -838,6 +838,10 @@ namespace IdealAkeWms.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
+                    b.Property<string>("SageMitarbeiternummer")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
                     b.Property<int?>("UserId")
                         .HasColumnType("int");
 
@@ -845,6 +849,11 @@ namespace IdealAkeWms.Migrations
 
                     b.HasIndex("PersonnelNumber")
                         .IsUnique();
+
+                    b.HasIndex("SageMitarbeiternummer")
+                        .IsUnique()
+                        .HasDatabaseName("IX_BdeOperators_SageMitarbeiternummer")
+                        .HasFilter("[SageMitarbeiternummer] IS NOT NULL");
 
                     b.HasIndex("UserId")
                         .IsUnique()
@@ -3182,6 +3191,69 @@ namespace IdealAkeWms.Migrations
                     b.ToTable("SageFaStates", "dbo");
                 });
 
+            modelBuilder.Entity("IdealAkeWms.Models.SagePpsMitarbeiter", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool?>("Aktiv")
+                        .HasColumnType("bit");
+
+                    b.Property<int?>("ExterneNummer")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Gruppe")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<string>("Kartennummer")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Kostenstelle")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Matchcode")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Nachname")
+                        .HasMaxLength(35)
+                        .HasColumnType("nvarchar(35)");
+
+                    b.Property<string>("Nummer")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Schichtplannummer")
+                        .HasMaxLength(31)
+                        .HasColumnType("nvarchar(31)");
+
+                    b.Property<DateTime>("SyncedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UserName")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<string>("Vorname")
+                        .HasMaxLength(35)
+                        .HasColumnType("nvarchar(35)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Nummer")
+                        .IsUnique()
+                        .HasDatabaseName("IX_SagePpsMitarbeiter_Nummer");
+
+                    b.ToTable("SagePpsMitarbeiter", "dbo");
+                });
+
             modelBuilder.Entity("IdealAkeWms.Models.ServiceSetting", b =>
                 {
                     b.Property<string>("Key")
@@ -3204,6 +3276,59 @@ namespace IdealAkeWms.Migrations
                     b.HasKey("Key");
 
                     b.ToTable("ServiceSettings", "dbo");
+                });
+
+            modelBuilder.Entity("IdealAkeWms.Models.Stillstandsgrund", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Bezeichnung")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("CreatedByWindows")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ModifiedByWindows")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Nummer")
+                        .IsRequired()
+                        .HasMaxLength(31)
+                        .HasColumnType("nvarchar(31)");
+
+                    b.Property<DateTime?>("SageMissingSince")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Nummer")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Stillstandsgruende_Nummer");
+
+                    b.ToTable("Stillstandsgruende", "dbo");
                 });
 
             modelBuilder.Entity("IdealAkeWms.Models.StockMovement", b =>

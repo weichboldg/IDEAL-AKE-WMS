@@ -71,6 +71,18 @@
                     <li>Das Arbeitsschritt-Kürzel liefert die Sage-Schnittstelle noch nicht: im Modus <code>SData</code> werden keine Werkbänke und keine
                         Kürzel angelegt, beide Läufe zeigen dazu eine Warnung.</li>
                 </ul>
+                <h6>PPS-Mitarbeiter und Stillstandsgründe aus Sage</h6>
+                <ul>
+                    <li>Neuer Reiter <strong>BDE-Stammdaten &rsaquo; Sage-Zuordnung</strong>: die Sage-PPS-Mitarbeiter werden den BDE-Mitarbeitern
+                        per Knopf <strong>Zuordnen</strong> zugeordnet (Vorschlag nur bei gleicher Personalnummer, nie über den Namen) und können mit
+                        <strong>Lösen</strong> wieder getrennt werden. Eine Sage-Nummer gehört höchstens einem BDE-Mitarbeiter. Im Reiter
+                        Operatoren zeigt die neue Spalte <strong>Sage-Nr.</strong> die Zuordnung.</li>
+                    <li>Gelesen wird über die Sage-Schnittstelle, sobald <code>Sync:PpsMitarbeiterEnabled</code> eingeschaltet ist; der Lauf
+                        &bdquo;PPS-Mitarbeiter-Abgleich (Sage)&ldquo; meldet aktive BDE-Mitarbeiter ohne Sage-Nummer und Zuordnungen, deren Nummer
+                        es in Sage nicht mehr gibt. Er legt nie BDE-Mitarbeiter an.</li>
+                    <li>Mit <code>Sync:StillstandsgruendeEnabled</code> werden die Sage-Stillstandsbegründungen übernommen (noch ohne Anzeige,
+                        Grundlage für spätere Stillstandsmeldungen); in Sage gelöschte werden gekennzeichnet, nicht gelöscht.</li>
+                </ul>
             </div>
         </div>
 

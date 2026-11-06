@@ -45,7 +45,38 @@ public class BdeMasterDataController : Controller
         ["name"] = o => $"{o.LastName} {o.FirstName}",
         ["active"] = o => o.IsActive ? "Aktiv" : "Inaktiv",
         ["user"] = o => o.User?.Name ?? "-",
+        ["sage-number"] = o => o.SageMitarbeiternummer ?? "-",
     };
+
+    /// <summary>Server-Side-Spaltenfilter (Tab "Sage-Zuordnung", E6b): Col-Key -> gerenderter Zell-Text.</summary>
+    private static readonly Dictionary<string, Func<BdeSageZuordnungZeile, string?>> SageColumnMap = new()
+    {
+        ["number"] = z => z.Sage.Nummer,
+        ["name"] = z => z.Name,
+        ["matchcode"] = z => z.Sage.Matchcode,
+        ["card"] = z => z.Sage.Kartennummer ?? "-",
+        ["external"] = z => z.Sage.ExterneNummer?.ToString() ?? "-",
+        ["active"] = z => z.AktivText,
+        ["status"] = z => z.StatusText,
+    };
+
+    /// <summary>
+    /// E6b/G14: Zeilen der Sage-Zuordnung. Vorschlag NUR bei exakter Gleichheit <c>PersonnelNumber = Sage-Nummer</c> (ordinal) und nur
+    /// unter BDE-Mitarbeitern ohne Zuordnung - nie ueber den Namen. Nicht zugeordnete zuerst, dann nach Nummer.
+    /// </summary>
+    internal static List<BdeSageZuordnungZeile> SageZuordnungZeilen(IEnumerable<SagePpsMitarbeiter> sage, IReadOnlyCollection<BdeOperator> operators)
+    {
+        var byNummer = operators.Where(o => o.SageMitarbeiternummer != null)
+            .GroupBy(o => o.SageMitarbeiternummer!, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
+        var frei = operators.Where(o => o.SageMitarbeiternummer == null)
+            .GroupBy(o => o.PersonnelNumber, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
+        return sage
+            .Select(m => byNummer.TryGetValue(m.Nummer, out var z)
+                ? new BdeSageZuordnungZeile(m, z, null)
+                : new BdeSageZuordnungZeile(m, null, frei.GetValueOrDefault(m.Nummer)))
+            .OrderBy(z => z.Zugeordnet != null).ThenBy(z => z.Sage.Nummer, StringComparer.Ordinal)
+            .ToList();
+    }
 
     /// <summary>Server-Side-Spaltenfilter (Tab "Aktivitäten"): Col-Key -> gerenderter Zell-Text.</summary>
     private static readonly Dictionary<string, Func<BdeActivity, string?>> ActivityColumnMap = new()
@@ -74,6 +105,16 @@ public class BdeMasterDataController : Controller
             .OrderBy(o => o.LastName).ThenBy(o => o.FirstName).ToList();
         var activities = (await _activityRepository.GetAllAsync()).ToList();
         var terminals = (await _terminalRepository.GetAllAsync()).ToList();
+        var sageZeilen = new List<BdeSageZuordnungZeile>();
+        if (tab == "sage")
+        {
+            var sage = await _operatorRepository.GetSagePpsMitarbeiterAsync();
+            sageZeilen = SageZuordnungZeilen(sage, operators);
+            ViewBag.SageStand = sage.Count == 0 ? (DateTime?)null : sage.Max(m => m.SyncedAt);
+            ViewBag.SageNichtZugeordnet = sageZeilen.Count(z => z.Zugeordnet == null);
+            ViewBag.BdeOhneSageNummer = operators.Count(o => o.IsActive && o.SageMitarbeiternummer == null);
+            ViewBag.FreieOperatoren = operators.Where(o => o.SageMitarbeiternummer == null).ToList();
+        }
 
         // Server-Side-Spaltenfilter: greift nur auf die Tabelle des aktiven Tabs
         // (die View rendert pro Request nur EINE Tabelle), vor der Pagination.
@@ -86,6 +127,9 @@ public class BdeMasterDataController : Controller
             case "terminals":
                 terminals = ColumnFilterHelper.Apply(terminals, columnFilters, TerminalColumnMap).ToList();
                 break;
+            case "sage":
+                sageZeilen = ColumnFilterHelper.Apply(sageZeilen, columnFilters, SageColumnMap).ToList();
+                break;
             default:
                 operators = ColumnFilterHelper.Apply(operators, columnFilters, OperatorColumnMap).ToList();
                 break;
@@ -96,6 +140,7 @@ public class BdeMasterDataController : Controller
         {
             "activities" => activities.Count,
             "terminals" => terminals.Count,
+            "sage" => sageZeilen.Count,
             _ => operators.Count
         };
 
@@ -109,6 +154,7 @@ public class BdeMasterDataController : Controller
         ViewBag.Terminals = tab == "terminals"
             ? terminals.Skip((page - 1) * effectivePageSize).Take(effectivePageSize).ToList()
             : terminals;
+        ViewBag.SageZeilen = sageZeilen.Skip((page - 1) * effectivePageSize).Take(effectivePageSize).ToList();
 
         ViewBag.Pagination = new Models.ViewModels.PaginationState
         {
@@ -196,6 +242,79 @@ public class BdeMasterDataController : Controller
         }
 
         return RedirectToAction(nameof(Index), new { tab = "operators" });
+    }
+
+    /// <summary>
+    /// E6b/G14: manuelle Zuordnung Sage-PPS-Mitarbeiter -> BDE-Mitarbeiter (immer per Knopf bestaetigt, nie automatisch).
+    /// Abgewiesen: unbekannte Sage-Nummer, BDE-Mitarbeiter schon zugeordnet, Sage-Nummer schon vergeben (App-Guard zum gefilterten
+    /// UNIQUE-Index, der unter InMemory nicht greift; der Index selbst faengt den Wettlauf ab).
+    /// </summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SageZuordnen(string nummer, int operatorId)
+    {
+        nummer = (nummer ?? string.Empty).Trim();
+        var zurueck = RedirectToAction(nameof(Index), new { tab = "sage" });
+        var sage = (await _operatorRepository.GetSagePpsMitarbeiterAsync()).FirstOrDefault(m => m.Nummer == nummer);
+        if (sage == null)
+        {
+            TempData["WarningMessage"] = $"Sage-Mitarbeiter '{nummer}' ist nicht (mehr) im Sage-Bestand – nicht zugeordnet.";
+            return zurueck;
+        }
+        var op = await _operatorRepository.GetByIdAsync(operatorId);
+        if (op == null)
+        {
+            TempData["WarningMessage"] = "Bitte einen BDE-Mitarbeiter auswählen.";
+            return zurueck;
+        }
+        if (op.SageMitarbeiternummer != null)
+        {
+            TempData["WarningMessage"] = $"'{op.DisplayName}' ist bereits der Sage-Nummer {op.SageMitarbeiternummer} zugeordnet – zuerst die Zuordnung lösen.";
+            return zurueck;
+        }
+        var vergeben = await _operatorRepository.GetBySageMitarbeiternummerAsync(nummer);
+        if (vergeben != null)
+        {
+            TempData["WarningMessage"] = $"Die Sage-Mitarbeiternummer {nummer} ist bereits '{vergeben.DisplayName}' zugeordnet.";
+            return zurueck;
+        }
+
+        op.SageMitarbeiternummer = nummer;
+        op.ModifiedAt = DateTime.Now;
+        op.ModifiedBy = _currentUserService.GetDisplayName();
+        op.ModifiedByWindows = _currentUserService.GetWindowsUserName();
+        try
+        {
+            await _operatorRepository.UpdateAsync(op);
+        }
+        catch (Microsoft.EntityFrameworkCore.DbUpdateException)
+        {
+            TempData["WarningMessage"] = $"Die Sage-Mitarbeiternummer {nummer} wurde soeben anderweitig vergeben – nicht zugeordnet.";
+            return zurueck;
+        }
+        TempData["SuccessMessage"] = $"Sage-Mitarbeiter {nummer} ist jetzt '{op.DisplayName}' zugeordnet.";
+        return zurueck;
+    }
+
+    /// <summary>E6b/G14: Zuordnung loesen (Sage-Nummer am BDE-Mitarbeiter leeren).</summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SageZuordnungLoesen(int operatorId)
+    {
+        var op = await _operatorRepository.GetByIdAsync(operatorId);
+        if (op == null)
+            return NotFound();
+        if (op.SageMitarbeiternummer != null)
+        {
+            var alt = op.SageMitarbeiternummer;
+            op.SageMitarbeiternummer = null;
+            op.ModifiedAt = DateTime.Now;
+            op.ModifiedBy = _currentUserService.GetDisplayName();
+            op.ModifiedByWindows = _currentUserService.GetWindowsUserName();
+            await _operatorRepository.UpdateAsync(op);
+            TempData["SuccessMessage"] = $"Zuordnung von '{op.DisplayName}' zu Sage-Mitarbeiter {alt} gelöst.";
+        }
+        return RedirectToAction(nameof(Index), new { tab = "sage" });
     }
 
     [HttpGet]
