@@ -31,6 +31,14 @@
                     <li>Kann SData beim Lagerplatz-Abgleich nicht gelesen werden, geht eine Fehlermail an die Sync-Fehler-Empfänger; im Modus
                         <code>Vergleich</code> läuft der Abgleich trotzdem mit den View-Daten weiter.</li>
                 </ul>
+                <h6>Lagerbestand über SData</h6>
+                <ul>
+                    <li><code>Sync:Quelle:Lagerbestand</code> wirkt: <code>SData</code> liest die Bestände je Artikel und Lagerplatz über die
+                        Sage-Schnittstelle, <code>Vergleich</code> liest beide Quellen und bucht nur aus der View. Die Korrekturbuchungen und der Schutz
+                        beim Nullsetzen bleiben unverändert; der Lauf &bdquo;Lagerbestand&ldquo; nennt die genutzte Quelle.</li>
+                    <li>Chargen und Seriennummern werden über SData nur gezählt und im Protokoll genannt, nicht gespeichert.</li>
+                    <li>Kann SData nicht gelesen werden, wird nichts gebucht und nichts auf 0 gesetzt; es geht eine Fehlermail an die Sync-Fehler-Empfänger.</li>
+                </ul>
             </div>
         </div>
 

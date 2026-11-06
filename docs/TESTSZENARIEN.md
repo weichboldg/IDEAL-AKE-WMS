@@ -10759,6 +10759,30 @@ Automatisiert: `LagerplatzSdataTests` (Reader-Mapping, Weiche alle Modi inkl. SD
 | 106.1.f | Negativ: Lagerort in Sage inaktiv setzen (Testsystem), Zyklus mit `SData` | Seine Plätze werden wie heute deaktiviert (Info je Platz); der Lagerort bleibt in `StorageAreas` mit `SageMissingSince` und `IsActive = 0` (Info „nicht (mehr) aktiv in Sage“). Wieder aktiv setzen → nächster Lauf leert `SageMissingSince`. |
 | 106.1.g | Rechte: Benutzer nur mit Stammdaten-Lesen öffnet `/StorageLocations` | Liste mit den neuen Spalten sichtbar, keine Bearbeiten-Knöpfe (unverändert). |
 
+### TS-106.2 — E2: Lagerbestand über SData
+
+**Vorbedingungen:** wie TS-106.1 (SData-Endpunkt, Zugangsdaten, TLS-Schalter, Fehlermail aktiv); `Sync:LagerbestandEnabled = true`;
+`WorkerSettings:SyncDryRun = false`; Lagerplätze vorher abgeglichen. Keine Migration. Vor jedem Schritt Zähler notieren (SQL):
+`SELECT MovementType, COUNT(*) FROM StockMovements WHERE CreatedBy='system:sync' GROUP BY MovementType`. Testartikel 00722001
+(AKE-Test: 200 lfm auf „LL 2 28 0“).
+Automatisiert: `BestandSdataTests` (Reader-Mapping/Summen wie SQL, Chargen/Seriennummern nur gezählt, Fehler und falsch gemappte Zeilen
+werfen, Weiche alle Modi inkl. SData-Fehler im Vergleich, kein Nullsetzen bei Lesefehler, G10-Mail, DI), `LagerbestandSyncServiceTests`.
+
+| Nr | Schritte | Erwartung |
+|---|---|---|
+| 106.2.a | Default: `Sync:Quelle:Lagerbestand` = `View`, einen Zyklus | Lauf „Lagerbestand“ mit denselben Count-Keys (`einbuchungen`, `ausbuchungen`, `nullgesetzt`, `uebersprungen`, `fehler`) wie vor dem Deploy, Info-Zeile „Quelle: View“, **kein** Lauf „Sage-Quellenvergleich“, keine Mail. |
+| 106.2.a-neg | Wert `Neu` eintragen, einen Zyklus | Wirkt wie `View`; genau eine Warnung „Unbekannter Wert 'Neu'“ im Lauf „Sage-Quellenvergleich“. Danach zurück auf `View`. |
+| 106.2.b | `Vergleich`, einen Zyklus | Buchungen nur aus der View (Zähler wie bei `View`). Lauf „Sage-Quellenvergleich“ (Referenz `Lagerbestand`) mit „… abweichende Schlüssel (View n, SData m)“; erwartet am AKE-Test **0 Abweichungen** (AK 10). Lauf „Lagerbestand“ zeigt „Quelle: Vergleich“ und Info-Zeilen „Quelle SData: LagerbestaendeArtikelInfo, … Zeile(n)“, „Chargen (nur gezählt, nicht gespeichert): n Zeile(n) …“, „Seriennummern …“. |
+| 106.2.b-neg | In Sage den Bestand von 00722001 auf einem Platz ändern (Testsystem, z. B. Inventurbuchung), sofort einen Zyklus mit `Vergleich` | Wenn die Änderung zwischen den beiden Lesevorgängen liegt oder einer Quelle nachhinkt: Beispiel „[00722001 @ …] Bestand: View '…' / SData '…'“; sonst 0 Abweichungen. Buchung nur aus der View. |
+| 106.2.c | `SData` direkt nach einem View-Lauf, einen Zyklus | Lauf „Lagerbestand“ mit „Quelle: SData“; **keine** neue `SageEinbuchung`/`SageAusbuchung`, `nullgesetzt` = 0 (Zähler-SQL vor/nach gleich, AK 10). |
+| 106.2.c-neg | Bestand 00722001 in Sage ändern, einen Zyklus mit `SData` | Genau **eine** Korrekturbuchung für (00722001, Platz) mit Notiz „Sage-Korrektur: WMS=…, Sage=…“, wie beim View-Weg. |
+| 106.2.c-cap | `Sync:LagerbestandNullsetzenMaxPerRun = 1`, in Sage zwei Sage-Bestände eines WMS-geführten Platzes auf 0 ausbuchen/entfernen, Zyklus mit `SData` | Wie heute: Warnung „Nullsetzen uebersprungen: Cap ueberschritten“, Fehlermail „Lagerbestand-Nullsetzen: Cap ueberschritten“, nichts auf 0 gesetzt. Cap danach zurück (Default 100). |
+| 106.2.d | Zurück auf `View`, einen Zyklus | „Quelle: View“; keine Korrekturbuchungen aus dem Wechsel (Zähler-SQL vor/nach). |
+| 106.2.e | `SData`, `SData:BaseUrl` auf nicht erreichbaren Host (bzw. falsches Passwort), einen Zyklus | Lauf „Lagerbestand“ endet mit Fehler („Quelle: SData“, „Sage-Connection fehlgeschlagen: SData …“), **keine** Buchung, **kein** Nullsetzen (Zähler-SQL unverändert), Fehlermail „Lagerbestand-Sync“. Andere Abgleiche des Zyklus laufen weiter. |
+| 106.2.e2 | Wie 106.2.e, aber `Vergleich` | Lauf „Sage-Quellenvergleich“ endet mit Fehler „Lagerbestand: SData nicht lesbar …“ + Fehlermail „Sage-Quellenvergleich Lagerbestand“; Lauf „Lagerbestand“ **erfolgreich** aus der View. |
+| 106.2.e3 | Negativ: Feldnamen passen nicht (erste UAT-Prüfung, P-S1) — Lauf mit `Vergleich` | Liefert Sage HTTP 500 (Meldung enthält das erzeugte SQL) oder Zeilen ohne Artikelnummer/PlatzID/Bestand, endet der Vergleich mit Fehler „… Feldnamen der Ressource prüfen (P-S1)“, **nie** „0 Zeilen“ und nie Nullsetzen. Befund an die Entwicklung (Feldnamen von `LagerbestaendeArtikelInfo`). |
+| 106.2.e4 | Negativ: Chargen-/Seriennummern-Ressource nicht lesbar | Nur eine Warnung „Chargen nicht gezählt – …“ im Lauf „Lagerbestand“; der Bestand-Abgleich läuft normal. |
+
 ---
 
 *Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) + Teil 6 (Standorteinstellungen, v1.34.0) + BOM-Guard hierarchisch (2026-08-18, abgelöst) + FA-Liste-Hierarchie (v1.35.0) + BOM-Bridge (v1.36.0) + Materialisierung fachliche Felder K1/K2 (v1.37.0) + Skopierung der Tabellen-Selektoren (TS-72) + FA-Liste ausgebaut: Matchcode, Kopfdaten je Zeile, HauptFA-Zeile, Freigabe-Kaskade (v1.38.0, TS-73) + PDF-Erzeugung für FaHierarchy-Druckdokumente (v1.39.0, TS-74) + Matchcode im Artikelstamm (v1.40.0, TS-75) + FA-Arbeitsgang-Erkennung aus der Struktur (v1.41.0, TS-76, ersetzt durch TS-77) + Arbeitsgänge (WorkOperation) aus der Struktur + Werkbank-Anlage aus Sage (v1.44.0, TS-77) + Arbeitsgänge je (Sub-)FA im FA-Struktur-Modal (v1.45.0, TS-78) + Kommissionierung nur am HauptFA

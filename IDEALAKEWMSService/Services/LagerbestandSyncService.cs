@@ -3,6 +3,7 @@ using IdealAkeWms.Data.Repositories;
 using IdealAkeWms.Models;
 using IdealAkeWms.Services.SyncLogger;
 using IDEALAKEWMSService.Common;
+using IDEALAKEWMSService.Services.Sdata;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -55,7 +56,11 @@ public class LagerbestandSyncService : ILagerbestandSyncService
             {
                 _logger.LogError(ex, "Sage-Connection fehlgeschlagen.");
                 errors++;
+                await LogQuelleAsync(run, ct);
                 await run.LogErrorAsync($"Sage-Connection fehlgeschlagen: {ex.Message}", ct: ct);
+                // G10: bei Quelle SData/Vergleich zusaetzlich Fehlermail; Quelle View wie bisher ohne Mail.
+                if (_reader is SageQuelleWeiche { GenutzteQuelle: SageQuelle.SData or SageQuelle.Vergleich })
+                    await _errorNotifier.NotifyAsync("Lagerbestand-Sync", ex, ct);
                 await run.FinishFailedAsync($"Sage-Connection fehlgeschlagen: {ex.Message}", counts: new Dictionary<string, int>
                 {
                     ["einbuchungen"] = plus,
@@ -65,6 +70,7 @@ public class LagerbestandSyncService : ILagerbestandSyncService
                 }, ct: ct);
                 return new LagerbestandSyncResult(0, 0, 0, 0, 0, 1, dryRun);
             }
+            await LogQuelleAsync(run, ct);
 
             // Roh-Zeilen (VOR Dedup) fuer den Nullsetz-Abgleich festhalten: sagePresentKeys
             // muss auch Duplikat-Keys enthalten (die sind in Sage vorhanden, nur mehrdeutig).
@@ -296,6 +302,18 @@ public class LagerbestandSyncService : ILagerbestandSyncService
             }, ct: ct);
             throw;
         }
+    }
+
+    /// <summary>Info-Zeile „Quelle: View|SData|Vergleich“ (F1) + Hinweise des SData-Readers, nur wenn der Reader die Quellen-Weiche ist.</summary>
+    private async Task LogQuelleAsync(ISyncRun run, CancellationToken ct)
+    {
+        if (_reader is not SageQuelleWeiche { GenutzteQuelle: { } quelle })
+            return;
+        await run.LogInfoAsync($"Quelle: {quelle}", ct: ct);
+        if (_reader is BestandQuelleSwitch w)
+            foreach (var h in w.SdataHinweise)
+                if (h.Warnung) await run.LogWarningAsync(h.Text, ct: ct);
+                else await run.LogInfoAsync(h.Text, ct: ct);
     }
 
     private sealed class TupleKeyComparer : IEqualityComparer<(string, string)>

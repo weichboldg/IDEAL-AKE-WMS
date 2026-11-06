@@ -658,8 +658,11 @@ C:\Services\IDEALAKEWMSService\
 > `LagerorteInfo` + `LagerplaetzeInfo` (nur Plätze aktiver Lagerorte, `Mandant eq 1`) und schreibt zusätzlich Lagerort (Tabelle
 > `StorageAreas`), Sperr-Kennzeichen und Maße an die Lagerplätze; ein View-Lauf lässt diese Felder unverändert. SData-Lesefehler: im
 > Modus `SData` endet der Lagerplatz-Lauf mit Fehler (keine Deaktivierung) und es geht eine Fehlermail raus; im Modus `Vergleich`
-> wird der Vergleichslauf als Fehler protokolliert und gemeldet, der Abgleich läuft mit den View-Zeilen weiter. Die übrigen Schalter
-> wirken mit den folgenden Etappen.
+> wird der Vergleichslauf als Fehler protokolliert und gemeldet, der Abgleich läuft mit den View-Zeilen weiter.
+> **`Sync:Quelle:Lagerbestand`** (E2): `SData` liest `LagerbestaendeArtikelInfo` (`Mandant eq 1`) und ordnet die PlatzID über
+> `LagerplaetzeInfo` der Kurzbezeichnung zu (Summe je Artikel × Platz wie die View); Chargen/Seriennummern werden nur gezählt. Fehler
+> oder unlesbare Zeilen: kein Buchen, kein Nullsetzen, Fehlermail (wie bei den Lagerplätzen). Die übrigen Schalter wirken mit den
+> folgenden Etappen.
 
 #### Schritt 3 — Windows Service registrieren
 

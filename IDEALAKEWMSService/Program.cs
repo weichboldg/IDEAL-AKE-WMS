@@ -58,7 +58,8 @@ try
     // Lagerplaetze: Quellen-Weiche (Sync:Quelle:Lagerplaetze, Default View = SQL-Reader unveraendert), v1.73.0 E1.
     IDEALAKEWMSService.Services.Sdata.SdataRegistrierung.AddLagerplatzQuelle(builder.Services);
     builder.Services.AddScoped<ISageArbeitsplatzReader, SageArbeitsplatzReader>();
-    builder.Services.AddScoped<ISageBestandReader, SageBestandReader>();
+    // Lagerbestand: Quellen-Weiche (Sync:Quelle:Lagerbestand, Default View = SQL-Reader unveraendert), v1.73.0 E2.
+    IDEALAKEWMSService.Services.Sdata.SdataRegistrierung.AddBestandQuelle(builder.Services);
     builder.Services.AddScoped<ISageZusatzinfoReader, SageZusatzinfoReader>();
     builder.Services.AddScoped<IFaZusatzinfoSyncService, FaZusatzinfoSyncService>();
     builder.Services.AddScoped<IOseonSyncService, OseonSyncService>();

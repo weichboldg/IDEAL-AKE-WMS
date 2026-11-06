@@ -37,4 +37,18 @@ public static class SdataRegistrierung
             sp.GetRequiredService<IdealAkeWms.Services.SyncLogger.ISyncLogger>()));
         return services;
     }
+
+    /// <summary>E2: <see cref="ISageBestandReader"/> = <see cref="BestandQuelleSwitch"/> (Muster wie <see cref="AddLagerplatzQuelle"/>).</summary>
+    public static IServiceCollection AddBestandQuelle(this IServiceCollection services)
+    {
+        services.AddScoped<SageBestandReader>();
+        services.AddScoped<SdataBestandReader>();
+        services.AddScoped<ISageBestandReader>(sp => new BestandQuelleSwitch(
+            sp.GetRequiredService<SageBestandReader>(),
+            sp.GetRequiredService<SdataBestandReader>(),
+            sp.GetRequiredService<IConfiguration>(),
+            sp.GetRequiredService<ISyncErrorNotifier>(),
+            sp.GetRequiredService<IdealAkeWms.Services.SyncLogger.ISyncLogger>()));
+        return services;
+    }
 }
