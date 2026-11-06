@@ -4,6 +4,7 @@ namespace IDEALAKEWMSService.Services;
 /// Ein Artikel aus Sage, wie ihn der Artikel-Abgleich nach <c>Articles</c> schreibt (Felder = Spalten des bisherigen Selects
 /// <see cref="SageArticleSql"/>, bereits geparst). <paramref name="Details"/> liefert nur der SData-Reader; null = „Quelle liefert die
 /// Zusatzfelder nicht“ → der Satellit <c>ArticleSageDetails</c> bleibt unberuehrt (Spec 2026-11-06-sage-sdata-stammdaten-sync, F1/F5).
+/// <paramref name="Benutzerfelder"/> (E3b): USER-Feld → Wert (Text, leer = null), ebenfalls nur vom SData-Reader; null = Merkmale unberuehrt.
 /// </summary>
 public sealed record SageArtikelDto(
     string ArticleNumber,
@@ -13,7 +14,8 @@ public sealed record SageArtikelDto(
     decimal? ReorderLevel,
     string? PrimaryStorageLocation,
     string? Matchcode,
-    SageArtikelDetails? Details = null);
+    SageArtikelDetails? Details = null,
+    IReadOnlyDictionary<string, string?>? Benutzerfelder = null);
 
 /// <summary>
 /// Ergebnis eines Artikel-Lesevorgangs. <paramref name="QuelleFehltMeldung"/> != null: die konfigurierte Artikel-View

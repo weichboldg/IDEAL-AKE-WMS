@@ -253,6 +253,10 @@ namespace IdealAkeWms.Migrations
                     b.Property<int?>("SelectedOptionId")
                         .HasColumnType("int");
 
+                    b.Property<string>("TextValue")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ArticleAttributeDefinitionId");

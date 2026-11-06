@@ -30,10 +30,22 @@ public class ArticleAttributesController : Controller
     private static readonly Dictionary<string, Func<ArticleAttributeDefinition, string?>> ColumnMap = new()
     {
         ["name"] = d => d.Name,
-        ["type"] = d => d.AttributeType == AttributeType.Boolean ? "Boolean" : "Dropdown",
+        ["type"] = TypLabel,
         ["sort-order"] = d => d.SortOrder.ToString(),
         ["active"] = d => d.IsActive ? "Ja" : "Nein",
     };
+
+    /// <summary>Badge-Text der Typ-Spalte (View und Spaltenfilter identisch).</summary>
+    public static string TypLabel(ArticleAttributeDefinition d) => d.AttributeType switch
+    {
+        AttributeType.Boolean => "Boolean",
+        AttributeType.Text => "Text",
+        _ => "Dropdown",
+    };
+
+    /// <summary>Hinweis fuer Sage-gefuehrte Merkmale (Spec 2026-11-06-sage-sdata-stammdaten-sync E3b).</summary>
+    private static string SageGesperrt(ArticleAttributeDefinition d) =>
+        $"Merkmal '{d.Name}' kommt aus Sage (Benutzerfeld {d.SyncFieldName}) — Name, Typ, Optionen und Werte sind hier nicht aenderbar.";
 
     public async Task<IActionResult> Index(int page = 1, int? pageSize = null)
     {
@@ -78,6 +90,13 @@ public class ArticleAttributesController : Controller
             return RedirectToAction(nameof(Index));
         }
 
+        // Text-Merkmale am Artikel fuehrt nur der Sage-Abgleich (E3b); die Pflege bietet nur Boolean/Dropdown an.
+        if (attributeType is not (AttributeType.Boolean or AttributeType.Dropdown))
+        {
+            TempData["WarningMessage"] = "Typ nicht erlaubt — Artikelmerkmale koennen nur als Boolean oder Dropdown angelegt werden.";
+            return RedirectToAction(nameof(Index));
+        }
+
         if (await _attributeRepository.DefinitionExistsByNameAsync(name.Trim()))
         {
             TempData["WarningMessage"] = $"Merkmal '{name.Trim()}' existiert bereits.";
@@ -115,6 +134,14 @@ public class ArticleAttributesController : Controller
             return RedirectToAction(nameof(Index));
         }
 
+        // Sage-gefuehrt: Name bleibt (der Abgleich findet die Definition ueber SyncFieldName, der Name ist Anzeige);
+        // Reihenfolge und Aktiv sind WMS-Anzeige-Einstellungen und bleiben pflegbar.
+        if (definition.IsSageSynced && name.Trim() != definition.Name)
+        {
+            TempData["WarningMessage"] = SageGesperrt(definition);
+            return RedirectToAction(nameof(Index));
+        }
+
         definition.Name = name.Trim();
         definition.SortOrder = sortOrder;
         definition.IsActive = isActive;
@@ -135,6 +162,12 @@ public class ArticleAttributesController : Controller
         var definition = await _attributeRepository.GetDefinitionByIdAsync(id);
         if (definition == null)
             return NotFound();
+
+        if (definition.IsSageSynced)
+        {
+            TempData["WarningMessage"] = SageGesperrt(definition);
+            return RedirectToAction(nameof(Index));
+        }
 
         if (await _attributeRepository.DefinitionHasValuesAsync(id))
         {
@@ -162,6 +195,12 @@ public class ArticleAttributesController : Controller
         var definition = await _attributeRepository.GetDefinitionByIdAsync(definitionId);
         if (definition == null)
             return NotFound();
+
+        if (definition.IsSageSynced || definition.AttributeType != AttributeType.Dropdown)
+        {
+            TempData["WarningMessage"] = definition.IsSageSynced ? SageGesperrt(definition) : $"Merkmal '{definition.Name}' ist kein Dropdown — Optionen nicht moeglich.";
+            return RedirectToAction(nameof(Index));
+        }
 
         var option = new ArticleAttributeOption
         {

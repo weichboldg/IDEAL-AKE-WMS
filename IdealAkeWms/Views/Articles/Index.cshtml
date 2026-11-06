@@ -98,6 +98,10 @@
                                 {
                                     @(val.BooleanValue == true ? "Ja" : "Nein")
                                 }
+                                else if (def.AttributeType == IdealAkeWms.Models.AttributeType.Text)
+                                {
+                                    @val.TextValue
+                                }
                                 else
                                 {
                                     @(val.SelectedOption?.Value ?? "")

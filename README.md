@@ -665,7 +665,13 @@ C:\Services\IDEALAKEWMSService\
 > **`Sync:Quelle:Artikel`** (E3a): nur `Vergleich` wirkt – liest `Artikel` (Bestellartikel + Ressourcenummern der PPS-Ressourcenlisten,
 > Filter laut AKE-Select angenommen) + `ArtikelVariantenExtended` und meldet Abweichungen; geschrieben wird nur aus der View. `SData` ist
 > bis zur Prüfabfrage P-R1 (IDEAL-Filter der Artikel-View) gesperrt und wirkt wie `View` + Warnung. Nur der SData-Weg schreibt den neuen
-> Satelliten `ArticleSageDetails` (Migration `SQL/99`, Anzeige in der Artikelinfo). Die übrigen Schalter wirken mit den folgenden Etappen.
+> Satelliten `ArticleSageDetails` (Migration `SQL/99`, Anzeige in der Artikelinfo).
+> **`Sync:ArtikelBenutzerfelder`** (E3b): kommagetrennte Liste der Sage-Felder `USER_…` (Default 15 Felder), die der SData-Weg des
+> Artikel-Abgleichs als **Text-Merkmal** übernimmt (Migration `SQL/100`, Spalte `ArticleAttributeValues.TextValue`). Das Merkmal wird beim
+> ersten Lauf angelegt (Name = Feld ohne `USER_`, Kennzeichen „aus Sage“) und ist unter `/ArticleAttributes` und in der
+> Artikel-Bearbeitung gesperrt (Name, Werte, Löschen); Reihenfolge und Aktiv bleiben pflegbar. Ungültiger oder in Sage unbekannter
+> Feldname, gleichnamiges manuelles Merkmal (Konflikt, bleibt unverändert) und Werte über 1000 Zeichen (gekürzt) erscheinen als Warnung im
+> Lauf „Artikel“. Wirkt erst mit `Sync:Quelle:Artikel = SData` (gesperrt bis P-R1). Die übrigen Schalter wirken mit den folgenden Etappen.
 
 #### Schritt 3 — Windows Service registrieren
 

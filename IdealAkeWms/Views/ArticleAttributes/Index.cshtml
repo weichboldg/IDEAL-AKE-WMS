@@ -38,18 +38,30 @@
                             @foreach (var def in Model)
                             {
                                 hasValues.TryGetValue(def.Id, out var hasVals);
+                                var ausSage = def.IsSageSynced;
                                 <tr>
                                     <td>
                                         <form asp-action="UpdateDefinition" method="post" class="d-flex align-items-center gap-1" id="form-def-@def.Id">
                                             @Html.AntiForgeryToken()
                                             <input type="hidden" name="id" value="@def.Id" />
-                                            <input type="text" name="name" value="@def.Name" class="form-control form-control-sm" required @(canEdit ? "" : "readonly") />
+                                            <input type="text" name="name" value="@def.Name" class="form-control form-control-sm" required aria-label="Name" @(canEdit && !ausSage ? "" : "readonly") />
                                         </form>
+                                        @if (ausSage)
+                                        {
+                                            <div class="small text-muted mt-1">
+                                                <span class="badge text-bg-secondary">aus Sage</span>
+                                                Benutzerfeld <code>@def.SyncFieldName</code> – Name und Werte nicht änderbar
+                                            </div>
+                                        }
                                     </td>
                                     <td>
                                         @if (def.AttributeType == IdealAkeWms.Models.AttributeType.Boolean)
                                         {
                                             <span class="badge bg-primary">Boolean</span>
+                                        }
+                                        else if (def.AttributeType == IdealAkeWms.Models.AttributeType.Text)
+                                        {
+                                            <span class="badge text-bg-info">Text</span>
                                         }
                                         else
                                         {
@@ -74,7 +86,15 @@
                                                     <path d="M12.736 3.97a.733.733 0 0 1 1.047 0c.286.289.29.756.01 1.05L7.88 12.01a.733.733 0 0 1-1.065.02L3.217 8.384a.757.757 0 0 1 0-1.06.733.733 0 0 1 1.047 0l3.052 3.093 5.4-6.425z"/>
                                                 </svg>
                                             </button>
-                                            @if (!hasVals)
+                                            @if (ausSage)
+                                            {
+                                                <span class="btn btn-sm btn-outline-secondary disabled" title="Merkmal aus Sage — kann nicht geloescht werden" aria-label="Loeschen gesperrt: Merkmal aus Sage">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                                                        <path d="M8 1a2 2 0 0 1 2 2v4H6V3a2 2 0 0 1 2-2m3 6V3a3 3 0 0 0-6 0v4a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2"/>
+                                                    </svg>
+                                                </span>
+                                            }
+                                            else if (!hasVals)
                                             {
                                                 <form asp-action="DeleteDefinition" method="post" class="d-inline">
                                                     @Html.AntiForgeryToken()
@@ -199,6 +219,7 @@
             <div class="card-body small">
                 <p class="mb-2"><strong>Boolean</strong> = Checkbox (Ja/Nein) in der Artikelbearbeitung.</p>
                 <p class="mb-2"><strong>Dropdown</strong> = Auswahlliste mit vordefinierten Optionen. Optionen koennen nach Erstellung hinzugefuegt werden.</p>
+                <p class="mb-2"><strong>Text</strong> (Kennzeichen „aus Sage“) = Sage-Benutzerfeld, das der Artikel-Abgleich ueber SData anlegt und befuellt (<code>Sync:ArtikelBenutzerfelder</code>). Name und Werte sind gesperrt; Reihenfolge und Aktiv sind pflegbar.</p>
                 <p class="mb-2"><strong>Reihenfolge</strong> bestimmt die Spalten-Position in der Artikel-Uebersicht.</p>
                 <p class="mb-0"><strong>Deaktivierte</strong> Merkmale verschwinden aus der Artikel-Uebersicht/Bearbeitung, Werte bleiben in der DB erhalten.</p>
             </div>

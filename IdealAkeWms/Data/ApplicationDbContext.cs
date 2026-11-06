@@ -330,6 +330,7 @@ public class ApplicationDbContext : DbContext
         {
             entity.ToTable("ArticleAttributeValues");
             entity.HasKey(e => e.Id);
+            entity.Property(e => e.TextValue).HasMaxLength(ArticleAttributeValue.TextValueMaxLength);
             entity.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
             entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
             entity.Property(e => e.ModifiedBy).HasMaxLength(200);

@@ -1,4 +1,8 @@
+using System.Text.Json;
+using System.Text.RegularExpressions;
+using IdealAkeWms.Models;
 using IdealAkeWms.Services.SageSdata;
+using IDEALAKEWMSService.Common;
 
 namespace IDEALAKEWMSService.Services.Sdata;
 
@@ -73,10 +77,106 @@ public sealed class SdataArtikelReader : ISageArtikelReader
     /// <summary>Hinweise des letzten Aufrufs (Ressourcen/Zeilen/Dauer je Abfrage).</summary>
     public IReadOnlyList<SdataHinweis> Hinweise { get; private set; } = Array.Empty<SdataHinweis>();
 
-    public async Task<SageArtikelLesung> GetAllAsync(CancellationToken ct = default) =>
-        new(await LesenAsync(await SdataLeseZielLeser.LesenAsync(_configuration, ct), ct));
+    public async Task<SageArtikelLesung> GetAllAsync(CancellationToken ct = default)
+    {
+        var ziel = await SdataLeseZielLeser.LesenAsync(_configuration, ct);
+        // Zeile fehlt (null) = Katalog-Default; explizit leer = keine Benutzerfelder.
+        var roh = await ServiceSettings.GetValueSafeAsync(_configuration, BenutzerfelderKey, ct)
+            ?? ServiceSettingDefinitions.All.First(d => d.Key == BenutzerfelderKey).DefaultValue;
+        return new(await LesenAsync(ziel, ct, BenutzerfelderParsen(roh)));
+    }
 
-    public async Task<List<SageArtikelDto>> LesenAsync(SdataLeseZiel ziel, CancellationToken ct)
+    // ----- Benutzerfelder (E3b) -----
+
+    public const string BenutzerfelderKey = "Sync:ArtikelBenutzerfelder";
+    private static readonly Regex GueltigesBenutzerfeld = new("^USER_[A-Za-z0-9_]{1,100}$", RegexOptions.CultureInvariant);
+
+    /// <summary>
+    /// Kommagetrennte Liste aus <c>Sync:ArtikelBenutzerfelder</c>: gueltig = <c>USER_</c> + Buchstaben/Ziffern/Unterstrich (der Name landet
+    /// im <c>select</c> der URL), doppelte (Gross/Klein egal) einmal. Ungueltige kommen als Warnung zurueck, nie in die Abfrage.
+    /// </summary>
+    public static (List<string> Gueltig, List<string> Ungueltig) BenutzerfelderParsen(string? roh)
+    {
+        var gueltig = new List<string>();
+        var ungueltig = new List<string>();
+        foreach (var teil in (roh ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            if (!GueltigesBenutzerfeld.IsMatch(teil)) ungueltig.Add(teil);
+            else if (!gueltig.Contains(teil, StringComparer.OrdinalIgnoreCase)) gueltig.Add(teil);
+        }
+        return (gueltig, ungueltig);
+    }
+
+    /// <summary>
+    /// Liest die Benutzerfelder je Artikelnummer (eigene Abfrage, damit ein falscher Feldname nie den Artikel-Abgleich bricht).
+    /// Antwortet Sage mit HTTP 500, wird jedes Feld einzeln an einem Artikel geprueft: Felder mit eigenem 500 = unbekannt (Warnung),
+    /// die uebrigen werden erneut gelesen. Faellt kein Feld als Ursache auf, war es ein echter Fehler → werfen.
+    /// TODO(P-S1): Annahme „unbekanntes Feld im select = HTTP 500“ (Etabliertes Muster E1); liefert Sage stattdessen nichts, greift die
+    /// Pruefung „in keiner Zeile geliefert“ unten (Warnung).
+    /// </summary>
+    private async Task<Dictionary<string, Dictionary<string, string?>>> BenutzerfelderLesenAsync(SdataLeseZiel ziel, List<string> felder,
+        IReadOnlyList<string> nummern, List<SdataHinweis> hinweise, CancellationToken ct)
+    {
+        var ergebnis = new Dictionary<string, Dictionary<string, string?>>(StringComparer.OrdinalIgnoreCase);
+        if (felder.Count == 0 || nummern.Count == 0) return ergebnis;
+
+        List<Dictionary<string, JsonElement>> zeilen;
+        try
+        {
+            zeilen = await InBloeckenAsync<Dictionary<string, JsonElement>>(ziel, RessourceArtikel, "Artikelnummer," + string.Join(",", felder),
+                "Artikelnummer", nummern, hinweise, ct);
+        }
+        catch (SdataLeseException ex) when (ex.Status == 500)
+        {
+            var unbekannt = new List<string>();
+            foreach (var feld in felder)
+            {
+                try
+                {
+                    await _client.QueryAllAsync<Dictionary<string, JsonElement>>(ziel, SageSdataReadClient.VertragResources, RessourceArtikel,
+                        InFilter(new[] { nummern[0] }), "Artikelnummer," + feld, "Artikelnummer", ct, 1);
+                }
+                catch (SdataLeseException probe) when (probe.Status == 500) { unbekannt.Add(feld); }
+            }
+            if (unbekannt.Count == 0) throw;
+            foreach (var feld in unbekannt)
+                hinweise.Add(new($"Benutzerfeld {feld} ist in Sage (Artikel) unbekannt – übersprungen. {BenutzerfelderKey} prüfen.", Warnung: true));
+            felder = felder.Except(unbekannt).ToList();
+            if (felder.Count == 0) return ergebnis;
+            zeilen = await InBloeckenAsync<Dictionary<string, JsonElement>>(ziel, RessourceArtikel, "Artikelnummer," + string.Join(",", felder),
+                "Artikelnummer", nummern, hinweise, ct);
+        }
+
+        var geliefert = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var roh in zeilen)
+        {
+            var zeile = new Dictionary<string, JsonElement>(roh, StringComparer.OrdinalIgnoreCase);
+            if (!zeile.TryGetValue("Artikelnummer", out var nr) || nr.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(nr.GetString()))
+                throw new SdataLeseException(RessourceArtikel, 0, "Benutzerfelder: Zeile ohne Artikelnummer – Feldnamen prüfen (P-S1).");
+            var werte = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+            foreach (var feld in felder)
+            {
+                if (zeile.TryGetValue(feld, out var wert)) geliefert.Add(feld);
+                werte[feld] = AlsText(wert);
+            }
+            ergebnis.TryAdd(Schluessel(nr.GetString()), werte);
+        }
+        foreach (var feld in felder.Where(f => zeilen.Count > 0 && !geliefert.Contains(f)))
+            hinweise.Add(new($"Benutzerfeld {feld} wurde von Sage in keiner Zeile geliefert (unbekannt oder überall leer).", Warnung: true));
+        return ergebnis;
+    }
+
+    /// <summary>JSON-Wert als Text fuer <c>ArticleAttributeValues.TextValue</c>; null/leer = null.</summary>
+    // TODO(P-S1): Typen der USER-Felder unbelegt; Zahlen/Booleans als Rohtext (Sage-Bool z. B. "-1"), bis das $schema die Typen zeigt.
+    internal static string? AlsText(JsonElement wert) => wert.ValueKind switch
+    {
+        JsonValueKind.String => string.IsNullOrWhiteSpace(wert.GetString()) ? null : wert.GetString()!.Trim(),
+        JsonValueKind.Number or JsonValueKind.True or JsonValueKind.False => wert.GetRawText(),
+        _ => null,
+    };
+
+    public async Task<List<SageArtikelDto>> LesenAsync(SdataLeseZiel ziel, CancellationToken ct,
+        (List<string> Gueltig, List<string> Ungueltig) benutzerfelder = default)
     {
         var hinweise = new List<SdataHinweis>();
         Hinweise = hinweise;
@@ -104,6 +204,15 @@ public sealed class SdataArtikelReader : ISageArtikelReader
         hinweise.Add(new(plaetze.Zusammenfassung));
 
         var result = Abbilden(artikel, nurRessource, varianten, plaetze.Zeilen);
+
+        // E3b: Benutzerfelder nur fuer Artikel mit Stamm (Ressourcenummern ohne Artikelstamm haben keine). Fehlt eine Nummer in der
+        // Antwort, bleibt ihr Benutzerfelder null (= Merkmale unberuehrt).
+        foreach (var f in benutzerfelder.Ungueltig ?? new())
+            hinweise.Add(new($"Benutzerfeld „{f}“ ist kein gültiger Feldname (erwartet USER_…) – übersprungen. {BenutzerfelderKey} prüfen.", Warnung: true));
+        var stamm = artikel.Select(a => a.Artikelnummer!).DistinctBy(Schluessel, StringComparer.OrdinalIgnoreCase).ToList();
+        var userWerte = await BenutzerfelderLesenAsync(ziel, benutzerfelder.Gueltig ?? new(), stamm, hinweise, ct);
+        if (userWerte.Count > 0)
+            result = result.Select(d => userWerte.TryGetValue(Schluessel(d.ArticleNumber), out var w) ? d with { Benutzerfelder = w } : d).ToList();
         _logger.LogInformation("Sage (SData) liefert {Count} Artikel. {Hinweise}", result.Count, string.Join(" | ", hinweise.Select(h => h.Text)));
         return result;
     }

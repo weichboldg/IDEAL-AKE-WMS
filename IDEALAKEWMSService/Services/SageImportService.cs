@@ -540,6 +540,15 @@ public class SageImportService : ISageImportService
                     + (ohneArtikel > 0 ? $", {ohneArtikel} ohne WMS-Artikel." : "."), ct: ct);
             }
 
+            // Benutzerfelder als Text-Merkmal (E3b): ebenfalls nur SData-Zeilen; Konflikte/Kuerzungen als Warnung (Melden statt still).
+            if (sageArticles.Any(a => a.Benutzerfelder is not null))
+            {
+                var bf = await ArtikelBenutzerfelderWriter.SchreibenAsync(_ctx, sageArticles, ct);
+                foreach (var w in bf.Warnungen) await run.LogWarningAsync(w, ct: ct);
+                await run.LogInfoAsync($"Sage-Benutzerfelder (Merkmale): {bf.DefinitionenNeu} Merkmal(e) angelegt, {bf.Neu} Wert(e) neu, "
+                    + $"{bf.Aktualisiert} aktualisiert, {bf.Entfernt} entfernt" + (bf.OhneArtikel > 0 ? $", {bf.OhneArtikel} ohne WMS-Artikel." : "."), ct: ct);
+            }
+
             await run.FinishSuccessAsync(new Dictionary<string, int>
             {
                 ["gelesen"]              = sageArticles.Count,

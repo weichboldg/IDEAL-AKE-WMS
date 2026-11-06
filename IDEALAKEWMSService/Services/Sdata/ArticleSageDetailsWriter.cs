@@ -21,10 +21,7 @@ public static class ArticleSageDetailsWriter
         var mitDetails = artikel.Where(a => a.Details is not null).ToList();
         if (mitDetails.Count == 0) return (0, 0, 0);
 
-        // Artikelnummer wie SQL Server: Gross/Klein und Leerzeichen am Ende egal.
-        var idJeNummer = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-        foreach (var a in await ctx.Articles.AsNoTracking().Select(a => new { a.Id, a.ArticleNumber }).ToListAsync(ct))
-            idJeNummer.TryAdd(a.ArticleNumber.TrimEnd(), a.Id);
+        var idJeNummer = await ArtikelIdsAsync(ctx, ct);
         var vorhanden = await ctx.ArticleSageDetails.ToDictionaryAsync(d => d.ArticleId, ct);
 
         var jetzt = DateTime.UtcNow;
@@ -55,5 +52,14 @@ public static class ArticleSageDetailsWriter
 
         await ctx.SaveChangesAsync(ct);
         return (neu, geaendert, ohneArtikel);
+    }
+
+    /// <summary>Artikelnummer → Id, wie SQL Server verglichen: Gross/Klein und Leerzeichen am Ende egal (auch fuer E3b).</summary>
+    internal static async Task<Dictionary<string, int>> ArtikelIdsAsync(ApplicationDbContext ctx, CancellationToken ct)
+    {
+        var idJeNummer = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        foreach (var a in await ctx.Articles.AsNoTracking().Select(a => new { a.Id, a.ArticleNumber }).ToListAsync(ct))
+            idJeNummer.TryAdd(a.ArticleNumber.TrimEnd(), a.Id);
+        return idJeNummer;
     }
 }

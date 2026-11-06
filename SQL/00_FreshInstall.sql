@@ -1481,6 +1481,7 @@ BEGIN
         [ArticleAttributeDefinitionId]    INT            NOT NULL,
         [BooleanValue]                    BIT            NULL,
         [SelectedOptionId]                INT            NULL,
+        [TextValue]                       NVARCHAR(1000) NULL,  -- v1.73.0 / SQL/100 (Sage-Benutzerfelder als Text-Merkmal)
         [CreatedAt]                       DATETIME2      NOT NULL DEFAULT GETDATE(),
         [CreatedBy]                       NVARCHAR(200)  NOT NULL DEFAULT 'system',
         [CreatedByWindows]                NVARCHAR(200)  NOT NULL DEFAULT 'system',
@@ -2567,6 +2568,9 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261106184123_AddArticleSageDetails')
    AND OBJECT_ID(N'dbo.ArticleSageDetails', N'U') IS NOT NULL -- sonst steht SQL/99 noch aus
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261106184123_AddArticleSageDetails', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261106185149_AddArticleAttributeValueTextValue')
+   AND COL_LENGTH(N'dbo.ArticleAttributeValues', N'TextValue') IS NOT NULL -- sonst steht SQL/100 noch aus
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261106185149_AddArticleAttributeValueTextValue', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';

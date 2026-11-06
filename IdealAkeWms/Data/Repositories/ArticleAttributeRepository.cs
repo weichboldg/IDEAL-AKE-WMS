@@ -145,8 +145,18 @@ public class ArticleAttributeRepository : IArticleAttributeRepository
             .Where(v => v.ArticleId == articleId)
             .ToListAsync();
 
+        // Sage-gefuehrte Merkmale (E3b) schreibt nur der Artikel-Abgleich: hier nie aendern oder entfernen — sonst wuerde das
+        // Bearbeiten-Formular (kein Boolean/Option gesetzt) den Text-Wert als "geleert" loeschen.
+        var sageDefinitionIds = (await _context.ArticleAttributeDefinitions
+            .Where(d => d.SyncSource == ArticleAttributeDefinition.SyncSourceSage)
+            .Select(d => d.Id)
+            .ToListAsync()).ToHashSet();
+
         foreach (var newVal in newValues)
         {
+            if (sageDefinitionIds.Contains(newVal.ArticleAttributeDefinitionId))
+                continue;
+
             var existing = existingValues.FirstOrDefault(e => e.ArticleAttributeDefinitionId == newVal.ArticleAttributeDefinitionId);
 
             // Skip if value is empty (no boolean set, no option selected)

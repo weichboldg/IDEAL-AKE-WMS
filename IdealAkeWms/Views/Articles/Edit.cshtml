@@ -101,9 +101,16 @@
                             <input type="hidden" name="Attributes[@i].DefinitionId" value="@attr.DefinitionId" />
 
                             <div class="mb-3">
-                                <label class="form-label">@attr.Name</label>
-                                @if (attr.AttributeType == IdealAkeWms.Models.AttributeType.Boolean)
+                                @if (attr.IsSageSynced)
                                 {
+                                    @* Sage-gefuehrt (E3b): nur Anzeige, kein Eingabefeld; der Server ignoriert den Eintrag beim Speichern. *@
+                                    <label class="form-label" for="attr-sage-@i">@attr.Name <span class="badge text-bg-secondary ms-1">aus Sage</span></label>
+                                    <input type="text" class="form-control" id="attr-sage-@i" value="@attr.TextValue" placeholder="— nicht gesetzt —" readonly aria-describedby="attr-sage-hint-@i" />
+                                    <div class="form-text" id="attr-sage-hint-@i">Wird vom Sage-Abgleich gepflegt – hier nicht änderbar.</div>
+                                }
+                                else if (attr.AttributeType == IdealAkeWms.Models.AttributeType.Boolean)
+                                {
+                                    <label class="form-label">@attr.Name</label>
                                     <div class="form-check form-switch">
                                         <input type="hidden" name="Attributes[@i].BooleanValue" value="@(attr.BooleanValue == true ? "true" : "false")" id="hidden-bool-@i" />
                                         <input type="checkbox" class="form-check-input" id="attr-bool-@i"
@@ -114,6 +121,7 @@
                                 }
                                 else
                                 {
+                                    <label class="form-label">@attr.Name</label>
                                     <select name="Attributes[@i].SelectedOptionId" class="form-select">
                                         <option value="">— Nicht gesetzt —</option>
                                         @foreach (var opt in attr.Options)

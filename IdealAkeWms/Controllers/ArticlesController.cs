@@ -125,6 +125,8 @@ public class ArticlesController : Controller
                 AttributeType = def.AttributeType,
                 BooleanValue = existing?.BooleanValue,
                 SelectedOptionId = existing?.SelectedOptionId,
+                TextValue = existing?.TextValue,
+                IsSageSynced = def.IsSageSynced,
                 Options = def.Options.ToList()
             };
         }).ToList();
@@ -167,6 +169,7 @@ public class ArticlesController : Controller
                 {
                     attr.Name = def.Name;
                     attr.AttributeType = def.AttributeType;
+                    attr.IsSageSynced = def.IsSageSynced;
                     attr.Options = def.Options.ToList();
                 }
             }
@@ -261,10 +264,12 @@ public class ArticlesController : Controller
             string displayValue = "—";
             if (val != null)
             {
-                if (def.AttributeType == AttributeType.Boolean)
-                    displayValue = val.BooleanValue == true ? "Ja" : "Nein";
-                else
-                    displayValue = val.SelectedOption?.Value ?? "—";
+                displayValue = def.AttributeType switch
+                {
+                    AttributeType.Boolean => val.BooleanValue == true ? "Ja" : "Nein",
+                    AttributeType.Text => val.TextValue ?? "—",
+                    _ => val.SelectedOption?.Value ?? "—",
+                };
             }
             return new AttributeDisplayValue { Name = def.Name, DisplayValue = displayValue };
         }).ToList();
