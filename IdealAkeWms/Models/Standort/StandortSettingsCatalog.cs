@@ -33,6 +33,7 @@ public static class StandortSettingsCatalog
     public const string GroupHardwareScanner = "Hardware-Scanner";
     public const string GroupVault = "Vault (Zeichnungen)";
     public const string GroupEnaio = "enaio (Dokumente)";
+    public const string GroupDruck = "Druck";
 
     private const string ViewNameHint =
         "Wird roh gespeichert; ein ungültiger Name fällt erst beim nächsten Sync-Lauf als Fehlermail auf.";
@@ -94,6 +95,10 @@ public static class StandortSettingsCatalog
             "{ObjektId} wird durch die enaio-Objekt-ID ersetzt. Leer = keine Links."),
         new("Sync:EnaioDmsViewName", "enaio-View (Sync-Quelle)", StandortFieldType.String, StandortBackend.Service, GroupEnaio,
             ViewNameHint + " Format [Datenbank].[Schema].[Name]; Spalten id, angelegt, Typ, WaNummer, WaNummerTrimmed. Leer = Standard. Sync-Schalter in den Service-Einstellungen."),
+
+        // Lagerplatz-Etikett 93 x 55 mm (v1.72.0, AppSettings, Default aus, kein Seed). Gelesen in StorageLocations/PrintLabels.cshtml.
+        new(AppSettingKeys.LagerplatzEtikettRolle93x55, "Lagerplatz-Etiketten im Rollenformat 93 × 55 mm", StandortFieldType.Bool, StandortBackend.App, GroupDruck,
+            "Aus = A4 mit drei Etiketten je Seite (bisher). An = ein Etikett 93 × 55 mm je Seite; im Druckdialog den Rollendrucker und das Papierformat 93 × 55 mm wählen, Ränder „Keine“."),
     };
 
     /// <summary>Der Master-Key — NUR read-only in dieser Maske angezeigt, nie geschrieben.</summary>
@@ -101,6 +106,6 @@ public static class StandortSettingsCatalog
 
     public static readonly IReadOnlyList<string> GroupOrder = new[]
     {
-        GroupFirmendaten, GroupMandantViews, GroupToggles, GroupImport, GroupWerkbaenke, GroupHardwareScanner, GroupVault, GroupEnaio
+        GroupFirmendaten, GroupMandantViews, GroupToggles, GroupImport, GroupWerkbaenke, GroupHardwareScanner, GroupVault, GroupEnaio, GroupDruck
     };
 }

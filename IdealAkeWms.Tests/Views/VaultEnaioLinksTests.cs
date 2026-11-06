@@ -75,7 +75,9 @@ public class VaultEnaioLinksTests
             program.Should().Contain($"(IdealAkeWms.Models.AppSettingKeys.{key}, {wert},",
                 "Laufzeit-Seed Pflicht: die Maske zeigt ein Bool ohne Zeile als aus und schreibt beim Speichern false");
 
-        StandortSettingsCatalog.GroupOrder.TakeLast(2).Should().Equal(StandortSettingsCatalog.GroupVault, StandortSettingsCatalog.GroupEnaio);
+        // v1.72.0: Gruppe "Druck" haengt hinten an — geprueft wird nur noch, dass enaio direkt auf Vault folgt.
+        var gruppen = StandortSettingsCatalog.GroupOrder.ToList();
+        gruppen.IndexOf(StandortSettingsCatalog.GroupEnaio).Should().Be(gruppen.IndexOf(StandortSettingsCatalog.GroupVault) + 1);
         StandortSettingsCatalog.Fields.Where(f => f.Group == StandortSettingsCatalog.GroupVault).Select(f => (f.Key, f.Type, f.Backend))
             .Should().Equal((AppSettingKeys.VaultLinksAktiv, StandortFieldType.Bool, StandortBackend.App),
                             (AppSettingKeys.VaultLinkVorlage, StandortFieldType.String, StandortBackend.App));

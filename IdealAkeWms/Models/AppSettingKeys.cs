@@ -112,4 +112,8 @@ public static class AppSettingKeys
     public const string VaultLinkVorlage = "VaultLinkVorlage";
     public const string EnaioLinksAktiv = "EnaioLinksAktiv";
     public const string EnaioLinkVorlage = "EnaioLinkVorlage";
+
+    // Lagerplatz-Etikett im Rollenformat 93 x 55 mm (v1.72.0): Standort-Schalter, Default aus = A4 mit drei Etiketten je Seite. Nur exakt
+    // "true" (ohne Gross/Klein) aktiviert. Kein Seed, keine Migration (Default-aus-Schalter). Gelesen nur in StorageLocations/PrintLabels.cshtml.
+    public const string LagerplatzEtikettRolle93x55 = "LagerplatzEtikettRolle93x55";
 }

@@ -1,8 +1,12 @@
 @model List<StorageLocation>
+@inject IdealAkeWms.Data.Repositories.IAppSettingRepository AppSettings
 @{
     ViewData["Title"] = "Lagerplatz-Etiketten";
     Layout = null;
     var labelsData = ViewBag.LabelsData as List<(StorageLocation Location, string BarcodeBase64)>;
+    // v1.72.0: Standort-Schalter Rollenformat 93 x 55 mm (Default aus = A4 wie bisher). Hier gelesen, damit Sammel- und Einzeldruck
+    // (beide rendern diese View) ohne Controller-Aenderung abgedeckt sind.
+    var rolle = string.Equals(await AppSettings.GetValueAsync(AppSettingKeys.LagerplatzEtikettRolle93x55), "true", StringComparison.OrdinalIgnoreCase);
 }
 
 <!DOCTYPE html>
@@ -126,12 +130,72 @@
             }
         }
     </style>
+    @if (rolle)
+    {
+        @* Rollenformat: steht NACH dem A4-Block und ist spezifischer (body.labels-rolle), der A4-Block bleibt unveraendert.
+           Ein Etikett je Seite ueber break-before ab dem zweiten Etikett => keine leere Schlussseite (kein Letztes-Kind-Selektor, fallstricke §27). *@
+        <style>
+            body.labels-rolle .label {
+                width: 93mm;
+                height: 55mm;
+                border: none;
+                padding: 3mm;
+                margin: 0 auto 5mm;
+            }
+
+            body.labels-rolle .label + .label {
+                break-before: page;
+                page-break-before: always;
+            }
+
+            body.labels-rolle .label-code {
+                font-size: 18pt;
+            }
+
+            body.labels-rolle .label-description {
+                font-size: 10pt;
+                color: #000;
+                max-height: 8.5mm;
+            }
+
+            /* Seitenverhaeltnis halten: height auto + max-height statt fester Hoehe (sonst verzerrt der Barcode auf 87 mm Breite). */
+            body.labels-rolle .label-barcode img {
+                height: auto;
+                max-height: 20mm;
+            }
+
+            body.labels-rolle .label-zone {
+                font-size: 9pt;
+                color: #000;
+            }
+
+            body.labels-rolle .screen-hint {
+                margin-top: 8px;
+                font-size: 14px;
+            }
+
+            @@media print {
+                body.labels-rolle .label {
+                    margin: 0;
+                }
+
+                @@page {
+                    size: 93mm 55mm;
+                    margin: 0;
+                }
+            }
+        </style>
+    }
 </head>
-<body>
+<body class="@(rolle ? "labels-rolle" : null)">
     <div class="screen-controls">
         <h2>Lagerplatz-Etiketten (@Model.Count Stück)</h2>
         <button class="btn btn-print" onclick="window.print()">Drucken</button>
         <a class="btn btn-back" href="/StorageLocations">Zurück</a>
+        @if (rolle)
+        {
+            <p class="screen-hint">Rollenformat 93 × 55 mm: im Druckdialog den Rollendrucker wählen, Papierformat 93 × 55 mm, Ränder „Keine“.</p>
+        }
     </div>
 
     <div class="labels-container">
@@ -141,7 +205,7 @@
             @foreach (var (location, barcodeBase64) in labelsData)
             {
                 labelIndex++;
-                var isPageBreak = labelIndex % 3 == 0 && labelIndex < labelsData.Count;
+                var isPageBreak = !rolle && labelIndex % 3 == 0 && labelIndex < labelsData.Count;
                 <div class="label @(isPageBreak ? "page-break-after" : "")">
                     <div class="label-code">@location.Code</div>
                     @if (!string.IsNullOrEmpty(location.Description))
