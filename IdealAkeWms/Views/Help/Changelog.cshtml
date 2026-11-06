@@ -51,6 +51,13 @@
                         der Artikelinfo und der Bearbeitung und tragen unter &bdquo;Artikelmerkmale&ldquo; das Kennzeichen &bdquo;aus Sage&ldquo;: Name und Werte
                         sind dort nicht änderbar, Reihenfolge und Aktiv schon.</li>
                 </ul>
+                <h6>FA-Struktur über SData (Vorbereitung, IDEAL)</h6>
+                <ul>
+                    <li><code>Sync:Quelle:FaStruktur</code> = <code>Vergleich</code> liest die Struktur-Kanten (Haupt-FA, Vater-FA, Position, Unter-FA)
+                        zusätzlich über die Sage-Schnittstelle und meldet Abweichungen im Lauf &bdquo;Sage-Quellenvergleich&ldquo;; geschrieben wird weiter nur
+                        aus der View. <code>SData</code> ist noch gesperrt (wirkt wie <code>View</code> mit Warnung), bis die FA-Zusatzfelder des IDEAL-Standorts
+                        geklärt sind. Der Lauf &bdquo;FA-Hierarchie-Sync&ldquo; nennt die genutzte Quelle.</li>
+                </ul>
             </div>
         </div>
 

@@ -65,4 +65,18 @@ public static class SdataRegistrierung
             sp.GetRequiredService<IdealAkeWms.Services.SyncLogger.ISyncLogger>()));
         return services;
     }
+
+    /// <summary>E4a: <see cref="ISageFaStrukturReader"/> = <see cref="FaStrukturQuelleSwitch"/> (Muster wie <see cref="AddLagerplatzQuelle"/>).</summary>
+    public static IServiceCollection AddFaStrukturQuelle(this IServiceCollection services)
+    {
+        services.AddScoped<SageFaStrukturReader>();
+        services.AddScoped<SdataFaStrukturReader>();
+        services.AddScoped<ISageFaStrukturReader>(sp => new FaStrukturQuelleSwitch(
+            sp.GetRequiredService<SageFaStrukturReader>(),
+            sp.GetRequiredService<SdataFaStrukturReader>(),
+            sp.GetRequiredService<IConfiguration>(),
+            sp.GetRequiredService<ISyncErrorNotifier>(),
+            sp.GetRequiredService<IdealAkeWms.Services.SyncLogger.ISyncLogger>()));
+        return services;
+    }
 }

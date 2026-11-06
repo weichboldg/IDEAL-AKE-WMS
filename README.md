@@ -671,7 +671,12 @@ C:\Services\IDEALAKEWMSService\
 > ersten Lauf angelegt (Name = Feld ohne `USER_`, Kennzeichen „aus Sage“) und ist unter `/ArticleAttributes` und in der
 > Artikel-Bearbeitung gesperrt (Name, Werte, Löschen); Reihenfolge und Aktiv bleiben pflegbar. Ungültiger oder in Sage unbekannter
 > Feldname, gleichnamiges manuelles Merkmal (Konflikt, bleibt unverändert) und Werte über 1000 Zeichen (gekürzt) erscheinen als Warnung im
-> Lauf „Artikel“. Wirkt erst mit `Sync:Quelle:Artikel = SData` (gesperrt bis P-R1). Die übrigen Schalter wirken mit den folgenden Etappen.
+> Lauf „Artikel“. Wirkt erst mit `Sync:Quelle:Artikel = SData` (gesperrt bis P-R1).
+> **`Sync:Quelle:FaStruktur`** (E4a, IDEAL): nur `Vergleich` wirkt – liest die Struktur-Kanten aus `PpsFaBelegeInfo` (offene FAs +
+> beendete der letzten 30 Tage) + `PpsFaBelegePositionenInfo` (MA-Positionen, `BelIDNachfolger` = Unter-FA) und vergleicht `HauptFA`/
+> `VaterFA`/`Position`/`SubFA`/`Artnr`/Mengen je Knoten mit der FA-Struktur-View; geschrieben wird nur aus der View. FAInfos (PPSImport) und
+> die übrigen Knotenfelder bleiben SQL; `SData` ist bis zur Prüfabfrage P-F2 gesperrt und wirkt wie `View` + Warnung. Keine Migration.
+> Die übrigen Schalter wirken mit den folgenden Etappen.
 
 #### Schritt 3 — Windows Service registrieren
 
