@@ -28,3 +28,8 @@ importierbar\" ist, wenn das Zielformat unbekannt ist.
 
 Setzt [[2026-07-29-standort-ideal-teil-5-spec]] voraus (die beiden Sichten Einzelteile und
 Summiert). Aufwand danach klein \u2014 eine zusaetzliche Sicht plus Clipboard-Ausgabe.
+
+## Vermerk 2026-11-06
+
+Neue Spalten der Vormontage-Listen (v1.72.0, [[2026-11-06-lagerplatz-etikett-rolle-und-vormontage-felder-spec]]) **mitnehmen**: Arbeitsbereich, HauptFA
+(Summiert), Kunde, FE-Termin, Bemerkung PN, Fertigungsinfo PN.

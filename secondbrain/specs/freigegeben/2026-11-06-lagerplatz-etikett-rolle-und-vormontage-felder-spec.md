@@ -2,11 +2,11 @@
 type: spec
 title: Lagerplatz-Etikett 93 × 55 mm (Rollendrucker) und neue Felder in den Vormontage-Listen
 slug: 2026-11-06-lagerplatz-etikett-rolle-und-vormontage-felder-spec
-status: Freigegeben
+status: Testbereit
 created: 2026-11-06
 updated: 2026-11-06
 source_backlog: "[[2026-11-06-lagerplatz-etikett-rolle-und-vormontage-felder]]"
-task: ""
+task: "[[2026-11-06-lagerplatz-etikett-rolle-und-vormontage-felder-umsetzung]]"
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
 branch: "feature/2026-08-07-ideal-teile-1-5"
 standort: beide
@@ -40,7 +40,7 @@ epic: false
 etappen: []
 deploy:
   web: true
-  service: false
+  service: true
   migration: false
 freigabe_entscheidung: ""
 freigabe_von: "Gerald Weichbold"
@@ -487,17 +487,19 @@ Entfällt (`epic: false`). Empfohlen sind zwei Commits im selben Lauf (Teil 1, d
 
 ## Deploy
 
-**Vorläufig.** Der QA-Lauf bestätigt das gegen den echten Diff.
+**Final (QA 2026-11-06, aus dem echten Diff `git diff 6969620a..d91b1d1d`).**
 
-- **Web-App:** ja (View `PrintLabels`, Standort-Katalog, Vormontage-Service/-Views, `ColumnDefinitions`, Register, Hilfe, Changelog)
-- **Service:** nein (Sync unverändert; `IDEALAKEWMSService/AppVersion.cs` wird nur mitgezählt)
-- **Migration:** nein
-- **Vor Deploy:** P5 am IDEAL-Testsystem gelaufen und konform (Vorbehalt, nur Teil 2). Für Teil 1 ist nichts
-  vorzubereiten, Default A4.
-- **Nach Deploy:** Den Standort-Schalter Rollenformat setzt nur der Admin des Standorts, der den Rollendrucker
-  nutzt.
-- **Publish-Befehl** (im Worktree):
+- **Web-App:** ja — `IdealAkeWms/` (View `PrintLabels`, `AppSettingKeys`, `StandortSettingsCatalog`, `VormontageService`, ViewModels, beide Vormontage-Views, `ColumnDefinitions`, `ColumnFilterSyntax`-Register, `Settings/Index`, Hilfe, Changelog, `AppVersion.cs`).
+- **Service:** ja, aber **nur Versionsnummer** — einzige Änderung unter `IDEALAKEWMSService/` ist `AppVersion.cs` (1.72.0). Kein Code, kein Sync. Mitpublizieren hält Fußzeile/Version konsistent; fachlich nicht nötig.
+- **Migration:** nein — keine Datei unter `*/Migrations/`, kein `SQL/`-Skript, kein `SQL/Einmalig/`. Kein DB-Backup nötig (nichts daten-destruktiv).
+- **Vor Deploy:** nichts. P5 entfällt (Freigabe-Nachtrag). Teil 1 Default A4 ohne Zeile.
+- **Reihenfolge:** Web publizieren → (optional) Dienst publizieren. Keine DB-Schritte.
+- **Nach Deploy:** Den Standort-Schalter Rollenformat (Standorteinstellungen → Druck) setzt nur der Admin des Standorts, der den Rollendrucker nutzt.
+- **Ablauf Mensch:** aus dem Worktree publizieren → Testsystem → testen → Merge.
+- **Publish-Befehle** (im Worktree `C:\git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5`):
   `dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb`
+  `dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService` (nur Version)
+- **Nach dem Merge:** aus `main` nur dann neu publizieren, wenn der Merge getestete Dateien mit parallelen `main`-Änderungen zusammengeführt hat.
 
 ## Pruefabfragen fuer Gerald
 
@@ -745,6 +747,173 @@ Die Datei bleibt unverändert. Sie trägt bereits den Hinweis „Aufgenommen in 
    Mengenspalten bleiben, wo sie sind. Jeder Benutzer kann über das Zahnrad umsortieren.
 10. **P5-Ergebnis (Vorbehalt).** P5 ist seit der aufgenommenen Spec offen. Bitte vor der Freigabe ausführen und das
     Ergebnis hier eintragen. Weicht es ab, geht die Spec zurück an Schranke 1 (siehe Callout).
+
+## Umsetzung (Dev-Lauf 2026-11-06)
+
+Bündel-Worktree, Basis `6969620a` (v1.71.1). Commits: `48349786` (Teil 1), `43a3988f` (wip feature-complete, Teil 2 + Doku).
+Version **v1.72.0** (beide `AppVersion.cs`, 2026-11-06). Nur Web (Dienst nur Version), **keine Migration**, kein Seed. TS-104 (Etikett), TS-105 (Vormontage).
+
+**Teil 1.** `AppSettingKeys.LagerplatzEtikettRolle93x55` (nur exakt `"true"` ohne Groß/Klein aktiviert). Katalogfeld Bool/App in neuer Gruppe
+`GroupDruck` = „Druck“ (am Ende von `GroupOrder`), Hinweistext laut T1.1. In `/Settings` in der Gruppe „Lager“. `PrintLabels.cshtml` liest den Wert per
+`@inject IAppSettingRepository` (Controller unverändert, Einzel- und Sammeldruck zugleich). A4-Block **unverändert**; das Rollenformat ist ein zweiter
+`<style>`-Block nur bei `rolle`, Selektoren `body.labels-rolle …` (spezifischer, steht danach): `@page 93mm 55mm, margin 0`, `.label` 93 × 55 mm, Rand 3 mm,
+`border: none`, Umbruch `.label + .label { break-before: page }` (keine leere Schlussseite, kein Letztes-Kind-Selektor), Modulo-3-Umbruch nur `!rolle`.
+Schrift Code 18 pt, Beschreibung 10 pt (max. 8,5 mm ≈ 2 Zeilen), Zone 9 pt, Beschreibung und Zone **schwarz** (Thermodruck). Barcode `height: auto;
+max-height: 20mm` (Seitenverhältnis bleibt). Treiber-Hinweis in der Bildschirmleiste (nur bei Rolle) und Hilfe (`Help/Index.cshtml` Lagerplätze).
+`frontend-design` aufgerufen: Hausstil (Segoe UI, Schwarz auf Weiß) bleibt, keine eigene Gestaltung.
+
+**Teil 2.** `VormontageService`: `KopfWerte`, `FormatTexte` (verschieden, getrimmt, sortiert ordinal-ignore-case, `", "`, leer ⇒ `null`), `FormatDaten`
+(Tage aufsteigend `dd.MM.yyyy`), `BuildKopfWerte` (Zelle Sicht 1 und Getter = **dieselbe** Methode), `BuildKopfLookup`, `BuildPositionsSpalten(kopf)`
+(die sechs neuen Keys, **ein** Ort für beide Sichten), `BuildEinzelnColumnMap(kopf)` = `ColumnMap` + neue Spalten (je Request in `BuildEinzelteileAsync`;
+mit leerem Lookup DB-frei für den Wächter). Sicht 2: nach KW-Vorfilter `ColumnFilterHelper.Apply(leaves, columnFilters, BuildPositionsSpalten(kopf), types)`
+**vor** dem Gruppieren; `AggregatColumnMap` unverändert (Nachfilter ignoriert die neuen Keys). ViewModel `Arbeitsbereiche`, `HauptFas` (numerisch),
+`Kunden`, `FeTermine` (alle Kopfzeilen aller HauptFA der Gruppe), `BemerkungenPN`, `FertigungsInfosPN`. Register `("fe-termin", D)` für Index + Summiert,
+`<th data-date-filter>`. Views: Spalten/Reihenfolge laut Rückfrage 9, `colCount` 13 bzw. 9, `#column-config` und `ColumnDefinitions` in gleicher Reihenfolge,
+keine Spalte `locked`/`defaultHidden` (P7: kurze Texte). Untertitel Summiert „… des gewählten VM-Bedarfs“ + Satz zum Vorfilter. Kommentare „Arbeitsbereich“
+für den Reiter → „VM-Bedarf“ (Controller, beide Views, ViewModels, Service). CSV-Export: ohne eigenen Code (sichtbare `<th>`).
+
+**Tests:** neu `LagerplatzEtikettRolleTests` (2: Katalog; Quelltext-Wächter A4 unverändert/Rolle) und `VormontageNeueSpaltenTests` (13: Formatierer;
+Sicht 1 Arbeitsbereich H1/!H1/null, Kopfwerte Kombigerät „A, B“ + Datumsfilter auf frühestem + kein Fan-out, PN-Filter; Sicht 2 Anzeige, Vorfilter je
+neuer Spalte (Theory ×4), Matchcode ohne Treffer verschwindet + Summenfilter wirkt weiter; Drift-Wächter A/B/C beider Views + Sicht-1-Map gegen
+`ColumnDefinitions`, Register `fe-termin` = Datum).
+
+**Abweichungen / Hinweise:**
+- **Geänderter Bestandstest:** `VaultEnaioLinksTests` prüfte `GroupOrder.TakeLast(2) == Vault, enaio`. Mit „Druck“ am Ende jetzt: enaio folgt direkt auf Vault.
+- „Druck“ steht als letzte Gruppe der Standorteinstellungen (keine fachliche Reihenfolge vorgegeben).
+- Arbeitsbereich = Sage-„Abteilung“ bleibt **ungeprüft** (P5 entfällt); Hilfe und Changelog behaupten das nicht. Einen Vormontage-Hilfeabschnitt gibt es
+  weiterhin nicht (T2.7).
+- Druckbild (Seitenzahl, Lesbarkeit Barcode, Verzerrung) ist nicht automatisierbar → TS-104 am echten Rollendrucker.
+- Backlogs [[2026-09-14-vormontage-druckansicht]] und [[2026-08-06-vormontage-isolierfraesen-export]]: Vermerk „neue Spalten mitnehmen“ ergänzt.
+
+**Nachweis (Dev-Lauf):** `dotnet build IdealAkeWms.slnx` 0 Fehler, 28 Warnungen (unverändert). `dotnet test`: Web **2269 bestanden, 1 übersprungen**,
+Dienst **328 bestanden**.
+
+## QA (qa-agent 2026-11-06)
+
+Geprüft: `git diff 6969620a..43a3988f` (Commits `48349786` Teil 1, `43a3988f` Teil 2) im Bündel-Worktree
+`.claude/worktrees/2026-08-07-ideal-teile-1-5`, Zweig `feature/2026-08-07-ideal-teile-1-5`. QA-Commit `d91b1d1d` (README, siehe R-1).
+Ergebnis: **Testbereit**. Brain-Schreibziel Hauptcheckout; im Worktree ist kein `secondbrain/` sichtbar.
+
+### 1. Build und Tests (selbst ausgeführt)
+- `dotnet build IdealAkeWms.slnx`: **0 Fehler, 28 Warnungen** (Bestand, u. a. CS8601/CS8321).
+- `dotnet test`: **IdealAkeWms.Tests 2269 bestanden / 1 übersprungen / 0 fehlgeschlagen** (2270);
+  **IDEALAKEWMSService.Tests 328 bestanden / 0 / 0**. Deckt sich mit dem Dev-Nachweis.
+- Nach dem QA-Commit `d91b1d1d` (nur `README.md`) kein erneuter Lauf nötig (keine Code-Datei).
+
+### 2. Code-Review (selbst, in diesem Lauf)
+Gelesen: kompletter Diff plus Umgebung — `FaHierarchyListBuilder.Build` (Filter vor Gruppierung, Kopf-Lookup `:136-163`),
+`VormontageService` (ColumnMap, neue Helfer, `BuildEinzelteileAsync`, `AggregateSummiert`), `ColumnFilterHelper.Apply`-Aufruf,
+`CachedSettingRepository`, `StandortEinstellungenController.Save` (Bool → `"true"/"false"`, Allow-List), `Settings/Index` (Bool-Erkennung am Wert),
+`PrintLabels.cshtml` komplett (A4-Block, `box-sizing: border-box`, beide `@page`), beide Vormontage-Views, Tests.
+Gezielt geprüfte Fehlerklassen: Werte in `<script>` (nur statisches `#column-config`-JSON, kein Razor-Wert, kein `@Html.Raw`) – ok;
+`hidden` + `d-*` – kommt nicht vor; stille Rückfälle – fehlender Schalter ⇒ A4 ist spezifizierter Default, fehlende Kopfzeile ⇒ leere Zelle
+(spezifiziert, kein `?? 0`); parallele Arrays – keine; nur-Browser-Validierung – keine (Bool normalisiert der Server); eine Regel an
+mehreren Orten – Kopfwerte über **eine** Methode `BuildKopfWerte` (Zelle Sicht 1 und Getter), Positions-Getter über **einen** Ort
+`BuildPositionsSpalten` (Sicht 1 Map und Sicht 2 Vorfilter), „frühester FE-Termin“ = Sortierung in `FormatDaten` + `^`-Anker in
+`CellDate`, gleich `ArbeitsgangStatusRegel`.
+
+Befunde und Behandlung:
+- **R-1 (behoben, `d91b1d1d`):** `README.md` → AppSettings-Tabelle kannte `LagerplatzEtikettRolle93x55` nicht (CLAUDE.md-Checkliste
+  „README Betrieb/AppSettings“). Zeile nachgetragen (Default `false`, kein Seed, nur exakt `true`, Pflegeort Standorteinstellungen → Druck).
+- **R-2 (Hinweis, nicht geändert):** Sicht 2 zeigt Texte getrimmt (`FormatTexte`), der Vorfilter vergleicht den Rohwert je Position.
+  `FaHierarchySyncService.Str` (`:308`) trimmt nicht und macht `""` nicht zu `null` (die Spec-Aussage „leere Sage-Werte werden zu null“
+  stimmt so nicht). Wirkung nur bei Werten mit Rand-Leerzeichen und verankerter Suchsyntax; Teilstring-Filter treffen gleich. Kein Fix
+  (gleiches Verhalten wie alle bestehenden Positions-Getter).
+- **R-3 (Hinweis):** Summiert-`<td>` FE-Termin ohne `text-nowrap` (Kopf hat es, Sicht 1 Zelle hat es). Bei mehreren Terminen darf die
+  Zelle umbrechen – eher gewollt. Kein Fix.
+- **R-4 (Hinweis, Bestand):** Der Gruppenkopf in Sicht 1 zeigt bei zwei Kopfzeilen das vorhandene Badge „mehrdeutig (Kombigerät)“. Das ist
+  Bestand (nicht aus diesem Diff) und betrifft nicht die Spalte „Arbeitsbereich“; AK 15 bleibt erfüllt.
+- Keine Aussage „Arbeitsbereich = Sage-Abteilung“ in Hilfe/Changelog (geprüft); TS-105 nennt den Vergleich ausdrücklich ungeprüft/informativ.
+- Grenzen eingehalten: keine Spalte „Montage-Abt.“, keine Migration, `PrintService` unberührt, keine Vormontage-Druckansicht/kein Isolierfräsen-Export.
+
+### 3. Beweisart je Akzeptanzkriterium
+| AK | Beweis | Stand |
+|---|---|---|
+| 1 A4 unverändert | Quelltext-Wächter `LagerplatzEtikettRolleTests` + **DEV-PDF**: IDEAL 229 Plätze ⇒ 77 Seiten A4 (⌈229/3⌉), Einzeldruck 1 Seite A4, AKE Einzeldruck 1 Seite A4; nach Rückschalten wieder 77 Seiten | OK (DEV); Rahmen/Optik Manual-UAT |
+| 2 Schalter in Maske, speichert, bleibt | DEV-Browser: Maske zeigt Feld + Hinweis in Gruppe „Druck“; Speichern ⇒ `AppSettings` neue Zeile `true` (Diff aller App-/Service-Settings: **nur** diese Zeile geändert); nach Reload „Aktiviert“; Aus ⇒ `false` | OK (DEV) |
+| 3 Sammeldruck n Seiten 93×55 | DEV-PDF (Edge headless, `@page` des Dokuments): 229 Plätze ⇒ **229 Seiten**, alle MediaBox 264×156 pt (= 93,1 × 55,0 mm), keine Schlussseite | OK (DEV, Chromium); Druckertreiber Manual-UAT |
+| 4 Einzeldruck 1 Seite 93×55 | DEV-PDF: `PrintLabel/11` und `/4` je 1 Seite 264×156 pt | OK (DEV) |
+| 5 Inhalt vollständig, nichts ragt über | Bildschirmansicht (Rolle an) mit Code, Beschreibung, Barcode, Zone; Seitenzahl = n belegt kein Überlaufen auf Folgeseite. Optik im PDF nicht gerendert (kein PDF-Renderer am PC) | teilweise; Manual-UAT |
+| 6 Handscanner liest | – | **Manual-UAT** (echter Rollendrucker) |
+| 7 Leiste nicht im Druck | `@media print .screen-controls {display:none}` unverändert; PDF hat genau n Seiten | OK indirekt; Manual-UAT |
+| 8 Arbeitsbereich je Position | Test `Sicht1_Arbeitsbereich_JePosition_FilterUndNegation` + DEV (Gruppe 1059463 mit `H1-03`, `K-02`, leer) | OK |
+| 9 leere Zelle, Kopf unverändert | Test (null) + DEV (leere Zelle, Kopf unverändert) | OK |
+| 10 Filter je Position, TotalCount, Negation | Tests + DEV (`H1` ⇒ 1 Gruppe/1 Position; `!H1` ⇒ nur diese Position weg, 4 Gruppen) | OK |
+| 11 Kunde/FE-Termin, Kombigerät „A, B“ | Test + DEV (Test-Kopfzeile ⇒ „Aaa QA-Kombi, Aichinger“, „10.07.2026, 14.07.2026“, 3 Positionen unverändert) | OK |
+| 12 Datumsfilter, frühester | Test + DEV Sicht 1 (`<=12.07.2026` ⇒ nur Kombigerät; `15.07.2026...20.07.2026` ⇒ 2 Gruppen) und Sicht 2 (`<=12.07.2026` ⇒ Summe 3 statt 5) | OK |
+| 13 Sicht 2 Spalten/Reihenfolge, eine Zeile je Matchcode | Test + Drift-Wächter + DEV | OK |
+| 14 Sicht 2 Vorfilter vor Summe | Tests (Theory ×4) + DEV (`hauptfa=1065036` ⇒ 2,000 statt 5,000; `arbeitsbereich=H1` ⇒ 1,000 statt 4,000; `sollmenge >=4` wirkt weiter auf der Summe) | OK |
+| 15 Kombigerät beeinflusst Arbeitsbereich nicht | DEV (Spalte unverändert je Position); Badge ist Bestand (R-4) | OK |
+| 16 Zahnrad, Reload, Prefs-API | DEV: „Kunde“ aus ⇒ gespeichert (`UserViewPreferences` `visible:false`, kein 400), nach Reload ausgeblendet, wieder ein. Alte Prefs (Test-Zeile ohne neue Keys): neue Spalten sichtbar, `arbeitsbereich` an Nachbarposition nach HauptFA, alte Wahl (Haupt-Artnr. aus, Breite Matchcode) bleibt | OK (DEV, Browser-JS) |
+| 17 Drift A/B/C, Map = ColumnDefinitions | Test `DreiQuellen_…` + `Sicht1Filtermap_…` + `ColumnFilterTypesDriftTests` grün | OK |
+| 18 CSV-Export | – (Download braucht Einverständnis, nicht ausgeführt) | **Manual-UAT** |
+| 19 Untertitel VM-Bedarf | DEV-Text „… summierte Mengensicht des gewählten VM-Bedarfs (LB)“; grep: „Arbeitsbereich“ in den Views nur noch Spalte/Hinweis | OK |
+| 20 Reiter/KW/Bestandsfilter | bestehende `VormontageServiceTests` grün; DEV Reiter LB ok; KW-Kombination nicht im Browser geprüft | Tests OK; KW+Filter Manual-UAT |
+| 21 Zugriff, Toggle | DEV AKE (Toggle aus) ⇒ Redirect `/`. AccessDenied ohne Vorbau: nur ein Windows-Benutzer verfügbar | teilweise; AccessDenied Manual-UAT |
+| 22 Build/Test grün | siehe 1 | OK |
+| 23 P5 | **aufgehoben** durch Freigabe-Nachtrag 2026-11-06 („P5 entfällt“); Zuordnung Arbeitsbereich = Sage-„Abteilung“ bleibt **ungeprüft** | entfällt |
+
+### 4. Geänderte Bestandstests
+- `IdealAkeWms.Tests/Views/VaultEnaioLinksTests.cs`: `GroupOrder.TakeLast(2) == [Vault, enaio]` → „enaio folgt direkt auf Vault“.
+  Einordnung: **Verhalten bewusst durch die Spec geändert** (Freigabe-Antwort 6 / AK 2: neue Gruppe „Druck“ hängt an `GroupOrder`).
+  Die Absicht des Tests (Reihenfolge Vault → enaio) bleibt geprüft; kein Fixture-Zurechtbiegen. Kein Befund.
+- Sonst kein Bestandstest geändert (`KommissionierSpaltenKonsistenzTests` nur wiederverwendet, unverändert).
+
+### 5. CLAUDE.md-Checkliste
+Migration/SQL/FreshInstall/AgentJobs: entfällt (belegt: kein `*/Migrations/`, kein `SQL/` im Diff). Audit: entfällt (AppSettings ist kein
+AuditableEntity, Teil 2 liest nur). Version 1.72.0 in **beiden** `AppVersion.cs` ✓, `Help/Changelog.cshtml` ✓, Brain-Changelog
+[[2026-11-06-v1-72-0-lagerplatz-etikett-rolle-vormontage-felder]] ✓, `feature-map.md` ✓ (Zeilen 702/703), `docs/TESTSZENARIEN.md` TS-104/TS-105 ✓,
+[[testszenarien-index]] TS-104/105 ✓, Hilfe ✓, README ✓ (nach R-1). Keine neue Rolle/Filter.
+
+### 6. DEV-Deploy und Testlauf
+- Standort laut Frontmatter `beide`. Elevated Shell: ja.
+- `dev-deploy.ps1 -Standort AKE -Quelle <worktree>`: Exit 0, „HTTP 200, Fusszeile v1.72.0“, DEV-Absicherung angewandt, Dienst gestartet.
+- `dev-deploy.ps1 -Standort IDEAL -Quelle <worktree>`: Exit 0, „HTTP 200, Fusszeile v1.72.0“, DEV-Absicherung angewandt, Dienst gestartet.
+  Version = `AppVersion` 1.72.0 ✓. Quelle: Stand `43a3988f` (README-Commit danach ändert kein Deploy-Artefakt).
+- Werkzeuge: Browser (claude-in-chrome, eigener Tab, geschlossen), `sqlcmd -S . -E -C`, Edge headless `--print-to-pdf` (Seitenzahl/MediaBox aus dem PDF).
+- Testdaten (IDEAL_WMS_DEV, danach zurückgesetzt): Kopfzeile `FaHierarchyOrderInfos` HauptFA 1060414 „Aaa QA-Kombi“/10.07.2026 (Id 14452, gelöscht);
+  Knoten 1963698 `H1-03`/`QA-lasern`, 1963703 `NULL` (auf `K-02`/`NULL` zurück); Alt-Prefs-Zeile User 8 Einzeln (gelöscht). Schalter Rollenformat
+  am Ende wieder **aus** (`false`).
+
+| TS | Ergebnis | Status |
+|---|---|---|
+| 104.1 aus: A4 | IDEAL Sammeldruck 77 Seiten A4, Einzel 1 Seite A4; AKE Einzel 1 Seite A4; keine Rollen-Hinweiszeile | OK |
+| 104.2 Admin schaltet ein | Gruppe „Druck“, Hinweistext, Speichern ⇒ `true`, nach Reload aktiviert; nur diese Settings-Zeile geändert | OK |
+| 104.3 Einzeldruck Rolle | Leiste zeigt Treiber-Hinweis; PDF 1 Seite 93 × 55; Bildschirm: Code, Beschreibung, Barcode (unverzerrt), Zone | OK (PDF/Bildschirm); Ausdruck am Rollendrucker NICHT MOEGLICH (kein Gerät) |
+| 104.4 Sammeldruck Rolle | 229 Seiten 93 × 55, keine Schlussseite | OK (PDF); Druck NICHT MOEGLICH |
+| 104.5 Scan | – | NICHT MOEGLICH (Rollendrucker + Netum nötig) |
+| 104.6 ohne Beschreibung/Zone, 200 Zeichen | DEV hat keinen Platz mit 200 Zeichen; nicht angelegt | NICHT MOEGLICH (offen für Mensch) |
+| 104.7 AccessDenied | nur ein Windows-Benutzer | NICHT MOEGLICH |
+| 104.8 Leiste nicht im Druck | PDF: n Seiten, CSS unverändert | OK (indirekt) |
+| 104.9 wieder aus | `false`, Sammeldruck 77 Seiten A4 | OK |
+| 105.1 Sicht 1 Spalten | 13 Spalten in Reihenfolge laut Rückfrage 9; Arbeitsbereich je Position; Kunde/FE-Termin wie Gruppenkopf. Sage-Vergleich „Abteilung“ informativ, nicht gemacht (ungeprüft) | OK |
+| 105.2 leere Werte | leere Zelle, Kopf unverändert | OK |
+| 105.3 Filter + Negation | per URL `colf_arbeitsbereich=H1` / `=!H1` (ENTER-Tastenweg nicht separat geprüft) | OK |
+| 105.4 FE-Termin-Filter, Kombigerät | `<=12.07.2026`, `15.07.2026...20.07.2026` korrekt, frühester Termin zählt | OK |
+| 105.5 Sicht 2 Spalten + Untertitel | 9 Spalten, je Matchcode eine Zeile, Werte-Listen, Untertitel VM-Bedarf | OK |
+| 105.6 Sicht 2 Vorfilter | HauptFA/Arbeitsbereich/FE-Termin senken Summen; Summenfilter wirkt auf Summe | OK |
+| 105.7 Zahnrad + alte Prefs | siehe AK 16 | OK |
+| 105.8 CSV | Download nicht ausgeführt | NICHT MOEGLICH (Download-Freigabe) |
+| 105.9 Reiter + KW + Spaltenfilter | Reiter ok; KW-Kombination nicht geprüft (DEV-FE-Termine 07/2026) | teilweise, Rest offen |
+| 105.10 Negativ Zugriff/Toggle | AKE Toggle aus ⇒ Redirect Startseite; AccessDenied nicht prüfbar | teilweise |
+| 105.11 Regression | nicht geprüft | NICHT MOEGLICH in diesem Lauf (offen) |
+
+Kein FEHLER.
+
+### Manuelle Checkliste für Gerald (offen)
+1. Testsystem: Web (und optional Dienst, nur Version) aus dem Worktree publizieren, Fußzeile v1.72.0 prüfen.
+2. TS-104.3/104.4 am **echten Rollendrucker**: Treiber Papier 93 × 55, Ränder „Keine“; Vorschau 1 bzw. n Seiten, Ausdruck sitzt auf dem Etikett, Modell/dpi notieren.
+3. TS-104.5 Scan mit Netum: manueller 12-stelliger Code und `Magazin-W1;0;0;0` (16 Zeichen). Nicht lesbar ⇒ melden, nicht still beheben.
+4. TS-104.6 Platz ohne Beschreibung/Zone und mit 200 Zeichen Beschreibung: nichts ragt über, Beschreibung nach zwei Zeilen abgeschnitten.
+5. TS-104.7 / 105.10: Benutzer ohne Stammdaten-Lesezugriff bzw. ohne Vorbau ⇒ AccessDenied.
+6. TS-104.1 Optik A4 (Rahmen 2 px, 85 mm) im Druckdialog gegen einen alten Ausdruck vergleichen.
+7. TS-105.1 mit echten IDEAL-Testdaten; Arbeitsbereich informativ mit Sage-„Abteilung“ vergleichen (Zuordnung bleibt ungeprüft, P5 entfällt).
+8. TS-105.3 Filter per ENTER im Filterfeld (URL `colf_<key>=`), Kunde und Bemerkung PN.
+9. TS-105.4 mit einem echten Kombigerät aus P8 (falls vorhanden).
+10. TS-105.8 CSV-Export beider Sichten, mit und ohne ausgeblendete neue Spalte.
+11. TS-105.9 KW-Filter + Spaltenfilter + Reiterwechsel kombiniert.
+12. TS-105.11 Regression Kommissionierlisten, Beschichtung, FA-Liste, FA-Struktur; AKE unberührt.
+13. Danach Merge (Schranke 2).
 
 ## Freigabe-Antworten (Mensch fuellt aus — Schranke 1)
 
