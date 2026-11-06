@@ -6,6 +6,8 @@
     var terminals = ViewBag.Terminals as List<IdealAkeWms.Models.BdeTerminal> ?? new List<IdealAkeWms.Models.BdeTerminal>();
     var sageZeilen = ViewBag.SageZeilen as List<IdealAkeWms.Models.ViewModels.BdeSageZuordnungZeile> ?? new List<IdealAkeWms.Models.ViewModels.BdeSageZuordnungZeile>();
     var freieOperatoren = ViewBag.FreieOperatoren as List<IdealAkeWms.Models.BdeOperator> ?? new List<IdealAkeWms.Models.BdeOperator>();
+    var onlyUebergabeOffen = (bool?)ViewBag.OnlyUebergabeOffen == true;
+    var uebergabeOffenCount = (int?)ViewBag.UebergabeOffenCount ?? 0;
 }
 
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
@@ -23,6 +25,27 @@
                 <a asp-action="EditOperator" class="btn btn-primary">Neu anlegen</a>
             </div>
 
+            @* E9/F11: „Offene Übergaben an Sage“ – im WMS angelegte Mitarbeiter ohne Sage-Zuordnung. Das WMS sendet nichts an Sage. *@
+            @if (onlyUebergabeOffen)
+            {
+                <div class="alert alert-info d-flex justify-content-between align-items-start flex-wrap gap-2" role="status">
+                    <div>
+                        <strong>Offene Übergaben an Sage</strong><br />
+                        Diese BDE-Mitarbeiter wurden im WMS angelegt und sind noch keinem Sage-PPS-Mitarbeiter zugeordnet. Bitte in Sage anlegen
+                        und danach im Reiter „Sage-Zuordnung“ zuordnen – dann steht die Übergabe auf „Übergeben“. Das WMS sendet nichts an Sage.
+                    </div>
+                    <a asp-action="Index" asp-route-tab="operators" class="btn btn-sm btn-outline-secondary">Alle Operatoren zeigen</a>
+                </div>
+            }
+            else if (uebergabeOffenCount > 0)
+            {
+                <div class="alert alert-warning d-flex justify-content-between align-items-center flex-wrap gap-2" role="status">
+                    <span><strong>@uebergabeOffenCount @(uebergabeOffenCount == 1 ? "BDE-Mitarbeiter wartet" : "BDE-Mitarbeiter warten")</strong> auf die Übergabe an Sage
+                        (im WMS angelegt, noch keinem Sage-Mitarbeiter zugeordnet).</span>
+                    <a asp-action="Index" asp-route-tab="operators" asp-route-onlyUebergabeOffen="true" class="btn btn-sm btn-outline-dark">Offene Übergaben anzeigen</a>
+                </div>
+            }
+
             <div class="table-responsive">
                 @* Nur die Tabelle des aktiven Tabs wird gerendert (Razor-Conditional) —
                    table-filter.js/column-preferences.js sind Single-Table, daher pro Tab eigener view-key. *@
@@ -34,6 +57,7 @@
                             <th data-filterable data-col-key="active">Aktiv</th>
                             <th data-filterable data-col-key="user">WMS-Benutzer</th>
                             <th data-filterable data-col-key="sage-number">Sage-Nr.</th>
+                            <th data-filterable data-col-key="sage-uebergabe" title="Übergabe eines im WMS angelegten Mitarbeiters an Sage (leer = nicht nötig)">Übergabe an Sage</th>
                             <th data-col-key="actions" style="width: 100px;"></th>
                         </tr>
                     </thead>
@@ -55,6 +79,7 @@
                                 </td>
                                 <td>@(op.User?.Name ?? "-")</td>
                                 <td>@(op.SageMitarbeiternummer ?? "-")</td>
+                                <td><partial name="_SageUebergabeBadge" model="op.SageUebergabeStatus" /></td>
                                 <td>
                                     <a asp-action="EditOperator" asp-route-id="@op.Id" class="btn btn-sm btn-secondary">Bearbeiten</a>
                                 </td>
@@ -63,7 +88,7 @@
                         @if (!operators.Any())
                         {
                             <tr>
-                                <td colspan="6" class="text-center text-muted py-4">Keine Operatoren vorhanden.</td>
+                                <td colspan="7" class="text-center text-muted py-4">@(onlyUebergabeOffen ? "Keine offenen Übergaben an Sage." : "Keine Operatoren vorhanden.")</td>
                             </tr>
                         }
                     </tbody>

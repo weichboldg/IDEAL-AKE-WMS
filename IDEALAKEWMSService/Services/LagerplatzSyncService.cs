@@ -168,6 +168,26 @@ public class LagerplatzSyncService : ILagerplatzSyncService
                 else
                 {
                     var existingLoc = byCode[code];
+                    // E9/F11: ein im WMS angelegter Platz mit offener Uebergabe ist jetzt in Sage -> uebernehmen (Herkunft Sage), statt
+                    // ihn als Konflikt zu melden. IstBuchbar/SageBuchungErlaubt bleiben (der Update-Zweig unten fasst sie nie an).
+                    // Bestandsplaetze (NichtNoetig) bleiben Konflikt wie bisher.
+                    if (existingLoc.Source != StorageLocationSource.Sage && SageUebergabeStatusText.IstOffen(existingLoc.SageUebergabeStatus))
+                    {
+                        existingLoc.Source = StorageLocationSource.Sage;
+                        existingLoc.SageUebergabeStatus = SageUebergabeStatus.Uebergeben;
+                        existingLoc.SageUebergabeAm = DateTime.Now;
+                        existingLoc.SageUebergabeFehler = null;
+                        existingLoc.ModifiedAt = DateTime.Now;
+                        existingLoc.ModifiedBy = SyncUser;
+                        existingLoc.ModifiedByWindows = Environment.MachineName;
+                        await SageStammdatenOutbox.ErledigenAsync(_ctx, SageStammdatenOutbox.TypLagerplatz, existingLoc.Id, SyncUser,
+                            Environment.MachineName, ct);
+                        await run.LogInfoAsync(
+                            $"Lagerplatz {code} (im WMS angelegt, Übergabe offen) in Sage gefunden -> übernommen, Quelle jetzt Sage. " +
+                            "Ab dem nächsten Lauf gleicht der Lagerbestand-Abgleich seinen Bestand mit Sage ab.",
+                            reference: code, ct: ct);
+                    }
+
                     if (existingLoc.Source == StorageLocationSource.Sage)
                     {
                         // E1/F1: SData-only-Felder nur vergleichen/schreiben, wenn die Quelle sie liefert (null = nicht schreiben).

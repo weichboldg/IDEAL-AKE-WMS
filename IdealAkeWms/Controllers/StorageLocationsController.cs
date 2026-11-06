@@ -40,6 +40,7 @@ public class StorageLocationsController : Controller
         ["bookable"] = l => l.IstBuchbar ? "Ja" : "Nein",
         ["sage-buchung"] = l => l.SageBuchungErlaubt ? "Ja" : "Nein",
         ["is-active"] = l => l.IsActive ? "Ja" : "Nein",
+        ["sage-uebergabe"] = l => SageUebergabeStatusText.Text(l.SageUebergabeStatus),
         ["created-at"] = l => l.CreatedAt.ToString("dd.MM.yyyy HH:mm"),
     };
 
@@ -52,7 +53,7 @@ public class StorageLocationsController : Controller
         string.Join(", ", new[] { l.SageIstGesperrt == true ? "Gesperrt" : null, l.SageIstGesperrtInventur == true ? "Inventur" : null }.OfType<string>());
 
     public async Task<IActionResult> Index(bool showInactive = false, bool onlyBookable = false,
-        int page = 1, int? pageSize = null)
+        bool onlyUebergabeOffen = false, int page = 1, int? pageSize = null)
     {
         if (page < 1) page = 1;
         var userDefaultPageSize = await _currentUserService.GetDefaultPageSizeAsync();
@@ -65,6 +66,9 @@ public class StorageLocationsController : Controller
             query = query.Where(l => l.IsActive);
         if (onlyBookable)
             query = query.Where(l => l.IstBuchbar);
+        // E9/F11: „Offene Übergaben an Sage“ = im WMS angelegt, in Sage noch nicht gefunden (Offen oder Fehler).
+        if (onlyUebergabeOffen)
+            query = query.Where(l => SageUebergabeStatusText.IstOffen(l.SageUebergabeStatus));
 
         // Server-Side-Spaltenfilter: nach den Top-Filtern, vor der Pagination —
         // Filter muss ueber ALLE Eintraege wirken, nicht nur die aktuelle Seite.
@@ -73,6 +77,8 @@ public class StorageLocationsController : Controller
 
         ViewBag.ShowInactive = showInactive;
         ViewBag.OnlyBookable = onlyBookable;
+        ViewBag.OnlyUebergabeOffen = onlyUebergabeOffen;
+        ViewBag.UebergabeOffenCount = all.Count(l => l.IsActive && SageUebergabeStatusText.IstOffen(l.SageUebergabeStatus));
         ViewBag.HasInactive = all.Any(l => !l.IsActive);
         ViewBag.HasNonBookable = all.Any(l => !l.IstBuchbar);
         ViewBag.Pagination = new Models.ViewModels.PaginationState
@@ -101,6 +107,10 @@ public class StorageLocationsController : Controller
 
         // BarcodeValue automatisch aus Code setzen
         location.BarcodeValue = location.Code;
+        // E9/F11: im WMS neu angelegt -> Uebergabe an Sage offen (Repository merkt den Outbox-Eintrag vor; gesendet wird nichts).
+        location.SageUebergabeStatus = SageUebergabeStatus.Offen;
+        location.SageUebergabeAm = null;
+        location.SageUebergabeFehler = null;
         location.CreatedAt = DateTime.Now;
         location.CreatedBy = _currentUserService.GetDisplayName();
         location.CreatedByWindows = _currentUserService.GetWindowsUserName();

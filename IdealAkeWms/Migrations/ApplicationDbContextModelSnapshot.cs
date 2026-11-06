@@ -928,6 +928,23 @@ namespace IdealAkeWms.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 
+                    b.Property<DateTime?>("SageUebergabeAm")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("SageUebergabeFehler")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<int>("SageUebergabeStatus")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("Manual");
+
                     b.Property<int?>("UserId")
                         .HasColumnType("int");
 
@@ -3620,6 +3637,73 @@ namespace IdealAkeWms.Migrations
                     b.ToTable("SagePpsMitarbeiter", "dbo");
                 });
 
+            modelBuilder.Entity("IdealAkeWms.Models.SageStammdatenOutboxItem", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AttemptCount")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("CreatedByWindows")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("EntityKey")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("EntityType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("LastError")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ModifiedByWindows")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("PayloadJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("IX_SageStammdatenOutbox_Status");
+
+                    b.HasIndex("EntityType", "EntityKey")
+                        .HasDatabaseName("IX_SageStammdatenOutbox_EntityType_EntityKey");
+
+                    b.ToTable("SageStammdatenOutbox", "dbo");
+                });
+
             modelBuilder.Entity("IdealAkeWms.Models.ServiceSetting", b =>
                 {
                     b.Property<string>("Key")
@@ -3942,6 +4026,16 @@ namespace IdealAkeWms.Migrations
 
                     b.Property<decimal?>("SageTragkraft")
                         .HasColumnType("decimal(18,3)");
+
+                    b.Property<DateTime?>("SageUebergabeAm")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("SageUebergabeFehler")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<int>("SageUebergabeStatus")
+                        .HasColumnType("int");
 
                     b.Property<decimal?>("SageVolumen")
                         .HasColumnType("decimal(18,3)");

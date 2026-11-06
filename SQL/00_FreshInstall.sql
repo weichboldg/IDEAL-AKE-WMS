@@ -157,6 +157,9 @@ BEGIN
         [SageLaenge]        DECIMAL(18,3)     NULL,
         [SageVolumen]       DECIMAL(18,3)     NULL,
         [SageTragkraft]     DECIMAL(18,3)     NULL,
+        [SageUebergabeStatus] INT             NOT NULL CONSTRAINT [DF_StorageLocations_SageUebergabeStatus] DEFAULT (0), -- v1.73.0 / SQL/107 (F11)
+        [SageUebergabeAm]   DATETIME2         NULL,
+        [SageUebergabeFehler] NVARCHAR(1000)  NULL,
         [CreatedAt]         DATETIME2         NOT NULL DEFAULT GETDATE(),
         [CreatedBy]         NVARCHAR(200)     NOT NULL,
         [CreatedByWindows]  NVARCHAR(200)     NOT NULL,
@@ -2085,6 +2088,10 @@ BEGIN
         [IsActive] BIT NOT NULL DEFAULT 1,
         [UserId] INT NULL,
         [SageMitarbeiternummer] NVARCHAR(20) NULL,  -- v1.73.0 / SQL/103 (G14, nur manuelle Zuordnung)
+        [Source] NVARCHAR(20) NOT NULL CONSTRAINT [DF_BdeOperators_Source] DEFAULT (N'Manual'),  -- v1.73.0 / SQL/107 (F11)
+        [SageUebergabeStatus] INT NOT NULL CONSTRAINT [DF_BdeOperators_SageUebergabeStatus] DEFAULT (0),
+        [SageUebergabeAm] DATETIME2 NULL,
+        [SageUebergabeFehler] NVARCHAR(1000) NULL,
         [CreatedAt] DATETIME2 NOT NULL,
         [CreatedBy] NVARCHAR(200) NOT NULL,
         [CreatedByWindows] NVARCHAR(200) NOT NULL,
@@ -2264,6 +2271,30 @@ BEGIN
     CREATE UNIQUE INDEX [IX_ArticleSuppliers_ArticleId_CreditorId] ON [dbo].[ArticleSuppliers]([ArticleId], [CreditorId]);
     CREATE INDEX [IX_ArticleSuppliers_CreditorId] ON [dbo].[ArticleSuppliers]([CreditorId]);
     PRINT 'Tabelle ArticleSuppliers erstellt.';
+END
+GO
+
+-- SageStammdatenOutbox (v1.73.0 / SQL/107, E9/F11): vorgemerkte Uebergaben WMS -> Sage, ohne Worker (nichts wird gesendet).
+IF OBJECT_ID(N'dbo.SageStammdatenOutbox', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[SageStammdatenOutbox] (
+        [Id]                INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_SageStammdatenOutbox PRIMARY KEY,
+        [EntityType]        NVARCHAR(50)      NOT NULL,
+        [EntityKey]         NVARCHAR(100)     NOT NULL,
+        [PayloadJson]       NVARCHAR(MAX)     NOT NULL,
+        [Status]            INT               NOT NULL,
+        [AttemptCount]      INT               NOT NULL,
+        [LastError]         NVARCHAR(1000)    NULL,
+        [CreatedAt]         DATETIME2         NOT NULL,
+        [CreatedBy]         NVARCHAR(200)     NOT NULL,
+        [CreatedByWindows]  NVARCHAR(200)     NOT NULL,
+        [ModifiedAt]        DATETIME2         NULL,
+        [ModifiedBy]        NVARCHAR(200)     NULL,
+        [ModifiedByWindows] NVARCHAR(200)     NULL
+    );
+    CREATE INDEX [IX_SageStammdatenOutbox_EntityType_EntityKey] ON [dbo].[SageStammdatenOutbox]([EntityType], [EntityKey]);
+    CREATE INDEX [IX_SageStammdatenOutbox_Status] ON [dbo].[SageStammdatenOutbox]([Status]);
+    PRINT 'Tabelle SageStammdatenOutbox erstellt.';
 END
 GO
 
@@ -2813,6 +2844,10 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261106201439_AddArticleSuppliers')
    AND OBJECT_ID(N'dbo.ArticleSuppliers', N'U') IS NOT NULL -- sonst steht SQL/106 noch aus
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261106201439_AddArticleSuppliers', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261106202615_AddSageStammdatenOutboxAndUebergabeStatus')
+   AND OBJECT_ID(N'dbo.SageStammdatenOutbox', N'U') IS NOT NULL AND COL_LENGTH(N'dbo.StorageLocations', N'SageUebergabeStatus') IS NOT NULL
+   AND COL_LENGTH(N'dbo.BdeOperators', N'SageUebergabeStatus') IS NOT NULL -- sonst steht SQL/107 noch aus
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261106202615_AddSageStammdatenOutboxAndUebergabeStatus', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';

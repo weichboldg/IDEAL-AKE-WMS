@@ -9,6 +9,23 @@ public class StorageLocationRepository : Repository<StorageLocation>, IStorageLo
     {
     }
 
+    /// <summary>
+    /// E9/F11: steht der neue Platz auf Uebergabe <c>Offen</c> (im WMS angelegt), wird ein Outbox-Eintrag vorgemerkt – nicht gesendet.
+    /// ponytail: zweites SaveChanges, weil der Outbox-Schluessel die WMS-Id ist (erst nach dem Insert bekannt). Scheitert es, steht
+    /// der Platz trotzdem in „Offene Übergaben“ (die Liste liest den Status am Platz); ein kuenftiger Worker legt fehlende Eintraege nach.
+    /// </summary>
+    public override async Task<StorageLocation> AddAsync(StorageLocation entity)
+    {
+        await base.AddAsync(entity);
+        if (entity.SageUebergabeStatus == SageUebergabeStatus.Offen)
+        {
+            SageStammdatenOutbox.Vormerken(_context, SageStammdatenOutbox.TypLagerplatz, entity,
+                new { entity.Id, entity.Code, entity.Description, entity.Zone });
+            await _context.SaveChangesAsync();
+        }
+        return entity;
+    }
+
     public async Task<List<StorageLocation>> GetAllOrderedAsync()
     {
         // StorageArea fuer die Lagerort-Spalte der Lagerplatzliste (v1.73.0); kleine Tabelle, ein LEFT JOIN.

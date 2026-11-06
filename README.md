@@ -714,6 +714,11 @@ C:\Services\IDEALAKEWMSService\
 > `ArtikelVariantenExtended` in `ArticleSuppliers` (nur Artikel im WMS und Lieferanten mit Kreditor gleicher `SageKto`, sonst gezählt bzw.
 > Warnung). Zuordnungen, die Sage nicht mehr liefert, werden entfernt (ohne zuordenbare Zeile nichts). Läuft nach Artikel- und
 > Kreditoren-Abgleich; Lauf „Artikel-Lieferanten-Abgleich (Sage)“. Keine Oberfläche.
+> **Übergabe WMS → Sage (E9, Migration `SQL/107`, kein Schalter, kein Worker):** Im WMS neu angelegte Lagerplätze und BDE-Mitarbeiter
+> stehen auf `SageUebergabeStatus = Offen` und bekommen eine Zeile in `SageStammdatenOutbox`; **gesendet wird nichts** (es gibt noch keinen
+> Sage-Service). Liste: „Offene Übergaben anzeigen“ in der Lagerplatzliste bzw. BDE-Stammdaten › Operatoren. Der Lagerplatz-Abgleich übernimmt
+> einen offenen Platz, sobald Sage denselben Code liefert (`Source` → Sage, Info im Protokoll, Outbox → Bestätigt); Bestandsplätze bleiben
+> Konflikt wie bisher. BDE-Mitarbeiter: Übergeben durch die manuelle Sage-Zuordnung.
 
 #### Schritt 3 — Windows Service registrieren
 

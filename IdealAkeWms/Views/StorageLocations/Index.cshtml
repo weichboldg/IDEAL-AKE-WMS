@@ -6,9 +6,11 @@
     var onlyBookable = (bool?)ViewBag.OnlyBookable == true;
     var hasInactive = (bool?)ViewBag.HasInactive == true;
     var hasNonBookable = (bool?)ViewBag.HasNonBookable == true;
+    var onlyUebergabeOffen = (bool?)ViewBag.OnlyUebergabeOffen == true;
+    var uebergabeOffenCount = (int?)ViewBag.UebergabeOffenCount ?? 0;
     var canEdit = await _user.HasMasterDataAccessAsync();
-    // Spalten: code, description, zone, storage-area, sage-locked, capacity, type, source, bookable, sage-buchung, [is-active], created-at, actions
-    var colCount = showInactive ? 13 : 12;
+    // Spalten: code, description, zone, storage-area, sage-locked, capacity, type, source, sage-uebergabe, bookable, sage-buchung, [is-active], created-at, actions
+    var colCount = showInactive ? 14 : 13;
 }
 
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
@@ -25,6 +27,27 @@
 @if (!canEdit)
 {
     <div class="alert alert-info small">Sie haben Nur-Lesen-Zugriff. Aenderungen sind nicht moeglich.</div>
+}
+
+@* E9/F11: „Offene Übergaben an Sage“ – im WMS angelegte Plaetze, die Sage noch nicht kennt. Das WMS sendet nichts an Sage. *@
+@if (onlyUebergabeOffen)
+{
+    <div class="alert alert-info d-flex justify-content-between align-items-start flex-wrap gap-2" role="status">
+        <div>
+            <strong>Offene Übergaben an Sage</strong><br />
+            Diese Lagerplätze wurden im WMS angelegt und sind in Sage noch nicht vorhanden. Bitte in Sage mit demselben Code anlegen –
+            der nächste Lagerplatz-Abgleich übernimmt sie dann automatisch (Quelle wird „Sage“). Das WMS sendet nichts an Sage.
+        </div>
+        <a asp-action="Index" class="btn btn-sm btn-outline-secondary">Alle Lagerplätze zeigen</a>
+    </div>
+}
+else if (uebergabeOffenCount > 0)
+{
+    <div class="alert alert-warning d-flex justify-content-between align-items-center flex-wrap gap-2" role="status">
+        <span><strong>@uebergabeOffenCount @(uebergabeOffenCount == 1 ? "Lagerplatz wartet" : "Lagerplätze warten")</strong> auf die Übergabe an Sage
+            (im WMS angelegt, in Sage noch nicht vorhanden).</span>
+        <a asp-action="Index" asp-route-onlyUebergabeOffen="true" class="btn btn-sm btn-outline-dark">Offene Übergaben anzeigen</a>
+    </div>
 }
 
 @if (hasInactive || hasNonBookable)
@@ -47,6 +70,10 @@
                        onchange="this.form.submit()" />
                 <label class="form-check-label" for="onlyBookableToggle">Nur buchbare Pl&auml;tze zeigen</label>
             </div>
+        }
+        @if (onlyUebergabeOffen)
+        {
+            <input type="hidden" name="onlyUebergabeOffen" value="true" />
         }
         @if (!hasInactive && showInactive)
         {
@@ -73,6 +100,7 @@
                 <th data-filterable data-filter-type="number" data-col-key="capacity">Kapazität</th>
                 <th data-filterable data-col-key="type">Typ</th>
                 <th data-filterable data-col-key="source">Quelle</th>
+                <th data-filterable data-col-key="sage-uebergabe" title="Übergabe eines im WMS angelegten Platzes an Sage (leer = nicht nötig)">Übergabe an Sage</th>
                 <th data-filterable data-col-key="bookable">Buchbar</th>
                 <th data-filterable data-col-key="sage-buchung">Sage-Buchung</th>
                 @if (showInactive)
@@ -113,6 +141,7 @@
                             <span class="badge bg-secondary">Manuell</span>
                         }
                     </td>
+                    <td data-col-key="sage-uebergabe"><partial name="_SageUebergabeBadge" model="location.SageUebergabeStatus" /></td>
                     <td data-col-key="bookable">
                         @if (location.IstBuchbar)
                         {
@@ -155,7 +184,7 @@
             @if (!Model.Any())
             {
                 <tr>
-                    <td colspan="@colCount" class="text-center text-muted py-4">Keine Lagerplätze vorhanden.</td>
+                    <td colspan="@colCount" class="text-center text-muted py-4">@(onlyUebergabeOffen ? "Keine offenen Übergaben an Sage." : "Keine Lagerplätze vorhanden.")</td>
                 </tr>
             }
         </tbody>
@@ -180,6 +209,7 @@
     { "key": "capacity", "label": "Kapazität", "locked": false, "defaultWidth": null },
     { "key": "type", "label": "Typ", "locked": false, "defaultWidth": null },
     { "key": "source", "label": "Quelle", "locked": false, "defaultWidth": null },
+    { "key": "sage-uebergabe", "label": "Übergabe an Sage", "locked": false, "defaultWidth": null },
     { "key": "bookable", "label": "Buchbar", "locked": false, "defaultWidth": null },
     { "key": "sage-buchung", "label": "Sage-Buchung", "locked": false, "defaultWidth": null },
     { "key": "is-active", "label": "Aktiv", "locked": false, "defaultWidth": null },

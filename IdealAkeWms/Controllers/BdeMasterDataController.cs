@@ -46,6 +46,7 @@ public class BdeMasterDataController : Controller
         ["active"] = o => o.IsActive ? "Aktiv" : "Inaktiv",
         ["user"] = o => o.User?.Name ?? "-",
         ["sage-number"] = o => o.SageMitarbeiternummer ?? "-",
+        ["sage-uebergabe"] = o => SageUebergabeStatusText.Text(o.SageUebergabeStatus),
     };
 
     /// <summary>Server-Side-Spaltenfilter (Tab "Sage-Zuordnung", E6b): Col-Key -> gerenderter Zell-Text.</summary>
@@ -94,7 +95,7 @@ public class BdeMasterDataController : Controller
         ["description"] = t => t.Description,
     };
 
-    public async Task<IActionResult> Index(string tab = "operators", int page = 1, int? pageSize = null)
+    public async Task<IActionResult> Index(string tab = "operators", bool onlyUebergabeOffen = false, int page = 1, int? pageSize = null)
     {
         if (page < 1) page = 1;
         var userDefaultPageSize = await _currentUserService.GetDefaultPageSizeAsync();
@@ -103,6 +104,7 @@ public class BdeMasterDataController : Controller
 
         var operators = (await _operatorRepository.GetAllAsync())
             .OrderBy(o => o.LastName).ThenBy(o => o.FirstName).ToList();
+        ViewBag.UebergabeOffenCount = operators.Count(o => o.IsActive && SageUebergabeStatusText.IstOffen(o.SageUebergabeStatus));
         var activities = (await _activityRepository.GetAllAsync()).ToList();
         var terminals = (await _terminalRepository.GetAllAsync()).ToList();
         var sageZeilen = new List<BdeSageZuordnungZeile>();
@@ -131,6 +133,9 @@ public class BdeMasterDataController : Controller
                 sageZeilen = ColumnFilterHelper.Apply(sageZeilen, columnFilters, SageColumnMap).ToList();
                 break;
             default:
+                // E9/F11: „Offene Übergaben an Sage“ = im WMS angelegt, noch keinem Sage-PPS-Mitarbeiter zugeordnet.
+                if (onlyUebergabeOffen)
+                    operators = operators.Where(o => SageUebergabeStatusText.IstOffen(o.SageUebergabeStatus)).ToList();
                 operators = ColumnFilterHelper.Apply(operators, columnFilters, OperatorColumnMap).ToList();
                 break;
         }
@@ -145,6 +150,7 @@ public class BdeMasterDataController : Controller
         };
 
         ViewBag.Tab = tab;
+        ViewBag.OnlyUebergabeOffen = onlyUebergabeOffen;
         ViewBag.Operators = tab == "operators"
             ? operators.Skip((page - 1) * effectivePageSize).Take(effectivePageSize).ToList()
             : operators;
@@ -215,6 +221,8 @@ public class BdeMasterDataController : Controller
                 LastName = vm.LastName,
                 IsActive = vm.IsActive,
                 UserId = vm.UserId,
+                // E9/F11: im WMS neu angelegt -> Uebergabe an Sage offen (Repository merkt den Outbox-Eintrag vor; gesendet wird nichts).
+                SageUebergabeStatus = SageUebergabeStatus.Offen,
                 CreatedAt = DateTime.Now,
                 CreatedBy = _currentUserService.GetDisplayName(),
                 CreatedByWindows = _currentUserService.GetWindowsUserName()
@@ -280,6 +288,15 @@ public class BdeMasterDataController : Controller
         }
 
         op.SageMitarbeiternummer = nummer;
+        // E9/F11 (G14): die manuelle Zuordnung ist der „Fund in Sage“ -> Herkunft Sage; eine offene Uebergabe ist damit erledigt
+        // (UpdateAsync schliesst den Outbox-Eintrag). Bestand (NichtNoetig) bleibt NichtNoetig.
+        op.Source = StorageLocationSource.Sage;
+        if (SageUebergabeStatusText.IstOffen(op.SageUebergabeStatus))
+        {
+            op.SageUebergabeStatus = SageUebergabeStatus.Uebergeben;
+            op.SageUebergabeAm = DateTime.Now;
+            op.SageUebergabeFehler = null;
+        }
         op.ModifiedAt = DateTime.Now;
         op.ModifiedBy = _currentUserService.GetDisplayName();
         op.ModifiedByWindows = _currentUserService.GetWindowsUserName();
@@ -308,6 +325,7 @@ public class BdeMasterDataController : Controller
         {
             var alt = op.SageMitarbeiternummer;
             op.SageMitarbeiternummer = null;
+            op.Source = StorageLocationSource.Manual; // Uebergabe-Status bleibt (der Mitarbeiter ist in Sage weiter vorhanden)
             op.ModifiedAt = DateTime.Now;
             op.ModifiedBy = _currentUserService.GetDisplayName();
             op.ModifiedByWindows = _currentUserService.GetWindowsUserName();

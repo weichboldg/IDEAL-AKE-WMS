@@ -1365,7 +1365,12 @@
                         nie etwas vorgeschlagen. Jede Sage-Nummer gehoert hoechstens einem Operator, jeder Operator hat hoechstens eine; eine
                         falsche Zuordnung mit <strong>Loesen</strong> aufheben. Kartennummer und externe Nummer sind nur zur Information.
                         Die Liste fuellt der Dienst, wenn <code>Sync:PpsMitarbeiterEnabled</code> eingeschaltet ist; aktive Operatoren ohne
-                        Sage-Nummer meldet er im Aktivitaets-Protokoll (&bdquo;PPS-Mitarbeiter-Abgleich (Sage)&ldquo;).</dd>
+                        Sage-Nummer meldet er im Aktivitaets-Protokoll (&bdquo;PPS-Mitarbeiter-Abgleich (Sage)&ldquo;).
+                        <br /><strong>Offene Übergaben an Sage:</strong> Ein im WMS neu angelegter Operator steht in der Spalte
+                        &bdquo;Übergabe an Sage&ldquo; auf <em>Offen</em>, bis er hier zugeordnet ist &mdash; dann <em>Übergeben</em>, Herkunft Sage.
+                        Der Hinweis im Reiter Operatoren nennt die Anzahl, &bdquo;Offene Übergaben anzeigen&ldquo; filtert darauf. Das WMS
+                        sendet nichts an Sage; den Mitarbeiter bitte in Sage anlegen. Operatoren aus der Zeit vor v1.73.0 bleiben leer
+                        (&bdquo;nicht nötig&ldquo;).</dd>
                 </dl>
 
                 <h6 class="mt-3">Werkbank fuer BDE konfigurieren</h6>
@@ -1820,7 +1825,14 @@
                         Rollendrucker. Im Druckdialog den Rollendrucker waehlen, Papierformat 93 &times; 55 mm, Raender &bdquo;Keine&ldquo;.
                         Ausgeschaltet (Standard) bleibt es bei A4 mit drei Etiketten je Seite.
                         Lagerplaetze koennen als &bdquo;Kommissionierwagen&ldquo; markiert werden (Typ &bdquo;Wagen&ldquo;) —
-                        diese werden in der Stueckliste und bei Meldebestand-Warnungen gesondert behandelt.</dd>
+                        diese werden in der Stueckliste und bei Meldebestand-Warnungen gesondert behandelt.
+                        <br /><strong>Seit v1.73.0 &ndash; Offene Übergaben an Sage:</strong> Ein im WMS neu angelegter Platz steht in der Spalte
+                        &bdquo;Übergabe an Sage&ldquo; auf <em>Offen</em>. Das WMS sendet nichts an Sage: den Platz in Sage mit demselben Code anlegen,
+                        dann übernimmt ihn der nächste Lagerplatz-Abgleich (Quelle wird &bdquo;Sage&ldquo;, Status <em>Übergeben</em>, Buchbar und
+                        Sage-Buchung bleiben; ab dem folgenden Lauf gleicht der Lagerbestand-Abgleich seinen Bestand mit Sage ab). Der Hinweis über der
+                        Liste nennt die Anzahl offener Übergaben, &bdquo;Offene Übergaben anzeigen&ldquo; filtert darauf. Plätze aus der Zeit vor
+                        v1.73.0 bleiben leer (&bdquo;nicht nötig&ldquo;) &ndash; ein solcher manueller Platz mit gleichem Code wie in Sage bleibt wie bisher
+                        ein Konflikt im Aktivitäts-Protokoll.</dd>
 
                     <dt>Benutzer</dt>
                     <dd>Name, Personalnummer und Passwort. Jedem Benutzer koennen eine oder mehrere Rollen zugewiesen werden.

@@ -312,4 +312,45 @@ public class LagerplatzSyncServiceTests
         loc.IstBuchbar.Should().BeTrue();
         loc.Source.Should().Be(StorageLocationSource.Manual);
     }
+
+    // ----- E9/F11: Uebernahme eines im WMS angelegten Platzes mit offener Uebergabe; Bestand (NichtNoetig) bleibt Konflikt -----
+
+    [Fact]
+    public async Task Run_ManualRecord_UebergabeOffen_WirdUebernommen_Bestand_BleibtKonflikt()
+    {
+        var (svc, reader, ctx, fakeLogger) = Build();
+        var neu = new StorageLocation
+        {
+            Code = "NEU1", Zone = "WMS-ZONE", BarcodeValue = "NEU1", Source = StorageLocationSource.Manual, IsActive = true,
+            IstBuchbar = false, SageBuchungErlaubt = true, SageUebergabeStatus = SageUebergabeStatus.Offen,
+            CreatedAt = DateTime.Now.AddDays(-1), CreatedBy = "tester", CreatedByWindows = "tester"
+        };
+        var bestand = new StorageLocation
+        {
+            Code = "ALT1", Zone = "MANUAL-ZONE", BarcodeValue = "ALT1", Source = StorageLocationSource.Manual, IsActive = true,
+            CreatedAt = DateTime.Now.AddDays(-30), CreatedBy = "tester", CreatedByWindows = "tester"
+        };
+        ctx.StorageLocations.AddRange(neu, bestand);
+        await ctx.SaveChangesAsync();
+        IdealAkeWms.Data.SageStammdatenOutbox.Vormerken(ctx, IdealAkeWms.Data.SageStammdatenOutbox.TypLagerplatz, neu, new { neu.Code });
+        await ctx.SaveChangesAsync();
+        reader.Records = new() { new("HALLE-1", "NEU1", "Aus Sage", PlatzId: 77), new("HALLE-1", "ALT1", "Sage-Bezeichnung") };
+
+        var result = await svc.RunAsync();
+
+        result.Conflicts.Should().Be(1, "nur der Bestandsplatz bleibt Konflikt");
+        result.Updated.Should().Be(1);
+        var n = ctx.StorageLocations.Single(l => l.Code == "NEU1");
+        (n.Source, n.SageUebergabeStatus, n.SageUebergabeAm != null, n.Zone, n.Description, n.SageLagerplatzId, n.ModifiedBy)
+            .Should().Be((StorageLocationSource.Sage, SageUebergabeStatus.Uebergeben, true, "HALLE-1", "Aus Sage", 77, SyncUser_For_Tests));
+        n.IstBuchbar.Should().BeFalse("IstBuchbar bleibt wie im WMS gesetzt");
+        n.SageBuchungErlaubt.Should().BeTrue("SageBuchungErlaubt bleibt wie im WMS gesetzt");
+        ctx.SageStammdatenOutbox.Single().Status.Should().Be(SageBookingQueueStatus.Bestaetigt, "nichts mehr zu senden");
+
+        var a = ctx.StorageLocations.Single(l => l.Code == "ALT1");
+        (a.Source, a.SageUebergabeStatus, a.Zone).Should().Be((StorageLocationSource.Manual, SageUebergabeStatus.NichtNoetig, "MANUAL-ZONE"));
+
+        fakeLogger.Runs[0].Events.Should().Contain(e => e.Level == "Info" && e.Reference == "NEU1" && e.Message.Contains("übernommen"));
+        fakeLogger.Runs[0].Events.Should().Contain(e => e.Level == "Warning" && e.Reference == "ALT1");
+    }
 }

@@ -1,0 +1,16 @@
+@model IdealAkeWms.Models.SageUebergabeStatus
+@* E9/F11: Zelle „Übergabe an Sage“. Text traegt die Bedeutung (Farbe nie allein); NichtNoetig (Bestand) bleibt leer.
+   Der Text muss SageUebergabeStatusText.Text entsprechen (Server-Spaltenfilter). *@
+@{
+    var text = IdealAkeWms.Models.SageUebergabeStatusText.Text(Model);
+    var css = Model switch
+    {
+        IdealAkeWms.Models.SageUebergabeStatus.Offen => "bg-warning text-dark",
+        IdealAkeWms.Models.SageUebergabeStatus.Fehler => "bg-danger",
+        _ => "bg-success"
+    };
+}
+@if (text.Length > 0)
+{
+    <span class="badge @css">@text</span>
+}

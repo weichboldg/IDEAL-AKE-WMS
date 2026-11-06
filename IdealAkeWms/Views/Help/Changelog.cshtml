@@ -121,6 +121,16 @@
                     <li><code>Sync:ArtikelLieferantEnabled</code> (Standard aus) übernimmt die Lieferanten je Artikel (Bestellnummer, Mindestmenge,
                         Wiederbeschaffungszeit, Preis, Hauptlieferant) als Grundlage für spätere Bestellvorschläge; noch ohne eigene Ansicht.</li>
                 </ul>
+                <h6>Offene Übergaben an Sage (Lagerplätze, BDE-Mitarbeiter)</h6>
+                <ul>
+                    <li>Im WMS neu angelegte Lagerplätze und BDE-Mitarbeiter bekommen in der neuen Spalte <strong>Übergabe an Sage</strong> den Status
+                        &bdquo;Offen&ldquo;. Ein Hinweis über der Liste nennt die Anzahl; &bdquo;Offene Übergaben anzeigen&ldquo; filtert darauf.
+                        Vorhandene Einträge bleiben leer (&bdquo;nicht nötig&ldquo;).</li>
+                    <li>Das WMS sendet nichts an Sage: Bitte den Platz bzw. Mitarbeiter in Sage anlegen. Einen Lagerplatz mit demselben Code übernimmt
+                        der nächste Lagerplatz-Abgleich dann automatisch (Quelle &bdquo;Sage&ldquo;, Buchbar und Sage-Buchung bleiben, Status
+                        &bdquo;Übergeben&ldquo;); einen BDE-Mitarbeiter ordnen Sie im Reiter &bdquo;Sage-Zuordnung&ldquo; zu.</li>
+                    <li>Vorhandene manuelle Lagerplätze mit gleichem Code wie in Sage bleiben wie bisher ein Konflikt im Aktivitäts-Protokoll.</li>
+                </ul>
             </div>
         </div>
 

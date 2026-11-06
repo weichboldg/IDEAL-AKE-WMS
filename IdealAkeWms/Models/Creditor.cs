@@ -135,3 +135,18 @@ public enum SageUebergabeStatus
     Uebergeben = 2,
     Fehler = 3
 }
+
+public static class SageUebergabeStatusText
+{
+    /// <summary>Zelltext der Spalte „Übergabe an Sage“ (E9); NichtNoetig bleibt leer, damit der Altbestand die Liste nicht fuellt.</summary>
+    public static string Text(SageUebergabeStatus s) => s switch
+    {
+        SageUebergabeStatus.Offen => "Offen",
+        SageUebergabeStatus.Uebergeben => "Übergeben",
+        SageUebergabeStatus.Fehler => "Fehler",
+        _ => ""
+    };
+
+    /// <summary>„Offene Übergaben an Sage“ = Offen oder Fehler (noch nicht in Sage).</summary>
+    public static bool IstOffen(SageUebergabeStatus s) => s is SageUebergabeStatus.Offen or SageUebergabeStatus.Fehler;
+}

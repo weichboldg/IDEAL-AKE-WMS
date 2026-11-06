@@ -18,6 +18,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<Article> Articles => Set<Article>();
     public DbSet<StockMovement> StockMovements => Set<StockMovement>();
     public DbSet<SageBookingQueueItem> SageBookingQueueItems => Set<SageBookingQueueItem>();
+    public DbSet<SageStammdatenOutboxItem> SageStammdatenOutbox => Set<SageStammdatenOutboxItem>();
     public DbSet<ProductionOrder> ProductionOrders => Set<ProductionOrder>();
     public DbSet<ProductionOrderPickingStatus> ProductionOrderPickingStatuses => Set<ProductionOrderPickingStatus>();
     public DbSet<ProductionOrderBdeStatus> ProductionOrderBdeStatuses => Set<ProductionOrderBdeStatus>();
@@ -220,6 +221,9 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.SageLaenge).HasColumnType("decimal(18,3)");
             entity.Property(e => e.SageVolumen).HasColumnType("decimal(18,3)");
             entity.Property(e => e.SageTragkraft).HasColumnType("decimal(18,3)");
+            // E9/F11: Uebergabe-Status; DEFAULT 0 (NichtNoetig) nur ueber Migration/SQL, kein HasDefaultValue (Sentinel, Fallstrick E8a).
+            entity.Property(e => e.SageUebergabeStatus).HasConversion<int>();
+            entity.Property(e => e.SageUebergabeFehler).HasMaxLength(1000);
             entity.HasOne(e => e.StorageArea)
                 .WithMany(a => a.StorageLocations)
                 .HasForeignKey(e => e.StorageAreaId)
@@ -1201,6 +1205,29 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.SageMitarbeiternummer).HasMaxLength(20);
             entity.HasIndex(e => e.SageMitarbeiternummer).IsUnique().HasFilter("[SageMitarbeiternummer] IS NOT NULL")
                 .HasDatabaseName("IX_BdeOperators_SageMitarbeiternummer");
+            // E9/F11: Herkunft wie StorageLocations.Source (String-Default 'Manual' ist kein CLR-Sentinel); Uebergabe-Status ohne HasDefaultValue.
+            entity.Property(e => e.Source).HasMaxLength(20).IsRequired().HasDefaultValue(StorageLocationSource.Manual);
+            entity.Property(e => e.SageUebergabeStatus).HasConversion<int>();
+            entity.Property(e => e.SageUebergabeFehler).HasMaxLength(1000);
+        });
+
+        // E9/F11: Outbox WMS → Sage-Stammdaten (vorbereitet, kein Worker). Aufbau analog SageBookingQueueItems.
+        modelBuilder.Entity<SageStammdatenOutboxItem>(entity =>
+        {
+            entity.ToTable("SageStammdatenOutbox");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.EntityType).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.EntityKey).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.PayloadJson).IsRequired();
+            entity.Property(e => e.Status).HasConversion<int>();
+            entity.Property(e => e.LastError).HasMaxLength(1000);
+            entity.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.ModifiedBy).HasMaxLength(200);
+            entity.Property(e => e.ModifiedByWindows).HasMaxLength(200);
+            // Kuenftiger Worker-Read-Pfad (offene Eintraege) und Erledigen je Datensatz.
+            entity.HasIndex(e => e.Status).HasDatabaseName("IX_SageStammdatenOutbox_Status");
+            entity.HasIndex(e => new { e.EntityType, e.EntityKey }).HasDatabaseName("IX_SageStammdatenOutbox_EntityType_EntityKey");
         });
 
         // E6b: Cache der Sage-PPS-Mitarbeiter (kein Audit, SyncedAt) + Stillstandsgruende (Audit, SageMissingSince).

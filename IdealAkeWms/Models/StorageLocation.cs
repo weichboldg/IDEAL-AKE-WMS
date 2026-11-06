@@ -102,6 +102,20 @@ public class StorageLocation : AuditableEntity, IValidatableObject
     [Display(Name = "Tragkraft (Sage)")]
     public decimal? SageTragkraft { get; set; }
 
+    // ----- Uebergabe WMS → Sage (Spec 2026-11-06-sage-sdata-stammdaten-sync F11, E9; vorbereitet, kein Worker) -----
+    // Bestand = NichtNoetig (DB-Default); im WMS neu angelegt = Offen (+ Outbox-Eintrag); vom Lese-Abgleich/Zuordnung gefunden = Uebergeben.
+    // Kein EF-HasDefaultValue (Sentinel-Fallstrick E8a) – der DEFAULT steht nur in Migration/SQL.
+
+    [Display(Name = "Übergabe an Sage")]
+    public SageUebergabeStatus SageUebergabeStatus { get; set; } = SageUebergabeStatus.NichtNoetig;
+
+    [Display(Name = "Übergeben am")]
+    public DateTime? SageUebergabeAm { get; set; }
+
+    [StringLength(1000)]
+    [Display(Name = "Übergabe-Fehler")]
+    public string? SageUebergabeFehler { get; set; }
+
     public ICollection<StockMovement> StockMovements { get; set; } = new List<StockMovement>();
 
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
