@@ -62,7 +62,8 @@ public class SageBookingEnqueueingStockMovementRepository : StockMovementReposit
             if (umbuchungAktiv && saved.SourceStorageLocationId is int sourceId)
                 sourceAllows = (await _context.Set<StorageLocation>().FindAsync(sourceId))?.SageBuchungErlaubt ?? false;
 
-            if (SageBookingEnqueueDecision.ShouldEnqueue(saved.MovementType, globalToggle, umbuchungAktiv, locationAllows, sourceAllows))
+            if (SageBookingEnqueueDecision.ShouldEnqueue(saved.MovementType, globalToggle, umbuchungAktiv, locationAllows, sourceAllows,
+                    hatFaBezug: !string.IsNullOrWhiteSpace(saved.ProductionOrder)))
                 await _queue.EnqueueAsync(saved);
         }
         catch (Exception ex)

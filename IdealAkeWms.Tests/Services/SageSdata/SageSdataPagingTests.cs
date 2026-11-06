@@ -56,17 +56,17 @@ public class SageSdataPagingTests
     [Fact]
     public async Task Paging_DreiSeiten_BisTotalResults()
     {
-        var (client, stub) = Erzeuge((r, _) => Json(HttpStatusCode.OK, Feed(6, Enumerable.Range(StartIndex(r), 2))));
+        var (client, stub) = Erzeuge((r, _) => Json(HttpStatusCode.OK, Feed(6, Enumerable.Range(StartIndex(r) + 1, 2))));
 
         var e = await Lies(client);
 
         e.Zeilen.Select(z => z.PlatzID).Should().Equal(1, 2, 3, 4, 5, 6);
         e.Seiten.Should().Be(3);
         e.Gesamt.Should().Be(6);
-        stub.Anfragen.Select(StartIndex).Should().Equal(1, 3, 5);
+        stub.Anfragen.Select(StartIndex).Should().Equal(0, 2, 4);
         var erste = stub.Anfragen[0];
         erste.RequestUri!.AbsoluteUri.Should().Be(
-            "https://sagetest01.ake.at:5493/sdata/ol/CommonWawiServicesResources/ake_TEST2026;1/LagerplaetzeInfo?format=json&orderBy=PlatzID&count=2&startIndex=1&select=PlatzID,Kurzbezeichnung");
+            "https://sagetest01.ake.at:5493/sdata/ol/CommonWawiServicesResources/ake_TEST2026;1/LagerplaetzeInfo?format=json&orderBy=PlatzID&count=2&startIndex=0&select=PlatzID,Kurzbezeichnung");
         erste.Headers.Accept.Select(a => a.MediaType).Should().Equal("application/json");
         erste.Headers.Authorization!.Scheme.Should().Be("Basic");
         e.Zusammenfassung.Should().Contain("LagerplaetzeInfo").And.Contain("3 Seite(n)").And.Contain("6 Zeile(n)");
@@ -279,7 +279,7 @@ public class SageSdataPagingTests
     [Fact]
     public void Specific_Vertrag_ImPfad()
     {
-        SageSdataReadClient.BuildQueryUrl(Ziel, SageSdataReadClient.VertragResourcesSpecific, "PpsRessourcenListenInfo", null, null, "Position", 500, 1)
-            .Should().Be("https://sagetest01.ake.at:5493/sdata/ol/CommonWawiServicesResourcesSpecific/ake_TEST2026;1/PpsRessourcenListenInfo?format=json&orderBy=Position&count=500&startIndex=1");
+        SageSdataReadClient.BuildQueryUrl(Ziel, SageSdataReadClient.VertragResourcesSpecific, "PpsRessourcenListenInfo", null, null, "Position", 500, 0)
+            .Should().Be("https://sagetest01.ake.at:5493/sdata/ol/CommonWawiServicesResourcesSpecific/ake_TEST2026;1/PpsRessourcenListenInfo?format=json&orderBy=Position&count=500&startIndex=0");
     }
 }

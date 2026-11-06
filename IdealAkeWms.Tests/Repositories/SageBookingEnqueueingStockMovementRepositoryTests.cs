@@ -186,7 +186,9 @@ public class SageBookingEnqueueingStockMovementRepositoryTests
         var wmsSage = Umbuchung(artId, wms, sageId);
         var wmsWms = Umbuchung(artId, wms, wms);
         var korrektur = Movement(artId, sageId, MovementType.SageEinbuchung);
-        ctx.StockMovements.AddRange(ein, sageSage, sageWms, wmsSage, wmsWms, korrektur);
+        var mitFa = Umbuchung(artId, sageId, sage2);
+        mitFa.ProductionOrder = "FA-4711"; // QA B2: Kommissionier-Transfer mit FA-Bezug nie (Spec F9)
+        ctx.StockMovements.AddRange(ein, sageSage, sageWms, wmsSage, wmsWms, korrektur, mitFa);
         await ctx.SaveChangesAsync();
         var queue = new SageBookingQueueRepository(ctx);
 

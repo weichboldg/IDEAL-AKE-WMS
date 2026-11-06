@@ -88,6 +88,15 @@ public class SageBookingEnqueueDecisionTests
     }
 
     [Fact]
+    public void ShouldEnqueue_UmbuchungMitFaBezug_Nie_EinAusUnberuehrt()
+    {
+        // QA B2 / Spec F9: Entnahme mit FA-Bezug gehoert ins Rueckmelde-Epic.
+        SageBookingEnqueueDecision.ShouldEnqueue(MovementType.Umbuchung, true, true, true, true, hatFaBezug: true).Should().BeFalse();
+        SageBookingEnqueueDecision.ShouldEnqueue(MovementType.Ausbuchung, true, false, true, false, hatFaBezug: true).Should().BeTrue();
+        SageBookingEnqueueDecision.ShouldEnqueue(MovementType.Einbuchung, true, false, true, false, hatFaBezug: true).Should().BeTrue();
+    }
+
+    [Fact]
     public void ShouldEnqueue_Umbuchung_SchalterAus_Nie()
     {
         SageBookingEnqueueDecision.ShouldEnqueue(MovementType.Umbuchung, globalToggleAktiv: true, umbuchungAktiv: false, true, true)

@@ -176,7 +176,7 @@ public sealed class SageSdataReadClient : ISageSdataReadClient
 
         var uhr = Stopwatch.StartNew();
         var zeilen = new List<T>();
-        int seiten = 0, startIndex = 1; // SData: startIndex ist 1-basiert
+        int seiten = 0, startIndex = 0; // Sage-SData zaehlt startIndex ab 0 (am AKE-Test gemessen: startIndex=1 ueberspringt die erste Zeile)
         int? gesamt = null;
         while (true)
         {

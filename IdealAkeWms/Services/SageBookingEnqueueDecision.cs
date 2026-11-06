@@ -59,10 +59,17 @@ public static class SageBookingEnqueueDecision
     /// <param name="umbuchungAktiv">ServiceSetting <see cref="UmbuchungToggleKey"/>.</param>
     /// <param name="locationSageBuchungErlaubt">Flag <c>SageBuchungErlaubt</c> des Lagerplatzes (<c>StorageLocation</c>, bei Umbuchung das Ziel).</param>
     /// <param name="sourceSageBuchungErlaubt">Flag des Herkunftsplatzes (<c>SourceStorageLocation</c>, nur Umbuchung; fehlt = false).</param>
+    /// <param name="hatFaBezug">Buchung traegt einen FA (<c>StockMovement.ProductionOrder</c>). Umbuchungen mit FA-Bezug
+    /// gehen NICHT an Sage (Spec F9: Entnahme mit FA-Bezug = Material-Rueckmeldung im Rueckmelde-Epic). Ein-/Ausbuchung unberuehrt.</param>
     public static bool ShouldEnqueue(MovementType type, bool globalToggleAktiv, bool umbuchungAktiv,
-        bool locationSageBuchungErlaubt, bool sourceSageBuchungErlaubt)
+        bool locationSageBuchungErlaubt, bool sourceSageBuchungErlaubt, bool hatFaBezug = false)
         => globalToggleAktiv && IsBookableType(type, umbuchungAktiv)
+           && !IstUmbuchungMitFaBezug(type, hatFaBezug)
            && Buchungsart(type, locationSageBuchungErlaubt, sourceSageBuchungErlaubt) is not null;
+
+    /// <summary>Umbuchung mit FA-Bezug (z. B. Kommissionier-Transfer) – nie an Sage (Spec F9).</summary>
+    public static bool IstUmbuchungMitFaBezug(MovementType type, bool hatFaBezug)
+        => type == MovementType.Umbuchung && hatFaBezug;
 
     /// <summary>Ein-/Ausbuchung (ohne Umbuchung) — Stand vor E7.</summary>
     public static bool ShouldEnqueue(MovementType type, bool globalToggleAktiv, bool locationSageBuchungErlaubt)

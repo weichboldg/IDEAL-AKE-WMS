@@ -10984,6 +10984,7 @@ unbekannter Wert, DI), `SageLagerbuchungPayloadBuilderTests` (drei Umbuchungs-Va
 | 106.9.l | Negativ Wert: `Sync:Quelle:LagerbuchungLookup = sdata` | Wirkt wie `View`; je Lookup eine Warnung „Unbekannter Wert 'sdata' für Sync:Quelle:LagerbuchungLookup …“ im Lauf „Sage-Quellenvergleich“. |
 | 106.9.m | Negativ Referenz: S2 „Sage-Buchung erlaubt“ an, aber Sage-Referenz leer; Umbuchung S1 → S2 | Queue-Eintrag geht auf „Fehler“ „Lagerplatz 'S2' hat keine Sage-Referenz …“; nichts an Sage gesendet. |
 | 106.9.n | Rückfall: `SageLagerbuchungUmbuchungAktiv = false` | Neue Umbuchungen werden nicht mehr eingereiht; bereits eingereihte offene Umbuchungen werden noch gesendet (Schalter wirkt beim Einreihen). |
+| 106.9.o | Negativ FA-Bezug: Kommissionierung „Umbuchen“ mit FA (Herkunft S1, Ziel S2) bzw. Umbuchung im Bewegungsformular mit FA-Feld | **Kein** Queue-Eintrag, auch nicht nach dem Nacherfassungs-Lauf (Spec F9: Entnahme mit FA-Bezug → Rückmelde-Epic). Ein-/Ausbuchungen mit FA unverändert wie bisher. |
 
 ### TS-106.10 — E8a: Kreditoren-Stamm, Pflege-Oberfläche, Dienstleister-Meldung
 

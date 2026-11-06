@@ -146,6 +146,9 @@ public class SageBookingQueueRepository : ISageBookingQueueRepository
                      && m.Timestamp >= since
                      && (m.StorageLocation.SageBuchungErlaubt
                          || (m.MovementType == MovementType.Umbuchung && m.SourceStorageLocation != null && m.SourceStorageLocation.SageBuchungErlaubt))
+                     // Umbuchung mit FA-Bezug nie (Spec F9, = SageBookingEnqueueDecision.IstUmbuchungMitFaBezug; Kommissionier-Transfers
+                     // laufen am Decorator vorbei und kommen nur hier an).
+                     && !(m.MovementType == MovementType.Umbuchung && m.ProductionOrder != null && m.ProductionOrder.Trim() != "")
                      && !_context.SageBookingQueueItems.Any(q => q.StockMovementId == m.Id))
             .OrderBy(m => m.Id)
             .Take(max)
