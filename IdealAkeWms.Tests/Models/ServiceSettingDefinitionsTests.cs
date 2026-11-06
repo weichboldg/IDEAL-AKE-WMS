@@ -131,6 +131,7 @@ public class ServiceSettingDefinitionsTests
     [InlineData("Sync:Quelle:FaStruktur")]
     [InlineData("Sync:Quelle:Arbeitsplaetze")]
     [InlineData("Sync:Quelle:LagerbuchungLookup")]
+    [InlineData("SageLagerbuchungUmbuchungAktiv")] // E7, Web-Decorator + SageBookingWorker
     [InlineData("Sync:ArtikelBenutzerfelder")]
     [InlineData("Sync:PpsMitarbeiterEnabled")]
     [InlineData("Sync:StillstandsgruendeEnabled")]

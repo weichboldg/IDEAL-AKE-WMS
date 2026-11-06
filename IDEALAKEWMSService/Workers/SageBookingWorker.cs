@@ -15,7 +15,7 @@ namespace IDEALAKEWMSService.Workers;
 /// Gesendet" schuetzt nur bei einer einzigen laufenden Queue-Verarbeitung).
 ///
 /// Ablauf je Tick (nur wenn ServiceSetting <c>SageLagerbuchungAktiv</c> = true):
-/// 0. Reconciliation-Sweep (B4): verpasste Ein-/Ausbuchungen nachtraeglich einreihen.
+/// 0. Reconciliation-Sweep (B4): verpasste Ein-/Ausbuchungen (und Umbuchungen, Schalter <c>SageLagerbuchungUmbuchungAktiv</c>) nachtraeglich einreihen.
 /// 1. Recovery haengender <c>Gesendet</c>-Eintraege (S3) ueber den Sage-Memo-Lookup (B2) — nie blind neu senden.
 /// 2. Offene Eintraege senden: Status VOR dem HTTP-Call auf Gesendet (AK10), dann bestaetigen/fehlern.
 /// 3. Bei zu vielen Fehlern je Lauf eine Fehlermail (Cap).
@@ -93,6 +93,8 @@ public class SageBookingWorker : BackgroundService
         var maxRetries = await ServiceSettings.GetIntSafeAsync(_configuration, "Sync:SageLagerbuchungMaxRetries", 5, ct);
         var maxErrors = await ServiceSettings.GetIntSafeAsync(_configuration, "Sync:SageLagerbuchungMaxErrorsPerRun", 50, ct);
         var stuckMinutes = await ServiceSettings.GetIntSafeAsync(_configuration, "Sync:SageLagerbuchungStuckMinutes", 10, ct);
+        // v1.73.0 E7: Umbuchungen nur mit eigenem Schalter (Default aus = Nacherfassung wie bisher nur Ein-/Ausbuchung).
+        var umbuchungAktiv = await ServiceSettings.GetBoolSafeAsync(_configuration, SageBookingEnqueueDecision.UmbuchungToggleKey, false, ct);
 
         var endpoint = new SageBookingEndpoint(
             BaseUrl: await ServiceSettings.GetValueSafeAsync(_configuration, "SData:BaseUrl", ct) ?? string.Empty,
@@ -110,7 +112,7 @@ public class SageBookingWorker : BackgroundService
         try
         {
             // 0. Reconciliation-Sweep (B4)
-            nacherfasst = await queue.EnqueueMissingAsync(DateTime.Now - ReconcileLookback, batchSize);
+            nacherfasst = await queue.EnqueueMissingAsync(DateTime.Now - ReconcileLookback, batchSize, umbuchungAktiv);
             if (nacherfasst > 0)
                 await run.LogInfoAsync($"{nacherfasst} Buchung(en) ohne Queue-Eintrag nachtraeglich eingereiht.", ct: ct);
 
@@ -208,6 +210,10 @@ public class SageBookingWorker : BackgroundService
                     fehler++;
                 }
             }
+
+            // Quelle des Memo-Lookups (Sync:Quelle:LagerbuchungLookup, v1.73.0 E7), nur wenn in diesem Lauf gesucht wurde.
+            if (lookup is IDEALAKEWMSService.Services.Sdata.SageQuelleWeiche { GenutzteQuelle: { } quelle })
+                await run.LogInfoAsync($"Quelle Lookup: {quelle}", ct: ct);
 
             // 3. Fehler-Cap -> Fehlermail
             if (fehler >= maxErrors && maxErrors > 0)

@@ -11,7 +11,8 @@ namespace IdealAkeWms.Data.Repositories;
 /// <see cref="AddAsync"/>. Fuer alle uebrigen Methoden ist er ein reiner Pass-through — bei
 /// deaktiviertem Toggle ist das Verhalten bit-identisch zum Ist-Zustand (S7).
 ///
-/// Nach dem Speichern einer manuellen Ein-/Ausbuchung wird — kumulativ aus globalem Toggle und
+/// Nach dem Speichern einer manuellen Ein-/Ausbuchung (bzw. Umbuchung, Schalter
+/// <c>SageLagerbuchungUmbuchungAktiv</c>, v1.73.0 E7) wird — kumulativ aus globalem Toggle und
 /// Lagerplatz-Flag — ein Sage-Queue-Eintrag angelegt. Ein Enqueue-Fehler wird gefangen und
 /// protokolliert, aber NIE geworfen (B4): die WMS-Buchung ist bereits committed und darf weder
 /// scheitern noch den Anwender zu einer Doppelbuchung verleiten. Verpasste Enqueues faengt der
@@ -41,8 +42,8 @@ public class SageBookingEnqueueingStockMovementRepository : StockMovementReposit
     {
         var saved = await base.AddAsync(entity);
 
-        // Verteidigung in der Tiefe: nur manuelle Ein-/Ausbuchung kommt ueberhaupt in Frage.
-        if (!SageBookingEnqueueDecision.IsBookableType(saved.MovementType))
+        // Verteidigung in der Tiefe: nur Ein-/Ausbuchung (und Umbuchung, falls freigeschaltet) kommt ueberhaupt in Frage.
+        if (!SageBookingEnqueueDecision.IsBookableType(saved.MovementType, umbuchungAktiv: true))
             return saved;
 
         try
@@ -51,10 +52,17 @@ public class SageBookingEnqueueingStockMovementRepository : StockMovementReposit
             if (!globalToggle)
                 return saved;
 
+            // Umbuchung (v1.73.0 E7): eigener Schalter, Default aus. Nur bei einer Umbuchung lesen (Ein-/Ausbuchung unveraendert).
+            var umbuchungAktiv = saved.MovementType == MovementType.Umbuchung
+                && ParseBool(await _serviceSettings.GetValueAsync(SageBookingEnqueueDecision.UmbuchungToggleKey));
+
             var location = await _context.Set<StorageLocation>().FindAsync(saved.StorageLocationId);
             var locationAllows = location?.SageBuchungErlaubt ?? false;
+            var sourceAllows = false;
+            if (umbuchungAktiv && saved.SourceStorageLocationId is int sourceId)
+                sourceAllows = (await _context.Set<StorageLocation>().FindAsync(sourceId))?.SageBuchungErlaubt ?? false;
 
-            if (SageBookingEnqueueDecision.ShouldEnqueue(saved, globalToggle, locationAllows))
+            if (SageBookingEnqueueDecision.ShouldEnqueue(saved.MovementType, globalToggle, umbuchungAktiv, locationAllows, sourceAllows))
                 await _queue.EnqueueAsync(saved);
         }
         catch (Exception ex)

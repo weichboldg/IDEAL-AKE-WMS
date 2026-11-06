@@ -83,6 +83,16 @@
                     <li>Mit <code>Sync:StillstandsgruendeEnabled</code> werden die Sage-Stillstandsbegründungen übernommen (noch ohne Anzeige,
                         Grundlage für spätere Stillstandsmeldungen); in Sage gelöschte werden gekennzeichnet, nicht gelöscht.</li>
                 </ul>
+                <h6>Sage-Lagerbuchungen: Umbuchungen und Prüfung über SData</h6>
+                <ul>
+                    <li>Neuer Schalter <code>SageLagerbuchungUmbuchungAktiv</code> (Gruppe &bdquo;Sage-Lagerbuchung&ldquo;, Standard aus): eingeschaltet
+                        werden auch <strong>Umbuchungen</strong> an Sage gemeldet &ndash; zwischen zwei Plätzen mit &bdquo;Sage-Buchung erlaubt&ldquo; als
+                        eine Sage-Umbuchung, von einem solchen Platz auf einen reinen WMS-Platz als Entnahme, umgekehrt als Zugang; zwischen zwei
+                        reinen WMS-Plätzen nichts. Sage-eigene Korrekturbuchungen werden weiterhin nie gemeldet.</li>
+                    <li><code>Sync:Quelle:LagerbuchungLookup</code> wirkt: Die Prüfung &bdquo;ist diese Buchung schon in Sage?&ldquo; vor einem erneuten
+                        Senden kann über die Sage-Schnittstelle laufen (<code>SData</code>) oder beide Wege vergleichen (<code>Vergleich</code>).
+                        Ist Sage nicht erreichbar, wird nie erneut gesendet. Der Lauf &bdquo;Sage-Lagerbuchung&ldquo; nennt die genutzte Quelle.</li>
+                </ul>
             </div>
         </div>
 

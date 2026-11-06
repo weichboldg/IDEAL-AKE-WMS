@@ -57,7 +57,10 @@
                     <dd>
                         Manuelle <strong>Ein- und Ausbuchungen</strong> koennen automatisch und zeitnah an
                         <strong>Sage</strong> gemeldet werden, damit Sage den echten Lagerbestand ohne manuellen
-                        Zwischenschritt kennt (Umbuchungen und Sage-eigene Korrekturbuchungen werden bewusst nicht gemeldet).
+                        Zwischenschritt kennt (Sage-eigene Korrekturbuchungen werden bewusst nie gemeldet). Seit v1.73.0 lassen sich mit dem
+                        zusaetzlichen Schalter <code>SageLagerbuchungUmbuchungAktiv</code> (Standard aus) auch <strong>Umbuchungen</strong> melden:
+                        zwischen zwei Sage-Plaetzen als Sage-Umbuchung, von einem Sage-Platz auf einen reinen WMS-Platz als Entnahme, umgekehrt als
+                        Zugang, zwischen zwei reinen WMS-Plaetzen nicht.
                         <ul class="mt-1 mb-1">
                             <li><strong>Zwei Schalter, beide noetig:</strong> ein globaler Schalter unter
                                 <em>Service-Einstellungen</em> (<code>SageLagerbuchungAktiv</code>) <em>und</em> je Lagerplatz

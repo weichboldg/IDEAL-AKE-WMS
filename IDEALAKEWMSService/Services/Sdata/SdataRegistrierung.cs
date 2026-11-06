@@ -94,4 +94,19 @@ public static class SdataRegistrierung
             sp.GetRequiredService<IdealAkeWms.Services.SyncLogger.ISyncLogger>()));
         return services;
     }
+
+    /// <summary>E7: <see cref="ISageBuchungLookupReader"/> = <see cref="BuchungLookupQuelleSwitch"/> (Memo-Lookup des SageBookingWorker,
+    /// Muster wie <see cref="AddLagerplatzQuelle"/>).</summary>
+    public static IServiceCollection AddBuchungLookupQuelle(this IServiceCollection services)
+    {
+        services.AddScoped<SageBuchungLookupReader>();
+        services.AddScoped<SdataBuchungLookupReader>();
+        services.AddScoped<ISageBuchungLookupReader>(sp => new BuchungLookupQuelleSwitch(
+            sp.GetRequiredService<SageBuchungLookupReader>(),
+            sp.GetRequiredService<SdataBuchungLookupReader>(),
+            sp.GetRequiredService<IConfiguration>(),
+            sp.GetRequiredService<ISyncErrorNotifier>(),
+            sp.GetRequiredService<IdealAkeWms.Services.SyncLogger.ISyncLogger>()));
+        return services;
+    }
 }

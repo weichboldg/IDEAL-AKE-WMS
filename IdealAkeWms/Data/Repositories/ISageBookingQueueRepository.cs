@@ -47,6 +47,8 @@ public interface ISageBookingQueueRepository
     /// <paramref name="since"/> nachtraeglich ein, die (z.B. wegen eines Enqueue-Fehlers) KEINEN
     /// Queue-Eintrag haben. Kurzes Rueckblickfenster, damit keine Buchungen aus einer Toggle-Aus-Phase
     /// nachtraeglich gesendet werden. Liefert die Anzahl neu eingereihter Eintraege.
+    /// <paramref name="umbuchungAktiv"/> (ServiceSetting <c>SageLagerbuchungUmbuchungAktiv</c>, v1.73.0 E7): Umbuchungen nach
+    /// derselben Regel wie der Web-Decorator (<see cref="IdealAkeWms.Services.SageBookingEnqueueDecision"/>) mit erfassen.
     /// </summary>
-    Task<int> EnqueueMissingAsync(DateTime since, int max);
+    Task<int> EnqueueMissingAsync(DateTime since, int max, bool umbuchungAktiv);
 }

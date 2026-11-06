@@ -73,12 +73,92 @@ public class SageLagerbuchungPayloadBuilderTests
     }
 
     [Theory]
-    [InlineData(MovementType.Umbuchung)]
     [InlineData(MovementType.SageEinbuchung)]
     [InlineData(MovementType.SageAusbuchung)]
     public void Build_NonBookableType_ThrowsPayloadException(MovementType type)
     {
         var act = () => SageLagerbuchungPayloadBuilder.Build(Movement(type));
         act.Should().Throw<SageBookingPayloadException>();
+    }
+
+    // ----- Umbuchung (v1.73.0 E7, Spec F9): Art nach den Platz-Flags -----
+
+    private static StorageLocation Platz(string code, bool sage, int? platzId) => new()
+    {
+        Code = code,
+        SageBuchungErlaubt = sage,
+        SageLagerkennung = platzId is null ? null : "LL",
+        SageLagerplatzId = platzId
+    };
+
+    private static StockMovement Umbuchung(StorageLocation? herkunft, StorageLocation ziel) => new()
+    {
+        Id = 9,
+        MovementType = MovementType.Umbuchung,
+        Quantity = 2m,
+        Article = new Article { ArticleNumber = "00722001" },
+        StorageLocation = ziel,
+        SourceStorageLocation = herkunft,
+        SourceStorageLocationId = herkunft is null ? null : 1
+    };
+
+    [Fact]
+    public void Build_Umbuchung_SageZuSage_Umbuchung_HerkunftUndZiel()
+    {
+        var payload = SageLagerbuchungPayloadBuilder.Build(Umbuchung(Platz("2864", true, 2864), Platz("11", true, 11)));
+
+        payload.Memo.Should().Be("IdealAkeWms Lagerbuchung SM#9#");
+        payload.Standardtext.Should().Be("Umbuchung Material");
+        var z = payload.Lagerbuchungen.Should().ContainSingle().Subject;
+        z.Lagerbewegungsart.Should().Be("Umbuchung");
+        (z.HerkunftLagerkennung, z.HerkunftLagerplatzId, z.ZielLagerkennung, z.ZielLagerplatzId).Should().Be(("LL", 2864, "LL", 11));
+        z.MengeLager.Should().Be(2m);
+    }
+
+    [Fact]
+    public void Build_Umbuchung_SageZuWmsOnly_EntnahmeAnHerkunft()
+    {
+        var z = SageLagerbuchungPayloadBuilder.Build(Umbuchung(Platz("2864", true, 2864), Platz("WMS1", false, null))).Lagerbuchungen.Single();
+
+        z.Lagerbewegungsart.Should().Be("Entnahme");
+        (z.HerkunftLagerkennung, z.HerkunftLagerplatzId, z.ZielLagerkennung, z.ZielLagerplatzId).Should().Be(("LL", 2864, "", 0));
+    }
+
+    [Fact]
+    public void Build_Umbuchung_WmsOnlyZuSage_ZugangAmZiel()
+    {
+        var z = SageLagerbuchungPayloadBuilder.Build(Umbuchung(Platz("WMS1", false, null), Platz("11", true, 11))).Lagerbuchungen.Single();
+
+        z.Lagerbewegungsart.Should().Be("Zugang");
+        (z.HerkunftLagerkennung, z.HerkunftLagerplatzId, z.ZielLagerkennung, z.ZielLagerplatzId).Should().Be(("", 0, "LL", 11));
+    }
+
+    [Fact]
+    public void Build_Umbuchung_OhneHerkunft_ZugangAmZiel()
+    {
+        SageLagerbuchungPayloadBuilder.Build(Umbuchung(null, Platz("11", true, 11))).Lagerbuchungen.Single().Lagerbewegungsart.Should().Be("Zugang");
+    }
+
+    [Fact]
+    public void Build_Umbuchung_WmsOnlyZuWmsOnly_Wirft()
+    {
+        var act = () => SageLagerbuchungPayloadBuilder.Build(Umbuchung(Platz("A", false, null), Platz("B", false, null)));
+        act.Should().Throw<SageBookingPayloadException>().WithMessage("*ohne 'Sage-Buchung erlaubt'*");
+    }
+
+    [Fact]
+    public void Build_Umbuchung_SagePlatzOhneReferenz_Wirft()
+    {
+        var act = () => SageLagerbuchungPayloadBuilder.Build(Umbuchung(Platz("2864", true, null), Platz("11", true, 11)));
+        act.Should().Throw<SageBookingPayloadException>().WithMessage("*keine Sage-Referenz*");
+    }
+
+    [Fact]
+    public void Build_Umbuchung_HerkunftNichtGeladen_Wirft()
+    {
+        var m = Umbuchung(null, Platz("11", true, 11));
+        m.SourceStorageLocationId = 5;
+        var act = () => SageLagerbuchungPayloadBuilder.Build(m);
+        act.Should().Throw<SageBookingPayloadException>().WithMessage("*nicht geladen*");
     }
 }

@@ -1,4 +1,5 @@
 using IdealAkeWms.Models;
+using IdealAkeWms.Services;
 using Microsoft.EntityFrameworkCore;
 
 namespace IdealAkeWms.Data.Repositories;
@@ -135,13 +136,16 @@ public class SageBookingQueueRepository : ISageBookingQueueRepository
         await _context.SaveChangesAsync();
     }
 
-    public async Task<int> EnqueueMissingAsync(DateTime since, int max)
+    public async Task<int> EnqueueMissingAsync(DateTime since, int max, bool umbuchungAktiv)
     {
-        // Ein-/Ausbuchungen auf Sage-freigegebenen Plaetzen ab 'since' ohne Queue-Eintrag.
+        // Buchbare Bewegungen (die eine Typliste aus SageBookingEnqueueDecision) ab 'since' ohne Queue-Eintrag, deren
+        // Platz Sage-freigegeben ist — bei einer Umbuchung reicht Ziel ODER Herkunft (Spec F9, = SageBookingEnqueueDecision.Buchungsart).
+        var typen = SageBookingEnqueueDecision.BookableTypes(umbuchungAktiv);
         var candidates = await _context.StockMovements
-            .Where(m => (m.MovementType == MovementType.Einbuchung || m.MovementType == MovementType.Ausbuchung)
+            .Where(m => typen.Contains(m.MovementType)
                      && m.Timestamp >= since
-                     && m.StorageLocation.SageBuchungErlaubt
+                     && (m.StorageLocation.SageBuchungErlaubt
+                         || (m.MovementType == MovementType.Umbuchung && m.SourceStorageLocation != null && m.SourceStorageLocation.SageBuchungErlaubt))
                      && !_context.SageBookingQueueItems.Any(q => q.StockMovementId == m.Id))
             .OrderBy(m => m.Id)
             .Take(max)

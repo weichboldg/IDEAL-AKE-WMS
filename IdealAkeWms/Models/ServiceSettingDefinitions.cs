@@ -51,6 +51,7 @@ public static class ServiceSettingDefinitions
 
         // ----- Sage-Lagerbuchung (ausgehend: WMS -> Sage via SData) -----
         new("SageLagerbuchungAktiv",                 ServiceSettingType.Bool, "false", "Sage-Lagerbuchung", "Globaler Schalter: manuelle Ein-/Ausbuchungen an Sage melden (kumulativ zum Lagerplatz-Flag 'Sage-Buchung erlaubt')"),
+        new("SageLagerbuchungUmbuchungAktiv",        ServiceSettingType.Bool, "false", "Sage-Lagerbuchung", "WMS-Umbuchungen an Sage melden (v1.73.0, kumulativ zu SageLagerbuchungAktiv): Sage-Platz -> Sage-Platz als Umbuchung, Sage -> WMS-only als Entnahme, WMS-only -> Sage als Zugang, WMS-only -> WMS-only nie. Default aus = nur Ein-/Ausbuchungen wie bisher."),
         new("SData:BaseUrl",                         ServiceSettingType.String, "",    "Sage-Lagerbuchung", "Host+Port der Sage-SData-API (z.B. https://sagetest01.ake.at:5493). Ein angehaengtes /sdata ist erlaubt (wird nicht verdoppelt). Ziel-URL = {BaseUrl}/sdata/{Application}/{ServiceContract}/{Dataset}/$service/LagerbuchungService"),
         new("SData:Application",                     ServiceSettingType.String, "ol",  "Sage-Lagerbuchung", "SData-Application-Segment (per SData-Discovery ermittelt, i.d.R. konstant 'ol')"),
         new("SData:ServiceContract",                 ServiceSettingType.String, "CommonWawiServices", "Sage-Lagerbuchung", "SData-ServiceContract-Segment (i.d.R. konstant 'CommonWawiServices')"),

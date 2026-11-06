@@ -632,7 +632,10 @@ C:\Services\IDEALAKEWMSService\
 > `SData:BaseUrl` (Host+Port ohne Pfad, z.B. `https://sagetest01.ake.at:5493`), `SData:Application`
 > (Default `ol`), `SData:ServiceContract` (Default `CommonWawiServices`), `SData:Dataset` (Mandant,
 > z.B. `ake_TEST2026;1`), sowie Intervall/Batch/Retry/Cap-Keys. Zusätzlich je Lagerplatz das Feld
-> „Sage-Buchung erlaubt". Ohne diese Aktivierung wird **nichts** an Sage gemeldet. Ziel-URL =
+> „Sage-Buchung erlaubt". Ohne diese Aktivierung wird **nichts** an Sage gemeldet. **Umbuchungen** (v1.73.0) zusätzlich nur mit
+> `SageLagerbuchungUmbuchungAktiv = true` (Default `false`): Sage-Platz → Sage-Platz als eine Sage-Umbuchung (Herkunft + Ziel), Sage-Platz →
+> WMS-only als Entnahme, WMS-only → Sage-Platz als Zugang, WMS-only → WMS-only nie; gilt auch für den Nacherfassungs-Lauf (15 min Rückblick,
+> fängt z. B. die Kommissionierungs-Umbuchung ab, die am Decorator vorbei schreibt). Ziel-URL =
 > `{BaseUrl}/sdata/{Application}/{ServiceContract}/{Dataset}/$service/LagerbuchungService`; das
 > Semikolon im Dataset und das `$` der Resource bleiben **literal** (nicht URL-kodieren).
 >
@@ -696,6 +699,11 @@ C:\Services\IDEALAKEWMSService\
 > **keine** BDE-Mitarbeiter an und verknüpft nichts; die Zuordnung macht die BDE-Schichtleitung unter BDE-Stammdaten › Sage-Zuordnung
 > (Vorschlag nur bei exakt gleicher Personalnummer). Warnungen: aktive BDE-Mitarbeiter ohne Sage-Nummer, zugeordnete Nummern, die es in
 > Sage nicht mehr gibt. Läufe „PPS-Mitarbeiter-Abgleich (Sage)“ / „Stillstandsgründe-Abgleich (Sage)“; SData-Fehler: Lauf Fehler + Fehlermail.
+> **`Sync:Quelle:LagerbuchungLookup`** (E7): Memo-Lookup des `SageBookingWorker` vor einem erneuten Senden (Recovery „Gesendet“ bzw.
+> Requeue). `SData` sucht in `LagerplatzbuchungenInfo` mit `where=Memo like '%SM#<id>#%'` (`count=1`, `orderBy=BuchungsID`); jeder Fehler
+> wirft, der Worker sendet dann **nicht** neu (Doppelbuchungs-Schutz). `Vergleich`: Ergebnis aus der View, Abweichung bzw. SData-Fehler
+> im Lauf „Sage-Quellenvergleich“ (+ Mail bei Fehler). Der Lauf „Sage-Lagerbuchung“ nennt die genutzte Quelle („Quelle Lookup: …“).
+> Vor `SData` an einem Standort den Lookup einmal prüfen (TS-106.9.i): belegt ist am AKE-Test nur ein Präfix-`like`. Keine Migration.
 > Die übrigen Schalter wirken mit den folgenden Etappen.
 
 #### Schritt 3 — Windows Service registrieren

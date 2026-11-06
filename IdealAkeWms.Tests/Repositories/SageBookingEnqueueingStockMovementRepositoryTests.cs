@@ -119,4 +119,81 @@ public class SageBookingEnqueueingStockMovementRepositoryTests
         second.Id.Should().Be(first.Id);
         (await ctx.SageBookingQueueItems.CountAsync()).Should().Be(1);
     }
+
+    // ----- Umbuchung (v1.73.0 E7, Spec F9): Decorator + Nacherfassungs-Lauf nach derselben Regel -----
+
+    private static int Platz(IdealAkeWms.Data.ApplicationDbContext ctx, string code, bool sage)
+    {
+        var loc = new StorageLocation
+        {
+            Code = code, Source = StorageLocationSource.Sage, SageBuchungErlaubt = sage,
+            SageLagerkennung = sage ? "LL" : null, SageLagerplatzId = sage ? 100 + ctx.StorageLocations.Count() : null,
+            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
+        };
+        ctx.StorageLocations.Add(loc);
+        ctx.SaveChanges();
+        return loc.Id;
+    }
+
+    private static StockMovement Umbuchung(int articleId, int? herkunft, int ziel)
+    {
+        var m = Movement(articleId, ziel, MovementType.Umbuchung);
+        m.SourceStorageLocationId = herkunft;
+        return m;
+    }
+
+    [Theory]
+    [InlineData(true, true, 1)]   // Sage -> Sage
+    [InlineData(true, false, 1)]  // Sage -> WMS-only (Entnahme)
+    [InlineData(false, true, 1)]  // WMS-only -> Sage (Zugang)
+    [InlineData(false, false, 0)] // WMS-only -> WMS-only
+    public async Task AddAsync_Umbuchung_SchalterAn_NachPlatzFlags(bool herkunftSage, bool zielSage, int erwartet)
+    {
+        var (repo, ctx, artId, _) = Build(toggleOn: true, locationAllows: true);
+        ctx.ServiceSettings.Add(new ServiceSetting { Key = "SageLagerbuchungUmbuchungAktiv", Value = "true" });
+        ctx.SaveChanges();
+        var von = Platz(ctx, "VON", herkunftSage);
+        var nach = Platz(ctx, "NACH", zielSage);
+
+        await repo.AddAsync(Umbuchung(artId, von, nach));
+
+        (await ctx.SageBookingQueueItems.CountAsync()).Should().Be(erwartet);
+    }
+
+    [Theory]
+    [InlineData(null)]     // Key fehlt (Stand nach Deploy vor dem Seeding)
+    [InlineData("false")]  // Default
+    public async Task AddAsync_Umbuchung_SchalterAus_KeinEintrag(string? wert)
+    {
+        var (repo, ctx, artId, locId) = Build(toggleOn: true, locationAllows: true);
+        if (wert is not null) ctx.ServiceSettings.Add(new ServiceSetting { Key = "SageLagerbuchungUmbuchungAktiv", Value = wert });
+        ctx.SaveChanges();
+
+        await repo.AddAsync(Umbuchung(artId, Platz(ctx, "VON", true), locId));
+
+        (await ctx.SageBookingQueueItems.CountAsync()).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task EnqueueMissing_UmbuchungNurMitSchalter_NachPlatzFlags_NieSageKorrektur()
+    {
+        var (_, ctx, artId, sageId) = Build(toggleOn: true, locationAllows: true);
+        var wms = Platz(ctx, "WMS", false);
+        var sage2 = Platz(ctx, "SAGE2", true);
+        var ein = Movement(artId, sageId, MovementType.Einbuchung);
+        var sageSage = Umbuchung(artId, sageId, sage2);
+        var sageWms = Umbuchung(artId, sageId, wms);
+        var wmsSage = Umbuchung(artId, wms, sageId);
+        var wmsWms = Umbuchung(artId, wms, wms);
+        var korrektur = Movement(artId, sageId, MovementType.SageEinbuchung);
+        ctx.StockMovements.AddRange(ein, sageSage, sageWms, wmsSage, wmsWms, korrektur);
+        await ctx.SaveChangesAsync();
+        var queue = new SageBookingQueueRepository(ctx);
+
+        (await queue.EnqueueMissingAsync(DateTime.Now.AddMinutes(-15), 50, umbuchungAktiv: false)).Should().Be(1, "Schalter aus = nur Ein-/Ausbuchung wie bisher");
+        (await queue.EnqueueMissingAsync(DateTime.Now.AddMinutes(-15), 50, umbuchungAktiv: true)).Should().Be(3);
+
+        (await ctx.SageBookingQueueItems.Select(q => q.StockMovementId).ToListAsync())
+            .Should().BeEquivalentTo(new[] { ein.Id, sageSage.Id, sageWms.Id, wmsSage.Id });
+    }
 }

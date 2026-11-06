@@ -81,7 +81,8 @@ try
     builder.Services.AddScoped<IStockMovementRepository, StockMovementRepository>();
     builder.Services.AddScoped<IProductionOrderPickingStatusRepository, ProductionOrderPickingStatusRepository>();
     builder.Services.AddScoped<ISageBookingQueueRepository, SageBookingQueueRepository>();
-    builder.Services.AddScoped<ISageBuchungLookupReader, SageBuchungLookupReader>();
+    // Lagerbuchungs-Lookup (Memo): Quellen-Weiche (Sync:Quelle:LagerbuchungLookup, Default View = SQL-Reader unveraendert), v1.73.0 E7.
+    IDEALAKEWMSService.Services.Sdata.SdataRegistrierung.AddBuchungLookupQuelle(builder.Services);
     builder.Services.AddScoped<ICoatingDetectionService, CoatingDetectionService>();
     builder.Services.AddScoped<IFaWorkStepDetectionService, FaWorkStepDetectionService>();
     builder.Services.AddScoped<IWorkOperationStructureDetectionService, WorkOperationStructureDetectionService>();

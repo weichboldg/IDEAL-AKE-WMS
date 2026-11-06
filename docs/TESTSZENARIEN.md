@@ -10952,6 +10952,39 @@ Empty-Guard, Dubletten, DryRun, SData-Fehler, Stillstand anlegen/aktualisieren/k
 | 106.8.m | Negativ Ausfall: `SData:BaseUrl` auf nicht erreichbaren Host bzw. falsches Passwort, einen Zyklus mit beiden Schaltern an | Beide Läufe enden mit Fehler „Sage (SData) nicht lesbar: …“ + je eine Fehlermail („PPS-Mitarbeiter-Abgleich (Sage)“, „Stillstandsgruende-Abgleich (Sage)“); Tabellen unverändert; andere Bereiche laufen weiter. |
 | 106.8.n | Negativ Feldnamen (P-S1): Liefert Sage HTTP 500 für ein Feld des select (`Nummer,Matchcode,Vorname,Nachname,Gruppe,Kartennummer,ExterneNummer,Aktiv,Schichtplannummer,Kostenstelle,UserName` bzw. `Stillstandnummer,Bezeichnung`) | Wie 106.8.m mit der Sage-Meldung (nie „0 Zeilen“); Befund an die Entwicklung. |
 
+### TS-106.9 — E7: Lagerbuchungs-Lookup über SData und Umbuchung in der Buchungs-Queue
+
+**Standort:** beide (am AKE-Test prüfbar: `sagetest01`, Dataset `ake_TEST2026;1`). **Migration:** keine.
+**Vorbedingungen:** SData-Endpunkt, Zugangsdaten, TLS-Schalter, Fehlermail wie TS-106.1; Sage-Lagerbuchung eingerichtet wie TS-56
+(`SageLagerbuchungAktiv = true`, `SageBookingWorker` läuft); Lagerplätze: **S1** und **S2** mit „Sage-Buchung erlaubt“ und Sage-Referenz
+(`SageLagerkennung`/`SageLagerplatzId`, z. B. LL/2864 und HR/11), **W1** und **W2** WMS-only (ohne „Sage-Buchung erlaubt“); Artikel 00722001 mit
+Bestand auf S1 und W1. Vorher notieren: `SELECT MAX(Id) FROM SageBookingQueueItems`, Bestand 00722001 je Platz in Sage.
+**Regeln:** Neue Schalter `SageLagerbuchungUmbuchungAktiv` (Bool, Default `false`, Kategorie „Sage-Lagerbuchung“) und – schon seit E0 im Katalog,
+jetzt wirksam – `Sync:Quelle:LagerbuchungLookup` (`View` Default | `SData` | `Vergleich`). Umbuchung (Spec F9): S → S = **eine** Sage-Umbuchung
+(Herkunft + Ziel, in Sage Bewegungsart IU), S → W = Entnahme an S, W → S = Zugang an S, W → W = nichts. Sage-Korrekturbuchungen werden nie
+eingereiht. Ein Fehler des Lookups wirft immer (nie „nicht gebucht“); der Worker sendet dann **nicht** neu. Automatisiert:
+`BuchungLookupSdataTests` (Abfrage/Mapping, Fehler wirft, ohne Konfiguration wirft, URL-Kodierung `#`/`%`, Weiche View/SData/Vergleich/
+unbekannter Wert, DI), `SageLagerbuchungPayloadBuilderTests` (drei Umbuchungs-Varianten, W → W wirft, fehlende Referenz/Herkunft wirft),
+`SageBookingEnqueueDecisionTests` (Typliste, Matrix, Schalter aus, Sage-Korrektur nie), `SageBookingEnqueueingStockMovementRepositoryTests`
+(Decorator-Matrix, Schalter fehlt/aus, Nacherfassungs-Lauf mit/ohne Schalter). **Achtung:** Schritte c–f buchen echt in Sage – nur am Testsystem.
+
+| Nr | Schritte | Erwartung |
+|---|---|---|
+| 106.9.a | Nach Deploy `/ServiceSettings` öffnen | Kategorie „Sage-Lagerbuchung“ enthält `SageLagerbuchungUmbuchungAktiv = false`; `Sync:Quelle:LagerbuchungLookup = View`. |
+| 106.9.b | Default (Schalter aus): Lager › Umbuchung 1 Stück S1 → S2; Lagerplatz umbuchen W1 → S1; Kommissionierung „Umbuchen“ eines FA (TransferPicked) | WMS-Buchungen gespeichert wie bisher; **kein** neuer Eintrag in `/SageBookingQueue` (auch nicht nach 1–2 Worker-Takten über den Nacherfassungs-Lauf); Lauf „Sage-Lagerbuchung“ mit denselben Count-Keys wie vorher. Eine Einbuchung auf S1 wird weiter eingereiht und bestätigt. |
+| 106.9.c | `SageLagerbuchungUmbuchungAktiv = true`; Umbuchung 1 Stück S1 → S2 | Genau **ein** Queue-Eintrag (Bewegung = die Umbuchung), nach einem Takt „Bestätigt“. In Sage: `LagerplatzbuchungenInfo` mit Bewegungsart IU, Herkunft S1 → Ziel S2, Memo `IdealAkeWms Lagerbuchung SM#<id>#`; Bestand S1 −1, S2 +1. |
+| 106.9.d | Umbuchung 1 Stück S1 → W1 | Ein Queue-Eintrag; Sage-Buchung als **Entnahme** an S1 (Bestand S1 −1), Memo mit `SM#<id>#`. |
+| 106.9.e | Umbuchung 1 Stück W1 → S1 | Ein Queue-Eintrag; Sage-Buchung als **Zugang** an S1 (Bestand S1 +1). |
+| 106.9.f | Umbuchung W1 → W2 | Kein Queue-Eintrag, auch nicht nach dem Nacherfassungs-Lauf. |
+| 106.9.g | Nacherfassung: Kommissionierung „Umbuchen“ mit Herkunft S1 (schreibt am Decorator vorbei) | Innerhalb eines Worker-Takts Info „n Buchung(en) ohne Queue-Eintrag nachtraeglich eingereiht“, Count `nacherfasst`; Art nach derselben Regel wie c–f. |
+| 106.9.h | Lookup View (Default): einen bestätigten Eintrag aus c per SQL auf `Status = Gesendet` (1) und `SentAt` älter als `Sync:SageLagerbuchungStuckMinutes` setzen | Nächster Takt: Eintrag „Bestätigt“ mit „Recovery: Buchung in Sage bereits vorhanden (Memo-Lookup).“; im Lauf Info „Quelle Lookup: View“; **keine** zweite Sage-Buchung. |
+| 106.9.i | Wie h, aber `Sync:Quelle:LagerbuchungLookup = SData` | Wie h, Info „Quelle Lookup: SData“. **Wichtig (UAT, ungeprüft):** Die Memo-Suche läuft über `where=Memo like '%SM#<id>#%'` (in der URL `%25SM%23<id>%23%25`); am AKE-Test belegt war nur `Memo like 'IdealAkeWms%'`. Liefert der Lookup hier „nicht vorhanden“ (Eintrag geht auf „Offen“ und würde neu gesendet), sofort `View` zurückstellen und den Befund melden. Vor dem Schritt im Browser prüfen: `…/CommonWawiServicesResources/ake_TEST2026;1/LagerplatzbuchungenInfo?format=json&orderBy=BuchungsID&count=1&select=BuchungsID&where=Memo%20like%20'%25SM%23<id>%23%25'` liefert eine Zeile. |
+| 106.9.j | `Vergleich`, Vorgehen wie h | Ergebnis aus der View (bestätigt); Lauf „Sage-Quellenvergleich“ (Referenz `LagerbuchungLookup`) mit „0 abweichende Schlüssel“ (bei Abweichung: Beispiel `[SM#<id>#] (fehlt in SData)`). |
+| 106.9.k | Negativ Ausfall: `SData`, `SData:BaseUrl` auf nicht erreichbaren Host, Vorgehen wie h | Eintrag bleibt „Gesendet“, Warnung „Sage-Lookup fuer haengenden Eintrag #… fehlgeschlagen: …“, Count `uebersprungen = 1`; **nicht** neu gesendet, keine Sage-Buchung. Ein „Offen“-Eintrag mit `SentAt` (Requeue) geht stattdessen auf „Fehler“ („Sage-Lookup vor Requeue fehlgeschlagen, kein erneutes Senden“). Mit `Vergleich` statt `SData`: Recovery aus der View wie h, zusätzlich Lauf „Sage-Quellenvergleich“ mit Fehler + Fehlermail „Sage-Quellenvergleich LagerbuchungLookup“. |
+| 106.9.l | Negativ Wert: `Sync:Quelle:LagerbuchungLookup = sdata` | Wirkt wie `View`; je Lookup eine Warnung „Unbekannter Wert 'sdata' für Sync:Quelle:LagerbuchungLookup …“ im Lauf „Sage-Quellenvergleich“. |
+| 106.9.m | Negativ Referenz: S2 „Sage-Buchung erlaubt“ an, aber Sage-Referenz leer; Umbuchung S1 → S2 | Queue-Eintrag geht auf „Fehler“ „Lagerplatz 'S2' hat keine Sage-Referenz …“; nichts an Sage gesendet. |
+| 106.9.n | Rückfall: `SageLagerbuchungUmbuchungAktiv = false` | Neue Umbuchungen werden nicht mehr eingereiht; bereits eingereihte offene Umbuchungen werden noch gesendet (Schalter wirkt beim Einreihen). |
+
 ---
 
 *Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) + Teil 6 (Standorteinstellungen, v1.34.0) + BOM-Guard hierarchisch (2026-08-18, abgelöst) + FA-Liste-Hierarchie (v1.35.0) + BOM-Bridge (v1.36.0) + Materialisierung fachliche Felder K1/K2 (v1.37.0) + Skopierung der Tabellen-Selektoren (TS-72) + FA-Liste ausgebaut: Matchcode, Kopfdaten je Zeile, HauptFA-Zeile, Freigabe-Kaskade (v1.38.0, TS-73) + PDF-Erzeugung für FaHierarchy-Druckdokumente (v1.39.0, TS-74) + Matchcode im Artikelstamm (v1.40.0, TS-75) + FA-Arbeitsgang-Erkennung aus der Struktur (v1.41.0, TS-76, ersetzt durch TS-77) + Arbeitsgänge (WorkOperation) aus der Struktur + Werkbank-Anlage aus Sage (v1.44.0, TS-77) + Arbeitsgänge je (Sub-)FA im FA-Struktur-Modal (v1.45.0, TS-78) + Kommissionierung nur am HauptFA
