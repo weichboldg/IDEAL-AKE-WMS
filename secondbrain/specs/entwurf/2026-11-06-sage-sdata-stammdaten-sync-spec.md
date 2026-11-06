@@ -2,11 +2,11 @@
 type: spec
 title: Sage-Abgleiche auf SData umstellen (View als Notfall-Rückfall), Felder erweitern, Rückgabe WMS→Sage vorbereiten
 slug: 2026-11-06-sage-sdata-stammdaten-sync-spec
-status: Entwurf
+status: Testbereit
 created: 2026-11-06
 updated: 2026-11-06
 source_backlog: "[[2026-10-06-kreditoren-stammdaten]]"
-task: ""
+task: "[[2026-11-06-sage-sdata-stammdaten-sync-umsetzung]]"
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
 branch: "feature/2026-08-07-ideal-teile-1-5"
 standort: beide
@@ -727,21 +727,21 @@ ganze Epic in **beiden** `AppVersion.cs`; Changelog-Einträge je Etappe sammeln.
 
 | # | Etappe | Migration / SQL | Status | Commit |
 |---|--------|-----------------|--------|--------|
-| 0 | `ISageSdataReadClient` um Paging + Vertrag erweitern, Service-HttpClient, Quellen-Weichen-Muster (`…QuelleSwitch`), `SdataVergleich`, Protokoll `SageQuellenvergleich`, Settings-Katalog – kein Bereich umgestellt | – | offen | |
-| 1 | Lagerorte + Lagerplätze (A1): SData-Reader `ISageLagerplatzReader`, `StorageAreas`, neue Spalten, Lagerort-Spalte in der Liste | `SQL/98` | offen | |
-| 2 | Lagerbestände (A2): SData-Reader `ISageBestandReader`, Chargen/Serien nur zählen | – | offen | |
-| 3a | Artikel (A3): `ISageArtikelReader` (SQL herausgezogen + SData), Satellit `ArticleSageDetails`, Anzeige in Artikeldetails | `SQL/99` | offen | |
-| 3b | Artikel-Benutzerfelder als Text-Merkmal (`TextValue`, Definition-Anlage, Sperre in der Merkmal-Pflege) | `SQL/100` | offen | |
-| 4a | FA-Struktur (A5): `ISageFaStrukturReader` (SQL herausgezogen + SData-Projektion), Vergleichsmodus Kanten | – | offen | |
-| 4b | `ProductionOrderPositions` + Lesefilter eingelastet/aktiv | `SQL/101` | offen | |
-| 5 | Stückliste BOM-Cache (A6) – **nur falls G13 sie im Epic lässt** (AKE-only) | `SQL/102` (reserviert) | offen | |
-| 6a | Arbeitsplätze (A7) + Kürzel (A8 laut G12): SData-Reader `ISageArbeitsplatzReader`, neue Spalten | `SQL/103` | offen | |
-| 6b | PPS-Mitarbeiter (A11) + Stillstandsgründe (A12): Cache, Zuordnungsliste in der BDE-Personalpflege | `SQL/104` | offen | |
-| 7 | Lagerbuchungs-Lookup über SData (A10), Umbuchung in der Queue | – | offen | |
-| 8a | Kreditoren: Tabelle, Pflege-Oberfläche, Dienstleister-Meldekarte (Umfang Kreditoren-Spec + Matchcode/Beschichter) | `SQL/105` | offen | |
-| 8b | Debitoren: Tabelle, Pflege-Oberfläche | `SQL/106` | offen | |
-| 8c | Lese-Abgleich Kontokorrent → Kreditoren/Debitoren + `ArticleSuppliers` (A13) – erst nach P-K1 | `SQL/107` | offen | |
-| 9 | Outbox + Übergabe-Status für Lagerplatz/BDE-Mitarbeiter (F11), Liste „Offene Übergaben“ | `SQL/108` | offen | |
+| 0 | `ISageSdataReadClient` um Paging + Vertrag erweitern, Service-HttpClient, Quellen-Weichen-Muster (`…QuelleSwitch`), `SdataVergleich`, Protokoll `SageQuellenvergleich`, Settings-Katalog – kein Bereich umgestellt | – | erledigt | `7fdcf656` |
+| 1 | Lagerorte + Lagerplätze (A1): SData-Reader `ISageLagerplatzReader`, `StorageAreas`, neue Spalten, Lagerort-Spalte in der Liste | `SQL/98` | erledigt | `a29454f2` |
+| 2 | Lagerbestände (A2): SData-Reader `ISageBestandReader`, Chargen/Serien nur zählen | – | erledigt | `4cb02950` |
+| 3a | Artikel (A3): `ISageArtikelReader` (SQL herausgezogen + SData), Satellit `ArticleSageDetails`, Anzeige in Artikeldetails | `SQL/99` | erledigt | `0dc6be7f` |
+| 3b | Artikel-Benutzerfelder als Text-Merkmal (`TextValue`, Definition-Anlage, Sperre in der Merkmal-Pflege) | `SQL/100` | erledigt | `a8406374` |
+| 4a | FA-Struktur (A5): `ISageFaStrukturReader` (SQL herausgezogen + SData-Projektion), Vergleichsmodus Kanten | – | erledigt | `de9fe12d` |
+| 4b | `ProductionOrderPositions` + Lesefilter eingelastet/aktiv | `SQL/101` | erledigt | `1da971b7` |
+| 5 | Stückliste BOM-Cache (A6) – **nur falls G13 sie im Epic lässt** (AKE-only) | `SQL/102` (reserviert) | zurückgestellt (G13) | – |
+| 6a | Arbeitsplätze (A7) + Kürzel (A8 laut G12): SData-Reader `ISageArbeitsplatzReader`, neue Spalten | `SQL/102` (102 frei durch G13) | erledigt | `264929ee` |
+| 6b | PPS-Mitarbeiter (A11) + Stillstandsgründe (A12): Cache, Zuordnungsliste in der BDE-Personalpflege | `SQL/103` | erledigt | `debbf741` |
+| 7 | Lagerbuchungs-Lookup über SData (A10), Umbuchung in der Queue | – | erledigt | `90a3555f` |
+| 8a | Kreditoren: Tabelle, Pflege-Oberfläche, Dienstleister-Meldekarte (Umfang Kreditoren-Spec + Matchcode/Beschichter) | `SQL/104` | erledigt | `276a9077` |
+| 8b | Debitoren: Tabelle, Pflege-Oberfläche | `SQL/105` | erledigt | `30ee0f1d` |
+| 8c | Lese-Abgleich Kontokorrent → Kreditoren/Debitoren + `ArticleSuppliers` (A13) – erst nach P-K1 | `SQL/106` | erledigt | `9bdbeaed` |
+| 9 | Outbox + Übergabe-Status für Lagerplatz/BDE-Mitarbeiter (F11), Liste „Offene Übergaben“ | `SQL/107` | erledigt | `e6821035` |
 
 **Etappen-Schnitt (Rework, Begründung):** Ein Dev-Lauf schafft erfahrungsgemäß eine Migration + einen Reader/Service + eine Oberfläche mit
 Tests. Danach geteilt:
@@ -909,3 +909,205 @@ Gewinn für IDEAL/BDE; E6a/E6b sind Voraussetzung des Rückmelde-Epics; E7, E8a�
 15. G15 SageFaStates / SQL-Nummern → **Gerald 2026-11-06: dieses Epic zuerst – es erhält SQL/98 ff. und legt SageFaStates in E4b in der Form an, die das Rückmelde-Epic plant; das Rückmelde-Epic nutzt sie und nummeriert seine SQL-Dateien neu**
 16. G16 Artikel-Filter → **ja (Gerald 2026-11-06): A3 bleibt auf View bis P-R1 den IDEAL-Filter zeigt; E3a baut Reader + Vergleichsmodus**
 17. G17 SQL-Nummern ab 100 → **ja (Gerald 2026-11-06): dreistellig weiterzählen, Reihenfolge über die Deploy-Liste sichern; Nachtrag zu ADR 0004**
+
+## QA-Nachweis 2026-11-06 (qa-agent) — Ergebnis: NICHT Testbereit (Blocker B1)
+
+> [!note] Überholt durch die QA-Wiederholung weiter unten (B1, B2, B5 erledigt, Status Testbereit). Dieser erste Lauf bleibt als Nachweis stehen.
+
+> [!failure] Status bleibt `InUmsetzung`
+> Build, Tests und DEV-Deploy sind grün, die Oberflächen funktionieren. Aber jeder SData-Lesezugriff über `QueryAllAsync` scheitert am
+> echten Sage-Endpunkt (Befund **B1**, am AKE-Test per GET belegt). Damit ist kein Schalter-Modus `SData`/`Vergleich` abnehmbar.
+> Mit Default-Schaltern ist das Verhalten unverändert (B1 wirkt erst nach bewusstem Umschalten und bricht dann sicher mit Fehler ab).
+
+Diff-Basis `d91b1d1d..HEAD` (14 Commits `7fdcf656` … `e6821035`), Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, v1.73.0.
+
+### 1. Build und Tests (im Worktree)
+- `dotnet build IdealAkeWms.slnx`: **0 Fehler**, 24 Warnungen (NuGet-Advisories, CS8321 – Bestand).
+- `dotnet test`: **IdealAkeWms.Tests 2391 bestanden / 1 übersprungen / 0 Fehler**; **IDEALAKEWMSService.Tests 484 bestanden / 0 / 0**.
+
+### 2. Code-Review (selbst, synchron) – Befunde und Umgang
+| # | Schwere | Befund (Fundstelle) | Umgang |
+|---|---|---|---|
+| **B1** | **Blocker** (funktional; fail-safe) | `SageSdataReadClient.QueryAllAsync` beginnt mit `startIndex = 1` („SData: 1-basiert“, `IdealAkeWms/Services/SageSdata/SageSdataReadClient.cs:179`). Der Sage-Server (`CommonWawiServicesResources`, AKE-Test) zählt **0-basiert**: `LagerplatzbuchungenInfo where Memo like 'IdealAkeWms%'` → ohne startIndex 12 Zeilen ab 865807 (`$startIndex` 0); `startIndex=0` → ab 865807; `startIndex=1` → ab 865808 (erste Zeile fehlt); `count=12&startIndex=1` → 11 Zeilen. `LagerorteInfo where Mandant eq 1`: `startIndex=1` → 35 von 36, `startIndex=0` → 36. Folge: es fehlt immer die erste Zeile, am Ende kommt eine leere Seite vor `$totalResults` → `SdataLeseException` „Unvollständig gelesen: n-1 von n“ in **jedem** Reader (Lagerplätze, Bestand, Artikel, FA-Struktur, Arbeitsplätze, PPS-Mitarbeiter, Stillstand, Kontokorrent, Artikel-Lieferant). Lookup (E7): ein Treffer liefert `$totalResults 1`, `$resources []` → wirft statt `true` (`SM#19367#` existiert am AKE-Test). Wirkung: kein Datenverlust, keine Doppelbuchung (alles wirft), aber kein SData-/Vergleichsmodus funktioniert; im Vergleich je Lauf eine Fehlermail (G10). Die Unit-Tests (`SageSdataPagingTests.cs:69, :283`) zementieren `startIndex=1`. | **Offen – Dev-Fix:** Start bei `startIndex = 0`, Folgeseiten `startIndex += seite.Count` (unverändert), Tests auf 0 umstellen, Kommentar + [[fallstricke]] („Sage-SData startIndex ist 0-basiert, entgegen SData-2.0-Spec“). Danach QA erneut. |
+| B2 | Mittel (nur mit Schalter `SageLagerbuchungUmbuchungAktiv`) | Umbuchungen **mit FA-Bezug** werden mit eingereiht: `PickingTransferService.cs:293-305` (Kommissionier-Transfer, `ProductionOrder` gesetzt) schreibt per `_context` am Decorator vorbei; der Nacherfassungs-Lauf `SageBookingQueueRepository.EnqueueMissingAsync` (`:143-149`) filtert nicht auf `ProductionOrder` und reiht sie binnen 15 min als Entnahme/Umbuchung ein; ebenso `StockMovementsController.cs:427-443` (`vm.ProductionOrder`). Spec F9: „Nicht in dieser Spec: Entnahme mit FA-Bezug (→ Rückmelde-Epic)“. Zudem uneinheitlich: Kommissionier-Umbuchungen kommen nur über den Sweep. | **Offen – Entscheidung Gerald vor dem Einschalten:** FA-gebundene Umbuchungen ausschließen (eine Regel in `SageBookingEnqueueDecision`, auch in der EF-Abfrage) oder bewusst mitbuchen und Spec anpassen. Default aus → kein Deploy-Risiko. |
+| B3 | Niedrig | E7-Lookup `where Memo like '%SM#<id>#%'`: Kodierung `#`→`%23` und führendes `%` am AKE-Test **geprüft** – der Server wertet korrekt aus (`$totalResults` 1 für `SM#19367#`, 0 für `SM#1936#` = kein Präfix-Treffer, 0 für `SM#999999#`). Das TODO(UAT E7) in `SdataBuchungLookupReader.cs` ist für die Kodierung erledigt; `true` kommt erst nach dem B1-Fix an. | Nach B1-Fix TS-106.9 „Lookup SData“ wiederholen. |
+| B4 | Niedrig (Hinweis) | Kein Plausibilitäts-Guard im Lagerplatz-SData-Weg: liefert `LagerorteInfo` keinen aktiven Lagerort, deaktiviert der Abgleich alle Sage-Plätze (bewusster `ponytail:`-Kommentar in `LagerplatzSyncService.SyncStorageAreasAsync`; der View-Weg verhält sich gleich). Am AKE-Test kommt `Aktiv` als Zahl `-1/0` – `SageBoolJsonConverter` liest das korrekt. | Akzeptiert (wie View); beim ersten SData-Lauf DB vor/nach prüfen (Checkliste 4). |
+| B5 | Niedrig (Doku) | Brain-Pflichten des Dev-Laufs fehlen: Brain-Changelog v1.73.0 in `secondbrain/changelog/`, ADR „Quellen-Weiche View/SData“, Nachtrag ADR 0004 (G17), [[fallstricke]] („Lese-Reader müssen werfen“ + B1), [[feature-map]], `codebase/services.md`/`datenmodell.md`/`controller.md`. Die Testindex-Zeile 106 hat der QA-Lauf nachgetragen. | Offen – vor dem Merge. |
+| B6 | Info | Abweichungen von der Spec, im Code als TODO/Kommentar vermerkt: Kontokorrent ohne `Adressen` (Name = Sage-Matchcode, Adressfelder unberührt, TODO(P-S1)); `LagerbestaendeArtikelInfo` ohne `select` (Feldnamen angenommen, TODO(P-S1)); Arbeitsschritt-Kürzel fehlt über SData (P-A1) → Arbeitsgang-Abgleich setzt mit Warnung aus; Artikel `SData` gesperrt bis P-R1, FA-Struktur bis P-F2; neuer Schalter `SageLagerbuchungUmbuchungAktiv` (Spec hatte keinen, Default aus); `Quelle: View` erscheint als zusätzliche Info-Zeile in bestehenden Läufen (Count-Keys unverändert, AK 1 erfüllt). | Keine Aktion; P-Prüfungen bleiben beim Menschen. |
+
+Geprüft ohne Befund:
+- **Default-Verhalten:** alle `Sync:Quelle:*` Default `View` (`ServiceSettingDefinitions.cs`); `SageQuelleSchalter.Parse`: null/leer/`View` → View still, unbekannt → View + Warnung, nie still SData; neue Bool-Schalter Default `false`; neue SyncWorker-Blöcke hinter eigenen Gates. Beide DEV-DBs nach Deploy: alle `View`/`false`.
+- **Herausgezogene SQL-Reader funktional unverändert:** zeilenweiser Abgleich aller entfernten Zeilen aus `SageImportService.cs`/`FaHierarchySyncService.cs` gegen `SageArtikelReader.cs`/`SageFaStrukturReader.cs` – nicht wiedergefunden werden nur Zeilen, die im Service verblieben sind (Warnung „Quelle nicht vorhanden“, `FaHierarchyViewNameException`-catch jetzt im try vor dem generischen catch). SQL-Texte, Ordinals und Parser identisch.
+- **E9 Konflikt-Verhalten:** Übernahme nur bei `SageUebergabeStatusText.IstOffen` (Offen/Fehler); Bestandsplätze `NichtNoetig` bleiben Konflikt (Test `Run_ManualRecord_UebergabeOffen_WirdUebernommen_Bestand_BleibtKonflikt`).
+- **E2 Nullsetzen-Schutz:** SData-Bestand wirft bei Zeilen ohne Artikelnummer/PlatzID, bei „alle Bestand null“ und bei unvollständigem Paging; Vergleich liefert View-Zeilen weiter; Cap/Dedup unverändert.
+- **E7 Doppelbuchung:** SData-Lookup wirft bei jedem Fehler (Worker sendet dann nicht neu); Vergleich nutzt das View-Ergebnis. Eine Typliste (`SageBookingEnqueueDecision.BookableTypes`, auch per `Contains` in der EF-Abfrage); Sage-Korrekturen nie.
+- **Defektklassen:** keine Werte per `@Html.Raw` in `<script>` (nur statische JSON-Konfigblöcke); kein `hidden` + `d-*`; `?? 0` nur für ViewBag-Zähler (Anzeige); keine Parallel-Arrays (Sage-Merkmale serverseitig übersprungen in `ArticleAttributeRepository.SaveValuesAsync`); Sage-Schreibschutz Kreditoren/Debitoren und Merkmale serverseitig am gespeicherten `Source`/`SyncSource`; App-Guards zu allen gefilterten UNIQUE-Indizes.
+- **Überposting:** `StorageLocationsController.Edit` übernimmt `SageUebergabeStatus` nicht aus dem POST; Create setzt `Offen` serverseitig.
+
+### 3. Nachweisart je AK
+| AK | Nachweis |
+|---|---|
+| 1 Default unverändert | Unit (`SageQuelleTests`, Drift-Guard) + DEV-DB-Werte; Count-Keys im Echtlauf **Manual-UAT** (Syncs auf DEV aus) |
+| 2, 3 Schalter SData/Vergleich | Unit mit Fakes; real **Manual-UAT – derzeit FEHLER durch B1** |
+| 4 unbekannter Wert | Unit (`SageQuelleTests`) |
+| 5 Paging/orderBy/Sperren | Unit (`SageSdataPagingTests`) – **Annahme startIndex=1 falsch (B1)** |
+| 6, 7 Fehler werfen, Mail G10 | Unit; real Manual-UAT |
+| 8–11, 13–17, 19, 20, 24 (Reader-Inhalte, Vergleich am AKE-Test, Positionen, Lookup, Kontokorrent) | Unit mit Fakes; **Manual-UAT** (Sage-Reads, Raw-SQL `DELETE ProductionOrderPositions`, UNIQUE-Indizes) – blockiert durch B1 |
+| 12 Merkmal-Sperre | Unit (`ArticleAttributesControllerTests`, `ArtikelBenutzerfelderTests`); Browser Manual-UAT |
+| 18 Zuordnung | Unit (`BdeMasterDataSageZuordnungTests`) + **DEV-Browser OK**; UNIQUE-Wettlauf Manual-UAT |
+| 21 Umbuchung-Queue | Unit (`SageBookingEnqueueDecisionTests`, `SageLagerbuchungPayloadBuilderTests`, `SageBookingEnqueueingStockMovementRepositoryTests`); real NICHT MÖGLICH auf DEV; B2 offen |
+| 22, 23 Kreditoren/Debitoren, Meldekarte | Unit (`CreditorsControllerTests`, `DebitorsControllerTests`, `CreditorAssignmentTests`, View-Tests) + **DEV-Browser OK** |
+| 25 Übergaben | Unit (`SageUebergabeTests`, `LagerplatzSyncServiceTests`) + **DEV-Browser/DB OK** (Anlage → Offen + Outbox); Übernahme durch Abgleich Manual-UAT |
+| 26, 27 Katalog, DisplayNames, DI | Unit (Drift-Guard, DI-Auflösung) + DEV `/ServiceSettings` OK |
+
+### 4. Geänderte Bestandstests (gegen `d91b1d1d`)
+| Test | Einordnung |
+|---|---|
+| `LagerplatzSyncServiceTests.Build` (+ `ISyncErrorNotifier`-Mock) | Typ-Änderung (Ctor, G10) |
+| `LagerplatzSyncServiceTests` neuer Fall E9 | neues Verhalten (AK 25), additiv |
+| `SageImportServiceTests.Build` (+ `SageArtikelReader`, Ctx) | Typ-Änderung (E3a) |
+| `SageLagerbuchungPayloadBuilderTests`: `InlineData(Umbuchung)` aus „NonBookable“ entfernt | gewollte Verhaltensänderung (AK 21, F9); neue Umbuchung-Fälle |
+| `SageSdataFaControllerTests.FakeClient` (+ `QueryAllAsync` wirft) | Typ-Änderung (Interface E0) |
+| `ServiceSettingDefinitionsTests` (+13 InlineData) | additiv (AK 26) |
+| `SageBookingEnqueueDecisionTests`, `SageBookingEnqueueingStockMovementRepositoryTests`, `StorageLocationsControllerTests`, `ArticleAttributesControllerTests` | nur additive Fälle; Bestandsfälle unverändert |
+
+Kein Fall „sonstige“ – keine Fixture wurde grün gebogen. `SageQuelleTests` und `FaStrukturSdataTests` sind im Zweig neu; ihre Änderungen zwischen den Etappen zählen nicht als Bestandstests.
+
+### 5. Checkliste CLAUDE.md
+- 10 Migrationen (`20261106181707` … `20261106202615`) + `SQL/98`–`SQL/107`: Guards je Batch, History-Insert separat. **Idempotenz am DEV belegt:** alle zehn Skripte gegen `AKE_WMS_DEV` nach der EF-Migration – keine PRINT-Zeile, also kein Objekt angelegt → Index-/Constraint-Namen stimmen mit EF überein. FreshInstall: alle 10 `MigrationId` je 2×, alle 10 neuen Tabellen vorhanden. DB-Defaults (`DEFAULT 0`/`'Manual'`) im SQL. FreshInstall auf leerer DB nicht ausgeführt (Manual-UAT).
+- Audit-Felder: neue Entitäten `AuditableEntity`, Abgleiche setzen `Modified*`; DEV-Anlage Kreditor mit `CreatedBy`/`CreatedByWindows`.
+- Version 1.73.0 in beiden `AppVersion.cs`; Anwender-Changelog ja; **Brain-Changelog fehlt (B5)**.
+- `docs/TESTSZENARIEN.md` TS-106.0–106.13 vorhanden; Index-Zeile 106 vom QA-Lauf ergänzt.
+- `SQL/AgentJobs/` nicht betroffen; keine Einmal-Skripte.
+
+### 6. DEV-Deploy und Testlauf
+- Standort `beide` (Frontmatter). Shell elevated: ja.
+- `dev-deploy.ps1 -Standort AKE -Quelle <worktree>` → Exit 0, „HTTP 200, Fusszeile v1.73.0“, DEV-Absicherung angewandt.
+- `dev-deploy.ps1 -Standort IDEAL -Quelle <worktree>` → Exit 0, „HTTP 200, Fusszeile v1.73.0“.
+- Beide DEV-DBs auf `20261106202615_AddSageStammdatenOutboxAndUebergabeStatus`; alle `Sync:Quelle:*` = `View`, alle neuen Bool-Schalter `false`; kein Schalter verändert.
+
+| Schritt | Ergebnis | Status |
+|---|---|---|
+| TS-106.0 AKE `/ServiceSettings`: Gruppe „Sage-Abgleich (SData)“, `Sync:Quelle:Lagerplaetze`, `SageLagerbuchungUmbuchungAktiv`; Menü Stammdaten → Kreditoren/Debitoren | sichtbar | OK |
+| TS-106.10 IDEAL `/Creditors`: Meldekarte „Dienstleister ohne Kreditor: 1 – GL, 2 Auftragszeilen“ | angezeigt | OK |
+| TS-106.10 „Als Kreditor anlegen“ GL, Name `QA Glas & Lack "Test" GmbH` | angelegt, Beschichter Ja, Herkunft WMS, Meldekarte verschwindet; DB-Audit gesetzt | OK |
+| TS-106.10 negativ: Kurzname `gl` erneut | Feldfehler „Kurzname 'gl' ist bereits vergeben …“ | OK |
+| TS-106.11 AKE `/Debitors` | Liste leer, keine Konsolenfehler | OK |
+| TS-106.13 Lagerplatz `QA-UEB-1` anlegen | „Offene Übergaben an Sage“ zeigt ihn mit „Offen“; DB `SageUebergabeStatus=1`, Outbox `StorageLocation/230`, Status 0, Payload-JSON | OK |
+| TS-106.8 Sage-Zuordnung (Testdaten per SQL: `SagePpsMitarbeiter` 123 und 777 „Hans Guck“) | 123 → BDE „Guck Hans“ (PersonnelNumber 123) vorgeschlagen, 777 trotz gleichem Namen **nicht**; „Zuordnen“ → Erfolgsmeldung | OK |
+| SData-GET AKE-Test (nur lesen, `sagetest01`, `ake_TEST2026;1`): Memo-Lookup-Kodierung | korrekt ausgewertet (B3) | OK |
+| SData-GET AKE-Test: Paging `startIndex` | 0-basiert, Client erwartet 1 (B1) | **FEHLER** |
+| TS-106.1–106.7, 106.9 (Umbuchung), 106.12: Sync-Läufe View/SData/Vergleich/Ausfall | braucht `Sync:*Enabled` bzw. `SageLagerbuchungAktiv` | NICHT MÖGLICH (DEV-Grenze) |
+
+DEV-Testdaten bleiben stehen (IDEAL_WMS_DEV): Kreditor `GL`, Lagerplatz `QA-UEB-1` + Outbox, `SagePpsMitarbeiter` 123/777, BDE-Mitarbeiter Id 1 → Sage-Nr. 123.
+
+### Deploy (aus dem echten Diff; gilt nach B1-Fix)
+- `deploy.web: true` (IdealAkeWms/), `deploy.service: true` (IDEALAKEWMSService/), `deploy.migration: true` (10 neue Migrationen unter `IdealAkeWms/Migrations/`).
+- Reihenfolge: DB-Backup → `SQL/98` … `SQL/107` in **numerischer** Reihenfolge (98, 99, 100 … 107 – nicht lexikographisch, G17) → Service stoppen → Web + Service publizieren → Service starten. Alle Skripte additiv.
+  - `dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb`
+  - `dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService`
+- Ablauf Mensch: Publish aus dem Worktree → Testsystem → Test → Merge. Nach dem Merge nur dann erneut aus `main` publizieren, wenn der Merge getestete Dateien mit parallelen `main`-Änderungen zusammengeführt hat.
+
+### Offene manuelle Tests (für den Menschen, nach B1-Fix und erneuter QA)
+1. B1 beheben lassen, QA wiederholen; danach am Testsystem je Bereich `Vergleich` → Protokoll „Sage-Quellenvergleich“ (TS-106.1–106.7): Lagerplätze, Bestand, Artikel, FA-Struktur 835, Arbeitsplätze (AK 8, 10, 11, 13, 17).
+2. Je Bereich `SData` + Rückfall `View`: SData-only-Felder unverändert (DB vor/nach), keine Korrekturbuchungen (AK 9, 10, 11).
+3. Ausfall (falsche `SData:BaseUrl`/Passwort, HTML-Antwort): Bereich endet mit Fehler, keine Deaktivierung/Nullsetzung, Mail laut G10 (AK 6, 7).
+4. Erster Lagerplatz-Lauf SData: Plätze nicht massenhaft deaktiviert (B4), `StorageAreas` gefüllt.
+5. E4b: `ProductionOrderPositions` (836 / BelPosID 10641 / Platz 11), zweiter Lauf ersetzt vollständig (AK 15).
+6. E7: Lookup `SData` liefert `true` für eine gebuchte Bewegung (B3); SData nicht erreichbar → Eintrag bleibt, wird nicht neu gesendet (AK 20).
+7. B2 entscheiden, dann Umbuchung Sage→Sage / Sage→WMS / WMS→Sage / WMS→WMS mit `SageLagerbuchungAktiv` + `SageLagerbuchungUmbuchungAktiv` am Testsystem (AK 21).
+8. E6b/E8c: `Sync:PpsMitarbeiterEnabled`, `Sync:StillstandsgruendeEnabled`, `Sync:KreditorenEnabled`, `Sync:DebitorenEnabled`, `Sync:ArtikelLieferantEnabled` je einmal (AK 18, 19, 24; 00722001 ↔ K31013).
+9. E9: Platz `QA-UEB-…` in Sage anlegen, Lagerplatz-Lauf → „übergeben“, `Source = Sage`, Info im Protokoll (AK 25).
+10. AKE-Regression mit Default-Schaltern (TS-106.12): Count-Keys Artikel/Lagerplatz/Lagerbestand wie vor dem Deploy, kein `SageQuellenvergleich` (AK 1).
+11. `SQL/98`–`107` + FreshInstall am Testsystem (zweiter Lauf ohne Änderung).
+12. P-S1/P-S2/P-R1/P-F1/P-F2/P-A1 am IDEAL-Endpunkt.
+13. B5 Brain-Pflichten vor dem Merge.
+
+## QA-Wiederholung 2026-11-06 (qa-agent) — Ergebnis: Testbereit
+
+> [!success] Kein Blocker mehr offen
+> B1 und B2 behoben (Commit `c8c6b210`), B1 am AKE-Test mit dem echten Client belegt, B2 auch in der echten SQL-Übersetzung belegt.
+> B5 im Hauptcheckout nachgetragen (noch uncommittet, Gerald committet). Gate 2 (Mensch: Testsystem-Lauf, dann Merge) bleibt offen.
+
+Diff-Basis der Wiederholung: `e6821035..c8c6b210` (8 Dateien, +32/−9); Gesamtdiff `d91b1d1d..c8c6b210`. Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, v1.73.0.
+
+### 1. Build und Tests (im Worktree, Stand `c8c6b210`)
+- `dotnet build IdealAkeWms.slnx`: **0 Fehler**, Warnungen nur Bestand (NU1902/NU1903 Paket-Advisories, CS8321, CS8601 in `BdeTerminalAuftraegeTests.cs:23` – Datei nicht im Fix).
+- `dotnet test`: **IdealAkeWms.Tests 2392 bestanden / 1 übersprungen / 0 Fehler** (+1 = `ShouldEnqueue_UmbuchungMitFaBezug_Nie_EinAusUnberuehrt`); **IDEALAKEWMSService.Tests 484 / 0 / 0**.
+
+### 2. Code-Review des Fix-Commits (selbst, synchron)
+Geprüft: `SageSdataReadClient.QueryAllAsync` (Start, Fortschaltung `startIndex += seite.Count`, Abbruch bei `zeilen.Count >= gesamt`, leere Seite vor `$totalResults` wirft weiter), alle `startIndex`-Fundstellen in Code und Tests (nur noch `SageSdataReadClient.cs:158/179/183/201` und `SageSdataPagingTests.cs`), alle Aufrufer von `ShouldEnqueue`/`EnqueueAsync`/`EnqueueMissingAsync`, die Überladungen ohne `hatFaBezug` (`SageBookingEnqueueDecision.cs:75-80` setzen `umbuchungAktiv: false` → Umbuchung dort ohnehin nie; der Default `hatFaBezug = false` ist also kein stiller Durchlass), die EF-Abfrage `SageBookingQueueRepository.cs:139-155` und die angepassten Tests.
+
+| # | Status | Nachweis |
+|---|---|---|
+| **B1** | **Erledigt** | `SageSdataReadClient.cs:179` startet mit `startIndex = 0`. Tests: `Paging_DreiSeiten_BisTotalResults` erwartet jetzt 0, 2, 4 und die URL mit `startIndex=0`; der Stub liefert IDs ab `StartIndex+1` (0-basierter Server simuliert) – Anpassung an die am Server belegte Logik, kein grün gebogener Fall. **Am AKE-Test belegt** (nur GET, sagetest01 / ake_TEST2026;1, echter `SageSdataReadClient` + echte Reader aus dem Worktree-Build in einem Wegwerf-Harness im Scratchpad; kein Schalter umgestellt): Tabelle in Abschnitt 6. |
+| **B2** | **Erledigt** (Entscheidung Gerald: Spec F9 wörtlich) | Eine Regel `SageBookingEnqueueDecision.IstUmbuchungMitFaBezug` (`SageBookingEnqueueDecision.cs:71`), im Decorator mit `hatFaBezug: !IsNullOrWhiteSpace(ProductionOrder)` (`SageBookingEnqueueingStockMovementRepository.cs:65-66`), im Nacherfassungs-Lauf als EF-Bedingung (`SageBookingQueueRepository.cs:149-151`, Kommentar verweist auf die Regel). Ein-/Ausbuchungen mit FA unverändert. **Echte SQL-Übersetzung gegen `AKE_WMS_DEV` belegt** (Transaktion, danach ROLLBACK): `… AND ([s].[MovementType] <> 2 OR [s].[ProductionOrder] IS NULL OR LTRIM(RTRIM([s].[ProductionOrder])) = N'') …`. Ergebnis: Umbuchung+FA **nicht** eingereiht; Umbuchung ohne FA und mit FA = nur Leerzeichen eingereiht (deckungsgleich mit `IsNullOrWhiteSpace` für Leerzeichen); Ausbuchung+FA eingereiht. Danach `SageBookingQueueItems` 16 wie vorher, 0 Test-Bewegungen. |
+| B3 | Erledigt | Lookup am AKE-Test mit dem echten `SdataBuchungLookupReader`: `SM#19367#` → **true**, `SM#1936#` → false (kein Präfix-Treffer), `SM#999999#` → false. Das `TODO(UAT E7)` in `SdataBuchungLookupReader.cs:32-34` ist inhaltlich erledigt; der Kommentar kann beim nächsten Code-Lauf weg (kein Blocker). |
+| B4 | Akzeptiert (unverändert) | Lagerplatz-Reader am AKE-Test: 20 aktive Lagerorte, 3284 Zeilen, kein leeres Ergebnis. Erster SData-Lauf am Testsystem trotzdem DB vor/nach prüfen. |
+| **B5** | **Erledigt** (Hauptcheckout, uncommittet) | Vorhanden: [[2026-11-06-v1-73-0-sage-sdata-stammdaten-sync]], [[0019-quellen-weiche-view-sdata-je-abgleich]], Nachtrag G17 in [[0004-migrations-und-sql-disziplin]], [[fallstricke]] „`startIndex` ist 0-basiert“, `codebase/services.md`/`datenmodell.md`/`controller.md`, [[glossar]], [[feature-map]] (QA setzt die beiden v1.73.0-Zeilen auf Testbereit), [[2026-11-06-sage-sdata-folgearbeit]]. |
+| B6 | Info (unverändert) | – |
+| N1 | Info, neu | `PpsArbeitsplaetzeInfo` liefert am AKE-Test genau **1** aktive Zeile (vorher durch B1 verschluckt). Ob das dem View-Bestand entspricht, klärt der Vergleichslauf am Testsystem (Checkliste 1). Der Arbeitsgang-Abgleich setzt über SData ohnehin wegen P-A1 aus. |
+| N2 | Info, neu | Kein Decorator-Test, der `ProductionOrder` bis `hatFaBezug` durchreicht (nur Regel- und Sweep-Test). Eine Zeile Verdrahtung, im Review geprüft; kein Befund. |
+
+Defektklassen im Fix: keine View/kein JS berührt; kein stiller Fallback; die FA-Regel steht an zwei Stellen (C# und EF) – bewusst, mit Querverweis, und am echten SQL Server für Leerzeichen deckungsgleich belegt (Tabulatoren schneidet `LTRIM/RTRIM` nicht – praktisch irrelevant).
+
+### 3. Nachweisart je AK (Änderungen gegenüber dem ersten Lauf)
+| AK | Nachweis |
+|---|---|
+| 5 Paging/orderBy/Sperren | Unit (`SageSdataPagingTests`, jetzt 0-basiert) **+ am AKE-Test mit echtem Client belegt** (5er-Seiten = eine 500er-Seite, identische Schlüssel) |
+| 2, 3, 8–11, 13–17, 19, 24 | Unit; Lesen über SData am AKE-Test für Lagerplätze, Bestand, Arbeitsplätze **OK**; der Vergleichs-/SData-Lauf des Dienstes bleibt **Manual-UAT** (auf DEV gesperrt: `Sync:*Enabled` aus, `SData:BaseUrl` leer, View-Seite liest Sage-SQL) |
+| 20 Lookup | Reader am AKE-Test **OK** (true/false); Worker-Verhalten Manual-UAT |
+| 21 Umbuchung-Queue | Unit + **echte SQL-Übersetzung des Sweeps am DEV (Rollback) OK**; Senden an Sage Manual-UAT |
+
+Alle übrigen AK wie im ersten Lauf.
+
+### 4. Geänderte Bestandstests (Fix-Commit)
+| Test | Einordnung |
+|---|---|
+| `SageSdataPagingTests.Paging_DreiSeiten_BisTotalResults`, `Specific_Vertrag_ImPfad` | gewollte Verhaltensänderung (B1, AK 5): Erwartung 1-basiert → 0-basiert, am Server belegt |
+| `SageBookingEnqueueingStockMovementRepositoryTests.EnqueueMissing_UmbuchungNurMitSchalter_NachPlatzFlags_NieSageKorrektur` | additiver Fall `mitFa` (B2, AK 21); Erwartungen 1/3 und Erwartungsliste unverändert → beweist den Ausschluss |
+| `SageBookingEnqueueDecisionTests` | neuer Fall, Bestandsfälle unverändert |
+
+Kein Fall „sonstige“.
+
+### 5. Checkliste
+Unverändert gegenüber dem ersten Lauf (keine neue Migration, keine neue SQL-Datei, Version bleibt 1.73.0). `docs/TESTSZENARIEN.md` um TS-106.9.o ergänzt; Indexzeile 106 deckt TS-106.0–106.13 ab. Brain-Changelog vorhanden (B5).
+
+### 6. DEV-Deploy und Testlauf
+- Standort `beide`. Shell elevated: ja.
+- `dev-deploy.ps1 -Standort AKE -Quelle <worktree>` → Exit 0, „HTTP 200, Fusszeile v1.73.0“, DEV-Absicherung angewandt.
+- `dev-deploy.ps1 -Standort IDEAL -Quelle <worktree>` → Exit 0, „HTTP 200, Fusszeile v1.73.0“.
+- Beide DEV-DBs: letzte Migration `20261106202615_AddSageStammdatenOutboxAndUebergabeStatus`; nach allen Tests alle `Sync:Quelle:*` = `View`, `SageLagerbuchungAktiv`/`SageLagerbuchungUmbuchungAktiv`/`ErrorNotification:Enabled`/`Notifications:MeldebestandEnabled` = `false`, kein `Sync:*Enabled` = `true`. **Kein Schalter wurde umgestellt** – der Nachweis lief über die Reader direkt, nicht über einen Dienst-Lauf; es gab nichts zurückzustellen.
+
+| Schritt (lesend, AKE-Test bzw. DEV mit Rollback) | Ergebnis | Status |
+|---|---|---|
+| `LagerplatzbuchungenInfo where Memo like 'IdealAkeWms%'`, Seitengröße 5 vs. 500 | 12 Zeilen in 3 Seiten vs. 12 in 1, `$totalResults` 12, Schlüssel identisch, 12 verschieden, erste `865807` (= Wert ohne startIndex aus dem ersten Lauf) | OK |
+| `LagerorteInfo where Mandant eq 1`, Seitengröße 5 vs. 500 | 36 in 8 Seiten vs. 36 in 1, identisch, erste `Akademie` (vorher 35 von 36) | OK |
+| `SdataLagerplatzReader.LesenAsync` (LagerorteInfo + LagerplaetzeInfo) | 3284 Zeilen aktiver Lagerorte, 20 Lagerorte, keine `SdataLeseException` | OK |
+| `SdataBestandReader.LesenAsync` | 4544 Bestandszeilen, keine Ausnahme | OK |
+| `SdataArbeitsplatzReader.LesenAsync` | 1 aktive Zeile, `ArbeitsschrittGeliefert=false` (P-A1) – siehe N1 | OK |
+| `SdataBuchungLookupReader.ExistsAsync` 19367 / 1936 / 999999 | true / false / false | OK |
+| B2: `EnqueueMissingAsync(umbuchungAktiv: true)` gegen `AKE_WMS_DEV` (Transaktion + Rollback) | Umbuchung+FA ausgeschlossen, übrige wie erwartet, Queue danach unverändert | OK |
+| TS-106.9.o über Oberfläche + Worker | braucht `SageLagerbuchungAktiv` | NICHT MÖGLICH (DEV-Grenze) |
+| Dienst-Lauf `Vergleich`/`SData` (TS-106.1–106.7, 106.12) | braucht `Sync:*Enabled`; `SData:BaseUrl` auf DEV leer; View-Seite liest Sage-SQL | NICHT MÖGLICH (DEV-Grenze) |
+| Artikel-/FA-Struktur-Reader | nicht gelaufen (SData gesperrt bis P-R1 bzw. P-F2) | NICHT MÖGLICH (fachlich gesperrt) |
+
+Browser-Schritte des ersten Laufs (TS-106.0, 106.8, 106.10, 106.11, 106.13) nicht wiederholt: der Fix berührt keine View, kein JS, keinen Controller; Deploy-Prüfung (HTTP 200 + Fußzeile) grün.
+
+### Deploy
+Der Abschnitt „Deploy (aus dem echten Diff …)“ des ersten Laufs gilt jetzt unverändert: web + service + migration; DB-Backup → `SQL/98`…`SQL/107` numerisch → Service stoppen → Web + Service publizieren → Service starten. Publish aus dem Worktree → Testsystem → Test → Merge; nach dem Merge nur erneut aus `main` publizieren, wenn der Merge getestete Dateien mit parallelen `main`-Änderungen zusammengeführt hat.
+
+### Offene manuelle Tests (für den Menschen, Testsystem)
+1. Je Bereich `Vergleich` → Protokoll „Sage-Quellenvergleich“ (TS-106.1–106.7): Lagerplätze, Bestand, Artikel, FA-Struktur 835, Arbeitsplätze (AK 8, 10, 11, 13, 17); dabei N1 (Arbeitsplätze: 1 Zeile über SData) gegen die View prüfen.
+2. Je Bereich `SData` + Rückfall `View`: SData-only-Felder unverändert (DB vor/nach), keine Korrekturbuchungen (AK 9, 10, 11).
+3. Ausfall (falsche `SData:BaseUrl`/Passwort, HTML-Antwort): Bereich endet mit Fehler, keine Deaktivierung/Nullsetzung, Mail laut G10 (AK 6, 7).
+4. Erster Lagerplatz-Lauf SData: Plätze nicht massenhaft deaktiviert (B4), `StorageAreas` gefüllt.
+5. E4b: `ProductionOrderPositions` (836 / BelPosID 10641 / Platz 11), zweiter Lauf ersetzt vollständig (AK 15).
+6. E7 im Worker: Lookup `SData` erkennt eine gebuchte Bewegung (am Reader belegt); SData nicht erreichbar → Eintrag bleibt, wird nicht neu gesendet (AK 20).
+7. Umbuchung Sage→Sage / Sage→WMS / WMS→Sage / WMS→WMS mit `SageLagerbuchungAktiv` + `SageLagerbuchungUmbuchungAktiv` (AK 21) und TS-106.9.o (Kommissionier-Umbuchung mit FA und Bewegungsformular mit FA → kein Queue-Eintrag, auch nicht nach dem Nacherfassungs-Lauf).
+8. E6b/E8c: `Sync:PpsMitarbeiterEnabled`, `Sync:StillstandsgruendeEnabled`, `Sync:KreditorenEnabled`, `Sync:DebitorenEnabled`, `Sync:ArtikelLieferantEnabled` je einmal (AK 18, 19, 24; 00722001 ↔ K31013).
+9. E9: Platz `QA-UEB-…` in Sage anlegen, Lagerplatz-Lauf → „übergeben“, `Source = Sage`, Info im Protokoll (AK 25).
+10. AKE-Regression mit Default-Schaltern (TS-106.12): Count-Keys Artikel/Lagerplatz/Lagerbestand wie vor dem Deploy, kein `SageQuellenvergleich` (AK 1).
+11. `SQL/98`–`107` + FreshInstall am Testsystem (zweiter Lauf ohne Änderung).
+12. P-S1/P-S2/P-R1/P-F1/P-F2/P-A1 am IDEAL-Endpunkt.
+13. Brain-Änderungen (B5 + diese QA) committen; danach Merge (Gate 2).

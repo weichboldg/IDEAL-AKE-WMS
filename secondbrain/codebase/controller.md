@@ -139,3 +139,11 @@ sie nur bei Schreibrecht, der POST geht an `BeschichtungsauftraegeController.Cre
 | `/api/warehouserequisitions/quick-add` | Draft-Bestellung aus der Stueckliste |
 
 Warum die Flags in Satelliten liegen: [[0009-app-status-in-satelliten-tabellen-neben-sage-master]].
+
+## Sage-SData-Stammdaten (v1.73.0)
+
+- `CreditorsController`, `DebitorsController`: Klasse `[RequireMasterDataReadAccess]`, Create/Edit/SetActive `[RequireMasterDataAccess]`, kein Löschen;
+  Sage-Felder bei `Source = Sage` schreibgeschützt (serverseitig). Keine neue Rolle.
+- `ArticleAttributesController`: Fachsperre für Sage-Merkmale (Name, Typ, Optionen, Werte, Löschen; Reihenfolge/Aktiv pflegbar).
+- `BdeMasterDataController`: Reiter `sage` + POST `SageZuordnen`/`SageZuordnungLoesen` (BDE-Filter wie bisher), Parameter `onlyUebergabeOffen`.
+- `StorageLocationsController.Index`: Parameter `onlyUebergabeOffen`, Spalten Lagerort/Sperre/Übergabe.

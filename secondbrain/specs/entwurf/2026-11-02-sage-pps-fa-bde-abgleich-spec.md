@@ -554,3 +554,9 @@ Gerald entscheidet bei G4 anders. Den Branch während der Arbeit mit `scripts/sy
 22. D8 Fehlerunterscheidung →
 23. D9 Bedarfsprüfung/Protokoll →
 24. D10 Zeit-RM-Adressierung →
+
+> [!note] Hinweis 2026-11-06 (aus [[2026-11-06-sage-sdata-stammdaten-sync-spec]], G15)
+> `SageFaStates` ist im Bündel mit **SQL/101** (`20261106191438_AddProductionOrderPositions`, Commit `1da971b7`) angelegt und bleibt leer, bis dieses
+> Epic sie befüllt. Spalten: Mandant, BelID, StrukturID, IstEingelastet, IstBegonnen, IstBeendet, IstGesperrt, `IstReaktiviert` (nullable),
+> `MengeGutRueckgemeldet`, `MengeGutFertiggemeldet`, SyncedAt; UNIQUE Mandant+BelID. Dieses Epic nummeriert seine SQL-Dateien ab der nächsten
+> freien Nummer (nach SQL/107).

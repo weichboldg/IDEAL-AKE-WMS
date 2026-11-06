@@ -121,3 +121,6 @@ Fuer Endanwender gibt es zusaetzlich die hand-gepflegte Uebersicht `/Users/RoleO
 | Feature-Gate / Master-Schalter | AppSetting, das ein ganzes Modul freischaltet — **kumulativ** zum Rollen-Filter, kein Ersatz. |
 | Drift-Guard | Test, der fehlschlaegt, wenn zwei Quellen auseinanderlaufen (z. B. Service-Key ohne Katalog-Eintrag). |
 | Manual-UAT | Manuell zu pruefender Pfad, weil er nicht InMemory-testbar ist (raw SQL, LDAP, Negotiate, Fremdsystem-Reads). |
+| Quellen-Weiche (`Sync:Quelle:<Bereich>`) | Wahl der Sage-Lesequelle je Abgleich: `View` (SQL, Default/Notfall), `SData`, `Vergleich` (liest beide, schreibt View). Code `…QuelleSwitch`. [[0019-quellen-weiche-view-sdata-je-abgleich]] |
+| Kreditor / Debitor | Lieferant bzw. Kunde (Sage-Kontokorrent `KtoArt` `K`/`D`). Code `Creditor`/`Debitor`, UI „Kreditoren“/„Debitoren“. Herkunft Sage oder WMS (`Source`). |
+| Übergabe an Sage | Status eines im WMS angelegten Stammsatzes (`SageUebergabeStatus` NichtNoetig/Offen/Uebergeben/Fehler) + Outbox `SageStammdatenOutbox`; Senden noch nicht gebaut. |

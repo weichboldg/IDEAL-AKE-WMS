@@ -167,3 +167,16 @@ konsolidiertes `../../SQL/00_FreshInstall.sql`. Der Workflow ist verbindlich —
 - Schreibweg nur über `Services/BeschichtungsauftragWorkflow.cs` (Regeln) und `IBeschichtungsauftragRepository`
   (`GetVergabenAsync` = Positionen in Aufträgen mit Status ≠ Storniert, eine Abfrage). Spec
   [[2026-10-06-beschichtungsauftrag-ausbau-teil-3-spec]].
+
+## Sage-SData-Stammdaten (v1.73.0, SQL/98–107)
+
+- `StorageAreas` (Lagerorte, UNIQUE `Lagerkennung`, Audit) ← `StorageLocations.StorageAreaId` (SetNull) + `SageIstGesperrt*`, Maße decimal(18,3).
+- `ArticleSageDetails` (Satellit 1:1 zu `Articles`, `Id` + UQ `ArticleId`, 44 Sage-Felder, nur SData-Weg schreibt; per `SetValues` nach Namen kopiert).
+- `ArticleAttributeValues.TextValue` nvarchar(1000); Sage-geführte Definitionen `SyncSource = "Sage"` + `SyncFieldName`.
+- `ProductionOrderPositions` (Cache, UNIQUE `BelPosID`, Full-Refresh in eigener Transaktion), `SageFaStates` (leer; befüllt das Rückmelde-Epic).
+- `ProductionWorkplaces` + `SageBdeTerminalId`, `SageKostenstelle`, `SageSchichtplannummer`.
+- `SagePpsMitarbeiter` (Cache), `Stillstandsgruende` (Audit, `SageMissingSince`), `BdeOperators.SageMitarbeiternummer` (gefiltert UNIQUE + App-Guard).
+- `Creditors`, `Debitors` (Audit, `Source` Sage|Manual, gefiltert UNIQUE `SageKto`/`ShortName`, Enum `SageUebergabeStatus`, Interface `ISageKonto`).
+- `ArticleSuppliers` (FK Article Cascade, FK Creditor Restrict, UNIQUE ArticleId+CreditorId).
+- `SageStammdatenOutbox` (Status = `SageBookingQueueStatus`, `EntityType`+`EntityKey` = WMS-Id); `StorageLocations`/`BdeOperators` + `SageUebergabeStatus`
+  (DEFAULT 0 nur im SQL), `SageUebergabeAm`, `SageUebergabeFehler`; `BdeOperators.Source` DEFAULT 'Manual'.

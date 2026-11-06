@@ -313,3 +313,29 @@ Details/Entscheidung: [[0012-fa-hierarchie-einweg-migrationstor]]; Changelog [[2
 FA-Hierarchie — **Einwegtor**, guard-geschuetzt, in `/ServiceSettings` read-only) +
 `Sync:FaZusatzinfoAutoErledigtEnabled` (Bool, Default true = AKE unveraendert; im hierarchischen Modus
 nicht einschaltbar, Master-Flip schaltet ab).
+
+## Sage-SData-Abgleich (v1.73.0, Epic [[2026-11-06-sage-sdata-stammdaten-sync-spec]])
+
+Quellen-Weiche je Abgleich: [[0019-quellen-weiche-view-sdata-je-abgleich]]. Ordner `IDEALAKEWMSService/Services/Sdata/`.
+
+| Bereich | Schnittstelle | SQL-Reader (unverändert) | SData-Reader | Weiche / Schalter |
+|---|---|---|---|---|
+| Lagerplätze | `ISageLagerplatzReader` | `SageLagerplatzReader` | `SdataLagerplatzReader` | `LagerplatzQuelleSwitch` / `Sync:Quelle:Lagerplaetze` |
+| Lagerbestand | `ISageBestandReader` | `SageBestandReader` | `SdataBestandReader` | `BestandQuelleSwitch` / `Sync:Quelle:Lagerbestand` |
+| Artikel | `ISageArtikelReader` (neu, aus `SageImportService`) | `SageArtikelReader` | `SdataArtikelReader` | `ArtikelQuelleSwitch` (gesperrt P-R1) / `Sync:Quelle:Artikel` |
+| FA-Struktur | `ISageFaStrukturReader` (neu, aus `FaHierarchySyncService`) | `SageFaStrukturReader` | `SdataFaStrukturReader` (Kanten + Positionen) | `FaStrukturQuelleSwitch` (gesperrt P-F2) / `Sync:Quelle:FaStruktur` |
+| Werkbank + Arbeitsgang | `ISageArbeitsplatzReader` | `SageArbeitsplatzReader` | `SdataArbeitsplatzReader` | `ArbeitsplatzQuelleSwitch` / `Sync:Quelle:Arbeitsplaetze` |
+| Lagerbuchungs-Lookup | `ISageBuchungLookupReader` | `SageBuchungLookupReader` | `SdataBuchungLookupReader` | `BuchungLookupQuelleSwitch` / `Sync:Quelle:LagerbuchungLookup` |
+
+- Basis: `SageQuelleWeiche` (`GenutzteQuelle`, `SdataHinweise`, `SdataGesperrtBis`), `SageQuelleSchalter`, `SdataVergleich`, `SdataLeseZielLeser`,
+  `SdataRegistrierung.Add…Quelle()` (aus `Program.cs`). Client: `ISageSdataReadClient.QueryAllAsync` + `SdataLeseException` (`IdealAkeWms/Services/SageSdata/`).
+- Lauf `SageQuellenvergleich` („Sage-Quellenvergleich (View/SData)“). Bereichsläufe schreiben Info „Quelle: …“.
+- Neue Abgleiche (ohne View-Weg, Schalter Default false, je `RunResilientAsync`):
+  - `PpsMitarbeiterSyncService` (`Sync:PpsMitarbeiterEnabled`, Schreiber `PpsMitarbeiterSync`, Cache `SagePpsMitarbeiter`; Counts gelesen, uebersprungen, nicht_zugeordnet, bde_ohne_sage_nummer, sage_nummer_unbekannt).
+  - `StillstandsgruendeSyncService` (`Sync:StillstandsgruendeEnabled`, `StillstandsgruendeSync`; Counts gelesen, neu, aktualisiert, unveraendert, uebersprungen, nicht_in_sage, nicht_in_sage_neu, wieder_in_sage).
+  - `KontokorrentSyncService` (`Sync:KreditorenEnabled`/`Sync:DebitorenEnabled`, `KontokorrentSync`, Läufe Kreditoren/Debitoren, `where KtoArt eq 'K'|'D'`; Counts gelesen, neu, aktualisiert, verknuepft, unveraendert, uebersprungen, nicht_in_sage, nicht_in_sage_neu, wieder_in_sage, moegliche_dubletten).
+  - `ArtikelLieferantSyncService` (`Sync:ArtikelLieferantEnabled`, `ArtikelLieferantSync`, nach Artikel; Counts gelesen, neu, aktualisiert, unveraendert, entfernt, hauptlieferant, artikel_fehlt, kreditor_fehlt, uebersprungen).
+- G10: Lagerplatz-/Lagerbestand-Abgleich mailen Lesefehler nur bei Quelle SData/Vergleich (View wie bisher ohne Mail).
+- Umbuchung: `SageLagerbuchungUmbuchungAktiv` (Default false); einzige Typliste `SageBookingEnqueueDecision` (`BookableTypes`, `Buchungsart`,
+  `IstUmbuchungMitFaBezug`); Nacherfassung `EnqueueMissingAsync(..., umbuchungAktiv)`.
+- Outbox `SageStammdatenOutbox` ohne Worker (G5); `LagerplatzSyncService` übernimmt manuelle Plätze mit Übergabe Offen/Fehler bei gleichem Code.
