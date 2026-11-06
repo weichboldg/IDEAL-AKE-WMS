@@ -1,0 +1,105 @@
+@model Creditor
+@using IdealAkeWms.Controllers
+@inject IdealAkeWms.Services.ICurrentUserService _user
+@{
+    ViewData["Title"] = "Kreditor " + (Model.ShortName ?? Model.Name);
+    var canEdit = await _user.HasMasterDataAccessAsync();
+    string Text(string? s) => string.IsNullOrWhiteSpace(s) ? "—" : s;
+}
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+    <h2 class="page-header mb-0">
+        @(Model.ShortName ?? Model.Name)
+        @if (!Model.IsActive)
+        {
+            <span class="badge bg-secondary align-middle fs-6">Inaktiv</span>
+        }
+    </h2>
+    <div class="d-flex flex-wrap gap-2">
+        @if (canEdit)
+        {
+            <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-primary">Bearbeiten</a>
+            <form asp-action="SetActive" method="post" class="d-inline">
+                <input type="hidden" name="id" value="@Model.Id" />
+                <input type="hidden" name="active" value="@(Model.IsActive ? "false" : "true")" />
+                @if (Model.IsActive)
+                {
+                    <button type="submit" class="btn btn-outline-danger">Deaktivieren</button>
+                }
+                else
+                {
+                    <button type="submit" class="btn btn-outline-success">Reaktivieren</button>
+                }
+            </form>
+        }
+        <a asp-action="Index" class="btn btn-secondary">Zur Liste</a>
+    </div>
+</div>
+
+@if (!canEdit)
+{
+    <div class="alert alert-info small">Sie haben Nur-Lesen-Zugriff. Aenderungen sind nicht moeglich.</div>
+}
+
+@if (Model.SageMissingSince.HasValue)
+{
+    <div class="alert alert-warning small" role="alert">
+        <span class="badge bg-warning text-dark border border-dark me-1">Nicht in Sage</span>
+        Das Sage-Konto fehlt seit <strong>@Model.SageMissingSince.Value.ToString("dd.MM.yyyy")</strong> in Sage.
+    </div>
+}
+
+<div class="row g-3">
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header">Stammdaten</div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-4">Kurzname</dt><dd class="col-sm-8">@Text(Model.ShortName)</dd>
+                    <dt class="col-sm-4">Name</dt><dd class="col-sm-8">@Text(Model.Name)</dd>
+                    <dt class="col-sm-4">Matchcode</dt><dd class="col-sm-8">@Text(Model.Matchcode)</dd>
+                    <dt class="col-sm-4">Adresse</dt>
+                    <dd class="col-sm-8">
+                        @Text(Model.Street)<br />
+                        @Text(CreditorsController.ColumnMap["city"](Model))<br />
+                        @Text(Model.Country)
+                    </dd>
+                    <dt class="col-sm-4">Ansprechpartner</dt><dd class="col-sm-8">@Text(Model.ContactPerson)</dd>
+                    <dt class="col-sm-4">Telefon</dt><dd class="col-sm-8">@Text(Model.Phone)</dd>
+                    <dt class="col-sm-4">E-Mail</dt>
+                    <dd class="col-sm-8">
+                        @if (string.IsNullOrWhiteSpace(Model.Email)) { <text>—</text> } else { <a href="mailto:@Model.Email">@Model.Email</a> }
+                    </dd>
+                    <dt class="col-sm-4">Beschichter</dt><dd class="col-sm-8">@(Model.IsCoater ? "Ja" : "Nein")</dd>
+                    <dt class="col-sm-4">Status</dt><dd class="col-sm-8">@(Model.IsActive ? "Aktiv" : "Inaktiv")</dd>
+                    <dt class="col-sm-4">Bemerkung</dt><dd class="col-sm-8" style="white-space: pre-line;">@Text(Model.Remark)</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header">Sage</div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-5">Herkunft</dt><dd class="col-sm-7">@CreditorsController.SourceText(Model.Source)</dd>
+                    <dt class="col-sm-5">Sage-Konto</dt><dd class="col-sm-7">@Text(Model.SageKto)</dd>
+                    <dt class="col-sm-5">Sage-Matchcode</dt><dd class="col-sm-7">@Text(Model.SageMatchcode)</dd>
+                    <dt class="col-sm-5">Sage-Gruppe</dt><dd class="col-sm-7">@Text(Model.SageGruppe)</dd>
+                    <dt class="col-sm-5">UID-Nummer</dt><dd class="col-sm-7">@Text(Model.SageEUUStID)</dd>
+                    <dt class="col-sm-5">Zahlungskondition</dt><dd class="col-sm-7">@Text(Model.SageZahlungskondition)</dd>
+                    <dt class="col-sm-5">EK-Mindestbestellwert</dt><dd class="col-sm-7">@(Model.SageEKMindestbestellwert?.ToString("N2") ?? "—")</dd>
+                </dl>
+                <p class="small text-muted mt-2 mb-0">Die Sage-Felder füllt der Sage-Abgleich der Kreditoren (folgt).</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<p class="small text-muted mt-3">
+    Angelegt @Model.CreatedAt.ToString("dd.MM.yyyy HH:mm") von @Model.CreatedBy
+    @if (Model.ModifiedAt.HasValue)
+    {
+        <text>· zuletzt geändert @Model.ModifiedAt.Value.ToString("dd.MM.yyyy HH:mm") von @Model.ModifiedBy</text>
+    }
+</p>

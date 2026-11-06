@@ -10985,6 +10985,38 @@ unbekannter Wert, DI), `SageLagerbuchungPayloadBuilderTests` (drei Umbuchungs-Va
 | 106.9.m | Negativ Referenz: S2 „Sage-Buchung erlaubt“ an, aber Sage-Referenz leer; Umbuchung S1 → S2 | Queue-Eintrag geht auf „Fehler“ „Lagerplatz 'S2' hat keine Sage-Referenz …“; nichts an Sage gesendet. |
 | 106.9.n | Rückfall: `SageLagerbuchungUmbuchungAktiv = false` | Neue Umbuchungen werden nicht mehr eingereiht; bereits eingereihte offene Umbuchungen werden noch gesendet (Schalter wirkt beim Einreihen). |
 
+### TS-106.10 — E8a: Kreditoren-Stamm, Pflege-Oberfläche, Dienstleister-Meldung
+
+**Standort:** beide (Meldekarte nur IDEAL, sonst identisch). **Migration:** `SQL/104_AddCreditors.sql` (neue Tabelle `Creditors`, rein additiv).
+**Vorbedingungen:** `SQL/104` eingespielt; Benutzer **P** mit `masterdata`, **L** mit nur `masterdata_read`, **O** ohne Stammdaten-Rolle, **A** `admin`.
+Für 106.10.a: ≥ 30 Kreditoren (z. B. per wiederholtem Anlegen oder SQL-Insert mit `Source = 'Manual'`), davon einige inaktiv und einige Beschichter.
+IDEAL: FA-Hierarchie-Sync gelaufen; Prüfabfrage A der Kreditoren-Spec liefert die Dienstleister-Texte:
+`SELECT LTRIM(RTRIM([Dienstleister])) AS DienstleisterText, COUNT(*) AS Zeilen FROM dbo.FaHierarchyOrderInfos GROUP BY LTRIM(RTRIM([Dienstleister])) ORDER BY 1;`
+**Regeln:** Pflicht Name + Kurzname (Kurzname nur bei Herkunft WMS); Kurzname eindeutig (getrimmt, Groß/Klein egal), Sage-Konto eindeutig, wenn gesetzt
+(Text, nie Zahl). Herkunft `WMS` (hier angelegt) oder `Sage` (kommt erst mit dem Lese-Abgleich E8c; zum Test per SQL setzen). Bei `Sage` sind Name,
+Adresse, Ansprechpartner, Telefon, E-Mail und Sage-Konto nur lesbar; Kurzname, Matchcode, Bemerkung, Beschichter, Aktiv pflegbar. Kein Löschen.
+Automatisiert: `CreditorsControllerTests` (Read/Edit-Split, Audit, Schreibschutz, Duplikat-Guards, Filter, Spaltenfilter vor Pagination, Meldekarte),
+`CreditorAssignmentTests`, `CreditorRepositoryTests`, `CreditorsViewTests` (Spaltenschlüssel, viewKey, Menüpunkt). Index-DDL ist Manual-UAT.
+
+| Nr | Schritte | Erwartung |
+|---|---|---|
+| 106.10.a | P: Stammdaten → Kreditoren | Liste mit Filterkarte (Status **Aktiv** vorgewählt, Schalter „Nur Beschichter“), Pagination 25/50/100/Alle (Benutzer-Default greift), Spaltenfilter auf jeder Spalte, Zahnrad. Status „Inaktiv“/„Alle“ und „Nur Beschichter“ filtern richtig; Spaltenfilter (auch `a,b` ODER und `!x` NICHT) wirkt über alle Seiten, „x Einträge“ stimmt. Spalte ausblenden, Reload → bleibt ausgeblendet (kein 400 von `UserViewPreferencesApi` in der Konsole). |
+| 106.10.b | Negativ Filter: Spaltenfilter Name = `zzzz` | Leere Tabelle „Keine Kreditoren für diese Filterung.“, Gesamtzahl 0. |
+| 106.10.c | P: „Kreditor anlegen“ ohne Name und ohne Kurzname speichern; dann E-Mail `abc` | Feldfehler „Name ist ein Pflichtfeld.“ und „Kurzname ist ein Pflichtfeld.“, bzw. „Bitte eine gültige E-Mail-Adresse eingeben.“; nichts gespeichert, keine Fehlerseite. |
+| 106.10.d | Anlegen Kurzname ` Pulver `, Name `Müller & Söhne 'Pulver' <GmbH>`, Sage-Konto ` K31013 `, Beschichter an | Erfolgsmeldung; in der Liste Kurzname `Pulver`, Sage-Konto `K31013` (getrimmt), Herkunft „WMS“, Beschichter „Ja“, Name mit allen Sonderzeichen korrekt angezeigt; Spaltenfilter `söhne` findet ihn; keine Konsolenfehler. DB: `CreatedAt/By/ByWindows` gesetzt, `Source = 'Manual'`, `SageUebergabeStatus = 0`. |
+| 106.10.e | Negativ Duplikate: zweiten Kreditor mit Kurzname `PULVER` anlegen; dritten mit Sage-Konto `K31013 `; zwei Kreditoren ohne Sage-Konto | Feldfehler „Kurzname 'PULVER' ist bereits vergeben …“ bzw. „Sage-Konto 'K31013' ist bereits einem anderen Kreditor zugeordnet.“, keine Exception; zwei Kreditoren ohne Konto sind erlaubt. |
+| 106.10.f | P: Details → Bearbeiten, Ort ändern, speichern | Gespeichert; DB `ModifiedAt/By/ByWindows` gesetzt. Eigenen Kurznamen nur in der Schreibweise ändern (`pulver`) → kein Duplikatfehler. |
+| 106.10.g | P: Details → „Deaktivieren“ | Meldung „… wurde deaktiviert“, Liste zeigt Status „Inaktiv“; im Default-Filter verschwunden; DB `Modified*` erneut gesetzt. Details → „Reaktivieren“ → wieder unter „Aktiv“. Nirgends ein Lösch-Knopf. |
+| 106.10.h | Herkunft Sage simulieren: `UPDATE Creditors SET Source='Sage', ShortName=NULL WHERE Id=<id>`; P: Bearbeiten | Hinweis „Dieser Kreditor stammt aus Sage …“; Name, Adresse, Kontakt, E-Mail, Sage-Konto **readonly**; Kurzname ohne Pflicht-Stern. Bemerkung + Matchcode + Beschichter ändern, Kurzname leer lassen → gespeichert. Readonly-Feld per Browser-Entwicklertools ändern (z. B. Name) und speichern → Name in der DB **unverändert**. Liste zeigt Herkunft „Sage“. |
+| 106.10.i | Rollen: L öffnet Kreditoren und Details; L ruft `/Creditors/Create`, `/Creditors/Edit/<id>` direkt auf | Liste + Details sichtbar, Hinweis „Nur-Lesen-Zugriff“, kein „Kreditor anlegen“/„Bearbeiten“/„Deaktivieren“, Meldekarte ohne „Als Kreditor anlegen“; Direktaufrufe → AccessDenied. |
+| 106.10.j | Rollen: O | Menüpunkt „Kreditoren“ fehlt (ganzes Stammdaten-Menü fehlt); `/Creditors` → AccessDenied. A: alles wie P. Rollenübersicht nennt Kreditoren bei `masterdata`/`masterdata_read`. |
+| 106.10.k | IDEAL Meldekarte: Liste öffnen | Gelbe Karte „Dienstleister ohne Kreditor: n“ listet genau die nicht-leeren Texte aus Prüfabfrage A ohne aktiven Kreditor mit gleichem Kurznamen, je mit Zahl der Auftragszeilen (wie `Zeilen` der Abfrage). |
+| 106.10.l | P: bei einem Text „Als Kreditor anlegen“ | Formular mit vorbelegtem Kurznamen (= Text) und Beschichter an; Name ergänzen, speichern → Text verschwindet aus der Karte. Kurzname in anderer Groß-/Kleinschreibung bzw. mit Leerzeichen am Rand wirkt genauso. |
+| 106.10.m | Diesen Kreditor deaktivieren | Text erscheint wieder in der Karte mit Kennzeichen „nur inaktiv“ und Link „Inaktive Kreditoren zeigen“. |
+| 106.10.n | AKE (`FaHierarchyOrderInfos` leer) bzw. IDEAL, wenn alle Texte zugeordnet sind | Keine Karte, keine Fehlermeldung; Liste voll nutzbar. |
+| 106.10.o | Regression Beschichtungsauftrag (IDEAL): Beschichtung → Liste und Druck eines Auftrags | Dienstleister weiterhin als Text wie vorher, unabhängig von Kreditoren. |
+| 106.10.p | DB: `SQL/104` ein zweites Mal ausführen; auf einer FreshInstall-DB `SQL/00_FreshInstall.sql` | Zweiter Lauf ohne Fehler und ohne Änderung; FreshInstall legt `Creditors` mit `IX_Creditors_SageKto`/`IX_Creditors_ShortName` (gefiltert `IS NOT NULL`) an und trägt `20261106195956_AddCreditors` ein. Negativ: `INSERT` mit doppeltem `SageKto` per SQL → Fehler 2601 (Index als zweite Linie). |
+
 ---
 
 *Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) + Teil 6 (Standorteinstellungen, v1.34.0) + BOM-Guard hierarchisch (2026-08-18, abgelöst) + FA-Liste-Hierarchie (v1.35.0) + BOM-Bridge (v1.36.0) + Materialisierung fachliche Felder K1/K2 (v1.37.0) + Skopierung der Tabellen-Selektoren (TS-72) + FA-Liste ausgebaut: Matchcode, Kopfdaten je Zeile, HauptFA-Zeile, Freigabe-Kaskade (v1.38.0, TS-73) + PDF-Erzeugung für FaHierarchy-Druckdokumente (v1.39.0, TS-74) + Matchcode im Artikelstamm (v1.40.0, TS-75) + FA-Arbeitsgang-Erkennung aus der Struktur (v1.41.0, TS-76, ersetzt durch TS-77) + Arbeitsgänge (WorkOperation) aus der Struktur + Werkbank-Anlage aus Sage (v1.44.0, TS-77) + Arbeitsgänge je (Sub-)FA im FA-Struktur-Modal (v1.45.0, TS-78) + Kommissionierung nur am HauptFA

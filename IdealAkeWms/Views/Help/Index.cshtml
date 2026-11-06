@@ -1842,6 +1842,27 @@
                         FA-Vorbau-AG-Umbau jedoch direkt nach FA-Vorbau-AG (nicht mehr ueber das
                         Werkbank-Mapping).</dd>
 
+                    <dt>Kreditoren (seit v1.73.0)</dt>
+                    <dd>Lieferanten, Dienstleister und Beschichter (<em>Stammdaten &rarr; Kreditoren</em>). Pflegen darf, wer
+                        &bdquo;Stammdaten verwalten&ldquo; hat; &bdquo;Stammdaten ansehen&ldquo; sieht Liste und Details ohne Knöpfe.
+                        <ul class="mt-1 mb-1">
+                            <li><strong>Pflicht:</strong> Name und Kurzname. Der <strong>Kurzname</strong> ist eindeutig (Groß-/Kleinschreibung und
+                                Leerzeichen am Rand zählen nicht) und dient als Schlüssel für den Dienstleister-Text.</li>
+                            <li><strong>Sage-Konto:</strong> optional, eindeutig, wird als Text gespeichert (<code>0000</code> &ne; <code>0</code>).</li>
+                            <li><strong>Beschichter:</strong> Häkchen für Beschichtungs-Dienstleister; die Liste lässt sich mit
+                                &bdquo;nur Beschichter&ldquo; darauf einschränken.</li>
+                            <li><strong>Herkunft:</strong> <em>WMS</em> = hier angelegt, alles pflegbar. <em>Sage</em> = künftig vom Sage-Abgleich
+                                angelegt; dann sind Name, Adresse, Kontakt und Sage-Konto nur lesbar, Kurzname, Matchcode, Bemerkung, Beschichter und
+                                Aktiv bleiben pflegbar.</li>
+                            <li><strong>Deaktivieren statt Löschen:</strong> Inaktive Kreditoren verschwinden aus dem Standardfilter &bdquo;Aktiv&ldquo;,
+                                stehen unter &bdquo;Inaktiv&ldquo;/&bdquo;Alle&ldquo; und lassen sich in den Details reaktivieren.</li>
+                            <li><strong>Dienstleister ohne Kreditor (IDEAL):</strong> Die gelbe Karte über der Liste nennt jeden Dienstleister-Text der
+                                Beschichtungsaufträge, zu dem kein aktiver Kreditor mit gleichem Kurznamen existiert, mit der Zahl der Auftragszeilen.
+                                &bdquo;nur inaktiv&ldquo; heißt: Der passende Kreditor ist deaktiviert. &bdquo;Als Kreditor anlegen&ldquo; öffnet das
+                                Formular mit vorbelegtem Kurznamen. Der Text am Beschichtungsauftrag selbst bleibt unverändert.</li>
+                        </ul>
+                    </dd>
+
                     <dt>FA-Vorbau-AG (seit v1.22.0)</dt>
                     <dd>Katalog der FA-Vorbau-AG (Standard: VK Kuehlung, VL Lueftung, VE Elektro,
                         VT Tueren, VA Aufbau) &mdash; erweiterbar um eigene Eintraege.
@@ -1883,7 +1904,7 @@
                             </thead>
                             <tbody>
                                 <tr><td>Administrator</td><td>Vollzugriff auf alle Bereiche (Benutzer, Rollen, Arbeitsplaetze, Einstellungen, Service-Einstellungen, Aktivitaets-Protokoll sind admin-only)</td></tr>
-                                <tr><td>Stammdaten</td><td>Operative Stammdaten lesen + aendern (Artikel, Lagerplaetze, Werkbaenke, Artikelkategorien, Artikelmerkmale, Empfaenger)</td></tr>
+                                <tr><td>Stammdaten</td><td>Operative Stammdaten lesen + aendern (Artikel, Lagerplaetze, Werkbaenke, Artikelkategorien, Artikelmerkmale, Empfaenger, Kreditoren)</td></tr>
                                 <tr><td>Stammdaten ansehen</td><td>Dieselben Stammdaten-Sichten nur lesen (seit v1.20.0)</td></tr>
                                 <tr><td>Kommissionierer</td><td>Kommissionierung + vollstaendiger Lagerzugriff</td></tr>
                                 <tr><td>Lager</td><td>Einbuchung, Ausbuchung, Bestaende einsehen</td></tr>

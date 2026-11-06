@@ -1,0 +1,186 @@
+@model List<Creditor>
+@using IdealAkeWms.Controllers
+@inject IdealAkeWms.Services.ICurrentUserService _user
+@{
+    ViewData["Title"] = "Kreditoren";
+    var canEdit = await _user.HasMasterDataAccessAsync();
+    var status = (string?)ViewBag.Status ?? CreditorsController.StatusAktiv;
+    var coater = (bool?)ViewBag.Coater == true;
+    var unassigned = (List<IdealAkeWms.Services.UnassignedServiceProvider>?)ViewBag.Unassigned ?? new();
+}
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+    <h2 class="page-header mb-0">Kreditoren</h2>
+    @if (canEdit)
+    {
+        <a asp-action="Create" class="btn btn-primary">Kreditor anlegen</a>
+    }
+</div>
+
+@if (!canEdit)
+{
+    <div class="alert alert-info small">Sie haben Nur-Lesen-Zugriff. Aenderungen sind nicht moeglich.</div>
+}
+
+@* Dienstleister-Meldung (E8a): oberhalb der Filterkarte, nie zwischen Toolbar-Host und Tabelle (fallstricke §19); einfache Liste,
+   keine zweite filterbare Tabelle (fallstricke §22). Erscheint nicht, wenn alles zugeordnet oder die Quelle leer ist (AKE). *@
+@if (unassigned.Any())
+{
+    <div class="card border-warning mb-3" role="region" aria-labelledby="unassignedHeader">
+        <div class="card-header bg-warning-subtle text-dark" id="unassignedHeader">
+            <strong>Dienstleister ohne Kreditor: @unassigned.Count</strong>
+        </div>
+        <div class="card-body py-2">
+            <p class="small text-muted mb-2">
+                Diese Dienstleister-Texte der Beschichtungsaufträge passen auf keinen aktiven Kreditor-Kurznamen
+                (Groß-/Kleinschreibung und Leerzeichen am Rand zählen nicht).
+            </p>
+            <ul class="list-unstyled mb-0">
+                @foreach (var u in unassigned)
+                {
+                    <li class="d-flex flex-wrap align-items-center gap-2 py-1 border-bottom">
+                        <span class="fw-semibold">@u.Text</span>
+                        <span class="small text-muted">@u.Rows @(u.Rows == 1 ? "Auftragszeile" : "Auftragszeilen")</span>
+                        @if (u.MatchesInactiveOnly)
+                        {
+                            <span class="badge bg-secondary">nur inaktiv</span>
+                            <a asp-action="Index" asp-route-status="@CreditorsController.StatusInaktiv" class="small">Inaktive Kreditoren zeigen</a>
+                        }
+                        else if (canEdit)
+                        {
+                            <a asp-action="Create" asp-route-shortName="@u.Text" class="btn btn-sm btn-outline-primary">Als Kreditor anlegen</a>
+                        }
+                    </li>
+                }
+            </ul>
+        </div>
+    </div>
+}
+
+<div class="card filter-card mb-3">
+    <div class="card-header">Filter</div>
+    <div class="card-body">
+        <form method="get" asp-action="Index" class="row g-3 align-items-end">
+            <div class="col-sm-4 col-md-3">
+                <label class="form-label" for="filterStatus">Status</label>
+                <select id="filterStatus" name="status" class="form-select">
+                    <option value="@CreditorsController.StatusAktiv" selected="@(status == CreditorsController.StatusAktiv)">Aktiv</option>
+                    <option value="@CreditorsController.StatusInaktiv" selected="@(status == CreditorsController.StatusInaktiv)">Inaktiv</option>
+                    <option value="@CreditorsController.StatusAlle" selected="@(status == CreditorsController.StatusAlle)">Alle</option>
+                </select>
+            </div>
+            <div class="col-sm-4 col-md-3">
+                <div class="form-check form-switch mb-2">
+                    <input class="form-check-input" type="checkbox" id="filterCoater" name="coater" value="true" @(coater ? "checked" : "") />
+                    <label class="form-check-label" for="filterCoater">Nur Beschichter</label>
+                </div>
+            </div>
+            <div class="col-sm-4 col-md-3">
+                <button type="submit" class="btn btn-primary">Filtern</button>
+                <a asp-action="Index" class="btn btn-outline-secondary">Zurücksetzen</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@* Toolbar-Host (data-table-toolbar, site.js tableToolbarHost): Zahnrad fuer die Spaltenauswahl. *@
+<div class="d-flex justify-content-end mb-1" data-table-toolbar></div>
+<div class="table-responsive">
+    <table class="table table-striped mb-0 filterable-table" data-server-column-filter="true" data-view-key="Creditors">
+        <thead>
+            <tr>
+                <th data-filterable data-col-key="short-name">Kurzname</th>
+                <th data-filterable data-col-key="name">Name</th>
+                <th data-filterable data-col-key="matchcode">Matchcode</th>
+                <th data-filterable data-col-key="city">PLZ / Ort</th>
+                <th data-filterable data-col-key="country">Land</th>
+                <th data-filterable data-col-key="contact">Ansprechpartner</th>
+                <th data-filterable data-col-key="phone">Telefon</th>
+                <th data-filterable data-col-key="email">E-Mail</th>
+                <th data-filterable data-col-key="sage-kto">Sage-Konto</th>
+                <th data-filterable data-col-key="coater">Beschichter</th>
+                <th data-filterable data-col-key="source">Herkunft</th>
+                <th data-filterable data-col-key="status">Status</th>
+                <th data-col-key="actions" style="width: 100px;"></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var c in Model)
+            {
+                <tr>
+                    <td><strong>@c.ShortName</strong></td>
+                    <td>@c.Name</td>
+                    <td>@c.Matchcode</td>
+                    <td>@CreditorsController.ColumnMap["city"](c)</td>
+                    <td>@c.Country</td>
+                    <td>@c.ContactPerson</td>
+                    <td>@c.Phone</td>
+                    <td>
+                        @if (!string.IsNullOrWhiteSpace(c.Email))
+                        {
+                            <a href="mailto:@c.Email">@c.Email</a>
+                        }
+                    </td>
+                    <td>@c.SageKto</td>
+                    <td>
+                        @if (c.IsCoater)
+                        {
+                            <span class="badge bg-info text-dark">Ja</span>
+                        }
+                    </td>
+                    <td>@CreditorsController.SourceText(c.Source)</td>
+                    <td>
+                        @if (c.IsActive)
+                        {
+                            <span class="badge bg-success">Aktiv</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-secondary">Inaktiv</span>
+                        }
+                    </td>
+                    <td class="text-nowrap">
+                        <a asp-action="Details" asp-route-id="@c.Id" class="btn btn-sm btn-outline-secondary">Details</a>
+                    </td>
+                </tr>
+            }
+            @if (!Model.Any())
+            {
+                <tr>
+                    <td colspan="13" class="text-center text-muted py-4">Keine Kreditoren für diese Filterung.</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@if (ViewBag.Pagination is IdealAkeWms.Models.ViewModels.PaginationState paginationState)
+{
+    <partial name="_Pagination" model="paginationState" />
+}
+
+<script type="application/json" id="view-config">
+{ "viewKey": "Creditors", "supportsReorder": false, "supportsSortDefault": false }
+</script>
+<script type="application/json" id="column-config">
+[
+    { "key": "short-name", "label": "Kurzname", "locked": true, "defaultWidth": null },
+    { "key": "name", "label": "Name", "locked": false, "defaultWidth": null },
+    { "key": "matchcode", "label": "Matchcode", "locked": false, "defaultWidth": null },
+    { "key": "city", "label": "PLZ / Ort", "locked": false, "defaultWidth": null },
+    { "key": "country", "label": "Land", "locked": false, "defaultWidth": null },
+    { "key": "contact", "label": "Ansprechpartner", "locked": false, "defaultWidth": null },
+    { "key": "phone", "label": "Telefon", "locked": false, "defaultWidth": null },
+    { "key": "email", "label": "E-Mail", "locked": false, "defaultWidth": null },
+    { "key": "sage-kto", "label": "Sage-Konto", "locked": false, "defaultWidth": null },
+    { "key": "coater", "label": "Beschichter", "locked": false, "defaultWidth": null },
+    { "key": "source", "label": "Herkunft", "locked": false, "defaultWidth": null },
+    { "key": "status", "label": "Status", "locked": false, "defaultWidth": null },
+    { "key": "actions", "label": "", "locked": true, "defaultWidth": 100 }
+]
+</script>
+
+@section Scripts {
+    <script src="~/js/column-preferences.js" asp-append-version="true"></script>
+    <script src="~/js/table-filter.js" asp-append-version="true"></script>
+}

@@ -598,6 +598,31 @@ public static class ColumnDefinitions
         ]
     };
 
+    /// <summary>
+    /// Creditors/Index.cshtml — Kreditorenliste (v1.73.0, E8a). Alle Spalten ausser "actions" server-filterbar (CreditorsController.ColumnMap).
+    /// </summary>
+    public static readonly ViewConfig Creditors = new(
+        "Creditors", "Kreditoren",
+        SupportsReorder: false, SupportsSortDefault: false)
+    {
+        Columns =
+        [
+            new ColumnDef("short-name", "Kurzname",        Locked: true),
+            new ColumnDef("name",       "Name",            Locked: false),
+            new ColumnDef("matchcode",  "Matchcode",       Locked: false),
+            new ColumnDef("city",       "PLZ / Ort",       Locked: false),
+            new ColumnDef("country",    "Land",            Locked: false),
+            new ColumnDef("contact",    "Ansprechpartner", Locked: false),
+            new ColumnDef("phone",      "Telefon",         Locked: false),
+            new ColumnDef("email",      "E-Mail",          Locked: false),
+            new ColumnDef("sage-kto",   "Sage-Konto",      Locked: false),
+            new ColumnDef("coater",     "Beschichter",     Locked: false),
+            new ColumnDef("source",     "Herkunft",        Locked: false),
+            new ColumnDef("status",     "Status",          Locked: false),
+            new ColumnDef("actions",    "",                Locked: true,  DefaultWidth: 100),
+        ]
+    };
+
     public static ViewConfig? GetByViewKey(string viewKey) => viewKey switch
     {
         "ProductionOrders" => ProductionOrders,
@@ -620,6 +645,7 @@ public static class ColumnDefinitions
         "BeschichtungsauftragPositionen" => BeschichtungsauftragPositionen,
         "OperationConfigs"               => OperationConfigs,
         "StorageLocations"               => StorageLocations,
+        "Creditors"                      => Creditors,
         _                  => null
     };
 }

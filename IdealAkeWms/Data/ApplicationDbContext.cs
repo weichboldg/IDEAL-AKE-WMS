@@ -50,6 +50,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<BdeOperator> BdeOperators => Set<BdeOperator>();
     public DbSet<SagePpsMitarbeiter> SagePpsMitarbeiter => Set<SagePpsMitarbeiter>();
     public DbSet<Stillstandsgrund> Stillstandsgruende => Set<Stillstandsgrund>();
+    public DbSet<Creditor> Creditors => Set<Creditor>();
     public DbSet<BdeShift> BdeShifts => Set<BdeShift>();
     public DbSet<BdeTerminal> BdeTerminals => Set<BdeTerminal>();
     public DbSet<CachedBomHeader> CachedBomHeaders => Set<CachedBomHeader>();
@@ -1228,6 +1229,42 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.ModifiedBy).HasMaxLength(200);
             entity.Property(e => e.ModifiedByWindows).HasMaxLength(200);
             entity.HasIndex(e => e.Nummer).IsUnique().HasDatabaseName("IX_Stillstandsgruende_Nummer");
+        });
+
+        // Kreditoren (Spec 2026-11-06-sage-sdata-stammdaten-sync F10, E8a). Bool-/Status-Defaults bewusst NUR im SQL-Skript
+        // (DEFAULT 1 / 0): ein EF-HasDefaultValue(true) auf bool liesse ein explizites false beim Insert verschwinden (Sentinel).
+        modelBuilder.Entity<Creditor>(entity =>
+        {
+            entity.ToTable("Creditors");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.ShortName).HasMaxLength(50);
+            entity.Property(e => e.Matchcode).HasMaxLength(50);
+            entity.Property(e => e.Street).HasMaxLength(200);
+            entity.Property(e => e.PostalCode).HasMaxLength(20);
+            entity.Property(e => e.City).HasMaxLength(100);
+            entity.Property(e => e.Country).HasMaxLength(100);
+            entity.Property(e => e.Email).HasMaxLength(200);
+            entity.Property(e => e.Phone).HasMaxLength(50);
+            entity.Property(e => e.ContactPerson).HasMaxLength(200);
+            entity.Property(e => e.Remark).HasMaxLength(1000);
+            entity.Property(e => e.Source).HasMaxLength(20).IsRequired();
+            entity.Property(e => e.SageKto).HasMaxLength(20);
+            entity.Property(e => e.SageMatchcode).HasMaxLength(50);
+            entity.Property(e => e.SageGruppe).HasMaxLength(10);
+            entity.Property(e => e.SageEUUStID).HasMaxLength(15);
+            entity.Property(e => e.SageZahlungskondition).HasMaxLength(10);
+            entity.Property(e => e.SageEKMindestbestellwert).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.SageUebergabeStatus).HasConversion<int>();
+            entity.Property(e => e.SageUebergabeFehler).HasMaxLength(1000);
+            entity.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.ModifiedBy).HasMaxLength(200);
+            entity.Property(e => e.ModifiedByWindows).HasMaxLength(200);
+            entity.HasIndex(e => e.SageKto).IsUnique().HasFilter("[SageKto] IS NOT NULL")
+                .HasDatabaseName("IX_Creditors_SageKto");
+            entity.HasIndex(e => e.ShortName).IsUnique().HasFilter("[ShortName] IS NOT NULL")
+                .HasDatabaseName("IX_Creditors_ShortName");
         });
 
         // BDE: Activities
