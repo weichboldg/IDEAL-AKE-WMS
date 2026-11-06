@@ -580,6 +580,92 @@ namespace IdealAkeWms.Migrations
                     b.ToTable("ArticleSageDetails", "dbo");
                 });
 
+            modelBuilder.Entity("IdealAkeWms.Models.ArticleSupplier", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ArticleId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Artikelnummer")
+                        .IsRequired()
+                        .HasMaxLength(31)
+                        .HasColumnType("nvarchar(31)");
+
+                    b.Property<string>("Bezeichnung1")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Bezeichnung2")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("CreatedByWindows")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("CreditorId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Einkaufsmengeneinheit")
+                        .HasMaxLength(5)
+                        .HasColumnType("nvarchar(5)");
+
+                    b.Property<decimal?>("Einzelpreis")
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<bool>("IstHauptlieferant")
+                        .HasColumnType("bit");
+
+                    b.Property<decimal?>("Mindestbestellmenge")
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ModifiedByWindows")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("SageBestellnummer")
+                        .HasMaxLength(31)
+                        .HasColumnType("nvarchar(31)");
+
+                    b.Property<decimal?>("UmrechnungsfaktorEK")
+                        .HasColumnType("decimal(18,6)");
+
+                    b.Property<int?>("Wiederbeschaffungszeit")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreditorId")
+                        .HasDatabaseName("IX_ArticleSuppliers_CreditorId");
+
+                    b.HasIndex("ArticleId", "CreditorId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_ArticleSuppliers_ArticleId_CreditorId");
+
+                    b.ToTable("ArticleSuppliers", "dbo");
+                });
+
             modelBuilder.Entity("IdealAkeWms.Models.BdeActivity", b =>
                 {
                     b.Property<int>("Id")
@@ -4661,6 +4747,21 @@ namespace IdealAkeWms.Migrations
                         .IsRequired();
 
                     b.Navigation("Article");
+                });
+
+            modelBuilder.Entity("IdealAkeWms.Models.ArticleSupplier", b =>
+                {
+                    b.HasOne("IdealAkeWms.Models.Article", null)
+                        .WithMany()
+                        .HasForeignKey("ArticleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("IdealAkeWms.Models.Creditor", null)
+                        .WithMany()
+                        .HasForeignKey("CreditorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("IdealAkeWms.Models.BdeBooking", b =>

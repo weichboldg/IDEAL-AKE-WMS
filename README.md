@@ -704,7 +704,16 @@ C:\Services\IDEALAKEWMSService\
 > wirft, der Worker sendet dann **nicht** neu (Doppelbuchungs-Schutz). `Vergleich`: Ergebnis aus der View, Abweichung bzw. SData-Fehler
 > im Lauf „Sage-Quellenvergleich“ (+ Mail bei Fehler). Der Lauf „Sage-Lagerbuchung“ nennt die genutzte Quelle („Quelle Lookup: …“).
 > Vor `SData` an einem Standort den Lookup einmal prüfen (TS-106.9.i): belegt ist am AKE-Test nur ein Präfix-`like`. Keine Migration.
-> Die übrigen Schalter wirken mit den folgenden Etappen.
+> **`Sync:KreditorenEnabled`** / **`Sync:DebitorenEnabled`** (E8c, Default `false`, kein View-Weg): lesen `Kontokorrent` mit
+> `KtoArt eq 'K'` bzw. `'D'` (Prüfabfrage P-K1) in `Creditors` bzw. `Debitors`, Schlüssel `SageKto`. Neu → `Source = Sage`, Name = Sage-Matchcode
+> (Adressen sind noch nicht gelesen, P-S1), `IsActive` aus Sage `Aktiv` nur bei der Anlage. Überschrieben werden nur `Sage*`-Felder (leer =
+> nicht schreiben); `ShortName`, `Matchcode`, `Remark`, `IsCoater`, `IsActive` nie. WMS-Datensatz mit gleicher Kontonummer → verknüpft
+> (`Source` wird `Sage`, Name bleibt), gleichnamiger ohne Kontonummer → Warnung „mögliche Dublette“. Fehlend → `SageMissingSince`, nie löschen;
+> leere Antwort ändert nichts. Läufe „Kreditoren-“ / „Debitoren-Abgleich (Sage)“.
+> **`Sync:ArtikelLieferantEnabled`** (E8c, Default `false`, Migration `SQL/106`): liest `ArtikelLieferantInfo` + Hauptlieferant aus
+> `ArtikelVariantenExtended` in `ArticleSuppliers` (nur Artikel im WMS und Lieferanten mit Kreditor gleicher `SageKto`, sonst gezählt bzw.
+> Warnung). Zuordnungen, die Sage nicht mehr liefert, werden entfernt (ohne zuordenbare Zeile nichts). Läuft nach Artikel- und
+> Kreditoren-Abgleich; Lauf „Artikel-Lieferanten-Abgleich (Sage)“. Keine Oberfläche.
 
 #### Schritt 3 — Windows Service registrieren
 

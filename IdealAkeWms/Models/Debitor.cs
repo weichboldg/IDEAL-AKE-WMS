@@ -9,7 +9,7 @@ namespace IdealAkeWms.Models;
 /// <c>Sage</c> = kuenftig vom Lese-Abgleich Kontokorrent (E8c) — dann sind Name, Adresse, Kontakt und alle <c>Sage*</c>-Felder
 /// schreibgeschuetzt. Nie geloescht, nur deaktiviert.
 /// </summary>
-public class Debitor : AuditableEntity
+public class Debitor : AuditableEntity, ISageKonto
 {
     [Required(ErrorMessage = "Name ist ein Pflichtfeld.")]
     [StringLength(200)]

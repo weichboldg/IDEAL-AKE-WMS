@@ -52,6 +52,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<Stillstandsgrund> Stillstandsgruende => Set<Stillstandsgrund>();
     public DbSet<Creditor> Creditors => Set<Creditor>();
     public DbSet<Debitor> Debitors => Set<Debitor>();
+    public DbSet<ArticleSupplier> ArticleSuppliers => Set<ArticleSupplier>();
     public DbSet<BdeShift> BdeShifts => Set<BdeShift>();
     public DbSet<BdeTerminal> BdeTerminals => Set<BdeTerminal>();
     public DbSet<CachedBomHeader> CachedBomHeaders => Set<CachedBomHeader>();
@@ -1303,6 +1304,31 @@ public class ApplicationDbContext : DbContext
                 .HasDatabaseName("IX_Debitors_SageKto");
             entity.HasIndex(e => e.ShortName).IsUnique().HasFilter("[ShortName] IS NOT NULL")
                 .HasDatabaseName("IX_Debitors_ShortName");
+        });
+
+        // Artikel-Lieferanten aus Sage (F10, E8c): nur der Lese-Abgleich ArtikelLieferantSync schreibt. Artikel weg -> Zeilen weg (Cascade);
+        // ein Kreditor wird nie geloescht (nur deaktiviert), daher Restrict. Laengen laut P-S1 ($schema ArtikelLieferantInfo).
+        modelBuilder.Entity<ArticleSupplier>(entity =>
+        {
+            entity.ToTable("ArticleSuppliers");
+            entity.HasKey(e => e.Id);
+            entity.HasOne<Article>().WithMany().HasForeignKey(e => e.ArticleId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<Creditor>().WithMany().HasForeignKey(e => e.CreditorId).OnDelete(DeleteBehavior.Restrict);
+            entity.Property(e => e.Artikelnummer).HasMaxLength(31).IsRequired();
+            entity.Property(e => e.SageBestellnummer).HasMaxLength(31);
+            entity.Property(e => e.Bezeichnung1).HasMaxLength(50);
+            entity.Property(e => e.Bezeichnung2).HasMaxLength(50);
+            // TODO(P-S1): Nachkommastellen liefert das $schema nicht; Spalten laut Spec F10, der Abgleich rundet passend.
+            entity.Property(e => e.Mindestbestellmenge).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.Einkaufsmengeneinheit).HasMaxLength(5);
+            entity.Property(e => e.UmrechnungsfaktorEK).HasColumnType("decimal(18,6)");
+            entity.Property(e => e.Einzelpreis).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.ModifiedBy).HasMaxLength(200);
+            entity.Property(e => e.ModifiedByWindows).HasMaxLength(200);
+            entity.HasIndex(e => new { e.ArticleId, e.CreditorId }).IsUnique().HasDatabaseName("IX_ArticleSuppliers_ArticleId_CreditorId");
+            entity.HasIndex(e => e.CreditorId).HasDatabaseName("IX_ArticleSuppliers_CreditorId");
         });
 
         // BDE: Activities

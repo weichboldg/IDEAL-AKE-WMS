@@ -10,7 +10,7 @@ namespace IdealAkeWms.Models;
 /// <see cref="Matchcode"/>, <see cref="Remark"/>, <see cref="IsCoater"/>, <see cref="IsActive"/> bleiben WMS-Felder.
 /// Nie geloescht, nur deaktiviert (Kreditoren-Frage 7).
 /// </summary>
-public class Creditor : AuditableEntity
+public class Creditor : AuditableEntity, ISageKonto
 {
     [Required(ErrorMessage = "Name ist ein Pflichtfeld.")]
     [StringLength(200)]
@@ -107,6 +107,24 @@ public class Creditor : AuditableEntity
 
     [StringLength(1000)]
     public string? SageUebergabeFehler { get; set; }
+}
+
+/// <summary>Gemeinsame Felder von <see cref="Creditor"/> und <see cref="Debitor"/>, die der Lese-Abgleich Kontokorrent (E8c) schreibt
+/// bzw. liest — ein Abgleich-Kern fuer beide Tabellen statt zwei Kopien.</summary>
+public interface ISageKonto
+{
+    int Id { get; }
+    string Name { get; set; }
+    string Source { get; set; }
+    bool IsActive { get; set; }
+    string? SageKto { get; set; }
+    string? SageMatchcode { get; set; }
+    string? SageGruppe { get; set; }
+    string? SageEUUStID { get; set; }
+    string? SageZahlungskondition { get; set; }
+    DateTime? SageMissingSince { get; set; }
+    SageUebergabeStatus SageUebergabeStatus { get; set; }
+    DateTime? SageUebergabeAm { get; set; }
 }
 
 /// <summary>Uebergabe-Status WMS → Sage (Spec 2026-11-06-sage-sdata-stammdaten-sync F11). Als int gespeichert.</summary>

@@ -108,8 +108,18 @@
                 <ul>
                     <li>Neuer Menüpunkt <strong>Stammdaten &rarr; Debitoren</strong> (Rollen Stammdaten verwalten / ansehen): Kunden-Stamm mit
                         Liste (Filter Status, Spaltenfilter, Spaltenauswahl), Anlegen, Bearbeiten, Deaktivieren und Reaktivieren. Gelöscht wird nie.</li>
-                    <li>Felder wie bei den Kreditoren (ohne Beschichter); Kurzname und Sage-Konto sind eindeutig. Der Abgleich der Debitoren aus Sage
-                        folgt später.</li>
+                    <li>Felder wie bei den Kreditoren (ohne Beschichter); Kurzname und Sage-Konto sind eindeutig.</li>
+                </ul>
+                <h6>Kreditoren, Debitoren und Artikel-Lieferanten aus Sage</h6>
+                <ul>
+                    <li>Mit den Dienst-Schaltern <code>Sync:KreditorenEnabled</code> und <code>Sync:DebitorenEnabled</code> (Standard aus) liest der
+                        Dienst die Lieferanten- bzw. Kunden-Konten aus Sage. Neue Konten erscheinen mit Herkunft &bdquo;Sage&ldquo;; Kurzname, Bemerkung,
+                        Beschichter und Aktiv bleiben Ihre Angaben und werden nie überschrieben.</li>
+                    <li>Ein vorhandener Eintrag mit derselben Sage-Kontonummer wird verknüpft. Gleichnamige Einträge ohne Sage-Konto werden nicht
+                        verknüpft, sondern im Aktivitäts-Protokoll als &bdquo;mögliche Dublette&ldquo; gemeldet. Konten, die es in Sage nicht mehr gibt,
+                        bleiben erhalten und bekommen &bdquo;Nicht in Sage seit&ldquo;.</li>
+                    <li><code>Sync:ArtikelLieferantEnabled</code> (Standard aus) übernimmt die Lieferanten je Artikel (Bestellnummer, Mindestmenge,
+                        Wiederbeschaffungszeit, Preis, Hauptlieferant) als Grundlage für spätere Bestellvorschläge; noch ohne eigene Ansicht.</li>
                 </ul>
             </div>
         </div>

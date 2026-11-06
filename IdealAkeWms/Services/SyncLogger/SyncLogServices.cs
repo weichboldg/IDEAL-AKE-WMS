@@ -31,6 +31,9 @@ public static class SyncLogServices
     public const string SageQuellenvergleich = "SageQuellenvergleich"; // Quellen-Weichen View|SData|Vergleich: Abweichungen + Schalter-Warnungen (v1.73.0)
     public const string PpsMitarbeiter = "PpsMitarbeiter"; // Sage-PPS-Mitarbeiter (SData) -> Cache SagePpsMitarbeiter (v1.73.0 E6b)
     public const string Stillstandsgruende = "Stillstandsgruende"; // Sage-Stillstandsbegruendungen (SData) -> Stillstandsgruende (v1.73.0 E6b)
+    public const string Kreditoren = "Kreditoren"; // Sage-Kontokorrent KtoArt K (SData) -> Creditors (v1.73.0 E8c)
+    public const string Debitoren = "Debitoren"; // Sage-Kontokorrent KtoArt D (SData) -> Debitors (v1.73.0 E8c)
+    public const string ArtikelLieferant = "ArtikelLieferant"; // Sage-ArtikelLieferantInfo (SData) -> ArticleSuppliers (v1.73.0 E8c)
 
     // Non-Sync-Aktivitaeten (seit v1.15.1)
     public const string PartRequisitionEmail = "PartRequisitionEmail";
@@ -48,7 +51,7 @@ public static class SyncLogServices
         ProductionOrder, ProductionOrderReconciliation, Article, FaZusatzinfo,
         SageLagerbuchung, FaHierarchy, HierarchieUmstellung, FaMaterialization,
         WorkOperationStructureDetection, ProductionWorkplaceSync, OperationConfigSync, SageQuellenvergleich,
-        PpsMitarbeiter, Stillstandsgruende,
+        PpsMitarbeiter, Stillstandsgruende, Kreditoren, Debitoren, ArtikelLieferant,
         PartRequisitionEmail, WarehouseRequisitionEmail, BdeAutoPause,
         CleanupActivityLog,
     };
@@ -81,6 +84,9 @@ public static class SyncLogServices
         [SageQuellenvergleich] = "Sage-Quellenvergleich (View/SData)",
         [PpsMitarbeiter] = "PPS-Mitarbeiter-Abgleich (Sage)",
         [Stillstandsgruende] = "Stillstandsgründe-Abgleich (Sage)",
+        [Kreditoren] = "Kreditoren-Abgleich (Sage)",
+        [Debitoren] = "Debitoren-Abgleich (Sage)",
+        [ArtikelLieferant] = "Artikel-Lieferanten-Abgleich (Sage)",
         [PartRequisitionEmail] = "Bedarfsmeldungs-E-Mail-Versand",
         [WarehouseRequisitionEmail] = "Lagerbestellungs-E-Mail-Versand",
         [BdeAutoPause] = "BDE-AutoPause",

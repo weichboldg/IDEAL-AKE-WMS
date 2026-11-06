@@ -2237,6 +2237,36 @@ BEGIN
 END
 GO
 
+-- ArticleSuppliers (v1.73.0 / SQL/106, E8c): Artikel-Lieferant aus Sage (ArtikelLieferantInfo), nur vom Lese-Abgleich geschrieben.
+IF OBJECT_ID(N'dbo.ArticleSuppliers', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[ArticleSuppliers] (
+        [Id]                        INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_ArticleSuppliers PRIMARY KEY,
+        [ArticleId]                 INT               NOT NULL CONSTRAINT FK_ArticleSuppliers_Articles_ArticleId REFERENCES [dbo].[Articles]([Id]) ON DELETE CASCADE,
+        [CreditorId]                INT               NOT NULL CONSTRAINT FK_ArticleSuppliers_Creditors_CreditorId REFERENCES [dbo].[Creditors]([Id]),
+        [Artikelnummer]             NVARCHAR(31)      NOT NULL,
+        [SageBestellnummer]         NVARCHAR(31)      NULL,
+        [Bezeichnung1]              NVARCHAR(50)      NULL,
+        [Bezeichnung2]              NVARCHAR(50)      NULL,
+        [Mindestbestellmenge]       DECIMAL(18,3)     NULL,
+        [Einkaufsmengeneinheit]     NVARCHAR(5)       NULL,
+        [UmrechnungsfaktorEK]       DECIMAL(18,6)     NULL,
+        [Wiederbeschaffungszeit]    INT               NULL,
+        [Einzelpreis]               DECIMAL(18,4)     NULL,
+        [IstHauptlieferant]         BIT               NOT NULL,
+        [CreatedAt]                 DATETIME2         NOT NULL,
+        [CreatedBy]                 NVARCHAR(200)     NOT NULL,
+        [CreatedByWindows]          NVARCHAR(200)     NOT NULL,
+        [ModifiedAt]                DATETIME2         NULL,
+        [ModifiedBy]                NVARCHAR(200)     NULL,
+        [ModifiedByWindows]         NVARCHAR(200)     NULL
+    );
+    CREATE UNIQUE INDEX [IX_ArticleSuppliers_ArticleId_CreditorId] ON [dbo].[ArticleSuppliers]([ArticleId], [CreditorId]);
+    CREATE INDEX [IX_ArticleSuppliers_CreditorId] ON [dbo].[ArticleSuppliers]([CreditorId]);
+    PRINT 'Tabelle ArticleSuppliers erstellt.';
+END
+GO
+
 -- BdeActivities
 IF OBJECT_ID(N'dbo.BdeActivities', N'U') IS NULL
 BEGIN
@@ -2780,6 +2810,9 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261106200713_AddDebitors')
    AND OBJECT_ID(N'dbo.Debitors', N'U') IS NOT NULL -- sonst steht SQL/105 noch aus
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261106200713_AddDebitors', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261106201439_AddArticleSuppliers')
+   AND OBJECT_ID(N'dbo.ArticleSuppliers', N'U') IS NOT NULL -- sonst steht SQL/106 noch aus
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261106201439_AddArticleSuppliers', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';

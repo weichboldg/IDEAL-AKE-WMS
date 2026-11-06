@@ -433,6 +433,46 @@ public class SyncWorker : BackgroundService
                 }
 
                 // ---------------------------------------------------------------
+                // Kreditoren/Debitoren aus Sage-Kontokorrent + Artikel-Lieferanten (SData, v1.73.0 E8c), je eigenes Gate (Default false).
+                // Laeuft nach dem Artikel-Abgleich oben; Artikel-Lieferanten zuletzt, weil sie Artikel UND Kreditoren referenzieren.
+                // ---------------------------------------------------------------
+                if (await ServiceSettings.GetBoolSafeAsync(_configuration, "Sync:KreditorenEnabled", false, stoppingToken))
+                {
+                    await RunResilientAsync("Kreditoren-Abgleich (Sage)", async () =>
+                    {
+                        using var krScope = _scopeFactory.CreateScope();
+                        var krSvc = krScope.ServiceProvider.GetRequiredService<IDEALAKEWMSService.Services.Sdata.KontokorrentSyncService>();
+                        var krResult = await krSvc.RunKreditorenAsync(dryRun, stoppingToken);
+                        _logger.LogInformation("Kreditoren-Abgleich fertig: Neu={Ins}, Aktualisiert={Upd}, Uebersprungen={Err}",
+                            krResult.Inserted, krResult.Updated, krResult.Errors);
+                    }, stoppingToken);
+                }
+
+                if (await ServiceSettings.GetBoolSafeAsync(_configuration, "Sync:DebitorenEnabled", false, stoppingToken))
+                {
+                    await RunResilientAsync("Debitoren-Abgleich (Sage)", async () =>
+                    {
+                        using var dbScope = _scopeFactory.CreateScope();
+                        var dbSvc = dbScope.ServiceProvider.GetRequiredService<IDEALAKEWMSService.Services.Sdata.KontokorrentSyncService>();
+                        var dbResult = await dbSvc.RunDebitorenAsync(dryRun, stoppingToken);
+                        _logger.LogInformation("Debitoren-Abgleich fertig: Neu={Ins}, Aktualisiert={Upd}, Uebersprungen={Err}",
+                            dbResult.Inserted, dbResult.Updated, dbResult.Errors);
+                    }, stoppingToken);
+                }
+
+                if (await ServiceSettings.GetBoolSafeAsync(_configuration, "Sync:ArtikelLieferantEnabled", false, stoppingToken))
+                {
+                    await RunResilientAsync("Artikel-Lieferanten-Abgleich (Sage)", async () =>
+                    {
+                        using var alScope = _scopeFactory.CreateScope();
+                        var alSvc = alScope.ServiceProvider.GetRequiredService<IDEALAKEWMSService.Services.Sdata.ArtikelLieferantSyncService>();
+                        var alResult = await alSvc.RunAsync(dryRun, stoppingToken);
+                        _logger.LogInformation("Artikel-Lieferanten-Abgleich fertig: Neu={Ins}, Aktualisiert={Upd}, Uebersprungen={Err}",
+                            alResult.Inserted, alResult.Updated, alResult.Errors);
+                    }, stoppingToken);
+                }
+
+                // ---------------------------------------------------------------
                 // WorkOperation-Arbeitsgang-Erkennung (Struktur, IDEAL): FaHierarchyNode.Arbeitsschritte ->
                 // WorkOperation, Match ueber ProductionWorkplace.ArbeitsschrittCode. Doppel-Gate (Master +
                 // eigener Toggle); laeuft NACH der Materialisierung (ProductionOrder-Zeilen als Ziel) und
