@@ -45,6 +45,11 @@ freigabe_von: ""
 freigabe_am: ""
 ---
 
+> [!info] Aufgegangen in [[2026-11-06-sage-sdata-stammdaten-sync-spec]] (Entscheidung Gerald 2026-11-06, „alles auf einmal“)
+> Umsetzung im Epic dort (F10, Etappe 8) zusammen mit Debitoren und dem Sage-Abgleich. Diese Spec bleibt als Detail-Anhang gültig;
+> bei Widerspruch gilt die neue Spec. Nicht separat umsetzen.
+
+
 > [!info] Umsetzungsort (Entscheidung Gerald 2026-10-09)
 > Umsetzung direkt im Bündel-Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5` auf Zweig `feature/2026-08-07-ideal-teile-1-5` (kein eigener Worktree, ein Lauf zur Zeit). Die Code-Grundlage
 > dieser Spec ist der Buendel-Stand `.claude/worktrees/2026-08-07-ideal-teile-1-5` (v1.47.1); alle
