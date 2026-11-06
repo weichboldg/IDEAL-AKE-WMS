@@ -22,6 +22,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<ProductionOrderPickingStatus> ProductionOrderPickingStatuses => Set<ProductionOrderPickingStatus>();
     public DbSet<ProductionOrderBdeStatus> ProductionOrderBdeStatuses => Set<ProductionOrderBdeStatus>();
     public DbSet<ProductionOrderExtraInfo> ProductionOrderExtraInfos => Set<ProductionOrderExtraInfo>();
+    public DbSet<ArticleSageDetail> ArticleSageDetails => Set<ArticleSageDetail>();
     public DbSet<AppSetting> AppSettings => Set<AppSetting>();
     public DbSet<Holiday> Holidays => Set<Holiday>();
     public DbSet<PickingItem> PickingItems => Set<PickingItem>();
@@ -542,6 +543,46 @@ public class ApplicationDbContext : DbContext
             entity.HasOne(e => e.ProductionOrder)
                 .WithOne(p => p.ExtraInfo)
                 .HasForeignKey<ProductionOrderExtraInfo>(e => e.ProductionOrderId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ArticleSageDetail (Sage-Zusatzfelder aus SData, Spec 2026-11-06-sage-sdata-stammdaten-sync E3a) — Muster ProductionOrderExtraInfo
+        modelBuilder.Entity<ArticleSageDetail>(entity =>
+        {
+            entity.ToTable("ArticleSageDetails");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Bezeichnung2).HasMaxLength(50);
+            entity.Property(e => e.Hauptartikelgruppe).HasMaxLength(15);
+            entity.Property(e => e.Vaterartikelgruppe).HasMaxLength(15);
+            entity.Property(e => e.Hersteller).HasMaxLength(20);
+            entity.Property(e => e.HArtikelnummer).HasMaxLength(20);
+            entity.Property(e => e.Zeichnungsnummer).HasMaxLength(50);
+            entity.Property(e => e.Ersatzartikelnummer).HasMaxLength(31);
+            entity.Property(e => e.Gewichtseinheit).HasMaxLength(10);
+            entity.Property(e => e.Entnahmeverfahren).HasMaxLength(6);
+            entity.Property(e => e.Schwundart).HasMaxLength(1);
+            entity.Property(e => e.EANNummer).HasMaxLength(15);
+            entity.Property(e => e.ABCKlasse).HasMaxLength(1);
+            entity.Property(e => e.Hauptlieferant).HasMaxLength(20);
+            entity.Property(e => e.LetzterLieferant).HasMaxLength(20);
+            // TODO(P-S1): Nachkommastellen liefert das $schema nicht; (18,3) wie ReorderLevel, MittlererEK (18,4). Reader rundet passend.
+            foreach (var p in new[] { nameof(ArticleSageDetail.Schwund), nameof(ArticleSageDetail.MinimaleLosgroesse), nameof(ArticleSageDetail.MaximaleLosgroesse),
+                         nameof(ArticleSageDetail.Laenge), nameof(ArticleSageDetail.Breite), nameof(ArticleSageDetail.Hoehe), nameof(ArticleSageDetail.Gewicht),
+                         nameof(ArticleSageDetail.Lagerbestand), nameof(ArticleSageDetail.LagerbestandVerfuegbar), nameof(ArticleSageDetail.LagerbestandOhneDispo),
+                         nameof(ArticleSageDetail.Bestellmenge), nameof(ArticleSageDetail.UserMindestbestand) })
+                entity.Property(p).HasPrecision(18, 3);
+            entity.Property(e => e.MittlererEK).HasPrecision(18, 4);
+            entity.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.ModifiedBy).HasMaxLength(200);
+            entity.Property(e => e.ModifiedByWindows).HasMaxLength(200);
+
+            entity.HasIndex(e => e.ArticleId).IsUnique()
+                .HasDatabaseName("UQ_ArticleSageDetails_ArticleId");
+
+            entity.HasOne(e => e.Article)
+                .WithOne(a => a.SageDetail)
+                .HasForeignKey<ArticleSageDetail>(e => e.ArticleId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 

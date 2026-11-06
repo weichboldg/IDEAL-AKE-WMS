@@ -39,6 +39,14 @@
                     <li>Chargen und Seriennummern werden über SData nur gezählt und im Protokoll genannt, nicht gespeichert.</li>
                     <li>Kann SData nicht gelesen werden, wird nichts gebucht und nichts auf 0 gesetzt; es geht eine Fehlermail an die Sync-Fehler-Empfänger.</li>
                 </ul>
+                <h6>Artikel über SData (Vorbereitung)</h6>
+                <ul>
+                    <li><code>Sync:Quelle:Artikel</code> = <code>Vergleich</code> liest die Artikel zusätzlich über die Sage-Schnittstelle und meldet
+                        Abweichungen im Lauf &bdquo;Sage-Quellenvergleich&ldquo;; geschrieben wird weiter nur aus der View. <code>SData</code> ist noch gesperrt
+                        (wirkt wie <code>View</code> mit Warnung), bis der Artikel-Filter des IDEAL-Standorts geklärt ist.</li>
+                    <li>Die Artikelinfo zeigt einen Abschnitt <strong>Sage-Zusatzfelder</strong> (z.&nbsp;B. Hauptlieferant, Wiederbeschaffungszeit,
+                        Lagerführung, Fertigungs- und Bestellkennzeichen, Maße), nur lesend. Er erscheint erst, wenn ein Artikel über SData gelesen wurde.</li>
+                </ul>
             </div>
         </div>
 

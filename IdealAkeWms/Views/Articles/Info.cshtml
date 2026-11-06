@@ -1,4 +1,4 @@
-@model IdealAkeWms.Models.ViewModels.ArticleInfoViewModel?
+﻿@model IdealAkeWms.Models.ViewModels.ArticleInfoViewModel?
 @{
     ViewData["Title"] = "Artikelinfo";
     var notFound = ViewBag.NotFound as string;
@@ -130,6 +130,63 @@
                     </dl>
                 </div>
             </div>
+
+            @if (Model.SageDetail is { } sd)
+            {
+                // v1.73.0 E3a: nur lesend; erscheint erst, wenn der Artikel-Abgleich den Artikel ueber SData gelesen hat.
+                string T(string? v) => string.IsNullOrWhiteSpace(v) ? "—" : v;
+                string Z(decimal? v) => v?.ToString("0.###") ?? "—";
+                string J(bool? v) => v is null ? "—" : v.Value ? "Ja" : "Nein";
+                var gelesen = (sd.ModifiedAt ?? sd.CreatedAt).ToLocalTime();
+                var gruppen = new (string Titel, (string Name, string Wert)[] Felder)[]
+                {
+                    ("Stamm", new[] { ("Bezeichnung 2", T(sd.Bezeichnung2)), ("Hauptartikelgruppe", T(sd.Hauptartikelgruppe)),
+                        ("Vaterartikelgruppe", T(sd.Vaterartikelgruppe)), ("Hersteller", T(sd.Hersteller)),
+                        ("Hersteller-Artikelnr.", T(sd.HArtikelnummer)), ("Zeichnungsnummer", T(sd.Zeichnungsnummer)),
+                        ("Ersatzartikel", T(sd.Ersatzartikelnummer)), ("EAN", T(sd.EANNummer)) }),
+                    ("Lager", new[] { ("Lagerführung", J(sd.Lagerfuehrung)), ("Hauptlagerplatz (Sage-ID)", sd.SagePlatzId?.ToString() ?? "—"),
+                        ("Lagerplatz-ID (Benutzerfeld)", sd.UserLagerplatzId?.ToString() ?? "—"), ("Entnahmeverfahren", T(sd.Entnahmeverfahren)),
+                        ("Inventurmethode", sd.Inventurmethode?.ToString() ?? "—"), ("Dezimalstellen Lager", sd.DezimalstellenLager?.ToString() ?? "—"),
+                        ("Chargenpflicht", sd.Chargenpflicht?.ToString() ?? "—"), ("Nachweispflicht", sd.Nachweispflicht?.ToString() ?? "—") }),
+                    ("Bestand und Dispo (Sage)", new[] { ("Lagerbestand", Z(sd.Lagerbestand)), ("Verfügbar", Z(sd.LagerbestandVerfuegbar)),
+                        ("Bestand ohne Dispo", Z(sd.LagerbestandOhneDispo)), ("Mindestbestand", Z(sd.UserMindestbestand)),
+                        ("Bestellmenge", Z(sd.Bestellmenge)), ("Bestellzeitpunkt", sd.Bestellzeitpunkt?.ToString() ?? "—"),
+                        ("Wiederbeschaffungszeit", sd.Wiederbeschaffungszeit?.ToString() ?? "—"), ("ABC-Klasse", T(sd.ABCKlasse)),
+                        ("Hauptlieferant", T(sd.Hauptlieferant)), ("Letzter Lieferant", T(sd.LetzterLieferant)),
+                        ("Mittlerer EK", sd.MittlererEK?.ToString("0.####") ?? "—") }),
+                    ("Fertigung", new[] { ("Fertigungsartikel", J(sd.IstFertigungsartikel)), ("Unterbaugruppe", J(sd.IstUnterbaugruppe)),
+                        ("Stücklistentyp", sd.Stuecklistentyp?.ToString() ?? "—"), ("Schwundart", T(sd.Schwundart)), ("Schwund", Z(sd.Schwund)),
+                        ("Minimale Losgröße", Z(sd.MinimaleLosgroesse)), ("Maximale Losgröße", Z(sd.MaximaleLosgroesse)) }),
+                    ("Kennzeichen", new[] { ("Bestellartikel", J(sd.IstBestellartikel)), ("Ersatzteil", J(sd.IstErsatzteil)),
+                        ("Verschleißteil", J(sd.IstVerschleissteil)), ("Aktiv in Sage", J(sd.Aktiv)) }),
+                    ("Maße und Gewicht", new[] { ("Länge", Z(sd.Laenge)), ("Breite", Z(sd.Breite)), ("Höhe", Z(sd.Hoehe)),
+                        ("Gewicht", sd.Gewicht is null ? "—" : $"{Z(sd.Gewicht)} {sd.Gewichtseinheit}".Trim()) }),
+                };
+                <div class="card mb-3">
+                    <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <strong>Sage-Zusatzfelder</strong>
+                        <small class="text-muted">nur lesend · aus Sage gelesen am @gelesen.ToString("dd.MM.yyyy HH:mm")</small>
+                    </div>
+                    <div class="card-body pt-1">
+                        @foreach (var g in gruppen)
+                        {
+                            <h3 class="h6 fw-semibold border-bottom pb-1 mt-3 mb-2">@g.Titel</h3>
+                            <dl class="row mb-0">
+                                @foreach (var f in g.Felder)
+                                {
+                                    <dt class="col-sm-5 fw-normal text-muted">@f.Name</dt>
+                                    <dd class="col-sm-7">@f.Wert</dd>
+                                }
+                            </dl>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(sd.Langtext))
+                        {
+                            <h3 class="h6 fw-semibold border-bottom pb-1 mt-3 mb-2">Langtext</h3>
+                            <p class="mb-0" style="white-space: pre-line">@sd.Langtext</p>
+                        }
+                    </div>
+                </div>
+            }
 
             @if (Model.UsedInOrders.Any())
             {

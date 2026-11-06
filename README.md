@@ -661,8 +661,11 @@ C:\Services\IDEALAKEWMSService\
 > wird der Vergleichslauf als Fehler protokolliert und gemeldet, der Abgleich läuft mit den View-Zeilen weiter.
 > **`Sync:Quelle:Lagerbestand`** (E2): `SData` liest `LagerbestaendeArtikelInfo` (`Mandant eq 1`) und ordnet die PlatzID über
 > `LagerplaetzeInfo` der Kurzbezeichnung zu (Summe je Artikel × Platz wie die View); Chargen/Seriennummern werden nur gezählt. Fehler
-> oder unlesbare Zeilen: kein Buchen, kein Nullsetzen, Fehlermail (wie bei den Lagerplätzen). Die übrigen Schalter wirken mit den
-> folgenden Etappen.
+> oder unlesbare Zeilen: kein Buchen, kein Nullsetzen, Fehlermail (wie bei den Lagerplätzen).
+> **`Sync:Quelle:Artikel`** (E3a): nur `Vergleich` wirkt – liest `Artikel` (Bestellartikel + Ressourcenummern der PPS-Ressourcenlisten,
+> Filter laut AKE-Select angenommen) + `ArtikelVariantenExtended` und meldet Abweichungen; geschrieben wird nur aus der View. `SData` ist
+> bis zur Prüfabfrage P-R1 (IDEAL-Filter der Artikel-View) gesperrt und wirkt wie `View` + Warnung. Nur der SData-Weg schreibt den neuen
+> Satelliten `ArticleSageDetails` (Migration `SQL/99`, Anzeige in der Artikelinfo). Die übrigen Schalter wirken mit den folgenden Etappen.
 
 #### Schritt 3 — Windows Service registrieren
 

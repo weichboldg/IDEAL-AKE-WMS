@@ -27,6 +27,9 @@ public class ArticleInfoViewModel
     // IDEAL FA-Liste-Hierarchie (Teil 7/8, Z4): nur bei Master ProduktionsauftragHierarchisch = true.
     /// <summary>Hierarchischer Modus → „Teil enthalten in"-Zaehlung als „N Aufträge · M Sub-FAs".</summary>
     public bool Hierarchical { get; set; }
+
+    /// <summary>Sage-Zusatzfelder (v1.73.0 E3a, nur lesend); null = Artikel wurde nie ueber SData gelesen → Abschnitt ausgeblendet.</summary>
+    public ArticleSageDetail? SageDetail { get; set; }
     /// <summary>Z4: Anzahl distinkter HauptFAs (OrderNumber) unter <see cref="UsedInOrders"/> (Sub-FAs sind die Zeilen).</summary>
     public int UsedInHauptFaCount => UsedInOrders.Select(o => o.OrderNumber).Distinct().Count();
 }

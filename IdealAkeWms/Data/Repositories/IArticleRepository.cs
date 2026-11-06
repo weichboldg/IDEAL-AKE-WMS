@@ -14,4 +14,6 @@ public interface IArticleRepository : IRepository<Article>
     /// <summary>Exakt, getrimmt, ohne Gross/Klein; DUMMY ausgeschlossen. Bis zu <paramref name="limit"/> Treffer nach Artikelnummer -
     /// der Aufrufer unterscheidet keins/eindeutig/mehrdeutig (Matchcode ist nicht eindeutig, nie still den ersten nehmen).</summary>
     Task<List<Article>> GetByMatchcodeExactAsync(string matchcode, int limit);
+    /// <summary>Sage-Zusatzfelder (Satellit ArticleSageDetails, nur ueber SData gelesen); null = nie ueber SData gelesen.</summary>
+    Task<ArticleSageDetail?> GetSageDetailAsync(int articleId);
 }

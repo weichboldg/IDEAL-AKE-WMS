@@ -373,6 +373,209 @@ namespace IdealAkeWms.Migrations
                     b.ToTable("ArticleGroupRecipientMappings", "dbo");
                 });
 
+            modelBuilder.Entity("IdealAkeWms.Models.ArticleSageDetail", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ABCKlasse")
+                        .HasMaxLength(1)
+                        .HasColumnType("nvarchar(1)");
+
+                    b.Property<bool?>("Aktiv")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("ArticleId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal?>("Bestellmenge")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<int?>("Bestellzeitpunkt")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Bezeichnung2")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<decimal?>("Breite")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<int?>("Chargenpflicht")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("CreatedByWindows")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int?>("DezimalstellenLager")
+                        .HasColumnType("int");
+
+                    b.Property<string>("EANNummer")
+                        .HasMaxLength(15)
+                        .HasColumnType("nvarchar(15)");
+
+                    b.Property<string>("Entnahmeverfahren")
+                        .HasMaxLength(6)
+                        .HasColumnType("nvarchar(6)");
+
+                    b.Property<string>("Ersatzartikelnummer")
+                        .HasMaxLength(31)
+                        .HasColumnType("nvarchar(31)");
+
+                    b.Property<decimal?>("Gewicht")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<string>("Gewichtseinheit")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<string>("HArtikelnummer")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Hauptartikelgruppe")
+                        .HasMaxLength(15)
+                        .HasColumnType("nvarchar(15)");
+
+                    b.Property<string>("Hauptlieferant")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Hersteller")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<decimal?>("Hoehe")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<int?>("Inventurmethode")
+                        .HasColumnType("int");
+
+                    b.Property<bool?>("IstBestellartikel")
+                        .HasColumnType("bit");
+
+                    b.Property<bool?>("IstErsatzteil")
+                        .HasColumnType("bit");
+
+                    b.Property<bool?>("IstFertigungsartikel")
+                        .HasColumnType("bit");
+
+                    b.Property<bool?>("IstUnterbaugruppe")
+                        .HasColumnType("bit");
+
+                    b.Property<bool?>("IstVerschleissteil")
+                        .HasColumnType("bit");
+
+                    b.Property<decimal?>("Laenge")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<decimal?>("Lagerbestand")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<decimal?>("LagerbestandOhneDispo")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<decimal?>("LagerbestandVerfuegbar")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<bool?>("Lagerfuehrung")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Langtext")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("LetzterLieferant")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<decimal?>("MaximaleLosgroesse")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<decimal?>("MinimaleLosgroesse")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<decimal?>("MittlererEK")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ModifiedByWindows")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int?>("Nachweispflicht")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("SagePlatzId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal?>("Schwund")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<string>("Schwundart")
+                        .HasMaxLength(1)
+                        .HasColumnType("nvarchar(1)");
+
+                    b.Property<int?>("Stuecklistentyp")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("UserLagerplatzId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal?>("UserMindestbestand")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<string>("Vaterartikelgruppe")
+                        .HasMaxLength(15)
+                        .HasColumnType("nvarchar(15)");
+
+                    b.Property<int?>("Wiederbeschaffungszeit")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Zeichnungsnummer")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ArticleId")
+                        .IsUnique()
+                        .HasDatabaseName("UQ_ArticleSageDetails_ArticleId");
+
+                    b.ToTable("ArticleSageDetails", "dbo");
+                });
+
             modelBuilder.Entity("IdealAkeWms.Models.BdeActivity", b =>
                 {
                     b.Property<int>("Id")
@@ -3888,6 +4091,17 @@ namespace IdealAkeWms.Migrations
                     b.Navigation("OrderRecipientGroup");
                 });
 
+            modelBuilder.Entity("IdealAkeWms.Models.ArticleSageDetail", b =>
+                {
+                    b.HasOne("IdealAkeWms.Models.Article", "Article")
+                        .WithOne("SageDetail")
+                        .HasForeignKey("IdealAkeWms.Models.ArticleSageDetail", "ArticleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Article");
+                });
+
             modelBuilder.Entity("IdealAkeWms.Models.BdeBooking", b =>
                 {
                     b.HasOne("IdealAkeWms.Models.BdeActivity", "BdeActivity")
@@ -4455,6 +4669,8 @@ namespace IdealAkeWms.Migrations
             modelBuilder.Entity("IdealAkeWms.Models.Article", b =>
                 {
                     b.Navigation("AttributeValues");
+
+                    b.Navigation("SageDetail");
 
                     b.Navigation("StockMovements");
                 });

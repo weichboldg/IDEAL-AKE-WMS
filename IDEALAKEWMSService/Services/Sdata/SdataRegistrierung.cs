@@ -51,4 +51,18 @@ public static class SdataRegistrierung
             sp.GetRequiredService<IdealAkeWms.Services.SyncLogger.ISyncLogger>()));
         return services;
     }
+
+    /// <summary>E3a: <see cref="ISageArtikelReader"/> = <see cref="ArtikelQuelleSwitch"/> (Muster wie <see cref="AddLagerplatzQuelle"/>).</summary>
+    public static IServiceCollection AddArtikelQuelle(this IServiceCollection services)
+    {
+        services.AddScoped<SageArtikelReader>();
+        services.AddScoped<SdataArtikelReader>();
+        services.AddScoped<ISageArtikelReader>(sp => new ArtikelQuelleSwitch(
+            sp.GetRequiredService<SageArtikelReader>(),
+            sp.GetRequiredService<SdataArtikelReader>(),
+            sp.GetRequiredService<IConfiguration>(),
+            sp.GetRequiredService<ISyncErrorNotifier>(),
+            sp.GetRequiredService<IdealAkeWms.Services.SyncLogger.ISyncLogger>()));
+        return services;
+    }
 }

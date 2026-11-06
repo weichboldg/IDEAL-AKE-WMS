@@ -1,5 +1,7 @@
 using IdealAkeWms.Services.SyncLogger;
 using IDEALAKEWMSService.Common;
+using IDEALAKEWMSService.Services.Sdata;
+using IdealAkeWms.Data;
 using Microsoft.Data.SqlClient;
 using System.Text;
 
@@ -13,6 +15,8 @@ public class SageImportService : ISageImportService
     private readonly IBomCacheSyncService _bomCacheSync;
     private readonly ICoatingDetectionService _coatingDetection;
     private readonly ISyncErrorNotifier _errorNotifier;
+    private readonly ISageArtikelReader _artikelReader;
+    private readonly ApplicationDbContext _ctx;
 
     public SageImportService(
         IConfiguration configuration,
@@ -20,7 +24,9 @@ public class SageImportService : ISageImportService
         ISyncLogger syncLogger,
         IBomCacheSyncService bomCacheSync,
         ICoatingDetectionService coatingDetection,
-        ISyncErrorNotifier errorNotifier)
+        ISyncErrorNotifier errorNotifier,
+        ISageArtikelReader artikelReader,
+        ApplicationDbContext ctx)
     {
         _configuration = configuration;
         _logger = logger;
@@ -28,6 +34,8 @@ public class SageImportService : ISageImportService
         _bomCacheSync = bomCacheSync;
         _coatingDetection = coatingDetection;
         _errorNotifier = errorNotifier;
+        _artikelReader = artikelReader;
+        _ctx = ctx;
     }
 
     public async Task<SyncResult> SyncProductionOrdersAsync(bool dryRun, CancellationToken ct = default)
@@ -371,57 +379,30 @@ public class SageImportService : ISageImportService
         await using var run = await _syncLogger.BeginRunAsync(SyncLogServices.Article, ct);
         try
         {
-            var sageConnection = _configuration.GetConnectionString("SageConnection")
-                ?? throw new InvalidOperationException("SageConnection nicht konfiguriert.");
             var wmsConnection = _configuration.GetConnectionString("DefaultConnection")
                 ?? throw new InvalidOperationException("DefaultConnection nicht konfiguriert.");
 
             if (dryRun)
                 _logger.LogInformation("[DryRun] Artikel-Sync — keine Änderungen werden geschrieben.");
 
-            // Quelle (Spec 2026-10-14-ideal-sage-views-umstellung): leer = bisheriger Select zeichengleich (AKE + IDEAL bis
-            // zur Umstellung), gesetzt = View. Ungueltiger Name -> catch unten (Fehler + Mail, kein SQL).
-            var viewRaw = await ServiceSettings.GetValueAsync(_configuration, "Sync:ArticlesViewName", ct);
-            var quotedView = string.IsNullOrWhiteSpace(viewRaw) ? null : FaHierarchySql.ValidateAndQuote(viewRaw);
-            var sageSql = SageArticleSql.Select(quotedView);
+            // Lesen ueber ISageArtikelReader (Spec 2026-11-06-sage-sdata-stammdaten-sync, E3a): Quellen-Weiche Sync:Quelle:Artikel,
+            // View = SageArtikelReader (bisheriger Lese-Code unveraendert). Upsert und Count-Keys unten bleiben unveraendert.
+            var lesung = await _artikelReader.GetAllAsync(ct);
+            await LogArtikelQuelleAsync(run, ct);
+            var sageArticles = lesung.Artikel;
 
-            var sageArticles = new List<(string ArticleNumber, string? Description, string? Unit, string? ArticleGroup, decimal? ReorderLevel, string? PrimaryStorageLocation, string? Matchcode)>();
-
-            await using (var sageConn = new SqlConnection(sageConnection))
+            // Fehlende View: Warnung + Skip, KEIN stiller Rueckfall auf den alten Select (der holte genau die
+            // Daten zurueck, die die View abloesen soll), keine Mail, keine Mutation (Rueckfrage 6).
+            if (lesung.QuelleFehltMeldung != null)
             {
-                await sageConn.OpenAsync(ct);
-
-                // Fehlende View: Warnung + Skip, KEIN stiller Rueckfall auf den alten Select (der holte genau die
-                // Daten zurueck, die die View abloesen soll), keine Mail, keine Mutation (Rueckfrage 6).
-                if (quotedView != null && !await FaHierarchySql.SourceExistsAsync(sageConn, quotedView, ct))
+                await run.LogWarningAsync($"{lesung.QuelleFehltMeldung} — Sync uebersprungen.", ct: ct);
+                await run.FinishSuccessAsync(new Dictionary<string, int>
                 {
-                    await run.LogWarningAsync($"{FaHierarchySql.SourceMissingMessage(quotedView)} — Sync uebersprungen.", ct: ct);
-                    await run.FinishSuccessAsync(new Dictionary<string, int>
-                    {
-                        ["gelesen"]      = 0,
-                        ["neu"]          = 0,
-                        ["aktualisiert"] = 0,
-                    }, messageSuffix: dryRun ? "Quelle nicht vorhanden [DryRun]" : "Quelle nicht vorhanden", ct: ct);
-                    return new SyncResult(0, 0, 0, "Quelle nicht vorhanden.");
-                }
-
-                await using var cmd = new SqlCommand(sageSql, sageConn);
-                cmd.CommandTimeout = 120;
-                await using var reader = await cmd.ExecuteReaderAsync(ct);
-                while (await reader.ReadAsync(ct))
-                {
-                    string? reorderRaw = reader.IsDBNull(4) ? null : reader.GetString(4);
-                    string? primaryRaw = reader.IsDBNull(5) ? null : reader.GetString(5);
-                    sageArticles.Add((
-                        ArticleNumber: reader.GetString(0),
-                        Description:   reader.IsDBNull(1) ? null : reader.GetString(1),
-                        Unit:          reader.IsDBNull(2) ? null : reader.GetString(2),
-                        ArticleGroup:  reader.IsDBNull(3) ? null : reader.GetString(3),
-                        ReorderLevel:  SageImportHelpers.ParseReorderLevel(reorderRaw),
-                        PrimaryStorageLocation: SageImportHelpers.NormalizeLocationCode(primaryRaw),
-                        Matchcode:     reader.IsDBNull(6) ? null : reader.GetString(6)
-                    ));
-                }
+                    ["gelesen"]      = 0,
+                    ["neu"]          = 0,
+                    ["aktualisiert"] = 0,
+                }, messageSuffix: dryRun ? "Quelle nicht vorhanden [DryRun]" : "Quelle nicht vorhanden", ct: ct);
+                return new SyncResult(0, 0, 0, "Quelle nicht vorhanden.");
             }
 
             _logger.LogInformation("SAGE liefert {Count} Artikel.", sageArticles.Count);
@@ -550,6 +531,15 @@ public class SageImportService : ISageImportService
 
             _logger.LogInformation("Artikel-Sync abgeschlossen: {Inserted} neu, {Updated} aktualisiert, {Missing} ohne WMS-Hauptlagerplatz.", inserted, updated, missingPrimaryLocation);
 
+            // Satellit ArticleSageDetails (E3a): nur Zeilen mit Details (= SData-Weg). View- und Vergleichs-Laeufe liefern keine
+            // Details und fassen den Satelliten nie an (F1). Info-Zeile statt neuer Count-Keys (Count-Keys bleiben unveraendert).
+            if (sageArticles.Any(a => a.Details is not null))
+            {
+                var (detailsNeu, detailsGeaendert, ohneArtikel) = await ArticleSageDetailsWriter.SchreibenAsync(_ctx, sageArticles, ct);
+                await run.LogInfoAsync($"Sage-Zusatzfelder (ArticleSageDetails): {detailsNeu} neu, {detailsGeaendert} aktualisiert"
+                    + (ohneArtikel > 0 ? $", {ohneArtikel} ohne WMS-Artikel." : "."), ct: ct);
+            }
+
             await run.FinishSuccessAsync(new Dictionary<string, int>
             {
                 ["gelesen"]              = sageArticles.Count,
@@ -567,5 +557,17 @@ public class SageImportService : ISageImportService
             await run.FinishFailedAsync(ex.Message, ct: ct);
             throw;
         }
+    }
+
+    /// <summary>Info-Zeile „Quelle: View|SData|Vergleich“ (F1) + Hinweise des SData-Readers, nur wenn der Reader die Quellen-Weiche ist.</summary>
+    private async Task LogArtikelQuelleAsync(ISyncRun run, CancellationToken ct)
+    {
+        if (_artikelReader is not SageQuelleWeiche { GenutzteQuelle: { } quelle })
+            return;
+        await run.LogInfoAsync($"Quelle: {quelle}", ct: ct);
+        if (_artikelReader is ArtikelQuelleSwitch w)
+            foreach (var h in w.SdataHinweise)
+                if (h.Warnung) await run.LogWarningAsync(h.Text, ct: ct);
+                else await run.LogInfoAsync(h.Text, ct: ct);
     }
 }

@@ -54,6 +54,9 @@ public class Article : AuditableEntity
     [StringLength(100)]
     public string? SagePrimaryStorageLocation { get; set; }
 
+    /// <summary>Sage-Zusatzfelder (nur ueber SData gelesen, v1.73.0 E3a); null = nie ueber SData gelesen.</summary>
+    public ArticleSageDetail? SageDetail { get; set; }
+
     public ICollection<StockMovement> StockMovements { get; set; } = new List<StockMovement>();
     public ICollection<ArticleAttributeValue> AttributeValues { get; set; } = new List<ArticleAttributeValue>();
 }

@@ -21,7 +21,9 @@ public class SageImportServiceTests
             fakeLogger,
             bomMock.Object,
             coatingMock.Object,
-            notifierMock.Object);
+            notifierMock.Object,
+            new SageArtikelReader(config), // E3a: Lese-Code hinter ISageArtikelReader (View-Weg)
+            TestDbContextFactory.Create());
     }
 
     [Fact]

@@ -27,6 +27,9 @@ public class ArticleRepository : Repository<Article>, IArticleRepository
         return await q.OrderBy(a => a.ArticleNumber).Take(limit).ToListAsync();
     }
 
+    public async Task<ArticleSageDetail?> GetSageDetailAsync(int articleId) =>
+        await _context.ArticleSageDetails.AsNoTracking().FirstOrDefaultAsync(d => d.ArticleId == articleId);
+
     public async Task<Article?> GetByArticleNumberAsync(string articleNumber)
     {
         return await _dbSet.FirstOrDefaultAsync(a => a.ArticleNumber == articleNumber);

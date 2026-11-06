@@ -200,6 +200,71 @@ END
 GO
 
 -- =============================================
+-- 5a. ArticleSageDetails (Sage-Zusatzfelder aus SData, 1:1-Satellit zu Articles, v1.73.0 / SQL/99)
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'ArticleSageDetails')
+BEGIN
+    CREATE TABLE [dbo].[ArticleSageDetails] (
+        [Id]                      INT IDENTITY(1,1) NOT NULL,
+        [ArticleId]               INT               NOT NULL,
+        [Bezeichnung2]            NVARCHAR(50)      NULL,
+        [Hauptartikelgruppe]      NVARCHAR(15)      NULL,
+        [Vaterartikelgruppe]      NVARCHAR(15)      NULL,
+        [Hersteller]              NVARCHAR(20)      NULL,
+        [HArtikelnummer]          NVARCHAR(20)      NULL,
+        [Zeichnungsnummer]        NVARCHAR(50)      NULL,
+        [Ersatzartikelnummer]     NVARCHAR(31)      NULL,
+        [Langtext]                NVARCHAR(MAX)     NULL,
+        [Gewichtseinheit]         NVARCHAR(10)      NULL,
+        [DezimalstellenLager]     INT               NULL,
+        [Lagerfuehrung]           BIT               NULL,
+        [SagePlatzId]             INT               NULL,
+        [Entnahmeverfahren]       NVARCHAR(6)       NULL,
+        [Inventurmethode]         INT               NULL,
+        [Chargenpflicht]          INT               NULL,
+        [Nachweispflicht]         INT               NULL,
+        [IstBestellartikel]       BIT               NULL,
+        [IstFertigungsartikel]    BIT               NULL,
+        [IstUnterbaugruppe]       BIT               NULL,
+        [IstErsatzteil]           BIT               NULL,
+        [IstVerschleissteil]      BIT               NULL,
+        [Aktiv]                   BIT               NULL,
+        [Stuecklistentyp]         INT               NULL,
+        [Schwundart]              NVARCHAR(1)       NULL,
+        [Schwund]                 DECIMAL(18,3)     NULL,
+        [MinimaleLosgroesse]      DECIMAL(18,3)     NULL,
+        [MaximaleLosgroesse]      DECIMAL(18,3)     NULL,
+        [Laenge]                  DECIMAL(18,3)     NULL,
+        [Breite]                  DECIMAL(18,3)     NULL,
+        [Hoehe]                   DECIMAL(18,3)     NULL,
+        [EANNummer]               NVARCHAR(15)      NULL,
+        [ABCKlasse]               NVARCHAR(1)       NULL,
+        [Gewicht]                 DECIMAL(18,3)     NULL,
+        [Lagerbestand]            DECIMAL(18,3)     NULL,
+        [LagerbestandVerfuegbar]  DECIMAL(18,3)     NULL,
+        [LagerbestandOhneDispo]   DECIMAL(18,3)     NULL,
+        [Bestellmenge]            DECIMAL(18,3)     NULL,
+        [MittlererEK]             DECIMAL(18,4)     NULL,
+        [Bestellzeitpunkt]        INT               NULL,
+        [Hauptlieferant]          NVARCHAR(20)      NULL,
+        [LetzterLieferant]        NVARCHAR(20)      NULL,
+        [Wiederbeschaffungszeit]  INT               NULL,
+        [UserLagerplatzId]        INT               NULL,
+        [UserMindestbestand]      DECIMAL(18,3)     NULL,
+        [CreatedAt]               DATETIME2         NOT NULL,
+        [CreatedBy]               NVARCHAR(200)     NOT NULL,
+        [CreatedByWindows]        NVARCHAR(200)     NOT NULL,
+        [ModifiedAt]              DATETIME2         NULL,
+        [ModifiedBy]              NVARCHAR(200)     NULL,
+        [ModifiedByWindows]       NVARCHAR(200)     NULL,
+        CONSTRAINT [PK_ArticleSageDetails] PRIMARY KEY CLUSTERED ([Id]),
+        CONSTRAINT [FK_ArticleSageDetails_Articles_ArticleId] FOREIGN KEY ([ArticleId]) REFERENCES [dbo].[Articles]([Id]) ON DELETE CASCADE
+    );
+    PRINT 'Tabelle ArticleSageDetails erstellt.';
+END
+GO
+
+-- =============================================
 -- 6. StockMovements
 -- =============================================
 IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'StockMovements')
@@ -1149,6 +1214,8 @@ IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_StorageLocations_Stora
     CREATE NONCLUSTERED INDEX [IX_StorageLocations_StorageAreaId] ON [dbo].[StorageLocations]([StorageAreaId]);
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_StorageAreas_Lagerkennung')
     CREATE UNIQUE NONCLUSTERED INDEX [IX_StorageAreas_Lagerkennung] ON [dbo].[StorageAreas]([Lagerkennung]);
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'UQ_ArticleSageDetails_ArticleId')
+    CREATE UNIQUE NONCLUSTERED INDEX [UQ_ArticleSageDetails_ArticleId] ON [dbo].[ArticleSageDetails]([ArticleId]);
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_SyncLogs_Timestamp_Desc')
     CREATE NONCLUSTERED INDEX [IX_SyncLogs_Timestamp_Desc] ON [dbo].[SyncLogs]([Timestamp] DESC);
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_SyncLogs_Service_Level')
@@ -2497,6 +2564,9 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261106181707_AddStorageAreasAndStorageLocationSageFields')
    AND COL_LENGTH(N'dbo.StorageLocations', N'StorageAreaId') IS NOT NULL AND COL_LENGTH(N'dbo.StorageLocations', N'SageTragkraft') IS NOT NULL -- sonst steht SQL/98 noch aus
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261106181707_AddStorageAreasAndStorageLocationSageFields', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261106184123_AddArticleSageDetails')
+   AND OBJECT_ID(N'dbo.ArticleSageDetails', N'U') IS NOT NULL -- sonst steht SQL/99 noch aus
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261106184123_AddArticleSageDetails', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';

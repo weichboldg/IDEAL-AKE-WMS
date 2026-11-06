@@ -331,6 +331,7 @@ public class ArticlesController : Controller
             AttributeDisplayValues = attrDisplayValues,
             UsedInOrders = usedInOrders,
             Hierarchical = hierarchical,
+            SageDetail = await _articleRepository.GetSageDetailAsync(article.Id),
         };
         return View(vm);
     }
