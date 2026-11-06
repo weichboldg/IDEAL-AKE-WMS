@@ -26,6 +26,16 @@ public sealed class SdataFeed<T>
 {
     [JsonPropertyName("$resources")]
     public List<T>? Resources { get; set; }
+
+    // Spec 2026-11-06-sage-sdata-stammdaten-sync (E0): Paging-Felder der CommonWawiServicesResources-Antwort.
+    // AllowReadingFromString, damit ein als String gelieferter Wert die bestehende RealTimeData-Ansicht nicht bricht.
+    [JsonPropertyName("$totalResults")]
+    [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
+    public int? TotalResults { get; set; }
+
+    [JsonPropertyName("$itemsPerPage")]
+    [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
+    public int? ItemsPerPage { get; set; }
 }
 
 /// <summary>Diagnose eines SData-Aufrufs. Status 0 = Verbindungsfehler (nicht erreichbar, Timeout, TLS).</summary>

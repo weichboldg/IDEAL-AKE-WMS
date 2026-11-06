@@ -121,6 +121,9 @@ try
         };
     });
 
+    // Sage-SData-Lese-Client (Stammdaten-Abgleich, v1.73.0): Paging ueber CommonWawiServicesResources, TLS-Schalter je Anfrage.
+    IDEALAKEWMSService.Services.Sdata.SdataRegistrierung.AddSageSdataReadClient(builder.Services);
+
     // Workers
     builder.Services.AddHostedService<SyncWorker>();
     builder.Services.AddHostedService<NotificationWorker>();

@@ -33,6 +33,10 @@ public class SageSdataFaControllerTests
                 _ => new SdataErgebnis<T>(Array.Empty<T>(), new SdataCall(quelle, url, 200, 1, 0, null, null)),
             });
         }
+
+        // FA-Ansicht nutzt nur RealTimeData (GetAsync); die Paging-Methode (v1.73.0) darf hier nie gerufen werden.
+        public Task<SdataSeiten<T>> QueryAllAsync<T>(SdataLeseZiel ziel, string vertrag, string ressource, string? where, string? select,
+            string orderBy, CancellationToken ct, int count = SageSdataReadClient.Seitengroesse) => throw new NotSupportedException();
     }
 
     private readonly FakeClient _client = new();

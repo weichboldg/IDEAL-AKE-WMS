@@ -124,6 +124,19 @@ public class ServiceSettingDefinitionsTests
     [InlineData("Notifications:Recipients")]
     [InlineData("Notifications:AppBaseUrl")]
     [InlineData("Cleanup:AktivitaetsprotokollAufbewahrungTage")]
+    // Sage-Abgleich ueber SData (v1.73.0, E0: Katalog angelegt, Lesestellen folgen je Etappe)
+    [InlineData("Sync:Quelle:Lagerplaetze")]
+    [InlineData("Sync:Quelle:Lagerbestand")]
+    [InlineData("Sync:Quelle:Artikel")]
+    [InlineData("Sync:Quelle:FaStruktur")]
+    [InlineData("Sync:Quelle:Arbeitsplaetze")]
+    [InlineData("Sync:Quelle:LagerbuchungLookup")]
+    [InlineData("Sync:ArtikelBenutzerfelder")]
+    [InlineData("Sync:PpsMitarbeiterEnabled")]
+    [InlineData("Sync:StillstandsgruendeEnabled")]
+    [InlineData("Sync:KreditorenEnabled")]
+    [InlineData("Sync:DebitorenEnabled")]
+    [InlineData("Sync:ArtikelLieferantEnabled")]
     public void All_ContainsDocumentedServiceReadKey(string key)
     {
         ServiceSettingDefinitions.All.Select(d => d.Key).Should().Contain(key);

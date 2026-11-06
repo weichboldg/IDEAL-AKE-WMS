@@ -638,14 +638,24 @@ C:\Services\IDEALAKEWMSService\
 >
 > **TLS-Zertifikatsprüfung:** `SageLagerbuchungSslZertifikatPruefen` (Default `true`) schaltet die
 > Zertifikatsprüfung des Sage-Clients — **nur** für Testsysteme mit ungültigem Zertifikat auf `false`
-> setzen (fail-safe: fehlender/ungültiger Wert = geprüft; wirkt nur auf den Lagerbuchungs-Client, kein
-> globaler Effekt; Änderung greift ohne Dienst-Neustart). Bei `false` erscheint ein Warnhinweis im
+> setzen (fail-safe: fehlender/ungültiger Wert = geprüft; wirkt nur auf die Sage-SData-Clients, kein
+> globaler Effekt – Lagerbuchung, FA-Ansicht „Sage live“, Stammdaten-Abgleich über SData; Änderung greift ohne Dienst-Neustart). Bei `false` erscheint ein Warnhinweis im
 > Worker-Log, unter `/ServiceSettings` und in `/SageBookingQueue`. **Vor Produktivgang auf `true`.**
 >
 > **Verbindungstest:** Auf `/ServiceSettings` prüft der Button „Sage-Verbindung testen" die SData-Schnittstelle
 > (nebenwirkungsfreier GET, Default-Resource `$schema`) mit den aktuellen Werten + eingegebenen Zugangsdaten
 > und zeigt Status, Response-Header und Body — ohne eine echte Buchung. `$schema` listet den Funktionsumfang
 > der Schnittstelle; weitere Lese-Resourcen laut Sample: `Adressen`, `Artikel`.
+>
+> **Sage-Abgleich über SData (v1.73.0, Vorbereitung):** Kategorie „Sage-Abgleich (SData)“ unter `/ServiceSettings`.
+> Quellenschalter je Abgleich `Sync:Quelle:Lagerplaetze`, `…:Lagerbestand`, `…:Artikel`, `…:FaStruktur`, `…:Arbeitsplaetze`,
+> `…:LagerbuchungLookup` mit den Werten `View` (Default, bisheriger SQL-Weg), `SData` oder `Vergleich` (liest beide, schreibt nur aus
+> der View, Abweichungen im Aktivitäts-Protokoll „Sage-Quellenvergleich“). Exakte Schreibweise; ein anderer Wert wirkt wie `View` und
+> erzeugt eine Warnung. Rückfall im Notfall: Schalter auf `View`, der nächste Lauf liest wieder per SQL. Dazu `Sync:ArtikelBenutzerfelder`
+> (Liste der Sage-USER-Felder) und die Schalter `Sync:PpsMitarbeiterEnabled`, `Sync:StillstandsgruendeEnabled`, `Sync:KreditorenEnabled`,
+> `Sync:DebitorenEnabled`, `Sync:ArtikelLieferantEnabled` (Default `false`). Endpunkt, Zugangsdaten und TLS-Schalter wie die
+> Sage-Lagerbuchung (Vertrag `CommonWawiServicesResources`, nur GET). **In v1.73.0 liest noch kein Abgleich aus SData** – die
+> Schalter wirken mit den folgenden Etappen.
 
 #### Schritt 3 — Windows Service registrieren
 
