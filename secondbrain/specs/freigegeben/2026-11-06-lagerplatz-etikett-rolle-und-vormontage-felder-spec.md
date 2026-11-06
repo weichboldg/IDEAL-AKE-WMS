@@ -2,7 +2,7 @@
 type: spec
 title: Lagerplatz-Etikett 93 × 55 mm (Rollendrucker) und neue Felder in den Vormontage-Listen
 slug: 2026-11-06-lagerplatz-etikett-rolle-und-vormontage-felder-spec
-status: Entwurf
+status: Freigegeben
 created: 2026-11-06
 updated: 2026-11-06
 source_backlog: "[[2026-11-06-lagerplatz-etikett-rolle-und-vormontage-felder]]"
@@ -43,8 +43,8 @@ deploy:
   service: false
   migration: false
 freigabe_entscheidung: ""
-freigabe_von: ""
-freigabe_am: ""
+freigabe_von: "Gerald Weichbold"
+freigabe_am: "2026-11-06"
 ---
 
 > [!info] Ersetzt eine Entwurfs-Spec (Entscheidung Gerald 2026-11-06)
@@ -56,7 +56,19 @@ freigabe_am: ""
 > `feature/2026-08-07-ideal-teile-1-5` (Stand v1.71.1, `IdealAkeWms/AppVersion.cs:5`). Alle `Datei:Zeile`-Angaben
 > unten sind gegen diesen Stand gemessen. Empfohlene Reihenfolge im Lauf: erst Teil 1 committen, dann Teil 2.
 
-> [!warning] Vorbehalt P5 (übernommen aus der aufgenommenen Spec)
+> [!important] Freigabe-Nachtrag 2026-11-06 (geht dem Rumpf vor)
+> Antworten 1–10 im Block „Freigabe-Antworten“. Kurz: „Abteilung“ = **Arbeitsbereich je Position** (a), keine Spalte
+> „Montage-Abt.“; **keine weiteren Felder** als die angeforderten. Spaltenwahl je Benutzer, neue Spalten sichtbar; Summiert A
+> ohne Kappung; Browser-Druckansicht; Umfang Einzeln + Summiert + CSV; Format als Bool in Gruppe „Druck“; Kombigerät als
+> Liste, Datumsfilter auf frühesten FE-Termin; Labels/Reihenfolge wie Rückfrage 9.
+> Rollenetikett: **fortlaufend, ein Etikett je Seite**, Annahme quer 93 × 55 mm ohne Rahmen; Druckermodell/dpi unbekannt,
+> Prüfung am echten Drucker bei der Abnahme; Treiber-Hinweis (Papier 93 × 55, Ränder keine) in Hinweistext und Hilfe.
+> **P5 entfällt (Gerald 2026-11-06)** – der Vorbehalt unten ist damit aufgehoben: Die Spalte zeigt das vorhandene Feld
+> `Arbeitsbereich` unter dem Label „Arbeitsbereich“; dass es der Sage-Spalte „Abteilung“ entspricht, bleibt **ungeprüft**.
+> Ergebnisse IDEAL-Test-DB (Gerald 2026-11-06): **P7** 72 Positionen mit VMBedarf, `BemerkungPN` 6 gefüllt (max. 3 Zeichen),
+> `FertigungsInfoPN` 0 gefüllt → keine Kappung/`defaultHidden` nötig; **P9** längster Barcode 16 Zeichen (`Magazin-W1;0;0;0`).
+
+> [!warning] Vorbehalt P5 (übernommen aus der aufgenommenen Spec) — **aufgehoben durch Freigabe-Nachtrag 2026-11-06**
 > Die Spalte „Arbeitsbereich“ beruht auf Antwort 1 vom 2026-10-06 (Variante A, Knotenfeld `FaHierarchyNode.Arbeitsbereich`),
 > **vorbehaltlich P5**. P5 ist noch nicht gelaufen. **Weicht P5 von den Screenshot-Werten ab** (A-BODEN ≠ `H1-03`,
 > FR-4301-…-1530 ≠ `S-01`, Mittelholmblende ≠ `H2-02` oder Korpus-Gepunktet nicht leer), geht die Spec **zurück an
@@ -744,13 +756,13 @@ Die Datei bleibt unverändert. Sie trägt bereits den Hinweis „Aufgenommen in 
   Bei Varianten-Specs zusaetzlich freigabe_entscheidung im Frontmatter setzen.
 -->
 
-1. „Abteilung“ = Arbeitsbereich (a) oder zusätzlich Spalte „Montage-Abt.“ (b)? (Empfehlung: a) →
-2. Ein-/Ausblenden über die Spaltenwahl je Benutzer oder Standort-Schalter; neue Spalten Standard sichtbar? (Empfehlung: Zahnrad je Benutzer, sichtbar) →
-3. Summiert-Sicht: A Anzeige + Vorfilter / B Schlüssel erweitern / C nur einzelne Felder? (Empfehlung: A ohne Kappung) →
-4. Druckprozessor = Browser-Druckansicht oder serverseitiger Druck? (Empfehlung: Browser-Druckansicht) →
-5. Umfang: Einzeln + Summiert + CSV automatisch, Druck/Export bleiben Backlog? (Empfehlung: ja) →
-6. Format-Einstellung als Bool in Gruppe „Druck“ oder Auswahlliste? (Empfehlung: Bool) →
-7. Rollendrucker: Modell/dpi, Ausrichtung 93 breit × 55 hoch, gestanzt/endlos, Rahmen ja/nein, Test-Standort? (Empfehlung: quer, ohne Rahmen) →
-8. Kombigerät: alle Kopfwerte als Liste, Datumsfilter auf frühesten FE-Termin? (Empfehlung: ja) →
-9. Labels und Reihenfolge der neuen Spalten wie vorgeschlagen? (Empfehlung: ja) →
-10. P5-Ergebnis (Vorbehalt Arbeitsbereich = Sage-Spalte „Abteilung“) →
+1. „Abteilung“ = Arbeitsbereich (a) oder zusätzlich Spalte „Montage-Abt.“ (b)? (Empfehlung: a) → **(a) Arbeitsbereich je Position, keine Spalte „Montage-Abt.“; keine weiteren Felder** (Gerald 2026-11-06).
+2. Ein-/Ausblenden über die Spaltenwahl je Benutzer oder Standort-Schalter; neue Spalten Standard sichtbar? (Empfehlung: Zahnrad je Benutzer, sichtbar) → **Wie empfohlen: Zahnrad je Benutzer, sichtbar** (Gerald 2026-11-06).
+3. Summiert-Sicht: A Anzeige + Vorfilter / B Schlüssel erweitern / C nur einzelne Felder? (Empfehlung: A ohne Kappung) → **Wie empfohlen: A ohne Kappung** (Gerald 2026-11-06).
+4. Druckprozessor = Browser-Druckansicht oder serverseitiger Druck? (Empfehlung: Browser-Druckansicht) → **Wie empfohlen: Browser-Druckansicht** (Gerald 2026-11-06).
+5. Umfang: Einzeln + Summiert + CSV automatisch, Druck/Export bleiben Backlog? (Empfehlung: ja) → **Wie empfohlen: ja** (Gerald 2026-11-06).
+6. Format-Einstellung als Bool in Gruppe „Druck“ oder Auswahlliste? (Empfehlung: Bool) → **Wie empfohlen: Bool in Gruppe „Druck“** (Gerald 2026-11-06).
+7. Rollendrucker: Modell/dpi, Ausrichtung 93 breit × 55 hoch, gestanzt/endlos, Rahmen ja/nein, Test-Standort? (Empfehlung: quer, ohne Rahmen) → **Fortlaufend auf der Rolle, ein Etikett je Seite; Annahme quer 93 × 55 ohne Rahmen. Modell/dpi derzeit unbekannt, Prüfung am echten Drucker bei der Abnahme** (Gerald 2026-11-06).
+8. Kombigerät: alle Kopfwerte als Liste, Datumsfilter auf frühesten FE-Termin? (Empfehlung: ja) → **Wie empfohlen: ja** (Gerald 2026-11-06).
+9. Labels und Reihenfolge der neuen Spalten wie vorgeschlagen? (Empfehlung: ja) → **Wie empfohlen: ja** (Gerald 2026-11-06).
+10. P5-Ergebnis (Vorbehalt Arbeitsbereich = Sage-Spalte „Abteilung“) → **P5 entfällt (Gerald 2026-11-06), Zuordnung ungeprüft. P7: 72 Positionen, BemerkungPN 6 gefüllt (max. 3 Zeichen), FertigungsInfoPN 0. P9: max. 16 Zeichen.**

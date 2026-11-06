@@ -32,6 +32,10 @@ freigabe_von: ""
 freigabe_am: ""
 ---
 
+> [!warning] Aufgenommen in eine neue Spec (Gerald 2026-11-06)
+> Diese Spec wird nicht mehr eigenständig umgesetzt. Ihr Inhalt geht in die Spec zum Backlog-Eintrag
+> [[2026-11-06-lagerplatz-etikett-rolle-und-vormontage-felder]] über (Vormontage-Felder inkl. Arbeitsbereich).
+
 > [!note] Umsetzungsort (Entscheidung Gerald 2026-10-09)
 > direkt im Bündel-Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5` auf Zweig `feature/2026-08-07-ideal-teile-1-5` (kein eigener Worktree, ein Lauf zur Zeit). Die Spec baut auf Teil 5
 > ([[2026-07-29-standort-ideal-teil-5-spec]]) auf, der nur im Buendel-Worktree
