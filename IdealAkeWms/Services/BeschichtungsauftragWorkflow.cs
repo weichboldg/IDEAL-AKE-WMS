@@ -376,24 +376,14 @@ public class BeschichtungsauftragWorkflow
     /// oder als Deadlock-Opfer der Serializable-Transaktion, wird alles neu gelesen und erneut versucht.</summary>
     private async Task<BeschichtungsauftragErgebnis> MitNummernVersuchenAsync(bool serializable, Func<Task<BeschichtungsauftragErgebnis>> anlage)
     {
-        for (var versuch = 1; ; versuch++)
-        {
-            try
-            {
-                return serializable ? await _repo.InSerializableTransactionAsync(anlage) : await anlage();
-            }
-            catch (Exception ex) when (ex is DbUpdateException || IstDeadlock(ex))
-            {
-                // Jeder Versuch in einer neuen Transaktion; die alte ist mit der Ausnahme zurueckgerollt (Dispose).
-                // ponytail: es wird jeder DbUpdateException wiederholt (Unique-Konflikt der Nummer ist ohne SqlException-
-                // Nummer nicht sicher erkennbar); andere DB-Fehler kosten so 3 Versuche — deshalb jeder Versuch im Log.
-                _repo.VerwerfeAenderungen();
-                _logger.LogWarning(ex, "Beschichtungsauftrag anlegen: Versuch {Versuch}/{Max} gescheitert.", versuch, MaxNummerVersuche);
-                if (versuch >= MaxNummerVersuche)
-                    return Fehler($"Konnte nach {MaxNummerVersuche} Versuchen keine freie Nummer vergeben (gleichzeitige Anlage oder " +
-                                  "Datenbankfehler, Details im Log) — bitte erneut versuchen.");
-            }
-        }
+        // v1.88.0: Wiederhol-Schleife im gemeinsamen Helfer (auch fuer Kommissionierauftraege „KO“).
+        var (ok, ergebnis) = await Nummernkreis.MitVersuchenAsync(MaxNummerVersuche,
+            () => serializable ? _repo.InSerializableTransactionAsync(anlage) : anlage(),
+            _repo.VerwerfeAenderungen, _logger, "Beschichtungsauftrag anlegen");
+        return ok
+            ? ergebnis!
+            : Fehler($"Konnte nach {MaxNummerVersuche} Versuchen keine freie Nummer vergeben (gleichzeitige Anlage oder " +
+                     "Datenbankfehler, Details im Log) — bitte erneut versuchen.");
     }
 
     private async Task NummerVergebenUndSpeichernAsync(Beschichtungsauftrag auftrag)
@@ -402,12 +392,12 @@ public class BeschichtungsauftragWorkflow
         var lfd = await _repo.GetMaxLaufendeNummerAsync(jahr) + 1;
         auftrag.Jahr = jahr;
         auftrag.LaufendeNummer = lfd;
-        auftrag.Nummer = $"BA-{jahr}-{lfd:D5}";
+        auftrag.Nummer = Nummernkreis.Format("BA", jahr, lfd);
         _repo.Add(auftrag);
         await _repo.SaveChangesAsync();
     }
 
-    private static bool IstDeadlock(Exception ex) => ex is SqlException { Number: 1205 } || ex.InnerException is SqlException { Number: 1205 };
+    private static bool IstDeadlock(Exception ex) => Nummernkreis.IstDeadlock(ex);
 
     /// <summary>Kopf aus der PPS-View (nur Erstauftraege): je Feld nur, wenn alle Kopfzeilen denselben Wert liefern;
     /// sonst leer + Hinweis mit den Varianten — nie still eine Variante waehlen (Anforderung 4).</summary>

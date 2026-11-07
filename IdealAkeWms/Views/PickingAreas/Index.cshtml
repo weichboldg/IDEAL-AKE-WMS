@@ -1,0 +1,108 @@
+@model List<IdealAkeWms.Models.PickingArea>
+@{
+    ViewData["Title"] = "Kommissionierbereiche";
+    var canEdit = ViewBag.CanEdit == true;
+}
+
+<h2 class="page-header">Kommissionierbereiche</h2>
+<p class="text-muted mb-3">
+    Ein Kommissionierauftrag gehört zu genau einem Bereich. Jede Stücklistenzeile landet in dem Bereich, auf den die erste passende
+    <a asp-action="Regeln">Zuordnungsregel</a> zeigt (Reihenfolge: Artikel, Kommissionierziel, Lagerort, Artikelgruppe); ohne Treffer im
+    Standardbereich.
+</p>
+
+@if (!canEdit)
+{
+    <div class="alert alert-info small">Sie haben Nur-Lesen-Zugriff. Änderungen sind nicht möglich.</div>
+}
+
+<div class="row">
+    <div class="col-lg-8 mb-4">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                Bereiche (@Model.Count)
+                <a asp-action="Regeln" class="btn btn-sm btn-outline-primary">Zuordnungsregeln</a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    @* Kleine, unpaginierte Stammdatenliste → Client-Spaltenfilter (ADR 0005). *@
+                    <table class="table table-striped mb-0 filterable-table" data-view-key="PickingAreas">
+                        <thead>
+                            <tr>
+                                <th data-filterable data-col-key="name">Name</th>
+                                <th data-filterable data-col-key="kuerzel">Kürzel</th>
+                                <th data-filterable data-col-key="reihenfolge" class="text-end">Reihenfolge</th>
+                                <th data-filterable data-col-key="status">Status</th>
+                                <th data-filterable data-col-key="regeln" class="text-end">Regeln</th>
+                                <th data-col-key="actions"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var a in Model)
+                            {
+                                <tr>
+                                    <td>@a.Name</td>
+                                    <td>@a.Kuerzel</td>
+                                    <td class="text-end">@a.Reihenfolge</td>
+                                    <td>
+                                        @* Status als Text, Badge nur zusaetzlich *@
+                                        @if (a.IsDefault) { <span class="badge text-bg-primary me-1">Standard</span> }
+                                        @if (!a.IsActive) { <span class="badge text-bg-secondary me-1">inaktiv</span> } else { <span>aktiv</span> }
+                                        @if (a.IstVorkommissionierung) { <div class="small text-body-secondary">fällig mit Vorkommissionier-Vorlauf</div> }
+                                    </td>
+                                    <td class="text-end"><a asp-action="Regeln" asp-route-bereichId="@a.Id">@a.Regeln.Count</a></td>
+                                    <td>
+                                        @if (canEdit)
+                                        {
+                                            <a asp-action="Edit" asp-route-id="@a.Id" class="btn btn-sm btn-outline-primary">Bearbeiten</a>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (canEdit)
+    {
+        <div class="col-lg-4 mb-4">
+            <div class="card">
+                <div class="card-header">Neuen Bereich anlegen</div>
+                <div class="card-body">
+                    <form asp-action="Create" method="post">
+                        @Html.AntiForgeryToken()
+                        <div class="mb-3">
+                            <label class="form-label fw-bold" for="Name">Name</label>
+                            <input type="text" id="Name" name="Name" class="form-control" maxlength="100" required placeholder="z. B. Vorkommissionierung Kupfer" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold" for="Kuerzel">Kürzel</label>
+                            <input type="text" id="Kuerzel" name="Kuerzel" class="form-control" maxlength="10" required />
+                            <div class="form-text">Kurzzeichen in Listen und auf dem Druck, eindeutig.</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold" for="Reihenfolge">Reihenfolge</label>
+                            <input type="number" id="Reihenfolge" name="Reihenfolge" class="form-control" min="0" value="100" />
+                            <div class="form-text">Sortierung in Listen und Auswahlfeldern (kleiner = weiter oben).</div>
+                        </div>
+                        <div class="form-check mb-3">
+                            <input type="checkbox" id="IstVorkommissionierung" name="IstVorkommissionierung" value="true" class="form-check-input" />
+                            <label class="form-check-label" for="IstVorkommissionierung">Vorkommissionierung</label>
+                            <div class="form-text">Aufträge dieses Bereichs werden mit dem Vorkommissionier-Vorlauf fällig statt mit dem Kommissionier-Vorlauf.</div>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">Bereich anlegen</button>
+                        <div class="form-text">Neue Bereiche sind aktiv und nicht Standard; den Standard ändern Sie unter „Bearbeiten“.</div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script src="~/js/column-preferences.js" asp-append-version="true"></script>
+    <script src="~/js/table-filter.js" asp-append-version="true"></script>
+}

@@ -68,6 +68,11 @@ public class ApplicationDbContext : DbContext
     public DbSet<WarehouseRequisition> WarehouseRequisitions => Set<WarehouseRequisition>();
     public DbSet<WarehouseRequisitionItem> WarehouseRequisitionItems => Set<WarehouseRequisitionItem>();
     public DbSet<Beschichtungsauftrag> Beschichtungsauftraege => Set<Beschichtungsauftrag>();
+    // v1.88.0 Kommissionierauftraege (Spec 2026-11-08-kommissionierung-auftraege-kopf-zeilen)
+    public DbSet<PickingArea> PickingAreas => Set<PickingArea>();
+    public DbSet<PickingAreaRule> PickingAreaRules => Set<PickingAreaRule>();
+    public DbSet<PickingOrder> PickingOrders => Set<PickingOrder>();
+    public DbSet<PickingOrderLine> PickingOrderLines => Set<PickingOrderLine>();
     public DbSet<BeschichtungsauftragPosition> BeschichtungsauftragPositionen => Set<BeschichtungsauftragPosition>();
     public DbSet<SyncLog> SyncLogs => Set<SyncLog>();
     public DbSet<WorkStep> WorkSteps => Set<WorkStep>();
@@ -1558,6 +1563,86 @@ public class ApplicationDbContext : DbContext
         });
 
         // Beschichtungsauftrag (IDEAL, Spec 2026-10-06-beschichtungsauftrag-ausbau-teil-3): gespeicherter Auftrag je HauptFA.
+        // ---- v1.88.0 Kommissionierauftraege (Spec 2026-11-08-kommissionierung-auftraege-kopf-zeilen, E1) ----
+        modelBuilder.Entity<PickingArea>(entity =>
+        {
+            entity.ToTable("PickingAreas");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.Kuerzel).HasMaxLength(10).IsRequired();
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+            entity.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.ModifiedBy).HasMaxLength(200);
+            entity.Property(e => e.ModifiedByWindows).HasMaxLength(200);
+            entity.HasIndex(e => e.Name).IsUnique();
+            entity.HasIndex(e => e.Kuerzel).IsUnique();
+            // Genau ein Standardbereich (DB-Guard; InMemory erzwingt ihn nicht → App-Guard im Controller).
+            entity.HasIndex(e => e.IsDefault).IsUnique().HasFilter("[IsDefault] = 1").HasDatabaseName("UX_PickingAreas_IsDefault");
+        });
+
+        modelBuilder.Entity<PickingAreaRule>(entity =>
+        {
+            entity.ToTable("PickingAreaRules");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Value).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.ModifiedBy).HasMaxLength(200);
+            entity.Property(e => e.ModifiedByWindows).HasMaxLength(200);
+            entity.HasIndex(e => new { e.RuleType, e.Value }).IsUnique();
+            entity.HasOne(e => e.PickingArea).WithMany(a => a.Regeln).HasForeignKey(e => e.PickingAreaId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<PickingOrder>(entity =>
+        {
+            entity.ToTable("PickingOrders");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Nummer).HasMaxLength(20).IsRequired();
+            entity.Property(e => e.AssignedPickerName).HasMaxLength(200);
+            entity.Property(e => e.Bemerkung).HasMaxLength(1000);
+            entity.Property(e => e.AbgeschlossenVon).HasMaxLength(200);
+            entity.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.ModifiedBy).HasMaxLength(200);
+            entity.Property(e => e.ModifiedByWindows).HasMaxLength(200);
+            entity.Property(e => e.RowVersion).IsRowVersion();
+            // Nummernkreis wie BA: der UNIQUE-Index entscheidet bei parallelem Anlegen, der Verlierer wiederholt.
+            entity.HasIndex(e => e.Nummer).IsUnique();
+            entity.HasIndex(e => new { e.Jahr, e.LaufendeNummer }).IsUnique();
+            entity.HasIndex(e => e.ProductionOrderId);
+            entity.HasIndex(e => e.Status);
+            entity.HasIndex(e => e.PickingAreaId);
+            entity.HasOne(e => e.ProductionOrder).WithMany().HasForeignKey(e => e.ProductionOrderId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.PickingArea).WithMany().HasForeignKey(e => e.PickingAreaId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.AssignedPicker).WithMany().HasForeignKey(e => e.AssignedPickerId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(e => e.Ursprungsauftrag).WithMany(e => e.Folgeauftraege).HasForeignKey(e => e.UrsprungsauftragId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<PickingOrderLine>(entity =>
+        {
+            entity.ToTable("PickingOrderLines");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.ArticleNumber).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.BomPosition).HasMaxLength(50);
+            entity.Property(e => e.SollMenge).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.IstMenge).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.PickedBy).HasMaxLength(200);
+            entity.Property(e => e.PickedByWindows).HasMaxLength(200);
+            entity.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.ModifiedBy).HasMaxLength(200);
+            entity.Property(e => e.ModifiedByWindows).HasMaxLength(200);
+            entity.Property(e => e.RowVersion).IsRowVersion();
+            // Herkunftsschluessel bewusst NICHT unique (Folgeauftraege tragen denselben Schluessel).
+            entity.HasIndex(e => new { e.ProductionOrderId, e.ArticleNumber, e.BomPosition });
+            entity.HasOne(e => e.PickingOrder).WithMany(o => o.Zeilen).HasForeignKey(e => e.PickingOrderId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.ProductionOrder).WithMany().HasForeignKey(e => e.ProductionOrderId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.SourceStorageLocation).WithMany().HasForeignKey(e => e.SourceStorageLocationId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(e => e.StockMovement).WithMany().HasForeignKey(e => e.StockMovementId).OnDelete(DeleteBehavior.Restrict);
+        });
+
         modelBuilder.Entity<Beschichtungsauftrag>(entity =>
         {
             entity.ToTable("Beschichtungsauftraege");

@@ -1,0 +1,155 @@
+@model IdealAkeWms.Models.ViewModels.PickingAreaRegelnViewModel
+@using IdealAkeWms.Services
+@{
+    ViewData["Title"] = "Zuordnungsregeln Kommissionierbereiche";
+    var bereichName = Model.Bereiche.FirstOrDefault(b => b.Id == Model.BereichId)?.Name;
+}
+
+<h2 class="page-header">Zuordnungsregeln</h2>
+<p class="text-muted mb-3">
+    Eine Regel ordnet Stücklistenzeilen einem <a asp-action="Index">Kommissionierbereich</a> zu. Es gilt die erste passende Regel in dieser
+    Reihenfolge: Artikel, Kommissionierziel, Lagerort (Lagerkennung des Hauptlagerplatzes), Artikelgruppe. Ohne Treffer: Standardbereich.
+    Jeder Wert gehört höchstens einem Bereich.
+</p>
+
+<div class="card filter-card mb-3">
+    <div class="card-header">Filter</div>
+    <div class="card-body">
+        <form method="get" asp-action="Regeln" class="row g-2 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label" for="bereichId">Bereich</label>
+                <select id="bereichId" name="bereichId" class="form-select">
+                    <option value="">Alle Bereiche</option>
+                    @foreach (var b in Model.Bereiche)
+                    {
+                        <option value="@b.Id" selected="@(b.Id == Model.BereichId)">@b.Name</option>
+                    }
+                </select>
+            </div>
+            <div class="col-auto"><button type="submit" class="btn btn-primary">Filtern</button></div>
+        </form>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8 mb-4">
+        <div class="card">
+            <div class="card-header">Regeln@(bereichName != null ? $" – {bereichName}" : "") (@Model.Pagination.TotalCount)</div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-striped mb-0 filterable-table" data-server-column-filter="true" data-view-key="PickingAreaRegeln">
+                        <thead>
+                            <tr>
+                                <th data-filterable data-col-key="typ">Regeltyp</th>
+                                <th data-filterable data-col-key="wert">Wert</th>
+                                <th data-filterable data-col-key="bereich">Bereich</th>
+                                <th data-col-key="actions"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var r in Model.Regeln)
+                            {
+                                <tr>
+                                    <td>@KommissionierbereichRegel.Anzeige(r.RuleType)</td>
+                                    <td>@r.Value</td>
+                                    <td>@r.PickingArea.Name@(r.PickingArea.IsActive ? "" : " (inaktiv – greift nicht)")</td>
+                                    <td>
+                                        @if (Model.CanEdit)
+                                        {
+                                            <form asp-action="RegelLoeschen" method="post" class="d-inline">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="id" value="@r.Id" />
+                                                <input type="hidden" name="bereichId" value="@Model.BereichId" />
+                                                <button type="submit" class="btn btn-sm btn-outline-danger">Löschen</button>
+                                            </form>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                            @if (Model.Regeln.Count == 0)
+                            {
+                                <tr><td colspan="4" class="text-body-secondary">Keine Regeln – alle Zeilen landen im Standardbereich.</td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="card-body pt-0"><partial name="_Pagination" model="Model.Pagination" /></div>
+        </div>
+    </div>
+
+    @if (Model.CanEdit)
+    {
+        <div class="col-lg-4 mb-4">
+            <div class="card">
+                <div class="card-header">Regel anlegen</div>
+                <div class="card-body">
+                    <form asp-action="RegelAnlegen" method="post" id="regelForm">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="bereichId" value="@Model.BereichId" />
+                        <div class="mb-3">
+                            <label class="form-label fw-bold" for="pickingAreaId">Bereich</label>
+                            <select id="pickingAreaId" name="pickingAreaId" class="form-select" required>
+                                @foreach (var b in Model.Bereiche)
+                                {
+                                    <option value="@b.Id" selected="@(b.Id == Model.BereichId)">@b.Name@(b.IsActive ? "" : " (inaktiv)")</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold" for="ruleType">Regeltyp</label>
+                            <select id="ruleType" name="ruleType" class="form-select" required>
+                                @foreach (var t in Enum.GetValues<IdealAkeWms.Models.PickingAreaRuleType>())
+                                {
+                                    <option value="@((int)t)">@KommissionierbereichRegel.Anzeige(t)</option>
+                                }
+                            </select>
+                        </div>
+                        @* Wert = Auswahl aus Stammdaten je Typ (ADR 0020); der Server prueft Existenz und Eindeutigkeit. *@
+                        <div class="mb-3 regel-wert" data-typ="1">
+                            <label class="form-label fw-bold" for="articleId">Artikel</label>
+                            <select id="articleId" name="articleId" class="form-select select2-article" style="width:100%"></select>
+                        </div>
+                        @foreach (var (typ, label, werte) in new[] { (2, "Kommissionierziel", Model.Kommissionierziele), (3, "Lagerort (Lagerkennung)", Model.Lagerorte), (4, "Artikelgruppe", Model.Artikelgruppen) })
+                        {
+                            <div class="mb-3 regel-wert" data-typ="@typ">
+                                <label class="form-label fw-bold" for="wert@(typ)">@label</label>
+                                <select id="wert@(typ)" name="wert" class="form-select" disabled>
+                                    <option value="">– wählen –</option>
+                                    @foreach (var w in werte) { <option value="@w">@w</option> }
+                                </select>
+                                @if (werte.Count == 0)
+                                {
+                                    <div class="form-text">Im Stamm kommt noch kein Wert vor.</div>
+                                }
+                            </div>
+                        }
+                        <button type="submit" class="btn btn-primary w-100">Regel anlegen</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <partial name="_Select2ArticlePartial" />
+    <script src="~/js/column-preferences.js" asp-append-version="true"></script>
+    <script src="~/js/table-filter.js" asp-append-version="true"></script>
+    <script>
+        // Nur das Wertfeld des gewaehlten Regeltyps ist sichtbar und wird gesendet (deaktivierte Felder sendet der Browser nicht).
+        (function () {
+            var typ = document.getElementById('ruleType');
+            if (!typ) return;
+            function zeigen() {
+                document.querySelectorAll('.regel-wert').forEach(function (d) {
+                    var aktiv = d.getAttribute('data-typ') === typ.value;
+                    d.classList.toggle('d-none', !aktiv);
+                    d.querySelectorAll('select').forEach(function (s) { s.disabled = !aktiv; });
+                });
+            }
+            typ.addEventListener('change', zeigen);
+            zeigen();
+        })();
+    </script>
+}
