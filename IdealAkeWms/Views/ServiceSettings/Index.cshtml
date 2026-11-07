@@ -4,8 +4,10 @@
 @{
     ViewData["Title"] = "Service-Einstellungen";
     // B6 / ADR 0020: Warnhinweis an gesperrten Quellenschaltern - dieselbe Regel wie im Dienst (SageQuelleSperre).
-    var artikelView = Model.Groups.SelectMany(g => g.Items)
-        .FirstOrDefault(i => i.Key == IdealAkeWms.Services.SageSdata.SageQuelleSperre.ArtikelViewKey)?.Value;
+    var alleItems = Model.Groups.SelectMany(g => g.Items).ToList();
+    var artikelView = alleItems.FirstOrDefault(i => i.Key == IdealAkeWms.Services.SageSdata.SageQuelleSperre.ArtikelViewKey)?.Wirksam;
+    var namen = alleItems.ToDictionary(i => i.Key, i => i.Anzeigename);
+    var ungueltig = alleItems.Where(i => i.Ungueltig).ToList();
 }
 
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
@@ -46,46 +48,44 @@
     <span class="form-text ms-2">Prüft die SData-Schnittstelle (URL/TLS/Anmeldung) mit den Werten dieser Seite.</span>
 </div>
 
+@if (ungueltig.Any())
+{
+    <div class="alert alert-danger" role="alert">
+        <strong>&#9888; @ungueltig.Count @(ungueltig.Count == 1 ? "Einstellung hat" : "Einstellungen haben") einen ungültigen Wert:</strong>
+        @string.Join(", ", ungueltig.Select(i => i.Anzeigename)). Bitte korrigieren und speichern; bis dahin gilt der jeweils wirksame Wert.
+    </div>
+}
+
+<div class="card mb-3">
+    <div class="card-body d-flex flex-wrap align-items-center gap-3">
+        <label class="visually-hidden" for="settingsSuche">Einstellungen durchsuchen</label>
+        <input type="search" id="settingsSuche" class="form-control" style="max-width: 26rem;" placeholder="Suchen nach Name, Key oder Beschreibung" />
+        <div class="form-check form-switch mb-0">
+            <input type="checkbox" class="form-check-input" id="settingsNurGeaendert" />
+            <label class="form-check-label" for="settingsNurGeaendert">Nur geänderte (weichen vom Standard ab)</label>
+        </div>
+    </div>
+</div>
+
 <form asp-action="SaveSettings" method="post">
     @Html.AntiForgeryToken()
     @foreach (var group in Model.Groups)
     {
-        <div class="card mb-3">
+        <div class="card mb-3" data-setting-gruppe>
             <div class="card-header fw-semibold">@group.Category</div>
-            <div class="card-body">
+            <div class="card-body pb-0">
                 @foreach (var item in group.Items)
                 {
-                    <div class="mb-3" data-setting-row="@item.Key">
-                        <label class="form-label fw-bold">@item.Key</label>
-                        @if (!string.IsNullOrEmpty(item.Description))
-                        {
-                            <br /><small class="text-muted">@item.Description</small>
-                        }
-                        @if (item.Key.StartsWith("Sync:Quelle:", StringComparison.Ordinal)
-                             && IdealAkeWms.Services.SageSdata.SageQuelleSperre.Grund(item.Key["Sync:Quelle:".Length..], artikelView) is { } sperrGrund)
-                        {
-                            <div class="alert alert-warning py-2 px-3 mt-2 mb-1 small" role="status">
-                                <strong>&#9888; SData ist hier gesperrt bis @sperrGrund.</strong>
-                                @if (item.Value == "SData")
-                                {
-                                    <text>Der eingestellte Wert <code>SData</code> wirkt deshalb wie <code>View</code>; jeder Lauf meldet das als Warnung im Aktivitäts-Protokoll.</text>
-                                }
-                                else
-                                {
-                                    <text><code>SData</code> würde wie <code>View</code> wirken (Warnung im Aktivitäts-Protokoll); <code>Vergleich</code> ist möglich.</text>
-                                }
+                    if (item.Key == IdealAkeWms.Services.HierarchischeStruktur.HierarchischeStrukturKeys.Master)
+                    {
+                        @* Einwegtor: nur Anzeige (kein Formularfeld), Umschalten ueber die eigene Seite. *@
+                        var masterOn = item.Wirksam == "true";
+                        <div class="mb-3 pb-3 border-bottom setting-row" data-setting-row="@item.Key" data-suche="@($"{item.Anzeigename} {item.Key} {item.Definition.Description}".ToLowerInvariant())"
+                             data-weicht-ab="@(item.WeichtAb ? "true" : "false")">
+                            <div class="d-flex flex-wrap align-items-baseline gap-2">
+                                <span class="fw-bold">@item.Anzeigename</span>
+                                <code class="small text-muted">@item.Key</code>
                             </div>
-                        }
-                        @if (item.Key == SageTlsPolicy.SettingKey && !SageTlsPolicy.ShouldVerifyCertificate(item.Value))
-                        {
-                            <div class="alert alert-warning py-2 px-3 mt-2 mb-1 small">
-                                <strong>&#9888; TLS-Zertifikatsprüfung ist deaktiviert.</strong>
-                                Nur für Testsysteme zulässig &mdash; vor Produktivgang wieder aktivieren.
-                            </div>
-                        }
-                        @if (item.Key == IdealAkeWms.Services.HierarchischeStruktur.HierarchischeStrukturKeys.Master)
-                        {
-                            var masterOn = string.Equals(item.Value, "true", StringComparison.OrdinalIgnoreCase);
                             <div class="mt-1">
                                 <span class="badge @(masterOn ? "text-bg-success" : "text-bg-secondary")">
                                     @(masterOn ? "Hierarchisch aktiviert" : "Flach (AKE-Standard)")
@@ -93,29 +93,34 @@
                                 <a asp-controller="HierarchieUmstellung" asp-action="Index" class="ms-2">Umschalten (eigene Seite)</a>
                             </div>
                             <small class="text-muted d-block mt-1">Einwegtor &mdash; hier nur Anzeige. Änderung nur über die Umstellungs-Seite.</small>
-                        }
-                        else if (item.Type == SettingType.Bool)
-                        {
-                            var isChecked = string.Equals(item.Value, "true", StringComparison.OrdinalIgnoreCase);
-                            <input type="hidden" name="settings[@item.Key]" value="@(isChecked ? "true" : "false")" class="bool-hidden" />
-                            <div class="form-check form-switch mt-1">
-                                <input type="checkbox" class="form-check-input bool-toggle" id="setting_@item.Key" @(isChecked ? "checked" : "") />
-                                <label class="form-check-label" for="setting_@item.Key">@(isChecked ? "Aktiviert" : "Deaktiviert")</label>
-                            </div>
-                        }
-                        else if (item.Type == SettingType.Int)
-                        {
-                            <input type="number" step="1" name="settings[@item.Key]" value="@item.Value" class="form-control" />
-                        }
-                        else if (item.Multiline)
-                        {
-                            <textarea name="settings[@item.Key]" rows="2" class="form-control">@item.Value</textarea>
-                        }
-                        else
-                        {
-                            <input type="text" name="settings[@item.Key]" value="@item.Value" class="form-control" />
-                        }
-                    </div>
+                        </div>
+                        continue;
+                    }
+                    var abhaengig = item.Definition.AbhaengigVon is { } k && namen.TryGetValue(k, out var n) ? n : null;
+                    <partial name="_SettingField" model="item"
+                             view-data='new ViewDataDictionary(ViewData) { ["CanEdit"] = true, ["Abhaengig"] = abhaengig }' />
+                    @if (item.Key.StartsWith("Sync:Quelle:", StringComparison.Ordinal)
+                         && IdealAkeWms.Services.SageSdata.SageQuelleSperre.Grund(item.Key["Sync:Quelle:".Length..], artikelView) is { } sperrGrund)
+                    {
+                        <div class="alert alert-warning py-2 px-3 mt-n2 mb-3 small" role="status">
+                            <strong>&#9888; SData ist hier gesperrt bis @sperrGrund.</strong>
+                            @if (item.Wirksam == "SData")
+                            {
+                                <text>Der eingestellte Wert <code>SData</code> wirkt deshalb wie <code>View</code>; jeder Lauf meldet das als Warnung im Aktivitäts-Protokoll.</text>
+                            }
+                            else
+                            {
+                                <text><code>SData</code> würde wie <code>View</code> wirken (Warnung im Aktivitäts-Protokoll); <code>Vergleich</code> ist möglich.</text>
+                            }
+                        </div>
+                    }
+                    @if (item.Key == SageTlsPolicy.SettingKey && !SageTlsPolicy.ShouldVerifyCertificate(item.Wirksam))
+                    {
+                        <div class="alert alert-warning py-2 px-3 mt-n2 mb-3 small">
+                            <strong>&#9888; TLS-Zertifikatsprüfung ist deaktiviert.</strong>
+                            Nur für Testsysteme zulässig &mdash; vor Produktivgang wieder aktivieren.
+                        </div>
+                    }
                 }
             </div>
         </div>
@@ -231,17 +236,9 @@
 </div>
 
 @section Scripts {
+    @* Bool-Toggle/Suche: settings-fields.js (Fallstrick: Hidden traegt den name, die Checkbox nicht). *@
+    <script src="~/js/settings-fields.js" asp-append-version="true"></script>
     <script>
-        // Bool-Toggle: synchronisiert den Hidden-Wert + Label (Fallstrick: Hidden+Checkbox
-        // gleicher name funktioniert NICHT — Checkbox hat KEIN name, Hidden traegt den name).
-        document.querySelectorAll('.bool-toggle').forEach(function (cb) {
-            cb.addEventListener('change', function () {
-                var hidden = this.closest('[data-setting-row]').querySelector('.bool-hidden');
-                if (hidden) hidden.value = this.checked ? 'true' : 'false';
-                var label = this.parentElement.querySelector('.form-check-label');
-                if (label) label.textContent = this.checked ? 'Aktiviert' : 'Deaktiviert';
-            });
-        });
 
         // Sage-Verbindungstest: GET-Probe mit den aktuellen Formularwerten, Ausgabe im Modal.
         (function () {

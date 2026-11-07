@@ -3,29 +3,12 @@ using IdealAkeWms.Models;
 
 namespace IdealAkeWms.Models.ViewModels;
 
-/// <summary>Ein typisiertes Feld auf der ServiceSettings-Seite.</summary>
-public class ServiceSettingItem
-{
-    public string Key { get; set; } = string.Empty;
-    public SettingType Type { get; set; }
-    public string Value { get; set; } = string.Empty;
-    public string Description { get; set; } = string.Empty;
-    public bool Multiline { get; set; }
-}
-
-/// <summary>Eine UI-Kategorie mit ihren Feldern.</summary>
-public class ServiceSettingGroup
-{
-    public string Category { get; set; } = string.Empty;
-    public List<ServiceSettingItem> Items { get; set; } = new();
-}
-
 /// <summary>
-/// ViewModel fuer /ServiceSettings: Katalog∪DB gemergt und gruppiert, plus
-/// Orphan-Zeilen (DB-Keys ohne Katalog-Eintrag) fuer den Freitext-Fallback.
+/// ViewModel fuer /ServiceSettings: Katalog mit DB-Stand gruppiert (seit v1.77.0 dieselben <see cref="SettingGroup"/>/<see cref="SettingItem"/>
+/// wie /Settings, Spec 2026-11-07-einstellungen-auswahlfelder-und-beschreibung E3), plus Orphan-Zeilen (DB-Keys ohne Katalog-Eintrag).
 /// </summary>
 public class ServiceSettingsViewModel
 {
-    public List<ServiceSettingGroup> Groups { get; set; } = new();
+    public List<SettingGroup> Groups { get; set; } = new();
     public List<ServiceSetting> OrphanEntries { get; set; } = new();
 }

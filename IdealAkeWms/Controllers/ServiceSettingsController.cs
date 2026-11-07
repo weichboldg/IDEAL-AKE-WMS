@@ -179,36 +179,16 @@ public class ServiceSettingsController : Controller
         var dbRows = await _repository.GetAllAsync() ?? new List<ServiceSetting>();
         var dbByKey = dbRows.ToDictionary(s => s.Key, StringComparer.Ordinal);
 
-        var vm = new ServiceSettingsViewModel();
-
-        // Kategorie-Reihenfolge = Reihenfolge des ersten Vorkommens im Katalog (stabil).
-        foreach (var def in ServiceSettingDefinitions.All)
-        {
-            var value = dbByKey.TryGetValue(def.Key, out var row) && row.Value != null
-                ? row.Value
-                : def.DefaultValue;
-
-            var group = vm.Groups.FirstOrDefault(g => g.Category == def.Category);
-            if (group == null)
-            {
-                group = new ServiceSettingGroup { Category = def.Category };
-                vm.Groups.Add(group);
-            }
-            group.Items.Add(new ServiceSettingItem
-            {
-                Key = def.Key,
-                Type = def.Type,
-                Value = value,
-                Description = def.Description,
-                Multiline = def.Multiline
-            });
-        }
-
-        // Orphans = DB-Keys ohne Katalog-Eintrag.
+        // v1.77.0 E3: SettingItem nach Katalog (Bool „leer = Default“ zeigt den wirksamen Zustand, AK 11; Choice exakt wie der Dienst liest).
+        var items = ServiceSettingDefinitions.All
+            .Select(def => SettingItem.Aus(def, dbByKey.TryGetValue(def.Key, out var row) ? row.Value : null, exakt: true))
+            .ToList();
         var catalogKeys = ServiceSettingDefinitions.All.Select(d => d.Key).ToHashSet(StringComparer.Ordinal);
-        vm.OrphanEntries = dbRows.Where(r => !catalogKeys.Contains(r.Key)).ToList();
-
-        return vm;
+        return new ServiceSettingsViewModel
+        {
+            Groups = SettingGroup.Bilden(items),
+            OrphanEntries = dbRows.Where(r => !catalogKeys.Contains(r.Key)).ToList(),
+        };
     }
 
     // --- Freitext-Fallback fuer Orphan-/Ad-hoc-Keys (nicht mehr Hauptpfad) ---

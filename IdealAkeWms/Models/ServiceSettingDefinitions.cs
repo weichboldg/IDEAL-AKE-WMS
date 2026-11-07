@@ -13,7 +13,122 @@ namespace IdealAkeWms.Models;
 /// </summary>
 public static class ServiceSettingDefinitions
 {
-    public static IReadOnlyList<SettingDefinition> All { get; } = new List<SettingDefinition>
+    /// <summary>Katalog mit Metadaten (v1.77.0, Spec 2026-11-07-einstellungen-auswahlfelder-und-beschreibung E3, ADR 0020): Basisliste unten,
+    /// ergaenzt um Anzeigename, Verwendung, Standort, Warnhinweis (<see cref="Meta"/>), Bool-Lesart „leer = Default“
+    /// (<c>ServiceSettings.GetBoolAsync</c>) und die Quellenschalter als Auswahl.</summary>
+    public static IReadOnlyList<SettingDefinition> All => _all ??= Basis().Select(Ergaenzen).ToList();
+    private static IReadOnlyList<SettingDefinition>? _all;
+
+    /// <summary>Erlaubte Werte der Quellenschalter <c>Sync:Quelle:*</c> — exakt wie <c>SageQuelle</c> im Dienst (ordinal, ohne Trim).</summary>
+    public static readonly (string Wert, string Text)[] QuellenWerte =
+    {
+        ("View", "View – bisheriger SQL-Weg"),
+        ("SData", "SData – Sage-Schnittstelle"),
+        ("Vergleich", "Vergleich – liest beide, schreibt aus der View"),
+    };
+
+    private const string WarnSData = "SData schreibt die Stammdaten dieses Abgleichs aus der Sage-Schnittstelle.";
+
+    /// <summary>Anzeigename, Verwendung, Standort, Warnhinweis je Key (Standort leer = beide).</summary>
+    private static readonly Dictionary<string, (string Name, string Verwendung, string? Standort, string? Warn)> Meta = new()
+    {
+        ["Sync:ProductionOrdersEnabled"] = ("FA-Abgleich aus Sage", "Dienst: Sync-Lauf Produktionsaufträge", null, null),
+        ["Sync:ArticlesEnabled"] = ("Artikel-Abgleich aus Sage", "Dienst: Sync-Lauf Artikel", null, null),
+        ["Sync:ArticlesViewName"] = ("Artikel-View (Sage)", "Dienst: Artikel-Abgleich; Sperre SData für Artikel", "IDEAL", null),
+        ["Sync:OseonArticleCategoryEnabled"] = ("OSEON-Artikelkategorien", "Dienst: nach dem Artikel-Abgleich", "AKE", null),
+        ["Sync:OseonTrackingEnabled"] = ("OSEON-Teileverfolgung", "Dienst: OSEON-Tracking- und Werkbank-Abgleich", "AKE", null),
+        ["Sync:EnaioDmsEnabled"] = ("enaio-DMS-Abgleich", "Dienst: enaio-Lauf; Links an FA-Nummern", null, null),
+        ["Sync:EnaioDmsViewName"] = ("enaio-View", "Dienst: enaio-Lauf", null, null),
+        ["Sync:PartRequisitionEmailEnabled"] = ("Mails für Bedarfsmeldungen", "Dienst: Mailversand Bedarfsmeldungen", null, "Versendet Mails."),
+        ["Sync:WarehouseRequisitionEmailEnabled"] = ("Mails für Lagerbestellungen", "Dienst: Mailversand Lagerbestellungen", null, "Versendet Mails."),
+        ["Sync:LagerplaetzeEnabled"] = ("Lagerplatz-Abgleich aus Sage", "Dienst: Lauf „Lagerplatz“", null, null),
+        ["Sync:LagerbestandEnabled"] = ("Lagerbestand-Abgleich aus Sage", "Dienst: Lauf „Lagerbestand“", null, "Korrigiert bzw. nullt Bestände im WMS."),
+        ["Sync:LagerbestandIntervalMinutes"] = ("Lagerbestand: eigenes Intervall", "Dienst: Lauf „Lagerbestand“", null, null),
+        ["Sync:LagerbestandNullsetzenMaxPerRun"] = ("Lagerbestand: max. Nullsetzungen je Lauf", "Dienst: Lauf „Lagerbestand“ (Sicherheits-Grenze)", null, null),
+        ["Sync:ProductionOrderReconcileEnabled"] = ("Verwaiste FAs stornieren", "Dienst: FA-Abgleich", null, "Storniert FAs, die in Sage gelöscht wurden."),
+        ["Sync:ReconcileMaxCancelPerRun"] = ("Storno: max. FAs je Lauf", "Dienst: FA-Abgleich (Sicherheits-Grenze)", null, null),
+        ["Sync:FaZusatzinfoEnabled"] = ("FA-Zusatzinfos aus Sage", "Dienst: Lauf „FA-Zusatzinfos“", null, "Setzt FAs mit Sage-Status verpackt/abgeholt auf Komm-Erledigt."),
+        ["Sync:FaZusatzinfoAutoDoneMaxPerRun"] = ("Auto-Erledigt: max. FAs je Lauf", "Dienst: Lauf „FA-Zusatzinfos“ (Sicherheits-Grenze)", null, null),
+        ["Sync:FaZusatzinfoAutoErledigtEnabled"] = ("Auto-Erledigt aus Sage-Status", "Dienst: Lauf „FA-Zusatzinfos“", null, "Setzt FAs automatisch auf Komm-Erledigt."),
+        ["Sync:HierarchicalFaEnabled"] = ("FA-Struktur-Import (IDEAL)", "Dienst: Lauf „FA-Hierarchie“", "IDEAL", null),
+        ["Sync:FaHierarchyListeViewName"] = ("FA-Struktur: View Stückliste", "Dienst: Lauf „FA-Hierarchie“", "IDEAL", null),
+        ["Sync:FaHierarchyInfosViewName"] = ("FA-Struktur: View Auftragsdaten", "Dienst: Lauf „FA-Hierarchie“", "IDEAL", null),
+        ["ProduktionsauftragHierarchisch"] = ("Hierarchische Produktionsaufträge (Einwegtor)", "Dienst: Materialisierung; Umschalten nur über die eigene Seite", "IDEAL",
+            "Einwegtor – nach dem ersten Lauf nicht zurückschaltbar."),
+        ["Sync:WorkOperationStructureDetectionEnabled"] = ("Arbeitsgang-Erkennung aus der Struktur", "Dienst: nach dem FA-Struktur-Import", "IDEAL", null),
+        ["Sync:ProductionWorkplaceSyncEnabled"] = ("Werkbänke aus Sage anlegen", "Dienst: Lauf „Werkbank-Anlage“", null, null),
+        ["Sync:ProductionWorkplaceSyncMandant"] = ("Werkbank-Anlage: Mandant", "Dienst: Lauf „Werkbank-Anlage“", null, null),
+        ["Sync:ProductionWorkplaceSyncViewName"] = ("Werkbank-Anlage: Sage-Quelle", "Dienst: Lauf „Werkbank-Anlage“", null, null),
+        ["Sync:ProductionWorkplaceSyncAusschlussliste"] = ("Werkbank-Anlage: ausgeschlossene Kürzel", "Dienst: Lauf „Werkbank-Anlage“", null, null),
+        ["Sync:OperationConfigSyncEnabled"] = ("Arbeitsgang-Abgleich", "Dienst: Lauf „Arbeitsgang-Abgleich“", null, null),
+        ["Sync:OperationConfigSyncViewName"] = ("Arbeitsgang-Abgleich: View", "Dienst: Lauf „Arbeitsgang-Abgleich“", null, null),
+        ["Sync:OperationConfigSyncFremdsystemRelevant"] = ("Neue Arbeitsgänge: Fremdsystem-relevant", "Dienst: Lauf „Arbeitsgang-Abgleich“ (nur Neuanlage)", null, null),
+        ["SageLagerbuchungAktiv"] = ("Lagerbuchungen an Sage senden", "Dienst: Sage-Buchungs-Worker; Warteschlange", null, "Sendet Buchungen an Sage."),
+        ["SageLagerbuchungUmbuchungAktiv"] = ("Umbuchungen an Sage senden", "Dienst: Sage-Buchungs-Worker", null, "Sendet Buchungen an Sage."),
+        ["SData:BaseUrl"] = ("SData: Adresse", "Sage-Buchung, Sage-Abgleich, FA-Struktur live", null, null),
+        ["SData:Application"] = ("SData: Application", "Sage-Buchung, Sage-Abgleich, FA-Struktur live", null, null),
+        ["SData:ServiceContract"] = ("SData: ServiceContract", "Sage-Buchung", null, null),
+        ["SData:Dataset"] = ("SData: Dataset (Mandant)", "Sage-Buchung, Sage-Abgleich, FA-Struktur live", null, null),
+        ["Sync:SageLagerbuchungIntervalSeconds"] = ("Sage-Buchung: Intervall", "Dienst: Sage-Buchungs-Worker", null, null),
+        ["Sync:SageLagerbuchungBatchSize"] = ("Sage-Buchung: Einträge je Durchlauf", "Dienst: Sage-Buchungs-Worker", null, null),
+        ["Sync:SageLagerbuchungMaxRetries"] = ("Sage-Buchung: max. Versuche", "Dienst: Sage-Buchungs-Worker", null, null),
+        ["Sync:SageLagerbuchungMaxErrorsPerRun"] = ("Sage-Buchung: Fehlermail ab Fehlern je Lauf", "Dienst: Sage-Buchungs-Worker", null, null),
+        ["Sync:SageLagerbuchungStuckMinutes"] = ("Sage-Buchung: hängend nach", "Dienst: Sage-Buchungs-Worker", null, null),
+        ["SageLagerbuchungSslZertifikatPruefen"] = ("SData: TLS-Zertifikat prüfen", "Sage-Buchung, Sage-Abgleich, FA-Struktur live", null, null),
+        ["Sync:Quelle:Lagerplaetze"] = ("Quelle Lagerplatz-Abgleich", "Dienst: Lauf „Lagerplatz“", null, WarnSData),
+        ["Sync:Quelle:Lagerbestand"] = ("Quelle Lagerbestand-Abgleich", "Dienst: Lauf „Lagerbestand“", null, WarnSData),
+        ["Sync:Quelle:Artikel"] = ("Quelle Artikel-Abgleich", "Dienst: Lauf „Artikel“", "AKE frei; IDEAL gesperrt bis P-R1", WarnSData),
+        ["Sync:Quelle:FaStruktur"] = ("Quelle FA-Struktur", "Dienst: Lauf „FA-Hierarchie“", "gesperrt bis P-F2", WarnSData),
+        ["Sync:Quelle:Arbeitsplaetze"] = ("Quelle Werkbänke und Arbeitsgänge", "Dienst: Läufe „Werkbank-Anlage“, „Arbeitsgang-Abgleich“", null, WarnSData),
+        ["Sync:Quelle:LagerbuchungLookup"] = ("Quelle Lagerbuchungs-Lookup", "Dienst: Sage-Buchungs-Worker (nur Lesen)", null, null),
+        ["Sync:ArtikelBenutzerfelder"] = ("Artikel-Benutzerfelder aus Sage", "Dienst: Artikel-Abgleich über SData", null, null),
+        ["Sync:PpsMitarbeiterEnabled"] = ("PPS-Mitarbeiter aus Sage", "Dienst: Lauf „PPS-Mitarbeiter“; BDE-Personalpflege", null, null),
+        ["Sync:StillstandsgruendeEnabled"] = ("Stillstandsgründe aus Sage", "Dienst: Lauf „Stillstandsgründe“", null, null),
+        ["Sync:KreditorenEnabled"] = ("Kreditoren aus Sage", "Dienst: Lauf „Kreditoren“; Stammdaten → Kreditoren", null, "Überschreibt WMS-Werte (Sage ist führend)."),
+        ["Sync:DebitorenEnabled"] = ("Debitoren aus Sage", "Dienst: Lauf „Debitoren“; Stammdaten → Debitoren", null, "Überschreibt WMS-Werte (Sage ist führend)."),
+        ["Sync:ArtikelLieferantEnabled"] = ("Artikel-Lieferanten aus Sage", "Dienst: Lauf „Artikel-Lieferanten“", null, null),
+        ["Sync:BomCacheEnabled"] = ("Stücklisten-Cache", "Dienst: Lauf „BOM-Cache“; Stückliste", "AKE", null),
+        ["Sync:BomCacheWeeks"] = ("Stücklisten-Cache: Wochen voraus", "Dienst: Lauf „BOM-Cache“", "AKE", null),
+        ["Sync:BomCacheMaxOrders"] = ("Stücklisten-Cache: max. Aufträge", "Dienst: Lauf „BOM-Cache“", "AKE", null),
+        ["Sync:BomCacheMaxAgeHours"] = ("Stücklisten-Cache: max. Alter", "Dienst: Lauf „BOM-Cache“", "AKE", null),
+        ["Sync:FaWorkStepDetectionEnabled"] = ("FA-Arbeitsgang-Erkennung", "Dienst: nach dem BOM-Cache; FA-Vervollständigung", "AKE", null),
+        ["Sync:CoatingDetectionEnabled"] = ("Lackierteil-Erkennung", "Dienst: Lauf „Lackierteile“", null, null),
+        ["Sync:BdeAutoPauseIntervalMinutes"] = ("BDE-Auto-Pause: Intervall", "Dienst: BDE-Auto-Pause am Schichtende", null, null),
+        ["Sync:FeiertagSyncEnabled"] = ("Feiertage abgleichen", "Dienst: Lauf „Feiertage“", null, null),
+        ["Sync:FeiertagCountryCode"] = ("Feiertage: Land", "Dienst: Lauf „Feiertage“", null, null),
+        ["Sync:FeiertagRegion"] = ("Feiertage: Region", "Dienst: Lauf „Feiertage“", null, null),
+        ["Sync:FeiertagJahreVoraus"] = ("Feiertage: Jahre voraus", "Dienst: Lauf „Feiertage“", null, null),
+        ["Cleanup:AktivitaetsprotokollAufbewahrungTage"] = ("Aktivitäts-Protokoll: Aufbewahrung", "Dienst: tägliche Bereinigung", null, null),
+        ["WorkerSettings:SyncIntervalMinutes"] = ("Sync-Intervall", "Dienst: alle Sync-Läufe", null, null),
+        ["WorkerSettings:NotificationCheckIntervalMinutes"] = ("Meldebestand-Prüfung: Intervall", "Dienst: Meldebestand-Prüfung", null, null),
+        ["WorkerSettings:SyncDryRun"] = ("Probelauf (nichts schreiben)", "Dienst: alle Sync-Läufe", null, null),
+        ["ErrorNotification:Enabled"] = ("Fehlermails", "Dienst: Fehlermail bei Sync-Fehlern", null, "Versendet Mails."),
+        ["ErrorNotification:Recipients"] = ("Fehlermail: Empfänger", "Dienst: Fehlermail", null, null),
+        ["Notifications:MeldebestandEnabled"] = ("Meldebestand-Mail", "Dienst: Meldebestand-Prüfung", null, "Versendet Mails."),
+        ["Notifications:MeldebestandSubject"] = ("Meldebestand-Mail: Betreff", "Dienst: Meldebestand-Prüfung", null, null),
+        ["Notifications:Recipients"] = ("Meldebestand-Mail: Empfänger", "Dienst: Meldebestand-Prüfung", null, null),
+        ["Notifications:AppBaseUrl"] = ("App-Adresse für Links in Mails", "Dienst: Mails mit Links", null, null),
+    };
+
+    /// <summary>Grenzen, die der Leser belegt (F1: nur dort).</summary>
+    private static readonly Dictionary<string, (int? Min, int? Max, string Einheit)> IntMeta = new()
+    {
+        ["Sync:SageLagerbuchungIntervalSeconds"] = (5, null, "s"),
+        ["Sync:BdeAutoPauseIntervalMinutes"] = (0, null, "min"),
+        ["Sync:LagerbestandIntervalMinutes"] = (0, null, "min"),
+    };
+
+    private static SettingDefinition Ergaenzen(SettingDefinition d)
+    {
+        var m = Meta.TryGetValue(d.Key, out var x) ? x : (Name: d.Key, Verwendung: "Dienst", Standort: (string?)null, Warn: (string?)null);
+        d = d with { Anzeigename = m.Name, Verwendung = m.Verwendung, Standort = m.Standort ?? "beide", Warnhinweis = m.Warn };
+        if (d.Type == SettingType.Bool) d = d with { BoolLesart = SettingBoolLesart.LeerIstDefault };
+        if (d.Type == SettingType.Int && IntMeta.TryGetValue(d.Key, out var i)) d = d with { Min = i.Min, Max = i.Max, Einheit = i.Einheit };
+        if (d.Key.StartsWith("Sync:Quelle:", StringComparison.Ordinal)) d = d with { Type = SettingType.Choice, Werte = QuellenWerte };
+        return d;
+    }
+
+    private static List<SettingDefinition> Basis() => new()
     {
         // ----- Sync (Master-Schalter der einzelnen Sync-Bloecke) -----
         new("Sync:ProductionOrdersEnabled",          SettingType.Bool, "true",  "Sync", "Produktionsauftraege-Sync aus SAGE aktiv"),
