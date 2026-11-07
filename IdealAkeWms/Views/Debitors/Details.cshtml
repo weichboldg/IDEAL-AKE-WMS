@@ -1,10 +1,13 @@
 @model Debitor
 @using IdealAkeWms.Controllers
 @inject IdealAkeWms.Services.ICurrentUserService _user
+@inject IdealAkeWms.Data.Repositories.ISyncLogRepository _syncLogs
 @{
     ViewData["Title"] = "Debitor " + (Model.ShortName ?? Model.Name);
     var canEdit = await _user.HasMasterDataAccessAsync();
     string Text(string? s) => string.IsNullOrWhiteSpace(s) ? "—" : s;
+    // Stand des Lese-Abgleichs Kontokorrent (E8c): letzter Protokolleintrag des Laufs, unabhaengig vom Datensatz.
+    var letzterLauf = (await _syncLogs.GetRecentAsync(IdealAkeWms.Services.SyncLogger.SyncLogServices.Debitoren, null, 1)).FirstOrDefault();
 }
 
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
@@ -90,7 +93,37 @@
                     <dt class="col-sm-5">Vertreter</dt><dd class="col-sm-7">@Text(Model.SageVertreter)</dd>
                     <dt class="col-sm-5">Kundenname FA</dt><dd class="col-sm-7">@Text(Model.SageKundenNameFA)</dd>
                 </dl>
-                <p class="small text-muted mt-2 mb-0">Die Sage-Felder füllt der Sage-Abgleich der Debitoren (folgt).</p>
+                <p class="small text-muted mt-2 mb-0">
+                    @if (Model.Source == StorageLocationSource.Sage)
+                    {
+                        <text>Name, Adresse, Kontakt und Sage-Felder füllt der Debitoren-Abgleich aus Sage.</text>
+                        @if (Model.ModifiedBy == "KontokorrentSync" && Model.ModifiedAt.HasValue)
+                        {
+                            <text>Zuletzt vom Abgleich geändert: @Model.ModifiedAt.Value.ToString("dd.MM.yyyy HH:mm").</text>
+                        }
+                    }
+                    else
+                    {
+                        <text>Herkunft WMS: Die Sage-Felder bleiben leer, bis der Abgleich ein Sage-Konto mit derselben Kontonummer findet.</text>
+                    }
+                    <br />
+                    @if (letzterLauf != null)
+                    {
+                        <text>Letzter Debitoren-Abgleich: @letzterLauf.Timestamp.ToString("dd.MM.yyyy HH:mm")</text>
+                        @if (letzterLauf.Level == SyncLogLevel.Error)
+                        {
+                            <span class="badge bg-danger ms-1">fehlgeschlagen</span>
+                        }
+                        else if (letzterLauf.Level == SyncLogLevel.Warning)
+                        {
+                            <span class="badge bg-warning text-dark border border-dark ms-1">mit Warnung</span>
+                        }
+                    }
+                    else
+                    {
+                        <text>Der Debitoren-Abgleich ist noch nicht gelaufen (Schalter <code>Sync:DebitorenEnabled</code> unter Service-Einstellungen).</text>
+                    }
+                </p>
             </div>
         </div>
     </div>

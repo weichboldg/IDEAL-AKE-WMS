@@ -117,6 +117,14 @@ public interface ISageKonto
     string Name { get; set; }
     string Source { get; set; }
     bool IsActive { get; set; }
+    string? Matchcode { get; set; }
+    string? Street { get; set; }
+    string? PostalCode { get; set; }
+    string? City { get; set; }
+    string? Country { get; set; }
+    string? Email { get; set; }
+    string? Phone { get; set; }
+    string? ContactPerson { get; set; }
     string? SageKto { get; set; }
     string? SageMatchcode { get; set; }
     string? SageGruppe { get; set; }

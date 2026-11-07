@@ -9,7 +9,15 @@ namespace IDEALAKEWMSService.Services.Sdata;
 /// <summary>Zeile aus <c>Kontokorrent</c> (Namen exakt wie in der SData-Antwort, Typen P-S1). Je Lauf werden nur die Felder der
 /// jeweiligen Tabelle abgefragt (<see cref="KontokorrentSyncService.SelectKreditoren"/> / <see cref="KontokorrentSyncService.SelectDebitoren"/>).</summary>
 public sealed record SdataKontoZeile(string? Kto, string? Matchcode, string? EUUStID, string? Zahlungskond, string? Gruppe, bool? Aktiv,
-    string? Vertreter = null, decimal? USER_EKMindestbestellwert = null);
+    string? Vertreter = null, decimal? USER_EKMindestbestellwert = null, int? Adresse = null);
+
+/// <summary>Zeile aus <c>Adressen</c> (= Sage-Tabelle KHKAdressen; Spaltennamen und Laengen am AKE-Test belegt, Spec P-K1-Nachtrag).
+/// Liefer* ist die Hausadresse (2.204 von 2.287 Kreditoren gefuellt), Post* ist das Postfach (6) und wird nicht gelesen.</summary>
+public sealed record SdataAdresseZeile(int? Adresse, string? Name1, string? Name2, string? LieferStrasse, string? LieferPLZ, string? LieferOrt,
+    string? LieferLand, string? Telefon, string? EMail, string? USER_KundenNameFA = null);
+
+/// <summary>Zeile aus <c>Ansprechpartner</c> (= KHKAnsprechpartner, n je Adresse, am AKE-Test bis 99).</summary>
+public sealed record SdataAnsprechpartnerZeile(int? Nummer, int? Adresse, string? Vorname, string? Nachname, string? Ansprechpartner);
 
 /// <summary>
 /// Spec 2026-11-06-sage-sdata-stammdaten-sync (E8c/F10, P-K1): liest Sage-Konten aus SData (<c>Kontokorrent</c>, Vertrag
@@ -34,13 +42,18 @@ public class KontokorrentSyncService
     public const string Ressource = "Kontokorrent";
     public const string WhereKreditoren = "KtoArt eq 'K'"; // P-K1 (AKE-Test 2026-11-06): K = 2.287 Lieferanten
     public const string WhereDebitoren = "KtoArt eq 'D'";  // P-K1: D = 534 Kunden
-    // Nur Felder aus dem P-S1-Schema von Kontokorrent. Name/Adresse/Kontakt liegen in Adressen/Ansprechpartner — deren Schema ist
-    // nicht belegt, ein unbekanntes Feld im select bricht die Abfrage (HTTP 500).
-    // TODO(P-S1): Adressen (Name1, Strasse, PLZ, Ort, Land, EMail, Telefon, USER_KundenNameFA) per $schema pruefen, dann ueber
-    // Kontokorrent.Adresse nachlesen. Bis dahin: Name = Sage-Matchcode bei der Neuanlage, Adressfelder bleiben unberuehrt.
-    private const string SelectBasis = "Kto,Matchcode,EUUStID,Zahlungskond,Gruppe,Aktiv";
+    // Felder aus dem P-S1-Schema von Kontokorrent; Adresse = Verweis auf Adressen.Adresse (KHKKontokorrent.Adresse, P-K1-Nachtrag).
+    private const string SelectBasis = "Kto,Matchcode,EUUStID,Zahlungskond,Gruppe,Aktiv,Adresse";
     public const string SelectKreditoren = SelectBasis + ",USER_EKMindestbestellwert";
     public const string SelectDebitoren = SelectBasis + ",Vertreter";
+    // Name/Adresse/Kontakt: Feldnamen = Spalten von KHKAdressen/KHKAnsprechpartner (am AKE-Test per SQL belegt; die SData-Namen von
+    // Kontokorrent sind 1:1 die Spaltennamen). TODO(P-K1-Nachtrag): $schema beider Ressourcen bestaetigen. Nicht lesbar →
+    // Warnung im Lauf, Name/Adresse/Kontakt bleiben unveraendert, der Konto-Abgleich laeuft weiter.
+    public const string RessourceAdressen = "Adressen";
+    public const string RessourceAnsprechpartner = "Ansprechpartner";
+    public const string SelectAdressen = "Adresse,Name1,Name2,LieferStrasse,LieferPLZ,LieferOrt,LieferLand,Telefon,EMail";
+    public const string SelectAdressenDebitoren = SelectAdressen + ",USER_KundenNameFA";
+    public const string SelectAnsprechpartner = "Nummer,Adresse,Vorname,Nachname,Ansprechpartner";
 
     private readonly ApplicationDbContext _ctx;
     private readonly ISageSdataReadClient _client;
@@ -59,7 +72,7 @@ public class KontokorrentSyncService
     }
 
     public Task<SyncResult> RunKreditorenAsync(bool dryRun, CancellationToken ct = default, SdataLeseZiel? ziel = null) =>
-        AbgleichAsync(_ctx.Creditors, SyncLogServices.Kreditoren, "Kreditoren", WhereKreditoren, SelectKreditoren, (c, z) =>
+        AbgleichAsync(_ctx.Creditors, SyncLogServices.Kreditoren, "Kreditoren", WhereKreditoren, SelectKreditoren, SelectAdressen, (c, z, _) =>
         {
             // TODO(P-S1): Nachkommastellen unbelegt, Spalte decimal(18,2) laut Spec F10.
             var wert = z.USER_EKMindestbestellwert is { } w ? Math.Round(w, 2) : (decimal?)null;
@@ -69,11 +82,12 @@ public class KontokorrentSyncService
         }, dryRun, ziel, ct);
 
     public Task<SyncResult> RunDebitorenAsync(bool dryRun, CancellationToken ct = default, SdataLeseZiel? ziel = null) =>
-        AbgleichAsync(_ctx.Debitors, SyncLogServices.Debitoren, "Debitoren", WhereDebitoren, SelectDebitoren, (d, z) =>
-            Setzen(Text(z.Vertreter), d.SageVertreter, v => d.SageVertreter = v), dryRun, ziel, ct);
+        AbgleichAsync(_ctx.Debitors, SyncLogServices.Debitoren, "Debitoren", WhereDebitoren, SelectDebitoren, SelectAdressenDebitoren, (d, z, a) =>
+            Setzen(Text(z.Vertreter), d.SageVertreter, v => d.SageVertreter = v)
+            | Setzen(Text(a?.USER_KundenNameFA), d.SageKundenNameFA, v => d.SageKundenNameFA = v), dryRun, ziel, ct);
 
     private async Task<SyncResult> AbgleichAsync<T>(DbSet<T> set, string lauf, string bezeichnung, string where, string select,
-        Func<T, SdataKontoZeile, bool> zusatz, bool dryRun, SdataLeseZiel? ziel, CancellationToken ct)
+        string selectAdressen, Func<T, SdataKontoZeile, SdataAdresseZeile?, bool> zusatz, bool dryRun, SdataLeseZiel? ziel, CancellationToken ct)
         where T : AuditableEntity, ISageKonto, new()
     {
         await using var run = await _syncLogger.BeginRunAsync(lauf, ct);
@@ -94,6 +108,13 @@ public class KontokorrentSyncService
             throw;
         }
 
+        // Adressen + Ansprechpartner (P-K1-Nachtrag): je eigener Lesevorgang; ein Fehler hier stoppt den Konto-Abgleich nicht.
+        var adressen = await NachlesenAsync<SdataAdresseZeile>(run, ziel, RessourceAdressen, selectAdressen, "Adresse", ct);
+        var adresseById = adressen?.Where(a => a.Adresse != null).GroupBy(a => a.Adresse!.Value).ToDictionary(g => g.Key, g => g.First());
+        var partner = await NachlesenAsync<SdataAnsprechpartnerZeile>(run, ziel, RessourceAnsprechpartner, SelectAnsprechpartner, "Nummer", ct);
+        var partnerById = partner?.Where(p => p.Adresse != null).GroupBy(p => p.Adresse!.Value)
+            .ToDictionary(g => g.Key, g => KontaktText(g.OrderBy(p => p.Nummer).ToList()));
+
         try
         {
             var (eindeutig, uebersprungen) = await SdataSchluessel.EindeutigAsync(zeilen, z => z.Kto, run, "Kto", ct);
@@ -113,25 +134,35 @@ public class KontokorrentSyncService
             {
                 var kto = z.Kto!.Trim();
                 var matchcode = Text(z.Matchcode);
+                SdataAdresseZeile? adr = null;
+                string? kontakt = null;
+                if (z.Adresse is { } adrId)
+                {
+                    adresseById?.TryGetValue(adrId, out adr);
+                    partnerById?.TryGetValue(adrId, out kontakt);
+                }
                 if (!byKto.TryGetValue(kto, out var k))
                 {
                     neu++;
                     if (dryRun) continue;
                     var anlage = new T
                     {
-                        Name = matchcode ?? kto, Source = StorageLocationSource.Sage, IsActive = z.Aktiv ?? true, SageKto = kto,
+                        Name = NameText(adr) ?? matchcode ?? kto, Source = StorageLocationSource.Sage, IsActive = z.Aktiv ?? true, SageKto = kto,
                         CreatedAt = now, CreatedBy = ServiceUser, CreatedByWindows = ServiceUser,
                     };
                     SageFelder(anlage, z);
-                    zusatz(anlage, z);
+                    AdressFelder(anlage, adr, kontakt);
+                    zusatz(anlage, z, adr);
                     set.Add(anlage);
                     continue;
                 }
 
                 var warSage = k.Source == StorageLocationSource.Sage;
-                var anders = SageFelder(k, z) | zusatz(k, z);
-                // Name nur, wenn er schon aus Sage stammt — den Namen eines verknuepften WMS-Datensatzes nicht durch den Matchcode ersetzen.
-                if (warSage) anders |= Setzen(matchcode, k.Name, v => k.Name = v!);
+                var anders = SageFelder(k, z) | zusatz(k, z, adr) | AdressFelder(k, adr, kontakt);
+                // Name = Name1 (+Name2) aus Adressen (auch fuer verknuepfte WMS-Datensaetze, F10: Name ist Sage-Feld). Ohne Adresszeile nur
+                // bei schon Sage-gefuehrten Konten der Matchcode (wie bisher); Adressen nicht lesbar → Name unveraendert (kein Hin und Her).
+                if (NameText(adr) is { } name) anders |= Setzen(name, k.Name, v => k.Name = v!);
+                else if (warSage && adresseById != null) anders |= Setzen(matchcode, k.Name, v => k.Name = v!);
                 var warWeg = k.SageMissingSince != null;
                 if (warWeg) { wiederDa++; k.SageMissingSince = null; }
                 if (!warSage)
@@ -213,6 +244,49 @@ public class KontokorrentSyncService
         | Setzen(Text(z.Gruppe), k.SageGruppe, v => k.SageGruppe = v)
         | Setzen(Text(z.EUUStID), k.SageEUUStID, v => k.SageEUUStID = v)
         | Setzen(Text(z.Zahlungskond), k.SageZahlungskondition, v => k.SageZahlungskondition = v);
+
+    /// <summary>Adresse/Kontakt aus Sage (F1: null = nicht schreiben); der WMS-<c>Matchcode</c> nur, solange er leer ist — dann der
+    /// Sage-Matchcode (Auftrag 2026-11-07: uebernehmen statt leer lassen; danach bleibt er WMS-Feld).</summary>
+    private static bool AdressFelder(ISageKonto k, SdataAdresseZeile? a, string? kontakt) =>
+        Setzen(Text(a?.LieferStrasse), k.Street, v => k.Street = v)
+        | Setzen(Text(a?.LieferPLZ), k.PostalCode, v => k.PostalCode = v)
+        | Setzen(Text(a?.LieferOrt), k.City, v => k.City = v)
+        | Setzen(Text(a?.LieferLand), k.Country, v => k.Country = v)
+        | Setzen(Text(a?.Telefon), k.Phone, v => k.Phone = v)
+        | Setzen(Text(a?.EMail), k.Email, v => k.Email = v)
+        | Setzen(kontakt, k.ContactPerson, v => k.ContactPerson = v)
+        | (string.IsNullOrWhiteSpace(k.Matchcode) && Setzen(Text(k.SageMatchcode), k.Matchcode, v => k.Matchcode = v));
+
+    private static string? NameText(SdataAdresseZeile? a) => Text(string.Join(" ", new[] { Text(a?.Name1), Text(a?.Name2) }.Where(t => t != null)));
+
+    /// <summary>Erster Ansprechpartner (kleinste Nummer) als „Vorname Nachname“, sonst sein Feld <c>Ansprechpartner</c>; weitere als
+    /// „(+n weitere)“ — Sage kennt keinen Hauptansprechpartner (KHKAnsprechpartner ohne Kennzeichen, am AKE-Test bis 99 je Adresse).</summary>
+    internal static string? KontaktText(IReadOnlyList<SdataAnsprechpartnerZeile> liste)
+    {
+        var namen = liste
+            .Select(p => Text(string.Join(" ", new[] { Text(p.Vorname), Text(p.Nachname) }.Where(t => t != null))) ?? Text(p.Ansprechpartner))
+            .Where(n => n != null).ToList();
+        if (namen.Count == 0) return null;
+        var text = namen.Count == 1 ? namen[0]! : $"{namen[0]} (+{namen.Count - 1} weitere)";
+        return text.Length <= 200 ? text : text[..200];
+    }
+
+    private async Task<IReadOnlyList<TZeile>?> NachlesenAsync<TZeile>(ISyncRun run, SdataLeseZiel ziel, string ressource, string select,
+        string orderBy, CancellationToken ct)
+    {
+        try
+        {
+            var seiten = await _client.QueryAllAsync<TZeile>(ziel, SageSdataReadClient.VertragResources, ressource, null, select, orderBy, ct);
+            await run.LogInfoAsync(seiten.Zusammenfassung, ct: ct);
+            return seiten.Zeilen;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning(ex, "{Ressource} aus Sage (SData) nicht lesbar.", ressource);
+            await run.LogWarningAsync($"{ressource} aus Sage (SData) nicht lesbar — Name, Adresse und Kontakt bleiben unveraendert: {ex.Message}", ct: ct);
+            return null;
+        }
+    }
 
     /// <summary>F1: null = Sage liefert den Wert nicht = nicht schreiben.</summary>
     private static bool Setzen(string? neu, string? alt, Action<string?> schreiben)

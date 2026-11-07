@@ -58,12 +58,14 @@ public class KontokorrentArtikelLieferantTests
         await Konto(ctx, log, client).RunKreditorenAsync(dryRun: false, ziel: Ziel);
 
         client.Verify(c => c.QueryAllAsync<SdataKontoZeile>(Ziel, SageSdataReadClient.VertragResources, "Kontokorrent", "KtoArt eq 'K'",
-            "Kto,Matchcode,EUUStID,Zahlungskond,Gruppe,Aktiv,USER_EKMindestbestellwert", "Kto", It.IsAny<CancellationToken>(), It.IsAny<int>()), Times.Once);
+            "Kto,Matchcode,EUUStID,Zahlungskond,Gruppe,Aktiv,Adresse,USER_EKMindestbestellwert", "Kto", It.IsAny<CancellationToken>(), It.IsAny<int>()), Times.Once);
         var k = ctx.Creditors.Single(c => c.SageKto == "K31013");
         (k.Name, k.SageMatchcode, k.SageGruppe, k.SageZahlungskondition, k.SageEKMindestbestellwert)
-            .Should().Be(("Pulverbeschichtung Huber", "Pulverbeschichtung Huber", "G2", "30T", (decimal?)150.56m));
+            .Should().Be(("Alt-Matchcode", "Pulverbeschichtung Huber", "G2", "30T", (decimal?)150.56m), "Adressen nicht lesbar: Name bleibt");
         k.SageEUUStID.Should().Be("ATU1", "null = Sage liefert nichts = nicht schreiben (F1)");
         (k.ShortName, k.Remark, k.IsCoater, k.IsActive, k.Matchcode).Should().Be(("PULVER", "WMS-Notiz", true, false, "WMS-MC"), "WMS-Felder nie");
+        log.Runs.Single().Events.Should().Contain(e => e.Level == "Warning" && e.Message.Contains("Adressen") && e.Message.Contains("nicht lesbar"),
+            "Adressen im Mock nicht eingerichtet = nicht lesbar: melden, Konto-Abgleich laeuft weiter");
         (k.ModifiedBy, k.ModifiedByWindows).Should().Be(("KontokorrentSync", "KontokorrentSync"));
 
         var n = ctx.Creditors.Single(c => c.SageKto == "K40000");
@@ -146,22 +148,87 @@ public class KontokorrentArtikelLieferantTests
         log.Runs.Single().FinishedFailed.Should().BeTrue();
     }
 
+    [Fact]
+    public async Task Kreditoren_AdresseUndAnsprechpartner_AusSage_MatchcodeNurWennLeer()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        var verknuepft = Kred("Lackiererei Maier", "K50000");
+        verknuepft.Matchcode = "WMS-MC";
+        ctx.Creditors.Add(verknuepft);
+        await ctx.SaveChangesAsync();
+        var client = Client(KontokorrentSyncService.Ressource,
+            new SdataKontoZeile("K31013", "LOYSCH MELK", "ATU1", "30T", "G2", true, USER_EKMindestbestellwert: 100m, Adresse: 7),
+            new SdataKontoZeile("K50000", "MAIER LACK", null, null, null, true, Adresse: 8),
+            new SdataKontoZeile("K60000", "OHNE ADRESSE", null, null, null, true, Adresse: 99));
+        Setup(client, KontokorrentSyncService.RessourceAdressen,
+            new SdataAdresseZeile(7, "\"carlo\" Loysch GmbH", " ", "Pielacher Straße 50", "3390", "Melk", "AT", "+43-2752-52911", "info@loysch.at"),
+            new SdataAdresseZeile(8, "Maier", "Lackiererei GmbH", "Gasse 1", "4020", "Linz", "AT", null, null));
+        Setup(client, KontokorrentSyncService.RessourceAnsprechpartner,
+            new SdataAnsprechpartnerZeile(12, 7, "Eva", "Zweit", null),
+            new SdataAnsprechpartnerZeile(11, 7, " Anna ", "Huber", null),
+            new SdataAnsprechpartnerZeile(20, 8, null, null, "Einkauf"));
+        var log = new FakeSyncLogger();
+
+        await Konto(ctx, log, client).RunKreditorenAsync(false, ziel: Ziel);
+
+        client.Verify(c => c.QueryAllAsync<SdataAdresseZeile>(Ziel, SageSdataReadClient.VertragResources, "Adressen", null,
+            "Adresse,Name1,Name2,LieferStrasse,LieferPLZ,LieferOrt,LieferLand,Telefon,EMail", "Adresse", It.IsAny<CancellationToken>(), It.IsAny<int>()), Times.Once);
+        var n = ctx.Creditors.Single(c => c.SageKto == "K31013");
+        (n.Name, n.Street, n.PostalCode, n.City, n.Country, n.Phone, n.Email, n.ContactPerson, n.Matchcode, n.ShortName).Should().Be((
+            "\"carlo\" Loysch GmbH", "Pielacher Straße 50", "3390", "Melk", "AT", "+43-2752-52911", "info@loysch.at", "Anna Huber (+1 weitere)",
+            "LOYSCH MELK", (string?)null), "Name = Name1 (+Name2), erster Ansprechpartner nach Nummer, Matchcode aus Sage weil leer, Kurzname bleibt leer");
+        var m = ctx.Creditors.Single(c => c.SageKto == "K50000");
+        (m.Name, m.ContactPerson, m.Matchcode, m.Source).Should().Be(("Maier Lackiererei GmbH", "Einkauf", "WMS-MC", StorageLocationSource.Sage),
+            "verknuepft: Name aus Sage-Adresse, gepflegter WMS-Matchcode bleibt");
+        var o = ctx.Creditors.Single(c => c.SageKto == "K60000");
+        (o.Name, o.Street).Should().Be(("OHNE ADRESSE", (string?)null), "keine Adresszeile: Matchcode als Name bei der Anlage");
+        log.Runs.Single().Events.Should().NotContain(e => e.Level == "Warning" && e.Message.Contains("nicht lesbar"));
+    }
+
+    [Fact]
+    public async Task Kreditoren_AdressenNichtLesbar_NameBleibt()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        var k = Kred("Huber Pulver GmbH", "K1", StorageLocationSource.Sage);
+        k.Street = "Alt 1";
+        ctx.Creditors.Add(k);
+        await ctx.SaveChangesAsync();
+        var client = Client(KontokorrentSyncService.Ressource, new SdataKontoZeile("K1", "HUBER", null, null, "G9", true, Adresse: 1));
+        client.Setup(c => c.QueryAllAsync<SdataAdresseZeile>(It.IsAny<SdataLeseZiel>(), It.IsAny<string>(), KontokorrentSyncService.RessourceAdressen,
+                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string>(), It.IsAny<CancellationToken>(), It.IsAny<int>()))
+            .ThrowsAsync(new SdataLeseException("Adressen", 500, "Ungueltiger Spaltenname"));
+        var log = new FakeSyncLogger();
+
+        await Konto(ctx, log, client).RunKreditorenAsync(false, ziel: Ziel);
+
+        var r = ctx.Creditors.Single();
+        (r.Name, r.Street, r.SageGruppe).Should().Be(("Huber Pulver GmbH", "Alt 1", "G9"), "ohne Adressen kein Namenswechsel auf den Matchcode");
+        var lauf = log.Runs.Single();
+        lauf.FinishedFailed.Should().BeFalse();
+        lauf.Events.Should().Contain(e => e.Level == "Warning" && e.Message.Contains("Adressen") && e.Message.Contains("Ungueltiger Spaltenname"));
+    }
+
     // ----- Debitoren -----
 
     [Fact]
     public async Task Debitoren_Abfrage_Vertreter_EigeneTabelle()
     {
         using var ctx = TestDbContextFactory.Create();
-        var client = Client(KontokorrentSyncService.Ressource, new SdataKontoZeile("D10000", "Kunde AG", "ATU5", "30T", "KG", true, Vertreter: " V1 "));
+        var client = Client(KontokorrentSyncService.Ressource, new SdataKontoZeile("D10000", "Kunde AG", "ATU5", "30T", "KG", true, Vertreter: " V1 ", Adresse: 3));
+        Setup(client, KontokorrentSyncService.RessourceAdressen,
+            new SdataAdresseZeile(3, "Kunde AG", null, "Weg 2", "1010", "Wien", "AT", null, "k@kunde.at", USER_KundenNameFA: " KUNDE "));
         var log = new FakeSyncLogger();
 
         await Konto(ctx, log, client).RunDebitorenAsync(false, ziel: Ziel);
 
         client.Verify(c => c.QueryAllAsync<SdataKontoZeile>(Ziel, SageSdataReadClient.VertragResources, "Kontokorrent", "KtoArt eq 'D'",
-            "Kto,Matchcode,EUUStID,Zahlungskond,Gruppe,Aktiv,Vertreter", "Kto", It.IsAny<CancellationToken>(), It.IsAny<int>()), Times.Once);
+            "Kto,Matchcode,EUUStID,Zahlungskond,Gruppe,Aktiv,Adresse,Vertreter", "Kto", It.IsAny<CancellationToken>(), It.IsAny<int>()), Times.Once);
         var d = ctx.Debitors.Single();
         (d.SageKto, d.Name, d.Source, d.SageVertreter, d.SageGruppe, d.IsActive)
             .Should().Be(("D10000", "Kunde AG", StorageLocationSource.Sage, "V1", "KG", true));
+        (d.Street, d.City, d.Email, d.SageKundenNameFA, d.Matchcode).Should().Be(("Weg 2", "Wien", "k@kunde.at", "KUNDE", "Kunde AG"));
+        client.Verify(c => c.QueryAllAsync<SdataAdresseZeile>(Ziel, SageSdataReadClient.VertragResources, "Adressen", null,
+            KontokorrentSyncService.SelectAdressenDebitoren, "Adresse", It.IsAny<CancellationToken>(), It.IsAny<int>()), Times.Once);
         ctx.Creditors.Should().BeEmpty();
         log.Runs.Single().ServiceName.Should().Be(SyncLogServices.Debitoren);
     }

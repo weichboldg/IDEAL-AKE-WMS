@@ -1867,9 +1867,12 @@
                                 angelegt; dann sind Name, Adresse, Kontakt und Sage-Konto nur lesbar, Kurzname, Matchcode, Bemerkung, Beschichter und
                                 Aktiv bleiben pflegbar.</li>
                             <li><strong>Abgleich aus Sage (Dienst-Schalter <code>Sync:KreditorenEnabled</code>, Standard aus):</strong> Der Dienst liest
-                                die Lieferanten-Konten aus Sage. Ein neues Konto erscheint mit Herkunft <em>Sage</em>, ohne Kurzname und mit dem
-                                Sage-Matchcode als Name (die Sage-Adresse wird noch nicht gelesen). Gibt es schon einen Kreditor mit derselben
-                                Sage-Kontonummer, wird er verknüpft und wechselt auf Herkunft <em>Sage</em>; sein Name bleibt. Ein Kreditor ohne
+                                die Lieferanten-Konten aus Sage. Ein neues Konto erscheint mit Herkunft <em>Sage</em>, ohne Kurzname; Name (Name 1 + Name 2),
+                                Straße, PLZ, Ort, Land, Telefon und E-Mail kommen aus der Sage-Adresse, der Ansprechpartner ist der erste aus Sage
+                                (weitere als &bdquo;(+n weitere)&ldquo;). Ein leerer Matchcode wird mit dem Sage-Matchcode gefüllt und bleibt danach im
+                                WMS pflegbar. Gibt es schon einen Kreditor mit derselben Sage-Kontonummer, wird er verknüpft und wechselt auf Herkunft
+                                <em>Sage</em>; ab dann kommen Name, Adresse und Kontakt aus Sage. Ist die Sage-Adresse einmal nicht lesbar, meldet der
+                                Lauf eine Warnung und lässt Name, Adresse und Kontakt unverändert. Die Detailseite zeigt den letzten Abgleich. Ein Kreditor ohne
                                 Sage-Konto mit gleichem Namen wird nicht verknüpft, sondern im Aktivitäts-Protokoll als &bdquo;mögliche Dublette&ldquo;
                                 gemeldet; das Sage-Konto steht dann als eigener Kreditor daneben &ndash; den WMS-Eintrag prüfen und ggf. deaktivieren. Fehlt ein Konto später in Sage, bleibt der
                                 Kreditor erhalten und bekommt &bdquo;Nicht in Sage seit&ldquo;.</li>
