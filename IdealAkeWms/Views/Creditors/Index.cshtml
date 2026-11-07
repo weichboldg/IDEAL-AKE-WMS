@@ -4,6 +4,8 @@
 @{
     ViewData["Title"] = "Kreditoren";
     var canEdit = await _user.HasMasterDataAccessAsync();
+    var isAdmin = canEdit && await _user.IsAdminAsync(); // G6: Anlegen nur als Admin-Notfall
+    var wmsEigene = (int?)ViewBag.WmsEigene ?? 0;
     var status = (string?)ViewBag.Status ?? CreditorsController.StatusAktiv;
     var coater = (bool?)ViewBag.Coater == true;
     var unassigned = (List<IdealAkeWms.Services.UnassignedServiceProvider>?)ViewBag.Unassigned ?? new();
@@ -11,15 +13,27 @@
 
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
     <h2 class="page-header mb-0">Kreditoren</h2>
-    @if (canEdit)
+    @if (isAdmin)
     {
-        <a asp-action="Create" class="btn btn-primary">Kreditor anlegen</a>
+        <a asp-action="Create" class="btn btn-outline-secondary" title="Nur wenn das Konto in Sage noch fehlt; der Sage-Abgleich verknüpft es später über das Sage-Konto.">Kreditor anlegen (Notfall)</a>
     }
 </div>
 
 @if (!canEdit)
 {
     <div class="alert alert-info small">Sie haben Nur-Lesen-Zugriff. Aenderungen sind nicht moeglich.</div>
+}
+
+<p class="small text-muted mb-2">Kreditoren kommen aus Sage (Sage-Abgleich). Im WMS gepflegt werden nur
+    Kurzname (Zuordnung der Dienstleister-Texte), Beschichter und Bemerkung.</p>
+
+@if (wmsEigene > 0)
+{
+    <div class="alert alert-warning small" role="status">
+        <span class="badge bg-warning text-dark border border-dark me-1">Herkunft WMS</span>
+        <strong>@wmsEigene @(wmsEigene == 1 ? "Kreditor ist" : "Kreditoren sind") nur im WMS angelegt.</strong>
+        Bitte in Sage anlegen und das Sage-Konto hier eintragen – der nächste Abgleich verknüpft sie dann. Filter „Herkunft“ = <code>WMS</code> zeigt sie.
+    </div>
 }
 
 @* Dienstleister-Meldung (E8a): oberhalb der Filterkarte, nie zwischen Toolbar-Host und Tabelle (fallstricke §19); einfache Liste,
@@ -48,7 +62,11 @@
                         }
                         else if (canEdit)
                         {
-                            <a asp-action="Create" asp-route-shortName="@u.Text" class="btn btn-sm btn-outline-primary">Als Kreditor anlegen</a>
+                            <span class="small">Kurznamen <strong>@u.Text</strong> am passenden Sage-Kreditor eintragen (Bearbeiten).</span>
+                            @if (isAdmin)
+                            {
+                                <a asp-action="Create" asp-route-shortName="@u.Text" class="btn btn-sm btn-outline-secondary">Als Kreditor anlegen (Notfall)</a>
+                            }
                         }
                     </li>
                 }

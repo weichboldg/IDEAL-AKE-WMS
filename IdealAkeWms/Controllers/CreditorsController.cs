@@ -21,7 +21,7 @@ public class CreditorsController : Controller
     private static readonly string[] SageGefuehrteFelder =
     [
         nameof(Creditor.Name), nameof(Creditor.Street), nameof(Creditor.PostalCode), nameof(Creditor.City), nameof(Creditor.Country),
-        nameof(Creditor.Email), nameof(Creditor.Phone), nameof(Creditor.ContactPerson), nameof(Creditor.SageKto),
+        nameof(Creditor.Email), nameof(Creditor.Phone), nameof(Creditor.ContactPerson), nameof(Creditor.SageKto), nameof(Creditor.Matchcode),
     ];
 
     private readonly ICreditorRepository _repository;
@@ -80,6 +80,7 @@ public class CreditorsController : Controller
 
         // Dienstleister-Meldung ueber ALLE Kreditoren (unabhaengig von Filterkarte/Spaltenfilter); bei AKE ist die Quelle leer.
         ViewBag.Unassigned = CreditorAssignment.FindUnassigned(await _orderInfos.GetAllAsync(), all);
+        ViewBag.WmsEigene = all.Count(x => !IstSageGefuehrt(x)); // G6: melden, nicht loeschen
         ViewBag.Status = status;
         ViewBag.Coater = coater;
         ViewBag.Pagination = new Models.ViewModels.PaginationState
@@ -98,13 +99,17 @@ public class CreditorsController : Controller
         return creditor == null ? NotFound() : View(creditor);
     }
 
+    // G6 (Gerald 2026-11-07): Kreditoren kommen aus Sage. Anlegen nur noch als Admin-Notfall — Konto in Sage noch nicht angelegt, der
+    // Vorgang braucht den Eintrag aber jetzt; der Lese-Abgleich verknuepft ihn spaeter ueber das Sage-Konto (Herkunft wird dann Sage).
     [RequireMasterDataAccess]
+    [RequireAdminAccess]
     public IActionResult Create(string? shortName = null) =>
         View(new Creditor { ShortName = Normalize(shortName), IsCoater = !string.IsNullOrWhiteSpace(shortName) });
 
     [HttpPost]
     [ValidateAntiForgeryToken]
     [RequireMasterDataAccess]
+    [RequireAdminAccess]
     public async Task<IActionResult> Create(Creditor posted)
     {
         var creditor = new Creditor
@@ -176,6 +181,13 @@ public class CreditorsController : Controller
         if (existing == null)
             return NotFound();
 
+        if (IstSageGefuehrt(existing))
+        {
+            // G6: Aktiv kommt bei Herkunft Sage aus Sage (der Abgleich wuerde es beim naechsten Lauf zuruecksetzen).
+            TempData["WarningMessage"] = $"Kreditor '{existing.ShortName ?? existing.Name}' stammt aus Sage – aktiv/inaktiv wird in Sage gepflegt.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
         existing.IsActive = active;
         SetModified(existing);
         await _repository.UpdateAsync(existing);
@@ -205,12 +217,12 @@ public class CreditorsController : Controller
         target.Email = Normalize(src.Email);
         target.Phone = Normalize(src.Phone);
         target.ContactPerson = Normalize(src.ContactPerson);
+        target.Matchcode = Normalize(src.Matchcode);
     }
 
     private static void ApplyWmsFelder(Creditor target, Creditor src)
     {
         target.ShortName = Normalize(src.ShortName);
-        target.Matchcode = Normalize(src.Matchcode);
         target.Remark = Normalize(src.Remark);
         target.IsCoater = src.IsCoater;
     }

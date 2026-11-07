@@ -29,8 +29,10 @@ public sealed record SdataAnsprechpartnerZeile(int? Nummer, int? Adresse, string
 /// <item>Treffer auf einen WMS-Datensatz (<c>Source = Manual</c>) mit gleichem <c>SageKto</c> → verknuepft: <c>Source</c> wechselt auf
 ///   <c>Sage</c> (die Sage-Felder werden ab jetzt ohnehin ueberschrieben, die Pflege sperrt sie), Uebergabe-Status Offen/Fehler →
 ///   Uebergeben (F11). Gleichnamige WMS-Datensaetze OHNE <c>SageKto</c> werden nie verknuepft, nur als „moegliche Dublette“ gemeldet.</item>
-/// <item>Sage-Felder werden ueberschrieben (null = Sage liefert nichts = nicht schreiben, F1); WMS-Felder <c>ShortName</c>, <c>Matchcode</c>,
-///   <c>Remark</c>, <c>IsCoater</c>, <c>IsActive</c> nie (IsActive nur bei der Neuanlage aus Sage <c>Aktiv</c>).</item>
+/// <item>G6 (Gerald 2026-11-07): Sage ist fuehrend und gewinnt bei jedem Feld, das Sage liefert (null = nicht schreiben, F1) —
+///   Name, Adresse, Kontakt, <c>Matchcode</c> (= Sage-Matchcode), <c>IsActive</c> (= Sage <c>Aktiv</c>) und alle <c>Sage*</c>-Felder.
+///   WMS-Felder nur <c>ShortName</c> (Zuordnung der Dienstleister-Texte; Sage-Matchcodes sind nicht eindeutig), <c>Remark</c>,
+///   <c>IsCoater</c>. Datensaetze mit Herkunft WMS ohne Sage-Konto werden je Lauf gemeldet (Count <c>wms_eigen</c>), nie geloescht.</item>
 /// <item>Fehlt ein Konto in Sage → <c>SageMissingSince</c>, nie loeschen; wieder da → zurueckgesetzt. Empty-Guard: leere Antwort
 ///   kennzeichnet nichts.</item>
 /// </list>
@@ -159,6 +161,7 @@ public class KontokorrentSyncService
 
                 var warSage = k.Source == StorageLocationSource.Sage;
                 var anders = SageFelder(k, z) | zusatz(k, z, adr) | AdressFelder(k, adr, kontakt);
+                if (z.Aktiv is bool aktiv && k.IsActive != aktiv) { k.IsActive = aktiv; anders = true; } // G6: Sage gewinnt
                 // Name = Name1 (+Name2) aus Adressen (auch fuer verknuepfte WMS-Datensaetze, F10: Name ist Sage-Feld). Ohne Adresszeile nur
                 // bei schon Sage-gefuehrten Konten der Matchcode (wie bisher); Adressen nicht lesbar → Name unveraendert (kein Hin und Her).
                 if (NameText(adr) is { } name) anders |= Setzen(name, k.Name, v => k.Name = v!);
@@ -194,6 +197,12 @@ public class KontokorrentSyncService
                 await run.LogWarningAsync(SdataSchluessel.Kappen($"{dubletten.Count} moegliche Dublette(n), nicht verknuepft (das Sage-Konto " +
                     $"steht als eigener Datensatz daneben; WMS-Datensatz pruefen und ggf. deaktivieren): {string.Join("; ", dubletten.Take(20))}"), ct: ct);
 
+            // G6: WMS-eigene Datensaetze (ohne Sage-Konto) melden, nicht loeschen.
+            var wmsEigen = bestand.Where(k => k.Source != StorageLocationSource.Sage && string.IsNullOrWhiteSpace(k.SageKto)).ToList();
+            if (wmsEigen.Count > 0)
+                await run.LogWarningAsync(SdataSchluessel.Kappen($"{wmsEigen.Count} {bezeichnung} nur im WMS (ohne Sage-Konto; Sage ist fuehrend, " +
+                    $"bitte in Sage anlegen und das Sage-Konto eintragen): {string.Join(", ", wmsEigen.Take(20).Select(k => $"{k.Name} (WMS-Id {k.Id})"))}"), ct: ct);
+
             if (eindeutig.Count == 0)
                 await run.LogWarningAsync($"Sage liefert keine {bezeichnung} — keine Kennzeichnung \"nicht in Sage\" (Empty-Guard).", ct: ct);
             else
@@ -226,6 +235,7 @@ public class KontokorrentSyncService
                 ["nicht_in_sage_neu"] = neuMarkiert.Count,
                 ["wieder_in_sage"] = wiederDa,
                 ["moegliche_dubletten"] = dubletten.Count,
+                ["wms_eigen"] = wmsEigen.Count,
             }, messageSuffix: dryRun ? "[DryRun]" : null, ct: ct);
             return new SyncResult(neu, aktualisiert + verknuepft.Count, uebersprungen);
         }
@@ -245,8 +255,7 @@ public class KontokorrentSyncService
         | Setzen(Text(z.EUUStID), k.SageEUUStID, v => k.SageEUUStID = v)
         | Setzen(Text(z.Zahlungskond), k.SageZahlungskondition, v => k.SageZahlungskondition = v);
 
-    /// <summary>Adresse/Kontakt aus Sage (F1: null = nicht schreiben); der WMS-<c>Matchcode</c> nur, solange er leer ist — dann der
-    /// Sage-Matchcode (Auftrag 2026-11-07: uebernehmen statt leer lassen; danach bleibt er WMS-Feld).</summary>
+    /// <summary>Adresse/Kontakt aus Sage (F1: null = nicht schreiben); <c>Matchcode</c> = Sage-Matchcode (G6, Sage gewinnt).</summary>
     private static bool AdressFelder(ISageKonto k, SdataAdresseZeile? a, string? kontakt) =>
         Setzen(Text(a?.LieferStrasse), k.Street, v => k.Street = v)
         | Setzen(Text(a?.LieferPLZ), k.PostalCode, v => k.PostalCode = v)
@@ -255,7 +264,7 @@ public class KontokorrentSyncService
         | Setzen(Text(a?.Telefon), k.Phone, v => k.Phone = v)
         | Setzen(Text(a?.EMail), k.Email, v => k.Email = v)
         | Setzen(kontakt, k.ContactPerson, v => k.ContactPerson = v)
-        | (string.IsNullOrWhiteSpace(k.Matchcode) && Setzen(Text(k.SageMatchcode), k.Matchcode, v => k.Matchcode = v));
+        | Setzen(Text(k.SageMatchcode), k.Matchcode, v => k.Matchcode = v);
 
     private static string? NameText(SdataAdresseZeile? a) => Text(string.Join(" ", new[] { Text(a?.Name1), Text(a?.Name2) }.Where(t => t != null)));
 

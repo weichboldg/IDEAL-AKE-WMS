@@ -10,8 +10,8 @@
 @if (sage)
 {
     <div class="alert alert-info small" role="alert">
-        Dieser Debitor stammt aus Sage. Name, Adresse, Kontakt und Sage-Konto sind <strong>Sage-geführt</strong> und hier nur lesbar.
-        Kurzname, Matchcode und Bemerkung pflegen Sie im WMS.
+        Dieser Debitor stammt aus Sage. Name, Matchcode, Adresse, Kontakt, Sage-Konto und aktiv/inaktiv sind <strong>Sage-geführt</strong> und hier nur lesbar.
+        Kurzname und Bemerkung pflegen Sie im WMS.
     </div>
 }
 
@@ -26,7 +26,7 @@
         </div>
         <div class="col-sm-6 mb-2">
             <label asp-for="Matchcode" class="form-label"></label>
-            <input asp-for="Matchcode" class="form-control" maxlength="50" />
+            <input asp-for="Matchcode" class="form-control" maxlength="50" readonly="@sage" />
             <span asp-validation-for="Matchcode" class="text-danger"></span>
         </div>
     </div>

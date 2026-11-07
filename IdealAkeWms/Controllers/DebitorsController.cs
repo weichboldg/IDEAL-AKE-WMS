@@ -18,7 +18,7 @@ public class DebitorsController : Controller
     private static readonly string[] SageGefuehrteFelder =
     [
         nameof(Debitor.Name), nameof(Debitor.Street), nameof(Debitor.PostalCode), nameof(Debitor.City), nameof(Debitor.Country),
-        nameof(Debitor.Email), nameof(Debitor.Phone), nameof(Debitor.ContactPerson), nameof(Debitor.SageKto),
+        nameof(Debitor.Email), nameof(Debitor.Phone), nameof(Debitor.ContactPerson), nameof(Debitor.SageKto), nameof(Debitor.Matchcode),
     ];
 
     private readonly IDebitorRepository _repository;
@@ -68,6 +68,7 @@ public class DebitorsController : Controller
         var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
         var filtered = ColumnFilterHelper.Apply(query.AsQueryable(), columnFilters, ColumnMap, ColumnFilterTypes.For("Debitors/Index")).ToList();
 
+        ViewBag.WmsEigene = all.Count(x => !IstSageGefuehrt(x)); // G6: melden, nicht loeschen
         ViewBag.Status = status;
         ViewBag.Pagination = new Models.ViewModels.PaginationState
         {
@@ -85,12 +86,16 @@ public class DebitorsController : Controller
         return debitor == null ? NotFound() : View(debitor);
     }
 
+    // G6 (Gerald 2026-11-07): Debitoren kommen aus Sage. Anlegen nur noch als Admin-Notfall — Konto in Sage noch nicht angelegt, der
+    // Vorgang braucht den Eintrag aber jetzt; der Lese-Abgleich verknuepft ihn spaeter ueber das Sage-Konto (Herkunft wird dann Sage).
     [RequireMasterDataAccess]
+    [RequireAdminAccess]
     public IActionResult Create() => View(new Debitor());
 
     [HttpPost]
     [ValidateAntiForgeryToken]
     [RequireMasterDataAccess]
+    [RequireAdminAccess]
     public async Task<IActionResult> Create(Debitor posted)
     {
         var debitor = new Debitor
@@ -161,6 +166,13 @@ public class DebitorsController : Controller
         if (existing == null)
             return NotFound();
 
+        if (IstSageGefuehrt(existing))
+        {
+            // G6: Aktiv kommt bei Herkunft Sage aus Sage (der Abgleich wuerde es beim naechsten Lauf zuruecksetzen).
+            TempData["WarningMessage"] = $"Debitor '{existing.ShortName ?? existing.Name}' stammt aus Sage – aktiv/inaktiv wird in Sage gepflegt.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
         existing.IsActive = active;
         SetModified(existing);
         await _repository.UpdateAsync(existing);
@@ -188,12 +200,12 @@ public class DebitorsController : Controller
         target.Email = Normalize(src.Email);
         target.Phone = Normalize(src.Phone);
         target.ContactPerson = Normalize(src.ContactPerson);
+        target.Matchcode = Normalize(src.Matchcode);
     }
 
     private static void ApplyWmsFelder(Debitor target, Debitor src)
     {
         target.ShortName = Normalize(src.ShortName);
-        target.Matchcode = Normalize(src.Matchcode);
         target.Remark = Normalize(src.Remark);
     }
 

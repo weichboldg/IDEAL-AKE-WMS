@@ -56,6 +56,8 @@ public class DebitorsControllerTests
             .ToList();
         schreibend.Should().HaveCount(5, "Create GET/POST, Edit GET/POST, SetActive POST");
         schreibend.Should().OnlyContain(m => m.GetCustomAttribute<RequireMasterDataAccessAttribute>() != null);
+        schreibend.Where(m => m.Name == nameof(DebitorsController.Create)).Should()
+            .HaveCount(2).And.OnlyContain(m => m.GetCustomAttribute<RequireAdminAccessAttribute>() != null, "G6: Anlegen nur Admin-Notfall");
         typeof(DebitorsController).GetMethod(nameof(DebitorsController.Index))!.GetCustomAttribute<RequireMasterDataAccessAttribute>().Should().BeNull();
         typeof(DebitorsController).GetMethod(nameof(DebitorsController.Details))!.GetCustomAttribute<RequireMasterDataAccessAttribute>().Should().BeNull();
         typeof(DebitorsController).GetMethods().Should().NotContain(m => m.Name.Contains("Delete"), "nur deaktivieren, kein Loeschen");

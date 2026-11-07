@@ -63,7 +63,8 @@ public class KontokorrentArtikelLieferantTests
         (k.Name, k.SageMatchcode, k.SageGruppe, k.SageZahlungskondition, k.SageEKMindestbestellwert)
             .Should().Be(("Alt-Matchcode", "Pulverbeschichtung Huber", "G2", "30T", (decimal?)150.56m), "Adressen nicht lesbar: Name bleibt");
         k.SageEUUStID.Should().Be("ATU1", "null = Sage liefert nichts = nicht schreiben (F1)");
-        (k.ShortName, k.Remark, k.IsCoater, k.IsActive, k.Matchcode).Should().Be(("PULVER", "WMS-Notiz", true, false, "WMS-MC"), "WMS-Felder nie");
+        (k.ShortName, k.Remark, k.IsCoater).Should().Be(("PULVER", "WMS-Notiz", true), "WMS-Felder nie");
+        (k.IsActive, k.Matchcode).Should().Be((false, "Pulverbeschichtung Huber"), "G6: Sage gewinnt (Aktiv aus Sage, Matchcode = Sage-Matchcode)");
         log.Runs.Single().Events.Should().Contain(e => e.Level == "Warning" && e.Message.Contains("Adressen") && e.Message.Contains("nicht lesbar"),
             "Adressen im Mock nicht eingerichtet = nicht lesbar: melden, Konto-Abgleich laeuft weiter");
         (k.ModifiedBy, k.ModifiedByWindows).Should().Be(("KontokorrentSync", "KontokorrentSync"));
@@ -74,7 +75,7 @@ public class KontokorrentArtikelLieferantTests
         log.Runs.Single(r => r.ServiceName == SyncLogServices.Kreditoren).FinalCounts.Should().BeEquivalentTo(new Dictionary<string, int>
         {
             ["gelesen"] = 2, ["neu"] = 1, ["aktualisiert"] = 1, ["verknuepft"] = 0, ["unveraendert"] = 0, ["uebersprungen"] = 0,
-            ["nicht_in_sage"] = 0, ["nicht_in_sage_neu"] = 0, ["wieder_in_sage"] = 0, ["moegliche_dubletten"] = 0,
+            ["nicht_in_sage"] = 0, ["nicht_in_sage_neu"] = 0, ["wieder_in_sage"] = 0, ["moegliche_dubletten"] = 0, ["wms_eigen"] = 0,
         });
     }
 
@@ -111,6 +112,8 @@ public class KontokorrentArtikelLieferantTests
         lauf.FinalCounts["moegliche_dubletten"].Should().Be(1);
         lauf.FinalCounts["nicht_in_sage_neu"].Should().Be(1);
         lauf.FinalCounts["wieder_in_sage"].Should().Be(1);
+        lauf.FinalCounts["wms_eigen"].Should().Be(1, "G6: Muster GmbH ohne Sage-Konto wird gemeldet, nicht geloescht");
+        lauf.Events.Should().Contain(e => e.Level == "Warning" && e.Message.Contains("nur im WMS") && e.Message.Contains("Muster GmbH"));
         lauf.Events.Should().Contain(e => e.Level == "Warning" && e.Message.Contains("moegliche Dublette") && e.Message.Contains("Muster GmbH")
             && e.Message.Contains("K80000"));
         lauf.Events.Should().Contain(e => e.Message.Contains("verknuepft") && e.Message.Contains("K50000"));
@@ -149,7 +152,7 @@ public class KontokorrentArtikelLieferantTests
     }
 
     [Fact]
-    public async Task Kreditoren_AdresseUndAnsprechpartner_AusSage_MatchcodeNurWennLeer()
+    public async Task Kreditoren_AdresseUndAnsprechpartner_AusSage_SageGewinnt()
     {
         using var ctx = TestDbContextFactory.Create();
         var verknuepft = Kred("Lackiererei Maier", "K50000");
@@ -178,8 +181,8 @@ public class KontokorrentArtikelLieferantTests
             "\"carlo\" Loysch GmbH", "Pielacher Straße 50", "3390", "Melk", "AT", "+43-2752-52911", "info@loysch.at", "Anna Huber (+1 weitere)",
             "LOYSCH MELK", (string?)null), "Name = Name1 (+Name2), erster Ansprechpartner nach Nummer, Matchcode aus Sage weil leer, Kurzname bleibt leer");
         var m = ctx.Creditors.Single(c => c.SageKto == "K50000");
-        (m.Name, m.ContactPerson, m.Matchcode, m.Source).Should().Be(("Maier Lackiererei GmbH", "Einkauf", "WMS-MC", StorageLocationSource.Sage),
-            "verknuepft: Name aus Sage-Adresse, gepflegter WMS-Matchcode bleibt");
+        (m.Name, m.ContactPerson, m.Matchcode, m.Source).Should().Be(("Maier Lackiererei GmbH", "Einkauf", "MAIER LACK", StorageLocationSource.Sage),
+            "verknuepft: G6 – Name, Kontakt und Matchcode aus Sage");
         var o = ctx.Creditors.Single(c => c.SageKto == "K60000");
         (o.Name, o.Street).Should().Be(("OHNE ADRESSE", (string?)null), "keine Adresszeile: Matchcode als Name bei der Anlage");
         log.Runs.Single().Events.Should().NotContain(e => e.Level == "Warning" && e.Message.Contains("nicht lesbar"));

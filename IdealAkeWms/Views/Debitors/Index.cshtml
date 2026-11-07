@@ -4,20 +4,34 @@
 @{
     ViewData["Title"] = "Debitoren";
     var canEdit = await _user.HasMasterDataAccessAsync();
+    var isAdmin = canEdit && await _user.IsAdminAsync(); // G6: Anlegen nur als Admin-Notfall
+    var wmsEigene = (int?)ViewBag.WmsEigene ?? 0;
     var status = (string?)ViewBag.Status ?? CreditorsController.StatusAktiv;
 }
 
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
     <h2 class="page-header mb-0">Debitoren</h2>
-    @if (canEdit)
+    @if (isAdmin)
     {
-        <a asp-action="Create" class="btn btn-primary">Debitor anlegen</a>
+        <a asp-action="Create" class="btn btn-outline-secondary" title="Nur wenn das Konto in Sage noch fehlt; der Sage-Abgleich verknüpft es später über das Sage-Konto.">Debitor anlegen (Notfall)</a>
     }
 </div>
 
 @if (!canEdit)
 {
     <div class="alert alert-info small">Sie haben Nur-Lesen-Zugriff. Aenderungen sind nicht moeglich.</div>
+}
+
+<p class="small text-muted mb-2">Debitoren kommen aus Sage (Sage-Abgleich). Im WMS gepflegt werden nur
+    Kurzname und Bemerkung.</p>
+
+@if (wmsEigene > 0)
+{
+    <div class="alert alert-warning small" role="status">
+        <span class="badge bg-warning text-dark border border-dark me-1">Herkunft WMS</span>
+        <strong>@wmsEigene @(wmsEigene == 1 ? "Debitor ist" : "Debitoren sind") nur im WMS angelegt.</strong>
+        Bitte in Sage anlegen und das Sage-Konto hier eintragen – der nächste Abgleich verknüpft sie dann. Filter „Herkunft“ = <code>WMS</code> zeigt sie.
+    </div>
 }
 
 <div class="card filter-card mb-3">

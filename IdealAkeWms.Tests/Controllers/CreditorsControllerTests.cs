@@ -65,6 +65,24 @@ public class CreditorsControllerTests
         typeof(CreditorsController).GetMethod(nameof(CreditorsController.Index))!.GetCustomAttribute<RequireMasterDataAccessAttribute>().Should().BeNull();
         typeof(CreditorsController).GetMethod(nameof(CreditorsController.Details))!.GetCustomAttribute<RequireMasterDataAccessAttribute>().Should().BeNull();
         typeof(CreditorsController).GetMethods().Should().NotContain(m => m.Name.Contains("Delete"), "nur deaktivieren, kein Loeschen");
+        schreibend.Where(m => m.Name == nameof(CreditorsController.Create)).Should()
+            .HaveCount(2).And.OnlyContain(m => m.GetCustomAttribute<RequireAdminAccessAttribute>() != null, "G6: Anlegen nur Admin-Notfall");
+        schreibend.Where(m => m.Name != nameof(CreditorsController.Create)).Should()
+            .OnlyContain(m => m.GetCustomAttribute<RequireAdminAccessAttribute>() == null);
+    }
+
+    [Fact]
+    public async Task SetActive_SageHerkunft_Abgelehnt_AktivKommtAusSage()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var seeded = Seed(ctx, null, name: "Sage-Name", source: StorageLocationSource.Sage, kto: "K31013");
+        var (ctrl, _) = Create(ctx);
+
+        var result = await ctrl.SetActive(seeded.Id, false);
+
+        result.Should().BeOfType<RedirectToActionResult>().Which.ActionName.Should().Be(nameof(CreditorsController.Details));
+        ctx.Creditors.Single().IsActive.Should().BeTrue();
+        ctrl.TempData["WarningMessage"].Should().NotBeNull();
     }
 
     [Fact]
@@ -172,7 +190,8 @@ public class CreditorsControllerTests
         result.Should().BeOfType<RedirectToActionResult>();
         var c = ctx.Creditors.Single();
         (c.Name, c.City, c.Email, c.SageKto, c.Source).Should().Be(("Sage-Name", null, null, "K31013", StorageLocationSource.Sage));
-        (c.ShortName, c.Remark, c.Matchcode, c.IsCoater).Should().Be((null, "Hinweis", "MC", true));
+        (c.ShortName, c.Remark, c.IsCoater).Should().Be((null, "Hinweis", true));
+        c.Matchcode.Should().BeNull("G6: Matchcode ist Sage-gefuehrt, Formularwert zaehlt nicht");
         c.ModifiedBy.Should().Be("Pfleger");
     }
 

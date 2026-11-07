@@ -22,6 +22,8 @@
         @if (canEdit)
         {
             <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-primary">Bearbeiten</a>
+            @if (Model.Source != StorageLocationSource.Sage) @* G6: bei Herkunft Sage kommt aktiv/inaktiv aus Sage *@
+            {
             <form asp-action="SetActive" method="post" class="d-inline">
                 <input type="hidden" name="id" value="@Model.Id" />
                 <input type="hidden" name="active" value="@(Model.IsActive ? "false" : "true")" />
@@ -34,6 +36,7 @@
                     <button type="submit" class="btn btn-outline-success">Reaktivieren</button>
                 }
             </form>
+            }
         }
         <a asp-action="Index" class="btn btn-secondary">Zur Liste</a>
     </div>
