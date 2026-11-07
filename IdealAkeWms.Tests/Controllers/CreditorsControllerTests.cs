@@ -31,7 +31,7 @@ public class CreditorsControllerTests
         user.Setup(x => x.GetDisplayName()).Returns("Pfleger");
         user.Setup(x => x.GetWindowsUserName()).Returns(@"AKE\pfleger");
         user.Setup(x => x.GetDefaultPageSizeAsync()).ReturnsAsync((int?)null);
-        var ctrl = new CreditorsController(new CreditorRepository(ctx), new FaHierarchyOrderInfoRepository(ctx), user.Object);
+        var ctrl = new CreditorsController(new CreditorRepository(ctx), new FaHierarchyOrderInfoRepository(ctx), user.Object, new ArticleRepository(ctx));
         var http = new DefaultHttpContext();
         if (query != null) http.Request.QueryString = new QueryString(query);
         ctrl.ControllerContext = new ControllerContext { HttpContext = http };

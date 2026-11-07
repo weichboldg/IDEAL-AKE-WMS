@@ -9,6 +9,8 @@ public class ArticleEditViewModel
     public List<AttributeEditItem> Attributes { get; set; } = new();
     public List<StorageLocation> StorageLocations { get; set; } = new();
     public bool IsPrimarySageControlled { get; set; }
+    /// <summary>v1.85.0 Nachbesserung 1: Sage-Zusatzfelder und Lieferanten (nur lesend, gemeinsames Partial mit der Artikelinfo).</summary>
+    public ArtikelSageKartenViewModel? SageKarten { get; set; }
 }
 
 public class AttributeEditItem

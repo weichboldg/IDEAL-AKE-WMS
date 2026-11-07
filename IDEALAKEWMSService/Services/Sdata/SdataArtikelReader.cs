@@ -13,7 +13,9 @@ public sealed record SdataArtikelZeile(
     string? Lagermengeneinheit, int? DezimalstellenLager, bool? Lagerfuehrung, int? PlatzID, string? Entnahmeverfahren, int? Inventurmethode,
     int? Chargenpflicht, int? Nachweispflicht, bool? IstBestellartikel, bool? IstFertigungsartikel, bool? IstUnterbaugruppe, bool? IstErsatzteil,
     bool? IstVerschleissteil, bool? Aktiv, int? Stuecklistentyp, string? Schwundart, decimal? Schwund, decimal? MinimaleLosgroesse,
-    decimal? MaximaleLosgroesse, string? Zeichnungsnummer, decimal? Laenge, decimal? Breite, decimal? Hoehe, string? Gewichtseinheit, string? Langtext);
+    decimal? MaximaleLosgroesse, string? Zeichnungsnummer, decimal? Laenge, decimal? Breite, decimal? Hoehe, string? Gewichtseinheit, string? Langtext,
+    string? Basismengeneinheit = null, int? DezimalstellenBasis = null, decimal? UmrechnungsFaktorLME = null, string? Verkaufsmengeneinheit = null,
+    int? DezimalstellenVK = null, decimal? UmrechnungsfaktorVK = null, string? VerpackungseinheitVK = null, decimal? UmrechnungsfaktorVPVK = null);
 
 /// <summary>Zeile aus <c>ArtikelVariantenExtended</c> (Namen exakt wie in der SData-Antwort).</summary>
 public sealed record SdataArtikelVarianteZeile(
@@ -46,7 +48,10 @@ public sealed class SdataArtikelReader : ISageArtikelReader
         + "Ersatzartikelnummer,Hersteller,HArtikelnummer,Lagermengeneinheit,DezimalstellenLager,Lagerfuehrung,PlatzID,Entnahmeverfahren,"
         + "Inventurmethode,Chargenpflicht,Nachweispflicht,IstBestellartikel,IstFertigungsartikel,IstUnterbaugruppe,IstErsatzteil,"
         + "IstVerschleissteil,Aktiv,Stuecklistentyp,Schwundart,Schwund,MinimaleLosgroesse,MaximaleLosgroesse,Zeichnungsnummer,Laenge,Breite,"
-        + "Hoehe,Gewichtseinheit,Langtext";
+        + "Hoehe,Gewichtseinheit,Langtext,"
+        // v1.85.0: Mengeneinheiten (Feldnamen am AKE-Test 2026-11-08 belegt, Spec artikeldetails Nachbesserung 5)
+        + "Basismengeneinheit,DezimalstellenBasis,UmrechnungsFaktorLME,Verkaufsmengeneinheit,DezimalstellenVK,UmrechnungsfaktorVK,"
+        + "VerpackungseinheitVK,UmrechnungsfaktorVPVK";
     // AuspraegungID nur fuer die stabile Sortierung; Feldname aus dem Schema (sage-sdata-artikel-felder), nicht in der P-S1-Typliste.
     public const string SelectVarianten = "Artikelnummer,AuspraegungID,EANNummer,ABCKlasse,Lagerbestand,LagerbestandOhneDispo,LagerbestandVerfuegbar,"
         + "Gewicht,MittlererEK,Bestellmenge,Meldebestand,Bestellzeitpunkt,Hauptlieferant,LetzterLieferant,Wiederbeschaffungszeit,"
@@ -267,6 +272,10 @@ public sealed class SdataArtikelReader : ISageArtikelReader
         Bezeichnung2 = a.Bezeichnung2, Hauptartikelgruppe = a.Hauptartikelgruppe, Vaterartikelgruppe = a.Vaterartikelgruppe,
         Hersteller = a.Hersteller, HArtikelnummer = a.HArtikelnummer, Zeichnungsnummer = a.Zeichnungsnummer,
         Ersatzartikelnummer = a.Ersatzartikelnummer, Langtext = a.Langtext, Gewichtseinheit = a.Gewichtseinheit,
+        Basismengeneinheit = (a.Basismengeneinheit), DezimalstellenBasis = a.DezimalstellenBasis, Lagermengeneinheit = (a.Lagermengeneinheit),
+        UmrechnungsFaktorLME = Runde(a.UmrechnungsFaktorLME, 6), Verkaufsmengeneinheit = (a.Verkaufsmengeneinheit), DezimalstellenVK = a.DezimalstellenVK,
+        UmrechnungsfaktorVK = Runde(a.UmrechnungsfaktorVK, 6), VerpackungseinheitVK = (a.VerpackungseinheitVK),
+        UmrechnungsfaktorVPVK = Runde(a.UmrechnungsfaktorVPVK, 6),
         DezimalstellenLager = a.DezimalstellenLager, Lagerfuehrung = a.Lagerfuehrung, SagePlatzId = a.PlatzID,
         Entnahmeverfahren = a.Entnahmeverfahren, Inventurmethode = a.Inventurmethode, Chargenpflicht = a.Chargenpflicht,
         Nachweispflicht = a.Nachweispflicht, IstBestellartikel = a.IstBestellartikel, IstFertigungsartikel = a.IstFertigungsartikel,

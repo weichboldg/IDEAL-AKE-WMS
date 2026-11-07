@@ -148,6 +148,16 @@
     </div>
 </div>
 
+@if (Model.SageKarten != null)
+{
+    @* v1.85.0 Nachbesserung 1: Sage-Daten auch beim Bearbeiten sichtbar (nur lesend, gleiches Partial wie die Artikelinfo). *@
+    <div class="row">
+        <div class="col-lg-8">
+            <partial name="_ArtikelSageKarten" model="Model.SageKarten" />
+        </div>
+    </div>
+}
+
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
 }

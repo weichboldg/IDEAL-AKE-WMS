@@ -74,6 +74,7 @@ public class ArticlesController : Controller
             Search = search,
             AttributeDefinitions = activeDefinitions,
             AttributeValuesByArticle = attributeValues,
+            LieferantTexte = await _articleRepository.GetLieferantTexteAsync(articleIds),
             Pagination = new PaginationState
             {
                 CurrentPage = page,
@@ -142,7 +143,8 @@ public class ArticlesController : Controller
             Categories = categories,
             Attributes = attributeItems,
             StorageLocations = storageLocations,
-            IsPrimarySageControlled = !string.IsNullOrWhiteSpace(article.SagePrimaryStorageLocation)
+            IsPrimarySageControlled = !string.IsNullOrWhiteSpace(article.SagePrimaryStorageLocation),
+            SageKarten = await SageKartenAsync(article.Id),
         };
 
         return View(vm);
@@ -163,6 +165,7 @@ public class ArticlesController : Controller
             vm.StorageLocations = await _storageLocationRepository.GetActiveOrderedExcludingPickingTransportAsync();
             var sageCheck = await _articleRepository.GetByIdAsync(id);
             vm.IsPrimarySageControlled = !string.IsNullOrWhiteSpace(sageCheck?.SagePrimaryStorageLocation);
+            vm.SageKarten = await SageKartenAsync(id);
             var activeDefinitions = await _attributeRepository.GetActiveDefinitionsOrderedAsync();
             // Re-fill options for dropdown attributes
             foreach (var attr in vm.Attributes)
@@ -339,23 +342,39 @@ public class ArticlesController : Controller
             AttributeDisplayValues = attrDisplayValues,
             UsedInOrders = usedInOrders,
             Hierarchical = hierarchical,
-            SageDetail = await _articleRepository.GetSageDetailAsync(article.Id),
-            Lieferanten = await _articleRepository.GetSuppliersAsync(article.Id),
         };
-        // v1.80.0 (Spec 2026-11-08-artikeldetails-lieferanten-anzeigen F1): Haupt-/letzter Lieferant mit EINEM Aufruf nachschlagen. Der Satellit
-        // schreibt Sage-Werte ungetrimmt (ArticleSageDetailsWriter) -> Trim hier; Gross/Klein egal wie der Artikel-Lieferanten-Abgleich.
-        var haupt = vm.SageDetail?.Hauptlieferant?.Trim();
-        var letzter = vm.SageDetail?.LetzterLieferant?.Trim();
-        var konten = new[] { haupt, letzter }.Where(k => !string.IsNullOrEmpty(k)).Select(k => k!).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var karten = await SageKartenAsync(article.Id);
+        vm.SageDetail = karten.SageDetail;
+        vm.Lieferanten = karten.Lieferanten;
+        vm.HauptlieferantKreditor = karten.HauptlieferantKreditor;
+        vm.LetzterLieferantKreditor = karten.LetzterLieferantKreditor;
+        return View(vm);
+    }
+
+    /// <summary>
+    /// v1.80.0 F1 / v1.85.0 Nachbesserung 1: Sage-Satellit, Artikel-Lieferanten und Haupt-/letzter Lieferant (EIN Kreditor-Aufruf) fuer
+    /// Artikelinfo und „Artikel bearbeiten“. Der Satellit schreibt Sage-Werte ungetrimmt (ArticleSageDetailsWriter) -> Trim hier;
+    /// Gross/Klein egal wie der Artikel-Lieferanten-Abgleich.
+    /// </summary>
+    private async Task<ArtikelSageKartenViewModel> SageKartenAsync(int articleId)
+    {
+        var k = new ArtikelSageKartenViewModel
+        {
+            SageDetail = await _articleRepository.GetSageDetailAsync(articleId),
+            Lieferanten = await _articleRepository.GetSuppliersAsync(articleId),
+        };
+        var haupt = k.SageDetail?.Hauptlieferant?.Trim();
+        var letzter = k.SageDetail?.LetzterLieferant?.Trim();
+        var konten = new[] { haupt, letzter }.Where(x => !string.IsNullOrEmpty(x)).Select(x => x!).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         if (konten.Count > 0)
         {
             var kreditoren = (await _creditorRepository.GetBySageKtosAsync(konten))
                 .Where(c => c.SageKto != null)
                 .GroupBy(c => c.SageKto!.Trim(), StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
-            vm.HauptlieferantKreditor = haupt != null ? kreditoren.GetValueOrDefault(haupt) : null;
-            vm.LetzterLieferantKreditor = letzter != null ? kreditoren.GetValueOrDefault(letzter) : null;
+            k.HauptlieferantKreditor = haupt != null ? kreditoren.GetValueOrDefault(haupt) : null;
+            k.LetzterLieferantKreditor = letzter != null ? kreditoren.GetValueOrDefault(letzter) : null;
         }
-        return View(vm);
+        return k;
     }
 }

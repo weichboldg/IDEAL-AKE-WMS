@@ -9,7 +9,7 @@ namespace IDEALAKEWMSService.Services.Sdata;
 /// <summary>Zeile aus <c>ArtikelLieferantInfo</c> (Namen exakt wie in der SData-Antwort, Typen P-S1).</summary>
 public sealed record SdataArtikelLieferantZeile(string? Lieferant, string? Artikelnummer, string? Bestellnummer, string? Bezeichnung1,
     string? Bezeichnung2, decimal? Mindestbestellmenge, string? Einkaufsmengeneinheit, decimal? UmrechnungsfaktorEK, int? Wiederbeschaffungszeit,
-    decimal? Einzelpreis);
+    decimal? Einzelpreis, int? DezimalstellenEK = null, decimal? UmrechnungsfaktorVPEK = null);
 
 /// <summary>Zeile aus <c>ArtikelVariantenExtended</c> — nur der Hauptlieferant (Kto-Format, z. B. K31013).</summary>
 public sealed record SdataHauptlieferantZeile(string? Artikelnummer, string? Hauptlieferant);
@@ -27,7 +27,7 @@ public class ArtikelLieferantSyncService
     public const string ServiceUser = "ArtikelLieferantSync";
     public const string Ressource = "ArtikelLieferantInfo";
     public const string Select = "Lieferant,Artikelnummer,Bestellnummer,Bezeichnung1,Bezeichnung2,Mindestbestellmenge,Einkaufsmengeneinheit,"
-        + "UmrechnungsfaktorEK,Wiederbeschaffungszeit,Einzelpreis";
+        + "UmrechnungsfaktorEK,Wiederbeschaffungszeit,Einzelpreis,DezimalstellenEK,UmrechnungsfaktorVPEK"; // v1.85.0 (belegt 2026-11-08; VPEK gibt es nicht)
     public const string OrderBy = "Artikelnummer,Lieferant";
     public const string RessourceVarianten = "ArtikelVariantenExtended";
     public const string SelectVarianten = "Artikelnummer,Hauptlieferant";
@@ -206,6 +206,8 @@ public class ArtikelLieferantSyncService
         Set(z.UmrechnungsfaktorEK is { } u ? Math.Round(u, 6) : (decimal?)null, s.UmrechnungsfaktorEK, v => s.UmrechnungsfaktorEK = v);
         Set(z.Einzelpreis is { } p ? Math.Round(p, 4) : (decimal?)null, s.Einzelpreis, v => s.Einzelpreis = v);
         Set(z.Wiederbeschaffungszeit, s.Wiederbeschaffungszeit, v => s.Wiederbeschaffungszeit = v);
+        Set(z.DezimalstellenEK, s.DezimalstellenEK, v => s.DezimalstellenEK = v);
+        Set(z.UmrechnungsfaktorVPEK is { } vp ? Math.Round(vp, 6) : (decimal?)null, s.UmrechnungsfaktorVPEK, v => s.UmrechnungsfaktorVPEK = v);
         if (s.IstHauptlieferant != istHaupt) { s.IstHauptlieferant = istHaupt; anders = true; }
         return anders;
     }

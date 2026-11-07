@@ -106,7 +106,10 @@ public class ArtikelinfoLieferantenTests
     {
         ViewText("Index.cshtml").Should().Contain("<a asp-action=\"Info\" asp-route-articleNumber=\"@article.ArticleNumber\">@article.ArticleNumber</a>");
         ViewText("Edit.cshtml").Should().Contain("asp-route-articleNumber=\"@Model.Article.ArticleNumber\"").And.Contain(">Artikelinfo</a>");
-        var info = ViewText("Info.cshtml");
+        // v1.85.0: Karten im gemeinsamen Partial (Artikelinfo + Bearbeiten).
+        ViewText("Info.cshtml").Should().Contain("<partial name=\"_ArtikelSageKarten\"");
+        ViewText("Edit.cshtml").Should().Contain("<partial name=\"_ArtikelSageKarten\" model=\"Model.SageKarten\"");
+        var info = ViewText("..", "Shared", "_ArtikelSageKarten.cshtml");
         info.Should().NotContain("(\"Hauptlieferant\", T(sd.Hauptlieferant))", "AK 7: nicht doppelt in „Bestand und Dispo“");
         info.Should().Contain("Sync:Quelle:Artikel").And.Contain("Sync:ArtikelLieferantEnabled").And.NotContain("Html.Raw");
     }

@@ -27,8 +27,41 @@ public class ArticleRepository : Repository<Article>, IArticleRepository
         return await q.OrderBy(a => a.ArticleNumber).Take(limit).ToListAsync();
     }
 
+    public async Task<Dictionary<int, (string? Haupt, string? Letzter)>> GetLieferantTexteAsync(IReadOnlyCollection<int> articleIds)
+    {
+        if (articleIds.Count == 0) return new();
+        var zeilen = await _context.ArticleSageDetails.AsNoTracking().Where(d => articleIds.Contains(d.ArticleId))
+            .Select(d => new
+            {
+                d.ArticleId,
+                Haupt = d.Hauptlieferant == null ? null
+                    : _context.Creditors.Where(c => c.SageKto == d.Hauptlieferant.Trim()).Select(c => c.Name + " (" + c.SageKto + ")").FirstOrDefault()
+                      ?? d.Hauptlieferant.Trim(),
+                Letzter = d.LetzterLieferant == null ? null
+                    : _context.Creditors.Where(c => c.SageKto == d.LetzterLieferant.Trim()).Select(c => c.Name + " (" + c.SageKto + ")").FirstOrDefault()
+                      ?? d.LetzterLieferant.Trim(),
+            }).ToListAsync();
+        return zeilen.ToDictionary(z => z.ArticleId, z => (z.Haupt, z.Letzter));
+    }
+
     public async Task<ArticleSageDetail?> GetSageDetailAsync(int articleId) =>
         await _context.ArticleSageDetails.AsNoTracking().FirstOrDefaultAsync(d => d.ArticleId == articleId);
+
+    // ponytail: alle Zeilen eines Lieferanten ohne Paging (Client-Spaltenfilter + CSV); bei sehr grossen Lieferanten Server-Paging nachruesten.
+    public async Task<List<LieferantArtikelRow>> GetArtikelJeLieferantAsync(int creditorId, string? sageKto)
+    {
+        var kto = sageKto?.Trim();
+        return await (from s in _context.ArticleSuppliers.AsNoTracking()
+                      join a in _context.Articles.AsNoTracking() on s.ArticleId equals a.Id
+                      join d in _context.ArticleSageDetails.AsNoTracking() on a.Id equals d.ArticleId into dj
+                      from d in dj.DefaultIfEmpty()
+                      where s.CreditorId == creditorId
+                      orderby a.ArticleNumber
+                      select new LieferantArtikelRow(a.ArticleNumber, a.Description, s.SageBestellnummer, s.Mindestbestellmenge,
+                          s.Einkaufsmengeneinheit, s.IstHauptlieferant,
+                          kto != null && d != null && d.LetzterLieferant != null && d.LetzterLieferant.Trim() == kto))
+                     .ToListAsync();
+    }
 
     public async Task<List<ArticleSupplierRow>> GetSuppliersAsync(int articleId) =>
         await (from s in _context.ArticleSuppliers.AsNoTracking()
@@ -36,7 +69,7 @@ public class ArticleRepository : Repository<Article>, IArticleRepository
                where s.ArticleId == articleId
                orderby s.IstHauptlieferant descending, c.Name
                select new ArticleSupplierRow(c.Id, c.Name, c.SageKto, c.IsActive, s.SageBestellnummer, s.Mindestbestellmenge,
-                   s.Einkaufsmengeneinheit, s.Wiederbeschaffungszeit, s.IstHauptlieferant))
+                   s.Einkaufsmengeneinheit, s.Wiederbeschaffungszeit, s.IstHauptlieferant, s.UmrechnungsfaktorEK))
               .ToListAsync();
 
     public async Task<Article?> GetByArticleNumberAsync(string articleNumber)
@@ -79,7 +112,7 @@ public class ArticleRepository : Repository<Article>, IArticleRepository
             {
                 var parsed = ColumnFilterSyntax.Parse(raw, ColumnFilterType.Text);
                 if (parsed.IsEmpty) continue;
-                query = ApplyArticleColumnFilter(query, key, parsed);
+                query = ApplyArticleColumnFilter(query, key, parsed, _context.Creditors);
             }
         }
 
@@ -125,10 +158,18 @@ public class ArticleRepository : Repository<Article>, IArticleRepository
 
     /// <summary>Artikelliste: Spaltenfilter ueber den zentralen SQL-Bauer (Spaltenfilter-Suchsyntax, Etappe B). „beginnt mit“ auf
     /// der Artikelnummer bleibt indexfaehig (<c>LIKE 'x%'</c> ohne <c>LOWER</c>, AK 12).</summary>
-    internal static IQueryable<Article> ApplyArticleColumnFilter(IQueryable<Article> q, string key, ParsedColumnFilter f)
+    internal static IQueryable<Article> ApplyArticleColumnFilter(IQueryable<Article> q, string key, ParsedColumnFilter f,
+        IQueryable<Creditor>? creditors = null)
     {
         var pred = key switch
         {
+            // v1.85.0 Nachbesserung 3: Zelltext „Name (Konto)“ bzw. nur Konto ohne Kreditor – derselbe Ausdruck wie LieferantTexteAsync.
+            "hauptlieferant" when creditors != null => ColumnFilterSql.Predicate<Article>(f, a => a.SageDetail == null || a.SageDetail.Hauptlieferant == null ? null
+                : creditors.Where(c => c.SageKto == a.SageDetail.Hauptlieferant.Trim()).Select(c => c.Name + " (" + c.SageKto + ")").FirstOrDefault()
+                  ?? a.SageDetail.Hauptlieferant.Trim()),
+            "letzter-lieferant" when creditors != null => ColumnFilterSql.Predicate<Article>(f, a => a.SageDetail == null || a.SageDetail.LetzterLieferant == null ? null
+                : creditors.Where(c => c.SageKto == a.SageDetail.LetzterLieferant.Trim()).Select(c => c.Name + " (" + c.SageKto + ")").FirstOrDefault()
+                  ?? a.SageDetail.LetzterLieferant.Trim()),
             "article-number" => ColumnFilterSql.Predicate<Article>(f, a => a.ArticleNumber),
             "description" => ColumnFilterSql.Predicate<Article>(f, a => a.Description),
             "matchcode" => ColumnFilterSql.Predicate<Article>(f, a => a.Matchcode),

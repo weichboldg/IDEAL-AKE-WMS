@@ -220,6 +220,15 @@ BEGIN
         [Langtext]                NVARCHAR(MAX)     NULL,
         [Gewichtseinheit]         NVARCHAR(10)      NULL,
         [DezimalstellenLager]     INT               NULL,
+        [Basismengeneinheit]      NVARCHAR(5)       NULL,  -- v1.85.0 / SQL/140
+        [DezimalstellenBasis]     INT               NULL,
+        [Lagermengeneinheit]      NVARCHAR(5)       NULL,
+        [UmrechnungsFaktorLME]    DECIMAL(18,6)     NULL,
+        [Verkaufsmengeneinheit]   NVARCHAR(5)       NULL,
+        [DezimalstellenVK]        INT               NULL,
+        [UmrechnungsfaktorVK]     DECIMAL(18,6)     NULL,
+        [VerpackungseinheitVK]    NVARCHAR(5)       NULL,
+        [UmrechnungsfaktorVPVK]   DECIMAL(18,6)     NULL,
         [Lagerfuehrung]           BIT               NULL,
         [SagePlatzId]             INT               NULL,
         [Entnahmeverfahren]       NVARCHAR(6)       NULL,
@@ -2256,6 +2265,8 @@ BEGIN
         [Mindestbestellmenge]       DECIMAL(18,3)     NULL,
         [Einkaufsmengeneinheit]     NVARCHAR(5)       NULL,
         [UmrechnungsfaktorEK]       DECIMAL(18,6)     NULL,
+        [DezimalstellenEK]          INT               NULL,  -- v1.85.0 / SQL/140
+        [UmrechnungsfaktorVPEK]     DECIMAL(18,6)     NULL,
         [Wiederbeschaffungszeit]    INT               NULL,
         [Einzelpreis]               DECIMAL(18,4)     NULL,
         [IstHauptlieferant]         BIT               NOT NULL,
@@ -2920,6 +2931,10 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261107173341_AddPurchaseOrderReceipts')
    AND OBJECT_ID(N'dbo.PurchaseOrderReceipts', N'U') IS NOT NULL -- sonst steht SQL/113 noch aus
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261107173341_AddPurchaseOrderReceipts', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261107182445_AddArtikelMengeneinheiten')
+   AND COL_LENGTH(N'dbo.ArticleSageDetails', N'Basismengeneinheit') IS NOT NULL
+   AND COL_LENGTH(N'dbo.ArticleSuppliers', N'DezimalstellenEK') IS NOT NULL -- sonst steht SQL/140 noch aus
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261107182445_AddArtikelMengeneinheiten', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';

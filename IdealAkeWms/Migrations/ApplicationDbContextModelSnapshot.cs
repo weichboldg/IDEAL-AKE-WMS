@@ -395,6 +395,10 @@ namespace IdealAkeWms.Migrations
                     b.Property<int>("ArticleId")
                         .HasColumnType("int");
 
+                    b.Property<string>("Basismengeneinheit")
+                        .HasMaxLength(5)
+                        .HasColumnType("nvarchar(5)");
+
                     b.Property<decimal?>("Bestellmenge")
                         .HasPrecision(18, 3)
                         .HasColumnType("decimal(18,3)");
@@ -426,7 +430,13 @@ namespace IdealAkeWms.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
+                    b.Property<int?>("DezimalstellenBasis")
+                        .HasColumnType("int");
+
                     b.Property<int?>("DezimalstellenLager")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("DezimalstellenVK")
                         .HasColumnType("int");
 
                     b.Property<string>("EANNummer")
@@ -506,6 +516,10 @@ namespace IdealAkeWms.Migrations
                     b.Property<bool?>("Lagerfuehrung")
                         .HasColumnType("bit");
 
+                    b.Property<string>("Lagermengeneinheit")
+                        .HasMaxLength(5)
+                        .HasColumnType("nvarchar(5)");
+
                     b.Property<string>("Langtext")
                         .HasColumnType("nvarchar(max)");
 
@@ -553,6 +567,15 @@ namespace IdealAkeWms.Migrations
                     b.Property<int?>("Stuecklistentyp")
                         .HasColumnType("int");
 
+                    b.Property<decimal?>("UmrechnungsFaktorLME")
+                        .HasColumnType("decimal(18,6)");
+
+                    b.Property<decimal?>("UmrechnungsfaktorVK")
+                        .HasColumnType("decimal(18,6)");
+
+                    b.Property<decimal?>("UmrechnungsfaktorVPVK")
+                        .HasColumnType("decimal(18,6)");
+
                     b.Property<int?>("UserLagerplatzId")
                         .HasColumnType("int");
 
@@ -563,6 +586,14 @@ namespace IdealAkeWms.Migrations
                     b.Property<string>("Vaterartikelgruppe")
                         .HasMaxLength(15)
                         .HasColumnType("nvarchar(15)");
+
+                    b.Property<string>("Verkaufsmengeneinheit")
+                        .HasMaxLength(5)
+                        .HasColumnType("nvarchar(5)");
+
+                    b.Property<string>("VerpackungseinheitVK")
+                        .HasMaxLength(5)
+                        .HasColumnType("nvarchar(5)");
 
                     b.Property<int?>("Wiederbeschaffungszeit")
                         .HasColumnType("int");
@@ -620,6 +651,9 @@ namespace IdealAkeWms.Migrations
                     b.Property<int>("CreditorId")
                         .HasColumnType("int");
 
+                    b.Property<int?>("DezimalstellenEK")
+                        .HasColumnType("int");
+
                     b.Property<string>("Einkaufsmengeneinheit")
                         .HasMaxLength(5)
                         .HasColumnType("nvarchar(5)");
@@ -649,6 +683,9 @@ namespace IdealAkeWms.Migrations
                         .HasColumnType("nvarchar(31)");
 
                     b.Property<decimal?>("UmrechnungsfaktorEK")
+                        .HasColumnType("decimal(18,6)");
+
+                    b.Property<decimal?>("UmrechnungsfaktorVPEK")
                         .HasColumnType("decimal(18,6)");
 
                     b.Property<int?>("Wiederbeschaffungszeit")

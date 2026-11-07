@@ -573,6 +573,30 @@ public static class ColumnDefinitions
     };
 
     /// <summary>
+    /// Articles/Index.cshtml — Artikelliste (Spaltenauswahl seit v1.85.0, Spec 2026-11-08-artikeldetails-lieferanten-anzeigen Nachbesserung 3):
+    /// Hauptlieferant / letzter Lieferant optional (DefaultHidden). Die dynamischen Merkmal-Spalten „attr-{Id}“ stehen nur im inline
+    /// #column-config der View (Keys aus der DB); die Prefs-API prueft nur den viewKey.
+    /// </summary>
+    public static readonly ViewConfig Articles = new(
+        "Articles", "Artikel",
+        SupportsReorder: false, SupportsSortDefault: false)
+    {
+        Columns =
+        [
+            new ColumnDef("article-number",   "Artikelnummer",     Locked: true),
+            new ColumnDef("description",      "Bezeichnung",       Locked: false),
+            new ColumnDef("matchcode",        "Matchcode",         Locked: false),
+            new ColumnDef("unit",             "Einheit",           Locked: false),
+            new ColumnDef("article-group",    "Artikelgruppe",     Locked: false),
+            new ColumnDef("category",         "Kategorie",         Locked: false),
+            new ColumnDef("hauptlieferant",   "Hauptlieferant",    Locked: false, DefaultHidden: true),
+            new ColumnDef("letzter-lieferant","Letzter Lieferant", Locked: false, DefaultHidden: true),
+            new ColumnDef("created-at",       "Erstellt am",       Locked: false),
+            new ColumnDef("actions",          "",                  Locked: true,  DefaultWidth: 100),
+        ]
+    };
+
+    /// <summary>
     /// StorageLocations/Index.cshtml — Lagerplatzliste (Spaltenauswahl seit v1.73.0, mit Lagerort- und Sperr-Spalte aus Sage-SData).
     /// "is-active" steht nur bei "Auch inaktive zeigen" in der Tabelle; fehlende Spalten ueberspringt column-preferences.js.
     /// </summary>
@@ -669,6 +693,7 @@ public static class ColumnDefinitions
         "BeschichtungsauftragPositionen" => BeschichtungsauftragPositionen,
         "OperationConfigs"               => OperationConfigs,
         "StorageLocations"               => StorageLocations,
+        "Articles"                       => Articles,
         "Creditors"                      => Creditors,
         "Debitors"                       => Debitors,
         _                  => null

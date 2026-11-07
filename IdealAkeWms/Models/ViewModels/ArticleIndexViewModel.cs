@@ -16,4 +16,6 @@ public class ArticleIndexViewModel
     public Dictionary<int, List<ArticleAttributeValue>> AttributeValuesByArticle { get; set; } = new();
 
     public PaginationState Pagination { get; set; } = new();
+    /// <summary>v1.85.0 Nachbesserung 3: optionale Spalten Haupt-/letzter Lieferant („Name (Konto)“) je Artikel der Seite.</summary>
+    public Dictionary<int, (string? Haupt, string? Letzter)> LieferantTexte { get; set; } = new();
 }

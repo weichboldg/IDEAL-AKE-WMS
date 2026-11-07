@@ -45,6 +45,15 @@ public sealed record SageArtikelDetails
     public string? Ersatzartikelnummer { get; init; }
     public string? Langtext { get; init; }
     public string? Gewichtseinheit { get; init; }
+    public string? Basismengeneinheit { get; init; }
+    public int? DezimalstellenBasis { get; init; }
+    public string? Lagermengeneinheit { get; init; }
+    public decimal? UmrechnungsFaktorLME { get; init; }
+    public string? Verkaufsmengeneinheit { get; init; }
+    public int? DezimalstellenVK { get; init; }
+    public decimal? UmrechnungsfaktorVK { get; init; }
+    public string? VerpackungseinheitVK { get; init; }
+    public decimal? UmrechnungsfaktorVPVK { get; init; }
     public int? DezimalstellenLager { get; init; }
     public bool? Lagerfuehrung { get; init; }
     public int? SagePlatzId { get; init; }

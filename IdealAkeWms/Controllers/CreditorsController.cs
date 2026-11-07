@@ -27,9 +27,12 @@ public class CreditorsController : Controller
     private readonly ICreditorRepository _repository;
     private readonly IFaHierarchyOrderInfoRepository _orderInfos;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IArticleRepository _articles;
 
-    public CreditorsController(ICreditorRepository repository, IFaHierarchyOrderInfoRepository orderInfos, ICurrentUserService currentUserService)
+    public CreditorsController(ICreditorRepository repository, IFaHierarchyOrderInfoRepository orderInfos, ICurrentUserService currentUserService,
+        IArticleRepository articles)
     {
+        _articles = articles;
         _repository = repository;
         _orderInfos = orderInfos;
         _currentUserService = currentUserService;
@@ -96,7 +99,10 @@ public class CreditorsController : Controller
     public async Task<IActionResult> Details(int id)
     {
         var creditor = await _repository.GetByIdAsync(id);
-        return creditor == null ? NotFound() : View(creditor);
+        if (creditor == null) return NotFound();
+        // v1.85.0 (Spec 2026-11-08-artikeldetails-lieferanten-anzeigen, Nachbesserung 2): Karte „Artikel dieses Lieferanten“.
+        ViewBag.LieferantArtikel = await _articles.GetArtikelJeLieferantAsync(creditor.Id, creditor.SageKto);
+        return View(creditor);
     }
 
     // G6 (Gerald 2026-11-07): Kreditoren kommen aus Sage. Anlegen nur noch als Admin-Notfall — Konto in Sage noch nicht angelegt, der

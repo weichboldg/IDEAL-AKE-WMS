@@ -257,7 +257,7 @@ public class ColumnFilterTypesDriftTests
         var code = string.Join("\n", Directory.GetFiles(src, "*.cs", SearchOption.AllDirectories)
             .Where(f => !f.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}") && !f.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}"))
             .Select(File.ReadAllText));
-        var clientOnly = new[] { "Beschichtungsauftraege/Details", "Picking/Bom", "Tracking/ByWorkplace" };
+        var clientOnly = new[] { "Beschichtungsauftraege/Details", "Picking/Bom", "Tracking/ByWorkplace", "Creditors/Details" }; // v1.85.0 Client-Mode
         ColumnFilterTypes.Lists.Keys.Except(clientOnly)
             .Where(k => !code.Contains($"ColumnFilterTypes.For(\"{k}\")") && !code.Contains($"ColumnFilterTypes.Of(\"{k}\""))
             .Should().BeEmpty("jede Server-Liste mit Zahl-/Datumsspalten muss ihre Typen an Apply bzw. den Postfilter geben");

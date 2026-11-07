@@ -21,6 +21,9 @@ public class ArticleSupplier : AuditableEntity
     public decimal? Mindestbestellmenge { get; set; }
     public string? Einkaufsmengeneinheit { get; set; }
     public decimal? UmrechnungsfaktorEK { get; set; }
+    /// <summary>v1.85.0: Dezimalstellen der EK-Einheit und Umrechnung Verpackungseinheit EK (SData ArtikelLieferantInfo, belegt 2026-11-08).</summary>
+    public int? DezimalstellenEK { get; set; }
+    public decimal? UmrechnungsfaktorVPEK { get; set; }
     /// <summary>Wiederbeschaffungszeit in Tagen (Sage short).</summary>
     public int? Wiederbeschaffungszeit { get; set; }
     public decimal? Einzelpreis { get; set; }

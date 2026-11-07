@@ -574,6 +574,13 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.Ersatzartikelnummer).HasMaxLength(31);
             entity.Property(e => e.Gewichtseinheit).HasMaxLength(10);
             entity.Property(e => e.Entnahmeverfahren).HasMaxLength(6);
+            entity.Property(e => e.Basismengeneinheit).HasMaxLength(5);
+            entity.Property(e => e.Lagermengeneinheit).HasMaxLength(5);
+            entity.Property(e => e.Verkaufsmengeneinheit).HasMaxLength(5);
+            entity.Property(e => e.VerpackungseinheitVK).HasMaxLength(5);
+            entity.Property(e => e.UmrechnungsFaktorLME).HasColumnType("decimal(18,6)");
+            entity.Property(e => e.UmrechnungsfaktorVK).HasColumnType("decimal(18,6)");
+            entity.Property(e => e.UmrechnungsfaktorVPVK).HasColumnType("decimal(18,6)");
             entity.Property(e => e.Schwundart).HasMaxLength(1);
             entity.Property(e => e.EANNummer).HasMaxLength(15);
             entity.Property(e => e.ABCKlasse).HasMaxLength(1);
@@ -1351,6 +1358,7 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.Mindestbestellmenge).HasColumnType("decimal(18,3)");
             entity.Property(e => e.Einkaufsmengeneinheit).HasMaxLength(5);
             entity.Property(e => e.UmrechnungsfaktorEK).HasColumnType("decimal(18,6)");
+            entity.Property(e => e.UmrechnungsfaktorVPEK).HasColumnType("decimal(18,6)");
             entity.Property(e => e.Einzelpreis).HasColumnType("decimal(18,4)");
             entity.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
             entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();

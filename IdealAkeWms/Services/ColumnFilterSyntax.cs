@@ -72,6 +72,7 @@ public static class ColumnFilterTypes
             ["WarehousePicking/Details"] = L(("pos", N), ("requested", N)),
             ["WarehousePicking/Index"] = L(("id", N), ("submitted", D), ("items", N)),
             ["WarehouseRequisitions/Index"] = L(("id", N), ("items", N), ("created", D), ("submitted", D)),
+            ["Creditors/Details"] = L(("mindestmenge", N)), // v1.85.0 Karte „Artikel dieses Lieferanten“ (Client-Mode)
             ["PurchaseOrders/Index"] = L(("liefertermin", D), ("bestellt", N), ("geliefert", N), ("offen", N), ("erfasst", N)),
             ["WorkSteps/Index"] = L(("sort-order", N)),
         };

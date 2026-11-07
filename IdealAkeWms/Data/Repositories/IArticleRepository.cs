@@ -20,4 +20,8 @@ public interface IArticleRepository : IRepository<Article>
     Task<ArticleSageDetail?> GetSageDetailAsync(int articleId);
     /// <summary>v1.80.0: Artikel-Lieferanten aus Sage (<c>ArticleSuppliers</c> ⨝ <c>Creditors</c>), Hauptlieferant zuerst, dann nach Name.</summary>
     Task<List<ArticleSupplierRow>> GetSuppliersAsync(int articleId);
+    /// <summary>v1.85.0 Nachbesserung 3: Anzeige „Name (Konto)“ bzw. Konto fuer Haupt-/letzten Lieferanten je Artikel (eine Abfrage je Seite).</summary>
+    Task<Dictionary<int, (string? Haupt, string? Letzter)>> GetLieferantTexteAsync(IReadOnlyCollection<int> articleIds);
+    /// <summary>v1.85.0: Artikel eines Lieferanten (<c>ArticleSuppliers</c>), „letzter Lieferant“ = <c>ArticleSageDetails.LetzterLieferant</c> = Konto.</summary>
+    Task<List<LieferantArtikelRow>> GetArtikelJeLieferantAsync(int creditorId, string? sageKto);
 }

@@ -25,6 +25,17 @@ public class ArticleSageDetail : AuditableEntity
     public string? Langtext { get; set; }
     [StringLength(10)] public string? Gewichtseinheit { get; set; }
     public int? DezimalstellenLager { get; set; }
+    // v1.85.0 (Spec 2026-11-08-artikeldetails-lieferanten-anzeigen, Nachbesserung 5): Mengeneinheiten aus SData-Artikel (am AKE-Test belegt
+    // 2026-11-08). Articles.Unit bleibt die Lagermengeneinheit (wie der View-Weg, SageArticleSql) – hier zusaetzlich alle Einheiten.
+    [StringLength(5)] public string? Basismengeneinheit { get; set; }
+    public int? DezimalstellenBasis { get; set; }
+    [StringLength(5)] public string? Lagermengeneinheit { get; set; }
+    public decimal? UmrechnungsFaktorLME { get; set; }
+    [StringLength(5)] public string? Verkaufsmengeneinheit { get; set; }
+    public int? DezimalstellenVK { get; set; }
+    public decimal? UmrechnungsfaktorVK { get; set; }
+    [StringLength(5)] public string? VerpackungseinheitVK { get; set; }
+    public decimal? UmrechnungsfaktorVPVK { get; set; }
     public bool? Lagerfuehrung { get; set; }
     /// <summary>Hauptlagerplatz als Sage-PlatzID (<c>Artikel.PlatzID</c>); der Code steht wie bisher in <see cref="Article.SagePrimaryStorageLocation"/>.</summary>
     public int? SagePlatzId { get; set; }
