@@ -642,3 +642,32 @@ Keine Sage-Queue-Einträge. `FaPflichtBuchungsarten` wieder ohne Zeile. Auf IDEA
 9. IDEAL: eine echte Buchung mit Haupt- und Sub-FA (TS-115.7) inkl. Historie-Link auf die FA-Struktur.
 10. Produktiv-Prüfabfragen P1/P2 je Standort vor dem scharfen SQL/110.
 
+## Nachtrag Restbefunde (Dev, 2026-11-08) – Commit siehe C2-Spec (gemeinsamer Commit)
+
+- **Q-1:** Prüfkarte bei unbekanntem FA: „Ohne FA-Pflicht für diese Buchungsart wird gebucht, aber nicht mit einem FA verknüpft.“ (widerspricht der Pflicht nicht mehr).
+- **Q-2:** Link „FA anzeigen“ in der Karte mit `alert-link`; FA-Link im FA-Kopf der Bestandsübersicht über `.alert a.fa-link` (dunkle Alert-Linkfarbe). Sichtprüfung im QA-Neulauf.
+
+
+## QA Restbefunde (qa-agent, 2026-11-07) – Delta-Commit d7180d63 (Diff 1ed5c72c..d7180d63)
+
+**Ergebnis: Testbereit bleibt – ja.** Nichts Blockierendes.
+
+**Build und Tests (Worktree, Stand d7180d63):** `dotnet build IdealAkeWms.slnx` 0 Fehler (28 Warnungen, NuGet-Advisories wie zuvor). `dotnet test`: IdealAkeWms.Tests 2528 bestanden / 1 übersprungen / 0 Fehler (2529); IDEALAKEWMSService.Tests 506 / 0 / 0.
+
+**DEV-Deploy (standort: beide):** `dev-deploy.ps1 -Standort AKE` und `-Standort IDEAL` aus dem Worktree, jeweils Exit 0, Fußzeile v1.88.0 = AppVersion (Web und Service); DEV-Absicherung neu angewendet.
+
+**Review des Deltas (A5-Anteil):** `wwwroot/js/fa-feld.js` (Kartentext, `alert-link`), `Views/Shared/_FaLink.cshtml` (Klasse `fa-link`), `wwwroot/css/site.css` (`.alert a.fa-link`). Daten weiter nur per `textContent`; `fa-link` wirkt nur innerhalb `.alert` – die Historie (`StockMovements/Index`, kein Alert) bleibt unverändert. Keine geänderten Bestandstests im Delta.
+
+| Schritt (DEV AKE, http://localhost:8081) | Ergebnis | |
+|---|---|---|
+| Q-1: Einbuchung, FA `9999999` tippen (nicht gebucht) | Karte „Achtung: FA 9999999 ist im WMS unbekannt.“ + „Ohne FA-Pflicht für diese Buchungsart wird gebucht, aber nicht mit einem FA verknüpft.“ | OK |
+| Q-2a: Einbuchung, erledigter FA `2602025` | gelbe Karte, „FA anzeigen“ fett in dunkler Alert-Linkfarbe (`--bs-warning-text-emphasis` #664d03 auf #fff3cd ≈ 7,2:1) | OK |
+| Q-2b: Bestandsübersicht `?filterProductionOrder=2602025` (gelber FA-Kopf) | FA-Link dunkelbraun/fett statt Blau (#664d03 auf #fff3cd ≈ 7,2:1 ≥ 4,5:1) | OK |
+| Q-2c: Bestandsübersicht `?filterProductionOrder=2614027` (heller FA-Kopf) | Link #495057 auf #fcfcfd ≈ 7,9:1 | OK |
+
+Kontrastwerte aus den Bootstrap-5.3.3-Variablen berechnet und am Bildschirm abgeglichen (Farbe sichtbar umgestellt), nicht per Pipette gemessen.
+
+**Befunde:**
+- **R-1 (Doku, nicht blockierend):** `docs/TESTSZENARIEN.md` TS-115.3 erwartet noch den alten Kartentext „Buchen ist möglich …“ – auf den Q-1-Text nachziehen. Beim nächsten Commit im Worktree mitnehmen.
+
+**Für den Menschen offen:** TS-115.3 mit eingeschalteter FA-Pflicht für Wareneingang (Server-Fehler am FA-Feld, Kartentext passt dazu) auf dem Testsystem; Kontrast am Fertigungsterminal ansehen.

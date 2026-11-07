@@ -824,3 +824,39 @@ Zwischenfall: Ein Klick auf „Gepickte Artikel umbuchen“ ohne erkannte Markie
 9. Entscheidungen: Q10 (zweiter Standard löst ab), Q11 (Altbestand + B1), Q14 (Zeilenstatus im Druck), Q9 (Häkchen = „In Arbeit“?).
 10. Dev-Nacharbeit, nicht blockierend: Q13 (Transaktion Standardwechsel), Q12 (Brain-Changelog, feature-map).
 
+## Nachtrag Restbefunde nach QA Reparatur 1 (Dev, 2026-11-08)
+
+- **Q13:** Standardwechsel beide Speicherschritte in einer Transaktion (`IPickingAreaRepository.InTransactionAsync`).
+- **Q14:** Druck mit Spalte „Status“ (Zeilenstatus als Text). **Q15:** Auftragsseite „Zurück zur Kommissionierung“. **Q16:** Meldetext nennt Sub-FA.
+- Q9/Q10/Q11 bleiben Fragen an Gerald.
+
+
+## QA Restbefunde (qa-agent, 2026-11-07) – Delta-Commit d7180d63 (Diff 1ed5c72c..d7180d63)
+
+**Ergebnis: Testbereit bleibt – ja.** Nichts Blockierendes.
+
+**Build und Tests (Worktree, Stand d7180d63):** `dotnet build IdealAkeWms.slnx` 0 Fehler. `dotnet test`: IdealAkeWms.Tests 2528 bestanden / 1 übersprungen / 0 Fehler; IDEALAKEWMSService.Tests 506 / 0 / 0.
+
+**DEV-Deploy (standort: beide):** AKE und IDEAL aus dem Worktree, jeweils Exit 0, Fußzeile v1.88.0 = AppVersion.
+
+**Review des Deltas (C2-Anteil):** `PickingAreasController.Edit` + `IPickingAreaRepository/PickingAreaRepository.InTransactionAsync`, `Views/Picking/PrintPicking.cshtml`, `Views/Picking/Bom.cshtml`, `PickingLeitstandController.AuftraegeNachziehen`.
+- Q13: beide `SaveChangesAsync` in einer `BeginTransactionAsync`; kein `EnableRetryOnFailure` im Projekt (Grep `EnableRetryOnFailure|ExecutionStrategy` leer), daher keine Konflikte mit einer Ausführungsstrategie. Bei Ausnahme im zweiten Schritt wird ohne Commit verworfen → alter Standard bleibt. InMemory-Zweig führt die Aktion ohne Transaktion aus. Der gefilterte UNIQUE-Index ist InMemory nicht beweisbar → Manual-UAT, auf DEV erledigt (unten).
+- Q14: `colspan` auf 7 nachgezogen; Statustext aus `PickingOrderListItem.ZeilenStatusText` (eine Quelle).
+- Q15: Knopf nur im interaktiven Zweig (`!ReadOnly`), der ReadOnly-Zweig hatte schon „Zurück zur Kommissionierung“.
+- Q16: reine Textänderung.
+Keine geänderten Bestandstests im Delta.
+
+| Schritt (DEV AKE, http://localhost:8081) | Ergebnis | |
+|---|---|---|
+| Q13a: Bereich „Glas“ bearbeiten → Standardbereich → Speichern | „Bereich „Glas“ gespeichert.“, Liste zeigt nur „Glas“ als Standard | OK |
+| Q13b: Bereich „Lager“ zurück auf Standard | gespeichert; SQL `PickingAreas`: genau ein `IsDefault=1` (Lager), Audit `ModifiedAt/By` an beiden gesetzt | OK |
+| Q14: `/Picking/AuftragDrucken/19` | Spalte „Status“ mit Texten „umgebucht“ / „in Folgeauftrag“ | OK |
+| Q15: `/Picking/Auftrag/20` interaktiv (Status für den Test kurz auf InArbeit gesetzt, danach auf 40 zurückgesetzt) | Knopf „Zurück zur Kommissionierung“ → `/Picking` | OK |
+| Q16: Sammelmeldung mit markierter Sub-FA | nur im Code geprüft (Text „… erledigt, storniert oder Sub-FA“) | NICHT MOEGLICH ohne Aufträge anzulegen – für den Menschen |
+
+DEV-Testdaten: Standardbereich wieder „Lager“ (Ausgangszustand); `PickingOrders.Id=20` Status 40 wiederhergestellt.
+
+**Befunde:**
+- **R-1 (Doku, nicht blockierend):** `docs/TESTSZENARIEN.md` TS-120.9 nennt im Druck nur „Soll/Ist/Lagerplatz“ – Spalte „Status“ (Q14) ergänzen; Q15/Q16 haben keine eigene Zeile (in TS-120.2/120.3 als Erwartung ergänzen). Beim nächsten Commit im Worktree mitnehmen.
+
+**Für den Menschen offen:** 1. Leitstand: HauptFA + Sub-FA markieren → „Fehlende Kommissionieraufträge erzeugen“ → Warnung „1 markierte FA übersprungen (nicht freigegeben, erledigt, storniert oder Sub-FA).“ 2. Standardwechsel in beide Richtungen auf dem Testsystem. 3. Ausdruck eines offenen Auftrags auf Papier (Spaltenbreite mit Status). 4. Q9/Q10/Q11 bleiben Fragen an Gerald.
