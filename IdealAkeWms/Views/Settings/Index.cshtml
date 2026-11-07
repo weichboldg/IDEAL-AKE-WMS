@@ -183,15 +183,4 @@
 
 @section Scripts {
     <script src="~/js/settings-fields.js" asp-append-version="true"></script>
-    <script>
-        // BDE: Default-Arbeitsgang darf bei aktivierter FA-Meldung nicht leer sein (Serverpruefung folgt in E4a).
-        document.querySelector('form[action$="SaveSettings"]').addEventListener('submit', function(e) {
-            var nurFa = document.querySelector('input[data-setting-key="BdeNurFaMeldung"]');
-            var defaultAg = document.querySelector('input[name="settings[BdeDefaultArbeitsgang]"]');
-            if (nurFa && nurFa.checked && defaultAg && !defaultAg.value.trim()) {
-                e.preventDefault();
-                alert('Bei aktivierter FA-Meldung muss ein Default-Arbeitsgang definiert werden.');
-            }
-        });
-    </script>
 }

@@ -8,6 +8,7 @@ using IdealAkeWms.Filters;
 using IdealAkeWms.Models;
 using IdealAkeWms.Models.ViewModels;
 using IdealAkeWms.Services;
+using IdealAkeWms.Services.Settings;
 using IdealAkeWms.Services.HierarchischeStruktur;
 using IdealAkeWms.Services.SyncLogger;
 
@@ -42,48 +43,48 @@ public class ServiceSettingsController : Controller
     {
         settings ??= new Dictionary<string, string>();
 
+        // v1.77.0 E4a (F5, ADR 0020): ALLE Katalog-Keys pruefen, bevor geschrieben wird — bei einem Fehler wird nichts gespeichert
+        // (vorher wurden die uebrigen Werte trotzdem geschrieben). Choice exakt (der Dienst liest ordinal). Speichern ohne Nebenwirkung (F4).
+        var bestand = (await _repository.GetAllAsync() ?? new List<ServiceSetting>()).ToDictionary(r => r.Key, StringComparer.Ordinal);
+        var schreiben = new List<(SettingDefinition Def, string Wert)>();
         foreach (var (key, rawValue) in settings)
         {
             if (!ServiceSettingDefinitions.TryGet(key, out var def))
                 continue; // unbekannte Keys ignorieren (Orphans laufen ueber Edit/Delete)
 
-            var value = rawValue ?? string.Empty;
-
-            try
+            var roh = rawValue ?? string.Empty;
+            // Checkbox-Altformen wie bisher als „an“ lesen.
+            if (def.Type == SettingType.Bool && (roh == "1" || roh.Equals("on", StringComparison.OrdinalIgnoreCase))) roh = "true";
+            var pruefung = SettingValidator.Validate(def, roh, exakt: true);
+            if (!pruefung.Gueltig)
             {
-                switch (def.Type)
-                {
-                    case SettingType.Bool:
-                        // Checkbox/Hidden liefert "true"/"false"; jeder truthy-Wert -> "true".
-                        var isTrue = string.Equals(value, "true", StringComparison.OrdinalIgnoreCase)
-                                  || string.Equals(value, "on", StringComparison.OrdinalIgnoreCase)
-                                  || value == "1";
-                        await _repository.UpsertAsync(key, isTrue ? "true" : "false", def.Category, def.Description);
-                        break;
-
-                    case SettingType.Int:
-                        if (!int.TryParse(value.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var i))
-                        {
-                            ModelState.AddModelError(key, $"'{def.Key}' erwartet eine ganze Zahl (war: '{value}').");
-                            continue; // diesen Key NICHT speichern
-                        }
-                        await _repository.UpsertAsync(key, i.ToString(CultureInfo.InvariantCulture), def.Category, def.Description);
-                        break;
-
-                    default: // String
-                        await _repository.UpsertAsync(key, value, def.Category, def.Description);
-                        break;
-                }
+                ModelState.AddModelError(key, pruefung.Fehler!);
+                continue;
             }
-            catch (HierarchischeStrukturGuardException ex)
+            var wert = def.Type == SettingType.String ? roh : pruefung.Kanonisch!;
+            if (bestand.TryGetValue(key, out var row) && string.Equals(row.Value, wert, StringComparison.Ordinal)) continue;
+            if (!bestand.ContainsKey(key) && SettingItem.EntsprichtDefault(def, wert)) continue;
+            schreiben.Add((def, wert));
+        }
+
+        if (ModelState.IsValid)
+        {
+            foreach (var (def, wert) in schreiben)
             {
-                // Technischer Schreibversuch auf einen geschützten Einwegtor-Key über die generische
-                // Maske: abgelehnt (Choke-Point-Decorator) + protokolliert (AK 2).
-                ModelState.AddModelError(key, ex.Message);
-                await using var run = await _syncLogger.BeginRunAsync(SyncLogServices.HierarchieUmstellung);
-                await run.LogWarningAsync(
-                    $"Technischer Schreibversuch auf geschützten Key '{key}' über die generische Maske abgelehnt (durch {_currentUser.GetWindowsUserName()}): {ex.Message}");
-                await run.FinishSuccessAsync();
+                try
+                {
+                    await _repository.UpsertAsync(def.Key, wert, def.Category, def.Description);
+                }
+                catch (HierarchischeStrukturGuardException ex)
+                {
+                    // Technischer Schreibversuch auf einen geschützten Einwegtor-Key über die generische
+                    // Maske: abgelehnt (Choke-Point-Decorator) + protokolliert (AK 2).
+                    ModelState.AddModelError(def.Key, ex.Message);
+                    await using var run = await _syncLogger.BeginRunAsync(SyncLogServices.HierarchieUmstellung);
+                    await run.LogWarningAsync(
+                        $"Technischer Schreibversuch auf geschützten Key '{def.Key}' über die generische Maske abgelehnt (durch {_currentUser.GetWindowsUserName()}): {ex.Message}");
+                    await run.FinishSuccessAsync();
+                }
             }
         }
 

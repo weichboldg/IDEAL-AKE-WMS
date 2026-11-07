@@ -58,7 +58,8 @@ public class SettingsControllerQrErstesFeldTests
 
         result.Should().BeOfType<RedirectToActionResult>();
         repo.Verify(r => r.SetValueAsync(It.IsAny<string>(), It.IsAny<string>()), Times.Never, "kein Wert der Maske wird gespeichert");
-        ctrl.TempData["WarningMessage"].Should().Be("QrErstesFeld: erlaubt sind „Artikelnummer“ oder „Matchcode“ – nichts gespeichert.");
+        // v1.77.0 E4a: Meldung aus dem SettingValidator (Anzeigename + erlaubte Werte), weiterhin nichts gespeichert.
+        ctrl.TempData["WarningMessage"].Should().Be($"Nicht gespeichert: „QR-Code: erstes Feld“: „{eingabe}“ ist nicht erlaubt – erlaubt: „Artikelnummer“, „Matchcode“.");
     }
 
     // v1.69.0 QrTrennzeichen (Freigabe-Nachtrag 2): gleicher Mechanismus ueber AppSettingDefinitions (Choice), genau ; oder ,
@@ -87,6 +88,6 @@ public class SettingsControllerQrErstesFeldTests
         await ctrl.SaveSettings(new Dictionary<string, string> { [AppSettingKeys.QrErstesFeld] = "Matchcode", [AppSettingKeys.QrTrennzeichen] = eingabe });
 
         repo.Verify(r => r.SetValueAsync(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
-        ctrl.TempData["WarningMessage"].Should().Be("QrTrennzeichen: erlaubt sind „;“ oder „,“ – nichts gespeichert.");
+        ctrl.TempData["WarningMessage"].Should().Be($"Nicht gespeichert: „QR-Code: Trennzeichen“: „{eingabe}“ ist nicht erlaubt – erlaubt: „;“, „,“.");
     }
 }

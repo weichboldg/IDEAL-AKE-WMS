@@ -113,4 +113,44 @@ public class SettingsControllerKatalogTests
         repo.Verify(r => r.SetValueAsync(AppSettingKeys.LagerbestellungAktiv, "true"), Times.Once);
         repo.Verify(r => r.SetValueAsync(AppSettingKeys.BeschichtungAbholtage, "Montag"), Times.Once);
     }
+
+    [Fact]
+    public async Task Save_UngueltigerWert_NichtsGeschrieben_MeldungMitAnzeigename_AK12()
+    {
+        var (ctrl, repo) = Build(new AppSetting { Key = AppSettingKeys.BdeAktiv, Value = "false" });
+
+        await ctrl.SaveSettings(new Dictionary<string, string>
+        {
+            [AppSettingKeys.BdeAktiv] = "true",                                   // gueltig, geaendert
+            [AppSettingKeys.OseonReportingHorizonDays] = "99",                    // Max 60
+            [AppSettingKeys.DefaultGlasbestellempfaengerId] = "123",              // Gruppe existiert nicht
+        });
+
+        repo.Verify(r => r.SetValueAsync(It.IsAny<string>(), It.IsAny<string?>()), Times.Never, "ganz oder gar nicht");
+        var meldung = (string)ctrl.TempData["WarningMessage"]!;
+        meldung.Should().StartWith("Nicht gespeichert:").And.Contain("OSEON-Reporting: Horizont").And.Contain("von 1 bis 60")
+            .And.Contain("Empfängergruppe Glasbestellung");
+    }
+
+    [Fact]
+    public async Task Save_NurFaMeldungOhneDefaultArbeitsgang_Abgelehnt_AK13()
+    {
+        var (ctrl, repo) = Build(new AppSetting { Key = AppSettingKeys.BdeDefaultArbeitsgang, Value = "" });
+
+        await ctrl.SaveSettings(new Dictionary<string, string> { [AppSettingKeys.BdeNurFaMeldung] = "true" });
+
+        repo.Verify(r => r.SetValueAsync(It.IsAny<string>(), It.IsAny<string?>()), Times.Never);
+        ((string)ctrl.TempData["WarningMessage"]!).Should().Contain("Default-Arbeitsgang");
+    }
+
+    [Fact]
+    public async Task Save_UnbekannterKey_Ignoriert_AK14()
+    {
+        var (ctrl, repo) = Build();
+
+        await ctrl.SaveSettings(new Dictionary<string, string> { ["Erfunden"] = "x" });
+
+        repo.Verify(r => r.SetValueAsync(It.IsAny<string>(), It.IsAny<string?>()), Times.Never);
+        ctrl.TempData["SuccessMessage"].Should().NotBeNull();
+    }
 }

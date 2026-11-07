@@ -37,6 +37,11 @@ public sealed class SettingItem
         };
     }
 
+    /// <summary>F4: Wert entspricht dem (wirksamen) Default — ohne DB-Zeile wird dann nichts geschrieben.</summary>
+    public static bool EntsprichtDefault(SettingDefinition d, string? wert) => d.Type == SettingType.Bool
+        ? BoolWirksam(d, wert) == BoolWirksam(d, d.DefaultValue)
+        : string.Equals((wert ?? "").Trim(), d.DefaultValue.Trim(), StringComparison.Ordinal);
+
     /// <param name="exakt">Choice nur exakt gueltig (ServiceSettings, siehe <see cref="SettingValidator"/>).</param>
     public static SettingItem Aus(SettingDefinition d, string? roh, IReadOnlyList<(string Wert, string Text)>? optionen = null, bool exakt = false)
     {

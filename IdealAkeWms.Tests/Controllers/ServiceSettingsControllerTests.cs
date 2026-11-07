@@ -92,7 +92,8 @@ public class ServiceSettingsControllerTests
         result.Should().BeOfType<RedirectToActionResult>();
         // Bool-Keys werden mit Kategorie/Beschreibung aus dem Katalog geschrieben.
         repo.Verify(r => r.UpsertAsync("Sync:BomCacheEnabled", "true", "BOM-Cache", It.IsAny<string>()), Times.Once);
-        repo.Verify(r => r.UpsertAsync("Sync:CoatingDetectionEnabled", "false", "Lackierteile", It.IsAny<string>()), Times.Once);
+        // v1.77.0 F4: ohne DB-Zeile und mit dem Default gepostet (CoatingDetection = false) wird nichts geschrieben.
+        repo.Verify(r => r.UpsertAsync("Sync:CoatingDetectionEnabled", It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
         ctrl.TempData["SuccessMessage"].Should().NotBeNull();
     }
 
@@ -123,9 +124,8 @@ public class ServiceSettingsControllerTests
 
         var result = await ctrl.SaveSettings(settings);
 
-        // Ungueltiger Int-Key wird NICHT gespeichert, aber gueltiger schon.
-        repo.Verify(r => r.UpsertAsync("Sync:BomCacheWeeks", It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
-        repo.Verify(r => r.UpsertAsync("Sync:BomCacheMaxOrders", "300", "BOM-Cache", It.IsAny<string>()), Times.Once);
+        // v1.77.0 E4a (AK 12): ganz oder gar nicht — bei einem ungueltigen Wert wird KEIN Key der Seite gespeichert.
+        repo.Verify(r => r.UpsertAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
         ctrl.ModelState.IsValid.Should().BeFalse();
         // Bei Fehler: View zurueck (nicht Redirect), damit der Fehler sichtbar ist.
         result.Should().BeOfType<ViewResult>();

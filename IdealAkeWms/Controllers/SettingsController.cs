@@ -4,6 +4,7 @@ using IdealAkeWms.Filters;
 using IdealAkeWms.Models;
 using IdealAkeWms.Models.ViewModels;
 using IdealAkeWms.Services;
+using IdealAkeWms.Services.Settings;
 
 namespace IdealAkeWms.Controllers;
 
@@ -60,10 +61,10 @@ public class SettingsController : Controller
     /// <summary>Auswahl aus Stammdaten (MasterData) bzw. Vorschlaege (BdeDefaultArbeitsgang) je Key.</summary>
     internal async Task<Dictionary<string, IReadOnlyList<(string Wert, string Text)>>> OptionenAsync()
     {
-        var kategorien = (await _categories.GetAllOrderedAsync()).Select(c => (c.Name, c.Name)).ToList();
-        var gruppen = (await _recipients.GetAllGroupsAsync()).OrderBy(g => g.Name).Select(g => (g.Id.ToString(), $"{g.Name} (Id {g.Id})")).ToList();
-        var plaetze = (await _storageLocations.GetAllOrderedAsync()).Select(l => (l.Code, l.Code)).ToList();
-        var arbeitsgaenge = (await _operations.GetAllAsync()).Select(o => o.OperationName).Distinct(StringComparer.OrdinalIgnoreCase)
+        var kategorien = ((await _categories.GetAllOrderedAsync()) ?? new()).Select(c => (c.Name, c.Name)).ToList();
+        var gruppen = ((await _recipients.GetAllGroupsAsync()) ?? new()).OrderBy(g => g.Name).Select(g => (g.Id.ToString(), $"{g.Name} (Id {g.Id})")).ToList();
+        var plaetze = ((await _storageLocations.GetAllOrderedAsync()) ?? new()).Select(l => (l.Code, l.Code)).ToList();
+        var arbeitsgaenge = ((await _operations.GetAllAsync()) ?? new()).Select(o => o.OperationName).Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(n => n).Select(n => (n, n)).ToList();
         var result = new Dictionary<string, IReadOnlyList<(string Wert, string Text)>>
         {
@@ -84,38 +85,44 @@ public class SettingsController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> SaveSettings(Dictionary<string, string> settings)
     {
-        // v1.68.0/v1.69.0: Einstellungen mit festen Werten (Choice im Katalog AppSettingDefinitions, in der Maske ein Dropdown) nur
-        // kanonisch speichern - ein ungueltiger Wert (alter Stand, Handeingabe) fiele sonst still auf den Standard zurueck.
-        foreach (var (key, werte) in AppSettingDefinitions.All.Where(d => d.Type == SettingType.Choice).Select(d => (d.Key, d.Werte!)))
+        settings ??= new Dictionary<string, string>();
+        // v1.77.0 E4a (Spec 2026-11-07-einstellungen-auswahlfelder-und-beschreibung F5, ADR 0020): nur Katalog-Keys (Allow-List), ALLE pruefen,
+        // bevor geschrieben wird — bei einem Fehler wird nichts gespeichert. Speichern ohne Nebenwirkung (F4).
+        var bestand = (await _settingRepository.GetAllAsync() ?? new List<AppSetting>()).GroupBy(r => r.Key).ToDictionary(g => g.Key, g => g.First().Value);
+        var optionen = await OptionenAsync();
+        var fehler = new List<string>();
+        var schreiben = new List<(string Key, string Wert)>();
+        foreach (var (key, roh) in settings)
         {
-            if (!settings.TryGetValue(key, out var eingabe)) continue;
-            var kanonisch = werte.Select(w => w.Wert).FirstOrDefault(w => string.Equals(w, eingabe?.Trim(), StringComparison.OrdinalIgnoreCase));
-            if (kanonisch == null)
-            {
-                TempData["WarningMessage"] = $"{key}: erlaubt sind {string.Join(" oder ", werte.Select(w => $"„{w.Wert}“"))} – nichts gespeichert.";
-                return RedirectToAction(nameof(Index));
-            }
-            settings[key] = kanonisch;
+            if (!AppSettingDefinitions.TryGet(key, out var def)) continue;
+            var stamm = def.Type == SettingType.MasterData && optionen.TryGetValue(key, out var o) ? o.Select(x => x.Wert).ToList() : null;
+            var pruefung = SettingValidator.Validate(def, roh, stamm);
+            if (!pruefung.Gueltig) { fehler.Add(pruefung.Fehler!); continue; }
+            var wert = def.Type == SettingType.String ? roh ?? "" : pruefung.Kanonisch!;
+            var hatZeile = bestand.TryGetValue(key, out var alt);
+            if (hatZeile && string.Equals(alt, wert, StringComparison.Ordinal)) continue;
+            if (!hatZeile && SettingItem.EntsprichtDefault(def, wert)) continue;
+            schreiben.Add((key, wert));
         }
 
-        // F4: Speichern ohne Nebenwirkung — ohne DB-Zeile und mit dem (wirksamen) Default gepostet = nichts schreiben (fuer manche Keys
-        // wirkt "" anders als „Zeile fehlt“); unveraenderte Werte vorhandener Zeilen nicht neu schreiben.
-        var bestand = (await _settingRepository.GetAllAsync()).GroupBy(r => r.Key).ToDictionary(g => g.Key, g => g.First().Value);
-        foreach (var kvp in settings)
+        // AK 13: „nur FA-Meldung“ braucht einen Default-Arbeitsgang (bisher nur per JS geprueft).
+        string Gilt(string key) => settings.TryGetValue(key, out var v) ? v ?? "" : bestand.GetValueOrDefault(key) ?? "";
+        if (Gilt(AppSettingKeys.BdeNurFaMeldung).Trim().Equals("true", StringComparison.OrdinalIgnoreCase)
+            && string.IsNullOrWhiteSpace(Gilt(AppSettingKeys.BdeDefaultArbeitsgang)))
+            fehler.Add("„BDE: Default-Arbeitsgang“ ist Pflicht, solange „BDE: nur FA-Meldung“ an ist.");
+
+        if (fehler.Count > 0)
         {
-            var hatZeile = bestand.TryGetValue(kvp.Key, out var alt);
-            if (hatZeile && string.Equals(alt, kvp.Value, StringComparison.Ordinal)) continue;
-            if (!hatZeile && AppSettingDefinitions.TryGet(kvp.Key, out var def) && EntsprichtDefault(def, kvp.Value)) continue;
-            await _settingRepository.SetValueAsync(kvp.Key, kvp.Value);
+            TempData["WarningMessage"] = "Nicht gespeichert: " + string.Join(" ", fehler);
+            return RedirectToAction(nameof(Index));
         }
+
+        foreach (var (key, wert) in schreiben)
+            await _settingRepository.SetValueAsync(key, wert);
 
         TempData["SuccessMessage"] = "Einstellungen gespeichert.";
         return RedirectToAction(nameof(Index));
     }
-
-    internal static bool EntsprichtDefault(SettingDefinition d, string? wert) => d.Type == SettingType.Bool
-        ? SettingItem.BoolWirksam(d, wert) == SettingItem.BoolWirksam(d, d.DefaultValue)
-        : string.Equals((wert ?? "").Trim(), d.DefaultValue.Trim(), StringComparison.Ordinal);
 
     [HttpPost]
     [ValidateAntiForgeryToken]
