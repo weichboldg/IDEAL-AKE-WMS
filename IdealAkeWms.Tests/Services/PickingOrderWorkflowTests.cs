@@ -128,4 +128,80 @@ public class PickingOrderWorkflowTests
         await db.SaveChangesAsync();
         (await w.ErzeugeOffeneAsync(10)).Fehler.Should().Contain("Kein aktiver Standardbereich");
     }
+
+    // ---------- E3: Abschluss (AK 13, 14) ----------
+
+    private static void Umgebucht(PickingOrderLine z, decimal ist)
+    {
+        z.Status = PickingOrderLineStatus.Umgebucht;
+        z.IstMenge = ist;
+    }
+
+    [Fact]
+    public async Task Abschluss_Teilweise_Folgeauftrag_MitRest_FaNichtErledigt_AK14()
+    {
+        Pos("A1", "10", 10m);
+        Pos("A2", "20", 2m);
+        var (w, db) = await SetupAsync(faMenge: 1m);
+        await w.ErzeugeOffeneAsync(10);
+        var auftrag = db.PickingOrders.Single();
+        Umgebucht(db.PickingOrderLines.Single(z => z.ArticleNumber == "A1"), 4m);
+        await db.SaveChangesAsync();
+
+        var r = await w.AbschliessenAsync(auftrag.Id, vollstaendig: false);
+
+        r.Nummern.Should().Equal("KO-2026-00002");
+        r.FaAbgeschlossen.Should().BeFalse();
+        var folge = db.PickingOrders.Single(o => o.Nummer == "KO-2026-00002");
+        (folge.UrsprungsauftragId, folge.PickingAreaId, folge.PickingPriority, folge.Status)
+            .Should().Be(((int?)auftrag.Id, auftrag.PickingAreaId, (int?)3, PickingOrderStatus.Offen));
+        db.PickingOrderLines.Where(z => z.PickingOrderId == folge.Id).OrderBy(z => z.ArticleNumber).AsEnumerable()
+            .Select(z => (z.ArticleNumber, z.SollMenge)).Should().Equal(("A1", 6m), ("A2", 2m));
+        db.PickingOrders.Single(o => o.Id == auftrag.Id).Status.Should().Be(PickingOrderStatus.TeilweiseAbgeschlossen);
+        db.PickingOrderLines.Single(z => z.PickingOrderId == auftrag.Id && z.ArticleNumber == "A2").Status.Should().Be(PickingOrderLineStatus.Uebertragen);
+        db.ProductionOrderPickingStatuses.Single().PickingStatus.Should().Be("teilkommissioniert");
+        db.ProductionOrderPickingStatuses.Single().IsDonePicking.Should().BeFalse();
+
+        // Nachziehen erzeugt nichts doppelt (Rest steht im Folgeauftrag)
+        (await w.ErzeugeOffeneAsync(10)).Nummern.Should().BeEmpty();
+
+        // Folgeauftrag vollstaendig → FA erledigt
+        var f = await w.AbschliessenAsync(folge.Id, vollstaendig: true);
+        f.FaAbgeschlossen.Should().BeTrue();
+        db.ProductionOrderPickingStatuses.Single().IsDonePicking.Should().BeTrue();
+        db.ProductionOrderPickingStatuses.Single().PickingStatus.Should().Be("abgeschlossen");
+    }
+
+    [Fact]
+    public async Task Abschluss_Vollstaendig_OffeneZeilenEntfallen_NachziehenLegtNichtsAn_AK13()
+    {
+        Pos("A1", "10", 10m);
+        Pos("A2", "20", 2m);
+        var (w, db) = await SetupAsync(faMenge: 1m);
+        await w.ErzeugeOffeneAsync(10);
+        var auftrag = db.PickingOrders.Single();
+        Umgebucht(db.PickingOrderLines.Single(z => z.ArticleNumber == "A1"), 4m); // bewusst weniger, vollstaendig
+        await db.SaveChangesAsync();
+
+        var r = await w.AbschliessenAsync(auftrag.Id, vollstaendig: true);
+
+        (r.Nummern.Count, r.FaAbgeschlossen).Should().Be((0, true));
+        db.PickingOrderLines.Single(z => z.ArticleNumber == "A2").Status.Should().Be(PickingOrderLineStatus.Entfallen);
+        var abg = db.PickingOrders.Single();
+        (abg.Status, abg.AbgeschlossenVon, abg.ModifiedBy).Should().Be((PickingOrderStatus.Abgeschlossen, "Leitstand", "Leitstand"));
+        (await w.ErzeugeOffeneAsync(10)).Nummern.Should().BeEmpty("„vollständig“ heißt: der Rest wird nicht gebraucht");
+        (await w.AbschliessenAsync(auftrag.Id, true)).Fehler.Should().Contain("bereits abgeschlossen");
+    }
+
+    [Fact]
+    public async Task Abschluss_ZweiBereiche_FaErstNachBeidenErledigt()
+    {
+        Pos("A1", "10", 1m);
+        Pos("G1", "20", 1m);
+        var (w, db) = await SetupAsync(faMenge: 1m);
+        await w.ErzeugeOffeneAsync(10);
+        var ids = db.PickingOrders.OrderBy(o => o.Id).Select(o => o.Id).ToList();
+        (await w.AbschliessenAsync(ids[0], true)).FaAbgeschlossen.Should().BeFalse();
+        (await w.AbschliessenAsync(ids[1], true)).FaAbgeschlossen.Should().BeTrue();
+    }
 }

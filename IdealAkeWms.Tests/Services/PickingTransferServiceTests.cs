@@ -291,4 +291,69 @@ public class PickingTransferServiceTests
         await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("*Keine Artikel zum Umbuchen*");
     }
+
+    // ── v1.88.0 (AK 11, 12): Ist-Menge serverseitig, Teilmenge, kein Sage-Queue-Eintrag, Status InArbeit ──
+
+    [Theory]
+    [InlineData("0")]
+    [InlineData("-1")]
+    [InlineData("11")]
+    [InlineData("abc")]
+    public async Task IstMenge_UngueltigOderUeberSoll_Abgelehnt_NichtsGebucht(string ist)
+    {
+        using var ctx = CreateContext(nameof(IstMenge_UngueltigOderUeberSoll_Abgelehnt_NichtsGebucht) + ist);
+        var order = AddOrder(ctx);
+        var target = AddLocation(ctx, "TARGET");
+        var src = AddLocation(ctx, "SRC");
+        var art = AddArticle(ctx, "ART-001");
+        AddStock(ctx, art.Id, src.Id, 100);
+        var zeile = AddPickingItem(ctx, order.Id, art.ArticleNumber, 10, src.Id);
+        var service = CreateService(ctx);
+
+        var act = () => service.TransferOrderLinesAsync(zeile.PickingOrderId, target.Id, false,
+            new() { new PickingSelectionItem { PickingItemId = zeile.Id, SourceStorageLocationId = src.Id, IstMenge = ist } }, null, User, WinUser);
+
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*Ist-Menge*");
+        ctx.StockMovements.Count(m => m.MovementType == MovementType.Umbuchung).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Teilmenge_MitKomma_BuchtIst_KeinSageQueue_AuftragInArbeit()
+    {
+        using var ctx = CreateContext();
+        var order = AddOrder(ctx);
+        var target = AddLocation(ctx, "TARGET");
+        var src = AddLocation(ctx, "SRC");
+        var art = AddArticle(ctx, "ART-001");
+        AddStock(ctx, art.Id, src.Id, 100);
+        var zeile = AddPickingItem(ctx, order.Id, art.ArticleNumber, 10, src.Id);
+        var service = CreateService(ctx);
+
+        await service.TransferOrderLinesAsync(zeile.PickingOrderId, target.Id, false,
+            new() { new PickingSelectionItem { PickingItemId = zeile.Id, SourceStorageLocationId = src.Id, IstMenge = "4,5" } }, null, User, WinUser);
+
+        var m = ctx.StockMovements.Single(x => x.MovementType == MovementType.Umbuchung);
+        (m.Quantity, m.ProductionOrderId, m.ProductionOrder).Should().Be((4.5m, (int?)order.Id, "FA-001"));
+        ctx.PickingOrderLines.Single().Should().Match<PickingOrderLine>(z => z.IstMenge == 4.5m && z.StockMovementId == m.Id && z.ModifiedBy == User);
+        ctx.PickingOrders.Single().Status.Should().Be(PickingOrderStatus.InArbeit);
+        ctx.SageBookingQueueItems.Should().BeEmpty("Kommissionier-Umbuchungen gehen nie an Sage (direkt ueber den Context)");
+    }
+
+    [Fact]
+    public async Task ZeileEinesAnderenAuftrags_Abgelehnt()
+    {
+        using var ctx = CreateContext();
+        var o1 = AddOrder(ctx, "FA-1");
+        var o2 = AddOrder(ctx, "FA-2");
+        var target = AddLocation(ctx, "TARGET");
+        var src = AddLocation(ctx, "SRC");
+        var art = AddArticle(ctx, "ART-001");
+        var z1 = AddPickingItem(ctx, o1.Id, art.ArticleNumber, 1, src.Id);
+        var z2 = AddPickingItem(ctx, o2.Id, art.ArticleNumber, 1, src.Id);
+
+        var act = () => CreateService(ctx).TransferOrderLinesAsync(z1.PickingOrderId, target.Id, false,
+            new() { new PickingSelectionItem { PickingItemId = z2.Id, SourceStorageLocationId = src.Id } }, null, User, WinUser);
+
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*gehört nicht zu Auftrag*");
+    }
 }
