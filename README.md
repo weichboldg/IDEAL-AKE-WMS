@@ -436,6 +436,8 @@ Bei Änderungen der Tabellenstruktur müssen diese Scripts angepasst werden.
 | `VaultLinkVorlage` | AKE-Vault-Adresse (Seed) | Vault-Adresse mit Platzhalter `{Artikelnummer}` (URL-kodiert eingesetzt; ohne Platzhalter angehängt). Leer = keine Links. |
 | `EnaioLinksAktiv` | `true` (Seed) | enaio-Dokument-Symbole an FA-Nummern (v1.67.0, Gruppe „enaio (Dokumente)“) — nur `false` blendet aus. Unabhängig vom Sync-Schalter `Sync:EnaioDmsEnabled`. |
 | `EnaioLinkVorlage` | `http://akeosapp.ake.at/oscontentviewer/viewer/{ObjektId}/?pagecount=1` (Seed) | enaio-Viewer-Adresse mit Platzhalter `{ObjektId}`. Leer = keine Links. |
+| `WareneingangBestellungAktiv` | `false` (kein Seed) | Menüpunkte „Offene Bestellungen“ / „Wareneingang zu Bestellung“ (v1.84.0); aus = Seiten 404. Nur exakt `true`. |
+| `OffeneBestellungenVorschauWochen` | `2` (kein Seed) | Standard-Horizont der Vorschau „Offene Bestellungen“ in Wochen (1–26, v1.84.0). |
 | `LagerplatzEtikettRolle93x55` | `false` (kein Seed) | Lagerplatz-Etiketten im Rollenformat 93 × 55 mm (v1.72.0): ein Etikett je Seite, ohne Rahmen, für Sammel- und Einzeldruck. Nur exakt `true` aktiviert; aus/fehlend = A4 mit drei Etiketten je Seite. Im Druckdialog Rollendrucker, Papierformat 93 × 55 mm, Ränder „Keine“. Pflege: Standorteinstellungen → Druck (nur Admin) |
 | `FaHierarchyVormontageAktiv` | `false` | Feature-Schalter IDEAL-Vormontage-Listen (Teil 5, zwei Sichten: Einzelne Teile + Summiert) — nur exakt `true` aktiviert (Default aus). Kumuliert mit Vorbau-Zugriff (`vorbau`, wie FA-Abarbeitungsliste) |
 | `SageSdataFaAnsichtAktiv` | `false` | Feature-Schalter „FA-Struktur (Sage live)" (v1.71.0): liest FA-Struktur, Stückliste und Rückmeldungen direkt per SData `RealTimeData` aus Sage, nur lesen. Nur exakt `true` aktiviert. Zugriff wie FA-Struktur (Kommissionierung, Teileverfolgung, Leitstand-Freigabe, Vorbau). Braucht `SData:BaseUrl`, `SData:Dataset` und die Web-App-Zugangsdaten (siehe „Web-App: Sage-Zugangsdaten"). |
@@ -725,6 +727,10 @@ C:\Services\IDEALAKEWMSService\
 > `ArtikelVariantenExtended` in `ArticleSuppliers` (nur Artikel im WMS und Lieferanten mit Kreditor gleicher `SageKto`, sonst gezählt bzw.
 > Warnung). Zuordnungen, die Sage nicht mehr liefert, werden entfernt (ohne zuordenbare Zeile nichts). Läuft nach Artikel- und
 > Kreditoren-Abgleich; Lauf „Artikel-Lieferanten-Abgleich (Sage)“. Keine Oberfläche.
+> **`Sync:EinkaufBestellungenEnabled`** (v1.84.0, Default `false`, Migration `SQL/112`/`SQL/113`): liest offene Positionen normaler
+> Sage-Bestellungen (`EinkaufPositionenInfo`, nur `EBB`, Mengen in der Basiseinheit) in den Cache `SagePurchaseOrderLines` (je Lauf ersetzt,
+> Empty-Guard), ordnet Artikel/Kreditor/Lagerplatz zu (fehlende = Warnung). Lauf „Offene Bestellungen (Sage)“, nach dem Artikel-Lieferanten-Abgleich.
+> Liest nur. Oberfläche: Lager → Offene Bestellungen / Wareneingang zu Bestellung (AppSetting `WareneingangBestellungAktiv`).
 > **Übergabe WMS → Sage (E9, Migration `SQL/107`, kein Schalter, kein Worker):** Im WMS neu angelegte Lagerplätze und BDE-Mitarbeiter
 > stehen auf `SageUebergabeStatus = Offen` und bekommen eine Zeile in `SageStammdatenOutbox`; **gesendet wird nichts** (es gibt noch keinen
 > Sage-Service). Liste: „Offene Übergaben anzeigen“ in der Lagerplatzliste bzw. BDE-Stammdaten › Operatoren. Der Lagerplatz-Abgleich übernimmt

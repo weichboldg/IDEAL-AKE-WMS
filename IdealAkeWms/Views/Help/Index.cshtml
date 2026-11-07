@@ -53,6 +53,28 @@
                         Filterbar nach Zeitraum, Artikel, Lagerplatz, Bewegungsart, Benutzer und Fertigungsauftrag.
                         Erreichbar ueber <em>Lager &rarr; Bewegungshistorie</em>.</dd>
 
+                    <dt>Offene Bestellungen und Wareneingang zu Bestellung (seit v1.84.0)</dt>
+                    <dd>
+                        Voraussetzung: Einstellung <em>&bdquo;Wareneingang zu Sage-Bestellungen&ldquo;</em> an (<code>WareneingangBestellungAktiv</code>)
+                        und der Dienst-Abgleich <code>Sync:EinkaufBestellungenEnabled</code> (liest die offenen Positionen normaler Sage-Bestellungen,
+                        braucht Kreditoren- und Lagerplatz-Abgleich).
+                        <ol class="mb-1">
+                            <li><em>Lager &rarr; Offene Bestellungen</em>: Positionen mit Liefertermin bis heute + X Wochen (Einstellung
+                                <code>OffeneBestellungenVorschauWochen</code>, Standard 2, in der Filterkarte je Aufruf änderbar); überfällige und solche
+                                ohne Termin sind immer dabei und in der Spalte &bdquo;Hinweis&ldquo; benannt. &bdquo;Stand&ldquo; = letzter Abgleich.</li>
+                            <li>Knopf <em>Wareneingang</em> an der Zeile oder <em>Lager &rarr; Wareneingang zu Bestellung</em>: Bestellnummer
+                                (z. B. <code>2027-168975</code>) eingeben oder mit dem Handscanner scannen.</li>
+                            <li>Je Position Ziel-Lagerplatz prüfen (vorbelegt mit dem Sage-Platz) und Ist-Menge eingeben (Komma oder Punkt); leer = nicht buchen.
+                                Die Zeile zeigt &bdquo;vollständig&ldquo;, &bdquo;Teillieferung&ldquo; oder &bdquo;Überlieferung&ldquo;; eine Überlieferung
+                                braucht das Häkchen &bdquo;Überlieferung bestätigt&ldquo;.</li>
+                            <li><em>Einbuchen</em>: gebucht wird nur, wenn alle eingegebenen Zeilen gültig sind. Je Position entsteht eine Einbuchung
+                                (an Sage-Plätzen wie jede Einbuchung in der Sage-Lagerbuchungs-Warteschlange) und ein Eintrag &bdquo;im WMS erfasst&ldquo;.</li>
+                        </ol>
+                        Mengen in der Basiseinheit. Nicht buchbar (mit Text in der Zeile): Artikel nicht im WMS, Mengeneinheit ≠ Lagermengeneinheit.
+                        &bdquo;Lieferant gesperrt&ldquo; ist ein Hinweis aus Sage, Buchen bleibt möglich. Die Bestellposition in Sage schließt der Einkauf
+                        (ohne zweite Lagerbuchung). Rahmenabrufe werden (noch) nicht angezeigt.
+                    </dd>
+
                     <dt>Sage-Lagerbuchungen (seit v1.28.0)</dt>
                     <dd>
                         Manuelle <strong>Ein- und Ausbuchungen</strong> koennen automatisch und zeitnah an
