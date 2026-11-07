@@ -148,3 +148,13 @@ Warum die Flags in Satelliten liegen: [[0009-app-status-in-satelliten-tabellen-n
 - `ArticleAttributesController`: Fachsperre für Sage-Merkmale (Name, Typ, Optionen, Werte, Löschen; Reihenfolge/Aktiv pflegbar).
 - `BdeMasterDataController`: Reiter `sage` + POST `SageZuordnen`/`SageZuordnungLoesen` (BDE-Filter wie bisher), Parameter `onlyUebergabeOffen`.
 - `StorageLocationsController.Index`: Parameter `onlyUebergabeOffen`, Spalten Lagerort/Sperre/Übergabe.
+
+## Kommissionierauftraege (v1.88.0) und FA an Lagerbuchungen (v1.87.0)
+
+- `PickingController`: `Index` = Auftragsliste, `Auftrag/{id}` (Stueckliste im Auftragsmodus), `AuftragUmbuchen`, `AuftragAbschliessen`,
+  `AuftragDrucken` – `[RequirePickingAccess]`; `Bom/{faId}` nur lesend mit Auftragsliste.
+- `PickingLeitstandController.AuftraegeNachziehen` – `[RequireLeitstandAccess]`; Freigabe/Ruecknahme/Prio/Kommissionierer schreiben auf Auftraege durch.
+- `PickingAreasController` (Kommissionierbereiche + Regeln) – Klasse `[RequireMasterDataReadAccess]`, Schreiben `[RequireMasterDataAccess]`. Keine neue Rolle.
+- `StockApiController` `fa-lookup`/`fa-search` (v1.87.0) unter dem Klassenfilter `RequireStockOrPickingOrTrackingAccess`. FA-Links in Lager-Tools
+  folgen dem FA-Leserecht `FaBuchungsText.CanViewProductionOrdersAsync` (= Regel von `RequirePickingOrTrackingOrLeitstandAccess`, ein Ort).
+

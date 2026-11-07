@@ -182,3 +182,13 @@ konsolidiertes `../../SQL/00_FreshInstall.sql`. Der Workflow ist verbindlich —
 - `SagePurchaseOrderLines` (v1.84.0, SQL/112): Cache offener Sage-Bestellpositionen (nur EBB), je Lauf ersetzt, kein AuditableEntity, keine FKs; UNIQUE `BelPosId`. Mengen in der Basiseinheit.
 - `PurchaseOrderReceipts` (v1.84.0, SQL/113): Wareneingang zu Bestellposition, AuditableEntity, FK `StockMovementId` Restrict + UNIQUE (Navigation `StockMovement.PurchaseOrderReceipt`), Snapshot ohne FK auf den Cache; Andockpunkt Qualitätsprüfung.
   (DEFAULT 0 nur im SQL), `SageUebergabeAm`, `SageUebergabeFehler`; `BdeOperators.Source` DEFAULT 'Manual'.
+
+## Kommissionierauftraege (v1.88.0, SQL/133)
+
+- `PickingAreas` (Name/Kuerzel UNIQUE, gefilterter UNIQUE `UX_PickingAreas_IsDefault` – genau ein Standard), `PickingAreaRules` (UNIQUE `RuleType`+`Value`).
+- `PickingOrders` (Nummer `KO-JJJJ-NNNNN`, UNIQUE `Jahr`+`LaufendeNummer`, `Typ` 1 = FA, `Status` 10/20/30/40/90, `UrsprungsauftragId`, `RowVersion`),
+  `PickingOrderLines` (Herkunft FA + Ressourcenummer + Position wie frueher `PickingItems`, Soll/Ist, `StockMovementId`, Status 0/10/20/30/40).
+- Einziger Schreibweg `PickingOrderWorkflow` bzw. `PickingTransferService.TransferOrderLinesAsync`. `PickingItems` nur noch Altbestand
+  (Einmal-Skript `SQL/Einmalig/2026-11-08_v1.88.0_Kommissionierauftraege_Altbestand.sql`). [[0021-kommissionierauftrag-als-beleg-neben-der-stueckliste]]
+- `StockMovements.ProductionOrderId` (v1.87.0, SQL/109) – verknuepfter FA neben dem Text, Regel `IProductionOrderRepository.FindForBookingAsync`.
+

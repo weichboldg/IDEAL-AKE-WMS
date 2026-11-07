@@ -52,6 +52,8 @@ diese Asymmetrien sind meist bewusst.
 |---|---|
 | Kommissionierung / Picking | Bereitstellen von Bauteilen zu einem FA (Umbuchung auf einen Kommissionierwagen). |
 | Kommissionierwagen | Lagerplatz mit `IsPickingTransport` — Transportmittel, kein Bestandsort. Aus Verfuegbarkeits- und Meldebestandsrechnung ausgeschlossen. |
+| Kommissionierauftrag (KO-Nummer) | Beleg `PickingOrder` mit Nummer `KO-JJJJ-NNNNN` je FA und Kommissionierbereich (seit v1.88.0); Zeilen `PickingOrderLine` mit Soll/Ist, Folgeauftrag bei „teilweise“. Nicht zu verwechseln mit dem Konstruktions-Termin „KO“. [[0021-kommissionierauftrag-als-beleg-neben-der-stueckliste]] |
+| Kommissionierbereich | Stammdaten `PickingArea` (Lager, Glas, Vorkommissionierung …); Regeln `PickingAreaRule` (Artikel → Kommissionierziel → Lagerort → Artikelgruppe → Standard) ordnen Stücklistenzeilen zu. |
 | Leitstand | Steuerungssicht: FAs fuer die Kommissionierung freigeben, priorisieren, Picker zuweisen; zeigt zusaetzlich die VK-VA-Erledigt-Status. Eigenes Hauptmenue seit v1.14.0, Gate `LeitstandAktiv`. |
 | Vorbau | Vormontage von Baugruppen vor der Endmontage. Traegt die **FA-Abarbeitungsliste** (`FaWorklist`) — arbeitsgang-zentriert ueber alle Werkbaenke, Werkbank nur als Zusatzfilter. Rolle `vorbau`. |
 | FA-Vervollstaendigung | Planer-Sicht: je FA festlegen, welche Vorbau-AGs und Merkmale gebraucht werden (`FaCompletion`). Gate `FaCompletionAktiv`, Rolle `fa_completion`. Schreibt `IsSpecComplete`. |
