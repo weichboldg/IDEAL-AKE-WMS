@@ -164,7 +164,7 @@
             var zeigen = function () {
                 var v = parseFloat(String(input.value).replace(',', '.'));
                 out.textContent = isNaN(v) || input.value === '' ? '—' : v <= 0 ? 'ungültig' : v === rest ? 'vollständig' : v < rest ? 'Teillieferung' : 'Überlieferung';
-                out.className = 'lieferart small fw-semibold ' + (v > rest ? 'text-danger' : '');
+                out.className = 'lieferart small fw-semibold ' + (v > rest ? 'text-danger-emphasis' : '')  /* QA Q-8: 4,5:1 auch in table-danger */;
             };
             input.addEventListener('input', zeigen);
             zeigen();
