@@ -11194,6 +11194,7 @@ Automatisiert: `ArticlesApiControllerTests.GetByEan_*`, `HardwareScannerTests.Ea
 | 110.5 | Negativ: Artikelnummer in GTIN-Form (rein numerisch, 8 Stellen, z. B. ein Artikel `12345678`) scannen | Wird über die Artikelnummer gefunden (F2), nie über eine EAN. |
 | 110.6 | Negativ: Verbindung trennen (Netzwerk im Browser offline) und EAN scannen | Meldung „EAN … konnte nicht geprüft werden“, nichts befüllt. |
 | 110.7 | Regression | Artikel-QR mit Trennzeichen, Lagerplatz- und FA-Scans unverändert (TS-101). IDEAL: EAN-Scan ohne Wirkung (wie 110.4). |
+| 110.8 | Mehrtreffer-Fenster aus 110.3 offen lassen und mit dem Handscanner (Netum) einen zweiten Code scannen (EAN oder Artikelnummer); danach einen Treffer wählen und sofort weiterscannen | Zweiter Scan wird verworfen: Hinweis „Bitte zuerst den Artikel im Auswahlfenster wählen“, nichts unter dem Fenster befüllt, kein zweites Fenster, Seite nicht grau gesperrt. Nach Auswahl/Abbrechen liegt der Fokus wieder im Artikelfeld, der nächste Scan kommt ohne Antippen an (QA E2/E3). |
 
 ---
 

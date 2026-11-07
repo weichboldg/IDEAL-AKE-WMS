@@ -344,4 +344,18 @@ public class HardwareScannerTests
             .And.Contain("gehört zu mehr als 5 Artikeln – bitte den Artikel von Hand wählen").And.Contain("konnte nicht geprüft werden")
             .And.Contain("min-height:44px");
     }
+
+    [Fact]
+    public void EanAuswahl_OffenesFenster_VerwirftHardwareScan_KeinZweitesFenster_QA_E2()
+    {
+        // QA E2: zweiter Scan bei offenem Auswahlfenster fuellte das Feld darunter bzw. stapelte Fenster (Backdrop blieb, Seite gesperrt).
+        var bs = Read("wwwroot", "js", "barcode-scanner.js");
+        var handler = bs.Substring(bs.IndexOf("document.addEventListener('wms:hardware-scan'", StringComparison.Ordinal));
+        var waechter = handler.IndexOf("document.getElementById('eanAuswahlModal')", StringComparison.Ordinal);
+        waechter.Should().BeGreaterThan(0).And.BeLessThan(handler.IndexOf("hwScanKameraZiel(vorhanden)", StringComparison.Ordinal),
+            "der Wächter steht vor jeder Zielauswertung (Kamera-Fenster, ohne Feld, Fokus)");
+        var auswahl = bs.Substring(bs.IndexOf("function _eanAuswahl(", StringComparison.Ordinal));
+        auswahl.Should().Contain("if (document.getElementById('eanAuswahlModal')) { abbrechen(); return; }")
+            .And.NotContain("alt.remove()");
+    }
 }

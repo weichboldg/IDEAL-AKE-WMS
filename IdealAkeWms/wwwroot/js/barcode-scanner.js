@@ -539,8 +539,9 @@ processScannedValue = function (value, targetSelectId, scanType, qrFaEnabled, fa
 // Auswahlfenster bei mehreren Artikeln je EAN (F5): Bootstrap-Modal, einmal je Aufruf erzeugt; grosse Ziele (>= 44 px) fuer Handgeraete,
 // Text statt nur Farbe, Fokus auf dem ersten Eintrag, Abbrechen/Escape = nichts befuellen.
 function _eanAuswahl(ean, treffer, uebernehmen, abbrechen) {
-    var alt = document.getElementById('eanAuswahlModal');
-    if (alt) alt.remove();
+    // QA E2: nie ein zweites Fenster ueber ein offenes legen (altes remove() liess Backdrop und body.modal-open stehen -> Seite gesperrt).
+    if (document.getElementById('eanAuswahlModal')) { abbrechen(); return; }
+    var vorher = document.activeElement;  // QA E3: Fokus danach zurueck, damit der naechste Scan (Fokus-Eingabe) ohne Antippen ankommt
     var modal = document.createElement('div');
     modal.id = 'eanAuswahlModal';
     modal.className = 'modal fade';
@@ -566,7 +567,11 @@ function _eanAuswahl(ean, treffer, uebernehmen, abbrechen) {
     });
     document.body.appendChild(modal);
     modal.addEventListener('shown.bs.modal', function () { var erster = liste.querySelector('button'); if (erster) erster.focus(); });
-    modal.addEventListener('hidden.bs.modal', function () { modal.remove(); if (!gewaehlt) abbrechen(); });
+    modal.addEventListener('hidden.bs.modal', function () {
+        modal.remove();
+        if (vorher && document.body.contains(vorher) && typeof vorher.focus === 'function') vorher.focus();
+        if (!gewaehlt) abbrechen();
+    });
     new bootstrap.Modal(modal).show();
 }
 
@@ -613,6 +618,12 @@ function hwScanKameraZiel(ziele) {
 
 document.addEventListener('wms:hardware-scan', function (e) {
     var d = e.detail, aktiv = document.activeElement;
+    // QA E2 (v1.78.0): Solange das EAN-Auswahlfenster offen ist, gilt ein Scan als verworfen - er fuellte sonst das Feld unter dem Fenster.
+    if (document.getElementById('eanAuswahlModal')) {
+        d.handled = true; d.ziel = 'verworfen (EAN-Auswahl offen)';
+        if (typeof d.hinweis === 'function') d.hinweis('Bitte zuerst den Artikel im Auswahlfenster wählen');
+        return;
+    }
     var vorhanden = _hwScanTargets.filter(function (z) { return document.getElementById(z.targetId); });
     var kamera = hwScanKameraZiel(vorhanden);
     if (kamera) {
