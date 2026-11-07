@@ -2296,6 +2296,47 @@ BEGIN
 END
 GO
 
+-- SagePurchaseOrderLines (v1.84.0 / SQL/112, Wareneingang aus Sage-Bestellungen E1): Cache offener Sage-Bestellpositionen (EBB).
+IF OBJECT_ID(N'dbo.SagePurchaseOrderLines', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[SagePurchaseOrderLines] (
+        [Id]                        INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_SagePurchaseOrderLines PRIMARY KEY,
+        [BelPosId]                  INT               NOT NULL,
+        [BelId]                     INT               NOT NULL,
+        [Belegkennzeichen]          NVARCHAR(3)       NOT NULL,
+        [Belegnummer]               NVARCHAR(20)      NOT NULL,
+        [LieferantKto]              NVARCHAR(20)      NULL,
+        [LieferantName]             NVARCHAR(50)      NULL,
+        [LieferantGesperrt]         BIT               NOT NULL,
+        [CreditorId]                INT               NULL,
+        [Artikelnummer]             NVARCHAR(50)      NOT NULL,
+        [ArticleId]                 INT               NULL,
+        [Bezeichnung1]              NVARCHAR(50)      NULL,
+        [Bezeichnung2]              NVARCHAR(50)      NULL,
+        [MengeBestellt]             DECIMAL(18,4)     NOT NULL,
+        [MengeGeliefert]            DECIMAL(18,4)     NOT NULL,
+        [MengeOffen]                DECIMAL(18,4)     NOT NULL,
+        [Mengeneinheit]             NVARCHAR(5)       NULL,
+        [MengeBasiseinheit]         NVARCHAR(5)       NULL,
+        [Lagermengeneinheit]        NVARCHAR(5)       NULL,
+        [EinheitAbweichend]         BIT               NOT NULL,
+        [SagePlatzId]               INT               NULL,
+        [SagePlatzKurzbezeichnung]  NVARCHAR(50)      NULL,
+        [StorageLocationId]         INT               NULL,
+        [Liefertermin]              DATE              NULL,
+        [Chargenpflicht]            BIT               NOT NULL,
+        [Nachweispflicht]           BIT               NOT NULL,
+        [SyncedAt]                  DATETIME2         NOT NULL
+    );
+    CREATE UNIQUE INDEX [IX_SagePurchaseOrderLines_BelPosId] ON [dbo].[SagePurchaseOrderLines]([BelPosId]);
+    CREATE INDEX [IX_SagePurchaseOrderLines_BelId] ON [dbo].[SagePurchaseOrderLines]([BelId]);
+    CREATE INDEX [IX_SagePurchaseOrderLines_Belegnummer] ON [dbo].[SagePurchaseOrderLines]([Belegnummer]);
+    CREATE INDEX [IX_SagePurchaseOrderLines_ArticleId] ON [dbo].[SagePurchaseOrderLines]([ArticleId]);
+    CREATE INDEX [IX_SagePurchaseOrderLines_Liefertermin] ON [dbo].[SagePurchaseOrderLines]([Liefertermin]);
+    PRINT 'Tabelle SagePurchaseOrderLines erstellt.';
+END
+GO
+
 -- BdeActivities
 IF OBJECT_ID(N'dbo.BdeActivities', N'U') IS NULL
 BEGIN
@@ -2846,6 +2887,9 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
    AND OBJECT_ID(N'dbo.SageStammdatenOutbox', N'U') IS NOT NULL AND COL_LENGTH(N'dbo.StorageLocations', N'SageUebergabeStatus') IS NOT NULL
    AND COL_LENGTH(N'dbo.BdeOperators', N'SageUebergabeStatus') IS NOT NULL -- sonst steht SQL/107 noch aus
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261106202615_AddSageStammdatenOutboxAndUebergabeStatus', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261107172542_AddSagePurchaseOrderLines')
+   AND OBJECT_ID(N'dbo.SagePurchaseOrderLines', N'U') IS NOT NULL -- sonst steht SQL/112 noch aus
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261107172542_AddSagePurchaseOrderLines', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';

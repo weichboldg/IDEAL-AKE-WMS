@@ -472,6 +472,19 @@ public class SyncWorker : BackgroundService
                     }, stoppingToken);
                 }
 
+                // v1.84.0 E1: offene Sage-Bestellungen NACH Artikel-, Kreditoren- und Lagerplatz-Abgleich (ordnet diesen zu).
+                if (await ServiceSettings.GetBoolSafeAsync(_configuration, "Sync:EinkaufBestellungenEnabled", false, stoppingToken))
+                {
+                    await RunResilientAsync("Offene Bestellungen (Sage)", async () =>
+                    {
+                        using var ebScope = _scopeFactory.CreateScope();
+                        var ebSvc = ebScope.ServiceProvider.GetRequiredService<IDEALAKEWMSService.Services.Sdata.EinkaufBestellungenSyncService>();
+                        var ebResult = await ebSvc.RunAsync(dryRun, stoppingToken);
+                        _logger.LogInformation("Offene Bestellungen (Sage) fertig: Uebernommen={Ins}, Uebersprungen={Err}",
+                            ebResult.Inserted, ebResult.Errors);
+                    }, stoppingToken);
+                }
+
                 // ---------------------------------------------------------------
                 // WorkOperation-Arbeitsgang-Erkennung (Struktur, IDEAL): FaHierarchyNode.Arbeitsschritte ->
                 // WorkOperation, Match ueber ProductionWorkplace.ArbeitsschrittCode. Doppel-Gate (Master +

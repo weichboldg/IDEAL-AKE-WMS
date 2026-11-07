@@ -87,6 +87,7 @@ public static class ServiceSettingDefinitions
         ["Sync:KreditorenEnabled"] = ("Kreditoren aus Sage", "Dienst: Lauf „Kreditoren“; Stammdaten → Kreditoren", null, "Überschreibt WMS-Werte (Sage ist führend)."),
         ["Sync:DebitorenEnabled"] = ("Debitoren aus Sage", "Dienst: Lauf „Debitoren“; Stammdaten → Debitoren", null, "Überschreibt WMS-Werte (Sage ist führend)."),
         ["Sync:ArtikelLieferantEnabled"] = ("Artikel-Lieferanten aus Sage", "Dienst: Lauf „Artikel-Lieferanten“", null, null),
+        ["Sync:EinkaufBestellungenEnabled"] = ("Offene Bestellungen aus Sage", "Dienst: Lauf „Offene Bestellungen (Sage)“; Lager → Offene Bestellungen, Wareneingang zu Bestellung", "AKE (IDEAL ohne SData-Endpunkt aus lassen)", null),
         ["Sync:BomCacheEnabled"] = ("Stücklisten-Cache", "Dienst: Lauf „BOM-Cache“; Stückliste", "AKE", null),
         ["Sync:BomCacheWeeks"] = ("Stücklisten-Cache: Wochen voraus", "Dienst: Lauf „BOM-Cache“", "AKE", null),
         ["Sync:BomCacheMaxOrders"] = ("Stücklisten-Cache: max. Aufträge", "Dienst: Lauf „BOM-Cache“", "AKE", null),
@@ -192,6 +193,7 @@ public static class ServiceSettingDefinitions
         new("Sync:KreditorenEnabled", SettingType.Bool, "false", "Sage-Abgleich (SData)", "Lieferanten aus Sage (SData, Kontokorrent + Adressen/Ansprechpartner) in die Kreditoren lesen. Sage ist fuehrend: ueberschreibt Name, Matchcode, Adresse, Kontakt und aktiv/inaktiv im WMS; Kurzname, Beschichter, Bemerkung bleiben. Liest nur, schreibt nie nach Sage."),
         new("Sync:DebitorenEnabled", SettingType.Bool, "false", "Sage-Abgleich (SData)", "Kunden aus Sage (SData, Kontokorrent + Adressen/Ansprechpartner) in die Debitoren lesen. Sage ist fuehrend: ueberschreibt Name, Matchcode, Adresse, Kontakt, aktiv/inaktiv, Vertreter und Kundenname FA im WMS; Kurzname und Bemerkung bleiben. Liest nur, schreibt nie nach Sage."),
         new("Sync:ArtikelLieferantEnabled", SettingType.Bool, "false", "Sage-Abgleich (SData)", "Artikel-Lieferanten aus Sage (SData) lesen (braucht Artikel und Kreditoren)."),
+        new("Sync:EinkaufBestellungenEnabled", SettingType.Bool, "false", "Sage-Abgleich (SData)", "Offene Einkaufsbestellungen (nur normale Bestellungen EBB, Positionen) aus Sage (SData) in den Cache lesen; Zuordnung zu Artikel, Kreditor und Lagerplatz (braucht Kreditoren- und Lagerplatz-Abgleich). Liest nur, schreibt nie nach Sage."),
 
         // ----- BOM-Cache -----
         new("Sync:BomCacheEnabled",                  SettingType.Bool, "false", "BOM-Cache", "BOM-Cache-Sync aktiv (Top-N offene Auftraege werden gecacht)"),

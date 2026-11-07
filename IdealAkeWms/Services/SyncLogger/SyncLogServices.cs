@@ -34,6 +34,7 @@ public static class SyncLogServices
     public const string Kreditoren = "Kreditoren"; // Sage-Kontokorrent KtoArt K (SData) -> Creditors (v1.73.0 E8c)
     public const string Debitoren = "Debitoren"; // Sage-Kontokorrent KtoArt D (SData) -> Debitors (v1.73.0 E8c)
     public const string ArtikelLieferant = "ArtikelLieferant"; // Sage-ArtikelLieferantInfo (SData) -> ArticleSuppliers (v1.73.0 E8c)
+    public const string EinkaufBestellungen = "EinkaufBestellungen"; // Sage-EinkaufPositionenInfo (SData, EBB) -> SagePurchaseOrderLines (v1.84.0 E1)
 
     // Non-Sync-Aktivitaeten (seit v1.15.1)
     public const string PartRequisitionEmail = "PartRequisitionEmail";
@@ -54,7 +55,7 @@ public static class SyncLogServices
         ProductionOrder, ProductionOrderReconciliation, Article, FaZusatzinfo,
         SageLagerbuchung, FaHierarchy, HierarchieUmstellung, FaMaterialization,
         WorkOperationStructureDetection, ProductionWorkplaceSync, OperationConfigSync, SageQuellenvergleich,
-        PpsMitarbeiter, Stillstandsgruende, Kreditoren, Debitoren, ArtikelLieferant,
+        PpsMitarbeiter, Stillstandsgruende, Kreditoren, Debitoren, ArtikelLieferant, EinkaufBestellungen,
         PartRequisitionEmail, WarehouseRequisitionEmail, BdeAutoPause,
         CleanupActivityLog, Einstellungspruefung,
     };
@@ -90,6 +91,7 @@ public static class SyncLogServices
         [Kreditoren] = "Kreditoren-Abgleich (Sage)",
         [Debitoren] = "Debitoren-Abgleich (Sage)",
         [ArtikelLieferant] = "Artikel-Lieferanten-Abgleich (Sage)",
+        [EinkaufBestellungen] = "Offene Bestellungen (Sage)",
         [PartRequisitionEmail] = "Bedarfsmeldungs-E-Mail-Versand",
         [WarehouseRequisitionEmail] = "Lagerbestellungs-E-Mail-Versand",
         [BdeAutoPause] = "BDE-AutoPause",

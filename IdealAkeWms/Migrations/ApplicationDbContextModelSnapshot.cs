@@ -3637,6 +3637,127 @@ namespace IdealAkeWms.Migrations
                     b.ToTable("SagePpsMitarbeiter", "dbo");
                 });
 
+            modelBuilder.Entity("IdealAkeWms.Models.SagePurchaseOrderLine", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("ArticleId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Artikelnummer")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("BelId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("BelPosId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Belegkennzeichen")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("nvarchar(3)");
+
+                    b.Property<string>("Belegnummer")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Bezeichnung1")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Bezeichnung2")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<bool>("Chargenpflicht")
+                        .HasColumnType("bit");
+
+                    b.Property<int?>("CreditorId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("EinheitAbweichend")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Lagermengeneinheit")
+                        .HasMaxLength(5)
+                        .HasColumnType("nvarchar(5)");
+
+                    b.Property<bool>("LieferantGesperrt")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("LieferantKto")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("LieferantName")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime?>("Liefertermin")
+                        .HasColumnType("date");
+
+                    b.Property<string>("MengeBasiseinheit")
+                        .HasMaxLength(5)
+                        .HasColumnType("nvarchar(5)");
+
+                    b.Property<decimal>("MengeBestellt")
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal>("MengeGeliefert")
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal>("MengeOffen")
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("Mengeneinheit")
+                        .HasMaxLength(5)
+                        .HasColumnType("nvarchar(5)");
+
+                    b.Property<bool>("Nachweispflicht")
+                        .HasColumnType("bit");
+
+                    b.Property<int?>("SagePlatzId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("SagePlatzKurzbezeichnung")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int?>("StorageLocationId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("SyncedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ArticleId")
+                        .HasDatabaseName("IX_SagePurchaseOrderLines_ArticleId");
+
+                    b.HasIndex("BelId")
+                        .HasDatabaseName("IX_SagePurchaseOrderLines_BelId");
+
+                    b.HasIndex("BelPosId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_SagePurchaseOrderLines_BelPosId");
+
+                    b.HasIndex("Belegnummer")
+                        .HasDatabaseName("IX_SagePurchaseOrderLines_Belegnummer");
+
+                    b.HasIndex("Liefertermin")
+                        .HasDatabaseName("IX_SagePurchaseOrderLines_Liefertermin");
+
+                    b.ToTable("SagePurchaseOrderLines", "dbo");
+                });
+
             modelBuilder.Entity("IdealAkeWms.Models.SageStammdatenOutboxItem", b =>
                 {
                     b.Property<int>("Id")

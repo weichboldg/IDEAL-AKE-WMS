@@ -54,6 +54,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<Creditor> Creditors => Set<Creditor>();
     public DbSet<Debitor> Debitors => Set<Debitor>();
     public DbSet<ArticleSupplier> ArticleSuppliers => Set<ArticleSupplier>();
+    public DbSet<SagePurchaseOrderLine> SagePurchaseOrderLines => Set<SagePurchaseOrderLine>();
     public DbSet<BdeShift> BdeShifts => Set<BdeShift>();
     public DbSet<BdeTerminal> BdeTerminals => Set<BdeTerminal>();
     public DbSet<CachedBomHeader> CachedBomHeaders => Set<CachedBomHeader>();
@@ -1356,6 +1357,34 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.ModifiedByWindows).HasMaxLength(200);
             entity.HasIndex(e => new { e.ArticleId, e.CreditorId }).IsUnique().HasDatabaseName("IX_ArticleSuppliers_ArticleId_CreditorId");
             entity.HasIndex(e => e.CreditorId).HasDatabaseName("IX_ArticleSuppliers_CreditorId");
+        });
+
+        // v1.84.0 (Spec 2026-11-08-wareneingang-aus-sage-bestellungen E1): Cache offener Sage-Bestellpositionen (EBB), je Lauf ersetzt.
+        // Kein AuditableEntity, keine FKs (Verweise sind beim Lauf aufgeloeste Werte). Laengen laut Sage-SQL (E0, P-W1).
+        modelBuilder.Entity<SagePurchaseOrderLine>(entity =>
+        {
+            entity.ToTable("SagePurchaseOrderLines");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Belegkennzeichen).HasMaxLength(3).IsRequired();
+            entity.Property(e => e.Belegnummer).HasMaxLength(20).IsRequired();
+            entity.Property(e => e.LieferantKto).HasMaxLength(20);
+            entity.Property(e => e.LieferantName).HasMaxLength(50);
+            entity.Property(e => e.Artikelnummer).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.Bezeichnung1).HasMaxLength(50);
+            entity.Property(e => e.Bezeichnung2).HasMaxLength(50);
+            entity.Property(e => e.MengeBestellt).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.MengeGeliefert).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.MengeOffen).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.Mengeneinheit).HasMaxLength(5);
+            entity.Property(e => e.MengeBasiseinheit).HasMaxLength(5);
+            entity.Property(e => e.Lagermengeneinheit).HasMaxLength(5);
+            entity.Property(e => e.SagePlatzKurzbezeichnung).HasMaxLength(50);
+            entity.Property(e => e.Liefertermin).HasColumnType("date");
+            entity.HasIndex(e => e.BelPosId).IsUnique().HasDatabaseName("IX_SagePurchaseOrderLines_BelPosId");
+            entity.HasIndex(e => e.BelId).HasDatabaseName("IX_SagePurchaseOrderLines_BelId");
+            entity.HasIndex(e => e.Belegnummer).HasDatabaseName("IX_SagePurchaseOrderLines_Belegnummer");
+            entity.HasIndex(e => e.ArticleId).HasDatabaseName("IX_SagePurchaseOrderLines_ArticleId");
+            entity.HasIndex(e => e.Liefertermin).HasDatabaseName("IX_SagePurchaseOrderLines_Liefertermin");
         });
 
         // BDE: Activities

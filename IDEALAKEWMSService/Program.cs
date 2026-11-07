@@ -82,6 +82,8 @@ try
     // Sync:DebitorenEnabled / Sync:ArtikelLieferantEnabled, Default false).
     builder.Services.AddScoped<IDEALAKEWMSService.Services.Sdata.KontokorrentSyncService>();
     builder.Services.AddScoped<IDEALAKEWMSService.Services.Sdata.ArtikelLieferantSyncService>();
+    // v1.84.0 E1: offene Sage-Bestellungen (EBB) -> SagePurchaseOrderLines (Gate Sync:EinkaufBestellungenEnabled, Default false).
+    builder.Services.AddScoped<IDEALAKEWMSService.Services.Sdata.EinkaufBestellungenSyncService>();
     builder.Services.AddScoped<IStockMovementRepository, StockMovementRepository>();
     builder.Services.AddScoped<IProductionOrderPickingStatusRepository, ProductionOrderPickingStatusRepository>();
     builder.Services.AddScoped<ISageBookingQueueRepository, SageBookingQueueRepository>();
