@@ -32,7 +32,7 @@
         }
         @if (Model.Ungueltig)
         {
-            <span class="badge text-bg-danger">ungültig: &bdquo;@Model.RohWert&ldquo;</span>
+            <span class="badge text-bg-danger">ungültig: &bdquo;@(Model.RohWert ?? Model.Wirksam)&ldquo;@(Model.HatZeile ? "" : " (Standard, keine Zeile)")</span>
         }
     </div>
 
@@ -162,5 +162,28 @@
     @if (!string.IsNullOrEmpty(d.Warnhinweis))
     {
         <div class="alert alert-warning py-1 px-2 mt-2 mb-0 small" role="note"><strong>&#9888; Achtung:</strong> @d.Warnhinweis</div>
+    }
+    @* v1.79.0 (Spec 2026-11-08-bereinigungen F1): Sperr- und TLS-Hinweis INNERHALB der .setting-row - sonst standen sie unter dem
+       Trennstrich ueber dem naechsten Feld und blieben bei der Suche stehen. ViewData["SperrGrund"] (string), ViewData["TlsWarnung"] (bool). *@
+    @if (ViewData["SperrGrund"] is string sperrGrund)
+    {
+        <div class="alert alert-warning py-1 px-2 mt-2 mb-0 small" role="status">
+            <strong>&#9888; SData ist hier gesperrt bis @sperrGrund.</strong>
+            @if (Model.Wirksam == "SData")
+            {
+                <text>Der eingestellte Wert <code>SData</code> wirkt deshalb wie <code>View</code>; jeder Lauf meldet das als Warnung im Aktivitäts-Protokoll.</text>
+            }
+            else
+            {
+                <text><code>SData</code> würde wie <code>View</code> wirken (Warnung im Aktivitäts-Protokoll); <code>Vergleich</code> ist möglich.</text>
+            }
+        </div>
+    }
+    @if (ViewData["TlsWarnung"] is true)
+    {
+        <div class="alert alert-warning py-1 px-2 mt-2 mb-0 small" role="status">
+            <strong>&#9888; TLS-Zertifikatsprüfung ist deaktiviert.</strong>
+            Nur für Testsysteme zulässig &mdash; vor Produktivgang wieder aktivieren.
+        </div>
     }
 </div>

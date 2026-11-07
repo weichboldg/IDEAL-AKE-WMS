@@ -58,10 +58,7 @@ public class NotificationWorkerTests
             .ReturnsAsync(["test@example.com"]);
 
         using var worker = new NotificationWorker(Mock.Of<ILogger<NotificationWorker>>(), BuildConfig(), scopeFactory.Object);
-        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(200));
-        await worker.StartAsync(cts.Token);
-        await Task.Delay(150);
-        await worker.StopAsync(CancellationToken.None);
+        await WorkerTestLauf.RunUntilAsync(worker, () => mailService.Invocations.Count > 0);
 
         mailService.Verify(x =>
             x.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IEnumerable<string>>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()),
@@ -79,10 +76,7 @@ public class NotificationWorkerTests
             .ReturnsAsync(["test@example.com"]);
 
         using var worker = new NotificationWorker(Mock.Of<ILogger<NotificationWorker>>(), BuildConfig(), scopeFactory.Object);
-        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(200));
-        await worker.StartAsync(cts.Token);
-        await Task.Delay(150);
-        await worker.StopAsync(CancellationToken.None);
+        await WorkerTestLauf.RunUntilAsync(worker, () => stockCheck.Invocations.Count > 0);
 
         mailService.Verify(x =>
             x.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IEnumerable<string>>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()),
@@ -110,10 +104,7 @@ public class NotificationWorkerTests
             .Returns(Task.CompletedTask);
 
         using var worker = new NotificationWorker(Mock.Of<ILogger<NotificationWorker>>(), BuildConfig(), scopeFactory.Object);
-        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(200));
-        await worker.StartAsync(cts.Token);
-        await Task.Delay(150);
-        await worker.StopAsync(CancellationToken.None);
+        await WorkerTestLauf.RunUntilAsync(worker, () => mailService.Invocations.Count > 0);
 
         capturedHtml.Should().NotBeNull();
         capturedHtml.Should().Contain("ART-99999");
@@ -138,10 +129,7 @@ public class NotificationWorkerTests
             .Returns(Task.CompletedTask);
 
         using var worker = new NotificationWorker(Mock.Of<ILogger<NotificationWorker>>(), BuildConfig(), scopeFactory.Object);
-        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(200));
-        await worker.StartAsync(cts.Token);
-        await Task.Delay(150);
-        await worker.StopAsync(CancellationToken.None);
+        await WorkerTestLauf.RunUntilAsync(worker, () => mailService.Invocations.Count > 0);
 
         capturedHtml.Should().Contain("#053153");  // AKE Primary (Header)
         capturedHtml.Should().Contain("#43A6E2");  // AKE Secondary
@@ -166,10 +154,7 @@ public class NotificationWorkerTests
             .Returns(Task.CompletedTask);
 
         using var worker = new NotificationWorker(Mock.Of<ILogger<NotificationWorker>>(), BuildConfig(), scopeFactory.Object);
-        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(200));
-        await worker.StartAsync(cts.Token);
-        await Task.Delay(150);
-        await worker.StopAsync(CancellationToken.None);
+        await WorkerTestLauf.RunUntilAsync(worker, () => mailService.Invocations.Count > 0);
 
         capturedHtml.Should().Contain("#dc3545");  // Rot = Nullbestand
     }
@@ -192,10 +177,7 @@ public class NotificationWorkerTests
             .Returns(Task.CompletedTask);
 
         using var worker = new NotificationWorker(Mock.Of<ILogger<NotificationWorker>>(), BuildConfig(), scopeFactory.Object);
-        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(200));
-        await worker.StartAsync(cts.Token);
-        await Task.Delay(150);
-        await worker.StopAsync(CancellationToken.None);
+        await WorkerTestLauf.RunUntilAsync(worker, () => mailService.Invocations.Count > 0);
 
         capturedHtml.Should().Contain("#E87A1E");  // Orange = Bestand > 0 aber unter Meldebestand
     }
@@ -223,10 +205,7 @@ public class NotificationWorkerTests
             .Returns(Task.CompletedTask);
 
         using var worker = new NotificationWorker(Mock.Of<ILogger<NotificationWorker>>(), BuildConfig(), scopeFactory.Object);
-        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(200));
-        await worker.StartAsync(cts.Token);
-        await Task.Delay(150);
-        await worker.StopAsync(CancellationToken.None);
+        await WorkerTestLauf.RunUntilAsync(worker, () => mailService.Invocations.Count > 0);
 
         capturedHtml.Should().Contain("ART-001").And.Contain("ART-002").And.Contain("ART-003");
         capturedHtml.Should().Contain("Artikel Eins").And.Contain("Artikel Zwei").And.Contain("Artikel Drei");
@@ -251,10 +230,7 @@ public class NotificationWorkerTests
             .Returns(Task.CompletedTask);
 
         using var worker = new NotificationWorker(Mock.Of<ILogger<NotificationWorker>>(), BuildConfig(), scopeFactory.Object);
-        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(200));
-        await worker.StartAsync(cts.Token);
-        await Task.Delay(150);
-        await worker.StopAsync(CancellationToken.None);
+        await WorkerTestLauf.RunUntilAsync(worker, () => mailService.Invocations.Count > 0);
 
         capturedRecipients.Should().BeEquivalentTo(expectedRecipients);
     }
@@ -274,14 +250,7 @@ public class NotificationWorkerTests
             .ThrowsAsync(new InvalidOperationException("Simulierter Fehler"));
 
         using var worker = new NotificationWorker(Mock.Of<ILogger<NotificationWorker>>(), BuildConfig(), scopeFactory.Object);
-        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(200));
-
-        var run = async () =>
-        {
-            await worker.StartAsync(cts.Token);
-            await Task.Delay(150);
-            await worker.StopAsync(CancellationToken.None);
-        };
+        var run = () => WorkerTestLauf.RunUntilAsync(worker, () => stockCheck.Invocations.Count > 0);
 
         await run.Should().NotThrowAsync();
         stockCheck.Verify(x =>
@@ -306,10 +275,7 @@ public class NotificationWorkerTests
             .Returns(Task.CompletedTask);
 
         using var worker = new NotificationWorker(Mock.Of<ILogger<NotificationWorker>>(), BuildConfig(), scopeFactory.Object);
-        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(200));
-        await worker.StartAsync(cts.Token);
-        await Task.Delay(150);
-        await worker.StopAsync(CancellationToken.None);
+        await WorkerTestLauf.RunUntilAsync(worker, () => mailService.Invocations.Count > 0);
 
         // Kein DefaultConnection → Fallback-Betreff
         capturedSubject.Should().Be("Meldebestand unterschritten — IDEAL AKE WMS");

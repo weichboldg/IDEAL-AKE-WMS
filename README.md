@@ -379,6 +379,13 @@ Bei Änderungen der Tabellenstruktur müssen diese Scripts angepasst werden.
 > **Quelle seit v1.77.0:** der typisierte Katalog `IdealAkeWms/Models/AppSettingDefinitions.cs` (Anzeigename, Typ, erlaubte Werte, Default,
 > Wirkung, Verwendung, Standort, Warnhinweis je Key; ADR 0020). Die Maske `/Settings` zeigt alles daraus. Die Tabelle unten ist ein Auszug.
 
+> **Altwerte normalisieren (v1.79.0, einmal je Standort):** Werte wie `1`, `0` oder mit Leerzeichen zeigen die Masken als „ungültig“ (Lauf
+> „Einstellungsprüfung“ im Aktivitäts-Protokoll). Ablauf: (1) Prüfabfrage P-1 der Spec `2026-11-08-bereinigungen-nach-buendel-2026-11-07`
+> ausführen, (2) Schalter, die nur auf `true` reagieren und `1` tragen, wirken heute **aus** – bewusst entscheiden, ob einer an sein soll,
+> (3) `/Settings` und `/ServiceSettings` je einmal speichern – jedes Feld schreibt seinen **wirksamen** Zustand kanonisch (`true`/`false`),
+> das Verhalten bleibt gleich, (4) App-Pool recyceln: kein neuer Lauf „Einstellungsprüfung“ (oder nur bewusst offene Auswahl- bzw.
+> Zahl-Reste, die von Hand zu korrigieren sind).
+
 | Schlüssel | Default | Beschreibung |
 |-----------|---------|-------------|
 | `KommissionierTage` | `4` | Arbeitstage vor Fertigungstermin |
@@ -391,8 +398,6 @@ Bei Änderungen der Tabellenstruktur müssen diese Scripts angepasst werden.
 | ~~`StammdatenADGruppe`~~ | — | Entfernt — Rollen werden seit v1.23.0 ausschliesslich pro Benutzer zugewiesen |
 | `BeschichtungAbholtage` | `Dienstag,Donnerstag` | Wochentage für Beschichtungs-Abholung |
 | `TeileverfolgungAktiv` | `false` | Teileverfolgungs-Modul aktiviert |
-| `OseonRueckmeldungAktiv` | `false` | Rückmeldungen an OSEON zurückschreiben |
-| `SageRueckmeldungAktiv` | `false` | Rückmeldungen an Sage zurückschreiben |
 | `QrMitFaNummer` | `false` | QR-Code enthält FA-Nummer an 3. Stelle |
 | `QrErstesFeld` | `Artikelnummer` | Erstes QR-Feld ist `Artikelnummer` oder `Matchcode` (Übersetzung über den Artikelstamm, v1.68.0) |
 | `QrTrennzeichen` | `;` | Trennzeichen der QR-Felder: `;` oder `,` (genau eines je Installation, v1.69.0) |

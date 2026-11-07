@@ -149,10 +149,7 @@ public static class AppSettingDefinitions
         // ---- Teileverfolgung und OSEON (AKE) ----
         B("TeileverfolgungAktiv", "false", GOseon, "Teileverfolgung", "Schaltet das Teileverfolgungs-Modul (OSEON) ein.", "Menü, Startseite, Teileverfolgung",
             "AKE", seed: true),
-        B("OseonRueckmeldungAktiv", "false", GOseon, "Rückmeldung an OSEON", "Derzeit ohne Wirkung (kein Leser im Code).", "– (derzeit ohne Wirkung)",
-            "AKE", seed: true, warn: "Derzeit ohne Wirkung."),
-        B("SageRueckmeldungAktiv", "false", GOseon, "Rückmeldung an Sage", "Derzeit ohne Wirkung (kein Leser im Code).", "– (derzeit ohne Wirkung)",
-            Beide, seed: true, warn: "Derzeit ohne Wirkung."),
+        // v1.79.0 (Spec 2026-11-08-bereinigungen F5): OseonRueckmeldungAktiv/SageRueckmeldungAktiv entfernt (kein Leser); SQL/108 loescht die Zeilen.
         I("OseonAmpelGelbTage", "1", GOseon, "OSEON-Ampel: gelb ab", "Gelb ab so vielen Tagen vor dem Termin.", "Teileverfolgung (Ampel)", "AKE", seed: true, "Tage"),
         I("OseonAmpelBlauTage", "2", GOseon, "OSEON-Ampel: blau ab", "Blau ab so vielen Tagen vor dem Termin.", "Teileverfolgung (Ampel)", "AKE", seed: true, "Tage"),
         I(AppSettingKeys.OseonReportingHorizonDays, "10", GOseon, "OSEON-Reporting: Horizont", "Tage in die Zukunft (Standard-Horizont des Reportings).",

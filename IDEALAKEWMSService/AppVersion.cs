@@ -2,6 +2,6 @@ namespace IDEALAKEWMSService;
 
 public static class AppVersion
 {
-    public const string Version = "1.78.0";
-    public const string Date = "2026-11-07";
+    public const string Version = "1.79.0";
+    public const string Date = "2026-11-08";
 }

@@ -97,30 +97,12 @@
                         continue;
                     }
                     var abhaengig = item.Definition.AbhaengigVon is { } k && namen.TryGetValue(k, out var n) ? n : null;
+                    // v1.79.0 F1: Hinweise rendert das Partial innerhalb seiner .setting-row (Text und Regel unveraendert).
+                    var sperrGrund = item.Key.StartsWith("Sync:Quelle:", StringComparison.Ordinal)
+                        ? IdealAkeWms.Services.SageSdata.SageQuelleSperre.Grund(item.Key["Sync:Quelle:".Length..], artikelView) : null;
+                    var tlsWarnung = item.Key == SageTlsPolicy.SettingKey && !SageTlsPolicy.ShouldVerifyCertificate(item.Wirksam);
                     <partial name="_SettingField" model="item"
-                             view-data='new ViewDataDictionary(ViewData) { ["CanEdit"] = true, ["Abhaengig"] = abhaengig }' />
-                    @if (item.Key.StartsWith("Sync:Quelle:", StringComparison.Ordinal)
-                         && IdealAkeWms.Services.SageSdata.SageQuelleSperre.Grund(item.Key["Sync:Quelle:".Length..], artikelView) is { } sperrGrund)
-                    {
-                        <div class="alert alert-warning py-2 px-3 mt-n2 mb-3 small" role="status">
-                            <strong>&#9888; SData ist hier gesperrt bis @sperrGrund.</strong>
-                            @if (item.Wirksam == "SData")
-                            {
-                                <text>Der eingestellte Wert <code>SData</code> wirkt deshalb wie <code>View</code>; jeder Lauf meldet das als Warnung im Aktivitäts-Protokoll.</text>
-                            }
-                            else
-                            {
-                                <text><code>SData</code> würde wie <code>View</code> wirken (Warnung im Aktivitäts-Protokoll); <code>Vergleich</code> ist möglich.</text>
-                            }
-                        </div>
-                    }
-                    @if (item.Key == SageTlsPolicy.SettingKey && !SageTlsPolicy.ShouldVerifyCertificate(item.Wirksam))
-                    {
-                        <div class="alert alert-warning py-2 px-3 mt-n2 mb-3 small">
-                            <strong>&#9888; TLS-Zertifikatsprüfung ist deaktiviert.</strong>
-                            Nur für Testsysteme zulässig &mdash; vor Produktivgang wieder aktivieren.
-                        </div>
-                    }
+                             view-data='new ViewDataDictionary(ViewData) { ["CanEdit"] = true, ["Abhaengig"] = abhaengig, ["SperrGrund"] = sperrGrund, ["TlsWarnung"] = tlsWarnung }' />
                 }
             </div>
         </div>

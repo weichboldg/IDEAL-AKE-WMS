@@ -1052,8 +1052,6 @@ BEGIN
         ('NegativeBuchungLagerplatz', 'NAN', 'Fallback-Lagerplatz bei negativem Bestand'),
         ('BeschichtungAbholtage', 'Dienstag,Donnerstag', 'Wochentage fuer Beschichtungs-Abholung'),
         ('TeileverfolgungAktiv', 'false', 'Globaler Schalter: Teileverfolgungs-Modul aktiviert'),
-        ('OseonRueckmeldungAktiv', 'false', 'Rueckmeldungen duerfen an Oseon zurueckgeschrieben werden'),
-        ('SageRueckmeldungAktiv', 'false', 'Rueckmeldungen duerfen an Sage zurueckgeschrieben werden'),
         ('OseonReportingHorizonDays', '10', 'Reporting: Tage in die Zukunft (Default-Horizont)'),
         ('OseonReportingOverdueLookbackDays', '90', 'Reporting: Tage in die Vergangenheit fuer Ueberfaellig-Slice'),
         ('QrMitFaNummer', 'false', 'QR-Code enthaelt Fertigungsauftragsnummer an 3. Stelle'),

@@ -62,7 +62,10 @@ public sealed class SettingItem
         }
         // Stammdaten-Existenz nur, wo die Auswahl vollstaendig ist (nicht bei Lagerplatz-Vorschlaegen ohne Liste).
         var schluessel = d.Type == SettingType.MasterData && optionen.Count > 0 ? optionen.Select(o => o.Wert).ToList() : null;
-        var pruefung = roh == null ? null : SettingValidator.Validate(d, roh, schluessel, exakt);
+        // v1.79.0 F2: Ohne Zeile wirkt der Default - bei vollstaendiger Stammdaten-Auswahl wird er mitgeprueft (z. B. NegativeBuchungLagerplatz
+        // = NAN, Platz umbenannt). Choice/Bool ohne Zeile bleiben ungeprueft (Schreibweisen-Pruefung haengt an roh).
+        var pruefWert = roh ?? (schluessel != null ? d.DefaultValue : null);
+        var pruefung = pruefWert == null ? null : SettingValidator.Validate(d, pruefWert, schluessel, exakt);
         return new SettingItem
         {
             Definition = d,

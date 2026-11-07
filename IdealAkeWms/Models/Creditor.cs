@@ -146,13 +146,14 @@ public enum SageUebergabeStatus
 
 public static class SageUebergabeStatusText
 {
-    /// <summary>Zelltext der Spalte „Übergabe an Sage“ (E9); NichtNoetig bleibt leer, damit der Altbestand die Liste nicht fuellt.</summary>
+    /// <summary>Zelltext der Spalte „Übergabe an Sage“ (E9). Seit v1.79.0 (Spec 2026-11-08-bereinigungen F6) auch NichtNoetig lesbar
+    /// („nicht nötig“, gedämpft statt Badge) – vorher leer, was wie ein Fehler aussah.</summary>
     public static string Text(SageUebergabeStatus s) => s switch
     {
         SageUebergabeStatus.Offen => "Offen",
         SageUebergabeStatus.Uebergeben => "Übergeben",
         SageUebergabeStatus.Fehler => "Fehler",
-        _ => ""
+        _ => "nicht nötig"
     };
 
     /// <summary>„Offene Übergaben an Sage“ = Offen oder Fehler (noch nicht in Sage).</summary>

@@ -7,10 +7,10 @@ namespace IdealAkeWms.Tests.Models;
 /// <summary>Spec 2026-11-07-einstellungen-auswahlfelder-und-beschreibung (E1, ADR 0020): Katalog der AppSettings.</summary>
 public class AppSettingDefinitionsTests
 {
-    /// <summary>Die bis v1.76.0 in Program.cs fest codierten Seed-Eintraege (acht Bloecke, 38 Keys) — AK 2: Menge und Werte bleiben gleich.</summary>
+    /// <summary>Die bis v1.76.0 in Program.cs fest codierten Seed-Eintraege (acht Bloecke, 38 Keys; seit v1.79.0 ohne OseonRueckmeldungAktiv/SageRueckmeldungAktiv = 36, Spec 2026-11-08-bereinigungen F5) — AK 2.</summary>
     private static readonly (string Key, string Value)[] FruehererSeed =
     {
-        ("TeileverfolgungAktiv", "false"), ("OseonRueckmeldungAktiv", "false"), ("SageRueckmeldungAktiv", "false"),
+        ("TeileverfolgungAktiv", "false"),
         ("OseonReportingHorizonDays", "10"), ("OseonReportingOverdueLookbackDays", "90"),
         ("LeitstandAktiv", "false"), ("KommissionierungMitZuweisung", "false"), ("FaCompletionAktiv", "false"),
         ("LackierteilKategorieName", ""),
@@ -31,7 +31,7 @@ public class AppSettingDefinitionsTests
     [Fact]
     public void Seed_GleichDerFrueherenListe_AK2()
     {
-        FruehererSeed.Should().HaveCount(38);
+        FruehererSeed.Should().HaveCount(36);
         AppSettingDefinitions.SeedEintraege.Select(e => (e.Key, e.Value)).Should().BeEquivalentTo(FruehererSeed);
     }
 
@@ -39,7 +39,7 @@ public class AppSettingDefinitionsTests
     public void Katalog_EnthaeltJedenKeyGenauEinmal_MitPflichtangaben_AK1()
     {
         var all = AppSettingDefinitions.All;
-        all.Should().HaveCount(54);
+        all.Should().HaveCount(52);  // v1.79.0 F5: zwei Rueckmelde-Schalter entfernt
         all.Select(d => d.Key).Should().OnlyHaveUniqueItems();
         all.Should().OnlyContain(d => !string.IsNullOrWhiteSpace(d.Anzeigename) && !string.IsNullOrWhiteSpace(d.Description)
             && !string.IsNullOrWhiteSpace(d.Verwendung) && !string.IsNullOrWhiteSpace(d.Standort) && !string.IsNullOrWhiteSpace(d.Category));
@@ -48,8 +48,7 @@ public class AppSettingDefinitionsTests
             .Where(f => f.IsLiteral && f.FieldType == typeof(string)).Select(f => (string)f.GetRawConstantValue()!).ToList();
         konstanten.Should().NotBeEmpty().And.OnlyContain(k => all.Any(d => d.Key == k), "jede AppSettingKeys-Konstante steht im Katalog");
         new[] { "KommissionierTage", "VorkommissionierTage", "BeschichtungTage", "WarningThresholdPercent", "CriticalThresholdPercent",
-                "OseonAmpelGelbTage", "OseonAmpelBlauTage", "TeileverfolgungAktiv", "LeitstandAktiv", "BdeAktiv", "BestellungenAktiv",
-                "OseonRueckmeldungAktiv", "SageRueckmeldungAktiv" }
+                "OseonAmpelGelbTage", "OseonAmpelBlauTage", "TeileverfolgungAktiv", "LeitstandAktiv", "BdeAktiv", "BestellungenAktiv" }
             .Should().OnlyContain(k => all.Any(d => d.Key == k), "Literal-Keys ohne Konstante");
     }
 

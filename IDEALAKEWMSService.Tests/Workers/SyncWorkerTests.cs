@@ -67,10 +67,7 @@ public class SyncWorkerTests
         });
 
         using var worker = new SyncWorker(Mock.Of<ILogger<SyncWorker>>(), config, scopeFactory.Object);
-        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(200));
-        await worker.StartAsync(cts.Token);
-        await Task.Delay(150);
-        await worker.StopAsync(CancellationToken.None);
+        await WorkerTestLauf.RunUntilAsync(worker, () => sageImport.Invocations.Any(i => i.Method.Name == nameof(ISageImportService.SyncArticlesAsync)));
 
         sageImport.Verify(x =>
             x.SyncProductionOrdersAsync(false, It.IsAny<CancellationToken>()),
@@ -97,10 +94,7 @@ public class SyncWorkerTests
         });
 
         using var worker = new SyncWorker(Mock.Of<ILogger<SyncWorker>>(), config, scopeFactory.Object);
-        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(200));
-        await worker.StartAsync(cts.Token);
-        await Task.Delay(150);
-        await worker.StopAsync(CancellationToken.None);
+        await WorkerTestLauf.RunUntilAsync(worker, () => sageImport.Invocations.Any(i => i.Method.Name == nameof(ISageImportService.SyncArticlesAsync)));
 
         // Trotz IConfiguration=false laufen beide (true-Default gewinnt ohne DB).
         sageImport.Verify(x =>
@@ -126,10 +120,7 @@ public class SyncWorkerTests
         });
 
         using var worker = new SyncWorker(Mock.Of<ILogger<SyncWorker>>(), config, scopeFactory.Object);
-        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(200));
-        await worker.StartAsync(cts.Token);
-        await Task.Delay(150);
-        await worker.StopAsync(CancellationToken.None);
+        await WorkerTestLauf.RunUntilAsync(worker, () => sageImport.Invocations.Any(i => i.Method.Name == nameof(ISageImportService.SyncArticlesAsync)));
 
         sageImport.Verify(x =>
             x.SyncProductionOrdersAsync(false, It.IsAny<CancellationToken>()),
@@ -161,14 +152,7 @@ public class SyncWorkerTests
         });
 
         using var worker = new SyncWorker(Mock.Of<ILogger<SyncWorker>>(), config, scopeFactory.Object);
-        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(200));
-
-        var run = async () =>
-        {
-            await worker.StartAsync(cts.Token);
-            await Task.Delay(150);
-            await worker.StopAsync(CancellationToken.None);
-        };
+        var run = () => WorkerTestLauf.RunUntilAsync(worker, () => sageImport.Invocations.Any(i => i.Method.Name == nameof(ISageImportService.SyncArticlesAsync)));
 
         // RunResilientAsync fängt die Exception ab → der Worker läuft weiter / stoppt sauber.
         await run.Should().NotThrowAsync();
@@ -190,10 +174,7 @@ public class SyncWorkerTests
         });
 
         using var worker = new SyncWorker(Mock.Of<ILogger<SyncWorker>>(), config, scopeFactory.Object);
-        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(200));
-        await worker.StartAsync(cts.Token);
-        await Task.Delay(150);
-        await worker.StopAsync(CancellationToken.None);
+        await WorkerTestLauf.RunUntilAsync(worker, () => sageImport.Invocations.Any(i => i.Method.Name == nameof(ISageImportService.SyncArticlesAsync)));
 
         sageImport.Verify(x =>
             x.SyncProductionOrdersAsync(It.IsAny<bool>(), It.IsAny<CancellationToken>()),
@@ -235,13 +216,7 @@ public class SyncWorkerTests
         });
 
         using var worker = new SyncWorker(Mock.Of<ILogger<SyncWorker>>(), config, mockScopeFactory.Object);
-        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(200));
-        var run = async () =>
-        {
-            await worker.StartAsync(cts.Token);
-            await Task.Delay(150);
-            await worker.StopAsync(CancellationToken.None);
-        };
+        var run = () => WorkerTestLauf.RunUntilAsync(worker, () => mockSageImport.Invocations.Any(i => i.Method.Name == nameof(ISageImportService.SyncArticlesAsync)));
 
         await run.Should().NotThrowAsync();
         mockServiceProvider.Verify(x => x.GetService(typeof(IFaZusatzinfoSyncService)), Times.Never());
