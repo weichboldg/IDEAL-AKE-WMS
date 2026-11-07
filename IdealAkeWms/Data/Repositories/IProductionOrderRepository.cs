@@ -62,6 +62,11 @@ public interface IProductionOrderRepository : IRepository<ProductionOrder>
     Task<int> CountByOrderNumberAsync(string orderNumber);
     Task<List<ProductionOrder>> SearchAsync(string? query, int limit = 20);
 
+    /// <summary>v1.87.0: die EINE Regel FA-Text → FA fuer Lagerbuchungen (SQL/110 spiegelt sie). Getrimmt; leer → Leer; <c>;</c>/<c>,</c> →
+    /// Liste; genau ein FA mit <c>SubOrderNumber</c> = Text → Gefunden; sonst Haupt-FAs (<see cref="ProductionOrder.IsHauptFa"/>) mit
+    /// <c>OrderNumber</c> = Text: einer → Gefunden, mehrere → Mehrdeutig, keiner → Unbekannt.</summary>
+    Task<FaAufloesung> FindForBookingAsync(string? text);
+
     /// <summary>
     /// Live-Prüfung der Einwegtor-Sperrbedingung: existiert mindestens eine Sub-FA-Zeile (siehe
     /// <see cref="ProductionOrder.IsHauptFa"/> — EINE Sub-FA-Definition, keine eigene Formel hier;
@@ -127,3 +132,10 @@ public interface IProductionOrderRepository : IRepository<ProductionOrder>
         int pageSize,
         IReadOnlyDictionary<string, string>? columnFilters = null);
 }
+
+
+/// <summary>v1.87.0: Ergebnis von <see cref="IProductionOrderRepository.FindForBookingAsync"/>.</summary>
+public enum FaAufloesungStatus { Leer, Gefunden, Liste, Mehrdeutig, Unbekannt }
+
+/// <summary>v1.87.0: <see cref="Order"/> nur bei <see cref="FaAufloesungStatus.Gefunden"/>.</summary>
+public sealed record FaAufloesung(FaAufloesungStatus Status, ProductionOrder? Order);

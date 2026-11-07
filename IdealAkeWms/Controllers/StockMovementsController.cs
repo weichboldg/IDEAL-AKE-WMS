@@ -17,6 +17,7 @@ public class StockMovementsController : Controller
     private readonly ICurrentUserService _currentUserService;
     private readonly IAppSettingRepository _settingRepository;
     private readonly IPartRequisitionRepository _partRequisitionRepository;
+    private readonly IProductionOrderRepository _productionOrderRepository;
 
     public StockMovementsController(
         IStockMovementRepository stockMovementRepository,
@@ -25,8 +26,10 @@ public class StockMovementsController : Controller
         IUserRepository userRepository,
         ICurrentUserService currentUserService,
         IAppSettingRepository settingRepository,
-        IPartRequisitionRepository partRequisitionRepository)
+        IPartRequisitionRepository partRequisitionRepository,
+        IProductionOrderRepository productionOrderRepository)
     {
+        _productionOrderRepository = productionOrderRepository;
         _stockMovementRepository = stockMovementRepository;
         _articleRepository = articleRepository;
         _storageLocationRepository = storageLocationRepository;
@@ -121,6 +124,7 @@ public class StockMovementsController : Controller
         }
 
         var appUserId = _currentUserService.GetCurrentAppUserId();
+        var fa = await _productionOrderRepository.FindForBookingAsync(vm.ProductionOrder);
 
         var movement = new StockMovement
         {
@@ -128,6 +132,7 @@ public class StockMovementsController : Controller
             Quantity = vm.Quantity,
             StorageLocationId = vm.StorageLocationId,
             ProductionOrder = vm.ProductionOrder,
+            ProductionOrderId = fa.Order?.Id,
             MovementType = MovementType.Einbuchung,
             Timestamp = DateTime.Now,
             UserId = appUserId,
@@ -226,6 +231,7 @@ public class StockMovementsController : Controller
         var displayName = _currentUserService.GetDisplayName();
         var now = DateTime.Now;
         var count = 0;
+        var fa = await _productionOrderRepository.FindForBookingAsync(vm.ProductionOrder); // Kopf-FA einmal
 
         foreach (var line in lines)
         {
@@ -235,6 +241,7 @@ public class StockMovementsController : Controller
                 Quantity = line.Quantity,
                 StorageLocationId = vm.StorageLocationId,
                 ProductionOrder = vm.ProductionOrder,
+                ProductionOrderId = fa.Order?.Id,
                 MovementType = MovementType.Einbuchung,
                 Timestamp = now,
                 UserId = appUserId,
@@ -339,6 +346,7 @@ public class StockMovementsController : Controller
             Quantity = vm.Quantity,
             StorageLocationId = storageLocationId,
             ProductionOrder = vm.ProductionOrder,
+            ProductionOrderId = (await _productionOrderRepository.FindForBookingAsync(vm.ProductionOrder)).Order?.Id,
             MovementType = MovementType.Ausbuchung,
             Timestamp = DateTime.Now,
             UserId = appUserId,
@@ -429,6 +437,7 @@ public class StockMovementsController : Controller
             StorageLocationId = vm.StorageLocationId,
             SourceStorageLocationId = sourceLocationId,
             ProductionOrder = vm.ProductionOrder,
+            ProductionOrderId = (await _productionOrderRepository.FindForBookingAsync(vm.ProductionOrder)).Order?.Id,
             MovementType = MovementType.Umbuchung,
             Timestamp = DateTime.Now,
             UserId = appUserId,
@@ -494,6 +503,8 @@ public class StockMovementsController : Controller
         var appUserId = _currentUserService.GetCurrentAppUserId();
         var now = DateTime.Now;
         var count = 0;
+        // Antwort 5: nur ein eindeutiger Text wird verknuepft (Wagen-Liste „A; B“ → Liste → null), keine Pruefkarte/Pflicht.
+        var fa = await _productionOrderRepository.FindForBookingAsync(productionOrder);
 
         foreach (var item in itemsToOutbound)
         {
@@ -503,6 +514,7 @@ public class StockMovementsController : Controller
                 Quantity = item.CurrentQuantity,
                 StorageLocationId = storageLocationId,
                 ProductionOrder = productionOrder,
+                ProductionOrderId = fa.Order?.Id,
                 MovementType = MovementType.Ausbuchung,
                 Timestamp = now,
                 UserId = appUserId,

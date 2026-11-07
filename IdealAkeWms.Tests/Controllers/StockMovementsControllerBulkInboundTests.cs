@@ -25,6 +25,7 @@ public class StockMovementsControllerBulkInboundTests
     private readonly Mock<ICurrentUserService> _currentUser = new();
     private readonly Mock<IAppSettingRepository> _settings = new();
     private readonly Mock<IPartRequisitionRepository> _partReq = new();
+    private readonly Mock<IProductionOrderRepository> _poRepo = new();
 
     private StockMovementsController BuildController()
     {
@@ -34,12 +35,13 @@ public class StockMovementsControllerBulkInboundTests
         _currentUser.Setup(c => c.GetCurrentAppUserId()).Returns(7);
         _currentUser.Setup(c => c.GetWindowsUserName()).Returns("DOMAIN\\tester");
         _currentUser.Setup(c => c.GetDisplayName()).Returns("Tester");
+        _poRepo.Setup(r => r.FindForBookingAsync(It.IsAny<string?>())).ReturnsAsync(new FaAufloesung(FaAufloesungStatus.Unbekannt, null));
         _articleRepo.Setup(r => r.GetByIdAsync(It.IsAny<int>()))
             .ReturnsAsync((int id) => new Article { Id = id, ArticleNumber = $"A-{id}", CreatedBy = "t", CreatedByWindows = "t" });
 
         var controller = new StockMovementsController(
             _stockRepo.Object, _articleRepo.Object, _locationRepo.Object, _userRepo.Object,
-            _currentUser.Object, _settings.Object, _partReq.Object);
+            _currentUser.Object, _settings.Object, _partReq.Object, _poRepo.Object);
 
         controller.ControllerContext = new ControllerContext
         {

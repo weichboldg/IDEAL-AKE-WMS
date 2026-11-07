@@ -412,6 +412,14 @@ public class ApplicationDbContext : DbContext
 
             entity.HasIndex(e => e.SourceStorageLocationId);
 
+            // v1.87.0: verknuepfter FA; SetNull, weil der Rueckbau-Runbook Sub-FA-Zeilen loescht (Text bleibt als Spur).
+            entity.HasOne(e => e.LinkedProductionOrder)
+                .WithMany()
+                .HasForeignKey(e => e.ProductionOrderId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .IsRequired(false);
+            entity.HasIndex(e => e.ProductionOrderId);
+
             // Performance: Stock calculations always group by (ArticleId, StorageLocationId)
             entity.HasIndex(e => new { e.ArticleId, e.StorageLocationId })
                 .HasDatabaseName("IX_StockMovements_ArticleId_StorageLocationId");

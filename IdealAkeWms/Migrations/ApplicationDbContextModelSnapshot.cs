@@ -4059,6 +4059,9 @@ namespace IdealAkeWms.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<int?>("ProductionOrderId")
+                        .HasColumnType("int");
+
                     b.Property<decimal>("Quantity")
                         .HasColumnType("decimal(18,3)");
 
@@ -4085,6 +4088,8 @@ namespace IdealAkeWms.Migrations
 
                     b.HasIndex("ProductionOrder")
                         .HasDatabaseName("IX_StockMovements_ProductionOrder");
+
+                    b.HasIndex("ProductionOrderId");
 
                     b.HasIndex("SourceStorageLocationId");
 
@@ -5514,6 +5519,11 @@ namespace IdealAkeWms.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("IdealAkeWms.Models.ProductionOrder", "LinkedProductionOrder")
+                        .WithMany()
+                        .HasForeignKey("ProductionOrderId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("IdealAkeWms.Models.StorageLocation", "SourceStorageLocation")
                         .WithMany()
                         .HasForeignKey("SourceStorageLocationId")
@@ -5531,6 +5541,8 @@ namespace IdealAkeWms.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("Article");
+
+                    b.Navigation("LinkedProductionOrder");
 
                     b.Navigation("SourceStorageLocation");
 

@@ -299,6 +299,7 @@ BEGIN
         [ModifiedBy]              NVARCHAR(200)     NULL,
         [ModifiedByWindows]       NVARCHAR(200)     NULL,
         [Note]                    NVARCHAR(500)     NULL,
+        [ProductionOrderId]       INT               NULL,  -- v1.87.0 verknuepfter FA (FK im Index-Block, ProductionOrders folgt erst)
         CONSTRAINT [PK_StockMovements] PRIMARY KEY CLUSTERED ([Id]),
         CONSTRAINT [FK_StockMovements_Article] FOREIGN KEY ([ArticleId]) REFERENCES [dbo].[Articles]([Id]),
         CONSTRAINT [FK_StockMovements_StorageLocation] FOREIGN KEY ([StorageLocationId]) REFERENCES [dbo].[StorageLocations]([Id]),
@@ -1212,6 +1213,11 @@ IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_StockMovements_Timesta
     CREATE NONCLUSTERED INDEX [IX_StockMovements_Timestamp] ON [dbo].[StockMovements]([Timestamp]);
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_StockMovements_SourceStorageLocationId')
     CREATE NONCLUSTERED INDEX [IX_StockMovements_SourceStorageLocationId] ON [dbo].[StockMovements]([SourceStorageLocationId]);
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_StockMovements_ProductionOrderId')
+    CREATE NONCLUSTERED INDEX [IX_StockMovements_ProductionOrderId] ON [dbo].[StockMovements]([ProductionOrderId]);
+IF OBJECT_ID(N'[dbo].[FK_StockMovements_ProductionOrders_ProductionOrderId]', N'F') IS NULL
+    ALTER TABLE [dbo].[StockMovements] ADD CONSTRAINT [FK_StockMovements_ProductionOrders_ProductionOrderId]
+        FOREIGN KEY ([ProductionOrderId]) REFERENCES [dbo].[ProductionOrders]([Id]) ON DELETE SET NULL;
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_SageBookingQueueItems_Status')
     CREATE NONCLUSTERED INDEX [IX_SageBookingQueueItems_Status] ON [dbo].[SageBookingQueueItems]([Status]);
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_SageBookingQueueItems_StockMovementId')
@@ -2935,6 +2941,9 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
    AND COL_LENGTH(N'dbo.ArticleSageDetails', N'Basismengeneinheit') IS NOT NULL
    AND COL_LENGTH(N'dbo.ArticleSuppliers', N'DezimalstellenEK') IS NOT NULL -- sonst steht SQL/140 noch aus
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261107182445_AddArtikelMengeneinheiten', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261107190419_AddStockMovementProductionOrderId')
+   AND COL_LENGTH(N'dbo.StockMovements', N'ProductionOrderId') IS NOT NULL -- sonst steht SQL/109 noch aus
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261107190419_AddStockMovementProductionOrderId', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';

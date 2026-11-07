@@ -221,6 +221,22 @@ public class ProductionOrderRepository : Repository<ProductionOrder>, IProductio
             .Take(limit).ToListAsync();
     }
 
+    public async Task<FaAufloesung> FindForBookingAsync(string? text)
+    {
+        var t = text?.Trim();
+        if (string.IsNullOrEmpty(t)) return new(FaAufloesungStatus.Leer, null);
+        if (t.Contains(';') || t.Contains(',')) return new(FaAufloesungStatus.Liste, null);
+        var sub = await _dbSet.AsNoTracking().Where(o => o.SubOrderNumber == t).Take(2).ToListAsync();
+        if (sub.Count == 1) return new(FaAufloesungStatus.Gefunden, sub[0]);
+        var haupt = await _dbSet.AsNoTracking().Where(o => o.OrderNumber == t).Where(ProductionOrder.IsHauptFa).Take(2).ToListAsync();
+        return haupt.Count switch
+        {
+            0 => new(FaAufloesungStatus.Unbekannt, null),
+            1 => new(FaAufloesungStatus.Gefunden, haupt[0]),
+            _ => new(FaAufloesungStatus.Mehrdeutig, null),
+        };
+    }
+
     public async Task<List<ProductionOrder>> GetOpenOrdersInWindowAsync(int weeksAhead, int maxCount)
     {
         if (weeksAhead <= 0) weeksAhead = 8;
