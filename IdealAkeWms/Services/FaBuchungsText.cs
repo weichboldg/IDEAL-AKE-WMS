@@ -47,6 +47,9 @@ public static class FaBuchungsText
         (einstellung ?? "").Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
             .Contains(buchungsart, StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>Master <c>ProduktionsauftragHierarchisch</c> an? (Link-Ziel FA-Struktur statt FA-Liste)</summary>
+    public static bool IstHierarchisch(string? masterWert) => string.Equals(masterWert?.Trim(), "true", StringComparison.OrdinalIgnoreCase);
+
     /// <summary>FA-Leserecht = Regel des Filters <c>RequirePickingOrTrackingOrLeitstandAccess</c> (EIN Ort; der Filter ruft diese Methode).
     /// Erweiterungsmethode statt Interface-Member, damit Mocks/Fakes von <see cref="ICurrentUserService"/> unveraendert bleiben.</summary>
     public static async Task<bool> CanViewProductionOrdersAsync(this ICurrentUserService u) =>

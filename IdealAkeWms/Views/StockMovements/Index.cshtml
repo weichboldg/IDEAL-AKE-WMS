@@ -1,6 +1,12 @@
 @model MovementHistoryViewModel
+@using IdealAkeWms.Services
+@inject ICurrentUserService CurrentUser
+@inject IdealAkeWms.Data.Repositories.IServiceSettingRepository ServiceSettings
 @{
     ViewData["Title"] = "Bewegungshistorie";
+    // v1.87.0: FA-Leserecht und Master einmal je Seite (nicht je Zeile)
+    var faLinkErlaubt = await CurrentUser.CanViewProductionOrdersAsync();
+    var faHierarchisch = FaBuchungsText.IstHierarchisch(await ServiceSettings.GetValueAsync(IdealAkeWms.Services.HierarchischeStruktur.HierarchischeStrukturKeys.Master));
 }
 
 <h2 class="page-header">Bewegungshistorie</h2>
@@ -131,7 +137,7 @@
                         </span>
                     </td>
                     <td>@item.UserName</td>
-                    <td>@item.ProductionOrder</td>
+                    <td><partial name="_FaLink" model="new FaLinkViewModel(item.ProductionOrder, item.LinkedFa, faLinkErlaubt, faHierarchisch)" /></td>
                     <td data-col-key="note">@(item.Note ?? "")</td>
                 </tr>
             }

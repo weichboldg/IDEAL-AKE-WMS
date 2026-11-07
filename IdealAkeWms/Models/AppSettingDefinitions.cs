@@ -97,7 +97,7 @@ public static class AppSettingDefinitions
 
         // ---- QR-Code und Scanner ----
         B(AppSettingKeys.QrMitFaNummer, "false", GQr, "QR-Code mit FA-Nummer",
-            "Übernimmt die FA aus Feld 3 eines Artikel-QR-Codes in das FA-Feld.", "Wareneingang, Warenausgang, Umbuchung, Bestandsübersicht", Beide, seed: true),
+            "Übernimmt die FA aus Feld 3 eines Artikel-QR-Codes in das FA-Feld.", "Wareneingang, Warenausgang, Umbuchung (Bestandsübersicht seit v1.87.0 nie)", Beide, seed: true),
         new(AppSettingKeys.QrErstesFeld, SettingType.Choice, "Artikelnummer", GQr, "Was im ersten Feld eines Artikel-QR-Codes steht.",
             Anzeigename: "QR-Code: erstes Feld", Verwendung: "alle Artikel-Scans (Kamera, Hardware-Scanner)", Standort: Beide,
             Werte: new[] { ("Artikelnummer", "Artikelnummer"), ("Matchcode", "Matchcode") }, Seed: true),

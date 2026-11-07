@@ -71,8 +71,8 @@ public class StockApiController : ControllerBase
 
     private async Task<string?> FaLinkAsync(string orderNumber)
     {
-        var hierarchisch = string.Equals((await _serviceSettings.GetValueAsync(
-            Services.HierarchischeStruktur.HierarchischeStrukturKeys.Master))?.Trim(), "true", StringComparison.OrdinalIgnoreCase);
+        var hierarchisch = FaBuchungsText.IstHierarchisch(await _serviceSettings.GetValueAsync(
+            Services.HierarchischeStruktur.HierarchischeStrukturKeys.Master));
         return hierarchisch
             ? Url.Action("Index", "FaHierarchy", new { filterHauptFa = orderNumber })
             : Url.Action("Index", "ProductionOrders", new { filterOrderNumber = orderNumber });

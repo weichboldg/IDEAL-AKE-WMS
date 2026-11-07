@@ -24,6 +24,12 @@
                                 Liegt sie an mehreren Plaetzen &rarr; gelbe Warnung mit Mengen; bitte gezielt buchen.
                                 Liegt sie auf einem inaktiven/nicht buchbaren Platz &rarr; gelbe Warnung mit Hinweis,
                                 manuell zu waehlen.</li>
+                            <li><strong>FA-Prüfung (seit v1.87.0):</strong> Unter dem FA-Feld steht, ob der FA im WMS existiert, sein Status
+                                (offen, erledigt, storniert, in Sage vermisst) und – mit FA-Leserecht – ein Link zum FA. Beim Tippen werden offene
+                                FAs vorgeschlagen. Unbekannt oder mehrdeutig: gelbe Karte, Buchen bleibt möglich, die Buchung wird dann nicht verknüpft
+                                und nach dem Speichern erscheint eine Warnung. Gilt ebenso für Sammel-Wareneingang, Ausbuchung und Umbuchung.
+                                Ist in den Standorteinstellungen „FA-Pflicht bei Buchungen“ für die Buchungsart gewählt, wird nur mit eindeutig
+                                gefundenem FA gebucht (erledigt/storniert bleibt eine Warnung).</li>
                         </ul>
                     </dd>
 
@@ -51,6 +57,8 @@
                     <dt>Bewegungshistorie</dt>
                     <dd>Chronologische Uebersicht aller Lagerbewegungen (Einbuchungen, Ausbuchungen, Umbuchungen).
                         Filterbar nach Zeitraum, Artikel, Lagerplatz, Bewegungsart, Benutzer und Fertigungsauftrag.
+                        Seit v1.87.0 ist ein verknüpfter FA ein Link (mit FA-Leserecht) mit Status darunter; nicht verknüpfte Texte
+                        (z. B. „A; B“ vom Kommissionierwagen) stehen wie bisher da (Tooltip „nicht verknüpft“). Der FA-Filter sucht weiter im Text.
                         Erreichbar ueber <em>Lager &rarr; Bewegungshistorie</em>.</dd>
 
                     <dt>Offene Bestellungen und Wareneingang zu Bestellung (seit v1.84.0)</dt>

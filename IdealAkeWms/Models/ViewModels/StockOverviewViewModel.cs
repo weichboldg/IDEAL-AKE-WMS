@@ -3,6 +3,8 @@ namespace IdealAkeWms.Models.ViewModels;
 public class StockOverviewViewModel
 {
     public List<StockOverviewItem> Items { get; set; } = new();
+    /// <summary>v1.87.0: Aufloesung des FA-Filters fuer den FA-Kopf; null ohne FA-Filter.</summary>
+    public IdealAkeWms.Data.Repositories.FaAufloesung? FaKopf { get; set; }
     public string? FilterArticle { get; set; }
     public int? FilterStorageLocationId { get; set; }
     public decimal? FilterMinQuantity { get; set; }

@@ -320,11 +320,12 @@ public class HardwareScannerTests
     }
 
     [Fact]
-    public void Bestandsuebersicht_QrFaUebernahme_FolgtQrMitFaNummer_NichtFest()
+    public void Bestandsuebersicht_QrFaUebernahme_Nie_v187()
     {
-        // Spec 2026-11-07-bestandsuebersicht-qr-fa-uebernahme-fest (Variante A)
+        // Spec 2026-11-07-bestandsuebersicht-qr-fa-uebernahme-fest (Variante A), seit v1.87.0 ersetzt durch Antwort 2 der Spec
+        // 2026-11-08-lagerbuchungen-fa-feld-und-verlinkung: der Artikel-QR-Knopf der Bestandsuebersicht uebernimmt NIE einen FA.
         var view = Read("Views", "StockOverview", "Index.cshtml");
-        view.Should().NotContain("data-qr-fa-enabled=\"true\"").And.Contain("ViewBag.QrMitFaNummer")
+        view.Should().Contain("data-qr-fa-enabled=\"false\"").And.NotContain("ViewBag.QrMitFaNummer")
             .And.Contain("data-fa-target=\"filterProductionOrder\"", "FA-Feld wird beim Artikel-Scan auch bei ausgeschalteter Einstellung geleert");
         var ctrl = Read("Controllers", "StockMovementsController.cs");
         ctrl.Split("ViewBag.QrMitFaNummer").Length.Should().Be(7,

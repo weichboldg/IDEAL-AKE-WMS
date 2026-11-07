@@ -1,0 +1,24 @@
+@model IdealAkeWms.Models.ViewModels.FaLinkViewModel
+@*
+    v1.87.0 (Spec 2026-11-08-lagerbuchungen-fa-feld-und-verlinkung): FA an einer Lagerbewegung.
+    Verknuepft: Nummer (Link nur mit FA-Leserecht, Ziel FA-Struktur bei Master „hierarchisch“, sonst FA-Liste) + Status als Text.
+    Nicht verknuepft: Text wie bisher, title „nicht verknüpft“. Recht und Master liest die Seite EINMAL und reicht sie herein.
+*@
+@if (Model.Fa is { } fa)
+{
+    var nr = fa.IsSubFa ? fa.SubOrderNumber : fa.OrderNumber;
+    var warn = IdealAkeWms.Services.FaBuchungsText.IstWarnStatus(fa);
+    if (Model.LinkErlaubt)
+    {
+        <a href="@(Model.Hierarchisch ? Url.Action("Index", "FaHierarchy", new { filterHauptFa = fa.OrderNumber }) : Url.Action("Index", "ProductionOrders", new { filterOrderNumber = fa.OrderNumber }))">@nr</a>
+    }
+    else
+    {
+        <span>@nr</span>
+    }
+    <div class="small @(warn ? "fw-semibold" : "text-body-secondary")">@(warn ? "Achtung: " : "")@IdealAkeWms.Services.FaBuchungsText.Status(fa)</div>
+}
+else if (!string.IsNullOrWhiteSpace(Model.Text))
+{
+    <span title="nicht verknüpft">@Model.Text</span>
+}

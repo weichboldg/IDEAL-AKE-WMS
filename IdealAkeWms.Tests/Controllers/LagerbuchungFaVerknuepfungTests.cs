@@ -219,4 +219,28 @@ public class LagerbuchungFaVerknuepfungTests
         typeof(StockApiController).GetCustomAttributes(typeof(IdealAkeWms.Filters.RequireStockOrPickingOrTrackingAccessAttribute), true)
             .Should().ContainSingle();
     }
+
+    // ---------- E4: Bewegungshistorie (AK 11) ----------
+
+    [Fact]
+    public async Task Historie_VerknuepfteZeileMitFa_NichtVerknuepfteNurText_FilterAmText_AK11()
+    {
+        using var db = await SeedAsync();
+        db.Articles.Add(new Article { Id = 9, ArticleNumber = "A9", CreatedBy = "t", CreatedByWindows = "t" });
+        db.StorageLocations.Add(new StorageLocation { Id = 2, Code = "L2", CreatedBy = "t", CreatedByWindows = "t" });
+        StockMovement M(int id, string? text, int? faId) => new()
+        {
+            Id = id, ArticleId = 9, StorageLocationId = 2, Quantity = 1, ProductionOrder = text, ProductionOrderId = faId,
+            Timestamp = new DateTime(2026, 11, 8, 10, id, 0), WindowsUser = "w", CreatedBy = "t", CreatedByWindows = "t"
+        };
+        db.StockMovements.AddRange(M(1, "1065141", 1), M(2, "asdf", null));
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+
+        var (items, total) = await new StockMovementRepository(db).GetMovementHistoryAsync(page: 1, pageSize: 25);
+        total.Should().Be(2);
+        items.Single(i => i.Id == 1).LinkedFa!.OrderNumber.Should().Be("1065141");
+        items.Single(i => i.Id == 2).LinkedFa.Should().BeNull();
+        (await new StockMovementRepository(db).GetMovementHistoryAsync(filterProductionOrder: "asdf", page: 1, pageSize: 25)).TotalCount.Should().Be(1);
+    }
 }

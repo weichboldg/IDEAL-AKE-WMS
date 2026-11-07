@@ -1,4 +1,8 @@
 @model StockOverviewViewModel
+@using IdealAkeWms.Services
+@using IdealAkeWms.Data.Repositories
+@inject ICurrentUserService CurrentUser
+@inject IServiceSettingRepository ServiceSettings
 @{
     ViewData["Title"] = "Artikelbestände";
 }
@@ -15,7 +19,7 @@
                     <div class="input-group">
                         <input type="text" name="filterArticle" id="filterArticle" value="@Model.FilterArticle" class="form-control" placeholder="Artikelnr. oder Bezeichnung" />
                         <button type="button" class="btn btn-outline-secondary" id="btnScanArticleFilter" data-hw-scan-kamera-ziel title="Artikel-QR-Code scannen"
-                                data-qr-fa-enabled="@(ViewBag.QrMitFaNummer == true ? "true" : "false")" data-fa-target="filterProductionOrder">
+                                data-qr-fa-enabled="false" data-fa-target="filterProductionOrder">@* v1.87.0 Antwort 2: Artikel-Scan setzt nie einen FA und leert den FA-Filter *@
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
                                 <path d="M1.5 1a.5.5 0 0 0-.5.5v3a.5.5 0 0 1-1 0v-3A1.5 1.5 0 0 1 1.5 0h3a.5.5 0 0 1 0 1zM11 .5a.5.5 0 0 1 .5-.5h3A1.5 1.5 0 0 1 16 1.5v3a.5.5 0 0 1-1 0v-3a.5.5 0 0 0-.5-.5h-3a.5.5 0 0 1-.5-.5M.5 11a.5.5 0 0 1 .5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 1 0 1h-3A1.5 1.5 0 0 1 0 14.5v-3a.5.5 0 0 1 .5-.5m15 0a.5.5 0 0 1 .5.5v3a1.5 1.5 0 0 1-1.5 1.5h-3a.5.5 0 0 1 0-1h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 1 .5-.5M3 4.5a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0zm2 0a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0zm2 0a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0zm2 0a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5zm3 0a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0z"/>
                             </svg>
@@ -66,6 +70,31 @@
         </form>
     </div>
 </div>
+
+@if (Model.FaKopf is { } faKopf)
+{
+    @* v1.87.0: FA-Kopf bei gesetztem FA-Filter (wie die Pruefkarte der Buchungsmasken; Status als Text) *@
+    var faO = faKopf.Order;
+    <div class="alert py-2 mb-3 @(faO == null || FaBuchungsText.IstWarnStatus(faO) ? "alert-warning" : "alert-light border")" role="status">
+        @if (faO != null)
+        {
+            var linkErlaubt = await CurrentUser.CanViewProductionOrdersAsync();
+            var hierarchisch = FaBuchungsText.IstHierarchisch(await ServiceSettings.GetValueAsync(IdealAkeWms.Services.HierarchischeStruktur.HierarchischeStrukturKeys.Master));
+            <div class="fw-semibold">FA <partial name="_FaLink" model="new FaLinkViewModel(Model.FilterProductionOrder, faO, linkErlaubt, hierarchisch)" /></div>
+            @if (!string.IsNullOrWhiteSpace(faO.Description1)) { <div>@faO.Description1</div> }
+            @if (!string.IsNullOrWhiteSpace(faO.ArticleNumber)) { <div class="small">Artikel @faO.ArticleNumber</div> }
+        }
+        else
+        {
+            <div class="fw-semibold">Achtung: @(faKopf.Status switch
+            {
+                FaAufloesungStatus.Mehrdeutig => "FA im WMS mehrdeutig",
+                FaAufloesungStatus.Liste => "Im FA-Filter stehen mehrere FAs",
+                _ => "FA im WMS unbekannt",
+            }) – angezeigt werden Buchungen mit diesem Text.</div>
+        }
+    </div>
+}
 
 <div class="table-responsive">
     <table class="table table-striped mb-0 filterable-table" data-server-column-filter="true">

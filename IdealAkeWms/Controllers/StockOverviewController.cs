@@ -15,6 +15,7 @@ public class StockOverviewController : Controller
     private readonly IStorageLocationRepository _storageLocationRepository;
     private readonly IAppSettingRepository _settingRepository;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IProductionOrderRepository _productionOrderRepository;
 
     // Mapping data-col-key -> Property fuer Server-Side-Column-Filter
     private static readonly Dictionary<string, Func<StockOverviewItem, string?>> _stockOverviewColMap = new()
@@ -31,8 +32,10 @@ public class StockOverviewController : Controller
         IStockMovementRepository stockMovementRepository,
         IStorageLocationRepository storageLocationRepository,
         IAppSettingRepository settingRepository,
-        ICurrentUserService currentUserService)
+        ICurrentUserService currentUserService,
+        IProductionOrderRepository productionOrderRepository)
     {
+        _productionOrderRepository = productionOrderRepository;
         _stockMovementRepository = stockMovementRepository;
         _storageLocationRepository = storageLocationRepository;
         _settingRepository = settingRepository;
@@ -92,9 +95,10 @@ public class StockOverviewController : Controller
             }
         };
 
-        // Spec 2026-11-07-bestandsuebersicht-qr-fa-uebernahme-fest (Variante A): FA aus dem Artikel-QR nur mit QrMitFaNummer,
-        // gleiches Muster wie Ein-/Aus-/Umbuchung (StockMovementsController); vorher fest an.
-        ViewBag.QrMitFaNummer = (await _settingRepository.GetValueAsync(AppSettingKeys.QrMitFaNummer))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
+        // v1.87.0 (Spec 2026-11-08-lagerbuchungen-fa-feld-und-verlinkung, Antwort 2): der Artikel-QR-Knopf uebernimmt NIE einen FA
+        // (View: data-qr-fa-enabled="false"); ersetzt die QrMitFaNummer-Bindung aus v1.76.0. FA-Kopf bei gesetztem FA-Filter.
+        if (!string.IsNullOrWhiteSpace(filterProductionOrder))
+            vm.FaKopf = await _productionOrderRepository.FindForBookingAsync(filterProductionOrder);
         return View(vm);
     }
 }

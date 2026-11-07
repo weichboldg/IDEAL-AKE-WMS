@@ -9,6 +9,24 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.87.0</strong> <span class="text-white-50 ms-2">08.11.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>Lager: FA an Buchungen verknüpft und geprüft</h6>
+                <ul>
+                    <li>Wareneingang, Sammel-Wareneingang, Warenausgang und Umbuchung zeigen unter dem FA-Feld, ob der FA existiert und welchen Status er hat
+                        (offen, erledigt, storniert, in Sage vermisst), mit Link zum FA. Vorschläge offener FAs beim Tippen.</li>
+                    <li>Unbekannter, mehrdeutiger, erledigter oder stornierter FA: Buchung wird gespeichert, dazu eine Warnung mit dem Grund.</li>
+                    <li>Neue Einstellung „FA-Pflicht bei Buchungen“ (Standard: keine Pflicht): für gewählte Buchungsarten nur mit eindeutig gefundenem FA.</li>
+                    <li>Bewegungshistorie: FA als Link mit Status; Bestandsübersicht: FA-Kopf beim FA-Filter.</li>
+                    <li>Bestandsübersicht: der Artikel-Scan übernimmt keinen FA mehr (dafür gibt es den FA-Knopf).</li>
+                    <li>Bestehende Buchungen werden einmalig mit ihrem FA verknüpft (SQL/110 beim Update).</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.86.0</strong> <span class="text-white-50 ms-2">08.11.2026</span>
             </div>
             <div class="card-body">

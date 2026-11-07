@@ -37,5 +37,7 @@ public class MovementHistoryItem
     public string MovementTypeName { get; set; } = string.Empty;
     public string? UserName { get; set; }
     public string? ProductionOrder { get; set; }
+    /// <summary>v1.87.0: verknuepfter FA (Teilprojektion: Id, Nummern, Status) oder null.</summary>
+    public ProductionOrder? LinkedFa { get; set; }
     public string? Note { get; set; }
 }

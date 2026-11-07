@@ -375,6 +375,16 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
                                    "Unbekannt",
                 UserName = sm.User != null ? sm.User.Name : sm.WindowsUser,
                 ProductionOrder = sm.ProductionOrder,
+                // v1.87.0: verknuepfter FA (nur die Felder fuer Link + Status-Text)
+                LinkedFa = sm.LinkedProductionOrder == null ? null : new ProductionOrder
+                {
+                    Id = sm.LinkedProductionOrder.Id,
+                    OrderNumber = sm.LinkedProductionOrder.OrderNumber,
+                    SubOrderNumber = sm.LinkedProductionOrder.SubOrderNumber,
+                    IsDone = sm.LinkedProductionOrder.IsDone,
+                    IsCancelled = sm.LinkedProductionOrder.IsCancelled,
+                    SageMissingSince = sm.LinkedProductionOrder.SageMissingSince,
+                },
                 Note = sm.Note
             })
             .ToListAsync();

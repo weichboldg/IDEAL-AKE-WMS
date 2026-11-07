@@ -51,6 +51,9 @@ Formulierung durchgängig: **nicht über die Anwendung umkehrbar** — nicht „
 1. **Abhängige Sub-FA-Daten sichten/entfernen** (Teil-8-Tabellen): erst die an
    `SubOrderNumber`-Zeilen hängenden Rückmeldungen/Arbeitsgänge/BDE-Buchungen bereinigen, sonst
    brechen FKs. (Konkrete Tabellenliste ergibt sich aus Teil 8; bis dahin manuell prüfen.)
+   Seit v1.87.0 verweisen auch Lagerbewegungen auf FAs (`StockMovements.ProductionOrderId`, `ON DELETE SET NULL`): beim Löschen
+   einer Sub-FA wird die Verknüpfung geleert, der FA-Text der Buchung bleibt erhalten. Danach kann `SQL/110` die Haupt-FA-Nummern
+   wieder verknüpfen.
 2. **Sub-FA-Zeilen entfernen** — die materialisierten Kinder:
    ```sql
    DELETE FROM dbo.ProductionOrders WHERE OrderNumber <> SubOrderNumber;
