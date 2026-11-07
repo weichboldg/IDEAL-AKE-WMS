@@ -11135,8 +11135,9 @@ bestätigt, Bestand-Zuordnung bleibt nicht nötig, Lösen), `LagerplatzSyncServi
 
 Spec `2026-11-07-fehlteile-nur-meine-werkbaenke-trefferzahl-spec` (Bug). **Standort:** beide (wo `LagerbestellungAktiv` gesetzt ist).
 **Keine Migration.** Ergänzt 33.12–33.14.
-**Vorbedingungen:** Benutzer **U** mit Werkbänken **A** und **B**, fremde Werkbank **C**; Seitengröße 10. Mindestens 12 Fehlteile
-(Tab „Wird nicht nachgeliefert“) auf C mit jüngerem Abschlussdatum, 3 auf A, 2 auf B; analog einige „Offene Fehlteile“ auf A und C.
+**Vorbedingungen:** Benutzer **U** mit Werkbänken **A** und **B**, fremde Werkbank **C**; Seitengröße **25** (die Liste kennt nur
+25/50/100/Alle, `PageSize.cs:15`). Tab „Wird nicht nachgeliefert“: mindestens 26 Fehlteile auf C mit jüngerem Abschlussdatum, 3 auf A,
+25 auf B (zusammen 28 eigene → zwei Seiten); analog einige „Offene Fehlteile“ auf A und C. (Auf DEV AKE von der QA so angelegt: QA108-A/B/C.)
 **Regel:** Die Werkbank-Menge (eigene Werkbänke bzw. gewählte Werkbank) wird im Repository **vor** Zählen und Blättern gefiltert (ADR 0005);
 Liste und beide Tab-Badges nutzen dieselbe Menge.
 Automatisiert: `MissingPartsControllerTests` (`…_AK3`, `…_AK4`, `…_AK6`, bestehende angepasst), `MissingPartsLagerControllerTests`,
@@ -11144,8 +11145,8 @@ Automatisiert: `MissingPartsControllerTests` (`…_AK3`, `…_AK4`, `…_AK6`, b
 
 | Nr | Schritte | Erwartung |
 |---|---|---|
-| 108.1 | Als U `Lager → Meine Fehlteile`, Tab „Wird nicht nachgeliefert“ | 5 Zeilen (A+B), Trefferzahl 5, eine Seite, keine Zeile von C. Badge „Wird nicht nachgeliefert“ = 5, Badge „Offene Fehlteile“ = Anzahl auf A+B (nicht mehr alle Werkbänke). |
-| 108.2 | Seitengröße 2 | 3 Seiten, zusammen genau die 5 Zeilen, Trefferzahl 5 auf jeder Seite. (Vorher: Seite 1 leer bzw. Trefferzahl = Zeilen der Seite.) |
+| 108.1 | Als U `Lager → Meine Fehlteile`, Tab „Wird nicht nachgeliefert“ | Trefferzahl 28 (A+B), Seite 1 mit 25 Zeilen, keine Zeile von C. Badge „Wird nicht nachgeliefert“ = 28, Badge „Offene Fehlteile“ = Anzahl auf A+B (nicht mehr alle Werkbänke). |
+| 108.2 | Seite 2 | 3 Zeilen; Seiten 1+2 zusammen genau die 28 eigenen Zeilen, Trefferzahl 28 auf beiden Seiten. (Vorher: Seite 1 leer, weil die 25 jüngsten Zeilen von C stammten, bzw. Trefferzahl = Zeilen der Seite.) |
 | 108.3 | Spaltenfilter Werkbank = `A` | 3 Zeilen, Trefferzahl 3. |
 | 108.4 | Haken „Nur meine Werkbänke“ aus | Alle Werkbänke inkl. C; Badges zählen alle. |
 | 108.5 | Negativ: URL `/MissingParts?mineOnly=true&workplaceId=<Id von C>` | Leere Liste, Trefferzahl 0, **beide Badges 0**. |
