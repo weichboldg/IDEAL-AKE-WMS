@@ -453,7 +453,8 @@ public class PickingController : Controller
         ViewBag.CanOrderWarehouse = await _currentUserService.CanOrderLagerAsync()
             || await _currentUserService.CanOrderGlasAsync();
 
-        return View(vm);
+        // QA Q1: auch die Action „Auftrag“ rendert die Stuecklisten-View (sonst sucht MVC „Auftrag.cshtml“ → HTTP 500).
+        return View("Bom", vm);
     }
 
     /// <summary>v1.88.0 E3 (AK 11, 12): gewaehlte Zeilen des Auftrags mit Ist-Menge umbuchen (Server prueft Menge, Status, Bestand).</summary>
@@ -653,7 +654,7 @@ public class PickingController : Controller
                 Menge = z.SollMenge,
                 IstMenge = z.IstMenge,
                 Lagerplatz = z.SourceStorageLocationId is { } sl ? plaetze.GetValueOrDefault(sl) : null,
-                Status = z.Status.ToString(),
+                Status = PickingOrderListItem.ZeilenStatusText(z.Status),
             }).ToList()
         });
     }

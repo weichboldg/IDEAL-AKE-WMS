@@ -71,12 +71,20 @@ public class PickingAreasController : Controller
         }
         var now = DateTime.Now;
         Audit(area, now);
-        if (area.IsDefault)
-            foreach (var anderer in alle.Where(a => a.Id != id && a.IsDefault))
+        var alteStandards = area.IsDefault ? alle.Where(a => a.Id != id && a.IsDefault).ToList() : new List<PickingArea>();
+        if (alteStandards.Count > 0)
+        {
+            // QA Q2: der gefilterte UNIQUE-Index UX_PickingAreas_IsDefault erlaubt nie zwei Standards – EF ordnet die UPDATEs nicht nach
+            // diesem Index. Deshalb erst den alten Standard aufheben und speichern, dann den neuen setzen (genau einer: der neue loest ab).
+            area.IsDefault = false;
+            foreach (var anderer in alteStandards)
             {
-                anderer.IsDefault = false; // genau ein Standardbereich: der neue loest den alten ab
+                anderer.IsDefault = false;
                 Audit(anderer, now);
             }
+            await _repo.SaveChangesAsync();
+            area.IsDefault = true;
+        }
         await _repo.SaveChangesAsync();
         TempData["SuccessMessage"] = $"Bereich „{area.Name}“ gespeichert.";
         return RedirectToAction(nameof(Index));

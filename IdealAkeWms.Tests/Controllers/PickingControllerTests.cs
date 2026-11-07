@@ -305,4 +305,13 @@ public class PickingControllerTests
         ((PickingListViewModel)((ViewResult)await Setup(auftraege, "", zuweisung: true, userId: 7).Index(showAll: true)).Model!).Items
             .Should().HaveCount(2);
     }
+
+    [Fact]
+    public void Auftrag_RendertStuecklistenView_QaQ1()
+    {
+        // QA Q1: die Action „Auftrag“ teilt BomSeiteAsync mit „Bom“ – ohne expliziten View-Namen suchte MVC „Auftrag.cshtml“ (HTTP 500).
+        var src = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "IdealAkeWms", "Controllers", "PickingController.cs"));
+        src.Should().Contain("return View(\"Bom\", vm);");
+        File.Exists(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "IdealAkeWms", "Views", "Picking", "Auftrag.cshtml")).Should().BeFalse();
+    }
 }

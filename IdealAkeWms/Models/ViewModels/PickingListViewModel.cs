@@ -33,6 +33,17 @@ public class PickingOrderListItem
     public PickingOrderStatus Status { get; set; }
     public string? AssignedPickerName { get; set; }
 
+    /// <summary>QA Q9: Zeilenstatus als deutscher Text (Druck, Anzeige).</summary>
+    public static string ZeilenStatusText(PickingOrderLineStatus s) => s switch
+    {
+        PickingOrderLineStatus.Offen => "offen",
+        PickingOrderLineStatus.Gepickt => "gepickt",
+        PickingOrderLineStatus.Umgebucht => "umgebucht",
+        PickingOrderLineStatus.Entfallen => "entfallen",
+        PickingOrderLineStatus.Uebertragen => "in Folgeauftrag",
+        _ => s.ToString(),
+    };
+
     public static string StatusText(PickingOrderStatus s) => s switch
     {
         PickingOrderStatus.Offen => "Offen",

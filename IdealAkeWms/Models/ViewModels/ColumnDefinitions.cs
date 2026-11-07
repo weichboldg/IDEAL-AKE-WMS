@@ -187,21 +187,18 @@ public static class ColumnDefinitions
     /// </summary>
     public static readonly ViewConfig Picking = new("Picking", "Kommissionierliste", SupportsReorder: true, SupportsSortDefault: true)
     {
+        // v1.88.0 (QA Q7): Auftragsliste (Kommissionierauftraege) statt FA-Liste – identisch zum #column-config der View.
         Columns =
         [
             new ColumnDef("priority",    "Prio",             Locked: false, DefaultWidth: 60),
-            new ColumnDef("order-number","FA Nr.",           Locked: true),
+            new ColumnDef("nummer",      "Auftrag",          Locked: true),
+            new ColumnDef("order-number","FA Nr.",           Locked: false),
             new ColumnDef("article-number","Artikelnummer",  Locked: false),
-            // IDEAL-Matchcode (Task 3), materialisierte Zusatzinfo je FA — sichtbar per Default.
-            new ColumnDef("matchcode",   "Matchcode",        Locked: false),
             new ColumnDef("description", "Bezeichnung",      Locked: false),
-            new ColumnDef("customer",    "Kunde",            Locked: false),
-            new ColumnDef("quantity",    "Stk.",             Locked: false, DefaultWidth: 55),
-            new ColumnDef("picking-date","Komm.-Termin",     Locked: false),
+            new ColumnDef("workbench",   "Werkbank",         Locked: false),
+            new ColumnDef("bereich",     "Bereich",          Locked: false),
+            new ColumnDef("picking-date","Fällig",           Locked: false),
             new ColumnDef("status",      "Status",           Locked: false),
-            // IDEAL Teil 7/8 (FA-Liste-Hierarchie): Elternzeiger je Sub-FA, nur hierarchisch befuellt,
-            // per Default ausgeblendet. Additiv, keine Migration.
-            new ColumnDef("parent-sub-order-number","Uebergeordnete Sub-FA", Locked: false, DefaultHidden: true),
             // Conditional: only when PickerAssignmentEnabled
             new ColumnDef("picker",      "Kommissionierer",  Locked: false),
         ]

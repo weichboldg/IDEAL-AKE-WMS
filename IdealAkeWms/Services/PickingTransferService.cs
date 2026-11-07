@@ -52,15 +52,18 @@ public class PickingTransferService : IPickingTransferService
 
         // Auswahl pruefen (alles vor der ersten Buchung): Zeile gehoert zum Auftrag, ist nicht umgebucht, Ist-Menge > 0 und ≤ Soll.
         var auswahl = new List<(PickingOrderLine Zeile, decimal Ist, PickingSelectionItem Item)>();
+        if (selectedItems.GroupBy(i => i.PickingItemId).Any(g => g.Count() > 1))
+            throw new InvalidOperationException("Eine Zeile ist mehrfach ausgewählt – bitte Seite neu laden."); // QA Q6
         foreach (var item in selectedItems)
         {
             var zeile = auftrag.Zeilen.FirstOrDefault(z => z.Id == item.PickingItemId)
                 ?? throw new InvalidOperationException($"Zeile {item.PickingItemId} gehört nicht zu Auftrag {auftrag.Nummer}.");
             if (zeile.Status is not (PickingOrderLineStatus.Offen or PickingOrderLineStatus.Gepickt))
                 throw new InvalidOperationException($"{zeile.ArticleNumber} (Pos. {zeile.BomPosition}) ist bereits umgebucht oder abgeschlossen.");
-            decimal ist;
-            if (string.IsNullOrWhiteSpace(item.IstMenge)) ist = zeile.SollMenge;
-            else if (!BeschichtungsauftraegeController.TryMenge(item.IstMenge, out ist))
+            // QA Q5: leere Ist-Menge wird nicht still als Soll gebucht (die Seite belegt das Feld mit dem Soll vor).
+            if (string.IsNullOrWhiteSpace(item.IstMenge))
+                throw new InvalidOperationException($"{zeile.ArticleNumber}: Ist-Menge angeben.");
+            if (!BeschichtungsauftraegeController.TryMenge(item.IstMenge, out var ist))
                 throw new InvalidOperationException($"{zeile.ArticleNumber}: Ist-Menge „{item.IstMenge}“ ist keine Zahl.");
             if (ist <= 0m || ist > zeile.SollMenge)
                 throw new InvalidOperationException($"{zeile.ArticleNumber}: Ist-Menge {ist:0.###} muss größer als 0 und höchstens Soll {zeile.SollMenge:0.###} sein.");

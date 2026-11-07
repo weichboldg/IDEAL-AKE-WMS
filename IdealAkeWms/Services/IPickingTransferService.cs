@@ -7,7 +7,7 @@ public class PickingSelectionItem
     public int PickingItemId { get; set; }
     public int? SourceStorageLocationId { get; set; }
     public bool IsBaugruppe { get; set; }
-    /// <summary>v1.88.0: Ist-Menge als Text (keine feste Request-Kultur → Komma/Punkt); leer = Soll.</summary>
+    /// <summary>v1.88.0: Ist-Menge als Text (keine feste Request-Kultur → Komma/Punkt); Pflicht.</summary>
     public string? IstMenge { get; set; }
 }
 

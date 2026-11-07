@@ -501,11 +501,14 @@ public class PickingLeitstandController : Controller
     [RequireLeitstandAccess]
     public async Task<IActionResult> AuftraegeNachziehen(List<int>? ids, string? returnUrl)
     {
-        var fas = ids is { Count: > 0 }
-            ? ids
-            : (await _pickingStatusRepository.GetReleasedForPickingAsync()).Select(o => o.Id).ToList();
+        // QA Q4: nur freigegebene, nicht erledigte, nicht stornierte HauptFAs – auch bei Auswahl prueft der Server.
+        var freigegeben = (await _pickingStatusRepository.GetReleasedForPickingAsync()).Select(o => o.Id).ToHashSet();
+        var fas = ids is { Count: > 0 } ? ids.Distinct().Where(freigegeben.Contains).ToList() : freigegeben.ToList();
+        var uebersprungen = ids is { Count: > 0 } ? ids.Distinct().Count(i => !freigegeben.Contains(i)) : 0;
         var (erfolg, warnung) = PickingOrderWorkflow.Sammelmeldung(await ErzeugeAsync(fas));
         TempData["SuccessMessage"] = erfolg;
+        if (uebersprungen > 0)
+            warnung = $"{uebersprungen} markierte FA übersprungen (nicht freigegeben, erledigt oder storniert)." + (warnung != null ? " " + warnung : "");
         if (warnung != null) TempData["WarningMessage"] = warnung;
         if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl)) return Redirect(returnUrl);
         return RedirectToAction(nameof(Index));

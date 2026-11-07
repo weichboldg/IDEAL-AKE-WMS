@@ -356,4 +356,26 @@ public class PickingTransferServiceTests
 
         await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*gehört nicht zu Auftrag*");
     }
+
+    // ── QA Q5/Q6 (Reparatur 1): leere Ist-Menge und doppelte Zeile abgelehnt ──
+
+    [Fact]
+    public async Task LeereIstMenge_UndDoppelteZeile_Abgelehnt()
+    {
+        using var ctx = CreateContext();
+        var order = AddOrder(ctx);
+        var target = AddLocation(ctx, "TARGET");
+        var src = AddLocation(ctx, "SRC");
+        var art = AddArticle(ctx, "ART-001");
+        AddStock(ctx, art.Id, src.Id, 100);
+        var zeile = AddPickingItem(ctx, order.Id, art.ArticleNumber, 10, src.Id);
+        var service = CreateService(ctx);
+        PickingSelectionItem Sel(string? ist) => new() { PickingItemId = zeile.Id, SourceStorageLocationId = src.Id, IstMenge = ist };
+
+        await FluentActions.Awaiting(() => service.TransferOrderLinesAsync(zeile.PickingOrderId, target.Id, false, new() { Sel("") }, null, User, WinUser))
+            .Should().ThrowAsync<InvalidOperationException>().WithMessage("*Ist-Menge angeben*");
+        await FluentActions.Awaiting(() => service.TransferOrderLinesAsync(zeile.PickingOrderId, target.Id, false, new() { Sel("5"), Sel("5") }, null, User, WinUser))
+            .Should().ThrowAsync<InvalidOperationException>().WithMessage("*mehrfach*");
+        ctx.StockMovements.Count(m => m.MovementType == MovementType.Umbuchung).Should().Be(0);
+    }
 }

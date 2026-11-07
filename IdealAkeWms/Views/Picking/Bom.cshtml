@@ -470,6 +470,10 @@ else if (Model.BackController == "Picking")
                 <div class="col-auto">
                     <a asp-action="AuftragDrucken" asp-route-id="@Model.Auftrag?.Id" target="_blank" class="btn btn-outline-secondary">Auftrag drucken</a>
                 </div>
+                <div class="col-auto">
+                    @* QA Q3: Abschluss jederzeit erreichbar (z. B. nach Neuladen oder wenn keine Zeile buchbar ist) *@
+                    <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#statusModal">Auftrag abschließen …</button>
+                </div>
             </form>
         </div>
     </div>
