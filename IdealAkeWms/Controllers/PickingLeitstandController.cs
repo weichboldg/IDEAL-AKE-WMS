@@ -271,6 +271,7 @@ public class PickingLeitstandController : Controller
             if (pickerAssignmentEnabled)
                 ViewBag.ActivePickers = await _userRepository.GetActivePickersAsync();
 
+            await AuftraegeAnhaengenAsync(listGroups.SelectMany(g => g.Items));
             return View(vm);
         }
 
@@ -341,7 +342,16 @@ public class PickingLeitstandController : Controller
             ViewBag.ActivePickers = await _userRepository.GetActivePickersAsync();
         }
 
+        await AuftraegeAnhaengenAsync(viewItems);
         return View(vm);
+    }
+
+    /// <summary>v1.88.0 E4: Kommissionierauftraege der sichtbaren Zeilen in EINER Abfrage.</summary>
+    private async Task AuftraegeAnhaengenAsync(IEnumerable<PickingLeitstandItem> items)
+    {
+        var liste = items.ToList();
+        var je = await _pickingOrderWorkflow.AuftraegeJeFaAsync(liste.Select(i => i.Id).Distinct().ToList());
+        foreach (var i in liste) i.Kommissionierauftraege = je.GetValueOrDefault(i.Id) ?? new();
     }
 
     [HttpPost]
@@ -406,6 +416,8 @@ public class PickingLeitstandController : Controller
         // (nach dem Kommissionierer-Setzen, damit die Auftraege ihn uebernehmen).
         if (newReleased)
             await AuftraegeMeldenAsync(new[] { (order.OrderNumber, await _pickingOrderWorkflow.ErzeugeOffeneAsync(id)) });
+        else
+            RuecknahmeMelden(new[] { (order.OrderNumber, await _pickingOrderWorkflow.FreigabeZuruecknehmenAsync(id)) });
 
         if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl)) return Redirect(returnUrl);
         return RedirectToAction(nameof(Index));
@@ -451,6 +463,19 @@ public class PickingLeitstandController : Controller
             TempData["SuccessMessage"] = $"{batch.Processed} Freigabe(n) zurückgenommen.";
 
         var warnings = new List<string>();
+        if (!release && batch.ProcessedIds.Count > 0)
+        {
+            // v1.88.0 E4 (Antwort 4): Auftraege ohne Fortschritt stornieren, solche mit Fortschritt nennen.
+            var liste = new List<(string, (List<string>, List<string>))>();
+            foreach (var faId in batch.ProcessedIds)
+            {
+                var o = await _productionOrderRepository.GetByIdAsync(faId);
+                liste.Add((o?.OrderNumber ?? faId.ToString(), await _pickingOrderWorkflow.FreigabeZuruecknehmenAsync(faId)));
+            }
+            var (erfolg, warnung) = RuecknahmeText(liste);
+            if (erfolg != null) TempData["SuccessMessage"] += " " + erfolg;
+            if (warnung != null) warnings.Add(warnung);
+        }
         if (release && batch.ProcessedIds.Count > 0)
         {
             // v1.88.0 E2: je freigegebenem FA Kommissionierauftraege; Sammelmeldung statt Abbruch je FA.
@@ -498,6 +523,22 @@ public class PickingLeitstandController : Controller
         return liste;
     }
 
+    private void RuecknahmeMelden(IReadOnlyCollection<(string Fa, (List<string> Storniert, List<string> Behalten) R)> ergebnisse)
+    {
+        var (erfolg, warnung) = RuecknahmeText(ergebnisse);
+        if (erfolg != null) TempData["SuccessMessage"] = erfolg;
+        if (warnung != null) TempData["WarningMessage"] = warnung;
+    }
+
+    private static (string? Erfolg, string? Warnung) RuecknahmeText(IReadOnlyCollection<(string Fa, (List<string> Storniert, List<string> Behalten) R)> ergebnisse)
+    {
+        var storniert = ergebnisse.SelectMany(e => e.R.Storniert).ToList();
+        var behalten = ergebnisse.Where(e => e.R.Behalten.Count > 0)
+            .Select(e => $"FA {e.Fa}: {string.Join(", ", e.R.Behalten)}").ToList();
+        return (storniert.Count > 0 ? $"{storniert.Count} Kommissionierauftrag/-aufträge storniert ({string.Join(", ", storniert)})." : null,
+                behalten.Count > 0 ? "Aufträge mit bereits gepickten oder umgebuchten Zeilen bleiben bestehen – bitte klären: " + string.Join("; ", behalten) : null);
+    }
+
     private Task AuftraegeMeldenAsync(IReadOnlyCollection<(string Fa, PickingOrderErzeugung E)> ergebnisse)
     {
         var (erfolg, warnung) = PickingOrderWorkflow.Sammelmeldung(ergebnisse);
@@ -518,6 +559,7 @@ public class PickingLeitstandController : Controller
         await _pickingStatusRepository.SetPriorityAsync(
             id, priority,
             _currentUserService.GetDisplayName(), _currentUserService.GetWindowsUserName());
+        await _pickingOrderWorkflow.PrioritaetDurchschreibenAsync(id, priority); // v1.88.0 E4 (Antwort 6)
         return Ok();
     }
 
@@ -537,6 +579,7 @@ public class PickingLeitstandController : Controller
         await _pickingStatusRepository.SetAssignedPickerAsync(
             id, assignedPickerId, picker.Name,
             _currentUserService.GetDisplayName(), _currentUserService.GetWindowsUserName());
+        await _pickingOrderWorkflow.KommissioniererDurchschreibenAsync(id, assignedPickerId, picker.Name); // v1.88.0 E4 (Antwort 6)
 
         return Ok();
     }

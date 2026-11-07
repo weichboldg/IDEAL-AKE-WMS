@@ -175,6 +175,14 @@
                 <span class="badge badge-picking-partial ms-1">Teilkomm.</span>
             }
         }
+        @* v1.88.0 (E4): Kommissionierauftraege des FA – Nummer als Link, Bereich und Status als Text *@
+        @foreach (var ko in item.Kommissionierauftraege)
+        {
+            <div class="small text-nowrap">
+                <a asp-controller="Picking" asp-action="Auftrag" asp-route-id="@ko.Id">@ko.Nummer</a>
+                <span class="text-body-secondary">@ko.PickingArea?.Kuerzel · @IdealAkeWms.Models.ViewModels.PickingOrderListItem.StatusText(ko.Status)</span>
+            </div>
+        }
     </td>
     @* IDEAL Hierarchie: Elternzeiger-Spalte (defaultHidden, im Flachmodus leer). *@
     <td>@item.ParentSubOrderNumber</td>

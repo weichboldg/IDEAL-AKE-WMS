@@ -204,4 +204,41 @@ public class PickingOrderWorkflowTests
         (await w.AbschliessenAsync(ids[0], true)).FaAbgeschlossen.Should().BeFalse();
         (await w.AbschliessenAsync(ids[1], true)).FaAbgeschlossen.Should().BeTrue();
     }
+
+    // ---------- E4 (AK 16, 17) ----------
+
+    [Fact]
+    public async Task FreigabeZuruecknehmen_StorniertOhneFortschritt_BehaeltMitFortschritt_AK16()
+    {
+        Pos("A1", "10", 1m);
+        Pos("G1", "20", 1m);
+        var (w, db) = await SetupAsync(faMenge: 1m);
+        await w.ErzeugeOffeneAsync(10);
+        db.PickingOrderLines.Single(z => z.ArticleNumber == "G1").Status = PickingOrderLineStatus.Gepickt;
+        await db.SaveChangesAsync();
+
+        var (storniert, behalten) = await w.FreigabeZuruecknehmenAsync(10);
+
+        (storniert.Single(), behalten.Single()).Should().Be(("KO-2026-00001", "KO-2026-00002"));
+        db.PickingOrders.Single(o => o.Nummer == "KO-2026-00001").Should().Match<PickingOrder>(o => o.Status == PickingOrderStatus.Storniert && o.ModifiedBy == "Leitstand");
+        db.PickingOrders.Single(o => o.Nummer == "KO-2026-00002").Status.Should().Be(PickingOrderStatus.Offen);
+    }
+
+    [Fact]
+    public async Task PrioUndKommissionierer_NurOffeneAuftraege_AK17()
+    {
+        Pos("A1", "10", 1m);
+        Pos("G1", "20", 1m);
+        var (w, db) = await SetupAsync(faMenge: 1m);
+        await w.ErzeugeOffeneAsync(10);
+        var erster = db.PickingOrders.OrderBy(o => o.Id).First();
+        erster.Status = PickingOrderStatus.Abgeschlossen;
+        await db.SaveChangesAsync();
+
+        (await w.PrioritaetDurchschreibenAsync(10, 9)).Should().Be(1);
+        (await w.KommissioniererDurchschreibenAsync(10, 5, "Neu")).Should().Be(1);
+
+        db.PickingOrders.OrderBy(o => o.Id).AsEnumerable().Select(o => (o.PickingPriority, o.AssignedPickerName))
+            .Should().Equal(((int?)3, "Kommi"), ((int?)9, "Neu"));
+    }
 }

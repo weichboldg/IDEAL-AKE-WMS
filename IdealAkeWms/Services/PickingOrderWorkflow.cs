@@ -233,6 +233,63 @@ public class PickingOrderWorkflow
         return r;
     }
 
+    /// <summary>
+    /// E4 (Antwort 4, AK 16): Freigabe zurueckgenommen – Auftraege des FA ohne gepickte/umgebuchte Zeile → Storniert; Auftraege mit Fortschritt
+    /// bleiben und werden in der Warnung genannt (melden statt still behandeln).
+    /// </summary>
+    public async Task<(List<string> Storniert, List<string> Behalten)> FreigabeZuruecknehmenAsync(int productionOrderId)
+    {
+        var storniert = new List<string>();
+        var behalten = new List<string>();
+        var now = Jetzt();
+        foreach (var a in (await _repo.GetByProductionOrderAsync(productionOrderId))
+                     .Where(o => o.Status is PickingOrderStatus.Offen or PickingOrderStatus.InArbeit))
+        {
+            if (a.Zeilen.Any(z => z.Status is PickingOrderLineStatus.Gepickt or PickingOrderLineStatus.Umgebucht))
+            {
+                behalten.Add(a.Nummer);
+                continue;
+            }
+            a.Status = PickingOrderStatus.Storniert;
+            AuditSetzen(a, now);
+            storniert.Add(a.Nummer);
+        }
+        if (storniert.Count > 0) await _repo.SaveChangesAsync();
+        return (storniert, behalten);
+    }
+
+    /// <summary>E4 (Antwort 6, AK 17): Prioritaet am FA → alle offenen/in Arbeit befindlichen Auftraege des FA.</summary>
+    public Task<int> PrioritaetDurchschreibenAsync(int productionOrderId, int? prioritaet) =>
+        DurchschreibenAsync(productionOrderId, a => a.PickingPriority = prioritaet);
+
+    /// <summary>E4 (Antwort 6, AK 17): Kommissionierer am FA → alle offenen/in Arbeit befindlichen Auftraege des FA.</summary>
+    public Task<int> KommissioniererDurchschreibenAsync(int productionOrderId, int? pickerId, string? pickerName) =>
+        DurchschreibenAsync(productionOrderId, a => { a.AssignedPickerId = pickerId; a.AssignedPickerName = pickerName; });
+
+    private async Task<int> DurchschreibenAsync(int productionOrderId, Action<PickingOrder> setzen)
+    {
+        var now = Jetzt();
+        var offen = (await _repo.GetByProductionOrderAsync(productionOrderId))
+            .Where(o => o.Status is PickingOrderStatus.Offen or PickingOrderStatus.InArbeit).ToList();
+        foreach (var a in offen)
+        {
+            setzen(a);
+            AuditSetzen(a, now);
+        }
+        if (offen.Count > 0) await _repo.SaveChangesAsync();
+        return offen.Count;
+    }
+
+    private void AuditSetzen(AuditableEntity e, DateTime now)
+    {
+        e.ModifiedAt = now;
+        e.ModifiedBy = _user.GetDisplayName();
+        e.ModifiedByWindows = _user.GetWindowsUserName();
+    }
+
+    /// <summary>Lesend: Auftraege je FA (Leitstand-Zeile).</summary>
+    public Task<Dictionary<int, List<PickingOrder>>> AuftraegeJeFaAsync(IReadOnlyCollection<int> faIds) => _repo.GetByProductionOrdersAsync(faIds);
+
     /// <summary>Sammelmeldung fuer mehrere FAs (Leitstand-Knopf, Bulk-Freigabe): Erfolgs- und Warntext.</summary>
     public static (string Erfolg, string? Warnung) Sammelmeldung(IReadOnlyCollection<(string Fa, PickingOrderErzeugung E)> ergebnisse)
     {

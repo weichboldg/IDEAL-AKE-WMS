@@ -36,7 +36,8 @@ public class PickingOrderRepository : IPickingOrderRepository
     }
 
     public Task<List<PickingOrder>> GetByProductionOrderAsync(int productionOrderId) =>
-        _db.PickingOrders.Include(o => o.PickingArea).Where(o => o.ProductionOrderId == productionOrderId).OrderBy(o => o.Id).ToListAsync();
+        _db.PickingOrders.Include(o => o.PickingArea).Include(o => o.Zeilen)
+            .Where(o => o.ProductionOrderId == productionOrderId).OrderBy(o => o.Id).ToListAsync();
 
     public async Task<Dictionary<int, List<PickingOrder>>> GetByProductionOrdersAsync(IReadOnlyCollection<int> productionOrderIds)
     {

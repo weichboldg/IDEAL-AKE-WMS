@@ -44,6 +44,8 @@ public class PickingLeitstandControllerTests
     {
         _bomRepo.Setup(b => b.GetBomItemsAsync(It.IsAny<BomKey>(), It.IsAny<BomScope>()))
             .ReturnsAsync(new BomQueryResult(new List<BomItem>(), BomDataSources.Sage));
+        _pickingOrderRepo.Setup(r => r.GetByProductionOrderAsync(It.IsAny<int>())).ReturnsAsync(new List<PickingOrder>());
+        _pickingOrderRepo.Setup(r => r.GetByProductionOrdersAsync(It.IsAny<IReadOnlyCollection<int>>())).ReturnsAsync(new Dictionary<int, List<PickingOrder>>());
         _articleRepo.Setup(a => a.GetMatchcodesByArticleNumbersAsync(It.IsAny<IReadOnlyCollection<string>>()))
             .ReturnsAsync(new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase));
         _currentUser.Setup(x => x.GetDisplayName()).Returns("TestUser");

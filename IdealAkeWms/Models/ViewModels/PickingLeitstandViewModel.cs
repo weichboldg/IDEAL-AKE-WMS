@@ -55,6 +55,9 @@ public class PickingLeitstandRowContext
 
 public class PickingLeitstandItem
 {
+    /// <summary>v1.88.0 (E4): Kommissionierauftraege des FA (Nummer, Bereich, Status) als Links in der Status-Zelle.</summary>
+    public List<PickingOrder> Kommissionierauftraege { get; set; } = new();
+
     // Sage-Master (identisch zu ProductionOrderListItem)
     public int Id { get; set; }
     public string OrderNumber { get; set; } = string.Empty;
