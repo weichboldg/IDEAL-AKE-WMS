@@ -1,0 +1,140 @@
+@model IdealAkeWms.Models.ViewModels.PurchaseOrderListViewModel
+@{
+    ViewData["Title"] = "Offene Bestellungen";
+}
+@* v1.84.0 Spec 2026-11-08-wareneingang-aus-sage-bestellungen F2: Vorschau aus dem Cache offener Sage-Bestellpositionen (nur EBB, Mengen in der
+   Basiseinheit). Listen-View-Pattern (ADR 0005): Filterkarte, Server-Spaltenfilter, Pagination. Hinweise als Text, nie nur Farbe. *@
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+    <h2 class="page-header mb-0">Offene Bestellungen</h2>
+    @if (Model.CanReceive)
+    {
+        <a asp-action="Receive" class="btn btn-primary">Wareneingang zu Bestellung</a>
+    }
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success">@TempData["SuccessMessage"]</div>
+}
+@if (TempData["WarningMessage"] != null)
+{
+    <div class="alert alert-warning">@TempData["WarningMessage"]</div>
+}
+
+@if (Model.Stand == null)
+{
+    <div class="alert alert-info" role="status">
+        <strong>Noch keine offenen Bestellungen gelesen.</strong> Der Abgleich „Offene Bestellungen (Sage)“ ist nicht aktiv oder noch nicht
+        gelaufen (Service-Einstellung <code>Sync:EinkaufBestellungenEnabled</code>, braucht Kreditoren- und Lagerplatz-Abgleich).
+    </div>
+}
+else
+{
+    <p class="text-body-secondary small mb-2">
+        Stand: @Model.Stand.Value.ToString("dd.MM.yyyy HH:mm") · nur normale Bestellungen (EBB) · Mengen in der Basiseinheit ·
+        Liefertermin bis @Model.HorizontBis.ToString("dd.MM.yyyy"), überfällige und ohne Termin immer dabei
+    </p>
+}
+
+<div class="card filter-card mb-3">
+    <div class="card-body p-2">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-6 col-md-2">
+                <label for="wochen" class="form-label small mb-0">Wochen</label>
+                <input type="number" id="wochen" name="wochen" min="1" max="26" step="1" value="@Model.Wochen" class="form-control form-control-sm" />
+            </div>
+            <div class="col-12 col-md-3">
+                <label for="lieferant" class="form-label small mb-0">Lieferant</label>
+                <select id="lieferant" name="lieferant" class="form-select form-select-sm">
+                    <option value="">— Alle —</option>
+                    @foreach (var l in Model.Lieferanten)
+                    {
+                        <option value="@l.Kto" selected="@(string.Equals(l.Kto, Model.Lieferant, StringComparison.OrdinalIgnoreCase))">@l.Text</option>
+                    }
+                </select>
+            </div>
+            <div class="col-6 col-md-2">
+                <label for="bestellung" class="form-label small mb-0">Bestellung</label>
+                <input type="text" id="bestellung" name="bestellung" value="@Model.Bestellung" class="form-control form-control-sm" />
+            </div>
+            <div class="col-6 col-md-2">
+                <label for="artikel" class="form-label small mb-0">Artikel</label>
+                <input type="text" id="artikel" name="artikel" value="@Model.Artikel" class="form-control form-control-sm" />
+            </div>
+            <div class="col-6 col-md-2">
+                <label for="lagerplatz" class="form-label small mb-0">Ziel-Lagerplatz</label>
+                <input type="text" id="lagerplatz" name="lagerplatz" value="@Model.Lagerplatz" class="form-control form-control-sm" />
+            </div>
+            <div class="col-6 col-md-1">
+                <div class="form-check">
+                    <input type="checkbox" class="form-check-input" id="nurUeberfaellig" name="nurUeberfaellig" value="true" @(Model.NurUeberfaellig ? "checked" : "") />
+                    <label class="form-check-label small" for="nurUeberfaellig">nur überfällig</label>
+                </div>
+            </div>
+            <div class="col-12 d-flex gap-2">
+                <button type="submit" class="btn btn-sm btn-primary">Filtern</button>
+                <a asp-action="Index" class="btn btn-sm btn-outline-secondary">Zurücksetzen</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-sm table-striped filterable-table" data-server-column-filter="true" data-view-key="PurchaseOrders">
+        <thead>
+            <tr>
+                <th data-filterable data-date-filter data-col-key="liefertermin">Liefertermin</th>
+                <th data-filterable data-col-key="lieferant">Lieferant</th>
+                <th data-filterable data-col-key="bestellung">Bestellung</th>
+                <th data-filterable data-col-key="artikel">Artikel</th>
+                <th data-filterable data-col-key="bezeichnung">Bezeichnung</th>
+                <th data-filterable data-filter-type="number" data-col-key="bestellt" class="text-end">bestellt</th>
+                <th data-filterable data-filter-type="number" data-col-key="geliefert" class="text-end">geliefert (Sage)</th>
+                <th data-filterable data-filter-type="number" data-col-key="offen" class="text-end">offen (Sage)</th>
+                <th data-filterable data-filter-type="number" data-col-key="erfasst" class="text-end">im WMS erfasst</th>
+                <th data-filterable data-col-key="einheit">Einheit</th>
+                <th data-filterable data-col-key="lagerplatz">Ziel-Lagerplatz</th>
+                <th data-filterable data-col-key="hinweis">Hinweis</th>
+                <th data-col-key="actions"></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var r in Model.Items)
+            {
+                var l = r.Line;
+                <tr class="@(r.Ueberfaellig ? "table-warning" : "")">
+                    <td>@(l.Liefertermin?.ToString("dd.MM.yyyy") ?? "ohne Termin")</td>
+                    <td>@r.LieferantText</td>
+                    <td>@l.Belegnummer</td>
+                    <td>@l.Artikelnummer</td>
+                    <td>@l.Bezeichnung1</td>
+                    <td class="text-end">@l.MengeBestellt.ToString("0.###")</td>
+                    <td class="text-end">@l.MengeGeliefert.ToString("0.###")</td>
+                    <td class="text-end">@l.MengeOffen.ToString("0.###")</td>
+                    <td class="text-end">@r.ImWmsErfasst.ToString("0.###")</td>
+                    <td>@l.MengeBasiseinheit</td>
+                    <td>@r.ZielLagerplatz@(r.ZielNichtImWms ? " (nicht im WMS)" : "")</td>
+                    <td>@IdealAkeWms.Controllers.PurchaseOrdersController.Hinweis(r)</td>
+                    <td>
+                        @if (Model.CanReceive)
+                        {
+                            <a asp-action="Receive" asp-route-belId="@l.BelId" class="btn btn-sm btn-outline-primary" style="min-height:32px">Wareneingang</a>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+@if (Model.Items.Count == 0 && Model.Stand != null)
+{
+    <div class="alert alert-light border">Keine offene Bestellposition im gewählten Zeitraum bzw. Filter.</div>
+}
+
+<partial name="_Pagination" model="Model.Pagination" />
+
+@section Scripts {
+    <script src="~/js/column-preferences.js" asp-append-version="true"></script>
+    <script src="~/js/table-filter.js" asp-append-version="true"></script>
+}

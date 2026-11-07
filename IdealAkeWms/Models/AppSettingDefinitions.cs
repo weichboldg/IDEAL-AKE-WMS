@@ -82,6 +82,12 @@ public static class AppSettingDefinitions
             abhaengig: AppSettingKeys.NegativeBuchungErlaubt),
         B(AppSettingKeys.LagerplatzEtikettRolle93x55, "false", GLager, "Lagerplatz-Etikett 93 × 55 mm (Rolle)",
             "An = ein Etikett 93 × 55 mm je Seite ohne Rahmen; aus = A4 mit drei Etiketten je Seite.", "Lagerplätze → Etiketten drucken", Beide, seed: false),
+        B(AppSettingKeys.WareneingangBestellungAktiv, "false", GLager, "Wareneingang zu Sage-Bestellungen",
+            "An = Menüpunkte „Offene Bestellungen“ und „Wareneingang zu Bestellung“ im Lager-Menü; aus = Menüpunkte weg, Seiten nicht erreichbar (404). Braucht den Dienst-Abgleich „Offene Bestellungen (Sage)“ (Sync:EinkaufBestellungenEnabled).",
+            "Lager → Offene Bestellungen, Wareneingang zu Bestellung", "AKE (IDEAL erst mit SData-Endpunkt)", seed: false),
+        I(AppSettingKeys.OffeneBestellungenVorschauWochen, "2", GLager, "Offene Bestellungen: Vorschau (Wochen)",
+            "Standard-Horizont der Vorschau: Positionen mit Liefertermin bis heute + X Wochen; überfällige und solche ohne Termin sind immer dabei. Je Aufruf in der Filterkarte änderbar.",
+            "Lager → Offene Bestellungen (Filter „Wochen“ vorbelegt)", Beide, seed: false, "Wochen", min: 1, max: 26),
 
         // ---- QR-Code und Scanner ----
         B(AppSettingKeys.QrMitFaNummer, "false", GQr, "QR-Code mit FA-Nummer",

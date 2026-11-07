@@ -107,4 +107,9 @@ public static class AppSettingKeys
     // Lagerplatz-Etikett im Rollenformat 93 x 55 mm (v1.72.0): Standort-Schalter, Default aus = A4 mit drei Etiketten je Seite. Nur exakt
     // "true" (ohne Gross/Klein) aktiviert. Kein Seed, keine Migration (Default-aus-Schalter). Gelesen nur in StorageLocations/PrintLabels.cshtml.
     public const string LagerplatzEtikettRolle93x55 = "LagerplatzEtikettRolle93x55";
+
+    // v1.84.0 (Spec 2026-11-08-wareneingang-aus-sage-bestellungen, ADR 0020): Feature-Gate „Offene Bestellungen“ / „Wareneingang zu Bestellung“
+    // (Default aus, nur exakt "true" ohne Gross/Klein aktiviert) und Standard-Horizont der Vorschau in Wochen (1–26, Default 2). Kein Seed.
+    public const string WareneingangBestellungAktiv = "WareneingangBestellungAktiv";
+    public const string OffeneBestellungenVorschauWochen = "OffeneBestellungenVorschauWochen";
 }

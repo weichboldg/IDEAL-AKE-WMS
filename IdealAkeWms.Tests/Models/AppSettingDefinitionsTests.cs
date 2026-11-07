@@ -39,7 +39,7 @@ public class AppSettingDefinitionsTests
     public void Katalog_EnthaeltJedenKeyGenauEinmal_MitPflichtangaben_AK1()
     {
         var all = AppSettingDefinitions.All;
-        all.Should().HaveCount(52);  // v1.79.0 F5: zwei Rueckmelde-Schalter entfernt
+        all.Should().HaveCount(54);  // v1.79.0 F5: zwei Rueckmelde-Schalter entfernt; v1.84.0: +2 Wareneingang aus Sage-Bestellungen
         all.Select(d => d.Key).Should().OnlyHaveUniqueItems();
         all.Should().OnlyContain(d => !string.IsNullOrWhiteSpace(d.Anzeigename) && !string.IsNullOrWhiteSpace(d.Description)
             && !string.IsNullOrWhiteSpace(d.Verwendung) && !string.IsNullOrWhiteSpace(d.Standort) && !string.IsNullOrWhiteSpace(d.Category));
