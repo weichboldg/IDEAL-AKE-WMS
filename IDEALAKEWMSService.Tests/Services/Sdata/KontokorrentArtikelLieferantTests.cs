@@ -189,6 +189,28 @@ public class KontokorrentArtikelLieferantTests
     }
 
     [Fact]
+    public async Task Kreditoren_Dublette_GegenSageName1Name2_RueckfallMatchcode_Q5()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        ctx.Creditors.AddRange(Kred("Loysch GmbH Melk"), Kred("OHNE ADR"), Kred("LOYSCH MC"));
+        await ctx.SaveChangesAsync();
+        var client = Client(KontokorrentSyncService.Ressource,
+            new SdataKontoZeile("K31013", "LOYSCH MC", null, null, null, true, Adresse: 7),
+            new SdataKontoZeile("K60000", "ohne adr", null, null, null, true, Adresse: 99));
+        Setup(client, KontokorrentSyncService.RessourceAdressen, new SdataAdresseZeile(7, "Loysch GmbH", "Melk", null, null, null, null, null, null));
+        Setup<SdataAnsprechpartnerZeile>(client, KontokorrentSyncService.RessourceAnsprechpartner);
+        var log = new FakeSyncLogger();
+
+        await Konto(ctx, log, client).RunKreditorenAsync(false, ziel: Ziel);
+
+        var lauf = log.Runs.Single();
+        lauf.FinalCounts!["moegliche_dubletten"].Should().Be(2, "Name1+Name2 trifft „Loysch GmbH Melk“, ohne Adresse greift der Matchcode");
+        var w = lauf.Events.Single(e => e.Message.Contains("moegliche Dublette")).Message;
+        w.Should().Contain("Loysch GmbH Melk").And.Contain("K31013").And.Contain("OHNE ADR").And.Contain("K60000");
+        w.Should().NotContain("LOYSCH MC", "der Konto-Matchcode zaehlt nicht mehr, wenn eine Adresse da ist");
+    }
+
+    [Fact]
     public async Task Kreditoren_SageWertZuLang_NichtUebernommen_LaufLaeuft()
     {
         using var ctx = TestDbContextFactory.Create();

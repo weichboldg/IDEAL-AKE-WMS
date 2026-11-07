@@ -192,9 +192,17 @@ public class KontokorrentSyncService
                 await run.LogInfoAsync(SdataSchluessel.Kappen($"Mit Sage verknuepft (WMS-Datensatz mit gleicher Kontonummer, Herkunft jetzt Sage): " +
                     string.Join(", ", verknuepft.Take(20))), ct: ct);
 
-            // „Moegliche Dublette“: aktiver WMS-Datensatz ohne Kontonummer, dessen Name dem Sage-Matchcode entspricht — nie automatisch verknuepfen.
-            var sageNamen = eindeutig.Where(z => Text(z.Matchcode) != null)
-                .GroupBy(z => Text(z.Matchcode)!, StringComparer.OrdinalIgnoreCase)
+            // „Moegliche Dublette“: aktiver WMS-Datensatz ohne Kontonummer, dessen Name dem Sage-Namen entspricht — nie automatisch verknuepfen.
+            // Sage-Name = Name1 (+Name2) aus Adressen, wie ihn der Abgleich schreibt (QA Q5); Rueckfall Matchcode, wenn die Adresse fehlt
+            // oder Adressen nicht lesbar war.
+            string? SageName(SdataKontoZeile z)
+            {
+                SdataAdresseZeile? a = null;
+                if (z.Adresse is { } id) adresseById?.TryGetValue(id, out a);
+                return NameText(a) ?? Text(z.Matchcode);
+            }
+            var sageNamen = eindeutig.Where(z => SageName(z) != null)
+                .GroupBy(z => SageName(z)!, StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(g => g.Key, g => g.First().Kto!.Trim(), StringComparer.OrdinalIgnoreCase);
             var dubletten = bestand.Where(k => k.IsActive && string.IsNullOrWhiteSpace(k.SageKto) && sageNamen.ContainsKey(k.Name.Trim()))
                 .Select(k => $"„{k.Name.Trim()}“ (WMS-Id {k.Id}) ↔ Sage {sageNamen[k.Name.Trim()]}").ToList();
