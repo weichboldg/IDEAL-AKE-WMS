@@ -46,11 +46,11 @@ public class ServiceSettingsControllerTests
         // Bekannter Katalog-Key: Wert = DB-Override "true", Typ = Bool aus Katalog.
         var allItems = vm!.Groups.SelectMany(g => g.Items).ToList();
         var bom = allItems.Single(i => i.Key == "Sync:BomCacheEnabled");
-        bom.Type.Should().Be(ServiceSettingType.Bool);
+        bom.Type.Should().Be(SettingType.Bool);
         bom.Value.Should().Be("true");
         // Katalog-Key OHNE DB-Zeile faellt auf Default zurueck (z.B. Sync:BomCacheWeeks = "8").
         var weeks = allItems.Single(i => i.Key == "Sync:BomCacheWeeks");
-        weeks.Type.Should().Be(ServiceSettingType.Int);
+        weeks.Type.Should().Be(SettingType.Int);
         weeks.Value.Should().Be("8");
         // Ein String-Multiline-Key existiert.
         allItems.Single(i => i.Key == "ErrorNotification:Recipients").Multiline.Should().BeTrue();

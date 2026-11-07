@@ -281,7 +281,7 @@ public class HardwareScannerTests
 
         var layout = Read("Views", "Shared", "_Layout.cshtml");
         layout.Should().Contain("data-qr-erstes-feld=\"@qrErstesFeld\"").And.Contain("? \"Matchcode\" : null;", "bei Artikelnummer kein Attribut");
-        Read("Program.cs").Should().Contain("(\"QrErstesFeld\", \"Artikelnummer\",", "Laufzeit-Seed, sonst zeigt /Settings die Zeile nicht");
+        AppSettingDefinitions.SeedEintraege.Should().Contain(e => e.Key == "QrErstesFeld" && e.Value == "Artikelnummer", "Laufzeit-Seed, sonst zeigt /Settings die Zeile nicht");
         Read("Views", "Settings", "Index.cshtml").Should().Contain("(\"Allgemein\", new[] { \"QrMitFaNummer\", \"QrErstesFeld\", \"QrTrennzeichen\" })");
     }
 
@@ -300,12 +300,12 @@ public class HardwareScannerTests
 
         Read("Views", "Shared", "_Layout.cshtml").Should().Contain("data-qr-trennzeichen=\"@qrTrennzeichen\"")
             .And.Contain("?.Trim() == \",\" ? \",\" : null;", "bei ; kein Attribut = Seite wie v1.68.x");
-        Read("Program.cs").Should().Contain("(\"QrTrennzeichen\", \";\",", "Laufzeit-Anlage, Standard ;");
+        AppSettingDefinitions.SeedEintraege.Should().Contain(e => e.Key == "QrTrennzeichen" && e.Value == ";", "Laufzeit-Anlage, Standard ;");
         var settings = Read("Views", "Settings", "Index.cshtml");
-        settings.Split("AppSettingKeys.FesteWerte.TryGetValue(setting.Key, out var festeWerte)").Length
+        settings.Split("AppSettingDefinitions.TryGetWerte(setting.Key, out var festeWerte)").Length
             .Should().Be(3, "Dropdown in Gruppen- und Sonstige-Ausgabe");
-        AppSettingKeys.FesteWerte[AppSettingKeys.QrTrennzeichen].Select(w => w.Wert).Should().Equal(";", ",");
-        AppSettingKeys.FesteWerte[AppSettingKeys.QrErstesFeld].Select(w => w.Wert).Should().Equal("Artikelnummer", "Matchcode");
+        AppSettingDefinitions.All.Single(d => d.Key == AppSettingKeys.QrTrennzeichen).Werte!.Select(w => w.Wert).Should().Equal(";", ",");
+        AppSettingDefinitions.All.Single(d => d.Key == AppSettingKeys.QrErstesFeld).Werte!.Select(w => w.Wert).Should().Equal("Artikelnummer", "Matchcode");
     }
 
     [Fact]

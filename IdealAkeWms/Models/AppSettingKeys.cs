@@ -35,15 +35,6 @@ public static class AppSettingKeys
     /// <summary>v1.69.0: Trennzeichen der QR-Felder, ";" (Standard) oder ",". Genau ein Zeichen je Installation.</summary>
     public const string QrTrennzeichen = "QrTrennzeichen";
 
-    /// <summary>v1.69.0: Einstellungen mit festen Werten (Wert, Anzeige). /Settings zeigt dafuer ein Dropdown,
-    /// SettingsController.SaveSettings speichert nur diese Werte (kanonische Schreibweise).</summary>
-    public static readonly IReadOnlyDictionary<string, (string Wert, string Text)[]> FesteWerte =
-        new Dictionary<string, (string Wert, string Text)[]>(StringComparer.OrdinalIgnoreCase)
-        {
-            [QrErstesFeld] = new[] { ("Artikelnummer", "Artikelnummer"), ("Matchcode", "Matchcode") },
-            [QrTrennzeichen] = new[] { (";", "; (Semikolon)"), (",", ", (Komma)") },
-        };
-
     // Tracking / Beschichtung
     public const string TeileverfolgungAktiv = "TeileverfolgungAktiv";
     public const string LackierteilKategorieName = "LackierteilKategorieName";

@@ -54,7 +54,7 @@ public class SettingsControllerQrErstesFeldTests
         ctrl.TempData["WarningMessage"].Should().Be("QrErstesFeld: erlaubt sind „Artikelnummer“ oder „Matchcode“ – nichts gespeichert.");
     }
 
-    // v1.69.0 QrTrennzeichen (Freigabe-Nachtrag 2): gleicher Mechanismus ueber AppSettingKeys.FesteWerte, genau ; oder ,
+    // v1.69.0 QrTrennzeichen (Freigabe-Nachtrag 2): gleicher Mechanismus ueber AppSettingDefinitions (Choice), genau ; oder ,
     [Theory]
     [InlineData(";", ";")]
     [InlineData(" , ", ",")]

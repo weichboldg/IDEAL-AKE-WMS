@@ -53,7 +53,7 @@ public class ServiceSettingsController : Controller
             {
                 switch (def.Type)
                 {
-                    case ServiceSettingType.Bool:
+                    case SettingType.Bool:
                         // Checkbox/Hidden liefert "true"/"false"; jeder truthy-Wert -> "true".
                         var isTrue = string.Equals(value, "true", StringComparison.OrdinalIgnoreCase)
                                   || string.Equals(value, "on", StringComparison.OrdinalIgnoreCase)
@@ -61,7 +61,7 @@ public class ServiceSettingsController : Controller
                         await _repository.UpsertAsync(key, isTrue ? "true" : "false", def.Category, def.Description);
                         break;
 
-                    case ServiceSettingType.Int:
+                    case SettingType.Int:
                         if (!int.TryParse(value.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var i))
                         {
                             ModelState.AddModelError(key, $"'{def.Key}' erwartet eine ganze Zahl (war: '{value}').");

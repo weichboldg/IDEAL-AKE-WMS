@@ -16,7 +16,7 @@ public class ServiceSettingDefinitionsTests
     [Fact]
     public void All_BoolDefaults_AreTrueOrFalse()
     {
-        foreach (var def in ServiceSettingDefinitions.All.Where(d => d.Type == ServiceSettingType.Bool))
+        foreach (var def in ServiceSettingDefinitions.All.Where(d => d.Type == SettingType.Bool))
         {
             def.DefaultValue.Should().BeOneOf(new[] { "true", "false" },
                 $"{def.Key} ist Bool und muss 'true'/'false' als Default haben");
@@ -26,7 +26,7 @@ public class ServiceSettingDefinitionsTests
     [Fact]
     public void All_IntDefaults_ParseAsInt()
     {
-        foreach (var def in ServiceSettingDefinitions.All.Where(d => d.Type == ServiceSettingType.Int))
+        foreach (var def in ServiceSettingDefinitions.All.Where(d => d.Type == SettingType.Int))
         {
             int.TryParse(def.DefaultValue, out _).Should().BeTrue(
                 because: $"{def.Key} ist Int und muss einen int-parsebaren Default haben (war '{def.DefaultValue}')");
@@ -63,7 +63,7 @@ public class ServiceSettingDefinitionsTests
     public void TryGet_ExistingKey_ReturnsDefinition()
     {
         ServiceSettingDefinitions.TryGet("Sync:BomCacheEnabled", out var def).Should().BeTrue();
-        def!.Type.Should().Be(ServiceSettingType.Bool);
+        def!.Type.Should().Be(SettingType.Bool);
         def.DefaultValue.Should().Be("false");
     }
 

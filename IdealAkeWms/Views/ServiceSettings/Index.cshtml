@@ -94,7 +94,7 @@
                             </div>
                             <small class="text-muted d-block mt-1">Einwegtor &mdash; hier nur Anzeige. Änderung nur über die Umstellungs-Seite.</small>
                         }
-                        else if (item.Type == ServiceSettingType.Bool)
+                        else if (item.Type == SettingType.Bool)
                         {
                             var isChecked = string.Equals(item.Value, "true", StringComparison.OrdinalIgnoreCase);
                             <input type="hidden" name="settings[@item.Key]" value="@(isChecked ? "true" : "false")" class="bool-hidden" />
@@ -103,7 +103,7 @@
                                 <label class="form-check-label" for="setting_@item.Key">@(isChecked ? "Aktiviert" : "Deaktiviert")</label>
                             </div>
                         }
-                        else if (item.Type == ServiceSettingType.Int)
+                        else if (item.Type == SettingType.Int)
                         {
                             <input type="number" step="1" name="settings[@item.Key]" value="@item.Value" class="form-control" />
                         }

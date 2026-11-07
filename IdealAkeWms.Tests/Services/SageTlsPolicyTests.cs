@@ -41,7 +41,7 @@ public class SageTlsPolicyTests
     {
         var def = ServiceSettingDefinitions.All.SingleOrDefault(d => d.Key == SageTlsPolicy.SettingKey);
         def.Should().NotBeNull();
-        def!.Type.Should().Be(ServiceSettingType.Bool);
+        def!.Type.Should().Be(SettingType.Bool);
         def.DefaultValue.Should().Be("true");
         // Der Katalog-Default muss selbst die fail-safe-Invariante erfuellen.
         SageTlsPolicy.ShouldVerifyCertificate(def.DefaultValue).Should().BeTrue();

@@ -33,7 +33,7 @@ public class VaultEnaioLinksTests
     public void Adressen_stehen_nur_im_Seed_und_jede_Vault_Stelle_nutzt_das_Partial()
     {
         Quellen("*.cs", "*.cshtml", "*.js").Where(q => q.Text.Contains("akevault24") || q.Text.Contains("akeosapp")).Select(q => q.Pfad)
-            .Should().BeEquivalentTo(new[] { "Program.cs" }, "Adressen nur noch als Seed-Wert (AK 19)");
+            .Should().BeEquivalentTo(new[] { "Models/AppSettingDefinitions.cs" }, "Adressen nur noch als Seed-Wert im Katalog (AK 19, seit v1.77.0 Katalog statt Program.cs)");
 
         var stellen = new[]
         {
@@ -64,15 +64,14 @@ public class VaultEnaioLinksTests
     [Fact]
     public void Seed_und_Standort_Katalog()
     {
-        var program = File.ReadAllText(Path.Combine(Web, "Program.cs"));
         foreach (var (key, wert) in new[]
                  {
-                     ("VaultLinksAktiv", "\"true\""),
-                     ("VaultLinkVorlage", "\"http://akevault24.ake.at/AutodeskTC/AKE-VAULT01/explore?search={Artikelnummer}&searchContext=0\""),
-                     ("EnaioLinksAktiv", "\"true\""),
-                     ("EnaioLinkVorlage", "\"http://akeosapp.ake.at/oscontentviewer/viewer/{ObjektId}/?pagecount=1\""),
+                     ("VaultLinksAktiv", "true"),
+                     ("VaultLinkVorlage", "http://akevault24.ake.at/AutodeskTC/AKE-VAULT01/explore?search={Artikelnummer}&searchContext=0"),
+                     ("EnaioLinksAktiv", "true"),
+                     ("EnaioLinkVorlage", "http://akeosapp.ake.at/oscontentviewer/viewer/{ObjektId}/?pagecount=1"),
                  })
-            program.Should().Contain($"(IdealAkeWms.Models.AppSettingKeys.{key}, {wert},",
+            AppSettingDefinitions.SeedEintraege.Should().Contain(e => e.Key == key && e.Value == wert,
                 "Laufzeit-Seed Pflicht: die Maske zeigt ein Bool ohne Zeile als aus und schreibt beim Speichern false");
 
         // v1.72.0: Gruppe "Druck" haengt hinten an — geprueft wird nur noch, dass enaio direkt auf Vault folgt.
@@ -91,8 +90,8 @@ public class VaultEnaioLinksTests
 
         ServiceSettingDefinitions.TryGet("Sync:EnaioDmsViewName", out var def).Should().BeTrue();
         (def!.Type, def.DefaultValue, def.Category).Should().Be(
-            (ServiceSettingType.String, "[enaio].[dbo].[vw_IDEAL-AKE_Fertigungsauftraege]", "Sync"));
+            (SettingType.String, "[enaio].[dbo].[vw_IDEAL-AKE_Fertigungsauftraege]", "Sync"));
         ServiceSettingDefinitions.TryGet("Sync:EnaioDmsEnabled", out var schalter).Should().BeTrue();
-        (schalter!.Type, schalter.DefaultValue, schalter.Category).Should().Be((ServiceSettingType.Bool, "false", "Sync"));
+        (schalter!.Type, schalter.DefaultValue, schalter.Category).Should().Be((SettingType.Bool, "false", "Sync"));
     }
 }

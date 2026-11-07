@@ -41,9 +41,9 @@ public class SettingsController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> SaveSettings(Dictionary<string, string> settings)
     {
-        // v1.68.0/v1.69.0: Einstellungen mit festen Werten (AppSettingKeys.FesteWerte, in der Maske ein Dropdown) nur kanonisch
-        // speichern - ein ungueltiger Wert (alter Stand, Handeingabe) fiele sonst still auf den Standard zurueck.
-        foreach (var (key, werte) in AppSettingKeys.FesteWerte)
+        // v1.68.0/v1.69.0: Einstellungen mit festen Werten (Choice im Katalog AppSettingDefinitions, in der Maske ein Dropdown) nur
+        // kanonisch speichern - ein ungueltiger Wert (alter Stand, Handeingabe) fiele sonst still auf den Standard zurueck.
+        foreach (var (key, werte) in AppSettingDefinitions.All.Where(d => d.Type == SettingType.Choice).Select(d => (d.Key, d.Werte!)))
         {
             if (!settings.TryGetValue(key, out var eingabe)) continue;
             var kanonisch = werte.Select(w => w.Wert).FirstOrDefault(w => string.Equals(w, eingabe?.Trim(), StringComparison.OrdinalIgnoreCase));
