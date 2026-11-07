@@ -8,6 +8,7 @@ using IdealAkeWms.Services;
 using IdealAkeWms.Tests.Helpers;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Routing;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Moq;
 using Xunit;
@@ -65,6 +66,8 @@ public class LagerbuchungFaVerknuepfungTests
     private readonly Mock<IStockMovementRepository> _stock = new();
     private readonly Mock<IProductionOrderRepository> _po = new();
     private readonly List<StockMovement> _gebucht = new();
+    private readonly Mock<IAppSettingRepository> _settings = new();
+    private string? _pflicht;
 
     private StockMovementsController Ctrl()
     {
@@ -73,11 +76,16 @@ public class LagerbuchungFaVerknuepfungTests
         _stock.Setup(r => r.GetCurrentStockAsync(It.IsAny<string?>(), It.IsAny<int?>(), It.IsAny<decimal?>(), It.IsAny<decimal?>()))
             .ReturnsAsync(new List<StockOverviewItem> { new() { ArticleId = 9, CurrentQuantity = 3m } });
         _po.Setup(r => r.FindForBookingAsync("1065141")).ReturnsAsync(new FaAufloesung(FaAufloesungStatus.Gefunden, Po(42, "1065141", "1065141")));
+        _po.Setup(r => r.FindForBookingAsync("9999999")).ReturnsAsync(new FaAufloesung(FaAufloesungStatus.Unbekannt, null));
+        _po.Setup(r => r.FindForBookingAsync(null)).ReturnsAsync(new FaAufloesung(FaAufloesungStatus.Leer, null));
+        _po.Setup(r => r.FindForBookingAsync("ERL")).ReturnsAsync(new FaAufloesung(FaAufloesungStatus.Gefunden,
+            new ProductionOrder { Id = 43, OrderNumber = "ERL", SubOrderNumber = "ERL", IsDone = true, CreatedBy = "t", CreatedByWindows = "t" }));
         _po.Setup(r => r.FindForBookingAsync("A; B")).ReturnsAsync(new FaAufloesung(FaAufloesungStatus.Liste, null));
         var user = new Mock<ICurrentUserService>();
         user.Setup(u => u.GetWindowsUserName()).Returns("AKE\\t");
         user.Setup(u => u.GetDisplayName()).Returns("T");
-        var settings = new Mock<IAppSettingRepository>();
+        var settings = _settings;
+        settings.Setup(r => r.GetValueAsync(AppSettingKeys.FaPflichtBuchungsarten)).ReturnsAsync(() => _pflicht);
         var ctrl = new StockMovementsController(_stock.Object, Mock.Of<IArticleRepository>(), Mock.Of<IStorageLocationRepository>(),
             Mock.Of<IUserRepository>(), user.Object, settings.Object, Mock.Of<IPartRequisitionRepository>(), _po.Object);
         var http = new DefaultHttpContext();
@@ -108,5 +116,107 @@ public class LagerbuchungFaVerknuepfungTests
     {
         await Ctrl().OutboundAllConfirm(2, "A; B");
         _gebucht.Should().ContainSingle().Which.Should().Match<StockMovement>(m => m.ProductionOrderId == null && m.ProductionOrder == "A; B");
+    }
+
+    // ---------- E3: Warnung, Pflicht, Einstellung (AK 4–8) ----------
+
+    private static StockMovementCreateViewModel Vm(string? fa) => new() { ArticleId = 9, Quantity = 1, StorageLocationId = 2, ProductionOrder = fa };
+
+    [Fact]
+    public async Task UnbekannterFa_OhnePflicht_GebuchtMitWarnung_AK4()
+    {
+        var c = Ctrl();
+        await c.Inbound(Vm("9999999"), null);
+        _gebucht.Should().ContainSingle().Which.ProductionOrderId.Should().BeNull();
+        c.TempData["SuccessMessage"].Should().NotBeNull();
+        ((string)c.TempData["WarningMessage"]!).Should().Contain("FA 9999999 ist im WMS unbekannt");
+    }
+
+    [Fact]
+    public async Task ErledigterFa_GebuchtVerknuepftWarnungNenntStatus_AK5()
+    {
+        var c = Ctrl();
+        await c.Outbound(Vm("ERL"));
+        _gebucht.Should().ContainSingle().Which.ProductionOrderId.Should().Be(43);
+        ((string)c.TempData["WarningMessage"]!).Should().Contain("erledigt");
+    }
+
+    [Fact]
+    public async Task Pflicht_Warenausgang_UnbekanntUndLeerAbgewiesen_WareneingangBuchtWeiter_AK6()
+    {
+        _pflicht = "Warenausgang";
+        var c = Ctrl();
+        await c.Outbound(Vm("9999999"));
+        c.ModelState[nameof(StockMovementCreateViewModel.ProductionOrder)]!.Errors.Should().ContainSingle();
+        var c2 = Ctrl();
+        await c2.Outbound(Vm(null));
+        c2.ModelState.IsValid.Should().BeFalse();
+        _gebucht.Should().BeEmpty();
+
+        await Ctrl().Inbound(Vm("9999999"), null);
+        _gebucht.Should().ContainSingle();
+        await Ctrl().Outbound(Vm("1065141"));
+        _gebucht.Should().HaveCount(2);
+    }
+
+    [Fact]
+    public async Task Pflicht_SammelWareneingang_UnbekannterKopfFa_NichtsGebucht_AK7()
+    {
+        _pflicht = "Sammel-Wareneingang";
+        var c = Ctrl();
+        await c.InboundBulk(new StockMovementBulkInboundViewModel
+        {
+            StorageLocationId = 2, ProductionOrder = "9999999",
+            Lines = new() { new() { ArticleId = 9, Quantity = 1 }, new() { ArticleId = 10, Quantity = 2 } }
+        });
+        _gebucht.Should().BeEmpty();
+        c.ModelState.IsValid.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Einstellung_FaPflicht_MultiChoice_ManipulierterWertAbgewiesen_AK8()
+    {
+        var d = AppSettingDefinitions.All.Single(x => x.Key == AppSettingKeys.FaPflichtBuchungsarten);
+        (d.Type, d.Anzeigename, d.LeerErlaubt).Should().Be((SettingType.MultiChoice, "FA-Pflicht bei Buchungen", true));
+        d.Warnhinweis.Should().Contain("Sage");
+        IdealAkeWms.Services.Settings.SettingValidator.Validate(d, "Kommissionierung").Gueltig.Should().BeFalse();
+        IdealAkeWms.Services.Settings.SettingValidator.Validate(d, "Warenausgang,Umbuchung").Gueltig.Should().BeTrue();
+        IdealAkeWms.Services.Settings.SettingValidator.Validate(d, "").Gueltig.Should().BeTrue();
+    }
+
+    // ---------- E3: API (AK 10) ----------
+
+    private static async Task<StockApiController> ApiAsync(ApplicationDbContext db, bool faLeserecht, string? master = null)
+    {
+        var user = new Mock<ICurrentUserService>();
+        user.Setup(u => u.CanPickAsync()).ReturnsAsync(faLeserecht);
+        var ss = new Mock<IServiceSettingRepository>();
+        ss.Setup(r => r.GetValueAsync(It.IsAny<string>())).ReturnsAsync(master);
+        var url = new Mock<IUrlHelper>();
+        url.Setup(u => u.Action(It.IsAny<UrlActionContext>())).Returns((UrlActionContext a) => $"/{a.Controller}");
+        var api = new StockApiController(Mock.Of<IStockMovementRepository>(), new ProductionOrderRepository(db), user.Object, ss.Object) { Url = url.Object };
+        return await Task.FromResult(api);
+    }
+
+    private static Dictionary<string, object?> Json(IActionResult r) =>
+        ((OkObjectResult)r).Value!.GetType().GetProperties().ToDictionary(p => p.Name, p => p.GetValue(((OkObjectResult)r).Value));
+
+    [Fact]
+    public async Task Api_FaLookup_LinkNurMitLeserecht_ZielJeMaster_AK10_AK12()
+    {
+        using var db = await SeedAsync();
+        Json(await (await ApiAsync(db, false)).FaLookup("1065141"))["link"].Should().BeNull();
+        var ake = Json(await (await ApiAsync(db, true)).FaLookup("1065141"));
+        (ake["status"], ake["statusText"], ake["link"]).Should().Be(("gefunden", "offen", "/ProductionOrders"));
+        var ideal = Json(await (await ApiAsync(db, true, "true")).FaLookup("77001"));
+        (ideal["link"], ideal["anzeigeNummer"]).Should().Be(("/FaHierarchy", "77001 (Haupt-FA H-500)"));
+        Json(await (await ApiAsync(db, true)).FaLookup("9999999"))["hinweis"].Should().Be("FA 9999999 ist im WMS unbekannt.");
+    }
+
+    [Fact]
+    public void Api_KlasseBleibtHinterLagerPickingTrackingFilter_AK10()
+    {
+        typeof(StockApiController).GetCustomAttributes(typeof(IdealAkeWms.Filters.RequireStockOrPickingOrTrackingAccessAttribute), true)
+            .Should().ContainSingle();
     }
 }

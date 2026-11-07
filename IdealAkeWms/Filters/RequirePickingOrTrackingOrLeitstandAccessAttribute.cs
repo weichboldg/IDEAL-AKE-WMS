@@ -23,10 +23,8 @@ public class RequirePickingOrTrackingOrLeitstandAccessFilter : IAsyncActionFilte
 
     public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
     {
-        if (!await _currentUserService.CanPickAsync()
-            && !await _currentUserService.CanViewTrackingAsync()
-            && !await _currentUserService.CanManagePickingReleaseAsync()
-            && !await _currentUserService.HasVorbauAccessAsync())
+        // v1.87.0: Regel an EINEM Ort (FaBuchungsText.CanViewProductionOrdersAsync), auch fuer FA-Links in den Lager-Tools.
+        if (!await _currentUserService.CanViewProductionOrdersAsync())
         {
             context.Result = new RedirectToActionResult("AccessDenied", "Account", null);
             return;

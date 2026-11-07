@@ -39,6 +39,23 @@ public class StockMovementsController : Controller
         _partRequisitionRepository = partRequisitionRepository;
     }
 
+    /// <summary>v1.87.0: FA aufloesen; Pflicht laut <see cref="AppSettingKeys.FaPflichtBuchungsarten"/> als ModelState-Fehler am FA-Feld
+    /// (vor jeder Buchung); Rueckgabe Aufloesung + Warntext fuer nach dem Speichern.</summary>
+    private async Task<(FaAufloesung Fa, string? Warnung)> FaPruefenAsync(string? text, string buchungsart)
+    {
+        var fa = await _productionOrderRepository.FindForBookingAsync(text);
+        if (FaBuchungsText.IstPflicht(await _settingRepository.GetValueAsync(AppSettingKeys.FaPflichtBuchungsarten), buchungsart)
+            && FaBuchungsText.PflichtFehler(buchungsart, text, fa) is { } fehler)
+            ModelState.AddModelError(nameof(StockMovementCreateViewModel.ProductionOrder), fehler);
+        return (fa, FaBuchungsText.Warnung(text, fa));
+    }
+
+    private void WarnungMerken(string? warnung)
+    {
+        if (warnung == null) return;
+        TempData["WarningMessage"] = TempData["WarningMessage"] is string vorher ? vorher + " " + warnung : warnung;
+    }
+
     [RequireStockReadAccess]
     public async Task<IActionResult> Index(
         DateTime? dateFrom, DateTime? dateTo,
@@ -108,6 +125,7 @@ public class StockMovementsController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Inbound(StockMovementCreateViewModel vm, List<int>? fulfilledRequisitionIds)
     {
+        var (fa, faWarnung) = await FaPruefenAsync(vm.ProductionOrder, "Wareneingang");
         if (!ModelState.IsValid)
         {
             vm.StorageLocations = await _storageLocationRepository.GetActiveOrderedExcludingPickingTransportAsync();
@@ -124,7 +142,6 @@ public class StockMovementsController : Controller
         }
 
         var appUserId = _currentUserService.GetCurrentAppUserId();
-        var fa = await _productionOrderRepository.FindForBookingAsync(vm.ProductionOrder);
 
         var movement = new StockMovement
         {
@@ -157,6 +174,7 @@ public class StockMovementsController : Controller
         }
 
         TempData["SuccessMessage"] = "Einbuchung erfolgreich gespeichert.";
+        WarnungMerken(faWarnung);
         return RedirectToAction(nameof(Inbound));
     }
 
@@ -204,6 +222,9 @@ public class StockMovementsController : Controller
         if (lines.Count == 0)
             ModelState.AddModelError("", "Mindestens eine Artikel-Zeile ist erforderlich.");
 
+        // Kopf-FA einmal, vor der ersten Zeile (Pflicht → keine Teilbuchung)
+        var (fa, faWarnung) = await FaPruefenAsync(vm.ProductionOrder, "Sammel-Wareneingang");
+
         // [Required] weist bei non-nullable int den Wert 0 NICHT ab — expliziter Guard gegen
         // einen manipulierten POST (StorageLocationId=0), der sonst eine FK-Exception mitten in
         // der Buchungsschleife auslösen würde.
@@ -231,7 +252,6 @@ public class StockMovementsController : Controller
         var displayName = _currentUserService.GetDisplayName();
         var now = DateTime.Now;
         var count = 0;
-        var fa = await _productionOrderRepository.FindForBookingAsync(vm.ProductionOrder); // Kopf-FA einmal
 
         foreach (var line in lines)
         {
@@ -255,6 +275,7 @@ public class StockMovementsController : Controller
         }
 
         TempData["SuccessMessage"] = $"{count} Artikel erfolgreich eingebucht.";
+        WarnungMerken(faWarnung);
         return RedirectToAction(nameof(InboundBulk));
     }
 
@@ -291,6 +312,7 @@ public class StockMovementsController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Outbound(StockMovementCreateViewModel vm)
     {
+        var (fa, faWarnung) = await FaPruefenAsync(vm.ProductionOrder, "Warenausgang");
         if (!ModelState.IsValid)
         {
             vm.StorageLocations = await _storageLocationRepository.GetActiveOrderedExcludingPickingTransportAsync();
@@ -346,7 +368,7 @@ public class StockMovementsController : Controller
             Quantity = vm.Quantity,
             StorageLocationId = storageLocationId,
             ProductionOrder = vm.ProductionOrder,
-            ProductionOrderId = (await _productionOrderRepository.FindForBookingAsync(vm.ProductionOrder)).Order?.Id,
+            ProductionOrderId = fa.Order?.Id,
             MovementType = MovementType.Ausbuchung,
             Timestamp = DateTime.Now,
             UserId = appUserId,
@@ -360,6 +382,7 @@ public class StockMovementsController : Controller
         if (warningMessage != null)
             TempData["WarningMessage"] = warningMessage;
         TempData["SuccessMessage"] = "Ausbuchung erfolgreich gespeichert.";
+        WarnungMerken(faWarnung);
         return RedirectToAction(nameof(Outbound));
     }
 
@@ -379,6 +402,7 @@ public class StockMovementsController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Transfer(StockTransferViewModel vm)
     {
+        var (fa, faWarnung) = await FaPruefenAsync(vm.ProductionOrder, "Umbuchung");
         if (vm.SourceStorageLocationId == vm.StorageLocationId && vm.SourceStorageLocationId > 0)
         {
             ModelState.AddModelError("", "Quell- und Ziel-Lagerplatz dürfen nicht identisch sein.");
@@ -437,7 +461,7 @@ public class StockMovementsController : Controller
             StorageLocationId = vm.StorageLocationId,
             SourceStorageLocationId = sourceLocationId,
             ProductionOrder = vm.ProductionOrder,
-            ProductionOrderId = (await _productionOrderRepository.FindForBookingAsync(vm.ProductionOrder)).Order?.Id,
+            ProductionOrderId = fa.Order?.Id,
             MovementType = MovementType.Umbuchung,
             Timestamp = DateTime.Now,
             UserId = appUserId,
@@ -451,6 +475,7 @@ public class StockMovementsController : Controller
         if (transferWarning != null)
             TempData["WarningMessage"] = transferWarning;
         TempData["SuccessMessage"] = "Umbuchung erfolgreich gespeichert.";
+        WarnungMerken(faWarnung);
         return RedirectToAction(nameof(Transfer));
     }
 

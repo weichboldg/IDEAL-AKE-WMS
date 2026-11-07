@@ -34,6 +34,8 @@ public static class AppSettingKeys
     public const string QrErstesFeld = "QrErstesFeld";
     /// <summary>v1.69.0: Trennzeichen der QR-Felder, ";" (Standard) oder ",". Genau ein Zeichen je Installation.</summary>
     public const string QrTrennzeichen = "QrTrennzeichen";
+    /// <summary>v1.87.0: Buchungsarten mit FA-Pflicht (Komma-Liste aus Wareneingang, Sammel-Wareneingang, Warenausgang, Umbuchung); leer = keine.</summary>
+    public const string FaPflichtBuchungsarten = "FaPflichtBuchungsarten";
 
     // Tracking / Beschichtung
     public const string TeileverfolgungAktiv = "TeileverfolgungAktiv";

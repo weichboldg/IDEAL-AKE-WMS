@@ -72,8 +72,11 @@
 
                     <div class="mb-3">
                         <label asp-for="ProductionOrder" class="form-label"></label>
-                        <input asp-for="ProductionOrder" class="form-control" />
+                        <input asp-for="ProductionOrder" class="form-control" list="faVorschlaege" autocomplete="off" />
+                        <datalist id="faVorschlaege"></datalist>
                         <span asp-validation-for="ProductionOrder" class="text-danger"></span>
+                        @* v1.87.0: FA-Pruefkarte (fa-feld.js) – Status als Text, Warnung gelb + „Achtung:“ *@
+                        <div id="faPruefung" class="mt-2" role="status" aria-live="polite"></div>
                     </div>
 
                     <div id="faStorageHint" class="alert" style="display: none;" role="status" aria-live="polite"></div>
@@ -115,6 +118,7 @@
     <partial name="_Select2ArticlePartial" />
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <script src="~/js/barcode-scanner.js" asp-append-version="true"></script>
+    <script src="~/js/fa-feld.js" asp-append-version="true"></script>
     @if (ViewBag.BestellungenAktiv == true)
     {
         <script>

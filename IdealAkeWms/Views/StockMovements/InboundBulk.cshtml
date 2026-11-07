@@ -36,8 +36,11 @@
 
                         <div class="col-md-6 mb-3">
                             <label asp-for="ProductionOrder" class="form-label"></label>
-                            <input asp-for="ProductionOrder" class="form-control" />
+                            <input asp-for="ProductionOrder" class="form-control" list="faVorschlaege" autocomplete="off" />
+                            <datalist id="faVorschlaege"></datalist>
                             <span asp-validation-for="ProductionOrder" class="text-danger"></span>
+                            @* v1.87.0: FA-Pruefkarte (fa-feld.js), gilt fuer alle Zeilen *@
+                            <div id="faPruefung" class="mt-2" role="status" aria-live="polite"></div>
                         </div>
                     </div>
 
@@ -135,6 +138,7 @@
     <partial name="_Select2ArticlePartial" />
     <script src="~/lib/html5-qrcode/html5-qrcode.min.js"></script>
     <script src="~/js/barcode-scanner.js" asp-append-version="true"></script>
+    <script src="~/js/fa-feld.js" asp-append-version="true"></script>
     <script>
         (function () {
             var linesBody = document.getElementById('linesBody');
