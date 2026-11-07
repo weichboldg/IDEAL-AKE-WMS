@@ -122,6 +122,7 @@ public class KontokorrentSyncService
             var (eindeutig, uebersprungen) = await SdataSchluessel.EindeutigAsync(zeilen, z => z.Kto, run, "Kto", ct);
             int neu = 0, aktualisiert = 0, unveraendert = 0, nichtInSage = 0, wiederDa = 0;
             var verknuepft = new List<string>();
+            var zuLang = new List<string>(); // QA Q1: Sage-Wert laenger als die WMS-Spalte
             var neuMarkiert = new List<T>();
             var now = DateTime.Now;
             var bestand = await set.ToListAsync(ct);
@@ -153,14 +154,14 @@ public class KontokorrentSyncService
                         CreatedAt = now, CreatedBy = ServiceUser, CreatedByWindows = ServiceUser,
                     };
                     SageFelder(anlage, z);
-                    AdressFelder(anlage, adr, kontakt);
+                    AdressFelder(anlage, adr, kontakt, zuLang);
                     zusatz(anlage, z, adr);
                     set.Add(anlage);
                     continue;
                 }
 
                 var warSage = k.Source == StorageLocationSource.Sage;
-                var anders = SageFelder(k, z) | zusatz(k, z, adr) | AdressFelder(k, adr, kontakt);
+                var anders = SageFelder(k, z) | zusatz(k, z, adr) | AdressFelder(k, adr, kontakt, zuLang);
                 if (z.Aktiv is bool aktiv && k.IsActive != aktiv) { k.IsActive = aktiv; anders = true; } // G6: Sage gewinnt
                 // Name = Name1 (+Name2) aus Adressen (auch fuer verknuepfte WMS-Datensaetze, F10: Name ist Sage-Feld). Ohne Adresszeile nur
                 // bei schon Sage-gefuehrten Konten der Matchcode (wie bisher); Adressen nicht lesbar → Name unveraendert (kein Hin und Her).
@@ -182,6 +183,10 @@ public class KontokorrentSyncService
                 if (!anders && !warWeg && warSage) { unveraendert++; continue; }
                 Geaendert(k);
             }
+
+            if (zuLang.Count > 0)
+                await run.LogWarningAsync(SdataSchluessel.Kappen($"{zuLang.Count} Sage-Wert(e) laenger als die WMS-Spalte, nicht uebernommen " +
+                    $"(alter Wert bleibt): {string.Join("; ", zuLang.Take(20))}"), ct: ct);
 
             if (verknuepft.Count > 0)
                 await run.LogInfoAsync(SdataSchluessel.Kappen($"Mit Sage verknuepft (WMS-Datensatz mit gleicher Kontonummer, Herkunft jetzt Sage): " +
@@ -255,16 +260,28 @@ public class KontokorrentSyncService
         | Setzen(Text(z.EUUStID), k.SageEUUStID, v => k.SageEUUStID = v)
         | Setzen(Text(z.Zahlungskond), k.SageZahlungskondition, v => k.SageZahlungskondition = v);
 
-    /// <summary>Adresse/Kontakt aus Sage (F1: null = nicht schreiben); <c>Matchcode</c> = Sage-Matchcode (G6, Sage gewinnt).</summary>
-    private static bool AdressFelder(ISageKonto k, SdataAdresseZeile? a, string? kontakt) =>
-        Setzen(Text(a?.LieferStrasse), k.Street, v => k.Street = v)
-        | Setzen(Text(a?.LieferPLZ), k.PostalCode, v => k.PostalCode = v)
-        | Setzen(Text(a?.LieferOrt), k.City, v => k.City = v)
-        | Setzen(Text(a?.LieferLand), k.Country, v => k.Country = v)
-        | Setzen(Text(a?.Telefon), k.Phone, v => k.Phone = v)
-        | Setzen(Text(a?.EMail), k.Email, v => k.Email = v)
-        | Setzen(kontakt, k.ContactPerson, v => k.ContactPerson = v)
-        | Setzen(Text(k.SageMatchcode), k.Matchcode, v => k.Matchcode = v);
+    /// <summary>Adresse/Kontakt aus Sage (F1: null = nicht schreiben); <c>Matchcode</c> = Sage-Matchcode (G6, Sage gewinnt).
+    /// QA Q1: Sage-Spalten sind teils laenger als die WMS-Spalten (LieferPLZ 24 → PostalCode 20, EMail 255 → Email 200, SQL/104/105);
+    /// ein zu langer Wert wuerde das Speichern des ganzen Laufs kippen → nicht schreiben, in <paramref name="zuLang"/> melden. Nicht
+    /// kuerzen: eine gekuerzte PLZ/E-Mail waere falsch. AKE-Test 2026-11-07: max. PLZ 20, E-Mail 60 → heute kein Fall.</summary>
+    private static bool AdressFelder(ISageKonto k, SdataAdresseZeile? a, string? kontakt, List<string> zuLang)
+    {
+        string? Passt(string? wert, int max, string feld)
+        {
+            var t = Text(wert);
+            if (t == null || t.Length <= max) return t;
+            zuLang.Add($"{k.SageKto} {feld} ({t.Length} > {max})");
+            return null;
+        }
+        return Setzen(Passt(a?.LieferStrasse, 200, "Strasse"), k.Street, v => k.Street = v)
+            | Setzen(Passt(a?.LieferPLZ, 20, "PLZ"), k.PostalCode, v => k.PostalCode = v)
+            | Setzen(Passt(a?.LieferOrt, 100, "Ort"), k.City, v => k.City = v)
+            | Setzen(Passt(a?.LieferLand, 100, "Land"), k.Country, v => k.Country = v)
+            | Setzen(Passt(a?.Telefon, 50, "Telefon"), k.Phone, v => k.Phone = v)
+            | Setzen(Passt(a?.EMail, 200, "E-Mail"), k.Email, v => k.Email = v)
+            | Setzen(kontakt, k.ContactPerson, v => k.ContactPerson = v)
+            | Setzen(Passt(k.SageMatchcode, 50, "Matchcode"), k.Matchcode, v => k.Matchcode = v);
+    }
 
     private static string? NameText(SdataAdresseZeile? a) => Text(string.Join(" ", new[] { Text(a?.Name1), Text(a?.Name2) }.Where(t => t != null)));
 

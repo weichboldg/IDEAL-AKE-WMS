@@ -179,13 +179,38 @@ public class KontokorrentArtikelLieferantTests
         var n = ctx.Creditors.Single(c => c.SageKto == "K31013");
         (n.Name, n.Street, n.PostalCode, n.City, n.Country, n.Phone, n.Email, n.ContactPerson, n.Matchcode, n.ShortName).Should().Be((
             "\"carlo\" Loysch GmbH", "Pielacher Straße 50", "3390", "Melk", "AT", "+43-2752-52911", "info@loysch.at", "Anna Huber (+1 weitere)",
-            "LOYSCH MELK", (string?)null), "Name = Name1 (+Name2), erster Ansprechpartner nach Nummer, Matchcode aus Sage weil leer, Kurzname bleibt leer");
+            "LOYSCH MELK", (string?)null), "Name = Name1 (+Name2), erster Ansprechpartner nach Nummer, Matchcode = Sage-Matchcode (G6), Kurzname bleibt leer");
         var m = ctx.Creditors.Single(c => c.SageKto == "K50000");
         (m.Name, m.ContactPerson, m.Matchcode, m.Source).Should().Be(("Maier Lackiererei GmbH", "Einkauf", "MAIER LACK", StorageLocationSource.Sage),
             "verknuepft: G6 – Name, Kontakt und Matchcode aus Sage");
         var o = ctx.Creditors.Single(c => c.SageKto == "K60000");
         (o.Name, o.Street).Should().Be(("OHNE ADRESSE", (string?)null), "keine Adresszeile: Matchcode als Name bei der Anlage");
         log.Runs.Single().Events.Should().NotContain(e => e.Level == "Warning" && e.Message.Contains("nicht lesbar"));
+    }
+
+    [Fact]
+    public async Task Kreditoren_SageWertZuLang_NichtUebernommen_LaufLaeuft()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        var k = Kred("Alt", "K1", StorageLocationSource.Sage);
+        k.PostalCode = "4020";
+        ctx.Creditors.Add(k);
+        await ctx.SaveChangesAsync();
+        var client = Client(KontokorrentSyncService.Ressource, new SdataKontoZeile("K1", "MC", null, null, null, true, Adresse: 1));
+        Setup(client, KontokorrentSyncService.RessourceAdressen,
+            new SdataAdresseZeile(1, "Firma", null, "Weg 1", new string('9', 21), "Linz", "AT", null, new string('a', 196) + "@x.at"));
+        Setup<SdataAnsprechpartnerZeile>(client, KontokorrentSyncService.RessourceAnsprechpartner);
+        var log = new FakeSyncLogger();
+
+        await Konto(ctx, log, client).RunKreditorenAsync(false, ziel: Ziel);
+
+        var r = ctx.Creditors.Single();
+        (r.Name, r.Street, r.PostalCode, r.Email).Should().Be(("Firma", "Weg 1", "4020", (string?)null),
+            "zu lange Werte (PLZ 21 > 20, E-Mail 200+ > 200) nicht schreiben, alter Wert bleibt; Rest wird uebernommen");
+        var lauf = log.Runs.Single();
+        lauf.FinishedFailed.Should().BeFalse();
+        lauf.Events.Should().Contain(e => e.Level == "Warning" && e.Message.Contains("2 Sage-Wert(e) laenger") && e.Message.Contains("K1 PLZ (21 > 20)")
+            && e.Message.Contains("K1 E-Mail"));
     }
 
     [Fact]

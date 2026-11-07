@@ -29,10 +29,10 @@ public sealed record SdataRessourceZeile(string? Ressourcenummer);
 /// Hauptlagerplatz-Code ueber <c>LagerplaetzeInfo</c>). Liefert dieselben Felder wie <see cref="SageArtikelReader"/> und dazu die
 /// Zusatzfelder fuer den Satelliten (<see cref="SageArtikelDto.Details"/>). Wirft bei jedem Lesefehler und bei unlesbaren Zeilen.
 /// <para>
-/// <b>Menge (G16):</b> TODO(P-R1): Der IDEAL-Filter steckt im Viewtext von <c>Sync:ArticlesViewName</c> und ist nicht belegt. Bis dahin
-/// bildet der Reader den am Code belegten AKE-Filter nach (<see cref="SageArticleSql.LegacySql"/>): alle Ressourcenummern aus
-/// <c>PpsRessourcenPositionenInfo</c> (LEFT JOIN: auch ohne Artikelstamm) ∪ <c>IstBestellartikel = -1 AND Aktiv = -1</c>. Deshalb ist die
-/// Weiche fuer SData gesperrt (<see cref="ArtikelQuelleSwitch"/>), nur der Vergleich laeuft.
+/// <b>Menge (G16 neu, 2026-11-07):</b> Der Reader bildet den am Code belegten AKE-Filter nach (<see cref="SageArticleSql.LegacySql"/>):
+/// alle Ressourcenummern aus <c>PpsRessourcenPositionenInfo</c> (LEFT JOIN: auch ohne Artikelstamm) ∪ <c>IstBestellartikel = -1 AND
+/// Aktiv = -1</c>. An AKE ist SData damit frei; TODO(P-R1): Der IDEAL-Filter steckt im Viewtext von <c>Sync:ArticlesViewName</c> und ist
+/// nicht belegt — ist die View gesetzt, sperrt <see cref="ArtikelQuelleSwitch"/> SData (Regel <c>SageQuelleSperre</c>).
 /// </para>
 /// </summary>
 public sealed class SdataArtikelReader : ISageArtikelReader
