@@ -55,10 +55,16 @@ Reichweite, Sicherheitsbestand nach ABC/XYZ) und Bedarfe aus FA-Stücklisten.
 **Andockpunkte:** [[2026-11-07-wareneingang-aus-sage-bestellungen]] (offene Bestellungen, Wareneingang), Kreditoren/Artikel-Lieferanten
 (v1.73.0), Lagerbestellungen/Bedarfsmeldungen.
 
+## Entscheidung Gerald 2026-11-07 16:26
+- Sage rechnet heute **keine** Bestellvorschläge, die „Erweiterte Disposition“ ist **nicht** lizenziert, die Sage-Disposition wird „nicht
+  wirklich“ genutzt. → **Die Vorschlagslogik liegt im WMS**; Sage bekommt nur das Ergebnis (Dispo-Stapel, Stufe 1). Keine Doppellogik-Gefahr.
+
+## Entscheidung Gerald 2026-11-07 16:30 (Empfehlungen der Koordination übernommen)
+- **Nachbestellartikel** = jeder Artikel mit Meldebestand > 0 in Sage; zusätzlich WMS-Kennzeichen „nicht disponieren“ zum Ausschließen.
+- **Bestand** = WMS-Bestand (Lager führt ihn); Sage-„verfügbar“ als Vergleichsspalte daneben.
+
 ## Offene Fragen / Unklarheiten
 - Was heißt „Nachbestellartikel“ fachlich: Sage-Kennzeichen (`IstBestellartikel`?), Meldebestand > 0, Artikelgruppe, oder eigenes WMS-Kennzeichen?
-- Rechnet Sage heute schon Bestellvorschläge (Sage-Disposition im Einsatz, „Erweiterte Disposition“ lizenziert)? Dann WMS nur Anzeige/
-  Anstoß, sonst Logik im WMS – Doppellogik vermeiden.
 - Welcher Bestand zählt: WMS-Bestand oder Sage-verfügbar? Dispo-relevante Lager?
 - Höchstbestand in Sage gepflegt? Mindestbestand (`USER_Mindestbestand`) vs. Meldebestand?
 - Wer gibt frei, und soll der Vorschlag in Sage als Dispo-Stapel landen oder direkt als Bestellung (`StandardBelegService` 4100)?
