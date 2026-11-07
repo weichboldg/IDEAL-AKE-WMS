@@ -18,6 +18,9 @@ public static class PickingOrderRestmengen
 
     public static decimal Abgedeckt(PickingOrderLine z) => z.Status switch
     {
+        // „Vollstaendig“ abgeschlossen: der Kommissionierer hat entschieden, dass der Rest nicht gebraucht wird (wie „Entfallen“) –
+        // sonst legte das Nachziehen eine bewusst kleinere Ist-Menge als neuen Rest an.
+        PickingOrderLineStatus.Umgebucht when z.PickingOrder?.Status == PickingOrderStatus.Abgeschlossen => z.SollMenge,
         PickingOrderLineStatus.Umgebucht => z.IstMenge ?? 0m,
         PickingOrderLineStatus.Uebertragen => 0m,
         _ => z.SollMenge,

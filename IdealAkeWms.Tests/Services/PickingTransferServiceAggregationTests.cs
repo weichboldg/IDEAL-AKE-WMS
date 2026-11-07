@@ -33,26 +33,13 @@ public class PickingTransferServiceAggregationTests
             NewMovement(article.Id, source.Id, 10m, MovementType.Einbuchung),
             NewMovement(article.Id, source.Id, 3m, MovementType.SageEinbuchung)
         );
-        var item = new PickingItem
-        {
-            ProductionOrderId = order.Id,
-            BomArticleNumber = article.ArticleNumber,
-            Quantity = 11m,
-            SourceStorageLocationId = source.Id,
-            IsPicked = true,
-            IsTransferred = false,
-            RowVersion = BitConverter.GetBytes(DateTime.UtcNow.Ticks),
-            CreatedAt = DateTime.Now,
-            CreatedBy = User,
-            CreatedByWindows = WinUser
-        };
-        ctx.PickingItems.Add(item);
         ctx.SaveChanges();
+        KommissionierTestHelper.AddZeile(ctx, order.Id, article.ArticleNumber, 11m, source.Id);
 
         var service = CreateService(ctx);
 
         // Act
-        var count = await service.TransferPickedItemsAsync(order.Id, target.Id, null, User, WinUser);
+        var count = await KommissionierTestHelper.UmbuchenAsync(ctx, service, order.Id, target.Id, User, WinUser);
 
         // Assert: Transfer succeeds because SageEinbuchung counts as +
         count.Should().Be(1);
@@ -72,26 +59,13 @@ public class PickingTransferServiceAggregationTests
             NewMovement(article.Id, source.Id, 10m, MovementType.Einbuchung),
             NewMovement(article.Id, source.Id, 4m, MovementType.SageAusbuchung)
         );
-        var item = new PickingItem
-        {
-            ProductionOrderId = order.Id,
-            BomArticleNumber = article.ArticleNumber,
-            Quantity = 7m,
-            SourceStorageLocationId = source.Id,
-            IsPicked = true,
-            IsTransferred = false,
-            RowVersion = BitConverter.GetBytes(DateTime.UtcNow.Ticks),
-            CreatedAt = DateTime.Now,
-            CreatedBy = User,
-            CreatedByWindows = WinUser
-        };
-        ctx.PickingItems.Add(item);
         ctx.SaveChanges();
+        KommissionierTestHelper.AddZeile(ctx, order.Id, article.ArticleNumber, 7m, source.Id);
 
         var service = CreateService(ctx, negativeBuchungErlaubt: "false");
 
         // Act + Assert: Transfer should fail because effective stock (6) < quantity (7)
-        var act = async () => await service.TransferPickedItemsAsync(order.Id, target.Id, null, User, WinUser);
+        var act = async () => await KommissionierTestHelper.UmbuchenAsync(ctx, service, order.Id, target.Id, User, WinUser);
 
         await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("*Nicht genügend Bestand*");

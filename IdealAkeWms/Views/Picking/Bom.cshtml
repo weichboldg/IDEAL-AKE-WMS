@@ -44,6 +44,43 @@
     </div>
 </div>
 
+@if (Model.Auftrag is { } auftrag)
+{
+    @* v1.88.0: Auftragsmodus – Kopf mit Nummer, Bereich, Status (Text, Farbe nie allein) *@
+    <div class="alert alert-light border d-flex flex-wrap gap-3 align-items-center py-2" role="status">
+        <span class="fw-semibold fs-5">Kommissionierauftrag @auftrag.Nummer</span>
+        <span>Bereich: <strong>@auftrag.PickingArea.Name</strong></span>
+        <span>Status: <strong>@PickingOrderListItem.StatusText(auftrag.Status)</strong></span>
+        @if (auftrag.UrsprungsauftragId != null) { <span class="small text-body-secondary">@auftrag.Bemerkung</span> }
+        @if (Model.ReadOnly) { <span class="small">Abgeschlossene oder stornierte Aufträge sind nur lesbar.</span> }
+    </div>
+}
+else if (Model.BackController == "Picking")
+{
+    @* v1.88.0 (AK 15): FA-Stueckliste nur lesend, kommissioniert wird je Auftrag *@
+    <div class="card mb-3">
+        <div class="card-header">Kommissionieraufträge dieses FA</div>
+        <div class="card-body py-2">
+            @if (Model.FaAuftraege.Count == 0)
+            {
+                <span class="text-body-secondary">Noch keine Kommissionieraufträge – der Leitstand legt sie bei der Freigabe an („Fehlende Kommissionieraufträge erzeugen“).</span>
+            }
+            else
+            {
+                <ul class="list-inline mb-0">
+                    @foreach (var a in Model.FaAuftraege)
+                    {
+                        <li class="list-inline-item me-3">
+                            <a asp-action="Auftrag" asp-route-id="@a.Id">@a.Nummer</a>
+                            <span class="small text-body-secondary">@a.PickingArea?.Name · @PickingOrderListItem.StatusText(a.Status)</span>
+                        </li>
+                    }
+                </ul>
+            }
+        </div>
+    </div>
+}
+
 <div class="card filter-card mb-3">
     <div class="card-body py-2">
         <form method="get" asp-action="Bom" asp-route-id="@Model.ProductionOrderId" class="row g-2 align-items-end">
@@ -211,7 +248,13 @@
                             }
                             else if (item.IsTransferred)
                             {
-                                <span class="text-muted" title="Umgebucht">&#10003;</span>
+                                var zt = item.ZeilenStatus switch
+                                {
+                                    PickingOrderLineStatus.Entfallen => "entfallen",
+                                    PickingOrderLineStatus.Uebertragen => "in Folgeauftrag",
+                                    _ => "umgebucht",
+                                };
+                                <span class="text-muted small" title="@zt">&#10003; @zt</span>
                             }
                         </td>
                     }
@@ -241,7 +284,20 @@
                     <td>@item.Bezeichnung1</td>
                     <td>@item.Bezeichnung2</td>
                     <td>@item.Matchcode</td>
-                    <td class="text-end">@item.Menge.ToString("N3")</td>
+                    <td class="text-end">
+                        @item.Menge.ToString("N3")
+                        @if (Model.Auftrag != null && !Model.ReadOnly && item.PickingItemId.HasValue && !item.IsTransferred)
+                        {
+                            @* v1.88.0: Ist-Menge (Default Soll, > 0 und ≤ Soll – der Server prueft); Text wegen fehlender fester Request-Kultur *@
+                            <input type="text" inputmode="decimal" class="form-control form-control-sm text-end ist-menge mt-1"
+                                   value="@item.Menge.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture)"
+                                   aria-label="Ist-Menge @item.Ressourcenummer" style="min-width: 80px;" />
+                        }
+                        else if (item.IstMenge.HasValue && item.IstMenge != item.Menge)
+                        {
+                            <div class="small">Ist @item.IstMenge.Value.ToString("N3")</div>
+                        }
+                    </td>
                     <td>@item.Beschaffungsartikel</td>
                     <td>@item.Artikelgruppe</td>
                     <td>@(item.KategorieName ?? "")</td>
@@ -388,8 +444,8 @@
             Kommissionierung umbuchen
         </div>
         <div class="card-body">
-            <form id="transferForm" asp-action="TransferPicked" method="post" class="row g-3 align-items-end">
-                <input type="hidden" name="productionOrderId" value="@Model.ProductionOrderId" />
+            <form id="transferForm" asp-action="AuftragUmbuchen" method="post" class="row g-3 align-items-end">
+                <input type="hidden" name="pickingOrderId" value="@Model.Auftrag?.Id" />
                 <div class="col-md-4">
                     <label class="form-label">Ziel-Lagerplatz</label>
                     <div class="input-group">
@@ -412,7 +468,7 @@
                     <button type="submit" class="btn" style="background-color: var(--ake-secondary); color: white;">Gepickte Artikel umbuchen</button>
                 </div>
                 <div class="col-auto">
-                    <a asp-action="PrintPicking" asp-route-id="@Model.ProductionOrderId" target="_blank" class="btn btn-outline-secondary">Drucken</a>
+                    <a asp-action="AuftragDrucken" asp-route-id="@Model.Auftrag?.Id" target="_blank" class="btn btn-outline-secondary">Auftrag drucken</a>
                 </div>
             </form>
         </div>
@@ -498,13 +554,18 @@
                     <h5 class="modal-title">Kommissionierung Status</h5>
                 </div>
                 <div class="modal-body text-center py-4">
-                    <p class="mb-4">Wie ist der Status der Kommissionierung für diesen Fertigungsauftrag?</p>
-                    <div class="d-flex justify-content-center gap-3">
-                        <button type="button" class="btn btn-warning btn-lg set-status-btn" data-status="teilkommissioniert">
-                            Teilkommissioniert
+                    <p class="mb-2">Ist der Kommissionierauftrag damit erledigt?</p>
+                    <p class="small text-body-secondary mb-4">„Vollständig“: nicht umgebuchte Zeilen werden nicht mehr gebraucht.
+                        „Teilweise“: offene Reste gehen in einen Folgeauftrag. Ohne Auswahl bleibt der Auftrag in Arbeit.</p>
+                    <div class="d-flex justify-content-center gap-3 flex-wrap">
+                        <button type="button" class="btn btn-warning btn-lg set-status-btn" data-vollstaendig="false">
+                            Teilweise – Rest in Folgeauftrag
                         </button>
-                        <button type="button" class="btn btn-success btn-lg set-status-btn" data-status="abgeschlossen">
-                            Abgeschlossen
+                        <button type="button" class="btn btn-success btn-lg set-status-btn" data-vollstaendig="true">
+                            Vollständig abgeschlossen
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary btn-lg" data-bs-dismiss="modal" onclick="window.location.reload()">
+                            Weiter kommissionieren
                         </button>
                     </div>
                 </div>
@@ -1494,10 +1555,12 @@
                     var isBaugruppe = cb.getAttribute('data-is-baugruppe') === 'true';
                     var sourceSelect = row.querySelector('.source-location-select');
                     var sourceLocationId = sourceSelect ? sourceSelect.value : '';
+                    var istInput = row.querySelector('.ist-menge');
                     items.push({
                         PickingItemId: parseInt(pickingItemId),
                         SourceStorageLocationId: sourceLocationId ? parseInt(sourceLocationId) : null,
-                        IsBaugruppe: isBaugruppe
+                        IsBaugruppe: isBaugruppe,
+                        IstMenge: istInput ? istInput.value : ''
                     });
                 });
                 return items;
@@ -1522,6 +1585,7 @@
                             formData.set('items[' + idx + '].SourceStorageLocationId', item.SourceStorageLocationId);
                         }
                         formData.set('items[' + idx + '].IsBaugruppe', item.IsBaugruppe);
+                        formData.set('items[' + idx + '].IstMenge', item.IstMenge);
                     });
 
                     $.ajax({
@@ -1574,20 +1638,20 @@
 
             document.querySelectorAll('.set-status-btn').forEach(function (btn) {
                 btn.addEventListener('click', function () {
-                    var status = this.getAttribute('data-status');
+                    // v1.88.0: Auftrag abschliessen (vollstaendig / teilweise mit Folgeauftrag)
                     $.ajax({
-                        url: '@Url.Action("SetPickingStatus")',
+                        url: '@Url.Action("AuftragAbschliessen")',
                         type: 'POST',
                         data: {
-                            productionOrderId: productionOrderId,
-                            status: status
+                            pickingOrderId: @(Model.Auftrag?.Id ?? 0),
+                            vollstaendig: this.getAttribute('data-vollstaendig')
                         },
                         headers: { 'RequestVerificationToken': token },
                         success: function () {
-                            window.location.href = '@Url.Action("Bom", new { id = Model.ProductionOrderId })';
+                            window.location.href = '@Url.Action("Index")';
                         },
-                        error: function () {
-                            alert('Fehler beim Setzen des Status.');
+                        error: function (xhr) {
+                            alert(xhr.responseText || 'Fehler beim Abschließen des Auftrags.');
                         }
                     });
                 });

@@ -41,7 +41,7 @@ public class PickingControllerTests
 
         var ctrl = new PickingController(
             Mock.Of<IProductionOrderRepository>(), Mock.Of<IProductionOrderPickingStatusRepository>(), current.Object, settings.Object,
-            holidays.Object, new BusinessDayService(), Mock.Of<IBomRepository>(), Mock.Of<IPickingRepository>(),
+            holidays.Object, new BusinessDayService(), Mock.Of<IBomRepository>(),
             Mock.Of<IStockMovementRepository>(), Mock.Of<IStorageLocationRepository>(), Mock.Of<IArticleRepository>(),
             Mock.Of<IPickingTransferService>(), Mock.Of<IUserRepository>(), Mock.Of<IEnaioDmsDocumentRepository>(),
             Mock.Of<IPartRequisitionRepository>(), Mock.Of<IArticleAttributeRepository>(), Mock.Of<IServiceSettingRepository>(),
@@ -108,8 +108,6 @@ public class PickingControllerTests
         var bom = new Mock<IBomRepository>();
         bom.Setup(r => r.GetBomItemsAsync(It.IsAny<BomKey>(), It.IsAny<BomScope>())).ReturnsAsync(bomResult);
 
-        var picking = new Mock<IPickingRepository>();
-        picking.Setup(r => r.GetByProductionOrderAsync(order.Id)).ReturnsAsync(new List<PickingItem>());
 
         var stock = new Mock<IStockMovementRepository>();
         stock.Setup(r => r.GetStockByArticleNumbersAsync(It.IsAny<List<string>>()))
@@ -133,6 +131,9 @@ public class PickingControllerTests
 
         var settings = new Mock<IAppSettingRepository>();
         settings.Setup(s => s.GetValueAsync(It.IsAny<string>())).ReturnsAsync((string?)null);
+        settings.Setup(s => s.GetValueAsync(AppSettingKeys.LeitstandAktiv)).ReturnsAsync("true"); // v1.88.0: sonst legt Bom Auftraege an
+        var po = new Mock<IPickingOrderRepository>();
+        po.Setup(r => r.GetByProductionOrderAsync(It.IsAny<int>())).ReturnsAsync(new List<PickingOrder>());
 
         var serviceSetting = new Mock<IServiceSettingRepository>();
         serviceSetting.Setup(s => s.GetValueAsync(It.IsAny<string>())).ReturnsAsync((string?)null);
@@ -145,7 +146,6 @@ public class PickingControllerTests
             Mock.Of<IHolidayRepository>(),
             new BusinessDayService(),
             bom.Object,
-            picking.Object,
             stock.Object,
             locations.Object,
             Mock.Of<IArticleRepository>(),
@@ -155,7 +155,7 @@ public class PickingControllerTests
             Mock.Of<IPartRequisitionRepository>(),
             attrs.Object,
             serviceSetting.Object,
-            Mock.Of<IPickingOrderRepository>(),
+            po.Object,
             Mock.Of<IPickingAreaRepository>(),
             null!, // PickingOrderWorkflow: in diesen Tests nicht aufgerufen
             NullLogger<PickingController>.Instance);
@@ -241,7 +241,6 @@ public class PickingControllerTests
             Mock.Of<IHolidayRepository>(),
             new BusinessDayService(),
             bom.Object,
-            Mock.Of<IPickingRepository>(),
             Mock.Of<IStockMovementRepository>(),
             Mock.Of<IStorageLocationRepository>(),
             Mock.Of<IArticleRepository>(),

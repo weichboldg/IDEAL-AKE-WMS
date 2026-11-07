@@ -17,7 +17,6 @@ public class PickingController : Controller
     private readonly IHolidayRepository _holidayRepository;
     private readonly IBusinessDayService _businessDayService;
     private readonly IBomRepository _bomRepository;
-    private readonly IPickingRepository _pickingRepository;
     private readonly IStockMovementRepository _stockMovementRepository;
     private readonly IStorageLocationRepository _storageLocationRepository;
     private readonly IArticleRepository _articleRepository;
@@ -40,7 +39,6 @@ public class PickingController : Controller
         IHolidayRepository holidayRepository,
         IBusinessDayService businessDayService,
         IBomRepository bomRepository,
-        IPickingRepository pickingRepository,
         IStockMovementRepository stockMovementRepository,
         IStorageLocationRepository storageLocationRepository,
         IArticleRepository articleRepository,
@@ -65,7 +63,6 @@ public class PickingController : Controller
         _holidayRepository = holidayRepository;
         _businessDayService = businessDayService;
         _bomRepository = bomRepository;
-        _pickingRepository = pickingRepository;
         _stockMovementRepository = stockMovementRepository;
         _storageLocationRepository = storageLocationRepository;
         _articleRepository = articleRepository;
@@ -211,6 +208,10 @@ public class PickingController : Controller
         return RedirectToAction(nameof(Index));
     }
 
+    /// <summary>
+    /// v1.88.0 (Spec 2026-11-08-kommissionierung-auftraege-kopf-zeilen, E3, AK 15): Stueckliste des FA nur LESEND mit den Kommissionierauftraegen
+    /// des FA als Links. Ohne Leitstand (Auswahlliste, Antwort 7) legt das Oeffnen die fehlenden Auftraege an.
+    /// </summary>
     [RequirePickingAccess]
     public async Task<IActionResult> Bom(int id, string? filterText)
     {
@@ -231,6 +232,30 @@ public class PickingController : Controller
             return RedirectToAction(nameof(Index));
         }
 
+        var leitstandAktiv = (await _settingRepository.GetValueAsync(AppSettingKeys.LeitstandAktiv))
+            ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
+        if (!leitstandAktiv)
+        {
+            var e = await _pickingOrderWorkflow.ErzeugeOffeneAsync(id);
+            var (erfolg, warnung) = PickingOrderWorkflow.Sammelmeldung(new[] { (order.OrderNumber, e) });
+            if (e.Nummern.Count > 0) TempData["SuccessMessage"] = erfolg;
+            if (warnung != null) TempData["WarningMessage"] = warnung;
+        }
+        return await BomSeiteAsync(order, null, filterText);
+    }
+
+    /// <summary>v1.88.0 E3 (AK 11): Auftragsseite = Stueckliste im Auftragsmodus, nur die Zeilen dieses Auftrags.</summary>
+    [RequirePickingAccess]
+    public async Task<IActionResult> Auftrag(int id, string? filterText)
+    {
+        var auftrag = await _pickingOrderRepository.GetMitZeilenAsync(id);
+        if (auftrag?.ProductionOrder == null) return NotFound();
+        return await BomSeiteAsync(auftrag.ProductionOrder, auftrag, filterText);
+    }
+
+    private async Task<IActionResult> BomSeiteAsync(ProductionOrder order, PickingOrder? auftrag, string? filterText)
+    {
+        var id = order.Id;
         // User-Defaults für client-seitige Spaltenfilter laden
         string? defaultFilterBeschaffung = null;
         string? defaultFilterArtikelgruppe = null;
@@ -254,18 +279,14 @@ public class PickingController : Controller
         var bomResult = await _bomRepository.GetBomItemsAsync(BomKey.ForOrder(order), BomScopes.ForOrder(order));
         var bomItems = bomResult.Items;
 
-        await _pickingRepository.InitializePickingAsync(
-            id, bomItems,
-            _currentUserService.GetDisplayName(),
-            _currentUserService.GetWindowsUserName());
-
-        var pickingItems = await _pickingRepository.GetByProductionOrderAsync(id);
-
-        // O(1) Lookup statt O(P) FirstOrDefault pro BOM-Item
-        var pickingByKey = pickingItems
-            .Where(p => p.BomArticleNumber != null && p.BomPosition != null)
-            .GroupBy(p => (p.BomArticleNumber!, p.BomPosition!))
+        // v1.88.0: Fortschritt kommt aus den Zeilen des Kommissionierauftrags (Schluessel Ressourcenummer + Position wie frueher PickingItem);
+        // ohne Auftrag (FA-Stueckliste) nur lesend. Im Auftragsmodus erscheinen nur die Positionen dieses Auftrags.
+        var zeileByKey = (auftrag?.Zeilen ?? new List<PickingOrderLine>())
+            .GroupBy(z => PickingOrderRestmengen.Schluessel(z.ArticleNumber, z.BomPosition))
             .ToDictionary(g => g.Key, g => g.First());
+        if (auftrag != null)
+            bomItems = bomItems.Where(b => b.Ressourcenummer != null
+                && zeileByKey.ContainsKey(PickingOrderRestmengen.Schluessel(b.Ressourcenummer, b.Position))).ToList();
 
         var articleNumbers = bomItems.Select(b => b.Ressourcenummer).Where(r => !string.IsNullOrEmpty(r)).Select(r => r!).Distinct().ToList();
         var stockByArticle = await _stockMovementRepository.GetStockByArticleNumbersAsync(articleNumbers);
@@ -294,9 +315,9 @@ public class PickingController : Controller
 
         var viewItems = bomItems.Select(bom =>
         {
-            PickingItem? picking = null;
-            if (bom.Ressourcenummer != null && bom.Position != null
-                && pickingByKey.TryGetValue((bom.Ressourcenummer, bom.Position), out var found))
+            PickingOrderLine? picking = null;
+            if (bom.Ressourcenummer != null
+                && zeileByKey.TryGetValue(PickingOrderRestmengen.Schluessel(bom.Ressourcenummer, bom.Position), out var found))
             {
                 picking = found;
             }
@@ -349,7 +370,8 @@ public class PickingController : Controller
                 Bezeichnung1 = bom.Bezeichnung1,
                 Bezeichnung2 = bom.Bezeichnung2,
                 Matchcode = (bom as FaHierarchyBomItem)?.Matchcode ?? matchcodes.GetValueOrDefault(bom.Ressourcenummer ?? ""),
-                Menge = BomQuantityResolver.Resolve(bomResult, bom, order),
+                // Auftragsmodus: Soll der Zeile (Folgeauftrag = Rest), sonst Stuecklistenmenge
+                Menge = picking?.SollMenge ?? BomQuantityResolver.Resolve(bomResult, bom, order),
                 Beschaffungsartikel = bom.Beschaffungsartikel,
                 Artikelgruppe = bom.Artikelgruppe,
                 KategorieName = categoryByArticle.TryGetValue(bom.Ressourcenummer ?? "", out var catName) ? catName : null,
@@ -366,10 +388,13 @@ public class PickingController : Controller
                 IsWaise = (bom as FaHierarchyBomItem)?.IsWaise ?? false,
                 PositionsKollision = (bom as FaHierarchyBomItem)?.PositionsKollision ?? false,
                 PickingItemId = picking?.Id,
-                IsPicked = picking?.IsPicked ?? false,
+                IsPicked = picking?.Status == PickingOrderLineStatus.Gepickt,
                 SourceStorageLocationId = sourceLocationId,
                 SuggestedSourceStorageLocationId = suggestedLocationId,
-                IsTransferred = picking?.IsTransferred ?? false
+                // Umgebucht, entfallen oder in den Folgeauftrag uebertragen: nicht mehr bearbeitbar
+                IsTransferred = picking != null && picking.Status is not (PickingOrderLineStatus.Offen or PickingOrderLineStatus.Gepickt),
+                IstMenge = picking?.IstMenge,
+                ZeilenStatus = picking?.Status
             };
         })
         .OrderBy(v => v.Position, new NaturalPositionComparer())
@@ -404,7 +429,13 @@ public class PickingController : Controller
             DataSource = bomResult.DataSource,
             RecursiveFilterSearch = recursiveFilterSearch,
             Hierarchical = bomResult.DataSource == BomDataSources.FaHierarchie,
-            FullStructure = bomResult.DataSource == BomDataSources.FaHierarchie && BomScopes.ForOrder(order) == BomScope.FullStructure
+            FullStructure = bomResult.DataSource == BomDataSources.FaHierarchie && BomScopes.ForOrder(order) == BomScope.FullStructure,
+            // v1.88.0: interaktiv nur im Auftragsmodus mit offenem/in Arbeit befindlichem Auftrag; FA-Stueckliste lesend + Auftragsliste
+            ReadOnly = auftrag == null || auftrag.Status is not (PickingOrderStatus.Offen or PickingOrderStatus.InArbeit),
+            BackController = "Picking",
+            BackText = "Zurück zur Kommissionierung",
+            Auftrag = auftrag,
+            FaAuftraege = auftrag == null ? await _pickingOrderRepository.GetByProductionOrderAsync(id) : new List<PickingOrder>(),
         };
 
         // Bedarfsmeldungen: Feature-Toggle + offene Meldungen laden
@@ -425,36 +456,18 @@ public class PickingController : Controller
         return View(vm);
     }
 
+    /// <summary>v1.88.0 E3 (AK 11, 12): gewaehlte Zeilen des Auftrags mit Ist-Menge umbuchen (Server prueft Menge, Status, Bestand).</summary>
     [HttpPost]
     [ValidateAntiForgeryToken]
     [RequirePickingAccess]
-    public async Task<IActionResult> TogglePicked(int pickingItemId, int? storageLocationId, bool isBaugruppe = false)
-    {
-        await _pickingRepository.TogglePickedAsync(
-            pickingItemId,
-            storageLocationId,
-            _currentUserService.GetDisplayName(),
-            _currentUserService.GetWindowsUserName(),
-            isBaugruppe);
-
-        return Ok();
-    }
-
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    [RequirePickingAccess]
-    public async Task<IActionResult> TransferPicked(int productionOrderId, int targetStorageLocationId, bool forceTransfer = false, [FromForm] List<PickingSelectionItem>? items = null)
+    public async Task<IActionResult> AuftragUmbuchen(int pickingOrderId, int targetStorageLocationId, bool forceTransfer = false,
+        [FromForm] List<PickingSelectionItem>? items = null)
     {
         try
         {
-            var result = await _pickingTransferService.CheckAndTransferPickedItemsAsync(
-                productionOrderId,
-                targetStorageLocationId,
-                forceTransfer,
-                items,
-                _currentUserService.GetCurrentAppUserId(),
-                _currentUserService.GetDisplayName(),
-                _currentUserService.GetWindowsUserName());
+            var result = await _pickingTransferService.TransferOrderLinesAsync(
+                pickingOrderId, targetStorageLocationId, forceTransfer, items ?? new(),
+                _currentUserService.GetCurrentAppUserId(), _currentUserService.GetDisplayName(), _currentUserService.GetWindowsUserName());
 
             if (result.IsPickingTransportConflict)
             {
@@ -467,7 +480,6 @@ public class PickingController : Controller
                     newWaNumber = result.NewWaNumber
                 });
             }
-
             return Ok(new { conflict = false, count = result.TransferredCount });
         }
         catch (InvalidOperationException ex)
@@ -476,29 +488,19 @@ public class PickingController : Controller
         }
     }
 
+    /// <summary>v1.88.0 E3 (AK 13, 14): Abschluss nach der Umbuchung – „vollständig“ oder „teilweise“ (Rest in Folgeauftrag).</summary>
     [HttpPost]
     [ValidateAntiForgeryToken]
     [RequirePickingAccess]
-    public async Task<IActionResult> SetPickingStatus(int productionOrderId, string status)
+    public async Task<IActionResult> AuftragAbschliessen(int pickingOrderId, bool vollstaendig)
     {
-        var order = await _productionOrderRepository.GetByIdAsync(productionOrderId);
-        if (order == null)
-            return NotFound();
-
-        await _pickingStatusRepository.SetPickingStatusTextAsync(
-            productionOrderId, status,
-            _currentUserService.GetDisplayName(), _currentUserService.GetWindowsUserName());
-
-        // Kommissionierung abgeschlossen → IsDonePicking auf PickingStatus setzen
-        // (NICHT mehr order.IsDone — das bleibt Sage-Master-only. Round-4-Korrektur Spec 10.4)
-        if (status == "abgeschlossen")
-        {
-            await _pickingStatusRepository.SetIsDonePickingAsync(
-                productionOrderId, true,
-                _currentUserService.GetDisplayName(), _currentUserService.GetWindowsUserName());
-        }
-
-        return Ok();
+        var r = await _pickingOrderWorkflow.AbschliessenAsync(pickingOrderId, vollstaendig);
+        if (r.Fehler != null) return BadRequest(r.Fehler);
+        var text = vollstaendig || r.Nummern.Count == 0 ? "Auftrag abgeschlossen." : $"Auftrag teilweise abgeschlossen, Rest im Folgeauftrag {string.Join(", ", r.Nummern)}.";
+        if (r.FaAbgeschlossen) text += " Der FA ist vollständig kommissioniert.";
+        TempData["SuccessMessage"] = text;
+        if (r.Meldungen.Count > 0) TempData["WarningMessage"] = string.Join(" ", r.Meldungen);
+        return Ok(new { folge = r.Nummern, faAbgeschlossen = r.FaAbgeschlossen });
     }
 
     // PrintBom auch fuer vorbau + fa_completion: der Druck-Button bleibt in der
@@ -604,43 +606,55 @@ public class PickingController : Controller
         return View("PrintBom", vm);
     }
 
+    /// <summary>
+    /// v1.88.0 (E4, AK 18): Druck je Kommissionierauftrag – Kopf mit Nummer, FA, Bereich, Faelligkeit und Barcode der Auftragsnummer
+    /// (<see cref="IBarcodeService"/> wie die Kommissionierlisten), Zeilen mit Soll/Ist/Lagerplatz. Ersetzt den FA-Druck aus PickingItems.
+    /// </summary>
     [RequirePickingAccess]
-    public async Task<IActionResult> PrintPicking(int id)
+    public async Task<IActionResult> AuftragDrucken(int id, [FromServices] IBarcodeService barcode)
     {
-        var order = await _productionOrderRepository.GetByIdAsync(id);
-        if (order == null)
-            return NotFound();
+        var auftrag = await _pickingOrderRepository.GetMitZeilenAsync(id);
+        if (auftrag?.ProductionOrder == null) return NotFound();
+        var order = auftrag.ProductionOrder;
+        var bomItems = (await _bomRepository.GetBomItemsAsync(BomKey.ForOrder(order), BomScopes.ForOrder(order))).Items;
+        var bezeichnung = bomItems.Where(b => b.Ressourcenummer != null)
+            .GroupBy(b => b.Ressourcenummer!, StringComparer.OrdinalIgnoreCase).ToDictionary(g => g.Key, g => g.First().Bezeichnung1, StringComparer.OrdinalIgnoreCase);
+        var plaetze = (await _storageLocationRepository.GetAllAsync()).ToDictionary(l => l.Id, l => l.Code);
 
-        var pickingItems = await _pickingRepository.GetByProductionOrderAsync(id);
-        var pickedItems = pickingItems.Where(p => p.IsPicked).ToList();
-
-        var vm = new PrintPickingViewModel
+        DateTime? faellig = null;
+        if (order.ProductionDate is { } termin)
         {
+            var holidays = await _holidayRepository.GetHolidayDatesAsync();
+            faellig = _businessDayService.SubtractBusinessDays(termin, await _settingRepository.GetIntValueAsync("KommissionierTage", 4), holidays);
+            if (auftrag.PickingArea.IstVorkommissionierung)
+                faellig = _businessDayService.SubtractBusinessDays(faellig.Value, PrePickingDaysResolver.Resolve(
+                    order.ProductionWorkplace?.OverridePrePickingDays, await _settingRepository.GetIntValueAsync("VorkommissionierTage", 1)), holidays);
+        }
+
+        return View("PrintPicking", new PrintPickingViewModel
+        {
+            AuftragNummer = auftrag.Nummer,
+            AuftragBarcode = barcode.EncodeCode128Base64(auftrag.Nummer),
+            Bereich = auftrag.PickingArea.Name,
+            Status = PickingOrderListItem.StatusText(auftrag.Status),
+            Faelligkeit = faellig,
             OrderNumber = order.OrderNumber,
             ArticleNumber = order.ArticleNumber,
             Description1 = order.Description1,
             Quantity = order.Quantity,
             ProductionDate = order.ProductionDate,
             PrintedBy = _currentUserService.GetDisplayName(),
-            PickedBy = pickedItems.FirstOrDefault()?.PickedBy,
-            Items = pickedItems.Select(p => new PrintPickingItem
+            PickedBy = auftrag.AssignedPickerName,
+            Items = auftrag.Zeilen.OrderBy(z => z.BomPosition, new NaturalPositionComparer()).Select(z => new PrintPickingItem
             {
-                Artikelnummer = p.BomArticleNumber,
-                Menge = p.Quantity
+                Artikelnummer = z.ArticleNumber,
+                Position = z.BomPosition,
+                Bezeichnung1 = bezeichnung.GetValueOrDefault(z.ArticleNumber),
+                Menge = z.SollMenge,
+                IstMenge = z.IstMenge,
+                Lagerplatz = z.SourceStorageLocationId is { } sl ? plaetze.GetValueOrDefault(sl) : null,
+                Status = z.Status.ToString(),
             }).ToList()
-        };
-
-        if (!string.IsNullOrEmpty(order.ArticleNumber))
-        {
-            var bomItems = (await _bomRepository.GetBomItemsAsync(BomKey.ForOrder(order), BomScopes.ForOrder(order))).Items;
-            foreach (var item in vm.Items)
-            {
-                var bom = bomItems.FirstOrDefault(b => b.Ressourcenummer == item.Artikelnummer);
-                if (bom != null)
-                    item.Bezeichnung1 = bom.Bezeichnung1;
-            }
-        }
-
-        return View(vm);
+        });
     }
 }

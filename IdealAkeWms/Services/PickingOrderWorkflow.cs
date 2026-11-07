@@ -11,6 +11,8 @@ public sealed class PickingOrderErzeugung
     public List<string> Meldungen { get; } = new();
     public bool OhneStueckliste { get; set; }
     public bool OhneRest { get; set; }
+    /// <summary>E3: nach dem Abschluss ist der FA vollstaendig kommissioniert (IsDonePicking gesetzt).</summary>
+    public bool FaAbgeschlossen { get; set; }
     public string? Fehler { get; set; }
 }
 
@@ -135,6 +137,99 @@ public class PickingOrderWorkflow
         r.Nummern.AddRange(ergebnis!.Nummern);
         r.Meldungen.AddRange(ergebnis.Meldungen);
         r.OhneRest = ergebnis.OhneRest;
+        return r;
+    }
+
+    /// <summary>
+    /// E3: Auftrag abschliessen (nach der Umbuchung, ersetzt „teilkommissioniert/abgeschlossen“). „Vollstaendig“ → Abgeschlossen, nicht
+    /// umgebuchte Zeilen Entfallen. „Teilweise“ → TeilweiseAbgeschlossen, Reste (nicht umgebuchte Zeilen ganz, umgebuchte mit Ist &lt; Soll
+    /// die Differenz) in einen Folgeauftrag (gleicher Bereich, Prio, Kommissionierer, Bezug auf den Ursprung; Antwort 5); nicht umgebuchte
+    /// Zeilen Uebertragen. Danach FA: kein Auftrag mehr offen/in Arbeit → IsDonePicking + „abgeschlossen“, sonst „teilkommissioniert“.
+    /// </summary>
+    public async Task<PickingOrderErzeugung> AbschliessenAsync(int pickingOrderId, bool vollstaendig)
+    {
+        var r = new PickingOrderErzeugung();
+        var auftrag = await _repo.GetMitZeilenAsync(pickingOrderId);
+        if (auftrag == null) { r.Fehler = "Kommissionierauftrag nicht gefunden."; return r; }
+        if (auftrag.Status is not (PickingOrderStatus.Offen or PickingOrderStatus.InArbeit))
+        {
+            r.Fehler = $"Auftrag {auftrag.Nummer} ist bereits {Models.ViewModels.PickingOrderListItem.StatusText(auftrag.Status).ToLowerInvariant()}.";
+            return r;
+        }
+
+        var (ok, ergebnis) = await Nummernkreis.MitVersuchenAsync(MaxNummerVersuche, () => _repo.InSerializableTransactionAsync(async () =>
+        {
+            var lauf = new PickingOrderErzeugung();
+            // Je Versuch neu lesen: ein gescheiterter Versuch verwirft den Change-Tracker (Nummernkreis).
+            auftrag = (await _repo.GetMitZeilenAsync(pickingOrderId))!;
+            var now = Jetzt();
+            var name = _user.GetDisplayName();
+            var win = _user.GetWindowsUserName();
+            void Audit(AuditableEntity e) { e.ModifiedAt = now; e.ModifiedBy = name; e.ModifiedByWindows = win; }
+
+            var reste = new List<(PickingOrderLine Zeile, decimal Menge)>();
+            foreach (var z in auftrag.Zeilen)
+            {
+                if (z.Status is PickingOrderLineStatus.Entfallen or PickingOrderLineStatus.Uebertragen) continue;
+                var rest = z.Status == PickingOrderLineStatus.Umgebucht ? z.SollMenge - (z.IstMenge ?? 0m) : z.SollMenge;
+                if (z.Status != PickingOrderLineStatus.Umgebucht)
+                {
+                    z.Status = vollstaendig ? PickingOrderLineStatus.Entfallen : PickingOrderLineStatus.Uebertragen;
+                    Audit(z);
+                }
+                if (rest > 0m) reste.Add((z, rest));
+            }
+
+            if (vollstaendig || reste.Count == 0)
+            {
+                auftrag.Status = PickingOrderStatus.Abgeschlossen;
+                if (!vollstaendig) lauf.Meldungen.Add($"Kein Rest offen – Auftrag {auftrag.Nummer} vollständig abgeschlossen.");
+            }
+            else
+            {
+                auftrag.Status = PickingOrderStatus.TeilweiseAbgeschlossen;
+                var lfd = await _repo.GetMaxLaufendeNummerAsync(now.Year) + 1;
+                var folge = new PickingOrder
+                {
+                    Jahr = now.Year, LaufendeNummer = lfd, Nummer = Nummernkreis.Format(Praefix, now.Year, lfd), Typ = auftrag.Typ,
+                    ProductionOrderId = auftrag.ProductionOrderId, PickingAreaId = auftrag.PickingAreaId, Status = PickingOrderStatus.Offen,
+                    PickingPriority = auftrag.PickingPriority, AssignedPickerId = auftrag.AssignedPickerId, AssignedPickerName = auftrag.AssignedPickerName,
+                    UrsprungsauftragId = auftrag.Id, Bemerkung = $"Rest aus {auftrag.Nummer}",
+                    CreatedAt = now, CreatedBy = name, CreatedByWindows = win,
+                    Zeilen = reste.Select(x => new PickingOrderLine
+                    {
+                        ProductionOrderId = x.Zeile.ProductionOrderId, ArticleNumber = x.Zeile.ArticleNumber, BomPosition = x.Zeile.BomPosition,
+                        IsBaugruppe = x.Zeile.IsBaugruppe, SollMenge = x.Menge, Status = PickingOrderLineStatus.Offen,
+                        CreatedAt = now, CreatedBy = name, CreatedByWindows = win,
+                    }).ToList(),
+                };
+                _repo.Add(folge);
+                lauf.Nummern.Add(folge.Nummer);
+            }
+            auftrag.AbgeschlossenAm = now;
+            auftrag.AbgeschlossenVon = name;
+            Audit(auftrag);
+            await _repo.SaveChangesAsync();
+            return lauf;
+        }), _repo.VerwerfeAenderungen, _logger, "Kommissionierauftrag abschliessen");
+
+        if (!ok)
+        {
+            r.Fehler = $"Auftrag {auftrag.Nummer}: Abschluss nach {MaxNummerVersuche} Versuchen gescheitert (Details im Log) – bitte erneut versuchen.";
+            return r;
+        }
+        r.Nummern.AddRange(ergebnis!.Nummern);
+        r.Meldungen.AddRange(ergebnis.Meldungen);
+
+        if (auftrag.ProductionOrderId is { } faId)
+        {
+            // FA-Status: gespeichert, nicht berechnet (vier weitere Schreiber, viele Leser im Dienst) – dieselben Methoden wie bisher.
+            var offen = (await _repo.GetByProductionOrderAsync(faId))
+                .Any(o => o.Status is PickingOrderStatus.Offen or PickingOrderStatus.InArbeit);
+            await _status.SetPickingStatusTextAsync(faId, offen ? "teilkommissioniert" : "abgeschlossen", _user.GetDisplayName(), _user.GetWindowsUserName());
+            if (!offen) await _status.SetIsDonePickingAsync(faId, true, _user.GetDisplayName(), _user.GetWindowsUserName());
+            r.FaAbgeschlossen = !offen;
+        }
         return r;
     }
 

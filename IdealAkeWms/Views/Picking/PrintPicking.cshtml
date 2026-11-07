@@ -7,7 +7,7 @@
 <html lang="de">
 <head>
     <meta charset="utf-8" />
-    <title>Kommissionierliste - FA @Model.OrderNumber</title>
+    <title>Kommissionierauftrag @Model.AuftragNummer - FA @Model.OrderNumber</title>
     <style>
         * {
             margin: 0;
@@ -132,7 +132,12 @@
 
     <div class="header-info">
         <div class="header-left">
-            <h1>Kommissionierliste</h1>
+            <h1>Kommissionierauftrag @Model.AuftragNummer</h1>
+            <p><strong>Bereich:</strong> @Model.Bereich &nbsp; <strong>Status:</strong> @Model.Status</p>
+            @if (Model.Faelligkeit.HasValue)
+            {
+                <p><strong>Fällig:</strong> @Model.Faelligkeit.Value.ToString("dd.MM.yyyy")</p>
+            }
             @if (!string.IsNullOrEmpty(Model.ArticleNumber))
             {
                 <p><strong>Artikel:</strong> @Model.ArticleNumber - @Model.Description1</p>
@@ -144,6 +149,12 @@
             <p><strong>Gedruckt:</strong> @DateTime.Now.ToString("dd.MM.yyyy HH:mm")</p>
         </div>
         <div class="header-right">
+            @if (!string.IsNullOrEmpty(Model.AuftragBarcode))
+            {
+                @* Barcode der Auftragsnummer (Code 128, wie die Kommissionierlisten) – Scan im Suchfeld der Auftragsliste findet den Auftrag *@
+                <img src="data:image/png;base64,@Model.AuftragBarcode" alt="Barcode @Model.AuftragNummer" style="height: 48px; display: block; margin-left: auto;" />
+                <div style="font-size: 12px; font-weight: 600;">@Model.AuftragNummer</div>
+            }
             <div class="wa-number">FA @Model.OrderNumber</div>
             @if (!string.IsNullOrEmpty(Model.PrintedBy))
             {
@@ -159,24 +170,30 @@
     <table>
         <thead>
             <tr>
+                <th>Pos.</th>
                 <th>Artikelnummer</th>
                 <th>Bezeichnung</th>
-                <th class="text-end">Menge</th>
+                <th>Lagerplatz</th>
+                <th class="text-end">Soll</th>
+                <th class="text-end">Ist</th>
             </tr>
         </thead>
         <tbody>
             @foreach (var item in Model.Items)
             {
                 <tr>
+                    <td>@item.Position</td>
                     <td><strong>@item.Artikelnummer</strong></td>
                     <td>@item.Bezeichnung1</td>
+                    <td>@item.Lagerplatz</td>
                     <td class="text-end">@item.Menge.ToString("N3")</td>
+                    <td class="text-end">@(item.IstMenge?.ToString("N3") ?? "")</td>
                 </tr>
             }
             @if (!Model.Items.Any())
             {
                 <tr>
-                    <td colspan="3" style="text-align: center; padding: 20px; color: #999;">Keine gepickten Artikel vorhanden.</td>
+                    <td colspan="6" style="text-align: center; padding: 20px; color: #999;">Der Auftrag hat keine Zeilen.</td>
                 </tr>
             }
         </tbody>

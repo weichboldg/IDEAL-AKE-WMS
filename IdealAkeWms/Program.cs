@@ -126,7 +126,6 @@ builder.Services.AddScoped<BeschichtungsauftragVergabeAnzeige>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<VormontageService>();
 builder.Services.AddSingleton<IBarcodeService, BarcodeService>();
-builder.Services.AddScoped<IPickingRepository, PickingRepository>();
 builder.Services.AddScoped<IWorkOperationRepository, WorkOperationRepository>();
 builder.Services.AddScoped<IOseonProductionOrderRepository, OseonProductionOrderRepository>();
 builder.Services.AddScoped<OperationConfigRepository>();

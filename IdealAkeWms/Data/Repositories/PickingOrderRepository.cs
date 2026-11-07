@@ -15,7 +15,8 @@ public class PickingOrderRepository : IPickingOrderRepository
         await _db.PickingOrders.Where(o => o.Jahr == jahr).MaxAsync(o => (int?)o.LaufendeNummer) ?? 0;
 
     public Task<List<PickingOrderLine>> GetAktiveZeilenAsync(int productionOrderId) =>
-        _db.PickingOrderLines.Where(z => z.ProductionOrderId == productionOrderId && z.PickingOrder.Status != PickingOrderStatus.Storniert)
+        _db.PickingOrderLines.Include(z => z.PickingOrder)
+            .Where(z => z.ProductionOrderId == productionOrderId && z.PickingOrder.Status != PickingOrderStatus.Storniert)
             .ToListAsync();
 
     public async Task<Dictionary<string, (string? Lagerort, string? Artikelgruppe)>> GetArtikelBereichsdatenAsync(IReadOnlyCollection<string> articleNumbers)

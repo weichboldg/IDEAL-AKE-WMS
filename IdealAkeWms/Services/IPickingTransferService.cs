@@ -1,10 +1,14 @@
 namespace IdealAkeWms.Services;
 
+/// <summary>Auswahl einer Auftragszeile beim Umbuchen (v1.88.0: <see cref="PickingItemId"/> = Id der <c>PickingOrderLine</c>; der Name bleibt,
+/// weil die Stuecklistenseite ihn als Formularfeld sendet).</summary>
 public class PickingSelectionItem
 {
     public int PickingItemId { get; set; }
     public int? SourceStorageLocationId { get; set; }
     public bool IsBaugruppe { get; set; }
+    /// <summary>v1.88.0: Ist-Menge als Text (keine feste Request-Kultur → Komma/Punkt); leer = Soll.</summary>
+    public string? IstMenge { get; set; }
 }
 
 public class PickingTransferResult
@@ -20,18 +24,13 @@ public class PickingTransferResult
 
 public interface IPickingTransferService
 {
-    Task<int> TransferPickedItemsAsync(
-        int productionOrderId,
-        int targetStorageLocationId,
-        int? appUserId,
-        string displayName,
-        string windowsUser);
-
-    Task<PickingTransferResult> CheckAndTransferPickedItemsAsync(
-        int productionOrderId,
+    /// <summary>v1.88.0 (Spec 2026-11-08-kommissionierung-auftraege-kopf-zeilen, E3): gewaehlte Zeilen eines Kommissionierauftrags mit
+    /// Ist-Menge umbuchen (Quelle → Kommissionierwagen/Werkbank). Fehler (Menge, Bestand, Status) als <see cref="InvalidOperationException"/>.</summary>
+    Task<PickingTransferResult> TransferOrderLinesAsync(
+        int pickingOrderId,
         int targetStorageLocationId,
         bool forceTransfer,
-        List<PickingSelectionItem>? selectedItems,
+        List<PickingSelectionItem> selectedItems,
         int? appUserId,
         string displayName,
         string windowsUser);

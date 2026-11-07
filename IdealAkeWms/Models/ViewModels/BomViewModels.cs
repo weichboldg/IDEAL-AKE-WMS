@@ -73,6 +73,10 @@ public class BomItemViewModel
     public int? SourceStorageLocationId { get; set; }
     public int? SuggestedSourceStorageLocationId { get; set; }
     public bool IsTransferred { get; set; }
+    /// <summary>v1.88.0: Ist-Menge der Auftragszeile (nach dem Umbuchen) – Eingabe-Vorbelegung ist das Soll.</summary>
+    public decimal? IstMenge { get; set; }
+    /// <summary>v1.88.0: Status der Auftragszeile (Text in der Zeile, Farbe nie allein); null ohne Auftrag.</summary>
+    public PickingOrderLineStatus? ZeilenStatus { get; set; }
 }
 
 public class BomViewModel
@@ -118,10 +122,21 @@ public class BomViewModel
 
     /// <summary>Beschriftung des "Zurueck"-Buttons im Read-only-Modus.</summary>
     public string BackText { get; set; } = "Zurück zur Abarbeitungsliste";
+
+    /// <summary>v1.88.0: Auftragsmodus – der Kommissionierauftrag dieser Seite (null = FA-Stueckliste, lesend).</summary>
+    public PickingOrder? Auftrag { get; set; }
+    /// <summary>v1.88.0: Kommissionierauftraege des FA (nur FA-Stueckliste, als Links).</summary>
+    public List<PickingOrder> FaAuftraege { get; set; } = new();
 }
 
 public class PrintPickingViewModel
 {
+    // v1.88.0: Druck je Kommissionierauftrag
+    public string AuftragNummer { get; set; } = string.Empty;
+    public string? AuftragBarcode { get; set; }
+    public string? Bereich { get; set; }
+    public string? Status { get; set; }
+    public DateTime? Faelligkeit { get; set; }
     public string OrderNumber { get; set; } = string.Empty;
     public string? ArticleNumber { get; set; }
     public string? Description1 { get; set; }
@@ -137,6 +152,11 @@ public class PrintPickingItem
     public string Artikelnummer { get; set; } = string.Empty;
     public string? Bezeichnung1 { get; set; }
     public decimal Menge { get; set; }
+    // v1.88.0
+    public string? Position { get; set; }
+    public decimal? IstMenge { get; set; }
+    public string? Lagerplatz { get; set; }
+    public string? Status { get; set; }
 }
 
 public class PrintBomViewModel

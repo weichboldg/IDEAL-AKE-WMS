@@ -79,32 +79,9 @@ public class PickingTransferServiceTests
         return order;
     }
 
-    private static PickingItem AddPickingItem(
-        ApplicationDbContext ctx,
-        int productionOrderId,
-        string bomArticleNumber,
-        decimal quantity,
-        int sourceLocationId,
-        bool isPicked = true,
-        bool isTransferred = false)
-    {
-        var item = new PickingItem
-        {
-            ProductionOrderId = productionOrderId,
-            BomArticleNumber = bomArticleNumber,
-            Quantity = quantity,
-            SourceStorageLocationId = sourceLocationId,
-            IsPicked = isPicked,
-            IsTransferred = isTransferred,
-            RowVersion = BitConverter.GetBytes(DateTime.UtcNow.Ticks),
-            CreatedAt = DateTime.Now,
-            CreatedBy = User,
-            CreatedByWindows = WinUser
-        };
-        ctx.PickingItems.Add(item);
-        ctx.SaveChanges();
-        return item;
-    }
+    // v1.88.0: Zeile eines Kommissionierauftrags statt PickingItem (gepickt, Ist = Menge)
+    private static PickingOrderLine AddPickingItem(ApplicationDbContext ctx, int productionOrderId, string bomArticleNumber, decimal quantity,
+        int sourceLocationId) => KommissionierTestHelper.AddZeile(ctx, productionOrderId, bomArticleNumber, quantity, sourceLocationId);
 
     private static void AddStock(ApplicationDbContext ctx, int articleId, int locationId, decimal quantity)
     {
@@ -146,21 +123,22 @@ public class PickingTransferServiceTests
         }
 
         var service = CreateService(ctx);
-        var count = await service.TransferPickedItemsAsync(order.Id, target.Id, 1, User, WinUser);
+        var count = await KommissionierTestHelper.UmbuchenAsync(ctx, service, order.Id, target.Id, User, WinUser);
 
         count.Should().Be(10);
 
         var movements = ctx.StockMovements.Where(m => m.MovementType == MovementType.Umbuchung).ToList();
         movements.Should().HaveCount(10);
 
-        var pickingItems = ctx.PickingItems.Where(p => p.ProductionOrderId == order.Id).ToList();
-        pickingItems.Should().OnlyContain(p => p.IsTransferred);
+        var zeilen = ctx.PickingOrderLines.Where(p => p.ProductionOrderId == order.Id).ToList();
+        zeilen.Should().OnlyContain(p => p.Status == PickingOrderLineStatus.Umgebucht && p.StockMovementId != null);
+        movements.Should().OnlyContain(m => m.ProductionOrderId == order.Id && m.ProductionOrder == "FA-001"); // Teil A: FA-Feld + Text
     }
 
-    // ── Test 2: Article not found — item is skipped ──
+    // ── Test 2: Article not found — v1.88.0: melden statt still ueberspringen, nichts gebucht ──
 
     [Fact]
-    public async Task TransferPickedItems_ArticleNotFound_SkipsItem()
+    public async Task TransferPickedItems_ArticleNotFound_MeldetUndBuchtNichts()
     {
         using var ctx = CreateContext();
         var order = AddOrder(ctx);
@@ -176,9 +154,10 @@ public class PickingTransferServiceTests
         AddPickingItem(ctx, order.Id, validArt.ArticleNumber, 3, src.Id);
 
         var service = CreateService(ctx);
-        var count = await service.TransferPickedItemsAsync(order.Id, target.Id, 1, User, WinUser);
+        var act = () => KommissionierTestHelper.UmbuchenAsync(ctx, service, order.Id, target.Id, User, WinUser);
 
-        count.Should().Be(1); // Only the valid one transferred
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*NONEXISTENT-ART*unbekannt*");
+        ctx.StockMovements.Count(m => m.MovementType == MovementType.Umbuchung).Should().Be(0);
     }
 
     // ── Test 3: Insufficient stock — throws when negative not allowed ──
@@ -197,7 +176,7 @@ public class PickingTransferServiceTests
 
         var service = CreateService(ctx, negativeBuchungErlaubt: "false");
 
-        var act = () => service.TransferPickedItemsAsync(order.Id, target.Id, 1, User, WinUser);
+        var act = () => KommissionierTestHelper.UmbuchenAsync(ctx, service, order.Id, target.Id, User, WinUser);
         await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("*Nicht genügend Bestand*");
     }
@@ -219,7 +198,7 @@ public class PickingTransferServiceTests
 
         var service = CreateService(ctx, negativeBuchungErlaubt: "false");
 
-        var act = () => service.TransferPickedItemsAsync(order.Id, target.Id, 1, User, WinUser);
+        var act = () => KommissionierTestHelper.UmbuchenAsync(ctx, service, order.Id, target.Id, User, WinUser);
         await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("*Nicht genügend Bestand*");
     }
@@ -240,7 +219,7 @@ public class PickingTransferServiceTests
         AddPickingItem(ctx, order.Id, art.ArticleNumber, 8, src.Id); // Second: 8 → total 16 ≤ 20
 
         var service = CreateService(ctx);
-        var count = await service.TransferPickedItemsAsync(order.Id, target.Id, 1, User, WinUser);
+        var count = await KommissionierTestHelper.UmbuchenAsync(ctx, service, order.Id, target.Id, User, WinUser);
 
         count.Should().Be(2);
 
@@ -267,7 +246,7 @@ public class PickingTransferServiceTests
         AddPickingItem(ctx, order.Id, art.ArticleNumber, 8, src2.Id); // 8 from SRC-2 (10 avail)
 
         var service = CreateService(ctx);
-        var count = await service.TransferPickedItemsAsync(order.Id, target.Id, 1, User, WinUser);
+        var count = await KommissionierTestHelper.UmbuchenAsync(ctx, service, order.Id, target.Id, User, WinUser);
 
         count.Should().Be(2);
     }
@@ -288,7 +267,7 @@ public class PickingTransferServiceTests
         AddPickingItem(ctx, order.Id, art.ArticleNumber, 10, src.Id); // Need 10
 
         var service = CreateService(ctx, negativeBuchungErlaubt: "true", negativeBuchungLagerplatz: "NAN");
-        var count = await service.TransferPickedItemsAsync(order.Id, target.Id, 1, User, WinUser);
+        var count = await KommissionierTestHelper.UmbuchenAsync(ctx, service, order.Id, target.Id, User, WinUser);
 
         count.Should().Be(1);
 
@@ -308,8 +287,8 @@ public class PickingTransferServiceTests
 
         var service = CreateService(ctx);
 
-        var act = () => service.TransferPickedItemsAsync(order.Id, target.Id, 1, User, WinUser);
+        var act = () => KommissionierTestHelper.UmbuchenAsync(ctx, service, order.Id, target.Id, User, WinUser);
         await act.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("*Keine gepickten Artikel*");
+            .WithMessage("*Keine Artikel zum Umbuchen*");
     }
 }
