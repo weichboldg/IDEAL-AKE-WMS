@@ -179,4 +179,6 @@ konsolidiertes `../../SQL/00_FreshInstall.sql`. Der Workflow ist verbindlich —
 - `Creditors`, `Debitors` (Audit, `Source` Sage|Manual, gefiltert UNIQUE `SageKto`/`ShortName`, Enum `SageUebergabeStatus`, Interface `ISageKonto`).
 - `ArticleSuppliers` (FK Article Cascade, FK Creditor Restrict, UNIQUE ArticleId+CreditorId).
 - `SageStammdatenOutbox` (Status = `SageBookingQueueStatus`, `EntityType`+`EntityKey` = WMS-Id); `StorageLocations`/`BdeOperators` + `SageUebergabeStatus`
+- `SagePurchaseOrderLines` (v1.84.0, SQL/112): Cache offener Sage-Bestellpositionen (nur EBB), je Lauf ersetzt, kein AuditableEntity, keine FKs; UNIQUE `BelPosId`. Mengen in der Basiseinheit.
+- `PurchaseOrderReceipts` (v1.84.0, SQL/113): Wareneingang zu Bestellposition, AuditableEntity, FK `StockMovementId` Restrict + UNIQUE (Navigation `StockMovement.PurchaseOrderReceipt`), Snapshot ohne FK auf den Cache; Andockpunkt Qualitätsprüfung.
   (DEFAULT 0 nur im SQL), `SageUebergabeAm`, `SageUebergabeFehler`; `BdeOperators.Source` DEFAULT 'Manual'.

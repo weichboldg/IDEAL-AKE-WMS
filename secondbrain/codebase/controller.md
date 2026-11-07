@@ -27,6 +27,7 @@ Listen-Views folgen zusaetzlich verbindlich dem Pattern aus
 | Anmeldung | `AccountController` (Login, Logout, WindowsLogin, Profile) | `Views/Account/` |
 | Start / Hilfe | `HomeController` (Dashboard-Kacheln), `HelpController` (inkl. Changelog) | `Views/Home/`, `Views/Help/` |
 | Lager | `StockOverviewController`, `StockMovementsController`, `StockApiController` | `Views/StockOverview/`, `Views/StockMovements/` |
+| Lager (Bestellungen) | `PurchaseOrdersController` (v1.84.0: Index = Vorschau, Receive GET/POST = Wareneingang; Gate `[RequireWareneingangBestellungAktiv]` → 404) | `Views/PurchaseOrders/` |
 | Fertigungsauftraege | `ProductionOrdersController` (slim FA-Liste), `ProductionOrdersApiController` | `Views/ProductionOrders/` |
 | Leitstand | `PickingLeitstandController`, `PickingStatusApiController` | `Views/PickingLeitstand/` |
 | Kommissionierung | `PickingController` (inkl. `Bom`, `PrintBom`), `Api/PickingApiController`, `Api/PhotoController` | `Views/Picking/` |
@@ -59,7 +60,7 @@ Rollen-Bedeutungen: [[glossar]].
 | `[RequirePickingOrVorbauOrFaCompletionAccess]` | admin, picking ODER vorbau ODER fa_completion | PickingController.PrintBom (Druck aus read-only Stueckliste) |
 | `[RequireTrackingAccess]` | admin, tracking | TrackingController |
 | `[RequireStockAccess]` | admin, stock, stock_keyuser, picking | StockMovementsController (Schreib-Actions: Ein-/Aus-/Umbuchung) |
-| `[RequireStockReadAccess]` | admin, stock, stock_keyuser, picking, stock_read | StockOverviewController (class-level), StockMovementsController.Index — read-only Bestaende + Bewegungshistorie (seit v1.25.0) |
+| `[RequireStockReadAccess]` | admin, stock, stock_keyuser, picking, stock_read | StockOverviewController (class-level), PurchaseOrdersController (class-level, v1.84.0), StockMovementsController.Index — read-only Bestaende + Bewegungshistorie (seit v1.25.0) |
 | `[RequireLagerProcessingAccess]` | admin, stock, stock_keyuser | WarehousePickingController, MissingPartsLagerController (picker explizit ausgeschlossen) |
 | `[RequireStockKeyUserAccess]` | admin, stock_keyuser, picking | StockMovementsController (Lagerplatz ausbuchen/umbuchen) |
 | `[RequirePickingOrTrackingOrLeitstandAccess]` | admin, picking ODER tracking ODER leitstand **ODER vorbau** (seit v1.25.0, Filter-Name unveraendert; Code: `CanPick \|\| CanViewTracking \|\| CanManagePickingRelease \|\| HasVorbauAccess`) | ProductionOrdersController (slim Index), FaHierarchyController (class-level), SageSdataFaController (class-level, v1.71.0; plus Gate `SageSdataFaAnsichtAktiv` inline) |

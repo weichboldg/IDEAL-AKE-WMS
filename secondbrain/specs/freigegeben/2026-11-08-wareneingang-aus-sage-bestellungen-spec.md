@@ -2,13 +2,13 @@
 type: spec
 title: Wareneingang auf Basis der Sage-Bestellungen (offene Bestellungen lesen, Vorschau X Wochen, Wareneingang zu Bestellung)
 slug: 2026-11-08-wareneingang-aus-sage-bestellungen-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-11-07
-updated: 2026-11-08
+updated: 2026-11-07
 source_backlog: "[[2026-11-07-wareneingang-aus-sage-bestellungen]]"
 buendel: "[[2026-11-08-buendel-uebersicht]]"
 version: "1.84.0"
-sql_nummern: "112-116 (reserviert; genutzt 112, 113, 114 nur E5)"
+sql_nummern: "112, 113 (114 nur E5, 115–116 frei)"
 testszenario: "TS-116"
 task: "[[2026-11-08-buendel-2026-11-08-goal-lauf]]"
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
@@ -299,7 +299,7 @@ Ausgeführt: SData GET mit `orderBy` (Browser-Sitzung, `format=json`), Sage-SQL 
 Vorhanden wie angenommen: `Belegkennzeichen`, `Belegart`, `BelegnummerFormatiert`, `A0Empfaenger`, `A0Matchcode`, `A0Name1`, `Artikelnummer`,
 `AuspraegungID`, `Bezeichnung1/2`, `Chargenpflicht`/`Nachweispflicht` (short), `Menge`, `Mengeneinheit`, `MengeBasis`, `MengeBasiseinheit`,
 `MengeEKEinheit`, `MengeEKUmrechnung`, `PlatzID`, `Kurzbezeichnung`, `Platzbezeichnung`, `Lagermengeneinheit`, `UmrechnungsFaktorLME`,
-`PositionGGBestellt`, `PositionGGGeliefert` (decimal), `Liefertermin` (dateTime), `Liefersperre` (short). Die Positionen tragen die Kopfdaten
+`PositionGGBestellt`, `PositionGGGeliefert` (decimal), `Liefertermin` (dateTime), `BelegLiefertermin` (dateTime, in der JSON-Feldliste der Positionen als string, Nachtrag 2026-11-08 zu QA Q-3), `Liefersperre` (short). Die Positionen tragen die Kopfdaten
 (Kennzeichen, Lieferant, Belegnummer) bereits mit. Das `$schema` nennt **keine** `maxLength`; Längen aus Sage-SQL: `Artikelnummer` 50,
 `Bezeichnung1/2` 50, `Mengeneinheit`/`MengeBasiseinheit` 5, `A0Empfaenger` 20, `A0Name1`/`A0Matchcode` 50, `Belegkennzeichen` 3.
 **P-W2 Kopf `EinkaufBelegekopfInfo`:** Felder wie angenommen, Name = `A0Name1`/`A0Matchcode`; `BelegnummerFormatiert` = `<Belegjahr>-<Belegnummer>`
@@ -329,6 +329,28 @@ selbst auf offene Positionen (`VP.GGBestellt > VP.GGGeliefert AND VP.GGErfuellt 
 **Empfehlung zur Entscheidung:** B-1 – Stufe 1 nur `EBB`, `EBZ` (Rahmenabrufe) als eigene Frage; B-2 – Mengen in Basiseinheit anzeigen
 und buchen, Positionen mit `Mengeneinheit ≠ Lagermengeneinheit` sichtbar markieren und nicht buchbar, bis geklärt; B-3 – Kopfdaten aus den
 Positionen, `Liefersperre` als „Lieferant gesperrt“ (Warnbanner) anzeigen.
+
+## Entscheidung E0-Blocker (Gerald 2026-11-07 18:02, geht dem Rumpf und den Freigabe-Antworten vor)
+- **B-1:** Stufe 1 (E1–E4) **nur `EBB`** (normale Bestellungen). `EBZ` (Rahmenabrufe) **nicht** lesen/anzeigen. Später (eigene Etappe bzw.
+  Folge-Spec): offen je Abruf = Abrufmenge `Menge` − im WMS zu diesem Abruf erfasste Menge (Sage liefert kein „geliefert“ je Abruf).
+- **B-2:** Mengen in der **Basiseinheit** anzeigen und buchen. Positionen mit `Mengeneinheit ≠ Lagermengeneinheit` sichtbar markieren und
+  **nicht buchbar**, bis die Einheitenfrage geklärt ist (Hinweistext in der Zeile).
+- **B-3:** Kopfdaten **aus den Positionen ableiten** (distinct `BelId`), `EinkaufBelegekopfInfo` nicht als Kopfquelle verwenden.
+  `Liefersperre` als Warnbanner **„Lieferant gesperrt“** anzeigen (keine Belegsperre; Buchen bleibt möglich – Rückfrage 4 entsprechend).
+- Danach E1–E4 wie geplant; E5 bleibt Folge-Spec.
+
+## Umsetzungsnotizen (Dev, 2026-11-08)
+
+- **Nach Entscheidung E0-Blocker:** Abgleich liest nur `EinkaufPositionenInfo` mit `where Belegkennzeichen eq 'EBB'` (Kopf nicht gelesen,
+  Kopfdaten aus den Positionen); `MengeBestellt/Geliefert` = `PositionGGBestellt/-Geliefert` (Basiseinheit), `MengeOffen` gespeichert (Spaltenfilter);
+  `EinheitAbweichend` = `Mengeneinheit ≠ Lagermengeneinheit` → in der Maske ohne Eingabefeld „nicht buchbar, bis geklärt“; `LieferantGesperrt` =
+  Sage `Liefersperre` → Warnbanner, Buchen erlaubt.
+- **Abweichung Lösungsentwurf:** Vorschau filtert im Speicher über alle Cache-Zeilen vor Zählen/Paging (wie `WarehouseRequisitionsController`,
+  ~1.000 Zeilen) statt in SQL – ADR 0005 erfüllt (Filter vor Count/Paging). Lieferanten-Filter = Auswahl aus den Lieferanten im Cache (Kto + Name)
+  statt aller Kreditoren.
+- **Ist-Menge als Text** (Komma oder Punkt, `BeschichtungsauftraegeController.TryMenge`), weil die App keine feste Request-Kultur hat
+  ([[fallstricke]] „Die Anwendung hat keine feste Request-Kultur“).
+- Rückfrage 1 (Doppelbestand) bleibt organisatorisch: Einkauf schließt die Position in Sage ohne Lagerbuchung (Hilfe-Text).
 
 ## Akzeptanzkriterien
 
@@ -381,10 +403,10 @@ Arbeit mit `scripts/sync-worktree.ps1 -Slug <slug>` auf main-Stand halten. Versi
 
 | # | Etappe | Abhängigkeit | SQL | Status | Commit |
 |---|--------|--------------|-----|--------|--------|
-| 1 | Lesen offene Bestellungen: Model + Migration + `EinkaufBestellungenSyncService` + SyncWorker-Block + Schalter + SyncLog-Name + DI-Test + Unit-Tests (Zuordnung, Belegart-Filter, Empty-Guard, Fehler wirft) | **P-W1, P-W2, P-W3, P-W4** und Rückfrage 3. Fehlen sie: Etappe als Blocker festhalten, E2/E3 nicht beginnen | 112 | offen | |
-| 2 | Maske „Offene Bestellungen“ (Listen-View-Pattern, Filterkarte, AppSettings `WareneingangBestellungAktiv` + `OffeneBestellungenVorschauWochen`, Menü, Hinweis ohne Lauf) | E1 | – | offen | |
-| 3 | Wareneingang zu Bestellung: `PurchaseOrderReceipt` + Migration, Maske `Receive`, Buchen über `IStockMovementRepository`, Spalte „im WMS erfasst“ in E2 | E2; Rückfragen 1, 2, 4, 5, 6, 10 | 113 | offen | |
-| 4 | Abschluss: beide `AppVersion.cs` 1.84.0, `Views/Help/Changelog.cshtml`, Hilfe (Kapitel Wareneingang zu Bestellung mit konkreten Schritten), README (AppSettings/ServiceSettings), TS-116 in `docs/TESTSZENARIEN.md` | E3 | – | offen | |
+| 1 | Lesen offene Bestellungen: Model + Migration + `EinkaufBestellungenSyncService` + SyncWorker-Block + Schalter + SyncLog-Name + DI-Test + Unit-Tests (Zuordnung, Belegart-Filter, Empty-Guard, Fehler wirft) | **P-W1, P-W2, P-W3, P-W4** und Rückfrage 3. Fehlen sie: Etappe als Blocker festhalten, E2/E3 nicht beginnen | 112 | erledigt (E0 + Entscheidung E0-Blocker) | `cf1f8547` |
+| 2 | Maske „Offene Bestellungen“ (Listen-View-Pattern, Filterkarte, AppSettings `WareneingangBestellungAktiv` + `OffeneBestellungenVorschauWochen`, Menü, Hinweis ohne Lauf) | E1 | – | erledigt | `0fdfa39d` |
+| 3 | Wareneingang zu Bestellung: `PurchaseOrderReceipt` + Migration, Maske `Receive`, Buchen über `IStockMovementRepository`, Spalte „im WMS erfasst“ in E2 | E2; Rückfragen 1, 2, 4, 5, 6, 10 | 113 | erledigt | `3bba01f6` |
+| 4 | Abschluss: beide `AppVersion.cs` 1.84.0, `Views/Help/Changelog.cshtml`, Hilfe (Kapitel Wareneingang zu Bestellung mit konkreten Schritten), README (AppSettings/ServiceSettings), TS-116 in `docs/TESTSZENARIEN.md` | E3 | – | erledigt | `0a941d63` |
 | 5 | Sage-Wareneingangsbeleg per `StandardBelegService` hinter `SageWareneingangBelegAktiv` (Default aus), Ausschluss aus Queue in `SageBookingEnqueueDecision` + Nacherfassung, Status je Receipt, Worker | **blockiert:** Rückfragen 1, 9, 13, P-W7, Schreibtest AKE-Test. Ohne diese: nicht bauen, als Blocker festhalten; Epic ist mit E1–E4 merge-fähig | 114 | blockiert | |
 
 Brain-Update (Hauptcheckout, nicht Worktree): [[feature-map]], [[datenmodell]] (zwei Tabellen), [[services]] (Abgleich + Gate), [[controller]]
@@ -393,16 +415,20 @@ Eintrag in [[fallstricke]] (Doppelbuchung Bestellung/Lagerbuchung, mit Warum).
 
 ## Deploy
 
-*Vorläufig – der QA-Lauf bestätigt gegen den echten Diff.*
+*Final (qa-agent, 2026-11-07), aus dem echten Diff `04742c26..26e6a278` (41 Dateien).*
 
-- **Web-App:** ja (Controller, Views, Menü, Settings-Katalog, Migrationen).
-- **Service:** ja (neuer Abgleich im `SyncWorker`; E5 zusätzlich Worker).
-- **Migration:** ja – `SQL/112`, `SQL/113` (E5: `SQL/114`), additiv, kein DB-Backup-Zwang (Backup vor Deploy trotzdem Standard). Reihenfolge:
-  SQL-Skripte → Web → Service; danach `Sync:EinkaufBestellungenEnabled` erst nach P-W6-Kontrolle auf dem Testsystem einschalten,
-  `WareneingangBestellungAktiv` zuletzt.
+- **deploy.web:** ja – 28 Dateien unter `IdealAkeWms/` (Controller, Views, Menü, Settings-Katalog, Modelle, Repositories, AppVersion 1.84.0).
+- **deploy.service:** ja – `IDEALAKEWMSService/Program.cs`, `Workers/SyncWorker.cs` (Abgleich `EinkaufBestellungenSyncService`), `AppVersion.cs`. E5 ist nicht gebaut (blockiert).
+- **deploy.migration:** ja – neu `IdealAkeWms/Migrations/20261107172542_AddSagePurchaseOrderLines` und `20261107173341_AddPurchaseOrderReceipts`,
+  dazu `SQL/112_AddSagePurchaseOrderLines.sql`, `SQL/113_AddPurchaseOrderReceipts.sql`, `SQL/00_FreshInstall.sql`. Additiv, nicht daten-destruktiv;
+  kein Einmal-Skript (`SQL/Einmalig/` unberührt).
+- **Reihenfolge Testsystem:** 1. DB-Backup (Standard) → 2. `SQL/112`, `SQL/113` → 3. Web publizieren → 4. Service publizieren →
+  5. `Sync:EinkaufBestellungenEnabled` erst nach P-W6-Kontrolle einschalten → 6. `WareneingangBestellungAktiv` zuletzt.
 - **Publish-Befehle (im Worktree):**
   `dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb`
   `dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService`
+- Ablauf Mensch: Publish aus dem Worktree → Testsystem → Test → Merge. Nach dem Merge nur dann erneut aus `main` publizieren, wenn der Merge
+  getestete Dateien mit parallelen `main`-Änderungen zusammengeführt hat.
 - **Standort:** AKE (DEV AKE). IDEAL: Code wird mit ausgeliefert, Schalter bleiben aus (Rückfrage 7).
 
 ## Offene Rueckfragen
@@ -481,3 +507,212 @@ Eintrag in [[fallstricke]] (Doppelbuchung Bestellung/Lagerbuchung, mit Warum).
 11. Cache je Zyklus ohne Live-Nachladen genügt? → **wie empfohlen (Gerald 2026-11-07)**
 12. Keine neue Rolle (Read/Stock wie vorgeschlagen)? → **wie empfohlen (Gerald 2026-11-07)**
 13. E5 im Epic oder Folge-Spec? → **wie empfohlen (Gerald 2026-11-07)**
+
+## QA-Nachweis (qa-agent, 2026-11-07, Goal-Modus, Review-Umfang `04742c26..0a941d63`)
+
+> [!warning] Ergebnis: **nicht Testbereit**, Status bleibt `InUmsetzung`.
+> Build, Tests, Migrationen und der DEV-Lauf sind grün. Q-1 (Kontrast) und Q-2 (doppeltes Banner) verletzen die Oberflächen-Vorgaben dieser Spec
+> und sind schnell behoben. Für Q-3 fehlt ein Beleg. Nach dem Fix reicht ein QA-Nachlauf für die Views. Ein neuer DEV-Datenlauf ist nur nötig,
+> wenn der Fix den Controller oder den Abgleich berührt.
+
+### 1 Build und Tests (Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, HEAD `0a941d63`)
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler, 28 Warnungen (alle schon vorher vorhanden).
+- `dotnet test`: IdealAkeWms.Tests 2472 bestanden / 1 übersprungen / 0 Fehler (gesamt 2473); IDEALAKEWMSService.Tests 503 / 0 / 0.
+
+### 2 Code-Review (selbst durchgeführt, synchron): Befunde
+| # | Schwere | Befund | Behandlung |
+|---|---|---|---|
+| Q-1 | mittel | `Receive.cshtml`: Der Zeilenfehler steht als `small text-danger` in einer `table-danger`-Zeile, also #dc3545 auf #f8d7da mit ca. **3,4:1**. WCAG AA verlangt für kleine Schrift 4,5:1. Auf DEV sichtbar („Menge muss größer als 0 sein.“). Das Projekt-CSS überschreibt die Farben nicht. | offen, Dev: in der Fehlerzeile z. B. `text-danger-emphasis` statt `text-danger` |
+| Q-2 | niedrig | `Index.cshtml` und `Receive.cshtml` geben `TempData["SuccessMessage"/"WarningMessage"]` selbst aus, `_Layout.cshtml:425-435` ebenfalls. Dadurch erscheint **jede Meldung zweimal**. Auf DEV belegt mit „2 Position(en) eingebucht …“ und „gehört zu 2 Bestellungen“. | offen, Dev: die TempData-Blöcke in beiden neuen Views entfernen |
+| Q-3 | mittel (Beleg fehlt) | `EinkaufBestellungenSyncService.Select` enthält `BelegLiefertermin`. Das E0-Ergebnis P-W1 nennt dieses Feld nicht ausdrücklich, es stammt aus der Koordinations-Recherche. Ein falscher Feldname im `select` ergibt HTTP 500 ([[fallstricke]]), dann endet jeder Lauf mit Fehler und Mail. AK 5 verlangt nur belegte Namen; `Vertrag_NurBelegteFelder_NieAllInfo_AK5` prüft das nicht. | offen, Dev/Mensch: `EinkaufPositionenInfo/$schema` am AKE-Test prüfen und in E0 eintragen, sonst aus `select` streichen. QA hat Sage bewusst nicht abgefragt. |
+| Q-4 | niedrig | Zielgrößen am Handgerät unter 44 px: Knopf „Wareneingang“ (Index, 32 px), `form-select-sm` (ca. 31 px), Häkchen „Überlieferung bestätigt“ (16 px plus Label), Ist-Menge (38 px). Nur „Einbuchen“ hat 44 px. | offen: mit Q-1/Q-2 beheben oder bewusst akzeptieren |
+| Q-5 | niedrig | Unterschiedliche Genauigkeit: `PurchaseOrderReceipts.Quantity` ist decimal(18,4), `StockMovements.Quantity` decimal(18,3). Eine Eingabe mit 4 Nachkommastellen ergibt eine Bewegung, die vom Wareneingang abweicht. Der Server prüft die Nachkommastellen nicht. | Hinweis; Fix: im `Receive`-POST mehr als 3 Nachkommastellen ablehnen |
+| Q-6 | niedrig | Stille Fallbacks im Abgleich: `PositionGGBestellt ?? 0m`, `PositionGGGeliefert ?? 0m`. Die Sage-View liefert nur Zeilen mit `GGBestellt > GGGeliefert`, Null ist also praktisch ausgeschlossen. Käme es doch vor, würde still „offen = −geliefert“ gerechnet. | Hinweis: nach der Hausregel „melden statt still“ zählen und als Warnung melden |
+| Q-7 | Hinweis | Ist der Sage-Platz einem WMS-Platz mit `IstBuchbar = 0` zugeordnet, wird nichts vorbelegt und es fehlt ein Hinweis, warum (auf DEV mit HR;0;0;0 gesehen). Die Hinweisspalte der Vorschau zeigt „Artikel nicht im WMS“ nicht. Die Client-Anzeige meldet bei Menge 0 „Teillieferung“; der Server lehnt korrekt ab. | Hinweis, kein Fix zwingend |
+
+Ohne Befund geprüft:
+- Migrationsdisziplin nach ADR 0004: Model, zwei Migrationen, `SQL/112`/`113` mit `OBJECT_ID`/`sys.indexes`-Guards, DDL je eigener Batch,
+  History-Insert in eigenem Batch, FreshInstall an beiden Stellen (Schema hinter `StockMovements`, Z. 275 < 2341, und MigrationId), Objektnamen wie in EF.
+- Audit: `PurchaseOrderReceipt` und `StockMovement` setzen Created* aus `ICurrentUserService`; der Cache bleibt wie vorgesehen ohne Audit.
+- Buchung nur über `IStockMovementRepository.AddAsync` (Decorator), der Receipt hängt als Navigation im selben `SaveChanges`.
+- Validierung läuft serverseitig vor jeder Buchung, keine Teilbuchung; das JS zeigt nur an.
+- Bindung `zeilen[i]` ist lückenlos: Jede Zeile schreibt `BelPosId`, auch die nicht buchbaren.
+- Keine Werte in `<script>`, kein `@Html.Raw`, kein `hidden` zusammen mit `d-*`.
+- Feature-Gate `RequireWareneingangBestellungAktiv` gilt zusätzlich zur Rolle, das Menü ist gleich gegatet.
+- Read/Edit-Split: `RequireStockReadAccess` an der Klasse, `RequireStockAccess` an beiden `Receive`-Actions.
+- `ISyncLogger` ist der letzte Ctor-Parameter, der Name steht in `SyncLogServices.All` mit DisplayName; das ServiceSetting steht im Katalog (Drift-Guard).
+- Mengeneingabe kulturfest über `TryMenge`: „2,5“ und „2.5“ ergeben beide 2,5.
+
+**Bewertung der Dev-Abweichungen:**
+- (a) Filter im Speicher vor Count/Paging ist zulässig. ADR 0005 verlangt Filtern vor dem Paging, nicht in SQL; es sind ca. 1.000 Zeilen,
+  Präzedenz `WarehouseRequisitionsController`. Wächst der Cache deutlich, den Filter in SQL verlagern.
+- (b) Die Lieferanten-Auswahl aus dem Cache statt aus allen Kreditoren ist besser als die Spec: Sie zeigt nur Lieferanten mit offenen Positionen,
+  auch solche ohne WMS-Kreditor.
+- (c) Ist-Menge als Text ist richtig, weil so aus „2.5“ nicht 25 werden kann.
+
+### 3 Nachweisart je AK
+| AK | Nachweis |
+|---|---|
+| 1 | automatisiert `Gate_Aus_KeinLauf_AK1`; auf DEV mit Schalter aus kein `SyncLogs`-Eintrag `EinkaufBestellungen` |
+| 2 | automatisiert mit Fake-Client; **Manual-UAT** gegen AKE-Test-SData |
+| 3 | automatisiert; Manual-UAT im Lauf-Protokoll |
+| 4 | automatisiert (Empty-Guard, Lesefehler); Fehlermail ist Manual-UAT |
+| 5 | **nicht bewiesen** (Q-3) |
+| 6 | automatisiert `FeatureGate_NurTrue_Sonst404_AK6`; auf DEV IDEAL (Schalter aus) liefern beide Seiten 404, Menülinks fehlen |
+| 7 | automatisiert, auf DEV OK |
+| 8 | automatisiert nur der Katalog; Speichern über `/Settings` ist **Manual-UAT** (auf DEV nicht ausgeführt) |
+| 9 | automatisiert, auf DEV OK |
+| 10 | automatisiert (Attribute, `CanReceive`); **Manual-UAT** mit echtem stock_read-Benutzer |
+| 11 | automatisiert; Hinweistext im Code belegt |
+| 12 | automatisiert, auf DEV OK (Eingabe, Hardware-Scan, doppelte Nummer) |
+| 13 | automatisiert (InMemory), auf DEV per SQL belegt |
+| 14 | **Manual-UAT** (`SageLagerbuchungAktiv` bleibt auf DEV aus); im Code derselbe Decorator-Pfad wie bei der freien Einbuchung |
+| 15 / 16 / 17 | automatisiert, auf DEV OK |
+| 18 | E5 nicht gebaut (Folge-Spec) |
+
+### 4 Geänderte bestehende Tests
+- `AppSettingDefinitionsTests`: Anzahl 52 → 54. Das Verhalten ändert sich absichtlich durch die zwei neuen AppSettings dieser Spec. Weitere bestehende Tests wurden nicht geändert.
+
+### 5 Checkliste und ADR 0020
+- Migration, SQL und FreshInstall wie in Abschnitt 2 geprüft; `SQL/AgentJobs` nicht betroffen.
+- Version 1.84.0 in beiden `AppVersion.cs`, Changelog, Hilfe und README nachgezogen.
+- TS-116 in `docs/TESTSZENARIEN.md`, Zeile 116 im Testindex vorhanden.
+- ADR 0020: Bool- und Int-Setting (1–26 über `I(min,max)`), Service-Schalter mit Anzeigename, Verwendung und Standort. Ein Warnhinweis ist nicht nötig, der Abgleich liest nur.
+
+### 6 DEV-Deploy und Testlauf
+- `SQL/112` und `SQL/113` je zweimal auf AKE_WMS_DEV und IDEAL_WMS_DEV ausgeführt. Lauf 1 meldet „erstellt“/„eingetragen“, Lauf 2 gibt nichts aus, Exit 0 (idempotent).
+- `dev-deploy.ps1 -Standort AKE` und `-Standort IDEAL` (Quelle Worktree, elevated): beide Exit 0, „HTTP 200, Fusszeile v1.84.0“.
+- Testdaten AKE_WMS_DEV: 7 Cache-Zeilen (BelPosId 990001–990021) mit diesen Fällen: Lieferant gesperrt, überfällig, ohne Termin, +40 Tage,
+  Artikel fehlt, Einheit RLL ≠ Stk, Belegnummer doppelt. Dazu vorübergehend `WareneingangBestellungAktiv=true` und `HardwareScannerAktiv=true`.
+
+| Schritt | Ergebnis | Status |
+|---|---|---|
+| IDEAL mit Schalter aus | 404, keine Menüpunkte | OK |
+| Vorschau 2 Wochen | 6 von 7 Zeilen, +40 Tage fehlt; Markierungen als Text | OK |
+| `wochen=8` + Lieferant | 3 Zeilen | OK |
+| Spaltenfilter `offen >2` / `erfasst >0` mit Paging | 5 bzw. 2 Treffer | OK |
+| Belegnummer doppelt | Meldung erscheint | OK (doppelt angezeigt, Q-2) |
+| Hardware-Scan `~09QA-2026-900001` | Bestellung geöffnet | OK |
+| Kopf, Lieferant gesperrt | Banner sichtbar, Buchen möglich | OK |
+| Vorbelegung Ziel-Platz | bei buchbarem Platz OK; bei nicht buchbarem keine Vorbelegung (Q-7) | OK |
+| „2,5“ und eine Zeile mit 0 | nichts gebucht, Fehler an der Zeile | OK (Q-1) |
+| 12 > Rest ohne Häkchen und „2.5“ | nichts gebucht, Bestätigung verlangt | OK |
+| mit Häkchen | 2 eingebucht; DB: 2 Einbuchungen mit Audit, 2 Receipts (Lieferart 3 und 2), Queue unverändert | OK |
+| Artikel fehlt / Einheit abweichend | „nicht buchbar“ mit Grund | OK |
+| „im WMS erfasst“ | 12 / 2,5, Rest 0 / 0,5 | OK |
+| Telefonbreite | Fenster nicht verkleinerbar; im Code `table-responsive` mit Querscrollen | NICHT MOEGLICH |
+| stock_read | Windows-Auth, QA kann den Benutzer nicht wechseln | NICHT MOEGLICH |
+| Dienst-Abgleich | `Sync:*Enabled` bleibt auf DEV aus | NICHT MOEGLICH |
+
+**Zurückgesetzt:** Auf AKE_WMS_DEV sind 2 Receipts, 2 `StockMovements` (19387/19388) und 7 Cache-Zeilen gelöscht und beide AppSettings entfernt (Default aus).
+Kontrolle danach: 0 Receipts, 0 Cache-Zeilen, max StockMovement 19382, Queue 16, beide Service-Schalter false. Die Tabellen und Migrationen
+112/113 bleiben auf beiden DEV-DBs bestehen.
+
+### Manuelle Test-Checkliste (offen, nach dem Fix von Q-1 bis Q-3)
+1. Q-3: `BelegLiefertermin` im `$schema` am AKE-Test belegen.
+2. Testsystem: Backup, dann `SQL/112`, `SQL/113`, danach Web und Service.
+3. TS-116.2: Abgleich an. Counts und Zeilenzahl EBB prüfen; eine Bestellung mit Mengen, **tagesgenauem Liefertermin** und Ziel-Platz gegen Sage vergleichen.
+4. P-W6: `SELECT COUNT(*) FROM SagePurchaseOrderLines WHERE SagePlatzId IS NOT NULL AND StorageLocationId IS NULL;` muss 0 ergeben.
+5. TS-116.2 negativ: falsches SData-Kennwort ergibt einen Fehlerlauf mit Mail, der Cache bleibt unverändert.
+6. TS-116.3: `/Settings` weist 0, 27 und „abc“ ab und speichert 4.
+7. TS-116.4: Ein stock_read-Benutzer sieht die Vorschau ohne Knopf; `Receive` weist ihn ab.
+8. TS-116.5: Platz mit `SageBuchungErlaubt = 1` und `SageLagerbuchungAktiv = true` (nur Testsystem) erzeugt einen Queue-Eintrag je Bewegung.
+9. Netum-Scanner mit einer gedruckten Bestellung (P-W5).
+10. Handgerät/Telefon: Receive bedienen (Q-4).
+11. Antwort 1 organisatorisch: Der Einkauf schließt Positionen in Sage ohne Lagerbuchung.
+
+## QA-Wiederholung (qa-agent, 2026-11-07, Goal-Modus, Review-Umfang `0a941d63..d9621029`)
+
+> [!warning] Ergebnis: **nicht Testbereit**, Status bleibt `InUmsetzung`.
+> Q-1 bis Q-7 sind behoben bzw. belegt. Neuer Befund **Q-8**: Derselbe Kontrastfehler wie Q-1 steckt noch in der Statusanzeige „Überlieferung“
+> (Client-Skript). Der Fix ist eine Klasse in einer Zeile; danach reicht ein Blick auf die Receive-Seite, kein neuer Datenlauf.
+
+### 1 Build und Tests (HEAD `d9621029`)
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler, 28 Warnungen (unverändert).
+- `dotnet test`: IdealAkeWms.Tests 2473 bestanden / 1 übersprungen / 0 Fehler (gesamt 2474, +1 durch den Q-5-Fall); IDEALAKEWMSService.Tests 503 / 0 / 0.
+
+### 2 Review des Fix-Diffs (selbst, synchron)
+| # | Prüfung | Ergebnis |
+|---|---|---|
+| Q-1 | `Receive.cshtml:144` `text-danger-emphasis` (#58151c auf #f8d7da, ca. 11:1) | behoben |
+| Q-2 | TempData-Blöcke aus `Index`/`Receive` entfernt, `_Layout.cshtml:425-435` zeigt sie; `grep TempData[` in `Views/PurchaseOrders` leer | behoben, auf DEV genau ein Banner |
+| Q-3 | E0 P-W1 nennt `BelegLiefertermin` jetzt mit Herkunft (JSON-Feldliste `EinkaufPositionenInfo`, AKE-Test). QA hat Sage nicht abgefragt und übernimmt den Beleg des Dev. | belegt (Beleg des Dev) |
+| Q-4 | Wareneingang-Knopf, Auswahl, Ist-Menge, Häkchenzeile, Belegnummer, Öffnen mit `min-height:44px`; auf DEV gemessen ca. 44 px | behoben |
+| Q-5 | `PurchaseOrdersController.Receive.cs:63` `decimal.Round(menge, 3) != menge` nach der >0-Prüfung, vor der Platzprüfung; Test `[InlineData(1001, "1,2345", …)]` | behoben |
+| Q-6 | `EinkaufBestellungenSyncService.cs:126` zählt `mengeFehlt`, Warnung im Lauf, Counts-Key `menge_fehlt` (deutsch, snake_case wie die übrigen) | behoben; nur Code-Review, auf DEV nicht auslösbar (Sync aus) |
+| Q-7 | JS zeigt bei Menge ≤ 0 „ungültig“ | behoben (Anzeige) |
+| **Q-8** | **neu, mittel:** `Receive.cshtml:167` setzt bei `v > rest` weiter `text-danger` auf die Statusanzeige. In der Fehlerzeile „Überlieferung … bitte bestätigen“ (`table-danger`) steht damit „Überlieferung“ als `small fw-semibold` in #dc3545 auf #f8d7da = ca. **3,4:1** (AA verlangt 4,5:1). Auf DEV sichtbar (Pos. 2, Eingabe 12 > Rest 5, ohne Häkchen). Gleiche Defektklasse wie Q-1, dort nur an der Fehlerzeile behoben. | **offen**, Dev: in Z. 167 `text-danger` → `text-danger-emphasis` (auch auf Weiß ausreichend) |
+
+Sonst ohne Befund: keine Werte in `<script>`, kein `@Html.Raw`, kein `hidden` mit `d-*`; die neue Serverregel läuft vor jeder Buchung (keine Teilbuchung).
+Nebenbefund, nicht dieser Spec zuzurechnen: Bei 1520 px Fensterbreite hat jede Seite eine Querscrollleiste, weil die Navigationsleiste überläuft (auch Dashboard).
+
+### 4 Geänderte bestehende Tests
+- `PurchaseOrdersReceiveTests.NichtBuchbar_Gruende_AK15_AK16`: ein `InlineData` ergänzt (Q-5). Der Test gehört zu dieser Spec; Verhalten absichtlich erweitert (AK 15/16). Sonst keine.
+
+### 6 DEV-Deploy und Testlauf
+- `dev-deploy.ps1 -Standort AKE` und `-Standort IDEAL`, Quelle Worktree, elevated: beide Exit 0, „HTTP 200, Fusszeile v1.84.0“.
+- Testdaten AKE_WMS_DEV: 2 Cache-Zeilen (BelPosId 990101/990102, Bestellung `QA2-2026-900100`, Artikel 2, Platz 2 „Test“, `SageBuchungErlaubt = 0`),
+  vorübergehend `WareneingangBestellungAktiv=true`; App-Pool `AKE_WMS_DEV` recycelt, damit der Schalter greift.
+
+| Schritt | Ergebnis | Status |
+|---|---|---|
+| Pos. 1 „1,2345“, Pos. 2 „12“ ohne Häkchen | nichts gebucht, ein Banner „Nichts gebucht …“; Pos. 1 „Höchstens 3 Nachkommastellen …“, Pos. 2 „Überlieferung (12 > Rest 5) bitte bestätigen.“ | OK |
+| Kontrast Fehlerzeile | Fehlertext dunkelrot, gut lesbar | OK |
+| Kontrast Statusanzeige Pos. 2 | „Überlieferung“ hellrot auf rosa | **FEHLER (Q-8)** |
+| 44-px-Ziele (Receive, Index-Knopf) | Felder, Auswahl, Öffnen, Häkchenzeile, „Wareneingang“ je ca. 44 px | OK |
+| Pos. 1 „2“ gebucht | genau ein Banner „1 Position(en) eingebucht (davon 1 Teil-, 0 Überlieferung).“; erfasst 2, Rest 8; Queue unverändert 16 | OK |
+| Q-6-Warnung im Lauf | `Sync:*Enabled` bleibt aus | NICHT MOEGLICH |
+
+**Zurückgesetzt:** 1 Receipt, `StockMovements` 19389, 2 Cache-Zeilen und das AppSetting gelöscht, App-Pool erneut recycelt. Kontrolle: 0 Receipts,
+0 Cache-Zeilen, max StockMovement 19382, Queue 16, `SageLagerbuchungAktiv` und `Sync:EinkaufBestellungenEnabled` false. IDEAL_WMS_DEV nur deployt, keine Testdaten.
+
+### Manuelle Test-Checkliste (offen)
+1. Q-8 beheben, dann QA-Nachlauf nur für die Receive-Seite.
+2. Punkte 2–11 der Checkliste oben unverändert (Punkt 1 Q-3 ist durch den Nachtrag in E0 erledigt).
+3. Q-6: auf dem Testsystem im Lauf-Protokoll prüfen, dass Count `menge_fehlt` = 0 ist.
+
+## QA-Nachlauf Q-8 (qa-agent, 2026-11-07, Goal-Modus, Review-Umfang `d9621029..26e6a278`)
+
+> [!success] Ergebnis: **Testbereit.** Q-8 ist behoben und auf DEV AKE gemessen. Keine neuen Befunde.
+
+### 1 Build und Tests (Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, HEAD `26e6a278`)
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler, 28 Warnungen (unverändert).
+- `dotnet test`: IdealAkeWms.Tests 2473 bestanden / 1 übersprungen / 0 Fehler (gesamt 2474); IDEALAKEWMSService.Tests 503 / 0 / 0.
+
+### 2 Review des Fix-Diffs (selbst, synchron)
+| # | Prüfung | Ergebnis |
+|---|---|---|
+| Q-8 | `Receive.cshtml:167`: `text-danger` → `text-danger-emphasis`, sonst nichts geändert (1 Zeile). `grep text-danger` in `Views/PurchaseOrders` zeigt nur noch `text-danger-emphasis` (Z. 144, 167). Der Kommentar steht vor dem `;` und ist gültiges JS. | behoben |
+
+Keine Befunde darüber hinaus. Geprüft: der Fix-Diff und die Skriptumgebung (`Receive.cshtml:157-171`): keine Werte in `<script>`, kein `@Html.Raw`, kein `hidden` mit `d-*`.
+
+### 4 Geänderte bestehende Tests
+- Keine im Fix-Diff.
+
+### 6 DEV-Deploy und Testlauf
+- `dev-deploy.ps1 -Standort AKE -Quelle <Worktree>`, elevated: Exit 0, „HTTP 200, Fusszeile v1.84.0“ (= AppVersion Web und Service).
+- Ausgelieferter Stand: `D:\Dev\AKE\Web\IdealAkeWms.dll` enthält `(v > rest ? 'text-danger-emphasis' : '')` 1×, die alte Fassung mit `'text-danger'` 0×.
+- Testzeile AKE_WMS_DEV: 1 Cache-Zeile (BelPosId 990201, BelId 990200, Bestellung `QA3-2026-900200`, Artikel 2, Platz 2 „Test“, `SageBuchungErlaubt = 0`, bestellt/offen 5).
+  `WareneingangBestellungAktiv` stand schon vor dem Lauf auf `true` (abweichend vom Reset-Vermerk der QA-Wiederholung) und blieb unverändert.
+
+| Schritt | Ergebnis | Status |
+|---|---|---|
+| Pos. 1 „12“ ohne Häkchen, Einbuchen | nichts gebucht, ein Banner „Nichts gebucht …“, Zeile `table-danger`, Status „Überlieferung“ + „Überlieferung (12 > Rest 5) bitte bestätigen.“ | OK |
+| Kontrast Statusanzeige „Überlieferung“ | dunkelrot sichtbar; `--bs-danger-text-emphasis` #58151c auf `.table-danger` #f8d7da = **10,2:1** (auf Weiß 13,7:1; vorher #dc3545 = 3,4:1) | OK |
+| DB nach dem Versuch | 0 Receipts, max StockMovement 19382 (unverändert) | OK |
+
+**Zurückgesetzt:** Cache-Zeile 990201 gelöscht. Kontrolle: 0 Cache-Zeilen, 0 Receipts, max StockMovement 19382, kein `Sync:*Enabled` an,
+`SageLagerbuchungAktiv` nicht gesetzt (Default aus). `WareneingangBestellungAktiv=true` wie vorgefunden. IDEAL_WMS_DEV in diesem Nachlauf nicht neu deployt (Fix betrifft nur eine View, Stand dort `d9621029`).
+
+### Manuelle Test-Checkliste (final, offen für den Menschen)
+1. Testsystem: Backup, dann `SQL/112`, `SQL/113`, danach Web und Service (Reihenfolge siehe Deploy).
+2. TS-116.2: Abgleich an. Counts und Zeilenzahl EBB prüfen; eine Bestellung mit Mengen, tagesgenauem Liefertermin und Ziel-Platz gegen Sage vergleichen; Count `menge_fehlt` = 0 (Q-6).
+3. P-W6: `SELECT COUNT(*) FROM SagePurchaseOrderLines WHERE SagePlatzId IS NOT NULL AND StorageLocationId IS NULL;` muss 0 ergeben.
+4. TS-116.2 negativ: falsches SData-Kennwort ergibt einen Fehlerlauf mit Mail, der Cache bleibt unverändert.
+5. TS-116.3: `/Settings` weist 0, 27 und „abc“ ab und speichert 4.
+6. TS-116.4: Ein stock_read-Benutzer sieht die Vorschau ohne Knopf; `Receive` weist ihn ab.
+7. TS-116.5: Platz mit `SageBuchungErlaubt = 1` und `SageLagerbuchungAktiv = true` (nur Testsystem) erzeugt einen Queue-Eintrag je Bewegung.
+8. Netum-Scanner mit einer gedruckten Bestellung (P-W5).
+9. Handgerät/Telefon: Receive bedienen (Q-4, 44-px-Ziele, Querscrollen).
+10. Antwort 1 organisatorisch: Der Einkauf schließt Positionen in Sage ohne Lagerbuchung.
+11. Optional DEV IDEAL vor dem Test erneut aus dem Worktree deployen, damit beide DEV-Sites `26e6a278` zeigen.
