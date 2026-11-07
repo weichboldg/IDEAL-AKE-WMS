@@ -330,4 +330,18 @@ public class HardwareScannerTests
         ctrl.Split("ViewBag.QrMitFaNummer").Length.Should().Be(7,
             "nur Ein-, Aus- und Umbuchung (je GET + POST) setzen den Wert; die toten Zuweisungen im Sammel-Wareneingang sind entfernt");
     }
+
+    [Fact]
+    public void EanZweig_VorDemBisherigenWeg_NurArtikelOhneTrennzeichen_Auswahlfenster()
+    {
+        // Spec 2026-11-07-ean-einkaufsartikel-scan: ein aeusserer Wrapper, den alle Scan-Wege ueber die globale processScannedValue nutzen.
+        var bs = Read("wwwroot", "js", "barcode-scanner.js");
+        var ean = bs.IndexOf("var _artikelScanBisherig = processScannedValue;", StringComparison.Ordinal);
+        var matchcode = bs.IndexOf("v1.68.0 QR erstes Feld = Matchcode", StringComparison.Ordinal);
+        ean.Should().BeGreaterThan(matchcode, "EAN-Zweig umschliesst den Matchcode-Wrapper (EAN zuerst, kein Treffer -> bisheriger Weg)");
+        bs.Should().Contain("scanType === 'article'").And.Contain("ean.indexOf(qrTrennzeichen()) >= 0").And.Contain(@"/^(\d{8}|\d{12,14})$/")
+            .And.Contain("/api/articles/by-ean?ean=").And.Contain("_eanAuswahl(ean, treffer, uebernehmen")
+            .And.Contain("gehört zu mehr als 5 Artikeln – bitte den Artikel von Hand wählen").And.Contain("konnte nicht geprüft werden")
+            .And.Contain("min-height:44px");
+    }
 }

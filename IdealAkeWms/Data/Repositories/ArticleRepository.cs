@@ -102,6 +102,18 @@ public class ArticleRepository : Repository<Article>, IArticleRepository
                            .ToListAsync();
     }
 
+    public async Task<List<Article>> GetByEanAsync(string ean, int limit)
+    {
+        // Spec 2026-11-07-ean-einkaufsartikel-scan: EAN steht nur im Sage-Satelliten (SData-Artikellauf, SdataArtikelReader schreibt
+        // ungetrimmt) -> Trim beidseitig. ponytail: ohne Index ein Tabellenscan je Scan (wie Matchcode); Index erst bei gemessener Latenz.
+        var key = ean.Trim();
+        return await _dbSet.Where(a => a.SageDetail != null && a.SageDetail.EANNummer != null && a.SageDetail.EANNummer.Trim() == key
+                                       && a.ArticleNumber != Article.DummyArticleNumber)
+                           .OrderBy(a => a.ArticleNumber)
+                           .Take(limit)
+                           .ToListAsync();
+    }
+
     /// <summary>Artikelliste: Spaltenfilter ueber den zentralen SQL-Bauer (Spaltenfilter-Suchsyntax, Etappe B). „beginnt mit“ auf
     /// der Artikelnummer bleibt indexfaehig (<c>LIKE 'x%'</c> ohne <c>LOWER</c>, AK 12).</summary>
     internal static IQueryable<Article> ApplyArticleColumnFilter(IQueryable<Article> q, string key, ParsedColumnFilter f)

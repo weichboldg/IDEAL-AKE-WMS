@@ -91,6 +91,10 @@
                 </p>
                 <p>
                     <strong>Unterstützte Formate:</strong> QR-Code (Artikel), Code 128, Code 39, EAN-13, EAN-8, Code 93 (Lagerplätze).
+                    <strong>EAN von Einkaufsartikeln (seit v1.78.0):</strong> Ein Artikel-Scan aus 8, 12, 13 oder 14 Ziffern wird zuerst als
+                    Artikelnummer, dann als EAN gesucht. Gefunden wird ein Artikel, wenn der Artikel-Abgleich seine EAN aus Sage übernommen hat
+                    (Quelle SData, an AKE); an IDEAL derzeit nicht. Passen mehrere Artikel, erscheint ein Auswahlfenster (bis 5 Artikel); bei mehr
+                    als 5 oder ohne Verbindung kommt eine Meldung und nichts wird ausgefüllt. Ohne Treffer gilt der Scan wie bisher.
                 </p>
                 <h6 class="mt-3">QR-Code: erstes Feld (seit v1.68.0)</h6>
                 <p>
@@ -185,7 +189,7 @@
                     <dd>Am Scanner einstellen: deutsches Tastaturlayout, derselbe Präfix vor jedem Code, Enter als Abschluss, Ausgabe als
                         Tastendrücke (nicht über die Bildschirmtastatur) oder &bdquo;Fokus-Eingabe&ldquo;; &bdquo;Broadcast&ldquo; geht im
                         Browser nicht. Codes: Code 128 (Lagerplatz, Haupt-FA, Beschichtungsauftrag)
-                        und Artikel-QR. EAN-Codes kennt das WMS nicht.</dd>
+                        und Artikel-QR; EAN von Einkaufsartikeln wie beim Kamera-Scan (seit v1.78.0, nur wenn die EAN aus Sage übernommen wurde).</dd>
                     <dt>Auf einem Gerät ausschalten</dt>
                     <dd>&bdquo;Mein Profil&ldquo; &rarr; &bdquo;Dieses Gerät&ldquo;. Gilt nur für diesen Browser, sofort, ohne Speichern.</dd>
                     <dt>Scanner kommt nicht an?</dt>

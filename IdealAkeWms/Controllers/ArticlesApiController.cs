@@ -74,6 +74,27 @@ public class ArticlesApiController : ControllerBase
         });
     }
 
+    // v1.78.0 EAN-Scan (Spec 2026-11-07-ean-einkaufsartikel-scan F2/F3/F5): erst exakte Artikelnummer, dann EAN aus dem Sage-Satelliten.
+    // Antwortform wie by-matchcode (articles[], more), damit der Client dieselbe Auswertung nutzt.
+    [HttpGet("by-ean")]
+    public async Task<IActionResult> GetByEan([FromQuery] string? ean)
+    {
+        if (string.IsNullOrWhiteSpace(ean))
+            return BadRequest();
+        var nummer = await _articleRepository.GetByArticleNumberAsync(ean.Trim());
+        var treffer = nummer != null ? new List<Article> { nummer } : await _articleRepository.GetByEanAsync(ean, 6);
+        return Ok(new
+        {
+            articles = treffer.Take(5).Select(a => new
+            {
+                id = a.Id,
+                articleNumber = a.ArticleNumber,
+                text = a.ArticleNumber + (a.Description != null ? " - " + a.Description : "")
+            }),
+            more = treffer.Count > 5
+        });
+    }
+
     [HttpGet("by-number/{articleNumber}")]
     public async Task<IActionResult> GetByNumber(string articleNumber)
     {

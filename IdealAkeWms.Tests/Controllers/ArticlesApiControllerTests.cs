@@ -67,6 +67,47 @@ public class ArticlesApiControllerTests
         }
     }
 
+    // v1.78.0: GET /api/articles/by-ean (Spec 2026-11-07-ean-einkaufsartikel-scan F2/F3/F5)
+    private static Article MitEan(string nummer, string? ean) => new()
+    {
+        ArticleNumber = nummer, Description = "Teil", Unit = "Stk", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t",
+        SageDetail = ean == null ? null : new ArticleSageDetail { EANNummer = ean, CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" },
+    };
+
+    private static async Task<(string[] Nummern, bool More)> Ean(ArticlesApiController ctrl, string ean)
+    {
+        var ok = (await ctrl.GetByEan(ean)).Should().BeOfType<OkObjectResult>().Subject;
+        using var doc = JsonDocument.Parse(JsonSerializer.Serialize(ok.Value));
+        return (doc.RootElement.GetProperty("articles").EnumerateArray().Select(a => a.GetProperty("articleNumber").GetString()!).ToArray(),
+            doc.RootElement.GetProperty("more").GetBoolean());
+    }
+
+    [Fact]
+    public async Task GetByEan_ArtikelnummerZuerst_DannEan_Mehrtreffer_KeinTreffer()
+    {
+        var (ctrl, ctx) = Setup();
+        ctx.Articles.AddRange(MitEan("00726502", "4002872120264 "), MitEan("12345678", null), MitEan("X1", "87654321"),
+            MitEan("Y1", "9007646008637"), MitEan("Y2", "9007646008637"));
+        ctx.SaveChanges();
+
+        (await Ean(ctrl, " 4002872120264 ")).Nummern.Should().Equal("00726502");     // EAN, im Satelliten ungetrimmt gespeichert
+        (await Ean(ctrl, "12345678")).Nummern.Should().Equal("12345678");            // Artikelnummer in GTIN-Form zuerst (F2)
+        (await Ean(ctrl, "9007646008637")).Nummern.Should().Equal("Y1", "Y2");       // Mehrtreffer (F5)
+        (await Ean(ctrl, "1111111111111")).Nummern.Should().BeEmpty();               // kein Treffer -> Client nimmt den bisherigen Weg (F4)
+        (await ctrl.GetByEan("  ")).Should().BeOfType<BadRequestResult>();
+    }
+
+    [Fact]
+    public async Task GetByEan_MehrAls5_More()
+    {
+        var (ctrl, ctx) = Setup();
+        for (var i = 0; i < 6; i++) ctx.Articles.Add(MitEan("E" + i, "40028721"));
+        ctx.SaveChanges();
+
+        var (nummern, more) = await Ean(ctrl, "40028721");
+        (nummern.Length, more).Should().Be((5, true));
+    }
+
     [Fact]
     public async Task Search_TypGlas_NurGlasUndEuzGruppen()
     {
