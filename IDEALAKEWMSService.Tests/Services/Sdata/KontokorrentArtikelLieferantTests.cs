@@ -278,6 +278,25 @@ public class KontokorrentArtikelLieferantTests
         new(lieferant, artikel, "B-" + artikel, "Bez1", null, 10m, "Stk", 1m, 14, preis);
 
     [Fact]
+    public async Task ArtikelLieferant_VariantenLeer_Warnung_HauptlieferantBleibt()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        var a1 = Art("00722001"); var k1 = Kred("Huber", "K31013", StorageLocationSource.Sage);
+        ctx.AddRange(a1, k1);
+        await ctx.SaveChangesAsync();
+        ctx.ArticleSuppliers.Add(new ArticleSupplier { ArticleId = a1.Id, CreditorId = k1.Id, Artikelnummer = "00722001", IstHauptlieferant = true,
+            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" });
+        await ctx.SaveChangesAsync();
+        var log = new FakeSyncLogger();
+
+        await Al(ctx, log, new[] { Zeile("00722001", "K31013") }).RunAsync(dryRun: false, ziel: Ziel);
+
+        ctx.ArticleSuppliers.Single().IstHauptlieferant.Should().BeTrue("0 Varianten = Filter kaputt: Kennzeichen nicht auf false setzen");
+        log.Runs.Single().Events.Should().Contain(e => e.Level == "Warning" && e.Message.Contains("0 Zeilen mit Hauptlieferant")
+            && e.Message.Contains("like '_%'"));
+    }
+
+    [Fact]
     public async Task ArtikelLieferant_Upsert_Hauptlieferant_Ueberspringen_Entfernen()
     {
         using var ctx = TestDbContextFactory.Create();

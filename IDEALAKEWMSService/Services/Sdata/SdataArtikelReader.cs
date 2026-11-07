@@ -58,7 +58,8 @@ public sealed class SdataArtikelReader : ISageArtikelReader
     public const string WhereBestellartikel = "IstBestellartikel eq -1 and Aktiv eq -1";
     // TODO(P-S1): PpsRessourcenPositionenInfo steht nicht in der P-S1-Typliste; Feldnamen Ressourcenummer/BelPosID aus dem
     // Schnittstellenkatalog (sage-sdata-commonwawiservicesresources). Ohne where wuerde die 100.000-Zeilen-Grenze greifen (240.552 am AKE-Test).
-    public const string WhereRessourcen = "Ressourcenummer ne ''";
+    // NICHT "ne ''": liefert auf Textfeldern still 0 Zeilen (AKE-Test 2026-11-07: ne '' → 0, like '_%' → 240.552 = alle).
+    public const string WhereRessourcen = "Ressourcenummer like '_%'";
     public const string OrderByRessourcen = "Ressourcenummer,BelPosID";
     // ponytail: 240k Positionen in grossen Seiten (der Client kommt mit kleineren Server-Seiten zurecht); erst lesen, wenn G16 die Menge bestaetigt.
     public const int SeitengroesseRessourcen = 5000;
@@ -187,6 +188,10 @@ public sealed class SdataArtikelReader : ISageArtikelReader
         var ressourcen = await _client.QueryAllAsync<SdataRessourceZeile>(ziel, SageSdataReadClient.VertragResources, RessourceRessourcen,
             WhereRessourcen, "Ressourcenummer", OrderByRessourcen, ct, SeitengroesseRessourcen);
         hinweise.Add(new(ressourcen.Zusammenfassung));
+        // Die PPS-Ressourcenpositionen sind nie leer (AKE-Test 240.552): 0 Zeilen = Filter/Feld kaputt. Werfen statt still nur die
+        // Bestellartikel zu liefern — sonst fehlten im SData-Modus alle Nur-Ressource-Artikel (fail-safe, Vergleich meldet es als Fehler).
+        if (ressourcen.Zeilen.Count == 0)
+            throw new SdataLeseException(RessourceRessourcen, 0, $"0 Zeilen ({WhereRessourcen}) – Quelle kann nicht leer sein, Filter prüfen.");
         if (ressourcen.Zeilen.Count > 0 && ressourcen.Zeilen.All(r => string.IsNullOrWhiteSpace(r.Ressourcenummer)))
             throw new SdataLeseException(RessourceRessourcen, 0, $"{ressourcen.Zeilen.Count} Zeilen, aber keine mit Ressourcenummer – Feldname prüfen (P-S1).");
 

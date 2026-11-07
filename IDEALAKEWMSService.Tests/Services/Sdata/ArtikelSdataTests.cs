@@ -91,6 +91,24 @@ public class ArtikelSdataTests
         reader.Hinweise.Should().Contain(h => h.Text.Contains("ArtikelVariantenExtended") && h.Text.Contains("1 Block"));
     }
 
+    [Fact]
+    public async Task LesenAsync_RessourcenLeer_Wirft_FilterNieNe()
+    {
+        SdataArtikelReader.WhereRessourcen.Should().Be("Ressourcenummer like '_%'", "ne '' liefert am AKE-Test still 0 Zeilen");
+        var client = new Mock<ISageSdataReadClient>();
+        static SdataSeiten<T> S<T>(string r, params T[] z) => new(z, r, 1, z.Length, 1);
+        client.Setup(c => c.QueryAllAsync<SdataArtikelZeile>(Ziel, SageSdataReadClient.VertragResources, "Artikel",
+                SdataArtikelReader.WhereBestellartikel, It.IsAny<string?>(), "Artikelnummer", It.IsAny<CancellationToken>(), It.IsAny<int>()))
+            .ReturnsAsync(S("Artikel", Artikel("B-1")));
+        client.Setup(c => c.QueryAllAsync<SdataRessourceZeile>(Ziel, SageSdataReadClient.VertragResources, "PpsRessourcenPositionenInfo",
+                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string>(), It.IsAny<CancellationToken>(), It.IsAny<int>()))
+            .ReturnsAsync(S<SdataRessourceZeile>("PpsRessourcenPositionenInfo"));
+        var reader = new SdataArtikelReader(client.Object, new ConfigurationBuilder().Build(), NullLogger<SdataArtikelReader>.Instance);
+
+        await ((Func<Task>)(() => reader.LesenAsync(Ziel, CancellationToken.None))).Should()
+            .ThrowAsync<SdataLeseException>().WithMessage("*0 Zeilen*Filter prüfen*");
+    }
+
     // ----- Weiche -----
 
     private sealed class FakeArtikelReader : ISageArtikelReader

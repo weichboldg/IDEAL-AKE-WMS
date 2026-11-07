@@ -32,7 +32,9 @@ public class ArtikelLieferantSyncService
     public const string RessourceVarianten = "ArtikelVariantenExtended";
     public const string SelectVarianten = "Artikelnummer,Hauptlieferant";
     // where, damit die 100.000-Zeilen-Grenze ohne where nicht greift; nur Varianten mit Hauptlieferant sind interessant.
-    public const string WhereVarianten = "Hauptlieferant ne ''";
+    // NICHT "ne ''"/"gt ''": Sage-SData liefert dafuer auf Textfeldern still 0 Zeilen (AKE-Test 2026-11-07: ne '' → 0, like '_%' → 23.509 von
+    // 279.529, fallstricke „Sage-SData-Lesen“). like '_%' = mindestens ein Zeichen, ohne Annahme ueber das Kontonummern-Praefix.
+    public const string WhereVarianten = "Hauptlieferant like '_%'";
     public const string OrderByVarianten = "Artikelnummer,AuspraegungID"; // AuspraegungID wie SdataArtikelReader (stabile Sortierung)
     // ponytail: 34.802 Zeilen am AKE-Test in grossen Seiten (wie SdataArtikelReader.SeitengroesseRessourcen).
     public const int Seitengroesse = 5000;
@@ -87,6 +89,12 @@ public class ArtikelLieferantSyncService
             var kreditoren = (await _ctx.Creditors.AsNoTracking().Where(c => c.SageKto != null).Select(c => new { c.Id, c.SageKto }).ToListAsync(ct))
                 .GroupBy(c => c.SageKto!.Trim(), StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(g => g.Key, g => g.First().Id, StringComparer.OrdinalIgnoreCase);
+            // Eine Quelle, die nie leer ist (AKE-Test 23.509 Varianten mit Hauptlieferant), liefert 0 Zeilen = Filter/Feld kaputt:
+            // melden und die Hauptlieferant-Kennzeichen unveraendert lassen statt alle auf false zu setzen.
+            var hauptGelesen = haupt.Count > 0;
+            if (!hauptGelesen && zeilen.Count > 0)
+                await run.LogWarningAsync($"{RessourceVarianten} liefert 0 Zeilen mit Hauptlieferant ({WhereVarianten}) — Filter pruefen; " +
+                    "Kennzeichen Hauptlieferant bleiben unveraendert.", ct: ct);
             var hauptlieferant = haupt.Where(h => !string.IsNullOrWhiteSpace(h.Artikelnummer) && !string.IsNullOrWhiteSpace(h.Hauptlieferant))
                 .Select(h => (h.Artikelnummer!.Trim().ToUpperInvariant(), h.Hauptlieferant!.Trim().ToUpperInvariant()))
                 .ToHashSet();
@@ -108,7 +116,8 @@ public class ArtikelLieferantSyncService
                 if (!kreditoren.TryGetValue(kto, out var creditorId)) { kreditorFehlt.Add(kto); kreditorFehltZeilen++; continue; }
                 if (!gesehen.Add((articleId, creditorId))) { doppelt++; continue; } // UNIQUE (ArticleId, CreditorId): erste Zeile gewinnt
 
-                var h = hauptlieferant.Contains((nummer.ToUpperInvariant(), kto.ToUpperInvariant()));
+                var bisher = byPaar.TryGetValue((articleId, creditorId), out var vorhanden) && vorhanden.IstHauptlieferant;
+                var h = hauptGelesen ? hauptlieferant.Contains((nummer.ToUpperInvariant(), kto.ToUpperInvariant())) : bisher;
                 if (h) istHaupt++;
                 if (!byPaar.TryGetValue((articleId, creditorId), out var s))
                 {
