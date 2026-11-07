@@ -2,14 +2,14 @@
 type: spec
 title: Artikelinfo – Sage-Zusatzfelder auffindbar, Haupt-/letzter Lieferant mit Kreditor, Artikel-Lieferanten
 slug: 2026-11-08-artikeldetails-lieferanten-anzeigen-spec
-status: Entwurf
+status: Testbereit
 created: 2026-11-07
 updated: 2026-11-07
 source_backlog: "[[2026-11-07-artikeldetails-lieferanten-anzeigen]]"
 buendel: "[[2026-11-08-buendel-uebersicht]]"
-task: ""
-worktree: ""
-branch: ""
+task: "[[2026-11-08-buendel-2026-11-08-goal-lauf]]"
+worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
+branch: "feature/2026-08-07-ideal-teile-1-5"
 version: "1.80.0"
 standort: beide
 affected_code:
@@ -35,8 +35,8 @@ deploy:
   service: true
   migration: false
 freigabe_entscheidung: ""
-freigabe_von: ""
-freigabe_am: ""
+freigabe_von: "Gerald Weichbold"
+freigabe_am: "2026-11-07"
 ---
 
 ## Ziel / Nutzen (das Warum)
@@ -163,6 +163,10 @@ haben keinen Caching-Decorator (`Program.cs:68,110`).
 - **P2 – Zeilen je Artikel:** `SELECT TOP 5 ArticleId, COUNT(*) AS n FROM ArticleSuppliers GROUP BY ArticleId ORDER BY n DESC;`.
   Bei mehr als etwa 30 Zeilen bei einem Artikel: Befund melden (Darstellung ohne Filter überdenken), nicht still kappen.
 
+**Ergebnis P1/P2 (Dev, 2026-11-08, AKE-DEV `AKE_WMS_DEV`, nur lesend):** P1 – Hauptlieferant 16.496 belegt, 0 ohne Kreditor;
+letzter Lieferant 22.677 belegt, 0 ohne Kreditor; Stichprobe `K30021`, `K30823`, `K30610` → gleiches Kontoformat, Anforderung 1 gilt für beide.
+P2 – höchstens 8 Lieferanten je Artikel (ArticleId 732, 2851, 72279, 74802) → Tabelle ohne Filter passt. Umsetzung `ac92a15c`.
+
 ## Migrations-/SQL-Auswirkungen
 
 Keine. Es gibt kein neues Schema. `ArticleSageDetails`, `ArticleSuppliers` und `Creditors` existieren seit v1.73.0 (`ApplicationDbContext.cs:562-597,
@@ -257,7 +261,7 @@ Nicht zutreffend (`epic: false`).
 
 ## Deploy
 
-*Vorläufig, der QA-Lauf bestätigt gegen den echten Diff.*
+*Final (QA-Wiederholung 2026-11-07, gegen den echten Diff `0af3a94e..ac92a15c` + Fix `04742c26`).*
 
 - **Web-App:** ja. Betroffen sind `ArticlesController`, `ArticleInfoViewModel`, die Repositories, die Views `Articles/Info|Index|Edit`, `Help/Index`, `Help/Changelog` und `AppVersion.cs`.
 - **Service:** ja, **nur Versions-Bump** (`IDEALAKEWMSService/AppVersion.cs` → 1.80.0), damit Web und Service dieselbe Version melden.
@@ -267,6 +271,9 @@ Nicht zutreffend (`epic: false`).
   `dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService`
 - **Standort:** beide. Der Code hat keine Standortweiche. Daten im Satelliten gibt es nur an AKE (an IDEAL ist SData für Artikel gesperrt,
   `ServiceSettingDefinitions.cs:80` „IDEAL gesperrt bis P-R1“). An IDEAL werden deshalb die Hinweis-Fälle getestet.
+- **Ablauf:** Publish aus dem Worktree → Testsystem → Test → Merge. Keine Migration, kein Einmal-Skript, keine Reihenfolge-Abhängigkeit.
+  Als Bündel-Deploy liefert derselbe Worktree zusätzlich v1.81.0 (Folge-Spec) mit – die Fußzeile zeigt dann v1.81.0.
+- Nach dem Merge nur dann erneut aus `main` publizieren, wenn der Merge getestete Dateien mit parallelen `main`-Änderungen zusammengeführt hat.
 
 ## Offene Rueckfragen
 
@@ -288,7 +295,129 @@ Nicht zutreffend (`epic: false`).
   als seinen Auftrag. Antworte je Frage in **fett** hinter dem Pfeil.
 -->
 
-1. Ort der Anzeige (A Artikelinfo erweitern + verlinken / B Karte in Bearbeiten bzw. eigene Detailseite) →
-2. Kreditor-Details: Artikel dieses Lieferanten in dieser Spec? →
-3. Weitere Spalten Lieferanten-Tabelle (Wiederbeschaffungszeit / Einzelpreis)? →
-4. Sage-Zusatzfelder als Spalten in der Artikelliste? →
+1. Ort der Anzeige (A Artikelinfo erweitern + verlinken / B Karte in Bearbeiten bzw. eigene Detailseite) → **wie empfohlen (Gerald 2026-11-07)**
+2. Kreditor-Details: Artikel dieses Lieferanten in dieser Spec? → **wie empfohlen (Gerald 2026-11-07)**
+3. Weitere Spalten Lieferanten-Tabelle (Wiederbeschaffungszeit / Einzelpreis)? → **wie empfohlen (Gerald 2026-11-07)**
+4. Sage-Zusatzfelder als Spalten in der Artikelliste? → **wie empfohlen (Gerald 2026-11-07)**
+
+## QA-Nachweis (qa-agent, 2026-11-07, Bündel 2026-11-08 Lauf „A + Wareneingang“) – NICHT Testbereit
+
+**Ergebnis: ein Befund (B1, Mittel), Status bleibt `InUmsetzung`.** Alles andere ist grün, siehe unten.
+
+### 1. Build und Tests (Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, HEAD `747c1ced`)
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler, 28 Warnungen (vorbestehend).
+- `dotnet test`: `IdealAkeWms.Tests` 2451 bestanden / 1 übersprungen / 0 Fehler (2452). `IDEALAKEWMSService.Tests` 497 / 0 / 0.
+
+### 2. Review `git diff 0af3a94e ac92a15c` (selbst, in diesem Lauf)
+Geprüft: `ArticlesController.Info` (Trim, Distinct, Dictionary `OrdinalIgnoreCase`, ein Aufruf), `ArticleRepository.GetSuppliersAsync` (Join, Sortierung in SQL, `AsNoTracking`),
+`CreditorRepository.GetBySageKtosAsync`, `ArticleSupplierRow`, ViewModel, `Info.cshtml` (lokale Funktion `Lieferant`, Hinweis-Karten), `Index.cshtml`, `Edit.cshtml`, Hilfe, Tests.
+- **Kodierung (Auftrag):** in Ordnung. `Lieferant()` gibt Name und Konto über `@name`/`@konto` aus (Razor kodiert), `href` über `Url.Action` (kodiert), kein `Html.Raw`, kein `<script>`.
+  Laufzeitbeleg: Kreditor `"carlo" Loysch GmbH` erscheint mit Anführungszeichen als Text.
+- **B1 (Mittel, AK 11 verletzt) – Kontrast Kopfzeile Karte „Lieferanten“.** `Info.cshtml:221` `<small class="text-muted">nur lesend · aus Sage</small>` steht im
+  `.card-header` mit Hintergrund `--ake-primary` `#053153` (`wwwroot/css/site.css:118-124`). Bootstrap 5.3.3 `text-muted` = `rgba(33,37,41,.75)` → **1,12:1** (Soll 4,5:1);
+  im Screenshot praktisch unsichtbar. Vorschlag (eine Zeile): `text-muted` weglassen (weiß, 13,4:1) oder `opacity-75` (8,2:1); `text-white-50` reicht mit 4,47:1 knapp nicht.
+  **Gleicher Fehler vorbestehend** in der Kopfzeile „Sage-Zusatzfelder“ `Info.cshtml:167` (seit v1.73.0, nicht im Diff) – im selben Zug mitbeheben, sonst bleibt die
+  Karte daneben unlesbar.
+- Hinweis (kein Befund): Auf IDEAL zeigt der `dl` „Hauptlieferant —“, obwohl die Tabelle Lieferanten hat (kein Satellit an IDEAL, `IstHauptlieferant` dort für EK000441 überall 0). Spec-konform (Anforderung 1/3).
+- Klassen aus dem QA-Auftrag: keine Werte in `<script>`, kein `hidden`+`d-*`, kein stilles `?? 0` (fehlende Werte → „—“), keine Parallel-Arrays, keine reine Browser-Validierung,
+  Groß/Klein-Regel an einer Stelle (Controller-Dictionary).
+
+### 3. Nachweisart je AK
+| AK | Nachweis | Ergebnis |
+|---|---|---|
+| 1, 2 | `ArtikelinfoLieferantenTests` (Moq) | grün |
+| 3 | InMemory-Test; Sortierung real (SQL-Kollation) auf IDEAL-DEV EK000441 nach Name gesehen | grün |
+| 4 | DEV 112.2/112.3/112.9 | OK |
+| 5, 6 | DEV 112.6/112.7, IDEAL 112.10 | OK |
+| 7 | View-Text-Test + DEV 112.5 | OK |
+| 8 | View-Text-Test + DEV Spaltenfilter; CSV nur statisch (csv-export.js liest `textContent`) | OK / CSV Manual-UAT |
+| 9 | View-Text-Test + DEV 112.4 | OK |
+| 10 | View-Text-Test (`Html.Raw` fehlt) + DEV (Anführungszeichen im Namen) | OK |
+| 11 | DEV-Screenshot | **FEHLER (B1)**; Telefonbreite NICHT MÖGLICH (Fenstergröße im Lauf nicht änderbar; statisch: Tabelle in `.table-responsive`, `dl` mit `col-sm-*`) |
+| 12 | Build/Test, Hilfe + Changelog im Diff | grün |
+| 13 | TS-112 auf DEV | siehe 6 |
+
+### 4. Geänderte bestehende Tests
+- `ArticlesControllerTests.cs:48` – nur neuer Ctor-Parameter `Mock.Of<ICreditorRepository>()` (Typ-/Compile-Fix).
+
+### 5. Checkliste
+Keine Migration, kein SQL, keine Einstellung (ADR 0020 entfällt), keine Audit-Felder (nur lesend). Version 1.80.0 in beiden `AppVersion.cs`, Anwender-Changelog und Hilfe im Diff,
+Brain-Changelog `[[2026-11-08-v1-80-0-artikelinfo-lieferanten]]` vorhanden, TS-112 in `docs/TESTSZENARIEN.md`, TS-106.3.d als überholt markiert, Index-Zeile 112 vorhanden.
+
+### 6. DEV-Deploy und TS-112
+Deploy einmal für das ganze Bündel (HEAD `747c1ced`, enthält diesen Commit), elevated:
+`dev-deploy.ps1 -Standort AKE` → „HTTP 200, Fusszeile v1.81.0 … Fertig: AKE v1.81.0“, Exit 0; `-Standort IDEAL` → „Fertig: IDEAL v1.81.0“, Exit 0.
+Die Fußzeile zeigt v1.81.0 (Folge-Commit derselben Branch), nicht 1.80.0 – erwartet bei einem Bündel-Deploy.
+
+| Schritt | Durchführung | Ergebnis | Urteil |
+|---|---|---|---|
+| 112.1 | AKE `/Articles?search=00722001`, Klick Artikelnummer | Link `/Articles/Info?articleNumber=00722001`, Artikelinfo öffnet | OK |
+| 112.2 | Karte „Lieferanten“ | Haupt und letzter: `"carlo" Loysch GmbH (K31013)` als Link `/Creditors/Details/927`; Tabelle 1 Zeile, Bestellnr VISB00061, 200, lfm, 14, „Ja“ | OK (Kontrast Kopf: B1) |
+| 112.3 | Link geklickt | Kreditor-Details, Sage-Konto K31013 | OK |
+| 112.4 | `/Articles/Edit/2963` | Knopf „Artikelinfo“ → `/Articles/Info?articleNumber=00722001` | OK (als Benutzer mit `masterdata`; ohne `masterdata` nicht geprüft) |
+| 112.5 | Gruppe „Bestand und Dispo (Sage)“ | keine Lieferanten-Zeilen | OK |
+| 112.6 | 00713171 (kein Satellit) | Hinweis mit `Sync:Quelle:Artikel`, Haupt/letzter „—“ | OK |
+| 112.7 | 00713171 (keine `ArticleSuppliers`) | Hinweis mit `Sync:ArtikelLieferantEnabled` | OK |
+| 112.8 | `LetzterLieferant='K00000'` (ArticleId 2963) | nur „K00000“, kein Link | OK |
+| 112.9 | Kreditor 927 `IsActive=0` | Link + „– inaktiv“ (Text), auch in der Tabelle | OK |
+| 112.10 | IDEAL `EK000441` und `DUMMY` | beide Hinweise bzw. Tabelle mit 7 Lieferanten nach Name, kein Fehler | OK |
+| 112.11 | Spaltenfilter `colf_article-number=007220` | 21 Treffer, Links korrekt | OK; CSV-Download NICHT MÖGLICH (Download im Lauf nicht erlaubt) |
+
+DEV-Daten: 112.8/112.9 per SQL gesetzt und **zurückgesetzt** (`LetzterLieferant='K31013'`, `Creditors.IsActive=1`, `ModifiedAt` unverändert NULL).
+
+### Fehlerbericht
+- Was: AK 11 (Kontrast WCAG AA) verletzt, B1.
+- Erster Fehler: `Info.cshtml:221` `text-muted` im dunklen Kartenkopf, 1,12:1.
+- Ursache: Bootstrap-Grau ist für helle Flächen gedacht; der Kartenkopf ist global dunkel (`site.css:118`). Muster vorbestehend in `:167`.
+- Nächster Schritt: Fix (beide Zeilen), danach QA erneut nur für B1 (Screenshot) – Build/Test/Deploy wiederholen.
+
+### Manuelle Testliste (erster Lauf – ersetzt durch die Liste in „QA-Wiederholung“ unten)
+
+## QA-Wiederholung (qa-agent, 2026-11-07, nach Fix `04742c26`) – **Testbereit**
+
+**Ergebnis: B1 behoben, keine neuen Befunde. Status `Testbereit`.**
+
+### 1. Build und Tests (Worktree, HEAD `04742c26`)
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler, 28 Warnungen (vorbestehend, u. a. CS8601 in `BdeTerminalAuftraegeTests.cs:23`).
+- `dotnet test --no-build`: `IdealAkeWms.Tests` 2451 bestanden / 1 übersprungen / 0 Fehler (2452); `IDEALAKEWMSService.Tests` 497 / 0 / 0.
+
+### 2. Review `git diff 747c1ced 04742c26` (selbst, in diesem Lauf)
+Ein File, zwei Zeilen: `Info.cshtml:167` und `:221` `<small class="text-muted">` → `<small class="opacity-75">`. Text und Razor-Ausgabe unverändert
+(Datum weiter über `@gelesen.ToString(...)`, kodiert). Gegenprobe: in `Info.cshtml` steht `text-muted` nur noch auf hellen Flächen (`:113`, `:176`, `:225`, `:227`,
+Card-Footer `:296`, Card-Body `:314`), keiner mehr in einem dunklen `.card-header`. Kein `<script>`, kein `hidden`, keine Fallbacks, keine Teständerung.
+**Befunde: keine.**
+
+### 3. Nachweisart – Änderung gegenüber dem ersten Lauf
+AK 11 (Kontrast): **OK** durch DEV-Messung (s. u.); Telefonbreite bleibt Manual-UAT. Alle übrigen AK wie im ersten Lauf.
+
+### 4. Geänderte bestehende Tests
+Keine im Fix-Commit.
+
+### 5. Checkliste
+Unverändert (keine Migration, kein SQL, keine Einstellung, Version bleibt 1.80.0 für diese Spec; Bündel-HEAD 1.81.0).
+
+### 6. DEV-Deploy und Gegenprüfung
+Elevated (`IsInRole(Administrator)` = True), Quelle Worktree HEAD `04742c26`:
+- `dev-deploy.ps1 -Standort AKE` → „HTTP 200, Fusszeile v1.81.0 … Fertig: AKE v1.81.0 auf http://localhost:8081/“, Exit 0.
+- `dev-deploy.ps1 -Standort IDEAL` → „HTTP 200, Fusszeile v1.81.0 … Fertig: IDEAL v1.81.0 auf http://localhost:8082/“, Exit 0.
+  Fußzeile v1.81.0 = AppVersion des Bündel-HEAD (diese Spec 1.80.0 ist enthalten).
+
+| Schritt | Durchführung | Ergebnis | Urteil |
+|---|---|---|---|
+| Kontrast | AKE `/Articles/Info?articleNumber=00722001`, Screenshots beider Kartenköpfe, Pixel per `System.Drawing` ausgelesen | Hintergrund `#053251`; Text „nur lesend · aus Sage gelesen am 07.11.2026 09:18“ und „nur lesend · aus Sage“ hell, gut lesbar. Rechnerisch Weiß × 0,75 auf `#053153` = `rgb(192,204,212)` → **8,17:1** (Soll 4,5:1); Pixel-Maximum im Screenshot 9,7–10,1:1 (Kantenglättung). | OK |
+| 112.2 | Karte „Lieferanten“ (AKE, 00722001) | Haupt- und letzter Lieferant `"carlo" Loysch GmbH (K31013)` als Link; Tabelle VISB00061 / 200 / lfm | OK |
+| 112.6 | AKE 00713171 | Karte „Sage-Zusatzfelder“ mit Hinweis `Sync:Quelle:Artikel = SData`; Haupt/letzter „—“; dazu Hinweis `Sync:ArtikelLieferantEnabled` (112.7) | OK |
+| 112.10 (kurz) | IDEAL `EK000441` | Seite lädt, Kopf „nur lesend · aus Sage“ vorhanden, Fußzeile v1.81.0 | OK |
+
+Screenshots: `C:\Users\GERALD~1.WEI\AppData\Local\Temp\claude-chrome-screenshots-cF2Dyv\screenshot-1794071131012-0.jpg` (Sage-Zusatzfelder),
+`…\screenshot-1794071141883-1.jpg` (Lieferanten). Keine DEV-Daten geändert.
+
+Nebenbeobachtung (kein Befund dieser Spec, nicht im Diff): Bei der Fensterbreite des Laufs (1520 px) hat die Seite eine Seiten-Querscrollleiste,
+weil die globale Navbar überläuft (Benutzername rechts abgeschnitten) – auch auf der Artikelinfo ohne Lieferanten-Tabelle. Betrifft das Layout global, nicht v1.80.0.
+
+### Manuelle Testliste (offen für den Menschen)
+1. Kopfzeilen „Lieferanten“ und „Sage-Zusatzfelder“ am Fertigungsterminal lesbar (Licht, Monitor).
+2. 112.4 als Benutzer **nur** mit `masterdata_read` (Artikelinfo erreichbar, Kreditor-Link öffnet).
+3. 112.11 CSV-Export der Artikelliste: Spalte Artikelnummer enthält nur die Nummer.
+4. Telefonbreite: Artikelinfo ohne Seiten-Querscrollen durch die neuen Karten, Lieferanten-Tabelle scrollt in sich.
+5. TS-112 vollständig auf dem Testsystem (AKE und IDEAL) vor dem Merge.
