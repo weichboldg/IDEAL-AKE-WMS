@@ -230,7 +230,8 @@
             <div class="card-body">
                 <p>
                     Schnellzugriff auf Artikeldetails und Lagerbestand — erreichbar ueber die Dashboard-Karte
-                    <em>&bdquo;Artikelinfo&ldquo;</em> oder direkt ueber <code>/Articles/Info</code>.
+                    <em>&bdquo;Artikelinfo&ldquo;</em>, direkt ueber <code>/Articles/Info</code> und (seit v1.80.0) ueber die Artikelnummer
+                    in der Artikelliste bzw. den Knopf <em>&bdquo;Artikelinfo&ldquo;</em> auf &bdquo;Artikel bearbeiten&ldquo;.
                 </p>
                 <dl>
                     <dt>QR-Code scannen</dt>
@@ -242,6 +243,15 @@
                     <dt>Artikeldetails</dt>
                     <dd>Zeigt Bezeichnung, Einheit, Artikelgruppe, Meldebestand und Gesamtbestand an.
                         Bei unterschrittenem Meldebestand wird eine Warnung angezeigt.</dd>
+
+                    <dt>Sage-Zusatzfelder und Lieferanten (nur lesend)</dt>
+                    <dd>Die Karte &bdquo;Sage-Zusatzfelder&ldquo; zeigt Stamm-, Lager-, Dispo- und Fertigungsfelder aus Sage. Sie wird nur vom
+                        Artikel-Abgleich mit Quelle SData gefüllt (Service-Einstellung <code>Sync:Quelle:Artikel</code> = <code>SData</code>); fehlen die Daten,
+                        steht dort ein Hinweis. Die Karte &bdquo;Lieferanten&ldquo; nennt Hauptlieferant und letzten Lieferanten als
+                        &bdquo;Name (Konto)&ldquo; mit Link auf den Kreditor (ohne Kreditor im WMS nur das Konto; &bdquo;– inaktiv&ldquo; bei
+                        deaktiviertem Kreditor) und listet alle Artikel-Lieferanten aus Sage mit Bestellnummer, Mindestbestellmenge, EK-Einheit,
+                        Wiederbeschaffungszeit und Hauptlieferant. Gefüllt vom Lauf &bdquo;Artikel-Lieferanten&ldquo; (<code>Sync:ArtikelLieferantEnabled</code>,
+                        braucht die Kreditoren aus Sage, <code>Sync:KreditorenEnabled</code>). Preise werden nicht angezeigt.</dd>
 
                     <dt>Lagerbestand nach Lagerplatz</dt>
                     <dd>Aufschluesselung des Bestands pro Lagerplatz mit Menge und Einheit.</dd>

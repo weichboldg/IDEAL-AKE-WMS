@@ -30,6 +30,15 @@ public class ArticleRepository : Repository<Article>, IArticleRepository
     public async Task<ArticleSageDetail?> GetSageDetailAsync(int articleId) =>
         await _context.ArticleSageDetails.AsNoTracking().FirstOrDefaultAsync(d => d.ArticleId == articleId);
 
+    public async Task<List<ArticleSupplierRow>> GetSuppliersAsync(int articleId) =>
+        await (from s in _context.ArticleSuppliers.AsNoTracking()
+               join c in _context.Creditors.AsNoTracking() on s.CreditorId equals c.Id
+               where s.ArticleId == articleId
+               orderby s.IstHauptlieferant descending, c.Name
+               select new ArticleSupplierRow(c.Id, c.Name, c.SageKto, c.IsActive, s.SageBestellnummer, s.Mindestbestellmenge,
+                   s.Einkaufsmengeneinheit, s.Wiederbeschaffungszeit, s.IstHauptlieferant))
+              .ToListAsync();
+
     public async Task<Article?> GetByArticleNumberAsync(string articleNumber)
     {
         return await _dbSet.FirstOrDefaultAsync(a => a.ArticleNumber == articleNumber);

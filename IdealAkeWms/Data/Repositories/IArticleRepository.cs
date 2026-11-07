@@ -18,4 +18,6 @@ public interface IArticleRepository : IRepository<Article>
     Task<List<Article>> GetByEanAsync(string ean, int limit);
     /// <summary>Sage-Zusatzfelder (Satellit ArticleSageDetails, nur ueber SData gelesen); null = nie ueber SData gelesen.</summary>
     Task<ArticleSageDetail?> GetSageDetailAsync(int articleId);
+    /// <summary>v1.80.0: Artikel-Lieferanten aus Sage (<c>ArticleSuppliers</c> ⨝ <c>Creditors</c>), Hauptlieferant zuerst, dann nach Name.</summary>
+    Task<List<ArticleSupplierRow>> GetSuppliersAsync(int articleId);
 }

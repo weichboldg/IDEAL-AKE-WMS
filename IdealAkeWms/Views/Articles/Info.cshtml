@@ -152,8 +152,7 @@
                         ("Bestand ohne Dispo", Z(sd.LagerbestandOhneDispo)), ("Mindestbestand", Z(sd.UserMindestbestand)),
                         ("Bestellmenge", Z(sd.Bestellmenge)), ("Bestellzeitpunkt", sd.Bestellzeitpunkt?.ToString() ?? "—"),
                         ("Wiederbeschaffungszeit", sd.Wiederbeschaffungszeit?.ToString() ?? "—"), ("ABC-Klasse", T(sd.ABCKlasse)),
-                        ("Hauptlieferant", T(sd.Hauptlieferant)), ("Letzter Lieferant", T(sd.LetzterLieferant)),
-                        ("Mittlerer EK", sd.MittlererEK?.ToString("0.####") ?? "—") }),
+                        ("Mittlerer EK", sd.MittlererEK?.ToString("0.####") ?? "—") }),  @* v1.80.0: Haupt-/letzter Lieferant in der Karte „Lieferanten“ *@
                     ("Fertigung", new[] { ("Fertigungsartikel", J(sd.IstFertigungsartikel)), ("Unterbaugruppe", J(sd.IstUnterbaugruppe)),
                         ("Stücklistentyp", sd.Stuecklistentyp?.ToString() ?? "—"), ("Schwundart", T(sd.Schwundart)), ("Schwund", Z(sd.Schwund)),
                         ("Minimale Losgröße", Z(sd.MinimaleLosgroesse)), ("Maximale Losgröße", Z(sd.MaximaleLosgroesse)) }),
@@ -187,6 +186,85 @@
                     </div>
                 </div>
             }
+            else
+            {
+                @* v1.80.0 (Spec 2026-11-08-artikeldetails-lieferanten-anzeigen F3): Hinweis statt still ausgeblendeter Karte (ersetzt TS-106.3.d). *@
+                <div class="card mb-3">
+                    <div class="card-header"><strong>Sage-Zusatzfelder</strong></div>
+                    <div class="card-body">
+                        <p class="mb-0 text-body-secondary">Für diesen Artikel liegen noch keine Sage-Zusatzfelder vor. Sie werden nur vom
+                            Artikel-Abgleich mit Quelle SData gefüllt (Service-Einstellung <code>Sync:Quelle:Artikel</code> = <code>SData</code>).</p>
+                    </div>
+                </div>
+            }
+
+            // v1.80.0 F1/F2: Lieferant als „Name (Konto)“ mit Link auf die Kreditor-Details; ohne Kreditor nur das Konto; „– inaktiv“ als Text.
+            void Lieferant(int? id, string? name, string? konto, bool aktiv)
+            {
+                if (id == null)
+                {
+                    <text>@(string.IsNullOrWhiteSpace(konto) ? "—" : konto.Trim())</text>
+                    return;
+                }
+                <a href="@Url.Action("Details", "Creditors", new { id })">@name (@konto?.Trim())</a>
+                if (!aktiv)
+                {
+                    <span class="text-body-secondary">– inaktiv</span>
+                }
+            }
+            var sdl = Model.SageDetail;
+            var hk = Model.HauptlieferantKreditor;
+            var lk = Model.LetzterLieferantKreditor;
+            <div class="card mb-3">
+                <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <strong>Lieferanten</strong>
+                    <small class="text-muted">nur lesend · aus Sage</small>
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-2">
+                        <dt class="col-sm-5 fw-normal text-muted">Hauptlieferant</dt>
+                        <dd class="col-sm-7">@{ Lieferant(hk?.Id, hk?.Name, sdl?.Hauptlieferant, hk?.IsActive ?? true); }</dd>
+                        <dt class="col-sm-5 fw-normal text-muted">Letzter Lieferant</dt>
+                        <dd class="col-sm-7">@{ Lieferant(lk?.Id, lk?.Name, sdl?.LetzterLieferant, lk?.IsActive ?? true); }</dd>
+                    </dl>
+                    @if (Model.Lieferanten.Any())
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Lieferant</th>
+                                        <th>Bestellnummer</th>
+                                        <th class="text-end">Mindestbestellmenge</th>
+                                        <th>EK-Einheit</th>
+                                        <th class="text-end">Wiederbeschaffungszeit (Tage)</th>
+                                        <th>Hauptlieferant</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var l in Model.Lieferanten)
+                                    {
+                                        <tr>
+                                            <td>@{ Lieferant(l.CreditorId, l.Name, l.SageKto, l.IsActive); }</td>
+                                            <td>@(l.SageBestellnummer ?? "—")</td>
+                                            <td class="text-end">@(l.Mindestbestellmenge?.ToString("0.###") ?? "—")</td>
+                                            <td>@(l.Einkaufsmengeneinheit ?? "—")</td>
+                                            <td class="text-end">@(l.Wiederbeschaffungszeit?.ToString() ?? "—")</td>
+                                            <td>@(l.IstHauptlieferant ? "Ja" : "")</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="mb-0 text-body-secondary">Keine Artikel-Lieferanten aus Sage gelesen. Sie werden vom Lauf &bdquo;Artikel-Lieferanten&ldquo;
+                            gefüllt (Service-Einstellung <code>Sync:ArtikelLieferantEnabled</code>; braucht die Kreditoren aus Sage,
+                            <code>Sync:KreditorenEnabled</code>).</p>
+                    }
+                </div>
+            </div>
 
             @if (Model.UsedInOrders.Any())
             {

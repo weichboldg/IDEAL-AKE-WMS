@@ -80,7 +80,8 @@
                 attrValues.TryGetValue(article.Id, out var articleAttrs);
                 <tr>
                     <td>
-                        <strong>@article.ArticleNumber</strong>
+                        @* v1.80.0: Artikelnummer verlinkt die Artikelinfo; Zelltext bleibt die Nummer (Spaltenfilter, CSV). *@
+                        <strong><a asp-action="Info" asp-route-articleNumber="@article.ArticleNumber">@article.ArticleNumber</a></strong>
                         @await Html.PartialAsync("_VaultLink", new VaultLinkViewModel(article.ArticleNumber))
                     </td>
                     <td>@article.Description</td>

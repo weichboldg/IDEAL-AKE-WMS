@@ -28,8 +28,14 @@ public class ArticleInfoViewModel
     /// <summary>Hierarchischer Modus → „Teil enthalten in"-Zaehlung als „N Aufträge · M Sub-FAs".</summary>
     public bool Hierarchical { get; set; }
 
-    /// <summary>Sage-Zusatzfelder (v1.73.0 E3a, nur lesend); null = Artikel wurde nie ueber SData gelesen → Abschnitt ausgeblendet.</summary>
+    /// <summary>Sage-Zusatzfelder (v1.73.0 E3a, nur lesend); null = Artikel wurde nie ueber SData gelesen → seit v1.80.0 Hinweis statt Karte.</summary>
     public ArticleSageDetail? SageDetail { get; set; }
+
+    /// <summary>v1.80.0: Kreditor zu <c>SageDetail.Hauptlieferant</c> bzw. <c>.LetzterLieferant</c> (getrimmt, Gross/Klein egal); null = kein Kreditor im WMS.</summary>
+    public Creditor? HauptlieferantKreditor { get; set; }
+    public Creditor? LetzterLieferantKreditor { get; set; }
+    /// <summary>v1.80.0: Artikel-Lieferanten aus Sage (unabhaengig vom Satelliten).</summary>
+    public List<ArticleSupplierRow> Lieferanten { get; set; } = new();
     /// <summary>Z4: Anzahl distinkter HauptFAs (OrderNumber) unter <see cref="UsedInOrders"/> (Sub-FAs sind die Zeilen).</summary>
     public int UsedInHauptFaCount => UsedInOrders.Select(o => o.OrderNumber).Distinct().Count();
 }

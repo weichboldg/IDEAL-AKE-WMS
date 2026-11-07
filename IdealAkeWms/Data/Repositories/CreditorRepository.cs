@@ -16,6 +16,9 @@ public interface ICreditorRepository
 
     /// <summary>App-Layer-Guard fuer die Sage-Kontonummer (getrimmt, exakt — Zeichenkette, nie numerisch).</summary>
     Task<bool> ExistsSageKtoAsync(string sageKto, int? exceptId);
+
+    /// <summary>v1.80.0 (Spec 2026-11-08-artikeldetails-lieferanten-anzeigen): Kreditoren zu den angefragten Sage-Konten (Aufrufer trimmt).</summary>
+    Task<List<Creditor>> GetBySageKtosAsync(IReadOnlyCollection<string> konten);
 }
 
 public class CreditorRepository : ICreditorRepository
@@ -28,6 +31,9 @@ public class CreditorRepository : ICreditorRepository
         _db.Creditors.AsNoTracking().OrderBy(c => c.ShortName == null).ThenBy(c => c.ShortName).ThenBy(c => c.Name).ToListAsync();
 
     public Task<Creditor?> GetByIdAsync(int id) => _db.Creditors.FirstOrDefaultAsync(c => c.Id == id);
+
+    public Task<List<Creditor>> GetBySageKtosAsync(IReadOnlyCollection<string> konten) =>
+        _db.Creditors.AsNoTracking().Where(c => c.SageKto != null && konten.Contains(c.SageKto)).ToListAsync();
 
     public async Task AddAsync(Creditor creditor)
     {

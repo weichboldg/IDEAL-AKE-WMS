@@ -19,6 +19,7 @@ public class ArticlesController : Controller
     private readonly IProductionOrderRepository _productionOrderRepository;
     private readonly IStorageLocationRepository _storageLocationRepository;
     private readonly IServiceSettingRepository _serviceSettingRepository;
+    private readonly ICreditorRepository _creditorRepository;
 
     public ArticlesController(
         IArticleRepository articleRepository,
@@ -29,7 +30,8 @@ public class ArticlesController : Controller
         IBomCacheRepository bomCacheRepository,
         IProductionOrderRepository productionOrderRepository,
         IStorageLocationRepository storageLocationRepository,
-        IServiceSettingRepository serviceSettingRepository)
+        IServiceSettingRepository serviceSettingRepository,
+        ICreditorRepository creditorRepository)
     {
         _articleRepository = articleRepository;
         _stockMovementRepository = stockMovementRepository;
@@ -40,6 +42,7 @@ public class ArticlesController : Controller
         _productionOrderRepository = productionOrderRepository;
         _storageLocationRepository = storageLocationRepository;
         _serviceSettingRepository = serviceSettingRepository;
+        _creditorRepository = creditorRepository;
     }
 
     // IDEAL FA-Liste-Hierarchie (Z4): Master-Zustand lesen (Muster wie ProductionOrdersController).
@@ -337,7 +340,22 @@ public class ArticlesController : Controller
             UsedInOrders = usedInOrders,
             Hierarchical = hierarchical,
             SageDetail = await _articleRepository.GetSageDetailAsync(article.Id),
+            Lieferanten = await _articleRepository.GetSuppliersAsync(article.Id),
         };
+        // v1.80.0 (Spec 2026-11-08-artikeldetails-lieferanten-anzeigen F1): Haupt-/letzter Lieferant mit EINEM Aufruf nachschlagen. Der Satellit
+        // schreibt Sage-Werte ungetrimmt (ArticleSageDetailsWriter) -> Trim hier; Gross/Klein egal wie der Artikel-Lieferanten-Abgleich.
+        var haupt = vm.SageDetail?.Hauptlieferant?.Trim();
+        var letzter = vm.SageDetail?.LetzterLieferant?.Trim();
+        var konten = new[] { haupt, letzter }.Where(k => !string.IsNullOrEmpty(k)).Select(k => k!).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        if (konten.Count > 0)
+        {
+            var kreditoren = (await _creditorRepository.GetBySageKtosAsync(konten))
+                .Where(c => c.SageKto != null)
+                .GroupBy(c => c.SageKto!.Trim(), StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+            vm.HauptlieferantKreditor = haupt != null ? kreditoren.GetValueOrDefault(haupt) : null;
+            vm.LetzterLieferantKreditor = letzter != null ? kreditoren.GetValueOrDefault(letzter) : null;
+        }
         return View(vm);
     }
 }
