@@ -90,6 +90,14 @@ public partial class PurchaseOrdersControllerTests
         File.ReadAllText(ViewPfad("Index.cshtml")).Should().Contain("Sync:EinkaufBestellungenEnabled").And.Contain("@if (Model.CanReceive)");
     }
 
+    [Fact]
+    public void Nachbesserung_v1_86_Farbkonzept_UeberfaelligRotMitLegende_ZielHinweis()
+    {
+        var index = File.ReadAllText(ViewPfad("Index.cshtml"));
+        index.Should().Contain("r.Ueberfaellig ? \"table-danger\"").And.Contain("rot hinterlegt").And.NotContain("table-warning");
+        File.ReadAllText(ViewPfad("Receive.cshtml")).Should().Contain("ist im WMS nicht buchbar – bitte Ziel wählen");
+    }
+
     internal static string ViewPfad(string datei)
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);

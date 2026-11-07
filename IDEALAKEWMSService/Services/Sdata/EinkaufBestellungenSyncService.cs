@@ -126,7 +126,10 @@ public class EinkaufBestellungenSyncService
                 if (z.PositionGGBestellt == null || z.PositionGGGeliefert == null) mengeFehlt++; // QA Q-6: melden statt still 0
                 var bestellt = z.PositionGGBestellt ?? 0m;
                 var geliefert = z.PositionGGGeliefert ?? 0m;
-                var abweichend = !string.Equals(Text(z.Mengeneinheit), Text(z.Lagermengeneinheit), StringComparison.OrdinalIgnoreCase);
+                // E0 B-2 + Nachbesserung v1.86.0: gebucht wird die Menge in der BASISeinheit auf einen Artikel mit Lagereinheit -> gesperrt, wenn
+                // Bestell- ODER Basiseinheit von der Lagereinheit abweicht (EK003604 am AKE-Test: Bestellung PKG, Basis Stk, Lager PKG).
+                var abweichend = !string.Equals(Text(z.Mengeneinheit), Text(z.Lagermengeneinheit), StringComparison.OrdinalIgnoreCase)
+                              || !string.Equals(Text(z.MengeBasiseinheit), Text(z.Lagermengeneinheit), StringComparison.OrdinalIgnoreCase);
                 if (abweichend) einheitAbweichend++;
                 var sperre = (z.Liefersperre ?? 0) != 0;
                 if (sperre) gesperrt++;
@@ -157,7 +160,7 @@ public class EinkaufBestellungenSyncService
                 await run.LogWarningAsync(SdataSchluessel.Kappen($"{platzFehltZeilen} Position(en), Sage-Lagerplatz nicht im WMS (Lagerplatz-Abgleich): " +
                     string.Join(", ", platzFehlt.Take(20))), ct: ct);
             if (einheitAbweichend > 0)
-                await run.LogInfoAsync($"{einheitAbweichend} Position(en) mit Mengeneinheit ≠ Lagermengeneinheit – im WMS markiert und nicht buchbar.", ct: ct);
+                await run.LogInfoAsync($"{einheitAbweichend} Position(en) mit Bestell- oder Basiseinheit ≠ Lagermengeneinheit – im WMS markiert und nicht buchbar.", ct: ct);
             if (mengeFehlt > 0)
                 await run.LogWarningAsync($"{mengeFehlt} Position(en) ohne PositionGGBestellt/PositionGGGeliefert – fehlender Wert als 0 gefuehrt, bitte in Sage pruefen.", ct: ct);
             if (terminKaputt > 0) await run.LogWarningAsync($"{terminKaputt} Position(en) mit unlesbarem Liefertermin – als „ohne Termin“ gefuehrt.", ct: ct);

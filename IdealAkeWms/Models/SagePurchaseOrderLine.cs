@@ -34,7 +34,8 @@ public class SagePurchaseOrderLine
     public string? Mengeneinheit { get; set; }
     public string? MengeBasiseinheit { get; set; }
     public string? Lagermengeneinheit { get; set; }
-    /// <summary>E0 B-2: <c>Mengeneinheit ≠ Lagermengeneinheit</c> → Position sichtbar markiert und nicht buchbar, bis die Einheitenfrage geklaert ist.</summary>
+    /// <summary>E0 B-2 (+ v1.86.0): Bestell- oder Basiseinheit ≠ Lagermengeneinheit → Position sichtbar markiert und nicht buchbar, bis die
+    /// Einheitenfrage geklaert ist (gebucht wird in der Basiseinheit).</summary>
     public bool EinheitAbweichend { get; set; }
     public int? SagePlatzId { get; set; }
     public string? SagePlatzKurzbezeichnung { get; set; }

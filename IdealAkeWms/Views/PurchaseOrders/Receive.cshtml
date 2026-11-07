@@ -112,6 +112,11 @@
                                     {
                                         <div class="small text-body-secondary">Sage-Platz @l.SagePlatzKurzbezeichnung nicht im WMS</div>
                                     }
+                                    else if (l.StorageLocationId is { } zielId && !Model.Lagerplaetze.Any(p => p.Id == zielId))
+                                    {
+                                        @* v1.86.0 (Nachbesserung): Sage-Platz ist einem nicht buchbaren/inaktiven WMS-Platz zugeordnet – melden statt still leer. *@
+                                        <div class="small text-body-secondary">Sage-Platz @z.Row.ZielLagerplatz ist im WMS nicht buchbar – bitte Ziel wählen</div>
+                                    }
                                 }
                             </td>
                             <td>

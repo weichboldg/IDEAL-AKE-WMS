@@ -73,6 +73,8 @@ else
     </div>
 </div>
 
+<p class="small mb-1"><span class="badge text-bg-danger border border-danger-subtle">rot hinterlegt</span>
+    = überfällig (Liefertermin vor heute); der Text steht zusätzlich in der Spalte „Hinweis“.</p>
 <div class="table-responsive">
     <table class="table table-sm table-striped filterable-table" data-server-column-filter="true" data-view-key="PurchaseOrders">
         <thead>
@@ -96,7 +98,8 @@ else
             @foreach (var r in Model.Items)
             {
                 var l = r.Line;
-                <tr class="@(r.Ueberfaellig ? "table-warning" : "")">
+                @* v1.86.0 (Nachbesserung Sichtpruefung): Farbe nur mit Bedeutung – ueberfaellig = rot (table-danger), sonst Bootstrap-Streifen. *@
+                <tr class="@(r.Ueberfaellig ? "table-danger" : "")">
                     <td>@(l.Liefertermin?.ToString("dd.MM.yyyy") ?? "ohne Termin")</td>
                     <td>@r.LieferantText</td>
                     <td>@l.Belegnummer</td>
@@ -112,7 +115,7 @@ else
                     <td>
                         @if (Model.CanReceive)
                         {
-                            <a asp-action="Receive" asp-route-belId="@l.BelId" class="btn btn-sm btn-outline-primary d-inline-flex align-items-center" style="min-height:44px">Wareneingang</a>
+                            <a asp-action="Receive" asp-route-belId="@l.BelId" class="btn btn-sm btn-primary d-inline-flex align-items-center" style="min-height:44px">Wareneingang</a>
                         }
                     </td>
                 </tr>

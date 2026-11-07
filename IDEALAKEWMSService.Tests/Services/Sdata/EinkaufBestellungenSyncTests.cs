@@ -20,9 +20,9 @@ public class EinkaufBestellungenSyncTests
 
     private static SdataEinkaufPositionZeile Pos(int belPosId, string artikel, string kto = "K31013", string kz = "EBB",
         decimal bestellt = 10m, decimal geliefert = 0m, string me = "Stk", string lme = "Stk", int? platz = 11, int sperre = 0,
-        string? termin = "2026-11-20T00:00:00+01:00") =>
+        string? termin = "2026-11-20T00:00:00+01:00", string? basis = null) =>
         new(belPosId / 10, belPosId, kz, $"2026-{belPosId / 10}", kto, "Lieferant " + kto, sperre, termin, null, artikel, "Bez", null,
-            0, 0, me, me, lme, bestellt, geliefert, platz, "HR;0;0;0");
+            0, 0, me, basis ?? me, lme, bestellt, geliefert, platz, "HR;0;0;0");
 
     private static (EinkaufBestellungenSyncService svc, Mock<ISageSdataReadClient> client) Svc(IdealAkeWms.Data.ApplicationDbContext ctx,
         FakeSyncLogger log, params SdataEinkaufPositionZeile[] zeilen)
@@ -75,6 +75,18 @@ public class EinkaufBestellungenSyncTests
         lauf.Events.Should().Contain(e => e.Level == "Warning" && e.Message.Contains("FEHLT"))
             .And.Contain(e => e.Level == "Warning" && e.Message.Contains("K99999") && e.Message.Contains("Sync:KreditorenEnabled"))
             .And.Contain(e => e.Level == "Warning" && e.Message.Contains("ID 77"));
+    }
+
+    [Theory]
+    [InlineData("PKG", "PKG", "PKG", false)] // EK023579: alles PKG -> buchbar
+    [InlineData("PKG", "Stk", "PKG", true)]  // EK003604: Basis weicht ab -> gesperrt (v1.86.0, gebucht wird in der Basiseinheit)
+    [InlineData("PKG", "Stk", "Stk", true)]  // Bestelleinheit weicht ab (E0 B-2)
+    public async Task EinheitAbweichend_BestellOderBasisUngleichLager_Nachbesserung_v1_86(string me, string basis, string lme, bool gesperrt)
+    {
+        using var ctx = TestDbContextFactory.Create();
+        await SeedStammAsync(ctx);
+        await Svc(ctx, new FakeSyncLogger(), Pos(101, "00722001", me: me, basis: basis, lme: lme)).svc.RunAsync(false, ziel: Ziel);
+        ctx.SagePurchaseOrderLines.Single().EinheitAbweichend.Should().Be(gesperrt);
     }
 
     [Fact]

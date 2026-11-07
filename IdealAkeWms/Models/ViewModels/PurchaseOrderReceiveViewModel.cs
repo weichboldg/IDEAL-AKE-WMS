@@ -20,7 +20,7 @@ public class PurchaseOrderReceiveRow
     public decimal Rest => Math.Max(0m, Row.Line.MengeOffen - Row.ImWmsErfasst);
     /// <summary>Grund, warum die Zeile nicht buchbar ist (Text in der Zeile); null = buchbar.</summary>
     public string? NichtBuchbar => Row.Line.ArticleId == null ? "Artikel nicht im WMS"
-        : Row.Line.EinheitAbweichend ? $"Einheit abweichend ({Row.Line.Mengeneinheit} ≠ Lager {Row.Line.Lagermengeneinheit}) – nicht buchbar, bis geklärt"
+        : Row.Line.EinheitAbweichend ? $"Einheit abweichend (Bestellung {Row.Line.Mengeneinheit}, Basis {Row.Line.MengeBasiseinheit}, Lager {Row.Line.Lagermengeneinheit}) – nicht buchbar, bis geklärt"
         : null;
     public PurchaseOrderReceiveInput Eingabe { get; set; } = new();
     public string? Fehler { get; set; }
