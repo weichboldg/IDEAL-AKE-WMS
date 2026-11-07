@@ -1,0 +1,136 @@
+using IdealAkeWms.Data.Repositories;
+using IdealAkeWms.Filters;
+using IdealAkeWms.Models;
+using IdealAkeWms.Models.ViewModels;
+using Microsoft.AspNetCore.Mvc;
+
+namespace IdealAkeWms.Controllers;
+
+/// <summary>v1.84.0 E3 (Spec 2026-11-08-wareneingang-aus-sage-bestellungen F3): Wareneingang zu einer Sage-Bestellung.</summary>
+public partial class PurchaseOrdersController
+{
+    /// <summary>Einstieg per BelId (aus der Vorschau) oder Belegnummer (Eingabe/Scan, exakt getrimmt). Kein/mehrere Treffer = Meldung.</summary>
+    [RequireStockAccess]
+    public async Task<IActionResult> Receive(int? belId = null, string? belegnummer = null)
+    {
+        if (belId == null && !string.IsNullOrWhiteSpace(belegnummer))
+        {
+            var ids = await _lines.GetBelIdsByBelegnummerAsync(belegnummer);
+            if (ids.Count == 1) return RedirectToAction(nameof(Receive), new { belId = ids[0] });
+            TempData["WarningMessage"] = ids.Count == 0
+                ? $"Bestellung „{belegnummer.Trim()}“ nicht gefunden (nur offene normale Bestellungen aus Sage, Stand des letzten Abgleichs)."
+                : $"Belegnummer „{belegnummer.Trim()}“ gehört zu {ids.Count} Bestellungen – bitte über „Offene Bestellungen“ wählen.";
+            return RedirectToAction(nameof(Receive));
+        }
+        if (belId == null) return View(new PurchaseOrderReceiveViewModel());
+
+        var vm = await BuildReceiveAsync(belId.Value, null);
+        if (vm == null)
+        {
+            TempData["WarningMessage"] = "Diese Bestellung ist nicht (mehr) offen – Sage hat sie geschlossen oder der Abgleich ist noch nicht gelaufen.";
+            return RedirectToAction(nameof(Receive));
+        }
+        return View(vm);
+    }
+
+    /// <summary>
+    /// Buchen (F3): alle Zeilen zuerst pruefen (keine Teilbuchung), dann je Zeile eine Einbuchung NUR ueber
+    /// <see cref="IStockMovementRepository.AddAsync"/> (Sage-Queue-Decorator), der Wareneingang haengt als Navigation an der Bewegung
+    /// (selbes SaveChanges).
+    /// </summary>
+    [RequireStockAccess]
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Receive(int belId, List<PurchaseOrderReceiveInput>? zeilen)
+    {
+        zeilen ??= new();
+        var vm = await BuildReceiveAsync(belId, zeilen);
+        if (vm == null)
+        {
+            TempData["WarningMessage"] = "Diese Bestellung ist nicht (mehr) offen – nichts gebucht.";
+            return RedirectToAction(nameof(Receive));
+        }
+
+        var erlaubtePlaetze = vm.Lagerplaetze.Select(l => l.Id).ToHashSet();
+        var buchen = new List<(PurchaseOrderReceiveRow Zeile, decimal Menge)>();
+        foreach (var z in vm.Zeilen.Where(z => !string.IsNullOrWhiteSpace(z.Eingabe.Menge)))
+        {
+            var e = z.Eingabe;
+            var lesbar = BeschichtungsauftraegeController.TryMenge(e.Menge, out var menge);
+            z.Fehler = z.NichtBuchbar
+                ?? (!lesbar ? $"„{e.Menge}“ ist keine Zahl." : null)
+                ?? (menge <= 0 ? "Menge muss größer als 0 sein." : null)
+                ?? (e.StorageLocationId is not { } sid || !erlaubtePlaetze.Contains(sid) ? "Bitte einen Ziel-Lagerplatz wählen." : null)
+                ?? (menge > z.Rest && !e.UeberlieferungBestaetigt ? $"Überlieferung ({menge:0.###} > Rest {z.Rest:0.###}) bitte bestätigen." : null);
+            buchen.Add((z, menge));
+        }
+
+        if (buchen.Count == 0)
+            ModelState.AddModelError(string.Empty, "Keine Menge eingegeben – nichts gebucht.");
+        if (buchen.Any(b => b.Zeile.Fehler != null))
+            ModelState.AddModelError(string.Empty, "Nichts gebucht: bitte die markierten Zeilen korrigieren.");
+        if (!ModelState.IsValid) return View(vm);
+
+        var now = DateTime.Now;
+        var userId = _user.GetCurrentAppUserId();
+        var name = _user.GetDisplayName();
+        var windows = _user.GetWindowsUserName();
+        int teil = 0, ueber = 0;
+        foreach (var (z, menge) in buchen)
+        {
+            var l = z.Row.Line;
+            var art = menge == z.Rest ? PurchaseOrderReceiptLieferart.Vollstaendig
+                : menge < z.Rest ? PurchaseOrderReceiptLieferart.Teillieferung : PurchaseOrderReceiptLieferart.Ueberlieferung;
+            if (art == PurchaseOrderReceiptLieferart.Teillieferung) teil++;
+            if (art == PurchaseOrderReceiptLieferart.Ueberlieferung) ueber++;
+            var movement = new StockMovement
+            {
+                ArticleId = l.ArticleId!.Value,
+                Quantity = menge,
+                StorageLocationId = z.Eingabe.StorageLocationId!.Value,
+                MovementType = MovementType.Einbuchung,
+                Timestamp = now,
+                UserId = userId,
+                WindowsUser = windows,
+                CreatedAt = now,
+                CreatedBy = name,
+                CreatedByWindows = windows,
+                PurchaseOrderReceipt = new PurchaseOrderReceipt
+                {
+                    BelId = l.BelId, BelPosId = l.BelPosId, Belegnummer = l.Belegnummer, LieferantKto = l.LieferantKto, Quantity = menge,
+                    OffenLautSageBeimBuchen = l.MengeOffen, SagePlatzId = l.SagePlatzId, Lieferart = art,
+                    CreatedAt = now, CreatedBy = name, CreatedByWindows = windows,
+                },
+            };
+            await _movements.AddAsync(movement);
+        }
+
+        TempData["SuccessMessage"] = $"{buchen.Count} Position(en) eingebucht (davon {teil} Teil-, {ueber} Überlieferung).";
+        return RedirectToAction(nameof(Receive), new { belId });
+    }
+
+    /// <summary>Maske aus dem Cache (Server-Wahrheit) bauen; <paramref name="eingaben"/> = gepostete Werte (bleiben bei Fehlern stehen).</summary>
+    private async Task<PurchaseOrderReceiveViewModel?> BuildReceiveAsync(int belId, List<PurchaseOrderReceiveInput>? eingaben)
+    {
+        var lines = await _lines.GetByBelIdAsync(belId);
+        if (lines.Count == 0) return null;
+        var rows = await ZeilenAsync(lines);
+        var eingabe = (eingaben ?? new()).GroupBy(e => e.BelPosId).ToDictionary(g => g.Key, g => g.First());
+        var k = rows[0].Line;
+        return new PurchaseOrderReceiveViewModel
+        {
+            BelId = belId,
+            Belegnummer = k.Belegnummer,
+            LieferantText = rows[0].LieferantText,
+            LieferantGesperrt = rows.Any(r => r.Line.LieferantGesperrt),
+            Liefertermin = rows.Min(r => r.Line.Liefertermin),
+            Lagerplaetze = await _locations.GetActiveOrderedExcludingPickingTransportAsync() ?? new(),
+            Zeilen = rows.Select(r => new PurchaseOrderReceiveRow
+            {
+                Row = r,
+                Eingabe = eingabe.TryGetValue(r.Line.BelPosId, out var e) ? e
+                    : new PurchaseOrderReceiveInput { BelPosId = r.Line.BelPosId, StorageLocationId = r.Line.StorageLocationId },
+            }).ToList(),
+        };
+    }
+}

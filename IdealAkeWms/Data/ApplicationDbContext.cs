@@ -55,6 +55,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<Debitor> Debitors => Set<Debitor>();
     public DbSet<ArticleSupplier> ArticleSuppliers => Set<ArticleSupplier>();
     public DbSet<SagePurchaseOrderLine> SagePurchaseOrderLines => Set<SagePurchaseOrderLine>();
+    public DbSet<PurchaseOrderReceipt> PurchaseOrderReceipts => Set<PurchaseOrderReceipt>();
     public DbSet<BdeShift> BdeShifts => Set<BdeShift>();
     public DbSet<BdeTerminal> BdeTerminals => Set<BdeTerminal>();
     public DbSet<CachedBomHeader> CachedBomHeaders => Set<CachedBomHeader>();
@@ -1385,6 +1386,26 @@ public class ApplicationDbContext : DbContext
             entity.HasIndex(e => e.Belegnummer).HasDatabaseName("IX_SagePurchaseOrderLines_Belegnummer");
             entity.HasIndex(e => e.ArticleId).HasDatabaseName("IX_SagePurchaseOrderLines_ArticleId");
             entity.HasIndex(e => e.Liefertermin).HasDatabaseName("IX_SagePurchaseOrderLines_Liefertermin");
+        });
+
+        // v1.84.0 E3: Wareneingang zu Bestellposition, genau eine StockMovement (Restrict, UNIQUE), Snapshot ohne FK auf den Cache.
+        modelBuilder.Entity<PurchaseOrderReceipt>(entity =>
+        {
+            entity.ToTable("PurchaseOrderReceipts");
+            entity.HasKey(e => e.Id);
+            entity.HasOne(e => e.StockMovement).WithOne(m => m.PurchaseOrderReceipt)
+                .HasForeignKey<PurchaseOrderReceipt>(e => e.StockMovementId).OnDelete(DeleteBehavior.Restrict);
+            entity.Property(e => e.Belegnummer).HasMaxLength(20).IsRequired();
+            entity.Property(e => e.LieferantKto).HasMaxLength(20);
+            entity.Property(e => e.Quantity).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.OffenLautSageBeimBuchen).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.Lieferart).HasConversion<byte>();
+            entity.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.ModifiedBy).HasMaxLength(200);
+            entity.Property(e => e.ModifiedByWindows).HasMaxLength(200);
+            entity.HasIndex(e => e.StockMovementId).IsUnique().HasDatabaseName("IX_PurchaseOrderReceipts_StockMovementId");
+            entity.HasIndex(e => e.BelPosId).HasDatabaseName("IX_PurchaseOrderReceipts_BelPosId");
         });
 
         // BDE: Activities

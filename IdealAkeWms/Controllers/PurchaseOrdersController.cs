@@ -20,14 +20,18 @@ public partial class PurchaseOrdersController : Controller
     private readonly IStorageLocationRepository _locations;
     private readonly IAppSettingRepository _settings;
     private readonly ICurrentUserService _user;
+    private readonly IPurchaseOrderReceiptRepository _receipts;
+    private readonly IStockMovementRepository _movements;
 
     public PurchaseOrdersController(ISagePurchaseOrderLineRepository lines, IStorageLocationRepository locations, IAppSettingRepository settings,
-        ICurrentUserService user)
+        ICurrentUserService user, IPurchaseOrderReceiptRepository receipts, IStockMovementRepository movements)
     {
         _lines = lines;
         _locations = locations;
         _settings = settings;
         _user = user;
+        _receipts = receipts;
+        _movements = movements;
     }
 
     // Spaltenfilter (Server-Mode) – Zelltexte wie in der View (ADR 0005, ein Filter-Kern ADR 0017).
@@ -110,7 +114,7 @@ public partial class PurchaseOrdersController : Controller
     private async Task<List<PurchaseOrderLineRow>> ZeilenAsync(List<SagePurchaseOrderLine> lines)
     {
         var plaetze = (await _locations.GetAllOrderedAsync() ?? new()).ToDictionary(l => l.Id, l => l.Code);
-        var erfasst = new Dictionary<int, decimal>(); // E3: Summe Wareneingaenge je BelPosId
+        var erfasst = await _receipts.GetErfasstJeBelPosAsync(lines.Select(l => l.BelPosId).ToList());
         var heute = DateTime.Today;
         return lines.Select(l => new PurchaseOrderLineRow
         {

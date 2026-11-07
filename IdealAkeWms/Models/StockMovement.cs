@@ -45,4 +45,7 @@ public class StockMovement : AuditableEntity
     public StorageLocation StorageLocation { get; set; } = null!;
     public StorageLocation? SourceStorageLocation { get; set; }
     public User? User { get; set; }
+
+    /// <summary>v1.84.0: Wareneingang zu einer Sage-Bestellposition (nur bei Einbuchung ueber „Wareneingang zu Bestellung“), sonst null.</summary>
+    public PurchaseOrderReceipt? PurchaseOrderReceipt { get; set; }
 }

@@ -109,6 +109,7 @@ builder.Services.AddScoped<IFaHierarchyNodeRepository, CachedFaHierarchyNodeRepo
 builder.Services.AddScoped<IFaHierarchyOrderInfoRepository, FaHierarchyOrderInfoRepository>();
 builder.Services.AddScoped<ICreditorRepository, CreditorRepository>();
 builder.Services.AddScoped<ISagePurchaseOrderLineRepository, SagePurchaseOrderLineRepository>(); // v1.84.0 Wareneingang aus Sage-Bestellungen
+builder.Services.AddScoped<IPurchaseOrderReceiptRepository, PurchaseOrderReceiptRepository>();
 builder.Services.AddScoped<IDebitorRepository, DebitorRepository>();
 // IDEAL Teil 3: gemeinsamer Listen-/Druck-Baustein (Teil 4/5 erweitern ihn) + Teil-3-Service.
 builder.Services.AddScoped<FaHierarchyListBuilder>();

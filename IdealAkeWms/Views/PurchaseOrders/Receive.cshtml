@@ -1,0 +1,180 @@
+@model IdealAkeWms.Models.ViewModels.PurchaseOrderReceiveViewModel
+@{
+    ViewData["Title"] = "Wareneingang zu Bestellung";
+}
+@* v1.84.0 Spec 2026-11-08-wareneingang-aus-sage-bestellungen F3. Kleine, auf eine Bestellung vorgefilterte Liste ohne Pagination (ADR 0005:
+   kein Spaltenfilter noetig). Teil/Ueber/vollstaendig als Text, nie nur Farbe; Mengen in der Basiseinheit (E0 B-2). *@
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+    <h2 class="page-header mb-0">Wareneingang zu Bestellung</h2>
+    <a asp-action="Index" class="btn btn-outline-secondary">Offene Bestellungen</a>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success">@TempData["SuccessMessage"]</div>
+}
+@if (TempData["WarningMessage"] != null)
+{
+    <div class="alert alert-warning">@TempData["WarningMessage"]</div>
+}
+@if (!ViewData.ModelState.IsValid)
+{
+    <div class="alert alert-warning" role="alert">
+        @foreach (var err in ViewData.ModelState[string.Empty]?.Errors ?? Enumerable.Empty<Microsoft.AspNetCore.Mvc.ModelBinding.ModelError>())
+        {
+            <div>@err.ErrorMessage</div>
+        }
+    </div>
+}
+
+<div class="card filter-card mb-3">
+    <div class="card-body p-2">
+        <form method="get" asp-action="Receive" class="d-flex gap-2 align-items-end flex-wrap">
+            <div>
+                <label for="belegnummer" class="form-label small mb-0">Bestellnummer eingeben oder scannen</label>
+                <input type="text" id="belegnummer" name="belegnummer" class="form-control" placeholder="z. B. 2027-168975"
+                       value="@(Model.BelId == null ? Model.Belegnummer : null)" autocomplete="off" data-hw-scan-ziel @(Model.BelId == null ? "autofocus" : "") />
+            </div>
+            <button type="submit" class="btn btn-primary">Öffnen</button>
+        </form>
+    </div>
+</div>
+
+@if (Model.BelId != null)
+{
+    @if (Model.LieferantGesperrt)
+    {
+        <div class="alert alert-warning" role="status">
+            <strong>&#9888; Lieferant gesperrt</strong> (Sperre am Lieferanten in Sage). Buchen ist trotzdem möglich – bitte mit dem Einkauf klären.
+        </div>
+    }
+    <div class="card mb-3">
+        <div class="card-body py-2">
+            <dl class="row mb-0">
+                <dt class="col-sm-3 fw-normal text-muted">Bestellung</dt>
+                <dd class="col-sm-9 fw-semibold">@Model.Belegnummer</dd>
+                <dt class="col-sm-3 fw-normal text-muted">Lieferant</dt>
+                <dd class="col-sm-9">@Model.LieferantText</dd>
+                <dt class="col-sm-3 fw-normal text-muted">Liefertermin</dt>
+                <dd class="col-sm-9">@(Model.Liefertermin?.ToString("dd.MM.yyyy") ?? "ohne Termin")</dd>
+            </dl>
+        </div>
+    </div>
+
+    <form method="post" asp-action="Receive" asp-route-belId="@Model.BelId">
+        @Html.AntiForgeryToken()
+        <div class="table-responsive">
+            <table class="table table-sm align-middle">
+                <thead>
+                    <tr>
+                        <th>Pos.</th>
+                        <th>Artikel</th>
+                        <th class="text-end">bestellt</th>
+                        <th class="text-end">offen (Sage)</th>
+                        <th class="text-end">im WMS erfasst</th>
+                        <th class="text-end">Rest</th>
+                        <th>Einheit</th>
+                        <th>Ziel-Lagerplatz</th>
+                        <th style="min-width: 8rem;">Ist-Menge</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (var i = 0; i < Model.Zeilen.Count; i++)
+                    {
+                        var z = Model.Zeilen[i];
+                        var l = z.Row.Line;
+                        var gesperrt = z.NichtBuchbar != null;
+                        <tr class="@(z.Fehler != null ? "table-danger" : "")" data-rest="@z.Rest.ToString(System.Globalization.CultureInfo.InvariantCulture)">
+                            <td>@(i + 1)<input type="hidden" name="zeilen[@i].BelPosId" value="@l.BelPosId" /></td>
+                            <td>
+                                <div class="fw-semibold">@l.Artikelnummer</div>
+                                <div class="small">@l.Bezeichnung1</div>
+                                @if (l.Chargenpflicht || l.Nachweispflicht)
+                                {
+                                    <div class="small text-body-secondary">Charge/Seriennummer in Sage erfassen</div>
+                                }
+                            </td>
+                            <td class="text-end">@l.MengeBestellt.ToString("0.###")</td>
+                            <td class="text-end">@l.MengeOffen.ToString("0.###")</td>
+                            <td class="text-end">@z.Row.ImWmsErfasst.ToString("0.###")</td>
+                            <td class="text-end fw-semibold">@z.Rest.ToString("0.###")</td>
+                            <td>@l.MengeBasiseinheit</td>
+                            <td>
+                                @if (gesperrt)
+                                {
+                                    <span>@z.Row.ZielLagerplatz</span>
+                                }
+                                else
+                                {
+                                    <select name="zeilen[@i].StorageLocationId" class="form-select form-select-sm" aria-label="Ziel-Lagerplatz Position @(i + 1)">
+                                        <option value="">— wählen —</option>
+                                        @foreach (var p in Model.Lagerplaetze)
+                                        {
+                                            <option value="@p.Id" selected="@(z.Eingabe.StorageLocationId == p.Id)">@p.Code</option>
+                                        }
+                                    </select>
+                                    @if (z.Row.ZielNichtImWms)
+                                    {
+                                        <div class="small text-body-secondary">Sage-Platz @l.SagePlatzKurzbezeichnung nicht im WMS</div>
+                                    }
+                                }
+                            </td>
+                            <td>
+                                @if (gesperrt)
+                                {
+                                    <span class="small">nicht buchbar</span>
+                                }
+                                else
+                                {
+                                    <input type="text" inputmode="decimal" name="zeilen[@i].Menge" value="@z.Eingabe.Menge" autocomplete="off"
+                                           class="form-control form-control-sm ist-menge" aria-label="Ist-Menge Position @(i + 1)" style="min-height:38px" />
+                                    <div class="form-check mt-1">
+                                        <input type="checkbox" class="form-check-input" id="ueber_@i" name="zeilen[@i].UeberlieferungBestaetigt" value="true"
+                                               @(z.Eingabe.UeberlieferungBestaetigt ? "checked" : "") />
+                                        <label class="form-check-label small" for="ueber_@i">Überlieferung bestätigt</label>
+                                    </div>
+                                }
+                            </td>
+                            <td>
+                                @if (gesperrt)
+                                {
+                                    <span class="badge text-bg-secondary text-wrap text-start">@z.NichtBuchbar</span>
+                                }
+                                else
+                                {
+                                    <span class="lieferart small" aria-live="polite">—</span>
+                                }
+                                @if (z.Fehler != null)
+                                {
+                                    <div class="small text-danger fw-semibold">@z.Fehler</div>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <p class="small text-body-secondary">Leere Ist-Menge = Position nicht buchen. Gebucht wird nur, wenn alle eingegebenen Zeilen gültig sind.</p>
+        <button type="submit" class="btn btn-primary mb-4" style="min-height:44px">Einbuchen</button>
+    </form>
+}
+
+@section Scripts {
+    <script>
+        // Anzeige „vollständig / Teillieferung / Überlieferung“ als Text (Server prüft beim Buchen erneut).
+        document.querySelectorAll('tr[data-rest]').forEach(function (tr) {
+            var input = tr.querySelector('.ist-menge'), out = tr.querySelector('.lieferart');
+            if (!input || !out) return;
+            var rest = parseFloat(tr.getAttribute('data-rest'));
+            var zeigen = function () {
+                var v = parseFloat(String(input.value).replace(',', '.'));
+                out.textContent = isNaN(v) || input.value === '' ? '—' : v === rest ? 'vollständig' : v < rest ? 'Teillieferung' : 'Überlieferung';
+                out.className = 'lieferart small fw-semibold ' + (v > rest ? 'text-danger' : '');
+            };
+            input.addEventListener('input', zeigen);
+            zeigen();
+        });
+    </script>
+}

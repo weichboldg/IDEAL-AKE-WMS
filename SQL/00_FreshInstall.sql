@@ -2337,6 +2337,33 @@ BEGIN
 END
 GO
 
+-- PurchaseOrderReceipts (v1.84.0 / SQL/113, Wareneingang zu Bestellung E3): je Wareneingang genau eine StockMovement (Restrict, UNIQUE).
+IF OBJECT_ID(N'dbo.PurchaseOrderReceipts', N'U') IS NULL AND OBJECT_ID(N'dbo.StockMovements', N'U') IS NOT NULL
+BEGIN
+    CREATE TABLE [dbo].[PurchaseOrderReceipts] (
+        [Id]                        INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_PurchaseOrderReceipts PRIMARY KEY,
+        [StockMovementId]           INT               NOT NULL CONSTRAINT FK_PurchaseOrderReceipts_StockMovements_StockMovementId REFERENCES [dbo].[StockMovements]([Id]),
+        [BelId]                     INT               NOT NULL,
+        [BelPosId]                  INT               NOT NULL,
+        [Belegnummer]               NVARCHAR(20)      NOT NULL,
+        [LieferantKto]              NVARCHAR(20)      NULL,
+        [Quantity]                  DECIMAL(18,4)     NOT NULL,
+        [OffenLautSageBeimBuchen]   DECIMAL(18,4)     NULL,
+        [SagePlatzId]               INT               NULL,
+        [Lieferart]                 TINYINT           NOT NULL,
+        [CreatedAt]                 DATETIME2         NOT NULL,
+        [CreatedBy]                 NVARCHAR(200)     NOT NULL,
+        [CreatedByWindows]          NVARCHAR(200)     NOT NULL,
+        [ModifiedAt]                DATETIME2         NULL,
+        [ModifiedBy]                NVARCHAR(200)     NULL,
+        [ModifiedByWindows]         NVARCHAR(200)     NULL
+    );
+    CREATE UNIQUE INDEX [IX_PurchaseOrderReceipts_StockMovementId] ON [dbo].[PurchaseOrderReceipts]([StockMovementId]);
+    CREATE INDEX [IX_PurchaseOrderReceipts_BelPosId] ON [dbo].[PurchaseOrderReceipts]([BelPosId]);
+    PRINT 'Tabelle PurchaseOrderReceipts erstellt.';
+END
+GO
+
 -- BdeActivities
 IF OBJECT_ID(N'dbo.BdeActivities', N'U') IS NULL
 BEGIN
@@ -2890,6 +2917,9 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261107172542_AddSagePurchaseOrderLines')
    AND OBJECT_ID(N'dbo.SagePurchaseOrderLines', N'U') IS NOT NULL -- sonst steht SQL/112 noch aus
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261107172542_AddSagePurchaseOrderLines', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261107173341_AddPurchaseOrderReceipts')
+   AND OBJECT_ID(N'dbo.PurchaseOrderReceipts', N'U') IS NOT NULL -- sonst steht SQL/113 noch aus
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261107173341_AddPurchaseOrderReceipts', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';

@@ -38,7 +38,10 @@ public partial class PurchaseOrdersControllerTests
         settings.Setup(s => s.GetIntValueAsync(AppSettingKeys.OffeneBestellungenVorschauWochen, 2)).ReturnsAsync(wochen);
         var user = new Mock<ICurrentUserService>();
         user.Setup(u => u.CanAccessStockAsync()).ReturnsAsync(canStock);
-        var ctrl = new PurchaseOrdersController(lines.Object, locations.Object, settings.Object, user.Object)
+        var receipts = new Mock<IPurchaseOrderReceiptRepository>();
+        receipts.Setup(r => r.GetErfasstJeBelPosAsync(It.IsAny<IReadOnlyCollection<int>>())).ReturnsAsync(new Dictionary<int, decimal>());
+        var ctrl = new PurchaseOrdersController(lines.Object, locations.Object, settings.Object, user.Object, receipts.Object,
+            Mock.Of<IStockMovementRepository>())
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
         };

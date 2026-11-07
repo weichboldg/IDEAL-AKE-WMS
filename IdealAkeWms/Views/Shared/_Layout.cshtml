@@ -118,6 +118,10 @@
                                         @* v1.84.0: Wareneingang aus Sage-Bestellungen (Feature-Gate WareneingangBestellungAktiv, Lesen stock_read). *@
                                         <li><hr class="dropdown-divider" style="border-color: rgba(255,255,255,0.2);" /></li>
                                         <li><a class="dropdown-item" asp-controller="PurchaseOrders" asp-action="Index">Offene Bestellungen</a></li>
+                                        @if (canAccessStock)
+                                        {
+                                            <li><a class="dropdown-item" asp-controller="PurchaseOrders" asp-action="Receive">Wareneingang zu Bestellung</a></li>
+                                        }
                                     }
                                     @if (await CurrentUserService.CanTransferStockAsync())
                                     {

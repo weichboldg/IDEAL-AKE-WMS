@@ -3397,6 +3397,80 @@ namespace IdealAkeWms.Migrations
                     b.ToTable("ProductionWorkplaceWorkSteps", "dbo");
                 });
 
+            modelBuilder.Entity("IdealAkeWms.Models.PurchaseOrderReceipt", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BelId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("BelPosId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Belegnummer")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("CreatedByWindows")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("LieferantKto")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<byte>("Lieferart")
+                        .HasColumnType("tinyint");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ModifiedByWindows")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<decimal?>("OffenLautSageBeimBuchen")
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal>("Quantity")
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<int?>("SagePlatzId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("StockMovementId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BelPosId")
+                        .HasDatabaseName("IX_PurchaseOrderReceipts_BelPosId");
+
+                    b.HasIndex("StockMovementId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_PurchaseOrderReceipts_StockMovementId");
+
+                    b.ToTable("PurchaseOrderReceipts", "dbo");
+                });
+
             modelBuilder.Entity("IdealAkeWms.Models.Role", b =>
                 {
                     b.Property<int>("Id")
@@ -5373,6 +5447,17 @@ namespace IdealAkeWms.Migrations
                     b.Navigation("WorkStep");
                 });
 
+            modelBuilder.Entity("IdealAkeWms.Models.PurchaseOrderReceipt", b =>
+                {
+                    b.HasOne("IdealAkeWms.Models.StockMovement", "StockMovement")
+                        .WithOne("PurchaseOrderReceipt")
+                        .HasForeignKey("IdealAkeWms.Models.PurchaseOrderReceipt", "StockMovementId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("StockMovement");
+                });
+
             modelBuilder.Entity("IdealAkeWms.Models.SageBookingQueueItem", b =>
                 {
                     b.HasOne("IdealAkeWms.Models.StockMovement", "StockMovement")
@@ -5628,6 +5713,11 @@ namespace IdealAkeWms.Migrations
             modelBuilder.Entity("IdealAkeWms.Models.Role", b =>
                 {
                     b.Navigation("UserRoles");
+                });
+
+            modelBuilder.Entity("IdealAkeWms.Models.StockMovement", b =>
+                {
+                    b.Navigation("PurchaseOrderReceipt");
                 });
 
             modelBuilder.Entity("IdealAkeWms.Models.StorageArea", b =>
