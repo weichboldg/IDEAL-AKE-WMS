@@ -10,7 +10,7 @@
     var warn = IdealAkeWms.Services.FaBuchungsText.IstWarnStatus(fa);
     if (Model.LinkErlaubt)
     {
-        <a href="@(Model.Hierarchisch ? Url.Action("Index", "FaHierarchy", new { filterHauptFa = fa.OrderNumber }) : Url.Action("Index", "ProductionOrders", new { filterOrderNumber = fa.OrderNumber }))">@nr</a>
+        <a class="fa-link" href="@(Model.Hierarchisch ? Url.Action("Index", "FaHierarchy", new { filterHauptFa = fa.OrderNumber }) : Url.Action("Index", "ProductionOrders", new { filterOrderNumber = fa.OrderNumber }))">@nr</a>
     }
     else
     {

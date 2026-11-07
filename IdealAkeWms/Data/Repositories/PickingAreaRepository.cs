@@ -25,6 +25,14 @@ public class PickingAreaRepository : IPickingAreaRepository
     public void RemoveRule(PickingAreaRule rule) => _db.PickingAreaRules.Remove(rule);
     public Task SaveChangesAsync() => _db.SaveChangesAsync();
 
+    public async Task InTransactionAsync(Func<Task> action)
+    {
+        if (!_db.Database.IsRelational()) { await action(); return; }
+        await using var tx = await _db.Database.BeginTransactionAsync();
+        await action();
+        await tx.CommitAsync();
+    }
+
     public Task<string?> GetArticleNumberAsync(int articleId) =>
         _db.Articles.Where(a => a.Id == articleId).Select(a => (string?)a.ArticleNumber).FirstOrDefaultAsync();
 

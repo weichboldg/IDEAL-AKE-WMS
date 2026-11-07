@@ -1453,3 +1453,6 @@ th:hover .col-resize-handle {
 .hw-scan-ohne-feld:focus { border-color: #6c757d; background-color: #f8f9fa; color: #495057; box-shadow: none; outline: 2px solid #495057; outline-offset: 2px; }
 .hw-scan-ohne-feld.hw-scan-bereit:focus { border-style: solid; border-color: #198754; background-color: #d1e7dd; color: #0a3622; outline-color: #198754; }
 .hw-scan-ohne-feld.hw-scan-bereit:focus::placeholder { color: #0a3622; font-weight: 600; }
+
+/* v1.87.0 (QA A5 Q-2): FA-Link in einer Alert-Karte (FA-Kopf der Bestandsuebersicht) mit der dunklen Alert-Linkfarbe – sonst ~4,1:1 auf Gelb. */
+.alert a.fa-link { color: var(--bs-alert-link-color); font-weight: 600; }

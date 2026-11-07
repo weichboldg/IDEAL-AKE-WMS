@@ -722,7 +722,8 @@ else if (Model.BackController == "Picking")
     }
     else
     {
-        <a asp-controller="ProductionOrders" asp-action="Index" class="btn btn-outline-secondary">Zurück zur FA-Liste</a>
+        @* v1.88.0 (QA C2 Q15): interaktiv nur noch im Auftragsmodus → zurueck zur Auftragsliste *@
+        <a asp-controller="Picking" asp-action="Index" class="btn btn-outline-secondary">Zurück zur Kommissionierung</a>
     }
 </div>
 

@@ -176,6 +176,7 @@
                 <th>Lagerplatz</th>
                 <th class="text-end">Soll</th>
                 <th class="text-end">Ist</th>
+                <th>Status</th>
             </tr>
         </thead>
         <tbody>
@@ -188,12 +189,13 @@
                     <td>@item.Lagerplatz</td>
                     <td class="text-end">@item.Menge.ToString("N3")</td>
                     <td class="text-end">@(item.IstMenge?.ToString("N3") ?? "")</td>
+                    <td>@item.Status</td>
                 </tr>
             }
             @if (!Model.Items.Any())
             {
                 <tr>
-                    <td colspan="6" style="text-align: center; padding: 20px; color: #999;">Der Auftrag hat keine Zeilen.</td>
+                    <td colspan="7" style="text-align: center; padding: 20px; color: #999;">Der Auftrag hat keine Zeilen.</td>
                 </tr>
             }
         </tbody>

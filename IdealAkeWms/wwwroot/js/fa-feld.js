@@ -34,13 +34,13 @@
             if (d.articleNumber) box.appendChild(el('div', 'small', 'Artikel ' + d.articleNumber));
             box.appendChild(el('div', warn ? 'fw-semibold' : 'small', (warn ? 'Achtung: Status ' : 'Status: ') + d.statusText));
             if (d.link) {
-                var a = el('a', 'small', 'FA anzeigen');
+                var a = el('a', 'small alert-link', 'FA anzeigen');
                 a.href = d.link;
                 box.appendChild(a);
             }
         } else {
             box.appendChild(el('div', 'fw-semibold', 'Achtung: ' + d.hinweis));
-            box.appendChild(el('div', 'small', 'Buchen ist möglich, die Buchung wird dann nicht mit einem FA verknüpft.'));
+            box.appendChild(el('div', 'small', 'Ohne FA-Pflicht für diese Buchungsart wird gebucht, aber nicht mit einem FA verknüpft.'));
         }
         karte.appendChild(box);
     }

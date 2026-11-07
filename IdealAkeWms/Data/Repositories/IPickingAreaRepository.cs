@@ -15,6 +15,8 @@ public interface IPickingAreaRepository
     void AddRule(PickingAreaRule rule);
     void RemoveRule(PickingAreaRule rule);
     Task SaveChangesAsync();
+    /// <summary>QA C2 Q13: mehrere Speicherschritte atomar (Standardwechsel).</summary>
+    Task InTransactionAsync(Func<Task> action);
 
     // Stammdaten-Auswahl fuer Regelwerte (ADR 0020: Wert = Auswahl aus Stammdaten, der Server prueft)
     Task<string?> GetArticleNumberAsync(int articleId);
