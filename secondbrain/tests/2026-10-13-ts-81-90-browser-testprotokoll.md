@@ -24,7 +24,8 @@ Grundlage: TS-81 bis TS-90 in `docs/TESTSZENARIEN.md` im Stand des Bündel-Commi
 der Arbeitsweise ABNAHME aus [[cowork-projekt-abnahme-anweisungen]] — seit 2026-09-30 zusammengeführt in
 [[cowork-projekt-ideal-ake-wms-anweisungen]] (Abschnitt `=== ABNAHME ===`, dort gilt der aktuelle Wortlaut).
 **Nicht enthalten:** Suchsyntax der Spaltenfilter (TS-91, v1.58.x) — eigenes Protokoll nach Etappe B.
-**Getesteter Stand:** Deploy des Bündels ab `ead16fc4` (v1.58.1). Die Schritte gelten unverändert; einzige Anpassung durch
+**Getesteter Stand:** Deploy des Bündels ab `d4108f1a` (v1.59.0), Server-Vorlage `Branding\briefkopf.html` = neues Muster mit
+Fußzeile (TS-92, Nachzug Koordination 2026-10-14: B42–B44, B46, B54). Davor: `ead16fc4` (v1.58.1). Die Schritte gelten unverändert; einzige Anpassung durch
 die Suchsyntax: B40 Teil 2 filtert mit `=` (Koordination 2026-10-13).
 
 Menüwege und Knopftexte sind gegen die Views im Bündel-Worktree belegt (`Views/Shared/_Layout.cshtml` Z. 113–126
@@ -742,9 +743,12 @@ ausblendbar sind. "Tiefe" fuer B42 ausgeblendet lassen.
 
 B42 Druck Summiert mit Briefkopf (TS-81.10, TS-82.2)
 Summiert, HauptFA-Filter {HFA_MEHRFACH}, "Drucken".
-OK, wenn je HauptFA ein Ausdruck: oben Logo (Logozone frei), darunter Absenderzeile "IDEAL Kaeltetechnik
-GmbH - In der Schoerihub 28, 4810 Gmunden - ..." (Firmenname in IDEAL-Blau), duenne hellblaue Linie,
-Empfaenger (Dienstleister, fett), "Beschichtungsauftrag (summiert) - HauptFA ...", Datum; darunter
+OK, wenn je HauptFA ein Ausdruck: oben Logo RECHTS (Logozone frei), KEINE Absenderzeile und keine hellblaue
+Linie mehr (seit v1.59.0, Vorlage mit Fusszeile); unten auf JEDER Seite die Fusszeile: links "IDEAL Kaeltetechnik
+GmbH" (IDEAL-Blau) mit Anschrift/Telefon/office@ideal-ake.at, Mitte "AKE Ausseer Kaelte- und Edelstahltechnik
+GmbH" (AKE-Blau) mit Anschrift/Telefon/office@ideal-ake.at, rechts "www.ideal-ake.at", darunter Balken
+dunkelblau/hellblau mit schraegem Uebergang, innerhalb der Seitenraender; kein Positionstext unter der Fusszeile.
+Darueber: Empfaenger (Dienstleister, fett), "Beschichtungsauftrag (summiert) - HauptFA ...", Datum; darunter
 Kopftabelle, Barcode, Hinweise "Summierte Ansicht" und "Gefilterte Ansicht", dieselben Zeilen wie am
 Bildschirm ohne Paging, Spalte "Tiefe" fehlt. Am Bildschirm KEIN gelber Hinweis "Briefkopf: ...".
 Screenshot. Tab schliessen, "Tiefe" wieder einblenden.
@@ -752,12 +756,14 @@ Screenshot. Tab schliessen, "Tiefe" wieder einblenden.
 B43 PDF Summiert (TS-81.11, TS-82.2)
 PDF-Knopf an der Gruppe {HFA_MEHRFACH} (Download - vorher fragen).
 OK, wenn eine Datei "Beschichtungsauftrag_{HFA_MEHRFACH}_<yyyyMMdd-HHmm>.pdf" entsteht und keine gelbe
-Umleitungsmeldung erscheint; Inhalt wie B42, Logo sichtbar (sofern ansehbar). Fehlt der PDF-Knopf: notieren.
+Umleitungsmeldung erscheint; Inhalt wie B42, Logo sichtbar, Fusszeile auf jeder Seite, dazu "Seite X von Y"
+(PDF = genau ein Dokument, TS-92) (sofern ansehbar, sonst "Inhalt -> Teil C"). Fehlt der PDF-Knopf: notieren.
 
 B44 Mehrseitig: Briefkopf nur auf Seite 1 (TS-82.3)
 "Liste", HauptFA {HFA_VIELE}, "Drucken"; erscheint ein Druckdialog, die Vorschau durchblaettern, dann Escape.
-OK, wenn der Briefkopf nur auf Seite 1 steht, Folgeseiten mit Positionen beginnen und es keine "Seite X von
-Y" gibt (bewusst weggelassen). Ohne Druckdialog: Seitenumbruch NICHT PRUEFBAR, Inhalt notieren.
+OK, wenn der Briefkopf nur auf Seite 1 steht, Folgeseiten mit Positionen beginnen, die Fusszeile auf JEDER
+Seite steht und keine Position unter ihr verschwindet; "Seite X von Y" erscheint (genau ein HauptFA im Druck,
+TS-92). Bei einem Sammeldruck mit mehreren HauptFA gibt es KEINE Seitenzaehlung. Ohne Druckdialog: Seitenumbruch NICHT PRUEFBAR, Inhalt notieren.
 
 B45 Leerfall (TS-81.12)
 Summiert, Spaltenfilter Artnr XYZ-NICHTDA.
@@ -767,7 +773,7 @@ Hinweis "nichts zu drucken" statt eines leeren Blatts bringt. Filter loeschen.
 B46 Regression Einzelliste (TS-81.14)
 "Liste", HauptFA {HFA_MEHRFACH}.
 OK, wenn Spalten und Gruppenkopf wie die Liste aus TS-60 aussehen und "Drucken" den Briefkopf wie in B42
-zeigt ("Beschichtungsauftrag - HauptFA ..." ohne "(summiert)"). Tab schliessen, Filter loeschen.
+zeigt, inkl. Fusszeile ("Beschichtungsauftrag - HauptFA ..." ohne "(summiert)"). Tab schliessen, Filter loeschen.
 
 B47 SCHREIBEND - nur mit Freigabe Gerald. Auftrag anlegen (TS-84.1)
 Vorbereitung fuer B48: Summiert, HauptFA-Filter {HFA_NEU}, dieselbe Seite in einem ZWEITEN Tab oeffnen und
@@ -819,7 +825,7 @@ speicherbar ("Abnahme-Test" eintragen, "Bemerkung speichern"). Screenshot.
 
 B54 Druck und PDF des Auftrags (TS-84.8)
 BA_1: per Zahnrad "Tiefe" ausblenden, "Drucken".
-OK, wenn: Briefkopf, Empfaenger "Test-DL Abnahme" (nicht der Sage-Wert), "Beschichtungsauftrag BA_1 -
+OK, wenn: Briefkopf (Logo rechts) und Fusszeile wie B42 mit "Seite X von Y", Empfaenger "Test-DL Abnahme" (nicht der Sage-Wert), "Beschichtungsauftrag BA_1 -
 HauptFA {HFA_NEU}", Barcode, Kopf mit RAL/Start/Retour/Bemerkung, Positionen je Artnr summiert mit Massen und
 Spalte Positionen, "Tiefe" fehlt. Tab schliessen. "PDF" (Download - vorher fragen): Dateiname
 "Beschichtungsauftrag_BA_1_JJJJMMTT-HHMM.pdf". "Tiefe" wieder einblenden.

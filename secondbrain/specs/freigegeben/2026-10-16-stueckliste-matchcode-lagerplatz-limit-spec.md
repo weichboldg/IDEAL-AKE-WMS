@@ -815,3 +815,4 @@ behoben.
     Komm.-Ziel-Dropdown, Picking-Checkbox + Umbuchen, Quell-Lagerplatz-Select2 (TS-95.16).
 18. **QA-Fix W-1:** Bestellen aktiv, eine Baugruppen-Zeile + eine Bauteil-Zeile anhaken → „Ausgewählte bestellen“: Bezeichnung,
     Menge (keine `NaN`) und Artikelgruppe stimmen. Dasselbe nach Umordnen der Spalten per Zahnrad (TS-95.16).
+- Browser-Abnahme 2026-10-21: [[2026-10-21-ideal-v1-59-bis-v1-64-browser-testbericht]] - 45 OK, 2 FEHLER, 1 nicht pruefbar, 0 Protokoll passt nicht

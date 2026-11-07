@@ -997,3 +997,4 @@ P1–P6 ausführen und in TS-96 notieren.
     Fertigmeldung“ lesbar (WCAG AA), Bedeutung auch ohne Farbe erkennbar.
 13. **Regression:** TS-77 (Struktur-Erkennung), TS-90 (Terminal-Status), TS-94 (Arbeitsgang-Abgleich) stichprobenartig.
 14. **Werker/Schichtleitung informieren** (Fortsetzen nur in der Familie), danach Merge-Freigabe.
+- Browser-Abnahme 2026-10-21: [[2026-10-21-ideal-v1-59-bis-v1-64-browser-testbericht]] - 45 OK, 2 FEHLER, 1 nicht pruefbar, 0 Protokoll passt nicht

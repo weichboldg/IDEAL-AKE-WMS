@@ -9,6 +9,7 @@ source_backlog: "[[2026-10-30-sage-sdata-fa-ansicht]]"
 task: "[[2026-10-30-sage-sdata-fa-ansicht-umsetzung]]"
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
 branch: "feature/2026-08-07-ideal-teile-1-5"
+standort: "IDEAL"
 version_vorschlag: "1.71.0"
 testszenario_vorschlag: "TS-103"
 affected_code:
@@ -864,3 +865,79 @@ Im QA-Fix wurde nur der eigene neue Test `UnlesbaresJson_KeineException` um zwei
     zusammengeführt hat.
 
 **Ergebnis:** grün, `status: Testbereit` gesetzt (QA 2026-10-30).
+
+### 6. DEV-Deploy und Testlauf (Nachtrag 2026-10-30)
+
+qa-agent, nur Schritt 6; Punkte 1–5 oben nicht wiederholt. Kein Commit, keine Code-Änderung.
+
+**Deploy**
+- Standort **IDEAL** (Frontmatter `standort`), Quelle Worktree `C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5`
+  (HEAD `0fe5e7c7`, Arbeitsbaum sauber), elevierte Shell.
+- `powershell -ExecutionPolicy Bypass -File D:\Dev\scripts\dev-deploy.ps1 -Standort IDEAL -Quelle <Worktree>` → **Exit 0**.
+  Ausgabe: `== Quelle: …\2026-08-07-ideal-teile-1-5` → stoppen → publish Web → publish Service → `HTTP 200, Fusszeile v1.71.0`
+  → DEV-Absicherung → Dienst starten → `Fertig: IDEAL v1.71.0 auf http://localhost:8082/`. Dazwischen nur vorbestehende
+  Warnungen (NU1902/NU1903 Pkcs/MailKit/MimeKit, CS8321 `FormatDateWithKw` in 3 Views).
+- **Fußzeile v1.71.0 = AppVersion** (`IdealAkeWms/AppVersion.cs:5`). Dienst-Log: „SyncWorker gestartet. Version 1.71.0 (2026-10-30)“.
+- Keine Migration (letzte weiterhin `20261019092105_…`, wie erwartet).
+- DEV-Absicherung (`D:\Dev\logs\dev-absicherung-ideal-2026-10-30_1155.log`): NACHHER 0 Schalter ungleich false,
+  `SData:BaseUrl` leer, `SageLagerbuchungAktiv=false`. **Auffällig:** VORHER stand `SData:BaseUrl = https://sagetest01.ake.at:5493/`
+  in `IDEAL_WMS_DEV` (am 29.10. noch leer; Urheber nicht feststellbar, `ServiceSettings` hat keine Audit-Spalten). Die Absicherung
+  hat es zurückgesetzt; siehe Befund am Skript in [[2026-10-29-dev-umgebung-lokal]].
+
+**Werkzeug:** Die Chrome-Erweiterung meldet zwei verbundene Browser und verlangt eine Auswahl durch den Menschen. Als Unteragent
+kann ich nicht nachfragen, deshalb gab es **keine Browser-Sicht**. Belegt wurde per HTTP (HttpClient mit Windows-Anmeldung
+`AKENB\gerald.weichbold`, ausgewertet: Ziel-URL nach Redirects, Menülink `href="/SageSdataFa"`, `alert`-Texte, `id="belId"`,
+„Diagnose:“) sowie per DB und Logs. Optik, Klickverhalten und Kontrast sind damit **nicht** gesehen.
+
+**Testschritte gegen http://localhost:8082** (Gate über `dbo.AppSettings` geschaltet; Rollen über eine kurzzeitige Änderung
+`UserRoles.Id=23` des eigenen DEV-Benutzers, danach auf `RoleId=1` (admin) zurückgesetzt und geprüft)
+
+| Schritt | Durchgeführt | Ergebnis | Bewertung |
+|---|---|---|---|
+| 103.1 Gate aus | Schlüssel fehlte (Default); GET `/`, `/SageSdataFa`, `/SageSdataFa?belId=835` | kein Menülink; beide URLs → `/` mit `alert-warning` „Die Sage-Live-Ansicht der FA-Struktur ist deaktiviert.“ | OK (HTTP) |
+| 103.2 Gate an, picking | `SageSdataFaAnsichtAktiv=true`, Benutzer nur Rolle picking | Menülink „FA-Struktur (Sage live)“ da, `/SageSdataFa` → 200, Titel „FA-Struktur (Sage live)“ | OK (HTTP) |
+| 103.2 Gate an, admin | wie oben, Rolle admin | Menülink da, Seite 200 | OK (HTTP) |
+| 103.2 ohne passende Rolle | Benutzer nur Rolle stock | kein Menülink; `/SageSdataFa` und `?belId=835` → `/Account/AccessDenied` („Zugriff verweigert“) | OK (HTTP) |
+| 103.8 BaseUrl leer | DEV-Stand (`SData:BaseUrl` leer) | `alert-info` „Sage-SData nicht konfiguriert: SData:BaseUrl, SageLagerbuchung:Username.“; **kein** Eingabefeld, **keine** Diagnose; Web-Log ohne ausgehenden HttpClient-Aufruf | OK (HTTP + Log) |
+| 103.8 BaseUrl mit `user:pw@` | – | – | NICHT MOEGLICH: `SData:BaseUrl` auf DEV gesperrt |
+| 103.5 `999999999` / `0` / `abc` | GET `?belId=999999999`, `?belId=0`, `?belId=abc` | alle drei: HTTP 200, nur „nicht konfiguriert“, kein Feld, keine Diagnose, keine Validierungsmeldung, keine Fehlerseite (Controller prüft Konfiguration vor `belId`). Robust: kein 400/500 bei `abc`. | Teil OK (kein Absturz); „nicht gefunden“ und Validierungstext NICHT MOEGLICH: `SData:BaseUrl` auf DEV gesperrt |
+| TLS-Warnbanner (Teil von 103.11) | DEV hat `SageLagerbuchungSslZertifikatPruefen=false` | `alert-warning` „Achtung: Die TLS-Zertifikatsprüfung für Sage ist deaktiviert …“ wird angezeigt | OK (HTTP) |
+| Hilfe | GET `/Help` | Abschnitt „FA-Struktur live aus Sage (seit v1.71.0)“ vorhanden | OK (HTTP) |
+| Changelog | GET `/Help/Changelog` | Karte „v1.71.0 · 30.10.2026“, „FA-Struktur live aus Sage (Machbarkeitsnachweis, nur lesen)“ | OK (HTTP) |
+| QA Q-3 Auf/Zu-Dreieck | – | Sub-FA-Karten gibt es nur mit geladener Struktur | NICHT MOEGLICH: `SData:BaseUrl` auf DEV gesperrt (und keine Browser-Sicht) |
+| 103.3, 103.3b, 103.4, 103.6, 103.7, 103.9, 103.10, 103.11 (Aufrufe), 103.12, 103.13 | – | – | NICHT MOEGLICH: `SData:BaseUrl` auf DEV gesperrt, brauchen die echte Sage-Verbindung → akenet01 |
+
+**Logs nach dem Deploy:** Dienst-Log `D:\Dev\IDEAL\Service\logs\service-20261030.log` ab 11:55 ohne `[ERR]`/`[FTL]` (nur
+vorbestehende EF-Modell-Warnungen und die TLS-Warnung des SageBookingWorkers). `dbo.SyncLogs` seit 11:55: 6 × Info
+(BdeAutoPause, CleanupAktivitaetsprotokoll, FaMaterialization), 0 Warnung/Fehler. Web-Log `D:\Dev\IDEAL\Web\logs\` ab 11:55:
+0 `[ERR]`/`[FTL]`, kein ausgehender Sage-Aufruf.
+
+**Nebenbeobachtung (kein Spec-Befund):** `appcmd recycle apppool` griff nicht sofort; für etwa 20 s lieferten Anfragen noch den
+gecachten Gate-Wert (überlappendes Recycling, Cache 2 min). Am Testsystem: nach dem Umschalten des Gates über die DB bis zu
+2 Minuten warten. Das Umschalten über die Standorteinstellungen leert den Cache.
+
+**Endzustand DEV:** `SageSdataFaAnsichtAktiv=false` (Zeile neu angelegt, vorher fehlend = aus), Benutzer 8 wieder admin,
+`SData:BaseUrl` leer, 0 Schalter an.
+
+**Bewertung Schritt 6:** 0 FEHLER. `status: Testbereit` bleibt. Offen für Gerald (ergänzt die Checkliste oben): Sichtprüfung im
+Browser von 103.1/103.2 (Menü, Warnbanner), dann alle Sage-abhängigen Schritte (Checkliste Punkte 4–9) auf akenet01.
+
+### UAT-Befund U-1 (2026-10-30): Atom-XML statt JSON
+
+Erster echter Aufruf gegen den AKE-Sage-Test: `dtsFaBelegsuche?where=BelID eq 835&…&format=json` → HTTP 200, aber **Atom-XML** (`<feed …><sdata:payload>`); die Seite meldete korrekt „FA-Suche fehlgeschlagen (Antwort nicht lesbar …)“ und übersprang den Rest (QA-Fix Q-1 griff). Ursache (Hypothese, belegt durch [[sage-sdata-realtimedata]] Z. 13 und [[sage-sdata-uebersicht]] Z. 80): Sage richtet sich nach dem `Accept`-Header; `HttpClient` sendet keinen, die Lesetests liefen mit Postman/Chrome. Fix `51c3203d` im Worktree: `Accept: application/json` je Anfrage, Test `Struktur_GesendeteUrl_MethodeUndAuth` prüft den Header. Build 0 Fehler, Web 2254 / 1 übersprungen, Dienst 328. **Bestätigung offen:** nach Redeploy `835` erneut laden; bei JSON-Antwort Hypothese bestätigt → Eintrag in [[fallstricke]].
+
+**U-1 bestätigt (2026-10-30, DEV IDEAL `http://localhost:8082`, Stand `51c3203d`, deployt per `dev-deploy.ps1 -Quelle <Worktree>`,
+`SData:BaseUrl` = AKE-Sage-Test, `SageLagerbuchungAktiv = false`):**
+
+| TS | Ergebnis | Beleg |
+|---|---|---|
+| 103.3 `835` | OK | 7 FA-Karten (835 Haupt-FA `MAN`, 836–841 Sub-FA Ebene 1, alle „Eingelastet“), 17 Positionszeilen, 6 Sub-FA-Links, Position 00722001 „0,6“; keine Zuordnungswarnung; Diagnose 5 Aufrufe, alle 200 (1/7/17/0/0 Zeilen), Positionen per `or` über 7 BelIDs |
+| 103.3b `846` | OK | 3 FA-Karten (846 Haupt-FA **`VK`**, 848/847 Sub-FA Ebene 1, „Nicht eingelastet“), 20 Positionszeilen, 2 Sub-FA-Links, keine Warnung; 5 Aufrufe 200 |
+| 103.4 `836` | OK | Hinweis „BelID 836 gehört zur Struktur 835 – angezeigt wird die ganze Struktur.“, danach wie 103.3 |
+| 103.7 Rückmeldestand | OK | `dtsRueckKorrektur`/`dtsFertigmeldungen` 200 mit 0 Zeilen (Test-Mandant leer) |
+| TLS-Banner | OK | DEV hat `SageLagerbuchungSslZertifikatPruefen = false` → Warnbanner sichtbar |
+
+Belegt per HTTP-Abruf (Windows-Auth, Skript im Scratchpad), nicht im Browser angesehen. Logs: Dienst 0 ERR/FTL seit Deploy 12:19;
+die zwei Web-WRN „Antwort nicht lesbar“ stammen von 12:14 (Stand vor dem Fix). Weiter offen für akenet01: 103.6, 103.9–103.12
+(Fehlerfälle, Rohdaten-Ansicht) und Sichtprüfung im Browser. Dauerwissen in [[fallstricke]] („Sage-SData liefert ohne
+`Accept`-Header Atom-XML“).

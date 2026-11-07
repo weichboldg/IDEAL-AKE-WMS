@@ -1284,3 +1284,4 @@ keine neue Rolle · kein Einmal-Skript.
 13. Testprotokoll IDEAL-Test Schritte 5–8: die 7 AKE-Zeilen **erst nach dem ersten Lauf** löschen; Folgelauf legt SL/ST mit IDEAL-Namen an; App-Pool-Recycle → keine OSEON-Seed-Zeilen.
 14. TS-94.18 Seeds nur auf Wegwerf-DB.
 15. AKE-Regression (Schalter aus): OSEON-Teileverfolgung/-Reporting stichprobenartig wie vorher, P4 vorher/nachher.
+- Browser-Abnahme 2026-10-21: [[2026-10-21-ideal-v1-59-bis-v1-64-browser-testbericht]] - 45 OK, 2 FEHLER, 1 nicht pruefbar, 0 Protokoll passt nicht

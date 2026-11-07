@@ -772,9 +772,12 @@ bleiben die zwei neuen Key-Zeilen als verwaiste ServiceSettings-Zeilen liegen. S
   ist fuer das Skript unsichtbar; dagegen hilft nur die Bestaetigung der Liste.
 - **00er kommen zurueck:** Laeuft die Bereinigung vor dem View-Umschalten oder wird `Sync:ArticlesViewName`
   spaeter geleert, legt der alte Select sie wieder an. Abwehr: Guard im Skript und Hinweis im Rueckweg.
-- **Namensverwechslung:** Die View heisst `…_Arbeitsgaenge`, liefert aber **Arbeitsplaetze** (Werkbaenke).
-  Glossar: Werkbank = Sage-Arbeitsplatz, Arbeitsgang = `WorkOperation`. Das gehoert beim /dev als Hinweis in
-  `fallstricke.md` (§16), damit niemand die View fuer die Arbeitsgang-Quelle haelt.
+- **Begriffe (Gerald 2026-10-15, wie Begriffsklaerung [[2026-09-21-ideal-bde-arbeitsgaenge-aus-struktur-spec]]):**
+  Die View liefert die IDEAL-**Arbeitsgaenge**. Bei IDEAL ist ein Arbeitsgang ein Sage-Arbeitsplatz, und der ist
+  im WMS die Werkbank (`ProductionWorkplace`, Kuerzel `AG` -> `ArbeitsschrittCode`). Die View ist der
+  Arbeitsgang-**Katalog**; die BDE-Arbeitsgaenge je FA (`WorkOperation`) entstehen daraus ueber die
+  Struktur-Erkennung (Kuerzel der FA-Struktur gegen `ArbeitsschrittCode`). Die View schreibt nicht direkt in
+  `WorkOperation`, weil sie keinen FA-Bezug hat.
 
 ## Offene Rueckfragen
 
@@ -1204,3 +1207,4 @@ migration nein — Frontmatter unveraendert gueltig. Publish-Befehle und Reihenf
 3. `sys.columns` der View notieren (Typ von `Arbeitsgangnummer`, siehe Q2-3), dann P3b in beide Richtungen → leer.
 4. Key `[vw_IDEAL_AKE_WMS_Arbeitsgaenge]` → Lauf erfolgreich, kein „Ungueltiger Spaltenname“, `neu = 0`, `abweichung = 0`, Werkbank-Liste unveraendert (Nummern mit fuehrenden Nullen).
 5. Negativ: Key `[dbo].[KHKPpsArbeitsplaetze]` → wieder Tabellenweg mit Mandant-Filter, Counts wie Schritt 2.
+- Browser-Abnahme 2026-10-21: [[2026-10-21-ideal-v1-59-bis-v1-64-browser-testbericht]] - 45 OK, 2 FEHLER, 1 nicht pruefbar, 0 Protokoll passt nicht

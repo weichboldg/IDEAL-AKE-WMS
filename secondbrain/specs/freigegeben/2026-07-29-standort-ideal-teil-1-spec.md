@@ -2,7 +2,8 @@
 type: spec
 title: "IDEAL-Standort Teil 1 — Struktur-Fundament FaHierarchyNode (Import FAListe/FAInfos)"
 slug: 2026-07-29-standort-ideal-teil-1-spec
-status: Freigegeben
+status: Testbereit
+# Status nachgezogen (Koordination 2026-10-14): umgesetzt im Buendel v1.31.0, Beleg changelog/2026-08-10-v1-31-0-ideal-teile-1-5.md
 created: 2026-08-06
 updated: 2026-08-07
 source_backlog: "[[2026-07-29-Standort-IDEAL]]"

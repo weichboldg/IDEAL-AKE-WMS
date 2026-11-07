@@ -325,8 +325,9 @@ WHERE v.Wert IS NOT NULL AND (
 „SQL-Wege ignorieren Groß/Klein" **unverifiziert**.
 
 **Prüfschritt P-3 (Server-Kultur, Zahlen):** Die App setzt keine Request-Kultur ([[fallstricke]] §22). Am
-Testsystem eine Zahlspalte mit Nachkommastellen ansehen (z. B. Beschichtungsauftrag `breite`): steht `2,5` (de) oder
-`2.5` (en)? Regel 6 setzt deutsches Format voraus – bei `2.5` würde `>2` falsch gelesen. **Unverifiziert** bis
+Testsystem eine Zahlspalte mit Nachkommastellen ansehen, die mit der Server-Kultur formatiert wird (FA-Liste „Stk.“ –
+NICHT Beschichtungsauftrag `breite`: `FormatMass` formatiert fest de-DE, `BeschichtungsauftragService.cs:65`, beweist also nichts;
+Nachzug Koordination 2026-10-13): steht `2,5` (de) oder `2.5` (en)? Regel 6 setzt deutsches Format voraus – bei `2.5` würde `>2` falsch gelesen. **Unverifiziert** bis
 gesehen; bei en-Kultur stoppt der Dev-Lauf und meldet.
 
 ## Audit-Feld-Auswirkungen

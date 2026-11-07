@@ -177,6 +177,8 @@ Ergebnis (je Abfrage CPU-Zeit, verstrichene Zeit, logische Lesevorgänge, Plan-O
 Das Ergebnis zusätzlich in TS-91.B1 („Ergebnis: ______“) eintragen.
 
 **A6 — Testdaten (IDEAL-WMS-DB).** [ ]
+**Kurzweg (Koordination 2026-10-13):** `secondbrain/tests/2026-10-13-ts-91-testdaten.sql` liefert alle Platzhalter in EINEM Lauf als
+Tabelle „Platzhalter | Wert“ (Stichtage automatisch gewählt, `KEIN_FALL` gesetzt). Die Einzelabfragen unten bleiben zum Nachprüfen.
 Kein Treffer für einen Fall: beim Platzhalter `KEIN_FALL` eintragen; Cowork wertet den Schritt(-Teil) dann als NICHT PRUEFBAR.
 `<…>` in späteren Abfragen durch den zuvor ermittelten Wert ersetzen.
 

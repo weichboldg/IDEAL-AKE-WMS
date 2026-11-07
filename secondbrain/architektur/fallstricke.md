@@ -37,6 +37,15 @@ Baugruppe gebucht — die darunterliegenden Teile werden **ignoriert**.
 zusaetzlich die Einzelteile buchen, waere der Bestand doppelt abgebucht. Wer die Picking-Logik
 anfasst, muss diese Verzweigung erhalten.
 
+### Sage-SData liefert ohne `Accept`-Header Atom-XML — `format=json` allein reicht nicht (v1.71.0)
+`GET …/RealTimeData/…?…&format=json` aus einem `HttpClient` ohne `Accept`-Header kam als **Atom-XML** (`<feed>…<sdata:payload>`)
+zurück, obwohl Sage den Parameter sah (er steht im echoten `<id>`). Postman/Chrome senden eigene `Accept`-Header, daher lieferten
+die Lesetests JSON und die Fixtures sahen richtig aus. **Warum es weh tat:** Der erste echte Aufruf scheiterte mit
+„'<' is an invalid start of a value“; ohne den QA-Fix Q-1 wäre es still als „nicht gefunden“ durchgegangen.
+**Regel:** Jeder SData-Lese-Client setzt `Accept: application/json` (`SageSdataReadClient`, Fix `51c3203d`, belegt am
+AKE-Sage-Test 2026-10-30: 835/836/846 alle 200 mit JSON). Fixtures aus Postman/Browser belegen nur den Inhalt, nicht das
+Verhalten des eigenen HTTP-Clients — mindestens ein echter Aufruf mit dem eigenen Client gehört vor „Testbereit“.
+
 ### Sage VB6-Booleans sind BIT mit `-1` fuer TRUE
 Sage-Tabellen (`KHKArtikel`, `KHKArtikelvarianten`, …) speichern Boolean-Spalten als BIT, aber mit
 `-1` fuer TRUE. Filter immer als `IstBestellartikel = -1 AND Aktiv = -1`.
@@ -1447,9 +1456,11 @@ CR, kein `.gitattributes`).
 **Warum es weh tut:** Ein Vollwechsel der Zeilenenden macht aus 30 Zeilen Diff 18.000 — Review am Merge-Diff
 blind, `git blame` für das ganze Abnahmedokument verloren, Vollkonflikt bei jeder Parallel-Änderung.
 **Regel:** Nach `git add docs/TESTSZENARIEN.md` prüfen:
-`git show :docs/TESTSZENARIEN.md | python -c "import sys;print(sys.stdin.buffer.read().count(b'
+`git show :docs/TESTSZENARIEN.md | python -c "import sys;print(sys.stdin.buffer.read().count(b'
+
 '))"` muss `0`
-ergeben, sonst die Datei auf LF umschreiben und neu stagen. **Nicht** mit `grep -c $'$'` messen — das zählt unter
+ergeben, sonst die Datei auf LF umschreiben und neu stagen. **Nicht** mit `grep -c $'
+$'` messen — das zählt unter
 Git Bash auch bei LF-Blobs jede Zeile (Fehlbefund 2026-10-08: v1.47.3-Commits fälschlich als CRLF gemeldet).
 Dauerhafte Lösung (nicht umgesetzt, eigene Entscheidung): `.gitattributes` mit `*.md text eol=lf`.
 
@@ -1667,3 +1678,50 @@ Pflegefelder (§24-Muster), damit das Web die Kennzeichnung nicht mit dem Ladest
 Die Option „nur AG-Fertigmeldung“ speichert eine `Production/Finished`-Buchung mit Dauer 0 + `IsFinal`-Menge. Alle
 „erledigt“-Abfragen greifen ohne Änderung; die Zeitaufteilung blendet Dauer 0 aus (`BdeTimeSplitService.cs:43`). **Wer**
 Auswertungen über Ist-Zeiten baut: Werkbänke mit dieser Option liefern Ist-Zeit 0 — kein Datenfehler.
+
+## 29. Scannen ohne Feld am Netum (v1.71.1) — Skript-Fokus startet keine Eingabemethode
+
+### Grünes Feld ist kein Beweis für Scanbereitschaft
+Die Netum-„Fokus-Eingabe“ schreibt den Scan über die Android-Eingabemethode (IME) ins fokussierte Feld. Die IME startet nur, wenn ein
+**Benutzer** ein Feld antippt, das eine Tastatur zulässt. Ein `focus()` aus dem Skript setzt zwar `document.activeElement` und `:focus`
+(das Feld wurde grün), startet aber **keine** Eingabemethode – der Scan kommt nicht an. `inputmode="none"` im Markup verhindert den Start
+auch beim Tipp.
+**Warum das wichtig ist:** v1.68.1 zeigte nach Skript-Fokus grün, am Gerät als „bereit“ gelesen, obwohl nichts ankam (Freigabe-Nachtrag 7,
+Befund 1/2). Deshalb: Bereitschaft nur nach einer Geste anzeigen (`pointerdown` → `focus`), `inputmode="none"` erst ~300 ms danach setzen
+(Tastatur klappt ein, die IME-Verbindung bleibt) und bei `blur` wieder entfernen. Ein wiederholter oder verzögerter `focus()` bzw. `pageshow`
+hilft nicht; ganz ohne Tipp ist das aus Chrome nicht erreichbar. Geräte mit Tasten-Ereignissen (Tastatur-Emulation, z. B. Zebra DataWedge
+Keystroke) brauchen keinen Tipp – darum bleibt der Skript-Fokus, zeigt aber grau.
+Code: `hardware-scanner.js` Block „Scannen ohne Feld“, CSS `.hw-scan-bereit`.
+
+## Sage-SData-Lesen (v1.73.0, [[2026-11-06-sage-sdata-stammdaten-sync-spec]])
+
+- **`startIndex` ist 0-basiert.** Am AKE-Test liefert `startIndex=1` die erste Zeile nicht (LagerorteInfo 35 von 36; Lookup mit einem Treffer leer).
+  **Warum wichtig:** Ein Reader mit 1 wirft „unvollständig gelesen“ oder – ohne diesen Guard – verliert still eine Zeile (QA B1, Fix `c8c6b210`).
+- **Falscher Feldname ohne `select` kommt still als `null`; mit `select` als HTTP 500.** Unbelegte Felder nie ins `select`; Abgleiche, die
+  deaktivieren/nullen, prüfen Pflichtfelder und werfen (`SdataBestandReader.Abbilden`). Spec-Feldlisten gegen das P-S1-Schema prüfen
+  (z. B. kein `Aktiv` in `PpsStillstandsbegruendungenInfo`, kein `IstSperrlager` in `LagerorteInfo`).
+- **Liefert eine Quelle das Schlüssel-/Gruppierfeld gar nicht, ausdrücklich signalisieren** (`ArbeitsschrittGeliefert`), sonst wird alles „nicht in Sage“.
+- **Bool-Filter-DTOs ohne Default `true`** – ein fehlendes JSON-Feld würde still als „eingelastet/aktiv“ gelesen.
+- **`SyncLogs.Message` hat 1000 Zeichen**; zu lange Meldungen gehen beim Schreiben still verloren → Diagnosen kappen.
+- **EF `HasDefaultValue` auf bool/int-Status verschluckt explizite `false`/`0` beim Insert** (Sentinel) → DEFAULT nur in Migration/SQL.
+- **Artikel-Bearbeitung postet alle aktiven Merkmale; `SaveValuesAsync` löscht „kein Bool/keine Option“** → Merkmale ohne Formularfeld (Text, Sage) serverseitig ausnehmen.
+- **`PickingTransferService` schreibt `StockMovements` am Sage-Decorator vorbei** → Umbuchungen nur über die Nacherfassung (15 min); Regeln (z. B. FA-Bezug) deshalb in Decorator UND `EnqueueMissingAsync`.
+- **`ne`/`gt` auf Textfeldern liefert am AKE-Test immer 0 Treffer** (Koordination 2026-11-07, `ArtikelVariantenExtended`, nur lesend):
+  `Hauptlieferant ne null` → 0, `ne ''` → 0, `gt ''` → 0; dagegen `Hauptlieferant like 'K%'` → 23.509, `eq 'K31013'` → 121, ungefiltert 279.529,
+  `00722001` hat `Hauptlieferant`/`LetzterLieferant` = `K31013`. **Warum wichtig:** Ein „nicht leer“-Filter liefert still 0 Zeilen statt eines
+  Fehlers (Artikel-Lieferanten-Lauf 07.11. 09:20: `ArtikelVariantenExtended` 0 Zeilen in 13 ms, `hauptlieferant=0`). Nicht-leer-Filter clientseitig
+  oder über `like`; 0 Zeilen bei einer Quelle, die nie leer sein kann, als Fehler/Warnung behandeln.
+  *Umgesetzt `28afd9cc`:* beide `ne ''`-Filter auf `like '_%'` (mind. ein Zeichen, ohne Präfix-Annahme; `PpsRessourcenPositionenInfo` 240.552 = alle).
+  Numerische `eq` (z. B. `IstBestellartikel eq -1`) sind unauffällig (43.144).
+- **Kontokorrent liefert weder Name noch Adresse** (liegen in `Adressen`, Verweis `Kontokorrent.Adresse`). *Überholt 2026-11-07:* `Adressen` und
+  `Ansprechpartner` sind am AKE-Test belegt und werden nachgelesen. Bleibt: **Hausadresse = `Liefer*`**, `Post*` ist das Postfach (fast leer);
+  **`Ansprechpartner.Vorname/Nachname` können `nil` sein** – dann das Feld `Ansprechpartner` nehmen. **Warum wichtig:** sonst leere Namen bzw.
+  leere Adressen bei fast allen Konten.
+- **Sage-Spalten sind teils länger als die WMS-Spalten** (`LieferPLZ` 24 → `PostalCode` 20, `EMail` 255 → `Email` 200). **Warum wichtig:** Ein
+  einziger zu langer Wert kippt `SaveChanges` und damit den ganzen Lauf bei jedem Zyklus (QA Q1, Fehler 2628). Je Feld gegen die Spaltenlänge
+  prüfen; zu lang = nicht schreiben + Warnung (nicht kürzen, eine gekürzte PLZ/E-Mail ist falsch) – `KontokorrentSyncService.AdressFelder`.
+- **Sage-Matchcodes sind nicht eindeutig** (AKE-Test: 2.287 Kreditoren-Konten / 2.280 Matchcodes). **Warum wichtig:** Ein Matchcode taugt nie als
+  Schlüssel oder für ein Feld mit UNIQUE-Index (`ShortName`) – der Lauf würde beim Speichern am Index scheitern. Schlüssel ist immer `Kto`.
+- **Quellensperren (offene Prüfabfrage) an EINEM Ort: `SageQuelleSperre`** (Web-Projekt), gelesen von der Dienst-Weiche und von `/ServiceSettings`.
+  **Warum wichtig:** Stand die Sperre nur im Dienst (`SdataGesperrtBis`), zeigte die Maske `SData` als gültig, der Lauf las aber still View –
+  Protokoll und Maske liefen auseinander (B6). Artikel ist nur gesperrt, wenn `Sync:ArticlesViewName` gesetzt ist (IDEAL); nicht lesbar = gesperrt.

@@ -1,0 +1,2547 @@
+﻿-- =====================================================================================================
+-- IDEAL-AKE WMS — Neuinstallation PRODUKTIVSYSTEM IDEAL — Teil 1: Datenbank-Schema
+-- Stand: Bündel feature/2026-08-07-ideal-teile-1-5, v1.71.1 (SQL/00_FreshInstall.sql vom 2026-11-04,
+--        letzte Migration 20261019092105_AddProductionWorkplaceSageMissingSinceAndNurAgFertigmeldung)
+--
+-- Voraussetzung: Die Datenbank [IDEAL_AKE_WMS] ist LEER angelegt (Kollation *_CI_*, empfohlen
+--                Latin1_General_CI_AS). Der Name ist fest: Web und Dienst bekommen ihn über den
+--                Connection-String, dieses Skript prüft genau diesen Namen.
+-- Ausführung:    SSMS (normaler Modus) oder
+--                sqlcmd -S <Server> -E -b -f 65001 -i "IDEAL-Prod-1-Datenbank.sql"
+--                Als Login mit db_owner auf der Datenbank und ALTER-Recht für READ_COMMITTED_SNAPSHOT.
+--                Während der Ausführung darf niemand sonst mit der Datenbank verbunden sein.
+--
+-- Was das Skript tut:
+--   0. Prüft: Datenbank vorhanden, Kollation CI, leer. Bricht sonst ab, ohne etwas zu ändern
+--      (SET NOEXEC ON: auch in SSMS laufen danach keine weiteren Batches; am Ende SET NOEXEC OFF).
+--   0. Schaltet READ_COMMITTED_SNAPSHOT ein (Pflicht für den IDEAL-Struktur-Import, nicht im FreshInstall).
+--   1. Ab Abschnitt "1. Users": unveränderter Inhalt von SQL/00_FreshInstall.sql (ohne CREATE DATABASE).
+--      Dazu gehören __EFMigrationsHistory bis zur letzten Migration — der Web-Start migriert dann nichts.
+-- Danach: Web einmal starten (legt die restlichen Einstellungen an), dann Teil 2 (Konfiguration).
+-- =====================================================================================================
+
+USE [master];
+GO
+
+SET NOCOUNT ON;
+GO
+
+-- ---- 0a. Datenbank vorhanden? Kollation CI? ---------------------------------------------------------
+IF DB_ID(N'IDEAL_AKE_WMS') IS NULL
+    BEGIN
+    RAISERROR(N'ABBRUCH: Datenbank [IDEAL_AKE_WMS] existiert nicht. Bitte vorab leer anlegen (COLLATE Latin1_General_CI_AS).', 16, 1) WITH NOWAIT;
+    SET NOEXEC ON;  -- alle folgenden Batches werden nicht mehr ausgeführt (auch in SSMS)
+END
+GO
+
+IF CONVERT(nvarchar(128), DATABASEPROPERTYEX(N'IDEAL_AKE_WMS', 'Collation')) NOT LIKE N'%[_]CI[_]%'
+    BEGIN
+    RAISERROR(N'ABBRUCH: Kollation der Datenbank ist nicht case-insensitiv (_CI_). Pflicht für Filter und Sync — Datenbank neu anlegen.', 16, 1) WITH NOWAIT;
+    SET NOEXEC ON;  -- alle folgenden Batches werden nicht mehr ausgeführt (auch in SSMS)
+END
+GO
+
+IF CONVERT(nvarchar(128), DATABASEPROPERTYEX(N'IDEAL_AKE_WMS', 'Collation')) <> N'Latin1_General_CI_AS'
+    PRINT N'HINWEIS: Kollation ist ' + CONVERT(nvarchar(128), DATABASEPROPERTYEX(N'IDEAL_AKE_WMS', 'Collation'))
+        + N' statt Latin1_General_CI_AS (Standard aller bisherigen Systeme). Läuft weiter, bitte bewusst entscheiden.';
+GO
+
+USE [IDEAL_AKE_WMS];
+GO
+
+-- ---- 0c. Datenbank leer? -----------------------------------------------------------------------------
+IF EXISTS (SELECT 1 FROM sys.tables WHERE is_ms_shipped = 0)
+    BEGIN
+    RAISERROR(N'ABBRUCH: Die Datenbank enthält bereits Tabellen. Dieses Skript ist nur für eine LEERE Datenbank — abgebrochen, nichts geändert.', 16, 1) WITH NOWAIT;
+    SET NOEXEC ON;  -- alle folgenden Batches werden nicht mehr ausgeführt (auch in SSMS)
+END
+GO
+
+USE [master];
+GO
+
+-- ---- 0b. READ_COMMITTED_SNAPSHOT (Pflicht, siehe Spec standort-ideal-uebersicht) ---------------------
+IF (SELECT is_read_committed_snapshot_on FROM sys.databases WHERE name = N'IDEAL_AKE_WMS') = 0
+BEGIN
+    ALTER DATABASE [IDEAL_AKE_WMS] SET READ_COMMITTED_SNAPSHOT ON WITH ROLLBACK IMMEDIATE;
+    PRINT N'READ_COMMITTED_SNAPSHOT eingeschaltet.';
+END
+GO
+
+IF (SELECT is_read_committed_snapshot_on FROM sys.databases WHERE name = N'IDEAL_AKE_WMS') = 0
+    BEGIN
+    RAISERROR(N'ABBRUCH: READ_COMMITTED_SNAPSHOT konnte nicht eingeschaltet werden (andere Verbindungen offen?).', 16, 1) WITH NOWAIT;
+    SET NOEXEC ON;  -- alle folgenden Batches werden nicht mehr ausgeführt (auch in SSMS)
+END
+GO
+
+USE [IDEAL_AKE_WMS];
+GO
+
+PRINT N'Prüfungen bestanden — Schema wird angelegt.';
+GO
+
+-- =====================================================================================================
+-- Ab hier: Inhalt von SQL/00_FreshInstall.sql ab Abschnitt "1. Users" (unverändert)
+-- =====================================================================================================
+
+-- =============================================
+-- 1. Users
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'Users')
+BEGIN
+    CREATE TABLE [dbo].[Users] (
+        [Id]                        INT IDENTITY(1,1) NOT NULL,
+        [Name]                      NVARCHAR(200)     NOT NULL,
+        [PersonalNumber]            NVARCHAR(50)      NULL,
+        [PasswordHash]              NVARCHAR(500)     NULL,
+        [WindowsUserName]           NVARCHAR(200)     NULL,
+        [IsActive]                  BIT               NOT NULL DEFAULT 1,
+        [DefaultFilterBeschaffung]  NVARCHAR(100)     NULL,
+        [DefaultFilterArtikelgruppe] NVARCHAR(100)    NULL,
+        [HasMasterDataAccess]       BIT               NOT NULL DEFAULT 0,
+        [RecursiveFilterSearch]     BIT               NOT NULL DEFAULT 0,
+        [Email]                     NVARCHAR(200)     NULL,
+        [IsAdmin]                   BIT               NOT NULL DEFAULT 0,
+        [NotifyOnReorderLevel]      BIT               NOT NULL DEFAULT 0,
+        [CanPick]                   BIT               NOT NULL DEFAULT 0,
+        [CanViewTracking]           BIT               NOT NULL DEFAULT 0,
+        [CanReportOperations]       BIT               NOT NULL DEFAULT 0,
+        [IsPicker]                  BIT               NOT NULL DEFAULT 0,
+        [DefaultPageSize]           INT               NULL,
+        [DefaultWorkStepId]         INT               NULL,
+        [DefaultWorkbenches]        NVARCHAR(400)     NULL,
+        [DefaultFilterFaWorklistDescription1] NVARCHAR(200) NULL,
+        [DefaultFilterBomDescription1] NVARCHAR(200) NULL,
+        [DefaultFilterBomKommissionierziel] NVARCHAR(200) NULL,
+        [CreatedAt]                 DATETIME2         NOT NULL DEFAULT GETDATE(),
+        [CreatedBy]                 NVARCHAR(200)     NOT NULL,
+        [CreatedByWindows]          NVARCHAR(200)     NOT NULL,
+        [ModifiedAt]                DATETIME2         NULL,
+        [ModifiedBy]                NVARCHAR(200)     NULL,
+        [ModifiedByWindows]         NVARCHAR(200)     NULL,
+        CONSTRAINT [PK_Users] PRIMARY KEY CLUSTERED ([Id])
+    );
+    PRINT 'Tabelle Users erstellt.';
+END
+GO
+
+-- =============================================
+-- 2. Workstations
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'Workstations')
+BEGIN
+    CREATE TABLE [dbo].[Workstations] (
+        [Id]                INT IDENTITY(1,1) NOT NULL,
+        [Name]              NVARCHAR(200)     NOT NULL,
+        [Location]          NVARCHAR(200)     NULL,
+        [DefaultUserId]     INT               NULL,
+        [DefaultPrinter]    NVARCHAR(500)     NULL,
+        [CreatedAt]         DATETIME2         NOT NULL DEFAULT GETDATE(),
+        [CreatedBy]         NVARCHAR(200)     NOT NULL,
+        [CreatedByWindows]  NVARCHAR(200)     NOT NULL,
+        [ModifiedAt]        DATETIME2         NULL,
+        [ModifiedBy]        NVARCHAR(200)     NULL,
+        [ModifiedByWindows] NVARCHAR(200)     NULL,
+        CONSTRAINT [PK_Workstations] PRIMARY KEY CLUSTERED ([Id]),
+        CONSTRAINT [FK_Workstations_DefaultUser] FOREIGN KEY ([DefaultUserId]) REFERENCES [dbo].[Users]([Id])
+    );
+    PRINT 'Tabelle Workstations erstellt.';
+END
+GO
+
+-- =============================================
+-- 3. WorkstationUsers
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'WorkstationUsers')
+BEGIN
+    CREATE TABLE [dbo].[WorkstationUsers] (
+        [Id]                INT IDENTITY(1,1) NOT NULL,
+        [WorkstationId]     INT               NOT NULL,
+        [UserId]            INT               NOT NULL,
+        [CreatedAt]         DATETIME2         NOT NULL DEFAULT GETDATE(),
+        [CreatedBy]         NVARCHAR(200)     NOT NULL,
+        [CreatedByWindows]  NVARCHAR(200)     NOT NULL,
+        [ModifiedAt]        DATETIME2         NULL,
+        [ModifiedBy]        NVARCHAR(200)     NULL,
+        [ModifiedByWindows] NVARCHAR(200)     NULL,
+        CONSTRAINT [PK_WorkstationUsers] PRIMARY KEY CLUSTERED ([Id]),
+        CONSTRAINT [FK_WorkstationUsers_Workstation] FOREIGN KEY ([WorkstationId]) REFERENCES [dbo].[Workstations]([Id]) ON DELETE CASCADE,
+        CONSTRAINT [FK_WorkstationUsers_User] FOREIGN KEY ([UserId]) REFERENCES [dbo].[Users]([Id]),
+        CONSTRAINT [UQ_WorkstationUsers] UNIQUE ([WorkstationId], [UserId])
+    );
+    PRINT 'Tabelle WorkstationUsers erstellt.';
+END
+GO
+
+-- =============================================
+-- 4. StorageLocations
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'StorageLocations')
+BEGIN
+    CREATE TABLE [dbo].[StorageLocations] (
+        [Id]                INT IDENTITY(1,1) NOT NULL,
+        [Code]              NVARCHAR(50)      NOT NULL,
+        [Description]       NVARCHAR(200)     NULL,
+        [Zone]              NVARCHAR(100)     NULL,
+        [Capacity]          DECIMAL(18,2)     NULL,
+        [BarcodeValue]      NVARCHAR(50)      NULL,
+        [IsPickingTransport] BIT              NOT NULL DEFAULT 0,
+        [Source]            NVARCHAR(20)      NOT NULL DEFAULT 'Manual',
+        [IsActive]          BIT               NOT NULL DEFAULT 1,
+        [IstBuchbar]        BIT               NOT NULL DEFAULT 1,
+        [SageBuchungErlaubt] BIT              NOT NULL DEFAULT 0,
+        [SageLagerkennung]  NVARCHAR(50)      NULL,
+        [SageLagerplatzId]  INT               NULL,
+        [CreatedAt]         DATETIME2         NOT NULL DEFAULT GETDATE(),
+        [CreatedBy]         NVARCHAR(200)     NOT NULL,
+        [CreatedByWindows]  NVARCHAR(200)     NOT NULL,
+        [ModifiedAt]        DATETIME2         NULL,
+        [ModifiedBy]        NVARCHAR(200)     NULL,
+        [ModifiedByWindows] NVARCHAR(200)     NULL,
+        CONSTRAINT [PK_StorageLocations] PRIMARY KEY CLUSTERED ([Id]),
+        CONSTRAINT [UQ_StorageLocations_Code] UNIQUE ([Code])
+    );
+    PRINT 'Tabelle StorageLocations erstellt.';
+END
+GO
+
+-- =============================================
+-- 5. Articles
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'Articles')
+BEGIN
+    CREATE TABLE [dbo].[Articles] (
+        [Id]                INT IDENTITY(1,1) NOT NULL,
+        [ArticleNumber]     NVARCHAR(100)     NOT NULL,
+        [Description]       NVARCHAR(500)     NULL,
+        [Matchcode]         NVARCHAR(200)     NULL,
+        [Unit]              NVARCHAR(20)      NULL,
+        [ReorderLevel]      DECIMAL(18,3)     NULL,
+        [ArticleGroup]      NVARCHAR(100)     NULL,
+        [PrimaryStorageLocationId]   INT           NULL,
+        [SagePrimaryStorageLocation] NVARCHAR(100) NULL,
+        [CreatedAt]         DATETIME2         NOT NULL DEFAULT GETDATE(),
+        [CreatedBy]         NVARCHAR(200)     NOT NULL,
+        [CreatedByWindows]  NVARCHAR(200)     NOT NULL,
+        [ModifiedAt]        DATETIME2         NULL,
+        [ModifiedBy]        NVARCHAR(200)     NULL,
+        [ModifiedByWindows] NVARCHAR(200)     NULL,
+        CONSTRAINT [PK_Articles] PRIMARY KEY CLUSTERED ([Id]),
+        CONSTRAINT [UQ_Articles_ArticleNumber] UNIQUE ([ArticleNumber])
+    );
+    PRINT 'Tabelle Articles erstellt.';
+END
+GO
+
+-- =============================================
+-- 6. StockMovements
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'StockMovements')
+BEGIN
+    CREATE TABLE [dbo].[StockMovements] (
+        [Id]                      INT IDENTITY(1,1) NOT NULL,
+        [ArticleId]               INT               NOT NULL,
+        [Quantity]                DECIMAL(18,3)     NOT NULL,
+        [StorageLocationId]       INT               NOT NULL,
+        [SourceStorageLocationId] INT               NULL,
+        [ProductionOrder]         NVARCHAR(500)     NULL,
+        [MovementType]            INT               NOT NULL,  -- 0=Einbuchung, 1=Ausbuchung, 2=Umbuchung, 3=SageEinbuchung, 4=SageAusbuchung
+        [Timestamp]               DATETIME2         NOT NULL DEFAULT GETDATE(),
+        [UserId]                  INT               NULL,
+        [WindowsUser]             NVARCHAR(200)     NOT NULL,
+        [CreatedAt]               DATETIME2         NOT NULL DEFAULT GETDATE(),
+        [CreatedBy]               NVARCHAR(200)     NOT NULL,
+        [CreatedByWindows]        NVARCHAR(200)     NOT NULL,
+        [ModifiedAt]              DATETIME2         NULL,
+        [ModifiedBy]              NVARCHAR(200)     NULL,
+        [ModifiedByWindows]       NVARCHAR(200)     NULL,
+        [Note]                    NVARCHAR(500)     NULL,
+        CONSTRAINT [PK_StockMovements] PRIMARY KEY CLUSTERED ([Id]),
+        CONSTRAINT [FK_StockMovements_Article] FOREIGN KEY ([ArticleId]) REFERENCES [dbo].[Articles]([Id]),
+        CONSTRAINT [FK_StockMovements_StorageLocation] FOREIGN KEY ([StorageLocationId]) REFERENCES [dbo].[StorageLocations]([Id]),
+        CONSTRAINT [FK_StockMovements_SourceStorageLocation] FOREIGN KEY ([SourceStorageLocationId]) REFERENCES [dbo].[StorageLocations]([Id]),
+        CONSTRAINT [FK_StockMovements_User] FOREIGN KEY ([UserId]) REFERENCES [dbo].[Users]([Id])
+    );
+    PRINT 'Tabelle StockMovements erstellt.';
+END
+GO
+
+-- =============================================
+-- 6b. SageBookingQueueItems (ausgehende Sage-Lagerbuchungen, Migration 83)
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'SageBookingQueueItems')
+BEGIN
+    CREATE TABLE [dbo].[SageBookingQueueItems] (
+        [Id]                INT IDENTITY(1,1) NOT NULL,
+        [StockMovementId]   INT               NOT NULL,
+        [Status]            INT               NOT NULL,  -- 0=Offen, 1=Gesendet, 2=Bestaetigt, 3=Fehler
+        [AttemptCount]      INT               NOT NULL,
+        [LastAttemptAt]     DATETIME2         NULL,
+        [LastError]         NVARCHAR(2000)    NULL,
+        [SageResponseRaw]   NVARCHAR(MAX)     NULL,
+        [SentAt]            DATETIME2         NULL,
+        [ConfirmedAt]       DATETIME2         NULL,
+        [CreatedAt]         DATETIME2         NOT NULL DEFAULT GETDATE(),
+        [CreatedBy]         NVARCHAR(200)     NOT NULL,
+        [CreatedByWindows]  NVARCHAR(200)     NOT NULL,
+        [ModifiedAt]        DATETIME2         NULL,
+        [ModifiedBy]        NVARCHAR(200)     NULL,
+        [ModifiedByWindows] NVARCHAR(200)     NULL,
+        CONSTRAINT [PK_SageBookingQueueItems] PRIMARY KEY CLUSTERED ([Id]),
+        CONSTRAINT [FK_SageBookingQueueItems_StockMovements_StockMovementId]
+            FOREIGN KEY ([StockMovementId]) REFERENCES [dbo].[StockMovements]([Id])
+    );
+    PRINT 'Tabelle SageBookingQueueItems erstellt.';
+END
+GO
+
+-- =============================================
+-- 7. ProductionWorkplaces
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'ProductionWorkplaces')
+BEGIN
+    CREATE TABLE [dbo].[ProductionWorkplaces] (
+        [Id]                     INT IDENTITY(1,1) NOT NULL,
+        [Name]                   NVARCHAR(200)     NOT NULL,
+        [Hall]                   NVARCHAR(200)     NULL,
+        [OverridePrePickingDays] INT               NULL,
+        [BdeAktiv]               BIT               NOT NULL DEFAULT (0),
+        [BdeDefaultArbeitsgang]  NVARCHAR(200)     NULL,
+        [BdeUseCustomShiftPlan]  BIT               NOT NULL DEFAULT (0),
+        [SageArbeitsplatznummer] NVARCHAR(31)      NULL,
+        [ArbeitsschrittCode]     NVARCHAR(20)      NULL,
+        [SageMissingSince]       DATETIME2         NULL,
+        [BdeNurAgFertigmeldung]  BIT               NOT NULL CONSTRAINT [DF_ProductionWorkplaces_BdeNurAgFertigmeldung] DEFAULT (0),
+        [CreatedAt]              DATETIME2         NOT NULL DEFAULT GETDATE(),
+        [CreatedBy]              NVARCHAR(200)     NOT NULL,
+        [CreatedByWindows]       NVARCHAR(200)     NOT NULL,
+        [ModifiedAt]             DATETIME2         NULL,
+        [ModifiedBy]             NVARCHAR(200)     NULL,
+        [ModifiedByWindows]      NVARCHAR(200)     NULL,
+        CONSTRAINT [PK_ProductionWorkplaces] PRIMARY KEY CLUSTERED ([Id])
+    );
+    PRINT 'Tabelle ProductionWorkplaces erstellt.';
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes
+    WHERE name = 'IX_ProductionWorkplaces_SageArbeitsplatznummer'
+      AND object_id = OBJECT_ID('dbo.ProductionWorkplaces'))
+    CREATE UNIQUE INDEX [IX_ProductionWorkplaces_SageArbeitsplatznummer]
+        ON [dbo].[ProductionWorkplaces] ([SageArbeitsplatznummer])
+        WHERE [SageArbeitsplatznummer] IS NOT NULL;
+GO
+
+-- =============================================
+-- 8. ProductionOrders (slim — Status-Felder in 8a..8e ausgelagert)
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'ProductionOrders')
+BEGIN
+    CREATE TABLE [dbo].[ProductionOrders] (
+        [Id]                      INT IDENTITY(1,1) NOT NULL,
+        [OrderNumber]             NVARCHAR(100)     NOT NULL,
+        [SubOrderNumber]          NVARCHAR(100)     NOT NULL,
+        [ParentSubOrderNumber]    NVARCHAR(100)     NULL,
+        [SageMissingSince]        DATETIME2         NULL,
+        [Quantity]                DECIMAL(18,3)     NULL,
+        [Customer]                NVARCHAR(500)     NULL,
+        [ArticleNumber]           NVARCHAR(100)     NULL,
+        [Description1]            NVARCHAR(500)     NULL,
+        [Description2]            NVARCHAR(500)     NULL,
+        [ProductionDate]          DATETIME2         NULL,
+        [DeliveryDate]            DATETIME2         NULL,
+        [IsDone]                  BIT               NOT NULL DEFAULT 0,
+        [IsCancelled]             BIT               NOT NULL DEFAULT 0,
+        [CancelledAt]             DATETIME2         NULL,
+        [CancelledBy]             NVARCHAR(256)     NULL,
+        [ProductionWorkplaceId]   INT               NULL,
+        [CreatedAt]               DATETIME2         NOT NULL DEFAULT GETDATE(),
+        [CreatedBy]               NVARCHAR(200)     NOT NULL,
+        [CreatedByWindows]        NVARCHAR(200)     NOT NULL,
+        [ModifiedAt]              DATETIME2         NULL,
+        [ModifiedBy]              NVARCHAR(200)     NULL,
+        [ModifiedByWindows]       NVARCHAR(200)     NULL,
+        -- Schema-Inversion (Teil 7): Eindeutigkeit liegt auf SubOrderNumber, nicht mehr auf
+        -- OrderNumber. Umgesetzt ueber den Unique-Index IX_ProductionOrders_SubOrderNumber (s. u.),
+        -- kein UQ-Constraint (spiegelt den EF-Migrationsstand 20260814105526).
+        CONSTRAINT [PK_ProductionOrders] PRIMARY KEY CLUSTERED ([Id]),
+        CONSTRAINT [FK_ProductionOrders_ProductionWorkplaces_ProductionWorkplaceId]
+            FOREIGN KEY ([ProductionWorkplaceId]) REFERENCES [dbo].[ProductionWorkplaces]([Id]) ON DELETE SET NULL
+    );
+    PRINT 'Tabelle ProductionOrders erstellt.';
+END
+GO
+
+-- =============================================
+-- 8a. ProductionOrderPickingStatus (1 Zeile/FA)
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'ProductionOrderPickingStatus')
+BEGIN
+    CREATE TABLE [dbo].[ProductionOrderPickingStatus] (
+        [Id]                    INT IDENTITY(1,1) NOT NULL,
+        [ProductionOrderId]     INT               NOT NULL,
+        [PickingStatus]         NVARCHAR(50)      NULL,
+        [PickingPriority]       INT               NULL,
+        [IsReleasedForPicking]  BIT               NOT NULL CONSTRAINT DF_ProductionOrderPickingStatus_IsReleasedForPicking DEFAULT 0,
+        [ReleasedAt]            DATETIME2         NULL,
+        [ReleasedBy]            NVARCHAR(200)     NULL,
+        [AssignedPickerId]      INT               NULL,
+        [AssignedPickerName]    NVARCHAR(200)     NULL,
+        [HasGlass]              BIT               NOT NULL CONSTRAINT DF_ProductionOrderPickingStatus_HasGlass DEFAULT 0,
+        [HasExternalPurchase]   BIT               NOT NULL CONSTRAINT DF_ProductionOrderPickingStatus_HasExternalPurchase DEFAULT 0,
+        [HasCoatingParts]       BIT               NOT NULL CONSTRAINT DF_ProductionOrderPickingStatus_HasCoatingParts DEFAULT 0,
+        [IsCoatingDone]         BIT               NOT NULL CONSTRAINT DF_ProductionOrderPickingStatus_IsCoatingDone DEFAULT 0,
+        [IsDonePicking]         BIT               NOT NULL CONSTRAINT DF_ProductionOrderPickingStatus_IsDonePicking DEFAULT 0,
+        [CreatedAt]             DATETIME2         NOT NULL DEFAULT GETDATE(),
+        [CreatedBy]             NVARCHAR(200)     NOT NULL,
+        [CreatedByWindows]      NVARCHAR(200)     NOT NULL,
+        [ModifiedAt]            DATETIME2         NULL,
+        [ModifiedBy]            NVARCHAR(200)     NULL,
+        [ModifiedByWindows]     NVARCHAR(200)     NULL,
+        CONSTRAINT [PK_ProductionOrderPickingStatus] PRIMARY KEY CLUSTERED ([Id]),
+        CONSTRAINT [UQ_ProductionOrderPickingStatus_ProductionOrderId] UNIQUE ([ProductionOrderId]),
+        CONSTRAINT [FK_ProductionOrderPickingStatus_ProductionOrder]
+            FOREIGN KEY ([ProductionOrderId]) REFERENCES [dbo].[ProductionOrders]([Id]) ON DELETE CASCADE,
+        CONSTRAINT [FK_ProductionOrderPickingStatus_AssignedPicker]
+            FOREIGN KEY ([AssignedPickerId]) REFERENCES [dbo].[Users]([Id]) ON DELETE SET NULL
+    );
+    CREATE INDEX [IX_ProductionOrderPickingStatus_IsReleasedForPicking]
+        ON [dbo].[ProductionOrderPickingStatus]([IsReleasedForPicking]);
+    CREATE INDEX [IX_ProductionOrderPickingStatus_AssignedPickerId]
+        ON [dbo].[ProductionOrderPickingStatus]([AssignedPickerId])
+        WHERE [AssignedPickerId] IS NOT NULL;
+    PRINT 'Tabelle ProductionOrderPickingStatus erstellt.';
+END
+GO
+
+-- =============================================
+-- 8b. ProductionOrderBdeStatus (1 Zeile/FA)
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'ProductionOrderBdeStatus')
+BEGIN
+    CREATE TABLE [dbo].[ProductionOrderBdeStatus] (
+        [Id]                INT IDENTITY(1,1) NOT NULL,
+        [ProductionOrderId] INT               NOT NULL,
+        [IsDoneBde]         BIT               NOT NULL CONSTRAINT DF_ProductionOrderBdeStatus_IsDoneBde DEFAULT 0,
+        [CreatedAt]         DATETIME2         NOT NULL DEFAULT GETDATE(),
+        [CreatedBy]         NVARCHAR(200)     NOT NULL,
+        [CreatedByWindows]  NVARCHAR(200)     NOT NULL,
+        [ModifiedAt]        DATETIME2         NULL,
+        [ModifiedBy]        NVARCHAR(200)     NULL,
+        [ModifiedByWindows] NVARCHAR(200)     NULL,
+        CONSTRAINT [PK_ProductionOrderBdeStatus] PRIMARY KEY CLUSTERED ([Id]),
+        CONSTRAINT [UQ_ProductionOrderBdeStatus_ProductionOrderId] UNIQUE ([ProductionOrderId]),
+        CONSTRAINT [FK_ProductionOrderBdeStatus_ProductionOrder]
+            FOREIGN KEY ([ProductionOrderId]) REFERENCES [dbo].[ProductionOrders]([Id]) ON DELETE CASCADE
+    );
+    PRINT 'Tabelle ProductionOrderBdeStatus erstellt.';
+END
+GO
+
+-- =============================================
+-- 8b2. ProductionOrderExtraInfo (FA-Zusatzinfos aus Sage, 1 Zeile/FA, v1.26.0)
+--      Befuellt nur vom FaZusatzinfoSyncService — KEIN AgentJob-Eager-Create.
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'ProductionOrderExtraInfo')
+BEGIN
+    CREATE TABLE [dbo].[ProductionOrderExtraInfo] (
+        [Id]                INT IDENTITY(1,1) NOT NULL,
+        [ProductionOrderId] INT               NOT NULL,
+        [Kaeltemittel]      NVARCHAR(200)     NULL,
+        [Ventil]            NVARCHAR(200)     NULL,
+        [AusfuehrungEZ]     NVARCHAR(200)     NULL,
+        [Maschine]          NVARCHAR(200)     NULL,
+        [SageStatus]        NVARCHAR(200)     NULL,
+        [CreatedAt]         DATETIME2         NOT NULL DEFAULT GETDATE(),
+        [CreatedBy]         NVARCHAR(200)     NOT NULL,
+        [CreatedByWindows]  NVARCHAR(200)     NOT NULL,
+        [ModifiedAt]        DATETIME2         NULL,
+        [ModifiedBy]        NVARCHAR(200)     NULL,
+        [ModifiedByWindows] NVARCHAR(200)     NULL,
+        CONSTRAINT [PK_ProductionOrderExtraInfo] PRIMARY KEY CLUSTERED ([Id]),
+        CONSTRAINT [UQ_ProductionOrderExtraInfo_ProductionOrderId] UNIQUE ([ProductionOrderId]),
+        CONSTRAINT [FK_ProductionOrderExtraInfo_ProductionOrder]
+            FOREIGN KEY ([ProductionOrderId]) REFERENCES [dbo].[ProductionOrders]([Id]) ON DELETE CASCADE
+    );
+    PRINT 'Tabelle ProductionOrderExtraInfo erstellt.';
+END
+GO
+
+-- =============================================
+-- 8c. FA-Vorbau (v1.22.0): WorkSteps (Arbeitsgaenge-Katalog)
+--     ProductionOrderAssemblyGroups/-Specs entfernt in v1.22.0
+--     (ersetzt durch FaWorkSteps/FaWorkStepSpecs, Migration 68)
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'WorkSteps')
+BEGIN
+    CREATE TABLE [dbo].[WorkSteps] (
+        [Id]                INT IDENTITY(1,1) NOT NULL,
+        [Code]              NVARCHAR(20)      NOT NULL,
+        [Name]              NVARCHAR(100)     NOT NULL,
+        [SearchString]      NVARCHAR(500)     NULL,
+        [SortOrder]         INT               NOT NULL,
+        [IsActive]          BIT               NOT NULL,
+        [CreatedAt]         DATETIME2         NOT NULL,
+        [CreatedBy]         NVARCHAR(200)     NOT NULL,
+        [CreatedByWindows]  NVARCHAR(200)     NOT NULL,
+        [ModifiedAt]        DATETIME2         NULL,
+        [ModifiedBy]        NVARCHAR(200)     NULL,
+        [ModifiedByWindows] NVARCHAR(200)     NULL,
+        CONSTRAINT [PK_WorkSteps] PRIMARY KEY CLUSTERED ([Id])
+    );
+    CREATE UNIQUE INDEX [IX_WorkSteps_Code] ON [dbo].[WorkSteps]([Code]);
+    PRINT 'Tabelle WorkSteps erstellt.';
+END
+GO
+
+-- =============================================
+-- 8c2. FA-Vorbau (v1.22.0): Users.DefaultWorkStepId -> WorkSteps (Migration 70)
+--      Index + FK NACH dem WorkSteps-CREATE platziert, da Users (Block 1) vor
+--      WorkSteps angelegt wird und die Zieltabelle hier existieren muss.
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_Users_DefaultWorkStepId' AND object_id = OBJECT_ID('dbo.Users'))
+BEGIN
+    CREATE INDEX [IX_Users_DefaultWorkStepId] ON [dbo].[Users] ([DefaultWorkStepId]);
+    PRINT 'Index IX_Users_DefaultWorkStepId erstellt.';
+END
+GO
+
+IF NOT EXISTS (SELECT * FROM sys.foreign_keys WHERE name = 'FK_Users_WorkSteps_DefaultWorkStepId')
+BEGIN
+    ALTER TABLE [dbo].[Users]
+        ADD CONSTRAINT [FK_Users_WorkSteps_DefaultWorkStepId]
+        FOREIGN KEY ([DefaultWorkStepId]) REFERENCES [dbo].[WorkSteps]([Id]) ON DELETE SET NULL;
+    PRINT 'FK FK_Users_WorkSteps_DefaultWorkStepId erstellt.';
+END
+GO
+
+-- =============================================
+-- 8c4. Windows-Auth (v1.23.0): Users.WindowsUserName gefilterter Unique-Index (Migration 73)
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'UQ_Users_WindowsUserName' AND object_id = OBJECT_ID('dbo.Users'))
+BEGIN
+    CREATE UNIQUE INDEX [UQ_Users_WindowsUserName]
+        ON [dbo].[Users] ([WindowsUserName])
+        WHERE [WindowsUserName] IS NOT NULL;
+    PRINT 'Index UQ_Users_WindowsUserName erstellt.';
+END
+GO
+
+-- =============================================
+-- 8d. FA-Vorbau (v1.22.0): FaWorkSteps (FA -> AG)
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'FaWorkSteps')
+BEGIN
+    CREATE TABLE [dbo].[FaWorkSteps] (
+        [Id]                INT IDENTITY(1,1) NOT NULL,
+        [ProductionOrderId] INT               NOT NULL,
+        [WorkStepId]        INT               NOT NULL,
+        [Status]            INT               NOT NULL CONSTRAINT DF_FaWorkSteps_Status DEFAULT 0,
+        [CompletedAt]       DATETIME2         NULL,
+        [CompletedBy]       NVARCHAR(200)     NULL,
+        [IsSpecComplete]    BIT               NOT NULL CONSTRAINT DF_FaWorkSteps_IsSpecComplete DEFAULT 0,
+        [SpecCompletedAt]   DATETIME2         NULL,
+        [SpecCompletedBy]   NVARCHAR(200)     NULL,
+        [Source]            NVARCHAR(20)      NOT NULL,
+        [IsRemoved]         BIT               NOT NULL,
+        [CreatedAt]         DATETIME2         NOT NULL,
+        [CreatedBy]         NVARCHAR(200)     NOT NULL,
+        [CreatedByWindows]  NVARCHAR(200)     NOT NULL,
+        [ModifiedAt]        DATETIME2         NULL,
+        [ModifiedBy]        NVARCHAR(200)     NULL,
+        [ModifiedByWindows] NVARCHAR(200)     NULL,
+        CONSTRAINT [PK_FaWorkSteps] PRIMARY KEY CLUSTERED ([Id]),
+        CONSTRAINT [FK_FaWorkSteps_ProductionOrders_ProductionOrderId]
+            FOREIGN KEY ([ProductionOrderId]) REFERENCES [dbo].[ProductionOrders]([Id]) ON DELETE CASCADE,
+        CONSTRAINT [FK_FaWorkSteps_WorkSteps_WorkStepId]
+            FOREIGN KEY ([WorkStepId]) REFERENCES [dbo].[WorkSteps]([Id]) -- NO ACTION (Restrict)
+    );
+    CREATE INDEX [IX_FaWorkSteps_ProductionOrderId_IsRemoved]
+        ON [dbo].[FaWorkSteps]([ProductionOrderId], [IsRemoved]);
+    CREATE UNIQUE INDEX [IX_FaWorkSteps_ProductionOrderId_WorkStepId]
+        ON [dbo].[FaWorkSteps]([ProductionOrderId], [WorkStepId]);
+    CREATE INDEX [IX_FaWorkSteps_WorkStepId]
+        ON [dbo].[FaWorkSteps]([WorkStepId]);
+    PRINT 'Tabelle FaWorkSteps erstellt.';
+END
+GO
+
+-- =============================================
+-- 8d2. FA-Vorbau (v1.22.0): FaWorkStepSpecs (Freitext-Specs)
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'FaWorkStepSpecs')
+BEGIN
+    CREATE TABLE [dbo].[FaWorkStepSpecs] (
+        [Id]                INT IDENTITY(1,1) NOT NULL,
+        [FaWorkStepId]      INT               NOT NULL,
+        [ArticleId]         INT               NULL,
+        [Description]       NVARCHAR(500)     NOT NULL,
+        [Quantity]          DECIMAL(18,3)     NULL,
+        [Notes]             NVARCHAR(MAX)     NULL,
+        [SortOrder]         INT               NOT NULL,
+        [CreatedAt]         DATETIME2         NOT NULL,
+        [CreatedBy]         NVARCHAR(200)     NOT NULL,
+        [CreatedByWindows]  NVARCHAR(200)     NOT NULL,
+        [ModifiedAt]        DATETIME2         NULL,
+        [ModifiedBy]        NVARCHAR(200)     NULL,
+        [ModifiedByWindows] NVARCHAR(200)     NULL,
+        CONSTRAINT [PK_FaWorkStepSpecs] PRIMARY KEY CLUSTERED ([Id]),
+        CONSTRAINT [FK_FaWorkStepSpecs_Articles_ArticleId]
+            FOREIGN KEY ([ArticleId]) REFERENCES [dbo].[Articles]([Id]) ON DELETE SET NULL,
+        CONSTRAINT [FK_FaWorkStepSpecs_FaWorkSteps_FaWorkStepId]
+            FOREIGN KEY ([FaWorkStepId]) REFERENCES [dbo].[FaWorkSteps]([Id]) ON DELETE CASCADE
+    );
+    CREATE INDEX [IX_FaWorkStepSpecs_ArticleId]
+        ON [dbo].[FaWorkStepSpecs]([ArticleId]);
+    CREATE INDEX [IX_FaWorkStepSpecs_FaWorkStepId]
+        ON [dbo].[FaWorkStepSpecs]([FaWorkStepId]);
+    PRINT 'Tabelle FaWorkStepSpecs erstellt.';
+END
+GO
+
+-- =============================================
+-- 8d3. FA-Vorbau (v1.22.0): FaAttributeDefinitions (Merkmal-Katalog)
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'FaAttributeDefinitions')
+BEGIN
+    CREATE TABLE [dbo].[FaAttributeDefinitions] (
+        [Id]                INT IDENTITY(1,1) NOT NULL,
+        [Name]              NVARCHAR(200)     NOT NULL,
+        [AttributeType]     INT               NOT NULL,
+        [SortOrder]         INT               NOT NULL,
+        [IsActive]          BIT               NOT NULL,
+        [CreatedAt]         DATETIME2         NOT NULL,
+        [CreatedBy]         NVARCHAR(200)     NOT NULL,
+        [CreatedByWindows]  NVARCHAR(200)     NOT NULL,
+        [ModifiedAt]        DATETIME2         NULL,
+        [ModifiedBy]        NVARCHAR(200)     NULL,
+        [ModifiedByWindows] NVARCHAR(200)     NULL,
+        CONSTRAINT [PK_FaAttributeDefinitions] PRIMARY KEY CLUSTERED ([Id])
+    );
+    PRINT 'Tabelle FaAttributeDefinitions erstellt.';
+END
+GO
+
+-- =============================================
+-- 8d4. FA-Vorbau (v1.22.0): FaAttributeOptions (Dropdown-Werte)
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'FaAttributeOptions')
+BEGIN
+    CREATE TABLE [dbo].[FaAttributeOptions] (
+        [Id]                       INT IDENTITY(1,1) NOT NULL,
+        [FaAttributeDefinitionId]  INT               NOT NULL,
+        [Value]                    NVARCHAR(200)     NOT NULL,
+        [SortOrder]                INT               NOT NULL,
+        [IsActive]                 BIT               NOT NULL,
+        [CreatedAt]                DATETIME2         NOT NULL,
+        [CreatedBy]                NVARCHAR(200)     NOT NULL,
+        [CreatedByWindows]         NVARCHAR(200)     NOT NULL,
+        [ModifiedAt]               DATETIME2         NULL,
+        [ModifiedBy]               NVARCHAR(200)     NULL,
+        [ModifiedByWindows]        NVARCHAR(200)     NULL,
+        CONSTRAINT [PK_FaAttributeOptions] PRIMARY KEY CLUSTERED ([Id]),
+        CONSTRAINT [FK_FaAttributeOptions_FaAttributeDefinitions_FaAttributeDefinitionId]
+            FOREIGN KEY ([FaAttributeDefinitionId]) REFERENCES [dbo].[FaAttributeDefinitions]([Id]) ON DELETE CASCADE
+    );
+    CREATE INDEX [IX_FaAttributeOptions_FaAttributeDefinitionId]
+        ON [dbo].[FaAttributeOptions]([FaAttributeDefinitionId]);
+    PRINT 'Tabelle FaAttributeOptions erstellt.';
+END
+GO
+
+-- =============================================
+-- 8d5. FA-Vorbau (v1.22.0): FaAttributeWorkSteps (Merkmal -> AG, N:M)
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'FaAttributeWorkSteps')
+BEGIN
+    CREATE TABLE [dbo].[FaAttributeWorkSteps] (
+        [Id]                       INT IDENTITY(1,1) NOT NULL,
+        [FaAttributeDefinitionId]  INT               NOT NULL,
+        [WorkStepId]               INT               NOT NULL,
+        [CreatedAt]                DATETIME2         NOT NULL,
+        [CreatedBy]                NVARCHAR(200)     NOT NULL,
+        [CreatedByWindows]         NVARCHAR(200)     NOT NULL,
+        [ModifiedAt]               DATETIME2         NULL,
+        [ModifiedBy]               NVARCHAR(200)     NULL,
+        [ModifiedByWindows]        NVARCHAR(200)     NULL,
+        CONSTRAINT [PK_FaAttributeWorkSteps] PRIMARY KEY CLUSTERED ([Id]),
+        CONSTRAINT [FK_FaAttributeWorkSteps_FaAttributeDefinitions_FaAttributeDefinitionId]
+            FOREIGN KEY ([FaAttributeDefinitionId]) REFERENCES [dbo].[FaAttributeDefinitions]([Id]) ON DELETE CASCADE,
+        CONSTRAINT [FK_FaAttributeWorkSteps_WorkSteps_WorkStepId]
+            FOREIGN KEY ([WorkStepId]) REFERENCES [dbo].[WorkSteps]([Id]) ON DELETE CASCADE
+    );
+    CREATE UNIQUE INDEX [IX_FaAttributeWorkSteps_FaAttributeDefinitionId_WorkStepId]
+        ON [dbo].[FaAttributeWorkSteps]([FaAttributeDefinitionId], [WorkStepId]);
+    CREATE INDEX [IX_FaAttributeWorkSteps_WorkStepId]
+        ON [dbo].[FaAttributeWorkSteps]([WorkStepId]);
+    PRINT 'Tabelle FaAttributeWorkSteps erstellt.';
+END
+GO
+
+-- =============================================
+-- 8d6. FA-Vorbau (v1.22.0): FaAttributeValues (Werte je FA)
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'FaAttributeValues')
+BEGIN
+    CREATE TABLE [dbo].[FaAttributeValues] (
+        [Id]                       INT IDENTITY(1,1) NOT NULL,
+        [ProductionOrderId]        INT               NOT NULL,
+        [FaAttributeDefinitionId]  INT               NOT NULL,
+        [SelectedOptionId]         INT               NULL,
+        [BooleanValue]             BIT               NULL,
+        [TextValue]                NVARCHAR(1000)    NULL,
+        [CreatedAt]                DATETIME2         NOT NULL,
+        [CreatedBy]                NVARCHAR(200)     NOT NULL,
+        [CreatedByWindows]         NVARCHAR(200)     NOT NULL,
+        [ModifiedAt]               DATETIME2         NULL,
+        [ModifiedBy]               NVARCHAR(200)     NULL,
+        [ModifiedByWindows]        NVARCHAR(200)     NULL,
+        CONSTRAINT [PK_FaAttributeValues] PRIMARY KEY CLUSTERED ([Id]),
+        CONSTRAINT [FK_FaAttributeValues_FaAttributeDefinitions_FaAttributeDefinitionId]
+            FOREIGN KEY ([FaAttributeDefinitionId]) REFERENCES [dbo].[FaAttributeDefinitions]([Id]) ON DELETE CASCADE,
+        CONSTRAINT [FK_FaAttributeValues_FaAttributeOptions_SelectedOptionId]
+            FOREIGN KEY ([SelectedOptionId]) REFERENCES [dbo].[FaAttributeOptions]([Id]), -- NO ACTION (Restrict)
+        CONSTRAINT [FK_FaAttributeValues_ProductionOrders_ProductionOrderId]
+            FOREIGN KEY ([ProductionOrderId]) REFERENCES [dbo].[ProductionOrders]([Id]) ON DELETE CASCADE
+    );
+    CREATE INDEX [IX_FaAttributeValues_FaAttributeDefinitionId]
+        ON [dbo].[FaAttributeValues]([FaAttributeDefinitionId]);
+    CREATE UNIQUE INDEX [IX_FaAttributeValues_ProductionOrderId_FaAttributeDefinitionId]
+        ON [dbo].[FaAttributeValues]([ProductionOrderId], [FaAttributeDefinitionId]);
+    CREATE INDEX [IX_FaAttributeValues_SelectedOptionId]
+        ON [dbo].[FaAttributeValues]([SelectedOptionId]);
+    PRINT 'Tabelle FaAttributeValues erstellt.';
+END
+GO
+
+-- =============================================
+-- 8d7. FA-Vorbau (v1.22.0): ProductionWorkplaceWorkSteps (Werkbank -> AG, N:M)
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'ProductionWorkplaceWorkSteps')
+BEGIN
+    CREATE TABLE [dbo].[ProductionWorkplaceWorkSteps] (
+        [Id]                    INT IDENTITY(1,1) NOT NULL,
+        [ProductionWorkplaceId] INT               NOT NULL,
+        [WorkStepId]            INT               NOT NULL,
+        [CreatedAt]             DATETIME2         NOT NULL,
+        [CreatedBy]             NVARCHAR(200)     NOT NULL,
+        [CreatedByWindows]      NVARCHAR(200)     NOT NULL,
+        [ModifiedAt]            DATETIME2         NULL,
+        [ModifiedBy]            NVARCHAR(200)     NULL,
+        [ModifiedByWindows]     NVARCHAR(200)     NULL,
+        CONSTRAINT [PK_ProductionWorkplaceWorkSteps] PRIMARY KEY CLUSTERED ([Id]),
+        CONSTRAINT [FK_ProductionWorkplaceWorkSteps_ProductionWorkplaces_ProductionWorkplaceId]
+            FOREIGN KEY ([ProductionWorkplaceId]) REFERENCES [dbo].[ProductionWorkplaces]([Id]) ON DELETE CASCADE,
+        CONSTRAINT [FK_ProductionWorkplaceWorkSteps_WorkSteps_WorkStepId]
+            FOREIGN KEY ([WorkStepId]) REFERENCES [dbo].[WorkSteps]([Id]) ON DELETE CASCADE
+    );
+    CREATE UNIQUE INDEX [IX_ProductionWorkplaceWorkSteps_ProductionWorkplaceId_WorkStepId]
+        ON [dbo].[ProductionWorkplaceWorkSteps]([ProductionWorkplaceId], [WorkStepId]);
+    CREATE INDEX [IX_ProductionWorkplaceWorkSteps_WorkStepId]
+        ON [dbo].[ProductionWorkplaceWorkSteps]([WorkStepId]);
+    PRINT 'Tabelle ProductionWorkplaceWorkSteps erstellt.';
+END
+GO
+
+-- =============================================
+-- 8d8. FA-Vorbau (v1.22.0): Seeds (WorkSteps VK-VA, Merkmale + Optionen)
+-- =============================================
+INSERT INTO [dbo].[WorkSteps] ([Code], [Name], [SearchString], [SortOrder], [IsActive], [CreatedAt], [CreatedBy], [CreatedByWindows])
+SELECT v.Code, v.Name, NULL, v.SortOrder, 1, GETDATE(), 'system', 'system'
+FROM (VALUES ('VK','Kuehlung',1),('VL','Lueftung',2),('VE','Elektro',3),('VT','Tueren',4),('VA','Aufbau',5)) v(Code, Name, SortOrder)
+WHERE NOT EXISTS (SELECT 1 FROM [dbo].[WorkSteps] w WHERE w.[Code] = v.Code);
+
+INSERT INTO [dbo].[FaAttributeDefinitions] ([Name], [AttributeType], [SortOrder], [IsActive], [CreatedAt], [CreatedBy], [CreatedByWindows])
+SELECT v.Name, v.AttrType, v.SortOrder, 1, GETDATE(), 'system', 'system'
+FROM (VALUES ('Verdampfergroesse',1,1),('Leitungsausgang',1,2),('Verdampfergehaeuse',1,3),('Ventil aussenliegend',0,4)) v(Name, AttrType, SortOrder)
+WHERE NOT EXISTS (SELECT 1 FROM [dbo].[FaAttributeDefinitions] d WHERE d.[Name] = v.Name);
+
+INSERT INTO [dbo].[FaAttributeOptions] ([FaAttributeDefinitionId], [Value], [SortOrder], [IsActive], [CreatedAt], [CreatedBy], [CreatedByWindows])
+SELECT d.Id, v.Value, v.SortOrder, 1, GETDATE(), 'system', 'system'
+FROM (VALUES
+ ('Verdampfergroesse','UKW 2/1',1),('Verdampfergroesse','UKW 3/1',2),('Verdampfergroesse','UKW 4/1',3),
+ ('Verdampfergroesse','UKW 5/1 (Euro 4)',4),('Verdampfergroesse','UKW 6/1',5),('Verdampfergroesse','Euro 2',6),
+ ('Verdampfergroesse','Euro 3',7),('Verdampfergroesse','Caleo 80',8),('Verdampfergroesse','Caleo 120',9),
+ ('Verdampfergroesse','Breite 60',10),
+ ('Leitungsausgang','Standard',1),('Leitungsausgang','RG',2),('Leitungsausgang','Links',3),('Leitungsausgang','Links RG',4),
+ ('Verdampfergehaeuse','2/1 Standard',1),('Verdampfergehaeuse','3/1 RG',2),('Verdampfergehaeuse','Sonder',3)
+) v(DefName, Value, SortOrder)
+JOIN [dbo].[FaAttributeDefinitions] d ON d.[Name] = v.DefName
+WHERE NOT EXISTS (SELECT 1 FROM [dbo].[FaAttributeOptions] o WHERE o.[FaAttributeDefinitionId] = d.Id AND o.[Value] = v.Value);
+PRINT 'FA-Vorbau Seeds (WorkSteps, Merkmale, Optionen) eingefuegt.';
+GO
+
+-- (8e. ProductionWorkplaceAssemblyGroups entfernt in v1.22.0 — Relikt aus v1.11,
+--  nie im Code genutzt; ersetzt durch ProductionWorkplaceWorkSteps)
+
+-- =============================================
+-- 9. PickingItems
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'PickingItems')
+BEGIN
+    CREATE TABLE [dbo].[PickingItems] (
+        [Id]                      INT IDENTITY(1,1) NOT NULL,
+        [ProductionOrderId]       INT               NOT NULL,
+        [BomArticleNumber]        NVARCHAR(100)     NOT NULL,
+        [BomPosition]             NVARCHAR(50)      NULL,
+        [Quantity]                DECIMAL(18,3)     NOT NULL DEFAULT 0,
+        [SourceStorageLocationId] INT               NULL,
+        [IsPicked]                BIT               NOT NULL DEFAULT 0,
+        [PickedAt]                DATETIME2         NULL,
+        [PickedBy]                NVARCHAR(200)     NULL,
+        [PickedByWindows]         NVARCHAR(200)     NULL,
+        [IsTransferred]           BIT               NOT NULL DEFAULT 0,
+        [TransferredAt]           DATETIME2         NULL,
+        [IsBaugruppe]             BIT               NOT NULL DEFAULT 0,
+        [RowVersion]              ROWVERSION        NOT NULL,
+        [CreatedAt]               DATETIME2         NOT NULL DEFAULT GETDATE(),
+        [CreatedBy]               NVARCHAR(200)     NOT NULL,
+        [CreatedByWindows]        NVARCHAR(200)     NOT NULL,
+        [ModifiedAt]              DATETIME2         NULL,
+        [ModifiedBy]              NVARCHAR(200)     NULL,
+        [ModifiedByWindows]       NVARCHAR(200)     NULL,
+        CONSTRAINT [PK_PickingItems] PRIMARY KEY CLUSTERED ([Id]),
+        CONSTRAINT [FK_PickingItems_ProductionOrder] FOREIGN KEY ([ProductionOrderId]) REFERENCES [dbo].[ProductionOrders]([Id]) ON DELETE CASCADE,
+        CONSTRAINT [FK_PickingItems_SourceStorageLocation] FOREIGN KEY ([SourceStorageLocationId]) REFERENCES [dbo].[StorageLocations]([Id])
+    );
+    PRINT 'Tabelle PickingItems erstellt.';
+END
+GO
+
+-- =============================================
+-- 10. ProductionWorkplaceUsers
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'ProductionWorkplaceUsers')
+BEGIN
+    CREATE TABLE [dbo].[ProductionWorkplaceUsers] (
+        [Id]                       INT IDENTITY(1,1) NOT NULL,
+        [ProductionWorkplaceId]    INT               NOT NULL,
+        [UserId]                   INT               NOT NULL,
+        [CreatedAt]                DATETIME2         NOT NULL DEFAULT GETDATE(),
+        [CreatedBy]                NVARCHAR(200)     NOT NULL,
+        [CreatedByWindows]         NVARCHAR(200)     NOT NULL,
+        [ModifiedAt]               DATETIME2         NULL,
+        [ModifiedBy]               NVARCHAR(200)     NULL,
+        [ModifiedByWindows]        NVARCHAR(200)     NULL,
+        CONSTRAINT [PK_ProductionWorkplaceUsers] PRIMARY KEY CLUSTERED ([Id]),
+        CONSTRAINT [FK_ProductionWorkplaceUsers_ProductionWorkplaces_ProductionWorkplaceId]
+            FOREIGN KEY ([ProductionWorkplaceId]) REFERENCES [dbo].[ProductionWorkplaces]([Id]) ON DELETE CASCADE,
+        CONSTRAINT [FK_ProductionWorkplaceUsers_Users_UserId]
+            FOREIGN KEY ([UserId]) REFERENCES [dbo].[Users]([Id]) ON DELETE NO ACTION
+    );
+    PRINT 'Tabelle ProductionWorkplaceUsers erstellt.';
+END
+GO
+
+-- =============================================
+-- 11. WorkOperations
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'WorkOperations')
+BEGIN
+    CREATE TABLE [dbo].[WorkOperations] (
+        [Id]                       INT IDENTITY(1,1) NOT NULL,
+        [ProductionOrderId]        INT               NOT NULL,
+        [OperationNumber]          NVARCHAR(50)      NOT NULL,
+        [Name]                     NVARCHAR(200)     NOT NULL,
+        [ProductionWorkplaceId]    INT               NULL,
+        [Sequence]                 INT               NOT NULL,
+        [IsReportable]             BIT               NOT NULL,
+        [IsExternalSystem]         BIT               NOT NULL,
+        [IsReported]               BIT               NOT NULL,
+        [ReportedAt]               DATETIME2         NULL,
+        [ReportedBy]               NVARCHAR(200)     NULL,
+        [ReportedByWindows]        NVARCHAR(200)     NULL,
+        [ExternalSource]           NVARCHAR(100)     NULL,
+        [CreatedAt]                DATETIME2         NOT NULL DEFAULT GETDATE(),
+        [CreatedBy]                NVARCHAR(200)     NOT NULL,
+        [CreatedByWindows]         NVARCHAR(200)     NOT NULL,
+        [ModifiedAt]               DATETIME2         NULL,
+        [ModifiedBy]               NVARCHAR(200)     NULL,
+        [ModifiedByWindows]        NVARCHAR(200)     NULL,
+        CONSTRAINT [PK_WorkOperations] PRIMARY KEY CLUSTERED ([Id]),
+        CONSTRAINT [FK_WorkOperations_ProductionOrders_ProductionOrderId]
+            FOREIGN KEY ([ProductionOrderId]) REFERENCES [dbo].[ProductionOrders]([Id]) ON DELETE CASCADE,
+        CONSTRAINT [FK_WorkOperations_ProductionWorkplaces_ProductionWorkplaceId]
+            FOREIGN KEY ([ProductionWorkplaceId]) REFERENCES [dbo].[ProductionWorkplaces]([Id]) ON DELETE SET NULL
+    );
+    PRINT 'Tabelle WorkOperations erstellt.';
+END
+GO
+
+-- =============================================
+-- 12. OseonProductionOrders
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'OseonProductionOrders')
+BEGIN
+    CREATE TABLE [dbo].[OseonProductionOrders] (
+        [Id]                      INT IDENTITY(1,1) NOT NULL,
+        [OseonId]                 BIGINT NOT NULL DEFAULT 0,
+        [OseonOrderNumber]        NVARCHAR(100) NOT NULL,
+        [CustomerOrderNumber]     NVARCHAR(100) NULL,
+        [OseonStatus]             INT NOT NULL DEFAULT 0,
+        [ArticleNumber]           NVARCHAR(100) NULL,
+        [Description1]            NVARCHAR(500) NULL,
+        [Description2]            NVARCHAR(500) NULL,
+        [WorkplaceName]           NVARCHAR(200) NULL,
+        [ProductionWorkplaceId]   INT NULL,
+        [QuantityTarget]          DECIMAL(18,3) NOT NULL DEFAULT 0,
+        [QuantityActual]          DECIMAL(18,3) NOT NULL DEFAULT 0,
+        [DueDate]                 DATE NULL,
+        [LastChangedInOseon]      DATETIME2 NULL,
+        [CreatedAt]               DATETIME2 NOT NULL,
+        [CreatedBy]               NVARCHAR(200) NOT NULL,
+        [CreatedByWindows]        NVARCHAR(200) NOT NULL,
+        [ModifiedAt]              DATETIME2 NULL,
+        [ModifiedBy]              NVARCHAR(200) NULL,
+        [ModifiedByWindows]       NVARCHAR(200) NULL,
+        CONSTRAINT [PK_OseonProductionOrders] PRIMARY KEY CLUSTERED ([Id]),
+        CONSTRAINT [FK_OseonProductionOrders_ProductionWorkplaces_ProductionWorkplaceId]
+            FOREIGN KEY ([ProductionWorkplaceId]) REFERENCES [dbo].[ProductionWorkplaces]([Id]) ON DELETE SET NULL
+    );
+    CREATE UNIQUE INDEX [IX_OseonProductionOrders_OseonOrderNumber] ON [dbo].[OseonProductionOrders]([OseonOrderNumber]);
+    CREATE INDEX [IX_OseonProductionOrders_CustomerOrderNumber] ON [dbo].[OseonProductionOrders]([CustomerOrderNumber]);
+    CREATE INDEX [IX_OseonProductionOrders_OseonId] ON [dbo].[OseonProductionOrders]([OseonId]);
+    CREATE INDEX [IX_OseonProductionOrders_ProductionWorkplaceId] ON [dbo].[OseonProductionOrders]([ProductionWorkplaceId]);
+    CREATE INDEX [IX_OseonProductionOrders_OseonStatus] ON [dbo].[OseonProductionOrders]([OseonStatus]) INCLUDE ([CustomerOrderNumber], [OseonOrderNumber]);
+    CREATE INDEX [IX_OseonProductionOrders_WorkplaceName] ON [dbo].[OseonProductionOrders]([WorkplaceName]) INCLUDE ([CustomerOrderNumber], [OseonStatus]);
+    CREATE INDEX [IX_OseonProductionOrders_ArticleNumber] ON [dbo].[OseonProductionOrders]([ArticleNumber]);
+    PRINT 'Tabelle OseonProductionOrders erstellt.';
+END
+GO
+
+-- =============================================
+-- 13. OseonWorkOperations
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'OseonWorkOperations')
+BEGIN
+    CREATE TABLE [dbo].[OseonWorkOperations] (
+        [Id]                        INT IDENTITY(1,1) NOT NULL,
+        [OseonProductionOrderId]    INT NOT NULL,
+        [PositionNumber]            NVARCHAR(50) NOT NULL,
+        [Name]                      NVARCHAR(200) NOT NULL,
+        [Description]               NVARCHAR(500) NULL,
+        [OseonStatus]               INT NOT NULL DEFAULT 0,
+        [IsFirstOperation]          BIT NOT NULL DEFAULT 0,
+        [IsLastOperation]           BIT NOT NULL DEFAULT 0,
+        [LastStatusReportInOseon]   DATETIME2 NULL,
+        [CreatedAt]                 DATETIME2 NOT NULL,
+        [CreatedBy]                 NVARCHAR(200) NOT NULL,
+        [CreatedByWindows]          NVARCHAR(200) NOT NULL,
+        [ModifiedAt]                DATETIME2 NULL,
+        [ModifiedBy]                NVARCHAR(200) NULL,
+        [ModifiedByWindows]         NVARCHAR(200) NULL,
+        CONSTRAINT [PK_OseonWorkOperations] PRIMARY KEY CLUSTERED ([Id]),
+        CONSTRAINT [FK_OseonWorkOperations_OseonProductionOrders_OseonProductionOrderId]
+            FOREIGN KEY ([OseonProductionOrderId]) REFERENCES [dbo].[OseonProductionOrders]([Id]) ON DELETE CASCADE
+    );
+    CREATE INDEX [IX_OseonWorkOperations_OseonProductionOrderId] ON [dbo].[OseonWorkOperations]([OseonProductionOrderId]);
+    CREATE UNIQUE INDEX [IX_OseonWorkOperations_OseonProductionOrderId_PositionNumber] ON [dbo].[OseonWorkOperations]([OseonProductionOrderId], [PositionNumber]);
+    CREATE INDEX [IX_OseonWorkOperations_OrderStatusName] ON [dbo].[OseonWorkOperations]([OseonProductionOrderId], [OseonStatus], [Name]);
+    PRINT 'Tabelle OseonWorkOperations erstellt.';
+END
+GO
+
+-- =============================================
+-- 14. Roles
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'Roles')
+BEGIN
+    CREATE TABLE [dbo].[Roles] (
+        [Id]                INT IDENTITY(1,1) NOT NULL,
+        [Key]               NVARCHAR(50)      NOT NULL,
+        [Name]              NVARCHAR(100)     NOT NULL,
+        [Description]       NVARCHAR(500)     NULL,
+        [IsSystem]          BIT               NOT NULL DEFAULT 0,
+        [SortOrder]         INT               NOT NULL DEFAULT 0,
+        [CreatedAt]         DATETIME2         NOT NULL DEFAULT GETDATE(),
+        [CreatedBy]         NVARCHAR(200)     NOT NULL,
+        [CreatedByWindows]  NVARCHAR(200)     NOT NULL,
+        [ModifiedAt]        DATETIME2         NULL,
+        [ModifiedBy]        NVARCHAR(200)     NULL,
+        [ModifiedByWindows] NVARCHAR(200)     NULL,
+        CONSTRAINT [PK_Roles] PRIMARY KEY CLUSTERED ([Id])
+    );
+    CREATE UNIQUE NONCLUSTERED INDEX [IX_Roles_Key] ON [dbo].[Roles]([Key]);
+    PRINT 'Tabelle Roles erstellt.';
+END
+GO
+
+-- =============================================
+-- 15. UserRoles
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'UserRoles')
+BEGIN
+    CREATE TABLE [dbo].[UserRoles] (
+        [Id]                INT IDENTITY(1,1) NOT NULL,
+        [UserId]            INT               NOT NULL,
+        [RoleId]            INT               NOT NULL,
+        [CreatedAt]         DATETIME2         NOT NULL DEFAULT GETDATE(),
+        [CreatedBy]         NVARCHAR(200)     NOT NULL,
+        [CreatedByWindows]  NVARCHAR(200)     NOT NULL,
+        [ModifiedAt]        DATETIME2         NULL,
+        [ModifiedBy]        NVARCHAR(200)     NULL,
+        [ModifiedByWindows] NVARCHAR(200)     NULL,
+        CONSTRAINT [PK_UserRoles] PRIMARY KEY CLUSTERED ([Id]),
+        CONSTRAINT [FK_UserRoles_Users_UserId] FOREIGN KEY ([UserId]) REFERENCES [dbo].[Users]([Id]) ON DELETE CASCADE,
+        CONSTRAINT [FK_UserRoles_Roles_RoleId] FOREIGN KEY ([RoleId]) REFERENCES [dbo].[Roles]([Id]) ON DELETE CASCADE
+    );
+    CREATE UNIQUE NONCLUSTERED INDEX [IX_UserRoles_UserId_RoleId] ON [dbo].[UserRoles]([UserId], [RoleId]);
+    CREATE NONCLUSTERED INDEX [IX_UserRoles_RoleId] ON [dbo].[UserRoles]([RoleId]);
+    PRINT 'Tabelle UserRoles erstellt.';
+END
+GO
+
+-- =============================================
+-- 16. AppSettings
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'AppSettings')
+BEGIN
+    CREATE TABLE [dbo].[AppSettings] (
+        [Key]         NVARCHAR(100) NOT NULL,
+        [Value]       NVARCHAR(500) NOT NULL,
+        [Description] NVARCHAR(500) NULL,
+        CONSTRAINT [PK_AppSettings] PRIMARY KEY CLUSTERED ([Key])
+    );
+    PRINT 'Tabelle AppSettings erstellt.';
+
+    -- Standard-Einstellungen
+    INSERT INTO [dbo].[AppSettings] ([Key], [Value], [Description]) VALUES
+        ('KommissionierTage', '4', 'Arbeitstage vor Fertigungstermin fuer Kommissionierung'),
+        ('VorkommissionierTage', '1', 'Zusaetzliche Tage vor Kommissioniertermin'),
+        ('BeschichtungTage', '10', 'Arbeitstage vor Kommissionierung fuer Beschichtung'),
+        ('WarningThresholdPercent', '150', 'Meldebestand Warnschwelle in Prozent'),
+        ('CriticalThresholdPercent', '100', 'Meldebestand kritische Schwelle in Prozent'),
+        ('NegativeBuchungErlaubt', 'false', 'Negative Buchungen erlauben (true/false)'),
+        ('NegativeBuchungLagerplatz', 'NAN', 'Fallback-Lagerplatz bei negativem Bestand'),
+        ('BeschichtungAbholtage', 'Dienstag,Donnerstag', 'Wochentage fuer Beschichtungs-Abholung'),
+        ('TeileverfolgungAktiv', 'false', 'Globaler Schalter: Teileverfolgungs-Modul aktiviert'),
+        ('OseonRueckmeldungAktiv', 'false', 'Rueckmeldungen duerfen an Oseon zurueckgeschrieben werden'),
+        ('SageRueckmeldungAktiv', 'false', 'Rueckmeldungen duerfen an Sage zurueckgeschrieben werden'),
+        ('OseonReportingHorizonDays', '10', 'Reporting: Tage in die Zukunft (Default-Horizont)'),
+        ('OseonReportingOverdueLookbackDays', '90', 'Reporting: Tage in die Vergangenheit fuer Ueberfaellig-Slice'),
+        ('QrMitFaNummer', 'false', 'QR-Code enthaelt Fertigungsauftragsnummer an 3. Stelle'),
+        ('OseonAmpelGelbTage', '1', 'OSEON Ampel: Gelb ab X Tagen vor Termin'),
+        ('OseonAmpelBlauTage', '2', 'OSEON Ampel: Blau ab X Tagen vor Termin'),
+        ('BestellungenAktiv', 'false', 'Bedarfsmeldungen aus Stueckliste aktivieren'),
+        ('LeitstandAktiv', 'false', 'Leitstand-Modul: Kommissionier-Freigabe und Priorisierung aktivieren'),
+        ('KommissionierungMitZuweisung', 'false', 'Kommissionierung mit Anwenderzuweisung aktivieren'),
+        ('LackierteilKategorieName', '', 'Name der Artikelkategorie die als Lackierteil gilt. Leer = Feature inaktiv'),
+        ('DefaultLagerbestellempfaengerId', '', 'Default-OrderRecipientGroup-ID fuer Lagerbestellungen (leer = Submit blockt)'),
+        ('DefaultGlasbestellempfaengerId', '', 'Default-OrderRecipientGroup-ID fuer Glas-Bestellungen (leer = Submit blockt)'),
+        ('GlasArtikelgruppen', '', 'Kommaseparierte Artikelgruppen fuer Glas-Bestellungen (in der Lager-Bestellung ausgenommen)'),
+        ('GemeinsameArtikelgruppen', 'EUZ', 'Kommaseparierte Artikelgruppen, die in Lager- UND Glas-Bestellungen verfuegbar sind'),
+        ('BdeAktiv', 'false', 'BDE-Modul (Betriebsdatenerfassung) aktivieren'),
+        ('BdeNurFaMeldung', 'false', 'Vereinfachter BDE-Modus: Buchung auf FA statt einzelne Arbeitsgaenge'),
+        ('BdeDefaultArbeitsgang', '', 'Default-Arbeitsgang fuer vereinfachten BDE-Modus (z.B. PRODUKTION)'),
+        ('BdeMehrfachBuchungProOperator', 'false', 'Ein Mitarbeiter darf mehrere parallele Buchungen haben (auf verschiedenen Arbeitsgaengen)'),
+        ('BdeMehrfachBuchungProArbeitsgang', 'false', 'Ein Arbeitsgang darf mehrere parallele Buchungen haben (durch verschiedene Mitarbeiter)'),
+        ('BdeGleichzeitigerAbschlussBeiMehrfachStart', 'false', 'Alle parallel gestarteten Produktionsbuchungen eines Mitarbeiters muessen gemeinsam fertiggemeldet werden (nur wirksam wenn BdeMehrfachBuchungProOperator aktiv)'),
+        ('BdeSchichtkalenderAktiv', 'false', 'Schichtkalender + Auto-Pause am Schichtende aktiv'),
+        ('WindowsAuthAktiv', 'false', 'Windows-Anmeldung (Auto-Login) aktivieren'),
+        ('WindowsAuthBerechtigungsgruppe', '', 'AD-Berechtigungsgruppe (SAM-Name) fuer ''AD-Benutzer anlegen''');
+    PRINT 'Standard-Einstellungen eingefuegt.';
+END
+GO
+
+-- =============================================
+-- 13. ServiceSettings
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'ServiceSettings')
+BEGIN
+    CREATE TABLE [dbo].[ServiceSettings] (
+        [Key]         NVARCHAR(100) NOT NULL,
+        [Value]       NVARCHAR(500) NOT NULL,
+        [Category]    NVARCHAR(100) NULL,
+        [Description] NVARCHAR(500) NULL,
+        CONSTRAINT [PK_ServiceSettings] PRIMARY KEY CLUSTERED ([Key])
+    );
+    PRINT 'Tabelle ServiceSettings erstellt.';
+
+    -- Standard-Eintraege
+    INSERT INTO [dbo].[ServiceSettings] ([Key], [Value], [Category], [Description]) VALUES
+        ('Notifications:MeldebestandEnabled', 'true', 'Notifications', 'Meldebestand-Mail aktiv (true/false)'),
+        ('Notifications:MeldebestandSubject', 'Meldebestand unterschritten — IDEAL AKE WMS', 'Notifications', 'Betreff der Meldebestand-Mail'),
+        ('Notifications:Recipients', '', 'Notifications', 'Feste Empfaenger fuer Meldebestand-Mail (kommagetrennt)'),
+        ('Notifications:AppBaseUrl', '', 'Notifications', 'Basis-URL der App fuer Links in Mails (z.B. https://wms.ake.at)'),
+        ('Sync:ProductionOrdersEnabled', 'true', 'Sync', 'Produktionsauftraege-Sync aus SAGE aktiv (true/false)'),
+        ('Sync:ArticlesEnabled', 'true', 'Sync', 'Artikel-Sync aus SAGE aktiv (true/false)');
+    PRINT 'Standard-ServiceSettings eingefuegt.';
+END
+GO
+
+-- BOM-Cache + Lackierteil-Erkennung ServiceSettings
+IF NOT EXISTS (SELECT 1 FROM [dbo].[ServiceSettings] WHERE [Key] = 'Sync:BomCacheEnabled')
+    INSERT INTO [dbo].[ServiceSettings] ([Key], [Value], [Category], [Description])
+    VALUES ('Sync:BomCacheEnabled', 'false', 'BOM-Cache', 'BOM-Cache-Sync aktiv');
+
+IF NOT EXISTS (SELECT 1 FROM [dbo].[ServiceSettings] WHERE [Key] = 'Sync:BomCacheWeeks')
+    INSERT INTO [dbo].[ServiceSettings] ([Key], [Value], [Category], [Description])
+    VALUES ('Sync:BomCacheWeeks', '8', 'BOM-Cache', 'Wochen Fertigungstermin im Cache');
+
+IF NOT EXISTS (SELECT 1 FROM [dbo].[ServiceSettings] WHERE [Key] = 'Sync:BomCacheMaxOrders')
+    INSERT INTO [dbo].[ServiceSettings] ([Key], [Value], [Category], [Description])
+    VALUES ('Sync:BomCacheMaxOrders', '200', 'BOM-Cache', 'Max Auftraege im Cache');
+
+IF NOT EXISTS (SELECT 1 FROM [dbo].[ServiceSettings] WHERE [Key] = 'Sync:BomCacheMaxAgeHours')
+    INSERT INTO [dbo].[ServiceSettings] ([Key], [Value], [Category], [Description])
+    VALUES ('Sync:BomCacheMaxAgeHours', '24', 'BOM-Cache', 'Re-Sync nach X Stunden');
+
+IF NOT EXISTS (SELECT 1 FROM [dbo].[ServiceSettings] WHERE [Key] = 'Sync:CoatingDetectionEnabled')
+    INSERT INTO [dbo].[ServiceSettings] ([Key], [Value], [Category], [Description])
+    VALUES ('Sync:CoatingDetectionEnabled', 'false', 'Lackierteile', 'Lackierteil-Erkennung Sync-Job aktiv');
+
+-- BDE Auto-Pause + Feiertags-Sync ServiceSettings
+IF NOT EXISTS (SELECT 1 FROM [dbo].[ServiceSettings] WHERE [Key] = 'Sync:BdeAutoPauseIntervalMinutes')
+    INSERT INTO [dbo].[ServiceSettings] ([Key], [Value], [Category], [Description])
+    VALUES ('Sync:BdeAutoPauseIntervalMinutes', '60', 'BDE', 'Intervall (Minuten) fuer Auto-Pause am Schichtende');
+
+IF NOT EXISTS (SELECT 1 FROM [dbo].[ServiceSettings] WHERE [Key] = 'Sync:FeiertagSyncEnabled')
+    INSERT INTO [dbo].[ServiceSettings] ([Key], [Value], [Category], [Description])
+    VALUES ('Sync:FeiertagSyncEnabled', 'false', 'BDE', 'Feiertags-Sync aus Nager.Date aktiv');
+
+IF NOT EXISTS (SELECT 1 FROM [dbo].[ServiceSettings] WHERE [Key] = 'Sync:FeiertagCountryCode')
+    INSERT INTO [dbo].[ServiceSettings] ([Key], [Value], [Category], [Description])
+    VALUES ('Sync:FeiertagCountryCode', 'AT', 'BDE', 'Laendercode fuer Feiertags-Sync (ISO-3166 alpha-2, z.B. AT, DE)');
+
+IF NOT EXISTS (SELECT 1 FROM [dbo].[ServiceSettings] WHERE [Key] = 'Sync:FeiertagRegion')
+    INSERT INTO [dbo].[ServiceSettings] ([Key], [Value], [Category], [Description])
+    VALUES ('Sync:FeiertagRegion', '', 'BDE', 'Optionale Region fuer Feiertags-Sync (z.B. AT-3 fuer Niederoesterreich)');
+
+IF NOT EXISTS (SELECT 1 FROM [dbo].[ServiceSettings] WHERE [Key] = 'Sync:FeiertagJahreVoraus')
+    INSERT INTO [dbo].[ServiceSettings] ([Key], [Value], [Category], [Description])
+    VALUES ('Sync:FeiertagJahreVoraus', '2', 'BDE', 'Anzahl Folgejahre, die Feiertage vorausgesynct werden');
+
+IF NOT EXISTS (SELECT 1 FROM [dbo].[ServiceSettings] WHERE [Key] = 'Sync:WarehouseRequisitionEmailEnabled')
+    INSERT INTO [dbo].[ServiceSettings] ([Key], [Value], [Category], [Description])
+    VALUES ('Sync:WarehouseRequisitionEmailEnabled', 'false', 'Lagerbestellung', 'Aktiviert E-Mail-Versand fuer Lagerbestellungen im SyncWorker');
+GO
+
+-- =============================================
+-- 14. Holidays
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'Holidays')
+BEGIN
+    CREATE TABLE [dbo].[Holidays] (
+        [Id]                INT IDENTITY(1,1) NOT NULL,
+        [Date]              DATE              NOT NULL,
+        [Description]       NVARCHAR(200)     NULL,
+        [Source]            TINYINT           NOT NULL DEFAULT (1),
+        [CreatedAt]         DATETIME2         NOT NULL DEFAULT GETDATE(),
+        [CreatedBy]         NVARCHAR(200)     NOT NULL,
+        [CreatedByWindows]  NVARCHAR(200)     NOT NULL,
+        [ModifiedAt]        DATETIME2         NULL,
+        [ModifiedBy]        NVARCHAR(200)     NULL,
+        [ModifiedByWindows] NVARCHAR(200)     NULL,
+        CONSTRAINT [PK_Holidays] PRIMARY KEY CLUSTERED ([Id]),
+        CONSTRAINT [UQ_Holidays_Date] UNIQUE ([Date])
+    );
+    PRINT 'Tabelle Holidays erstellt.';
+END
+GO
+
+-- =============================================
+-- 14b. SyncLogs (service-uebergreifendes Sync-Protokoll)
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'SyncLogs')
+BEGIN
+    CREATE TABLE [dbo].[SyncLogs] (
+        [Id]        INT IDENTITY(1,1) NOT NULL,
+        [Timestamp] DATETIME2         NOT NULL CONSTRAINT [DF_SyncLogs_Timestamp] DEFAULT SYSDATETIME(),
+        [Service]   NVARCHAR(50)      NOT NULL,
+        [Level]     NVARCHAR(10)      NOT NULL,
+        [Message]   NVARCHAR(1000)    NOT NULL,
+        [Reference] NVARCHAR(100)     NULL,
+        CONSTRAINT [PK_SyncLogs] PRIMARY KEY CLUSTERED ([Id])
+    );
+    PRINT 'Tabelle SyncLogs erstellt.';
+END
+GO
+
+-- =============================================
+-- 15. Indexes
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_StockMovements_ArticleId')
+    CREATE NONCLUSTERED INDEX [IX_StockMovements_ArticleId] ON [dbo].[StockMovements]([ArticleId]);
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_StockMovements_StorageLocationId')
+    CREATE NONCLUSTERED INDEX [IX_StockMovements_StorageLocationId] ON [dbo].[StockMovements]([StorageLocationId]);
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_StockMovements_Timestamp')
+    CREATE NONCLUSTERED INDEX [IX_StockMovements_Timestamp] ON [dbo].[StockMovements]([Timestamp]);
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_StockMovements_SourceStorageLocationId')
+    CREATE NONCLUSTERED INDEX [IX_StockMovements_SourceStorageLocationId] ON [dbo].[StockMovements]([SourceStorageLocationId]);
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_SageBookingQueueItems_Status')
+    CREATE NONCLUSTERED INDEX [IX_SageBookingQueueItems_Status] ON [dbo].[SageBookingQueueItems]([Status]);
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_SageBookingQueueItems_StockMovementId')
+    CREATE UNIQUE NONCLUSTERED INDEX [IX_SageBookingQueueItems_StockMovementId] ON [dbo].[SageBookingQueueItems]([StockMovementId]);
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_StorageLocations_IsActive')
+    CREATE NONCLUSTERED INDEX [IX_StorageLocations_IsActive] ON [dbo].[StorageLocations]([IsActive]);
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_StorageLocations_Source')
+    CREATE NONCLUSTERED INDEX [IX_StorageLocations_Source] ON [dbo].[StorageLocations]([Source]);
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_StorageLocations_IstBuchbar')
+    CREATE NONCLUSTERED INDEX [IX_StorageLocations_IstBuchbar] ON [dbo].[StorageLocations]([IstBuchbar]);
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_SyncLogs_Timestamp_Desc')
+    CREATE NONCLUSTERED INDEX [IX_SyncLogs_Timestamp_Desc] ON [dbo].[SyncLogs]([Timestamp] DESC);
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_SyncLogs_Service_Level')
+    CREATE NONCLUSTERED INDEX [IX_SyncLogs_Service_Level] ON [dbo].[SyncLogs]([Service], [Level]);
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_WorkstationUsers_WorkstationId')
+    CREATE NONCLUSTERED INDEX [IX_WorkstationUsers_WorkstationId] ON [dbo].[WorkstationUsers]([WorkstationId]);
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_WorkstationUsers_UserId')
+    CREATE NONCLUSTERED INDEX [IX_WorkstationUsers_UserId] ON [dbo].[WorkstationUsers]([UserId]);
+-- Schema-Inversion (Teil 7): OrderNumber nicht mehr eindeutig; Eindeutigkeit auf SubOrderNumber.
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_ProductionOrders_OrderNumber')
+    CREATE NONCLUSTERED INDEX [IX_ProductionOrders_OrderNumber] ON [dbo].[ProductionOrders]([OrderNumber]);
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_ProductionOrders_SubOrderNumber')
+    CREATE UNIQUE NONCLUSTERED INDEX [IX_ProductionOrders_SubOrderNumber] ON [dbo].[ProductionOrders]([SubOrderNumber]);
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_ProductionOrders_ArticleNumber')
+    CREATE NONCLUSTERED INDEX [IX_ProductionOrders_ArticleNumber] ON [dbo].[ProductionOrders]([ArticleNumber]);
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_ProductionOrders_IsDone')
+    CREATE NONCLUSTERED INDEX [IX_ProductionOrders_IsDone] ON [dbo].[ProductionOrders]([IsDone]);
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_ProductionOrders_IsCancelled')
+    CREATE NONCLUSTERED INDEX [IX_ProductionOrders_IsCancelled] ON [dbo].[ProductionOrders]([IsCancelled]);
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_ProductionOrders_ProductionWorkplaceId')
+    CREATE NONCLUSTERED INDEX [IX_ProductionOrders_ProductionWorkplaceId] ON [dbo].[ProductionOrders]([ProductionWorkplaceId]);
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_ProductionOrders_IsReleasedForPicking_IsDone')
+    CREATE NONCLUSTERED INDEX [IX_ProductionOrders_IsReleasedForPicking_IsDone] ON [dbo].[ProductionOrders]([IsReleasedForPicking], [IsDone]) INCLUDE ([PickingPriority], [ProductionDate], [AssignedPickerId]);
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_ProductionOrders_AssignedPickerId')
+    CREATE NONCLUSTERED INDEX [IX_ProductionOrders_AssignedPickerId] ON [dbo].[ProductionOrders]([AssignedPickerId]) WHERE [AssignedPickerId] IS NOT NULL;
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_PickingItems_ProductionOrderId')
+    CREATE NONCLUSTERED INDEX [IX_PickingItems_ProductionOrderId] ON [dbo].[PickingItems]([ProductionOrderId]);
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_PickingItems_POId_IsPicked')
+    CREATE NONCLUSTERED INDEX [IX_PickingItems_POId_IsPicked] ON [dbo].[PickingItems]([ProductionOrderId], [IsPicked]);
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_ProductionWorkplaceUsers_ProductionWorkplaceId_UserId')
+    CREATE UNIQUE NONCLUSTERED INDEX [IX_ProductionWorkplaceUsers_ProductionWorkplaceId_UserId] ON [dbo].[ProductionWorkplaceUsers]([ProductionWorkplaceId], [UserId]);
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_ProductionWorkplaceUsers_UserId')
+    CREATE NONCLUSTERED INDEX [IX_ProductionWorkplaceUsers_UserId] ON [dbo].[ProductionWorkplaceUsers]([UserId]);
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_WorkOperations_ProductionOrderId')
+    CREATE NONCLUSTERED INDEX [IX_WorkOperations_ProductionOrderId] ON [dbo].[WorkOperations]([ProductionOrderId]);
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_WorkOperations_ProductionOrderId_Sequence')
+    CREATE NONCLUSTERED INDEX [IX_WorkOperations_ProductionOrderId_Sequence] ON [dbo].[WorkOperations]([ProductionOrderId], [Sequence]);
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_WorkOperations_ProductionWorkplaceId')
+    CREATE NONCLUSTERED INDEX [IX_WorkOperations_ProductionWorkplaceId] ON [dbo].[WorkOperations]([ProductionWorkplaceId]);
+GO
+
+PRINT 'Indexes erstellt.';
+GO
+
+-- =============================================
+-- 16. Views
+-- =============================================
+IF EXISTS (SELECT * FROM sys.views WHERE name = 'vw_CurrentStock')
+    DROP VIEW [dbo].[vw_CurrentStock];
+GO
+
+CREATE VIEW [dbo].[vw_CurrentStock]
+AS
+SELECT
+    a.Id AS ArticleId,
+    a.ArticleNumber,
+    a.Description AS ArticleDescription,
+    a.Unit,
+    sl.Id AS StorageLocationId,
+    sl.Code AS StorageLocationCode,
+    sl.Description AS StorageLocationDescription,
+    sl.Zone,
+    SUM(
+        CASE
+            WHEN sm.MovementType = 0 THEN sm.Quantity
+            WHEN sm.MovementType = 1 THEN -sm.Quantity
+            ELSE 0
+        END
+    ) AS CurrentQuantity
+FROM [dbo].[StockMovements] sm
+INNER JOIN [dbo].[Articles] a ON sm.ArticleId = a.Id
+INNER JOIN [dbo].[StorageLocations] sl ON sm.StorageLocationId = sl.Id
+GROUP BY
+    a.Id, a.ArticleNumber, a.Description, a.Unit,
+    sl.Id, sl.Code, sl.Description, sl.Zone;
+GO
+
+IF EXISTS (SELECT * FROM sys.views WHERE name = 'vw_MovementHistory')
+    DROP VIEW [dbo].[vw_MovementHistory];
+GO
+
+CREATE VIEW [dbo].[vw_MovementHistory]
+AS
+SELECT
+    sm.Id,
+    sm.Timestamp,
+    a.ArticleNumber,
+    a.Description AS ArticleDescription,
+    sm.Quantity,
+    sl.Code AS StorageLocationCode,
+    sl.Description AS StorageLocationDescription,
+    CASE sm.MovementType
+        WHEN 0 THEN 'Einbuchung'
+        WHEN 1 THEN 'Ausbuchung'
+    END AS MovementTypeName,
+    sm.MovementType,
+    u.Name AS UserName,
+    sm.WindowsUser,
+    sm.ProductionOrder,
+    sm.CreatedAt
+FROM [dbo].[StockMovements] sm
+INNER JOIN [dbo].[Articles] a ON sm.ArticleId = a.Id
+INNER JOIN [dbo].[StorageLocations] sl ON sm.StorageLocationId = sl.Id
+LEFT JOIN [dbo].[Users] u ON sm.UserId = u.Id;
+GO
+
+PRINT 'Views erstellt.';
+GO
+
+-- =============================================
+-- 16b. OperationConfigs (Arbeitsgang-Stammdaten; bis v1.53.0 OseonOperationConfigs, umbenannt mit SQL/95)
+-- =============================================
+IF OBJECT_ID(N'[dbo].[OperationConfigs]', N'U') IS NULL AND OBJECT_ID(N'[dbo].[OseonOperationConfigs]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[OperationConfigs] (
+        [Id]                       INT            IDENTITY(1,1) NOT NULL,
+        [OperationName]            NVARCHAR(100)  NOT NULL,
+        [DisplayName]              NVARCHAR(200)  NULL,
+        [DueDateOffsetDays]        INT            NOT NULL DEFAULT 0,
+        [IsExternalSystemRelevant] BIT            NOT NULL DEFAULT 1,
+        [CreatedAt]                DATETIME2      NOT NULL,
+        [CreatedBy]                NVARCHAR(200)  NOT NULL,
+        [CreatedByWindows]         NVARCHAR(200)  NOT NULL,
+        [ModifiedAt]               DATETIME2      NULL,
+        [ModifiedBy]               NVARCHAR(200)  NULL,
+        [ModifiedByWindows]        NVARCHAR(200)  NULL,
+        [Source]                   NVARCHAR(20)   NOT NULL CONSTRAINT [DF_OperationConfigs_Source] DEFAULT N'Manual',
+        [SageMissingSince]         DATETIME2      NULL,
+        CONSTRAINT [PK_OperationConfigs] PRIMARY KEY CLUSTERED ([Id])
+    );
+    PRINT 'Tabelle [OperationConfigs] erstellt.';
+END
+ELSE IF OBJECT_ID(N'[dbo].[OseonOperationConfigs]', N'U') IS NOT NULL
+    PRINT 'WARNUNG: alte Tabelle [OseonOperationConfigs] vorhanden - SQL/95_RenameOperationConfigsAndAddAudit.sql ausfuehren (keine Neuanlage).';
+GO
+
+IF OBJECT_ID(N'[dbo].[OperationConfigs]', N'U') IS NOT NULL
+   AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_OperationConfigs_OperationName' AND object_id = OBJECT_ID(N'[dbo].[OperationConfigs]'))
+    CREATE UNIQUE INDEX [IX_OperationConfigs_OperationName] ON [dbo].[OperationConfigs] ([OperationName]);
+GO
+
+-- Performance-Indexes StockMovements (38)
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_StockMovements_ArticleId_StorageLocationId' AND object_id = OBJECT_ID('StockMovements'))
+    CREATE NONCLUSTERED INDEX [IX_StockMovements_ArticleId_StorageLocationId]
+    ON [StockMovements] ([ArticleId], [StorageLocationId]) INCLUDE ([Quantity], [MovementType]);
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_StockMovements_ArticleId_SourceStorageLocationId_MovementType' AND object_id = OBJECT_ID('StockMovements'))
+    CREATE NONCLUSTERED INDEX [IX_StockMovements_ArticleId_SourceStorageLocationId_MovementType]
+    ON [StockMovements] ([ArticleId], [SourceStorageLocationId], [MovementType]) INCLUDE ([Quantity]);
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_StockMovements_ProductionOrder' AND object_id = OBJECT_ID('StockMovements'))
+    CREATE NONCLUSTERED INDEX [IX_StockMovements_ProductionOrder]
+    ON [StockMovements] ([ProductionOrder]);
+
+-- =============================================
+-- 16c. ArticleCategories
+-- =============================================
+IF OBJECT_ID(N'[dbo].[ArticleCategories]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[ArticleCategories] (
+        [Id]                INT            IDENTITY(1,1) NOT NULL,
+        [Name]              NVARCHAR(200)  NOT NULL,
+        [Description]       NVARCHAR(500)  NULL,
+        [OseonTyp]          INT            NULL,
+        [Source]            NVARCHAR(50)   NULL,
+        [CreatedAt]         DATETIME2      NOT NULL DEFAULT GETDATE(),
+        [CreatedBy]         NVARCHAR(200)  NOT NULL DEFAULT 'system',
+        [CreatedByWindows]  NVARCHAR(200)  NOT NULL DEFAULT 'system',
+        [ModifiedAt]        DATETIME2      NULL,
+        [ModifiedBy]        NVARCHAR(200)  NULL,
+        [ModifiedByWindows] NVARCHAR(200)  NULL,
+        CONSTRAINT [PK_ArticleCategories] PRIMARY KEY CLUSTERED ([Id]),
+        CONSTRAINT [UQ_ArticleCategories_Name] UNIQUE ([Name])
+    );
+    PRINT 'Tabelle [ArticleCategories] erstellt.';
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Articles') AND name = 'ArticleCategoryId')
+BEGIN
+    ALTER TABLE [dbo].[Articles] ADD [ArticleCategoryId] INT NULL;
+    ALTER TABLE [dbo].[Articles] ADD CONSTRAINT [FK_Articles_ArticleCategories]
+        FOREIGN KEY ([ArticleCategoryId]) REFERENCES [dbo].[ArticleCategories]([Id])
+        ON DELETE SET NULL;
+    CREATE NONCLUSTERED INDEX [IX_Articles_ArticleCategoryId]
+        ON [dbo].[Articles] ([ArticleCategoryId]);
+    PRINT 'Spalte [Articles].[ArticleCategoryId] mit FK + Index erstellt.';
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Articles') AND name = 'PrimaryStorageLocationId')
+BEGIN
+    ALTER TABLE [dbo].[Articles] ADD [PrimaryStorageLocationId] INT NULL;
+    ALTER TABLE [dbo].[Articles] ADD [SagePrimaryStorageLocation] NVARCHAR(100) NULL;
+    PRINT 'Spalten [Articles].[PrimaryStorageLocationId]/[SagePrimaryStorageLocation] erstellt.';
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Articles_PrimaryStorageLocationId' AND object_id = OBJECT_ID('dbo.Articles'))
+BEGIN
+    CREATE NONCLUSTERED INDEX [IX_Articles_PrimaryStorageLocationId] ON [dbo].[Articles] ([PrimaryStorageLocationId]);
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = 'FK_Articles_StorageLocations_PrimaryStorageLocationId' AND parent_object_id = OBJECT_ID('dbo.Articles'))
+BEGIN
+    ALTER TABLE [dbo].[Articles] ADD CONSTRAINT [FK_Articles_StorageLocations_PrimaryStorageLocationId]
+        FOREIGN KEY ([PrimaryStorageLocationId]) REFERENCES [dbo].[StorageLocations]([Id]) ON DELETE SET NULL;
+    PRINT 'FK [FK_Articles_StorageLocations_PrimaryStorageLocationId] erstellt.';
+END
+GO
+
+-- =============================================
+-- 16d. ArticleAttributeDefinitions + Options + Values
+-- =============================================
+IF OBJECT_ID(N'[dbo].[ArticleAttributeDefinitions]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[ArticleAttributeDefinitions] (
+        [Id]                INT            IDENTITY(1,1) NOT NULL,
+        [Name]              NVARCHAR(200)  NOT NULL,
+        [AttributeType]     INT            NOT NULL DEFAULT 0,
+        [SortOrder]         INT            NOT NULL DEFAULT 0,
+        [IsActive]          BIT            NOT NULL DEFAULT 1,
+        [SyncSource]        NVARCHAR(50)   NULL,
+        [SyncFieldName]     NVARCHAR(200)  NULL,
+        [CreatedAt]         DATETIME2      NOT NULL DEFAULT GETDATE(),
+        [CreatedBy]         NVARCHAR(200)  NOT NULL DEFAULT 'system',
+        [CreatedByWindows]  NVARCHAR(200)  NOT NULL DEFAULT 'system',
+        [ModifiedAt]        DATETIME2      NULL,
+        [ModifiedBy]        NVARCHAR(200)  NULL,
+        [ModifiedByWindows] NVARCHAR(200)  NULL,
+        CONSTRAINT [PK_ArticleAttributeDefinitions] PRIMARY KEY CLUSTERED ([Id]),
+        CONSTRAINT [UQ_ArticleAttributeDefinitions_Name] UNIQUE ([Name])
+    );
+    PRINT 'Tabelle [ArticleAttributeDefinitions] erstellt.';
+END
+GO
+
+IF OBJECT_ID(N'[dbo].[ArticleAttributeOptions]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[ArticleAttributeOptions] (
+        [Id]                              INT            IDENTITY(1,1) NOT NULL,
+        [ArticleAttributeDefinitionId]    INT            NOT NULL,
+        [Value]                           NVARCHAR(200)  NOT NULL,
+        [SortOrder]                       INT            NOT NULL DEFAULT 0,
+        CONSTRAINT [PK_ArticleAttributeOptions] PRIMARY KEY CLUSTERED ([Id]),
+        CONSTRAINT [FK_ArticleAttributeOptions_Definitions]
+            FOREIGN KEY ([ArticleAttributeDefinitionId])
+            REFERENCES [dbo].[ArticleAttributeDefinitions]([Id])
+            ON DELETE CASCADE
+    );
+    CREATE NONCLUSTERED INDEX [IX_ArticleAttributeOptions_DefinitionId]
+        ON [dbo].[ArticleAttributeOptions] ([ArticleAttributeDefinitionId]);
+    PRINT 'Tabelle [ArticleAttributeOptions] erstellt.';
+END
+GO
+
+IF OBJECT_ID(N'[dbo].[ArticleAttributeValues]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[ArticleAttributeValues] (
+        [Id]                              INT            IDENTITY(1,1) NOT NULL,
+        [ArticleId]                       INT            NOT NULL,
+        [ArticleAttributeDefinitionId]    INT            NOT NULL,
+        [BooleanValue]                    BIT            NULL,
+        [SelectedOptionId]                INT            NULL,
+        [CreatedAt]                       DATETIME2      NOT NULL DEFAULT GETDATE(),
+        [CreatedBy]                       NVARCHAR(200)  NOT NULL DEFAULT 'system',
+        [CreatedByWindows]                NVARCHAR(200)  NOT NULL DEFAULT 'system',
+        [ModifiedAt]                      DATETIME2      NULL,
+        [ModifiedBy]                      NVARCHAR(200)  NULL,
+        [ModifiedByWindows]               NVARCHAR(200)  NULL,
+        CONSTRAINT [PK_ArticleAttributeValues] PRIMARY KEY CLUSTERED ([Id]),
+        CONSTRAINT [FK_ArticleAttributeValues_Articles]
+            FOREIGN KEY ([ArticleId]) REFERENCES [dbo].[Articles]([Id]) ON DELETE CASCADE,
+        CONSTRAINT [FK_ArticleAttributeValues_Definitions]
+            FOREIGN KEY ([ArticleAttributeDefinitionId]) REFERENCES [dbo].[ArticleAttributeDefinitions]([Id]) ON DELETE CASCADE,
+        CONSTRAINT [FK_ArticleAttributeValues_Options]
+            FOREIGN KEY ([SelectedOptionId]) REFERENCES [dbo].[ArticleAttributeOptions]([Id]) ON DELETE NO ACTION
+    );
+    CREATE UNIQUE NONCLUSTERED INDEX [IX_ArticleAttributeValues_ArticleId_DefinitionId]
+        ON [dbo].[ArticleAttributeValues] ([ArticleId], [ArticleAttributeDefinitionId]);
+    CREATE NONCLUSTERED INDEX [IX_ArticleAttributeValues_ArticleId]
+        ON [dbo].[ArticleAttributeValues] ([ArticleId]);
+    PRINT 'Tabelle [ArticleAttributeValues] erstellt.';
+END
+GO
+
+-- =============================================
+-- 17. Standard-Daten
+-- =============================================
+
+-- NAN-Lagerplatz (Fallback fuer nicht zugeordnete Artikel)
+IF NOT EXISTS (SELECT 1 FROM [dbo].[StorageLocations] WHERE [Code] = 'NAN')
+BEGIN
+    INSERT INTO [dbo].[StorageLocations]
+        ([Code], [Description], [IsPickingTransport], [CreatedAt], [CreatedBy], [CreatedByWindows])
+    VALUES
+        ('NAN', 'Nicht zugeordnet (Fallback)', 0, GETDATE(), 'system', 'system');
+    PRINT 'Standard-Lagerplatz NAN eingefuegt.';
+END
+
+-- Admin-Benutzer (PasswordHash wird beim ersten App-Start automatisch gesetzt)
+IF NOT EXISTS (SELECT 1 FROM [dbo].[Users] WHERE [Name] = 'admin')
+BEGIN
+    INSERT INTO [dbo].[Users]
+        ([Name], [IsActive], [HasMasterDataAccess], [CanPick], [IsAdmin], [PasswordHash], [CreatedAt], [CreatedBy], [CreatedByWindows])
+    VALUES
+        ('admin', 1, 1, 1, 1, NULL, GETDATE(), 'system', 'system');
+    PRINT 'Standard-Benutzer admin eingefuegt (PasswordHash wird beim App-Start gesetzt).';
+END
+GO
+
+-- Standard-Rollen
+IF NOT EXISTS (SELECT 1 FROM [dbo].[Roles] WHERE [Key] = 'admin')
+BEGIN
+    INSERT INTO [dbo].[Roles] ([Key], [Name], [Description], [IsSystem], [SortOrder], [CreatedAt], [CreatedBy], [CreatedByWindows]) VALUES
+        ('admin',         'Administrator',      'Vollzugriff auf alle Funktionen',                                          1, 0, GETDATE(), 'system', 'system'),
+        ('masterdata',    'Stammdaten',          'Zugriff auf Stammdatenverwaltung (Benutzer, Arbeitsplaetze, Einstellungen)', 1, 1, GETDATE(), 'system', 'system'),
+        ('picking',       'Kommissionierung',    'Kommissionierung, Lagerbewegungen, Bestaende',                             1, 2, GETDATE(), 'system', 'system'),
+        ('stock',         'Lager',               'Lagerbewegungen und Bestandsuebersicht',                                   1, 3, GETDATE(), 'system', 'system'),
+        ('stock_keyuser', 'Lager Key-User',      'Erweiterte Lagerfunktionen (Korrekturbuchungen, Bestandsbereinigung)',     1, 4, GETDATE(), 'system', 'system'),
+        ('tracking',      'Teileverfolgung',     'Teileverfolgung und OSEON-Auftraege anzeigen',                             1, 5, GETDATE(), 'system', 'system'),
+        ('reporting',     'Rueckmeldung',        'Arbeitsgaenge rueckmelden',                                                1, 6, GETDATE(), 'system', 'system'),
+        ('leitstand',    'Leitstand',           'Produktionsauftraege freigeben und priorisieren',                              1, 7, GETDATE(), 'system', 'system'),
+        ('bde_user',      'BDE-Mitarbeiter',     'Terminal-Buchung: Arbeitsgaenge scannen, Status wechseln, Mengen melden',  1, 100, GETDATE(), 'system', 'system'),
+        ('bde_shiftlead', 'BDE-Schichtleiter',   'BDE-Anwender + Aktivitaets-Kategorien pflegen, Buchungsliste + Cockpit',   1, 101, GETDATE(), 'system', 'system'),
+        ('bde_admin',     'BDE-Admin',           'Vollzugriff: Buchungen korrigieren und stornieren, Terminals konfigurieren', 1, 102, GETDATE(), 'system', 'system');
+    PRINT 'Standard-Rollen eingefuegt.';
+END
+GO
+
+-- Rolle 'masterdata_read' (Nur-Lesen-Zugriff auf Stammdaten, v1.20.0)
+IF NOT EXISTS (SELECT 1 FROM [dbo].[Roles] WHERE [Key] = 'masterdata_read')
+BEGIN
+    INSERT INTO [dbo].[Roles] ([Key], [Name], [Description], [IsSystem], [SortOrder],
+                               [CreatedAt], [CreatedBy], [CreatedByWindows])
+    VALUES ('masterdata_read', 'Stammdaten ansehen',
+            'Nur-Lesen-Zugriff auf alle Stammdaten-Sichten (Benutzer, Rollen, Arbeitsplaetze, Einstellungen, Werkbaenke, Empfaenger, Artikelkategorien/-attribute, Schichtkalender, Aktivitaets-Protokoll).',
+            1, 5,
+            GETDATE(), 'system', 'system');
+    PRINT 'Rolle masterdata_read eingefuegt.';
+END
+GO
+
+-- Rolle 'vorbau' (FA-Abarbeitungsliste, v1.22.0)
+IF NOT EXISTS (SELECT 1 FROM [dbo].[Roles] WHERE [Key] = 'vorbau')
+BEGIN
+    INSERT INTO [dbo].[Roles] ([Key], [Name], [Description], [IsSystem], [SortOrder],
+                               [CreatedAt], [CreatedBy], [CreatedByWindows])
+    VALUES ('vorbau', 'Vorbau', 'FA-Abarbeitungsliste: Vorbau-Arbeitsgaenge einsehen und abhaken', 1,
+            (SELECT MAX([SortOrder]) + 1 FROM [dbo].[Roles]), GETDATE(), 'system', 'system');
+    PRINT 'Rolle vorbau eingefuegt.';
+END
+GO
+
+-- Rolle 'lagerbestellung' (nur Lagerbestellungen + eigene Fehlteile, v1.23.0)
+IF NOT EXISTS (SELECT 1 FROM [dbo].[Roles] WHERE [Key] = 'lagerbestellung')
+BEGIN
+    INSERT INTO [dbo].[Roles] ([Key], [Name], [Description], [IsSystem], [SortOrder],
+                               [CreatedAt], [CreatedBy], [CreatedByWindows])
+    VALUES ('lagerbestellung', 'Lagerbestellungen',
+            'Lagerbestellungen erfassen und eigene Fehlteile verfolgen (Zugriff nur auf Meine Lagerbestellungen + Meine Fehlteile).',
+            1, 8,
+            GETDATE(), 'system', 'system');
+    PRINT 'Rolle lagerbestellung eingefuegt.';
+END
+GO
+
+-- Rolle 'glasbestellung' (nur Glas-Bestellungen + eigene Fehlteile, v1.25.0)
+IF NOT EXISTS (SELECT 1 FROM [dbo].[Roles] WHERE [Key] = 'glasbestellung')
+BEGIN
+    INSERT INTO [dbo].[Roles] ([Key], [Name], [Description], [IsSystem], [SortOrder],
+                               [CreatedAt], [CreatedBy], [CreatedByWindows])
+    VALUES ('glasbestellung', 'Glasbestellungen',
+            'Glas-Bestellungen erfassen und eigene Fehlteile verfolgen (Zugriff nur auf Lagerbestellungen (Reiter Glas) + Meine Fehlteile).',
+            1, 9,
+            GETDATE(), 'system', 'system');
+    PRINT 'Rolle glasbestellung eingefuegt.';
+END
+GO
+
+-- Rolle 'stock_read' (Nur-Lesen Bestände+Bewegungen, v1.25.0)
+IF NOT EXISTS (SELECT 1 FROM [dbo].[Roles] WHERE [Key] = 'stock_read')
+BEGIN
+    INSERT INTO [dbo].[Roles] ([Key], [Name], [Description], [IsSystem], [SortOrder],
+                               [CreatedAt], [CreatedBy], [CreatedByWindows])
+    VALUES ('stock_read', 'Lagerbestand-Ansicht',
+            'Nur-Lesen-Zugriff auf Bestände und Bewegungshistorie.',
+            1, 35,
+            GETDATE(), 'system', 'system');
+    PRINT 'Rolle stock_read eingefuegt.';
+END
+GO
+
+-- Standard-Arbeitsgang-Stammdaten (OSEON-Kuerzel; Audit 'system'). Verschachteltes IF: fehlt die Tabelle (nur alte
+-- OseonOperationConfigs vorhanden, siehe 16b), wird das INSERT nie ausgefuehrt (T-SQL garantiert kein Kurzschluss-AND).
+IF OBJECT_ID(N'[dbo].[OperationConfigs]', N'U') IS NOT NULL
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM [dbo].[OperationConfigs])
+    BEGIN
+        INSERT INTO [dbo].[OperationConfigs] ([OperationName], [DisplayName], [DueDateOffsetDays], [IsExternalSystemRelevant], [CreatedAt], [CreatedBy], [CreatedByWindows])
+        VALUES
+            (N'B',       N'Belegen',         -1, 1, GETDATE(), N'system', N'system'),
+            (N'ST',      N'Stanzen',          0, 1, GETDATE(), N'system', N'system'),
+            (N'EG',      N'Entgraten',        0, 1, GETDATE(), N'system', N'system'),
+            (N'BG',      N'Biegen',           2, 1, GETDATE(), N'system', N'system'),
+            (N'BG-SaP1', N'Biegen SaP1',     2, 1, GETDATE(), N'system', N'system'),
+            (N'RO',      N'Rollen',           2, 1, GETDATE(), N'system', N'system'),
+            (N'MS',      N'Maschinenschub',   4, 1, GETDATE(), N'system', N'system'),
+            (N'RS',      N'Restschweissen',   4, 1, GETDATE(), N'system', N'system'),
+            (N'SL',      N'Schlosser',        5, 1, GETDATE(), N'system', N'system'),
+            (N'RE',      N'Reinigen',         5, 1, GETDATE(), N'system', N'system'),
+            (N'ZB',      N'Zusammenbau',      0, 0, GETDATE(), N'system', N'system'),
+            (N'A-BT',    N'Anlegen BT',       0, 0, GETDATE(), N'system', N'system');
+        PRINT 'Standard-Arbeitsgang-Stammdaten eingefuegt.';
+    END
+END
+GO
+
+-- Quelle der Seed-/Altbestandszeilen (v1.61.0, Spec 2026-10-16): CreatedBy = 'system' -> ExternalSystem. Wortgleich mit SQL/96 und der
+-- EF-Migration (Drift-Test). EXEC, weil der Batch auf einer bestehenden Tabelle ohne die Spalte sonst schon beim Kompilieren scheitert.
+IF COL_LENGTH(N'dbo.OperationConfigs', N'Source') IS NOT NULL
+    EXEC(N'UPDATE [dbo].[OperationConfigs] SET [Source] = N''ExternalSystem'' WHERE [CreatedBy] = N''system'' AND [Source] = N''Manual'';');
+GO
+
+-- Admin-Benutzer bekommt admin-Rolle
+IF NOT EXISTS (SELECT 1 FROM [dbo].[UserRoles] ur
+    INNER JOIN [dbo].[Users] u ON ur.[UserId] = u.[Id]
+    INNER JOIN [dbo].[Roles] r ON ur.[RoleId] = r.[Id]
+    WHERE u.[Name] = 'admin' AND r.[Key] = 'admin')
+BEGIN
+    DECLARE @adminUserId INT = (SELECT [Id] FROM [dbo].[Users] WHERE [Name] = 'admin');
+    DECLARE @adminRoleId INT = (SELECT [Id] FROM [dbo].[Roles] WHERE [Key] = 'admin');
+    IF @adminUserId IS NOT NULL AND @adminRoleId IS NOT NULL
+    BEGIN
+        INSERT INTO [dbo].[UserRoles] ([UserId], [RoleId], [CreatedAt], [CreatedBy], [CreatedByWindows])
+        VALUES (@adminUserId, @adminRoleId, GETDATE(), 'system', 'system');
+        PRINT 'Admin-Benutzer hat admin-Rolle erhalten.';
+    END
+END
+GO
+
+-- =============================================
+-- 17b. OrderRecipientGroups
+-- =============================================
+IF OBJECT_ID(N'[dbo].[OrderRecipientGroups]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[OrderRecipientGroups] (
+        [Id] int IDENTITY(1,1) NOT NULL,
+        [Name] nvarchar(200) NOT NULL,
+        [Description] nvarchar(500) NULL,
+        [CreatedAt] datetime2 NOT NULL DEFAULT GETDATE(),
+        [CreatedBy] nvarchar(200) NULL,
+        [CreatedByWindows] nvarchar(200) NULL,
+        [ModifiedAt] datetime2 NULL,
+        [ModifiedBy] nvarchar(200) NULL,
+        [ModifiedByWindows] nvarchar(200) NULL,
+        CONSTRAINT [PK_OrderRecipientGroups] PRIMARY KEY ([Id])
+    );
+    PRINT 'Tabelle OrderRecipientGroups erstellt.';
+END
+GO
+
+-- =============================================
+-- 17c. OrderRecipients
+-- =============================================
+IF OBJECT_ID(N'[dbo].[OrderRecipients]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[OrderRecipients] (
+        [Id] int IDENTITY(1,1) NOT NULL,
+        [OrderRecipientGroupId] int NOT NULL,
+        [Name] nvarchar(200) NOT NULL,
+        [Email] nvarchar(300) NOT NULL,
+        [IsActive] bit NOT NULL DEFAULT 1,
+        [CreatedAt] datetime2 NOT NULL DEFAULT GETDATE(),
+        [CreatedBy] nvarchar(200) NULL,
+        [CreatedByWindows] nvarchar(200) NULL,
+        [ModifiedAt] datetime2 NULL,
+        [ModifiedBy] nvarchar(200) NULL,
+        [ModifiedByWindows] nvarchar(200) NULL,
+        CONSTRAINT [PK_OrderRecipients] PRIMARY KEY ([Id]),
+        CONSTRAINT [FK_OrderRecipients_OrderRecipientGroups] FOREIGN KEY ([OrderRecipientGroupId])
+            REFERENCES [dbo].[OrderRecipientGroups]([Id]) ON DELETE CASCADE
+    );
+
+    CREATE INDEX [IX_OrderRecipients_GroupId] ON [dbo].[OrderRecipients]([OrderRecipientGroupId]);
+    PRINT 'Tabelle OrderRecipients erstellt.';
+END
+GO
+
+-- =============================================
+-- 17d. ArticleGroupRecipientMappings
+-- =============================================
+IF OBJECT_ID(N'[dbo].[ArticleGroupRecipientMappings]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[ArticleGroupRecipientMappings] (
+        [Id] int IDENTITY(1,1) NOT NULL,
+        [ArticleGroup] nvarchar(100) NOT NULL,
+        [OrderRecipientGroupId] int NOT NULL,
+        [CreatedAt] datetime2 NOT NULL DEFAULT GETDATE(),
+        [CreatedBy] nvarchar(200) NULL,
+        [CreatedByWindows] nvarchar(200) NULL,
+        [ModifiedAt] datetime2 NULL,
+        [ModifiedBy] nvarchar(200) NULL,
+        [ModifiedByWindows] nvarchar(200) NULL,
+        CONSTRAINT [PK_ArticleGroupRecipientMappings] PRIMARY KEY ([Id]),
+        CONSTRAINT [FK_ArticleGroupRecipientMappings_OrderRecipientGroups] FOREIGN KEY ([OrderRecipientGroupId])
+            REFERENCES [dbo].[OrderRecipientGroups]([Id]) ON DELETE CASCADE
+    );
+
+    CREATE INDEX [IX_ArticleGroupRecipientMappings_ArticleGroup] ON [dbo].[ArticleGroupRecipientMappings]([ArticleGroup]);
+    CREATE UNIQUE INDEX [UX_ArticleGroupRecipientMappings_Group_Recipient] ON [dbo].[ArticleGroupRecipientMappings]([ArticleGroup], [OrderRecipientGroupId]);
+    PRINT 'Tabelle ArticleGroupRecipientMappings erstellt.';
+END
+GO
+
+-- =============================================
+-- 17e. PartRequisitions
+-- =============================================
+IF OBJECT_ID(N'[dbo].[PartRequisitions]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[PartRequisitions] (
+        [Id] int IDENTITY(1,1) NOT NULL,
+        [ProductionOrderId] int NOT NULL,
+        [ArticleNumber] nvarchar(100) NOT NULL,
+        [ArticleDescription] nvarchar(500) NULL,
+        [ArticleGroup] nvarchar(100) NULL,
+        [Position] nvarchar(50) NULL,
+        [Quantity] decimal(18,3) NOT NULL,
+        [Unit] nvarchar(20) NULL,
+        [Status] nvarchar(20) NOT NULL DEFAULT 'Offen',
+        [Priority] nvarchar(20) NOT NULL DEFAULT 'Normal',
+        [Notes] nvarchar(1000) NULL,
+        [OrderRecipientGroupId] int NULL,
+        [SentToEmails] nvarchar(1000) NULL,
+        [EmailSentAt] datetime2 NULL,
+        [FulfilledByStockMovementId] int NULL,
+        [FulfilledAt] datetime2 NULL,
+        [CancelledAt] datetime2 NULL,
+        [CancelledBy] nvarchar(200) NULL,
+        [CreatedAt] datetime2 NOT NULL DEFAULT GETDATE(),
+        [CreatedBy] nvarchar(200) NULL,
+        [CreatedByWindows] nvarchar(200) NULL,
+        [ModifiedAt] datetime2 NULL,
+        [ModifiedBy] nvarchar(200) NULL,
+        [ModifiedByWindows] nvarchar(200) NULL,
+        CONSTRAINT [PK_PartRequisitions] PRIMARY KEY ([Id]),
+        CONSTRAINT [FK_PartRequisitions_ProductionOrders] FOREIGN KEY ([ProductionOrderId])
+            REFERENCES [dbo].[ProductionOrders]([Id]),
+        CONSTRAINT [FK_PartRequisitions_OrderRecipientGroups] FOREIGN KEY ([OrderRecipientGroupId])
+            REFERENCES [dbo].[OrderRecipientGroups]([Id]) ON DELETE SET NULL,
+        CONSTRAINT [FK_PartRequisitions_StockMovements] FOREIGN KEY ([FulfilledByStockMovementId])
+            REFERENCES [dbo].[StockMovements]([Id]) ON DELETE SET NULL
+    );
+
+    CREATE INDEX [IX_PartRequisitions_ProductionOrderId] ON [dbo].[PartRequisitions]([ProductionOrderId]);
+    CREATE INDEX [IX_PartRequisitions_ArticleNumber] ON [dbo].[PartRequisitions]([ArticleNumber]);
+    CREATE INDEX [IX_PartRequisitions_Status] ON [dbo].[PartRequisitions]([Status]);
+    CREATE INDEX [IX_PartRequisitions_EmailSentAt_Status] ON [dbo].[PartRequisitions]([EmailSentAt], [Status]);
+    PRINT 'Tabelle PartRequisitions erstellt.';
+END
+GO
+
+CREATE TABLE [dbo].[WarehouseRequisitions] (
+    [Id] INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    [ProductionWorkplaceId] INT NOT NULL,
+    [Status] TINYINT NOT NULL,
+    [Type] INT NOT NULL CONSTRAINT [DF_WarehouseRequisitions_Type] DEFAULT 1,
+    [CreatedByUserId] INT NULL,
+    [OrderRecipientGroupId] INT NULL,
+    [SubmittedAt] DATETIME2 NULL,
+    [SubmittedByUserId] INT NULL,
+    [ClosedAt] DATETIME2 NULL,
+    [ClosedByUserId] INT NULL,
+    [CancelledAt] DATETIME2 NULL,
+    [CancelledByUserId] INT NULL,
+    [CancellationReason] NVARCHAR(500) NULL,
+    [Comment] NVARCHAR(1000) NULL,
+    [EmailSentAt] DATETIME2 NULL,
+    [CancellationEmailSentAt] DATETIME2 NULL,
+    [RowVersion] ROWVERSION NOT NULL,
+    [CreatedAt] DATETIME2 NOT NULL,
+    [CreatedBy] NVARCHAR(200) NOT NULL,
+    [CreatedByWindows] NVARCHAR(200) NOT NULL,
+    [ModifiedAt] DATETIME2 NULL,
+    [ModifiedBy] NVARCHAR(200) NULL,
+    [ModifiedByWindows] NVARCHAR(200) NULL,
+    CONSTRAINT [FK_WarehouseRequisitions_ProductionWorkplaces] FOREIGN KEY ([ProductionWorkplaceId])
+        REFERENCES [dbo].[ProductionWorkplaces]([Id]),
+    CONSTRAINT [FK_WarehouseRequisitions_OrderRecipientGroups] FOREIGN KEY ([OrderRecipientGroupId])
+        REFERENCES [dbo].[OrderRecipientGroups]([Id])
+);
+CREATE INDEX [IX_WarehouseRequisitions_Status] ON [dbo].[WarehouseRequisitions]([Status]);
+CREATE INDEX [IX_WarehouseRequisitions_ProductionWorkplaceId] ON [dbo].[WarehouseRequisitions]([ProductionWorkplaceId]);
+CREATE INDEX [IX_WarehouseRequisitions_SubmittedAt] ON [dbo].[WarehouseRequisitions]([SubmittedAt]);
+CREATE INDEX [IX_WarehouseRequisitions_CreatedByUserId] ON [dbo].[WarehouseRequisitions]([CreatedByUserId]);
+GO
+
+CREATE TABLE [dbo].[WarehouseRequisitionItems] (
+    [Id] INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    [WarehouseRequisitionId] INT NOT NULL,
+    [ArticleNumber] NVARCHAR(100) NOT NULL,
+    [ArticleDescription] NVARCHAR(500) NOT NULL,
+    [Unit] NVARCHAR(20) NULL,
+    [QuantityRequested] DECIMAL(18,4) NOT NULL,
+    [QuantityPicked] DECIMAL(18,4) NULL,
+    [Position] INT NOT NULL,
+    [Note] NVARCHAR(500) NULL,
+    [NoteEinkauf] NVARCHAR(500) NULL,
+    [ShortageStatus] TINYINT NOT NULL CONSTRAINT DF_WarehouseRequisitionItems_ShortageStatus DEFAULT 0,
+    [CreatedAt] DATETIME2 NOT NULL,
+    [CreatedBy] NVARCHAR(200) NOT NULL,
+    [CreatedByWindows] NVARCHAR(200) NOT NULL,
+    [ModifiedAt] DATETIME2 NULL,
+    [ModifiedBy] NVARCHAR(200) NULL,
+    [ModifiedByWindows] NVARCHAR(200) NULL,
+    CONSTRAINT [FK_WarehouseRequisitionItems_WarehouseRequisitions] FOREIGN KEY ([WarehouseRequisitionId])
+        REFERENCES [dbo].[WarehouseRequisitions]([Id]) ON DELETE CASCADE
+);
+CREATE INDEX [IX_WarehouseRequisitionItems_RequisitionId_Position]
+    ON [dbo].[WarehouseRequisitionItems]([WarehouseRequisitionId], [Position]);
+-- Gefiltert: DUMMY-Schluessel ausgenommen (mehrere DUMMY-Positionen je Bestellung erlaubt, Teil-7).
+CREATE UNIQUE INDEX [IX_WarehouseRequisitionItems_RequisitionId_ArticleNumber]
+    ON [dbo].[WarehouseRequisitionItems]([WarehouseRequisitionId], [ArticleNumber])
+    WHERE [ArticleNumber] <> 'DUMMY';
+CREATE INDEX [IX_WarehouseRequisitionItems_ShortageStatus_WillBeRestocked]
+    ON [dbo].[WarehouseRequisitionItems]([ShortageStatus])
+    WHERE [ShortageStatus] = 1;
+CREATE INDEX [IX_WarehouseRequisitionItems_ShortageStatus_NoRestock]
+    ON [dbo].[WarehouseRequisitionItems]([ShortageStatus])
+    WHERE [ShortageStatus] = 2;
+GO
+
+-- =============================================
+-- 17f. CachedBomHeaders + CachedBomItems
+-- =============================================
+IF OBJECT_ID('dbo.CachedBomHeaders', 'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[CachedBomHeaders] (
+        [Id]            INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_CachedBomHeaders PRIMARY KEY,
+        [Artikelnummer] NVARCHAR(100)     NOT NULL,
+        [Source]        NVARCHAR(20)      NOT NULL,
+        [ItemCount]     INT               NOT NULL,
+        [ContentHash]   NVARCHAR(64)      NOT NULL,
+        [CachedAt]      DATETIME2         NOT NULL
+    );
+    CREATE UNIQUE INDEX [IX_CachedBomHeaders_Artikelnummer] ON [dbo].[CachedBomHeaders]([Artikelnummer]);
+    PRINT 'Tabelle CachedBomHeaders erstellt.';
+END
+GO
+
+IF OBJECT_ID('dbo.CachedBomItems', 'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[CachedBomItems] (
+        [Id]                  INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_CachedBomItems PRIMARY KEY,
+        [CachedBomHeaderId]   INT               NOT NULL,
+        [Position]            NVARCHAR(50)      NULL,
+        [Baugruppe]           NVARCHAR(200)     NULL,
+        [Ressourcenummer]     NVARCHAR(100)     NULL,
+        [Bezeichnung1]        NVARCHAR(500)     NULL,
+        [Bezeichnung2]        NVARCHAR(500)     NULL,
+        [Menge]               DECIMAL(18,3)     NOT NULL,
+        [Beschaffungsartikel] NVARCHAR(100)     NULL,
+        [Artikelgruppe]       NVARCHAR(100)     NULL,
+        [SortOrder]           INT               NOT NULL,
+        CONSTRAINT FK_CachedBomItems_CachedBomHeaders
+            FOREIGN KEY ([CachedBomHeaderId]) REFERENCES [dbo].[CachedBomHeaders]([Id]) ON DELETE CASCADE
+    );
+    CREATE INDEX [IX_CachedBomItems_CachedBomHeaderId] ON [dbo].[CachedBomItems]([CachedBomHeaderId]);
+    CREATE INDEX [IX_CachedBomItems_Ressourcenummer] ON [dbo].[CachedBomItems]([Ressourcenummer]);
+    PRINT 'Tabelle CachedBomItems erstellt.';
+END
+GO
+
+-- 17g. FaHierarchyNodes + FaHierarchyOrderInfos (IDEAL: mehrstufiger FA-Struktur-/Stuecklisten-Import)
+--      Reine Cache-Tabellen (kein AuditableEntity), befuellt vom FaHierarchySyncService (Full-Refresh).
+IF OBJECT_ID(N'dbo.FaHierarchyNodes', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[FaHierarchyNodes] (
+        [Id]                  INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_FaHierarchyNodes PRIMARY KEY,
+        [HauptFA]             INT               NOT NULL,
+        [VaterFA]             INT               NULL,
+        [SubFA]               INT               NOT NULL,
+        [Position]            INT               NULL,
+        [HauptArtnr]          NVARCHAR(200)     NULL,
+        [Artnr]               NVARCHAR(200)     NULL,
+        [Matchcode]           NVARCHAR(200)     NULL,
+        [Bezeichnung1]        NVARCHAR(MAX)     NULL,
+        [Bezeichnung2]        NVARCHAR(MAX)     NULL,
+        [Artikelgruppe]       NVARCHAR(200)     NULL,
+        [Hauptlagerplatz]     NVARCHAR(200)     NULL,
+        [BemerkungPN]         NVARCHAR(MAX)     NULL,
+        [FertigungsInfoPN]    NVARCHAR(MAX)     NULL,
+        [Kommissionieren]     NVARCHAR(200)     NULL,
+        [Arbeitsbereich]      NVARCHAR(200)     NULL,
+        [Arbeitsschritte]     NVARCHAR(MAX)     NULL,
+        [Artikeltyp]          NVARCHAR(200)     NULL,
+        [Material]            NVARCHAR(200)     NULL,
+        [VMBedarf]            NVARCHAR(200)     NULL,
+        [Sollmenge]           DECIMAL(18,4)     NOT NULL,
+        [Fertigungmenge]      DECIMAL(18,4)     NOT NULL,
+        [Breite]              DECIMAL(18,4)     NOT NULL,
+        [Hoehe]               DECIMAL(18,4)     NOT NULL,
+        [Tiefe]               DECIMAL(18,4)     NOT NULL,
+        [Beschaffungsartikel] BIT               NOT NULL,
+        [Beschichtet]         BIT               NOT NULL,
+        [EKBedarf]            BIT               NOT NULL,
+        [SyncedAt]            DATETIME2         NOT NULL
+    );
+    CREATE INDEX [IX_FaHierarchyNodes_HauptFA] ON [dbo].[FaHierarchyNodes]([HauptFA]);
+    CREATE INDEX [IX_FaHierarchyNodes_VaterFA] ON [dbo].[FaHierarchyNodes]([VaterFA]);
+    PRINT 'Tabelle FaHierarchyNodes erstellt.';
+END
+GO
+
+IF OBJECT_ID(N'dbo.FaHierarchyOrderInfos', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[FaHierarchyOrderInfos] (
+        [Id]                 INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_FaHierarchyOrderInfos PRIMARY KEY,
+        [HauptFA]            INT               NOT NULL,
+        [MontageAbteilung]   NVARCHAR(200)     NULL,
+        [ABNr]               NVARCHAR(200)     NULL,
+        [Pos]                NVARCHAR(200)     NULL,
+        [Kunde]              NVARCHAR(MAX)     NULL,
+        [Status]             NVARCHAR(200)     NULL,
+        [Dienstleister]      NVARCHAR(200)     NULL,
+        [RAL]                NVARCHAR(200)     NULL,
+        [Bemerkung_Uhrzeit]  NVARCHAR(MAX)     NULL,
+        [KO_Termin]          DATETIME2         NULL,
+        [FE_Termin]          DATETIME2         NULL,
+        [Start_Beschichtung] DATETIME2         NULL,
+        [Beschichten_Retour] DATETIME2         NULL,
+        [Neuer_PT_PPS]       DATETIME2         NULL,
+        [Verladetermin_Vsl]  DATETIME2         NULL,
+        [Montagestunden]     DECIMAL(18,2)     NULL,
+        [Prio]               INT               NULL,
+        [SyncedAt]           DATETIME2         NOT NULL
+    );
+    CREATE INDEX [IX_FaHierarchyOrderInfos_HauptFA] ON [dbo].[FaHierarchyOrderInfos]([HauptFA]);
+    PRINT 'Tabelle FaHierarchyOrderInfos erstellt.';
+END
+GO
+
+IF OBJECT_ID(N'dbo.UserViewPreferences', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[UserViewPreferences] (
+        [Id]                INT IDENTITY(1,1) NOT NULL,
+        [UserId]            INT NOT NULL,
+        [ViewKey]           NVARCHAR(50) NOT NULL,
+        [SettingsJson]      NVARCHAR(MAX) NOT NULL,
+        [CreatedAt]         DATETIME2 NOT NULL,
+        [CreatedBy]         NVARCHAR(200) NOT NULL,
+        [CreatedByWindows]  NVARCHAR(200) NOT NULL,
+        [ModifiedAt]        DATETIME2 NULL,
+        [ModifiedBy]        NVARCHAR(200) NULL,
+        [ModifiedByWindows] NVARCHAR(200) NULL,
+        CONSTRAINT [PK_UserViewPreferences] PRIMARY KEY ([Id]),
+        CONSTRAINT [FK_UserViewPreferences_Users] FOREIGN KEY ([UserId]) REFERENCES [dbo].[Users]([Id]) ON DELETE CASCADE,
+        CONSTRAINT [UQ_UserViewPreferences_User_View] UNIQUE ([UserId], [ViewKey])
+    );
+    PRINT 'Tabelle UserViewPreferences erstellt.';
+END
+GO
+
+-- =============================================
+-- 17g. BDE (Betriebsdatenerfassung) Phase 1
+-- =============================================
+
+-- BdeTerminals
+IF OBJECT_ID(N'dbo.BdeTerminals', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[BdeTerminals] (
+        [Id] INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+        [UserId] INT NOT NULL,
+        [DefaultProductionWorkplaceId] INT NOT NULL,
+        [Description] NVARCHAR(200) NULL,
+        [CreatedAt] DATETIME2 NOT NULL,
+        [CreatedBy] NVARCHAR(200) NOT NULL,
+        [CreatedByWindows] NVARCHAR(200) NOT NULL,
+        [ModifiedAt] DATETIME2 NULL,
+        [ModifiedBy] NVARCHAR(200) NULL,
+        [ModifiedByWindows] NVARCHAR(200) NULL,
+        CONSTRAINT [FK_BdeTerminals_Users] FOREIGN KEY ([UserId]) REFERENCES [dbo].[Users]([Id]),
+        CONSTRAINT [FK_BdeTerminals_ProductionWorkplaces] FOREIGN KEY ([DefaultProductionWorkplaceId]) REFERENCES [dbo].[ProductionWorkplaces]([Id])
+    );
+    PRINT 'Tabelle BdeTerminals erstellt.';
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_BdeTerminals_UserId' AND object_id = OBJECT_ID(N'dbo.BdeTerminals'))
+    CREATE UNIQUE INDEX [IX_BdeTerminals_UserId] ON [dbo].[BdeTerminals]([UserId]);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_BdeTerminals_DefaultProductionWorkplaceId' AND object_id = OBJECT_ID(N'dbo.BdeTerminals'))
+    CREATE INDEX [IX_BdeTerminals_DefaultProductionWorkplaceId] ON [dbo].[BdeTerminals]([DefaultProductionWorkplaceId]);
+GO
+
+-- BdeOperators
+IF OBJECT_ID(N'dbo.BdeOperators', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[BdeOperators] (
+        [Id] INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+        [PersonnelNumber] NVARCHAR(50) NOT NULL,
+        [FirstName] NVARCHAR(100) NOT NULL,
+        [LastName] NVARCHAR(100) NOT NULL,
+        [IsActive] BIT NOT NULL DEFAULT 1,
+        [UserId] INT NULL,
+        [CreatedAt] DATETIME2 NOT NULL,
+        [CreatedBy] NVARCHAR(200) NOT NULL,
+        [CreatedByWindows] NVARCHAR(200) NOT NULL,
+        [ModifiedAt] DATETIME2 NULL,
+        [ModifiedBy] NVARCHAR(200) NULL,
+        [ModifiedByWindows] NVARCHAR(200) NULL,
+        CONSTRAINT [FK_BdeOperators_Users] FOREIGN KEY ([UserId]) REFERENCES [dbo].[Users]([Id]) ON DELETE SET NULL
+    );
+    PRINT 'Tabelle BdeOperators erstellt.';
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_BdeOperators_PersonnelNumber' AND object_id = OBJECT_ID(N'dbo.BdeOperators'))
+    CREATE UNIQUE INDEX [IX_BdeOperators_PersonnelNumber] ON [dbo].[BdeOperators]([PersonnelNumber]);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_BdeOperators_UserId' AND object_id = OBJECT_ID(N'dbo.BdeOperators'))
+    CREATE UNIQUE INDEX [IX_BdeOperators_UserId] ON [dbo].[BdeOperators]([UserId]) WHERE [UserId] IS NOT NULL;
+GO
+
+-- BdeActivities
+IF OBJECT_ID(N'dbo.BdeActivities', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[BdeActivities] (
+        [Id] INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+        [Code] NVARCHAR(20) NOT NULL,
+        [Name] NVARCHAR(100) NOT NULL,
+        [IsActive] BIT NOT NULL DEFAULT 1,
+        [CreatedAt] DATETIME2 NOT NULL,
+        [CreatedBy] NVARCHAR(200) NOT NULL,
+        [CreatedByWindows] NVARCHAR(200) NOT NULL,
+        [ModifiedAt] DATETIME2 NULL,
+        [ModifiedBy] NVARCHAR(200) NULL,
+        [ModifiedByWindows] NVARCHAR(200) NULL
+    );
+    PRINT 'Tabelle BdeActivities erstellt.';
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_BdeActivities_Code' AND object_id = OBJECT_ID(N'dbo.BdeActivities'))
+    CREATE UNIQUE INDEX [IX_BdeActivities_Code] ON [dbo].[BdeActivities]([Code]);
+GO
+
+-- BdeBookings
+IF OBJECT_ID(N'dbo.BdeBookings', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[BdeBookings] (
+        [Id] INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+        [BdeOperatorId] INT NOT NULL,
+        [ProductionWorkplaceId] INT NOT NULL,
+        [BdeTerminalId] INT NOT NULL,
+        [WorkOperationId] INT NULL,
+        [BdeActivityId] INT NULL,
+        [BookingType] TINYINT NOT NULL,
+        [Status] TINYINT NOT NULL,
+        [StartedAt] DATETIME2 NOT NULL,
+        [EndedAt] DATETIME2 NULL,
+        [IsCancelled] BIT NOT NULL DEFAULT 0,
+        [CancellationReason] NVARCHAR(500) NULL,
+        [ParentBookingId] INT NULL,
+        [CreatedAt] DATETIME2 NOT NULL,
+        [CreatedBy] NVARCHAR(200) NOT NULL,
+        [CreatedByWindows] NVARCHAR(200) NOT NULL,
+        [ModifiedAt] DATETIME2 NULL,
+        [ModifiedBy] NVARCHAR(200) NULL,
+        [ModifiedByWindows] NVARCHAR(200) NULL,
+        CONSTRAINT [FK_BdeBookings_Operators] FOREIGN KEY ([BdeOperatorId]) REFERENCES [dbo].[BdeOperators]([Id]),
+        CONSTRAINT [FK_BdeBookings_Workplaces] FOREIGN KEY ([ProductionWorkplaceId]) REFERENCES [dbo].[ProductionWorkplaces]([Id]),
+        CONSTRAINT [FK_BdeBookings_Terminals] FOREIGN KEY ([BdeTerminalId]) REFERENCES [dbo].[BdeTerminals]([Id]),
+        CONSTRAINT [FK_BdeBookings_WorkOperations] FOREIGN KEY ([WorkOperationId]) REFERENCES [dbo].[WorkOperations]([Id]),
+        CONSTRAINT [FK_BdeBookings_Activities] FOREIGN KEY ([BdeActivityId]) REFERENCES [dbo].[BdeActivities]([Id]),
+        CONSTRAINT [FK_BdeBookings_Parent] FOREIGN KEY ([ParentBookingId]) REFERENCES [dbo].[BdeBookings]([Id]),
+        CONSTRAINT [CK_BdeBookings_Target] CHECK (
+            ([WorkOperationId] IS NOT NULL AND [BdeActivityId] IS NULL) OR
+            ([WorkOperationId] IS NULL AND [BdeActivityId] IS NOT NULL)
+        ),
+        CONSTRAINT [CK_BdeBookings_TypeTarget] CHECK (
+            ([BookingType] = 3 AND [BdeActivityId] IS NOT NULL) OR
+            ([BookingType] IN (1,2) AND [WorkOperationId] IS NOT NULL)
+        ),
+        CONSTRAINT [CK_BdeBookings_StatusEnded] CHECK (
+            ([Status] = 1 AND [EndedAt] IS NULL) OR
+            ([Status] IN (2,3,4,5) AND [EndedAt] IS NOT NULL)
+        )
+    );
+    PRINT 'Tabelle BdeBookings erstellt.';
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_BdeBookings_WorkOperationId_Active' AND object_id = OBJECT_ID(N'dbo.BdeBookings'))
+    CREATE INDEX [IX_BdeBookings_WorkOperationId_Active]
+        ON [dbo].[BdeBookings]([WorkOperationId])
+        WHERE [EndedAt] IS NULL AND [IsCancelled] = 0 AND [WorkOperationId] IS NOT NULL;
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_BdeBookings_BdeOperatorId_Active' AND object_id = OBJECT_ID(N'dbo.BdeBookings'))
+    CREATE INDEX [IX_BdeBookings_BdeOperatorId_Active]
+        ON [dbo].[BdeBookings]([BdeOperatorId])
+        WHERE [EndedAt] IS NULL AND [IsCancelled] = 0;
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_BdeBookings_Workplace_EndedAt' AND object_id = OBJECT_ID(N'dbo.BdeBookings'))
+    CREATE INDEX [IX_BdeBookings_Workplace_EndedAt] ON [dbo].[BdeBookings]([ProductionWorkplaceId],[EndedAt]);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_BdeBookings_Operator_StartedAt' AND object_id = OBJECT_ID(N'dbo.BdeBookings'))
+    CREATE INDEX [IX_BdeBookings_Operator_StartedAt] ON [dbo].[BdeBookings]([BdeOperatorId],[StartedAt]);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_BdeBookings_StartedAt' AND object_id = OBJECT_ID(N'dbo.BdeBookings'))
+    CREATE INDEX [IX_BdeBookings_StartedAt] ON [dbo].[BdeBookings]([StartedAt]);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_BdeBookings_BdeActivityId' AND object_id = OBJECT_ID(N'dbo.BdeBookings'))
+    CREATE INDEX [IX_BdeBookings_BdeActivityId] ON [dbo].[BdeBookings]([BdeActivityId]);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_BdeBookings_BdeTerminalId' AND object_id = OBJECT_ID(N'dbo.BdeBookings'))
+    CREATE INDEX [IX_BdeBookings_BdeTerminalId] ON [dbo].[BdeBookings]([BdeTerminalId]);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_BdeBookings_ParentBookingId' AND object_id = OBJECT_ID(N'dbo.BdeBookings'))
+    CREATE INDEX [IX_BdeBookings_ParentBookingId] ON [dbo].[BdeBookings]([ParentBookingId]);
+GO
+
+-- BdeBookingQuantities
+IF OBJECT_ID(N'dbo.BdeBookingQuantities', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[BdeBookingQuantities] (
+        [Id] INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+        [BdeBookingId] INT NOT NULL,
+        [BdeOperatorId] INT NOT NULL,
+        [GoodQuantity] DECIMAL(18,4) NOT NULL DEFAULT 0,
+        [ScrapQuantity] DECIMAL(18,4) NOT NULL DEFAULT 0,
+        [IsFinal] BIT NOT NULL,
+        [ReportedAt] DATETIME2 NOT NULL,
+        [CreatedAt] DATETIME2 NOT NULL,
+        [CreatedBy] NVARCHAR(200) NOT NULL,
+        [CreatedByWindows] NVARCHAR(200) NOT NULL,
+        [ModifiedAt] DATETIME2 NULL,
+        [ModifiedBy] NVARCHAR(200) NULL,
+        [ModifiedByWindows] NVARCHAR(200) NULL,
+        CONSTRAINT [FK_BdeBookingQuantities_Bookings] FOREIGN KEY ([BdeBookingId]) REFERENCES [dbo].[BdeBookings]([Id]) ON DELETE CASCADE,
+        CONSTRAINT [FK_BdeBookingQuantities_Operators] FOREIGN KEY ([BdeOperatorId]) REFERENCES [dbo].[BdeOperators]([Id])
+    );
+    PRINT 'Tabelle BdeBookingQuantities erstellt.';
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_BdeBookingQuantities_Booking_ReportedAt' AND object_id = OBJECT_ID(N'dbo.BdeBookingQuantities'))
+    CREATE INDEX [IX_BdeBookingQuantities_Booking_ReportedAt] ON [dbo].[BdeBookingQuantities]([BdeBookingId],[ReportedAt]);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_BdeBookingQuantities_Booking_Final' AND object_id = OBJECT_ID(N'dbo.BdeBookingQuantities'))
+    CREATE UNIQUE INDEX [IX_BdeBookingQuantities_Booking_Final] ON [dbo].[BdeBookingQuantities]([BdeBookingId]) WHERE [IsFinal] = 1;
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_BdeBookingQuantities_BdeOperatorId' AND object_id = OBJECT_ID(N'dbo.BdeBookingQuantities'))
+    CREATE INDEX [IX_BdeBookingQuantities_BdeOperatorId] ON [dbo].[BdeBookingQuantities]([BdeOperatorId]);
+GO
+
+-- BdeShifts (Phase 2.3 - Schichtkalender)
+IF OBJECT_ID(N'dbo.BdeShifts', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[BdeShifts] (
+        [Id] INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+        [DayOfWeek] INT NOT NULL,
+        [StartTime] TIME NOT NULL,
+        [EndTime] TIME NOT NULL,
+        [ProductionWorkplaceId] INT NULL,
+        [Name] NVARCHAR(50) NULL,
+        [CreatedAt] DATETIME2 NOT NULL,
+        [CreatedBy] NVARCHAR(450) NOT NULL,
+        [CreatedByWindows] NVARCHAR(450) NOT NULL,
+        [ModifiedAt] DATETIME2 NULL,
+        [ModifiedBy] NVARCHAR(450) NULL,
+        [ModifiedByWindows] NVARCHAR(450) NULL,
+        CONSTRAINT [FK_BdeShifts_ProductionWorkplaces] FOREIGN KEY ([ProductionWorkplaceId])
+            REFERENCES [dbo].[ProductionWorkplaces]([Id]) ON DELETE CASCADE
+    );
+    PRINT 'Tabelle BdeShifts erstellt.';
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_BdeShifts_Workplace_Day' AND object_id = OBJECT_ID(N'dbo.BdeShifts'))
+    CREATE INDEX [IX_BdeShifts_Workplace_Day] ON [dbo].[BdeShifts]([ProductionWorkplaceId], [DayOfWeek]);
+GO
+
+-- Phase 2.3 AppSetting (idempotent, falls AppSettings-Seed bereits gelaufen)
+IF NOT EXISTS (SELECT 1 FROM [dbo].[AppSettings] WHERE [Key] = 'BdeSchichtkalenderAktiv')
+    INSERT INTO [dbo].[AppSettings] ([Key], [Value], [Description])
+    VALUES ('BdeSchichtkalenderAktiv', 'false', 'Schichtkalender + Auto-Pause am Schichtende aktiv');
+GO
+
+-- v1.23.0 Windows-Auth AppSettings (idempotent, falls AppSettings-Seed bereits gelaufen)
+IF NOT EXISTS (SELECT 1 FROM [dbo].[AppSettings] WHERE [Key] = 'WindowsAuthAktiv')
+    INSERT INTO [dbo].[AppSettings] ([Key], [Value], [Description])
+    VALUES ('WindowsAuthAktiv', 'false', 'Windows-Anmeldung (Auto-Login) aktivieren');
+GO
+
+IF NOT EXISTS (SELECT 1 FROM [dbo].[AppSettings] WHERE [Key] = 'WindowsAuthBerechtigungsgruppe')
+    INSERT INTO [dbo].[AppSettings] ([Key], [Value], [Description])
+    VALUES ('WindowsAuthBerechtigungsgruppe', '', 'AD-Berechtigungsgruppe (SAM-Name) fuer ''AD-Benutzer anlegen''');
+GO
+
+-- =============================================
+-- 17h. EnaioDmsDocuments (enaio DMS-Sync)
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'EnaioDmsDocuments')
+BEGIN
+    CREATE TABLE [dbo].[EnaioDmsDocuments] (
+        [Id]                INT IDENTITY(1,1) NOT NULL,
+        [EnaioDmsObjectId]  BIGINT            NOT NULL,
+        [DocumentType]      NVARCHAR(100)     NOT NULL,
+        [OrderNumber]       NVARCHAR(100)     NULL,
+        [CreatedInEnaio]    DATETIME2         NOT NULL,
+        [LastSyncedAt]      DATETIME2         NOT NULL,
+        [CreatedAt]         DATETIME2         NOT NULL,
+        [CreatedBy]         NVARCHAR(MAX)     NOT NULL,
+        [CreatedByWindows]  NVARCHAR(MAX)     NOT NULL,
+        [ModifiedAt]        DATETIME2         NULL,
+        [ModifiedBy]        NVARCHAR(MAX)     NULL,
+        [ModifiedByWindows] NVARCHAR(MAX)     NULL,
+        CONSTRAINT [PK_EnaioDmsDocuments] PRIMARY KEY CLUSTERED ([Id])
+    );
+    PRINT 'Tabelle EnaioDmsDocuments erstellt.';
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_EnaioDmsDocuments_EnaioDmsObjectId' AND object_id = OBJECT_ID(N'dbo.EnaioDmsDocuments'))
+    CREATE UNIQUE INDEX [IX_EnaioDmsDocuments_EnaioDmsObjectId] ON [dbo].[EnaioDmsDocuments]([EnaioDmsObjectId]);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_EnaioDmsDocuments_OrderNumber' AND object_id = OBJECT_ID(N'dbo.EnaioDmsDocuments'))
+    CREATE INDEX [IX_EnaioDmsDocuments_OrderNumber] ON [dbo].[EnaioDmsDocuments]([OrderNumber]);
+GO
+
+-- =============================================
+-- 17i. DUMMY-Artikel (Teil-7, reiner Daten-Seed, kein Schema)
+-- Ein reservierter Artikel 'DUMMY' fuer unbekannte EK-Nummern; individuelle
+-- Bezeichnung lebt je Position auf WarehouseRequisitionItem.ArticleDescription.
+-- Werte muessen mit Article.DummyArticleNumber / Article.DummyDefaultDescription
+-- uebereinstimmen. Idempotent.
+-- =============================================
+IF NOT EXISTS (SELECT 1 FROM [dbo].[Articles] WHERE [ArticleNumber] = 'DUMMY')
+BEGIN
+    INSERT INTO [dbo].[Articles]
+        ([ArticleNumber], [Description], [Unit], [ReorderLevel], [ArticleGroup],
+         [CreatedAt], [CreatedBy], [CreatedByWindows])
+    VALUES
+        ('DUMMY', N'DUMMY – Bezeichnung bitte eintragen', NULL, NULL, NULL,
+         GETDATE(), 'System-Seed', 'System-Seed');
+    PRINT 'DUMMY-Artikel geseedet.';
+END
+GO
+
+-- =============================================
+-- 17j. Beschichtungsauftraege + BeschichtungsauftragPositionen (IDEAL Beschichtungsauftrag-Ausbau Teil 3, v1.50.0)
+-- Gespeicherter Auftrag je HauptFA, Nummer BA-JJJJ-NNNNN; Positionen mit Herkunftsschluessel + Snapshot
+-- (kein FK auf FaHierarchyNodes). Gleich SQL/94_AddBeschichtungsauftrag.sql, Namen wie die EF-Migration.
+-- =============================================
+IF OBJECT_ID(N'dbo.Beschichtungsauftraege', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[Beschichtungsauftraege] (
+        [Id]                 INT IDENTITY(1,1) NOT NULL,
+        [Nummer]             NVARCHAR(20)   NOT NULL,
+        [Jahr]               INT            NOT NULL,
+        [LaufendeNummer]     INT            NOT NULL,
+        [HauptFA]            INT            NOT NULL,
+        [Status]             TINYINT        NOT NULL,
+        [Dienstleister]      NVARCHAR(200)  NULL,
+        [Ral]                NVARCHAR(200)  NULL,
+        [StartBeschichtung]  DATETIME2      NULL,
+        [BeschichtenRetour]  DATETIME2      NULL,
+        [Bemerkung]          NVARCHAR(1000) NULL,
+        [UrsprungsauftragId] INT            NULL,
+        [UebergebenAt]       DATETIME2      NULL,
+        [UebergebenByUserId] INT            NULL,
+        [ErledigtAt]         DATETIME2      NULL,
+        [ErledigtByUserId]   INT            NULL,
+        [StorniertAt]        DATETIME2      NULL,
+        [StorniertByUserId]  INT            NULL,
+        [RowVersion]         ROWVERSION     NOT NULL,
+        [CreatedAt]          DATETIME2      NOT NULL,
+        [CreatedBy]          NVARCHAR(200)  NOT NULL,
+        [CreatedByWindows]   NVARCHAR(200)  NOT NULL,
+        [ModifiedAt]         DATETIME2      NULL,
+        [ModifiedBy]         NVARCHAR(200)  NULL,
+        [ModifiedByWindows]  NVARCHAR(200)  NULL,
+        CONSTRAINT [PK_Beschichtungsauftraege] PRIMARY KEY ([Id]),
+        CONSTRAINT [FK_Beschichtungsauftraege_Beschichtungsauftraege_UrsprungsauftragId]
+            FOREIGN KEY ([UrsprungsauftragId]) REFERENCES [dbo].[Beschichtungsauftraege] ([Id])
+    );
+    PRINT 'Tabelle Beschichtungsauftraege angelegt.';
+END
+GO
+
+IF OBJECT_ID(N'dbo.BeschichtungsauftragPositionen', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[BeschichtungsauftragPositionen] (
+        [Id]                     INT IDENTITY(1,1) NOT NULL,
+        [BeschichtungsauftragId] INT            NOT NULL,
+        [HauptFA]                INT            NOT NULL,
+        [VaterFA]                INT            NULL,
+        [SubFA]                  INT            NOT NULL,
+        [Position]               INT            NULL,
+        [HauptArtnr]             NVARCHAR(200)  NULL,
+        [Artnr]                  NVARCHAR(200)  NULL,
+        [Matchcode]              NVARCHAR(200)  NULL,
+        [Menge]                  DECIMAL(18,4)  NOT NULL,
+        [Breite]                 DECIMAL(18,4)  NOT NULL,
+        [Hoehe]                  DECIMAL(18,4)  NOT NULL,
+        [Tiefe]                  DECIMAL(18,4)  NOT NULL,
+        [CreatedAt]              DATETIME2      NOT NULL,
+        [CreatedBy]              NVARCHAR(200)  NOT NULL,
+        [CreatedByWindows]       NVARCHAR(200)  NOT NULL,
+        [ModifiedAt]             DATETIME2      NULL,
+        [ModifiedBy]             NVARCHAR(200)  NULL,
+        [ModifiedByWindows]      NVARCHAR(200)  NULL,
+        CONSTRAINT [PK_BeschichtungsauftragPositionen] PRIMARY KEY ([Id]),
+        CONSTRAINT [FK_BeschichtungsauftragPositionen_Beschichtungsauftraege_BeschichtungsauftragId]
+            FOREIGN KEY ([BeschichtungsauftragId]) REFERENCES [dbo].[Beschichtungsauftraege] ([Id]) ON DELETE CASCADE
+    );
+    PRINT 'Tabelle BeschichtungsauftragPositionen angelegt.';
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Beschichtungsauftraege_HauptFA' AND object_id = OBJECT_ID(N'dbo.Beschichtungsauftraege'))
+    CREATE INDEX [IX_Beschichtungsauftraege_HauptFA] ON [dbo].[Beschichtungsauftraege] ([HauptFA]);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Beschichtungsauftraege_Jahr_LaufendeNummer' AND object_id = OBJECT_ID(N'dbo.Beschichtungsauftraege'))
+    CREATE UNIQUE INDEX [IX_Beschichtungsauftraege_Jahr_LaufendeNummer] ON [dbo].[Beschichtungsauftraege] ([Jahr], [LaufendeNummer]);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Beschichtungsauftraege_Nummer' AND object_id = OBJECT_ID(N'dbo.Beschichtungsauftraege'))
+    CREATE UNIQUE INDEX [IX_Beschichtungsauftraege_Nummer] ON [dbo].[Beschichtungsauftraege] ([Nummer]);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Beschichtungsauftraege_Status' AND object_id = OBJECT_ID(N'dbo.Beschichtungsauftraege'))
+    CREATE INDEX [IX_Beschichtungsauftraege_Status] ON [dbo].[Beschichtungsauftraege] ([Status]);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Beschichtungsauftraege_UrsprungsauftragId' AND object_id = OBJECT_ID(N'dbo.Beschichtungsauftraege'))
+    CREATE INDEX [IX_Beschichtungsauftraege_UrsprungsauftragId] ON [dbo].[Beschichtungsauftraege] ([UrsprungsauftragId]);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_BeschichtungsauftragPositionen_BeschichtungsauftragId' AND object_id = OBJECT_ID(N'dbo.BeschichtungsauftragPositionen'))
+    CREATE INDEX [IX_BeschichtungsauftragPositionen_BeschichtungsauftragId] ON [dbo].[BeschichtungsauftragPositionen] ([BeschichtungsauftragId]);
+GO
+
+-- Herkunftsschluessel bewusst NICHT unique (Reklamationen, stornierte Auftraege) — die Doppelvergabe prueft der Workflow.
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_BeschichtungsauftragPositionen_HauptFA_VaterFA_SubFA_Position' AND object_id = OBJECT_ID(N'dbo.BeschichtungsauftragPositionen'))
+    CREATE INDEX [IX_BeschichtungsauftragPositionen_HauptFA_VaterFA_SubFA_Position]
+        ON [dbo].[BeschichtungsauftragPositionen] ([HauptFA], [VaterFA], [SubFA], [Position]);
+GO
+
+-- =============================================
+-- 18. EF Migrations History
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = '__EFMigrationsHistory')
+BEGIN
+    CREATE TABLE [dbo].[__EFMigrationsHistory] (
+        [MigrationId]    NVARCHAR(150) NOT NULL,
+        [ProductVersion] NVARCHAR(32)  NOT NULL,
+        CONSTRAINT [PK___EFMigrationsHistory] PRIMARY KEY CLUSTERED ([MigrationId])
+    );
+END
+GO
+
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260217074157_InitialCreate')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260217074157_InitialCreate', '10.0.0-preview.1.25081.3');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260217083306_AddPickingItemRowVersion')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260217083306_AddPickingItemRowVersion', '10.0.0-preview.1.25081.3');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260218084152_AddUserFieldsAndPickingScale')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260218084152_AddUserFieldsAndPickingScale', '10.0.0-preview.1.25081.3');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260306081711_AddProductionWorkplaces')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260306081711_AddProductionWorkplaces', '10.0.0');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260310130059_AddRecursiveFilterSearch')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260310130059_AddRecursiveFilterSearch', '10.0.0');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260311071826_AddUserEmailIsAdminNotify')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260311071826_AddUserEmailIsAdminNotify', '10.0.0');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260311071840_AddServiceSettings')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260311071840_AddServiceSettings', '10.0.0');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260311145014_AddArticleGroup')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260311145014_AddArticleGroup', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260316062006_AddWorkOperationsPhase1')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260316062006_AddWorkOperationsPhase1', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260317140041_AddOseonTracking')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260317140041_AddOseonTracking', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260318083712_OseonPerformanceIndexes')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260318083712_OseonPerformanceIndexes', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260318084530_AddOseonStatusAndWorkplaceIndexes')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260318084530_AddOseonStatusAndWorkplaceIndexes', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260318150710_AddOseonTimestamps')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260318150710_AddOseonTimestamps', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260320101049_AddRolesAndUserRoles')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260320101049_AddRolesAndUserRoles', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] LIKE '%_AddOseonOperationConfig')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260330142035_AddOseonOperationConfig', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260401063821_AddEnaioDmsDocuments')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260401063821_AddEnaioDmsDocuments', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260403055243_AddPartRequisitions')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260403055243_AddPartRequisitions', '10.0.0');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260403161339_AddPickingRelease')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260403161339_AddPickingRelease', '10.0.0');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260404095516_StockMovementPerformanceIndexes')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260404095516_StockMovementPerformanceIndexes', '10.0.2');
+
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] LIKE '%_AddArticleCategoriesAndAttributes')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260407061642_AddArticleCategoriesAndAttributes', '10.0.0');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260407091723_AddBomCacheAndCoatingDetection')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260407091723_AddBomCacheAndCoatingDetection', '10.0.0');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260409123834_AddPickerAssignment')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260409123834_AddPickerAssignment', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260410124248_AddUserViewPreferences')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260410124248_AddUserViewPreferences', '10.0.0');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260415121811_AddBde')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260415121811_AddBde', '10.0.0');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260420104948_AddBdeWerkbankSettings')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260420104948_AddBdeWerkbankSettings', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260420123329_SetDefaultSchemaDbo')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260420123329_SetDefaultSchemaDbo', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260421082847_RelaxBdeBookingConstraints')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260421082847_RelaxBdeBookingConstraints', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260422092844_ExtendStatusEndedCheckForResumed')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260422092844_ExtendStatusEndedCheckForResumed', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260428071503_AddBdeShiftCalendar')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260428071503_AddBdeShiftCalendar', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260430134516_AddOseonArticleNumberIndex')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260430134516_AddOseonArticleNumberIndex', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260430175933_AddOseonWorkOperationsPerformanceIndex')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260430175933_AddOseonWorkOperationsPerformanceIndex', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260430183954_AddWarehouseRequisitions')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260430183954_AddWarehouseRequisitions', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260502172901_AddWarehouseRequisitionCreatedByUserId')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260502172901_AddWarehouseRequisitionCreatedByUserId', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260506053444_AddStorageLocationSyncFields')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260506053444_AddStorageLocationSyncFields', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260506060206_AddSyncLog')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260506060206_AddSyncLog', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260506134758_AddStockMovementNoteAndSageMovementTypes')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260506134758_AddStockMovementNoteAndSageMovementTypes', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260507133624_AddStorageLocationIstBuchbar')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260507133624_AddStorageLocationIstBuchbar', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260512042732_AddProductionOrderAssemblyFlags')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260512042732_AddProductionOrderAssemblyFlags', '10.0.3');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260512120355_AddProductionOrderSplit')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260512120355_AddProductionOrderSplit', '10.0.0');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260521141926_ExtendStorageLocationCodeTo50')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260521141926_ExtendStorageLocationCodeTo50', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260521143627_AddUserDefaultPageSize')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260521143627_AddUserDefaultPageSize', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260522070823_AddWarehouseRequisitionItemNote')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260522070823_AddWarehouseRequisitionItemNote', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260529074719_AddIsFinalShortageToWarehouseRequisitionItems')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260529074719_AddIsFinalShortageToWarehouseRequisitionItems', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260529101707_ReplaceIsFinalShortageWithShortageStatus')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260529101707_ReplaceIsFinalShortageWithShortageStatus', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260602133102_AddNoteEinkaufToWarehouseRequisitionItems')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260602133102_AddNoteEinkaufToWarehouseRequisitionItems', '10.0.2');
+-- AddMasterDataReadRole (Migration 67, v1.20.0)
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260608060227_AddMasterDataReadRole')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260608060227_AddMasterDataReadRole', '10.0.0');
+-- FaWorkStepsAndAttributes (Migration 68, v1.22.0)
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260612102225_FaWorkStepsAndAttributes')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260612102225_FaWorkStepsAndAttributes', '10.0.2');
+-- SplitFaWorkStepCompletion (Migration 69, v1.22.0)
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260615070236_SplitFaWorkStepCompletion')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260615070236_SplitFaWorkStepCompletion', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260615074318_AddUserDefaultWorkStep')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260615074318_AddUserDefaultWorkStep', '10.0.2');
+
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260616070943_AddUserDefaultWorkplace')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260616070943_AddUserDefaultWorkplace', '10.0.2');
+
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260616071945_AddFaAttributeTextValue')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260616071945_AddFaAttributeTextValue', '10.0.2');
+
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260618070606_AddWindowsUserNameDropAdGroup')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260618070606_AddWindowsUserNameDropAdGroup', '10.0.2');
+
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260619063919_AddLagerbestellungRole')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260619063919_AddLagerbestellungRole', '10.0.2');
+
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260625061803_ReplaceUserDefaultWorkplaceWithWorkbenches')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260625061803_ReplaceUserDefaultWorkplaceWithWorkbenches', '10.0.2');
+
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260630104647_ReplaceFaWorkStepIsCompletedWithStatus')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260630104647_ReplaceFaWorkStepIsCompletedWithStatus', '10.0.2');
+
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260706074119_AddWarehouseRequisitionTypeAndGlasRole')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260706074119_AddWarehouseRequisitionTypeAndGlasRole', '10.0.2');
+
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260707113155_AddStockReadRole')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260707113155_AddStockReadRole', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260707131400_AddArticlePrimaryStorageLocation')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260707131400_AddArticlePrimaryStorageLocation', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260707140249_AddProductionOrderCancellation')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260707140249_AddProductionOrderCancellation', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260722132805_AddProductionOrderExtraInfo')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260722132805_AddProductionOrderExtraInfo', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260803104055_AddStorageLocationSageLagerbuchung')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260803104055_AddStorageLocationSageLagerbuchung', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260803112322_AddSageBookingQueue')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260803112322_AddSageBookingQueue', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260806081121_AddUserDefaultFilterFaWorklistDescription1')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260806081121_AddUserDefaultFilterFaWorklistDescription1', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260806081737_AddWarehouseRequisitionComment')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260806081737_AddWarehouseRequisitionComment', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260806105617_AddUserDefaultFilterBomDescription1')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260806105617_AddUserDefaultFilterBomDescription1', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260806120650_AllowMultipleDummyRequisitionItems')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260806120650_AllowMultipleDummyRequisitionItems', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260807105825_AddFaHierarchy')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260807105825_AddFaHierarchy', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260814105526_InvertProductionOrderHierarchy')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260814105526_InvertProductionOrderHierarchy', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260915094646_AddArticleMatchcode')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260915094646_AddArticleMatchcode', '10.0.2');
+
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260921131329_AddUserDefaultFilterBomKommissionierziel')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260921131329_AddUserDefaultFilterBomKommissionierziel', '10.0.2');
+
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20260922083259_AddProductionWorkplaceSageFields')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20260922083259_AddProductionWorkplaceSageFields', '10.0.2');
+
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261012073551_AddBeschichtungsauftrag')
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261012073551_AddBeschichtungsauftrag', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261012140548_RenameOperationConfigsAndAddAudit')
+   AND OBJECT_ID(N'[dbo].[OseonOperationConfigs]', N'U') IS NULL -- sonst steht die Umbenennung noch aus (SQL/95, siehe 16b)
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261012140548_RenameOperationConfigsAndAddAudit', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261016090641_AddOperationConfigSourceAndSageMissingSince')
+   AND COL_LENGTH(N'dbo.OperationConfigs', N'Source') IS NOT NULL AND COL_LENGTH(N'dbo.OperationConfigs', N'SageMissingSince') IS NOT NULL -- sonst steht SQL/95 bzw. SQL/96 noch aus
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261016090641_AddOperationConfigSourceAndSageMissingSince', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261019092105_AddProductionWorkplaceSageMissingSinceAndNurAgFertigmeldung')
+   AND COL_LENGTH(N'dbo.ProductionWorkplaces', N'SageMissingSince') IS NOT NULL AND COL_LENGTH(N'dbo.ProductionWorkplaces', N'BdeNurAgFertigmeldung') IS NOT NULL -- sonst steht SQL/97 noch aus
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261019092105_AddProductionWorkplaceSageMissingSinceAndNurAgFertigmeldung', '10.0.2');
+GO
+
+PRINT 'EF Migrations History initialisiert.';
+PRINT '====================================';
+PRINT 'IDEAL-AKE WMS Installation abgeschlossen.';
+GO
+
+
+-- =====================================================================================================
+-- Ende Teil 1
+-- =====================================================================================================
+SET NOEXEC OFF;  -- Sitzung wieder normal (falls oben abgebrochen wurde)
+GO
+IF OBJECT_ID(N'[IDEAL_AKE_WMS].[dbo].[__EFMigrationsHistory]', N'U') IS NOT NULL
+    SELECT COUNT(*) AS MigrationenEingetragen,          -- erwartet: 75
+           MAX(MigrationId) AS LetzteMigration          -- erwartet: 20261019092105_AddProductionWorkplaceSageMissingSinceAndNurAgFertigmeldung
+    FROM [IDEAL_AKE_WMS].[dbo].[__EFMigrationsHistory];
+SELECT is_read_committed_snapshot_on AS RCSI,           -- erwartet: 1
+       collation_name AS Kollation
+FROM sys.databases WHERE name = N'IDEAL_AKE_WMS';
+GO

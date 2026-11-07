@@ -39,6 +39,10 @@ Connection Strings bleiben **appsettings-only** und wandern nie in die per UI ed
 
 **Was zurueckgeschrieben wird:** nur Rueckmeldungen, und nur wenn `SageRueckmeldungAktiv` gesetzt
 ist.
+> [!warning] Korrektur 2026-11-02 (am Code belegt, [[2026-11-02-sage-pps-abgleich]] B-1)
+> Der Satz oben stimmt nicht. Zurueckgeschrieben werden **nur Lagerbuchungen** (SData `LagerbuchungService`, Gate ServiceSetting
+> `SageLagerbuchungAktiv`, `SageBookingWorker.cs:66`). **Rueckmeldungen schreibt kein Code**; `SageRueckmeldungAktiv` wird nur angelegt
+> (`Program.cs:291`) und in `/Settings` angezeigt, aber nirgends gelesen.
 
 ### Aufbau der BOM-View `vw_AKE_Kommissionierung_StuecklistenDB`
 
@@ -205,3 +209,13 @@ Persistenz. Contract `RealTimeData` ist Konstante (nicht `SData:ServiceContract`
 `SageLagerbuchung:Username/Password` der **Web**-Konfiguration (`appsettings.Production.json` auf dem Server, nicht im Repo).
 TLS-Schalter `SageLagerbuchungSslZertifikatPruefen` gilt für beide SData-Clients; im Web reist er je Anfrage in
 `HttpRequestMessage.Options`. Spec [[2026-10-30-sage-sdata-fa-ansicht-spec]].
+
+### Die ganze SData-Schnittstelle (ausgelesen 2026-10-30)
+
+Der `LagerbuchungService` ist einer von 25 Services in einem von 19 Vertraegen. Vollstaendige Karte in
+`sage-sdata/`: [[sage-sdata-uebersicht]] (Zugang, URL-Schema, Faehigkeiten, Fallstricke) ·
+[[sage-sdata-commonwawiservices]] (alle 25 Services mit Feldern) · [[sage-sdata-api-vertraege]] (Artikel,
+Belege, Kunden, Lieferanten, DMS) · [[sage-sdata-masterdata]] (PPS-, EK-, Lager-, Stammdatenstrukturen) ·
+[[sage-sdata-realtimedata]] (1219 Lese-Datenquellen). Kernbefund: Lesen der FA-/EK-/Lagerdaten geht ohne
+Direkt-SQL; Produktions-Rueckmeldungen haben **keinen** dokumentierten Schreibweg (nur interne
+`strFaBeleg`-Struktur, 403).

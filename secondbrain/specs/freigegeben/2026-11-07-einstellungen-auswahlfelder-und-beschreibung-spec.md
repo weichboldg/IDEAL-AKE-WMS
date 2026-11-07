@@ -2,12 +2,12 @@
 type: spec
 title: Einstellungen als typisierter Katalog - Auswahlfelder, Wirkung/Verwendung, Serverprüfung (AppSettings + ServiceSettings)
 slug: 2026-11-07-einstellungen-auswahlfelder-und-beschreibung-spec
-status: Entwurf
+status: Testbereit
 created: 2026-11-07
 updated: 2026-11-07
 source_backlog: "[[2026-11-07-einstellungen-auswahlfelder-und-beschreibung]]"
 buendel: "[[2026-11-07-buendel-uebersicht]]"
-task: ""
+task: "[[2026-11-07-buendel-2026-11-07-goal-lauf]]"
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
 branch: "feature/2026-08-07-ideal-teile-1-5"
 standort: beide
@@ -41,11 +41,11 @@ etappen:
   - "E4b Bestandsprüfung beim Web-Start ins Aktivitäts-Protokoll (hängt an Rückfrage 1, baut nach Empfehlung)"
 deploy:
   web: true
-  service: false
+  service: true
   migration: false
 freigabe_entscheidung: ""
-freigabe_von: ""
-freigabe_am: ""
+freigabe_von: "Gerald Weichbold"
+freigabe_am: "2026-11-07"
 ---
 
 # Einstellungen: Auswahlfelder, Wirkung und Verwendung je Einstellung (Epic, v1.77.0)
@@ -455,11 +455,11 @@ in der letzten Etappe.
 
 | # | Etappe | Inhalt / Abschluss | Hängt an | Status | Commit |
 |---|--------|--------------------|----------|--------|--------|
-| E1 | Inventur + Katalog AppSettings | Record-Umbenennung + optionale Metadaten; `AppSettingDefinitions.All` laut Inventur (Lesestellen beim Schreiben erneut greppen); `FesteWerte` → Choice; Seed-Schleife; AK 1–3; Tests: Seed-Gleichheit, Katalog vollständig. Keine sichtbare Änderung. | – (Rückfrage 2/3: Empfehlung) | offen | |
-| E2 | Darstellung /Settings | `_SettingField.cshtml`, verallgemeinertes ViewModel/`BuildGroups`, Gruppen, Suche, „Nur geänderte“, Bool-Lesart, MasterData-Optionen, Schreibregel F4; frontend-design-Skill; AK 4–8; Controller-Tests (Darstellung, F4). | E1 | offen | |
-| E3 | Darstellung /ServiceSettings | Metadaten aller Service-Keys, `Sync:Quelle:*` → Choice, Sperrhinweis/TLS/Master unverändert, Bool-Lesart `LeerIstDefault`; AK 9–11; Regression `ServiceSettingsControllerTests`. | E1, E2 (Partial) | offen | |
-| E4a | Serverprüfung + Drift-Guard | `SettingValidator`, beide Controller ganz oder gar nicht, Allow-List `/Settings`, NurFA-Pflicht serverseitig; AK 12–17; `SettingValidatorTests`, erweiterte Drift-Guards. | E1–E3 | offen | |
-| E4b | Bestandsprüfung beim Start | `Program.cs` nach Seed, `SyncLogServices.Einstellungspruefung` + DisplayName; AK 18. Danach Abschluss AK 20 (Version, Changelog, Hilfe, README, TS, Brain). | E4a; **Rückfrage 1** (baut nach Empfehlung; bei „nein“ entfällt die Etappe und wird als Blocker vermerkt) | offen | |
+| E1 | Inventur + Katalog AppSettings | Record-Umbenennung + optionale Metadaten; `AppSettingDefinitions.All` laut Inventur (Lesestellen beim Schreiben erneut greppen); `FesteWerte` → Choice; Seed-Schleife; AK 1–3; Tests: Seed-Gleichheit, Katalog vollständig. Keine sichtbare Änderung. | – (Rückfrage 2/3: Empfehlung) | erledigt | `b220fcba` |
+| E2 | Darstellung /Settings | `_SettingField.cshtml`, verallgemeinertes ViewModel/`BuildGroups`, Gruppen, Suche, „Nur geänderte“, Bool-Lesart, MasterData-Optionen, Schreibregel F4; frontend-design-Skill; AK 4–8; Controller-Tests (Darstellung, F4). | E1 | erledigt | `924e926e` |
+| E3 | Darstellung /ServiceSettings | Metadaten aller Service-Keys, `Sync:Quelle:*` → Choice, Sperrhinweis/TLS/Master unverändert, Bool-Lesart `LeerIstDefault`; AK 9–11; Regression `ServiceSettingsControllerTests`. | E1, E2 (Partial) | erledigt | `8200dae5` |
+| E4a | Serverprüfung + Drift-Guard | `SettingValidator`, beide Controller ganz oder gar nicht, Allow-List `/Settings`, NurFA-Pflicht serverseitig; AK 12–17; `SettingValidatorTests`, erweiterte Drift-Guards. | E1–E3 | erledigt | `cb23aa58` |
+| E4b | Bestandsprüfung beim Start | `Program.cs` nach Seed, `SyncLogServices.Einstellungspruefung` + DisplayName; AK 18. Danach Abschluss AK 20 (Version, Changelog, Hilfe, README, TS, Brain). | E4a; **Rückfrage 1** (baut nach Empfehlung; bei „nein“ entfällt die Etappe und wird als Blocker vermerkt) | erledigt | `3e28eebd` |
 
 ## Deploy
 
@@ -480,6 +480,191 @@ in der letzten Etappe.
   ```
 - **Deploy-Risiko:** Ein ungültiger Bestandswert sperrt das Speichern der ganzen Seite, bis er korrigiert ist. Das ist gewollt (ADR 0020:
   ablehnen statt still Default). Darum P-E1 vor der Produktiv-Einspielung je Standort laufen lassen.
+
+**Final (QA 2026-11-07, aus dem echten Diff `2fafd073..3e28eebd`):**
+- Web: **ja** (`IdealAkeWms/`: Kataloge, Controller, Views, `_SettingField`, `settings-fields.js`, `Program.cs`, `SyncLogServices`).
+- Service: **ja, nur Versionsstand** (`IDEALAKEWMSService/AppVersion.cs` 1.76.0 → 1.77.0; der Dienst liefert die geänderte Web-DLL mit, Katalog
+  und `SyncLogServices` ändern dort kein Verhalten). Mitveröffentlichen, damit Web und Dienst denselben Stand zeigen.
+- Migration: **nein** (keine Datei unter `*/Migrations/`, kein `SQL/`-Skript, kein Einmal-Skript).
+- Reihenfolge: (1) P-E1a/b/c je Standort auf der WMS-DB ausführen und notieren, (2) Web publizieren, (3) Dienst publizieren und starten,
+  (4) Aktivitäts-Protokoll auf einen Lauf „Einstellungsprüfung“ prüfen (erscheint nur bei ungültigen Werten).
+  ```
+  dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb
+  dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService
+  ```
+- Ablauf Mensch: Publish aus dem Worktree → Testsystem → Test → Merge. Nach dem Merge nur dann erneut aus `main` publizieren, wenn der Merge
+  getestete Dateien mit parallelen `main`-Änderungen zusammengeführt hat.
+
+## QA-Nachweis (qa-agent, 2026-11-07)
+
+Geprüft im Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Branch `feature/2026-08-07-ideal-teile-1-5`, HEAD `3e28eebd`.
+Review-Bereich `git diff 2fafd073 3e28eebd` (E1 `b220fcba`, E2 `924e926e`, E3 `8200dae5`, E4a `cb23aa58`, E4b `3e28eebd`), 35 Dateien, +1693/−667.
+
+### 1. Build und Tests (ganzer Worktree)
+- `dotnet build IdealAkeWms.slnx`: **0 Fehler**, 28 Warnungen (bestehende Nullable-/NuGet-Warnungen, keine aus diesem Diff).
+- `dotnet test --no-build`:
+  - `IDEALAKEWMSService.Tests`: **497 bestanden, 0 übersprungen, 0 fehlgeschlagen** (497).
+  - `IdealAkeWms.Tests`: **2424 bestanden, 1 übersprungen, 0 fehlgeschlagen** (2425).
+  - Die bekannten Flaky-Tests (`SyncWorker_IgnoresIConfigurationDisableSeed_ForBlockGates`, `NotificationWorker_PositiveLowStock_UsesOrangeColor`)
+    sind in diesem Lauf nicht aufgetreten.
+
+### 2. Code-Review (selbst, synchron)
+Gelesen: `SettingDefinition.cs`, `AppSettingDefinitions.cs` (alle 54 Einträge), `ServiceSettingDefinitions.cs` (Meta für alle 75 Keys, `IntMeta`,
+`Ergaenzen`), `SettingValidator.cs`, `SettingItem.cs`, `Einstellungspruefung.cs`, beide Controller vollständig, `_SettingField.cshtml`,
+`Settings/Index.cshtml`, ServiceSettings-View-Diff inkl. Sage-Verbindungstest-JS, `settings-fields.js`, `Program.cs`-Diff, alle geänderten Tests.
+Gegengeprüft: Lesestellen `RequireLagerbestellungAktivAttribute.cs:34`, `_Layout.cshtml:14-31`, `BusinessDayService.cs:74-95`,
+`ServiceSettings.cs:31-36` (Dienst), `AppSettingRepository.cs`, `CachedSettingRepository.cs:10`. Seed-Gleichheit: die 38 (Key, Wert) aus
+`git show 2fafd073:IdealAkeWms/Program.cs` extrahiert = `FruehererSeed` im Test = `SeedEintraege` (AK 2, AK 19).
+Defektklassen: kein `@Html.Raw`/kein Server-Wert in `<script>`; kein `hidden`-Attribut (Filter über Klasse `d-none`); kein `?? 0`;
+Bindung über `Dictionary<string,string>` nach Key (keine Parallel-Arrays); NurFA-Pflicht jetzt serverseitig (AK 13); Bool-Lesart an einer Stelle
+(`SettingItem.BoolWirksam`) – siehe B3.
+
+| # | Befund | Schwere | Behandlung |
+|---|---|---|---|
+| B1 | F5 verlangt, dass die Seite nach Ablehnung **mit den eingegebenen Werten** zurückkommt. `/Settings` macht `RedirectToAction(Index)` (`SettingsController.cs` SaveSettings, Fehlerzweig), `/ServiceSettings` gibt zwar die View zurück, baut das Modell aber aus der DB (`BuildViewModelAsync`). Auf DEV bestätigt: nach Ablehnung (AK 13) stand „nur FA-Meldung“ wieder auf aus. Daten sicher (nichts geschrieben), aber die Eingaben sind weg. | mittel (UX, Abweichung von F5) | offen – Mensch entscheidet: nachbessern oder als Abweichung akzeptieren |
+| B2 | `NegativeBuchungLagerplatz` (MasterData, `LeerErlaubt=false`, Default `NAN`): fehlt die Zeile **und** gibt es keinen Lagerplatz `NAN`, zeigt die Seite kein „ungültig“ (Prüfung nur bei vorhandener Zeile, `SettingItem.Aus`), aber jedes Speichern scheitert an „ein vorhandener Stammdaten-Eintrag“. Auf DEV AKE/IDEAL nicht auslösbar (Zeile und Lagerplatz `NAN` vorhanden). | niedrig | offen; Prüfabfrage je Standort: `SELECT (SELECT COUNT(*) FROM dbo.AppSettings WHERE [Key]=N'NegativeBuchungLagerplatz') AS Zeile, (SELECT COUNT(*) FROM dbo.StorageLocations WHERE Code=N'NAN') AS NAN;` – beide 0 = Befund trifft zu |
+| B3 | `BoolWirksam`/`SettingValidator` trimmen den Rohwert, die Leser nicht (z. B. `RequireLagerbestellungAktivAttribute.cs:34` vergleicht ohne Trim). Ein Bestandswert `" false"` würde als „aus“ gezeigt, wirkt aber „an“; Speichern schriebe `false` und änderte das Verhalten. Nur bei Leerzeichen im DB-Wert. | niedrig (theoretisch) | offen, Hinweis; P-E1b erfasst solche Werte nicht (Leerzeichen-Varianten sind `NOT IN ('true','false')` → werden dort gelistet) |
+| B4 | Choice-Dropdown vergleicht exakt (`_SettingField.cshtml`, `w.Wert == Model.Wirksam`), der AppSettings-Validator ohne Groß/Klein. Ein Bestandswert `matchcode` erscheint als Option „(ungültig – bitte wählen)“, aber ohne Badge/Banner; Speichern kanonisiert auf `Matchcode` (Leser `_Layout.cshtml:28` ist ebenfalls case-insensitiv → kein Verhaltenswechsel). | kosmetisch | offen, Hinweis |
+| B5 | Drift-Guard AK 16 (`SettingValidatorTests.DriftGuard_…`) prüft `Anzeigename` nicht leer – `ServiceSettingDefinitions.Ergaenzen` setzt bei fehlendem `Meta` aber den Key als Anzeigename und „Dienst“ als Verwendung. Ein künftiger Service-Key ohne Meta fällt dem Test daher nicht auf. Heute vollständig (75 Meta-Einträge = 75 Basis-Keys, per Skript abgeglichen). | niedrig | offen, Hinweis (Test um „Anzeigename != Key“ ergänzen) |
+| B6 | Brain: `secondbrain/feature-map.md` hat noch keinen Eintrag für v1.77.0 (auch nicht v1.76.0). | Doku | offen – beim Bündel-Abschluss nachziehen |
+
+Positiv bestätigt: Allow-List `/Settings` (unbekannte Keys ignoriert), „ganz oder gar nicht“ in beiden Controllern (Prüfung vor jedem Schreiben),
+F4 (keine neue Zeile bei Default ohne Zeile, unveränderte Werte nicht neu geschrieben), Choice exakt auf ServiceSettings (`exakt: true`),
+Default-true-Service-Bool mit leerem Wert bleibt an (AK 11), Master nur Anzeige (kein Formularfeld), TLS-Warnung nutzt den wirksamen Wert,
+Sperrhinweis weiter aus `SageQuelleSperre.Grund`, Sage-Test-JS findet alle fünf `input[name="settings[...]"]` (Bool als Hidden-Input).
+Nebeneffekt AK 11, beabsichtigt: steht `SageLagerbuchungSslZertifikatPruefen` leer in der DB, sendet der Sage-Verbindungstest jetzt
+`verifyCertificate=true` (vorher `false`) – jetzt gleich dem Dienst (leer = geprüft).
+
+### 3. Nachweisart je AK
+| AK | Nachweis |
+|---|---|
+| 1 | automatisiert (`AppSettingDefinitionsTests.Katalog_…_AK1`, `QrFesteWerte_AlsChoice_AK1`) |
+| 2 | automatisiert (`Seed_GleichDerFrueherenListe_AK2`) + QA-Abgleich gegen alten `Program.cs` |
+| 3 | Build/Tests grün; Darstellung = Manual-UAT (DEV gesehen) |
+| 4, 5, 7, 8 | Controller-Teil automatisiert (`SettingsControllerKatalogTests`); Darstellung, Suche, „Nur geänderte“, Badges = Manual-UAT (Browser, DEV OK) |
+| 6 | automatisiert (`Save_OhneAenderung_…_AK6`) + DEV OK (BeschichtungAbholtage-Zeile blieb weg) |
+| 9, 10 | Manual-UAT (DEV OK); AK 10 Sage-Test-Ergebnis selbst NICHT MOEGLICH (s. u.) |
+| 11 | automatisiert (`SettingItem`/Controller) + DEV OK (an `SageLagerbuchungSslZertifikatPruefen`, s. u.) |
+| 12 | automatisiert (`SettingValidatorTests`, `ServiceSettingsControllerTests`, `Save_UngueltigerWert_…_AK12`) + DEV OK (manipulierte POSTs) |
+| 13, 14 | automatisiert + DEV OK |
+| 15, 16, 17 | automatisiert (Drift-Guards) |
+| 18 | Logik automatisiert (`EinstellungspruefungTests`); Start-Ablauf mit echter DB = Manual-UAT (DEV OK) |
+| 19 | automatisiert (keine Lesestelle im Diff, Seed-Gleichheit, bestehende Lesestellen-Tests grün) |
+| 20 | Durchsicht: beide `AppVersion.cs` 1.77.0, `Changelog.cshtml`, `Help/Index.cshtml`, `README.md`, TS-109, Index-Zeile 109 vorhanden |
+
+### 4. Geänderte bestehende Tests
+| Test | Einordnung |
+|---|---|
+| `OperationConfigsControllerTests` (Ctor-Aufruf) | nur Typ/Signatur (8 Ctor-Parameter) |
+| `ServiceSettingDefinitionsTests`, `SageTlsPolicyTests` | nur Typ (`ServiceSettingType` → `SettingType`) |
+| `ServiceSettingsControllerTests` Index-Test | Typ (`Value` → `Wirksam`, `Definition.*`) |
+| `ServiceSettingsControllerTests` Save-Bool | Verhalten bewusst geändert: F4/AK 6 (Default ohne Zeile wird nicht geschrieben) |
+| `ServiceSettingsControllerTests` Int-Fehler | Verhalten bewusst geändert: AK 12 (ganz oder gar nicht statt Teilspeicherung) |
+| `SettingsControllerQrErstesFeldTests` | Ctor (Typ); Fixture mit bestehenden Zeilen wegen F4 (sonst schriebe ein Default-Wert nichts); Meldungstext nach AK 12 – bewusst |
+| `HardwareScannerTests`, `VaultEnaioLinksTests` | Quelle der Seed-Prüfung von `Program.cs`-Text auf `AppSettingDefinitions.SeedEintraege` umgestellt (E1, AK 2) – gleiche Werte geprüft |
+Keine Einordnung „sonstige“.
+
+### 5. Checkliste / ADR 0020 (5a)
+- Migration/SQL/FreshInstall/AgentJobs: nicht betroffen (keine Schema-Änderung, verifiziert im Diff). Audit-Felder: n/a (AppSettings/ServiceSettings
+  kein `AuditableEntity`). Version beide 1.77.0, Anwender-Changelog + Brain-Changelog
+  `[[2026-11-07-v1-77-0-einstellungen-auswahlfelder-und-beschreibung]]` vorhanden. TS-109.1–109.7 + Index-Zeile 109 vorhanden. Aufgabe
+  `[[2026-11-07-appsettings-ohne-leser-aufraeumen]]` vorhanden. Offen: feature-map (B6).
+- ADR 0020: feste Wertebereiche als Auswahl (Choice/MultiChoice/MasterData, `Sync:Quelle:*`), Serverprüfung beim Speichern beider Seiten,
+  Anzeigename/Bewirkt/Verwendung/Default/Standort je Key (Drift-Guard), Warnhinweise an allen in der Spec geforderten Keys vorhanden. Keine Lücke
+  außer B5 (Test-Schwäche).
+
+### 6. DEV-Deploy und Testlauf
+- Standort laut Frontmatter: **beide**. Elevated Shell: ja.
+- `dev-deploy.ps1 -Standort AKE -Quelle <worktree>`: Exit 0, „HTTP 200, Fusszeile v1.77.0“, DEV-Absicherung angewendet, Dienst gestartet.
+- `dev-deploy.ps1 -Standort IDEAL -Quelle <worktree>`: Exit 0, „HTTP 200, Fusszeile v1.77.0“, DEV-Absicherung angewendet, Dienst gestartet.
+- Vorher-Auszug AppSettings+ServiceSettings je DEV-DB gezogen; am Ende beide DBs **identisch** zum Vorher-Stand (alle Testwerte zurückgesetzt;
+  einzige Restabweichung: die per SQL gelöschte und wieder eingefügte Zeile `BeschichtungAbholtage` auf AKE hat `Description = ''`).
+  Kein verbotener Schalter wurde eingeschaltet.
+
+| Schritt | Ausgeführt | Ergebnis | Status |
+|---|---|---|---|
+| 109.1 AKE `/Settings` | Seite, Suche `scanner`, „Nur geänderte“ | Gruppen/Anzeigenamen/Key klein/Bewirkt/Verwendet in/Standard/Standort; Warnhinweise an Minus-Buchung, Windows-Anmeldung, Schichtkalender; „Hardware-Barcodescanner“ sichtbar; Suche filtert; „Nur geänderte“ zeigt nur Felder mit Badge „weicht vom Standard ab (Standard: …)“; Orphan `StammdatenADGruppe` unter „Nicht im Katalog“ (kein Leser im Code, nur alte SQL-Skripte – korrekt) | OK |
+| 109.1 Negativ (ohne Stammdaten-Recht) | – | kein zweiter Benutzer auf DEV | NICHT MOEGLICH |
+| 109.2 AKE | Zeile `BeschichtungAbholtage` per SQL gelöscht, unverändert gespeichert, Diff | „Einstellungen gespeichert.“, einzige Abweichung = gelöschte Zeile bleibt weg, keine neue Zeile | OK |
+| 109.2 IDEAL | unverändert gespeichert, Diff | identisch | OK |
+| 109.2 FA-Liste zeigt Abholtage Di/Do | – | nicht im Browser geprüft (Lesestelle unverändert, Default bei fehlender Zeile) | NICHT MOEGLICH (offen für Mensch) |
+| 109.3 AppSettings | `LagerbestellungAktiv='1'`, Seite, Speichern | „Aktiviert“ + Badge „ungültig: „1““ + Fehlertext + Sammelbanner; nach Speichern `true` | OK |
+| 109.3 ServiceSettings | statt `Sync:ProductionOrdersEnabled` (leer = wirksam AN = verbotener Sync-Schalter) an `SageLagerbuchungSslZertifikatPruefen=''` (Default true) | als „Aktiviert“ gezeigt; Speichern schrieb `true`; danach auf `false` zurückgesetzt | OK (Ersatz-Key) |
+| 109.4 AKE | `Sync:Quelle:Lagerplaetze='sdata'`, Seite, Speichern ohne Korrektur, dann `View` gewählt und gespeichert | Option „„sdata“ (ungültig – bitte wählen)“, Badge, Banner; Ablehnung „Nicht gespeichert: „Quelle Lagerplatz-Abgleich“: „sdata“ … „View“, „SData“, „Vergleich““, DB unverändert; nach Korrektur nur die zwei erwarteten Werte geschrieben | OK |
+| 109.4 IDEAL Sperrhinweis | `/ServiceSettings` IDEAL (Artikel-View gesetzt, `Quelle:Artikel=SData`) | Hinweis „gesperrt bis P-R1 … wirkt deshalb wie View“ an Artikel, „gesperrt bis P-F2“ an FA-Struktur | OK |
+| 109.4 Lauf „Lagerplatz“ ohne Quellen-Warnung | – | braucht `Sync:LagerplaetzeEnabled` | NICHT MOEGLICH |
+| 109.5 | manipulierter POST IDEAL (Horizont 99, Abholtag `Funtag`, Empfängergruppe 9999, `Erfunden=x`); POST nur `Erfunden`; ServiceSettings-POST `Quelle:Artikel=sdata` + `BomCacheWeeks=9` | drei Meldungen mit Anzeigename und erlaubten Werten, nichts geschrieben; `Erfunden` nie angelegt; ServiceSettings abgelehnt, `BomCacheWeeks` blieb 8 | OK |
+| 109.5 NurFA ohne Default-Arbeitsgang | IDEAL: Schalter an, Default leer, speichern | „Nicht gespeichert: „BDE: Default-Arbeitsgang“ ist Pflicht …“, DB identisch (Eingabe danach zurückgesetzt, siehe B1) | OK |
+| 109.6 | AKE: `LagerbestellungAktiv='1'`, App-Pool `AKE_WMS_DEV` recycelt; korrigiert, erneut recycelt | `SyncLogs` Service `Einstellungspruefung`: 1 Lauf, Warnzeile „Einstellungen (/Settings) LagerbestellungAktiv: „Lagerbestellungen“: „1“ ist nicht erlaubt – erlaubt: an oder aus (true/false). Wirksam: „true“.“, Abschluss `ungueltig=1`; nach Korrektur kein neuer Lauf | OK |
+| 109.7 Master | IDEAL `/ServiceSettings` | Anzeige mit Link „Umschalten (eigene Seite)“, kein Formularfeld | OK |
+| 109.7 Sage-Verbindungstest | DOM geprüft: fünf `input[name="settings[...]"]` vorhanden | Ergebnisvergleich gegen Sage nicht ausgeführt (kein Zugriff auf Sage-Testserver aus dem QA-Lauf) | NICHT MOEGLICH |
+| 109.7 Standorteinstellungen | IDEAL unverändert gespeichert | „Standorteinstellungen gespeichert.“, DB identisch | OK |
+| 109.7 QR wie TS-101 / TLS-Warnung bei `false` | – | Scan-Verhalten braucht Gerät/Kamera | NICHT MOEGLICH |
+
+### Gesamturteil
+Build und Tests grün, DEV beide Standorte auf v1.77.0, alle ausführbaren Szenarien OK. Offene Befunde B1–B6 sind nicht datengefährdend;
+B1 ist eine Abweichung von F5 und wird dem Menschen zur Entscheidung vorgelegt. **Testbereit.**
+
+### Manuelle Test-Checkliste (Mensch, Schranke 2)
+1. B1 entscheiden: Eingaben nach Ablehnung behalten (nachbessern) oder Abweichung von F5 akzeptieren.
+2. Je Standort auf dem Testsystem vor dem Deploy P-E1a/b/c und die Prüfabfrage aus B2 ausführen und notieren.
+3. TS-109.1 Negativfall mit einem Benutzer ohne Stammdaten-Recht (Felder gesperrt, Nur-Lesen-Hinweis, kein Speichern-Knopf).
+4. TS-109.2: nach gelöschter Zeile `BeschichtungAbholtage` zeigt die FA-Liste weiter Abholtage Di/Do.
+5. TS-109.3 mit `Sync:ProductionOrdersEnabled=''` auf dem Testsystem (nur wo der Sync laufen darf).
+6. TS-109.4: nach Korrektur auf `View` läuft „Lagerplatz“ ohne Quellen-Warnung (braucht `Sync:LagerplaetzeEnabled`).
+7. TS-109.7: Sage-Verbindungstest mit denselben Werten vor/nach Deploy vergleichen; TLS-Warnung bei `false`; QR-Scans wie TS-101.
+8. Kompletter TS-109-Durchlauf auf dem Testsystem (beide Standorte), danach Merge.
+9. B6: `feature-map.md` beim Bündel-Abschluss nachziehen.
+
+## QA-Wiederholung 2026-11-07 (Fix bd178dc4)
+
+qa-agent, goal-Modus. Review-Umfang: `git diff 3e28eebd bd178dc4` (Fix B1–B5). Build/Tests/DEV über den ganzen Worktree, HEAD `8534da23`
+(v1.78.0, enthält schon die EAN-Spec).
+
+**1. Build und Tests:** `dotnet build IdealAkeWms.slnx` 0 Fehler (28 Warnungen, Altbestand). `dotnet test`: IdealAkeWms.Tests 2430 bestanden /
+1 übersprungen / 0 Fehler (2431); IDEALAKEWMSService.Tests 497 / 0 / 0. Die bekannten Flaky-Tests traten in diesem Lauf nicht auf.
+
+**2. Review des Fix-Diffs (selbst, synchron)** – geprüft: `SettingsController.SaveSettings`/`BuildViewModelAsync`, `ServiceSettingsController.SaveSettings`/
+`BuildViewModelAsync`, `SettingItem.BoolWirksam`/`Aus`/`EntsprichtDefault`, `SettingValidator` (Bool), `Views/Settings/Index.cshtml` (Banner),
+`_Layout.cshtml` (zeigt nur `TempData`, daher keine Doppelmeldung), die Leser `ServiceSettings.GetBoolAsync` (leer/Whitespace = Default, sonst
+ordinal `true`) und `RequireLagerbestellungAktivAttribute` (ohne Trim).
+
+| # | Fix | Ergebnis |
+|---|---|---|
+| B1 | beide Masken geben nach Ablehnung die View mit den geposteten Werten zurück (`eingaben` überschreibt den DB-Stand, nur Katalog-Keys) | behoben, DEV bestätigt (siehe 6) |
+| B2 | unveränderter Rohwert (bzw. ohne Zeile = Default) wird weder geprüft noch geschrieben | behoben, DEV bestätigt |
+| B3 | Bool ohne Trim wie die Leser; `LeerIstDefault` nimmt Whitespace als leer (= `GetBoolAsync`) | behoben, DEV bestätigt |
+| B4 | Choice in abweichender Schreibweise → `Ungueltig` + Text „Schreibweise …“ (Badge + Banner) | behoben, DEV bestätigt |
+| B5 | Test `ServiceKatalog_JederKeyHatEigeneMetadaten_QA_B5` (Anzeigename ≠ Key, Verwendung ≠ „Dienst“) | behoben, Test grün |
+| B6 | feature-map | bleibt offen für den Bündelabschluss (wie beauftragt) |
+
+Neue Befunde aus dem Fix-Diff:
+
+| # | Befund | Schwere | Behandlung |
+|---|---|---|---|
+| W1 | `SettingValidator` Bool: ein reiner Leerzeichen-Wert (`" "`) wird beim Speichern als ungültig abgelehnt, der Dienst-Leser (`GetBoolAsync`) liest ihn als Default. Erreichbar nur über einen manipulierten POST (die Maske postet immer `true`/`false`), Bestandswerte fallen durch B2 nicht mehr in die Prüfung. | Hinweis | keine Änderung nötig |
+| W2 | Testlücke: B1 und B2 für `/ServiceSettings` und B2 für `/Settings` haben keinen eigenen Unit-Test (B1 `/Settings` ist mit `Save_Abgelehnt_SeiteMitEingaben_QA_B1` abgedeckt). Auf DEV manuell nachgewiesen. | niedrig | Hinweis, kein Blocker |
+
+**3. Nachweisart:** B1 `/Settings`, B3, B5 automatisiert (`SettingsControllerKatalogTests.Save_Abgelehnt_SeiteMitEingaben_QA_B1`,
+`Index_BoolOhneTrim_WieDerLeser_QA_B3`, `SettingValidatorTests.ServiceKatalog_JederKeyHatEigeneMetadaten_QA_B5`); B1 `/ServiceSettings`, B2, B4 und
+die Anzeige der Banner: Manual-UAT (DEV, unten).
+
+**4. Geänderte bestehende Tests:** `SettingsControllerKatalogTests` (2 Tests: `TempData` → `ViewData`) und `SettingsControllerQrErstesFeldTests`
+(2 Tests: `RedirectToActionResult` → `ViewResult`, `TempData` → `ViewData`) – Verhalten absichtlich geändert durch F5/B1. Keine Fixture-Anpassung.
+
+**6. DEV (beide Standorte, Quelle Worktree, `dev-deploy.ps1` Exit 0, Fußzeile v1.78.0 an AKE und IDEAL):**
+
+| Schritt | Ausführung | Ergebnis | Status |
+|---|---|---|---|
+| B1 `/Settings` | IDEAL: „BDE: nur FA-Meldung“ an, Default-Arbeitsgang leer, speichern | Banner „Nicht gespeichert: „BDE: Default-Arbeitsgang“ ist Pflicht … Ihre Eingaben stehen unten noch im Formular.“, Schalter steht weiter auf „Aktiviert“; DB: `BdeNurFaMeldung=false`, `BdeDefaultArbeitsgang=''` unverändert | OK |
+| B1 `/ServiceSettings` | IDEAL: `Cleanup:AktivitaetsprotokollAufbewahrungTage` geleert, `WorkerSettings:SyncIntervalMinutes` 15 → 16, speichern | Fehler „„Aktivitäts-Protokoll: Aufbewahrung“: „“ ist nicht erlaubt – erlaubt: eine ganze Zahl.“, Formular zeigt leer und 16; DB 180 / 15 unverändert | OK |
+| B2 | IDEAL: `NegativeBuchungLagerplatz` per SQL auf nicht vorhandenen Lagerplatz `XXQA`, `/Settings` unverändert speichern | Seite zeigt den Wert als ungültig; Speichern → „Einstellungen gespeichert.“, `CHECKSUM_AGG` über `AppSettings` vorher = nachher (nichts geschrieben); danach auf `NAN` zurückgesetzt | OK |
+| B3 | IDEAL: `LagerbestellungAktiv = ' false'` per SQL | Schalter „Aktiviert“ + Badge „ungültig: „ false““ + Text „an oder aus (true/false)“ – passt zum Leser (ohne Trim = an); danach auf `true` zurückgesetzt | OK |
+| B4 | IDEAL: `QrErstesFeld = 'matchcode'` per SQL | Badge „ungültig: „matchcode““ + Banner nennt „QR-Code: erstes Feld“; danach auf `Artikelnummer` gesetzt (Ursprungswert vorher nicht notiert; `Artikelnummer` ist Default und AKE-Wert) | OK |
+
+**Gesamturteil:** B1–B5 behoben und auf DEV bestätigt, kein neuer blockierender Befund (W1, W2 sind Hinweise). Status bleibt **Testbereit**.
+Checkliste oben bleibt gültig, außer Punkt 1 (B1 ist erledigt). Zusätzlich: 10. IDEAL-DEV `QrErstesFeld` prüfen, falls dort vor dem QA-Lauf
+nicht `Artikelnummer` stand.
 
 ## Offene Rueckfragen
 
@@ -503,6 +688,6 @@ in der letzten Etappe.
   Bei Varianten-Specs zusaetzlich freigabe_entscheidung im Frontmatter setzen.
 -->
 
-1. Lese-Warnung: zentrale Startprüfung statt Umbau der Lesestellen? →
-2. `BdeDefaultArbeitsgang` Freitext mit Vorschlagsliste statt Pflicht-Auswahl? →
-3. `OseonRueckmeldungAktiv`/`SageRueckmeldungAktiv` im Katalog als „ohne Wirkung“ führen, Aufräumen als Aufgabe? →
+1. Lese-Warnung: zentrale Startprüfung statt Umbau der Lesestellen? → **ja (Gerald 2026-11-07)**
+2. `BdeDefaultArbeitsgang` Freitext mit Vorschlagsliste statt Pflicht-Auswahl? → **ja (Gerald 2026-11-07)**
+3. `OseonRueckmeldungAktiv`/`SageRueckmeldungAktiv` im Katalog als „ohne Wirkung“ führen, Aufräumen als Aufgabe? → **ja, Aufräumen als Aufgabe (Gerald 2026-11-07)**

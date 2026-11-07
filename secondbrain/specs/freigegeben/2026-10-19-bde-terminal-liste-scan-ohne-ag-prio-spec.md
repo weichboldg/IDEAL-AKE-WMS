@@ -684,3 +684,4 @@ Vorher: Publish Web aus dem Worktree (Abschnitt Deploy), Prüfabfragen P1, P2, P
 17. AKE-Testsystem (Master aus): Liste flach, alle FAs, gleiche Reihenfolge wie v1.63.0, keine Köpfe, kein „Weitere“; FA ohne AG → genau ein Treffer gewählt, sonst „FA …: n Treffer – bitte auswählen“; `FA,AG` und Buchungen wie v1.63.0 (AK 19).
 18. `BdeNurFaMeldung` an: Liste „Produktionsaufträge“, FA-Scan startet wie v1.63.0, keine Gruppenköpfe (AK 20).
 19. Stichprobe Regression TS-90, TS-96.3/96.7/96.10.
+- Browser-Abnahme 2026-10-21: [[2026-10-21-ideal-v1-59-bis-v1-64-browser-testbericht]] - 45 OK, 2 FEHLER, 1 nicht pruefbar, 0 Protokoll passt nicht

@@ -65,6 +65,18 @@ danach kurzer qa-agent-Lauf über den Commit (Status der SData-Spec bleibt Testb
   Ressourcenpositionen → in der AKE-Menge; Sage-DB `ake_TEST2026`). Vermutlich war diese Nummer gemeint (eine Ziffer Unterschied) – bitte
   bestätigen. TS-106.3 Vorbedingung, Nachtrag-Absatz und 106.3.g sowie die Spec-Abschnitte (Test-Szenarien, Checkliste) nachziehen.
 
+## Freigabe-Nachtrag 2026-11-07 (Gerald, geht allem oben vor)
+
+- Alle 18 Rückfragen **wie empfohlen**, mit einer Abweichung: **OSEON (Spec 1) als AKE-Hotfix aus `main`**, eigener Worktree, nicht im
+  Bündel-Lauf. Im Bündel entfällt Version 1.74.0; das Bündel holt den Fix über `scripts/sync-worktree.ps1` (Mensch).
+- P1 (QR): `QrMitFaNummer` ist an AKE und IDEAL aktiv – Variante A ändert an beiden Standorten nichts.
+- Ersatz-Testartikel **86006871** bestätigt (Punkt 0).
+- **Vor Punkt 0 im Bündel:** Fix SData-Filter `ne`/`gt` auf Textfeldern (`ArtikelVariantenExtended`, [[fallstricke]] „Sage-SData-Lesen“);
+  EAN (Spec 5) liest dieselbe Ressource und kommt danach.
+- Specs 2–5 freigegeben (2026-11-07); P-E1–P-E4 (EAN) führt der Dev am AKE-Test nur lesend aus.
+- **Spec 5 EAN zurückgestellt (Gerald 2026-11-07 10:08):** EAN wird in Sage nicht gepflegt (P-E2: 2 von 279.529) – im Lauf überspringen.
+- Nachzügler: `backlog/2026-11-07-artikeldetails-lieferanten-anzeigen.md` hat noch keine Spec – nicht in diesem Lauf.
+
 ## Offene Rückfragen über alle Specs (je mit Empfehlung, Details in der Spec)
 
 | Spec | Frage | Empfehlung |

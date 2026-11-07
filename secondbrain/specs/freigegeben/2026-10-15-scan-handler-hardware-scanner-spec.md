@@ -4,7 +4,8 @@ title: Scan-Handler fuer Hardware-Barcodescanner (Tastatur-Eingabe mit Praefix)
 slug: 2026-10-15-scan-handler-hardware-scanner-spec
 status: Testbereit
 created: 2026-10-15
-updated: 2026-10-27
+updated: 2026-11-03
+standort: beide
 source_backlog: "[[2026-10-15-scan-handler-hardware-scanner]]"
 task: "[[2026-10-15-scan-handler-hardware-scanner-umsetzung]]"
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
@@ -38,6 +39,36 @@ freigabe_am: "2026-10-21"
 > (HEAD `2524bb03`, v1.60.0), nur gelesen. Abweichungen zu `main` stehen in Rueckfrage 1.
 > Standorte: **AKE und IDEAL** gleichermassen - die Scan-Seiten und `barcode-scanner.js` sind
 > standortneutral, keine Verzweigung nach `ProduktionsauftragHierarchisch`.
+
+> [!important] Freigabe-Nachtrag 7 vom 2026-11-03 — Ein Tipp aktiviert das Scan-Feld (Eingabemethode starten), Folgeversion nach v1.71.0 (geht dem Rumpf und Nachtrag 1–6 vor)
+> Gerald 2026-11-03, Netum am IDEAL-Testsystem, v1.68.1+, Geräte-Schalter „Scannen ohne Feld“ und Diagnose an, Einbuchung:
+> (1) Frisch geöffnet ist das Scan-Feld **grün** („✓ Scan bereit“, Fokus per Skript), der Scan kommt trotzdem **nicht** an.
+> (2) Direkt „Scan bereit“ antippen (ohne anderes Feld) → geht **nicht**.
+> (3) Erst ein normales Formularfeld antippen (Bildschirmtastatur erscheint), dann „Scan bereit“ antippen → **alles wie gewollt**.
+> (4) Nach Seitenwechsel bzw. Neuladen der Einbuchung ist es wieder weg; erneut Ablauf (3) nötig.
+> Deutung (ungeprüft, Koordination): Die Netum-Fokus-Eingabe schreibt über die Android-Eingabemethode. Die startet nur bei Benutzergeste auf
+> ein Feld, das Tastatur zulässt; Skript-Fokus genügt nicht, `inputmode="none"` verhindert den Start. Ein späterer/wiederholter `focus()`
+> (Verzögerung, `pageshow`) hilft daher nicht und ist **nicht** Teil dieses Nachtrags. Ganz ohne Tipp ist aus Chrome nicht erreichbar.
+> Ziel: Ablauf (3) mit **einem** Tipp pro Seitenaufruf nachbilden. Ändert Nachtrag 6 Punkt 1 (`inputmode`) und Punkt 2 (Anzeige).
+> 1. **Scan-Feld ohne `inputmode="none"` im Markup**, damit ein Tipp die Eingabemethode startet. `autocomplete="off"` bleibt;
+>    zusätzlich `autocorrect="off"`, `autocapitalize="off"`, `spellcheck="false"` (keine Korrektur am Scan-Text).
+> 2. **Nach dem Fokus durch eine Benutzergeste** (Tipp auf das Feld) setzt das Skript nach ca. 300 ms `inputmode="none"`, damit die
+>    Tastatur einklappt und die Verbindung bestehen bleibt. Bei Verlust des Fokus wird `inputmode` wieder entfernt, damit der nächste Tipp
+>    erneut startet. Ob Chrome die Tastatur beim Umschalten einklappt, ist am Netum zu belegen; bleibt sie stehen, ist Schließen mit
+>    Zurück hinnehmbar (melden, nicht umgehen).
+> 3. **Anzeige mit drei Zuständen**, Farbe nie alleiniger Träger (Text + Rahmen):
+>    grau „Zum Scannen hier tippen“ = kein Fokus **oder nur Skript-Fokus** (der reicht am Netum nicht, Befund 1) ·
+>    grün „✓ Scan bereit“ = erst nach Fokus durch Benutzergeste in diesem Seitenaufruf · nach Neuladen wieder grau.
+>    Feld groß genug für den Daumen (volle Breite der Karte, Höhe mindestens wie `form-control-lg`), Kontrast WCAG AA.
+> 4. **Automatischer Skript-Fokus aus Nachtrag 6 Punkt 3 bleibt** (schadet nicht, hilft Geräten mit Tasten-Ereignissen, z. B. Zebra
+>    DataWedge Keystroke), zeigt aber nur grau. Nach einem Scan bleibt der Fokus im Feld (Mehrfach-Scan ohne neuen Tipp).
+> 5. **Diagnose:** je Fokus des Scan-Felds zusätzlich „durch Tipp“ bzw. „per Skript“ und der aktuelle `inputmode`.
+> 6. Nur Einbuchung, nur Web (Dienst nur `AppVersion.cs`), keine Migration. `processScannedValue`, `HwScanCore.zuordnung` und
+>    `hwScanOhneFeld`-Zustellung unverändert. Am PC und mit Schalter aus Verhalten wie bisher. Version: nächste Patch-Version auf dem Bündel.
+> 7. **TS-99.19 ergänzen** (Netum, Cache leeren): a) frisch öffnen → grau trotz Skript-Fokus; b) einmal tippen → grün, Tastatur klappt ein
+>    (oder mit Zurück schließbar – Beobachtung festhalten); c) scannen ohne weiteren Tipp → zugeordnet; d) drei Scans hintereinander;
+>    e) Formularfeld antippen und tippen, zurück aufs Scan-Feld → wieder grün nach Tipp; f) nach Speichern/Seitenwechsel wieder grau;
+>    g) PC mit Schalter an: Feld bedienbar, keine Störung; h) Schalter aus: kein Scan-Feld.
 
 > [!important] Freigabe-Nachtrag 6 vom 2026-10-27 — Sichtbares Scan-Feld „Scan bereit“ auf der Einbuchung, v1.68.1 (geht dem Rumpf und Nachtrag 1–5 vor)
 > Gerald 2026-10-27: Pilot aus Nachtrag 5 greift am Netum nicht. Befund Diagnose (v1.68.0, alle drei Geräte-Schalter an, Einbuchung):
@@ -507,6 +538,21 @@ Profil-Schalter, Hilfe/README, ein Node-Check - passt in einen Dev-Lauf.
 
 ## Deploy
 
+*Final QA-Lauf v1.71.1 (2026-11-03), aus dem echten Diff `51c3203d..6969620a` (`9ca87f7c` + QA-Fix `6969620a`):* geändert sind nur
+`IdealAkeWms/` (`wwwroot/js/hardware-scanner.js`, `wwwroot/css/site.css`, `Views/StockMovements/Inbound.cshtml`, `Views/Help/Index.cshtml` +
+`Changelog.cshtml`, `AppVersion.cs`), `IDEALAKEWMSService/AppVersion.cs` (nur Version 1.71.1 / 2026-11-03), Tests und `docs/TESTSZENARIEN.md`.
+- **Web-App:** ja. **Service:** funktional nichts, nur die Version; mitpublizieren, damit beide 1.71.1 zeigen. **Migration:** nein (nichts
+  unter `*/Migrations/`, kein `SQL/`, FreshInstall und `SQL/AgentJobs/` unberührt, kein Seed, keine neue AppSetting).
+  ```
+  dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb
+  dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService
+  ```
+- Bündel-Worktree: Ein Publish aus dem Worktree bringt auch die übrigen Testbereit-Stände bis v1.71.0 mit (deren Deploy-Schritte stehen in
+  der jeweiligen Spec). Für diesen Nachtrag selbst ist keine Reihenfolge nötig.
+- Ablauf: aus dem Worktree publizieren → Testsystem → TS-99.19 a7–h7 am Netum → Merge. Nach dem Merge nur dann erneut aus `main`
+  publizieren, wenn der Merge getestete Dateien mit parallelen `main`-Änderungen zusammengeführt hat.
+- Am Netum vor dem Test: Browser-Cache leeren bzw. hart neu laden (JS und CSS geändert), „Scannen ohne Feld“ und Diagnose an.
+
 *Final QA-Lauf v1.68.1 (2026-10-27), aus dem echten Diff `ca48b22d..8540c4d6` (`69bb4fd1` + QA-Fix `8540c4d6`):* geändert sind nur
 `IdealAkeWms/` (`wwwroot/js/hardware-scanner.js`, `wwwroot/css/site.css`, `Views/StockMovements/Inbound.cshtml`, `Views/Help/Index.cshtml` +
 `Changelog.cshtml`, `AppVersion.cs`), `IDEALAKEWMSService/AppVersion.cs` (nur Version 1.68.1), Tests und `docs/TESTSZENARIEN.md`.
@@ -886,6 +932,52 @@ DOM-Teil per Wegwerf-Mock in Node durchgespielt (Feld wird sichtbar, `[aktiv: #h
 
 **Nachweis:** `dotnet build IdealAkeWms.slnx` 0 Fehler, 28 Warnungen (unverändert). `dotnet test`: Web **2195 bestanden, 1 übersprungen**,
 Dienst **328 bestanden**. Node-Kern „hardware-scanner core ok (52 Pruefungen)“.
+
+## Nachbesserung v1.71.x (Dev-Lauf 2026-11-03, Freigabe-Nachtrag 7)
+
+Basis `51c3203d` (v1.71.0). Commit `9ca87f7c` (wip feature-complete). Version **v1.71.1** (beide `AppVersion.cs`, Datum 2026-11-03).
+Nur Web (Dienst nur `AppVersion.cs`), keine Migration. Nur Einbuchung. `processScannedValue`, `HwScanCore.zuordnung`, `hwScanOhneFeld`-Zustellung,
+`parken()` und alle anderen Seiten unverändert. Kein Fokus-Timing-Umbau (keine Verzögerung, kein `pageshow`/`visibilitychange`).
+
+**Markup (Punkt 1/3):** `Views/StockMovements/Inbound.cshtml` – `#hwScanOhneFeld` **ohne** `inputmode`, zusätzlich `autocorrect="off"`,
+`autocapitalize="off"`, `spellcheck="false"` (`autocomplete="off"` bleibt), Klasse `form-control form-control-lg hw-scan-ohne-feld`, im selben
+Spaltenraster wie die Formularkarte (`row` > `col-md-8 col-lg-6`) = volle Kartenbreite. Platzhalter „Zum Scannen hier tippen“. Weiter vor dem `<form>`.
+
+**Skript (Punkt 2/4/5):** `hardware-scanner.js` Block „Scannen ohne Feld“:
+- `pointerdown` auf dem Feld = Benutzergeste (deckt Touch unter Chrome Android ab; `touchstart` zusätzlich hätte je Tipp zwei Diagnose-Zeilen
+  erzeugt). Ist das Feld noch nicht fokussiert, wird der Zeitpunkt gemerkt; der folgende `focus` zählt als „durch Tipp“, wenn er binnen 1 s kommt
+  (sonst – z. B. Wischen ohne Fokus – verfällt die Geste, ein späterer Skript-Fokus bleibt grau). Ist das Feld schon per Skript fokussiert,
+  startet der Tipp die Bereitschaft direkt (Befund 2: Tipp auf das geparkte Feld).
+- Nach der Geste ~300 ms später, nur wenn das Feld noch Fokus hat: `inputmode="none"`, Klasse `hw-scan-bereit`, Platzhalter „✓ Scan bereit“.
+- `blur`: Timer abbrechen, `inputmode` entfernen, grau. Skript-Fokus (`parken`) bleibt, zeigt grau. Nach einem Scan bleibt der Fokus (Feld wird
+  wie bisher geleert) – Mehrfach-Scan ohne neuen Tipp.
+- Diagnose: `Scan-Feld Fokus an (durch Tipp|per Skript), inputmode=<wert|–>`, `Scan-Feld Tipp bei Fokus, inputmode=…`,
+  `Scan-Feld bereit, inputmode=none`, `Scan-Feld Fokus aus`.
+
+**CSS (Punkt 3), Skill `frontend-design` aufgerufen, Bootstrap-Muster vor Eigenstil:** `.hw-scan-ohne-feld` ohne eigene Breite/Höhe (kommt aus
+`form-control-lg`). Drei Zustände, jeweils Text + Rahmenform: (1) kein Fokus grau gestrichelt; (2) nur Skript-Fokus wie (1) + grauer Fokusring
+(sichtbarer Tastatur-Fokus; Bootstrap-Fokusrahmen `#86b7fe` bewusst überschrieben, er hätte nur ca. 1,9:1); (3) `.hw-scan-bereit:focus` grün
+durchgezogen. Kontraste: grau `#495057` auf `#f8f9fa` ca. 8:1, Rahmen `#6c757d` ca. 4,5:1; grün `#0a3622` auf `#d1e7dd` ca. 11:1, Rahmen
+`#198754` ca. 3,5:1.
+
+**Tests/Doku (Punkt 7):** Wächter `HardwareScannerTests.ScannenOhneFeld_*` umgestellt: Markup **ohne** `inputmode`, mit autocorrect/autocapitalize/
+spellcheck/`form-control-lg`/neuem Platzhalter; reine `:focus`-Regel ohne Grün; Grün nur in `.hw-scan-bereit:focus`; `pointerdown`-Listener,
+`if (durchTipp) nachTipp();`, `removeAttribute('inputmode')`, neue Fokus-Diagnose. TS-99.19 a7–h7 + Negativ (Graustufen) in `docs/TESTSZENARIEN.md`.
+Hilfe-Absatz „Scannen ohne Feld“, Anwender-Changelog v1.71.1.
+DOM-Teil per Wegwerf-Mock in Node durchgespielt: Skript-Fokus grau ohne `inputmode`; Tipp bei Fokus → nach 299 ms noch nichts, nach 301 ms
+`inputmode=none` + grün; blur → weg + grau; freie Stelle → Skript-Fokus grau; Tipp auf nicht fokussiertes Feld → grün; Wischen verfällt; blur
+innerhalb der 300 ms bricht ab.
+
+**Abweichungen:**
+- **Geänderter Bestandstest:** `ScannenOhneFeld_NurAufEinbuchung_UnsichtbarOhneTastatur_NurMitSchalter` prüfte `inputmode="none"` im Markup,
+  `height: 30px` und Grün an `:focus` – vom Nachtrag ausdrücklich ersetzt (Testname bleibt).
+- TS-99.19-Buchstaben a–q waren vergeben; die neuen Punkte heißen **a7–h7** und gehen der Vorbedingung sowie p) und q) vor.
+- Nur `pointerdown`, kein `touchstart` (s. o.). Ob Chrome beim Umschalten auf `inputmode="none"` die Tastatur einklappt: nur am Netum belegbar (b7).
+- `hw-scan-bereit` greift nur zusammen mit `:focus` – bliebe die Klasse hängen, zeigt das Feld ohne Fokus trotzdem grau.
+
+**Nachweis (Dev-Lauf):** `dotnet build IdealAkeWms.slnx` 0 Fehler, 28 Warnungen (unverändert). `dotnet test`: Web **2254 bestanden,
+1 übersprungen**, Dienst **328 bestanden**. Node-Kern „hardware-scanner core ok (57 Pruefungen)“.
+
 
 ## Freigabe-Antworten (Mensch fuellt aus — Schranke 1)
 
@@ -1478,6 +1570,115 @@ Browser-JS und Fokusverhalten sind nicht automatisiert beweisbar – alles „Ma
 
 **Ergebnis:** grün, Q6-1 behoben, keine Blocker → `status: Testbereit`.
 
+## QA-Nachweis v1.71.1 (qa-agent, 2026-11-03, Freigabe-Nachtrag 7)
+
+Geprüft `git diff 51c3203d 9ca87f7c` (9 Dateien, +107/−20) im Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, dazu der umgebende
+Code: `hardware-scanner.js` `zustellen` (`:271-301`), Block „Scannen ohne Feld“ komplett (`:308-364`, inkl. `parken`), Text-Erkennung
+(`:366-400`), `barcode-scanner.js` `wms:hardware-scan`-Listener und `hwScanOhneFeld` (`:540-589`), Bootstrap `bootstrap.min.css`
+(`.form-control`, `.form-control:focus`, `[hidden]{display:none!important}`), Ladereihenfolge `_Layout.cshtml:10-11` (Bootstrap vor `site.css`).
+Review selbst, in diesem Lauf. QA-Fix `6969620a`. `standort` fehlte im Frontmatter, aus dem Spec-Text („AKE und IDEAL gleichermassen“)
+als `beide` nachgetragen.
+
+### 1. Build und Tests (selbst ausgeführt, nach dem QA-Fix wiederholt, HEAD `6969620a`)
+- `dotnet build IdealAkeWms.slnx`: **0 Fehler**, 28 Warnungen (vorbestehend, u. a. CS8601).
+- `dotnet test`: **IdealAkeWms.Tests 2254 bestanden, 1 übersprungen, 0 fehlgeschlagen (2255)**; **IDEALAKEWMSService.Tests 328 bestanden,
+  0 übersprungen, 0 fehlgeschlagen (328)**. Vor und nach dem Fix gleich.
+- Node direkt: `node IdealAkeWms.Tests/Js/hardware-scanner.check.js C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\IdealAkeWms\wwwroot\js\hardware-scanner.js`
+  → „hardware-scanner core ok (57 Pruefungen)“.
+
+### 2. Code-Review: Befunde und Behandlung
+| # | Schwere | Fundstelle | Befund | Behandlung |
+|---|---|---|---|---|
+| Q7-1 | mittel (Barrierefreiheit) | `site.css:1451` (`9ca87f7c`) | Zustand 2 (nur Skript-Fokus bzw. Tab am PC) unterschied sich von Zustand 1 **nur** durch den Ring `rgba(73,80,87,.35)`. Auf Weiß ergibt das ca. `#bfc2c4`, also ca. **1,8:1**, unter 3:1 (WCAG 1.4.11). Das ist derselbe Wert, den der Dev-Lauf am Bootstrap-Ring (`#86b7fe`, ca. 1,9:1) als zu schwach verworfen hat. TS-99.19 g7 verlangt „Tastatur-Fokus (Tab) sichtbar (grau mit Ring)“. | **Behoben** `6969620a`: `:focus` hat jetzt `box-shadow: none; outline: 2px solid #495057; outline-offset: 2px` (ca. 8:1). Der Abstand lässt die gestrichelte Rahmenform sichtbar, ein dichter Ring hätte sie optisch zu „durchgezogen“ gemacht. Grün: `outline-color: #198754` (ca. 4,5:1) statt halbtransparentem Ring. Wächter prüft die Outline. |
+| Q7-2 | niedrig (Testlücke) | `HardwareScannerTests.cs` | Der Wächter prüfte `if (durchTipp) nachTipp();`, aber nicht, **wo** `inputmode="none"` gesetzt wird. Ein zusätzliches `setAttribute` beim Laden oder in `parken` wäre grün geblieben (Auftrag: „Umschalten nur nach Geste“). | **Behoben** `6969620a`: genau ein `ohneFeld.setAttribute('inputmode', 'none');`, und zwar zwischen `var nachTipp` und `var tipp`. |
+| Q7-3 | Hinweis | `hardware-scanner.js:334-340` | Geste und Fokus werden über 1 s gekoppelt. Ein Druck **länger als 1 s** (Langdruck) auf das nicht fokussierte Feld zählt als „per Skript“ → grau. Ein zweiter kurzer Tipp (Feld hat dann Fokus) macht es grün. | Hingenommen. Diagnose zeigt es, TS-99.19 b7. |
+| Q7-4 | Hinweis | `:334`, kein `pointercancel` | Beginnt ein Wischen auf dem Feld (`pointerdown`, dann `pointercancel`), während ein anderes Element den Fokus hat, und wird binnen 1 s eine freie Stelle angetippt, dann zählt der folgende `parken`-Fokus als „durch Tipp“ und das Feld wird grün, obwohl kein Tipp aufs Feld kam. Am Netum wäre es dann grün ohne gestartete Eingabemethode, also Befund 1 im Kleinen. Sehr enges Zeitfenster. Abhilfe wäre eine Zeile `pointercancel` → `gesteAm = -1e9`. | Hingenommen (YAGNI). Nachrüsten, falls am Gerät „grün, Scan kommt nicht an“ ohne vorherigen Tipp auftritt. |
+| Q7-5 | Hinweis | `site.css:1448` (Kommentar) | Der Kommentar nennt für den grünen Rahmen `#198754` „ca. 3,5:1“, richtig sind auf Weiß ca. 4,5:1. | Nur Doku, nicht geändert. |
+
+Gezielt geprüft, ohne Befund:
+- **Kein `inputmode` im Markup:** `Inbound.cshtml:14-17` ohne `inputmode`; auch im ausgelieferten HTML beider DEV-Sites (HTTP-Abruf, s. 6).
+  `autocomplete`/`autocorrect`/`autocapitalize` off, `spellcheck="false"`. Einziger Setz-Ort für `inputmode` ist der 300-ms-Timer in
+  `nachTipp` (`:328`), mit der Bedingung „Feld hat noch Fokus“. Entfernen bei `blur` (`:348`), Timer dort abgebrochen. Ein `blur` innerhalb
+  der 300 ms bricht also ab.
+- **Geste vs. Skript-Fokus:** Ist das Feld nicht fokussiert, merkt `pointerdown` die Zeit, `focus` folgt (Maus: `mousedown`; Touch:
+  kompatibles `mousedown` nach dem Loslassen) und zählt binnen 1 s als Tipp. Ist das Feld schon per `parken` fokussiert (Befund 2), feuert kein
+  `focus`, darum der Zweig „Tipp bei Fokus“ direkt in `pointerdown`. `parken` (`:352-363`) ist unverändert und ruft nur `focus()`, also
+  `gesteAm` alt → grau. Grün setzt allein `anzeige(true)` im Timer.
+- **Nur `pointerdown`, kein `touchstart`:** tragfähig. Chrome für Android liefert Pointer Events für Touch (seit Chrome 55), Maus und Stift
+  laufen über denselben Weg. `touchstart` zusätzlich gäbe je Tipp doppelte Zeilen und keinen Gewinn. Ob die Eingabemethode am Netum startet,
+  bleibt Manual-UAT (b7/c7).
+- **Mehrfach-Scan bleibt grün:** Der Scan-Pfad verschiebt den Fokus nicht. `zustellen` leert nur den Wert (`:280`). `hwScanOhneFeld`
+  setzt `lager.value` bzw. ruft `processScannedValue`. In `barcode-scanner.js` gibt es kein `focus()` außer im Kamera-Fenster (`:128`), also
+  kein `blur`, kein Grau, `inputmode` bleibt.
+- **Drei Zustände, Spezifität:** `site.css` lädt nach Bootstrap (`_Layout.cshtml:10-11`). `.hw-scan-ohne-feld` (0,1,0) schlägt `.form-control`
+  (0,1,0) über die Reihenfolge (Rahmen gestrichelt 2 px). `.hw-scan-ohne-feld:focus` (0,2,0) schlägt `.form-control:focus` (0,2,0) ebenso
+  (Farben, `box-shadow`, `outline`). `.hw-scan-bereit:focus` (0,3,0) gewinnt immer. Grün gilt nur mit `:focus`, eine hängengebliebene Klasse
+  zeigt ohne Fokus grau. Text: grau `#495057` auf `#f8f9fa` ca. 7,8:1, grün `#0a3622` auf `#d1e7dd` ca. 10:1. Rahmen `#6c757d` ca. 4,7:1. Farbe
+  ist nie alleiniger Träger: Platzhaltertext plus gestrichelt/durchgezogen.
+- **Schalter aus / andere Seiten:** `ohneFeld` bleibt `null` (`:312`), `hidden` bleibt. `.form-control{display:block}` wird von
+  Bootstrap `[hidden]{display:none!important}` übersteuert (geprüft in `bootstrap.min.css`), keine `d-*`-Klasse. Der Wrapper ist jetzt
+  `row mb-2` statt `mb-2`, der Abstand bleibt gleich (Q6-2 unverändert). Der Wächter beschränkt `data-hw-scan-ohne-feld` auf `Inbound.cshtml`.
+  `barcode-scanner.js` nicht im Diff, `processScannedValue`/`HwScanCore.zuordnung`/`hwScanOhneFeld` unverändert (Node 57 grün).
+- **Kein Fokus-Timing-Umbau:** kein `pageshow`, kein `visibilitychange`, `parken` unverändert, keine Verzögerung des Skript-Fokus.
+- **PC:** Mausklick = `pointerdown` → grün. `inputmode` ist am PC ohne Wirkung. Tasten-Scan (USB) läuft über `keydown` und hängt nicht an Grün
+  (Punkt 4, Zebra-Keystroke).
+- **Fehlerklassen:** kein `@Html.Raw`/Server-Wert in `<script>`; `hidden` nicht an `d-*`; kein stiller Fallback (`'–'` nur in der Diagnose-
+  Anzeige); keine parallelen Arrays/Model-Binding/Server-Regel (nichts gespeichert); keine Regel an zwei Orten.
+- **Version/Doku:** 1.71.1 / 2026-11-03 in beiden `AppVersion.cs`, Anwender-Changelog v1.71.1, Hilfe-Absatz „Scannen ohne Feld“ angepasst,
+  TS-99.19 a7–h7 + Negativ (Graustufen) in `docs/TESTSZENARIEN.md`, Brain-Changelog [[2026-11-03-v1-71-1-scan-feld-tipp-aktiviert]].
+
+### 3. Beweisart je Punkt des Nachtrags 7
+| Punkt | Beweis |
+|---|---|
+| 1 Kein `inputmode` im Markup, autocorrect/autocapitalize/spellcheck | **Quelltext-Wächter** `ScannenOhneFeld_*` + HTTP-Abruf der DEV-Seiten. Wirkung am Netum (Tipp startet Eingabemethode): **Manual-UAT** b7/c7 |
+| 2 `inputmode="none"` ~300 ms nach Geste, weg bei blur | Wächter (Listener, `if (durchTipp) nachTipp();`, genau ein Setz-Ort in `nachTipp`, `removeAttribute`). Zeitverhalten/Tastatur einklappen: **Manual-UAT** b7, e7 |
+| 3 Drei Zustände, Text + Rahmen, Daumengröße, Kontrast | Wächter (`form-control-lg`, `:focus` ohne Grün, `.hw-scan-bereit:focus`, Outline). Kontraste nachgerechnet. Darstellung: **Manual-UAT** a7, b7, g7, Negativ |
+| 4 Skript-Fokus bleibt, grau; Fokus bleibt nach Scan | Review (`parken` unverändert, kein `focus()` im Scan-Pfad). Verhalten: **Manual-UAT** a7, d7 |
+| 5 Diagnose „durch Tipp/per Skript“, `inputmode` | Wächter (String). Inhalt am Gerät: **Manual-UAT** a7, b7 |
+| 6 Nur Einbuchung/Web, Kern unverändert, PC/Schalter aus wie bisher | Diff-Umfang + Wächter (nur `Inbound.cshtml`) + Node-Kern 57. PC/Schalter aus im Browser: **Manual-UAT** g7/h7 (Browser hier nicht möglich, s. 6) |
+| 7 TS-99.19 a7–h7 | Review `docs/TESTSZENARIEN.md` |
+
+Browser-JS und Fokusverhalten sind nicht automatisiert beweisbar. Alles „Manual-UAT“ zählt nicht als grün.
+
+### 4. Geänderte Bestandstests
+- `HardwareScannerTests.ScannenOhneFeld_NurAufEinbuchung_UnsichtbarOhneTastatur_NurMitSchalter` (`9ca87f7c`): `Contain("inputmode=\"none\"")`
+  → `NotContain("inputmode")`, `height: 30px` → `dashed`, Grün an `:focus` → Grün nur an `.hw-scan-bereit:focus`, Fokus-Diagnose-String neu.
+  **Verhalten absichtlich geändert** durch Nachtrag 7 Punkt 1, 3 und 5 (Nachtrag ändert ausdrücklich Nachtrag 6 Punkt 1/2). Kein Fixture-Trick.
+- QA-Fix `6969620a`: dieselbe Methode um Outline-Prüfung (Q7-1) und Setz-Ort-Prüfung (Q7-2) erweitert, nur zusätzliche Zusicherungen.
+- `hardware-scanner.check.js` unverändert.
+
+### 5. CLAUDE.md-Checkliste
+- Migration, `SQL/`, FreshInstall, `SQL/AgentJobs/`: entfällt. Audit: keine Entität. README: keine neue AppSetting. Keine neue Rolle.
+- Version 1.71.1 in beiden `AppVersion.cs` ✓, Anwender-Changelog ✓, Hilfe ✓, Brain-Changelog ✓, feature-map ✓ (QA-Stand nachgezogen).
+- `docs/TESTSZENARIEN.md` TS-99.19 a7–h7 ✓, [[testszenarien-index]] Zeile 99 nennt v1.71.1 a7–h7 ✓.
+- Skill `frontend-design` im Dev-Lauf aufgerufen (Abschnitt „Nachbesserung v1.71.x“).
+
+### 6. DEV-Deploy und Testlauf
+- Standort `beide` (s. o.). Elevierte Shell: ja. `dev-deploy.ps1 -Quelle C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5`:
+  - **AKE** (Stand `9ca87f7c`): „HTTP 200, Fusszeile v1.71.1“, „Fertig: AKE v1.71.1 auf http://localhost:8081/“, Exit 0.
+  - **IDEAL** erster Lauf: **Exit 1**, „Startseite HTTP 500 - Site gestoppt, Dienst nicht gestartet.“ Ursache im Ereignisprotokoll (ANCM):
+    `FormatException: A duplicate key 'SageLagerbuchung:Username' was found` in `D:\Dev\IDEAL\Web\appsettings.DEV.json`. Die DEV-eigene Datei liegt
+    nicht im Publish und ist seit 2026-11-02 07:36 doppelt (Abschnitt `SageLagerbuchung` zweimal, inhaltlich gleich; nur das Komma nach der
+    schließenden Klammer unterscheidet sich). Sie hat mit dem Zweig nichts zu tun, IDEAL DEV lief seit 2026-11-02 nicht mehr.
+    **Behandlung:** Sicherung `D:\Dev\IDEAL\Web\appsettings.DEV.json.qa-bak-20261103`, den zweiten (gleichen) Block entfernt, JSON geprüft. Kein
+    Wert geändert, `SageLagerbuchungAktiv`/`Sync:*`/Mails unberührt (die Absicherung des Skripts lief danach wieder).
+  - **IDEAL** zweiter Lauf: „HTTP 200, Fusszeile v1.71.1“, „Fertig: IDEAL v1.71.1 auf http://localhost:8082/“, Exit 0.
+  - Nach QA-Fix `6969620a` beide erneut: AKE und IDEAL je „HTTP 200, Fusszeile v1.71.1“, Exit 0. DEV zeigt den Zweigstand `6969620a`.
+- Testlauf (TS-99.19 a7–h7):
+
+| Schritt | durchgeführt | Ergebnis | Status |
+|---|---|---|---|
+| Auslieferung (Vorbedingung) | HTTP-Abruf `/StockMovements/Inbound`, `/css/site.css`, `/js/hardware-scanner.js` an 8081 und 8082 (Windows-Anmeldung) | Beide HTTP 200, Fuß v1.71.1. `#hwScanOhneFeld` mit `form-control form-control-lg`, ohne `inputmode`, autocorrect/autocapitalize off, spellcheck false, `hidden`, Platzhalter „Zum Scannen hier tippen“. CSS mit `.hw-scan-bereit:focus` und QA-Outline, JS mit `pointerdown`-Listener und genau einem `setAttribute('inputmode', 'none')` | OK |
+| a7–f7 | – | braucht den Netum (Fokus-Eingabe, Bildschirmtastatur, Tipp) | NICHT MOEGLICH (Gerät) |
+| g7 PC, Schalter an | – | Browser-Steuerung im Unteragenten nicht möglich: zwei Chrome-Profile verbunden, die Auswahl verlangt eine Rückfrage an den Menschen | NICHT MOEGLICH (Mensch, Checkliste 44) |
+| h7 Schalter aus | Markup-Abruf: Feld trägt `hidden`, nur das Skript entfernt es (Wächter) | Sichtprüfung im Browser offen (wie g7) | NICHT MOEGLICH (Browser), serverseitig OK |
+| Negativ Graustufen | – | wie g7 | NICHT MOEGLICH |
+
+Keine DB- oder Dienst-Schritte in diesem Nachtrag (nur Client-Verhalten, nichts gespeichert).
+
+**Ergebnis:** Build/Tests grün, DEV beider Standorte auf v1.71.1, Q7-1/Q7-2 behoben, keine Blocker → `status: Testbereit`. Die Wirkung am
+Netum (Kernfrage b7/c7) ist nur am Gerät belegbar.
+
 ## Manuelle Test-Checkliste (Schranke 2, Mensch)
 
 Vorher: aus dem Worktree publizieren (Deploy-Abschnitt) → Testsystem. Admin: Standorteinstellungen → Hardware-Scanner aktiv, Präfix
@@ -1589,3 +1790,31 @@ entschärft (Rest-Text ist sichtbar). Vorher am Netum Cache leeren, „Scannen o
 42. **TS-99.19 q:** Am Handheld hochkant Feld ganz sichtbar, Text nicht abgeschnitten, kein Querscrollen; Zustand ohne Farbe erkennbar.
 43. **TS-99.19 a–m** wie Punkte 32–34 erneut (Zuordnung unverändert), dazu **TS-99.17 a/i** auf einer anderen Seite: Diagnose-Zeilen tragen
     dort ebenfalls `[aktiv: …]`, sonst unverändert.
+
+**Ergänzung v1.71.1** (Nachtrag 7). Punkt 38 ist überholt: Grün gibt es jetzt erst nach einem Tipp. Zuerst aus dem Worktree publizieren →
+Testsystem. Am Netum Cache leeren, „Scannen ohne Feld“ und Diagnose an.
+
+44. **TS-99.19 g7/h7 am PC** (Chrome/Edge, am DEV http://localhost:8081 bzw. :8082 oder am Testsystem):
+    - Schalter an, Einbuchung öffnen: Das Feld ist so breit wie die Formularkarte, grau gestrichelt „Zum Scannen hier tippen“, mit dunkelgrauem
+      Fokusrahmen im Abstand (QA-Fix Q7-1).
+    - Anklicken: nach ca. 0,3 s grün durchgezogen „✓ Scan bereit“.
+    - Mit Tab weg und zurück: grau mit Rahmen.
+    - Formular normal bedienbar.
+    - Schalter aus: kein Scan-Feld.
+    - Graustufen-Ansicht (Negativ): Zustand an Text und Rahmenform erkennbar.
+45. **TS-99.19 a7:** frisch öffnen → grau, obwohl der Cursor drin steht. Diagnose „Fokus an (per Skript), inputmode=–“. Ein Scan jetzt kommt nicht an.
+46. **TS-99.19 b7 (Kernfrage):** einmal aufs Scan-Feld tippen → nach ca. 0,3 s grün, Diagnose „Scan-Feld bereit, inputmode=none“. Klappt die
+    Tastatur ein oder bleibt sie stehen (dann mit Zurück schließen)? Beobachtung hier notieren. Bei einem Langdruck über 1 s bleibt das Feld grau
+    (Q7-3), ein zweiter kurzer Tipp macht es grün.
+47. **TS-99.19 c7/d7:** ohne weiteren Tipp Artikel-QR, dann Lagerplatz, dann Artikel → jeder zugeordnet („über Scan-Feld (ohne Fokus) → …“),
+    das Feld bleibt grün und ist nach jedem Scan leer. **Kommt c7 nicht an:** Diagnose kopieren und melden (dann reicht auch der Tipp nicht).
+48. **TS-99.19 e7:**
+    - „Fertigungsauftrag“ antippen und etwas tippen → das Scan-Feld wird grau. Danach aufs Scan-Feld tippen → grün, der nächste Scan kommt an.
+    - Nur auf eine freie Stelle tippen → grau, der Scan kommt nicht an.
+    - Tritt je „grün, aber Scan kommt nicht an“ **ohne** vorherigen Tipp aufs Feld auf: melden (Q7-4, Abhilfe eine Zeile).
+49. **TS-99.19 f7:** nach Speichern bzw. Seitenwechsel und zurück ist das Feld wieder grau, erst ein Tipp macht es grün.
+50. **Regression TS-99.19 a–d/i–m** stichprobenhaft. Die Zuordnung ist unverändert, nach einer Select2-Auswahl von Hand ist jetzt aber ein Tipp aufs
+    Scan-Feld nötig (Skript-Fokus = grau).
+51. **DEV-Umgebung (Hinweis):** `D:\Dev\IDEAL\Web\appsettings.DEV.json` hatte seit 2026-11-02 den Abschnitt `SageLagerbuchung` doppelt
+    (IDEAL DEV HTTP 500). QA hat den gleichen zweiten Block entfernt, die Sicherung liegt unter `…\appsettings.DEV.json.qa-bak-20261103`.
+    Prüfen, wer den Abschnitt doppelt eingetragen hat. Die Sicherung kann danach weg.

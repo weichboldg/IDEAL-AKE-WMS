@@ -2,18 +2,18 @@
 type: spec
 title: OSEON-Tracking-Sync übersteht neu ausgeschriebene Aufträge (MERGE über Auftragsnummer)
 slug: 2026-11-07-oseon-sync-neu-ausgeschriebener-auftrag-spec
-status: Entwurf
+status: Freigegeben
 created: 2026-11-07
 updated: 2026-11-07
 source_backlog: "[[2026-11-03-oseon-sync-neu-ausgeschriebener-auftrag]]"
 bug: "[[2026-11-07-oseon-sync-neu-ausgeschriebener-auftrag-bug]]"
 buendel: "[[2026-11-07-buendel-uebersicht]]"
 depends_on: ""
-version: "1.74.0"
+version: "Patch auf main-Stand (Hotfix), im Bündel 1.74.0 entfällt"
 sql_nummern: "keine (Block 108–109 reserviert, nicht benötigt)"
 task: ""
-worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
-branch: "feature/2026-08-07-ideal-teile-1-5"
+worktree: ""
+branch: ""
 standort: AKE
 affected_code:
   - "IDEALAKEWMSService/Services/OseonSyncService.cs (SyncOseonProductionOrdersAsync :147-193, EnsureWorkplacesExistBulkAsync :207-247, BulkMergeOrdersAsync :253-390, BulkMergeOperationsAsync :395-504, OseonRawRow :731-752)"
@@ -34,8 +34,8 @@ deploy:
   service: true
   migration: false
 freigabe_entscheidung: ""
-freigabe_von: ""
-freigabe_am: ""
+freigabe_von: "Gerald Weichbold"
+freigabe_am: "2026-11-07"
 ---
 
 ## Ziel / Nutzen (das Warum)
@@ -298,9 +298,35 @@ Entfällt (`epic: false`). Ein Commit im Bündel-Worktree, Priorität 1 im Bünd
    ```
    (Tabelle `dbo.ServiceSettings`, Schlüssel `[Key]`: `SQL/00_FreshInstall.sql:1086-1093`.)
 
+## Freigabe-Nachtrag 2026-11-07 (geht dem Rumpf vor)
+
+- Auslieferung als **AKE-Hotfix aus `main`**: neuer Worktree von `main` (`scripts/new-worktree.ps1`), Patch-Version auf den aktuellen `main`-Stand, eigener Merge durch den Menschen (Schranke 2). Nicht im Bündel-Worktree umsetzen; das Bündel holt den Fix über `scripts/sync-worktree.ps1` (Mensch). Die Bündel-Versionen 1.75.0 ff. bleiben, 1.74.0 entfällt im Bündel.
+
+## Freigabe-Nachtrag 3 — direkt in main (Gerald 2026-11-07 16:18, geht Nachtrag 1 vor)
+
+- „gleich im main umsetzen“: **kein** neuer Worktree. Umsetzung im Hauptcheckout auf `main`. Frontmatter `worktree: ""`,
+  `branch: main`. Patch-Version, kein SQL, Bündel holt den Fix später über `scripts/sync-worktree.ps1` (Mensch).
+  Koordination hatte den Worktree empfohlen (AKE-Produktion liefert aus `main` aus); Entscheidung bei Gerald.
+
+## Freigabe-Nachtrag 2 — Zusatzfixes im selben Hotfix (Gerald 2026-11-07 16:16, geht dem Rumpf vor)
+
+Gerald ordnet an, im selben AKE-Hotfix drei kleine Web-Änderungen mitzuliefern (Wortlaut Gerald in Anführung):
+
+- **Z1 Stücklisten-Druck 2 cm tiefer:** „der druck der stückliste soll um 2 cm nach unten versetzt werden - sprich oben mehr
+  frei“. Oberer Rand der Stücklisten-Druckansicht +2 cm; sonst unverändert.
+- **Z2 Sortierung im Stücklisten-Druck:** „die sortierreihenfolge bei der stückliste soll beim druck berücksichtigt werden
+  (bei bezeichnung 1 funktioniert das nicht)“. Der Druck übernimmt die in der Ansicht gewählte Sortierung, für alle
+  sortierbaren Spalten, nachweislich auch „Bezeichnung 1“.
+- **Z3 Werkbank-Spalte in der Kommissionierung:** „In der Kommissionierung-Maske auch die Werkbank Spalte anzeigen“.
+  Gilt die Spaltenauswahl je Benutzer, wird die Spalte dort wählbar; Default sichtbar.
+
+Offen für den Dev-Lauf, mit Fundstelle zu klären: welche Druckansicht und welche Kommissionierungs-Maske gemeint sind (bei
+mehreren Kandidaten nachfragen, nicht raten), Ursache von Z2. Je Fix ein TS-Schritt im Kapitel TS-107 oder als Unterpunkt
+der bestehenden Stücklisten-/Kommissionierungs-Kapitel. Deploy: Web ist damit fachlich berührt.
+
 ## Freigabe-Antworten (Mensch fuellt aus — Schranke 1)
 
-1. Auswahlregel mehrere OSEON-Zeilen (höchste ID vs. jüngste DateOfLastChange) →
-2. Nicht mehr gelieferte AGs bei Neuausschreibung stehen lassen oder löschen →
-3. Auslieferung nur im Bündel v1.74.0 oder zusätzlich AKE-Hotfix aus main →
-4. OSEON-Sync auf der IDEAL-Testinstanz gewollt / QA-Testumgebung →
+1. Auswahlregel mehrere OSEON-Zeilen (höchste ID vs. jüngste DateOfLastChange) → **wie empfohlen (Gerald 2026-11-07): höchste ID**
+2. Nicht mehr gelieferte AGs bei Neuausschreibung stehen lassen oder löschen → **wie empfohlen (Gerald 2026-11-07): stehen lassen**
+3. Auslieferung nur im Bündel v1.74.0 oder zusätzlich AKE-Hotfix aus main → **Gerald 2026-11-07: zusätzlich als AKE-Hotfix aus `main`, sofort** – eigener Worktree von `main`, Patch-Version auf den `main`-Stand (nicht 1.74.0); das Bündel erhält den Fix über `scripts/sync-worktree.ps1` (Mensch). Siehe Freigabe-Nachtrag.
+4. OSEON-Sync auf der IDEAL-Testinstanz gewollt / QA-Testumgebung → **wie empfohlen (Gerald 2026-11-07): QA auf dem AKE-Test; Prüfabfrage `ServiceSettings` der IDEAL-Testinstanz im Testbericht festhalten**

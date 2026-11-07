@@ -8,7 +8,7 @@ updated: 2026-11-07
 source_backlog: "[[2026-10-16-ean-einkaufsartikel-scan]]"
 buendel: "[[2026-11-07-buendel-uebersicht]]"
 depends_on: "[[2026-11-06-sage-sdata-stammdaten-sync-spec]]"
-task: ""
+task: "[[2026-11-07-buendel-2026-11-07-goal-lauf]]"
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
 branch: "feature/2026-08-07-ideal-teile-1-5"
 version: "1.78.0"
@@ -32,12 +32,18 @@ epic: false
 etappen: []
 deploy:
   web: true
-  service: false
+  service: true
   migration: false
 freigabe_entscheidung: ""
 freigabe_von: ""
 freigabe_am: ""
 ---
+
+> [!warning] Zurückgestellt (Gerald 2026-11-07 10:08) – im /goal-Lauf Bündel 2026-11-07 NICHT umsetzen
+> Freigabe zurückgenommen. Grund: P-E2 – an AKE haben nur 2 von 279.529 Artikelvarianten eine EAN; Gerald: „EAN wird nicht gewartet.“
+> An IDEAL wirkt die Funktion über SData ohnehin noch nicht (G2). Wieder aufnehmen, wenn EANs in Sage gepflegt werden oder IDEAL eine
+> EAN-Quelle hat. Bereits eingetragene Prüfabfrage-Ergebnisse bleiben stehen.
+
 
 ## Ziel / Nutzen (das Warum)
 
@@ -199,6 +205,19 @@ GROUP BY LEN(LTRIM(RTRIM(v.EANNummer))),
          CASE WHEN LTRIM(RTRIM(v.EANNummer)) NOT LIKE '%[^0-9]%' THEN 'nur Ziffern' ELSE 'sonstige' END;
 ```
 
+> **Ergebnis P-E1–P-E4 (Dev, 2026-11-07, AKE-Test `ake_TEST2026` auf AKESQL20, nur `SELECT`, Mandant 1):**
+> - **P-E1:** Stamm-EAN gibt es nur in **`KHKArtikelVarianten.EANNummer` varchar(15)** – der Platzhalter oben ist damit die echte Spalte.
+>   Weitere Treffer sind keine Artikel-Stammfelder: `KHKIVBelegePositionen(.Historie).EANNummer` (Belegpositionen), `KHKEInvoiceImportPositionen.XMLEANNummer`
+>   (E-Rechnung), `KHKPpsArbeitsplaetze.NurBarcode`, `…AnsprechpartnerID` (Namenstreffer „EAN“ in „…ansprEchpArtNer…“ nicht relevant). Keine Lieferanten-/Verpackungs-EAN.
+> - **P-E2:** 279.529 Varianten, **2 mit EAN**, 2 Artikel mit EAN; **kein** Artikel mit mehr als einer EAN → Annahme „eine EAN je Artikel“ trifft zu.
+> - **P-E3:** **keine** EAN bei mehreren Artikeln → Mehrtreffer kommen am AKE-Test nicht vor (Auswahlfenster nur über Testdaten prüfbar).
+> - **P-E4:** beide 13 Stellen, nur Ziffern (EAN-13) → Muster 8/12/13/14 passt.
+> - Die zwei Artikel (beide Bestellartikel, aktiv → in der AKE-SData-Menge): **00726502** „Teroson-IX HOB38KG“ = `4002872120264`,
+>   **EK011488** „Dachboden-Dämmelement Open plus 160mm, 1000x500mm“ = `9007646008637`. SData `ArtikelVariantenExtended` liefert für
+>   00722001 `EANNummer = null` (lesend 2026-11-07).
+> - **Einordnung:** Kein Blocker nach Auftrag (P-E2/P-E3 weichen nicht ab). Fachlich wirkt die Funktion am AKE-Test aber nur für diese zwei Artikel:
+>   die EANs sind in Sage AKE praktisch nicht gepflegt. Ob IDEAL die EANs pflegt (Backlog-Anlass), ist erst am IDEAL-Endpunkt prüfbar (G2).
+
 WMS-seitig (DB `IDEAL_AKE_WMS`, je Standort; beantwortbar ohne Sage):
 
 ```sql
@@ -313,6 +332,16 @@ Entfällt (kein Epic).
   `dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb`
 - Browser-Cache: `barcode-scanner.js` mit `asp-append-version` prüfen, sonst Hinweis „Strg+F5 an den Handhelds“.
 
+**Endgültig (qa-agent 2026-11-07, aus `git diff bd178dc4 8534da23`):**
+- **Web:** ja – `ArticlesApiController`, `ArticleRepository`/`IArticleRepository`, `wwwroot/js/barcode-scanner.js`, Hilfe, Changelog, `AppVersion.cs`.
+- **Service:** ja, aber nur `IDEALAKEWMSService/AppVersion.cs` (1.78.0) – mitpublizieren, damit Web und Dienst denselben Stand melden.
+- **Migration:** nein (keine Datei unter `*/Migrations/`, kein `SQL/`-Skript, kein Einmal-Skript).
+- Ablauf: Publish aus dem Worktree → Testsystem → Test → Merge.
+  `dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb`
+  `dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService`
+- `barcode-scanner.js` wird mit `?v=`-Hash geladen (im DEV-Lauf gesehen), kein Strg+F5 nötig.
+- Nach dem Merge nur dann erneut aus `main` publizieren, wenn der Merge getestete Dateien mit parallelen `main`-Änderungen zusammengeführt hat.
+
 ## Risiken / Grenzen (bewusst)
 
 - Ohne SData-Artikelweg wirkungslos (AKE bis Umschaltung, IDEAL bis Rückfrage 1) – Hilfe sagt das.
@@ -345,7 +374,100 @@ Entfällt (kein Epic).
   als seinen Auftrag. Antworte je Frage in **fett** hinter dem Pfeil.
 -->
 
-1. Quelle der EAN / Lücke IDEAL →
-2. Mehrere EAN je Artikel →
-3. Mehrtreffer Auswahlfenster oder Meldung →
-4. EAN bei Handeingabe →
+1. Quelle der EAN / Lücke IDEAL → **wie empfohlen (Gerald 2026-11-07): SData-Satellit, IDEAL-Lücke als Folge-Spec**
+2. Mehrere EAN je Artikel → **wie empfohlen (Gerald 2026-11-07): erste Variante genügt vorerst; nach P-E2/P-E3 neu entscheiden. P-E1–P-E4 darf der Dev am AKE-Test nur lesend selbst ausführen und in die Spec eintragen.**
+3. Mehrtreffer Auswahlfenster oder Meldung → **wie empfohlen (Gerald 2026-11-07): Auswahlfenster bis 5 Treffer**
+4. EAN bei Handeingabe → **wie empfohlen (Gerald 2026-11-07): nein, nur Scan**
+
+## QA-Nachweis (qa-agent, 2026-11-07)
+
+Review-Umfang `git diff bd178dc4 8534da23` (Commit `8534da23`, v1.78.0). Build/Tests/DEV über den ganzen Worktree
+`.claude/worktrees/2026-08-07-ideal-teile-1-5`.
+
+> [!danger] Freigabe-Widerspruch – Status NICHT auf Testbereit gesetzt
+> Diese Spec trägt seit 2026-11-07 10:08 den Vermerk „Zurückgestellt (Gerald) – im /goal-Lauf NICHT umsetzen, Freigabe zurückgenommen“
+> (Callout oben, ebenso [[2026-11-07-buendel-uebersicht]]: „Spec 5 EAN zurückgestellt … im Lauf überspringen“); Frontmatter
+> `status: Entwurf`, `freigabe_*` leer. Umgesetzt wurde sie trotzdem (`8534da23`, 11:04). Eine spätere Wieder-Freigabe ist im Brain nicht
+> belegt. Der QA-Lauf hat alles geprüft, setzt aber keinen Status. **Der Mensch entscheidet:** (a) Freigabe erneuern – dann ist die Spec
+> nach diesem Nachweis testbereit (E2 beachten) – oder (b) `8534da23` aus dem Bündel nehmen (Version 1.78.0, Changelogs, TS-110 und
+> Index-Zeile 110 zurücknehmen). DEV AKE und IDEAL laufen derzeit mit v1.78.0 einschließlich EAN-Zweig.
+
+### 1. Build und Tests
+`dotnet build IdealAkeWms.slnx`: 0 Fehler, 28 Warnungen (Altbestand). `dotnet test`: IdealAkeWms.Tests 2430 bestanden / 1 übersprungen /
+0 Fehler; IDEALAKEWMSService.Tests 497 / 0 / 0. Keine Flaky-Ausfälle in diesem Lauf.
+
+### 2. Code-Review (selbst, synchron)
+Geprüft: `ArticlesApiController.GetByEan`, `ArticleRepository.GetByEanAsync` (EF übersetzt `Trim()` nach SQL, DUMMY-Ausschluss),
+`barcode-scanner.js` (EAN-Wrapper, Sicherung von `_textInputScanCallback`, `_eanAuswahl`, Zusammenspiel mit `closeScannerModal` – entfernt
+das Kamera-Fenster sofort, daher keine Modal-Stapelung –, Handler `wms:hardware-scan`, „Scannen ohne Feld“, Matchcode-Wrapper), Hilfe, README,
+Changelog, TS-110, Tests. Die EAN im Titel geht durch `escapeHtml`, die Trefferknöpfe setzen `textContent` – kein HTML aus Daten. Keine Werte
+in `<script>`, kein `hidden` + `d-*`, keine stillen Fallbacks, keine parallelen Arrays, keine Einstellung.
+
+| # | Befund | Schwere | Behandlung |
+|---|---|---|---|
+| E1 | **Freigabe zurückgenommen, trotzdem umgesetzt** (Kasten oben). | blockierend (Prozess) | offen – Mensch |
+| E2 | Zweiter Hardware-Scan bei offenem Auswahlfenster: Das Scanner-Skript schluckt die Tasten (kein Enter auf den fokussierten Knopf, also keine Auswahl – Spec-Punkt 4 formal erfüllt), das Ereignis `wms:hardware-scan` erreicht aber das Seitenziel (Fokus im Fenster → einziges Ziel). Ein Nicht-EAN-Code füllt dann das Feld **unter** dem Fenster; ein zweiter Mehrtreffer-EAN ruft `_eanAuswahl` erneut auf, das das alte Fenster per `alt.remove()` entfernt, ohne die Bootstrap-Instanz zu schließen. Altes `.modal-backdrop` und `body.modal-open` bleiben stehen, die Seite bleibt grau überdeckt bis zum Neuladen. Aus dem Code abgeleitet, auf DEV nicht auslösbar (Abschnitt 6). | mittel (selten, sperrt aber die Seite am Handgerät) | offen. Vorschlag: im Handler `wms:hardware-scan` bei offenem `#eanAuswahlModal` den Scan verwerfen (`d.handled = true; return;`), in `_eanAuswahl` kein zweites Fenster öffnen bzw. ein offenes über `bootstrap.Modal.getInstance(alt).hide()` schließen |
+| E3 | Nach Auswahl/Abbrechen setzt niemand den Fokus zurück (Fenster ohne Auslöser per JS geöffnet). Mit Fokus-Eingabe (Netum) kommt der nächste Scan evtl. erst nach Antippen an; „Scannen ohne Feld“ holt den Fokus über `focusout`/MutationObserver selbst zurück. | niedrig | Hinweis, in 110.3 mit Netum prüfen |
+| E4 | `secondbrain/codebase/controller.md` nennt `by-ean` noch nicht (der Spec-Abschnitt „Rollen / Zugriff“ verlangt den Nachtrag). | Doku | offen – Bündelabschluss |
+| E5 | `feature-map.md` hat keinen Eintrag für v1.78.0 (wie B6 der Einstellungen-Spec). | Doku | offen – Bündelabschluss |
+| E6 | Kein Test für AK 3 „DUMMY nie geliefert“ und für AK 2 „auch wenn ein anderer Artikel dieselbe Zeichenfolge als EAN trägt“; kein `ArticleRepositoryTests`-Fall (AK 15 nennt das Repository). Der Code ist korrekt, auf DEV per API belegt (AK 2 nur ohne Konkurrenz-EAN). | niedrig | Hinweis |
+| E7 | An AKE haben 67.061 Artikelnummern GTIN-Form (P-E6 auf AKE-DEV). Jeder Scan einer solchen Nummer geht jetzt erst über `by-ean` (Treffer über die Nummer) und danach `by-number`: zwei Anfragen statt einer. Das Ergebnis ist gleich, die Latenz steigt um einen Roundtrip. | Hinweis | keine Änderung nötig |
+
+frontend-design-Prüfung des Auswahlfensters: Treffer und „Abbrechen“ mit `min-height:44px` (das Schließen-X ist Bootstrap-Standard und kleiner),
+Fokus auf dem ersten Treffer (`shown.bs.modal`), Treffer als Text „Artikelnummer – Bezeichnung“, nicht über Farbe; `aria-labelledby` gesetzt,
+`role="dialog"`/`aria-modal` setzt Bootstrap beim Öffnen; `btn-outline-primary` erfüllt AA. In Ordnung.
+
+### 3. Nachweisart je AK
+| AK | Nachweis |
+|---|---|
+| 1 | automatisiert (`GetByEan_ArtikelnummerZuerst_…`) + DEV (400 bei `ean=%20%20`) |
+| 2 | automatisiert (teilweise, ohne Konkurrenz-EAN) + DEV (`00190220` → Artikel 1) |
+| 3 | automatisiert (ungetrimmt gespeicherte EAN) + DEV; DUMMY-Ausschluss nur per Code-Review |
+| 4 | automatisiert (`GetByEan_MehrAls5_More`, Mehrtreffer sortiert) + DEV |
+| 5 | automatisiert + DEV |
+| 6–11, 13 | Manual-UAT (Browser-JS, Scanner, Kamera) – nicht grün gezählt |
+| 12 | Wächtertest `HardwareScannerTests.EanZweig_…` (Code-Muster) + Manual-UAT Netzwerk-Tab |
+| 14 | Code-Review (Hilfe, README) |
+| 15 | erfüllt bis auf den Repository-Test (E6) |
+
+### 4. Geänderte bestehende Tests
+Keine – nur neue Tests (`ArticlesApiControllerTests` +2, `HardwareScannerTests` +1).
+
+### 5. Checkliste / ADR 0020
+Keine Migration, kein SQL, keine Einstellung (Abschnitt „Einstellungen“ begründet das). Version 1.78.0 in beiden `AppVersion.cs`,
+Anwender-Changelog, Brain-Changelog [[2026-11-07-v1-78-0-ean-einkaufsartikel-scan]], TS-110 in `docs/TESTSZENARIEN.md`, Index-Zeile 110 vorhanden.
+Offen: E4 (`controller.md`), E5 (`feature-map.md`).
+
+### 6. DEV-Deploy und Testlauf
+`standort: beide`. `dev-deploy.ps1 -Standort AKE|IDEAL -Quelle <Worktree>` in erhöhter Shell, je Exit 0, „HTTP 200, Fusszeile v1.78.0“ an
+http://localhost:8081 und http://localhost:8082. Testdaten AKE-DEV: `ArticleSageDetails` 5812/5813 (EK000004/EK000005) auf `'9999999999994 '`
+(mit Leerzeichen), 5814–5819 (EK000006–EK000012) auf `'8888888888888'`; vorübergehend `HardwareScannerAktiv=true` und
+`HardwareScannerMaxZeichenabstandMs=500`. Danach alles zurückgesetzt (8 Satelliten wieder `NULL`, 2 AppSettings-Zeilen gelöscht, MitEan wieder 2).
+
+| Schritt | Ausführung | Ergebnis | Status |
+|---|---|---|---|
+| AK 3 / 110.1 API | `/api/articles/by-ean?ean=4002872120264` (AKE) | `00726502 - Teroson-IX HOB38KG`, `more:false` | OK |
+| AK 4 / 110.3 API | `?ean=9999999999994` | EK000004, EK000005 (sortiert), `more:false`, trotz Leerzeichen in der DB | OK |
+| AK 4 (>5) | `?ean=8888888888888` | 5 Artikel EK000006…EK000011, `more:true` | OK |
+| AK 2 / 110.5 | `?ean=00190220` | Artikel 00190220 über die Nummer | OK |
+| AK 5 / 110.4 | `?ean=1111111111111` | `{"articles":[],"more":false}` | OK |
+| AK 1 | `?ean=%20%20` | HTTP 400 | OK |
+| 110.1–110.3 Client (Handscanner-Feld im Kamera-Fenster, Einbuchung AKE) | Fenster geöffnet (keine Kamera, Handscanner-Feld fokussiert), `~09…` + Enter per Tastatur-Automation | Die automatisierten Tasten wurden nicht als Scan erkannt, kein `by-ean`-Aufruf im Netzwerk-Log. Kein JS-Konsolenwerkzeug im Lauf, daher kein direkter `processScannedValue(...)`-Aufruf | NICHT MOEGLICH |
+| 110.3 Auswahlfenster, E2/E3 | – | braucht den Client-Zweig (s. o.) | NICHT MOEGLICH |
+| 110.6 Offline | – | Netz trennen im Automations-Browser nicht möglich | NICHT MOEGLICH |
+| 110.7 IDEAL | `ArticleSageDetails` an IDEAL-DEV: 0 Zeilen → dort nie ein EAN-Treffer | per SQL belegt; die Scan-Regression braucht ein Gerät | teilweise, Rest NICHT MOEGLICH |
+
+### Gesamturteil
+Code und Tests in Ordnung, API-Verhalten auf DEV belegt. **Nicht Testbereit gesetzt** wegen E1 (Freigabe zurückgenommen); der Status bleibt
+`Entwurf`, bis der Mensch entscheidet. Fachlich offen: E2 (Backdrop-Sperre beim zweiten Scan, Vorschlag oben); E3–E7 sind Hinweise bzw. Doku.
+
+### Manuelle Test-Checkliste (Mensch)
+1. E1 entscheiden: Freigabe erneuern oder `8534da23` aus dem Bündel nehmen.
+2. E2 entscheiden: vor dem Test nachbessern lassen oder als bekannte Grenze akzeptieren.
+3. Testsystem AKE: `Sync:Quelle:Artikel = SData`, Artikellauf, P-E5; dann 110.1 (Kamera/Bild) und 110.2 (Netum mit Fokus im Artikelfeld und „Scannen ohne Feld“) mit `4002872120264`.
+4. 110.3 mit zwei per SQL gleich gesetzten EANs: Auswahlfenster, Fokus auf dem ersten Eintrag, Auswahl füllt, Abbrechen/Escape füllt nichts; danach ohne Antippen erneut scannen (E3).
+5. E2 nachstellen: bei offenem Auswahlfenster einen zweiten Code bzw. dieselbe EAN scannen – bleibt die Seite bedienbar?
+6. 110.4 in beiden `QrErstesFeld`-Modi; 110.5 mit einer 8-stelligen Artikelnummer; 110.6 Netz trennen.
+7. AK 7/8: Sammel-Wareneingang (Zeile/Menge), Artikelinfo, Stückliste mit EAN.
+8. 110.7: QR mit Trennzeichen, Lagerplatz, FA unverändert; IDEAL: EAN-Scan wie bisher „nicht gefunden“.
+9. Bündelabschluss: E4 `controller.md` um `by-ean` ergänzen, E5 `feature-map.md` v1.78.0.

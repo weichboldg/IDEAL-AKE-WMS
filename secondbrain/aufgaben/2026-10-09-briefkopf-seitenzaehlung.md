@@ -20,3 +20,20 @@ Seitenzähler nicht je `.fa-group` zurück. Korrekt je Dokument wäre es nur im 
 3. Bildschirmdruck je HauptFA einzeln öffnen statt Sammeldruck.
 
 Entscheidung beim Menschen; bis dahin keine Seitenzählung.
+
+## Nachtrag 2026-10-13 — Fußzeile nach Word-Vorlage (Gerald)
+
+Gerald wünscht eine **Fußzeile** nach `Allg-Dokument-Vorlage_IDEAL_AKE.dotx` (Firmenvorlage, Fußzeile als Bild
+`word/media/image2.png`, 2480×591 px): links IDEAL-Block (Firmenname IDEAL Blau, Anschrift, Telefon, E-Mail mit Icons),
+Mitte AKE-Block (Firmenname AKE Blau), rechts `www.ideal-ake.at` semibold IDEAL Blau, unten Balken über die ganze
+Breite — links IDEAL Blau, rechts AKE Blau, Übergang 45° schräg. Logo im Kopf **rechts oben**.
+
+**Warum nicht über die Vorlage:** Die Vorlage wird als erstes Element jeder `.fa-group` gerendert
+(`Views/Shared/_PrintBriefkopf.cshtml`), steht also im Fluss oben auf Seite 1. Eine Fußzeile am Seitenende braucht
+reservierten Seitenrand und Wiederholung bzw. Platzierung je Dokument — dasselbe Problem wie die Seitenzählung oben.
+Beides gehört in **eine** Spec (Fußzeile + „Seite X von Y"), Vorschlag: Vorlage bekommt einen zweiten Bereich
+(z. B. `<div class="briefkopf-fuss">`), das WMS platziert ihn am Seitenende.
+
+**Offen für die Spec:** Icons als PNG (kein SVG erlaubt); AKE-E-Mail: **geklärt (Gerald 2026-10-13): für beide
+Firmen nur `office@ideal-ake.at`** (image1 und CD-Manual mit `office@ake.at` sind veraltet).
+Bis dahin trägt die Vorlage die IDEAL-Absenderzeile im Kopf (Fassung 2026-10-13, Logo rechts).

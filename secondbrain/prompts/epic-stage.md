@@ -1,4 +1,5 @@
 Epic-Etappenlauf: <SPEC_PATH>
+Alle offenen Etappen (und weitere Specs) in einem interaktiven /goal-Lauf: secondbrain/prompts/goal.md (/goal-run) - hier gilt weiter genau eine Etappe je Aufruf.
 
 Lies die Spec (epic: true) und ihre Etappen-Tabelle.
 

@@ -2,9 +2,9 @@
 type: uebersicht
 title: "Beschichtungsauftrag-Ausbau — Uebersicht (Split in 4 Teile)"
 slug: 2026-10-06-beschichtungsauftrag-ausbau-uebersicht
-status: Entwurf
+status: Freigegeben
 created: 2026-10-06
-updated: 2026-10-07
+updated: 2026-10-14
 source_backlog: "[[2026-10-06-beschichtungsauftrag-ausbau]]"
 teile:
   - "[[2026-10-06-beschichtungsauftrag-ausbau-teil-1-spec]]"
@@ -12,6 +12,9 @@ teile:
   - "[[2026-10-06-beschichtungsauftrag-ausbau-teil-3-spec]]"
   - "[[2026-10-06-beschichtungsauftrag-ausbau-teil-4-spec]]"
 open_questions: []
+freigabe_entscheidung: "Uebersicht freigegeben mit allen vier Teilen (Teil 1-4 Testbereit im Buendel, v1.48.0-v1.51.0)."
+freigabe_von: "Gerald Weichbold"
+freigabe_am: 2026-10-14
 ---
 
 > **Umsetzungsort (Entscheidung Gerald 2026-10-09):** jeder Teil direkt im Bündel-Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5` auf Zweig `feature/2026-08-07-ideal-teile-1-5` (kein eigener Worktree, ein Lauf zur Zeit). SQL-, TS-Nummer

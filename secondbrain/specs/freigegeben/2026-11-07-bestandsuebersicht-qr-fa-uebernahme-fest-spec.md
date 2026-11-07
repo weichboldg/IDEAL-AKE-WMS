@@ -2,14 +2,14 @@
 type: spec
 title: Bestandsübersicht – FA-Übernahme aus dem Artikel-QR an QrMitFaNummer binden
 slug: 2026-11-07-bestandsuebersicht-qr-fa-uebernahme-fest-spec
-status: Entwurf
+status: Testbereit
 created: 2026-11-07
 updated: 2026-11-07
 source_backlog: "[[2026-10-27-bestandsuebersicht-qr-fa-uebernahme-fest]]"
 bug: "[[2026-11-07-bestandsuebersicht-qr-fa-uebernahme-fest-bug]]"
 buendel: "[[2026-11-07-buendel-uebersicht]]"
 version: v1.76.0
-task: ""
+task: "[[2026-11-07-buendel-2026-11-07-goal-lauf]]"
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
 branch: "feature/2026-08-07-ideal-teile-1-5"
 standort: beide
@@ -31,11 +31,11 @@ epic: false
 etappen: []
 deploy:
   web: true
-  service: false
+  service: true
   migration: false
 freigabe_entscheidung: ""
-freigabe_von: ""
-freigabe_am: ""
+freigabe_von: "Gerald Weichbold"
+freigabe_am: "2026-11-07"
 ---
 
 ## Ziel / Nutzen (das Warum)
@@ -228,14 +228,17 @@ Vorbedingungen wie TS-101 (Etiketten E1/E2, Testsystem beider Standorte; OSEON n
 
 ## Deploy
 
-**Vorläufig – QA bestätigt am Diff.**
+**Final (QA 2026-11-07, aus `git diff 1f55f35b 2fafd073`).**
 
-- **Web-App:** ja (Controller, View, Hilfe).
-- **Service:** nein (nur `AppVersion.cs` auf v1.76.0 gezogen, kein Redeploy nötig).
-- **Migration:** nein.
-- **Publish-Befehle** (im Worktree):
+- **Web-App:** ja – `IdealAkeWms/` (StockOverviewController, StockMovementsController, StockOverview/Index, Help/Index, Help/Changelog, AppVersion).
+- **Service:** ja, nur Versionsstand – `IDEALAKEWMSService/AppVersion.cs` 1.75.0 → 1.76.0, keine Logik. Mitpublizieren, damit Web und Dienst dieselbe Version melden.
+- **Migration:** nein (keine Datei unter `*/Migrations/`, kein `SQL/`).
+- **Publish-Befehle** (im Worktree; Ablauf: Publish aus dem Worktree → Testsystem → Test → Merge):
   `dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb`
-- Vor dem Deploy P1 je Standort ansehen; steht `QrMitFaNummer` auf `false`, Anwender auf die geänderte Bestandsübersicht hinweisen.
+  `dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService`
+- Reihenfolge: kein DB-Schritt; Web tauschen, Dienst tauschen. Kein Backup-Zwang aus dieser Spec.
+- Nach dem Merge nur dann erneut aus `main` publizieren, wenn der Merge getestete Dateien mit parallelen `main`-Änderungen zusammengeführt hat.
+- P1 laut Freigabe: `QrMitFaNummer` an AKE und IDEAL aktiv → keine sichtbare Verhaltensänderung im Betrieb.
 
 ## Zusatzfunde (nicht mitbauen)
 
@@ -273,7 +276,107 @@ Vorbedingungen wie TS-101 (Etiketten E1/E2, Testsystem beider Standorte; OSEON n
   Bei Varianten-Specs zusaetzlich freigabe_entscheidung im Frontmatter setzen.
 -->
 
-1. Variante A (binden) oder B (so lassen)? (Empfehlung A, vorher P1) →
-2. Sammel-Wareneingang nicht ausdehnen, tote ViewBag-Zuweisungen :168/:258 entfernen? (Empfehlung ja) →
-3. Stückliste, Artikelinfo, FA-Liste, Leitstand, OSEON nicht ausdehnen? (Empfehlung ja) →
-4. OSEON-Doppel-Handler als eigener Backlog-Punkt? (Empfehlung ja) →
+1. Variante A (binden) oder B (so lassen)? (Empfehlung A, vorher P1) → **Variante A (Gerald 2026-11-07). P1: `QrMitFaNummer` ist an AKE und IDEAL aktiv – an beiden Standorten keine Verhaltensänderung nach dem Deploy.**
+2. Sammel-Wareneingang nicht ausdehnen, tote ViewBag-Zuweisungen :168/:258 entfernen? (Empfehlung ja) → **ja (Gerald 2026-11-07)**
+3. Stückliste, Artikelinfo, FA-Liste, Leitstand, OSEON nicht ausdehnen? (Empfehlung ja) → **ja (Gerald 2026-11-07)**
+4. OSEON-Doppel-Handler als eigener Backlog-Punkt? (Empfehlung ja) → **ja, eigener Backlog-Punkt (Gerald 2026-11-07)**
+
+## QA-Nachweis (qa-agent, 2026-11-07)
+
+Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Branch `feature/2026-08-07-ideal-teile-1-5`, HEAD `2fafd073`.
+Review-Bereich `git diff 1f55f35b 2fafd073` (ein Commit, 11 Dateien, +87/−12). Build und Tests über den ganzen Worktree.
+
+### 1. Build und Tests
+
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler, 28 Warnungen (bestehend, keine aus dem Diff).
+- `dotnet test --no-build`:
+  - `IdealAkeWms.Tests`: 2402 bestanden, 1 übersprungen, 0 fehlgeschlagen (2403).
+  - `IDEALAKEWMSService.Tests`: 497 bestanden, 0 übersprungen, 0 fehlgeschlagen (497).
+
+### 2. Code-Review (selbst, in diesem Lauf)
+
+Geprüft: `StockOverviewController.Index` komplett (ein einziger `return View(vm)`, kein früher Ausstieg, der die ViewBag-Zuweisung
+umgeht), `StockOverview/Index.cshtml` (Knopf + Init-Skript :152-165), `barcode-scanner.js` `initScanner` :10-21, `processScannedValue`
+:290-371, `clearAndFillFaNumber` :396-403, Hardware-Scan-Zustellung :535-560 (alle Wege lesen `qrFaEnabled` aus `_hwScanTargets`, also
+aus dem Attribut), alle `QrMitFaNummer`-Fundstellen in `IdealAkeWms` (nur noch Ein-/Aus-/Umbuchung GET+POST und Bestandsübersicht),
+die Razor-Ausgabe `ViewBag.QrMitFaNummer == true ? "true" : "false"` (dynamic `null == true` → `"false"`; Wortlaut identisch zu
+`Inbound/Outbound/Transfer.cshtml`), entfernte Zuweisungen im Sammel-Wareneingang (`InboundBulk.cshtml` liest `QrMitFa` nicht – Grep).
+Bekannte Defektklassen: kein Wert in `<script>` eingebettet (nur HTML-Attribut mit festem String); kein `hidden`/`d-*`; keine stille
+Umdeutung (fehlend/leer → aus ist die spezifizierte Regel, Anforderung 3/AK 7); keine parallelen Arrays; keine reine
+Browser-Validierung; Lesart der Einstellung in identischem Wortlaut an allen Stellen (H2).
+
+Befunde:
+- **Keine Befunde**, die eine Korrektur am Diff verlangen.
+- **H1 (Hinweis, Folge-Spec im selben Bündel):** [[2026-11-07-einstellungen-auswahlfelder-und-beschreibung-spec]] `:282` führt für
+  `QrMitFaNummer` als Fundstellen noch `StockMovementsController.cs:168`, `:258` (jetzt entfernt) und nennt die Bestandsübersicht nicht.
+  Beim Umsetzen jener Spec die Spalte „Verwendung“ aus dem Abschnitt „Einstellungen“ dieser Spec übernehmen (dort bereits angekündigt).
+  Außerhalb des Review-Bereichs, hier nicht behandelt.
+- **H2 (Hinweis, nicht mitbauen):** Die Lesart von `QrMitFaNummer` steht jetzt 7× als identische Zeile (6× `StockMovementsController`,
+  1× `StockOverviewController`). Kein Verhaltensunterschied; eine Hilfsmethode lohnt erst bei einer Regeländerung.
+- Nachgezogen (QA, Brain): Satzzeichen in Index-Zeile 101 (`P1–P6. Nachtrag v1.76.0:`).
+
+### 3. Nachweisart je Akzeptanzkriterium
+
+| AK | Nachweis | Ergebnis |
+|---|---|---|
+| 1 `true` → Artikel + FA | Manual-UAT (Browser-JS, Kamera/Bild). DEV: Attribut `data-qr-fa-enabled="true"` gerendert (6c). JS-Pfad unverändert, gelesen. | DOM OK, Scan offen |
+| 2 `false` → nur Artikel, FA leer | Manual-UAT; DEV: Attribut `"false"` gerendert; `clearAndFillFaNumber` leert bei `faNumber=null` (:400-401) | DOM OK, Scan offen |
+| 3 FA `999` wird geleert | Manual-UAT (Browser-JS) | offen |
+| 4 Hardware-Scanner / Kamera-Fenster | Manual-UAT | offen (6c Schritt 7) |
+| 5 FA-Knopf nimmt Feld 3 immer | Code unverändert (`btnScanPO` ohne Attribut, Zweig `productionOrder` :298-305); Manual-UAT | offen |
+| 6 Ein/Aus/Umbuchung unverändert | Code: nur Sammel-Wareneingang-Zuweisungen entfernt; DEV: Inbound/Outbound folgen der Einstellung (6c) | DOM OK, Buchung offen |
+| 7 `TRUE` an, leer/fehlend aus | automatisiert `StockOverviewControllerTests` (true/TRUE/false/""/null) + DEV-DOM (6c); fehlende Zeile = `null` nur im Test | grün |
+| 8 Quelltext + Tests | automatisiert `HardwareScannerTests.Bestandsuebersicht_QrFaUebernahme_FolgtQrMitFaNummer_NichtFest`, Build/Test | grün |
+| 9 Hilfe + README | Diff gelesen (`Help/Index.cshtml:120-121`, `:1775`, `README.md:247`) | OK |
+| 10 kein ViewBag im InboundBulk | automatisiert (Wächter zählt 6 Zuweisungen); Scan im Sammel-Wareneingang (TS-101.5) Manual-UAT | grün / UAT offen |
+
+### 4. Geänderte bestehende Tests
+
+Keine. Der Diff fügt nur hinzu: `StockOverviewControllerTests.cs` (neu) und einen neuen `[Fact]` in `HardwareScannerTests.cs`.
+
+### 5. Änderungs-Checkliste (CLAUDE.md) und ADR 0020
+
+- Migration/SQL/FreshInstall/AgentJobs: entfällt (keine Schemaänderung). Audit-Felder: entfällt (nur Lesen).
+- Version: beide `AppVersion.cs` 1.76.0; Anwender-Changelog `Help/Changelog.cshtml` v1.76.0; Brain-Changelog
+  [[2026-11-07-v1-76-0-bestandsuebersicht-qr-fa-uebernahme]] vorhanden.
+- `docs/TESTSZENARIEN.md` TS-101.7/.18 angepasst, TS-101.22–101.25 neu; Index-Zeile 101 nachgezogen. Hilfe + README gepflegt. Keine neue Rolle.
+- ADR 0020: keine neue Einstellung, kein neuer Wert. `QrMitFaNummer` ist Bool-Schalter in `/Settings` (fester Wertebereich).
+  Wirkung/Verwendung im DB-Beschreibungstext fehlen weiterhin – laut Abschnitt „Einstellungen“ bewusst dem Katalog-Spec überlassen
+  (akzeptierte Lücke, s. H1). Kein Warnhinweis nötig (keine Außenwirkung).
+
+### 6. DEV-Deploy und Testlauf
+
+a. Standort laut Frontmatter `beide`.
+b. Elevated Shell bestätigt. `dev-deploy.ps1 -Standort AKE -Quelle <worktree>`: Exit 0, „HTTP 200, Fusszeile v1.76.0“, „Fertig: AKE
+   v1.76.0 auf http://localhost:8081/“. `-Standort IDEAL`: Exit 0, „HTTP 200, Fusszeile v1.76.0“, „Fertig: IDEAL v1.76.0 auf
+   http://localhost:8082/“. Fußzeile = AppVersion 1.76.0 an beiden Standorten.
+c. Testschritte (Ausgangswert `QrMitFaNummer` = `true` an AKE und IDEAL; AKE am Ende wiederhergestellt, IDEAL nicht verändert):
+
+| # | Schritt | Ergebnis | Status |
+|---|---|---|---|
+| 1 | AKE + IDEAL `/StockOverview` gerendert (Wert `true`) | `btnScanArticleFilter` … `data-qr-fa-enabled="true" data-fa-target="filterProductionOrder"` an beiden | OK |
+| 2 | AKE `UPDATE AppSettings SET Value='false'`, App-Pool gestoppt/gestartet (Cache 2 min umgangen) | Bestandsübersicht, Wareneingang, Warenausgang: `data-qr-fa-enabled="false"` | OK |
+| 3 | AKE Wert `TRUE` | alle drei Seiten `"true"` (AK 7) | OK |
+| 4 | AKE Wert `''` | alle drei Seiten `"false"` (AK 7) | OK |
+| 5 | AKE Wert `NULL` | nicht setzbar (Spalte `Value` NOT NULL, Msg 515); fehlender Wert nur im Unit-Test | NICHT MOEGLICH (Schema) |
+| 6 | AKE zurück auf `true` | alle drei Seiten `"true"`; DB-Wert `true` geprüft | OK |
+| 7 | Browser AKE: FA-Filter `999`, Artikel-QR-Knopf → Kamera-Fenster („Kamera nicht verfügbar“, Handscanner-Feld fokussiert), `102044;;1065141;09` bzw. `~09102044;;1065141;09` + Enter eingetippt | nicht als Hardware-Scan erkannt (Text blieb im Feld, Präfix nicht entfernt); die Tool-Tastatureingabe trifft das Scanner-Ereignismuster nicht. Ohne Kamera und QR-Bilddatei kein weiterer Weg | NICHT MOEGLICH |
+| 8 | TS-101.22–101.25 Scan-Abläufe (Kamera/Bild/Netum/Tastatur-Emulation), FA-Knopf, Ein-/Aus-/Umbuchung | Gerät/Kamera nötig | NICHT MOEGLICH → Mensch |
+
+Keine Außenschalter berührt. Testdaten: nur `QrMitFaNummer` in `AKE_WMS_DEV` kurzzeitig geändert, auf `true` zurückgesetzt.
+
+### Gesamturteil
+
+Build und Tests grün, Review ohne korrekturpflichtigen Befund, DEV beide Standorte v1.76.0, serverseitige Wirkung (Attribut folgt der
+Einstellung inkl. `TRUE`/leer) auf DEV belegt. Scan-Abläufe im Browser sind Manual-UAT. → **Testbereit.**
+
+### Manuelle Test-Checkliste (Mensch, Schranke 2)
+
+1. Testsystem AKE und IDEAL: Web **und** Dienst aus dem Worktree publizieren (s. Deploy), Fußzeile v1.76.0.
+2. TS-101.22: `QrMitFaNummer` an, Bestandsübersicht, E2 per Kamera bzw. Bild hochladen → Artikel `102044`, FA `1065141`.
+3. TS-101.23: `QrMitFaNummer` aus (Seite neu laden; Einstellungs-Cache bis 2 min), FA-Filter `999`, E2 scannen → FA-Filter leer, „Filtern“ → nur Artikel.
+4. TS-101.24: 2 und 3 per Hardware-Scanner (Tastatur-Emulation, Netum Fokus-Eingabe, Kamera-Fenster mit Handscanner-Feld).
+5. TS-101.25: FA-Knopf mit E2 bei „aus“ → FA `1065141`; Ein-/Aus-/Umbuchung 101.1/101.2; Sammel-Wareneingang 101.5; Wert `TRUE` wirkt wie an.
+6. TS-101.7 und TS-101.18 (angepasst) einmal mit „an“ durchspielen.
+7. IDEAL: dort `QrErstesFeld`/`QrTrennzeichen` beachten und das passende Etikett wählen (DEV IDEAL: Matchcode + `,` → E1k statt E2).
+8. Nach dem Test `QrMitFaNummer` auf den Produktivwert (`true`, P1) zurückstellen; dann Merge.

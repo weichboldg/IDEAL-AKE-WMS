@@ -9,6 +9,7 @@ source_backlog: ""        # [[backlog-datei]] als Wikilink, NICHT als Pfad-Strin
 task: ""
 worktree: ""
 branch: ""
+standort: ""            # AKE | IDEAL | beide - bestimmt, auf welche DEV-Umgebung der qa-agent deployt und testet
 affected_code: []
 open_questions: []
 epic: false             # true = grosses Paket in EINEM langlebigen Worktree (Etappen, ein Merge am Ende)
@@ -35,6 +36,13 @@ freigabe_am: ""             # yyyy-mm-dd
 
 ## Migrations-/SQL-Auswirkungen
 <!-- Migration + SQL/XX_*.sql mit OBJECT_ID-Guard? FreshInstall? -->
+
+## Einstellungen
+<!-- Jede neue oder geaenderte Einstellung (AppSettings, ServiceSettings, kuratierte Maske) nach ADR 0020.
+     Keine -> "keine". Fester Wertebereich = Auswahlliste, Stammdatenverweis = Auswahl aus Stammdaten,
+     Server validiert beim Speichern. Warnhinweis Pflicht bei Aussenwirkung (z. B. sendet an Sage), sonst "–". -->
+| Key | Typ | Erlaubte Werte | Default | Wirkung | Verwendung | Standort | Warnhinweis |
+|---|---|---|---|---|---|---|---|
 
 ## Audit-Feld-Auswirkungen
 

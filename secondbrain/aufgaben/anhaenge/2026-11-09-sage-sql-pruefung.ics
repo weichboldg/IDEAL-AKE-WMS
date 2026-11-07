@@ -1,0 +1,68 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//IDEAL-AKE//Claude//DE
+METHOD:PUBLISH
+BEGIN:VTIMEZONE
+TZID:W. Europe Standard Time
+BEGIN:STANDARD
+DTSTART:16011028T030000
+RRULE:FREQ=YEARLY;BYDAY=-1SU;BYMONTH=10
+TZOFFSETFROM:+0200
+TZOFFSETTO:+0100
+END:STANDARD
+BEGIN:DAYLIGHT
+DTSTART:16010325T020000
+RRULE:FREQ=YEARLY;BYDAY=-1SU;BYMONTH=3
+TZOFFSETFROM:+0100
+TZOFFSETTO:+0200
+END:DAYLIGHT
+END:VTIMEZONE
+BEGIN:VEVENT
+UID:2026-11-09-sage-sql-pruefung@ideal-ake
+DTSTAMP:20261106T205000Z
+DTSTART;TZID=W. Europe Standard Time:20261109T103000
+DTEND;TZID=W. Europe Standard Time:20261109T113000
+SUMMARY:Sage-Prüfabfragen: Lagerplätze/Mitarbeiter per SQL anlegen (AKE
+ -Test)
+DESCRIPTION:Ziel: Klären\, ob Lagerplätze (KHKLagerplaetze) und BDE-Per
+ sonal (KHKMitarbeiter) per SQL-INSERT in Sage angelegt werden können. Al
+ les NUR LESEND auf der AKE-Test-Sage-DB. Ergebnisse an Claude (Projekt ID
+ EAL-AKE WMS). Brain: codebase/sage-sdata/sage-stammdaten-anlage-tabellen.
+ md\n\n1) Zähler: Identity oder Tan?\nSELECT OBJECT_NAME(object_id) T\, n
+ ame\, last_value FROM sys.identity_columns WHERE OBJECT_NAME(object_id) I
+ N ('KHKLagerplaetze'\,'KHKLagerorte'\,'KHKMitarbeiter')\;\nSELECT * FROM 
+ KHKTan WHERE Tabelle IN ('KHKLagerplaetze'\,'KHKLagerorte'\,'KHKMitarbeit
+ er')\;\nSELECT OBJECT_DEFINITION(OBJECT_ID('spSysTan'))\;\n\n2) Pflichtfe
+ lder/Defaults\nSELECT TABLE_NAME\, COLUMN_NAME\, DATA_TYPE\, CHARACTER_MA
+ XIMUM_LENGTH\, IS_NULLABLE\, COLUMN_DEFAULT FROM INFORMATION_SCHEMA.COLUM
+ NS WHERE TABLE_NAME IN ('KHKLagerplaetze'\,'KHKLagerorte'\,'KHKMitarbeite
+ r') ORDER BY TABLE_NAME\, ORDINAL_POSITION\;\n\n3) Trigger\nSELECT OBJECT
+ _NAME(parent_id) T\, name\, OBJECT_DEFINITION(object_id) D FROM sys.trigg
+ ers WHERE OBJECT_NAME(parent_id) IN ('KHKLagerplaetze'\,'KHKLagerorte'\,'
+ KHKMitarbeiter')\;\n\n4) Zähler im Lagerort vs. echte Plätze (Spaltenna
+ men ggf. an Ergebnis 2 anpassen)\nSELECT o.*\, (SELECT COUNT(*) FROM KHKL
+ agerplaetze p WHERE p.Mandant=o.Mandant AND p.Lagerkennung=o.Lagerkennung
+ ) AS PlaetzeIst FROM KHKLagerorte o WHERE o.Mandant=1 AND o.Lagerkennung 
+ IN ('LL'\,'SL'\,'HR')\;\nSELECT * FROM KHKLagertechnikenArten\;\n\n5) Fre
+ mdschlüssel\nSELECT fk.name\, OBJECT_NAME(fk.parent_object_id) Von\, OBJ
+ ECT_NAME(fk.referenced_object_id) Nach FROM sys.foreign_keys fk WHERE OBJ
+ ECT_NAME(fk.parent_object_id) IN ('KHKLagerorte'\,'KHKLagerplaetze'\,'KHK
+ Mitarbeiter') OR OBJECT_NAME(fk.referenced_object_id) IN ('KHKLagerorte'\
+ ,'KHKLagerplaetze'\,'KHKMitarbeiter')\;\n\n6) Mitarbeiter-Beispiele\nSELE
+ CT TOP 20 * FROM KHKMitarbeiter WHERE Mandant=1\;\n\n7) SQL-Trace (Extend
+ ed Events) laufen lassen\, während in Sage am AKE-Test ein Lagerplatz er
+ weitert und ein Mitarbeiter angelegt wird -> zeigt die exakten Statements
+  von Sage.\n\n8) WMS-DB: im WMS angelegte Lagerplätze ohne Sage-Bezug\nS
+ ELECT Id\, Code\, IsActive\, IstBuchbar\, SageLagerplatzId\, CreatedAt FR
+ OM dbo.StorageLocations WHERE SageLagerplatzId IS NULL ORDER BY Code\;\n\
+ nAußerdem: PPS-Mitarbeiter am AKE-Test anlegen (für BDE-Rückmeldetests
+ )\, leeren Dispo-Stapel WMSTEST01 löschen\, offene Spec-Fragen G1\, G2\,
+  G4-G8.
+TRANSP:OPAQUE
+BEGIN:VALARM
+ACTION:DISPLAY
+DESCRIPTION:Erinnerung
+TRIGGER:-PT15M
+END:VALARM
+END:VEVENT
+END:VCALENDAR

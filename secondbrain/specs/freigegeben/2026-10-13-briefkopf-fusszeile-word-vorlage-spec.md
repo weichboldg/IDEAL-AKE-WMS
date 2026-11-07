@@ -656,3 +656,4 @@ Keine Critical-, keine Important-Befunde.
 13. TS-92.9: Druckansicht am Bildschirm, Fußzeile einmal am Ende, kein schwebender Balken.
 14. TS-92.10: Kommissionierliste (Liste und Summiert) ohne Kopf und Fuß, Ränder wie bisher.
 15. Erst danach mergen (Schranke 2). Nach dem Merge nur bei zusammengeführten parallelen `main`-Änderungen erneut aus `main` publishen.
+- Browser-Abnahme 2026-10-21: [[2026-10-21-ideal-v1-59-bis-v1-64-browser-testbericht]] - 45 OK, 2 FEHLER, 1 nicht pruefbar, 0 Protokoll passt nicht

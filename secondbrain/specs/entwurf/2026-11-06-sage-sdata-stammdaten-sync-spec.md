@@ -4,7 +4,7 @@ title: Sage-Abgleiche auf SData umstellen (View als Notfall-Rückfall), Felder e
 slug: 2026-11-06-sage-sdata-stammdaten-sync-spec
 status: Testbereit
 created: 2026-11-06
-updated: 2026-11-06
+updated: 2026-11-07
 source_backlog: "[[2026-10-06-kreditoren-stammdaten]]"
 task: "[[2026-11-06-sage-sdata-stammdaten-sync-umsetzung]]"
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
@@ -173,6 +173,38 @@ Gerald hat G10–G17 am 2026-11-06 bestätigt (Antworten im Freigabe-Block). Wo 
 - **G16:** A3 bleibt auf View, bis P-R1 den IDEAL-Filter zeigt; E3a baut Reader + Vergleichsmodus.
 - **G17:** SQL-Nummern dreistellig weiter (100 ff.), Reihenfolge über die Deploy-Liste; Nachtrag zu ADR 0004.
 - **P-K1:** Kontoart = `KtoArt` (`K` Kreditor, `D` Debitor) – E8c ist nicht mehr blockiert.
+
+## Entscheidungs-Nachtrag 2026-11-07 (gilt vor den Abschnitten unten und vor dem Nachtrag 2026-11-06)
+
+- **G6 Kreditoren/Debitoren – Sage führend (Gerald):** Kreditoren und Debitoren kommen ausschließlich aus Sage; Sage gewinnt bei jedem
+  Feld, das Sage liefert. Keine Anlage WMS-eigener Kreditoren/Debitoren ohne Sage-Konto (Anlegen-Button entfällt bzw. nur Admin-Notfall –
+  Dev begründet). WMS-eigene Zusatzfelder nur, wo Sage nichts hat (Beschichter ja/nein, Bemerkung, Dienstleister-Meldekarte). Bestehende
+  Datensätze mit Herkunft WMS: melden, nicht löschen.
+- **A13 vollständig (QA-Befund B6):** Name, Adresse, Telefon, E-Mail, Ansprechpartner, Gruppe, EK-Mindestbestellwert aus `Adressen` /
+  `Ansprechpartner` (Feldnamen erst lesend am AKE-Test belegen); Name = Name1 (+ Name2) statt Matchcode.
+- **G5:** Liefert DPS keinen Anlage-Service, erfolgt die Übergabe Lagerplatz/BDE-Mitarbeiter per SQL-INSERT in Sage – eigene Folge-Spec nach
+  der SQL-Prüfung am 09.11.2026.
+- **G1:** Lizenz wird bestellt; bis zur DPS-Bestätigung SData nur am AKE-Test.
+- **G16 neu – Artikel über SData freigeben (Gerald 2026-11-07: „lassen wir den Sync gleich zu – wenn SData, dann soll das gleich gehen“):**
+  Die Sperre `SdataGesperrtBis = "P-R1"` für `Sync:Quelle:Artikel` entfällt für AKE. Der SData-Reader liest an AKE dieselbe Menge wie der
+  AKE-SQL-Filter (`SageArticleSql.cs:11-53`: Ressourcenummern der PPS-Ressourcenpositionen ∪ IstBestellartikel/Aktiv) und füllt dabei
+  `ArticleSageDetails` und die Benutzerfeld-Merkmale. Vor dem Freischalten: Vergleichslauf am AKE-Test ohne Mengen-Differenz (Count-Keys).
+  IDEAL (Filter im Viewtext `vw_IDEAL_AKE_WMS_Artikel`, P-R1) bleibt gesperrt, bis der IDEAL-Endpunkt da ist (G2). FA-Struktur (P-F2)
+  bleibt gesperrt (G11).
+
+### Einstellungen (Nachtrag 2026-11-07, ADR 0020)
+
+Geändert in N2 nur Beschreibung/Wirkung, keine neuen Keys; Defaults unverändert.
+
+| Key | Typ | Erlaubte Werte | Default | Wirkung | Verwendung | Standort | Warnhinweis |
+|---|---|---|---|---|---|---|---|
+| `Sync:Quelle:Artikel` | String | `View` \| `SData` \| `Vergleich` | `View` | Quelle des Artikel-Abgleichs; `SData` füllt zusätzlich `ArticleSageDetails` + Benutzerfeld-Merkmale | `ArtikelQuelleSwitch` (Dienst) | AKE frei; IDEAL gesperrt bis P-R1 (wenn `Sync:ArticlesViewName` gesetzt) | gelber Hinweis in `/ServiceSettings` bei Sperre; Warnung im Lauf „Artikel“ |
+| `Sync:Quelle:FaStruktur` | String | wie oben | `View` | Quelle der FA-Kanten/Positionen | `FaStrukturQuelleSwitch` | beide gesperrt bis P-F2 | gelber Hinweis + Warnung im Lauf „FA-Hierarchie-Sync“ |
+| `Sync:KreditorenEnabled`, `Sync:DebitorenEnabled` | Bool | true/false | false | Lese-Abgleich Kontokorrent; Sage gewinnt (G6) – überschreibt Name, Matchcode, Adresse, Kontakt, aktiv | `SyncWorker` → `KontokorrentSyncService` | beide | Beschreibung nennt „überschreibt WMS-Werte“ (keine Außenwirkung auf Sage) |
+
+**Bewusste Lücke (kein Befund):** Die Quellenschalter sind weiter Freitext (`ServiceSettingType.String`); die Auswahlliste für feste Wertebereiche
+im Bestand ist Gegenstand von [[2026-11-07-einstellungen-auswahlfelder-und-beschreibung]] (ADR 0020, Umsetzung Bestand). Der Server liest
+unbekannte Werte fail-safe als `View` mit Warnung (F1).
 
 ## Fachliche Anforderungen
 
@@ -634,7 +666,7 @@ Etappe in Klammern; ein Kriterium gilt mit dem Commit dieser Etappe als prüfbar
 15. (E4b) Je FA der Menge sind die Positionen mit `BelPosID` und Lagerplatz gespeichert (836: BelPosID 10641, Platz 11 „HR 0 0 0“); ein zweiter
     Lauf ersetzt sie vollständig (keine Dubletten, UNIQUE `BelPosID`).
 16. (E5, nur falls G13 E5 behält) Stückliste aus SData: gleiche Positionen/Mengen/Ebenen wie die View für mindestens 5 Testartikel
-    (u. a. 86003871); Benutzerfelder je Position gespeichert. An IDEAL bleibt der BOM-Cache-Lauf „übersprungen (hierarchischer Modus)“.
+    (u. a. 86006871 (ersetzt 86003871, Gerald 2026-11-07)); Benutzerfelder je Position gespeichert. An IDEAL bleibt der BOM-Cache-Lauf „übersprungen (hierarchischer Modus)“.
 17. (E6a) Werkbank-Anlage und Arbeitsgang-Abgleich im Modus `SData` legen am AKE-Test dieselben Werkbänke/Kürzel an wie der SQL-Weg
     (Vergleichsmodus 0 Abweichungen; Arbeitsplatz 9999); `SageBdeTerminalId` ist gesetzt; keine `OperationConfig`-Spalte kommt hinzu.
 18. (E6b) PPS-Mitarbeiter-Abgleich legt **keinen** `BdeOperator` an und verknüpft nie über den Namen; Sage-Mitarbeiter ohne Verknüpfung erscheinen
@@ -668,7 +700,7 @@ Neues Kapitel **TS-106 „Sage-Abgleich über SData“** in `docs/TESTSZENARIEN.
 
 **Gemeinsame Vorbedingungen:** WMS-Test-DB mit Bündel-Stand; `SData:BaseUrl`/`SData:Dataset` auf `sagetest01` / `ake_TEST2026;1`,
 Zugangsdaten in appsettings; `SageLagerbuchungSslZertifikatPruefen` je Testsystem; `WorkerSettings:SyncDryRun = false`; Aktivitätsprotokoll
-offen; Testdaten AKE-Test: Struktur 835 (FAs 835–841), Artikel 00722001/86003871, Lagerplätze 1/11/2555/2864/4333, Arbeitsplatz 9999.
+offen; Testdaten AKE-Test: Struktur 835 (FAs 835–841), Artikel 00722001/86006871 (ersetzt 86003871, Gerald 2026-11-07), Lagerplätze 1/11/2555/2864/4333, Arbeitsplatz 9999.
 IDEAL-Endpunkt erst nach G2.
 
 **Muster je Bereich (TS-106.1 bis .7: Lagerplätze, Lagerbestand, Artikel, FA-Struktur, Arbeitsplätze/Kürzel, Lagerbuchungs-Lookup, Benutzerfelder)**
@@ -742,6 +774,12 @@ ganze Epic in **beiden** `AppVersion.cs`; Changelog-Einträge je Etappe sammeln.
 | 8b | Debitoren: Tabelle, Pflege-Oberfläche | `SQL/105` | erledigt | `30ee0f1d` |
 | 8c | Lese-Abgleich Kontokorrent → Kreditoren/Debitoren + `ArticleSuppliers` (A13) – erst nach P-K1 | `SQL/106` | erledigt | `9bdbeaed` |
 | 9 | Outbox + Übergabe-Status für Lagerplatz/BDE-Mitarbeiter (F11), Liste „Offene Übergaben“ | `SQL/107` | erledigt | `e6821035` |
+| 8c-Fix | QA-B6 (A13): Kontokorrent liest `Adressen` + `Ansprechpartner` nach (Name, Adresse, Telefon, E-Mail, Ansprechpartner, `USER_KundenNameFA`), Detailseite „Letzter Abgleich“ statt „(folgt)“ (P-K1-Nachtrag) | – | erledigt | `7caa8e22` |
+| N1 (G6) | Nachbesserung Entscheidungs-Nachtrag 2026-11-07 G6: Sage führend – Matchcode + aktiv aus Sage, Anlegen nur Admin-Notfall, kein Deaktivieren bei Herkunft Sage, WMS-eigene gemeldet (Liste + Count `wms_eigen`), Meldekarte ohne Anlegen | – (Spalten aus SQL/104/105 reichen) | erledigt | `8711fce2`, `bfdb4d17` |
+| N2 (G16 neu + B6) | `Sync:Quelle:Artikel = SData` an AKE frei (IDEAL weiter gesperrt bis P-R1), Sperr-Regel `SageQuelleSperre` an einem Ort, Warnhinweis in `/ServiceSettings` + Warnung im Bereichslauf | – | erledigt | `09cb0e1c` |
+| N3 (QA Q1/Q3) | Sage-Wert länger als WMS-Spalte (LieferPLZ 24 → 20, EMail 255 → 200): nicht schreiben + Warnung statt Lauf-Abbruch; veraltete Texte | – | erledigt, QA-Wiederholung 2026-11-07 ohne Befund | `e29a0857` |
+| N4 (F, Filter-Fix) | SData-Filter `ne ''` auf Textfeldern (still 0 Zeilen) → `like '_%'` in `ArtikelLieferantSyncService.WhereVarianten` und `SdataArtikelReader.WhereRessourcen`; 0 Zeilen bei nie leerer Quelle = Fehler (Artikel-Reader) bzw. Warnung + Kennzeichen unverändert (Artikel-Lieferant). AKE-Test lesend: 23.509 / 240.552 statt 0 (Auftrag 2026-11-07) | – | erledigt, QA ohne Befund (2026-11-07) | `28afd9cc` |
+| N5 (0, Q5 + Testartikel) | Dublettenprüfung gegen Name1 (+Name2), Rückfall Matchcode; Testartikel 86006871 statt 86003871 (Gerald 2026-11-07, TS-106.3) | – | erledigt, QA ohne Befund (2026-11-07) | `a3dced19` |
 
 **Etappen-Schnitt (Rework, Begründung):** Ein Dev-Lauf schafft erfahrungsgemäß eine Migration + einen Reader/Service + eine Oberfläche mit
 Tests. Danach geteilt:
@@ -814,6 +852,36 @@ Gewinn für IDEAL/BDE; E6a/E6b sind Voraussetzung des Rückmelde-Epics; E7, E8a�
   > Beispiele: D10000…D20010 (`KtoArt D`), Lieferant **K31013** (Hauptlieferant von 00722001, `ArtikelLieferantInfo`) hat `KtoArt K`.
   > → **K = Kreditor/Lieferant, D = Debitor/Kunde** (aus den Daten belegt, nicht nur aus dem Namen). `KtoTyp` (short, Werte 0 und 2 gesehen) ist ein
   > anderes Merkmal – Bedeutung ungeprüft, für E8c nicht nötig. Filter E8c: `where KtoArt eq 'K'` bzw. `'D'`. Die SQL-Gegenprobe ist damit optional.
+  > **P-K1-Nachtrag 2026-11-07 – Adressen und Ansprechpartner (AKE-Test, nur lesend, Sage-DB `ake_TEST2026` auf AKESQL20, `SELECT` auf
+  > `INFORMATION_SCHEMA.COLUMNS` und Zählabfragen):**
+  > - **Verknüpfung:** `KHKKontokorrent.Adresse` (int) → `KHKAdressen.Adresse` (+ `Mandant`). Alle 2.821 Konten haben eine Adresse (K 2.287 / D 534,
+  >   je 0 ohne). `KHKKontokorrent` hat zusätzlich `StandardAdresse` (nicht genutzt). `KHKAdressen` Mandant 1 = **3.843** Zeilen = Zahl der
+  >   SData-Ressource `Adressen` laut [[sage-sdata-wms-schnittstellenkatalog]] → die Ressource ist die Tabelle.
+  > - **`Adressen`-Felder (Länge):** `Adresse` int, `Matchcode`(50), `Name1`(50), `Name2`(50), `LieferStrasse`(64), `LieferPLZ`(24), `LieferOrt`(40),
+  >   `LieferLand`(3), `PostStrasse/-PLZ/-Ort/-Land` (Postfach), `Telefon`(32), `Telefax`, `Mobilfunk`, `EMail`(255), `Homepage`, `Gruppe`, `Aktiv`,
+  >   `USER_KundenNameFA`(20). Hausadresse = `Liefer*` (gefüllt bei 2.204 K / 481 D), `Post*` nur 6 K / 3 D → `Post*` wird nicht gelesen.
+  >   `Name2` gefüllt bei 257 K / 82 D. Adress-Matchcode ≠ Konto-Matchcode möglich (z. B. D24009 „NORDCAP, Bremen(Lief.Inland)“ vs. Adresse
+  >   „NORDCAP, Bremen“) → `SageMatchcode` bleibt der Konto-Matchcode.
+  > - **`Ansprechpartner`-Felder:** `Nummer` int (Schlüssel), `Adresse` int, `Ansprechpartner`(50), `Vorname`(50), `Nachname`(50), `Position`,
+  >   `Abteilung`, `Anrede`, `Telefon`(32), `Mobilfunk`, `EMail`(255). 3.405 Zeilen an 1.896 Adressen, bis **99** je Adresse, **kein**
+  >   Haupt-Kennzeichen → Regel: erster nach `Nummer` als „Vorname Nachname“ (sonst Feld `Ansprechpartner`), weitere als „(+n weitere)“.
+  > - **Beispiel:** `K31013` → Name1 `"carlo" Loysch GmbH`, `Pielacher Straße 50`, `3390` `Melk`, `AT`, `+43-2752-52911`, `office@carlo.at`,
+  >   kein Ansprechpartner.
+  > - **SData selbst belegt (2026-11-07, lesend über den angemeldeten Browser, `sagetest01:5493`, `ake_TEST2026;1`):**
+  >   `GET …/CommonWawiServicesResources/ake_TEST2026;1/Adressen?select=Adresse,Name1,Name2,LieferStrasse,LieferPLZ,LieferOrt,LieferLand,Telefon,EMail,USER_KundenNameFA&orderBy=Adresse&count=2`
+  >   → **HTTP 200**, alle zehn Felder geliefert (Adresse 1 „LOG Business Systems“ / „EDV Dienstleistungs GmbH“, Primoschgasse 3, 9020 Klagenfurt, AT;
+  >   `USER_KundenNameFA` `xsi:nil`). `…/Ansprechpartner?select=Nummer,Adresse,Vorname,Nachname,Ansprechpartner&orderBy=Nummer&count=2` → **HTTP 200**
+  >   (Nummer 1 → Adresse 718, `Ansprechpartner` „Mr. Raymond Wiig“, Vor-/Nachname **nil**; Nummer 6 → Adresse 137, Anja Zengerle) → Vor-/Nachname
+  >   können fehlen, Rückfall auf das Feld `Ansprechpartner` ist nötig (so umgesetzt). `…/Kontokorrent?select=Kto,KtoArt,Matchcode,Adresse&where=Kto eq 'K31013'`
+  >   → `Adresse` **737**, Matchcode `Loysch "carlo" GmbH, Melk`. Damit ist jedes Feld im `select` am AKE-Test belegt. Bleibt ein Feld künftig weg
+  >   (HTTP 500), meldet der Abgleich eine Warnung und lässt Name/Adresse/Kontakt unverändert (kein Abbruch, kein Datenverlust).
+  > - **Matchcode/Kurzname (Entscheidung, G6 2026-11-07):** `Matchcode` = Sage-Matchcode bei **jedem** Lauf (Sage gewinnt, in der Pflege
+  >   schreibgeschützt). Der **Kurzname wird nicht** aus Sage gefüllt (Abweichung vom Wortlaut „Matchcode/Kurzname = Sage-Matchcode“, begründet):
+  >   Er ist der eindeutige WMS-Schlüssel der Dienstleister-Texte (gefilterter UNIQUE-Index `IX_Creditors_ShortName`/`IX_Debitors_ShortName`), und
+  >   Sage-Matchcodes sind nicht eindeutig – AKE-Test: K 2.287 Konten / 2.280 verschiedene Matchcodes, D 534 / 528 (Abfrage
+  >   `SELECT KtoArt, COUNT(*), COUNT(DISTINCT UPPER(LTRIM(RTRIM(Matchcode)))) FROM KHKKontokorrent WHERE Mandant=1 GROUP BY KtoArt`). Ein Befüllen
+  >   würde den Index brechen bzw. Konten ohne Kurzname lassen; ein Matchcode wie „Loysch "carlo" GmbH, Melk“ trifft außerdem nie einen
+  >   Dienstleister-Text wie „GL“. Der Kurzname bleibt daher die WMS-Zusatzpflege der Dienstleister-Meldekarte (G6 erlaubt sie ausdrücklich).
 - **P-F1 – Viewtexte IDEAL** (Sage-DB IDEAL; Namen aus den WMS-ServiceSettings):
   ```sql
   -- WMS-DB IDEAL:
@@ -892,15 +960,15 @@ Gewinn für IDEAL/BDE; E6a/E6b sind Voraussetzung des Rückmelde-Epics; E7, E8a�
   als seinen Auftrag. Antworte je Frage in **fett** hinter dem Pfeil.
 -->
 
-1. G1 Lizenz/Freigabe DPS →
+1. G1 Lizenz/Freigabe DPS → **Gerald 2026-11-07: Lizenz wird bestellt. Bis zur Bestätigung durch DPS SData nur am AKE-Test; IDEAL/produktiv bleiben auf View.**
 2. G2 IDEAL-Endpunkt / AKE-Test →
 3. G3 Artikelfelder → **beantwortet (Gerald 2026-11-06, aus dem Frontmatter übernommen): alle vorgeschlagenen Artikelfelder vorsehen**
 4. G4 FA-Zusatzinformationen auf View →
-5. G5 Datenhoheit / DPS-Service →
-6. G6 Herkunft Kreditoren/Debitoren →
+5. G5 Datenhoheit / DPS-Service → **Gerald 2026-11-07: ja, bei DPS beauftragen; liefert DPS keinen Service, Übergabe per SQL-INSERT in Sage (Ablauf nach der SQL-Prüfung 09.11., eigene Folge-Spec). Bis dahin Outbox Status „offen“ ohne Senden.**
+6. G6 Herkunft Kreditoren/Debitoren → **Gerald 2026-11-07: Sage ist führend und gewinnt. Keine WMS-eigenen Kreditoren/Debitoren; im WMS nur zusätzliche Felder, die Sage nicht kennt (z. B. Beschichter ja/nein, Bemerkung). Weicht von der Umsetzung ab (Herkunft Sage | WMS) → Nachbesserung, siehe Entscheidungs-Nachtrag 2026-11-07.**
 7. G9 Umfang Kreditoren-Spec → **beantwortet (Gerald 2026-11-06, aus dem Frontmatter übernommen): alles auf einmal, Kreditoren-Spec in F10/E8 aufgegangen**
-8. G7 Bestellvorschläge →
-9. G8 Delta / Vollabgleich →
+8. G7 Bestellvorschläge → **ja (Gerald 2026-11-07): eigene Folge-Spec, hier nur Datenbasis**
+9. G8 Delta / Vollabgleich → **ja (Gerald 2026-11-07): Vollabgleich offene FAs + beendete der letzten 30 Tage**
 10. G10 Fehlermail A1/A2 → **ja (Gerald 2026-11-06): bei Quelle SData/Vergleich Fehlermail; View-Verhalten unverändert**
 11. G11 FA-Struktur-Grenze SData → **ja (Gerald 2026-11-06): SData nur für Kanten + Positionen; FAInfos (Quelle PPSImport, nicht Sage) und Knotenfelder bleiben SQL; Umschalten auf SData erst nach P-F2, Vergleichsmodus ab E4a**
 12. G12 A8 Arbeitsgänge → **ja (Gerald 2026-11-06): A8 folgt dem A7-Reader; Rüst-/Stückzeit/Standard-Arbeitsplatz ins Rückmelde-Epic. P-A1 am AKE-Test: USER_ArbeitsSchritt nicht vorhanden → am IDEAL-Endpunkt prüfen**
@@ -1015,7 +1083,7 @@ DEV-Testdaten bleiben stehen (IDEAL_WMS_DEV): Kreditor `GL`, Lagerplatz `QA-UEB-
 4. Erster Lagerplatz-Lauf SData: Plätze nicht massenhaft deaktiviert (B4), `StorageAreas` gefüllt.
 5. E4b: `ProductionOrderPositions` (836 / BelPosID 10641 / Platz 11), zweiter Lauf ersetzt vollständig (AK 15).
 6. E7: Lookup `SData` liefert `true` für eine gebuchte Bewegung (B3); SData nicht erreichbar → Eintrag bleibt, wird nicht neu gesendet (AK 20).
-7. B2 entscheiden, dann Umbuchung Sage→Sage / Sage→WMS / WMS→Sage / WMS→WMS mit `SageLagerbuchungAktiv` + `SageLagerbuchungUmbuchungAktiv` am Testsystem (AK 21).
+7. ~~B2 entscheiden~~ (entschieden, Fix `c8c6b210`: FA-gebundene Umbuchungen gehen nie an Sage, Spec F9) – Umbuchung Sage→Sage / Sage→WMS / WMS→Sage / WMS→WMS ohne FA-Bezug mit `SageLagerbuchungAktiv` + `SageLagerbuchungUmbuchungAktiv` am Testsystem (AK 21); mit FA-Bezug → kein Queue-Eintrag (TS-106.9.o).
 8. E6b/E8c: `Sync:PpsMitarbeiterEnabled`, `Sync:StillstandsgruendeEnabled`, `Sync:KreditorenEnabled`, `Sync:DebitorenEnabled`, `Sync:ArtikelLieferantEnabled` je einmal (AK 18, 19, 24; 00722001 ↔ K31013).
 9. E9: Platz `QA-UEB-…` in Sage anlegen, Lagerplatz-Lauf → „übergeben“, `Source = Sage`, Info im Protokoll (AK 25).
 10. AKE-Regression mit Default-Schaltern (TS-106.12): Count-Keys Artikel/Lagerplatz/Lagerbestand wie vor dem Deploy, kein `SageQuellenvergleich` (AK 1).
@@ -1045,7 +1113,7 @@ Geprüft: `SageSdataReadClient.QueryAllAsync` (Start, Fortschaltung `startIndex 
 | B3 | Erledigt | Lookup am AKE-Test mit dem echten `SdataBuchungLookupReader`: `SM#19367#` → **true**, `SM#1936#` → false (kein Präfix-Treffer), `SM#999999#` → false. Das `TODO(UAT E7)` in `SdataBuchungLookupReader.cs:32-34` ist inhaltlich erledigt; der Kommentar kann beim nächsten Code-Lauf weg (kein Blocker). |
 | B4 | Akzeptiert (unverändert) | Lagerplatz-Reader am AKE-Test: 20 aktive Lagerorte, 3284 Zeilen, kein leeres Ergebnis. Erster SData-Lauf am Testsystem trotzdem DB vor/nach prüfen. |
 | **B5** | **Erledigt** (Hauptcheckout, uncommittet) | Vorhanden: [[2026-11-06-v1-73-0-sage-sdata-stammdaten-sync]], [[0019-quellen-weiche-view-sdata-je-abgleich]], Nachtrag G17 in [[0004-migrations-und-sql-disziplin]], [[fallstricke]] „`startIndex` ist 0-basiert“, `codebase/services.md`/`datenmodell.md`/`controller.md`, [[glossar]], [[feature-map]] (QA setzt die beiden v1.73.0-Zeilen auf Testbereit), [[2026-11-06-sage-sdata-folgearbeit]]. |
-| B6 | Info (unverändert) | – |
+| B6 | Info (unverändert) | Kontokorrent-Teil am 2026-11-07 behoben (`7caa8e22`, Etappe 8c-Fix); übrige B6-Punkte unverändert. |
 | N1 | Info, neu | `PpsArbeitsplaetzeInfo` liefert am AKE-Test genau **1** aktive Zeile (vorher durch B1 verschluckt). Ob das dem View-Bestand entspricht, klärt der Vergleichslauf am Testsystem (Checkliste 1). Der Arbeitsgang-Abgleich setzt über SData ohnehin wegen P-A1 aus. |
 | N2 | Info, neu | Kein Decorator-Test, der `ProductionOrder` bis `hatFaBezug` durchreicht (nur Regel- und Sweep-Test). Eine Zeile Verdrahtung, im Review geprüft; kein Befund. |
 
@@ -1111,3 +1179,302 @@ Der Abschnitt „Deploy (aus dem echten Diff …)“ des ersten Laufs gilt jetzt
 11. `SQL/98`–`107` + FreshInstall am Testsystem (zweiter Lauf ohne Änderung).
 12. P-S1/P-S2/P-R1/P-F1/P-F2/P-A1 am IDEAL-Endpunkt.
 13. Brain-Änderungen (B5 + diese QA) committen; danach Merge (Gate 2).
+
+## QA-Nachtrag 2026-11-07 (Nachbesserung G6/G16/B6) (qa-agent) — Ergebnis: NICHT Testbereit (Befund Q1)
+
+> [!warning] Status zurück auf InUmsetzung
+> Grund: **Q1** – der Kontokorrent-Abgleich schreibt Sage-Werte ohne Längenschutz in kürzere WMS-Spalten (`LieferPLZ` 24 → `PostalCode` 20,
+> `EMail` 255 → `Email` 200). Ein einziger zu langer Wert lässt `SaveChanges` scheitern → der ganze Kreditoren- bzw. Debitoren-Lauf schlägt
+> bei jedem Zyklus fehl. Alles andere ist ohne Befund; nach dem Q1-Fix reicht ein kurzer QA-Lauf (Fix-Commit + Tests + Deploy).
+
+Review-Bereich: `git diff c8c6b210 bfdb4d17` (Commits `7caa8e22`, `8711fce2`, `09cb0e1c`, `bfdb4d17`; 30 Dateien, +562/−95). Worktree
+`.claude/worktrees/2026-08-07-ideal-teile-1-5`, HEAD `bfdb4d17`, sauber; v1.73.0 in beiden `AppVersion.cs`.
+
+### 1. Build und Tests (ganzer Worktree, HEAD `bfdb4d17`)
+- `dotnet build IdealAkeWms.slnx`: **0 Fehler**, 28 Warnungen (nur Bestand: NU1902/NU1903, CS8601 `BdeTerminalAuftraegeTests.cs:23`).
+- `dotnet test`: **IdealAkeWms.Tests 2393 bestanden / 1 übersprungen / 0 Fehler**; **IDEALAKEWMSService.Tests 493 / 0 / 0**.
+  Der bekannte einmalige Ausfall von 2 Dienst-Tests trat in diesem Lauf **nicht** auf.
+
+### 2. Code-Review (selbst, synchron)
+Geprüft: `KontokorrentSyncService` komplett (Lesen, Nachlesen Adressen/Ansprechpartner, Neuanlage, Update, Verknüpfen, Dubletten, `wms_eigen`,
+Empty-Guard, Fehlerpfad), `SageQuelleWeiche`/`ArtikelQuelleSwitch`/`FaStrukturQuelleSwitch`, `SageQuelleSperre` und beide Leser
+(`SageArtikelReader.cs:27-28` nutzt denselben Key `Sync:ArticlesViewName` → AKE/IDEAL-Unterscheidung an einer Quelle), die sechs
+`LogQuelleAsync`-Aufrufer, `Creditors`/`DebitorsController` (Create/Edit/SetActive, `SageGefuehrteFelder`, `ApplyStamm-/ApplyWmsFelder`),
+alle geänderten Views, `ServiceSettingDefinitions`-Diff, Spaltenlängen in `SQL/104`/`105` und `Creditor.cs`, Hilfe/Changelog, TESTSZENARIEN.
+
+| # | Schwere | Befund | Umgang |
+|---|---|---|---|
+| **Q1** | **mittel – blockiert Testbereit** | `KontokorrentSyncService.AdressFelder` (`KontokorrentSyncService.cs:318-326`) schreibt `LieferPLZ` (Sage 24, P-K1-Nachtrag) in `PostalCode nvarchar(20)` und `EMail` (Sage 255) in `Email nvarchar(200)` (`SQL/104_AddCreditors.sql:33,36`, `SQL/105_AddDebitors.sql:33,36`) ohne Kürzung. EF prüft `[StringLength]` beim Speichern nicht; SQL Server bricht ab. **Am DEV belegt** (`AKE_WMS_DEV`, Transaktion + ROLLBACK, 0 Restzeilen): INSERT mit 24-stelliger PLZ → `Fehler 2628: String or binary data would be truncated in table 'AKE_WMS_DEV.dbo.Creditors', column 'PostalCode'`. Folge: ein Datensatz blockiert den ganzen Lauf dauerhaft (laut, kein Datenverlust, aber kein Abgleich mehr). Das Muster zum Kürzen steht in derselben Datei (`KontaktText` kürzt auf 200) und bei den Benutzerfeldern (auf 1000 + Warnung) – hier fehlt es. InMemory kann das nicht zeigen. | **Offen → Dev.** Minimal: PLZ/E-Mail (vorsorglich alle Adressfelder gegen ihre Spaltenlänge) kürzen + Warnung im Lauf (Anzahl + erste 20 Konten), Unit-Test mit 24-stelliger PLZ und 256-Zeichen-Mail. Ergänzend Prüfabfrage für den Menschen (Sage-DB, lesend): `SELECT MAX(LEN(LieferPLZ)), MAX(LEN(EMail)), SUM(CASE WHEN LEN(EMail) > 200 OR LEN(LieferPLZ) > 20 THEN 1 ELSE 0 END) FROM KHKAdressen WHERE Mandant = 1` (AKE-Test und IDEAL). |
+| Q2 | Hinweis | „WMS-eigen“ an zwei Stellen leicht verschieden definiert: Liste `Source != Sage` (`CreditorsController.cs:83`, `DebitorsController.cs:71`), Lauf `Source != Sage && SageKto leer` (`KontokorrentSyncService.cs:201`). Ein WMS-Datensatz mit eingetragenem, noch nicht verknüpftem Sage-Konto zählt in der Liste, nicht im Lauf. Fachlich vertretbar. | Kein Befund; beim Q1-Fix optional angleichen. |
+| Q3 | Hinweis (Doku-Drift) | Veraltet: Klassen-Doku `SdataArtikelReader.cs:32-35` („Deshalb ist die Weiche für SData gesperrt“ – gilt nur noch für IDEAL); `docs/TESTSZENARIEN.md` Kontokorrent-Absatz „Matchcode nur wenn leer“ und Testgrund „Matchcode aus Sage weil leer“ in `Kreditoren_AdresseUndAnsprechpartner_AusSage_SageGewinnt` – seit `8711fce2` ist Matchcode **immer** der Sage-Matchcode. | Beim Q1-Fix mitziehen; kein Blocker. |
+| Q4 | Hinweis | Der erste Kreditoren-Bestandstest erreicht „Adressen nicht lesbar“ über einen nicht eingerichteten Moq-Aufruf (`null`-Task → gefangene NullReference). Der echte Fehlerpfad ist separat mit `SdataLeseException` getestet (`Kreditoren_AdressenNichtLesbar_NameBleibt`). | Kein Befund. |
+| Q5 | Hinweis | „Mögliche Dublette“ vergleicht WMS-Namen weiter mit dem Sage-**Matchcode** (`KontokorrentSyncService.cs:191-195`), nicht mit dem neuen Sage-Namen (`Name1`). Kann Dubletten übersehen, meldet nie falsch. | Kein Befund; Folgearbeit, falls die Dublettenmeldung am Testsystem zu still bleibt. |
+
+**Auftragspunkte geprüft:**
+- **B2/A13:** Name = Name1 (+Name2) (`NameText`), Adresse aus `Liefer*`, Telefon, E-Mail, Ansprechpartner (erster nach `Nummer`, Rückfall auf Feld `Ansprechpartner`), Gruppe/UID/Zahlungskondition/EK-Mindestbestellwert, Debitor `USER_KundenNameFA`, `Matchcode` = Sage-Matchcode – erfüllt (bis auf Q1).
+  **Kurzname nicht aus Sage – Begründung trägt:** gefilterter UNIQUE-Index `IX_Creditors_ShortName`/`IX_Debitors_ShortName` (`SQL/104:73-76`, `SQL/105:73-75`) + belegte Nicht-Eindeutigkeit der Sage-Matchcodes (2.287/2.280, 534/528) + G6 nennt den Kurznamen ausdrücklich als WMS-Pflegefeld; die Dienstleister-Zuordnung braucht kurze Codes wie „GL“, die ein Matchcode nie trifft.
+- **B3/G6:** Sage gewinnt bei jedem gelieferten Feld inkl. `IsActive` (`KontokorrentSyncService.cs:164`) und Name auch bei verknüpften WMS-Datensätzen; `null` überschreibt nie. Anlegen nur mit `[RequireMasterDataAccess]` **und** `[RequireAdminAccess]` (serverseitig, Attribut-Tests). Edit bei Herkunft Sage: `SageGefuehrteFelder` inkl. `Matchcode` nicht übernommen, nur Kurzname/Bemerkung/Beschichter. `SetActive` bei Herkunft Sage serverseitig abgelehnt (Warnung, keine Änderung, Unit-Test). WMS-eigene: Meldung in Liste und Lauf (`wms_eigen`), kein Löschen.
+- **B4:** „(folgt)“ in beiden Details-Views ersetzt durch „Letzter Kreditoren-/Debitoren-Abgleich: <Zeit>“ + Badge bei Warnung/Fehler.
+- **B5/G16 neu:** `SageQuelleSperre.Grund` – FaStruktur immer gesperrt (P-F2), Artikel nur bei gesetztem `Sync:ArticlesViewName` (P-R1); DB-Lesefehler = gesperrt (fail-safe, getestet). Kein neuer Key.
+- **B6:** Warnung im Bereichslauf (`SageQuelleWeiche.LogQuelleAsync`, in allen sechs Abgleichen verdrahtet) + Hinweis in `/ServiceSettings` aus **derselben** Regel (`SageQuelleSperre`, Web-Projekt, vom Dienst referenziert).
+- **ADR 0020 / Einstellungen:** nur Beschreibungen geändert. **Defaults unverändert** (`Sync:Quelle:*` = `View`, `Sync:KreditorenEnabled`/`DebitorenEnabled` = `false`). Bewusste Lücke Auswahlliste = kein Befund.
+- **Keine Schreibaufrufe an Sage:** im Diff nur `ISageSdataReadClient.QueryAllAsync` (lesend).
+
+Defektklassen: kein Wert in `<script>`, kein `hidden`+`d-*`, Validierung serverseitig; `(int?)ViewBag.WmsEigene ?? 0` harmlos (Controller setzt den Wert immer); keine Parallel-Array-Bindung; Regel-Dopplung nur Q2.
+
+### 3. Nachweisart je Auftragspunkt
+| Punkt | Nachweis |
+|---|---|
+| A13 Felder aus Adressen/Ansprechpartner, Name1+Name2, Kontakt-Regel | Unit; echter SData-Lauf **Manual-UAT** (TS-106.12.b/.c/.h/.p) |
+| Adressen nicht lesbar → Name/Adresse bleiben | Unit (`Kreditoren_AdressenNichtLesbar_NameBleibt`) |
+| Speichern in echte Spaltenlängen | **Q1 – rot** (am DEV-SQL belegt); InMemory kann es nicht prüfen |
+| G6 Anlegen nur Admin, SetActive-Sperre, Matchcode readonly | Attribut-/Controller-Tests; Oberfläche am DEV (Admin) geprüft; Nicht-Admin-Sicht **Manual-UAT** |
+| G6 IsActive aus Sage, `wms_eigen` | Unit; echter Lauf Manual-UAT (TS-106.12.t/.u) |
+| G16 neu Sperr-Regel | Unit (`SageQuelleSperre_Regel`, `Weiche_SData_AnAke_OhneArtikelView_LiestSData_G16neu`, `…GesperrtBisPR1…`, `…NichtLesbar…`) |
+| G16 AKE-Menge SData = SQL | **Manual-UAT** (TS-106.3.f vor dem Umschalten) |
+| B6 Hinweis /ServiceSettings | DEV-Browser OK |
+| B6 Warnung im Bereichslauf | Unit; echter Lauf Manual-UAT (TS-106.0.11) |
+
+### 4. Geänderte Bestandstests
+| Test | Einordnung |
+|---|---|
+| `KontokorrentArtikelLieferantTests`, erster Kreditoren-Test (Name bleibt „Alt-Matchcode“, `IsActive`/`Matchcode` aus Sage, Select mit `Adresse`, Count `wms_eigen`) | gewollte Verhaltensänderung G6 + A13 |
+| Verknüpfen-/Dubletten-Test (+`wms_eigen` = 1, Warnung „nur im WMS“) | additiv, G6 |
+| `Debitoren_Abfrage_Vertreter_EigeneTabelle` (Select mit `Adresse`, Adressfelder, `USER_KundenNameFA`) | gewollte Verhaltensänderung A13 |
+| `CreditorsControllerTests` Edit Sage-Kreditor (`Matchcode` jetzt `null` statt Formularwert) | gewollte Verhaltensänderung G6 |
+| `CreditorsControllerTests`/`DebitorsControllerTests` Attribut-Test (+`RequireAdminAccess` auf Create) | additiv, G6 |
+| `SageQuelleTests.TestWeiche` (`SdataGesperrtBis` → `SdataGesperrtBisAsync`) | reine Typanpassung |
+| `ArtikelSdataTests.TestSwitch` (+`ArtikelView`, Default gesetzt = IDEAL) | Typanpassung; Bestandsfall „gesperrt bis P-R1“ läuft weiter gegen gesetzte View und prüft zusätzlich den Grund (B6) |
+
+Kein Fall „sonstige“.
+
+### 5. Checkliste
+Keine Migration, keine neue SQL-Datei, Version bleibt 1.73.0 (beide `AppVersion.cs`); Anwender-Changelog und Hilfe nachgezogen; `docs/TESTSZENARIEN.md`
+um 106.0.10/.11, 106.3-Nachtrag + .f–.h, 106.10.0, 106.11.m, 106.12-Nachtrag + .p–.u ergänzt (Spec-Nummer TS-106.10 = docs TS-106.12); Indexzeile 106
+deckt das ab, kein neuer Indexeintrag nötig.
+
+### 6. DEV-Deploy und Testlauf
+- Standort `beide` (Frontmatter). Shell elevated: ja.
+- `dev-deploy.ps1 -Standort AKE -Quelle <worktree>` → Exit 0, „HTTP 200, Fusszeile v1.73.0“, DEV-Absicherung angewandt.
+- `dev-deploy.ps1 -Standort IDEAL -Quelle <worktree>` → Exit 0, „HTTP 200, Fusszeile v1.73.0“.
+- Schalter nach Deploy (beide DEV-DBs): kein `Sync:*Enabled` = `true`; `SageLagerbuchungAktiv`, `ErrorNotification:Enabled`,
+  `Notifications:MeldebestandEnabled` = `false`. Vorgefunden (nicht von QA gesetzt): `IDEAL_WMS_DEV` `Sync:Quelle:Artikel = SData` bei
+  `Sync:ArticlesViewName = [vw_IDEAL_AKE_WMS_Artikel]` – dient als Testfall der Sperre. **QA hat keinen Schalter umgestellt.**
+- Am AKE-Test/Sage hat QA nichts abgefragt; die Feldbelege stammen aus dem P-K1-Nachtrag.
+
+| Schritt | Ergebnis | Status |
+|---|---|---|
+| TS-106.0.10 IDEAL `/ServiceSettings` | `Sync:Quelle:Artikel` (Wert `SData`): gelb „SData ist hier gesperrt bis P-R1 (Artikel-View '[vw_IDEAL_AKE_WMS_Artikel]' gesetzt …)“ + „Der eingestellte Wert SData wirkt deshalb wie View …“; `Sync:Quelle:FaStruktur`: „gesperrt bis P-F2 …“ + „Vergleich ist möglich“; übrige Quellen ohne Hinweis; Warnzeichen + Wortlaut, nicht nur Farbe | OK |
+| TS-106.0.10 AKE `/ServiceSettings` | nur `Sync:Quelle:FaStruktur` mit Hinweis P-F2; `Sync:Quelle:Artikel` **ohne** Hinweis | OK |
+| TS-106.0.11 Warnung im Bereichslauf | braucht einen Dienst-Lauf (`Sync:*Enabled`) | NICHT MÖGLICH (DEV-Grenze) |
+| TS-106.10.0 IDEAL `/Creditors` (Admin) | „Kreditor anlegen (Notfall)“, Hinweis „Kreditoren kommen aus Sage …“, gelb „1 Kreditor ist nur im WMS angelegt“ mit Badge „Herkunft WMS“ (DB: 1 × `Manual`) | OK |
+| TS-106.10.0 Details Sage-Kreditor K31013 (Id 926) | kein Deaktivieren/Reaktivieren; „Name, Adresse, Kontakt und Sage-Felder füllt der Kreditoren-Abgleich aus Sage.“ + „Letzter Kreditoren-Abgleich: 07.11.2026 08:25“ (kein „(folgt)“) | OK |
+| TS-106.10.0 Details WMS-Kreditor (Id 1) | Deaktivieren vorhanden | OK |
+| TS-106.10.0/.12.r Edit Sage-Kreditor | `Name`, `Matchcode` mit `readonly="readonly"` im HTML; Hinweis nennt Matchcode + aktiv/inaktiv als Sage-geführt | OK |
+| TS-106.10.0 `/Creditors/Create` als Admin | HTTP 200 | OK |
+| TS-106.10.0 Nicht-Admin (P): kein Anlegen-Knopf, Create → AccessDenied, Meldekarte-Text | DEV läuft nur als Admin; serverseitig per Attribut-Test belegt; auf DEV kein unzugeordneter Dienstleister | NICHT MÖGLICH (Benutzer) |
+| TS-106.10.0 `POST SetActive` Sage-Kreditor | Knopf nicht vorhanden; serverseitig per Unit-Test belegt | OK (Unit) |
+| TS-106.11.m IDEAL `/Debitors` + Details | „Debitor anlegen (Notfall)“, „Debitoren kommen aus Sage …“, Details „Letzter Debitoren-Abgleich: 07.11.2026 08:25“, kein Deaktivieren | OK |
+| TS-106.12 .b/.c/.h/.p/.q-Adressteil/.t/.u | braucht `Sync:KreditorenEnabled`/`DebitorenEnabled`; DEV-Daten stammen aus einem Lauf vor `7caa8e22` (Adress- und Matchcode-Felder leer) | NICHT MÖGLICH (DEV-Grenze) |
+| TS-106.3.f–.h (Artikel über SData) | braucht Dienst-Lauf | NICHT MÖGLICH (DEV-Grenze) |
+| Q1-Nachweis Spaltenlänge | `AKE_WMS_DEV`, Transaktion + ROLLBACK: Fehler 2628 bei 24-stelliger PLZ, danach 0 Testzeilen | FEHLER (= Q1) |
+
+### Deploy (Ergänzung zum Abschnitt der QA-Wiederholung)
+Aus dem echten Diff `c8c6b210..bfdb4d17`: **web ja** (`IdealAkeWms/` – Controller, Views, `SageQuelleSperre`, Settings-Beschreibungen), **service ja**
+(`IDEALAKEWMSService/` – Kontokorrent, Weichen), **migration nein** (keine Datei unter `*/Migrations/`, keine neue SQL-Nummer). Für das Epic gilt
+weiter: DB-Backup → `SQL/98`…`SQL/107` numerisch → Service stoppen → beide publizieren → Service starten:
+`dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb`
+`dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService`
+Publish aus dem Worktree → Testsystem → Test → Merge; nach dem Merge nur erneut aus `main` publizieren, wenn der Merge getestete Dateien mit
+parallelen `main`-Änderungen zusammengeführt hat. `Sync:KreditorenEnabled`/`DebitorenEnabled` am Testsystem erst nach dem Q1-Fix einschalten.
+
+### Offene manuelle Tests (für den Menschen; ergänzt die Liste der QA-Wiederholung)
+1. **Zuerst:** Q1 fixen lassen; Prüfabfrage `KHKAdressen` (Längen PLZ/E-Mail, siehe Q1) am AKE-Test und an IDEAL.
+2. TS-106.12.b/.c/.h/.p/.q/.r/.s/.t/.u: Kreditoren-/Debitoren-Lauf mit Adressen am Testsystem (K31013 → `"carlo" Loysch GmbH`, Pielacher Straße 50, 3390 Melk, AT); Kurzname/Bemerkung/Beschichter bleiben; inaktives Sage-Konto → WMS inaktiv; `wms_eigen`.
+3. TS-106.10.0/106.11.m als Nicht-Admin mit `masterdata`: kein Anlegen-Knopf, `/Creditors/Create` und `/Debitors/Create` → AccessDenied; Meldekarte „Kurznamen … am passenden Sage-Kreditor eintragen“; Kurzname setzen → Eintrag verschwindet.
+4. TS-106.0.11: gesperrte Quelle auf `SData` (IDEAL Artikel, beide FaStruktur), ein Zyklus → Warnung „Quelle: View – … gesperrt bis …“ im Bereichslauf.
+5. TS-106.3.f an AKE: `Vergleich` ohne Mengen-Differenz (≈ 100.600), **erst dann** TS-106.3.g `SData`; TS-106.3.h an IDEAL (wirkt wie View).
+6. Restliche Punkte der Liste der QA-Wiederholung (1–13) unverändert.
+
+## QA-Wiederholung 2026-11-07 (Fix e29a0857) (qa-agent) — Ergebnis: Testbereit
+
+Review-Bereich: `git diff bfdb4d17 e29a0857` (ein Commit, 4 Dateien, +61/−18). Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`,
+HEAD `e29a0857`, sauber; v1.73.0 in beiden `AppVersion.cs`. Schranke 1 für diesen Lauf laut Auftrag vom Menschen ausgesetzt.
+
+### 1. Build und Tests (ganzer Worktree, HEAD `e29a0857`)
+- `dotnet build IdealAkeWms.slnx`: **0 Fehler**, 28 Warnungen (nur Bestand: NU1902/NU1903, CS8601).
+- `dotnet test`: **IdealAkeWms.Tests 2393 bestanden / 1 übersprungen / 0 Fehler**; **IDEALAKEWMSService.Tests 494 / 0 / 0** (+1 = neuer Q1-Test).
+
+### 2. Code-Review des Fix-Commits (selbst, synchron)
+Geprüft: `KontokorrentSyncService.AdressFelder` (neue lokale Funktion `Passt`), beide Aufrufer (Neuanlage + Update; gemeinsamer Pfad für
+Kreditoren **und** Debitoren über `ISageKonto`), Sammelwarnung nach der Schleife (`SdataSchluessel.Kappen`, erste 20), neuer Test, Q3-Texte.
+Grenzen je Feld gegen die echten Spalten (`SQL/104_AddCreditors.sql:31-37`, `SQL/105_AddDebitors.sql`, `[StringLength]` in `Creditor.cs`/`Debitor.cs`)
+und die Sage-Längen (`Adressen` laut P-K1-Nachtrag dieser Spec und [[sage-sdata-api-vertraege]] Z. 73/84):
+
+| Feld | Sage | Grenze im Code | WMS-Spalte | Urteil |
+|---|---|---|---|---|
+| LieferStrasse → Street | 64 | 200 | nvarchar(200) | passt (vorsorglich, heute nie überschritten) |
+| LieferPLZ → PostalCode | 24 | 20 | nvarchar(20) | passt – eigentlicher Q1-Fall |
+| LieferOrt → City | 40 | 100 | nvarchar(100) | passt (vorsorglich) |
+| LieferLand → Country | 3 | 100 | nvarchar(100) | passt (vorsorglich) |
+| Telefon → Phone | 32 | 50 | nvarchar(50) | passt (vorsorglich) |
+| EMail → Email | 255 | 200 | nvarchar(200) | passt – eigentlicher Q1-Fall |
+| SageMatchcode → Matchcode | 50 | 50 | nvarchar(50) | passt (vorsorglich) |
+| Kontakt → ContactPerson | – | `KontaktText` kürzt bereits auf 200 | nvarchar(200) | unverändert sicher |
+| Name1 (+Name2) → Name | 50+1+50 = 101 | ungeprüft | nvarchar(200) | kann nicht überlaufen |
+
+Verhalten: zu langer Wert → `null` an `Setzen` → Feld wird nicht geschrieben (Regel „null überschreibt nie“), alter Wert bleibt, Eintrag
+„<Konto> <Feld> (<Länge> > <Grenze>)“, eine Sammelwarnung je Lauf, Lauf endet erfolgreich (Test prüft `FinishedFailed = false`). Nicht kürzen ist
+richtig (eine gekürzte PLZ/E-Mail wäre ein falscher Wert) und entspricht „melden statt still behandeln“. Bei Neuanlage bleibt das Feld leer + Warnung –
+vertretbar. AKE-Test laut Auftraggeber: PLZ max 20, E-Mail max 60 → dort heute kein Fall; IDEAL offen (TS-106.12.v).
+
+Q3 nachgezogen: Klassen-Doku `SdataArtikelReader` (AKE frei, IDEAL gesperrt solange `Sync:ArticlesViewName` gesetzt), Begründungstext im
+Bestandstest („Matchcode = Sage-Matchcode (G6)“), TESTSZENARIEN-Absatz („Sage gewinnt inkl. Matchcode/aktiv“); neue Zeile TS-106.12.v.
+Fallstrick zur Spaltenlänge steht in `fallstricke.md` („Sage-Spalten sind teils länger als die WMS-Spalten“).
+
+| # | Schwere | Befund | Umgang |
+|---|---|---|---|
+| Q1 | – | behoben (siehe oben) | geschlossen |
+| Q3 | – | behoben | geschlossen |
+| Q2 | Hinweis | unverändert („WMS-eigen“ in Liste und Lauf leicht verschieden definiert) | kein Befund |
+| Q4 | Hinweis | unverändert | kein Befund |
+| Q5 | Hinweis (erneut eingeordnet) | „Mögliche Dublette“ vergleicht den WMS-`Name` mit dem Sage-**Matchcode**. Seit B6 ist der Name eines Sage-Kontos `Name1 (+Name2)`; ein von Hand angelegter WMS-Kreditor heißt eher wie `Name1` als wie der Matchcode (z. B. „LOYSCH MELK“). Folge: Dubletten werden **übersehen**, nie falsch gemeldet; nichts wird automatisch verknüpft; jeder WMS-eigene Datensatz wird zusätzlich über `wms_eigen` (G6) gemeldet, also keine stille Folge. Die Spec sagt nur „mit gleichem Namen“ – das spräche eher für `Name1 (+Name2)`; es ist eine Unschärfe der Spec, kein Regelbruch. | Kein Befund für Testbereit. Folgearbeit (Vergleich zusätzlich gegen `NameText(adr)`), falls am Testsystem gewünscht – Punkt 6 der Checkliste. |
+
+Defektklassen: keine View/JS im Diff; kein stiller Fallback (zu lange Werte werden gemeldet); Längenregel an einem Ort (`AdressFelder`), keine Dopplung.
+
+### 3. Nachweisart
+| Punkt | Nachweis |
+|---|---|
+| Q1 zu langer Wert → nicht geschrieben, Warnung, Lauf läuft | Unit `Kreditoren_SageWertZuLang_NichtUebernommen_LaufLaeuft` (PLZ 21, E-Mail 201) |
+| Q1 echte SQL-Spaltengrenze wird nicht mehr erreicht | Grenzwerte per Review gegen `SQL/104`/`105` abgeglichen; echter Lauf **Manual-UAT** (TS-106.12.v) |
+| IDEAL-Datenlage (gibt es zu lange Werte?) | **Manual-UAT** – Prüfabfrage TS-106.12.v an IDEAL |
+
+### 4. Geänderte Bestandstests
+| Test | Einordnung |
+|---|---|
+| `Kreditoren_AdresseUndAnsprechpartner_AusSage_SageGewinnt` | nur Begründungstext der Assertion (Q3), Erwartungswerte unverändert |
+
+Kein Fall „sonstige“.
+
+### 5. Checkliste
+Keine Migration, keine SQL-Datei, Version bleibt 1.73.0; `docs/TESTSZENARIEN.md` um 106.12.v ergänzt (Indexzeile 106 deckt das ab); keine neue
+oder geänderte Einstellung (ADR 0020 nicht berührt).
+
+### 6. DEV-Deploy und Smoke
+- Standort `beide`; Shell elevated.
+- `dev-deploy.ps1 -Standort AKE -Quelle <worktree>` → „HTTP 200, Fusszeile v1.73.0“, DEV-Absicherung angewandt, „Fertig: AKE v1.73.0“.
+- `dev-deploy.ps1 -Standort IDEAL -Quelle <worktree>` → Exit 0, „HTTP 200, Fusszeile v1.73.0“, „Fertig: IDEAL v1.73.0“.
+- Schalter danach (beide DEV-DBs, `sqlcmd`): kein `Sync:*Enabled = true`; `SageLagerbuchungAktiv`, `ErrorNotification:Enabled`,
+  `Notifications:MeldebestandEnabled` = `false`. QA hat keinen Schalter umgestellt.
+
+| Schritt | Ergebnis | Status |
+|---|---|---|
+| Fußzeile IDEAL (Browser) | „© 2026 IDEAL-AKE WMS v1.73.0“ | OK |
+| IDEAL `/Creditors/Details/926` (K31013) | Seite lädt; Karte „Sage“: Herkunft Sage, Sage-Konto K31013, „Name, Adresse, Kontakt und Sage-Felder füllt der Kreditoren-Abgleich aus Sage.“ + „Letzter Kreditoren-Abgleich: 07.11.2026 08:25“ | OK |
+| Q1 im echten Lauf | braucht `Sync:KreditorenEnabled` | NICHT MÖGLICH (DEV-Grenze) |
+
+### Deploy
+Aus dem echten Diff `bfdb4d17..e29a0857`: **web nein**, **service ja** (`IDEALAKEWMSService/Services/Sdata/*`), **migration nein**. Für das Epic gilt
+der Deploy-Abschnitt der QA-Wiederholung 2026-11-06 unverändert (DB-Backup → `SQL/98`…`SQL/107` numerisch → Service stoppen → beide publizieren → Service starten):
+`dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb`
+`dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService`
+Publish aus dem Worktree → Testsystem → Test → Merge; nach dem Merge nur erneut aus `main` publizieren, wenn der Merge getestete Dateien mit
+parallelen `main`-Änderungen zusammengeführt hat. Der Vorbehalt „`Sync:KreditorenEnabled`/`DebitorenEnabled` erst nach Q1-Fix“ ist aufgehoben.
+
+### Offene manuelle Tests (für den Menschen; ersetzt die Liste des QA-Nachtrags, ergänzt die der QA-Wiederholung 2026-11-06)
+1. **TS-106.12.v an IDEAL (lesend, Sage-DB):** `SELECT MAX(LEN(a.LieferPLZ)), MAX(LEN(a.EMail)), SUM(CASE WHEN LEN(a.LieferPLZ) > 20 OR LEN(a.EMail) > 200 THEN 1 ELSE 0 END) FROM KHKKontokorrent k JOIN KHKAdressen a ON a.Adresse = k.Adresse AND a.Mandant = k.Mandant WHERE k.Mandant = 1` – AKE-Test erledigt (PLZ 20, E-Mail 60). Bei Treffern: nach dem ersten Lauf Warnung „n Sage-Wert(e) laenger als die WMS-Spalte …“ mit Konto + Feld, Lauf erfolgreich, Feld behält den alten Wert.
+2. TS-106.12.b/.c/.h/.p/.q/.r/.s/.t/.u: Kreditoren-/Debitoren-Lauf mit Adressen am Testsystem (K31013 → `"carlo" Loysch GmbH`, Pielacher Straße 50, 3390 Melk, AT); Kurzname/Bemerkung/Beschichter bleiben; inaktives Sage-Konto → WMS inaktiv; `wms_eigen`.
+3. TS-106.10.0/106.11.m als Nicht-Admin mit `masterdata`: kein Anlegen-Knopf, `/Creditors/Create` und `/Debitors/Create` → AccessDenied; Meldekarte „Kurznamen … am passenden Sage-Kreditor eintragen“; Kurzname setzen → Eintrag verschwindet.
+4. TS-106.0.11: gesperrte Quelle auf `SData` (IDEAL Artikel, beide FaStruktur), ein Zyklus → Warnung „Quelle: View – … gesperrt bis …“ im Bereichslauf.
+5. TS-106.3.f an AKE: `Vergleich` ohne Mengen-Differenz (≈ 100.600), **erst dann** TS-106.3.g `SData`; TS-106.3.h an IDEAL (wirkt wie View).
+6. Optional Q5: entscheiden, ob „mögliche Dublette“ zusätzlich gegen `Name1 (+Name2)` vergleichen soll.
+7. Danach die Liste der QA-Wiederholung 2026-11-06 (Punkte 1–12), dann Brain-Änderungen committen und Merge (Schranke 2).
+
+## QA 2026-11-07 (F + 0: 28afd9cc, a3dced19) (qa-agent) — Ergebnis: Testbereit, keine Befunde
+
+Review-Bereich: `git diff e29a0857 a3dced19` (2 Commits, 6 Dateien, +96/−13). Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`,
+HEAD `a3dced19`, sauber; v1.73.0 in beiden `AppVersion.cs`; keine Migration. Schranke 1 für diesen Lauf laut Auftrag ausgesetzt.
+
+### 1. Build und Tests (ganzer Worktree, HEAD `a3dced19`)
+- `dotnet build IdealAkeWms.slnx`: **0 Fehler**, 28 Warnungen (nur Bestand: NU1902/NU1903, CS8601, CS8321).
+- `dotnet test`: **IdealAkeWms.Tests 2393 bestanden / 1 übersprungen / 0 Fehler**; **IDEALAKEWMSService.Tests 497 / 0 / 0** (+3 neue Tests).
+
+### 2. Code-Review (selbst, synchron)
+Geprüft: `SdataArtikelReader.WhereRessourcen` + neuer 0-Zeilen-Wurf (`SdataArtikelReader.cs:191-196`) und sein Weg nach oben (der einzige
+`catch (SdataLeseException)` im Reader fängt nur `Status == 500` beim Feld-Probing, `:130`/`:140` – der neue Wurf mit Status 0 geht durch);
+`ArtikelLieferantSyncService` Filter, `hauptGelesen`-Zweig, Warnung, Neuanlage/Update mit `bisher` (`:89-121`), Empty-Guard danach unverändert;
+`KontokorrentSyncService.SageName` (`:195-206`) gegen den Namens-Schreibweg (`:153` Neuanlage `NameText(adr) ?? matchcode`, `:168-169` Update) –
+gleiche Regel, die Dublettenprüfung vergleicht jetzt mit genau dem Namen, den der Abgleich schreibt; URL-Kodierung `%` → `%25` in
+`SageSdataReadClient.BuildQueryUrl` (`IdealAkeWms/Services/SageSdata/SageSdataReadClient.cs:159`), damit `like '_%'` unverfälscht ankommt; 3 neue Tests; TESTSZENARIEN-Diff.
+
+**grep auf übrige `ne`/`gt`/`ge`/`lt`/`le`-Filter (ganzer Worktree, Web + Service, `*.cs`):** alle where-Konstanten und -Builder der SData-Leser
+gesichtet – `KtoArt eq 'K'/'D'`, `IstBestellartikel eq -1 and Aktiv eq -1`, `Mandant eq 1` (Bestand, Lagerorte), `Artikelnummer in (…)`
+(`InFilter`), `Memo like '…'` (BuchungLookup), `BelID eq n`/`StrukturID eq n` (Web-FA-Diagnose, numerisch), Ressourcen ohne where (Arbeitsplatz,
+PPS-Mitarbeiter, Stillstand, Adressen, Ansprechpartner, Artikel-Lieferanten). Einziger verbleibender Vergleichsoperator: `Istendtermin ge @yyyy-MM-dd@`
+(`SdataFaStrukturReader.cs:67`) – Datumsfeld, kein Textfeld, nicht betroffen. **Kein `ne`/`gt`/`ge`/`lt`/`le` auf einem Textfeld mehr.**
+
+**Bewertung „Artikel-Reader wirft bei 0 Ressourcenpositionen“:** tragfähig. Ein leerer Ressourcen-Teil nähme im SData-Modus still alle
+Nur-Ressource-Artikel (u. a. 86006871) aus der Lesemenge – ein stiller Mengenverlust. Der Wurf folgt dem bestehenden Muster des Readers
+(„Zeilen ohne Ressourcenummer“ wirft schon, `:197-198`) und der Vertragsregel „wirft bei jedem Lesefehler, nie leere Liste statt Fehler“; die Weiche
+behandelt einen SData-Lesefehler als Fehler ohne Nullsetzen (bestehende Tests). Grenze: gilt, solange die Quelle am Standort nie leer sein kann – an
+AKE belegt (240.552); an IDEAL ist SData bis P-R1 gesperrt, beim Entsperren mitprüfen (H2). Für den Artikel-Lieferanten-Lauf ist Warnung +
+„Kennzeichen unverändert“ die passende mildere Wahl: die Lieferantenzeilen kommen aus einer anderen Ressource, nur das Hauptlieferant-Kennzeichen
+würde sonst flächig auf `false` kippen.
+
+| # | Schwere | Befund | Umgang |
+|---|---|---|---|
+| H1 | Hinweis | `secondbrain/tests/testszenarien-index.md` nannte TS-106.3.i / TS-106.12.w / Q5 / Testartikel-Wechsel nicht. | Von QA im Hauptcheckout nachgezogen (Zeile 106). Geschlossen. |
+| H2 | Hinweis | Der 0-Zeilen-Wurf des Artikel-Readers setzt „Quelle nie leer“ voraus; an IDEAL nicht gemessen (dort gesperrt bis P-R1). | Kein Befund; beim Entsperren P-R1 mitprüfen. |
+| H3 | Hinweis | Kommentar `ArtikelLieferantSyncService.cs:35-36` nennt „like '_%' → 23.509“; gemessen ist laut [[fallstricke]] „Sage-SData-Lesen“ `like 'K%'` → 23.509. `_%` ⊇ `K%`, und `_` als Wildcard ist an `PpsRessourcenPositionenInfo` belegt (240.552) → mindestens 23.509, nie 0. | Kein Befund; genaue Zahl prüft TS-106.12.w. |
+| H4 | Hinweis | Etappenzeile N5 hatte doppelten Text („86006871 (ersetzt …) → 86006871“). | Von QA beim Statuswechsel der Zeile bereinigt. |
+
+Defektklassen: keine View/JS/Script-Einbettung im Diff; kein stiller Fallback – beide 0-Zeilen-Fälle werden gemeldet (Fehler bzw. Warnung) statt
+als „leer“ weiterverarbeitet; die Namensregel der Dublettenprüfung nutzt dieselbe Funktion `NameText` wie der Schreibweg (keine Dopplung);
+keine neue/geänderte Einstellung (ADR 0020 nicht berührt); keine Schreibaufrufe an Sage (nur `QueryAllAsync`, GET); Defaults unverändert.
+
+### 3. Nachweisart
+| Punkt | Nachweis |
+|---|---|
+| Filterkonstanten `like '_%'` | Unit (`LesenAsync_RessourcenLeer_Wirft_FilterNieNe` prüft `WhereRessourcen`; `WhereVarianten` in der Warnung von `ArtikelLieferant_VariantenLeer_…`) |
+| Ressourcen 0 Zeilen → Fehler „0 Zeilen … Filter prüfen“ | Unit `LesenAsync_RessourcenLeer_Wirft_FilterNieNe` |
+| Varianten 0 Zeilen → Warnung, `IstHauptlieferant` bleibt | Unit `ArtikelLieferant_VariantenLeer_Warnung_HauptlieferantBleibt` |
+| Dublette gegen Name1 (+Name2), Rückfall Matchcode, Konto-Matchcode zählt mit Adresse nicht | Unit `Kreditoren_Dublette_GegenSageName1Name2_RueckfallMatchcode_Q5` |
+| Sage wertet `like '_%'` wirklich aus (≈ 240.552 / ≈ 23.509) | **Manual-UAT** (Fremdsystem-Read): TS-106.3.i, TS-106.12.w |
+| 86006871 kommt über die Ressourcen in die SData-Menge | **Manual-UAT** TS-106.3.g |
+| Dublette am echten Sage-Namen | **Manual-UAT** TS-106.12.e |
+
+### 4. Geänderte Bestandstests
+Keine – der Diff fügt nur drei Tests hinzu.
+
+### 5. Checkliste
+Keine Migration/SQL, Version bleibt 1.73.0 (Auftrag), `docs/TESTSZENARIEN.md` ergänzt (106.3 Vorbedingung/Nachtrag/.g/.i, 106.12 Vorbedingung C/.e/.w),
+Testindex nachgezogen (H1). 86003871 steht in TS-106.3 nur noch als Begründung des Wechsels.
+
+### 6. DEV-Deploy und Smoke
+- Standort `beide`; Shell elevated (Administrator = True).
+- `dev-deploy.ps1 -Standort AKE -Quelle <worktree>` → Exit 0, „HTTP 200, Fusszeile v1.73.0“, DEV-Absicherung angewandt, „Fertig: AKE v1.73.0 auf http://localhost:8081/“.
+- `dev-deploy.ps1 -Standort IDEAL -Quelle <worktree>` → Exit 0, „HTTP 200, Fusszeile v1.73.0“, „Fertig: IDEAL v1.73.0 auf http://localhost:8082/“.
+- Schalter danach (`AKE_WMS_DEV`, `sqlcmd`): `Sync:ArticlesEnabled`, `Sync:KreditorenEnabled`, `Sync:ArtikelLieferantEnabled`, `SageLagerbuchungAktiv`,
+  `ErrorNotification:Enabled` = `false`. QA hat keinen Schalter umgestellt. Service-Logs nach dem Start ohne `[ERR]` (IDEAL: ältere 4060-Zeilen vor dem Deploy).
+
+| Schritt | Ergebnis | Status |
+|---|---|---|
+| Fußzeile AKE + IDEAL | v1.73.0 (Deploy-Skript, HTTP 200) | OK |
+| TS-106.3.g/.i (Artikel SData/Vergleich) | braucht Artikel-Lauf (`Sync:ArticlesEnabled`) | NICHT MÖGLICH (DEV-Grenze) |
+| TS-106.12.e/.w (Kreditoren-, Artikel-Lieferanten-Lauf) | braucht `Sync:KreditorenEnabled` / `Sync:ArtikelLieferantEnabled` | NICHT MÖGLICH (DEV-Grenze) |
+
+### Deploy
+Aus dem echten Diff `e29a0857..a3dced19`: **web nein**, **service ja** (`IDEALAKEWMSService/Services/Sdata/*`), **migration nein**. Für das Epic gilt
+der Deploy-Abschnitt der QA-Wiederholung 2026-11-06 unverändert (DB-Backup → `SQL/98`…`SQL/107` numerisch → Service stoppen → beide publizieren → Service starten):
+`dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb`
+`dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService`
+Publish aus dem Worktree → Testsystem → Test → Merge; nach dem Merge nur erneut aus `main` publizieren, wenn der Merge getestete Dateien mit
+parallelen `main`-Änderungen zusammengeführt hat.
+
+### Offene manuelle Tests (ergänzt die Liste der QA-Wiederholung 2026-11-07 (Fix e29a0857); deren Punkt 6 ist mit Q5 erledigt)
+1. **TS-106.3.i** an AKE, `Vergleich`: Info „Quelle SData: PpsRessourcenPositionenInfo …“ ≈ 240.552 Zeilen (nicht 0), Filter `Ressourcenummer like '_%'`.
+2. **TS-106.3.g** an AKE, danach `SData`: 86006871 hat eine `ArticleSageDetails`-Zeile mit `IstFertigungsartikel = 1`, `IstBestellartikel = 0`.
+3. **TS-106.12.w** Artikel-Lieferanten-Lauf: „Quelle SData: ArtikelVariantenExtended …“ ≈ 23.509 Zeilen, Count `hauptlieferant` > 0, 00722001 ↔ K31013 `IstHauptlieferant = 1`.
+4. **TS-106.12.e** mit Kreditor C = Sage-Name1 (+Name2) (z. B. `"carlo" Loysch GmbH`): Warnung „1 moegliche Dublette(n) …“ mit WMS-Id und `K31013`.
+5. Beim späteren Entsperren von SData an IDEAL (P-R1): prüfen, dass `PpsRessourcenPositionenInfo` dort nicht leer ist (H2).
+6. Danach die übrigen Punkte der vorigen Listen, Brain-Änderungen committen, Merge (Schranke 2).

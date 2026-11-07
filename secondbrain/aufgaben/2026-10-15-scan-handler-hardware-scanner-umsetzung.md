@@ -76,3 +76,16 @@ Plan (kompakt, superpowers:writing-plans):
 5. Profil-Schalter „Scannen ohne Feld“, Hilfe, Changelog, TS-99.19, Wächter-Test, v1.67.2.
 
 Stand: umgesetzt, Commit `20b573de` (wip feature-complete), QA folgt.
+
+## v1.71.1 – Scan-Feld mit einem Tipp aktivieren (Freigabe-Nachtrag 7, 2026-11-03)
+
+Plan (kompakt, Nachtrag 7 ist der Auftrag):
+1. `Inbound.cshtml`: `#hwScanOhneFeld` ohne `inputmode`, autocorrect/autocapitalize off, spellcheck false, `form-control-lg`, volle Kartenbreite.
+2. `hardware-scanner.js`: `pointerdown` = Geste; Fokus durch Tipp → nach 300 ms `inputmode="none"` + grün; Skript-Fokus grau; blur → zurück.
+3. `site.css`: drei Zustände (grau / grau + Fokusring / grün), Text + Rahmenform, WCAG AA (`frontend-design` aufgerufen).
+4. Diagnose „Fokus an (durch Tipp|per Skript), inputmode=…“; Wächter, TS-99.19 a7–h7, Hilfe, Changelog, v1.71.1 ×2.
+
+Stand: **Testbereit** (QA 2026-11-03): `9ca87f7c` + QA-Fix `6969620a` (Q7-1 Fokusring Zustand 2 als Outline ca. 8:1 statt 1,8:1; Q7-2 Wächter:
+`inputmode="none"` nur in `nachTipp`). Build 0 Fehler, Tests Web 2254/1 übersprungen, Dienst 328, Node 57. DEV AKE + IDEAL auf v1.71.1
+(IDEAL-DEV-Konfig hatte `SageLagerbuchung` doppelt, bereinigt). Checkliste Punkte 44–51 in der Spec.
+Offen am Gerät: Klappt die Tastatur beim Umschalten ein (TS-99.19 b7)? Kommt der Scan nach einem Tipp an (c7)?
