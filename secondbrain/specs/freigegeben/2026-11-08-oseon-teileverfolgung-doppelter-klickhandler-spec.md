@@ -2,15 +2,15 @@
 type: spec
 title: OSEON-Teileverfolgung – doppelter Klickhandler am Artikel-QR-Knopf (erst nachstellen, dann ggf. Guard in initScanner)
 slug: 2026-11-08-oseon-teileverfolgung-doppelter-klickhandler-spec
-status: Entwurf
+status: InUmsetzung
 created: 2026-11-07
-updated: 2026-11-07
+updated: 2026-11-08
 source_backlog: "[[2026-11-07-oseon-teileverfolgung-doppelter-klickhandler]]"
 bug: "[[2026-11-08-oseon-teileverfolgung-doppelter-klickhandler-bug]]"
 buendel: "[[2026-11-08-buendel-uebersicht]]"
-task: ""
-worktree: ""
-branch: ""
+task: "[[2026-11-08-buendel-2026-11-08-goal-lauf]]"
+worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
+branch: "feature/2026-08-07-ideal-teile-1-5"
 version: "1.82.0"   # nur bei Codeaenderung (Schritt 1 reproduziert); sonst keine Version
 standort: beide
 affected_code:
@@ -32,8 +32,8 @@ deploy:
   service: true
   migration: false
 freigabe_entscheidung: ""
-freigabe_von: ""
-freigabe_am: ""
+freigabe_von: "Gerald Weichbold"
+freigabe_am: "2026-11-07"
 ---
 
 ## Ziel / Nutzen (das Warum)
@@ -236,6 +236,31 @@ Kein Epic. Die Tabelle hält die **verbindliche Reihenfolge** der zwei Schritte 
    nachstellen und bei Befund mitbeheben (Zeile löschen)? *Empfehlung: ja.* Gleicher Mechanismus, eine Zeile. Der Wächter-Test (b) würde den Fall sonst
    als Ausnahme führen müssen.
 
+## Schritt-1-Ergebnis (Dev, 2026-11-08, AKE-DEV `localhost:8081`, v1.79.0) — BLOCKER: Schritt 1 offen – Mensch (Kamera)
+
+> [!warning] Korrektur nach QA (2026-11-08)
+> Die Einordnung „keine sichtbare Fehlwirkung“ trägt nicht: Der Lauf-PC hat keine Kamera, `startCameraScanner` wird nie erreicht, und
+> alle möglichen Effekte (a)–(d) der Spec liegen hinter diesem Zweig. Laut Spec gilt dann „Schritt 1 offen – Mensch“. Codeänderung und
+> Version 1.82.0 bleiben aus, bis Gerald entscheidet: (1) Schritt 1 am Gerät mit Kamera nachstellen, oder (2) den geplanten Guard
+> (`initScanner`, eine Zeile, plus Entfernen `LocationTransfer.cshtml:128`) gleich bauen und TS-114 am Gerät als Abnahme nehmen.
+> QA-Leseweise (nicht gemessen): Mit Kamera starten zwei Html5Qrcode-Instanzen; entweder bleibt die Kamera nach „Abbrechen“ an, oder die
+> erste schlägt fehl und schaltet das Fenster auf „Kamera nicht verfügbar“.
+
+Nachgestellt im Browser (Automations-Chrome, keine Kamera am Gerät):
+- **OSEON-Teileverfolgung** `/Tracking/OseonIndex`: `_hwScanTargets` enthält für `btnScanArticle` **zwei** Einträge (`ArticleId`, `filterArticle`).
+  Ein Klick ruft `openScannerModal` **zweimal** auf (erst `ArticleId|article`, dann `filterArticle|article`; Zählung per Wrapper um
+  `openScannerModal`). Ergebnis im DOM: **ein** `#scannerModal`, `data-ziel-id = filterArticle` (der zweite Aufruf gewinnt), kein Backdrop-Rest.
+  Hardware-Scan `00722001` im Fenster (Ereignis `wms:hardware-scan`, Fokus im Handscanner-Feld): Feld „Artikel“ gefüllt, Filter **einmal**
+  abgeschickt (`filterArticle=00722001`). Das nicht vorhandene `ArticleId` fällt im Handler über `vorhanden` heraus.
+- **Lagerplatz umbuchen** `/StockMovements/LocationTransfer`: `btnScanSourceLocation` zweimal registriert (beide `SourceStorageLocationId`),
+  ein Klick = zwei `openScannerModal`-Aufrufe mit **gleichem** Ziel.
+- **Bewertung nach Freigabe-Antwort 1:** keine sichtbare Fehlwirkung auf DEV (ein Fenster, richtiges Ziel, ein Absenden) → **keine Codeänderung,
+  keine Version 1.82.0**. Nicht prüfbar im Lauf: der Kamera-Fall am Gerät (zwei Starts von html5-qrcode kurz hintereinander, ggf. doppelte
+  Kamera-Abfrage). Zeigt sich das am Handgerät sichtbar, wird die Spec mit dem Guard aus dem Lösungsentwurf wieder aufgenommen.
+- **Zusatzfund (nicht mitgebaut, Backlog [[2026-11-08-oseon-relevanzfilter-schaltet-sich-ab]]):** Auf derselben Seite schaltet jedes Absenden
+  der Filterkarte „Fremdsystem-Relevanz“ still ab. Das versteckte `false`-Feld steht **vor** der Checkbox (`OseonIndex.cshtml:52-53`), angehakt
+  kommt `useRelevanceFilter=false&useRelevanceFilter=true`, der Binder nimmt `false` (DEV: nach dem Scan-Absenden Haken aus).
+
 ## Freigabe-Antworten (Mensch fuellt aus — Schranke 1)
 
 <!--
@@ -245,5 +270,45 @@ Kein Epic. Die Tabelle hält die **verbindliche Reihenfolge** der zwei Schritte 
   als seinen Auftrag. Antworte je Frage in **fett** hinter dem Pfeil.
 -->
 
-1. Definition „reproduziert“ (nur sichtbare Fehlwirkung; zwei Listener allein = keine Änderung) →
-2. `LocationTransfer.cshtml:128` mit nachstellen und bei Befund mitbeheben →
+1. Definition „reproduziert“ (nur sichtbare Fehlwirkung; zwei Listener allein = keine Änderung) → **wie empfohlen (Gerald 2026-11-07)**
+2. `LocationTransfer.cshtml:128` mit nachstellen und bei Befund mitbeheben → **wie empfohlen (Gerald 2026-11-07)**
+
+## QA-Bewertung (qa-agent, 2026-11-07, Bündel 2026-11-08 Lauf „A + Wareneingang“) – kein Status gesetzt
+
+**Ergebnis: Die Einordnung „nicht reproduziert“ trägt nicht. Status bleibt `InUmsetzung`, nicht Testbereit.** Begründung unten. Code-Diff: keiner (korrekt, nichts zu reviewen).
+
+### Unabhängig nachgestellt (AKE-DEV `localhost:8081`, v1.81.0, Automations-Chrome)
+- `/Tracking/OseonIndex`, Knopf `btnScanArticle` einmal geklickt: Konsole zeigt **zweimal** `Camera permission pre-warm failed: NotFoundError: Requested device not found`
+  (`barcode-scanner.js:50`, je `openScannerModal`-Aufruf eine Meldung) → zwei Aufrufe je Klick bestätigt. Fenster „Kamera nicht verfügbar. Bitte ein Bild des Codes hochladen.“
+  (hier korrekt, es gibt keine Kamera).
+- `/StockMovements/LocationTransfer`, `btnScanSourceLocation`: ebenfalls **zwei** Meldungen je Klick → Doppelregistrierung bestätigt.
+- Konsolenwerte 1.1 (`getEventListeners`, `_hwScanTargets`) habe ich nicht selbst ausgelesen (kein JS-Werkzeug in diesem Lauf); die zwei Konsolenmeldungen belegen dasselbe.
+
+### Warum die Einordnung nicht trägt
+1. **Der riskante Pfad lief nie.** Auf diesem Rechner gibt es keine Kamera: `requestCameraPermission()` liefert `false` (NotFoundError), damit ist `cameraAvailable = false`
+   und `startCameraScanner` (`barcode-scanner.js:151-153`) wird in **keinem** der beiden Aufrufe erreicht. Alle in der Spec genannten möglichen Folgen (a)–(d) liegen
+   hinter diesem Zweig. „Keine sichtbare Fehlwirkung“ ist hier also kein Befund über den Fehler, sondern über eine Umgebung, die ihn nicht auslösen kann.
+2. **Die Spec regelt genau diesen Fall selbst** (Schritt 1, Auswertung): „Kann der Lauf keinen Browser bedienen (kein Zugriff auf DevTools/**Kamera**), trägt er
+   ‚Schritt 1 offen – Mensch‘ als Blocker ein und ändert keinen Code. Er rät nicht.“ Richtig wäre also: Schritt 1 offen – Mensch, nicht „nicht reproduziert“.
+3. **Der Code macht eine sichtbare Folge mit Kamera wahrscheinlich** (Lesart `barcode-scanner.js:56-70,151-153,185-229`, nicht gemessen):
+   Beide Aufrufe warten parallel auf `getUserMedia`. Der erste baut Fenster 1 und startet `Html5Qrcode` #1 auf `#scannerReader`; der zweite entfernt Fenster 1 sofort,
+   baut Fenster 2 und startet #2, `_activeScanner` = #2. Dann gilt eines von beiden:
+   - #1 startet trotzdem auf dem entfernten Element → Stream bleibt offen, `stopScanner()` stoppt nur #2 → **Kamera bleibt nach „Abbrechen“ an** (Folge b).
+   - #1 scheitert (z. B. Android: Kamera schon belegt, `NotReadableError`) → sein `catch` setzt `_activeScanner = null` und schaltet das **verbliebene** Fenster auf
+     „Kamera nicht verfügbar“ (Folge c) – trotz Kamera; ein laufender #2 wird danach von `stopScanner` nicht mehr gestoppt.
+   Beides fällt unter die Definition „reproduziert“ aus Freigabe-Antwort 1. Auf `LocationTransfer` gilt dasselbe (gleiches Ziel, zwei Starts).
+
+### Empfehlung an den Menschen (Entscheidung, keine Codeänderung durch QA)
+- **Option 1 (Spec wie geschrieben):** Schritt 1 am Handgerät mit Kamera (AKE-Test oder DEV über `localhost`/HTTPS) nachstellen: Schritte 1.2 (Kamera-LED nach „Abbrechen“,
+  Meldung „Kamera nicht verfügbar“) und 1.5. Zeigt sich (b) oder (c): Schritt 2 (Guard + `LocationTransfer.cshtml:128` löschen + Wächter-Test + TS-114 + v1.82.0).
+- **Option 2 (vorgezogen):** Schritt 2 ohne Gerätebeweis umsetzen – eine Guard-Zeile an der gemeinsamen Stelle plus eine gelöschte Zeile; Risiko gering, da alle anderen
+  Seiten ihr Ziel-Element haben (Spec-Liste). Dann ist TS-114 am Gerät der Abnahme-Nachweis.
+- Ein Zustand „Testbereit ohne Codeänderung“ ist hier kein gültiger Abschluss, weil der Nachweis, auf dem er beruhen müsste (Kamera-Fall), gerade fehlt.
+
+### Build/Tests/Deploy (Bündel, zur Vollständigkeit)
+Build 0 Fehler; `IdealAkeWms.Tests` 2451/1 übersprungen/0, `IDEALAKEWMSService.Tests` 497/0/0; DEV AKE und IDEAL auf v1.81.0 (HEAD `747c1ced`), Exit 0. Keine DEV-Daten geändert.
+
+### Manuelle Testliste (offen für den Menschen)
+1. Schritt 1 am Gerät mit Kamera auf `/Tracking/OseonIndex` (5× öffnen/abbrechen, Kamera-Anzeige, Meldung, Scan füllt `filterArticle` und schickt ab).
+2. Dasselbe auf `/StockMovements/LocationTransfer` mit `btnScanSourceLocation`.
+3. Entscheidung Option 1 oder 2 (siehe oben).
