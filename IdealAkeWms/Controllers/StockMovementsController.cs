@@ -165,7 +165,6 @@ public class StockMovementsController : Controller
             StorageLocations = await _storageLocationRepository.GetActiveOrderedExcludingPickingTransportAsync(),
             Lines = new List<StockMovementBulkInboundLine> { new() { Quantity = 1m } }
         };
-        ViewBag.QrMitFaNummer = (await _settingRepository.GetValueAsync(AppSettingKeys.QrMitFaNummer))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
         return View(vm);
     }
 
@@ -255,7 +254,6 @@ public class StockMovementsController : Controller
     private async Task PopulateBulkInboundAsync(StockMovementBulkInboundViewModel vm)
     {
         vm.StorageLocations = await _storageLocationRepository.GetActiveOrderedExcludingPickingTransportAsync();
-        ViewBag.QrMitFaNummer = (await _settingRepository.GetValueAsync(AppSettingKeys.QrMitFaNummer))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
 
         // Anzeigetexte fuer bereits gewaehlte Artikel wiederherstellen (Select2-Re-Render).
         foreach (var line in vm.Lines)

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using IdealAkeWms.Data.Repositories;
+using IdealAkeWms.Models;
 using IdealAkeWms.Models.ViewModels;
 using IdealAkeWms.Services;
 
@@ -91,6 +92,9 @@ public class StockOverviewController : Controller
             }
         };
 
+        // Spec 2026-11-07-bestandsuebersicht-qr-fa-uebernahme-fest (Variante A): FA aus dem Artikel-QR nur mit QrMitFaNummer,
+        // gleiches Muster wie Ein-/Aus-/Umbuchung (StockMovementsController); vorher fest an.
+        ViewBag.QrMitFaNummer = (await _settingRepository.GetValueAsync(AppSettingKeys.QrMitFaNummer))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
         return View(vm);
     }
 }

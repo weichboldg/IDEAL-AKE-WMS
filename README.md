@@ -244,7 +244,7 @@ Die App startet und führt beim ersten Start automatisch `Database.Migrate()` au
 - Unterstützte Formate: QR-Code, Code 128, Code 39, EAN-13, EAN-8, Code 93
 - Lagerplatz-Code: manuell angelegte Plätze max. 12 Zeichen für zuverlässige Barcode-Erkennung (Sage-Codes bis 50 Zeichen, seit v1.14.0)
 - **QR erstes Feld** (seit v1.68.0): Per AppSetting `QrErstesFeld` (`Artikelnummer` Standard | `Matchcode`). Bei `Matchcode` wird Feld 1 eines Artikel-QR über `GET /api/articles/by-matchcode?matchcode=` (exakt, getrimmt, ohne Groß/Klein) in die Artikelnummer übersetzt; kein Treffer, mehrdeutig oder Fehler ergeben eine Meldung, es wird nichts befüllt. Laufzeit-Seed in `Program.cs`, ungültige Werte weist `/Settings` beim Speichern ab. Seit v1.69.0 trennt `QrTrennzeichen` (`;` Standard | `,`) die QR-Felder; Einstellungen mit festen Werten (`AppSettingKeys.FesteWerte`) zeigt `/Settings` als Auswahlliste.
-- **QR mit FA-Nummer**: Per AppSetting `QrMitFaNummer` — extrahiert Fertigungsauftragsnummer aus QR (3. Teil, Komma-Suffix wird abgeschnitten) und füllt das FA-Feld in Ein/Aus/Umbuchung. Bei jedem Scan wird das FA-Feld zuerst geleert.
+- **QR mit FA-Nummer**: Per AppSetting `QrMitFaNummer` — extrahiert Fertigungsauftragsnummer aus QR (3. Teil, Komma-Suffix wird abgeschnitten) und füllt das FA-Feld in Ein/Aus/Umbuchung und in der Bestandsübersicht. Bei jedem Scan wird das FA-Feld zuerst geleert.
 - **Kommissionierliste-Scan**: Gescannter Artikel wird in Stückliste gesucht und automatisch als ausgewählt markiert. Nicht gefunden → Modal mit Option "Nächsten Artikel scannen"
 
 ### Bedarfsmeldungen

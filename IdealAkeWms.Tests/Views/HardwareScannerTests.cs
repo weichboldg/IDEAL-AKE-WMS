@@ -316,4 +316,16 @@ public class HardwareScannerTests
             .And.Contain("document.body.hasAttribute('data-hw-scan-praefix')");
         Read("wwwroot", "js", "hardware-scanner.js").Should().Contain("localStorage.getItem('wms.hardwareScanner.geraet') === 'aus'");
     }
+
+    [Fact]
+    public void Bestandsuebersicht_QrFaUebernahme_FolgtQrMitFaNummer_NichtFest()
+    {
+        // Spec 2026-11-07-bestandsuebersicht-qr-fa-uebernahme-fest (Variante A)
+        var view = Read("Views", "StockOverview", "Index.cshtml");
+        view.Should().NotContain("data-qr-fa-enabled=\"true\"").And.Contain("ViewBag.QrMitFaNummer")
+            .And.Contain("data-fa-target=\"filterProductionOrder\"", "FA-Feld wird beim Artikel-Scan auch bei ausgeschalteter Einstellung geleert");
+        var ctrl = Read("Controllers", "StockMovementsController.cs");
+        ctrl.Split("ViewBag.QrMitFaNummer").Length.Should().Be(7,
+            "nur Ein-, Aus- und Umbuchung (je GET + POST) setzen den Wert; die toten Zuweisungen im Sammel-Wareneingang sind entfernt");
+    }
 }
