@@ -3,6 +3,9 @@
 @using IdealAkeWms.Services
 @{
     ViewData["Title"] = "Service-Einstellungen";
+    // B6 / ADR 0020: Warnhinweis an gesperrten Quellenschaltern - dieselbe Regel wie im Dienst (SageQuelleSperre).
+    var artikelView = Model.Groups.SelectMany(g => g.Items)
+        .FirstOrDefault(i => i.Key == IdealAkeWms.Services.SageSdata.SageQuelleSperre.ArtikelViewKey)?.Value;
 }
 
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
@@ -57,6 +60,21 @@
                         @if (!string.IsNullOrEmpty(item.Description))
                         {
                             <br /><small class="text-muted">@item.Description</small>
+                        }
+                        @if (item.Key.StartsWith("Sync:Quelle:", StringComparison.Ordinal)
+                             && IdealAkeWms.Services.SageSdata.SageQuelleSperre.Grund(item.Key["Sync:Quelle:".Length..], artikelView) is { } sperrGrund)
+                        {
+                            <div class="alert alert-warning py-2 px-3 mt-2 mb-1 small" role="status">
+                                <strong>&#9888; SData ist hier gesperrt bis @sperrGrund.</strong>
+                                @if (item.Value == "SData")
+                                {
+                                    <text>Der eingestellte Wert <code>SData</code> wirkt deshalb wie <code>View</code>; jeder Lauf meldet das als Warnung im Aktivitäts-Protokoll.</text>
+                                }
+                                else
+                                {
+                                    <text><code>SData</code> würde wie <code>View</code> wirken (Warnung im Aktivitäts-Protokoll); <code>Vergleich</code> ist möglich.</text>
+                                }
+                            </div>
                         }
                         @if (item.Key == SageTlsPolicy.SettingKey && !SageTlsPolicy.ShouldVerifyCertificate(item.Value))
                         {

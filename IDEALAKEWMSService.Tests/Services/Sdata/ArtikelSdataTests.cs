@@ -109,9 +109,14 @@ public class ArtikelSdataTests
     private sealed class TestSwitch : ArtikelQuelleSwitch
     {
         public string? Schalter { get; set; }
+        /// <summary>Wert von Sync:ArticlesViewName; Default = IDEAL-View gesetzt (gesperrt). null = AKE.</summary>
+        public string? ArtikelView { get; set; } = "vw_IDEAL_AKE_WMS_Artikel";
+        public Exception? ArtikelViewFehler { get; set; }
         public TestSwitch(ISageArtikelReader view, ISageArtikelReader sdata, ISyncErrorNotifier notifier, ISyncLogger logger)
             : base(view, sdata, new ConfigurationBuilder().Build(), notifier, logger) { }
         protected override Task<string?> LeseSchalterAsync(CancellationToken ct) => Task.FromResult(Schalter);
+        protected override Task<string?> LeseArtikelViewAsync(CancellationToken ct) =>
+            ArtikelViewFehler is null ? Task.FromResult(ArtikelView) : Task.FromException<string?>(ArtikelViewFehler);
     }
 
     private static (TestSwitch W, FakeArtikelReader View, FakeArtikelReader Sdata, FakeSyncLogger Logger) Weiche(string? schalter)
@@ -136,6 +141,33 @@ public class ArtikelSdataTests
     }
 
     [Fact]
+    public async Task Weiche_SData_AnAke_OhneArtikelView_LiestSData_G16neu()
+    {
+        var (w, view, sdata, logger) = Weiche("SData");
+        w.ArtikelView = null;
+
+        var l = await w.GetAllAsync();
+
+        (view.Aufrufe, sdata.Aufrufe).Should().Be((0, 1));
+        l.Artikel.Single().Details!.Hauptlieferant.Should().Be("K1", "SData fuellt ArticleSageDetails");
+        w.GenutzteQuelle.Should().Be(SageQuelle.SData);
+        w.QuellenWarnung.Should().BeNull();
+        logger.Runs.Should().BeEmpty("keine Sperre, keine Warnung");
+    }
+
+    [Fact]
+    public async Task Weiche_SData_ArtikelViewNichtLesbar_BleibtGesperrt()
+    {
+        var (w, view, sdata, logger) = Weiche("SData");
+        w.ArtikelViewFehler = new InvalidOperationException("DB weg");
+
+        await w.GetAllAsync();
+
+        (view.Aufrufe, sdata.Aufrufe).Should().Be((1, 0), "fail-safe: ohne Beleg AKE/IDEAL nie SData");
+        w.QuellenWarnung.Should().Contain("gesperrt bis P-R1").And.Contain("nicht lesbar");
+    }
+
+    [Fact]
     public async Task Weiche_SData_GesperrtBisPR1_WirktWieView_MitWarnung()
     {
         var (w, view, sdata, logger) = Weiche("SData");
@@ -147,6 +179,20 @@ public class ArtikelSdataTests
         w.GenutzteQuelle.Should().Be(SageQuelle.View);
         logger.Runs.Single(r => r.ServiceName == SyncLogServices.SageQuellenvergleich).Events
             .Should().ContainSingle(e => e.Level == "Warning" && e.Message.Contains("gesperrt bis P-R1"));
+        w.QuellenWarnung.Should().Contain("vw_IDEAL_AKE_WMS_Artikel", "B6: der Bereichslauf nennt den Grund");
+    }
+
+    [Theory]
+    [InlineData("FaStruktur", null, "P-F2")]
+    [InlineData("Artikel", "vw_X", "P-R1")]
+    [InlineData("Artikel", " ", null)]
+    [InlineData("Artikel", null, null)]
+    [InlineData("Lagerplaetze", "vw_X", null)]
+    public void SageQuelleSperre_Regel(string bereich, string? view, string? beginntMit)
+    {
+        var grund = SageQuelleSperre.Grund(bereich, view);
+        if (beginntMit is null) grund.Should().BeNull();
+        else grund.Should().StartWith(beginntMit);
     }
 
     [Fact]

@@ -75,7 +75,7 @@ public class SageQuelleTests
 
         public TestWeiche(ISyncLogger logger, ISyncErrorNotifier? notifier = null) : base(new ConfigurationBuilder().Build(), notifier ?? new Mock<ISyncErrorNotifier>().Object, logger) { }
         protected override string Bereich => SageQuelleSchalter.Lagerplaetze;
-        protected override string? SdataGesperrtBis => Gesperrt;
+        protected override Task<string?> SdataGesperrtBisAsync(CancellationToken ct) => Task.FromResult(Gesperrt);
         protected override Task<string?> LeseSchalterAsync(CancellationToken ct) => Task.FromResult(Schalter);
 
         public Task<List<Zeile>> GetAllAsync() => LeseAsync<List<Zeile>, Zeile>(

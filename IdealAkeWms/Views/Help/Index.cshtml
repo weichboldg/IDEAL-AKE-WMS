@@ -1855,43 +1855,48 @@
                         Werkbank-Mapping).</dd>
 
                     <dt>Kreditoren (seit v1.73.0)</dt>
-                    <dd>Lieferanten, Dienstleister und Beschichter (<em>Stammdaten &rarr; Kreditoren</em>). Pflegen darf, wer
-                        &bdquo;Stammdaten verwalten&ldquo; hat; &bdquo;Stammdaten ansehen&ldquo; sieht Liste und Details ohne Knöpfe.
+                    <dd>Lieferanten, Dienstleister und Beschichter (<em>Stammdaten &rarr; Kreditoren</em>). Kreditoren kommen aus
+                        <strong>Sage</strong> (Sage ist führend und gewinnt bei jedem Feld, das Sage liefert). Im WMS gepflegt werden nur
+                        Kurzname (Zuordnung der Dienstleister-Texte), Beschichter und Bemerkung &ndash; wer &bdquo;Stammdaten verwalten&ldquo; hat;
+                        &bdquo;Stammdaten ansehen&ldquo; sieht Liste und Details ohne Knöpfe. Anlegen im WMS gibt es nur noch als
+                        <em>Notfall</em> für Administratoren (Konto in Sage fehlt noch); der Sage-Abgleich verknüpft den Eintrag später über das
+                        Sage-Konto. Einträge mit Herkunft <em>WMS</em> meldet die Liste gelb &ndash; bitte in Sage anlegen und das Sage-Konto eintragen.
                         <ul class="mt-1 mb-1">
-                            <li><strong>Pflicht:</strong> Name und Kurzname. Der <strong>Kurzname</strong> ist eindeutig (Groß-/Kleinschreibung und
+                            <li><strong>Pflicht (nur Notfall-Anlage):</strong> Name und Kurzname. Der <strong>Kurzname</strong> ist eindeutig (Groß-/Kleinschreibung und
                                 Leerzeichen am Rand zählen nicht) und dient als Schlüssel für den Dienstleister-Text.</li>
                             <li><strong>Sage-Konto:</strong> optional, eindeutig, wird als Text gespeichert (<code>0000</code> &ne; <code>0</code>).</li>
                             <li><strong>Beschichter:</strong> Häkchen für Beschichtungs-Dienstleister; die Liste lässt sich mit
                                 &bdquo;nur Beschichter&ldquo; darauf einschränken.</li>
                             <li><strong>Herkunft:</strong> <em>WMS</em> = hier angelegt, alles pflegbar. <em>Sage</em> = vom Sage-Abgleich
-                                angelegt; dann sind Name, Adresse, Kontakt und Sage-Konto nur lesbar, Kurzname, Matchcode, Bemerkung, Beschichter und
-                                Aktiv bleiben pflegbar.</li>
+                                angelegt; dann sind Name, Matchcode, Adresse, Kontakt, Sage-Konto und aktiv/inaktiv nur lesbar (kommen aus Sage); Kurzname,
+                                Bemerkung und Beschichter bleiben pflegbar.</li>
                             <li><strong>Abgleich aus Sage (Dienst-Schalter <code>Sync:KreditorenEnabled</code>, Standard aus):</strong> Der Dienst liest
                                 die Lieferanten-Konten aus Sage. Ein neues Konto erscheint mit Herkunft <em>Sage</em>, ohne Kurzname; Name (Name 1 + Name 2),
                                 Straße, PLZ, Ort, Land, Telefon und E-Mail kommen aus der Sage-Adresse, der Ansprechpartner ist der erste aus Sage
-                                (weitere als &bdquo;(+n weitere)&ldquo;). Ein leerer Matchcode wird mit dem Sage-Matchcode gefüllt und bleibt danach im
-                                WMS pflegbar. Gibt es schon einen Kreditor mit derselben Sage-Kontonummer, wird er verknüpft und wechselt auf Herkunft
+                                (weitere als &bdquo;(+n weitere)&ldquo;); Matchcode und aktiv/inaktiv kommen ebenfalls aus Sage. Der Kurzname wird
+                                nicht aus Sage gefüllt, weil Sage-Matchcodes nicht eindeutig sind. Gibt es schon einen Kreditor mit derselben Sage-Kontonummer, wird er verknüpft und wechselt auf Herkunft
                                 <em>Sage</em>; ab dann kommen Name, Adresse und Kontakt aus Sage. Ist die Sage-Adresse einmal nicht lesbar, meldet der
                                 Lauf eine Warnung und lässt Name, Adresse und Kontakt unverändert. Die Detailseite zeigt den letzten Abgleich. Ein Kreditor ohne
                                 Sage-Konto mit gleichem Namen wird nicht verknüpft, sondern im Aktivitäts-Protokoll als &bdquo;mögliche Dublette&ldquo;
                                 gemeldet; das Sage-Konto steht dann als eigener Kreditor daneben &ndash; den WMS-Eintrag prüfen und ggf. deaktivieren. Fehlt ein Konto später in Sage, bleibt der
                                 Kreditor erhalten und bekommt &bdquo;Nicht in Sage seit&ldquo;.</li>
-                            <li><strong>Deaktivieren statt Löschen:</strong> Inaktive Kreditoren verschwinden aus dem Standardfilter &bdquo;Aktiv&ldquo;,
-                                stehen unter &bdquo;Inaktiv&ldquo;/&bdquo;Alle&ldquo; und lassen sich in den Details reaktivieren.</li>
+                            <li><strong>Deaktivieren statt Löschen:</strong> Inaktive Kreditoren verschwinden aus dem Standardfilter &bdquo;Aktiv&ldquo;
+                                und stehen unter &bdquo;Inaktiv&ldquo;/&bdquo;Alle&ldquo;. Bei Herkunft Sage folgt aktiv/inaktiv Sage; nur Einträge mit
+                                Herkunft WMS lassen sich in den Details deaktivieren und reaktivieren.</li>
                             <li><strong>Dienstleister ohne Kreditor (IDEAL):</strong> Die gelbe Karte über der Liste nennt jeden Dienstleister-Text der
                                 Beschichtungsaufträge, zu dem kein aktiver Kreditor mit gleichem Kurznamen existiert, mit der Zahl der Auftragszeilen.
-                                &bdquo;nur inaktiv&ldquo; heißt: Der passende Kreditor ist deaktiviert. &bdquo;Als Kreditor anlegen&ldquo; öffnet das
-                                Formular mit vorbelegtem Kurznamen. Der Text am Beschichtungsauftrag selbst bleibt unverändert.</li>
+                                &bdquo;nur inaktiv&ldquo; heißt: Der passende Kreditor ist deaktiviert. Den Text ordnen Sie zu, indem Sie
+                                ihn als Kurznamen am passenden Sage-Kreditor eintragen (Bearbeiten); &bdquo;Als Kreditor anlegen (Notfall)&ldquo; sehen
+                                nur Administratoren. Der Text am Beschichtungsauftrag selbst bleibt unverändert.</li>
                         </ul>
                     </dd>
 
                     <dt>Debitoren (seit v1.73.0)</dt>
-                    <dd>Kunden (<em>Stammdaten &rarr; Debitoren</em>). Bedienung, Rechte und Regeln wie bei den Kreditoren: Pflicht Name und
-                        Kurzname (eindeutig, Groß-/Kleinschreibung zählt nicht), Sage-Konto optional und eindeutig, Herkunft <em>WMS</em> oder
-                        <em>Sage</em> (dann Name, Adresse, Kontakt und Sage-Konto nur lesbar), Deaktivieren statt Löschen. Es gibt keinen
-                        Beschichter-Filter und keine Dienstleister-Karte. Der Abgleich aus Sage (Schalter <code>Sync:DebitorenEnabled</code>,
-                        Standard aus) arbeitet wie bei den Kreditoren mit den Kunden-Konten und füllt den Vertreter; den Kundennamen FA liest er
-                        noch nicht.
+                    <dd>Kunden (<em>Stammdaten &rarr; Debitoren</em>). Regeln wie bei den Kreditoren: Debitoren kommen aus Sage, Sage
+                        gewinnt; im WMS gepflegt werden nur Kurzname und Bemerkung; Anlegen nur als Admin-Notfall; Herkunft <em>Sage</em> = Name,
+                        Matchcode, Adresse, Kontakt, Sage-Konto und aktiv/inaktiv nur lesbar. Es gibt keinen Beschichter-Filter und keine
+                        Dienstleister-Karte. Der Abgleich aus Sage (Schalter <code>Sync:DebitorenEnabled</code>, Standard aus) arbeitet wie bei den
+                        Kreditoren mit den Kunden-Konten und füllt zusätzlich Vertreter und Kundenname FA.
                     </dd>
 
                     <dt>FA-Vorbau-AG (seit v1.22.0)</dt>

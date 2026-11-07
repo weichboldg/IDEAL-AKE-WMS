@@ -42,8 +42,8 @@ public class FaStrukturQuelleSwitch : SageQuelleWeiche, ISageFaStrukturReader
 
     protected override string Bereich => SageQuelleSchalter.FaStruktur;
 
-    // TODO(P-F2): Sperre aufheben erst, wenn FAInfos (SQL) und die Knotenfelder im SData-Weg belegt sind (G11).
-    protected override string? SdataGesperrtBis => "P-F2";
+    // TODO(P-F2): Sperre (SageQuelleSperre.Grund "FaStruktur") aufheben erst, wenn FAInfos (SQL) und die Knotenfelder im SData-Weg
+    // belegt sind (G11).
 
     /// <summary>Hinweise des SData-Readers — leer, wenn diesmal nur die View gelesen wurde.</summary>
     public IReadOnlyList<SdataHinweis> SdataHinweise =>

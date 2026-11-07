@@ -1,3 +1,5 @@
+using IDEALAKEWMSService.Common;
+using IdealAkeWms.Services.SageSdata;
 using IdealAkeWms.Services.SyncLogger;
 
 namespace IDEALAKEWMSService.Services.Sdata;
@@ -5,8 +7,9 @@ namespace IDEALAKEWMSService.Services.Sdata;
 /// <summary>
 /// Spec 2026-11-06-sage-sdata-stammdaten-sync (E3a): Quellen-Weiche fuer <see cref="ISageArtikelReader"/> (Schalter
 /// <c>Sync:Quelle:Artikel</c>, Default View). View = <see cref="SageArtikelReader"/> (bisheriger Lese-Code unveraendert),
-/// SData = <see cref="SdataArtikelReader"/>. G16: <c>SData</c> ist gesperrt bis P-R1 (IDEAL-Filter der Artikel-View) und wirkt wie
-/// <c>View</c> mit Warnung; <c>Vergleich</c> ist erlaubt und schreibt nur aus der View (also nie den Satelliten).
+/// SData = <see cref="SdataArtikelReader"/>. G16 neu (Gerald 2026-11-07): an AKE (keine Artikel-View, AKE-Filter wie
+/// <see cref="SageArticleSql.LegacySql"/>) ist <c>SData</c> frei; an IDEAL (<c>Sync:ArticlesViewName</c> gesetzt) gesperrt bis P-R1 und
+/// wirkt wie <c>View</c> mit Warnung. <c>Vergleich</c> ist immer erlaubt und schreibt nur aus der View (also nie den Satelliten).
 /// Registrierung: <see cref="SdataRegistrierung.AddArtikelQuelle"/>.
 /// </summary>
 public class ArtikelQuelleSwitch : SageQuelleWeiche, ISageArtikelReader
@@ -35,8 +38,19 @@ public class ArtikelQuelleSwitch : SageQuelleWeiche, ISageArtikelReader
 
     protected override string Bereich => SageQuelleSchalter.Artikel;
 
-    // TODO(P-R1): Sperre aufheben, sobald der IDEAL-Filter der Artikel-View belegt und im SdataArtikelReader nachgebaut ist (G16).
-    protected override string? SdataGesperrtBis => "P-R1";
+    // TODO(P-R1): IDEAL-Sperre aufheben, sobald der Filter der Artikel-View belegt und im SdataArtikelReader nachgebaut ist (G2/G16).
+    // Nicht lesbar = gesperrt (fail-safe: ein DB-Aussetzer darf IDEAL nie auf SData schalten).
+    protected override async Task<string?> SdataGesperrtBisAsync(CancellationToken ct)
+    {
+        string? view;
+        try { view = await LeseArtikelViewAsync(ct); }
+        catch (Exception ex) when (ex is not OperationCanceledException) { return $"P-R1 ({SageQuelleSperre.ArtikelViewKey} nicht lesbar: {ex.Message})"; }
+        return SageQuelleSperre.Grund(Bereich, view);
+    }
+
+    /// <summary>Wert von <c>Sync:ArticlesViewName</c> (DB, wirft bei DB-Fehler); ueberschreibbar fuer Tests.</summary>
+    protected virtual Task<string?> LeseArtikelViewAsync(CancellationToken ct) =>
+        ServiceSettings.GetValueAsync(Configuration, SageQuelleSperre.ArtikelViewKey, ct);
 
     /// <summary>Hinweise des SData-Readers (Ressourcen, Bloecke, Zeilen) — leer, wenn diesmal nur die View gelesen wurde.</summary>
     public IReadOnlyList<SdataHinweis> SdataHinweise =>

@@ -118,8 +118,8 @@ public class OperationConfigSyncService : IOperationConfigSyncService
                 return new SyncResult(0, 0, 0, "Quelle nicht vorhanden.");
             }
             rows = read.Rows;
-            if (_reader is SageQuelleWeiche { GenutzteQuelle: { } quelle })
-                await run.LogInfoAsync($"Quelle: {quelle}", ct: ct); // F1
+            if (_reader is SageQuelleWeiche { GenutzteQuelle: not null } weiche)
+                await weiche.LogQuelleAsync(run, ct); // F1
             if (!read.ArbeitsschrittGeliefert)
             {
                 // E6a/G12, TODO(P-A1): SData liefert USER_ArbeitsSchritt (noch) nicht. Ohne Kuerzel waere jeder Eintrag "nicht in Sage" —

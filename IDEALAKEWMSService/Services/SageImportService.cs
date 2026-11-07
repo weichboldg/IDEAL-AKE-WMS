@@ -571,9 +571,9 @@ public class SageImportService : ISageImportService
     /// <summary>Info-Zeile „Quelle: View|SData|Vergleich“ (F1) + Hinweise des SData-Readers, nur wenn der Reader die Quellen-Weiche ist.</summary>
     private async Task LogArtikelQuelleAsync(ISyncRun run, CancellationToken ct)
     {
-        if (_artikelReader is not SageQuelleWeiche { GenutzteQuelle: { } quelle })
+        if (_artikelReader is not SageQuelleWeiche { GenutzteQuelle: not null } weiche)
             return;
-        await run.LogInfoAsync($"Quelle: {quelle}", ct: ct);
+        await weiche.LogQuelleAsync(run, ct);
         if (_artikelReader is ArtikelQuelleSwitch w)
             foreach (var h in w.SdataHinweise)
                 if (h.Warnung) await run.LogWarningAsync(h.Text, ct: ct);

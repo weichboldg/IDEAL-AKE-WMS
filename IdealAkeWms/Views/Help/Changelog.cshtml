@@ -39,11 +39,16 @@
                     <li>Chargen und Seriennummern werden über SData nur gezählt und im Protokoll genannt, nicht gespeichert.</li>
                     <li>Kann SData nicht gelesen werden, wird nichts gebucht und nichts auf 0 gesetzt; es geht eine Fehlermail an die Sync-Fehler-Empfänger.</li>
                 </ul>
-                <h6>Artikel über SData (Vorbereitung)</h6>
+                <h6>Artikel über SData</h6>
                 <ul>
                     <li><code>Sync:Quelle:Artikel</code> = <code>Vergleich</code> liest die Artikel zusätzlich über die Sage-Schnittstelle und meldet
-                        Abweichungen im Lauf &bdquo;Sage-Quellenvergleich&ldquo;; geschrieben wird weiter nur aus der View. <code>SData</code> ist noch gesperrt
-                        (wirkt wie <code>View</code> mit Warnung), bis der Artikel-Filter des IDEAL-Standorts geklärt ist.</li>
+                        Abweichungen im Lauf &bdquo;Sage-Quellenvergleich&ldquo;; geschrieben wird weiter nur aus der View. <code>SData</code> liest am
+                        Standort AKE dieselben Artikel wie bisher über die Sage-Schnittstelle und füllt Sage-Zusatzfelder und Benutzerfeld-Merkmale; am
+                        Standort IDEAL (Artikel-View eingestellt) bleibt <code>SData</code> gesperrt (wirkt wie <code>View</code> mit Warnung), bis der
+                        Artikel-Filter des IDEAL-Standorts geklärt ist.</li>
+                    <li>Gesperrte Quellen sind sichtbar: In den Service-Einstellungen steht an <code>Sync:Quelle:FaStruktur</code> (und an IDEAL an
+                        <code>Sync:Quelle:Artikel</code>) ein gelber Hinweis mit dem Grund; der Lauf im Aktivitäts-Protokoll meldet &bdquo;Quelle: View &ndash;
+                        … gesperrt bis …&ldquo; als Warnung.</li>
                     <li>Die Artikelinfo zeigt einen Abschnitt <strong>Sage-Zusatzfelder</strong> (z.&nbsp;B. Hauptlieferant, Wiederbeschaffungszeit,
                         Lagerführung, Fertigungs- und Bestellkennzeichen, Maße), nur lesend. Er erscheint erst, wenn ein Artikel über SData gelesen wurde.</li>
                     <li>Sage-Benutzerfelder (z.&nbsp;B. Maschine, Ausführung, Kältemittel, Pfad Schaltplan) werden beim Abgleich über SData zu
@@ -103,8 +108,9 @@
                     <li>Hinweiskarte &bdquo;Dienstleister ohne Kreditor&ldquo; (IDEAL): nennt jeden Dienstleister-Text der Beschichtungsaufträge, zu dem
                         kein aktiver Kreditor mit gleichem Kurznamen existiert, mit Link &bdquo;Als Kreditor anlegen&ldquo;.</li>
                     <li>Der Dienstleister am Beschichtungsauftrag bleibt Freitext.</li>
-                    <li>Abgleich aus Sage (Kreditoren und Debitoren): Name, Adresse, Telefon, E-Mail und Ansprechpartner kommen aus der
-                        Sage-Adresse, ein leerer Matchcode aus dem Sage-Matchcode; die Detailseite zeigt den letzten Abgleich.</li>
+                    <li>Kreditoren und Debitoren kommen aus Sage, Sage ist führend: Name, Matchcode, Adresse, Telefon, E-Mail, Ansprechpartner
+                        und aktiv/inaktiv übernimmt der Abgleich aus Sage. Im WMS gepflegt werden nur Kurzname, Beschichter und Bemerkung; Anlegen
+                        gibt es nur noch als Notfall für Administratoren, Einträge ohne Sage-Konto meldet die Liste. Die Detailseite zeigt den letzten Abgleich.</li>
                 </ul>
                 <h6>Debitoren (Stammdaten)</h6>
                 <ul>

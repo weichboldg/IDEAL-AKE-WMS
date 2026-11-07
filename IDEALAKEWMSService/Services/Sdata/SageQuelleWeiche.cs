@@ -1,4 +1,5 @@
 using IDEALAKEWMSService.Common;
+using IdealAkeWms.Services.SageSdata;
 using IdealAkeWms.Services.SyncLogger;
 
 namespace IDEALAKEWMSService.Services.Sdata;
@@ -38,8 +39,20 @@ public abstract class SageQuelleWeiche
     /// <summary>Key-Suffix, eine Konstante aus <see cref="SageQuelleSchalter"/>.</summary>
     protected abstract string Bereich { get; }
 
-    /// <summary>Gesetzt (z. B. <c>"P-F2"</c>) = Umschalten auf SData gesperrt, bis die Pruefabfrage beantwortet ist.</summary>
-    protected virtual string? SdataGesperrtBis => null;
+    /// <summary>Warnung des letzten Aufrufs (SData gesperrt, unbekannter Wert) oder null — fuer die Info-Zeile im Lauf des Bereichs (B6).</summary>
+    public string? QuellenWarnung { get; private set; }
+
+    protected IConfiguration Configuration => _configuration;
+
+    /// <summary>Gesetzt (z. B. „P-F2 …“) = Umschalten auf SData gesperrt, bis die Pruefabfrage beantwortet ist. Regel an EINEM Ort:
+    /// <see cref="SageQuelleSperre"/> (auch Grundlage des Warnhinweises in /ServiceSettings).</summary>
+    protected virtual Task<string?> SdataGesperrtBisAsync(CancellationToken ct) => Task.FromResult(SageQuelleSperre.Grund(Bereich, null));
+
+    /// <summary>Zeile „Quelle: …“ im Lauf des Bereichs (F1); wirkt die Quelle wegen Sperre/unbekanntem Wert wie View, als Warnung
+    /// mit Grund (B6) — nicht nur im Lauf „Sage-Quellenvergleich“.</summary>
+    public Task LogQuelleAsync(ISyncRun run, CancellationToken ct) => QuellenWarnung is { } w
+        ? run.LogWarningAsync($"Quelle: {GenutzteQuelle} – {w}", ct: ct)
+        : run.LogInfoAsync($"Quelle: {GenutzteQuelle}", ct: ct);
 
     /// <summary>Rohwert des Schalters; ueberschreibbar fuer Tests.</summary>
     protected virtual Task<string?> LeseSchalterAsync(CancellationToken ct) =>
@@ -53,8 +66,9 @@ public abstract class SageQuelleWeiche
         IReadOnlyList<SdataVergleich.Feld<TZeile>> felder,
         CancellationToken ct)
     {
-        var wahl = SageQuelleSchalter.Parse(Bereich, await LeseSchalterAsync(ct), SdataGesperrtBis);
+        var wahl = SageQuelleSchalter.Parse(Bereich, await LeseSchalterAsync(ct), await SdataGesperrtBisAsync(ct));
         GenutzteQuelle = wahl.Quelle;
+        QuellenWarnung = wahl.Warnung;
         if (wahl.Warnung is not null)
         {
             await using var warnLauf = await _syncLogger.BeginRunAsync(SyncLogServices.SageQuellenvergleich, ct);

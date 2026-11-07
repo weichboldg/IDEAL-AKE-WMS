@@ -294,8 +294,8 @@ public class LagerplatzSyncService : ILagerplatzSyncService
     /// <summary>Info-Zeile „Quelle: View|SData|Vergleich“ (F1), nur wenn der Reader die Quellen-Weiche ist.</summary>
     private async Task LogQuelleAsync(ISyncRun run, CancellationToken ct)
     {
-        if (_reader is SageQuelleWeiche { GenutzteQuelle: { } quelle })
-            await run.LogInfoAsync($"Quelle: {quelle}", ct: ct);
+        if (_reader is SageQuelleWeiche { GenutzteQuelle: not null } weiche)
+            await weiche.LogQuelleAsync(run, ct);
     }
 
     private static bool Abweichend<T>(T? alt, T? neu) where T : struct => neu.HasValue && !Equals(alt, neu);
