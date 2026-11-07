@@ -24,6 +24,7 @@ public class PickingLeitstandController : Controller
     private readonly IProductionOrderBdeStatusRepository _bdeStatusRepository;
     private readonly IBdeBookingRepository _bdeBookingRepository;
     private readonly IArticleRepository _articleRepository;
+    private readonly PickingOrderWorkflow _pickingOrderWorkflow;
     private readonly ILogger<PickingLeitstandController> _logger;
 
     public PickingLeitstandController(
@@ -40,8 +41,10 @@ public class PickingLeitstandController : Controller
         IProductionOrderBdeStatusRepository bdeStatusRepository,
         IBdeBookingRepository bdeBookingRepository,
         IArticleRepository articleRepository,
+        PickingOrderWorkflow pickingOrderWorkflow,
         ILogger<PickingLeitstandController> logger)
     {
+        _pickingOrderWorkflow = pickingOrderWorkflow;
         _productionOrderRepository = productionOrderRepository;
         _pickingStatusRepository = pickingStatusRepository;
         _faWorkStepRepository = faWorkStepRepository;
@@ -399,6 +402,11 @@ public class PickingLeitstandController : Controller
                 _currentUserService.GetDisplayName(), _currentUserService.GetWindowsUserName());
         }
 
+        // v1.88.0 (Spec 2026-11-08-kommissionierung-auftraege-kopf-zeilen, E2): nach der Freigabe Kommissionierauftraege erzeugen
+        // (nach dem Kommissionierer-Setzen, damit die Auftraege ihn uebernehmen).
+        if (newReleased)
+            await AuftraegeMeldenAsync(new[] { (order.OrderNumber, await _pickingOrderWorkflow.ErzeugeOffeneAsync(id)) });
+
         if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl)) return Redirect(returnUrl);
         return RedirectToAction(nameof(Index));
     }
@@ -443,6 +451,13 @@ public class PickingLeitstandController : Controller
             TempData["SuccessMessage"] = $"{batch.Processed} Freigabe(n) zurückgenommen.";
 
         var warnings = new List<string>();
+        if (release && batch.ProcessedIds.Count > 0)
+        {
+            // v1.88.0 E2: je freigegebenem FA Kommissionierauftraege; Sammelmeldung statt Abbruch je FA.
+            var (erfolg, warnung) = PickingOrderWorkflow.Sammelmeldung(await ErzeugeAsync(batch.ProcessedIds));
+            TempData["SuccessMessage"] += " " + erfolg;
+            if (warnung != null) warnings.Add(warnung);
+        }
         if (batch.SkippedNoArticle.Count > 0)
             warnings.Add($"Übersprungen (keine Artikelnummer): {string.Join(", ", batch.SkippedNoArticle)}");
         if (batch.SkippedSubFa.Count > 0)
@@ -452,6 +467,43 @@ public class PickingLeitstandController : Controller
 
         if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl)) return Redirect(returnUrl);
         return RedirectToAction(nameof(Index));
+    }
+
+    /// <summary>v1.88.0 E2: „Fehlende Kommissionieraufträge erzeugen“ – fuer die markierten FAs, ohne Auswahl fuer alle freigegebenen,
+    /// offenen HauptFAs. Dieselbe Funktion wie bei der Freigabe (idempotent).</summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [RequireLeitstandAccess]
+    public async Task<IActionResult> AuftraegeNachziehen(List<int>? ids, string? returnUrl)
+    {
+        var fas = ids is { Count: > 0 }
+            ? ids
+            : (await _pickingStatusRepository.GetReleasedForPickingAsync()).Select(o => o.Id).ToList();
+        var (erfolg, warnung) = PickingOrderWorkflow.Sammelmeldung(await ErzeugeAsync(fas));
+        TempData["SuccessMessage"] = erfolg;
+        if (warnung != null) TempData["WarningMessage"] = warnung;
+        if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl)) return Redirect(returnUrl);
+        return RedirectToAction(nameof(Index));
+    }
+
+    private async Task<List<(string Fa, PickingOrderErzeugung E)>> ErzeugeAsync(IEnumerable<int> faIds)
+    {
+        var liste = new List<(string, PickingOrderErzeugung)>();
+        foreach (var id in faIds.Distinct())
+        {
+            var o = await _productionOrderRepository.GetByIdAsync(id);
+            if (o == null) continue;
+            liste.Add((o.OrderNumber, await _pickingOrderWorkflow.ErzeugeOffeneAsync(id)));
+        }
+        return liste;
+    }
+
+    private Task AuftraegeMeldenAsync(IReadOnlyCollection<(string Fa, PickingOrderErzeugung E)> ergebnisse)
+    {
+        var (erfolg, warnung) = PickingOrderWorkflow.Sammelmeldung(ergebnisse);
+        TempData["SuccessMessage"] = erfolg;
+        if (warnung != null) TempData["WarningMessage"] = warnung;
+        return Task.CompletedTask;
     }
 
     [HttpPost]

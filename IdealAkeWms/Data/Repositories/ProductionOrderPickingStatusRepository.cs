@@ -285,6 +285,7 @@ public class ProductionOrderPickingStatusRepository : IProductionOrderPickingSta
             row.ModifiedBy = modifiedBy;
             row.ModifiedByWindows = modifiedByWindows;
             result.Processed++;
+            result.ProcessedIds.Add(row.ProductionOrderId);
         }
 
         if (result.Processed > 0)

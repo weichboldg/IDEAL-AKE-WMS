@@ -83,7 +83,20 @@
                 Markierte zurücknehmen
             </button>
         </form>
+        @* v1.88.0: Kommissionierauftraege fuer markierte, freigegebene FAs nachziehen (idempotent) *@
+        <form asp-controller="PickingLeitstand" asp-action="AuftraegeNachziehen" method="post" id="bulkNachziehenForm" class="d-inline ms-2">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+            <button type="submit" id="btnBulkNachziehen" class="btn btn-sm btn-outline-primary" disabled>
+                Fehlende Kommissionieraufträge erzeugen
+            </button>
+        </form>
     </div>
+    <form asp-controller="PickingLeitstand" asp-action="AuftraegeNachziehen" method="post" class="mb-2">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+        <button type="submit" class="btn btn-sm btn-outline-primary">Fehlende Kommissionieraufträge für alle freigegebenen FAs erzeugen</button>
+    </form>
 }
 
 @* Toolbar-Host (data-table-toolbar, site.js tableToolbarHost): Zahnrad und CSV. Hinweise duerfen davor oder dahinter stehen (v1.65.0). *@
@@ -612,6 +625,8 @@
             var btnUnrelease = document.getElementById('btnBulkUnrelease');
             var formRelease = document.getElementById('bulkReleaseForm');
             var formUnrelease = document.getElementById('bulkUnreleaseForm');
+            var btnNachziehen = document.getElementById('btnBulkNachziehen');
+            var formNachziehen = document.getElementById('bulkNachziehenForm');
 
             function getRowCheckboxes() {
                 return Array.prototype.slice.call(document.querySelectorAll('.bulk-row-checkbox'));
@@ -641,6 +656,8 @@
                 btnRelease.disabled = !(total > 0 && releasedCount === 0 && allHaveArticle);
                 // Zurücknehmen: alle Markierten sind freigegeben (Artikelnummer egal)
                 btnUnrelease.disabled = !(total > 0 && unreleasedCount === 0);
+                // Nachziehen: nur freigegebene FAs
+                if (btnNachziehen) btnNachziehen.disabled = btnUnrelease.disabled;
 
                 // SelectAll Tri-State
                 var visible = getVisibleCheckboxes();
@@ -709,6 +726,7 @@
             }
             formRelease.addEventListener('submit', function () { attachIds(formRelease); });
             formUnrelease.addEventListener('submit', function () { attachIds(formUnrelease); });
+            if (formNachziehen) formNachziehen.addEventListener('submit', function () { attachIds(formNachziehen); });
 
             // PickerAssignment-Pfad: Release-Submit öffnet Modal statt zu submitten
             if (pickerAssignmentEnabled) {

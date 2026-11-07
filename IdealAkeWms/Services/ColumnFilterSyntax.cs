@@ -56,7 +56,7 @@ public static class ColumnFilterTypes
             ["FaWorklist/Index"] = L(("quantity", N), ("coating-date", D), ("bg-date", D), ("picking-date", D), ("production-date", D)),
             ["PartRequisitions/Index"] = L(("quantity", N), ("ordered-at", D)),
             ["Picking/Bom"] = L(("quantity", N)),
-            ["Picking/Index"] = L(("priority", N), ("picking-date", D)),
+            ["Picking/Index"] = L(("priority", N), ("picking-date", D)), // v1.88.0 Auftragsliste (Faelligkeit = picking-date)
             ["PickingLeitstand/Index"] = L(("coating-date", D), ("bg-date", D), ("picking-date", D), ("production-date", D), ("delivery-date", D)),
             ["ProductionOrders/Index"] = L(("prio", N), ("konstruktions-termin", D), ("coating-date", D), ("bg-date", D),
                 ("picking-date", D), ("production-date", D), ("delivery-date", D)),

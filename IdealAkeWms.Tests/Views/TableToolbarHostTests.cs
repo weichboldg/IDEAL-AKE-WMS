@@ -89,7 +89,6 @@ public class TableToolbarHostTests
     [InlineData("ProductionOrders/Index.cshtml")]
     [InlineData("FaCompletion/Index.cshtml")]
     [InlineData("FaWorklist/Index.cshtml")]
-    [InlineData("Picking/Index.cshtml")]
     public void Marker_StehtUeberDerZaehlzeile(string rel)
     {
         var html = View(rel);

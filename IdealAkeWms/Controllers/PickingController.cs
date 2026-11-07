@@ -28,6 +28,9 @@ public class PickingController : Controller
     private readonly IArticleAttributeRepository _articleAttributeRepository;
     private readonly IServiceSettingRepository _serviceSettingRepository;
     private readonly ILogger<PickingController> _logger;
+    private readonly IPickingOrderRepository _pickingOrderRepository;
+    private readonly IPickingAreaRepository _pickingAreaRepository;
+    private readonly PickingOrderWorkflow _pickingOrderWorkflow;
 
     public PickingController(
         IProductionOrderRepository productionOrderRepository,
@@ -47,8 +50,14 @@ public class PickingController : Controller
         IPartRequisitionRepository partRequisitionRepository,
         IArticleAttributeRepository articleAttributeRepository,
         IServiceSettingRepository serviceSettingRepository,
+        IPickingOrderRepository pickingOrderRepository,
+        IPickingAreaRepository pickingAreaRepository,
+        PickingOrderWorkflow pickingOrderWorkflow,
         ILogger<PickingController> logger)
     {
+        _pickingOrderRepository = pickingOrderRepository;
+        _pickingAreaRepository = pickingAreaRepository;
+        _pickingOrderWorkflow = pickingOrderWorkflow;
         _productionOrderRepository = productionOrderRepository;
         _pickingStatusRepository = pickingStatusRepository;
         _currentUserService = currentUserService;
@@ -75,33 +84,22 @@ public class PickingController : Controller
                    || v.Equals("on", StringComparison.OrdinalIgnoreCase));
 
     /// <summary>
-    /// Server-Side-Spaltenfilter: Col-Key (data-col-key der View) -> gerenderter Zell-Text.
-    /// Die Getter MUESSEN exakt das liefern, was die View in der Zelle rendert
-    /// (Termin im View-Format "dd.MM.yyyy KWxx" lowercase, "Offen" fuer leeren Status, "-" fuer fehlende Prio).
+    /// v1.88.0 Auftragsliste: Server-Spaltenfilter Col-Key -> gerenderter Zell-Text (Termin im View-Format "dd.MM.yyyy KWxx" lowercase,
+    /// "-" fuer fehlende Prio). Die Getter MUESSEN exakt das liefern, was die View rendert.
     /// </summary>
-    private static readonly Dictionary<string, Func<PickingListItem, string?>> ColumnMap = new()
+    private static readonly Dictionary<string, Func<PickingOrderListItem, string?>> ColumnMap = new()
     {
         ["priority"] = i => i.PickingPriority?.ToString() ?? "-",
+        ["nummer"] = i => i.Nummer,
         ["order-number"] = i => i.OrderNumber,
         ["article-number"] = i => i.ArticleNumber,
-        ["matchcode"] = i => i.Matchcode,
         ["description"] = i => i.Description1,
-        ["customer"] = i => i.Customer,
-        ["quantity"] = i => i.Quantity.ToString("N0"),
-        ["picking-date"] = i => FormatDateForFilter(i.KommissionierTermin),
-        ["status"] = i => string.IsNullOrEmpty(i.PickingStatus) ? "Offen" : i.PickingStatus,
+        ["workbench"] = i => i.WorkplaceName,
+        ["bereich"] = i => i.Bereich,
+        ["picking-date"] = i => FormatDateForFilter(i.Faelligkeit),
+        ["status"] = i => PickingOrderListItem.StatusText(i.Status),
         ["picker"] = i => i.AssignedPickerName,
     };
-
-    /// <summary>
-    /// Hierarchischer Modus: FA-Nummer-Spaltenfilter matcht Sub-zuerst-dann-Haupt (OR ueber Contains).
-    /// Rest identisch zum Flachmodus-Map.
-    /// </summary>
-    private static readonly Dictionary<string, Func<PickingListItem, string?>> ColumnMapHierarchical =
-        new(ColumnMap)
-        {
-            ["order-number"] = i => $"{i.SubOrderNumber} {i.OrderNumber}",
-        };
 
     /// <summary>
     /// Formatiert ein Datum identisch zur View (<c>dd.MM.yyyy KWxx</c>) und lowercased,
@@ -115,8 +113,14 @@ public class PickingController : Controller
         return $"{d:dd.MM.yyyy} KW{kw}".ToLowerInvariant();
     }
 
+    /// <summary>
+    /// v1.88.0 (Spec 2026-11-08-kommissionierung-auftraege-kopf-zeilen, E2, AK 10): Kommissionierauftraege statt FAs. Standard: Status
+    /// Offen/In Arbeit, FA nicht erledigt (IsDone/IsDonePicking) und nicht storniert; Filter Bereich, Status, „Nur meine“ (bei Zuweisung).
+    /// Faelligkeit wie heute aus dem FA gerechnet (Kommissionier-Vorlauf), Bereich „Vorkommissionierung“ zusaetzlich mit dem
+    /// Vorkommissionier-Vorlauf (Werkbank-Override, Antwort 8). Spaltenfilter VOR dem Paging, Datum nach der Terminberechnung.
+    /// </summary>
     [RequirePickingAccess]
-    public async Task<IActionResult> Index(bool showAll = false, int page = 1, int? pageSize = null)
+    public async Task<IActionResult> Index(bool showAll = false, int? bereichId = null, string? status = null, int page = 1, int? pageSize = null)
     {
         var leitstandAktiv = (await _settingRepository.GetValueAsync(AppSettingKeys.LeitstandAktiv))
             ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
@@ -126,131 +130,62 @@ public class PickingController : Controller
 
         var pickerAssignmentEnabled = (await _settingRepository.GetValueAsync(AppSettingKeys.KommissionierungMitZuweisung))
             ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
+        var statusFilter = status == "alle" ? "alle" : "offen";
 
         var userDefaultPageSize = await _currentUserService.GetDefaultPageSizeAsync();
         var effectivePageSize = IdealAkeWms.Services.PageSize.Resolve(pageSize, userDefaultPageSize);
         var rawPageSize = IdealAkeWms.Services.PageSize.ResolveRaw(pageSize, userDefaultPageSize);
 
-        List<ProductionOrder> releasedOrders;
+        var auftraege = await _pickingOrderRepository.GetListeAsync(nurOffene: statusFilter == "offen");
+        if (bereichId.HasValue) auftraege = auftraege.Where(o => o.PickingAreaId == bereichId).ToList();
         if (pickerAssignmentEnabled && !showAll)
         {
             var currentUserId = _currentUserService.GetCurrentAppUserId();
-            releasedOrders = currentUserId.HasValue
-                ? await _pickingStatusRepository.GetReleasedForPickingByPickerAsync(currentUserId.Value)
-                : new List<ProductionOrder>();
-        }
-        else
-        {
-            releasedOrders = await _pickingStatusRepository.GetReleasedForPickingAsync();
+            auftraege = auftraege.Where(o => currentUserId.HasValue && o.AssignedPickerId == currentUserId).ToList();
         }
 
         var kommissionierTage = await _settingRepository.GetIntValueAsync("KommissionierTage", 4);
+        var vorkommissionierTage = await _settingRepository.GetIntValueAsync("VorkommissionierTage", 1);
         var holidays = await _holidayRepository.GetHolidayDatesAsync();
 
-        // Matchcode-Join (Task 2, Artikelstamm): EIN Batch-Lookup fuer alle freigegebenen FAs
-        // (nicht nur die aktuelle Seite), VOR der Projektion/dem Spaltenfilter.
-        var matchcodes = await MatchcodeLookup.BuildAsync(
-            _articleRepository, releasedOrders.Select(o => o.ArticleNumber), _logger, "Picking");
-
-        // Termin-Berechnung fuer ALLE freigegebenen FAs (nicht nur die aktuelle Seite):
-        // der Termin-Spaltenfilter (dd.MM.yyyy KWxx) muss ueber alle Eintraege wirken.
-        // Reine In-Memory-Datumsmathematik, unkritisch fuer die Performance.
-        var allItems = releasedOrders.Select(o =>
+        var allItems = auftraege.Select(o =>
         {
-            var ps = o.PickingStatus; // Nav-Property (Include() im Repo)
-            var item = new PickingListItem
+            var fa = o.ProductionOrder;
+            DateTime? faellig = null;
+            if (fa?.ProductionDate is { } termin)
             {
-                Id = o.Id,
-                PickingPriority = ps?.PickingPriority,
-                OrderNumber = o.OrderNumber,
-                ArticleNumber = o.ArticleNumber,
-                Matchcode = matchcodes.GetValueOrDefault(o.ArticleNumber ?? string.Empty),
-                Description1 = o.Description1,
-                Customer = o.Customer,
-                Quantity = o.Quantity,
-                ProductionDate = o.ProductionDate,
-                PickingStatus = ps?.PickingStatus,
-                AssignedPickerId = ps?.AssignedPickerId,
-                AssignedPickerName = ps?.AssignedPickerName,
-                SubOrderNumber = o.SubOrderNumber,
-                ParentSubOrderNumber = o.ParentSubOrderNumber,
-                SageMissingSince = o.SageMissingSince,
-            };
-
-            if (o.ProductionDate.HasValue)
-            {
-                item.KommissionierTermin = _businessDayService.SubtractBusinessDays(
-                    o.ProductionDate.Value, kommissionierTage, holidays);
+                faellig = _businessDayService.SubtractBusinessDays(termin, kommissionierTage, holidays);
+                if (o.PickingArea.IstVorkommissionierung)
+                    faellig = _businessDayService.SubtractBusinessDays(faellig.Value,
+                        PrePickingDaysResolver.Resolve(fa.ProductionWorkplace?.OverridePrePickingDays, vorkommissionierTage), holidays);
             }
-
-            return item;
+            return new PickingOrderListItem
+            {
+                Id = o.Id, Nummer = o.Nummer, ProductionOrderId = o.ProductionOrderId, OrderNumber = fa?.OrderNumber,
+                ArticleNumber = fa?.ArticleNumber, Description1 = fa?.Description1, WorkplaceName = fa?.ProductionWorkplace?.Name,
+                Bereich = o.PickingArea.Name, PickingPriority = o.PickingPriority, Faelligkeit = faellig, Status = o.Status,
+                AssignedPickerName = o.AssignedPickerName,
+            };
         }).ToList();
 
-        // IDEAL FA-Liste-Hierarchie: nur bei Master ProduktionsauftragHierarchisch = true.
-        var hierarchical = IsTrue(await _serviceSettingRepository.GetValueAsync(
-            IdealAkeWms.Services.HierarchischeStruktur.HierarchischeStrukturKeys.Master));
-
-        // Server-Side-Spaltenfilter VOR Pagination: filtern -> zaehlen -> Skip/Take.
         var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
-        var colMap = hierarchical ? ColumnMapHierarchical : ColumnMap;
-        var filtered = ColumnFilterHelper.Apply(allItems, columnFilters, colMap, ColumnFilterTypes.For("Picking/Index")).ToList();
+        var filtered = ColumnFilterHelper.Apply(allItems, columnFilters, ColumnMap, ColumnFilterTypes.For("Picking/Index")).ToList();
         if (page < 1) page = 1;
-
-        if (hierarchical)
-        {
-            // Zwei-Ebenen-Gruppierung nach HauptFA. allItems ist bereits Prio-sortiert
-            // (GetReleasedForPickingAsync); stabiles GroupBy erhaelt dadurch: Gruppen-Reihenfolge =
-            // dringlichste zuerst, innerhalb der Gruppe die Prio-Reihenfolge der Warteschlange.
-            // Bewusst NICHT SubOrderNumber (Z2) — die Kommissionier-Liste ist eine Prioritaets-Queue.
-            // Z3b: nach Zeilen filtern, dann gruppieren → leere Gruppen entstehen gar nicht erst.
-            var groups = filtered
-                .GroupBy(i => i.OrderNumber)
-                .Select(g => new PickingListGroup { OrderNumber = g.Key, Items = g.ToList() })
-                .ToList();
-
-            var totalGroupCount = groups.Count;
-            var totalRowCount = filtered.Count;
-
-            var pagedGroups = groups
-                .Skip((page - 1) * effectivePageSize)
-                .Take(effectivePageSize)
-                .ToList();
-
-            return View(new PickingListViewModel
-            {
-                Hierarchical = true,
-                Groups = pagedGroups,
-                HierarchicalRowCount = totalRowCount,
-                ShowAllOrders = showAll,
-                PickerAssignmentEnabled = pickerAssignmentEnabled,
-                Pagination = new PaginationState
-                {
-                    CurrentPage = page,
-                    PageSize = effectivePageSize,
-                    PageSizeRaw = rawPageSize,
-                    TotalCount = totalGroupCount // Paginierung ueber Gruppen (F3)
-                }
-            });
-        }
-
-        // --- Flachmodus (AKE / Master false): unveraendert zu heute ---
-        var totalCount = filtered.Count;
-        var items = filtered
-            .Skip((page - 1) * effectivePageSize)
-            .Take(effectivePageSize)
-            .ToList();
 
         return View(new PickingListViewModel
         {
-            Items = items,
+            Items = filtered.Skip((page - 1) * effectivePageSize).Take(effectivePageSize).ToList(),
             ShowAllOrders = showAll,
             PickerAssignmentEnabled = pickerAssignmentEnabled,
+            StatusFilter = statusFilter,
+            BereichId = bereichId,
+            Bereiche = await _pickingAreaRepository.GetAllAsync(),
             Pagination = new PaginationState
             {
                 CurrentPage = page,
                 PageSize = effectivePageSize,
                 PageSizeRaw = rawPageSize,
-                TotalCount = totalCount
+                TotalCount = filtered.Count
             }
         });
     }

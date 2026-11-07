@@ -5,6 +5,8 @@ namespace IdealAkeWms.Data.Repositories;
 public class BulkReleaseResult
 {
     public int Processed { get; set; }
+    /// <summary>v1.88.0: Ids der verarbeiteten FAs (Kommissionierauftraege nach der Freigabe erzeugen).</summary>
+    public List<int> ProcessedIds { get; set; } = new();
     public List<string> SkippedNoArticle { get; set; } = new();
     public List<string> SkippedSubFa { get; set; } = new();
 }

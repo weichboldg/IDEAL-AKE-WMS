@@ -34,10 +34,16 @@ public class PickingLeitstandControllerTests
     private readonly Mock<IBdeBookingRepository> _bdeBookingRepo = new();
     private readonly Mock<IArticleRepository> _articleRepo = new();
     private readonly Mock<ILogger<PickingLeitstandController>> _logger = new();
+    // v1.88.0: Kommissionierauftraege nach der Freigabe (Workflow echt, Stueckliste leer → nur Meldung)
+    private readonly Mock<IBomRepository> _bomRepo = new();
+    private readonly Mock<IPickingOrderRepository> _pickingOrderRepo = new();
+    private readonly Mock<IPickingAreaRepository> _pickingAreaRepo = new();
     private readonly PickingLeitstandController _controller;
 
     public PickingLeitstandControllerTests()
     {
+        _bomRepo.Setup(b => b.GetBomItemsAsync(It.IsAny<BomKey>(), It.IsAny<BomScope>()))
+            .ReturnsAsync(new BomQueryResult(new List<BomItem>(), BomDataSources.Sage));
         _articleRepo.Setup(a => a.GetMatchcodesByArticleNumbersAsync(It.IsAny<IReadOnlyCollection<string>>()))
             .ReturnsAsync(new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase));
         _currentUser.Setup(x => x.GetDisplayName()).Returns("TestUser");
@@ -68,6 +74,8 @@ public class PickingLeitstandControllerTests
             _bdeStatusRepo.Object,
             _bdeBookingRepo.Object,
             _articleRepo.Object,
+            new PickingOrderWorkflow(_pickingOrderRepo.Object, _pickingAreaRepo.Object, _orderRepo.Object, _pickingStatusRepo.Object,
+                _bomRepo.Object, _currentUser.Object, Microsoft.Extensions.Logging.Abstractions.NullLogger<PickingOrderWorkflow>.Instance),
             _logger.Object);
 
         // TempData requires a provider
