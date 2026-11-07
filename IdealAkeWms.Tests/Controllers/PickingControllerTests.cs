@@ -18,7 +18,8 @@ public class PickingControllerTests
     /// LeitstandAktiv=true (sonst IndexDropdown), Zuweisung=false (GetReleasedForPickingAsync),
     /// KommissionierTage=4, keine Feiertage. Echter BusinessDayService fuer Termin-Berechnung.
     /// </summary>
-    private static PickingController Setup(List<ProductionOrder> releasedOrders, string queryString)
+    private static PickingController Setup(List<ProductionOrder> releasedOrders, string queryString,
+        IProductionOrderRepository? orders = null, IBomRepository? bom = null, IStockMovementRepository? stock = null)
     {
         var pickingStatus = new Mock<IProductionOrderPickingStatusRepository>();
         pickingStatus.Setup(r => r.GetReleasedForPickingAsync()).ReturnsAsync(releasedOrders);
@@ -35,15 +36,15 @@ public class PickingControllerTests
         holidays.Setup(h => h.GetHolidayDatesAsync()).ReturnsAsync(new HashSet<DateTime>());
 
         var ctrl = new PickingController(
-            Mock.Of<IProductionOrderRepository>(),
+            orders ?? Mock.Of<IProductionOrderRepository>(),
             pickingStatus.Object,
             current.Object,
             settings.Object,
             holidays.Object,
             new BusinessDayService(),
-            Mock.Of<IBomRepository>(),
+            bom ?? Mock.Of<IBomRepository>(),
             Mock.Of<IPickingRepository>(),
-            Mock.Of<IStockMovementRepository>(),
+            stock ?? Mock.Of<IStockMovementRepository>(),
             Mock.Of<IStorageLocationRepository>(),
             Mock.Of<IArticleRepository>(),
             Mock.Of<IPickingTransferService>(),
@@ -104,5 +105,47 @@ public class PickingControllerTests
         vm.Items[0].OrderNumber.Should().Be("FA-1001");
         vm.Items[0].KommissionierTermin.Should().Be(new DateTime(2026, 7, 13));
         vm.Pagination.TotalCount.Should().Be(1);
+    }
+
+    // Hotfix v1.30.2 (Z3): Spalte Werkbank in der Kommissionierung, server-seitig filterbar.
+    [Fact]
+    public async Task Index_WorkbenchColumn_FilledFromWorkplaceAndFilterable()
+    {
+        var a = Order("FA-1001"); a.ProductionWorkplace = new ProductionWorkplace { Name = "A1" };
+        var b = Order("FA-2002"); b.ProductionWorkplace = new ProductionWorkplace { Name = "B7" };
+        var ctrl = Setup(new List<ProductionOrder> { a, b, Order("FA-3003") }, "?colf_workbench=b7");
+
+        var vm = (await ctrl.Index() as ViewResult)!.Model as PickingListViewModel;
+
+        vm!.Items.Should().ContainSingle().Which.WorkplaceName.Should().Be("B7");
+    }
+
+    // Hotfix v1.30.2 (Z2): der Druck uebernimmt die Reihenfolge der Ansicht (z.B. sortiert nach Bezeichnung 1),
+    // nicht mehr fest die Positions-Reihenfolge.
+    [Fact]
+    public async Task PrintBom_VisiblePositions_KeepClientOrder()
+    {
+        var order = Order("FA-1001"); order.Id = 7; order.ArticleNumber = "ART"; order.Quantity = 1;
+        var orders = new Mock<IProductionOrderRepository>();
+        orders.Setup(r => r.GetByIdAsync(7)).ReturnsAsync(order);
+        var bom = new Mock<IBomRepository>();
+        bom.Setup(r => r.GetBomItemsAsync("ART")).ReturnsAsync(new BomQueryResult(new List<BomItem>
+        {
+            new() { Position = "1", Ressourcenummer = "R1", Bezeichnung1 = "Zylinder" },
+            new() { Position = "2", Ressourcenummer = "R2", Bezeichnung1 = "Anker" },
+            new() { Position = "10", Ressourcenummer = "R3", Bezeichnung1 = "Mutter" },
+        }, "test"));
+        var stock = new Mock<IStockMovementRepository>();
+        stock.Setup(r => r.GetStockByArticleNumbersAsync(It.IsAny<List<string>>()))
+            .ReturnsAsync(new Dictionary<string, List<StockLocationInfo>>());
+        var ctrl = Setup(new List<ProductionOrder>(), "", orders.Object, bom.Object, stock.Object);
+
+        // Ansicht nach Bezeichnung 1 aufsteigend: Anker (2), Mutter (10), Zylinder (1)
+        var sorted = (await ctrl.PrintBomPost(7, "2,10,1", null, null) as ViewResult)!.Model as PrintBomViewModel;
+        sorted!.Items.Select(i => i.Position).Should().Equal("2", "10", "1");
+
+        // Ohne Liste: wie bisher alle Positionen in natuerlicher Positions-Reihenfolge
+        var all = (await ctrl.PrintBomPost(7, null, null, null) as ViewResult)!.Model as PrintBomViewModel;
+        all!.Items.Select(i => i.Position).Should().Equal("1", "2", "10");
     }
 }

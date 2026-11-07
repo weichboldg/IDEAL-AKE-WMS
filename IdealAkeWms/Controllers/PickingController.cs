@@ -75,6 +75,7 @@ public class PickingController : Controller
         ["article-number"] = i => i.ArticleNumber,
         ["description"] = i => i.Description1,
         ["customer"] = i => i.Customer,
+        ["workbench"] = i => i.WorkplaceName,
         ["quantity"] = i => i.Quantity.ToString("N0"),
         ["picking-date"] = i => FormatDateForFilter(i.KommissionierTermin),
         ["status"] = i => string.IsNullOrEmpty(i.PickingStatus) ? "Offen" : i.PickingStatus,
@@ -139,6 +140,7 @@ public class PickingController : Controller
                 ArticleNumber = o.ArticleNumber,
                 Description1 = o.Description1,
                 Customer = o.Customer,
+                WorkplaceName = o.ProductionWorkplace?.Name, // Include() im Repo
                 Quantity = o.Quantity,
                 ProductionDate = o.ProductionDate,
                 PickingStatus = ps?.PickingStatus,
@@ -511,13 +513,15 @@ public class PickingController : Controller
             .Distinct()
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        // Sichtbare Positionen filtern (Filterung + Baumstruktur aus der interaktiven Ansicht)
-        HashSet<string>? visibleSet = null;
+        // Sichtbare Positionen in Anzeige-Reihenfolge (Filterung + Baumstruktur + Sortierung der
+        // interaktiven Ansicht). Hotfix v1.30.2: die Reihenfolge der Liste IST die Sortierung des Drucks —
+        // vorher war die Liste nur eine Menge und der Druck immer nach Position sortiert.
+        Dictionary<string, int>? visibleOrder = null;
         if (!string.IsNullOrEmpty(visiblePositions))
         {
-            visibleSet = visiblePositions.Split(',', StringSplitOptions.RemoveEmptyEntries)
-                .Select(p => p.Trim())
-                .ToHashSet(StringComparer.Ordinal);
+            visibleOrder = new Dictionary<string, int>(StringComparer.Ordinal);
+            foreach (var p in visiblePositions.Split(',', StringSplitOptions.RemoveEmptyEntries))
+                visibleOrder.TryAdd(p.Trim(), visibleOrder.Count);
         }
 
         var allItems = bomItems.Select(bom => new PrintBomItem
@@ -539,9 +543,11 @@ public class PickingController : Controller
         .OrderBy(v => v.Position, new NaturalPositionComparer())
         .ToList();
 
-        // Auf sichtbare Positionen einschränken (falls aus dem Client übergeben)
-        var items = visibleSet != null
-            ? allItems.Where(i => !string.IsNullOrEmpty(i.Position) && visibleSet.Contains(i.Position)).ToList()
+        // Auf sichtbare Positionen einschränken und in deren Reihenfolge bringen (falls aus dem Client übergeben)
+        var items = visibleOrder != null
+            ? allItems.Where(i => !string.IsNullOrEmpty(i.Position) && visibleOrder.ContainsKey(i.Position))
+                .OrderBy(i => visibleOrder[i.Position!])
+                .ToList()
             : allItems;
 
         var vm = new PrintBomViewModel

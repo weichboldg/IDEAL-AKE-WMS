@@ -16,6 +16,7 @@ public class PickingListItem
     public string? ArticleNumber { get; set; }
     public string? Description1 { get; set; }
     public string? Customer { get; set; }
+    public string? WorkplaceName { get; set; }
     public decimal Quantity { get; set; }
     public DateTime? ProductionDate { get; set; }
     public DateTime? KommissionierTermin { get; set; }
