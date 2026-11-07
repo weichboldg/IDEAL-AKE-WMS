@@ -4,10 +4,10 @@ title: Artikelinfo – Sage-Zusatzfelder auffindbar, Haupt-/letzter Lieferant mi
 slug: 2026-11-08-artikeldetails-lieferanten-anzeigen-spec
 status: Testbereit
 created: 2026-11-07
-updated: 2026-11-07
+updated: 2026-11-08
 source_backlog: "[[2026-11-07-artikeldetails-lieferanten-anzeigen]]"
 buendel: "[[2026-11-08-buendel-uebersicht]]"
-task: "[[2026-11-08-buendel-2026-11-08-goal-lauf]]"
+task: "[[2026-11-08-buendel-2026-11-08-goal-lauf-2]]"
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
 branch: "feature/2026-08-07-ideal-teile-1-5"
 version: "1.80.0"
@@ -33,7 +33,7 @@ etappen: []
 deploy:
   web: true
   service: true
-  migration: false
+  migration: true
 freigabe_entscheidung: ""
 freigabe_von: "Gerald Weichbold"
 freigabe_am: "2026-11-07"
@@ -275,6 +275,19 @@ Nicht zutreffend (`epic: false`).
   Als Bündel-Deploy liefert derselbe Worktree zusätzlich v1.81.0 (Folge-Spec) mit – die Fußzeile zeigt dann v1.81.0.
 - Nach dem Merge nur dann erneut aus `main` publizieren, wenn der Merge getestete Dateien mit parallelen `main`-Änderungen zusammengeführt hat.
 
+**Nachtrag Deploy v1.85.0** (qa-agent, 2026-11-07). Ermittelt aus dem echten Diff `26e6a278..1dac3bcd`. Dieser Nachtrag ersetzt die Zeile „Migration: nein“ oben.
+- **Web:** ja. Betroffen sind `ArticlesController`, `CreditorsController`, die Partial `_ArtikelSageKarten`, `Articles/Index` mit Spaltenauswahl, `Creditors/Details`, die Repositories und `AppVersion`.
+- **Service:** ja. Betroffen sind `SdataArtikelReader`, `ISageArtikelReader`, `ArtikelLieferantSyncService` (Mengeneinheiten aus SData) und `AppVersion`.
+- **Migration:** ja. Neu ist `IdealAkeWms/Migrations/20261107182445_AddArtikelMengeneinheiten` mit `SQL/140_AddArtikelMengeneinheiten.sql`; `00_FreshInstall.sql` ist an beiden Stellen nachgezogen.
+  - Die Migration ist additiv (nur nullable Spalten) und nicht daten-destruktiv.
+  - Es gibt kein Einmal-Skript.
+- **Reihenfolge Testsystem:**
+  1. DB-Backup (Standard).
+  2. `SQL/140` (dazu die anderen Bündel-Skripte nach Nummer).
+  3. Web publizieren.
+  4. Service publizieren.
+- Die Fußzeile des Bündels zeigt v1.86.0.
+
 ## Offene Rueckfragen
 
 1. **Ort der Anzeige.** Variante A: die bestehende Artikelinfo erweitern und aus Artikelliste und Bearbeiten-Seite verlinken. Variante B: eine Karte
@@ -421,3 +434,267 @@ weil die globale Navbar überläuft (Benutzername rechts abgeschnitten) – auch
 3. 112.11 CSV-Export der Artikelliste: Spalte Artikelnummer enthält nur die Nummer.
 4. Telefonbreite: Artikelinfo ohne Seiten-Querscrollen durch die neuen Karten, Lieferanten-Tabelle scrollt in sich.
 5. TS-112 vollständig auf dem Testsystem (AKE und IDEAL) vor dem Merge.
+
+
+## Nachbesserung (Gerald 2026-11-07 19:17) – offen für den nächsten Lauf
+1. **Bearbeiten-Seite** `/Articles/Edit/{id}`: Karte **„Lieferanten“** (Hauptlieferant, letzter Lieferant, Lieferantentabelle wie in der
+   Artikelinfo, nur lesend, Links zum Kreditor) **und** die Karte „Sage-Zusatzfelder“ ebenfalls anzeigen (nur lesend). Hebt Freigabe-Antwort 1
+   insoweit auf: Artikelinfo **und** Bearbeiten zeigen die Sage-Daten; gemeinsames Partial statt doppeltem Markup.
+2. **Kreditor-Details:** neue Karte „Artikel dieses Lieferanten“ (Artikel, Bezeichnung, Bestellnummer, Mindestbestellmenge, EK-Einheit,
+   Kennzeichen Hauptlieferant, Kennzeichen „letzter Lieferant“, Link zur Artikelinfo, CSV). Hebt Freigabe-Antwort 2 auf (vorher „gehört zu C1“).
+3. **Artikelliste:** optionale Spalten „Hauptlieferant“ und „Letzter Lieferant“ (Name + Konto) im Spalten-Zahnrad, Default ausgeblendet,
+   filterbar (ADR 0005, Spaltenregistrierung + Drift-Guard). Hebt Freigabe-Antwort 4 für diese zwei Spalten auf.
+4. Zeitstempel „aus Sage gelesen am …“ prüfen: Artikelinfo 00722001 zeigte 09:18, der Artikellauf auf AKE-DEV lief 11:39–11:41 (UTC-Anzeige?).
+5. **Artikel-Sync übernimmt die Mengeneinheit aus SData** (Gerald 2026-11-07 19:18): Bei `Sync:Quelle:Artikel = SData` die Mengeneinheiten
+   aus `Artikel`/`ArtikelVariantenExtended` übernehmen – Basismengeneinheit nach `Articles.Unit` (heute aus der View), Lager- und
+   EK-Mengeneinheit samt Umrechnungsfaktor in `ArticleSageDetails` (neue Spalten, SQL-Nummer laut Übersicht). Feldnamen vorher lesend am
+   AKE-Test belegen (E0-Regel); View-Weg unverändert (ADR 0019). Anzeige in Artikelinfo/Bearbeiten. Bezug: Wareneingang B-2 (Einheit) –
+   mit der Lagermengeneinheit kann die Sperre „Einheit weicht ab“ gezielt prüfen.
+   **Präzisierung Gerald 19:18:** mindestens **Lagereinheit und Bestelleinheit**, sonst alles, was SData zu Einheiten liefert. Laut
+   [[sage-sdata-artikel-felder]] Z. 19 am Artikel: `Basismengeneinheit`, `DezimalstellenBasis`, `Lagermengeneinheit`, `DezimalstellenLager`,
+   `UmrechnungsFaktorLME`, `Verkaufsmengeneinheit`, `DezimalstellenVK`, `UmrechnungsfaktorVK`, `MengenberechnungVK`, `VerpackungseinheitVK`
+   (+ weitere der Zeile); **Bestelleinheit je Lieferant** aus `ArtikelLieferantInfo` (`Einkaufsmengeneinheit`, `MengenberechnungEK`,
+   `DezimalstellenEK`, `UmrechnungsfaktorEK`, `VPEK` – Teile davon in `ArticleSuppliers` schon vorhanden: prüfen, ergänzen). Anzeige je Einheit
+   mit Umrechnung zur Basiseinheit.
+
+## Umsetzung Nachbesserung (Dev, 2026-11-08, Lauf 2) – v1.85.0, Commit `5e3340ce`
+
+- **Punkt 1:** Partial `Views/Shared/_ArtikelSageKarten.cshtml` (Sage-Zusatzfelder + Lieferanten) für Artikelinfo und „Artikel bearbeiten“;
+  Daten über `ArticlesController.SageKartenAsync` (ein Kreditor-Aufruf), auch beim Wiederanzeigen nach Validierungsfehler.
+- **Punkt 2:** Kreditor-Details Karte „Artikel dieses Lieferanten“ (`IArticleRepository.GetArtikelJeLieferantAsync`), Client-Spaltenfilter + CSV
+  (einzige filterbare Tabelle der Seite); Register `ColumnFilterTypes` „Creditors/Details“ (client-only).
+- **Punkt 3:** Artikelliste mit Spaltenauswahl (`ColumnDefinitions.Articles`, viewKey `Articles`), Spalten `hauptlieferant`/`letzter-lieferant`
+  `defaultHidden`, Server-Spaltenfilter über denselben Ausdruck „Name (Konto)“ bzw. Konto wie die Anzeige (`GetLieferantTexteAsync`).
+- **Punkt 4 (Befund):** Zeitstempel wird in UTC gespeichert und korrekt lokal angezeigt; `ModifiedAt` ändert sich aber nur bei einer Wertänderung
+  (`ArticleSageDetailsWriter`), daher 09:18 trotz Lauf 11:39. Text jetzt „letzte Änderung durch den Artikel-Abgleich“ (kein „gelesen am“).
+- **Punkt 5 – E0 (lesend AKE-Test 2026-11-08):** `Artikel`: `Basismengeneinheit`, `DezimalstellenBasis`, `Lagermengeneinheit`, `DezimalstellenLager`,
+  `UmrechnungsFaktorLME`, `Verkaufsmengeneinheit`, `DezimalstellenVK`, `UmrechnungsfaktorVK`, `VerpackungseinheitVK`, `UmrechnungsfaktorVPVK` belegt
+  (z. B. EK012566 Basis RLL / Lager Stk; EK023609 Basis Stk / VK PKG). `ArtikelLieferantInfo`: `Einkaufsmengeneinheit`, `DezimalstellenEK`,
+  `UmrechnungsfaktorEK`, `UmrechnungsfaktorVPEK`, `MengenberechnungEK` belegt; **`VPEK` gibt es nicht** (HTTP 500) – weggelassen.
+  `MengenberechnungVK/EK` (am Test nur `null`, Typ unbelegt) nicht übernommen. Neue Spalten per `SQL/140_AddArtikelMengeneinheiten.sql`.
+- **Abweichung zur Nachbesserung (bitte bestätigen):** „Basismengeneinheit nach `Articles.Unit` (heute aus der View)“ trifft nicht zu – beide Wege
+  schreiben heute die **Lagermengeneinheit** nach `Articles.Unit` (`SageArticleSql.cs:16/32`, `SdataArtikelReader.cs:254`). `Unit` ist die
+  Bestandseinheit des WMS; ein Wechsel auf die Basiseinheit änderte Bestände/Buchungen. **Nicht umgestellt**; alle Einheiten stehen zusätzlich im
+  Satelliten und in der Anzeige. Soll `Unit` trotzdem Basiseinheit werden: eigene Spec (Bestandsumrechnung, Sage-Lagerbuchung).
+
+## QA Nachbesserung v1.85.0 (qa-agent, 2026-11-07, Bündel 2026-11-08 Lauf 2) – **NICHT Testbereit** (Befund Q-1)
+
+Review-Bereich `git diff 26e6a278 5e3340ce` im Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5` (HEAD `5e3340ce`). Selbst in diesem Lauf geprüft, nicht delegiert.
+
+### 1. Build und Tests (Worktree, HEAD `5e3340ce`)
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler, 28 Warnungen (bestehende Nullable-Warnungen).
+- `dotnet test`: **IdealAkeWms.Tests 2480 bestanden / 1 übersprungen / 0 Fehler (2481)**; **IDEALAKEWMSService.Tests 503 / 0 / 0 (503)**.
+
+### 2. Review – Befunde und Behandlung
+| # | Schwere | Befund | Behandlung |
+|---|---|---|---|
+| Q-1 | **Mittel (blockiert)** | Kreditor-Details, Karte „Artikel dieses Lieferanten“: unpaginierte Client-Mode-Tabelle (`ArticleRepository.GetArtikelJeLieferantAsync` mit `ponytail:`-Kommentar; `Views/Creditors/Details.cshtml`). ADR 0005 erlaubt Client-Mode nur für **kleine** Ansichten; die Spec selbst (Offene Rückfrage 2) begründete, dass ein Lieferant Tausende Artikel hat und dafür eine Liste mit Pagination braucht. **Gemessen auf AKE-DEV:** K30601 Gasperlmair 9.166 Zeilen, K30687 GLAS-TECH 7.342, die Seite K30601 hat **4,4 MB HTML** (Server 367 ms; zum Vergleich K31013: 121 Zeilen, 81 KB). Am Desktop bedienbar, an Fertigungsterminals oder am Telefon nicht belegt. | Offen. Entscheidung Mensch/Dev: (a) Server-Paging + Server-Spaltenfilter + CSV über alle Treffer (ADR-0005-Standard) oder (b) bewusste Ausnahme als ADR-/Spec-Vermerk. |
+| Q-2 | Niedrig | Der Spaltenfilter der Karte bleibt **über Kreditoren hinweg** stehen: `data-view-key="CreditorArtikel"` ist für alle Kreditoren gleich, und `table-filter.js` speichert je viewKey in sessionStorage. Belegt: Filter „00722001“ auf K31013 gesetzt, danach öffnet K30601 mit demselben Filter und 0 Zeilen. Der Kopf zeigt „(9166)“, ein Hinweis „keine Treffer“ fehlt. Der Filtertext steht sichtbar im Feld, der Effekt ist also nicht still. | Mit Q-1 beheben (z. B. viewKey je Kreditor oder ohne Persistenz). |
+| Q-3 | Hinweis | Artikelliste: Ein aktiver Filter auf einer ausgeblendeten Spalte (Default `hauptlieferant` aus, Aufruf `?colf_hauptlieferant=loysch`) filtert (116 Treffer), das Filterfeld ist aber unsichtbar. Das ist allgemeines Verhalten von `column-preferences.js` und nicht neu durch diesen Diff. | Nur vermerkt. |
+| Q-4 | Hinweis | Text „1 Nachkommastellen“ (Partial `E()`), der Singular fehlt. | Kosmetik, optional. |
+| Q-5 | Prüfabfrage | Die Richtung der Sage-Faktoren ist am Code nicht belegbar. Die Anzeige „1 <Einheit> = <Faktor> <Basiseinheit>“ unterstellt, dass `UmrechnungsFaktorLME`, `UmrechnungsfaktorVK`, `UmrechnungsfaktorVPVK` und `UmrechnungsfaktorEK` jeweils **zur Basismengeneinheit** gelten. | Mensch prüft in Sage an EK012566 (Basis RLL / Lager Stk): Gilt 1 Stk = Faktor × RLL oder umgekehrt? Bezieht sich der EK-Faktor auf die Basis- oder die Lagereinheit? |
+
+**Ohne Befund geprüft:**
+- **ADR 0004:** Die EF-Migration `20261107182445_AddArtikelMengeneinheiten` fügt nur nullable Spalten hinzu. `SQL/140` hat einen Tabellen-Guard und `COL_LENGTH`-Guards, die DDL steht je in einem eigenen Batch, der History-Insert separat. `00_FreshInstall.sql` ist an beiden Stellen nachgezogen: Schema beider Tabellen **und** MigrationId mit Spalten-Guard. `SQL/AgentJobs` ist nicht betroffen.
+- **ADR 0005, Artikelliste:**
+  - `ColumnDefinitions.Articles` ist registriert (viewKey `Articles`, im `GetByViewKey`-Switch).
+  - Der Inline-`#column-config` hat dieselben Keys in derselben Reihenfolge wie die `<th>`.
+  - Der Spaltenfilter-Ausdruck in `ApplyArticleColumnFilter` ist zeichengleich zu `GetLieferantTexteAsync` (Name + " (" + Konto + ")" bzw. getrimmtes Konto).
+  - SQL-Gegenprobe auf AKE-DEV: Filter „loysch“ ergibt 116 = 116, „K31013“ beim letzten Lieferanten 108 = 108.
+- **Eindeutigkeit:** `Creditors.SageKto` ist eindeutig (`IX_Creditors_SageKto`), `FirstOrDefault` ist daher deterministisch.
+- **Schreibweg der neuen Felder:** `ArticleSageDetailsWriter` schreibt per `SetValues` nach Namen. Die Property-Namen des Records sind gleich den Entity-Namen (geprüft).
+- **Script-Blöcke und Ausgabe:** Merkmalsnamen laufen über `@Json.Serialize`. Es gibt kein `Html.Raw`, kein `hidden` zusammen mit `d-*` und keine stillen `?? 0`-Fallbacks (fehlend = „—“). Die XSS-Probe `VerpackungseinheitVK = '<i>K'` wird als Text angezeigt.
+- **Kontrast und Farbe:** „Ja“ und „– inaktiv“ stehen als Text, Hinweise in `text-body-secondary`, keine neue Farbe.
+- **ADR 0020:** keine neue Einstellung.
+- **Edit-POST-Fehlerpfad:** lädt `SageKarten` nach (`ArticlesController.cs:168`).
+
+**Abweichung Punkt 5 bestätigt:** `Articles.Unit` kommt auf beiden Wegen aus der **Lagermengeneinheit**.
+- View/Legacy: `SageArticleSql.cs:16,32` (`CAST(a.Lagermengeneinheit …) AS Unit`).
+- SData: `SdataArtikelReader.cs:254` (3. Argument `a.Lagermengeneinheit` → `SageArtikelDto.Unit`).
+- Upsert: `SageImportService.cs:514`.
+- Datenbeleg: 00722001 hat `Unit = lfm`, gleich der EK- und der Lagereinheit.
+
+Die Nichtumstellung ist richtig. „Basis → Unit“ wäre eine Bestandsumstellung.
+
+**`VPEK`:** Der Code verwendet `VPEK` nicht, der Select nutzt `UmrechnungsfaktorVPEK`. Beleg ist Dev-E0 (HTTP 500 für `VPEK`); nicht nachgemessen, weil QA keinen Sage-Zugriff hat.
+
+### 3. Nachweisart je Punkt
+| Punkt | Nachweis |
+|---|---|
+| 1 Bearbeiten-Karten | Quelltext-Test `ArtikelinfoLieferantenTests` (Partial eingebunden) + **DEV OK** (`/Articles/Edit/2963`). Fehlerpfad nach Validierungsfehler: Manual-UAT. |
+| 2 Kreditor-Artikel | InMemory `Punkt2_ArtikelJeLieferant_HauptUndLetzterKennzeichen` + **DEV OK** (Filter). CSV: Manual-UAT. |
+| 3 Listenspalten | InMemory-Texte + SQL-Übersetzung (`ToQueryString`) + DefaultHidden. Das LIKE-Ergebnis ist nur auf DEV prüfbar (SQL-Gegenprobe OK). |
+| 4 Zeitstempel | Quelltext-Test + DEV (Text „letzte Änderung durch den Artikel-Abgleich: 07.11.2026 09:18“). Die Ursache (ModifiedAt nur bei Wertänderung) ist am Writer belegt. |
+| 5 Mengeneinheiten | Anzeige über InMemory/Quelltext + DEV mit Testwerten. **SData-Lesen (Feldnamen, Werte) = Manual-UAT**, weil der SData-Lauf auf DEV nicht erlaubt ist. |
+
+### 4. Geänderte bestehende Tests
+- `ArtikelinfoLieferantenTests`: Die View-Prüfung liest jetzt `_ArtikelSageKarten.cshtml`. Das Verhalten ist durch Nachbesserung 1 absichtlich geändert (Markup ins Partial verschoben), die Erwartungen sind unverändert.
+- `CreditorsControllerTests`: nur der Ctor-Parameter `IArticleRepository` (Kompilier-Fix).
+- `ColumnFilterTypesDriftTests`: `Creditors/Details` steht jetzt in der Client-only-Liste. Das folgt aus Nachbesserung 2 (Client-Mode-Tabelle) und hängt an Q-1.
+
+Keiner der Tests fällt in die Kategorie „sonstige“.
+
+### 5. Checkliste
+- Migration + idempotentes `SQL/140` + FreshInstall an beiden Stellen: ja.
+- Audit: keine neue Schreibstelle außer dem Service-Writer (setzt ModifiedAt/By/ByWindows bei Änderung).
+- Version 1.85.0 in beiden `AppVersion.cs`; Anwender-Changelog und Hilfe ergänzt.
+- `docs/TESTSZENARIEN.md`: TS-112.12–112.16 im Worktree.
+- **Offen:**
+  - `secondbrain/tests/testszenarien-index.md` nennt 112.12–112.16 noch nicht.
+  - Der Brain-Changelog v1.85.0 fehlt noch.
+  - Frontmatter `deploy.migration` steht noch auf `false`, ist jetzt aber `true`.
+
+### 6. DEV-Deploy und Testlauf
+- **Deploy** `dev-deploy.ps1 -Quelle <worktree>` (elevated):
+  - **AKE:** Exit 0, „HTTP 200, Fusszeile v1.85.0“.
+  - **IDEAL:** Exit 0, „HTTP 200, Fusszeile v1.85.0“.
+  - Die Version ist gleich der Branch-AppVersion 1.85.0.
+- **SQL/140 je zweimal:**
+  - AKE_WMS_DEV: Lauf 1 und 2 Exit 0 (No-op, EF hatte schon migriert).
+  - IDEAL_WMS_DEV: Lauf 1 und 2 Exit 0 (No-op).
+  - Die MigrationId ist vorhanden, alle 11 Spalten sind da.
+  - Zusätzlich der **DDL-Pfad** auf der Wegwerf-DB `QA_SQL140_TMP` (nur die zwei Tabellen + History): Lauf 1 legt 9 + 2 Spalten an und trägt die History ein, Lauf 2 ändert nichts, Exit 0/0. Die DB ist danach gelöscht.
+- **Testdaten AKE-DEV** (per SQL gesetzt, danach zurückgesetzt):
+  - `ArticleSageDetails`, ArticleId 2963 (00722001): Basis `Stk`/0, Lager `lfm`/6, VK `PKG`/10/1, VP `<i>K`/100.
+  - `ArticleSuppliers`, Id 4522: `UmrechnungsfaktorEK` 1→6, `DezimalstellenEK` 2, `UmrechnungsfaktorVPEK` 12.
+- **Reset:**
+  - Alle neuen Spalten wieder NULL (Kontrolle: 0/0 Zeilen belegt).
+  - `UmrechnungsfaktorEK` = 1.000000.
+  - `ModifiedAt` unberührt (NULL).
+  - Kein `Sync:*Enabled` steht auf true.
+
+| Schritt | Ergebnis | Status |
+|---|---|---|
+| 112.12 Bearbeiten 00722001 | Karten „Sage-Zusatzfelder“ (mit Mengeneinheiten) und „Lieferanten“ unter dem Formular, nur lesend | OK |
+| 112.12 Fehlerpfad | Formular nicht abgeschickt (die Client-Validierung blockt, der Server-Pfad ist im Browser nicht erreichbar); im Code belegt | NICHT MÖGLICH |
+| 112.13 Mengeneinheiten | Mit Testwerten: „Stk, 0 Nachkommastellen“, „lfm (1 lfm = 6 Stk), 2 Nachkommastellen“, „PKG (1 PKG = 10 Stk)…“, Lieferanten-Tabelle „lfm (1 lfm = 6 Stk)“. Echte SData-Werte erst nach einem Lauf | OK (Anzeige) / NICHT MÖGLICH (SData-Lauf) |
+| 112.14 Kreditor K31013 | Karte mit 121 Zeilen, Filter „00722001“ → 1 Zeile, Haupt/Letzter „Ja“, Link zur Artikelinfo. CSV-Knopf vorhanden, Download nicht ausgelöst | OK / CSV offen |
+| 112.14 großer Kreditor K30601 | 9.166 Zeilen, 4,4 MB; der Filter aus K31013 bleibt stehen | **FEHLER → Q-1, Q-2** |
+| 112.14 Kreditor ohne Artikel | IDEAL-DEV Kreditor 1: Hinweis mit `Sync:ArtikelLieferantEnabled` | OK |
+| 112.15 Artikelliste | Spalten standardmäßig aus, im Zahnrad einblendbar; Anzeige „"carlo" Loysch GmbH (K31013)“; Filter „loysch“ 116 Treffer (SQL 116), über alle Seiten; Spaltenwahl nach Neuladen erhalten; Antwortzeit mit Filter 1,1–1,4 s bei 105.632 Artikeln | OK |
+| 112.16 Zeitstempel | „letzte Änderung durch den Artikel-Abgleich: 07.11.2026 09:18“ | OK (Unveränderlichkeit bei einem Lauf ohne Änderung: NICHT MÖGLICH, Lauf aus) |
+| 112.6/112.7 Hinweise | AKE-Artikel 00193056 ohne Lieferanten: Hinweis. IDEAL `DUMMY` in Info und Edit: beide Hinweise | OK |
+| 112.10 IDEAL-DEV | Info, Edit, Kreditor-Details und Artikelliste (auch mit `colf_hauptlieferant`) liefern HTTP 200 | OK |
+| Browser-Konsole | keine App-Fehler (nur eine Meldung der Browser-Erweiterung) | OK |
+
+### Fehlerbericht
+- **Was:** Q-1 (ADR 0005, unpaginierte Client-Liste mit gemessen bis 9.166 Zeilen / 4,4 MB) und Q-2 (Filter-Persistenz über Kreditoren).
+- **Erste Fundstelle:** `IdealAkeWms/Data/Repositories/ArticleRepository.cs` `GetArtikelJeLieferantAsync` (`ponytail:`-Kommentar) und `IdealAkeWms/Views/Creditors/Details.cshtml` (`data-view-key="CreditorArtikel"`).
+- **Vermutete Ursache:** eine bewusste Abkürzung im Dev-Lauf; die Datenmenge je Lieferant war nicht gemessen.
+- Der Status bleibt **InUmsetzung**. Fixversuch 1 steht aus.
+
+### Manuelle Testliste (offen für den Menschen, nach Behebung von Q-1/Q-2)
+1. Q-1 entscheiden: Server-Paging oder dokumentierte Ausnahme.
+2. Q-5 als Prüfabfrage in Sage: Bezug und Richtung von `UmrechnungsFaktorLME`, `UmrechnungsfaktorVK`, `UmrechnungsfaktorVPVK` und `UmrechnungsfaktorEK` an EK012566 und EK023609.
+3. 112.13 mit echten Daten auf dem Testsystem nach dem SData-Artikel- und dem Artikel-Lieferanten-Lauf (EK012566, EK023609).
+4. 112.12 Fehlerpfad: Bearbeiten mit Server-Validierungsfehler speichern → die Karten bleiben sichtbar.
+5. CSV der Kreditor-Karte (112.14) und CSV der Artikelliste (112.11): nur Text, kein Link-HTML.
+6. 112.16 nach einem Lauf ohne Wertänderung: Zeitstempel unverändert.
+7. Kreditor-Details K30601 an einem Fertigungsterminal bzw. Telefon öffnen (Ladezeit, Filter).
+8. TS-112 vollständig auf dem Testsystem (AKE und IDEAL) vor dem Merge.
+
+## Reparatur 1 nach QA Nachbesserung (Dev, 2026-11-08) – Commit `1dac3bcd`
+
+- **Q-1 / Q-2:** Variante (a). `CreditorsController.Details(id, page, pageSize)` filtert per `ColumnFilterHelper.Apply` mit Register
+  `ColumnFilterTypes.For("Creditors/Details")` **vor** Zählen und Blättern, `PaginationState` + `_Pagination`; Tabelle `data-server-column-filter="true"`
+  (Filter nur in der URL, wandert nicht zum nächsten Kreditor); Kopf zeigt die Gesamtzahl, Leerzeile „Keine Treffer für den Spaltenfilter.“.
+  „Creditors/Details“ aus der Client-only-Liste des Drift-Tests entfernt. `ponytail:` Die Repo-Abfrage lädt weiterhin alle Zeilen des Lieferanten
+  in den Speicher (~9.000 schmale Zeilen); Paging in SQL erst, wenn das messbar bremst. Test `Punkt2_KreditorKarte_ServerFilterVorPaging`.
+- **Q-4:** Singular „1 Nachkommastelle“.
+- **Q-3:** unverändert (allgemeines Verhalten, nicht durch diesen Diff). **Q-5:** bleibt Prüfabfrage für Gerald.
+
+
+## QA Reparatur 1 v1.85.0 (qa-agent, 2026-11-07, Bündel 2026-11-08 Lauf 2) – **Testbereit**
+
+Review-Bereich: `git diff 5e3340ce 1dac3bcd`, also das Delta der Reparatur. Den Rest des v1.85.0-Diffs hat „QA Nachbesserung v1.85.0“ oben geprüft.
+- Build und Tests liefen auf dem ganzen Worktree, HEAD `405e9af5`.
+- Den Review habe ich selbst in diesem Lauf gemacht, nicht delegiert.
+
+### 1. Build und Tests (Worktree, HEAD `405e9af5`)
+
+`dotnet build IdealAkeWms.slnx`: 0 Fehler, 28 Warnungen (die bestehenden Nullable-Warnungen).
+
+`dotnet test`:
+
+| Testprojekt | bestanden | übersprungen | Fehler | gesamt |
+|---|---|---|---|---|
+| IdealAkeWms.Tests | 2482 | 1 | 0 | 2483 |
+| IDEALAKEWMSService.Tests | 506 | 0 | 0 | 506 |
+
+### 2. Review des Reparatur-Deltas – Befunde und Behandlung
+
+| # | Schwere | Befund | Behandlung |
+|---|---|---|---|
+| Q-1 | behoben | `CreditorsController.Details(id, page, pageSize)` arbeitet in dieser Reihenfolge: `ColumnFilterHelper.Apply` mit Register `ColumnFilterTypes.For("Creditors/Details")`, dann Zählen, dann `Skip/Take`. Dazu kommen `PaginationState` und `_Pagination`. Die Tabelle hat `data-server-column-filter="true"`. Gemessen: Details siehe Abschnitt 6. | Erledigt. Der Rest steht unter `ponytail:` (alle Zeilen des Lieferanten im Speicher, ~9.000 schmale Zeilen, Server-Antwort ohne Auffälligkeit). Das ist dokumentiert und akzeptabel. |
+| Q-2 | behoben | Server-Mode: Der Filter steht nur in der URL (`colf_*`). Gemessen: Nach dem Filter auf K30601 öffnet K31013 ungefiltert (121 Zeilen, Filterfeld leer). | Erledigt. |
+| Q-4 | behoben | `_ArtikelSageKarten.cshtml` setzt „1 Nachkommastelle“ in den Singular. | Erledigt. Nur im Code geprüft, weil kein DEV-Artikel mit Dezimalstellen = 1 vorliegt. |
+| R-1 | Hinweis | Eine Seite außerhalb des Bereichs, z. B. `/Creditors/Details/927?page=999`, zeigt „Eintraege 24951–121 von 121“ und die Leerzeile „Keine Treffer für den Spaltenfilter.“, obwohl kein Filter aktiv ist. Das entsteht nur bei einer von Hand gebauten URL. | Nicht blockierend. Die Referenz-Listen klemmen die Seite ebenfalls nicht (`ProductionOrdersController` hat kein Clamp). Optional: Leerzeilentext nur bei aktivem Filter oder die Seite klemmen. |
+| R-2 | Hinweis | CSV ohne Filter bei K30601: Der Server-Mode-Export holt `pageSize=0`. Das ergibt nach `PageSize.AllCap` 5.000 von 9.166 Zeilen, mit der sichtbaren Warnung „Treffer auf 5 000 begrenzt“ (gemessen). | Standardverhalten nach ADR 0005 und CSV-Spec v1.53.0, kein Defekt. Mit Filter wird vollständig exportiert. |
+
+**Ohne Befund geprüft:**
+- `LieferantArtikelColumnMap` ist zeichengleich zur Zellanzeige der View. Geprüft habe ich `"—"` für fehlende Werte, `"0.###"` bei der Mindestmenge und „Ja“/leer bei Haupt- und letztem Lieferanten.
+- Der Zahlentyp `mindestmenge` steht im Register.
+- Der Drift-Test führt `Creditors/Details` nicht mehr als „client-only“. Damit erzwingt er die `ColumnFilterTypes.For`-Verwendung, und sie ist vorhanden.
+- Die Leerzeile hat `colspan="7"`. `csv-export.js:104` überspringt `td[colspan]`, die Leerzeile landet also nicht in der CSV.
+- Der Kopf „aus Sage (N)“ zeigt die Gesamtzahl, die Pagination die gefilterte Zahl. So ist es in der Spec beschrieben.
+- Der Hinweis „Kreditor ohne Artikel“ hängt jetzt an der Gesamtzahl und nicht an der Seite. Er erscheint deshalb nicht fälschlich bei 0 Filtertreffern.
+- Im Delta gibt es keine Werte in `<script>`, kein `Html.Raw`, kein `hidden` zusammen mit `d-*` und keine neue Einstellung (ADR 0020 nicht betroffen).
+
+### 3. Nachweisart
+
+| Punkt | Nachweis |
+|---|---|
+| Filter vor Paging | InMemory `Punkt2_KreditorKarte_ServerFilterVorPaging`. Belegt: Gesamtzahl 2, gefiltert 1. |
+| Paging, Server-Filter, kein Wandern, Leerzeile, CSV-Abruf | DEV, nur dort prüfbar: echtes Model-Binding, `site.js` und `csv-export.js`. Ergebnisse in Abschnitt 6. |
+| CSV-Datei selbst | Manual-UAT. Den Download habe ich nicht ausgelöst. Die Serverseite des Exports (`pageSize=0`) ist auf DEV geprüft. |
+
+### 4. Geänderte bestehende Tests
+
+`ColumnFilterTypesDriftTests`: `Creditors/Details` ist aus der Client-only-Liste entfernt. Das ist eine absichtlich geänderte Erwartung, sie folgt aus der Behebung von Q-1 (Server-Mode). Die Einordnung lautet nicht „sonstige“.
+
+### 5. Checkliste
+
+- Version 1.85.0 bzw. Bündel 1.86.0 steht in beiden `AppVersion.cs`.
+- TS-112.14 ist im Worktree aktualisiert.
+- Testindex: TS-112.12–112.16 habe ich in diesem Lauf in `secondbrain/tests/testszenarien-index.md` nachgezogen.
+- Frontmatter `deploy.migration` steht jetzt auf `true` (SQL/140), dazu der Nachtrag im Abschnitt Deploy.
+- **Noch offen:** Brain-Changelog v1.85.0 (`secondbrain/changelog/`). Er ist nicht blockierend und wird spätestens beim Merge geschrieben.
+
+### 6. DEV-Deploy und Testlauf
+
+Deploy mit `dev-deploy.ps1 -Quelle <Worktree>` in einer elevated Shell (Admin = True):
+
+| Standort | Exit | Ausgabe |
+|---|---|---|
+| AKE | 0 | „HTTP 200, Fusszeile v1.86.0“ |
+| IDEAL | 0 | „HTTP 200, Fusszeile v1.86.0“ |
+
+Die Fußzeile v1.86.0 ist gleich der Branch-AppVersion.
+
+| Schritt | Ergebnis | Status |
+|---|---|---|
+| 112.14 K30601 (AKE-DEV, Kreditor 547) ohne Filter | Seite 1: 25 Zeilen, „Eintraege 1–25 von 9166“, 367 Seiten, Kopf „aus Sage (9166)“ | OK |
+| Filter vor dem Blättern | Auf Seite 3 den Artikelfilter „0039342“ + Enter gesetzt. Die URL wird zu `?colf_artikel=0039342`, die Seite springt auf 1, es bleiben 4 Treffer. | OK |
+| Zahlenfilter | `colf_mindestmenge=>1` ergibt 608 Treffer, die SQL-Gegenprobe (`ArticleSuppliers` × `Creditors` K30601, `Mindestbestellmenge > 1`) ebenfalls 608. | OK |
+| Filter wandert nicht | Danach K31013 (927) geöffnet: 121 Zeilen, Filterfeld leer | OK |
+| Haupt-Filter K31013 | `colf_haupt=Ja` ergibt 116, wie die Listenspalte im Vorlauf | OK |
+| Leerzeile bei 0 Treffern | `colf_artikel=XYZNIX` ergibt „Keine Treffer für den Spaltenfilter.“ | OK |
+| CSV-Serverabruf | `?pageSize=0&page=1` ergibt 5.000 von 9.166 Zeilen mit der Warnung „Treffer auf 5 000 begrenzt“ | OK (siehe R-2). Datei-Download: NICHT MÖGLICH, weil ich keinen Download auslöse. |
+| IDEAL-DEV Kreditor 1 | Karte „aus Sage (0)“ mit dem Hinweis auf `Sync:ArtikelLieferantEnabled` | OK |
+| Browser-Konsole | keine Fehler | OK |
+| Regression 112.12/112.13/112.15/112.16 | Kein Code im Delta außer dem Text aus Q-4. Den Stand belegt der Vorlauf. | OK (unverändert) |
+
+**DEV-Zustand am Ende:**
+- Kein `Sync:*Enabled` steht auf true.
+- `SageLagerbuchungAktiv` ist nicht gesetzt.
+- In diesem Teil habe ich keine Testdaten geändert.
+
+### Manuelle Testliste (offen für den Menschen)
+
+1. Q-5 als Prüfabfrage in Sage: Bezug und Richtung von `UmrechnungsFaktorLME`, `UmrechnungsfaktorVK`, `UmrechnungsfaktorVPVK` und `UmrechnungsfaktorEK` an EK012566 und EK023609.
+2. TS-112.13 mit echten Daten auf dem Testsystem, nach dem SData-Artikellauf und dem Artikel-Lieferanten-Lauf.
+3. TS-112.12 Fehlerpfad: Bearbeiten mit einem Server-Validierungsfehler speichern. Die Karten müssen sichtbar bleiben.
+4. CSV der Kreditor-Karte mit Filter (vollständig) und ohne Filter bei K30601 (5.000 mit Warnung) prüfen; dazu die CSV der Artikelliste. Erwartet ist nur Text, kein Link-HTML.
+5. TS-112.16 nach einem Lauf ohne Wertänderung: Der Zeitstempel bleibt unverändert.
+6. K30601 an einem Fertigungsterminal bzw. Telefon öffnen und blättern.
+7. Testsystem: Backup, `SQL/140`, Web, Service. Danach TS-112 vollständig an AKE und IDEAL vor dem Merge.

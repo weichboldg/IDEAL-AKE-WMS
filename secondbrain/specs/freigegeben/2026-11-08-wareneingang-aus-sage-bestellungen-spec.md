@@ -4,13 +4,13 @@ title: Wareneingang auf Basis der Sage-Bestellungen (offene Bestellungen lesen, 
 slug: 2026-11-08-wareneingang-aus-sage-bestellungen-spec
 status: Testbereit
 created: 2026-11-07
-updated: 2026-11-07
+updated: 2026-11-08
 source_backlog: "[[2026-11-07-wareneingang-aus-sage-bestellungen]]"
 buendel: "[[2026-11-08-buendel-uebersicht]]"
 version: "1.84.0"
 sql_nummern: "112, 113 (114 nur E5, 115–116 frei)"
 testszenario: "TS-116"
-task: "[[2026-11-08-buendel-2026-11-08-goal-lauf]]"
+task: "[[2026-11-08-buendel-2026-11-08-goal-lauf-2]]"
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
 branch: "feature/2026-08-07-ideal-teile-1-5"
 standort: AKE
@@ -716,3 +716,123 @@ Keine Befunde darüber hinaus. Geprüft: der Fix-Diff und die Skriptumgebung (`R
 9. Handgerät/Telefon: Receive bedienen (Q-4, 44-px-Ziele, Querscrollen).
 10. Antwort 1 organisatorisch: Der Einkauf schließt Positionen in Sage ohne Lagerbuchung.
 11. Optional DEV IDEAL vor dem Test erneut aus dem Worktree deployen, damit beide DEV-Sites `26e6a278` zeigen.
+
+## Nachbesserung nach Sichtprüfung (Gerald 2026-11-07 19:13, Koordination) – offen für den nächsten Lauf
+- **„Offene Bestellungen“: gleiches Farbkonzept wie die übrigen Listen.** Auf AKE-DEV v1.84.0 sind die Zeilen gelb/beige hinterlegt
+  (Screenshot Koordination 19:11) statt im üblichen Listenstil (Bootstrap-Streifen wie Kreditoren, Lagerplätze, FA-Liste). Zeilenfarben nur
+  mit Bedeutung und nach bestehender Konvention: überfällig = rot (wie FA-Struktur/Teileverfolgung, `table-danger` am `<tr>`), sonst
+  neutral; Legende bzw. Tooltip wie in den anderen Listen. Vor dem Bau am Code belegen, welche Klasse die Zeilen heute färbt und welche
+  Konvention die FA-Liste nutzt ([[fallstricke]] „CSS: Spezifität …“); Sichtprüfung am Bildschirm Pflicht.
+- Zur Prüfung (Koordination, ungeprüft): Ziel-Lagerplatz in der Wareneingangsmaske nicht vorbelegt (Bestellung 2027-168705, EK023579);
+  Einheit `PKG` ohne Markierung – prüfen, ob Lagermengeneinheit gleich ist oder die B-2-Sperre nicht greift.
+
+## Umsetzung Nachbesserung nach Sichtprüfung (Dev, 2026-11-08, Lauf 2) – v1.86.0, Commit `405e9af5`
+
+- **Farbkonzept:** Vorschau `Views/PurchaseOrders/Index.cshtml` – nur überfällige Zeilen `table-danger` (statt `table-warning`/beige), sonst das
+  Streifenmuster wie Kreditoren/Lagerplätze; Legende „rot hinterlegt = überfällig“, Text „überfällig“ bleibt in der Hinweis-Spalte (Farbe nie allein).
+  Knopf „Wareneingang“ gefüllt (`btn-primary`), weil der Umriss-Knopf auf Rot unter 4,5:1 fällt. **Sichtprüfung am Bildschirm: QA (TS-116.8).**
+- **Einheit PKG (EK023579 / Bestellung 2027-168705):** Bestell-, Basis- und Lagereinheit sind PKG → buchbar, korrekt. Beim Prüfen gefunden:
+  EK003604 (Bestellung PKG, **Basis Stk**, Lager PKG) war nicht gesperrt, obwohl die Menge in der Basiseinheit gebucht wird. Sperre jetzt
+  „Bestell- **oder** Basiseinheit ≠ Lagereinheit“ (`EinkaufBestellungenSyncService`), Zeilentext nennt alle drei Einheiten.
+- **Ziel-Lagerplatz-Vorbelegung:** leer, weil der Sage-Platz (PlatzID 11) dem WMS-Platz `HR;0;0;0` zugeordnet ist, der `IstBuchbar = 0` hat und
+  daher nicht in der Auswahl steht. Keine stille Leere mehr: Hinweis „Sage-Platz … ist im WMS nicht buchbar – bitte Ziel wählen“. Ob `HR;0;0;0`
+  buchbar sein soll, ist Stammdatenpflege (Gerald), kein Code.
+- Tests: `EinheitAbweichend_BestellOderBasisUngleichLager_Nachbesserung_v1_86` (3 Fälle), View-Guard `Nachbesserung_v1_86_…`; TS-116.8/116.9.
+
+## QA Nachbesserung v1.86.0 (qa-agent, 2026-11-07, Bündel 2026-11-08 Lauf 2) – **Testbereit**
+
+Geprüft wurde der Diff `git diff 1dac3bcd 405e9af5`. Build und Tests liefen auf dem ganzen Worktree mit HEAD `405e9af5`. Den Review habe ich selbst in diesem Lauf gemacht, nicht delegiert.
+
+### 1 Build und Tests
+
+`dotnet build IdealAkeWms.slnx`: 0 Fehler, 28 Warnungen (die bekannten).
+
+| Testprojekt | bestanden | übersprungen | Fehler | gesamt |
+|---|---|---|---|---|
+| IdealAkeWms.Tests | 2482 | 1 | 0 | 2483 |
+| IDEALAKEWMSService.Tests | 506 | 0 | 0 | 506 |
+
+### 2 Review – Befunde und Behandlung
+
+| # | Schwere | Befund | Behandlung |
+|---|---|---|---|
+| N-1 | Niedrig | Das Legenden-Muster `badge text-bg-danger` ist kräftig rot (#dc3545). Die überfälligen Zeilen sind `table-danger`, also hellrot (#f8d7da). Das Muster sieht damit anders aus als der Zeilenton (Screenshot 2). Bedeutung und Kontrast stimmen: Weiß auf #dc3545 hat 4,5:1, und der Text „überfällig“ steht zusätzlich in der Spalte „Hinweis“. | Optional: Muster im Zeilenton, z. B. `bg-danger-subtle text-danger-emphasis border border-danger-subtle`. Nicht blockierend. |
+| N-2 | Info | Die neue Einheitensperre wirkt erst **nach dem nächsten Abgleichlauf**, weil das Flag `EinheitAbweichend` im Cache gespeichert ist. Auf AKE-DEV (Cache 19:31, noch alte Regel) sind 7 Zeilen gesperrt. Nach der neuen Regel wären es 31 (SQL-Gegenprobe: Bestell- oder Basiseinheit ≠ Lagereinheit). Darunter ist EK003604 (BelPosId 406071), das heute noch `0` hat. | Auf dem Testsystem nach dem Deploy erst einen Abgleich laufen lassen, dann TS-116.9 prüfen. Danach sind etwa viermal so viele Positionen gesperrt. Das ist fachlich gewollt. |
+| N-3 | Hinweis (nicht neu) | Auf `/PurchaseOrders` und `/Receive` erscheint bei 1520 px zusätzlich ein seitenweiter Querscrollbalken. Er kommt von der Menüleiste: Der Benutzername „Gerald Weich…“ wird abgeschnitten. Dieser Diff verursacht ihn nicht. | Nur vermerkt (allgemeines Navbar-Verhalten). |
+
+**Ohne Befund geprüft:**
+
+- **Sperre** (`EinkaufBestellungenSyncService.cs:131-132`): Der Vergleich läuft nach `Text()` (Trim, leer→null) mit `OrdinalIgnoreCase`. Fehlt die Basiseinheit bei vorhandener Lagereinheit, wird gesperrt. Das ist die vorsichtige Richtung, es wird nichts still gebucht.
+- **Feld `MengeBasiseinheit`:** Es ist eine Einheiten-Zeichenkette (`nvarchar(5)`), im Select gelesen (`:34`) und im Cache gespeichert (`:143`). Auf DEV belegt: EK003604 hat `PKG/Stk/PKG`.
+- **Durchsetzung am Server** (`PurchaseOrdersController.Receive.cs:60`): `z.NichtBuchbar` hat Vorrang vor allen anderen Prüfungen. Der Ziel-Platz muss außerdem in `erlaubtePlaetze` liegen (`:64`). Ein nicht buchbarer Platz wird also auch serverseitig abgewiesen.
+- **Ziel-Hinweis** (`Receive.cshtml:115`): Er erscheint nur, wenn ein WMS-Platz zugeordnet ist, der nicht in `Model.Lagerplaetze` steht. Er schließt sich mit dem vorhergehenden Zweig „Sage-Platz nicht im WMS“ aus. `ZielLagerplatz` kommt aus `GetAllOrderedAsync` (alle Plätze) und zeigt den WMS-Code.
+- **Farbkonzept:** `table-danger` statt `table-warning`, nur bei `Ueberfaellig`. Sonst gilt `table-striped` wie bei Kreditoren und Lagerplätzen. Der Text „überfällig“ steht in der Hinweis-Spalte, die Farbe ist also nicht allein Bedeutungsträger.
+- **Kontrast:** Text #212529 auf #f8d7da ≈ 13:1. `btn-primary` (Navy, Weiß) auf Rot ist gut lesbar.
+- **Sonstiges:** keine Werte in `<script>`, kein `Html.Raw`, kein `hidden` zusammen mit `d-*`. Keine neue Einstellung, ADR 0020 ist nicht betroffen. Keine Migration.
+
+### 3 Nachweisart
+
+| Punkt | Nachweis |
+|---|---|
+| Sperre Bestell- oder Basiseinheit ≠ Lagereinheit | Service-Test `EinheitAbweichend_BestellOderBasisUngleichLager_Nachbesserung_v1_86` mit 3 Fällen (PKG/PKG/PKG frei, PKG/Stk/PKG gesperrt, PKG/Stk/Stk gesperrt). Mit echten SData-Daten: Manual-UAT, weil auf DEV kein Lauf erlaubt ist. |
+| Farbkonzept, Legende, Kontrast | Quelltext-Test `Nachbesserung_v1_86_Farbkonzept_…` und **Sichtprüfung DEV** (Screenshots unten) |
+| Hinweis bei nicht buchbarem Ziel-Platz | Quelltext-Test und DEV (2027-168705) |
+
+### 4 Geänderte bestehende Tests
+
+- `EinkaufBestellungenSyncTests.Pos(...)`: neuer optionaler Parameter `basis`, Default = `me` wie bisher. Das ist eine reine Fixture-Erweiterung, das Verhalten der bestehenden Tests bleibt gleich. Keine Einstufung als „sonstige“.
+
+### 5 Checkliste und Deploy-Nachtrag
+
+- Version 1.86.0 steht in beiden `AppVersion.cs`. Anwender-Changelog und Hilfe sind ergänzt.
+- TS-116.8 und 116.9 stehen in `docs/TESTSZENARIEN.md` (Worktree). Den Testindex habe ich in diesem Lauf nachgezogen.
+- **Offen (nicht blockierend):** Brain-Changelog v1.86.0.
+
+**Deploy v1.86.0** (Nachtrag zum Abschnitt „Deploy“, aus dem Diff `1dac3bcd..405e9af5`):
+
+- **Web:** ja. Betroffen sind die Views `PurchaseOrders/Index|Receive`, das ViewModel, der Modell-Kommentar, Hilfe, Changelog und AppVersion.
+- **Service:** ja. Betroffen sind `EinkaufBestellungenSyncService` und AppVersion.
+- **Migration:** nein.
+- **Reihenfolge:** wie oben. Nach dem Service-Deploy den Abgleich einmal laufen lassen, damit die neue Sperre greift (N-2).
+
+### 6 DEV-Deploy und Testlauf
+
+**Deploy** mit `dev-deploy.ps1 -Quelle <Worktree>`, elevated:
+
+| Standort | Exit | Rückmeldung |
+|---|---|---|
+| AKE | 0 | „HTTP 200, Fusszeile v1.86.0“ |
+| IDEAL | 0 | „HTTP 200, Fusszeile v1.86.0“ |
+
+Die Fußzeile entspricht der Branch-AppVersion.
+
+**Daten AKE_WMS_DEV:** Der Cache hat 1.059 Positionen (Stand 07.11.2026 19:31), davon 1.017 überfällig. `WareneingangBestellungAktiv` stand auf true und blieb so.
+
+Die Screenshots liegen unter `C:\Users\GERALD~1.WEI\AppData\Local\Temp\claude-chrome-screenshots-cF2Dyv\`.
+
+| Schritt | Ergebnis | Status |
+|---|---|---|
+| 116.8 Vorschau ohne Filter | Überfällige Zeilen hellrot (`table-danger`). Die Legende „rot hinterlegt = überfällig …“ steht über der Tabelle. Kein Gelb oder Beige mehr. Screenshot `screenshot-1794077622087-2.jpg` | OK |
+| 116.8 künftige Positionen | Filter Liefertermin `>07.11.2026`: 4 Zeilen im neutralen Streifenmuster (weiß/grau), Knopf „Wareneingang“ gefüllt. Screenshots `screenshot-1794077645576-4.jpg`, `screenshot-1794077682504-5.jpg` | OK |
+| 116.8 Hinweis-Spalte | 2027-168705: Zeile rot, Hinweis „überfällig“, Knopf `btn-primary` gut lesbar. Screenshot `screenshot-1794077715100-6.jpg` | OK |
+| Kontrast | Zeilentext auf #f8d7da ≈ 13:1, Legende 4,5:1, Knopf Weiß auf Navy. Die Farbe trägt die Bedeutung nicht allein. | OK (Farbton der Legende: N-1) |
+| 116.9 EK023579 (2027-168705) | PKG/PKG/PKG ohne Markierung, Eingabefeld vorhanden. Ziel steht auf „— wählen —“ mit dem Hinweis „Sage-Platz HR;0;0;0 ist im WMS nicht buchbar – bitte Ziel wählen“ (HR;0;0;0 = Id 4, `IstBuchbar = 0`). Screenshot `screenshot-1794077731065-7.jpg` | OK |
+| 116.9 EK003604 (2027-168942) | Testdatum: `EinheitAbweichend = 1` per SQL an BelPosId 406071 gesetzt, also das, was der nächste Lauf schreibt. Pos. 1 zeigt „nicht buchbar – Einheit abweichend (Bestellung PKG, Basis Stk, Lager PKG) – nicht buchbar, bis geklärt“ ohne Eingabefeld. Pos. 2 (EK015029) zeigt den Ziel-Hinweis „Sage-Platz SL;10;1;0 ist im WMS nicht buchbar“. | Anzeige OK. Setzen durch den echten Lauf: NICHT MÖGLICH (kein Sync auf DEV) |
+| Buchung | Nicht ausgeführt, kein Formular übermittelt. | – |
+
+**Zurückgesetzt und geprüft:**
+
+- BelPosId 406071 steht wieder auf `EinheitAbweichend = 0`. Damit sind wie vorgefunden 7 Zeilen gesperrt.
+- 0 Receipts, max StockMovement 19382 (unverändert).
+- Kein `Sync:*Enabled` an, `SageLagerbuchungAktiv` nicht gesetzt.
+
+### Manuelle Test-Checkliste (offen für den Menschen)
+
+1. Testsystem: v1.86.0 Web und Service deployen, dann **einen Abgleich laufen lassen**.
+   - TS-116.9 an EK003604 prüfen: Die Position muss gesperrt sein.
+   - Die Zahl der gesperrten Positionen im Aktivitäts-Protokoll mit dem vorigen Lauf vergleichen (N-2).
+2. TS-116.8 am Fertigungsterminal bzw. Handgerät: Sind Rot und Legende auch bei schlechtem Licht unterscheidbar?
+3. Stammdatenpflege: Soll `HR;0;0;0` buchbar sein? Bei Ja `IstBuchbar` setzen, dann wird der Ziel-Platz vorbelegt.
+4. N-1 optional entscheiden: Legende im Zeilenton.
+5. Weiterhin offen sind die Punkte 1–11 der „Manuellen Test-Checkliste (final)“ aus dem QA-Nachlauf Q-8.
+
