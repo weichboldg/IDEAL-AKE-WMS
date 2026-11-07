@@ -468,7 +468,7 @@ public class WarehouseRequisitionRepository : IWarehouseRequisitionRepository
 
     public async Task<(int WaitingItemCount, int WaitingRequisitionCount,
                        int NoRestockItemCount, int NoRestockRequisitionCount)>
-        GetShortageCountsForUserAsync(int userId)
+        GetShortageCountsForUserAsync(int userId, WarehouseRequisitionType? type)
     {
         var userWorkplaceIds = await _context.ProductionWorkplaceUsers
             .Where(u => u.UserId == userId)
@@ -480,6 +480,9 @@ public class WarehouseRequisitionRepository : IWarehouseRequisitionRepository
             .Where(i => (i.WarehouseRequisition.Status == WarehouseRequisitionStatus.Closed
                          || i.WarehouseRequisition.Status == WarehouseRequisitionStatus.PartiallyDelivered)
                 && userWorkplaceIds.Contains(i.WarehouseRequisition.ProductionWorkplaceId));
+        // v1.81.0 (Spec 2026-11-08-fehlteile-karte-meine-fehlteile-lager-glas A): Karte zaehlt den aktiven Bestelltyp wie die Liste dahinter;
+        // null = alle Typen (Semantik wie GetMissingPartsAsync).
+        if (type.HasValue) q = q.Where(i => i.WarehouseRequisition.Type == type.Value);
 
         var waiting = q.Where(i => i.ShortageStatus == ShortageStatus.WillBeRestocked);
         var noRestock = q.Where(i => i.ShortageStatus == ShortageStatus.NoRestock);

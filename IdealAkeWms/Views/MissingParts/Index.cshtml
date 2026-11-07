@@ -15,6 +15,13 @@
     </div>
 }
 
+@if (Model.ForeignWorkplaceSelected)
+{
+    <div class="alert alert-warning" role="status">
+        <strong>&#9888;</strong> Die gewählte Werkbank ist dir nicht zugeordnet – die Liste ist deshalb leer.
+    </div>
+}
+
 @if (TempData["SuccessMessage"] != null)
 {
     <div class="alert alert-success">@TempData["SuccessMessage"]</div>
@@ -65,10 +72,9 @@
             <input type="hidden" name="tab" value="@Model.ActiveTab" />
             <input type="hidden" name="type" value="@Model.ActiveType" />
             <label class="form-label mb-0">Werkbank:</label>
-            <select name="workplaceId" class="form-select form-select-sm" style="width:auto;"
-                    onchange="this.form.submit()"
-                    @(Model.MineOnly ? "disabled" : "")
-                    title="@(Model.MineOnly ? "In \"Nur meine Werkbaenke\"-Modus deaktiviert" : "")">
+            @* v1.81.0: auch im Modus „Nur meine Werkbaenke“ bedienbar; der Controller liefert dann nur die eigenen Werkbaenke. *@
+            <select name="workplaceId" class="form-select form-select-sm" style="width:auto;" aria-label="Werkbank"
+                    onchange="this.form.submit()">
                 <option value="">— Alle —</option>
                 @foreach (var w in Model.AvailableWorkplaces)
                 {
@@ -78,6 +84,9 @@
             <div class="form-check ms-3">
                 <input type="checkbox" name="mineOnly" value="true" id="mineOnly" class="form-check-input"
                        @(Model.MineOnly ? "checked" : "") onchange="this.form.submit()" />
+                @* v1.81.0 (Freigabe-Antwort 2): abgewaehlt sendet die Checkbox nichts -> ohne dieses Feld griffe der Default mineOnly=true.
+                   Angehakt kommen „true,false“, der bool-Binder nimmt den ersten Wert. *@
+                <input type="hidden" name="mineOnly" value="false" />
                 <label for="mineOnly" class="form-check-label">Nur meine Werkbaenke</label>
             </div>
         </form>

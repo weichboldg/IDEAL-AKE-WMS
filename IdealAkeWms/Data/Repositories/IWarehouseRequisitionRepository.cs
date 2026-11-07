@@ -75,9 +75,10 @@ public interface IWarehouseRequisitionRepository
     /// betroffene Bestellungen (Closed + PartiallyDelivered) fuer alle
     /// Vormontageplaetze, denen <paramref name="userId"/> zugeordnet ist.
     /// </summary>
+    /// <remarks>v1.81.0: <paramref name="type"/> = Bestelltyp der Karte (aktiver Reiter); null = alle Typen.</remarks>
     Task<(int WaitingItemCount, int WaitingRequisitionCount,
           int NoRestockItemCount, int NoRestockRequisitionCount)>
-        GetShortageCountsForUserAsync(int userId);
+        GetShortageCountsForUserAsync(int userId, WarehouseRequisitionType? type);
 
     Task CancelAsync(int id, string? reason, int cancelledByUserId, string user, string winUser, byte[] rowVersion);
 

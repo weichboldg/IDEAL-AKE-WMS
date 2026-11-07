@@ -52,11 +52,12 @@ public class MissingPartsController : Controller
         // Spec 2026-11-07-fehlteile-nur-meine-werkbaenke-trefferzahl: EINE Werkbank-Menge fuer Liste und beide Tab-Badges, gefiltert im
         // Repository vor Count/Paging (ADR 0005). null = kein Filter; leer = keine Treffer (fremde Werkbank bei „Nur meine Werkbaenke“).
         List<int>? userWorkplaceIds = null;
+        List<ProductionWorkplace>? userWorkplaces = null;
         IReadOnlyCollection<int>? workplaceIds = workplaceId.HasValue ? new[] { workplaceId.Value } : null;
         if (mineOnly)
         {
             var userId = _user.GetCurrentAppUserId() ?? 0;
-            var userWorkplaces = await _workplaces.GetByUserIdAsync(userId);
+            userWorkplaces = (await _workplaces.GetByUserIdAsync(userId)).OrderBy(w => w.Name).ToList();
             userWorkplaceIds = userWorkplaces.Select(w => w.Id).ToList();
             workplaceIds = workplaceId.HasValue
                 ? (userWorkplaceIds.Contains(workplaceId.Value) ? new[] { workplaceId.Value } : Array.Empty<int>())
@@ -72,7 +73,7 @@ public class MissingPartsController : Controller
             return View(new MissingPartsListViewModel
             {
                 Items = new List<MissingPartRow>(),
-                AvailableWorkplaces = (await _workplaces.GetByUserIdAsync(_user.GetCurrentAppUserId() ?? 0)).OrderBy(w => w.Name).ToList(),
+                AvailableWorkplaces = userWorkplaces!,
                 WorkplaceFilter = workplaceId,
                 MineOnly = mineOnly,
                 ActiveTab = tab,
@@ -103,11 +104,15 @@ public class MissingPartsController : Controller
         var noRestockResult = await _repo.GetMissingPartsAsync(
             ShortageStatus.NoRestock, activeType, workplaceIds, null, null, null, 1, 1);
 
+        // v1.81.0 (Spec 2026-11-08-fehlteile-karte B): „Nur meine Werkbaenke“ -> Auswahl nur der eigenen Werkbaenke; fremde per URL = Hinweis
+        // statt stiller Leerliste (Liste/Badges bleiben leer wie v1.75.0), Dropdown auf „— Alle —“.
+        var fremdeWerkbank = mineOnly && workplaceId.HasValue && !userWorkplaceIds!.Contains(workplaceId.Value);
         var vm = new MissingPartsListViewModel
         {
             Items = rows.ToList(),
-            AvailableWorkplaces = (await _workplaces.GetAllAsync()).OrderBy(w => w.Name).ToList(),
-            WorkplaceFilter = workplaceId,
+            AvailableWorkplaces = mineOnly ? userWorkplaces! : (await _workplaces.GetAllAsync()).OrderBy(w => w.Name).ToList(),
+            WorkplaceFilter = fremdeWerkbank ? null : workplaceId,
+            ForeignWorkplaceSelected = fremdeWerkbank,
             MineOnly = mineOnly,
             HasNoWorkplaceMapping = hasNoWorkplaceMapping,
             ActiveTab = tab,

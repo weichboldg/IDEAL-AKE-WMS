@@ -46,7 +46,7 @@
             {
                 <div class="mb-1">
                     <a asp-controller="MissingParts" asp-action="Index"
-                       asp-route-tab="WillBeRestocked" asp-route-mineOnly="true"
+                       asp-route-tab="WillBeRestocked" asp-route-type="@Model.ActiveType" asp-route-mineOnly="true"
                        class="text-warning fw-semibold text-decoration-none">
                         @Model.MissingPartsWaitingItemCount Fehlteile (wird nachgeliefert)
                         <small class="text-muted">aus @Model.MissingPartsWaitingRequisitionCount Bestellungen →</small>
@@ -57,7 +57,7 @@
             {
                 <div>
                     <a asp-controller="MissingParts" asp-action="Index"
-                       asp-route-tab="NoRestock" asp-route-mineOnly="true"
+                       asp-route-tab="NoRestock" asp-route-type="@Model.ActiveType" asp-route-mineOnly="true"
                        class="text-danger fw-semibold text-decoration-none">
                         @Model.MissingPartsNoRestockItemCount Wird nicht nachgeliefert
                         <small class="text-muted">aus @Model.MissingPartsNoRestockRequisitionCount Bestellungen →</small>

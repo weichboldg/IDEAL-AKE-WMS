@@ -89,7 +89,7 @@ public class WarehouseRequisitionsController : Controller
         var paged = filtered.Skip((page - 1) * effectivePageSize).Take(effectivePageSize).ToList();
 
         var (missingItemCount, missingReqCount, missingNoRestockItemCount, missingNoRestockReqCount) =
-            await _repo.GetShortageCountsForUserAsync(userId);
+            await _repo.GetShortageCountsForUserAsync(userId, activeType);
 
         var vm = new WarehouseRequisitionListViewModel
         {

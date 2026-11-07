@@ -1,4 +1,4 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using IdealAkeWms.Data;
 using IdealAkeWms.Data.Repositories;
 using IdealAkeWms.Models;
@@ -728,7 +728,7 @@ public class WarehouseRequisitionRepositoryTests
             new Dictionary<int, ShortageStatus> { [i2.Id] = ShortageStatus.NoRestock },
             1, "u", "w", new byte[0]);
 
-        var (waitingItems, waitingReqs, noRestockItems, noRestockReqs) = await repo.GetShortageCountsForUserAsync(42);
+        var (waitingItems, waitingReqs, noRestockItems, noRestockReqs) = await repo.GetShortageCountsForUserAsync(42, null);
         waitingItems.Should().Be(2);
         waitingReqs.Should().Be(1);
         noRestockItems.Should().Be(1);
@@ -770,7 +770,7 @@ public class WarehouseRequisitionRepositoryTests
             new Dictionary<int, ShortageStatus> { [r2item.Id] = ShortageStatus.NoRestock },
             1, "u", "w", new byte[0]);
 
-        var (waitingItems, _, noRestockItems, _) = await repo.GetShortageCountsForUserAsync(42);
+        var (waitingItems, _, noRestockItems, _) = await repo.GetShortageCountsForUserAsync(42, null);
         waitingItems.Should().Be(0);
         noRestockItems.Should().Be(0);
     }

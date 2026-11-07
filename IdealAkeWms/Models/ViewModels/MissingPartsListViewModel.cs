@@ -8,6 +8,9 @@ public class MissingPartsListViewModel
     public List<ProductionWorkplace> AvailableWorkplaces { get; set; } = new();
     public int? WorkplaceFilter { get; set; }
     public bool MineOnly { get; set; }
+
+    /// <summary>v1.81.0: „Nur meine Werkbaenke“ mit fremder <c>workplaceId</c> in der URL -> sichtbarer Hinweis (Liste bleibt leer).</summary>
+    public bool ForeignWorkplaceSelected { get; set; }
     public PaginationState Pagination { get; set; } = new();
 
     /// <summary>Welcher Tab ist gerade aktiv.</summary>
