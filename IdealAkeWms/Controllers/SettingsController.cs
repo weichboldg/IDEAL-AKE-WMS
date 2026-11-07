@@ -40,11 +40,17 @@ public class SettingsController : Controller
         _operations = operations;
     }
 
-    public async Task<IActionResult> Index()
+    public async Task<IActionResult> Index() => View(await BuildViewModelAsync(null));
+
+    /// <param name="eingaben">Nach abgelehntem Speichern: die geposteten Werte statt des DB-Stands (F5, QA B1).</param>
+    private async Task<SettingsViewModel> BuildViewModelAsync(IReadOnlyDictionary<string, string>? eingaben)
     {
         // v1.77.0 (Spec 2026-11-07-einstellungen-auswahlfelder-und-beschreibung E2): jeder Katalog-Key, auch ohne DB-Zeile (dann Default).
-        var rows = await _settingRepository.GetAllAsync();
+        var rows = await _settingRepository.GetAllAsync() ?? new List<AppSetting>();
         var byKey = rows.GroupBy(r => r.Key).ToDictionary(g => g.Key, g => (string?)g.First().Value);
+        if (eingaben != null)
+            foreach (var (k, v) in eingaben.Where(e => AppSettingDefinitions.TryGet(e.Key, out _)))
+                byKey[k] = v ?? "";
         var optionen = await OptionenAsync();
         var items = AppSettingDefinitions.All
             .Select(d => SettingItem.Aus(d, byKey.GetValueOrDefault(d.Key), optionen.GetValueOrDefault(d.Key)))
@@ -53,9 +59,9 @@ public class SettingsController : Controller
         {
             Groups = SettingGroup.Bilden(items),
             Orphans = rows.Where(r => !AppSettingDefinitions.TryGet(r.Key, out _)).OrderBy(r => r.Key).ToList(),
-            Holidays = await _holidayRepository.GetAllOrderedAsync()
+            Holidays = await _holidayRepository.GetAllOrderedAsync() ?? new List<Holiday>()
         };
-        return View(vm);
+        return vm;
     }
 
     /// <summary>Auswahl aus Stammdaten (MasterData) bzw. Vorschlaege (BdeDefaultArbeitsgang) je Key.</summary>
@@ -95,6 +101,10 @@ public class SettingsController : Controller
         foreach (var (key, roh) in settings)
         {
             if (!AppSettingDefinitions.TryGet(key, out var def)) continue;
+            // Unveraendert (Zeile mit demselben Rohwert bzw. ohne Zeile = Default) wird weder geprueft noch geschrieben (F4, QA B2:
+            // ein fehlender Ausweich-Lagerplatz darf nicht jedes Speichern sperren).
+            if (bestand.TryGetValue(key, out var vorher) ? string.Equals(vorher, roh, StringComparison.Ordinal) : SettingItem.EntsprichtDefault(def, roh))
+                continue;
             var stamm = def.Type == SettingType.MasterData && optionen.TryGetValue(key, out var o) ? o.Select(x => x.Wert).ToList() : null;
             var pruefung = SettingValidator.Validate(def, roh, stamm);
             if (!pruefung.Gueltig) { fehler.Add(pruefung.Fehler!); continue; }
@@ -113,8 +123,9 @@ public class SettingsController : Controller
 
         if (fehler.Count > 0)
         {
-            TempData["WarningMessage"] = "Nicht gespeichert: " + string.Join(" ", fehler);
-            return RedirectToAction(nameof(Index));
+            // F5 / QA B1: Seite mit den eingegebenen Werten zurueck, nichts gespeichert.
+            ViewData["WarningMessage"] = "Nicht gespeichert: " + string.Join(" ", fehler);
+            return View(nameof(Index), await BuildViewModelAsync(settings));
         }
 
         foreach (var (key, wert) in schreiben)

@@ -82,6 +82,14 @@ public class SettingValidatorTests
     }
 
     [Fact]
+    public void ServiceKatalog_JederKeyHatEigeneMetadaten_QA_B5()
+    {
+        // Ergaenzen() faellt ohne Eintrag auf den Key als Anzeigename und "Dienst" als Verwendung zurueck — das soll nie vorkommen.
+        ServiceSettingDefinitions.All.Should().OnlyContain(d => d.Anzeigename != d.Key && d.Verwendung != "Dienst",
+            "jeder Service-Key braucht einen Eintrag in ServiceSettingDefinitions.Meta");
+    }
+
+    [Fact]
     public void Quellenschalter_SindChoice_GleichSageQuelle_AK16()
     {
         var quellen = ServiceSettingDefinitions.All.Where(d => d.Key.StartsWith("Sync:Quelle:", StringComparison.Ordinal)).ToList();

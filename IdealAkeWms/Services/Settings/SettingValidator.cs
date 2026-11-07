@@ -25,9 +25,10 @@ public static class SettingValidator
         switch (d.Type)
         {
             case SettingType.Bool:
-                if (t.Length == 0) return SettingPruefung.Ok("");
-                if (t.Equals("true", StringComparison.OrdinalIgnoreCase)) return SettingPruefung.Ok("true");
-                if (t.Equals("false", StringComparison.OrdinalIgnoreCase)) return SettingPruefung.Ok("false");
+                // Ohne Trim wie die Leser (QA B3): „ false“ ist kein gueltiger Wert.
+                if (string.IsNullOrEmpty(roh)) return SettingPruefung.Ok("");
+                if (roh.Equals("true", StringComparison.OrdinalIgnoreCase)) return SettingPruefung.Ok("true");
+                if (roh.Equals("false", StringComparison.OrdinalIgnoreCase)) return SettingPruefung.Ok("false");
                 return Fehler(name, roh, "an oder aus (true/false)");
 
             case SettingType.Int:

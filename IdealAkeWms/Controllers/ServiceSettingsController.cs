@@ -55,6 +55,9 @@ public class ServiceSettingsController : Controller
             var roh = rawValue ?? string.Empty;
             // Checkbox-Altformen wie bisher als „an“ lesen.
             if (def.Type == SettingType.Bool && (roh == "1" || roh.Equals("on", StringComparison.OrdinalIgnoreCase))) roh = "true";
+            // Unveraendert = weder pruefen noch schreiben (F4, QA B2).
+            if (bestand.TryGetValue(key, out var vorher) ? string.Equals(vorher.Value, roh, StringComparison.Ordinal) : SettingItem.EntsprichtDefault(def, roh))
+                continue;
             var pruefung = SettingValidator.Validate(def, roh, exakt: true);
             if (!pruefung.Gueltig)
             {
@@ -91,7 +94,8 @@ public class ServiceSettingsController : Controller
         if (!ModelState.IsValid)
         {
             // Fehler sichtbar machen: View mit gemergtem Stand zurueckgeben.
-            var vm = await BuildViewModelAsync();
+            // F5 / QA B1: mit den eingegebenen Werten zurueck.
+            var vm = await BuildViewModelAsync(settings);
             return View(nameof(Index), vm);
         }
 
@@ -175,14 +179,17 @@ public class ServiceSettingsController : Controller
         }
     }
 
-    private async Task<ServiceSettingsViewModel> BuildViewModelAsync()
+    private async Task<ServiceSettingsViewModel> BuildViewModelAsync(IReadOnlyDictionary<string, string>? eingaben = null)
     {
         var dbRows = await _repository.GetAllAsync() ?? new List<ServiceSetting>();
-        var dbByKey = dbRows.ToDictionary(s => s.Key, StringComparer.Ordinal);
+        var dbByKey = dbRows.ToDictionary(s => s.Key, s => (string?)s.Value, StringComparer.Ordinal);
+        if (eingaben != null)
+            foreach (var (k, v) in eingaben.Where(e => ServiceSettingDefinitions.TryGet(e.Key, out _)))
+                dbByKey[k] = v ?? "";
 
         // v1.77.0 E3: SettingItem nach Katalog (Bool „leer = Default“ zeigt den wirksamen Zustand, AK 11; Choice exakt wie der Dienst liest).
         var items = ServiceSettingDefinitions.All
-            .Select(def => SettingItem.Aus(def, dbByKey.TryGetValue(def.Key, out var row) ? row.Value : null, exakt: true))
+            .Select(def => SettingItem.Aus(def, dbByKey.GetValueOrDefault(def.Key), exakt: true))
             .ToList();
         var catalogKeys = ServiceSettingDefinitions.All.Select(d => d.Key).ToHashSet(StringComparer.Ordinal);
         return new ServiceSettingsViewModel

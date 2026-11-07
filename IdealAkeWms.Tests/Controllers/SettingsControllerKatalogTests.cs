@@ -127,7 +127,7 @@ public class SettingsControllerKatalogTests
         });
 
         repo.Verify(r => r.SetValueAsync(It.IsAny<string>(), It.IsAny<string?>()), Times.Never, "ganz oder gar nicht");
-        var meldung = (string)ctrl.TempData["WarningMessage"]!;
+        var meldung = (string)ctrl.ViewData["WarningMessage"]!;
         meldung.Should().StartWith("Nicht gespeichert:").And.Contain("OSEON-Reporting: Horizont").And.Contain("von 1 bis 60")
             .And.Contain("Empfängergruppe Glasbestellung");
     }
@@ -140,7 +140,7 @@ public class SettingsControllerKatalogTests
         await ctrl.SaveSettings(new Dictionary<string, string> { [AppSettingKeys.BdeNurFaMeldung] = "true" });
 
         repo.Verify(r => r.SetValueAsync(It.IsAny<string>(), It.IsAny<string?>()), Times.Never);
-        ((string)ctrl.TempData["WarningMessage"]!).Should().Contain("Default-Arbeitsgang");
+        ((string)ctrl.ViewData["WarningMessage"]!).Should().Contain("Default-Arbeitsgang");
     }
 
     [Fact]
@@ -152,5 +152,26 @@ public class SettingsControllerKatalogTests
 
         repo.Verify(r => r.SetValueAsync(It.IsAny<string>(), It.IsAny<string?>()), Times.Never);
         ctrl.TempData["SuccessMessage"].Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task Save_Abgelehnt_SeiteMitEingaben_QA_B1()
+    {
+        var (ctrl, _) = Build(new AppSetting { Key = AppSettingKeys.BdeDefaultArbeitsgang, Value = "" });
+
+        var result = await ctrl.SaveSettings(new Dictionary<string, string> { [AppSettingKeys.BdeNurFaMeldung] = "true" });
+
+        var vm = (SettingsViewModel)result.Should().BeOfType<ViewResult>().Which.Model!;
+        vm.Groups.SelectMany(g => g.Items).Single(i => i.Key == AppSettingKeys.BdeNurFaMeldung).Wirksam.Should().Be("true", "Eingabe bleibt");
+    }
+
+    [Fact]
+    public async Task Index_BoolOhneTrim_WieDerLeser_QA_B3()
+    {
+        var (ctrl, _) = Build(new AppSetting { Key = AppSettingKeys.LagerbestellungAktiv, Value = " false" });
+
+        var lb = (await Items(ctrl)).Single(i => i.Key == AppSettingKeys.LagerbestellungAktiv);
+
+        (lb.Wirksam, lb.Ungueltig).Should().Be(("true", true), "der Leser vergleicht ungetrimmt: \" false\" sperrt NICHT");
     }
 }

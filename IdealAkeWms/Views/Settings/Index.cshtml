@@ -30,6 +30,11 @@
     var namen = alleItems.ToDictionary(i => i.Key, i => i.Anzeigename);
 }
 
+@if (ViewData["WarningMessage"] is string nichtGespeichert)
+{
+    <div class="alert alert-warning" role="alert"><strong>&#9888;</strong> @nichtGespeichert Ihre Eingaben stehen unten noch im Formular.</div>
+}
+
 @if (ungueltig.Any())
 {
     <div class="alert alert-danger" role="alert">

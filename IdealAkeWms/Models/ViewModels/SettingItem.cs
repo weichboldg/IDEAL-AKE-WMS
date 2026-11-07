@@ -24,13 +24,15 @@ public sealed class SettingItem
     public string Anzeigename => Definition.Anzeigename ?? Definition.Key;
 
     /// <summary>Wirksamer Bool-Zustand nach Lesart (F6).</summary>
+    /// <remarks>Ohne Trim, genau wie die Leser (z. B. <c>RequireLagerbestellungAktivAttribute</c>, <c>ServiceSettings.GetBoolAsync</c>):
+    /// „ false“ ist fuer NurFalseSperrt an (QA B3).</remarks>
     public static bool BoolWirksam(SettingDefinition d, string? roh)
     {
-        var t = roh?.Trim() ?? "";
+        var t = roh ?? "";
         return d.BoolLesart switch
         {
             SettingBoolLesart.NurFalseSperrt => !t.Equals("false", StringComparison.OrdinalIgnoreCase),
-            SettingBoolLesart.LeerIstDefault => t.Length == 0
+            SettingBoolLesart.LeerIstDefault => string.IsNullOrWhiteSpace(t)
                 ? d.DefaultValue.Equals("true", StringComparison.OrdinalIgnoreCase)
                 : t.Equals("true", StringComparison.OrdinalIgnoreCase),
             _ => t.Equals("true", StringComparison.OrdinalIgnoreCase),
@@ -67,8 +69,10 @@ public sealed class SettingItem
             RohWert = roh,
             Wirksam = wirksam,
             WeichtAb = !string.Equals(wirksam.Trim(), standard.Trim(), StringComparison.OrdinalIgnoreCase),
-            Ungueltig = pruefung is { Gueltig: false },
-            Fehler = pruefung?.Fehler,
+            Ungueltig = pruefung is { Gueltig: false }
+                || (d.Type == SettingType.Choice && pruefung is { Gueltig: true } && !string.Equals(pruefung.Kanonisch, roh, StringComparison.Ordinal)),
+            Fehler = pruefung?.Fehler ?? (d.Type == SettingType.Choice && pruefung?.Kanonisch is { } k && !string.Equals(k, roh, StringComparison.Ordinal)
+                ? $"Schreibweise „{roh}“ – richtig ist „{k}“." : null),
             Optionen = optionen,
         };
     }
