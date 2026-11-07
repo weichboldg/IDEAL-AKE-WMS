@@ -2,7 +2,7 @@
 type: spec
 title: OSEON-Tracking-Sync übersteht neu ausgeschriebene Aufträge (MERGE über Auftragsnummer)
 slug: 2026-11-07-oseon-sync-neu-ausgeschriebener-auftrag-spec
-status: Freigegeben
+status: InUmsetzung
 created: 2026-11-07
 updated: 2026-11-07
 source_backlog: "[[2026-11-03-oseon-sync-neu-ausgeschriebener-auftrag]]"
@@ -11,9 +11,9 @@ buendel: "[[2026-11-07-buendel-uebersicht]]"
 depends_on: ""
 version: "Patch auf main-Stand (Hotfix), im Bündel 1.74.0 entfällt"
 sql_nummern: "keine (Block 108–109 reserviert, nicht benötigt)"
-task: ""
+task: "[[2026-11-07-oseon-hotfix-main]]"
 worktree: ""
-branch: ""
+branch: main
 standort: AKE
 affected_code:
   - "IDEALAKEWMSService/Services/OseonSyncService.cs (SyncOseonProductionOrdersAsync :147-193, EnsureWorkplacesExistBulkAsync :207-247, BulkMergeOrdersAsync :253-390, BulkMergeOperationsAsync :395-504, OseonRawRow :731-752)"

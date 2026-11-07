@@ -83,6 +83,21 @@ EPIC HANDLING (before writing the spec):
   scripts/sync-worktree.ps1 during the work. Epic and split are mutually
   exclusive - if both flags are set, treat it as split and note the conflict as
   the first open question.
+- Cut stages so that the whole epic can run through in ONE interactive /goal run
+  (secondbrain/prompts/goal.md) without the human in between: each stage builds and
+  tests green on its own, has its own SQL number if it changes the schema, and does
+  not wait on an open question. A stage that depends on a Sage check query or an
+  unanswered decision gets its own row marked with that dependency, so the run can
+  build around it or record it as a blocker instead of stopping the epic.
+
+BUNDLE OVERVIEW (several specs that belong together and run in one worktree):
+- When you write or rework two or more specs meant to be built together (one bundle
+  worktree, possibly a /goal run), also write ONE overview note
+  secondbrain/specs/entwurf/YYYY-MM-DD-<slug>-uebersicht.md (type: uebersicht) with: the
+  build order, the dependencies between the specs (depends_on as wikilinks), and a
+  reserved SQL number block per spec (three digits from 100, next free number in the
+  bundle at writing time; the dev run re-checks it). The split overview above is the
+  same note - do not write two.
 
 BUG HANDLING (before writing the spec):
 - If the backlog file's frontmatter has `typ: bug` (or `type: bug`), OR its
@@ -114,9 +129,15 @@ OUTPUT (the spec, plus a bug record only in the bug case above):
   WIKILINK, e.g. "[[2026-07-28-foo]]" - NOT a path string like
   "secondbrain/backlog/2026-07-28-foo.md"; Dataview needs the wikilink to link
   the backlog item to its spec, otherwise the HOME dashboard shows it as still
-  open), created/updated: today.
+  open), created/updated: today,
+  standort: AKE | IDEAL | beide (where the change takes effect; the qa-agent deploys and tests on
+  exactly these DEV sites - if the code cannot settle it, use "beide" and add an open question).
 - German prose; English identifiers/code terms. Fill EVERY section. Keep the spec as long as the
   task needs - no repeated explanations, no restating the backlog text.
+- Every new or changed setting (AppSettings /Settings, ServiceSettings /ServiceSettings, curated masks) goes into the
+  section "Einstellungen" per ADR 0020: key, type, allowed values (fixed range = selection list, master-data reference =
+  selection from master data, server validates on save), default, effect, usage, location (Standort), warning text when it
+  has an outside effect (e.g. sends to Sage). No setting touched -> "keine".
 - Acceptance criteria must be individually testable.
 - Cover explicitly: Migrations-/SQL impact (OBJECT_ID guard, FreshInstall),
   audit fields, affected roles/access filters, Listen-View-Pattern duties
