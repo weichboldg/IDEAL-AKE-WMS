@@ -96,7 +96,7 @@ public class EinkaufBestellungenSyncService
 
             var neu = new List<SagePurchaseOrderLine>();
             var gesehen = new HashSet<int>();
-            int ohneSchluessel = 0, doppelt = 0, belegartAus = 0, terminKaputt = 0, einheitAbweichend = 0, gesperrt = 0;
+            int ohneSchluessel = 0, doppelt = 0, belegartAus = 0, terminKaputt = 0, einheitAbweichend = 0, gesperrt = 0, mengeFehlt = 0;
             var artikelFehlt = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
             var kreditorFehlt = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
             var platzFehlt = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -123,6 +123,7 @@ public class EinkaufBestellungenSyncService
 
                 var termin = Datum(z.Liefertermin) ?? Datum(z.BelegLiefertermin);
                 if (termin == null && (!string.IsNullOrWhiteSpace(z.Liefertermin) || !string.IsNullOrWhiteSpace(z.BelegLiefertermin))) terminKaputt++;
+                if (z.PositionGGBestellt == null || z.PositionGGGeliefert == null) mengeFehlt++; // QA Q-6: melden statt still 0
                 var bestellt = z.PositionGGBestellt ?? 0m;
                 var geliefert = z.PositionGGGeliefert ?? 0m;
                 var abweichend = !string.Equals(Text(z.Mengeneinheit), Text(z.Lagermengeneinheit), StringComparison.OrdinalIgnoreCase);
@@ -157,6 +158,8 @@ public class EinkaufBestellungenSyncService
                     string.Join(", ", platzFehlt.Take(20))), ct: ct);
             if (einheitAbweichend > 0)
                 await run.LogInfoAsync($"{einheitAbweichend} Position(en) mit Mengeneinheit ≠ Lagermengeneinheit – im WMS markiert und nicht buchbar.", ct: ct);
+            if (mengeFehlt > 0)
+                await run.LogWarningAsync($"{mengeFehlt} Position(en) ohne PositionGGBestellt/PositionGGGeliefert – fehlender Wert als 0 gefuehrt, bitte in Sage pruefen.", ct: ct);
             if (terminKaputt > 0) await run.LogWarningAsync($"{terminKaputt} Position(en) mit unlesbarem Liefertermin – als „ohne Termin“ gefuehrt.", ct: ct);
 
             if (!dryRun)
@@ -180,6 +183,7 @@ public class EinkaufBestellungenSyncService
                 ["lagerplatz_fehlt"] = platzFehltZeilen,
                 ["einheit_abweichend"] = einheitAbweichend,
                 ["lieferant_gesperrt"] = gesperrt,
+                ["menge_fehlt"] = mengeFehlt,
                 ["uebersprungen"] = uebersprungen,
             }, messageSuffix: dryRun ? "[DryRun]" : null, ct: ct);
             return new SyncResult(neu.Count, 0, uebersprungen);

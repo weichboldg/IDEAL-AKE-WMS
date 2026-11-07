@@ -60,6 +60,7 @@ public partial class PurchaseOrdersController
             z.Fehler = z.NichtBuchbar
                 ?? (!lesbar ? $"„{e.Menge}“ ist keine Zahl." : null)
                 ?? (menge <= 0 ? "Menge muss größer als 0 sein." : null)
+                ?? (decimal.Round(menge, 3) != menge ? "Höchstens 3 Nachkommastellen (Lagerbewegung speichert 3)." : null)
                 ?? (e.StorageLocationId is not { } sid || !erlaubtePlaetze.Contains(sid) ? "Bitte einen Ziel-Lagerplatz wählen." : null)
                 ?? (menge > z.Rest && !e.UeberlieferungBestaetigt ? $"Überlieferung ({menge:0.###} > Rest {z.Rest:0.###}) bitte bestätigen." : null);
             buchen.Add((z, menge));

@@ -106,6 +106,7 @@ public class PurchaseOrdersReceiveTests
     [InlineData(1004, "1", "Einheit abweichend")]
     [InlineData(1001, "abc", "keine Zahl")]
     [InlineData(1001, "11", "bitte bestätigen")]
+    [InlineData(1001, "1,2345", "Höchstens 3 Nachkommastellen")]  // QA Q-5
     public async Task NichtBuchbar_Gruende_AK15_AK16(int belPosId, string menge, string fehler)
     {
         var (ctrl, db) = await BuildAsync();

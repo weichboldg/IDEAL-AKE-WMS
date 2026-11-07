@@ -10,14 +10,7 @@
     <a asp-action="Index" class="btn btn-outline-secondary">Offene Bestellungen</a>
 </div>
 
-@if (TempData["SuccessMessage"] != null)
-{
-    <div class="alert alert-success">@TempData["SuccessMessage"]</div>
-}
-@if (TempData["WarningMessage"] != null)
-{
-    <div class="alert alert-warning">@TempData["WarningMessage"]</div>
-}
+@* TempData-Meldungen zeigt _Layout (QA Q-2: sonst doppelt). *@
 @if (!ViewData.ModelState.IsValid)
 {
     <div class="alert alert-warning" role="alert">
@@ -33,10 +26,10 @@
         <form method="get" asp-action="Receive" class="d-flex gap-2 align-items-end flex-wrap">
             <div>
                 <label for="belegnummer" class="form-label small mb-0">Bestellnummer eingeben oder scannen</label>
-                <input type="text" id="belegnummer" name="belegnummer" class="form-control" placeholder="z. B. 2027-168975"
+                <input type="text" id="belegnummer" name="belegnummer" class="form-control" style="min-height:44px" placeholder="z. B. 2027-168975"
                        value="@(Model.BelId == null ? Model.Belegnummer : null)" autocomplete="off" data-hw-scan-ziel @(Model.BelId == null ? "autofocus" : "") />
             </div>
-            <button type="submit" class="btn btn-primary">Öffnen</button>
+            <button type="submit" class="btn btn-primary" style="min-height:44px">Öffnen</button>
         </form>
     </div>
 </div>
@@ -108,7 +101,7 @@
                                 }
                                 else
                                 {
-                                    <select name="zeilen[@i].StorageLocationId" class="form-select form-select-sm" aria-label="Ziel-Lagerplatz Position @(i + 1)">
+                                    <select name="zeilen[@i].StorageLocationId" class="form-select" style="min-height:44px" aria-label="Ziel-Lagerplatz Position @(i + 1)">
                                         <option value="">— wählen —</option>
                                         @foreach (var p in Model.Lagerplaetze)
                                         {
@@ -129,9 +122,9 @@
                                 else
                                 {
                                     <input type="text" inputmode="decimal" name="zeilen[@i].Menge" value="@z.Eingabe.Menge" autocomplete="off"
-                                           class="form-control form-control-sm ist-menge" aria-label="Ist-Menge Position @(i + 1)" style="min-height:38px" />
-                                    <div class="form-check mt-1">
-                                        <input type="checkbox" class="form-check-input" id="ueber_@i" name="zeilen[@i].UeberlieferungBestaetigt" value="true"
+                                           class="form-control ist-menge" aria-label="Ist-Menge Position @(i + 1)" style="min-height:44px" />
+                                    <div class="form-check mt-1 d-flex align-items-center gap-2" style="min-height:44px">
+                                        <input type="checkbox" class="form-check-input mt-0" style="width:1.5rem;height:1.5rem" id="ueber_@i" name="zeilen[@i].UeberlieferungBestaetigt" value="true"
                                                @(z.Eingabe.UeberlieferungBestaetigt ? "checked" : "") />
                                         <label class="form-check-label small" for="ueber_@i">Überlieferung bestätigt</label>
                                     </div>
@@ -148,7 +141,7 @@
                                 }
                                 @if (z.Fehler != null)
                                 {
-                                    <div class="small text-danger fw-semibold">@z.Fehler</div>
+                                    <div class="small text-danger-emphasis fw-semibold">@z.Fehler</div>
                                 }
                             </td>
                         </tr>
@@ -170,7 +163,7 @@
             var rest = parseFloat(tr.getAttribute('data-rest'));
             var zeigen = function () {
                 var v = parseFloat(String(input.value).replace(',', '.'));
-                out.textContent = isNaN(v) || input.value === '' ? '—' : v === rest ? 'vollständig' : v < rest ? 'Teillieferung' : 'Überlieferung';
+                out.textContent = isNaN(v) || input.value === '' ? '—' : v <= 0 ? 'ungültig' : v === rest ? 'vollständig' : v < rest ? 'Teillieferung' : 'Überlieferung';
                 out.className = 'lieferart small fw-semibold ' + (v > rest ? 'text-danger' : '');
             };
             input.addEventListener('input', zeigen);

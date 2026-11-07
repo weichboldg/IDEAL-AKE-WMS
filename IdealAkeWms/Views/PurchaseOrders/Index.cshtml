@@ -13,14 +13,7 @@
     }
 </div>
 
-@if (TempData["SuccessMessage"] != null)
-{
-    <div class="alert alert-success">@TempData["SuccessMessage"]</div>
-}
-@if (TempData["WarningMessage"] != null)
-{
-    <div class="alert alert-warning">@TempData["WarningMessage"]</div>
-}
+@* TempData-Meldungen zeigt _Layout (QA Q-2: sonst doppelt). *@
 
 @if (Model.Stand == null)
 {
@@ -119,7 +112,7 @@ else
                     <td>
                         @if (Model.CanReceive)
                         {
-                            <a asp-action="Receive" asp-route-belId="@l.BelId" class="btn btn-sm btn-outline-primary" style="min-height:32px">Wareneingang</a>
+                            <a asp-action="Receive" asp-route-belId="@l.BelId" class="btn btn-sm btn-outline-primary d-inline-flex align-items-center" style="min-height:44px">Wareneingang</a>
                         }
                     </td>
                 </tr>
