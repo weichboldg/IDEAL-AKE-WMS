@@ -65,7 +65,7 @@ public interface IWarehouseRequisitionRepository
     Task<(IReadOnlyList<MissingPartRow> Items, int TotalCount)>
         GetMissingPartsAsync(ShortageStatus filterStatus,
                              WarehouseRequisitionType? type,
-                             int? workplaceFilter,
+                             IReadOnlyCollection<int>? workplaceIds,
                              IReadOnlyDictionary<string, string>? columnFilters,
                              DateTime? closedFrom, DateTime? closedUntil,
                              int page, int pageSize);

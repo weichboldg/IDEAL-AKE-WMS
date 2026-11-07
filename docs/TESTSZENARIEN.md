@@ -4421,6 +4421,7 @@ Diese Szenarien decken die erweiterte Sage-Artikel-Synchronisation ab: UNION mit
 **Schritte:**
 1. `/MissingParts` direkt im Browser aufrufen (ohne URL-Parameter).
 **Erwartet:** Tab "Wird nicht nachgeliefert" zeigt nur das eigene Item. Toggle "Nur meine Werkbaenke" ist aktiv. Deaktivieren zeigt auch das fremde Item.
+Trefferzahl und Badges bei mehreren Werkbänken über alle Seiten: TS-108 (v1.75.0).
 
 ### 33.13 No-Workplace-Banner
 
@@ -11130,8 +11131,30 @@ bestätigt, Bestand-Zuordnung bleibt nicht nötig, Lösen), `LagerplatzSyncServi
 | 106.13.l | Negativ Bestand-Operator zuordnen bzw. Zuordnung lösen | Ein Operator aus der Zeit vor dem Deploy wird zugeordnet: `Source = 'Sage'`, Übergabe bleibt leer (`0`), keine Outbox-Zeile. „Lösen“: `Source = 'Manual'`, Übergabe-Status unverändert. |
 | 106.13.m | Negativ Rolle: Benutzer ohne BDE-Schichtleitung ruft `/BdeMasterData?onlyUebergabeOffen=true` auf | AccessDenied (wie TS-106.8.i). |
 
+## TS-108 — Fehlteile „Nur meine Werkbänke“: Trefferzahl und Badges über alle Seiten (v1.75.0)
+
+Spec `2026-11-07-fehlteile-nur-meine-werkbaenke-trefferzahl-spec` (Bug). **Standort:** beide (wo `LagerbestellungAktiv` gesetzt ist).
+**Keine Migration.** Ergänzt 33.12–33.14.
+**Vorbedingungen:** Benutzer **U** mit Werkbänken **A** und **B**, fremde Werkbank **C**; Seitengröße 10. Mindestens 12 Fehlteile
+(Tab „Wird nicht nachgeliefert“) auf C mit jüngerem Abschlussdatum, 3 auf A, 2 auf B; analog einige „Offene Fehlteile“ auf A und C.
+**Regel:** Die Werkbank-Menge (eigene Werkbänke bzw. gewählte Werkbank) wird im Repository **vor** Zählen und Blättern gefiltert (ADR 0005);
+Liste und beide Tab-Badges nutzen dieselbe Menge.
+Automatisiert: `MissingPartsControllerTests` (`…_AK3`, `…_AK4`, `…_AK6`, bestehende angepasst), `MissingPartsLagerControllerTests`,
+`WarehouseRequisitionRepositoryTests.GetMissingPartsAsync_AppliesWorkplaceFilter` (Menge, Seite 2, leere Menge).
+
+| Nr | Schritte | Erwartung |
+|---|---|---|
+| 108.1 | Als U `Lager → Meine Fehlteile`, Tab „Wird nicht nachgeliefert“ | 5 Zeilen (A+B), Trefferzahl 5, eine Seite, keine Zeile von C. Badge „Wird nicht nachgeliefert“ = 5, Badge „Offene Fehlteile“ = Anzahl auf A+B (nicht mehr alle Werkbänke). |
+| 108.2 | Seitengröße 2 | 3 Seiten, zusammen genau die 5 Zeilen, Trefferzahl 5 auf jeder Seite. (Vorher: Seite 1 leer bzw. Trefferzahl = Zeilen der Seite.) |
+| 108.3 | Spaltenfilter Werkbank = `A` | 3 Zeilen, Trefferzahl 3. |
+| 108.4 | Haken „Nur meine Werkbänke“ aus | Alle Werkbänke inkl. C; Badges zählen alle. |
+| 108.5 | Negativ: URL `/MissingParts?mineOnly=true&workplaceId=<Id von C>` | Leere Liste, Trefferzahl 0, **beide Badges 0**. |
+| 108.6 | Benutzer mit genau einer Werkbank | Wie bisher: nur diese Werkbank, Badges passend. |
+| 108.7 | Benutzer ohne Werkbank-Zuordnung | Banner wie 33.13, keine Fehlermeldung. |
+| 108.8 | Regression `Lager → Fehlteile (Lager)` mit und ohne Werkbank-Auswahl | Unverändert wie 33.14 (Liste, Lagerplatz-Bestand, Badges). |
+
 ---
 
 *Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) + Teil 6 (Standorteinstellungen, v1.34.0) + BOM-Guard hierarchisch (2026-08-18, abgelöst) + FA-Liste-Hierarchie (v1.35.0) + BOM-Bridge (v1.36.0) + Materialisierung fachliche Felder K1/K2 (v1.37.0) + Skopierung der Tabellen-Selektoren (TS-72) + FA-Liste ausgebaut: Matchcode, Kopfdaten je Zeile, HauptFA-Zeile, Freigabe-Kaskade (v1.38.0, TS-73) + PDF-Erzeugung für FaHierarchy-Druckdokumente (v1.39.0, TS-74) + Matchcode im Artikelstamm (v1.40.0, TS-75) + FA-Arbeitsgang-Erkennung aus der Struktur (v1.41.0, TS-76, ersetzt durch TS-77) + Arbeitsgänge (WorkOperation) aus der Struktur + Werkbank-Anlage aus Sage (v1.44.0, TS-77) + Arbeitsgänge je (Sub-)FA im FA-Struktur-Modal (v1.45.0, TS-78) + Kommissionierung nur am HauptFA
-(v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80) + Beschichtungsauftrag Summiert als Standard (v1.48.0, TS-81) + Briefkopf Beschichtungsauftrag (v1.49.0, TS-82) + Beschichtungsauftrag als eigenes Objekt (v1.50.0, TS-83) + Beschichtungsaufträge bedienen (v1.51.0, TS-84) + Arbeitsgänge als Symbole im FA-Baum (v1.52.0, TS-85) + CSV-Export für alle Tabellen (v1.53.0, TS-86) + Arbeitsgang-Stammdaten (v1.54.0, TS-87) + Status je Arbeitsgang-Kürzel im FA-Baum (v1.55.0, TS-88) + Menü Beschichtung + Kurzanleitungen (v1.56.0, TS-89) + BDE-Terminal mit Arbeitsgang-Status (v1.57.0, TS-90) + Spaltenfilter-Suchsyntax Etappe A + B (v1.58.0/v1.58.1, TS-91.A/B) + Fußzeile nach Word-Vorlage (v1.59.0, TS-92) + Sage-Quellen auf WMS-Views (v1.60.0–v1.60.2, TS-93) + Arbeitsgang-Abgleich aus der Sage-View (v1.61.0, TS-94) + Stückliste Matchcode und Lagerplatz-Limit (v1.62.0, TS-95) + BDE Stufe 1: Werkbänke, AG-Fertigmeldung (v1.63.0, TS-96) + BDE-Terminal Liste nach Haupt-FA, Scan ohne AG (v1.64.0, TS-97) + Spaltenauswahl/Zahnrad zentraler Toolbar-Host (v1.65.0, TS-98) + Hardware-Barcodescanner (v1.66.0–v1.66.2, TS-99) + Vault- und enaio-Links konfigurierbar (v1.67.0, TS-100) + QR erstes Feld Matchcode / Trennzeichen (v1.68.0/v1.69.0, TS-101) + Aktivitäts-Protokoll Spaltenfilter/Namen (v1.70.0, TS-102) + FA-Struktur live aus Sage (v1.71.0, TS-103) + Lagerplatz-Etikett 93 × 55 mm und Vormontage-Felder (v1.72.0, TS-104/TS-105) + Sage-Abgleich über SData (v1.73.0, TS-106)*
+(v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80) + Beschichtungsauftrag Summiert als Standard (v1.48.0, TS-81) + Briefkopf Beschichtungsauftrag (v1.49.0, TS-82) + Beschichtungsauftrag als eigenes Objekt (v1.50.0, TS-83) + Beschichtungsaufträge bedienen (v1.51.0, TS-84) + Arbeitsgänge als Symbole im FA-Baum (v1.52.0, TS-85) + CSV-Export für alle Tabellen (v1.53.0, TS-86) + Arbeitsgang-Stammdaten (v1.54.0, TS-87) + Status je Arbeitsgang-Kürzel im FA-Baum (v1.55.0, TS-88) + Menü Beschichtung + Kurzanleitungen (v1.56.0, TS-89) + BDE-Terminal mit Arbeitsgang-Status (v1.57.0, TS-90) + Spaltenfilter-Suchsyntax Etappe A + B (v1.58.0/v1.58.1, TS-91.A/B) + Fußzeile nach Word-Vorlage (v1.59.0, TS-92) + Sage-Quellen auf WMS-Views (v1.60.0–v1.60.2, TS-93) + Arbeitsgang-Abgleich aus der Sage-View (v1.61.0, TS-94) + Stückliste Matchcode und Lagerplatz-Limit (v1.62.0, TS-95) + BDE Stufe 1: Werkbänke, AG-Fertigmeldung (v1.63.0, TS-96) + BDE-Terminal Liste nach Haupt-FA, Scan ohne AG (v1.64.0, TS-97) + Spaltenauswahl/Zahnrad zentraler Toolbar-Host (v1.65.0, TS-98) + Hardware-Barcodescanner (v1.66.0–v1.66.2, TS-99) + Vault- und enaio-Links konfigurierbar (v1.67.0, TS-100) + QR erstes Feld Matchcode / Trennzeichen (v1.68.0/v1.69.0, TS-101) + Aktivitäts-Protokoll Spaltenfilter/Namen (v1.70.0, TS-102) + FA-Struktur live aus Sage (v1.71.0, TS-103) + Lagerplatz-Etikett 93 × 55 mm und Vormontage-Felder (v1.72.0, TS-104/TS-105) + Sage-Abgleich über SData (v1.73.0, TS-106) + Fehlteile „Nur meine Werkbänke“ Trefferzahl (v1.75.0, TS-108)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*

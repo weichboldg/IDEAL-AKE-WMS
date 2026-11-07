@@ -469,9 +469,18 @@ public class WarehouseRequisitionRepositoryTests
             new Dictionary<int, ShortageStatus> { [r2item.Id] = ShortageStatus.NoRestock },
             1, "u", "w", new byte[0]);
 
-        var (only1, _) = await repo.GetMissingPartsAsync(ShortageStatus.NoRestock, null, 1, null, null, null, 1, 100);
+        var (only1, _) = await repo.GetMissingPartsAsync(ShortageStatus.NoRestock, null, new[] { 1 }, null, null, null, 1, 100);
         only1.Should().HaveCount(1);
         only1[0].WorkplaceName.Should().Be("WB1");
+
+        // Spec 2026-11-07-fehlteile (AK 1/2): Menge in SQL vor Count/Paging; leere Menge = keine Treffer.
+        var (beide, total) = await repo.GetMissingPartsAsync(ShortageStatus.NoRestock, null, new[] { 1, 2 }, null, null, null, 2, 1);
+        total.Should().Be(2, "Gesamtzahl ueber beide Werkbaenke, nicht die Zeilen der Seite");
+        beide.Should().ContainSingle();
+        var (keine, totalKeine) = await repo.GetMissingPartsAsync(ShortageStatus.NoRestock, null, Array.Empty<int>(), null, null, null, 1, 100);
+        (keine.Count, totalKeine).Should().Be((0, 0));
+        var (nurDrei, totalDrei) = await repo.GetMissingPartsAsync(ShortageStatus.NoRestock, null, new[] { 3 }, null, null, null, 1, 100);
+        (nurDrei.Count, totalDrei).Should().Be((0, 0), "Werkbank ohne Fehlteile");
     }
 
     [Fact]

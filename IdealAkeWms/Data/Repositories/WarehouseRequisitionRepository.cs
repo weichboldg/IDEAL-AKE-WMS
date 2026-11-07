@@ -389,7 +389,7 @@ public class WarehouseRequisitionRepository : IWarehouseRequisitionRepository
     public async Task<(IReadOnlyList<MissingPartRow> Items, int TotalCount)>
         GetMissingPartsAsync(ShortageStatus filterStatus,
                              WarehouseRequisitionType? type,
-                             int? workplaceFilter,
+                             IReadOnlyCollection<int>? workplaceIds,
                              IReadOnlyDictionary<string, string>? columnFilters,
                              DateTime? closedFrom, DateTime? closedUntil,
                              int page, int pageSize)
@@ -403,8 +403,10 @@ public class WarehouseRequisitionRepository : IWarehouseRequisitionRepository
 
         if (type.HasValue)
             q = q.Where(i => i.WarehouseRequisition.Type == type.Value);
-        if (workplaceFilter.HasValue)
-            q = q.Where(i => i.WarehouseRequisition.ProductionWorkplaceId == workplaceFilter.Value);
+        // Spec 2026-11-07-fehlteile-nur-meine-werkbaenke-trefferzahl: Werkbank-Menge in SQL VOR Count/Paging (ADR 0005).
+        // null = kein Werkbank-Filter, leere Menge = keine Treffer.
+        if (workplaceIds != null)
+            q = q.Where(i => workplaceIds.Contains(i.WarehouseRequisition.ProductionWorkplaceId));
         if (closedFrom.HasValue)
             q = q.Where(i => i.WarehouseRequisition.ClosedAt >= closedFrom.Value);
         if (closedUntil.HasValue)

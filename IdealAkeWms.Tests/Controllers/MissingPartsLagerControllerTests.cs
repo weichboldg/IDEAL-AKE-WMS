@@ -25,7 +25,7 @@ public class MissingPartsLagerControllerTests
         wp.Setup(w => w.GetAllAsync()).ReturnsAsync(new List<ProductionWorkplace>());
         repo.Setup(r => r.GetMissingPartsAsync(It.IsAny<ShortageStatus>(),
                 It.IsAny<WarehouseRequisitionType?>(),
-                It.IsAny<int?>(),
+                It.IsAny<IReadOnlyCollection<int>?>(),
                 It.IsAny<IReadOnlyDictionary<string, string>?>(),
                 It.IsAny<DateTime?>(), It.IsAny<DateTime?>(),
                 It.IsAny<int>(), It.IsAny<int>()))
@@ -55,7 +55,7 @@ public class MissingPartsLagerControllerTests
         await ctrl.Index(tab: ShortageStatus.NoRestock);
         repo.Verify(r => r.GetMissingPartsAsync(ShortageStatus.NoRestock,
             It.IsAny<WarehouseRequisitionType?>(),
-            It.IsAny<int?>(), It.IsAny<IReadOnlyDictionary<string, string>?>(),
+            It.IsAny<IReadOnlyCollection<int>?>(), It.IsAny<IReadOnlyDictionary<string, string>?>(),
             It.IsAny<DateTime?>(), It.IsAny<DateTime?>(),
             It.IsAny<int>(), It.IsAny<int>()), Times.AtLeastOnce);
     }
@@ -84,7 +84,7 @@ public class MissingPartsLagerControllerTests
             NoteEinkauf: null);
         repo.Setup(r => r.GetMissingPartsAsync(It.IsAny<ShortageStatus>(),
                 It.IsAny<WarehouseRequisitionType?>(),
-                It.IsAny<int?>(),
+                It.IsAny<IReadOnlyCollection<int>?>(),
                 It.IsAny<IReadOnlyDictionary<string, string>?>(),
                 It.IsAny<DateTime?>(), It.IsAny<DateTime?>(),
                 It.IsAny<int>(), It.IsAny<int>()))
@@ -114,11 +114,11 @@ public class MissingPartsLagerControllerTests
         var capturedTypes = new List<WarehouseRequisitionType?>();
         repo.Setup(r => r.GetMissingPartsAsync(It.IsAny<ShortageStatus>(),
                 It.IsAny<WarehouseRequisitionType?>(),
-                It.IsAny<int?>(),
+                It.IsAny<IReadOnlyCollection<int>?>(),
                 It.IsAny<IReadOnlyDictionary<string, string>?>(),
                 It.IsAny<DateTime?>(), It.IsAny<DateTime?>(),
                 It.IsAny<int>(), It.IsAny<int>()))
-            .Callback<ShortageStatus, WarehouseRequisitionType?, int?,
+            .Callback<ShortageStatus, WarehouseRequisitionType?, IReadOnlyCollection<int>?,
                 IReadOnlyDictionary<string, string>?, DateTime?, DateTime?, int, int>(
                 (_, type, _, _, _, _, _, _) => capturedTypes.Add(type))
             .ReturnsAsync(((IReadOnlyList<MissingPartRow>)new List<MissingPartRow>(), 0));
@@ -152,7 +152,7 @@ public class MissingPartsLagerControllerTests
             NoteEinkauf: null);
         repo.Setup(r => r.GetMissingPartsAsync(It.IsAny<ShortageStatus>(),
                 It.IsAny<WarehouseRequisitionType?>(),
-                It.IsAny<int?>(),
+                It.IsAny<IReadOnlyCollection<int>?>(),
                 It.IsAny<IReadOnlyDictionary<string, string>?>(),
                 It.IsAny<DateTime?>(), It.IsAny<DateTime?>(),
                 It.IsAny<int>(), It.IsAny<int>()))
@@ -191,7 +191,7 @@ public class MissingPartsLagerControllerTests
             NoteEinkauf: null);
         repo.Setup(r => r.GetMissingPartsAsync(It.IsAny<ShortageStatus>(),
                 It.IsAny<WarehouseRequisitionType?>(),
-                It.IsAny<int?>(),
+                It.IsAny<IReadOnlyCollection<int>?>(),
                 It.IsAny<IReadOnlyDictionary<string, string>?>(),
                 It.IsAny<DateTime?>(), It.IsAny<DateTime?>(),
                 It.IsAny<int>(), It.IsAny<int>()))
