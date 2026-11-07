@@ -1240,6 +1240,33 @@
         </div>
 
         <div class="card mb-3">
+            <div class="card-header"><strong>Kommissionieraufträge und Kommissionierbereiche (seit v1.88.0)</strong></div>
+            <div class="card-body">
+                <dl class="mb-0">
+                    <dt>Kommissionierauftrag</dt>
+                    <dd>Beleg mit Nummer <code>KO-JJJJ-NNNNN</code> für einen FA und einen Kommissionierbereich. Der Leitstand legt ihn bei der Freigabe an
+                        (ohne Leitstand: beim Öffnen des FA aus der Auswahlliste). Soll = Stücklistenmenge wie in der Stückliste angezeigt.
+                        Stücklistenpositionen, die nach der Freigabe dazukommen, legt der Leitstand-Knopf „Fehlende Kommissionieraufträge erzeugen“ an.</dd>
+                    <dt>Abarbeiten</dt>
+                    <dd><em>Kommissionierung</em> listet die Aufträge (Filter Bereich, Status, „Nur meine“ bei Anwenderzuweisung). Auf der Auftragsseite
+                        Zeilen anhaken, Quell-Lagerplatz und Ist-Menge (größer 0, höchstens Soll) prüfen, auf den Wagen oder die Werkbank umbuchen. Danach
+                        <strong>Vollständig</strong> (nicht umgebuchte Zeilen werden nicht gebraucht) oder <strong>Teilweise</strong> (Reste gehen in einen
+                        Folgeauftrag mit neuer Nummer). Sind alle Aufträge eines FA erledigt, gilt der FA als kommissioniert. Kommissionier-Umbuchungen
+                        gehen wie bisher nicht an Sage.</dd>
+                    <dt>Leitstand</dt>
+                    <dd>Die Status-Spalte zeigt die Aufträge des FA. Freigabe zurücknehmen storniert Aufträge ohne gepickte oder umgebuchte Zeile; die
+                        übrigen bleiben und werden gemeldet. Priorität und Kommissionierer am FA gelten auch für seine offenen Aufträge.</dd>
+                    <dt>Kommissionierbereiche</dt>
+                    <dd><em>Stammdaten → Kommissionierbereiche</em>: Lager (Standard), Glas, Vorkommissionierung. Regeln ordnen Zeilen zu – erste passende in der
+                        Reihenfolge Artikel, Kommissionierziel, Lagerort (Lagerkennung des Hauptlagerplatzes), Artikelgruppe; sonst Standardbereich. Ein Bereich
+                        „Vorkommissionierung“ wird mit dem Vorkommissionier-Vorlauf fällig.</dd>
+                    <dt>Druck</dt>
+                    <dd>Auf der Auftragsseite „Auftrag drucken“: Kopf mit Nummer, FA, Bereich, Fälligkeit und Barcode der Auftragsnummer, Zeilen mit Soll, Ist und Lagerplatz.</dd>
+                </dl>
+            </div>
+        </div>
+
+        <div class="card mb-3">
             <div class="card-header"><strong>Leitstand (Kommissionier-Freigabe)</strong></div>
             <div class="card-body">
                 <p>

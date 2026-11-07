@@ -54,8 +54,8 @@ public static class AppSettingDefinitions
     public static IReadOnlyList<SettingDefinition> All { get; } = new List<SettingDefinition>
     {
         // ---- Termine und Beschichtung ----
-        I("KommissionierTage", "4", GTermine, "Kommissionier-Vorlauf", "Arbeitstage vor dem FA-Termin, ab denen ein FA zum Kommissionieren fällig ist.",
-            "FA-Liste, Kommissionierung, Leitstand, Werkbank-Arbeitsliste", Beide, seed: false, "Arbeitstage"),
+        I("KommissionierTage", "4", GTermine, "Kommissionier-Vorlauf", "Arbeitstage vor dem FA-Termin, ab denen ein FA zum Kommissionieren fällig ist; zugleich Fälligkeit der Kommissionieraufträge.",
+            "FA-Liste, Kommissionierung (Auftragsliste, Druck), Leitstand, Werkbank-Arbeitsliste", Beide, seed: false, "Arbeitstage"),
         I("VorkommissionierTage", "1", GTermine, "Vorkommissionier-Vorlauf", "Arbeitstage vor dem Kommissionier-Termin für die Vorkommissionierung.",
             "FA-Liste, Leitstand, Werkbank-Arbeitsliste", Beide, seed: false, "Arbeitstage"),
         I("BeschichtungTage", "10", GTermine, "Beschichtungs-Vorlauf", "Arbeitstage vor dem FA-Termin, zu denen Lackierteile zur Beschichtung müssen.",
@@ -131,10 +131,10 @@ public static class AppSettingDefinitions
             "Kommagetrennte Artikelgruppen, die in Lager- und Glasbestellungen wählbar sind.", "Artikelsuche Lager-/Glasbestellung", Beide, seed: true),
 
         // ---- Leitstand und FA-Vervollständigung ----
-        B(AppSettingKeys.LeitstandAktiv, "false", GLeitstand, "Leitstand", "Kommissionier-Freigabe und Priorisierung über den Leitstand.",
+        B(AppSettingKeys.LeitstandAktiv, "false", GLeitstand, "Leitstand", "Kommissionier-Freigabe und Priorisierung über den Leitstand; die Freigabe legt die Kommissionieraufträge an. Aus: Auswahlliste – das Öffnen eines FA legt sie an.",
             "Menü, Startseite, Kommissionierung, Leitstand", Beide, seed: true),
         B(AppSettingKeys.KommissionierungMitZuweisung, "false", GLeitstand, "Kommissionierung mit Anwenderzuweisung",
-            "Kommissionieraufträge werden Mitarbeitern zugewiesen.", "Kommissionierung, Leitstand", Beide, seed: true, abhaengig: AppSettingKeys.LeitstandAktiv),
+            "Kommissionieraufträge werden Mitarbeitern zugewiesen; die Freigabe verlangt einen Kommissionierer, „Nur meine“ filtert die Auftragsliste.", "Kommissionierung (Auftragsliste), Leitstand", Beide, seed: true, abhaengig: AppSettingKeys.LeitstandAktiv),
         B(AppSettingKeys.FaCompletionAktiv, "false", GLeitstand, "FA-Vervollständigung", "Pflege fehlender FA-Daten.",
             "Menü, FA-Vervollständigung, Werkbank-Arbeitsliste", Beide, seed: true),
 
