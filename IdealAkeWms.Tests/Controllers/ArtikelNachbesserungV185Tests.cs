@@ -5,6 +5,7 @@ using IdealAkeWms.Models.ViewModels;
 using IdealAkeWms.Services;
 using IdealAkeWms.Tests.Helpers;
 using Microsoft.EntityFrameworkCore;
+using Moq;
 
 namespace IdealAkeWms.Tests.Controllers;
 
@@ -31,6 +32,26 @@ public class ArtikelNachbesserungV185Tests
         db.ArticleSuppliers.AddRange(S(5, 1, true), S(6, 1, false), S(7, 2, true));
         await db.SaveChangesAsync();
         return db;
+    }
+
+    [Fact]
+    public async Task Punkt2_KreditorKarte_ServerFilterVorPaging()
+    {
+        // QA Q-1/Q-2: Karte ist Server-Mode (Filter aus der URL, Pagination), nicht alle Zeilen im Browser.
+        using var db = await SeedAsync();
+        var user = new Mock<ICurrentUserService>();
+        user.Setup(x => x.GetDefaultPageSizeAsync()).ReturnsAsync((int?)null);
+        var ctrl = new IdealAkeWms.Controllers.CreditorsController(new CreditorRepository(db), new FaHierarchyOrderInfoRepository(db), user.Object,
+            new ArticleRepository(db));
+        var http = new Microsoft.AspNetCore.Http.DefaultHttpContext();
+        http.Request.QueryString = new Microsoft.AspNetCore.Http.QueryString("?colf_artikel=00722002");
+        ctrl.ControllerContext = new Microsoft.AspNetCore.Mvc.ControllerContext { HttpContext = http };
+
+        await ctrl.Details(1, page: 1, pageSize: 25);
+
+        ((List<LieferantArtikelRow>)ctrl.ViewBag.LieferantArtikel).Select(r => r.ArticleNumber).Should().Equal("00722002");
+        ((int)ctrl.ViewBag.LieferantArtikelGesamt).Should().Be(2);
+        ((PaginationState)ctrl.ViewBag.LieferantArtikelPagination).TotalCount.Should().Be(1);
     }
 
     [Fact]

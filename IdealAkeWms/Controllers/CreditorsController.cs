@@ -96,14 +96,38 @@ public class CreditorsController : Controller
         return View(filtered.Skip((page - 1) * effectivePageSize).Take(effectivePageSize).ToList());
     }
 
-    public async Task<IActionResult> Details(int id)
+    public async Task<IActionResult> Details(int id, int page = 1, int? pageSize = null)
     {
         var creditor = await _repository.GetByIdAsync(id);
         if (creditor == null) return NotFound();
-        // v1.85.0 (Spec 2026-11-08-artikeldetails-lieferanten-anzeigen, Nachbesserung 2): Karte „Artikel dieses Lieferanten“.
-        ViewBag.LieferantArtikel = await _articles.GetArtikelJeLieferantAsync(creditor.Id, creditor.SageKto);
+        // v1.85.0 (Spec 2026-11-08-artikeldetails-lieferanten-anzeigen, Nachbesserung 2; QA Q-1): Karte „Artikel dieses Lieferanten“ mit
+        // Server-Spaltenfilter VOR Zaehlen/Paging (ADR 0005) – ein Lieferant hat bis ~9.000 Artikel (AKE-DEV K30601).
+        if (page < 1) page = 1;
+        var alle = await _articles.GetArtikelJeLieferantAsync(creditor.Id, creditor.SageKto);
+        var filter = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
+        var gefiltert = ColumnFilterHelper.Apply(alle, filter, LieferantArtikelColumnMap, ColumnFilterTypes.For("Creditors/Details")).ToList();
+        var userDefault = await _currentUserService.GetDefaultPageSizeAsync();
+        var size = Services.PageSize.Resolve(pageSize, userDefault);
+        ViewBag.LieferantArtikel = gefiltert.Skip((page - 1) * size).Take(size).ToList();
+        ViewBag.LieferantArtikelGesamt = alle.Count;
+        ViewBag.LieferantArtikelPagination = new Models.ViewModels.PaginationState
+        {
+            CurrentPage = page, PageSize = size, PageSizeRaw = Services.PageSize.ResolveRaw(pageSize, userDefault), TotalCount = gefiltert.Count,
+        };
         return View(creditor);
     }
+
+    // Zelltexte der Karte „Artikel dieses Lieferanten“ (Spaltenfilter = Anzeige).
+    private static readonly Dictionary<string, Func<LieferantArtikelRow, string?>> LieferantArtikelColumnMap = new()
+    {
+        ["artikel"] = r => r.ArticleNumber,
+        ["bezeichnung"] = r => r.Description,
+        ["bestellnummer"] = r => r.SageBestellnummer ?? "—",
+        ["mindestmenge"] = r => r.Mindestbestellmenge?.ToString("0.###") ?? "—",
+        ["einheit"] = r => r.Einkaufsmengeneinheit ?? "—",
+        ["haupt"] = r => r.IstHauptlieferant ? "Ja" : "",
+        ["letzter"] = r => r.IstLetzterLieferant ? "Ja" : "",
+    };
 
     // G6 (Gerald 2026-11-07): Kreditoren kommen aus Sage. Anlegen nur noch als Admin-Notfall — Konto in Sage noch nicht angelegt, der
     // Vorgang braucht den Eintrag aber jetzt; der Lese-Abgleich verknuepft ihn spaeter ueber das Sage-Konto (Herkunft wird dann Sage).

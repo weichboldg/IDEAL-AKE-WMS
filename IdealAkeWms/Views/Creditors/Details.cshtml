@@ -134,16 +134,19 @@
 
 @{
     var lieferantArtikel = ViewBag.LieferantArtikel as List<IdealAkeWms.Models.LieferantArtikelRow> ?? new();
+    var lieferantArtikelGesamt = ViewBag.LieferantArtikelGesamt as int? ?? 0;
+    var lieferantArtikelPagination = ViewBag.LieferantArtikelPagination as IdealAkeWms.Models.ViewModels.PaginationState;
 }
 @* v1.85.0 (Spec 2026-11-08-artikeldetails-lieferanten-anzeigen, Nachbesserung 2): Artikel dieses Lieferanten aus Sage (nur lesend).
-   Vorgefilterte, unpaginierte Liste → Client-Spaltenfilter (ADR 0005), CSV ueber csv-export.js (einzige filterbare Tabelle der Seite). *@
+   QA Q-1: Server-Spaltenfilter + Pagination (bis ~9.000 Artikel je Lieferant), CSV ueber csv-export.js (Server-Mode, einzige filterbare
+   Tabelle der Seite). *@
 <div class="card mt-3">
     <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
         <strong>Artikel dieses Lieferanten</strong>
-        <small class="opacity-75">nur lesend · aus Sage (@lieferantArtikel.Count)</small>
+        <small class="opacity-75">nur lesend · aus Sage (@lieferantArtikelGesamt)</small>
     </div>
     <div class="card-body">
-        @if (lieferantArtikel.Count == 0)
+        @if (lieferantArtikelGesamt == 0)
         {
             <p class="mb-0 text-body-secondary">Keine Artikel-Lieferanten aus Sage für diesen Kreditor. Sie werden vom Lauf &bdquo;Artikel-Lieferanten&ldquo;
                 gefüllt (Service-Einstellung <code>Sync:ArtikelLieferantEnabled</code>).</p>
@@ -151,7 +154,7 @@
         else
         {
             <div class="table-responsive">
-                <table class="table table-sm table-striped filterable-table mb-0" data-view-key="CreditorArtikel">
+                <table class="table table-sm table-striped filterable-table mb-0" data-server-column-filter="true" data-view-key="CreditorArtikel">
                     <thead>
                         <tr>
                             <th data-filterable data-col-key="artikel">Artikel</th>
@@ -176,9 +179,17 @@
                                 <td>@(a.IstLetzterLieferant ? "Ja" : "")</td>
                             </tr>
                         }
+                        @if (lieferantArtikel.Count == 0)
+                        {
+                            <tr><td colspan="7" class="text-body-secondary">Keine Treffer für den Spaltenfilter.</td></tr>
+                        }
                     </tbody>
                 </table>
             </div>
+            @if (lieferantArtikelPagination != null)
+            {
+                <partial name="_Pagination" model="lieferantArtikelPagination" />
+            }
         }
     </div>
 </div>
