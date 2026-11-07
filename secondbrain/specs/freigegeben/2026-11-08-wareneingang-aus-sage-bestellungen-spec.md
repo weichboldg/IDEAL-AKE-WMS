@@ -2,17 +2,17 @@
 type: spec
 title: Wareneingang auf Basis der Sage-Bestellungen (offene Bestellungen lesen, Vorschau X Wochen, Wareneingang zu Bestellung)
 slug: 2026-11-08-wareneingang-aus-sage-bestellungen-spec
-status: Entwurf
+status: InUmsetzung
 created: 2026-11-07
-updated: 2026-11-07
+updated: 2026-11-08
 source_backlog: "[[2026-11-07-wareneingang-aus-sage-bestellungen]]"
 buendel: "[[2026-11-08-buendel-uebersicht]]"
 version: "1.84.0"
 sql_nummern: "112-116 (reserviert; genutzt 112, 113, 114 nur E5)"
 testszenario: "TS-116"
-task: ""
-worktree: ""
-branch: ""
+task: "[[2026-11-08-buendel-2026-11-08-goal-lauf]]"
+worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
+branch: "feature/2026-08-07-ideal-teile-1-5"
 standort: AKE
 affected_code:
   - "NEU IdealAkeWms/Models/SagePurchaseOrderLine.cs (Cache offene EK-Positionen, kein AuditableEntity, Präzedenz ProductionOrderPosition.cs:10-13)"
@@ -58,8 +58,8 @@ deploy:
   service: true
   migration: true
 freigabe_entscheidung: ""
-freigabe_von: ""
-freigabe_am: ""
+freigabe_von: "Gerald Weichbold"
+freigabe_am: "2026-11-07"
 ---
 
 # Wareneingang auf Basis der Sage-Bestellungen
@@ -286,6 +286,50 @@ Basis: `https://sagetest01.ake.at:5493/sdata/ol/CommonWawiServicesResources/ake_
 - **P-W7 Kennzeichen Sage-Wareneingang (blockiert E5):** `EinkaufBelegeInfo?format=json&orderBy=BelID&count=5&select=BelID,Belegkennzeichen&where=Belegkennzeichen like 'EW%'`
   (Feldnamen vorher per `EinkaufBelegeInfo/$schema` prüfen) → Kennzeichen des Wareneingangsbelegs (Backlog vermutet `EWE`).
 
+## E0-Ergebnis (Dev, 2026-11-08, nur lesend am AKE-Test) — BLOCKER
+
+> [!danger] Blocker: drei Abweichungen von der Spec-Annahme (Freigabe-Nachtrag: „Abweichung = Blocker melden, nicht raten“)
+> E1–E4 sind **nicht** gebaut. Die Mengenformel (F1 „offen“, F2-Spalten, F3 Teil/Über/vollständig) und die Belegnummer-Suche hängen an
+> den Befunden B-1 bis B-3. Gerald entscheidet; danach Spec nachziehen (Rework) und E1 starten.
+
+Ausgeführt: SData GET mit `orderBy` (Browser-Sitzung, `format=json`), Sage-SQL `ake_TEST2026` nur `SELECT` (Definition der Sage-View
+`dbo.vwDPSBS_CWS_Mde_EinkaufpositionenInfo`, `INFORMATION_SCHEMA`).
+
+**P-W1 Positionen `EinkaufPositionenInfo` (belegt, 91 Felder, $totalResults 1.167).** Schlüssel `BelId`, `BelPosId`, `VorPosId` (int).
+Vorhanden wie angenommen: `Belegkennzeichen`, `Belegart`, `BelegnummerFormatiert`, `A0Empfaenger`, `A0Matchcode`, `A0Name1`, `Artikelnummer`,
+`AuspraegungID`, `Bezeichnung1/2`, `Chargenpflicht`/`Nachweispflicht` (short), `Menge`, `Mengeneinheit`, `MengeBasis`, `MengeBasiseinheit`,
+`MengeEKEinheit`, `MengeEKUmrechnung`, `PlatzID`, `Kurzbezeichnung`, `Platzbezeichnung`, `Lagermengeneinheit`, `UmrechnungsFaktorLME`,
+`PositionGGBestellt`, `PositionGGGeliefert` (decimal), `Liefertermin` (dateTime), `Liefersperre` (short). Die Positionen tragen die Kopfdaten
+(Kennzeichen, Lieferant, Belegnummer) bereits mit. Das `$schema` nennt **keine** `maxLength`; Längen aus Sage-SQL: `Artikelnummer` 50,
+`Bezeichnung1/2` 50, `Mengeneinheit`/`MengeBasiseinheit` 5, `A0Empfaenger` 20, `A0Name1`/`A0Matchcode` 50, `Belegkennzeichen` 3.
+**P-W2 Kopf `EinkaufBelegekopfInfo`:** Felder wie angenommen, Name = `A0Name1`/`A0Matchcode`; `BelegnummerFormatiert` = `<Belegjahr>-<Belegnummer>`
+(z. B. `2027-168975`).
+**P-W4:** nur `EBB` = „Bestellung“ (1.059 Positionen) und `EBZ` = „Rahmenabruf“ (108 Positionen); `EBD`, `EBA`, `EWE` je 0. Die View filtert
+selbst auf offene Positionen (`VP.GGBestellt > VP.GGGeliefert AND VP.GGErfuellt = 0`, `V.GGErfuellt = 0`) → „Info = nur offene“ bestätigt.
+
+**Abweichungen (Blocker):**
+- **B-1 Mengen sind Vorgangs-, nicht Belegmengen (P-W3).** `PositionGGBestellt`/`PositionGGGeliefert` kommen aus `KHKEKVorgaengepositionen`
+  (`VP.GGBestellt`, `VP.GGGeliefert`), nicht aus der Belegposition. Bei `EBB` passt das (1.059 Positionen = 1.059 `VorPosId`,
+  `PositionGGBestellt = MengeBasis` in allen Fällen). Bei `EBZ` (Rahmenabruf) teilen sich **108 Belegpositionen nur 32 Vorgangspositionen**
+  (bis 18 Abrufe je Vorgangsposition), z. B. EK013128: 14 Abrufe mit `Menge` 1.200–2.600, alle mit `GGBestellt 34.800 / GGGeliefert 33.604`.
+  „offen = bestellt − geliefert“ je Belegposition würde den Rest des Rahmens je Abruf mehrfach zeigen und als Rest beim Buchen anbieten.
+  **Entscheidung nötig:** EBZ ausschließen, je `VorPosId` zusammenfassen, oder Abrufmenge `Menge` als „bestellt“ nehmen (dann fehlt „geliefert“
+  je Abruf – kein Feld dafür im Vertrag).
+- **B-2 Einheit.** Die GG-Mengen sind in der **Basiseinheit** (`= MengeBasis`, `MengeBasiseinheit`), nicht in der Lagermengeneinheit wie in F1
+  angenommen. 8 EBB-Positionen haben `Mengeneinheit ≠ Lagermengeneinheit` bei `UmrechnungsFaktorLME = 1` (z. B. EK012566 `RLL` vs. `Stk`,
+  EK023609 `PKG` vs. `Stk`). Welche Einheit der WMS-Bestand und die Sage-Lagerbuchung haben, ist für diese Fälle nicht belegt.
+- **B-3 Kopf nicht eindeutig; „Liefersperre“ ist die Kreditor-Sperre.** `EinkaufBelegekopfInfo` liefert **mehrere Zeilen je `BelId`**
+  (484 Zeilen, 19 Belegnummern mehrfach, bis 9×, z. B. `2026-166281` 4× dieselbe `BelId`) – der Vertrag ist kein Kopf je Beleg; die Zahlen
+  „376 EBB / 108 EBZ Köpfe“ der Recherche sind Zeilen, keine Belege. `Liefersperre` = `KHKKontokorrent.IstGesperrt` des Lieferanten (View-
+  Definition), keine Sperre der Bestellung (Rückfrage 4 behandelte sie als Beleg-Liefersperre). Folge: Köpfe nicht lesen, sondern aus den
+  Positionen ableiten (distinct `BelId`) – technisch einfach, aber Abweichung vom Lösungsentwurf.
+
+**Nicht ausgeführt:** P-W5-Vergleich mit einem gedruckten Beleg (Mensch), P-W6 (nach E1), P-W7 (E5, Folge-Spec).
+
+**Empfehlung zur Entscheidung:** B-1 – Stufe 1 nur `EBB`, `EBZ` (Rahmenabrufe) als eigene Frage; B-2 – Mengen in Basiseinheit anzeigen
+und buchen, Positionen mit `Mengeneinheit ≠ Lagermengeneinheit` sichtbar markieren und nicht buchbar, bis geklärt; B-3 – Kopfdaten aus den
+Positionen, `Liefersperre` als „Lieferant gesperrt“ (Warnbanner) anzeigen.
+
 ## Akzeptanzkriterien
 
 1. (E1) Mit `Sync:EinkaufBestellungenEnabled = false` läuft kein Lauf „Offene Bestellungen (Sage)“; der Cache bleibt unverändert.
@@ -405,6 +449,15 @@ Eintrag in [[fallstricke]] (Doppelbuchung Bestellung/Lagerbuchung, mit Warum).
     *Empfehlung:* Folge-Spec, sobald 1, 9, P-W7 und der Schreibtest erledigt sind; dieses Epic endet mit E4 (Version 1.84.0). E5 bleibt hier als
     beschriebener, blockierter Schritt stehen, damit die Folge-Spec ihn übernimmt.
 
+## Freigabe-Nachtrag 2026-11-07 (Gerald, geht dem Rumpf vor)
+- Umsetzung **heute im Bündel-Worktree** `.claude/worktrees/2026-08-07-ideal-teile-1-5` (braucht SData-Lese-Client, Kreditoren, ADR-0020-Katalog).
+- **Neue Etappe E0 vor E1:** Prüfabfragen P-W1–P-W5 (SData `$schema` je Ressource bzw. Stichprobe, nur GET) und P-W3 (Mengen-Semantik, Sage-SQL
+  AKE-Test nur SELECT) führt der Dev selbst lesend aus und trägt die Ergebnisse in die Spec ein. Vorbefund der Koordination (2026-11-07,
+  Backlog „Recherche Koordination“): Felder `PositionGGBestellt`/`PositionGGGeliefert`, `PlatzID`, `Kurzbezeichnung`, `Liefertermin`,
+  Belegkennzeichen EBB 376 / EBZ 108 (Kopf), EBD nur in den Auskunft-Ressourcen; `orderBy` Pflicht (BelID bzw. BelPosID).
+  Weicht ein Ergebnis von der Spec-Annahme ab: als Blocker melden, nicht raten. P-W6/P-W7 wie in der Spec.
+- E5 (Sage-Wareneingangsbeleg) bleibt Folge-Spec (Antwort 13); nichts schreibt an Sage.
+
 ## Freigabe-Antworten (Mensch fuellt aus — Schranke 1)
 
 <!--
@@ -415,16 +468,16 @@ Eintrag in [[fallstricke]] (Doppelbuchung Bestellung/Lagerbuchung, mit Warum).
   Bei Varianten-Specs zusaetzlich freigabe_entscheidung im Frontmatter setzen.
 -->
 
-1. Doppelbuchung Bestand – wie schließt der Einkauf in Stufe 1 die Position in Sage, wie läuft WE heute? →
-2. Anzeige „Rest offen“ (offen laut Sage minus im WMS erfasst?) →
-3. Belegarten EBB + EBZ, nicht EBD? →
-4. Überlieferung erlauben mit Bestätigung oder sperren; Buchen trotz Liefersperre? →
-5. Ziel-Lagerplatz vorbelegen und änderbar? →
-6. Scannen – was steht auf dem Papier? →
-7. IDEAL aus bis SData-Endpunkt (G2), kein View-Reader? →
-8. Etikettendruck außerhalb dieses Epics? →
-9. DPS-MDE-Modul – Antwort/Wer fragt? →
-10. Charge/Seriennummer nur Hinweis, in E5 nicht automatisch? →
-11. Cache je Zyklus ohne Live-Nachladen genügt? →
-12. Keine neue Rolle (Read/Stock wie vorgeschlagen)? →
-13. E5 im Epic oder Folge-Spec? →
+1. Doppelbuchung Bestand – wie schließt der Einkauf in Stufe 1 die Position in Sage, wie läuft WE heute? → **wie empfohlen (Gerald 2026-11-07): Der Einkauf schließt die Bestellposition in Sage ohne Lagerbuchung, bis E5 das ablöst; geht das nicht, nur Plätze mit `SageBuchungErlaubt = 0`. Gerald informiert den Einkauf vor der produktiven Nutzung.**
+2. Anzeige „Rest offen“ (offen laut Sage minus im WMS erfasst?) → **wie empfohlen (Gerald 2026-11-07)**
+3. Belegarten EBB + EBZ, nicht EBD? → **wie empfohlen (Gerald 2026-11-07)**
+4. Überlieferung erlauben mit Bestätigung oder sperren; Buchen trotz Liefersperre? → **wie empfohlen (Gerald 2026-11-07)**
+5. Ziel-Lagerplatz vorbelegen und änderbar? → **wie empfohlen (Gerald 2026-11-07)**
+6. Scannen – was steht auf dem Papier? → **wie empfohlen (Gerald 2026-11-07)**
+7. IDEAL aus bis SData-Endpunkt (G2), kein View-Reader? → **wie empfohlen (Gerald 2026-11-07)**
+8. Etikettendruck außerhalb dieses Epics? → **wie empfohlen (Gerald 2026-11-07)**
+9. DPS-MDE-Modul – Antwort/Wer fragt? → **wie empfohlen (Gerald 2026-11-07): E1–E4 unabhängig vom DPS-MDE-Modul; Frage an DPS stellt Gerald.**
+10. Charge/Seriennummer nur Hinweis, in E5 nicht automatisch? → **wie empfohlen (Gerald 2026-11-07)**
+11. Cache je Zyklus ohne Live-Nachladen genügt? → **wie empfohlen (Gerald 2026-11-07)**
+12. Keine neue Rolle (Read/Stock wie vorgeschlagen)? → **wie empfohlen (Gerald 2026-11-07)**
+13. E5 im Epic oder Folge-Spec? → **wie empfohlen (Gerald 2026-11-07)**

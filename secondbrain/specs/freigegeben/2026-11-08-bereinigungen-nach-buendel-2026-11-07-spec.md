@@ -2,12 +2,12 @@
 type: spec
 title: Bereinigungen nach dem Bündel 2026-11-07 (Einstellungen-Reste, Sperrhinweis-Platz, Übergabe-Status lesbar, Flaky-Tests, Rückmelde-Schalter)
 slug: 2026-11-08-bereinigungen-nach-buendel-2026-11-07-spec
-status: Entwurf
+status: Testbereit
 created: 2026-11-07
 updated: 2026-11-07
 source_backlog: "[[2026-11-07-bereinigungen-nach-buendel-2026-11-07]]"
 buendel: "[[2026-11-08-buendel-uebersicht]]"
-task: ""
+task: "[[2026-11-08-buendel-2026-11-08-goal-lauf]]"
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
 branch: "feature/2026-08-07-ideal-teile-1-5"
 standort: beide
@@ -36,8 +36,8 @@ deploy:
   service: true
   migration: false
 freigabe_entscheidung: ""
-freigabe_von: ""
-freigabe_am: ""
+freigabe_von: "Gerald Weichbold"
+freigabe_am: "2026-11-07"
 ---
 
 # Bereinigungen nach dem Bündel 2026-11-07 (v1.79.0)
@@ -368,12 +368,16 @@ Kein Schritt wartet auf eine externe Prüfabfrage. P-1 bis P-4 sind Deploy- bzw.
 
 ## Deploy
 
-**Vorläufig.** Der QA-Lauf bestätigt die Angaben gegen den echten Diff.
+**Final (QA 2026-11-07, gegen `git diff 8bf76aca 0af3a94e`).**
 
-- **Web-App:** ja (Views ServiceSettings/_SettingField/_SageUebergabeBadge, `SettingItem`, ggf. Katalog, Hilfe, Changelog).
-- **Service:** ja, nur der Versionsstand (`IDEALAKEWMSService/AppVersion.cs` 1.79.0). Testcode wird nicht ausgeliefert. Der Dienst liefert die
-  Web-DLL mit; mitveröffentlichen, damit beide denselben Stand zeigen.
-- **Migration:** nein (keine EF-Migration). **SQL-Skript:** `SQL/108` nur bei F5, vor oder nach dem Web-Deploy (kein Leser, Reihenfolge egal).
+- **Web-App:** ja. Der Diff ändert `IdealAkeWms/`: `AppSettingDefinitions.cs`, `Creditor.cs`, `SettingItem.cs`, Views ServiceSettings,
+  `_SettingField`, `_SageUebergabeBadge`, StorageLocations, BdeMasterData, Help/Index, Help/Changelog und `AppVersion.cs`.
+- **Service:** ja, nur `IDEALAKEWMSService/AppVersion.cs` 1.79.0. Die Test-Änderungen werden nicht ausgeliefert. Der Dienst referenziert die
+  Web-DLL (Katalog `AppSettingDefinitions`); mitveröffentlichen, damit beide denselben Stand haben.
+- **Migration:** nein. Unter `*/Migrations/` ist keine neue Datei.
+- **SQL-Skript:** `SQL/108_RemoveAppSettingsRueckmeldungOhneLeser.sql` ist eine Daten-Bereinigung, idempotent, ohne History-Eintrag. Sie
+  löscht 2 Zeilen ohne Leser. Reihenfolge zum Web-Deploy ist egal.
+- **Nach dem Merge:** Nur dann erneut aus `main` publizieren, wenn der Merge getestete Dateien mit parallelen `main`-Änderungen zusammenführt.
 - **Ablauf je Standort:**
   1. P-1a/b, P-2 und (bei F5) P-4 ausführen und notieren.
   2. Bei F5 `SQL/108` ausführen.
@@ -453,8 +457,169 @@ Kein Schritt wartet auf eine externe Prüfabfrage. P-1 bis P-4 sind Deploy- bzw.
   Bei Varianten-Specs zusaetzlich freigabe_entscheidung im Frontmatter setzen.
 -->
 
-1. B3 Trim: Leser unverändert, Altwerte einmalig per Speichern beider Masken normalisieren (F4)? →
-2. B4 Schreibweise weiter als „ungültig“ mit Schreibweisen-Text lassen? →
-3. `OseonRueckmeldungAktiv`/`SageRueckmeldungAktiv` entfernen + `SQL/108` (F5)? →
-4. „Übergabe an Sage“: Bestand als „nicht nötig“ anzeigen (F6)? →
-5. SData Q2 „WMS-eigen“ angleichen? →
+1. B3 Trim: Leser unverändert, Altwerte einmalig per Speichern beider Masken normalisieren (F4)? → **Gerald 2026-11-07: ja, mit Abweichung – Altwerte werden auf den Zustand gesetzt, der HEUTE tatsächlich wirkt (z. B. `1` bei einem Schalter, der nur auf `true` reagiert → `false`); keine Verhaltensänderung durch die Bereinigung. Der Dev listet die betroffenen Schalter je Standort im QA-Abschnitt auf; ob einer eigentlich an sein soll, entscheidet Gerald danach.**
+2. B4 Schreibweise weiter als „ungültig“ mit Schreibweisen-Text lassen? → **wie empfohlen (Gerald 2026-11-07)**
+3. `OseonRueckmeldungAktiv`/`SageRueckmeldungAktiv` entfernen + `SQL/108` (F5)? → **wie empfohlen (Gerald 2026-11-07)**
+4. „Übergabe an Sage“: Bestand als „nicht nötig“ anzeigen (F6)? → **wie empfohlen (Gerald 2026-11-07)**
+5. SData Q2 „WMS-eigen“ angleichen? → **wie empfohlen (Gerald 2026-11-07)**
+
+## QA-Nachweis (qa-agent, 2026-11-07)
+
+Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Branch `feature/2026-08-07-ideal-teile-1-5`, HEAD `0af3a94e`. Review-Umfang
+`git diff 8bf76aca 0af3a94e` (21 Dateien, +345/−134). Build und Tests liefen über den ganzen Worktree.
+
+### 1. Build und Tests
+
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler, 28 Warnungen (alle vorbestehend: Nullable, NU190x).
+- `dotnet test`:
+  - IdealAkeWms.Tests: 2439 bestanden, 1 übersprungen, 0 Fehler (2440 gesamt).
+  - IDEALAKEWMSService.Tests: 497 bestanden, 0 übersprungen, 0 Fehler.
+- AK 5: `dotnet test IDEALAKEWMSService.Tests --no-build --filter "FullyQualifiedName~Workers"` lief 20× hintereinander. Ergebnis 20/20
+  „Bestanden!“, je 16/16 Tests, Dauer 273–329 ms je Lauf. `FromMilliseconds(200)` und `Task.Delay(150)` kommen in
+  `IDEALAKEWMSService.Tests/Workers/` nicht mehr vor (0 Treffer).
+
+### 2. Code-Review (selbst, in diesem Lauf)
+
+Geprüft wurden:
+- `SettingItem.Aus` mit `SettingValidator.Validate`, `SettingsController.SaveSettings` und `ServiceSettingsController`.
+- `_SettingField.cshtml` und `ServiceSettings/Index.cshtml`.
+- `_SageUebergabeBadge.cshtml` und `SageUebergabeStatusText` mit allen Aufrufern (Grep: nur die Spaltenfilter-Getter
+  `StorageLocationsController.cs:43` und `BdeMasterDataController.cs:49` sowie das Partial).
+- `WorkerTestLauf` mit der Aufruf-Reihenfolge in `SyncWorker.cs` (:48 → :76 → :90) und `NotificationWorker.cs` (:49 → :59 → :65).
+- `SQL/108`, FreshInstall, README und `AppSettingDefinitionsTests`.
+
+| # | Befund | Schwere | Behandlung |
+|---|---|---|---|
+| Q1 | P-1a/P-1b (Spec und README-Ablauf) prüfen nicht den Typ. Sie treffen auch Int- und MasterData-Keys mit dem legitimen Wert `1`. Auf DEV sind **alle** Treffer solche Fehltreffer (Liste unten). | niedrig (Doku) | Kein Code nötig. Gerald wertet beim Produktiv-Lauf nur Keys aus, die im Katalog Typ Bool haben (`/Settings` zeigt sie als Schalter). |
+| Q2 | F3 wartet per Polling (`Func<bool>` auf `mock.Invocations`, alle 10 ms, max. 10 s, danach `StopAsync`) statt mit `TaskCompletionSource`. **Bewertung: gleichwertig, angenommen.** Es gibt kein festes Zeitfenster mehr. `StopAsync` wartet auf `ExecuteAsync`. Der Signal-Aufruf ist der jeweils späteste geprüfte Aufruf (`SyncArticlesAsync` kommt nach `SyncProductionOrdersAsync` und FA-Zusatzinfo; sonst `SendAsync` bzw. `GetArticlesBelowReorderLevelAsync`). Läuft das Timeout ab, scheitert der Test am `Verify` mit klarer Meldung statt zu hängen. | – | Die `Times.Never`-Tests warten auf den vorgelagerten Aufruf, wie in der Spec gefordert. Wie vorher beweist ein Never-Test nur „bis zum Stopp nicht“. Das ist keine Verschlechterung. |
+| Q3 | F2: Auch die übrigen MasterData-Keys ohne Zeile werden jetzt geprüft (Lackierteil-Kategorie, Empfängergruppen Lager und Glas). Alle drei haben Default `""` mit `leerErlaubt: true` und sind deshalb gültig. Es entsteht kein falsches „ungültig“. Speichern ohne Zeile wird über `EntsprichtDefault` übersprungen (`SettingsController.cs:105-107`). | kein Befund | – |
+| Q4 | `SQL/108` liegt in der nummerierten Reihe statt unter `SQL/Einmalig/` ([[0015-einmal-datenskripte-ausserhalb-der-nummerierten-sql-reihe]]). Ein zweiter Lauf ist harmlos (löscht nur leserlose Zeilen). Das entspricht der Reihen-Regel „darf der Reihe nach laufen“ und dem Vorbild `SQL/86`. Die Spec hat das freigegeben. | kein Befund | – |
+
+Bekannte Defektklassen:
+- Kein Wert wird in `<script>` eingebettet.
+- Kein `hidden` steht zusammen mit `d-*`.
+- Keine neue stille Fallback-Zuweisung. `_ => "nicht nötig"` deckt nur den Enum-Wert 0 ab; 1 bis 3 sind explizit.
+- Keine Bindung paralleler Arrays.
+- Die Regel F2 steht an einer Stelle (`SettingItem.Aus` → `SettingValidator`). Die Server-Speicherregel bleibt unverändert.
+
+Barrierefreiheit F6 (Kontrast): `text-body-secondary` ist in Bootstrap 5.3.3 `rgba(33,37,41,.75)` und wird in `site.css` nicht überschrieben.
+Gemischt ergibt das ≈ #595C5F. Der Kontrast beträgt ≈ 6,8:1 auf Weiß und ≈ 6,5:1 auf der gestreiften Zeile (#F2F2F2). Damit ist ≥ 4,5:1 erfüllt.
+Die Bedeutung trägt der Text, nicht die Farbe. Der TLS-Hinweis hat jetzt `role="status"` (vorher ohne Rolle), was unkritisch ist.
+
+### 3. Beweisart je AK
+
+| AK | Beweis |
+|---|---|
+| 1 F1 Platz | automatisiert `F1_SperrUndTlsHinweis_…` (nur Dateiinhalt) + **DEV IDEAL OK** (P-R1-Hinweis im Feld „Quelle Artikel-Abgleich“, P-F2 im Feld „Quelle FA-Struktur“, je über dem Trennstrich) |
+| 2 F1 Suche | Manual-UAT (Browser-JS): **DEV IDEAL OK** für „Werkbänke“. TLS-Warnung steht im eigenen Feld; eine Suche, die das TLS-Feld ausblendet, wurde nicht separat ausgeführt (gleicher Mechanismus `.setting-row`) → Checkliste 5 |
+| 3 F2 | automatisiert `F2_MasterDataOhneZeile_…` |
+| 4 F2/W2 | automatisiert (Controller mit Moq, ohne echtes Model-Binding) + **DEV AKE OK** (TS-111.2) |
+| 5 F3 | 20/20 Läufe (oben) |
+| 6 F4 | README-Absatz (Ablauf 1–4) vorhanden; Deploy-Abschnitt Schritte 1–5; DEV AKE `LagerbestellungAktiv = true` (stand schon **vor** dem Speichern auf `true`) |
+| 7 F5 | automatisiert `F5_…` und `AppSettingDefinitionsTests` (36/52); **DEV OK** SQL/108 2× je Standort; FreshInstall und README per Grep ohne Treffer; frische DB aus FreshInstall **nicht** aufgebaut → Manual-UAT |
+| 8 F6 | automatisiert `F6_…` + **DEV IDEAL OK** (Anzeige, Filter, Zählung, Offene Übergaben, Kontrast); Neuanlage eines Operators „Offen“ nicht auf DEV → Manual-UAT |
+| 9 F7 | `feature-map.md` Zeilen 707–711 vorhanden (Hauptcheckout) |
+| 10 | Diff ändert keine Lesestelle; Drift-Guards grün |
+| 11 | beide `AppVersion.cs` 1.79.0, `Changelog.cshtml`, TS-111, Index-Zeile, Brain-Changelog vorhanden |
+
+### 4. Geänderte bestehende Tests
+
+- `AppSettingDefinitionsTests`: Seed-Liste 38→36, Katalog 54→52 und Literal-Liste ohne die beiden Keys. Das ist eine **gewollte
+  Verhaltensänderung** durch F5 (AK 7).
+- `SyncWorkerTests` (6 Tests) und `NotificationWorkerTests` (10 Tests): Geändert ist **nur der Ablauf** (Start/Warten/Stopp) laut F3 (AK 5).
+  Alle `Verify`- und `Should`-Zusicherungen sind unverändert (Diff geprüft). Kein Befund der Art „Fixture angepasst“.
+
+### 5. Checkliste
+
+- Keine EF-Migration.
+- `SQL/108` ist idempotent.
+- FreshInstall: Seed-Tupel entfernt, Komma-Syntax korrekt.
+- `SQL/AgentJobs` nicht betroffen.
+- Keine Audit-Felder: AppSettings ist kein `AuditableEntity`.
+- Version und beide Changelogs vorhanden.
+- TS-111 im Worktree, Index im Hauptcheckout.
+- ADR 0020: kein neuer oder geänderter Setting, nur zwei entfernt.
+
+### 6. DEV-Deploy und Testlauf
+
+**Deploy** (elevated, `D:\Dev\scripts\dev-deploy.ps1 -Quelle <worktree>`, Web und Dienst):
+
+| Standort | Ergebnis |
+|---|---|
+| AKE | „HTTP 200, Fusszeile v1.79.0“, „Fertig: AKE v1.79.0 auf http://localhost:8081/“, Exit 0 |
+| IDEAL | „HTTP 200, Fusszeile v1.79.0“, „Fertig: IDEAL v1.79.0 auf http://localhost:8082/“, Exit 0 |
+
+**Altwerte je DEV-Standort (P-1a/P-1b vor dem Deploy, Freigabe-Antwort 1):**
+
+| Standort | Tabelle | Key | Wert | Typ | Einordnung |
+|---|---|---|---|---|---|
+| AKE | AppSettings | `DefaultLagerbestellempfaengerId` | `1` | MasterData (Gruppen-Id) | legitim, kein Altwert |
+| AKE | AppSettings | `OseonAmpelGelbTage` | `1` | Int (Default `1`) | legitim |
+| AKE | AppSettings | `VorkommissionierTage` | `1` | Int (Default `1`) | legitim |
+| AKE | ServiceSettings | `Sync:ProductionWorkplaceSyncMandant` | `1` | Int (Default `1`) | legitim |
+| IDEAL | AppSettings | `OseonAmpelGelbTage` | `1` | Int | legitim |
+| IDEAL | AppSettings | `VorkommissionierTage` | `1` | Int | legitim |
+| IDEAL | ServiceSettings | `Sync:ProductionWorkplaceSyncMandant` | `1` | Int | legitim |
+
+- **Bool-Keys mit Altwert:** auf beiden DEV-Standorten **keine**. Damit gibt es keinen Schalter, über den Gerald entscheiden müsste.
+  `LagerbestellungAktiv` stand auf DEV AKE und DEV IDEAL bereits auf `true` (frühere QA-Läufe hatten ihn normalisiert).
+- P-2: Zeile 1 und `NAN` 1 auf beiden Standorten.
+- F4-Speichern: `/Settings` und `/ServiceSettings` wurden auf AKE und IDEAL je einmal gespeichert, Meldung jeweils „Einstellungen
+  gespeichert.“. Ein Vorher/Nachher-Abzug beider Tabellen zeigt **keinen Unterschied**, denn DEV war bereits kanonisch. P-1 danach liefert
+  dieselben 4 bzw. 3 legitimen Int-/MasterData-Treffer.
+- Produktiv: nur Prüfabfrage P-1 durch Gerald, dabei nur Bool-Keys werten (Q1).
+
+**P-3 (AKE-DEV):**
+- `asdfasdf` (Id 3292): Manual, Status 0, angelegt 2026-06-17 von `admin`.
+- `1;1;1` (Id 3293): Manual, Status 0, angelegt 2026-07-09 von `till.zoehrer`.
+- AKE hat keine Outbox-Zeile für `StorageLocation`.
+- Beide Plätze sind **vor** `SQL/107` (Migration `20261106202615`, 2026-11-06) entstanden. „leer“ bzw. jetzt „nicht nötig“ ist deshalb
+  korrekt, es ist **kein Bug**.
+
+**P-4:**
+- Auf beiden Standorten `OseonRueckmeldungAktiv = false` und `SageRueckmeldungAktiv = false`.
+- `SQL/108`, 1. Lauf: „2 Rueckmelde-Schalter ohne Leser geloescht.“
+- 2. Lauf: „keine Rueckmelde-Schalter vorhanden - nichts zu tun.“
+- Exit 0 je Lauf, Rest 0 (AKE und IDEAL).
+
+**Testschritte:**
+
+| Schritt | Ausgeführt | Ergebnis | Status |
+|---|---|---|---|
+| 111.1 IDEAL Sperrhinweis | `/ServiceSettings` 8082 | P-R1-Hinweis im Feld `Sync:Quelle:Artikel`, P-F2 im Feld `Sync:Quelle:FaStruktur`, je vor dem Trennstrich | OK |
+| 111.1 Suche „Werkbänke“ | Suchfeld | nur „Werkbänke aus Sage anlegen“ und „Quelle Werkbänke und Arbeitsgänge“, kein fremder Hinweis | OK |
+| 111.1 TLS | Wert auf DEV schon `false` (AKE und IDEAL) | Warnung im Feld „SData: TLS-Zertifikat prüfen“ | OK (Umschalten per SQL wurde vom Berechtigungssystem abgelehnt, war aber nicht nötig) |
+| 111.1 Negativ AKE | `/ServiceSettings` 8081, `Sync:ArticlesViewName` leer | nur der P-F2-Hinweis bei FA-Struktur, keiner bei Artikel | OK |
+| 111.2 | AKE: Zeile gelöscht, `NAN` → `NAN_QA111` | Badge „ungültig: „NAN“ (Standard, keine Zeile)“ + Sammelbanner. `KommissionierTage` 4→5 gespeichert, keine Zeile für `NegativeBuchungLagerplatz` geschrieben. Zurückgesetzt, danach kein Badge (Negativfall) | OK |
+| 111.3 | AKE: `LagerbestellungAktiv`/`BestellungenAktiv = '1'`, `QrErstesFeld = 'matchcode'` | vorher „Aktiviert + ungültig“ bzw. „Deaktiviert + ungültig“, `matchcode` ungültig. Nach dem Speichern `true` / `false` / `matchcode` (bleibt stehen) | OK |
+| 111.4 | SQL/108 2× je Standort, `/Settings` AKE | keine Rückmelde-Schalter. Unter „Nicht im Katalog“ steht nur `StammdatenADGruppe` (bekannter Zusatzfund) | OK. FreshInstall-DB: NICHT MOEGLICH (keine frische DB aufgebaut) |
+| 111.5 Lagerplätze | IDEAL, Filter `colf_sage-uebergabe` | „nicht nötig“ als grauer Text: 229 Zeilen (DB 229). „Offen“: 1 (QA-UEB-1, Badge). Offene Übergaben: nur QA-UEB-1. Hinweis „1 Lagerplatz wartet“ | OK |
+| 111.5 BDE-Operatoren | IDEAL, Filter „nicht nötig“ | 1 Zeile (DB 1) | OK. Neuanlage „Offen“: NICHT MOEGLICH (kein Outbox-Testdatensatz angelegt; der Lagerplatz-Pfad deckt die Anzeige ab) |
+| 111.6 | 20× Worker-Tests | 20/20 grün | OK |
+
+**DEV-Datenstand nach dem Lauf:**
+- Zurückgesetzt (AKE): `NegativeBuchungLagerplatz` (Zeile `NAN` wieder angelegt), Platz Id 1 wieder `NAN`, `KommissionierTage = 4`,
+  `BestellungenAktiv = true`, `QrErstesFeld = Artikelnummer`.
+- Bleibt bewusst (beauftragt): `SQL/108` auf AKE_WMS_DEV und IDEAL_WMS_DEV ausgeführt (je 2 Zeilen gelöscht). F4-Speichern beider Masken je
+  Standort hat nichts verändert (Diff leer).
+
+**Zusatzbeobachtung (nicht aus diesem Diff, nur gemeldet):** Auf `/ServiceSettings` und `/StorageLocations` (IDEAL-DEV, Fenster 1520 px) zeigt
+die Seite eine waagrechte Seiten-Scrollleiste zusätzlich zur Tabellen-Scrollleiste. Ursache nicht untersucht. Zu prüfen gegen v1.64.1
+(„genau ein Scrollbalken“).
+
+**Ergebnis:** Testbereit. Q1 ist ein Doku-Hinweis, kein blockierender Befund.
+
+## Manuelle Test-Checkliste (Mensch)
+
+1. Testsystem bzw. produktiv je Standort P-1a/P-1b ausführen und **nur Bool-Keys** werten (Q1). NT-Keys mit `1` stehen heute auf aus;
+   entscheiden, ob einer an sein soll.
+2. P-4 notieren, dann `SQL/108` ausführen (zweiter Lauf: „nichts zu tun“).
+3. Web und Dienst publizieren (Befehle im Deploy-Abschnitt). Die Fußzeile zeigt v1.79.0.
+4. `/Settings` und `/ServiceSettings` je einmal speichern. App-Pool recyceln. Das Aktivitäts-Protokoll zeigt keinen neuen Lauf
+   „Einstellungsprüfung“ (oder nur bewusst offene Auswahl- bzw. Zahl-Reste).
+5. TS-111.1 auf dem IDEAL-Testsystem: Hinweise im eigenen Feld; Suche „Werkbänke“; zusätzlich eine Suche, die das TLS-Feld ausblendet
+   (z. B. „Lagerplatz“). Die TLS-Warnung muss mit verschwinden.
+6. TS-111.4: FreshInstall auf einer Wegwerf-DB, beide Keys fehlen.
+7. TS-111.5: einen BDE-Operator neu anlegen → „Offen“, Filter „Offen“ und „Offene Übergaben anzeigen“. Danach den Testdatensatz entfernen.
+8. TS-106.13.b/h/j/l mit der Erwartung „nicht nötig“ gegenlesen.
+9. Optional: die waagrechte Seiten-Scrollleiste (Zusatzbeobachtung) auf dem Testsystem prüfen.
