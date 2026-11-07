@@ -282,7 +282,9 @@ public class HardwareScannerTests
         var layout = Read("Views", "Shared", "_Layout.cshtml");
         layout.Should().Contain("data-qr-erstes-feld=\"@qrErstesFeld\"").And.Contain("? \"Matchcode\" : null;", "bei Artikelnummer kein Attribut");
         AppSettingDefinitions.SeedEintraege.Should().Contain(e => e.Key == "QrErstesFeld" && e.Value == "Artikelnummer", "Laufzeit-Seed, sonst zeigt /Settings die Zeile nicht");
-        Read("Views", "Settings", "Index.cshtml").Should().Contain("(\"Allgemein\", new[] { \"QrMitFaNummer\", \"QrErstesFeld\", \"QrTrennzeichen\" })");
+        // v1.77.0: Gruppen kommen aus dem Katalog — die drei QR-Einstellungen stehen zusammen.
+        AppSettingDefinitions.All.Where(d => d.Key is "QrMitFaNummer" or "QrErstesFeld" or "QrTrennzeichen").Select(d => d.Category).Distinct()
+            .Should().ContainSingle();
     }
 
     [Fact]
@@ -302,8 +304,8 @@ public class HardwareScannerTests
             .And.Contain("?.Trim() == \",\" ? \",\" : null;", "bei ; kein Attribut = Seite wie v1.68.x");
         AppSettingDefinitions.SeedEintraege.Should().Contain(e => e.Key == "QrTrennzeichen" && e.Value == ";", "Laufzeit-Anlage, Standard ;");
         var settings = Read("Views", "Settings", "Index.cshtml");
-        settings.Split("AppSettingDefinitions.TryGetWerte(setting.Key, out var festeWerte)").Length
-            .Should().Be(3, "Dropdown in Gruppen- und Sonstige-Ausgabe");
+        settings.Should().Contain("<partial name=\"_SettingField\"", "v1.77.0: jedes Feld ueber das gemeinsame Partial");
+        Read("Views", "Shared", "_SettingField.cshtml").Should().Contain("case SettingType.Choice:").And.Contain("(ungültig – bitte wählen)");
         AppSettingDefinitions.All.Single(d => d.Key == AppSettingKeys.QrTrennzeichen).Werte!.Select(w => w.Wert).Should().Equal(";", ",");
         AppSettingDefinitions.All.Single(d => d.Key == AppSettingKeys.QrErstesFeld).Werte!.Select(w => w.Wert).Should().Equal("Artikelnummer", "Matchcode");
     }

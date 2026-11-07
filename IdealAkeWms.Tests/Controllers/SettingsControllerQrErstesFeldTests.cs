@@ -18,7 +18,14 @@ public class SettingsControllerQrErstesFeldTests
     private static (SettingsController ctrl, Mock<IAppSettingRepository> repo) Build()
     {
         var repo = new Mock<IAppSettingRepository>();
-        var ctrl = new SettingsController(repo.Object, Mock.Of<IHolidayRepository>(), Mock.Of<ICurrentUserService>(), Mock.Of<IHolidayImportService>())
+        // v1.77.0 F4: nur geaenderte Werte werden geschrieben — die Zeilen existieren hier mit anderem Wert.
+        repo.Setup(r => r.GetAllAsync()).ReturnsAsync(new List<AppSetting>
+        {
+            new() { Key = AppSettingKeys.QrErstesFeld, Value = "alt" }, new() { Key = AppSettingKeys.QrMitFaNummer, Value = "false" },
+            new() { Key = AppSettingKeys.QrTrennzeichen, Value = "alt" },
+        });
+        var ctrl = new SettingsController(repo.Object, Mock.Of<IHolidayRepository>(), Mock.Of<ICurrentUserService>(), Mock.Of<IHolidayImportService>(),
+            Mock.Of<IArticleCategoryRepository>(), Mock.Of<IOrderRecipientRepository>(), Mock.Of<IStorageLocationRepository>(), Mock.Of<IOperationConfigRepository>())
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
         };

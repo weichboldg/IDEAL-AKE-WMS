@@ -1,0 +1,166 @@
+@model IdealAkeWms.Models.ViewModels.SettingItem
+@using IdealAkeWms.Models
+@*
+    Spec 2026-11-07-einstellungen-auswahlfelder-und-beschreibung (E2/E3, ADR 0020): EIN Feld fuer /Settings und /ServiceSettings.
+    Konventionen bleiben: name="settings[<Key>]"; bei Bool traegt das Hidden-Feld den name, die Checkbox nicht (Sage-Verbindungstest
+    und Controller-Bindung haengen daran). ViewData["CanEdit"] (bool), ViewData["Abhaengig"] (Anzeigename des Schalters, von dem das Feld abhaengt).
+*@
+@{
+    var d = Model.Definition;
+    var canEdit = ViewData["CanEdit"] as bool? ?? false;
+    var id = "setting_" + System.Text.RegularExpressions.Regex.Replace(d.Key, "[^A-Za-z0-9_]", "_");
+    var hilfeId = id + "_hilfe";
+    var abhaengigName = ViewData["Abhaengig"] as string;
+    var suchtext = $"{Model.Anzeigename} {d.Key} {d.Description} {d.Verwendung}".ToLowerInvariant();
+    string Text(string wert) => d.Type switch
+    {
+        SettingType.Bool => wert == "true" ? "an" : "aus",
+        _ when string.IsNullOrEmpty(wert) => "leer",
+        SettingType.Choice => d.Werte?.FirstOrDefault(w => w.Wert == wert).Text ?? wert,
+        SettingType.MasterData => Model.Optionen.FirstOrDefault(o => string.Equals(o.Wert, wert, StringComparison.OrdinalIgnoreCase)).Text ?? wert,
+        _ => wert,
+    };
+    var standardText = d.Type == SettingType.Bool ? (SettingItem.BoolWirksam(d, d.DefaultValue) ? "an" : "aus") : Text(d.DefaultValue);
+}
+<div class="mb-3 pb-3 border-bottom setting-row" data-setting-row="@d.Key" data-suche="@suchtext" data-weicht-ab="@(Model.WeichtAb ? "true" : "false")">
+    <div class="d-flex flex-wrap align-items-baseline gap-2">
+        <label class="form-label fw-bold mb-1" for="@id">@Model.Anzeigename</label>
+        <code class="small text-muted">@d.Key</code>
+        @if (Model.WeichtAb)
+        {
+            <span class="badge text-bg-info">weicht vom Standard ab (Standard: @standardText)</span>
+        }
+        @if (Model.Ungueltig)
+        {
+            <span class="badge text-bg-danger">ungültig: &bdquo;@Model.RohWert&ldquo;</span>
+        }
+    </div>
+
+    @switch (d.Type)
+    {
+        case SettingType.Bool:
+            var an = Model.Wirksam == "true";
+            <input type="hidden" name="settings[@d.Key]" value="@(an ? "true" : "false")" class="bool-hidden" />
+            <div class="form-check form-switch">
+                <input type="checkbox" class="form-check-input bool-toggle" id="@id" data-setting-key="@d.Key" aria-describedby="@hilfeId"
+                       @(an ? "checked" : "") disabled="@(!canEdit)" />
+                <label class="form-check-label" for="@id">@(an ? "Aktiviert" : "Deaktiviert")</label>
+            </div>
+            break;
+
+        case SettingType.Int:
+            <div class="input-group" style="max-width: 22rem;">
+                <input type="number" step="1" class="form-control" id="@id" name="settings[@d.Key]" value="@Model.Wirksam"
+                       min="@d.Min" max="@d.Max" aria-describedby="@hilfeId" disabled="@(!canEdit)" />
+                @if (!string.IsNullOrEmpty(d.Einheit))
+                {
+                    <span class="input-group-text">@d.Einheit</span>
+                }
+            </div>
+            break;
+
+        case SettingType.Choice:
+            var gueltig = d.Werte!.Any(w => w.Wert == Model.Wirksam);
+            <select class="form-select" id="@id" name="settings[@d.Key]" aria-describedby="@hilfeId" disabled="@(!canEdit)" style="max-width: 30rem;">
+                @if (!gueltig)
+                {
+                    <option value="@Model.Wirksam" selected>&bdquo;@Model.Wirksam&ldquo; (ungültig – bitte wählen)</option>
+                }
+                @foreach (var w in d.Werte!)
+                {
+                    <option value="@w.Wert" selected="@(w.Wert == Model.Wirksam)">@w.Text</option>
+                }
+            </select>
+            break;
+
+        case SettingType.MultiChoice:
+            var gewaehlt = Model.Wirksam.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            <input type="hidden" name="settings[@d.Key]" value="@Model.Wirksam" class="multi-hidden" />
+            <div role="group" aria-labelledby="@(id)_gruppe" aria-describedby="@hilfeId" class="d-flex flex-wrap gap-3" id="@id">
+                <span id="@(id)_gruppe" class="visually-hidden">@Model.Anzeigename</span>
+                @foreach (var w in d.Werte!)
+                {
+                    var cbId = id + "_" + w.Wert;
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input multi-toggle" id="@cbId" value="@w.Wert"
+                               @(gewaehlt.Contains(w.Wert) ? "checked" : "") disabled="@(!canEdit)" />
+                        <label class="form-check-label" for="@cbId">@w.Text</label>
+                    </div>
+                }
+            </div>
+            break;
+
+        case SettingType.MasterData when d.Stammdaten == SettingStammdaten.Lagerplatz:
+            <input type="text" class="form-control" id="@id" name="settings[@d.Key]" value="@Model.Wirksam" list="@(id)_liste"
+                   aria-describedby="@hilfeId" disabled="@(!canEdit)" style="max-width: 22rem;" />
+            <datalist id="@(id)_liste">
+                @foreach (var o in Model.Optionen)
+                {
+                    <option value="@o.Wert">@o.Text</option>
+                }
+            </datalist>
+            break;
+
+        case SettingType.MasterData:
+            var vorhanden = string.IsNullOrEmpty(Model.Wirksam)
+                || Model.Optionen.Any(o => string.Equals(o.Wert, Model.Wirksam, StringComparison.OrdinalIgnoreCase));
+            <select class="form-select" id="@id" name="settings[@d.Key]" aria-describedby="@hilfeId" disabled="@(!canEdit)" style="max-width: 30rem;">
+                @if (d.LeerErlaubt)
+                {
+                    <option value="" selected="@(string.IsNullOrEmpty(Model.Wirksam))">(leer = aus)</option>
+                }
+                @if (!vorhanden)
+                {
+                    <option value="@Model.Wirksam" selected>&bdquo;@Model.Wirksam&ldquo; (nicht vorhanden – bitte wählen)</option>
+                }
+                @foreach (var o in Model.Optionen)
+                {
+                    <option value="@o.Wert" selected="@(string.Equals(o.Wert, Model.Wirksam, StringComparison.OrdinalIgnoreCase))">@o.Text</option>
+                }
+            </select>
+            break;
+
+        default:
+            if (d.Multiline)
+            {
+                <textarea class="form-control" id="@id" name="settings[@d.Key]" rows="3" aria-describedby="@hilfeId" disabled="@(!canEdit)">@Model.Wirksam</textarea>
+            }
+            else
+            {
+                <input type="text" class="form-control" id="@id" name="settings[@d.Key]" value="@Model.Wirksam" aria-describedby="@hilfeId"
+                       list="@(Model.Optionen.Count > 0 ? id + "_liste" : null)" disabled="@(!canEdit)" />
+                @if (Model.Optionen.Count > 0)
+                {
+                    <datalist id="@(id)_liste">
+                        @foreach (var o in Model.Optionen)
+                        {
+                            <option value="@o.Wert">@o.Text</option>
+                        }
+                    </datalist>
+                }
+            }
+            break;
+    }
+
+    <div id="@hilfeId" class="form-text">
+        <div>@d.Description</div>
+        @if (!string.IsNullOrEmpty(d.Verwendung))
+        {
+            <div><span class="fw-semibold">Verwendet in:</span> @d.Verwendung</div>
+        }
+        <div><span class="fw-semibold">Standard:</span> @standardText@(string.IsNullOrEmpty(d.Standort) ? "" : $"; Standort: {d.Standort}")</div>
+        @if (abhaengigName != null)
+        {
+            <div><span class="fw-semibold">Wirkt nur, wenn &bdquo;@abhaengigName&ldquo; an ist.</span></div>
+        }
+        @if (Model.Ungueltig)
+        {
+            <div class="text-danger">@Model.Fehler</div>
+        }
+    </div>
+    @if (!string.IsNullOrEmpty(d.Warnhinweis))
+    {
+        <div class="alert alert-warning py-1 px-2 mt-2 mb-0 small" role="note"><strong>&#9888; Achtung:</strong> @d.Warnhinweis</div>
+    }
+</div>

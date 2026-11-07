@@ -199,7 +199,7 @@ public class OperationConfigsControllerTests
     {
         var settings = typeof(SettingsController);
         var result = (RedirectToActionResult)settings.GetMethod("OperationConfig")!
-            .Invoke(new SettingsController(null!, null!, null!, null!), null)!;
+            .Invoke(new SettingsController(null!, null!, null!, null!, null!, null!, null!, null!), null)!;
         (result.ControllerName, result.ActionName, result.Permanent).Should().Be(("OperationConfigs", "Index", false));
         settings.GetMethods().Select(m => m.Name).Should().NotContain(new[] { "AddOperationConfig", "UpdateOperationConfig", "DeleteOperationConfig" });
     }

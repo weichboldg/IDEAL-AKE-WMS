@@ -14,27 +14,70 @@ public class SettingsController : Controller
     private readonly IHolidayRepository _holidayRepository;
     private readonly ICurrentUserService _currentUserService;
     private readonly IHolidayImportService _holidayImportService;
+    private readonly IArticleCategoryRepository _categories;
+    private readonly IOrderRecipientRepository _recipients;
+    private readonly IStorageLocationRepository _storageLocations;
+    private readonly IOperationConfigRepository _operations;
 
     public SettingsController(
         IAppSettingRepository settingRepository,
         IHolidayRepository holidayRepository,
         ICurrentUserService currentUserService,
-        IHolidayImportService holidayImportService)
+        IHolidayImportService holidayImportService,
+        IArticleCategoryRepository categories,
+        IOrderRecipientRepository recipients,
+        IStorageLocationRepository storageLocations,
+        IOperationConfigRepository operations)
     {
         _settingRepository = settingRepository;
         _holidayRepository = holidayRepository;
         _currentUserService = currentUserService;
         _holidayImportService = holidayImportService;
+        _categories = categories;
+        _recipients = recipients;
+        _storageLocations = storageLocations;
+        _operations = operations;
     }
 
     public async Task<IActionResult> Index()
     {
+        // v1.77.0 (Spec 2026-11-07-einstellungen-auswahlfelder-und-beschreibung E2): jeder Katalog-Key, auch ohne DB-Zeile (dann Default).
+        var rows = await _settingRepository.GetAllAsync();
+        var byKey = rows.GroupBy(r => r.Key).ToDictionary(g => g.Key, g => (string?)g.First().Value);
+        var optionen = await OptionenAsync();
+        var items = AppSettingDefinitions.All
+            .Select(d => SettingItem.Aus(d, byKey.GetValueOrDefault(d.Key), optionen.GetValueOrDefault(d.Key)))
+            .ToList();
         var vm = new SettingsViewModel
         {
-            Settings = await _settingRepository.GetAllAsync(),
+            Groups = SettingGroup.Bilden(items),
+            Orphans = rows.Where(r => !AppSettingDefinitions.TryGet(r.Key, out _)).OrderBy(r => r.Key).ToList(),
             Holidays = await _holidayRepository.GetAllOrderedAsync()
         };
         return View(vm);
+    }
+
+    /// <summary>Auswahl aus Stammdaten (MasterData) bzw. Vorschlaege (BdeDefaultArbeitsgang) je Key.</summary>
+    internal async Task<Dictionary<string, IReadOnlyList<(string Wert, string Text)>>> OptionenAsync()
+    {
+        var kategorien = (await _categories.GetAllOrderedAsync()).Select(c => (c.Name, c.Name)).ToList();
+        var gruppen = (await _recipients.GetAllGroupsAsync()).OrderBy(g => g.Name).Select(g => (g.Id.ToString(), $"{g.Name} (Id {g.Id})")).ToList();
+        var plaetze = (await _storageLocations.GetAllOrderedAsync()).Select(l => (l.Code, l.Code)).ToList();
+        var arbeitsgaenge = (await _operations.GetAllAsync()).Select(o => o.OperationName).Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(n => n).Select(n => (n, n)).ToList();
+        var result = new Dictionary<string, IReadOnlyList<(string Wert, string Text)>>
+        {
+            [AppSettingKeys.BdeDefaultArbeitsgang] = arbeitsgaenge,
+        };
+        foreach (var d in AppSettingDefinitions.All.Where(d => d.Type == SettingType.MasterData))
+            result[d.Key] = d.Stammdaten switch
+            {
+                SettingStammdaten.Artikelkategorie => kategorien,
+                SettingStammdaten.Bestellempfaengergruppe => gruppen,
+                SettingStammdaten.Lagerplatz => plaetze,
+                _ => Array.Empty<(string, string)>(),
+            };
+        return result;
     }
 
     [HttpPost]
@@ -55,14 +98,24 @@ public class SettingsController : Controller
             settings[key] = kanonisch;
         }
 
+        // F4: Speichern ohne Nebenwirkung — ohne DB-Zeile und mit dem (wirksamen) Default gepostet = nichts schreiben (fuer manche Keys
+        // wirkt "" anders als „Zeile fehlt“); unveraenderte Werte vorhandener Zeilen nicht neu schreiben.
+        var bestand = (await _settingRepository.GetAllAsync()).GroupBy(r => r.Key).ToDictionary(g => g.Key, g => g.First().Value);
         foreach (var kvp in settings)
         {
+            var hatZeile = bestand.TryGetValue(kvp.Key, out var alt);
+            if (hatZeile && string.Equals(alt, kvp.Value, StringComparison.Ordinal)) continue;
+            if (!hatZeile && AppSettingDefinitions.TryGet(kvp.Key, out var def) && EntsprichtDefault(def, kvp.Value)) continue;
             await _settingRepository.SetValueAsync(kvp.Key, kvp.Value);
         }
 
         TempData["SuccessMessage"] = "Einstellungen gespeichert.";
         return RedirectToAction(nameof(Index));
     }
+
+    internal static bool EntsprichtDefault(SettingDefinition d, string? wert) => d.Type == SettingType.Bool
+        ? SettingItem.BoolWirksam(d, wert) == SettingItem.BoolWirksam(d, d.DefaultValue)
+        : string.Equals((wert ?? "").Trim(), d.DefaultValue.Trim(), StringComparison.Ordinal);
 
     [HttpPost]
     [ValidateAntiForgeryToken]
