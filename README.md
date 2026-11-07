@@ -373,6 +373,9 @@ Bei Änderungen der Tabellenstruktur müssen diese Scripts angepasst werden.
 
 ## AppSettings
 
+> **Quelle seit v1.77.0:** der typisierte Katalog `IdealAkeWms/Models/AppSettingDefinitions.cs` (Anzeigename, Typ, erlaubte Werte, Default,
+> Wirkung, Verwendung, Standort, Warnhinweis je Key; ADR 0020). Die Maske `/Settings` zeigt alles daraus. Die Tabelle unten ist ein Auszug.
+
 | Schlüssel | Default | Beschreibung |
 |-----------|---------|-------------|
 | `KommissionierTage` | `4` | Arbeitstage vor Fertigungstermin |

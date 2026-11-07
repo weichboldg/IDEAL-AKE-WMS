@@ -121,9 +121,22 @@
                         <code>QrMitFaNummer</code>); sonst nie.</li>
                     <li>Lagerplatz- und FA-Scans sind von der Einstellung nicht betroffen.</li>
                 </ul>
-                <p><strong>Einschalten (Admin):</strong> Einstellungen (<code>/Settings</code>) &rarr; Allgemein &rarr; <code>QrErstesFeld</code>
-                    = <code>Matchcode</code>, ggf. <code>QrTrennzeichen</code> = <code>,</code>. Beide Einstellungen sind Auswahllisten (seit v1.69.0);
-                    andere Werte werden beim Speichern abgewiesen.</p>
+                <p><strong>Einschalten (Admin):</strong> Einstellungen (<code>/Settings</code>) &rarr; Gruppe &bdquo;QR-Code und Scanner&ldquo; &rarr;
+                    &bdquo;QR-Code: erstes Feld&ldquo; = Matchcode, ggf. &bdquo;QR-Code: Trennzeichen&ldquo; = Komma. Beide Einstellungen sind
+                    Auswahllisten; andere Werte werden beim Speichern abgewiesen.</p>
+                <h6 class="mt-3">Einstellungen und Service-Einstellungen (seit v1.77.0)</h6>
+                <ul>
+                    <li>Jede Einstellung zeigt ihren Namen, darunter klein den technischen Schlüssel, was sie bewirkt, wo sie verwendet wird,
+                        den Standard und den Standort. Warnhinweise (z.&nbsp;B. &bdquo;sendet Buchungen an Sage&ldquo;) stehen gelb darunter.</li>
+                    <li>Feste Werte sind Auswahllisten, Verweise auf Stammdaten (Artikelkategorie, Empfängergruppe, Lagerplatz) eine Auswahl aus
+                        den Stammdaten. Ein Schalter zeigt immer den Zustand, der wirklich gilt.</li>
+                    <li>&bdquo;weicht vom Standard ab&ldquo; und &bdquo;ungültig&ldquo; stehen als Text am Feld. Oben filtern das Suchfeld und
+                        &bdquo;Nur geänderte&ldquo;.</li>
+                    <li>Gespeichert wird nur, wenn alle Werte gültig sind; sonst nennt die Meldung die Einstellung und die erlaubten Werte, und nichts
+                        wird geändert. Unveränderte Werte werden nicht neu geschrieben.</li>
+                    <li>Beim Start prüft die Web-App alle gespeicherten Werte; ungültige stehen im Aktivitäts-Protokoll unter
+                        &bdquo;Einstellungsprüfung&ldquo;.</li>
+                </ul>
                 <h6 class="mt-3">Hardware-Scanner (seit v1.66.0)</h6>
                 <p>
                     Geräte mit eingebautem Scanner, der wie eine Tastatur schreibt (Android-Handheld, Handscanner), füllen dieselben

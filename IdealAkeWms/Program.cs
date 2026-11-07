@@ -354,6 +354,31 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
+// Einstellungspruefung (v1.77.0, Spec 2026-11-07-einstellungen-auswahlfelder-und-beschreibung E4b, AK 18): vorhandene AppSettings-/
+// ServiceSettings-Zeilen gegen die Kataloge pruefen; ungueltige Werte nur melden (Lauf „Einstellungsprüfung“), Lesestellen unveraendert.
+// Fehler hier duerfen den Start nie verhindern.
+try
+{
+    using var pruefScope = app.Services.CreateScope();
+    var pdb = pruefScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    var stammdaten = new Dictionary<IdealAkeWms.Models.SettingStammdaten, IReadOnlyList<string>>
+    {
+        [IdealAkeWms.Models.SettingStammdaten.Artikelkategorie] = pdb.ArticleCategories.Select(c => c.Name).ToList(),
+        [IdealAkeWms.Models.SettingStammdaten.Bestellempfaengergruppe] = pdb.OrderRecipientGroups.Select(g => g.Id.ToString()).ToList(),
+        [IdealAkeWms.Models.SettingStammdaten.Lagerplatz] = pdb.StorageLocations.Select(l => l.Code).ToList(),
+    };
+    var befunde = IdealAkeWms.Services.Settings.Einstellungspruefung.Befunde(
+        pdb.AppSettings.Select(s => new { s.Key, s.Value }).AsEnumerable().Select(s => (s.Key, (string?)s.Value)).ToList(),
+        pdb.ServiceSettings.Select(s => new { s.Key, s.Value }).AsEnumerable().Select(s => (s.Key, (string?)s.Value)).ToList(),
+        stammdaten);
+    IdealAkeWms.Services.Settings.Einstellungspruefung.ProtokollierenAsync(
+        app.Services.GetRequiredService<IdealAkeWms.Services.SyncLogger.ISyncLogger>(), befunde).GetAwaiter().GetResult();
+}
+catch (Exception ex)
+{
+    app.Logger.LogWarning(ex, "Einstellungspruefung beim Start fehlgeschlagen (Start geht weiter).");
+}
+
 // FA-Hierarchie-Anzeigezustand initial befuellen (Freigabe-Antwort 3: Refresh am Start).
 // Der Schreibpfad prueft ohnehin live; die Anzeige (Umschalt-Seite) liest diesen Cache.
 app.Services.GetRequiredService<IdealAkeWms.Services.HierarchischeStruktur.HierarchischeStrukturStatus>()

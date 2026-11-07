@@ -43,6 +43,9 @@ public static class SyncLogServices
     // Cleanup-Jobs (seit v1.25.0)
     public const string CleanupActivityLog = "CleanupAktivitaetsprotokoll";
 
+    // Einstellungspruefung beim Web-Start (v1.77.0, Spec 2026-11-07-einstellungen-auswahlfelder-und-beschreibung E4b)
+    public const string Einstellungspruefung = "Einstellungspruefung";
+
     public static IReadOnlyList<string> All { get; } = new[]
     {
         Lagerplatz, Lagerbestand, BomCache,
@@ -53,7 +56,7 @@ public static class SyncLogServices
         WorkOperationStructureDetection, ProductionWorkplaceSync, OperationConfigSync, SageQuellenvergleich,
         PpsMitarbeiter, Stillstandsgruende, Kreditoren, Debitoren, ArtikelLieferant,
         PartRequisitionEmail, WarehouseRequisitionEmail, BdeAutoPause,
-        CleanupActivityLog,
+        CleanupActivityLog, Einstellungspruefung,
     };
 
     /// <summary>Deutsche Anzeigenamen fuer Auswahlfeld, Tabellenspalte und Spaltenfilter im Aktivitaets-Protokoll (v1.70.0).
@@ -91,6 +94,7 @@ public static class SyncLogServices
         [WarehouseRequisitionEmail] = "Lagerbestellungs-E-Mail-Versand",
         [BdeAutoPause] = "BDE-AutoPause",
         [CleanupActivityLog] = "Aktivitätsprotokoll-Bereinigung",
+        [Einstellungspruefung] = "Einstellungsprüfung",
     };
 
     /// <summary>Anzeigename; unbekannter Name (Altzeile) bleibt technisch.</summary>
