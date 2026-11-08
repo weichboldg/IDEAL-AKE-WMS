@@ -1,5 +1,6 @@
 using IdealAkeWms.Data.Repositories;
 using IdealAkeWms.Filters;
+using IdealAkeWms.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace IdealAkeWms.Controllers.Api;
@@ -27,9 +28,7 @@ public class PhotoController : ControllerBase
         if (order == null)
             return NotFound();
 
-        var photosDir = Path.Combine(
-            _env.WebRootPath ?? Path.Combine(_env.ContentRootPath, "wwwroot"),
-            "Fotos", "Kommissionierung");
+        var photosDir = PhotoStorage.GetDirectory(_env);
         Directory.CreateDirectory(photosDir);
 
         // Bestehende Fotos für diesen FA zählen
@@ -59,9 +58,7 @@ public class PhotoController : ControllerBase
         if (order == null)
             return NotFound();
 
-        var photosDir = Path.Combine(
-            _env.WebRootPath ?? Path.Combine(_env.ContentRootPath, "wwwroot"),
-            "Fotos", "Kommissionierung");
+        var photosDir = PhotoStorage.GetDirectory(_env);
 
         if (!Directory.Exists(photosDir))
             return Ok(Array.Empty<object>());
@@ -78,15 +75,16 @@ public class PhotoController : ControllerBase
         return Ok(photos);
     }
 
+    /// <summary>v1.30.4: Loeschen nur fuer ein Foto DIESES FA (Dateiname beginnt mit <c>{OrderNumber}_</c>, Regel wie Upload/Get).</summary>
     [HttpPost("delete")]
-    public IActionResult Delete([FromForm] string fileName)
+    public async Task<IActionResult> Delete([FromForm] int productionOrderId, [FromForm] string fileName)
     {
-        if (string.IsNullOrWhiteSpace(fileName) || fileName.Contains("..") || fileName.Contains('/') || fileName.Contains('\\'))
+        var order = await _productionOrderRepository.GetByIdAsync(productionOrderId);
+        if (order == null)
+            return NotFound();
+        if (!PhotoStorage.TryResolve(PhotoStorage.GetDirectory(_env), fileName, out var filePath)
+            || !fileName.StartsWith($"{order.OrderNumber}_", StringComparison.Ordinal))
             return BadRequest();
-
-        var filePath = Path.Combine(
-            _env.WebRootPath ?? Path.Combine(_env.ContentRootPath, "wwwroot"),
-            "Fotos", "Kommissionierung", fileName);
 
         if (System.IO.File.Exists(filePath))
         {
@@ -94,5 +92,17 @@ public class PhotoController : ControllerBase
         }
 
         return Ok();
+    }
+
+    /// <summary>v1.30.4 (Hotfix Kommissionierfotos): Auslieferung unter der bisherigen URL, jetzt hinter <see cref="RequirePickingAccessAttribute"/>
+    /// (Class-Level) und der Login-Middleware. Die URL ist kein Dateipfad mehr – die Datei liegt in App_Data.</summary>
+    [HttpGet("/Fotos/Kommissionierung/{fileName}")]
+    public IActionResult GetFile(string fileName)
+    {
+        if (!PhotoStorage.TryResolve(PhotoStorage.GetDirectory(_env), fileName, out var filePath))
+            return BadRequest();
+        if (!System.IO.File.Exists(filePath))
+            return NotFound();
+        return PhysicalFile(filePath, "image/jpeg");
     }
 }

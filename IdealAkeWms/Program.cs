@@ -61,6 +61,7 @@ builder.Services.AddSession(options =>
 // Repositories
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<WindowsAutoLoginMiddleware>();
+builder.Services.AddTransient<IdealAkeWms.Middleware.LoginRedirectMiddleware>();
 builder.Services.AddScoped<IChallengeIssuer, IdealAkeWms.Middleware.IISChallengeIssuer>();
 builder.Services.AddScoped<IWorkstationRepository, WorkstationRepository>();
 builder.Services.AddScoped<IProductionWorkplaceRepository, ProductionWorkplaceRepository>();
@@ -429,9 +430,11 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-// Fotos-Verzeichnis erstellen
-var fotosDir = Path.Combine(app.Environment.WebRootPath ?? Path.Combine(app.Environment.ContentRootPath, "wwwroot"), "Fotos", "Kommissionierung");
+// Fotos-Verzeichnis erstellen (v1.30.4: geschuetzt unter App_Data; Altbestand aus wwwroot einmalig verschieben)
+var fotosDir = IdealAkeWms.Services.PhotoStorage.GetDirectory(app.Environment);
 Directory.CreateDirectory(fotosDir);
+IdealAkeWms.Services.PhotoStorage.MigrateLegacy(IdealAkeWms.Services.PhotoStorage.GetLegacyDirectory(app.Environment), fotosDir,
+    app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Kommissionierfotos"));
 
 if (!app.Environment.IsDevelopment())
 {
@@ -453,38 +456,10 @@ app.UseSerilogRequestLogging();
 // Windows-Auto-Login: vor dem Login-Redirect — versucht Session-Login per Windows-Identity
 app.UseMiddleware<WindowsAutoLoginMiddleware>();
 
-// Login-Redirect Middleware: Wenn kein Benutzer in Session, auf Login umleiten
-app.Use(async (context, next) =>
-{
-    var path = context.Request.Path.Value?.ToLower() ?? "";
+// Login-Redirect Middleware (v1.30.4: Ausnahme nur fuer echte wwwroot-Dateien)
+app.UseMiddleware<IdealAkeWms.Middleware.LoginRedirectMiddleware>();
 
-    // Login-Seite und statische Dateien ausschließen
-    if (path.StartsWith("/account/login") ||
-        path.StartsWith("/account/logout") ||
-        path.StartsWith("/account/windowslogin") ||
-        path.StartsWith("/api/") ||
-        path.StartsWith("/lib/") ||
-        path.StartsWith("/css/") ||
-        path.StartsWith("/js/") ||
-        path.StartsWith("/_framework/") ||
-        path.Contains("."))
-    {
-        await next();
-        return;
-    }
-
-    // Prüfen ob Benutzer in Session angemeldet
-    var userId = context.Session.GetInt32("AppUserId");
-    if (!userId.HasValue)
-    {
-        context.Response.Redirect($"/Account/Login?returnUrl={Uri.EscapeDataString(context.Request.Path + context.Request.QueryString)}");
-        return;
-    }
-
-    await next();
-});
-
-// UseStaticFiles für dynamisch hochgeladene Dateien (Fotos)
+// Statische Dateien aus wwwroot (Kommissionierfotos liegen seit v1.30.4 in App_Data, siehe PhotoStorage)
 app.UseStaticFiles();
 
 app.MapStaticAssets();

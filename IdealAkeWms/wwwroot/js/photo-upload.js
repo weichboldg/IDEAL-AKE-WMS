@@ -117,7 +117,7 @@ function initPhotoUpload(productionOrderId, token) {
         $.ajax({
             url: '/api/photos/delete',
             type: 'POST',
-            data: { fileName: fileName },
+            data: { fileName: fileName, productionOrderId: productionOrderId }, // v1.30.4: Server prueft die FA-Zugehoerigkeit
             headers: { 'RequestVerificationToken': token },
             success: function () {
                 element.remove();
