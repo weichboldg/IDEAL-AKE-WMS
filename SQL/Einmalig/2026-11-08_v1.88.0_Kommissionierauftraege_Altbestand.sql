@@ -83,7 +83,7 @@ FROM dbo.ProductionOrderPickingStatus ps JOIN dbo.ProductionOrders po ON po.Id =
 WHERE ps.IsReleasedForPicking = 1 AND ps.IsDonePicking = 0 AND po.IsDone = 0 AND po.IsCancelled = 0
   AND NOT EXISTS (SELECT 1 FROM #Fa f WHERE f.ProductionOrderId = ps.ProductionOrderId);
 
-PRINT N'--- Liste „Altbestand pruefen“ (offen, Auftragsmenge <> 1: kein automatischer Rest-Auftrag, Leitstand bestaetigt je FA)';
+PRINT N'--- Liste "Altbestand pruefen" (offen, Auftragsmenge <> 1: kein automatischer Rest-Auftrag, Leitstand bestaetigt je FA)';
 SELECT po.OrderNumber AS FA, po.Quantity AS Auftragsmenge, f.Umgebucht AS ZeilenUmgebucht, f.NurGepickt AS ZeilenNurGepickt
 FROM #Fa f JOIN dbo.ProductionOrders po ON po.Id = f.ProductionOrderId
 WHERE f.FaErledigt = 0 AND f.MengeUngleich1 = 1
