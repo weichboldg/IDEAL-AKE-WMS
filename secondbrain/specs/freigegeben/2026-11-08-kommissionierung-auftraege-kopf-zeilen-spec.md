@@ -985,3 +985,66 @@ Nach dem Merge nur dann aus main neu publizieren, wenn der Merge getestete Datei
 4. Negativ: Skript auf einer Kopie ohne SQL/141. Erwartet: Abbruch „SQL/141 fehlt“.
 5. Auftragsseite eines laufenden Auftrags: Zeilenstatus „gepickt“.
 6. Standardwechsel Lager → Glas → Lager über die Maske (abwählen, dann setzen) auf dem Testsystem.
+
+## Nachbesserung Abnahme 2026-11-08 (v1.95.0, Ausnahme Schranke 1 Gerald)
+
+Quelle: Vorab-Abnahme auf DEV, [[2026-11-08-buendel-dev-v1-94-browser-testbericht]], Befund 4 (B7.2): Freigabe von FA 2629001 nicht möglich, weil kein aktiver Benutzer `IsPicker` ist –
+die Auswahl war leer, „Freigeben“ gesperrt, ohne Erklärung.
+- Neuer Partial `Views/PickingLeitstand/_KeinKommissioniererHinweis.cshtml` (gelb, „Kein Benutzer als Kommissionierer gekennzeichnet (Benutzer →
+  Kommissionierer)“, Link `alert-link` zur Benutzerverwaltung, „nur Admin“) in allen drei Dialogen (Freigabe, Kommissionierer ändern,
+  Sammel-Freigabe), nur bei leerer Liste.
+- Test `AbnahmeNachbesserungV195Tests.Leitstand_KeinKommissionierer_HinweisMitLink`. TS-120.15. Commit `897c5466`.
+
+## QA Nachbesserung Abnahme v1.95.0 (2026-11-08) – Ergebnis: Testbereit
+
+qa-agent. Prüfbereich: `git diff 9c9046c4..897c5466` im Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`.
+
+### 1. Build und Tests (selbst ausgeführt, Worktree HEAD `897c5466`)
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler (28 Warnungen, Bestand).
+- `dotnet test`: IdealAkeWms.Tests 2571 bestanden / 1 übersprungen / 0 Fehler; IDEALAKEWMSService.Tests 507 / 0 / 0.
+- DEV nicht neu deployt (Auftrag: DEV steht bereits auf v1.95.0, `dev-deploy.ps1` würde die fünf AKE-Sync-Schalter abschalten). Fußzeile gemessen: AKE `localhost:8081` „IDEAL-AKE WMS v1.95.0“; IDEAL `localhost:8082` zeigt den Stand v1.95.0 (Hilfe-Text aus diesem Commit sichtbar).
+- Sync-Schalter AKE-DEV am Ende unverändert **true**: `Sync:ArticlesEnabled`, `Sync:ArtikelLieferantEnabled`, `Sync:KreditorenEnabled`, `Sync:DebitorenEnabled`, `Sync:EinkaufBestellungenEnabled`.
+
+### 2. Code-Review (Diff `9c9046c4..897c5466`, 13 Dateien, selbst gelesen)
+Geprüft: `ColumnDefinitions.PurchaseOrders` gegen `th[data-col-key]` und `#column-config` (13 Schlüssel, gleiche Reihenfolge, 13 `td` je Zeile), Muster Kreditoren (`Views/Creditors/Index.cshtml:104-200`), `column-preferences.js` (Reset per `DELETE` ohne `confirm`), `_FaLink.cshtml` und `StockApiController.FaLinkAsync` gegen `ProductionOrderRepository.cs:141-142` (`!showDone` blendet `IsDone`, `IsCancelled`, `IsDonePicking` aus), alle Nutzer des Partials (`StockMovements/Index.cshtml:140`, `StockOverview/Index.cshtml:83`), `PickingLeitstand/Index.cshtml:254-353` (`activePickers` nur im Block `PickerAssignmentEnabled`, `ViewBag.ActivePickers` aus `UserRepository.GetActivePickersAsync` = `IsActive && IsPicker`), Hilfe-Stellen, `AppSettingDefinitions.cs:99-100`. JSON-Blöcke statisch, kein `@Html.Raw`; keine `hidden`/`d-*`-Kombination, kein stiller Fallback, keine Parallel-Arrays, keine reine Client-Validierung.
+
+**Befunde (Befund 4): keine.**
+**Hinweis H-1 (kein Befund, Entscheidung Gerald):** Der Text „Kein Benutzer als Kommissionierer gekennzeichnet“ erscheint auch, wenn ein Benutzer `IsPicker` hat, aber inaktiv ist (`UserRepository.GetActivePickersAsync`: `IsActive && IsPicker`). Auf AKE-DEV ist genau das der Fall (Id 11 `gerald.berger`, `IsPicker=1`, `IsActive=0`). Wer dem Link folgt, findet den Haken dort schon gesetzt. Präziser: „Kein aktiver Benutzer als Kommissionierer gekennzeichnet“.
+
+### 3. Beweisart
+| Punkt | Beweis |
+|---|---|
+| Partial in allen drei Dialogen, nur bei leerer Liste | automatisch: `AbnahmeNachbesserungV195Tests.Leitstand_KeinKommissionierer_HinweisMitLink` (Quelltext, 3 Fundstellen) |
+| Sichtbarkeit, Freigeben gesperrt, Kontrast | Manual-UAT, auf DEV erledigt |
+| Gegenprobe „mit Kommissionierer kein Hinweis“ | Manual-UAT, offen (DEV-Daten laut Auftrag nicht geändert) |
+
+### 4. Geänderte Bestandstests
+Keine.
+
+### 5. Checkliste
+Keine Migration, keine Einstellung. TS-120.15 in `docs/TESTSZENARIEN.md`; Testindex Zeile 120 durch QA nachgezogen.
+
+### 6. DEV-Testlauf AKE (`KommissionierungMitZuweisung=true`, `LeitstandAktiv=true`, kein aktiver Kommissionierer)
+| Schritt | Ergebnis | |
+|---|---|---|
+| 120.15 Freigabe FA 2629001 (Knopf öffnet nur den Dialog) | gelbe Karte mit Text und Link „Zur Benutzerverwaltung“ (`href=/Users`), Auswahl leer, „Freigeben“ gesperrt; mit Abbrechen geschlossen | OK |
+| 120.15 Sammel-Freigabe (1 markiert, „Markierte freigeben“) | gleiche Karte unter „1 Auftraege werden freigegeben“, „Freigeben“ gesperrt; mit Esc geschlossen | OK |
+| 120.15 „Kommissionierer ändern“ | AKE-DEV hat keinen offenen, freigegebenen FA mit Kommissionierer; der Dialog lässt sich nicht öffnen. Im DOM steht die Karte im Dialog `changePickerModal` (Text + Link `/Users`). | Sichtprüfung NICHT MÖGLICH (Daten), Markup OK |
+| Kontrast Link in der gelben Karte | `.alert-link` = `--bs-warning-text-emphasis` #664d03 auf `--bs-warning-bg-subtle` #fff3cd (Bootstrap 5.3.3, kein Override in `site.css`): **7,21:1** (≥ 4,5:1); fett und unterstrichen, Farbe nicht alleiniger Träger | OK |
+| Keine Freigabe ausgelöst | Web-Log: kein `POST /PickingLeitstand…` während des Laufs (letzter um 08:55, vor dem Lauf) | OK |
+
+Screenshots: `C:/Users/GERALD~1.WEI/AppData/Local/Temp/claude-chrome-screenshots-cF2Dyv/screenshot-1794133797239-41.jpg` (Freigabe-Dialog), `C:/Users/GERALD~1.WEI/AppData/Local/Temp/claude-chrome-screenshots-cF2Dyv/screenshot-1794133831507-42.png` (Zoom Karte), `C:/Users/GERALD~1.WEI/AppData/Local/Temp/claude-chrome-screenshots-cF2Dyv/screenshot-1794133860198-43.jpg` (Sammel-Freigabe).
+
+### Deploy (aus dem echten Diff `9c9046c4..897c5466`)
+web: ja · service: ja (nur Version) · migration: nein.
+```
+dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb
+dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService
+```
+Nach dem Merge nur dann aus main neu publizieren, wenn der Merge getestete Dateien mit parallelen main-Änderungen kombiniert hat.
+
+### Manuelle Checkliste (offen)
+1. „Kommissionierer ändern“ bei leerer Liste am Bildschirm (braucht einen freigegebenen FA mit Kommissionierer, danach keinen aktiven Kommissionierer).
+2. Gegenprobe: ein aktiver Kommissionierer – kein Hinweis in allen drei Dialogen.
+3. Entscheidung H-1 (Text „kein aktiver Benutzer“).
+4. Testsystem AKE und IDEAL: TS-120.15.

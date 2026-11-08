@@ -887,3 +887,66 @@ Nach dem Merge nur dann aus main neu publizieren, wenn der Merge getestete Datei
 
 ### Manuelle Checkliste (offen)
 1. Testsystem `/PurchaseOrders`: Die Legende hat den Ton der überfälligen Zeilen und ist am Terminal lesbar.
+
+## Nachbesserung Abnahme 2026-11-08 (v1.95.0, Ausnahme Schranke 1 Gerald)
+
+Quelle: Vorab-Abnahme auf DEV, [[2026-11-08-buendel-dev-v1-94-browser-testbericht]], Befund 1 (B5.1): Offene Bestellungen ohne Zahnrad, `GET /api/user-view-preferences/PurchaseOrders`
+→ 400 „Invalid view key“.
+- `ColumnDefinitions.PurchaseOrders` + Eintrag in `GetByViewKey`; `Views/PurchaseOrders/Index.cshtml`: Toolbar-Host `data-table-toolbar`,
+  `#view-config`/`#column-config` (Muster Kreditoren). Gesperrt: Liefertermin, Bestellung, Artikel, Aktionen.
+- Drift-Wächter `ViewKeyDriftGuardTests`: jede View mit `#view-config` muss ihren viewKey registriert haben; für Offene Bestellungen zusätzlich
+  th = `#column-config` = Katalog.
+- TS-116.10. Commit `897c5466`.
+
+## QA Nachbesserung Abnahme v1.95.0 (2026-11-08) – Ergebnis: Testbereit
+
+qa-agent. Prüfbereich: `git diff 9c9046c4..897c5466` im Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`.
+
+### 1. Build und Tests (selbst ausgeführt, Worktree HEAD `897c5466`)
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler (28 Warnungen, Bestand).
+- `dotnet test`: IdealAkeWms.Tests 2571 bestanden / 1 übersprungen / 0 Fehler; IDEALAKEWMSService.Tests 507 / 0 / 0.
+- DEV nicht neu deployt (Auftrag: DEV steht bereits auf v1.95.0, `dev-deploy.ps1` würde die fünf AKE-Sync-Schalter abschalten). Fußzeile gemessen: AKE `localhost:8081` „IDEAL-AKE WMS v1.95.0“; IDEAL `localhost:8082` zeigt den Stand v1.95.0 (Hilfe-Text aus diesem Commit sichtbar).
+- Sync-Schalter AKE-DEV am Ende unverändert **true**: `Sync:ArticlesEnabled`, `Sync:ArtikelLieferantEnabled`, `Sync:KreditorenEnabled`, `Sync:DebitorenEnabled`, `Sync:EinkaufBestellungenEnabled`.
+
+### 2. Code-Review (Diff `9c9046c4..897c5466`, 13 Dateien, selbst gelesen)
+Geprüft: `ColumnDefinitions.PurchaseOrders` gegen `th[data-col-key]` und `#column-config` (13 Schlüssel, gleiche Reihenfolge, 13 `td` je Zeile), Muster Kreditoren (`Views/Creditors/Index.cshtml:104-200`), `column-preferences.js` (Reset per `DELETE` ohne `confirm`), `_FaLink.cshtml` und `StockApiController.FaLinkAsync` gegen `ProductionOrderRepository.cs:141-142` (`!showDone` blendet `IsDone`, `IsCancelled`, `IsDonePicking` aus), alle Nutzer des Partials (`StockMovements/Index.cshtml:140`, `StockOverview/Index.cshtml:83`), `PickingLeitstand/Index.cshtml:254-353` (`activePickers` nur im Block `PickerAssignmentEnabled`, `ViewBag.ActivePickers` aus `UserRepository.GetActivePickersAsync` = `IsActive && IsPicker`), Hilfe-Stellen, `AppSettingDefinitions.cs:99-100`. JSON-Blöcke statisch, kein `@Html.Raw`; keine `hidden`/`d-*`-Kombination, kein stiller Fallback, keine Parallel-Arrays, keine reine Client-Validierung.
+
+**Befunde (Befund 1): keine.** Anmerkung: Die Aktionsspalte erscheint im Zahnrad-Menü als leere gesperrte Zeile „(Pflichtspalte)“, wie bei Kreditoren.
+
+### 3. Beweisart
+| Punkt | Beweis |
+|---|---|
+| Katalogeintrag, th = `#column-config` = Katalog, Toolbar-Host | automatisch: `ViewKeyDriftGuardTests` (neu; Theory über alle Views mit `#view-config` + Fakt Offene Bestellungen) |
+| Zahnrad sichtbar, Ausblenden bleibt nach Neuladen, Pflichtspalten gesperrt | Manual-UAT, auf DEV erledigt (unten) |
+
+### 4. Geänderte Bestandstests
+Keine. Nur neue Dateien (`ViewKeyDriftGuardTests.cs`, `AbnahmeNachbesserungV195Tests.cs`).
+
+### 5. Checkliste
+Keine Migration, kein SQL, keine Einstellung (ADR 0020 nicht berührt). Version 1.95.0 in beiden `AppVersion.cs`, Anwender-Changelog v1.95.0, Brain-Changelog [[2026-11-08-v1-95-0-nachbesserung-vorab-abnahme]]. TS-116.10 in `docs/TESTSZENARIEN.md`; Testindex Zeile 116 durch QA nachgezogen (fehlte).
+
+### 6. DEV-Testlauf AKE (http://localhost:8081, Benutzer Gerald Weichbold, UserId 14)
+| Schritt | Ergebnis | |
+|---|---|---|
+| Ausgangszustand | `UserViewPreferences` ViewKey `PurchaseOrders`: 0 Zeilen | – |
+| 116.10 Zahnrad rechts über der Tabelle | sichtbar neben CSV | OK |
+| Menü öffnen | Liefertermin, Bestellung, Artikel, Aktionen gesperrt „(Pflichtspalte)“, übrige frei | OK |
+| „Hinweis“ ausblenden, neu laden | Spalte bleibt ausgeblendet; DB `SettingsJson` `"key":"hinweis","visible":false`; Log `PUT … 200` | OK |
+| „Hinweis“ wieder einblenden | Log `PUT … 200` | OK |
+| Ausgangszustand herstellen („Auf Standard zurücksetzen“) | Log `DELETE /api/user-view-preferences/PurchaseOrders responded 200`, danach `GET … 204`; DB 0 Zeilen | OK |
+
+Beleg API: `D:\Dev\AKE\Web\logs\idealakewms-20261108.log` 11:24:24 `GET … 204` (in der Abnahme 400), 11:25:56 `DELETE … 200`, 11:25:56/57 `GET … 204`. Die Statuscodes 503 im Netzwerkmitschnitt der Browser-Erweiterung sind ein Artefakt; Server-Log und DB zeigen 200/204.
+
+Screenshots: `C:/Users/GERALD~1.WEI/AppData/Local/Temp/claude-chrome-screenshots-cF2Dyv/screenshot-1794133470690-28.jpg` (Zahnrad), `C:/Users/GERALD~1.WEI/AppData/Local/Temp/claude-chrome-screenshots-cF2Dyv/screenshot-1794133479768-29.jpg` (Menü), `C:/Users/GERALD~1.WEI/AppData/Local/Temp/claude-chrome-screenshots-cF2Dyv/screenshot-1794133528277-30.jpg` (nach Neuladen ohne „Hinweis“), `C:/Users/GERALD~1.WEI/AppData/Local/Temp/claude-chrome-screenshots-cF2Dyv/screenshot-1794133565601-32.jpg` (Standard wiederhergestellt).
+
+### Deploy (aus dem echten Diff `9c9046c4..897c5466`)
+web: ja · service: ja (nur Version) · migration: nein.
+```
+dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb
+dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService
+```
+Nach dem Merge nur dann aus main neu publizieren, wenn der Merge getestete Dateien mit parallelen main-Änderungen kombiniert hat.
+
+### Manuelle Checkliste (offen)
+1. Testsystem AKE `/PurchaseOrders`: Zahnrad, eine Spalte aus- und einblenden, „Auf Standard zurücksetzen“.
+2. Zweiter Benutzer: Auswahl ist je Benutzer getrennt.

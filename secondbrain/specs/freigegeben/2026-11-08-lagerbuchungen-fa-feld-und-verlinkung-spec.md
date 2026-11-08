@@ -744,3 +744,103 @@ Nach dem Merge nur dann aus main neu publizieren, wenn der Merge getestete Datei
 1. Testsystem: `FaPflichtBuchungsarten` über `/Settings` auf „Wareneingang“ setzen. Einbuchung mit `9999999`: Kartentext „FA nicht eindeutig …“, Buchen wird am Feld abgewiesen.
 2. Gleiche Einstellung, Warenausgang: alter Text, Buchung ohne Verknüpfung möglich.
 3. Sichtprüfung der gelben Karte am Fertigungsterminal (Licht vor Ort).
+
+## Nachbesserung Abnahme 2026-11-08 (v1.95.0, Ausnahme Schranke 1 Gerald)
+
+Quelle: Vorab-Abnahme auf DEV, [[2026-11-08-buendel-dev-v1-94-browser-testbericht]], Befunde 2 und 3.
+- **Befund 2 (B6.1):** FA-Link auf die FA-Liste ohne `showDone` → „Keine Fertigungsaufträge gefunden“ bei erledigten **und** fertig
+  kommissionierten FAs (`ProductionOrderRepository.cs:141-142` blendet `IsDone`, `IsCancelled`, `IsDonePicking` aus; 2614027 hatte
+  `IsDonePicking = 1`). Fix: `showDone = true` im Link `_FaLink.cshtml` (Historie, Bestandsübersicht-FA-Kopf, alle Nutzer des Partials) und
+  in `StockApiController.FaLinkAsync` („FA anzeigen“ der Prüfkarte). IDEAL-Ziel FA-Struktur (`filterHauptFa`) hat keinen Statusfilter.
+- **Befund 3 (B8.2):** Hilfe sagte noch „FA aus Feld 3 … in der Bestandsübersicht (nur mit QrMitFaNummer)“. Beide Stellen in
+  `Views/Help/Index.cshtml` an v1.87.0 angepasst (Bestandsübersicht nie, Artikel-Knopf nur Artikelfilter, eigener FA-Knopf).
+- Tests `AbnahmeNachbesserungV195Tests` (View + API mit `showDone`, Hilfe-Wächter). TS-115.13, TS-115.14. Commit `897c5466`.
+
+## QA Nachbesserung Abnahme v1.95.0 (2026-11-08) – Ergebnis: nicht Testbereit (Befund B-1)
+
+qa-agent. Prüfbereich: `git diff 9c9046c4..897c5466` im Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`.
+
+### 1. Build und Tests (selbst ausgeführt, Worktree HEAD `897c5466`)
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler (28 Warnungen, Bestand).
+- `dotnet test`: IdealAkeWms.Tests 2571 bestanden / 1 übersprungen / 0 Fehler; IDEALAKEWMSService.Tests 507 / 0 / 0.
+- DEV nicht neu deployt (Auftrag: DEV steht bereits auf v1.95.0, `dev-deploy.ps1` würde die fünf AKE-Sync-Schalter abschalten). Fußzeile gemessen: AKE `localhost:8081` „IDEAL-AKE WMS v1.95.0“; IDEAL `localhost:8082` zeigt den Stand v1.95.0 (Hilfe-Text aus diesem Commit sichtbar).
+- Sync-Schalter AKE-DEV am Ende unverändert **true**: `Sync:ArticlesEnabled`, `Sync:ArtikelLieferantEnabled`, `Sync:KreditorenEnabled`, `Sync:DebitorenEnabled`, `Sync:EinkaufBestellungenEnabled`.
+
+### 2. Code-Review (Diff `9c9046c4..897c5466`, 13 Dateien, selbst gelesen)
+Geprüft: `ColumnDefinitions.PurchaseOrders` gegen `th[data-col-key]` und `#column-config` (13 Schlüssel, gleiche Reihenfolge, 13 `td` je Zeile), Muster Kreditoren (`Views/Creditors/Index.cshtml:104-200`), `column-preferences.js` (Reset per `DELETE` ohne `confirm`), `_FaLink.cshtml` und `StockApiController.FaLinkAsync` gegen `ProductionOrderRepository.cs:141-142` (`!showDone` blendet `IsDone`, `IsCancelled`, `IsDonePicking` aus), alle Nutzer des Partials (`StockMovements/Index.cshtml:140`, `StockOverview/Index.cshtml:83`), `PickingLeitstand/Index.cshtml:254-353` (`activePickers` nur im Block `PickerAssignmentEnabled`, `ViewBag.ActivePickers` aus `UserRepository.GetActivePickersAsync` = `IsActive && IsPicker`), Hilfe-Stellen, `AppSettingDefinitions.cs:99-100`. JSON-Blöcke statisch, kein `@Html.Raw`; keine `hidden`/`d-*`-Kombination, kein stiller Fallback, keine Parallel-Arrays, keine reine Client-Validierung.
+
+**Befund B-1 (gering, Doku):** `IdealAkeWms/Views/Help/Index.cshtml:1867` – der Absatz „Artikel-QR-Scan“ der Bestandsübersicht sagt jetzt, eine FA aus dem QR werde nie übernommen, endet aber weiter mit „Hinweis: Eine uebernommene FA uebersteuert den Artikelfilter.“ Der Satz stammt aus v1.76.0 und widerspricht dem neuen Text (am Bildschirm sichtbar, AKE und IDEAL). Vorschlag: Satz streichen (dass ein FA im FA-Feld die übrigen Filter übersteuert, steht schon im Folgeabsatz „Fertigungsauftrag-Filter“). Der Wächter `Hilfe_QrFa_Bestandsuebersicht_Nie` prüft nur die beiden entfernten Sätze, nicht diesen Rest. **Nicht behoben** (QA ändert keinen Code). Befund 2 (FA-Link): keine Befunde.
+
+### 3. Beweisart
+| Punkt | Beweis |
+|---|---|
+| `showDone=true` im Partial und in der API | automatisch: `AbnahmeNachbesserungV195Tests.FaLink_View_FaListeMitShowDone` (Quelltext), `FaLink_Api_FaListeMitShowDone` (InMemory, Mock `IUrlHelper`) |
+| FA-Liste zeigt erledigten/fertig kommissionierten FA | Manual-UAT, auf DEV erledigt (echte Model-Bindung `showDone=True`) |
+| Hilfe | Quelltext-Wächter + Sichtprüfung |
+
+### 4. Geänderte Bestandstests
+Keine.
+
+### 5. Checkliste
+Keine Migration, keine Einstellung. Version/Changelogs vorhanden (gleicher Commit wie Wareneingang-Spec). TS-115.13/115.14 in `docs/TESTSZENARIEN.md`; Testindex Zeile 115 durch QA nachgezogen. `/Settings`-Text von `QrMitFaNummer` (`AppSettingDefinitions.cs:100`, „Bestandsübersicht seit v1.87.0 nie“) passt zur Hilfe.
+
+### 6. DEV-Testlauf
+| Schritt | Ergebnis | |
+|---|---|---|
+| 115.13 AKE Historie FA 2602098 (DB `IsDone=1`) | Link `/ProductionOrders?filterOrderNumber=2602098&showDone=True`; Klick: FA-Liste „Erledigte anzeigen“ an, 1 Treffer 2602098 | OK |
+| 115.13 AKE Historie FA 2614027 (DB `IsDonePicking=1`) | Link mit `showDone=True`; Klick: 1 Treffer 2614027 | OK |
+| 115.13 Prüfkarte-API `api/stock/fa-lookup?nr=2614027` | `"link":"/ProductionOrders?filterOrderNumber=2614027&showDone=True"` | OK |
+| 115.13 IDEAL FA-Kopf Bestandsübersicht FA 1060414 | Klick führt auf `/FaHierarchy?filterHauptFa=1060414`, HauptFA sichtbar | OK |
+| 115.13 IDEAL erledigter FA | IDEAL-DEV hat keinen erledigten FA und keine verknüpfte Bewegung | NICHT MÖGLICH (Daten); Ziel FA-Struktur hat keinen Statusfilter |
+| 115.14 Hilfe AKE „QR-Code: erstes Feld“ | neuer Text sichtbar | OK |
+| 115.14 Hilfe AKE Bestandsübersicht „Artikel-QR-Scan“ | neuer Text sichtbar, aber Restsatz „Eine uebernommene FA uebersteuert den Artikelfilter“ | **FEHLER (B-1)** |
+| 115.14 Hilfe IDEAL „QR-Code: erstes Feld“ | neuer Text sichtbar (gleiche View, B-1 gilt auch hier) | OK |
+
+Screenshots: `C:/Users/GERALD~1.WEI/AppData/Local/Temp/claude-chrome-screenshots-cF2Dyv/screenshot-1794133613949-33.jpg` (Historie 2602098), `C:/Users/GERALD~1.WEI/AppData/Local/Temp/claude-chrome-screenshots-cF2Dyv/screenshot-1794133624357-34.jpg` (FA-Liste 2602098), `C:/Users/GERALD~1.WEI/AppData/Local/Temp/claude-chrome-screenshots-cF2Dyv/screenshot-1794133639489-35.jpg` (FA-Liste 2614027), `C:/Users/GERALD~1.WEI/AppData/Local/Temp/claude-chrome-screenshots-cF2Dyv/screenshot-1794133657598-36.jpg` und `C:/Users/GERALD~1.WEI/AppData/Local/Temp/claude-chrome-screenshots-cF2Dyv/screenshot-1794133669028-37.jpg` (IDEAL FA-Kopf → FA-Struktur), `C:/Users/GERALD~1.WEI/AppData/Local/Temp/claude-chrome-screenshots-cF2Dyv/screenshot-1794133683185-38.jpg` (Hilfe AKE QR), `C:/Users/GERALD~1.WEI/AppData/Local/Temp/claude-chrome-screenshots-cF2Dyv/screenshot-1794133695687-39.jpg` (Hilfe AKE Bestandsübersicht mit Restsatz), `C:/Users/GERALD~1.WEI/AppData/Local/Temp/claude-chrome-screenshots-cF2Dyv/screenshot-1794133730861-40.jpg` (Hilfe IDEAL QR).
+
+### Ergebnis
+Nicht Testbereit wegen B-1 (Status bleibt InUmsetzung). Nach der Korrektur (eine Zeile Hilfe, Wächter-Assert ergänzen) genügt eine Sichtprüfung von TS-115.14. Befund 2 ist auf DEV belegt.
+
+### Manuelle Checkliste (offen)
+1. Nach Fix B-1: Hilfe AKE/IDEAL, Abschnitt Bestandsübersicht ohne Widerspruch.
+2. Testsystem IDEAL: FA-Link einer Buchung mit erledigtem FA öffnet die FA-Struktur.
+3. Testsystem AKE: Historie, FA-Kopf Bestandsübersicht, „FA anzeigen“ in der Prüfkarte bei erledigtem FA.
+
+## QA Reparatur 1 v1.95.0 (2026-11-08) – Ergebnis: Testbereit
+
+qa-agent. Prüfbereich: `git diff 897c5466..a26be406` (1 Commit `a26be406`) im Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, HEAD = `a26be406`, Arbeitsbaum sauber.
+
+### 1. Build und Tests (selbst ausgeführt)
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler (28 Warnungen, Bestand).
+- `dotnet test`: IdealAkeWms.Tests 2571 bestanden / 1 übersprungen / 0 Fehler; IDEALAKEWMSService.Tests 507 / 0 / 0.
+- DEV nicht erneut deployt (Auftrag; Dev hat AKE-DEV 8081 und IDEAL-DEV 8082 mit `a26be406` deployt). Fußzeile gemessen: beide „IDEAL-AKE WMS v1.95.0“ = `AppVersion` Web und Service 1.95.0. Sync-Schalter AKE-DEV gelesen, unverändert **true** (`Sync:ArticlesEnabled`, `Sync:ArtikelLieferantEnabled`, `Sync:KreditorenEnabled`, `Sync:DebitorenEnabled`, `Sync:EinkaufBestellungenEnabled`).
+
+### 2. Code-Review (2 Dateien, selbst gelesen)
+- `IdealAkeWms/Views/Help/Index.cshtml:1867`: nur der Restsatz „Hinweis: Eine uebernommene FA uebersteuert den Artikelfilter.“ entfernt, übriger Absatz unverändert. Kein weiteres Vorkommen in `Views/`, `docs/`, `README.md` (grep).
+- `AbnahmeNachbesserungV195Tests.Hilfe_QrFa_Bestandsuebersicht_Nie`: ein `NotContain`-Assert mit Begründung ergänzt. Bestandstest dieser Spec selbst (aus `897c5466`), Änderung = Verschärfung des Wächters für B-1, kein Fixture-Umbau.
+- Der Folgeabsatz „Fertigungsauftrag-Filter“ („Wenn ein Fertigungsauftrag eingegeben ist, werden die anderen Filter … ignoriert“) bezieht sich auf das FA-Feld, nicht auf den Artikel-Scan – kein Widerspruch.
+- **Keine Befunde.** B-1 behoben.
+
+### 3. Beweisart
+Hilfe-Text: automatisch (Quelltext-Wächter) + Sichtprüfung DEV (unten).
+
+### 4. Geänderte Bestandstests
+`AbnahmeNachbesserungV195Tests.Hilfe_QrFa_Bestandsuebersicht_Nie` – Assert ergänzt (gewollt, Befund B-1). Sonst keine.
+
+### 6. DEV-Sichtprüfung TS-115.14
+| Schritt | Ergebnis | |
+|---|---|---|
+| AKE `/Help` „QR-Code: erstes Feld“ | „In der Bestandsübersicht seit v1.87.0 nie – dort setzt der Artikel-Knopf nur den Artikelfilter, für einen FA gibt es den eigenen FA-Knopf.“ | OK |
+| AKE `/Help` Bestandsübersicht „Artikel-QR-Scan“ | endet mit „… die Artikelnummer oder der Matchcode.“, Restsatz weg | OK |
+| IDEAL `/Help` „QR-Code: erstes Feld“ | gleicher Text wie AKE | OK |
+| IDEAL `/Help` Bestandsübersicht „Artikel-QR-Scan“ | Restsatz weg | OK |
+
+Screenshots: `C:/Users/GERALD~1.WEI/AppData/Local/Temp/claude-chrome-screenshots-cF2Dyv/screenshot-1794134346982-48.jpg` (AKE QR), `C:/Users/GERALD~1.WEI/AppData/Local/Temp/claude-chrome-screenshots-cF2Dyv/screenshot-1794134294337-44.jpg` (AKE Bestandsübersicht), `C:/Users/GERALD~1.WEI/AppData/Local/Temp/claude-chrome-screenshots-cF2Dyv/screenshot-1794134330431-47.jpg` (IDEAL QR), `C:/Users/GERALD~1.WEI/AppData/Local/Temp/claude-chrome-screenshots-cF2Dyv/screenshot-1794134314841-46.jpg` (IDEAL Bestandsübersicht).
+
+### Ergebnis
+Testbereit. Deploy-Abschnitt unverändert gültig (Web, keine Migration).
+
+### Manuelle Checkliste (offen)
+1. Testsystem IDEAL: FA-Link einer Buchung mit erledigtem FA öffnet die FA-Struktur (auf DEV mangels Daten NICHT MÖGLICH).
+2. Testsystem AKE: Historie, FA-Kopf Bestandsübersicht, „FA anzeigen“ in der Prüfkarte bei erledigtem FA.
+3. Testsystem AKE/IDEAL: Hilfe, Abschnitte QR-Code und Bestandsübersicht ohne Widerspruch.
