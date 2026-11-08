@@ -248,12 +248,8 @@ else if (Model.BackController == "Picking")
                             }
                             else if (item.IsTransferred)
                             {
-                                var zt = item.ZeilenStatus switch
-                                {
-                                    PickingOrderLineStatus.Entfallen => "entfallen",
-                                    PickingOrderLineStatus.Uebertragen => "in Folgeauftrag",
-                                    _ => "umgebucht",
-                                };
+                                @* v1.89.0 (Q9): ein Ort fuer den Zeilenstatus-Text; ohne Auftragszeile (alter Weg) = gepickt *@
+                                var zt = item.ZeilenStatus is { } zs ? IdealAkeWms.Models.ViewModels.PickingOrderListItem.ZeilenStatusText(zs) : "gepickt";
                                 <span class="text-muted small" title="@zt">&#10003; @zt</span>
                             }
                         </td>

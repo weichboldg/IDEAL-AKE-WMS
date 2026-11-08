@@ -514,6 +514,25 @@ public class PickingLeitstandController : Controller
         return RedirectToAction(nameof(Index));
     }
 
+    /// <summary>v1.89.0 (Entscheidung Q11): Altbestand eines FA geprueft – Kennzeichen loeschen; Auftraege zieht danach „Fehlende
+    /// Kommissionieraufträge erzeugen“ bzw. die Freigabe nach.</summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [RequireLeitstandAccess]
+    public async Task<IActionResult> AltbestandGeprueft(int id, string? returnUrl)
+    {
+        var order = await _productionOrderRepository.GetByIdAsync(id);
+        if (order == null) return NotFound();
+        var nummern = await _pickingOrderWorkflow.AltbestandGeprueftAsync(id);
+        if (nummern.Count > 0)
+            TempData["SuccessMessage"] = $"FA {order.OrderNumber}: Altbestand geprüft ({string.Join(", ", nummern)}). Fehlende Aufträge jetzt mit " +
+                                         "„Fehlende Kommissionieraufträge erzeugen“ anlegen.";
+        else
+            TempData["WarningMessage"] = $"FA {order.OrderNumber}: kein Auftrag mit „Altbestand prüfen“ – nichts geändert.";
+        if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl)) return Redirect(returnUrl);
+        return RedirectToAction(nameof(Index));
+    }
+
     private async Task<List<(string Fa, PickingOrderErzeugung E)>> ErzeugeAsync(IEnumerable<int> faIds)
     {
         var liste = new List<(string, PickingOrderErzeugung)>();

@@ -94,20 +94,36 @@ public class KommissionierauftraegeE1Tests
         PickingAreasController.Uebernehmen(new PickingArea(), new PickingAreaEingabe("", "", -1, true, false, false), alle).Should().HaveCount(3);
         PickingAreasController.Uebernehmen(alle[1], new PickingAreaEingabe("Glas", "G", 0, false, true, false), alle)
             .Should().ContainSingle(f => f.Contains("Standardbereich muss aktiv"));
-        PickingAreasController.Uebernehmen(alle[0], new PickingAreaEingabe("Lager", "L", 0, true, false, false), alle)
-            .Should().ContainSingle(f => f.Contains("immer einen Standardbereich"));
+        // v1.89.0 (Q10): zweiter Standard wird abgelehnt
+        PickingAreasController.Uebernehmen(alle[1], new PickingAreaEingabe("Glas ", "G", 5, true, true, true), alle)
+            .Should().ContainSingle(f => f == "Es gibt bereits einen Standardbereich („Lager“). Zuerst dort abwählen.");
+        alle[1].IsDefault.Should().BeFalse();
+        // Abwaehlen ist erlaubt (dann gibt es voruebergehend keinen Standard)
+        PickingAreasController.Uebernehmen(alle[0], new PickingAreaEingabe("Lager", "L", 0, true, false, false), alle).Should().BeEmpty();
         PickingAreasController.Uebernehmen(alle[1], new PickingAreaEingabe("Glas ", "G", 5, true, true, true), alle).Should().BeEmpty();
         (alle[1].Name, alle[1].IsDefault, alle[1].IstVorkommissionierung).Should().Be(("Glas", true, true));
     }
 
     [Fact]
-    public async Task Bereich_NeuerStandardLoestAltenAb_AK2()
+    public async Task Bereich_StandardWechsel_AbwaehlenDannSetzen_Q10()
     {
         using var db = TestDbContextFactory.Create();
         db.PickingAreas.AddRange(Alle());
         await db.SaveChangesAsync();
         var ctrl = Ctrl(db);
+        // zweiter Standard: abgelehnt, nichts gespeichert
+        (await ctrl.Edit(2, new PickingAreaEingabe("Glas", "G", 0, true, true, false))).Should().BeOfType<Microsoft.AspNetCore.Mvc.ViewResult>();
+        ctrl.ModelState.IsValid.Should().BeFalse();
+        db.PickingAreas.Where(a => a.IsDefault).Select(a => a.Name).Should().Equal("Lager");
+        // abwaehlen: Warnung „kein aktiver Standardbereich“
+        ctrl = Ctrl(db);
+        await ctrl.Edit(1, new PickingAreaEingabe("Lager", "L", 0, true, false, false));
+        ctrl.TempData["WarningMessage"].Should().NotBeNull();
+        db.PickingAreas.Any(a => a.IsDefault).Should().BeFalse();
+        // neu setzen
+        ctrl = Ctrl(db);
         await ctrl.Edit(2, new PickingAreaEingabe("Glas", "G", 0, true, true, false));
+        ctrl.TempData.ContainsKey("WarningMessage").Should().BeFalse();
         db.PickingAreas.Where(a => a.IsDefault).Select(a => a.Name).Should().Equal("Glas");
         db.PickingAreas.Single(a => a.Id == 1).ModifiedBy.Should().Be("Pfleger");
     }

@@ -2989,6 +2989,9 @@ namespace IdealAkeWms.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
+                    b.Property<bool>("AltbestandPruefen")
+                        .HasColumnType("bit");
+
                     b.Property<int?>("AssignedPickerId")
                         .HasColumnType("int");
 

@@ -34,7 +34,7 @@
                 <input type="checkbox" id="IsDefault" name="IsDefault" value="true" class="form-check-input" @(Model.IsDefault ? "checked" : "") />
                 <input type="hidden" name="IsDefault" value="false" />
                 <label class="form-check-label" for="IsDefault">Standardbereich</label>
-                <div class="form-text">Zeilen ohne passende Regel. Es gibt genau einen; wird dieser Bereich Standard, löst er den bisherigen ab.</div>
+                <div class="form-text">Zeilen ohne passende Regel. Es gibt höchstens einen: zum Wechseln zuerst beim bisherigen Standard abwählen, dann hier setzen.</div>
             </div>
             <div class="form-check mb-3">
                 <input type="checkbox" id="IstVorkommissionierung" name="IstVorkommissionierung" value="true" class="form-check-input" @(Model.IstVorkommissionierung ? "checked" : "") />

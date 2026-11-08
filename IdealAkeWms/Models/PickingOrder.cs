@@ -58,6 +58,11 @@ public class PickingOrder : AuditableEntity
     public PickingOrder? Ursprungsauftrag { get; set; }
     public List<PickingOrder> Folgeauftraege { get; set; } = new();
 
+    /// <summary>v1.89.0 (Entscheidung Q11): Altbestand-Auftrag eines offenen FA mit Auftragsmenge ≠ 1 – das Einmal-Skript setzt es. Solange ein
+    /// Auftrag des FA es traegt, legt <c>PickingOrderWorkflow.ErzeugeOffeneAsync</c> fuer den FA nichts an; der Leitstand bestaetigt
+    /// „Altbestand geprueft“ und loescht es.</summary>
+    public bool AltbestandPruefen { get; set; }
+
     public DateTime? AbgeschlossenAm { get; set; }
     public string? AbgeschlossenVon { get; set; }
 

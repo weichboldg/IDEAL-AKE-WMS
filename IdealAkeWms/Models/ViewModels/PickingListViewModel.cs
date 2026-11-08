@@ -33,12 +33,12 @@ public class PickingOrderListItem
     public PickingOrderStatus Status { get; set; }
     public string? AssignedPickerName { get; set; }
 
-    /// <summary>QA Q9: Zeilenstatus als deutscher Text (Druck, Anzeige).</summary>
+    /// <summary>QA Q9: Zeilenstatus als deutscher Text (Druck, Auftragsseite). v1.89.0 (Entscheidung Q9 Gerald 2026-11-08): nach dem
+    /// Kommissionieren einheitlich „gepickt“ – Gepickt (Altbestand) und Umgebucht zeigen denselben Text, der Enum-Wert bleibt.</summary>
     public static string ZeilenStatusText(PickingOrderLineStatus s) => s switch
     {
         PickingOrderLineStatus.Offen => "offen",
-        PickingOrderLineStatus.Gepickt => "gepickt",
-        PickingOrderLineStatus.Umgebucht => "umgebucht",
+        PickingOrderLineStatus.Gepickt or PickingOrderLineStatus.Umgebucht => "gepickt",
         PickingOrderLineStatus.Entfallen => "entfallen",
         PickingOrderLineStatus.Uebertragen => "in Folgeauftrag",
         _ => s.ToString(),

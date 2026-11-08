@@ -2779,6 +2779,7 @@ BEGIN
         [UrsprungsauftragId] int NULL,
         [AbgeschlossenAm] datetime2 NULL,
         [AbgeschlossenVon] nvarchar(200) NULL,
+        [AltbestandPruefen] bit NOT NULL CONSTRAINT [DF_PickingOrders_AltbestandPruefen] DEFAULT CAST(0 AS bit),
         [RowVersion] rowversion NOT NULL,
         [CreatedAt] datetime2 NOT NULL,
         [CreatedBy] nvarchar(200) NOT NULL,
@@ -3135,6 +3136,9 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261107193219_AddPickingAreasAndOrders')
    AND OBJECT_ID(N'dbo.PickingOrderLines', N'U') IS NOT NULL -- sonst steht SQL/133 noch aus
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261107193219_AddPickingAreasAndOrders', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261108071811_AddPickingOrderAltbestandPruefen')
+   AND COL_LENGTH(N'dbo.PickingOrders', N'AltbestandPruefen') IS NOT NULL -- sonst steht SQL/141 noch aus
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261108071811_AddPickingOrderAltbestandPruefen', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';

@@ -15,12 +15,16 @@
 --   SollMenge = Quantity (Antwort 3: Altbestand-Ist = gebuchte Menge; Befund B1 – AKE buchte je Stueck).
 -- Kopfstatus: alle Zeilen umgebucht ODER FA erledigt (IsDone / IsDonePicking) → Abgeschlossen, sonst In Arbeit.
 -- Prioritaet/Kommissionierer aus ProductionOrderPickingStatus. PickingItems bleiben UNVERAENDERT (Antwort 11).
+-- v1.89.0 (Entscheidung Q11, Gerald 2026-11-08): offene FAs mit Auftragsmenge <> 1 bekommen KEINEN automatischen Rest-Auftrag. Ihr
+-- Altbestand-Auftrag traegt AltbestandPruefen = 1 (SQL/141); das Skript gibt sie als Liste aus (Trockenlauf und Ausfuehrung, ins
+-- Deploy-Protokoll). Die Kommissionierung legt fuer diese FAs nichts an, bis der Leitstand „Altbestand geprueft“ bestaetigt.
 -- Offene Freigaben OHNE Fortschritt legt danach der Leitstand-Knopf „Fehlende Kommissionieraufträge erzeugen“ an (mit Bereichen).
 --
 -- REIHENFOLGE (Spec, Abschnitt Deploy):
---   1. DB-Backup.  2. Web stoppen.  3. SQL/133.  4. DIESES Skript im Trockenlauf (Default), Zaehlungen ins Deploy-Protokoll.
+--   1. DB-Backup.  2. Web stoppen.  3. SQL/133 und SQL/141.  4. DIESES Skript im Trockenlauf (Default), Zaehlungen ins Deploy-Protokoll.
 --   5. Freigabe der Zaehlung durch Gerald.  6. @Trockenlauf = 0 ausfuehren.  7. Web v1.88.0 starten.
---   8. Leitstand: „Fehlende Kommissionieraufträge für alle freigegebenen FAs erzeugen“.  9. Stichprobe TS-120.11.
+--   8. Leitstand: „Fehlende Kommissionieraufträge für alle freigegebenen FAs erzeugen“ (ueberspringt die Liste „Altbestand pruefen“).
+--   9. Je FA der Liste im Leitstand pruefen, „Altbestand geprüft“, dann erneut erzeugen.  10. Stichprobe TS-120.11.
 --   Zwischen 6 und 8 darf niemand kommissionieren (Wartungsfenster).
 -- =====================================================================================================
 SET NOCOUNT ON;
@@ -33,6 +37,11 @@ DECLARE @Wer NVARCHAR(200) = N'Migration-KO-Altbestand';
 IF OBJECT_ID(N'dbo.PickingOrders', N'U') IS NULL
 BEGIN
     RAISERROR(N'SQL/133 fehlt (dbo.PickingOrders). Abbruch, nichts geaendert.', 16, 1);
+    RETURN;
+END
+IF COL_LENGTH(N'dbo.PickingOrders', N'AltbestandPruefen') IS NULL
+BEGIN
+    RAISERROR(N'SQL/141 fehlt (dbo.PickingOrders.AltbestandPruefen). Abbruch, nichts geaendert.', 16, 1);
     RETURN;
 END
 IF EXISTS (SELECT 1 FROM dbo.PickingOrders WHERE CreatedBy = @Wer)
@@ -74,6 +83,12 @@ FROM dbo.ProductionOrderPickingStatus ps JOIN dbo.ProductionOrders po ON po.Id =
 WHERE ps.IsReleasedForPicking = 1 AND ps.IsDonePicking = 0 AND po.IsDone = 0 AND po.IsCancelled = 0
   AND NOT EXISTS (SELECT 1 FROM #Fa f WHERE f.ProductionOrderId = ps.ProductionOrderId);
 
+PRINT N'--- Liste „Altbestand pruefen“ (offen, Auftragsmenge <> 1: kein automatischer Rest-Auftrag, Leitstand bestaetigt je FA)';
+SELECT po.OrderNumber AS FA, po.Quantity AS Auftragsmenge, f.Umgebucht AS ZeilenUmgebucht, f.NurGepickt AS ZeilenNurGepickt
+FROM #Fa f JOIN dbo.ProductionOrders po ON po.Id = f.ProductionOrderId
+WHERE f.FaErledigt = 0 AND f.MengeUngleich1 = 1
+ORDER BY po.OrderNumber;
+
 IF @Trockenlauf = 1
 BEGIN
     PRINT N'TROCKENLAUF: nichts geaendert. Ausfuehren mit @Trockenlauf = 0 (vorher DB-Backup, Zaehlung freigeben).';
@@ -84,13 +99,14 @@ BEGIN TRANSACTION;
     DECLARE @Max INT = ISNULL((SELECT MAX(LaufendeNummer) FROM dbo.PickingOrders WITH (UPDLOCK, HOLDLOCK) WHERE Jahr = @Jahr), 0);
 
     INSERT INTO dbo.PickingOrders (Nummer, Jahr, LaufendeNummer, Typ, ProductionOrderId, PickingAreaId, Status, PickingPriority,
-                                   AssignedPickerId, AssignedPickerName, Bemerkung, AbgeschlossenAm, AbgeschlossenVon,
+                                   AssignedPickerId, AssignedPickerName, Bemerkung, AbgeschlossenAm, AbgeschlossenVon, AltbestandPruefen,
                                    CreatedAt, CreatedBy, CreatedByWindows)
     SELECT CONCAT(N'KO-', @Jahr, N'-', RIGHT(CONCAT(N'00000', n.Lfd), 5)), @Jahr, n.Lfd, 1, f.ProductionOrderId, @Standard,
            CASE WHEN f.FaErledigt = 1 OR f.NurGepickt = 0 THEN 40 ELSE 20 END,
            ps.PickingPriority, ps.AssignedPickerId, ps.AssignedPickerName, N'Altbestand vor v1.88.0',
            CASE WHEN f.FaErledigt = 1 OR f.NurGepickt = 0 THEN GETDATE() END,
            CASE WHEN f.FaErledigt = 1 OR f.NurGepickt = 0 THEN @Wer END,
+           CASE WHEN f.FaErledigt = 0 AND f.MengeUngleich1 = 1 THEN 1 ELSE 0 END,
            GETDATE(), @Wer, LEFT(SYSTEM_USER, 200)
     FROM #Fa f
     JOIN (SELECT ProductionOrderId, @Max + ROW_NUMBER() OVER (ORDER BY ReleasedAt, ProductionOrderId) AS Lfd FROM #Fa) n
@@ -114,4 +130,5 @@ BEGIN TRANSACTION;
 COMMIT TRANSACTION;
 
 PRINT N'--- Ergebnis je Status';
-SELECT Status, COUNT(*) AS Auftraege FROM dbo.PickingOrders WHERE CreatedBy = @Wer GROUP BY Status;
+SELECT Status, COUNT(*) AS Auftraege, SUM(CASE WHEN AltbestandPruefen = 1 THEN 1 ELSE 0 END) AS davonAltbestandPruefen
+FROM dbo.PickingOrders WHERE CreatedBy = @Wer GROUP BY Status;

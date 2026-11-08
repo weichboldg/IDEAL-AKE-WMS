@@ -71,26 +71,13 @@ public class PickingAreasController : Controller
         }
         var now = DateTime.Now;
         Audit(area, now);
-        var alteStandards = area.IsDefault ? alle.Where(a => a.Id != id && a.IsDefault).ToList() : new List<PickingArea>();
-        // QA Q2: der gefilterte UNIQUE-Index UX_PickingAreas_IsDefault erlaubt nie zwei Standards – EF ordnet die UPDATEs nicht nach
-        // diesem Index. Deshalb erst den alten Standard aufheben und speichern, dann den neuen setzen (genau einer: der neue loest ab).
-        // QA Q13: beide Schritte in EINER Transaktion – scheitert der zweite, bleibt der alte Standard.
-        await _repo.InTransactionAsync(async () =>
-        {
-            if (alteStandards.Count > 0)
-            {
-                area.IsDefault = false;
-                foreach (var anderer in alteStandards)
-                {
-                    anderer.IsDefault = false;
-                    Audit(anderer, now);
-                }
-                await _repo.SaveChangesAsync();
-                area.IsDefault = true;
-            }
-            await _repo.SaveChangesAsync();
-        });
+        // v1.89.0 (Entscheidung Q10): ein zweiter Standard wird abgelehnt (Uebernehmen), es gibt also nie zwei – ein Speichern = eine
+        // Transaktion (SaveChanges), die Zwei-Schritt-Logik aus Q2/Q13 entfaellt. Gewechselt wird ueber „abwaehlen“ + „neu setzen“.
+        await _repo.SaveChangesAsync();
         TempData["SuccessMessage"] = $"Bereich „{area.Name}“ gespeichert.";
+        if (!alle.Any(a => a.IsDefault && a.IsActive))
+            TempData["WarningMessage"] = "Es gibt jetzt keinen aktiven Standardbereich. Bis einer gesetzt ist, legt die Kommissionierung keine Aufträge an " +
+                                         "(Meldung „Kein aktiver Standardbereich“).";
         return RedirectToAction(nameof(Index));
     }
 
@@ -110,8 +97,9 @@ public class PickingAreasController : Controller
             fehler.Add($"Kürzel „{kuerzel}“ ist schon vergeben.");
         if (e.Reihenfolge < 0) fehler.Add("Reihenfolge muss 0 oder größer sein.");
         if (e.IsDefault && !e.IsActive) fehler.Add("Der Standardbereich muss aktiv sein.");
-        if (area.IsDefault && !e.IsDefault)
-            fehler.Add("Es muss immer einen Standardbereich geben – einen anderen Bereich als Standard wählen, dann wird dieser abgelöst.");
+        // v1.89.0 (Entscheidung Q10, AK 2): ablehnen statt abloesen
+        if (e.IsDefault && alle.FirstOrDefault(a => a.Id != area.Id && a.IsDefault) is { } standard)
+            fehler.Add($"Es gibt bereits einen Standardbereich („{standard.Name}“). Zuerst dort abwählen.");
         if (fehler.Count > 0) return fehler;
 
         area.Name = name;

@@ -183,6 +183,19 @@
                 <span class="text-body-secondary">@ko.PickingArea?.Kuerzel · @IdealAkeWms.Models.ViewModels.PickingOrderListItem.StatusText(ko.Status)</span>
             </div>
         }
+        @* v1.89.0 (Entscheidung Q11): Altbestand mit Menge ≠ 1 – erst pruefen, dann bestaetigen; bis dahin legt die Kommissionierung nichts an *@
+        @if (item.Kommissionierauftraege.Any(k => k.AltbestandPruefen))
+        {
+            <div class="mt-1">
+                <span class="badge text-bg-warning" title="Altbestand vor v1.88.0, Auftragsmenge ≠ 1: Restmengen prüfen, bevor Aufträge nachgezogen werden">⚠ Altbestand prüfen</span>
+                <form asp-controller="PickingLeitstand" asp-action="AltbestandGeprueft" method="post" class="d-inline">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="id" value="@item.Id" />
+                    <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+                    <button type="submit" class="btn btn-sm btn-outline-dark py-0">Altbestand geprüft</button>
+                </form>
+            </div>
+        }
     </td>
     @* IDEAL Hierarchie: Elternzeiger-Spalte (defaultHidden, im Flachmodus leer). *@
     <td>@item.ParentSubOrderNumber</td>

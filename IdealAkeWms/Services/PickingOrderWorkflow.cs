@@ -14,6 +14,8 @@ public sealed class PickingOrderErzeugung
     /// <summary>E3: nach dem Abschluss ist der FA vollstaendig kommissioniert (IsDonePicking gesetzt).</summary>
     public bool FaAbgeschlossen { get; set; }
     public string? Fehler { get; set; }
+    /// <summary>v1.89.0 (Q11): FA uebersprungen, weil ein Altbestand-Auftrag noch „Altbestand pruefen“ traegt.</summary>
+    public bool AltbestandPruefen { get; set; }
 }
 
 /// <summary>
@@ -57,6 +59,14 @@ public class PickingOrderWorkflow
         var order = await _orders.GetByIdAsync(productionOrderId);
         if (order == null) { r.Fehler = $"FA (Id {productionOrderId}) unbekannt."; return r; }
         if (order.IsSubFa) { r.Fehler = $"Kommissionierung erfolgt nur am HauptFA {order.OrderNumber}."; return r; }
+        // v1.89.0 (Entscheidung Q11): Altbestand mit Menge ≠ 1 erst nach Bestaetigung im Leitstand nachziehen (kein automatischer Rest).
+        // Hier = einziger Erzeugungsweg (Freigabe, „Fehlende … erzeugen“, Oeffnen ohne Leitstand).
+        if ((await _repo.GetByProductionOrderAsync(productionOrderId)).Any(o => o.AltbestandPruefen))
+        {
+            r.AltbestandPruefen = true;
+            r.Meldungen.Add($"FA {order.OrderNumber}: Altbestand prüfen – im Leitstand „Altbestand geprüft“ bestätigen, dann Aufträge nachziehen.");
+            return r;
+        }
 
         var bom = await _bom.GetBomItemsAsync(BomKey.ForOrder(order), BomScopes.ForOrder(order));
         if (bom.Items.Count == 0)
@@ -265,6 +275,21 @@ public class PickingOrderWorkflow
     /// <summary>E4 (Antwort 6, AK 17): Kommissionierer am FA → alle offenen/in Arbeit befindlichen Auftraege des FA.</summary>
     public Task<int> KommissioniererDurchschreibenAsync(int productionOrderId, int? pickerId, string? pickerName) =>
         DurchschreibenAsync(productionOrderId, a => { a.AssignedPickerId = pickerId; a.AssignedPickerName = pickerName; });
+
+    /// <summary>v1.89.0 (Q11): Leitstand bestaetigt „Altbestand geprueft“ – Kennzeichen an allen Auftraegen des FA loeschen; Rueckgabe =
+    /// Nummern. Danach erzeugt <see cref="ErzeugeOffeneAsync"/> fehlende Auftraege wie gewohnt.</summary>
+    public async Task<List<string>> AltbestandGeprueftAsync(int productionOrderId)
+    {
+        var now = Jetzt();
+        var markiert = (await _repo.GetByProductionOrderAsync(productionOrderId)).Where(o => o.AltbestandPruefen).ToList();
+        foreach (var a in markiert)
+        {
+            a.AltbestandPruefen = false;
+            AuditSetzen(a, now);
+        }
+        if (markiert.Count > 0) await _repo.SaveChangesAsync();
+        return markiert.Select(a => a.Nummer).ToList();
+    }
 
     private async Task<int> DurchschreibenAsync(int productionOrderId, Action<PickingOrder> setzen)
     {

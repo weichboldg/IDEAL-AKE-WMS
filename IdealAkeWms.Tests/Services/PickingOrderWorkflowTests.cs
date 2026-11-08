@@ -129,6 +129,49 @@ public class PickingOrderWorkflowTests
         (await w.ErzeugeOffeneAsync(10)).Fehler.Should().Contain("Kein aktiver Standardbereich");
     }
 
+    [Theory]
+    [InlineData(PickingOrderLineStatus.Offen, "offen")]
+    [InlineData(PickingOrderLineStatus.Gepickt, "gepickt")]
+    [InlineData(PickingOrderLineStatus.Umgebucht, "gepickt")]
+    [InlineData(PickingOrderLineStatus.Entfallen, "entfallen")]
+    [InlineData(PickingOrderLineStatus.Uebertragen, "in Folgeauftrag")]
+    public void ZeilenStatusText_NachDemKommissionierenEinheitlichGepickt_Q9(PickingOrderLineStatus s, string text) =>
+        PickingOrderListItem.ZeilenStatusText(s).Should().Be(text);
+
+    // ---------- v1.89.0 Entscheidung Q11: Altbestand pruefen ----------
+
+    [Fact]
+    public async Task AltbestandPruefen_KeinAutomatischerRest_ErstNachBestaetigung_Q11()
+    {
+        Pos("A1", "10", 3m);
+        var (w, db) = await SetupAsync(faMenge: 2m);
+        // Altbestand-Auftrag wie vom Einmal-Skript: Soll = Stueckmenge 3, umgebucht, Kennzeichen gesetzt
+        db.PickingOrders.Add(new PickingOrder
+        {
+            Nummer = "KO-2026-00001", Jahr = 2026, LaufendeNummer = 1, ProductionOrderId = 10, PickingAreaId = 1,
+            Status = PickingOrderStatus.Abgeschlossen, Bemerkung = "Altbestand vor v1.88.0", AltbestandPruefen = true,
+            CreatedBy = "Migration-KO-Altbestand", CreatedByWindows = "t",
+            Zeilen = { new PickingOrderLine { ProductionOrderId = 10, ArticleNumber = "A1", BomPosition = "10", SollMenge = 3m, IstMenge = 3m,
+                Status = PickingOrderLineStatus.Umgebucht, CreatedBy = "t", CreatedByWindows = "t" } },
+        });
+        await db.SaveChangesAsync();
+
+        var e = await w.ErzeugeOffeneAsync(10);
+        e.AltbestandPruefen.Should().BeTrue();
+        e.Nummern.Should().BeEmpty();
+        PickingOrderWorkflow.Sammelmeldung(new[] { ("FA10", e) }).Warnung.Should().Contain("Altbestand prüfen");
+        db.PickingOrders.Should().ContainSingle();
+
+        (await w.AltbestandGeprueftAsync(10)).Should().Equal("KO-2026-00001");
+        db.PickingOrders.Single().ModifiedBy.Should().Be("Leitstand");
+        (await w.AltbestandGeprueftAsync(10)).Should().BeEmpty(); // zweites Mal: nichts zu tun
+
+        // jetzt der Rest (2 × 3 − 3 = 3) wie gewohnt
+        var danach = await w.ErzeugeOffeneAsync(10);
+        danach.Nummern.Should().Equal("KO-2026-00002");
+        db.PickingOrderLines.Single(z => z.PickingOrder.Nummer == "KO-2026-00002").SollMenge.Should().Be(3m);
+    }
+
     // ---------- E3: Abschluss (AK 13, 14) ----------
 
     private static void Umgebucht(PickingOrderLine z, decimal ist)
