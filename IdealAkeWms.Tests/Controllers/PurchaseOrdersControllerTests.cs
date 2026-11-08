@@ -95,6 +95,8 @@ public partial class PurchaseOrdersControllerTests
     {
         var index = File.ReadAllText(ViewPfad("Index.cshtml"));
         index.Should().Contain("r.Ueberfaellig ? \"table-danger\"").And.Contain("rot hinterlegt").And.NotContain("table-warning");
+        // v1.91.0 (N-1): Legende im Zeilenton (Hellrot, dunkler Text), nicht kraeftig rot
+        index.Should().Contain("badge bg-danger-subtle text-danger-emphasis").And.NotContain("text-bg-danger");
         File.ReadAllText(ViewPfad("Receive.cshtml")).Should().Contain("ist im WMS nicht buchbar – bitte Ziel wählen");
     }
 
