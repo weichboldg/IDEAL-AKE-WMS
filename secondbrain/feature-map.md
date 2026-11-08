@@ -13,7 +13,7 @@ eine Zeile.
 v1.27.0–v1.28.0 gemerged; **v1.29.0 + v1.30.0** (WMS Bugs & Improvements Teil 1–5,7,8) gemerged
 (Merge-Commit `65e3901`, 2026-08-06). **Produktiv-Deploy und Manual-UAT stehen weiterhin aus**
 → [[2026-07-deploy-v1-25-0]]. Specs ohne Pfadangabe existieren nicht — das Feature entstand vor der
-Spec-Disziplin. Release-Details je Version: `changelog/` (v1.0.0 – v1.30.0).
+Spec-Disziplin. Release-Details je Version: `changelog/` (v1.0.0 – v1.30.3; AKE-Hotfixes v1.30.1–v1.30.3 auf `main`).
 
 ## Lager und Bestand
 
@@ -84,6 +84,8 @@ Spec-Disziplin. Release-Details je Version: `changelog/` (v1.0.0 – v1.30.0).
 | Glas-Bestellung als eigener Bestelltyp | Gemerged (v1.25.0) | `2026-07-03-glas-bestellung-design.md` | `Models/WarehouseRequisitionType.cs`, `Services/GlasArticleGroupFilter.cs` |
 | Lagerbestellung aus der Stueckliste + Master-Schalter | Gemerged (v1.25.0) | `2026-07-09-lagerbestellung-aus-bom-design.md` | `Api/WarehouseRequisitionsApiController` (`quick-add`), `Filters/RequireLagerbestellungAktivAttribute.cs` |
 | AKE-Hotfix: Stuecklisten-Druck per POST (404.15) + Lagerbestellung Ist-Menge bestaetigen (Pflichtpruefung, Autosave NULL) | **Gemerged** (v1.30.1, Merge-Commit `f89c0124`, 2026-10-05; auf AKE deployt als `8cc23829`) | [[2026-09-28-ake-hotfix-stueckliste-druck-lagerbestellung-ist-spec]] | `PickingController.PrintBom`/`PrintBomPost`, `WarehouseRequisitionRepository.CloseAsync`, `Views/WarehousePicking/Details.cshtml`, `SQL/Einmalig/` ([[0015-einmal-datenskripte-ausserhalb-der-nummerierten-sql-reihe]]) |
+| AKE-Hotfix: Zahnrad (Spaltenauswahl) auf der Lagerbestellung-Detailseite sichtbar | **Gemerged** (v1.30.2, Merge-Commit `e386bfce`, 2026-11-08) | [[2026-10-08-v1-30-2-ake-hotfix-zahnrad-lagerbestellung]] | `Views/WarehousePicking/Details.cshtml`, `IdealAkeWms.Tests/Views/BomZahnradHostTests.cs` |
+| AKE-Hotfix: OSEON-Sync neu ausgeschriebener Auftrag (MERGE über Auftragsnummer) + Stücklisten-Druck Rand/Sortierung + Werkbank in der Kommissionierung | **InUmsetzung** (v1.30.3, direkt auf `main`) | [[2026-11-07-oseon-sync-neu-ausgeschriebener-auftrag-spec]] | `IDEALAKEWMSService/Services/OseonSyncService.cs`, `OseonOrderSelection.cs`, `PickingController.RenderPrintBomAsync`, `Views/Picking/Index.cshtml` |
 
 ## OSEON
 
@@ -716,6 +718,13 @@ Changelog [[2026-10-21-v1-66-0-hardware-barcodescanner]].
 | v1.86.0: Offene Bestellungen – überfällig rot mit Legende, Sperre Basis ≠ Lager, Hinweis nicht buchbarer Ziel-Platz | **Testbereit** `405e9af5` (QA 2026-11-08) | `PurchaseOrders/Index.cshtml`, `EinkaufBestellungenSyncService`, [[2026-11-08-wareneingang-aus-sage-bestellungen-spec]] |
 | v1.87.0 (Epic): Lagerbuchungen – FA verknüpft (`StockMovements.ProductionOrderId`, SQL/109/110), Prüfkarte + Pflicht-Einstellung, FA-Link in Historie/Bestandsübersicht | **Testbereit** `f38e82ac`…`7ab2fcb5` (QA 2026-11-08) | `FindForBookingAsync`, `FaBuchungsText`, `fa-feld.js`, `_FaLink`, [[2026-11-08-lagerbuchungen-fa-feld-und-verlinkung-spec]] |
 | v1.88.0 (Epic): Kommissionieraufträge Kopf/Zeilen – Nummer KO-JJJJ-NNNNN, Kommissionierbereiche + Regeln, Erzeugen bei Freigabe/Nachziehen, Ist-Menge, Folgeauftrag, Druck (SQL/133, Einmal-Skript Altbestand; E7 Sage gesperrt) | **Testbereit** `3500c2fe`…`15a8e45f`, Reparatur `1ed5c72c` (QA 2026-11-08) | `PickingOrderWorkflow`, `PickingTransferService`, `PickingAreasController`, `/Picking`, [[2026-11-08-kommissionierung-auftraege-kopf-zeilen-spec]] |
+| v1.89.0: Kommissionieraufträge Nachbesserung Q9–Q11 – Zeilenstatus „gepickt“, zweiter Standard abgelehnt, „Altbestand prüfen“ (SQL/141) | **Testbereit** `bc8be58c`, `53858c6c` (QA 2026-11-08) | `PickingOrderWorkflow.ErzeugeOffeneAsync`/`AltbestandGeprueftAsync`, `PickingAreasController.Uebernehmen`, [[2026-11-08-kommissionierung-auftraege-kopf-zeilen-spec]] |
+| v1.90.0: Lager-Tools FA-Prüfkarte je FA-Pflicht (`fa-lookup?art=` → `pflicht`), Link-Kontrast | **Testbereit** `5d4df4be` (QA 2026-11-08) | `StockApiController.FaLookup`, `fa-feld.js`, [[2026-11-08-lagerbuchungen-fa-feld-und-verlinkung-spec]] |
+| v1.91.0: Offene Bestellungen – Legende im Zeilenton (N-1) | **Testbereit** `bacf3b82` (QA 2026-11-08) | `Views/PurchaseOrders/Index.cshtml`, [[2026-11-08-wareneingang-aus-sage-bestellungen-spec]] |
+| v1.92.0 (Bug): Checkbox + Hidden-„false“ – OSEON-Relevanzfilter, BDE-Edit Final/Löschen, eine Final-Zeile je Buchung | **Testbereit** `cf869e97`, Reparatur `9c9046c4` (QA + Nach-QA 2026-11-08) | `Tracking/OseonIndex.cshtml`, `BdeBookingsController.Edit`, [[2026-11-08-oseon-relevanzfilter-schaltet-sich-ab-spec]] |
+| v1.93.0 (Bug): Meldebestand-Mail mit der Bestandsregel der Web-App, Artikel ohne Bewegung | **Testbereit** `897f7a03` (QA 2026-11-08) | `IDEALAKEWMSService/Services/StockCheckService.cs`, [[2026-11-08-meldebestand-mail-bestand-falsch-berechnet-spec]] |
+| v1.94.0 (Bug): Menüleiste bricht um (kein Seiten-Querscrollen), Fehlteile-Link Kontrast; SQL/108 Nachtrag `StammdatenADGruppe` | **Testbereit** `2efdb023`, `6987e2bd` (QA 2026-11-08) | `Views/Shared/_Layout.cshtml`, [[2026-11-08-seiten-querscrollen-navigationsleiste-spec]] |
+| Wareneingang Teil 2 (Sage-WE-Beleg ELL, Rahmenabrufe EBZ) | **Entwurf** (Schranke 1, E4 blockiert: Schreibtest) | noch kein Code, [[2026-11-08-wareneingang-teil-2-sage-we-beleg-rahmenabrufe-spec]] |
 
 > **Deploy:** Web; Dienst nur wegen `AppVersion.cs`. Keine Migration. Default aus; vor dem Einschalten Geräte einrichten (DE-Layout,
 > Präfix, Enter, Tasten-Ausgabe).

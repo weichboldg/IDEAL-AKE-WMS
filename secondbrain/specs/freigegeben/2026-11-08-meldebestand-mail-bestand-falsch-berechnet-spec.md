@@ -2,7 +2,7 @@
 type: spec
 title: Meldebestand-Mail – Bestand nach der Regel der Web-App rechnen, Artikel ohne Bewegung einbeziehen
 slug: 2026-11-08-meldebestand-mail-bestand-falsch-berechnet-spec
-status: Freigegeben
+status: Testbereit
 created: 2026-11-08
 updated: 2026-11-08
 source_backlog: "[[2026-11-08-meldebestand-mail-bestand-falsch-berechnet]]"
@@ -207,3 +207,67 @@ keine. Zur Mail-Flut steht eine Empfehlung mit Begründung unter „Nachgestellt
 -->
 
 1. →
+
+## Umsetzung (Dev 2026-11-08, v1.93.0)
+
+Commit `897f7a03`. `StockCheckService` lädt nur den Artikelstamm (`ReorderLevel > 0`) und holt den Bestand aus
+`IStockMovementRepository.GetStockByArticleNumbersAsync`; neue reine Funktion `BuildBelowReorder` (public static, kein `InternalsVisibleTo`
+nötig). Altes CASE/HAVING-SQL entfernt. Tests: `StockMovementRepositoryAggregationTests.GetStockByArticleNumbersAsync_UmbuchungRegulaerZuRegulaer_*`,
+`IDEALAKEWMSService.Tests/Services/StockCheckServiceTests`. TS-122.
+
+## QA v1.93.0 (2026-11-08) – Ergebnis: Testbereit
+
+qa-agent. Prüfbereich: Commit `897f7a03`.
+
+### 1. Build, Tests, Deploy
+- Build 0 Fehler; Tests Web 2542/1/0, Dienst 507/0/0 (Worktree HEAD `2efdb023`).
+- AKE-DEV und IDEAL-DEV laufen auf v1.94.0 (Web und Dienst) aus dem Worktree; IDEAL hat dieser QA-Lauf deployt (Exit 0).
+
+### 2. Code-Review
+Gelesen: `StockCheckService` (neu), `StockMovementRepository.GetStockByArticleNumbersAsync:395-486`, `Program.cs:87/96` (beide Scoped; `NotificationWorker.cs:29-30` löst im Scope auf), die neuen Tests.
+- Die Regel steht an einem Ort (Repository); im Dienst gibt es kein `CASE`/`SUM` über `MovementType` mehr (AK 6).
+- Artikel ohne Bewegung ergeben Bestand 0 und eine leere Liste.
+- Die Plätze kommen in der Repository-Reihenfolge (Hauptlagerplatz, dann Menge absteigend) und nur mit Bestand ≠ 0 (Anf. 3).
+- `StockMovements.StorageLocationId IS NULL`: 0 Zeilen auf beiden DEV-DBs. Der INNER JOIN des Repositorys verliert also nichts, was die alte Abfrage gezählt hätte.
+
+**Befunde: keine.**
+
+### 3. Beweisart je AK
+| AK | Beweis |
+|---|---|
+| 1, 2 Umbuchung netto 0 / Kommissionierwagen | automatisch (`StockMovementRepositoryAggregationTests`, InMemory über die EF-Regel) |
+| 3, 4, 5 ohne Bewegung / Grenze / ohne Meldebestand | automatisch (`StockCheckServiceTests.BuildBelowReorder`) |
+| 6 keine eigene Regel | Review |
+| 7 DEV-Menge | Manual-UAT, erledigt: Der echte `StockCheckService` lief gegen beide DEV-DBs (nur lesend, Hilfsprogramm im Scratchpad, ohne Mail), Vergleich mit einer unabhängigen SQL-Zählung |
+| Mailversand selbst | NICHT MOEGLICH auf DEV (`Notifications:MeldebestandEnabled = false`, darf nicht eingeschaltet werden) |
+
+### 4. Geänderte bestehende Tests
+`StockMovementRepositoryAggregationTests`: nur ein neuer Test, keine bestehende Erwartung geändert. `StockCheckServiceTests` ist neu.
+
+### 5. Checkliste
+Keine Migration, keine Einstellung. Version 1.93.0, Anwender- und Brain-Changelog (`2026-11-08-v1-93-0-meldebestand-mail-bestandsregel`) vorhanden. TS-122 in `docs/TESTSZENARIEN.md` und im Index.
+
+### 6. DEV-Testlauf
+| Schritt | Ergebnis | |
+|---|---|---|
+| Repro-Zahlen der Spec, AKE_WMS_DEV (SQL nach der Web-Regel) | 00725321 = 354, 00725326 = 128, 00730607 = 45392, 00000120 = 2, 00395357 = 6, 86015790 = 0, 87026853 = 1, 87050323 = -1, EK018255 = 1, 00000905 = -9970. Das entspricht Spalte „korrekt“ in allen 10 Zeilen | OK |
+| AK 7 AKE_WMS_DEV | 2814 Artikel mit Meldebestand, davon 9 ohne Bewegung (alle gemeldet). SQL-Zählung „gemeldet“ = **313**; `StockCheckService.GetArticlesBelowReorderLevelAsync` liefert **313** | OK |
+| AK 7 IDEAL_WMS_DEV | 1511 mit Meldebestand, 185 ohne Bewegung. SQL **339** = Dienst **339** | OK |
+| Artikel ohne Bewegung | z. B. 00393279 (Melde 34): Bestand 0, Lager [] → Mail „—“ | OK |
+| 122.1–122.8 echte Mail | `MeldebestandEnabled = false` auf beiden DEV-DBs | NICHT MOEGLICH, für den Menschen |
+
+Prüfabfrage vor dem PROD-Deploy (aus der Spec) auf DEV: AKE 9, IDEAL **185** Artikel ohne Bewegung mit Meldebestand. Auf IDEAL wird die Mail nach dem Deploy deutlich länger, falls der Schalter dort an ist; die Empfänger vorher informieren.
+SQL-Skript (temporär): `C:/Users/GERALD~1.WEI/AppData/Local/Temp/claude/8eae370df6a92eae/8d5dd4d6-9b10-461a-954c-3abd2e65c8bf/scratchpad/ts122.sql`.
+
+### Deploy (aus dem echten Diff)
+web: ja (nur Version/Changelog) · service: ja (`StockCheckService`) · migration: nein.
+```
+dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb
+dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService
+```
+Nach dem Merge nur dann aus main neu publizieren, wenn der Merge getestete Dateien mit parallelen main-Änderungen kombiniert hat.
+
+### Manuelle Checkliste (offen)
+1. Je Standort vor dem Deploy den Wert `Notifications:MeldebestandEnabled` und die Zählung „ohne Bewegung mit Meldebestand“ festhalten (DEV: AKE 9, IDEAL 185).
+2. Testsystem mit eigenem Empfänger: TS-122.1–122.5 (Mail-Zeilen „Aktuell“ und „Lager:“).
+3. TS-122.7/122.8 Negativfälle.

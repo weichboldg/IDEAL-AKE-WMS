@@ -634,3 +634,9 @@ die Seite eine waagrechte Seiten-Scrollleiste zusätzlich zur Tabellen-Scrolllei
   Kein Schema, kein Katalog-Eintrag, keine Versionsnummer (läuft mit dem nächsten Deploy von SQL/108).
 - Nachweis DEV: AKE 2× (1. Lauf löscht, 2. „nichts zu tun“), IDEAL 1× („nichts zu tun“). Testschritt: TS-111.4 erwartet jetzt **keine**
   Zeile unter „Nicht im Katalog“.
+- **QA 2026-11-08 (qa-agent, Commit `6987e2bd`): ohne Befund.**
+  - Der neue Block ist idempotent (`IF EXISTS … DELETE`, sonst PRINT), steht in eigenem `GO`-Batch und fasst kein Schema an.
+  - Die Datenlöschung ist im Kopf gekennzeichnet, mit Vorher-Abfrage.
+  - Grep über das Repo (`.cs/.cshtml/.js/.sql`): `StammdatenADGruppe` kommt nur in `SQL/16`, `SQL/32` und `SQL/108` vor. Kein Leser im Code, kein Eintrag in `00_FreshInstall.sql`.
+  - DEV-Stand: `AppSettings` mit `StammdatenADGruppe`, `OseonRueckmeldungAktiv` oder `SageRueckmeldungAktiv` gibt es auf AKE_WMS_DEV und IDEAL_WMS_DEV nicht mehr (0 Zeilen).
+  - Status der Spec unverändert Testbereit.

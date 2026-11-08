@@ -2,7 +2,7 @@
 type: spec
 title: Kein Seiten-Querscrollen durch die Navigationsleiste; Kontrast Kartenlink „Fehlteile (wird nachgeliefert)“
 slug: 2026-11-08-seiten-querscrollen-navigationsleiste-spec
-status: Freigegeben
+status: Testbereit
 created: 2026-11-08
 updated: 2026-11-08
 source_backlog: "[[2026-11-08-seiten-querscrollen-navigationsleiste]]"
@@ -26,7 +26,7 @@ epic: false
 etappen: []
 deploy:
   web: true
-  service: false
+  service: true
   migration: false
 freigabe_entscheidung: ""
 freigabe_von: "Gerald Weichbold (Auftrag Nachbesserung)"
@@ -162,3 +162,68 @@ Keine. Die Wahl zwischen `flex-wrap` und `navbar-expand-xxl` ist im Lösungsentw
 ## Freigabe-Antworten (Mensch fuellt aus — Schranke 1)
 
 Keine offenen Rückfragen. Freigabe per Auftrag (Gerald Weichbold, 2026-11-08).
+
+## Umsetzung (Dev 2026-11-08, v1.94.0)
+
+Commit `2efdb023`. `_Layout.cshtml`: `ul.navbar-nav me-auto flex-wrap`, `span.user-info … flex-shrink-0 text-nowrap`;
+`WarehouseRequisitions/Index.cshtml`: `text-warning` → `text-warning-emphasis`. Wächter `LayoutQuerscrollenV194Tests`. TS-123. Sichtprüfung
+(Screenshots 1280/1520/1920 px, AKE und IDEAL) durch die QA. frontend-design-Skill aufgerufen; Bootstrap-Bordmittel, kein neues CSS.
+
+## QA v1.94.0 (2026-11-08) – Ergebnis: Testbereit
+
+qa-agent. Prüfbereich: Commit `2efdb023`.
+
+### 1. Build, Tests, Deploy
+- Build 0 Fehler; Tests Web 2542/1/0, Dienst 507/0/0.
+- AKE-DEV: Fußzeile v1.94.0. IDEAL-DEV: in diesem Lauf `dev-deploy.ps1 -Standort IDEAL -Quelle <worktree>`, Exit 0, „HTTP 200, Fusszeile v1.94.0“.
+- `deploy.service` ist auf `true` korrigiert: Der Commit ändert `IDEALAKEWMSService/AppVersion.cs` (nur Version).
+
+### 2. Code-Review
+Drei Klassen-Änderungen:
+- `_Layout.cshtml`: `flex-wrap` an `ul.navbar-nav`; `flex-shrink-0 text-nowrap` an `span.user-info`.
+- `WarehouseRequisitions/Index.cshtml`: `text-warning` → `text-warning-emphasis`.
+
+Kein `hidden` neben `d-*`, kein neues CSS. Der Fehlteile-Link trägt seine Bedeutung über den Text. **Befunde: keine.**
+
+### 3. Beweisart
+- View-Wächter `LayoutQuerscrollenV194Tests` (neu): automatisch.
+- Layout und Kontrast: Sichtprüfung mit Messung. Headless Chrome mit Windows-Anmeldung, `Emulation.setDeviceMetricsOverride`; gemessen wurden `documentElement.scrollWidth`, Zeilen der Menüleiste, Rechteck des Benutzerknopfs und Kontrast nach WCAG aus `getComputedStyle`.
+
+### 4. Geänderte bestehende Tests
+keine.
+
+### 5. Checkliste
+Keine Migration, keine Einstellung. Version 1.94.0 in beiden `AppVersion.cs`, Anwender- und Brain-Changelog (`2026-11-08-v1-94-0-menueleiste-umbruch-kontrast`) vorhanden. TS-123 in `docs/TESTSZENARIEN.md` und im Index.
+
+### 6. DEV-Testlauf (Admin Gerald Weichbold)
+| Schritt | AKE (8081) | IDEAL (8082) | |
+|---|---|---|---|
+| 123.1 1920 px | 1 Menüzeile, Höhe 62 px; scrollWidth 1905 ≤ innerWidth 1920; Name „Gerald Weichbold“ vollständig (scrollWidth 125 = clientWidth 125) | gleich | OK |
+| 123.2 1520 px | 2 Menüzeilen, 96 px; 1505 ≤ 1520; Name vollständig | gleich (IDEAL mit FA-Struktur (Sage live), Beschichtung, Vormontage) | OK |
+| 123.2 1280 px | 2 Zeilen, 96 px; 1265 ≤ 1280; Benutzerknopf rechts bei x 1128–1253 | gleich | OK |
+| 123.4 Dropdowns bei 1280 px | „Stammdaten“ (zweite Zeile) öffnet x 320–546, y 90–782 (innerhalb 1280×900); Benutzermenü x 1093–1253 | „Stammdaten“ x 647–844, y 90–718; Benutzermenü gleich | OK |
+| 123.5 `/StorageLocations` 1520 px | Seite 1505 ≤ 1520; die Tabelle scrollt selbst (`.table-responsive` 2340 > 1457, overflow-x auto) | – | OK |
+| 123.6 `/WarehouseRequisitions` | „14 Fehlteile (wird nachgeliefert) aus 10 Bestellungen →“: #664d03 auf Weiß = **7,99:1**, fett 600, 16 px; Seite 1505 ≤ 1520 | – | OK |
+| 123.7 960 px | Hamburger sichtbar (`display:block`), Desktop-Benutzerknopf `display:none`; 945 ≤ 960 | – | OK |
+| 123.6 Klick auf den Link → Reiter „wird nachgeliefert“ | nicht geklickt (Ziel-URL im Code: `MissingParts/Index?tab=WillBeRestocked&mineOnly=true`) | – | NICHT MOEGLICH im Lauf, für den Menschen |
+| 123.8 Benutzer mit nur einer Rolle, 123.10 Graustufen | kein zweites Konto, keine DevTools-Emulation | – | NICHT MOEGLICH, für den Menschen |
+
+Screenshots (temporär, Scratchpad `C:/Users/GERALD~1.WEI/AppData/Local/Temp/claude/8eae370df6a92eae/8d5dd4d6-9b10-461a-954c-3abd2e65c8bf/scratchpad/nav/`):
+- `ake-home-1280.png`, `ake-home-1520.png`, `ake-home-1920.png`
+- `ideal-home-1280.png`, `ideal-home-1520.png`, `ideal-home-1920.png`
+- `ake-warehousereq-1520.png`, `ake-storagelocations-1520.png`, `ake-960-960.png`
+- `ake-dropdown-1280.png`, `ideal-dropdown-1280.png`
+
+### Deploy (aus dem echten Diff)
+web: ja · service: ja (nur Version) · migration: nein.
+```
+dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb
+dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService
+```
+Nach dem Merge nur dann aus main neu publizieren, wenn der Merge getestete Dateien mit parallelen main-Änderungen kombiniert hat.
+
+### Manuelle Checkliste (offen)
+1. Testsystem AKE und IDEAL bei 1366 px und am Fertigungsterminal: keine Seiten-Querscrollleiste, Name vollständig.
+2. 123.6: Link anklicken → `/MissingParts`, Reiter „wird nachgeliefert“.
+3. 123.8 mit einem Benutzer, der nur eine Rolle hat.
+4. 123.10 Graustufen-Emulation.

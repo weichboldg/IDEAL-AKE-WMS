@@ -836,3 +836,54 @@ Die Screenshots liegen unter `C:\Users\GERALD~1.WEI\AppData\Local\Temp\claude-ch
 4. N-1 optional entscheiden: Legende im Zeilenton.
 5. Weiterhin offen sind die Punkte 1–11 der „Manuellen Test-Checkliste (final)“ aus dem QA-Nachlauf Q-8.
 
+
+## Entscheidungen HR / N-1 (Gerald 2026-11-08 07:52)
+- **`HR;0;0;0` wird buchbar** – Stammdatenänderung (`IstBuchbar = 1`), macht Gerald je Testsystem/produktiv; kein Code nötig. Danach wird
+  der Ziel-Lagerplatz für Sage-Platz 11 vorbelegt (Testschritt TS-116 erneut).
+- **N-1:** Legende „rot hinterlegt“ im **Zeilenton** (`table-danger`-Hellrot mit dunklem Text statt `badge text-bg-danger`) – Nachbesserung im
+  nächsten Lauf, Kontrast ≥ 4,5:1, Sichtprüfung.
+- **DPS-MDE (Rückfrage 9), Gerald 2026-11-08 07:57:** DPS hat ein MDE-Wareneingangsmodul, **bei uns nicht im Einsatz/lizenziert** → keine
+  Doppelentwicklung; E5 hängt nur noch an P-W7 und einem freigegebenen Schreibtest am AKE-Test.
+
+## Umsetzung Nachbesserung v1.91.0 (Dev 2026-11-08, Auftrag Gerald; nur N-1)
+
+Commit `bacf3b82`. `Views/PurchaseOrders/Index.cshtml`: Legende `badge bg-danger-subtle text-danger-emphasis border border-danger-subtle`
+(Hellrot #f8d7da wie `table-danger`, Text #58151c ≈ 12:1). Wächter in `PurchaseOrdersControllerTests`. TS-116.8 angepasst. HR ist
+Stammdatenpflege (Gerald), kein Code.
+
+## QA v1.91.0 (2026-11-08) – Ergebnis: Testbereit
+
+qa-agent. Prüfbereich: Commit `bacf3b82` (nur N-1).
+
+### 1. Build, Tests, Deploy
+- Build 0 Fehler; Tests Web 2542/1/0, Dienst 507/0/0 (Worktree HEAD `2efdb023`).
+- AKE-DEV (standort AKE) läuft auf v1.94.0 aus dem Worktree; Fußzeile gemessen.
+
+### 2. Code-Review
+Eine Zeile in `Views/PurchaseOrders/Index.cshtml`: Klassen von `text-bg-danger` auf `bg-danger-subtle text-danger-emphasis` umgestellt. Bootstrap-Bordmittel, kein neues CSS. Die Bedeutung trägt weiter der Text („rot hinterlegt“, Spalte „Hinweis“). **Befunde: keine.**
+
+### 3. Beweisart und Tests
+- Kontrast: Sichtprüfung mit gemessenem Wert (unten).
+- Der View-Wächter in `PurchaseOrdersControllerTests` ist ergänzt (neue Asserts, keine geänderte Erwartung). Keine weiteren geänderten Bestandstests.
+
+### 4. Checkliste
+Keine Migration, keine Einstellung. Version 1.91.0, Anwender- und Brain-Changelog (`2026-11-08-v1-91-0-offene-bestellungen-legende`) vorhanden. TS-116.8 angepasst.
+
+### 5. DEV-Testlauf (AKE http://localhost:8081/PurchaseOrders, 1520 px)
+| Schritt | Ergebnis | |
+|---|---|---|
+| 116.8 Legende „rot hinterlegt“ | Hintergrund rgb(248,215,218) = gleicher Ton wie die überfälligen Zeilen (`tr.table-danger td` gemessen: rgb(248,215,218)); Text rgb(88,21,28) → **10,22:1**, fett, 10,5 px | OK |
+| 116.8 Zeilen | überfällige Zeilen hellrot, Text schwarz 15,72:1; Seite ohne Querscrollen (scrollWidth 1505 ≤ 1520) | OK |
+
+Screenshot (temporär): `C:/Users/GERALD~1.WEI/AppData/Local/Temp/claude/8eae370df6a92eae/8d5dd4d6-9b10-461a-954c-3abd2e65c8bf/scratchpad/nav/ake-purchaseorders-1520.png`.
+
+### Deploy (aus dem echten Diff dieses Nachtrags)
+web: ja · service: ja (nur Version) · migration: nein (dieser Nachtrag; SQL 112/113 der Spec bleiben gültig).
+```
+dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb
+dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService
+```
+Nach dem Merge nur dann aus main neu publizieren, wenn der Merge getestete Dateien mit parallelen main-Änderungen kombiniert hat.
+
+### Manuelle Checkliste (offen)
+1. Testsystem `/PurchaseOrders`: Die Legende hat den Ton der überfälligen Zeilen und ist am Terminal lesbar.

@@ -671,3 +671,76 @@ Kontrastwerte aus den Bootstrap-5.3.3-Variablen berechnet und am Bildschirm abge
 - **R-1 (Doku, nicht blockierend):** `docs/TESTSZENARIEN.md` TS-115.3 erwartet noch den alten Kartentext „Buchen ist möglich …“ – auf den Q-1-Text nachziehen. Beim nächsten Commit im Worktree mitnehmen.
 
 **Für den Menschen offen:** TS-115.3 mit eingeschalteter FA-Pflicht für Wareneingang (Server-Fehler am FA-Feld, Kartentext passt dazu) auf dem Testsystem; Kontrast am Fertigungsterminal ansehen.
+
+## Entscheidungen Q-1/Q-2 (Gerald 2026-11-08 07:52) – Nachbesserung im nächsten Lauf, vor dem Merge
+- **Q-1:** Prüfkarte unter dem FA-Feld: Greift für die Buchungsart die Pflicht und ist der FA unbekannt/mehrdeutig/nur Liste, lautet der
+  Text „FA nicht eindeutig – Buchen erst mit gültigem FA möglich“ (statt „Buchen ist möglich …“). Ohne Pflicht bleibt der bisherige Text.
+- **Q-2:** Kontrast vor dem Merge beheben: Links in Warn-/Hinweiskarten mit `alert-link` (bzw. dunklerer Linkfarbe), ≥ 4,5:1 nach WCAG AA –
+  in `fa-feld.js` („FA anzeigen“) und `_FaLink.cshtml` im FA-Kopf der Bestandsübersicht bei Warnstatus. Sichtprüfung am Bildschirm.
+
+## Umsetzung Nachbesserung v1.90.0 (Dev 2026-11-08, Auftrag Gerald; ersetzt die Statusprüfung)
+
+Commit `5d4df4be`. Keine Migration.
+- **Q-1:** `api/stock/fa-lookup` nimmt `art` (Buchungsart der Maske) und liefert `pflicht` nach `FaBuchungsText.IstPflicht` – dieselbe Regel
+  wie beim Speichern (`FaPruefenAsync`). Die vier Masken tragen `data-buchungsart` an `#faPruefung` (Wareneingang, Sammel-Wareneingang,
+  Warenausgang, Umbuchung). `fa-feld.js`: mit Pflicht „FA nicht eindeutig – Buchen erst mit gültigem FA möglich.“ (fett), ohne Pflicht wieder
+  „Buchen ist möglich, die Buchung wird dann nicht mit einem FA verknüpft.“ (der Zwischentext aus `d7180d63` ist ersetzt).
+- **Q-2:** seit `d7180d63` umgesetzt (`alert-link` in `fa-feld.js`, `.alert a.fa-link` in `site.css`); Sichtprüfung am Bildschirm durch die QA.
+- Test: `LagerbuchungFaVerknuepfungTests.Api_FaLookup_*` um `pflicht` je Buchungsart erweitert. TS-115.3 angepasst.
+
+## QA v1.90.0 (2026-11-08) – Ergebnis: Testbereit
+
+qa-agent. Prüfbereich: Commit `5d4df4be` (Q-1). Q-2 kam mit `d7180d63`; dort war die Sichtprüfung offen, sie ist hier nachgeholt.
+
+### 1. Build, Tests, Deploy
+- Build 0 Fehler; Tests Web 2542/1/0, Dienst 507/0/0 (Worktree HEAD `2efdb023`).
+- AKE-DEV und IDEAL-DEV laufen auf v1.94.0 aus dem Worktree. IDEAL hat dieser QA-Lauf deployt: Exit 0, Fußzeile v1.94.0.
+
+### 2. Code-Review
+Gelesen: `StockApiController.FaLookup`, `FaBuchungsText.IstPflicht`, `StockMovementsController.FaPruefenAsync` (Aufrufe Z. 128/226/315/405), `fa-feld.js`, die vier Masken.
+- `pflicht` nutzt dieselbe Funktion und dieselbe Einstellung wie das Speichern; der Server sperrt weiterhin selbst. Die Karte ist nur Vorschau, also keine reine Browser-Validierung.
+- Die `data-buchungsart`-Werte der Masken (Wareneingang, Sammel-Wareneingang, Warenausgang, Umbuchung) stimmen exakt mit den Strings der Server-Aufrufe überein.
+- `fa-feld.js` setzt Daten nur per `textContent`. Der Parameter `art` ist URL-kodiert.
+- Andere Masken mit `#faPruefung` gibt es nicht (Grep: nur die vier).
+
+**Befunde: keine.** Hinweis, kein Befund: `IAppSettingRepository` cacht 2 min (`CachedSettingRepository`). Eine per SQL geänderte `FaPflichtBuchungsarten` wirkt auf die Karte erst nach Ablauf; über `/Settings` gespeichert wird der Cache sofort geleert. Auf dem Testsystem den Wert über `/Settings` setzen.
+
+### 3. Beweisart
+- Q-1 Regel `pflicht`: automatisch (`LagerbuchungFaVerknuepfungTests`).
+- Kartentext im Browser (JavaScript): Manual-UAT, auf DEV erledigt.
+- Q-2 Kontrast: Sichtprüfung mit gemessenem Kontrast (headless Chrome, `getComputedStyle`, WCAG-Formel).
+
+### 4. Geänderte bestehende Tests
+`LagerbuchungFaVerknuepfungTests`: Konstruktor-Signatur `StockApiController` (+`IAppSettingRepository`), also eine reine Typänderung. Dazu kamen drei neue Asserts zu `pflicht`, keine Erwartung wurde geändert.
+
+### 5. Checkliste
+Keine Migration. Version 1.90.0, Anwender- und Brain-Changelog (`2026-11-08-v1-90-0-lagerbuchungen-fa-karte-pflicht`) vorhanden. TS-115.3 angepasst. Keine neue Einstellung.
+
+### 6. DEV-Testlauf (AKE http://localhost:8081, 1520 px)
+| Schritt | Ergebnis | |
+|---|---|---|
+| 115.3 Einbuchung, FA `9999999`, ohne Pflicht | „Achtung: FA 9999999 ist im WMS unbekannt.“ + „Buchen ist möglich, die Buchung wird dann nicht mit einem FA verknüpft.“ | OK |
+| 115.3 mit Pflicht `FaPflichtBuchungsarten = Wareneingang` (Testzeile per SQL, nach Cache-Ablauf) | Einbuchung: „FA nicht eindeutig – Buchen erst mit gültigem FA möglich.“ (fett) | OK |
+| 115.3 gleiche Pflicht, Warenausgang | weiter „Buchen ist möglich …“ (`data-buchungsart="Warenausgang"`) | OK |
+| Q-2a Einbuchung, erledigter FA `2602025` | gelbe Karte, „FA anzeigen“ #664d03 auf #fff3cd = **7,21:1**, fett 700, 14 px, unterstrichen | OK |
+| Q-2b `/StockOverview?filterProductionOrder=2602025` (FA-Kopf bei Warnstatus) | FA-Link „2602025“ #664d03 auf #fff3cd = **7,21:1**, fett 600, 16 px | OK |
+
+Die Einstellungszeile `FaPflichtBuchungsarten` ist danach wieder gelöscht (Ausgangszustand: keine Zeile).
+Screenshots (temporär, Scratchpad `C:/Users/GERALD~1.WEI/AppData/Local/Temp/claude/8eae370df6a92eae/8d5dd4d6-9b10-461a-954c-3abd2e65c8bf/scratchpad/nav/`):
+- `ake-inbound-2602025-1520.png`
+- `ake-stockoverview-2602025-1520.png`
+- `ake-inbound-pflicht-1520.png`
+- `ake-outbound-ohnepflicht-1520.png`
+
+### Deploy (aus dem echten Diff dieses Nachtrags)
+web: ja · service: ja (nur Version) · migration: nein (dieser Nachtrag). Die Migrationen der Spec (SQL/109/110) gelten unverändert. Publish-Befehle wie im Bündel:
+```
+dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb
+dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService
+```
+Nach dem Merge nur dann aus main neu publizieren, wenn der Merge getestete Dateien mit parallelen main-Änderungen kombiniert hat.
+
+### Manuelle Checkliste (offen)
+1. Testsystem: `FaPflichtBuchungsarten` über `/Settings` auf „Wareneingang“ setzen. Einbuchung mit `9999999`: Kartentext „FA nicht eindeutig …“, Buchen wird am Feld abgewiesen.
+2. Gleiche Einstellung, Warenausgang: alter Text, Buchung ohne Verknüpfung möglich.
+3. Sichtprüfung der gelben Karte am Fertigungsterminal (Licht vor Ort).

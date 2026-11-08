@@ -4,7 +4,7 @@ title: Kommissionieraufträge (Kopf/Zeilen, KO-Nummernkreis, Typ, Kommissionierb
 slug: 2026-11-08-kommissionierung-auftraege-kopf-zeilen-spec
 status: Testbereit
 created: 2026-11-07
-updated: 2026-11-07
+updated: 2026-11-08
 source_backlog: "[[2026-11-07-kommissionierung-auftraege-kopf-zeilen]]"
 buendel: "[[2026-11-08-buendel-uebersicht]]"
 depends_on: "[[2026-11-08-lagerbuchungen-fa-feld-und-verlinkung-spec]]"
@@ -860,3 +860,128 @@ DEV-Testdaten: Standardbereich wieder „Lager“ (Ausgangszustand); `PickingOrd
 - **R-1 (Doku, nicht blockierend):** `docs/TESTSZENARIEN.md` TS-120.9 nennt im Druck nur „Soll/Ist/Lagerplatz“ – Spalte „Status“ (Q14) ergänzen; Q15/Q16 haben keine eigene Zeile (in TS-120.2/120.3 als Erwartung ergänzen). Beim nächsten Commit im Worktree mitnehmen.
 
 **Für den Menschen offen:** 1. Leitstand: HauptFA + Sub-FA markieren → „Fehlende Kommissionieraufträge erzeugen“ → Warnung „1 markierte FA übersprungen (nicht freigegeben, erledigt, storniert oder Sub-FA).“ 2. Standardwechsel in beide Richtungen auf dem Testsystem. 3. Ausdruck eines offenen Auftrags auf Papier (Spaltenbreite mit Status). 4. Q9/Q10/Q11 bleiben Fragen an Gerald.
+
+## Entscheidungen Q9–Q11, Q14 (Gerald 2026-11-08 07:46) – Nachbesserung im nächsten Lauf
+- **Q9:** Auftrag wird „In Arbeit“ **ab der ersten Umbuchung** (wie gebaut). Zeilenstatus nach dem Kommissionieren einheitlich
+  **„Gepickt“** statt „Übertragen“ anzeigen (Liste, Auftragsseite, Druck); interner Enum-Wert darf bleiben, nur Anzeigetext.
+- **Q10:** **Ablehnen statt ablösen** (wie AK 2 ursprünglich): Wer einen zweiten Bereich als Standard speichert, bekommt eine
+  Validierungsmeldung „Es gibt bereits einen Standardbereich (…). Zuerst dort abwählen.“; Hilfetext entsprechend ändern; Transaktion
+  aus Q13 bleibt für den Wechsel über „Standard abwählen + neu setzen“.
+- **Q11:** Altbestand-Migration erzeugt für offene FAs mit Auftragsmenge ≠ 1 und vorhandenem Fortschritt **keinen automatischen
+  Rest-Auftrag**. Das Skript schreibt diese FAs in eine Liste (Ergebnisdatei bzw. Protokoll mit FA, Menge, Fortschritt); der Leitstand
+  prüft je FA und erzeugt fehlende Aufträge bei Bedarf per Knopf. Auch „Fehlende Kommissionieraufträge erzeugen“ überspringt diese FAs,
+  bis sie im Leitstand bestätigt sind (Kennzeichen am FA bzw. Auftrag „Altbestand geprüft“) – Lösung im Lauf begründen.
+- **Q14:** erledigt (Spalte „Status“ im Druck, Nachtrag Dev 2026-11-08).
+
+## Umsetzung Nachbesserung v1.89.0 (Dev 2026-11-08, Auftrag Gerald; ersetzt die Statusprüfung)
+
+Commits `bc8be58c`, `53858c6c`. SQL/141 (erste freie nach 140).
+- **Q9:** `PickingOrderListItem.ZeilenStatusText`: `Gepickt` und `Umgebucht` → „gepickt“ (Enum unverändert); `Bom.cshtml` nutzt dieselbe Funktion
+  statt eines eigenen `switch`. Auslegung: Geralds „Übertragen“ = die bisherige Anzeige nach dem Kommissionieren („umgebucht“); der Enum-Wert
+  `Uebertragen` (Rest im Folgeauftrag) bleibt „in Folgeauftrag“.
+- **Q10:** `PickingAreasController.Uebernehmen`: zweiter Standard → „Es gibt bereits einen Standardbereich („X“). Zuerst dort abwählen.“;
+  Abwählen erlaubt, danach Warnung „Es gibt jetzt keinen aktiven Standardbereich …“. Ein Speichern = eine Transaktion (`SaveChanges`); die
+  Zwei-Schritt-Logik (Q2) und `IPickingAreaRepository.InTransactionAsync` (Q13) sind entfernt, weil nie zwei Standards entstehen.
+  Hilfetexte Edit + Hilfe.
+- **Q11:** `PickingOrders.AltbestandPruefen` (Migration `20261108071811_AddPickingOrderAltbestandPruefen`, SQL/141, FreshInstall an zwei
+  Stellen). Einmal-Skript: Guard „SQL/141 fehlt“, setzt das Kennzeichen für offene FAs mit Auftragsmenge ≠ 1, Liste „Altbestand pruefen“ im
+  Trockenlauf und in der Ausführung. `PickingOrderWorkflow.ErzeugeOffeneAsync` (einziger Erzeugungsweg: Freigabe, Nachziehen, Öffnen ohne
+  Leitstand) überspringt solche FAs mit Meldung; `AltbestandGeprueftAsync` + Leitstand-Aktion `AltbestandGeprueft` (Badge „⚠ Altbestand
+  prüfen“ + Knopf in der Statusspalte). Begründung der Lösung: Kennzeichen am Auftrag statt am FA, weil das Skript nur Aufträge anlegt und der
+  Leitstand die Aufträge des FA ohnehin lädt; keine neue Tabelle.
+- DEV: SQL/141 je zweimal auf AKE_WMS_DEV und IDEAL_WMS_DEV; Trockenlauf AKE-DEV: Liste = 1 FA (2616156, Menge 3, 4 umgebucht, 1 gepickt).
+- Tests: `KommissionierauftraegeE1Tests` (Q10 abgelehnt/abwählen/setzen), `PickingOrderWorkflowTests` (Q9-Texte, Q11 überspringen →
+  bestätigen → Rest). TS-120.1/120.9/120.13 angepasst, TS-120.14 neu. Build 0 Fehler; Tests Dienst 506, Web 2534/1.
+
+## QA v1.89.0 (2026-11-08) – Ergebnis: Testbereit
+
+qa-agent. Prüfbereich: Commits `bc8be58c`, `53858c6c` (Basis `aeba657b`). Build und Tests liefen über den ganzen Worktree (HEAD `2efdb023`, v1.94.0).
+
+### 1. Build und Tests (selbst ausgeführt)
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler, 28 Warnungen.
+- `dotnet test`: IdealAkeWms.Tests 2542 bestanden / 1 übersprungen / 0 Fehler; IDEALAKEWMSService.Tests 507 / 0 / 0.
+
+### 2. DEV-Deploy (standort: beide)
+- AKE-DEV: Der Aufrufer hat mit `dev-deploy.ps1` aus dem Worktree deployt (HEAD unverändert, Arbeitsbaum sauber). Fußzeile im QA-Lauf gemessen: v1.94.0.
+- IDEAL-DEV: im QA-Lauf `dev-deploy.ps1 -Standort IDEAL -Quelle <worktree>` ausgeführt. Ergebnis: Exit 0, „HTTP 200, Fusszeile v1.94.0“, DEV-Absicherung angewendet, Dienst gestartet.
+- SQL/141 auf beiden DEV-DBs: `COL_LENGTH('dbo.PickingOrders','AltbestandPruefen')` = 1, MigrationId `20261108071811_AddPickingOrderAltbestandPruefen` eingetragen.
+
+### 3. Code-Review (selbst, in diesem Lauf)
+Gelesen:
+- `PickingAreasController.Edit/Uebernehmen`
+- `PickingLeitstandController.AltbestandGeprueft`
+- `PickingOrderWorkflow.ErzeugeOffeneAsync/AltbestandGeprueftAsync`
+- `_PickingLeitstandRow.cshtml`: Das neue Formular steckt in keinem anderen `<form>`; die Formulare in `Index.cshtml` Z. 70–99 sind getrennt.
+- `PickingListViewModel.ZeilenStatusText` und `Bom.cshtml`
+- Migration, SQL/141, FreshInstall (Spalte Z. 2782 und History-Block), Einmal-Skript
+
+Ergebnisse:
+- **Q10:** Die Prüfung `e.IsDefault && anderer Standard` steht in `Uebernehmen`, einem Ort für Anlegen und Bearbeiten (Anlegen erzwingt ohnehin `IsDefault=false`). Die Warnung nach dem Speichern liest `alle`, das die getrackte `area` enthält. Sie zeigt also den neuen Zustand. `IPickingAreaRepository.InTransactionAsync` ist restlos entfernt.
+- **Q11:** `ErzeugeOffeneAsync` ist der einzige Erzeugungsweg. Das Kennzeichen sitzt am Auftrag. Der Leitstand lädt alle Aufträge des FA (`GetByProductionOrdersAsync` ohne Statusfilter), deshalb erscheint das Badge auch bei einem abgeschlossenen Altbestand-Auftrag. Die Aktion hat `RequireLeitstandAccess`, Antiforgery und `Url.IsLocalUrl`; die Audit-Felder setzt `AuditSetzen`.
+- **Skript:** Guard „SQL/141 fehlt“ vorhanden. Die Liste erscheint im Trockenlauf und in der Ausführung. Das Kennzeichen wird nur bei `FaErledigt = 0 AND MengeUngleich1 = 1` gesetzt.
+- **Q9:** Der Text steht an einem Ort (`ZeilenStatusText`), `Bom.cshtml` nutzt ihn.
+
+**Befunde: keine.** Hinweis, kein Befund: „Zweiter Klick: nichts geändert“ aus TS-120.14 ist über die Oberfläche nur mit einem veralteten Tab erreichbar, weil der Knopf nach der Bestätigung verschwindet.
+
+### 4. Beweisart je Entscheidung
+| Punkt | Beweis |
+|---|---|
+| Q9 Text „gepickt“ | automatisch (`PickingOrderWorkflowTests`) + DEV-Druck |
+| Q10 ablehnen/abwählen/setzen | automatisch (`KommissionierauftraegeE1Tests`, InMemory) + DEV-Maske |
+| Q11 Erzeugung überspringt, Bestätigung löscht Kennzeichen | automatisch (`PickingOrderWorkflowTests`) + DEV-Leitstand |
+| Q11 Einmal-Skript (raw SQL) | Manual-UAT; auf AKE-DEV in einer Transaktion mit ROLLBACK gelaufen |
+| SQL/141, FreshInstall | Manual-UAT (DEV-DBs geprüft) |
+
+### 5. Geänderte bestehende Tests
+- `KommissionierauftraegeE1Tests`: `Bereich_NeuerStandardLoestAltenAb_AK2` heißt jetzt `Bereich_StandardWechsel_AbwaehlenDannSetzen_Q10`; die Erwartung in `Uebernehmen` ist angepasst. Das Verhalten ist absichtlich geändert (Entscheidung Q10).
+- `PickingOrderWorkflowTests`: nur ergänzt.
+
+### 6. Checkliste CLAUDE.md / ADR 0020
+- Migration und `SQL/141` (COL_LENGTH-Guard, History in eigenem Batch): ja. FreshInstall an beiden Stellen: ja.
+- AgentJobs nicht betroffen. Audit-Felder: ja.
+- Version 1.89.0 im Commit, Anwender-Changelog v1.89.0 und Brain-Changelog `2026-11-08-v1-89-0-kommissionierauftraege-nachbesserung`: vorhanden.
+- TS-120.1/.9/.13/.14 stehen in `docs/TESTSZENARIEN.md`; die Indexzeile TS-120 ist vorhanden.
+- Keine neue Einstellung, ADR 0020 entfällt. Das Einmal-Skript liegt in `SQL/Einmalig/` (ADR 0015).
+
+### 7. DEV-Testlauf (AKE http://localhost:8081)
+| Schritt | Ergebnis | |
+|---|---|---|
+| 120.1 Glas als zweiten Standard speichern | Feldfehler „Es gibt bereits einen Standardbereich („Lager“). Zuerst dort abwählen.“; `ModifiedAt` von Glas unverändert | OK |
+| 120.1 Lager abwählen | „Bereich „Lager“ gespeichert.“ + Warnung „Es gibt jetzt keinen aktiven Standardbereich …“ | OK |
+| 120.1/120.13 Lager wieder setzen | ohne Fehler; SQL: genau ein `IsDefault=1` (Lager) | OK |
+| 120.9 `/Picking/AuftragDrucken/19` | Spalte Status zeigt „gepickt“ (2 Zeilen), sonst „in Folgeauftrag“; kein „umgebucht“ mehr | OK |
+| 120.9 Auftragsseite interaktiv | Auftrag 20 ist abgeschlossen (ReadOnly-Zweig); nur Code geprüft (`Bom.cshtml` nutzt `ZeilenStatusText`) | NICHT MOEGLICH ohne Statusänderung, für den Menschen |
+| 120.14 Skript Trockenlauf AKE_WMS_DEV | 15 FAs mit Fortschritt (14 abgeschlossen, 1 in Arbeit). Liste „Altbestand pruefen“: FA 2616156, Menge 3, 4 umgebucht, 1 gepickt. Ausgabe „TROCKENLAUF: nichts geaendert“ | OK |
+| 120.14 Skript mit `@Trockenlauf = 0` in äußerer Transaktion | 15 Aufträge / 54 Zeilen angelegt. Status 20: 1 Auftrag, davon AltbestandPruefen 1 (KO-2026-00008 zu FA 2616156). Status 40: 14 Aufträge, davon 0. Nach `ROLLBACK`: 0 Aufträge mit `CreatedBy = Migration-KO-Altbestand` | OK |
+| 120.14 Negativ „SQL/141 fehlt“ | Beide DEV-DBs haben die Spalte; nur Code geprüft | NICHT MOEGLICH, für den Menschen (Kopie ohne SQL/141) |
+| 120.14 Leitstand: Badge und Knopf | Testdatensatz `PickingOrders.Id=21` (FA 2614027) per SQL auf `AltbestandPruefen=1` gesetzt. Der Leitstand zeigt „⚠ Altbestand prüfen“ und „Altbestand geprüft“ | OK |
+| 120.14 „Altbestand geprüft“ klicken | Rücksprung auf den gefilterten Leitstand, Badge weg. SQL: `AltbestandPruefen=0`; `ModifiedAt`, `ModifiedBy`, `ModifiedByWindows` gesetzt | OK |
+| 120.14 „Fehlende … erzeugen“ überspringt den FA | FA 2614027 ist erledigt; nur automatisch belegt | NICHT MOEGLICH ohne offenen Altbestand-FA, für den Menschen |
+
+Zurückgesetzt: `PickingOrders.Id=21` wieder `AltbestandPruefen=0`, `ModifiedAt` auf 2026-11-07 22:26:44. Der Standardbereich ist wieder „Lager“ (Ausgangszustand, nur `ModifiedAt` ist neu).
+Screenshot Leitstand (temporär): `C:/Users/GERALD~1.WEI/AppData/Local/Temp/claude-chrome-screenshots-cF2Dyv/screenshot-1794124543737-9.jpg`.
+
+### Deploy (aus dem echten Diff)
+- web: ja · service: ja (nur Version) · migration: ja (`20261108071811_AddPickingOrderAltbestandPruefen` / SQL/141).
+- Reihenfolge:
+  1. DB-Backup.
+  2. Web stoppen.
+  3. SQL/133 (falls noch nicht eingespielt), dann SQL/141.
+  4. Einmal-Skript im Trockenlauf; Liste ins Deploy-Protokoll.
+  5. Freigabe, dann `@Trockenlauf = 0`.
+  6. Web und Dienst starten.
+  7. Leitstand „Fehlende … erzeugen“.
+  8. Je FA der Liste prüfen, „Altbestand geprüft“, erneut erzeugen.
+```
+dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb
+dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService
+```
+Nach dem Merge nur dann aus main neu publizieren, wenn der Merge getestete Dateien mit parallelen main-Änderungen kombiniert hat.
+
+### Manuelle Checkliste (offen, für den Menschen)
+1. Testsystem: Altbestand-Skript im Trockenlauf laufen lassen und die Liste mit der Erwartung abgleichen, dann ausführen.
+2. Leitstand: FA aus der Liste markieren, „Fehlende Kommissionieraufträge erzeugen“. Erwartet: Warnung „FA …: Altbestand prüfen …“, kein Auftrag angelegt.
+3. „Altbestand geprüft“, dann erneut erzeugen. Erwartet: Der Rest-Auftrag entsteht.
+4. Negativ: Skript auf einer Kopie ohne SQL/141. Erwartet: Abbruch „SQL/141 fehlt“.
+5. Auftragsseite eines laufenden Auftrags: Zeilenstatus „gepickt“.
+6. Standardwechsel Lager → Glas → Lager über die Maske (abwählen, dann setzen) auf dem Testsystem.
