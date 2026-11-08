@@ -1,3 +1,5 @@
+using IdealAkeWms.Data.Repositories;
+using IdealAkeWms.Models.ViewModels;
 using Microsoft.Data.SqlClient;
 
 namespace IDEALAKEWMSService.Services;
@@ -6,97 +8,60 @@ public class StockCheckService : IStockCheckService
 {
     private readonly IConfiguration _configuration;
     private readonly ILogger<StockCheckService> _logger;
+    private readonly IStockMovementRepository _stock;
 
-    public StockCheckService(IConfiguration configuration, ILogger<StockCheckService> logger)
+    public StockCheckService(IConfiguration configuration, ILogger<StockCheckService> logger, IStockMovementRepository stock)
     {
         _configuration = configuration;
         _logger = logger;
+        _stock = stock;
     }
 
+    /// <summary>v1.93.0 (Bug 2026-11-08-meldebestand-mail-bestand-falsch-berechnet): Bestand nach der Regel der Web-App
+    /// (<see cref="IStockMovementRepository.GetStockByArticleNumbersAsync"/>: Umbuchung an Ziel UND Quelle, Kommissionierwagen auf beiden Seiten
+    /// ausgenommen) statt eines eigenen SQL (dort zaehlte eine Umbuchung regulaer→regulaer als Zugang, Artikel ohne Bewegung fehlten).</summary>
     public async Task<List<StockBelowReorderItem>> GetArticlesBelowReorderLevelAsync(CancellationToken ct = default)
     {
         var connectionString = _configuration.GetConnectionString("DefaultConnection")
             ?? throw new InvalidOperationException("DefaultConnection nicht konfiguriert.");
 
-        // MovementType ist int-Enum: 0=Einbuchung, 1=Ausbuchung, 2=Umbuchung, 3=SageEinbuchung, 4=SageAusbuchung
-        // Kommissionierwagen (IsPickingTransport = 1) werden NICHT zum Lagerbestand gezählt:
-        //   - sl_t = Ziellagerplatz (StorageLocationId), sl_s = Quelllagerplatz (SourceStorageLocationId)
-        //   - Einbuchung (0) auf regulären Platz:          +Qty
-        //   - Ausbuchung (1) von regulärem Platz:          -Qty
-        //   - Umbuchung (2) Ziel regulär:                  +Qty  (Ware kommt auf regulären Platz)
-        //   - Umbuchung (2) Quelle regulär:                -Qty  (Ware verlässt regulären Platz)
-        //   - SageEinbuchung (3) auf regulärem Platz:      +Qty  (Sage-Korrektur Plus)
-        //   - SageAusbuchung (4) von regulärem Platz:      -Qty  (Sage-Korrektur Minus)
-        //   - Ausbuchung (1) von Kommissionierwagen:        0    (war bereits via Umbuchung abgezogen)
-        // STRING_AGG(DISTINCT ...) erst ab SQL Server 2022 — Distinct via Subquery für Kompatibilität.
-        const string sql = """
-            SELECT
-                a.ArticleNumber,
-                a.Description,
-                a.Unit,
-                a.ReorderLevel,
-                SUM(CASE
-                    WHEN sm.MovementType = 0 AND (sl_t.IsPickingTransport = 0 OR sl_t.Id IS NULL) THEN  sm.Quantity
-                    WHEN sm.MovementType = 1 AND (sl_t.IsPickingTransport = 0 OR sl_t.Id IS NULL) THEN -sm.Quantity
-                    WHEN sm.MovementType = 2 AND (sl_t.IsPickingTransport = 0 OR sl_t.Id IS NULL) THEN  sm.Quantity
-                    WHEN sm.MovementType = 2 AND (sl_s.IsPickingTransport = 0 OR sl_s.Id IS NULL) THEN -sm.Quantity
-                    WHEN sm.MovementType = 3 AND (sl_t.IsPickingTransport = 0 OR sl_t.Id IS NULL) THEN  sm.Quantity
-                    WHEN sm.MovementType = 4 AND (sl_t.IsPickingTransport = 0 OR sl_t.Id IS NULL) THEN -sm.Quantity
-                    ELSE 0
-                END) AS CurrentStock,
-                (
-                    SELECT STRING_AGG(Code, ', ')
-                    FROM (
-                        SELECT DISTINCT sl2.Code
-                        FROM [dbo].[StorageLocations] sl2
-                        INNER JOIN [dbo].[StockMovements] sm2 ON sm2.StorageLocationId = sl2.Id
-                        WHERE sm2.ArticleId = a.Id
-                          AND sl2.IsPickingTransport = 0
-                    ) AS dl
-                ) AS StorageLocations
-            FROM [dbo].[Articles] a
-            INNER JOIN [dbo].[StockMovements] sm ON sm.ArticleId = a.Id
-            LEFT JOIN [dbo].[StorageLocations] sl_t ON sl_t.Id = sm.StorageLocationId
-            LEFT JOIN [dbo].[StorageLocations] sl_s ON sl_s.Id = sm.SourceStorageLocationId
-            WHERE a.ReorderLevel IS NOT NULL AND a.ReorderLevel > 0
-            GROUP BY a.Id, a.ArticleNumber, a.Description, a.Unit, a.ReorderLevel
-            HAVING SUM(CASE
-                WHEN sm.MovementType = 0 AND (sl_t.IsPickingTransport = 0 OR sl_t.Id IS NULL) THEN  sm.Quantity
-                WHEN sm.MovementType = 1 AND (sl_t.IsPickingTransport = 0 OR sl_t.Id IS NULL) THEN -sm.Quantity
-                WHEN sm.MovementType = 2 AND (sl_t.IsPickingTransport = 0 OR sl_t.Id IS NULL) THEN  sm.Quantity
-                WHEN sm.MovementType = 2 AND (sl_s.IsPickingTransport = 0 OR sl_s.Id IS NULL) THEN -sm.Quantity
-                WHEN sm.MovementType = 3 AND (sl_t.IsPickingTransport = 0 OR sl_t.Id IS NULL) THEN  sm.Quantity
-                WHEN sm.MovementType = 4 AND (sl_t.IsPickingTransport = 0 OR sl_t.Id IS NULL) THEN -sm.Quantity
-                ELSE 0
-            END) <= a.ReorderLevel
-            ORDER BY a.ArticleNumber
-            """;
-
-        var result = new List<StockBelowReorderItem>();
-
-        await using var connection = new SqlConnection(connectionString);
-        await connection.OpenAsync(ct);
-        await using var command = new SqlCommand(sql, connection);
-        await using var reader = await command.ExecuteReaderAsync(ct);
-
-        while (await reader.ReadAsync(ct))
+        // Artikelstamm mit Meldebestand – keine Bestandslogik hier.
+        const string sql = "SELECT [ArticleNumber], [Description], [Unit], [ReorderLevel] FROM [dbo].[Articles] WHERE [ReorderLevel] > 0";
+        var articles = new List<(string ArticleNumber, string? Description, string? Unit, decimal ReorderLevel)>();
+        await using (var connection = new SqlConnection(connectionString))
         {
-            var locations = reader.IsDBNull(5) ? new List<string>() :
-                reader.GetString(5).Split(", ", StringSplitOptions.RemoveEmptyEntries).ToList();
-
-            result.Add(new StockBelowReorderItem(
-                ArticleNumber: reader.GetString(0),
-                Description: reader.IsDBNull(1) ? null : reader.GetString(1),
-                Unit: reader.IsDBNull(2) ? null : reader.GetString(2),
-                ReorderLevel: reader.GetDecimal(3),
-                CurrentStock: reader.GetDecimal(4),
-                StorageLocations: locations
-            ));
+            await connection.OpenAsync(ct);
+            await using var command = new SqlCommand(sql, connection);
+            await using var reader = await command.ExecuteReaderAsync(ct);
+            while (await reader.ReadAsync(ct))
+                articles.Add((reader.GetString(0), reader.IsDBNull(1) ? null : reader.GetString(1), reader.IsDBNull(2) ? null : reader.GetString(2),
+                    reader.GetDecimal(3)));
         }
 
+        var stock = articles.Count == 0
+            ? new Dictionary<string, List<StockLocationInfo>>()
+            : await _stock.GetStockByArticleNumbersAsync(articles.Select(a => a.ArticleNumber).Distinct().ToList());
+        var result = BuildBelowReorder(articles, stock);
         _logger.LogInformation("{Count} Artikel mit Bestand auf oder unter Meldebestand gefunden.", result.Count);
         return result;
     }
+
+    /// <summary>Reine Zusammenfuehrung: Bestand = Summe der Plaetze (ohne Bewegung 0), gemeldet bei Bestand ≤ Meldebestand (nur Meldebestand
+    /// &gt; 0), Lagerplaetze in der Reihenfolge des Repositories, sortiert nach Artikelnummer.</summary>
+    public static List<StockBelowReorderItem> BuildBelowReorder(
+        IEnumerable<(string ArticleNumber, string? Description, string? Unit, decimal ReorderLevel)> articles,
+        IReadOnlyDictionary<string, List<StockLocationInfo>> stock) =>
+        articles
+            .Where(a => a.ReorderLevel > 0)
+            .Select(a =>
+            {
+                var plaetze = stock.TryGetValue(a.ArticleNumber, out var l) ? l : new List<StockLocationInfo>();
+                return new StockBelowReorderItem(a.ArticleNumber, a.Description, a.Unit, a.ReorderLevel, plaetze.Sum(p => p.Quantity),
+                    plaetze.Select(p => p.Code).ToList());
+            })
+            .Where(i => i.CurrentStock <= i.ReorderLevel)
+            .OrderBy(i => i.ArticleNumber, StringComparer.Ordinal)
+            .ToList();
 
     public async Task<List<string>> GetNotificationRecipientsAsync(CancellationToken ct = default)
     {

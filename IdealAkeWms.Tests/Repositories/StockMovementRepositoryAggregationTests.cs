@@ -194,6 +194,34 @@ public class StockMovementRepositoryAggregationTests
         result[0].StorageLocationIstBuchbar.Should().BeFalse();
     }
 
+    // v1.93.0 (Bug 2026-11-08-meldebestand-mail-bestand-falsch-berechnet): die Meldebestand-Pruefung des Dienstes nutzt diese Regel.
+    [Fact]
+    public async Task GetStockByArticleNumbersAsync_UmbuchungRegulaerZuRegulaer_Netto0_KommissionierwagenZaehltNicht_V193()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        SeedArticleAndLocation(ctx, articleId: 1, locationId: 1);
+        SeedArticleAndLocation(ctx, articleId: 1, locationId: 2);
+        SeedArticleAndLocation(ctx, articleId: 1, locationId: 3);
+        await ctx.SaveChangesAsync();
+        ctx.StorageLocations.Find(3)!.IsPickingTransport = true;
+        var umb = NewMovement(articleId: 1, locationId: 2, qty: 4m, MovementType.Umbuchung);
+        umb.SourceStorageLocationId = 1;
+        ctx.StockMovements.AddRange(NewMovement(articleId: 1, locationId: 1, qty: 10m, MovementType.Einbuchung), umb);
+        await ctx.SaveChangesAsync();
+        var repo = new StockMovementRepository(ctx);
+
+        (await repo.GetStockByArticleNumbersAsync(new List<string> { "A-001" }))["A-001"].Sum(p => p.Quantity).Should().Be(10m);
+
+        // regulaer → Kommissionierwagen senkt um 4, Ausbuchung vom Wagen aendert nichts mehr
+        var aufWagen = NewMovement(articleId: 1, locationId: 3, qty: 4m, MovementType.Umbuchung);
+        aufWagen.SourceStorageLocationId = 2;
+        ctx.StockMovements.AddRange(aufWagen, NewMovement(articleId: 1, locationId: 3, qty: 4m, MovementType.Ausbuchung));
+        await ctx.SaveChangesAsync();
+        var r = await repo.GetStockByArticleNumbersAsync(new List<string> { "A-001" });
+        r["A-001"].Sum(p => p.Quantity).Should().Be(6m);
+        r["A-001"].Select(p => p.Code).Should().NotContain(ctx.StorageLocations.Find(3)!.Code);
+    }
+
     private static void SeedArticleAndLocation(IdealAkeWms.Data.ApplicationDbContext ctx, int articleId, int locationId)
     {
         if (ctx.Articles.Find(articleId) == null)
