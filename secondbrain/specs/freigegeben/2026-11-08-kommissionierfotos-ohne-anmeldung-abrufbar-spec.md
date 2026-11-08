@@ -71,6 +71,13 @@ Der Aufrufer hat die Lücke am 2026-11-08 auf AKE-DEV (`localhost:8081`) nachges
   - Bild 3 – nach dem Fix v1.30.4, dieselbe URL anonym: Anmeldeseite.
     ![[kommissionierfotos-03-nachher-v1304-foto-ohne-anmeldung.png]]
   - Ablage: `bugs/anhaenge/2026-11-08-kommissionierfotos/` (Originale und weitere Nachweise in `D:\Dev\QA\Nachweis-v1304\`).
+- **Nachstellung auf DEV AKE localhost:8081 mit main-Stand (2026-11-08, Dev):** IIS-Site `AKE_WMS_DEV` kurzzeitig auf den main-Publish
+  v1.30.3 (`D:\Dev\QA\Web`, `ASPNETCORE_ENVIRONMENT=DEV` → DB-Kopie `AKE_WMS_QA_MAIN`, AKE_WMS_DEV unberührt) umgestellt
+  (`appcmd set vdir … /physicalPath`, App-Pool neu gestartet). Ohne Anmeldung (headless Chrome, frisches Profil; curl):
+  `GET http://localhost:8081/Fotos/Kommissionierung/2638001_20261101000000_1.jpg` → **200 image/jpeg, 9384 B**, Foto sichtbar (Bild 4).
+  `/Account/Login` → 200. Danach Pfad zurück auf `D:\Dev\AKE\Web` (Bündel v1.94.0; dieselbe Foto-URL dort 404, Datei nicht vorhanden) und
+  `web.config` des main-Publish wieder auf `Production`.
+  ![[kommissionierfotos-04-vorher-akedev-8081-main-v1303-foto-ohne-anmeldung.png]]
 
 ## Befund im Code (main v1.30.3, Worktree)
 - Der Foto-Ordner liegt unter `wwwroot`: `Program.cs:433`, `PhotoController.cs:30-32, 62-64, 87-89` (dreimal kopiert).
