@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using IdealAkeWms.Data.Repositories;
 using IdealAkeWms.Filters;
+using IdealAkeWms.Models;
 using IdealAkeWms.Services;
 
 namespace IdealAkeWms.Controllers;
@@ -14,10 +15,12 @@ public class StockApiController : ControllerBase
     private readonly IProductionOrderRepository _productionOrders;
     private readonly ICurrentUserService _currentUser;
     private readonly IServiceSettingRepository _serviceSettings;
+    private readonly IAppSettingRepository _appSettings;
 
     public StockApiController(IStockMovementRepository stockMovementRepository, IProductionOrderRepository productionOrders,
-        ICurrentUserService currentUser, IServiceSettingRepository serviceSettings)
+        ICurrentUserService currentUser, IServiceSettingRepository serviceSettings, IAppSettingRepository appSettings)
     {
+        _appSettings = appSettings;
         _stockMovementRepository = stockMovementRepository;
         _productionOrders = productionOrders;
         _currentUser = currentUser;
@@ -25,10 +28,13 @@ public class StockApiController : ControllerBase
     }
 
     /// <summary>v1.87.0: Pruefkarte zum FA-Feld (Regel <see cref="IProductionOrderRepository.FindForBookingAsync"/>). <c>link</c> nur mit
-    /// FA-Leserecht; Ziel FA-Struktur bei Master „hierarchisch“, sonst FA-Liste.</summary>
+    /// FA-Leserecht; Ziel FA-Struktur bei Master „hierarchisch“, sonst FA-Liste. v1.90.0 (Entscheidung Q-1): <paramref name="art"/> =
+    /// Buchungsart der Maske; <c>pflicht</c> = Regel <see cref="FaBuchungsText.IstPflicht"/> (dieselbe wie beim Speichern).</summary>
     [HttpGet("fa-lookup")]
-    public async Task<IActionResult> FaLookup(string? nr)
+    public async Task<IActionResult> FaLookup(string? nr, string? art = null)
     {
+        var pflicht = !string.IsNullOrWhiteSpace(art)
+                      && FaBuchungsText.IstPflicht(await _appSettings.GetValueAsync(AppSettingKeys.FaPflichtBuchungsarten), art.Trim());
         var fa = await _productionOrders.FindForBookingAsync(nr);
         var o = fa.Order;
         string? link = null;
@@ -53,6 +59,7 @@ public class StockApiController : ControllerBase
                 _ => null,
             },
             link,
+            pflicht,
         });
     }
 

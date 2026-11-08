@@ -80,7 +80,7 @@
                         <datalist id="faVorschlaege"></datalist>
                         <span asp-validation-for="ProductionOrder" class="text-danger"></span>
                         @* v1.87.0: FA-Pruefkarte (fa-feld.js) – Status als Text, Warnung gelb + „Achtung:“ *@
-                        <div id="faPruefung" class="mt-2" role="status" aria-live="polite"></div>
+                        <div id="faPruefung" class="mt-2" role="status" aria-live="polite" data-buchungsart="Umbuchung"></div>
                     </div>
 
                     <button type="submit" class="btn btn-lg w-100" style="background-color: var(--ake-secondary); color: white;">Umbuchung speichern</button>

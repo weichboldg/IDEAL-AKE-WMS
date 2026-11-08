@@ -186,15 +186,17 @@ public class LagerbuchungFaVerknuepfungTests
 
     // ---------- E3: API (AK 10) ----------
 
-    private static async Task<StockApiController> ApiAsync(ApplicationDbContext db, bool faLeserecht, string? master = null)
+    private static async Task<StockApiController> ApiAsync(ApplicationDbContext db, bool faLeserecht, string? master = null, string? pflichtArten = null)
     {
+        var app = new Mock<IAppSettingRepository>();
+        app.Setup(r => r.GetValueAsync(AppSettingKeys.FaPflichtBuchungsarten)).ReturnsAsync(pflichtArten);
         var user = new Mock<ICurrentUserService>();
         user.Setup(u => u.CanPickAsync()).ReturnsAsync(faLeserecht);
         var ss = new Mock<IServiceSettingRepository>();
         ss.Setup(r => r.GetValueAsync(It.IsAny<string>())).ReturnsAsync(master);
         var url = new Mock<IUrlHelper>();
         url.Setup(u => u.Action(It.IsAny<UrlActionContext>())).Returns((UrlActionContext a) => $"/{a.Controller}");
-        var api = new StockApiController(Mock.Of<IStockMovementRepository>(), new ProductionOrderRepository(db), user.Object, ss.Object) { Url = url.Object };
+        var api = new StockApiController(Mock.Of<IStockMovementRepository>(), new ProductionOrderRepository(db), user.Object, ss.Object, app.Object) { Url = url.Object };
         return await Task.FromResult(api);
     }
 
@@ -211,6 +213,10 @@ public class LagerbuchungFaVerknuepfungTests
         var ideal = Json(await (await ApiAsync(db, true, "true")).FaLookup("77001"));
         (ideal["link"], ideal["anzeigeNummer"]).Should().Be(("/FaHierarchy", "77001 (Haupt-FA H-500)"));
         Json(await (await ApiAsync(db, true)).FaLookup("9999999"))["hinweis"].Should().Be("FA 9999999 ist im WMS unbekannt.");
+        // v1.90.0 (Q-1): pflicht je Buchungsart nach derselben Regel wie beim Speichern
+        Json(await (await ApiAsync(db, true, pflichtArten: "Wareneingang, Umbuchung")).FaLookup("9999999", "wareneingang"))["pflicht"].Should().Be(true);
+        Json(await (await ApiAsync(db, true, pflichtArten: "Wareneingang")).FaLookup("9999999", "Warenausgang"))["pflicht"].Should().Be(false);
+        Json(await (await ApiAsync(db, true, pflichtArten: "Wareneingang")).FaLookup("9999999"))["pflicht"].Should().Be(false);
     }
 
     [Fact]

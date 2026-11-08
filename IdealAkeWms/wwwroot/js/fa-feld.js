@@ -40,7 +40,10 @@
             }
         } else {
             box.appendChild(el('div', 'fw-semibold', 'Achtung: ' + d.hinweis));
-            box.appendChild(el('div', 'small', 'Ohne FA-Pflicht für diese Buchungsart wird gebucht, aber nicht mit einem FA verknüpft.'));
+            // v1.90.0 (Entscheidung Q-1): Text je nach FA-Pflicht der Buchungsart (Server-Regel, data-buchungsart der Karte)
+            box.appendChild(el('div', d.pflicht ? 'fw-semibold' : 'small', d.pflicht
+                ? 'FA nicht eindeutig – Buchen erst mit gültigem FA möglich.'
+                : 'Buchen ist möglich, die Buchung wird dann nicht mit einem FA verknüpft.'));
         }
         karte.appendChild(box);
     }
@@ -51,7 +54,8 @@
         letzte = nr;
         if (nr === '') { leeren(); return; }
         var meine = ++seq;
-        fetch('/api/stock/fa-lookup?nr=' + encodeURIComponent(nr), { credentials: 'same-origin' })
+        var art = karte.getAttribute('data-buchungsart') || '';
+        fetch('/api/stock/fa-lookup?nr=' + encodeURIComponent(nr) + '&art=' + encodeURIComponent(art), { credentials: 'same-origin' })
             .then(function (r) { return r.ok ? r.json() : null; })
             .then(function (d) { if (meine === seq && d) zeigen(d); })
             .catch(function () {
