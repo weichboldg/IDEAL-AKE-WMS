@@ -19,3 +19,17 @@ END
 ELSE
     PRINT 'SQL/108: keine Rueckmelde-Schalter vorhanden - nichts zu tun.';
 GO
+
+-- Nachtrag v1.94.0 (Auftrag Gerald 2026-11-08, Zusatzfund A1 / QA 109.1): verwaiste Zeile 'StammdatenADGruppe' (Wert z. B. 'BDE_Stammdaten').
+-- SQL/16 legt sie an, SQL/32 Schritt 5 sollte sie nach Roles.AdGroup migrieren und loeschen. Seit Migration
+-- 20260618070606_AddWindowsUserNameDropAdGroup gibt es Roles.AdGroup nicht mehr: SQL/32 bricht dort beim erneuten Lauf mit Msg 207 ab,
+-- die Zeile bleibt stehen (AKE-DEV 2026-11-08 belegt). Kein Leser im Code (Grep Web/Dienst .cs/.cshtml/.js = 0 Treffer).
+-- LOESCHT DATEN (eine Zeile ohne Wirkung). Vorher notieren: SELECT [Key],[Value] FROM [dbo].[AppSettings] WHERE [Key] = N'StammdatenADGruppe';
+IF EXISTS (SELECT 1 FROM [dbo].[AppSettings] WHERE [Key] = N'StammdatenADGruppe')
+BEGIN
+    DELETE FROM [dbo].[AppSettings] WHERE [Key] = N'StammdatenADGruppe';
+    PRINT 'SQL/108: verwaiste Zeile StammdatenADGruppe geloescht.';
+END
+ELSE
+    PRINT 'SQL/108: StammdatenADGruppe nicht vorhanden - nichts zu tun.';
+GO
