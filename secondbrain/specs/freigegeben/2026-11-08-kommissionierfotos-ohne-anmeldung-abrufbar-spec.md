@@ -58,7 +58,19 @@ Der Aufrufer hat die Lücke am 2026-11-08 auf AKE-DEV (`localhost:8081`) nachges
   - `/Fotos/Kommissionierung/REPRO-TEST_20261108000000_1.jpg` → **200 image/jpeg** (die Datei wird ausgeliefert)
   - `/` → 302 auf `/Account/Login` (Gegenprobe: die Anmeldepflicht greift sonst)
   - `/Home/Index.x` → 404, also nicht 302 (jeder Pfad mit Punkt umgeht die Login-Umleitung)
-- Ergebnis: Die Lücke ist nachgestellt und belegt. Ein Screenshot folgt durch die QA im Browser (privates Fenster).
+- Ergebnis: Die Lücke ist nachgestellt und belegt.
+- **Nachtrag 2026-11-08 – main-Stand und Screenshots.** Auf der IIS-Site AKE-DEV (localhost:8081) startet ein main-Stand nicht (AKE_WMS_DEV hat
+  das Bündel-Schema, OSEON-QA Lauf 2 Befund U1). Der main-Stand **v1.30.3** (Publish `D:\Dev\QA\Web`, Version per DLL geprüft, DB-Kopie
+  `AKE_WMS_QA_MAIN`, Kestrel :5182, gleicher DEV-Rechner) liefert ein echtes Foto ohne Anmeldung aus (Bild 2). Abweichung vom Auftrag
+  („DEV AKE localhost:8081, main-Stand“): Kestrel + DB-Kopie statt IIS-Site; der Code der Lücke ist zwischen main und Bündel identisch (git diff).
+  - Bild 1 – AKE-DEV :8081 (Bündel-Stand, IIS), anonymes Profil, Repro-URL: Bildbetrachter statt Anmeldeseite (defektes Bildsymbol, weil die
+    14-Byte-Repro-Datei kein echtes JPEG ist; curl `200 image/jpeg`, `Content-Length: 14`).
+    ![[kommissionierfotos-01-vorher-akedev-8081-foto-ohne-anmeldung.png]]
+  - Bild 2 – main v1.30.3, anonym, echtes JPEG sichtbar:
+    ![[kommissionierfotos-02-vorher-kestrel-v1302-foto-ohne-anmeldung.png]]
+  - Bild 3 – nach dem Fix v1.30.4, dieselbe URL anonym: Anmeldeseite.
+    ![[kommissionierfotos-03-nachher-v1304-foto-ohne-anmeldung.png]]
+  - Ablage: `bugs/anhaenge/2026-11-08-kommissionierfotos/` (Originale und weitere Nachweise in `D:\Dev\QA\Nachweis-v1304\`).
 
 ## Befund im Code (main v1.30.3, Worktree)
 - Der Foto-Ordner liegt unter `wwwroot`: `Program.cs:433`, `PhotoController.cs:30-32, 62-64, 87-89` (dreimal kopiert).
