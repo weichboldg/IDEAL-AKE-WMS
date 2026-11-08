@@ -53,6 +53,7 @@ public class AbnahmeNachbesserungV195Tests
         hilfe.Should().NotContain("sowie in der Bestandsübersicht (nur mit");
         hilfe.Should().NotContain("bei eingeschalteter Einstellung <code>QrMitFaNummer</code> ebenfalls in das FA-Feld uebernommen");
         hilfe.Should().Contain("Bestandsübersicht seit v1.87.0 nie");
+        hilfe.Should().NotContain("Eine uebernommene FA uebersteuert den Artikelfilter", "QA B-1: Restsatz aus v1.76.0 widerspricht v1.87.0");
     }
 
     // Befund 4: leere Kommissionierer-Liste erklaeren, in allen drei Dialogen
