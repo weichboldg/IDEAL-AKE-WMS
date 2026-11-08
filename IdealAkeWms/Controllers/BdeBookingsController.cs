@@ -227,6 +227,10 @@ public class BdeBookingsController : Controller
         b.ModifiedBy = _userSvc.GetDisplayName();
         b.ModifiedByWindows = _userSvc.GetWindowsUserName();
 
+        // v1.92.0 (QA B-1): „Final“ von einer Zeile auf eine andere verschieben – der gefilterte UNIQUE-Index
+        // IX_BdeBookingQuantities_Booking_Final erlaubt nie zwei Final-Zeilen, EF ordnet die UPDATEs aber nicht danach. Deshalb erst alles
+        // ausser den NEU finalen Zeilen speichern (alte Final-Zeile verliert ihr Kennzeichen), dann diese setzen – beides in EINER Transaktion.
+        var neuFinal = new List<BdeBookingQuantity>();
         foreach (var row in vm.Quantities)
         {
             var q = b.Quantities.FirstOrDefault(x => x.Id == row.Id);
@@ -238,14 +242,24 @@ public class BdeBookingsController : Controller
             }
             q.GoodQuantity = row.GoodQuantity;
             q.ScrapQuantity = row.ScrapQuantity;
-            q.IsFinal = row.IsFinal;
+            if (row.IsFinal && !q.IsFinal) neuFinal.Add(q);
+            else q.IsFinal = row.IsFinal;
             q.ReportedAt = row.ReportedAt;
             q.ModifiedAt = DateTime.Now;
             q.ModifiedBy = _userSvc.GetDisplayName();
             q.ModifiedByWindows = _userSvc.GetWindowsUserName();
         }
 
-        await _repo.UpdateAsync(b);
+        await using (var tx = _ctx.Database.IsRelational() ? await _ctx.Database.BeginTransactionAsync() : null)
+        {
+            await _repo.UpdateAsync(b);
+            if (neuFinal.Count > 0)
+            {
+                foreach (var q in neuFinal) q.IsFinal = true;
+                await _repo.UpdateAsync(b);
+            }
+            if (tx != null) await tx.CommitAsync();
+        }
         TempData["SuccessMessage"] = "Buchung aktualisiert.";
         return RedirectToAction(nameof(Index));
     }

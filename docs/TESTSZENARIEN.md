@@ -11348,6 +11348,8 @@ Spec `2026-11-08-oseon-relevanzfilter-schaltet-sich-ab-spec`; OSEON-Teil zu Kapi
 - **TS-121.4 Seitenwechsel.** Haken gesetzt, Filter abgeschickt, auf Seite 2 wechseln. Erwartet: Der Haken ist weiter gesetzt.
 - **TS-121.5 BDE Final speichern.** BDE-Admin öffnet eine Buchung → „Final“ an einer Zeile → Speichern → erneut öffnen. Erwartet: Der Haken
   ist gesetzt.
+- **TS-121.5b BDE Final verschieben (QA B-1).** Buchung mit Final an Zeile 2 → Haken an Zeile 2 weg, an Zeile 1 setzen → Speichern. Erwartet:
+  „Buchung aktualisiert.“, Zeile 1 final, Zeile 2 nicht; kein Fehler 500 (vorher Duplicate-Key `IX_BdeBookingQuantities_Booking_Final`).
 - **TS-121.6 BDE Löschen.** „Löschen“ an einer Zeile → Speichern. Erwartet: Die Zeile fehlt.
 - **TS-121.7 Negativ BDE zwei Final.** „Final“ an zwei Zeilen → Speichern. Erwartet: Die Fehlermeldung erscheint im Formular, die Daten sind
   unverändert, es kommt keine Fehlerseite.

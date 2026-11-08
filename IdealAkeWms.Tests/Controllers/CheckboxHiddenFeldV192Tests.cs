@@ -87,4 +87,32 @@ public class CheckboxHiddenFeldV192Tests
         var ok = BdeBookingsControllerTests.CreateForTests(db);
         (await ok.Edit(1, vm)).Should().BeOfType<NotFoundResult>();
     }
+
+    /// <summary>QA B-1: „Final“ von Zeile 2 auf Zeile 1 verschieben – erst alte Final-Zeile aufheben, dann neue setzen (UNIQUE-Index; auf
+    /// SQL Server sonst 500, InMemory prueft den Index nicht – hier nur das Ergebnis, Reihenfolge per DEV-Nachtest).</summary>
+    [Fact]
+    public async Task BdeEdit_FinalVerschieben_Ergebnis_QaB1()
+    {
+        using var db = TestDbContextFactory.Create();
+        var ids = await BdeBookingTestSeed.SeedAsync(db);
+        var b = BdeBookingTestSeed.NewBooking(ids, IdealAkeWms.Models.BdeBookingType.Production, IdealAkeWms.Models.BdeBookingStatus.Finished,
+            startedAt: DateTime.Today.AddHours(8), endedAt: DateTime.Today.AddHours(9));
+        b.Quantities.Add(new IdealAkeWms.Models.BdeBookingQuantity { BdeOperatorId = ids.OperatorId, GoodQuantity = 1, ReportedAt = DateTime.Today, CreatedBy = "t", CreatedByWindows = "t" });
+        b.Quantities.Add(new IdealAkeWms.Models.BdeBookingQuantity { BdeOperatorId = ids.OperatorId, GoodQuantity = 2, IsFinal = true, ReportedAt = DateTime.Today, CreatedBy = "t", CreatedByWindows = "t" });
+        db.BdeBookings.Add(b);
+        await db.SaveChangesAsync();
+        var q = b.Quantities.OrderBy(x => x.Id).ToList();
+
+        var vm = new BdeBookingEditViewModel
+        {
+            Id = b.Id, BdeOperatorId = b.BdeOperatorId, ProductionWorkplaceId = b.ProductionWorkplaceId, StartedAt = b.StartedAt, EndedAt = b.EndedAt, Status = b.Status,
+            Quantities =
+            {
+                new BdeBookingQuantityEditRow { Id = q[0].Id, GoodQuantity = 1, IsFinal = true, ReportedAt = DateTime.Today },
+                new BdeBookingQuantityEditRow { Id = q[1].Id, GoodQuantity = 2, IsFinal = false, ReportedAt = DateTime.Today },
+            },
+        };
+        (await BdeBookingsControllerTests.CreateForTests(db).Edit(b.Id, vm)).Should().BeOfType<RedirectToActionResult>();
+        db.BdeBookingQuantities.Where(x => x.BdeBookingId == b.Id).OrderBy(x => x.Id).Select(x => x.IsFinal).Should().Equal(true, false);
+    }
 }

@@ -14,7 +14,14 @@ namespace IdealAkeWms.Tests.Controllers;
 
 public class BdeBookingsControllerTests
 {
-    internal static BdeBookingsController CreateForTests(ApplicationDbContext ctx) => CreateBookingsController(ctx);
+    internal static BdeBookingsController CreateForTests(ApplicationDbContext ctx)
+    {
+        var c = CreateBookingsController(ctx);
+        var http = new Microsoft.AspNetCore.Http.DefaultHttpContext();
+        c.ControllerContext = new ControllerContext { HttpContext = http };
+        c.TempData = new Microsoft.AspNetCore.Mvc.ViewFeatures.TempDataDictionary(http, Mock.Of<Microsoft.AspNetCore.Mvc.ViewFeatures.ITempDataProvider>());
+        return c;
+    }
 
     private static BdeBookingsController CreateBookingsController(ApplicationDbContext ctx)
     {
