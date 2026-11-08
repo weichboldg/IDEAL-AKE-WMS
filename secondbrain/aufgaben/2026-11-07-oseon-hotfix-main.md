@@ -2,7 +2,7 @@
 typ: notiz
 spec: "[[2026-11-07-oseon-sync-neu-ausgeschriebener-auftrag-spec]]"
 bug: "[[2026-11-07-oseon-sync-neu-ausgeschriebener-auftrag-bug]]"
-status: InUmsetzung
+status: Erledigt
 worktree: ""
 branch: main
 version: "1.30.3"
@@ -29,9 +29,9 @@ Spec [[2026-11-07-oseon-sync-neu-ausgeschriebener-auftrag-spec]] · **direkt im 
 - [x] qa-agent Lauf 1: NICHT Testbereit (B1 behoben, B2 → Zahnrad zuerst mergen, dann v1.30.3).
 - [x] WIP-Commit Hotfix-Code `066b136f` auf main (Gerald: Weg 2, damit der Zahnrad-Merge möglich ist).
 - [x] Zahnrad-Hotfix in main gemergt (`e386bfce`, Freigabe Gerald 2026-11-08), Konflikte gelöst → v1.30.3, Build + Tests grün.
-- [ ] qa-agent Lauf 2 (erhöhte Shell). 2026-11-08 gelaufen: Code ohne Befund, Browser-Ersatzlauf OK, aber DEV-Deploy AKE
+- [x] qa-agent Lauf 2 (erhöhte Shell). Ersatznachweis von Gerald akzeptiert (2026-11-08) → Testbereit. 2026-11-08 gelaufen: Code ohne Befund, Browser-Ersatzlauf OK, aber DEV-Deploy AKE
   gescheitert (`AKE_WMS_DEV` auf Bündel-Schema, U1/U2), daher nicht Testbereit; siehe Spec „QA Lauf 2“.
-- [ ] Commit erst nach Rückfrage bei Gerald (Auftrag: „Kein Commit ohne Rückfrage").
+- [x] (`1c7fc333`, Freigabe Gerald 2026-11-08) Commit erst nach Rückfrage bei Gerald (Auftrag: „Kein Commit ohne Rückfrage").
 
 ## Folgearbeit
 

@@ -2,7 +2,7 @@
 type: spec
 title: OSEON-Tracking-Sync übersteht neu ausgeschriebene Aufträge (MERGE über Auftragsnummer)
 slug: 2026-11-07-oseon-sync-neu-ausgeschriebener-auftrag-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-11-07
 updated: 2026-11-08
 source_backlog: "[[2026-11-03-oseon-sync-neu-ausgeschriebener-auftrag]]"
@@ -732,3 +732,11 @@ Verhaltenswechsel). In den uncommitteten Änderungen ändern sich dort nur zwei 
 6. TS-107.5: zusätzlich aus FA-Abarbeitungsliste und FA-Vervollständigung drucken.
 7. TS-107.6: Filter über mehrere Seiten prüfen (Testsystem mit mehr freigegebenen FAs).
 8. Zahnrad v1.30.2 (TESTSZENARIEN „Zusatz v1.30.2“, `:3880`) im selben Testlauf mitprüfen.
+
+## Entscheidung Gerald 2026-11-08 – Ersatznachweis QA Lauf 2 akzeptiert
+
+Wie beim Foto-Hotfix: Code-Review ohne Befund (B1-Fix, B2-Versionen/Changelog, Merge `e386bfce` vollständig) plus Browser-Ersatzlauf auf der
+DB-Kopie `AKE_WMS_QA_MAIN` (main-Schema, Kestrel, v1.30.3: TS-107.5/107.6 OK) gelten als DEV-Nachweis. Befund U1 (AKE_WMS_DEV mit
+Bündel-Schema, main startet dort nicht) ist ein Umgebungsbefund, kein Code-Befund. **Status: Testbereit** (Commit v1.30.3 `1c7fc333` auf `main`).
+Offen für den Menschen am Testsystem: TS-107.1/107.2/107.2b (brauchen `Sync:OseonTrackingEnabled`), TS-107.4 Druckvorschau, Druck aus
+FA-Abarbeitungsliste/FA-Vervollständigung. Hinweise H1/H2 aus Lauf 2 nicht blockierend.
