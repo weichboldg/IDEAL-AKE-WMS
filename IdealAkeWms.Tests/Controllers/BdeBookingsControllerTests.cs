@@ -14,6 +14,8 @@ namespace IdealAkeWms.Tests.Controllers;
 
 public class BdeBookingsControllerTests
 {
+    internal static BdeBookingsController CreateForTests(ApplicationDbContext ctx) => CreateBookingsController(ctx);
+
     private static BdeBookingsController CreateBookingsController(ApplicationDbContext ctx)
     {
         var userSvc = new Mock<ICurrentUserService>();

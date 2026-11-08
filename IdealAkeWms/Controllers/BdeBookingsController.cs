@@ -205,6 +205,10 @@ public class BdeBookingsController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Edit(int id, BdeBookingEditViewModel vm)
     {
+        // v1.92.0: seit dem Hidden-Fix kommt „Final“ wirklich an – der gefilterte UNIQUE-Index IX_BdeBookingQuantities_Booking_Final erlaubt
+        // nur eine Final-Zeile je Buchung. Melden statt 500.
+        if (vm.Quantities.Count(q => !q.Delete && q.IsFinal) > 1)
+            ModelState.AddModelError("", "Nur eine Mengenzeile je Buchung darf „Final“ sein.");
         if (!ModelState.IsValid)
         {
             await LoadEditSelectLists();

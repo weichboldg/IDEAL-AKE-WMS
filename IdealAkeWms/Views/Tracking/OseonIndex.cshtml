@@ -49,9 +49,11 @@
             </div>
             <div class="col-auto">
                 <div class="form-check mt-1">
-                    <input type="hidden" name="useRelevanceFilter" value="false" />
                     <input type="checkbox" class="form-check-input" id="useRelevanceFilter" name="useRelevanceFilter" value="true"
                            @(Model.UseRelevanceFilter ? "checked" : "") />
+                    @* v1.92.0 (Bug 2026-11-08-oseon-relevanzfilter): Hidden HINTER der Checkbox – angehakt kommen „true,false“, der bool-Binder
+                       nimmt den ersten Wert; abgewaehlt nur „false“ (Muster v1.81.0 MissingParts/Index). *@
+                    <input type="hidden" name="useRelevanceFilter" value="false" />
                     <label class="form-check-label small" for="useRelevanceFilter">Fremdsystem-Relevanz</label>
                 </div>
             </div>

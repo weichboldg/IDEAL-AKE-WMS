@@ -10,6 +10,7 @@
 
 <form method="post" asp-action="Edit" asp-route-id="@Model.Id">
     @Html.AntiForgeryToken()
+    <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
     <input type="hidden" asp-for="Id" />
 
     <div class="card mb-3">
@@ -99,13 +100,14 @@
                                 <span asp-validation-for="Quantities[i].ScrapQuantity" class="text-danger small"></span>
                             </td>
                             <td class="text-center">
-                                <input type="hidden" name="Quantities[@i].IsFinal" value="false" />
+                                @* v1.92.0: Hidden HINTER der Checkbox (bool-Binder nimmt den ersten Wert) *@
                                 <input type="checkbox" name="Quantities[@i].IsFinal" value="true" @(Model.Quantities[i].IsFinal ? "checked" : "") />
+                                <input type="hidden" name="Quantities[@i].IsFinal" value="false" />
                             </td>
                             <td><input type="datetime-local" asp-for="Quantities[i].ReportedAt" class="form-control form-control-sm" /></td>
                             <td class="text-center">
-                                <input type="hidden" name="Quantities[@i].Delete" value="false" />
                                 <input type="checkbox" name="Quantities[@i].Delete" value="true" />
+                                <input type="hidden" name="Quantities[@i].Delete" value="false" />
                             </td>
                         </tr>
                     }
