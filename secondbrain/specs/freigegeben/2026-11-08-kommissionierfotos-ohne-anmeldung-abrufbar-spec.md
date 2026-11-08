@@ -323,3 +323,9 @@ Zurückgelassen (Mensch entscheidet): `D:\Dev\QA\Web-v1304\`, Testfoto `D:\Dev\Q
 7. TS-124.2: Anmeldeseite im privaten Fenster unter IIS, DevTools-Netzwerk nur 200/304.
 8. **Testsystem IDEAL:** Schritte 1, 2, 3 (Smoke 124.1 + 124.3).
 9. Nach Abnahme: Merge, produktiv AKE und IDEAL nach Deploy-Abschnitt, danach Vorwärts-Merge main → Bündel (`ideal-teile-1-5`, Kapitel 124 hinter 123) **vor** Lauf B (QM-Fotos).
+
+## Entscheidung Gerald 2026-11-08 – Abweichung Nachstellung akzeptiert
+
+Die Nachstellung „DEV AKE localhost:8081, main-Stand“ war nicht möglich (AKE_WMS_DEV mit Bündel-Schema, main startet dort nicht). Gerald akzeptiert
+den Nachweis aus Bündel-Stand auf :8081 (Code identisch) plus main v1.30.3 auf der DB-Kopie `AKE_WMS_QA_MAIN` unter Kestrel (Bilder 1–3) sowie
+die QA auf dieser Kopie. Status bleibt **Testbereit**; IIS-Punkte (App_Data-Rechte, hiddenSegments) und IDEAL-Smoke prüft der Mensch am Testsystem.
