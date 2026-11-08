@@ -985,7 +985,7 @@
                 }
                 addField('__RequestVerificationToken', token);
                 // Alle sichtbar und unsortiert = keine Liste (Server druckt dann alles nach Position).
-                // Hotfix v1.30.2: bei aktiver Sortierung immer die Liste schicken — ihre Reihenfolge
+                // Hotfix v1.30.3: bei aktiver Sortierung immer die Liste schicken — ihre Reihenfolge
                 // (DOM-Reihenfolge nach sortTable) ist die Sortierung des Drucks.
                 var sortActive = !!document.querySelector('#bomTable thead th[data-sort-dir]');
                 if (visiblePositions.length > 0 && (sortActive || visiblePositions.length < totalPositions))

@@ -1,7 +1,7 @@
 namespace IDEALAKEWMSService.Services;
 
 /// <summary>
-/// Reiner Entscheidungs-Helper fuer den OSEON-Tracking-Sync (Hotfix v1.30.2): je Auftragsnummer
+/// Reiner Entscheidungs-Helper fuer den OSEON-Tracking-Sync (Hotfix v1.30.3): je Auftragsnummer
 /// genau eine OSEON-Auftragszeile, AGs nur aus dieser Zeile, je (Nummer, Position) einmal.
 /// Hintergrund: OSEON schreibt Auftraege neu aus (gleiche AuftragsNr, neue ID); eindeutig im WMS ist
 /// die Auftragsnummer (UNIQUE-Index), nicht die OSEON-ID.

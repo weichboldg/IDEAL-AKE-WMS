@@ -514,7 +514,7 @@ public class PickingController : Controller
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         // Sichtbare Positionen in Anzeige-Reihenfolge (Filterung + Baumstruktur + Sortierung der
-        // interaktiven Ansicht). Hotfix v1.30.2: die Reihenfolge der Liste IST die Sortierung des Drucks —
+        // interaktiven Ansicht). Hotfix v1.30.3: die Reihenfolge der Liste IST die Sortierung des Drucks —
         // vorher war die Liste nur eine Menge und der Druck immer nach Position sortiert.
         Dictionary<string, int>? visibleOrder = null;
         if (!string.IsNullOrEmpty(visiblePositions))

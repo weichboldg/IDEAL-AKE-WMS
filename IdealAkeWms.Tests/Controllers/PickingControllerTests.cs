@@ -107,7 +107,7 @@ public class PickingControllerTests
         vm.Pagination.TotalCount.Should().Be(1);
     }
 
-    // Hotfix v1.30.2 (Z3): Spalte Werkbank in der Kommissionierung, server-seitig filterbar.
+    // Hotfix v1.30.3 (Z3): Spalte Werkbank in der Kommissionierung, server-seitig filterbar.
     [Fact]
     public async Task Index_WorkbenchColumn_FilledFromWorkplaceAndFilterable()
     {
@@ -120,7 +120,7 @@ public class PickingControllerTests
         vm!.Items.Should().ContainSingle().Which.WorkplaceName.Should().Be("B7");
     }
 
-    // Hotfix v1.30.2 (Z2): der Druck uebernimmt die Reihenfolge der Ansicht (z.B. sortiert nach Bezeichnung 1),
+    // Hotfix v1.30.3 (Z2): der Druck uebernimmt die Reihenfolge der Ansicht (z.B. sortiert nach Bezeichnung 1),
     // nicht mehr fest die Positions-Reihenfolge.
     [Fact]
     public async Task PrintBom_VisiblePositions_KeepClientOrder()

@@ -144,7 +144,7 @@ public class OseonSyncService : IOseonSyncService
                 deltaFilter.HasValue ? " (Delta-Sync)" : " (Full-Sync)",
                 rowsWithTimestamp);
 
-            // Je Auftragsnummer genau eine OSEON-Zeile (hoechste ID), AGs nur aus dieser Zeile (Hotfix v1.30.2).
+            // Je Auftragsnummer genau eine OSEON-Zeile (hoechste ID), AGs nur aus dieser Zeile (Hotfix v1.30.3).
             var selection = OseonOrderSelection.Select(oseonRows);
 
             _logger.LogInformation("OSEON: {Count} eindeutige Aufträge.", selection.Orders.Count);

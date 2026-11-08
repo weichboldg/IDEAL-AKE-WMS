@@ -75,7 +75,7 @@ Dokument aktualisiert werden (siehe CLAUDE.md → "Testszenarien-Pflicht").
 | Kapitel 53: Lagerbestand-Nullsetzen verwaister Paare (v1.25.0) | [→](#kapitel-53-lagerbestand-nullsetzen-verwaister-paare-v1250) | — |
 | Kapitel 54: Aktivitäts-Protokoll-Bereinigung (v1.25.0) | [→](#kapitel-54-aktivitäts-protokoll-bereinigung-v1250) | TS-54.1 – TS-54.4 |
 | Kapitel 55: FA-Zusatzinfos (Sage) (v1.26.0) | [→](#kapitel-55-fa-zusatzinfos-sage-v1260) | TS-55.1 – TS-55.13 |
-| Kapitel 107: OSEON-Sync neu ausgeschriebener Auftrag + Stücklisten-Druck + Werkbank Kommissionierung (Hotfix v1.30.2) | [→](#kapitel-107-oseon-sync-neu-ausgeschriebener-auftrag--stücklisten-druck--werkbank-kommissionierung-hotfix-v1302) | TS-107.1 – TS-107.6 |
+| Kapitel 107: OSEON-Sync neu ausgeschriebener Auftrag + Stücklisten-Druck + Werkbank Kommissionierung (Hotfix v1.30.3) | [→](#kapitel-107-oseon-sync-neu-ausgeschriebener-auftrag--stücklisten-druck--werkbank-kommissionierung-hotfix-v1303) | TS-107.1 – TS-107.6 |
 
 ---
 
@@ -3599,7 +3599,7 @@ Befund vom 2026-09-28, ID 3664 auf akenet01); Zugriff Kommissionierung, Vorbau o
 **Erwartetes Verhalten:**
 - Neuer Auftrag erscheint in der OSEON-Liste.
 - Ampel und Soll-Termine korrekt berechnet.
-- Neu ausgeschriebene Aufträge (gleiche Auftragsnummer, neue OSEON-ID): siehe TS-107.1 (Hotfix v1.30.2).
+- Neu ausgeschriebene Aufträge (gleiche Auftragsnummer, neue OSEON-ID): siehe TS-107.1 (Hotfix v1.30.3).
 
 ---
 
@@ -6364,13 +6364,13 @@ Lagerplatz-Flag `SageBuchungErlaubt`. Verarbeitung durch den `SageBookingWorker`
 
 ---
 
-## Kapitel 107: OSEON-Sync neu ausgeschriebener Auftrag + Stücklisten-Druck + Werkbank Kommissionierung (Hotfix v1.30.2)
+## Kapitel 107: OSEON-Sync neu ausgeschriebener Auftrag + Stücklisten-Druck + Werkbank Kommissionierung (Hotfix v1.30.3)
 
 Nummer 107 entspricht der Nummer im IDEAL-Bündel (Kapitel 57–106 gibt es nur dort), damit der spätere
 Bündel-Abgleich keine Umnummerierung braucht. Testumgebung: **AKE-Test** (nicht IDEAL).
 
 - **TS-107.1 — Neuausschreibung simulieren** (nur WMS-**Test**-DB AKE).
-  - Vorbedingungen: Dienst v1.30.2, `Sync:OseonTrackingEnabled = true`. Einmalig
+  - Vorbedingungen: Dienst v1.30.3, `Sync:OseonTrackingEnabled = true`. Einmalig
     `UPDATE dbo.OseonProductionOrders SET LastChangedInOseon = DATEADD(day, -1, LastChangedInOseon)`
     (der nächste Lauf liest die OSEON-Änderungen des letzten Tages erneut). Auftrag X wählen, der in OSEON
     in den letzten 24 h geändert wurde. Vorher notieren:
@@ -6408,5 +6408,5 @@ Bündel-Abgleich keine Umnummerierung braucht. Testumgebung: **AKE-Test** (nicht
 
 ---
 
-*Ende des Dokuments. Stand: v1.30.2 (2026-11-07)*
+*Ende des Dokuments. Stand: v1.30.3 (2026-11-08)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*

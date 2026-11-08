@@ -5,7 +5,8 @@ date: 2026-10-08
 ---
 # v1.30.2 — AKE-Hotfix: Zahnrad auf der Lagerbestellung-Detailseite sichtbar
 
-Hotfix auf Basis `main` im Worktree `feature/2026-10-08-ake-hotfix-zahnrad-lagerbestellung`, Commit `0a6fb3cd`.
+**Gemerged** in `main` am 2026-11-08 (Merge-Commit `e386bfce`, Freigabe Gerald; danach folgt OSEON-Hotfix
+[[2026-11-08-v1-30-3-ake-hotfix-oseon-sync-druck-werkbank]]). Hotfix auf Basis `main` im Worktree `feature/2026-10-08-ake-hotfix-zahnrad-lagerbestellung`, Commit `0a6fb3cd`.
 Auftrag Gerald 2026-10-08 („am main auch den Zahnrad-Fehler beheben“) — entscheidet die offene Frage in
 [[2026-10-06-lagerbestellung-zahnrad-unsichtbar]] zugunsten eines eigenen AKE-Hotfix. **Keine Migration.**
 
