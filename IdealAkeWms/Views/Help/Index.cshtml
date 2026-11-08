@@ -152,8 +152,9 @@
                         &bdquo;Matchcode &hellip; ist mehrdeutig (&hellip;) &ndash; bitte den Artikel von Hand wählen&ldquo; &ndash; mehrere Artikel tragen
                         diesen Matchcode, Artikel von Hand wählen; &bdquo;Matchcode &hellip; konnte nicht geprüft werden&ldquo; &ndash; Verbindung zum Server
                         prüfen und erneut scannen. In allen drei Fällen wird nichts ausgefüllt und nichts abgeschickt.</li>
-                    <li>Die FA aus Feld 3 wird übernommen bei Ein-, Aus- und Umbuchung sowie in der Bestandsübersicht (nur mit
-                        <code>QrMitFaNummer</code>); sonst nie.</li>
+                    <li>Die FA aus Feld 3 wird übernommen bei Ein-, Aus- und Umbuchung (nur mit <code>QrMitFaNummer</code>). In der
+                        Bestandsübersicht seit v1.87.0 nie &ndash; dort setzt der Artikel-Knopf nur den Artikelfilter, für einen FA gibt es den eigenen
+                        FA-Knopf.</li>
                     <li>Lagerplatz- und FA-Scans sind von der Einstellung nicht betroffen.</li>
                 </ul>
                 <p><strong>Einschalten (Admin):</strong> Einstellungen (<code>/Settings</code>) &rarr; Gruppe &bdquo;QR-Code und Scanner&ldquo; &rarr;
@@ -1863,7 +1864,7 @@
                 </p>
                 <dl>
                     <dt>Artikel-QR-Scan</dt>
-                    <dd>Neben dem Artikelfilter gibt es einen QR-Scan-Button. Beim Scannen eines Artikel-QR-Codes wird die Artikelnummer automatisch als Filter gesetzt. Enthaelt der QR-Code eine Fertigungsauftragsnummer, wird diese bei eingeschalteter Einstellung <code>QrMitFaNummer</code> ebenfalls in das FA-Feld uebernommen (sonst wird das FA-Feld beim Artikel-Scan geleert). Das erste Feld ist je nach Einstellung <code>QrErstesFeld</code> die Artikelnummer oder der Matchcode. Hinweis: Eine uebernommene FA uebersteuert den Artikelfilter.</dd>
+                    <dd>Neben dem Artikelfilter gibt es einen QR-Scan-Button. Beim Scannen eines Artikel-QR-Codes wird die Artikelnummer automatisch als Filter gesetzt. Eine Fertigungsauftragsnummer im QR-Code wird hier seit v1.87.0 nie uebernommen, auch nicht mit <code>QrMitFaNummer</code> (das FA-Feld wird beim Artikel-Scan geleert); fuer einen FA den eigenen FA-Scan-Knopf nutzen. Das erste Feld ist je nach Einstellung <code>QrErstesFeld</code> die Artikelnummer oder der Matchcode. Hinweis: Eine uebernommene FA uebersteuert den Artikelfilter.</dd>
 
                     <dt>Fertigungsauftrag-Filter (Bestaende FA)</dt>
                     <dd>Zeigt den Netto-Bestand aller Artikel, die mit diesem Fertigungsauftrag gebucht wurden &mdash; aufgeschluesselt nach Lagerplatz.

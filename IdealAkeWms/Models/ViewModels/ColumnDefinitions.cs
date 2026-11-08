@@ -668,6 +668,32 @@ public static class ColumnDefinitions
         ]
     };
 
+    /// <summary>
+    /// PurchaseOrders/Index.cshtml — Offene Bestellungen (v1.84.0). v1.95.0 (Abnahme B5.1): Die View meldete data-view-key="PurchaseOrders",
+    /// ohne Katalogeintrag antwortete /api/user-view-preferences mit 400 und es gab kein Zahnrad.
+    /// </summary>
+    public static readonly ViewConfig PurchaseOrders = new(
+        "PurchaseOrders", "Offene Bestellungen",
+        SupportsReorder: false, SupportsSortDefault: false)
+    {
+        Columns =
+        [
+            new ColumnDef("liefertermin", "Liefertermin",     Locked: true),
+            new ColumnDef("lieferant",    "Lieferant",        Locked: false),
+            new ColumnDef("bestellung",   "Bestellung",       Locked: true),
+            new ColumnDef("artikel",      "Artikel",          Locked: true),
+            new ColumnDef("bezeichnung",  "Bezeichnung",      Locked: false),
+            new ColumnDef("bestellt",     "bestellt",         Locked: false),
+            new ColumnDef("geliefert",    "geliefert (Sage)", Locked: false),
+            new ColumnDef("offen",        "offen (Sage)",     Locked: false),
+            new ColumnDef("erfasst",      "im WMS erfasst",   Locked: false),
+            new ColumnDef("einheit",      "Einheit",          Locked: false),
+            new ColumnDef("lagerplatz",   "Ziel-Lagerplatz",  Locked: false),
+            new ColumnDef("hinweis",      "Hinweis",          Locked: false),
+            new ColumnDef("actions",      "",                 Locked: true, DefaultWidth: 100),
+        ]
+    };
+
     public static ViewConfig? GetByViewKey(string viewKey) => viewKey switch
     {
         "ProductionOrders" => ProductionOrders,
@@ -693,6 +719,7 @@ public static class ColumnDefinitions
         "Articles"                       => Articles,
         "Creditors"                      => Creditors,
         "Debitors"                       => Debitors,
+        "PurchaseOrders"                 => PurchaseOrders,
         _                  => null
     };
 }

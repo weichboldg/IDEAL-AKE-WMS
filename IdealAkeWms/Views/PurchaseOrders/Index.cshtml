@@ -75,6 +75,8 @@ else
 
 <p class="small mb-1"><span class="badge bg-danger-subtle text-danger-emphasis border border-danger-subtle">rot hinterlegt</span>@* v1.91.0 (N-1): Zeilenton wie table-danger, dunkler Text *@
     = überfällig (Liefertermin vor heute); der Text steht zusätzlich in der Spalte „Hinweis“.</p>
+@* v1.95.0 (Abnahme B5.1): Toolbar-Host fuer das Zahnrad (Spaltenauswahl, Katalog ColumnDefinitions.PurchaseOrders) *@
+<div class="d-flex justify-content-end mb-1" data-table-toolbar></div>
 <div class="table-responsive">
     <table class="table table-sm table-striped filterable-table" data-server-column-filter="true" data-view-key="PurchaseOrders">
         <thead>
@@ -129,6 +131,27 @@ else
 }
 
 <partial name="_Pagination" model="Model.Pagination" />
+
+<script type="application/json" id="view-config">
+{ "viewKey": "PurchaseOrders", "supportsReorder": false, "supportsSortDefault": false }
+</script>
+<script type="application/json" id="column-config">
+[
+    { "key": "liefertermin", "label": "Liefertermin", "locked": true, "defaultWidth": null },
+    { "key": "lieferant", "label": "Lieferant", "locked": false, "defaultWidth": null },
+    { "key": "bestellung", "label": "Bestellung", "locked": true, "defaultWidth": null },
+    { "key": "artikel", "label": "Artikel", "locked": true, "defaultWidth": null },
+    { "key": "bezeichnung", "label": "Bezeichnung", "locked": false, "defaultWidth": null },
+    { "key": "bestellt", "label": "bestellt", "locked": false, "defaultWidth": null },
+    { "key": "geliefert", "label": "geliefert (Sage)", "locked": false, "defaultWidth": null },
+    { "key": "offen", "label": "offen (Sage)", "locked": false, "defaultWidth": null },
+    { "key": "erfasst", "label": "im WMS erfasst", "locked": false, "defaultWidth": null },
+    { "key": "einheit", "label": "Einheit", "locked": false, "defaultWidth": null },
+    { "key": "lagerplatz", "label": "Ziel-Lagerplatz", "locked": false, "defaultWidth": null },
+    { "key": "hinweis", "label": "Hinweis", "locked": false, "defaultWidth": null },
+    { "key": "actions", "label": "", "locked": true, "defaultWidth": 100 }
+]
+</script>
 
 @section Scripts {
     <script src="~/js/column-preferences.js" asp-append-version="true"></script>

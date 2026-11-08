@@ -82,7 +82,7 @@ public class StockApiController : ControllerBase
             Services.HierarchischeStruktur.HierarchischeStrukturKeys.Master));
         return hierarchisch
             ? Url.Action("Index", "FaHierarchy", new { filterHauptFa = orderNumber })
-            : Url.Action("Index", "ProductionOrders", new { filterOrderNumber = orderNumber });
+            : Url.Action("Index", "ProductionOrders", new { filterOrderNumber = orderNumber, showDone = true }); // v1.95.0: auch erledigte FAs
     }
 
     [HttpGet("by-order/{orderNumber}")]
