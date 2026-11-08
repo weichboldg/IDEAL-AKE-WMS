@@ -3877,6 +3877,16 @@ ausgefuehrt (siehe Deploy).
   Ist-Felder; Positionen mit Fehlteil-Markierung und alle teilgelieferten/abgeschlossenen Bestellungen sind
   **unveraendert**. Das Skript wird **nicht** ein zweites Mal ausgefuehrt. Direkt danach alle offenen Lagerbestellungs-Seiten **neu laden** (eine vorher geladene Seite traegt sonst die alte 0 noch im Feld und schickt sie als bestaetigte 0 zurueck).
 
+**Zusatz v1.30.2 — Zahnrad (Spaltenauswahl) sichtbar, auch nach dem Pflicht-Hinweis (Manual-UAT):**
+1. Lagerbestellung im Status Offen öffnen. **Erwartet:** Zahnrad-Button rechtsbündig direkt **oberhalb** der
+   Tabelle sichtbar; Klick öffnet die Spaltenauswahl (Offcanvas rechts), eine Spalte ein-/ausblenden funktioniert.
+2. Eine Position leer lassen und „Abschliessen" klicken → gelber Pflicht-Hinweis erscheint. **Erwartet:** Der
+   Hinweis steht **über** der Zahnrad-Zeile; das Zahnrad ist weiter sichtbar und öffnet die Spaltenauswahl
+   (vorher: Zahnrad unsichtbar im versteckten Hinweis bzw. beim Einblenden gelöscht).
+3. Leere Position ergänzen (Hinweis wird nachgeführt) und F5. **Erwartet:** Zahnrad sichtbar.
+- **Negativfall:** Zahnrad fehlt, erscheint im gelben Hinweis oder verschwindet nach Schritt 2 → Regression.
+  Automatisiert nur die Platzierung im Quelltext (`WarehousePickingDetailsZahnradHostTests`).
+
 ---
 
 ## 19. Listen-Pagination & User-Default (v1.14.0)
