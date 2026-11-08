@@ -623,3 +623,14 @@ die Seite eine waagrechte Seiten-Scrollleiste zusätzlich zur Tabellen-Scrolllei
 7. TS-111.5: einen BDE-Operator neu anlegen → „Offen“, Filter „Offen“ und „Offene Übergaben anzeigen“. Danach den Testdatensatz entfernen.
 8. TS-106.13.b/h/j/l mit der Erwartung „nicht nötig“ gegenlesen.
 9. Optional: die waagrechte Seiten-Scrollleiste (Zusatzbeobachtung) auf dem Testsystem prüfen.
+
+## Nachtrag 2026-11-08 – verwaiste Zeile `StammdatenADGruppe` in SQL/108 (Auftrag Gerald, keine eigene Spec)
+
+- Ursache: `SQL/16` legt `StammdatenADGruppe` an; `SQL/32_AddRoles.sql:157-174` sollte sie nach `Roles.AdGroup` migrieren und löschen. Seit
+  Migration `20260618070606_AddWindowsUserNameDropAdGroup` gibt es `Roles.AdGroup` nicht mehr → der Batch bricht beim erneuten Lauf mit
+  Msg 207 ab, die Zeile bleibt stehen (AKE-DEV belegt: Wert `BDE_Stammdaten`; IDEAL-DEV: Zeile nicht vorhanden).
+- Kein Leser im Code (Grep Web/Dienst `.cs`/`.cshtml`/`.js`: 0 Treffer).
+- Umsetzung: zweiter idempotenter Block am Ende von `SQL/108_RemoveAppSettingsRueckmeldungOhneLeser.sql`, Bündel-Commit `6987e2bd`.
+  Kein Schema, kein Katalog-Eintrag, keine Versionsnummer (läuft mit dem nächsten Deploy von SQL/108).
+- Nachweis DEV: AKE 2× (1. Lauf löscht, 2. „nichts zu tun“), IDEAL 1× („nichts zu tun“). Testschritt: TS-111.4 erwartet jetzt **keine**
+  Zeile unter „Nicht im Katalog“.
