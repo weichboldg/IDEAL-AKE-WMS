@@ -44,7 +44,7 @@
                     <span class="navbar-toggler-icon"></span>
                 </button>
                 <div class="collapse navbar-collapse" id="navbarNav">
-                    <ul class="navbar-nav me-auto">
+                    <ul class="navbar-nav me-auto flex-wrap">@* v1.94.0: Menuepunkte brechen um statt die Seite quer scrollen zu lassen *@
                         @{
                             var canAccessStock = await CurrentUserService.CanAccessStockAsync();
                             var canAccessStockRead = await CurrentUserService.CanAccessStockReadAsync();
@@ -368,7 +368,7 @@
                         }
                     </ul>
                     @* Desktop: user dropdown in navbar *@
-                    <span class="user-info d-none d-lg-inline">
+                    <span class="user-info d-none d-lg-inline flex-shrink-0 text-nowrap">
                         @if (Context.Session.GetInt32("AppUserId").HasValue)
                         {
                             <div class="dropdown d-inline">

@@ -47,7 +47,7 @@
                 <div class="mb-1">
                     <a asp-controller="MissingParts" asp-action="Index"
                        asp-route-tab="WillBeRestocked" asp-route-type="@Model.ActiveType" asp-route-mineOnly="true"
-                       class="text-warning fw-semibold text-decoration-none">
+                       class="text-warning-emphasis fw-semibold text-decoration-none">
                         @Model.MissingPartsWaitingItemCount Fehlteile (wird nachgeliefert)
                         <small class="text-muted">aus @Model.MissingPartsWaitingRequisitionCount Bestellungen →</small>
                     </a>
