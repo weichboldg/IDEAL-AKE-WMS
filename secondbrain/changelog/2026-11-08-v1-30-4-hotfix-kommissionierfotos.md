@@ -21,3 +21,7 @@ Commit `29a2bfe2`. **Keine Migration.** Nicht gemergt (Schranke 2).
 Nur Web, AKE und IDEAL. App-Pool braucht **Schreibrecht auf `App_Data`** (vorher anlegen, `icacls`), sonst bricht der Start ab. Fotos vorher
 zählen, nach dem Start Log „Kommissionierfotos verschoben: n“ abgleichen. Danach Vorwärts-Merge ins Bündel (Mensch), vor Lauf B (QM-Fotos).
 Zusatzfunde (nicht gebaut): Upload ohne Typ-/Größenprüfung, kein Antiforgery-Check auf der Foto-API.
+
+## Merge
+
+2026-11-10 in main: Merge-Commit `df54dee8` (`feature/2026-11-08-hotfix-kommissionierfotos`, `29a2bfe2`). Build und Tests nach dem Merge grün. Deploy nur Web, AKE und IDEAL; Vorwärts-Merge ins Bündel offen.

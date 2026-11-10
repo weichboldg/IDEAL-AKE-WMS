@@ -2,9 +2,9 @@
 type: spec
 title: Kommissionierfotos nur mit Anmeldung und Recht Kommissionierung; Foto-Löschen nur im eigenen FA (Sicherheits-Hotfix)
 slug: 2026-11-08-kommissionierfotos-ohne-anmeldung-abrufbar-spec
-status: Testbereit
+status: Gemerged
 created: 2026-11-08
-updated: 2026-11-08
+updated: 2026-11-10
 source_backlog: "[[2026-11-08-kommissionierfotos-ohne-anmeldung-abrufbar]]"
 bug: "[[2026-11-08-kommissionierfotos-ohne-anmeldung-abrufbar-bug]]"
 depends_on: ""
@@ -336,3 +336,7 @@ Zurückgelassen (Mensch entscheidet): `D:\Dev\QA\Web-v1304\`, Testfoto `D:\Dev\Q
 Die Nachstellung „DEV AKE localhost:8081, main-Stand“ war nicht möglich (AKE_WMS_DEV mit Bündel-Schema, main startet dort nicht). Gerald akzeptiert
 den Nachweis aus Bündel-Stand auf :8081 (Code identisch) plus main v1.30.3 auf der DB-Kopie `AKE_WMS_QA_MAIN` unter Kestrel (Bilder 1–3) sowie
 die QA auf dieser Kopie. Status bleibt **Testbereit**; IIS-Punkte (App_Data-Rechte, hiddenSegments) und IDEAL-Smoke prüft der Mensch am Testsystem.
+
+## Merge (2026-11-10)
+
+Schranke 2 von Gerald genommen (manuell getestet, Merge-Freigabe). `git merge --no-ff feature/2026-11-08-hotfix-kommissionierfotos` → Merge-Commit `df54dee8` auf main, ohne Konflikt. Nach dem Merge: `dotnet build IdealAkeWms.slnx` 0 Fehler, `dotnet test` Web 1130/1131 (1 übersprungen), Dienst 202/202 grün. Seit der Basis `be0244c8` hat main außerhalb des Brains nur `.claude/agents/qa-agent.md` geändert – der getestete Worktree-Publish entspricht dem Deploy-Stand. Kein Push. Worktree und Branch bleiben bis zur Deploy-Verifikation.
