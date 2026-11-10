@@ -27,3 +27,6 @@ secondbrain/.obsidian/workspaces.json
 secondbrain/.obsidian/cache
 secondbrain/.obsidian/app.json.bak
 secondbrain/.trash/
+
+# v1.30.4: Kommissionierfotos (Laufzeitdaten, ausserhalb von wwwroot)
+IdealAkeWms/App_Data/

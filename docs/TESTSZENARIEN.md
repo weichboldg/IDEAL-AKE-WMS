@@ -76,6 +76,7 @@ Dokument aktualisiert werden (siehe CLAUDE.md → "Testszenarien-Pflicht").
 | Kapitel 54: Aktivitäts-Protokoll-Bereinigung (v1.25.0) | [→](#kapitel-54-aktivitäts-protokoll-bereinigung-v1250) | TS-54.1 – TS-54.4 |
 | Kapitel 55: FA-Zusatzinfos (Sage) (v1.26.0) | [→](#kapitel-55-fa-zusatzinfos-sage-v1260) | TS-55.1 – TS-55.13 |
 | Kapitel 107: OSEON-Sync neu ausgeschriebener Auftrag + Stücklisten-Druck + Werkbank Kommissionierung (Hotfix v1.30.3) | [→](#kapitel-107-oseon-sync-neu-ausgeschriebener-auftrag--stücklisten-druck--werkbank-kommissionierung-hotfix-v1303) | TS-107.1 – TS-107.6 |
+| Kapitel 124: Kommissionierfotos nur mit Anmeldung und Recht Kommissionierung (Hotfix v1.30.4) | [→](#kapitel-124-kommissionierfotos-nur-mit-anmeldung-und-recht-kommissionierung-hotfix-v1304) | TS-124.1 – TS-124.7 |
 
 ---
 
@@ -6408,5 +6409,28 @@ Bündel-Abgleich keine Umnummerierung braucht. Testumgebung: **AKE-Test** (nicht
 
 ---
 
-*Ende des Dokuments. Stand: v1.30.3 (2026-11-08)*
+## Kapitel 124: Kommissionierfotos nur mit Anmeldung und Recht Kommissionierung (Hotfix v1.30.4)
+
+Nummer 124 = erste freie nach dem Bündel (108–123), damit der Vorwärts-Merge keine Umnummerierung braucht. Spec
+`2026-11-08-kommissionierfotos-ohne-anmeldung-abrufbar-spec`. Automatisiert: `LoginRedirectMiddlewareTests`, `PhotoControllerTests`.
+
+- **TS-124.1 Foto ohne Anmeldung.** Privates Fenster, URL eines vorhandenen Fotos `/Fotos/Kommissionierung/<FA>_<Zeit>_<n>.jpg`. Erwartet:
+  Anmeldeseite, kein Bild (vor v1.30.4: Bild).
+- **TS-124.2 Pfad mit Punkt.** Privates Fenster, `/Home/Index.x`. Erwartet: Anmeldeseite. Die Anmeldeseite ist vollständig gestaltet (Logo,
+  CSS); DevTools-Netzwerk nur 200/304.
+- **TS-124.3 Mit Recht.** Anmelden mit Rolle Kommissionierung, Stückliste eines FA mit Altfotos öffnen. Erwartet: Vorschau und Vollbild, URL
+  unverändert.
+- **TS-124.4 Ohne Recht.** Angemeldet ohne Kommissionierung (z. B. nur FA-Abarbeitungsliste), Foto-URL direkt. Erwartet: „Zugriff verweigert“.
+- **TS-124.5 Hochladen/Löschen.** Foto hochladen: Datei liegt unter `App_Data\Fotos\Kommissionierung` (nicht unter `wwwroot`). Löschen: Datei
+  und Kachel weg.
+- **TS-124.6 Negativ fremder FA.** DevTools: `POST /api/photos/delete` mit `productionOrderId` von FA A und `fileName` von FA B. Erwartet: 400,
+  Datei bleibt.
+- **TS-124.7 Migration.** Erster Start nach dem Deploy: Log „Kommissionierfotos verschoben: n, übersprungen: 0“, `wwwroot\Fotos\Kommissionierung`
+  leer. Neustart des App-Pools: keine Verschiebung mehr im Log. Künstliche Rest-Datei unter `wwwroot\Fotos\Kommissionierung` ist ohne
+  Anmeldung nicht abrufbar.
+- IDEAL: Smoke 124.1 + 124.3.
+
+---
+
+*Ende des Dokuments. Stand: v1.30.4 (2026-11-08)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*
