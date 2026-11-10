@@ -199,6 +199,12 @@ Neues Kapitel „IDEAL Teil 8 — Sub-FA-BDE":
 | 5 | OSEON-Seite (nur falls Etappe 1 Bedarf zeigt) | **entfaellt** (Etappe-1-Urteil: `OseonSyncService` ist nicht eindeutigkeitsannehmend — Haupt-Sync auf separater Spiegeltabelle, einziger WMS-Schreibpfad `SyncWorkplacesToProductionOrdersAsync` ist set-based UPDATE-JOIN) | — |
 | 6 | Tests (Unit + Test-Szenarien) + Brain-Update | erledigt | `b8847d2` |
 
+> [!note] Einschraenkung zu Etappe 5 (Nachtrag 2026-11-07, OSEON-Hotfix v1.30.2)
+> Das Urteil „`OseonSyncService` ist nicht eindeutigkeitsannehmend" gilt **nur fuer `ProductionOrders.OrderNumber`**
+> (der Schreibpfad dort ist der set-based UPDATE-JOIN). Auf der Spiegeltabelle `OseonProductionOrders` nahm der Sync
+> sehr wohl Eindeutigkeit an: MERGE ueber `OseonId`, eindeutig ist aber `OseonOrderNumber` → Fehler 2601 bei neu
+> ausgeschriebenen OSEON-Auftraegen. Behoben in [[2026-11-07-oseon-sync-neu-ausgeschriebener-auftrag-spec]].
+
 Ein langlebiger Worktree traegt alle Etappen; **kein** Zwischen-Merge. Waehrend der Arbeit den
 Branch regelmaessig mit `scripts/sync-worktree.ps1 -Slug <slug>` auf `main`-Stand halten. QA und
 Merge (Schranke 2) erst, wenn **alle** Etappen abgeschlossen sind.

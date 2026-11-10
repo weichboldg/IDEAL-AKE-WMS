@@ -87,19 +87,29 @@ What to deliver. Each item ends up as recorded evidence in the spec.
    Never touch AKESQL20, the test servers or Sage. Do not trigger browser alert/confirm dialogs.
    Note: deploying a worktree to a DEV site migrates that DEV DB forward; that is intended.
 
+7. Publish to the worktree - mandatory (Auftrag Gerald 2026-11-09). After items 1-6 are green,
+   publish BOTH apps into <worktree>\publish\ (gitignored), always both, even if the spec only
+   touches one. Empty each target folder first (no stale DLLs/views):
+     dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb
+     dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService
+   Then write <worktree>\publish\publish-info.txt: version (AppVersion), commit (HEAD), branch,
+   spec, date/time. A failed publish = QA failed (not Testbereit). Record folder + version in the
+   evidence. The human's update script takes this folder as its default source.
+
 On success:
 - Spec frontmatter: status: Testbereit, updated: today.
 - Finalize the Deploy section from the real diff - this is the reliable source, not the
   spec-agent's provisional guess. Set deploy.web / deploy.service / deploy.migration from what
   actually changed (IdealAkeWms/ -> web; IDEALAKEWMSService/ -> service; a new file under
-  */Migrations/ -> migration) and write the publish command(s) for the affected components only.
+  */Migrations/ -> migration). The publish itself is already done (item 7); name the folder
+  <worktree>\publish and its version, and which components actually need deploying.
   The human's flow is: publish from the worktree -> test system -> test -> merge. Add one line:
   after the merge, re-publish from main only if the merge combined tested files with parallel
   main changes.
     dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb
     dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService
   With a migration or a one-off script, state the order (backup, DB update, script, service).
-- Append the evidence block (items 1-4 and 6: deployed location(s), source, version, per-step test
+- Append the evidence block (items 1-4, 6 and 7: deployed location(s), source, version, per-step test
   results) and a numbered manual-test checklist for the human that lists what is still open
   (every NICHT MOEGLICH step plus the test-system run).
 

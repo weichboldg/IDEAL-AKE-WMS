@@ -66,6 +66,9 @@ freigabe_von: ""
 freigabe_am: ""
 ---
 
+> [!warning] Zurückgestellt (Gerald 2026-11-07 19:19): „brauchen wir noch nicht“ – NICHT umsetzen. Die Freigabe-Antworten bleiben stehen; bei Wiederaufnahme nur Freigabe neu setzen.
+
+
 > [!important] Verbindlicher Rahmen (Gerald, 2026-11-07 16:17/16:19, Buendel-Auftrag 2026-11-08)
 > - Dispo-Maske **je WMS-Installation** (AKE `akenet01`, IDEAL `idealweb01`, je eigene DB): gleicher Code, gleiche Maske; jede Installation
 >   liest **ihre** Sage und speichert **ihre** Dispo-Daten. Keine Zentraldispo.
@@ -395,6 +398,15 @@ Testsystem AKE-DEV und IDEAL-DEV (standort: beide).
 14. **Sage-Rueckschreibung:** soll „verladen“ nach Sage, wohin? *Empfehlung:* nicht in diesem Epic; Etappe 8 bleibt blockiert bis Entscheidung + DPS-Freigabe.
 15. **Lieferadresse:** Snapshot aus Sage, im WMS aenderbar? *Empfehlung:* ja (Excel „Entladeort“), mit Hinweis „weicht von Sage ab“.
 
+## Freigabe-Nachtrag 2026-11-07 19:17 (Gerald, geht dem Rumpf vor)
+- Alle Rückfragen **wie empfohlen** (Antworten unten), Abweichungen nur wo dort vermerkt.
+- **Etappe E0 vor E1:** Alle Prüfabfragen dieser Spec, die lesend am AKE-Test möglich sind (SData nur GET mit `orderBy`; Sage-SQL bzw.
+  WMS-DB nur SELECT), führt der Dev selbst aus und trägt die Ergebnisse ein. **Weicht ein Ergebnis von der Spec-Annahme ab: Blocker melden,
+  nicht raten** (Muster B1 vom 07.11.). Prüfabfragen, die IDEAL-Systeme oder Menschen brauchen, bleiben offen; betroffene Teile hinter
+  Schalter/Standort aus.
+- **Etappen, die an Sage schreiben, bleiben blockiert und aus** (laut Bündel-Übersicht). Keine Schreibtests an Sage in diesem Lauf.
+- Worktree laut Lauf-Auftrag (Empfehlung Ü1: nach Merge des Bündels frisch von `main`).
+
 ## Freigabe-Antworten (Mensch fuellt aus — Schranke 1)
 
 <!--
@@ -404,18 +416,18 @@ Testsystem AKE-DEV und IDEAL-DEV (standort: beide).
   als seinen Auftrag. Antworte je Frage in **fett** hinter dem Pfeil.
 -->
 
-1. Pruefabfragen P-V1 bis P-V3 (Ergebnis) →
-2. Belegarten VVA/VVN/VVG ohne VV2 →
-3. Definition offene Position →
-4. Teilmengen auf mehrere Ladungen →
-5. Mehrere Kunden je Ladung / Sammelgut →
-6. Lieferdatum-Arten →
-7. Status-Ablauf und Loeschen →
-8. Verkehrskuerzel Pflege + Startwerte →
-9. Kosten netto/EUR →
-10. Kostenrecht →
-11. Rollen versand / versand_schreiben →
-12. Kunden-Bestellnummer →
-13. FA-Bezug IDEAL/AKE →
-14. Sage-Rueckschreibung →
-15. Lieferadresse aenderbar →
+1. Pruefabfragen P-V1 bis P-V3 (Ergebnis) → **Gerald 2026-11-07 19:17: P-V1 bis P-V3 führt der Dev in E0 lesend aus (Vorbefund Koordination: VK-Kopf/-Position-Felder und Belegkennzeichen VVA 395 / VVG 17 / VVN 4 / VV2 1 in der Backlog-Notiz). Abweichung = Blocker.**
+2. Belegarten VVA/VVN/VVG ohne VV2 → **wie empfohlen (Gerald 2026-11-07 19:17)**
+3. Definition offene Position → **wie empfohlen (Gerald 2026-11-07 19:17)**
+4. Teilmengen auf mehrere Ladungen → **wie empfohlen (Gerald 2026-11-07 19:17)**
+5. Mehrere Kunden je Ladung / Sammelgut → **wie empfohlen (Gerald 2026-11-07 19:17)**
+6. Lieferdatum-Arten → **wie empfohlen (Gerald 2026-11-07 19:17)**
+7. Status-Ablauf und Loeschen → **wie empfohlen (Gerald 2026-11-07 19:17)**
+8. Verkehrskuerzel Pflege + Startwerte → **wie empfohlen (Gerald 2026-11-07 19:17)**
+9. Kosten netto/EUR → **wie empfohlen (Gerald 2026-11-07 19:17)**
+10. Kostenrecht → **wie empfohlen (Gerald 2026-11-07 19:17)**
+11. Rollen versand / versand_schreiben → **wie empfohlen (Gerald 2026-11-07 19:17)**
+12. Kunden-Bestellnummer → **wie empfohlen (Gerald 2026-11-07 19:17)**
+13. FA-Bezug IDEAL/AKE → **wie empfohlen (Gerald 2026-11-07 19:17)**
+14. Sage-Rueckschreibung → **wie empfohlen (Gerald 2026-11-07 19:17)**
+15. Lieferadresse aenderbar → **wie empfohlen (Gerald 2026-11-07 19:17)**

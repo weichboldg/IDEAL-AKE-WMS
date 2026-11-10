@@ -62,6 +62,9 @@ freigabe_von: ""
 freigabe_am: ""
 ---
 
+> [!warning] Zurückgestellt (Gerald 2026-11-07 19:19): „brauchen wir noch nicht“ – NICHT umsetzen. Die Freigabe-Antworten bleiben stehen; bei Wiederaufnahme nur Freigabe neu setzen.
+
+
 # Einkauf – Bestellvorschläge für Nachbestellartikel (Epic)
 
 Bündel [[2026-11-08-buendel-uebersicht]], Teil C. Hängt ab von [[2026-11-08-wareneingang-aus-sage-bestellungen-spec]] (Teil B, Reader
@@ -448,6 +451,15 @@ Abhängige Aussagen sind bis zur Antwort **unverifiziert**.
     bzw. false)? Ohne beides fehlen Bestellmenge, Lieferant, WBZ und Sage-verfügbar, die Liste zeigt nur Banner. **Empfehlung:** ja, als
     Deploy-Voraussetzung.
 
+## Freigabe-Nachtrag 2026-11-07 19:17 (Gerald, geht dem Rumpf vor)
+- Alle Rückfragen **wie empfohlen** (Antworten unten), Abweichungen nur wo dort vermerkt.
+- **Etappe E0 vor E1:** Alle Prüfabfragen dieser Spec, die lesend am AKE-Test möglich sind (SData nur GET mit `orderBy`; Sage-SQL bzw.
+  WMS-DB nur SELECT), führt der Dev selbst aus und trägt die Ergebnisse ein. **Weicht ein Ergebnis von der Spec-Annahme ab: Blocker melden,
+  nicht raten** (Muster B1 vom 07.11.). Prüfabfragen, die IDEAL-Systeme oder Menschen brauchen, bleiben offen; betroffene Teile hinter
+  Schalter/Standort aus.
+- **Etappen, die an Sage schreiben, bleiben blockiert und aus** (laut Bündel-Übersicht). Keine Schreibtests an Sage in diesem Lauf.
+- Worktree laut Lauf-Auftrag (Empfehlung Ü1: nach Merge des Bündels frisch von `main`).
+
 ## Freigabe-Antworten (Mensch fuellt aus — Schranke 1)
 
 <!--
@@ -457,13 +469,13 @@ Abhängige Aussagen sind bis zur Antwort **unverifiziert**.
   als seinen Auftrag. Antworte je Frage in **fett** hinter dem Pfeil.
 -->
 
-1. Offene Bedarfe (Lagerbestellungen + Bedarfsmeldungen) →
-2. Vorschlagsverfahren-Default →
-3. USER_Mindestbestand →
-4. Bestand-Umfang →
-5. Dispo-Stapel fest oder je Lieferant →
-6. Übergabe-Weg →
-7. Direktbestellung →
-8. Rolle einkauf →
-9. Rundung →
-10. Betrieb AKE (SData-Artikel + Artikel-Lieferanten) →
+1. Offene Bedarfe (Lagerbestellungen + Bedarfsmeldungen) → **wie empfohlen (Gerald 2026-11-07 19:17)**
+2. Vorschlagsverfahren-Default → **wie empfohlen (Gerald 2026-11-07 19:17)**
+3. USER_Mindestbestand → **wie empfohlen (Gerald 2026-11-07 19:17)**
+4. Bestand-Umfang → **wie empfohlen (Gerald 2026-11-07 19:17)**
+5. Dispo-Stapel fest oder je Lieferant → **wie empfohlen (Gerald 2026-11-07 19:17)**
+6. Übergabe-Weg → **wie empfohlen (Gerald 2026-11-07 19:17)**
+7. Direktbestellung → **wie empfohlen (Gerald 2026-11-07 19:17)**
+8. Rolle einkauf → **wie empfohlen (Gerald 2026-11-07 19:17)**
+9. Rundung → **wie empfohlen (Gerald 2026-11-07 19:17)**
+10. Betrieb AKE (SData-Artikel + Artikel-Lieferanten) → **wie empfohlen (Gerald 2026-11-07 19:17)**

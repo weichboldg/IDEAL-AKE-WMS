@@ -91,6 +91,14 @@ BOM-Stored-Procedure als Fallback.
 
 **Delta-Sync** ueber `LastChangedInOseon` mit 5 Minuten Puffer.
 
+**Abgleich ueber die Auftragsnummer** (seit v1.30.2): Der Auftrags-MERGE auf `OseonProductionOrders` laeuft
+`ON OseonOrderNumber` (eindeutiger Index), nicht ueber `OseonId` (nur normaler Index). OSEON schreibt Auftraege neu
+aus (gleiche `AuftragsNr`, neue `ID`) — dann wird die `OseonId` im UPDATE umgeschluesselt, der WMS-Datensatz und seine
+AGs bleiben. Je Nummer gewinnt die hoechste OSEON-ID (`OseonOrderSelection`), ein `ROW_NUMBER`-Waechter in beiden
+MERGE-Quellen faengt Kollations-Duplikate ab. Counts `neu_ausgeschrieben`, `mehrfach_in_oseon`,
+`doppelt_nach_kollation` + Warnzeilen im Aktivitaets-Protokoll. Nicht mehr gelieferte AGs bleiben stehen (der Sync
+loescht nie). → [[fallstricke]] „MERGE-Schluessel = eindeutiger Index", [[2026-11-07-oseon-sync-neu-ausgeschriebener-auftrag-spec]].
+
 **Teileverfolgung** (`TrackingController`, `Views/Tracking/`):
 - 3-Ebenen-Baum: KundenAuftragsNr → Subauftraege → Arbeitsgaenge.
 - Ampelsystem Rot/Gelb/Blau/Gruen/Grau aus Soll-Terminen und Status

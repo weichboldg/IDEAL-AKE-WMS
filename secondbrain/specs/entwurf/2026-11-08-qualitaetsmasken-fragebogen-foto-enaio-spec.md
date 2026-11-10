@@ -82,6 +82,9 @@ freigabe_von: ""
 freigabe_am: ""
 ---
 
+> [!warning] Zurückgestellt (Gerald 2026-11-07 19:19): „brauchen wir noch nicht“ – NICHT umsetzen. Die Freigabe-Antworten bleiben stehen; bei Wiederaufnahme nur Freigabe neu setzen.
+
+
 # Qualitätsprüfung – Prüfvorlagen, Prüfmaske mit Fotos, Übergabe an enaio
 
 > [!info] Bündel 2026-11-08, Teil B – eigener Dev-Lauf
@@ -470,6 +473,15 @@ unabhängig.
 11. **Folgeprozess bei n. i. O.** Empfehlung: in diesem Epic nur dokumentieren (Ergebnis + Pflicht-Bemerkung + Fotos); Sperrlager/Reklamation/
     Nacharbeit als eigener Backlog-Eintrag.
 
+## Freigabe-Nachtrag 2026-11-07 19:17 (Gerald, geht dem Rumpf vor)
+- Alle Rückfragen **wie empfohlen** (Antworten unten), Abweichungen nur wo dort vermerkt.
+- **Etappe E0 vor E1:** Alle Prüfabfragen dieser Spec, die lesend am AKE-Test möglich sind (SData nur GET mit `orderBy`; Sage-SQL bzw.
+  WMS-DB nur SELECT), führt der Dev selbst aus und trägt die Ergebnisse ein. **Weicht ein Ergebnis von der Spec-Annahme ab: Blocker melden,
+  nicht raten** (Muster B1 vom 07.11.). Prüfabfragen, die IDEAL-Systeme oder Menschen brauchen, bleiben offen; betroffene Teile hinter
+  Schalter/Standort aus.
+- **Etappen, die an Sage schreiben, bleiben blockiert und aus** (laut Bündel-Übersicht). Keine Schreibtests an Sage in diesem Lauf.
+- Worktree laut Lauf-Auftrag (Empfehlung Ü1: nach Merge des Bündels frisch von `main`).
+
 ## Freigabe-Antworten (Mensch fuellt aus — Schranke 1)
 
 <!--
@@ -479,14 +491,14 @@ unabhängig.
   als seinen Auftrag. Antworte je Frage in **fett** hinter dem Pfeil.
 -->
 
-1. Speicherort Fotos/Protokoll (DB / Dateisystem) →
-2. Fotogröße/Kompression (1920 px, 0,75, 10 MB, 20 Fotos) →
-3. Aufbewahrung (90 Tage nach Übergabe, Prüfdaten dauerhaft) →
-4. enaio-Verhalten nach Import / Fehlerordner →
-5. Freigabepfad je Standort, Dienstkonto, IDEAL-enaio →
-6. CSV-Bestätigung enaio-Betreuer; Bedeutung „Kundenauftrag“ →
-7. Zwei neue Rollen →
-8. Endprüfung IDEAL nur am HauptFA →
-9. Seriennummern (Feld jetzt, Sage später) →
-10. Vorlagen je Artikelkategorie (nicht in diesem Epic) →
-11. n. i. O.-Folgeprozess (nur dokumentieren) →
+1. Speicherort Fotos/Protokoll (DB / Dateisystem) → **wie empfohlen (Gerald 2026-11-07 19:17)**
+2. Fotogröße/Kompression (1920 px, 0,75, 10 MB, 20 Fotos) → **wie empfohlen (Gerald 2026-11-07 19:17)**
+3. Aufbewahrung (90 Tage nach Übergabe, Prüfdaten dauerhaft) → **wie empfohlen (Gerald 2026-11-07 19:17)**
+4. enaio-Verhalten nach Import / Fehlerordner → **Gerald 2026-11-07 19:17: Gerald klärt mit dem enaio-Betreuer; bis dahin Erfolgserkennung konfigurierbar (Einstellung nach ADR 0020), Übergabe-Schalter Default aus.**
+5. Freigabepfad je Standort, Dienstkonto, IDEAL-enaio → **Gerald 2026-11-07 19:17: Pfad und Dienstkonto als Einstellung je Standort, Default leer = Übergabe aus; IDEAL aus bis beantwortet.**
+6. CSV-Bestätigung enaio-Betreuer; Bedeutung „Kundenauftrag“ → **Gerald 2026-11-07 19:17: CSV-Format wie in der Spec; Bestätigung durch den enaio-Betreuer holt Gerald, bis dahin Übergabe aus. „Kundenauftrag“ = AB-Nummer laut Spec-Empfehlung.**
+7. Zwei neue Rollen → **wie empfohlen (Gerald 2026-11-07 19:17)**
+8. Endprüfung IDEAL nur am HauptFA → **wie empfohlen (Gerald 2026-11-07 19:17)**
+9. Seriennummern (Feld jetzt, Sage später) → **wie empfohlen (Gerald 2026-11-07 19:17)**
+10. Vorlagen je Artikelkategorie (nicht in diesem Epic) → **wie empfohlen (Gerald 2026-11-07 19:17)**
+11. n. i. O.-Folgeprozess (nur dokumentieren) → **wie empfohlen (Gerald 2026-11-07 19:17)**

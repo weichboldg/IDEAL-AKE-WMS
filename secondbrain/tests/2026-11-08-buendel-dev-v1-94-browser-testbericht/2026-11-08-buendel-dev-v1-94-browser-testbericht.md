@@ -150,3 +150,7 @@ nichts geändert).
 - Die fünf Sync-Schalter auf AKE-DEV sind an (Ausgangswert aus). Der Dienst liest nun alle 15 Minuten Artikel, Lieferanten,
   Kreditoren, Debitoren und Bestellungen aus `sagetest01`/`ake_TEST2026;1`.
 - IDEAL-DEV-Dienst: Datenbank-Anmeldung `IDEAL_TEST_2026_05_03` klären (Befund 6), sonst bleibt B1.3 IDEAL offen.
+
+## Nachtrag Koordination 2026-11-08 11:13 (Befund 5)
+Folgeläufe Artikel-Lieferanten-Abgleich AKE-DEV 10:51:25 und 11:10:21: `aktualisiert=0, unveraendert=33158` → Befund 5 erledigt; die
+Vollaktualisierung um 10:32 war einmalig (Versionssprung v1.94, neue Einheitenfelder).

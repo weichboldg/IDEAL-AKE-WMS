@@ -75,6 +75,7 @@ Dokument aktualisiert werden (siehe CLAUDE.md → "Testszenarien-Pflicht").
 | Kapitel 53: Lagerbestand-Nullsetzen verwaister Paare (v1.25.0) | [→](#kapitel-53-lagerbestand-nullsetzen-verwaister-paare-v1250) | — |
 | Kapitel 54: Aktivitäts-Protokoll-Bereinigung (v1.25.0) | [→](#kapitel-54-aktivitäts-protokoll-bereinigung-v1250) | TS-54.1 – TS-54.4 |
 | Kapitel 55: FA-Zusatzinfos (Sage) (v1.26.0) | [→](#kapitel-55-fa-zusatzinfos-sage-v1260) | TS-55.1 – TS-55.13 |
+| Kapitel 107: OSEON-Sync neu ausgeschriebener Auftrag + Stücklisten-Druck + Werkbank Kommissionierung (Hotfix v1.30.3) | [→](#kapitel-107-oseon-sync-neu-ausgeschriebener-auftrag--stücklisten-druck--werkbank-kommissionierung-hotfix-v1303) | TS-107.1 – TS-107.6 |
 
 ---
 
@@ -3598,6 +3599,7 @@ Befund vom 2026-09-28, ID 3664 auf akenet01); Zugriff Kommissionierung, Vorbau o
 **Erwartetes Verhalten:**
 - Neuer Auftrag erscheint in der OSEON-Liste.
 - Ampel und Soll-Termine korrekt berechnet.
+- Neu ausgeschriebene Aufträge (gleiche Auftragsnummer, neue OSEON-ID): siehe TS-107.1 (Hotfix v1.30.3).
 
 ---
 
@@ -3874,6 +3876,16 @@ ausgefuehrt (siehe Deploy).
   (Submitted) Bestellungen, deren Positionen vorher `0` zeigten **ohne** Fehlteil, zeigen jetzt leere
   Ist-Felder; Positionen mit Fehlteil-Markierung und alle teilgelieferten/abgeschlossenen Bestellungen sind
   **unveraendert**. Das Skript wird **nicht** ein zweites Mal ausgefuehrt. Direkt danach alle offenen Lagerbestellungs-Seiten **neu laden** (eine vorher geladene Seite traegt sonst die alte 0 noch im Feld und schickt sie als bestaetigte 0 zurueck).
+
+**Zusatz v1.30.2 — Zahnrad (Spaltenauswahl) sichtbar, auch nach dem Pflicht-Hinweis (Manual-UAT):**
+1. Lagerbestellung im Status Offen öffnen. **Erwartet:** Zahnrad-Button rechtsbündig direkt **oberhalb** der
+   Tabelle sichtbar; Klick öffnet die Spaltenauswahl (Offcanvas rechts), eine Spalte ein-/ausblenden funktioniert.
+2. Eine Position leer lassen und „Abschliessen" klicken → gelber Pflicht-Hinweis erscheint. **Erwartet:** Der
+   Hinweis steht **über** der Zahnrad-Zeile; das Zahnrad ist weiter sichtbar und öffnet die Spaltenauswahl
+   (vorher: Zahnrad unsichtbar im versteckten Hinweis bzw. beim Einblenden gelöscht).
+3. Leere Position ergänzen (Hinweis wird nachgeführt) und F5. **Erwartet:** Zahnrad sichtbar.
+- **Negativfall:** Zahnrad fehlt, erscheint im gelben Hinweis oder verschwindet nach Schritt 2 → Regression.
+  Automatisiert nur die Platzierung im Quelltext (`WarehousePickingDetailsZahnradHostTests`).
 
 ---
 
@@ -6352,5 +6364,49 @@ Lagerplatz-Flag `SageBuchungErlaubt`. Verarbeitung durch den `SageBookingWorker`
 
 ---
 
-*Ende des Dokuments. Stand: v1.30.0 (2026-08-06)*
+## Kapitel 107: OSEON-Sync neu ausgeschriebener Auftrag + Stücklisten-Druck + Werkbank Kommissionierung (Hotfix v1.30.3)
+
+Nummer 107 entspricht der Nummer im IDEAL-Bündel (Kapitel 57–106 gibt es nur dort), damit der spätere
+Bündel-Abgleich keine Umnummerierung braucht. Testumgebung: **AKE-Test** (nicht IDEAL).
+
+- **TS-107.1 — Neuausschreibung simulieren** (nur WMS-**Test**-DB AKE).
+  - Vorbedingungen: Dienst v1.30.3, `Sync:OseonTrackingEnabled = true`. Einmalig
+    `UPDATE dbo.OseonProductionOrders SET LastChangedInOseon = DATEADD(day, -1, LastChangedInOseon)`
+    (der nächste Lauf liest die OSEON-Änderungen des letzten Tages erneut). Auftrag X wählen, der in OSEON
+    in den letzten 24 h geändert wurde. Vorher notieren:
+    `SELECT o.Id, o.OseonId, (SELECT COUNT(*) FROM dbo.OseonWorkOperations w WHERE w.OseonProductionOrderId = o.Id) AS AGs FROM dbo.OseonProductionOrders o WHERE o.OseonOrderNumber = 'X'`.
+  - Schritte: 1. `UPDATE dbo.OseonProductionOrders SET OseonId = OseonId + 900000000000 WHERE OseonOrderNumber = 'X'`.
+    2. Sync-Lauf abwarten (oder Dienst neu starten).
+  - Erwartet: Lauf „OSEON-Tracking" mit Status Erfolg, kein Fehler 2601. Gleiche `Id`, `OseonId` wieder der
+    OSEON-Wert, `ModifiedBy = 'IDEALAKEWMSService'`, AG-Anzahl nicht kleiner als vorher. Count
+    `neu_ausgeschrieben=1` und in `/SyncLog` die Warnung „Auftrag X: OSEON-ID {alt} → {neu} (neu ausgeschrieben)".
+    `SELECT MAX(LastChangedInOseon)` ist mindestens die `DateOfLastChange` von X (kein Delta-Hänger).
+- **TS-107.2 — Normallauf.** Nächster Lauf ohne Eingriff: Erfolg, `neu_ausgeschrieben=0`,
+  `mehrfach_in_oseon=0`, `doppelt_nach_kollation=0`, `aeltere_id_uebersprungen=0`; `neu`/`aktualisiert` wie gewohnt.
+- **TS-107.2b — Ältere OSEON-ID wird nicht zurückgeschrieben (QA-Befund B1).** Nach TS-107.1 (WMS hält jetzt
+  die echte, höhere ID): `UPDATE dbo.OseonProductionOrders SET OseonId = OseonId + 900000000000 WHERE OseonOrderNumber = 'X'`
+  **nicht** wiederholen, sondern einen zweiten Auftrag Y wählen und `SET OseonId = OseonId + 900000000000` setzen
+  (WMS hält dann eine *höhere* ID als OSEON liefert). Lauf abwarten. Erwartet: Y bleibt unverändert (`OseonId`,
+  Status, `ModifiedAt` wie vorher), Count `aeltere_id_uebersprungen=1`, Warnung „Auftrag Y: OSEON liefert ältere ID …,
+  gespeichert ist … — nicht übernommen". Danach Y per `SET OseonId = OseonId - 900000000000` zurücksetzen.
+- **TS-107.3 — Negativfall Altstand (optional).** Mit v1.30.1 und Schritt 1 aus TS-107.1 tritt Fehler 2601 auf.
+- Mehrfachlieferung (zwei OSEON-IDs je Nummer) und Groß/Klein sind nur per Unit-Test abgedeckt
+  (`OseonOrderSelectionTests`). Taucht ein echter Fall auf: Warnung `mehrfach_in_oseon`, kein Fehler.
+- **TS-107.4 — Stücklisten-Druck 2 cm tiefer (Z1).** Stückliste einer FA öffnen → Drucken → Druckvorschau des
+  Browsers (A4). Erwartet: Der obere Rand ist ca. 2 cm größer als vorher (28 mm statt 8 mm); seitlich/unten
+  unverändert, Inhalt nicht abgeschnitten, Folgeseiten ebenfalls mit großem oberem Rand.
+- **TS-107.5 — Stücklisten-Druck übernimmt Sortierung (Z2).** Stückliste öffnen, Spaltenkopf
+  „Bezeichnung 1" anklicken (▲), dann Drucken. Erwartet: Druck in derselben Reihenfolge wie die Ansicht
+  (alphabetisch nach Bezeichnung 1). Ebenso absteigend (▼) und mit einer anderen Spalte (z. B. Menge).
+  Mit Spaltenfilter **und** Sortierung: nur die gefilterten Zeilen, sortiert. Negativfall: ohne Sortierung
+  und ohne Filter druckt wie bisher alles nach Position. Gilt auch aus FA-Abarbeitungsliste/FA-Vervollständigung.
+- **TS-107.6 — Werkbank in der Kommissionierung (Z3).** Menü „Kommissionierung" (Leitstand aktiv). Erwartet:
+  Spalte „Werkbank" nach „Kunde", gefüllt mit der Werkbank der FA (leer, wenn keine). Spaltenfilter z. B.
+  `A1` filtert serverseitig über alle Seiten. In der Spaltenauswahl ist „Werkbank" ein-/ausblendbar und
+  verschiebbar; Benutzer mit bereits gespeicherter Spaltenauswahl sehen die neue Spalte trotzdem (Default
+  sichtbar).
+
+---
+
+*Ende des Dokuments. Stand: v1.30.3 (2026-11-08)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*

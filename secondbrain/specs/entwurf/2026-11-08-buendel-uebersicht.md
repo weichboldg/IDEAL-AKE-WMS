@@ -85,6 +85,20 @@ Was nur in Sage oder den Produktiv-DBs steht, ist in den Specs als Prüfabfrage 
 | C1 | P1/P2 Einheiten, P4, **P5 schreibt** in den Dispo-Stapel (nur mit Geralds Freigabe, Testposition wieder löschen) | E4, E5 |
 | C2 | P1 … P5 (Kommissionierziele IDEAL, AKE-Gruppen, **P3 Umfang Mengenfehler B1**, LeitstandAktiv, Altbestand) | E1 Regeln, E5 |
 
+## Freigabe-Nachtrag 2026-11-07 17:10 (Gerald, geht allem vor)
+- **Heute im Bündel-Worktree:** A1–A4 und B1 (Wareneingang) – alle Rückfragen wie empfohlen; A1 Frage 1 mit Abweichung (Altwerte auf den heute
+  wirksamen Zustand); B1 mit neuer Etappe E0 (Prüfabfragen lesend durch den Dev). Freigegeben 2026-11-07.
+- **Nicht in diesem Lauf:** A5 (FA-Feld, eigener Lauf), B2, B3, C1, C2 (Entwurf, Prüfabfragen offen).
+- **Ü1:** Danach Schranke 2 und EIN Merge des Bündels; B2/B3/C1/C2 je in frischem Worktree von `main`.
+- **Ü2:** feste SQL-Blöcke mit Lücken – ja. **Ü3 EAN 1.78.0: behalten** (Freigabe erneuert); QA-Befund E2 (Hardware-Scan bei offenem
+  Auswahlfenster) im selben Lauf nachbessern.
+- Zusatzfund **Kommissionierfotos ohne Anmeldung**: Hotfix aus `main` in eigener Session (Sicherheit), nicht im Bündel.
+
+## Nachtrag 2026-11-07 19:19 (Gerald)
+- **Zurückgestellt, nicht umsetzen:** C1 Einkauf/Bestellvorschläge, B2 Versandmasken, B3 Qualitätsmasken („brauchen wir noch nicht“;
+  Specs in `entwurf/`, Freigabe-Antworten bleiben).
+- **Freigegeben für den nächsten Lauf:** Nachbesserungen A2 (inkl. Mengeneinheiten) und B1, A5 Lagerbuchungen FA-Feld, C2 Kommissionierung.
+
 ## Offene Fragen (alle, je mit Empfehlung)
 
 Nummern wie in der jeweiligen Spec; dort steht die Begründung.

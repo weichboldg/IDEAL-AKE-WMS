@@ -64,6 +64,17 @@ Meldebestand-Farbe).
 **Warum:** Die IDs sind bereits jenseits von `int.MaxValue`; ein `int`-Cast wirft zur Laufzeit
 oder trunkiert.
 
+### MERGE-Schluessel = eindeutiger Index; OSEON schreibt Auftraege neu aus (v1.30.2)
+Ein Sync-MERGE muss `ON` genau ueber das Merkmal laufen, das in der Zieltabelle eindeutig ist — bei
+`OseonProductionOrders` die `OseonOrderNumber`, nicht die `OseonId`. Die MERGE-Quelle muss nach **DB-Kollation**
+eindeutig sein: C#-Gruppierung `OrdinalIgnoreCase` plus `ROW_NUMBER() … WHERE rn = 1` als SQL-Waechter.
+**Warum:** OSEON schreibt einen Auftrag neu aus (gleiche `AuftragsNr`, neue `ID`). Der MERGE ueber `OseonId` fand
+die neue ID nicht, wollte einfuegen und scheiterte am UNIQUE-Index der Nummer (Fehler 2601). Der ganze Lauf brach
+ab, `MAX(LastChangedInOseon)` rueckte nicht vor, und derselbe Fehler kam in jedem Lauf wieder (Delta-Haenger).
+Ein eindeutiger Index auf `OseonId` waere keine Loesung — er verlagert denselben Fehler an eine andere Stelle.
+Die C#-Gruppierung bildet die Kollation nur nach; Zeichen mit Gewicht 0 sieht nur SQL.
+→ [[2026-11-07-oseon-sync-neu-ausgeschriebener-auftrag-spec]], [[2026-11-07-oseon-sync-neu-ausgeschriebener-auftrag-bug]].
+
 ### enaio `object1.id` ist int
 `Convert.ToInt64(reader.GetValue(0))` verwenden.
 **Warum:** Der Reader liefert den nativen Typ; ein direkter `GetInt64` wirft
@@ -208,6 +219,7 @@ Loesung: der Hidden-Input traegt den `name`, die Checkbox hat **keinen** `name` 
 `onchange`-Handler den Hidden-Wert.
 **Warum:** Der Model-Binder nimmt bei zwei Feldern gleichen Namens den ersten Wert — die
 Checkbox-Stellung geht verloren. Betrifft u. a. die `/ServiceSettings`-Bool-Toggles.
+**Zweite zulässige Lösung (v1.81.0/v1.92.0):** Hidden-„false“ **hinter** die gleichnamige Checkbox (angehakt kommt `true,false` → `true`). Vor der Checkbox ist es immer falsch – so verloren OSEON „Fremdsystem-Relevanz“ und BDE-Edit „Final“/„Löschen“ still ihren Wert ([[2026-11-08-oseon-relevanzfilter-schaltet-sich-ab-spec]]). Binder-Nachweis im Projekt: `CheckboxHiddenFeldV192Tests`. Wird ein Wert dadurch erstmals wirksam, die Folgeregel prüfen (BDE: UNIQUE-Index „eine Final-Zeile“ → Formularfehler statt 500).
 
 ### `data-col-key` ist Pflicht auf allen `<th>` in filterable-tables
 Bei neuen Spalten: Key in `ColumnDefinitions.cs` definieren **und** in der View verwenden.

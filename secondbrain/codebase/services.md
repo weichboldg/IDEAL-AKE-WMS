@@ -127,6 +127,7 @@ liefert `Beschichtet`/`Arbeitsschritte` explizit. Konstruktor-Signatur: Reader s
 | `BomCacheCoverage.cs` | Auswertung „FA im Fenster / gecacht / ohne BOM" |
 | `SageProductionOrderSql.cs` | `BuildUpsert` inkl. `COL_LENGTH`-Check fuer `SubOrderNumber` |
 | `SageImportHelpers.cs` | Feld-Normalisierungen des Sage-Imports |
+| `OseonOrderSelection.cs` | OSEON-Tracking-Sync: je Auftragsnummer (OrdinalIgnoreCase) eine Zeile = höchste OSEON-ID, AGs nur aus dieser Zeile je (Nummer, Position) einmal, Mehrfachlieferungen für die Meldung (v1.30.2, [[2026-11-07-oseon-sync-neu-ausgeschriebener-auftrag-spec]]) |
 
 Dieses Muster ist Absicht: die raw-SQL-Strecken sind nicht InMemory-testbar, also liegt die
 **Entscheidung** in einem reinen Helper daneben und nur die **Ausfuehrung** im SQL-Pfad.
@@ -335,6 +336,7 @@ Quellen-Weiche je Abgleich: [[0019-quellen-weiche-view-sdata-je-abgleich]]. Ordn
   - `StillstandsgruendeSyncService` (`Sync:StillstandsgruendeEnabled`, `StillstandsgruendeSync`; Counts gelesen, neu, aktualisiert, unveraendert, uebersprungen, nicht_in_sage, nicht_in_sage_neu, wieder_in_sage).
   - `KontokorrentSyncService` (`Sync:KreditorenEnabled`/`Sync:DebitorenEnabled`, `KontokorrentSync`, Läufe Kreditoren/Debitoren, `where KtoArt eq 'K'|'D'`; Counts gelesen, neu, aktualisiert, verknuepft, unveraendert, uebersprungen, nicht_in_sage, nicht_in_sage_neu, wieder_in_sage, moegliche_dubletten).
   - `ArtikelLieferantSyncService` (`Sync:ArtikelLieferantEnabled`, `ArtikelLieferantSync`, nach Artikel; Counts gelesen, neu, aktualisiert, unveraendert, entfernt, hauptlieferant, artikel_fehlt, kreditor_fehlt, uebersprungen).
+  - `EinkaufBestellungenSyncService` (v1.84.0, `Sync:EinkaufBestellungenEnabled`, Lauf „Offene Bestellungen (Sage)“ = `SyncLogServices.EinkaufBestellungen`, nach Artikel-Lieferanten; nur `EinkaufPositionenInfo where Belegkennzeichen eq 'EBB'`; Counts positionen, koepfe, uebernommen, belegart_ausgeschlossen, artikel_fehlt, kreditor_fehlt, lagerplatz_fehlt, einheit_abweichend, lieferant_gesperrt, uebersprungen; Empty-Guard).
 - G10: Lagerplatz-/Lagerbestand-Abgleich mailen Lesefehler nur bei Quelle SData/Vergleich (View wie bisher ohne Mail).
 - Umbuchung: `SageLagerbuchungUmbuchungAktiv` (Default false); einzige Typliste `SageBookingEnqueueDecision` (`BookableTypes`, `Buchungsart`,
   `IstUmbuchungMitFaBezug`); Nacherfassung `EnqueueMissingAsync(..., umbuchungAktiv)`.
