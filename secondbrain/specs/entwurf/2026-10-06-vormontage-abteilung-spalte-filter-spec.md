@@ -3,8 +3,9 @@ type: spec
 title: Vormontage-Listen — Montage-Abteilung als Spalte und Filter
 slug: 2026-10-06-vormontage-abteilung-spalte-filter-spec
 status: Entwurf
+superseded_by: "[[2026-11-11-vormontage-spalte-abteilung-hauptfa-spec]]"
 created: 2026-10-06
-updated: 2026-10-07
+updated: 2026-11-11
 source_backlog: "[[2026-10-06-vormontage-abteilung-spalte-filter]]"
 task: ""
 worktree: ""
@@ -31,6 +32,14 @@ freigabe_entscheidung: ""
 freigabe_von: ""
 freigabe_am: ""
 ---
+
+> [!warning] Überholt (2026-11-11) — nicht mehr umsetzen
+> Variante A (Spalte „Arbeitsbereich“ je Position) ist mit v1.72.0 gebaut, über
+> [[2026-11-06-lagerplatz-etikett-rolle-und-vormontage-felder-spec]]. Die hier verworfene Variante B (Abteilung je HauptFA
+> aus `FaHierarchyOrderInfo.MontageAbteilung`) wünscht Gerald jetzt zusätzlich. Sie wird in
+> [[2026-11-11-vormontage-spalte-abteilung-hauptfa-spec]] neu spezifiziert, gegen den Stand v1.99.1. Der Text unten bleibt
+> als Audit-Trail unverändert stehen. Der Status bleibt `Entwurf`, weil die Vorlage keinen eigenen Wert für überholte Entwürfe
+> kennt (im Archiv steht dafür `Ueberholt`); Archivieren entscheidet der Mensch.
 
 > [!warning] Aufgenommen in eine neue Spec (Gerald 2026-11-06)
 > Diese Spec wird nicht mehr eigenständig umgesetzt. Ihr Inhalt geht in die Spec zum Backlog-Eintrag
