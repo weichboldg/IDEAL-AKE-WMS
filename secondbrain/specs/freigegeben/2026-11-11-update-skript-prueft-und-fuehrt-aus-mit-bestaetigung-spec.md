@@ -2,7 +2,7 @@
 type: spec
 title: Update-Skript prüft und führt aus, mit Bestätigung (v1.99.0)
 slug: 2026-11-11-update-skript-prueft-und-fuehrt-aus-mit-bestaetigung-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-11-11
 updated: 2026-11-11
 freigabe_von: "Gerald Weichbold (Chat Koordination, „Ok“ 2026-11-11 18:38)"
@@ -235,6 +235,7 @@ Das Zuweisen an Anwender bleibt Hand-Schritt (Info-Eintrag `v1.51.0-Rolle`, Text
    - `e` → Marker `VonHand` mit Notiz „von Hand erfasst“.
    - `n` → der Eintrag bleibt offen.
 3. Backup: wie A4. Aus diesem Lauf oder bestätigt „liegt vor“ wie Schritt 2. ADR 0015 verlangt das Backup vor dem Skript.
+   **Ab v1.99.1 (Freigabe-Nachtrag Punkt 3): nur ein Backup aus diesem Lauf; „liegt vor“ reicht nicht mehr.**
 4. `j` → `Invoke-SqlTransaktion`:
    1. Datei in Batches teilen (Regex wie `20260512120355_AddProductionOrderSplit.cs:50`).
    2. Alle Batches in **einer** SqlClient-Transaktion ausführen. `PRINT` kommt über `InfoMessage`, jede Ergebnismenge über
@@ -584,7 +585,7 @@ ServiceSettings, ändern aber keine. Manifest und `ziele.psd1` sind Paketkonfigu
    - zeigt vor der Reparatur die anderen Sitzungen der DB, nennt `ROLLBACK IMMEDIATE` in der Frage, läuft ohne Transaktion;
    - danach `is_read_committed_snapshot_on = 1`;
    - liefert auf einer DB mit beiden Schaltern `false` die 0.
-7. `Pruefung/RollenBeschichtungsauftrag` (AKE) legt nur fehlende Rollen an (`IsSystem = 1`, Audit laut Abschnitt); vorhandene bleiben
+7. `Pruefung/RollenBeschichtungsauftrag` (AKE; ab v1.99.1 beide) legt nur fehlende Rollen an (`IsSystem = 1`, Audit laut Abschnitt); vorhandene bleiben
    unverändert. An IDEAL läuft die Prüfung nicht.
 8. `Pruefung/DummyArtikel` legt über `SQL/86` den Artikel `DUMMY` an, wenn er fehlt.
 9. Fluss A:
@@ -648,7 +649,7 @@ Kapitel, `docs/TESTSZENARIEN.md:11474`). Danach `secondbrain/tests/testszenarien
 
 | Nr | Szenario | Erwartet | Wer |
 |---|---|---|---|
-| 126.1 | Kopie-DB: Kommissionierbereiche leer (vorher abhängige `PickingOrders`/`PickingOrderLines` der Kopie leeren), DUMMY gelöscht, RCSI aus und `Sync:HierarchicalFaEnabled = true`; `-NurPruefen` | Vorprüfung: drei Abweichungen, `RollenBeschichtungsauftrag` nicht gelistet (Firma IDEAL), Backup-Pfad-Bericht, nichts geändert, Pool/Dienst vorher = nachher | Agent |
+| 126.1 | Kopie-DB: Kommissionierbereiche leer (vorher abhängige `PickingOrders`/`PickingOrderLines` der Kopie leeren), DUMMY gelöscht, RCSI aus und `Sync:HierarchicalFaEnabled = true`; `-NurPruefen` | Vorprüfung: drei Abweichungen, `RollenBeschichtungsauftrag` nicht gelistet (Firma IDEAL; ab v1.99.1 gelistet, siehe 126.21), Backup-Pfad-Bericht, nichts geändert, Pool/Dienst vorher = nachher | Agent |
 | 126.2 | Volllauf auf die Kopie | 3. beide gestoppt; 4a: je Reparatur eine Frage; RCSI zeigt Sitzungen; danach drei Bereiche (Lager Standard), DUMMY da, RCSI 1; Altbestand-Trockenlauf mit `TREFFER: n` | Agent |
 | 126.3 | Reparatur mit „n“ | Warnung, Lauf geht weiter, Warnung in der Nachlauf-Liste | Agent |
 | 126.4 | `Pruefung/Standardbereich`: Bereiche vorhanden, keiner Standard | nur Hinweis, keine Reparatur | Agent |
@@ -686,7 +687,20 @@ Empfohlene Commit-Reihenfolge im Dev-Lauf (kein Epic, nur zur Orientierung):
 
 ## Deploy
 
-**Final (qa-agent 2026-11-11, aus dem echten Diff `e1ecc0c0..55ec218a`):**
+**Final v1.99.1 (qa-agent 2026-11-11, aus dem echten Diff `55ec218a..f79ba893`; ersetzt das Paket v1.99.0 unten):**
+- `deploy.web: true` (nur `IdealAkeWms/AppVersion.cs` und die Changelog-Karte); `deploy.service: true` (nur `IDEALAKEWMSService/AppVersion.cs`);
+  `deploy.migration: false` (keine neue Datei unter `*/Migrations/`, kein neues SQL). Fachlich geaendert sind nur `deploy\Update-IdealAkeWms.ps1`
+  und `deploy\nachlauf.psd1` im Paket. Weil v1.99.0 noch auf keinem Zielsystem lief, gilt fuer jedes Zielsystem der v1.99.0-Ablauf unten
+  unveraendert (inkl. `SQL/142`, P-B1), nur mit diesem Paket.
+- **Paket:** `C:\git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish\` (v1.99.1, `publish-info.txt` Commit
+  `f79ba8938f4e27547aed686684d75724ffcae2d6`; die Binaries wurden aus `9071dcf7` gebaut, `f79ba893` aendert nur `docs/`). Beide Komponenten,
+  `SQL\`, `deploy\`.
+- Neu fuer den Bediener: Backup in Schritt 2 anlegen lassen. Ohne Backup aus demselben Lauf bleiben `SCHARF` (Fluss A) und `uebernehmen`
+  (Fluss B, v1.47.4 an IDEAL-Test) gesperrt; „liegt vor“ reicht dafuer nicht mehr. An IDEAL-Systemen bietet 4a jetzt auch die Rollen-Reparatur an.
+- Nach dem Merge nur dann aus `main` neu publizieren, wenn der Merge getestete Dateien mit parallelen main-Aenderungen zusammenfuehrt
+  (Befehle unten).
+
+**Final v1.99.0 (qa-agent 2026-11-11, aus dem echten Diff `e1ecc0c0..55ec218a`):**
 - `deploy.web: true` (`IdealAkeWms/`: `Program.cs` Startup-Seed, `Models/DeployScriptRun.cs`, `ApplicationDbContext`, `AppVersion.cs`,
   `Views/Help/Changelog.cshtml`); `deploy.service: true` (`IDEALAKEWMSService/AppVersion.cs`; der Dienst referenziert das Web-Projekt und damit
   das geaenderte EF-Modell, [[fallstricke]] §5); `deploy.migration: true` (neu `IdealAkeWms/Migrations/20261111174202_AddDeployScriptRuns.cs`,
@@ -722,7 +736,7 @@ Empfohlene Commit-Reihenfolge im Dev-Lauf (kein Epic, nur zur Orientierung):
 | `Pruefung/Kommissionierbereiche` | 1.88.0 | Pruefung | beide | Haltepunkt | Reparatur | leer → `SQL/133` erneut |
 | `Pruefung/Standardbereich` | 1.88.0 | Pruefung | beide | Haltepunkt | anzeigen | Standard unter Stammdaten → Kommissionierbereiche festlegen |
 | `Pruefung/RCSI` | 1.31.0 | Pruefung | beide | Haltepunkt | Reparatur | RCSI an, wenn FA-Struktur-Import oder Master an; `OhneTransaktion` |
-| `Pruefung/RollenBeschichtungsauftrag` | 1.51.0 | Pruefung | AKE | Haltepunkt | Reparatur | fehlende Rollen anlegen |
+| `Pruefung/RollenBeschichtungsauftrag` | 1.51.0 | Pruefung | beide (v1.99.1; bis v1.99.0 AKE) | Haltepunkt | Reparatur | fehlende Rollen anlegen |
 | `Pruefung/DummyArtikel` | `<Version von SQL/86>`* | Pruefung | beide | Haltepunkt | Reparatur | fehlt → `SQL/86` |
 | `Pruefung/QrTrennzeichenKomma` | 1.69.0 | Pruefung | beide | Nachher | anzeigen | Lagerplatz-Codes mit Komma bei Trennzeichen `,` |
 | `Pruefung/Firmenanschrift` | 1.49.0 | Pruefung | IDEAL | Nachher | anzeigen | Anschrift „38, 4840“ unter /Settings korrigieren |
@@ -995,3 +1009,90 @@ Transaktion):
 | 126.23 | SynthA `TREFFER: 3`, Backup-Angebot j, Ordner `D:\GibtEsNicht` fehlt, leer → „Backup uebersprungen“, „Ohne Backup aus diesem Lauf bleibt SCHARF gesperrt …“, Eintrag offen, Lauf zu Ende (Exit 0) |
 | 126.24 | Schritt 2 nur „liegt vor“; SynthB j → „Kein Backup aus diesem Lauf“, n → „bleibt uebernehmen gesperrt“, nichts ausgefuehrt (Probe 0 Zeilen, 0 Marker), Lauf weiter, Start v1.99.1 |
 | 126.25 | Schritt 2 Backup j mit `-BackupPfad D:\GibtEsNicht`: „Ordner … fehlt“, Eingabe `D:\AuchNicht` → „fehlt“, leer → „Backup uebersprungen“, dann „Liegt ein aktuelles Backup vor?“ j, Lauf weiter |
+
+## QA-Nachweis Nachtrag v1.99.1 (qa-agent 2026-11-11)
+
+Gepruefter Bereich: `55ec218a..9071dcf7` (Commit `9071dcf7`) plus QA-Fix `f79ba893` (nur `docs/`). Build und Tests ueber den ganzen
+Buendel-Worktree.
+
+**1. Build und Tests** (Worktree, Stand `9071dcf7`):
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler, 28 Warnungen (Bestand).
+- `dotnet test`: IdealAkeWms.Tests **2609 bestanden / 1 uebersprungen / 0 Fehler** (2610); IDEALAKEWMSService.Tests **512 / 0 / 0**
+  (darin `NachlaufManifestDriftTests`, `DeployScriptRunsMigrationSqlTests`).
+- `ParseFile` unter `powershell.exe` 5.1.26100.9711: 0 Parsefehler fuer alle 5 Dateien in `scripts/deploy`; `Import-PowerShellDataFile nachlauf.psd1`:
+  81 Eintraege.
+
+**2. Code-Review** (selbst, in diesem Lauf). Gelesen: Diff `Update-IdealAkeWms.ps1` und `nachlauf.psd1` mit Umgebung (`Test-Neuer :262`,
+`Invoke-Pruefung :415-448`, Backup-Block `:451-506`, Fluss A/B `:546-591`, Vorpruefung/Plan `:651-705`, Schritt 2 `:715-724`, 4a, 5b,
+`Show-Nachlauf`), `Read-Eingabe`/`Read-Ja`/`Write-*` im Modul (nur Host-Ausgabe, keine Pipeline-Verschmutzung der Rueckgabewerte), Changelog-Karte,
+README, TS-126.21–126.25, AppVersion beider Projekte.
+- Auftragspunkt 1: Manifest `Firma='beide'`, Texte nachgezogen; Rollen-Pruefung erscheint an IDEAL (DEV-Beleg unten). Der 4a-Text nennt
+  „Zuweisen bleibt Hand-Schritt (unter /Roles)“ (`:419`), daher reicht `v1.51.0-Rolle` mit Firma AKE.
+- Auftragspunkt 2: `Test-Faellig` (`:510`) ist die einzige Regel fuer Vorpruefung (`:688`), Plan (`Get-OffeneEintraege :511`), 4a, 5b und
+  Nachlauf-Liste; per Grep keine verbliebene Inline-Kopie (`Test-Neuer` nur noch in `Test-Faellig` und in der Vorher-Liste `:692`, die keine
+  Daten-Eintraege enthaelt). Bei unbekannter Version liefert `Test-Neuer` true; „nicht faellig … installiert v“ mit leerer Version kann nicht entstehen.
+- Auftragspunkt 3: `Get-BackupOrdner` fragt bis gueltig, leer = `$null`; `Invoke-Backup` liefert genau einen Bool, Fehler nur als Warnung;
+  Schritt 2 faellt bei uebersprungen/fehlgeschlagen auf „Liegt ein aktuelles Backup vor?“ zurueck (n = Abbruch vor dem Stoppen wie bisher);
+  `Test-BackupFuerLauf` gibt nur bei `$script:BackupDatei` frei. **Verschaerfung Fluss B:** Der Nachtrag sagt woertlich „Ohne Backup aus dem Lauf
+  bleiben `SCHARF` und `uebernehmen` gesperrt“. Die Umsetzung (nur Backup aus diesem Lauf, „liegt vor“ reicht nicht mehr) entspricht dem Wortlaut;
+  B3 der Spec ist mit Vermerk „ab v1.99.1“ nachgezogen.
+- Unabhaengige Probe (PS 5.1 + StrictMode 2, Funktionen per AST aus dem Skript, Wegwerf-DB `QA_V1991_PROBE` auf `.` und Ordner
+  `D:\Dev\deploytest\qa_v1991_bak`, beide danach geloescht): `-BackupPfad D:\GibtEsNicht` + Eingabe `D:\AuchNicht` + leer → „Backup uebersprungen“,
+  Rueckgabe `False` (ein Objekt); ungueltig → gueltiger Ordner → Backup geschrieben, `True`; „nicht pruefbar“ (Zugriff verweigert) → „Trotzdem?“
+  n → erneute Ordnerfrage; `BACKUP` scheitert (DB fehlt) → Warnung „Backup fehlgeschlagen …“, `False`, kein Abbruch; `Test-BackupFuerLauf` n →
+  „bleibt uebernehmen gesperrt“ `False`, j → `True`, j + Fehler → „bleibt SCHARF gesperrt“ `False`; `Test-Faellig`: Daten 1.79.0 bei 1.99.0 False,
+  Daten 1.99.1 True, Einmalig alt True, Daten bei unbekannter Version True.
+- Standard-Defektklassen: keine Razor-/JS-Aenderung ausser der statischen Changelog-Karte; keine Einstellung.
+
+| # | Schwere | Fundstelle | Befund | Behandlung |
+|---|---|---|---|---|
+| F5 | Niedrig | `docs/TESTSZENARIEN.md:11535, :11550` | TS-126.1 erwartete „keine Rollen-Pruefung (IDEAL)“, TS-126.16 „leer → Abbruch vor dem Stoppen“; beides widerspricht v1.99.1 (126.21, 126.25), der manuelle Test waere als FEHLER gelaufen. | **behoben** `f79ba893` (Erwartung je „ab v1.99.1 …“ mit Verweis) |
+| F6 | Niedrig | Spec (AK 7, Deploy-Tabelle, TS-Tabelle 126.1, B3) | Auftragspunkt 1 verlangt „Spec-Text nachziehen“; AK 7, Deploy-Tabelle und 126.1 nannten noch AKE, B3 noch „liegt vor“. | **behoben** in dieser Spec (Vermerke „ab v1.99.1“) |
+| H2 | Hinweis | `Update-IdealAkeWms.ps1:721` | `$script:BackupLiegtVor` wird noch gesetzt, aber nirgends mehr gelesen (toter Zustand). | offen (Kosmetik) |
+| H3 | Hinweis | `Update-IdealAkeWms.ps1:549, 560` | Am **Haltepunkt** (Altbestand mit Treffer > 0) fuehrt „Backup j, Ordner leer“ weiterhin zum Abbruch mit gestopptem Web und Dienst. Ursache ist die Haltepunkt-Regel (ohne `SCHARF` Abbruch), nicht der fehlende Ordner; die Meldung ist klar, ein Neustart setzt fort. Vom Dev-Lauf dokumentiert („am Haltepunkt Abbruch wie bisher“). Vorbeugung: Backup in Schritt 2 anlegen. | Entscheidung Gerald |
+
+F3 und F4 aus v1.99.0 sind mit Punkt 2 bzw. 3 erledigt (F4 ausser am Haltepunkt, siehe H3).
+
+**3. Beweisart je Auftragspunkt** (kein automatisierter Test fuer das Skriptverhalten):
+
+| Punkt | Beweis |
+|---|---|
+| 1 Rollen-Pruefung beide | QA `-NurPruefen` IDEAL-DEV (Abweichung 2, Plan „Reparaturen: … Pruefung/RollenBeschichtungsauftrag“) + Dev 126.21 (Reparatur auf der Kopie) + Drift-Tests (Manifest gueltig) |
+| 2 „nicht faellig“, eine Regel | QA `-NurPruefen` AKE- und IDEAL-DEV (`SQL/108`, `SQL/110` „nicht faellig“, Nachlauf-Liste ohne beide) + Code-Review (eine Funktion) + QA-Probe `Test-Faellig` |
+| 3 Backup ueberspringen, Sperre | QA-Probe (echtes `BACKUP` und `sys.dm_os_file_exists` gegen `.`) + Dev 126.23–126.25 (Kopie-DB, Volllauf) + Code-Review Schritt 2 |
+
+**4. Geaenderte bestehende Tests:** keine (Diff ohne Testdateien).
+
+**5. Checkliste:** keine Migration, kein SQL; Version 1.99.1 in beiden `AppVersion.cs`; Anwender-Changelog-Karte; Brain-Changelog
+[[2026-11-11-v1-99-1-update-skript-nachbesserung]]; README; TS-126.21–126.25 in `docs/TESTSZENARIEN.md` und im Testindex; kein neuer
+Deploy-Schritt (die Manifest-Aenderungen sind selbst der Inhalt). **5a ADR 0020:** keine Einstellung.
+
+**6. DEV** (`standort: beide`):
+- `dev-deploy.ps1 -Standort AKE` und `-Standort IDEAL` aus dem Worktree (Stand `9071dcf7`), erhoehte Shell: Exit 0/0, „HTTP 200, Fusszeile
+  v1.99.1“, DEV-Absicherung angewandt, Dienste `Running`, App-Pools `Started`.
+- `Update-IdealAkeWms.ps1 -NurPruefen` aus `publish\deploy` (`-System Test -WebPfad D:\Dev\<F>\Web -DienstPfad D:\Dev\<F>\Service -SiteUrl
+  http://localhost:808x/ -LogPfad D:\Dev\deploytest\qa_v1991_logs`), Exit 0/0:
+  - AKE-DEV: installiert v1.99.1; Rollen Abweichung 2, Rest OK; `SQL/108`/`SQL/110` „nicht faellig (eingefuehrt mit v1.79.0 / v1.87.0, installiert
+    v1.99.1)“; Altbestand offen; Plan: Reparatur Rollen, Haltepunkt Altbestand, vor dem Start nichts. **OK**
+  - IDEAL-DEV: RCSI Abweichung 1 (Z1), **Rollen Abweichung 2** (neu, Punkt 1), Firmenanschrift 1 (von Hand); `SQL/108`/`SQL/110` „nicht faellig“;
+    Plan: Reparaturen RCSI und Rollen, Haltepunkt Altbestand, vor dem Start v1.47.4; Nachlauf-Liste nur die drei Einmalig-Eintraege. **OK**
+  - Danach unveraendert: Marker 0, RCSI 0, Rollen 0 (beide DBs), nichts gestoppt.
+- TS-126.23–126.25 (Volllauf mit Backup-Varianten) auf den echten DEV-DBs: **NICHT MOEGLICH** im Rahmen (ein Volllauf stoppt und repariert);
+  belegt durch den Dev-Lauf auf der Kopie-DB und die QA-Probe oben.
+- Browser: kein Szenario braucht den Browser.
+- AKE-DEV-Sync-Schalter: nicht angefasst (setzt der Koordinator).
+
+**7. Publish:** `C:\git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish\` neu (vorher geleert): `IDEALAKEWMSWeb\`,
+`IDEALAKEWMSWebService\`, `SQL\`, `deploy\`, `publish-info.txt` (Version 1.99.1, Commit `f79ba8938f4e27547aed686684d75724ffcae2d6`, Branch
+`feature/2026-08-07-ideal-teile-1-5`, Erstellt 2026-11-11 19:53). Binaries aus `9071dcf7` (DLL-Stempel); `f79ba893` aendert nur `docs/`.
+Manifest im Paket: Rollen-Pruefung Firma `beide`.
+
+**Manuelle Checkliste (Gerald, Schranke 2; ersetzt die v1.99.0-Liste oben, deren Punkte 4–6 gelten weiter):**
+1. P-B1 je SQL-Server wie oben.
+2. Je Zielsystem `-NurPruefen` mit dem Paket v1.99.1: IDEAL-Test zeigt jetzt auch die Rollen-Pruefung; `SQL/108`/`SQL/110` „nicht faellig“, wo
+   installiert >= Version.
+3. TS-126.20 Volllauf je Zielsystem; dabei in Schritt 2 das Backup anlegen lassen (sonst bleibt `uebernehmen` fuer v1.47.4 an IDEAL-Test gesperrt).
+   An IDEAL-Test nach der Rollen-Reparatur die Rollen unter /Roles zuweisen.
+4. Optional TS-126.23–126.25 an einem Testsystem (leerer Ordner → uebersprungen, Lauf geht weiter).
+5. H2/H3 entscheiden; Z1 (RCSI auf IDEAL_WMS_DEV) weiter offen.
+6. Danach Merge (Schranke 2).
