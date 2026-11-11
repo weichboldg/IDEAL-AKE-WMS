@@ -30,8 +30,6 @@ deploy:
   service: true
   migration: false
 freigabe_entscheidung: ""
-freigabe_von: ""
-freigabe_am: ""
 ---
 
 > [!note] Bezug und Messstand
@@ -353,3 +351,19 @@ Entfällt (`epic: false`).
 -->
 
 1. Kombigerät: Zelle zeigt (a) „Kombigerät“, (b) leer oder (c) alle Abteilungen? (Empfehlung: a) → **a (Gerald 2026-11-11).**
+
+## Umsetzung (goal-Lauf 2026-11-11)
+
+Buendel-Commit `d2d4ed46` (v1.99.3, auf v1.99.2 `81b95ac2`). Umgesetzt wie T1–T7, Freigabe-Antwort 1 = (a) „Kombigerät“.
+- `VormontageService`: `KopfWerte` mit drittem Parameter `Abteilung = null`, `FormatAbteilung` (0 → null, 1 → Wert, >1 verschieden ohne
+  Gross/Klein → `KombigeraetHinweis` „Kombigerät“), `BuildKopfWerte` fuellt ihn; Getter `montage-abteilung` in `BuildPositionsSpalten` (Sicht-1-Map
+  und Sicht-2-Vorfilter), nicht in `AggregatColumnMap`; Sicht 2 `Abteilungen = FormatTexte(...)` der beitragenden HauptFA.
+- Views: `<th>` mit `title`, Zelle, `#column-config`, `colCount` 14 bzw. 10, Hinweistext Summiert; `ColumnDefinitions` beider Sichten direkt nach
+  `arbeitsbereich`. Skill `frontend-design` aufgerufen; Hausstil, keine eigene Gestaltung.
+- Drift-Waechter `VormontageNeueSpaltenTests` bewusst geaendert (T6): `Contain("montage-abteilung")`, `NotContain("abteilung")`, Position direkt
+  nach `arbeitsbereich`; Methode umbenannt `…_ArbeitsbereichUndMontageAbteilung`. Neue Tests: `FormatAbteilung_…`,
+  `Sicht1_Abteilung_JeHauptFa_Filter_Negation_Kombi_GetterGleichZelle`, `Sicht2_Abteilungen_Sortiert_MitKombigeraet_FilterVorDemZusammenzaehlen`.
+- Version 1.99.3, Changelog-Karte, TS-127 (127.1–127.9). Keine Migration, keine Einstellung, kein Manifest-Eintrag (Begruendung im Deploy-Abschnitt).
+
+**Nachweis:** `dotnet build IdealAkeWms.slnx` 0 Fehler; `dotnet test` Web **2612/2613** (1 uebersprungen, Bestand), Dienst **512/512**;
+Vormontage-/Spalten-Tests 35/35.
