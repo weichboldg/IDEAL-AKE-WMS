@@ -2,7 +2,7 @@
 type: spec
 title: Update-Skript prüft und führt aus, mit Bestätigung (v1.99.0)
 slug: 2026-11-11-update-skript-prueft-und-fuehrt-aus-mit-bestaetigung-spec
-status: Testbereit
+status: InUmsetzung
 created: 2026-11-11
 updated: 2026-11-11
 freigabe_von: "Gerald Weichbold (Chat Koordination, „Ok“ 2026-11-11 18:38)"
@@ -160,7 +160,7 @@ Die Verantwortung bleibt beim Menschen am Zielserver: Jeder schreibende Schritt 
 | `Pruefung/Kommissionierbereiche` | beide | Haltepunkt | Reparatur | `SELECT CASE WHEN EXISTS (SELECT 1 FROM dbo.PickingAreas) THEN 0 ELSE 1 END`, `Braucht=@('SQL/133')` | `Datei='133_AddPickingAreasAndOrders.sql'` (idempotent, Seed nur bei leerer Tabelle, `SQL/133:191`) | Aufgabe Z. 58-65, 72 |
 | `Pruefung/Standardbereich` | beide | Haltepunkt | anzeigen | `SELECT CASE WHEN EXISTS (SELECT 1 FROM dbo.PickingAreas) AND NOT EXISTS (SELECT 1 FROM dbo.PickingAreas WHERE IsDefault = 1 AND IsActive = 1) THEN 1 ELSE 0 END`, `Braucht=@('SQL/133')` | – (Text: Stammdaten → Kommissionierbereiche, Standard festlegen) | `PickingOrderWorkflow.cs:90-94`; die Reparatur oben greift bei nicht leerer Tabelle nicht |
 | `Pruefung/RCSI` | beide | Haltepunkt | Reparatur | `SELECT CASE WHEN d.is_read_committed_snapshot_on = 0 AND EXISTS (SELECT 1 FROM dbo.ServiceSettings WHERE [Key] IN (N''Sync:HierarchicalFaEnabled'', N''ProduktionsauftragHierarchisch'') AND LOWER(LTRIM(RTRIM([Value]))) = N''true'') THEN 1 ELSE 0 END FROM sys.databases d WHERE d.name = DB_NAME()` | `Reparatur='ALTER DATABASE CURRENT SET READ_COMMITTED_SNAPSHOT ON WITH ROLLBACK IMMEDIATE'`, `OhneTransaktion=$true` | RCSI braucht der FA-Struktur-Import (TS-57.0, `docs/TESTSZENARIEN.md:6385-6395`); Schalter `ServiceSettingDefinitions.cs:155, 158`. Bedingung über die Schalter statt `Firma=IDEAL`, damit auch AKE Test-IDEAL (Firma AKE, IDEAL-Betrieb) geprüft wird. AKE hat beide `false` → 0. |
-| `Pruefung/RollenBeschichtungsauftrag` | AKE | Haltepunkt | Reparatur | `SELECT COUNT(*) FROM (VALUES (N''beschichtungsauftrag''), (N''beschichtungsauftrag_schreiben'')) v(k) WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k)` | INSERT der fehlenden Zeilen (unten) | Freigabe-Antwort 6 der Vorgänger-Spec; kein Seed in SQL, FreshInstall oder Startup (Grep `beschichtungsauftrag` über `*.cs`/`*.sql`: nur `RoleKeys.cs:24, 26`) |
+| `Pruefung/RollenBeschichtungsauftrag` | beide (v1.99.1; bis v1.99.0 AKE) | Haltepunkt | Reparatur | `SELECT COUNT(*) FROM (VALUES (N''beschichtungsauftrag''), (N''beschichtungsauftrag_schreiben'')) v(k) WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k)` | INSERT der fehlenden Zeilen (unten) | Freigabe-Antwort 6 der Vorgänger-Spec; kein Seed in SQL, FreshInstall oder Startup (Grep `beschichtungsauftrag` über `*.cs`/`*.sql`: nur `RoleKeys.cs:24, 26`) |
 | `Pruefung/DummyArtikel` | beide | Haltepunkt | Reparatur | `SELECT CASE WHEN EXISTS (SELECT 1 FROM dbo.Articles WHERE ArticleNumber = N''DUMMY'') THEN 0 ELSE 1 END` | `Datei='86_SeedDummyArticle.sql'` (idempotent, `SQL/86:15`) | Kandidatentabelle; ohne DUMMY antwortet die Lagerbestellung mit `BadRequest` (`WarehouseRequisitionsApiController.cs:138-140`) |
 | `Pruefung/QrTrennzeichenKomma` | beide | Nachher | anzeigen | `SELECT CASE WHEN EXISTS (SELECT 1 FROM dbo.AppSettings WHERE [Key] = N''QrTrennzeichen'' AND [Value] = N'','') THEN (SELECT COUNT(*) FROM dbo.StorageLocations WHERE Code LIKE N''%,%'') ELSE 0 END` | – | ersetzt `v1.69.0-Trennzeichen` (`nachlauf.psd1:166-167`) |
 | `Pruefung/Firmenanschrift` | IDEAL | Nachher | anzeigen | `SELECT COUNT(*) FROM dbo.AppSettings WHERE [Key] = N''Firmenanschrift'' AND [Value] LIKE N''%38, 4840%''` | – (Korrektur unter /Settings) | ersetzt `v1.49.0-Anschrift` (`:141-142`); Key `AppSettingKeys.cs:86` |
@@ -846,7 +846,7 @@ Zwei Fehler fielen erst im DEV-Lauf auf und sind behoben (`b30e310d`, [[fallstri
 **Zusatzfunde (nicht gebaut):**
 - Z1: DEV `IDEAL_WMS_DEV` hat RCSI aus bei `ProduktionsauftragHierarchisch = true` – die Pruefung wird dort beim naechsten DEV-Lauf
   anschlagen.
-- Z2: DEV IDEAL hat die Rollen `beschichtungsauftrag`/`_schreiben` nicht; die Spec nimmt an, IDEAL habe sie aus der Installation
+- Z2 (**erledigt v1.99.1**, Freigabe-Nachtrag Punkt 1: Pruefung jetzt Firma beide): DEV IDEAL hat die Rollen `beschichtungsauftrag`/`_schreiben` nicht; die Spec nimmt an, IDEAL habe sie aus der Installation
   (`nachlauf.psd1`, Text `v1.51.0-Rolle`). Die Pruefung bleibt wie angeordnet AKE. Pruefabfrage fuer IDEAL-Test/-Prod:
   `SELECT [Key] FROM dbo.Roles WHERE [Key] LIKE N'beschichtungsauftrag%'`.
 - Z3: Die Kandidaten aus dem Manifest-Umzug (P-1/2/3, P5, P-T1, P-E1, Final) sind nicht auf eine Abweichungszahl geprueft (Folge-Aufgabe).
@@ -956,3 +956,42 @@ und im Testindex; README. Keine neue `SQL/Einmalig`-Datei. **5a ADR 0020:** kein
 6. AK 20 Rest (leerer Standard-Backup-Pfad, "nicht pruefbar") nur, falls es am Ziel auftritt.
 7. Zusatzfunde Z1 (RCSI auf IDEAL_WMS_DEV), Z2 (Rollen an IDEAL), F3/F4 (offen, Niedrig) entscheiden.
 8. Danach Merge (Schranke 2).
+
+## Freigabe-Nachtrag 2026-11-11 (Gerald, Chat): Nachbesserung v1.99.1
+
+Aus dem QA-Bericht v1.99.0; sonst bleibt alles wie Testbereit.
+1. `Pruefung/RollenBeschichtungsauftrag` fuer **Firma beide** statt nur AKE. Befund: DEV-IDEAL (Kopie IDEAL-Test vom 29.10.) hat die Rollen
+   nicht; nur IDEAL-Prod hat sie aus der Installation (Teil 2). Spec-Text und Manifest nachziehen.
+2. Vorpruefung: `SQL/108` und `SQL/110` nicht als „offen“ anzeigen, wenn der Versionsfilter sie ausschliesst. Anzeige und Ausfuehrung nach
+   derselben Regel (eine Funktion).
+3. Backup-Angebot: „j“ ohne Ordner bricht den Lauf nicht ab. Nach dem Ordner fragen, bis er gueltig ist, oder „ueberspringen“ anbieten. Ohne
+   Backup aus dem Lauf bleiben `SCHARF` und `uebernehmen` gesperrt, mit klarer Meldung.
+Tests auf DEV, Version 1.99.1, Changelog, Publish, DEV wiederherstellen + 5 AKE-DEV-Sync-Schalter. Grenzen wie bisher.
+
+## Umsetzung Nachtrag v1.99.1 (Dev-Lauf 2026-11-11)
+
+Commit `9071dcf7` im Buendel (auf `55ec218a`).
+1. `nachlauf.psd1`: `Pruefung/RollenBeschichtungsauftrag` Firma `beide`, Text „nur IDEAL-Prod hat sie aus der Installation“;
+   `v1.51.0-Rolle` Text nachgezogen.
+2. `Update-IdealAkeWms.ps1`: **eine** Funktion `Test-Faellig` (Einmalig immer, sonst `Test-Neuer`) fuer Vorpruefung, Plan
+   (`Get-OffeneEintraege`), 4a, 5b und Nachlauf-Liste. Nicht faellige Eintraege zeigt die Vorpruefung als „nicht faellig (eingefuehrt mit vX,
+   installiert vY)“ statt „offen“.
+3. `Get-BackupOrdner`: leere Eingabe = „Backup uebersprungen“ (`$null`), Frage wiederholt sich bis zu einem gueltigen Ordner; `Invoke-Backup`
+   liefert `$true`/`$false` (Fehler = Warnung, kein Abbruch). Schritt 2: uebersprungen/fehlgeschlagen → „Liegt ein aktuelles Backup vor?“
+   (n → Abbruch vor dem Stoppen wie bisher). `Test-BackupFuerLauf`: **SCHARF und uebernehmen nur mit Backup aus diesem Lauf** (laut
+   Nachtrag; ein in Schritt 2 nur als „liegt vor“ bestaetigtes Backup reicht fuer Fluss B nicht mehr, Abweichung von B3), sonst Meldung „Ohne
+   Backup aus diesem Lauf bleibt SCHARF/uebernehmen gesperrt …“, Eintrag offen, Lauf geht weiter (am Haltepunkt Abbruch wie bisher).
+4. Version 1.99.1, Changelog-Karte, README, TS-126.21–126.25.
+
+**Nachweis:** `dotnet build IdealAkeWms.slnx` 0 Fehler; `dotnet test` Web **2609/2610** (1 uebersprungen, Bestand), Dienst **512/512**;
+`ParseFile` 0 Fehler. DEV-Laeufe auf einer neuen Kopie `IDEAL_WMS_TS126` (aus `IDEAL_WMS_DEV` v1.99.0, Aufbau wie oben, danach entfernt),
+Paket v1.99.1 (`9071dcf7`) mit synthetischen Eintraegen `Test/SynthA` (Nachher, Trockenlauf, 3 Treffer) und `Test/SynthB` (VorStart,
+Transaktion):
+
+| Nr | Ergebnis |
+|---|---|
+| 126.21 | `-NurPruefen` (IDEAL): `[Pruefung/RollenBeschichtungsauftrag] Abweichung 2 - wird in 4a … repariert`; Volllauf j → Reparatur in EINER Transaktion, „repariert (vorher 2, jetzt 0)“, beide Rollen in der Kopie |
+| 126.22 | „SQL/108: nicht faellig (eingefuehrt mit v1.79.0, installiert v1.99.0)“, „SQL/110: nicht faellig (… v1.87.0 …)“; Plan und Nachlauf-Liste ohne beide |
+| 126.23 | SynthA `TREFFER: 3`, Backup-Angebot j, Ordner `D:\GibtEsNicht` fehlt, leer → „Backup uebersprungen“, „Ohne Backup aus diesem Lauf bleibt SCHARF gesperrt …“, Eintrag offen, Lauf zu Ende (Exit 0) |
+| 126.24 | Schritt 2 nur „liegt vor“; SynthB j → „Kein Backup aus diesem Lauf“, n → „bleibt uebernehmen gesperrt“, nichts ausgefuehrt (Probe 0 Zeilen, 0 Marker), Lauf weiter, Start v1.99.1 |
+| 126.25 | Schritt 2 Backup j mit `-BackupPfad D:\GibtEsNicht`: „Ordner … fehlt“, Eingabe `D:\AuchNicht` → „fehlt“, leer → „Backup uebersprungen“, dann „Liegt ein aktuelles Backup vor?“ j, Lauf weiter |
