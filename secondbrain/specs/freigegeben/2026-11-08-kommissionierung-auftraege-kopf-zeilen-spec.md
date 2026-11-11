@@ -4,7 +4,7 @@ title: Kommissionieraufträge (Kopf/Zeilen, KO-Nummernkreis, Typ, Kommissionierb
 slug: 2026-11-08-kommissionierung-auftraege-kopf-zeilen-spec
 status: Testbereit
 created: 2026-11-07
-updated: 2026-11-08
+updated: 2026-11-11
 source_backlog: "[[2026-11-07-kommissionierung-auftraege-kopf-zeilen]]"
 buendel: "[[2026-11-08-buendel-uebersicht]]"
 depends_on: "[[2026-11-08-lagerbuchungen-fa-feld-und-verlinkung-spec]]"
@@ -1048,3 +1048,70 @@ Nach dem Merge nur dann aus main neu publizieren, wenn der Merge getestete Datei
 2. Gegenprobe: ein aktiver Kommissionierer – kein Hinweis in allen drei Dialogen.
 3. Entscheidung H-1 (Text „kein aktiver Benutzer“).
 4. Testsystem AKE und IDEAL: TS-120.15.
+
+## Nachtrag 2026-11-11: Auftrag drucken in Sortierreihenfolge (v1.97.0, Auftrag Gerald)
+
+Quelle: QA v1.96.0 Hinweis H-4 in [[2026-11-10-vorwaerts-merge-main-ins-buendel]]; Gerald 2026-11-11 „Auftrag drucken mit Sortierung bitte auch
+übernehmen“. Gleiches Muster wie der Stücklisten-Druck aus Hotfix v1.30.3.
+- `PickingController.AuftragDrucken`: GET unverändert (Positions-Reihenfolge); neu POST mit `reihenfolge` (Positionen in Anzeige-Reihenfolge,
+  Antiforgery). `SortiereZeilen`: Zeilen nach Listenindex, Zeilen ohne Listeneintrag am Ende nach Position (stabil).
+- `Views/Picking/Bom.cshtml`: „Auftrag drucken“ (`#btnAuftragDrucken`) schickt bei aktiver Sortierung **alle** Zeilen in DOM-Reihenfolge per POST –
+  der Auftragsdruck bleibt der vollständige Auftrag, Spaltenfilter wirken nicht (anders als „Stückliste drucken“).
+- Hilfe, Anwender-Changelog, TS-120.16, Test `PickingControllerTests.AuftragDrucken_SortiereZeilen_NachAnsicht`. Commit `9db618c0`.
+
+## QA v1.97.0 (2026-11-11) – Ergebnis: Testbereit
+
+qa-agent. Prüfbereich: `git diff 5492f0db..9db618c0` (8 Dateien) im Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`; Build/Tests über den ganzen Worktree.
+
+### 1. Build und Tests (selbst ausgeführt, HEAD `9db618c0`)
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler, 28 Warnungen (Bestand).
+- `dotnet test`: IdealAkeWms.Tests **2593 bestanden / 1 übersprungen / 0 Fehler** (2594); IDEALAKEWMSService.Tests **512 / 0 / 0**.
+
+### 2. Code-Review (selbst gelesen, Diff + Umfeld)
+Geprüft: `PickingController.cs:618-689` (GET `[HttpGet]` + POST `ActionName("AuftragDrucken")`, `ValidateAntiForgeryToken`, beide `[RequirePickingAccess]`, gemeinsamer `RenderAuftragDruckenAsync`); `SortiereZeilen` (stabiles `OrderBy` über die Positions-Vorsortierung, Duplikate per `TryAdd` = erster Index, fehlende Positionen `int.MaxValue` → Ende, nichts geht verloren, kein Zeilenfilter durch die Liste).
+- **BomPosition = data-position belegt:** Auftragszeilen bekommen `BomPosition = z.Position.BomPosition` (`PickingOrderWorkflow.cs:129`, Folgeauftrag `:211` übernimmt sie), `Soll` wird aus `b.Position` der BOM gebaut (`PickingOrderWorkflow.cs:84`); die Auftragsseite rendert dieselben BOM-Items gefiltert über `Schluessel(Ressourcenummer, Position)` (`PickingController.cs:284-289`) und schreibt `data-position="@item.Position"` (`Bom.cshtml:235`). Gleiche Quelle, gleicher String.
+- **Antiforgery:** `@Html.AntiForgeryToken()` steht modusunabhängig (`Bom.cshtml:129`); `var token` (`Bom.cshtml:860`) liegt im selben `DOMContentLoaded`-Callback wie der neue Handler (`:1382ff`), vor `if (readOnly) return;` (`:1557`). Auf DEV hat der POST den Token-Check bestanden (sonst 400).
+- **Read-only/FaWorklist unberührt:** `#btnAuftragDrucken` existiert nur im bearbeitbaren Auftragsblock (`Bom.cshtml:467`); der Handler ist per `if (btnAuftragDrucken)` geschützt; `action` aus dem `href` des Links (Tag-Helper, Controller Picking), kein ambienter Controller-Fehler wie bei PrintBom v1.30.1.
+- Defektklassen: kein `@Html.Raw`/Server-Wert im Script (Werte aus DOM-Attributen), keine `hidden`+`d-*`-Kombination, kein stiller Fallback (fehlende Liste = Positionsreihenfolge, fachlich gewollt), keine Parallel-Arrays (eine Komma-Liste, Ordnung nur), keine Client-only-Regel (Server druckt immer alle Zeilen), Sortierregel nur an einer Stelle (DOM-Reihenfolge der vorhandenen Tabellensortierung).
+
+**Befunde: keine.**
+- Hinweis H-1 (kein Befund): Der Server trimmt die Listeneinträge (`p.Trim()`), vergleicht aber gegen das ungetrimmte `BomPosition`. Hätte eine Sage-Position Rand-Leerzeichen, stünde diese Zeile am Ende statt an ihrer Sortierstelle (nicht verloren). Auf DEV kein Fall.
+- Hinweis H-2 (kein Befund, Verhalten wie Spec): Bei eingeklappter Baumansicht zeigt die Seite nur die Kopfzeilen, der Auftragsdruck enthält alle 149 Zeilen flach in der Sortierreihenfolge (Kindzeilen stehen bei ihrem eigenen Sortierwert, nicht unter der Baugruppe) – gleiche DOM-Reihenfolge, die schon der Stücklisten-Druck v1.30.3 nutzt. Ob das für den Kommissionierer lesbar ist, entscheidet der Mensch beim Test.
+
+### 3. Beweisart
+| Punkt | Beweis |
+|---|---|
+| Server-Reihenfolge nach Liste, Rest am Ende, ohne Liste nach Position | automatisch: `PickingControllerTests.AuftragDrucken_SortiereZeilen_NachAnsicht` |
+| Browser sendet DOM-Reihenfolge per POST, alle Zeilen, Antiforgery, GET ohne Sortierung | Manual-UAT (Model-Binding/Browser-JS nicht InMemory-testbar) – auf DEV AKE erledigt, s. 6 |
+
+### 4. Geänderte Bestandstests
+Keine (nur neuer Test am Ende von `PickingControllerTests.cs`).
+
+### 5. Checkliste
+Keine Migration, kein SQL, keine Einstellung (ADR 0020 nicht betroffen). Version 1.97.0 in beiden `AppVersion.cs`, Anwender-Changelog + Hilfe ergänzt, TS-120.16 in `docs/TESTSZENARIEN.md`, Testindex Zeile 120 durch QA nachgezogen. Brain-Changelog v1.97.0 liegt beim Hauptagenten.
+
+### 6. DEV-Deploy und Testlauf
+- `standort: beide` → `dev-deploy.ps1 -Standort AKE` und `-Standort IDEAL`, Quelle Worktree: beide Exit 0, „HTTP 200, Fusszeile v1.97.0“, „Fertig: AKE v1.97.0 auf http://localhost:8081/“ bzw. „IDEAL v1.97.0 auf http://localhost:8082/“. Danach `Sync:*Enabled` auf beiden DEV-DBs alle aus (Rücksetzen der 5 AKE-Schalter macht der Hauptagent).
+- Testdaten: AKE-DEV hat nur Aufträge Status 30/40 (nur lesbar, Knopf fehlt); KO-2026-00001 (Id 19, 149 Zeilen, FA 2614027) für den Lauf auf 20 gesetzt und danach auf 30 zurückgesetzt (`UPDATE PickingOrders SET Status=… WHERE Id=19`). IDEAL-DEV hat keine Kommissionieraufträge.
+
+| Schritt | Ergebnis | |
+|---|---|---|
+| 120.16 Negativ ohne Sortierung (AKE) | neuer Tab `/Picking/AuftragDrucken/19`, 149 Zeilen nach Position (1, 2, 2.1 …, 17); Kopf, Barcode, Soll/Ist/Lagerplatz wie bisher | OK |
+| 120.16 sortiert ▲ „Bezeichnung 1“ | 149 Zeilen alphabetisch („Abdeckprofi Lampe“ … „Zylinderschraube mit ISK DIN912“); Reihenfolge der sichtbaren Kopfzeilen (6, 16, 8, 5, 17, 12, 1, 3, 2, 7 …) wie in der Ansicht | OK |
+| 120.16 sortiert ▼ | 149 Zeilen absteigend („Zylinderschraube mit ISK …“ zuerst, „Abdeckprofi Lampe“ zuletzt) | OK |
+| 120.16 ▼ + Spaltenfilter „Verdampfer“ (Ansicht zeigt 0 Zeilen) | Druck trotzdem alle 149 Zeilen in ▼-Reihenfolge, die Verdampfer-Zeilen an ihrer Sortierstelle | OK |
+| Regression TS-107.5 „Stückliste drucken“ ▼ | `/Picking/PrintBom/363`, nur die 16 sichtbaren Kopfzeilen in Ansichtsreihenfolge (15, 11, 13, 10, 9, 14, 7, 2, 3, 1, 12, 17, 5, 8, 16, 6) | OK |
+| 120.16 auf IDEAL (8082) | keine Kommissionieraufträge in IDEAL_WMS_DEV | NICHT MÖGLICH (Daten); Deploy/Fußzeile OK |
+
+Screenshots: `C:/Users/GERALD~1.WEI/AppData/Local/Temp/claude-chrome-screenshots-cF2Dyv/screenshot-1794382842207-56.jpg` (Ansicht ▲), `…-1794382853416-57.jpg` (Druck ▲), `…-1794382869388-58.jpg` (Ansicht ▼), `…-1794382876790-59.jpg` (Druck ▼), `…-1794382892291-60.jpg` (Filter, 0 Zeilen sichtbar), `…-1794382931048-61.jpg` (Stückliste drucken ▼), alle im Ordner `C:/Users/GERALD~1.WEI/AppData/Local/Temp/claude-chrome-screenshots-cF2Dyv/`.
+
+### 7. Publish
+`C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish\` (`IDEALAKEWMSWeb`, `IDEALAKEWMSWebService`, beide vorher geleert), `publish-info.txt`: Version 1.97.0, Commit `9db618c07d684cd722dcff1dac3a4f14f6c1de29`, Branch `feature/2026-08-07-ideal-teile-1-5`, 2026-11-11 08:42.
+
+### Deploy (aus dem echten Diff `5492f0db..9db618c0`)
+web: ja · service: ja (nur Version) · migration: nein. Der Gesamtstand des Bündels bleibt `deploy.migration: true` (frühere Versionen). Quelle: `<worktree>\publish` v1.97.0. Nach dem Merge nur dann aus main neu publizieren, wenn der Merge getestete Dateien mit parallelen main-Änderungen kombiniert hat.
+
+### Manuelle Checkliste (offen)
+1. TS-120.16 auf IDEAL (braucht einen offenen Kommissionierauftrag).
+2. Testsystem AKE und IDEAL: TS-120.16 (▲, ▼, mit Filter, ohne Sortierung) und Regression TS-107.5.
+3. H-2 bewerten: flacher Druck der Kindzeilen bei sortierter Baumansicht für den Kommissionierer brauchbar?
