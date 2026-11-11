@@ -2,9 +2,11 @@
 type: spec
 title: Update-Skript prüft und führt aus, mit Bestätigung (v1.99.0)
 slug: 2026-11-11-update-skript-prueft-und-fuehrt-aus-mit-bestaetigung-spec
-status: Entwurf
+status: InUmsetzung
 created: 2026-11-11
 updated: 2026-11-11
+freigabe_von: "Gerald Weichbold (Chat Koordination, „Ok“ 2026-11-11 18:38)"
+freigabe_am: 2026-11-11
 source_backlog: "[[2026-11-11-buendel-deploy-update-skript]]"
 task: "[[2026-11-11-buendel-deploy-update-skript]]"
 depends_on: "[[2026-11-09-update-skript-je-zielsystem-mit-nachlauf-spec]]"
@@ -37,8 +39,6 @@ deploy:
   service: true
   migration: true
 freigabe_entscheidung: ""
-freigabe_von: ""
-freigabe_am: ""
 ---
 
 ## Ziel / Nutzen (das Warum)
@@ -187,6 +187,10 @@ Das Zuweisen an Anwender bleibt Hand-Schritt (Info-Eintrag `v1.51.0-Rolle`, Text
 - Die Reparatur läuft außerhalb einer Transaktion. SQL Server lehnt `ALTER DATABASE` in einer Benutzertransaktion ab.
 
 ### Daten- und Einmal-Skripte
+
+> **Freigabe-Antwort 1 (Gerald 2026-11-11), gilt vor dem Text unten:** Die Transaktions-Einträge (`SQL/108`, v1.47.4) laufen **vor dem Start**,
+> bei gestopptem Web und Dienst, in einem eigenen Schritt zwischen 5a und 6 (Phase `VorStart`). Wo der Text unten „Nachher“ für diese
+> beiden Einträge sagt, gilt `VorStart`. Trockenlauf-Einträge mit Startbedingung „nach Web- und Dienst-Start“ (`SQL/110`) bleiben `Nachher`.
 
 **Marker zuerst.** Für jeden Eintrag vom Typ `Daten` oder `Einmalig` liest das Skript die Marker-Zeile (`ManifestId = Id`).
 - Gibt es sie, erscheint der Eintrag als „erledigt am <ExecutedAt> (<Mode>)“ und wird **nicht** angeboten.
@@ -750,4 +754,4 @@ gefiltert, das Feld dient nur als Beleg.
   Bei Varianten-Specs zusaetzlich freigabe_entscheidung im Frontmatter setzen.
 -->
 
-1. Phase der Transaktion-Einträge (SQL/108, v1.47.4): Nachher wie angeordnet oder vor dem Start bei gestopptem Web und Dienst (Empfehlung) →
+1. Phase der Transaktion-Einträge (SQL/108, v1.47.4): Nachher wie angeordnet oder vor dem Start bei gestopptem Web und Dienst (Empfehlung) → **Vor dem Start, bei gestopptem Web und Dienst (Gerald 2026-11-11 18:38). Eigener Abschnitt zwischen 5a und 6; Phase `VorStart` statt `Nachher`.**
