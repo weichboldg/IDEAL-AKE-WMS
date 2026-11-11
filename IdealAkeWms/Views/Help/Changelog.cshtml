@@ -9,6 +9,21 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.99.0</strong> <span class="text-white-50 ms-2">11.11.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>Update-Skript prüft und führt aus, mit Bestätigung (Betrieb)</h6>
+                <ul>
+                    <li><strong>Neu &ndash; Prüfungen:</strong> Das Update-Skript prüft bei jedem Update Kommissionierbereiche, Standardbereich, RCSI, die Beschichtungsauftrag-Rollen (AKE) und den DUMMY-Artikel. Reparaturen laufen nur nach Bestätigung.</li>
+                    <li><strong>Neu &ndash; Daten- und Einmal-Skripte:</strong> Das Skript führt sie selbst aus: mit Trockenlauf und Eingabe <code>SCHARF</code> (nur mit Backup aus demselben Lauf) oder in einer Transaktion mit <code>uebernehmen</code>/<code>verwerfen</code>. Jeder Lauf wird vermerkt und nicht erneut angeboten.</li>
+                    <li><strong>Geändert:</strong> Kommissionierbereiche entstehen beim Web-Start, wenn keine vorhanden sind. Das Skript prüft den Backup-Ordner vorab und zeigt bei jedem Abbruch, ob Web und Dienst laufen und wie es weitergeht.</li>
+                    <li>Für die Anwender ändert sich nichts.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.98.1</strong> <span class="text-white-50 ms-2">11.11.2026</span>
             </div>
             <div class="card-body">

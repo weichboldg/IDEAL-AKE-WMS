@@ -23,6 +23,7 @@ public class NachlaufManifestDriftTests
     {
         "SQL/89", "SQL/90", "SQL/91", "SQL/92", "SQL/93", "SQL/94", "SQL/95", "SQL/96", "SQL/97", "SQL/98", "SQL/99", "SQL/100", "SQL/101",
         "SQL/102", "SQL/103", "SQL/104", "SQL/105", "SQL/106", "SQL/107", "SQL/109", "SQL/112", "SQL/113", "SQL/133", "SQL/140", "SQL/141",
+        "SQL/142",
     };
 
     private static readonly string Root;
@@ -64,6 +65,14 @@ public class NachlaufManifestDriftTests
     public void Manifest_EnthaeltJedeMigrationUndJedesSkript() => Fehlend(ManifestText).Should().BeEmpty();
 
     [Fact]
+    public void Manifest_EntfernterEintrag142_MachtWaechterRot()
+    {
+        var ohne142 = Regex.Replace(ManifestText, @"(?ms)^@\{ Id='SQL/142'.*?\}\r?$", "");
+        ohne142.Should().NotBe(ManifestText);
+        Fehlend(ohne142).Should().Contain("20261111174202_AddDeployScriptRuns").And.Contain("142_AddDeployScriptRuns.sql");
+    }
+
+    [Fact]
     public void Manifest_EntfernterEintrag_MachtWaechterRot()
     {
         var ohne141 = Regex.Replace(ManifestText, @"(?ms)^@\{ Id='SQL/141'.*?\}\r?$", "");
@@ -94,16 +103,82 @@ public class NachlaufManifestDriftTests
         schema.Should().OnlyContain(x => x["Ausfuehrung"] == "automatisch" && x["Phase"] == "Schema" && x["Firma"] == "beide");
     }
 
+    /// <summary>
+    /// v1.99.0 (ADR 0023, geaendert aus Manifest_DatenUndEinmalSkripte_NieAutomatisch): Daten-/Einmal-Skripte laufen nur mit Bestaetigung am
+    /// Zielserver - nie automatisch. Trockenlauf-Dateien: Literal genau einmal (das Skript ersetzt es im Speicher) und Zeile TREFFER;
+    /// Trockenlauf- und Transaktion-Dateien ohne ROLLBACK (beendete die aeussere Transaktion samt Marker) und ohne sqlcmd-Direktiven.
+    /// </summary>
     [Fact]
-    public void Manifest_DatenUndEinmalSkripte_NieAutomatisch()
+    public void Manifest_DatenUndEinmalSkripte_NurMitBestaetigung() => DatenFehler(ManifestText, SqlText).Should().BeEmpty();
+
+    [Fact]
+    public void Manifest_TrockenlaufDateiOhneTreffer_MachtWaechterRot() =>
+        DatenFehler(ManifestText, d => SqlText(d).Replace("TREFFER: ", "TREFFER ")).Should().Contain(f => f.Contains("ohne Zeile TREFFER"));
+
+    private static string SqlText(string datei) => File.ReadAllText(Path.Combine(Root, "SQL", datei.Replace('\\', Path.DirectorySeparatorChar)));
+
+    internal static List<string> DatenFehler(string manifest, Func<string, string> sql)
     {
-        var nichtSchema = Eintraege(ManifestText).Where(x => x.ContainsKey("Datei") && x["Typ"] != "Schema").ToList();
-        nichtSchema.Select(x => x["Id"]).Should().Contain(new[] { "SQL/108", "SQL/110" });
-        nichtSchema.Should().OnlyContain(x => x["Ausfuehrung"] == "anzeigen" || x["Ausfuehrung"] == "Trockenlauf");
-        foreach (var x in nichtSchema.Where(x => x["Ausfuehrung"] == "Trockenlauf"))
-            File.ReadAllText(Path.Combine(Root, "SQL", x["Datei"].Replace('\\', Path.DirectorySeparatorChar)))
-                .Should().Contain("DECLARE @Trockenlauf BIT = 1;", x["Id"]);
+        var fehler = new List<string>();
+        var daten = Eintraege(manifest).Where(x => x["Typ"] is "Daten" or "Einmalig").ToList();
+        if (!daten.Any(x => x["Id"] == "SQL/108") || !daten.Any(x => x["Id"] == "SQL/110")) fehler.Add("SQL/108 bzw. SQL/110 fehlt");
+        foreach (var x in daten)
+        {
+            var a = x["Ausfuehrung"];
+            if (a is not ("anzeigen" or "Trockenlauf" or "Transaktion")) { fehler.Add($"{x["Id"]}: Ausfuehrung {a}"); continue; }
+            if (a == "anzeigen") continue;
+            var t = sql(x["Datei"]);
+            if (a == "Trockenlauf" && Regex.Matches(t, Regex.Escape("DECLARE @Trockenlauf BIT = 1;")).Count != 1) fehler.Add($"{x["Id"]}: Literal nicht genau einmal");
+            if (a == "Trockenlauf" && !t.Contains("TREFFER: ")) fehler.Add($"{x["Id"]}: ohne Zeile TREFFER");
+            if (Regex.IsMatch(t, @"(?i)\bROLLBACK\b")) fehler.Add($"{x["Id"]}: ROLLBACK");
+            if (Regex.IsMatch(t, @"(?m)^\s*:") || t.Contains("$(")) fehler.Add($"{x["Id"]}: sqlcmd-Direktive");
+        }
+        return fehler;
     }
+
+    /// <summary>Kopie des Schluesselwort-Waechters aus Invoke-Lesen (Update-IdealAkeWms.ps1, function Invoke-Lesen) - beide gleich halten.</summary>
+    private const string LeseWaechter = @"(?i)\b(INSERT|UPDATE|DELETE|MERGE|DROP|ALTER|CREATE|EXEC|EXECUTE|TRUNCATE|GRANT)\b";
+
+    /// <summary>v1.99.0: Typ Pruefung - lesende Abfrage (passiert den Waechter), Reparatur mit genau einem von Reparatur/Datei, Phase Haltepunkt/Nachher.</summary>
+    [Fact]
+    public void Manifest_Pruefungen_Gueltig()
+    {
+        var p = Eintraege(ManifestText).Where(x => x["Typ"] == "Pruefung").ToList();
+        p.Select(x => x["Id"]).Should().Contain(new[] { "Pruefung/Kommissionierbereiche", "Pruefung/RCSI", "Pruefung/RollenBeschichtungsauftrag", "Pruefung/DummyArtikel" });
+        File.ReadAllText(Path.Combine(Root, "scripts", "deploy", "Update-IdealAkeWms.ps1"))
+            .Should().Contain(@"'\b(INSERT|UPDATE|DELETE|MERGE|DROP|ALTER|CREATE|EXEC|EXECUTE|TRUNCATE|GRANT)\b'", "Waechter im Skript = Kopie hier");
+        foreach (var x in p)
+        {
+            x.Should().ContainKey("Pruefung", x["Id"]);
+            Regex.IsMatch(x["Pruefung"], LeseWaechter).Should().BeFalse($"{x["Id"]}: Pruefung muss lesend sein");
+            x["Phase"].Should().BeOneOf(new[] { "Haltepunkt", "Nachher" }, x["Id"]);
+            x["Ausfuehrung"].Should().BeOneOf(new[] { "Reparatur", "anzeigen" }, x["Id"]);
+            if (x["Ausfuehrung"] == "Reparatur") (x.ContainsKey("Reparatur") ^ x.ContainsKey("Datei")).Should().BeTrue($"{x["Id"]}: genau eines von Reparatur/Datei");
+            if (x["Phase"] == "Nachher") x["Ausfuehrung"].Should().Be("anzeigen", $"{x["Id"]}: keine Reparatur nach dem Start");
+        }
+    }
+
+    /// <summary>v1.99.0: jedes Braucht verweist auf einen Schema-Eintrag mit MigrationId (sonst Abbruch im Skript).</summary>
+    [Fact]
+    public void Manifest_BrauchtVerweistAufVorhandeneIds()
+    {
+        var schema = Eintraege(ManifestText).Where(x => x.ContainsKey("MigrationId")).Select(x => x["Id"]).ToHashSet();
+        var braucht = Regex.Matches(ManifestText, @"Braucht=@\(([^)]*)\)")
+            .SelectMany(m => Regex.Matches(m.Groups[1].Value, "'([^']+)'").Select(b => b.Groups[1].Value)).ToList();
+        braucht.Should().NotBeEmpty();
+        braucht.Should().OnlyContain(b => schema.Contains(b));
+    }
+
+    /// <summary>v1.99.0 Bugfix 2: in PS 5.1 gehoert ? zum Variablennamen - "$PaketVersion?" liest die nicht gesetzte Variable PaketVersion?.</summary>
+    [Fact]
+    public void DeploySkripte_KeineVariableMitFragezeichenImText()
+    {
+        foreach (var f in Directory.GetFiles(Path.Combine(Root, "scripts", "deploy")))
+            VariableMitFragezeichen(File.ReadAllText(f)).Should().BeEmpty(Path.GetFileName(f));
+        VariableMitFragezeichen("Write-Host \"v$PaketVersion?\"").Should().NotBeEmpty("Rotprobe");
+    }
+
+    private static List<string> VariableMitFragezeichen(string text) => Regex.Matches(text, @"\$[A-Za-z_]\w*\?").Select(m => m.Value).ToList();
 
     [Fact]
     public void Manifest_IdsEindeutig_FelderGueltig()
@@ -111,7 +186,8 @@ public class NachlaufManifestDriftTests
         var e = Eintraege(ManifestText);
         e.Select(x => x["Id"]).Should().OnlyHaveUniqueItems();
         e.Should().OnlyContain(x => new[] { "AKE", "IDEAL", "beide" }.Contains(x["Firma"]));
-        e.Should().OnlyContain(x => new[] { "Vorher", "Schema", "Haltepunkt", "Nachher" }.Contains(x["Phase"]));
+        e.Should().OnlyContain(x => new[] { "Vorher", "Schema", "Haltepunkt", "VorStart", "Nachher" }.Contains(x["Phase"]));
+        e.Should().OnlyContain(x => new[] { "Schema", "Daten", "Einmalig", "Pruefung", "Einstellung", "Leitstand", "Info", "Ordner" }.Contains(x["Typ"]));
         e.Select(x => Version.TryParse(x["Version"], out var v) ? v : null).Should().NotContainNulls();
     }
 

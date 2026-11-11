@@ -91,6 +91,9 @@ ORDER BY po.OrderNumber;
 
 IF @Trockenlauf = 1
 BEGIN
+    -- v1.99.0: Zeile TREFFER fuer das Update-Skript (0 -> entfaellt)
+    DECLARE @Treffer INT = (SELECT COUNT(*) FROM #Fa);
+    PRINT CONCAT(N'TREFFER: ', @Treffer);
     PRINT N'TROCKENLAUF: nichts geaendert. Ausfuehren mit @Trockenlauf = 0 (vorher DB-Backup, Zaehlung freigeben).';
     RETURN;
 END

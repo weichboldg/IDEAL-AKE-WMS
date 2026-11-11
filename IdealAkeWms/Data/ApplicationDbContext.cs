@@ -75,6 +75,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<PickingOrderLine> PickingOrderLines => Set<PickingOrderLine>();
     public DbSet<BeschichtungsauftragPosition> BeschichtungsauftragPositionen => Set<BeschichtungsauftragPosition>();
     public DbSet<SyncLog> SyncLogs => Set<SyncLog>();
+    public DbSet<DeployScriptRun> DeployScriptRuns => Set<DeployScriptRun>();
     public DbSet<WorkStep> WorkSteps => Set<WorkStep>();
     public DbSet<FaWorkStep> FaWorkSteps => Set<FaWorkStep>();
     public DbSet<FaWorkStepSpec> FaWorkStepSpecs => Set<FaWorkStepSpec>();
@@ -1697,6 +1698,23 @@ public class ApplicationDbContext : DbContext
         });
 
         // SyncLog
+        // v1.99.0: Marker der Daten-/Einmal-Laeufe des Update-Skripts (Spec 2026-11-11-update-skript-prueft-und-fuehrt-aus-mit-bestaetigung)
+        modelBuilder.Entity<DeployScriptRun>(entity =>
+        {
+            entity.ToTable("DeployScriptRuns");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.ManifestId).HasMaxLength(200).IsRequired();
+            entity.HasIndex(e => e.ManifestId).IsUnique().HasDatabaseName("UX_DeployScriptRuns_ManifestId");
+            entity.Property(e => e.FileName).HasMaxLength(400);
+            entity.Property(e => e.FileSha256).HasMaxLength(64);
+            entity.Property(e => e.Mode).HasMaxLength(30).IsRequired();
+            entity.Property(e => e.PackageVersion).HasMaxLength(20).IsRequired();
+            entity.Property(e => e.PackageCommit).HasMaxLength(64);
+            entity.Property(e => e.ExecutedAt).HasColumnType("datetime2");
+            entity.Property(e => e.ExecutedBy).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.Note).HasMaxLength(500);
+        });
+
         modelBuilder.Entity<SyncLog>(entity =>
         {
             entity.ToTable("SyncLogs");

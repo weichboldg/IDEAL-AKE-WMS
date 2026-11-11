@@ -83,7 +83,16 @@ powershell -ExecutionPolicy Bypass -File C:\<FIRMA>\deploy\v1.98.0\deploy\Update
 - Das Skript ermittelt Site/App-Pool (physischer Pfad), Dienst (Exe-Pfad) und die DB aus `appsettings*.json` der Ziel-Umgebung, spielt
   fehlende Schema-Skripte in **Manifest-Reihenfolge** mit Bestätigung ein, prüft Ordner und Rechte, startet Web vor Dienst, prüft die
   Version und gibt die **Nachlauf-Liste** der Hand-Schritte aus (`scripts\deploy\nachlauf.psd1`). Protokoll unter `C:\<FIRMA>\deploy-logs`.
-- Daten- und Einmal-Skripte (`SQL/108`, `SQL/110`, `SQL/Einmalig/*`) führt es **nie scharf** aus, höchstens im Trockenlauf.
+- **Prüfungen** (v1.99.0, Manifest-Typ `Pruefung`, jeder Lauf): Kommissionierbereiche, Standardbereich, RCSI, Rollen
+  `beschichtungsauftrag`/`_schreiben` (AKE), DUMMY-Artikel; nach dem Start Anschrift, `QrTrennzeichen`, `Sync:ArticlesViewName`. Reparaturen
+  laufen in Schritt 4a bei gestopptem Web und Dienst und nur nach Bestätigung (RCSI zeigt vorher die Sitzungen, die `ROLLBACK IMMEDIATE`
+  beendet).
+- **Daten- und Einmal-Skripte** (`SQL/108`, `SQL/110`, `SQL/Einmalig/*`, ADR 0023) führt es nur nach einer Eingabe am Zielserver aus:
+  mit Trockenlauf-Schalter Trockenlauf automatisch, `TREFFER: 0` = entfällt, sonst Eingabe `SCHARF` und Backup aus demselben Lauf; ohne
+  Schalter (v1.47.4, `SQL/108`, vor dem Start bei gestopptem Web und Dienst) in einer Transaktion, danach `uebernehmen`/`verwerfen`.
+  Jeder Lauf steht in `dbo.DeployScriptRuns` (`SQL/142`) und wird nicht erneut angeboten; „lief schon von Hand“ lässt sich vermerken.
+- Backup-Ordner prüft das Skript vorab auf dem SQL-Server (`sys.dm_os_file_exists`, ab SQL Server 2017); fehlt er, fragt es nach. Bei
+  jedem Abbruch zeigt es den Zustand von App-Pool, Site und Dienst und den Weg zum Weitermachen.
 - `sqlcmd` muss auf dem Web-Server installiert sein (ODBC-Variante „Microsoft Command Line Utilities for SQL Server“ nach dem
   „Microsoft ODBC Driver for SQL Server“).
 - Neuinstallation: `scripts\deploy\Install-IdealAkeWms.ps1` (standortneutral, gleiche Ordner-/Rechteprüfung).

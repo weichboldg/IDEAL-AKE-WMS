@@ -66,6 +66,9 @@ SELECT LEFT(Note, 15) AS Anfang, COUNT(*) AS n FROM dbo.StockMovements WHERE Not
 
 IF @Trockenlauf = 1
 BEGIN
+    -- v1.99.0: Zeile TREFFER fuer das Update-Skript (0 -> entfaellt); genau die Menge, die der Scharflauf aendert
+    DECLARE @Treffer INT = (SELECT COUNT(*) FROM #Kandidat k JOIN #Text x ON x.FaText = k.FaText WHERE x.Klasse = N'uebernommen');
+    PRINT CONCAT(N'TREFFER: ', @Treffer);
     PRINT N'TROCKENLAUF: nichts geaendert. Scharf mit @Trockenlauf = 0 (vorher DB-Backup).';
     RETURN;
 END

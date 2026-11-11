@@ -357,6 +357,22 @@ using (var scope = app.Services.CreateScope())
         }
         db.SaveChanges();
     }
+
+    // Kommissionierbereiche (v1.99.0, Spec 2026-11-11-update-skript-prueft-und-fuehrt-aus-mit-bestaetigung, Bugfix 5): der Seed stand nur in
+    // SQL/133 + FreshInstall, nicht in der EF-Migration; ohne aktiven Standardbereich legt die App keine Kommissionierauftraege an
+    // (PickingOrderWorkflow). Werte wie SQL/133:194-196. Nur bei leerer Tabelle - die Pflege schuetzt den Standard (PickingAreasController).
+    if (!db.PickingAreas.Any())
+    {
+        foreach (var (name, kuerzel, reihenfolge, standard, vk) in new[] { ("Lager", "L", 10, true, false), ("Glas", "G", 20, false, false), ("Vorkommissionierung", "VK", 30, false, true) })
+        {
+            db.PickingAreas.Add(new IdealAkeWms.Models.PickingArea
+            {
+                Name = name, Kuerzel = kuerzel, Reihenfolge = reihenfolge, IsActive = true, IsDefault = standard, IstVorkommissionierung = vk,
+                CreatedAt = DateTime.Now, CreatedBy = "system", CreatedByWindows = "system"
+            });
+        }
+        db.SaveChanges();
+    }
 }
 
 // Einstellungspruefung (v1.77.0, Spec 2026-11-07-einstellungen-auswahlfelder-und-beschreibung E4b, AK 18): vorhandene AppSettings-/
