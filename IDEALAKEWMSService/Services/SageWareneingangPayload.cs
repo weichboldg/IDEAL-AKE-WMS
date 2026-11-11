@@ -16,8 +16,7 @@ public sealed class SageWareneingangRequest
     public bool IsBelegTransform { get; init; } = true;
     public string BelegKennzeichen { get; init; } = SageWareneingang.BelegKennzeichen;
     public List<SageWeTransformSetting> TransformSettings { get; init; } = new();
-    public int Belegjahr { get; init; }
-    public string Belegdatum { get; init; } = string.Empty;         // yyyy-MM-dd
+    public string Belegdatum { get; init; } = string.Empty;         // yyyy-MM-dd; Belegjahr bewusst NICHT gesendet (optional; Sage bestimmt es, Geschaeftsjahr != Kalenderjahr moeglich)
     public string A0Konto { get; init; } = string.Empty;            // Lieferant der Bestellung
     public bool InteressentAdresse { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
@@ -81,7 +80,6 @@ public static class SageWareneingangPayloadBuilder
         return new SageWareneingangRequest
         {
             TransformSettings = { new SageWeTransformSetting { SourceBelegHandle = belIds[0] } },
-            Belegjahr = erste.CreatedAt.Year,
             Belegdatum = erste.CreatedAt.ToString("yyyy-MM-dd"),
             A0Konto = erste.LieferantKto!.Trim(),
             EKLieferschein = lieferschein,
