@@ -3867,6 +3867,10 @@ namespace IdealAkeWms.Migrations
                     b.Property<byte>("Lieferart")
                         .HasColumnType("tinyint");
 
+                    b.Property<string>("Lieferschein")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
                     b.Property<DateTime?>("ModifiedAt")
                         .HasColumnType("datetime2");
 
@@ -3887,6 +3891,26 @@ namespace IdealAkeWms.Migrations
                     b.Property<int?>("SagePlatzId")
                         .HasColumnType("int");
 
+                    b.Property<DateTime?>("SageWeAm")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("SageWeBelegnummer")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("SageWeFehler")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<int>("SageWeStatus")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SageWeVersuche")
+                        .HasColumnType("int");
+
+                    b.Property<Guid?>("SageWeVorgang")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<int>("StockMovementId")
                         .HasColumnType("int");
 
@@ -3894,6 +3918,12 @@ namespace IdealAkeWms.Migrations
 
                     b.HasIndex("BelPosId")
                         .HasDatabaseName("IX_PurchaseOrderReceipts_BelPosId");
+
+                    b.HasIndex("SageWeStatus")
+                        .HasDatabaseName("IX_PurchaseOrderReceipts_SageWeStatus");
+
+                    b.HasIndex("SageWeVorgang")
+                        .HasDatabaseName("IX_PurchaseOrderReceipts_SageWeVorgang");
 
                     b.HasIndex("StockMovementId")
                         .IsUnique()

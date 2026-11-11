@@ -149,6 +149,8 @@ public class SageBookingQueueRepository : ISageBookingQueueRepository
                      // Umbuchung mit FA-Bezug nie (Spec F9, = SageBookingEnqueueDecision.IstUmbuchungMitFaBezug; Kommissionier-Transfers
                      // laufen am Decorator vorbei und kommen nur hier an).
                      && !(m.MovementType == MovementType.Umbuchung && m.ProductionOrder != null && m.ProductionOrder.Trim() != "")
+                     // v1.99.4 F3 (= SageBookingEnqueueDecision hatSageWareneingang): Sage-WE-Wareneingaenge nie als Zugang nacherfassen
+                     && !(m.PurchaseOrderReceipt != null && m.PurchaseOrderReceipt.SageWeStatus != SageWareneingangStatus.NichtNoetig)
                      && !_context.SageBookingQueueItems.Any(q => q.StockMovementId == m.Id))
             .OrderBy(m => m.Id)
             .Take(max)

@@ -1428,6 +1428,13 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.ModifiedByWindows).HasMaxLength(200);
             entity.HasIndex(e => e.StockMovementId).IsUnique().HasDatabaseName("IX_PurchaseOrderReceipts_StockMovementId");
             entity.HasIndex(e => e.BelPosId).HasDatabaseName("IX_PurchaseOrderReceipts_BelPosId");
+            // v1.99.4 (Wareneingang Teil 2): DEFAULT 0 nur in Migration/SQL, kein HasDefaultValue (fallstricke: EF liesse 0 sonst weg)
+            entity.Property(e => e.SageWeStatus).HasConversion<int>();
+            entity.Property(e => e.SageWeBelegnummer).HasMaxLength(30);
+            entity.Property(e => e.SageWeFehler).HasMaxLength(1000);
+            entity.Property(e => e.Lieferschein).HasMaxLength(20);
+            entity.HasIndex(e => e.SageWeVorgang).HasDatabaseName("IX_PurchaseOrderReceipts_SageWeVorgang");
+            entity.HasIndex(e => e.SageWeStatus).HasDatabaseName("IX_PurchaseOrderReceipts_SageWeStatus");
         });
 
         // BDE: Activities

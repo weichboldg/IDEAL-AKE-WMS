@@ -122,7 +122,8 @@ public partial class PurchaseOrdersController : Controller
             LieferantText = l.LieferantName != null ? $"{l.LieferantName} ({l.LieferantKto})" : l.LieferantKto,
             ZielLagerplatz = l.StorageLocationId is { } sid && plaetze.TryGetValue(sid, out var code) ? code : l.SagePlatzKurzbezeichnung,
             ZielNichtImWms = l.SagePlatzId != null && l.StorageLocationId == null,
-            ImWmsErfasst = erfasst.GetValueOrDefault(l.BelPosId),
+            ImWmsErfasst = erfasst.GetValueOrDefault(l.BelPosId, ErfasstJeBelPos.Leer).Gesamt,
+            ImWmsAbzuziehen = erfasst.GetValueOrDefault(l.BelPosId, ErfasstJeBelPos.Leer).Abzuziehen(l.SyncedAt),
             Ueberfaellig = l.Liefertermin != null && l.Liefertermin < heute,
         }).ToList();
     }

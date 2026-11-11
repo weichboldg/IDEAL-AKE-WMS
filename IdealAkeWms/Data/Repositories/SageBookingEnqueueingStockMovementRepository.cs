@@ -63,7 +63,9 @@ public class SageBookingEnqueueingStockMovementRepository : StockMovementReposit
                 sourceAllows = (await _context.Set<StorageLocation>().FindAsync(sourceId))?.SageBuchungErlaubt ?? false;
 
             if (SageBookingEnqueueDecision.ShouldEnqueue(saved.MovementType, globalToggle, umbuchungAktiv, locationAllows, sourceAllows,
-                    hatFaBezug: !string.IsNullOrWhiteSpace(saved.ProductionOrder)))
+                    hatFaBezug: !string.IsNullOrWhiteSpace(saved.ProductionOrder),
+                    // v1.99.4 F3: der Receipt wird als Navigation mitgespeichert und liegt im Speicher
+                    hatSageWareneingang: saved.PurchaseOrderReceipt is { } r && r.SageWeStatus != SageWareneingangStatus.NichtNoetig))
                 await _queue.EnqueueAsync(saved);
         }
         catch (Exception ex)

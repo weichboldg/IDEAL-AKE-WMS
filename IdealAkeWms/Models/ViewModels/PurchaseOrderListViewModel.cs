@@ -29,6 +29,8 @@ public class PurchaseOrderLineRow
     public bool ZielNichtImWms { get; init; }
     /// <summary>Im WMS zu dieser Position bereits erfasst (Summe Wareneingaenge, ab E3).</summary>
     public decimal ImWmsErfasst { get; init; }
+    /// <summary>v1.99.4 (F5): davon noch NICHT im Sage-Stand des Abgleichs enthalten (Rest-Regel, ErfasstJeBelPos.Abzuziehen).</summary>
+    public decimal ImWmsAbzuziehen { get; init; }
     public bool Ueberfaellig { get; init; }
     public bool OhneTermin => Line.Liefertermin == null;
 }

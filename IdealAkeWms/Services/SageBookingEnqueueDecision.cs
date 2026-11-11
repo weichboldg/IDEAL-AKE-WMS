@@ -61,10 +61,13 @@ public static class SageBookingEnqueueDecision
     /// <param name="sourceSageBuchungErlaubt">Flag des Herkunftsplatzes (<c>SourceStorageLocation</c>, nur Umbuchung; fehlt = false).</param>
     /// <param name="hatFaBezug">Buchung traegt einen FA (<c>StockMovement.ProductionOrder</c>). Umbuchungen mit FA-Bezug
     /// gehen NICHT an Sage (Spec F9: Entnahme mit FA-Bezug = Material-Rueckmeldung im Rueckmelde-Epic). Ein-/Ausbuchung unberuehrt.</param>
+    /// <param name="hatSageWareneingang">v1.99.4 (Wareneingang Teil 2, F3): Wareneingang mit Sage-WE-Status &lt;&gt; NichtNoetig - geht als ELL-Beleg
+    /// (oder nur in Sage) an Sage, NIE zusaetzlich als Lagerbuchung-Zugang. Dieselbe Regel steht als EF-Bedingung in EnqueueMissingAsync.</param>
     public static bool ShouldEnqueue(MovementType type, bool globalToggleAktiv, bool umbuchungAktiv,
-        bool locationSageBuchungErlaubt, bool sourceSageBuchungErlaubt, bool hatFaBezug = false)
+        bool locationSageBuchungErlaubt, bool sourceSageBuchungErlaubt, bool hatFaBezug = false, bool hatSageWareneingang = false)
         => globalToggleAktiv && IsBookableType(type, umbuchungAktiv)
            && !IstUmbuchungMitFaBezug(type, hatFaBezug)
+           && !hatSageWareneingang
            && Buchungsart(type, locationSageBuchungErlaubt, sourceSageBuchungErlaubt) is not null;
 
     /// <summary>Umbuchung mit FA-Bezug (z. B. Kommissionier-Transfer) – nie an Sage (Spec F9).</summary>

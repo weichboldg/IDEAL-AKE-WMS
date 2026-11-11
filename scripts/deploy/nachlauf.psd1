@@ -79,6 +79,8 @@ Eintraege = @(
    Datei='141_AddPickingOrderAltbestandPruefen.sql'; MigrationId='20261108071811_AddPickingOrderAltbestandPruefen'; Voraussetzung='vor dem Altbestand-Skript'; Quelle='2026-11-08-v1-89-0-kommissionierauftraege-nachbesserung' }
 @{ Id='SQL/142'; Version='1.99.0'; Typ='Schema'; Firma='beide'; Phase='Schema'; Ausfuehrung='automatisch'
    Datei='142_AddDeployScriptRuns.sql'; MigrationId='20261111174202_AddDeployScriptRuns'; Voraussetzung='additiv (Marker-Tabelle des Update-Skripts)'; Quelle='2026-11-11-v1-99-0-update-skript-prueft-und-fuehrt-aus' }
+@{ Id='SQL/143'; Version='1.99.4'; Typ='Schema'; Firma='beide'; Phase='Schema'; Ausfuehrung='automatisch'
+   Datei='143_AddPurchaseOrderReceiptSageWe.sql'; MigrationId='20261111200627_AddPurchaseOrderReceiptSageWe'; Voraussetzung='additiv'; Quelle='2026-11-11-v1-99-4-wareneingang-sage-we-beleg' }
 
 # ---------------------------------------------------------------- Pruefungen (jeder Lauf; Reparatur nur nach Bestaetigung) -------
 @{ Id='Pruefung/Kommissionierbereiche'; Version='1.88.0'; Typ='Pruefung'; Firma='beide'; Phase='Haltepunkt'; Ausfuehrung='Reparatur'; Braucht=@('SQL/133')

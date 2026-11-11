@@ -58,6 +58,8 @@ public class EinkaufBestellungenSyncService
         await using var run = await _syncLogger.BeginRunAsync(SyncLogServices.EinkaufBestellungen, ct);
 
         IReadOnlyList<SdataEinkaufPositionZeile> zeilen;
+        // v1.99.4 (Wareneingang Teil 2, F5): Stand VOR dem Lesen - Rest-Regel vergleicht SageWeAm <= SyncedAt
+        var now = DateTime.Now;
         try
         {
             ziel ??= await SdataLeseZielLeser.LesenAsync(_config, ct);
@@ -101,7 +103,6 @@ public class EinkaufBestellungenSyncService
             var kreditorFehlt = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
             var platzFehlt = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
             int artikelFehltZeilen = 0, kreditorFehltZeilen = 0, platzFehltZeilen = 0;
-            var now = DateTime.Now;
 
             foreach (var z in zeilen)
             {

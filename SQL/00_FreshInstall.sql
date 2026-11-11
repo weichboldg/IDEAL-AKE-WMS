@@ -2368,6 +2368,14 @@ BEGIN
         [OffenLautSageBeimBuchen]   DECIMAL(18,4)     NULL,
         [SagePlatzId]               INT               NULL,
         [Lieferart]                 TINYINT           NOT NULL,
+        -- v1.99.4 (SQL/143, Wareneingang Teil 2): Sage-Wareneingangsbeleg und Lieferschein
+        [SageWeStatus]              INT               NOT NULL CONSTRAINT DF_PurchaseOrderReceipts_SageWeStatus DEFAULT 0,
+        [SageWeVorgang]             UNIQUEIDENTIFIER  NULL,
+        [SageWeAm]                  DATETIME2         NULL,
+        [SageWeBelegnummer]         NVARCHAR(30)      NULL,
+        [SageWeFehler]              NVARCHAR(1000)    NULL,
+        [SageWeVersuche]            INT               NOT NULL CONSTRAINT DF_PurchaseOrderReceipts_SageWeVersuche DEFAULT 0,
+        [Lieferschein]              NVARCHAR(20)      NULL,
         [CreatedAt]                 DATETIME2         NOT NULL,
         [CreatedBy]                 NVARCHAR(200)     NOT NULL,
         [CreatedByWindows]          NVARCHAR(200)     NOT NULL,
@@ -2377,6 +2385,8 @@ BEGIN
     );
     CREATE UNIQUE INDEX [IX_PurchaseOrderReceipts_StockMovementId] ON [dbo].[PurchaseOrderReceipts]([StockMovementId]);
     CREATE INDEX [IX_PurchaseOrderReceipts_BelPosId] ON [dbo].[PurchaseOrderReceipts]([BelPosId]);
+    CREATE INDEX [IX_PurchaseOrderReceipts_SageWeVorgang] ON [dbo].[PurchaseOrderReceipts]([SageWeVorgang]);
+    CREATE INDEX [IX_PurchaseOrderReceipts_SageWeStatus] ON [dbo].[PurchaseOrderReceipts]([SageWeStatus]);
     PRINT 'Tabelle PurchaseOrderReceipts erstellt.';
 END
 GO
@@ -3170,6 +3180,9 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261111174202_AddDeployScriptRuns')
    AND OBJECT_ID(N'dbo.DeployScriptRuns', N'U') IS NOT NULL -- sonst steht SQL/142 noch aus
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261111174202_AddDeployScriptRuns', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261111200627_AddPurchaseOrderReceiptSageWe')
+   AND COL_LENGTH(N'dbo.PurchaseOrderReceipts', N'SageWeStatus') IS NOT NULL -- sonst steht SQL/143 noch aus
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261111200627_AddPurchaseOrderReceiptSageWe', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';

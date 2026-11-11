@@ -9,6 +9,20 @@ public enum PurchaseOrderReceiptLieferart : byte
 }
 
 /// <summary>
+/// v1.99.4 (Spec 2026-11-08-wareneingang-teil-2-sage-we-beleg-rahmenabrufe F4): Sage-Wareneingangsbeleg (ELL) je Wareneingang. Als int gespeichert.
+/// <see cref="NichtNoetig"/> = Default/Altbestand = Verhalten Teil 1 (Lagerbuchungs-Queue). Jeder andere Wert schliesst die Bewegung aus der Queue aus (F3).
+/// </summary>
+public enum SageWareneingangStatus
+{
+    NichtNoetig = 0,
+    Offen = 1,
+    Gesendet = 2,
+    Uebergeben = 3,
+    Fehler = 4,
+    NurInSage = 5,
+}
+
+/// <summary>
 /// v1.84.0 (Spec 2026-11-08-wareneingang-aus-sage-bestellungen E3): ein Wareneingang zu einer Sage-Bestellposition – genau eine
 /// <see cref="StockMovement"/> (Einbuchung, FK Restrict, UNIQUE), gespeichert im selben SaveChanges (Navigation an der Bewegung).
 /// <b>Snapshot</b> statt FK auf den Cache: die Cache-Zeile verschwindet, sobald Sage die Position schliesst. Andockpunkt der Qualitaetspruefung
@@ -28,4 +42,18 @@ public class PurchaseOrderReceipt : AuditableEntity
     /// <summary>Sage-Platz der Bestellposition (Vorschlag), unabhaengig vom tatsaechlich gewaehlten WMS-Lagerplatz.</summary>
     public int? SagePlatzId { get; set; }
     public PurchaseOrderReceiptLieferart Lieferart { get; set; }
+
+    // ---- v1.99.4 (Wareneingang Teil 2, E1/E2): Sage-Wareneingangsbeleg und Lieferschein ----
+    /// <summary>Beim Buchen festgelegt; ein spaeteres Umschalten von SageWareneingangBelegAktiv aendert gebuchte Wareneingaenge nicht.</summary>
+    public SageWareneingangStatus SageWeStatus { get; set; }
+    /// <summary>Gruppenschluessel: alle Offen-Receipts EINES Absendens der Maske bilden EINEN ELL-Beleg (Freigabe-Antwort 2).</summary>
+    public Guid? SageWeVorgang { get; set; }
+    /// <summary>Zeitpunkt der erfolgreichen Uebergabe (Rest-Regel F5: Uebergeben mit SageWeAm &lt;= SyncedAt ist im Sage-Stand enthalten).</summary>
+    public DateTime? SageWeAm { get; set; }
+    public string? SageWeBelegnummer { get; set; }
+    public string? SageWeFehler { get; set; }
+    /// <summary>Anzahl Sende-Versuche (Status vor dem POST auf Gesendet + 1).</summary>
+    public int SageWeVersuche { get; set; }
+    /// <summary>Lieferschein-Nr. des Lieferanten (F6), an jedem Receipt eines Absendens; an Sage nur im Sage-WE als EKLieferschein.</summary>
+    public string? Lieferschein { get; set; }
 }

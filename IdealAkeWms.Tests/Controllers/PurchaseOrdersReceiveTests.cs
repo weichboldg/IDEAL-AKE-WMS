@@ -82,7 +82,7 @@ public class PurchaseOrdersReceiveTests
         ctrl.TempData["SuccessMessage"].Should().Be("2 Position(en) eingebucht (davon 1 Teil-, 0 Überlieferung).");
 
         var erfasst = await new PurchaseOrderReceiptRepository(db).GetErfasstJeBelPosAsync(new[] { 1001, 1002 });
-        erfasst.Should().BeEquivalentTo(new Dictionary<int, decimal> { [1001] = 2.5m, [1002] = 4m });
+        erfasst.ToDictionary(e => e.Key, e => e.Value.Gesamt).Should().BeEquivalentTo(new Dictionary<int, decimal> { [1001] = 2.5m, [1002] = 4m });
         var vm = (PurchaseOrderReceiveViewModel)((ViewResult)await ctrl.Receive(100, (string?)null)).Model!;
         vm.Zeilen.Single(z => z.Row.Line.BelPosId == 1001).Rest.Should().Be(7.5m, "Rest = offen laut Sage − im WMS erfasst");
     }
