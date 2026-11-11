@@ -2,7 +2,7 @@
 type: spec
 title: "Vormontage-Listen (IDEAL): Spalte „Abteilung“ je HauptFA, neben „Arbeitsbereich“"
 slug: 2026-11-11-vormontage-spalte-abteilung-hauptfa-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-11-11
 updated: 2026-11-11
 freigabe_von: "Gerald Weichbold (Chat Koordination, 2026-11-11 20:40 „beide freigeben“)"
@@ -312,7 +312,16 @@ Entfällt (`epic: false`).
 
 ## Deploy
 
-**Vorläufig.** Der QA-Lauf bestätigt gegen den echten Diff.
+**Final (QA 2026-11-11, aus dem echten Diff `81b95ac2..d2d4ed46`):** `deploy.web: true` (Service, ViewModel, zwei Views,
+`ColumnDefinitions`, Changelog, `AppVersion`), `deploy.service: true` nur wegen `IDEALAKEWMSService/AppVersion.cs` (kein Dienst-Code;
+mitdeployen hält die Version gleich), `deploy.migration: false` (keine Datei unter `*/Migrations/`, kein `SQL/`). Manifest
+`scripts/deploy/nachlauf.psd1`: kein Eintrag nötig (kein SQL, kein Einmal-Skript, keine Einstellung, kein manueller Schritt) – geprüft.
+**Publish erledigt:** `C:\git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish` (IDEALAKEWMSWeb + IDEALAKEWMSWebService +
+SQL + deploy, `publish-info.txt` Version 1.99.3, Commit `d2d4ed4692b78f8cd9911498000283c2a687ce54`). Reihenfolge: kein DB-Backup nötig;
+Web, dann Dienst (nur Version). Nach dem Merge nur dann aus `main` neu publizieren, wenn der Merge getestete Dateien mit parallelen
+`main`-Änderungen kombiniert hat.
+
+Vorläufige Fassung des Spec-Agents (bestätigt):
 
 - **Web-App:** ja (`VormontageService`, ViewModel, beide Vormontage-Views, `ColumnDefinitions`, Changelog, `AppVersion.cs`).
 - **Service:** nur Versionsnummer (`IDEALAKEWMSService/AppVersion.cs`), kein Code; mitpublizieren hält die Version gleich.
@@ -367,3 +376,86 @@ Buendel-Commit `d2d4ed46` (v1.99.3, auf v1.99.2 `81b95ac2`). Umgesetzt wie T1–
 
 **Nachweis:** `dotnet build IdealAkeWms.slnx` 0 Fehler; `dotnet test` Web **2612/2613** (1 uebersprungen, Bestand), Dienst **512/512**;
 Vormontage-/Spalten-Tests 35/35.
+
+## QA-Nachweis (qa-agent, 2026-11-11)
+
+Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Commit-Bereich `81b95ac2..d2d4ed46` (HEAD `d2d4ed46`), Version 1.99.3.
+
+**1. Build und Tests** (im Worktree, ganze Lösung)
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler, 28 Warnungen (Bestand).
+- `dotnet test`: `IdealAkeWms.Tests` 2612 bestanden / 1 übersprungen (Bestand) / 0 Fehler (2613); `IDEALAKEWMSService.Tests` 512 / 0 / 0.
+
+**2. Code-Review** (selbst, in diesem Lauf; gelesen: Diff plus `VormontageService` Kopfwert-Pfad, `AggregateSummiert` komplett,
+`BuildEinzelnColumnMap`, `Index.cshtml` Gruppenkopf/`kopf`, `csv-export.js` Zellwert/Spaltenlogik) – **keine Befunde**.
+- fallstricke §3: `montage-abteilung` in `<th data-col-key>`, `#column-config` und `ColumnDefinitions` beider ViewKeys, gleiche Reihenfolge,
+  direkt nach `arbeitsbereich`; Drift-Wächter prüft das (inkl. Position).
+- Getter = Zelle: Zelle Sicht 1 `@kopf.Abteilung` mit `kopf = BuildKopfWerte(group.OrderInfos)`, Getter über `BuildKopfLookup` →
+  `BuildKopfWerte` → `FormatAbteilung`; eine Regel an einem Ort (`FormatAbteilung`), kein zweiter Weg in SQL/JS.
+- Sicht 2: Getter nur in `BuildPositionsSpalten` (Vorfilter je Position), **nicht** in `AggregatColumnMap` – Test sichert das ab;
+  Anzeige `Abteilungen` aus den `hauptFas` nach dem Vorfilter.
+- Defektklassen geprüft, nicht betroffen: kein Wert in `<script>`, kein `hidden`+`d-*`, kein stiller Fallback (leer bleibt `null`,
+  Kombigerät sichtbar), keine Parallel-Arrays/Model-Binding, keine reine Browser-Validierung.
+- Hinweise ohne Befund-Rang: (H1) Sicht 2 lässt beitragende HauptFA ohne Abteilung in der Liste weg (`FormatTexte` verwirft leer, so
+  Regel 6) – auf DEV gesehen: Zeile mit 1060414 (FKV) + 1065036 (leer) zeigte „FKV“. (H2) Der Filter ist Teiltreffer nach ADR 0017 –
+  `TK` würde auch einen Code wie `TKX` treffen; P-C zeigt den Wertevorrat.
+
+**3. Nachweisart je AC**
+| AC | Nachweis |
+|---|---|
+| 1 | automatisiert (Getter = `BuildKopfWerte`) + DEV-Browser OK |
+| 2 | automatisiert (HauptFA ohne Kopfzeile → null) + DEV-Browser OK (leere Abteilung) |
+| 3 | automatisiert (`FormatAbteilung` `TK`/` tk `) |
+| 4 | automatisiert + DEV-Browser OK |
+| 5 | automatisiert (TK/!TK/Kombi, TotalGroupCount) + DEV-Browser OK (FKV/!FKV/Kombi) |
+| 6 | automatisiert (`GN, TK`, `GN, Kombigerät, TK`) + DEV-Browser OK (`FKV, GN`) |
+| 7 | automatisiert (Summe 4 bei TK) + DEV-Browser OK (Summe 4 → 3 bei `fkv`) |
+| 8 | Manual-UAT (Browser-JS/Prefs-API): DEV teilweise OK (Ausblenden + Reload bleibt, Prefs gespeichert); alte Prefs ohne Key nicht geprüft |
+| 9 | automatisiert (Drift-Wächter Theory, beide Views) |
+| 10 | Manual-UAT (Browser-JS, Download) – offen |
+| 11 | automatisiert (bestehende Tests grün) |
+| 12 | Manual-UAT: AKE Redirect auf DEV OK; AccessDenied offen |
+| 13 | automatisiert, grün |
+
+**4. Geänderte bestehende Tests:** nur `VormontageNeueSpaltenTests.DreiQuellen_…` (umbenannt `…_ArbeitsbereichUndMontageAbteilung`):
+`NotContain("montage-abteilung")` → `Contain("montage-abteilung")`, Positionsprüfung neu – **Verhalten bewusst durch die Spec geändert**
+(T6, AC 9). `NotContain("abteilung")` bleibt. Keine sonstige Fixture-Anpassung.
+
+**5. Checkliste:** keine Migration/kein SQL/kein FreshInstall/keine AgentJobs (korrekt, Schema besteht); Audit nicht betroffen (Lesefunktion);
+Version 1.99.3 in beiden `AppVersion.cs`; Anwender-Changelog + Brain-Changelog [[2026-11-11-v1-99-3-vormontage-spalte-abteilung]];
+TS-127 in `docs/TESTSZENARIEN.md` und im Testindex (Zeile 127); feature-map auf Testbereit gesetzt. **5a ADR 0020:** keine neue/geänderte
+Einstellung im Diff.
+
+**6. DEV-Deploy und Testlauf**
+- `standort: IDEAL` laut Frontmatter; deployt wurden AKE **und** IDEAL (Web + Dienst, erhöhte Shell) aus dem Worktree:
+  `dev-deploy.ps1 -Standort IDEAL` → „HTTP 200, Fusszeile v1.99.3“, Exit 0; `-Standort AKE` → „HTTP 200, Fusszeile v1.99.3“, Exit 0.
+- Toggle `FaHierarchyVormontageAktiv` auf IDEAL_WMS_DEV war schon `true` (vorher/nachher `true`, nicht geändert); AKE_WMS_DEV `false` (unverändert).
+- Testdaten (DEV IDEAL, danach zurückgesetzt): Zeile `FaHierarchyOrderInfos` HauptFA 1064052 `GN` / ABNr `QA-127` eingefügt (→ Kombigerät)
+  und gelöscht; 1065036 `MontageAbteilung` vorübergehend `NULL`, wieder `GN`. Endzustand = Ausgangszustand (4 Zeilen FKV/WKS/TK/GN).
+
+| Schritt | gemacht | Ergebnis | Status |
+|---|---|---|---|
+| 127.1 | Sicht 1 ISO | Spalte „Abteilung“ rechts neben „Arbeitsbereich“, WKS/FKV gleich Gruppenkopf | OK |
+| 127.2 | URL `colf_montage-abteilung=FKV` / `!FKV` (Reiter DI) | FKV: 1 Gruppe, alle 3 Positionen, „1–1 von 1“; !FKV: 3 Gruppen, „1–3 von 3“ | OK |
+| 127.3 | Kombigerät 1064052 | Zelle „Kombigerät“, Kopf „TK …“ + „GN …“ mit Badge „mehrdeutig (Kombigerät)“, 1 Position; `Kombi` → nur 1064052 | OK |
+| 127.4 | 1065036 ohne Abteilung | Zelle leer, Kopf „—“ | OK |
+| 127.5 | Summiert DI | Spalte rechts neben „Arbeitsbereich“; `Kombigerät`, `WKS`, `FKV, GN`; Filter `fkv` getippt + ENTER: Summe 4 → 3, nur 1060414; Hinweistext nennt „Abteilung“ | OK |
+| 127.6 | Zahnrad Summiert: „Abteilung“ aus, Reload, wieder an | bleibt ausgeblendet nach Reload, `UserViewPreferences` Id 17 `visible:false` → wieder `true`; „Arbeitsbereich“ zusätzlich nicht getestet | OK (teilweise) |
+| 127.7 | CSV | Download braucht Zustimmung des Menschen; Code-Pfad `csv-export.js` generisch (Zelltext je sichtbarer Spalte) | NICHT MOEGLICH |
+| 127.8 | AKE `/FaHierarchyVormontage/Index` | Redirect auf Dashboard `/`; AccessDenied ohne Vorbau: kein zweiter Benutzer verfügbar | OK / NICHT MOEGLICH |
+| 127.9 | IDEAL `/ProductionOrders` | Spalte „Montage-Abt.“ vorhanden, Seite fehlerfrei | OK (Stichprobe) |
+| Kontrast | Sichtprüfung | neue Spalte ohne eigenes Styling, gleiche Bootstrap-Tabellenzellen wie Nachbarspalten (dunkler Text auf Weiß/Grau) | OK |
+
+**7. Publish:** `C:\git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish` – beide `dotnet publish` Exit 0, `SQL\` und `deploy\`
+kopiert, `publish-info.txt` Version 1.99.3, Commit `d2d4ed4692b78f8cd9911498000283c2a687ce54`, Branch `feature/2026-08-07-ideal-teile-1-5`.
+
+**Urteil: Testbereit.**
+
+### Manuelle Checkliste (Mensch, IDEAL-Testsystem)
+1. P-B und P-C auf der WMS-DB IDEAL ausführen (Kombigerät, HauptFA ohne Abteilung, Komma im Wert).
+2. TS-127.1–127.5 mit echten Daten (Reiter ISO wie Screenshot; echtes Kombigerät aus P-B).
+3. TS-127.6 vollständig: „Abteilung“ **und** „Arbeitsbereich“ ausblenden, Reload; zusätzlich Benutzer mit alten Prefs (ohne `montage-abteilung`) sieht die Spalte neben „Arbeitsbereich“.
+4. TS-127.7 CSV-Export beider Sichten mit und ohne ausgeblendete Spalte.
+5. TS-127.8 Benutzer ohne `vorbau`/`admin` → AccessDenied.
+6. TS-127.9 Regression Kommissionierlisten, Beschichtung, FA-Liste.
+7. Kontrast am Fertigungsterminal ansehen.
+8. Publish `publish\` (v1.99.3) auf das Testsystem, danach Merge-Entscheidung (Schranke 2).
