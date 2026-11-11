@@ -755,3 +755,84 @@ gefiltert, das Feld dient nur als Beleg.
 -->
 
 1. Phase der Transaktion-Einträge (SQL/108, v1.47.4): Nachher wie angeordnet oder vor dem Start bei gestopptem Web und Dienst (Empfehlung) → **Vor dem Start, bei gestopptem Web und Dienst (Gerald 2026-11-11 18:38). Eigener Abschnitt zwischen 5a und 6; Phase `VorStart` statt `Nachher`.**
+
+## Umsetzung (Dev-Lauf 2026-11-11)
+
+Buendel-Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Commits `1b285e9b` (Umsetzung) und `b30e310d` (feature-complete, zwei
+Fixes aus den DEV-Laeufen) auf v1.98.1 `e1ecc0c0`. SQL-Nummer 142 beim Start geprueft (hoechste Datei `141_…`).
+
+- **Freigabe-Antwort 1:** neuer Schritt **5b „Vor dem Start“** nach 5a, Phase `VorStart`: `SQL/108` und v1.47.4 (`Ausfuehrung =
+  Transaktion`). Offene VorStart-Eintraege stoppen Web **und** Dienst auch bei `-Komponente Web`; vor der Ausfuehrung prueft das Skript live,
+  dass beide gestoppt sind (`Assert-Gestoppt`). `SQL/110` bleibt `Nachher`.
+- **Pruefungen** (8 laut Spec, `nachlauf.psd1`): Vorpruefung zeigt je Zeile OK/Abweichung/nach Schema/Fehler; Reparaturen in 4a vor den
+  Haltepunkten, nur nach j und bei gestopptem Web und Dienst, danach erneute Pruefung = 0, sonst Abbruch. RCSI: listet vorher die anderen
+  Sitzungen (eigener Pool wird vorher geleert), Frage nennt `ROLLBACK IMMEDIATE`, Reparatur ohne Transaktion. Block „Pruefungen“ in der
+  Nachlauf-Liste mit dem Stand nach dem Lauf.
+- **Fluss A/B/C** und Marker laut Spec (`Invoke-Eintrag`, `Invoke-FlussA`, `Invoke-FlussB`, `Invoke-SqlTransaktion`, `Write-Marker`).
+  `Invoke-SqlTransaktion` lehnt `ROLLBACK` und `sqlcmd`-Direktiven vor der Ausfuehrung ab. Die Eingabe `ausgefuehrt` am Haltepunkt entfaellt.
+  Einmalig-Haltepunkte werden nicht mehr nach Version gefiltert (wie die Nachlauf-Liste): der Marker verhindert die Wiederholung.
+- **Marker:** `DeployScriptRun` (kein AuditableEntity), Migration `20261111174202_AddDeployScriptRuns`, `SQL/142_AddDeployScriptRuns.sql`,
+  FreshInstall an beiden Stellen, Manifest `SQL/142` als letzter Schema-Eintrag.
+- **Bugfixes:** `:110` `-ExpandProperty Source`; `:67`/`:174` `@(… | ForEach-Object { $_.X })` (unter PS 5.1 + StrictMode 2 **gemessen**:
+  beide warfen bei leerem Array; `:178` wirft nicht, unveraendert); `:264` lesbarer Abbruch `Get-MigrationIdVon` + Drift-Test; `:496`
+  `v${PaketVersion}?`; Backup-Ordner vorab (`sys.dm_os_file_exists`, Frage nach anderem Ordner, „nicht pruefbar“ → Warnung + Frage);
+  `Show-Zustand` bei jedem Fehler im Systemlauf, `trap` fuer Abbrueche vor dem ersten System („Nichts gestoppt, nichts geaendert“, Stack nur
+  bei unerwarteten Fehlern; deckt N2 ab); Startup-Seed Kommissionierbereiche (`Program.cs` nach dem OperationConfigs-Block).
+- **Manifest-Umzug** laut Tabelle: `v1.49.0-Anschrift`, `v1.69.0-Trennzeichen` entfernt; `v1.31.0-IDEAL-Schalter` ohne RCSI,
+  `v1.51.0-Rolle` nur „zuweisen“, `v1.60.0-IDEAL-Views` mit Verweis auf die Pruefung; `SQL/108` mit Spur; Texte der Daten-/Einmal-Eintraege
+  neu; `v1.99.0-Info`. Die fuenf Kandidaten (`v1.58.0-P123`, `v1.61.0-P5`, `v1.57.0-PT1`, `v1.77.0-Pruefung`, `v1.92.0-Final`) bleiben
+  **Info**: ihre Abfragen stehen in den Quell-Specs und wurden in diesem Lauf nicht auf eine eindeutige Abweichungszahl geprueft (Spec:
+  „sonst bleibt der Eintrag Info“).
+- `SQL/110` und Altbestand: Zeile `TREFFER` im Trockenlauf-Zweig (Scharf-Zweig und Literal unveraendert).
+- Drift-Tests: `SchemaReihenfolge` + `SQL/142`; `Manifest_DatenUndEinmalSkripte_NurMitBestaetigung` (geaendert aus `…_NieAutomatisch`);
+  neu `Manifest_TrockenlaufDateiOhneTreffer_MachtWaechterRot`, `Manifest_Pruefungen_Gueltig` (Waechter-Kopie gegen den Skripttext
+  abgeglichen), `Manifest_BrauchtVerweistAufVorhandeneIds`, `DeploySkripte_KeineVariableMitFragezeichenImText` (mit Rotprobe),
+  `Manifest_EntfernterEintrag142_MachtWaechterRot`; Typ-Liste in `Manifest_IdsEindeutig_FelderGueltig`. Neu `DeployScriptRunsMigrationSqlTests`.
+- Version 1.99.0, Changelog-Karte, README (Update-Abschnitt), TS-126 in `docs/TESTSZENARIEN.md`.
+- Brain (Hauptcheckout): ADR [[0023-daten-und-einmal-skripte-fuehrt-das-update-skript-mit-bestaetigung-aus]], Nachtraege in ADR 0015/0022,
+  [[fallstricke]] §30 (+5), Vorlage `_templates/spec.md` und `.claude/agents/spec-agent.md` (Typ `Pruefung`, Phase `VorStart`,
+  Ausfuehrung-Werte).
+
+**Nachweis Build/Test** (Worktree): `dotnet build IdealAkeWms.slnx` 0 Fehler (28 Warnungen, Bestand); `dotnet test`: Web **2609/2610**
+bestanden (1 uebersprungen, Bestand), Dienst **512/512**; Deploy-Tests 16/16. `ParseFile` unter `powershell.exe` 5.1: 0 Parsefehler fuer alle
+5 Dateien in `scripts/deploy`; ASCII (Drift-Test).
+
+**DEV-Laeufe TS-126** (nur DEV: Kopie `IDEAL_WMS_TS126` aus einem COPY_ONLY-Backup von `IDEAL_WMS_DEV`, Test-Site `TS126_WMS` :8093 mit Pool
+`TS126`, Testdienst `IDEAL_WMS_TS126_Service` LocalSystem, Paketkopie `D:\Dev\deploytest\ts126\paket` mit eigener `ziele.psd1`-Zeile und
+eigenem Manifest; Sage/enaio/SData/SMTP der Test-Anwendung auf nicht erreichbare Ziele umgestellt; danach alles entfernt – Site, Pool, Dienst,
+DB, Login, Backups, Ordner):
+
+| Nr | Ergebnis |
+|---|---|
+| 126.1 + 126.13 | `-NurPruefen` (DB vor SQL/142): Abweichung 1 bei Kommissionierbereiche, RCSI, DummyArtikel; Firmenanschrift 1 (von Hand); keine Rollen-Pruefung (IDEAL); „Marker-Tabelle fehlt (kommt mit SQL/142)“; Backup-Ordner „vorhanden“; Plan stoppt beide, Reparaturen, Haltepunkt Altbestand, vor dem Start v1.47.4; Exit 0, nichts geaendert |
+| 126.2 | Volllauf: SQL/142 eingespielt; 4a je Reparatur eine Frage; SQL/133 → „Kommissionierbereiche … angelegt“ (Lager Standard); RCSI „Andere Sitzungen: 0“ → 1; SQL/86 → DUMMY; Altbestand-Trockenlauf `TREFFER: 0` → „entfaellt“; v1.47.4 mit n → offen; Start „Fusszeile v1.99.0“ |
+| 126.3 | DummyArtikel mit n: „Reparatur abgelehnt, Abweichung 1 bleibt“, Lauf weiter, Abweichung im Block „Pruefungen“ |
+| 126.4 | alle Bereiche ohne Standard, `-NurPruefen`: `Pruefung/Standardbereich` „Abweichung 1 – von Hand: …“, keine Reparatur |
+| 126.5 | synthetisch `TREFFER: 0` → „entfaellt“, j → Marker `Entfaellt`; Folgelauf „erledigt am 11.11.2026 19:00 (Entfaellt, Treffer 0)“; ebenso der echte Altbestand-Trockenlauf (Marker `Entfaellt`) |
+| 126.6 | Treffer 2/3 ohne Backup aus dem Lauf → „Kein Backup aus diesem Lauf“, n → kein Scharflauf, offen; `scharf` (klein) → „nicht SCHARF bestaetigt“, offen; Haltepunkt-Variante (Treffer 2, `nein`) → „ABBRUCH: Haltepunkt … Web und Dienst bleiben gestoppt“ + Zustand |
+| 126.7 | Backup j, `SCHARF`: „Geschrieben: 3“, Commit, Marker `Scharf` Hits 3, `FileSha256` = Hash der Datei (unveraendert), zweiter Trockenlauf `TREFFER: 0` |
+| 126.8 | Fluss B `verwerfen`: Ausgabe „B geschrieben: 2“ + Tabelle sichtbar, danach Probe-Tabelle leer, kein Marker |
+| 126.9 | Fluss B `uebernehmen`: 2 Zeilen, Marker `Transaktion`; Folgelauf zeigt „erledigt“, Plan „vor dem Start“ ohne den Eintrag |
+| 126.10 | `e` → Marker `VonHand` „von Hand erfasst“ |
+| 126.11 | `ROLLBACK`-Datei und `:r`-Datei: „abgelehnt … Nichts ausgefuehrt“ |
+| 126.12 | Skript schreibt Marker vorab → „Fehler in Batch 1 … Cannot insert duplicate key … UX_DeployScriptRuns_ManifestId“, Rollback, Probe-Zeile nicht in der DB |
+| 126.14 | PATH ohne sqlcmd, Fallback-Pfade in einer Skriptkopie unbrauchbar: „ABBRUCH: sqlcmd nicht gefunden. Installieren: …“ + „Nichts gestoppt, nichts geaendert.“, Exit 1, kein StrictMode-Fehler (vorher mit nur PATH ohne sqlcmd: Fallback-Pfad genommen) |
+| 126.15 | `-SiteUrl` auf eine Seite ohne Fusszeile: Schritt 6 fragt im Browser nach, Antwort j, kein Fehler |
+| 126.16 | `-BackupPfad D:\GibtEsNicht`: Vorpruefung „FEHLT“; Schritt 2 „Ordner … fehlt auf .“, leere Eingabe → „ABBRUCH: kein Backup-Ordner angegeben.“, Zustand Schritt 2 „Nichts gestoppt“ |
+| 126.17 | synthetisches Schema-Skript mit Fehler: „SQL/999 fehlgeschlagen“, Zustand: App-Pool Stopped, Dienst Stopped, letzter Schritt „4. Schema“, fehlende MigrationId, Weg „NICHT von Hand starten …“ |
+| 126.18 | Web-Start mit leerer `PickingAreas`: Lager/Glas/VK mit `CreatedBy = system`, Lager Standard, VK Vorkommissionierung; Neustart aendert nichts (3 Zeilen, gleiche Ids) |
+| 126.19 | Drift-Tests gruen, eingebaute Rotproben (Eintrag `SQL/142` entfernt, `TREFFER:` entfernt, `$x?`) |
+| AK 6 | RCSI aus + fremde Sitzung (offene Transaktion): „Andere Sitzungen: 1 – 60 AKENB\gerald.weichbold PC-WEICHBOLD SQLCMD“, Reparatur j → fremde Sitzung beendet („kill state“), RCSI 1; Pruefabfrage gegen `AKE_WMS_DEV` (beide Schalter false) = 0 |
+| AK 7 | Reparatur-SQL aus dem Manifest gegen die Kopie in Transaktion + ROLLBACK: Pruefung 2 → 0, Rollen mit `IsSystem = 1`, `CreatedBy = Update-Skript`; zweite Reparatur legt nichts an |
+| AK 25 | Protokolle: „in EINER Transaktion“ nur fuer `Test/SynthA`, `Test/SynthB`, `Test/SynthBDup`; echte Skripte nur im Trockenlauf (Altbestand) |
+
+Zwei Fehler fielen erst im DEV-Lauf auf und sind behoben (`b30e310d`, [[fallstricke]] §30): Cast-Reihenfolge bei `GetNewClosure()`
+(der Abbruch zeigte nebenbei `Show-Zustand` im Schritt 5b), `.Count` auf einem einzelnen Batch.
+
+**Zusatzfunde (nicht gebaut):**
+- Z1: DEV `IDEAL_WMS_DEV` hat RCSI aus bei `ProduktionsauftragHierarchisch = true` – die Pruefung wird dort beim naechsten DEV-Lauf
+  anschlagen.
+- Z2: DEV IDEAL hat die Rollen `beschichtungsauftrag`/`_schreiben` nicht; die Spec nimmt an, IDEAL habe sie aus der Installation
+  (`nachlauf.psd1`, Text `v1.51.0-Rolle`). Die Pruefung bleibt wie angeordnet AKE. Pruefabfrage fuer IDEAL-Test/-Prod:
+  `SELECT [Key] FROM dbo.Roles WHERE [Key] LIKE N'beschichtungsauftrag%'`.
+- Z3: Die Kandidaten aus dem Manifest-Umzug (P-1/2/3, P5, P-T1, P-E1, Final) sind nicht auf eine Abweichungszahl geprueft (Folge-Aufgabe).

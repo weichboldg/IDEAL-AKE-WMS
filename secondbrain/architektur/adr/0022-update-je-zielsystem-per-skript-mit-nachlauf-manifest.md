@@ -46,3 +46,7 @@ wegzunehmen (ADR 0015). Ermittlung statt fester Namen, weil die Systeme nicht ei
   vergessener Hand-Schritt nur in der QA.
 - Ob ein Einmal-Skript gelaufen ist, weiss das Skript nur ueber Spur-Abfragen; eine Marker-Tabelle ist Folge-Spec (Freigabe-Antwort 1).
 - `sqlcmd` muss auf den Web-Servern installiert sein (ODBC-Variante).
+
+## Nachtrag 2026-11-11 (v1.99.0)
+
+Teilweise abgeloest durch [[0023-daten-und-einmal-skripte-fuehrt-das-update-skript-mit-bestaetigung-aus]]: „Daten- und Einmal-Skripte nie scharf durch das Skript“ gilt nicht mehr; Ausfuehrung nur nach Eingabe am Zielserver, Marker `dbo.DeployScriptRuns` (SQL/142), neuer Manifest-Typ `Pruefung`, Phase `VorStart`.

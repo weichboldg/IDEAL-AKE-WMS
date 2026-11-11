@@ -120,9 +120,13 @@ DEPLOY SECTION (fill provisionally):
 - Manifest entries are mandatory (ADR 0022): for every new SQL script, one-off script
   (SQL/Einmalig), setting to switch, Leitstand action, user info or new folder/right, name the
   planned entry for scripts/deploy/nachlauf.psd1 in the Deploy section: Id, Version, Typ
-  (Schema|Daten|Einmalig|Einstellung|Leitstand|Info|Ordner), Firma (AKE|IDEAL|beide), Phase
-  (Vorher|Schema|Haltepunkt|Nachher), Ausfuehrung (automatisch only for Schema|Trockenlauf|anzeigen),
-  Text. Schema entries keep deploy order (never file sort). No deploy step -> write "keine".
+  (Schema|Daten|Einmalig|Pruefung|Einstellung|Leitstand|Info|Ordner), Firma (AKE|IDEAL|beide), Phase
+  (Vorher|Schema|Haltepunkt|VorStart|Nachher), Ausfuehrung (automatisch only for Schema/Ordner;
+  Daten/Einmalig: Trockenlauf|Transaktion|anzeigen; Pruefung: Reparatur|anzeigen), Text. ADR 0023:
+  a Trockenlauf script needs exactly one "DECLARE @Trockenlauf BIT = 1;" and a "TREFFER: n" line in
+  its dry-run branch; Transaktion scripts contain no ROLLBACK and no sqlcmd directives; a seed or
+  state that is SQL-checkable gets a Pruefung entry (or a startup seed), not a manual step.
+  Schema entries keep deploy order (never file sort). No deploy step -> write "keine".
 
 OUTPUT (the spec, plus a bug record only in the bug case above):
 - secondbrain/specs/entwurf/YYYY-MM-DD-<slug>-spec.md based on

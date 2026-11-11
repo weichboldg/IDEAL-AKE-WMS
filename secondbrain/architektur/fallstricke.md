@@ -1720,6 +1720,19 @@ Code: `hardware-scanner.js` Block „Scannen ohne Feld“, CSS `.hw-scan-bereit`
   laufen ueber `Read-Eingabe` (Modul).
 - **Git Bash wandelt `/save`, `/Q` usw. in Pfade um** (`icacls ... /save` wurde zu `C:/Program Files/Git/save`). **Warum wichtig:**
   Test-Vorbereitungen mit Windows-Schaltern scheitern still; `MSYS_NO_PATHCONV=1` setzen oder aus PowerShell aufrufen.
+- **v1.99.0: StrictMode 2 wirft bei `.Eigenschaft` auf `$null` oder leerem Array** (`(Get-Command x | Select -First 1).Source`,
+  `($leer.Name)`; unter PS 5.1 gemessen 2026-11-11). **Warum wichtig:** Fehlte `sqlcmd` im PATH, brach das Skript am IDEAL-Test roh ab,
+  statt den Fallback-Pfad zu nehmen; `Select-Object -ExpandProperty` bzw. `@($x | ForEach-Object { $_.Name })` verwenden.
+- **v1.99.0: `"$Name?"` liest in PS 5.1 die Variable `Name?`** (das `?` gehoert zum Namen); unter StrictMode Fehler. **Warum wichtig:** Die
+  Rueckfrage nach der Version brach genau dort ab, wo der Mensch eingreifen sollte; `${Name}?` schreiben (Drift-Test-Waechter).
+- **v1.99.0: Ein Seed, der nur im SQL-Skript steht, fehlt nach `Migrate()`.** Systeme, die die Migration per EF statt per Skript
+  bekamen, haben die Zeilen nie (Kommissionierbereiche am IDEAL-Test). **Warum wichtig:** Ohne Standardbereich legt die App keine
+  Kommissionierauftraege an; Seeds gehoeren in den Startup (Muster „wenn leer, anlegen“) oder als Pruefung ins Manifest.
+- **v1.99.0: Eine offene Transaktion waehrend einer Eingabe haelt Sperren**, bei grossen DELETEs bis zur Tabellensperre. **Warum wichtig:**
+  `uebernehmen`/`verwerfen` laeuft deshalb vor dem Start bei gestopptem Web und Dienst; ein Scharflauf nach `SCHARF` committet sofort.
+- **v1.99.0: PS 5.1 wertet den Cast vor dem Methodenaufruf aus.** `([Delegate] { … }).GetNewClosure()` wirft „keine Methode
+  GetNewClosure“; richtig ist `[Delegate]({ … }.GetNewClosure())`. Eine Funktion mit einem Element liefert einen Skalar, kein Array
+  (`.Count` wirft unter StrictMode) – `@(...)` um den Aufruf. **Warum wichtig:** Beides fiel erst im DEV-Lauf auf (TS-126), nicht im Parser.
 
 ## Sage-SData-Lesen (v1.73.0, [[2026-11-06-sage-sdata-stammdaten-sync-spec]])
 
