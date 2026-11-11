@@ -2,7 +2,7 @@
 type: spec
 title: Update-Skript je Zielsystem mit Nachlauf-Manifest (Bündel-Deploy ab v1.97.0)
 slug: 2026-11-09-update-skript-je-zielsystem-mit-nachlauf-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-11-09
 updated: 2026-11-11
 freigabe_von: "Gerald Weichbold (Chat Koordination, „passt“ auf Freigabe-Frage)"
@@ -544,7 +544,21 @@ mit der Backlog-Tabelle vergleichen (AKE: 89–107, 109, 112, 113, 133, 140, 141
 
 ## Deploy
 
-**Vorläufig** (QA bestätigt am echten Diff):
+**Final (QA 2026-11-11, aus dem echten Diff `9db618c0..550f10d5`):**
+- **Web-App:** ja (nur `AppVersion.cs` 1.98.0 + Changelog-Karte) · **Service:** ja (nur `AppVersion.cs` 1.98.0) · **Migration:** nein
+  (keine Datei unter `*/Migrations/`, kein neues SQL). Der eigentliche Inhalt sind die Deploy-Skripte im Paket (`deploy\`).
+- **Paket:** `C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish\` = v1.98.0, Commit `550f10d5`
+  (`IDEALAKEWMSWeb\`, `IDEALAKEWMSWebService\`, `SQL\`, `deploy\`, `publish-info.txt` im neuen Format).
+- Ablauf Mensch: Paket auf den Zielserver kopieren (z. B. `C:\<FIRMA>\deploy\v1.98.0\`) -> je System zuerst `deploy\Update-IdealAkeWms.ps1
+  -NurPruefen`, Plan prüfen -> Volllauf (Backup, Stoppen, Schema, Haltepunkt, Kopieren, Ordner/Rechte, Start Web vor Dienst, Nachlauf-Liste)
+  -> testen -> Merge. Reihenfolge bei Schema/Einmal-Skripten steuert das Skript (Backup vor Stoppen; Schema; Haltepunkt Altbestand; Start;
+  danach SQL/110-Trockenlauf und Hand-Schritte laut Nachlauf-Liste).
+- Nach dem Merge nur dann neu aus `main` publishen, wenn der Merge getestete Dateien mit parallelen main-Änderungen zusammengeführt hat:
+  `dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb` und
+  `dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService` (plus `SQL\`, `deploy\`,
+  `publish-info.txt` laut `qa-agent.md` Punkt 7).
+
+**Vorläufig** (Spec-Agent, überholt durch „Final“ oben):
 - **Web-App:** nein · **Service:** nein · **Migration:** nein. Keine Änderung an Anwendungscode, daher kein Versions-Bump in
   `AppVersion.cs` und kein Anwender-Changelog; Nachweis im QA-Abschnitt dieser Spec, Eintrag im Bündel-Changelog des nächsten
   Versionsschritts.
@@ -726,3 +740,122 @@ auf `true` (geprüft). Testartefakt: Backup-Datei `C:\Program Files\Microsoft SQ
 - DEV-IDEAL hat RCSI = 0 (Warnung des Skripts); an IDEAL-Prod/Test vor dem Deploy prüfen.
 - `Branding\` fehlt auf DEV (Warnung, Ersatz-Kopf) – erwartbar.
 - Install-Skript wurde nicht ausgeführt (nur Parse-Check, AK 33); ein echter Lauf braucht eine leere Maschine.
+
+## QA-Nachweis (qa-agent, 2026-11-11)
+
+Geprüft: Commits `1f3d2ce4`, `1c689a66` (Diff `9db618c0..1c689a66`) im Bündel-Worktree; QA-Fix `550f10d5`. Review selbst in diesem Lauf
+durchgeführt (kein Unteragent).
+
+### 1. Build und Tests
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler (28 Warnungen, bestehend).
+- `dotnet test`: **IdealAkeWms.Tests 2601 bestanden / 1 übersprungen / 0 Fehler (2602)**; **IDEALAKEWMSService.Tests 512 / 0 / 0 (512)**.
+- Nach dem QA-Fix (nur `.ps1`, kein C#): `NachlaufManifestDriftTests` 8/8; `ParseFile` unter `powershell.exe` 5.1.26100: 0 Fehler in allen
+  5 Dateien von `scripts/deploy`; Grep auf Nicht-ASCII leer; Grep `/reset|/remove|/inheritance:r|SageConnection|SData` in Update-Skript
+  und Modul leer.
+
+### 2. Code-Review (Befunde und Behandlung)
+| # | Schwere | Befund | Behandlung |
+|---|---|---|---|
+| F1 | Mittel | Schritt 2 Backup: `Join-Path <InstanceDefaultBackupPath> ...` wirft unter PS 5.1, wenn das Laufwerk des **SQL-Servers** am Web-Server fehlt (gemessen: `Join-Path 'Q:\MSSQL\Backup' 'a.bak'` -> „Laufwerk Q nicht vorhanden“). An AKE (AKESQL20) und IDEAL (eigener SQL-Server) wahrscheinlich; der Lauf bräche mit Rohfehler ab (vor dem Stoppen, nichts geändert, aber kein Backup). | **Behoben** `550f10d5` (String statt `Join-Path`). DEV: `-BackupPfad Q:\NichtDa` -> `ABBRUCH: Backup fehlgeschlagen: … Cannot open backup device … Operating system error 3`, Exit 1, Pool/Dienst danach Started/Running (zugleich AK 11 Negativfall). |
+| F2 | Niedrig | `Invoke-SqlDatei`: unter `ErrorActionPreference=Stop` wirft PS 5.1 bei stderr von sqlcmd (Verbindungsfehler) sofort (gemessen mit `-S .\NICHTDA`); SQL-Fehler (Msg …) gehen auf stdout und waren korrekt. Folge: Abbruch ohne „ABBRUCH … bleiben gestoppt“-Meldung, Ausgabe unvollständig. | **Behoben** `550f10d5` (lokal `Continue`, Exit-Code entscheidet). |
+| F3 | Mittel | Schritt 6 ruft die URL aus der IIS-Bindung ab; https-Bindung ohne Host-Header -> `https://localhost:<Port>` -> Zertifikatsname passt nicht -> Ausnahme -> **App-Pool gestoppt nach Kopieren und Schema** (spec-konform „HTTP-Fehler -> Abbruch“, aber erst spät sichtbar). Betrifft vermutlich AKE-Test (4444) und Test-IDEAL (4445). Die Vorprüfung schwieg bei HTTP-Status ≠ 2xx. | **Teilweise behoben** `550f10d5`: Vorprüfung warnt jetzt bei nicht lesbarer Startseite (auch `-NurPruefen`). DEV mit `-SiteUrl https://localhost:8082/`: `!! Startseite … nicht lesbar: Fehler bei Handshake … Schritt 6 bricht dann nach dem Kopieren ab … ggf. -SiteUrl`. **Offen (Checkliste 2).** Folgeidee (nicht gebaut): bei Bindung ohne Host-Header die `Url` aus `ziele.psd1` nehmen. |
+| F4 | Niedrig | Abbrüche in der Ermittlung (vor jeder Aktion: Ordner fehlt, Pfadparameter bei mehreren Systemen, Web-DB ≠ Dienst-DB) schreiben kein Protokoll; das Transcript startet erst je System. | Offen, nicht gebaut (nichts geändert zu dem Zeitpunkt; Konsole zeigt den Grund). |
+| F5 | Info | `-LogPfad` ist bei mehreren Systemen erlaubt (Spec: alle Pfadparameter unzulässig). Sinnvoll, Protokollnamen enthalten das System. | Akzeptiert, nicht geändert. |
+| F6 | Niedrig | `deploy-info.txt` wird in Schritt 5 geschrieben (vor der Versionsprüfung in 6) und von `dev-deploy.ps1`/Hand-Updates nicht erneuert -> veralteter Fallback, wenn die Fußzeile nicht lesbar ist. Gemessen: DEV-IDEAL hatte nach TS-125.11 `Version: 9.9.9` darin („Installiert: v9.9.9 (Quelle: deploy-info.txt)“). Die Quelle wird angezeigt. | Offen; DEV-Artefakt durch QA-Volllauf überschrieben (jetzt 1.98.0/`550f10d5`). |
+| F7 | Niedrig | `Stop-Service` wartet in PS 5.1 selbst unbegrenzt; der 60-s-Timeout (AK 12) greift erst danach. Ein hängender Dienst blockiert das Skript, Abbruch nur per Strg+C. | Offen, nicht gebaut. |
+| F8 | Info | `Install-IdealAkeWms.ps1`: Warnungen aus `Test-OrdnerUndRechte` landen in der Modul-Liste, nicht in der Abschluss-Liste „Warnungen“ des Installers (inline sichtbar). | Offen, nicht gebaut. |
+
+Geprüft ohne Befund: Never-scharf-Regel (einziger `Invoke-SqlDatei`-Weg außer Schema ist `Invoke-Trockenlauf` mit Literal-Prüfung und
+Ablehnung von `= 0`; SQL/108, v1.47.4, 00er nur `anzeigen`; Grep aller DEV-Protokolle 2026-11-11: einziger sqlcmd auf `Einmalig\` =
+Altbestand-Trockenlauf); Rechte nur `icacls /grant` + `/save`; kein Sage-Zugriff (nur `ConnectionStrings:DefaultConnection`, Grep + Test);
+Stop/Start/Abbruch-Pfade (Schema-, Haltepunkt-, 5a-Abbruch: beide gestoppt; Schritt-6-Webfehler: Pool gestoppt, Dienst nicht gestartet);
+PS-5.1-Kompatibilität (StrictMode 2, `Import-PowerShellDataFile`, Member-Enumeration auf Hashtable-Arrays gemessen, WebAdministration-Objekte
+im DEV-Lauf); Manifest gegen Spec-Tabellen und Freigabe-Antwort 4 (25 Schema in Deploy-Reihenfolge; Hotfix-1.30.1 bewusst nicht enthalten;
+v1.47.4 + 00er nur `Firma IDEAL, System Test`; kein v1.46.0-Eintrag; v1.51.0 nennt beide Rollen; v1.96.0 Ordner/Zählen/Rest/Dienst und
+v1.97.0 vorhanden; 72 Einträge). Fehlerklassen der QA-Liste (Script-Einbettung, `hidden`+`d-*`, stille Fallbacks, Parallel-Arrays,
+Browser-only-Validierung): nicht berührt; „eine Regel an mehreren Orten“: Ordner/Rechte nur im Modul, Trockenlauf-Literal in Skript und
+Drift-Test gleich.
+
+### 3. Nachweisart je AK
+| AK | Nachweis |
+|---|---|
+| 1 | DEV (TS-125.2) + Code |
+| 2 | DEV (125.5); doppelte `ziele.psd1`-Einträge nur Code-Review (`Import-Ziele`); `-LogPfad` siehe F5 |
+| 3 | DEV (125.3, 125.4) |
+| 4 | DEV positiv (genau 1 Treffer); 0/>1 Treffer und geteilter Pool nur Code-Review |
+| 5 | DEV positiv; 0/>1 nur Code-Review |
+| 6 | DEV (125.8); zwei Systeme mit gleicher DB nur Code-Review |
+| 7 | DEV (125.9) |
+| 8 | DEV (125.6) |
+| 9 | DEV (125.1, QA-Wiederholung aus dem Paket) |
+| 10 | DEV (125.1 QA: Pool/Dienst vorher = nachher Started/Running, Exit 0) |
+| 11 | DEV (QA: Backup-Fehler -> Abbruch vor dem Stoppen; echtes Backup im Dev-Lauf) |
+| 12 | DEV positiv; Timeout nur Code-Review (F7) |
+| 13 | **Manual-UAT** (auf DEV fehlt kein Schema-Skript) – erster Volllauf AKE-Test |
+| 14 | **Manual-UAT** (AKE-Test: SQL/90 fehlt dort) + Code-Review |
+| 15 | **Manual-UAT** + Code-Review |
+| 16 | Code-Review (auf DEV ohne Schema-Lücke nicht provozierbar) |
+| 17 | Test (`Manifest_DatenUndEinmalSkripte_NieAutomatisch`) + DEV (125.10) + Log-Grep |
+| 18 | DEV (125.12 und QA-Volllauf: Schutzstand gleich, `web.config` DEV bleibt); robocopy ≥ 8 nur Code-Review |
+| 19 | DEV (125.11, 125.12) |
+| 20 | DEV positiv; Negativfall nur Code-Review |
+| 21 | DEV (125.10) |
+| 22 | DEV (125.1: installiert 1.98.0 -> nur Einmal-Einträge mit Spur); Versionsfilter mit älterem Stand: Dev-Lauf AKE 125.12 + Code |
+| 23 | DEV (Protokolle auch bei Abbruch: 125.6, QA-Backup-Abbruch); Ermittlungs-Abbrüche ohne Protokoll (F4) |
+| 24 | Code-Review; **Manual-UAT** beim ersten Mehrsystem-Lauf |
+| 25 | Test (8/8, inkl. `Manifest_EntfernterEintrag_MachtWaechterRot`) |
+| 26 | QA: `ParseFile` 0 Fehler unter `powershell.exe` 5.1 + ASCII-Test |
+| 27 | Test + Grep |
+| 28 | Review: README beide Abschnitte, `qa-agent.md`/`spec-agent.md`/Vorlage je mit `nachlauf.psd1`, CLAUDE.md-Vorschlag in dieser Spec |
+| 29 | QA Build/Test oben |
+| 30 | DEV (QA-Volllauf: vollständige Liste OK/WARNUNG im Protokoll) |
+| 31 | DEV (125.15 Dev-Lauf) |
+| 32 | Test + Grep; `icacls /save` belegt in 125.15 |
+| 33 | Parse + Review; Ausführung **Manual-UAT** (braucht leere Maschine) |
+
+### 4. Geänderte bestehende Tests
+Keine. Einzige Testdatei im Diff ist neu (`IdealAkeWms.Tests/Deploy/NachlaufManifestDriftTests.cs`).
+
+### 5. CLAUDE.md-Checkliste / ADR 0020
+Keine Migration, kein SQL, kein FreshInstall-Bedarf, keine Audit-Felder. Version 1.98.0 in beiden `AppVersion.cs`, Anwender-Changelog
+(Karte v1.98.0), Brain-Changelog [[2026-11-11-v1-98-0-update-skript-je-zielsystem]], ADR [[0022-update-je-zielsystem-per-skript-mit-nachlauf-manifest]],
+[[fallstricke]] §30, TS-125 in `docs/TESTSZENARIEN.md` und im Testindex. ADR 0020: keine neue oder geänderte Einstellung.
+
+### 6. DEV-Deploy und Testlauf
+- `standort: beide`. `dev-deploy.ps1 -Standort IDEAL` und `-Standort AKE -Quelle <Bündel-Worktree>` (erhöht, Exit 0): beide **HTTP 200,
+  Fußzeile v1.98.0**. Danach die 5 AKE-DEV-Sync-Schalter auf `true` gesetzt und geprüft.
+- Update-Skript aus dem Paket (`publish\deploy\`, v1.98.0/`550f10d5`) gegen DEV-IDEAL:
+
+| Schritt | Ergebnis | Status |
+|---|---|---|
+| 125.1 `-NurPruefen` | Site/Pool/Dienst/DB `./IDEAL_WMS_DEV` ermittelt, Fußzeile v1.98.0, fehlend keine, RCSI-Warnung, Spuren, Ordner/Rechte-Bericht, Nachlauf 3 Einmal-Einträge, Exit 0, Pool/Dienst vorher = nachher | OK |
+| F3 `-SiteUrl https://localhost:8082/ -NurPruefen` | Warnung „Startseite … nicht lesbar … Schritt 6 bricht dann … ab“, Exit 0 | OK |
+| AK 11 `-BackupPfad Q:\NichtDa` | Abbruch vor dem Stoppen, Exit 1, Pool/Dienst laufen | OK |
+| 125.12 Volllauf (Backup abgelehnt, „liegt vor“ j) | Stoppen, Schema nichts fehlt, web.config-Warnung (Ziel DEV bleibt), robocopy, Schutzstand gleich, Ordner/Rechte OK (Branding WARNUNG), Fußzeile v1.98.0, Dienst läuft, Exit 0 | OK |
+| 125.2–125.11, 125.13–125.15 | aus dem Dev-Lauf übernommen (Tabelle oben), nicht wiederholt | OK (Dev-Lauf) |
+| 125.16 erster `-NurPruefen` je Zielsystem | Zielsysteme für Agenten tabu | NICHT MOEGLICH |
+
+- Danach DEV-IDEAL mit `dev-deploy.ps1 -Standort IDEAL` wiederhergestellt (Exit 0, v1.98.0).
+- **Stand DEV am Ende:** AKE und IDEAL v1.98.0, App-Pools `AKE_WMS_DEV`/`IDEAL_WMS_DEV` Started, Dienste Running, AKE-Sync-Schalter
+  `Sync:ArticlesEnabled`, `…ArtikelLieferantEnabled`, `…KreditorenEnabled`, `…DebitorenEnabled`, `…EinkaufBestellungenEnabled` = true.
+- Browser-Schritte: keine (keine Oberflächenänderung außer der Changelog-Karte, siehe Checkliste 6).
+
+### 7. Publish
+`<Worktree>\publish\` neu erzeugt (Zielordner vorher geleert): `IDEALAKEWMSWeb\`, `IDEALAKEWMSWebService\`, `SQL\`, `deploy\`,
+`publish-info.txt` (`Version: 1.98.0`, `Commit: 550f10d5bca66b4d1a41ed650546ec8ea0debec7`, `Branch: feature/2026-08-07-ideal-teile-1-5`,
+`Spec: 2026-11-09-update-skript-je-zielsystem-mit-nachlauf-spec`, `Erstellt: 2026-11-11 11:00`, `Komponenten: …`). Genau dieses Paket hat
+das Update-Skript auf DEV-IDEAL eingespielt (125.12 oben).
+
+### Manuelle Test-Checkliste (Mensch, Schranke 2)
+1. Vor dem ersten Lauf je Server: `Get-Command sqlcmd` und die Rechte-Abfrage aus Rückfrage 7 (db_owner, BACKUP, msdb-Leserecht).
+2. Je Zielsystem zuerst `-NurPruefen` (AKE-Test, Test-IDEAL, IDEAL-Test, dann Prod): „Installiert: … (Quelle: Fusszeile …)“ muss erscheinen
+   und **keine** Warnung „Startseite … nicht lesbar“ (F3). Sonst mit `-SiteUrl` (z. B. `https://akenet01.ake.at:4444/`) wiederholen.
+3. Plan je System mit der Backlog-Tabelle vergleichen (AKE: 89–107, 109, 112, 113, 133, 140, 141 fehlen; IDEAL-Prod: 98–141 ohne 108/110).
+4. Erster Volllauf AKE-Test: Backup-Angebot (Pfad auf AKESQL20), sysjobs-Anzeige + Extra-Bestätigung vor SQL/90 (AK 14), SQL/95-Voraussetzung
+   (AK 15), jedes Schema-Skript einzeln bestätigt und MigrationId danach in der History (AK 13), Haltepunkt Altbestand mit Trockenlauf und
+   scharfem Lauf in SSMS (AK 21), Fußzeile v1.98.0, Dienst läuft, SQL/110-Trockenlauf in der Nachlauf-Liste.
+5. Mehrsystem-Lauf einmal mit `-System Test,Test-IDEAL` (AK 24: Reihenfolge, Abbruch lässt Folgesysteme unberührt); vor Prod `AKE-PROD` tippen.
+6. Hilfe > Changelog zeigt die Karte v1.98.0 (Web).
+7. `Install-IdealAkeWms.ps1` erst bei der nächsten Neuinstallation ausführen (AK 33).
+8. Offene Kleinbefunde F4, F6, F7, F8 und die Folgeidee zu F3 entscheiden (Folge-Aufgabe oder verwerfen).
+9. Testartefakt nach Belieben löschen: `C:\Program Files\Microsoft SQL Server\MSSQL17.MSSQLSERVER\MSSQL\Backup\IDEAL_WMS_DEV_20261111_1047_vor_v1.98.0.bak`.
