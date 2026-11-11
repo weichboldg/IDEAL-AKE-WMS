@@ -92,9 +92,20 @@ What to deliver. Each item ends up as recorded evidence in the spec.
    touches one. Empty each target folder first (no stale DLLs/views):
      dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb
      dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService
-   Then write <worktree>\publish\publish-info.txt: version (AppVersion), commit (HEAD), branch,
-   spec, date/time. A failed publish = QA failed (not Testbereit). Record folder + version in the
-   evidence. The human's update script takes this folder as its default source.
+   Then copy SQL\ to publish\SQL\ and scripts\deploy\ to publish\deploy\ (the package is complete:
+   the human copies publish\ to the server and starts deploy\Update-IdealAkeWms.ps1 there).
+   Then write <worktree>\publish\publish-info.txt in exactly this format (one "Key: Value" per line,
+   ASCII; the update script aborts without Version/Commit):
+     Version: <AppVersion>
+     Commit: <HEAD, full>
+     Branch: <branch>
+     Spec: <slug or task>
+     Erstellt: yyyy-MM-dd HH:mm
+     Komponenten: IDEALAKEWMSWeb + IDEALAKEWMSWebService
+   A failed publish = QA failed (not Testbereit). Record folder + version in the evidence.
+   If the spec has a deploy step (SQL, one-off script, setting, Leitstand action, user info, new
+   folder/right), check that it is in scripts/deploy/nachlauf.psd1 (NachlaufManifestDriftTests covers
+   SQL files and migrations only, not manual steps); missing = finding.
 
 On success:
 - Spec frontmatter: status: Testbereit, updated: today.

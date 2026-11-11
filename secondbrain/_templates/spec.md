@@ -90,6 +90,8 @@ freigabe_am: ""             # yyyy-mm-dd
 - **Web-App:** ja/nein
 - **Service:** ja/nein
 - **Migration:** ja/nein
+- **Manifest-Einträge** (`scripts/deploy/nachlauf.psd1`, ADR 0022; je SQL-/Einmal-Skript, Einstellung, Leitstand-Schritt, Anwender-Info,
+  Ordner/Recht: Id, Version, Typ, Firma, Phase, Ausfuehrung, Text – oder „keine“):
 - **Publish-Befehle:**
 
 ## Offene Rueckfragen

@@ -1,18 +1,24 @@
 ---
 type: spec
-title: Update-Skript je Zielsystem mit Nachlauf-Manifest (Bündel-Deploy v1.95.0)
+title: Update-Skript je Zielsystem mit Nachlauf-Manifest (Bündel-Deploy ab v1.97.0)
 slug: 2026-11-09-update-skript-je-zielsystem-mit-nachlauf-spec
-status: Entwurf
+status: InUmsetzung
 created: 2026-11-09
 updated: 2026-11-11
+freigabe_von: "Gerald Weichbold (Chat Koordination, „passt“ auf Freigabe-Frage)"
+freigabe_am: 2026-11-11
 source_backlog: "[[2026-11-09-update-skript-je-zielsystem-mit-nachlauf]]"
-task: ""
+task: "[[2026-11-11-buendel-deploy-update-skript]]"
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
 branch: "feature/2026-08-07-ideal-teile-1-5"
 standort: beide
 affected_code:
   - "scripts/deploy/Update-IdealAkeWms.ps1 (neu)"
   - "scripts/deploy/nachlauf.psd1 (neu)"
+  - "scripts/deploy/ziele.psd1 (neu)"
+  - "scripts/deploy/IdealAkeWms.Deploy.psm1 (neu, Test-OrdnerUndRechte)"
+  - "scripts/deploy/Install-IdealAkeWms.ps1 (neu, aus secondbrain/tests/Claude outputs/Install-IdealAkeWms-IDEAL.ps1)"
+  - "IdealAkeWms/AppVersion.cs, IDEALAKEWMSService/AppVersion.cs, Views/Help/Changelog.cshtml (v1.98.0)"
   - "IdealAkeWms.Tests/Deploy/NachlaufManifestDriftTests.cs (neu, Muster OperationConfigsMigrationSqlTests)"
   - "README.md (Abschnitte 'Update bestehender Installation' Z. 66-157 und 'Update (neue Version einspielen)' Z. 796-812, Bündel-Stand)"
   - "docs/TESTSZENARIEN.md (neues Kapitel TS-125, Nummer prüft der Dev-Lauf)"
@@ -34,12 +40,10 @@ open_questions:
 epic: false
 etappen: []
 deploy:
-  web: false
-  service: false
+  web: true
+  service: true
   migration: false
 freigabe_entscheidung: ""
-freigabe_von: ""
-freigabe_am: ""
 ---
 
 ## Ziel / Nutzen (das Warum)
@@ -69,8 +73,9 @@ richtiger Reihenfolge sichtbar.
 **Out-of-Scope**
 - Publish nach jedem Build: steht bereits in `.claude/agents/qa-agent.md:90-97` (Auftrag Gerald 2026-11-09). Hier nur das Format von
   `publish-info.txt` und der Paketinhalt (Punkt 4 oben).
-- Zieldatei `deploy/ziele.psd1` aus dem Backlog-Vorschlag: entfällt. Die Pfade folgen einem festen Muster, App-Pool, Site, Dienst und
-  DB ermittelt das Skript selbst (Backlog „Zielsysteme“). Hinzufügen, wenn ein System vom Muster abweicht.
+- ~~Zieldatei entfällt~~ – **geändert 2026-11-11:** Die Zielsysteme stehen in `scripts\deploy\ziele.psd1` (siehe „Zielsysteme“).
+  Grund: An AKE läuft ein drittes System, `Test-IDEAL`, dessen Ordnernamen keinem Muster folgen. App-Pool, Site, Dienst und DB ermittelt
+  das Skript weiterhin selbst.
 - Neuinstallation (`Install-IdealAkeWms-IDEAL.ps1`, nicht im Repo, [[2026-11-04-ideal-produktiv-installation]]).
 - Skripte vor SQL/89: alle vier Systeme stehen mindestens auf SQL/88 (Backlog-Tabelle). Das Manifest beginnt bei v1.31.0.
 - Abnahme-Prüfschritte („vor der Abnahme“: TS-80.1, TS-81.1, TS-82.1, TS-83.1/83.2, P-K1, Server-Kultur v1.53.0). Sie gehören zur
@@ -81,8 +86,9 @@ richtiger Reihenfolge sichtbar.
 ## Fachliche Anforderungen
 
 ### Grenzen (hart)
-- Das Skript führt den Deploy nur aus, wenn ein Mensch es **auf dem Zielserver** startet. Agenten starten es nur auf DEV und nur mit
-  `-NurPruefen`.
+- Das Skript führt den Deploy auf den Zielsystemen nur aus, wenn ein Mensch es **auf dem Zielserver** startet. Agenten starten es nur auf
+  DEV, dort auch als Volllauf (Freigabe-Antwort 9). Danach stellen sie DEV mit `dev-deploy.ps1` wieder her und setzen die 5
+  AKE-DEV-Sync-Schalter wieder.
 - Kein Aufruf an Sage, weder lesend noch schreibend. Das Skript liest nur `ConnectionStrings:DefaultConnection` und verbindet sich nur mit
   der WMS-DB.
 - `SQL/108`, `SQL/110` und alle `SQL/Einmalig/*` laufen **nie scharf** durch das Skript. Höchstens Trockenlauf (nur bei Skripten mit
@@ -90,28 +96,36 @@ richtiger Reihenfolge sichtbar.
 - Vor dem ersten DB-Kontakt und vor jedem schreibenden SQL eine ausdrückliche Bestätigung.
 
 ### Bedienung
-- Ohne Parameter fragt das Skript **Firma** (`AKE` | `IDEAL`) und **System** (`Prod` | `Test` | `beide`). `-Firma` und `-System`
-  überspringen die jeweilige Abfrage.
-- Bei `beide`: zuerst Test, vollständig mit Nachlauf-Liste. Schlägt Test fehl, wird Prod nicht angefasst. Vor Prod muss der Mensch
-  `<FIRMA>-PROD` eintippen (z. B. `AKE-PROD`); jede andere Eingabe beendet das Skript.
+- Ohne Parameter fragt das Skript zuerst die **Firma** (`AKE` | `IDEAL`), dann die **Systeme** als nummerierte Liste aus
+  `ziele.psd1`, nur die der gewählten Firma (AKE: `Prod`, `Test`, `Test-IDEAL`; IDEAL: `Prod`, `Test`). Mehrfachauswahl ist möglich
+  (z. B. `2,3`). `-Firma` und `-System <Name>[,<Name>]` überspringen die Abfragen.
+- Reihenfolge bei mehreren Systemen: alle Nicht-Prod-Systeme zuerst, in Listenreihenfolge, jedes vollständig mit Nachlauf-Liste, Prod
+  zuletzt. Schlägt ein System fehl, werden die folgenden nicht angefasst. Vor Prod muss der Mensch `<FIRMA>-PROD` eintippen
+  (z. B. `AKE-PROD`); jede andere Eingabe beendet das Skript.
 
-### Zielsysteme (Muster, abgeglichen mit Backlog „Zielsysteme“)
+### Zielsysteme (`scripts\deploy\ziele.psd1`, Stand Gerald 2026-11-09/11)
 
-| Firma / System | Dienst-Ordner | Web-Ordner (IIS) | Dienst (Anzeigename, nur Info) |
-|---|---|---|---|
-| IDEAL Prod | `C:\IDEAL\IdealAkeWmsService` | `C:\inetpub\wwwroot\IDEALAKEWMS` | `IDEAL AKE WMS Service` |
-| IDEAL Test | `C:\IDEAL\IdealAkeWmsService_Test` | `C:\inetpub\wwwroot\IDEALAKEWMS_Test` | `IDEAL AKE WMS Service TEST` |
-| AKE Prod | `C:\AKE\IdealAkeWmsService` | `C:\inetpub\wwwroot\IDEALAKEWMS` | `IDEAL AKE WMS Service` |
-| AKE Test | `C:\AKE\IdealAkeWmsService_Test` | `C:\inetpub\wwwroot\IDEALAKEWMS_Test` | `IDEAL AKE WMS Service TEST` |
+| Firma | System | Prod? | Dienst-Ordner | Web-Ordner (IIS) | Dienst (Anzeigename, nur Info) |
+|---|---|---|---|---|---|
+| IDEAL | Prod | ja | `C:\IDEAL\IdealAkeWmsService` | `C:\inetpub\wwwroot\IDEALAKEWMS` | `IDEAL AKE WMS Service` |
+| IDEAL | Test | nein | `C:\IDEAL\IdealAkeWmsService_Test` | `C:\inetpub\wwwroot\IDEALAKEWMS_Test` | `IDEAL AKE WMS Service TEST` |
+| AKE | Prod | ja | `C:\AKE\IdealAkeWmsService` | `C:\inetpub\wwwroot\IDEALAKEWMS` | `IDEAL AKE WMS Service` |
+| AKE | Test | nein | `C:\AKE\IdealAkeWmsService_Test` | `C:\inetpub\wwwroot\IDEALAKEWMS_Test` | `IDEAL AKE WMS Service TEST` |
+| AKE | Test-IDEAL | nein | `C:\AKE\IDEALAKEWMSService-TestIDEAL` | `C:\inetpub\wwwroot\IdealAkeWMS-TESTIDEAL` | `IDEAL AKE WMS IDEAL-Test Service` |
 
-Muster: Dienst `C:\<FIRMA>\IdealAkeWmsService[_Test]`, Web `C:\inetpub\wwwroot\IDEALAKEWMS[_Test]`. Das deckt alle vier Zeilen der
-Backlog-Tabelle ohne Abweichung. **Abweichungen an anderer Stelle:** README nennt `C:\Services\IDEALAKEWMSService` und Dienstname
-`IDEALAKEWMSService` (Bündel-README Z. 751, 800-809); `IDEALAKEWMSService/Program.cs:23` setzt `ServiceName = "IDEAL AKE WMS Service"`
-für beide Dienste. Das Skript verlässt sich deshalb auf keinen Namen, nur auf den Exe-Pfad. Belegt ist nur idealweb01 (Screenshots); AKE
-„gleich aufgebaut“ und AKE-Prod auf akenet01 sind Annahmen (Backlog Z. 93) → Rückfrage 7. Das Skript bricht ab, wenn ein Ordner fehlt.
+- Server: IDEAL auf idealweb01, AKE auf akenet01 (alle drei Systeme, Freigabe-Antwort 7).
+- `Test-IDEAL` ist eine eigene Installation auf akenet01 für den Bündel-Stand, Adresse `https://akenet01.ake.at:4445/` (Gerald 2026-11-11). Zum Vergleich AKE-Test: `https://akenet01.ake.at:4444/`. Das Skript nimmt die URL aus der IIS-Bindung; stimmt sie nicht mit `ziele.psd1` (Feld `Url`, optional) überein, warnt es. Der Manifest-Filter läuft über die
+  Firma AKE. Ihre DB liest das Skript wie bei allen Systemen aus der `appsettings` des Ordners.
+- Format je Eintrag: `@{ Firma='AKE'; System='Test-IDEAL'; Prod=$false; WebPfad='...'; DienstPfad='...' }`. Ein neues System ist eine
+  Zeile in dieser Datei; das Skript bleibt unverändert. Doppelte Firma+System oder doppelte Pfade → Abbruch beim Laden.
+- Die Ordner sind nicht Groß/Klein-empfindlich zu vergleichen (Windows).
+- Das Skript verlässt sich auf keinen Dienstnamen, nur auf den Exe-Pfad. README nennt abweichend `C:\Services\IDEALAKEWMSService` und
+  `IDEALAKEWMSService` (Bündel-README Z. 751, 800-809); `IDEALAKEWMSService/Program.cs:23` setzt `ServiceName = "IDEAL AKE WMS Service"`.
+  Fehlt ein Ordner → Abbruch.
+- Abbruch, wenn zwei gewählte Systeme dieselbe Server+DB zeigen (zusätzlich zu „Ermittlung“ Punkt 7).
 
-`-WebPfad`/`-DienstPfad`/`-LogPfad` überschreiben das Muster (DEV-Test auf `D:\Dev\...`). Mit `-System beide` sind Pfadparameter
-unzulässig (Abbruch), weil sie nicht beiden Systemen gelten können.
+`-WebPfad`/`-DienstPfad`/`-LogPfad` überschreiben die Tabelle (DEV-Test auf `D:\Dev\...`). Bei mehr als einem gewählten System sind
+Pfadparameter unzulässig (Abbruch), weil sie nicht für alle gelten können.
 
 ## Technischer Lösungsentwurf
 
@@ -124,9 +138,9 @@ kein Patchen der `web.config`, SQL-Skripte statt `Migrate()`, Ermittlung statt f
 
 ```
 powershell -ExecutionPolicy Bypass -File <Paket>\deploy\Update-IdealAkeWms.ps1
-    [-Firma AKE|IDEAL] [-System Prod|Test|beide]
+    [-Firma AKE|IDEAL] [-System <Name>[,<Name>]]   # Namen aus ziele.psd1, z. B. Test,Test-IDEAL
     [-Quelle <Paket>]                         # Default: $PSScriptRoot\..
-    [-PublishWeb <Pfad>] [-PublishDienst <Pfad>]  # Default: <Quelle>\IDEALAKEWMSWeb bzw. \IDEALAKEWMSWebService (Rückfrage 8)
+    [-Komponente Web|Dienst|Beide]            # Default Beide; tauscht nur diese Dateien (Freigabe-Antwort 8)
     [-SqlOrdner <Pfad>]                       # Default: <Quelle>\SQL
     [-WebPfad <Pfad>] [-DienstPfad <Pfad>]    # nur bei einem System
     [-LogPfad <Pfad>]                         # Default: C:\<FIRMA>\deploy-logs
@@ -138,14 +152,17 @@ Paket = `<worktree>\publish\` mit `IDEALAKEWMSWeb\`, `IDEALAKEWMSWebService\`, `
 `scripts\deploy\`) und `publish-info.txt`. Format (neu, festgelegt hier; `qa-agent.md:95-96` nennt nur die Inhalte):
 
 ```
-Version=1.95.0
-Commit=<HEAD, kurz>
-Branch=feature/2026-08-07-ideal-teile-1-5
-Spec=<Slug>
-Zeit=yyyy-MM-dd HH:mm
+Version: 1.97.0
+Commit: <HEAD, voll>
+Branch: feature/2026-08-07-ideal-teile-1-5
+Spec: <Slug oder Aufgabe>
+Erstellt: yyyy-MM-dd HH:mm
+Komponenten: IDEALAKEWMSWeb + IDEALAKEWMSWebService
 ```
+Nachgezogen 2026-11-11 auf das Format, das der qa-agent seit v1.96.0 tatsaechlich schreibt (`<Worktree>\publish\publish-info.txt`, eine
+Datei fuer beide Komponenten im Paket-Ordner). Das Skript liest `Schluessel: Wert` und toleriert zusaetzlich `Schluessel=Wert`.
 
-Das Skript liest `publish-info.txt` aus dem Elternordner von `-PublishWeb` und von `-PublishDienst`. Fehlt eine der Dateien oder
+Bei `-Komponente Web` wird der Dienst weder gestoppt noch getauscht, bei `Dienst` gilt das umgekehrt für das Web. Fehlt in diesem Lauf ein Schema-Skript, stoppt das Skript trotzdem beide. Schema, Ordner/Rechte und Nachlauf laufen immer. Das Skript liest `publish-info.txt` aus `<Quelle>`. Fehlt sie oder
 unterscheiden sich `Version`/`Commit` → Abbruch (Backlog „Publish nach jedem Build“).
 
 **Dateien nur ASCII** (Umlaute als ae/oe/ue, wie `dev-deploy.ps1`): PS 5.1 liest eine `.ps1`/`.psd1` ohne BOM als ANSI, Umlaute würden
@@ -167,8 +184,13 @@ zerstört; das Datei-Werkzeug der Agenten löst zudem `\uXXXX` auf ([[fallstrick
 6. Connection-String-Zerlegung mit `System.Data.SqlClient.SqlConnectionStringBuilder` (.NET Framework, in PS 5.1 vorhanden): Server,
    Datenbank, Windows-Anmeldung (`-E`) oder SQL-Login (`-U`, Passwort über `$env:SQLCMDPASSWORD`, nie auf der Kommandozeile),
    `TrustServerCertificate` → `-C`.
-7. **Abbruch**, wenn Web-DB ≠ Dienst-DB (Server+Datenbank), oder bei `beide`, wenn Test und Prod dieselbe Server+Datenbank zeigen.
-8. **sqlcmd:** `Get-Command sqlcmd`, sonst der Pfad aus `dev-deploy.ps1:21`; fehlt beides → Abbruch.
+7. **Abbruch**, wenn Web-DB ≠ Dienst-DB (Server+Datenbank), oder wenn zwei gewählte Systeme dieselbe Server+Datenbank zeigen.
+8. **sqlcmd:** `Get-Command sqlcmd`, sonst der Pfad aus `dev-deploy.ps1:21`. Fehlt beides → Abbruch mit Installationshinweis
+   (Gerald 2026-11-11: auf den Zielservern vermutlich nicht installiert).
+   - Empfohlen ist die ODBC-Variante „Microsoft Command Line Utilities for SQL Server“; vorher den aktuellen „Microsoft ODBC Driver for
+     SQL Server“ installieren. Gleiche Variante wie auf DEV.
+   - Die Go-Variante (`winget install sqlcmd`) wird nur akzeptiert, wenn `sqlcmd -?` die Schalter `-E -b -i -C` ausweist.
+   - Das Skript gibt die gefundene Variante und Version (`sqlcmd -?`, erste Zeile) im Protokoll aus.
 9. **Site-URL:** aus der ersten Bindung (https vor http; Host-Header, sonst `localhost`), `-SiteUrl` überschreibt. TLS 1.2 einschalten
    (`[Net.ServicePointManager]::SecurityProtocol`).
 10. **Anzeige** aller Werte (Paket-Version/Commit/Zweig, Ordner, Site, App-Pool, Dienstname, Umgebung, Server/DB Web und Dienst, URL),
@@ -184,6 +206,7 @@ zerstört; das Datei-Werkzeug der Agenten löst zudem `\uXXXX` auf ([[fallstrick
 | 4 | Schema | Fehlende Schema-Einträge in Manifest-Reihenfolge, **nie** nach Dateisortierung (dreistellige Namen sortieren vor `11_`, ADR 0004 Nachtrag G17). Je Skript Bestätigung, dann `sqlcmd -S -d (-E\|-U) [-C] -b -i <Datei>`, Ausgabe ins Protokoll. Exit ≠ 0 → Abbruch, Web und Dienst bleiben gestoppt. Danach MigrationId in der History prüfen. Sonderregeln 90 und 95 siehe unten. **Fehlt am Ende eine MigrationId** (abgelehnt oder Fehler), endet das Skript hier: Kopieren und Start würden `db.Database.Migrate()` auslösen (`IdealAkeWms/Program.cs:202`), und EF spielte die Migration ohne die Vorbedingungen ein ([[fallstricke]] §8 „Lokaler `dotnet run` …“). |
 | 4a | Haltepunkt | Einträge mit `Phase = Haltepunkt` (heute nur Altbestand v1.88.0): Trockenlauf anbieten (AK 17), Ausgabe ins Protokoll, dann Anzeige des scharfen Aufrufs. Weiter nur mit „ausgeführt“, sonst Abbruch bei gestopptem Web (Rückfrage 3). |
 | 5 | Kopieren | `robocopy <Paket> <Ziel> /E /R:2 /W:5` **ohne** `/MIR`/`/PURGE`; ausgeschlossen: Dateien `appsettings*.json`, `web.config` (Rückfrage 2), Ordner `Branding`, `App_Data`, `wwwroot\Fotos`, `logs`. robocopy-Exit ≥ 8 → Abbruch. Hash (`Get-FileHash`) aller `appsettings*.json` vor/nach gleich, sonst Abbruch. `deploy-info.txt` (Kopie von `publish-info.txt`) in Web- und Dienst-Ordner. Hat das Ziel `App_Data\Fotos` → Warnung (Rückfrage 5). |
+| 5a | Ordner und Rechte | Prüfen und bei Bedarf herstellen laut Abschnitt „Ordner und Rechte“: fehlende Ordner anlegen, fehlende Rechte nach Bestätigung per `icacls` setzen, Ergebnis je Zeile (OK / angelegt / gesetzt / FEHLT) ins Protokoll. Ein Pflicht-Eintrag mit FEHLT → Abbruch vor dem Start (App-Pool und Dienst bleiben gestoppt). |
 | 6 | Starten | App-Pool starten, Startseite abrufen (`HttpClient`, Timeout 5 min wie Vorbild). `IdealAkeWms.dll` im Ziel hash-gleich mit dem Paket; Fußzeile (falls lesbar) = Paket-Version; Fußzeile nicht lesbar → Mensch bestätigt die Version im Browser. HTTP-Fehler oder Abweichung → App-Pool stoppen, Dienst **nicht** starten, Exit ≠ 0 (wie `dev-deploy.ps1:56`). Dann Dienst starten, `IDEALAKEWMSService.dll` hash-gleich, nach 30 s `Running`, sonst Abbruch mit Hinweis auf `logs\service-*.log`. Reihenfolge Web vor Dienst: der Web-Start legt die neuen Setting-Keys an (v1.60.0 Z. 27). |
 | 7 | Nachlauf | Gefilterte Liste (unten) mit eingesetzten Werten ausgeben; Trockenlauf-Einträge der Phase „Nachher“ (heute SQL/110) nach Bestätigung im Trockenlauf ausführen. Protokoll `<LogPfad>\yyyy-MM-dd_HHmm_<FIRMA>-<SYSTEM>_v<Version>.log` per `Start-Transcript` von Anfang an, sqlcmd-Ausgaben angehängt; wird auch bei Abbruch geschrieben (`try/finally`). |
 
@@ -198,6 +221,57 @@ zerstört; das Datei-Werkzeug der Agenten löst zudem `\uXXXX` auf ([[fallstrick
   v1.54.0 Z. 30-31).
 - **SQL/96** braucht 95 (v1.61.0 Z. 29); **SQL/110** braucht 109 (`SQL/110:12, 19-23`); **Altbestand** braucht 133 und 141
   (Skriptkopf Z. 24, 37-46). Die Manifest-Reihenfolge erfüllt das; das Skript prüft `Voraussetzung` trotzdem vor dem Lauf.
+
+### Ordner und Rechte (Auftrag Gerald 2026-11-11)
+
+Bisher stand das als Hand-Schritt in der Nachlauf-Liste (v1.30.4/v1.96.0: App_Data, v1.39.0: PDF-Temp, v1.49.0: Branding). Ab jetzt prüft das
+Skript diese Punkte selbst, bei **jedem** Lauf, und stellt fehlende her. Installations- und Update-Skript nutzen dieselbe Prüfung (eigenes
+Modul `scripts\deploy\IdealAkeWms.Deploy.psm1`, Funktion `Test-OrdnerUndRechte -Herstellen`). So prüfen beide gleich, und eine neue
+Anforderung kommt nur an einer Stelle dazu.
+
+**Identität ermitteln:**
+- Web: `processModel.identityType` des ermittelten App-Pools.
+  - `ApplicationPoolIdentity` → `IIS AppPool\<Pool>`
+  - `SpecificUser` → `processModel.userName`
+  - `NetworkService`/`LocalSystem` → Warnung
+- Dienst: `Win32_Service.StartName`. `LocalSystem` → Warnung; ein virtuelles Konto `NT SERVICE\<Name>` wie auf DEV gilt als gültig.
+- Beide Identitäten erscheinen in der Anzeige von „Ermittlung“ Punkt 10.
+
+**Prüfliste.** Belege in Klammern; „Pflicht“ heißt Abbruch, wenn es nicht herstellbar ist.
+
+| Ordner / Datei | Identität | Recht | Pflicht | Herstellen |
+|---|---|---|---|---|
+| Web-Ordner | App-Pool | Lesen+Ausführen | ja | nur prüfen |
+| `<Web>\App_Data\Fotos\Kommissionierung` (v1.30.4/v1.96.0; ohne Schreibrecht startet die App nicht) | App-Pool | Ändern, vererbt `(OI)(CI)M` auf `App_Data` | ja | `New-Item`, `icacls` |
+| `<Web>\logs` (stdout-Log, `web.config:13`) | App-Pool | Ändern | nein (Warnung) | `New-Item`, `icacls` |
+| DataProtection-Schlüssel (Pfad aus `DataProtection:KeysPath` der Ziel-appsettings, sonst Install-Default `C:\ProgramData\IdealAkeWms\DataProtection-Keys`) | App-Pool | Ändern | ja, wenn der Schlüssel gesetzt ist | `New-Item`, `icacls` |
+| `<Web>\Branding` (v1.49.0/v1.59.0) | App-Pool | Lesen | nein (Warnung: Ersatz-Kopf) | nur prüfen |
+| `<Web>\appsettings.Production.json` (v1.71.0, SageLagerbuchung) | – | vorhanden | nein (Warnung) | nur prüfen |
+| PDF-Temp `%TEMP%\IdealAkeWms-Pdf` der Pool-Identität (v1.39.0) und Microsoft Edge vorhanden | App-Pool | Ändern | nein (Warnung) | nur prüfen; Hinweis, wie es manuell geht |
+| Dienst-Ordner | Dienst | Lesen+Ausführen | ja | nur prüfen |
+| `<Dienst>\logs` (README „Log-Dateien“) | Dienst | Ändern | ja | `New-Item`, `icacls` |
+
+**Regeln:**
+- Die Prüfung läuft über die wirksamen Rechte: `Get-Acl` und Auflösung der Gruppenmitgliedschaft (direkte Einträge, Gruppen der Identität,
+  `Users`/`Authenticated Users`, `IIS_IUSRS` für Pool-Identitäten). Unsicher → als FEHLT melden, nicht raten.
+- Gesetzt wird nur **hinzufügend** (`icacls /grant`). Nie `/reset`, `/remove` oder `/inheritance:r`, nie Besitz ändern. Jede Änderung braucht
+  eine Bestätigung und kommt mit der vorherigen ACL (`icacls <Ordner> /save` in den Log-Ordner) ins
+  Protokoll.
+- Mit `-NurPruefen`: nur Bericht, keine Änderung.
+- **Betrieb (Gerald 2026-11-11):** Gerald führt Installations- und Update-Skript **von Hand in einer Administrator-PowerShell** aus. Es gibt
+  keinen unbeaufsichtigten Modus und keinen Schalter, der Bestätigungen überspringt.
+  - Beide Skripte beginnen mit `#Requires -RunAsAdministrator` und zusätzlich einer klaren Meldung, falls die Shell nicht erhöht ist.
+  - Die Rechte-Änderungen eines Systems werden **gesammelt** angezeigt (Ordner, Identität, Recht) und mit **einer** Bestätigung gesetzt,
+    nicht je Zeile.
+- Ordner unter `App_Data`, `logs`, `Branding` und `wwwroot\Fotos` werden beim Kopieren nie überschrieben (Schritt 5); die Prüfung ändert
+  keine Dateien darin.
+- Neue Ordner- oder Rechte-Anforderungen kommen künftig über das Manifest. Das Feld `Typ = Ordner` mit Pfad, Identität, Recht und Pflicht
+  ergänzt die Prüfliste, damit eine Spec mit neuer Ablage (z. B. QM-Fotos) nur einen Manifest-Eintrag braucht.
+
+**Installationsskript:** `Install-IdealAkeWms-IDEAL.ps1` liegt bisher nicht im Repo
+([[2026-11-04-ideal-produktiv-installation]]). Es kommt standortneutral als `scripts\deploy\Install-IdealAkeWms.ps1` (Abfrage Firma
+wie beim Update) ins Repo und ruft nach dem Anlegen von Site und Dienst dieselbe Funktion `Test-OrdnerUndRechte -Herstellen` auf. Seine
+bisherigen eigenen Rechte-Schritte (Ordnerrechte, „Als Dienst anmelden“) bleiben, soweit die Funktion sie nicht abdeckt.
 
 ### Manifest `scripts\deploy\nachlauf.psd1`
 
@@ -375,16 +449,16 @@ neue Tabellenansicht.
 
 ## Akzeptanzkriterien
 
-1. Ohne `-Firma`/`-System` fragt das Skript beides ab; ungültige Eingabe → erneute Frage. Mit beiden Parametern keine Abfrage.
-2. Pfade folgen dem Muster der Tabelle „Zielsysteme“; `-WebPfad`/`-DienstPfad`/`-LogPfad` überschreiben es; mit `-System beide` führen
-   Pfadparameter zum Abbruch vor jeder Aktion.
+1. Ohne `-Firma`/`-System` fragt das Skript beides ab. Die Systemliste zeigt nur die Systeme der Firma aus `ziele.psd1` (AKE 3, IDEAL 2). Ungültige Eingabe → erneute Frage. Mit beiden Parametern keine Abfrage.
+2. Pfade kommen aus `ziele.psd1`; `-WebPfad`/`-DienstPfad`/`-LogPfad` überschreiben sie. Bei mehr als einem gewählten System führen
+   Pfadparameter zum Abbruch vor jeder Aktion. Doppelte Einträge in `ziele.psd1` → Abbruch beim Laden.
 3. Fehlt Web-Ordner, `IdealAkeWms.dll`, Dienst-Ordner oder `IDEALAKEWMSService.exe` → Abbruch mit Pfad, nichts gestoppt, keine DB
    kontaktiert.
 4. Site/App-Pool werden über den physischen Pfad ermittelt; 0 oder >1 Treffer → Abbruch mit Trefferliste; geteilter App-Pool → Warnung
    mit Liste und Bestätigung.
 5. Der Dienst wird über den Exe-Pfad ermittelt; 0 oder >1 Treffer → Abbruch.
 6. DB Web aus `web.config`-Umgebung + `appsettings*.json`, DB Dienst aus Registry-/Maschinen-Umgebung + `appsettings*.json`; Web ≠ Dienst
-   → Abbruch; bei `beide` Test-DB = Prod-DB → Abbruch.
+   → Abbruch; zwei gewählte Systeme mit derselben Server+DB → Abbruch.
 7. `publish-info.txt` fehlt oder Web/Dienst unterscheiden sich in `Version`/`Commit` → Abbruch.
 8. Alle ermittelten Werte werden angezeigt; der erste DB-Kontakt erfolgt erst nach Bestätigung; „nein“ → Ende ohne DB-Kontakt,
    Protokoll geschrieben.
@@ -411,13 +485,20 @@ neue Tabellenansicht.
 22. Nachlauf-Liste: gefiltert nach Firma und Version > installiert (unbekannt = alle); Einmal-Einträge immer, mit Spur-Ergebnis oder
     „unbekannt, Deploy-Protokoll prüfen“; Aufrufe mit eingesetztem Server, DB und Pfad.
 23. Protokoll unter `<LogPfad>\yyyy-MM-dd_HHmm_<FIRMA>-<SYSTEM>_v<Version>.log` mit sqlcmd-Ausgaben, auch bei Abbruch.
-24. `beide`: Test zuerst; Fehler bei Test → Prod unberührt; vor Prod nur mit Eingabe `<FIRMA>-PROD` weiter.
+24. Mehrere Systeme: Nicht-Prod zuerst in Listenreihenfolge, Prod zuletzt; ein Fehler → alle folgenden unberührt; vor Prod nur mit Eingabe `<FIRMA>-PROD` weiter.
 25. Manifest enthält alle Einträge der drei Tabellen oben; `NachlaufManifestDriftTests` grün; ein absichtlich entfernter Eintrag macht ihn
     rot.
 26. `[System.Management.Automation.Language.Parser]::ParseFile` meldet für Skript und Manifest keine Fehler; beide Dateien nur ASCII.
 27. Das Skript enthält keine Verbindung zu Sage (`SageConnection`, SData-URL) – Grep leer.
 28. README beide Abschnitte ersetzt; `qa-agent.md`, `spec-agent.md`, Spec-Vorlage angepasst; CLAUDE.md-Vorschlag steht in dieser Spec.
 29. `dotnet build IdealAkeWms.slnx` und `dotnet test` grün.
+30. Schritt 5a läuft bei jedem System. Die Prüfliste „Ordner und Rechte“ steht vollständig im Protokoll (OK / angelegt / gesetzt / FEHLT).
+    Ein fehlender Pflicht-Eintrag, der sich nicht herstellen lässt → Abbruch vor dem Start.
+31. Auf DEV-IDEAL mit gelöschtem `App_Data\Fotos\Kommissionierung` und entzogenem Recht: Ohne `-NurPruefen` wird beides nach Bestätigung
+    hergestellt, die App startet. Mit `-NurPruefen` steht nur FEHLT im Bericht, nichts wird geändert.
+32. Rechte nur hinzufügend; die vorherige ACL liegt als `icacls /save` im Log-Ordner; kein `/reset`, `/remove`, `/inheritance:r` im Skript
+    (Grep leer).
+33. `scripts\deploy\Install-IdealAkeWms.ps1` im Repo, standortneutral, ruft `Test-OrdnerUndRechte`; Parse-Check ohne Fehler.
 
 ## Test-Szenarien
 
@@ -441,7 +522,7 @@ powershell -ExecutionPolicy Bypass -File <worktree>\scripts\deploy\Update-IdealA
 | 125.2 | Wie 124.1 ohne `-Firma`/`-System` | Abfrage beider Werte; Eingabe `XYZ` → erneute Frage | Agent (Eingabe per Pipe) oder Mensch |
 | 125.3 | Falsche Firma: `-Firma AKE -System Test` ohne Pfadparameter | `C:\AKE\IdealAkeWmsService_Test` fehlt → Abbruch, keine DB kontaktiert | Agent |
 | 125.4 | Pfad fehlt: `-WebPfad D:\Dev\IDEAL\WebX` | Abbruch mit Pfad | Agent |
-| 125.5 | `-System beide` mit `-WebPfad` | Abbruch vor jeder Aktion | Agent |
+| 125.5 | `-System Test,Test-IDEAL` mit `-WebPfad` | Abbruch vor jeder Aktion | Agent |
 | 125.6 | Bestätigung „Verbindung herstellen“ verneint | Ende ohne DB-Kontakt, Protokoll vorhanden | Agent |
 | 125.7 | DB nicht erreichbar: Kopie des DEV-Web-Ordners mit `appsettings.DEV.json` auf Server `.\NICHTDA` (nur in einem Testordner, nie im echten DEV-Ordner) | Abbruch mit sqlcmd-Fehler, Exit ≠ 0 | Agent |
 | 125.8 | Web-DB ≠ Dienst-DB (Testordner wie 124.7) | Abbruch vor DB-Kontakt | Agent |
@@ -566,13 +647,82 @@ Quelle: [[2026-11-10-vorwaerts-merge-main-ins-buendel]], Auftrag Gerald 2026-11-
   Bei Varianten-Specs zusaetzlich freigabe_entscheidung im Frontmatter setzen.
 -->
 
-1. Marker-Tabelle Einmal-Skripte (ADR-0015-Nachtrag) ja/nein →
-2. web.config am Ziel nicht überschreiben, Unterschied melden →
-3. Haltepunkt Altbestand ohne „überspringen“ →
-4. Stand der Einmal-Skripte je System (Hotfix-1.30.1, v1.47.4, 00er, v1.46.0-Rücksetzen; IDEAL-Prod entfallen?) →
-5. v1.30.4 vor dem Bündel-Deploy ins Bündel holen →
-6. Rolle `beschichtungsauftrag` (Lesen) an AKE anlegen →
-7. Zielsysteme/DB/sqlcmd/Rechte bestätigt →
-8. `-PublishWeb`/`-PublishDienst` = Quellpfade oder Schalter →
-9. Volllauf DEV (TS-125.11/.12) durch Gerald →
-10. Agenten-/Vorlagen-Änderungen im Hauptcheckout, CLAUDE.md nur Vorschlag →
+1. Marker-Tabelle Einmal-Skripte (ADR-0015-Nachtrag) ja/nein → **Ja, aber als eigene Folge-Spec nach dem Bündel-Deploy. Bis dahin „unbekannt, Deploy-Protokoll prüfen“.** (Gerald 2026-11-11)
+2. web.config am Ziel nicht überschreiben, Unterschied melden → **Ja: nie überschreiben, nur warnen.**
+3. Haltepunkt Altbestand ohne „überspringen“ → **Ja, kein Überspringen. Das Skript wartet, bis das Einmal-Skript ausgeführt ist (Trockenlauf, Freigabe, scharf); sonst Abbruch bei gestopptem Web. Gilt auch für IDEAL, dort mit 0 Treffern.**
+4. Stand der Einmal-Skripte je System (Hotfix-1.30.1, v1.47.4, 00er, v1.46.0-Rücksetzen; IDEAL-Prod entfallen?) → **Gerald 2026-11-11: auf keinem System gelaufen. Daraus folgt (Koordination, zur Bestätigung durch Gerald):**
+   - **Hotfix-1.30.1 entfällt überall und kommt nicht ins Manifest.** Das Skript setzt Ist-Mengen 0 offener Lagerbestellungen auf NULL. Seit v1.30.1 ist eine getippte 0 eine bewusste Bestätigung (ADR 0015, Kontext), deshalb würde ein Lauf heute echte Eingaben löschen.
+   - **v1.47.4 (Vater-Arbeitsgänge) nur IDEAL-Test**, mit dem Bündel-Deploy: nach dem Dienst-Deploy laut Skriptkopf; die Meldeliste geht an den Fachbereich. Bei IDEAL-Prod entfällt es, weil v1.71.1 neu installiert wurde.
+   - **00er-Bereinigung nur IDEAL-Test**, und nur wenn P7 Treffer zeigt: zuerst `@Loeschen = 0` (Liste), dann entscheidet Gerald. Bei IDEAL-Prod entfällt sie.
+   - **v1.46.0 Sub-FA-Rücksetzen entfällt.** Das war nur eine Testvorbereitung am Testsystem, das SQL steht nur in der Spec.
+   - Das Manifest trägt für diese Einträge eine feste Zielzuordnung statt „unbekannt“.
+5. v1.30.4 vor dem Bündel-Deploy ins Bündel holen → **Erledigt: v1.96.0, Merge-Commit `02a0a173` (2026-11-11).**
+6. Rolle `beschichtungsauftrag` (Lesen) an AKE anlegen → **Ja, beide Rollen anlegen (`beschichtungsauftrag` und `beschichtungsauftrag_schreiben`).**
+7. Zielsysteme/DB/sqlcmd/Rechte bestätigt → **AKE-Prod und AKE-Test laufen beide auf akenet01, Ordner wie in der Tabelle „Zielsysteme“. sqlcmd und SQL-Rechte noch ungeprüft: Gerald prüft vor dem ersten Lauf (`Get-Command sqlcmd` und die Rechte-Abfrage aus Rückfrage 7).**
+8. `-PublishWeb`/`-PublishDienst` = Quellpfade oder Schalter → **Schalter. Ein Parameter `-Komponente Web|Dienst|Beide` (Default `Beide`) wählt, was getauscht wird. Bei „nur Web“ bleibt der Dienst unberührt und umgekehrt. Schema-, Ordner- und Rechte-Schritte laufen trotzdem. Den Quellpfad gibt `-Quelle` (Default: Paket-Ordner neben dem Skript). `-PublishWeb`/`-PublishDienst` entfallen.**
+9. Volllauf DEV (TS-125.11/.12) durch Gerald → **Nein: Der Agent fährt den Volllauf auf DEV (AKE und IDEAL) selbst. Danach `dev-deploy.ps1` zur Wiederherstellung und die 5 AKE-DEV-Sync-Schalter wieder setzen. Zielsysteme (akenet01, idealweb01, AKESQL20) bleiben tabu.**
+10. Agenten-/Vorlagen-Änderungen im Hauptcheckout, CLAUDE.md nur Vorschlag → **Ja.**
+
+## Umsetzung (Dev-Lauf 2026-11-11)
+
+Bündel-Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Commits `1f3d2ce4` (feature-complete) und `1c689a66` (Korrekturen aus den
+DEV-Läufen). Version **1.98.0** laut Auftrag (Web + Dienst, Changelog-Karte „Update-Skript je Zielsystem (Betrieb)“). Aufgabe
+[[2026-11-11-buendel-deploy-update-skript]].
+
+**Geliefert:** `scripts/deploy/Update-IdealAkeWms.ps1`, `nachlauf.psd1` (72 Einträge: 25 Schema, Altbestand als Haltepunkt, SQL/108, SQL/110,
+v1.47.4 und 00er nur `System = Test` der Firma IDEAL, 1 Ordner-Eintrag v1.96.0, Vorher-/Nachher-Einträge inkl. v1.96.0 und v1.97.0),
+`ziele.psd1` (5 Systeme, `Url` für AKE-Test 4444 und Test-IDEAL 4445), `IdealAkeWms.Deploy.psm1` (`Test-OrdnerUndRechte`, `Read-Ja`,
+`Import-Ziele`), `Install-IdealAkeWms.ps1` (standortneutral, ASCII, ruft `Test-OrdnerUndRechte -Herstellen` als Schritt 5b),
+`IdealAkeWms.Tests/Deploy/NachlaufManifestDriftTests.cs` (8 Tests), README (beide Update-Abschnitte), `docs/TESTSZENARIEN.md` Kapitel TS-125.
+Hauptcheckout: `.claude/agents/qa-agent.md` Punkt 7 (Paket mit `SQL\` + `deploy\`, publish-info-Format, Manifest-Prüfung),
+`.claude/agents/spec-agent.md` (Manifest-Pflicht im DEPLOY SECTION), `_templates/spec.md` (Zeile Manifest-Einträge), ADR
+[[0022-update-je-zielsystem-per-skript-mit-nachlauf-manifest]], [[fallstricke]] §30, feature-map, testszenarien-index, Changelog
+[[2026-11-11-v1-98-0-update-skript-je-zielsystem]]. **CLAUDE.md** unverändert; Vorschlag für die Checkliste steht oben unter
+„Pflicht Manifest nachtragen“.
+
+**Entscheidungen im Dev-Lauf (im Rahmen der Spec, zur Kenntnis):**
+- Doppelte Pfade in `ziele.psd1` werden **je Firma** geprüft: IDEAL-Prod und AKE-Prod haben denselben Web-Pfad auf verschiedenen Servern.
+- Prüfliste „appsettings.Production.json“ prüft `appsettings.<Umgebung der web.config>.json` (auf DEV `appsettings.DEV.json`); am
+  Zielsystem ist das `Production`.
+- Lesende Abfragen (History, RCSI, Spuren, Prüfabfragen, sysjobs) laufen über `System.Data.SqlClient` mit der Verbindung aus der
+  appsettings; Skripte (Schema, Trockenlauf) über `sqlcmd -b -I -f 65001`. Ein nicht erreichbarer Server bricht daher mit dem
+  SqlClient-Fehler ab (TS-125.7), nicht mit einem sqlcmd-Fehler.
+- Ein abgelehntes Schema-Skript bricht sofort ab (Web und Dienst bleiben gestoppt) statt die übrigen weiterlaufen zu lassen – gleiche
+  Wirkung wie AK 16, ohne Folgeskripte auf unvollständigem Stand.
+- Haltepunkt nur, wenn die installierte Version < 1.88.0 oder unbekannt ist **und** die Spur 0 zeigt; sonst liefe er bei jedem Deploy erneut
+  (an IDEAL bleibt die Spur nach dem Lauf 0, Freigabe-Antwort 3).
+- Kein Assembly-Versionsvergleich der DLLs (die Projekte setzen keine `<Version>`); Nachweis ist Hash-Gleichheit + Fußzeile.
+- `Install-IdealAkeWms.ps1`: Schalter `-OhneAbfrage` entfernt (kein unbeaufsichtigter Modus), SQL-Dateien `<FIRMA>-Prod-1/2-*.sql`,
+  Foto-Ordner jetzt `App_Data` über die Funktion (vorher `wwwroot\Fotos`).
+
+**Nachweis Build/Test** (Worktree, 2026-11-11): `dotnet build IdealAkeWms.slnx` 0 Fehler; `dotnet test`: Web **2601/2602** bestanden
+(1 übersprungen, wie bisher), Dienst **512/512**; `NachlaufManifestDriftTests` 8/8. `ParseFile` unter `powershell.exe` 5.1: 0 Fehler für alle
+5 Dateien in `scripts/deploy`; alle ASCII (Drift-Test).
+
+**Nachweis DEV** (Paket `<Worktree>\publish\` v1.98.0, Protokolle `D:\Dev\logs\deploy\`):
+
+| TS | Ergebnis |
+|---|---|
+| 125.1 | `-NurPruefen` IDEAL: Site/Pool `IDEAL_WMS_DEV`, Dienst `IDEAL_WMS_DEV_Service`, Umgebung DEV/DEV, DB `./IDEAL_WMS_DEV`, Fußzeile v1.97.0, fehlend keine, RCSI 0 (Warnung), Spuren, Ordner/Rechte-Bericht, Nachlauf (3 Einmal-Einträge), Exit 0, Pool/Dienst vorher = nachher |
+| 125.2 | `XYZ` → „Ungueltig“, Systemliste IDEAL 2 Einträge, `9` → „Ungueltig“, `Test` angenommen |
+| 125.3 | `-Firma AKE -System Test` → `ABBRUCH: C:\inetpub\wwwroot\IDEALAKEWMS_Test fehlt (AKE-Test).` Exit 1 |
+| 125.4 | `ABBRUCH: D:\Dev\IDEAL\WebX fehlt` Exit 1 |
+| 125.5 | `ABBRUCH: -WebPfad/-DienstPfad/-SiteUrl gelten nur fuer EIN System.` Exit 1 |
+| 125.6 | „Ende ohne DB-Kontakt.“, Protokoll vorhanden, Exit 2 |
+| 125.7 | Test-Anwendung + nie gestarteter Testdienst auf `D:\Dev\deploytest` (danach entfernt): `ABBRUCH: DB .\NICHTDA/IDEAL_WMS_DEV nicht lesbar: … error: 26`, Exit 1 |
+| 125.8 | `ABBRUCH: Web-DB ./IDEAL_WMS_ANDERS ist nicht die Dienst-DB ./IDEAL_WMS_DEV.` vor DB-Kontakt |
+| 125.9 | Dienst-`publish-info.txt` mit `Commit: 0000000` → Abbruch „passt nicht zu“; ohne `publish-info.txt` → Abbruch |
+| 125.10 | Nachlauf nennt Altbestand, v1.47.4, 00er (Hotfix-1.30.1 nicht); Haltepunkt mit Testkopie `@Trockenlauf BIT = 0` → „abgelehnt, nur Anzeige“, Antwort ≠ `ausgefuehrt` → `ABBRUCH … Web und Dienst bleiben gestoppt` (Pool/Dienst Stopped); mit echter Datei Trockenlauf ausgeführt („TROCKENLAUF: nichts geaendert“, Ausgabe-Datei im Log-Ordner); kein `sqlcmd` auf `Einmalig` außer Trockenlauf |
+| 125.11 | Paketkopie `Version: 9.9.9`: `ABBRUCH: Fusszeile v1.98.0 statt v9.9.9. App-Pool gestoppt, Dienst nicht gestartet.` Exit 1 |
+| 125.12 | Volllauf IDEAL (Backup echt: `IDEAL_WMS_DEV_20261111_1047_vor_v1.98.0.bak` im SQL-Standard-Backup-Ordner) und AKE (Backup abgelehnt + „liegt vor“): Stoppen, Schema „nichts fehlt“, web.config-Warnung mit beiden Fassungen (Ziel DEV bleibt), robocopy 334/93 Dateien, Schutzprüfung gleich, Ordner/Rechte OK, Fußzeile v1.98.0, Dienst läuft, Exit 0 |
+| 125.13 | Drift-Test grün; `Manifest_EntfernterEintrag_MachtWaechterRot` entfernt `SQL/141` und erwartet beide Fehlmeldungen |
+| 125.14 | `ParseFile` unter `powershell.exe` ohne Fehler |
+| 125.15 (AK 31) | IDEAL: Fotos-Ordner umbenannt + an `App_Data` Vererbung testweise gekappt → `-NurPruefen` „FEHLT“, nichts geändert; Volllauf → eine Bestätigung, `vorherige ACL: …acl_20261111_104908_v1.96.0-FotosOrdner.txt`, „gesetzt“ bzw. im ersten Lauf „angelegt“, App startet. Testzustand danach zurückgesetzt (`icacls … /reset /T`, Testfoto zurück) |
+
+Danach `dev-deploy.ps1 -Standort IDEAL` und `-Standort AKE -Quelle <Bündel-Worktree>` (beide v1.98.0) und die 5 AKE-DEV-Sync-Schalter
+auf `true` (geprüft). Testartefakt: Backup-Datei `C:\Program Files\Microsoft SQL Server\MSSQL17.MSSQLSERVER\MSSQL\Backup\IDEAL_WMS_DEV_20261111_1047_vor_v1.98.0.bak` (≈ 4,5 GB) liegt noch – löschen nach Belieben.
+
+**Befunde/Zusatzfunde (nicht mitgebaut):**
+- DEV-IDEAL hat RCSI = 0 (Warnung des Skripts); an IDEAL-Prod/Test vor dem Deploy prüfen.
+- `Branding\` fehlt auf DEV (Warnung, Ersatz-Kopf) – erwartbar.
+- Install-Skript wurde nicht ausgeführt (nur Parse-Check, AK 33); ein echter Lauf braucht eine leere Maschine.

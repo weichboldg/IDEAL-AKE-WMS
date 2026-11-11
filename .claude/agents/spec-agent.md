@@ -117,6 +117,12 @@ DEPLOY SECTION (fill provisionally):
   new EF migration -> migration). Mark it clearly as provisional - the QA run
   confirms it against the real diff. The human publishes from the worktree to the test
   system, tests there, then merges (details in qa-agent).
+- Manifest entries are mandatory (ADR 0022): for every new SQL script, one-off script
+  (SQL/Einmalig), setting to switch, Leitstand action, user info or new folder/right, name the
+  planned entry for scripts/deploy/nachlauf.psd1 in the Deploy section: Id, Version, Typ
+  (Schema|Daten|Einmalig|Einstellung|Leitstand|Info|Ordner), Firma (AKE|IDEAL|beide), Phase
+  (Vorher|Schema|Haltepunkt|Nachher), Ausfuehrung (automatisch only for Schema|Trockenlauf|anzeigen),
+  Text. Schema entries keep deploy order (never file sort). No deploy step -> write "keine".
 
 OUTPUT (the spec, plus a bug record only in the bug case above):
 - secondbrain/specs/entwurf/YYYY-MM-DD-<slug>-spec.md based on

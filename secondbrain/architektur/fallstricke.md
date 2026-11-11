@@ -1705,6 +1705,22 @@ hilft nicht; ganz ohne Tipp ist das aus Chrome nicht erreichbar. Geräte mit Tas
 Keystroke) brauchen keinen Tipp – darum bleibt der Skript-Fokus, zeigt aber grau.
 Code: `hardware-scanner.js` Block „Scannen ohne Feld“, CSS `.hw-scan-bereit`.
 
+## 30. Update-Skript (v1.98.0, [[2026-11-09-update-skript-je-zielsystem-mit-nachlauf-spec]], ADR [[0022-update-je-zielsystem-per-skript-mit-nachlauf-manifest]])
+
+- **Kopieren nie mit `/MIR`/`/PURGE`.** Fotos (`App_Data`, frueher `wwwroot\Fotos`), `Branding\`, `logs\` und die Konfiguration
+  (`appsettings*.json`, `web.config`) liegen im Programmordner. **Warum wichtig:** Ein Spiegeln loescht alles, was nicht im Paket ist –
+  Kommissionierfotos und die produktiven Verbindungen waeren weg.
+- **DB-Ermittlung braucht die Umgebung aus `web.config` bzw. der Dienst-Registry (`Environment` = `DOTNET_ENVIRONMENT=...`).**
+  **Warum wichtig:** Liest ein Lauf nur `appsettings.json`, nimmt er die Repo-Verbindung (AKESQL20) statt `appsettings.DEV.json` – auf DEV
+  wuerde er die Produktiv-DB anfassen.
+- **`ziele.psd1`: doppelte Pfade nur je Firma pruefen.** IDEAL-Prod und AKE-Prod haben denselben Web-Pfad, liegen aber auf verschiedenen
+  Servern. **Warum wichtig:** Ein globaler Doppel-Check wuerde die gueltige Datei ablehnen.
+- **PS 5.1: `Read-Host` wirft bei geschlossener Eingabe (Pipe zu Ende)** statt `$null` zu liefern; Variablennamen sind nicht
+  Gross/Klein-empfindlich (`$t` ueberschreibt `$T`). **Warum wichtig:** Testlaeufe per Pipe brachen mit „Methode fuer NULL“ ab; Eingaben
+  laufen ueber `Read-Eingabe` (Modul).
+- **Git Bash wandelt `/save`, `/Q` usw. in Pfade um** (`icacls ... /save` wurde zu `C:/Program Files/Git/save`). **Warum wichtig:**
+  Test-Vorbereitungen mit Windows-Schaltern scheitern still; `MSYS_NO_PATHCONV=1` setzen oder aus PowerShell aufrufen.
+
 ## Sage-SData-Lesen (v1.73.0, [[2026-11-06-sage-sdata-stammdaten-sync-spec]])
 
 - **`startIndex` ist 0-basiert.** Am AKE-Test liefert `startIndex=1` die erste Zeile nicht (LagerorteInfo 35 von 36; Lookup mit einem Treffer leer).
