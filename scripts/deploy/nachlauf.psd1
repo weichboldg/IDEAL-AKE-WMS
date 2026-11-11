@@ -95,7 +95,7 @@ Eintraege = @(
    Reparatur='ALTER DATABASE CURRENT SET READ_COMMITTED_SNAPSHOT ON WITH ROLLBACK IMMEDIATE'
    Text='RCSI ist aus, der FA-Struktur-Import (Sync:HierarchicalFaEnabled bzw. ProduktionsauftragHierarchisch) braucht is_read_committed_snapshot_on = 1 (v1.31.0, TS-57.0).'
    Quelle='2026-08-10-v1-31-0-ideal-teile-1-5; 2026-11-11-v1-99-0-update-skript-prueft-und-fuehrt-aus' }
-@{ Id='Pruefung/RollenBeschichtungsauftrag'; Version='1.51.0'; Typ='Pruefung'; Firma='AKE'; Phase='Haltepunkt'; Ausfuehrung='Reparatur'
+@{ Id='Pruefung/RollenBeschichtungsauftrag'; Version='1.51.0'; Typ='Pruefung'; Firma='beide'; Phase='Haltepunkt'; Ausfuehrung='Reparatur'
    Pruefung='SELECT COUNT(*) FROM (VALUES (N''beschichtungsauftrag''), (N''beschichtungsauftrag_schreiben'')) v(k) WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k)'
    Reparatur='INSERT INTO dbo.Roles ([Key], [Name], [Description], [IsSystem], [SortOrder], [CreatedAt], [CreatedBy], [CreatedByWindows])
 SELECT v.k, v.n, v.d, 1, (SELECT ISNULL(MAX(SortOrder), 0) FROM dbo.Roles) + v.o, SYSDATETIME(), N''Update-Skript'', LEFT(SUSER_SNAME(), 200)
@@ -103,7 +103,7 @@ FROM (VALUES (N''beschichtungsauftrag'', N''Beschichtungsauftrag (IDEAL)'', N''B
              (N''beschichtungsauftrag_schreiben'', N''Beschichtungsauftr'' + NCHAR(228) + N''ge (Schreibrecht)'',
               N''Gespeicherte Beschichtungsauftraege anlegen und bearbeiten; schliesst Lesen ein.'', 2)) v(k, n, d, o)
 WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
-   Text='Rollen beschichtungsauftrag / beschichtungsauftrag_schreiben fehlen (kein Seed; Freigabe-Antwort 6 der Spec update-skript-je-zielsystem). Zuweisen bleibt Hand-Schritt (v1.51.0-Rolle).'
+   Text='Rollen beschichtungsauftrag / beschichtungsauftrag_schreiben fehlen (kein Seed; nur IDEAL-Prod hat sie aus der Installation, v1.99.1). Zuweisen bleibt Hand-Schritt (unter /Roles).'
    Quelle='2026-10-12-v1-51-0-beschichtungsauftraege-oberflaeche; 2026-11-11-v1-99-0-update-skript-prueft-und-fuehrt-aus' }
 @{ Id='Pruefung/DummyArtikel'; Version='1.30.0'; Typ='Pruefung'; Firma='beide'; Phase='Haltepunkt'; Ausfuehrung='Reparatur'
    Pruefung='SELECT CASE WHEN EXISTS (SELECT 1 FROM dbo.Articles WHERE ArticleNumber = N''DUMMY'') THEN 0 ELSE 1 END'
@@ -196,7 +196,7 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
 @{ Id='v1.44.0-Werkbank'; Version='1.44.0'; Typ='Einstellung'; Firma='IDEAL'; Phase='Nachher'; Ausfuehrung='anzeigen'
    Text='DryRun; erst Sync:ProductionWorkplaceSyncEnabled, dann Sync:WorkOperationStructureDetectionEnabled.'; Quelle='2026-09-22-v1-44-0-ideal-bde-arbeitsgaenge-werkbank-anlage' }
 @{ Id='v1.51.0-Rolle'; Version='1.51.0'; Typ='Einstellung'; Firma='AKE'; Phase='Nachher'; Ausfuehrung='anzeigen'
-   Text='Rollen beschichtungsauftrag (Lesen) und beschichtungsauftrag_schreiben unter /Roles zuweisen (Anlegen: Pruefung/RollenBeschichtungsauftrag). IDEAL hat sie aus der Installation.'
+   Text='Rollen beschichtungsauftrag (Lesen) und beschichtungsauftrag_schreiben unter /Roles zuweisen (Anlegen: Pruefung/RollenBeschichtungsauftrag, Firma beide; IDEAL-Prod hat sie aus der Installation).'
    Quelle='2026-10-12-v1-51-0-beschichtungsauftraege-oberflaeche' }
 @{ Id='v1.56.0-Info'; Version='1.56.0'; Typ='Info'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
    Text='Anwender-Info: Beschichtung im Menue.'; Quelle='2026-10-13-v1-56-0-menue-beschichtung-hilfe' }

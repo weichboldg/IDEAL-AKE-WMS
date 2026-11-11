@@ -465,12 +465,13 @@ function Show-BackupPfad($e) {
     $txt = switch ($r) { '1' { 'vorhanden' } '0' { 'FEHLT - Schritt 2 fragt nach einem anderen Ordner' } default { "$r - Schritt 2 fragt nach" } }
     Write-Host "  Backup-Ordner auf $($e.Db.Server): $p ($txt)"
 }
+# v1.99.1: leere Eingabe = Backup ueberspringen ($null), kein Abbruch des Laufs; gefragt wird, bis der Ordner gueltig ist
 function Get-BackupOrdner($e) {
     $pfad = Get-BackupStandard $e
     while ($true) {
         if (-not $pfad) {
-            $pfad = (Read-Eingabe "  ?   Backup-Ordner auf dem SQL-Server $($e.Db.Server) (leer = Abbruch)").TrimEnd('\')
-            if (-not $pfad) { Stop-Mit 'kein Backup-Ordner angegeben.' }
+            $pfad = (Read-Eingabe "  ?   Backup-Ordner auf dem SQL-Server $($e.Db.Server) (leer = Backup ueberspringen)").TrimEnd('\')
+            if (-not $pfad) { Write-Host '      Backup uebersprungen.' -ForegroundColor Yellow; return $null }
         }
         $r = Test-BackupOrdner $e $pfad
         if ($r -eq '1') { return $pfad }
@@ -480,8 +481,10 @@ function Get-BackupOrdner($e) {
         $pfad = ''
     }
 }
+# Liefert $true bei Erfolg; uebersprungen oder fehlgeschlagen = $false (der Aufrufer entscheidet, kein Abbruch hier)
 function Invoke-Backup($e) {
     $ziel = Get-BackupOrdner $e
+    if (-not $ziel) { return $false }
     # Pfad liegt auf dem SQL-Server: kein Join-Path (PS 5.1 wirft, wenn das Laufwerk hier am Web-Server fehlt)
     $bak = '{0}\{1}_{2:yyyyMMdd_HHmmss}_vor_v{3}.bak' -f $ziel, $e.Db.Datenbank, (Get-Date), $PaketVersion
     Write-Host "  Ziel (Pfad auf dem SQL-Server $($e.Db.Server)): $bak"
@@ -489,21 +492,24 @@ function Invoke-Backup($e) {
     try {
         $cn.Open(); $cmd = $cn.CreateCommand(); $cmd.CommandTimeout = 0
         $cmd.CommandText = "BACKUP DATABASE [$($e.Db.Datenbank.Replace(']', ']]'))] TO DISK = N'$($bak.Replace("'", "''"))' WITH COPY_ONLY, CHECKSUM"
-        [void]$cmd.ExecuteNonQuery(); Write-Ok "Backup $bak"; $script:BackupDatei = $bak
-    } catch { Stop-Mit "Backup fehlgeschlagen: $($_.Exception.Message)" } finally { $cn.Dispose() }
+        [void]$cmd.ExecuteNonQuery(); Write-Ok "Backup $bak"; $script:BackupDatei = $bak; return $true
+    } catch { Write-Warnung "Backup fehlgeschlagen: $($_.Exception.GetBaseException().Message)"; return $false } finally { $cn.Dispose() }
 }
-# Backup aus DIESEM Lauf (Fluss A Pflicht; Fluss B auch "liegt vor" aus Schritt 2)
-function Test-BackupFuerLauf($e, [bool]$liegtVorReicht) {
-    if ($script:BackupDatei -or ($liegtVorReicht -and $script:BackupLiegtVor)) { return $true }
+# v1.99.1 (Freigabe-Nachtrag Punkt 3): SCHARF und uebernehmen nur mit Backup aus DIESEM Lauf; ohne Backup bleiben sie gesperrt, Lauf geht weiter
+function Test-BackupFuerLauf($e, [string]$was) {
+    if ($script:BackupDatei) { return $true }
     Write-Host '  Kein Backup aus diesem Lauf.'
-    if (Read-Ja "Jetzt BACKUP DATABASE [$($e.Db.Datenbank)] WITH COPY_ONLY, CHECKSUM anlegen?") { Invoke-Backup $e }
-    return [bool]$script:BackupDatei
+    if (Read-Ja "Jetzt BACKUP DATABASE [$($e.Db.Datenbank)] WITH COPY_ONLY, CHECKSUM anlegen?") { [void](Invoke-Backup $e) }
+    if ($script:BackupDatei) { return $true }
+    Write-Host "  !!  Ohne Backup aus diesem Lauf bleibt $was gesperrt. Backup anlegen (oder Ordner pruefen) und das Skript neu starten." -ForegroundColor Yellow
+    return $false
 }
 
 # ================================================================================================ v1.99.0: Daten-/Einmal-Eintraege
+# v1.99.1: EINE Regel fuer Anzeige und Ausfuehrung - Einmalig immer (Marker verhindert Wiederholung), Daten u. a. nur bei Versionssprung
+function Test-Faellig($m, $installiert) { return ($m.Typ -eq 'Einmalig') -or (Test-Neuer $m $installiert) }
 function Get-OffeneEintraege($e, [string]$phase, $installiert) {
-    return @($manifest | Where-Object { $_.Typ -in 'Daten', 'Einmalig' -and $_.Phase -eq $phase -and (Test-PasstFirma $_ $e) -and
-                                        ($_.Typ -eq 'Einmalig' -or (Test-Neuer $_ $installiert)) } |
+    return @($manifest | Where-Object { $_.Typ -in 'Daten', 'Einmalig' -and $_.Phase -eq $phase -and (Test-PasstFirma $_ $e) -and (Test-Faellig $_ $installiert) } |
              Where-Object { -not (Get-Marker $e $_) -and -not ((Get-SpurZahl $e $_) -gt 0) })
 }
 function Show-Pruefabfrage($e, $m) {
@@ -551,7 +557,7 @@ function Invoke-FlussA($e, $m, [bool]$halt) {
         return
     }
     Write-Host "  TREFFER: $($t.Treffer)" -ForegroundColor Yellow
-    if (-not (Test-BackupFuerLauf $e $false)) { & $nein 'kein Backup aus diesem Lauf -> kein Scharflauf.'; return }
+    if (-not (Test-BackupFuerLauf $e 'SCHARF')) { & $nein 'kein Backup aus diesem Lauf -> kein Scharflauf.'; return }
     $a = Read-Eingabe "  ?   $($m.Id): $($t.Treffer) Treffer. Zum Ausfuehren SCHARF eintippen (anderes = nicht ausfuehren)"
     if ($a -cne 'SCHARF') { & $nein 'nicht SCHARF bestaetigt.'; return }
     $hash = (Get-FileHash $datei -Algorithm SHA256).Hash
@@ -576,7 +582,7 @@ function Invoke-FlussB($e, $m) {
     if ($a -eq 'e') { Write-Marker $e $m 'VonHand' $null 'von Hand erfasst'; return }
     if ($a -ne 'j') { Write-Warnung "$($m.Id): offen (spaeter)."; return }
     Assert-Gestoppt $e "$($m.Id) (Phase $($m.Phase))"
-    if (-not (Test-BackupFuerLauf $e $true)) { Write-Warnung "$($m.Id): kein Backup -> nicht ausgefuehrt, Eintrag bleibt offen."; return }
+    if (-not (Test-BackupFuerLauf $e 'uebernehmen')) { Write-Warnung "$($m.Id): kein Backup aus diesem Lauf -> nicht ausgefuehrt, Eintrag bleibt offen."; return }
     $datei = Join-Path $SqlOrdner $m.Datei
     $text = [IO.File]::ReadAllText($datei, [Text.Encoding]::UTF8)
     $r = Invoke-SqlTransaktion $e $m.Id $text @{ M = $m; Mode = 'Transaktion'; Hits = $null; Sha = (Get-FileHash $datei -Algorithm SHA256).Hash } 'Frage'
@@ -679,7 +685,8 @@ function Invoke-System($e) {
     if (-not (Test-MarkerTabelle $e)) { Write-Host '  Marker-Tabelle fehlt (kommt mit SQL/142) - Daten-/Einmal-Eintraege ohne Marker-Stand.' }
     foreach ($m in $manifest | Where-Object { $_.Typ -in 'Daten', 'Einmalig' -and (Test-PasstFirma $_ $e) }) {
         $erl = Get-Marker $e $m
-        Write-Host "  $($m.Id): $(if ($erl) { $erl } else { "offen, $(Get-Spur $e $m)" })"
+        $stand = if ($erl) { $erl } elseif (-not (Test-Faellig $m $installiert)) { "nicht faellig (eingefuehrt mit v$($m.Version), installiert v$installiert)" } else { "offen, $(Get-Spur $e $m)" }
+        Write-Host "  $($m.Id): $stand"
     }
     Show-BackupPfad $e
     $vorher = @($manifest | Where-Object { $_.Phase -eq 'Vorher' -and $_.Typ -ne 'Ordner' -and (Test-PasstFirma $_ $e) -and (Test-Neuer $_ $installiert) })
@@ -708,9 +715,12 @@ function Invoke-System($e) {
     # ---------------------------------------------------------------------------------------- 2 Backup
     Start-Schritt '2' '2. Backup'
     Write-Host '  Pflicht bei SQL/90, 95, 109/110, 133/Altbestand und vor jedem Scharf-/Transaktionslauf (ADR 0004, ADR 0023).'
-    if (Read-Ja "Jetzt BACKUP DATABASE [$($e.Db.Datenbank)] WITH COPY_ONLY, CHECKSUM anlegen?") { Invoke-Backup $e }
-    elseif (Read-Ja 'Liegt ein aktuelles Backup dieser DB vor?') { $script:BackupLiegtVor = $true }
-    else { Stop-Mit 'kein Backup.' }
+    $ok = $false
+    if (Read-Ja "Jetzt BACKUP DATABASE [$($e.Db.Datenbank)] WITH COPY_ONLY, CHECKSUM anlegen?") { $ok = Invoke-Backup $e }
+    if (-not $ok) {
+        if (Read-Ja 'Liegt ein aktuelles Backup dieser DB vor?') { $script:BackupLiegtVor = $true }
+        else { Stop-Mit 'kein Backup.' }
+    }
 
     # ---------------------------------------------------------------------------------------- 3 Stoppen
     Start-Schritt '3' '3. Stoppen'
@@ -762,8 +772,7 @@ function Invoke-System($e) {
     # ---------------------------------------------------------------------------------------- 4a Pruefungen und Haltepunkt
     Start-Schritt '4a' '4a. Pruefungen und Haltepunkt'
     foreach ($m in @($pruefungen | Where-Object { $_.Phase -eq 'Haltepunkt' })) { Invoke-Pruefung $e $m $history }
-    foreach ($m in @($manifest | Where-Object { $_.Typ -in 'Daten', 'Einmalig' -and $_.Phase -eq 'Haltepunkt' -and (Test-PasstFirma $_ $e) -and
-                                     ($_.Typ -eq 'Einmalig' -or (Test-Neuer $_ $installiert)) })) {
+    foreach ($m in @($manifest | Where-Object { $_.Typ -in 'Daten', 'Einmalig' -and $_.Phase -eq 'Haltepunkt' -and (Test-PasstFirma $_ $e) -and (Test-Faellig $_ $installiert) })) {
         Write-Host ''; Write-Host "  Haltepunkt $($m.Id)" -ForegroundColor White
         Test-Braucht $e $m $history
         Invoke-Eintrag $e $m $true
@@ -793,8 +802,7 @@ function Invoke-System($e) {
     if (-not $ok) { Stop-Mit 'Pflicht-Eintrag FEHLT (Ordner/Recht). App-Pool und Dienst bleiben gestoppt.' }
 
     # ---------------------------------------------------------------------------------------- 5b Vor dem Start (Freigabe-Antwort 1)
-    $vor = @($manifest | Where-Object { $_.Typ -in 'Daten', 'Einmalig' -and $_.Phase -eq 'VorStart' -and (Test-PasstFirma $_ $e) -and
-                                        ($_.Typ -eq 'Einmalig' -or (Test-Neuer $_ $installiert)) })
+    $vor = @($manifest | Where-Object { $_.Typ -in 'Daten', 'Einmalig' -and $_.Phase -eq 'VorStart' -and (Test-PasstFirma $_ $e) -and (Test-Faellig $_ $installiert) })
     if ($vor) {
         Start-Schritt '5b' '5b. Vor dem Start (Web und Dienst gestoppt)'
         foreach ($m in $vor) { Write-Host ''; Write-Host "  $($m.Id)" -ForegroundColor White; Invoke-Eintrag $e $m $false }
@@ -845,8 +853,7 @@ function Show-Nachlauf($e, $installiert, [bool]$ausfuehren) {
     if ($ausfuehren) { Start-Schritt '7' "7. Nachlauf-Liste $($e.Name) (installiert vorher: $(if ($installiert) { "v$installiert" } else { 'unbekannt' }))" }
     else { Write-Schritt "7. Nachlauf-Liste $($e.Name) (nur Bericht; installiert: $(if ($installiert) { "v$installiert" } else { 'unbekannt' }))" }
     # Nachlauf-Liste: Einstellung, Leitstand, Info, Daten-/Einmal-Eintraege; SQL-Pruefbares steht im Block "Pruefungen" (Typ Pruefung)
-    $liste = @($manifest | Where-Object { $_.Typ -notin 'Schema', 'Ordner', 'Pruefung' -and $_.Phase -ne 'Vorher' -and (Test-PasstFirma $_ $e) -and
-                                         ($_.Typ -eq 'Einmalig' -or (Test-Neuer $_ $installiert)) })
+    $liste = @($manifest | Where-Object { $_.Typ -notin 'Schema', 'Ordner', 'Pruefung' -and $_.Phase -ne 'Vorher' -and (Test-PasstFirma $_ $e) -and (Test-Faellig $_ $installiert) })
     if (-not $liste) { Write-Host '  keine Eintraege' }
     $i = 0
     foreach ($m in $liste) {
