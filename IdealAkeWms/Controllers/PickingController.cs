@@ -615,8 +615,20 @@ public class PickingController : Controller
     /// v1.88.0 (E4, AK 18): Druck je Kommissionierauftrag – Kopf mit Nummer, FA, Bereich, Faelligkeit und Barcode der Auftragsnummer
     /// (<see cref="IBarcodeService"/> wie die Kommissionierlisten), Zeilen mit Soll/Ist/Lagerplatz. Ersetzt den FA-Druck aus PickingItems.
     /// </summary>
+    [HttpGet]
     [RequirePickingAccess]
-    public async Task<IActionResult> AuftragDrucken(int id, [FromServices] IBarcodeService barcode)
+    public Task<IActionResult> AuftragDrucken(int id, [FromServices] IBarcodeService barcode)
+        => RenderAuftragDruckenAsync(id, reihenfolge: null, barcode);
+
+    /// <summary>v1.97.0: wie <see cref="AuftragDrucken"/>, aber in der Reihenfolge der sortierten Ansicht (Positionen per POST wie beim
+    /// Stuecklisten-Druck, Hotfix v1.30.1/v1.30.3). Es werden immer alle Zeilen des Auftrags gedruckt; Zeilen ohne Position in der Liste stehen
+    /// am Ende in Positions-Reihenfolge.</summary>
+    [HttpPost, ValidateAntiForgeryToken, ActionName("AuftragDrucken")]
+    [RequirePickingAccess]
+    public Task<IActionResult> AuftragDruckenPost(int id, [FromForm] string? reihenfolge, [FromServices] IBarcodeService barcode)
+        => RenderAuftragDruckenAsync(id, reihenfolge, barcode);
+
+    private async Task<IActionResult> RenderAuftragDruckenAsync(int id, string? reihenfolge, IBarcodeService barcode)
     {
         var auftrag = await _pickingOrderRepository.GetMitZeilenAsync(id);
         if (auftrag?.ProductionOrder == null) return NotFound();
@@ -650,7 +662,7 @@ public class PickingController : Controller
             ProductionDate = order.ProductionDate,
             PrintedBy = _currentUserService.GetDisplayName(),
             PickedBy = auftrag.AssignedPickerName,
-            Items = auftrag.Zeilen.OrderBy(z => z.BomPosition, new NaturalPositionComparer()).Select(z => new PrintPickingItem
+            Items = SortiereZeilen(auftrag.Zeilen, reihenfolge).Select(z => new PrintPickingItem
             {
                 Artikelnummer = z.ArticleNumber,
                 Position = z.BomPosition,
@@ -661,5 +673,17 @@ public class PickingController : Controller
                 Status = PickingOrderListItem.ZeilenStatusText(z.Status),
             }).ToList()
         });
+    }
+
+    /// <summary>v1.97.0: Zeilen in der Reihenfolge der Positionsliste (Anzeige-Reihenfolge), ohne Liste nach Position.</summary>
+    internal static IEnumerable<PickingOrderLine> SortiereZeilen(IEnumerable<PickingOrderLine> zeilen, string? reihenfolge)
+    {
+        var nachPosition = zeilen.OrderBy(z => z.BomPosition, new NaturalPositionComparer());
+        if (string.IsNullOrEmpty(reihenfolge)) return nachPosition;
+        var index = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (var p in reihenfolge.Split(',', StringSplitOptions.RemoveEmptyEntries))
+            index.TryAdd(p.Trim(), index.Count);
+        // OrderBy ist stabil: Zeilen ohne Listeneintrag behalten ihre Positions-Reihenfolge am Ende.
+        return nachPosition.OrderBy(z => z.BomPosition != null && index.TryGetValue(z.BomPosition, out var i) ? i : int.MaxValue);
     }
 }

@@ -464,7 +464,7 @@ else if (Model.BackController == "Picking")
                     <button type="submit" class="btn" style="background-color: var(--ake-secondary); color: white;">Gepickte Artikel umbuchen</button>
                 </div>
                 <div class="col-auto">
-                    <a asp-action="AuftragDrucken" asp-route-id="@Model.Auftrag?.Id" target="_blank" class="btn btn-outline-secondary">Auftrag drucken</a>
+                    <a id="btnAuftragDrucken" asp-action="AuftragDrucken" asp-route-id="@Model.Auftrag?.Id" target="_blank" class="btn btn-outline-secondary">Auftrag drucken</a>
                 </div>
                 <div class="col-auto">
                     @* QA Q3: Abschluss jederzeit erreichbar (z. B. nach Neuladen oder wenn keine Zeile buchbar ist) *@
@@ -1377,6 +1377,31 @@ else if (Model.BackController == "Picking")
                 document.body.appendChild(printForm);
                 printForm.submit();
                 printForm.remove();
+            });
+
+            // ========== Auftrag drucken in Sortierreihenfolge (v1.97.0) ==========
+            // Ohne Sortierung bleibt der Link (GET, Positions-Reihenfolge). Bei aktiver Sortierung per POST die Positionen in
+            // DOM-Reihenfolge – alle Zeilen, auch weggefilterte: der Auftragsdruck ist der vollstaendige Auftrag.
+            var btnAuftragDrucken = document.getElementById('btnAuftragDrucken');
+            if (btnAuftragDrucken) btnAuftragDrucken.addEventListener('click', function (e) {
+                if (!document.querySelector('#bomTable thead th[data-sort-dir]')) return;
+                e.preventDefault();
+                var reihenfolge = [];
+                document.querySelectorAll('#bomTable tbody tr[data-position]').forEach(function (row) {
+                    reihenfolge.push(row.getAttribute('data-position'));
+                });
+                var f = document.createElement('form');
+                f.method = 'post';
+                f.target = '_blank';
+                f.action = btnAuftragDrucken.getAttribute('href');
+                [['__RequestVerificationToken', token], ['reihenfolge', reihenfolge.join(',')]].forEach(function (kv) {
+                    var input = document.createElement('input');
+                    input.type = 'hidden'; input.name = kv[0]; input.value = kv[1];
+                    f.appendChild(input);
+                });
+                document.body.appendChild(f);
+                f.submit();
+                f.remove();
             });
 
             // ========== Lagerbestellung aus Stueckliste (v1.25.0) ==========

@@ -351,4 +351,14 @@ public class PickingControllerTests
         var all = (await ctrl.PrintBomPost(7, null, null, null) as ViewResult)!.Model as PrintBomViewModel;
         all!.Items.Select(i => i.Position).Should().Equal("1", "2", "10");
     }
+    // v1.97.0: „Auftrag drucken“ in der Reihenfolge der sortierten Ansicht; ohne Liste nach Position; Zeilen ohne Listeneintrag am Ende.
+    [Fact]
+    public void AuftragDrucken_SortiereZeilen_NachAnsicht()
+    {
+        PickingOrderLine Z(string? pos) => new() { BomPosition = pos, ArticleNumber = "A" + pos, CreatedBy = "t", CreatedByWindows = "t" };
+        var zeilen = new List<PickingOrderLine> { Z("10"), Z("1"), Z("2"), Z(null), Z("3") };
+
+        PickingController.SortiereZeilen(zeilen, null).Select(z => z.BomPosition).Should().Equal(null, "1", "2", "3", "10");
+        PickingController.SortiereZeilen(zeilen, "2,10,1").Select(z => z.BomPosition).Should().Equal("2", "10", "1", null, "3");
+    }
 }
