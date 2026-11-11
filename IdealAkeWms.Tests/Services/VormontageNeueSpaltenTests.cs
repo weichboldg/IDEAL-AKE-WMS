@@ -157,6 +157,57 @@ public class VormontageNeueSpaltenTests
         summe.Rows.Select(r => r.Matchcode).Should().Equal("MC-2");
     }
 
+    // ----- v1.99.3: Spalte "Abteilung" (Montage-Abteilung je HauptFA, Spec 2026-11-11-vormontage-spalte-abteilung-hauptfa) -----
+
+    private static FaHierarchyOrderInfo Abt(int hauptFa, string? abteilung) => new() { HauptFA = hauptFa, MontageAbteilung = abteilung };
+
+    [Fact]
+    public void FormatAbteilung_Leer_Eine_GleicheOhneGrossKlein_Kombigeraet()
+    {
+        VormontageService.FormatAbteilung(null).Should().BeNull();
+        VormontageService.FormatAbteilung(new[] { Abt(1, null), Abt(1, "  ") }).Should().BeNull();
+        VormontageService.FormatAbteilung(new[] { Abt(1, " TK ") }).Should().Be("TK");
+        VormontageService.FormatAbteilung(new[] { Abt(1, "TK"), Abt(1, " tk ") }).Should().Be("TK", "gleiche Abteilung ohne Gross/Klein = ein Wert");
+        VormontageService.FormatAbteilung(new[] { Abt(1, "TK"), Abt(1, "GN") }).Should().Be(VormontageService.KombigeraetHinweis);
+        VormontageService.KombigeraetHinweis.Should().Be("Kombigerät");
+    }
+
+    [Fact]
+    public async Task Sicht1_Abteilung_JeHauptFa_Filter_Negation_Kombi_GetterGleichZelle()
+    {
+        var nodes = new[] { Node(100, 1), Node(100, 2), Node(200, 1), Node(300, 1), Node(400, 1) };
+        var infos = new[] { Abt(100, "TK"), Abt(200, "GN"), Abt(300, "TK"), Abt(300, "GN") };   // 300 = Kombigeraet, 400 ohne Kopfzeile
+
+        var kopf = VormontageService.BuildKopfLookup(infos);
+        var map = VormontageService.BuildEinzelnColumnMap(kopf);
+        map["montage-abteilung"](nodes[0]).Should().Be(VormontageService.BuildKopfWerte(infos.Where(i => i.HauptFA == 100)).Abteilung);
+        map["montage-abteilung"](nodes[3]).Should().Be("Kombigerät");
+        map["montage-abteilung"](nodes[4]).Should().BeNull("HauptFA ohne Kopfzeile => leere Zelle");
+
+        var tk = await Sicht1(nodes, infos, F("montage-abteilung", "TK"));
+        tk.Groups.Select(g => g.HauptFA).Should().Equal(100);
+        tk.Groups.Single().Positions.Should().HaveCount(2, "ganze Gruppe bleibt");
+        tk.TotalGroupCount.Should().Be(1);
+        (await Sicht1(nodes, infos, F("montage-abteilung", "!TK"))).Groups.Select(g => g.HauptFA).Should().Equal(200, 300, 400);
+        (await Sicht1(nodes, infos, F("montage-abteilung", "Kombi"))).Groups.Select(g => g.HauptFA).Should().Equal(300);
+        (await Sicht1(nodes, infos, null)).Groups.Single(g => g.HauptFA == 300).Positions.Should().HaveCount(1, "kein Fan-out");
+    }
+
+    [Fact]
+    public void Sicht2_Abteilungen_Sortiert_MitKombigeraet_FilterVorDemZusammenzaehlen()
+    {
+        var nodes = new[] { Node(100, 1, soll: 4m), Node(200, 1, soll: 3m), Node(300, 1, soll: 2m) };
+        var infos = new[] { Abt(100, "TK"), Abt(200, "GN"), Abt(300, "TK"), Abt(300, "GN") };
+
+        VormontageService.AggregateSummiert(nodes.Take(2), infos, "VM-A", null, null, 1, 100, true).Rows.Single().Abteilungen.Should().Be("GN, TK");
+        VormontageService.AggregateSummiert(nodes, infos, "VM-A", null, null, 1, 100, true).Rows.Single().Abteilungen.Should().Be("GN, Kombigerät, TK");
+
+        var tk = VormontageService.AggregateSummiert(nodes, infos, "VM-A", null, F("montage-abteilung", "TK"), 1, 100, true);
+        tk.Rows.Single().SummeSollmenge.Should().Be(4m, "nur Mengen der TK-HauptFA; Kombigeraet faellt heraus");
+        tk.Rows.Single().Abteilungen.Should().Be("TK");
+        VormontageService.AggregatColumnMap.Should().NotContainKey("montage-abteilung", "Vorfilter je Position, kein zweiter Nachfilter");
+    }
+
     // ----- Drift-Waechter (A/B/C ohne Druck-Datei, Muster KommissionierSpaltenKonsistenzTests) -----
 
     public static IEnumerable<object[]> Views()
@@ -167,7 +218,7 @@ public class VormontageNeueSpaltenTests
 
     [Theory]
     [MemberData(nameof(Views))]
-    public void DreiQuellen_GleicheSchluessel_GleicheReihenfolge_ArbeitsbereichStattAbteilung(string file, ViewConfig config)
+    public void DreiQuellen_GleicheSchluessel_GleicheReihenfolge_ArbeitsbereichUndMontageAbteilung(string file, ViewConfig config)
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
         while (dir != null && !File.Exists(Path.Combine(dir.FullName, "IdealAkeWms", "Program.cs")))
@@ -177,7 +228,9 @@ public class VormontageNeueSpaltenTests
         var defKeys = config.Columns.Select(c => c.Key).ToList();
         KommissionierSpaltenKonsistenzTests.ExtractThDataColKeys(html).Should().BeEquivalentTo(defKeys);
         KommissionierSpaltenKonsistenzTests.ExtractColumnConfigKeys(html).Should().Equal(defKeys);
-        defKeys.Should().Contain("arbeitsbereich").And.NotContain("abteilung").And.NotContain("montage-abteilung");
+        // v1.99.3 bewusst geaendert (Spec 2026-11-11-vormontage-spalte-abteilung-hauptfa T6): montage-abteilung ist jetzt Spalte; "abteilung" bleibt gesperrt.
+        defKeys.Should().Contain("arbeitsbereich").And.Contain("montage-abteilung").And.NotContain("abteilung");
+        defKeys.IndexOf("montage-abteilung").Should().Be(defKeys.IndexOf("arbeitsbereich") + 1, "direkt rechts neben Arbeitsbereich");
         config.Columns.Should().OnlyContain(c => !c.DefaultHidden, "neue Spalten sind per Default sichtbar");
         html.Should().MatchRegex(@"data-col-key=""fe-termin"" data-date-filter", "Typ an <th> UND im Register (fallstricke §26)");
     }

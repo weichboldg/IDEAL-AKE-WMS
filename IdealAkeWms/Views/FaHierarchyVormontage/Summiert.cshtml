@@ -4,7 +4,7 @@
 @{
     ViewData["Title"] = "Vormontage — Summiert (IDEAL)";
     var deCulture = CultureInfo.GetCultureInfo("de-DE");
-    const int colCount = 9; // Matchcode, Arbeitsbereich, zwei Summen, HauptFA, Kunde, FE-Termin, Bemerkung PN, Fertigungsinfo PN
+    const int colCount = 10; // Matchcode, Arbeitsbereich, Abteilung, zwei Summen, HauptFA, Kunde, FE-Termin, Bemerkung PN, Fertigungsinfo PN
 }
 
 <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
@@ -68,7 +68,7 @@ else
             Nach <strong>Matchcode</strong> summierte Mengensicht des gewählten VM-Bedarfs
             (<code>@(Model.SelectedBereich ?? "—")</code>). Zwei getrennte Summen: <em>Sollmenge</em>
             und <em>Fertigungmenge</em>. Die Kalenderwoche filtert auf den Fertigstellungstermin
-            (<code>FE_Termin</code>) <strong>vor</strong> der Aggregation. Filter auf Arbeitsbereich, HauptFA, Kunde, FE-Termin und
+            (<code>FE_Termin</code>) <strong>vor</strong> der Aggregation. Filter auf Arbeitsbereich, Abteilung, HauptFA, Kunde, FE-Termin und
             den PN-Spalten wirken je Position <strong>vor</strong> dem Zusammenzählen.
         </p>
     </div>
@@ -80,6 +80,7 @@ else
             <tr>
                 <th data-filterable data-col-key="matchcode">Matchcode</th>
                 <th data-filterable data-col-key="arbeitsbereich">Arbeitsbereich</th>
+                <th data-filterable data-col-key="montage-abteilung" title="Montage-Abteilung des HauptFA (aus den Auftragsdaten)">Abteilung</th>
                 <th class="text-end" data-filterable data-filter-type="number" data-col-key="sollmenge">Summe Sollmenge</th>
                 <th class="text-end" data-filterable data-filter-type="number" data-col-key="fertigungmenge">Summe Fertigungmenge</th>
                 <th data-filterable data-col-key="hauptfa">HauptFA</th>
@@ -103,6 +104,7 @@ else
                     <tr>
                         <td>@row.Matchcode</td>
                         <td>@row.Arbeitsbereiche</td>
+                        <td>@row.Abteilungen</td>
                         <td class="text-end">@VormontageService.FormatMenge(row.SummeSollmenge)</td>
                         <td class="text-end">@VormontageService.FormatMenge(row.SummeFertigungmenge)</td>
                         <td>@row.HauptFas</td>
@@ -126,6 +128,7 @@ else
 [
     { "key": "matchcode", "label": "Matchcode", "locked": true, "defaultWidth": null },
     { "key": "arbeitsbereich", "label": "Arbeitsbereich", "locked": false, "defaultWidth": null },
+    { "key": "montage-abteilung", "label": "Abteilung", "locked": false, "defaultWidth": null },
     { "key": "sollmenge", "label": "Summe Sollmenge", "locked": false, "defaultWidth": 55 },
     { "key": "fertigungmenge", "label": "Summe Fertigungmenge", "locked": false, "defaultWidth": 55 },
     { "key": "hauptfa", "label": "HauptFA", "locked": false, "defaultWidth": null },

@@ -94,7 +94,20 @@ public class VormontageService
 
     /// <summary>Kopfwerte eines HauptFA als gerenderter Text (Kunde, FE-Termin). Bei mehreren Kopfzeilen (Kombigeraet) alle
     /// verschiedenen Werte, nie still eine Variante waehlen (Glossar "Kombinationsgeraet").</summary>
-    public sealed record KopfWerte(string? Kunde, string? FeTermin);
+    public sealed record KopfWerte(string? Kunde, string? FeTermin, string? Abteilung = null);
+
+    /// <summary>v1.99.3: Zellentext bei mehreren verschiedenen Montage-Abteilungen je HauptFA (Spec 2026-11-11-vormontage-spalte-abteilung-hauptfa,
+    /// Freigabe-Antwort 1 a). Es wird nie still eine Abteilung gewaehlt (Glossar "Kombinationsgeraet").</summary>
+    public const string KombigeraetHinweis = "Kombigerät";
+
+    /// <summary>v1.99.3: Montage-Abteilung EINES HauptFA aus seinen FAInfos-Zeilen (dasselbe Feld wie der Gruppenkopf): getrimmt, leere verworfen,
+    /// verschieden ohne Gross/Klein; 0 =&gt; null, 1 =&gt; der Wert, mehr =&gt; <see cref="KombigeraetHinweis"/>.</summary>
+    public static string? FormatAbteilung(IEnumerable<FaHierarchyOrderInfo>? infos)
+    {
+        var werte = (infos ?? Enumerable.Empty<FaHierarchyOrderInfo>()).Select(i => i.MontageAbteilung)
+            .Where(w => !string.IsNullOrWhiteSpace(w)).Select(w => w!.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        return werte.Count switch { 0 => null, 1 => werte[0], _ => KombigeraetHinweis };
+    }
 
     /// <summary>Verschiedene, nicht leere Texte (getrimmt), sortiert ordinal-ignore-case, getrennt mit ", "; nichts =&gt; null (leere Zelle).</summary>
     public static string? FormatTexte(IEnumerable<string?> werte)
@@ -116,7 +129,7 @@ public class VormontageService
     public static KopfWerte BuildKopfWerte(IEnumerable<FaHierarchyOrderInfo>? infos)
     {
         var liste = (infos ?? Enumerable.Empty<FaHierarchyOrderInfo>()).ToList();
-        return new KopfWerte(FormatTexte(liste.Select(i => i.Kunde)), FormatDaten(liste.Select(i => i.FE_Termin)));
+        return new KopfWerte(FormatTexte(liste.Select(i => i.Kunde)), FormatDaten(liste.Select(i => i.FE_Termin)), FormatAbteilung(liste));
     }
 
     /// <summary>HauptFA -&gt; Kopfwerte, fan-out-frei (je HauptFA einmal, nie als Join gegen die Positionen).</summary>
@@ -133,6 +146,7 @@ public class VormontageService
         new Dictionary<string, Func<FaHierarchyNode, string?>>
         {
             ["arbeitsbereich"] = n => n.Arbeitsbereich,
+            ["montage-abteilung"] = n => kopf.TryGetValue(n.HauptFA, out var k) ? k.Abteilung : null,
             ["hauptfa"] = n => n.HauptFA.ToString(CultureInfo.InvariantCulture),
             ["kunde"] = n => kopf.TryGetValue(n.HauptFA, out var k) ? k.Kunde : null,
             ["fe-termin"] = n => kopf.TryGetValue(n.HauptFA, out var k) ? k.FeTermin : null,
@@ -327,6 +341,7 @@ public class VormontageService
                     PositionCount = g.Count(),
                     // Anzeige: verschiedene Werte der beitragenden Positionen (Text sortiert, HauptFA numerisch, Datum aufsteigend).
                     Arbeitsbereiche = FormatTexte(g.Select(n => n.Arbeitsbereich)),
+                    Abteilungen = FormatTexte(hauptFas.Select(h => kopf.TryGetValue(h, out var k) ? k.Abteilung : null)),
                     HauptFas = string.Join(", ", hauptFas.Select(h => h.ToString(CultureInfo.InvariantCulture))),
                     Kunden = FormatTexte(infos.Select(i => i.Kunde)),
                     FeTermine = FormatDaten(infos.Select(i => i.FE_Termin)),

@@ -431,6 +431,7 @@ public static class ColumnDefinitions
         [
             new ColumnDef("hauptfa",       "HauptFA",       Locked: true),
             new ColumnDef("arbeitsbereich","Arbeitsbereich",Locked: false),   // v1.72.0
+            new ColumnDef("montage-abteilung","Abteilung",  Locked: false),   // v1.99.3
             new ColumnDef("hauptartnr",    "Haupt-Artnr.",  Locked: false),
             new ColumnDef("artnr",         "Artnr.",        Locked: false),
             new ColumnDef("matchcode",     "Matchcode",     Locked: true),
@@ -459,6 +460,7 @@ public static class ColumnDefinitions
         [
             new ColumnDef("matchcode",     "Matchcode",             Locked: true),
             new ColumnDef("arbeitsbereich","Arbeitsbereich",        Locked: false),   // v1.72.0
+            new ColumnDef("montage-abteilung","Abteilung",          Locked: false),   // v1.99.3
             new ColumnDef("sollmenge",     "Summe Sollmenge",       Locked: false, DefaultWidth: 55),
             new ColumnDef("fertigungmenge","Summe Fertigungmenge",  Locked: false, DefaultWidth: 55),
             new ColumnDef("hauptfa",       "HauptFA",               Locked: false),   // v1.72.0

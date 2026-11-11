@@ -33,6 +33,8 @@ public class FaHierarchyVormontageAggregatViewModel
     // v1.72.0: Anzeige der neuen Spalten: verschiedene Werte der beitragenden Positionen als Text (", "-getrennt, leer = null).
     // Gefuellt in VormontageService.AggregateSummiert; gefiltert wird je Position VOR dem Zusammenzaehlen, nicht auf diesen Texten.
     public string? Arbeitsbereiche { get; init; }
+    /// <summary>v1.99.3: Montage-Abteilungen der beitragenden HauptFA (je HauptFA nach VormontageService.FormatAbteilung).</summary>
+    public string? Abteilungen { get; init; }
     public string? HauptFas { get; init; }
     public string? Kunden { get; init; }
     public string? FeTermine { get; init; }
