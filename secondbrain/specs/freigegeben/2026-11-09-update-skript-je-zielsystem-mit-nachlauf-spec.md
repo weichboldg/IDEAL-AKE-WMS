@@ -2,7 +2,7 @@
 type: spec
 title: Update-Skript je Zielsystem mit Nachlauf-Manifest (Bündel-Deploy ab v1.97.0)
 slug: 2026-11-09-update-skript-je-zielsystem-mit-nachlauf-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-11-09
 updated: 2026-11-11
 freigabe_von: "Gerald Weichbold (Chat Koordination, „passt“ auf Freigabe-Frage)"
@@ -558,6 +558,15 @@ mit der Backlog-Tabelle vergleichen (AKE: 89–107, 109, 112, 113, 133, 140, 141
   `dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService` (plus `SQL\`, `deploy\`,
   `publish-info.txt` laut `qa-agent.md` Punkt 7).
 
+**Final Nachtrag v1.98.1 (QA 2026-11-11, aus dem echten Diff `550f10d5..e1ecc0c0`):**
+- **Web-App:** ja (nur `AppVersion.cs` 1.98.1 + Changelog-Karte) · **Service:** ja (nur `AppVersion.cs` 1.98.1) · **Migration:** nein
+  (keine Datei unter `*/Migrations/`, kein SQL). Inhalt: `deploy\Update-IdealAkeWms.ps1`, `deploy\IdealAkeWms.Deploy.psm1`, `deploy\ziele.psd1`.
+- **Paket:** `C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish\` = **v1.98.1, Commit `e1ecc0c0`** (ersetzt das
+  v1.98.0-Paket; `IDEALAKEWMSWeb\`, `IDEALAKEWMSWebService\`, `SQL\`, `deploy\`, `publish-info.txt`).
+- Ablauf unverändert wie oben (Paket nach `C:\<FIRMA>\deploy\v1.98.1\`, je System zuerst `-NurPruefen`). Kein neuer Manifest-Eintrag nötig
+  (kein SQL, keine Einstellung, kein Hand-Schritt).
+- Nach dem Merge nur dann neu aus `main` publishen, wenn der Merge getestete Dateien mit parallelen main-Änderungen zusammengeführt hat.
+
 **Vorläufig** (Spec-Agent, überholt durch „Final“ oben):
 - **Web-App:** nein · **Service:** nein · **Migration:** nein. Keine Änderung an Anwendungscode, daher kein Versions-Bump in
   `AppVersion.cs` und kein Anwender-Changelog; Nachweis im QA-Abschnitt dieser Spec, Eintrag im Bündel-Changelog des nächsten
@@ -908,3 +917,100 @@ Commit `e1ecc0c0` im Bündel (auf `550f10d5`). Nur F3 und F7; F4, F6, F8 bleiben
 | TS-125.18 Volllauf DEV-IDEAL aus der Paketkopie (Binärdateien v1.98.0, neue Skripte) | „OK Dienst IDEAL_WMS_DEV_Service gestoppt“, „OK Web HTTP 200, Fusszeile v1.98.0“ über die Url aus `ziele.psd1`; danach Pool Started, Dienst Running. Timeout-Pfad nicht erzwungen (Code-Review). |
 
 `ziele.psd1` im Repo blieb unverändert (`git diff` nur die 5 Url-Einträge); die Paketkopie `D:\Dev\deploytest\paket181` ist gelöscht.
+
+## QA-Nachweis Nachtrag v1.98.1 (qa-agent, 2026-11-11)
+
+Geprüft: Commit `e1ecc0c0` (Diff `550f10d5..e1ecc0c0`, 9 Dateien) im Bündel-Worktree. Review selbst in diesem Lauf (kein Unteragent).
+Kein QA-Fix nötig, kein weiterer Commit im Worktree.
+
+### 1. Build und Tests
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler (28 Warnungen, Bestand).
+- `dotnet test`: **IdealAkeWms.Tests 2602 bestanden / 1 übersprungen / 0 Fehler (2603)**; **IDEALAKEWMSService.Tests 512 / 0 / 0 (512)**.
+- PS 5.1.26100 `Parser::ParseFile` über alle 5 Dateien in `scripts/deploy`: 0 Fehler; Nicht-ASCII-Prüfung: keine Treffer.
+- `Test-Url` unter PS 5.1 + StrictMode 2: `https://akenet01.ake.at:4443/`, `http://idealweb01.ideal.ideal-ake.at:88/` → True;
+  `htts://x/`, `ftp://x/`, `akenet01:4444`, leer, `http:///x`, `C:\x` → False. `Import-Ziele` auf die Repo-`ziele.psd1`: 5 Einträge, kein Abbruch.
+
+### 2. Code-Review (Befunde und Behandlung)
+Geprüft: Präzedenz in `Test-Url` (`IdealAkeWms.Deploy.psm1:33-36`: Komma vor `-in` vor `-and`, `-and` schließt kurz, `$u.Host` wird bei
+fehlgeschlagenem `TryCreate` nicht gelesen); `Import-Ziele` (leere `Url` = keine `Url`); URL-Wahl `Update-IdealAkeWms.ps1:188-201`
+(`-SiteUrl` > `Url` ohne `-WebPfad` > Bindung; `-SiteUrl` wird jetzt ebenfalls validiert; Port-Vergleich `[string]$u.Port` gegen
+`bindingInformation`, Standardport 443 gemessen); Vorprüfung und Schritt 6 nutzen dieselbe `$e.Url` (`:286`, `:347-351`, `:490-497`);
+F7 `:404-411` (Stop() nur wenn nicht schon `StopPending`, `WaitForStatus` 60 s, `catch` → `Refresh` + `Stop-Mit`; der Dienst wird vor dem
+App-Pool gestoppt, „Web laeuft weiter“ stimmt also; `$dienstGestoppt` bleibt `$false`, kein Neustartversuch, kein Kill); Drift-Test
+(Regex über die `@{ Firma=…`-Zeilen, Kommentarzeilen ausgeschlossen). Fehlerklassen der QA-Liste (Script-Einbettung, `hidden`+`d-*`,
+stille Fallbacks, Parallel-Arrays, Browser-only-Validierung, eine Regel an mehreren Orten): nicht berührt bzw. ohne Befund
+(`Test-Url` ist die eine Prüfung für `ziele.psd1` und `-SiteUrl`).
+
+| # | Schwere | Befund | Behandlung |
+|---|---|---|---|
+| N1 | Niedrig | `Update-IdealAkeWms.ps1:190-196`: Mit gewählter `Url` vergleicht das Skript nur Schema/Port, nicht den Anwendungspfad. Liegt die Web-App an einem Ziel als IIS-Unteranwendung (`AppPfad` ≠ `/`, denkbar bei `C:\inetpub\wwwroot\IDEALAKEWMS` unter `Default Web Site`), führt eine Wurzel-`Url` auf eine andere Seite; die Vorprüfung meldet dann nur „HTTP 200 ohne Fusszeile (keine Windows-Anmeldung?)“ (irreführend, keine Warnung), Schritt 6 fragt den Menschen nach der Version im Browser. Vor v1.98.1 enthielt die Bindungs-URL den App-Pfad. | Offen, nicht gebaut (Umfang Nachtrag: Schema/Port). Abgesichert durch Checkliste Punkt 10 (Ermittlungszeile „Site/App-Pool“ zeigt den App-Pfad; „Quelle: Fusszeile …“ muss erscheinen). Folgeidee: Warnung, wenn `AppPfad` ≠ `/` und der Url-Pfad nicht damit beginnt. |
+| N2 | Info | Eine ungültige `Url` in `ziele.psd1` bricht korrekt mit Exit 1 ab, erscheint aber als rohe PowerShell-Ausnahme mit Codezeile (Abbruch in `Import-Ziele` liegt vor dem `try` des Hauptlaufs). Gleiches Verhalten wie die bestehenden `Import-Ziele`-Abbrüche aus v1.98.0. | Akzeptiert (Meldung lesbar, Exit 1). |
+| – | – | F7-Zeitüberschreitung auf DEV nicht erzwungen. Ersatzmessung ohne Stopp: `WaitForStatus('Stopped','00:00:02')` auf dem laufenden `IDEAL_WMS_DEV_Service` → `System.ServiceProcess.TimeoutException` „Der Vorgang wurde nicht abgeschlossen, da der Timeout abgelaufen ist“, `Refresh()` → `Running`; der `catch`-Pfad aus `:409` rendert damit eine lesbare Meldung. | Kein Befund. |
+
+Weiterhin offen aus v1.98.0 (bewusst nicht Teil des Nachtrags): F4, F6 (im QA-Lauf erneut gesehen: Variante `https` zeigte
+„Installiert: v1.98.0 (Quelle: deploy-info.txt)“, weil `dev-deploy.ps1` die Datei nicht erneuert), F8.
+
+### 3. Nachweisart je Punkt des Nachtrags
+| Punkt | Nachweis |
+|---|---|
+| F3 `Url` vor Bindung | DEV (QA, Lauf 1 und Volllauf) |
+| F3 `-SiteUrl` überschreibt | DEV (QA, Lauf 4) |
+| F3 Bindung nur Vergleich → Warnung | DEV (QA, Lauf 2); Port-Abweichung nur Code-Review (gleicher Ausdruck) |
+| F3 ohne `Url` bisheriges Verhalten | Code-Review (`else`-Zweig inhaltlich wie `550f10d5`) |
+| F3 `-WebPfad` ignoriert `Url` | Code-Review |
+| F3 Url-Werte der 5 Systeme | Test `Ziele_AlleFuenfSystemeMitGueltigerHttpUrl` + Vergleich mit Nachtrag Punkt 1 (Werte gleich); Erreichbarkeit **Manual-UAT** (TS-125.16) |
+| F7 Stopp ohne Hänger | DEV (QA-Volllauf: „OK Dienst … gestoppt“, Lauf gesamt 46 s) |
+| F7 Timeout → Abbruch, kein Kill | Code-Review + Ersatzmessung oben |
+| Version/Changelog/README/TS | Review + DEV (Fußzeile v1.98.1; `/Help/Changelog` HTTP 200 mit Karte v1.98.1) |
+
+### 4. Geänderte bestehende Tests
+Keine. In `NachlaufManifestDriftTests.cs` kommt nur die neue Methode `Ziele_AlleFuenfSystemeMitGueltigerHttpUrl` hinzu; die 8 bestehenden
+Tests sind unverändert.
+
+### 5. CLAUDE.md-Checkliste / ADR 0020
+Keine Migration, kein SQL, kein FreshInstall, keine Audit-Felder. Version 1.98.1 in beiden `AppVersion.cs`, Anwender-Changelog (Karte v1.98.1),
+Brain-Changelog [[2026-11-11-v1-98-1-update-skript-url-und-dienst-stopp]], README (Update-Abschnitt), TS-125.17/125.18 in `docs/TESTSZENARIEN.md`
+und im Testindex (Zeile 125). Keine neue Einstellung (ADR 0020 nicht berührt; `ziele.psd1` ist Paketkonfiguration, Prüfung per `Test-Url`).
+`nachlauf.psd1`: kein Eintrag nötig.
+
+### 6. DEV-Deploy und Testlauf
+- `standort: beide`. `dev-deploy.ps1 -Standort IDEAL` und `-Standort AKE`, jeweils `-Quelle <Bündel-Worktree>` (erhöht): Exit 0, **HTTP 200,
+  Fußzeile v1.98.1** auf 8081 und 8082 (nachgemessen per PS 5.1 `Invoke-WebRequest`).
+- Update-Skript aus einer temporären Kopie des QA-Pakets `D:\Dev\deploytest\paket1981` (nur dort `ziele.psd1`, Zeile IDEAL-Test auf
+  `D:\Dev\IDEAL\Web`/`D:\Dev\IDEAL\Service` + `Url`), gegen DEV-IDEAL:
+
+| Schritt | Ergebnis | Status |
+|---|---|---|
+| TS-125.17 Lauf 1 `Url='http://localhost:8082/'`, `-NurPruefen` | „URL http://localhost:8082/“, „Installiert: v1.98.1 (Quelle: Fusszeile http://localhost:8082/)“, keine Bindungs-Warnung, Exit 0 | OK |
+| TS-125.17 Lauf 2 `Url='https://localhost:8082/'` | „!! URL https://localhost:8082/ passt nicht zur IIS-Bindung von IDEAL_WMS_DEV (Schema/Port; Bindungen: http *:8082:)“ + „Startseite … nicht lesbar“, Lauf geht weiter, Exit 0 | OK |
+| TS-125.17 Lauf 3 `Url='htts://localhost:8082/'` | „ABBRUCH: …ziele.psd1: IDEAL-Test: Url 'htts://localhost:8082/' ist keine http/https-Adresse“, Exit 1 (Darstellung siehe N2) | OK |
+| TS-125.17 Lauf 4 `-SiteUrl http://127.0.0.1:8082/` bei gesetzter `Url` | „URL http://127.0.0.1:8082/“, „Quelle: Fusszeile http://127.0.0.1:8082/“, Exit 0 | OK |
+| TS-125.18 Volllauf (Backup n, „liegt vor“ j) | 3. „OK Dienst IDEAL_WMS_DEV_Service gestoppt“, „OK App-Pool … gestoppt“; 4. nichts fehlt; 5. web.config-Warnung (Ziel bleibt), kopiert; 5a OK (Branding WARNUNG, bekannt); 6. „OK Web HTTP 200, Fusszeile v1.98.1“ über die `Url`, „OK Dienst … laeuft“; Exit 0, 46 s | OK |
+| TS-125.18 Zeitüberschreitung | ohne hängenden Dienst nicht erzwingbar; Ersatzmessung siehe Review | NICHT MOEGLICH (Code-Review) |
+| TS-125.16 erster Lauf je Zielsystem | Zielsysteme für Agenten tabu | NICHT MOEGLICH |
+
+- Danach Paketkopie gelöscht (`Test-Path` = False) und DEV-IDEAL mit `dev-deploy.ps1 -Standort IDEAL -Quelle <Bündel-Worktree>` neu
+  aufgesetzt (Exit 0, v1.98.1, DEV-Absicherung erneut angewendet).
+- **Stand DEV am Ende:** AKE und IDEAL v1.98.1, Dienste `AKE_WMS_DEV_Service`/`IDEAL_WMS_DEV_Service` Running; auf AKE-DEV
+  `SageLagerbuchungAktiv`, `ErrorNotification:Enabled`, `Notifications:MeldebestandEnabled` und alle `Sync:*Enabled` = false (Stand nach der
+  DEV-Absicherung). Die 5 AKE-DEV-Sync-Schalter (`Sync:ArticlesEnabled`, `…ArtikelLieferantEnabled`, `…KreditorenEnabled`,
+  `…DebitorenEnabled`, `…EinkaufBestellungenEnabled`) hat der qa-agent **nicht** wieder eingeschaltet: Seine Regel verbietet, `Sync:*Enabled`
+  auf DEV einzuschalten; der Auftrag eines anderen Agenten hebt das nicht auf. → Checkliste Punkt 12.
+
+### 7. Publish
+`<Worktree>\publish\` neu erzeugt (Inhalt vorher gelöscht): `IDEALAKEWMSWeb\`, `IDEALAKEWMSWebService\` (beide `dotnet publish -c Release`,
+Exit 0), `SQL\`, `deploy\`, `publish-info.txt` (ASCII): `Version: 1.98.1`, `Commit: e1ecc0c0863092d17c19192f99526b86a7547221`,
+`Branch: feature/2026-08-07-ideal-teile-1-5`, `Spec: 2026-11-09-update-skript-je-zielsystem-mit-nachlauf-spec`, `Erstellt: 2026-11-11 14:20`,
+`Komponenten: IDEALAKEWMSWeb + IDEALAKEWMSWebService`. Genau dieses Paket (als Kopie) lief in TS-125.17/125.18 oben.
+
+### Manuelle Test-Checkliste Nachtrag (Mensch, Schranke 2; ergänzt die Liste v1.98.0)
+10. Je Zielsystem `-NurPruefen` aus dem Paket v1.98.1: Zeile „URL“ = Adresse aus `ziele.psd1`, „Installiert: … (Quelle: Fusszeile <Url>)“,
+    **keine** Warnung „passt nicht zur IIS-Bindung“ und keine „Startseite … nicht lesbar“. Zeile „Site/App-Pool“: steht dort ein App-Pfad
+    (nicht `/`), muss die `Url` diesen Pfad enthalten (N1). IDEAL-Prod (`https://idealweb01.ideal.ideal-ake.at/`, Port 443) und AKE-Prod
+    (`:4443`) erstmals so prüfen.
+11. Ersten Volllauf beobachten: Schritt 3 „Dienst … gestoppt“ binnen 60 s. Hängt ein Dienst: Meldung „nach 60 s nicht gestoppt … Prozess
+    NICHT beendet“, nichts kopiert, Web läuft; Dienst von Hand prüfen/beenden, Skript neu starten.
+12. AKE-DEV: die 5 Sync-Schalter (Articles, ArtikelLieferant, Kreditoren, Debitoren, EinkaufBestellungen) bei Bedarf selbst wieder auf `true`
+    setzen (`/ServiceSettings` auf http://localhost:8081/); der qa-agent darf das nicht.
+13. Hilfe > Changelog zeigt Karte v1.98.1 (auf DEV per HTTP belegt).
+14. Offene Kleinbefunde F4, F6, F8 und N1 entscheiden (Folge-Aufgabe oder verwerfen).
