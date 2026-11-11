@@ -624,7 +624,7 @@ function Invoke-Robocopy([string]$von, [string]$nach) {
 # ================================================================================================ Ablauf je System
 function Invoke-System($e) {
     Reset-Warnungen
-    $script:BackupDatei = $null; $script:BackupLiegtVor = $false
+    $script:BackupDatei = $null; $script:VorTrocken = @{}
     $tauschWeb = $Komponente -in 'Web', 'Beide'; $tauschDienst = $Komponente -in 'Dienst', 'Beide'
     $webGestoppt = $false; $dienstGestoppt = $false
 
@@ -693,12 +693,25 @@ function Invoke-System($e) {
     if ($vorher) { Write-Host '  Vorher:'; $vorher | ForEach-Object { Write-Host "    [$($_.Id)] $(Format-Text $_.Text $e)" } }
     # Haltepunkt- und VorStart-Eintraege ohne Marker und ohne Spur > 0 verlangen gestopptes Web und Dienst
     $halte = @(Get-OffeneEintraege $e 'Haltepunkt' $installiert)
+    # v1.99.2 (Freigabe-Nachtrag 20:40): Trockenlauf der Haltepunkt-Eintraege schon hier, lesend und vor dem Stoppen.
+    # 0 Treffer -> entfaellt (kein Halt, kein Stopp); Treffer oder nicht bestimmbar -> Backup in Schritt 2 Pflicht.
+    foreach ($m in @($halte | Where-Object { $_.Ausfuehrung -eq 'Trockenlauf' })) {
+        $datei = Join-Path $SqlOrdner $m.Datei
+        if (Get-BrauchtFehlend $m $history) { Write-Host "  $($m.Id): Trockenlauf erst nach dem Schema (4a)"; $script:VorTrocken[$m.Id] = $null; continue }
+        if (-not (Test-Path $datei) -or -not (Test-Trockenlauf $datei)) { $script:VorTrocken[$m.Id] = $null; continue }
+        Write-Host "  $($m.Id): Trockenlauf in der Vorpruefung (lesend)"
+        $t = Invoke-Trockenlauf $e $m $datei
+        $script:VorTrocken[$m.Id] = if ($t.Exit -eq 0) { $t.Treffer } else { $null }
+        Write-Host "  -> $($m.Id): $(if ($script:VorTrocken[$m.Id] -eq 0) { 'TREFFER: 0 - entfaellt, kein Halt' } elseif ($null -ne $script:VorTrocken[$m.Id]) { "TREFFER: $($t.Treffer) - Backup in Schritt 2 Pflicht, Haltepunkt in 4a" } else { "nicht bestimmbar (Exit $($t.Exit)) - Backup Pflicht, Trockenlauf erneut in 4a" })"
+    }
+    $halte = @($halte | Where-Object { -not ($script:VorTrocken.ContainsKey($_.Id) -and $script:VorTrocken[$_.Id] -eq 0) })
+    $backupPflicht = @($script:VorTrocken.Keys | Where-Object { $script:VorTrocken[$_] -ne 0 })
     $vorStart = @(Get-OffeneEintraege $e 'VorStart' $installiert)
     $reparatur = @($pruefungen | Where-Object { $_.Phase -eq 'Haltepunkt' -and $_.Ausfuehrung -eq 'Reparatur' -and
                                                ("$($pruefStand[$_.Id])" -eq 'nach Schema' -or ($pruefStand[$_.Id] -is [int] -and $pruefStand[$_.Id] -gt 0)) })
     $alleStoppen = [bool]($fehlend -or $halte -or $vorStart -or $reparatur)
     $stopWeb = $tauschWeb -or $alleStoppen; $stopDienst = $tauschDienst -or $alleStoppen
-    Write-Host ("  Plan: Backup-Angebot; stoppen: $(if ($stopWeb) { 'App-Pool ' })$(if ($stopDienst) { 'Dienst' }); Schema: $($fehlend.Count) Skript(e); " +
+    Write-Host ("  Plan: Backup$(if ($backupPflicht) { ' PFLICHT (' + ($backupPflicht -join ', ') + ')' } else { '-Angebot' }); stoppen: $(if ($stopWeb) { 'App-Pool ' })$(if ($stopDienst) { 'Dienst' }); Schema: $($fehlend.Count) Skript(e); " +
                 "Reparaturen: $(if ($reparatur) { @($reparatur | ForEach-Object { $_.Id }) -join ', ' } else { 'keine' }); " +
                 "Haltepunkt: $(if ($halte) { @($halte | ForEach-Object { $_.Id }) -join ', ' } else { 'keiner' }); kopieren: $Komponente; Ordner/Rechte; " +
                 "vor dem Start: $(if ($vorStart) { @($vorStart | ForEach-Object { $_.Id }) -join ', ' } else { 'nichts' }); starten; Nachlauf.")
@@ -716,10 +729,14 @@ function Invoke-System($e) {
     Start-Schritt '2' '2. Backup'
     Write-Host '  Pflicht bei SQL/90, 95, 109/110, 133/Altbestand und vor jedem Scharf-/Transaktionslauf (ADR 0004, ADR 0023).'
     $ok = $false
-    if (Read-Ja "Jetzt BACKUP DATABASE [$($e.Db.Datenbank)] WITH COPY_ONLY, CHECKSUM anlegen?") { $ok = Invoke-Backup $e }
-    if (-not $ok) {
-        if (Read-Ja 'Liegt ein aktuelles Backup dieser DB vor?') { $script:BackupLiegtVor = $true }
-        else { Stop-Mit 'kein Backup.' }
+    if ($backupPflicht) {
+        # v1.99.2: Haltepunkt-Trockenlauf mit Treffern (oder nicht bestimmbar) -> Backup aus diesem Lauf Pflicht, sonst Abbruch VOR dem Stoppen
+        Write-Host "  Backup ist PFLICHT: $($backupPflicht -join ', ') (Treffer bzw. nicht bestimmbar)." -ForegroundColor Yellow
+        if (Read-Ja "Jetzt BACKUP DATABASE [$($e.Db.Datenbank)] WITH COPY_ONLY, CHECKSUM anlegen?") { $ok = Invoke-Backup $e }
+        if (-not $ok) { Stop-Mit "Backup ist Pflicht ($($backupPflicht -join ', ')), aber nicht angelegt. Nichts gestoppt, Web und Dienst laufen weiter." }
+    } else {
+        if (Read-Ja "Jetzt BACKUP DATABASE [$($e.Db.Datenbank)] WITH COPY_ONLY, CHECKSUM anlegen?") { $ok = Invoke-Backup $e }
+        if (-not $ok -and -not (Read-Ja 'Liegt ein aktuelles Backup dieser DB vor?')) { Stop-Mit 'kein Backup.' }
     }
 
     # ---------------------------------------------------------------------------------------- 3 Stoppen
@@ -774,6 +791,11 @@ function Invoke-System($e) {
     foreach ($m in @($pruefungen | Where-Object { $_.Phase -eq 'Haltepunkt' })) { Invoke-Pruefung $e $m $history }
     foreach ($m in @($manifest | Where-Object { $_.Typ -in 'Daten', 'Einmalig' -and $_.Phase -eq 'Haltepunkt' -and (Test-PasstFirma $_ $e) -and (Test-Faellig $_ $installiert) })) {
         Write-Host ''; Write-Host "  Haltepunkt $($m.Id)" -ForegroundColor White
+        if ($script:VorTrocken.ContainsKey($m.Id) -and $script:VorTrocken[$m.Id] -eq 0) {
+            Write-Ok "$($m.Id): entfaellt (TREFFER: 0 in der Vorpruefung), kein Halt"
+            if (-not (Get-Marker $e $m) -and (Read-Ja "$($m.Id) als 'entfaellt' vermerken?")) { Write-Marker $e $m 'Entfaellt' 0 'TREFFER 0 in der Vorpruefung' }
+            continue
+        }
         Test-Braucht $e $m $history
         Invoke-Eintrag $e $m $true
     }

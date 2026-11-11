@@ -11564,6 +11564,8 @@ Negativfälle: 126.3, 126.4, 126.6, 126.8, 126.11–126.17.
 | 126.23 | Fluss A mit Treffer > 0, ohne Backup: Backup-Angebot j, Ordner leer | „Backup übersprungen“, Meldung „Ohne Backup aus diesem Lauf bleibt SCHARF gesperrt“, Lauf geht weiter (Nachher: Eintrag offen) |
 | 126.24 | Fluss B, Schritt 2 nur „liegt vor“, Backup-Angebot n | „bleibt uebernehmen gesperrt“, nichts ausgeführt, kein Marker, Lauf geht weiter |
 | 126.25 | Schritt 2: Backup j, ungültiger Ordner, dann leer | Frage nach Ordner wiederholt; leer → „Backup übersprungen“, dann „Liegt ein aktuelles Backup vor?“ (n → Abbruch vor dem Stoppen wie bisher) |
+| 126.26 | v1.99.2: Haltepunkt-Trockenlauf mit Treffern (AKE-DEV, Altbestand), `-NurPruefen` und Volllauf mit Backup n | Vorprüfung: „Trockenlauf in der Vorpruefung (lesend)“, „TREFFER: n – Backup in Schritt 2 Pflicht“, Plan „Backup PFLICHT“; Schritt 2 n → „ABBRUCH: Backup ist Pflicht … Nichts gestoppt, Web und Dienst laufen weiter“ |
+| 126.27 | v1.99.2: Trockenlauf 0 Treffer (IDEAL), Volllauf | Vorprüfung „TREFFER: 0 – entfaellt, kein Halt“, Plan ohne Haltepunkt; 4a „entfaellt (TREFFER: 0 in der Vorpruefung)“, j → Marker `Entfaellt` |
 
 ---
 

@@ -92,7 +92,8 @@ powershell -ExecutionPolicy Bypass -File C:\<FIRMA>\deploy\v1.98.0\deploy\Update
   Schalter (v1.47.4, `SQL/108`, vor dem Start bei gestopptem Web und Dienst) in einer Transaktion, danach `uebernehmen`/`verwerfen`.
   Jeder Lauf steht in `dbo.DeployScriptRuns` (`SQL/142`) und wird nicht erneut angeboten; „lief schon von Hand“ lässt sich vermerken.
 - Backup-Ordner prüft das Skript vorab auf dem SQL-Server (`sys.dm_os_file_exists`, ab SQL Server 2017); fehlt er, fragt es nach, bis er
-  gültig ist; leer = Backup überspringen (v1.99.1). `SCHARF` und `uebernehmen` gibt es nur mit einem Backup aus demselben Lauf. Bei
+  gültig ist; leer = Backup überspringen (v1.99.1). Der Altbestand-Trockenlauf läuft schon in der Vorprüfung (v1.99.2): 0 Treffer =
+  entfällt ohne Halt; Treffer = Backup Pflicht, sonst Abbruch vor dem Stoppen. `SCHARF` und `uebernehmen` gibt es nur mit einem Backup aus demselben Lauf. Bei
   jedem Abbruch zeigt es den Zustand von App-Pool, Site und Dienst und den Weg zum Weitermachen.
 - `sqlcmd` muss auf dem Web-Server installiert sein (ODBC-Variante „Microsoft Command Line Utilities for SQL Server“ nach dem
   „Microsoft ODBC Driver for SQL Server“).
