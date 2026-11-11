@@ -2,7 +2,7 @@
 type: spec
 title: Update-Skript prüft und führt aus, mit Bestätigung (v1.99.0)
 slug: 2026-11-11-update-skript-prueft-und-fuehrt-aus-mit-bestaetigung-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-11-11
 updated: 2026-11-11
 freigabe_von: "Gerald Weichbold (Chat Koordination, „Ok“ 2026-11-11 18:38)"
@@ -687,6 +687,18 @@ Empfohlene Commit-Reihenfolge im Dev-Lauf (kein Epic, nur zur Orientierung):
 
 ## Deploy
 
+**Final v1.99.2 (qa-agent 2026-11-11, aus dem echten Diff `f79ba893..81b95ac2`; ersetzt das Paket v1.99.1):**
+- `deploy.web: true` (nur `IdealAkeWms/AppVersion.cs` und die Changelog-Karte); `deploy.service: true` (nur `IDEALAKEWMSService/AppVersion.cs`);
+  `deploy.migration: false` fuer diesen Nachtrag (keine Datei unter `*/Migrations/`, kein SQL). Fachlich geaendert ist nur
+  `deploy\Update-IdealAkeWms.ps1` im Paket. Weil v1.99.0 noch auf keinem Zielsystem lief, gilt je Zielsystem der v1.99.0-Ablauf unten (inkl.
+  `SQL/142`, P-B1), nur mit diesem Paket; die Frontmatter `deploy.*` bleibt deshalb fuer die ganze Spec `true`.
+- **Paket:** `C:\git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish\` (v1.99.2, `publish-info.txt` Commit
+  `81b95ac205e6841270e6dce6797f66305ee76e47`, Erstellt 2026-11-11 20:50; vorher geleert). Beide Komponenten, `SQL\`, `deploy\`.
+- Neu fuer den Bediener: Die Vorpruefung (auch `-NurPruefen`) faehrt den Altbestand-Trockenlauf lesend. Treffer > 0 → in Schritt 2 Backup
+  anlegen (Pflicht; n oder Fehler = Abbruch vor dem Stoppen). 0 Treffer → kein Haltepunkt, 4a fragt nur „als 'entfaellt' vermerken?“.
+- Nach dem Merge nur dann aus `main` neu publizieren, wenn der Merge getestete Dateien mit parallelen main-Aenderungen zusammenfuehrt
+  (Befehle unten).
+
 **Final v1.99.1 (qa-agent 2026-11-11, aus dem echten Diff `55ec218a..f79ba893`; ersetzt das Paket v1.99.0 unten):**
 - `deploy.web: true` (nur `IdealAkeWms/AppVersion.cs` und die Changelog-Karte); `deploy.service: true` (nur `IDEALAKEWMSService/AppVersion.cs`);
   `deploy.migration: false` (keine neue Datei unter `*/Migrations/`, kein neues SQL). Fachlich geaendert sind nur `deploy\Update-IdealAkeWms.ps1`
@@ -1128,3 +1140,86 @@ Commit `81b95ac2` im Buendel (auf `f79ba893`).
 |---|---|
 | 126.26 | AKE-DEV (Testpaket mit DEV-`ziele.psd1`), `-NurPruefen`: „Trockenlauf in der Vorpruefung (lesend)“, `TREFFER: 15`, „Backup in Schritt 2 Pflicht, Haltepunkt in 4a“, Plan „Backup PFLICHT (…Altbestand)“. Volllauf, Backup n: „ABBRUCH: Backup ist Pflicht (…), aber nicht angelegt. Nichts gestoppt, Web und Dienst laufen weiter.“, Zustand App-Pool Started, Dienst Running, Exit 1 |
 | 126.27 | IDEAL-DEV `-NurPruefen`: `TREFFER: 0` → „entfaellt, kein Halt“, Plan „Haltepunkt: keiner“. Volllauf auf einer Kopie (`IDEAL_WMS_TS126`, danach entfernt): 4a „entfaellt (TREFFER: 0 in der Vorpruefung), kein Halt“, j → Marker `Entfaellt` (Note „TREFFER 0 in der Vorpruefung“), Start Fusszeile v1.99.2, Exit 0 |
+
+## QA-Nachweis Nachtrag v1.99.2 (qa-agent 2026-11-11)
+
+Gepruefter Bereich: `f79ba893..81b95ac2` (nur der Freigabe-Nachtrag 20:40). Build und Tests ueber den ganzen Buendel-Worktree, Stand `81b95ac2`.
+
+**1. Build und Tests:**
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler, 24 Warnungen (Bestand, NuGet-Hinweise).
+- `dotnet test`: IdealAkeWms.Tests **2609 bestanden / 1 uebersprungen / 0 Fehler** (2610); IDEALAKEWMSService.Tests **512 / 0 / 0**.
+- `ParseFile` unter `powershell.exe` 5.1.26100.9711: 0 Parsefehler fuer alle 5 Dateien in `scripts/deploy`.
+
+**2. Code-Review** (selbst, in diesem Lauf). Gelesen: Diff `Update-IdealAkeWms.ps1:627, :696-717, :729-740, :792-801` mit Umgebung
+(`Get-OffeneEintraege :511`, `Get-BrauchtFehlend :282`, `Test-Trockenlauf :288`, `Invoke-Trockenlauf :540`, `Get-Treffer :352`,
+`Invoke-FlussA :547`, `Get-Marker`/`Write-Marker :322-341`, `-NurPruefen :719`, `Show-Zustand :297`), das Altbestand-Skript
+(`SQL/Einmalig/…Altbestand.sql:33-98`: Trockenlauf-Zweig nur `#Fa` und `PRINT`, `RETURN` vor `BEGIN TRANSACTION :101`, also lesend),
+`SQL/142` (Spalte `Mode` ohne CHECK, `Entfaellt` zulaessig), Changelog-Karte, README, TS-126.26/27, AppVersion beider Projekte.
+- PS 5.1 + StrictMode 2: `$null -eq 0` / `$null -ne 0` liefern False/True (fehlender bzw. nicht bestimmbarer Trockenlauf → Pflicht);
+  `Get-Treffer` liefert `[int]` oder `$null`, kein String-Vergleich; `@()` um `$halte`, `$backupPflicht` und die `foreach`-Quelle;
+  `$script:VorTrocken` je System neu (`:627`). Unabhaengige Probe (Zeilen 698-708 woertlich aus der Datei, PS 5.1 StrictMode 2, Stubs):
+  0 Treffer → `halte` leer, keine Pflicht; 15 → Halt + Pflicht; Exit 1, Exit 0 ohne `TREFFER`, `Braucht` fehlt → je Halt + Pflicht;
+  leere Liste → nichts; Transaktion-Eintrag neben 0-Treffer-Eintrag → nur der Transaktion-Eintrag bleibt Haltepunkt, keine Pflicht.
+- Punkt 1: Trockenlauf nur fuer Eintraege aus `Get-OffeneEintraege 'Haltepunkt'` (Firma, `Test-Faellig`, Marker, Spur) mit
+  `Ausfuehrung = Trockenlauf`, vor dem `-NurPruefen`-Ende und vor Schritt 2/3. Punkt 2: Pflicht-Zweig `:732-736` ohne „liegt vor“-Ausweg;
+  `Stop-Mit` in Schritt 2 → `Show-Zustand` „Nichts gestoppt“. 4a mit Treffern unveraendert `Invoke-Eintrag $e $m $true` (kein Ueberspringen).
+  Punkt 3: 0 Treffer → aus `$halte`; 4a `:794-798` Marker `Entfaellt` (Hits 0, Note) nach Bestaetigung, erst nach dem Schema (Tabelle aus
+  `SQL/142`). Punkt 4: `BackupLiegtVor` per Grep in `scripts/` nicht mehr vorhanden (H2 aus v1.99.1 erledigt). H3 aus v1.99.1 erledigt (mit
+  Treffern ist das Backup vor dem Stoppen Pflicht).
+- Standard-Defektklassen: keine Razor-/JS-Aenderung ausser der statischen Changelog-Karte; keine Einstellung (5a entfaellt).
+
+| # | Schwere | Fundstelle | Befund | Behandlung |
+|---|---|---|---|---|
+| F7 | Niedrig | Hauptcheckout `secondbrain/changelog/`, `secondbrain/tests/testszenarien-index.md:128` | Brain-Changelog v1.99.2 fehlte, Testindex nannte nur 126.1–126.25. | **behoben** durch QA (neue Notiz [[2026-11-11-v1-99-2-update-skript-altbestand-vorpruefung]], Index 126.26–126.27) |
+| H4 | Hinweis | `Update-IdealAkeWms.ps1:723` / `Show-Nachlauf` | Bei `-NurPruefen` zeigt die Nachlauf-Liste den Altbestand weiter als „offen (Haltepunkt, Trockenlauf)“, obwohl die Vorpruefung „TREFFER: 0 – entfaellt“ meldete (IDEAL-DEV). Im Volllauf steht der Marker vor Schritt 7, dort korrekt. | offen (Kosmetik) |
+| H5 | Hinweis | `Update-IdealAkeWms.ps1:701` | Fehlt die Datei oder das Trockenlauf-Literal, wird der Eintrag still „nicht bestimmbar“ (Backup Pflicht) ohne eigene Zeile in der Vorpruefung; der Plan nennt die Id, 4a meldet den Grund. Mit dem Paket heute nicht erreichbar. | offen (Kosmetik) |
+| H6 | Hinweis | `Update-IdealAkeWms.ps1:700-704` | Pflicht auch bei „nicht bestimmbar“ (Exit ≠ 0, keine `TREFFER`-Zeile, `Braucht` fehlt); der Nachtrag nennt nur „Treffer“. Strenger, im Dev-Abschnitt dokumentiert; bei einem System vor v1.88.0 (SQL/133/141 fehlen) ist das Backup damit stets Pflicht, passt zu ADR 0004 („133/Altbestand“). | akzeptiert |
+
+**3. Beweisart je Nachtrag-Punkt** (kein automatisierter Test fuer Skriptverhalten):
+
+| Punkt | Beweis |
+|---|---|
+| 1 Trockenlauf in der Vorpruefung, lesend, vor dem Stoppen | QA `-NurPruefen` AKE- und IDEAL-DEV (Zeile „Trockenlauf in der Vorpruefung (lesend)“, Protokolldatei in `D:\Dev\deploytest\qa_v1992_logs`), Code-Review Skript-Zweig lesend |
+| 2 Treffer → Backup Pflicht, Abbruch vor dem Stoppen | QA-Volllauf AKE-DEV mit Backup n (unten), Probe |
+| 3 0 Treffer → entfaellt, kein Halt, Marker | QA `-NurPruefen` + Volllauf bis Schritt 2 an IDEAL-DEV (Plan „Haltepunkt: keiner“, Schritt 2 ohne Pflicht); Marker in 4a: Dev-Lauf auf Kopie-DB (126.27) + Code-Review; durch QA auf DEV **NICHT MOEGLICH** (Volllauf stoppt) |
+| 4 `BackupLiegtVor` entfernt | Grep |
+| 5 DEV-Test, Version 1.99.2 | unten |
+
+**4. Geaenderte bestehende Tests:** keine (Diff ohne Testdateien).
+
+**5. Checkliste:** keine Migration, kein SQL, kein neuer Deploy-Schritt (`nachlauf.psd1` unveraendert, richtig so); Version 1.99.2 in beiden
+`AppVersion.cs`; Anwender-Changelog-Karte; README; TS-126.26/27 in `docs/TESTSZENARIEN.md`; Brain-Changelog und Testindex siehe F7.
+
+**6. DEV** (`standort: beide`):
+- `dev-deploy.ps1 -Standort AKE` und `-Standort IDEAL` aus dem Worktree (Stand `81b95ac2`), erhoehte Shell: Exit 0/0, „HTTP 200, Fusszeile
+  v1.99.2“, DEV-Absicherung angewandt, Dienste gestartet.
+- `publish\deploy\Update-IdealAkeWms.ps1 -Firma <F> -System Test -WebPfad D:\Dev\<F>\Web -DienstPfad D:\Dev\<F>\Service -SiteUrl
+  http://localhost:808x/ -LogPfad D:\Dev\deploytest\qa_v1992_logs`:
+
+| Schritt | Ergebnis | Status |
+|---|---|---|
+| 126.26 AKE-DEV `-NurPruefen` | installiert v1.99.2; „Trockenlauf in der Vorpruefung (lesend)“, `TREFFER: 15`, „Backup in Schritt 2 Pflicht, Haltepunkt in 4a“; Plan „Backup PFLICHT (Einmalig/…Altbestand)“, Haltepunkt Altbestand; Exit 0 | OK |
+| 126.26 AKE-DEV Volllauf, Backup n | „Backup ist PFLICHT …“, „ABBRUCH: Backup ist Pflicht (…), aber nicht angelegt. Nichts gestoppt, Web und Dienst laufen weiter.“; Zustand live: App-Pool/Site Started, Dienst Running, „Letzter Schritt: 2. Backup“; Exit 1 | OK |
+| 126.27 IDEAL-DEV `-NurPruefen` | `TREFFER: 0` → „entfaellt, kein Halt“; Plan „Backup-Angebot“, „Haltepunkt: keiner“; Exit 0 (Nachlauf-Liste siehe H4) | OK |
+| 126.27 IDEAL-DEV Volllauf bis Schritt 2 (Backup n, „liegt vor“ n) | kein Pflicht-Text, „ABBRUCH: kein Backup.“, App-Pool Started, Dienst Running; Exit 1 | OK |
+| 126.27 4a „entfaellt“ + Marker `Entfaellt` | Volllauf stoppt Web/Dienst und repariert, ausserhalb des QA-Rahmens auf den echten DEV-DBs; belegt durch den Dev-Lauf auf der Kopie `IDEAL_WMS_TS126` | NICHT MOEGLICH |
+| DB danach | beide DEV-DBs: `DeployScriptRuns` 0, Altbestand-Auftraege 0, RCSI 0, Rollen `beschichtungsauftrag%` 0 (unveraendert) | OK |
+
+- Browser: kein Szenario braucht den Browser. AKE-DEV-Sync-Schalter nicht angefasst (Koordinator).
+
+**7. Publish:** `C:\git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish\` neu (vorher geleert): `IDEALAKEWMSWeb\`,
+`IDEALAKEWMSWebService\`, `SQL\`, `deploy\`, `publish-info.txt` (Version 1.99.2, Commit `81b95ac205e6841270e6dce6797f66305ee76e47`, Branch
+`feature/2026-08-07-ideal-teile-1-5`, Erstellt 2026-11-11 20:50). Exit 0/0.
+
+**Urteil:** Testbereit. Keine Code-Befunde; F7 (Brain) behoben; H4–H6 Hinweise.
+
+**Manuelle Checkliste (Gerald, Schranke 2; ersetzt die v1.99.1-Liste, deren Punkte mit dem Paket v1.99.2 weiter gelten):**
+1. P-B1 je SQL-Server.
+2. Je Zielsystem `-NurPruefen` mit dem Paket v1.99.2: Altbestand-Zeile „Trockenlauf in der Vorpruefung“ mit TREFFER-Zahl; Plan „Backup PFLICHT“
+   bei Treffern, „Haltepunkt: keiner“ bei 0.
+3. TS-126.20 Volllauf je Zielsystem; bei Treffern in Schritt 2 das Backup anlegen lassen (sonst Abbruch vor dem Stoppen), am Haltepunkt
+   `SCHARF` nach Freigabe der Zaehlung. Bei 0 Treffern in 4a „als 'entfaellt' vermerken?“ j, dann Marker pruefen
+   (`SELECT ManifestId, Mode, Hits, Note FROM dbo.DeployScriptRuns`); das ist der NICHT-MOEGLICH-Schritt oben.
+4. Optional TS-126.23–126.25 an einem Testsystem.
+5. H4–H6 entscheiden; Z1 (RCSI auf IDEAL_WMS_DEV) weiter offen.
+6. Danach Merge (Schranke 2).
