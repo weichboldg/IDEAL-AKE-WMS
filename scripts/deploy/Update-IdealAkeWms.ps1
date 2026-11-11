@@ -355,10 +355,10 @@ function Get-Treffer([string]$text) { $x = [regex]::Match($text, '(?m)^\s*TREFFE
 function Invoke-SqlTransaktion($e, [string]$name, [string]$text, $marker, [string]$abschluss) {
     $grund = Test-SqlFuerTransaktion $text
     if ($grund) { Write-Warnung "${name}: abgelehnt - $grund. Nichts ausgefuehrt."; return [pscustomobject]@{ Uebernommen = $false; Text = '' } }
-    $batches = Split-SqlBatches $text
+    $batches = @(Split-SqlBatches $text)   # @(): ein einzelner Batch kaeme sonst als String zurueck (StrictMode: kein .Count)
     $ausgabe = New-Object System.Collections.Generic.List[string]
     $cn = New-Object System.Data.SqlClient.SqlConnection $e.Db.Cs
-    $cn.add_InfoMessage(([System.Data.SqlClient.SqlInfoMessageEventHandler] { param($s, $a) foreach ($er in $a.Errors) { $ausgabe.Add($er.Message); Write-Host "      $($er.Message)" } }).GetNewClosure())
+    $cn.add_InfoMessage([System.Data.SqlClient.SqlInfoMessageEventHandler]({ param($s, $a) foreach ($er in $a.Errors) { $ausgabe.Add($er.Message); Write-Host "      $($er.Message)" } }.GetNewClosure()))
     $tx = $null; $nr = 0; $uebernommen = $false
     try {
         $cn.Open(); $tx = $cn.BeginTransaction(); $start = Get-Date
@@ -581,7 +581,7 @@ function Invoke-FlussB($e, $m) {
     $text = [IO.File]::ReadAllText($datei, [Text.Encoding]::UTF8)
     $r = Invoke-SqlTransaktion $e $m.Id $text @{ M = $m; Mode = 'Transaktion'; Hits = $null; Sha = (Get-FileHash $datei -Algorithm SHA256).Hash } 'Frage'
     if ($r.Uebernommen -and $m['Pruefabfrage']) { Show-Pruefabfrage $e $m }
-    if (-not $r.Uebernommen) { Write-Warnung "$($m.Id): nicht uebernommen, Eintrag bleibt offen." }
+    if (-not $r.Uebernommen) { Write-Host "      $($m.Id): Eintrag bleibt offen." }
 }
 function Get-FooterVersion($e, [int]$sekunden) {
     $h = New-Object System.Net.Http.HttpClientHandler; $h.UseDefaultCredentials = $true; $h.CookieContainer = New-Object System.Net.CookieContainer
