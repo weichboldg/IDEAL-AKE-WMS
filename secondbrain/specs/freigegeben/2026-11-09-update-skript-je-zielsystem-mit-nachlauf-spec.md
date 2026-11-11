@@ -1010,7 +1010,7 @@ Exit 0), `SQL\`, `deploy\`, `publish-info.txt` (ASCII): `Version: 1.98.1`, `Comm
     (`:4443`) erstmals so prüfen.
 11. Ersten Volllauf beobachten: Schritt 3 „Dienst … gestoppt“ binnen 60 s. Hängt ein Dienst: Meldung „nach 60 s nicht gestoppt … Prozess
     NICHT beendet“, nichts kopiert, Web läuft; Dienst von Hand prüfen/beenden, Skript neu starten.
-12. AKE-DEV: die 5 Sync-Schalter (Articles, ArtikelLieferant, Kreditoren, Debitoren, EinkaufBestellungen) bei Bedarf selbst wieder auf `true`
-    setzen (`/ServiceSettings` auf http://localhost:8081/); der qa-agent darf das nicht.
+12. AKE-DEV: die 5 Sync-Schalter (Articles, ArtikelLieferant, Kreditoren, Debitoren, EinkaufBestellungen) nach dem QA-Lauf vom Dev-Lauf wieder auf `true` gesetzt (2026-11-11, `ServiceSettings` in AKE_WMS_DEV, alle 5 `true` belegt; Auftrag Gerald). Der qa-agent darf das nicht;
+    von Hand ginge es unter `/ServiceSettings` auf http://localhost:8081/.
 13. Hilfe > Changelog zeigt Karte v1.98.1 (auf DEV per HTTP belegt).
 14. Offene Kleinbefunde F4, F6, F8 und N1 entscheiden (Folge-Aufgabe oder verwerfen).
