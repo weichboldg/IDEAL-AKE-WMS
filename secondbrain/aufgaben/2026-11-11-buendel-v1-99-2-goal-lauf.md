@@ -11,9 +11,9 @@ freigegebenen Test-Beleg (vorher Gerald Beleginhalt und Aufruf zeigen, erst nach
 
 | Spec | Typ | SQL-Block | Version | Status | Commits | Blocker |
 |---|---|---|---|---|---|---|
-| [[2026-11-11-update-skript-prueft-und-fuehrt-aus-mit-bestaetigung-spec]] (nur Freigabe-Nachtrag 20:40) | Spec | – | 1.99.2 | InUmsetzung | | |
-| [[2026-11-11-vormontage-spalte-abteilung-hauptfa-spec]] | Spec | – | 1.99.3 | offen | | |
-| [[2026-11-08-wareneingang-teil-2-sage-we-beleg-rahmenabrufe-spec]] (E1–E4; E5 blockiert bis P-W9) | Epic | 143 | 1.100.0 | offen | | |
+| [[2026-11-11-update-skript-prueft-und-fuehrt-aus-mit-bestaetigung-spec]] (nur Freigabe-Nachtrag 20:40) | Spec | – | 1.99.2 | **Testbereit** (QA 2026-11-11) | `81b95ac2`, Brain `e58f4d2d`, QA `8e5ebb56` | – |
+| [[2026-11-11-vormontage-spalte-abteilung-hauptfa-spec]] | Spec | – | 1.99.3 | InUmsetzung, QA laeuft | `d2d4ed46`, Brain `321d546a` | |
+| [[2026-11-08-wareneingang-teil-2-sage-we-beleg-rahmenabrufe-spec]] (E1–E4; E5 blockiert bis P-W9) | Epic | 143 | 1.99.4 | offen | | |
 
 - Update-Skript: Status war Testbereit; der Auftrag nennt die Spec ausdruecklich mit dem Freigabe-Nachtrag 20:40 und ersetzt damit die Freigabe.
 - Am Ende: 5 AKE-DEV-Sync-Schalter wieder setzen.
