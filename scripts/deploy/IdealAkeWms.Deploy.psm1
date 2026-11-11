@@ -30,12 +30,18 @@ function Read-Ja([string]$frage) {
     return $false
 }
 
+function Test-Url([string]$url) {
+    $u = $null
+    return [uri]::TryCreate($url, [UriKind]::Absolute, [ref]$u) -and $u.Scheme -in 'http', 'https' -and [bool]$u.Host
+}
+
 function Import-Ziele([string]$pfad) {
     if (-not (Test-Path $pfad)) { throw "ABBRUCH: Zieldatei $pfad fehlt." }
     $ziele = @((Import-PowerShellDataFile $pfad).Ziele)
     $gesehen = @{}
     foreach ($z in $ziele) {
         foreach ($f in 'Firma', 'System', 'WebPfad', 'DienstPfad') { if (-not $z[$f]) { throw "ABBRUCH: ${pfad}: Eintrag ohne $f." } }
+        if ($z['Url'] -and -not (Test-Url $z.Url)) { throw "ABBRUCH: ${pfad}: $($z.Firma)-$($z.System): Url '$($z.Url)' ist keine http/https-Adresse." }
         # Doppelt je Firma (= je Server): Firma+System, Web-Pfad, Dienst-Pfad; Windows-Pfade ohne Gross/Klein
         foreach ($k in @("S|$($z.Firma)|$($z.System)", "W|$($z.Firma)|$($z.WebPfad.TrimEnd('\'))", "D|$($z.Firma)|$($z.DienstPfad.TrimEnd('\'))")) {
             $kk = $k.ToLowerInvariant()
@@ -208,4 +214,4 @@ function Test-OrdnerUndRechte {
 }
 
 Export-ModuleMember -Function Write-Schritt, Write-Ok, Write-Warnung, Get-Warnungen, Reset-Warnungen, Assert-Administrator, Read-Eingabe, Read-Ja,
-    Import-Ziele, Test-Recht, Get-PoolIdentitaet, Get-DienstIdentitaet, Test-OrdnerUndRechte
+    Test-Url, Import-Ziele, Test-Recht, Get-PoolIdentitaet, Get-DienstIdentitaet, Test-OrdnerUndRechte

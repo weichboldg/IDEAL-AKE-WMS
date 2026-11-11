@@ -128,4 +128,20 @@ public class NachlaufManifestDriftTests
             text.Should().NotContainAny("/reset", "/remove", "/inheritance:r", "/setowner");
         }
     }
+
+    /// <summary>F3 (v1.98.1): die Url aus ziele.psd1 hat Vorrang vor der IIS-Bindung - jedes der 5 Systeme hat eine gueltige http/https-Url.</summary>
+    [Fact]
+    public void Ziele_AlleFuenfSystemeMitGueltigerHttpUrl()
+    {
+        var ziele = Regex.Matches(File.ReadAllText(Path.Combine(Root, "scripts", "deploy", "ziele.psd1")), @"(?m)^\s*@\{ Firma=.*$")
+            .Select(z => Regex.Matches(z.Value, @"(\w+)='([^']*)'").ToDictionary(m => m.Groups[1].Value, m => m.Groups[2].Value)).ToList();
+        ziele.Select(z => z["Firma"] + "-" + z["System"]).Should().BeEquivalentTo("IDEAL-Prod", "IDEAL-Test", "AKE-Prod", "AKE-Test", "AKE-Test-IDEAL");
+        foreach (var z in ziele)
+        {
+            z.Should().ContainKey("Url", $"{z["Firma"]}-{z["System"]}");
+            Uri.TryCreate(z["Url"], UriKind.Absolute, out var u).Should().BeTrue(z["Url"]);
+            u!.Scheme.Should().BeOneOf(new[] { "http", "https" }, z["Url"]);
+            u.Host.Should().NotBeNullOrEmpty();
+        }
+    }
 }

@@ -9,6 +9,20 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.98.1</strong> <span class="text-white-50 ms-2">11.11.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>Update-Skript: Startseiten-Adresse und Dienst-Stopp (Betrieb)</h6>
+                <ul>
+                    <li><strong>Geändert &ndash; Startseiten-Adresse:</strong> Das Update-Skript prüft die Version über die Adresse aus <code>ziele.psd1</code> (jetzt für alle fünf Systeme hinterlegt) statt über die IIS-Bindung. Passt die Bindung nicht dazu, kommt eine Warnung.</li>
+                    <li><strong>Geändert &ndash; Dienst-Stopp:</strong> Hält der Dienst nach 60&nbsp;Sekunden noch nicht an, bricht das Skript mit einer klaren Meldung ab, bevor etwas kopiert wird. Es beendet den Dienst nicht gewaltsam.</li>
+                    <li>Für die Anwender ändert sich nichts.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.98.0</strong> <span class="text-white-50 ms-2">11.11.2026</span>
             </div>
             <div class="card-body">

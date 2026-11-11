@@ -185,15 +185,20 @@ function Get-Ermittlung($ziel) {
     if ($dbWeb.Server -ne $dbDienst.Server -or $dbWeb.Datenbank -ne $dbDienst.Datenbank) {
         Stop-Mit "Web-DB $($dbWeb.Server)/$($dbWeb.Datenbank) ist nicht die Dienst-DB $($dbDienst.Server)/$($dbDienst.Datenbank)."
     }
-    # URL aus der Bindung (https vor http)
-    $url = $SiteUrl
-    if (-not $url) {
-        $b = @(Get-WebBinding -Name $t.Site | Where-Object { $_.protocol -in 'https', 'http' } | Sort-Object { if ($_.protocol -eq 'https') { 0 } else { 1 } }) | Select-Object -First 1
-        if (-not $b) { Stop-Mit "Site $($t.Site) ohne http/https-Bindung; -SiteUrl angeben." }
-        $teile = $b.bindingInformation.Split(':'); $hostName = if ($teile[2]) { $teile[2] } else { 'localhost' }
-        $url = "$($b.protocol)://${hostName}:$($teile[1])$($t.Pfad.TrimEnd('/'))/"
+    # URL: -SiteUrl vor Url aus ziele.psd1 (nicht bei -WebPfad) vor IIS-Bindung (https vor http); sonst dient die Bindung nur dem Vergleich
+    $bindungen = @(Get-WebBinding -Name $t.Site | Where-Object { $_.protocol -in 'https', 'http' } | Sort-Object { if ($_.protocol -eq 'https') { 0 } else { 1 } })
+    $url = if ($SiteUrl) { $SiteUrl } elseif ($ziel['Url'] -and -not $WebPfad) { $ziel.Url } else { $null }
+    if ($url) {
+        if (-not (Test-Url $url)) { Stop-Mit "URL '$url' ist keine http/https-Adresse." }
+        $u = [uri]$url
+        if ($bindungen.Count -and -not @($bindungen | Where-Object { $_.protocol -eq $u.Scheme -and $_.bindingInformation.Split(':')[1] -eq [string]$u.Port }).Count) {
+            Write-Warnung "URL $url passt nicht zur IIS-Bindung von $($t.Site) (Schema/Port; Bindungen: $(($bindungen | ForEach-Object { "$($_.protocol) $($_.bindingInformation)" }) -join ', '))."
+        }
+    } else {
+        if (-not $bindungen.Count) { Stop-Mit "Site $($t.Site) ohne http/https-Bindung; -SiteUrl angeben." }
+        $teile = $bindungen[0].bindingInformation.Split(':'); $hostName = if ($teile[2]) { $teile[2] } else { 'localhost' }
+        $url = "$($bindungen[0].protocol)://${hostName}:$($teile[1])$($t.Pfad.TrimEnd('/'))/"
     }
-    if ($ziel['Url'] -and -not $WebPfad -and $url.TrimEnd('/') -ne $ziel.Url.TrimEnd('/')) { Write-Warnung "Bindung $url weicht von ziele.psd1 ($($ziel.Url)) ab." }
     return [pscustomobject]@{
         Ziel = $ziel; Name = "$Firma-$($ziel.System)"; Web = $web; Dienst = $dienst; Site = $t.Site; AppPfad = $t.Pfad; Pool = $t.Pool
         PoolGeteilt = $geteilt; DienstName = $d.Name; DienstAnzeige = $d.DisplayName; DienstKonto = $d.StartName
@@ -398,7 +403,11 @@ function Invoke-System($e) {
     Write-Schritt '3. Stoppen'
     if ($stopDienst) {
         $s = Get-Service $e.DienstName
-        if ($s.Status -ne 'Stopped') { Stop-Service $e.DienstName; try { $s.WaitForStatus('Stopped', '00:01:00') } catch { Stop-Mit "Dienst $($e.DienstName) nicht gestoppt (Timeout)." } }
+        # Stop() kehrt sofort zurueck (Stop-Service wartet in PS 5.1 ohne Limit); 60 s Limit, bei Timeout kein Kill - der Mensch entscheidet
+        if ($s.Status -ne 'Stopped') {
+            try { if ($s.Status -ne 'StopPending') { $s.Stop() }; $s.WaitForStatus('Stopped', '00:01:00') }
+            catch { $s.Refresh(); Stop-Mit "Dienst $($e.DienstName) nach 60 s nicht gestoppt (Status $($s.Status)): $($_.Exception.GetBaseException().Message) Nichts kopiert, Schema unveraendert, Web laeuft weiter. Prozess NICHT beendet: Dienst pruefen bzw. von Hand beenden, dann Skript neu starten." }
+        }
         $dienstGestoppt = $true; Write-Ok "Dienst $($e.DienstName) gestoppt"
     }
     if ($stopWeb) {

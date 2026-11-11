@@ -77,6 +77,9 @@ powershell -ExecutionPolicy Bypass -File C:\<FIRMA>\deploy\v1.98.0\deploy\Update
 - Ohne Parameter fragt das Skript Firma (`AKE` | `IDEAL`) und System(e) aus `scripts\deploy\ziele.psd1`; `-Firma`/`-System Test,Test-IDEAL`
   überspringen die Abfrage. Mehrere Systeme: Nicht-Prod zuerst, Prod zuletzt und nur nach Eingabe `<FIRMA>-PROD`.
 - `-Komponente Web|Dienst|Beide` (Default `Beide`) wählt, was getauscht wird; Schema, Ordner/Rechte und Nachlauf laufen immer.
+- Startseite für die Versionsprüfung: `-SiteUrl` vor `Url` aus `ziele.psd1` vor IIS-Bindung (v1.98.1). Mit `-WebPfad` gilt die
+  `Url` aus `ziele.psd1` nicht. Passen Schema/Port nicht zur Bindung, warnt das Skript.
+- Der Dienst muss binnen 60 s anhalten, sonst bricht das Skript vor dem Kopieren ab (kein Beenden des Prozesses, v1.98.1).
 - Das Skript ermittelt Site/App-Pool (physischer Pfad), Dienst (Exe-Pfad) und die DB aus `appsettings*.json` der Ziel-Umgebung, spielt
   fehlende Schema-Skripte in **Manifest-Reihenfolge** mit Bestätigung ein, prüft Ordner und Rechte, startet Web vor Dienst, prüft die
   Version und gibt die **Nachlauf-Liste** der Hand-Schritte aus (`scripts\deploy\nachlauf.psd1`). Protokoll unter `C:\<FIRMA>\deploy-logs`.
