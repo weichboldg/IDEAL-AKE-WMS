@@ -229,6 +229,8 @@ function Get-SqlcmdArgs($e) {
 function Invoke-SqlDatei($e, [string]$datei, [string]$ausgabe) {
     $a = (Get-SqlcmdArgs $e) + @('-i', $datei)
     Write-Host "  >   sqlcmd $(($a | Where-Object { $_ -ne $e.Db.Passwort }) -join ' ')"
+    # PS 5.1: stderr (z. B. Verbindungsfehler) wuerde unter ErrorActionPreference=Stop sofort werfen; Ergebnis entscheidet der Exit-Code
+    $ErrorActionPreference = 'Continue'
     $out = @(& $sqlcmd @a 2>&1 | ForEach-Object { [string]$_ })
     $code = $LASTEXITCODE
     $out | ForEach-Object { Write-Host "      $_" }
@@ -334,8 +336,14 @@ function Invoke-System($e) {
     # ---------------------------------------------------------------------------------------- 1 Vorpruefung
     Write-Schritt '1. Vorpruefung (lesend)'
     $installiert = $null; $quelleVersion = ''
-    try { $f = Get-FooterVersion $e 60; if ($f.Version) { $installiert = [version]$f.Version; $quelleVersion = "Fusszeile $($e.Url)" } }
-    catch { Write-Host "      Startseite nicht lesbar: $($_.Exception.GetBaseException().Message)" }
+    # Schritt 6 ruft dieselbe URL ab: was hier scheitert, laesst spaeter den Start abbrechen -> als Warnung zeigen (auch bei -NurPruefen)
+    try {
+        $f = Get-FooterVersion $e 60
+        if ($f.Version) { $installiert = [version]$f.Version; $quelleVersion = "Fusszeile $($e.Url)" }
+        elseif (-not $f.Ok) { Write-Warnung "Startseite $($e.Url): HTTP $($f.Status). Schritt 6 bricht dann nach dem Kopieren ab (App-Pool gestoppt) - URL pruefen, ggf. -SiteUrl." }
+        else { Write-Host "      Startseite $($e.Url): HTTP $($f.Status) ohne Fusszeile (keine Windows-Anmeldung?) - Schritt 6 fragt dann nach der Version im Browser." }
+    }
+    catch { Write-Warnung "Startseite $($e.Url) nicht lesbar: $($_.Exception.GetBaseException().Message). Schritt 6 bricht dann nach dem Kopieren ab (App-Pool gestoppt) - URL/Zertifikat pruefen, ggf. -SiteUrl." }
     if (-not $installiert -and (Test-Path (Join-Path $e.Web 'deploy-info.txt'))) {
         $v = (Read-Info (Join-Path $e.Web 'deploy-info.txt'))['Version']; if ($v) { $installiert = [version]$v; $quelleVersion = 'deploy-info.txt' }
     }
@@ -375,7 +383,8 @@ function Invoke-System($e) {
     if (Read-Ja "Jetzt BACKUP DATABASE [$($e.Db.Datenbank)] WITH COPY_ONLY, CHECKSUM anlegen?") {
         $ziel = $BackupPfad
         if (-not $ziel) { $ziel = [string](Invoke-Lesen $e "SELECT CAST(SERVERPROPERTY('InstanceDefaultBackupPath') AS NVARCHAR(4000))").Rows[0][0] }
-        $bak = Join-Path $ziel ('{0}_{1:yyyyMMdd_HHmm}_vor_v{2}.bak' -f $e.Db.Datenbank, (Get-Date), $PaketVersion)
+        # Pfad liegt auf dem SQL-Server: kein Join-Path (PS 5.1 wirft, wenn das Laufwerk hier am Web-Server fehlt)
+        $bak = '{0}\{1}_{2:yyyyMMdd_HHmm}_vor_v{3}.bak' -f $ziel.TrimEnd('\'), $e.Db.Datenbank, (Get-Date), $PaketVersion
         Write-Host "  Ziel (Pfad auf dem SQL-Server $($e.Db.Server)): $bak"
         $cn = New-Object System.Data.SqlClient.SqlConnection $e.Db.Cs
         try {
