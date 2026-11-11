@@ -379,7 +379,7 @@ function Invoke-SqlTransaktion($e, [string]$name, [string]$text, $marker, [strin
         if ($marker) {
             $cmd = $cn.CreateCommand(); $cmd.Transaction = $tx
             Set-MarkerBefehl $cmd $marker.M $marker.Mode $marker.Hits $marker.Sha ($ausgabe -join "`n") $null
-            [void]$cmd.ExecuteNonQuery(); $nr = 'Marker'
+            $nr = 'Marker'; [void]$cmd.ExecuteNonQuery()   # vor dem INSERT: ein UNIQUE-Fehler nennt "Batch Marker", nicht den letzten Batch
         }
         if ($abschluss -eq 'Commit') { $tx.Commit(); $uebernommen = $true }
         else {

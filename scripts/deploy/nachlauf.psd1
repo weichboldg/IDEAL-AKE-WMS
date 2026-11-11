@@ -162,6 +162,9 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
 # ---------------------------------------------------------------- Vorher (Anzeige vor jeder Aenderung) -------------------------
 @{ Id='v0-Backup'; Version='0.0.0'; Typ='Info'; Firma='beide'; Phase='Vorher'; Ausfuehrung='anzeigen'
    Text='DB-Backup vor dem Deploy (Pflicht bei 90, 95, 109/110, 133/Altbestand, ADR 0004); das Skript bietet es in Schritt 2 an.'; Quelle='ADR 0004' }
+@{ Id='v1.99.0-PB1'; Version='1.99.0'; Typ='Info'; Firma='beide'; Phase='Vorher'; Ausfuehrung='anzeigen'
+   Text='P-B1 vor dem ersten Lauf v1.99.0 (SSMS auf {Server}, als ausfuehrendes Konto): SELECT SERVERPROPERTY(''ProductVersion''); SELECT * FROM sys.dm_os_file_exists(CAST(SERVERPROPERTY(''InstanceDefaultBackupPath'') AS NVARCHAR(4000))); SELECT HAS_PERMS_BY_NAME(N''{DB}'', ''DATABASE'', ''ALTER'') AS AlterDb; AlterDb = 0 -> RCSI-Reparatur in 4a mit n beantworten (sonst Abbruch bei gestopptem Web und Dienst).'
+   Quelle='2026-11-11-v1-99-0-update-skript-prueft-und-fuehrt-aus' }
 @{ Id='v1.32.0-sysjobs'; Version='1.32.0'; Typ='Info'; Firma='beide'; Phase='Vorher'; Ausfuehrung='anzeigen'
    Text='Agent-Jobs gegen ProductionOrders pruefen; das Skript zeigt die sysjobs-Abfrage vor SQL/90.'; Quelle='2026-08-17-v1-32-0-ideal-teil-7' }
 @{ Id='v1.39.0-Edge'; Version='1.39.0'; Typ='Info'; Firma='beide'; Phase='Vorher'; Ausfuehrung='anzeigen'
