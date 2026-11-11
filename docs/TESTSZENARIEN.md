@@ -11532,7 +11532,7 @@ und Einmal-Skripte nur im Trockenlauf. Danach alles entfernen.
 
 | Nr | Szenario | Erwartet |
 |---|---|---|
-| 126.1 | Kopie: `PickingAreas` leer, DUMMY gelöscht, RCSI aus, `Sync:HierarchicalFaEnabled = true`; `-NurPruefen` | Vorprüfung: Abweichung bei Kommissionierbereiche, DummyArtikel, RCSI; keine Rollen-Prüfung (IDEAL); Backup-Ordner-Bericht; nichts geändert |
+| 126.1 | Kopie: `PickingAreas` leer, DUMMY gelöscht, RCSI aus, `Sync:HierarchicalFaEnabled = true`; `-NurPruefen` | Vorprüfung: Abweichung bei Kommissionierbereiche, DummyArtikel, RCSI; ab v1.99.1 auch Rollen-Prüfung (Firma beide, siehe 126.21); Backup-Ordner-Bericht; nichts geändert |
 | 126.2 | Volllauf auf die Kopie | App-Pool und Dienst gestoppt; 4a je Reparatur eine Frage; RCSI zeigt Sitzungen; danach drei Bereiche (Lager Standard), DUMMY da, RCSI 1; Altbestand-Trockenlauf mit `TREFFER: n` |
 | 126.3 | Reparatur mit „n“ | Warnung, Lauf geht weiter, Abweichung im Block „Prüfungen“ |
 | 126.4 | Bereiche vorhanden, keiner Standard | `Pruefung/Standardbereich` nur Hinweis, keine Reparatur |
@@ -11547,7 +11547,7 @@ und Einmal-Skripte nur im Trockenlauf. Danach alles entfernen.
 | 126.13 | `-NurPruefen` vor `SQL/142` | „Marker-Tabelle fehlt (kommt mit SQL/142)“, kein Absturz |
 | 126.14 | `sqlcmd` nicht im PATH, keine Fallback-Pfade | lesbarer Abbruch mit Installationshinweis, „Nichts gestoppt, nichts geändert“, kein StrictMode-Fehler |
 | 126.15 | Fußzeile nicht lesbar → Rückfrage Version | Text `… v1.99.0?`, kein Fehler |
-| 126.16 | `-BackupPfad D:\GibtEsNicht` | „Ordner … fehlt auf …“, Frage nach anderem Ordner; leer → Abbruch vor dem Stoppen |
+| 126.16 | `-BackupPfad D:\GibtEsNicht` | „Ordner … fehlt auf …“, Frage nach anderem Ordner; ab v1.99.1 leer → „Backup übersprungen“, dann „Liegt ein aktuelles Backup vor?“, erst n → Abbruch vor dem Stoppen (siehe 126.25) |
 | 126.17 | Fehler in Schritt 4 (synthetisches Schema-Skript mit Fehler) | Zustand: App-Pool und Dienst Stopped, letzter Schritt 4, Weg „NICHT von Hand starten … Skript neu starten“ |
 | 126.18 | Web-Start mit leerer `PickingAreas` | drei Bereiche mit `CreatedBy = system`; zweiter Start ändert nichts |
 | 126.19 | Drift-Test `NachlaufManifestDriftTests`, `DeployScriptRunsMigrationSqlTests` | grün; eingebaute Rotproben (Eintrag `SQL/142` entfernt, Trockenlauf-Datei ohne `TREFFER:`, `$x?`) |
