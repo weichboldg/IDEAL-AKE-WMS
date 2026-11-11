@@ -2,7 +2,7 @@
 type: spec
 title: Update-Skript je Zielsystem mit Nachlauf-Manifest (Bündel-Deploy ab v1.97.0)
 slug: 2026-11-09-update-skript-je-zielsystem-mit-nachlauf-spec
-status: Testbereit
+status: InUmsetzung
 created: 2026-11-09
 updated: 2026-11-11
 freigabe_von: "Gerald Weichbold (Chat Koordination, „passt“ auf Freigabe-Frage)"
@@ -859,3 +859,52 @@ das Update-Skript auf DEV-IDEAL eingespielt (125.12 oben).
 7. `Install-IdealAkeWms.ps1` erst bei der nächsten Neuinstallation ausführen (AK 33).
 8. Offene Kleinbefunde F4, F6, F7, F8 und die Folgeidee zu F3 entscheiden (Folge-Aufgabe oder verwerfen).
 9. Testartefakt nach Belieben löschen: `C:\Program Files\Microsoft SQL Server\MSSQL17.MSSQLSERVER\MSSQL\Backup\IDEAL_WMS_DEV_20261111_1047_vor_v1.98.0.bak`.
+
+## Freigabe-Nachtrag 2026-11-11 (Gerald): Nachbesserung F3 und F7, v1.98.1
+
+Auftrag Gerald, Koordination 2026-11-11. Gilt vor dem QA-Abschnitt.
+1. **F3 – URL aus `ziele.psd1` hat Vorrang.**
+   - Steht beim Ziel eine `Url`, nutzt Schritt 6 und die Vorprüfung diese statt der IIS-Bindung. `-SiteUrl` überschreibt beide.
+   - Die Bindung wird nur noch verglichen: Passen Port oder Schema nicht → Warnung.
+   - Ohne `Url` gilt das bisherige Verhalten mit der Warnung aus `550f10d5`.
+   - Die `Url`-Einträge in `ziele.psd1`:
+     - IDEAL-Test `http://idealweb01.ideal.ideal-ake.at:88/`
+     - IDEAL-Prod `https://idealweb01.ideal.ideal-ake.at/`
+     - AKE-Test `https://akenet01.ake.at:4444/` (vorhanden)
+     - AKE Test-IDEAL `https://akenet01.ake.at:4445/` (vorhanden)
+     - AKE-Prod `https://akenet01.ake.at:4443/` (Gerald 2026-11-11)
+   - Gerald 2026-11-11; die IDEAL-Prod-Adresse stand im Chat als „htts://“, gemeint ist https.
+2. **F7 – echtes Zeitlimit beim Dienst-Stopp.**
+   - Stoppen ohne blockierendes `Stop-Service`: `sc.exe stop` bzw. `(Get-Service).Stop()`, dann `WaitForStatus('Stopped','00:01:00')`.
+   - Bei Timeout: Abbruch mit klarer Meldung. Kein Kill des Prozesses, die Entscheidung bleibt beim Menschen.
+3. F4, F6 und F8 bleiben offen (Empfehlung Koordination; Gerald hat dem Nachbesserungsumfang mit der Angabe der URLs zugestimmt).
+4. Version 1.98.1, Changelog, `NachlaufManifestDriftTests` bzw. ein Test für `ziele.psd1` (Url-Format gültig, nur http/https). Publish nach
+   `<Worktree>\publish`.
+
+## Umsetzung Nachtrag v1.98.1 (Dev-Lauf 2026-11-11)
+
+Commit `e1ecc0c0` im Bündel (auf `550f10d5`). Nur F3 und F7; F4, F6, F8 bleiben offen (Nachtrag Punkt 3).
+
+- **F3:** `Update-IdealAkeWms.ps1` (Ermittlung): URL = `-SiteUrl`, sonst `Url` aus `ziele.psd1` (nicht mit `-WebPfad`, dann gilt ein
+  anderer Ort), sonst wie bisher die IIS-Bindung. Mit gewählter URL dient die Bindung nur dem Vergleich: keine Bindung mit gleichem
+  Schema und Port → Warnung „passt nicht zur IIS-Bindung (Schema/Port; Bindungen: …)“. Vorprüfung und Schritt 6 nutzen dieselbe
+  `$e.Url`. `ziele.psd1`: `Url` für alle 5 Systeme (Werte laut Nachtrag). `Import-Ziele` bricht bei einer `Url` ohne http/https ab
+  (`Test-Url` im Modul), eine ungültige `-SiteUrl` ebenso.
+- **F7:** Schritt 3: `ServiceController.Stop()` (kehrt sofort zurück) und `WaitForStatus('Stopped', 60 s)`; bei Timeout oder Fehler
+  Abbruch „nach 60 s nicht gestoppt (Status …) … Nichts kopiert, Schema unveraendert, Web laeuft weiter. Prozess NICHT beendet“. Kein Kill.
+- Test `Ziele_AlleFuenfSystemeMitGueltigerHttpUrl` (5 Systeme, je eine absolute http/https-Url); Rotprobe mit `htts://` in
+  `ziele.psd1` → rot, danach zurückgesetzt. Version 1.98.1, Changelog-Karte, README (Update-Abschnitt), TS-125.17/125.18.
+
+| Nachweis | Ergebnis |
+|---|---|
+| `dotnet build IdealAkeWms.slnx` | 0 Fehler (28 Warnungen, Bestand) |
+| `dotnet test` | Web 2602 bestanden / 1 übersprungen (2603), Service 512/512 |
+| PS 5.1 `Parser::ParseFile` (Update, Modul, Install, ziele) | 0 Parsefehler |
+| `Test-Url` | https/http-Adressen true; `htts://`, `ftp://`, `akenet01:4444`, leer → false |
+| TS-125.17a temporäre Paketkopie, `ziele.psd1` nur dort auf DEV-IDEAL + `Url='http://localhost:8082/'`, `-NurPruefen` | „Installiert: v1.98.0 (Quelle: Fusszeile http://localhost:8082/)“, keine Bindungs-Warnung, Exit 0 |
+| TS-125.17b `Url='https://localhost:8082/'` | „!! URL https://localhost:8082/ passt nicht zur IIS-Bindung von IDEAL_WMS_DEV (Schema/Port; Bindungen: http *:8082:)“ + Warnung Startseite nicht lesbar; Exit 0 |
+| TS-125.17c `Url='htts://…'` | „ABBRUCH: …ziele.psd1: IDEAL-Test: Url 'htts://localhost:8082/' ist keine http/https-Adresse.“ Exit 1 |
+| TS-125.17d `-SiteUrl http://127.0.0.1:8082/` bei gesetzter Url | „Quelle: Fusszeile http://127.0.0.1:8082/“ |
+| TS-125.18 Volllauf DEV-IDEAL aus der Paketkopie (Binärdateien v1.98.0, neue Skripte) | „OK Dienst IDEAL_WMS_DEV_Service gestoppt“, „OK Web HTTP 200, Fusszeile v1.98.0“ über die Url aus `ziele.psd1`; danach Pool Started, Dienst Running. Timeout-Pfad nicht erzwungen (Code-Review). |
+
+`ziele.psd1` im Repo blieb unverändert (`git diff` nur die 5 Url-Einträge); die Paketkopie `D:\Dev\deploytest\paket181` ist gelöscht.
