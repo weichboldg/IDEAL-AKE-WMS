@@ -5,6 +5,7 @@ argument-hint: <pfad-zur-freigegebenen-spec>
 Freigegebene Spec umsetzen (Schranke 1 wurde genommen): $1
 
 Diese Spec ist KEIN Epic (Epics laufen ueber /epic-stage bzw. run-epic-stage.ps1).
+Mehrere Specs als Buendel in einem interaktiven /goal-Lauf: secondbrain/prompts/goal.md (/goal-run) - fuer diesen Einzellauf nicht relevant.
 
 Pruefe zuerst:
 - Frontmatter status muss Freigegeben sein UND worktree/branch muessen leer sein

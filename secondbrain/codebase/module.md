@@ -69,8 +69,9 @@ Listen-Views folgen zusaetzlich verbindlich
 
 | Datei | Kontrakt |
 |---|---|
-| `site.js` | Klick auf `.page-link[data-page]` setzt `?page=N`; Change auf `.pagination-page-size` setzt `?pageSize=N` **und** `page=1`. Andere Query-Parameter bleiben erhalten. Ausserdem: Sticky-Scrollbar via `IntersectionObserver`. |
+| `site.js` | Klick auf `.page-link[data-page]` setzt `?page=N`; Change auf `.pagination-page-size` setzt `?pageSize=N` **und** `page=1`. Andere Query-Parameter bleiben erhalten. Ausserdem: Sticky-Scrollbar via `IntersectionObserver`. Seit v1.65.0: `window.tableToolbarHost(table)` = **der** Platz für Zahnrad und CSV über einer Tabelle (Marker `data-table-toolbar`, sonst Fallback-Host `data-table-toolbar="auto"` direkt vor dem Wrapper), [[fallstricke]] §19. |
 | `table-filter.js` | Server-Mode navigiert **erst bei ENTER** (`onServerFilterKeydown` → `applyServerFilters`); Client-Mode filtert live beim Tippen. Filter-Werte werden im Server-Mode aus der **URL** restored (nicht aus `sessionStorage` — das gilt nur im Client-Mode). Programmatische Pfade rufen `applyColumnFilterNow()`. |
+| `hardware-scanner.js` | Seit v1.66.0, nur bei `HardwareScannerAktiv` im `_Layout` geladen (vor den Seiten-Skripten). Fängt Tastatur-Scans am Präfix (`<body data-hw-scan-praefix/abstand>`) ab und feuert `document`-Ereignis `wms:hardware-scan` (`detail: code, endedWithEnter, freiesFeld, handled, ambiguous`). Wer ein Ziel bedient, setzt `handled = true`; `barcode-scanner.js` tut das für alle `initScanner`/`initTextInputScanner`-Ziele. Felder ohne `barcode-scanner.js` werden mit `data-hw-scan-ziel` zum Ziel (BDE-Terminal). Geräte-Abschalter `localStorage['wms.hardwareScanner.geraet']='aus'`. [[2026-10-15-scan-handler-hardware-scanner-spec]] |
 | `column-preferences.js` | Spalten-Sichtbarkeit/-Reihenfolge je View-Key; dispatcht `column-preferences-ready`. Muss **vor** `table-filter.js` geladen werden. |
 
 ### Inventar: Tabellen im Server-Filter-Mode

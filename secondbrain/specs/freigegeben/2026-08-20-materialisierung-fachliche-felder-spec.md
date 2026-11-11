@@ -494,7 +494,7 @@ Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen.
 
 ## Deploy
 
-**Finalisiert vom qa-agent (2026-09-09) gegen den echten Diff `a9ea910..be92ade`** — ersetzt die
+**Finalisiert vom qa-agent (2026-09-09) gegen den echten Diff `64eac53..c958edc`** — ersetzt die
 provisorische Einschaetzung des Spec-Agents oben (die noch `migration: ja` annahm, bevor B1 auf
 "nur Ableitung, keine Migration" entschieden wurde).
 
@@ -808,7 +808,7 @@ Spec-Koerper eingearbeitet sind.
 ## Kritische Pruefung (2026-09-09)
 
 Anwalt des Teufels vor Schranke 1. Code-Belege gegen Worktree
-`.claude/worktrees/2026-08-07-ideal-teile-1-5` @ `22d31ae` (BOM-Bridge v1.36.0 inkl. Klasse-D-Gates
+`.claude/worktrees/2026-08-07-ideal-teile-1-5` @ `5226352` (BOM-Bridge v1.36.0 inkl. Klasse-D-Gates
 ist dort bereits umgesetzt, `HierarchicalModeGateTests` gruen). Gelesen: Spec + Freigabe-Antworten,
 Backlog, [[2026-09-08-bom-schnittstellen-bridge-hierarchisch-spec]] (Design H, QA-Nachweis),
 [[2026-08-18-fa-liste-hierarchie-anzeige-spec]] (Z1, sechs Ansichten), Teil-7-Spec, ADR 0003/0005/
@@ -1006,7 +1006,7 @@ zuerst, dann eigener Worktree aus `main` (so hatte es die BOM-Bridge-Spec vorges
 im Buendel lief). Bewusst entscheiden, nicht per Default.
 
 **H3 — „Zeitliche Luecke" (Antwort 6) existiert nur bei getrenntem Deploy.** Die Gates sind im
-Buendel bereits aktiv (`56e8faa`); wird diese Spec im selben Buendel umgesetzt, gibt es beim Deploy
+Buendel bereits aktiv (`e75bcf3`); wird diese Spec im selben Buendel umgesetzt, gibt es beim Deploy
 keine Phase mit leerem `HasCoatingParts`. Bei getrenntem Deploy: Erklaerung auf der Hilfeseite.
 
 **H4 — Antwort 4 „Export nimmt Kopfdaten mit"** beschreibt Verhalten fuer ein Feature, das es nicht
@@ -1137,7 +1137,7 @@ Schritt des Menschen, kein Automatismus dieses Reviews.
 ## QA-Nachweis (qa-agent, 2026-09-09)
 
 Geprueft im Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5` gegen den echten Diff
-`a9ea910..be92ade` (Plan-Commit bis letzter Fix-Commit, Working Tree danach sauber).
+`64eac53..c958edc` (Plan-Commit bis letzter Fix-Commit, Working Tree danach sauber).
 
 **Build:**
 ```
@@ -1170,12 +1170,12 @@ dotnet test IDEALAKEWMSService.Tests -> Bestanden: Fehler 0, erfolgreich 263,  �
 | 10 | Ja | Unbekannt: `unknown.Add(name)`, keine Zuweisung, Sammel-Log + entprellte Mail (`IUnknownWorkplaceState.HasChanged`); mehrdeutig: `ambiguous.Add(name)`, keine Zuweisung; `FaMaterializationWorkplaceTests`, `UnknownWorkplaceStateTests` | — |
 | 11 | Ja | K3 im Code unveraendert: `PickingStatus.IsDonePicking`/`BdeStatus` werden vom Sync nirgends gesetzt; einzige neue Schreiblogik ist `HasCoatingParts` (AK 12/13, kein K3-Feld mehr) | — |
 | 12 | Ja | `FaMaterializationCoating.Derive` (reiner Helper, „selbst oder direktes Kind", Enkel bewusst ausgeschlossen); Reihenfolge im Service: `EnsureStatusRowsAsync` **vor** `SetCoatingPartsAsync` (F6 vor F5); `SetCoatingPartsAsync` kapselt `IsCoatingDone`-Reset; `FaMaterializationCoatingTests`, `FaMaterializationCoatingWriteTests` | — |
-| 13 | Ja | `MapItem`: `if (hierarchical) item.BeschichtungTermin = item.HasCoatingParts ? groupCoatingStart : null` — bedingungslos ersetzt, kein Raten bei leerem Kopfwert (Fix `b3d5a15`, vierter stiller Fehler); bei `IsAmbiguous` bleibt `groupCoatingStart` `null` (kein Kopf ausgewaehlt) | Sichtpruefung eindeutiger + mehrdeutiger Fall |
+| 13 | Ja | `MapItem`: `if (hierarchical) item.BeschichtungTermin = item.HasCoatingParts ? groupCoatingStart : null` — bedingungslos ersetzt, kein Raten bei leerem Kopfwert (Fix `1a33b20`, vierter stiller Fehler); bei `IsAmbiguous` bleibt `groupCoatingStart` `null` (kein Kopf ausgewaehlt) | Sichtpruefung eindeutiger + mehrdeutiger Fall |
 
 **Harte Vorgaben gegengeprueft:**
-- **Keine Migration:** `git diff --name-status a9ea910..be92ade` enthaelt keine Datei unter
+- **Keine Migration:** `git diff --name-status 64eac53..c958edc` enthaelt keine Datei unter
   `Migrations/` oder `SQL/`. Bestaetigt.
-- **Kein `SetValues`/`_ctx.Update(entity)`:** `git diff a9ea910..be92ade | grep "SetValues\|_ctx.Update"`
+- **Kein `SetValues`/`_ctx.Update(entity)`:** `git diff 64eac53..c958edc | grep "SetValues\|_ctx.Update"`
   liefert keinen Treffer. Bestaetigt.
 - **Beide `AppVersion.cs` auf 1.37.0:** `IdealAkeWms/AppVersion.cs` und
   `IDEALAKEWMSService/AppVersion.cs` beide `Version = "1.37.0"`. Bestaetigt.
@@ -1186,11 +1186,11 @@ dotnet test IDEALAKEWMSService.Tests -> Bestanden: Fehler 0, erfolgreich 263,  �
 
 **Fuenf im Lauf gefundene und behobene stille Fehler** (siehe Changelog
 [[2026-09-09-v1-37-0-ideal-materialisierung-fachliche-felder]] und Aufgabe
-[[2026-09-09-materialisierung-fachliche-felder-umsetzung]]): fehlende Statuszeilen (`ceaf5b3`,
+[[2026-09-09-materialisierung-fachliche-felder-umsetzung]]): fehlende Statuszeilen (`7ac06cb`,
 identisch mit dem gemeldeten UAT-Befund), weggefilterte Blattebene in der Lack-Ableitung
-(`af25bcd`), Mail-Entprellung ohne Wiederauftreten-Erkennung (`520bafb`), geratener
-Beschichtungstermin bei leerem Kopfwert (`b3d5a15`), Varianten-Tabelle blieb beim Zuklappen der
-Gruppe stehen (`be92ade`). Alle fuenf sind durch die oben genannten Tests bzw. das Fix-Commit
+(`3b77f66`), Mail-Entprellung ohne Wiederauftreten-Erkennung (`043c278`), geratener
+Beschichtungstermin bei leerem Kopfwert (`1a33b20`), Varianten-Tabelle blieb beim Zuklappen der
+Gruppe stehen (`c958edc`). Alle fuenf sind durch die oben genannten Tests bzw. das Fix-Commit
 abgedeckt; die elf **geparkten** Befunde aus [[2026-09-09-materialisierung-nachlese]] sind
 bewusst **nicht** Teil dieses Nachweises.
 
@@ -1252,3 +1252,22 @@ echten Diff nachvollzogen, harte Vorgaben eingehalten, TS-71 vorhanden.
 13. Termin-Mapping-Bestaetigung (Pflicht laut Rueckfrage 5/B2-B3): an einem echten HauptFA die drei
     angezeigten Termine (KO/FE/LT) gegen das Sage/PPS-Bild sichtpruefen — Ergebnis mit HauptFA-Nummer
     im Merge-Nachweis festhalten.
+
+## FREIGABE-NACHTRAG (2026-10-07) — Lack-Flag: Kind-Sub-FA zählt nur für sich
+
+**Entscheidung Gerald (2026-10-07):** Zum Lackierer gehen nur die Teile, nicht der Korpus generell. Regel K2
+(Lack-Ableitung, `HasCoatingParts`) wird geschärft: Ein Sub-FA gilt als beschichtet, wenn er **selbst**
+`Beschichtet` ist oder mindestens ein **direktes Blatt-Kind** (`VaterFA == SubFA`, `SubFA == 0`) beschichtet
+ist. Eine Kind-Zeile mit eigenem Sub-FA (`SubFA != 0`) zählt **nur für sich selbst**, nicht mehr für den Vater.
+Enkel zählen wie bisher nicht. Gleiche Regel wie der FREIGABE-NACHTRAG (2026-10-07) der Arbeitsgang-Erkennung in
+[[2026-09-21-ideal-bde-arbeitsgaenge-aus-struktur-spec]] (v1.47.4).
+
+- Umgesetzt in v1.47.5 (Bündel-Worktree `feature/2026-08-07-ideal-teile-1-5`, Commit `7e78f9a6`):
+  `IDEALAKEWMSService/Services/FaMaterializationCoating.cs` (Filter `SubFA == 0` beim Sammeln der Väter,
+  Klassenkommentar), Tests `FaMaterializationCoatingTests.Derive_ChildSubFaCoated_ParentIsFalse` (vorher rot) und
+  `…Derive_LeafChildCoated_ParentIsTrue_EvenNextToCoatedChildSubFa`; Testszenario TS-71.10a.
+- Bestandsdaten: kein Skript; der nächste Materialisierungslauf (nicht DryRun) schreibt das Flag für alle
+  materialisierten Sub-FAs neu, beim Kippen auf `false` wird `IsCoatingDone` mit zurückgesetzt (AK zu F5,
+  TS-71.10). Siehe [[fallstricke]] §20.
+- Die ursprünglichen Formulierungen „Sub-FA selbst oder ein direktes Kind `Beschichtet`“ in diesem Dokument
+  gelten mit dieser Einschränkung; sie werden nicht umgeschrieben.

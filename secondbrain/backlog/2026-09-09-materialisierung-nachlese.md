@@ -76,7 +76,7 @@ bewertet und mit Begruendung geparkt. **Einmal gesammelt abarbeiten**, nach dem 
 Der Abschluss-Review hatte den ausdruecklichen Auftrag, einen **fuenften** stillen Fehler zu suchen,
 nachdem vier gefunden waren. Er hat einen gefunden — die Varianten-Tabelle blieb beim Zuklappen
 einer Kombigeraet-Gruppe stehen, weil ihr die Klasse fehlte, auf die das Klapp-JS hoert.
-**Sofort behoben** (`be92ade`). Die uebrigen fuenf Befunde sind klein und bewusst geparkt:
+**Sofort behoben** (`c958edc`). Die uebrigen fuenf Befunde sind klein und bewusst geparkt:
 
 12. **Entprellung wird vor dem Versand fortgeschrieben.** Wirft der Mailversand (SMTP nicht
     erreichbar), gilt dieselbe Menge unbekannter Arbeitsbereiche beim naechsten Lauf als

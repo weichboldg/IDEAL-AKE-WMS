@@ -314,4 +314,41 @@ public class PickingControllerTests
         src.Should().Contain("return View(\"Bom\", vm);");
         File.Exists(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "IdealAkeWms", "Views", "Picking", "Auftrag.cshtml")).Should().BeFalse();
     }
+
+    // Hotfix v1.30.3 (Z3), uebernommen in v1.96.0: Spalte Werkbank, server-seitig filterbar. Im Buendel listet /Picking
+    // Kommissionierauftraege (v1.88.0) – Werkbank kommt vom FA des Auftrags.
+    [Fact]
+    public async Task Index_WorkbenchColumn_FilledFromWorkplaceAndFilterable()
+    {
+        var ctrl = Setup(new List<PickingOrder>
+        {
+            Auftrag(1, "FA-1001", werkbank: "A1"), Auftrag(2, "FA-2002", werkbank: "B7"), Auftrag(3, "FA-3003"),
+        }, "?colf_workbench=b7");
+
+        var vm = (await ctrl.Index() as ViewResult)!.Model as PickingListViewModel;
+
+        vm!.Items.Should().ContainSingle().Which.WorkplaceName.Should().Be("B7");
+    }
+
+    // Hotfix v1.30.3 (Z2), uebernommen in v1.96.0: der Druck uebernimmt die Reihenfolge der Ansicht (z.B. sortiert nach
+    // Bezeichnung 1), nicht mehr fest die Positions-Reihenfolge.
+    [Fact]
+    public async Task PrintBom_VisiblePositions_KeepClientOrder()
+    {
+        var order = OrderH("FA-1001", "FA-1001"); order.Id = 7; order.ArticleNumber = "ART"; order.Quantity = 1;
+        var ctrl = SetupForBom(order, new BomQueryResult(new List<BomItem>
+        {
+            new() { Position = "1", Ressourcenummer = "R1", Bezeichnung1 = "Zylinder" },
+            new() { Position = "2", Ressourcenummer = "R2", Bezeichnung1 = "Anker" },
+            new() { Position = "10", Ressourcenummer = "R3", Bezeichnung1 = "Mutter" },
+        }, "test"));
+
+        // Ansicht nach Bezeichnung 1 aufsteigend: Anker (2), Mutter (10), Zylinder (1)
+        var sorted = (await ctrl.PrintBomPost(7, "2,10,1", null, null) as ViewResult)!.Model as PrintBomViewModel;
+        sorted!.Items.Select(i => i.Position).Should().Equal("2", "10", "1");
+
+        // Ohne Liste: wie bisher alle Positionen in natuerlicher Positions-Reihenfolge
+        var all = (await ctrl.PrintBomPost(7, null, null, null) as ViewResult)!.Model as PrintBomViewModel;
+        all!.Items.Select(i => i.Position).Should().Equal("1", "2", "10");
+    }
 }

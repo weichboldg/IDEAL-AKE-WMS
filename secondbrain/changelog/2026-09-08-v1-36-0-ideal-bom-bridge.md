@@ -22,12 +22,12 @@ true`; bei `false` bit-identisch zu AKE (eigene Klasse).**
 
 ## Umgesetzt (Tasks 1–6)
 
-- **1 — Typen + Signaturwechsel** (`f89659f`): `BomKey(ArticleNumber, SubOrderNumber, OrderNumber)`
+- **1 — Typen + Signaturwechsel** (`ea84284`): `BomKey(ArticleNumber, SubOrderNumber, OrderNumber)`
   statt `string` an `IBomRepository.GetBomItemsAsync` und `IBomCacheRepository.GetByArticleNumberAsync`;
   `BomScope` (`DirectChildren`/`FullStructure`, `BomScopes.ForOrder`: HauptFA → FullStructure);
   `BomQueryResult.MengeIstAuftragsmenge` + `BomQuantityResolver` als **einzige** Multiplikationsstelle
   (Picking.Bom, PrintBom, ReadOnlyBomBuilder). Flache Implementierungen lesen nur `ArticleNumber`.
-- **2 — `FaHierarchyBomRepository`** (`e99bcf3`, Review-Fix `3784e4b`): beide Interfaces aus
+- **2 — `FaHierarchyBomRepository`** (`7a93c2f`, Review-Fix `e2cceae`): beide Interfaces aus
   `FaHierarchyNode` via `IFaHierarchyNodeRepository` (5-min-Cache aus Teil 1), Traversal über den
   bestehenden `FaHierarchyTreeBuilder` (kein zweiter Walker). Mapping nach Anhang: Kopf = Artikel des
   Elternknotens (Wurzel: `HauptArtnr`), `Ressourcenummer = Artnr`, `Baugruppe` = Eltern-Artnr,
@@ -35,27 +35,27 @@ true`; bei `false` bit-identisch zu AKE (eigene Klasse).**
   rekursiver Positions-Pfad ab der Wurzel (`3.7.2`), Sage-Position separat (`SagePosition`),
   Geschwister-Kollisionen `~n` + Flag + Log (Freigabe-Bedingung b), Blatt-Waisen `W<n>` markiert.
   Reverse-Lookup für Artikelinfo liefert Eltern-Sub-FA-Nummern + Σ Sollmenge. Schreibmethoden No-op.
-- **3 — Master-Weiche, Guard raus** (`611475d`): `BomRepositoryMasterSwitch` bedient **beide**
+- **3 — Master-Weiche, Guard raus** (`8877ef5`): `BomRepositoryMasterSwitch` bedient **beide**
   Interfaces, entscheidet pro Aufruf, Ziele lazy per Delegate (sonst DI-Zyklus über
   `BomRepository → IBomCacheRepository`); `Program.cs` beide Interfaces → dieselbe scoped Instanz.
   `HierarchicalBomGuardRepository` + Tests + `BomDataSources.HierarchicalUnavailable` + Hinweis-Zweig in
   `Bom.cshtml` entfernt; Picking/ReadOnlyBomBuilder mappen `FaHierarchyBomItem`-Felder,
   `BomViewModel.Hierarchical/FullStructure`.
-- **4 — Klasse-D-Gates** (`56e8faa`): `IHierarchicalModeReader` (DB-first) im Service;
+- **4 — Klasse-D-Gates** (`e75bcf3`): `IHierarchicalModeReader` (DB-first) im Service;
   `CoatingDetectionService`, `FaWorkStepDetectionService`, `BomCacheSyncService` (**beide** Einstiege,
   inkl. `SyncSpecificArticleNumbersAsync` aus `SageImportService`) überspringen bei Master `true`
   ohne DB-Zugriff, geloggt als Skip (`uebersprungen_hierarchisch`).
-- **5 — Views** (`cd34b08`, `86371ee`, Review-Fix `a3f125e`): `Bom.cshtml` Spalten Komm.-Ziel,
+- **5 — Views** (`62685c0`, `9f0f210`, Review-Fix `92de2b8`): `Bom.cshtml` Spalten Komm.-Ziel,
   Hauptlagerplatz, Sage-Pos. (default ausgeblendet), bei Vollstruktur Ebene/Vater-Sub-FA; Badges
   „Waise"/„Kollision"; Tooltip Sage-Position; Registrierung in `ColumnDefinitions.Bom` **und** im
   Inline-`#column-config` (Review-Fund: der Client liest nur Letzteres). Artikelinfo: HauptFA als Gerät
   + Sub-FA-Spalte, `GetBySubOrderNumbersAsync`, Verbrauch = Σ Sollmenge ohne × Stückzahl. Navigation:
   Dropdown „Kommissionierung" (Picking-Workflow + Kommissionierlisten) **nur** wenn beide verfügbar,
   sonst bisheriger Einzel-Link (AKE unverändert).
-- **6 — Version/Doku** (`8d9468d`): 1.35.0 → **1.36.0** (Web+Service), Anwender-Changelog, Hilfe,
+- **6 — Version/Doku** (`5b83ea0`): 1.35.0 → **1.36.0** (Web+Service), Anwender-Changelog, Hilfe,
   TS-70 (70.1–70.11) in `docs/TESTSZENARIEN.md`, **TS-68 als abgelöst markiert**, DI-Auflösungstest
   `BomDiResolutionTests` (schützt die lazy Weiche gegen Rekursion).
-- **Final-Review-Fixwelle** (`22d31ae`): `PrintPicking` auf `BomScopes.ForOrder` (sonst leere
+- **Final-Review-Fixwelle** (`5226352`): `PrintPicking` auf `BomScopes.ForOrder` (sonst leere
   Bezeichnungen tieferer Ebenen im Kommissionierschein); deterministischer Tiebreak
   (`ThenBy SubFA, Artnr`) für Kollisions-Suffixe (sonst wandernder Pick-Zustand nach Cache-Ablauf);
   Warnung bei zweiter echter Wurzel; TS-70.7 (drei Protokoll-Läufe, spezifischer BOM-Cache-Pfad nur
@@ -67,14 +67,14 @@ true`; bei `false` bit-identisch zu AKE (eigene Klasse).**
 - **Migration: keine.** `PickingItem.BomPosition` (`NVARCHAR(50)`) fasst den rekursiven Pfad.
 - **Deploy: `web: true`, `service: true` (Gates + Konstruktor-Signaturen), `migration: false`.**
 - **Kontext:** Teil des ungemergten Bündels (Teile 1–8 + FA-Liste-Hierarchie + diese Spec) — Schranke 2
-  für alles zusammen, ein Merge. **Vorher:** `publish.zip`-Blob (Commit `549c5db`) aus der History.
+  für alles zusammen, ein Merge. **Vorher:** `publish.zip`-Blob (Commit `950d872`) aus der History.
 
 ## Tests
 
-qa-agent-Lauf 2026-09-08 (Worktree-HEAD `22d31ae`, nach der Final-Review-Fixwelle): `dotnet build
+qa-agent-Lauf 2026-09-08 (Worktree-HEAD `5226352`, nach der Final-Review-Fixwelle): `dotnet build
 IdealAkeWms.slnx` → 0 Fehler. `dotnet test IdealAkeWms.Tests` → **1266 erfolgreich, 1 übersprungen
 (vorbestehend), 0 Fehler, gesamt 1267.** `dotnet test IDEALAKEWMSService.Tests` → **236 erfolgreich,
-0 Fehler.** AK 1–16 gegen den echten Diff `25399be..22d31ae` abgeglichen, Guard-Grep
+0 Fehler.** AK 1–16 gegen den echten Diff `8005eb3..5226352` abgeglichen, Guard-Grep
 (`HierarchicalUnavailable`/`HierarchicalBomGuardRepository`) in Quelldateien leer, `publish.zip` in
 keinem Commit dieser Spec. Neue Tests: `FaHierarchyBomRepositoryTests` (13),
 `BomRepositoryMasterSwitchTests` (4), `BomQuantityResolverTests` (2), `HierarchicalModeGateTests` (4),

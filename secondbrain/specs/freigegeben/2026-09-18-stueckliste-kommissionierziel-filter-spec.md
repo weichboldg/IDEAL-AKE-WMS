@@ -609,8 +609,8 @@ Antworten selbst sind stimmig und am Code gedeckt — es fehlt nur ihre Einarbei
 
 ## QA-Nachweis (2026-09-21, qa-agent)
 
-**Commit-Range geprueft:** `f04a7e0~1..5f933f1` (Basis `ed70c2b`, Feature-Commits `f04a7e0` +
-`92139a4` + `5f933f1`) im Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Branch
+**Commit-Range geprueft:** `1bef63d~1..95b611b` (Basis `7099c36`, Feature-Commits `1bef63d` +
+`17af86b` + `95b611b`) im Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Branch
 `feature/2026-08-07-ideal-teile-1-5`. Diff: 23 Dateien, +4610/-15.
 
 **Build:** `dotnet build IdealAkeWms.slnx` → **0 Fehler**, 12 Warnungen (alle vorbestehend,

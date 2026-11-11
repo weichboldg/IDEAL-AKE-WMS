@@ -144,51 +144,70 @@ public class OseonSyncService : IOseonSyncService
                 deltaFilter.HasValue ? " (Delta-Sync)" : " (Full-Sync)",
                 rowsWithTimestamp);
 
-            // Nach OseonOrderNumber gruppieren → Orders + AGAs
-            var orderGroups = oseonRows
-                .Where(r => !string.IsNullOrEmpty(r.OseonOrderNumber))
-                .GroupBy(r => r.OseonOrderNumber!)
-                .ToList();
+            // Je Auftragsnummer genau eine OSEON-Zeile (hoechste ID), AGs nur aus dieser Zeile (Hotfix v1.30.3).
+            var selection = OseonOrderSelection.Select(oseonRows);
 
-            _logger.LogInformation("OSEON: {Count} eindeutige Aufträge.", orderGroups.Count);
+            _logger.LogInformation("OSEON: {Count} eindeutige Aufträge.", selection.Orders.Count);
+
+            // Melden statt still behandeln: mehrere OSEON-Datensaetze zu einer Auftragsnummer.
+            foreach (var m in selection.Multiples)
+            {
+                await run.LogWarningAsync(
+                    $"Auftrag {m.OrderNumber}: OSEON liefert {m.OseonIds.Count} Datensätze (IDs {string.Join(", ", m.OseonIds)}), übernommen {m.SelectedOseonId}",
+                    reference: m.OrderNumber, ct: ct);
+            }
 
             if (dryRun)
             {
-                await run.FinishSuccessAsync(new Dictionary<string, int>
-                {
-                    ["neu"] = 0,
-                    ["aktualisiert"] = 0,
-                }, messageSuffix: "[DryRun]", ct: ct);
-                return new SyncResult(0, 0, 0, $"DryRun: {oseonRows.Count} Zeilen, {orderGroups.Count} Aufträge aus OSEON gelesen.");
+                await run.FinishSuccessAsync(Counts(0, 0, 0, selection.Multiples.Count, 0),
+                    messageSuffix: "[DryRun]", ct: ct);
+                return new SyncResult(0, 0, 0, $"DryRun: {oseonRows.Count} Zeilen, {selection.Orders.Count} Aufträge aus OSEON gelesen.");
             }
 
-            if (orderGroups.Count == 0)
+            if (selection.Orders.Count == 0)
             {
-                await run.FinishSuccessAsync(new Dictionary<string, int>
-                {
-                    ["neu"] = 0,
-                    ["aktualisiert"] = 0,
-                }, ct: ct);
+                await run.FinishSuccessAsync(Counts(0, 0, 0, 0, 0), ct: ct);
                 return new SyncResult(0, 0, 0, "Keine geänderten Datensätze in OSEON.");
             }
 
             // 1. Werkbänke auto-anlegen (Bulk-Insert fehlender)
-            await EnsureWorkplacesExistBulkAsync(wmsConn, orderGroups, ct);
+            await EnsureWorkplacesExistBulkAsync(wmsConn, selection.Orders, ct);
 
             // 2. Bulk MERGE: Orders
-            var (inserted, updated) = await BulkMergeOrdersAsync(wmsConn, orderGroups, hasTimestampColumns, ct);
+            var orderMerge = await BulkMergeOrdersAsync(wmsConn, selection.Orders, hasTimestampColumns, ct);
+            foreach (var (number, oldId, newId) in orderMerge.Reissued)
+            {
+                await run.LogWarningAsync(
+                    $"Auftrag {number}: OSEON-ID {oldId} → {newId} (neu ausgeschrieben)",
+                    reference: number, ct: ct);
+            }
+            foreach (var (number, deliveredId, storedId) in orderMerge.OlderIdsSkipped)
+            {
+                await run.LogWarningAsync(
+                    $"Auftrag {number}: OSEON liefert ältere ID {deliveredId}, gespeichert ist {storedId} — nicht übernommen (höchste ID gewinnt)",
+                    reference: number, ct: ct);
+            }
 
             // 3. Bulk MERGE: Work Operations (AGAs)
-            await BulkMergeOperationsAsync(wmsConn, oseonRows, hasTimestampColumns, ct);
+            var opsCollationDuplicates = await BulkMergeOperationsAsync(wmsConn, selection.Operations, hasTimestampColumns, ct);
 
-            _logger.LogInformation("OSEON-Tracking-Sync abgeschlossen: {Inserted} neu, {Updated} aktualisiert.",
-                inserted, updated);
-
-            await run.FinishSuccessAsync(new Dictionary<string, int>
+            var collationDuplicates = orderMerge.CollationDuplicates + opsCollationDuplicates;
+            if (collationDuplicates > 0)
             {
-                ["neu"] = inserted,
-                ["aktualisiert"] = updated,
-            }, ct: ct);
+                await run.LogWarningAsync(
+                    $"{collationDuplicates} OSEON-Zeile(n) nach DB-Kollation doppelt und verworfen " +
+                    $"(Aufträge: {orderMerge.CollationDuplicates}, Arbeitsgänge: {opsCollationDuplicates}). Datenbefund, kein Normalbetrieb.",
+                    ct: ct);
+            }
+
+            var inserted = orderMerge.Inserted;
+            var updated = orderMerge.Updated;
+
+            _logger.LogInformation("OSEON-Tracking-Sync abgeschlossen: {Inserted} neu, {Updated} aktualisiert, {Reissued} neu ausgeschrieben.",
+                inserted, updated, orderMerge.Reissued.Count);
+
+            await run.FinishSuccessAsync(Counts(inserted, updated, orderMerge.Reissued.Count,
+                selection.Multiples.Count, collationDuplicates, orderMerge.OlderIdsSkipped.Count), ct: ct);
 
             return new SyncResult(inserted, updated, 0);
         }
@@ -201,14 +220,25 @@ public class OseonSyncService : IOseonSyncService
         }
     }
 
+    private static Dictionary<string, int> Counts(int inserted, int updated, int reissued, int multiples,
+        int collationDuplicates, int olderIdsSkipped = 0) => new()
+    {
+        ["neu"] = inserted,
+        ["aktualisiert"] = updated,
+        ["neu_ausgeschrieben"] = reissued,
+        ["mehrfach_in_oseon"] = multiples,
+        ["doppelt_nach_kollation"] = collationDuplicates,
+        ["aeltere_id_uebersprungen"] = olderIdsSkipped,
+    };
+
     /// <summary>
     /// Bulk-Insert aller fehlenden Werkbänke in einem Durchgang.
     /// </summary>
     private async Task EnsureWorkplacesExistBulkAsync(SqlConnection conn,
-        List<IGrouping<string, OseonRawRow>> orderGroups, CancellationToken ct)
+        IReadOnlyList<OseonRawRow> orders, CancellationToken ct)
     {
-        var distinctWorkplaces = orderGroups
-            .Select(g => g.First().WorkplaceName)
+        var distinctWorkplaces = orders
+            .Select(o => o.WorkplaceName)
             .Where(w => !string.IsNullOrWhiteSpace(w))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
@@ -250,8 +280,8 @@ public class OseonSyncService : IOseonSyncService
     /// Bulk MERGE für OseonProductionOrders über Temp-Table.
     /// Statt ~5000 einzelne Roundtrips → 1 BulkCopy + 1 MERGE Statement.
     /// </summary>
-    private async Task<(int inserted, int updated)> BulkMergeOrdersAsync(SqlConnection conn,
-        List<IGrouping<string, OseonRawRow>> orderGroups, bool hasTimestampColumns, CancellationToken ct)
+    private async Task<OrderMergeResult> BulkMergeOrdersAsync(SqlConnection conn,
+        IReadOnlyList<OseonRawRow> orders, bool hasTimestampColumns, CancellationToken ct)
     {
         // DataTable für BulkCopy aufbauen
         var dt = new DataTable();
@@ -269,9 +299,8 @@ public class OseonSyncService : IOseonSyncService
         if (hasTimestampColumns)
             dt.Columns.Add("LastChangedInOseon", typeof(DateTime));
 
-        foreach (var group in orderGroups)
+        foreach (var row in orders)
         {
-            var row = group.First();
             var dr = dt.NewRow();
             dr["OseonId"] = row.OseonId;
             dr["OseonOrderNumber"] = row.OseonOrderNumber ?? (object)DBNull.Value;
@@ -334,16 +363,50 @@ public class OseonSyncService : IOseonSyncService
         var tsInsertCols = hasTimestampColumns ? ",\n                        [LastChangedInOseon]" : "";
         var tsInsertVals = hasTimestampColumns ? ",\n                        source.[LastChangedInOseon]" : "";
 
+        // SQL-Waechter: Die C#-Auswahl bildet die DB-Kollation nur nach. Was nach Kollation doppelt ist,
+        // verwirft ROW_NUMBER (hoechste OseonId bleibt) - sonst bricht der MERGE (8672) bzw. der Index (2601).
+        const string orderPartition = "PARTITION BY t.[OseonOrderNumber] ORDER BY t.[OseonId] DESC";
+        var collationDuplicates = await CountRowNumberDuplicatesAsync(conn, "#TmpOseonOrders", orderPartition, ct);
+
+        var dedupedSource = $"""
+            SELECT t.*
+            FROM (
+                SELECT t.*, ROW_NUMBER() OVER ({orderPartition}) AS rn
+                FROM #TmpOseonOrders t
+            ) t
+            WHERE t.rn = 1
+            """;
+
+        // "Hoechste ID gewinnt" gilt auch gegen den gespeicherten Stand, nicht nur im Delta: aendert OSEON nach
+        // einer Neuausschreibung nur noch die ALTE Zeile (z.B. Storno), liefert das Delta nur die alte ID.
+        // Diese Zeilen werden nicht uebernommen (WHEN MATCHED AND ...), sondern gemeldet.
+        var olderIds = new List<(string Number, long DeliveredId, long StoredId)>();
+        await using (var cmd = new SqlCommand($"""
+            SELECT s.[OseonOrderNumber], s.[OseonId], target.[OseonId]
+            FROM ({dedupedSource}) s
+            INNER JOIN [dbo].[OseonProductionOrders] target ON target.[OseonOrderNumber] = s.[OseonOrderNumber]
+            WHERE s.[OseonId] < target.[OseonId]
+            """, conn) { CommandTimeout = 60 })
+        await using (var reader = await cmd.ExecuteReaderAsync(ct))
+        {
+            while (await reader.ReadAsync(ct))
+                olderIds.Add((reader.IsDBNull(0) ? "" : reader.GetString(0), reader.GetInt64(1), reader.GetInt64(2)));
+        }
+
+        // MERGE ueber die Auftragsnummer (eindeutiger Index), nicht ueber die OSEON-ID: OSEON schreibt
+        // Auftraege neu aus (gleiche Nummer, neue ID). Die OseonId wird im UPDATE umgeschluesselt,
+        // der WMS-Datensatz (Id) und damit seine Arbeitsgaenge bleiben erhalten.
         var mergeSql = $"""
             MERGE [dbo].[OseonProductionOrders] AS target
             USING (
                 SELECT t.*, pw.[Id] AS WorkplaceId
-                FROM #TmpOseonOrders t
+                FROM ({dedupedSource}) t
                 LEFT JOIN [dbo].[ProductionWorkplaces] pw ON pw.[Name] = t.[WorkplaceName]
             ) AS source
-            ON target.[OseonId] = source.[OseonId]
-            WHEN MATCHED THEN
+            ON target.[OseonOrderNumber] = source.[OseonOrderNumber]
+            WHEN MATCHED AND source.[OseonId] >= target.[OseonId] THEN
                 UPDATE SET
+                    target.[OseonId]               = source.[OseonId],
                     target.[OseonOrderNumber]      = source.[OseonOrderNumber],
                     target.[CustomerOrderNumber]   = source.[CustomerOrderNumber],
                     target.[OseonStatus]           = source.[OseonStatus],
@@ -367,18 +430,24 @@ public class OseonSyncService : IOseonSyncService
                         source.[ArticleNumber],source.[Description1],source.[Description2],source.[WorkplaceName],
                         source.[WorkplaceId],source.[QuantityTarget],source.[QuantityActual],source.[DueDate]{tsInsertVals},
                         GETUTCDATE(),'IDEALAKEWMSService',SYSTEM_USER)
-            OUTPUT $action;
+            OUTPUT $action, deleted.[OseonId], inserted.[OseonId], inserted.[OseonOrderNumber];
             """;
 
         int inserted = 0, updated = 0;
+        var reissued = new List<(string Number, long OldId, long NewId)>();
         await using (var cmd = new SqlCommand(mergeSql, conn) { CommandTimeout = 120 })
         await using (var reader = await cmd.ExecuteReaderAsync(ct))
         {
             while (await reader.ReadAsync(ct))
             {
                 var action = reader.GetString(0);
-                if (action == "INSERT") inserted++;
-                else updated++;
+                if (action == "INSERT") { inserted++; continue; }
+
+                updated++;
+                var oldId = reader.GetInt64(1);
+                var newId = reader.GetInt64(2);
+                if (oldId != newId)
+                    reissued.Add((reader.IsDBNull(3) ? "" : reader.GetString(3), oldId, newId));
             }
         }
 
@@ -386,21 +455,37 @@ public class OseonSyncService : IOseonSyncService
         await using (var cmd = new SqlCommand("DROP TABLE #TmpOseonOrders", conn))
             await cmd.ExecuteNonQueryAsync(ct);
 
-        return (inserted, updated);
+        return new OrderMergeResult(inserted, updated, reissued, olderIds, collationDuplicates);
+    }
+
+    private sealed record OrderMergeResult(int Inserted, int Updated,
+        List<(string Number, long OldId, long NewId)> Reissued,
+        List<(string Number, long DeliveredId, long StoredId)> OlderIdsSkipped,
+        int CollationDuplicates);
+
+    /// <summary>
+    /// Anzahl der Zeilen, die der SQL-Waechter (<c>ROW_NUMBER() ... WHERE rn = 1</c>) verwirft:
+    /// in C# verschieden, nach DB-Kollation gleich. Erwartet 0.
+    /// </summary>
+    private static async Task<int> CountRowNumberDuplicatesAsync(SqlConnection conn, string tempTable,
+        string partition, CancellationToken ct)
+    {
+        await using var cmd = new SqlCommand(
+            $"SELECT COUNT(*) FROM (SELECT ROW_NUMBER() OVER ({partition}) AS rn FROM {tempTable} t) x WHERE x.rn > 1",
+            conn) { CommandTimeout = 60 };
+        return (int)(await cmd.ExecuteScalarAsync(ct))!;
     }
 
     /// <summary>
     /// Bulk MERGE für OseonWorkOperations über Temp-Table.
+    /// <paramref name="operationRows"/> kommt aus <see cref="OseonOrderSelection"/>: nur AGs der gewählten
+    /// Auftragszeile, je (Nummer, Position) einmal. Nicht mehr gelieferte AGs bleiben stehen (der Sync löscht nie).
+    /// Rückgabe: Anzahl der vom SQL-Wächter verworfenen Zeilen (nach DB-Kollation doppelt).
     /// </summary>
-    private async Task BulkMergeOperationsAsync(SqlConnection conn,
-        List<OseonRawRow> oseonRows, bool hasTimestampColumns, CancellationToken ct)
+    private async Task<int> BulkMergeOperationsAsync(SqlConnection conn,
+        IReadOnlyList<OseonRawRow> operationRows, bool hasTimestampColumns, CancellationToken ct)
     {
-        // Nur Zeilen mit Positionsnummer (= Arbeitsgänge)
-        var operationRows = oseonRows
-            .Where(r => !string.IsNullOrEmpty(r.OseonOrderNumber) && !string.IsNullOrEmpty(r.PositionNumber))
-            .ToList();
-
-        if (operationRows.Count == 0) return;
+        if (operationRows.Count == 0) return 0;
 
         // DataTable für BulkCopy
         var dt = new DataTable();
@@ -467,13 +552,22 @@ public class OseonSyncService : IOseonSyncService
         var tsInsertCols = hasTimestampColumns ? ",\n                        [LastStatusReportInOseon]" : "";
         var tsInsertVals = hasTimestampColumns ? ",\n                        source.[LastStatusReportInOseon]" : "";
 
+        // SQL-Waechter wie beim Auftrags-MERGE: je (Nummer, Position) nach DB-Kollation genau eine Zeile.
+        var opsPartition = "PARTITION BY t.[OseonOrderNumber], t.[PositionNumber] ORDER BY "
+            + (hasTimestampColumns ? "t.[LastStatusReportInOseon] DESC, " : "") + "t.[OseonStatus] DESC";
+        var collationDuplicates = await CountRowNumberDuplicatesAsync(conn, "#TmpOseonOps", opsPartition, ct);
+
         var mergeSql = $"""
             MERGE [dbo].[OseonWorkOperations] AS target
             USING (
                 SELECT opo.[Id] AS OrderId, t.[PositionNumber], t.[Name], t.[Description],
                        t.[OseonStatus], t.[IsFirstOperation], t.[IsLastOperation]{tsSelect}
-                FROM #TmpOseonOps t
+                FROM (
+                    SELECT t.*, ROW_NUMBER() OVER ({opsPartition}) AS rn
+                    FROM #TmpOseonOps t
+                ) t
                 INNER JOIN [dbo].[OseonProductionOrders] opo ON opo.[OseonOrderNumber] = t.[OseonOrderNumber]
+                WHERE t.rn = 1
             ) AS source
             ON target.[OseonProductionOrderId] = source.[OrderId] AND target.[PositionNumber] = source.[PositionNumber]
             WHEN MATCHED THEN
@@ -501,6 +595,8 @@ public class OseonSyncService : IOseonSyncService
         // Temp-Table aufräumen
         await using (var cmd = new SqlCommand("DROP TABLE #TmpOseonOps", conn))
             await cmd.ExecuteNonQueryAsync(ct);
+
+        return collationDuplicates;
     }
 
     public async Task<SyncResult> SyncWorkplacesToProductionOrdersAsync(bool dryRun, CancellationToken ct = default)
@@ -726,28 +822,5 @@ public class OseonSyncService : IOseonSyncService
             await run.FinishFailedAsync(ex.Message, ct: ct);
             throw;
         }
-    }
-
-    private class OseonRawRow
-    {
-        public long OseonId { get; set; }
-        public string? CustomerOrderNumber { get; set; }
-        public string? OseonOrderNumber { get; set; }
-        public int PaStatus { get; set; }
-        public string? PositionNumber { get; set; }
-        public string? ActivityName { get; set; }
-        public string? ActivityDescription { get; set; }
-        public int AgaStatus { get; set; }
-        public bool IsFirstAga { get; set; }
-        public bool IsLastAga { get; set; }
-        public string? ArticleNumber { get; set; }
-        public string? Description1 { get; set; }
-        public string? Description2 { get; set; }
-        public string? WorkplaceName { get; set; }
-        public decimal QuantityTarget { get; set; }
-        public decimal QuantityActual { get; set; }
-        public DateTime? DueDate { get; set; }
-        public DateTime? DateOfLastChange { get; set; }
-        public DateTime? LastStatusReport { get; set; }
     }
 }

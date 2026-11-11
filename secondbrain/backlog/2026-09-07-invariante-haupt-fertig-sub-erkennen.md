@@ -12,7 +12,7 @@ umgesetzt; nur dieses Sicherheitsnetz wurde herausgelöst, weil es den Deploy-Um
 
 ## Fachlicher Fall
 
-Die Kaskade „Alle Sub-FAs fertigmelden" (Etappe C, Commit `a305d6f`) stellt beim Setzen sicher:
+Die Kaskade „Alle Sub-FAs fertigmelden" (Etappe C, Commit `8806016`) stellt beim Setzen sicher:
 Haupt-FA fertig ⇒ alle Nachfahren fertig. **ABER:** Der Materialisierungs-Sync (Sync-Regel 1,
 `FaMaterializationSyncService`) legt neue Sub-FAs an. Taucht in Sage ein **neuer Sub-FA unter einem
 bereits fertiggemeldeten Haupt-FA** auf, entsteht der verbotene Zustand „Haupt fertig, Sub offen" —
@@ -62,6 +62,6 @@ echten Datenlauf widerlegt — das Banner hat es sichtbar gemacht).
 ## Bezug
 
 - Spec: [[2026-08-18-fa-liste-hierarchie-anzeige-spec]] (Z3, Z3b, AK-Kontext)
-- Kaskade: Etappe C, Commit `a305d6f`
+- Kaskade: Etappe C, Commit `8806016`
 - Z1-Invariante (Sync fasst WMS-Zustände nicht an): Regressionstest
   `FaMaterializationSyncServiceTests.RunAsync_DoesNotResetIsDoneBde_OnExistingSubFa` (Service)

@@ -2,7 +2,8 @@
 type: spec
 title: "Listen: Spaltenauswahl an die IDEAL-Listen anschliessen + ADR 0005 ergaenzen"
 slug: 2026-08-12-listen-spaltenauswahl-spec
-status: Freigegeben
+status: Testbereit
+# Status nachgezogen (Koordination 2026-10-14): umgesetzt im Buendel v1.31.0, Beleg changelog/2026-08-10-v1-31-0-ideal-teile-1-5.md
 created: 2026-08-12
 updated: 2026-08-12
 source_backlog: "[[2026-08-12-listen-spaltenauswahl]]"

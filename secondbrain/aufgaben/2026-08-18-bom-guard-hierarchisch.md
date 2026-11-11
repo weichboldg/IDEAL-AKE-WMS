@@ -45,7 +45,7 @@ Hierarchische BOM-Quelle / `FaHierarchyBomRepository` / Cache-Umbau / Sweep alle
 
 ## Fortschritt
 - Setup — **erledigt**.
-- Umsetzung — **feature-complete** (Worktree `1173cf1`): Guard-Decorator + DI, `BomDataSources`-Marker,
+- Umsetzung — **feature-complete** (Worktree `34ca168`): Guard-Decorator + DI, `BomDataSources`-Marker,
   Bom.cshtml-Hinweis + Ausblenden + Badge, 3× `supportsSortDefault=true`, 5 Guard-Tests, TS-68 +
   TS-59.19/60.17/61.25 umgekehrt. Kein Versions-Bump. Build grün, Web-Suite **1219 grün** (+5).
 - **QA (2026-08-18) — Testbereit.** Build grün, Web-Suite 1219/1 skip/0 Fehler, Service-Suite
@@ -54,8 +54,8 @@ Hierarchische BOM-Quelle / `FaHierarchyBomRepository` / Cache-Umbau / Sweep alle
   Selbstreferenz). Deploy-Abschnitt der Spec finalisiert (Web ja / Service nein / Migration nein,
   Publish-Befehl aus dem Worktree). Manuelle Test-Checkliste an die Spec angehängt. Wartet auf
   Schranke 2 (Mensch: Manual-UAT, dann Merge).
-- **Re-QA Nachtrag UAT-Lauf 1 (2026-09-08) — weiterhin Testbereit.** Worktree-HEAD jetzt `a8d75de`
+- **Re-QA Nachtrag UAT-Lauf 1 (2026-09-08) — weiterhin Testbereit.** Worktree-HEAD jetzt `c02c6f9`
   (Befund U1: JS-Frühabbruch auf der Guard-Hinweisseite + Sub-FA-Kopfzeile). Build grün, Web-Suite
-  **1245 grün +1 skip** (+2 ggü. `dde9a17`), Service-Suite **232 grün** unverändert. Diff-Review
+  **1245 grün +1 skip** (+2 ggü. `ea3932d`), Service-Suite **232 grün** unverändert. Diff-Review
   ohne Befund (AKE-Flachmodus bit-identisch, JS-Guard trifft nur den Hinweiszweig, `KEINE_DATEN`
   behält `#bomTable`). Details siehe Spec-Abschnitt „Re-QA Nachtrag UAT-Lauf 1 (2026-09-08)".

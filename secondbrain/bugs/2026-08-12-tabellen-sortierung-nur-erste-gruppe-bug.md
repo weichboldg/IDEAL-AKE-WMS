@@ -5,7 +5,7 @@ status: behoben
 severity: mittel
 created: 2026-08-12
 fixed: 2026-08-12
-fixed_in: "Etappe 6 des IDEAL-Epics, Branch feature/2026-08-07-ideal-teile-1-5, Worktree-Commit 37e8752. Erreicht main erst mit dem Epic-Merge. Fix: je tbody separat sortieren; fuer Ein-tbody-Tabellen verhaltensgleich. Build+Tests gruen: Web 1139 + Service 221."
+fixed_in: "Etappe 6 des IDEAL-Epics, Branch feature/2026-08-07-ideal-teile-1-5, Worktree-Commit 3894e3d. Erreicht main erst mit dem Epic-Merge. Fix: je tbody separat sortieren; fuer Ein-tbody-Tabellen verhaltensgleich. Build+Tests gruen: Web 1139 + Service 221."
 affected_code:
   - IdealAkeWms/wwwroot/js/table-filter.js (Sortier-Logik, stuetzte sich auf table.querySelector('tbody') statt querySelectorAll)
   - "betroffen (nur im Epic-Zweig, nicht in main): Views/FaHierarchyKommissionierListen/Index.cshtml, Views/FaHierarchyBeschichtung/Index.cshtml, Views/FaHierarchyVormontage/Index.cshtml (je ein tbody pro HauptFA-Gruppe)"

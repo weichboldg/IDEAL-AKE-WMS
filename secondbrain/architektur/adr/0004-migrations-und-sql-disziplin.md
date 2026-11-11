@@ -63,3 +63,10 @@ markiert und mit „DB-Backup vor Deploy" dokumentiert.
   (Punkt 5 ist der haeufigste Fehler — Fallstrick dazu in [[fallstricke]]).
 - Das FreshInstall-Skript ist ein handgepflegtes Konsolidat, also selbst eine Fehlerquelle.
 - Deploys sind an Wartungsfenster gebunden, sobald AgentJobs mitziehen muessen.
+
+## Nachtrag 2026-11-06 (G17, v1.73.0): SQL-Nummern ab 100
+
+Die nummerierte Reihe zaehlt dreistellig weiter (`SQL/100_…`, `SQL/101_…`). Dreistellige Namen sortieren lexikographisch **vor**
+`11_…`–`99_…`; die Ausfuehrungsreihenfolge sichert deshalb die Deploy-Liste im Brain-Changelog bzw. der Spec, nicht die Dateisortierung.
+Reservierte Nummern einer zurueckgestellten Etappe verfallen: es gilt die naechste freie Nummer zum Start der Etappe
+([[2026-11-06-sage-sdata-stammdaten-sync-spec]]: E5 → 102 an E6a).

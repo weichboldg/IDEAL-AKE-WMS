@@ -35,9 +35,14 @@ Connection Strings bleiben **appsettings-only** und wandern nie in die per UI ed
 | Lagerplatz-Stammdaten | `StorageLocations` | `LagerplatzSyncService` (`Sync:LagerplaetzeEnabled`) |
 | Lagerbestand | Korrektur-Buchungen | `LagerbestandSyncService` (`Sync:LagerbestandEnabled`) |
 | Artikel inkl. Hauptlagerplatz + Meldebestand | `Articles` | `SageImportService.SyncArticlesAsync` (raw SQL) |
+| IDEAL ab v1.60.0, je Einstellung: `vw_IDEAL_AKE_WMS_FAListe`/`_FAInfos` (FA-Struktur), `vw_IDEAL_AKE_WMS_Arbeitsgaenge` (liefert Arbeitsplaetze), `vw_IDEAL_AKE_WMS_Artikel` | `FaHierarchyNodes`/`OrderInfos`, `ProductionWorkplaces`, `Articles` | Keys `Sync:FaHierarchy*ViewName`, `Sync:ProductionWorkplaceSyncViewName`, `Sync:ArticlesViewName`; Existenzpruefung `FaHierarchySql.SourceExistsAsync` (`OBJECT_ID`, ohne Typfilter): FA fehlt = Fehler + Mail, sonst Warnung + Skip. [[2026-10-14-ideal-sage-views-umstellung-spec]] |
 
 **Was zurueckgeschrieben wird:** nur Rueckmeldungen, und nur wenn `SageRueckmeldungAktiv` gesetzt
 ist.
+> [!warning] Korrektur 2026-11-02 (am Code belegt, [[2026-11-02-sage-pps-abgleich]] B-1)
+> Der Satz oben stimmt nicht. Zurueckgeschrieben werden **nur Lagerbuchungen** (SData `LagerbuchungService`, Gate ServiceSetting
+> `SageLagerbuchungAktiv`, `SageBookingWorker.cs:66`). **Rueckmeldungen schreibt kein Code**; `SageRueckmeldungAktiv` wird nur angelegt
+> (`Program.cs:291`) und in `/Settings` angezeigt, aber nirgends gelesen.
 
 ### Aufbau der BOM-View `vw_AKE_Kommissionierung_StuecklistenDB`
 
@@ -86,11 +91,21 @@ BOM-Stored-Procedure als Fallback.
 
 **Delta-Sync** ueber `LastChangedInOseon` mit 5 Minuten Puffer.
 
+**Abgleich ueber die Auftragsnummer** (seit v1.30.2): Der Auftrags-MERGE auf `OseonProductionOrders` laeuft
+`ON OseonOrderNumber` (eindeutiger Index), nicht ueber `OseonId` (nur normaler Index). OSEON schreibt Auftraege neu
+aus (gleiche `AuftragsNr`, neue `ID`) — dann wird die `OseonId` im UPDATE umgeschluesselt, der WMS-Datensatz und seine
+AGs bleiben. Je Nummer gewinnt die hoechste OSEON-ID (`OseonOrderSelection`), ein `ROW_NUMBER`-Waechter in beiden
+MERGE-Quellen faengt Kollations-Duplikate ab. Counts `neu_ausgeschrieben`, `mehrfach_in_oseon`,
+`doppelt_nach_kollation` + Warnzeilen im Aktivitaets-Protokoll. Nicht mehr gelieferte AGs bleiben stehen (der Sync
+loescht nie). → [[fallstricke]] „MERGE-Schluessel = eindeutiger Index", [[2026-11-07-oseon-sync-neu-ausgeschriebener-auftrag-spec]].
+
 **Teileverfolgung** (`TrackingController`, `Views/Tracking/`):
 - 3-Ebenen-Baum: KundenAuftragsNr → Subauftraege → Arbeitsgaenge.
 - Ampelsystem Rot/Gelb/Blau/Gruen/Grau aus Soll-Terminen und Status
   (`OseonTrafficLightService`, Schwellen `OseonAmpelGelbTage`, `OseonAmpelBlauTage`).
 - AG-Konfiguration in `OseonOperationConfig`: Offset-Tage und OSEON-Relevanz je Arbeitsgang.
+  *(Seit v1.54.0 umbenannt: Klasse `OperationConfig`, Tabelle `dbo.OperationConfigs`, Spalte `IsExternalSystemRelevant`, `AuditableEntity`; Migration `20261012140548_RenameOperationConfigsAndAddAudit` / `SQL/95` — [[2026-10-09-arbeitsgang-stammdaten-vereinheitlichen-spec]].)* Pflege: BDE-Stammdaten › Arbeitsgaenge (`OperationConfigsController`); das Flag heisst in der UI „Fremdsystem-relevant“
+  und wirkt weiterhin nur in OSEON-Teileverfolgung und -Reporting.
 - Status-Codes: 10 = Unvollstaendig, 20 = Gueltig, 30 = Freigegeben, 60 = In Arbeit,
   70 = Gesperrt, 90 = Fertig, 95 = Storniert.
 - Server-seitige Paginierung (25 Gruppen/Seite) + **Lazy-Load** der Sub-Ebenen ueber
@@ -193,3 +208,22 @@ werden asynchron ueber eine Queue an die Sage-SData-REST-API gemeldet. Details:
   `SyncLogServices.SageLagerbuchung`.
 - **Nicht in Scope (Step 1):** Umbuchung, BDE-Rueckmeldung, Serien/Chargen. Manual-UAT
   (`../../docs/TESTSZENARIEN.md` Kap. 56), da HTTP/SData nicht InMemory-testbar.
+
+### SData lesend: FA-Struktur live (v1.71.0)
+
+`SageSdataReadClient` (Web, typed HttpClient, Timeout 20 s) liest per `GET {SData:BaseUrl}/sdata/{SData:Application}/RealTimeData/{SData:Dataset}/…`
+die Quellen `dtsFaBelegsuche`, `dtsTeileverwendungsnachweis`, `dtsRueckKorrektur`, `dtsFertigmeldungen` — nur Anzeige, keine
+Persistenz. Contract `RealTimeData` ist Konstante (nicht `SData:ServiceContract`, der gehört der Lagerbuchung). Zugang aus
+`SageLagerbuchung:Username/Password` der **Web**-Konfiguration (`appsettings.Production.json` auf dem Server, nicht im Repo).
+TLS-Schalter `SageLagerbuchungSslZertifikatPruefen` gilt für beide SData-Clients; im Web reist er je Anfrage in
+`HttpRequestMessage.Options`. Spec [[2026-10-30-sage-sdata-fa-ansicht-spec]].
+
+### Die ganze SData-Schnittstelle (ausgelesen 2026-10-30)
+
+Der `LagerbuchungService` ist einer von 25 Services in einem von 19 Vertraegen. Vollstaendige Karte in
+`sage-sdata/`: [[sage-sdata-uebersicht]] (Zugang, URL-Schema, Faehigkeiten, Fallstricke) ·
+[[sage-sdata-commonwawiservices]] (alle 25 Services mit Feldern) · [[sage-sdata-api-vertraege]] (Artikel,
+Belege, Kunden, Lieferanten, DMS) · [[sage-sdata-masterdata]] (PPS-, EK-, Lager-, Stammdatenstrukturen) ·
+[[sage-sdata-realtimedata]] (1219 Lese-Datenquellen). Kernbefund: Lesen der FA-/EK-/Lagerdaten geht ohne
+Direkt-SQL; Produktions-Rueckmeldungen haben **keinen** dokumentierten Schreibweg (nur interne
+`strFaBeleg`-Struktur, 403).

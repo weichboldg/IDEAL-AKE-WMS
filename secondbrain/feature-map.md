@@ -13,7 +13,7 @@ eine Zeile.
 v1.27.0–v1.28.0 gemerged; **v1.29.0 + v1.30.0** (WMS Bugs & Improvements Teil 1–5,7,8) gemerged
 (Merge-Commit `65e3901`, 2026-08-06). **Produktiv-Deploy und Manual-UAT stehen weiterhin aus**
 → [[2026-07-deploy-v1-25-0]]. Specs ohne Pfadangabe existieren nicht — das Feature entstand vor der
-Spec-Disziplin. Release-Details je Version: `changelog/` (v1.0.0 – v1.30.0).
+Spec-Disziplin. Release-Details je Version: `changelog/` (v1.0.0 – v1.30.3; AKE-Hotfixes v1.30.1–v1.30.3 auf `main`).
 
 ## Lager und Bestand
 
@@ -84,6 +84,9 @@ Spec-Disziplin. Release-Details je Version: `changelog/` (v1.0.0 – v1.30.0).
 | Glas-Bestellung als eigener Bestelltyp | Gemerged (v1.25.0) | `2026-07-03-glas-bestellung-design.md` | `Models/WarehouseRequisitionType.cs`, `Services/GlasArticleGroupFilter.cs` |
 | Lagerbestellung aus der Stueckliste + Master-Schalter | Gemerged (v1.25.0) | `2026-07-09-lagerbestellung-aus-bom-design.md` | `Api/WarehouseRequisitionsApiController` (`quick-add`), `Filters/RequireLagerbestellungAktivAttribute.cs` |
 | AKE-Hotfix: Stuecklisten-Druck per POST (404.15) + Lagerbestellung Ist-Menge bestaetigen (Pflichtpruefung, Autosave NULL) | **Gemerged** (v1.30.1, Merge-Commit `f89c0124`, 2026-10-05; auf AKE deployt als `8cc23829`) | [[2026-09-28-ake-hotfix-stueckliste-druck-lagerbestellung-ist-spec]] | `PickingController.PrintBom`/`PrintBomPost`, `WarehouseRequisitionRepository.CloseAsync`, `Views/WarehousePicking/Details.cshtml`, `SQL/Einmalig/` ([[0015-einmal-datenskripte-ausserhalb-der-nummerierten-sql-reihe]]) |
+| AKE-Hotfix: Zahnrad (Spaltenauswahl) auf der Lagerbestellung-Detailseite sichtbar | **Gemerged** (v1.30.2, Merge-Commit `e386bfce`, 2026-11-08) | [[2026-10-08-v1-30-2-ake-hotfix-zahnrad-lagerbestellung]] | `Views/WarehousePicking/Details.cshtml`, `IdealAkeWms.Tests/Views/BomZahnradHostTests.cs` |
+| AKE-Hotfix: OSEON-Sync neu ausgeschriebener Auftrag (MERGE über Auftragsnummer) + Stücklisten-Druck Rand/Sortierung + Werkbank in der Kommissionierung | **Testbereit** (v1.30.3, direkt auf `main`, `1c7fc333`; Ersatznachweis QA Lauf 2 akzeptiert, Gerald 2026-11-08) | [[2026-11-07-oseon-sync-neu-ausgeschriebener-auftrag-spec]] | `IDEALAKEWMSService/Services/OseonSyncService.cs`, `OseonOrderSelection.cs`, `PickingController.RenderPrintBomAsync`, `Views/Picking/Index.cshtml` |
+| Sicherheits-Hotfix: Kommissionierfotos nur mit Anmeldung + Kommissionier-Recht, Löschen nur eigener FA | **Gemerged** (v1.30.4, Merge `df54dee8` 2026-11-10; Deploy AKE+IDEAL nur Web ausstehend) | [[2026-11-08-kommissionierfotos-ohne-anmeldung-abrufbar-spec]] | `PhotoController.GetFile`, `PhotoStorage`, `LoginRedirectMiddleware` |
 
 ## OSEON
 
@@ -159,12 +162,12 @@ Epics). Uebergreifende Spec: [[2026-07-29-standort-ideal-uebersicht]]; Aufgaben-
 | Teil 3 — Kommissionierlisten + gemeinsamer Listen-/Druck-Baustein | **Testbereit** (v1.31.0) | [[2026-07-29-standort-ideal-teil-3-spec]] | `Controllers/FaHierarchyKommissionierListenController.cs`, `Services/FaHierarchyListBuilder.cs`, `IBarcodeService`; `[RequireLagerProcessingAccess]` + Toggle `FaHierarchyKommissionierlistenAktiv` (Default aus) |
 | Teil 4 — Beschichtungsauftrag (erweitert Baustein, ohne PDF) | **Testbereit** (v1.31.0) | [[2026-07-29-standort-ideal-teil-4-spec]] | `Controllers/FaHierarchyBeschichtungController.cs`, `Services/BeschichtungsauftragService.cs`; **neue Rolle `beschichtungsauftrag`** (`[RequireBeschichtungsauftragAccess]`) + Toggle `FaHierarchyBeschichtungAktiv` (Default aus) |
 | Teil 5 — Vormontage-Listen (zwei Sichten, Sicht 2 = Matchcode-Aggregat) | **Testbereit** (v1.31.0) | [[2026-07-29-standort-ideal-teil-5-spec]] | `Controllers/FaHierarchyVormontageController.cs`; `[RequireVorbauAccess]` + Toggle `FaHierarchyVormontageAktiv` (Default aus) |
-| UI-Nachtrag (Etappe 6) — per-Benutzer-Spaltenauswahl an den 4 IDEAL-Listen + `table-filter.js`-Sort-Fix (je `<tbody>` separat) | **Testbereit** (v1.31.0, Commit `37e8752`) | [[2026-08-12-listen-spaltenauswahl-spec]] | `wwwroot/js/column-preferences.js` + `#view-config`/`#column-config` je View, `viewKey` in `Models/ViewModels/ColumnDefinitions.cs` `GetByViewKey`, `wwwroot/js/table-filter.js` (`sortTable`) |
-| UI-Nachtrag (Etappe 7) — FA-Struktur seitenweite Tree-Table (OSEON-Stil) + Kontrast-Fix (WCAG AA) + 4 Knoten-Icons + Baum-Spaltenfilter + column-prefs | **Testbereit** (v1.31.0, Commits `961749f`+`767f06f`) | [[2026-08-12-fa-struktur-darstellung-spec]] | `Views/FaHierarchy/*`, `wwwroot/js/fa-hierarchy-tree.js`, `Services/FaNodeClassifier.cs`, `viewKey` `FaHierarchyStructure` in `ColumnDefinitions` |
-| UAT-Anpassung (Etappe 8, 2026-08-13) — SubFA=0-Blattannahme aufgehoben (alle Positionen mit Flag, Anomalie-Banner weg, Kommissionier+Vormontage) + Kommissionier-Summiert (je HauptFA/Artnr/Sollmenge/Ziel, KW auf `KO_Termin`) + Vormontage-Summiert-Wochenbezug (KW auf `FE_Termin`, HauptFA ignoriert) | **Testbereit** (v1.31.0, Commit `e83eb1c`) | Teil-3/5-Nachtraege in [[2026-07-29-standort-ideal-teil-3-spec]] / [[2026-07-29-standort-ideal-teil-5-spec]] | `KommissionierListenService`/`VormontageService` (`leafOnly:false`), neue `.../Summiert`-Views, `Services/IsoWeekRange.cs` |
+| UI-Nachtrag (Etappe 6) — per-Benutzer-Spaltenauswahl an den 4 IDEAL-Listen + `table-filter.js`-Sort-Fix (je `<tbody>` separat) | **Testbereit** (v1.31.0, Commit `3894e3d`) | [[2026-08-12-listen-spaltenauswahl-spec]] | `wwwroot/js/column-preferences.js` + `#view-config`/`#column-config` je View, `viewKey` in `Models/ViewModels/ColumnDefinitions.cs` `GetByViewKey`, `wwwroot/js/table-filter.js` (`sortTable`) |
+| UI-Nachtrag (Etappe 7) — FA-Struktur seitenweite Tree-Table (OSEON-Stil) + Kontrast-Fix (WCAG AA) + 4 Knoten-Icons + Baum-Spaltenfilter + column-prefs | **Testbereit** (v1.31.0, Commits `a372638`+`a864745`) | [[2026-08-12-fa-struktur-darstellung-spec]] | `Views/FaHierarchy/*`, `wwwroot/js/fa-hierarchy-tree.js`, `Services/FaNodeClassifier.cs`, `viewKey` `FaHierarchyStructure` in `ColumnDefinitions` |
+| UAT-Anpassung (Etappe 8, 2026-08-13) — SubFA=0-Blattannahme aufgehoben (alle Positionen mit Flag, Anomalie-Banner weg, Kommissionier+Vormontage) + Kommissionier-Summiert (je HauptFA/Artnr/Sollmenge/Ziel, KW auf `KO_Termin`) + Vormontage-Summiert-Wochenbezug (KW auf `FE_Termin`, HauptFA ignoriert) | **Testbereit** (v1.31.0, Commit `f07ea34`) | Teil-3/5-Nachtraege in [[2026-07-29-standort-ideal-teil-3-spec]] / [[2026-07-29-standort-ideal-teil-5-spec]] | `KommissionierListenService`/`VormontageService` (`leafOnly:false`), neue `.../Summiert`-Views, `Services/IsoWeekRange.cs` |
 
 > **Status:** UMGESETZT + QA-gruen im Worktree `feature/2026-08-07-ideal-teile-1-5` (zuletzt
-> `1173cf1`, qa-agent 2026-08-18: Build gruen, Web 1219/1 skip/0 Fehler, Service 231/0 Fehler),
+> `34ca168`, qa-agent 2026-08-18: Build gruen, Web 1219/1 skip/0 Fehler, Service 231/0 Fehler),
 > wartet auf **Schranke 2** (Manual-UAT am IDEAL-Testsystem + Merge durch den Menschen).
 > Merge-Commit noch offen. Offene UAT-Punkte + Deploy-Handgriffe: [[2026-08-07-ideal-teile-1-5]].
 
@@ -178,20 +181,20 @@ Changelog [[2026-08-17-v1-32-0-ideal-teil-7]].
 
 | Etappe | Status | Code-Einstieg |
 |---|---|---|
-| A — Schema-Inversion (`SubOrderNumber` unique, `ParentSubOrderNumber`, `SageMissingSince`, Index-Tausch, Backfill) | **erledigt** (`fe7299b`) | `Models/ProductionOrder.cs`, Migration `20260814105526`, `SQL/90` |
-| B — Einweg-Migrationstor `ProduktionsauftragHierarchisch` (Guard-Planer + Decorator-Choke-Point, Umschalt-Seite, Audit, Runbook) | **erledigt** (`aed9cb5..39f7813`) | `Services/HierarchischeStruktur/*`, `Data/Repositories/GuardedServiceSettingRepository.cs`, `Controllers/HierarchieUmstellungController.cs`, `docs/RUNBOOK-FA-HIERARCHIE-RUECKBAU.md` |
-| C — Materialisierungs-Sync (3 Sync-Regeln, `SageMissingSince` selbstheilend, Sammelmail) | **erledigt** (`dc297d9..bc7e3d6`) | `IDEALAKEWMSService/Services/FaMaterializationPlanner.cs` + `FaMaterializationSyncService.cs`; SyncLog `FaMaterialization` |
-| D — Lookup-Härtung (`GetAllByFaAndOperationAsync` + Multi-Hit-Log) + dreistufige Auto-Erledigt-Sperre + Reconcile-Test + `OrderNumber`-Sweep (7 kritisch → Teil 8) | **erledigt** (`fb07512..660a01b`) | `Data/Repositories/WorkOperationRepository.cs`, `IDEALAKEWMSService/Services/FaZusatzinfoSyncService.cs`, Key `Sync:FaZusatzinfoAutoErledigtEnabled` |
+| A — Schema-Inversion (`SubOrderNumber` unique, `ParentSubOrderNumber`, `SageMissingSince`, Index-Tausch, Backfill) | **erledigt** (`7440726`) | `Models/ProductionOrder.cs`, Migration `20260814105526`, `SQL/90` |
+| B — Einweg-Migrationstor `ProduktionsauftragHierarchisch` (Guard-Planer + Decorator-Choke-Point, Umschalt-Seite, Audit, Runbook) | **erledigt** (`e727329..0a8175a`) | `Services/HierarchischeStruktur/*`, `Data/Repositories/GuardedServiceSettingRepository.cs`, `Controllers/HierarchieUmstellungController.cs`, `docs/RUNBOOK-FA-HIERARCHIE-RUECKBAU.md` |
+| C — Materialisierungs-Sync (3 Sync-Regeln, `SageMissingSince` selbstheilend, Sammelmail) | **erledigt** (`ae9be6c..285909e`) | `IDEALAKEWMSService/Services/FaMaterializationPlanner.cs` + `FaMaterializationSyncService.cs`; SyncLog `FaMaterialization` |
+| D — Lookup-Härtung (`GetAllByFaAndOperationAsync` + Multi-Hit-Log) + dreistufige Auto-Erledigt-Sperre + Reconcile-Test + `OrderNumber`-Sweep (7 kritisch → Teil 8) | **erledigt** (`b9e2482..d9a4d1e`) | `Data/Repositories/WorkOperationRepository.cs`, `IDEALAKEWMSService/Services/FaZusatzinfoSyncService.cs`, Key `Sync:FaZusatzinfoAutoErledigtEnabled` |
 | E — Version-Bump v1.32.0 + Anwender-Changelog + Brain (ADR 0012, fallstricke §9, services/controller-Karte) | **erledigt** | `AppVersion.cs` (Web+Service), `Views/Help/Changelog.cshtml` |
 
-> **Status Teil 7:** QA-gruen im Worktree (`status: Testbereit`, qa-agent 2026-08-17, HEAD `5cf802e`,
+> **Status Teil 7:** QA-gruen im Worktree (`status: Testbereit`, qa-agent 2026-08-17, HEAD `db9ecab`,
 > Web 1186 (+1 skip) + Service 231 gruen). Master **default aus** — Umstellung ist ein bewusster
 > spaeterer Schritt am Zielsystem. **Mapping datenabhaengig** (Wurzel `HauptFA==SubFA`, Node-Dezimal
 > `NULL→0`) → erster echter Datenlauf, siehe manuelle Test-Checkliste in
 > [[2026-07-29-standort-ideal-teil-7]]. Wartet auf **Schranke 2** (Manual-UAT + Merge). Merge bringt
 > Teile 1–5 **und** Teil 7 zusammen (Schranke 2 fuers ganze Buendel, kein Zwischen-Merge).
 >
-> **Post-QA-Fix #2 (`5d3e723`, 2026-08-18):** beim echten App-Start freigelegter zweiter `SqlError 3701`
+> **Post-QA-Fix #2 (`2b305ba`, 2026-08-18):** beim echten App-Start freigelegter zweiter `SqlError 3701`
 > — EF-`AlterColumn` auf `SubOrderNumber` erzeugte ungeschützten Auto-`DROP INDEX`; durch geschütztes
 > Raw-SQL ersetzt (deckungsgleich SQL/90), offline via `dotnet ef migrations script` verifiziert.
 > [[fallstricke]] §9 Nachtrag.
@@ -204,12 +207,12 @@ ein Scan kann mehrere Sub-FAs treffen. Einstieg `Services/BdeScanResolver.cs` +
 
 | Etappe | Status | Code-Einstieg |
 |---|---|---|
-| 1 — Verifikation (Teil-7-Naht, OSEON-Urteil → Etappe 5 entfällt) | **erledigt** (`418f23a`) | `docs/TEIL-8-BDE-ETAPPE-1-VERIFIKATION.md` |
-| 2 — Serverseitige Auflösungslogik `BdeScanResolver` (Exact/Ambiguous/NotInScope/NotFound, werkbank-gescopt) + 14 Unit-Tests | **erledigt** (`f86a886`) | `Services/BdeScanResolver.cs`, `Program.cs` |
-| 3 — Scan-Auswahl-UI Normal-Modus + `resolve-scan`-Endpoint | **erledigt** (`5fd0070`) | `Controllers/BdeApiController.cs`, `Views/BdeTerminal/Index.cshtml`, `wwwroot/js/bde-terminal.js`, `wwwroot/css/bde.css` |
-| 4 — NurFA-Fix (kein last-wins) + Teileverfolgung bestätigt | **erledigt** (`58c26bd`) | `wwwroot/js/bde-terminal.js`; `Controllers/TrackingController.cs` (nur Filter, unverändert) |
+| 1 — Verifikation (Teil-7-Naht, OSEON-Urteil → Etappe 5 entfällt) | **erledigt** (`d95cb63`) | `docs/TEIL-8-BDE-ETAPPE-1-VERIFIKATION.md` |
+| 2 — Serverseitige Auflösungslogik `BdeScanResolver` (Exact/Ambiguous/NotInScope/NotFound, werkbank-gescopt) + 14 Unit-Tests | **erledigt** (`992d7e1`) | `Services/BdeScanResolver.cs`, `Program.cs` |
+| 3 — Scan-Auswahl-UI Normal-Modus + `resolve-scan`-Endpoint | **erledigt** (`14d3c18`) | `Controllers/BdeApiController.cs`, `Views/BdeTerminal/Index.cshtml`, `wwwroot/js/bde-terminal.js`, `wwwroot/css/bde.css` |
+| 4 — NurFA-Fix (kein last-wins) + Teileverfolgung bestätigt | **erledigt** (`5c0735d`) | `wwwroot/js/bde-terminal.js`; `Controllers/TrackingController.cs` (nur Filter, unverändert) |
 | 5 — OSEON-Seite | **entfällt** (Etappe-1-Urteil) | — |
-| 6 — Version v1.33.0 + Anwender-Changelog + Testszenarien TS-66 | **erledigt** (`8395394`) | `AppVersion.cs` (Web+Service), `Views/Help/Changelog.cshtml`, `docs/TESTSZENARIEN.md` |
+| 6 — Version v1.33.0 + Anwender-Changelog + Testszenarien TS-66 | **erledigt** (`b8847d2`) | `AppVersion.cs` (Web+Service), `Views/Help/Changelog.cshtml`, `docs/TESTSZENARIEN.md` |
 
 > **Status Teil 8:** alle Etappen erledigt (5 entfällt), Web-Suite **1205 grün**. Wartet auf **qa-agent**
 > (setzt `Testbereit`), danach **Schranke 2** zusammen mit Teilen 1–5 + Teil 7 (ein Merge, kein
@@ -225,7 +228,7 @@ Zwei-Backend-Write) + `Models/Standort/StandortSettingsCatalog.cs` (kuratierte F
 
 | Aspekt | Status | Detail |
 |---|---|---|
-| Maske + Gruppen (Firmendaten/Mandant-Views/Toggles/Import) | **umgesetzt** (`c8ae47f`) | admin-only, Nav-Link, Bootstrap-Konsistenz `/ServiceSettings` |
+| Maske + Gruppen (Firmendaten/Mandant-Views/Toggles/Import) | **umgesetzt** (`a99705f`) | admin-only, Nav-Link, Bootstrap-Konsistenz `/ServiceSettings` |
 | Atomarer Zwei-Backend-Write | **umgesetzt** | `IStandortSettingsWriter`, eine EF-Transaktion (`IsRelational`-Guard), Cache nach Commit, kein Partial-Save |
 | Master read-only + Allow-List-Schutz (AK 2) | **umgesetzt** | Badge + Link `/HierarchieUmstellung`, nie im POST, kein Guard-Aufruf |
 | Firmendaten neu (`Firmenname`/`Firmenanschrift`) | **umgesetzt** | AppSettings-Keys, kein Seed/Migration (Fallback-Regel) |
@@ -248,7 +251,7 @@ Spec [[2026-08-18-bom-guard-hierarchisch-spec]], Aufgabe [[2026-08-18-bom-guard-
 (`HierarchicalBomGuardRepository` + TS-68 → TS-70). Die ursprünglich geplante Volllösung
 [[2026-08-18-ake-view-abhaengigkeiten-hierarchisch-spec]] ist `Ueberholt` (superseded).
 
-> **Status:** `Testbereit` (qa-agent, 2026-08-18, Worktree `1173cf1`) — Build gruen, Web
+> **Status:** `Testbereit` (qa-agent, 2026-08-18, Worktree `34ca168`) — Build gruen, Web
 > **1219/1 skip/0 Fehler**, Service **231/0 Fehler**. Code-Review ohne Findings: alle 4
 > `IBomRepository`-Aufrufer (Picking-BOM/Druck, FaWorklist/FaCompletion via
 > `ReadOnlyBomBuilder` → gemeinsam `Views/Picking/Bom.cshtml`) laufen ueber denselben Guard,
@@ -268,11 +271,11 @@ Macht die Hierarchie in **6 Ansichten** sichtbar/bedienbar — master-gated, AKE
 
 | Etappe | Status | Code-Einstieg |
 |---|---|---|
-| A — Anzeige-Fundament + ProductionOrders-Referenz + Z4-Erhebung | **erledigt** (`30b7a8c`/`9315186`/`abd2620`) | `ProductionOrderRepository.GetForLeitstandGroupedAsync`, `ColumnDefinitions` +`parent-sub-order-number`, `fa-liste-gruppierung.js`, `Views/ProductionOrders/_ProductionOrderRow.cshtml` |
-| B — 5 weitere Views (FaCompletion/PickingLeitstand/Picking/FaWorklist/Tracking) | **erledigt** (`b150579`/`5b15caf`/`960d5c8`/`10921e2`/`7bba52b`) | je `_*Row.cshtml` + Master-Gate; Tracking/Index = 3-Ebenen-Baum (OSEON-Muster), Picking = Prio-Queue |
-| C — Kaskade „Alle Sub-FAs fertigmelden" (Leitstand-Kopfzeile) | **erledigt** (`a305d6f`) | `PickingLeitstandController.CascadeDone/Preview`, `ProductionOrderBdeStatusRepository.SetIsDoneBdeForOrderNumberAsync`, `BdeBookingRepository.CountSubFasWithOpenBooking…` |
-| D — Z4-Sweep (Articles/Info) + Z1-Regressionstest; **Z3 vertagt** | **erledigt** (`d9de60c`) | `ArticlesController`/`Views/Articles/Info.cshtml`, `FaMaterializationSyncServiceTests` (Z1); Z3 → [[2026-09-07-invariante-haupt-fertig-sub-erkennen]] |
-| E — Testszenarien TS-69 + v1.35.0 + Changelogs | **erledigt** (`dde9a17`) | `docs/TESTSZENARIEN.md`, `AppVersion.cs` (Web+Service), `Views/Help/Changelog.cshtml` |
+| A — Anzeige-Fundament + ProductionOrders-Referenz + Z4-Erhebung | **erledigt** (`43b6bde`/`e8d21d0`/`5ee8177`) | `ProductionOrderRepository.GetForLeitstandGroupedAsync`, `ColumnDefinitions` +`parent-sub-order-number`, `fa-liste-gruppierung.js`, `Views/ProductionOrders/_ProductionOrderRow.cshtml` |
+| B — 5 weitere Views (FaCompletion/PickingLeitstand/Picking/FaWorklist/Tracking) | **erledigt** (`4a74ea6`/`bf6863c`/`d7df8a9`/`837a1f6`/`087c311`) | je `_*Row.cshtml` + Master-Gate; Tracking/Index = 3-Ebenen-Baum (OSEON-Muster), Picking = Prio-Queue |
+| C — Kaskade „Alle Sub-FAs fertigmelden" (Leitstand-Kopfzeile) | **erledigt** (`8806016`) | `PickingLeitstandController.CascadeDone/Preview`, `ProductionOrderBdeStatusRepository.SetIsDoneBdeForOrderNumberAsync`, `BdeBookingRepository.CountSubFasWithOpenBooking…` |
+| D — Z4-Sweep (Articles/Info) + Z1-Regressionstest; **Z3 vertagt** | **erledigt** (`e9eb089`) | `ArticlesController`/`Views/Articles/Info.cshtml`, `FaMaterializationSyncServiceTests` (Z1); Z3 → [[2026-09-07-invariante-haupt-fertig-sub-erkennen]] |
+| E — Testszenarien TS-69 + v1.35.0 + Changelogs | **erledigt** (`ea3932d`) | `docs/TESTSZENARIEN.md`, `AppVersion.cs` (Web+Service), `Views/Help/Changelog.cshtml` |
 
 > **Status FA-Liste-Hierarchie:** alle Etappen A–E erledigt, Web **1243 grün / 1 Skip** / Service
 > **232 grün** (qa-agent-Lauf 2026-09-07, frisch verifiziert). **`status: Testbereit`** gesetzt —
@@ -298,14 +301,14 @@ Spec [[2026-09-08-bom-schnittstellen-bridge-hierarchisch-spec]], Aufgabe
 
 | Task | Status | Code-Einstieg |
 |---|---|---|
-| 1 — Typen/Flag/Signaturwechsel | **erledigt** (`f89659f`) | `BomKey`, `BomScope`, `BomQueryResult.MengeIstAuftragsmenge`, `BomQuantityResolver`, 3 Aufrufer |
-| 2 — `FaHierarchyBomRepository` | **erledigt** (`e99bcf3` + Fix `3784e4b`) | DirectChildren/FullStructure, Kollision `~n`, Waisen `W<n>`, Reverse-Lookup |
-| 3 — Master-Weiche, Guard raus, Mapping | **erledigt** (`611475d`) | `BomRepositoryMasterSwitch`, `Program.cs:91-104`, `PickingController.Bom`/`ReadOnlyBomBuilder` |
-| 4 — Klasse-D-Gates (Service) | **erledigt** (`56e8faa`) | `IHierarchicalModeReader`, Coating/WorkStep/BomCache×2 |
-| 5 — Views (Bom.cshtml, Artikelinfo, Nav) | **erledigt** (`cd34b08`/`86371ee`/`a3f125e`) | `Views/Picking/Bom.cshtml` (+`#column-config`), `ColumnDefinitions.Bom`, `ArticlesController`/`Info.cshtml`, `_Layout` |
-| 6 — v1.36.0, TS-70 (TS-68 abgelöst), Hilfe, DI-Test | **erledigt** (`8d9468d` + Fixwelle `22d31ae`) | `AppVersion.cs` ×2, `Help/Changelog.cshtml`, `Help/Index.cshtml`, `docs/TESTSZENARIEN.md`, `BomDiResolutionTests` |
+| 1 — Typen/Flag/Signaturwechsel | **erledigt** (`ea84284`) | `BomKey`, `BomScope`, `BomQueryResult.MengeIstAuftragsmenge`, `BomQuantityResolver`, 3 Aufrufer |
+| 2 — `FaHierarchyBomRepository` | **erledigt** (`7a93c2f` + Fix `e2cceae`) | DirectChildren/FullStructure, Kollision `~n`, Waisen `W<n>`, Reverse-Lookup |
+| 3 — Master-Weiche, Guard raus, Mapping | **erledigt** (`8877ef5`) | `BomRepositoryMasterSwitch`, `Program.cs:91-104`, `PickingController.Bom`/`ReadOnlyBomBuilder` |
+| 4 — Klasse-D-Gates (Service) | **erledigt** (`e75bcf3`) | `IHierarchicalModeReader`, Coating/WorkStep/BomCache×2 |
+| 5 — Views (Bom.cshtml, Artikelinfo, Nav) | **erledigt** (`62685c0`/`9f0f210`/`92de2b8`) | `Views/Picking/Bom.cshtml` (+`#column-config`), `ColumnDefinitions.Bom`, `ArticlesController`/`Info.cshtml`, `_Layout` |
+| 6 — v1.36.0, TS-70 (TS-68 abgelöst), Hilfe, DI-Test | **erledigt** (`5b83ea0` + Fixwelle `5226352`) | `AppVersion.cs` ×2, `Help/Changelog.cshtml`, `Help/Index.cshtml`, `docs/TESTSZENARIEN.md`, `BomDiResolutionTests` |
 
-> **Status:** `Testbereit` (qa-agent, 2026-09-08, Worktree-HEAD `22d31ae`) — Build 0 Fehler, Web
+> **Status:** `Testbereit` (qa-agent, 2026-09-08, Worktree-HEAD `5226352`) — Build 0 Fehler, Web
 > **1266 grün + 1 skip**, Service **236 grün**, AK 1–16 gegen den echten Diff abgeglichen, Guard-Grep
 > leer. Wartet mit dem ganzen Bündel (Teile 1–8 + FA-Liste-Hierarchie + BOM-Bridge, ein Merge) auf
 > **Schranke 2** (manueller Test + Merge durch den Menschen). Deploy: `web:true`, `service:true`
@@ -327,17 +330,17 @@ geschrieben; **K3** (Kommissionier-Status) bleibt leer.
 
 | Baustein | Stand | Code-Einstieg |
 |---|---|---|
-| Statuszeilen eager anlegen (behebt den Abnahme-Fehler) | **erledigt** (`ceaf5b3`) | `FaMaterializationSyncService.EnsureStatusRowsAsync` |
-| Lack-Ableitung „selbst oder direktes Kind" | **erledigt** (`af25bcd`) | `FaMaterializationCoating.Derive` (rein, DB-frei) |
-| Werkbank aus `Arbeitsbereich`, Variante B + drei Meldefaelle | **erledigt** (`ccc1d74`) | `FaMaterializationSyncService.ApplyWorkplace`, `IUnknownWorkplaceState` |
-| Lack-Kennzeichen schreiben (inkl. `IsCoatingDone`-Reset) | **erledigt** (`77aaac2`) | `ProductionOrderPickingStatusRepository.SetCoatingPartsAsync` |
-| Kombigeraet-Erkennung, einmal je Lauf | **erledigt** (`904e899`) | `FaHierarchySyncService.LogAmbiguousHauptFasAsync` |
-| Kopfdaten gebuendelt laden | **erledigt** (`47c6712`) | `FaHierarchyOrderInfoRepository.GetByHauptFaKeysAsync` |
-| Kunde-Freitext + Spaltenfilter ueber den Auftragskopf | **erledigt** (`79a174b` + `5022222`) | `ProductionOrderRepository.BuildLeitstandQuery` / `ApplyLeitstandColumnFilter` |
-| K1 im Anzeige-Modell, Termin-Kaskade auf den Gruppenwert | **erledigt** (`f160b1d` + `b3d5a15`) | `ProductionOrdersController.MapItem`, `ProductionOrderListGroup` |
-| Gruppen-Kopfzeile + Varianten-Tabelle | **erledigt** (`86cdc26`) | `Views/ProductionOrders/Index.cshtml` |
-| v1.37.0, Changelog, Hilfe, TS-71 | **erledigt** (`1f038f6`) | `AppVersion.cs` ×2, `docs/TESTSZENARIEN.md` |
-| Varianten-Tabelle klappt mit der Gruppe zu (Gesamt-Review) | **erledigt** (`be92ade`) | `Views/ProductionOrders/Index.cshtml` (`fa-liste-node-row`) |
+| Statuszeilen eager anlegen (behebt den Abnahme-Fehler) | **erledigt** (`7ac06cb`) | `FaMaterializationSyncService.EnsureStatusRowsAsync` |
+| Lack-Ableitung „selbst oder direktes Kind" | **erledigt** (`3b77f66`) | `FaMaterializationCoating.Derive` (rein, DB-frei) |
+| Werkbank aus `Arbeitsbereich`, Variante B + drei Meldefaelle | **erledigt** (`3371ff1`) | `FaMaterializationSyncService.ApplyWorkplace`, `IUnknownWorkplaceState` |
+| Lack-Kennzeichen schreiben (inkl. `IsCoatingDone`-Reset) | **erledigt** (`61e2d57`) | `ProductionOrderPickingStatusRepository.SetCoatingPartsAsync` |
+| Kombigeraet-Erkennung, einmal je Lauf | **erledigt** (`8531a29`) | `FaHierarchySyncService.LogAmbiguousHauptFasAsync` |
+| Kopfdaten gebuendelt laden | **erledigt** (`232c066`) | `FaHierarchyOrderInfoRepository.GetByHauptFaKeysAsync` |
+| Kunde-Freitext + Spaltenfilter ueber den Auftragskopf | **erledigt** (`f5fe6f7` + `c63a0d9`) | `ProductionOrderRepository.BuildLeitstandQuery` / `ApplyLeitstandColumnFilter` |
+| K1 im Anzeige-Modell, Termin-Kaskade auf den Gruppenwert | **erledigt** (`6418652` + `1a33b20`) | `ProductionOrdersController.MapItem`, `ProductionOrderListGroup` |
+| Gruppen-Kopfzeile + Varianten-Tabelle | **erledigt** (`b6d3c0e`) | `Views/ProductionOrders/Index.cshtml` |
+| v1.37.0, Changelog, Hilfe, TS-71 | **erledigt** (`7d5e067`) | `AppVersion.cs` ×2, `docs/TESTSZENARIEN.md` |
+| Varianten-Tabelle klappt mit der Gruppe zu (Gesamt-Review) | **erledigt** (`c958edc`) | `Views/ProductionOrders/Index.cshtml` (`fa-liste-node-row`) |
 
 > **Fünf stille Fehler im Lauf gefunden und behoben** — zwei davon erst beim Schreiben von Tests:
 > fehlende Statuszeilen, weggefilterte Blattebene in der Lack-Ableitung, eine Entprellung, die ein
@@ -349,8 +352,8 @@ geschrieben; **K3** (Kommissionier-Status) bleibt leer.
 > anlegen — `ProductionWorkplaceId` ist ein Fremdschluessel, sonst bleibt die Werkbank im ersten Lauf
 > leer (Zwei-Lauf-Ablauf). Deploy `web:true`, `service:true`, `migration:false`.
 
-> **Status:** `Testbereit` (qa-agent, 2026-09-09, Worktree-HEAD `be92ade`) — Build 0 Fehler, Web
-> **1284 grün + 1 skip**, Service **263 grün**, AK 1–13 gegen den echten Diff `a9ea910..be92ade`
+> **Status:** `Testbereit` (qa-agent, 2026-09-09, Worktree-HEAD `c958edc`) — Build 0 Fehler, Web
+> **1284 grün + 1 skip**, Service **263 grün**, AK 1–13 gegen den echten Diff `64eac53..c958edc`
 > abgeglichen, kein `SetValues`/`_ctx.Update`, keine Migration/SQL-Datei im Diff, beide
 > `AppVersion.cs` auf 1.37.0, TS-71 (13 Szenarien) vorhanden. Wartet mit dem ganzen Bündel (Teile
 > 1–8 + FA-Liste-Hierarchie + BOM-Bridge, ein Merge) auf **Schranke 2** (manueller Test + Merge
@@ -374,20 +377,20 @@ am Leitstand (widerruft die fruehere „keine Kaskade"-Festlegung aus v1.35.0).
 
 | Baustein | Stand | Code-Einstieg |
 |---|---|---|
-| Spalte `ProductionOrder.Matchcode` + Migration 91 | **erledigt** (`461d3e5`) | `ProductionOrder.cs`, `SQL/91_AddProductionOrderMatchcode.sql` |
-| Matchcode materialisiert (Anlege- + Update-Pfad, F1) | **erledigt** (`cbabdd9`) | `FaMaterializationSyncService.RunAsync` |
-| Matchcode-Anzeige in fünf FA-Zeilen-Ebene-Listen | **erledigt** (`f4e9a6d`) | `ColumnDefinitions.cs`, je View `#column-config` + `<th>` |
-| Matchcode-Filter null-sicher (F7), ohne `EF.Functions.Like` | **erledigt** (`48e1c87` + Fix `4a0563a`) | `ProductionOrderRepository.cs` (`BuildExtraInfoOrContains`) |
-| K1-Kopfdaten je Zeile im Anzeige-Modell | **erledigt** (`9b2a258` + `13693b7`) | `ProductionOrdersController.MapItem` |
-| Kunde-/K1-Postfilter C# statt SQL-Join (inkl. Flachmodus-Fix) | **erledigt** (`6ec37f8` + `cddb5b0` + `20686a2`) | `ProductionOrdersController.Index`, `PickingLeitstandController.Index` |
-| Vier Zeilenspalten bedingt auf `Model.Hierarchical` | **erledigt** (`9c95fb0`) | `Views/ProductionOrders/Index.cshtml` + `_ProductionOrderRow.cshtml` |
-| Selektor-Sweep (zweiter Anzeigefehler, eingeschoben) | **erledigt** (`b9bf342` + `94463f9`) | `table-filter.js`, `column-preferences.js`, `TableScriptScopedSelectorTests` |
-| Wiederholungswerte unterdrückt, client-seitig | **erledigt** (`203e23a` + Fix `a422e44`) | `fa-liste-wiederholung.js`, `site.css` (`.fa-liste-repeat-hidden`) |
-| HauptFA-Zeile gekennzeichnet, Kopfzeile verschlankt | **erledigt** (`fda7c7a`) | `Views/ProductionOrders/_ProductionOrderRow.cshtml` |
-| `SetReleaseForOrderNumberAsync` (Kaskade, atomar) | **erledigt** (`067f1b1`) | `ProductionOrderPickingStatusRepository.cs` |
-| `CascadeReleasePreview`/`CascadeRelease`, Picker-Pflicht unverändert | **erledigt** (`aad4b54`) | `PickingLeitstandController.cs` |
-| Knopf + Dialog in der Gruppen-Kopfzeile | **erledigt** (`fef12cf`) | `Views/PickingLeitstand/Index.cshtml` |
-| v1.38.0, Changelog, Hilfe, TS-73 | **erledigt** (`deff907`) | `AppVersion.cs` ×2, `docs/TESTSZENARIEN.md` |
+| Spalte `ProductionOrder.Matchcode` + Migration 91 | **erledigt** (`6c1e2c0`) | `ProductionOrder.cs`, `SQL/91_AddProductionOrderMatchcode.sql` |
+| Matchcode materialisiert (Anlege- + Update-Pfad, F1) | **erledigt** (`41fe040`) | `FaMaterializationSyncService.RunAsync` |
+| Matchcode-Anzeige in fünf FA-Zeilen-Ebene-Listen | **erledigt** (`8cd2856`) | `ColumnDefinitions.cs`, je View `#column-config` + `<th>` |
+| Matchcode-Filter null-sicher (F7), ohne `EF.Functions.Like` | **erledigt** (`b050910` + Fix `ab27ded`) | `ProductionOrderRepository.cs` (`BuildExtraInfoOrContains`) |
+| K1-Kopfdaten je Zeile im Anzeige-Modell | **erledigt** (`b879eea` + `0ca28ce`) | `ProductionOrdersController.MapItem` |
+| Kunde-/K1-Postfilter C# statt SQL-Join (inkl. Flachmodus-Fix) | **erledigt** (`93900a8` + `decbe56` + `3691cc3`) | `ProductionOrdersController.Index`, `PickingLeitstandController.Index` |
+| Vier Zeilenspalten bedingt auf `Model.Hierarchical` | **erledigt** (`5809092`) | `Views/ProductionOrders/Index.cshtml` + `_ProductionOrderRow.cshtml` |
+| Selektor-Sweep (zweiter Anzeigefehler, eingeschoben) | **erledigt** (`79ad96f` + `7093029`) | `table-filter.js`, `column-preferences.js`, `TableScriptScopedSelectorTests` |
+| Wiederholungswerte unterdrückt, client-seitig | **erledigt** (`7e54a77` + Fix `1662ae9`) | `fa-liste-wiederholung.js`, `site.css` (`.fa-liste-repeat-hidden`) |
+| HauptFA-Zeile gekennzeichnet, Kopfzeile verschlankt | **erledigt** (`a5e0922`) | `Views/ProductionOrders/_ProductionOrderRow.cshtml` |
+| `SetReleaseForOrderNumberAsync` (Kaskade, atomar) | **erledigt** (`901e9db`) | `ProductionOrderPickingStatusRepository.cs` |
+| `CascadeReleasePreview`/`CascadeRelease`, Picker-Pflicht unverändert | **erledigt** (`692956f`) | `PickingLeitstandController.cs` |
+| Knopf + Dialog in der Gruppen-Kopfzeile | **erledigt** (`daf7168`) | `Views/PickingLeitstand/Index.cshtml` |
+| v1.38.0, Changelog, Hilfe, TS-73 | **erledigt** (`24864e6`) | `AppVersion.cs` ×2, `docs/TESTSZENARIEN.md` |
 
 > **AKE-Regression als harte Nebenbedingung:** Bei Master `false` bleibt die FA-Liste bit-identisch
 > — die vier K1-Zeilenspalten sind **strukturell** (nicht nur inhaltlich) an `Model.Hierarchical`
@@ -398,8 +401,8 @@ am Leitstand (widerruft die fruehere „keine Kaskade"-Festlegung aus v1.35.0).
 > `migration:true` (Migration 91, additiv, kein Backfill-Zwang — Bestandszeilen füllen sich erst
 > beim nächsten Materialisierungs-Lauf).
 
-> **Status:** `Testbereit` (qa-agent, 2026-09-10, Worktree-HEAD `deff907`) — Build 0 Fehler, Web
-> **1322 grün + 1 skip**, Service **265 grün**, AK 1–20 gegen den echten Diff `be92ade..deff907`
+> **Status:** `Testbereit` (qa-agent, 2026-09-10, Worktree-HEAD `24864e6`) — Build 0 Fehler, Web
+> **1322 grün + 1 skip**, Service **265 grün**, AK 1–20 gegen den echten Diff `c958edc..24864e6`
 > abgeglichen, genau eine neue Migration im Diff, TS-73 (20 Szenarien) + TS-72 (5 Szenarien,
 > Selektor-Sweep) vorhanden. Wartet mit dem ganzen Bündel (Teile 1–8 + FA-Liste-Hierarchie +
 > BOM-Bridge + Materialisierung, ein Merge) auf **Schranke 2** (manueller Test + Merge durch den
@@ -505,11 +508,11 @@ und ein Sage-Arbeitsplatz IST die Werkbank — das BDE-Terminal bucht gegen `Wor
 
 | Baustein | Stand | Code-Einstieg |
 |---|---|---|
-| (a) `ProductionWorkplace`-Anlage aus Sage `KHKPpsArbeitsplaetze` (Sage fuehrend, Nummer/Name/Kuerzel) | **erledigt** `8be03982` | `ProductionWorkplaceSyncService`, `SageArbeitsplatzReader`, Migration `93`, Felder `SageArbeitsplatznummer`/`ArbeitsschrittCode` (eindeutiger gefilterter Index) |
-| (a) 3 ServiceSettings (Enabled/Mandant/Ausschlussliste) + Standorteinstellungen-Gruppe + SyncWorker-Doppel-Gate + UI read-only | **erledigt** `8be03982`/`be0695fb` | `ServiceSettingDefinitions.cs`, `StandortSettingsCatalog.cs`, `SyncWorker.cs`, `Views/ProductionWorkplaces/*` |
-| (b) 2c-Umbau `FaWorkStepStructureDetectionService` → `WorkOperationStructureDetectionService` (Ziel `WorkOperation`, Katalog `ProductionWorkplace.ArbeitsschrittCode`) | **erledigt** `920aabb7` | `WorkOperationStructureDetectionService.cs`, `IUnknownArbeitsschrittTokenState`, Key `Sync:WorkOperationStructureDetectionEnabled` |
-| (b) Kuerzel-Mehrdeutigkeit gemeldet, Ausschlussliste-Kuerzel weder AG noch Meldung, `FaWorkStepSources.Struktur` entfernt | **erledigt** `920aabb7` | `WorkOperationStructureDetectionService.DetectAsync` |
-| (c) Existenz-Check-Fix `BdeDefaultWorkOperationService` (OperationNumber "01" statt Name); `BdeScanResolver` UNVERAENDERT; Terminal-Routing schon ueber `ProductionWorkplaceId` | **erledigt** `920aabb7` | `BdeDefaultWorkOperationService.cs` |
+| (a) `ProductionWorkplace`-Anlage aus Sage `KHKPpsArbeitsplaetze` (Sage fuehrend, Nummer/Name/Kuerzel) | **erledigt** `8a6fd0c4` | `ProductionWorkplaceSyncService`, `SageArbeitsplatzReader`, Migration `93`, Felder `SageArbeitsplatznummer`/`ArbeitsschrittCode` (eindeutiger gefilterter Index) |
+| (a) 3 ServiceSettings (Enabled/Mandant/Ausschlussliste) + Standorteinstellungen-Gruppe + SyncWorker-Doppel-Gate + UI read-only | **erledigt** `8a6fd0c4`/`bc25ea21` | `ServiceSettingDefinitions.cs`, `StandortSettingsCatalog.cs`, `SyncWorker.cs`, `Views/ProductionWorkplaces/*` |
+| (b) 2c-Umbau `FaWorkStepStructureDetectionService` → `WorkOperationStructureDetectionService` (Ziel `WorkOperation`, Katalog `ProductionWorkplace.ArbeitsschrittCode`) | **erledigt** `6ba4e903` | `WorkOperationStructureDetectionService.cs`, `IUnknownArbeitsschrittTokenState`, Key `Sync:WorkOperationStructureDetectionEnabled` |
+| (b) Kuerzel-Mehrdeutigkeit gemeldet, Ausschlussliste-Kuerzel weder AG noch Meldung, `FaWorkStepSources.Struktur` entfernt | **erledigt** `6ba4e903` | `WorkOperationStructureDetectionService.DetectAsync` |
+| (c) Existenz-Check-Fix `BdeDefaultWorkOperationService` (OperationNumber "01" statt Name); `BdeScanResolver` UNVERAENDERT; Terminal-Routing schon ueber `ProductionWorkplaceId` | **erledigt** `6ba4e903` | `BdeDefaultWorkOperationService.cs` |
 | Tests + v1.44.0 + Changelog/Hilfe/README/TS-77 | **erledigt** | `WorkOperationStructureDetectionServiceTests` (13), `ProductionWorkplaceSyncServiceTests` (6), `BdeDefaultWorkOperationServiceTests` (+AK16), `AppVersion.cs` ×2, `docs/TESTSZENARIEN.md` |
 
 > **Deploy:** Web + Service + **Migration 93** (zwei nullable Spalten + eindeutiger gefilterter Index,
@@ -529,9 +532,9 @@ Spec [[2026-09-23-fa-struktur-arbeitsgaenge-anzeige-spec]], Umsetzung
 
 | Baustein | Stand | Code-Einstieg |
 |---|---|---|
-| Existenz-Check beim Seitenaufbau (Knopf nur bei ≥ 1 AG) + Modal-Endpunkt je HauptFA | **erledigt** `912e6bea`/`71ffeb18` | `FaHierarchyController.Index`/`WorkOperations`, `IWorkOperationRepository.GetOrderNumbersWithWorkOperationsAsync`/`GetByOrderNumberWithWorkplaceAsync` (gleicher Schlüssel `OrderNumber == HauptFA`) |
-| Modal (alle Sub-FAs inkl. Lücken + Zählzeile), Laden beim Öffnen | **erledigt** `71ffeb18` | `Views/FaHierarchy/_FaWorkOperationsModal.cshtml`, `FaWorkOperationsViewModel.Create`, `wwwroot/js/fa-hierarchy-tree.js` (`openWorkOperations`) |
-| Tests + v1.45.0 + Changelog/Hilfe/TS-78; Review-Fix Knopf/Modal-Schlüssel | **erledigt** `2d06d1f0` | `WorkOperationRepositoryFaStructureTests` (4), `FaWorkOperationsViewModelTests` (1) |
+| Existenz-Check beim Seitenaufbau (Knopf nur bei ≥ 1 AG) + Modal-Endpunkt je HauptFA | **erledigt** `49298f35`/`6064263f` | `FaHierarchyController.Index`/`WorkOperations`, `IWorkOperationRepository.GetOrderNumbersWithWorkOperationsAsync`/`GetByOrderNumberWithWorkplaceAsync` (gleicher Schlüssel `OrderNumber == HauptFA`) |
+| Modal (alle Sub-FAs inkl. Lücken + Zählzeile), Laden beim Öffnen | **erledigt** `6064263f` | `Views/FaHierarchy/_FaWorkOperationsModal.cshtml`, `FaWorkOperationsViewModel.Create`, `wwwroot/js/fa-hierarchy-tree.js` (`openWorkOperations`) |
+| Tests + v1.45.0 + Changelog/Hilfe/TS-78; Review-Fix Knopf/Modal-Schlüssel | **erledigt** `821d82a3` | `WorkOperationRepositoryFaStructureTests` (4), `FaWorkOperationsViewModelTests` (1) |
 
 > **Deploy:** nur Web, keine Migration. **Status:** QA → Schranke 2 mit dem ganzen Bündel.
 
@@ -544,12 +547,12 @@ Folgenotizen: [[2026-09-25-picking-warteschlange-gruppierung-rueckbau]], [[2026-
 
 | Baustein | Stand | Code-Einstieg |
 |---|---|---|
-| Eine Sub-FA-Definition + Warteschlange nur HauptFA + Bulk-Skip beidseitig | **erledigt** `2291c950`/`23942f73` | `ProductionOrder.IsHauptFa`/`IsSubFa`/`IsSubFaOf`, `ProductionOrderPickingStatusRepository` (4 Queue-Abfragen, `SetReleaseBatchAsync`), `BomScopes.ForOrder`, `HierarchicalDataExistsAsync` |
-| Server-Guards + Zeilen Leitstand/FA-Liste auf HauptFA beschränkt | **erledigt** `35a65d36`/`8d8bf8a5` | `PickingController.Bom`, `PickingLeitstandController.ToggleRelease`/`BulkRelease`, `_PickingLeitstandRow`/`_ProductionOrderRow` |
-| Rückbau Freigabe-Kaskade (aus [[2026-09-10-fa-liste-ausbau-matchcode-spec]] Block 4) | **erledigt** `36911f2f` | grep `CascadeRelease\|SetReleaseForOrderNumber\|CountReleasedByOrderNumber` = 0 |
-| „Alle Ziele“ `!(leer)` im Komm.-Ziel-Filter + Druck-Leerzustand | **erledigt** `e2d6e5d9`/`4fffeae9` | `Views/Picking/Bom.cshtml` (`bomMatchesFilter`, `setupKommissionierzielDropdown`, `btnPrintBom`) |
-| Normalisierung Profil-Standardfilter + Relevanzregel extrahiert | **erledigt** `f6911db4`/`7d1cd74e` | `KommissionierzielFilterWert.Normalize`, `KommissionierRelevanzFilter.IsRelevant` |
-| v1.46.0, Changelog, Hilfe, TS-79, TS-73-Rückbau-Vermerk | **erledigt** `2290c99c`/`1f128c61`/`787c5c90` | `docs/TESTSZENARIEN.md` TS-79 |
+| Eine Sub-FA-Definition + Warteschlange nur HauptFA + Bulk-Skip beidseitig | **erledigt** `a30e7647`/`ffb1572e` | `ProductionOrder.IsHauptFa`/`IsSubFa`/`IsSubFaOf`, `ProductionOrderPickingStatusRepository` (4 Queue-Abfragen, `SetReleaseBatchAsync`), `BomScopes.ForOrder`, `HierarchicalDataExistsAsync` |
+| Server-Guards + Zeilen Leitstand/FA-Liste auf HauptFA beschränkt | **erledigt** `cba1be97`/`b9991917` | `PickingController.Bom`, `PickingLeitstandController.ToggleRelease`/`BulkRelease`, `_PickingLeitstandRow`/`_ProductionOrderRow` |
+| Rückbau Freigabe-Kaskade (aus [[2026-09-10-fa-liste-ausbau-matchcode-spec]] Block 4) | **erledigt** `ee583ed7` | grep `CascadeRelease\|SetReleaseForOrderNumber\|CountReleasedByOrderNumber` = 0 |
+| „Alle Ziele“ `!(leer)` im Komm.-Ziel-Filter + Druck-Leerzustand | **erledigt** `6a6adee6`/`4467b894` | `Views/Picking/Bom.cshtml` (`bomMatchesFilter`, `setupKommissionierzielDropdown`, `btnPrintBom`) |
+| Normalisierung Profil-Standardfilter + Relevanzregel extrahiert | **erledigt** `f40053d3`/`855f7310` | `KommissionierzielFilterWert.Normalize`, `KommissionierRelevanzFilter.IsRelevant` |
+| v1.46.0, Changelog, Hilfe, TS-79, TS-73-Rückbau-Vermerk | **erledigt** `50582f81`/`c61cb796`/`30c9c20e` | `docs/TESTSZENARIEN.md` TS-79 |
 
 > **Deploy:** nur Web, keine Migration. **Einmaliger SQL-Lauf nur im Testsystem** (freigegebene Sub-FAs
 > zurücksetzen, `SELECT COUNT(*)` vorab) — siehe Spec. **Status:** Testbereit (QA 2026-09-25, Build +
@@ -566,17 +569,41 @@ Setzt v1.46.0 ([[2026-09-25-kommissionierung-nur-hauptfa-spec]]) voraus. Überho
 
 | Baustein | Stand | Code-Einstieg |
 |---|---|---|
-| Summiert: KW optional, Matchcode/Hauptlagerplatz, Gruppen-Paging je HauptFA, Umschalter-Query | **erledigt** `ab2beed2` | `KommissionierListenService.AggregateSummiert`, `ToggleSharedQueryKeys`/`BuildToggleQuery` |
-| ViewKey `FaHierarchyKommissionierSummiert` (6 Spalten) registriert | **erledigt** `e407596d` | `ColumnDefinitions.FaHierarchyKommissionierSummiert` |
-| Druck/PDF: sichtbare Spalten beim Klick (`visibleColumns`), Server-Rückfall auf Präferenz; `PrintSummiert`/`PdfSummiert` | **erledigt** `1fb2b59d`/`1977a819` | `FaHierarchyKommissionierListenController.ResolveVisibleColumnsAsync`, `wwwroot/js/print-visible-columns.js`, `Views/FaHierarchyKommissionierListen/PrintSummiert.cshtml` |
-| Menü → Summiert; Summiert gruppiert, 6 Spalten | **erledigt** `1977a819` | `_Layout.cshtml`, `Summiert.cshtml` |
-| Drift-Guard Vier-Stellen-Konsistenz | **erledigt** `58d50738` | `IdealAkeWms.Tests/Views/KommissionierSpaltenKonsistenzTests.cs` |
-| v1.47.0, Changelog, Hilfe, TS-80 | **erledigt** `e447a12c` | `docs/TESTSZENARIEN.md` TS-80 |
+| Summiert: KW optional, Matchcode/Hauptlagerplatz, Gruppen-Paging je HauptFA, Umschalter-Query | **erledigt** `06d611c7` | `KommissionierListenService.AggregateSummiert`, `ToggleSharedQueryKeys`/`BuildToggleQuery` |
+| ViewKey `FaHierarchyKommissionierSummiert` (6 Spalten) registriert | **erledigt** `e4c440cf` | `ColumnDefinitions.FaHierarchyKommissionierSummiert` |
+| Druck/PDF: sichtbare Spalten beim Klick (`visibleColumns`), Server-Rückfall auf Präferenz; `PrintSummiert`/`PdfSummiert` | **erledigt** `02817d79`/`ddd85403` | `FaHierarchyKommissionierListenController.ResolveVisibleColumnsAsync`, `wwwroot/js/print-visible-columns.js`, `Views/FaHierarchyKommissionierListen/PrintSummiert.cshtml` |
+| Menü → Summiert; Summiert gruppiert, 6 Spalten | **erledigt** `ddd85403` | `_Layout.cshtml`, `Summiert.cshtml` |
+| Drift-Guard Vier-Stellen-Konsistenz | **erledigt** `980108b8` | `IdealAkeWms.Tests/Views/KommissionierSpaltenKonsistenzTests.cs` |
+| v1.47.0, Changelog, Hilfe, TS-80 | **erledigt** `e380315c` | `docs/TESTSZENARIEN.md` TS-80 |
 
 > **Deploy:** nur Web, keine Migration. **Vor der Abnahme:** Einheiten-Prüfschritt TS-80.1 auf der
 > Sage-DB IDEAL ([[fallstricke]] §18). **Status:** Testbereit (QA 2026-09-28, Build + 1435 Web-Tests +
 > 268 Service-Tests grün) → Schranke 2 mit dem ganzen Bündel. Druck-/PDF-Spalten, Gruppen-Darstellung
 > und Umschalter sind **Manual-UAT** (TS-80).
+
+### AKE-Hotfix 1.30.1 uebernommen — Vorwaerts-Merge main → Buendel (v1.47.1, selber Branch)
+
+Merge-Commit `b877e05a` (Buendel), Quelle `main` `f89c0124`. Spec [[2026-09-28-ake-hotfix-stueckliste-druck-lagerbestellung-ist-spec]]
+(Abschnitt „Uebertrag ins Buendel"), Changelog [[2026-10-05-v1-47-1-buendel-ake-hotfix-uebernommen]], Merge-Protokoll
+[[2026-10-05-vorwaerts-merge-ake-hotfix-ins-buendel]]. **Buendel-Stand jetzt v1.47.1.**
+
+| Baustein | Stand | Code-Einstieg |
+|---|---|---|
+| Stuecklisten-Druck per POST, nach der Leerzustand-Sperre | **uebernommen** `b877e05a` | `Bom.cshtml` (`btnPrintBom`), `PickingController.RenderPrintBomAsync` (Buendel-Rumpf) |
+| Lagerbestellung Ist-Menge bestaetigen (Pflichtpruefung, Autosave NULL, Laengen-Guard) | **uebernommen** `b877e05a` | `WarehouseRequisitionRepository.CloseAsync`, `WarehousePickingController`, `Details.cshtml` |
+| Pflicht-Nachzug 4 Buendel-Tests `GetMissingPartsAsync_*` (`decimal?`) | **erledigt** `b877e05a` | `WarehouseRequisitionRepositoryTests.cs` |
+
+> **Status:** im Buendel, wartet mit dem ganzen Buendel auf Schranke 2 (TS-5.11, TS-18.10 am IDEAL-System).
+> Einmal-Skript `SQL/Einmalig/…` auf IDEAL erst NACH dem Buendel-Deploy, genau einmal.
+
+### Bugfix B-ABN-1: Komm.-Ziel-Auswahl der Stückliste übersteht F5 (v1.47.2, selber Branch)
+
+Befund der Browser-Abnahme [[2026-10-06-ts-79-browser-testbericht]] zu [[2026-09-25-kommissionierung-nur-hauptfa-spec]],
+Changelog [[2026-10-06-v1-47-2-stueckliste-kommissionierziel-f5]]. Commit `1df7665c`, nur `Views/Picking/Bom.cshtml`
+(Speichern über `window.setColumnFilter`, Sitzung vor Profil-Standard). Wächter `BomKommissionierzielPersistenzTests`.
+**Bündel-Stand jetzt v1.47.2.**
+
+> **Status:** behoben, QA-Review ohne Critical/Important; Abnahme offen (TS-79.6 / Browser-Schritt B12 wiederholen).
 
 ### Stückliste: Komm.-Ziel-Filter + gespeicherter Standardfilter + Badge (v1.42.0, selber Branch)
 
@@ -599,7 +626,7 @@ Spec [[2026-09-18-stueckliste-kommissionierziel-filter-spec]], Umsetzung
 > (Client-Mode-Dropdown über verstecktem Input; getActiveFilters liefert col-keys).
 >
 > **Status:** `Testbereit` (qa-agent, 2026-09-21 — Build/Test gruen, AK-Abgleich gegen echten Diff
-> `f04a7e0~1..5f933f1`). Client-Mode = Bildschirm-Interaktion Manual-UAT, wartet mit dem Buendel auf
+> `1bef63d~1..95b611b`). Client-Mode = Bildschirm-Interaktion Manual-UAT, wartet mit dem Buendel auf
 > Schranke 2.
 > Wartet mit dem ganzen Bündel auf **Schranke 2**.
 
@@ -620,8 +647,393 @@ zurückgebaut, bevor die echten IDEAL-Werkbänke angelegt werden.
 | v1.43.0 + Changelog + TS-71-Rückbau (71.6–71.9 markiert, 71.14/71.15 neu) + ADR-0014-Nachtrag + [[fallstricke]] §15 | **erledigt** | `AppVersion.cs` ×2 |
 
 > **Deploy:** Web + Service, keine Migration. **Status:** `Testbereit` (qa-agent, 2026-09-22 —
-> Build/Test grün, AK-Abgleich gegen echten Diff `ab10b57..0aceee8`). Build 0 Fehler, **Web 1391 +1
+> Build/Test grün, AK-Abgleich gegen echten Diff `2200c47..cddb4f9`). Build 0 Fehler, **Web 1391 +1
 > skip, Service 263** (−14 gelöschte Workplace-Tests). Wartet mit dem Bündel auf **Schranke 2**.
+
+### Beschichtungsauftrag summiert als Standard (v1.48.0, per Fast-Forward im Bündel)
+
+Spec [[2026-10-06-beschichtungsauftrag-ausbau-teil-1-spec]] (Teil 1 von 4, [[2026-10-06-beschichtungsauftrag-ausbau-uebersicht]]),
+Umsetzung [[2026-10-09-beschichtungsauftrag-ausbau-teil-1-umsetzung]], Changelog [[2026-10-09-v1-48-0-beschichtungsauftrag-summiert]].
+Zweig `feature/2026-10-06-beschichtungsauftrag-ausbau-teil-1`, abgezweigt vom Bündel @ `f102fbf5` (v1.47.5); 2026-10-09 per Fast-Forward ins Bündel übernommen (`cc86d373`).
+
+| Baustein | Stand | Code-Einstieg |
+|---|---|---|
+| Aggregation HauptFA + Artnr, Maße-Invariante, Gruppen-Paging, Kopf je HauptFA | **erledigt** `850258e3` | `BeschichtungsauftragService.AggregateSummiert`/`BuildSummiertAsync`/`SummiertColumnMap` |
+| Actions `Summiert`/`PrintSummiert`/`PdfSummiert`, gemeinsame Druckspalten-Auflösung | **erledigt** `578aec6b` | `FaHierarchyBeschichtungController`, `Services/PrintVisibleColumns.cs`, `ColumnDefinitions.FaHierarchyBeschichtungSummiert` |
+| Views, Umschalter, Kopf-Partials, Navigation → Summiert, Wächter | **erledigt** `c226a465` | `Views/FaHierarchyBeschichtung/Summiert.cshtml`, `PrintSummiert.cshtml`, `_BeschichtungKopf*.cshtml` |
+| v1.48.0, Changelog, Hilfe, TS-81; Test Umschalter-Query | **erledigt** `8d9cefd2`, `cc86d373` | `docs/TESTSZENARIEN.md` TS-81 |
+
+> **Deploy:** nur Web, keine Migration. **Status:** Testbereit (QA 2026-10-09, Build + 1474 Web- + 272 Service-Tests grün)
+> → Schranke 2 mit dem Bündel. Vor der Abnahme Prüfschritt Mengeneinheit TS-81.1.
+
+### Briefkopf auf dem Beschichtungsauftrag (v1.49.0, direkt im Bündel)
+
+Spec [[2026-10-06-beschichtungsauftrag-ausbau-teil-2-spec]] (Teil 2 von 4), Umsetzung
+[[2026-10-09-beschichtungsauftrag-ausbau-teil-2-umsetzung]], Changelog [[2026-10-09-v1-49-0-briefkopf-beschichtungsauftrag]].
+
+| Baustein | Stand | Code-Einstieg |
+|---|---|---|
+| Vorlage laden/bereinigen/einbetten, Ersatz-Kopf, Grenzen; Einstellung „Briefkopf-Vorlage (Pfad)" | **erledigt** `1c560d30`, `020bf8af` | `Services/BriefkopfVorlageService.cs`, `AppSettingKeys.BriefkopfVorlagePfad`, `StandortSettingsCatalog` |
+| Kopf-Partials in Einzel- und Summiert-Druck (nur Seite 1), Empfänger-Regel | **erledigt** `1cda91dc` | `Views/Shared/_PrintBriefkopf*.cshtml`, `PrintBriefkopfModel` |
+| Muster `Branding/briefkopf.html` + Logo, README, Hilfe, v1.49.0, TS-82 | **erledigt** `742f7855` | `Branding/` (Repo-Wurzel, nicht im Publish) |
+
+> **Deploy:** nur Web, keine Migration; **manuell** `Branding\` neben dem Publish-Ordner + Einstellung setzen (ohne:
+> Ersatz-Kopf). **Status:** Testbereit (QA + Nachlauf 2026-10-09, Build + 1521 Web- + 272 Service-Tests grün) → Schranke 2
+> mit dem Bündel. Offen: [[2026-10-09-briefkopf-seitenzaehlung]], [[2026-10-09-briefkopf-csp-und-bereinigung]].
+
+### Hardware-Barcodescanner: Tastatur-Scan mit Präfix (v1.66.0, direkt im Bündel)
+
+Spec [[2026-10-15-scan-handler-hardware-scanner-spec]], Umsetzung [[2026-10-15-scan-handler-hardware-scanner-umsetzung]],
+Changelog [[2026-10-21-v1-66-0-hardware-barcodescanner]].
+
+| Baustein | Stand | Code-Einstieg |
+|---|---|---|
+| Kern + DOM: Präfix `~09` (Variante B), Zeitgrenze, Replay, Ereignis `wms:hardware-scan`, Regel (b)/(d)/Hinweis | **erledigt** `cb49f262` | `wwwroot/js/hardware-scanner.js` |
+| Ziel-Register + Regel (a) über `processScannedValue` (alle 14 Scan-Seiten automatisch) | **erledigt** `cb49f262` | `barcode-scanner.js` `_hwScanTargets` |
+| BDE-Terminal: `data-hw-scan-ziel` an `scanOperator`/`scanFaAg` | **erledigt** `cb49f262` | `Views/BdeTerminal/Index.cshtml` |
+| Standort-Schalter (3 AppSettings, Gruppe „Hardware-Scanner“), Geräte-Abschalter „Mein Profil“ | **erledigt** `cb49f262` | `StandortSettingsCatalog`, `_Layout`, `Account/Profile.cshtml` |
+| Hilfe, Changelog, README, v1.66.0, TS-99 | **erledigt** `cb49f262` | `Views/Help/Index.cshtml` |
+| QA-Fix: ausgeblendetes Fokusfeld ist kein freies Feld (BDE nach Anmeldung) | **erledigt** `789d0a78` | `hardware-scanner.js freiesFeld` |
+| v1.66.1 N-1: offenes Kamera-Fenster der Stückliste-Artikelerfassung nimmt den Scan an (opt-in `data-hw-scan-kamera-ziel`) | **erledigt** `c72be07e` | `barcode-scanner.js hwScanKameraZiel`, `Picking/Bom.cshtml` |
+| v1.66.1 N-2: Zeichenabstand 10–500 mit Meldung, leer = 50 (Server `StandortField.Min/Max/EmptyResetsToDefault`, Client `HwScanCore.abstand`) | **erledigt** `c72be07e` | `StandortEinstellungenController.Save` |
+| QA-Fix v1.66.1: Kamera-Treffer eines gestoppten Scanners ignorieren (Race Hardware-Scan/laufender Decode) | **erledigt** `1d78e7f5` | `barcode-scanner.js startCameraScanner` |
+| v1.66.2 (Nachtrag 3): Kamera-Fenster als Scan-Ziel an allen 22 Kamera-Knöpfen der Seiten mit mehr als einem Scan-Feld; Wächter mit vollständiger Liste | **erledigt** `543edbe2`, `845e38c9` (qa) | `data-hw-scan-kamera-ziel` in 10 Views, `HardwareScannerTests` |
+| v1.67.1 (Nachtrag 4): Fokus-Eingabe-Geräte (Netum) – Präfix am eingefügten Text, Feld „Handscanner“ im Kamera-Fenster, Scanner-Diagnose in Mein Profil | **erledigt** `eb4b28ea`, `a2651019` (qa) | `HwScanCore.createText`, `hardware-scanner.js` (input/beforeinput), [[2026-10-23-v1-67-1-hardware-scanner-fokus-eingabe]] |
+| v1.67.2 (Nachtrag 5): Scannen ohne Feld, Pilot nur Einbuchung – unsichtbares Scan-Feld, Zuordnung nach Inhalt (Artikel-QR / Lagerplatz / Artikelnummer), Profil-Schalter | **erledigt** `20b573de`, `a9462036` (qa) | `HwScanCore.zuordnung`, `hwScanOhneFeld` (barcode-scanner.js), `#hwScanOhneFeld` in Inbound, [[2026-10-23-v1-67-2-einbuchung-scannen-ohne-feld]] |
+| v1.68.1 (Nachtrag 6): sichtbares Scan-Feld „Scan bereit“ (grün/grau) statt unsichtbarem, Diagnose mit aktivem Element und Fokuswechsel | **erledigt** `69bb4fd1`, `8540c4d6` (qa) | `#hwScanOhneFeld`, `.hw-scan-ohne-feld`, [[2026-10-27-v1-68-1-scan-feld-sichtbar]] |
+| v1.71.1 (Nachtrag 7): ein Tipp aktiviert das Scan-Feld – kein `inputmode` im Markup, `inputmode="none"` erst 300 ms nach Geste, grün nur nach Tipp, Skript-Fokus grau, volle Kartenbreite | **Testbereit** (QA 2026-11-03, `9ca87f7c` + QA-Fix `6969620a` Fokusring 8:1 + Waechter Setz-Ort; DEV AKE+IDEAL v1.71.1), wartet Schranke 2 (Netum TS-99.19 a7–h7) | `hardware-scanner.js` Block „Scannen ohne Feld“, `.hw-scan-bereit`, [[2026-11-03-v1-71-1-scan-feld-tipp-aktiviert]] |
+| v1.72.0: Lagerplatz-Etikett 93 × 55 mm (Rollendrucker) als Standort-Schalter (Gruppe „Druck“, Default A4) | **Testbereit** `48349786` (QA 2026-11-06) | `Views/StorageLocations/PrintLabels.cshtml` (`labels-rolle`), `AppSettingKeys.LagerplatzEtikettRolle93x55`, [[2026-11-06-lagerplatz-etikett-rolle-und-vormontage-felder-spec]] |
+| v1.72.0: Vormontage-Listen neue Spalten Arbeitsbereich, HauptFA (Summiert), Kunde, FE-Termin, Bemerkung PN, Fertigungsinfo PN; Summiert Vorfilter je Position | **Testbereit** `43a3988f` + QA `d91b1d1d` (2026-11-06) | `VormontageService.BuildPositionsSpalten`/`BuildEinzelnColumnMap`, [[2026-11-06-v1-72-0-lagerplatz-etikett-rolle-vormontage-felder]] |
+| v1.73.0 (Epic): Sage-Abgleiche auf SData, Quellen-Weiche View/SData/Vergleich je Abgleich (Default View), E0–E4b, E6a–E7 | **Testbereit** (QA-Fix `c8c6b210`, QA-Wiederholung 2026-11-06) `7fdcf656`…`90a3555f` | `IDEALAKEWMSService/Services/Sdata/`, [[0019-quellen-weiche-view-sdata-je-abgleich]], [[2026-11-06-sage-sdata-stammdaten-sync-spec]] |
+| v1.73.0: Kreditoren/Debitoren-Stamm mit Pflege-Oberfläche + Lese-Abgleich Kontokorrent, Artikel-Lieferanten (E8a–c) | **Testbereit** `276a9077`, `30ee0f1d`, `9bdbeaed` | `CreditorsController`, `DebitorsController`, `KontokorrentSyncService`, [[2026-11-06-v1-73-0-sage-sdata-stammdaten-sync]] |
+| v1.73.0: Übergabe WMS→Sage vorbereitet (Status + Outbox, ohne Senden) für Lagerplätze/BDE-Mitarbeiter (E9) | **Testbereit** `e6821035` | `SageStammdatenOutbox`, `LagerplatzSyncService` |
+| v1.75.0: Fehlteile „Nur meine Werkbänke“ – Trefferzahl und Tab-Badges über alle Seiten (Filter in SQL vor Zählen/Paging) | **Testbereit** `e3071344`, `1f55f35b` | `WarehouseRequisitionRepository.GetMissingPartsAsync(workplaceIds)`, `MissingPartsController`, [[2026-11-07-fehlteile-nur-meine-werkbaenke-trefferzahl-spec]] |
+| v1.76.0: Bestandsübersicht übernimmt die FA aus dem Artikel-QR nur mit `QrMitFaNummer` | **Testbereit** `2fafd073` | `StockOverviewController` (`ViewBag.QrMitFaNummer`), [[2026-11-07-bestandsuebersicht-qr-fa-uebernahme-fest-spec]] |
+| v1.77.0 (Epic): Einstellungen mit festem Wertebereich als Auswahl, Wirkungsbeschreibung, Serverprüfung, Startprüfung (ADR 0020) | **Testbereit** `b220fcba`…`bd178dc4` | `AppSettingDefinitions`, `ServiceSettingDefinitions`, `SettingValidator`, `_SettingField.cshtml`, `Einstellungspruefung`, [[2026-11-07-einstellungen-auswahlfelder-und-beschreibung-spec]] |
+| v1.78.0: EAN von Einkaufsartikeln scannen (`/api/articles/by-ean`, Auswahlfenster bei 2–5 Treffern) | **Testbereit** `8534da23`, `8bf76aca` (QA E2/E3) | `ArticlesApiController.GetByEan`, `barcode-scanner.js` (`_eanAuswahl`), [[2026-11-07-ean-einkaufsartikel-scan-spec]] |
+| v1.79.0: Bereinigungen – Sperr-/TLS-Hinweis im Feld, Ausweich-Lagerplatz ohne Zeile sichtbar, Rückmelde-Schalter entfernt (SQL/108), „Übergabe an Sage“ = „nicht nötig“, Worker-Tests ohne Zeitfenster | **Testbereit** `0af3a94e` (QA 2026-11-07) | `_SettingField.cshtml`, `SettingItem.Aus`, `SageUebergabeStatusText`, `WorkerTestLauf`, [[2026-11-08-bereinigungen-nach-buendel-2026-11-07-spec]] |
+| v1.80.0: Artikelinfo – Karte „Lieferanten“ (Haupt-/letzter Lieferant mit Kreditor-Link, Artikel-Lieferanten aus Sage), Hinweise statt leerer Karte, Verlinkung aus Liste/Bearbeiten | **Testbereit** `ac92a15c`, `04742c26` (QA 2026-11-08) | `ArticlesController.Info`, `ArticleSupplierRow`, `Views/Articles/Info.cshtml`, [[2026-11-08-artikeldetails-lieferanten-anzeigen-spec]] |
+| v1.81.0: Karte „Meine Fehlteile“ je Bestelltyp (Link mit Typ), Werkbank-Auswahl im Modus „Nur meine Werkbänke“, Haken abschaltbar | **Testbereit** `747c1ced` (QA 2026-11-08) | `WarehouseRequisitionRepository.GetShortageCountsForUserAsync(type)`, `MissingPartsController` (`ForeignWorkplaceSelected`), [[2026-11-08-fehlteile-karte-meine-fehlteile-lager-glas-spec]] |
+| v1.84.0 (Epic): Wareneingang zu Sage-Bestellungen – Abgleich offene EBB-Positionen (SData), Vorschau „Offene Bestellungen“ (X Wochen), Wareneingang zu Bestellung | **Testbereit** `cf1f8547`…`0a941d63`, QA-Fixes `d9621029`, `26e6a278` (QA 2026-11-08) | `EinkaufBestellungenSyncService`, `PurchaseOrdersController`, `SagePurchaseOrderLines`, `PurchaseOrderReceipts`, [[2026-11-08-wareneingang-aus-sage-bestellungen-spec]] |
+| v1.85.0: Artikel – Sage-Karten auch auf Bearbeiten, Mengeneinheiten (SQL/140), Kreditor-Karte „Artikel dieses Lieferanten“ (Server-Filter + Pagination), Listenspalten Haupt-/letzter Lieferant | **Testbereit** `5e3340ce`, `1dac3bcd` (QA 2026-11-08) | `_ArtikelSageKarten`, `CreditorsController.Details`, `ColumnDefinitions.Articles`, [[2026-11-08-artikeldetails-lieferanten-anzeigen-spec]] |
+| v1.86.0: Offene Bestellungen – überfällig rot mit Legende, Sperre Basis ≠ Lager, Hinweis nicht buchbarer Ziel-Platz | **Testbereit** `405e9af5` (QA 2026-11-08) | `PurchaseOrders/Index.cshtml`, `EinkaufBestellungenSyncService`, [[2026-11-08-wareneingang-aus-sage-bestellungen-spec]] |
+| v1.87.0 (Epic): Lagerbuchungen – FA verknüpft (`StockMovements.ProductionOrderId`, SQL/109/110), Prüfkarte + Pflicht-Einstellung, FA-Link in Historie/Bestandsübersicht | **Testbereit** `f38e82ac`…`7ab2fcb5` (QA 2026-11-08) | `FindForBookingAsync`, `FaBuchungsText`, `fa-feld.js`, `_FaLink`, [[2026-11-08-lagerbuchungen-fa-feld-und-verlinkung-spec]] |
+| v1.88.0 (Epic): Kommissionieraufträge Kopf/Zeilen – Nummer KO-JJJJ-NNNNN, Kommissionierbereiche + Regeln, Erzeugen bei Freigabe/Nachziehen, Ist-Menge, Folgeauftrag, Druck (SQL/133, Einmal-Skript Altbestand; E7 Sage gesperrt) | **Testbereit** `3500c2fe`…`15a8e45f`, Reparatur `1ed5c72c` (QA 2026-11-08) | `PickingOrderWorkflow`, `PickingTransferService`, `PickingAreasController`, `/Picking`, [[2026-11-08-kommissionierung-auftraege-kopf-zeilen-spec]] |
+| v1.89.0: Kommissionieraufträge Nachbesserung Q9–Q11 – Zeilenstatus „gepickt“, zweiter Standard abgelehnt, „Altbestand prüfen“ (SQL/141) | **Testbereit** `bc8be58c`, `53858c6c` (QA 2026-11-08) | `PickingOrderWorkflow.ErzeugeOffeneAsync`/`AltbestandGeprueftAsync`, `PickingAreasController.Uebernehmen`, [[2026-11-08-kommissionierung-auftraege-kopf-zeilen-spec]] |
+| v1.90.0: Lager-Tools FA-Prüfkarte je FA-Pflicht (`fa-lookup?art=` → `pflicht`), Link-Kontrast | **Testbereit** `5d4df4be` (QA 2026-11-08) | `StockApiController.FaLookup`, `fa-feld.js`, [[2026-11-08-lagerbuchungen-fa-feld-und-verlinkung-spec]] |
+| v1.91.0: Offene Bestellungen – Legende im Zeilenton (N-1) | **Testbereit** `bacf3b82` (QA 2026-11-08) | `Views/PurchaseOrders/Index.cshtml`, [[2026-11-08-wareneingang-aus-sage-bestellungen-spec]] |
+| v1.92.0 (Bug): Checkbox + Hidden-„false“ – OSEON-Relevanzfilter, BDE-Edit Final/Löschen, eine Final-Zeile je Buchung | **Testbereit** `cf869e97`, Reparatur `9c9046c4` (QA + Nach-QA 2026-11-08) | `Tracking/OseonIndex.cshtml`, `BdeBookingsController.Edit`, [[2026-11-08-oseon-relevanzfilter-schaltet-sich-ab-spec]] |
+| v1.93.0 (Bug): Meldebestand-Mail mit der Bestandsregel der Web-App, Artikel ohne Bewegung | **Testbereit** `897f7a03` (QA 2026-11-08) | `IDEALAKEWMSService/Services/StockCheckService.cs`, [[2026-11-08-meldebestand-mail-bestand-falsch-berechnet-spec]] |
+| v1.94.0 (Bug): Menüleiste bricht um (kein Seiten-Querscrollen), Fehlteile-Link Kontrast; SQL/108 Nachtrag `StammdatenADGruppe` | **Testbereit** `2efdb023`, `6987e2bd` (QA 2026-11-08) | `Views/Shared/_Layout.cshtml`, [[2026-11-08-seiten-querscrollen-navigationsleiste-spec]] |
+| v1.95.0: Nachbesserung Vorab-Abnahme – Spaltenauswahl Offene Bestellungen (+ Drift-Wächter viewKey), FA-Link findet erledigte FAs, Hilfe QR/FA, Leitstand-Hinweis „kein Kommissionierer“ | **Testbereit** `a26be406` (QA Reparatur 1, 2026-11-08) | `ColumnDefinitions.PurchaseOrders`, `_FaLink`, `_KeinKommissioniererHinweis`, [[2026-11-08-buendel-dev-v1-94-browser-testbericht]] |
+| Wareneingang Teil 2 (Sage-WE-Beleg ELL, Rahmenabrufe EBZ) | **Entwurf** (Schranke 1, E4 blockiert: Schreibtest) | noch kein Code, [[2026-11-08-wareneingang-teil-2-sage-we-beleg-rahmenabrufe-spec]] |
+
+> **Deploy:** Web; Dienst nur wegen `AppVersion.cs`. Keine Migration. Default aus; vor dem Einschalten Geräte einrichten (DE-Layout,
+> Präfix, Enter, Tasten-Ausgabe).
+> **Status:** **Testbereit** v1.66.2 (qa-agent 2026-10-22) — wartet auf Schranke 2 (Manual-UAT TS-99 inkl. 99.14–99.16 + Bündel-Merge).
+> Offen zur Entscheidung: doppelter Klick-Handler am OSEON-Artikelknopf (QA Q3-2, vorbestehend).
+
+### FA-Struktur live aus Sage (v1.71.0, direkt im Bündel)
+
+Spec [[2026-10-30-sage-sdata-fa-ansicht-spec]], Umsetzung [[2026-10-30-sage-sdata-fa-ansicht-umsetzung]],
+Changelog [[2026-10-30-v1-71-0-sage-sdata-fa-ansicht]]. TS-103. Folgeaufgabe [[2026-10-30-sage-sdata-artikelstueckliste-soll-spalte]].
+
+| Baustein | Status | Code-Einstieg |
+|---|---|---|
+| Lese-Client SData RealTimeData (nur GET, or-Blöcke à 50, TLS je Anfrage) | **erledigt** `8c09ab87` | `Services/SageSdata/SageSdataReadClient.cs` |
+| Baumaufbau Haupt-FA → Sub-FAs → Positionen, Meldungen statt stiller Zuordnung | **erledigt** `8c09ab87` | `SageSdataFaTreeBuilder.Build` |
+| Seite „FA-Struktur (Sage live)“, Gate `SageSdataFaAnsichtAktiv`, Diagnose | **erledigt** `8c09ab87`, QA-Fix `0fe5e7c7` | `SageSdataFaController.Index`, `Views/SageSdataFa/Index.cshtml` |
+
+> **Deploy:** Web; Dienst nur wegen `AppVersion.cs`. Keine Migration. `appsettings.Production.json` mit `SageLagerbuchung` im Web-Ordner.
+> **Status:** **Testbereit** v1.71.0 (qa-agent 2026-10-30) — wartet auf Schranke 2 (Manual-UAT TS-103 am AKE-Testsystem + Bündel-Merge).
+
+### Aktivitäts-Protokoll: Spaltenfilter über alle Einträge, deutsche Namen (v1.70.0, direkt im Bündel)
+
+Spec [[2026-10-16-aktivitaetsprotokoll-filter-und-namen-spec]], Umsetzung [[2026-10-16-aktivitaetsprotokoll-filter-und-namen-umsetzung]],
+Bug [[2026-10-28-aktivitaetsprotokoll-spaltenfilter-nach-paging-bug]], Changelog [[2026-10-28-v1-70-0-aktivitaetsprotokoll-filter-namen]]. TS-102.
+
+| Baustein | Status | Code-Einstieg |
+|---|---|---|
+| Spaltenfilter in SQL vor Count/Skip/Take, Zeitpunkt tageweise, Seiten-Guard | **erledigt** `badbedcc` | `SyncLogRepository.ApplyColumnFilter`, `GetPagedAsync` |
+| Deutsche Anzeigenamen an einer Stelle, Auswahlfeld alphabetisch, Filter über Anzeige- oder technischen Namen | **erledigt** `badbedcc` | `SyncLogServices.DisplayNames`/`DisplayName` |
+
+> **Deploy:** Web; Dienst nur wegen `AppVersion.cs`. Keine Migration, kein Index. Vor Abnahme P-2 (Kollation) und P-3.
+> **Status:** **Testbereit** v1.70.0 (qa-agent 2026-10-28, Nachbesserung `d7dc3d03`) — wartet auf Schranke 2 (Manual-UAT TS-102 + Bündel-Merge).
+
+### QR-Code: Matchcode statt Artikelnummer (v1.68.0, direkt im Bündel)
+
+Spec [[2026-10-23-qr-code-matchcode-statt-artikelnummer-spec]], Umsetzung [[2026-10-23-qr-code-matchcode-statt-artikelnummer-umsetzung]],
+Changelog [[2026-10-27-v1-68-0-qr-matchcode]]. TS-101.
+
+| Baustein | Status | Code-Einstieg |
+|---|---|---|
+| AppSetting `QrErstesFeld` (Artikelnummer/Matchcode), Seed, `/Settings` Allgemein, Wertprüfung, body-Attribut | **erledigt** `ca48b22d` | `SettingsController.SaveSettings`, `_Layout.cshtml` |
+| Eine Matchcode-Suche (getrimmt, ohne Groß/Klein, Liste) für Endpunkt und Artikelinfo (mehrdeutig = Meldung) | **erledigt** `ca48b22d` | `ArticleRepository.GetByMatchcodeExactAsync`, `GET /api/articles/by-matchcode` |
+| Matchcode-Zweig im globalen `processScannedValue`-Wrapper (alle Scan-Wege), drei Meldungen | **erledigt** `ca48b22d` | `barcode-scanner.js` |
+| v1.69.0 (Nachtrag 2): Auswahllisten für Einstellungen mit festen Werten, neue Einstellung `QrTrennzeichen` (`;` \| `,`) für alle QR-Zerlegungen | **erledigt** `2c1e3a6d` | `AppSettingKeys.FesteWerte`, `qrTrennzeichen()` in `barcode-scanner.js`, [[2026-10-27-v1-69-0-qr-trennzeichen]] |
+
+> **Deploy:** Web; Dienst nur wegen `AppVersion.cs`. Keine Migration. Standard `Artikelnummer` = bisheriges Verhalten.
+> **Status:** **Testbereit** v1.69.0 (qa-agent 2026-10-27) — wartet auf Schranke 2 (Manual-UAT TS-101 inkl. 101.15–101.21 + Bündel-Merge).
+
+### Vault- und enaio-Links konfigurierbar (v1.67.0, direkt im Bündel)
+
+Spec [[2026-10-21-vault-links-per-schalter-spec]], Umsetzung [[2026-10-21-vault-links-per-schalter-umsetzung]],
+Changelog [[2026-10-22-v1-67-0-vault-enaio-links-konfigurierbar]]. TS-100.
+
+| Baustein | Status | Code-Einstieg |
+|---|---|---|
+| Eine Regel für Schalter (nur `false` sperrt), Vorlage mit Platzhalter, leerer Wert, URL-Kodierung | **erledigt** `b1cb87e1` | `Helpers/LinkVorlage.Build` |
+| Vault: zehn Stellen über ein Partial, Artikelinfo mit Text; Stücklisten-Knopf bleibt | **erledigt** `b1cb87e1` | `Views/Shared/_VaultLink.cshtml` |
+| enaio: Badges aus `EnaioLinkVorlage`, bei Schalter aus keine Badges | **erledigt** `b1cb87e1` | `Views/Shared/_EnaioDmsBadges.cshtml` |
+| Laufzeit-Seed der vier AppSettings (AKE-Adressen), Gruppen „Vault (Zeichnungen)“ / „enaio (Dokumente)“ | **erledigt** `b1cb87e1` | `Program.cs`, `StandortSettingsCatalog` |
+| enaio-Sync-Quelle `Sync:EnaioDmsViewName` (bis drei Teile, Prüfung vor dem `try`) | **erledigt** `b1cb87e1` | `EnaioDmsSyncService.ResolveSource`, `FaHierarchySql.ValidateAndQuote(…, maxSegments)` |
+| Hilfe, README, TS-100, v1.67.0 | **erledigt** `9fe7553f`, `4bfa4576` (qa) | `Views/Help/Index.cshtml` |
+
+> **Deploy:** Web und Dienst, keine Migration. AKE: nichts tun (Seed). IDEAL: Vault-Links beim Einspielen ausschalten; enaio
+> entscheidet Gerald.
+> **Status:** **Testbereit** (qa-agent 2026-10-22) — wartet auf Schranke 2 (Manual-UAT TS-100 + Bündel-Merge).
+
+### Spaltenauswahl/Zahnrad: zentraler Toolbar-Host, Gruppenkopf, Speicherfehler (v1.65.0, direkt im Bündel)
+
+Spec [[2026-10-14-spaltenauswahl-zahnrad-sammel-spec]], Umsetzung [[2026-10-14-spaltenauswahl-zahnrad-sammel-umsetzung]],
+Changelog [[2026-10-21-v1-65-0-spaltenauswahl-zahnrad-toolbar-host]].
+
+| Baustein | Stand | Code-Einstieg |
+|---|---|---|
+| A: `window.tableToolbarHost` (Marker `data-table-toolbar`, Fallback `="auto"` je Wrapper), Zahnrad + CSV darüber, 13 Views markiert | **erledigt** `f1108e94` | `wwwroot/js/site.js`, `column-preferences.js insertGearButton`, `csv-export.js attach` |
+| B: Gruppenkopf/Leerzustand bleiben (`:scope > td[colspan]`-Skip) | **erledigt** `f1108e94` | `column-preferences.js setColVisibility` |
+| C + Z1/Z2: Hinweis bei Speicher-/Lade-/Zurücksetzen-Fehler, `pagehide`-Flush mit keepalive | **erledigt** `f1108e94` | `column-preferences.js showPrefsMessage` |
+| D: Anzeigename „Vorschlagsliste Beschichtung (…)“ | **erledigt** `f1108e94` | `ColumnDefinitions.cs` |
+| Hilfe, Changelog, v1.65.0, TS-98 | **erledigt** `c27f3b6d` | `Views/Help/Index.cshtml` |
+
+> **Deploy:** nur Web, keine Migration. Wirkt an **beiden** Standorten (AKE: Zahnrad wandert aus dem Filterkasten).
+> **Status:** Testbereit (QA 2026-10-21, Build + 2138 Web- / 316 Service-Tests grün) → Schranke 2 mit dem Bündel.
+
+### BDE-Terminal: Liste nach Haupt-FA, Scan ohne AG, Prio (v1.64.0, direkt im Bündel)
+
+Spec [[2026-10-19-bde-terminal-liste-scan-ohne-ag-prio-spec]], Umsetzung [[2026-10-19-bde-terminal-liste-scan-ohne-ag-prio-umsetzung]],
+Changelog [[2026-10-19-v1-64-0-bde-terminal-liste-scan-ohne-ag-prio]], Backlog [[2026-10-19-bde-terminal-liste-und-scan-ohne-ag]].
+
+| Baustein | Stand | Code-Einstieg |
+|---|---|---|
+| Gruppen-Sortierung Prio/Termin, NotInScope Sub-FA, negative Mengen M1–M6, FA-Baum bevorzugte Werkbank, `BdeTerminalMaxHauptFa` | **erledigt** `63bf006c` | `BdeTerminalAuftraege.Ordnen`, `BdeScanResolver`, `BdeBookingService.IstNegativ`, `FaArbeitsschrittSymbole.NamenLookup`, `BdeTerminalController.Index` |
+| Terminal-UI: Gruppen, „Weitere“, Markierung `aria-pressed`, Panel unter Karte 2, Scan ohne AG | **erledigt** `96e90402` | `wwwroot/js/bde-terminal.js` (`renderGroups`, `openGroup`, `markSelection`), `bde.css` |
+| Hilfe, Changelog, README, v1.64.0, TS-97 | **erledigt** `5613e5a2` | `Views/Help/Index.cshtml` |
+| QA-Fix Q1–Q3: Haken-Zeichen CSS, kein Fokus nach Scan, Markierung jenseits der Grenze | **erledigt** `a9558301` | `bde.css`, `bde-terminal.js` |
+
+> **Deploy:** nur Web, keine Migration (AppSetting per Startup-Seed). **Status:** Testbereit (QA 2026-10-19, Build + 2111 Web- /
+> 316 Service-Tests grün) → Schranke 2 mit dem Bündel.
+
+### BDE Stufe 1: Werkbank-Familie, veraltete Sage-Werkbänke, nur AG-Fertigmeldung (v1.63.0, direkt im Bündel)
+
+Spec [[2026-10-19-bde-stufe-1-werkbaenke-ag-fertigmeldung-spec]], Umsetzung [[2026-10-19-bde-stufe-1-werkbaenke-ag-fertigmeldung-umsetzung]],
+Changelog [[2026-10-19-v1-63-0-bde-stufe-1-werkbaenke-ag-fertigmeldung]], Backlog [[2026-10-19-bde-lastenheft-abgleich]] (Stufe 1),
+[[2026-10-19-werkbank-katalog-veraltete-sage-arbeitsplaetze]].
+
+| Baustein | Stand | Code-Einstieg |
+|---|---|---|
+| Schema `SageMissingSince`, `BdeNurAgFertigmeldung` (SQL/97, FreshInstall) | **erledigt** `4416aac8` | `Models/ProductionWorkplace.cs` |
+| (b) Kennzeichnung „nicht in Sage“ + Erkennung ohne gekennzeichnete; (a) mehrere Werkbänke → bevorzugte | **erledigt** `13681983` | `ProductionWorkplaceSyncService`, `WorkOperationStructureDetectionService`, `Services/WerkbankKuerzelFamilie.cs` |
+| (a) Terminal/Scan/FA-Baum über Kürzel-Familie | **erledigt** `27fdec11` | `BdeApiController.GetAvailableOperations`, `BdeScanResolver`, `WorkOperationRepository.GetOpenByWorkplaceIdsAsync` |
+| FA-a9 Familien-Prüfung, Start-Sperre, (c) Fertigmeldung | **erledigt** `8b51af5a` | `BdeBookingService.ReportCompletionAsync`/`EnsureWorkOperationInFamilyAsync`, `BdeTerminalController.ReportCompletion`, `bde-terminal.js` |
+| FA-a8 Kürzel-Pflege, Stammdaten-Spalte, Option | **erledigt** `3efba9a9` | `ProductionWorkplacesController`, `ProductionWorkplaceRepository.UpdateAsync` |
+| Hilfe, Changelog, README, v1.63.0, TS-96 | **erledigt** `501008f6` | `Views/Help/Index.cshtml` |
+| QA-Fix Q1: `StartProductionForOrder` prüft vor Default-AG-Anlage | **erledigt** `b3daf566` | `BdeTerminalController.StartProductionForOrder` |
+
+> **Deploy:** Web + Dienst + SQL/97 (additiv). IDEAL vor Scharfschalten DryRun + P1–P3/P6. **Status:** Testbereit (QA 2026-10-19,
+> Build + 2088 Web- / 316 Service-Tests grün) → Schranke 2 mit dem Bündel.
+
+### Stückliste: Matchcode + Lagerplatz-Limit (v1.62.0, direkt im Bündel)
+
+Spec [[2026-10-16-stueckliste-matchcode-lagerplatz-limit-spec]], Umsetzung [[2026-10-16-stueckliste-matchcode-lagerplatz-limit-umsetzung]],
+Changelog [[2026-10-16-v1-62-0-stueckliste-matchcode-lagerplatz-limit]], Bug [[2026-10-16-stueckliste-lagerplatz-zelle-tabellenbreite-bug]].
+
+| Baustein | Stand | Code-Einstieg |
+|---|---|---|
+| M: Spalte Matchcode (IDEAL Struktur, sonst Artikelstamm; AKE Artikelstamm), Druck, ColumnDefinitions (+ warehouse-order) | **erledigt** `c5d9b2b7` | `FaHierarchyBomItem.Matchcode`, `PickingController.Bom`, `ReadOnlyBomBuilder` |
+| L: Reihenfolge zentral, Zelle max. 3 + „+n weitere“-Popover, Spalte filterbar, CSV volle Liste | **erledigt** `c9bc382f`, `41c3c14e` | `StockMovementRepository.GetStockByArticleNumbersAsync`, `Views/Picking/Bom.cshtml` |
+| Hilfe, Changelog, v1.62.0, TS-95 | **erledigt** `6a452892` | `Views/Help/Index.cshtml` |
+| QA-Fix W-1: Bulk-Bestell-Fallback per col-key statt fester Zellpositionen | **erledigt** `9177db47`, TS `d75680f4` | `Views/Picking/Bom.cshtml` |
+| Bugfix v1.64.1: keine Seiten-Querscrollleiste (`.table-responsive` relativ), genau ein Scrollbalken (Sentinel unter dem Wrapper, ResizeObserver) — global für alle Listen. Bug [[2026-10-19-tabelle-seitenbreite-doppelter-scrollbalken-bug]] | **Testbereit** `4179e38d`, QA `d52bc44d` | `wwwroot/css/site.css` `.table-responsive`, `wwwroot/js/site.js` `initStickyScrollbar` |
+
+> **Deploy:** nur Web, keine Migration. **Status:** Testbereit (QA 2026-10-16, Build + 2043 Web- / 307 Service-Tests grün) →
+> Schranke 2 mit dem Bündel.
+
+### Arbeitsgang-Stammdaten mit der Sage-View abgleichen (v1.61.0, direkt im Bündel)
+
+Spec [[2026-10-16-arbeitsgang-stammdaten-abgleich-aus-sage-view-spec]], Umsetzung [[2026-10-16-arbeitsgang-stammdaten-abgleich-aus-sage-view-umsetzung]],
+Changelog [[2026-10-16-v1-61-0-arbeitsgang-abgleich-sage-view]].
+
+| Baustein | Stand | Code-Einstieg |
+|---|---|---|
+| `Source` + `SageMissingSince`, Migration/`SQL/96`/FreshInstall, OSEON-Seed `ExternalSystem`, `UpdateAsync` nur Pflegefelder | **erledigt** `6993c774` | `Models/OperationConfig.cs`, `OperationConfigRepository.UpdateAsync` |
+| Arbeitsgang-Abgleich (Dienst, EIN Gate, 3 Keys, SyncLog) | **erledigt** `bc134c15` | `IDEALAKEWMSService/Services/OperationConfigSyncService.cs` |
+| Reiter: Spalte Quelle + Kennzeichnung „nicht in Sage“ | **erledigt** `7042efcb` | `OperationConfigsController`, `Views/OperationConfigs/Index.cshtml` |
+| Zahnrad/Spaltenauswahl im Reiter | **erledigt** `459cb7b5` | `ColumnDefinitions.OperationConfigs` |
+| Hilfe, Changelog, v1.61.0, README, TS-94 | **erledigt** `9731b38a` | `Views/Help/Index.cshtml` |
+| QA-Fix: kein falsches „wieder in Sage“ nach gelöschtem Eintrag, Test Detached-Pfad | **erledigt** `8773ba4f` | `OperationConfigSyncService` |
+
+> **Deploy:** Web + Dienst, Migration `SQL/96` (additiv, Voraussetzung `SQL/95`); P5 je Standort vorher. Schalter aus →
+> AKE unverändert bis auf Spalte Quelle und Zahnrad. **Status:** Testbereit (QA 2026-10-16, Build + 2036 Web- / 307 Service-Tests
+> grün) → Schranke 2 mit dem Bündel.
+
+### IDEAL: Sage-Zugriffe auf die neuen WMS-Views (v1.60.0, direkt im Bündel)
+
+Spec [[2026-10-14-ideal-sage-views-umstellung-spec]], Umsetzung [[2026-10-15-ideal-sage-views-umstellung-umsetzung]],
+Changelog [[2026-10-15-v1-60-0-ideal-sage-views-umstellung]].
+
+| Baustein | Stand | Code-Einstieg |
+|---|---|---|
+| FA-Views Default + Existenzprüfung (Fehler + Mail) | **erledigt** `b53b99dd` | `FaHierarchySyncService`, `FaHierarchySql.SourceExistsAsync` |
+| Werkbank-Quelle per Key (Default `KHKPpsArbeitsplaetze`) | **erledigt** `b53b99dd` | `ProductionWorkplaceSyncService`, `SageArbeitsplatzReader` |
+| Artikel-Quelle per Key (leer = alter Select) | **erledigt** `b53b99dd` | `SageArticleSql`, `SageImportService.SyncArticlesAsync` |
+| 00er-Bereinigung (Einmal-Skript), README, v1.60.0, TS-93 | **erledigt** `2524bb03` | `SQL/Einmalig/2026-10-15_IDEAL-Sage-Views_Bereinigung00erArtikel.sql` |
+| Fix v1.60.1: Artikel-View mit WMS-Spaltennamen, Hash-Wächter LegacySql | **erledigt** `63524941` (Changelog [[2026-10-15-v1-60-1-artikel-view-wms-spalten]]) | `SageArticleSql.BuildViewSql` |
+| Fix v1.60.2: Arbeitsplatz-View mit eigenen Spalten (ohne Mandant/Aktiv) | **erledigt** `73b37e55` (Changelog [[2026-10-15-v1-60-2-arbeitsplatz-view-spalten]]) | `SageArbeitsplatzSql` (`SageArbeitsplatzReader.cs`) |
+
+> **Deploy:** Web + Service, keine Migration; Prüfabfragen P1–P7 (Gerald), Umstellung per Einstellung, Skript nur IDEAL.
+> **Status:** Testbereit (QA 2026-10-15) → Schranke 2 mit dem Bündel.
+
+### Briefkopf: Fußzeile nach Firmen-Word-Vorlage (v1.59.0, direkt im Bündel)
+
+Spec [[2026-10-13-briefkopf-fusszeile-word-vorlage-spec]], Umsetzung [[2026-10-14-briefkopf-fusszeile-word-vorlage-umsetzung]],
+Changelog [[2026-10-14-v1-59-0-briefkopf-fusszeile]].
+
+| Baustein | Stand | Code-Einstieg |
+|---|---|---|
+| Fußbereich `<footer class="briefkopf-fuss">` laden/prüfen/einbetten (`Fuss`, `HatFuss`) | **erledigt** `c2d54f35` | `Services/BriefkopfVorlageService.cs` |
+| Fußzeile auf jeder Druckseite (V3), „Seite X von Y" bei genau einem Dokument | **erledigt** `c2d54f35` | `Views/Shared/_PrintBriefkopfFuss.cshtml`, `_PrintBriefkopfStyles.cshtml`, drei Druck-Views |
+| Muster nach Word-Vorlage, README, Hilfe, v1.59.0, TS-92 | **erledigt** `c2d54f35` | `Branding/briefkopf.html` |
+
+> **Deploy:** nur Web, keine Migration; IT ergänzt den Fußbereich in der Server-Vorlage (ohne: Druck wie bisher).
+> `Branding\` im Programmordner, nicht `wwwroot\`. **Status:** Testbereit (QA 2026-10-14, Fix `d4108f1a`) → Schranke 2 mit dem Bündel.
+
+### Beschichtungsauftrag als eigenes Objekt (v1.50.0, direkt im Bündel, ohne Oberfläche)
+
+Spec [[2026-10-06-beschichtungsauftrag-ausbau-teil-3-spec]] (Teil 3 von 4), Umsetzung
+[[2026-10-12-beschichtungsauftrag-ausbau-teil-3-umsetzung]], Changelog [[2026-10-12-v1-50-0-beschichtungsauftrag-objekt]].
+
+| Baustein | Stand | Code-Einstieg |
+|---|---|---|
+| Modelle, DbContext, Repository (Vergabe-Abfrage), DI, TimeProvider | **erledigt** `1410fc5c` | `Models/Beschichtungsauftrag*.cs`, `Data/Repositories/BeschichtungsauftragRepository.cs` |
+| Workflow: Nummernkreis, Statusautomat, Doppelvergabe, Anlegen/Bearbeiten/Hinzufügen, Reklamation | **erledigt** `1410fc5c`, QA-Fix `a5b27550` | `Services/BeschichtungsauftragWorkflow.cs` |
+| Migration 94 dreifach (EF, `SQL/94`, FreshInstall zwei Stellen) + Drift-Wächter | **erledigt** `51c6bc79` | `SQL/94_AddBeschichtungsauftrag.sql`, `BeschichtungsauftragMigrationSqlTests` |
+| v1.50.0, Changelog, TS-83 | **erledigt** `a1f7fcfd` | `docs/TESTSZENARIEN.md` TS-83 |
+
+> **Deploy:** Web + **Migration 94** (SQL-Skript vor dem Recycle), kein Service. **Status:** Testbereit (QA + Nachlauf
+> 2026-10-12, Build + 1568 Web- + 272 Service-Tests grün) → Schranke 2 mit dem Bündel. Oberfläche (Liste, Detail, Druck,
+> Schreibrolle) folgt mit Teil 4; ein Workflow-Aufruf je Request.
+
+### Beschichtungsaufträge bedienen (v1.51.0, direkt im Bündel)
+
+Spec [[2026-10-06-beschichtungsauftrag-ausbau-teil-4-spec]] (Teil 4 von 4), Umsetzung
+[[2026-10-12-beschichtungsauftrag-ausbau-teil-4-umsetzung]], Changelog [[2026-10-12-v1-51-0-beschichtungsauftraege-oberflaeche]].
+
+| Baustein | Stand | Code-Einstieg |
+|---|---|---|
+| Schreibrolle `beschichtungsauftrag_schreiben`, Schreibfilter, Vergabe-Anzeige, PDF-Name mit Nummer | **erledigt** `3b5149af` | `Filters/RequireBeschichtungsauftragWriteAccessAttribute.cs`, `Services/BeschichtungsauftragVergabeAnzeige.cs` |
+| Controller + ViewModels (Liste, Detail, Entwurf, Positionen, Status, Reklamation, Druck/PDF) | **erledigt** `8d60cb10`, QA-Fix `5764c664` | `Controllers/BeschichtungsauftraegeController.cs` |
+| Views + Gruppenkopf Vorschlagsliste + Navigation + Briefkopf für den Auftrag | **erledigt** `17bbf3be` | `Views/Beschichtungsauftraege/*`, `Views/FaHierarchyBeschichtung/_VorschlagAuftraege.cshtml` |
+| v1.51.0, Changelog, Hilfe, Rollenübersicht, TS-84, README | **erledigt** `5af265f4`, `91c77105` | `docs/TESTSZENARIEN.md` TS-84 |
+
+> **Deploy:** nur Web, keine Migration (setzt Migration 94 aus Teil 3 voraus); Rolle `beschichtungsauftrag_schreiben`
+> anlegen + zuweisen. **Status:** Testbereit (QA 2026-10-12, Build + 1619 Web- + 272 Service-Tests grün) → Schranke 2
+> mit dem Bündel.
+
+### Arbeitsgänge als Symbole im FA-Struktur-Baum (v1.52.0, Teil 1, direkt im Bündel)
+
+Spec [[2026-10-06-fa-struktur-arbeitsgaenge-symbole-teil-1-spec]] (Teil 1 von 3), Umsetzung [[2026-10-12-fa-struktur-arbeitsgaenge-symbole-teil-1-umsetzung]], Changelog
+[[2026-10-12-v1-52-0-fa-struktur-arbeitsgaenge-symbole]].
+
+| Baustein | Stand | Code-Einstieg |
+|---|---|---|
+| Tokenisierung, Namens-Lookup, Zuordnung je Baumzeile, eine Katalog-Abfrage | **erledigt** `f1a447cb` | `Models/ViewModels/FaHierarchyTreeViewModel.cs` (`FaArbeitsschrittSymbole`), `FaHierarchyController.Index` |
+| Spalte „Arbeitsgänge" im Baum + Symbol-Stil + Spalten-Wächter | **erledigt** `1c86978d`, QA-Fix `d6d6beb0` | `Views/FaHierarchy/_FaHierarchyNode.cshtml`, `site.css` `.fa-ag-symbol` |
+| v1.52.0, Changelog, Hilfe, TS-85 | **erledigt** `8f15833c` | `docs/TESTSZENARIEN.md` TS-85 |
+
+> **Deploy:** nur Web, keine Migration. **Status:** Testbereit (QA 2026-10-12, Build + 1636 Web- + 272 Service-Tests grün)
+> → Schranke 2 mit dem Bündel. Status-Farben folgen mit Teil 2, BDE-Anzeige mit Teil 3.
+
+### CSV-Export für alle Tabellen (v1.53.0, direkt im Bündel)
+
+Spec [[2026-10-06-csv-export-alle-tabellen-spec]], Umsetzung [[2026-10-12-csv-export-alle-tabellen-umsetzung]], Changelog
+[[2026-10-12-v1-53-0-csv-export-alle-tabellen]].
+
+| Baustein | Stand | Code-Einstieg |
+|---|---|---|
+| Layout-Skript, Sortiervergleich, Pagination-/Stücklisten-Attribute, Wächter + Node-Kern | **erledigt** `2e6752a1`, QA-Fix `9ad794b1` | `wwwroot/js/csv-export.js`, `table-filter.js` `tableFilterCompareValues` |
+| v1.53.0, Changelog, Hilfe, TS-86 | **erledigt** `400a7520`, `b43edb25`, `87db96c8` | `docs/TESTSZENARIEN.md` TS-86 |
+
+> **Deploy:** nur Web, keine Migration. **Status:** Testbereit (QA + Nachlauf 2026-10-12, Build + 1767 Web- + 272
+> Service-Tests grün) → Schranke 2 mit dem Bündel.
+
+### Arbeitsgang-Stammdaten vereinheitlicht (v1.54.0, direkt im Bündel)
+
+Spec [[2026-10-09-arbeitsgang-stammdaten-vereinheitlichen-spec]], Umsetzung [[2026-10-12-arbeitsgang-stammdaten-vereinheitlichen-umsetzung]], Changelog
+[[2026-10-12-v1-54-0-arbeitsgang-stammdaten]]. Löst „AG-Konfiguration (Soll-Termine + Relevanz)“ (`Models/OseonOperationConfig.cs`)
+ab; Vorbedingung für FA-Struktur-Symbole Teil 2/3.
+
+| Baustein | Stand | Code-Einstieg |
+|---|---|---|
+| Umbenennung Code + Schema, Audit, Migration (guarded), `SQL/95`, FreshInstall, Drift-Wächter | **erledigt** `d4bb711a`, QA-Fix `d56a340e` | `Models/OperationConfig.cs`, `Migrations/20261012140548_RenameOperationConfigsAndAddAudit.cs`, `SQL/95_*` |
+| Offset-Lookup, Liste „nicht konfiguriert“, Controller, Reiter-Partial, Redirect, Begriffe | **erledigt** `5ac5ea16` | `Data/Repositories/OperationConfigRepository.cs`, `Controllers/OperationConfigsController.cs` |
+| v1.54.0, Changelog, Hilfe, TS-87 | **erledigt** `b5123529` | `docs/TESTSZENARIEN.md` TS-87 |
+
+> **Deploy:** Web + **SQL/95** (DB-Backup, App-Pool vorher stoppen). **Status:** Testbereit (QA + Nachlauf 2026-10-12,
+> Build + 1795 Web- + 272 Service-Tests grün) → Schranke 2 mit dem Bündel.
+
+### Status je Arbeitsgang-Kürzel im FA-Struktur-Baum (v1.55.0, Teil 2, direkt im Bündel)
+
+Spec [[2026-10-06-fa-struktur-arbeitsgaenge-symbole-teil-2-spec]] (Teil 2 von 3), Umsetzung [[2026-10-13-fa-struktur-arbeitsgaenge-symbole-teil-2-umsetzung]], Changelog
+[[2026-10-13-v1-55-0-fa-struktur-arbeitsgaenge-status]]. Baut auf Teil 1 (v1.52.0) und den Arbeitsgang-Stammdaten (v1.54.0) auf.
+
+| Baustein | Stand | Code-Einstieg |
+|---|---|---|
+| FA 4a: leerer Offset in der Stammdaten-Pflege abgewiesen | **erledigt** `539be27f` | `Controllers/OperationConfigsController.cs` (`OffsetFehlt`) |
+| Gebündelte Abfragen (WorkOperations der Seite, erledigt/läuft) | **erledigt** `e33cdc83` | `WorkOperationRepository.GetForFaStatusAsync` / `GetBdeStatusAsync` |
+| Reine Status-Ableitung (Zuordnung W-2/W-3, Gate, W-4, Soll/Offset, Kombigerät) | **erledigt** `7690d281` | `Models/ViewModels/FaArbeitsgangStatus.cs` |
+| Controller-Gate, Status-Chips + Zeichen, Sammelhinweis, Kontextzeilen ohne `opacity` | **erledigt** `6d85810b` | `FaHierarchyController.Index`, `_FaHierarchyNode.cshtml`, `site.css` |
+| v1.55.0, Changelog, Hilfe, TS-88 (+ TS-87.3) | **erledigt** `99a3b09e` | `docs/TESTSZENARIEN.md` TS-88 |
+
+> **Deploy:** nur Web, keine Migration. Produktiv ohne Wirkung, solange `BdeAktiv` aus ist. **Status:** Testbereit (QA 2026-10-13, Build + 1826 Web- + 272 Service-Tests grün, Fixes `57b762a9`, `627c992a`) → Schranke 2 mit dem Bündel.
+
+### Menü „Beschichtung“ gebündelt + Kurzanleitungen in der Hilfe (v1.56.0, direkt im Bündel)
+
+Spec [[2026-10-13-menue-beschichtung-und-hilfe-kurzanleitungen-spec]], Umsetzung [[2026-10-13-menue-beschichtung-und-hilfe-kurzanleitungen-umsetzung]], Changelog
+[[2026-10-13-v1-56-0-menue-beschichtung-hilfe]].
+
+| Baustein | Stand | Code-Einstieg |
+|---|---|---|
+| Dropdown „Beschichtung“, Titel Vorschlagsliste, Hilfe-Karte + Kurzanleitungen, Wächter | **erledigt** `14d1600d` | `Views/Shared/_Layout.cshtml`, `Views/Help/Index.cshtml`, `BeschichtungsauftraegeViewTests` |
+| v1.56.0, Changelog, TS-89, Menüweg TS-81/84 | **erledigt** `699586af` | `docs/TESTSZENARIEN.md` TS-89 |
+
+> **Deploy:** Web (Service nur Versionsanzeige), keine Migration. **Status:** Testbereit (QA 2026-10-13, Build + 1831 Web- + 272 Service-Tests grün, Fix `d3746373`) → Schranke 2 mit dem Bündel. Folgeaufgabe [[2026-10-13-spalteneinstellungen-anzeigename-vorschlagsliste]].
+
+### BDE-Terminal: offene Aufträge mit Arbeitsgang-Status (v1.57.0, FA-Struktur Teil 3, direkt im Bündel)
+
+Spec [[2026-10-06-fa-struktur-arbeitsgaenge-symbole-teil-3-spec]] (Teil 3 von 3), Umsetzung [[2026-10-13-fa-struktur-arbeitsgaenge-symbole-teil-3-umsetzung]], Changelog
+[[2026-10-13-v1-57-0-bde-terminal-arbeitsgang-status]].
+
+| Baustein | Stand | Code-Einstieg |
+|---|---|---|
+| Gemeinsame Status-Regel + Darstellung, Terminal-Termin/Sortierung, API mit Status + Fremdbuchung „läuft“ | **erledigt** `4c5d4e66` | `Services/ArbeitsgangStatusRegel.cs`, `BdeApiController.GetAvailableOperations` |
+| Terminal-Blöcke je Auftrag, v1.57.0, Hilfe, TS-90 | **erledigt** `d4f326ef` | `wwwroot/js/bde-terminal.js` `renderOrderBlocks`, `bde.css` |
+
+> **Deploy:** nur Web, keine Migration. **Status:** Testbereit (QA 2026-10-13, Build + 1845 Web- + 272 Service-Tests grün) → Schranke 2 mit dem Bündel; FA-Struktur-Symbole Teil 1–3 damit komplett.
+
+### Spaltenfilter-Suchsyntax — ein Parser für alle Listen (Epic, v1.58.0 Etappe A, direkt im Bündel)
+
+Spec [[2026-09-23-suchsyntax-spaltenfilter-erweitern-spec]], Umsetzung [[2026-10-13-suchsyntax-spaltenfilter-erweitern-umsetzung]], Changelog
+[[2026-10-13-v1-58-0-suchsyntax-spaltenfilter-etappe-a]].
+
+| Baustein | Stand | Code-Einstieg |
+|---|---|---|
+| A: Grammatik-Kern C#/JS, SQL-Bauer, Apply über Kern, gemeinsame Testtabelle | **erledigt** `3fe70103` | `Services/ColumnFilterSyntax.cs`, `wwwroot/js/column-filter-syntax.js` |
+| A: FA-Liste (SQL-Bauer, Freitext-Escaping, Sub-FA, Datum/Prio) | **erledigt** `fe8f531c` | `ProductionOrderRepository.ApplyLeitstandColumnFilter` |
+| A: table-filter.js, Syntax-Hilfe, Hilfeseite, v1.58.0, TS-91.A | **erledigt** `6dc74c9b`, `e5d0467b`, QA `c33f010b`, Fix `10ccf1f5` | `wwwroot/js/table-filter.js` |
+| B: übrige Stellen (Leitstand-C#, Artikel, Bewegungen, BDE, Fehlteile, OSEON gelöscht, Stückliste, FA-Baum), Typmarkierung + Register + Drift-Wächter, Rückbau Zwischenzustand A, v1.58.1, TS-91.B | **erledigt** `0e82363b`, `3816542d`, `404a1b49`, QA-Fix `ead16fc4` (HasAny mit Listentypen) | `Services/ColumnFilterSyntax.cs` (`ColumnFilterTypes`) | (Changelog [[2026-10-13-v1-58-1-suchsyntax-spaltenfilter-etappe-b]]) | `Services/ColumnFilterSyntax.cs` (`ColumnFilterTypes`), `ColumnFilterTypesDriftTests` |
+
+> **Deploy:** nur Web, keine Migration; vorher P-1 (beide Server), P-2 (Kollation DB + je Spalte, Pflicht), P-3. **Status:** Etappe A + B umgesetzt, **QA Epic 2026-10-13 bestanden → Testbereit** (wartet auf Schranke 2: TS-91.A + TS-91.B, dann Merge des Bündels).
 
 ## Offen / nicht gemerged
 

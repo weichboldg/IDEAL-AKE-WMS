@@ -52,7 +52,7 @@ freigabe_am: 2026-09-08
 ---
 
 > **Code-Verifikation dieser Spec:** Alle Datei-/Zeilenangaben sind gegen den Worktree
-> `feature/2026-08-07-ideal-teile-1-5` @ Commit `dde9a17` (`C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5`)
+> `feature/2026-08-07-ideal-teile-1-5` @ Commit `ea3932d` (`C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5`)
 > per Grep/Read verifiziert (2026-09-08), nicht nur aus dem Backlog uebernommen. Die Umsetzung
 > selbst erfolgt **nach dem Buendel-Merge aus `main`**, in einem **neuen** Worktree — Zeilennummern
 > koennen sich bis dahin durch zwischenzeitliche Aenderungen verschoben haben; die Klassen-/Methoden-
@@ -681,7 +681,7 @@ durch TS-70" ergaenzen, TS-70-Zeile neu anlegen).
 
 ## Deploy
 
-**Final (qa-agent, 2026-09-08 — bestaetigt gegen den echten Diff `25399be..22d31ae`, `git diff --stat`,
+**Final (qa-agent, 2026-09-08 — bestaetigt gegen den echten Diff `8005eb3..5226352`, `git diff --stat`,
 51 Dateien):**
 
 - **Web-App: ja** — neue/geaenderte Repositories (`FaHierarchyBomRepository.cs`,
@@ -842,8 +842,8 @@ inhaltlich beantwortet in Design G. Rueckfrage 5 „`BomPosition`-Datentyp" ist 
 ## QA-Nachweis (qa-agent, 2026-09-08)
 
 **Umfang:** Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Branch
-`feature/2026-08-07-ideal-teile-1-5`, HEAD `22d31ae` (Diff-Umfang dieser Spec: `f89659f..22d31ae`,
-10 Commits ab Plan-Commit `25399be`; Ausgangsstand des Buendels davor `a8d75de`).
+`feature/2026-08-07-ideal-teile-1-5`, HEAD `5226352` (Diff-Umfang dieser Spec: `ea84284..5226352`,
+10 Commits ab Plan-Commit `8005eb3`; Ausgangsstand des Buendels davor `c02c6f9`).
 
 **Build:**
 ```
@@ -864,7 +864,7 @@ dotnet test IDEALAKEWMSService.Tests
 
 Beide Zahlen exakt wie erwartet (Web 1266 grün + 1 skip, Service 236).
 
-**AK-Abgleich (Kurzform, gegen `git diff 25399be..22d31ae --stat` [51 Dateien, +1566/-241] und
+**AK-Abgleich (Kurzform, gegen `git diff 8005eb3..5226352 --stat` [51 Dateien, +1566/-241] und
 Stichproben im Code):**
 
 - **AK 1 (F-AKE):** `BomRepository.cs`/`CachedBomRepository.cs` lesen nur `BomKey.ArticleNumber`,
@@ -889,7 +889,7 @@ Stichproben im Code):**
 - **AK 6 (F-Signatur):** alle in Design A gelisteten Aufrufer (Controller, Builder, Repositories,
   Tests) mechanisch auf `BomKey`/`BomScope` umgestellt, Build + alle Tests gruen. **Erfuellt.**
 - **AK 7 (Scope-Regel):** `BomScopes.ForOrder` (HauptFA → `FullStructure`, sonst `DirectChildren`),
-  konsistent verwendet in `Bom`, `PrintBom`, `PrintPicking` (finale Fixwelle `22d31ae` hat
+  konsistent verwendet in `Bom`, `PrintBom`, `PrintPicking` (finale Fixwelle `5226352` hat
   `PrintPicking` nachgezogen) und `ReadOnlyBomBuilder.BuildAsync`. **Erfuellt.**
 - **AK 8 (Kommissionieren-Filter):** Spalte `kommissionieren` in `ColumnDefinitions.Bom` +
   `#column-config` registriert, Client-Filter, kein Zeilen-Vorfilter (alle Zeilen aus
@@ -927,7 +927,7 @@ ungueltig, 68.1/68.6 → 70.6). `secondbrain/tests/testszenarien-index.md` berei
 
 **Guard-Grep (Quelldateien, ohne Build-Artefakte):** leer, siehe AK 13 oben.
 
-**`publish.zip`:** `git log --stat 25399be..22d31ae -- publish.zip` liefert keine Treffer — die
+**`publish.zip`:** `git log --stat 8005eb3..5226352 -- publish.zip` liefert keine Treffer — die
 Datei ist in keinem Commit dieser Spec enthalten; die unstaged Loeschung im Arbeitsverzeichnis
 (`D publish.zip`) ist Sache des Menschen.
 

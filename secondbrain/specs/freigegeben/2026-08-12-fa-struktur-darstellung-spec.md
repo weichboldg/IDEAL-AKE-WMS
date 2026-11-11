@@ -202,7 +202,7 @@ mehr nur vermutet.
   Entscheidung zu H-4 — tatsächliche Terminal-Auflösung noch zu bestätigen, siehe Offene
   Rückfrage): hintere Spalten (z. B. SubFA, Soll/Fert.) werden ausgeblendet oder scrollbar gemacht
   — die Struktur-Spalte wird **nie** komprimiert, sie trägt die Orientierung (Backlog-Kernregel).
-- **Bewusst verworfen** (Entscheidung zu H-3): Der im Polish-Commit `b6b6d83` gerade gebaute
+- **Bewusst verworfen** (Entscheidung zu H-3): Der im Polish-Commit `5a5c2a7` gerade gebaute
   flex-basierte Zeilen-Stil (`ms-auto`, Inline-Badges, `.fa-node-desc`) und die Karten-Kopfoptik
   werden vom Tree-Table-Umbau grossteils ersetzt — eine bewusste Wegwerf-Entscheidung, kein
   stillschweigender Verlust.
@@ -533,7 +533,7 @@ Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen.
   **Preis, bewusst akzeptiert (Freigabe-Antwort 1):** Der Epic geht von `Testbereit` auf
   `InUmsetzung` zurück, und die QA (Build/Tests, Evidenz in der Spec) ist am Ende **erneut** zu
   fahren.
-- **Publish-Befehle (finalisiert durch QA anhand des echten Diffs `961749f^..767f06f`, alle 9
+- **Publish-Befehle (finalisiert durch QA anhand des echten Diffs `a372638^..a864745`, alle 9
   geänderten Dateien liegen unter `IdealAkeWms/`, `IdealAkeWms.Tests/` bzw. `docs/` — keine Datei
   unter `IDEALAKEWMSService/`, kein neues `*/Migrations/*`):**
   ```
@@ -625,7 +625,7 @@ Rückfrage bleibt tatsächlich offen:
 ## Kritische Pruefung (2026-08-12)
 
 Anwalt-des-Teufels-Durchsicht VOR der Freigabe. Gegengelesen gegen den **echten, aktuellen**
-Worktree-Code (`.claude/worktrees/2026-08-07-ideal-teile-1-5`, inkl. Polish-Commit `b6b6d83`):
+Worktree-Code (`.claude/worktrees/2026-08-07-ideal-teile-1-5`, inkl. Polish-Commit `5a5c2a7`):
 `Views/FaHierarchy/Index.cshtml`, `_FaHierarchyNode.cshtml`, `Views/Tracking/OseonIndex.cshtml`,
 `wwwroot/js/column-preferences.js`, `wwwroot/js/table-filter.js`, `wwwroot/css/site.css`,
 `Models/FaHierarchyNode.cs`; sowie die Schwester-Spec [[2026-08-12-listen-spaltenauswahl-spec]],
@@ -743,7 +743,7 @@ Verdacht veralteter Zeilennummern bestaetigt sich hier nicht.
 kein neues Feld noetig — wie die Spec behauptet.
 
 **H-3 — Polish-Ueberlappung korrekt erfasst, aber Rework-Kosten unterzeichnet.** Die Spec erkennt
-richtig, dass der Polish (`b6b6d83`) Kopf-Karte, Blatt-/Baugruppe-Icons, `beschichtet`/`Komm.`-Badges,
+richtig, dass der Polish (`5a5c2a7`) Kopf-Karte, Blatt-/Baugruppe-Icons, `beschichtet`/`Komm.`-Badges,
 Baumlinien und rechtsbuendige Mengen bereits gebaut hat, und erweitert nur (2 → 4 Icon-Typen). Nicht
 ausgesprochen: Der Tree-Table-Umbau **verwirft** den Grossteil des gerade gebauten flex-basierten
 `_FaHierarchyNode.cshtml`-Layouts (ms-auto, inline-Badges, `.fa-node-desc`). Das ist vertretbar, aber
@@ -809,7 +809,7 @@ eigener Lauf, geschnitten nach der Topologie-Entscheidung oben. Der Kontrast-Fix
 des grossen Umbaus sein — gute Beobachtung.
 
 **Zu H-3 — aufgenommen als bewusste Wegwerf-Entscheidung.** Der Tree-Table-Umbau verwirft den
-Grossteil des gerade in `b6b6d83` gebauten flex-basierten Layouts (`ms-auto`, Inline-Badges,
+Grossteil des gerade in `5a5c2a7` gebauten flex-basierten Layouts (`ms-auto`, Inline-Badges,
 `.fa-node-desc`). Das ist vertretbar — aber es gehoert benannt, nicht stillschweigend gemacht.
 
 **Zu H-4 — Schwelle:** unterhalb des Bootstrap-Breakpoints **`lg` (992 px)** werden die hinteren
@@ -857,7 +857,7 @@ Dateiablage, nicht den Rumpfinhalt, und bleibt Sache der Freigabe-Ordnergeste de
 ## QA-Nachweis (2026-08-19)
 
 **Befund vor dem QA-Lauf:** Die Spec war im Worktree bereits vollständig umgesetzt (Commits
-`961749f` Kontrast-Fix + `767f06f` Tree-Table/Icons/Baum-Spaltenfilter/column-prefs, siehe
+`a372638` Kontrast-Fix + `a864745` Tree-Table/Icons/Baum-Spaltenfilter/column-prefs, siehe
 Aufgaben-Notiz `2026-08-12-fa-struktur-darstellung`). Der QA-Lauf hat **nichts neu gebaut**, sondern
 den vorhandenen Stand verifiziert.
 
@@ -869,7 +869,7 @@ Branch `feature/2026-08-07-ideal-teile-1-5`):**
   (Integrationstest `ProductionOrderEagerCreateAgentJobTests`, bestehender Skip), 0 Fehler** —
   deckt sich mit dem zuletzt bekannten Bündel-Stand.
 - `dotnet test IDEALAKEWMSService.Tests -c Debug --no-build`: **231 erfolgreich, 0 Fehler.**
-- Diff-Nachweis `git diff --stat 961749f^..767f06f`: 9 Dateien geändert, ausschließlich unter
+- Diff-Nachweis `git diff --stat a372638^..a864745`: 9 Dateien geändert, ausschließlich unter
   `IdealAkeWms/`, `IdealAkeWms.Tests/` und `docs/` — keine Datei unter `IDEALAKEWMSService/`, kein
   neues `*/Migrations/*` (bestätigt Deploy-Klassifikation Web ja / Service nein / Migration nein).
 
@@ -921,7 +921,7 @@ Branch `feature/2026-08-07-ideal-teile-1-5`):**
     er bei `table-filter.js` besteht); `column-preferences.js` verschiebt nur Zellen innerhalb
     jeder Zeile, betrifft daher alle `<tbody>`s gleichermaßen. Struktureller Nachweis über Code;
     der visuelle Live-Beweis an ≥2 Strukturen bleibt Manual-UAT (Checkliste Punkt 12).
-15. **Keine Regression:** `git diff --stat 961749f^..767f06f` enthält **keine** Datei aus
+15. **Keine Regression:** `git diff --stat a372638^..a864745` enthält **keine** Datei aus
     `Controllers/FaHierarchyController.cs`, `Services/FaHierarchyTreeBuilder.cs` oder verwandten
     Import-/Filterkarten-Dateien — nur Views/CSS/JS/`ColumnDefinitions.cs`/Tests/Doku.
 16. **Keine neue Bibliothek:** `git diff` auf `*.csproj`/`libman.json`/`package.json` zwischen den
@@ -931,7 +931,7 @@ Branch `feature/2026-08-07-ideal-teile-1-5`):**
 alle 16 AK 1:1 ab, keine Lücke gefunden. Bereits in `secondbrain/tests/testszenarien-index.md`
 (Kapitel 62) indexiert.
 
-**Code-Review (`code-review`-Skill, Effort medium, Diff `961749f^..767f06f`) — Ergebnis nachträglich
+**Code-Review (`code-review`-Skill, Effort medium, Diff `a372638^..a864745`) — Ergebnis nachträglich
 eingetroffen und verifiziert.** Beide Funde treffen **keine** der 16 nummerierten
 Akzeptanzkriterien (dort explizit geprüft, siehe oben — alle 16 grün), betreffen aber Fliesstext-
 Anforderungen bzw. einen Randfall und werden hier transparent für den Menschen dokumentiert, **ohne

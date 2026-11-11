@@ -179,7 +179,7 @@ Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen.
 
 ## Deploy
 
-Finalisiert vom qa-agent (2026-08-18) gegen den echten Diff `c8ae47f` (Feature-complete-Commit,
+Finalisiert vom qa-agent (2026-08-18) gegen den echten Diff `a99705f` (Feature-complete-Commit,
 Worktree `feature/2026-08-07-ideal-teile-1-5`): 15 Dateien geaendert, ausschliesslich unter
 `IdealAkeWms/`, `IdealAkeWms.Tests/`, `IDEALAKEWMSService/AppVersion.cs` (reiner Versions-Bump, keine
 Verhaltensaenderung) und `docs/TESTSZENARIEN.md`. Kein `*/Migrations/`-Ordner betroffen, keine neue
@@ -642,7 +642,7 @@ Status bleibt `Entwurf`; die Freigabe-Antworten oben sind unveraendert aus dem B
 ## QA-Nachweis (qa-agent, 2026-08-18)
 
 Geprueft im Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5` (Branch
-`feature/2026-08-07-ideal-teile-1-5`), Commit `c8ae47f` (Teil-6-feature-complete). Alle Kommandos
+`feature/2026-08-07-ideal-teile-1-5`), Commit `a99705f` (Teil-6-feature-complete). Alle Kommandos
 frisch im selben Lauf ausgefuehrt (nicht aus dem Umsetzungsbericht uebernommen).
 
 **Build:**
@@ -664,7 +664,7 @@ dotnet test IDEALAKEWMSService.Tests
 Deckt die Teil-6-Suiten `StandortEinstellungenControllerTests` (6) + `StandortSettingsWriterTests`
 (3) ein; beide gruen, keine Regression in den restlichen 1205 Web-Tests.
 
-**Diff-Verifikation (Basis fuer den finalisierten Deploy-Abschnitt):** `git show --stat c8ae47f` —
+**Diff-Verifikation (Basis fuer den finalisierten Deploy-Abschnitt):** `git show --stat a99705f` —
 15 Dateien, ausschliesslich `IdealAkeWms/*`, `IdealAkeWms.Tests/*`, `IDEALAKEWMSService/AppVersion.cs`
 (reiner Versions-String) und `docs/TESTSZENARIEN.md`. Keine `*/Migrations/`-Datei, keine neue
 `SQL/XX_*.sql` → bestaetigt `deploy.web=true`, `deploy.service=false`, `deploy.migration=false`.

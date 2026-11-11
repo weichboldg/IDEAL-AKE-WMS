@@ -75,6 +75,8 @@ Dokument aktualisiert werden (siehe CLAUDE.md → "Testszenarien-Pflicht").
 | Kapitel 53: Lagerbestand-Nullsetzen verwaister Paare (v1.25.0) | [→](#kapitel-53-lagerbestand-nullsetzen-verwaister-paare-v1250) | — |
 | Kapitel 54: Aktivitäts-Protokoll-Bereinigung (v1.25.0) | [→](#kapitel-54-aktivitäts-protokoll-bereinigung-v1250) | TS-54.1 – TS-54.4 |
 | Kapitel 55: FA-Zusatzinfos (Sage) (v1.26.0) | [→](#kapitel-55-fa-zusatzinfos-sage-v1260) | TS-55.1 – TS-55.13 |
+| Kapitel 107: OSEON-Sync neu ausgeschriebener Auftrag + Stücklisten-Druck + Werkbank Kommissionierung (Hotfix v1.30.3) | [→](#kapitel-107-oseon-sync-neu-ausgeschriebener-auftrag--stücklisten-druck--werkbank-kommissionierung-hotfix-v1303) | TS-107.1 – TS-107.6 |
+| Kapitel 124: Kommissionierfotos nur mit Anmeldung und Recht Kommissionierung (Hotfix v1.30.4) | [→](#kapitel-124-kommissionierfotos-nur-mit-anmeldung-und-recht-kommissionierung-hotfix-v1304) | TS-124.1 – TS-124.7 |
 
 ---
 
@@ -3603,6 +3605,7 @@ Befund vom 2026-09-28, ID 3664 auf akenet01); Zugriff Kommissionierung, Vorbau o
 **Erwartetes Verhalten:**
 - Neuer Auftrag erscheint in der OSEON-Liste.
 - Ampel und Soll-Termine korrekt berechnet.
+- Neu ausgeschriebene Aufträge (gleiche Auftragsnummer, neue OSEON-ID): siehe TS-107.1 (Hotfix v1.30.3).
 
 ---
 
@@ -3880,7 +3883,7 @@ ausgefuehrt (siehe Deploy).
   Ist-Felder; Positionen mit Fehlteil-Markierung und alle teilgelieferten/abgeschlossenen Bestellungen sind
   **unveraendert**. Das Skript wird **nicht** ein zweites Mal ausgefuehrt. Direkt danach alle offenen Lagerbestellungs-Seiten **neu laden** (eine vorher geladene Seite traegt sonst die alte 0 noch im Feld und schickt sie als bestaetigte 0 zurueck).
 
-**Zusatz v1.47.5 — Zahnrad (Spaltenauswahl) sichtbar, auch nach dem Pflicht-Hinweis (Manual-UAT):**
+**Zusatz v1.47.5 (auf main v1.30.2) — Zahnrad (Spaltenauswahl) sichtbar, auch nach dem Pflicht-Hinweis (Manual-UAT):**
 1. Lagerbestellung im Status Offen öffnen. **Erwartet:** Zahnrad-Button rechtsbündig direkt **oberhalb** der
    Tabelle sichtbar; Klick öffnet die Spaltenauswahl (Offcanvas rechts), eine Spalte ein-/ausblenden funktioniert.
 2. Eine Position leer lassen und „Abschliessen" klicken → gelber Pflicht-Hinweis erscheint. **Erwartet:** Der
@@ -11136,6 +11139,52 @@ bestätigt, Bestand-Zuordnung bleibt nicht nötig, Lösen), `LagerplatzSyncServi
 | 106.13.l | Negativ Bestand-Operator zuordnen bzw. Zuordnung lösen | Ein Operator aus der Zeit vor dem Deploy wird zugeordnet: `Source = 'Sage'`, Übergabe bleibt „nicht nötig“ (`0`), keine Outbox-Zeile. „Lösen“: `Source = 'Manual'`, Übergabe-Status unverändert. |
 | 106.13.m | Negativ Rolle: Benutzer ohne BDE-Schichtleitung ruft `/BdeMasterData?onlyUebergabeOffen=true` auf | AccessDenied (wie TS-106.8.i). |
 
+## Kapitel 107: OSEON-Sync neu ausgeschriebener Auftrag + Stücklisten-Druck + Werkbank Kommissionierung (Hotfix v1.30.3)
+
+Nummer 107 entspricht der Nummer im IDEAL-Bündel (Kapitel 57–106 gibt es nur dort), damit der spätere
+Bündel-Abgleich keine Umnummerierung braucht. Testumgebung: **AKE-Test** (nicht IDEAL).
+
+- **TS-107.1 — Neuausschreibung simulieren** (nur WMS-**Test**-DB AKE).
+  - Vorbedingungen: Dienst v1.30.3, `Sync:OseonTrackingEnabled = true`. Einmalig
+    `UPDATE dbo.OseonProductionOrders SET LastChangedInOseon = DATEADD(day, -1, LastChangedInOseon)`
+    (der nächste Lauf liest die OSEON-Änderungen des letzten Tages erneut). Auftrag X wählen, der in OSEON
+    in den letzten 24 h geändert wurde. Vorher notieren:
+    `SELECT o.Id, o.OseonId, (SELECT COUNT(*) FROM dbo.OseonWorkOperations w WHERE w.OseonProductionOrderId = o.Id) AS AGs FROM dbo.OseonProductionOrders o WHERE o.OseonOrderNumber = 'X'`.
+  - Schritte: 1. `UPDATE dbo.OseonProductionOrders SET OseonId = OseonId + 900000000000 WHERE OseonOrderNumber = 'X'`.
+    2. Sync-Lauf abwarten (oder Dienst neu starten).
+  - Erwartet: Lauf „OSEON-Tracking" mit Status Erfolg, kein Fehler 2601. Gleiche `Id`, `OseonId` wieder der
+    OSEON-Wert, `ModifiedBy = 'IDEALAKEWMSService'`, AG-Anzahl nicht kleiner als vorher. Count
+    `neu_ausgeschrieben=1` und in `/SyncLog` die Warnung „Auftrag X: OSEON-ID {alt} → {neu} (neu ausgeschrieben)".
+    `SELECT MAX(LastChangedInOseon)` ist mindestens die `DateOfLastChange` von X (kein Delta-Hänger).
+- **TS-107.2 — Normallauf.** Nächster Lauf ohne Eingriff: Erfolg, `neu_ausgeschrieben=0`,
+  `mehrfach_in_oseon=0`, `doppelt_nach_kollation=0`, `aeltere_id_uebersprungen=0`; `neu`/`aktualisiert` wie gewohnt.
+- **TS-107.2b — Ältere OSEON-ID wird nicht zurückgeschrieben (QA-Befund B1).** Nach TS-107.1 (WMS hält jetzt
+  die echte, höhere ID): `UPDATE dbo.OseonProductionOrders SET OseonId = OseonId + 900000000000 WHERE OseonOrderNumber = 'X'`
+  **nicht** wiederholen, sondern einen zweiten Auftrag Y wählen und `SET OseonId = OseonId + 900000000000` setzen
+  (WMS hält dann eine *höhere* ID als OSEON liefert). Lauf abwarten. Erwartet: Y bleibt unverändert (`OseonId`,
+  Status, `ModifiedAt` wie vorher), Count `aeltere_id_uebersprungen=1`, Warnung „Auftrag Y: OSEON liefert ältere ID …,
+  gespeichert ist … — nicht übernommen". Danach Y per `SET OseonId = OseonId - 900000000000` zurücksetzen.
+- **TS-107.3 — Negativfall Altstand (optional).** Mit v1.30.1 und Schritt 1 aus TS-107.1 tritt Fehler 2601 auf.
+- Mehrfachlieferung (zwei OSEON-IDs je Nummer) und Groß/Klein sind nur per Unit-Test abgedeckt
+  (`OseonOrderSelectionTests`). Taucht ein echter Fall auf: Warnung `mehrfach_in_oseon`, kein Fehler.
+- **TS-107.4 — Stücklisten-Druck 2 cm tiefer (Z1).** Stückliste einer FA öffnen → Drucken → Druckvorschau des
+  Browsers (A4). Erwartet: Der obere Rand ist ca. 2 cm größer als vorher (28 mm statt 8 mm); seitlich/unten
+  unverändert, Inhalt nicht abgeschnitten, Folgeseiten ebenfalls mit großem oberem Rand.
+- **TS-107.5 — Stücklisten-Druck übernimmt Sortierung (Z2).** Stückliste öffnen, Spaltenkopf
+  „Bezeichnung 1" anklicken (▲), dann Drucken. Erwartet: Druck in derselben Reihenfolge wie die Ansicht
+  (alphabetisch nach Bezeichnung 1). Ebenso absteigend (▼) und mit einer anderen Spalte (z. B. Menge).
+  Mit Spaltenfilter **und** Sortierung: nur die gefilterten Zeilen, sortiert. Negativfall: ohne Sortierung
+  und ohne Filter druckt wie bisher alles nach Position. Gilt auch aus FA-Abarbeitungsliste/FA-Vervollständigung.
+- **TS-107.6 — Werkbank in der Kommissionierung (Z3).** Menü „Kommissionierung" (Leitstand aktiv). Erwartet:
+  Spalte „Werkbank" nach „Kunde", gefüllt mit der Werkbank der FA (leer, wenn keine). Spaltenfilter z. B.
+  `A1` filtert serverseitig über alle Seiten. In der Spaltenauswahl ist „Werkbank" ein-/ausblendbar und
+  verschiebbar; Benutzer mit bereits gespeicherter Spaltenauswahl sehen die neue Spalte trotzdem (Default
+  sichtbar).
+  - **Bündel (v1.96.0):** Die Kommissionierung listet seit v1.88.0 Kommissionieraufträge (TS-120). Die Spalte
+    „Werkbank“ steht dort nach „Bezeichnung“ (eine Spalte „Kunde“ gibt es in dieser Liste nicht); Filter und Spaltenauswahl wie beschrieben.
+
+---
+
 ## TS-108 — Fehlteile „Nur meine Werkbänke“: Trefferzahl und Badges über alle Seiten (v1.75.0)
 
 Spec `2026-11-07-fehlteile-nur-meine-werkbaenke-trefferzahl-spec` (Bug). **Standort:** beide (wo `LagerbestellungAktiv` gesetzt ist).
@@ -11400,6 +11449,29 @@ Spec `2026-11-08-seiten-querscrollen-navigationsleiste-spec`. Automatisch: `Idea
 
 ---
 
+## Kapitel 124: Kommissionierfotos nur mit Anmeldung und Recht Kommissionierung (Hotfix v1.30.4)
+
+Nummer 124 = erste freie nach dem Bündel (108–123), damit der Vorwärts-Merge keine Umnummerierung braucht. Spec
+`2026-11-08-kommissionierfotos-ohne-anmeldung-abrufbar-spec`. Automatisiert: `LoginRedirectMiddlewareTests`, `PhotoControllerTests`.
+
+- **TS-124.1 Foto ohne Anmeldung.** Privates Fenster, URL eines vorhandenen Fotos `/Fotos/Kommissionierung/<FA>_<Zeit>_<n>.jpg`. Erwartet:
+  Anmeldeseite, kein Bild (vor v1.30.4: Bild).
+- **TS-124.2 Pfad mit Punkt.** Privates Fenster, `/Home/Index.x`. Erwartet: Anmeldeseite. Die Anmeldeseite ist vollständig gestaltet (Logo,
+  CSS); DevTools-Netzwerk nur 200/304.
+- **TS-124.3 Mit Recht.** Anmelden mit Rolle Kommissionierung, Stückliste eines FA mit Altfotos öffnen. Erwartet: Vorschau und Vollbild, URL
+  unverändert.
+- **TS-124.4 Ohne Recht.** Angemeldet ohne Kommissionierung (z. B. nur FA-Abarbeitungsliste), Foto-URL direkt. Erwartet: „Zugriff verweigert“.
+- **TS-124.5 Hochladen/Löschen.** Foto hochladen: Datei liegt unter `App_Data\Fotos\Kommissionierung` (nicht unter `wwwroot`). Löschen: Datei
+  und Kachel weg.
+- **TS-124.6 Negativ fremder FA.** DevTools: `POST /api/photos/delete` mit `productionOrderId` von FA A und `fileName` von FA B. Erwartet: 400,
+  Datei bleibt.
+- **TS-124.7 Migration.** Erster Start nach dem Deploy: Log „Kommissionierfotos verschoben: n, übersprungen: 0“, `wwwroot\Fotos\Kommissionierung`
+  leer. Neustart des App-Pools: keine Verschiebung mehr im Log. Künstliche Rest-Datei unter `wwwroot\Fotos\Kommissionierung` ist ohne
+  Anmeldung nicht abrufbar.
+- IDEAL: Smoke 124.1 + 124.3.
+
+---
+
 *Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) + Teil 6 (Standorteinstellungen, v1.34.0) + BOM-Guard hierarchisch (2026-08-18, abgelöst) + FA-Liste-Hierarchie (v1.35.0) + BOM-Bridge (v1.36.0) + Materialisierung fachliche Felder K1/K2 (v1.37.0) + Skopierung der Tabellen-Selektoren (TS-72) + FA-Liste ausgebaut: Matchcode, Kopfdaten je Zeile, HauptFA-Zeile, Freigabe-Kaskade (v1.38.0, TS-73) + PDF-Erzeugung für FaHierarchy-Druckdokumente (v1.39.0, TS-74) + Matchcode im Artikelstamm (v1.40.0, TS-75) + FA-Arbeitsgang-Erkennung aus der Struktur (v1.41.0, TS-76, ersetzt durch TS-77) + Arbeitsgänge (WorkOperation) aus der Struktur + Werkbank-Anlage aus Sage (v1.44.0, TS-77) + Arbeitsgänge je (Sub-)FA im FA-Struktur-Modal (v1.45.0, TS-78) + Kommissionierung nur am HauptFA
-(v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80) + Beschichtungsauftrag Summiert als Standard (v1.48.0, TS-81) + Briefkopf Beschichtungsauftrag (v1.49.0, TS-82) + Beschichtungsauftrag als eigenes Objekt (v1.50.0, TS-83) + Beschichtungsaufträge bedienen (v1.51.0, TS-84) + Arbeitsgänge als Symbole im FA-Baum (v1.52.0, TS-85) + CSV-Export für alle Tabellen (v1.53.0, TS-86) + Arbeitsgang-Stammdaten (v1.54.0, TS-87) + Status je Arbeitsgang-Kürzel im FA-Baum (v1.55.0, TS-88) + Menü Beschichtung + Kurzanleitungen (v1.56.0, TS-89) + BDE-Terminal mit Arbeitsgang-Status (v1.57.0, TS-90) + Spaltenfilter-Suchsyntax Etappe A + B (v1.58.0/v1.58.1, TS-91.A/B) + Fußzeile nach Word-Vorlage (v1.59.0, TS-92) + Sage-Quellen auf WMS-Views (v1.60.0–v1.60.2, TS-93) + Arbeitsgang-Abgleich aus der Sage-View (v1.61.0, TS-94) + Stückliste Matchcode und Lagerplatz-Limit (v1.62.0, TS-95) + BDE Stufe 1: Werkbänke, AG-Fertigmeldung (v1.63.0, TS-96) + BDE-Terminal Liste nach Haupt-FA, Scan ohne AG (v1.64.0, TS-97) + Spaltenauswahl/Zahnrad zentraler Toolbar-Host (v1.65.0, TS-98) + Hardware-Barcodescanner (v1.66.0–v1.66.2, TS-99) + Vault- und enaio-Links konfigurierbar (v1.67.0, TS-100) + QR erstes Feld Matchcode / Trennzeichen (v1.68.0/v1.69.0, TS-101) + Aktivitäts-Protokoll Spaltenfilter/Namen (v1.70.0, TS-102) + FA-Struktur live aus Sage (v1.71.0, TS-103) + Lagerplatz-Etikett 93 × 55 mm und Vormontage-Felder (v1.72.0, TS-104/TS-105) + Sage-Abgleich über SData (v1.73.0, TS-106) + Fehlteile „Nur meine Werkbänke“ Trefferzahl (v1.75.0, TS-108) + Bestandsübersicht QR-FA nur mit `QrMitFaNummer` (v1.76.0, TS-101.22–101.25) + Einstellungen Auswahlfelder und Beschreibung (v1.77.0, TS-109) + EAN-Scan Einkaufsartikel (v1.78.0, TS-110) + Bereinigungen nach dem Bündel 2026-11-07 (v1.79.0, TS-111) + Artikelinfo Lieferanten (v1.80.0, TS-112) + Fehlteile-Karte je Bestelltyp (v1.81.0, TS-113) + Wareneingang zu Sage-Bestellung (v1.84.0, TS-116) + Artikel Lieferanten/Mengeneinheiten (v1.85.0, TS-112.12–112.16) + Offene Bestellungen Nachbesserung (v1.86.0, TS-116.8/116.9) + Lager-Tools FA-Verknüpfung (v1.87.0, TS-115) + Kommissionieraufträge (v1.88.0, TS-120) + Kommissionieraufträge Nachbesserung (v1.89.0, TS-120.1/120.9/120.13/120.14) + Lager-Tools FA-Karte je Pflicht (v1.90.0, TS-115.3) + Offene Bestellungen Legende (v1.91.0, TS-116.8) + OSEON-Relevanzfilter/BDE-Checkboxen (v1.92.0, TS-121) + Meldebestand-Mail Bestandsregel (v1.93.0, TS-122) + Menüleiste Umbruch/Kontrast (v1.94.0, TS-123) + Nachbesserung Vorab-Abnahme (v1.95.0, TS-115.13/115.14/116.10/120.15)*
+(v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80) + Beschichtungsauftrag Summiert als Standard (v1.48.0, TS-81) + Briefkopf Beschichtungsauftrag (v1.49.0, TS-82) + Beschichtungsauftrag als eigenes Objekt (v1.50.0, TS-83) + Beschichtungsaufträge bedienen (v1.51.0, TS-84) + Arbeitsgänge als Symbole im FA-Baum (v1.52.0, TS-85) + CSV-Export für alle Tabellen (v1.53.0, TS-86) + Arbeitsgang-Stammdaten (v1.54.0, TS-87) + Status je Arbeitsgang-Kürzel im FA-Baum (v1.55.0, TS-88) + Menü Beschichtung + Kurzanleitungen (v1.56.0, TS-89) + BDE-Terminal mit Arbeitsgang-Status (v1.57.0, TS-90) + Spaltenfilter-Suchsyntax Etappe A + B (v1.58.0/v1.58.1, TS-91.A/B) + Fußzeile nach Word-Vorlage (v1.59.0, TS-92) + Sage-Quellen auf WMS-Views (v1.60.0–v1.60.2, TS-93) + Arbeitsgang-Abgleich aus der Sage-View (v1.61.0, TS-94) + Stückliste Matchcode und Lagerplatz-Limit (v1.62.0, TS-95) + BDE Stufe 1: Werkbänke, AG-Fertigmeldung (v1.63.0, TS-96) + BDE-Terminal Liste nach Haupt-FA, Scan ohne AG (v1.64.0, TS-97) + Spaltenauswahl/Zahnrad zentraler Toolbar-Host (v1.65.0, TS-98) + Hardware-Barcodescanner (v1.66.0–v1.66.2, TS-99) + Vault- und enaio-Links konfigurierbar (v1.67.0, TS-100) + QR erstes Feld Matchcode / Trennzeichen (v1.68.0/v1.69.0, TS-101) + Aktivitäts-Protokoll Spaltenfilter/Namen (v1.70.0, TS-102) + FA-Struktur live aus Sage (v1.71.0, TS-103) + Lagerplatz-Etikett 93 × 55 mm und Vormontage-Felder (v1.72.0, TS-104/TS-105) + Sage-Abgleich über SData (v1.73.0, TS-106) + Fehlteile „Nur meine Werkbänke“ Trefferzahl (v1.75.0, TS-108) + Bestandsübersicht QR-FA nur mit `QrMitFaNummer` (v1.76.0, TS-101.22–101.25) + Einstellungen Auswahlfelder und Beschreibung (v1.77.0, TS-109) + EAN-Scan Einkaufsartikel (v1.78.0, TS-110) + Bereinigungen nach dem Bündel 2026-11-07 (v1.79.0, TS-111) + Artikelinfo Lieferanten (v1.80.0, TS-112) + Fehlteile-Karte je Bestelltyp (v1.81.0, TS-113) + Wareneingang zu Sage-Bestellung (v1.84.0, TS-116) + Artikel Lieferanten/Mengeneinheiten (v1.85.0, TS-112.12–112.16) + Offene Bestellungen Nachbesserung (v1.86.0, TS-116.8/116.9) + Lager-Tools FA-Verknüpfung (v1.87.0, TS-115) + Kommissionieraufträge (v1.88.0, TS-120) + Kommissionieraufträge Nachbesserung (v1.89.0, TS-120.1/120.9/120.13/120.14) + Lager-Tools FA-Karte je Pflicht (v1.90.0, TS-115.3) + Offene Bestellungen Legende (v1.91.0, TS-116.8) + OSEON-Relevanzfilter/BDE-Checkboxen (v1.92.0, TS-121) + Meldebestand-Mail Bestandsregel (v1.93.0, TS-122) + Menüleiste Umbruch/Kontrast (v1.94.0, TS-123) + Nachbesserung Vorab-Abnahme (v1.95.0, TS-115.13/115.14/116.10/120.15) + Übernahme AKE-Hotfixes v1.30.2–1.30.4 (v1.96.0, TS-107, TS-124)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*

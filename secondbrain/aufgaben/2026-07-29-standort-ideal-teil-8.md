@@ -21,11 +21,11 @@ NACHTRAG 2026-08-12 erfuellt. Schranke 1 genommen (KP2-3/KP2-6 am 2026-08-12 ent
 | # | Etappe | Status |
 |---|--------|--------|
 | 1 | Verifikation (Teil-7-Haertung im BDE-Kontext, OSEON-Urteil) | **erledigt** |
-| 2 | Aufloesungslogik serverseitig + Unit-Tests | **erledigt** (`f86a886`) |
-| 3 | Auswahl-UI am Terminal (Normal-Modus) + `resolve-scan`-Endpoint | **erledigt** (`5fd0070`) |
-| 4 | NurFA-Fix + Durchzug Teileverfolgung | **erledigt** (`58c26bd`) |
+| 2 | Aufloesungslogik serverseitig + Unit-Tests | **erledigt** (`992d7e1`) |
+| 3 | Auswahl-UI am Terminal (Normal-Modus) + `resolve-scan`-Endpoint | **erledigt** (`14d3c18`) |
+| 4 | NurFA-Fix + Durchzug Teileverfolgung | **erledigt** (`5c0735d`) |
 | 5 | OSEON-Seite | **entfaellt** (Etappe-1-Urteil) |
-| 6 | Tests + Brain-Update | **erledigt** (`8395394`) |
+| 6 | Tests + Brain-Update | **erledigt** (`b8847d2`) |
 
 ## Etappe 1 — Verifikations-Urteil (2026-08-18)
 
@@ -103,7 +103,7 @@ Am realen Worktree-Code verifiziert: `WorkOperationRepository`/`IWorkOperationRe
 - **Etappe 5:** entfaellt (s. o.).
 - **Etappe 6:** Unit + Testszenarien (Kapitel „IDEAL Teil 8 — Sub-FA-BDE") + Brain.
 
-## Etappe 2 — serverseitige Aufloesungslogik (2026-08-18, Worktree `f86a886`)
+## Etappe 2 — serverseitige Aufloesungslogik (2026-08-18, Worktree `992d7e1`)
 
 Neuer Service `IdealAkeWms/Services/BdeScanResolver.cs` (`IBdeScanResolver`), DI-registriert
 (`Program.cs`). Reine serverseitige Aufloesung, **kein** UI, **kein** Eingriff in
@@ -133,7 +133,7 @@ leerer Scan. Web-Suite **1200 gruen** (+14).
 (Sub-FA-Nr + Matchcode + AG), bei `NotInScope` die eigene Meldung, bei `Exact` Direktbuchung. Endpoint
 + Controller-Verdrahtung gehoeren in Etappe 3 (BdeApiController-Ctor-Aenderung dort).
 
-## Etappe 3 — Scan-Auswahl-UI, Normal-Modus (2026-08-18, Worktree `5fd0070`)
+## Etappe 3 — Scan-Auswahl-UI, Normal-Modus (2026-08-18, Worktree `14d3c18`)
 
 **Endpoint:** `GET /api/bde/resolve-scan?faNumber&opNumber&workplaceId&operatorId` (BdeApiController →
 `IBdeScanResolver`; Ctor um `IBdeScanResolver` erweitert). Liefert `{ kind, nurFaMode,
@@ -162,7 +162,7 @@ zwei Sub-FAs derselben `OrderNumber`+AG an einer Werkbank scannen → Auswahllis
 Auswahl bucht getrennt; eindeutige FA → Direktbuchung ohne Auswahl; FA nur an fremder Werkbank →
 Werkbank-Meldung; unbekannte FA → Bestandsfehler. (Formales TESTSZENARIEN-Kapitel „IDEAL Teil 8" in Etappe 6.)
 
-## Etappe 4 — NurFA-Fix + Teileverfolgung (2026-08-18, Worktree `58c26bd`)
+## Etappe 4 — NurFA-Fix + Teileverfolgung (2026-08-18, Worktree `5c0735d`)
 
 **NurFA-Fix (KP-5 / KP2-3):** Der NurFA-Zweig von `scanFaAgInput` (bde-terminal.js) ist auf
 denselben `resolveScanAndSelect`-Weg wie der Normal-Modus umgestellt — **kein**
@@ -188,7 +188,7 @@ in der Teileverfolgung anzeigen, damit Sub-FAs einer Gruppe unterscheidbar sind.
 Werkbank scannen → Auswahl (statt stillem last-wins), Auswahl bucht getrennt; eindeutige FA →
 Direktbuchung; FA nur an fremder Werkbank → Werkbank-Meldung.
 
-## Etappe 6 — Tests + Testszenarien + Version/Brain (2026-08-18, Worktree `8395394`)
+## Etappe 6 — Tests + Testszenarien + Version/Brain (2026-08-18, Worktree `b8847d2`)
 
 - **Version:** Web + Service `AppVersion` 1.32.0 → **1.33.0** (Epic-Abschluss Teil 8).
 - **Anwender-Changelog** `Views/Help/Changelog.cshtml`: v1.33.0-Karte (Sub-FA-Auswahl beim Scannen,
@@ -210,9 +210,9 @@ IDEAL-Testsystem nicht gruen zu bekommen — vor Schranke 2 sicherstellen.
 
 Build + Tests frisch im Worktree verifiziert: `dotnet build IdealAkeWms.slnx` 0 Fehler;
 `dotnet test IdealAkeWms.Tests` **1205 gruen + 1 skip** (1206 gesamt); `dotnet test
-IDEALAKEWMSService.Tests` **231 gruen**. Diff-Pruefung (`git diff --stat 418f23a^..8395394`)
+IDEALAKEWMSService.Tests` **231 gruen**. Diff-Pruefung (`git diff --stat d95cb63^..b8847d2`)
 bestaetigt Deploy-Umfang: Web ja, Service nein aus Teil 8, keine neue Migration (die
-mitgefuehrte Aenderung an der Migrations-Datei ist der separate Teil-7-Fix `5d3e723`, bereits
+mitgefuehrte Aenderung an der Migrations-Datei ist der separate Teil-7-Fix `2b305ba`, bereits
 offline verifiziert, gehoert fachlich zu Teil 7). TS-66 (10 Szenarien) deckt AK 1–9 vollstaendig
 ab; Testindex-Kapitel 66 war bereits verlinkt. Vollstaendiger QA-Nachweis + Manual-Test-Checkliste
 fuer Schranke 2 in der Spec [[2026-07-29-standort-ideal-teil-8-spec]] Abschnitt „QA-Nachweis"/

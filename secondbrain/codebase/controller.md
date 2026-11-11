@@ -27,6 +27,7 @@ Listen-Views folgen zusaetzlich verbindlich dem Pattern aus
 | Anmeldung | `AccountController` (Login, Logout, WindowsLogin, Profile) | `Views/Account/` |
 | Start / Hilfe | `HomeController` (Dashboard-Kacheln), `HelpController` (inkl. Changelog) | `Views/Home/`, `Views/Help/` |
 | Lager | `StockOverviewController`, `StockMovementsController`, `StockApiController` | `Views/StockOverview/`, `Views/StockMovements/` |
+| Lager (Bestellungen) | `PurchaseOrdersController` (v1.84.0: Index = Vorschau, Receive GET/POST = Wareneingang; Gate `[RequireWareneingangBestellungAktiv]` → 404) | `Views/PurchaseOrders/` |
 | Fertigungsauftraege | `ProductionOrdersController` (slim FA-Liste), `ProductionOrdersApiController` | `Views/ProductionOrders/` |
 | Leitstand | `PickingLeitstandController`, `PickingStatusApiController` | `Views/PickingLeitstand/` |
 | Kommissionierung | `PickingController` (inkl. `Bom`, `PrintBom`), `Api/PickingApiController`, `Api/PhotoController` | `Views/Picking/` |
@@ -36,7 +37,7 @@ Listen-Views folgen zusaetzlich verbindlich dem Pattern aus
 | Lager-/Glasbestellung | `WarehouseRequisitionsController`, `Api/WarehouseRequisitionsApiController`, `WarehousePickingController` (Lager-Worklist + `Print`), `MissingPartsController` (Werkbank-Sicht), `MissingPartsLagerController` (Lager-Sicht) | `Views/WarehouseRequisitions/`, `Views/WarehousePicking/`, `Views/MissingParts/`, `Views/MissingPartsLager/` |
 | OSEON | `TrackingController` (Teileverfolgung), `OseonReportingController` | `Views/Tracking/`, `Views/OseonReporting/` |
 | BDE | `BdeTerminalController`, `BdeApiController`, `BdeCockpitController`, `BdeBookingsController`, `BdeMasterDataController`, `BdeShiftCalendarController`, `BdeStatusApiController` | `Views/BdeTerminal/`, `Views/BdeCockpit/`, `Views/BdeBookings/`, `Views/BdeMasterData/`, `Views/BdeShiftCalendar/` |
-| Stammdaten (operativ) | `ArticlesController` (inkl. `Info`), `ArticlesApiController`, `StorageLocationsController`, `ProductionWorkplacesController`, `OrderRecipientsController`, `ArticleCategoriesController`, `ArticleAttributesController` | je eigener View-Ordner |
+| Stammdaten (operativ) | `ArticlesController` (inkl. `Info`), `ArticlesApiController` (seit v1.68.0 auch `GET /api/articles/by-matchcode`, kein Rollen-Filter wie `by-number`), `StorageLocationsController`, `ProductionWorkplacesController`, `OrderRecipientsController`, `ArticleCategoriesController`, `ArticleAttributesController` | je eigener View-Ordner |
 | Stammdaten (admin) | `UsersController` (inkl. `CreateAdUser`, `RoleOverview`, `ResetViewPreferences`), `RolesController`, `WorkstationsController`, `SettingsController`, `ServiceSettingsController`, `StandortEinstellungenController` (IDEAL Teil 6 — kuratierte Standort-Maske), `SyncLogController` | je eigener View-Ordner |
 | Benutzer-Prefs | `Api/UserViewPreferencesApiController` | — |
 
@@ -50,7 +51,7 @@ Rollen-Bedeutungen: [[glossar]].
 |----------------|--------|---------------|
 | `[RequireMasterDataAccess]` | admin, masterdata | Action-Level fuer Edit-Actions in 6 Stammdaten-Controllern (Articles, StorageLocations, ProductionWorkplaces, OrderRecipients, ArticleCategories, ArticleAttributes). Class-Level ist `[RequireMasterDataReadAccess]`. |
 | `[RequireMasterDataReadAccess]` | admin, masterdata_read, masterdata | Class-Level derselben 6 operativen Stammdaten-Controller. Edit-Actions verschaerfen mit `[RequireMasterDataAccess]`. |
-| `[RequireAdminAccess]` | admin | UsersController, RolesController, WorkstationsController, SettingsController, SyncLogController, BdeShiftCalendarController, ServiceSettingsController, StandortEinstellungenController |
+| `[RequireAdminAccess]` | admin | UsersController, RolesController, WorkstationsController, SettingsController, SyncLogController, BdeShiftCalendarController, ServiceSettingsController, StandortEinstellungenController, OperationConfigsController *(v1.54.0, Reiter „Arbeitsgänge“ der BDE-Stammdaten, bewusst ohne `[RequireBdeActive]`)* |
 | `[RequirePickingAccess]` | admin, picking | ProductionOrdersApiController, PickingController (Actions ausser Index) |
 | `[RequireFaCompletionAccess]` | admin, fa_completion | FaCompletionController |
 | `[RequirePickingOrFaCompletionAccess]` | admin, picking ODER fa_completion | FaWorkStepsApiController (`/api/fa-work-steps/toggle`) |
@@ -59,10 +60,10 @@ Rollen-Bedeutungen: [[glossar]].
 | `[RequirePickingOrVorbauOrFaCompletionAccess]` | admin, picking ODER vorbau ODER fa_completion | PickingController.PrintBom (Druck aus read-only Stueckliste) |
 | `[RequireTrackingAccess]` | admin, tracking | TrackingController |
 | `[RequireStockAccess]` | admin, stock, stock_keyuser, picking | StockMovementsController (Schreib-Actions: Ein-/Aus-/Umbuchung) |
-| `[RequireStockReadAccess]` | admin, stock, stock_keyuser, picking, stock_read | StockOverviewController (class-level), StockMovementsController.Index — read-only Bestaende + Bewegungshistorie (seit v1.25.0) |
+| `[RequireStockReadAccess]` | admin, stock, stock_keyuser, picking, stock_read | StockOverviewController (class-level), PurchaseOrdersController (class-level, v1.84.0), StockMovementsController.Index — read-only Bestaende + Bewegungshistorie (seit v1.25.0) |
 | `[RequireLagerProcessingAccess]` | admin, stock, stock_keyuser | WarehousePickingController, MissingPartsLagerController (picker explizit ausgeschlossen) |
 | `[RequireStockKeyUserAccess]` | admin, stock_keyuser, picking | StockMovementsController (Lagerplatz ausbuchen/umbuchen) |
-| `[RequirePickingOrTrackingOrLeitstandAccess]` | admin, picking ODER tracking ODER leitstand | ProductionOrdersController (slim Index) |
+| `[RequirePickingOrTrackingOrLeitstandAccess]` | admin, picking ODER tracking ODER leitstand **ODER vorbau** (seit v1.25.0, Filter-Name unveraendert; Code: `CanPick \|\| CanViewTracking \|\| CanManagePickingRelease \|\| HasVorbauAccess`) | ProductionOrdersController (slim Index), FaHierarchyController (class-level), SageSdataFaController (class-level, v1.71.0; plus Gate `SageSdataFaAnsichtAktiv` inline) |
 | `[RequirePickingOrLeitstandAccess]` | admin, picking ODER leitstand | PickingLeitstandController (class-level) |
 | `[RequirePickingOrStockAccess]` | picking ODER stock | PartRequisitionsController |
 | `[RequirePickingOrStockOrLagerbestellungAccess]` | admin, picking, stock, stock_keyuser, lagerbestellung ODER glasbestellung | WarehouseRequisitionsController, WarehouseRequisitionsApiController |
@@ -73,9 +74,10 @@ Rollen-Bedeutungen: [[glossar]].
 | `[RequireBdeUserAccess]` | admin, bde_user, bde_shiftlead, bde_admin | BdeTerminalController, BdeApiController |
 | `[RequireBdeShiftleadAccess]` | admin, bde_shiftlead, bde_admin | BdeCockpitController, BdeBookingsController (Index), BdeMasterDataController |
 | `[RequireBdeAdminAccess]` | admin, bde_admin | BdeBookingsController (Edit/Cancel), BdeMasterDataController (Terminals) |
-| `[RequireBeschichtungsauftragAccess]` | admin, **`beschichtungsauftrag`** *(neue Rolle, v1.31.0)* | FaHierarchyBeschichtungController (class-level, Teil 4). Kumulativ dazu das AppSetting-Gate `[RequireFaHierarchyBeschichtungAktiv]`. |
+| `[RequireBeschichtungsauftragAccess]` | admin, **`beschichtungsauftrag`** *(neue Rolle, v1.31.0)*, seit v1.51.0 auch `beschichtungsauftrag_schreiben` | FaHierarchyBeschichtungController, BeschichtungsauftraegeController (class-level, Lesen). Kumulativ dazu das AppSetting-Gate `[RequireFaHierarchyBeschichtungAktiv]`. |
+| `[RequireBeschichtungsauftragWriteAccess]` | admin, **`beschichtungsauftrag_schreiben`** *(neue Rolle, v1.51.0)* | BeschichtungsauftraegeController — action-level an jeder schreibenden Action (Create, Bearbeiten, PositionenHinzufuegen, Bemerkung, Status, Reklamation GET+POST). Read/Edit-Split (ADR 0006); Waechter `BeschichtungsauftraegeControllerTests.JedeSchreibendeAction_HatSchreibfilter_UndPostsAntiforgery`. |
 | `[RequireFaHierarchyKommissionierlistenAktiv]` | *(kein Rollen-Filter — AppSetting-Gate)* | FaHierarchyKommissionierListenController (class-level), **kumulativ** zu `[RequireLagerProcessingAccess]`. Toggle `FaHierarchyKommissionierlistenAktiv` (Default false): MVC → Redirect Home + WarningMessage. Invert-default-Attribut-Muster (v1.31.0). |
-| `[RequireFaHierarchyBeschichtungAktiv]` | *(kein Rollen-Filter — AppSetting-Gate)* | FaHierarchyBeschichtungController (class-level), **kumulativ** zu `[RequireBeschichtungsauftragAccess]`. Toggle `FaHierarchyBeschichtungAktiv` (Default false). |
+| `[RequireFaHierarchyBeschichtungAktiv]` | *(kein Rollen-Filter — AppSetting-Gate)* | FaHierarchyBeschichtungController, BeschichtungsauftraegeController (class-level), **kumulativ** zu `[RequireBeschichtungsauftragAccess]`. Toggle `FaHierarchyBeschichtungAktiv` (Default false). |
 | `[RequireFaHierarchyVormontageAktiv]` | *(kein Rollen-Filter — AppSetting-Gate)* | FaHierarchyVormontageController (class-level), **kumulativ** zu `[RequireVorbauAccess]`. Toggle `FaHierarchyVormontageAktiv` (Default false). |
 | *(kein Filter)* | jeder eingeloggte User | UserViewPreferencesApiController (Login-Check, kein Rollen-Filter) |
 
@@ -104,6 +106,7 @@ unveraendert). Access-Filter Class-Level (Read); Edit gibt es nicht (Lesepfade).
 | `FaHierarchyController` (Teil 2, Baumanzeige `/FaHierarchy`) | `[RequirePickingOrTrackingOrLeitstandAccess]` *(bestehend, wiederverwendet)* | **keiner** — nur AppSetting `FaHierarchyMaxTiefe` als Tiefen-Cap (kein Ein/Aus-Toggle). Route nur per URL erreichbar (kein Nav-Link, Stand v1.31.0). |
 | `FaHierarchyKommissionierListenController` (Teil 3) | `[RequireLagerProcessingAccess]` *(bestehend)* | `[RequireFaHierarchyKommissionierlistenAktiv]` → `FaHierarchyKommissionierlistenAktiv` (Default false) |
 | `FaHierarchyBeschichtungController` (Teil 4) | `[RequireBeschichtungsauftragAccess]` → **neue Rolle `beschichtungsauftrag`** | `[RequireFaHierarchyBeschichtungAktiv]` → `FaHierarchyBeschichtungAktiv` (Default false) |
+| `BeschichtungsauftraegeController` (Beschichtungsauftrag-Ausbau Teil 4, v1.51.0 — `/Beschichtungsauftraege`: Liste, Detail, Print, `Pdf/{id}`) | `[RequireBeschichtungsauftragAccess]`; schreibende Actions zusaetzlich `[RequireBeschichtungsauftragWriteAccess]` → **neue Rolle `beschichtungsauftrag_schreiben`** | `[RequireFaHierarchyBeschichtungAktiv]` (derselbe Schalter wie die Vorschlagsliste). Je Request genau EIN Aufruf des `BeschichtungsauftragWorkflow`, danach Redirect (der Workflow verwirft nach Speicherfehler den Change-Tracker). |
 | `FaHierarchyVormontageController` (Teil 5) | `[RequireVorbauAccess]` *(bestehend)* | `[RequireFaHierarchyVormontageAktiv]` → `FaHierarchyVormontageAktiv` (Default false) |
 | `HierarchieUmstellungController` (Teil 7, v1.32.0 — Einweg-Umschalt-Seite `/HierarchieUmstellung`) | `[RequireAdminAccess]` | **kein Toggle** — der einzige sanktionierte Schreibweg auf den Master `ProduktionsauftragHierarchisch`. Die generische `ServiceSettingsController`-Maske zeigt den Master nur read-only; der Guard-Decorator (`GuardedServiceSettingRepository`) ist der harte Choke-Point. Siehe [[0012-fa-hierarchie-einweg-migrationstor]]. |
 
@@ -112,6 +115,14 @@ unveraendert). Access-Filter Class-Level (Read); Edit gibt es nicht (Lesepfade).
 `ICurrentUserService.HasBeschichtungsauftragAccessAsync`, `Views/Users/RoleOverview.cshtml`. **Nicht**
 im `Program.cs`-Seed (analog `vorbau`/`lagerbestellung`). Die drei Aktiv-Toggles sind AppSettings
 (ADR 0011), nicht ServiceSettings — reine Web-/Anzeige-Schalter.
+
+**Neue Rolle `beschichtungsauftrag_schreiben`** (v1.51.0, [[2026-10-06-beschichtungsauftrag-ausbau-teil-4-spec]]) an den drei
+Pflichtstellen: `RoleKeys.BeschichtungsauftragSchreiben` + `RequireBeschichtungsauftragWriteAccessAttribute` +
+`ICurrentUserService.HasBeschichtungsauftragWriteAccessAsync`, diese Datei, `Views/Users/RoleOverview.cshtml`. Die Schreibrolle
+**schliesst Lesen ein** (`HasBeschichtungsauftragAccessAsync` prueft admin, `beschichtungsauftrag`, `beschichtungsauftrag_schreiben`),
+damit eine Zuweisung genuegt. Kein Seed — der Admin legt die Rolle mit genau diesem Key unter `/Roles` an (Deploy-Schritt).
+Die Vorschlagsliste (`FaHierarchyBeschichtungController`) bleibt Lesen; den Knopf „Aus Vorschlagsliste erstellen" rendert
+sie nur bei Schreibrecht, der POST geht an `BeschichtungsauftraegeController.Create`.
 
 ## Abgeloeste Routen (Stub-Redirects)
 
@@ -129,3 +140,21 @@ im `Program.cs`-Seed (analog `vorbau`/`lagerbestellung`). Die drei Aktiv-Toggles
 | `/api/warehouserequisitions/quick-add` | Draft-Bestellung aus der Stueckliste |
 
 Warum die Flags in Satelliten liegen: [[0009-app-status-in-satelliten-tabellen-neben-sage-master]].
+
+## Sage-SData-Stammdaten (v1.73.0)
+
+- `CreditorsController`, `DebitorsController`: Klasse `[RequireMasterDataReadAccess]`, Create/Edit/SetActive `[RequireMasterDataAccess]`, kein Löschen;
+  Sage-Felder bei `Source = Sage` schreibgeschützt (serverseitig). Keine neue Rolle.
+- `ArticleAttributesController`: Fachsperre für Sage-Merkmale (Name, Typ, Optionen, Werte, Löschen; Reihenfolge/Aktiv pflegbar).
+- `BdeMasterDataController`: Reiter `sage` + POST `SageZuordnen`/`SageZuordnungLoesen` (BDE-Filter wie bisher), Parameter `onlyUebergabeOffen`.
+- `StorageLocationsController.Index`: Parameter `onlyUebergabeOffen`, Spalten Lagerort/Sperre/Übergabe.
+
+## Kommissionierauftraege (v1.88.0) und FA an Lagerbuchungen (v1.87.0)
+
+- `PickingController`: `Index` = Auftragsliste, `Auftrag/{id}` (Stueckliste im Auftragsmodus), `AuftragUmbuchen`, `AuftragAbschliessen`,
+  `AuftragDrucken` – `[RequirePickingAccess]`; `Bom/{faId}` nur lesend mit Auftragsliste.
+- `PickingLeitstandController.AuftraegeNachziehen` – `[RequireLeitstandAccess]`; Freigabe/Ruecknahme/Prio/Kommissionierer schreiben auf Auftraege durch.
+- `PickingAreasController` (Kommissionierbereiche + Regeln) – Klasse `[RequireMasterDataReadAccess]`, Schreiben `[RequireMasterDataAccess]`. Keine neue Rolle.
+- `StockApiController` `fa-lookup`/`fa-search` (v1.87.0) unter dem Klassenfilter `RequireStockOrPickingOrTrackingAccess`. FA-Links in Lager-Tools
+  folgen dem FA-Leserecht `FaBuchungsText.CanViewProductionOrdersAsync` (= Regel von `RequirePickingOrTrackingOrLeitstandAccess`, ein Ort).
+

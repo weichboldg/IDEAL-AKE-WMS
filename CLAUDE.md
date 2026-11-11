@@ -123,6 +123,9 @@ Hier kommen drei Dinge dazu, die **ebenfalls nie** der Leiter zum Opfer fallen:
 `status: Testbereit` setzen, nur mit gruenem Beweis).
 Status-Automat: NEU → SPEZIFIZIERT → **Schranke 1 (Mensch)** → FREIGEGEBEN → IN_UMSETZUNG →
 TESTBEREIT → **Schranke 2 (Mensch: manueller Test, dann Merge)** → GEMERGED.
+**Buendeln:** mehrere Specs bevorzugt in einem `/goal`-Lauf (`secondbrain/prompts/goal.md`,
+Befehl `/goal-run`) in einem Buendel-Worktree; Schranke 1 bleibt, ausser der Auftrag nennt eine
+Ausnahme ausdruecklich.
 
 ## Harte Regeln
 
@@ -163,6 +166,11 @@ schreiben ihren Service-Namen). Details: ADR `0003-auditableentity-als-entity-ba
   Ctor-Parameter, Service-Name in `SyncLogServices.All`, deutsche Counts-Keys). Details: ADR `0010-aktivitaets-protokoll-mit-isolierten-dbcontexts`.
 - *Service-Konfiguration*: neuer Key **immer** in `ServiceSettingDefinitions.All` (Drift-Guard-Test).
   Details: ADR `0008-servicesettings-db-first-mit-typisiertem-katalog`.
+- *Einstellungen* (AppSettings `/Settings`, ServiceSettings `/ServiceSettings`, kuratierte Masken):
+  fester Wertebereich = Auswahlliste, Stammdatenverweis = Auswahl aus Stammdaten, der Server
+  validiert beim Speichern; je Einstellung Anzeigename, Wirkung, Verwendung, Default, Standort und
+  Warnhinweis bei Aussenwirkung Pflicht. Specs nennen das fuer jede neue oder geaenderte Einstellung (Abschnitt
+  „Einstellungen" der Vorlage). Details: ADR `0020-einstellungen-mit-festem-wertebereich-als-auswahl-und-mit-wirkungsbeschreibung`.
 
 **Das Brain wird NICHT verzweigt.** `secondbrain/` liegt zwar im Repo, gehoert aber nicht zum
 Zweig: Es beschreibt die Arbeit, statt Teil von ihr zu sein. Deshalb gilt bei jedem Worktree-Lauf

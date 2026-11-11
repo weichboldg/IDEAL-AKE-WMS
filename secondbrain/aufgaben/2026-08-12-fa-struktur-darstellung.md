@@ -14,8 +14,8 @@ updated: 2026-08-19
 **Befund (2026-08-19):** Diese freigegebene Spec ist im Bündel-Worktree **bereits vollständig
 umgesetzt** — die Spec-Analyse (Karten-`<div>`, Kontrast-Bug bei Z. 174–176) ist **stale** gegen einen
 älteren Commit; seither wurde der ganze Umbau als „Etappe 7" geliefert:
-- `961749f wip: fa-struktur - Kontrast-Fix WCAG AA` (Block A)
-- `767f06f epic … Etappe 7 - FA-Struktur seitenweite Tree-Table (OSEON) + Kontrast + Icons +
+- `a372638 wip: fa-struktur - Kontrast-Fix WCAG AA` (Block A)
+- `a864745 epic … Etappe 7 - FA-Struktur seitenweite Tree-Table (OSEON) + Kontrast + Icons +
   Baum-Spaltenfilter + column-prefs` (Block B)
 
 Der /dev-Lauf **baut daher nichts neu** (das wäre Doppelarbeit/Rückschritt), sondern **verifiziert**
@@ -53,7 +53,7 @@ den vorhandenen Stand gegen die 16 AK und lässt den qa-agent Build+beide Suiten
   Test-Checkliste im Spec-Rumpf. Wartet jetzt auf Schranke 2 (Manual-UAT + Merge des ganzen
   Epic-Bündels durch den Menschen).
 - **Code-Review-Nachtrag (2026-08-19) — beide Funde vom Menschen entschieden und abgeschlossen:**
-  - **Fund 1 (Einrückungs-Leitlinie fehlt, Fachl. Anf. §5) → NACHGEZOGEN** (Worktree `f869bb0`):
+  - **Fund 1 (Einrückungs-Leitlinie fehlt, Fachl. Anf. §5) → NACHGEZOGEN** (Worktree `e2d96b4`):
     vertikale Einrückungs-Leiter wiederhergestellt, rein in der Struktur-Zelle (`_FaHierarchyNode.cshtml`
     inline `--fa-indent` + `site.css` `.fa-struct-cell` `repeating-linear-gradient`, auf den
     Einrückungsbereich begrenzt). Kein JS/Markup-Umbau (Timebox eingehalten). Build + Web-Tests

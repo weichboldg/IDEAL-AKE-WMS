@@ -74,7 +74,7 @@ bereits erledigte Arbeit ein zweites Mal anfasst:
 - **Item 7 (Teil 6 — Standorteinstellungen-Maske):** entgegen der Backlog-Aussage "noch nicht
   umgesetzt" ist Teil 6 bereits **umgesetzt und Testbereit** (qa-agent, 2026-08-18,
   `secondbrain/feature-map.md` Abschnitt "Teil 6", Changelog
-  `secondbrain/changelog/2026-08-18-v1-34-0-ideal-teil-6-standorteinstellungen.md`, Commit `c8ae47f`
+  `secondbrain/changelog/2026-08-18-v1-34-0-ideal-teil-6-standorteinstellungen.md`, Commit `a99705f`
   im selben Buendel-Worktree). Wartet wie der Rest des Buendels auf Schranke 2.
 - **Item 9 (Alt-Spec archivieren):** `2026-07-28-ideal-anpassungen-neu-nachbilden-spec.md` liegt
   bereits in `secondbrain/specs/archiv/` mit `status: Ueberholt` — **nicht** mehr in
@@ -115,7 +115,7 @@ Schranke-1-Fragen sauber zur Entscheidung vorlegen, statt sie in Prosa verstreut
   12).
 - Das Spaltenauswahl-Feature selbst (Item 2, funktionaler Teil) — eigene Spec
   [[2026-08-12-listen-spaltenauswahl-spec]] (status: Freigegeben, bereits im Buendel-Worktree
-  umgesetzt, Commit `37e8752`), hier nur Tracking.
+  umgesetzt, Commit `3894e3d`), hier nur Tracking.
 - Die Standorteinstellungen-Maske selbst (Item 7) — bereits umgesetzt/Testbereit, hier nur Tracking
   + Korrektur des Backlog-Standes.
 - Die fachlichen Klaerungen aus Gruppe D (Items 10–16) inhaltlich herbeifuehren — das ist

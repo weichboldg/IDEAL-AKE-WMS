@@ -24,3 +24,8 @@ entschieden (Antwort 9 der PDF-Spec) — ohne diese Entscheidung keine Spec.
 
 - Baustein: [[2026-08-06-pdf-erzeugung-fahierarchy-druck-spec]]
 - Verbraucher-Vorbilder: `FaHierarchyKommissionierListenController.Pdf`, `FaHierarchyBeschichtungController.Pdf`
+
+## Vermerk 2026-11-06
+
+Neue Spalten der Vormontage-Listen (v1.72.0, [[2026-11-06-lagerplatz-etikett-rolle-und-vormontage-felder-spec]]) **mitnehmen**: Arbeitsbereich, HauptFA
+(Summiert), Kunde, FE-Termin, Bemerkung PN, Fertigungsinfo PN – Druck nur sichtbare Spalten wie Kommissionierliste.

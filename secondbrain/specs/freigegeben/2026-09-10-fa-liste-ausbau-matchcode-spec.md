@@ -676,7 +676,7 @@ Nach Abschluss `secondbrain/tests/testszenarien-index.md` nachziehen.
 
 ## Deploy
 
-**Vom qa-agent GEGEN DEN ECHTEN DIFF bestaetigt (2026-09-10, Diff `be92ade..deff907`, 48 Dateien).**
+**Vom qa-agent GEGEN DEN ECHTEN DIFF bestaetigt (2026-09-10, Diff `c958edc..24864e6`, 48 Dateien).**
 Die drei Spec-Agent-Schaetzungen (`web`/`service`/`migration` alle `true`) stimmen — hier die
 belastbare Grundlage dafuer statt der Vermutung:
 
@@ -1112,8 +1112,8 @@ verlangt. Der Fliesstext muss auf den beantworteten Stand gezogen werden, bevor 
 ## QA-Nachweis (qa-agent, 2026-09-10)
 
 **Worktree:** `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Branch
-`feature/2026-08-07-ideal-teile-1-5`, geprueft auf Commit `deff907` (Diff-Basis fuer diese Spec:
-`be92ade..deff907`, 48 Dateien, +7760/-80). Weder gemergt noch gepusht, Worktree unangetastet.
+`feature/2026-08-07-ideal-teile-1-5`, geprueft auf Commit `24864e6` (Diff-Basis fuer diese Spec:
+`c958edc..24864e6`, 48 Dateien, +7760/-80). Weder gemergt noch gepusht, Worktree unangetastet.
 
 ### Build
 
@@ -1141,7 +1141,7 @@ Die Service-Suite wurde **nicht** uebersprungen — die Matchcode-Materialisieru
 
 ### Akzeptanzkriterien gegen den echten Diff (Stichproben, nicht gegen Behauptung)
 
-- **Keine unerwartete Migration.** `git diff --name-only --diff-filter=A be92ade..deff907 --
+- **Keine unerwartete Migration.** `git diff --name-only --diff-filter=A c958edc..24864e6 --
   '*/Migrations/*'` liefert genau ein Paar:
   `IdealAkeWms/Migrations/20260910081155_AddProductionOrderMatchcode.cs` (+`.Designer.cs`).
 - **`SQL/91_AddProductionOrderMatchcode.sql`:** `COL_LENGTH('dbo.ProductionOrders', 'Matchcode')
@@ -1172,7 +1172,7 @@ Die Service-Suite wurde **nicht** uebersprungen — die Matchcode-Materialisieru
   `@if (Model.Hierarchical) { ... }`, nicht nur inhaltlich leer; `Index.cshtml` Kopf (`<th>`) und
   inline `#column-config` spiegeln dieselbe Bedingung, `colCount` waechst nur im hierarchischen
   Zweig um 4. Kunde bleibt unconditional (AKE zeigte diese Spalte bereits vorher).
-- **HauptFA-Zeile — Schritt-1-Verifikationspflicht erfuellt.** `git show fda7c7a` enthaelt einen
+- **HauptFA-Zeile — Schritt-1-Verifikationspflicht erfuellt.** `git show a5e0922` enthaelt einen
   neuen Test `Index_Hierarchical_RootRow_KeepsSubOrderNumberEqualToOrderNumber`, der die
   Modellannahme (Wurzel kommt mit `SubOrderNumber == OrderNumber` in der eigenen Gruppe an) fixiert
   — zusaetzlich zur Code-Beweiskette in der bereits vorliegenden Aufgaben-Notiz
@@ -1198,7 +1198,7 @@ und blockieren `Testbereit` nicht.
 Der TS-73/TS-72-Text deckt die Wiederholungswert-Unterdrueckung an einer **normalen** Zeile ab
 (TS-73.5/73.6), nennt aber nicht ausdruecklich den Fall **gestreifter/farbig markierter** Zeilen
 (`table-danger` bei stornierten, `table-secondary` bei erledigten Auftraegen). Der CSS-Fix in
-Commit `a422e44` behebt genau eine Spezifitaets-Kollision mit Bootstraps generischem
+Commit `1662ae9` behebt genau eine Spezifitaets-Kollision mit Bootstraps generischem
 Tabellenzellen-Selektor (`.table > :not(caption) > * > *`) — beweist aber nicht am Bildschirm, dass
 die Wiederholungswert-Klasse (`color: transparent`) gegen die zusaetzliche Bootstrap-Kontext-Farbe
 von `table-danger`/`table-secondary` weiterhin gewinnt. Deshalb unten als eigener Punkt in der
@@ -1232,7 +1232,7 @@ dieser Spec und bleiben als Folgearbeit dokumentiert — kein QA-Blocker.
    pruefen — der unterdrueckte Wert (Kunde/Prio/AB-Nr./Montage-Abt./KO-Termin) muss **trotz** der
    Bootstrap-Kontextfarbe visuell verschwinden (nicht nur bei weissem Zeilenhintergrund). Negativfall:
    der Wert bleibt in einer `table-danger`/`table-secondary`-Zeile sichtbar → die CSS-Spezifitaet aus
-   Commit `a422e44` reicht dort nicht, sofort melden.
+   Commit `1662ae9` reicht dort nicht, sofort melden.
 3. **Freigabe-Kaskade mit bis zu 39 Auftraegen und Picker-Pflicht (AK 11-15).** Eine reale HauptFA
    mit einer groesseren Sub-FA-Zahl (Backlog nennt bis zu 39) kaskadieren: Bestaetigungsdialog zeigt
    korrekte Gesamt-/Bereits-/Neu-Zahlen, danach Erfolgsmeldung mit der tatsaechlich neu freigegebenen

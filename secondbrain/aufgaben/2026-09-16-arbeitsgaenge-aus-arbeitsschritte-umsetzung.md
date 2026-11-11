@@ -55,7 +55,7 @@ hierarchische Aufträge, seit dem Klasse-D-Gate v1.36.0). Dritte Struktur-Ableit
 ## Arbeitsstand
 
 - 2026-09-16: Spec Freigegeben → InUmsetzung. Referenzcode gelesen, Umsetzung startet im Bündel-Worktree.
-- 2026-09-16: **Umsetzung feature-complete** (Worktree-Commits `716a676`→ core `wip` → tests `wip` →
+- 2026-09-16: **Umsetzung feature-complete** (Worktree-Commits `6b9f354`→ core `wip` → tests `wip` →
   feature-complete `wip`). Kern: `FaWorkStepStructureDetectionService` (+Interface),
   `UnknownWorkStepTokenState` (+Interface), `FaWorkStepSources.Struktur`, Service-Key
   `Sync:FaWorkStepStructureDetectionEnabled`, `SyncLogServices.FaWorkStepStructureDetection`,

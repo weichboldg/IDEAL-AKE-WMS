@@ -463,7 +463,7 @@ Vorbedingungen und Ergebnistabelle).
 Ausgelagert am 2026-09-09, damit es die Szenarien nicht zweimal gibt und sie nicht auseinanderlaufen.
 Fuer den Buendel-Lauf gilt nur noch:
 
-- Vorbedingung: Buendel-Stand >= `22d31ae` deployt (v1.36.0 im Changelog, A-1 erneut pruefen).
+- Vorbedingung: Buendel-Stand >= `5226352` deployt (v1.36.0 im Changelog, A-1 erneut pruefen).
   **Block H (Guard-Hinweisseite) gilt damit nicht mehr** — die Seite existiert nicht mehr.
 - **Reihenfolge:** Der erste Test des ausgelagerten Protokolls (**B-0**, Scope-Entscheidung
   Vollstruktur, Ruling 4) wird **vor** allem anderen des BOM-Teils gefahren, weil sein Ergebnis den

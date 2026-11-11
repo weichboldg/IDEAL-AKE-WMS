@@ -30,3 +30,6 @@ secondbrain/.trash/
 ## Publish-Artefakte (nie einchecken)
 publish.zip
 *.zip
+
+# v1.30.4: Kommissionierfotos (Laufzeitdaten, ausserhalb von wwwroot)
+IdealAkeWms/App_Data/

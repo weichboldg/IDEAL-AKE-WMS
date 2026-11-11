@@ -91,6 +91,13 @@ Fenster mit Cap. Grundlage fuer Artikelinfo, Lackierteil- und AG-Erkennung. Sieh
 
 `OseonProductionOrder`, `OseonWorkOperation`, `OseonOperationConfig` (Offset-Tage + Relevanz je AG),
 `EnaioDmsDocument` (`DocumentType`: Werkstattauftrag / Werkstattauftrag+Zeichnung / Zeichnung).
+*(Seit v1.54.0 umbenannt: Klasse `OperationConfig`, Tabelle `dbo.OperationConfigs`, Spalte `IsExternalSystemRelevant`, `AuditableEntity`; Migration `20261012140548_RenameOperationConfigsAndAddAudit` / `SQL/95` — [[2026-10-09-arbeitsgang-stammdaten-vereinheitlichen-spec]].)* Die Tabelle ist seitdem die gemeinsame **Arbeitsgang-Stammtabelle** (OSEON-AG-Namen und WMS-`WorkOperation.OperationNumber`
+teilen sich den Schluessel `OperationName`); Eindeutigkeit auf jeder DB-Form als Unique-Index `IX_OperationConfigs_OperationName`.
+Seit v1.61.0 ([[2026-10-16-arbeitsgang-stammdaten-abgleich-aus-sage-view-spec]], Migration
+`20261016090641_AddOperationConfigSourceAndSageMissingSince` / `SQL/96`): `Source` (`NVARCHAR(20) NOT NULL DEFAULT 'Manual'`,
+Werte `Sage | ExternalSystem | Manual`, UI „Quelle“; Bestand mit `CreatedBy = 'system'` → `ExternalSystem`) = **Herkunft**,
+`SageMissingSince` (`DATETIME2 NULL`) = **Zustand** „nicht in Sage seit“ (nur Arbeitsgang-Abgleich, nie bei `ExternalSystem`).
+`OperationConfigRepository.UpdateAsync` schreibt nur die Pflegefelder (DisplayName, Offset, Relevanz, `Modified*`).
 Details: [[integrationen]].
 
 ## Benutzer, Rollen, Konfiguration
@@ -144,3 +151,44 @@ konsolidiertes `../../SQL/00_FreshInstall.sql`. Der Workflow ist verbindlich —
   `LastAttemptAt`, `LastError` (nvarchar 2000), `SageResponseRaw` (nvarchar max), `SentAt`,
   `ConfirmedAt`. Enqueue durch den Web-Decorator, Statuswechsel durch den `SageBookingWorker`
   (`ModifiedBy` = `system:sage-booking`). Details [[2026-07-29-sage-lagerbuchungen-spec]].
+
+## Beschichtungsauftrag als gespeichertes Objekt (IDEAL, v1.50.0, Bündel)
+
+- **`Beschichtungsauftrag`** (neu, `AuditableEntity`, Migration 94 `20261012073551_AddBeschichtungsauftrag`, Tabelle
+  `Beschichtungsauftraege`): `Nummer` `BA-JJJJ-NNNNN` (UNIQUE) + `Jahr`/`LaufendeNummer` (UNIQUE), genau **ein** `HauptFA`
+  (Index, nicht unique), `Status` (`BeschichtungsauftragStatus` byte: Entwurf=10, Uebergeben=30, Erledigt=40,
+  Storniert=90; **20 reserviert** nur als Kommentar), Kopf `Dienstleister`/`Ral` (Freitext 200) +
+  `StartBeschichtung`/`BeschichtenRetour`, `Bemerkung` (1000), Selbstverweis `UrsprungsauftragId` (Reklamation,
+  `OnDelete Restrict`, Navigation `Folgeauftraege`), Statuszeitpunkt + `…ByUserId` je Übergang, `RowVersion`.
+- **`BeschichtungsauftragPosition`** (neu, `AuditableEntity`, Tabelle `BeschichtungsauftragPositionen`, FK Cascade):
+  Herkunftsschlüssel `HauptFA`/`VaterFA`/`SubFA`/`Position` (Index **nicht** unique) + Snapshot `HauptArtnr`/`Artnr`/
+  `Matchcode`/`Menge` (= Sollmenge bei Anlage)/`Breite`/`Hoehe`/`Tiefe` (decimal 18,4). **Kein FK auf
+  `FaHierarchyNode`** — der Sync ersetzt die Cache-Zeilen je Lauf (neue Ids), ein erledigter Auftrag muss lesbar bleiben.
+- Schreibweg nur über `Services/BeschichtungsauftragWorkflow.cs` (Regeln) und `IBeschichtungsauftragRepository`
+  (`GetVergabenAsync` = Positionen in Aufträgen mit Status ≠ Storniert, eine Abfrage). Spec
+  [[2026-10-06-beschichtungsauftrag-ausbau-teil-3-spec]].
+
+## Sage-SData-Stammdaten (v1.73.0, SQL/98–107)
+
+- `StorageAreas` (Lagerorte, UNIQUE `Lagerkennung`, Audit) ← `StorageLocations.StorageAreaId` (SetNull) + `SageIstGesperrt*`, Maße decimal(18,3).
+- `ArticleSageDetails` (Satellit 1:1 zu `Articles`, `Id` + UQ `ArticleId`, 44 Sage-Felder, nur SData-Weg schreibt; per `SetValues` nach Namen kopiert).
+- `ArticleAttributeValues.TextValue` nvarchar(1000); Sage-geführte Definitionen `SyncSource = "Sage"` + `SyncFieldName`.
+- `ProductionOrderPositions` (Cache, UNIQUE `BelPosID`, Full-Refresh in eigener Transaktion), `SageFaStates` (leer; befüllt das Rückmelde-Epic).
+- `ProductionWorkplaces` + `SageBdeTerminalId`, `SageKostenstelle`, `SageSchichtplannummer`.
+- `SagePpsMitarbeiter` (Cache), `Stillstandsgruende` (Audit, `SageMissingSince`), `BdeOperators.SageMitarbeiternummer` (gefiltert UNIQUE + App-Guard).
+- `Creditors`, `Debitors` (Audit, `Source` Sage|Manual, gefiltert UNIQUE `SageKto`/`ShortName`, Enum `SageUebergabeStatus`, Interface `ISageKonto`).
+- `ArticleSuppliers` (FK Article Cascade, FK Creditor Restrict, UNIQUE ArticleId+CreditorId).
+- `SageStammdatenOutbox` (Status = `SageBookingQueueStatus`, `EntityType`+`EntityKey` = WMS-Id); `StorageLocations`/`BdeOperators` + `SageUebergabeStatus`
+- `SagePurchaseOrderLines` (v1.84.0, SQL/112): Cache offener Sage-Bestellpositionen (nur EBB), je Lauf ersetzt, kein AuditableEntity, keine FKs; UNIQUE `BelPosId`. Mengen in der Basiseinheit.
+- `PurchaseOrderReceipts` (v1.84.0, SQL/113): Wareneingang zu Bestellposition, AuditableEntity, FK `StockMovementId` Restrict + UNIQUE (Navigation `StockMovement.PurchaseOrderReceipt`), Snapshot ohne FK auf den Cache; Andockpunkt Qualitätsprüfung.
+  (DEFAULT 0 nur im SQL), `SageUebergabeAm`, `SageUebergabeFehler`; `BdeOperators.Source` DEFAULT 'Manual'.
+
+## Kommissionierauftraege (v1.88.0, SQL/133)
+
+- `PickingAreas` (Name/Kuerzel UNIQUE, gefilterter UNIQUE `UX_PickingAreas_IsDefault` – genau ein Standard), `PickingAreaRules` (UNIQUE `RuleType`+`Value`).
+- `PickingOrders` (Nummer `KO-JJJJ-NNNNN`, UNIQUE `Jahr`+`LaufendeNummer`, `Typ` 1 = FA, `Status` 10/20/30/40/90, `UrsprungsauftragId`, `RowVersion`),
+  `PickingOrderLines` (Herkunft FA + Ressourcenummer + Position wie frueher `PickingItems`, Soll/Ist, `StockMovementId`, Status 0/10/20/30/40).
+- Einziger Schreibweg `PickingOrderWorkflow` bzw. `PickingTransferService.TransferOrderLinesAsync`. `PickingItems` nur noch Altbestand
+  (Einmal-Skript `SQL/Einmalig/2026-11-08_v1.88.0_Kommissionierauftraege_Altbestand.sql`). [[0021-kommissionierauftrag-als-beleg-neben-der-stueckliste]]
+- `StockMovements.ProductionOrderId` (v1.87.0, SQL/109) – verknuepfter FA neben dem Text, Regel `IProductionOrderRepository.FindForBookingAsync`.
+

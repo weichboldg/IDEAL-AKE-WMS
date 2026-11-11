@@ -192,12 +192,18 @@ Neues Kapitel „IDEAL Teil 8 — Sub-FA-BDE":
 
 | # | Etappe | Status | Commit |
 |---|--------|--------|--------|
-| 1 | Verifikation: Teil-7-Haertung im BDE-Kontext nachvollziehen, Restluecken benennen | erledigt | `418f23a` |
-| 2 | Aufloesungslogik serverseitig (Gruppen-Lookup auf `OrderNumber`, Fallback auf `SubOrderNumber`, Mehrdeutigkeits-Ergebnis; Granularitaet je Modus + Scope klaeren, siehe „Offene Rueckfragen") inkl. Unit-Tests | erledigt | `f86a886` |
-| 3 | Auswahl-UI am Terminal, aufgesetzt auf die bestehende `GetAvailableOperations`-Liste | erledigt | `5fd0070` |
-| 4 | NurFA-Button-Matching fixen (kein last-wins ohne `break` mehr) + Durchzug ueber Teileverfolgung | erledigt | `58c26bd` |
+| 1 | Verifikation: Teil-7-Haertung im BDE-Kontext nachvollziehen, Restluecken benennen | erledigt | `d95cb63` |
+| 2 | Aufloesungslogik serverseitig (Gruppen-Lookup auf `OrderNumber`, Fallback auf `SubOrderNumber`, Mehrdeutigkeits-Ergebnis; Granularitaet je Modus + Scope klaeren, siehe „Offene Rueckfragen") inkl. Unit-Tests | erledigt | `992d7e1` |
+| 3 | Auswahl-UI am Terminal, aufgesetzt auf die bestehende `GetAvailableOperations`-Liste | erledigt | `14d3c18` |
+| 4 | NurFA-Button-Matching fixen (kein last-wins ohne `break` mehr) + Durchzug ueber Teileverfolgung | erledigt | `5c0735d` |
 | 5 | OSEON-Seite (nur falls Etappe 1 Bedarf zeigt) | **entfaellt** (Etappe-1-Urteil: `OseonSyncService` ist nicht eindeutigkeitsannehmend — Haupt-Sync auf separater Spiegeltabelle, einziger WMS-Schreibpfad `SyncWorkplacesToProductionOrdersAsync` ist set-based UPDATE-JOIN) | — |
-| 6 | Tests (Unit + Test-Szenarien) + Brain-Update | erledigt | `8395394` |
+| 6 | Tests (Unit + Test-Szenarien) + Brain-Update | erledigt | `b8847d2` |
+
+> [!note] Einschraenkung zu Etappe 5 (Nachtrag 2026-11-07, OSEON-Hotfix v1.30.2)
+> Das Urteil „`OseonSyncService` ist nicht eindeutigkeitsannehmend" gilt **nur fuer `ProductionOrders.OrderNumber`**
+> (der Schreibpfad dort ist der set-based UPDATE-JOIN). Auf der Spiegeltabelle `OseonProductionOrders` nahm der Sync
+> sehr wohl Eindeutigkeit an: MERGE ueber `OseonId`, eindeutig ist aber `OseonOrderNumber` → Fehler 2601 bei neu
+> ausgeschriebenen OSEON-Auftraegen. Behoben in [[2026-11-07-oseon-sync-neu-ausgeschriebener-auftrag-spec]].
 
 Ein langlebiger Worktree traegt alle Etappen; **kein** Zwischen-Merge. Waehrend der Arbeit den
 Branch regelmaessig mit `scripts/sync-worktree.ps1 -Slug <slug>` auf `main`-Stand halten. QA und
@@ -205,11 +211,11 @@ Merge (Schranke 2) erst, wenn **alle** Etappen abgeschlossen sind.
 
 ## Deploy
 
-**QA-final (2026-08-18), gegen den echten Diff `git diff --stat 418f23a^..8395394 -- IdealAkeWms
+**QA-final (2026-08-18), gegen den echten Diff `git diff --stat d95cb63^..b8847d2 -- IdealAkeWms
 IDEALAKEWMSService` bestaetigt** — 10 Dateien, alle unter `IdealAkeWms/` bis auf den
 Service-Versions-String; **keine** neue Datei unter `*/Migrations/*` (die im selben Bereich
 mitgefuehrte Aenderung an `20260814105526_InvertProductionOrderHierarchy.cs` ist der
-Teil-7-Post-QA-Fix `5d3e723` — gehoert fachlich zu Teil 7, nicht zu Teil 8, und ist dort bereits
+Teil-7-Post-QA-Fix `2b305ba` — gehoert fachlich zu Teil 7, nicht zu Teil 8, und ist dort bereits
 offline via `dotnet ef migrations script` verifiziert):
 
 - **Web-App:** ja — `IdealAkeWms/Controllers/BdeApiController.cs` (neuer Endpoint `resolve-scan`,
@@ -765,16 +771,16 @@ vor); was entfaellt, ist nur der Zwischen-Merge nach `main`.
 ## QA-Nachweis (2026-08-18, qa-agent)
 
 Alle Kommandos frisch im Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`
-(`feature/2026-08-07-ideal-teile-1-5`, HEAD `8395394`) ausgefuehrt.
+(`feature/2026-08-07-ideal-teile-1-5`, HEAD `b8847d2`) ausgefuehrt.
 
 - **`dotnet build IdealAkeWms.slnx`:** erfolgreich, 0 Fehler, 9 Warnungen (bestehende NU1902-Advisories
   MailKit/MimeKit + 1 vorbestehende `CS8602` in `TrackingController.cs`, beide nicht Teil-8-bezogen).
 - **`dotnet test IdealAkeWms.Tests`:** **1205 erfolgreich, 0 Fehler, 1 uebersprungen** (bestehender,
   nicht Teil-8-bezogener Integrationstest `ProductionOrderEagerCreateAgentJobTests`), 1206 gesamt.
 - **`dotnet test IDEALAKEWMSService.Tests`:** **231 erfolgreich, 0 Fehler**, 231 gesamt.
-- **Diff-Pruefung** (`git diff --stat 418f23a^..8395394 -- IdealAkeWms IDEALAKEWMSService`): 10 Dateien,
+- **Diff-Pruefung** (`git diff --stat d95cb63^..b8847d2 -- IdealAkeWms IDEALAKEWMSService`): 10 Dateien,
   bestaetigt Deploy-Umfang oben (Web ja, Service nein, keine neue Migration; die mitgefuehrte
-  Migrations-Datei-Aenderung ist der separate Teil-7-Fix `5d3e723`, bereits offline verifiziert).
+  Migrations-Datei-Aenderung ist der separate Teil-7-Fix `2b305ba`, bereits offline verifiziert).
 - **Code-Review (eigene Durchsicht, `superpowers:code-review`-Massstab):** `BdeScanResolver.cs`
   (Resolver-Service), `BdeApiController.cs` (`resolve-scan`-Endpoint), `bde-terminal.js`
   (`resolveScanAndSelect`/`bookScannedCandidate`/`renderScanSelection`/`escapeHtml`),

@@ -16,6 +16,7 @@ Dateien:
 | `spec.md` | Backlog -> Spec(s) | pro neuer Backlog-Datei |
 | `dev.md` | freigegebene Spec -> Umsetzung + QA -> Testbereit | pro Freigabe |
 | `epic-stage.md` | naechste Etappe eines Epic | pro Etappe |
+| `goal.md` | Buendel aus mehreren Specs (Epic + Nicht-Epic) in einem Worktree bis Testbereit oder Blocker | interaktiv mit `/goal`, Befehl `/goal-run` |
 | `merge.md` | Merge-Freigabe ausfuehren (Schranke 2) | nach manuellem Test |
 
 In den Prompts steht `<SPEC_PATH>` / `<BACKLOG_PATH>` als Platzhalter.

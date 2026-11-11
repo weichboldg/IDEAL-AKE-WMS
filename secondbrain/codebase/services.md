@@ -19,6 +19,7 @@ Decorator-Muster: [[0001-repository-pattern-mit-decorator-fuer-caching]].
 | `CachedSettingRepository` | `AppSettingRepository` | AppSettings werden auf fast jeder Seite gelesen |
 | `CachedHolidayRepository` | `HolidayRepository` | Feiertage fuer Arbeitstags-Rechnung |
 | `CachedOseonOperationConfigRepository` | `OseonOperationConfigRepository` | AG-Konfiguration fuer die Ampel |
+| `CachedOperationConfigRepository` *(v1.54.0, ersetzt die Zeile darueber)* | `OperationConfigRepository` | Arbeitsgang-Stammdaten: OSEON-Dictionary (case-sensitiv), `GetDueDateOffsetsAsync` (case-insensitiv, eigener Cache-Key), Invalidierung nach dem Schreiben |
 
 **Repositories nach Bereich:**
 
@@ -70,7 +71,7 @@ Wichtige Verhaltensregeln, die in Repositories stecken (Details in [[fallstricke
 | Datei | Zweck |
 |---|---|
 | `PickingTransferService.cs` | Umbuchung bei der Kommissionierung (**betroffen von jeder `MovementType`-Erweiterung**) |
-| `ReadOnlyBomBuilder.cs` | Read-only Stueckliste (Vorbau, FA-Vervollstaendigung) |
+| `ReadOnlyBomBuilder.cs` | Read-only Stueckliste (Vorbau, FA-Vervollstaendigung); seit v1.62.0 mit `IArticleRepository` + `ILogger` fuer die Matchcode-Spalte (`MatchcodeLookup`, IDEAL zuerst Strukturknoten) |
 | `CoatingDateCalculator.cs` | Beschichtungstermin — zentrale Formel fuer Leitstand **und** Abarbeitungsliste |
 | `BusinessDayService.cs` | Arbeitstags-Rechnung (Kommissionier-/Vorkommissionier-/Beschichtungstage) |
 | `WorkbenchFilter.cs` | Komma-OR-Semantik des Werkbank-Filters (`Matches`) |
@@ -100,8 +101,9 @@ Wichtige Verhaltensregeln, die in Repositories stecken (Details in [[fallstricke
 | `BomCacheSyncService.cs` | Stueckliste → `CachedBomHeader`/`CachedBomItem` (**raw SQL**); **beide** Einstiege (`SyncBomCacheAsync`, `SyncSpecificArticleNumbersAsync` aus `SageImportService`) | `Sync:BomCacheEnabled` + **Klasse-D-Gate** (Master `true` → Skip, v1.36.0) |
 | `CoatingDetectionService.cs` | BOM-Cache → `HasCoatingParts` (AKE-Heuristik: Artikelkategorie = `LackierteilKategorieName`) | `Sync:CoatingDetectionEnabled` + **Klasse-D-Gate** |
 | `FaWorkStepDetectionService.cs` | BOM-Cache → `FaWorkSteps` (nur-hinzufuegend; AKE-Heuristik: `Bezeichnung`-Contains) | `Sync:FaWorkStepDetectionEnabled` + **Klasse-D-Gate** |
-| `ProductionWorkplaceSyncService.cs` | Sage `KHKPpsArbeitsplaetze` → `ProductionWorkplace` (**legt Werkbaenke an**, Sage fuehrend fuer Nummer/Name/Kuerzel; Abweichung nachziehen+melden; Reader `SageArbeitsplatzReader`, raw ADO.NET) | Doppel-Gate `ProduktionsauftragHierarchisch` + `Sync:ProductionWorkplaceSyncEnabled` (beide im `SyncWorker`) — v1.44.0 |
-| `WorkOperationStructureDetectionService.cs` | Struktur (`FaHierarchyNode.Arbeitsschritte`) → **`WorkOperation`** (nur-hinzufuegend; IDEAL: exakt ueber `ProductionWorkplace.ArbeitsschrittCode`, DirectChildren-Scope; unbekannt gemeldet, ausgeschlossen still, mehrdeutig gemeldet) | Doppel-Gate `ProduktionsauftragHierarchisch` + `Sync:WorkOperationStructureDetectionEnabled` (beide im `SyncWorker`, kein interner Gate) — v1.44.0, war `FaWorkStepStructureDetectionService`/v1.41.0 |
+| `ProductionWorkplaceSyncService.cs` | Sage `KHKPpsArbeitsplaetze` → `ProductionWorkplace` (**legt Werkbaenke an**, Sage fuehrend fuer Nummer/Name/Kuerzel; Abweichung nachziehen+melden; Reader `SageArbeitsplatzReader`, raw ADO.NET); seit v1.63.0 kennzeichnet `SageMissingSince` (Nummer nicht mehr in der Quelle, rohe Zeilen, Empty-Guard, selbstheilend, nie loeschen; Counts `nicht_in_sage`, `nicht_in_sage_neu`, `wieder_in_sage`) | Doppel-Gate `ProduktionsauftragHierarchisch` + `Sync:ProductionWorkplaceSyncEnabled` (beide im `SyncWorker`) — v1.44.0 |
+| `OperationConfigSyncService.cs` | Sage-View (`Sync:OperationConfigSyncViewName`, Spalten `Arbeitsgangnummer, Bezeichnung, AG`) → `OperationConfigs` (**legt nur an**: Offset 0, Quelle `Sage`; nie ueberschreiben/loeschen; einzige Bestandsaenderung Quelle `Manual` → `Sage`; Kennzeichnung `SageMissingSince` fuer Quelle ≠ `ExternalSystem`; je Eintrag speichern, `DbUpdateConcurrencyException` = Warnung + `fehler`). Reader `SageArbeitsplatzReader` wiederverwendet, reine Entscheidung `Plan(...)` | EIN Gate `Sync:OperationConfigSyncEnabled` (kein Master), Block nach der Werkbank-Anlage — v1.61.0, standortneutral |
+| `WorkOperationStructureDetectionService.cs` | Struktur (`FaHierarchyNode.Arbeitsschritte`) → **`WorkOperation`** (nur-hinzufuegend; IDEAL: exakt ueber `ProductionWorkplace.ArbeitsschrittCode`, DirectChildren-Scope; unbekannt gemeldet, ausgeschlossen still; seit v1.63.0 Katalog ohne `SageMissingSince`, Kuerzel an mehreren Werkbaenken → an der bevorzugten angelegt, Count `arbeitsschritt_mehrere_werkbaenke`) | Doppel-Gate `ProduktionsauftragHierarchisch` + `Sync:WorkOperationStructureDetectionEnabled` (beide im `SyncWorker`, kein interner Gate) — v1.44.0, war `FaWorkStepStructureDetectionService`/v1.41.0 |
 
 **Klasse-D-Gate (BOM-Bridge, v1.36.0):** `Common/IHierarchicalModeReader.cs` kapselt den DB-first-Read
 `ServiceSettings.GetBoolSafeAsync("ProduktionsauftragHierarchisch")`; die drei Dienste (vier Einstiege)
@@ -125,6 +127,7 @@ liefert `Beschichtet`/`Arbeitsschritte` explizit. Konstruktor-Signatur: Reader s
 | `BomCacheCoverage.cs` | Auswertung „FA im Fenster / gecacht / ohne BOM" |
 | `SageProductionOrderSql.cs` | `BuildUpsert` inkl. `COL_LENGTH`-Check fuer `SubOrderNumber` |
 | `SageImportHelpers.cs` | Feld-Normalisierungen des Sage-Imports |
+| `OseonOrderSelection.cs` | OSEON-Tracking-Sync: je Auftragsnummer (OrdinalIgnoreCase) eine Zeile = höchste OSEON-ID, AGs nur aus dieser Zeile je (Nummer, Position) einmal, Mehrfachlieferungen für die Meldung (v1.30.2, [[2026-11-07-oseon-sync-neu-ausgeschriebener-auftrag-spec]]) |
 
 Dieses Muster ist Absicht: die raw-SQL-Strecken sind nicht InMemory-testbar, also liegt die
 **Entscheidung** in einem reinen Helper daneben und nur die **Ausfuehrung** im SQL-Pfad.
@@ -160,6 +163,7 @@ MUSS in den Katalog — sonst schlaegt der Drift-Guard-Test fehl.
 |---|---|---|---|
 | `Sync:ProductionOrdersEnabled` | Bool | `true` | Sage-FA-Import aktiv |
 | `Sync:ArticlesEnabled` | Bool | `true` | Sage-Artikel-Import aktiv |
+| `Sync:ArticlesViewName` | String | `""` | Quelle des Artikel-Syncs: leer = bisheriger Select (`SageArticleSql.LegacySql`, AKE), gesetzt = View (IDEAL `[vw_IDEAL_AKE_WMS_Artikel]`, erst nach P4). Fehlt die View: Warnung + Skip, keine Mail, kein Rueckfall — v1.60.0 |
 | `Sync:OseonArticleCategoryEnabled` | Bool | `false` | OSEON-Artikelkategorie-Sync (nach Artikel-Import) |
 | `Sync:OseonTrackingEnabled` | Bool | `false` | OSEON-Tracking- + Werkbank-Sync |
 | `Sync:EnaioDmsEnabled` | Bool | `false` | enaio DMS-Sync |
@@ -177,8 +181,12 @@ MUSS in den Katalog — sonst schlaegt der Drift-Guard-Test fehl.
 | `Sync:FaWorkStepDetectionEnabled` | Bool | `false` | FA-Arbeitsgang-Erkennung aus dem BOM-Cache |
 | `Sync:WorkOperationStructureDetectionEnabled` | Bool | `false` | IDEAL: WorkOperation-Arbeitsgang-Erkennung aus der Struktur (Match ueber `ProductionWorkplace.ArbeitsschrittCode`; nach FA-Materialisierung + Werkbank-Anlage, nur bei Master) — v1.44.0, war `Sync:FaWorkStepStructureDetectionEnabled` |
 | `Sync:ProductionWorkplaceSyncEnabled` | Bool | `false` | IDEAL: Werkbank-Anlage aus Sage `KHKPpsArbeitsplaetze` (nur bei Master) — v1.44.0 |
+| `Sync:ProductionWorkplaceSyncViewName` | String | `KHKPpsArbeitsplaetze` | IDEAL: Sage-Quelle der Werkbank-Anlage (Tabelle oder View); Umstellung auf `[vw_IDEAL_AKE_WMS_Arbeitsgaenge]` nach P3. Fehlt die Quelle: Warnung + Skip, keine Mail — v1.60.0 |
 | `Sync:ProductionWorkplaceSyncMandant` | Int | `1` | IDEAL: Mandant-Filter der Werkbank-Anlage (nicht das SData-Dataset) — v1.44.0 |
-| `Sync:ProductionWorkplaceSyncAusschlussliste` | String | `STO,XXX,x01,BS,BS2,FRE,AKE` | IDEAL: Kuerzel, die NICHT als Werkbank angelegt und NICHT als unbekannt gemeldet werden — v1.44.0 |
+| `Sync:ProductionWorkplaceSyncAusschlussliste` | String | `STO,XXX,x01,BS,BS2,FRE,AKE` | IDEAL: Kuerzel, die NICHT als Werkbank angelegt und NICHT als unbekannt gemeldet werden — v1.44.0; gilt seit v1.61.0 auch fuer den Arbeitsgang-Abgleich (dort bei Read `null` Katalog-Default, nicht leer) |
+| `Sync:OperationConfigSyncEnabled` | Bool | `false` | Arbeitsgang-Abgleich Sage-View → Arbeitsgang-Stammdaten (beide Standorte, EIN Gate) — v1.61.0 |
+| `Sync:OperationConfigSyncViewName` | String | `[vw_IDEAL_AKE_WMS_Arbeitsgaenge]` | Sage-View des Abgleichs (Spalten `Arbeitsgangnummer, Bezeichnung, AG`); fehlt sie: Warnung + Skip — v1.61.0 |
+| `Sync:OperationConfigSyncFremdsystemRelevant` | Bool | `false` | „Fremdsystem-relevant“ fuer NEU angelegte Kuerzel (IDEAL false, AKE nach Bedarf) — v1.61.0 |
 
 ### BOM-Cache
 
@@ -285,7 +293,8 @@ Details/Entscheidung: [[0012-fa-hierarchie-einweg-migrationstor]]; Changelog [[2
 `FaMaterialization` (Counts `angelegt/vermisst_neu/wieder_da/umhaengung_konflikt`),
 `WorkOperationStructureDetection` (v1.44.0, war `FaWorkStepStructureDetection`/v1.41.0; Counts
 `neu/uebersprungen/arbeitsschritt_mehrdeutig/arbeitsschritt_unbekannt/arbeitsschritt_unbekannt_auftraege`),
-`ProductionWorkplaceSync` (v1.44.0, Counts `neu/aktualisiert/abweichung/uebersprungen/problematisch`).
+`ProductionWorkplaceSync` (v1.44.0, Counts `neu/aktualisiert/abweichung/uebersprungen/problematisch`),
+`OperationConfigSync` (v1.61.0, Counts `neu/vorhanden/uebersprungen/name_mehrdeutig/nicht_in_sage/wieder_in_sage/quelle_sage/fehler`).
 
 **Arbeitsgang-Erkennung Struktur (v1.44.0, [[2026-09-21-ideal-bde-arbeitsgaenge-aus-struktur-spec]]; ersetzt v1.41.0):**
 - `WorkOperationStructureDetectionService` (2c-Umbau des frueheren `FaWorkStepStructureDetectionService`,
@@ -305,3 +314,30 @@ Details/Entscheidung: [[0012-fa-hierarchie-einweg-migrationstor]]; Changelog [[2
 FA-Hierarchie — **Einwegtor**, guard-geschuetzt, in `/ServiceSettings` read-only) +
 `Sync:FaZusatzinfoAutoErledigtEnabled` (Bool, Default true = AKE unveraendert; im hierarchischen Modus
 nicht einschaltbar, Master-Flip schaltet ab).
+
+## Sage-SData-Abgleich (v1.73.0, Epic [[2026-11-06-sage-sdata-stammdaten-sync-spec]])
+
+Quellen-Weiche je Abgleich: [[0019-quellen-weiche-view-sdata-je-abgleich]]. Ordner `IDEALAKEWMSService/Services/Sdata/`.
+
+| Bereich | Schnittstelle | SQL-Reader (unverändert) | SData-Reader | Weiche / Schalter |
+|---|---|---|---|---|
+| Lagerplätze | `ISageLagerplatzReader` | `SageLagerplatzReader` | `SdataLagerplatzReader` | `LagerplatzQuelleSwitch` / `Sync:Quelle:Lagerplaetze` |
+| Lagerbestand | `ISageBestandReader` | `SageBestandReader` | `SdataBestandReader` | `BestandQuelleSwitch` / `Sync:Quelle:Lagerbestand` |
+| Artikel | `ISageArtikelReader` (neu, aus `SageImportService`) | `SageArtikelReader` | `SdataArtikelReader` | `ArtikelQuelleSwitch` (gesperrt P-R1) / `Sync:Quelle:Artikel` |
+| FA-Struktur | `ISageFaStrukturReader` (neu, aus `FaHierarchySyncService`) | `SageFaStrukturReader` | `SdataFaStrukturReader` (Kanten + Positionen) | `FaStrukturQuelleSwitch` (gesperrt P-F2) / `Sync:Quelle:FaStruktur` |
+| Werkbank + Arbeitsgang | `ISageArbeitsplatzReader` | `SageArbeitsplatzReader` | `SdataArbeitsplatzReader` | `ArbeitsplatzQuelleSwitch` / `Sync:Quelle:Arbeitsplaetze` |
+| Lagerbuchungs-Lookup | `ISageBuchungLookupReader` | `SageBuchungLookupReader` | `SdataBuchungLookupReader` | `BuchungLookupQuelleSwitch` / `Sync:Quelle:LagerbuchungLookup` |
+
+- Basis: `SageQuelleWeiche` (`GenutzteQuelle`, `SdataHinweise`, `SdataGesperrtBis`), `SageQuelleSchalter`, `SdataVergleich`, `SdataLeseZielLeser`,
+  `SdataRegistrierung.Add…Quelle()` (aus `Program.cs`). Client: `ISageSdataReadClient.QueryAllAsync` + `SdataLeseException` (`IdealAkeWms/Services/SageSdata/`).
+- Lauf `SageQuellenvergleich` („Sage-Quellenvergleich (View/SData)“). Bereichsläufe schreiben Info „Quelle: …“.
+- Neue Abgleiche (ohne View-Weg, Schalter Default false, je `RunResilientAsync`):
+  - `PpsMitarbeiterSyncService` (`Sync:PpsMitarbeiterEnabled`, Schreiber `PpsMitarbeiterSync`, Cache `SagePpsMitarbeiter`; Counts gelesen, uebersprungen, nicht_zugeordnet, bde_ohne_sage_nummer, sage_nummer_unbekannt).
+  - `StillstandsgruendeSyncService` (`Sync:StillstandsgruendeEnabled`, `StillstandsgruendeSync`; Counts gelesen, neu, aktualisiert, unveraendert, uebersprungen, nicht_in_sage, nicht_in_sage_neu, wieder_in_sage).
+  - `KontokorrentSyncService` (`Sync:KreditorenEnabled`/`Sync:DebitorenEnabled`, `KontokorrentSync`, Läufe Kreditoren/Debitoren, `where KtoArt eq 'K'|'D'`; Counts gelesen, neu, aktualisiert, verknuepft, unveraendert, uebersprungen, nicht_in_sage, nicht_in_sage_neu, wieder_in_sage, moegliche_dubletten).
+  - `ArtikelLieferantSyncService` (`Sync:ArtikelLieferantEnabled`, `ArtikelLieferantSync`, nach Artikel; Counts gelesen, neu, aktualisiert, unveraendert, entfernt, hauptlieferant, artikel_fehlt, kreditor_fehlt, uebersprungen).
+  - `EinkaufBestellungenSyncService` (v1.84.0, `Sync:EinkaufBestellungenEnabled`, Lauf „Offene Bestellungen (Sage)“ = `SyncLogServices.EinkaufBestellungen`, nach Artikel-Lieferanten; nur `EinkaufPositionenInfo where Belegkennzeichen eq 'EBB'`; Counts positionen, koepfe, uebernommen, belegart_ausgeschlossen, artikel_fehlt, kreditor_fehlt, lagerplatz_fehlt, einheit_abweichend, lieferant_gesperrt, uebersprungen; Empty-Guard).
+- G10: Lagerplatz-/Lagerbestand-Abgleich mailen Lesefehler nur bei Quelle SData/Vergleich (View wie bisher ohne Mail).
+- Umbuchung: `SageLagerbuchungUmbuchungAktiv` (Default false); einzige Typliste `SageBookingEnqueueDecision` (`BookableTypes`, `Buchungsart`,
+  `IstUmbuchungMitFaBezug`); Nacherfassung `EnqueueMissingAsync(..., umbuchungAktiv)`.
+- Outbox `SageStammdatenOutbox` ohne Worker (G5); `LagerplatzSyncService` übernimmt manuelle Plätze mit Übergabe Offen/Fehler bei gleichem Code.

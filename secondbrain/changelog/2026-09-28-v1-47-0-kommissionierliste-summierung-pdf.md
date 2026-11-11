@@ -34,8 +34,8 @@ Summiert-Ansicht existierte seit v1.31.0, war aber an eine Pflicht-KW gebunden u
 
 ## Commits
 
-`323120d8` (Plan), `ab2beed2` (Service), `e407596d` (ColumnDefinitions), `1fb2b59d` (Controller), `1977a819`
-(Views/JS/Menü), `58d50738` (Drift-Guard), `e447a12c` (Version, Doku). Merge-Commit: folgt mit dem Bündel.
+`f8b58a9d` (Plan), `06d611c7` (Service), `e4c440cf` (ColumnDefinitions), `02817d79` (Controller), `ddd85403`
+(Views/JS/Menü), `980108b8` (Drift-Guard), `e380315c` (Version, Doku). Merge-Commit: folgt mit dem Bündel.
 
 ## Deploy-Risiken
 

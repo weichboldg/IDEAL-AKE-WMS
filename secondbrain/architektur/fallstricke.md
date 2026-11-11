@@ -37,6 +37,15 @@ Baugruppe gebucht — die darunterliegenden Teile werden **ignoriert**.
 zusaetzlich die Einzelteile buchen, waere der Bestand doppelt abgebucht. Wer die Picking-Logik
 anfasst, muss diese Verzweigung erhalten.
 
+### Sage-SData liefert ohne `Accept`-Header Atom-XML — `format=json` allein reicht nicht (v1.71.0)
+`GET …/RealTimeData/…?…&format=json` aus einem `HttpClient` ohne `Accept`-Header kam als **Atom-XML** (`<feed>…<sdata:payload>`)
+zurück, obwohl Sage den Parameter sah (er steht im echoten `<id>`). Postman/Chrome senden eigene `Accept`-Header, daher lieferten
+die Lesetests JSON und die Fixtures sahen richtig aus. **Warum es weh tat:** Der erste echte Aufruf scheiterte mit
+„'<' is an invalid start of a value“; ohne den QA-Fix Q-1 wäre es still als „nicht gefunden“ durchgegangen.
+**Regel:** Jeder SData-Lese-Client setzt `Accept: application/json` (`SageSdataReadClient`, Fix `51c3203d`, belegt am
+AKE-Sage-Test 2026-10-30: 835/836/846 alle 200 mit JSON). Fixtures aus Postman/Browser belegen nur den Inhalt, nicht das
+Verhalten des eigenen HTTP-Clients — mindestens ein echter Aufruf mit dem eigenen Client gehört vor „Testbereit“.
+
 ### Sage VB6-Booleans sind BIT mit `-1` fuer TRUE
 Sage-Tabellen (`KHKArtikel`, `KHKArtikelvarianten`, …) speichern Boolean-Spalten als BIT, aber mit
 `-1` fuer TRUE. Filter immer als `IstBestellartikel = -1 AND Aktiv = -1`.
@@ -54,6 +63,17 @@ Meldebestand-Farbe).
 `long` verwenden, nicht `int`.
 **Warum:** Die IDs sind bereits jenseits von `int.MaxValue`; ein `int`-Cast wirft zur Laufzeit
 oder trunkiert.
+
+### MERGE-Schluessel = eindeutiger Index; OSEON schreibt Auftraege neu aus (v1.30.2)
+Ein Sync-MERGE muss `ON` genau ueber das Merkmal laufen, das in der Zieltabelle eindeutig ist — bei
+`OseonProductionOrders` die `OseonOrderNumber`, nicht die `OseonId`. Die MERGE-Quelle muss nach **DB-Kollation**
+eindeutig sein: C#-Gruppierung `OrdinalIgnoreCase` plus `ROW_NUMBER() … WHERE rn = 1` als SQL-Waechter.
+**Warum:** OSEON schreibt einen Auftrag neu aus (gleiche `AuftragsNr`, neue `ID`). Der MERGE ueber `OseonId` fand
+die neue ID nicht, wollte einfuegen und scheiterte am UNIQUE-Index der Nummer (Fehler 2601). Der ganze Lauf brach
+ab, `MAX(LastChangedInOseon)` rueckte nicht vor, und derselbe Fehler kam in jedem Lauf wieder (Delta-Haenger).
+Ein eindeutiger Index auf `OseonId` waere keine Loesung — er verlagert denselben Fehler an eine andere Stelle.
+Die C#-Gruppierung bildet die Kollation nur nach; Zeichen mit Gewicht 0 sieht nur SQL.
+→ [[2026-11-07-oseon-sync-neu-ausgeschriebener-auftrag-spec]], [[2026-11-07-oseon-sync-neu-ausgeschriebener-auftrag-bug]].
 
 ### enaio `object1.id` ist int
 `Convert.ToInt64(reader.GetValue(0))` verwenden.
@@ -199,6 +219,7 @@ Loesung: der Hidden-Input traegt den `name`, die Checkbox hat **keinen** `name` 
 `onchange`-Handler den Hidden-Wert.
 **Warum:** Der Model-Binder nimmt bei zwei Feldern gleichen Namens den ersten Wert — die
 Checkbox-Stellung geht verloren. Betrifft u. a. die `/ServiceSettings`-Bool-Toggles.
+**Zweite zulässige Lösung (v1.81.0/v1.92.0):** Hidden-„false“ **hinter** die gleichnamige Checkbox (angehakt kommt `true,false` → `true`). Vor der Checkbox ist es immer falsch – so verloren OSEON „Fremdsystem-Relevanz“ und BDE-Edit „Final“/„Löschen“ still ihren Wert ([[2026-11-08-oseon-relevanzfilter-schaltet-sich-ab-spec]]). Binder-Nachweis im Projekt: `CheckboxHiddenFeldV192Tests`. Wird ein Wert dadurch erstmals wirksam, die Folgeregel prüfen (BDE: UNIQUE-Index „eine Final-Zeile“ → Formularfehler statt 500).
 
 ### `data-col-key` ist Pflicht auf allen `<th>` in filterable-tables
 Bei neuen Spalten: Key in `ColumnDefinitions.cs` definieren **und** in der View verwenden.
@@ -222,7 +243,7 @@ Pflichtbestandteil des Listen-View-Patterns — siehe
 [[0005-listen-view-pattern-mit-server-side-spaltenfilter]], Abschnitt „Spaltenpraeferenzen".
 
 ### `table-filter.js` sortierte bis 2026-08-12 nur das erste `<tbody>` einer Tabelle
-`sortTable()` fasste bis Commit `37e8752` (v1.31.0) nur das **erste** `<tbody>` an. Bei gruppierten
+`sortTable()` fasste bis Commit `3894e3d` (v1.31.0) nur das **erste** `<tbody>` an. Bei gruppierten
 Tabellen mit mehreren `<tbody>` (z. B. die HauptFA-Gruppen der IDEAL-Kommissionierlisten) sortierte
 also sichtbar nur die erste Gruppe, der Rest blieb unsortiert — ein offensichtlich falsches
 Ergebnis. Behoben: `sortTable()` sortiert jetzt **je `<tbody>` separat** (bei Ein-`<tbody>`-Tabellen
@@ -403,7 +424,58 @@ Reihenfolge als der Bildschirm, und niemand traut dem Ausdruck mehr.
 **Warum:** Die `.picking-checkbox`-Elemente existieren nur bei `!ReadOnly`. Der
 Lagerbestellungs-Button muss aber auch in der read-only Vorbau-BOM greifen.
 
+### Spalte ausblenden darf Ein-Zellen-Zeilen (`<td colspan>`) nicht anfassen (v1.65.0)
+`column-preferences.js setColVisibility` blendet je Zeile `cells[physicalIdx]` aus. Gruppenkopf- und Leerzustandszeilen haben
+genau **eine** `<td colspan>`. War die physisch erste Spalte ausgeblendet (etwa die gesperrte `hauptfa` nach hinten gezogen, dann die
+neue erste Spalte aus), traf es genau diese Zelle. Die ganze Zeile verschwand, samt PDF-Link und Varianten-Tabelle.
+**Regel:** Zeilen mit `:scope > td[colspan]` werden übersprungen. `:scope >` ist Pflicht, weil Varianten- und Kopfdaten-Zeilen eine
+Kindtabelle tragen und ein Descendant-`td[colspan]` dort fälschlich greifen würde. Annahme, im Bestand belegt: Keine Datenzeile hat
+eine `colspan`-Zelle neben anderen Zellen. Wer so eine Zeile einführt, muss den Skip verfeinern. Wächter
+`TableScriptScopedSelectorTests.ColumnPreferences_SetColVisibility_SkipsColspanRows`.
+
+### Hardware-Scanner: unsichtbares Fokusfeld ist kein Ziel, leeres Int-Feld der Standorteinstellungen bleibt (v1.66.0)
+`hardware-scanner.js` fügt einen Scan ins fokussierte Textfeld ein (Regel b), bevor es das einzige `[data-hw-scan-ziel]` sucht (Regel d).
+**Warum `freiesFeld` `getClientRects().length` prüft:** Je nach Browser behält ein per `d-none` ausgeblendetes Feld den Fokus. Am
+BDE-Terminal ist das `scanOperator` nach der Anmeldung. Ohne die Prüfung ging der FA-Scan dort hinein, das synthetische Enter startete die
+Personalnummer-Suche, und es kam eine unsichtbare Meldung oder ein falscher Operator-Wechsel (QA-Befund B-1, `789d0a78`).
+**Regel:** Wer „ist das Feld bedienbar?“ fragt, prüft auch die Sichtbarkeit, nicht nur `disabled`/`readOnly`.
+**Leeres Int-Feld:** `StandortEinstellungenController.Save` lässt ein leeres Int-Feld unverändert. Keys ohne Seed (hier
+`HardwareScannerMaxZeichenabstandMs`) haben keine Zeile, und die Maske schickt `""`. Die alte Validierung hätte **jedes** Speichern der
+Maske blockiert. Folge: Ein einmal gespeicherter Wert lässt sich in der Maske nicht mehr auf „leer = Default“ zurücksetzen (QA N-2).
+[[2026-10-15-scan-handler-hardware-scanner-spec]].
+**Nachtrag v1.66.1:** Für den Zeichenabstand ist die Folge behoben. `StandortField` trägt `Min`/`Max`/`EmptyResetsToDefault`. Leer
+speichern schreibt `""`, der Lesende nimmt den Default. Außerhalb von 10–500 erscheint eine Meldung, und nichts wird gespeichert. Andere
+Int-Felder bleiben bei leer unverändert. **Regel:** Wer einen Wert mit Default ohne Seed einführt, setzt `EmptyResetsToDefault` und
+prüft denselben Bereich auch im Client: Die DB kann per SQL oder einen alten Stand trotzdem einen Wert außerhalb enthalten
+(`HwScanCore.abstand`).
+
+### Default-an-Schalter und Vorlagen in den Standorteinstellungen brauchen eine geseedete Zeile; Abschalten nie über CSS-Klassen (v1.67.0)
+`StandortEinstellungenController` zeigt ein Bool nur bei `true` als an. Beim Speichern schickt die Maske **alle** Felder und schreibt
+Bool als `"true"`/`"false"`, Text roh.
+**Warum der Seed Pflicht ist:** Ein Default-an-Schalter ohne DB-Zeile (Lesart „nur `false` sperrt“) stünde nach dem **nächsten
+Speichern irgendeines** Standortwerts auf `false`. Eine Default-Vorlage ohne Zeile würde zu `""`. AKE hätte die Vault-/enaio-Links
+verloren, ohne dass jemand sie angefasst hat. Darum legt `Program.cs` `VaultLinksAktiv`, `VaultLinkVorlage`, `EnaioLinksAktiv` und
+`EnaioLinkVorlage` beim Start an, wenn sie fehlen.
+**Regel:** Wer in `StandortSettingsCatalog` einen Bool mit Default an oder einen Text mit Default-Wert aufnimmt, seedet die Zeile.
+Default-aus-Schalter (nur `"true"` aktiviert) brauchen keinen Seed.
+**Stücklisten-Knopf:** `_FaDocumentLinks` gibt dem Knopf „Stückliste öffnen“ dieselbe Klasse `vault-link` wie dem Vault-Link.
+`.vault-link` und `.dms-link` sind reine Optik-Klassen. Abgeschaltet wird **nur serverseitig** im Partial (`_VaultLink`,
+`_EnaioDmsBadges`: kein `<a>`), nie über CSS `display:none` oder `querySelectorAll('.vault-link')`; das würde den Stücklisten-Knopf
+mit verstecken. Ein Wächter in `VaultEnaioLinksTests` sichert beides.
+[[2026-10-21-vault-links-per-schalter-spec]].
+
 ---
+
+### Matchcode ist nicht eindeutig; asynchrone Scan-Übersetzung gehört in den Wrapper (v1.68.0)
+
+- **Matchcode:** nie `FirstOrDefault`. `Articles.Matchcode` hat weder Index noch Constraint, Sync und Handpflege trimmen nicht. Es gibt genau eine
+  Suche, `ArticleRepository.GetByMatchcodeExactAsync(matchcode, limit)`: Trim + ToUpper auf beiden Seiten, Liste. Der Aufrufer unterscheidet
+  keins / eindeutig / mehrdeutig und meldet „mehrdeutig“ sichtbar.
+  **Warum:** Die Artikelinfo wählte bei zwei gleichen Matchcodes still einen Artikel. P1 an IDEAL ist heute leer, Sage garantiert aber nichts.
+- **Scan-Übersetzung (Matchcode → Artikelnummer) im globalen `processScannedValue`-Wrapper, nicht in der inneren Funktion.**
+  **Warum:** Der Wrapper feuert direkt nach der inneren Auswertung synchron den `onScanned`-Callback (Filterseiten-Submit, Sammel-
+  Wareneingang). Eine asynchrone Übersetzung weiter innen käme zu spät, der Callback liefe mit dem unübersetzten Wert. Den passenden
+  `_textInputScanCallback` beim Scan reservieren und nur bei Treffer wieder setzen.
 
 ## 4. Authentifizierung, Session, Antiforgery
 
@@ -707,6 +779,14 @@ Items → `skipped`; alles skipped → BadRequest. Genau ein Typ betroffen → R
 
 ---
 
+### Stuecklisten-Reihenfolge der Bestandsplaetze: Hauptlagerplatz, Menge absteigend, Code (seit v1.62.0)
+
+`StockMovementRepository.GetStockByArticleNumbersAsync` sortiert zentral: Hauptlagerplatz (`Article.PrimaryStorageLocationId`)
+zuerst, dann Menge absteigend, bei Gleichstand Code. Wirkt auf Stuecklisten-Zelle, Popover, CSV und Druck. **Warum zentral:**
+ein Ort fuer alle vier Ausgaben; die uebrigen Aufrufer (Auto-Vorschlag, `PickingApiController.SearchSourceLocations`,
+`MissingPartsLagerController`) sortieren selbst und sind unberuehrt. An IDEAL fehlt vielen Artikeln der WMS-Hauptlagerplatz —
+dann gilt nur „Menge absteigend“, kein Fehler ([[2026-10-16-stueckliste-matchcode-lagerplatz-limit-spec]]).
+
 ## 8. Tests, EF, SQL Server
 
 ### InMemory-DB unterstuetzt kein `rowversion`
@@ -884,7 +964,7 @@ strukturierten `DropIndex`/`CreateIndex`-Operationen. `GO` gehoert NICHT in `mig
 (Client-Direktive; jeder `.Sql(...)`-Aufruf ist bereits ein eigener Batch).
 
 **Nachtrag (2026-08-18): Nicht nur `DropIndex`/`CreateIndex`, auch `AlterColumn` erzeugt ungeschuetzte
-Index-DDL.** Der OrderNumber-Fix (`abcd718`) legte in derselben Migration einen **zweiten** 3701 frei:
+Index-DDL.** Der OrderNumber-Fix (`b1153eb`) legte in derselben Migration einen **zweiten** 3701 frei:
 `migrationBuilder.AlterColumn<string>("SubOrderNumber", nullable:false)`. Weil der **Model-Snapshot**
 einen Unique-Index auf `SubOrderNumber` traegt, umschliesst EFs SQL-Server-Generator jeden `AlterColumn`
 auf einer indizierten Spalte **automatisch** mit `DROP INDEX [IX_...] ` (ungeschuetzt!) → `ALTER COLUMN`
@@ -1044,6 +1124,14 @@ die Coverage-Frage selbst. Ist die Zahl im Betrieb > 0, ist der Weg **den `Artic
 (gefertigte Artikel aufnehmen), nicht den Matchcode am Auftrag zu duplizieren — eigene Aufgabe
 ([[2026-09-15-matchcode-nachlese]]).
 
+### Stueckliste: Matchcode an IDEAL aus der Struktur, sonst Artikelstamm (seit v1.62.0)
+
+Die Stueckliste zeigt an IDEAL `FaHierarchyNode.Matchcode` (ueber `FaHierarchyBomItem.Matchcode`, getrimmt, leer = null), sonst
+`Article.Matchcode` ueber `MatchcodeLookup` mit der **Ressourcenummer** (nie die Kopf-Artikelnummer). AKE nur Artikelstamm.
+**Warum Variante B** (Gerald 2026-10-16): Stueckliste und Kommissionierliste/Vormontage/Beschichtung sollen an IDEAL denselben
+Kurznamen zeigen; die FA-Listen bleiben beim Artikelstamm (bewusste Inkonsistenz wie oben). `BomItem` bekam **keine** Property
+(`SqlQueryRaw<BomItem>`, §10). Drei Projektionsstellen: `PickingController.Bom`, `RenderPrintBomAsync`, `ReadOnlyBomBuilder`.
+
 ## 13. IDEAL — FA-Arbeitsgang-Erkennung aus der Struktur (Arbeitsschritte, v1.41.0) — **teilweise überholt (v1.44.0)**
 
 > **Stand v1.44.0 (§16):** Ziel-Tabelle und Katalog haben sich geändert — nicht mehr `FaWorkStep` +
@@ -1064,6 +1152,20 @@ fachliche Sachverhalte (Position im Elternkontext vs. eigener Auftrag) — die m
 bestaetigten DirectChildren-Regel. Ein Enkel-Token dagegen landet **nur** beim Elternteil, **nicht** beim
 Grossvater (TS-76.2, unit-getestet). Beim ersten echten Datenlauf mit dem Fachbereich gegenpruefen, ob der
 Doppel-Kontext gewollt ist — nicht erst im Betrieb auffallen lassen.
+
+> [!warning] Entschieden 2026-10-07 (v1.47.4): der Doppel-Kontext war NICHT gewollt
+> Der Fachbereich hat die Gegenpruefung gemacht: Ein Kuerzel auf einer Zeile, die **selbst ein Sub-FA** ist,
+> gehoert **nur** zu diesem Sub-FA (Beispiel `VM` an der Mittelholmblende, nicht am Korpus). Scope jetzt:
+> eigene Zeile + direkte **Blatt**-Kinder (`SubFA == 0`) — `WorkOperationStructureDetectionService`,
+> `kids.Where(k => k.SubFA == 0)`. **Warum es weh tat:** Am BDE-Terminal standen dann zwei Arbeitsgaenge mit
+> identischer Beschriftung (`OrderNumber / OperationNumber`, `OrderNumber` = HauptFA) zur Wahl, und der am
+> Vater gehoerte zu keinem echten Arbeitsschritt — eine Buchung darauf landete am falschen Auftrag.
+> **Lehre:** Eine „mechanische Konsequenz einer bestaetigten Regel" ist noch keine fachliche Bestaetigung —
+> was als „zur Sichtung vormerken" dokumentiert wurde, gehoert vor dem ersten Terminal-Einsatz entschieden.
+> **Altbestand:** Die Erkennung loescht nie; die vor v1.47.4 angelegten Vater-Arbeitsgaenge entfernt das
+> Einmal-Skript `SQL/Einmalig/2026-10-07_v1.47.4_RemoveParentWorkOperationsFromChildSubFaTokens.sql`
+> (nur ungebuchte; erst NACH dem Service-Deploy, sonst legt der alte Lauf sie wieder an).
+> Spec: FREIGABE-NACHTRAG (2026-10-07) in [[2026-09-21-ideal-bde-arbeitsgaenge-aus-struktur-spec]].
 
 ### Das Token IST der Code — `SearchString` ist ausschliesslich der AKE-Mechanismus
 AKE muss raten (`FaWorkStepDetectionService`: `SearchString.Contains` ueber Bezeichnungen). IDEAL bekommt
@@ -1109,6 +1211,22 @@ rohen col-key statt des Klartextnamens. Beim Ergaenzen der hierarchischen Druck-
 ein eigenes DTO — die hierarchischen Felder (`Kommissionieren`/`Hauptlagerplatz`/`Ebene`) fehlen dort und
 im Print-Mapping, obwohl `BomItemViewModel` (Bildschirm) sie laengst hat; der Druck kennt hierarchische
 Spalten **strukturell** nicht, bis DTO + Mapping + `ShowCol`-Kopf-/Zellbloecke ergaenzt sind.
+
+### Volle Liste in einer begrenzten Zelle: `d-none` fuer Filter, `data-csv-value` fuer CSV (seit v1.62.0)
+
+Die Lagerplatz-Zelle zeigt hoechstens 3 Plaetze + „+n weitere“ (Popover). Filter (`table-filter.js`), Sortierung und die
+Leerzustand-/Aufklapp-Pruefungen der Stueckliste lesen `cell.textContent` — das schliesst versteckte Elemente ein. **Darum**
+steht die volle Liste als `<ul class="d-none">` in derselben Zelle (kein Eingriff in den gemeinsamen Filter-Kern) und die CSV
+liest `data-csv-value` am `<td>` (`csv-export.js` vor dem Zelltext). Grenze: „weitere“ ist ebenfalls Zelltext. Das Popover
+haengt am `body` (`container: 'body'`), sonst beschneidet `.table-responsive` es; seine Initialisierung steht **vor**
+`if (readOnly) return;`, damit die Read-only-Stuecklisten es auch haben (Waechter `BomLagerplatzZelleTests` misst die
+Anweisung per Regex — ein `IndexOf` traf zuerst einen Kommentar mit demselben Text).
+
+### Stuecklisten-Zellen nie ueber feste Positionen lesen (seit v1.62.0)
+
+`Bom.cshtml` liest Zellen per `bomColKeyToIndex` (col-key), nie per `cells[n]`. **Warum:** Die neue Spalte Matchcode verschob
+den Bulk-Bestell-Fallback (`cells[4]/[6]/[8]`) — „Menge“ las den Matchcode (NaN). Spalten kommen bedingt (hierarchisch, ReadOnly,
+Gates) und per Zahnrad umsortiert hinzu; nur der col-key ist stabil. Waechter `BomLagerplatzZelleTests.Zellzugriff_NurPerColKey_KeinFesterIndex`.
 
 ## 15. IDEAL — Der Arbeitsbereich ist ein Zielort, keine Werkbank (Rückbau v1.43.0)
 
@@ -1198,6 +1316,32 @@ eindeutige gefilterte Index auf `SageArbeitsplatznummer` (InMemory erzwingt UNIQ
 InMemory-testbar. Deren AKs (10, 20) stehen in TS-77 ausdrücklich als **Manual-UAT** — nicht unter die
 grünen Unit-Tests zählen.
 
+### Die View `vw_IDEAL_AKE_WMS_Arbeitsgaenge` ist der Arbeitsgang-KATALOG, nicht die FA-Arbeitsgaenge (seit v1.60.0)
+Die View ersetzt die Tabelle `KHKPpsArbeitsplaetze` und liefert die IDEAL-Arbeitsgaenge. Bei IDEAL ist ein
+Arbeitsgang ein Sage-Arbeitsplatz und der ist im WMS die Werkbank (`ProductionWorkplace`, `AG` ->
+`ArbeitsschrittCode`; Begriffsklaerung [[2026-09-21-ideal-bde-arbeitsgaenge-aus-struktur-spec]], Gerald 2026-10-15).
+Die BDE-Arbeitsgaenge je FA (`WorkOperation`, siehe oben) entstehen daraus erst ueber die Struktur-Erkennung —
+die View hat keinen FA-Bezug. Sie ist deshalb die Quelle der Werkbank-Anlage (`Sync:ProductionWorkplaceSyncViewName`),
+nie ein direkter Schreibweg nach `WorkOperation`.
+**Warum der Default die alte Tabelle bleibt:** Der Web-Start seedet einen NEUEN Key mit seinem Default in jede
+bestehende DB (`Program.cs:453-468`). Ein View-Default haette IDEAL beim Deploy umgeschaltet, bevor P3 belegt,
+dass die View die Arbeitsplatznummern identisch formatiert — sonst legt der Abgleich (Ordinal auf
+`SageArbeitsplatznummer`) neue Werkbaenke an. Umstellen von Hand, erst nach P3.
+[[2026-10-14-ideal-sage-views-umstellung-spec]]
+
+### Spaltennamen einer Sage-View nie aus einer Antwort ableiten — P4 vor dem Umstellen (v1.60.1)
+v1.60.0 las Geralds Antwort „die Spalten sollten gleich sein“ als „gleich wie der alte Sage-Select“ und baute den
+View-Select mit `Artikelnummer`, `Bezeichnung1` … Die View `vw_IDEAL_AKE_WMS_Artikel` liefert aber schon die
+**WMS-Namen** (`ArticleNumber`, `Description` …) — der erste Lauf scheiterte mit „Ungueltiger Spaltenname“. **Warum
+das zaehlt:** Die View-Definition liegt nicht im Repo; „gleich“ ist mehrdeutig (gleich wie Sage oder wie das WMS).
+Spaltennamen kommen nur aus `INFORMATION_SCHEMA.COLUMNS` (Pruefabfrage P4); vorher die Quelle nicht umstellen. Der
+laute Fehlerpfad (Fehler + Mail, keine Mutation) hat hier gegriffen — deshalb nie einen stillen Rueckfall einbauen.
+**Nachtrag v1.60.2 — gilt fuer alle vier WMS-Views:** Dasselbe passierte bei `vw_IDEAL_AKE_WMS_Arbeitsgaenge` (angenommen:
+Spalten und Mandant/Aktiv wie `KHKPpsArbeitsplaetze`; tatsaechlich nur `Arbeitsgangnummer`, `Bezeichnung`, `AG`). Regel:
+**View-Spaltennamen nie aus Annahmen** (weder aus einer Antwort noch aus der Tabelle, die die View ersetzt) — vor jeder
+Umstellung `sys.columns`/`INFORMATION_SCHEMA.COLUMNS` fuer FAListe, FAInfos, Arbeitsgaenge **und** Artikel holen und mit den
+gelesenen Spalten abgleichen (Liste in der Spec, Abschnitt „Nachbesserung v1.60.2“).
+
 ## 17. IDEAL — Kommissionierung nur am HauptFA (v1.46.0)
 
 ### Es gibt genau EINE Sub-FA-Definition: `ProductionOrder.IsHauptFa`
@@ -1261,3 +1405,335 @@ Positionseinheit führt. **Belegpflicht vor der Abnahme (TS-80.1):** auf der Sag
 LIKE '%einheit%'`. Kein Treffer ⇒ strukturell erledigt. Treffer ⇒ **melden, nicht still mitlösen** — die
 Spalte gehört dann in den Summierschlüssel (eigener Nacharbeitspunkt). Bis zum Beleg gilt dieser Eintrag
 unter dieser Bedingung. Das Risiko ist nicht neu: dieselbe Summierung besteht seit v1.31.0.
+
+## 19. Spaltenauswahl (Zahnrad) — Platzierung (v1.47.3)
+
+### Zahnrad-Host muss direkter Vorgänger von `.table-responsive` sein
+`column-preferences.js` `insertGearButton` hängt das Zahnrad an `tableWrapper.previousElementSibling`, sofern
+das ein `DIV` ist — egal, ob dieses Element sichtbar ist oder was es sonst bedeutet. Nur wenn es keinen
+Vorgänger gibt, baut es sich einen eigenen Container.
+**Warum das eine Falle ist:** Die Regel steht nur im Kommentar am Toolbar-Host (`Views/Picking/Bom.cshtml`).
+Mit v1.42 ([[2026-09-18-stueckliste-kommissionierziel-filter-spec]]) kamen `#bomDefaultFilterBadges` und
+`#bomKzEmptyState` (`hidden`) **zwischen** Host und Tabelle; das Zahnrad landete im versteckten Leerzustand und
+war unsichtbar (Befund [[2026-10-06-stueckliste-zahnrad-bug-matchcode]]). Durch den globalen
+`[hidden]{display:none!important}` (§17) war der Hinweis wirklich unsichtbar, kein Restschimmer.
+**Regel:** Neue Hinweise, Badges, Alerts **über** den Host setzen, nie zwischen Host und `.table-responsive`.
+Ein bedingtes/verstecktes DIV direkt vor der Tabelle ohne Host verschluckt das Zahnrad ebenso.
+Wächter nur für die Stückliste: `BomZahnradHostTests` (Quelltext). Weitere Fundstelle derselben Klasse, nicht
+behoben: `Views/WarehousePicking/Details.cshtml` (`#incomplete-alert` mit `d-none` direkt vor der Tabelle;
+`textContent = …` überschreibt beim Einblenden zusätzlich das Zahnrad).
+**Nachtrag v1.47.5:** Lagerbestellung-Details behoben — Host direkt vor der Tabelle, `#incomplete-alert`
+darüber; Wächter `WarehousePickingDetailsZahnradHostTests` (gleicher Helfer wie `BomZahnradHostTests`). Auf `main` als
+AKE-Hotfix v1.30.2 (`0a6fb3cd`), Wächter-Datei wortgleich, damit der Vorwärts-Merge sie konfliktfrei übernimmt.
+**Nachtrag v1.65.0 — Regel „direkt vor `.table-responsive`“ überholt** ([[2026-10-14-spaltenauswahl-zahnrad-sammel-spec]]):
+Die Nachbar-Heuristik steckte doppelt in `insertGearButton` und `csv-export.js attach`. Ersetzt durch `site.js`
+`window.tableToolbarHost(table)` in dieser Reihenfolge: (1) Element mit `data-table-toolbar` direkt vor dem Wrapper, (2) ein **expliziter**
+Marker der View irgendwo im Dokument, (3) sonst ein neuer Host direkt vor dem Wrapper mit `data-table-toolbar="auto"`.
+**Warum der Fallback `="auto"` heißt und Stufe 2 ihn nicht findet:** `BdeMasterData/Index` hat drei `filterable-table` auf einer Seite.
+Bei rein dokumentweiter Suche fänden die zweite und dritte Tabelle den Host der ersten, alle CSV-Knöpfe stünden über Reiter 1.
+**Regel jetzt:** Hinweise dürfen vor oder hinter einem Marker stehen. Einen expliziten Marker gibt es höchstens einmal je View, nie an
+einem `hidden`/`d-none`-Tag. Brauchen zwei Tabellen einer Seite je einen eigenen Marker, muss Stufe 2 relativ zur Tabelle suchen
+(`ponytail:`-Kommentar in `site.js`). Wächter `TableToolbarHostTests` (ersetzt alle `*ZahnradHostTests`).
+
+## 20. IDEAL — Kind-Sub-FA zählt nur für sich (Lack-Flag, v1.47.5)
+
+### Ein beschichteter Kind-Sub-FA markiert seinen Vater-Sub-FA NICHT
+`FaMaterializationCoating.Derive` setzt `HasCoatingParts` eines Sub-FA, wenn er **selbst** `Beschichtet` ist
+oder ein direktes **Blatt**-Kind (`SubFA == 0`) beschichtet ist. Eine Kind-Zeile mit eigenem Sub-FA zählt nur
+für ihren eigenen Sub-FA. Bis v1.47.4 zählte jedes direkte Kind — ein lackierter Kind-Sub-FA (z. B. eine Blende)
+kennzeichnete damit auch den Korpus.
+**Warum:** Zum Lackierer gehen die Teile, nicht der Korpus (Entscheidung Gerald 2026-10-07). Das falsche Flag
+erzeugte am Vater einen Beschichtungstermin und eine „Beschichtung erledigt“-Checkbox in FA-Liste,
+Leitstand und FA-Abarbeitungsliste (`ProductionOrdersController.cs:209/226`, `CoatingDateCalculator` über
+`PickingLeitstandController.cs:172`, `FaWorklistController.cs:273`) — Planungsrauschen ohne echten Arbeitsschritt.
+Gleiche Regel und gleicher Ursprung wie die Arbeitsgang-Erkennung in §-Eintrag „Entschieden 2026-10-07
+(v1.47.4)“ ([[2026-10-07-v1-47-4-arbeitsgang-erkennung-kind-sub-fa]]): Was in der Struktur ein eigener Sub-FA
+ist, wird nie dem Vater zugeschlagen. **Neue Ableitungen aus der FA-Struktur** (Kennzeichen, Kürzel,
+Mengen) müssen diese Abgrenzung von Anfang an übernehmen.
+**Altbestand:** kein Skript nötig — die Materialisierung schreibt das Flag in **jedem** Lauf für alle
+materialisierten Sub-FAs neu (`FaMaterializationSyncService` → `SetCoatingPartsAsync`). Kippt es auf `false`,
+setzt die Repository-Methode `IsCoatingDone` mit zurück (Fallstrick #11). Nicht neu berechnet wird: im
+DryRun, bei übersprungenem Plan, bei einem Abbruch des Laufs vor dem Schreibschritt und für Sub-FAs, die nicht
+mehr in `FaHierarchyNodes` stehen (vermisst, nicht in `matKeys`) — dort bleibt das alte Flag stehen. Der Beschichtungsauftrag (`FaHierarchyBeschichtung`) liest `FaHierarchyNode.Beschichtet`
+direkt und ist nicht betroffen.
+Spec: FREIGABE-NACHTRAG (2026-10-07) in [[2026-08-20-materialisierung-fachliche-felder-spec]].
+
+## 21. Git/Windows — `docs/TESTSZENARIEN.md` landet als CRLF im Commit (2026-10-08)
+
+### Vor jedem Commit dieser Datei den Index-Blob byte-genau prüfen
+Mit `core.autocrlf=true` (System-Gitconfig) liegt der Arbeitsbaum in CRLF vor. Für die meisten Dateien normalisiert
+`git add` wieder auf LF — für `docs/TESTSZENARIEN.md` **nicht**: Zweimal (v1.47.5 `7e78f9a6`, AKE-Hotfix v1.30.2 vor
+dem Commit abgefangen) landete die ganze Datei als CRLF im Index. Ursache nicht geklärt (kein NUL, kein einzelnes
+CR, kein `.gitattributes`).
+**Warum es weh tut:** Ein Vollwechsel der Zeilenenden macht aus 30 Zeilen Diff 18.000 — Review am Merge-Diff
+blind, `git blame` für das ganze Abnahmedokument verloren, Vollkonflikt bei jeder Parallel-Änderung.
+**Regel:** Nach `git add docs/TESTSZENARIEN.md` prüfen:
+`git show :docs/TESTSZENARIEN.md | python -c "import sys;print(sys.stdin.buffer.read().count(b'
+
+'))"` muss `0`
+ergeben, sonst die Datei auf LF umschreiben und neu stagen. **Nicht** mit `grep -c $'
+$'` messen — das zählt unter
+Git Bash auch bei LF-Blobs jede Zeile (Fehlbefund 2026-10-08: v1.47.3-Commits fälschlich als CRLF gemeldet).
+Dauerhafte Lösung (nicht umgesetzt, eigene Entscheidung): `.gitattributes` mit `*.md text eol=lf`.
+
+## 22. Beschichtungsaufträge-Oberfläche (v1.51.0) — Tabellen-JS und Dezimal-Eingaben
+
+### `table-filter.js` und `column-preferences.js` bedienen genau EINE Tabelle je Seite
+Beide Skripte halten die Tabelle in einer Modul-Variablen (`_table` in `table-filter.js`) und lesen genau ein
+`#column-config`/`#view-config`. Eine zweite `.filterable-table` auf derselben Seite bekommt weder Filterzeile noch
+Zahnrad — still, ohne Fehlermeldung.
+**Warum es weh tut:** Die Pflicht „Spaltenfilter für jede Tabelle" (ADR 0005) lässt sich so auf Seiten mit zwei
+Tabellen nicht erfüllen; wer es trotzdem versucht, bekommt eine scheinbar gefilterte zweite Tabelle, die nicht reagiert.
+**Regel:** Je Seite eine filterbare Haupttabelle. Kleine Auswahltabellen daneben (Positionsauswahl im Detail,
+Reklamations-Teileauswahl in [[2026-10-06-beschichtungsauftrag-ausbau-teil-4-spec]]) bleiben bewusst ohne Filter und
+ohne `filterable-table`-Klasse. Mehrere Tabellen erst nach Umbau der Skripte auf Instanzen (eigene Entscheidung).
+
+### Die Anwendung hat keine feste Request-Kultur — Dezimal-Eingaben selbst lesen
+`Program.cs` konfiguriert weder `UseRequestLocalization` noch eine Thread-Kultur (Grep `Culture|Localization`: kein
+Treffer). Das Model-Binding parst `decimal` deshalb mit der Kultur des Servers (IIS-Konto) — „2.5" aus einem
+`type="number"`-Feld wird unter `de-AT` zu 25, „2,5" unter `en-US` zu 25.
+**Warum es weh tut:** Mengen landen um Faktor 10/100/1000 falsch in der DB, ohne Validierungsfehler.
+**Regel:** Neue Dezimal-Eingaben als `string` binden und kulturunabhängig lesen (Komma → Punkt,
+`CultureInfo.InvariantCulture`), Muster `BeschichtungsauftraegeController.TryMenge`; Anzeige ohne Tausenderpunkt
+(`0.###`), sonst wird „1.000,5" falsch gelesen. Bestehende Formulare mit `asp-for` auf `decimal` (z. B.
+`StockMovements/*`, `Articles/*`) hängen an der Server-Kultur — nicht geprüft, offener Befund der Teil-4-Spec.
+
+## 23. CSV-Export und Agenten-Werkzeuge (v1.53.0)
+
+### Jede Tabellenspalte mit Überschrift braucht `data-col-key`
+Der CSV-Export ordnet im Server-Mode die Zellen der nachgeladenen Gesamtliste über `data-col-key` den sichtbaren Spalten zu.
+Eine Spalte mit Überschrift ohne Key ist nicht zuordenbar — bis zum QA-Fund 2026-10-12 fiel sie still weg (Lagerbewegungen
+ohne „Menge", Artikelgruppen-Zuordnung ohne Gruppen-Spalten); jetzt bricht der Export mit Meldung ab.
+**Regel:** neue `<th>` mit Text in einer `filterable-table` immer mit `data-col-key`; reine Aktions-/Haken-Spalten ohne Text
+oder mit `data-csv-export="false"`. Wächter `CsvExportCoverageTests.JedeUeberschriebeneSpalte_HatEinenSchluessel`.
+
+### Eine Listen-Action darf im GET-Pfad nichts schreiben
+Der Export ruft sie ein zweites Mal mit `pageSize=0` (ADR 0005, Nachtrag 2026-10-12). Prüfung aller 37 Actions: sauber.
+Neue Listen: kein Zähler-/„zuletzt gesehen"-/Materialisierungs-Schreiben in `Index`.
+
+### Datei-Schreibwerkzeug der Agenten löst `\uXXXX` auf
+Beim Schreiben von JS/C# mit dem Write-Werkzeug wurde `'\uFEFF'` zu einem **unsichtbaren** BOM-Zeichen im Quelltext (ebenso
+`\u00a0`). Funktioniert, verschwindet aber beim nächsten Editor, der Steuerzeichen bereinigt. **Regel:** nach dem Schreiben
+byte-genau prüfen (`EF BB BF`, `C2 A0` zählen) und als sichtbares Escape einsetzen; Backslash im Skript über `chr(92)` bauen,
+nicht über Heredoc-Escapes.
+
+### Razor: `@` im Hilfetext ist Code
+`<code>@</code>` bricht den Build (RZ1005) — `@@` schreiben. Eine Befehlskette `build | grep Fehler && commit` committet
+trotzdem, weil `grep` die Fehlerzeile findet: vor dem Commit auf „0 Fehler" prüfen (Zwischen-Commit `400a7520`).
+
+## 24. Arbeitsgang-Stammdaten (v1.54.0) — Tabellen-Umbenennung und zwei Lookups
+
+### Tabellen-Umbenennung: EF-Vorschlag nie uebernehmen, guarded sp_rename je DB-Form
+Bei Klassen- **und** Tabellen-Rename erzeugt `migrations add` `DropTable`+`CreateTable` (Datenverlust); bei reinem Rename
+`RenameIndex`/`DropPrimaryKey`, die auf Skript-/FreshInstall-DBs den `UQ_`-Constraint statt des `IX_`-Index treffen (§9).
+**Regel:** Snapshot/Designer so lassen, wie `migrations add` sie erzeugt; `Up()`/`Down()` komplett durch guarded
+`migrationBuilder.Sql` ersetzen (ein Aufruf = ein Batch), Batches fuer Migration und `SQL/XX` aus EINER Quelle schreiben;
+Doppelform UQ/IX beim Umbenennen auf die EF-Form konvergieren (erst Index anlegen, dann Constraint droppen). Pruefen offline:
+`has-pending-model-changes` leer, `migrations script` ohne `DROP TABLE`/`CREATE TABLE`/ungeguardetes `sp_rename`.
+Muster: [[2026-10-09-arbeitsgang-stammdaten-vereinheitlichen-spec]], Drift-Waechter `OperationConfigsMigrationSqlTests` (vergleicht die Batches wortgleich).
+
+### Zwei Offset-Lookups mit unterschiedlicher Gross/Klein-Regel — bewusst
+`GetAllAsDictionaryAsync` (OSEON-Teileverfolgung) bleibt **case-sensitiv**, `GetDueDateOffsetsAsync` (FA-Struktur Teil 2/3,
+Liste „nicht konfiguriert“) ist **case-insensitiv + getrimmt**. Grund: OSEON-Verhalten sollte bitgleich bleiben. Wer den
+OSEON-Pfad angleichen will, braucht eine eigene Entscheidung (Ampeln koennten sich aendern).
+
+### Reiter in einer gegateten Controller-Familie: eigener Controller statt Filter-Ausnahme
+Die BDE-Stammdaten haengen am Klassenfilter `[RequireBdeActive]`; der Reiter „Arbeitsgänge“ muss ohne BDE gehen. Loesung:
+eigener `OperationConfigsController` (`[RequireAdminAccess]`) + gemeinsames Reiter-Partial `_BdeMasterDataTabs`, nicht
+`[RequireBdeActive]` je Action oder ein Ausnahme-Attribut im geteilten Filter (fuenf Controller).
+
+### `CreatedBy = 'system'` ist auf `OperationConfigs` kein Seed-Beleg (seit v1.61.0)
+
+`SQL/95` B8 hat jeder Zeile, die vor v1.54.0 bestand, `CreatedBy = 'system'` eingetragen — auch von Hand gepflegten. Die
+Bestandsbefüllung der Quelle (`SQL/96`, Regel „`'system'` → `ExternalSystem`“, Antwort 7 der Spec
+[[2026-10-16-arbeitsgang-stammdaten-abgleich-aus-sage-view-spec]]) macht deshalb praktisch den gesamten Altbestand zu
+„Fremdsystem“, der nie „nicht in Sage“ gekennzeichnet wird. **Warum so gelassen:** Der Altbestand stammt nicht aus Sage, und die
+Datenlage unterscheidet Seed und Handanlage nicht. Wer künftig aus `CreatedBy` eine Herkunft ableiten will: nicht tun — dafür
+gibt es jetzt `Source`.
+
+### `Update(entity)` schreibt alle Spalten — bei geteilten Tabellen nur Pflegefelder markieren (seit v1.61.0)
+
+`_context.Set.Update(config)` markiert **jede** Property als geändert und schreibt den Stand beim Laden zurück. Schreibt ein
+zweiter Weg (hier der Arbeitsgang-Abgleich: `Source`, `SageMissingSince`) zwischen Laden und Speichern, dreht das Web dessen
+Werte still zurück, und der nächste Lauf meldet den Übergang doppelt. **Darum** markiert `OperationConfigRepository.UpdateAsync`
+nur die Pflegefelder (`IsModified` je Property, eine Konstante). Der Test dafür braucht zwei Kontexte auf **derselben**
+InMemory-DB (`TestApplicationDbContextFactory`); er war gegen das alte `Update()` rot.
+
+### Ausschlussliste fällt im Arbeitsgang-Abgleich bei `null` auf den Katalog-Default (seit v1.61.0)
+
+Die Werkbank-Anlage nimmt bei einem gescheiterten Settings-Read eine **leere** Ausschlussliste — dort harmlos, weil sie
+abgleicht. Der Arbeitsgang-Abgleich löscht nie: ein einmal fälschlich angelegtes `STO` bliebe für immer. **Darum** gilt dort
+bei `null` der Katalog-Default (`OperationConfigSyncService.DefaultAusschlussliste`, Test vergleicht mit dem Katalog); ein
+bewusst leer gesetzter Wert bleibt leer.
+
+## 25. FA-Struktur-Status (v1.55.0) — Zeilenzustände und Statusfarben
+
+### Zeilenzustände nie über `opacity` kennzeichnen
+`opacity` wirkt auf **alle** Kinder einer Zeile: Text, Badges und Statusfarben fallen gemeinsam unter WCAG AA (gedimmte
+Kontextzeilen beim Baum-Spaltenfilter, Teil-1-QA M1). Seit v1.55.0 trägt die Kontextzeile Form statt Blässe (kursiv +
+Randstreifen `#495057` an der ersten Zelle). Neue Zeilenzustände: Grundfarbe oder Form ändern, Deckkraft bleibt 1.
+
+### Status-Chips mit eigenem Grund — Kontrast unabhängig vom Zeilenzustand
+Die Arbeitsgang-Chips (`.fa-ag-*`) setzen Text-, Grund- und Randfarbe selbst. So gilt der gemessene Kontrast in normaler,
+Hover-, hervorgehobener, Treffer- und Kontextzeile gleich, und ein neuer Zeilen-Hintergrund braucht keine Neuberechnung je
+Status. Wer einen Status ohne eigenen Grund einführt, muss alle Zeilengründe nachmessen.
+
+### FA-Baum-Status nur bei BDE an — produktiv derzeit unsichtbar
+`FaHierarchyController.Index` fragt Status, Feiertage und Offsets nur bei `BdeAktiv = true` ab. Solange BDE an keinem
+Standort an ist, zeigt Produktion keine Status — Abnahme und Fehlersuche am Testsystem mit BDE an.
+
+### Arbeitsgang-Status nur über `ArbeitsgangStatusRegel` (seit v1.57.0)
+FA-Baum (Teil 2) und BDE-Terminal (Teil 3) leiten den Status über **dieselbe** Regel ab (`Services/ArbeitsgangStatusRegel.cs`:
+Vorrang erledigt → läuft (+ überfällig) → überfällig → offen; Offset getrimmt, ohne Eintrag 0); Klasse/Zeichen kommen aus
+`FaAgStatusDarstellung`, die Farben aus den CSS-Variablen `--fa-ag-*` in `site.css`. Wer den Status irgendwo anders zeigt, ruft
+diese drei Stellen — keine Kopie, sonst laufen FA-Baum und Terminal auseinander. Bewusste Abweichung: Das Terminal fällt bei
+leerem `FE_Termin` auf `ProductionDate` zurück (Antwort 9), der FA-Baum nicht.
+
+### Terminal zeigt fremd gebuchte Arbeitsgänge (seit v1.57.0)
+`GetAvailableOperations` blendet nur noch **eigene** laufende und fertig gemeldete Arbeitsgänge aus; von anderen Werkern
+gebuchte erscheinen als „läuft“. Die Exklusivität sichert allein `BdeBookingService.StartPlannedAsync` (Rüsten immer,
+Produktion nur bei `BdeMehrfachBuchungProArbeitsgang` = aus). Wer die Startprüfung lockert, öffnet damit Doppelbuchungen aus der Liste.
+
+## 26. Spaltenfilter-Suchsyntax (v1.58.0/v1.58.1) — ein Kern, Typ an zwei Stellen
+
+### Spaltenfilter nie selbst auswerten — Kern nutzen
+Die Bedeutung eines Filterwerts steht nur in `Services/ColumnFilterSyntax.cs` und `wwwroot/js/column-filter-syntax.js`, beide gegen
+`IdealAkeWms.Tests/Js/column-filter-cases.json` geprüft ([[0017-ein-parser-fuer-die-spaltenfilter-syntax]]). Neue Listen geben nur
+Getter/Selektoren und den Typ an den Kern (`ColumnFilterHelper.Apply`, `ColumnFilterSql.Predicate`, `ColumnFilterSyntax.Matches`) —
+kein eigenes `split(',')`, kein `EF.Functions.Like`, kein `tokens.Any(...)`. **Warum:** Vor v1.58 gab es sechs Umsetzungen mit eigener
+Bedeutung (Fehlteile werteten `!` je Wert), und `_`/`%` gingen unmaskiert in `LIKE`.
+
+### Typ an `<th>` UND im Register
+Zahl-/Datumsspalte = `<th data-filter-type="number">` bzw. `<th data-date-filter>` **und** Eintrag in `ColumnFilterTypes.Lists`
+(View-Pfad) **und** `ColumnFilterTypes.For("<View-Pfad>")` an `Apply`/Postfilter. Fehlt eine Stelle, markiert der Browser einen
+Vergleich anders als der Server filtert — ohne Meldung (QA-Befund I-1 aus Etappe A). Der Drift-Wächter schlägt an.
+
+### Getter rendern wie die Zelle
+Vergleiche lesen die Zahl/das Datum aus dem **gerenderten** Text (deutsches Format). Ein Getter mit `InvariantCulture` („2.5“) wird
+als 25 gelesen. Getter typisierter Spalten deshalb exakt wie die Zelle formatieren (Beispiel FaWorklist/FaCompletion `quantity`).
+
+### Groß/Klein in SQL macht die Kollation — Tests unter InMemory brauchen passende Schreibweise
+Der SQL-Bauer setzt kein `LOWER` (Index für „beginnt mit“). Die CI-Kollation ist damit Pflicht (Prüfschritt P-2, Datenbank und je
+Spalte, beide Server). EF-InMemory vergleicht ordinal und der Parser schreibt klein — Testdaten für SQL-Filter in Kleinschreibung
+anlegen (10 Bestandstests wurden so angepasst).
+
+### §17 erledigt
+Der `!(leer)`-Sonderfall in `bomMatchesFilter` (§17, „VIERTE Umsetzung“) ist seit v1.58.1 aufgegangen: die Stückliste nutzt den Kern,
+`!(leer)` ist dort ein normaler Filterwert.
+
+## 27. Fußzeile auf jeder Druckseite (v1.59.0) — nur Bauweise V3 trägt
+
+### Warum nicht in den `@page`-Rand (V1)
+Ein `position: fixed`-Element mit negativem `bottom`, das in den `@page`-Unterrand ragen soll, zeichnet Chromium im
+Headless-PDF **oben** auf jeder Seite über den Inhalt; der Hintergrund-Balken fehlt. Fixed-Elemente leben im Seitenbereich,
+nicht im Rand (gemessen 2026-10-14, Edge 155).
+
+### Warum kein Platzhalter im `tfoot` (V2)
+Ein wiederholter `tfoot`-Platzhalter schützt nur Tabellenzeilen. Alles **nach** der Tabelle (Bemerkung, Banner) lief unter
+die Fußzeile (−12,5 mm). AK „nichts unter der Fußzeile" ist damit nicht haltbar.
+
+### Was trägt (V3)
+`@page`-Unterrand klein (5 mm), Fußzeile `fixed; bottom: 0` mit fester Höchsthöhe und `overflow: hidden`, und jedes
+Dokument (`.fa-group`) bekommt `padding-bottom` mit `box-decoration-break: clone` — das Polster wiederholt sich auf jedem
+Seitenfragment, also auch nach Bemerkungen. Die Fußzeile darf nie höher als das Polster minus Abstand sein, sonst
+überdeckt sie Inhalt → deshalb hart gekappt (17,75 mm bei 19,75 mm Polster).
+
+### `:last-child` bricht, sobald hinter den Dokumenten etwas steht
+Die Druck-Views hatten `.fa-group:last-child { page-break-after: auto }`. Hängt hinter der letzten Gruppe ein weiteres
+Element (hier der `<footer>`), greift `:last-child` nicht mehr → leere letzte Seite. Darum `.fa-group:last-of-type` (zählt
+nur `div`) — und hinter die Gruppen nie ein `div` hängen.
+
+### Seitenzähler und Sammeldruck
+`counter(pages)` zählt die ganze Druckseite, nicht ein Dokument. Bei mehreren HauptFA in einem Druck wäre „Seite 3 von 7"
+falsch → Zähler nur bei genau einem Dokument ([[2026-10-09-briefkopf-seitenzaehlung]] bleibt dafür offen). Die
+`@page`-Margin-Box erscheint auch mit `--no-pdf-header-footer`.
+
+## 28. BDE — Kürzel-Familie, Werkbank-Prüfung beim Buchen, „nicht in Sage“ (v1.63.0)
+
+### Die Familie ist EINE Regel — Angebot, Scan, FA-Baum und Buchungs-Prüfung müssen sie teilen
+Seit v1.63.0 sieht und bucht eine Werkbank alle offenen `WorkOperation` der Werkbänke mit demselben `ArbeitsschrittCode`
+(`Services/WerkbankKuerzelFamilie.cs`). Benutzt in `BdeApiController.GetAvailableOperations`, `BdeScanResolver.BuildNormalCandidatesAsync`,
+`FaHierarchyController` (Gate `BdeRelevanteIds`) und `BdeBookingService.EnsureWorkOperationInFamilyAsync`.
+**Warum:** Was das Terminal anbietet und was der Server beim Start annimmt, darf nicht auseinanderlaufen — sonst zeigt das
+Terminal Knöpfe, die mit „gehört nicht zu dieser Werkbank“ scheitern, oder (vor v1.63.0) ein manipulierter POST bucht jeden
+AG an jeder BDE-aktiven Werkbank. **Regel:** Jede neue Stelle, die „AGs dieser Werkbank“ braucht, ruft den Helfer; nie
+`wo.ProductionWorkplaceId == workplaceId` neu schreiben. Ausnahme bewusst: `GetOpenByWorkplaceIdAsync` (Tracking je Werkbank)
+bleibt an der bevorzugten Werkbank. Vergleich in C# (Trim + OrdinalIgnoreCase), nicht in SQL (§26 Kollation).
+
+### Ohne Kürzel = nur die Werkbank selbst — darauf beruht „AKE unverändert“
+`ArbeitsschrittCode` schreibt nur die Werkbank-Anlage (IDEAL, Master an) bzw. seit v1.63.0 die Maske an Werkbänken **ohne**
+Sage-Nummer. AKE-Werkbänke haben keins → Familie `{Id}`. **Warum es weh tut:** Pflegt jemand bei AKE Kürzel ein, ändert sich
+das Terminal-Angebot sofort (gewollt, aber dann nicht mehr „AKE wie vorher“). Prüfabfrage P5 der Spec vor dem Deploy.
+
+### Die Buchungs-Prüfung muss VOR jedem Schreiben stehen
+`StartPlannedAsync`/`ResumeAsync` schließen in den Regeln 1–4 eigene Rüst-/Tätigkeitsbuchungen und speichern sofort. Steht die
+Familien-Prüfung dahinter, beendet ein abgewiesener Start trotzdem die laufende Tätigkeit des Werkers. **Regel:** Reihenfolge
+BDE-Gate → (Resume: Parent laden) → Start-Sperre → Familie → verpackt → Kollision → Regeln 1–4.
+Im NurFA-Modus prüft dieselbe Methode `ProductionOrder.ProductionWorkplaceId == Terminal-Werkbank` (Antwort 12), weil der
+Default-AG „01“ an der Werkbank des ersten Starters hängt. Pausierte **Tätigkeiten** (ohne AG) bleiben ungeprüft.
+**Auch Endpunkte, die vor der Buchung etwas ANLEGEN, prüfen vorher:** `StartProductionForOrder` legte den Default-AG
+„01“ an, bevor geprüft wurde — der neue AG hing dann an der Terminal-Werkbank und bestand FA-a9 (QA-Befund Q1, `b3daf566`).
+
+### Fortsetzen an fremder Werkbank: Liste zeigt es, Server weist ab (gewollt)
+`PausedBookings` filtert nur nach Werker (werkbank-übergreifend); seit v1.63.0 weist `ResumeAsync` außerhalb der Familie ab.
+**Bewusst nicht** gefiltert: Meldung statt stilles Ausblenden. Wer die Liste filtern will, entscheidet das neu.
+
+### „Nicht in Sage“: Präsenz aus den ROHEN Quellzeilen, Empty-Guard, nie löschen
+`ProductionWorkplaceSyncService` kennzeichnet `SageMissingSince` über die getrimmte Nummer **aller** gelesenen Zeilen — auch
+solcher, die der Pflicht-/Ausschluss-Filter verwirft (sie stehen in Sage). Liefert die Quelle 0 Zeilen: nichts kennzeichnen,
+Warnung (sonst wäre jede Sage-Werkbank „nicht in Sage“). `ProductionWorkplaceRepository.UpdateAsync` schreibt seit v1.63.0 nur
+Pflegefelder (§24-Muster), damit das Web die Kennzeichnung nicht mit dem Ladestand zurücksetzt.
+**Folge beim ersten Lauf:** Kürzel, die nur noch an gekennzeichneten Werkbänken hängen, erscheinen in der Struktur-Erkennung als
+„unbekannt“ (inkl. Sammelmail) — gewollt; vorher DryRun und P2 gegen P3 abgleichen.
+
+### Fertigmeldung = Buchung mit StartedAt == EndedAt
+Die Option „nur AG-Fertigmeldung“ speichert eine `Production/Finished`-Buchung mit Dauer 0 + `IsFinal`-Menge. Alle
+„erledigt“-Abfragen greifen ohne Änderung; die Zeitaufteilung blendet Dauer 0 aus (`BdeTimeSplitService.cs:43`). **Wer**
+Auswertungen über Ist-Zeiten baut: Werkbänke mit dieser Option liefern Ist-Zeit 0 — kein Datenfehler.
+
+## 29. Scannen ohne Feld am Netum (v1.71.1) — Skript-Fokus startet keine Eingabemethode
+
+### Grünes Feld ist kein Beweis für Scanbereitschaft
+Die Netum-„Fokus-Eingabe“ schreibt den Scan über die Android-Eingabemethode (IME) ins fokussierte Feld. Die IME startet nur, wenn ein
+**Benutzer** ein Feld antippt, das eine Tastatur zulässt. Ein `focus()` aus dem Skript setzt zwar `document.activeElement` und `:focus`
+(das Feld wurde grün), startet aber **keine** Eingabemethode – der Scan kommt nicht an. `inputmode="none"` im Markup verhindert den Start
+auch beim Tipp.
+**Warum das wichtig ist:** v1.68.1 zeigte nach Skript-Fokus grün, am Gerät als „bereit“ gelesen, obwohl nichts ankam (Freigabe-Nachtrag 7,
+Befund 1/2). Deshalb: Bereitschaft nur nach einer Geste anzeigen (`pointerdown` → `focus`), `inputmode="none"` erst ~300 ms danach setzen
+(Tastatur klappt ein, die IME-Verbindung bleibt) und bei `blur` wieder entfernen. Ein wiederholter oder verzögerter `focus()` bzw. `pageshow`
+hilft nicht; ganz ohne Tipp ist das aus Chrome nicht erreichbar. Geräte mit Tasten-Ereignissen (Tastatur-Emulation, z. B. Zebra DataWedge
+Keystroke) brauchen keinen Tipp – darum bleibt der Skript-Fokus, zeigt aber grau.
+Code: `hardware-scanner.js` Block „Scannen ohne Feld“, CSS `.hw-scan-bereit`.
+
+## Sage-SData-Lesen (v1.73.0, [[2026-11-06-sage-sdata-stammdaten-sync-spec]])
+
+- **`startIndex` ist 0-basiert.** Am AKE-Test liefert `startIndex=1` die erste Zeile nicht (LagerorteInfo 35 von 36; Lookup mit einem Treffer leer).
+  **Warum wichtig:** Ein Reader mit 1 wirft „unvollständig gelesen“ oder – ohne diesen Guard – verliert still eine Zeile (QA B1, Fix `c8c6b210`).
+- **Falscher Feldname ohne `select` kommt still als `null`; mit `select` als HTTP 500.** Unbelegte Felder nie ins `select`; Abgleiche, die
+  deaktivieren/nullen, prüfen Pflichtfelder und werfen (`SdataBestandReader.Abbilden`). Spec-Feldlisten gegen das P-S1-Schema prüfen
+  (z. B. kein `Aktiv` in `PpsStillstandsbegruendungenInfo`, kein `IstSperrlager` in `LagerorteInfo`).
+- **Liefert eine Quelle das Schlüssel-/Gruppierfeld gar nicht, ausdrücklich signalisieren** (`ArbeitsschrittGeliefert`), sonst wird alles „nicht in Sage“.
+- **Bool-Filter-DTOs ohne Default `true`** – ein fehlendes JSON-Feld würde still als „eingelastet/aktiv“ gelesen.
+- **`SyncLogs.Message` hat 1000 Zeichen**; zu lange Meldungen gehen beim Schreiben still verloren → Diagnosen kappen.
+- **EF `HasDefaultValue` auf bool/int-Status verschluckt explizite `false`/`0` beim Insert** (Sentinel) → DEFAULT nur in Migration/SQL.
+- **Artikel-Bearbeitung postet alle aktiven Merkmale; `SaveValuesAsync` löscht „kein Bool/keine Option“** → Merkmale ohne Formularfeld (Text, Sage) serverseitig ausnehmen.
+- **`PickingTransferService` schreibt `StockMovements` am Sage-Decorator vorbei** → Umbuchungen nur über die Nacherfassung (15 min); Regeln (z. B. FA-Bezug) deshalb in Decorator UND `EnqueueMissingAsync`.
+- **`ne`/`gt` auf Textfeldern liefert am AKE-Test immer 0 Treffer** (Koordination 2026-11-07, `ArtikelVariantenExtended`, nur lesend):
+  `Hauptlieferant ne null` → 0, `ne ''` → 0, `gt ''` → 0; dagegen `Hauptlieferant like 'K%'` → 23.509, `eq 'K31013'` → 121, ungefiltert 279.529,
+  `00722001` hat `Hauptlieferant`/`LetzterLieferant` = `K31013`. **Warum wichtig:** Ein „nicht leer“-Filter liefert still 0 Zeilen statt eines
+  Fehlers (Artikel-Lieferanten-Lauf 07.11. 09:20: `ArtikelVariantenExtended` 0 Zeilen in 13 ms, `hauptlieferant=0`). Nicht-leer-Filter clientseitig
+  oder über `like`; 0 Zeilen bei einer Quelle, die nie leer sein kann, als Fehler/Warnung behandeln.
+  *Umgesetzt `28afd9cc`:* beide `ne ''`-Filter auf `like '_%'` (mind. ein Zeichen, ohne Präfix-Annahme; `PpsRessourcenPositionenInfo` 240.552 = alle).
+  Numerische `eq` (z. B. `IstBestellartikel eq -1`) sind unauffällig (43.144).
+- **Kontokorrent liefert weder Name noch Adresse** (liegen in `Adressen`, Verweis `Kontokorrent.Adresse`). *Überholt 2026-11-07:* `Adressen` und
+  `Ansprechpartner` sind am AKE-Test belegt und werden nachgelesen. Bleibt: **Hausadresse = `Liefer*`**, `Post*` ist das Postfach (fast leer);
+  **`Ansprechpartner.Vorname/Nachname` können `nil` sein** – dann das Feld `Ansprechpartner` nehmen. **Warum wichtig:** sonst leere Namen bzw.
+  leere Adressen bei fast allen Konten.
+- **Sage-Spalten sind teils länger als die WMS-Spalten** (`LieferPLZ` 24 → `PostalCode` 20, `EMail` 255 → `Email` 200). **Warum wichtig:** Ein
+  einziger zu langer Wert kippt `SaveChanges` und damit den ganzen Lauf bei jedem Zyklus (QA Q1, Fehler 2628). Je Feld gegen die Spaltenlänge
+  prüfen; zu lang = nicht schreiben + Warnung (nicht kürzen, eine gekürzte PLZ/E-Mail ist falsch) – `KontokorrentSyncService.AdressFelder`.
+- **Sage-Matchcodes sind nicht eindeutig** (AKE-Test: 2.287 Kreditoren-Konten / 2.280 Matchcodes). **Warum wichtig:** Ein Matchcode taugt nie als
+  Schlüssel oder für ein Feld mit UNIQUE-Index (`ShortName`) – der Lauf würde beim Speichern am Index scheitern. Schlüssel ist immer `Kto`.
+- **Quellensperren (offene Prüfabfrage) an EINEM Ort: `SageQuelleSperre`** (Web-Projekt), gelesen von der Dienst-Weiche und von `/ServiceSettings`.
+  **Warum wichtig:** Stand die Sperre nur im Dienst (`SdataGesperrtBis`), zeigte die Maske `SData` als gültig, der Lauf las aber still View –
+  Protokoll und Maske liefen auseinander (B6). Artikel ist nur gesperrt, wenn `Sync:ArticlesViewName` gesetzt ist (IDEAL); nicht lesbar = gesperrt.

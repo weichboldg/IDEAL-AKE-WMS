@@ -24,7 +24,7 @@ Dokument aktualisiert werden (siehe CLAUDE.md → "Testszenarien-Pflicht").
 | 2. Lager | [→](#2-lager) | TS-2.1 – TS-2.21, TS-2.26 – TS-2.31 (inkl. TS-2.12 – TS-2.21 FA-Lagerplatz-Hinweis; TS-2.26 – TS-2.31 v1.30.0 Teil 4/5: Bewegungsart-/Datum-Spaltenfilter funktionsfaehig + Einbuchung-Standardmenge 1) |
 | 3. Stammdaten | [→](#3-stammdaten) | TS-3.1 – TS-3.16 |
 | 4. Fertigungsauftraege | [→](#4-fertigungsauftraege) | TS-4.1 – TS-4.19 (inkl. TS-4.9a/b/c/d Bulk-Freigabe + Filter-Persistenz, TS-4.11 – TS-4.19 Baugruppen-Flags VK/VL/VE/VT/VA) |
-| 5. Stueckliste (BOM) | [→](#5-stueckliste-bom) | TS-5.1 – TS-5.9 |
+| 5. Stueckliste (BOM) | [→](#5-stueckliste-bom) | TS-5.1 – TS-5.11 |
 | 6. Kommissionierung / Picking | [→](#6-kommissionierung--picking) | TS-6.1 – TS-6.10 |
 | 7. OSEON Teileverfolgung | [→](#7-oseon-teileverfolgung) | TS-7.1 – TS-7.10 (inkl. TS-7.6a/b/c/d Artikel-Filter + Sortierung) |
 | 8. BDE Phase 1 | [→](#8-bde-phase-1) | TS-8.1 – TS-8.15 |
@@ -37,7 +37,7 @@ Dokument aktualisiert werden (siehe CLAUDE.md → "Testszenarien-Pflicht").
 | 15. BDE Phase 2.3 — Schichtkalender + Auto-Pause | [→](#15-bde-phase-23--schichtkalender--auto-pause) | TS-15.1 – TS-15.12 |
 | 16. OSEON Reporting — AG-Übersicht | [→](#16-oseon-reporting--ag-übersicht) | TS-16.1 – TS-16.6 |
 | 17. OSEON Tracking — Artikel-Filter | [→](#17-oseon-tracking--artikel-filter) | TS-17.1 – TS-17.4 |
-| 18. Lagerbestellung aus der Produktion | [→](#18-lagerbestellung-aus-der-produktion) | TS-18.1 – TS-18.9 |
+| 18. Lagerbestellung aus der Produktion | [→](#18-lagerbestellung-aus-der-produktion) | TS-18.1 – TS-18.10 |
 | 19. Listen-Pagination & User-Default (v1.14.0) | [→](#19-listen-pagination--user-default-v1140) | TS-19.1 – TS-19.6 |
 | 20. Server-Side Spaltenfilter (v1.14.0) | [→](#20-server-side-spaltenfilter-v1140) | TS-20.1 – TS-20.7 |
 | 21. Leitstand als eigenes Hauptmenue (v1.14.0) | [→](#21-leitstand-als-eigenes-hauptmenue-v1140) | TS-21.1 – TS-21.2 |
@@ -75,6 +75,7 @@ Dokument aktualisiert werden (siehe CLAUDE.md → "Testszenarien-Pflicht").
 | Kapitel 53: Lagerbestand-Nullsetzen verwaister Paare (v1.25.0) | [→](#kapitel-53-lagerbestand-nullsetzen-verwaister-paare-v1250) | — |
 | Kapitel 54: Aktivitäts-Protokoll-Bereinigung (v1.25.0) | [→](#kapitel-54-aktivitäts-protokoll-bereinigung-v1250) | TS-54.1 – TS-54.4 |
 | Kapitel 55: FA-Zusatzinfos (Sage) (v1.26.0) | [→](#kapitel-55-fa-zusatzinfos-sage-v1260) | TS-55.1 – TS-55.13 |
+| Kapitel 107: OSEON-Sync neu ausgeschriebener Auftrag + Stücklisten-Druck + Werkbank Kommissionierung (Hotfix v1.30.3) | [→](#kapitel-107-oseon-sync-neu-ausgeschriebener-auftrag--stücklisten-druck--werkbank-kommissionierung-hotfix-v1303) | TS-107.1 – TS-107.6 |
 
 ---
 
@@ -2073,6 +2074,32 @@ Dokument aktualisiert werden (siehe CLAUDE.md → "Testszenarien-Pflicht").
   (unveraendertes Verhalten). Der FA-Abarbeitungslisten-Filter (Teil 8, TS-43.5) bleibt davon
   unberuehrt — die beiden Default-Filter sind getrennt.
 
+### TS-5.11 — Stueckliste mit vielen Positionen drucken (v1.30.1, Hotfix HTTP 404.15)
+
+**Hintergrund:** Bis v1.30.0 ging die Liste aller sichtbaren Positionen im Adressteil der Druck-URL mit;
+bei grossen Stuecklisten brach der Druck mit „HTTP-Fehler 404.15 — Abfragezeichenfolge zu lang" ab.
+Seit v1.30.1 wird per Formular (POST) gedruckt.
+
+**Vorbedingungen:** FA mit einer Stueckliste mit **mindestens 300 Positionen** (z. B. das FA aus dem
+Befund vom 2026-09-28, ID 3664 auf akenet01); Zugriff Kommissionierung, Vorbau oder FA-Vervollstaendigung.
+
+**Schritte + erwartetes Verhalten:**
+1. Stueckliste oeffnen, **keinen** Filter setzen, „Stueckliste drucken". **Erwartet:** neues Tab mit der
+   **vollstaendigen** Stueckliste, kein 404.15, keine Fehlerseite, kein Popup-Blocker-Hinweis.
+2. Einen Spaltenfilter setzen, der nur wenige Positionen uebrig laesst, erneut drucken. **Erwartet:** nur
+   die sichtbaren Positionen, Filter-Hinweis im Kopf, Spaltenauswahl wie am Bildschirm (Regression TS-5.9).
+3. Einen Filter setzen, der **nur wenige** der vielen Positionen ausblendet (z. B. eine Artikelgruppe
+   ausschliessen), drucken. **Erwartet:** Druck klappt trotz langer Positionsliste (das war der Fall,
+   den eine reine „alles sichtbar = keine Liste"-Loesung nicht abgedeckt haette).
+4. Dasselbe in der **read-only** Stueckliste der FA-Abarbeitungsliste (Vorbau). **Erwartet:** wie 1.
+
+**Negativfaelle:**
+- `/Picking/PrintBom/{id}` direkt in die Adresszeile eingeben (GET, auch mit alten Parametern
+  `?visiblePositions=…`). **Erwartet:** vollstaendiger Druck **aller** Positionen, kein Fehler — ein
+  GET-Aufruf filtert nicht mehr.
+- Popup-Blocker des Browsers aktiv (Standard in Edge/Chrome/Firefox). **Erwartet:** Druck-Tab oeffnet
+  trotzdem (Formular-Submit direkt aus dem Klick).
+
 ---
 
 ## 6. Kommissionierung / Picking
@@ -3572,6 +3599,7 @@ Dokument aktualisiert werden (siehe CLAUDE.md → "Testszenarien-Pflicht").
 **Erwartetes Verhalten:**
 - Neuer Auftrag erscheint in der OSEON-Liste.
 - Ampel und Soll-Termine korrekt berechnet.
+- Neu ausgeschriebene Aufträge (gleiche Auftragsnummer, neue OSEON-ID): siehe TS-107.1 (Hotfix v1.30.3).
 
 ---
 
@@ -3803,6 +3831,61 @@ Erwartet: Tab 2 zeigt WarningMessage "Bestellung wurde inzwischen geaendert — 
 Vorbedingungen: DefaultLagerbestellempfaengerId leer.
 Schritte: Submit.
 Erwartet: WarningMessage "Default-Lagerbestellempfaenger nicht konfiguriert".
+
+### TS-18.10 — Ist-Menge muss bestaetigt werden: keine Vorbefuellung, Pflichtpruefung, Autosave (v1.30.1)
+
+**Grundsatz:** Nicht Geliefertes muss **bestaetigt** werden — durch eine eingetippte Ist-Menge (auch `0`)
+oder eine Fehlteil-Markierung („Fehlteil" / „Wird nicht nachgeliefert"). Nichts wird angenommen, ein
+leeres Ist-Feld wird nie still als 0 gebucht.
+
+**Vorbedingungen:** Lagerbestellung im Status **Offen/Submitted** mit mindestens drei Positionen, keine
+davon bearbeitet. Nach dem Deploy auf einem System mit Altbestand: Einmal-Skript
+`SQL/Einmalig/2026-09-28_Hotfix-1.30.1_ResetAutosaveZeroQuantityPicked.sql` wurde **genau einmal**
+ausgefuehrt (siehe Deploy).
+
+**Schritte + erwartetes Verhalten:**
+1. `WarehousePicking/Details` oeffnen. **Erwartet:** Die Ist-Felder sind **leer** und zeigen **keine**
+   graue Bestellt-Zahl mehr; die bestellte Menge steht nur in der Spalte „Bestellt".
+2. Pos 1: Ist = `5` eintragen; danach in eine Notiz klicken und wieder hinaus (loest den Autosave aus),
+   Seite neu laden. **Erwartet:** Pos 1 zeigt `5`, Pos 2 und 3 sind **leer — nicht `0`** (Autosave-Fix).
+3. „Speichern + Abschliessen" klicken, Pos 2/3 leer lassen. **Erwartet:** Es gibt **keinen** Dialog „Soll =
+   Ist-Menge buchen?" mehr. Stattdessen erscheint oben ein gelber Hinweis „Noch nicht abgeschlossen. Bitte je
+   Position die Ist-Menge eintragen (auch 0) oder Fehlteil markieren: Pos 2 (…), Pos 3 (…)", die Ist-Felder
+   von Pos 2/3 sind rot umrandet, der Cursor steht in Pos 2. Die Bestellung bleibt offen.
+4. Pos 2: Ist = `0` tippen. **Erwartet:** Pos 2 verliert die Markierung, der Hinweis nennt nur noch Pos 3.
+5. Pos 3: Ist leer lassen, aber „Fehlteil" anklicken. **Erwartet:** Hinweis verschwindet.
+6. „Speichern + Abschliessen". **Erwartet:** Bestellung wird abgeschlossen; Pos 2 ist mit `0` gebucht,
+   Pos 3 mit leerer Ist-Menge und Fehlteil-Markierung (Status Teilgeliefert, weil Restlieferung erwartet).
+7. Neue offene Bestellung: „Drucken und Abschliessen" mit einer leeren Position ohne Fehlteil.
+   **Erwartet:** gleicher gelber Hinweis, **kein** Druck-Tab bleibt offen, die Eingaben bleiben erhalten.
+
+**Negativfaelle:**
+- **Ohne JavaScript / direkter POST** (z. B. Browser-Entwicklerwerkzeuge: das Formular per Konsole
+  `document.getElementById('detailsForm').submit()` mit leerer Position absenden). **Erwartet:** Der Server
+  lehnt ab — Rueckkehr zur Detailansicht mit gelber Meldung, die die Positionen nennt; nichts gebucht.
+  (Automatisiert: `WarehousePickingControllerTests.Close_EmptyQuantityWithoutShortage_IsBlockedServerSide_NothingBooked`,
+  `…PrintAndClose_…_ReturnsBadRequest`.)
+- **Negative Menge** eintippen und abschliessen. **Erwartet:** wie bisher „Ist-Mengen duerfen nicht negativ sein."
+- **Dezimalwert** (`1,5` bzw. `1.5`) in ein Ist-Feld tippen und abschliessen. **Erwartet:** Das Feld wird
+  markiert, der Hinweis verlangt ganze Zahlen; ohne JavaScript lehnt der Server ab („Ist-Mengen muessen ganze
+  Zahlen ab 0 sein“) und bucht **nichts** — vorher rutschten dabei alle folgenden Mengen eine Zeile nach oben.
+- **Server lehnt „Speichern + Abschliessen“ ab** (z. B. leere Zeile ohne JavaScript). **Erwartet:** Die bis
+  dahin eingetragenen Mengen, Notizen und Fehlteil-Markierungen sind nach der Rueckkehr noch da (Zwischenstand
+  gesichert), leere Felder bleiben leer.
+- **Einmal-Skript (Deploy):** Vor dem Lauf die Zaehl-Abfrage im Skript notieren; nach dem Lauf: offene
+  (Submitted) Bestellungen, deren Positionen vorher `0` zeigten **ohne** Fehlteil, zeigen jetzt leere
+  Ist-Felder; Positionen mit Fehlteil-Markierung und alle teilgelieferten/abgeschlossenen Bestellungen sind
+  **unveraendert**. Das Skript wird **nicht** ein zweites Mal ausgefuehrt. Direkt danach alle offenen Lagerbestellungs-Seiten **neu laden** (eine vorher geladene Seite traegt sonst die alte 0 noch im Feld und schickt sie als bestaetigte 0 zurueck).
+
+**Zusatz v1.30.2 — Zahnrad (Spaltenauswahl) sichtbar, auch nach dem Pflicht-Hinweis (Manual-UAT):**
+1. Lagerbestellung im Status Offen öffnen. **Erwartet:** Zahnrad-Button rechtsbündig direkt **oberhalb** der
+   Tabelle sichtbar; Klick öffnet die Spaltenauswahl (Offcanvas rechts), eine Spalte ein-/ausblenden funktioniert.
+2. Eine Position leer lassen und „Abschliessen" klicken → gelber Pflicht-Hinweis erscheint. **Erwartet:** Der
+   Hinweis steht **über** der Zahnrad-Zeile; das Zahnrad ist weiter sichtbar und öffnet die Spaltenauswahl
+   (vorher: Zahnrad unsichtbar im versteckten Hinweis bzw. beim Einblenden gelöscht).
+3. Leere Position ergänzen (Hinweis wird nachgeführt) und F5. **Erwartet:** Zahnrad sichtbar.
+- **Negativfall:** Zahnrad fehlt, erscheint im gelben Hinweis oder verschwindet nach Schritt 2 → Regression.
+  Automatisiert nur die Platzierung im Quelltext (`WarehousePickingDetailsZahnradHostTests`).
 
 ---
 
@@ -6281,5 +6364,49 @@ Lagerplatz-Flag `SageBuchungErlaubt`. Verarbeitung durch den `SageBookingWorker`
 
 ---
 
-*Ende des Dokuments. Stand: v1.30.0 (2026-08-06)*
+## Kapitel 107: OSEON-Sync neu ausgeschriebener Auftrag + Stücklisten-Druck + Werkbank Kommissionierung (Hotfix v1.30.3)
+
+Nummer 107 entspricht der Nummer im IDEAL-Bündel (Kapitel 57–106 gibt es nur dort), damit der spätere
+Bündel-Abgleich keine Umnummerierung braucht. Testumgebung: **AKE-Test** (nicht IDEAL).
+
+- **TS-107.1 — Neuausschreibung simulieren** (nur WMS-**Test**-DB AKE).
+  - Vorbedingungen: Dienst v1.30.3, `Sync:OseonTrackingEnabled = true`. Einmalig
+    `UPDATE dbo.OseonProductionOrders SET LastChangedInOseon = DATEADD(day, -1, LastChangedInOseon)`
+    (der nächste Lauf liest die OSEON-Änderungen des letzten Tages erneut). Auftrag X wählen, der in OSEON
+    in den letzten 24 h geändert wurde. Vorher notieren:
+    `SELECT o.Id, o.OseonId, (SELECT COUNT(*) FROM dbo.OseonWorkOperations w WHERE w.OseonProductionOrderId = o.Id) AS AGs FROM dbo.OseonProductionOrders o WHERE o.OseonOrderNumber = 'X'`.
+  - Schritte: 1. `UPDATE dbo.OseonProductionOrders SET OseonId = OseonId + 900000000000 WHERE OseonOrderNumber = 'X'`.
+    2. Sync-Lauf abwarten (oder Dienst neu starten).
+  - Erwartet: Lauf „OSEON-Tracking" mit Status Erfolg, kein Fehler 2601. Gleiche `Id`, `OseonId` wieder der
+    OSEON-Wert, `ModifiedBy = 'IDEALAKEWMSService'`, AG-Anzahl nicht kleiner als vorher. Count
+    `neu_ausgeschrieben=1` und in `/SyncLog` die Warnung „Auftrag X: OSEON-ID {alt} → {neu} (neu ausgeschrieben)".
+    `SELECT MAX(LastChangedInOseon)` ist mindestens die `DateOfLastChange` von X (kein Delta-Hänger).
+- **TS-107.2 — Normallauf.** Nächster Lauf ohne Eingriff: Erfolg, `neu_ausgeschrieben=0`,
+  `mehrfach_in_oseon=0`, `doppelt_nach_kollation=0`, `aeltere_id_uebersprungen=0`; `neu`/`aktualisiert` wie gewohnt.
+- **TS-107.2b — Ältere OSEON-ID wird nicht zurückgeschrieben (QA-Befund B1).** Nach TS-107.1 (WMS hält jetzt
+  die echte, höhere ID): `UPDATE dbo.OseonProductionOrders SET OseonId = OseonId + 900000000000 WHERE OseonOrderNumber = 'X'`
+  **nicht** wiederholen, sondern einen zweiten Auftrag Y wählen und `SET OseonId = OseonId + 900000000000` setzen
+  (WMS hält dann eine *höhere* ID als OSEON liefert). Lauf abwarten. Erwartet: Y bleibt unverändert (`OseonId`,
+  Status, `ModifiedAt` wie vorher), Count `aeltere_id_uebersprungen=1`, Warnung „Auftrag Y: OSEON liefert ältere ID …,
+  gespeichert ist … — nicht übernommen". Danach Y per `SET OseonId = OseonId - 900000000000` zurücksetzen.
+- **TS-107.3 — Negativfall Altstand (optional).** Mit v1.30.1 und Schritt 1 aus TS-107.1 tritt Fehler 2601 auf.
+- Mehrfachlieferung (zwei OSEON-IDs je Nummer) und Groß/Klein sind nur per Unit-Test abgedeckt
+  (`OseonOrderSelectionTests`). Taucht ein echter Fall auf: Warnung `mehrfach_in_oseon`, kein Fehler.
+- **TS-107.4 — Stücklisten-Druck 2 cm tiefer (Z1).** Stückliste einer FA öffnen → Drucken → Druckvorschau des
+  Browsers (A4). Erwartet: Der obere Rand ist ca. 2 cm größer als vorher (28 mm statt 8 mm); seitlich/unten
+  unverändert, Inhalt nicht abgeschnitten, Folgeseiten ebenfalls mit großem oberem Rand.
+- **TS-107.5 — Stücklisten-Druck übernimmt Sortierung (Z2).** Stückliste öffnen, Spaltenkopf
+  „Bezeichnung 1" anklicken (▲), dann Drucken. Erwartet: Druck in derselben Reihenfolge wie die Ansicht
+  (alphabetisch nach Bezeichnung 1). Ebenso absteigend (▼) und mit einer anderen Spalte (z. B. Menge).
+  Mit Spaltenfilter **und** Sortierung: nur die gefilterten Zeilen, sortiert. Negativfall: ohne Sortierung
+  und ohne Filter druckt wie bisher alles nach Position. Gilt auch aus FA-Abarbeitungsliste/FA-Vervollständigung.
+- **TS-107.6 — Werkbank in der Kommissionierung (Z3).** Menü „Kommissionierung" (Leitstand aktiv). Erwartet:
+  Spalte „Werkbank" nach „Kunde", gefüllt mit der Werkbank der FA (leer, wenn keine). Spaltenfilter z. B.
+  `A1` filtert serverseitig über alle Seiten. In der Spaltenauswahl ist „Werkbank" ein-/ausblendbar und
+  verschiebbar; Benutzer mit bereits gespeicherter Spaltenauswahl sehen die neue Spalte trotzdem (Default
+  sichtbar).
+
+---
+
+*Ende des Dokuments. Stand: v1.30.3 (2026-11-08)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*

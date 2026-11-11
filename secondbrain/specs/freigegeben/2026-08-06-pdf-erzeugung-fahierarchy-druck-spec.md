@@ -371,7 +371,7 @@ besonderem Gewicht").
 
 ## Deploy
 
-**Final (qa-agent, 2026-09-14, gegen den echten Diff `deff907..85df349` verifiziert):**
+**Final (qa-agent, 2026-09-14, gegen den echten Diff `24864e6..d96da33` verifiziert):**
 
 - **Web-App: ja.** Neue Services (`PdfRenderStatus`, `PdfRenderService`, `EdgeProcessRunner`,
   `RazorViewRenderer`, `PdfFileNameBuilder`), neue `Pdf`-Actions an
@@ -780,7 +780,7 @@ des Dev-Laufs.
 
 ## QA-Nachweis (qa-agent, 2026-09-14)
 
-Worktree `C:\git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5`, HEAD `85df349`
+Worktree `C:\git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5`, HEAD `d96da33`
 (Branch `feature/2026-08-07-ideal-teile-1-5`). Alle Befehle **im Worktree**, `dotnet run` bewusst
 NICHT ausgefuehrt (siehe `secondbrain/architektur/fallstricke.md` §8 — `Program.cs` ruft
 `Database.Migrate()` gegen das produktive `AKESQL20.IDEAL_AKE_WMS` auf, und die Migrationen 90/91
@@ -809,7 +809,7 @@ sind dort nicht per `Migrate()` anwendbar).
 - **Gesamt-Review:** 7 Tasks (SDD), je task-reviewed; anschliessende Whole-Branch-Review (Opus/
   Sonnet) fand zwei Robustheitsbefunde (Aufrufer-Abbruch killt Edge nicht; Kandidatenermittlung in
   `PdfRenderStatus.Candidates()` ungeschuetzt gegen `SecurityException`) — beide behoben (Commit
-  `85df349`) und per Scoped-Re-Review bestaetigt (`FIXES CONFIRMED`). Details:
+  `d96da33`) und per Scoped-Re-Review bestaetigt (`FIXES CONFIRMED`). Details:
   `.superpowers/sdd/2026-09-14-pdf-erzeugung-fahierarchy-druck/progress.md` (Worktree).
 - **`superpowers:verification-before-completion`:** durchlaufen — alle Claims oben beruhen auf den
   frisch ausgefuehrten Befehlen dieses Laufs, nicht auf frueheren Laeufen oder Annahmen.

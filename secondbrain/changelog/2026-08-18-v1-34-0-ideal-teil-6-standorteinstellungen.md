@@ -16,7 +16,7 @@ bestehenden Katalog (ADR 0008/0011) und auch generisch editierbar.
 dort, nicht auf `main`. Der worktree/branch-Leer-Gate von /dev greift hier bewusst nicht; Schranke 1 war
 genommen (freigabe_von Gerald Weichbold, 2026-08-12).
 
-## Umgesetzt (`c8ae47f`)
+## Umgesetzt (`a99705f`)
 - **Neuer Controller/View** `StandortEinstellungenController` + `Views/StandortEinstellungen/Index.cshtml`
   (`[RequireAdminAccess]`, Class-Level — kein neuer Filter/keine neue Rolle). Nav-Link unter
   Einstellungen. Gruppen: Firmendaten · Mandant/Sage-Views · Feature-Schalter · Struktur-Import.

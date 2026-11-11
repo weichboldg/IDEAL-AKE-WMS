@@ -83,7 +83,7 @@ Tracking/Index.
 
 ## Spaltenpraeferenzen (Ergaenzung 2026-08-12)
 
-> **Additiver Nachtrag**, ergaenzt v1.31.0 (IDEAL-Teile-1-5-Buendel, Etappe 6, Commit `37e8752`).
+> **Additiver Nachtrag**, ergaenzt v1.31.0 (IDEAL-Teile-1-5-Buendel, Etappe 6, Commit `3894e3d`).
 > Die Entscheidung oben bleibt unveraendert; dieser Abschnitt benennt einen Pflichtbestandteil,
 > den das urspruengliche Muster nur implizit voraussetzte.
 
@@ -104,5 +104,26 @@ ausdruecklich als Pflichtbestandteil benannte. Etappe 6 hat sie an alle vier Lis
 und die `viewKey` (`FaHierarchyKommissionierListen`, `FaHierarchyBeschichtung`,
 `FaHierarchyVormontageEinzeln`, `FaHierarchyVormontageSummiert`, spaeter `FaHierarchyStructure` fuer
 die Baumanzeige) in `ColumnDefinitions.GetByViewKey` registriert. Details der beiden Fallstricke
-(Registrierungspflicht + der bis `37e8752` nur das erste `<tbody>` sortierende Sort-Bug in
+(Registrierungspflicht + der bis `3894e3d` nur das erste `<tbody>` sortierende Sort-Bug in
 `table-filter.js`) stehen in [[fallstricke]].
+
+## Nachtrag 2026-10-12 — CSV-Export ([[2026-10-06-csv-export-alle-tabellen-spec]], v1.53.0)
+
+Jede Tabelle mit `filterable-table` bekommt den CSV-Export **automatisch** über das Layout-Skript `csv-export.js`
+(Opt-out `data-csv-export="false"`). Server-Mode: dieselbe Action ein zweites Mal per GET mit `pageSize=0` (gleiche Rechte,
+Gates, Filter; Kappung `PageSize.AllCap` mit sichtbarer Warnung). Folgen für dieses Muster:
+- Eine paginierte Liste **muss** Server-Mode sein, sonst exportierte sie nur die aktuelle Seite (Wächter
+  `CsvExportCoverageTests.PaginierteTabelle_IstServerMode`).
+- Eine Listen-Action darf im GET-Pfad **nichts schreiben** — der Export ruft sie ein zweites Mal auf (Prüfung 2026-10-12:
+  alle 37 Actions ohne Schreibzugriff).
+- Der Exportwert ist der gerenderte Zellentext (wie die ColumnMap-Regel); wo das nicht reicht, setzt die Zelle `data-csv-value`.
+- Spaltenüberschriften ohne Text (Aktionen, Auswahlhaken) werden nicht exportiert.
+
+## Nachtrag 2026-10-13 — Suchsyntax ([[2026-09-23-suchsyntax-spaltenfilter-erweitern-spec]], v1.58.0/v1.58.1)
+
+Die Zeile „Filter-Mini-Syntax: OR mit `,`, NOT mit `!`“ oben ist **überholt**. Seit v1.58.0/v1.58.1 gilt in allen Listen dieselbe
+erweiterte Syntax (`7%`, `%7`, `=x`, `a...b`, `>`/`<`/`>=`/`<=`, `(leer)`, `!` für alle Teile, ODER mit `;`, in Textspalten auch `,`),
+ausgewertet von **einem** Kern — siehe [[0017-ein-parser-fuer-die-spaltenfilter-syntax]]. Für dieses Muster heißt das zusätzlich:
+Zahl- und Datumsspalten tragen ihren Typ am `<th>` (`data-filter-type="number"` bzw. `data-date-filter`) **und** im Server-Register
+`ColumnFilterTypes` (Schlüssel = View-Pfad); `ColumnFilterHelper.Apply` bekommt das Register der Liste. Getter typisierter Spalten
+rendern wie die Zelle. Ein Drift-Wächter (`ColumnFilterTypesDriftTests`) hält `<th>` und Register gleich.

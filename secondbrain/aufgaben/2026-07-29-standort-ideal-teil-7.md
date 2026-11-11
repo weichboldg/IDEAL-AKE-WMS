@@ -18,15 +18,15 @@ Fünf Etappen A–E, ein Merge am Ende. Spec: [[2026-07-29-standort-ideal-teil-7
 
 | # | Etappe | Status | Commit |
 |---|--------|--------|--------|
-| A | Schema-Inversion + Migration + Backfill + FreshInstall + tote AgentJobs | **erledigt** | `fe7299b` |
-| B | Guard (Choke-Point) + Einwegtor/Umschalt-Seite + Audit-SyncLog + Runbook | **erledigt** | `aed9cb5..39f7813` |
-| C | Materialisierungs-Sync + drei Sync-Regeln (unit-getestete Planer) | **erledigt** | `dc297d9..bc7e3d6` |
-| D | Lookup-Härtung + `GetAllByFaAndOperationAsync` + FA-Zusatzinfos-Review + Auto-Erledigt-Sperre | **erledigt** | `fb07512..660a01b` |
-| E | Doku, Testszenarien, Brain-Update, Version-Bump | **erledigt** | `5cf802e` (+ Brain auf main) |
+| A | Schema-Inversion + Migration + Backfill + FreshInstall + tote AgentJobs | **erledigt** | `7440726` |
+| B | Guard (Choke-Point) + Einwegtor/Umschalt-Seite + Audit-SyncLog + Runbook | **erledigt** | `e727329..0a8175a` |
+| C | Materialisierungs-Sync + drei Sync-Regeln (unit-getestete Planer) | **erledigt** | `ae9be6c..285909e` |
+| D | Lookup-Härtung + `GetAllByFaAndOperationAsync` + FA-Zusatzinfos-Review + Auto-Erledigt-Sperre | **erledigt** | `b9e2482..d9a4d1e` |
+| E | Doku, Testszenarien, Brain-Update, Version-Bump | **erledigt** | `db9ecab` (+ Brain auf main) |
 
 ## Umsetzungsnotizen
 
-### Etappe A — Schema-Inversion (2026-08-14, `fe7299b`)
+### Etappe A — Schema-Inversion (2026-08-14, `7440726`)
 
 - **Modell** `ProductionOrder.cs`: `SubOrderNumber` (`[Required][StringLength(100)]`),
   `ParentSubOrderNumber` (`string?`), `SageMissingSince` (`DateTime?`). Kommentare erklären die
@@ -55,13 +55,13 @@ Fünf Etappen A–E, ein Merge am Ende. Spec: [[2026-07-29-standort-ideal-teil-7
 - **Build** 0 Fehler; **Tests** Web 1174 (+1 skip) + Service 221 grün.
 - **Kein** Version-Bump in Etappe A (erst Etappe E). Guard/Umschalt-Seite/Sync-Regeln folgen in B–D.
 
-### Etappe B — Guard + Einwegtor + Runbook + Audit (2026-08-17, `aed9cb5..39f7813`)
+### Etappe B — Guard + Einwegtor + Runbook + Audit (2026-08-17, `e727329..0a8175a`)
 
 Build + `dotnet test` grün im Worktree: **Web 1185** (+1 vorbestehend übersprungen, gesamt 1186) +
 **Service 221**, 0 Fehler (+11 neue Tests ggü. Etappe A). Plan:
 `docs/superpowers/plans/2026-08-17-ideal-teil7-etappe-b.md` (im Worktree). Vier Commits: Guard-Kern
-(`aed9cb5`), Umschalt-Seite + read-only-Maske + Audit (`0ae43d0`), Runbook + README (`9de5b1a`),
-Testszenarien TS-63 + Test-Fix (`39f7813`).
+(`e727329`), Umschalt-Seite + read-only-Maske + Audit (`5831273`), Runbook + README (`52e013d`),
+Testszenarien TS-63 + Test-Fix (`0a8175a`).
 
 **Architektur (S7-6 „einziger Choke-Point" erfüllt):**
 - **Reiner Planer** `HierarchischeStrukturGuard.Evaluate(setting, current, requested, dataExists)`
@@ -109,12 +109,12 @@ Auto-Erledigt-Katalog-Key + Fold-2-Verdrahtung + datengetriebener Skip + hierarc
 Version-Bump/Changelog/Brain-Dauerwissen (E). Status Teil 7 bleibt **InUmsetzung**, kein qa-agent,
 kein Merge, kein Push.
 
-### Etappe C — Materialisierungs-Sync + drei Sync-Regeln (2026-08-17, `dc297d9..bc7e3d6`)
+### Etappe C — Materialisierungs-Sync + drei Sync-Regeln (2026-08-17, `ae9be6c..285909e`)
 
 Build + `dotnet test` grün im Worktree: **Web 1185** (+1 skip) + **Service 228**, 0 Fehler (+7 neue
 Planer-Tests). Plan: `docs/superpowers/plans/2026-08-17-ideal-teil7-etappe-c.md`. Vier Commits:
-Planer + SyncLog-Service (`dc297d9`), Orchestrator (`0aaa758`), SyncWorker/DI/Refresh (`375dbc3`),
-Testszenarien TS-64 (`bc7e3d6`).
+Planer + SyncLog-Service (`ae9be6c`), Orchestrator (`a8230f3`), SyncWorker/DI/Refresh (`285136a`),
+Testszenarien TS-64 (`285909e`).
 
 **Architektur (AK 5/6/7/12):**
 - **Reiner Planer** `FaMaterializationPlanner.Plan(source, existing)` (Muster
@@ -152,11 +152,11 @@ Testszenarien TS-64 (`bc7e3d6`).
 Fold-2-Sperre (Auto-Erledigt-Key + datengetriebener Skip) + hierarchische Reconcile/Fold-2-Tests;
 E = Doku/Version-Bump/Brain. Status Teil 7 bleibt **InUmsetzung**, kein qa-agent, kein Merge, kein Push.
 
-### Etappe D — Lookup-Härtung + Auto-Erledigt-Sperre (2026-08-17, `fb07512..660a01b`)
+### Etappe D — Lookup-Härtung + Auto-Erledigt-Sperre (2026-08-17, `b9e2482..d9a4d1e`)
 
 Build + `dotnet test` grün im Worktree: **Web 1186** (+1 skip) + **Service 231**, 0 Fehler. Plan:
-`docs/superpowers/plans/2026-08-17-ideal-teil7-etappe-d.md`. Vier Commits: mengenwertige Naht (`fb07512`),
-Auto-Erledigt-Sperre (`ca72434`), Reconcile-Test (`6a00ba7`), TS-65 (`660a01b`).
+`docs/superpowers/plans/2026-08-17-ideal-teil7-etappe-d.md`. Vier Commits: mengenwertige Naht (`b9e2482`),
+Auto-Erledigt-Sperre (`6319150`), Reconcile-Test (`ab45e55`), TS-65 (`d9a4d1e`).
 
 - **AK 10 — mengenwertige Naht:** `IWorkOperationRepository.GetAllByFaAndOperationAsync` (liefert alle
   Sub-FA-Arbeitsgänge); der bestehende `GetByFaAndOperationAsync` bleibt **verhaltensgleich** (erste
@@ -207,7 +207,7 @@ Reconcile aus). Erst wenn IDEAL einen dieser Pfade aktivieren will, ist die Umst
 Brain-Dauerwissen (ggf. ADR/fallstricke/codebase/glossar). Status Teil 7 bleibt **InUmsetzung**,
 kein qa-agent, kein Merge, kein Push.
 
-### Etappe E — Doku + Version-Bump + Brain (2026-08-17, `5cf802e` + Brain auf main)
+### Etappe E — Doku + Version-Bump + Brain (2026-08-17, `db9ecab` + Brain auf main)
 
 - **Version-Bump `v1.32.0`** in beiden `AppVersion.cs` (Web+Service, Date 2026-08-17) + Anwender-
   Changelog `Views/Help/Changelog.cshtml` (hierarchische Produktionsaufträge: Umstellung/Einmaltür,
@@ -223,7 +223,7 @@ kein qa-agent, kein Merge, kein Push.
 **Teil 7 ist damit vollständig umgesetzt (A–E).** Nächster Schritt: **qa-agent** (build+test grün,
 Testszenarien, Deploy-Abschnitt) — darf dann `status: Testbereit` setzen. Bis dahin `InUmsetzung`.
 
-## QA-Abnahme (2026-08-17, qa-agent, Worktree-HEAD `5cf802e`)
+## QA-Abnahme (2026-08-17, qa-agent, Worktree-HEAD `db9ecab`)
 
 **Status: Testbereit.** Build + Tests grün, alle 15 AK gegen den echten Code verifiziert (nicht nur
 gegen die Umsetzungsnotizen), Deploy-Abschnitt finalisiert. Kein Merge, kein Push — Schranke 2 steht
@@ -277,7 +277,7 @@ rückführbar. `secondbrain/tests/testszenarien-index.md` (Hauptcheckout) bereit
 Nacharbeit nötig.
 
 **Deploy-Abschnitt:** geprüft und finalisiert (Spec-Frontmatter `deploy.web/service/migration` = alle
-`true`, gegen `git diff --stat main...5cf802e` bestätigt: 85 Dateien in `IdealAkeWms/`+
+`true`, gegen `git diff --stat main...db9ecab` bestätigt: 85 Dateien in `IdealAkeWms/`+
 `IDEALAKEWMSService/`, 2 neue EF-Migrationen). Publish-Befehle im Deploy-Abschnitt jetzt auf den
 Worktree-Pfad zugeschnitten, mit Hinweis auf Re-Publish erst nach Merge falls nötig. Reihenfolge
 (Backup → `sysjobs`-Prüfung AK 13 → Service stoppen → Migration → Service-Neustart → Web-Publish)
@@ -347,7 +347,7 @@ Mindestbedingung, nicht Beweis genug"); der Fix stellt her, was die QA (build+te
 
 ## Post-QA Manual-UAT-Fund + Fix #2 (2026-08-18) — SubOrderNumber-NOT-NULL guarded (SqlError 3701)
 
-Der OrderNumber-Fix (`abcd718`) legte beim **echten App-Start** einen **zweiten** 3701 frei — genau
+Der OrderNumber-Fix (`b1153eb`) legte beim **echten App-Start** einen **zweiten** 3701 frei — genau
 die Op, die Fix #1 oben noch als „unverändert / nicht die Fehlerstelle" bezeichnet hatte. **Root Cause
 (systematic-debugging):** `migrationBuilder.AlterColumn<string>("SubOrderNumber", nullable:false)`
 (Z. 64–74) erzeugt, weil der Model-Snapshot einen **Unique-Index auf SubOrderNumber** trägt, über EFs
@@ -356,7 +356,7 @@ SQL-Server-Generator automatisch ein **ungeschütztes** `DROP INDEX [IX_Producti
 weiter unten guarded angelegten Index → auf jeder frischen/zurückgerollten DB existiert er nicht → 3701.
 Weil Fix #1 den OrderNumber-Blocker entfernte, kam die Migration überhaupt erst bis hierher.
 
-**Fix** (Worktree `5d3e723`): `AlterColumn` durch geschütztes `migrationBuilder.Sql(@"IF EXISTS (…
+**Fix** (Worktree `2b305ba`): `AlterColumn` durch geschütztes `migrationBuilder.Sql(@"IF EXISTS (…
 is_nullable = 1) ALTER TABLE … ALTER COLUMN [SubOrderNumber] nvarchar(100) NOT NULL;")` ersetzt —
 deckungsgleich SQL/90 Schritt 3, **kein** Index-Tausch. Damit trägt die Up() **keine** strukturierte
 Index-/AlterColumn-Op mehr; Indizes werden ausschließlich per guarded raw SQL verwaltet.

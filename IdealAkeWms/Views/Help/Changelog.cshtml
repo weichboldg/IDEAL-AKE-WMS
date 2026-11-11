@@ -9,6 +9,22 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.96.0</strong> <span class="text-white-50 ms-2">11.11.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>Übernahme Korrekturen aus AKE v1.30.2–1.30.4</h6>
+                <ul>
+                    <li><strong>Sicherheit &ndash; Kommissionierfotos (v1.30.4):</strong> Fotos sind nur noch angemeldet und mit Kommissionier-Recht abrufbar; gelöscht werden kann nur ein Foto des geöffneten Auftrags. Bestehende Fotos und Links bleiben erhalten.</li>
+                    <li><strong>OSEON-Teileverfolgung (v1.30.3):</strong> Ein von OSEON neu ausgeschriebener Auftrag (gleiche Auftragsnummer, neue OSEON-ID) wird aktualisiert, statt den Abgleich abzubrechen.</li>
+                    <li><strong>Stückliste drucken (v1.30.3):</strong> oben 2&nbsp;cm mehr Rand; der Druck übernimmt die gewählte Sortierung.</li>
+                    <li><strong>Lagerbestellung (v1.30.2):</strong> Spaltenauswahl (Zahnrad) in den Details sichtbar &ndash; hier schon über den gemeinsamen Platz für Zahnrad und CSV gelöst (v1.65.0).</li>
+                    <li><strong>Kommissionierung, Spalte Werkbank (v1.30.3):</strong> in der Liste der Kommissionieraufträge seit v1.88.0 enthalten.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.95.0</strong> <span class="text-white-50 ms-2">08.11.2026</span>
             </div>
             <div class="card-body">
@@ -1679,6 +1695,57 @@
                     <li><strong>Neu &ndash; Vormontage-Listen (IDEAL):</strong> Zwei Sichten je
                         Vormontage-Bereich &ndash; Einzelteile-Liste und nach Matchcode summierte
                         Mengensicht.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.30.4</strong> <span class="text-white-50 ms-2">08.11.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>Sicherheit: Kommissionierfotos nur noch mit Anmeldung</h6>
+                <ul>
+                    <li><strong>Korrigiert &ndash; Kommissionierfotos:</strong> Fotos zu einem Fertigungsauftrag waren &uuml;ber ihre Adresse auch ohne
+                        Anmeldung abrufbar. Jetzt sieht sie nur, wer angemeldet ist und die Kommissionierung nutzen darf. Bestehende Fotos und
+                        Links bleiben erhalten.</li>
+                    <li><strong>Korrigiert &ndash; Foto l&ouml;schen:</strong> Gel&ouml;scht werden kann nur noch ein Foto des ge&ouml;ffneten Auftrags.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.30.3</strong> <span class="text-white-50 ms-2">08.11.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>Korrekturen: OSEON-Teileverfolgung, Stuecklisten-Druck, Kommissionierung</h6>
+                <ul>
+                    <li><strong>Korrigiert &ndash; OSEON-Teileverfolgung:</strong> Schreibt OSEON einen Auftrag neu
+                        aus (gleiche Auftragsnummer, neue OSEON-ID), brach der Abgleich ab und die Teileverfolgung
+                        blieb stehen. Jetzt wird der bestehende Auftrag aktualisiert; seine Arbeitsgaenge bleiben
+                        erhalten. Das Aktivitaets-Protokoll (Dienst OSEON-Tracking) meldet solche Faelle als Warnung
+                        (&bdquo;neu ausgeschrieben&ldquo;, &bdquo;mehrfach in OSEON&ldquo;).</li>
+                    <li><strong>Geaendert &ndash; Stueckliste drucken:</strong> Oben bleibt 2&nbsp;cm mehr Rand frei.</li>
+                    <li><strong>Korrigiert &ndash; Stueckliste drucken, Sortierung:</strong> Der Druck uebernimmt jetzt
+                        die in der Stueckliste gewaehlte Sortierung (z.&nbsp;B. nach &bdquo;Bezeichnung 1&ldquo;).
+                        Bisher wurde immer nach Position gedruckt.</li>
+                    <li><strong>Neu &ndash; Kommissionierung:</strong> Spalte <strong>Werkbank</strong> (filterbar, in
+                        der Spaltenauswahl ein-/ausblendbar, standardmaessig sichtbar).</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.30.2</strong> <span class="text-white-50 ms-2">08.10.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>Lagerbestellung: Zahnrad fuer die Spaltenauswahl wieder sichtbar</h6>
+                <ul>
+                    <li>Auf der Detailseite einer Lagerbestellung steht das Zahnrad zum Ein- und Ausblenden von
+                        Spalten wieder rechts oberhalb der Tabelle &ndash; auch nachdem der gelbe Hinweis zu
+                        unbestaetigten Positionen erschienen ist. Seit v1.30.1 war es nicht erreichbar.</li>
                 </ul>
             </div>
         </div>

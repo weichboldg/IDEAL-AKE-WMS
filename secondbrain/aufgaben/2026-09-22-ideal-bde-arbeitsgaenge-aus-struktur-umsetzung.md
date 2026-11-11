@@ -17,7 +17,7 @@ Spec [[2026-09-21-ideal-bde-arbeitsgaenge-aus-struktur-spec]] · **bestehender B
 - Kritische Prüfung 2. Durchgang: **B6 (fehlender Unique-Index) ausgeräumt** — `affected_code` führt den
   eindeutigen gefilterten Index `IX_ProductionWorkplaces_SageArbeitsplatznummer WHERE ... IS NOT NULL`
   jetzt explizit auf. Kein offener Blocker.
-- `depends_on` ADR-0014-Rückbau umgesetzt (Testbereit, Commit `0aceee8`). ✓
+- `depends_on` ADR-0014-Rückbau umgesetzt (Testbereit, Commit `cddb4f9`). ✓
 - Worktree-Stand: AppVersion **1.43.0**, SQL max **92** → SQL/**93** frei (Spec bestätigt).
 
 ## Etappen-Scope DIESER Lauf: NUR Etappe A (Baustein a), danach STOPP + melden
@@ -50,13 +50,13 @@ Etappe A = `ProductionWorkplace`-Anlage aus Sage `KHKPpsArbeitsplaetze`:
 - 2026-09-22: **Etappe A (Baustein a) vollständig gebaut — STOPP wie beauftragt.** Build grün
   (0 Fehler), volle Testsuite grün (Web 1391 + 1 skip, Service **269** = 263 + 6 neue).
   Zwei baubare Commits im Worktree:
-  - `8be03982` Backend: Model-Felder + Migration `20260922083259`/`SQL/93` + FreshInstall (beide Stellen)
+  - `8a6fd0c4` Backend: Model-Felder + Migration `20260922083259`/`SQL/93` + FreshInstall (beide Stellen)
     + `ProductionWorkplaceSyncService` + `ISageArbeitsplatzReader`/`SageArbeitsplatzReader`
     + `IUnknownArbeitsplatzState` (neu, weil `IUnknownWorkplaceState` im ADR-0014-Rückbau gelöscht wurde)
     + 3 ServiceSettings + `StandortSettingsCatalog` (Gruppe „Werkbänke") + `SyncLogServices`-Konstante
     + `Program.cs`-DI + `SyncWorker`-Doppel-Gate (`ProduktionsauftragHierarchisch` + `Sync:ProductionWorkplaceSyncEnabled`)
     + 6 Unit-Tests (`ProductionWorkplaceSyncServiceTests`).
-  - `be0695fb` Views: `ProductionWorkplaces/Index` neue Spalten Sage-Nr. + Arbeitsschritt inkl.
+  - `bc25ea21` Views: `ProductionWorkplaces/Index` neue Spalten Sage-Nr. + Arbeitsschritt inkl.
     Server-Spaltenfilter (ADR 0005, ColumnMap-Getter `sage-nr`/`arbeitsschritt`);
     `Edit` zeigt bei Sage-geführten Werkbänken Bezeichnung/Sage-Nr./Arbeitsschritt **read-only**
     (manuelle AKE-Werkbänke bleiben editierbar — kein Sync überschreibt sie); `Create`-Hinweis.
@@ -68,7 +68,7 @@ Etappe A = `ProductionWorkplace`-Anlage aus Sage `KHKPpsArbeitsplaetze`:
   (beide `AppVersion.cs`) + Anwender-Changelog, `qa-agent`, `status: Testbereit`, Brain-Changelog,
   feature-map, Testszenarien (TS-77) — das ist Etappe-B-Abschluss. Code-Kommentare referenzieren
   bereits „v1.44.0" als Zielversion (Vorwärts-Verweis, harmlos).
-- 2026-09-22: **Etappe B (Bausteine b+c) vollständig gebaut** — Commit `920aabb7` (v1.44.0). Build grün
+- 2026-09-22: **Etappe B (Bausteine b+c) vollständig gebaut** — Commit `6ba4e903` (v1.44.0). Build grün
   (0 Fehler), volle Testsuite grün (Web 1392 + 1 skip, Service 268).
   - Baustein b: `FaWorkStepStructureDetectionService` → `WorkOperationStructureDetectionService`
     (Ziel `WorkOperation`, Katalog `ProductionWorkplace.ArbeitsschrittCode`, `OperationNumber`=Kürzel,
@@ -85,7 +85,7 @@ Etappe A = `ProductionWorkplace`-Anlage aus Sage `KHKPpsArbeitsplaetze`:
   - Brain (Hauptcheckout): Etappen-Tabelle B erledigt, v1.41-Spec + feature-map superseded, Brain-Changelog
     `2026-09-22-v1-44-0-*`, services.md, fallstricke §16 (drei Vokabulare) + §13 superseded-Hinweis,
     testszenarien-index TS-77.
-- 2026-09-22: **Nachtrag-Fix `f829d00d`** (nach Testbereit, beim ersten echten App-Start gefunden):
+- 2026-09-22: **Nachtrag-Fix `e1d619b7`** (nach Testbereit, beim ersten echten App-Start gefunden):
   Die Beschreibung von `Sync:WorkOperationStructureDetectionEnabled` war 569 Zeichen — `ServiceSettings.Description`
   ist NVARCHAR(500). Startup-**Seeding brach mit SqlException 2628** (String truncation) ab. Auf 487 Zeichen
   gekürzt (Inhalt unverändert) + neuer Guard-Test `All_FieldsFitServiceSettingsColumns` (prüft Key/Category≤100,

@@ -19,7 +19,11 @@ diese Asymmetrien sind meist bewusst.
 | Ressourcenummer | **Bauteil**-Artikelnummer — immer diese fuer Bauteil-Operationen. |
 | Stueckliste / BOM | Bill of Materials — die Bauteile zu einem FA. Quelle: Sage-View, Fallback OSEON. |
 | Baugruppe | Zusammengehoerige BOM-Teilmenge; im BOM-Baum eine Ebene. |
-| Arbeitsgang | **Drei** verschiedene Dinge im Projekt: FA-Vorbau-AG (`WorkStep`), BDE-Arbeitsgang (`WorkOperation`) und OSEON-Arbeitsgang. Kontext beachten. |
+| Arbeitsgang | **Drei** verschiedene Dinge im Projekt: FA-Vorbau-AG (`WorkStep`), BDE-Arbeitsgang (`WorkOperation`) und OSEON-Arbeitsgang. Kontext beachten. Termin-Offsets je Kuerzel: siehe Arbeitsgang-Stammdaten. |
+| Arbeitsgang-Stammdaten | Tabelle `OperationConfigs` (Klasse `OperationConfig`; bis v1.53.0 `OseonOperationConfigs`): je Arbeitsgang-Kuerzel Offset und „Fremdsystem-relevant“. Schluessel fuer OSEON-AG-Namen **und** WMS-`OperationNumber`. Pflege: BDE-Stammdaten › Arbeitsgaenge (nur Admin). [[2026-10-09-arbeitsgang-stammdaten-vereinheitlichen-spec]] |
+| Fremdsystem-relevant | UI-Begriff fuer `OperationConfig.IsExternalSystemRelevant` (frueher `IsOseonRelevant`). Wirkt derzeit **nur** in OSEON-Teileverfolgung und -Reporting. Das OSEON-ViewModel-Property `OseonOperationViewModel.IsOseonRelevant` heisst bewusst weiter so. |
+| Bezugstermin | Termin, zu dem der Arbeitsgang-Offset zaehlt: OSEON Stanztermin (OSEON-Endtermin), IDEAL `FE_Termin`, AKE-BDE `ProductionDate`. |
+| Offset (Arbeitstage) | `DueDateOffsetDays`: Arbeitstage (Mo–Fr ohne Feiertage) relativ zum Bezugstermin; kein Eintrag = 0. |
 | FA-Vorbau-AG | UI-Label fuer den Vorbau-Arbeitsgang. Code/Entity/Route heissen weiterhin `WorkStep` / `/WorkSteps`. |
 | VK / VL / VE / VT / VA | Die 5 statischen Vorbau-AG-Spalten im Leitstand (Filter-Keys `cooling`/`fan`/`electric`/`doors`/`superstructure`). Der Katalog ist erweiterbar, diese Spalten sind es nicht. |
 | Werkbank | Produktionsarbeitsplatz (`ProductionWorkplace`) — wo gearbeitet wird. |
@@ -33,6 +37,10 @@ diese Asymmetrien sind meist bewusst.
 | Arbeitsbereich | Sage-seitige Zuordnung eines Struktur-Knotens zu einem Produktionsbereich (`FaHierarchyNode.Arbeitsbereich`, z. B. `K-02`, `S-01`). Wird bei IDEAL per Name auf die **Werkbank** abgebildet; Sage ist dabei fuehrend ([[0014-werkbank-datenhoheit-sage-fuehrend-mit-abweichungsmeldung]]). |
 | Kombinationsgeraet | Ein HauptFA mit **mehreren** Auftragskoepfen (mehrere `FaHierarchyOrderInfo`-Zeilen, verschiedene Montage-Abteilungen). Kunde, Termine und Beschichter koennen je Variante abweichen — die Oberflaeche zeigt deshalb **alle** Varianten und waehlt nie still eine aus. |
 | Konstruktions-Termin (KO) | `FaHierarchyOrderInfo.KO_Termin` — wann die Konstruktion fertig sein muss. **Nicht** der Kommissioniertermin; der Tooltip in der FA-Struktur behauptete das bis 2026-09-09 faelschlich. |
+| Kuerzel-Familie (Werkbank) | Seit v1.63.0: alle Werkbaenke mit demselben `ArbeitsschrittCode` (getrimmt, Gross/Klein egal). Eine Werkbank sieht und bucht die offenen BDE-Arbeitsgaenge (`WorkOperation`) aller Familienmitglieder; ohne Kuerzel oder „nicht in Sage“ = nur sie selbst (AKE). Code: `WerkbankKuerzelFamilie`. [[2026-10-19-bde-stufe-1-werkbaenke-ag-fertigmeldung-spec]] |
+| Bevorzugte Werkbank | Die Werkbank, an die die Struktur-Erkennung einen `WorkOperation` haengt, wenn ein Kuerzel an mehreren aktuellen Werkbaenken steht: BDE-aktive zuerst, dann kleinste Id (v1.63.0). Wirkt auf Tracking je Werkbank und den Namen, nicht auf das Stempeln. |
+| Nicht in Sage (Werkbank) | `ProductionWorkplace.SageMissingSince`: die Sage-Nummer stand im genannten Lauf nicht mehr in der Werkbank-Quelle. Nie geloescht, zaehlt nicht fuer den Kuerzel-Abgleich, selbstheilend (v1.63.0). Nicht zu verwechseln mit `OperationConfig.SageMissingSince` (Arbeitsgang-Stammdaten) oder `ProductionOrder.SageMissingSince` (FA). |
+| AG-Fertigmeldung (Werkbank-Option) | `ProductionWorkplace.BdeNurAgFertigmeldung`: am Terminal nur „Fertig melden“ mit Menge, ohne Start/Stop; Buchung mit Start = Ende (Dauer 0). Nicht zu verwechseln mit dem globalen `BdeNurFaMeldung` (FA-Ebene, mit Start/Stop), das Vorrang hat (v1.63.0). |
 | FE-Termin | `FaHierarchyOrderInfo.FE_Termin` — Fertigstellungstermin. Speist bei IDEAL die Termin-Kaskade der FA-Liste (Fert.-Termin). |
 | BG-Termin | Spalte der FA-Liste: der **Vorkommissioniertermin**, rueckwaerts aus dem Kommissioniertermin minus `VorkommissionierTage` gerechnet — je Werkbank ueberschreibbar (`ProductionWorkplace.OverridePrePickingDays`). Kein Rohfeld. |
 | Komm. (Spalte) | Spalte der FA-Liste: der **berechnete** Kommissioniertermin (Fertigungstermin minus `KommissionierTage`), nicht der Kommissionier-**Status**. |
@@ -44,6 +52,8 @@ diese Asymmetrien sind meist bewusst.
 |---|---|
 | Kommissionierung / Picking | Bereitstellen von Bauteilen zu einem FA (Umbuchung auf einen Kommissionierwagen). |
 | Kommissionierwagen | Lagerplatz mit `IsPickingTransport` — Transportmittel, kein Bestandsort. Aus Verfuegbarkeits- und Meldebestandsrechnung ausgeschlossen. |
+| Kommissionierauftrag (KO-Nummer) | Beleg `PickingOrder` mit Nummer `KO-JJJJ-NNNNN` je FA und Kommissionierbereich (seit v1.88.0); Zeilen `PickingOrderLine` mit Soll/Ist, Folgeauftrag bei „teilweise“. Nicht zu verwechseln mit dem Konstruktions-Termin „KO“. [[0021-kommissionierauftrag-als-beleg-neben-der-stueckliste]] |
+| Kommissionierbereich | Stammdaten `PickingArea` (Lager, Glas, Vorkommissionierung …); Regeln `PickingAreaRule` (Artikel → Kommissionierziel → Lagerort → Artikelgruppe → Standard) ordnen Stücklistenzeilen zu. |
 | Leitstand | Steuerungssicht: FAs fuer die Kommissionierung freigeben, priorisieren, Picker zuweisen; zeigt zusaetzlich die VK-VA-Erledigt-Status. Eigenes Hauptmenue seit v1.14.0, Gate `LeitstandAktiv`. |
 | Vorbau | Vormontage von Baugruppen vor der Endmontage. Traegt die **FA-Abarbeitungsliste** (`FaWorklist`) — arbeitsgang-zentriert ueber alle Werkbaenke, Werkbank nur als Zusatzfilter. Rolle `vorbau`. |
 | FA-Vervollstaendigung | Planer-Sicht: je FA festlegen, welche Vorbau-AGs und Merkmale gebraucht werden (`FaCompletion`). Gate `FaCompletionAktiv`, Rolle `fa_completion`. Schreibt `IsSpecComplete`. |
@@ -113,3 +123,6 @@ Fuer Endanwender gibt es zusaetzlich die hand-gepflegte Uebersicht `/Users/RoleO
 | Feature-Gate / Master-Schalter | AppSetting, das ein ganzes Modul freischaltet — **kumulativ** zum Rollen-Filter, kein Ersatz. |
 | Drift-Guard | Test, der fehlschlaegt, wenn zwei Quellen auseinanderlaufen (z. B. Service-Key ohne Katalog-Eintrag). |
 | Manual-UAT | Manuell zu pruefender Pfad, weil er nicht InMemory-testbar ist (raw SQL, LDAP, Negotiate, Fremdsystem-Reads). |
+| Quellen-Weiche (`Sync:Quelle:<Bereich>`) | Wahl der Sage-Lesequelle je Abgleich: `View` (SQL, Default/Notfall), `SData`, `Vergleich` (liest beide, schreibt View). Code `…QuelleSwitch`. [[0019-quellen-weiche-view-sdata-je-abgleich]] |
+| Kreditor / Debitor | Lieferant bzw. Kunde (Sage-Kontokorrent `KtoArt` `K`/`D`). Code `Creditor`/`Debitor`, UI „Kreditoren“/„Debitoren“. Herkunft Sage oder WMS (`Source`). |
+| Übergabe an Sage | Status eines im WMS angelegten Stammsatzes (`SageUebergabeStatus` NichtNoetig/Offen/Uebergeben/Fehler) + Outbox `SageStammdatenOutbox`; Senden noch nicht gebaut. |

@@ -493,8 +493,8 @@ Genauigkeit der Aussagen und die noch offene Architekturentscheidung, nicht die 
 
 ## QA-Nachweis (2026-09-22, qa-agent)
 
-**Worktree:** `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Feature-Commit `0aceee8`
-(Diff-Basis `ab10b57..0aceee8`).
+**Worktree:** `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Feature-Commit `cddb4f9`
+(Diff-Basis `2200c47..cddb4f9`).
 
 **Build:**
 ```
@@ -512,7 +512,7 @@ dotnet test IdealAkeWms.slnx
 Erwartete Zahlen aus der Umsetzungsnotiz exakt bestaetigt (263 = 277 − 14 geloeschte
 Workplace-Tests: `FaMaterializationWorkplaceTests` 6 + `UnknownWorkplaceStateTests` 8).
 
-**AK-Abgleich gegen den echten Diff `ab10b57..0aceee8`:**
+**AK-Abgleich gegen den echten Diff `2200c47..cddb4f9`:**
 
 | AK | Nachweisart | Befund |
 |---|---|---|
@@ -532,7 +532,7 @@ Workplace-Tests: `FaMaterializationWorkplaceTests` 6 + `UnknownWorkplaceStateTes
 
 **Brain-Pflichten:** bereits vom Dev-Lauf in den Hauptcheckout committet (`4daa405`, „brain: adr-0014-arbeitsbereich-rueckbau umgesetzt (v1.43.0)“) — ADR-0014-Nachtrag, `fallstricke.md` §15, Brain-Changelog, `feature-map.md` (v1.37-Zeile + Teil-Rueckbau-Hinweis), v1.37-Spec additiver Warnhinweis (AK 9/10 dort ueberholt), `codebase/services.md` bereinigt. Von der QA gegengelesen, Inhalt korrekt.
 
-**Code-Review (superpowers:requesting-code-review, Diff `ab10b57..0aceee8`):** vollstaendig gelesen —
+**Code-Review (superpowers:requesting-code-review, Diff `2200c47..cddb4f9`):** vollstaendig gelesen —
 `FaMaterializationSyncService.cs` (Klassenkommentar, Ctor, Lookup-Block, beide `ApplyWorkplace`-Aufrufe,
 Meldungs-/Mail-Block, drei `FinishSuccessAsync`-Dictionaries + Log-Statement, `ApplyWorkplace`/`WorkplaceRef`),
 `FaMaterializationPlanner.cs` (Feld-Entfernung + Erzeugungsaufruf), `Program.cs` (DI-Zeile). Sauberer,

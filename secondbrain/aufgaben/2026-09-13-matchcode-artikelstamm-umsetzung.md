@@ -50,8 +50,8 @@ Spalte + Filter, gespeist künftig aus `Article` per Equi-Join über `ArticleNum
 ## Arbeitsstand
 
 - 2026-09-15: Spec entwurf→freigegeben gezogen (Rename), Status `InUmsetzung`. Plan folgt.
-- 2026-09-15: 8 Tasks (SDD) umgesetzt, je task-reviewed; Gesamt-Review (9 Commits, `9e90024..7fa71c1`)
-  **MERGE-READY**, keine CRITICAL/MAJOR. Worktree-HEAD `7fa71c1`. Build 0 Fehler.
+- 2026-09-15: 8 Tasks (SDD) umgesetzt, je task-reviewed; Gesamt-Review (9 Commits, `00929ac..88ec297`)
+  **MERGE-READY**, keine CRITICAL/MAJOR. Worktree-HEAD `88ec297`. Build 0 Fehler.
   Gemessene Spec-Korrekturen: **A1** (`BuildExtraInfoOrContains` nimmt keine Subquery → Matchcode-
   Spaltenfilter als C#-Postfilter, [[fallstricke]] §12), **A6** (Articles-Liste hat keine
   ColumnDefinitions-ViewConfig, nur `<th data-col-key>` — Spec affected_code:22 ungenau).

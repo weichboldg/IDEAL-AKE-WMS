@@ -1366,8 +1366,11 @@ else if (Model.BackController == "Picking")
                     printForm.appendChild(input);
                 }
                 addField('__RequestVerificationToken', token);
-                // Alle sichtbar = keine Liste (Server druckt dann alles, wie fehlende visibleColumns).
-                if (visiblePositions.length > 0 && visiblePositions.length < totalPositions)
+                // Alle sichtbar und unsortiert = keine Liste (Server druckt dann alles nach Position).
+                // Hotfix v1.30.3: bei aktiver Sortierung immer die Liste schicken — ihre Reihenfolge
+                // (DOM-Reihenfolge nach sortTable) ist die Sortierung des Drucks.
+                var sortActive = !!document.querySelector('#bomTable thead th[data-sort-dir]');
+                if (visiblePositions.length > 0 && (sortActive || visiblePositions.length < totalPositions))
                     addField('visiblePositions', visiblePositions.join(','));
                 if (filterParts.length > 0) addField('filterInfo', filterParts.join(', '));
                 if (visibleColumnsParam) addField('visibleColumns', visibleColumnsParam);

@@ -41,7 +41,7 @@ Fenster der `msedge`-Prozesse (Kinder sind Waisen, `Kill(entireProcessTree)` gre
   `.superpowers/sdd/2026-09-14-pdf-erzeugung-fahierarchy-druck/progress.md`.
 - 2026-09-14: 7 Tasks (SDD) umgesetzt, je task-reviewed; Gesamt-Review (11 Commits) — zwei
   Robustheitsbefunde behoben (Aufrufer-Abbruch killt Edge; Kandidatenermittlung darf App-Start nie
-  abbrechen) und re-reviewed. Worktree-HEAD `85df349`. Build 0 Fehler; Edge-Smoke-Test erzeugt am
+  abbrechen) und re-reviewed. Worktree-HEAD `d96da33`. Build 0 Fehler; Edge-Smoke-Test erzeugt am
   Dev-System ein echtes PDF. Rulings 4–7 im SDD-Ledger
   (`.superpowers/sdd/2026-09-14-pdf-erzeugung-fahierarchy-druck/progress.md`, Worktree).
 - Nebenbefunde am Dev-System (nicht Teil der Spec, in [[fallstricke]] §8 festgehalten): lokaler

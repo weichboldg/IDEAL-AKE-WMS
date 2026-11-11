@@ -2,7 +2,8 @@
 type: spec
 title: "IDEAL-Standort Teil 2 — Struktur-/FA-Baumanzeige (rekursiv, Seiteneinheit Struktur)"
 slug: 2026-07-29-standort-ideal-teil-2-spec
-status: Freigegeben
+status: Testbereit
+# Status nachgezogen (Koordination 2026-10-14): umgesetzt im Buendel v1.31.0, Beleg changelog/2026-08-10-v1-31-0-ideal-teile-1-5.md
 source_backlog: "[[2026-07-29-Standort-IDEAL]]"
 depends_on: "[[2026-07-29-standort-ideal-teil-1-spec]]"
 task: ""
