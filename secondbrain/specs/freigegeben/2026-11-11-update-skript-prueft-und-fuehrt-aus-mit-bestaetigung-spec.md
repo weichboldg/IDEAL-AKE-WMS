@@ -1108,3 +1108,23 @@ Aus dem QA-Bericht v1.99.1 („zur Entscheidung“). Gilt vor dem QA-Abschnitt.
 3. Bei 0 Treffern: „entfällt“ schon in der Vorprüfung, mit Marker-Eintrag laut Spec. Kein Halt am Haltepunkt.
 4. Die ungenutzte Variable `$script:BackupLiegtVor` entfernen.
 5. DEV-Test mit Treffern (AKE-DEV) und mit 0 Treffern (IDEAL-DEV). Version 1.99.2.
+
+## Umsetzung Nachtrag v1.99.2 (goal-Lauf 2026-11-11)
+
+Commit `81b95ac2` im Buendel (auf `f79ba893`).
+- Vorpruefung: fuer offene Haltepunkt-Eintraege mit `Ausfuehrung = Trockenlauf` (heute nur Altbestand) laeuft der Trockenlauf schon hier, lesend,
+  vor dem Stoppen (auch bei `-NurPruefen`; ersetzt fuer diesen Fall AK 2 „kein Trockenlauf“ laut Nachtrag). Ergebnis je Eintrag in
+  `$script:VorTrocken`: 0 → „entfaellt, kein Halt“, Eintrag faellt aus `$halte` (stoppt nicht mehr); Treffer oder nicht bestimmbar (Exit ≠ 0,
+  `Braucht` fehlt noch) → Backup Pflicht, Haltepunkt in 4a wie bisher.
+- Schritt 2: bei Pflicht nur „Jetzt BACKUP …?“; n, uebersprungen oder fehlgeschlagen → „ABBRUCH: Backup ist Pflicht (…), aber nicht angelegt.
+  Nichts gestoppt, Web und Dienst laufen weiter.“ Ohne Pflicht unveraendert (Backup oder „liegt vor“).
+- 4a: Eintraege mit Vorpruefung 0 → „entfaellt (TREFFER: 0 in der Vorpruefung), kein Halt“, Frage „als 'entfaellt' vermerken?“ → Marker
+  `Entfaellt` (nach dem Schema, also mit SQL/142). Am Haltepunkt mit Treffern gilt weiter „kein Ueberspringen“.
+- `$script:BackupLiegtVor` entfernt (Punkt 4). Version 1.99.2, Changelog-Karte, README, TS-126.26/126.27.
+
+**Nachweis:** Build 0 Fehler; `dotnet test` Web **2609/2610** (1 uebersprungen, Bestand), Dienst **512/512**; `ParseFile` 0 Fehler.
+
+| Nr | Ergebnis |
+|---|---|
+| 126.26 | AKE-DEV (Testpaket mit DEV-`ziele.psd1`), `-NurPruefen`: „Trockenlauf in der Vorpruefung (lesend)“, `TREFFER: 15`, „Backup in Schritt 2 Pflicht, Haltepunkt in 4a“, Plan „Backup PFLICHT (…Altbestand)“. Volllauf, Backup n: „ABBRUCH: Backup ist Pflicht (…), aber nicht angelegt. Nichts gestoppt, Web und Dienst laufen weiter.“, Zustand App-Pool Started, Dienst Running, Exit 1 |
+| 126.27 | IDEAL-DEV `-NurPruefen`: `TREFFER: 0` → „entfaellt, kein Halt“, Plan „Haltepunkt: keiner“. Volllauf auf einer Kopie (`IDEAL_WMS_TS126`, danach entfernt): 4a „entfaellt (TREFFER: 0 in der Vorpruefung), kein Halt“, j → Marker `Entfaellt` (Note „TREFFER 0 in der Vorpruefung“), Start Fusszeile v1.99.2, Exit 0 |
