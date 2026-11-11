@@ -275,7 +275,7 @@ public class HardwareScannerTests
         _processScannedValueSync(value, targetSelectId, scanType, qrFaEnabled, faTargetId, nichtGefunden);
         return;
     }
-""", "Modus Artikelnummer (kein Attribut) und Nicht-Artikel-Scans: synchron, ohne Abfrage, mit dem optionalen nichtGefunden");
+""".Replace("\r\n", "\n"), "Modus Artikelnummer (kein Attribut) und Nicht-Artikel-Scans: synchron, ohne Abfrage, mit dem optionalen nichtGefunden");
         wrapper.Should().Contain("scanType === 'article' && document.body.getAttribute('data-qr-erstes-feld') === 'Matchcode'");
         wrapper.Should().Contain("'“ nicht gefunden'").And.Contain("'“ ist mehrdeutig ('").And.Contain("'“ konnte nicht geprüft werden'");
 
