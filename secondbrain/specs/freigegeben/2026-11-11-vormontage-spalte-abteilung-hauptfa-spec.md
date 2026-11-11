@@ -2,13 +2,15 @@
 type: spec
 title: "Vormontage-Listen (IDEAL): Spalte „Abteilung“ je HauptFA, neben „Arbeitsbereich“"
 slug: 2026-11-11-vormontage-spalte-abteilung-hauptfa-spec
-status: Entwurf
+status: InUmsetzung
 created: 2026-11-11
 updated: 2026-11-11
+freigabe_von: "Gerald Weichbold (Chat Koordination, 2026-11-11 20:40 „beide freigeben“)"
+freigabe_am: 2026-11-11
 source_backlog: "[[2026-11-11-vormontage-spalte-abteilung-hauptfa]]"
 task: ""
-worktree: ""
-branch: ""
+worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
+branch: "feature/2026-08-07-ideal-teile-1-5"
 standort: IDEAL
 affected_code:
   - "IdealAkeWms/Services/VormontageService.cs (KopfWerte :97, BuildKopfWerte :116-120, BuildPositionsSpalten :132-141, AggregateSummiert Select :317-335): Abteilung als dritter Kopfwert, Getter montage-abteilung, Anzeige Sicht 2"
@@ -350,4 +352,4 @@ Entfällt (`epic: false`).
   Bei Varianten-Specs zusaetzlich freigabe_entscheidung im Frontmatter setzen.
 -->
 
-1. Kombigerät: Zelle zeigt (a) „Kombigerät“, (b) leer oder (c) alle Abteilungen? (Empfehlung: a) →
+1. Kombigerät: Zelle zeigt (a) „Kombigerät“, (b) leer oder (c) alle Abteilungen? (Empfehlung: a) → **a (Gerald 2026-11-11).**

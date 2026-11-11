@@ -2,9 +2,11 @@
 type: spec
 title: "Wareneingang Teil 2: Sage-Wareneingangsbeleg (ELL)"
 slug: 2026-11-08-wareneingang-teil-2-sage-we-beleg-rahmenabrufe-spec
-status: Entwurf
+status: InUmsetzung
 created: 2026-11-08
 updated: 2026-11-11
+freigabe_von: "Gerald Weichbold (Chat Koordination, 2026-11-11 20:40 „beide freigeben“)"
+freigabe_am: 2026-11-11
 source_backlog: "[[2026-11-08-wareneingang-teil-2-sage-we-beleg-rahmenabrufe]]"
 depends_on: "[[2026-11-08-wareneingang-aus-sage-bestellungen-spec]]"
 folge_backlog: "[[2026-11-11-wareneingang-teil-3-rahmenabrufe]]"
@@ -12,8 +14,8 @@ version: "nach 1.99.1 (Dev-Lauf legt fest)"
 sql_nummern: "eine Migration in E1: nächste freie Nummer bei der Umsetzung, derzeit 143 (142 = AddDeployScriptRuns, v1.99.0), Freigabe-Antwort 1"
 testszenario: "TS-116 (Erweiterung 116.10 ff., ersetzt den Platzhalter 116.7)"
 task: ""
-worktree: ""
-branch: ""
+worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
+branch: "feature/2026-08-07-ideal-teile-1-5"
 standort: AKE
 affected_code:
   - "IDEALAKEWMSService/Services/Sdata/EinkaufBestellungenSyncService.cs:104,146 (SyncedAt vor dem SData-Lesen nehmen)"

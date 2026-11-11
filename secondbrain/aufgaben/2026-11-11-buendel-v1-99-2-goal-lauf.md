@@ -1,0 +1,19 @@
+---
+type: aufgabe
+status: offen
+created: 2026-11-11
+---
+# /goal-Lauf 2026-11-11 abends: Update-Skript v1.99.2, Vormontage Abteilung, Wareneingang Teil 2
+
+Buendel-Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Branch `feature/2026-08-07-ideal-teile-1-5`, Start v1.99.1 `f79ba893`.
+Auftrag Gerald 2026-11-11 (Chat). Grenzen: kein Lauf gegen akenet01, idealweb01, idealsql2, AKESQL20; Sage nur lesend ausser dem einen
+freigegebenen Test-Beleg (vorher Gerald Beleginhalt und Aufruf zeigen, erst nach OK senden); kein Push, kein Merge.
+
+| Spec | Typ | SQL-Block | Version | Status | Commits | Blocker |
+|---|---|---|---|---|---|---|
+| [[2026-11-11-update-skript-prueft-und-fuehrt-aus-mit-bestaetigung-spec]] (nur Freigabe-Nachtrag 20:40) | Spec | – | 1.99.2 | InUmsetzung | | |
+| [[2026-11-11-vormontage-spalte-abteilung-hauptfa-spec]] | Spec | – | 1.99.3 | offen | | |
+| [[2026-11-08-wareneingang-teil-2-sage-we-beleg-rahmenabrufe-spec]] (E1–E4; E5 blockiert bis P-W9) | Epic | 143 | 1.100.0 | offen | | |
+
+- Update-Skript: Status war Testbereit; der Auftrag nennt die Spec ausdruecklich mit dem Freigabe-Nachtrag 20:40 und ersetzt damit die Freigabe.
+- Am Ende: 5 AKE-DEV-Sync-Schalter wieder setzen.

@@ -2,7 +2,7 @@
 type: spec
 title: Update-Skript prüft und führt aus, mit Bestätigung (v1.99.0)
 slug: 2026-11-11-update-skript-prueft-und-fuehrt-aus-mit-bestaetigung-spec
-status: Testbereit
+status: InUmsetzung
 created: 2026-11-11
 updated: 2026-11-11
 freigabe_von: "Gerald Weichbold (Chat Koordination, „Ok“ 2026-11-11 18:38)"
@@ -1096,3 +1096,15 @@ Manifest im Paket: Rollen-Pruefung Firma `beide`.
 4. Optional TS-126.23–126.25 an einem Testsystem (leerer Ordner → uebersprungen, Lauf geht weiter).
 5. H2/H3 entscheiden; Z1 (RCSI auf IDEAL_WMS_DEV) weiter offen.
 6. Danach Merge (Schranke 2).
+
+
+## Freigabe-Nachtrag 2026-11-11 20:40 (Gerald): Altbestand-Trockenlauf in der Vorprüfung, v1.99.2
+
+Aus dem QA-Bericht v1.99.1 („zur Entscheidung“). Gilt vor dem QA-Abschnitt.
+1. Der Trockenlauf des Einmal-Skripts Altbestand (v1.88.0) läuft schon in der **Vorprüfung**, lesend und vor dem Stoppen, wenn der Eintrag für
+   das System ansteht (Version, Marker).
+2. Liefert er Treffer, wird das Backup in Schritt 2 zur **Pflicht**. Wird es abgelehnt oder schlägt es fehl, bricht der Lauf **vor dem
+   Stoppen** ab, Web und Dienst laufen weiter. Am Haltepunkt bleibt die Regel „kein Überspringen“ unverändert.
+3. Bei 0 Treffern: „entfällt“ schon in der Vorprüfung, mit Marker-Eintrag laut Spec. Kein Halt am Haltepunkt.
+4. Die ungenutzte Variable `$script:BackupLiegtVor` entfernen.
+5. DEV-Test mit Treffern (AKE-DEV) und mit 0 Treffern (IDEAL-DEV). Version 1.99.2.
