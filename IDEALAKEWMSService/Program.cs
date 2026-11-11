@@ -111,12 +111,8 @@ try
         client.Timeout = TimeSpan.FromSeconds(30);
     });
 
-    // Sage-Lagerbuchung — typed HttpClient (BaseAddress wird pro Request aus ServiceSettings gebaut).
-    builder.Services.AddHttpClient<ISageLagerbuchungClient, SageLagerbuchungClient>(client =>
-    {
-        client.Timeout = TimeSpan.FromSeconds(30);
-    })
-    .ConfigurePrimaryHttpMessageHandler(sp =>
+    // Sage-SData-Schreib-Clients (Lagerbuchung, v1.99.4 Wareneingangsbeleg): EIN Handler-Rezept, Zertifikats-Schalter zur Laufzeit.
+    static HttpMessageHandler SageSchreibHandler(IServiceProvider sp)
     {
         // Der Primary Handler wird EINMAL erzeugt und gepoolt. Der Zertifikats-Callback liest den
         // Schalter deshalb ZUR LAUFZEIT (nicht hier bei der Registrierung) aus ServiceSettings, damit
@@ -136,7 +132,22 @@ try
                 return !IdealAkeWms.Services.SageTlsPolicy.ShouldVerifyCertificate(raw);
             }
         };
-    });
+    }
+
+    // Sage-Lagerbuchung — typed HttpClient (BaseAddress wird pro Request aus ServiceSettings gebaut).
+    builder.Services.AddHttpClient<ISageLagerbuchungClient, SageLagerbuchungClient>(client =>
+    {
+        client.Timeout = TimeSpan.FromSeconds(30);
+    })
+    .ConfigurePrimaryHttpMessageHandler(SageSchreibHandler);
+
+    // v1.99.4 (Wareneingang Teil 2, E4): Sage-Wareneingangsbeleg (StandardBelegService) + Sende-Lauf im SageBookingWorker-Takt.
+    builder.Services.AddHttpClient<ISageWareneingangClient, SageWareneingangClient>(client =>
+    {
+        client.Timeout = TimeSpan.FromSeconds(60);
+    })
+    .ConfigurePrimaryHttpMessageHandler(SageSchreibHandler);
+    builder.Services.AddScoped<SageWareneingangService>();
 
     // Sage-SData-Lese-Client (Stammdaten-Abgleich, v1.73.0): Paging ueber CommonWawiServicesResources, TLS-Schalter je Anfrage.
     IDEALAKEWMSService.Services.Sdata.SdataRegistrierung.AddSageSdataReadClient(builder.Services);

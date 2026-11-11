@@ -2,6 +2,7 @@ using IdealAkeWms.Data.Repositories;
 using IdealAkeWms.Filters;
 using IdealAkeWms.Models;
 using IdealAkeWms.Models.ViewModels;
+using IdealAkeWms.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace IdealAkeWms.Controllers;
@@ -52,6 +53,7 @@ public partial class PurchaseOrdersController
         }
 
         var erlaubtePlaetze = vm.Lagerplaetze.Select(l => l.Id).ToHashSet();
+        var plaetze = vm.Lagerplaetze.ToDictionary(l => l.Id);
         var buchen = new List<(PurchaseOrderReceiveRow Zeile, decimal Menge)>();
         foreach (var z in vm.Zeilen.Where(z => !string.IsNullOrWhiteSpace(z.Eingabe.Menge)))
         {
@@ -62,6 +64,8 @@ public partial class PurchaseOrdersController
                 ?? (menge <= 0 ? "Menge muss größer als 0 sein." : null)
                 ?? (decimal.Round(menge, 3) != menge ? "Höchstens 3 Nachkommastellen (Lagerbewegung speichert 3)." : null)
                 ?? (e.StorageLocationId is not { } sid || !erlaubtePlaetze.Contains(sid) ? "Bitte einen Ziel-Lagerplatz wählen." : null)
+                // v1.99.4 (F2, Freigabe-Antwort 3): bei Sage-WE nur Sage-Plaetze mit Sage-Buchung, auch fuer NurInSage-Zeilen
+                ?? (vm.SageWeAktiv && !SageWareneingang.IstSageWePlatz(plaetze[e.StorageLocationId!.Value]) ? SageWareneingang.PlatzFehler(plaetze[e.StorageLocationId.Value].Code) : null)
                 ?? (menge > z.Rest && !e.UeberlieferungBestaetigt ? $"Überlieferung ({menge:0.###} > Rest {z.Rest:0.###}) bitte bestätigen." : null);
             buchen.Add((z, menge));
         }
@@ -84,6 +88,8 @@ public partial class PurchaseOrdersController
         var name = _user.GetDisplayName();
         var windows = _user.GetWindowsUserName();
         int teil = 0, ueber = 0;
+        // v1.99.4 (F2): Entscheidung beim Buchen - EIN Vorgang (= ein ELL-Beleg) je Absenden; spaeteres Umschalten aendert nichts mehr.
+        var vorgang = vm.SageWeAktiv ? Guid.NewGuid() : (Guid?)null;
         foreach (var (z, menge) in buchen)
         {
             var l = z.Row.Line;
@@ -108,6 +114,9 @@ public partial class PurchaseOrdersController
                     BelId = l.BelId, BelPosId = l.BelPosId, Belegnummer = l.Belegnummer, LieferantKto = l.LieferantKto, Quantity = menge,
                     OffenLautSageBeimBuchen = l.MengeOffen, SagePlatzId = l.SagePlatzId, Lieferart = art,
                     Lieferschein = vm.Lieferschein,
+                    SageWeStatus = !vm.SageWeAktiv ? SageWareneingangStatus.NichtNoetig
+                        : l.Chargenpflicht || l.Nachweispflicht ? SageWareneingangStatus.NurInSage : SageWareneingangStatus.Offen,
+                    SageWeVorgang = vm.SageWeAktiv && !(l.Chargenpflicht || l.Nachweispflicht) ? vorgang : null,
                     CreatedAt = now, CreatedBy = name, CreatedByWindows = windows,
                 },
             };
@@ -134,6 +143,7 @@ public partial class PurchaseOrdersController
             LieferantGesperrt = rows.Any(r => r.Line.LieferantGesperrt),
             Liefertermin = rows.Min(r => r.Line.Liefertermin),
             Lagerplaetze = await _locations.GetActiveOrderedExcludingPickingTransportAsync() ?? new(),
+            SageWeAktiv = SageWareneingang.IstAn(await _serviceSettings.GetValueAsync(SageWareneingang.ToggleKey)),
             LieferscheinPflicht = string.Equals((await _settings.GetValueAsync(AppSettingKeys.WareneingangLieferscheinPflicht))?.Trim(), "true",
                 StringComparison.OrdinalIgnoreCase),
             Zeilen = rows.Select(r => new PurchaseOrderReceiveRow

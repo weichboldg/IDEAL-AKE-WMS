@@ -22,10 +22,13 @@ public partial class PurchaseOrdersController : Controller
     private readonly ICurrentUserService _user;
     private readonly IPurchaseOrderReceiptRepository _receipts;
     private readonly IStockMovementRepository _movements;
+    private readonly IServiceSettingRepository _serviceSettings;
 
     public PurchaseOrdersController(ISagePurchaseOrderLineRepository lines, IStorageLocationRepository locations, IAppSettingRepository settings,
-        ICurrentUserService user, IPurchaseOrderReceiptRepository receipts, IStockMovementRepository movements)
+        ICurrentUserService user, IPurchaseOrderReceiptRepository receipts, IStockMovementRepository movements,
+        IServiceSettingRepository serviceSettings)
     {
+        _serviceSettings = serviceSettings;
         _lines = lines;
         _locations = locations;
         _settings = settings;

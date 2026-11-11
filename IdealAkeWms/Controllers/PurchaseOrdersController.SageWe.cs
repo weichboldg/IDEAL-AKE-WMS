@@ -25,7 +25,7 @@ public partial class PurchaseOrdersController
     };
 
     /// <summary>Korrelation am Sage-Beleg (Memo): WE#&lt;erste Receipt-Id der Gruppe&gt;# (Muster SM#&lt;id&gt;#, fallstricke).</summary>
-    public static string SageWeMemo(int ersteReceiptId) => $"WE#{ersteReceiptId}#";
+    public static string SageWeMemo(int ersteReceiptId) => SageWareneingang.Memo(ersteReceiptId);
 
     // Server-Spaltenfilter: Col-Key -> gerenderter Zelltext (ADR 0005/0017)
     private static readonly Dictionary<string, Func<SageWareneingangZeile, string?>> SageWeColumnMap = new()

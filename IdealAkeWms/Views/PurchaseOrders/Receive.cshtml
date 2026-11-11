@@ -93,7 +93,7 @@
                                 <div class="small">@l.Bezeichnung1</div>
                                 @if (l.Chargenpflicht || l.Nachweispflicht)
                                 {
-                                    <div class="small text-body-secondary">Charge/Seriennummer in Sage erfassen</div>
+                                    <div class="small text-body-secondary">@(Model.SageWeAktiv ? "Charge/Seriennummer: Wareneingang in Sage buchen" : "Charge/Seriennummer in Sage erfassen")</div>
                                 }
                                 @if (z.Row.SageWeText != null)
                                 {
@@ -166,6 +166,10 @@
             </table>
         </div>
         <p class="small text-body-secondary">Leere Ist-Menge = Position nicht buchen. Gebucht wird nur, wenn alle eingegebenen Zeilen gültig sind.</p>
+        @if (Model.SageWeAktiv)
+        {
+            <p class="small text-body-secondary">Sage-Wareneingang ist an: Die gebuchten Positionen gehen als ein Sage-Wareneingangsbeleg an Sage (Ziel nur Sage-Plätze mit Sage-Buchung). Stand unter „Wareneingänge an Sage“.</p>
+        }
         <button type="submit" class="btn btn-primary mb-4" style="min-height:44px">Einbuchen</button>
     </form>
 }

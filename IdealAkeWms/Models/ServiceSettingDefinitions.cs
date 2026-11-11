@@ -65,6 +65,9 @@ public static class ServiceSettingDefinitions
         ["Sync:OperationConfigSyncFremdsystemRelevant"] = ("Neue Arbeitsgänge: Fremdsystem-relevant", "Dienst: Lauf „Arbeitsgang-Abgleich“ (nur Neuanlage)", null, null),
         ["SageLagerbuchungAktiv"] = ("Lagerbuchungen an Sage senden", "Dienst: Sage-Buchungs-Worker; Warteschlange", null, "Sendet Buchungen an Sage."),
         ["SageLagerbuchungUmbuchungAktiv"] = ("Umbuchungen an Sage senden", "Dienst: Sage-Buchungs-Worker", null, "Sendet Buchungen an Sage."),
+        ["SageWareneingangBelegAktiv"] = ("Wareneingänge als Sage-Wareneingangsbeleg buchen",
+            "Lager → Wareneingang zu Bestellung (Status und Platzregel beim Buchen); Dienst: Sage-Buchungs-Worker, Lauf „Sage-Wareneingang“; Liste „Wareneingänge an Sage“",
+            "AKE (IDEAL aus, kein SData-Endpunkt)", "Schreibt Wareneingangsbelege nach Sage: Bestellung wird beliefert, Bestand in Sage gebucht. Nur nach erfolgreichem Schreibtest am AKE-Test einschalten. Der Einkauf darf diese Positionen danach nicht mehr von Hand schließen. Wareneingänge auf Plätze ohne Sage-Buchung sind gesperrt."),
         ["SData:BaseUrl"] = ("SData: Adresse", "Sage-Buchung, Sage-Abgleich, FA-Struktur live", null, null),
         ["SData:Application"] = ("SData: Application", "Sage-Buchung, Sage-Abgleich, FA-Struktur live", null, null),
         ["SData:ServiceContract"] = ("SData: ServiceContract", "Sage-Buchung", null, null),
@@ -73,7 +76,7 @@ public static class ServiceSettingDefinitions
         ["Sync:SageLagerbuchungBatchSize"] = ("Sage-Buchung: Einträge je Durchlauf", "Dienst: Sage-Buchungs-Worker", null, null),
         ["Sync:SageLagerbuchungMaxRetries"] = ("Sage-Buchung: max. Versuche", "Dienst: Sage-Buchungs-Worker", null, null),
         ["Sync:SageLagerbuchungMaxErrorsPerRun"] = ("Sage-Buchung: Fehlermail ab Fehlern je Lauf", "Dienst: Sage-Buchungs-Worker", null, null),
-        ["Sync:SageLagerbuchungStuckMinutes"] = ("Sage-Buchung: hängend nach", "Dienst: Sage-Buchungs-Worker", null, null),
+        ["Sync:SageLagerbuchungStuckMinutes"] = ("Sage-Buchung: hängend nach", "Dienst: Sage-Buchungs-Worker; Sage-Wareneingang (hängend → Fehler „Ergebnis unklar“)", null, null),
         ["SageLagerbuchungSslZertifikatPruefen"] = ("SData: TLS-Zertifikat prüfen", "Sage-Buchung, Sage-Abgleich, FA-Struktur live", null, null),
         ["Sync:Quelle:Lagerplaetze"] = ("Quelle Lagerplatz-Abgleich", "Dienst: Lauf „Lagerplatz“", null, WarnSData),
         ["Sync:Quelle:Lagerbestand"] = ("Quelle Lagerbestand-Abgleich", "Dienst: Lauf „Lagerbestand“", null, WarnSData),
@@ -167,6 +170,7 @@ public static class ServiceSettingDefinitions
 
         // ----- Sage-Lagerbuchung (ausgehend: WMS -> Sage via SData) -----
         new("SageLagerbuchungAktiv",                 SettingType.Bool, "false", "Sage-Lagerbuchung", "Globaler Schalter: manuelle Ein-/Ausbuchungen an Sage melden (kumulativ zum Lagerplatz-Flag 'Sage-Buchung erlaubt')"),
+        new("SageWareneingangBelegAktiv",            SettingType.Bool, "false", "Sage-Lagerbuchung", "Wareneingaenge zu Sage-Bestellungen werden beim Buchen fuer Sage vorgemerkt und vom Dienst als EIN Sage-Wareneingangsbeleg (ELL, Beleguebernahme aus der Bestellung, platzgenau, mit Lieferschein-Nr.) je WE-Buchung angelegt - NICHT zusaetzlich als Lagerbuchung-Zugang. Ziel nur Sage-Plaetze mit 'Sage-Buchung erlaubt'. Aus = Verhalten wie Teil 1 (Lagerbuchungs-Queue). Umschalten wirkt nur auf neue Buchungen. Unabhaengig von SageLagerbuchungAktiv (v1.99.4)."),
         new("SageLagerbuchungUmbuchungAktiv",        SettingType.Bool, "false", "Sage-Lagerbuchung", "WMS-Umbuchungen an Sage melden (v1.73.0, kumulativ zu SageLagerbuchungAktiv): Sage-Platz -> Sage-Platz als Umbuchung, Sage -> WMS-only als Entnahme, WMS-only -> Sage als Zugang, WMS-only -> WMS-only nie. Default aus = nur Ein-/Ausbuchungen wie bisher."),
         new("SData:BaseUrl",                         SettingType.String, "",    "Sage-Lagerbuchung", "Host+Port der Sage-SData-API (z.B. https://sagetest01.ake.at:5493). Ein angehaengtes /sdata ist erlaubt (wird nicht verdoppelt). Ziel-URL = {BaseUrl}/sdata/{Application}/{ServiceContract}/{Dataset}/$service/LagerbuchungService"),
         new("SData:Application",                     SettingType.String, "ol",  "Sage-Lagerbuchung", "SData-Application-Segment (per SData-Discovery ermittelt, i.d.R. konstant 'ol')"),

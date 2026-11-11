@@ -18,13 +18,19 @@ namespace IdealAkeWms.Tests.Controllers;
 /// <summary>Spec 2026-11-08-wareneingang-aus-sage-bestellungen E3 (AK 12, 13, 15-17) mit echten Repositories (InMemory).</summary>
 public class PurchaseOrdersReceiveTests
 {
-    private static async Task<(PurchaseOrdersController ctrl, ApplicationDbContext db)> BuildAsync(bool lieferscheinPflicht = false)
+    private static async Task<(PurchaseOrdersController ctrl, ApplicationDbContext db)> BuildAsync(bool lieferscheinPflicht = false, bool sageWe = false)
     {
         var db = TestDbContextFactory.Create();
         db.Articles.AddRange(
             new Article { Id = 5, ArticleNumber = "00722001", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" },
             new Article { Id = 6, ArticleNumber = "00722002", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" });
-        db.StorageLocations.Add(new StorageLocation { Id = 9, Code = "HR 0 0 0", IsActive = true, IstBuchbar = true, CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" });
+        db.StorageLocations.Add(new StorageLocation { Id = 9, Code = "HR 0 0 0", IsActive = true, IstBuchbar = true, SageBuchungErlaubt = true,
+            SageLagerkennung = "HR;0;0;0", SageLagerplatzId = 77, CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" });
+        db.StorageLocations.Add(new StorageLocation { Id = 10, Code = "OHNE-SAGE", IsActive = true, IstBuchbar = true, SageBuchungErlaubt = true,
+            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" });
+        db.StorageLocations.Add(new StorageLocation { Id = 11, Code = "SAGE-AUS", IsActive = true, IstBuchbar = true, SageBuchungErlaubt = false,
+            SageLagerkennung = "HR;1;0;0", SageLagerplatzId = 78, CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" });
+        if (sageWe) db.ServiceSettings.Add(new ServiceSetting { Key = SageWareneingang.ToggleKey, Value = "true" });
         SagePurchaseOrderLine L(int belPosId, int? articleId, string art, decimal offen, bool einheit = false, int belId = 100) => new()
         {
             BelPosId = belPosId, BelId = belId, Belegkennzeichen = "EBB", Belegnummer = $"2026-{belId}", LieferantKto = "K1", LieferantName = "L",
@@ -43,7 +49,7 @@ public class PurchaseOrdersReceiveTests
         var settings = new Mock<IAppSettingRepository>();
         settings.Setup(x => x.GetValueAsync(AppSettingKeys.WareneingangLieferscheinPflicht)).ReturnsAsync(lieferscheinPflicht ? "true" : null);
         var ctrl = new PurchaseOrdersController(new SagePurchaseOrderLineRepository(db), new StorageLocationRepository(db),
-            settings.Object, user.Object, new PurchaseOrderReceiptRepository(db), new StockMovementRepository(db))
+            settings.Object, user.Object, new PurchaseOrderReceiptRepository(db), new StockMovementRepository(db), new ServiceSettingRepository(db))
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
         };
@@ -173,5 +179,53 @@ public class PurchaseOrdersReceiveTests
         var d = AppSettingDefinitions.All.Single(x => x.Key == AppSettingKeys.WareneingangLieferscheinPflicht);
         (d.Type, d.DefaultValue, d.Seed, d.AbhaengigVon).Should().Be((SettingType.Bool, "false", false, AppSettingKeys.WareneingangBestellungAktiv));
         d.Anzeigename.Should().Be("Wareneingang: Lieferschein-Nr. Pflicht");
+    }
+
+    // ----- v1.99.4 (Wareneingang Teil 2, E4/F2, AK 10, 11, 14, 15): Status beim Buchen und Platzregel -----
+
+    [Fact]
+    public async Task SageWeAus_NichtNoetig_JederPlatzWieTeil1_AK10()
+    {
+        var (ctrl, db) = await BuildAsync();
+        await ctrl.Receive(100, new List<PurchaseOrderReceiveInput> { E(1001, "1", platz: 10), E(1002, "1", platz: 11) });
+        db.PurchaseOrderReceipts.Should().HaveCount(2).And.OnlyContain(r => r.SageWeStatus == SageWareneingangStatus.NichtNoetig && r.SageWeVorgang == null);
+    }
+
+    [Fact]
+    public async Task SageWeAn_ZweiPositionen_Offen_GleicherVorgang_ZweitesAbsendenNeuerVorgang_AK11_AK12()
+    {
+        var (ctrl, db) = await BuildAsync(sageWe: true);
+        await ctrl.Receive(100, new List<PurchaseOrderReceiveInput> { E(1001, "1"), E(1002, "1") });
+        await ctrl.Receive(100, new List<PurchaseOrderReceiveInput> { E(1001, "1") });
+        var r = db.PurchaseOrderReceipts.OrderBy(x => x.Id).ToList();
+        r.Should().OnlyContain(x => x.SageWeStatus == SageWareneingangStatus.Offen && x.SageWeVorgang != null);
+        r[0].SageWeVorgang.Should().Be(r[1].SageWeVorgang!.Value);
+        r[2].SageWeVorgang.Should().NotBe(r[0].SageWeVorgang!.Value);
+        db.SageBookingQueueItems.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData(10, "OHNE-SAGE")]
+    [InlineData(11, "SAGE-AUS")]
+    public async Task SageWeAn_PlatzOhneSageOderSageBuchungAus_Zeilenfehler_NichtsGebucht_AK15(int platz, string code)
+    {
+        var (ctrl, db) = await BuildAsync(sageWe: true);
+        var vm = (PurchaseOrderReceiveViewModel)((ViewResult)await ctrl.Receive(100,
+            new List<PurchaseOrderReceiveInput> { E(1001, "1"), E(1002, "1", platz: platz) })).Model!;
+        vm.Zeilen.Single(z => z.Row.Line.BelPosId == 1002).Fehler.Should().Be(SageWareneingang.PlatzFehler(code)).And.Contain(code);
+        db.StockMovements.Should().BeEmpty("nichts aus diesem Absenden wird gebucht");
+    }
+
+    [Fact]
+    public async Task SageWeAn_Chargenpflicht_NurInSage_OhneVorgang_KeinQueueEintrag_AK14()
+    {
+        var (ctrl, db) = await BuildAsync(sageWe: true);
+        db.SagePurchaseOrderLines.Single(l => l.BelPosId == 1001).Chargenpflicht = true;
+        await db.SaveChangesAsync();
+        await ctrl.Receive(100, new List<PurchaseOrderReceiveInput> { E(1001, "1"), E(1002, "1") });
+        var nurSage = db.PurchaseOrderReceipts.Single(r => r.BelPosId == 1001);
+        (nurSage.SageWeStatus, nurSage.SageWeVorgang).Should().Be((SageWareneingangStatus.NurInSage, (Guid?)null));
+        db.PurchaseOrderReceipts.Single(r => r.BelPosId == 1002).SageWeStatus.Should().Be(SageWareneingangStatus.Offen);
+        db.SageBookingQueueItems.Should().BeEmpty();
     }
 }

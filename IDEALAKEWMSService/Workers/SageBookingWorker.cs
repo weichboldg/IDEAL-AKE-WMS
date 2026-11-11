@@ -65,6 +65,10 @@ public class SageBookingWorker : BackgroundService
             {
                 if (await ServiceSettings.GetBoolSafeAsync(_configuration, "SageLagerbuchungAktiv", false, stoppingToken))
                     await ProcessOnceAsync(stoppingToken);
+                // v1.99.4 (Wareneingang Teil 2, E4): eigener Schritt, NUR durch SageWareneingangBelegAktiv geschaltet (unabhaengig von
+                // SageLagerbuchungAktiv); dieselbe EINE Instanz ist zustaendig (Idempotenz "Status vor dem Call").
+                if (await ServiceSettings.GetBoolSafeAsync(_configuration, SageWareneingang.ToggleKey, false, stoppingToken))
+                    await ProcessSageWareneingangAsync(stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -81,6 +85,23 @@ public class SageBookingWorker : BackgroundService
 
         _logger.LogInformation("SageBookingWorker gestoppt.");
     }
+
+    private async Task ProcessSageWareneingangAsync(CancellationToken ct)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var service = scope.ServiceProvider.GetRequiredService<SageWareneingangService>();
+        var batchSize = await ServiceSettings.GetIntSafeAsync(_configuration, "Sync:SageLagerbuchungBatchSize", 50, ct);
+        var stuckMinutes = await ServiceSettings.GetIntSafeAsync(_configuration, "Sync:SageLagerbuchungStuckMinutes", 10, ct);
+        await service.RunOnceAsync(await BuildEndpointAsync(ct), stuckMinutes, batchSize, ct);
+    }
+
+    private async Task<SageBookingEndpoint> BuildEndpointAsync(CancellationToken ct) => new(
+        BaseUrl: await ServiceSettings.GetValueSafeAsync(_configuration, "SData:BaseUrl", ct) ?? string.Empty,
+        Application: await ServiceSettings.GetValueSafeAsync(_configuration, "SData:Application", ct) ?? "ol",
+        ServiceContract: await ServiceSettings.GetValueSafeAsync(_configuration, "SData:ServiceContract", ct) ?? "CommonWawiServices",
+        Dataset: await ServiceSettings.GetValueSafeAsync(_configuration, "SData:Dataset", ct) ?? string.Empty,
+        Username: _configuration["SageLagerbuchung:Username"] ?? string.Empty,
+        Password: _configuration["SageLagerbuchung:Password"] ?? string.Empty);
 
     private async Task ProcessOnceAsync(CancellationToken ct)
     {

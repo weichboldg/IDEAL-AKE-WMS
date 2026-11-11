@@ -41,7 +41,7 @@ public partial class PurchaseOrdersControllerTests
         var receipts = new Mock<IPurchaseOrderReceiptRepository>();
         receipts.Setup(r => r.GetErfasstJeBelPosAsync(It.IsAny<IReadOnlyCollection<int>>())).ReturnsAsync(new Dictionary<int, ErfasstJeBelPos>());
         var ctrl = new PurchaseOrdersController(lines.Object, locations.Object, settings.Object, user.Object, receipts.Object,
-            Mock.Of<IStockMovementRepository>())
+            Mock.Of<IStockMovementRepository>(), Mock.Of<IServiceSettingRepository>())
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
         };

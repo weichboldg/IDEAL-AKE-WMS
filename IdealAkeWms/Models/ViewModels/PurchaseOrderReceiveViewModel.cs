@@ -15,6 +15,8 @@ public class PurchaseOrderReceiveViewModel
     public string? Lieferschein { get; set; }
     /// <summary>v1.99.4 (F6): AppSetting WareneingangLieferscheinPflicht.</summary>
     public bool LieferscheinPflicht { get; set; }
+    /// <summary>v1.99.4 (F2): ServiceSetting SageWareneingangBelegAktiv - Status beim Buchen und Platzregel.</summary>
+    public bool SageWeAktiv { get; set; }
 
     /// <summary>Sage-Feld EKLieferschein(20) (sage-sdata-masterdata).</summary>
     public const int LieferscheinMaxLaenge = 20;
