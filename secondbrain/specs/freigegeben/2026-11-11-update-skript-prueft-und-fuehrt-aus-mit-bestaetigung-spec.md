@@ -2,7 +2,7 @@
 type: spec
 title: Update-Skript prüft und führt aus, mit Bestätigung (v1.99.0)
 slug: 2026-11-11-update-skript-prueft-und-fuehrt-aus-mit-bestaetigung-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-11-11
 updated: 2026-11-11
 freigabe_von: "Gerald Weichbold (Chat Koordination, „Ok“ 2026-11-11 18:38)"
@@ -686,6 +686,20 @@ Empfohlene Commit-Reihenfolge im Dev-Lauf (kein Epic, nur zur Orientierung):
 
 ## Deploy
 
+**Final (qa-agent 2026-11-11, aus dem echten Diff `e1ecc0c0..55ec218a`):**
+- `deploy.web: true` (`IdealAkeWms/`: `Program.cs` Startup-Seed, `Models/DeployScriptRun.cs`, `ApplicationDbContext`, `AppVersion.cs`,
+  `Views/Help/Changelog.cshtml`); `deploy.service: true` (`IDEALAKEWMSService/AppVersion.cs`; der Dienst referenziert das Web-Projekt und damit
+  das geaenderte EF-Modell, [[fallstricke]] §5); `deploy.migration: true` (neu `IdealAkeWms/Migrations/20261111174202_AddDeployScriptRuns.cs`,
+  `SQL/142_AddDeployScriptRuns.sql`, additiv). Dazu Paketinhalt `deploy\` (Update-Skript, Manifest) und `SQL\` (110 und Altbestand mit Zeile
+  `TREFFER`).
+- **Paket:** `C:\git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish\` (v1.99.0, Commit `55ec218a`; beide Komponenten,
+  `SQL\`, `deploy\`, `publish-info.txt`). Ablauf Gerald: Paket auf den Zielserver kopieren, `deploy\Update-IdealAkeWms.ps1 -NurPruefen`, dann
+  Volllauf (Schritt-Reihenfolge des Skripts: Backup -> Stoppen -> Schema inkl. `SQL/142` -> 4a Pruefungen/Reparaturen und Altbestand-Haltepunkt ->
+  Kopieren -> 5a -> 5b Transaktion vor dem Start (v1.47.4 nur IDEAL-Test) -> Start -> Nachlauf). Vorher P-B1 (Manifest-Eintrag `v1.99.0-PB1`).
+- Nach dem Merge nur dann aus `main` neu publizieren, wenn der Merge getestete Dateien mit parallelen main-Aenderungen zusammenfuehrt:
+  `dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb` und
+  `dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService`.
+
 **Vorläufig** (Spec-Agent; der qa-agent bestätigt es am echten Diff):
 - **Web-App:** ja (`Program.cs` Startup-Seed, EF-Modell, `AppVersion.cs`, Changelog-Karte).
 - **Service:** ja (`AppVersion.cs`; der Dienst referenziert das Web-Projekt, [[fallstricke]] §5, also auch das geänderte EF-Modell).
@@ -836,3 +850,109 @@ Zwei Fehler fielen erst im DEV-Lauf auf und sind behoben (`b30e310d`, [[fallstri
   (`nachlauf.psd1`, Text `v1.51.0-Rolle`). Die Pruefung bleibt wie angeordnet AKE. Pruefabfrage fuer IDEAL-Test/-Prod:
   `SELECT [Key] FROM dbo.Roles WHERE [Key] LIKE N'beschichtungsauftrag%'`.
 - Z3: Die Kandidaten aus dem Manifest-Umzug (P-1/2/3, P5, P-T1, P-E1, Final) sind nicht auf eine Abweichungszahl geprueft (Folge-Aufgabe).
+
+## QA-Nachweis (qa-agent 2026-11-11)
+
+Gepruefter Bereich: `e1ecc0c0..b30e310d` (Commits `1b285e9b`, `b30e310d`) plus QA-Fix `55ec218a`. Build und Tests ueber den ganzen
+Buendel-Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`.
+
+**1. Build und Tests** (Worktree, vor und nach dem QA-Fix gleich):
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler (28 bzw. 24 Warnungen, Bestand).
+- `dotnet test`: IdealAkeWms.Tests **2609 bestanden / 1 uebersprungen / 0 Fehler** (2610); IDEALAKEWMSService.Tests **512 / 0 / 0**.
+  Deploy-Filter (`NachlaufManifestDriftTests` + `DeployScriptRunsMigrationSqlTests`): 16/16.
+- `ParseFile` unter `powershell.exe` 5.1.26100: 0 Parsefehler fuer alle 5 Dateien in `scripts/deploy`; `Import-PowerShellDataFile nachlauf.psd1`
+  fehlerfrei (81 Eintraege nach dem Fix).
+
+**2. Code-Review** (selbst, in diesem Lauf). Gelesen: `Update-IdealAkeWms.ps1` vollstaendig (902 Zeilen), `nachlauf.psd1`-Diff, `SQL/142`,
+`00_FreshInstall.sql` (beide Stellen), Migration `20261111174202_AddDeployScriptRuns.cs`, `DeployScriptRun.cs`, `ApplicationDbContext`,
+`Program.cs`-Seed, `SQL/110` und Altbestand (Zeile `TREFFER` gegen die Scharf-Menge: `#Kandidat` ist schon auf `ProductionOrderId IS NULL`
+gefiltert, `SQL/110:27-30`, also TREFFER = UPDATE-Menge; Altbestand `COUNT(#Fa)` = INSERT-Menge), Drift-Tests, AppVersion, Changelog, TS-126.
+PS-5.1-Messungen (StrictMode 2): Punktzugriff auf einen fehlenden Hashtable-Schluessel **wirft**; daher alle per `$m.X` gelesenen Manifest-Felder
+je Verwendung gegen alle 81 Eintraege geprueft (Id/Version/Typ/Firma/Phase/Ausfuehrung ueberall, Quelle bei Listeneintraegen, Pruefung+Text bei
+Pruefungen, Datei bei Trockenlauf/Transaktion): vollstaendig. Leere Rueckgabe von `Get-BrauchtFehlend`, `GetNewClosure`-Liste, `Split-SqlBatches`
+mit CRLF und kleinem `go`: wie erwartet. Keine Manifest-Id trippt den Lese-Waechter.
+Unabhaengige Probe `Invoke-SqlTransaktion` (Funktionen per AST aus dem Skript, PS 5.1 + StrictMode 2, Wegwerf-DB `QA_TS126_PROBE` auf `.`, danach
+geloescht): Fehler nach einer Ergebnismenge, nur-DML-Fehler, Fehler im 2. Batch, `RAISERROR` nach SELECT -> jeweils Rollback, Probe-Tabelle
+unveraendert, kein Marker; `verwerfen` und leere Eingabe -> Rollback; `uebernehmen` und `Commit` -> Daten + Marker `Transaktion`; `ROLLBACK` in
+der Datei -> abgelehnt, nichts ausgefuehrt; Marker doppelt -> UNIQUE-Fehler, Rollback, Daten unveraendert. `SQL/142` zweimal auf der Wegwerf-DB:
+Exit 0/0, Tabelle, UNIQUE-Index, MigrationId.
+Standard-Defektklassen: keine Razor-/JS-Aenderung ausser der statischen Changelog-Karte (Skript-Einbettung, `hidden`+`d-*`, Positionsbindung
+entfallen). Stille Fallbacks: Pruef-/Spur-Fehler werden sichtbar ("Fehler: …", "keine bzw. nicht lesbar"). Eine Regel an zwei Orten: Lese-Waechter
+im Skript und im Test; der Test prueft das Literal im Skript (`Manifest_Pruefungen_Gueltig`).
+
+| # | Schwere | Fundstelle | Befund | Behandlung |
+|---|---|---|---|---|
+| F1 | Mittel | `scripts/deploy/nachlauf.psd1` | Deploy-Schritt P-B1 der Spec (Abschnitt Deploy: SQL-Version, `sys.dm_os_file_exists`, `HAS_PERMS_BY_NAME … ALTER`) stand nicht im Manifest. Ohne ALTER-Recht fuehrt "j" bei der RCSI-Reparatur zum Abbruch in 4a bei gestopptem Web und Dienst (`Update-IdealAkeWms.ps1:440`). | **behoben** `55ec218a`: Vorher-Eintrag `v1.99.0-PB1` (erscheint in der Vorpruefung, solange installiert < 1.99.0; auf DEV, schon 1.99.0, daher nicht sichtbar). Drift-Tests gruen. |
+| F2 | Niedrig | `Update-IdealAkeWms.ps1:382` | Scheitert der Marker-INSERT (UNIQUE), meldete das Skript "Fehler in Batch <letzter Daten-Batch>". | **behoben** `55ec218a` (`$nr = 'Marker'` vor dem INSERT); Probe: "Fehler in Batch Marker". |
+| F3 | Niedrig | `Update-IdealAkeWms.ps1:680-683` | Vorpruefung listet Daten-Eintraege (`SQL/108`, `SQL/110`) als "offen", auch wenn `Test-Neuer` sie ausschliesst (installiert >= Version); sie werden weder angeboten noch ausgefuehrt, die Nachlauf-Liste laesst sie weg. Nur Anzeige. | offen (Kosmetik) |
+| F4 | Niedrig | `Update-IdealAkeWms.ps1:473, 493, 499` | Das Backup-Angebot in Fluss A/B bricht den ganzen Systemlauf ab, wenn der Mensch "j" sagt und dann keinen Ordner angibt oder das BACKUP scheitert, auch in Schritt 7 (Web laeuft); Rest der Nachlauf-Liste und Block "Pruefungen" fehlen dann. `Show-Zustand` meldet den Zustand richtig. | offen (Neustart des Skripts setzt fort) |
+| H1 | Hinweis | `Update-IdealAkeWms.ps1:578, 388` | Fluss B setzt Phase `VorStart` voraus (`Assert-Gestoppt`, Text "Web und Dienst gestoppt"); ein kuenftiger `Transaktion`-Eintrag in `Nachher` braeche ab. Der Drift-Test verbietet die Kombination nicht. | Hinweis fuer kuenftige Manifest-Eintraege |
+
+**3. Beweisart je AK** ("Agent-DEV" = TS-126-Lauf des Dev-Laufs auf der DEV-Kopie bzw. QA-Lauf auf DEV; kein automatischer Beweis):
+
+| AK | Beweis |
+|---|---|
+| 1 | automatisiert (`Manifest_Pruefungen_Gueltig`, `Manifest_IdsEindeutig_FelderGueltig`, ASCII-Test) + QA `ParseFile`/`Import-PowerShellDataFile` 5.1 |
+| 2 | Agent-DEV: Dev 126.1; QA `-NurPruefen` AKE-DEV und IDEAL-DEV (unten), danach Marker 0, RCSI unveraendert, nichts gestoppt |
+| 3 | Code-Review (`:690-693`) + Dev 126.2 (Komponente Beide); **`-Komponente Web` nicht gelaufen -> Manual-UAT** |
+| 4, 5, 6, 7, 8 | Agent-DEV (Dev 126.2, 126.3, AK 6, AK 7, 126.2) |
+| 9, 10, 11 | Agent-DEV (Dev 126.5-126.10) + QA-Probe `Invoke-SqlTransaktion`; echte Trockenlaeufe QA: Zeile `TREFFER` vorhanden, Datei-Hash unveraendert |
+| 12 | Agent-DEV (Dev 126.11) + QA-Probe |
+| 13 | **nur Code-Review** (`:528-531`) -> Manual-UAT (126.20, 00er an IDEAL-Test) |
+| 14 | Agent-DEV (Dev 126.5, 126.12) + QA-Probe (UNIQUE) |
+| 15 | **nur Code-Review** (`:519-524`) -> Manual-UAT (Systeme < v1.79.0 mit `SQL/108`-Spur 1) |
+| 16 | Agent-DEV (Dev 126.13) |
+| 17 | automatisiert (`DeployScriptRunsMigrationSqlTests`, nur Text) + QA `SQL/142` zweimal auf Wegwerf-DB + DEV-Migrate auf beiden DEV-DBs (Tabelle, `UX_…`, MigrationId) |
+| 18, 21 | Agent-DEV (Dev 126.14, 126.16, 126.17) |
+| 19 | automatisiert (`DeploySkripte_KeineVariableMitFragezeichenImText` mit Rotprobe) + Dev 126.15 |
+| 20 | Agent-DEV (Dev 126.16 fehlender Ordner; QA `-NurPruefen` "vorhanden"); leerer Standardpfad und "nicht pruefbar" **nur Code-Review** |
+| 22 | Agent-DEV (Dev 126.18); DEV-Deploy: nicht leere `PickingAreas` unveraendert (3 Zeilen `SQL133-Seed` auf beiden DEV-DBs) |
+| 23 | QA `-NurPruefen` (Nachlauf-Liste nur Einmalig + Block "Pruefungen") + Drift |
+| 24, 26 | automatisiert gruen (oben) |
+| 25 | automatisiert (Sage-Test) + Grep der QA-Protokolle: kein "in EINER Transaktion", kein Scharflauf; echte Skripte nur im Trockenlauf |
+| 27 | Brain-Commit `6b0befaf` im Hauptcheckout (ADR 0023, Nachtraege 0015/0022, Vorlage, `spec-agent.md`) |
+
+**4. Geaenderte bestehende Tests:** `Manifest_DatenUndEinmalSkripte_NieAutomatisch` -> `…_NurMitBestaetigung` (Verhalten absichtlich
+geaendert, Drift-Erweiterung 2 / AK 24); `Manifest_IdsEindeutig_FelderGueltig` (Phase `VorStart`, Typ-Liste; Erweiterung 5 / AK 24);
+`SchemaReihenfolge` um `SQL/142` (Erweiterung 1). Kein "anderes".
+
+**5. Checkliste:** Migration + `SQL/142` mit Guards, History im eigenen Batch; FreshInstall beide Stellen; AgentJobs nicht betroffen;
+`DeployScriptRun` bewusst kein AuditableEntity, Seed mit `CreatedBy/CreatedByWindows = system`; Version 1.99.0 in beiden `AppVersion.cs`,
+Anwender-Changelog, Brain-Changelog [[2026-11-11-v1-99-0-update-skript-prueft-und-fuehrt-aus]]; feature-map; TS-126 in `docs/TESTSZENARIEN.md`
+und im Testindex; README. Keine neue `SQL/Einmalig`-Datei. **5a ADR 0020:** keine Einstellung neu oder geaendert.
+
+**6. DEV** (`standort: beide`):
+- `dev-deploy.ps1 -Standort AKE` und `-Standort IDEAL` aus dem Worktree (Stand `b30e310d`), erhoehte Shell: Exit 0/0, "HTTP 200, Fusszeile
+  v1.99.0", DEV-Absicherung angewandt, Dienste `Running`. Der QA-Fix `55ec218a` aendert nur `scripts/deploy` (nicht Teil der DEV-Sites); der
+  Code der Sites ist identisch.
+- DB nach Deploy: `20261111174202_AddDeployScriptRuns` in der History, `DeployScriptRuns` + `UX_DeployScriptRuns_ManifestId` (unique), 0 Marker,
+  `PickingAreas` 3 Zeilen (Lager Standard), beide DEV-DBs.
+- `Update-IdealAkeWms.ps1 -NurPruefen` aus `publish\deploy` gegen DEV (`-System Test -WebPfad D:\Dev\<F>\Web -DienstPfad D:\Dev\<F>\Service
+  -SiteUrl http://localhost:808x/`, DB laut Ermittlung `.`): Exit 0.
+  - AKE-DEV: Kommissionierbereiche, Standardbereich, RCSI, Dummy, Komma OK; **RollenBeschichtungsauftrag Abweichung 2** (DEV hat die Rollen
+    nicht); Plan: beide stoppen, Reparatur Rollen, Haltepunkt Altbestand. OK.
+  - IDEAL-DEV: **RCSI Abweichung 1** (Z1), **Firmenanschrift Abweichung 1** (von Hand), Rest OK, keine Rollen-Pruefung (Firma IDEAL); Plan vor
+    dem Start: v1.47.4. OK.
+  - Danach unveraendert: Marker 0, RCSI 0, keine `Migration-KO-Altbestand`-Auftraege (beide DBs).
+- Echte Trockenlaeufe (Datei unveraendert, Hash gleich): Altbestand AKE-DEV `TREFFER: 15`, IDEAL-DEV `TREFFER: 0`; `SQL/110` AKE-DEV `TREFFER: 0`,
+  IDEAL-DEV `TREFFER: 1`. Kein Scharf- oder Transaktionslauf eines echten Skripts, keine Reparatur auf DEV (RCSI-Reparatur auf IDEAL_WMS_DEV
+  bewusst nicht bestaetigt).
+- Browser: kein Szenario dieser Spec braucht den Browser (Fusszeile per HTTP im Deploy und in der Vorpruefung gelesen).
+- AKE-DEV-Sync-Schalter: nicht angefasst (setzt der Koordinator nach diesem Lauf).
+
+**7. Publish:** `C:\git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish\` neu (Ordner vorher geleert): `IDEALAKEWMSWeb\`,
+`IDEALAKEWMSWebService\`, `SQL\`, `deploy\`, `publish-info.txt` (Version 1.99.0, Commit `55ec218ae1420051398e167366252d8ff925f5e8`, Branch
+`feature/2026-08-07-ideal-teile-1-5`, Erstellt 2026-11-11 19:17). Manifest: `SQL/142`, `v1.99.0-Info`, `v1.99.0-PB1` vorhanden.
+
+**Manuelle Checkliste (Gerald, Schranke 2):**
+1. P-B1 je SQL-Server (AKESQL20, IDEALSQL2\SAGE100TEST) als ausfuehrendes Konto: Version >= 2017, `sys.dm_os_file_exists` lesbar,
+   `HAS_PERMS_BY_NAME(<DB>, 'DATABASE', 'ALTER')`.
+2. Je Zielsystem zuerst `-NurPruefen`; Pruefungen und Plan mit den Erwartungen vergleichen (IDEAL-Test: RCSI, Kommissionierbereiche, v1.47.4
+   vor dem Start; AKE: Rollen).
+3. TS-126.20 Volllauf je Zielsystem v1.99.0 (IDEAL-Test: v1.47.4 per Fluss B mit Meldeliste, dann `uebernehmen`/`verwerfen`; 00er per Fluss C,
+   deckt AK 13; Test-IDEAL: Kommissionierbereiche-Reparatur; AKE: Rollen-Reparatur, danach Zuweisen unter /Roles).
+4. AK 15: auf einem System mit offenem `SQL/108` und Spur 1 das Angebot "als gelaufen vermerken (Marker Spur)" beobachten.
+5. Optional AK 3: ein Lauf mit `-Komponente Web` und offener Reparatur stoppt App-Pool **und** Dienst.
+6. AK 20 Rest (leerer Standard-Backup-Pfad, "nicht pruefbar") nur, falls es am Ziel auftritt.
+7. Zusatzfunde Z1 (RCSI auf IDEAL_WMS_DEV), Z2 (Rollen an IDEAL), F3/F4 (offen, Niedrig) entscheiden.
+8. Danach Merge (Schranke 2).
