@@ -41,7 +41,7 @@ public partial class PurchaseOrdersController
     [RequireStockAccess]
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Receive(int belId, List<PurchaseOrderReceiveInput>? zeilen)
+    public async Task<IActionResult> Receive(int belId, List<PurchaseOrderReceiveInput>? zeilen, string? lieferschein = null)
     {
         zeilen ??= new();
         var vm = await BuildReceiveAsync(belId, zeilen);
@@ -65,6 +65,13 @@ public partial class PurchaseOrdersController
                 ?? (menge > z.Rest && !e.UeberlieferungBestaetigt ? $"Überlieferung ({menge:0.###} > Rest {z.Rest:0.###}) bitte bestätigen." : null);
             buchen.Add((z, menge));
         }
+
+        // v1.99.4 (F6): Lieferschein-Nr. des Lieferanten, getrimmt, hoechstens 20 Zeichen (Sage EKLieferschein); Pflicht nur per AppSetting
+        vm.Lieferschein = string.IsNullOrWhiteSpace(lieferschein) ? null : lieferschein.Trim();
+        if (vm.Lieferschein is { Length: > PurchaseOrderReceiveViewModel.LieferscheinMaxLaenge })
+            ModelState.AddModelError(string.Empty, "Lieferschein-Nr. höchstens 20 Zeichen (Sage-Feld EKLieferschein).");
+        if (vm.Lieferschein == null && vm.LieferscheinPflicht)
+            ModelState.AddModelError(string.Empty, "Bitte die Lieferschein-Nummer des Lieferanten eingeben.");
 
         if (buchen.Count == 0)
             ModelState.AddModelError(string.Empty, "Keine Menge eingegeben – nichts gebucht.");
@@ -100,6 +107,7 @@ public partial class PurchaseOrdersController
                 {
                     BelId = l.BelId, BelPosId = l.BelPosId, Belegnummer = l.Belegnummer, LieferantKto = l.LieferantKto, Quantity = menge,
                     OffenLautSageBeimBuchen = l.MengeOffen, SagePlatzId = l.SagePlatzId, Lieferart = art,
+                    Lieferschein = vm.Lieferschein,
                     CreatedAt = now, CreatedBy = name, CreatedByWindows = windows,
                 },
             };
@@ -126,6 +134,8 @@ public partial class PurchaseOrdersController
             LieferantGesperrt = rows.Any(r => r.Line.LieferantGesperrt),
             Liefertermin = rows.Min(r => r.Line.Liefertermin),
             Lagerplaetze = await _locations.GetActiveOrderedExcludingPickingTransportAsync() ?? new(),
+            LieferscheinPflicht = string.Equals((await _settings.GetValueAsync(AppSettingKeys.WareneingangLieferscheinPflicht))?.Trim(), "true",
+                StringComparison.OrdinalIgnoreCase),
             Zeilen = rows.Select(r => new PurchaseOrderReceiveRow
             {
                 Row = r,

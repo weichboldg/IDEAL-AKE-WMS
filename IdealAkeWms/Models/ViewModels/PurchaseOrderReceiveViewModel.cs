@@ -11,6 +11,13 @@ public class PurchaseOrderReceiveViewModel
     public DateTime? Liefertermin { get; set; }
     public List<PurchaseOrderReceiveRow> Zeilen { get; set; } = new();
     public List<StorageLocation> Lagerplaetze { get; set; } = new();
+    /// <summary>v1.99.4 (F6): Lieferschein-Nr. des Lieferanten (Kopf, einmal je Absenden); bleibt bei Fehlern stehen.</summary>
+    public string? Lieferschein { get; set; }
+    /// <summary>v1.99.4 (F6): AppSetting WareneingangLieferscheinPflicht.</summary>
+    public bool LieferscheinPflicht { get; set; }
+
+    /// <summary>Sage-Feld EKLieferschein(20) (sage-sdata-masterdata).</summary>
+    public const int LieferscheinMaxLaenge = 20;
 }
 
 public class PurchaseOrderReceiveRow

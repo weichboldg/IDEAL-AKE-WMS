@@ -114,4 +114,8 @@ public static class AppSettingKeys
     // (Default aus, nur exakt "true" ohne Gross/Klein aktiviert) und Standard-Horizont der Vorschau in Wochen (1–26, Default 2). Kein Seed.
     public const string WareneingangBestellungAktiv = "WareneingangBestellungAktiv";
     public const string OffeneBestellungenVorschauWochen = "OffeneBestellungenVorschauWochen";
+
+    // v1.99.4 (Spec 2026-11-08-wareneingang-teil-2-sage-we-beleg-rahmenabrufe F6, Freigabe-Antwort 5): Lieferschein-Nr. des Lieferanten in
+    // "Wareneingang zu Bestellung" als Pflichtfeld (Default aus = optional). Kein Seed; nur exakt "true" ohne Gross/Klein aktiviert.
+    public const string WareneingangLieferscheinPflicht = "WareneingangLieferscheinPflicht";
 }

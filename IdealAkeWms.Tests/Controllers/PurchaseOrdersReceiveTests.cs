@@ -18,7 +18,7 @@ namespace IdealAkeWms.Tests.Controllers;
 /// <summary>Spec 2026-11-08-wareneingang-aus-sage-bestellungen E3 (AK 12, 13, 15-17) mit echten Repositories (InMemory).</summary>
 public class PurchaseOrdersReceiveTests
 {
-    private static async Task<(PurchaseOrdersController ctrl, ApplicationDbContext db)> BuildAsync()
+    private static async Task<(PurchaseOrdersController ctrl, ApplicationDbContext db)> BuildAsync(bool lieferscheinPflicht = false)
     {
         var db = TestDbContextFactory.Create();
         db.Articles.AddRange(
@@ -40,8 +40,10 @@ public class PurchaseOrdersReceiveTests
         user.Setup(u => u.GetDisplayName()).Returns("Tester");
         user.Setup(u => u.GetWindowsUserName()).Returns("AKE\\tester");
         user.Setup(u => u.CanAccessStockAsync()).ReturnsAsync(true);
+        var settings = new Mock<IAppSettingRepository>();
+        settings.Setup(x => x.GetValueAsync(AppSettingKeys.WareneingangLieferscheinPflicht)).ReturnsAsync(lieferscheinPflicht ? "true" : null);
         var ctrl = new PurchaseOrdersController(new SagePurchaseOrderLineRepository(db), new StorageLocationRepository(db),
-            Mock.Of<IAppSettingRepository>(), user.Object, new PurchaseOrderReceiptRepository(db), new StockMovementRepository(db))
+            settings.Object, user.Object, new PurchaseOrderReceiptRepository(db), new StockMovementRepository(db))
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
         };
@@ -128,5 +130,48 @@ public class PurchaseOrdersReceiveTests
     {
         typeof(PurchaseOrdersController).GetMethods().Where(m => m.Name == nameof(PurchaseOrdersController.Receive))
             .Should().HaveCount(2).And.OnlyContain(m => m.GetCustomAttributes(typeof(RequireStockAccessAttribute), false).Any());
+    }
+
+    // ----- v1.99.4 (Wareneingang Teil 2, E2/F6, AK 5-7): Lieferschein-Nr. des Lieferanten -----
+
+    [Fact]
+    public async Task Lieferschein_Getrimmt_AnJedemReceiptDesAbsendens_AK5()
+    {
+        var (ctrl, db) = await BuildAsync();
+        await ctrl.Receive(100, new List<PurchaseOrderReceiveInput> { E(1001, "1"), E(1002, "1") }, " LS-4711 ");
+        db.PurchaseOrderReceipts.Select(r => r.Lieferschein).ToList().Should().Equal("LS-4711", "LS-4711");
+    }
+
+    [Fact]
+    public async Task Lieferschein_LaengerAls20_Fehler_NichtsGebucht_EingabeBleibt_AK5()
+    {
+        var (ctrl, db) = await BuildAsync();
+        var r = await ctrl.Receive(100, new List<PurchaseOrderReceiveInput> { E(1001, "1") }, new string('X', 21));
+        var vm = (PurchaseOrderReceiveViewModel)((ViewResult)r).Model!;
+        ctrl.ModelState[string.Empty]!.Errors.Select(e => e.ErrorMessage).Should().Contain("Lieferschein-Nr. höchstens 20 Zeichen (Sage-Feld EKLieferschein).");
+        vm.Lieferschein.Should().Be(new string('X', 21));
+        vm.Zeilen.Single(z => z.Row.Line.BelPosId == 1001).Eingabe.Menge.Should().Be("1");
+        db.StockMovements.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData(false, null, 1)]
+    [InlineData(true, "   ", 0)]
+    [InlineData(true, "LS-1", 1)]
+    public async Task Lieferschein_Pflicht_NurPerEinstellung_AK6(bool pflicht, string? lieferschein, int gebucht)
+    {
+        var (ctrl, db) = await BuildAsync(lieferscheinPflicht: pflicht);
+        await ctrl.Receive(100, new List<PurchaseOrderReceiveInput> { E(1001, "1") }, lieferschein);
+        db.StockMovements.Count().Should().Be(gebucht);
+        if (gebucht == 0)
+            ctrl.ModelState[string.Empty]!.Errors.Select(e => e.ErrorMessage).Should().Contain("Bitte die Lieferschein-Nummer des Lieferanten eingeben.");
+    }
+
+    [Fact]
+    public void Einstellung_LieferscheinPflicht_ImKatalog_SchalterStandardAus_AK7()
+    {
+        var d = AppSettingDefinitions.All.Single(x => x.Key == AppSettingKeys.WareneingangLieferscheinPflicht);
+        (d.Type, d.DefaultValue, d.Seed, d.AbhaengigVon).Should().Be((SettingType.Bool, "false", false, AppSettingKeys.WareneingangBestellungAktiv));
+        d.Anzeigename.Should().Be("Wareneingang: Lieferschein-Nr. Pflicht");
     }
 }

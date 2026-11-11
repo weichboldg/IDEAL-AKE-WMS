@@ -57,6 +57,13 @@
 
     <form method="post" asp-action="Receive" asp-route-belId="@Model.BelId">
         @Html.AntiForgeryToken()
+        @* v1.99.4 (F6): eine Lieferung = ein Lieferschein; gilt fuer alle Positionen dieses Absendens. *@
+        <div class="mb-3" style="max-width: 22rem;">
+            <label for="lieferschein" class="form-label mb-1">Lieferschein-Nr. (Lieferant)@(Model.LieferscheinPflicht ? " *" : "")</label>
+            <input type="text" id="lieferschein" name="lieferschein" class="form-control" style="min-height:44px" maxlength="@IdealAkeWms.Models.ViewModels.PurchaseOrderReceiveViewModel.LieferscheinMaxLaenge"
+                   value="@Model.Lieferschein" autocomplete="off" aria-describedby="lieferscheinHilfe" @(Model.LieferscheinPflicht ? "required" : "") />
+            <div id="lieferscheinHilfe" class="form-text">@(Model.LieferscheinPflicht ? "Pflichtfeld, höchstens 20 Zeichen." : "Optional, höchstens 20 Zeichen.")</div>
+        </div>
         <div class="table-responsive">
             <table class="table table-sm align-middle">
                 <thead>
