@@ -124,6 +124,7 @@ public partial class PurchaseOrdersController : Controller
             ZielNichtImWms = l.SagePlatzId != null && l.StorageLocationId == null,
             ImWmsErfasst = erfasst.GetValueOrDefault(l.BelPosId, ErfasstJeBelPos.Leer).Gesamt,
             ImWmsAbzuziehen = erfasst.GetValueOrDefault(l.BelPosId, ErfasstJeBelPos.Leer).Abzuziehen(l.SyncedAt),
+            SageWeText = erfasst.GetValueOrDefault(l.BelPosId, ErfasstJeBelPos.Leer).SageWeText(SageWeStatusText),
             Ueberfaellig = l.Liefertermin != null && l.Liefertermin < heute,
         }).ToList();
     }

@@ -74,6 +74,7 @@ public static class ColumnFilterTypes
             ["WarehouseRequisitions/Index"] = L(("id", N), ("items", N), ("created", D), ("submitted", D)),
             ["Creditors/Details"] = L(("mindestmenge", N)), // v1.85.0 Karte „Artikel dieses Lieferanten“ (Server-Mode, QA Q-1)
             ["PurchaseOrders/Index"] = L(("liefertermin", D), ("bestellt", N), ("geliefert", N), ("offen", N), ("erfasst", N)),
+            ["PurchaseOrders/SageWareneingaenge"] = L(("gebucht", D), ("pos", N), ("menge", N), ("versuche", N)), // v1.99.4 Wareneingang Teil 2 E3
             ["WorkSteps/Index"] = L(("sort-order", N)),
         };
 

@@ -95,6 +95,10 @@
                                 {
                                     <div class="small text-body-secondary">Charge/Seriennummer in Sage erfassen</div>
                                 }
+                                @if (z.Row.SageWeText != null)
+                                {
+                                    <div class="small text-body-secondary">@z.Row.SageWeText</div>
+                                }
                             </td>
                             <td class="text-end">@l.MengeBestellt.ToString("0.###")</td>
                             <td class="text-end">@l.MengeOffen.ToString("0.###")</td>

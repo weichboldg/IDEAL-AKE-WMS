@@ -1,0 +1,115 @@
+@using IdealAkeWms.Controllers
+@using IdealAkeWms.Models
+@model IdealAkeWms.Models.ViewModels.SageWareneingaengeViewModel
+@{
+    ViewData["Title"] = "Wareneingänge an Sage";
+    // Spalten: gebucht, bestellung, pos, artikel, menge, platz, lieferschein, status, versuche, sagebeleg, memo, fehler, actions
+    const int colCount = 13;
+}
+@* v1.99.4 Spec 2026-11-08-wareneingang-teil-2-sage-we-beleg-rahmenabrufe E3/F4: Status je Wareneingang (Text, nie nur Farbe), Listen-View-Pattern. *@
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+    <h2 class="page-header mb-0">Wareneingänge an Sage</h2>
+    <a asp-action="Receive" class="btn btn-outline-secondary">Wareneingang zu Bestellung</a>
+</div>
+
+<p class="text-muted small">
+    Wareneingänge, die als Sage-Wareneingangsbeleg (ELL) an Sage gehen: ein Beleg je Buchung der Maske. Ein Fehler wird nicht automatisch
+    wiederholt. Vor „Erneut senden“ in Sage nachsehen, ob der Beleg schon existiert (Memo in der Spalte „Memo“, Lieferschein-Nr.) – sonst
+    entsteht ein zweiter Wareneingang.
+</p>
+
+<div class="card filter-card mb-3">
+    <div class="card-body p-2">
+        <form method="get" asp-action="SageWareneingaenge" class="d-flex gap-2 align-items-end flex-wrap">
+            <div>
+                <label for="status" class="form-label small mb-0">Status</label>
+                <select id="status" name="status" class="form-select form-select-sm">
+                    <option value="">Alle</option>
+                    @foreach (var s in Enum.GetValues<SageWareneingangStatus>().Where(s => s != SageWareneingangStatus.NichtNoetig))
+                    {
+                        <option value="@s" selected="@(Model.Status == s)">@PurchaseOrdersController.SageWeStatusText(s)</option>
+                    }
+                </select>
+            </div>
+            <div>
+                <label for="bestellung" class="form-label small mb-0">Bestellung</label>
+                <input type="text" id="bestellung" name="bestellung" value="@Model.Bestellung" class="form-control form-control-sm" autocomplete="off" />
+            </div>
+            <div>
+                <label for="von" class="form-label small mb-0">gebucht von</label>
+                <input type="date" id="von" name="von" value="@(Model.Von?.ToString("yyyy-MM-dd"))" class="form-control form-control-sm" />
+            </div>
+            <div>
+                <label for="bis" class="form-label small mb-0">bis</label>
+                <input type="date" id="bis" name="bis" value="@(Model.Bis?.ToString("yyyy-MM-dd"))" class="form-control form-control-sm" />
+            </div>
+            <button type="submit" class="btn btn-sm btn-primary">Filtern</button>
+            <a asp-action="SageWareneingaenge" class="btn btn-sm btn-outline-secondary">Zurücksetzen</a>
+        </form>
+    </div>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-striped table-sm mb-0 filterable-table" data-server-column-filter="true">
+        <thead>
+            <tr>
+                <th data-filterable data-date-filter data-col-key="gebucht">gebucht am</th>
+                <th data-filterable data-col-key="bestellung">Bestellung</th>
+                <th data-filterable data-filter-type="number" data-col-key="pos" title="Sage-Positions-ID (BelPosId)">Pos.-ID</th>
+                <th data-filterable data-col-key="artikel">Artikel</th>
+                <th class="text-end" data-filterable data-filter-type="number" data-col-key="menge">Menge</th>
+                <th data-filterable data-col-key="platz">Ziel-Platz</th>
+                <th data-filterable data-col-key="lieferschein">Lieferschein</th>
+                <th data-filterable data-col-key="status">Status</th>
+                <th data-filterable data-filter-type="number" data-col-key="versuche">Vers.</th>
+                <th data-filterable data-col-key="sagebeleg">Sage-Beleg</th>
+                <th data-filterable data-col-key="memo">Memo</th>
+                <th data-filterable data-col-key="fehler">Fehler</th>
+                <th data-col-key="actions"></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var z in Model.Zeilen)
+            {
+                var r = z.Receipt;
+                <tr>
+                    <td class="text-nowrap">@r.CreatedAt.ToString("dd.MM.yyyy HH:mm")</td>
+                    <td>@r.Belegnummer</td>
+                    <td>@r.BelPosId</td>
+                    <td>@r.StockMovement.Article.ArticleNumber</td>
+                    <td class="text-end">@r.Quantity.ToString("0.###")</td>
+                    <td>@r.StockMovement.StorageLocation.Code</td>
+                    <td>@r.Lieferschein</td>
+                    <td class="@(r.SageWeStatus == SageWareneingangStatus.Fehler ? "text-danger-emphasis fw-semibold" : "")">@PurchaseOrdersController.SageWeStatusText(r.SageWeStatus)</td>
+                    <td>@r.SageWeVersuche</td>
+                    <td>@r.SageWeBelegnummer</td>
+                    <td class="text-nowrap">@z.Memo</td>
+                    <td><span class="small text-danger-emphasis" style="white-space:pre-wrap;">@r.SageWeFehler</span></td>
+                    <td class="text-nowrap">
+                        @if (Model.CanErneutSenden && r.SageWeStatus == SageWareneingangStatus.Fehler && r.SageWeVorgang is { } vorgang)
+                        {
+                            <form asp-action="SageWeErneutSenden" asp-route-vorgang="@vorgang" method="post" class="d-inline">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-sm btn-outline-primary" title="Vorher in Sage nachsehen, ob der Beleg (Memo @z.Memo, Lieferschein @r.Lieferschein) schon existiert – sonst entsteht ein zweiter Wareneingang.">Erneut senden</button>
+                            </form>
+                            <div class="small text-body-secondary">Vorher in Sage prüfen (Memo @z.Memo)</div>
+                        }
+                    </td>
+                </tr>
+            }
+            @if (!Model.Zeilen.Any())
+            {
+                <tr>
+                    <td colspan="@colCount" class="text-center text-muted py-4">Keine Wareneingänge an Sage.</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+<partial name="_Pagination" model="Model.Pagination" />
+
+@section Scripts {
+    <script src="~/js/table-filter.js" asp-append-version="true"></script>
+}
