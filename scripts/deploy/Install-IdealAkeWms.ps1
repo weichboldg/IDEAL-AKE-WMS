@@ -94,7 +94,7 @@ $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot 'IdealAkeWms.Deploy.psm1') -Force -DisableNameChecking
 Assert-Administrator   # zusaetzlich zu #Requires: klare Meldung
 while (-not $Firma) {
-    $e = (Read-Host '  ?   Firma (AKE | IDEAL)').Trim().ToUpper()
+    $e = (Read-Eingabe '  ?   Firma (AKE | IDEAL)').ToUpper()
     if ($e -in 'AKE', 'IDEAL') { $Firma = $e } else { Write-Host '      Ungueltig.' }
 }
 

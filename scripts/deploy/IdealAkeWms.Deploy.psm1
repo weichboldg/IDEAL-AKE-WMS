@@ -17,13 +17,17 @@ function Assert-Administrator {
 }
 
 # j/n-Abfrage; wiederholt bis zu einer gueltigen Antwort. Kein Schalter ueberspringt Bestaetigungen (Betrieb Gerald 2026-11-11).
+# Eingabe; leere/geschlossene Eingabe (z. B. Pipe zu Ende, PS 5.1 wirft dann) = Leerstring.
+function Read-Eingabe([string]$text) { try { return ([string](Read-Host $text)).Trim() } catch { return '' } }
+
 function Read-Ja([string]$frage) {
-    while ($true) {
-        $e = Read-Host "  ?   $frage [j/n]"
-        if ($null -eq $e) { return $false }
+    for ($i = 0; $i -lt 5; $i++) {
+        $e = Read-Eingabe "  ?   $frage [j/n]"
+        if (-not $e) { return $false }
         switch -Regex ($e.Trim().ToLower()) { '^(j|ja|y|yes)$' { return $true } '^(n|nein|no)$' { return $false } }
         Write-Host '      Bitte j oder n eingeben.'
     }
+    return $false
 }
 
 function Import-Ziele([string]$pfad) {
@@ -203,5 +207,5 @@ function Test-OrdnerUndRechte {
     return $allesOk
 }
 
-Export-ModuleMember -Function Write-Schritt, Write-Ok, Write-Warnung, Get-Warnungen, Reset-Warnungen, Assert-Administrator, Read-Ja,
+Export-ModuleMember -Function Write-Schritt, Write-Ok, Write-Warnung, Get-Warnungen, Reset-Warnungen, Assert-Administrator, Read-Eingabe, Read-Ja,
     Import-Ziele, Test-Recht, Get-PoolIdentitaet, Get-DienstIdentitaet, Test-OrdnerUndRechte

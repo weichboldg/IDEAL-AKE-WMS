@@ -44,14 +44,14 @@ $ziele = Import-Ziele (Join-Path $PSScriptRoot 'ziele.psd1')
 $manifest = @((Import-PowerShellDataFile (Join-Path $PSScriptRoot 'nachlauf.psd1')).Eintraege)
 
 while (-not $Firma) {
-    $e = (Read-Host '  ?   Firma (AKE | IDEAL)').Trim().ToUpper()
+    $e = (Read-Eingabe '  ?   Firma (AKE | IDEAL)').ToUpper()
     if ($e -in 'AKE', 'IDEAL') { $Firma = $e } else { Write-Host '      Ungueltig.' }
 }
 $firmaZiele = @($ziele | Where-Object { $_.Firma -eq $Firma })
 if ($System) { $System = @($System -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ }) }
 while (-not $System) {
     for ($i = 0; $i -lt $firmaZiele.Count; $i++) { Write-Host ("      {0}  {1}{2}" -f ($i + 1), $firmaZiele[$i].System, $(if ($firmaZiele[$i].Prod) { '  (PROD)' } else { '' })) }
-    $e = Read-Host '  ?   Systeme (Nummern oder Namen, mehrere mit Komma)'
+    $e = Read-Eingabe '  ?   Systeme (Nummern oder Namen, mehrere mit Komma)'
     $wahl = @(); $gueltig = $true
     foreach ($t in @($e -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })) {
         $n = 0
@@ -340,11 +340,11 @@ function Invoke-System($e) {
         $v = (Read-Info (Join-Path $e.Web 'deploy-info.txt'))['Version']; if ($v) { $installiert = [version]$v; $quelleVersion = 'deploy-info.txt' }
     }
     if (-not $installiert) {
-        $v = (Read-Host '  ?   Installierte Version (z. B. 1.95.0; leer = unbekannt)').Trim()
+        $v = (Read-Eingabe '  ?   Installierte Version (z. B. 1.95.0; leer = unbekannt)')
         if ($v) { $installiert = [version]$v; $quelleVersion = 'Eingabe' } else { $quelleVersion = 'unbekannt (alle Eintraege)' }
     }
     Write-Host "  Installiert: $(if ($installiert) { "v$installiert" } else { '?' })  (Quelle: $quelleVersion)"
-    $history = Get-History $e
+    try { $history = Get-History $e } catch { Stop-Mit "DB $($e.Db.Server)/$($e.Db.Datenbank) nicht lesbar: $($_.Exception.GetBaseException().Message)" }
     if ($history -notcontains $VorManifestMigration) { Stop-Mit "History ohne $VorManifestMigration (SQL/88): System aelter als das Manifest, Update von Hand laut README." }
     $schema = @($manifest | Where-Object { $_.Typ -eq 'Schema' })
     $fehlend = @($schema | Where-Object { $history -notcontains $_.MigrationId })
@@ -435,8 +435,8 @@ function Invoke-System($e) {
         Write-Host "  $(Format-Text $m.Text $e)"
         if ($m.Ausfuehrung -eq 'Trockenlauf') { Invoke-Trockenlauf $e $m }
         Write-Host "  Scharf (von Hand, SSMS): Kopie von $(Join-Path $SqlOrdner $m.Datei) mit @Trockenlauf = 0 gegen $($e.Db.Server)/$($e.Db.Datenbank)."
-        $a = Read-Host "  ?   'ausgefuehrt' eingeben, wenn das Skript scharf gelaufen ist (sonst Abbruch, Web bleibt gestoppt)"
-        if ($a.Trim() -ne 'ausgefuehrt') { Stop-Mit "Haltepunkt $($m.Id) nicht ausgefuehrt. Web und Dienst bleiben gestoppt." }
+        $a = Read-Eingabe "  ?   'ausgefuehrt' eingeben, wenn das Skript scharf gelaufen ist (sonst Abbruch, Web bleibt gestoppt)"
+        if (([string]$a).Trim() -ne 'ausgefuehrt') { Stop-Mit "Haltepunkt $($m.Id) nicht ausgefuehrt. Web und Dienst bleiben gestoppt." }
         Write-Host "  $(Get-Spur $e $m)"
     }
 
@@ -531,13 +531,13 @@ New-Item -ItemType Directory -Path $LogPfad -Force | Out-Null
 $gesamt = 0
 foreach ($e in $ermittelt) {
     if ($e.Ziel.Prod) {
-        $p = Read-Host "  ?   Produktivsystem $($e.Name): zum Fortfahren $($Firma.ToUpper())-PROD eintippen"
+        $p = Read-Eingabe "  ?   Produktivsystem $($e.Name): zum Fortfahren $($Firma.ToUpper())-PROD eintippen"
         if ($p -cne "$($Firma.ToUpper())-PROD") { Write-Host '  Ende: Produktivsystem nicht bestaetigt.' -ForegroundColor Red; exit 1 }
     }
     $log = Join-Path $LogPfad ('{0:yyyy-MM-dd_HHmm}_{1}-{2}_v{3}.log' -f (Get-Date), $Firma, $e.Ziel.System, $PaketVersion)
     Start-Transcript -Path $log -Append | Out-Null
     try { $gesamt = @(Invoke-System $e)[-1] }
-    catch { Write-Host ''; Write-Host $_.Exception.Message -ForegroundColor Red; $gesamt = 1 }
+    catch { Write-Host ''; Write-Host $_.Exception.Message -ForegroundColor Red; if ($_.Exception.Message -notlike 'ABBRUCH:*') { Write-Host $_.ScriptStackTrace }; $gesamt = 1 }
     finally { Stop-Transcript | Out-Null; Remove-Item Env:\SQLCMDPASSWORD -ErrorAction SilentlyContinue; Write-Host "  Protokoll: $log" }
     if ($gesamt -ne 0) {
         $idx = [array]::IndexOf($ermittelt, $e)
