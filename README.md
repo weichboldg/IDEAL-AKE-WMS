@@ -65,7 +65,27 @@ Beim ersten App-Start werden automatisch angelegt (Startup-Seeding in `Program.c
 
 #### Update bestehender Installation
 
-SQL-Scripte in Reihenfolge auf dem SQL Server ausführen:
+**Ab SQL/89 (Bündel ab v1.98.0) gilt das Update-Skript mit Manifest** (ADR 0022):
+
+```powershell
+# Paket = <worktree>\publish\ (IDEALAKEWMSWeb\, IDEALAKEWMSWebService\, SQL\, deploy\, publish-info.txt) auf den Server kopieren,
+# z. B. nach C:\<FIRMA>\deploy\v1.98.0\, dann in einer Administrator-PowerShell (Windows PowerShell 5.1):
+powershell -ExecutionPolicy Bypass -File C:\<FIRMA>\deploy\v1.98.0\deploy\Update-IdealAkeWms.ps1 -NurPruefen   # erst Plan ansehen
+powershell -ExecutionPolicy Bypass -File C:\<FIRMA>\deploy\v1.98.0\deploy\Update-IdealAkeWms.ps1              # dann Update
+```
+
+- Ohne Parameter fragt das Skript Firma (`AKE` | `IDEAL`) und System(e) aus `scripts\deploy\ziele.psd1`; `-Firma`/`-System Test,Test-IDEAL`
+  überspringen die Abfrage. Mehrere Systeme: Nicht-Prod zuerst, Prod zuletzt und nur nach Eingabe `<FIRMA>-PROD`.
+- `-Komponente Web|Dienst|Beide` (Default `Beide`) wählt, was getauscht wird; Schema, Ordner/Rechte und Nachlauf laufen immer.
+- Das Skript ermittelt Site/App-Pool (physischer Pfad), Dienst (Exe-Pfad) und die DB aus `appsettings*.json` der Ziel-Umgebung, spielt
+  fehlende Schema-Skripte in **Manifest-Reihenfolge** mit Bestätigung ein, prüft Ordner und Rechte, startet Web vor Dienst, prüft die
+  Version und gibt die **Nachlauf-Liste** der Hand-Schritte aus (`scripts\deploy\nachlauf.psd1`). Protokoll unter `C:\<FIRMA>\deploy-logs`.
+- Daten- und Einmal-Skripte (`SQL/108`, `SQL/110`, `SQL/Einmalig/*`) führt es **nie scharf** aus, höchstens im Trockenlauf.
+- `sqlcmd` muss auf dem Web-Server installiert sein (ODBC-Variante „Microsoft Command Line Utilities for SQL Server“ nach dem
+  „Microsoft ODBC Driver for SQL Server“).
+- Neuinstallation: `scripts\deploy\Install-IdealAkeWms.ps1` (standortneutral, gleiche Ordner-/Rechteprüfung).
+
+Historische Liste bis SQL/88 (ältere Systeme; ab SQL/89 gilt das Manifest). SQL-Scripte in Reihenfolge auf dem SQL Server ausführen:
 
 | Nr. | Script | Beschreibung |
 |-----|--------|-------------|
@@ -150,8 +170,6 @@ SQL-Scripte in Reihenfolge auf dem SQL Server ausführen:
 | 78 | `SQL/78_AddStockReadRole.sql` | Rolle `stock_read` (Lagerbestand nur lesen) |
 | 79 | `SQL/79_AddArticlePrimaryStorageLocation.sql` | Hauptlagerplatz am Artikel |
 | 80 | `SQL/80_AddProductionOrderCancellation.sql` | FA-Reconciliation: IsCancelled/CancelledAt/CancelledBy |
-| 95 | `SQL/95_RenameOperationConfigsAndAddAudit.sql` | Arbeitsgang-Stammdaten: `OseonOperationConfigs` → `OperationConfigs`, Audit-Felder (**Schema-Umbenennung — DB-Backup, App-Pool vorher stoppen**) |
-| 97 | `SQL/97_AddProductionWorkplaceSageMissingSinceAndNurAgFertigmeldung.sql` | Werkbank: „Nicht in Sage seit“ + Option „Nur AG-Fertigmeldung“ (additiv, v1.63.0) |
 
 > **Backup-Hinweis:** Vor dem Einspielen von 65, 76 und 80 ein DB-Backup ziehen — diese Migrationen
 > konvertieren Daten; ihr Down() verliert Detail-Status.
@@ -795,21 +813,15 @@ Oder über **Windows-Dienste** (services.msc): Dienst "IDEAL AKE WMS Service" su
 
 ### Update (neue Version einspielen)
 
+Web und Dienst werden gemeinsam mit `deploy\Update-IdealAkeWms.ps1` aktualisiert (Abschnitt „Update bestehender Installation“ oben):
+
 ```powershell
-# 1. Service stoppen
-Stop-Service -Name "IDEALAKEWMSService"
-
-# 2. Neue Dateien ins Deploy-Verzeichnis kopieren (appsettings.json NICHT überschreiben!)
-Copy-Item -Path "C:\Deploy\IDEALAKEWMSService\*" `
-          -Destination "C:\Services\IDEALAKEWMSService\" `
-          -Recurse -Force `
-          -Exclude "appsettings.json"
-
-# 3. Service wieder starten
-Start-Service -Name "IDEALAKEWMSService"
+powershell -ExecutionPolicy Bypass -File C:\<FIRMA>\deploy\v1.98.0\deploy\Update-IdealAkeWms.ps1 -Firma AKE -System Test -Komponente Dienst
 ```
 
-> **Wichtig**: `appsettings.json` beim Update nie überschreiben — enthält die produktiven Connection Strings.
+Das Paket (`publish\`) enthält `IDEALAKEWMSWeb\`, `IDEALAKEWMSWebService\`, `SQL\`, `deploy\` und `publish-info.txt` (Version, Commit).
+Kopiert wird mit `robocopy /E` **ohne Löschen**. **Nie überschrieben** werden `appsettings*.json`, `web.config`, `Branding\`, `App_Data\`,
+`wwwroot\Fotos\` und `logs\`. Weicht die `web.config` des Pakets vom Ziel ab, warnt das Skript und zeigt beide Fassungen im Protokoll.
 
 ---
 

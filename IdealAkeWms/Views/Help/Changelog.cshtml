@@ -9,6 +9,20 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.98.0</strong> <span class="text-white-50 ms-2">11.11.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>Update-Skript je Zielsystem (Betrieb)</h6>
+                <ul>
+                    <li><strong>Neu &ndash; Update-Skript:</strong> <code>deploy\Update-IdealAkeWms.ps1</code> im Deploy-Paket spielt eine neue Version je System ein (AKE: Prod, Test, Test-IDEAL; IDEAL: Prod, Test). Es ermittelt Site, App-Pool, Dienst und Datenbank selbst, fragt vor jedem Schritt nach, spielt fehlende SQL-Skripte in der richtigen Reihenfolge ein und gibt danach die Liste der Hand-Schritte aus. Mit <code>-NurPruefen</code> zeigt es nur den Plan.</li>
+                    <li><strong>Neu &ndash; Ordner und Rechte:</strong> Update- und Installationsskript prüfen bei jedem Lauf die nötigen Ordner und Rechte (z.&nbsp;B. Kommissionierfotos unter <code>App_Data</code>) und ergänzen fehlende nach Rückfrage.</li>
+                    <li>Für die Anwender ändert sich nichts.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.97.0</strong> <span class="text-white-50 ms-2">11.11.2026</span>
             </div>
             <div class="card-body">
