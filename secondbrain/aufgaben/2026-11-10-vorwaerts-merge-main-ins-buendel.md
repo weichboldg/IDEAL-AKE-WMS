@@ -32,3 +32,22 @@ git merge --no-ff main -m "merge: main (v1.30.3 OSEON, Zahnrad, v1.30.4 Kommissi
 ## Danach
 Build + Tests, qa-agent mit Sichtprüfung (Fotos TS-124, Zahnrad, OSEON) auf DEV AKE/IDEAL; Brain-Changelog und
 Feature-Map nachziehen. Erst dann Bündel-Deploy (Update-Skript-Spec, offene Frage 5 erledigt sich damit).
+
+## Push des Bündels (Klärung 2026-11-11, Gerald + Koordination)
+- Vor dem Lauf geprüft: Worktree sauber, HEAD `a26be406` (v1.95.0).
+- `origin/feature/2026-08-07-ideal-teile-1-5` (`6d81a4a3`, Push 05.10.) und das lokale Bündel sind auseinandergelaufen (307 Commits nur auf Remote,
+  501 nur lokal). Ursache: Die Historie wurde am 05.10. zweimal per `fast-import` neu geschrieben (Reflog Zeilen 28–30). Gepusht wurde
+  die erste Fassung, lokal ging es mit der zweiten weiter (`b877e05a`).
+- Gegenprobe Gerald: `git diff --stat 6d81a4a3 b877e05a` ist leer. Remote hat also nichts Eigenes, der Inhalt ist gleich.
+- Der Push des Bündels geht deshalb nur mit Force, und zwar **nach** diesem Lauf und **vor** dem Bündel-Merge nach main:
+  `git push --force-with-lease=feature/2026-08-07-ideal-teile-1-5:6d81a4a3 origin feature/2026-08-07-ideal-teile-1-5`
+
+## Sicherung vor dem Lauf (Vorgabe Gerald 2026-11-11: „es darf nichts verloren gehen“)
+1. Lokale Sicherungszweige bzw. Tags: `backup/buendel-2026-11-11` auf `a26be406`, `backup/origin-buendel-2026-10-05` auf `6d81a4a3`,
+   `backup/main-2026-11-11` auf `02500726`.
+2. Alle drei normal pushen. Das sind neue Namen, also kein Force. Danach liegt die lokale Bündel-Arbeit (501 Commits) auf GitHub.
+3. Zusätzlich eine Offline-Kopie: `git bundle create D:\Backup\IDEAL-AKE-WMS-2026-11-11.bundle --all`, dann `git bundle verify`.
+4. Nach dem Merge prüfen: `a26be406` und `main` sind Vorfahren von HEAD. Außerhalb der Konfliktdateien kein Diff gegenüber
+   `a26be406`, der nicht aus main kommt.
+5. Die Sicherungen werden erst gelöscht, wenn das Bündel in main gemergt und deployt ist, und nur mit Freigabe von Gerald.
+- 2026-11-11 07:52: In GitHub Desktop wurde versehentlich „Pull origin“ auf das Bündel gestartet (93 Konflikte gegen den alten Remote-Stand). Abgebrochen, danach geprüft: Worktree sauber, HEAD `a26be406`. **Für das Bündel bis zum Force-Push kein Pull und kein Fetch-and-Merge.**
