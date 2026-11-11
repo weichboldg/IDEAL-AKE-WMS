@@ -4,7 +4,7 @@ title: Update-Skript je Zielsystem mit Nachlauf-Manifest (Bündel-Deploy v1.95.0
 slug: 2026-11-09-update-skript-je-zielsystem-mit-nachlauf-spec
 status: Entwurf
 created: 2026-11-09
-updated: 2026-11-09
+updated: 2026-11-11
 source_backlog: "[[2026-11-09-update-skript-je-zielsystem-mit-nachlauf]]"
 task: ""
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
@@ -15,7 +15,7 @@ affected_code:
   - "scripts/deploy/nachlauf.psd1 (neu)"
   - "IdealAkeWms.Tests/Deploy/NachlaufManifestDriftTests.cs (neu, Muster OperationConfigsMigrationSqlTests)"
   - "README.md (Abschnitte 'Update bestehender Installation' Z. 66-157 und 'Update (neue Version einspielen)' Z. 796-812, Bündel-Stand)"
-  - "docs/TESTSZENARIEN.md (neues Kapitel TS-124, Nummer prüft der Dev-Lauf)"
+  - "docs/TESTSZENARIEN.md (neues Kapitel TS-125, Nummer prüft der Dev-Lauf)"
   - ".claude/agents/qa-agent.md (Punkt 7: Format publish-info.txt, SQL\\ und deploy\\ ins Paket)"
   - ".claude/agents/spec-agent.md (DEPLOY SECTION: Pflicht Manifest-Einträge)"
   - "secondbrain/_templates/spec.md (Deploy-Abschnitt: Manifest-Einträge)"
@@ -421,7 +421,7 @@ neue Tabellenansicht.
 
 ## Test-Szenarien
 
-Neues Kapitel **TS-124 — Update-Skript je Zielsystem** in `docs/TESTSZENARIEN.md` (Nummer prüft der Dev-Lauf; letzte im Bündel TS-123),
+Neues Kapitel **TS-125 — Update-Skript je Zielsystem** in `docs/TESTSZENARIEN.md` (Nummer prüft der Dev-Lauf; TS-124 ist seit v1.96.0 der Foto-Hotfix),
 danach `secondbrain/tests/testszenarien-index.md`.
 
 **Vorbedingungen:** DEV-IDEAL (`D:\Dev\IDEAL\Web`, `D:\Dev\IDEAL\Service`, Site/App-Pool `IDEAL_WMS_DEV`, Dienst `IDEAL_WMS_DEV_Service`,
@@ -437,20 +437,20 @@ powershell -ExecutionPolicy Bypass -File <worktree>\scripts\deploy\Update-IdealA
 
 | Nr | Szenario | Erwartet | Wer |
 |---|---|---|---|
-| 124.1 | Aufruf oben | ermittelt Site, App-Pool, Dienst, Umgebung DEV, DB `.`; Bestätigung „ja“; Version, History, fehlende Skripte (erwartet keine), RCSI, Spuren; Nachlauf-Liste; Protokoll in `D:\Dev\logs\deploy`; nichts gestoppt (Dienst/App-Pool-Status vorher = nachher) | Agent |
-| 124.2 | Wie 124.1 ohne `-Firma`/`-System` | Abfrage beider Werte; Eingabe `XYZ` → erneute Frage | Agent (Eingabe per Pipe) oder Mensch |
-| 124.3 | Falsche Firma: `-Firma AKE -System Test` ohne Pfadparameter | `C:\AKE\IdealAkeWmsService_Test` fehlt → Abbruch, keine DB kontaktiert | Agent |
-| 124.4 | Pfad fehlt: `-WebPfad D:\Dev\IDEAL\WebX` | Abbruch mit Pfad | Agent |
-| 124.5 | `-System beide` mit `-WebPfad` | Abbruch vor jeder Aktion | Agent |
-| 124.6 | Bestätigung „Verbindung herstellen“ verneint | Ende ohne DB-Kontakt, Protokoll vorhanden | Agent |
-| 124.7 | DB nicht erreichbar: Kopie des DEV-Web-Ordners mit `appsettings.DEV.json` auf Server `.\NICHTDA` (nur in einem Testordner, nie im echten DEV-Ordner) | Abbruch mit sqlcmd-Fehler, Exit ≠ 0 | Agent |
-| 124.8 | Web-DB ≠ Dienst-DB (Testordner wie 124.7) | Abbruch vor DB-Kontakt | Agent |
-| 124.9 | `publish-info.txt` mit abweichendem `Commit` im Dienst-Elternordner (Testkopie) | Abbruch | Agent |
-| 124.10 | Einmal-Skript wird nicht ausgeführt: Nachlauf-Liste nennt alle 4 Einmal-Skripte mit Aufruf; Protokoll enthält keinen sqlcmd-Aufruf auf `SQL\Einmalig\*` außer Trockenlauf-Einträgen; Testkopie Altbestand mit `@Trockenlauf BIT = 0` → „abgelehnt, nur Anzeige“ | wie beschrieben | Agent |
-| 124.11 | Version passt nach Start nicht (Volllauf auf DEV-IDEAL, `publish-info.txt` mit `Version=9.9.9`) | App-Pool wieder gestoppt, Dienst nicht gestartet, Exit ≠ 0; danach `dev-deploy.ps1 -Standort IDEAL` zur Wiederherstellung | **Mensch** (Rückfrage 9) |
-| 124.12 | Volllauf DEV-IDEAL regulär | Schema: nichts fehlt; Kopieren schont `appsettings*.json`/`web.config`/`Branding`; Web, dann Dienst; Fußzeile v1.95.0; Nachlauf-Liste | **Mensch** |
-| 124.13 | Drift-Test | `NachlaufManifestDriftTests` grün; Eintrag `SQL/141` entfernt → rot | Agent |
-| 124.14 | PS 5.1 | `ParseFile` ohne Fehler unter `powershell.exe` (nicht `pwsh`) | Agent |
+| 125.1 | Aufruf oben | ermittelt Site, App-Pool, Dienst, Umgebung DEV, DB `.`; Bestätigung „ja“; Version, History, fehlende Skripte (erwartet keine), RCSI, Spuren; Nachlauf-Liste; Protokoll in `D:\Dev\logs\deploy`; nichts gestoppt (Dienst/App-Pool-Status vorher = nachher) | Agent |
+| 125.2 | Wie 124.1 ohne `-Firma`/`-System` | Abfrage beider Werte; Eingabe `XYZ` → erneute Frage | Agent (Eingabe per Pipe) oder Mensch |
+| 125.3 | Falsche Firma: `-Firma AKE -System Test` ohne Pfadparameter | `C:\AKE\IdealAkeWmsService_Test` fehlt → Abbruch, keine DB kontaktiert | Agent |
+| 125.4 | Pfad fehlt: `-WebPfad D:\Dev\IDEAL\WebX` | Abbruch mit Pfad | Agent |
+| 125.5 | `-System beide` mit `-WebPfad` | Abbruch vor jeder Aktion | Agent |
+| 125.6 | Bestätigung „Verbindung herstellen“ verneint | Ende ohne DB-Kontakt, Protokoll vorhanden | Agent |
+| 125.7 | DB nicht erreichbar: Kopie des DEV-Web-Ordners mit `appsettings.DEV.json` auf Server `.\NICHTDA` (nur in einem Testordner, nie im echten DEV-Ordner) | Abbruch mit sqlcmd-Fehler, Exit ≠ 0 | Agent |
+| 125.8 | Web-DB ≠ Dienst-DB (Testordner wie 124.7) | Abbruch vor DB-Kontakt | Agent |
+| 125.9 | `publish-info.txt` mit abweichendem `Commit` im Dienst-Elternordner (Testkopie) | Abbruch | Agent |
+| 125.10 | Einmal-Skript wird nicht ausgeführt: Nachlauf-Liste nennt alle 4 Einmal-Skripte mit Aufruf; Protokoll enthält keinen sqlcmd-Aufruf auf `SQL\Einmalig\*` außer Trockenlauf-Einträgen; Testkopie Altbestand mit `@Trockenlauf BIT = 0` → „abgelehnt, nur Anzeige“ | wie beschrieben | Agent |
+| 125.11 | Version passt nach Start nicht (Volllauf auf DEV-IDEAL, `publish-info.txt` mit `Version=9.9.9`) | App-Pool wieder gestoppt, Dienst nicht gestartet, Exit ≠ 0; danach `dev-deploy.ps1 -Standort IDEAL` zur Wiederherstellung | **Mensch** (Rückfrage 9) |
+| 125.12 | Volllauf DEV-IDEAL regulär | Schema: nichts fehlt; Kopieren schont `appsettings*.json`/`web.config`/`Branding`; Web, dann Dienst; Fußzeile v1.95.0; Nachlauf-Liste | **Mensch** |
+| 125.13 | Drift-Test | `NachlaufManifestDriftTests` grün; Eintrag `SQL/141` entfernt → rot | Agent |
+| 125.14 | PS 5.1 | `ParseFile` ohne Fehler unter `powershell.exe` (nicht `pwsh`) | Agent |
 
 **Negativfall Zielsystem** (Mensch, erst nach Freigabe des Bündel-Deploys): Erster echter Lauf mit `-NurPruefen` je Zielsystem; Plan
 mit der Backlog-Tabelle vergleichen (AKE: 89–107, 109, 112, 113, 133, 140, 141 fehlen; IDEAL-Prod: 98–141 ohne 108/110 fehlen).
@@ -514,7 +514,7 @@ die Produktiv-Verbindung aus `appsettings.json`“; `feature-map.md`; Aufgabe f�
    `SELECT IS_ROLEMEMBER('db_owner') AS DbOwner, HAS_PERMS_BY_NAME(DB_NAME(), 'DATABASE', 'BACKUP DATABASE') AS Backup, HAS_PERMS_BY_NAME('msdb.dbo.sysjobs', 'OBJECT', 'SELECT') AS SysJobs;`
 8. **`-PublishWeb`/`-PublishDienst`:** im Entwurf als Quellpfade der Publish-Ordner gedeutet (überschreiben den Default aus dem Paket).
    Waren Schalter „nur Web“/„nur Dienst“ gemeint?
-9. **Volllauf auf DEV:** Der Auftrag erlaubt dem Agenten nur `-NurPruefen`. TS-124.11/.12 brauchen einen echten Start. **Empfehlung:**
+9. **Volllauf auf DEV:** Der Auftrag erlaubt dem Agenten nur `-NurPruefen`. TS-125.11/.12 brauchen einen echten Start. **Empfehlung:**
    Gerald fährt beide einmal von Hand auf DEV-IDEAL, danach `dev-deploy.ps1` zur Wiederherstellung.
 10. **Ablageort der Agenten-/Vorlagen-Änderungen:** `.claude/agents/*.md` und `secondbrain/_templates/spec.md` direkt im Hauptcheckout
     (wirken sofort; so wurde `qa-agent.md` Punkt 7 am 09.11. geändert), Skript/Manifest/Test/README im Bündel-Worktree; CLAUDE.md nur als
@@ -538,6 +538,24 @@ die Produktiv-Verbindung aus `appsettings.json`“; `feature-map.md`; Aufgabe f�
   v1.31–v1.67 dort vollständig liefen, ist nicht belegt.
 - v1.49.0 Anschrift-Korrektur: ob erledigt, unbekannt.
 
+## Nachtrag 2026-11-11 (Vorwärts-Merge main → Bündel, v1.96.0)
+
+Quelle: [[2026-11-10-vorwaerts-merge-main-ins-buendel]], Auftrag Gerald 2026-11-11. Antwort- und Rückfrageabschnitte bleiben unverändert.
+- Der Hotfix v1.30.4 (Kommissionierfotos in `App_Data`) ist seit Merge-Commit `02a0a173` im Bündel (zusammen mit v1.30.2 Zahnrad und
+  v1.30.3 OSEON/Druck/Werkbank). Bündelversion jetzt **v1.96.0**. Rückfrage 5 ist damit durch den Auftrag erledigt; die Antwortzeile
+  füllt Gerald.
+- Testszenarien: Kapitel **TS-124 = Kommissionierfotos** (aus main). Diese Spec nutzt deshalb **TS-125** (alle Verweise umgestellt).
+- **Manifest-Eintrag (Typ Vorher, Firma beide, ab v1.96.0)** – vor dem Kopieren/Start der neuen Web-Version je Site:
+  1. `mkdir "<SiteRoot>\App_Data\Fotos\Kommissionierung"` und `icacls "<SiteRoot>\App_Data" /grant "IIS AppPool\<PoolName>:(OI)(CI)M"`
+     (Identität aus dem ermittelten App-Pool; ohne Schreibrecht startet die App nicht).
+  2. Dateien in `<SiteRoot>\wwwroot\Fotos\Kommissionierung` zählen und im Protokoll festhalten.
+  3. Nach dem Web-Start im Log „Kommissionierfotos verschoben: n, uebersprungen: m“ suchen; n + m muss der Zählung entsprechen. m > 0:
+     Warnung je Datei, Rest-Dateien vergleicht der Mensch und entfernt sie von Hand (Nachlauf-Liste, Typ Info).
+  Hat ein System v1.30.4 schon (Ordner `App_Data\Fotos\Kommissionierung` vorhanden, Recht gesetzt), entfallen 1 und die Verschiebung
+  (n = 0). Das Kopieren schont `App_Data\` ohnehin (Ablauf Schritt 5).
+- Rücksprung auf eine Bündelversion < v1.96.0 ist nach diesem Deploy nicht mehr fotofest (alte Versionen lesen nur `wwwroot`); Rückbau
+  wie im Deploy-Abschnitt von [[2026-11-08-kommissionierfotos-ohne-anmeldung-abrufbar-spec]].
+
 ## Freigabe-Antworten (Mensch fuellt aus — Schranke 1)
 
 <!--
@@ -556,5 +574,5 @@ die Produktiv-Verbindung aus `appsettings.json`“; `feature-map.md`; Aufgabe f�
 6. Rolle `beschichtungsauftrag` (Lesen) an AKE anlegen →
 7. Zielsysteme/DB/sqlcmd/Rechte bestätigt →
 8. `-PublishWeb`/`-PublishDienst` = Quellpfade oder Schalter →
-9. Volllauf DEV (TS-124.11/.12) durch Gerald →
+9. Volllauf DEV (TS-125.11/.12) durch Gerald →
 10. Agenten-/Vorlagen-Änderungen im Hauptcheckout, CLAUDE.md nur Vorschlag →
