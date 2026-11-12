@@ -69,6 +69,18 @@ public static class SettingValidator
                 // v1.99.9: festes Format (System-Kuerzel); gespeichert wird der getrimmte Wert
                 return System.Text.RegularExpressions.Regex.IsMatch(t, muster.Regex) ? SettingPruefung.Ok(t) : Fehler(name, roh, muster.Erlaubt);
 
+            case SettingType.String when d.Mail != SettingMail.Keine:
+            {
+                // v1.99.10: jede Adresse einzeln (MailAdressen = dieselbe Regel wie der Dienst beim Versand); gespeichert kommagetrennt
+                var adressen = MailAdressen.Liste(t);
+                var falsch = adressen.FirstOrDefault(a => !MailAdressen.IstGueltig(a));
+                if (falsch != null)
+                    return new(false, null, $"„{name}“: „{falsch}“ ist keine gültige E-Mail-Adresse.");
+                if (d.Mail == SettingMail.Eine && adressen.Count > 1)
+                    return Fehler(name, roh, "genau eine E-Mail-Adresse oder leer");
+                return SettingPruefung.Ok(string.Join(",", adressen));
+            }
+
             default:
                 return SettingPruefung.Ok(roh ?? "");
         }

@@ -1462,6 +1462,13 @@ namespace IdealAkeWms.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
 
+                    b.Property<bool>("ReminderDisabled")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("ReminderEmail")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
                     b.Property<decimal?>("SageEKMindestbestellwert")
                         .HasColumnType("decimal(18,2)");
 
@@ -3934,6 +3941,60 @@ namespace IdealAkeWms.Migrations
                         .HasDatabaseName("IX_PurchaseOrderReceipts_StockMovementId");
 
                     b.ToTable("PurchaseOrderReceipts", "dbo");
+                });
+
+            modelBuilder.Entity("IdealAkeWms.Models.PurchaseOrderReminder", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("Art")
+                        .HasColumnType("int");
+
+                    b.Property<int>("BelPosId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Belegnummer")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<int?>("CreditorId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Empfaenger")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("LieferantKto")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime?>("Liefertermin")
+                        .HasColumnType("date");
+
+                    b.Property<decimal>("Rest")
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<DateTime>("SentAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("Testbetrieb")
+                        .HasColumnType("bit");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SentAt")
+                        .HasDatabaseName("IX_PurchaseOrderReminders_SentAt");
+
+                    b.HasIndex("BelPosId", "Art", "SentAt")
+                        .HasDatabaseName("IX_PurchaseOrderReminders_BelPosId_Art_SentAt");
+
+                    b.ToTable("PurchaseOrderReminders", "dbo");
                 });
 
             modelBuilder.Entity("IdealAkeWms.Models.Role", b =>

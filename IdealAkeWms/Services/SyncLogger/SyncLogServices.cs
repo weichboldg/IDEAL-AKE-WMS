@@ -36,6 +36,7 @@ public static class SyncLogServices
     public const string ArtikelLieferant = "ArtikelLieferant"; // Sage-ArtikelLieferantInfo (SData) -> ArticleSuppliers (v1.73.0 E8c)
     public const string EinkaufBestellungen = "EinkaufBestellungen"; // Sage-EinkaufPositionenInfo (SData, EBB) -> SagePurchaseOrderLines (v1.84.0 E1)
     public const string SageWareneingang = "SageWareneingang"; // Wareneingang zu Bestellung -> Sage-Wareneingangsbeleg ELL (SData StandardBelegService, v1.99.4)
+    public const string LieferverzugMail = "LieferverzugMail"; // Erinnerungs-Mails bei Lieferverzug aus dem Bestell-Cache (v1.99.10)
 
     // Non-Sync-Aktivitaeten (seit v1.15.1)
     public const string PartRequisitionEmail = "PartRequisitionEmail";
@@ -57,7 +58,7 @@ public static class SyncLogServices
         SageLagerbuchung, FaHierarchy, HierarchieUmstellung, FaMaterialization,
         WorkOperationStructureDetection, ProductionWorkplaceSync, OperationConfigSync, SageQuellenvergleich,
         PpsMitarbeiter, Stillstandsgruende, Kreditoren, Debitoren, ArtikelLieferant, EinkaufBestellungen, SageWareneingang,
-        PartRequisitionEmail, WarehouseRequisitionEmail, BdeAutoPause,
+        LieferverzugMail, PartRequisitionEmail, WarehouseRequisitionEmail, BdeAutoPause,
         CleanupActivityLog, Einstellungspruefung,
     };
 
@@ -94,6 +95,7 @@ public static class SyncLogServices
         [ArtikelLieferant] = "Artikel-Lieferanten-Abgleich (Sage)",
         [EinkaufBestellungen] = "Offene Bestellungen (Sage)",
         [SageWareneingang] = "Sage-Wareneingang",
+        [LieferverzugMail] = "Lieferverzug-Mails",
         [PartRequisitionEmail] = "Bedarfsmeldungs-E-Mail-Versand",
         [WarehouseRequisitionEmail] = "Lagerbestellungs-E-Mail-Versand",
         [BdeAutoPause] = "BDE-AutoPause",

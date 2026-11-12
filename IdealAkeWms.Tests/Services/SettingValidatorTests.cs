@@ -151,4 +151,26 @@ public class SettingValidatorTests
             if (f.Max != null && d!.Max != null) d.Max.Should().Be(f.Max, f.Key);
         }
     }
+
+    // v1.99.10 Lieferverzug-Mail (AK 16): Mail-Adressen und Grenzen beim Speichern
+    [Theory]
+    [InlineData("Lieferverzug:EinkaufEmpfaenger", "einkauf@ake.at; leitung@ake.at\nx@ideal-ake.at", true, "einkauf@ake.at,leitung@ake.at,x@ideal-ake.at")]
+    [InlineData("Lieferverzug:EinkaufEmpfaenger", "", true, "")]
+    [InlineData("Lieferverzug:EinkaufEmpfaenger", "einkauf@ake.at, abc@", false, null)]
+    [InlineData("Lieferverzug:AntwortAdresse", "Einkauf <einkauf@ake.at>", false, null)]
+    [InlineData("Lieferverzug:AntwortAdresse", "a@ake.at,b@ake.at", false, null)]
+    [InlineData("Lieferverzug:KreditorAbsender", " einkauf@ake.at ", true, "einkauf@ake.at")]
+    [InlineData("Lieferverzug:TageNachTermin", "61", false, null)]
+    [InlineData("Lieferverzug:TageNachTermin", "0", true, "0")]
+    [InlineData("Lieferverzug:Uhrzeit", "24", false, null)]
+    [InlineData("Lieferverzug:Standort", "IDEAL", true, "IDEAL")]
+    [InlineData("Lieferverzug:Standort", "ideal", false, null)]
+    public void Lieferverzug_WirdBeimSpeichernGeprueft(string key, string roh, bool gueltig, string? kanonisch)
+    {
+        ServiceSettingDefinitions.TryGet(key, out var d).Should().BeTrue();
+        var p = SettingValidator.Validate(d!, roh, exakt: true);
+        p.Gueltig.Should().Be(gueltig, p.Fehler);
+        if (gueltig) p.Kanonisch.Should().Be(kanonisch);
+        else p.Fehler.Should().NotBeNullOrEmpty();
+    }
 }

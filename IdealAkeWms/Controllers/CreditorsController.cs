@@ -233,6 +233,9 @@ public class CreditorsController : Controller
             ModelState.AddModelError(nameof(Creditor.ShortName), "Kurzname ist ein Pflichtfeld.");
         if (c.ShortName != null && await _repository.ExistsShortNameAsync(c.ShortName, exceptId))
             ModelState.AddModelError(nameof(Creditor.ShortName), $"Kurzname '{c.ShortName}' ist bereits vergeben (Groß-/Kleinschreibung zählt nicht).");
+        // v1.99.10: dieselbe Adress-Regel wie der Dienst vor dem Versand (DataAnnotations [EmailAddress] ist laxer)
+        if (c.ReminderEmail != null && !IdealAkeWms.Services.MailAdressen.IstGueltig(c.ReminderEmail))
+            ModelState.AddModelError(nameof(Creditor.ReminderEmail), "Bitte genau eine gültige E-Mail-Adresse eingeben (ohne Namen, ohne Liste).");
         if (c.SageKto != null && await _repository.ExistsSageKtoAsync(c.SageKto, exceptId))
             ModelState.AddModelError(nameof(Creditor.SageKto), $"Sage-Konto '{c.SageKto}' ist bereits einem anderen Kreditor zugeordnet.");
     }
@@ -255,6 +258,9 @@ public class CreditorsController : Controller
         target.ShortName = Normalize(src.ShortName);
         target.Remark = Normalize(src.Remark);
         target.IsCoater = src.IsCoater;
+        // v1.99.10 (Lieferverzug-Mail, Freigabe-Antwort 5): WMS-Felder, auch bei Sage-Kreditoren pflegbar
+        target.ReminderDisabled = src.ReminderDisabled;
+        target.ReminderEmail = Normalize(src.ReminderEmail);
     }
 
     private void SetModified(Creditor c)

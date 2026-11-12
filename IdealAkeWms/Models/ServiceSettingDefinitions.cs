@@ -120,6 +120,29 @@ public static class ServiceSettingDefinitions
         ["Notifications:MeldebestandSubject"] = ("Meldebestand-Mail: Betreff", "Dienst: Meldebestand-Prüfung", null, null),
         ["Notifications:Recipients"] = ("Meldebestand-Mail: Empfänger", "Dienst: Meldebestand-Prüfung", null, null),
         ["Notifications:AppBaseUrl"] = ("App-Adresse für Links in Mails", "Dienst: Mails mit Links", null, null),
+        // v1.99.10 Lieferverzug-Mail (Spec 2026-11-12-offene-bestellungen-mahnmail-lieferverzug): beide Standorte, Werte je Installation;
+        // wirkt nur mit Daten aus Sync:EinkaufBestellungenEnabled (IDEAL bis zur SData-Schnittstelle aus).
+        ["Lieferverzug:MailAktiv"] = ("Lieferverzug-Mails", LvVerwendung, null, "Versendet Mails, bei abgeschaltetem Testbetrieb auch an Lieferanten."),
+        ["Lieferverzug:TageNachTermin"] = ("Tage nach Liefertermin", LvVerwendung, null, null),
+        ["Lieferverzug:Uhrzeit"] = ("Versand ab (Uhr)", LvVerwendung, null, null),
+        ["Lieferverzug:EinkaufAktiv"] = ("Sammelliste an den Einkauf", LvVerwendung, null, "Versendet Mails."),
+        ["Lieferverzug:EinkaufEmpfaenger"] = ("Einkauf: Empfänger", LvVerwendung, null, null),
+        ["Lieferverzug:KreditorAktiv"] = ("Erinnerung an Kreditoren", LvVerwendung, null, "Versendet Mails an externe Lieferanten (nicht rückholbar), sofern der Testbetrieb aus ist."),
+        ["Lieferverzug:Testbetrieb"] = ("Testbetrieb (Kreditor-Mails an den Einkauf)", LvVerwendung, null, "Ausschalten sendet ab dem nächsten Versandtag an externe Lieferanten. Vorher Mail-Relay für externe Empfänger und Absender mit der IT klären."),
+        ["Lieferverzug:KreditorWiederholTage"] = ("Kreditor: erneut erinnern nach", LvVerwendung, null, null),
+        ["Lieferverzug:KreditorMaxJeLauf"] = ("Kreditor: max. Mails je Lauf", LvVerwendung + " (Sicherheits-Grenze)", null, null),
+        ["Lieferverzug:KreditorAbsender"] = ("Absenderadresse Kreditor-Mail", LvVerwendung, null, "Absender externer Mails: der SMTP-Relay muss diese Adresse für externe Empfänger zulassen (IT)."),
+        ["Lieferverzug:AntwortAdresse"] = ("Antwortadresse Kreditor-Mail", LvVerwendung, null, null),
+        ["Lieferverzug:Standort"] = ("Absender-Firma (CI)", LvVerwendung, null, null),
+    };
+
+    private const string LvVerwendung = "Dienst: Lauf „Lieferverzug-Mails“ nach „Offene Bestellungen (Sage)“";
+
+    /// <summary>v1.99.10: Auswahl Absender-Firma der Lieferverzug-Mails (Hausfarbe, Firmenadresse); exakte Schreibweise wie im Dienst.</summary>
+    public static readonly (string Wert, string Text)[] LieferverzugStandortWerte =
+    {
+        ("AKE", "AKE Ausseer Kälte- und Edelstahltechnik GmbH (AKE Blau)"),
+        ("IDEAL", "IDEAL Kältetechnik GmbH (IDEAL Blau)"),
     };
 
     /// <summary>Grenzen, die der Leser belegt (F1: nur dort).</summary>
@@ -130,6 +153,10 @@ public static class ServiceSettingDefinitions
         ["Sync:SageWareneingangWiederholAbstandMinuten"] = (5, 1440, "min"),
         ["Sync:BdeAutoPauseIntervalMinutes"] = (0, null, "min"),
         ["Sync:LagerbestandIntervalMinutes"] = (0, null, "min"),
+        ["Lieferverzug:TageNachTermin"] = (0, 60, "Tage"),
+        ["Lieferverzug:Uhrzeit"] = (0, 23, "Uhr"),
+        ["Lieferverzug:KreditorWiederholTage"] = (1, 60, "Tage"),
+        ["Lieferverzug:KreditorMaxJeLauf"] = (1, 500, ""),
     };
 
     private static SettingDefinition Ergaenzen(SettingDefinition d)
@@ -249,7 +276,27 @@ public static class ServiceSettingDefinitions
         new("Notifications:MeldebestandSubject",     SettingType.String, "Meldebestand unterschritten — IDEAL AKE WMS", "Benachrichtigungen", "Betreff der Meldebestand-Mail"),
         new("Notifications:Recipients",              SettingType.String, "",    "Benachrichtigungen", "Feste Empfaenger fuer Meldebestand-Mail (kommagetrennt, z.B. lager@ake.at,leitung@ake.at)", Multiline: true),
         new("Notifications:AppBaseUrl",              SettingType.String, "",    "Benachrichtigungen", "Basis-URL der App fuer Links in Mails (z.B. https://wms.ake.at)"),
+
+        // ----- Lieferverzug-Mail (v1.99.10, Spec 2026-11-12-offene-bestellungen-mahnmail-lieferverzug) -----
+        new("Lieferverzug:MailAktiv", SettingType.Bool, "false", LvKategorie, "Hauptschalter: Der Dienst prueft einmal am Tag (Mo-Fr ab der Uhrzeit unten) die offenen Bestellpositionen aus dem Cache 'Offene Bestellungen (Sage)' auf Lieferverzug und versendet die Mails nach den Einstellungen unten. Aus = kein Lauf. Ohne Bestell-Abgleich wirkungslos."),
+        new("Lieferverzug:TageNachTermin", SettingType.Int, "3", LvKategorie, "Eine Position gilt als verzoegert, wenn heute mindestens so viele Kalendertage nach ihrem Liefertermin liegt und noch ein Rest offen ist (Rest wie in 'Wareneingang zu Bestellung'). Positionen ohne Liefertermin nie."),
+        new("Lieferverzug:Uhrzeit", SettingType.Int, "7", LvKategorie, "Versand im ersten Sync-Zyklus ab dieser Stunde, nur Montag bis Freitag (Feiertage werden nicht beruecksichtigt). Hoechstens einmal am Tag, auch nach einem Dienst-Neustart."),
+        new("Lieferverzug:EinkaufAktiv", SettingType.Bool, "true", LvKategorie, "Taegliche Sammelliste aller verzoegerten Positionen, gruppiert nach Kreditor mit Status der Kreditor-Mail, an die Einkauf-Empfaenger. Nur wenn mindestens eine Position verzoegert ist."),
+        new("Lieferverzug:EinkaufEmpfaenger", SettingType.String, "", LvKategorie, "Empfaenger der Sammelliste UND im Testbetrieb aller umgeleiteten Kreditor-Mails (Adressen durch Komma, Semikolon oder Zeilenumbruch getrennt; jede wird geprueft). Leer = keine Mail, Warnung im Lauf.",
+            Multiline: true, Mail: SettingMail.Liste),
+        new("Lieferverzug:KreditorAktiv", SettingType.Bool, "false", LvKategorie, "Erinnerung je Kreditor mit seinen verzoegerten Positionen an die Adresse fuer Erinnerungen bzw. die E-Mail aus dem Kreditor-Stamm. Keine Mail bei gesperrtem Lieferanten, inaktivem/fehlendem Kreditor, 'keine Erinnerungsmails' oder ungueltiger Adresse (Grund in der Sammelliste)."),
+        new("Lieferverzug:Testbetrieb", SettingType.Bool, "true", LvKategorie, "An: Jede Kreditor-Mail geht unveraendert an die Einkauf-Empfaenger, Betreff und Kopf 'TESTBETRIEB - waere an ... gegangen'. Aus: Mails gehen an die Kreditoren (Grenze je Lauf beachten)."),
+        new("Lieferverzug:KreditorWiederholTage", SettingType.Int, "7", LvKategorie, "Abstand in Tagen, in dem eine weiterhin verzoegerte Position dem Kreditor erneut gemeldet wird. Ein geaenderter Liefertermin beginnt neu. Testbetrieb-Mails zaehlen nur fuer den Testbetrieb."),
+        new("Lieferverzug:KreditorMaxJeLauf", SettingType.Int, "30", LvKategorie, "Sicherheitsgrenze: Waeren mehr echte Kreditor-Mails faellig, geht keine davon raus (Warnung und Fehlermail). Gilt nicht im Testbetrieb. Schuetzt vor der ersten Mailwelle nach dem Abschalten des Testbetriebs."),
+        new("Lieferverzug:KreditorAbsender", SettingType.String, "", LvKategorie, "Absenderadresse der Kreditor-Mails (z. B. die Einkauf-Adresse). Leer = MailSettings:FromAddress aus appsettings. Die Einkauf-Sammelliste kommt immer von MailSettings:FromAddress.",
+            Mail: SettingMail.Eine),
+        new("Lieferverzug:AntwortAdresse", SettingType.String, "", LvKategorie, "Antwortadresse (Reply-To) der Kreditor-Mails, damit Antworten beim Einkauf landen. Leer = erste Einkauf-Empfaenger-Adresse.",
+            Mail: SettingMail.Eine),
+        new("Lieferverzug:Standort", SettingType.Choice, "AKE", LvKategorie, "Absender-Firma der Mails: bestimmt Hausfarbe, Firmenadresse und Signatur (AKE Blau bzw. IDEAL Blau). Je Installation setzen.",
+            Werte: LieferverzugStandortWerte),
     };
+
+    private const string LvKategorie = "Lieferverzug-Mail";
 
     /// <summary>Findet eine Definition per Key (case-sensitiv, wie DB-Key).</summary>
     public static bool TryGet(string key, [NotNullWhen(true)] out SettingDefinition? def)

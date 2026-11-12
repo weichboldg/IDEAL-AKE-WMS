@@ -83,6 +83,10 @@ public class SageWareneingangGrundlageTests
         // 3 und 2 sind im Sage-Stand (<= SyncedAt), 4 nach dem Abgleich uebergeben, 1 nicht uebergeben (anderer Status) -> 5 abziehen
         stand.Abzuziehen(sync).Should().Be(5m);
         ErfasstJeBelPos.Leer.Abzuziehen(sync).Should().Be(0m);
+        // v1.99.10: EINE Rest-Funktion fuer Maske und Lieferverzug-Mail, nie negativ
+        stand.Rest(8m, sync).Should().Be(3m);
+        stand.Rest(4m, sync).Should().Be(0m);
+        ErfasstJeBelPos.RestAus(4m, 5m).Should().Be(0m);
     }
 
     [Fact]

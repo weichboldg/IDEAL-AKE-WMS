@@ -18,6 +18,13 @@ public sealed record ErfasstJeBelPos(decimal Gesamt, IReadOnlyList<(DateTime Am,
         ? "Sage-Wareneingang: " + string.Join(", ", s.GroupBy(x => x).OrderBy(g => g.Key).Select(g => $"{g.Count()}× {text(g.Key)}"))
         : null;
     public decimal Abzuziehen(DateTime syncedAt) => Gesamt - Uebergeben.Where(u => u.Am <= syncedAt).Sum(u => u.Menge);
+
+    /// <summary>v1.99.10: Rest = offen laut Sage − im WMS noch abzuziehen, nie negativ. EINE Funktion fuer die Maske „Wareneingang zu
+    /// Bestellung“ und die Lieferverzug-Mail (sonst laufen beide auseinander).</summary>
+    public decimal Rest(decimal mengeOffen, DateTime syncedAt) => RestAus(mengeOffen, Abzuziehen(syncedAt));
+
+    /// <summary>Rest aus einem bereits berechneten <see cref="Abzuziehen"/> (Zeilenmodell der Maske).</summary>
+    public static decimal RestAus(decimal mengeOffen, decimal abzuziehen) => Math.Max(0m, mengeOffen - abzuziehen);
 }
 
 /// <summary>v1.84.0 (Spec 2026-11-08-wareneingang-aus-sage-bestellungen E3): Lesen der Wareneingaenge zu Bestellpositionen. Geschrieben

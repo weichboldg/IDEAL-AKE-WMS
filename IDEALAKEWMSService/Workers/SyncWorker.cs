@@ -485,6 +485,19 @@ public class SyncWorker : BackgroundService
                     }, stoppingToken);
                 }
 
+                // v1.99.10: Lieferverzug-Mails direkt NACH „Offene Bestellungen (Sage)“, eigenes Gate (Default aus, je Standort). Liest nur den
+                // Cache; faellt der Abgleich aus, greift die 24-h-Regel des Laufs. Hoechstens einmal am Tag (Protokolltabelle).
+                if (await ServiceSettings.GetBoolSafeAsync(_configuration, "Lieferverzug:MailAktiv", false, stoppingToken))
+                {
+                    await RunResilientAsync("Lieferverzug-Mails", async () =>
+                    {
+                        using var lvScope = _scopeFactory.CreateScope();
+                        var lvSvc = lvScope.ServiceProvider.GetRequiredService<LieferverzugMailService>();
+                        var lvEinst = await LieferverzugMailService.LesenAsync(_configuration, stoppingToken);
+                        await lvSvc.RunAsync(lvEinst, dryRun, DateTime.Now, stoppingToken);
+                    }, stoppingToken);
+                }
+
                 // ---------------------------------------------------------------
                 // WorkOperation-Arbeitsgang-Erkennung (Struktur, IDEAL): FaHierarchyNode.Arbeitsschritte ->
                 // WorkOperation, Match ueber ProductionWorkplace.ArbeitsschrittCode. Doppel-Gate (Master +

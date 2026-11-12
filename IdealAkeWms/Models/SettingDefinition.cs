@@ -26,6 +26,16 @@ public enum SettingStammdaten
     Bestellempfaengergruppe
 }
 
+/// <summary>v1.99.10: String-Einstellung mit Mail-Adressen — der Server prueft jede Adresse beim Speichern (ADR 0020 Punkt 2).</summary>
+public enum SettingMail
+{
+    Keine,
+    /// <summary>Genau eine Adresse oder leer.</summary>
+    Eine,
+    /// <summary>Mehrere Adressen (Komma, Semikolon oder Zeilenumbruch) oder leer.</summary>
+    Liste
+}
+
 /// <summary>Wie der Lesecode einen Bool-Rohwert auslegt (F6) — damit die Maske den WIRKSAMEN Zustand zeigt und Speichern nichts umkippt.</summary>
 public enum SettingBoolLesart
 {
@@ -63,6 +73,7 @@ public enum SettingBoolLesart
 /// <param name="BoolLesart">Lesart bei Bool (F6).</param>
 /// <param name="Seed">AppSettings: beim Web-Start anlegen, wenn die Zeile fehlt (Wert = Default).</param>
 /// <param name="Muster">String: erlaubtes Format als Regex (getrimmter Wert) und Text fuer die Fehlermeldung (v1.99.9, System-Kuerzel).</param>
+/// <param name="Mail">String: Mail-Adresse(n), jede wird beim Speichern geprueft (v1.99.10, Lieferverzug-Mail).</param>
 public sealed record SettingDefinition(
     string Key,
     SettingType Type,
@@ -83,4 +94,5 @@ public sealed record SettingDefinition(
     bool LeerErlaubt = false,
     SettingBoolLesart BoolLesart = SettingBoolLesart.NurTrueAktiviert,
     bool Seed = false,
-    (string Regex, string Erlaubt)? Muster = null);
+    (string Regex, string Erlaubt)? Muster = null,
+    SettingMail Mail = SettingMail.Keine);

@@ -11,7 +11,7 @@
 {
     <div class="alert alert-info small" role="alert">
         Dieser Kreditor stammt aus Sage. Name, Matchcode, Adresse, Kontakt, Sage-Konto und aktiv/inaktiv sind <strong>Sage-geführt</strong> und hier nur lesbar.
-        Kurzname (Zuordnung der Dienstleister-Texte), Bemerkung und &bdquo;Beschichter&ldquo; pflegen Sie im WMS.
+        Kurzname (Zuordnung der Dienstleister-Texte), Bemerkung, &bdquo;Beschichter&ldquo; und die Erinnerungen bei Lieferverzug pflegen Sie im WMS.
     </div>
 }
 
@@ -38,6 +38,22 @@
         <label asp-for="Remark" class="form-label"></label>
         <textarea asp-for="Remark" class="form-control" rows="3" maxlength="1000"></textarea>
         <span asp-validation-for="Remark" class="text-danger"></span>
+    </div>
+</fieldset>
+
+@* v1.99.10 (Lieferverzug-Mail, Freigabe-Antwort 5): WMS-Felder, auch bei Sage-Kreditoren pflegbar *@
+<fieldset class="mb-3">
+    <legend class="fs-6 fw-bold">Erinnerungen bei Lieferverzug</legend>
+    <div class="form-check form-switch mb-2">
+        <input asp-for="ReminderDisabled" class="form-check-input" type="checkbox" aria-describedby="reminderDisabledHelp" />
+        <label asp-for="ReminderDisabled" class="form-check-label">Keine Erinnerungsmails an diesen Kreditor</label>
+        <div id="reminderDisabledHelp" class="form-text">Verzögerte Positionen stehen weiter in der Sammelliste an den Einkauf (Status &bdquo;abgeschaltet&ldquo;).</div>
+    </div>
+    <div class="mb-2">
+        <label asp-for="ReminderEmail" class="form-label"></label>
+        <input asp-for="ReminderEmail" type="email" class="form-control" maxlength="200" aria-describedby="reminderEmailHelp" />
+        <div id="reminderEmailHelp" class="form-text">Genau eine Adresse. Leer = E-Mail aus den Stammdaten.</div>
+        <span asp-validation-for="ReminderEmail" class="text-danger"></span>
     </div>
 </fieldset>
 

@@ -24,6 +24,11 @@
     <InternalsVisibleTo Include="IDEALAKEWMSService.Tests" />
   </ItemGroup>
 
+  <!-- v1.99.10 Lieferverzug-Mails: Logo per CID (LieferverzugMailService.LogoRessource) -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\Branding\IDEAL_AKE_Logo_rgb_klein.jpg" LogicalName="IdealAkeLogo.jpg" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\IdealAkeWms\IdealAkeWms.csproj">
       <ExcludeAssets>contentFiles</ExcludeAssets>

@@ -83,6 +83,8 @@ Eintraege = @(
    Datei='143_AddPurchaseOrderReceiptSageWe.sql'; MigrationId='20261111200627_AddPurchaseOrderReceiptSageWe'; Voraussetzung='additiv'; Quelle='2026-11-11-v1-99-4-wareneingang-sage-we-beleg' }
 @{ Id='SQL/144'; Version='1.99.9'; Typ='Schema'; Firma='beide'; Phase='Schema'; Ausfuehrung='automatisch'
    Datei='144_AddSageKennungen.sql'; MigrationId='20261112141208_AddSageKennungen'; Voraussetzung='additiv'; Quelle='2026-11-12-v1-99-9-sage-system-kuerzel' }
+@{ Id='SQL/145'; Version='1.99.10'; Typ='Schema'; Firma='beide'; Phase='Schema'; Ausfuehrung='automatisch'
+   Datei='145_AddPurchaseOrderReminders.sql'; MigrationId='20261112143552_AddPurchaseOrderReminders'; Voraussetzung='additiv'; Quelle='2026-11-12-v1-99-10-lieferverzug-mail' }
 
 # ---------------------------------------------------------------- Pruefungen (jeder Lauf; Reparatur nur nach Bestaetigung) -------
 @{ Id='Pruefung/Kommissionierbereiche'; Version='1.88.0'; Typ='Pruefung'; Firma='beide'; Phase='Haltepunkt'; Ausfuehrung='Reparatur'; Braucht=@('SQL/133')
@@ -114,6 +116,10 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
    Datei='86_SeedDummyArticle.sql'
    Text='DUMMY-Artikel fehlt (Seed nur in SQL/86): ohne ihn lehnt die Lagerbestellung unbekannte EK-Nummern ab. Reparatur spielt SQL/86 erneut ein (idempotent).'
    Quelle='2026-08-06-v1-30-0-wms-bugs-teil-4-5-7-8; 2026-11-11-v1-99-0-update-skript-prueft-und-fuehrt-aus' }
+@{ Id='Pruefung/LieferverzugEmpfaenger'; Version='1.99.10'; Typ='Pruefung'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'; Braucht=@('SQL/145')
+   Pruefung='SELECT CASE WHEN EXISTS (SELECT 1 FROM dbo.ServiceSettings WHERE [Key] = N''Lieferverzug:MailAktiv'' AND LOWER(LTRIM(RTRIM([Value]))) = N''true'') AND NOT EXISTS (SELECT 1 FROM dbo.ServiceSettings WHERE [Key] = N''Lieferverzug:EinkaufEmpfaenger'' AND LEN(LTRIM(RTRIM([Value]))) > 0) THEN 1 ELSE 0 END'
+   Text='Lieferverzug-Mails sind an, aber ohne Einkauf-Empfaenger: es geht keine Mail raus (auch keine Testbetrieb-Mail). /ServiceSettings > Lieferverzug-Mail > Einkauf: Empfaenger eintragen.'
+   Quelle='2026-11-12-v1-99-10-lieferverzug-mail' }
 @{ Id='Pruefung/QrTrennzeichenKomma'; Version='1.69.0'; Typ='Pruefung'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
    Pruefung='SELECT CASE WHEN EXISTS (SELECT 1 FROM dbo.AppSettings WHERE [Key] = N''QrTrennzeichen'' AND [Value] = N'','') THEN (SELECT COUNT(*) FROM dbo.StorageLocations WHERE Code LIKE N''%,%'') ELSE 0 END'
    Text='QrTrennzeichen = Komma, aber Lagerplatz-Codes enthalten ein Komma: Trennzeichen unter /Settings aendern oder Codes bereinigen.'
@@ -274,5 +280,11 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
 @{ Id='v1.99.9-SystemKuerzel'; Version='1.99.9'; Typ='Einstellung'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
    Text='Neu in /ServiceSettings > Sage-Lagerbuchung: Sync:SageSystemKuerzel (System-Kuerzel fuer Sage-Kennungen). Kuerzel je Testsystem setzen (DEV, AT = AKE-Test, ATI = AKE Test-IDEAL, IT = IDEAL-Test), Produktion LEER lassen. Wirkt nur auf neue Sendungen (WE#<K>#<Id># bzw. SM#<K>#<id>#); gesendete Eintraege behalten ihre Kennung.'
    Quelle='2026-11-12-v1-99-9-sage-system-kuerzel' }
+@{ Id='v1.99.10-Lieferverzug'; Version='1.99.10'; Typ='Einstellung'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Text='Neu in /ServiceSettings > Lieferverzug-Mail (je Standort): Hauptschalter (Standard aus), Testbetrieb (Standard an), Einkauf-Empfaenger, Tage nach Liefertermin, Uhrzeit, Wiederholung, Grenze je Lauf, Absenderadresse und Antwortadresse der Kreditor-Mail, Absender-Firma (AKE/IDEAL). Erst Einkauf-Empfaenger und Absender-Firma eintragen, dann mit Testbetrieb einschalten. IDEAL bleibt aus bis zur SData-Schnittstelle fuer offene Bestellungen. Testbetrieb erst nach Freigabe durch den Einkauf und Pruefabfrage P-M3 ausschalten.'
+   Quelle='2026-11-12-v1-99-10-lieferverzug-mail' }
+@{ Id='v1.99.10-LieferverzugInfo'; Version='1.99.10'; Typ='Info'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Text='Einkauf informieren: taegliche Sammelliste verzoegerter Bestellpositionen; im Testbetrieb kommen auch die Lieferanten-Mails beim Einkauf an (Betreff TESTBETRIEB). Vor dem Echtbetrieb: Mail-Relay fuer externe Empfaenger und die Absenderadresse der Kreditor-Mail mit der IT klaeren (P-M4); Kreditor-Felder Keine Erinnerungsmails / Adresse fuer Erinnerungen unter Stammdaten > Kreditoren pflegen.'
+   Quelle='2026-11-12-v1-99-10-lieferverzug-mail' }
 )
 }

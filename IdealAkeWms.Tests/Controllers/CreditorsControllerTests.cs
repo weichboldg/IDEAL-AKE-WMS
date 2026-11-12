@@ -195,6 +195,22 @@ public class CreditorsControllerTests
         c.ModifiedBy.Should().Be("Pfleger");
     }
 
+    [Fact] // v1.99.10 (Lieferverzug-Mail, Antwort 5): Erinnerungs-Felder auch bei Sage-Kreditoren pflegbar, Adresse streng geprueft
+    public async Task Edit_SageHerkunft_ErinnerungsfelderPflegbar_UngueltigeAdresseAbgelehnt()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var seeded = Seed(ctx, null, name: "Sage-Name", source: StorageLocationSource.Sage, kto: "K31014");
+        var (ctrl, _) = Create(ctx);
+        (await ctrl.Edit(seeded.Id, new Creditor { Name = "", ReminderDisabled = true, ReminderEmail = "  mahnung@test.invalid " }))
+            .Should().BeOfType<RedirectToActionResult>();
+        var c = ctx.Creditors.Single();
+        (c.ReminderDisabled, c.ReminderEmail).Should().Be((true, "mahnung@test.invalid"));
+
+        var (ctrl2, _) = Create(ctx);
+        (await ctrl2.Edit(seeded.Id, new Creditor { Name = "", ReminderEmail = "a@b.at; c@d.at" })).Should().BeOfType<ViewResult>();
+        ctrl2.ModelState[nameof(Creditor.ReminderEmail)]!.Errors.Should().NotBeEmpty();
+    }
+
     [Fact]
     public async Task Edit_UnbekannteId_NotFound()
     {

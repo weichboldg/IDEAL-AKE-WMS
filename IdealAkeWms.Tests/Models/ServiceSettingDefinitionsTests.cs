@@ -138,6 +138,18 @@ public class ServiceSettingDefinitionsTests
     [InlineData("Sync:KreditorenEnabled")]
     [InlineData("Sync:DebitorenEnabled")]
     [InlineData("Sync:ArtikelLieferantEnabled")]
+    [InlineData("Lieferverzug:MailAktiv")] // v1.99.10
+    [InlineData("Lieferverzug:TageNachTermin")] // v1.99.10
+    [InlineData("Lieferverzug:Uhrzeit")] // v1.99.10
+    [InlineData("Lieferverzug:EinkaufAktiv")] // v1.99.10
+    [InlineData("Lieferverzug:EinkaufEmpfaenger")] // v1.99.10
+    [InlineData("Lieferverzug:KreditorAktiv")] // v1.99.10
+    [InlineData("Lieferverzug:Testbetrieb")] // v1.99.10
+    [InlineData("Lieferverzug:KreditorWiederholTage")] // v1.99.10
+    [InlineData("Lieferverzug:KreditorMaxJeLauf")] // v1.99.10
+    [InlineData("Lieferverzug:KreditorAbsender")] // v1.99.10
+    [InlineData("Lieferverzug:AntwortAdresse")] // v1.99.10
+    [InlineData("Lieferverzug:Standort")] // v1.99.10
     public void All_ContainsDocumentedServiceReadKey(string key)
     {
         ServiceSettingDefinitions.All.Select(d => d.Key).Should().Contain(key);

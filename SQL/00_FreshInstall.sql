@@ -2203,6 +2203,8 @@ BEGIN
         [SageUebergabeStatus]       INT               NOT NULL CONSTRAINT [DF_Creditors_SageUebergabeStatus] DEFAULT (0),
         [SageUebergabeAm]           DATETIME2         NULL,
         [SageUebergabeFehler]       NVARCHAR(1000)    NULL,
+        [ReminderDisabled]          BIT               NOT NULL CONSTRAINT [DF_Creditors_ReminderDisabled] DEFAULT (0), -- v1.99.10 (SQL/145)
+        [ReminderEmail]             NVARCHAR(200)     NULL,  -- v1.99.10 (SQL/145): Adresse fuer Lieferverzug-Erinnerungen
         [CreatedAt]                 DATETIME2         NOT NULL,
         [CreatedBy]                 NVARCHAR(200)     NOT NULL,
         [CreatedByWindows]          NVARCHAR(200)     NOT NULL,
@@ -2352,6 +2354,28 @@ BEGIN
     CREATE INDEX [IX_SagePurchaseOrderLines_ArticleId] ON [dbo].[SagePurchaseOrderLines]([ArticleId]);
     CREATE INDEX [IX_SagePurchaseOrderLines_Liefertermin] ON [dbo].[SagePurchaseOrderLines]([Liefertermin]);
     PRINT 'Tabelle SagePurchaseOrderLines erstellt.';
+END
+GO
+
+-- PurchaseOrderReminders (v1.99.10 / SQL/145, Lieferverzug-Mails F7): eine Zeile je versendeter Mail und Position, ohne FK, ohne Audit.
+IF OBJECT_ID(N'dbo.PurchaseOrderReminders', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[PurchaseOrderReminders] (
+        [Id]            INT IDENTITY(1,1) NOT NULL CONSTRAINT [PK_PurchaseOrderReminders] PRIMARY KEY,
+        [Art]           INT               NOT NULL,  -- 0 = Einkauf-Sammelliste, 1 = Kreditor-Mail
+        [BelPosId]      INT               NOT NULL,
+        [Belegnummer]   NVARCHAR(20)      NOT NULL,
+        [LieferantKto]  NVARCHAR(20)      NULL,
+        [CreditorId]    INT               NULL,
+        [Liefertermin]  DATE              NULL,
+        [Rest]          DECIMAL(18,4)     NOT NULL,
+        [Empfaenger]    NVARCHAR(1000)    NOT NULL,
+        [Testbetrieb]   BIT               NOT NULL,
+        [SentAt]        DATETIME2         NOT NULL
+    );
+    CREATE INDEX [IX_PurchaseOrderReminders_BelPosId_Art_SentAt] ON [dbo].[PurchaseOrderReminders]([BelPosId], [Art], [SentAt]);
+    CREATE INDEX [IX_PurchaseOrderReminders_SentAt] ON [dbo].[PurchaseOrderReminders]([SentAt]);
+    PRINT 'Tabelle PurchaseOrderReminders erstellt.';
 END
 GO
 
@@ -3188,6 +3212,9 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261112141208_AddSageKennungen')
    AND COL_LENGTH(N'dbo.PurchaseOrderReceipts', N'SageWeKennung') IS NOT NULL -- sonst steht SQL/144 noch aus
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261112141208_AddSageKennungen', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261112143552_AddPurchaseOrderReminders')
+   AND OBJECT_ID(N'dbo.PurchaseOrderReminders', N'U') IS NOT NULL AND COL_LENGTH(N'dbo.Creditors', N'ReminderEmail') IS NOT NULL -- sonst steht SQL/145 noch aus
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261112143552_AddPurchaseOrderReminders', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';

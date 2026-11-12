@@ -76,6 +76,12 @@
                     <dd class="col-sm-8">
                         @if (string.IsNullOrWhiteSpace(Model.Email)) { <text>—</text> } else { <a href="mailto:@Model.Email">@Model.Email</a> }
                     </dd>
+                    <dt class="col-sm-4">Erinnerungen bei Lieferverzug</dt>
+                    <dd class="col-sm-8">
+                        @if (Model.ReminderDisabled) { <text>abgeschaltet (keine Erinnerungsmails)</text> }
+                        else if (!string.IsNullOrWhiteSpace(Model.ReminderEmail)) { <text>an </text><a href="mailto:@Model.ReminderEmail">@Model.ReminderEmail</a> }
+                        else { <text>an die E-Mail aus den Stammdaten</text> }
+                    </dd>
                     <dt class="col-sm-4">Beschichter</dt><dd class="col-sm-8">@(Model.IsCoater ? "Ja" : "Nein")</dd>
                     <dt class="col-sm-4">Status</dt><dd class="col-sm-8">@(Model.IsActive ? "Aktiv" : "Inaktiv")</dd>
                     <dt class="col-sm-4">Bemerkung</dt><dd class="col-sm-8" style="white-space: pre-line;">@Text(Model.Remark)</dd>

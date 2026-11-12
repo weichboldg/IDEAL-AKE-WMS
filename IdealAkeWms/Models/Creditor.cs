@@ -67,6 +67,17 @@ public class Creditor : AuditableEntity, ISageKonto
     [Display(Name = "Beschichter")]
     public bool IsCoater { get; set; }
 
+    /// <summary>v1.99.10 (Lieferverzug-Mail, Freigabe-Antwort 5): keine Erinnerungsmails an diesen Kreditor. WMS-Feld, auch bei Sage-Kreditoren
+    /// pflegbar (der Kontokorrent-Abgleich schreibt es nicht).</summary>
+    [Display(Name = "Keine Erinnerungsmails")]
+    public bool ReminderDisabled { get; set; }
+
+    /// <summary>v1.99.10: Adresse fuer Erinnerungen bei Lieferverzug; leer = <see cref="Email"/>. WMS-Feld wie <see cref="ReminderDisabled"/>.</summary>
+    [StringLength(200)]
+    [EmailAddress(ErrorMessage = "Bitte eine gültige E-Mail-Adresse eingeben.")]
+    [Display(Name = "Adresse für Erinnerungen")]
+    public string? ReminderEmail { get; set; }
+
     [StringLength(20)]
     [Display(Name = "Herkunft")]
     public string Source { get; set; } = StorageLocationSource.Manual;

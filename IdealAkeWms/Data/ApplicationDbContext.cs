@@ -56,6 +56,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<ArticleSupplier> ArticleSuppliers => Set<ArticleSupplier>();
     public DbSet<SagePurchaseOrderLine> SagePurchaseOrderLines => Set<SagePurchaseOrderLine>();
     public DbSet<PurchaseOrderReceipt> PurchaseOrderReceipts => Set<PurchaseOrderReceipt>();
+    public DbSet<PurchaseOrderReminder> PurchaseOrderReminders => Set<PurchaseOrderReminder>(); // v1.99.10 Lieferverzug-Mails
     public DbSet<BdeShift> BdeShifts => Set<BdeShift>();
     public DbSet<BdeTerminal> BdeTerminals => Set<BdeTerminal>();
     public DbSet<CachedBomHeader> CachedBomHeaders => Set<CachedBomHeader>();
@@ -1299,6 +1300,7 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.Country).HasMaxLength(100);
             entity.Property(e => e.Email).HasMaxLength(200);
             entity.Property(e => e.Phone).HasMaxLength(50);
+            entity.Property(e => e.ReminderEmail).HasMaxLength(200); // v1.99.10, WMS-Feld
             entity.Property(e => e.ContactPerson).HasMaxLength(200);
             entity.Property(e => e.Remark).HasMaxLength(1000);
             entity.Property(e => e.Source).HasMaxLength(20).IsRequired();
@@ -1409,6 +1411,21 @@ public class ApplicationDbContext : DbContext
             entity.HasIndex(e => e.Belegnummer).HasDatabaseName("IX_SagePurchaseOrderLines_Belegnummer");
             entity.HasIndex(e => e.ArticleId).HasDatabaseName("IX_SagePurchaseOrderLines_ArticleId");
             entity.HasIndex(e => e.Liefertermin).HasDatabaseName("IX_SagePurchaseOrderLines_Liefertermin");
+        });
+
+        // v1.99.10 (Spec 2026-11-12-offene-bestellungen-mahnmail-lieferverzug F7): Protokoll der Lieferverzug-Mails, ohne FK, ohne Audit.
+        modelBuilder.Entity<PurchaseOrderReminder>(entity =>
+        {
+            entity.ToTable("PurchaseOrderReminders");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Art).HasConversion<int>();
+            entity.Property(e => e.Belegnummer).HasMaxLength(20).IsRequired();
+            entity.Property(e => e.LieferantKto).HasMaxLength(20);
+            entity.Property(e => e.Liefertermin).HasColumnType("date");
+            entity.Property(e => e.Rest).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.Empfaenger).HasMaxLength(1000).IsRequired();
+            entity.HasIndex(e => new { e.BelPosId, e.Art, e.SentAt }).HasDatabaseName("IX_PurchaseOrderReminders_BelPosId_Art_SentAt");
+            entity.HasIndex(e => e.SentAt).HasDatabaseName("IX_PurchaseOrderReminders_SentAt");
         });
 
         // v1.84.0 E3: Wareneingang zu Bestellposition, genau eine StockMovement (Restrict, UNIQUE), Snapshot ohne FK auf den Cache.

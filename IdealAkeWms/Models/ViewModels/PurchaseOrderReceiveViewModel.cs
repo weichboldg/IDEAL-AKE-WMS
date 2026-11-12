@@ -28,7 +28,7 @@ public class PurchaseOrderReceiveRow
 {
     public required PurchaseOrderLineRow Row { get; init; }
     /// <summary>Rest = offen laut Sage − im WMS erfasst (Freigabe-Antwort 2), nie negativ.</summary>
-    public decimal Rest => Math.Max(0m, Row.Line.MengeOffen - Row.ImWmsAbzuziehen);   // v1.99.4 F5: Uebergebenes nicht doppelt abziehen
+    public decimal Rest => IdealAkeWms.Data.Repositories.ErfasstJeBelPos.RestAus(Row.Line.MengeOffen, Row.ImWmsAbzuziehen);   // v1.99.4 F5; v1.99.10 eine Regel mit der Lieferverzug-Mail
     /// <summary>Grund, warum die Zeile nicht buchbar ist (Text in der Zeile); null = buchbar.</summary>
     public string? NichtBuchbar => Row.Line.ArticleId == null ? "Artikel nicht im WMS"
         : Row.Line.EinheitAbweichend ? $"Einheit abweichend (Bestellung {Row.Line.Mengeneinheit}, Basis {Row.Line.MengeBasiseinheit}, Lager {Row.Line.Lagermengeneinheit}) – nicht buchbar, bis geklärt"
