@@ -918,6 +918,7 @@ Datenbankverbindungen und grundlegende Einstellungen in `IDEALAKEWMSService/apps
 | `MailSettings:SmtpHost` | SMTP-Server für Mail-Versand |
 | `MailSettings:SmtpPort` | SMTP-Port (default 25) |
 | `MailSettings:FromAddress` | Absender-Adresse |
+| `MailSettings:PickupDirectory` | **Nur DEV/QA (v1.99.10):** Ist ein Ordner gesetzt, schreibt der Dienst jede Mail als `.eml` dorthin statt sie per SMTP zu senden (hat Vorrang vor `SmtpHost`; Ordner wird angelegt). So lassen sich Mails ohne Versand prüfen (in Outlook öffnen). In Produktion **nicht** setzen – dann geht keine Mail raus. |
 | `WorkerSettings:SyncIntervalMinutes` | Nur Default-Referenz — produktiv aus der DB gelesen (siehe unten) |
 
 Alle übrigen Einstellungen liegen **DB-first** in der `ServiceSettings`-Tabelle und werden über
@@ -933,6 +934,7 @@ vollständiger Katalog". Wichtige Gruppen:
 | Sync-Gates | `Sync:ProductionOrdersEnabled`, `Sync:ArticlesEnabled`, `Sync:FaZusatzinfoEnabled`, `Sync:OseonTrackingEnabled`, `Sync:EnaioDmsEnabled`, `Sync:BomCacheEnabled`, `Sync:LagerplaetzeEnabled`, `Sync:LagerbestandEnabled`, `Sync:FeiertagSyncEnabled` |
 | Erkennung/Reconciliation | `Sync:CoatingDetectionEnabled`, `Sync:FaWorkStepDetectionEnabled`, `Sync:WorkOperationStructureDetectionEnabled` (IDEAL: `WorkOperation`-Arbeitsgänge aus `FaHierarchyNode.Arbeitsschritte`, Match über `ProductionWorkplace.ArbeitsschrittCode`, nur bei Master `ProduktionsauftragHierarchisch` und nach der Werkbank-Anlage `Sync:ProductionWorkplaceSyncEnabled`; unbekannte Kürzel werden gemeldet, ausgeschlossene über `Sync:ProductionWorkplaceSyncAusschlussliste` bewusst ausgenommen), `Sync:ProductionOrderReconcileEnabled` (+ `Sync:ReconcileMaxCancelPerRun`) |
 | Mails | `Sync:PartRequisitionEmailEnabled`, `Sync:WarehouseRequisitionEmailEnabled`, `Notifications:*`, `ErrorNotification:Enabled`/`Recipients` |
+| Lieferverzug-Mail (seit v1.99.10, je Standort) | `Lieferverzug:MailAktiv` (Default aus), `Lieferverzug:Testbetrieb` (Default **an**: Kreditor-Mails gehen an den Einkauf), `Lieferverzug:EinkaufAktiv`/`EinkaufEmpfaenger`, `Lieferverzug:KreditorAktiv` (Default aus), `TageNachTermin` (3), `Uhrzeit` (7, Mo–Fr), `KreditorWiederholTage` (7), `KreditorMaxJeLauf` (30), `KreditorAbsender` (leer = `MailSettings:FromAddress`), `AntwortAdresse` (leer = erste Einkauf-Adresse), `Standort` (AKE/IDEAL, CI). Liest nur den Cache „Offene Bestellungen“ (`Sync:EinkaufBestellungenEnabled`); IDEAL aus bis zur SData-Schnittstelle. Vor dem Echtbetrieb: SMTP-Relay für externe Empfänger und den Absender mit der IT klären. Protokoll `dbo.PurchaseOrderReminders` (SQL/145). |
 | Worker | `WorkerSettings:SyncIntervalMinutes`, `WorkerSettings:SyncDryRun`, `Sync:BdeAutoPauseIntervalMinutes` |
 | Bereinigung | `Cleanup:AktivitaetsprotokollAufbewahrungTage` (Default 180, `0` = nie löschen) |
 | Sage-Quellen (seit v1.60.0) | `Sync:FaHierarchyListeViewName`/`…InfosViewName` (Default `[vw_IDEAL_AKE_WMS_FAListe]`/`…FAInfos]`), `Sync:ProductionWorkplaceSyncViewName` (Default `KHKPpsArbeitsplaetze`), `Sync:ArticlesViewName` (Default leer = bisheriger Select) |

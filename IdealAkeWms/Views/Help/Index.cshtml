@@ -104,6 +104,35 @@
                         &bdquo;Memo&ldquo; zeigt die Kennung, mit der gesendet wurde bzw. gesendet wird.
                     </dd>
 
+                    <dt>Erinnerungs-Mails bei Lieferverzug (seit v1.99.10)</dt>
+                    <dd>
+                        Der Dienst prüft einmal am Tag die <em>Offenen Bestellungen</em> (gleiche Daten wie die Liste, braucht
+                        <code>Sync:EinkaufBestellungenEnabled</code>). Einstellungen unter <em>Service-Einstellungen &rarr; Lieferverzug-Mail</em>
+                        (je Standort; Hauptschalter <code>Lieferverzug:MailAktiv</code>, Standard aus).
+                        <ul class="mb-1">
+                            <li><strong>Verzögert</strong> ist eine Position, wenn heute mindestens <em>Tage nach Liefertermin</em> (Standard 3,
+                                Kalendertage) nach dem Liefertermin liegt und noch ein Rest offen ist &ndash; derselbe Rest wie in
+                                <em>Wareneingang zu Bestellung</em>, also abzüglich im WMS erfasster, noch nicht in Sage enthaltener Mengen. Positionen ohne
+                                Liefertermin und Rahmenabrufe nie.</li>
+                            <li><strong>Wann:</strong> Montag bis Freitag im ersten Sync-Lauf ab <em>Versand ab (Uhr)</em> (Standard 7), höchstens einmal am
+                                Tag, auch nach einem Dienst-Neustart. Feiertage zählen als Versandtag.</li>
+                            <li><strong>Sammelliste an den Einkauf:</strong> alle verzögerten Positionen nach Lieferant, je Lieferant eine Zeile
+                                &bdquo;Kreditor-Mail: &hellip;&ldquo; (gesendet, Testbetrieb, nächste Erinnerung am, keine/ungültige Adresse, abgeschaltet,
+                                Lieferant gesperrt, Kreditor inaktiv, kein Kreditor im WMS, ausgesetzt).</li>
+                            <li><strong>Erinnerung an den Lieferanten</strong> (Schalter <em>Erinnerung an Kreditoren</em>): eine Mail je Lieferant in
+                                Deutsch und Englisch, an die <em>Adresse für Erinnerungen</em> des Kreditors, sonst an seine E-Mail. Erneut erst nach
+                                <em>Kreditor: erneut erinnern nach</em> Tagen (Standard 7); ein geänderter Liefertermin beginnt neu. Absender und
+                                Antwortadresse sind einstellbar.</li>
+                            <li><strong>Testbetrieb</strong> (Standard an): Die Lieferanten-Mails gehen unverändert an die Einkauf-Empfänger, Betreff
+                                und Kopf &bdquo;TESTBETRIEB &ndash; wäre an &hellip; gegangen&ldquo;.</li>
+                            <li><strong>Schutz:</strong> Sind die Bestelldaten älter als 24 Stunden, gehen keine Lieferanten-Mails raus (Hinweis in der
+                                Sammelliste). Wären mehr Lieferanten-Mails fällig als <em>Kreditor: max. Mails je Lauf</em> (Standard 30), geht keine raus
+                                (Warnung und Fehlermail).</li>
+                            <li>Je Kreditor abschaltbar: <em>Stammdaten &rarr; Kreditoren &rarr; Bearbeiten &rarr; Erinnerungen bei Lieferverzug</em>.</li>
+                        </ul>
+                        Nachweis: <em>Aktivitäts-Protokoll</em>, Lauf &bdquo;Lieferverzug-Mails&ldquo;.
+                    </dd>
+
                     <dt>Sage-Lagerbuchungen (seit v1.28.0)</dt>
                     <dd>
                         Manuelle <strong>Ein- und Ausbuchungen</strong> koennen automatisch und zeitnah an
