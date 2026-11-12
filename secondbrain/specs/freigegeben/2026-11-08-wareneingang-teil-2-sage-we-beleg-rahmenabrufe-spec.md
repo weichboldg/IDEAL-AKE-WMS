@@ -1312,3 +1312,51 @@ Gilt vor dem QA-Abschnitt; setzt den Hinweis direkt darüber um. Version: nächs
    Sonst im Bericht vermerken.
 5. Update-Skript/Manifest: Info-Eintrag „Kürzel je Testsystem setzen, Produktion leer lassen“. Die DEV-Absicherung setzt auf DEV das Kürzel `DEV`.
 6. Tests: Kennung mit und ohne Kürzel, Suche findet `WE#7#` bei Kürzel `DEV` nicht.
+
+## Umsetzung Nachtrag 14:20 (v1.99.9)
+
+Dev-Lauf 2026-11-12 im Bündel `feature/2026-08-07-ideal-teile-1-5`. Commits `115e8a09` (Code, Migration, SQL/144, Manifest, Tests),
+`c47f0136` (Version 1.99.9, Changelog, Hilfe, README, TS-116.25–116.30). Brain-Changelog [[2026-11-12-v1-99-9-sage-system-kuerzel]].
+1. **Einstellung** `Sync:SageSystemKuerzel` (String, Default leer, Kategorie „Sage-Lagerbuchung“, Standort beide, Anzeigename „System-Kürzel für
+   Sage-Kennungen“, Warnhinweis „In der Produktion LEER lassen … wirkt nur auf neue Sendungen“). Serverprüfung über ein neues, generisches
+   `SettingDefinition.Muster` im `SettingValidator` (String-Fall): `^([A-Z][A-Z0-9]{0,4})?$`.
+   **Abweichung (bewusst, enger als der Nachtrag):** das Kürzel muss mit einem **Buchstaben** beginnen. Ein reines Ziffern-Kürzel `12` ergäbe
+   `WE#12#7#`, und die Suche eines Systems ohne Kürzel nach `%WE#12#%` träfe genau diesen Beleg – die Regel wäre wieder gebrochen.
+2. **EINE Formatfunktion** `SageSystemKuerzel.Kennung(praefix, kuerzel, id)` im Web-Projekt (`IdealAkeWms/Services/SageSystemKuerzel.cs`); der Dienst
+   referenziert das Web-Projekt (`IDEALAKEWMSService.csproj:28`). `SageWareneingang.Memo(id, kuerzel)` und `SageBookingCorrelation.Marker(id, kuerzel)`
+   nutzen sie. Kopf- und Positions-Memo: `WE#<K>#<Id>#`, ohne Kürzel unverändert `WE#<Id>#`.
+3. **Gespeicherte Kennung:** neue Spalten `PurchaseOrderReceipts.SageWeKennung` und `SageBookingQueueItems.SageKennung` (je nvarchar(20) NULL;
+   längste Kennung `WE#` + 5 + `#` + 10 Ziffern + `#` = 20), **eine** Migration `20261112141208_AddSageKennungen`, **SQL/144_AddSageKennungen.sql**
+   (COL_LENGTH-Guards, History separat), FreshInstall an beiden Stellen. Regel an einem Ort: `SageWareneingang.Kennung(r, kuerzel)` =
+   gespeicherte Kennung; sonst nie gesendet (`SageWeVersuche == 0`) → aktuelles Kürzel; sonst (vor v1.99.9 gesendet) → altes Format.
+   Der Dienst speichert die Kennung beim Wechsel auf `Gesendet` (vor `Versuche++`). E5-Suche, „Ergebnis unklar“-Text, Sicherungsnetz und die
+   Spalte „Memo“ der Liste (Web liest das Kürzel aus /ServiceSettings, gleiche Funktion) nutzen sie. Lagerbuchung analog
+   `SageBookingCorrelation.Kennung(item, kuerzel)` (nie gesendet = `SentAt` leer), gespeichert in `MarkSentAsync(id, kennung)`.
+4. **Sicherungsnetz/FremdeKennung:** Regex `WE#(?:[A-Z][A-Z0-9]{0,4}#)?\d+#`; jede Kennung, die nicht exakt die eigene ist, ist fremd
+   (`WE#7#` bei eigener `WE#DEV#7#`, `WE#AT#7#`, `WE#DEV#70#`). LIKE-Richtungen per Test belegt: `%WE#7#%` trifft `WE#DEV#7#` nicht und umgekehrt,
+   `%WE#AT#7#%` trifft weder `WE#AT#17#` noch `WE#ATI#7#`, `%WE#7#%` nicht `WE#17#`/`WE#70#`.
+5. **SM#-Prüfung – Ergebnis: dasselbe Problem besteht, umgesetzt.** Beleg (Stand vor der Änderung, `bb788f0e`): `SageBookingWorker.cs:161`
+   Recovery hängender `Gesendet` (`lookup.ExistsAsync(item.StockMovementId)` → Treffer = `MarkConfirmedAsync` „Recovery: Buchung in Sage bereits
+   vorhanden“) und `:214` Requeue (`item.SentAt != null` → Treffer = `MarkConfirmedAsync` „Requeue: …“, `continue` ohne Senden); Lookup
+   `Memo like '%SM#<id>#%'` über `KHKLagerplatzbuchungen` (`SageBuchungLookupReader.cs:15`) bzw. SData `LagerplatzbuchungenInfo`
+   (`SdataBuchungLookupReader.Where`). Die Id ist `StockMovement.Id` der jeweiligen WMS-DB – bucht ein anderes WMS gegen dieselbe
+   Sage-Testdatenbank eine Bewegung mit gleicher Id, gilt die eigene als bestätigt und wird **nie gebucht**. Daher `SM#<K>#<id>#`,
+   `ISageBuchungLookupReader.ExistsAsync(string marker)` (View, SData, Weiche), Spalte `SageKennung` in derselben Migration.
+6. **Dienst liest das Kürzel ohne Safe-Variante** (`ServiceSettings.GetValueAsync` + `SageSystemKuerzel.Pruefen`): DB-Lesefehler oder ungültiger
+   Wert (von Hand in der DB, z. B. `dev` oder `%`) → Ausnahme, Takt abgebrochen, nichts gesendet, Fehlermail wie bei anderen Takt-Fehlern.
+   Grund: Senden ohne Kürzel wäre genau die Verwechslung; ein `%` wäre in der LIKE-Suche ein Platzhalter.
+7. **Manifest** `nachlauf.psd1`: Schema-Eintrag `SQL/144` (automatisch, additiv, nach SQL/143) und Einstellungs-Eintrag `v1.99.9-SystemKuerzel`
+   („Kürzel je Testsystem setzen (DEV, AT, ATI, IT), Produktion LEER lassen“). Drift-Test `SchemaReihenfolge` um SQL/144 ergänzt.
+8. **DEV-Absicherung** (außerhalb des Repos, nicht ausgeführt): `D:\Dev\scripts\dev-absicherung-ake.sql` und `-ideal.sql` setzen bzw. legen
+   `Sync:SageSystemKuerzel = 'DEV'` an; Backups `*.bak-20261112b`.
+9. **Tests:** Dienst 564/564 (vorher 534; +30: Kennung mit/ohne Kürzel, gespeicherte geht vor, LIKE-Matrix 9 Fälle, FremdeKennung 7 Fälle,
+   Erstversand mit/ohne Kürzel speichert Kennung, Wiederholung sucht gespeicherte statt aktueller, Altbestand altes Format, **Kürzel DEV findet
+   fremden `WE#<Id>#` nicht und sendet**, SM# Marker/Kennung/LIKE/Payload/SData-Where). Web 2660 bestanden / 1 übersprungen (Bestand) / 0
+   (vorher 2646; +14: Validator-Grenzen 12 Fälle, Katalog/Pruefen, Liste Memo). Bestandstests nur Signatur angepasst (Kennung statt Id).
+   `dotnet build IdealAkeWms.slnx` 0 Fehler, 24 Warnungen (Bestand).
+10. **TS-Kapitel:** TS-116.25–116.30 als Erweiterung von TS-116 (Nachtrag derselben Spec, Sage-WE-Kapitel; SM# gehört zum selben Nachtrag).
+    **Nur Manual-UAT:** Wirkung in Sage (116.26, 116.29 schreiben nach Sage – nur Gerald), Maske /ServiceSettings (116.25), 116.27 nur mit
+    werfendem Sende-Client. Keine Sage-Aufrufe in diesem Lauf.
+
+**Befunde (nicht gebaut):** Kein `pattern`-Attribut im Eingabefeld – die Prüfung ist rein serverseitig (Fehlermeldung beim Speichern). Ein
+ungültiger Wert in der DB löst je Takt (20 s) eine Fehlermail aus, solange er steht (bestehendes Verhalten des Takt-catch).

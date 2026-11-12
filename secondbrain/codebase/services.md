@@ -350,3 +350,9 @@ Quellen-Weiche je Abgleich: [[0019-quellen-weiche-view-sdata-je-abgleich]]. Ordn
   Erfolg → Uebergeben + Belegnummer, Fehler bleibt (Variante B, kein Auto-Retry), haengend nach `Sync:SageLagerbuchungStuckMinutes` → Fehler
   „Ergebnis unklar“. Aktivitaets-Protokoll `SageWareneingang` („Sage-Wareneingang“), Counts `gesendet`, `uebergeben`, `fehler`, `unklar`; kein
   Lauf-Eintrag ohne Arbeit. Antwort kommt als SData-Atom-XML (Schreibtest 2026-11-12).
+- **v1.99.9 `Sync:SageSystemKuerzel`** (String, Default leer, Kategorie „Sage-Lagerbuchung“, beide Standorte; Format `^([A-Z][A-Z0-9]{0,4})?$`,
+  Serverprüfung `SettingDefinition.Muster`): System-Kürzel der Memo-Kennungen `WE#<K>#<Id>#` (Sage-Wareneingang) und `SM#<K>#<id>#`
+  (Sage-Lagerbuchung). Leer = altes Format (Produktion). Gelesen vom `SageBookingWorker` je Takt **ohne** Safe-Fallback
+  (`SageSystemKuerzel.Pruefen`, ungültig → Takt bricht ab) und von der Liste „Sage-Wareneingänge“ (Spalte Memo). Verwendete Kennung gespeichert in
+  `PurchaseOrderReceipts.SageWeKennung` / `SageBookingQueueItems.SageKennung` (SQL/144); Regel `SageWareneingang.Kennung` /
+  `SageBookingCorrelation.Kennung`. DEV-Absicherung setzt `DEV`. [[2026-11-12-v1-99-9-sage-system-kuerzel]]

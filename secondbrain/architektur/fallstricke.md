@@ -1758,6 +1758,12 @@ Code: `hardware-scanner.js` Block „Scannen ohne Feld“, CSS `.hw-scan-bereit`
 - **Ausgeschalteter Sage-Wareneingang: Liegengebliebenes geht auf „Klären“** (Worker-Takt, v1.99.7), statt beim Wiedereinschalten automatisch
   nachzusenden. **Warum wichtig:** `ServiceSettings` haben keinen Änderungszeitpunkt; nur so wird nichts nachgeschickt, egal ob der Schalter
   über die Maske, ein Skript oder die DEV-Absicherung umgestellt wurde.
+- **Memo-Kennungen (`WE#…#`, `SM#…#`) sind nur je WMS-Datenbank eindeutig – auf Testsystemen ein System-Kürzel setzen** (`Sync:SageSystemKuerzel`,
+  v1.99.9). Gespeichert wird die Kennung, mit der gesendet wurde; das Kürzel beginnt mit einem Buchstaben. **Warum wichtig:** DEV, AKE-Test und
+  AKE Test-IDEAL schreiben in dieselbe Sage-Testdatenbank, und nach einem Restore beginnen die Ids neu. Die Suche vor dem erneuten Senden fände
+  den Beleg eines anderen WMS, hielte den eigenen Eintrag für „übergeben“/„bestätigt“ und sendete **nie**. Ohne gespeicherte Kennung fände die
+  Suche nach einer Kürzel-Änderung die eigene Buchung nicht mehr → zweiter Beleg. Ein Ziffern-Kürzel (`12`) ergäbe `WE#12#7#`, das die Suche
+  `%WE#12#%` eines Systems ohne Kürzel trifft.
 
 ## Sage-SData-Lesen (v1.73.0, [[2026-11-06-sage-sdata-stammdaten-sync-spec]])
 
