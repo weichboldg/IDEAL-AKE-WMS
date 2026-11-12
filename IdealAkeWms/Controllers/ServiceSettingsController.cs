@@ -64,7 +64,8 @@ public class ServiceSettingsController : Controller
                 ModelState.AddModelError(key, pruefung.Fehler!);
                 continue;
             }
-            var wert = def.Type == SettingType.String ? roh : pruefung.Kanonisch!;
+            // QA v1.99.9: String mit Muster (System-Kuerzel) getrimmt speichern, wie geprueft
+            var wert = def.Type == SettingType.String && def.Muster is null ? roh : pruefung.Kanonisch!;
             if (bestand.TryGetValue(key, out var row) && string.Equals(row.Value, wert, StringComparison.Ordinal)) continue;
             if (!bestand.ContainsKey(key) && SettingItem.EntsprichtDefault(def, wert)) continue;
             schreiben.Add((def, wert));

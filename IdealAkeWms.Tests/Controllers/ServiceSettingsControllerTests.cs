@@ -142,4 +142,19 @@ public class ServiceSettingsControllerTests
 
         repo.Verify(r => r.UpsertAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
     }
+
+    [Fact]
+    public async Task SaveSettings_SystemKuerzel_GetrimmtGespeichert_KleinbuchstabenAbgelehnt()
+    {
+        // QA v1.99.9: String mit Muster wird getrimmt gespeichert (wie geprueft); "dev" abgelehnt, nichts geschrieben.
+        var repo = new Mock<IServiceSettingRepository>();
+        await Build(repo).SaveSettings(new Dictionary<string, string> { ["Sync:SageSystemKuerzel"] = " DEV " });
+        repo.Verify(r => r.UpsertAsync("Sync:SageSystemKuerzel", "DEV", It.IsAny<string>(), It.IsAny<string>()), Times.Once);
+
+        var repo2 = new Mock<IServiceSettingRepository>();
+        var ctrl2 = Build(repo2);
+        await ctrl2.SaveSettings(new Dictionary<string, string> { ["Sync:SageSystemKuerzel"] = "dev" });
+        ctrl2.ModelState.IsValid.Should().BeFalse();
+        repo2.Verify(r => r.UpsertAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+    }
 }
