@@ -1236,3 +1236,38 @@ Bestell-Mails.
    - Nicht gesetzt: OK.
 2. In der Ermittlungs-Anzeige eine Zeile „Mail: SMTP <Host> | Ordner <Pfad>“.
 3. Tests auf DEV (DEV hat den Wert gesetzt): als Test-Ziel Hinweis, mit simuliertem Prod-Ziel (Ziel-Datei temporär) Abbruch vor dem Stoppen.
+
+## Umsetzung Nachtrag 17:04 (v1.99.12)
+
+Commit `56906459` im Bündel (auf v1.99.11 `0dc0cea0`). Changelog [[2026-11-12-v1-99-12-update-skript-pickup-pruefung]].
+- Manifest `scripts/deploy/nachlauf.psd1`: `Pruefung/MailPickup` (Typ `Pruefung`, Firma beide, Phase `Vorher`, Ausfuehrung `anzeigen`), neues Feld
+  `Appsettings='MailSettings:PickupDirectory'` statt SQL; Text mit `{Wert}`/`{Datei}`. Kopfkommentar des Manifests ergänzt.
+- `Update-IdealAkeWms.ps1`: `Get-Einstellung` (DB-Ermittlung) bekommt `-MitDatei` (Wert + Datei, Umgebungsdatei vor `appsettings.json`), kein
+  zweiter Parser. `Get-PruefStand` liefert für `Appsettings`-Einträge 1/0 ohne DB (Leerraum = nicht gesetzt, wie `MailService.cs:31-33`).
+  Vorprüfung: Phase `Vorher` mit Abweichung → Prod: „PROD, Abbruch vor dem Stoppen: …“ und nach der Plan-Zeile `Stop-Mit` (vor `-NurPruefen`-Ende,
+  Schritt 2 und 3); Test: „Hinweis: Mails gehen nur in <Ordner> (<Datei>)“. Nachlauf-Block „Prüfungen“ zeigt sie erneut (Phase Nachher-Stand).
+  „Vorher:“-Liste ohne Typ `Pruefung` (sonst doppelt). Ermittlungs-Zeile `Mail           SMTP <Host> | Ordner <Pfad>` (Dienst-appsettings).
+- Tests: `NachlaufManifestDriftTests.Manifest_Pruefungen_Gueltig` erweitert (genau eines von `Pruefung`/`Appsettings`; `Appsettings` nur Phase
+  `Vorher` + anzeigen), neu `Pruefung_MailPickup_AbbruchAufProdVorDemStoppen` (Eintrag + Abbruch im Skripttext vor `-NurPruefen`, Schritt 2, 3).
+- Version 1.99.12 (beide `AppVersion.cs`), Changelog-Karte, README (Update-Skript-Abschnitt), TS-126.28–126.31.
+
+**Nachweis:** `dotnet build IdealAkeWms.slnx` 0 Fehler; Web **2715/2716** (1 übersprungen, Bestand), Dienst **599/599**; `ParseFile` (PS 5.1.26100) 0
+Fehler für alle 5 Dateien in `scripts/deploy`. Probe (PS 5.1, StrictMode 2, Funktionen aus dem Skript-AST): Umgebungsdatei überschreibt Basis →
+1 mit Datei `appsettings.DEV.json`; Schlüssel fehlt → 0; nur Leerzeichen → 0.
+
+**DEV-Test** (nur `-NurPruefen`, Paketkopie im Scratchpad mit temporärer `ziele.psd1`, EINE Zeile `AKE`/`DEV` auf `D:\Dev\AKE\Web`/`Service`,
+Url `http://localhost:8081/`; keine echte Ziel-Zeile; Kopie danach gelöscht, Protokolle bleiben im Scratchpad `ts126mail\logs`):
+
+| Nr | Ergebnis |
+|---|---|
+| 126.28 | `Prod=$false`: „Mail           SMTP smtp.ake.at \| Ordner D:\Dev\mail-pickup\ake“; „[Pruefung/MailPickup] Abweichung 1 - Hinweis: Mails gehen nur in D:\Dev\mail-pickup\ake (D:\Dev\AKE\Service\appsettings.DEV.json) …“; Nachlauf zeigt sie erneut; „-NurPruefen: nichts gestoppt“, Exit 0 |
+| 126.29 | `Prod=$true` (Eingabe `AKE-PROD`): „PROD, Abbruch vor dem Stoppen: …“; nach dem Plan „ABBRUCH: Produktivsystem AKE-DEV: [Pruefung/MailPickup] … Wert von Hand entfernen … Nichts gestoppt, Web und Dienst laufen weiter.“; Zustand live App-Pool/Site Started, Dienst Running, letzter Schritt „1. Vorpruefung (lesend)“; Exit 1. Vor/nach beiden Läufen: App-Pool Started, Dienst Running, Dienst-Prozess-Startzeit unverändert 16:39:40 |
+| 126.30 | Negativ nur per Probe (oben); DEV hat den Wert gesetzt |
+| 126.31 | Mensch (Gerald), je Prod-System `-NurPruefen` |
+
+Im Lauf mit `-NurPruefen` lief wie seit v1.99.2 der Altbestand-Trockenlauf lesend (AKE-DEV `TREFFER: 15`). Volllauf bewusst nicht ausgeführt
+(Auftrag: nur Prüfmodus); der Prod-Abbruch steht vor `if ($NurPruefen)`, also im Volllauf an derselben Stelle (Drift-Test belegt die Reihenfolge).
+
+**Befunde/Hinweise:** H7 (Hinweis): Setzt `appsettings.json` den Wert und die Umgebungsdatei `""`, meldet das Skript „gesetzt“ (Get-Einstellung
+überschreibt nur mit nicht-leeren Werten), der Dienst sieht leer → Abbruch auf der sicheren Seite. H8 (Hinweis): Umgebungsvariablen
+`MailSettings__PickupDirectory` liest das Skript nicht (wie bei der DB-Ermittlung).
