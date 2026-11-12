@@ -2,9 +2,9 @@
 type: spec
 title: "Wareneingang Teil 2: Sage-Wareneingangsbeleg (ELL)"
 slug: 2026-11-08-wareneingang-teil-2-sage-we-beleg-rahmenabrufe-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-11-08
-updated: 2026-11-11
+updated: 2026-11-12
 freigabe_von: "Gerald Weichbold (Chat Koordination, 2026-11-11 20:40 „beide freigeben“)"
 freigabe_am: 2026-11-11
 source_backlog: "[[2026-11-08-wareneingang-teil-2-sage-we-beleg-rahmenabrufe]]"
@@ -66,8 +66,6 @@ deploy:
   service: true
   migration: true
 freigabe_entscheidung: ""
-freigabe_von: ""
-freigabe_am: ""
 ---
 
 # Wareneingang Teil 2: Sage-Wareneingangsbeleg (ELL)
@@ -525,14 +523,20 @@ Jeweils mit Warum. Changelog-Notiz und Testindex.
 
 ## Deploy
 
-*Vorläufig (Spec-Agent). Der qa-agent bestätigt gegen den echten Diff.*
+*Vom qa-agent 2026-11-12 gegen den echten Diff `d2d4ed46..152ab6f1` bestätigt (Abschnitt „QA-Nachweis“ unten): `IdealAkeWms/` geändert → Web ja;
+`IDEALAKEWMSService/` geändert → Dienst ja; neue Datei `IdealAkeWms/Migrations/20261111200627_AddPurchaseOrderReceiptSageWe.cs` → Migration ja.
+Publish liegt fertig in `C:\git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish` (Version 1.99.4, Commit `152ab6f1`, beide
+Komponenten, `SQL\` + `deploy\` dabei). Nach dem Merge nur dann aus main neu publizieren, wenn der Merge getestete Dateien mit parallelen
+main-Änderungen zusammengeführt hat.*
 
 - **Web-App:** ja (Receive mit Lieferschein und Platzregel, Liste, Decision/Decorator, Repository, Settings-Kataloge).
-- **Service:** ja (`SyncedAt` im Abgleich, `EnqueueMissingAsync` läuft im Dienst, Worker-Schritt Sage-WE, ggf. Lookup E5).
-- **Migration:** ja, E1 (`SQL/143`, Nummer bei Umsetzung prüfen), additiv.
+- **Service:** ja (`SyncedAt` im Abgleich, `EnqueueMissingAsync` läuft im Dienst, Worker-Schritt Sage-WE, Client `SageWareneingangClient`). E5 nicht gebaut.
+- **Migration:** ja, `SQL/143_AddPurchaseOrderReceiptSageWe.sql` / `20261111200627_AddPurchaseOrderReceiptSageWe`, additiv, nicht daten-destruktiv.
+- **Paket:** `publish` im Worktree (v1.99.4, Commit `bd9b58d0`; Binärstand = `152ab6f1`, danach nur `nachlauf.psd1` geändert und nach
+  `publish\deploy` nachkopiert). Auf dem Zielserver `deploy\Update-IdealAkeWms.ps1` starten; es führt `SQL/143` laut Manifest aus.
 - **Reihenfolge Testsystem:**
   1. DB-Backup (Standard).
-  2. SQL-Skript.
+  2. SQL-Skript `SQL/143` (automatisch über das Update-Skript).
   3. Web publizieren.
   4. Service publizieren.
   5. Einen Abgleich laufen lassen.
@@ -544,7 +548,7 @@ Jeweils mit Warum. Changelog-Notiz und Testindex.
   - Schema, im Block „Schema“ direkt **nach** `SQL/142` (Deploy-Reihenfolge):
     `@{ Id='SQL/143'; Version='<Version>'; Typ='Schema'; Firma='beide'; Phase='Schema'; Ausfuehrung='automatisch'; Datei='143_AddPurchaseOrderReceiptSageWe.sql'; MigrationId='<Zeitstempel>_AddPurchaseOrderReceiptSageWe'; Voraussetzung='additiv'; Quelle='<changelog-slug>' }`
   - Einstellung, Block „Nachher“:
-    `@{ Id='v<Version>-SageWe'; Version='<Version>'; Typ='Einstellung'; Firma='AKE'; Phase='Nachher'; Ausfuehrung='anzeigen'; Text='SageWareneingangBelegAktiv (/ServiceSettings) erst nach dokumentiertem Schreibtest und Abnahme TS-116.12 einschalten; IDEAL bleibt aus (kein SData-Endpunkt). Danach sind nur Sage-Plaetze mit Sage-Buchung erlaubt als Ziel buchbar.'; Quelle='<changelog-slug>' }`
+    `@{ Id='v<Version>-SageWe'; Version='<Version>'; Typ='Einstellung'; Firma='AKE'; Phase='Nachher'; Ausfuehrung='anzeigen'; Text='SageWareneingangBelegAktiv (/ServiceSettings) erst nach dokumentiertem Schreibtest und Abnahme TS-116.14 einschalten; IDEAL bleibt aus (kein SData-Endpunkt). Danach sind nur Sage-Plaetze mit Sage-Buchung erlaubt als Ziel buchbar.'; Quelle='<changelog-slug>' }`
   - Einstellung, Block „Nachher“:
     `@{ Id='v<Version>-Lieferschein'; Version='<Version>'; Typ='Einstellung'; Firma='AKE'; Phase='Nachher'; Ausfuehrung='anzeigen'; Text='WareneingangLieferscheinPflicht (/Settings > Lager und Buchungen) nach Absprache mit Lager und Einkauf setzen (Standard aus = Lieferschein-Nr. optional).'; Quelle='<changelog-slug>' }`
   - Info, Block „Nachher“:
@@ -673,3 +677,147 @@ E2 `aa4655f8`, E3 `f7dc750e`, E4 `053cb28d` + `a449e814` (Belegjahr nicht senden
   ELL-Beleg) und **(b)** SData-Lookup `EinkaufBelegeInfo … where <Memo> like '%WE#4#%'` – Agenten duerfen AKESQL20 nicht und SData nicht mit
   Zugangsdaten von Hand abfragen. **Rueckbau** des Belegs 2027-398675 durch Gerald bzw. den Einkauf; danach Abgleich, Pos. 404456 wieder offen 4.
 - **E5 bleibt blockiert** bis P-W9 (a)+(b) belegt.
+
+## QA-Nachweis (qa-agent, 2026-11-12)
+
+Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Branch `feature/2026-08-07-ideal-teile-1-5`. Geprüfter Bereich `d2d4ed46..2d09489a`
+(E1 `f45412d4`, E2 `aa4655f8`, E3 `f7dc750e`, E4 `053cb28d`/`a449e814`/`0d265005`, E6 `2d09489a`) plus die QA-Fixes `152ab6f1` und `bd9b58d0`.
+Review selbst in diesem Lauf durchgeführt (kein Unteragent).
+
+### 1. Build und Tests
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler (28 Warnungen, Bestand).
+- `dotnet test` (vor und nach den QA-Fixes gleich):
+  - `IdealAkeWms.Tests`: 2639 bestanden, 1 übersprungen (Bestand), 0 Fehler, gesamt 2640.
+  - `IDEALAKEWMSService.Tests`: 522 bestanden, 0 übersprungen, 0 Fehler.
+- `NachlaufManifestDriftTests`: 14/14 grün, auch nach `bd9b58d0`.
+
+### 2. Code-Review: Befunde und Behandlung
+| # | Schwere | Fundstelle | Befund | Behandlung |
+|---|---|---|---|---|
+| Q-1 | mittel | `IDEALAKEWMSService/Services/SageWareneingangClient.cs` `Auswerten` (vorher :87-97) | **Stiller Fallback:** Eine HTTP-2xx-Antwort ohne `BelegnummerFormatiert` und ohne `ErrorText` galt im JSON-Zweig als Erfolg. Dasselbe galt für einen leeren Body (`"{}"`) und im XML-Zweig für ein leeres `<ErrorText/>` ohne Belegnummer. Folge: `Uebergeben` ohne Belegnummer. Die Rest-Regel hätte den Wareneingang ab dem nächsten Abgleich nicht mehr abgezogen, obwohl unbekannt ist, ob Sage ihn hat. Zudem werteten der XML- und der JSON-Zweig nach verschiedenen Regeln aus. | **Behoben `152ab6f1`:** eine gemeinsame Regel `Ergebnis(...)`. Erfolg nur, wenn `ErrorText` leer ist **und** eine Belegnummer vorliegt. Sonst `Fehler` mit „Antwort von Sage ohne Belegnummer – Ergebnis unklar, bitte in Sage prüfen.“ (Variante B, ein Mensch prüft). Testfälle in `Antwort_Auswerten_…` ergänzt. Die echte Schreibtest-Antwort bleibt ein Erfolg. |
+| Q-2 | niedrig | `IDEALAKEWMSService/Workers/SageBookingWorker.cs:66-70`; `PurchaseOrdersController.SageWe.cs` (`SageWeStatusText`) | Wird `SageWareneingangBelegAktiv` ausgeschaltet, bleiben gebuchte `Offen`-Wareneingänge dauerhaft `Offen`. Sie werden weder gesendet noch in die Queue gestellt, und die Liste zeigt „offen (wird gesendet)“. Das ist spec-konform („Entscheidung beim Buchen“, F2), wird aber nicht gemeldet. | Offen, Entscheidung Gerald. Vorschlag: Satz in der Hilfe oder Listenhinweis „Schalter aus – offene werden erst nach Wiedereinschalten gesendet“. Kein Datenrisiko. |
+| Q-3 | niedrig | `SageBookingWorker.cs:64-70` | Der Sage-WE-Schritt steht im selben `try` wie `ProcessOnceAsync`. Wirft die Lagerbuchung, entfällt der WE-Schritt für diesen Takt. | Akzeptiert (nur ein Takt Verzögerung, kein Datenrisiko). |
+| Q-4 | niedrig | `SageWareneingangService.cs` (Payload-Fehlerzweig) | Bei einem Payload-Fehler (z. B. hat der Platz zwischen Buchen und Senden den Sage-Bezug verloren) setzt der Dienst `Fehler` und zählt `fehler`. Eine Warnung im Aktivitäts-Protokoll gibt es nicht. Der Text steht an der Zeile in der Liste. | Akzeptiert (in der Liste sichtbar). |
+| Q-5 | niedrig | `scripts/deploy/nachlauf.psd1` Eintrag `v1.99.4-SageWe` | Der Text verwies auf „Abnahme TS-116.12“. In `docs/TESTSZENARIEN.md` ist TS-116.12 aber der Lieferschein-Test; die Sage-WE-Abnahme ist TS-116.14. Der Abschnitt „Test-Szenarien“ dieser Spec nummeriert noch 116.10–116.14. Maßgeblich ist `docs/TESTSZENARIEN.md` mit 116.11–116.17, weil 116.10 seit v1.95.0 vergeben ist. | **Behoben `bd9b58d0`** (Manifest) und im Deploy-Abschnitt oben. Die Nummern im Abschnitt „Test-Szenarien“ der Spec bleiben als Entwurfsstand. |
+| Q-6 | Hinweis | Rest-Regel F5, `ErfasstJeBelPos.Abzuziehen` | `NurInSage`-Wareneingänge werden immer abgezogen, auch nachdem der Einkauf sie in Sage gebucht hat. Dann würde doppelt abgezogen. Das ist spec-konform (F5: „alle außer Uebergeben ≤ SyncedAt“). Solche Artikel gibt es derzeit nicht (Freigabe-Antwort 9). | Vermerkt für Teil 3 bzw. für den Fall, dass Chargenartikel dazukommen. |
+| Q-7 | Hinweis (Brain) | Frontmatter dieser Spec | `freigabe_von`/`freigabe_am` standen doppelt (zweites Mal leer). Doppelte YAML-Schlüssel machen das Frontmatter ungültig. | Leere Dubletten entfernt. |
+| Q-8 | Hinweis (DEV) | `D:\Dev\scripts\dev-absicherung-ake.sql` / `-ideal.sql` | Die DEV-Absicherung setzt den neuen schreibenden Schalter `SageWareneingangBelegAktiv` nicht zwangsweise auf `false`. Nach dem Deploy steht er auf beiden DEV-DBs auf `false`. | Nicht geändert (außerhalb des Repos). Empfehlung an Gerald: in die `@k`-Liste der Absicherung aufnehmen. |
+
+Ohne Befund geprüft:
+- **ADR 0004:** Model → Migration → `SQL/143`. Die Guards nutzen `COL_LENGTH` bzw. `sys.indexes`, die DDL steht in eigenen Batches, die History ebenfalls in einem eigenen Batch, und die Constraint-Namen sind gleich. `00_FreshInstall.sql` ist an beiden Stellen nachgezogen: Spalten und Indizes in der Tabellendefinition, die `MigrationId` mit `COL_LENGTH`-Bedingung. Kein `HasDefaultValue`. `SQL/AgentJobs` ist nicht betroffen.
+- **Audit-Felder:** Beim Insert werden `Created*` gesetzt. Statuswechsel im Dienst laufen über `Setze()` mit `Modified*` = `system:sage-wareneingang`. „Erneut senden“ setzt `Modified*` aus `ICurrentUserService`; auf DEV gemessen.
+- **Queue-Ausschluss an beiden Stellen:**
+  - `SageBookingEnqueueDecision.ShouldEnqueue(…, hatSageWareneingang)` mit dem Decorator `SageBookingEnqueueingStockMovementRepository.cs:66-68`.
+  - Eigene EF-Bedingung in `EnqueueMissingAsync` (`SageBookingQueueRepository.cs:152-153`) über die Navigation `StockMovement.PurchaseOrderReceipt` (`StockMovement.cs:59`).
+- **Rest-Regel an einer Stelle:** `ErfasstJeBelPos.Abzuziehen(SyncedAt)` holt die Daten in einer Abfrage ohne N+1. `SyncedAt` wird vor dem Lesen genommen (`EinkaufBestellungenSyncService.cs:61-62`). `Rest` liest nur `ImWmsAbzuziehen`.
+- **Listen-View-Pattern:**
+  - `PageSize.Resolve`, `PaginationState` und `_Pagination`, ohne Take-Cap.
+  - Filterkarte mit Status, Bestellung und Zeitraum.
+  - `data-server-column-filter="true"`, jede `<th>` mit `data-col-key`.
+  - Typ-Register `PurchaseOrders/SageWareneingaenge` in `ColumnFilterSyntax.cs`.
+- **Rechte:** Auf Klassenebene `RequireStockReadAccess` und das Feature-Gate. `SageWeErneutSenden` trägt `[RequireStockKeyUserAccess]`, `[HttpPost]` und `[ValidateAntiForgeryToken]`. Die Sichtbarkeit des Knopfs (`CanTransferStockAsync`) entspricht genau dem Filter.
+- **ADR 0020:**
+  - `SageWareneingangBelegAktiv`: Bool-Schalter mit Anzeigename, Verwendung, Standort und Warnhinweis.
+  - `WareneingangLieferscheinPflicht`: `B(...)`, `seed: false`, abhängig von `WareneingangBestellungAktiv`.
+  - `Sync:SageLagerbuchungStuckMinutes`: nur der Verwendungstext ist ergänzt.
+  - Server-Validierung über den Katalog (Bool).
+- **Aktivitäts-Protokoll:** `ISyncLogger` ist der letzte Ctor-Parameter (Test). `SyncLogServices.All` und `DisplayNames` sind ergänzt. Ein Lauf ohne Arbeit schreibt keinen Protokoll-Eintrag.
+- **Idempotenz:**
+  - Vor dem POST wird der Status auf `Gesendet` gesetzt, der Versuchszähler um 1 erhöht und gespeichert (`SaveChanges`).
+  - Ein hängendes `Gesendet` wird zu `Fehler` „Ergebnis unklar“, ohne neues Senden.
+  - Der Client fängt alle Ausnahmen außer Abbruch.
+  - Ein DB-Fehler nach erfolgreichem POST lässt `Gesendet` stehen. Das wird später zu „unklar“, nie zu einem zweiten POST.
+- **XML-Antwort:** `XDocument.Parse` mit Auswertung über `LocalName`. Die echte Schreibtest-Antwort ist Testfall. Eine DTD ist bei `XDocument.Parse` standardmäßig verboten; die `XmlException` wird gefangen.
+- **AK 21 (kein Auto-Retry):** `RunOnceAsync` wählt nur `Offen`. `Fehler` wird nur über `SageWeErneutSendenAsync` (von Hand) wieder `Offen`. Das Dienst-Log vom 2026-11-12 enthält genau **einen** `POST …/StandardBelegService` (08:28:46). E5 steht als Blocker in der Etappen-Tabelle.
+- **Defektklassen:**
+  - Keine neuen Werte in `<script>`, kein `hidden` zusammen mit `d-*`.
+  - Kein stilles `?? 0` (außer Q-1, behoben).
+  - Lieferschein ist ein einzelner Parameter, keine Parallel-Arrays.
+  - Länge und Pflicht prüft der Server. `required`/`maxlength` sind nur Komfort; auf DEV mit Leerzeichen gemessen.
+
+### 3. Beweisart je Akzeptanzkriterium
+| AK | Beweis | Stand |
+|---|---|---|
+| 1 | automatisiert (Bestandstests grün, `Decorator_SageWe_…` NichtNoetig) | grün |
+| 2 | automatisiert für Decision und Decorator; `EnqueueMissingAsync` nur InMemory (die SQL-Übersetzung der Navigation ist ungeprüft) → TS-116.11 | teilweise, Rest Manual-UAT |
+| 3 | automatisiert (`RestRegel_…`, Repository-Test) + DEV: Bestellung 2027-168715 Pos. 1 offen 3, erfasst 1, Rest **3** (nicht 2) | grün |
+| 4 | DEV: `SQL/143` zweimal gegen `IDEAL_WMS_DEV` (bereits migriert), beide Läufe Exit 0 **ohne Ausgabe**; Altbestand siehe Umsetzung (Leer-DB) | grün (Manual) |
+| 5 | automatisiert + DEV (siehe 6) | grün |
+| 6 | automatisiert + DEV (Leerzeichen serverseitig abgewiesen) | grün |
+| 7 | automatisiert + DEV `/Settings` (Schalter, Text, Standard, Standort, „Wirkt nur, wenn …“) | grün |
+| 8 | automatisiert (Attribute) + DEV (Liste, Filterkarte, Server-Spaltenfilter „Lieferschein“); Benutzer mit nur `stock_read` nicht geprüft | teilweise, Rest Manual-UAT |
+| 9 | automatisiert + DEV („Erneut senden“, Hinweis, Modified*) | grün |
+| 10 | automatisiert + DEV (NichtNoetig, kein Queue-Eintrag) | grün |
+| 11 | automatisiert (Service mit Fake-Client) + Schreibtest (nur 1 Position); zwei Positionen echt = TS-116.14 | teilweise, Rest Manual-UAT (Gerald) |
+| 12, 13 | automatisiert | grün |
+| 14 | nur Unit-Test (keine Chargenartikel vorhanden) | grün (automatisiert) |
+| 15 | automatisiert; auf DEV **nicht möglich** (Schalter darf nicht an) → TS-116.13 | teilweise, Rest Manual-UAT |
+| 16 | automatisiert; echt = TS-116.16 (Gerald) | teilweise, Rest Manual-UAT |
+| 17 | automatisiert (DI, Name, Ctor) + DEV `SyncLogs` Service `SageWareneingang` aus dem Schreibtest (Counts deutsch) | grün |
+| 18 | DEV `/ServiceSettings` (Anzeigename, Wirkung, Standort AKE, Warnhinweis) | grün (Manual) |
+| 19 | Abschnitt „Schreibtest-Ergebnis“ vorhanden; **Rückbau und P-W9 (a)/(b) stehen aus** (Gerald) | offen, nicht grün |
+| 20 | entfällt (E5 nicht gebaut) | – |
+| 21 | Code-Review + Dienst-Log (genau ein POST) | grün |
+
+### 4. Geänderte Bestandstests
+- `PurchaseOrdersControllerTests`: nur Typen (`ErfasstJeBelPos`, neuer Ctor-Parameter `IServiceSettingRepository`), Kompilierfix.
+- `PurchaseOrdersReceiveTests`:
+  - Ctor und Typ angepasst (Kompilierfix).
+  - Fixture erweitert: Platz 9 bekommt den Sage-Bezug, die Plätze 10 und 11 kommen dazu. Das ist nur für die neuen AK-10/15-Tests nötig.
+  - Die Bestandstests laufen ohne Decorator und mit Sage-WE aus. Ihr Verhalten ist unverändert.
+  - Die Assertion `erfasst` vergleicht jetzt `.Gesamt` (Typ).
+  - Ergebnis: Typänderung und Fixture-Erweiterung, kein Befund.
+- `AppSettingDefinitionsTests`: Zähler 55 → 56, gewollt (AK 7).
+- `NachlaufManifestDriftTests`: `SQL/143` in die Reihenfolge aufgenommen, gewollt (E6).
+
+### 5. CLAUDE.md-Checkliste
+Erfüllt:
+- Migration und `SQL/143` mit Guard.
+- FreshInstall an beiden Stellen.
+- AgentJobs nicht betroffen.
+- Audit-Felder.
+- Version 1.99.4 in beiden `AppVersion.cs`.
+- Anwender-Changelog und Hilfe.
+- Brain-Changelog `2026-11-11-v1-99-4-wareneingang-sage-we-beleg`.
+- `feature-map`, `fallstricke`, `services`, `datenmodell`, `controller` und `glossar` ergänzt (`acfffcd1`).
+- README.
+- `docs/TESTSZENARIEN.md` TS-116.11–116.17 und Testindex-Zeile „116 (Teil 2)“.
+- Keine neue Rolle, kein Einmal-Skript.
+- Manifest: `SQL/143` und drei Nachher-Einträge (`v1.99.4-SageWe`, `v1.99.4-Lieferschein`, `v1.99.4-EinkaufWe`). Damit sind alle Deploy-Schritte der Spec abgedeckt.
+
+### 6. DEV-Deploy und Testlauf
+- **Standort:** laut Frontmatter AKE. Nach Vorgabe wurden AKE **und** IDEAL deployt, je Web und Dienst, über `dev-deploy.ps1` in einer Shell mit Administratorrechten.
+- **Läufe:** Lauf 1 mit `2d09489a`, Lauf 2 nach dem Fix `152ab6f1`. Alle vier Läufe mit Exit 0 und „HTTP 200, Fusszeile v1.99.4“. `bd9b58d0` ändert nur das Manifest; DEV hat damit denselben Code.
+- **Migration:** `20261111200627_AddPurchaseOrderReceiptSageWe` steht in `AKE_WMS_DEV` und in `IDEAL_WMS_DEV`.
+- **Schalter danach:** `SageWareneingangBelegAktiv = false` und `SageLagerbuchungAktiv = false` auf beiden DEV-DBs. Die Absicherung hat auf AKE auch die 5 zuvor eingeschalteten `Sync:*Enabled` (Articles, ArtikelLieferant, Debitoren, EinkaufBestellungen, Kreditoren) auf `false` gesetzt. Wiedereinschalten macht der Koordinator.
+- **Receipt #4** (`Uebergeben`, 2027-398675) ist unverändert.
+
+| Schritt | Ausgeführt | Ergebnis | Urteil |
+|---|---|---|---|
+| TS-116.11 Queue-Ausschluss | – | Braucht beide Schalter an (verboten). | NICHT MÖGLICH |
+| TS-116.12 Lieferschein | Bestellung 2027-168975 (BelId 363221). Pflicht an (AppSetting per SQL, nach Ablauf des 2-Minuten-Cache wirksam). Leeres Feld: Browser-`required` sperrt. Drei Leerzeichen: Server meldet „Bitte die Lieferschein-Nummer des Lieferanten eingeben.“, nichts gebucht, Menge Pos. 1 bleibt stehen. Dann „ LS-4711 “ mit Pos. 1 und 2. | Receipts #5/#6 mit `LS-4711` (getrimmt), `SageWeStatus 0`, `SageWeVorgang NULL`, kein Eintrag in `SageBookingQueueItems`; Rest danach 0. 21 Zeichen lässt der Browser wegen `maxlength=20` nicht zu; den Server-Zweig belegt der Unit-Test. Pflicht danach wieder entfernt (Zeile gelöscht = Standard aus). | OK |
+| TS-116.13 Platzregel | – | Braucht `SageWareneingangBelegAktiv` an (verboten). | NICHT MÖGLICH |
+| TS-116.14 | – | Nur Gerald/Einkauf (schreibt nach Sage). | NICHT MÖGLICH (Regel) |
+| TS-116.15 Liste | Als Admin `/PurchaseOrders/SageWareneingaenge` geöffnet. Spaltenfilter Lieferschein `xyz` → „Keine Wareneingänge“. `?colf_lieferschein=wms-test&status=Uebergeben&bestellung=168715` → 1 Treffer (2027-398675, Memo `WE#4#`). Für „Erneut senden“ Receipt #5 per SQL künstlich auf `Fehler` mit Gruppe gesetzt; Knopf mit Hinweis „Vorher in Sage prüfen (Memo WE#5#)“ geklickt. | Status 1 (Offen), Versuche bleiben 1, Fehlertext leer, `Modified*` = Gerald Weichbold / `AKENB\gerald.weichbold`. Danach #5 zurück auf `NichtNoetig` (Schalter aus, also kein Senden). Rolle `stock_read` nicht geprüft (kein Testkonto). | OK / Rolle NICHT MÖGLICH |
+| TS-116.16 | – | Nur Gerald/Einkauf. | NICHT MÖGLICH (Regel) |
+| TS-116.17 Statuszeile | `/PurchaseOrders/Receive?belId=362313` | Unter EK001640 steht „Sage-Wareneingang: 1× an Sage übergeben“; Rest 3. | OK |
+| `/Settings`, `/ServiceSettings` | Sichtprüfung | Beide Einträge mit Text, Standard und Standort; Warnhinweis am Dienst-Schalter. | OK |
+| Dienst-Log / SyncLogs | `D:\Dev\AKE\Service\logs\service-20261112.log`, `dbo.SyncLogs` | Genau ein POST (Schreibtest 08:28:46). `[ERR]` um 08:28:51 ist der bekannte Befund 2 (behoben `0d265005`). Lauf „SageWareneingang“ ist protokolliert. | OK |
+
+### 7. Publish
+- Ordner: `C:\git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish`.
+- Inhalt: `IDEALAKEWMSWeb`, `IDEALAKEWMSWebService`, `SQL` (mit `143_…`) und `deploy` (nach `bd9b58d0` nachkopiert, identisch zu `scripts/deploy`).
+- `publish-info.txt`: Version 1.99.4, Commit `bd9b58d0ef1883a056f42093a73c96fcaa2aeb6f`, Branch `feature/2026-08-07-ideal-teile-1-5`.
+- Zu deployen sind beide Komponenten, mit Migration.
+
+### Manuelle Test-Checkliste (offen, Mensch)
+1. **Rückbau** des Sage-Belegs 2027-398675 in `ake_TEST2026` (Gerald/Einkauf). Danach Abgleich: Pos. 404456 ist wieder offen 4 (AK 19).
+2. Am Beleg 2027-398675 Lieferschein `WMS-TEST-1` und den Platz-Bestand auf `GL;0;0;0` sichten (AK 19).
+3. **P-W9 (a)** Sage-SQL (Memo am ELL-Beleg) und **(b)** SData-Lookup `… like '%WE#4#%'` ausführen. Das Ergebnis entscheidet über E5.
+4. TS-116.11 auf dem Testsystem: Queue-Ausschluss mit beiden Schaltern an; auch nach 15 Minuten kein Queue-Eintrag. Das prüft auch die SQL-Übersetzung von `EnqueueMissingAsync` (AK 2).
+5. TS-116.13 Platzregel mit Schalter an: Ein Platz mit „Sage-Buchung erlaubt“ aus und ein manueller Platz ergeben je einen Zeilenfehler, nichts wird gebucht (AK 15).
+6. TS-116.14 (Gerald/Einkauf): Zwei Positionen in einem Absenden ergeben einen Beleg, ein zweites Absenden einen zweiten. Der Rest wird nicht doppelt abgezogen. Danach Rückbau (AK 11, 12).
+7. TS-116.16 (Gerald/Einkauf): Falsches Kennwort ergibt `Fehler`, es gibt keinen Auto-Retry, danach „Erneut senden“ (AK 16).
+8. TS-116.15 mit einem Benutzer, der nur `stock_read` hat: Der Knopf fehlt, ein direkter POST endet auf AccessDenied (AK 8).
+9. Q-2 entscheiden (Hinweis, wenn der Schalter aus ist und noch offene Belege existieren). Für Q-8 die DEV-Absicherung um `SageWareneingangBelegAktiv` ergänzen.
+10. Testsystem-Lauf mit dem Paket aus `publish` (Update-Skript, `SQL/143`, Nachher-Einträge), danach Schranke 2.
