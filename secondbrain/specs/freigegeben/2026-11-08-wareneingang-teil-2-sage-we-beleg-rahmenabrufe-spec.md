@@ -2,7 +2,7 @@
 type: spec
 title: "Wareneingang Teil 2: Sage-Wareneingangsbeleg (ELL)"
 slug: 2026-11-08-wareneingang-teil-2-sage-we-beleg-rahmenabrufe-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-11-08
 updated: 2026-11-12
 freigabe_von: "Gerald Weichbold (Chat Koordination, 2026-11-11 20:40 „beide freigeben“)"
@@ -10,7 +10,7 @@ freigabe_am: 2026-11-11
 source_backlog: "[[2026-11-08-wareneingang-teil-2-sage-we-beleg-rahmenabrufe]]"
 depends_on: "[[2026-11-08-wareneingang-aus-sage-bestellungen-spec]]"
 folge_backlog: "[[2026-11-11-wareneingang-teil-3-rahmenabrufe]]"
-version: "1.99.5"
+version: "1.99.6"
 sql_nummern: "eine Migration in E1: nächste freie Nummer bei der Umsetzung, derzeit 143 (142 = AddDeployScriptRuns, v1.99.0), Freigabe-Antwort 1"
 testszenario: "TS-116 (Erweiterung 116.10 ff., ersetzt den Platzhalter 116.7)"
 task: ""
@@ -523,6 +523,13 @@ Jeweils mit Warum. Changelog-Notiz und Testindex.
 
 ## Deploy
 
+**Stand v1.99.6 (qa-agent 2026-11-12, echter Diff `c155b1b2..67322b85`):** `IDEALAKEWMSService/` geändert (`PositionsMemo` mit Eingabe) → **Dienst ja**;
+`IdealAkeWms/` geändert (Receive-Feld, Validierung, Liste, Version, Changelog, Hilfe) → **Web ja**; keine Datei unter `*/Migrations/` → **keine neue
+Migration** (`StockMovement.Note` nvarchar(500) besteht seit `SQL/57`). Kein Nachlauf-Eintrag nötig (kein SQL, keine Einstellung, kein manueller Schritt).
+Publish: `C:\git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish` (Version 1.99.6, Commit `67322b85`, beide Komponenten,
+`SQL\` + `deploy\`). Reihenfolge unverändert wie unten (Backup, Update-Skript mit `SQL/143` falls offen, Web, Dienst). Nach dem Merge nur dann aus
+main neu publizieren, wenn der Merge getestete Dateien mit parallelen main-Änderungen zusammengeführt hat.
+
 **Stand v1.99.5 (qa-agent 2026-11-12, echter Diff `bd9b58d0..c155b1b2`):** `IDEALAKEWMSService/` geändert (Payload `Artikelmemo`) → **Dienst ja**;
 `IdealAkeWms/` nur `AppVersion.cs` + `Changelog.cshtml` → **Web ja** (Versionsgleichheit, Changelog); keine Datei unter `*/Migrations/` → **keine
 neue Migration** (`SQL/143` aus v1.99.4 bleibt Teil des Pakets, falls das Zielsystem noch vor v1.99.4 steht). Kein Nachlauf-Eintrag nötig.
@@ -949,3 +956,89 @@ Zeilenfehler und nichts gebucht), gespeichert als `StockMovement.Note` (getrimmt
 „Positionsmemo“; Liste „Wareneingänge an Sage“: Spalte „Positionsmemo“ (Spaltenfilter); Sage-Payload: `PositionsMemo(..., eingabe)` →
 `<Eingabe> | WE#<id># LS … Platz …`. Keine Migration. Version 1.99.6, Changelog, Hilfe, TS-116.19. Build 0 Fehler; Web 2641/2642 (1 uebersprungen,
 Bestand), Dienst 522/522. Kein weiterer Schreibtest (Inhalt vor der bereits in Sage belegten Kennung; Sichtung in Sage = TS-116.19, Gerald).
+
+## QA-Nachweis Nachtrag v1.99.6 (qa-agent, 2026-11-12)
+
+Umfang: nur der Freigabe-Nachtrag „Positionsmemo-Feld“, Diff `c155b1b2..23ea96ca` (13 Dateien, +73/−9) plus QA-Korrektur `67322b85`. Build und
+Tests über den ganzen Worktree.
+
+### 1. Build und Tests (HEAD `23ea96ca`, nach der QA-Korrektur erneut auf `67322b85`)
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler (Warnungen Bestand: NuGet-Advisories).
+- `dotnet test`: `IDEALAKEWMSService.Tests` 522 bestanden / 0 übersprungen / 0 Fehler; `IdealAkeWms.Tests` 2641 bestanden / 1 übersprungen
+  (Bestand) / 0 Fehler. Beide Läufe identisch.
+
+### 2. Code-Review
+Geprüft: `PurchaseOrdersController.Receive.cs` (Prüfkette, Speichern `Note`), `PurchaseOrderReceiveViewModel` (`MemoMaxLaenge`, `Memo`),
+`Receive.cshtml` (neue Spalte), `SageWareneingaenge.cshtml` + `SageWeColumnMap` (Spalte, Filter), `SageWareneingangPayload.cs` (`PositionsMemo`),
+Tests, Changelog, Hilfe, TS-116.19. Alle Leser/Schreiber von `StockMovement.Note` per grep über Web, Dienst und `SQL/`:
+- Schreiber: `LagerbestandSyncService.cs:185,253` (eigene Bewegungen „Sage-Korrektur…“) und neu `PurchaseOrdersController.Receive.cs:113`. Kein Code
+  liest `Note`, um Bewegungen zu unterscheiden.
+- Leser: Bewegungshistorie (`StockMovementRepository.cs:388`, `Views/StockMovements/Index.cshtml:141`, reine Anzeige), Liste „Wareneingänge an Sage“
+  (neu), Sage-WE-Payload (neu). `SageLagerbuchungPayloadBuilder` liest `Note` **nicht** (keine Fundstelle) → die Sage-Lagerbuchung ändert sich nicht.
+  `SQL/110:65` gruppiert `LEFT(Note,15)` nur als Diagnose-Ausgabe eines Einmal-Backfills, keine Logik.
+- Server-Validierung vorhanden (`Receive.cs:70`, Zeilenfehler, nichts gebucht), `maxlength` im Browser nur Zusatz. Bindung `zeilen[@i].Memo`
+  indiziert, Zuordnung über `BelPosId` (`Receive.cs:154`), kein positionsweises Verschieben. Kein `@Html.Raw`, kein Wert in `<script>`, kein
+  `hidden`+`d-*`, kein stiller Fallback (leer → `null`). Regel „Eingabe | Kennung“ an einer Stelle (`PositionsMemo`).
+- Oberfläche: Feld `form-control` mit `min-height:44px` wie „Ist-Menge“, `aria-label` je Position, Bootstrap-Standardfarben (Kontrast wie
+  Bestand). Liste: `<th data-filterable data-col-key="memo-position">` und Eintrag in `SageWeColumnMap`, `colCount` 13→14 nachgezogen; Textspalte
+  braucht keinen Eintrag in `ColumnFilterTypes` (Standard Text).
+- **F-1 (behoben, `67322b85`):** Changelog-Karte und TS-116.19 versprachen die Notiz „in der Liste ‚Wareneingänge an Sage‘“ ohne Einschränkung.
+  Die Liste zeigt nur Sage-Wareneingänge (Status ≠ „nicht nötig“; auf DEV mit Schalter aus nachgemessen: Receipts #8/#9 nicht gelistet). Beide Texte
+  präzisiert; TS-116.19 nennt die Bewegungshistorie als Ort ohne Sage-WE.
+- **H-1 (Hinweis):** Ein Memo an einer Zeile ohne Ist-Menge wird nicht gespeichert (Zeile wird nicht gebucht) – folgerichtig, kein Befund.
+- **H-2 (Hinweis):** Ein langes Memo ohne Leerzeichen dehnt die Notiz-Spalte der Bewegungshistorie (auf DEV mit 199 × „M“ gesehen); echte Texte
+  umbrechen. Nicht behoben.
+- **H-3 (Hinweis, offen aus v1.99.5):** `AppVersion.Date` weiter `2026-11-11`.
+- **H-4 (Manual-UAT):** Ob Sage `Artikelmemo` mit bis zu ~260 Zeichen (200 + „ | “ + Kennung) vollständig speichert, ist nicht belegt → TS-116.19.
+
+### 3. Beweisart
+- Memo gespeichert als Notiz, getrimmt, leer = null, auch ohne Sage-WE: automatisiert (`PurchaseOrdersReceiveTests.Positionsmemo_AlsNotizDerBewegung…`)
+  und auf DEV AKE im Browser (echte Modellbindung).
+- Mehr als 200 Zeichen → Zeilenfehler, nichts gebucht: automatisiert (`Positionsmemo_LaengerAls200…`) und auf DEV AKE.
+- Payload „Eingabe | Kennung“, leer = Kennung: automatisiert (`SageWareneingangServiceTests`).
+- Sage zeigt das Positions-Memo: **Manual-UAT** (TS-116.19, nur Gerald/Einkauf), nicht grün gezählt.
+
+### 4. Geänderte Bestandstests
+- `SageWareneingangServiceTests` (Payload-Test): fünf Zeilen **ergänzt**, keine bestehende Assertion geändert; Verhalten bewusst erweitert durch
+  den Nachtrag v1.99.6. `PurchaseOrdersReceiveTests`: nur zwei neue Tests. Kein Befund.
+
+### 5. Checkliste
+Keine Migration, kein SQL, kein FreshInstall, keine neuen Audit-Felder (Bewegung wird wie bisher mit `Created*` angelegt), keine Einstellung (ADR 0020
+entfällt). Version 1.99.6 in beiden `AppVersion.cs`, Anwender-Changelog + Hilfe ja, Brain-Changelog [[2026-11-12-v1-99-6-wareneingang-positionsmemo]]
+angelegt, `feature-map` und Testindex nachgezogen, `docs/TESTSZENARIEN.md` TS-116.19 + Fußzeile. Nachlauf: kein Deploy-Schritt.
+
+### 6. DEV-Deploy und Testlauf
+- Standort laut Frontmatter AKE; AKE **und** IDEAL deployt, je Web + Dienst aus dem Worktree, Shell mit Administratorrechten; zweimal (auf
+  `23ea96ca` und nach der QA-Korrektur auf `67322b85`), jedes Mal Exit 0, „HTTP 200, Fusszeile v1.99.6“.
+- Schalter danach (beide DEV-DBs): `SageWareneingangBelegAktiv`, `SageLagerbuchungAktiv`, `SageLagerbuchungUmbuchungAktiv` = false. Sync-Schalter
+  auf AKE setzt der Koordinator.
+
+| Schritt | Ausgeführt | Ergebnis | Urteil |
+|---|---|---|---|
+| Maske zeigt Spalte | `http://localhost:8081/PurchaseOrders/Receive?belId=363221` (Bestellung 2027-168975) | Spalte „Positionsmemo“ zwischen Ist-Menge und Status, Feld je buchbarer Zeile | OK |
+| Buchen mit Memo (199 Zeichen) | Pos. 3, Menge 1, GL;0;0;0 | Receipt #8, `SageWeStatus` 0 (nicht nötig), `Note` 199 Zeichen | OK |
+| 201 Zeichen | Pos. 4, Wert per Skript gesetzt (umgeht `maxlength`) | Meldung „Nichts gebucht: bitte die markierten Zeilen korrigieren.“, Zeilenfehler „Positionsmemo höchstens 200 Zeichen.“; keine neue Bewegung | OK |
+| Trim | Pos. 4 „␣␣Kante beschädigt␣␣“ | Receipt #9, `Note` = „Kante beschädigt“ | OK |
+| Keine Sage-Wirkung | `SageBookingQueueItems` letzte 30 min; Dienst-Log AKE | 0 neue Queue-Zeilen; letzter Sage-POST 09:08:26 (freigegebener Schreibtest v1.99.5), danach keiner | OK |
+| Bewegungshistorie | `/StockMovements` | Notiz „Kante beschädigt“ bzw. 199 × M an den beiden Einbuchungen | OK |
+| Liste Spalte + Filter | Notiz an Receipt #7 per SQL testweise gesetzt, `/PurchaseOrders/SageWareneingaenge?colf_memo-position=QA`, danach zurück auf NULL | Spalte zeigt „QA-Memo Test“, Filter liefert 1 von 2 | OK |
+| TS-116.19 in Sage | – | Schreibt nach Sage / liest Sage | NICHT MÖGLICH (Regel) |
+
+Screenshots waren nicht möglich (Browser-Erweiterung: Zeitüberschreitung bei der Aufnahme); Belege über Seitentext und `sqlcmd`.
+Testdaten auf DEV AKE: Receipts #8 (BelPos 406335) und #9 (BelPos 406336) der Bestellung 2027-168975, Status „nicht nötig“.
+
+### 7. Publish
+- Ordner `C:\git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish` vorher geleert, neu: `IDEALAKEWMSWeb`,
+  `IDEALAKEWMSWebService`, `SQL`, `deploy`, `publish-info.txt` (Version 1.99.6, Commit `67322b85692cff04dcd691b77b66f66432ab08e2`,
+  Branch `feature/2026-08-07-ideal-teile-1-5`, Erstellt 2026-11-12 09:46).
+- Zu deployen: Web und Dienst, keine neue Migration.
+
+**Urteil:** Testbereit (v1.99.6).
+
+### Manuelle Test-Checkliste (offen, Mensch) – ergänzt die Listen aus v1.99.4/v1.99.5 oben
+1. TS-116.19 am AKE-Test mit Sage-WE (Gerald/Einkauf): Positionsmemo „Kante beschädigt“ buchen, Beleg in Sage öffnen → Positions-Memo
+   „Kante beschädigt | WE#<Id># LS … Platz …“, vollständig (auch mit 200 Zeichen, H-4); leeres Feld = nur Kennung.
+2. Liste „Wareneingänge an Sage“ mit Sage-WE: Spalte „Positionsmemo“ zeigt den Text; Spaltenfilter.
+3. Bedienung am Lager-Terminal (Tablet): Feld gut treffbar, Tabelle querscrollbar.
+4. Offene Punkte aus v1.99.4/v1.99.5 (Rückbau der Test-Belege, P-W9, TS-116.11 ff.).
+5. Testsystem-Lauf mit dem Paket aus `publish` (v1.99.6), danach Schranke 2.
