@@ -2,7 +2,7 @@
 type: spec
 title: "Wareneingang Teil 2: Sage-Wareneingangsbeleg (ELL)"
 slug: 2026-11-08-wareneingang-teil-2-sage-we-beleg-rahmenabrufe-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-11-08
 updated: 2026-11-12
 freigabe_von: "Gerald Weichbold (Chat Koordination, 2026-11-11 20:40 „beide freigeben“)"
@@ -522,6 +522,16 @@ Brain-Update (Hauptcheckout): [[feature-map]], [[datenmodell]] (Receipt-Spalten)
 Jeweils mit Warum. Changelog-Notiz und Testindex.
 
 ## Deploy
+
+**Stand v1.99.7 (qa-agent 2026-11-12, echter Diff `67322b85..af0a75f2` + QA-Korrektur `bb788f0e`):** `IDEALAKEWMSService/` geändert
+(`SageWareneingangService`, neu `SdataWareneingangLookupReader`, `SageBookingWorker`, `Program.cs`) → **Dienst ja**; `IdealAkeWms/` geändert (Controller,
+Repository, Enum `Klaeren = 6`, `ServiceSettingDefinitions`, Views, Hilfe, Changelog) → **Web ja**; keine Datei unter `*/Migrations/` → **keine neue
+Migration** (`SageWeStatus` ist int). Nachlauf: `v1.99.7-SageWeWiederholen` (Einstellungen bestätigen) und `v1.99.7-EinkaufKlaeren` (Info) in
+`scripts/deploy/nachlauf.psd1`; die zwei ServiceSettings legt der Web-Start an (auf DEV nach dem Deploy mit 3/15 vorhanden). Publish:
+`C:\git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish` (**Version 1.99.8**, Commit `bb788f0e`, enthält auch v1.99.8
+Kommissionierung Matchcode; beide Komponenten, `SQL\` + `deploy\`). Reihenfolge: Backup, Update-Skript (führt `SQL/143` aus, falls offen), Web,
+Dienst, Nachlauf-Hinweise. Liegen beim Deploy offene/fehlerhafte Sage-WE bei ausgeschaltetem Schalter, stehen sie nach dem ersten Takt auf „Klären“
+(Q-2, gewollt). Nach dem Merge nur dann aus main neu publizieren, wenn der Merge getestete Dateien mit parallelen main-Änderungen zusammengeführt hat.
 
 **Stand v1.99.6 (qa-agent 2026-11-12, echter Diff `c155b1b2..67322b85`):** `IDEALAKEWMSService/` geändert (`PositionsMemo` mit Eingabe) → **Dienst ja**;
 `IdealAkeWms/` geändert (Receive-Feld, Validierung, Liste, Version, Changelog, Hilfe) → **Web ja**; keine Datei unter `*/Migrations/` → **keine neue
@@ -1158,3 +1168,124 @@ Commits im Bündel: `f8d74399` (Code), `af0a75f2` (TS-116.20–116.24).
 
 **Befund (nicht gebaut):** Fundmeldung „Beleg in Sage gefunden“ steht als Warnung im Aktivitäts-Protokoll (bewusst sichtbar); die
 EF-Warnung „Take ohne OrderBy“ der Vorgangs-Abfragen ist Bestand (v1.99.4).
+
+## QA-Nachweis Nachtrag v1.99.7 (qa-agent, 2026-11-12)
+
+Umfang: nur „Freigabe-Nachtrag 2026-11-12: E5 Variante A, Sicherungsnetz, Q-2, Sage-Protokolle im Menü“ und „Umsetzung Nachtrag E5/Q-2/Menü – v1.99.7“.
+Diff `67322b85..af0a75f2` (23 Dateien, +648/−64) plus QA-Korrektur `bb788f0e`. Build/Tests/Deploy über den ganzen Worktree (HEAD enthält v1.99.8
+`557ea63b`, andere Spec, nicht geprüft; AppVersion daher 1.99.8).
+
+### 1. Build und Tests
+- HEAD `557ea63b`: `dotnet build IdealAkeWms.slnx` 0 Fehler (28 Warnungen, Bestand); `dotnet test`: `IdealAkeWms.Tests` 2646 bestanden /
+  1 übersprungen (Bestand) / 0 Fehler; `IDEALAKEWMSService.Tests` 532 / 0 / 0.
+- Nach der QA-Korrektur, HEAD `bb788f0e`: Build 0 Fehler; `IdealAkeWms.Tests` 2646 / 1 / 0; `IDEALAKEWMSService.Tests` **534** / 0 / 0 (+2 Fälle
+  des neuen Theory-Tests, vor der Korrektur rot: „Expected client.Gesendet to be empty, but found at least one item“).
+
+### 2. Code-Review: Befunde und Behandlung
+Geprüft: `SageWareneingangService` (RunOnceAsync, PruefenAsync, AusgeschaltetAsync, Setze), `SdataWareneingangLookupReader` (Filter, Kodierung,
+`FremdeKennung`), `SageBookingWorker`, `ServiceSettings.GetBool*`, `PurchaseOrdersController.SageWe` (beide Aktionen), `PurchaseOrderReceiptRepository`,
+`ServiceSettingDefinitions` + `SettingValidator:38` (Min/Max), Views `SageWareneingaenge`, `ServiceSettings/Index`, `_Layout`, `Receive`, Hilfe,
+Changelog, README, `nachlauf.psd1`, Tests.
+
+Doppelbuchung – alle Wege zu `_client.SendAsync` (einziger Aufrufer `SageWareneingangService.cs`):
+- Erstversand (Offen, Versuche 0): keine Suche; Versuche steigt vor dem POST, also nur nie gesendete Receipts → kein zweiter Beleg.
+- Hängendes `Gesendet` → `Fehler` „unklar“ (Versuche ≥ 1) → automatisch nur mit Memo-Suche + Sicherungsnetz; gefunden = übergeben ohne POST.
+- „Erneut senden“ von Hand → Offen mit Versuche > 0 → Memo-Suche (ohne Sicherungsnetz, bewusst). Payload-Fehler ohne POST (Versuche 0) → ohne Suche
+  gesendet, korrekt (nie gesendet).
+- Suche scheitert (jede Ausnahme außer Abbruch) → `Fehler`, kein POST (`PruefenAsync` catch); der Lookup wirft bei HTTP-Fehlern.
+- Q-2: Schalter aus → Worker ruft nur `AusgeschaltetAsync` (kein Senden); Klären wird nie automatisch aufgegriffen (Abfragen nur Offen/Fehler).
+- IDEAL: Schalter immer aus; Receipts entstehen dort mit „nicht nötig“ → `AusgeschaltetAsync` findet nichts, kein Protokoll (DEV IDEAL: 0 Einträge
+  `SageWareneingang` seit dem Deploy). Keine Nebenwirkung.
+- Endlosschleifen: „mehrere Treffer“ zählt als Versuch (Grenze greift). Suche scheitert / Payload-Fehler nach früherem Versuch zählen nicht → Wiederholung
+  alle `Abstand` Minuten ohne Ende, aber nie ein POST (nur enge GETs) – H-1.
+
+Befunde:
+- **F-1 (Mittel, behoben `bb788f0e`): Wettlauf Web/Dienst während der Sage-Suche → möglicher zweiter Beleg.** Der Dienst lädt eine `Fehler`-Gruppe,
+  sucht in Sage (Sekunden) und speichert danach `Gesendet` über den geladenen Stand (kein Concurrency-Token). Markiert der Mensch in dieser Zeit „Als
+  übergeben“ (etwa weil der Einkauf den Beleg ohne Kennung von Hand angelegt hat), überschrieb der Dienst das und sendete trotzdem (bzw. überschrieb mit
+  „Klären“). Nachgewiesen mit neuem Test `E5_WaehrendDerSucheVonHandAlsUebergeben_NichtGesendet_NichtUeberschrieben` (zwei Kontexte auf derselben
+  InMemory-DB; vorher rot). Korrektur: nach `PruefenAsync` den Status der Gruppe neu lesen; geändert → überspringen, Warnung im Protokoll. Restfenster
+  im Millisekundenbereich bis zum Speichern (`ponytail:`-Kommentar; ganz schließen nur mit rowversion = Migration).
+- **F-2 (Mittel, behoben `bb788f0e`): Q-2 bei Lesefehler.** Der Worker las den Schalter mit `GetBoolSafeAsync` (DB-Fehler → `false`); ein kurzer
+  Lesefehler hätte bei eingeschaltetem Sage-WE alle Offen/Fehler auf „Klären“ gesetzt (mit falschem Text „war ausgeschaltet“). Jetzt `GetBoolAsync`: der
+  Fehler landet im Takt-catch, nächster Takt. Kein automatisierter Test (Worker-Schleife), Beleg per Review; DEV nach Deploy: Q-2 greift bei echtem „false“.
+- **H-1 (Hinweis):** Scheitert die Suche dauerhaft (Sage weg) oder gibt es nach einem früheren Versuch einen Payload-Fehler, wiederholt der Dienst alle
+  15 min ohne Grenze (Spec: „Versuche unverändert“, so gewollt). Nur GETs, kein POST; je Takt ein Protokoll-Eintrag. Nicht geändert.
+- **H-2 (Hinweis):** Schalterlesen an zwei Stellen: Web `SageWareneingang.IstAn` trimmt, Dienst `GetBoolAsync` nicht. Wert kommt aus einer Bool-Auswahl
+  (ADR 0020); Abweichung nur bei handeditiertem Wert mit Leerzeichen. Nicht geändert.
+- **H-3 (Hinweis):** Die zwei neuen Int-Grenzen haben keinen eigenen Test; Server-Prüfung über den generischen `SettingValidator:38` (für andere Keys
+  getestet), Browser-`max` live gesehen. Abstand-Einstellung ohne Warntext (nur Takt, keine eigene Außenwirkung) – vertretbar.
+- **H-4 (Hinweis):** Das Repository zählt die drei „nicht übergeben“-Status ausgeschrieben statt über `SageWareneingang.NichtUebergeben` (gleicher Inhalt).
+  Nicht geändert.
+- Muster-Prüfung ohne Befund: kein Wert in `<script>`, kein `@Html.Raw`, kein `hidden`+`d-*`; Belegnummer serverseitig Pflicht + ≤ 30 (`maxlength`/`required`
+  nur Zusatz); Bindung über Route `vorgang` (kein Array); Audit `Modified*` in beiden Repository-Methoden und im Dienst; „Klären“ als Text und Farbe.
+- Brain-Changelog v1.99.7 fehlte (der Nachlauf verweist mit `Quelle` darauf) → vom QA angelegt: [[2026-11-12-v1-99-7-wareneingang-e5-auto-retry]];
+  `feature-map` nachgezogen.
+
+### 3. Beweisart je Punkt des Nachtrags
+| Punkt | Beweis |
+|---|---|
+| 1.1 Memo-Suche, 1 Treffer → übergeben ohne POST | automatisiert (`E5_MemoGefunden_…`) + **live** (Umsetzung Punkt 6, 0 Sendeversuche; nicht wiederholt) |
+| 1.1 mehr als 1 Treffer → Fehler | automatisiert |
+| 1.2 Sicherungsnetz → Klären, fremde Kennung zählt nicht | automatisiert; SData-Filter live gelesen (Umsetzung 6); Klären mit echtem Sage-Beleg ohne Kennung = **Manual-UAT** TS-116.21 |
+| 1.2 0/0 → erneut senden | automatisiert; live nicht (würde senden) |
+| Suche scheitert → nicht senden | automatisiert; live = Manual-UAT TS-116.22 |
+| 1.3 enge Filter | automatisiert (Filter-Strings) + Review |
+| 1.4 Grenzen als Einstellung | automatisiert (Grenze/0); /ServiceSettings live (Anzeige, Browser lehnt 11 ab, DB unverändert); Server-Grenze über generischen Validator |
+| F-1 Wettlauf | automatisiert (neu, QA) |
+| 2 Q-2 Klären + Hinweis + Sperre | automatisiert + **live DEV AKE** |
+| „Als übergeben markieren“ | automatisiert + **live DEV AKE** (echte Modellbindung) |
+| 3 Menü-Block | **live DEV AKE + IDEAL**; Feature-Gate aus = Manual-UAT (Review: einfaches `@if`) |
+| 4 DEV-Absicherung | live: nach jedem Deploy `SageWareneingangBelegAktiv`, `SageLagerbuchungAktiv`, `SageLagerbuchungUmbuchungAktiv` = false (beide DBs) |
+| Sage-seitige Wirkung | Manual-UAT, nicht grün gezählt |
+
+### 4. Geänderte Bestandstests
+- `SageWareneingangServiceTests`: `Fehler_WirdNichtAutomatischWiederholt_AK16` → `Fehler_WirdNichtVorAblaufDesAbstandsWiederholt_AK16` – Verhalten
+  **bewusst geändert** durch Nachtrag Punkt 1 (Variante A ersetzt B). Übrige Bestandstests: nur neue Parameter (`Wdh`, Lookup) = Typ-Änderung.
+- `SageWareneingaengeListeTests`: Fixture um einen Klären-Eintrag ergänzt, Zählung 3 → 4, Schalter-Zeile „true“ – folgt aus Nachtrag Punkt 1/2.
+  Kein Befund.
+
+### 5. Checkliste
+Keine Migration/kein SQL/kein FreshInstall (Enum-Wert in int-Spalte). Audit-Felder ja. Version 1.99.7 (Spec), Branch weiter auf 1.99.8; beide
+`AppVersion.cs`, Anwender-Changelog, Hilfe, README ja. `docs/TESTSZENARIEN.md` TS-116.20–116.24 + Fußzeile; Testindex Zeile 116 nachgezogen.
+ADR 0020: beide Int-Einstellungen mit Grenzen (freie Zahl, keine Auswahlliste), Server-Prüfung, Anzeigename, Wirkung, Verwendung, Default, Standort;
+Warntext bei `MaxWiederholungen` (schreibt nach Sage). Nachlauf: zwei Einträge `v1.99.7-*` (ASCII) vorhanden.
+
+### 6. DEV-Deploy und Testlauf
+- Standort laut Frontmatter AKE; AKE **und** IDEAL deployt, Web + Dienst, Shell mit Administratorrechten, je zweimal (auf `557ea63b` und nach der
+  QA-Korrektur auf `bb788f0e`); jedes Mal Exit 0, „HTTP 200, Fusszeile v1.99.8“ (= AppVersion des Branches). Danach die 5 AKE-Sync-Schalter wieder true.
+
+| Schritt | Ausgeführt | Ergebnis | Urteil |
+|---|---|---|---|
+| Einstellungen angelegt | `ServiceSettings` beide DBs | `Sync:SageWareneingangMaxWiederholungen` = 3, `…WiederholAbstandMinuten` = 15 | OK |
+| TS-116.23 Q-2 im Dienst | Receipt #8 per SQL auf Fehler (Versuche 1, Text „QA-Test“), Schalter aus, ein Takt | 11:50:53 Status 6 „Klären“, Text „… war ausgeschaltet … Vorher: QA-Test“, `ModifiedBy` `system:sage-wareneingang`; SyncLogs Warnung + `klaeren=1` | OK |
+| TS-116.23 Hinweis Liste | `/PurchaseOrders/SageWareneingaenge` | „⚠ Sage-Wareneingang ist aus – 1 Eintrag offen, werden nicht gesendet …“, Status „Klären“, beide Knöpfe | OK |
+| TS-116.23 Erneut senden gesperrt | Knopf geklickt | „Nicht eingereiht: Der Sage-Wareneingang ist ausgeschaltet …“, Status unverändert | OK |
+| TS-116.21 Als übergeben | Beleg-Nr. „QA-2027-TEST“ | „1 Position(en) als an Sage übergeben markiert … Es wird nichts gesendet.“, Status übergeben, `Modified*` = Gerald/AKENB, Hinweis weg | OK |
+| TS-116.23 Hinweis /ServiceSettings | #8 kurz auf Klären | Warnung mit Link „Zu den Sage-Wareneingängen“ | OK |
+| TS-116.22 Grenzen | /ServiceSettings, Wiederholungen = 11, Speichern | Browser: „Wert muss kleiner als oder gleich 10 sein“, DB unverändert 3/15; Anzeigename, Wirkung, Verwendung, Standard, Standort, Warntext sichtbar | OK |
+| TS-116.24 Menü | AKE und IDEAL, Menü „Lager“ | Trennlinie, „Sage-Lagerbuchungen“, „Sage-Wareneingänge“, Trennlinie; Seitentitel „Sage-Wareneingänge“; IDEAL: „Keine Sage-Wareneingänge.“, kein Hinweis | OK |
+| TS-116.24 Feature-Gate aus | – | Gate auf DEV nicht umgeschaltet | NICHT MÖGLICH (offen, Mensch) |
+| Keine Sage-Wirkung | Dienst-Log AKE, `SageBookingQueueItems` | letzter POST `StandardBelegService` 09:08:26 (freigegebener Schreibtest), danach keiner; 0 neue Queue-Zeilen | OK |
+| TS-116.20 live | – | im Dev-Lauf erledigt (Umsetzung 6), laut Auftrag nicht wiederholt | – |
+| TS-116.21 Klären mit Sage-Beleg, TS-116.22 Sage nicht erreichbar, 0/0 → senden | – | schreibt nach Sage bzw. braucht Sage-Beleg ohne Kennung | NICHT MÖGLICH (Regel) |
+
+Ausgangsstand wiederhergestellt: Receipt #8 wieder Status 0, Versuche 0, Vorgang/Fehler/Beleg/Am/Modified* NULL (vorher so gelesen). #4/#7 unverändert
+(übergeben, 2027-398675/398676). Sage-Schalter aus.
+
+### 7. Publish
+- `C:\git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish` vorher geleert, neu: `IDEALAKEWMSWeb`, `IDEALAKEWMSWebService`, `SQL`,
+  `deploy`, `publish-info.txt` (Version 1.99.8, Commit `bb788f0e8da5239cc0c9bbdf4e96ef7f54355e81`, Branch `feature/2026-08-07-ideal-teile-1-5`,
+  Erstellt 2026-11-12 11:54). Zu deployen: Web und Dienst, keine neue Migration.
+
+**Urteil:** Testbereit (v1.99.7, im Paket v1.99.8).
+
+### Manuelle Test-Checkliste (offen, Mensch) – ergänzt die Listen aus v1.99.4–v1.99.6 oben
+1. TS-116.21 am AKE-Test (Gerald/Einkauf): ELL-Beleg aus derselben Bestellung ohne WMS-Kennung, WMS-Eintrag auf Fehler (Versuche 1, > 15 min)
+   → „Klären“ mit Belegnummer, kein Senden; danach „Als übergeben markieren“.
+2. TS-116.22: SData-Adresse falsch → „Sage-Prüfung … fehlgeschlagen … nicht gesendet“, Versuche unverändert; MaxWiederholungen = 0 → keine Wiederholung.
+3. Ein echter Fehler mit 0/0 Treffern am AKE-Test → genau ein neuer Beleg (schreibt nach Sage, nur Gerald).
+4. TS-116.24 mit `WareneingangBestellungAktiv` aus: im Block nur „Sage-Lagerbuchungen“.
+5. Prod-Deploy: Offene/fehlerhafte Sage-WE bei Schalter aus stehen danach auf „Klären“ (Q-2) – Einkauf informieren (Nachlauf).
+6. Rückbau der Sage-Test-Belege 2027-398675/398676 (Gerald; „Memo gefunden“ ist erledigt).
+7. Testsystem-Lauf mit dem Paket aus `publish` (v1.99.8), danach Schranke 2.
