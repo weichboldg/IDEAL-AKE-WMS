@@ -7,6 +7,8 @@ using IdealAkeWms.Services.SyncLogger;
 using IdealAkeWms.Tests.Helpers;
 using IDEALAKEWMSService.Services;
 using IDEALAKEWMSService.Services.Sdata;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -37,12 +39,15 @@ public class SageWareneingangServiceTests
         public List<SageWeBelegTreffer> Memo { get; } = new();
         public List<SageWeBelegTreffer> Kandidaten { get; } = new();
         public bool Wirft { get; set; }
+        /// <summary>Simuliert einen Handgriff in der Web-Seite waehrend der (Sekunden dauernden) Sage-Suche.</summary>
+        public Action? BeiSuche { get; set; }
         public int MemoAufrufe { get; private set; }
         public int KandidatenAufrufe { get; private set; }
         public (int BelId, DateTime Ab, string? Ls)? LetzteKandidatenSuche { get; private set; }
         public Task<IReadOnlyList<SageWeBelegTreffer>> NachMemoAsync(int ersteReceiptId, CancellationToken ct)
         {
             MemoAufrufe++;
+            BeiSuche?.Invoke();
             if (Wirft) throw new IdealAkeWms.Services.SageSdata.SdataLeseException("EinkaufBelegeInfo", 503, "Sage nicht erreichbar");
             return Task.FromResult<IReadOnlyList<SageWeBelegTreffer>>(Memo);
         }
@@ -226,6 +231,35 @@ public class SageWareneingangServiceTests
         x.SageWeAm.Should().NotBeNull();
         lookup.KandidatenAufrufe.Should().Be(0);
         log.Runs.Single().FinalCounts!["in Sage gefunden"].Should().Be(1);
+    }
+
+    [Theory]   // QA v1.99.7 F-1: Web-Handgriff waehrend der Sage-Suche darf weder ueberschrieben werden noch einen POST ausloesen
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task E5_WaehrendDerSucheVonHandAlsUebergeben_NichtGesendet_NichtUeberschrieben(bool sicherungsnetzTrifft)
+    {
+        var (db, _, _) = Db();
+        var r = FehlerNachVersuch(db);
+        var opts = (DbContextOptions<ApplicationDbContext>)db.GetService<IDbContextOptions>();
+        var client = new FakeClient();
+        var lookup = new FakeLookup
+        {
+            BeiSuche = () =>
+            {
+                using var web = new TestApplicationDbContext(opts);
+                var w = web.PurchaseOrderReceipts.Single(x => x.Id == r.Id);
+                w.SageWeStatus = SageWareneingangStatus.Uebergeben; w.SageWeBelegnummer = "2027-1";
+                web.SaveChanges();
+            },
+        };
+        if (sicherungsnetzTrifft) lookup.Kandidaten.Add(new SageWeBelegTreffer(1, 2027, 1, null));
+
+        await Svc(db, client, null, lookup).RunOnceAsync(Endpoint, 10, 50, Wdh);
+
+        client.Gesendet.Should().BeEmpty();
+        using var check = new TestApplicationDbContext(opts);
+        var x = check.PurchaseOrderReceipts.Single();
+        (x.SageWeStatus, x.SageWeBelegnummer).Should().Be((SageWareneingangStatus.Uebergeben, "2027-1"));
     }
 
     [Fact]

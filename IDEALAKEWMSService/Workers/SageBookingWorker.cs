@@ -67,7 +67,9 @@ public class SageBookingWorker : BackgroundService
                     await ProcessOnceAsync(stoppingToken);
                 // v1.99.4 (Wareneingang Teil 2, E4): eigener Schritt, NUR durch SageWareneingangBelegAktiv geschaltet (unabhaengig von
                 // SageLagerbuchungAktiv); dieselbe EINE Instanz ist zustaendig (Idempotenz "Status vor dem Call").
-                if (await ServiceSettings.GetBoolSafeAsync(_configuration, SageWareneingang.ToggleKey, false, stoppingToken))
+                // QA v1.99.7 F-2: NICHT die Safe-Variante - ein DB-Lesefehler darf nicht als „aus“ gelten und Q-2 (Offen/Fehler -> Klären)
+                // ausloesen; er landet im catch unten, der Takt wird wiederholt.
+                if (await ServiceSettings.GetBoolAsync(_configuration, SageWareneingang.ToggleKey, false, stoppingToken))
                     await ProcessSageWareneingangAsync(stoppingToken);
                 else
                     await SageWareneingangAusAsync(stoppingToken);   // v1.99.7 Q-2: Liegengebliebenes auf „Klären“, nie nachschicken

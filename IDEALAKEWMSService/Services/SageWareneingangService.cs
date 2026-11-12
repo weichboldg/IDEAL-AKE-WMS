@@ -98,7 +98,17 @@ public class SageWareneingangService
                 if (auto || gruppe.Any(r => r.SageWeVersuche > 0))
                 {
                     var memo = SageWareneingang.Memo(gruppe[0].Id);
-                    if (await PruefenAsync(gruppe, auto, ct) is { } p)
+                    var p = await PruefenAsync(gruppe, auto, ct);
+                    // QA v1.99.7 F-1: Waehrend der Sage-Suche (Sekunden) kann die Web-Seite die Gruppe geaendert haben („Als uebergeben markieren“,
+                    // „Erneut senden“). Stand neu lesen - sonst ueberschreibt das Speichern den Handgriff bzw. sendet trotz Uebergeben.
+                    // ponytail: Restfenster im Millisekundenbereich bis zum Speichern; schliessen nur mit rowversion (Migration).
+                    var ids = gruppe.Select(r => r.Id).ToList();
+                    if (await _ctx.PurchaseOrderReceipts.AsNoTracking().CountAsync(r => ids.Contains(r.Id) && r.SageWeStatus == status, ct) != gruppe.Count)
+                    {
+                        await run.LogWarningAsync($"Sage-Wareneingang {memo}: während der Sage-Prüfung von Hand geändert – übersprungen, nichts gesendet.", ct: ct);
+                        continue;
+                    }
+                    if (p is not null)
                     {
                         foreach (var r in gruppe)
                         {
