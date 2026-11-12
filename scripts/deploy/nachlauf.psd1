@@ -251,6 +251,15 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
    Text='Dienst mit v1.96.0 (OSEON-MERGE ueber Auftragsnummer): erster OSEON-Lauf im Aktivitaets-Protokoll pruefen.'; Quelle='2026-11-11-v1-96-0-vorwaerts-merge-main-hotfixes' }
 @{ Id='v1.97.0-Info'; Version='1.97.0'; Typ='Info'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
    Text='Anwender-Info: "Auftrag drucken" in der Stueckliste druckt in der Sortierreihenfolge der Ansicht (alle Zeilen, auch gefilterte).'; Quelle='2026-11-11-v1-97-0-auftrag-drucken-sortierung' }
+@{ Id='v1.99.4-SageWe'; Version='1.99.4'; Typ='Einstellung'; Firma='AKE'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Text='SageWareneingangBelegAktiv (/ServiceSettings) erst nach dokumentiertem Schreibtest und Abnahme TS-116.12 einschalten; IDEAL bleibt aus (kein SData-Endpunkt). Danach sind nur Sage-Plaetze mit Sage-Buchung erlaubt als Ziel buchbar.'
+   Quelle='2026-11-11-v1-99-4-wareneingang-sage-we-beleg' }
+@{ Id='v1.99.4-Lieferschein'; Version='1.99.4'; Typ='Einstellung'; Firma='AKE'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Text='WareneingangLieferscheinPflicht (/Settings > Lager und Buchungen) nach Absprache mit Lager und Einkauf setzen (Standard aus = Lieferschein-Nr. optional).'
+   Quelle='2026-11-11-v1-99-4-wareneingang-sage-we-beleg' }
+@{ Id='v1.99.4-EinkaufWe'; Version='1.99.4'; Typ='Info'; Firma='AKE'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Text='Einkauf informieren: Wareneingaenge mit Status An Sage uebergeben nicht mehr von Hand schliessen; Liste Wareneingaenge an Sage; Fehler nach Pruefung in Sage erneut senden.'
+   Quelle='2026-11-11-v1-99-4-wareneingang-sage-we-beleg' }
 @{ Id='v1.99.0-Info'; Version='1.99.0'; Typ='Info'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
    Text='Betrieb: Das Update-Skript prueft Kommissionierbereiche, RCSI, Rollen und DUMMY-Artikel und repariert nur nach Bestaetigung; Daten-/Einmal-Skripte laufen nur nach SCHARF bzw. uebernehmen; Marker in dbo.DeployScriptRuns.'
    Quelle='2026-11-11-v1-99-0-update-skript-prueft-und-fuehrt-aus' }

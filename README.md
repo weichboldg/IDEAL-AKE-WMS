@@ -471,6 +471,7 @@ Bei Änderungen der Tabellenstruktur müssen diese Scripts angepasst werden.
 | `EnaioLinksAktiv` | `true` (Seed) | enaio-Dokument-Symbole an FA-Nummern (v1.67.0, Gruppe „enaio (Dokumente)“) — nur `false` blendet aus. Unabhängig vom Sync-Schalter `Sync:EnaioDmsEnabled`. |
 | `EnaioLinkVorlage` | `http://akeosapp.ake.at/oscontentviewer/viewer/{ObjektId}/?pagecount=1` (Seed) | enaio-Viewer-Adresse mit Platzhalter `{ObjektId}`. Leer = keine Links. |
 | `WareneingangBestellungAktiv` | `false` (kein Seed) | Menüpunkte „Offene Bestellungen“ / „Wareneingang zu Bestellung“ (v1.84.0); aus = Seiten 404. Nur exakt `true`. |
+| `WareneingangLieferscheinPflicht` | `false` (kein Seed) | „Wareneingang zu Bestellung“: Lieferschein-Nr. des Lieferanten Pflicht (v1.99.4); aus = optional. Nur exakt `true`. |
 | `OffeneBestellungenVorschauWochen` | `2` (kein Seed) | Standard-Horizont der Vorschau „Offene Bestellungen“ in Wochen (1–26, v1.84.0). |
 | `FaPflichtBuchungsarten` | leer (kein Seed) | „FA-Pflicht bei Buchungen“ (v1.87.0): Mehrfachauswahl aus `Wareneingang`, `Sammel-Wareneingang`, `Warenausgang`, `Umbuchung`; gewählte Arten buchen nur mit eindeutig im WMS gefundenem FA (erledigt/storniert = Warnung). Leer = keine Pflicht. Achtung: mit `Umbuchung` geht keine Umbuchung mehr an Sage (Umbuchungen mit FA werden nie gemeldet). |
 | `LagerplatzEtikettRolle93x55` | `false` (kein Seed) | Lagerplatz-Etiketten im Rollenformat 93 × 55 mm (v1.72.0): ein Etikett je Seite, ohne Rahmen, für Sammel- und Einzeldruck. Nur exakt `true` aktiviert; aus/fehlend = A4 mit drei Etiketten je Seite. Im Druckdialog Rollendrucker, Papierformat 93 × 55 mm, Ränder „Keine“. Pflege: Standorteinstellungen → Druck (nur Admin) |
@@ -677,6 +678,10 @@ C:\Services\IDEALAKEWMSService\
 > SData-API) ist **appsettings-only** und muss am Zielserver manuell befüllt werden (wie
 > `ConnectionStrings`/`MailSettings`). Alle übrigen Werte sind DB-first unter `/ServiceSettings`
 > (Kategorie „Sage-Lagerbuchung"): globaler Schalter `SageLagerbuchungAktiv` (Default aus),
+> **Sage-Wareneingangsbeleg (v1.99.4):** `SageWareneingangBelegAktiv` (Default `false`, nur AKE, unabhängig von `SageLagerbuchungAktiv`) –
+> Wareneingänge zu Bestellungen gehen als ein Sage-Wareneingang (ELL, Belegübernahme, `$service/StandardBelegService`) je Buchung der Maske an
+> Sage und nicht in die Lagerbuchungs-Warteschlange; Ziel nur Sage-Plätze mit „Sage-Buchung erlaubt“. Kein automatisches Wiederholen
+> (Liste „Wareneingänge an Sage“, „Erneut senden“ nach Prüfung in Sage); hängend nach `Sync:SageLagerbuchungStuckMinutes` = Fehler „Ergebnis unklar“.
 > `SData:BaseUrl` (Host+Port ohne Pfad, z.B. `https://sagetest01.ake.at:5493`), `SData:Application`
 > (Default `ol`), `SData:ServiceContract` (Default `CommonWawiServices`), `SData:Dataset` (Mandant,
 > z.B. `ake_TEST2026;1`), sowie Intervall/Batch/Retry/Cap-Keys. Zusätzlich je Lagerplatz das Feld

@@ -82,6 +82,16 @@
                         Rot hinterlegt = überfällig. Ist der Sage-Lagerplatz im WMS nicht buchbar, steht das als Hinweis an der Zeile.
                         &bdquo;Lieferant gesperrt&ldquo; ist ein Hinweis aus Sage, Buchen bleibt möglich. Die Bestellposition in Sage schließt der Einkauf
                         (ohne zweite Lagerbuchung). Rahmenabrufe werden (noch) nicht angezeigt.
+                        <br />
+                        <strong>Seit v1.99.4:</strong> Oben in der Maske steht das Feld <em>&bdquo;Lieferschein-Nr. (Lieferant)&ldquo;</em> (höchstens
+                        20 Zeichen; Pflicht nur mit der Einstellung <code>WareneingangLieferscheinPflicht</code>). Ist der Dienst-Schalter
+                        <code>SageWareneingangBelegAktiv</code> an (nur AKE), legt der Dienst je Klick auf <em>Einbuchen</em> <strong>einen</strong>
+                        Sage-Wareneingang an: die Bestellung ist dann in Sage beliefert und der Bestand auf dem Platz gebucht, mit der Lieferschein-Nr.
+                        Diese Positionen schließt der Einkauf <strong>nicht</strong> mehr von Hand, und sie gehen nicht zusätzlich als Lagerbuchung an Sage.
+                        Als Ziel sind dann nur Plätze erlaubt, die es in Sage gibt und bei denen &bdquo;Sage-Buchung erlaubt&ldquo; an ist; sonst steht an
+                        der Zeile ein Hinweis und nichts wird gebucht. Positionen mit Charge/Seriennummer bucht der Einkauf in Sage.
+                        Den Stand zeigt <em>Lager &rarr; Wareneingänge an Sage</em>; ein Fehler wird nicht automatisch wiederholt &ndash; zuerst in Sage
+                        nachsehen, ob der Beleg (Memo <code>WE#&hellip;#</code>, Lieferschein-Nr.) schon existiert, dann <em>Erneut senden</em>.
                     </dd>
 
                     <dt>Sage-Lagerbuchungen (seit v1.28.0)</dt>
