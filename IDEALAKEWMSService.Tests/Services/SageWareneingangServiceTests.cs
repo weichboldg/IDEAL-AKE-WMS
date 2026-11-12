@@ -112,6 +112,8 @@ public class SageWareneingangServiceTests
         var pos = p.StandardBelegPositionen.Single();
         (pos.Artikelnummer, pos.MengeBasis, pos.Positionstyp, pos.Mengenart).Should().Be(("00722001", 2m, 1, 1));
         pos.BelegPositionLagermengen.Single().Should().BeEquivalentTo(new SageWeLagermenge { PlatzId = 77, Kurzbezeichnung = "HR;0;0;0", MengeBasis = 2m });
+        pos.Artikelmemo.Should().Be($"WE#{a.Id}# LS LS-4711 Platz HR;0;0;0", "v1.99.5: Memo je Position");
+        SageWareneingangPayloadBuilder.PositionsMemo(7, null, "GL;0;0;0").Should().Be("WE#7# Platz GL;0;0;0");
         SageWareneingangClient.Serialize(p).Should().Contain("\"EKLieferschein\":\"LS-4711\"");
     }
 
