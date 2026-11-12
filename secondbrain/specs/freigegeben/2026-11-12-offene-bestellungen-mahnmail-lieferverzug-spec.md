@@ -2,14 +2,16 @@
 type: spec
 title: Offene Bestellungen – tägliche Erinnerungs-Mail bei Lieferverzug (Einkauf-Sammelliste, Kreditor-Mail mit Testbetrieb)
 slug: 2026-11-12-offene-bestellungen-mahnmail-lieferverzug-spec
-status: Entwurf
+status: InUmsetzung
 created: 2026-11-12
 updated: 2026-11-12
+freigabe_von: "Gerald Weichbold (Chat Koordination, 2026-11-12 14:58)"
+freigabe_am: 2026-11-12
 source_backlog: "[[2026-11-12-offene-bestellungen-mahnmail-lieferverzug]]"
 task: ""
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
 branch: "feature/2026-08-07-ideal-teile-1-5"
-standort: AKE
+standort: beide
 version_vorschlag: "1.99.9 (Kollision mit der parallel entstehenden Schwester-Spec Barcode/CSV beachten – wer zuerst gebaut wird, nimmt 1.99.9, die andere die nächste freie)"
 sql_nummer_vorschlag: "144 (nächste freie im Worktree, SQL/143 ist die letzte; Dev-Lauf prüft neu, Schwester-Spec Barcode/CSV kann sie belegen)"
 testszenario: "TS-128"
@@ -447,6 +449,12 @@ Domains zustellen (SPF/DMARC der Absenderdomain, Relay-Freigabe)? Der Code kann 
 13. **Audit der Protokolltabelle.** *Empfehlung:* kein `AuditableEntity`. Die Zeilen schreibt nur der Dienst, angehängt und nie geändert,
     wie beim Cache `SagePurchaseOrderLine` (`SagePurchaseOrderLine.cs:6`). `SentAt` in Lokalzeit (ADR 0010-Konvention).
 
+## Freigabe-Nachtrag 2026-11-12 (Gerald): Rumpf-Änderungen aus den Antworten 7 und 12
+
+Gilt vor dem Text oben.
+- **Antwort 7:** Für die Kreditor-Mail gibt es eine eigene Einstellung „Absenderadresse Kreditor-Mail“ (leer = bisherige FromAddress); die Einkauf-Mail nutzt weiter die FromAddress. Serverseitig als E-Mail-Adresse validiert (ADR 0020).
+- **Antwort 12:** `standort: beide`. Keine AKE-Sonderwege im Code; alle neuen Einstellungen je Standort. Auf IDEAL ist der Schalter bis zur SData-Schnittstelle aus; der Lauf ist ohne Bestell-Abgleich ohnehin wirkungslos (24-h-Regel).
+
 ## Freigabe-Antworten (Mensch fuellt aus — Schranke 1)
 
 <!--
@@ -457,16 +465,16 @@ Domains zustellen (SPF/DMARC der Absenderdomain, Relay-Freigabe)? Der Code kann 
   Bei Varianten-Specs zusaetzlich freigabe_entscheidung im Frontmatter setzen.
 -->
 
-1. Termin (Cache-Feld unverändert, P-M1 vor Echtbetrieb) →
-2. Zählweise (Kalendertage, heute ≥ Termin + N) →
-3. Versandzeit (Stunde einstellbar, Default 7, Mo–Fr) →
-4. Wiederholung (Einkauf täglich; Kreditor erstmals + alle 7 Tage, Termin-Änderung = neu, Grenze 30) →
-5. Kreditor-Felder „keine Erinnerungsmails“ + „Adresse für Erinnerungen“ (Migration) →
-6. Sprache (eine Mail Deutsch + Englisch) →
-7. Absender bleibt FromAddress, Reply-To-Einstellung, CI-Auswahl AKE/IDEAL →
-8. Rest > 0 zählt, EBZ außen vor →
-9. Protokolltabelle + Aktivitäts-Protokoll, keine Maske →
-10. Sonderfälle nur in der Einkauf-Liste →
-11. Basiseinheit, bei abweichender Einheit „siehe Bestellung“ →
-12. standort AKE →
-13. Protokolltabelle ohne AuditableEntity →
+1. Termin (Cache-Feld unverändert, P-M1 vor Echtbetrieb) → **Wie empfohlen (Gerald 2026-11-12).**
+2. Zählweise (Kalendertage, heute ≥ Termin + N) → **Wie empfohlen (Gerald 2026-11-12).**
+3. Versandzeit (Stunde einstellbar, Default 7, Mo–Fr) → **Wie empfohlen (Gerald 2026-11-12).**
+4. Wiederholung (Einkauf täglich; Kreditor erstmals + alle 7 Tage, Termin-Änderung = neu, Grenze 30) → **Wie empfohlen (Gerald 2026-11-12).**
+5. Kreditor-Felder „keine Erinnerungsmails“ + „Adresse für Erinnerungen“ (Migration) → **Wie empfohlen (Gerald 2026-11-12).**
+6. Sprache (eine Mail Deutsch + Englisch) → **Wie empfohlen (Gerald 2026-11-12).**
+7. Absender bleibt FromAddress, Reply-To-Einstellung, CI-Auswahl AKE/IDEAL → **Abweichend: Für die Kreditor-Mail eine eigene, einstellbare Absenderadresse (z. B. einkauf@…); Einkauf-Mail mit der bisherigen FromAddress. Reply-To einstellbar, CI-Auswahl AKE/IDEAL. Das SMTP-Relay (Versand an Externe, Absender erlaubt) prüft Gerald vor dem Ende des Testbetriebs (Gerald 2026-11-12).**
+8. Rest > 0 zählt, EBZ außen vor → **Wie empfohlen (Gerald 2026-11-12).**
+9. Protokolltabelle + Aktivitäts-Protokoll, keine Maske → **Wie empfohlen (Gerald 2026-11-12).**
+10. Sonderfälle nur in der Einkauf-Liste → **Wie empfohlen (Gerald 2026-11-12).**
+11. Basiseinheit, bei abweichender Einheit „siehe Bestellung“ → **Wie empfohlen (Gerald 2026-11-12).**
+12. standort AKE → **Abweichend: beide Standorte. Alles je Standort über die Standort- bzw. Service-Einstellungen einstellbar (Schalter, Empfänger, Absender, CI). IDEAL startet aus und wird eingeschaltet, sobald die IDEAL-SData-Schnittstelle da ist, also heute oder morgen (Gerald 2026-11-12).**
+13. Protokolltabelle ohne AuditableEntity → **Wie empfohlen (Gerald 2026-11-12).**

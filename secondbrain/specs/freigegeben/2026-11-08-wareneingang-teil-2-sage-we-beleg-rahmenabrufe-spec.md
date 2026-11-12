@@ -2,7 +2,7 @@
 type: spec
 title: "Wareneingang Teil 2: Sage-Wareneingangsbeleg (ELL)"
 slug: 2026-11-08-wareneingang-teil-2-sage-we-beleg-rahmenabrufe-spec
-status: Testbereit
+status: InUmsetzung
 created: 2026-11-08
 updated: 2026-11-12
 freigabe_von: "Gerald Weichbold (Chat Koordination, 2026-11-11 20:40 „beide freigeben“)"
@@ -1289,3 +1289,26 @@ Ausgangsstand wiederhergestellt: Receipt #8 wieder Status 0, Versuche 0, Vorgang
 5. Prod-Deploy: Offene/fehlerhafte Sage-WE bei Schalter aus stehen danach auf „Klären“ (Q-2) – Einkauf informieren (Nachlauf).
 6. Rückbau der Sage-Test-Belege 2027-398675/398676 (Gerald; „Memo gefunden“ ist erledigt).
 7. Testsystem-Lauf mit dem Paket aus `publish` (v1.99.8), danach Schranke 2.
+## Hinweis Koordination 2026-11-12: Rückbau entfällt – Kennung `WE#<Id>#` ist nur je WMS-Datenbank eindeutig
+- Gerald 2026-11-12: Die Test-Belege 2027-398675 (`WE#4#`) und 2027-398676 (`WE#7#`) im Sage-AKE-Test werden **nicht** zurückgebaut.
+- **Befund:** Die Kennung `WE#<Id>#` nutzt die Id aus der WMS-Datenbank. Gegen dieselbe Sage-Testdatenbank (`ake_TEST2026`) schreiben bzw.
+  suchen künftig mehrere WMS-Datenbanken: DEV-AKE, AKE-Test, AKE Test-IDEAL; nach einem DEV-Restore beginnen die Ids neu. Ein
+  Wareneingang mit Id 4 oder 7 in einem dieser Systeme würde in E5 den alten Test-Beleg finden, als „übergeben“ gelten und **nie gesendet**
+  werden. In der Produktion schreibt je Sage-Mandant genau ein WMS, dort ist das unkritisch.
+- **Vorschlag (Entscheidung Gerald offen):** Die Kennung bekommt ein System-Kürzel als Einstellung, z. B. `WE#AT#7#` für AKE-Test,
+  `WE#DEV#7#` für DEV, ohne Kürzel = heutiges Format für Prod. Suche und Sicherungsnetz nutzen dasselbe Format. Bis dahin auf DEV und den
+  Testsystemen den Sage-WE nur bewusst einschalten.
+
+## Freigabe-Nachtrag 2026-11-12 14:20 (Gerald): System-Kürzel in der Sage-Kennung
+
+Gilt vor dem QA-Abschnitt; setzt den Hinweis direkt darüber um. Version: nächste freie im Bündel.
+1. Neue Einstellung (ADR 0020) „System-Kürzel für Sage-Kennungen“, z. B. `DEV`, `AT` (AKE-Test), `ATI` (AKE Test-IDEAL), `IT` (IDEAL-Test).
+   **Leer = heutiges Format** `WE#<Id>#` (Produktion). Erlaubt sind nur Großbuchstaben und Ziffern, höchstens 5 Zeichen, serverseitig geprüft.
+2. Mit Kürzel lautet die Kennung `WE#<Kürzel>#<Id>#` im Kopf- und im Positions-Memo. Die Suche in E5 und das Sicherungsnetz („Belege mit der
+   Kennung eines anderen WMS-Wareneingangs zählen nicht“) verwenden dasselbe Format. Ein `WE#7#` ohne Kürzel gilt bei gesetztem Kürzel als fremd.
+3. Gilt nur für neue Sendungen. Bereits übergebene Einträge behalten ihre Kennung; die Suche für einen Eintrag nutzt die Kennung, mit der er
+   gesendet wurde. Das Feld dafür beim Senden speichern.
+4. Prüfen, ob die Sage-Lagerbuchungen (`SM#<id>#`, `SageBookingCorrelation`) dasselbe Problem haben. Wenn ja, gleiches Kürzel verwenden.
+   Sonst im Bericht vermerken.
+5. Update-Skript/Manifest: Info-Eintrag „Kürzel je Testsystem setzen, Produktion leer lassen“. Die DEV-Absicherung setzt auf DEV das Kürzel `DEV`.
+6. Tests: Kennung mit und ohne Kürzel, Suche findet `WE#7#` bei Kürzel `DEV` nicht.

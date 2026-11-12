@@ -2,9 +2,11 @@
 type: spec
 title: "Wareneingang zu Bestellung: Barcode-Feld und CSV-Übergabe auf einen UNC-Pfad"
 slug: 2026-11-12-wareneingang-barcode-lieferschein-csv-export-spec
-status: Entwurf
+status: InUmsetzung
 created: 2026-11-12
 updated: 2026-11-12
+freigabe_von: "Gerald Weichbold (Chat Koordination, 2026-11-12 14:58)"
+freigabe_am: 2026-11-12
 source_backlog: "[[2026-11-12-wareneingang-barcode-lieferschein-csv-export]]"
 depends_on: "[[2026-11-08-wareneingang-teil-2-sage-we-beleg-rahmenabrufe-spec]]"
 schwester_spec: "[[2026-11-12-offene-bestellungen-mahnmail-lieferverzug]] (Backlog; Spec entsteht parallel)"
@@ -500,13 +502,13 @@ Entfällt (kein Epic). Umsetzung als ein Commit-Paket im Bündel-Worktree; bei T
   Bei Varianten-Specs zusaetzlich freigabe_entscheidung im Frontmatter setzen.
 -->
 
-1. Auftrag abgeschnitten – was fehlt (a Kollision, b Bereinigung, c Encoding/Trennzeichen, d Wiederholung, e Dienstkonto-Rechte, f Zeitlimit)? →
-2. Leser/Zweck enaio und erwartetes Format? →
-3. CSV-Spalten; nur Sage-Belegnummer statt BelID; Kreditorname als Snapshot? →
-4. Barcode Pflichtfeld oder optional? →
-5. Erlaubte Zeichen und Länge des Barcodes (Muster-Aufkleber)? →
-6. Duplikate: Sperre beim Buchen, nie überschreiben? →
-7. Sage-WE beim Buchen aus: Feld sperren statt „wartet“? →
-8. Ein Schalter oder zwei (Feld vs. Dienst)? →
-9. Scan ohne angetipptes Feld geht ins Barcode-Feld – akzeptiert? →
-10. Version/SQL-/TS-Nummer in Bau-Reihenfolge durch den Dev-Lauf? →
+1. Auftrag abgeschnitten – was fehlt (a Kollision, b Bereinigung, c Encoding/Trennzeichen, d Wiederholung, e Dienstkonto-Rechte, f Zeitlimit)? → **Wie empfohlen (Gerald 2026-11-12).**
+2. Leser/Zweck enaio und erwartetes Format? → **Den enaio-Import gestalten wir selbst, das empfohlene Format passt (Gerald 2026-11-12).**
+3. CSV-Spalten; nur Sage-Belegnummer statt BelID; Kreditorname als Snapshot? → **Wie empfohlen (Gerald 2026-11-12).**
+4. Barcode Pflichtfeld oder optional? → **Wie empfohlen (Gerald 2026-11-12).**
+5. Erlaubte Zeichen und Länge des Barcodes (Muster-Aufkleber)? → **Wie empfohlen: A–Z, 0–9, `-`, `_`, 1–50 Zeichen. Muster laut Gerald: `AKE1235564654`, also Buchstaben-Präfix plus Nummer (Gerald 2026-11-12).**
+6. Duplikate: Sperre beim Buchen, nie überschreiben? → **Wie empfohlen (Gerald 2026-11-12).**
+7. Sage-WE beim Buchen aus: Feld sperren statt „wartet“? → **Wie empfohlen (Gerald 2026-11-12).**
+8. Ein Schalter oder zwei (Feld vs. Dienst)? → **Wie empfohlen (Gerald 2026-11-12).**
+9. Scan ohne angetipptes Feld geht ins Barcode-Feld – akzeptiert? → **Wie empfohlen (Gerald 2026-11-12).**
+10. Version/SQL-/TS-Nummer in Bau-Reihenfolge durch den Dev-Lauf? → **Wie empfohlen (Gerald 2026-11-12).**
