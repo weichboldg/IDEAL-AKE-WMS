@@ -1748,6 +1748,16 @@ Code: `hardware-scanner.js` Block „Scannen ohne Feld“, CSS `.hw-scan-bereit`
   ein reiner JSON-Leser den angelegten Beleg als Fehler. Erst der Status „Fehler statt Wiederholen“ verhinderte einen zweiten Beleg.
 - **`SyncLogs.Message` ist nvarchar(1000).** Lange Sage-Antworten vor dem Protokollieren kappen. **Warum wichtig:** Sonst scheitert der
   Protokoll-Eintrag (SqlException „String or binary data would be truncated“), und genau die Fehlermeldung fehlt im Aktivitaets-Protokoll.
+- **SData-`where` mit Datum nur als `@yyyy-MM-dd@`** (v1.99.7). `Belegdatum ge '2026-11-12'` liefert ohne Fehler 0 Treffer, `ge @2026-11-11@`
+  die richtigen Belege (Live-Test `EinkaufBelegeInfo` 2026-11-12). **Warum wichtig:** Ein stilles „0 Treffer“ im Sicherungsnetz hieße „kein Beleg
+  in Sage“ → der Dienst sendet erneut → zweiter Wareneingang.
+- **Lookups gegen Info-Ressourcen immer eng filtern** (Memo-Kennung bzw. `ReferenzBelID` + Datum), nie nur `Belegkennzeichen` oder `Status`.
+  `QueryAllAsync` blättert bis `$totalResults`; nur `Belegkennzeichen eq 'ELL'` sind ~90 000 Belege und liefen über 10 Minuten (P-W9 (b)).
+  `EinkaufBelegeInfo` liefert auch erledigte und alte Belege (Status 2, ab 2015). **Warum wichtig:** Der Worker-Takt hinge sonst minutenlang und
+  blockierte die Lagerbuchungen derselben Instanz.
+- **Ausgeschalteter Sage-Wareneingang: Liegengebliebenes geht auf „Klären“** (Worker-Takt, v1.99.7), statt beim Wiedereinschalten automatisch
+  nachzusenden. **Warum wichtig:** `ServiceSettings` haben keinen Änderungszeitpunkt; nur so wird nichts nachgeschickt, egal ob der Schalter
+  über die Maske, ein Skript oder die DEV-Absicherung umgestellt wurde.
 
 ## Sage-SData-Lesen (v1.73.0, [[2026-11-06-sage-sdata-stammdaten-sync-spec]])
 

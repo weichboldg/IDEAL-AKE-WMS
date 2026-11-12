@@ -2,7 +2,7 @@
 type: spec
 title: "Wareneingang Teil 2: Sage-Wareneingangsbeleg (ELL)"
 slug: 2026-11-08-wareneingang-teil-2-sage-we-beleg-rahmenabrufe-spec
-status: Testbereit
+status: InUmsetzung
 created: 2026-11-08
 updated: 2026-11-12
 freigabe_von: "Gerald Weichbold (Chat Koordination, 2026-11-11 20:40 „beide freigeben“)"
@@ -10,7 +10,7 @@ freigabe_am: 2026-11-11
 source_backlog: "[[2026-11-08-wareneingang-teil-2-sage-we-beleg-rahmenabrufe]]"
 depends_on: "[[2026-11-08-wareneingang-aus-sage-bestellungen-spec]]"
 folge_backlog: "[[2026-11-11-wareneingang-teil-3-rahmenabrufe]]"
-version: "1.99.6"
+version: "1.99.7"
 sql_nummern: "eine Migration in E1: nächste freie Nummer bei der Umsetzung, derzeit 143 (142 = AddDeployScriptRuns, v1.99.0), Freigabe-Antwort 1"
 testszenario: "TS-116 (Erweiterung 116.10 ff., ersetzt den Platzhalter 116.7)"
 task: ""
@@ -1092,3 +1092,69 @@ Testdaten auf DEV AKE: Receipts #8 (BelPos 406335) und #9 (BelPos 406336) der Be
     **angekommen**.
   - BelID 363225, Position 406344 (EK001640, 1,00 Stk, 23,43): an derselben Stelle NULL. Erwartet, weil der erste Test vor v1.99.5 (Positions-Memo) lief.
   - Spaltennamen nicht mitgeliefert, die Zuordnung zur Spalte ist daher unbelegt.
+
+## Freigabe-Nachtrag 2026-11-12 (Gerald): E5 Variante A, Sicherungsnetz, Q-2, Sage-Protokolle im Menü – v1.99.6
+
+Gilt vor dem QA-Abschnitt. Grundlage: P-W9 (a) und (b) positiv (oben).
+1. **E5 Variante A bauen** (automatisches Wiederholen im Dienst), vor jedem erneuten Senden:
+   1. Suche über das Memo: `Belegkennzeichen eq 'ELL' and Memo like '%WE#<Id>#%'`, kodiert wie im Dienst. Genau ein Treffer → `Uebergeben`
+      (BelID/Belegnummer übernehmen), kein POST. Mehr als ein Treffer → `Fehler` mit Meldung.
+   2. **Sicherungsnetz bei 0 Treffern:** zweite, eng gefilterte Suche nach ELL-Belegen mit `ReferenzBelID` = Bestellung des Wareneingangs,
+      Belegdatum ab dem Datum der WE-Buchung und, wenn eine Lieferscheinnummer erfasst ist, `Lieferschein` = diese Nummer.
+      - Treffer → **neuer Status „Klären“**, kein automatisches Senden, Hinweis „möglicher Beleg in Sage gefunden, Memo fehlt/geändert“ mit
+        Belegnummer(n). Weiter nur per „Erneut senden“ von Hand (Rolle wie bisher) oder „als übergeben markieren“ mit Belegnummer.
+      - Kein Treffer → erneut senden.
+   3. Nie ein breiter Filter (nur ELL oder nur Status): Eine Testabfrage lief über 10 Minuten (P-W9 (b)).
+   4. Wiederholgrenzen: Anzahl und Abstand als Einstellung (ADR 0020), danach `Fehler`.
+2. **Q-2:** Ist `SageWareneingangBelegAktiv` aus und gibt es noch offene Einträge, zeigen die Liste und die Einstellung einen deutlichen Hinweis
+   („Sage-Wareneingang ist aus – n Einträge offen, werden nicht gesendet“). Beim Wiedereinschalten werden sie nicht automatisch nachgeschickt,
+   nur über „Erneut senden“.
+3. **Sage-Protokolle im Menü (Wunsch Gerald):** Das Menü „Lager“ bekommt einen eigenen, durch Trennlinien abgesetzten Block mit beiden
+   Sage-Protokollen und einheitlichen Namen:
+   - „Sage-Lagerbuchungen“ (bisher `SageBookingQueue`, Name bleibt);
+   - „Sage-Wareneingänge“ (bisher „Wareneingänge an Sage“, `PurchaseOrders/SageWareneingaenge`; Seitentitel und Hilfe angleichen).
+   Sichtbarkeit je Eintrag wie bisher (Feature-Gate, Rechte). Heute: `Views/Shared/_Layout.cshtml:115` und `:121`.
+4. **DEV-Absicherung:** `D:\Dev\scripts\dev-absicherung-ake.sql` und `-ideal.sql` setzen zusätzlich `SageWareneingangBelegAktiv = false`
+   (Schlüssel im Code belegen; fehlt er, wird er als false angelegt). Das liegt außerhalb des Repos und ist kein Repo-Commit.
+5. Manifest-Einträge für neue Einstellungen, Version 1.99.6, Tests auf DEV: Memo gefunden; 0 Treffer ohne Sicherungsnetz-Treffer; „Klären“.
+   Die Sage-Suchen laufen lesend gegen den Sage-AKE-Test; kein weiterer Schreibtest nach Sage.
+   Test „Memo gefunden“ live: Den DEV-Eintrag WE 7 bzw. 4 auf `Fehler` setzen; die Wiederholung muss BelID 363226 bzw. 363225 finden und darf nicht senden. Dafür lässt Gerald die zwei Test-Belege **bis nach diesem Test** in Sage stehen. Der Rückbau folgt danach.
+
+### Umsetzung Nachtrag E5/Q-2/Menü – v1.99.7 (Dev-Lauf 2026-11-12, /goal-Lauf [[2026-11-12-buendel-v1-99-8-goal-lauf]])
+
+**Version 1.99.7 statt 1.99.6** (1.99.6 = Positionsmemo, schon belegt). Keine Migration (`SageWeStatus` ist int, neuer Wert `Klaeren = 6`).
+Commits im Bündel: `f8d74399` (Code), `af0a75f2` (TS-116.20–116.24).
+1. **E5 Variante A** (`IDEALAKEWMSService/Services/SageWareneingangService.cs`, neu `Services/Sdata/SdataWareneingangLookupReader.cs`):
+   - Automatisch wiederholt werden nur `Fehler` mit mindestens einem echten Sende-Versuch (`SageWeVersuche ≥ 1`; ein Payload-Fehler ohne POST nie),
+     höchstens `Sync:SageWareneingangMaxWiederholungen`-mal (Standard 3, 0 = nie) und frühestens `Sync:SageWareneingangWiederholAbstandMinuten`
+     (Standard 15) nach der letzten Änderung. Hängendes `Gesendet` → `Fehler` „Ergebnis unklar“ → wird danach mit Suche wiederholt.
+   - Vor **jedem** erneuten Senden (auch nach „Erneut senden“ von Hand, erkennbar an `SageWeVersuche > 0`) Suche
+     `Belegkennzeichen eq 'ELL' and Memo like '%WE#<Id>#%'`: 1 Treffer → `Uebergeben` (Belegnummer `Belegjahr-Belegnummer`), kein POST;
+     >1 → `Fehler` „Mehrere Sage-Belege …“ (zählt als Versuch, damit es nicht endlos sucht). Erstversand ohne Suche.
+   - **Sicherungsnetz** nur beim automatischen Wiederholen und 0 Memo-Treffern: `… and ReferenzBelID eq <BelId> and Belegdatum ge @<WE-Datum>@`
+     `[and Lieferschein eq '<LS>']`; Treffer mit einer **anderen** WMS-Kennung `WE#n#` zählen nicht (andere WMS-Wareneingänge). Treffer → **Klären**
+     mit „Möglicher Beleg in Sage gefunden, Memo fehlt/geändert: <Belege>“. Bei „Erneut senden“ von Hand kein Sicherungsnetz (der Mensch hat geprüft).
+   - Scheitert die Suche: kein Senden, `Fehler` mit Text, Versuche unverändert.
+   - Klären: weiter nur „Erneut senden“ (Fehler/Klären → Offen) oder neu **„Als übergeben markieren“** mit Belegnummer (Pflicht, ≤ 30 Zeichen,
+     `RequireStockKeyUserAccess`, `SageWeAm` = jetzt).
+2. **Q-2:** Ist `SageWareneingangBelegAktiv` aus, setzt der Worker-Takt Offen/Fehler auf **Klären** („war ausgeschaltet … nicht automatisch
+   nachgeschickt“, alter Fehlertext angehängt) – so wird beim Wiedereinschalten nichts automatisch gesendet, unabhängig davon, wie der Schalter
+   umgestellt wurde. Hinweis in Liste und /ServiceSettings: „Sage-Wareneingang ist aus – n Einträge offen, werden nicht gesendet …“ (n = Offen +
+   Fehler + Klären). „Erneut senden“ ist bei ausgeschaltetem Schalter gesperrt (Hinweis).
+3. **Menü:** eigener Block mit Trennlinie: „Sage-Lagerbuchungen“, „Sage-Wareneingänge“ (Feature-Gate wie bisher); Seitentitel, Hilfe, Receive-Hinweis
+   umbenannt. Manifest-Einträge `v1.99.7-SageWeWiederholen`, `v1.99.7-EinkaufKlaeren`.
+4. **DEV-Absicherung** außerhalb des Repos: siehe Lauf-Notiz (Q-8 erledigt).
+5. **Tests:** `SageWareneingangServiceTests` (+10: Memo gefunden, 0/0 → senden, Sicherungsnetz → Klären inkl. fremder Kennung, mehrere Treffer,
+   Suche scheitert, Grenze/0/ohne Versuch, Hand-Senden ohne Sicherungsnetz, Erstversand ohne Suche, Q-2, Filter-Strings),
+   `SageWareneingaengeListeTests` (+4: Klären erneut senden, Q-2 gesperrt + Hinweis, Als übergeben, Attribute). Build 0 Fehler; Web 2646/2647
+   (1 übersprungen, Bestand), Dienst 532/532.
+6. **Live-Test „Memo gefunden“** (nur lesend, 2026-11-12 11:38): DEV-Dienst gestoppt, WE 4/7 auf `Fehler`, Lauf mit Sende-Client, der **immer
+   wirft** → Aktivitäts-Protokoll „Sage-Wareneingang WE#4#: Beleg 2027-398675 in Sage gefunden, nicht erneut gesendet“ (dto. WE#7#/2027-398676),
+   Zähler `in Sage gefunden=2`, **0 Sendeversuche**; Ausgangsstand wiederhergestellt. Live-Lesungen vorher: Memo-Suche WE#4#/WE#7# je genau
+   363225/363226; Sicherungsnetz 362313 ab 2026-11-11 LS `WMS-TEST-1` → 363225 (eigene Kennung, für eine andere Id „fremd“).
+   **Nicht live:** „0 Treffer ohne Sicherungsnetz“ (würde senden – Auftrag: kein POST) und „Klären“ (bräuchte einen Sage-Beleg ohne Kennung =
+   Schreiben) – nur automatisiert; Klären in Sage = TS-116.21 (Gerald/Einkauf).
+7. **SData-Datum:** `Belegdatum ge @2026-11-11@` wirkt; `ge '2026-11-12'` liefert **ohne Fehler 0 Treffer** (Live 2026-11-12) → [[fallstricke]] §31.
+
+**Befund (nicht gebaut):** Fundmeldung „Beleg in Sage gefunden“ steht als Warnung im Aktivitäts-Protokoll (bewusst sichtbar); die
+EF-Warnung „Take ohne OrderBy“ der Vorgangs-Abfragen ist Bestand (v1.99.4).

@@ -2,9 +2,9 @@
 type: spec
 title: Kommissionieraufträge (Kopf/Zeilen, KO-Nummernkreis, Typ, Kommissionierbereiche), 1–n je FA
 slug: 2026-11-08-kommissionierung-auftraege-kopf-zeilen-spec
-status: Testbereit
+status: InUmsetzung
 created: 2026-11-07
-updated: 2026-11-11
+updated: 2026-11-12
 source_backlog: "[[2026-11-07-kommissionierung-auftraege-kopf-zeilen]]"
 buendel: "[[2026-11-08-buendel-uebersicht]]"
 depends_on: "[[2026-11-08-lagerbuchungen-fa-feld-und-verlinkung-spec]]"
@@ -12,7 +12,7 @@ task: "[[2026-11-08-buendel-2026-11-08-goal-lauf-2]]"
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
 branch: "feature/2026-08-07-ideal-teile-1-5"
 standort: beide
-version: "1.88.0"
+version: "1.99.8"
 sql_reserviert: "133–139"
 testszenario: "TS-120"
 affected_code:
@@ -1115,3 +1115,27 @@ web: ja · service: ja (nur Version) · migration: nein. Der Gesamtstand des Bü
 1. TS-120.16 auf IDEAL (braucht einen offenen Kommissionierauftrag).
 2. Testsystem AKE und IDEAL: TS-120.16 (▲, ▼, mit Filter, ohne Sortierung) und Regression TS-107.5.
 3. H-2 bewerten: flacher Druck der Kindzeilen bei sortierter Baumansicht für den Kommissionierer brauchbar?
+
+## Freigabe-Nachtrag 2026-11-12 (Gerald): Matchcode in der Auftragsliste Kommissionierung, v1.99.7
+
+Wunsch Gerald 2026-11-11/12 (Screenshot `idealweb01:88/Picking`): In der Liste „Kommissionierung“ (Kommissionieraufträge) fehlt der
+**Matchcode**. Heute gibt es die Spalten Prio, Auftrag, FA Nr., Artikelnummer, Bezeichnung, Werkbank, Bereich, Fällig, Status und Kommissionierer
+(`ColumnDefinitions.cs:188-203`). In der Auftragsansicht (Stückliste, `Picking/Bom.cshtml`) gibt es den Matchcode schon.
+1. Neue Spalte „Matchcode“ (Col-Key `matchcode`) direkt nach „Artikelnummer“, Default sichtbar, über das Zahnrad ausblendbar, Spaltenfilter.
+   Registrierung vollständig ([[fallstricke]] §3: `ColumnDefinitions`, `#column-config`, `<th data-col-key>`, Drift-Wächter).
+2. Quelle: der Matchcode des FA bzw. seines Artikels, wie in der FA-Liste (Matchcode-Ausbau v1.38/v1.40). Ob `ProductionOrder.Matchcode`
+   oder `Article.Matchcode`, im Code belegen; Matchcode ist nicht eindeutig ([[fallstricke]] §3, Matchcode).
+3. Auch im Druck der Liste (`PrintPicking`), falls dort Spalten gedruckt werden.
+4. Version 1.99.7, Changelog, TS ergänzen.
+
+### Umsetzung Nachtrag Matchcode – v1.99.8 (Dev-Lauf 2026-11-12, /goal-Lauf [[2026-11-12-buendel-v1-99-8-goal-lauf]])
+
+**Version 1.99.8 statt 1.99.7** (1.99.7 = Wareneingang E5 im selben Lauf). Commit `557ea63b`.
+- **Quelle belegt:** kein Matchcode an `ProductionOrder`; die FA-Liste nimmt `Article.Matchcode` über `MatchcodeLookup.BuildAsync`
+  (`IdealAkeWms/Services/MatchcodeLookup.cs`, ein Batch je Listenaufbau, `ProductionOrdersController.cs:265`). Dasselbe hier:
+  `PickingController.Index` → `PickingOrderListItem.Matchcode`, Spaltenfilter `ColumnMap["matchcode"]` (vor dem Blättern).
+- Spalte „Matchcode“ direkt nach „Artikelnummer“, registriert in `ColumnDefinitions.Picking`, `<th data-col-key="matchcode">` und `#column-config`
+  (Drift-Wächter grün). Nicht eindeutig: nur Anzeige/Filter.
+- **Druck:** Die Auftragsliste hat keinen eigenen Druck. Der Auftragsdruck (`PrintPicking`) zeigt den Matchcode des FA-Artikels im Kopf unter
+  „Artikel“ (ohne Matchcode keine Zeile). **Befund (nicht gebaut):** Matchcode je Komponentenzeile im Auftragsdruck wäre ein eigener Wunsch.
+- Test `PickingControllerTests.Index_MatchcodeSpalte_AusArtikelstamm_Filterbar_Registriert`; TS-120.17; Changelog. Web 2646/2647.
