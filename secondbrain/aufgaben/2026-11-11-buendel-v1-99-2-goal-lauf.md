@@ -18,4 +18,4 @@ freigegebenen Test-Beleg (vorher Gerald Beleginhalt und Aufruf zeigen, erst nach
 - Update-Skript: Status war Testbereit; der Auftrag nennt die Spec ausdruecklich mit dem Freigabe-Nachtrag 20:40 und ersetzt damit die Freigabe.
 - Am Ende: 5 AKE-DEV-Sync-Schalter wieder gesetzt (2026-11-12).
 - Schreibtest 2026-11-12 nach Geralds OK: genau ein Beleg 2027-398675 (ake_TEST2026), Lieferschein laut Gerald in Sage angekommen; Rueckbau Gerald.
-- Folge (Gerald 2026-11-12): Memo je Position (`Artikelmemo`) als Nachbesserung v1.99.5, zweiter Test-Beleg nur mit OK.
+- Folge (Gerald 2026-11-12): Memo je Position (`Artikelmemo`) als v1.99.5 – **Testbereit** (`c155b1b2`, QA `3ab77a71`); zweiter Test-Beleg 2027-398676 nach OK. Sync-Schalter danach erneut gesetzt.
