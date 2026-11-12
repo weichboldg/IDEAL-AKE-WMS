@@ -941,3 +941,11 @@ Positions-Memo am Beleg 2027-398676 in Sage uebernommen (Gerald). Neu: je Positi
 - **Immer speichern**, auch ohne Sage-Wareneingang (wie die Lieferschein-Nr.); an Sage nur im Sage-Wareneingang.
 - Umsetzung (Dev-Lauf): gespeichert in der vorhandenen Notiz der Bewegung (`StockMovement.Note`, nvarchar(500), Anzeige Bewegungshistorie; die
   Sage-Lagerbuchung sendet die Notiz nicht, `SageLagerbuchungPayloadBuilder` setzt nur `Standardtext`) – keine Migration. Eingabe hoechstens 200 Zeichen.
+
+### Umsetzung Nachtrag v1.99.6 (2026-11-12)
+
+Commit im Buendel (siehe `git log`, „v1.99.6 Positionsmemo-Feld“): `PurchaseOrderReceiveInput.Memo` (je Position, hoechstens 200 Zeichen, sonst
+Zeilenfehler und nichts gebucht), gespeichert als `StockMovement.Note` (getrimmt, leer = null; immer, auch ohne Sage-WE); Maske: Spalte
+„Positionsmemo“; Liste „Wareneingänge an Sage“: Spalte „Positionsmemo“ (Spaltenfilter); Sage-Payload: `PositionsMemo(..., eingabe)` →
+`<Eingabe> | WE#<id># LS … Platz …`. Keine Migration. Version 1.99.6, Changelog, Hilfe, TS-116.19. Build 0 Fehler; Web 2641/2642 (1 uebersprungen,
+Bestand), Dienst 522/522. Kein weiterer Schreibtest (Inhalt vor der bereits in Sage belegten Kennung; Sichtung in Sage = TS-116.19, Gerald).
