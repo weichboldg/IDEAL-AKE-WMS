@@ -2,7 +2,7 @@
 type: spec
 title: Update-Skript prüft und führt aus, mit Bestätigung (v1.99.0)
 slug: 2026-11-11-update-skript-prueft-und-fuehrt-aus-mit-bestaetigung-spec
-status: Testbereit
+status: InUmsetzung
 created: 2026-11-11
 updated: 2026-11-11
 freigabe_von: "Gerald Weichbold (Chat Koordination, „Ok“ 2026-11-11 18:38)"
@@ -1223,3 +1223,16 @@ Gepruefter Bereich: `f79ba893..81b95ac2` (nur der Freigabe-Nachtrag 20:40). Buil
 4. Optional TS-126.23–126.25 an einem Testsystem.
 5. H4–H6 entscheiden; Z1 (RCSI auf IDEAL_WMS_DEV) weiter offen.
 6. Danach Merge (Schranke 2).
+
+## Freigabe-Nachtrag 2026-11-12 17:04 (Gerald): Prüfung MailSettings:PickupDirectory, v1.99.12
+
+Gilt vor dem QA-Abschnitt. Anlass: v1.99.10 führt `MailSettings:PickupDirectory` in der `appsettings.json` des Dienstes ein. Ist der Wert
+gesetzt, landen **alle** Mails des Dienstes als `.eml` in einem Ordner statt per SMTP: Lieferverzug, Meldebestand, Fehler- und
+Bestell-Mails.
+1. Neue Prüfung im Manifest (Typ `Pruefung`, Phase `Vorher` und erneut `Nachher`), liest die Dienst-`appsettings*.json` wie bei der DB-Ermittlung.
+   - **Prod-System** (`Prod=$true` in `ziele.psd1`) **und** `PickupDirectory` gesetzt: **Abbruch vor dem Stoppen** mit Meldung (Wert und Datei).
+     Keine automatische Reparatur, weil die Datei nicht im Paket ist und nie überschrieben wird.
+   - Test-System und gesetzt: Hinweis („Mails gehen nur in <Ordner>“).
+   - Nicht gesetzt: OK.
+2. In der Ermittlungs-Anzeige eine Zeile „Mail: SMTP <Host> | Ordner <Pfad>“.
+3. Tests auf DEV (DEV hat den Wert gesetzt): als Test-Ziel Hinweis, mit simuliertem Prod-Ziel (Ziel-Datei temporär) Abbruch vor dem Stoppen.
