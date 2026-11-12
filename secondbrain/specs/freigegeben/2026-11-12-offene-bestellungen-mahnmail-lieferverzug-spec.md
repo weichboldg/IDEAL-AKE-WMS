@@ -12,8 +12,9 @@ task: ""
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
 branch: "feature/2026-08-07-ideal-teile-1-5"
 standort: beide
-version_vorschlag: "1.99.9 (Kollision mit der parallel entstehenden Schwester-Spec Barcode/CSV beachten – wer zuerst gebaut wird, nimmt 1.99.9, die andere die nächste freie)"
-sql_nummer_vorschlag: "144 (nächste freie im Worktree, SQL/143 ist die letzte; Dev-Lauf prüft neu, Schwester-Spec Barcode/CSV kann sie belegen)"
+version: "1.99.10"
+version_vorschlag: "1.99.10 (umgesetzt; 1.99.9 = System-Kürzel im Bündel)"
+sql_nummer_vorschlag: "145 (umgesetzt; SQL/144 = System-Kürzel)"
 testszenario: "TS-128"
 affected_code:
   - "NEU IDEALAKEWMSService/Services/LieferverzugMailService.cs – Lauf (Gate, Zeitfenster, Stand-Prüfung, Versand, Protokoll); ISyncLogger letzter Ctor-Parameter"
@@ -26,7 +27,7 @@ affected_code:
   - "IdealAkeWms/Models/SettingDefinition.cs + IdealAkeWms/Services/Settings/SettingValidator.cs:21 – Prüfung von Mail-Adresslisten beim Speichern"
   - "IdealAkeWms/Services/SyncLogger/SyncLogServices.cs:37/59/95 – neuer Dienstname LieferverzugMail + DisplayName"
   - "IdealAkeWms/Data/Repositories/PurchaseOrderReceiptRepository.cs:11-21 + Models/ViewModels/PurchaseOrderReceiveViewModel.cs:31 – Rest-Regel als EINE Funktion für Maske und Mail"
-  - "NEU IdealAkeWms/Models/PurchaseOrderReminder.cs + Data/ApplicationDbContext.cs + Migration + SQL/144 + SQL/00_FreshInstall.sql (2 Stellen)"
+  - "NEU IdealAkeWms/Models/PurchaseOrderReminder.cs + Data/ApplicationDbContext.cs + Migration + SQL/145 + SQL/00_FreshInstall.sql (2 Stellen)"
   - "nur bei Rückfrage 5 = ja: IdealAkeWms/Models/Creditor.cs, Controllers/CreditorsController.cs:253-258 (ApplyWmsFelder), Views/Creditors/Edit+Details"
   - "IDEALAKEWMSService/IDEALAKEWMSService.csproj – Logo Branding/IDEAL_AKE_Logo_rgb_klein.jpg als EmbeddedResource"
   - "docs/TESTSZENARIEN.md (TS-128), Views/Help/Changelog.cshtml, beide AppVersion.cs, scripts/deploy/nachlauf.psd1, README (Betrieb)"
@@ -216,8 +217,8 @@ Aktivitäts-Protokoll und SQL. Erst wenn der Einkauf eine Historie in der Oberfl
 
 ## Migrations-/SQL-Auswirkungen
 
-- Model `PurchaseOrderReminder` → `dotnet ef migrations add AddPurchaseOrderReminders` → `SQL/144_AddPurchaseOrderReminders.sql`
-  (Nummer vorläufig, der Dev-Lauf prüft sie, die Schwester-Spec Barcode/CSV kann 144 belegen).
+- Model `PurchaseOrderReminder` → `dotnet ef migrations add AddPurchaseOrderReminders` → `SQL/145_AddPurchaseOrderReminders.sql`
+  (Migration `20261112143552_AddPurchaseOrderReminders`; SQL/144 ist mit dem System-Kürzel v1.99.9 belegt).
 - Tabelle `dbo.PurchaseOrderReminders` (additiv):
   `Id` int IDENTITY PK, `Art` int NOT NULL (0 = Einkauf, 1 = Kreditor), `BelPosId` int NOT NULL, `Belegnummer` nvarchar(30) NOT NULL,
   `LieferantKto` nvarchar(20) NULL, `CreditorId` int NULL (ohne FK, wie im Cache), `Liefertermin` date NULL, `Rest` decimal(18,4) NOT NULL,
@@ -298,8 +299,8 @@ Einstellungen.
 
 ## Test-Szenarien
 
-Neues Kapitel **TS-128 „Lieferverzug-Mails (Einkauf, Kreditor, Testbetrieb)“** in `docs/TESTSZENARIEN.md`. Die Nummer gilt vorläufig, die
-Schwester-Spec Barcode/CSV nimmt TS-129. Der Dev-Lauf prüft beide, danach wird `secondbrain/tests/testszenarien-index.md` nachgezogen.
+Neues Kapitel **TS-128 „Lieferverzug-Mails (Einkauf, Kreditor, Testbetrieb)“** in `docs/TESTSZENARIEN.md`. Nummer geprüft und belegt (TS-128.1 – 128.15, im Dokument
+ergänzt um 128.13 – 128.15 Negativfälle); `secondbrain/tests/testszenarien-index.md` ist nachgezogen.
 
 Vorbedingungen: AKE-DEV mit `Sync:EinkaufBestellungenEnabled` an oder synthetischen Cache-Zeilen (Muster BelPosId 990001… aus TS-116),
 SMTP auf ein Test-Postfach, Einkauf-Empfänger = eigenes Postfach, mindestens ein Kreditor mit Test-Adresse.
@@ -341,20 +342,20 @@ Kein Epic, eine Umsetzung im Bündel-Worktree.
 - **Web-App:** ja. Katalog `ServiceSettingDefinitions` und `SettingValidator` liegen im Web-Projekt, bei Rückfrage 5 = ja kommen die
   Kreditor-Masken dazu.
 - **Service:** ja (neuer Lauf, `MailService`, SyncWorker).
-- **Migration:** ja, `SQL/144_AddPurchaseOrderReminders.sql` (additiv, nicht destruktiv).
+- **Migration:** ja, `SQL/145_AddPurchaseOrderReminders.sql` (additiv, nicht destruktiv).
 - **Reihenfolge:** Dienst stoppen → Schema → Web → Dienst starten. Danach `/ServiceSettings`: Der Hauptschalter steht aus, der Testbetrieb an.
-- **Manifest-Einträge** (`scripts/deploy/nachlauf.psd1`, ADR 0022/0023; Version vorläufig 1.99.9):
-  - `@{ Id='SQL/144'; Version='1.99.9'; Typ='Schema'; Firma='beide'; Phase='Schema'; Ausfuehrung='automatisch';
-    Datei='144_AddPurchaseOrderReminders.sql'; MigrationId='<Zeitstempel>_AddPurchaseOrderReminders'; Voraussetzung='additiv';
-    Quelle='<changelog-slug v1.99.9>' }`
-  - `@{ Id='v1.99.9-Lieferverzug'; Version='1.99.9'; Typ='Einstellung'; Firma='AKE'; Phase='Nachher'; Ausfuehrung='anzeigen';
+- **Manifest-Einträge** (`scripts/deploy/nachlauf.psd1`, ADR 0022/0023; Version 1.99.10, umgesetzt wie im Abschnitt „Umsetzung“ – Firma `beide`, Prüfung Phase `Nachher`):
+  - `@{ Id='SQL/145'; Version='1.99.10'; Typ='Schema'; Firma='beide'; Phase='Schema'; Ausfuehrung='automatisch';
+    Datei='145_AddPurchaseOrderReminders.sql'; MigrationId='20261112143552_AddPurchaseOrderReminders'; Voraussetzung='additiv';
+    Quelle='2026-11-12-v1-99-10-lieferverzug-mail' }`
+  - `@{ Id='v1.99.10-Lieferverzug'; Version='1.99.10'; Typ='Einstellung'; Firma='AKE'; Phase='Nachher'; Ausfuehrung='anzeigen';
     Text='Neu in /ServiceSettings > Lieferverzug-Mail: Hauptschalter (Standard aus), Testbetrieb (Standard an), Einkauf-Empfaenger, Tage nach
     Liefertermin, Uhrzeit, Wiederholung, Grenze je Lauf, Antwortadresse, Absender-Firma. Erst Einkauf-Empfaenger eintragen, dann mit
     Testbetrieb einschalten. Testbetrieb erst nach Freigabe durch den Einkauf ausschalten (vorher Pruefabfrage P-M3).' }`
-  - `@{ Id='v1.99.9-LieferverzugInfo'; Version='1.99.9'; Typ='Info'; Firma='AKE'; Phase='Nachher'; Ausfuehrung='anzeigen';
+  - `@{ Id='v1.99.10-LieferverzugInfo'; Version='1.99.10'; Typ='Info'; Firma='AKE'; Phase='Nachher'; Ausfuehrung='anzeigen';
     Text='Einkauf informieren: taegliche Sammelliste verzoegerter Bestellpositionen; im Testbetrieb kommen auch die Lieferanten-Mails beim
     Einkauf an (Betreff TESTBETRIEB). Mail-Relay fuer externe Empfaenger mit der IT klaeren (P-M4).' }`
-  - `@{ Id='Pruefung/LieferverzugEmpfaenger'; Version='1.99.9'; Typ='Pruefung'; Firma='AKE'; Phase='Haltepunkt'; Ausfuehrung='anzeigen';
+  - `@{ Id='Pruefung/LieferverzugEmpfaenger'; Version='1.99.10'; Typ='Pruefung'; Firma='AKE'; Phase='Haltepunkt'; Ausfuehrung='anzeigen';
     Pruefung='SELECT CASE WHEN EXISTS (SELECT 1 FROM dbo.ServiceSettings WHERE [Key] = N''Lieferverzug:MailAktiv'' AND LOWER(LTRIM(RTRIM([Value]))) = N''true'')
     AND NOT EXISTS (SELECT 1 FROM dbo.ServiceSettings WHERE [Key] = N''Lieferverzug:EinkaufEmpfaenger'' AND LEN(LTRIM(RTRIM([Value]))) > 0) THEN 1 ELSE 0 END';
     Text='Lieferverzug-Mails sind an, aber ohne Einkauf-Empfaenger: es geht keine Mail raus (auch keine Testbetrieb-Mail).' }`
@@ -478,3 +479,45 @@ Gilt vor dem Text oben.
 11. Basiseinheit, bei abweichender Einheit „siehe Bestellung“ → **Wie empfohlen (Gerald 2026-11-12).**
 12. standort AKE → **Abweichend: beide Standorte. Alles je Standort über die Standort- bzw. Service-Einstellungen einstellbar (Schalter, Empfänger, Absender, CI). IDEAL startet aus und wird eingeschaltet, sobald die IDEAL-SData-Schnittstelle da ist, also heute oder morgen (Gerald 2026-11-12).**
 13. Protokolltabelle ohne AuditableEntity → **Wie empfohlen (Gerald 2026-11-12).**
+
+## Umsetzung (goal-Lauf 2026-11-12, v1.99.10)
+
+**Worktree** `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Branch `feature/2026-08-07-ideal-teile-1-5`. Status bleibt (setzt der qa-agent).
+
+- **Commits:** `37c831a4` (Lauf, Planer, Mail-HTML, MailService, Kreditor-Felder, Migration, SQL/145, Einstellungen, Tests, Manifest, Version),
+  `dae22a49` (TS-128, Hilfe, Anwender-Changelog, README).
+- **Version** 1.99.10 (beide `AppVersion.cs`). **SQL/145_AddPurchaseOrderReminders.sql**, Migration `20261112143552_AddPurchaseOrderReminders`
+  (Tabelle `PurchaseOrderReminders`, `Creditors.ReminderDisabled`/`ReminderEmail`), FreshInstall Schema + MigrationId. Additiv.
+- **TS-128** (128.1 – 128.15) in `docs/TESTSZENARIEN.md`, Index nachgezogen. AK-Verweise auf TS-128 bleiben gültig.
+- **Einstellungen** (Kategorie „Lieferverzug-Mail“, alle Standort „beide“): wie Tabelle oben plus `Lieferverzug:KreditorAbsender`
+  („Absenderadresse Kreditor-Mail“, eine Adresse, leer = `MailSettings:FromAddress`, Warnhinweis Relay). Adressfelder mit Serverprüfung über den
+  neuen Kenner `SettingDefinition.Mail` (`Eine`/`Liste`) und die eine Regel `IdealAkeWms/Services/MailAdressen.cs`. `Lieferverzug:Standort` als Choice.
+- **Manifest** `scripts/deploy/nachlauf.psd1`: `SQL/145` (Schema), `Pruefung/LieferverzugEmpfaenger` (Firma beide, Phase **Nachher**, anzeigen),
+  `v1.99.10-Lieferverzug` (Einstellung, beide), `v1.99.10-LieferverzugInfo` (Info, beide). Drift-Test um `SQL/145` ergänzt.
+- **Mail ohne Versand (DEV-QA):** neue appsettings-Option `MailSettings:PickupDirectory` – `MailService` legt jede Mail als `.eml` ab statt
+  SMTP (Vorrang vor `SmtpHost`), README dokumentiert. MailKit hat kein Pickup; ~6 Zeilen über `MimeMessage.WriteToAsync`.
+- **Build/Test:** `dotnet build IdealAkeWms.slnx` 0 Fehler; `IdealAkeWms.Tests` 2685 bestanden / 1 übersprungen; `IDEALAKEWMSService.Tests`
+  589 bestanden (neu `LieferverzugMailTests`, 25 Fälle inkl. Pickup-`.eml`). Keine Mail an externe Adressen (Fake-Mailservice, `.invalid`).
+
+### Befunde / Abweichungen (zur QA)
+
+1. **Wiederholung im Testbetrieb:** Testbetrieb-Zeilen zählen für die Wiederholung **im** Testbetrieb, echte nur im Echtbetrieb (AK 9 gilt).
+   Sonst bekäme der Einkauf im Testbetrieb täglich alle Kreditor-Mails. Begründung in [[fallstricke]] („Lieferverzug-Wiederholung …“).
+2. **Einmal am Tag** = irgendeine `PurchaseOrderReminders`-Zeile von heute. Danach auch keine Kreditor-Mail für tagsüber neu fällige Positionen
+   (strenge Lesart F6). Wird keine Mail versendet (z. B. nichts fällig, SMTP fehlt), prüft der nächste Zyklus erneut.
+3. **DE+EN:** eine Tabelle mit zweisprachigen Spaltenköpfen, deutscher und englischer Text darüber – statt die Tabelle zu wiederholen (R 6).
+4. `Belegnummer` nvarchar(**20**) wie `SagePurchaseOrderLines` (SQL/112), nicht 30 – so verlangt es die Spec selbst.
+5. **Kontrast/CI:** AKE-Blau nur als Band mit Schrift `#053153` bzw. als Linie; Firmenname in der Fußzeile `#053153`, Adresse `#4a494a`
+   (nicht „in Hausfarbe“, weil AKE-Blau auf Weiß 2,7:1). Testbanner `#ef7d00` mit schwarzer Schrift. Firmendaten aus `Branding/briefkopf.html:63-75`.
+6. **Counts** zusätzlich zu F7: `kein_kreditor`, `inaktiv`, `ausgesetzt` (Stand alt + Grenze), `nicht_gesendet` (Mailservice übersprungen),
+   `kreditor_geplant` (nur DryRun). Fehlermail bei Grenze nur außerhalb DryRun.
+7. **Sonderfälle im Testbetrieb** wie im Echtbetrieb: ohne gültige Adresse keine Testbetrieb-Mail (Status in der Sammelliste). Der Betrefftext
+   „(keine Adresse)“ ist vorhanden, wird so aber nicht ausgelöst.
+8. Ist `EinkaufEmpfaenger` leer, schreibt jeder Zyklus im Zeitfenster eine Warnung (Melden statt still); Update-Skript-Prüfung meldet es nach dem Deploy.
+9. `ServiceSettings.Value` ist nvarchar(500): die Einkauf-Empfängerliste ist damit auf 500 Zeichen begrenzt.
+10. `IPurchaseOrderReceiptRepository` jetzt auch im Dienst registriert (Rest-Regel aus EINER Funktion `ErfasstJeBelPos.Rest`/`RestAus`, die Maske ruft `RestAus`).
+11. Zusatzfund (nicht gebaut, wie Spec): Meldebestand-Mail ohne Text-Teil (`NotificationWorker.cs:65`).
+
+**Nur Manual-UAT:** SMTP-Versand und Relay an Externe (P-M4), Absender/Reply-To im echten Client, Darstellung Outlook Desktop/Web/Handy
+(CID-Logo, Farben), Prüfabfragen P-M1 – P-M3. Unit-getestet: Planer, HTML/Text, Lauf (Fake-Mail, InMemory), Pickup-`.eml`, Einstellungsprüfung,
+Kreditor-Felder, Rest-Funktion.

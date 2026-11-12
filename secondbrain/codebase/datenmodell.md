@@ -196,3 +196,15 @@ konsolidiertes `../../SQL/00_FreshInstall.sql`. Der Workflow ist verbindlich —
   Enum `SageWareneingangStatus` NichtNoetig/Offen/Gesendet/Uebergeben/Fehler/NurInSage, DEFAULT 0 nur in SQL/Migration), `SageWeVorgang` (Guid, ein
   ELL-Beleg je Absenden der Maske), `SageWeAm`, `SageWeBelegnummer`, `SageWeFehler`, `SageWeVersuche`, `Lieferschein` (nvarchar(20), Sage `EKLieferschein`).
   Status ≠ NichtNoetig = nie in der Lagerbuchungs-Queue. Rest-Regel: `ErfasstJeBelPos.Abzuziehen(SyncedAt)`.
+
+## Lieferverzug-Mails (v1.99.10, SQL/145)
+
+Migration `20261112143552_AddPurchaseOrderReminders`, [[2026-11-12-offene-bestellungen-mahnmail-lieferverzug-spec]]. Additiv.
+- `PurchaseOrderReminders`: eine Zeile je versendeter Lieferverzug-Mail und Position – `Art` (int, Enum `PurchaseOrderReminderArt` 0 = Einkauf,
+  1 = Kreditor), `BelPosId`, `Belegnummer` (nvarchar(20) wie der Cache), `LieferantKto`, `CreditorId` (ohne FK), `Liefertermin` (date, Schluessel der
+  Wiederholung), `Rest` (decimal(18,4), Rest-Regel beim Versand), `Empfaenger` (tatsaechliche, kommagetrennt, max. 1000), `Testbetrieb` (bit),
+  `SentAt` (Lokalzeit). Kein AuditableEntity (nur der Dienst schreibt, nie geaendert). Indizes `(BelPosId, Art, SentAt)`, `(SentAt)`. Keine Bereinigung.
+  Geschrieben nur von `LieferverzugMailService`, gelesen nur dort (heute schon gesendet, Wiederholung); keine Maske.
+- `Creditors.ReminderDisabled` (bit NOT NULL, DEFAULT 0 nur in SQL/Migration) und `Creditors.ReminderEmail` (nvarchar(200)): WMS-Felder, auch bei
+  Herkunft Sage pflegbar (`CreditorsController.ApplyWmsFelder`); der Kontokorrent-Abgleich schreibt sie nicht. Zieladresse der Kreditor-Mail =
+  `ReminderEmail`, sonst `Email`.

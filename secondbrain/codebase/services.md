@@ -356,3 +356,39 @@ Quellen-Weiche je Abgleich: [[0019-quellen-weiche-view-sdata-je-abgleich]]. Ordn
   (`SageSystemKuerzel.Pruefen`, ungültig → Takt bricht ab) und von der Liste „Sage-Wareneingänge“ (Spalte Memo). Verwendete Kennung gespeichert in
   `PurchaseOrderReceipts.SageWeKennung` / `SageBookingQueueItems.SageKennung` (SQL/144); Regel `SageWareneingang.Kennung` /
   `SageBookingCorrelation.Kennung`. DEV-Absicherung setzt `DEV`. [[2026-11-12-v1-99-9-sage-system-kuerzel]]
+
+## Lieferverzug-Mails (v1.99.10, [[2026-11-12-offene-bestellungen-mahnmail-lieferverzug-spec]])
+
+- Lauf im `SyncWorker` direkt nach „Offene Bestellungen (Sage)“, Gate `Lieferverzug:MailAktiv` (Default aus), `RunResilientAsync("Lieferverzug-Mails")`.
+  Aktivitaets-Protokoll `SyncLogServices.LieferverzugMail` („Lieferverzug-Mails“). Quelle nur der Cache `SagePurchaseOrderLines`, schreibt nie nach Sage.
+- Dateien (`IDEALAKEWMSService/Services/`): `LieferverzugPlaner.cs` (reiner Helper: Zeitfenster Mo–Fr ab Stunde, Faelligkeit `heute >= Termin + N` und
+  Rest > 0, Statuskette Kreditor-Mails aus → kein Kreditor → gesperrt → inaktiv → abgeschaltet → keine/ungueltige Adresse → Stand > 24 h → Wiederholung
+  je (BelPosId, Liefertermin) → Testbetrieb/gesendet, Grenze je Lauf alle-oder-keine), `LieferverzugMailHtml.cs` (Kreditor-Mail DE+EN, Einkauf-Liste,
+  CI je `Lieferverzug:Standort`, Text-Teil), `LieferverzugMailService.cs` (Ablauf, `LesenAsync` = Einstellungen DB-first, Protokollzeilen nur nach
+  `true` vom Mailservice, sofort gespeichert). Counts `faellig`, `kreditoren`, `einkauf_gesendet`, `kreditor_gesendet`, `testbetrieb_umgeleitet`,
+  `kreditor_geplant` (DryRun), `ohne_adresse`, `abgeschaltet`, `gesperrt`, `kein_kreditor`, `inaktiv`, `nicht_dran`, `ausgesetzt`, `nicht_gesendet`,
+  `fehler`. Kein Lauf-Eintrag ohne Arbeit oder ausserhalb des Zeitfensters.
+- „Einmal am Tag“ = irgendeine `PurchaseOrderReminders`-Zeile mit `SentAt` heute (nicht Arbeitsspeicher). Wiederholung zaehlt nur Zeilen des aktuellen
+  Modus (`Testbetrieb` = Einstellung): Testbetrieb simuliert die Wiederholung, der Echtbetrieb beginnt danach frisch (Grenze je Lauf faengt die Welle).
+- Rest-Regel: `ErfasstJeBelPos.Rest(mengeOffen, syncedAt)` / `RestAus` – dieselbe Funktion wie `PurchaseOrderReceiveRow.Rest`. Dafuer ist
+  `IPurchaseOrderReceiptRepository` jetzt auch im Dienst registriert.
+- `IMailService.SendMitOptionenAsync(MailNachricht)` (Absender, Reply-To, eingebettete Bilder per CID, liefert `false` bei stillem Ueberspringen); die
+  alte `SendAsync` delegiert an denselben Kern. **`MailSettings:PickupDirectory`** (appsettings, nur DEV/QA): Mails als `.eml` in den Ordner statt SMTP,
+  hat Vorrang vor `SmtpHost`. Logo `Branding/IDEAL_AKE_Logo_rgb_klein.jpg` als EmbeddedResource `IdealAkeLogo.jpg` im Dienst-Projekt.
+- Adressregel EINMAL: `IdealAkeWms/Services/MailAdressen.cs` (`IstGueltig` = nackte Adresse, `Liste` = Komma/Semikolon/Zeilenumbruch) – genutzt von
+  `SettingValidator` (neuer Kenner `SettingDefinition.Mail` = `SettingMail.Eine|Liste`), `CreditorsController` (Erinnerungsadresse) und dem Planer.
+
+| Key | Typ | Default | Zweck |
+|---|---|---|---|
+| `Lieferverzug:MailAktiv` | Bool | `false` | Hauptschalter |
+| `Lieferverzug:TageNachTermin` | Int 0–60 | `3` | Kalendertage nach Liefertermin |
+| `Lieferverzug:Uhrzeit` | Int 0–23 | `7` | Versand ab Stunde, Mo–Fr |
+| `Lieferverzug:EinkaufAktiv` | Bool | `true` | Sammelliste an den Einkauf |
+| `Lieferverzug:EinkaufEmpfaenger` | String (Mail-Liste) | (leer) | Empfaenger der Sammelliste und der Testbetrieb-Mails |
+| `Lieferverzug:KreditorAktiv` | Bool | `false` | Erinnerung an Kreditoren |
+| `Lieferverzug:Testbetrieb` | Bool | `true` | Kreditor-Mails an den Einkauf umleiten |
+| `Lieferverzug:KreditorWiederholTage` | Int 1–60 | `7` | Wiederholabstand je Position |
+| `Lieferverzug:KreditorMaxJeLauf` | Int 1–500 | `30` | Grenze echter Kreditor-Mails je Lauf (Warnung + Fehlermail) |
+| `Lieferverzug:KreditorAbsender` | String (eine Mail) | (leer = `MailSettings:FromAddress`) | Absender der Kreditor-Mail (Freigabe-Antwort 7) |
+| `Lieferverzug:AntwortAdresse` | String (eine Mail) | (leer = erste Einkauf-Adresse) | Reply-To der Kreditor-Mail |
+| `Lieferverzug:Standort` | Choice AKE/IDEAL | `AKE` | CI (Hausfarbe, Firmenadresse) |

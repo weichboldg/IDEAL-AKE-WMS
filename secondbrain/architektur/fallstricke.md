@@ -614,6 +614,20 @@ ist neuer als der Stichtag, deshalb loescht er sich nicht selbst.
 selbst. Moq-Setups auf `SendAsync` brauchen einen zusaetzlichen `It.IsAny<string?>()` vor dem
 `CancellationToken`.
 
+### Mails pruefen ohne Versand: `MailSettings:PickupDirectory`, nie echte Adressen in Tests (v1.99.10)
+Ist `MailSettings:PickupDirectory` gesetzt, schreibt `MailService` jede Mail als `.eml` in den Ordner statt sie zu senden – **vor** dem
+`SmtpHost`-Zweig. Tests nutzen einen Fake-`IMailService` bzw. einen Temp-Pickup-Ordner und Adressen unter `.invalid`.
+**Warum:** Die Lieferverzug-Mail geht an externe Lieferanten; eine Mail an einen Kreditor laesst sich nicht zurueckholen. DEV/QA muss Inhalt,
+Reply-To, Absender und CID-Logo pruefen koennen, ohne dass ein SMTP-Relay sie zustellt. In Produktion darf der Key nicht gesetzt sein – dann geht
+gar nichts raus (der Lauf protokolliert trotzdem „gesendet“, weil das Ablegen erfolgreich war).
+
+### Lieferverzug-Wiederholung zaehlt nur Zeilen des aktuellen Modus (v1.99.10)
+`PurchaseOrderReminders.Testbetrieb` trennt die Historie: im Testbetrieb wiederholt der Planer nach den Testbetrieb-Zeilen, im Echtbetrieb nur
+nach echten Kreditor-Zeilen. „Heute schon gesendet“ prueft dagegen **jede** Zeile von heute (auch Einkauf).
+**Warum:** Zaehlten Testbetrieb-Zeilen gar nicht, bekaeme der Einkauf im Testbetrieb jeden Tag alle Kreditor-Mails; zaehlten sie fuer den
+Echtbetrieb, waeren beim Umschalten alle Lieferanten „schon erinnert“ und die erste echte Erinnerung kaeme bis zu 7 Tage zu spaet. Die erste
+echte Welle faengt `Lieferverzug:KreditorMaxJeLauf` ab.
+
 ---
 
 ## 6. BDE-Buchungslogik
