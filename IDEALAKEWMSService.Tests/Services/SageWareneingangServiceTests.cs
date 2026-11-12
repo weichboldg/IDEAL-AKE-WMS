@@ -183,6 +183,10 @@ public class SageWareneingangServiceTests
             .Should().BeEquivalentTo(new { Success = true, Belegnummer = "2026-WE-17" });
         SageWareneingangClient.Auswerten("{\"ErrorText\":\"Platz unbekannt\"}").Success.Should().BeFalse();
         SageWareneingangClient.Auswerten("<html>").Success.Should().BeFalse();
+        // QA 2026-11-12: 2xx ohne Belegnummer = Ergebnis unklar (Fehler), in beiden Formaten gleich
+        SageWareneingangClient.Auswerten("").Success.Should().BeFalse();
+        SageWareneingangClient.Auswerten("{\"ErrorText\":\"\"}").Success.Should().BeFalse();
+        SageWareneingangClient.Auswerten("<response><ErrorText></ErrorText></response>").Success.Should().BeFalse();
         SageWareneingangClient.BuildServiceUrl(Endpoint)
             .Should().Be("https://sagetest01.ake.at:5493/sdata/ol/CommonWawiServices/ake_TEST2026;1/$service/StandardBelegService");
     }

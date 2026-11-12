@@ -66,7 +66,8 @@ public class SageWareneingangClient : ISageWareneingangClient
         }
     }
 
-    /// <summary>HTTP 2xx: Erfolg nur ohne ErrorText; Belegnummer aus BelegnummerFormatiert (falls geliefert). Sage antwortet ohne format=json
+    /// <summary>HTTP 2xx: Erfolg nur ohne ErrorText UND mit BelegnummerFormatiert (QA 2026-11-12: ohne Belegnummer ist das Ergebnis unklar -> Fehler
+    /// "bitte in Sage prüfen", nie still Uebergeben). Sage antwortet ohne format=json
     /// als SData-Atom-XML (Schreibtest 2026-11-12: &lt;entry&gt;…&lt;sdata:payload&gt;…&lt;BelegnummerFormatiert&gt;, ResultNumber 200 = Ok) - beide
     /// Formate werden gelesen; der erste ErrorText/BelegnummerFormatiert im Dokument ist der des Belegkopfs.</summary>
     public static SageWareneingangSendResult Auswerten(string? body)
@@ -79,10 +80,9 @@ public class SageWareneingangClient : ISageWareneingangClient
                 var doc = XDocument.Parse(body);
                 beleg = doc.Descendants().FirstOrDefault(e => e.Name.LocalName == "BelegnummerFormatiert")?.Value;
                 fehler = doc.Descendants().FirstOrDefault(e => e.Name.LocalName == "ErrorText")?.Value;
-                if (beleg == null && fehler == null) return new(false, null, Cap(body), "Antwort von Sage ohne Beleg-Ergebnis - bitte in Sage prüfen.");
-                return string.IsNullOrWhiteSpace(fehler) ? new(true, beleg, Cap(body), null) : new(false, beleg, Cap(body), fehler);
             }
             catch (System.Xml.XmlException) { return new(false, null, Cap(body), "Antwort von Sage nicht lesbar - bitte in Sage prüfen."); }
+            return Ergebnis(beleg, fehler, body);
         }
         try
         {
@@ -94,8 +94,14 @@ public class SageWareneingangClient : ISageWareneingangClient
             }
         }
         catch (JsonException) { return new(false, null, Cap(body), "Antwort von Sage nicht lesbar - bitte in Sage prüfen."); }
-        return string.IsNullOrWhiteSpace(fehler) ? new(true, beleg, Cap(body), null) : new(false, beleg, Cap(body), fehler);
+        return Ergebnis(beleg, fehler, body);
     }
+
+    /// <summary>EINE Regel fuer XML und JSON.</summary>
+    private static SageWareneingangSendResult Ergebnis(string? beleg, string? fehler, string? body) =>
+        !string.IsNullOrWhiteSpace(fehler) ? new(false, beleg, Cap(body), fehler)
+        : string.IsNullOrWhiteSpace(beleg) ? new(false, null, Cap(body), "Antwort von Sage ohne Belegnummer - Ergebnis unklar, bitte in Sage prüfen.")
+        : new(true, beleg, Cap(body), null);
 
     private static string? Cap(string? v) => v is null ? null : (v.Length <= 4000 ? v : v[..4000]);
 }
