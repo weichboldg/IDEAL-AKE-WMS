@@ -13,9 +13,10 @@ kein Push, kein Merge.
 
 | Spec | Typ | SQL-Block | Version | Status | Commits | Blocker |
 |---|---|---|---|---|---|---|
-| [[2026-11-08-wareneingang-teil-2-sage-we-beleg-rahmenabrufe-spec]] (nur Freigabe-Nachtrag 14:20 System-Kürzel) | Epic (Nachtrag) | offen | 1.99.9 | InUmsetzung | – | – |
+| [[2026-11-08-wareneingang-teil-2-sage-we-beleg-rahmenabrufe-spec]] (nur Freigabe-Nachtrag 14:20 System-Kürzel) | Epic (Nachtrag) | SQL/144 | 1.99.9 | **Testbereit** (QA 2026-11-12) | `115e8a09`, `c47f0136`, QA `4c1b5523`; Brain `443ee5fc`, QA `0aa7891c` | – |
 | [[2026-11-12-offene-bestellungen-mahnmail-lieferverzug-spec]] | Spec | offen | 1.99.10 | InUmsetzung | – | – |
 | [[2026-11-12-wareneingang-barcode-lieferschein-csv-export-spec]] | Spec | offen | 1.99.11 | InUmsetzung | – | – |
 
 - Vorprüfung 2026-11-12: Teil 2 stand auf Testbereit, der Auftrag nennt den Nachtrag ausdrücklich (ersetzt die Freigabe). Mahnmail und
   Barcode/CSV: Freigegeben, alle Freigabe-Antworten ausgefüllt, kein offener BLOCKER, Freigabe-Nachtrag Mahnmail (Antwort 7/12) gilt vor dem Rumpf.
+- v1.99.9: SM# hat dasselbe Problem → gleiches Kürzel (`SM#<K>#<id>#`), Kennung je Queue-Eintrag gespeichert. Kürzel muss mit Buchstaben beginnen (enger als Nachtrag, begründet). DEV AKE/IDEAL deployt, `Sync:SageSystemKuerzel = DEV`, 5 Sync-Schalter true. Publish v1.99.9 `4c1b5523`.
