@@ -1529,7 +1529,7 @@ Neue Listen: kein Zähler-/„zuletzt gesehen"-/Materialisierungs-Schreiben in `
 Beim Schreiben von JS/C# mit dem Write-Werkzeug wurde `'\uFEFF'` zu einem **unsichtbaren** BOM-Zeichen im Quelltext (ebenso
 `\u00a0`). Funktioniert, verschwindet aber beim nächsten Editor, der Steuerzeichen bereinigt. **Regel:** nach dem Schreiben
 byte-genau prüfen (`EF BB BF`, `C2 A0` zählen) und als sichtbares Escape einsetzen; Backslash im Skript über `chr(92)` bauen,
-nicht über Heredoc-Escapes.
+nicht über Heredoc-Escapes. *Wieder passiert v1.99.11:* ein doppelter Backslash in einem Bash-Heredoc kam als einfacher an (UNC-Pfade in Testdaten), `\uFEFF` im Write-Werkzeug als echtes BOM – Testdaten mit UNC-Pfaden über das Edit-Werkzeug schreiben und mit `od -c` prüfen.
 
 ### Razor: `@` im Hilfetext ist Code
 `<code>@</code>` bricht den Build (RZ1005) — `@@` schreiben. Eine Befehlskette `build | grep Fehler && commit` committet
@@ -1811,3 +1811,22 @@ Code: `hardware-scanner.js` Block „Scannen ohne Feld“, CSS `.hw-scan-bereit`
 - **Quellensperren (offene Prüfabfrage) an EINEM Ort: `SageQuelleSperre`** (Web-Projekt), gelesen von der Dienst-Weiche und von `/ServiceSettings`.
   **Warum wichtig:** Stand die Sperre nur im Dienst (`SdataGesperrtBis`), zeigte die Maske `SData` als gültig, der Lauf las aber still View –
   Protokoll und Maske liefen auseinander (B6). Artikel ist nur gesperrt, wenn `Sync:ArticlesViewName` gesetzt ist (IDEAL); nicht lesbar = gesperrt.
+
+## 32. Wareneingang-CSV auf UNC-Pfad (v1.99.11, [[2026-11-12-wareneingang-barcode-lieferschein-csv-export-spec]])
+
+- **`initTextInputScanner(…, 'raw')` war bis v1.99.11 ein `'article'`-Scan** (`barcode-scanner.js`, Abbildung jetzt in `textScanType`).
+  **Warum wichtig:** Ein roher Code wurde am QR-Trennzeichen `;` abgeschnitten, 8/12–14 Ziffern gingen in die EAN-Auflösung, im Matchcode-Modus in
+  die Matchcode-Suche – das Barcode-Feld hätte falsche Dateinamen bzw. „nicht gefunden“ bekommen. Neuer Scan-Modus = Abbildung in `textScanType`
+  ergänzen; die Artikel-Wrapper greifen nur bei `scanType === 'article'`.
+- **Atomar ist nur das Umbenennen auf derselben Freigabe** (`.tmp` und `.csv` im selben Ordner, `File.Move(…, overwrite: false)`).
+  **Warum wichtig:** Ein Leser, der `*.csv` abholt, darf nie eine halbe Datei sehen; ein Umbenennen über Freigaben hinweg ist ein Kopieren.
+  `overwrite: false` + `File.Exists` vorher: eine fremde oder schon verarbeitete Datei wird nie ersetzt.
+- **Dienstkonto `LocalSystem` greift als Computerkonto `DOMÄNE\SERVER$` auf die Freigabe zu.** **Warum wichtig:** Rechte für einen Benutzer
+  reichen dann nicht – jede Datei endet als „Zugriff verweigert“. Recht „Ändern“ auf Freigabe **und** NTFS (anlegen, schreiben, umbenennen, eigene
+  `.tmp` löschen); der Web-App-Pool ist ein anderes Konto, deshalb prüft `/ServiceSettings` nur die Form des Pfads.
+- **Die CSV entsteht nur aus `Uebergeben`; `NichtNoetig` (Sage-WE beim Buchen aus) und `NurInSage` warten nie.** **Warum wichtig:** Ein
+  „wartet“ für diese Wareneingänge wäre eine falsche Zusage – deshalb ist das Barcode-Feld bei ausgeschaltetem Sage-WE gesperrt und der Server
+  weist einen trotzdem geposteten Barcode ab.
+- **„Nie automatisch wiederholen“ hängt an festen Fehlertexten** (`WareneingangCsv.NieWiederholen`: Kollision, ungültiger Barcode).
+  **Warum wichtig:** Wer eine Kollision mit eigenem Text meldet statt über die Konstante, lässt den Dienst eine vorhandene Datei alle 15 Minuten erneut
+  prüfen und als Fehler zählen; Texte nur über die Konstanten setzen.

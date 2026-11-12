@@ -208,3 +208,18 @@ Migration `20261112143552_AddPurchaseOrderReminders`, [[2026-11-12-offene-bestel
 - `Creditors.ReminderDisabled` (bit NOT NULL, DEFAULT 0 nur in SQL/Migration) und `Creditors.ReminderEmail` (nvarchar(200)): WMS-Felder, auch bei
   Herkunft Sage pflegbar (`CreditorsController.ApplyWmsFelder`); der Kontokorrent-Abgleich schreibt sie nicht. Zieladresse der Kreditor-Mail =
   `ReminderEmail`, sonst `Email`.
+
+## Wareneingang-CSV (v1.99.11, SQL/146)
+
+Migration `20261112151318_AddWareneingangBarcodeCsv`, [[2026-11-12-wareneingang-barcode-lieferschein-csv-export-spec]]. Additiv.
+- `PurchaseOrderReceipts.Barcode` (nvarchar(50), Index `IX_PurchaseOrderReceipts_Barcode`): Barcode des Lieferschein-Aufklebers, an jedem Receipt
+  eines Absendens; geschrieben nur beim Buchen (`PurchaseOrdersController.Receive`, nur mit `WareneingangBarcodeAktiv` und Sage-WE an), nie
+  geändert; gelesen von der Duplikat-Prüfung (`BarcodeVergebenAsync`, ohne Groß/Klein), der Liste „Sage-Wareneingänge“ und dem Dienst
+  (`WareneingangCsvService`, Dateiname).
+- `PurchaseOrderReceipts.LieferantName` (nvarchar(50)): Kreditorname beim Buchen aus `SagePurchaseOrderLine.LieferantName` (Snapshot, der Cache
+  verschwindet nach der Übergabe); gelesen nur für die CSV-Spalte `Kreditorname`.
+- `WareneingangCsvExporte` (AuditableEntity): eine Zeile je `SageWeVorgang` (UNIQUE `UX_WareneingangCsvExporte_SageWeVorgang`), `Barcode`
+  (nvarchar(50)), `Status` (int, Enum `WareneingangCsvStatus` 1 Offen / 2 Geschrieben / 3 Fehler, Index), `Versuche` (DEFAULT 0 nur in SQL),
+  `Fehler` (nvarchar(1000)), `Datei` (nvarchar(400), voller Pfad), `GeschriebenAm`. Angelegt und fortgeschrieben nur vom Dienst
+  (`system:wareneingang-csv`); „CSV erneut schreiben“ (`CsvErneutSchreibenAsync`) setzt Fehler → Offen mit Audit aus `ICurrentUserService`.
+  „Wartet“ ist kein Status (Barcode ohne Zeile, angezeigt).

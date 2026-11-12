@@ -10,9 +10,9 @@ freigabe_am: 2026-11-12
 source_backlog: "[[2026-11-12-wareneingang-barcode-lieferschein-csv-export]]"
 depends_on: "[[2026-11-08-wareneingang-teil-2-sage-we-beleg-rahmenabrufe-spec]]"
 schwester_spec: "[[2026-11-12-offene-bestellungen-mahnmail-lieferverzug]] (Backlog; Spec entsteht parallel)"
-version: "1.99.9 (Vorschlag; Kollision mit Kürzel-Nachtrag und Mahnmail, Rückfrage 10)"
-sql_nummern: "144 (vorläufig; nächste freie im Bündel-Worktree, SQL/143 ist die letzte; Dev-Lauf prüft neu, Rückfrage 10)"
-testszenario: "TS-128 (Vorschlag; letzte vergebene Nummer im Bündel TS-127)"
+version: "1.99.11"
+sql_nummern: "146 (vergeben im Dev-Lauf 2026-11-12; SQL/144 = Kürzel v1.99.9, SQL/145 = Lieferverzug v1.99.10)"
+testszenario: "TS-129 (vergeben im Dev-Lauf; TS-128 = Lieferverzug-Mails)"
 task: ""
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
 branch: "feature/2026-08-07-ideal-teile-1-5"
@@ -38,9 +38,9 @@ affected_code:
   - "IDEALAKEWMSService/Workers/SageBookingWorker.cs:66-75 (eigener Schritt nach dem Sage-WE-Schritt)"
   - "NEU IDEALAKEWMSService/Services/WareneingangCsvService.cs (Ausgangstabelle füllen, CSV bauen, .tmp schreiben, umbenennen; ISyncLogger letzter Ctor-Parameter)"
   - "IDEALAKEWMSService/Program.cs:150 (DI-Registrierung neben SageWareneingangService)"
-  - "SQL/144_AddWareneingangBarcodeCsv.sql (Nummer prüfen), SQL/00_FreshInstall.sql (zwei Stellen)"
+  - "SQL/146_AddWareneingangBarcodeCsv.sql, SQL/00_FreshInstall.sql (zwei Stellen)"
   - "scripts/deploy/nachlauf.psd1:82-83 (Schema nach SQL/143), Pruefung-Block ab :85, Nachher-Block ab :193"
-  - "docs/TESTSZENARIEN.md (TS-128), README.md (AppSettings + ServiceSettings), Views/Help/Index.cshtml + Changelog.cshtml, beide AppVersion.cs"
+  - "docs/TESTSZENARIEN.md (TS-129), README.md (AppSettings + ServiceSettings), Views/Help/Index.cshtml + Changelog.cshtml, beide AppVersion.cs"
 open_questions:
   - "1 Auftrag an dieser Stelle abgeschnitten ('Ausgangstabelle mit Status, atomares Schreiben (.tmp →'): Was fehlt noch? Vorschläge a-f zu Dateinamen-Kollision, Bereinigung, Encoding/Trennzeichen, Wiederholung bei Netzfehler, Dienstkonto-Rechte, Zeitlimit"
   - "2 Wer liest die CSV (enaio-Import, Zweck unbestätigt) und welches Format erwartet er? (Empfehlung: Gerald klärt mit der enaio-Betreuung; bis dahin Format laut 1c)"
@@ -269,7 +269,7 @@ gibt keine CSV zu einem Wareneingang, der in Sage nie ankam.
 
 | Migration | Skript | Inhalt | daten-destruktiv |
 |---|---|---|---|
-| `AddWareneingangBarcodeCsv` | `SQL/144_AddWareneingangBarcodeCsv.sql` (Nummer vor dem Anlegen prüfen, Rückfrage 10) | `PurchaseOrderReceipts`: `Barcode` nvarchar(50) NULL + Index `IX_PurchaseOrderReceipts_Barcode`; `LieferantName` nvarchar(50) NULL (Länge wie `SagePurchaseOrderLine.LieferantName`, `ApplicationDbContext.cs:1394`; entfällt, falls Rückfrage 3 den Kreditornamen streicht). Neue Tabelle `WareneingangCsvExporte`: `Id` int IDENTITY PK, `SageWeVorgang` uniqueidentifier NOT NULL (UNIQUE `UX_WareneingangCsvExporte_SageWeVorgang`), `Barcode` nvarchar(50) NOT NULL, `Status` int NOT NULL, `Versuche` int NOT NULL DEFAULT 0 (nur im SQL, kein `HasDefaultValue`, [[fallstricke]] wie `SageWeVersuche`), `Fehler` nvarchar(1000) NULL, `Datei` nvarchar(400) NULL, `GeschriebenAm` datetime2 NULL, Audit-Spalten wie `PurchaseOrderReceipts` (`CreatedBy`/`CreatedByWindows` nvarchar(200) NOT NULL, `Modified*` NULL); Index `Status` | nein (additiv) |
+| `AddWareneingangBarcodeCsv` | `SQL/146_AddWareneingangBarcodeCsv.sql` (Nummer vor dem Anlegen prüfen, Rückfrage 10) | `PurchaseOrderReceipts`: `Barcode` nvarchar(50) NULL + Index `IX_PurchaseOrderReceipts_Barcode`; `LieferantName` nvarchar(50) NULL (Länge wie `SagePurchaseOrderLine.LieferantName`, `ApplicationDbContext.cs:1394`; entfällt, falls Rückfrage 3 den Kreditornamen streicht). Neue Tabelle `WareneingangCsvExporte`: `Id` int IDENTITY PK, `SageWeVorgang` uniqueidentifier NOT NULL (UNIQUE `UX_WareneingangCsvExporte_SageWeVorgang`), `Barcode` nvarchar(50) NOT NULL, `Status` int NOT NULL, `Versuche` int NOT NULL DEFAULT 0 (nur im SQL, kein `HasDefaultValue`, [[fallstricke]] wie `SageWeVersuche`), `Fehler` nvarchar(1000) NULL, `Datei` nvarchar(400) NULL, `GeschriebenAm` datetime2 NULL, Audit-Spalten wie `PurchaseOrderReceipts` (`CreatedBy`/`CreatedByWindows` nvarchar(200) NOT NULL, `Modified*` NULL); Index `Status` | nein (additiv) |
 
 - ADR 0004:
   1. Model.
@@ -359,13 +359,13 @@ gibt keine CSV zu einem Wareneingang, der in Sage nie ankam.
 14. `/ServiceSettings` lehnt `WareneingangCsvPfad` = `C:\temp` bzw. `abc` ab (Meldung, Wert unverändert), nimmt `\\server\freigabe\ordner` und leer an.
 15. Liste: Spalten „Barcode“ und „CSV“ mit `data-col-key`. Der Spaltenfilter auf „geschrieben“ bzw. „wartet“ filtert über alle Seiten (Server-Mode).
     Der CSV-Export der Liste enthält beide Spalten.
-16. Drift-Guards grün: ServiceSettings, AppSettings, `NachlaufManifestDriftTests` (SQL/144), `HardwareScannerTests` (Kamera-Knopf-Liste),
+16. Drift-Guards grün: ServiceSettings, AppSettings, `NachlaufManifestDriftTests` (SQL/146), `HardwareScannerTests` (Kamera-Knopf-Liste),
     `CsvExportCoverageTests`.
 17. IDEAL (Sage-WE aus): Maske und Liste verhalten sich wie vorher, solange `WareneingangBarcodeAktiv` aus ist. Der Dienst schreibt nichts.
 
 ## Test-Szenarien
 
-Neu **TS-128 „Wareneingang: Barcode und CSV-Übergabe“** in `docs/TESTSZENARIEN.md`, danach [[testszenarien-index]].
+Neu **TS-129 „Wareneingang: Barcode und CSV-Übergabe“** in `docs/TESTSZENARIEN.md`, danach [[testszenarien-index]].
 Vorbedingungen:
 - DEV AKE mit Worktree-Stand, `WareneingangBestellungAktiv` an.
 - Eine offene Test-Bestellung im Cache.
@@ -373,25 +373,25 @@ Vorbedingungen:
 - Kein Sage-Schreiben durch Agenten: Die Übergabe wird für die Tests per SQL (Status `Uebergeben`, Belegnummer `QA-…`) bzw. per „Als übergeben
   markieren“ hergestellt.
 
-- **128.1 Feld aus/an:** Schalter aus → kein Feld (AK 1). Schalter an, Sage-WE aus → Feld gesperrt mit Hinweis (Rückfrage 7). Sage-WE an → Feld
+- **129.1 Feld aus/an:** Schalter aus → kein Feld (AK 1). Schalter an, Sage-WE aus → Feld gesperrt mit Hinweis (Rückfrage 7). Sage-WE an → Feld
   aktiv.
-- **128.2 Buchen mit Barcode:** gültiger Barcode, zwei Positionen → beide Receipts haben ihn (SQL-Kontrolle). Negativ: ungültige Zeichen, 51 Zeichen,
+- **129.2 Buchen mit Barcode:** gültiger Barcode, zwei Positionen → beide Receipts haben ihn (SQL-Kontrolle). Negativ: ungültige Zeichen, 51 Zeichen,
   Duplikat in Kleinbuchstaben → jeweils Meldung, nichts gebucht (AK 2-4).
-- **128.3 Scannen:**
+- **129.3 Scannen:**
   - Netum mit angetipptem Feld: `ABC;123` und `4006381333931` kommen unverändert an.
   - Ohne angetipptes Feld landet der Scan im Barcode-Feld.
   - Kamera am Handy: Code wird roh übernommen.
   - Mit `QrErstesFeld = Matchcode`: keine Matchcode-Meldung (AK 5-6).
-- **128.4 CSV nach Übergabe:** Vorgang per SQL bzw. „Als übergeben markieren“ übergeben → nach einem Takt ist `<Barcode>.csv` vorhanden, keine
+- **129.4 CSV nach Übergabe:** Vorgang per SQL bzw. „Als übergeben markieren“ übergeben → nach einem Takt ist `<Barcode>.csv` vorhanden, keine
   `.tmp`. Inhalt prüfen: UTF-8-BOM, Kopfzeile, Felder; Liste „geschrieben …“, Aktivitäts-Protokoll „Wareneingang-CSV“ `geschrieben=1` (AK 7-8).
-- **128.5 Sage-WE aus:** CSV-Schalter an, Sage-WE aus → keine Datei, Hinweis in Liste und `/ServiceSettings`. Wieder an → nächster Takt schreibt (AK 9-10).
-- **128.6 Kollision:** Datei `<Barcode>.csv` vorher von Hand anlegen → `Fehler`, Datei unverändert. Datei entfernen, „CSV erneut schreiben“ →
+- **129.5 Sage-WE aus:** CSV-Schalter an, Sage-WE aus → keine Datei, Hinweis in Liste und `/ServiceSettings`. Wieder an → nächster Takt schreibt (AK 9-10).
+- **129.6 Kollision:** Datei `<Barcode>.csv` vorher von Hand anlegen → `Fehler`, Datei unverändert. Datei entfernen, „CSV erneut schreiben“ →
   geschrieben (AK 11, 13).
-- **128.7 Netzfehler:** Pfad auf eine nicht vorhandene Freigabe → `Fehler`, Takt läuft weiter (Sage-Lagerbuchung im selben Takt sichtbar). Recht
+- **129.7 Netzfehler:** Pfad auf eine nicht vorhandene Freigabe → `Fehler`, Takt läuft weiter (Sage-Lagerbuchung im selben Takt sichtbar). Recht
   entziehen → `Fehler` „Zugriff verweigert“ (AK 12).
-- **128.8 Einstellungen:** Pfad-Prüfung (AK 14). Anzeigename, Wirkung, Verwendung, Standort und Warnhinweis sichtbar. Hinweis bei Pfad leer + Schalter an.
-- **128.9 Rollen:** Benutzer ohne `stock_keyuser` sieht keinen Knopf, ein POST direkt wird abgewiesen (AK 13).
-- **128.10 IDEAL:** DEV IDEAL nach Deploy → keine Änderung, kein Protokoll-Eintrag „Wareneingang-CSV“ (AK 17).
+- **129.8 Einstellungen:** Pfad-Prüfung (AK 14). Anzeigename, Wirkung, Verwendung, Standort und Warnhinweis sichtbar. Hinweis bei Pfad leer + Schalter an.
+- **129.9 Rollen:** Benutzer ohne `stock_keyuser` sieht keinen Knopf, ein POST direkt wird abgewiesen (AK 13).
+- **129.10 IDEAL:** DEV IDEAL nach Deploy → keine Änderung, kein Protokoll-Eintrag „Wareneingang-CSV“ (AK 17).
 
 Automatisiert:
 - `WareneingangCsvServiceTests` mit gefälschtem `IWareneingangCsvDatei`: anlegen, schreiben, Kollision, Ausnahme, Gate Sage-WE aus, Gate Pfad leer,
@@ -416,23 +416,23 @@ Entfällt (kein Epic). Umsetzung als ein Commit-Paket im Bündel-Worktree; bei T
 
 - **Web-App:** ja (Maske, Scan-JS, Liste, Einstellungen, Katalog, Repository).
 - **Service:** ja (neuer Schritt im `SageBookingWorker`, `WareneingangCsvService`).
-- **Migration:** ja, `SQL/144_AddWareneingangBarcodeCsv.sql` / `<Zeitstempel>_AddWareneingangBarcodeCsv`, additiv, nicht daten-destruktiv.
+- **Migration:** ja, `SQL/146_AddWareneingangBarcodeCsv.sql` / `20261112151318_AddWareneingangBarcodeCsv`, additiv, nicht daten-destruktiv.
 - **Reihenfolge Testsystem:**
   1. DB-Backup (Standard).
-  2. Update-Skript (führt SQL/144 aus).
+  2. Update-Skript (führt SQL/146 aus).
   3. Web, dann Dienst.
   4. P-C1/P-C2 erledigen.
   5. Pfad setzen.
   6. Erst dann `WareneingangCsvAktiv` und `WareneingangBarcodeAktiv` einschalten.
-- **Manifest-Einträge** `scripts/deploy/nachlauf.psd1` (ADR 0022/0023; Texte nur ASCII; Version = vergebene Version, Vorschlag 1.99.9):
-  - Schema, im Block „Schema“ direkt **nach** `SQL/143` (`nachlauf.psd1:82-83`, Deploy-Reihenfolge):
-    `@{ Id='SQL/144'; Version='1.99.9'; Typ='Schema'; Firma='beide'; Phase='Schema'; Ausfuehrung='automatisch'; Datei='144_AddWareneingangBarcodeCsv.sql'; MigrationId='<Zeitstempel>_AddWareneingangBarcodeCsv'; Voraussetzung='additiv'; Quelle='<changelog-slug>' }`
+- **Manifest-Einträge** `scripts/deploy/nachlauf.psd1` (ADR 0022/0023; Texte nur ASCII; Version = vergebene Version 1.99.11):
+  - Schema, im Block „Schema“ direkt **nach** `SQL/145` (`nachlauf.psd1:82-83`, Deploy-Reihenfolge):
+    `@{ Id='SQL/146'; Version='1.99.11'; Typ='Schema'; Firma='beide'; Phase='Schema'; Ausfuehrung='automatisch'; Datei='146_AddWareneingangBarcodeCsv.sql'; MigrationId='20261112151318_AddWareneingangBarcodeCsv'; Voraussetzung='additiv'; Quelle='2026-11-12-v1-99-11-wareneingang-barcode-csv' }`
   - Pruefung (SQL-prüfbarer Zustand: Schalter an, aber Pfad leer oder Sage-WE aus), Block „Pruefungen“:
-    `@{ Id='Pruefung/WareneingangCsv'; Version='1.99.9'; Typ='Pruefung'; Firma='AKE'; Phase='Nachher'; Ausfuehrung='anzeigen'; Braucht=@('SQL/144'); Pruefung='SELECT CASE WHEN EXISTS (SELECT 1 FROM dbo.ServiceSettings WHERE [Key] = N''WareneingangCsvAktiv'' AND LOWER(LTRIM(RTRIM([Value]))) = N''true'') AND (NOT EXISTS (SELECT 1 FROM dbo.ServiceSettings WHERE [Key] = N''WareneingangCsvPfad'' AND LTRIM(RTRIM(ISNULL([Value], N''''))) <> N'''') OR NOT EXISTS (SELECT 1 FROM dbo.ServiceSettings WHERE [Key] = N''SageWareneingangBelegAktiv'' AND LOWER(LTRIM(RTRIM([Value]))) = N''true'')) THEN 1 ELSE 0 END'; Text='WareneingangCsvAktiv ist an, aber WareneingangCsvPfad leer oder SageWareneingangBelegAktiv aus: es wird keine CSV geschrieben (/ServiceSettings > Wareneingang-CSV).'; Quelle='<changelog-slug>' }`
+    `@{ Id='Pruefung/WareneingangCsv'; Version='1.99.11'; Typ='Pruefung'; Firma='AKE'; Phase='Nachher'; Ausfuehrung='anzeigen'; Braucht=@('SQL/146'); Pruefung='SELECT CASE WHEN EXISTS (SELECT 1 FROM dbo.ServiceSettings WHERE [Key] = N''WareneingangCsvAktiv'' AND LOWER(LTRIM(RTRIM([Value]))) = N''true'') AND (NOT EXISTS (SELECT 1 FROM dbo.ServiceSettings WHERE [Key] = N''WareneingangCsvPfad'' AND LTRIM(RTRIM(ISNULL([Value], N''''))) <> N'''') OR NOT EXISTS (SELECT 1 FROM dbo.ServiceSettings WHERE [Key] = N''SageWareneingangBelegAktiv'' AND LOWER(LTRIM(RTRIM([Value]))) = N''true'')) THEN 1 ELSE 0 END'; Text='WareneingangCsvAktiv ist an, aber WareneingangCsvPfad leer oder SageWareneingangBelegAktiv aus: es wird keine CSV geschrieben (/ServiceSettings > Wareneingang-CSV).'; Quelle='2026-11-12-v1-99-11-wareneingang-barcode-csv' }`
   - Einstellung, Block „Nachher“:
-    `@{ Id='v1.99.9-WareneingangCsv'; Version='1.99.9'; Typ='Einstellung'; Firma='AKE'; Phase='Nachher'; Ausfuehrung='anzeigen'; Text='Wareneingang-CSV: zuerst Dienstkonto pruefen (P-C1, LocalSystem = Computerkonto) und Recht Aendern auf der Freigabe setzen (P-C2), dann /ServiceSettings > Wareneingang-CSV: Pfad (\\server\freigabe\ordner) setzen, WareneingangCsvAktiv einschalten, zuletzt /Settings > Lager und Buchungen: WareneingangBarcodeAktiv. IDEAL bleibt aus.'; Quelle='<changelog-slug>' }`
+    `@{ Id='v1.99.11-WareneingangCsv'; Version='1.99.11'; Typ='Einstellung'; Firma='AKE'; Phase='Nachher'; Ausfuehrung='anzeigen'; Text='Wareneingang-CSV: zuerst Dienstkonto pruefen (P-C1, LocalSystem = Computerkonto) und Recht Aendern auf der Freigabe setzen (P-C2), dann /ServiceSettings > Wareneingang-CSV: Pfad (\\server\freigabe\ordner) setzen, WareneingangCsvAktiv einschalten, zuletzt /Settings > Lager und Buchungen: WareneingangBarcodeAktiv. IDEAL bleibt aus.'; Quelle='2026-11-12-v1-99-11-wareneingang-barcode-csv' }`
   - Info, Block „Nachher“:
-    `@{ Id='v1.99.9-LagerBarcode'; Version='1.99.9'; Typ='Info'; Firma='AKE'; Phase='Nachher'; Ausfuehrung='anzeigen'; Text='Lager informieren: Wareneingang zu Bestellung hat ein Feld Barcode (Lieferschein-Aufkleber); die CSV entsteht erst nach der Uebergabe an Sage. Stand in Lager -> Sage-Wareneingaenge, Spalte CSV.'; Quelle='<changelog-slug>' }`
+    `@{ Id='v1.99.11-LagerBarcode'; Version='1.99.11'; Typ='Info'; Firma='AKE'; Phase='Nachher'; Ausfuehrung='anzeigen'; Text='Lager informieren: Wareneingang zu Bestellung hat ein Feld Barcode (Lieferschein-Aufkleber); die CSV entsteht erst nach der Uebergabe an Sage. Stand in Lager -> Sage-Wareneingaenge, Spalte CSV.'; Quelle='2026-11-12-v1-99-11-wareneingang-barcode-csv' }`
   - Kein `Ordner`-Eintrag: Der Zielpfad steht in der DB, nicht im Manifest, und gehört einem fremden Server. Das Recht bleibt Hand-Schritt (Einstellung
     oben). Kein Daten- oder Einmal-Skript.
 - **Publish-Befehle (im Worktree):**
@@ -448,6 +448,71 @@ Entfällt (kein Epic). Umsetzung als ein Commit-Paket im Bündel-Worktree; bei T
     - Dienstkonto LocalSystem = Computerkonto.
     - Die CSV entsteht nur aus `Uebergeben`, `NichtNoetig` wartet nie.
   - Brain-Changelog.
+
+## Umsetzung (goal-Lauf 2026-11-12, v1.99.11)
+
+Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Branch `feature/2026-08-07-ideal-teile-1-5`. Nicht gemergt, nicht gepusht, kein Deploy.
+Status bleibt (setzt der qa-agent).
+
+**Commits:** `895646a5` (Code, Migration, SQL/146, Tests, Manifest), `0dc0cea0` (feature-complete: TS-129, Hilfe, Anwender-Changelog, README,
+Version 1.99.11 in beiden `AppVersion.cs`).
+
+**Nummern (Bau-Reihenfolge):** Version **1.99.11** (1.99.9 Kürzel, 1.99.10 Lieferverzug), **SQL/146** (`146_AddWareneingangBarcodeCsv.sql`,
+Migration `20261112151318_AddWareneingangBarcodeCsv`; SQL/144 = Kürzel, SQL/145 = Lieferverzug), **TS-129** (TS-128 = Lieferverzug-Mails).
+
+**Was gebaut ist (Code-Einstieg):**
+- F1: `PurchaseOrderReceipt.Barcode`/`LieferantName` (nvarchar(50), Index `IX_PurchaseOrderReceipts_Barcode`); `PurchaseOrdersController.Receive`
+  Post-Parameter `barcode` (nur bei `WareneingangBarcodeAktiv`), Prüfung in derselben Phase wie Lieferschein (Zeichen/Länge, Sage-WE aus,
+  Duplikat `IPurchaseOrderReceiptRepository.BarcodeVergebenAsync`), gespeichert an jedem Receipt im selben Insert. Maske `Receive.cshtml`: Feld neben
+  der Lieferschein-Nr., Kamera-Knopf `btnScanBarcode` mit `data-hw-scan-kamera-ziel`, `initTextInputScanner(..., 'raw')`; bei Sage-WE aus gesperrt
+  mit Hinweis, kein Knopf, kein Skript.
+- Scan-Befund behoben (eine Stelle): `barcode-scanner.js` `textScanType()` – `'raw'` bleibt `'raw'` (vorher `'article'`); Fenstertitel „Barcode scannen“.
+  Wächter `HardwareScannerTests.RawScan_BleibtRaw_BarcodeFeldNutztRaw` + Kamera-Knopf-Liste um `PurchaseOrders/Receive.cshtml|btnScanBarcode`.
+- F2: `WareneingangCsvExport` (Tabelle `WareneingangCsvExporte`, UNIQUE `SageWeVorgang`, Status 1/2/3, `Versuche` DEFAULT 0 nur im SQL, Audit).
+- F3: `IDEALAKEWMSService/Services/WareneingangCsvService.cs` – Zeilen anlegen (alle Receipts des Vorgangs `Uebergeben`, Barcode, noch keine
+  Zeile), höchstens `WareneingangCsv.MaxDateienJeTakt` = 10 je Takt, `File.Exists` → Kollision, `File.WriteAllText(.tmp, UTF-8 mit BOM)`,
+  `File.Move(tmp, csv, overwrite: false)`, jede Ausnahme → Fehler + `.tmp` best effort löschen. `CsvInhalt` statisch (9 Spalten, `;`, CRLF,
+  `yyyy-MM-dd HH:mm`, RFC-4180-Quoting). Lauf `SyncLogServices.WareneingangCsv` („Wareneingang-CSV“), Counts `geschrieben`/`fehler`, Warnung je Fehler,
+  kein Eintrag ohne Arbeit. `SageBookingWorker`: eigener Schritt in eigenem `try` **nach** dem Sage-WE-Block, Gate = derselbe gelesene Wert
+  `SageWareneingangBelegAktiv` + `WareneingangCsvAktiv` (Safe-Lesen) + Pfad nicht leer. DI `Program.cs`.
+- F4: Liste „Sage-Wareneingänge“ Spalten `barcode`/`csv` (in `SageWeColumnMap`, Text aus `WareneingangCsv.StatusText`), Hinweise
+  `WareneingangCsv.Hinweise` (Liste und `/ServiceSettings`), Action `CsvErneutSchreiben` (`RequireStockKeyUserAccess`, Knopf nur bei CSV-Fehler mit
+  Hinweis „Vorher auf der Freigabe prüfen …“). Gemeinsame Regeln: `IdealAkeWms/Services/WareneingangCsv.cs`.
+
+**Einstellungen (ADR 0020):**
+- AppSetting `WareneingangBarcodeAktiv` (Bool, Default aus, kein Seed, abhängig von `WareneingangBestellungAktiv`).
+- ServiceSettings, Kategorie „Wareneingang-CSV“: `WareneingangCsvAktiv` (Bool, aus, `AbhaengigVon` `SageWareneingangBelegAktiv`, Warnhinweis),
+  `WareneingangCsvPfad` (String, leer, Server prüft per `SettingDefinition.Muster`: leer oder UNC `\\server\freigabe[\ordner…]`, keine ungültigen
+  Zeichen; Erreichbarkeit nicht), `Sync:WareneingangCsvMaxWiederholungen` (Int 0–10, Default 3), `Sync:WareneingangCsvWiederholAbstandMinuten`
+  (Int 5–1440, Default 15). Drift-Guard `ServiceSettingDefinitionsTests` + `AppSettingDefinitionsTests` (57) nachgezogen.
+
+**Manifest `scripts/deploy/nachlauf.psd1`:** `SQL/146` (Schema nach SQL/145), `Pruefung/WareneingangCsv` (Nachher, AKE, Schalter an + Pfad leer oder
+Sage-WE aus), `v1.99.11-WareneingangCsv` (Einstellung: P-C1/P-C2 Dienstkonto + Recht Ändern, dann Pfad, Schalter, Barcode-Feld), `v1.99.11-LagerBarcode`
+(Info). Kein Ordner-Eintrag (Pfad in der DB, fremder Server). `NachlaufManifestDriftTests` Schema-Reihenfolge um SQL/146 ergänzt.
+
+**Build/Test (Worktree, 2026-11-12):** `dotnet build IdealAkeWms.slnx` 0 Fehler (keine neuen Warnungen in den geänderten Dateien);
+`dotnet test IdealAkeWms.Tests` 2714 bestanden / 1 übersprungen / 2715; `dotnet test IDEALAKEWMSService.Tests` 599 bestanden / 599
+(davon neu `WareneingangCsvServiceTests` 10, echte Dateien in lokalem Temp-Ordner, kein UNC). Neu Web: `PurchaseOrdersReceiveTests.Barcode_*` (7),
+`SageWareneingaengeListeTests.Csv*` (4), `SettingValidatorTests.WareneingangCsvPfad_NurUncOderLeer` (11 Fälle), `HardwareScannerTests.RawScan_*`.
+
+**Befunde / Abweichungen vom Entwurf:**
+1. **Kein `IWareneingangCsvDatei`-Interface.** Die Tests schreiben in echte lokale Temp-Ordner (Auftrag erlaubt beides); weniger Code, gleicher Nachweis
+   für Kollision, Netzfehler (nicht vorhandener Ordner), Erfolg und `.tmp`-Leiche.
+2. **Automatische Wiederholung gebaut** (Antwort 1d): `Versuche >= 1 && Versuche <= Max`, frühestens nach dem Abstand; Kollision und ungültiger
+   Barcode nie automatisch – erkannt über die festen Fehlertexte `WareneingangCsv.NieWiederholen` (ponytail: kein Zusatzfeld).
+3. **Barcode bei ausgeschaltetem Sage-WE gepostet** (Schalter zwischen Öffnen und Buchen umgestellt): ModelState-Fehler statt stillem Ignorieren
+   (Melden statt still behandeln); das gesperrte Feld postet nichts.
+4. Barcode-Regel weist zusätzlich die reservierten Windows-Gerätenamen ab (`CON`, `NUL`, `COM1`…, ohne Groß/Klein) – sonst ließe sich die Datei
+   nicht anlegen. Muster `AKE1235564654` gültig.
+5. Pfadprüfung über das vorhandene `SettingDefinition.Muster` (Regex) statt neuer key-spezifischer Logik im `SettingValidator`.
+6. Spalte „CSV“ kennt zwei Zustände mehr als der Entwurf: „kein CSV-Pfad gesetzt – wartet“ und „wartet auf den Dienst (nächster Takt)“.
+7. Duplikat-Prüfung `ToUpper()` auf beiden Seiten (InMemory kennt keine Kollation, fallstricke §26) – nutzt den Index nicht; `ponytail:`-Kommentar.
+8. Werkzeug-Fund: In Bash-Heredocs wurden `\\` zu `\` (Pfade in Testdaten), das Schreibwerkzeug löste `﻿` auf – beides vor dem Commit
+   korrigiert (fallstricke §23 ergänzt).
+
+**Nur per Manual-UAT prüfbar:** echtes Schreiben/Umbenennen auf der UNC-Freigabe mit dem Dienstkonto (P-C1/P-C2), SMB-Timeout-Verhalten im
+Worker-Takt, Netum- und Kamera-Scan am Gerät (TS-129.6–129.8), Rendering/Kontrast der Maske und Liste, Leser (enaio-Import, P-C3), echte
+SQL-Server-Übersetzung der Abfragen (`NOT EXISTS`, `IN` mit `NieWiederholen`).
 
 ## Offene Rueckfragen
 

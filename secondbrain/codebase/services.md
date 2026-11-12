@@ -392,3 +392,20 @@ Quellen-Weiche je Abgleich: [[0019-quellen-weiche-view-sdata-je-abgleich]]. Ordn
 | `Lieferverzug:KreditorAbsender` | String (eine Mail) | (leer = `MailSettings:FromAddress`) | Absender der Kreditor-Mail (Freigabe-Antwort 7) |
 | `Lieferverzug:AntwortAdresse` | String (eine Mail) | (leer = erste Einkauf-Adresse) | Reply-To der Kreditor-Mail |
 | `Lieferverzug:Standort` | Choice AKE/IDEAL | `AKE` | CI (Hausfarbe, Firmenadresse) |
+
+## Wareneingang-CSV (v1.99.11, [[2026-11-12-wareneingang-barcode-lieferschein-csv-export-spec]])
+
+- `WareneingangCsvService.RunOnceAsync(pfad, wiederholung)` (Dienst), eigener Schritt im `SageBookingWorker`-Takt **nach** dem Sage-WE-Schritt, in
+  eigenem `try`. Gate: derselbe gelesene Wert `SageWareneingangBelegAktiv` **und** `WareneingangCsvAktiv` (Safe-Lesen, Fehler = aus) **und**
+  `WareneingangCsvPfad` nicht leer. Legt je Sage-WE-Vorgang mit Barcode, dessen Receipts alle `Uebergeben` sind, eine Zeile in
+  `WareneingangCsvExporte` an (`system:wareneingang-csv`), schreibt höchstens 10 Dateien je Takt (`.tmp` → `File.Move` auf `.csv`, nie
+  überschreiben), wiederholt Schreibfehler nach Abstand bis zur Grenze; Kollision/ungültiger Barcode nie automatisch. Aktivitäts-Protokoll
+  `SyncLogServices.WareneingangCsv` („Wareneingang-CSV“), Counts `geschrieben`, `fehler`, Warnung je Fehler, kein Eintrag ohne Arbeit.
+- Gemeinsame Regeln Web/Dienst: `IdealAkeWms/Services/WareneingangCsv.cs` (Keys, Barcode-Regel, Pfad-Muster, Texte, `StatusText`, `Hinweise`).
+
+| Key | Typ | Default | Wirkung |
+|---|---|---|---|
+| `WareneingangCsvAktiv` | Bool | `false` | CSV-Übergabe an (wirkt nur mit `SageWareneingangBelegAktiv`), AKE |
+| `WareneingangCsvPfad` | String (Muster: leer oder UNC) | (leer = nichts) | Zielordner `\\server\freigabe[\ordner]` |
+| `Sync:WareneingangCsvMaxWiederholungen` | Int 0–10 | `3` | automatische Wiederholungen nach Schreibfehler |
+| `Sync:WareneingangCsvWiederholAbstandMinuten` | Int 5–1440 | `15` | Mindestabstand Fehler → Wiederholung |
