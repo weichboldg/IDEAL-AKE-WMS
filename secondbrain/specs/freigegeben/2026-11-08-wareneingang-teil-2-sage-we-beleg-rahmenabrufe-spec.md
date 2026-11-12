@@ -2,7 +2,7 @@
 type: spec
 title: "Wareneingang Teil 2: Sage-Wareneingangsbeleg (ELL)"
 slug: 2026-11-08-wareneingang-teil-2-sage-we-beleg-rahmenabrufe-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-11-08
 updated: 2026-11-12
 freigabe_von: "Gerald Weichbold (Chat Koordination, 2026-11-11 20:40 „beide freigeben“)"
@@ -10,7 +10,7 @@ freigabe_am: 2026-11-11
 source_backlog: "[[2026-11-08-wareneingang-teil-2-sage-we-beleg-rahmenabrufe]]"
 depends_on: "[[2026-11-08-wareneingang-aus-sage-bestellungen-spec]]"
 folge_backlog: "[[2026-11-11-wareneingang-teil-3-rahmenabrufe]]"
-version: "1.99.7"
+version: "1.99.9"
 sql_nummern: "eine Migration in E1: nächste freie Nummer bei der Umsetzung, derzeit 143 (142 = AddDeployScriptRuns, v1.99.0), Freigabe-Antwort 1"
 testszenario: "TS-116 (Erweiterung 116.10 ff., ersetzt den Platzhalter 116.7)"
 task: ""
@@ -522,6 +522,17 @@ Brain-Update (Hauptcheckout): [[feature-map]], [[datenmodell]] (Receipt-Spalten)
 Jeweils mit Warum. Changelog-Notiz und Testindex.
 
 ## Deploy
+
+**Stand v1.99.9 (qa-agent 2026-11-12, echter Diff `bb788f0e..4c1b5523`, Nachtrag System-Kürzel):** `IDEALAKEWMSService/` geändert (Worker,
+`SageWareneingangService`, Payload-Builder, Lookup-Reader) → **Dienst ja**; `IdealAkeWms/` geändert (Modelle, DbContext, Repository, Katalog,
+Validator, `ServiceSettingsController`, Liste, Hilfe, Changelog) → **Web ja**; neue Datei `IdealAkeWms/Migrations/20261112141208_AddSageKennungen.cs`
+→ **Migration ja** (`SQL/144_AddSageKennungen.sql`, additiv, nicht daten-destruktiv). Web und Dienst **gemeinsam** deployen (der Dienst schreibt die
+neuen Spalten). Nachlauf in `scripts/deploy/nachlauf.psd1`: `SQL/144` (automatisch, nach `SQL/143`) und `v1.99.9-SystemKuerzel` (anzeigen: Kürzel je
+Testsystem setzen – DEV, AT, ATI, IT –, Produktion **leer** lassen). Reihenfolge: DB-Backup, Update-Skript (führt `SQL/144` aus), Web, Dienst,
+danach am Testsystem das Kürzel in /ServiceSettings setzen, **bevor** `SageWareneingangBelegAktiv`/`SageLagerbuchungAktiv` dort an sind.
+Publish: `C:\git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish` (**Version 1.99.9**, Commit `4c1b5523`, beide Komponenten,
+`SQL\` + `deploy\`, `publish-info.txt`). Nach dem Merge nur dann aus main neu publizieren, wenn der Merge getestete Dateien mit parallelen
+main-Änderungen zusammengeführt hat.
 
 **Stand v1.99.7 (qa-agent 2026-11-12, echter Diff `67322b85..af0a75f2` + QA-Korrektur `bb788f0e`):** `IDEALAKEWMSService/` geändert
 (`SageWareneingangService`, neu `SdataWareneingangLookupReader`, `SageBookingWorker`, `Program.cs`) → **Dienst ja**; `IdealAkeWms/` geändert (Controller,
@@ -1360,3 +1371,102 @@ Dev-Lauf 2026-11-12 im Bündel `feature/2026-08-07-ideal-teile-1-5`. Commits `11
 
 **Befunde (nicht gebaut):** Kein `pattern`-Attribut im Eingabefeld – die Prüfung ist rein serverseitig (Fehlermeldung beim Speichern). Ein
 ungültiger Wert in der DB löst je Takt (20 s) eine Fehlermail aus, solange er steht (bestehendes Verhalten des Takt-catch).
+
+## QA-Nachweis Nachtrag v1.99.9 (qa-agent, 2026-11-12)
+
+Geprüft: Commits `115e8a09`, `c47f0136` (Diff gegen `bb788f0e`), QA-Korrektur `4c1b5523`. Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`.
+
+### 1. Build und Tests (nach QA-Korrektur, HEAD `4c1b5523`)
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler, 28 Warnungen (Bestand, u. a. CS8601/CS8321).
+- `dotnet test`: **IdealAkeWms.Tests 2661 bestanden / 1 übersprungen (Bestand) / 0 fehlgeschlagen**; **IDEALAKEWMSService.Tests 564 / 0 / 0**.
+  Vor der QA-Korrektur 2660/1/0 und 564/0/0; +1 Test `SaveSettings_SystemKuerzel_GetrimmtGespeichert_KleinbuchstabenAbgelehnt`.
+
+### 2. Code-Review (selbst, in diesem Lauf)
+Geprüft: `SageSystemKuerzel` (Format/Prüfung), `SageWareneingang.Kennung/Memo/UnklarText`, `SageBookingCorrelation.Kennung/Marker/LikePattern`,
+`SageWareneingangService.RunOnceAsync`/`PruefenAsync` (Hängend-Text, E5-Suche, Sicherungsnetz, Speichern der Kennung vor `Versuche++`),
+`SageWareneingangPayloadBuilder.Build`/`PositionsMemo`, `SageBookingWorker` (Recovery, Payload, Requeue, `MarkSentAsync`),
+`SageBuchungLookupReader`, `SdataBuchungLookupReader.Where`, `BuchungLookupQuelleSwitch`, `SdataWareneingangLookupReader.WhereMemo/FremdeKennung`,
+`SageBookingQueueRepository.MarkSentAsync/RequeueAsync`, `PurchaseOrderReceiptRepository.SageWeErneutSendenAsync`, `ServiceSettingsController.SaveSettings`,
+`SettingValidator`, Liste `PurchaseOrdersController.SageWe`, Migration, `SQL/144`, `00_FreshInstall.sql`, `nachlauf.psd1`.
+- **Kennungsformat an EINER Stelle:** `SageSystemKuerzel.Kennung`; `SageWareneingang.Memo` und `SageBookingCorrelation.Marker` rufen nur sie. OK.
+- **Gespeicherte Kennung (Suche/Anzeige/Sicherungsnetz/Recovery/Requeue):** Regel je eine Funktion (`SageWareneingang.Kennung`,
+  `SageBookingCorrelation.Kennung`): gespeichert > nie gesendet (aktuelles Kürzel) > Altbestand (altes Format). Alle Leser (E5-Suche, Unklar-Text,
+  Sicherungsnetz, Liste, Payload Kopf und Position, Recovery, Requeue, MarkSent) gehen über diese Funktionen. Die „nie gesendet“-Merkmale setzt kein
+  Rücksetzweg zurück (`RequeueAsync` setzt nur `AttemptCount=0`, nicht `SentAt`, `SageBookingQueueRepository.cs:127-138`; „Erneut senden“ lässt
+  `SageWeVersuche` stehen, `PurchaseOrderReceiptRepository.cs:73-85`) – ein Altbestand fällt also nie auf das neue Kürzel. OK.
+- **FremdeKennung-Regex** `WE#(?:[A-Z][A-Z0-9]{0,4}#)?\d+#` mit exaktem Vergleich gegen die eigene Kennung: `WE#7#` bei eigener `WE#DEV#7#` fremd,
+  `WE#DEV#70#` fremd, eigene nicht fremd; Kürzel-Kennungen werden als Ganzes erfasst (keine Teiltreffer). OK (7 Testfälle).
+- **Validator `^([A-Z][A-Z0-9]{0,4})?$` vs. Nachtrag „Großbuchstaben und Ziffern“:** enger als freigegeben (Buchstabe vorne Pflicht). Begründung trägt:
+  ein Ziffern-Kürzel `12` erzeugt `WE#12#7#`, und ein System ohne Kürzel sucht für Receipt 12 `%WE#12#%` – trifft genau diesen fremden Beleg.
+  **Bewertung: akzeptiert**; der Hinweistext der Maske nennt die Regel. Für Gerald zur Kenntnis.
+- **SQL/144:** COL_LENGTH-Guards je Spalte in eigenem Batch, History separat, Vorbedingungs-Guard mit `NOEXEC`. Auf beiden DEV-DBs nach der
+  EF-Migration erneut ausgeführt: rc 0, keine Ausgabe = idempotent. **FreshInstall** an beiden Stellen (Schema beider Tabellen + MigrationId mit
+  COL_LENGTH-Bedingung). **Migration** rein additiv (2× nullable `AddColumn`). **Manifest** `SQL/144` + `v1.99.9-SystemKuerzel`, Drift-Test grün.
+- **Befund QA-1 (behoben, `4c1b5523`):** `ServiceSettingsController.SaveSettings` speicherte bei `SettingType.String` den **Rohwert** statt des geprüften,
+  getrimmten Werts (` ATI ` wäre mit Leerzeichen in die DB gegangen; der Validator-Kommentar sagt „gespeichert wird der getrimmte Wert“). Ohne
+  funktionale Folge (Dienst, Format und Liste trimmen), aber Zustand und Doku widersprachen sich. Fix: String **mit Muster** speichert `Kanonisch`;
+  Test ergänzt; auf DEV belegt (` ATI ` → `[ATI]`).
+- **Bewertung der offenen Umsetzer-Befunde:**
+  - *Dienst liest das Kürzel ohne Safe-Variante:* **richtig so** (Senden ohne Kürzel wäre genau die Verwechslung; `%` wäre LIKE-Platzhalter).
+    Nebenwirkung zur Kenntnis: beide Schritte liegen im selben `try` (`SageBookingWorker.cs:64-74`) – wirft der Lagerbuchungs-Schritt, entfällt in diesem
+    Takt auch der Sage-WE-Schritt bzw. Q-2; bei ungültigem Wert würde der WE-Schritt ohnehin werfen. Ein ungültiger Wert ist nur am Katalog vorbei
+    möglich: von Hand in der DB **oder** über die Freitext-Aktionen `ServiceSettings/Create|Edit` (`ServiceSettingsController.cs:211,233` prüfen keine
+    Katalog-Keys – Bestandslücke für alle Einstellungen, nicht aus diesem Diff; die Fehlermail je Takt macht es sichtbar).
+  - *Kein `pattern`-Attribut im Eingabefeld:* **akzeptiert** – ADR 0020 verlangt die Serverprüfung, die Fehlermeldung ist sichtbar (DEV belegt); ein
+    Client-`pattern` wäre eine zweite Implementierung derselben Regel.
+- Weitere Defektklassen: keine `<script>`-Einbettung, kein `hidden`+`d-*`, kein stiller Fallback (Kürzel-Lesen im Web nur für die Anzeige), keine
+  parallelen Arrays, Regel nicht doppelt implementiert (die FremdeKennung-Erkennung erfasst bewusst jede Form).
+- Hinweis (kein Befund): Die Beschreibung von `Sync:SageWareneingangMaxWiederholungen` nennt weiter `WE#<Id>#` ohne Kürzel – textlich ungenau, harmlos.
+
+### 3. Beweisart je Punkt des Nachtrags
+| Punkt | Beweis |
+|---|---|
+| 1 Einstellung + Serverprüfung | automatisiert (`SettingValidatorTests` 12 Fälle, `ServiceSettingsControllerTests` neu) **und** DEV-Maske (TS-116.25 OK) |
+| 2 Format Kopf/Position, Suche, Sicherungsnetz | automatisiert (`SageWareneingangServiceTests`, LIKE-Matrix als String-Contains); die echte LIKE-/SData-Auswertung in Sage ist **Manual-UAT** (116.26/116.27) |
+| 3 nur neue Sendungen, gespeicherte Kennung | automatisiert (Erstversand speichert, Wiederholung sucht gespeicherte, Altbestand altes Format); Spalten in SQL Server und Liste auf DEV belegt (116.28 Anzeige) |
+| 4 SM# gleiches Problem | Analyse belegt (Umsetzung Punkt 5); Marker/Kennung/Payload/Where automatisiert; Worker-Pfad Recovery/Requeue ohne Unit-Test, Wirkung **Manual-UAT** 116.29 |
+| 5 Manifest + DEV-Absicherung | Drift-Test grün; `Sync:SageSystemKuerzel = DEV` auf beiden DEV-DBs nach Deploy belegt |
+| 6 Tests mit/ohne Kürzel, `WE#7#` bei DEV nicht gefunden | automatisiert (`KuerzelDev_FremderBelegOhneKuerzel_…`, `OhneKuerzel_Erstversand_AltesFormat_Gespeichert`) |
+
+### 4. Geänderte Bestandstests
+`SageBookingCorrelationTests`, `SageWareneingangServiceTests` (Fake `NachMemoAsync(string)`, `PositionsMemo("WE#7#",…)`, `WhereMemo("WE#7#")`,
+`FremdeKennung(…, "WE#7#")`), `BuchungLookupSdataTests` (`ExistsAsync`/`Where` mit Marker statt Id): **nur Signatur/Typ**, erwartete Werte unverändert
+(`WE#7#`, `SM#42#`). `NachlaufManifestDriftTests`: `SQL/144` in der Reihenfolge = gewollte Erweiterung (Nachtrag Punkt 5). Kein „Sonstiges“.
+
+### 5. Checkliste / ADR 0020
+Migration + SQL/144 + FreshInstall 2× + Manifest: OK. Audit: keine neue Entität; Kennung wird in bestehenden Schreibwegen gesetzt. Version 1.99.9 in
+beiden `AppVersion.cs`, Anwender-Changelog, Hilfe, README, Brain-Changelog [[2026-11-12-v1-99-9-sage-system-kuerzel]], TS-116.25–116.30 in
+`docs/TESTSZENARIEN.md` und im Testindex. ADR 0020: Freitext mit festem Format (Auswahlliste nicht möglich), Serverprüfung, Anzeigename, Wirkung,
+Verwendung, Default, Standort, Warnhinweis vorhanden (DEV-Maske gesehen). OK.
+
+### 6. DEV-Deploy und Test
+- `dev-deploy.ps1 -Standort AKE` und `-Standort IDEAL`, Quelle Worktree (HEAD `4c1b5523`), elevated: je **Exit 0**, „HTTP 200, Fusszeile v1.99.9“,
+  Web + Dienst. Dienst-Logs: `SageBookingWorker gestartet. Version 1.99.9` auf beiden, keine `[ERR]`.
+- `SQL/144` auf `AKE_WMS_DEV` und `IDEAL_WMS_DEV` erneut ausgeführt: rc 0, No-op; je Spalte `COL_LENGTH = 40`, MigrationId vorhanden.
+- DEV-Absicherung: `Sync:SageSystemKuerzel = DEV` auf beiden; `SageLagerbuchungAktiv`, `SageWareneingangBelegAktiv`, `ErrorNotification:Enabled`,
+  `Notifications:MeldebestandEnabled` = false. Auf Anweisung des Aufrufers danach die 5 AKE-DEV-Lese-Syncs wieder `true`
+  (`Sync:ArticlesEnabled`, `ArtikelLieferantEnabled`, `KreditorenEnabled`, `DebitorenEnabled`, `EinkaufBestellungenEnabled`).
+
+| Schritt | Ausgeführt / Ergebnis | Status |
+|---|---|---|
+| 116.25 Maske | AKE-DEV /ServiceSettings: Anzeigename, Wirkung, „Verwendet in“, „Standard: leer; Standort: beide“, Warnhinweis „In der Produktion LEER lassen …“ sichtbar. `dev`, `12`, `ABCDEF`, `D%` je abgelehnt („… ist nicht erlaubt – erlaubt: leer oder 1 bis 5 Zeichen …“), DB blieb `DEV`; ` ATI ` gespeichert als `ATI`, danach `DEV` gespeichert | OK |
+| 116.26 neuer Sage-WE mit DEV | schreibt nach Sage | NICHT MÖGLICH (nur Gerald) |
+| 116.27 fremder Beleg | braucht werfenden Sende-Client; laut Auftrag kein Harness | NICHT MÖGLICH (automatisiert belegt) |
+| 116.28 Anzeige | Liste „Sage-Wareneingänge“ AKE-DEV mit vorübergehend gesetzten Daten: Receipt 4 `SageWeKennung='WE#AT#4#'` → Memo `WE#AT#4#`; Receipt 7 `Versuche=0` → `WE#DEV#7#`; zurückgesetzt (NULL/1) → `WE#4#`, `WE#7#` (Altbestand) | OK |
+| 116.28 Suche nach Kürzelwechsel | braucht Sage-Lesen bei eingeschaltetem Sage-WE | NICHT MÖGLICH (Mensch) |
+| 116.29 SM# mit Kürzel | schreibt nach Sage | NICHT MÖGLICH (nur Gerald) |
+| 116.30 leer | automatisiert | OK (Test) |
+
+### 7. Publish
+`C:\git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish`: `IDEALAKEWMSWeb` + `IDEALAKEWMSWebService` (Ordner vorher geleert),
+`SQL\` (mit `144_AddSageKennungen.sql`), `deploy\`, `publish-info.txt` (Version 1.99.9, Commit `4c1b55238e7e333db4212a69dc86b5cf8752059d`). Beide Exit 0.
+
+### Manuelle Checkliste Nachtrag v1.99.9 (offen, Mensch)
+1. Testsystem-Lauf mit dem Paket aus `publish` (v1.99.9): Update-Skript führt `SQL/144` aus; danach je Testsystem das Kürzel setzen (AT, ATI, IT),
+   **bevor** Sage-WE bzw. Lagerbuchung dort eingeschaltet sind.
+2. TS-116.26 (nur Gerald, Sage-Test): neuer Sage-WE mit Kürzel – Kopf- und Positions-Memo `WE#<K>#<Id>#` in Sage, `SageWeKennung` gespeichert.
+3. TS-116.27: fremder Beleg `WE#4#`/`WE#7#` wird bei Kürzel nicht gefunden.
+4. TS-116.28 Suche: Eintrag aus 2. auf Fehler, Kürzel ändern → Suche mit der gespeicherten Kennung findet den eigenen Beleg, kein zweiter Beleg.
+5. TS-116.29 (nur Gerald): Lagerbuchung mit `SM#<K>#<id>#`, Requeue findet die eigene Buchung; Negativ `dev` von Hand in der DB → Dienst sendet nichts.
+6. Kenntnisnahme: das Kürzel muss mit einem Buchstaben beginnen (enger als der Nachtrag, Begründung oben).
+7. Schranke 2: Merge des Bündels.

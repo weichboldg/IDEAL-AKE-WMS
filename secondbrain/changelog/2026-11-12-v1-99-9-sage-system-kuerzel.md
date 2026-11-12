@@ -7,7 +7,7 @@ date: 2026-11-12
 
 Buendel `feature/2026-08-07-ideal-teile-1-5`, Commits `115e8a09` (Code, SQL/144), `c47f0136` (Version, Doku, TS-116.25–116.30).
 Spec [[2026-11-08-wareneingang-teil-2-sage-we-beleg-rahmenabrufe-spec]], Abschnitt „Freigabe-Nachtrag 2026-11-12 14:20“. Nicht gemergt, nicht
-gepusht, vor QA.
+gepusht. QA 2026-11-12 Testbereit, QA-Korrektur `4c1b5523` (System-Kuerzel getrimmt speichern), Publish v1.99.9 im Worktree.
 
 ## Kernpunkte
 
