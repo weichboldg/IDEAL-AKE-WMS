@@ -2,7 +2,7 @@
 type: spec
 title: "Wareneingang Teil 2: Sage-Wareneingangsbeleg (ELL)"
 slug: 2026-11-08-wareneingang-teil-2-sage-we-beleg-rahmenabrufe-spec
-status: Testbereit
+status: InUmsetzung
 created: 2026-11-08
 updated: 2026-11-12
 freigabe_von: "Gerald Weichbold (Chat Koordination, 2026-11-11 20:40 „beide freigeben“)"
@@ -917,3 +917,27 @@ Nachlauf: kein Deploy-Schritt → kein Eintrag in `nachlauf.psd1` nötig.
 3. P-W9 (a)/(b) wie oben (entscheidet E5).
 4. Alle offenen Punkte der v1.99.4-Checkliste (TS-116.11, .13, .14, .15 mit `stock_read`, .16, Q-2/Q-8).
 5. Testsystem-Lauf mit dem Paket aus `publish` (v1.99.5), danach Schranke 2.
+
+## P-W9 (a) Ergebnis – Gerald 2026-11-12, Sage-SQL `ake_TEST2026`, nur lesend
+
+`KHKEKBelege`, `Belegkennzeichen = 'ELL'`, Memo `LIKE '%WE#%'` → genau die zwei Test-Belege:
+
+| BelID | Belegnummer | Belegjahr | Belegdatum | Memo (Kopf) | Lieferschein-Feld | Lieferant |
+|---|---|---|---|---|---|---|
+| 363225 | 398675 | 2027 | 2026-11-11 | `WE#4#` | `WMS-TEST-1` | K30601 Gasperlmair Glas |
+| 363226 | 398676 | 2027 | 2026-11-12 | `WE#7#` | `WMS-TEST-2` | K30601 Gasperlmair Glas |
+
+- Das Kopf-Memo steht **unverändert** am Beleg und ist über `LIKE` eindeutig auffindbar. Die Kennung `WE#<id>#` erscheint in der Zeile noch
+  ein zweites Mal, in einer weiteren Spalte. Welche Spalte das ist, ist nicht belegt; Gerald hat die Spaltennamen nicht mitgeschickt.
+- Die Lieferscheinnummer ist am Kopf angekommen.
+- Position (TS-116.18, Positions-Memo `WE#7# LS WMS-TEST-2 Platz GL;0;0;0`): noch nicht geprüft.
+- **(a) positiv.** Offen: (b) SData-Lookup über `EinkaufBelegeInfo`, danach Rückbau der beiden Belege.
+
+## Freigabe-Nachtrag 2026-11-12 (Gerald, Chat): Positionsmemo-Feld im Wareneingang, v1.99.6
+
+Positions-Memo am Beleg 2027-398676 in Sage uebernommen (Gerald). Neu: je Position ein Eingabefeld „Positionsmemo“ in „Wareneingang zu Bestellung“.
+- Inhalt in Sage (`Artikelmemo`): **Eingabe vorne, automatische Kennung dahinter**, getrennt mit „ | “, z. B. `Kante beschädigt | WE#7# LS WMS-TEST-2
+  Platz GL;0;0;0`; leeres Feld = nur die Kennung wie in v1.99.5.
+- **Immer speichern**, auch ohne Sage-Wareneingang (wie die Lieferschein-Nr.); an Sage nur im Sage-Wareneingang.
+- Umsetzung (Dev-Lauf): gespeichert in der vorhandenen Notiz der Bewegung (`StockMovement.Note`, nvarchar(500), Anzeige Bewegungshistorie; die
+  Sage-Lagerbuchung sendet die Notiz nicht, `SageLagerbuchungPayloadBuilder` setzt nur `Standardtext`) – keine Migration. Eingabe hoechstens 200 Zeichen.
