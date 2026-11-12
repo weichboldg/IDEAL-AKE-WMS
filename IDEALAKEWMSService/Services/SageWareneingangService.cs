@@ -51,7 +51,9 @@ public class SageWareneingangService
         return liegen.Count;
     }
 
-    public async Task RunOnceAsync(SageBookingEndpoint endpoint, int stuckMinutes, int batchSize, SageWeWiederholung wiederholung, CancellationToken ct = default)
+    /// <param name="kuerzel">v1.99.9: System-Kuerzel (<see cref="SageSystemKuerzel"/>, geprueft); wirkt nur auf Receipts, die noch nie gesendet wurden.</param>
+    public async Task RunOnceAsync(SageBookingEndpoint endpoint, int stuckMinutes, int batchSize, SageWeWiederholung wiederholung,
+        string? kuerzel = null, CancellationToken ct = default)
     {
         var jetzt0 = DateTime.Now;
         var grenze = jetzt0.AddMinutes(-Math.Max(1, stuckMinutes));
@@ -76,7 +78,7 @@ public class SageWareneingangService
         {
             foreach (var g in haengend.GroupBy(r => r.SageWeVorgang))
             {
-                var text = SageWareneingang.UnklarText(g.Min(r => r.Id));
+                var text = SageWareneingang.UnklarText(SageWareneingang.Kennung(g.MinBy(r => r.Id)!, kuerzel));
                 foreach (var r in g) Setze(r, SageWareneingangStatus.Fehler, fehlerText: text);
                 unklar++;
                 await run.LogWarningAsync(text, ct: ct);
@@ -97,8 +99,8 @@ public class SageWareneingangService
                 // E5: vor jedem ERNEUTEN Senden in Sage nachsehen (Erstversand: Versuche = 0, keine Suche)
                 if (auto || gruppe.Any(r => r.SageWeVersuche > 0))
                 {
-                    var memo = SageWareneingang.Memo(gruppe[0].Id);
-                    var p = await PruefenAsync(gruppe, auto, ct);
+                    var memo = SageWareneingang.Kennung(gruppe[0], kuerzel);
+                    var p = await PruefenAsync(gruppe, memo, auto, ct);
                     // QA v1.99.7 F-1: Waehrend der Sage-Suche (Sekunden) kann die Web-Seite die Gruppe geaendert haben („Als uebergeben markieren“,
                     // „Erneut senden“). Stand neu lesen - sonst ueberschreibt das Speichern den Handgriff bzw. sendet trotz Uebergeben.
                     // ponytail: Restfenster im Millisekundenbereich bis zum Speichern; schliessen nur mit rowversion (Migration).
@@ -128,7 +130,7 @@ public class SageWareneingangService
                 }
 
                 SageWareneingangRequest payload;
-                try { payload = SageWareneingangPayloadBuilder.Build(gruppe); }
+                try { payload = SageWareneingangPayloadBuilder.Build(gruppe, kuerzel); }
                 catch (SageWareneingangPayloadException pex)
                 {
                     foreach (var r in gruppe) Setze(r, SageWareneingangStatus.Fehler, fehlerText: pex.Message);
@@ -138,7 +140,8 @@ public class SageWareneingangService
                 }
 
                 // Status VOR dem HTTP-Call (Timeout/Absturz -> „hängend“ statt blind doppelt senden)
-                foreach (var r in gruppe) { Setze(r, SageWareneingangStatus.Gesendet); r.SageWeVersuche++; }
+                // v1.99.9: verwendete Kennung speichern (VOR Versuche++, Kennung() liest Versuche), damit die Suche spaeter genau sie nutzt
+                foreach (var r in gruppe) { r.SageWeKennung = SageWareneingang.Kennung(r, kuerzel); Setze(r, SageWareneingangStatus.Gesendet); r.SageWeVersuche++; }
                 await _ctx.SaveChangesAsync(ct);
                 gesendet++;
 
@@ -175,20 +178,20 @@ public class SageWareneingangService
     private sealed record Pruefung(SageWareneingangStatus Neu, string? Text, string? Beleg, bool Mehrfach = false);
 
     /// <summary>E5: Sage-Suche vor dem erneuten Senden. null = senden.</summary>
-    private async Task<Pruefung?> PruefenAsync(List<PurchaseOrderReceipt> gruppe, bool auto, CancellationToken ct)
+    /// <param name="memo">Kennung, mit der die Gruppe gesendet wurde (<see cref="SageWareneingang.Kennung"/> des ersten Receipts).</param>
+    private async Task<Pruefung?> PruefenAsync(List<PurchaseOrderReceipt> gruppe, string memo, bool auto, CancellationToken ct)
     {
         var erste = gruppe[0];
-        var memo = SageWareneingang.Memo(erste.Id);
         try
         {
-            var treffer = await _lookup.NachMemoAsync(erste.Id, ct);
+            var treffer = await _lookup.NachMemoAsync(memo, ct);
             if (treffer.Count == 1) return new(SageWareneingangStatus.Uebergeben, null, treffer[0].Anzeige);
             if (treffer.Count > 1)
                 return new(SageWareneingangStatus.Fehler,
                     $"Mehrere Sage-Belege mit Memo {memo}: {string.Join(", ", treffer.Select(t => t.Anzeige))}. Nicht gesendet – bitte in Sage klären.", null, Mehrfach: true);
             if (!auto) return null;   // „Erneut senden“ von Hand: der Mensch hat geprueft, kein Sicherungsnetz
             var kandidaten = (await _lookup.KandidatenAsync(erste.BelId, erste.CreatedAt.Date, erste.Lieferschein, ct))
-                .Where(t => !SdataWareneingangLookupReader.FremdeKennung(t.Memo, erste.Id)).ToList();
+                .Where(t => !SdataWareneingangLookupReader.FremdeKennung(t.Memo, memo)).ToList();
             return kandidaten.Count == 0 ? null
                 : new(SageWareneingangStatus.Klaeren, SageWareneingang.KlaerenText(kandidaten.Select(t => t.Anzeige)), null);
         }

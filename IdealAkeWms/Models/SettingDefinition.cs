@@ -62,6 +62,7 @@ public enum SettingBoolLesart
 /// <param name="LeerErlaubt">Leerer Wert ist zulaessig (MasterData/Int).</param>
 /// <param name="BoolLesart">Lesart bei Bool (F6).</param>
 /// <param name="Seed">AppSettings: beim Web-Start anlegen, wenn die Zeile fehlt (Wert = Default).</param>
+/// <param name="Muster">String: erlaubtes Format als Regex (getrimmter Wert) und Text fuer die Fehlermeldung (v1.99.9, System-Kuerzel).</param>
 public sealed record SettingDefinition(
     string Key,
     SettingType Type,
@@ -81,4 +82,5 @@ public sealed record SettingDefinition(
     SettingStammdaten Stammdaten = SettingStammdaten.Keine,
     bool LeerErlaubt = false,
     SettingBoolLesart BoolLesart = SettingBoolLesart.NurTrueAktiviert,
-    bool Seed = false);
+    bool Seed = false,
+    (string Regex, string Erlaubt)? Muster = null);

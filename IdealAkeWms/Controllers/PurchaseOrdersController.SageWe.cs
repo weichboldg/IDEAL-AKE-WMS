@@ -26,8 +26,10 @@ public partial class PurchaseOrdersController
         _ => s.ToString(),
     };
 
-    /// <summary>Korrelation am Sage-Beleg (Memo): WE#&lt;erste Receipt-Id der Gruppe&gt;# (Muster SM#&lt;id&gt;#, fallstricke).</summary>
-    public static string SageWeMemo(int ersteReceiptId) => SageWareneingang.Memo(ersteReceiptId);
+    /// <summary>Korrelation am Sage-Beleg (Memo): Kennung des ersten Receipts der Gruppe, WE#[K#]&lt;Id&gt;# (Muster SM#&lt;id&gt;#, fallstricke).
+    /// v1.99.9: dieselbe Regel wie der Dienst (<see cref="SageWareneingang.Kennung"/>) - gesendet = gespeicherte Kennung, nie gesendet = mit dem
+    /// aktuellen System-Kuerzel.</summary>
+    public static string SageWeMemo(PurchaseOrderReceipt erste, string? kuerzel) => SageWareneingang.Kennung(erste, kuerzel);
 
     // Server-Spaltenfilter: Col-Key -> gerenderter Zelltext (ADR 0005/0017)
     private static readonly Dictionary<string, Func<SageWareneingangZeile, string?>> SageWeColumnMap = new()
@@ -55,8 +57,9 @@ public partial class PurchaseOrdersController
         var effectivePageSize = PageSize.Resolve(pageSize, userDefault);
 
         var receipts = await _receipts.GetSageWareneingaengeAsync(status, bestellung, von, bis);
+        var kuerzel = (await _serviceSettings.GetValueAsync(SageSystemKuerzel.Key))?.Trim();
         var memoJeVorgang = receipts.Where(r => r.SageWeVorgang != null).GroupBy(r => r.SageWeVorgang!.Value)
-            .ToDictionary(g => g.Key, g => SageWeMemo(g.Min(r => r.Id)));
+            .ToDictionary(g => g.Key, g => SageWeMemo(g.MinBy(r => r.Id)!, kuerzel));
         var zeilen = receipts.Select(r => new SageWareneingangZeile
         {
             Receipt = r,

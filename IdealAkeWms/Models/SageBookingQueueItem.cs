@@ -40,4 +40,9 @@ public class SageBookingQueueItem : AuditableEntity
 
     [Display(Name = "Bestaetigt am")]
     public DateTime? ConfirmedAt { get; set; }
+
+    /// <summary>v1.99.9: beim Senden verwendete Memo-Kennung <c>SM#[K#]&lt;StockMovementId&gt;#</c> (System-Kürzel); der Lookup vor
+    /// Requeue/Recovery sucht genau sie. NULL = nie gesendet bzw. vor v1.99.9 gesendet (altes Format ohne Kürzel).</summary>
+    [StringLength(20)]
+    public string? SageKennung { get; set; }
 }

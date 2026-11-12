@@ -100,7 +100,9 @@ public class SageBookingWorker : BackgroundService
         var wiederholung = new SageWeWiederholung(
             await ServiceSettings.GetIntSafeAsync(_configuration, SageWareneingang.MaxWiederholungenKey, 3, ct),
             await ServiceSettings.GetIntSafeAsync(_configuration, SageWareneingang.WiederholAbstandKey, 15, ct));
-        await service.RunOnceAsync(await BuildEndpointAsync(ct), stuckMinutes, batchSize, wiederholung, ct);
+        // v1.99.9: System-Kuerzel der Kennung WE#[K#]<id>#; Lesefehler/ungueltig -> Takt abbrechen (nichts senden), nicht ohne Kuerzel senden.
+        var kuerzel = SageSystemKuerzel.Pruefen(await ServiceSettings.GetValueAsync(_configuration, SageSystemKuerzel.Key, ct));
+        await service.RunOnceAsync(await BuildEndpointAsync(ct), stuckMinutes, batchSize, wiederholung, kuerzel, ct);
     }
 
     private async Task SageWareneingangAusAsync(CancellationToken ct)
@@ -130,6 +132,9 @@ public class SageBookingWorker : BackgroundService
         var stuckMinutes = await ServiceSettings.GetIntSafeAsync(_configuration, "Sync:SageLagerbuchungStuckMinutes", 10, ct);
         // v1.73.0 E7: Umbuchungen nur mit eigenem Schalter (Default aus = Nacherfassung wie bisher nur Ein-/Ausbuchung).
         var umbuchungAktiv = await ServiceSettings.GetBoolSafeAsync(_configuration, SageBookingEnqueueDecision.UmbuchungToggleKey, false, ct);
+        // v1.99.9: System-Kuerzel der Kennung SM#[K#]<id>#. Nicht die Safe-Variante: ein Lesefehler bzw. ein ungueltiger Wert bricht den Takt
+        // ab (catch in ExecuteAsync), statt ohne Kuerzel zu senden.
+        var kuerzel = SageSystemKuerzel.Pruefen(await ServiceSettings.GetValueAsync(_configuration, SageSystemKuerzel.Key, ct));
 
         var endpoint = new SageBookingEndpoint(
             BaseUrl: await ServiceSettings.GetValueSafeAsync(_configuration, "SData:BaseUrl", ct) ?? string.Empty,
@@ -158,7 +163,7 @@ public class SageBookingWorker : BackgroundService
                 if (ct.IsCancellationRequested) break;
                 try
                 {
-                    if (await lookup.ExistsAsync(item.StockMovementId, ct))
+                    if (await lookup.ExistsAsync(SageBookingCorrelation.Kennung(item, kuerzel), ct))
                     {
                         await queue.MarkConfirmedAsync(item.Id, "Recovery: Buchung in Sage bereits vorhanden (Memo-Lookup).");
                         bestaetigt++;
@@ -195,7 +200,7 @@ public class SageBookingWorker : BackgroundService
                 SageLagerbuchungRequest payload;
                 try
                 {
-                    payload = SageLagerbuchungPayloadBuilder.Build(item.StockMovement);
+                    payload = SageLagerbuchungPayloadBuilder.Build(item.StockMovement, SageBookingCorrelation.Kennung(item, kuerzel));
                 }
                 catch (SageBookingPayloadException pex)
                 {
@@ -211,7 +216,7 @@ public class SageBookingWorker : BackgroundService
                 {
                     try
                     {
-                        if (await lookup.ExistsAsync(item.StockMovementId, ct))
+                        if (await lookup.ExistsAsync(SageBookingCorrelation.Kennung(item, kuerzel), ct))
                         {
                             await queue.MarkConfirmedAsync(item.Id,
                                 "Requeue: Buchung in Sage bereits vorhanden (Memo-Lookup).");
@@ -230,7 +235,7 @@ public class SageBookingWorker : BackgroundService
                 }
 
                 // AK10: Status VOR dem HTTP-Call auf Gesendet (Timeout -> kein zweiter Auto-Versuch).
-                await queue.MarkSentAsync(item.Id);
+                await queue.MarkSentAsync(item.Id, SageBookingCorrelation.Kennung(item, kuerzel));
                 gesendet++;
 
                 var result = await client.SendAsync(payload, endpoint, ct);

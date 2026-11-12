@@ -25,8 +25,8 @@ public class BuchungLookupQuelleSwitch : SageQuelleWeiche, ISageBuchungLookupRea
     protected override string Bereich => SageQuelleSchalter.LagerbuchungLookup;
 
     // Vergleich je Bewegung: "gefunden" = ein Schluessel SM#<id>#, "nicht gefunden" = keiner -> Abweichung (fehlt in View/SData).
-    public Task<bool> ExistsAsync(int stockMovementId, CancellationToken ct = default) =>
-        LeseAsync<bool, string>(c => _view.ExistsAsync(stockMovementId, c), c => _sdata.ExistsAsync(stockMovementId, c),
-            gefunden => gefunden ? new[] { SageBookingCorrelation.Marker(stockMovementId) } : Array.Empty<string>(),
+    public Task<bool> ExistsAsync(string marker, CancellationToken ct = default) =>
+        LeseAsync<bool, string>(c => _view.ExistsAsync(marker, c), c => _sdata.ExistsAsync(marker, c),
+            gefunden => gefunden ? new[] { marker } : Array.Empty<string>(),
             s => s, Array.Empty<SdataVergleich.Feld<string>>(), ct);
 }

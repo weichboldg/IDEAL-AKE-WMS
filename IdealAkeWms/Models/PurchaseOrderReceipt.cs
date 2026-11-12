@@ -57,6 +57,9 @@ public class PurchaseOrderReceipt : AuditableEntity
     public string? SageWeFehler { get; set; }
     /// <summary>Anzahl Sende-Versuche (Status vor dem POST auf Gesendet + 1).</summary>
     public int SageWeVersuche { get; set; }
+    /// <summary>v1.99.9: beim Senden verwendete Memo-Kennung dieses Receipts (<c>WE#[K#]&lt;Id&gt;#</c>, System-Kürzel); die Suche vor dem
+    /// erneuten Senden nutzt sie, auch wenn das Kürzel inzwischen geändert wurde. NULL = nie gesendet bzw. vor v1.99.9 (altes Format).</summary>
+    public string? SageWeKennung { get; set; }
     /// <summary>Lieferschein-Nr. des Lieferanten (F6), an jedem Receipt eines Absendens; an Sage nur im Sage-WE als EKLieferschein.</summary>
     public string? Lieferschein { get; set; }
 }

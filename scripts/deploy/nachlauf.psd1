@@ -81,6 +81,8 @@ Eintraege = @(
    Datei='142_AddDeployScriptRuns.sql'; MigrationId='20261111174202_AddDeployScriptRuns'; Voraussetzung='additiv (Marker-Tabelle des Update-Skripts)'; Quelle='2026-11-11-v1-99-0-update-skript-prueft-und-fuehrt-aus' }
 @{ Id='SQL/143'; Version='1.99.4'; Typ='Schema'; Firma='beide'; Phase='Schema'; Ausfuehrung='automatisch'
    Datei='143_AddPurchaseOrderReceiptSageWe.sql'; MigrationId='20261111200627_AddPurchaseOrderReceiptSageWe'; Voraussetzung='additiv'; Quelle='2026-11-11-v1-99-4-wareneingang-sage-we-beleg' }
+@{ Id='SQL/144'; Version='1.99.9'; Typ='Schema'; Firma='beide'; Phase='Schema'; Ausfuehrung='automatisch'
+   Datei='144_AddSageKennungen.sql'; MigrationId='20261112141208_AddSageKennungen'; Voraussetzung='additiv'; Quelle='2026-11-12-v1-99-9-sage-system-kuerzel' }
 
 # ---------------------------------------------------------------- Pruefungen (jeder Lauf; Reparatur nur nach Bestaetigung) -------
 @{ Id='Pruefung/Kommissionierbereiche'; Version='1.88.0'; Typ='Pruefung'; Firma='beide'; Phase='Haltepunkt'; Ausfuehrung='Reparatur'; Braucht=@('SQL/133')
@@ -269,5 +271,8 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
 @{ Id='v1.99.7-EinkaufKlaeren'; Version='1.99.7'; Typ='Info'; Firma='AKE'; Phase='Nachher'; Ausfuehrung='anzeigen'
    Text='Einkauf/Lager informieren: Liste heisst jetzt Lager -> Sage-Wareneingaenge (eigener Block mit Sage-Lagerbuchungen). Fehler wiederholt der Dienst selbst; Status Klaeren = moeglicher Beleg in Sage ohne WMS-Kennung: in Sage pruefen, dann Als uebergeben markieren oder Erneut senden. Ist der Sage-Wareneingang aus, gehen offene Eintraege auf Klaeren und werden nie automatisch nachgeschickt.'
    Quelle='2026-11-12-v1-99-7-wareneingang-e5-auto-retry' }
+@{ Id='v1.99.9-SystemKuerzel'; Version='1.99.9'; Typ='Einstellung'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Text='Neu in /ServiceSettings > Sage-Lagerbuchung: Sync:SageSystemKuerzel (System-Kuerzel fuer Sage-Kennungen). Kuerzel je Testsystem setzen (DEV, AT = AKE-Test, ATI = AKE Test-IDEAL, IT = IDEAL-Test), Produktion LEER lassen. Wirkt nur auf neue Sendungen (WE#<K>#<Id># bzw. SM#<K>#<id>#); gesendete Eintraege behalten ihre Kennung.'
+   Quelle='2026-11-12-v1-99-9-sage-system-kuerzel' }
 )
 }

@@ -325,6 +325,7 @@ BEGIN
         [SageResponseRaw]   NVARCHAR(MAX)     NULL,
         [SentAt]            DATETIME2         NULL,
         [ConfirmedAt]       DATETIME2         NULL,
+        [SageKennung]       NVARCHAR(20)      NULL,  -- v1.99.9 (SQL/144): beim Senden verwendete Kennung SM#[K#]<id>#
         [CreatedAt]         DATETIME2         NOT NULL DEFAULT GETDATE(),
         [CreatedBy]         NVARCHAR(200)     NOT NULL,
         [CreatedByWindows]  NVARCHAR(200)     NOT NULL,
@@ -2376,6 +2377,7 @@ BEGIN
         [SageWeFehler]              NVARCHAR(1000)    NULL,
         [SageWeVersuche]            INT               NOT NULL CONSTRAINT DF_PurchaseOrderReceipts_SageWeVersuche DEFAULT 0,
         [Lieferschein]              NVARCHAR(20)      NULL,
+        [SageWeKennung]             NVARCHAR(20)      NULL,  -- v1.99.9 (SQL/144): beim Senden verwendete Kennung WE#[K#]<Id>#
         [CreatedAt]                 DATETIME2         NOT NULL,
         [CreatedBy]                 NVARCHAR(200)     NOT NULL,
         [CreatedByWindows]          NVARCHAR(200)     NOT NULL,
@@ -3183,6 +3185,9 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261111200627_AddPurchaseOrderReceiptSageWe')
    AND COL_LENGTH(N'dbo.PurchaseOrderReceipts', N'SageWeStatus') IS NOT NULL -- sonst steht SQL/143 noch aus
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261111200627_AddPurchaseOrderReceiptSageWe', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261112141208_AddSageKennungen')
+   AND COL_LENGTH(N'dbo.PurchaseOrderReceipts', N'SageWeKennung') IS NOT NULL -- sonst steht SQL/144 noch aus
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261112141208_AddSageKennungen', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';

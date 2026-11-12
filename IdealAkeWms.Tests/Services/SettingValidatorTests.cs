@@ -23,6 +23,40 @@ public class SettingValidatorTests
         if (!gueltig) p.Fehler.Should().Contain("Quelle Artikel-Abgleich").And.Contain("„View“, „SData“, „Vergleich“");
     }
 
+    // v1.99.9 (Spec 2026-11-08-wareneingang-teil-2 Freigabe-Nachtrag 14:20): System-Kuerzel, serverseitig gepruefte Form
+    [Theory]
+    [InlineData("", true, "")]
+    [InlineData("DEV", true, "DEV")]
+    [InlineData(" AT ", true, "AT")]
+    [InlineData("ATI", true, "ATI")]
+    [InlineData("A1B2C", true, "A1B2C")]
+    [InlineData("ABCDEF", false, null)]
+    [InlineData("dev", false, null)]
+    [InlineData("12", false, null)]
+    [InlineData("1AB", false, null)]
+    [InlineData("A-1", false, null)]
+    [InlineData("D%", false, null)]
+    [InlineData("A B", false, null)]
+    public void SystemKuerzel_NurGrossbuchstabenUndZiffern_Max5_BuchstabeVorne(string wert, bool gueltig, string? kanonisch)
+    {
+        var p = SettingValidator.Validate(Svc(IdealAkeWms.Services.SageSystemKuerzel.Key), wert, exakt: true);
+        p.Gueltig.Should().Be(gueltig);
+        p.Kanonisch.Should().Be(kanonisch);
+        if (!gueltig) p.Fehler.Should().Contain("System-Kürzel für Sage-Kennungen").And.Contain("Großbuchstaben");
+        IdealAkeWms.Services.SageSystemKuerzel.Gueltig(wert).Should().Be(gueltig);
+    }
+
+    [Fact]
+    public void SystemKuerzel_Katalog_DefaultLeer_BeideStandorte_Warnhinweis()
+    {
+        var d = Svc(IdealAkeWms.Services.SageSystemKuerzel.Key);
+        (d.Type, d.DefaultValue, d.Standort).Should().Be((SettingType.String, "", "beide"));
+        d.Warnhinweis.Should().Contain("Produktion LEER").And.Contain("nur auf neue Sendungen");
+        IdealAkeWms.Services.SageSystemKuerzel.Pruefen("  ").Should().BeNull();
+        IdealAkeWms.Services.SageSystemKuerzel.Pruefen(" DEV ").Should().Be("DEV");
+        ((Action)(() => IdealAkeWms.Services.SageSystemKuerzel.Pruefen("dev"))).Should().Throw<InvalidOperationException>().WithMessage("*Nichts gesendet*");
+    }
+
     [Fact]
     public void Int_Grenzen_MultiChoice_MasterData_AK12()
     {

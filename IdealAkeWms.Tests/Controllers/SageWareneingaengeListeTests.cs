@@ -55,6 +55,24 @@ public class SageWareneingaengeListeTests
     }
 
     [Fact]
+    public async Task Liste_Memo_GespeicherteKennung_AltbestandAltesFormat_NieGesendetMitKuerzel_v1_99_9()
+    {
+        var (ctrl, db) = await BuildAsync();
+        db.ServiceSettings.Add(new ServiceSetting { Key = SageSystemKuerzel.Key, Value = "DEV" });
+        var b = db.PurchaseOrderReceipts.Single(r => r.SageWeVorgang == VorgangB);
+        b.SageWeKennung = $"WE#AT#{b.Id}#";
+        await db.SaveChangesAsync();
+
+        var vm = (SageWareneingaengeViewModel)((ViewResult)await ctrl.SageWareneingaenge(null, null, null, null)).Model!;
+
+        var a = vm.Zeilen.Where(z => z.Receipt.SageWeVorgang == VorgangA).Min(z => z.Receipt.Id);
+        vm.Zeilen.Where(z => z.Receipt.SageWeVorgang == VorgangA).Should().OnlyContain(z => z.Memo == $"WE#{a}#", "gesendet vor v1.99.9 = altes Format");
+        vm.Zeilen.Single(z => z.Receipt.SageWeVorgang == VorgangB).Memo.Should().Be($"WE#AT#{b.Id}#", "gespeicherte Kennung");
+        var c = vm.Zeilen.Single(z => z.Receipt.SageWeVorgang == VorgangC);
+        c.Memo.Should().Be($"WE#DEV#{c.Receipt.Id}#", "nie gesendet = aktuelles Kuerzel, wie der Dienst");
+    }
+
+    [Fact]
     public async Task Liste_OhneNichtNoetig_MitMemoDerGruppe_StatusFilter_AK8()
     {
         var (ctrl, _) = await BuildAsync();

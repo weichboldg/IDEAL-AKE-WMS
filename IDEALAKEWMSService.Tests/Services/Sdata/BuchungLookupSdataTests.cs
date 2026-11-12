@@ -33,16 +33,25 @@ public class BuchungLookupSdataTests
     {
         var client = Client(new SdataBuchungZeile(865823));
 
-        (await Reader(client).ExistsAsync(Ziel, 19376, CancellationToken.None)).Should().BeTrue();
+        (await Reader(client).ExistsAsync(Ziel, "SM#19376#", CancellationToken.None)).Should().BeTrue();
 
         client.Verify(c => c.QueryAllAsync<SdataBuchungZeile>(Ziel, SageSdataReadClient.VertragResources, "LagerplatzbuchungenInfo",
             "Memo like '%SM#19376#%'", "BuchungsID", "BuchungsID", It.IsAny<CancellationToken>(), 1), Times.Once);
     }
 
     [Fact]
+    public async Task Reader_MitKuerzel_SuchtGenauDieKennung_v1_99_9()
+    {
+        var client = Client(new SdataBuchungZeile(1));
+        (await Reader(client).ExistsAsync(Ziel, "SM#DEV#7#", CancellationToken.None)).Should().BeTrue();
+        client.Verify(c => c.QueryAllAsync<SdataBuchungZeile>(Ziel, SageSdataReadClient.VertragResources, "LagerplatzbuchungenInfo",
+            "Memo like '%SM#DEV#7#%'", "BuchungsID", "BuchungsID", It.IsAny<CancellationToken>(), 1), Times.Once);
+    }
+
+    [Fact]
     public async Task Reader_KeinTreffer_False()
     {
-        (await Reader(Client()).ExistsAsync(Ziel, 7, CancellationToken.None)).Should().BeFalse();
+        (await Reader(Client()).ExistsAsync(Ziel, "SM#7#", CancellationToken.None)).Should().BeFalse();
     }
 
     [Fact]
@@ -53,14 +62,14 @@ public class BuchungLookupSdataTests
                 It.IsAny<string?>(), It.IsAny<string>(), It.IsAny<CancellationToken>(), It.IsAny<int>()))
             .ThrowsAsync(new SdataLeseException("LagerplatzbuchungenInfo", 503, "nicht verfügbar"));
 
-        await ((Func<Task>)(() => Reader(client).ExistsAsync(Ziel, 7, CancellationToken.None))).Should().ThrowAsync<SdataLeseException>();
+        await ((Func<Task>)(() => Reader(client).ExistsAsync(Ziel, "SM#7#", CancellationToken.None))).Should().ThrowAsync<SdataLeseException>();
     }
 
     [Fact]
     public async Task Reader_OhneKonfiguration_Wirft()
     {
-        // ExistsAsync(int) liest das Ziel aus ServiceSettings/appsettings; fehlt es, darf nie "nicht gebucht" herauskommen.
-        await ((Func<Task>)(() => Reader(Client()).ExistsAsync(7))).Should().ThrowAsync<InvalidOperationException>();
+        // ExistsAsync(marker) liest das Ziel aus ServiceSettings/appsettings; fehlt es, darf nie "nicht gebucht" herauskommen.
+        await ((Func<Task>)(() => Reader(Client()).ExistsAsync("SM#7#"))).Should().ThrowAsync<InvalidOperationException>();
     }
 
     [Fact]
@@ -68,7 +77,7 @@ public class BuchungLookupSdataTests
     {
         // '#' wuerde die URL als Fragment abschneiden -> %23; '%' -> %25 (E0). TODO(UAT E7): Dekodierung am Sage-Server.
         SageSdataReadClient.BuildQueryUrl(Ziel, SageSdataReadClient.VertragResources, SdataBuchungLookupReader.Ressource,
-                SdataBuchungLookupReader.Where(12), SdataBuchungLookupReader.Select, SdataBuchungLookupReader.OrderBy, 1, 1)
+                SdataBuchungLookupReader.Where("SM#12#"), SdataBuchungLookupReader.Select, SdataBuchungLookupReader.OrderBy, 1, 1)
             .Should().EndWith("&where=Memo like '%25SM%2312%23%25'");
     }
 
@@ -80,7 +89,7 @@ public class BuchungLookupSdataTests
         public Exception? Fehler { get; set; }
         public int Aufrufe { get; private set; }
 
-        public Task<bool> ExistsAsync(int stockMovementId, CancellationToken ct = default)
+        public Task<bool> ExistsAsync(string marker, CancellationToken ct = default)
         {
             Aufrufe++;
             return Fehler is null ? Task.FromResult(Ergebnis) : Task.FromException<bool>(Fehler);
@@ -114,7 +123,7 @@ public class BuchungLookupSdataTests
         var (w, view, sdata, logger, _) = Weiche(schalter);
         view.Ergebnis = true;
 
-        (await w.ExistsAsync(5)).Should().BeTrue();
+        (await w.ExistsAsync("SM#5#")).Should().BeTrue();
         sdata.Aufrufe.Should().Be(0);
         logger.Runs.Should().BeEmpty();
         w.GenutzteQuelle.Should().Be(SageQuelle.View);
@@ -126,11 +135,11 @@ public class BuchungLookupSdataTests
         var (w, view, sdata, _, notifier) = Weiche("SData");
         sdata.Ergebnis = true;
 
-        (await w.ExistsAsync(5)).Should().BeTrue();
+        (await w.ExistsAsync("SM#5#")).Should().BeTrue();
         view.Aufrufe.Should().Be(0);
 
         sdata.Fehler = new SdataLeseException("LagerplatzbuchungenInfo", 0, "nicht erreichbar");
-        await ((Func<Task>)(() => w.ExistsAsync(5))).Should().ThrowAsync<SdataLeseException>("der Worker sendet dann nicht neu");
+        await ((Func<Task>)(() => w.ExistsAsync("SM#5#"))).Should().ThrowAsync<SdataLeseException>("der Worker sendet dann nicht neu");
         notifier.VerifyNoOtherCalls();
     }
 
@@ -141,7 +150,7 @@ public class BuchungLookupSdataTests
         view.Ergebnis = false;
         sdata.Ergebnis = true;
 
-        (await w.ExistsAsync(5)).Should().BeFalse("im Vergleich gilt das View-Ergebnis");
+        (await w.ExistsAsync("SM#5#")).Should().BeFalse("im Vergleich gilt das View-Ergebnis");
 
         var lauf = logger.Runs.Single(r => r.ServiceName == SyncLogServices.SageQuellenvergleich);
         lauf.FinalCounts!["abweichend"].Should().Be(1);
@@ -155,7 +164,7 @@ public class BuchungLookupSdataTests
         view.Ergebnis = true;
         sdata.Fehler = new SdataLeseException("LagerplatzbuchungenInfo", 500, "kaputt");
 
-        (await w.ExistsAsync(5)).Should().BeTrue();
+        (await w.ExistsAsync("SM#5#")).Should().BeTrue();
         logger.Runs.Single(r => r.ServiceName == SyncLogServices.SageQuellenvergleich).FinishedFailed.Should().BeTrue();
         notifier.Verify(n => n.NotifyAsync(It.IsAny<string>(), It.IsAny<SdataLeseException>(), It.IsAny<CancellationToken>()), Times.Once);
     }
@@ -166,7 +175,7 @@ public class BuchungLookupSdataTests
         var (w, view, _, _, _) = Weiche("Vergleich");
         view.Fehler = new InvalidOperationException("Sage-DB weg");
 
-        await ((Func<Task>)(() => w.ExistsAsync(5))).Should().ThrowAsync<InvalidOperationException>();
+        await ((Func<Task>)(() => w.ExistsAsync("SM#5#"))).Should().ThrowAsync<InvalidOperationException>();
     }
 
     [Fact]
@@ -175,7 +184,7 @@ public class BuchungLookupSdataTests
         var (w, view, sdata, logger, _) = Weiche("sdata");
         view.Ergebnis = true;
 
-        (await w.ExistsAsync(5)).Should().BeTrue();
+        (await w.ExistsAsync("SM#5#")).Should().BeTrue();
         sdata.Aufrufe.Should().Be(0);
         logger.Runs.Single().Events.Should().Contain(e => e.Message.Contains("LagerbuchungLookup"));
     }

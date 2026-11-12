@@ -14,7 +14,8 @@ namespace IDEALAKEWMSService.Services;
 /// </summary>
 public static class SageLagerbuchungPayloadBuilder
 {
-    public static SageLagerbuchungRequest Build(StockMovement movement)
+    /// <param name="marker">v1.99.9: Kennung des Queue-Eintrags (<see cref="SageBookingCorrelation.Kennung"/>); null = ohne Kuerzel.</param>
+    public static SageLagerbuchungRequest Build(StockMovement movement, string? marker = null)
     {
         // Typfilter ohne Schalter: was in der Queue steht, wurde nach der Regel eingereiht (Schalter wirkt beim Einreihen).
         if (!SageBookingEnqueueDecision.IsBookableType(movement.MovementType, umbuchungAktiv: true))
@@ -67,7 +68,7 @@ public static class SageLagerbuchungPayloadBuilder
 
         return new SageLagerbuchungRequest
         {
-            Memo = SageBookingCorrelation.Memo(movement.Id),
+            Memo = SageBookingCorrelation.Memo(marker ?? SageBookingCorrelation.Marker(movement.Id)),
             Standardtext = text,
             Lagerbuchungen = new List<SageLagerbuchungZeile> { zeile }
         };

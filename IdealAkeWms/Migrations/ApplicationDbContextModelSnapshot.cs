@@ -3902,6 +3902,10 @@ namespace IdealAkeWms.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
 
+                    b.Property<string>("SageWeKennung")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
                     b.Property<int>("SageWeStatus")
                         .HasColumnType("int");
 
@@ -4036,6 +4040,10 @@ namespace IdealAkeWms.Migrations
                     b.Property<string>("ModifiedByWindows")
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("SageKennung")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
 
                     b.Property<string>("SageResponseRaw")
                         .HasColumnType("nvarchar(max)");

@@ -22,6 +22,13 @@ public class SageLagerbuchungPayloadBuilderTests
         };
 
     [Fact]
+    public void Build_MitKennung_MemoMitKuerzel_v1_99_9()
+    {
+        SageLagerbuchungPayloadBuilder.Build(Movement(MovementType.Einbuchung), "SM#DEV#7#").Memo.Should().Be("IdealAkeWms Lagerbuchung SM#DEV#7#");
+        SageLagerbuchungPayloadBuilder.Build(Movement(MovementType.Einbuchung)).Memo.Should().Be("IdealAkeWms Lagerbuchung SM#7#");
+    }
+
+    [Fact]
     public void Build_Einbuchung_ProducesZugang_ZielGesetzt_HerkunftLeer()
     {
         var payload = SageLagerbuchungPayloadBuilder.Build(Movement(MovementType.Einbuchung));

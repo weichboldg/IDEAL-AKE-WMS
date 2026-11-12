@@ -446,6 +446,7 @@ public class ApplicationDbContext : DbContext
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Status).HasConversion<int>();
             entity.Property(e => e.LastError).HasMaxLength(2000);
+            entity.Property(e => e.SageKennung).HasMaxLength(20);   // v1.99.9 System-Kuerzel (SM#[K#]<id>#)
             entity.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
             entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
             entity.Property(e => e.ModifiedBy).HasMaxLength(200);
@@ -1433,6 +1434,7 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.SageWeBelegnummer).HasMaxLength(30);
             entity.Property(e => e.SageWeFehler).HasMaxLength(1000);
             entity.Property(e => e.Lieferschein).HasMaxLength(20);
+            entity.Property(e => e.SageWeKennung).HasMaxLength(20);   // v1.99.9 System-Kuerzel
             entity.HasIndex(e => e.SageWeVorgang).HasDatabaseName("IX_PurchaseOrderReceipts_SageWeVorgang");
             entity.HasIndex(e => e.SageWeStatus).HasDatabaseName("IX_PurchaseOrderReceipts_SageWeStatus");
         });

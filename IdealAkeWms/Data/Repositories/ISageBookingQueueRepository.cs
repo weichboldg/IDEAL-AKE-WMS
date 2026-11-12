@@ -31,7 +31,8 @@ public interface ISageBookingQueueRepository
     Task<List<SageBookingQueueItem>> GetForMonitoringAsync(SageBookingQueueStatus? status);
 
     /// <summary>Status auf Gesendet setzen (VOR dem HTTP-Call), SentAt/LastAttemptAt/AttemptCount fortschreiben.</summary>
-    Task MarkSentAsync(int id);
+    /// <param name="kennung">v1.99.9: beim Senden verwendete Memo-Kennung (SM#[K#]&lt;id&gt;#), gespeichert fuer den Lookup.</param>
+    Task MarkSentAsync(int id, string kennung);
 
     /// <summary>Status auf Bestaetigt setzen (+ ConfirmedAt, rohe Antwort).</summary>
     Task MarkConfirmedAsync(int id, string? sageResponseRaw);

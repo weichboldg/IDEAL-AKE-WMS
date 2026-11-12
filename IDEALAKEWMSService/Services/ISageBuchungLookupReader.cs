@@ -7,6 +7,7 @@ namespace IDEALAKEWMSService.Services;
 /// </summary>
 public interface ISageBuchungLookupReader
 {
-    /// <summary>True, wenn zur Bewegung bereits eine Sage-Buchung existiert.</summary>
-    Task<bool> ExistsAsync(int stockMovementId, CancellationToken ct = default);
+    /// <summary>True, wenn bereits eine Sage-Buchung mit dieser Kennung im Memo existiert (v1.99.9: Kennung statt Id, wegen System-Kuerzel;
+    /// <see cref="SageBookingCorrelation.Kennung"/>).</summary>
+    Task<bool> ExistsAsync(string marker, CancellationToken ct = default);
 }

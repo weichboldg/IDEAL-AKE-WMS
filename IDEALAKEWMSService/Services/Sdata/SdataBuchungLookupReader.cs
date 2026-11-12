@@ -31,16 +31,16 @@ public sealed class SdataBuchungLookupReader : ISageBuchungLookupReader
     // TODO(UAT E7): Am AKE-Test belegt ist nur ein Praefix-like (`Memo like 'IdealAkeWms%'`). Ungeprueft: fuehrendes `%` und das von
     // SageSdataReadClient.BuildQueryUrl als %23 kodierte `#` (Sage muss es zu `#` dekodieren). Pruefung: TS-106.9 Schritt „Lookup SData“
     // mit einer gebuchten Bewegung muss `true` liefern; liefert er `false`, Schalter zurueck auf View (Doppelbuchungsgefahr bei Requeue).
-    public static string Where(int stockMovementId) => $"Memo like '{SageBookingCorrelation.LikePattern(stockMovementId)}'";
+    public static string Where(string marker) => $"Memo like '{SageBookingCorrelation.LikePattern(marker)}'";
 
-    public async Task<bool> ExistsAsync(int stockMovementId, CancellationToken ct = default) =>
-        await ExistsAsync(await SdataLeseZielLeser.LesenAsync(_configuration, ct), stockMovementId, ct);
+    public async Task<bool> ExistsAsync(string marker, CancellationToken ct = default) =>
+        await ExistsAsync(await SdataLeseZielLeser.LesenAsync(_configuration, ct), marker, ct);
 
-    public async Task<bool> ExistsAsync(SdataLeseZiel ziel, int stockMovementId, CancellationToken ct)
+    public async Task<bool> ExistsAsync(SdataLeseZiel ziel, string marker, CancellationToken ct)
     {
         // count=1: eine Seite reicht fuer "gibt es"; QueryAllAsync liest bis $totalResults (eine IU-Umbuchung = wenige Zeilen).
         var treffer = await _client.QueryAllAsync<SdataBuchungZeile>(ziel, SageSdataReadClient.VertragResources, Ressource,
-            Where(stockMovementId), Select, OrderBy, ct, count: 1);
+            Where(marker), Select, OrderBy, ct, count: 1);
         return treffer.Zeilen.Count > 0;
     }
 }

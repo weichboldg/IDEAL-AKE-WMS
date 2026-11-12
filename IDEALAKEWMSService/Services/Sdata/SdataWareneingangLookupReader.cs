@@ -15,8 +15,8 @@ public sealed record SageWeBelegTreffer(int BelID, int? Belegjahr, int? Belegnum
 /// der Sender sendet dann nicht (ein „nicht gefunden“ wegen eines HTTP-Fehlers wäre eine Doppelbuchung).</summary>
 public interface ISageWareneingangLookup
 {
-    /// <summary>ELL-Belege mit der Memo-Kennung <c>WE#&lt;id&gt;#</c>.</summary>
-    Task<IReadOnlyList<SageWeBelegTreffer>> NachMemoAsync(int ersteReceiptId, CancellationToken ct);
+    /// <summary>ELL-Belege mit der Memo-Kennung <c>WE#[K#]&lt;id&gt;#</c> (v1.99.9: die beim Senden gespeicherte Kennung, <see cref="SageWareneingang.Kennung"/>).</summary>
+    Task<IReadOnlyList<SageWeBelegTreffer>> NachMemoAsync(string kennung, CancellationToken ct);
 
     /// <summary>Sicherungsnetz bei 0 Memo-Treffern: ELL-Belege aus derselben Bestellung ab dem Buchungsdatum, mit Lieferschein-Nr. falls erfasst.</summary>
     Task<IReadOnlyList<SageWeBelegTreffer>> KandidatenAsync(int bestellBelId, DateTime abDatum, string? lieferschein, CancellationToken ct);
@@ -39,18 +39,22 @@ public sealed class SdataWareneingangLookupReader : ISageWareneingangLookup
         _configuration = configuration;
     }
 
-    public static string WhereMemo(int ersteReceiptId) =>
-        $"Belegkennzeichen eq '{SageWareneingang.BelegKennzeichen}' and Memo like '%{SageWareneingang.Memo(ersteReceiptId)}%'";
+    /// <summary>v1.99.9: Kennung ohne LIKE-Metazeichen (Kuerzel nur A-Z/0-9, Buchstabe vorne). Ein <c>%WE#7#%</c> trifft <c>WE#DEV#7#</c> nicht
+    /// und umgekehrt; das schliessende <c>#</c> trennt <c>WE#7#</c> von <c>WE#17#</c>/<c>WE#70#</c>.</summary>
+    public static string WhereMemo(string kennung) =>
+        $"Belegkennzeichen eq '{SageWareneingang.BelegKennzeichen}' and Memo like '%{kennung}%'";
 
     public static string WhereKandidaten(int bestellBelId, DateTime abDatum, string? lieferschein) =>
         $"Belegkennzeichen eq '{SageWareneingang.BelegKennzeichen}' and ReferenzBelID eq {bestellBelId} and Belegdatum ge @{abDatum:yyyy-MM-dd}@"
         + (string.IsNullOrWhiteSpace(lieferschein) ? "" : $" and Lieferschein eq '{lieferschein.Trim().Replace("'", "''")}'");
 
-    /// <summary>Treffer, deren Memo eine ANDERE WMS-Kennung trägt, sind andere WMS-Wareneingänge, keine Kandidaten.</summary>
-    public static bool FremdeKennung(string? memo, int ersteReceiptId) =>
-        Regex.Matches(memo ?? "", @"WE#(\d+)#").Any(m => m.Groups[1].Value != ersteReceiptId.ToString());
+    /// <summary>Treffer, deren Memo eine ANDERE WMS-Kennung trägt, sind andere WMS-Wareneingänge, keine Kandidaten. v1.99.9: jede Kennung mit
+    /// oder ohne System-Kuerzel (<c>WE#7#</c>, <c>WE#DEV#7#</c>), die nicht exakt die eigene ist, gilt als fremd - auch <c>WE#7#</c> bei eigener
+    /// <c>WE#DEV#7#</c> (anderes WMS, z. B. Produktion oder ein Test-System ohne Kuerzel).</summary>
+    public static bool FremdeKennung(string? memo, string eigeneKennung) =>
+        Regex.Matches(memo ?? "", @"WE#(?:[A-Z][A-Z0-9]{0,4}#)?\d+#").Any(m => m.Value != eigeneKennung);
 
-    public Task<IReadOnlyList<SageWeBelegTreffer>> NachMemoAsync(int ersteReceiptId, CancellationToken ct) => Lesen(WhereMemo(ersteReceiptId), ct);
+    public Task<IReadOnlyList<SageWeBelegTreffer>> NachMemoAsync(string kennung, CancellationToken ct) => Lesen(WhereMemo(kennung), ct);
 
     public Task<IReadOnlyList<SageWeBelegTreffer>> KandidatenAsync(int bestellBelId, DateTime abDatum, string? lieferschein, CancellationToken ct) =>
         Lesen(WhereKandidaten(bestellBelId, abDatum, lieferschein), ct);

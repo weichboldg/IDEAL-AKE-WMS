@@ -19,14 +19,14 @@ public class SageBuchungLookupReader : ISageBuchungLookupReader
         _configuration = configuration;
     }
 
-    public async Task<bool> ExistsAsync(int stockMovementId, CancellationToken ct = default)
+    public async Task<bool> ExistsAsync(string marker, CancellationToken ct = default)
     {
         var sageConnection = ConnectionStrings.Sage(_configuration);
 
         await using var conn = new SqlConnection(sageConnection);
         await conn.OpenAsync(ct);
         await using var cmd = new SqlCommand(LookupSql, conn) { CommandTimeout = 30 };
-        cmd.Parameters.AddWithValue("@pattern", SageBookingCorrelation.LikePattern(stockMovementId));
+        cmd.Parameters.AddWithValue("@pattern", SageBookingCorrelation.LikePattern(marker));
 
         var result = await cmd.ExecuteScalarAsync(ct);
         return result != null && result != DBNull.Value;

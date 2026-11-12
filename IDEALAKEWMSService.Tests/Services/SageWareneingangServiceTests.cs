@@ -37,6 +37,8 @@ public class SageWareneingangServiceTests
     private sealed class FakeLookup : ISageWareneingangLookup
     {
         public List<SageWeBelegTreffer> Memo { get; } = new();
+        /// <summary>v1.99.9: Memo-Treffer wie die Sage-LIKE-Suche filtern statt alle zurueckgeben.</summary>
+        public bool WieSage { get; set; }
         public List<SageWeBelegTreffer> Kandidaten { get; } = new();
         public bool Wirft { get; set; }
         /// <summary>Simuliert einen Handgriff in der Web-Seite waehrend der (Sekunden dauernden) Sage-Suche.</summary>
@@ -44,12 +46,15 @@ public class SageWareneingangServiceTests
         public int MemoAufrufe { get; private set; }
         public int KandidatenAufrufe { get; private set; }
         public (int BelId, DateTime Ab, string? Ls)? LetzteKandidatenSuche { get; private set; }
-        public Task<IReadOnlyList<SageWeBelegTreffer>> NachMemoAsync(int ersteReceiptId, CancellationToken ct)
+        public string? LetzteKennung { get; private set; }
+        public Task<IReadOnlyList<SageWeBelegTreffer>> NachMemoAsync(string kennung, CancellationToken ct)
         {
             MemoAufrufe++;
+            LetzteKennung = kennung;
             BeiSuche?.Invoke();
             if (Wirft) throw new IdealAkeWms.Services.SageSdata.SdataLeseException("EinkaufBelegeInfo", 503, "Sage nicht erreichbar");
-            return Task.FromResult<IReadOnlyList<SageWeBelegTreffer>>(Memo);
+            // v1.99.9: wie Sage `Memo like '%<kennung>%'` (Kennung ohne LIKE-Metazeichen = Teilstring)
+            return Task.FromResult<IReadOnlyList<SageWeBelegTreffer>>(WieSage ? Memo.Where(t => (t.Memo ?? "").Contains(kennung)).ToList() : Memo);
         }
         public Task<IReadOnlyList<SageWeBelegTreffer>> KandidatenAsync(int bestellBelId, DateTime abDatum, string? lieferschein, CancellationToken ct)
         {
@@ -153,11 +158,11 @@ public class SageWareneingangServiceTests
         (pos.Artikelnummer, pos.MengeBasis, pos.Positionstyp, pos.Mengenart).Should().Be(("00722001", 2m, 1, 1));
         pos.BelegPositionLagermengen.Single().Should().BeEquivalentTo(new SageWeLagermenge { PlatzId = 77, Kurzbezeichnung = "HR;0;0;0", MengeBasis = 2m });
         pos.Artikelmemo.Should().Be($"WE#{a.Id}# LS LS-4711 Platz HR;0;0;0", "v1.99.5: Memo je Position");
-        SageWareneingangPayloadBuilder.PositionsMemo(7, null, "GL;0;0;0").Should().Be("WE#7# Platz GL;0;0;0");
+        SageWareneingangPayloadBuilder.PositionsMemo("WE#7#", null, "GL;0;0;0").Should().Be("WE#7# Platz GL;0;0;0");
         // v1.99.6: Eingabe des Lagers vorne, Kennung dahinter; leer = nur Kennung
-        SageWareneingangPayloadBuilder.PositionsMemo(7, "WMS-TEST-2", "GL;0;0;0", " Kante beschädigt ")
+        SageWareneingangPayloadBuilder.PositionsMemo("WE#7#", "WMS-TEST-2", "GL;0;0;0", " Kante beschädigt ")
             .Should().Be("Kante beschädigt | WE#7# LS WMS-TEST-2 Platz GL;0;0;0");
-        SageWareneingangPayloadBuilder.PositionsMemo(7, "WMS-TEST-2", "GL;0;0;0", "  ").Should().Be("WE#7# LS WMS-TEST-2 Platz GL;0;0;0");
+        SageWareneingangPayloadBuilder.PositionsMemo("WE#7#", "WMS-TEST-2", "GL;0;0;0", "  ").Should().Be("WE#7# LS WMS-TEST-2 Platz GL;0;0;0");
         gruppe[0].StockMovement.Note = "Kante beschädigt";
         SageWareneingangPayloadBuilder.Build(gruppe).StandardBelegPositionen.Single().Artikelmemo.Should().StartWith("Kante beschädigt | WE#");
         SageWareneingangClient.Serialize(p).Should().Contain("\"EKLieferschein\":\"LS-4711\"");
@@ -401,14 +406,137 @@ public class SageWareneingangServiceTests
     [Fact]
     public void Lookup_Filter_EngUndKodierbar()
     {
-        SdataWareneingangLookupReader.WhereMemo(7).Should().Be("Belegkennzeichen eq 'ELL' and Memo like '%WE#7#%'");
+        SdataWareneingangLookupReader.WhereMemo("WE#7#").Should().Be("Belegkennzeichen eq 'ELL' and Memo like '%WE#7#%'");
         SdataWareneingangLookupReader.WhereKandidaten(362313, new DateTime(2026, 11, 11, 14, 5, 0), " O'Neil ")
             .Should().Be("Belegkennzeichen eq 'ELL' and ReferenzBelID eq 362313 and Belegdatum ge @2026-11-11@ and Lieferschein eq 'O''Neil'");
         SdataWareneingangLookupReader.WhereKandidaten(1, new DateTime(2026, 11, 11), null).Should().NotContain("Lieferschein");
-        SdataWareneingangLookupReader.FremdeKennung("WE#7#", 7).Should().BeFalse();
-        SdataWareneingangLookupReader.FremdeKennung("x WE#70# y", 7).Should().BeTrue();
-        SdataWareneingangLookupReader.FremdeKennung(null, 7).Should().BeFalse();
+        SdataWareneingangLookupReader.FremdeKennung("WE#7#", "WE#7#").Should().BeFalse();
+        SdataWareneingangLookupReader.FremdeKennung("x WE#70# y", "WE#7#").Should().BeTrue();
+        SdataWareneingangLookupReader.FremdeKennung(null, "WE#7#").Should().BeFalse();
         new SageWeBelegTreffer(1, 2027, 398675, null).Anzeige.Should().Be("2027-398675");
+    }
+
+    // ---------------- v1.99.9 System-Kuerzel (Freigabe-Nachtrag 14:20) ----------------
+
+    [Fact]
+    public void Kennung_MitUndOhneKuerzel_GespeicherteGehtVor()
+    {
+        SageWareneingang.Memo(7).Should().Be("WE#7#", "leer = heutiges Format (Produktion)");
+        SageWareneingang.Memo(7, "").Should().Be("WE#7#");
+        SageWareneingang.Memo(7, "DEV").Should().Be("WE#DEV#7#");
+        var neu = new PurchaseOrderReceipt { Id = 7 };
+        SageWareneingang.Kennung(neu, "DEV").Should().Be("WE#DEV#7#", "nie gesendet = aktuelles Kuerzel");
+        SageWareneingang.Kennung(neu, null).Should().Be("WE#7#");
+        SageWareneingang.Kennung(new PurchaseOrderReceipt { Id = 7, SageWeVersuche = 1 }, "DEV").Should().Be("WE#7#", "vor v1.99.9 gesendet = altes Format");
+        SageWareneingang.Kennung(new PurchaseOrderReceipt { Id = 7, SageWeVersuche = 1, SageWeKennung = "WE#AT#7#" }, "DEV").Should().Be("WE#AT#7#");
+    }
+
+    [Theory]
+    [InlineData("WE#7#", "WE#DEV#7#", false)]
+    [InlineData("WE#DEV#7#", "WE#7#", false)]
+    [InlineData("WE#DEV#7#", "WE#DEV#7#", true)]
+    [InlineData("WE#AT#7#", "WE#AT#17#", false)]
+    [InlineData("WE#AT#7#", "WE#ATI#7#", false)]
+    [InlineData("WE#ATI#7#", "WE#AT#7#", false)]
+    [InlineData("WE#7#", "WE#17#", false)]
+    [InlineData("WE#7#", "WE#70#", false)]
+    [InlineData("WE#AT#7#", "WE#DEV#7#", false)]
+    public void MemoSuche_LikeTeilstring_TrifftNurDieEigeneKennung(string kennung, string memoInSage, bool trifft)
+    {
+        SdataWareneingangLookupReader.WhereMemo(kennung).Should().EndWith($"Memo like '%{kennung}%'");
+        memoInSage.Contains(kennung).Should().Be(trifft, "LIKE '%k%' ohne Metazeichen = Teilstring");
+    }
+
+    [Theory]
+    [InlineData("WE#7#", "WE#DEV#7#", true)]
+    [InlineData("WE#DEV#7#", "WE#DEV#7#", false)]
+    [InlineData("Text WE#DEV#7# LS 1", "WE#DEV#7#", false)]
+    [InlineData("WE#AT#7#", "WE#DEV#7#", true)]
+    [InlineData("WE#DEV#7#", "WE#7#", true)]
+    [InlineData("WE#DEV#70#", "WE#DEV#7#", true)]
+    [InlineData("ohne Kennung", "WE#DEV#7#", false)]
+    public void FremdeKennung_MitUndOhneKuerzel(string memo, string eigene, bool fremd) =>
+        SdataWareneingangLookupReader.FremdeKennung(memo, eigene).Should().Be(fremd);
+
+    [Fact]
+    public async Task Kuerzel_Erstversand_KennungImKopfUndPositionsMemo_Gespeichert()
+    {
+        var (db, _, _) = Db();
+        var v = Guid.NewGuid();
+        var a = Receipt(db, 1, v, SageWareneingangStatus.Offen);
+        var b = Receipt(db, 2, v, SageWareneingangStatus.Offen);
+        var client = new FakeClient();
+
+        await Svc(db, client).RunOnceAsync(Endpoint, 10, 50, Wdh, "DEV");
+
+        var p = client.Gesendet.Single();
+        p.Memo.Should().Be($"WE#DEV#{a.Id}#");
+        p.StandardBelegPositionen.Select(x => x.Artikelmemo).Should().Equal($"WE#DEV#{a.Id}# LS LS-4711 Platz HR;0;0;0", $"WE#DEV#{b.Id}# LS LS-4711 Platz HR;0;0;0");
+        db.PurchaseOrderReceipts.OrderBy(r => r.Id).Select(r => r.SageWeKennung).Should().Equal($"WE#DEV#{a.Id}#", $"WE#DEV#{b.Id}#");
+    }
+
+    [Fact]
+    public async Task OhneKuerzel_Erstversand_AltesFormat_Gespeichert()
+    {
+        var (db, _, _) = Db();
+        var a = Receipt(db, 1, Guid.NewGuid(), SageWareneingangStatus.Offen);
+        var client = new FakeClient();
+
+        await Svc(db, client).RunOnceAsync(Endpoint, 10, 50, Wdh, null);
+
+        client.Gesendet.Single().Memo.Should().Be($"WE#{a.Id}#");
+        db.PurchaseOrderReceipts.Single().SageWeKennung.Should().Be($"WE#{a.Id}#");
+    }
+
+    [Fact]
+    public async Task Wiederholung_SuchtMitGespeicherterKennung_NichtMitAktuellemKuerzel()
+    {
+        var (db, _, _) = Db();
+        var r = FehlerNachVersuch(db);
+        r.SageWeKennung = $"WE#AT#{r.Id}#";
+        db.SaveChanges();
+        var lookup = new FakeLookup();
+        var client = new FakeClient();
+
+        await Svc(db, client, null, lookup).RunOnceAsync(Endpoint, 10, 50, Wdh, "DEV");
+
+        lookup.LetzteKennung.Should().Be($"WE#AT#{r.Id}#", "Kuerzel spaeter geaendert - gesucht wird, womit gesendet wurde");
+        client.Gesendet.Single().Memo.Should().Be($"WE#AT#{r.Id}#", "erneutes Senden mit derselben Kennung");
+    }
+
+    [Fact]
+    public async Task Altbestand_OhneGespeicherteKennung_SuchtAltesFormat()
+    {
+        var (db, _, _) = Db();
+        var r = FehlerNachVersuch(db);   // vor v1.99.9 gesendet: Versuche 1, keine Kennung
+        var lookup = new FakeLookup();
+
+        await Svc(db, new FakeClient(), null, lookup).RunOnceAsync(Endpoint, 10, 50, Wdh, "DEV");
+
+        lookup.LetzteKennung.Should().Be($"WE#{r.Id}#");
+    }
+
+    [Fact]
+    public async Task KuerzelDev_FremderBelegOhneKuerzel_WirdNichtGefunden_NichtFuerUebergebenGehalten()
+    {
+        // Nachtrag Punkt 6: die Sage-Testdatenbank enthaelt den Beleg eines anderen WMS mit WE#<id># (ohne Kuerzel). Der DEV-Eintrag gleicher Id
+        // (gesendet mit WE#DEV#<id>#, Ergebnis unklar) darf ihn weder per Memo-Suche noch im Sicherungsnetz als eigenen nehmen.
+        var (db, _, _) = Db();
+        var r = FehlerNachVersuch(db);
+        r.SageWeKennung = $"WE#DEV#{r.Id}#";
+        db.SaveChanges();
+        var fremd = new SageWeBelegTreffer(363226, 2027, 398676, $"WE#{r.Id}#");
+        var lookup = new FakeLookup { WieSage = true };
+        lookup.Memo.Add(fremd);
+        lookup.Kandidaten.Add(fremd);
+        var client = new FakeClient();
+
+        await Svc(db, client, null, lookup).RunOnceAsync(Endpoint, 10, 50, Wdh, "DEV");
+
+        lookup.MemoAufrufe.Should().Be(1);
+        client.Gesendet.Should().ContainSingle("fremder Beleg zaehlt nicht - der DEV-Eintrag wird gesendet");
+        client.Gesendet[0].Memo.Should().Be($"WE#DEV#{r.Id}#");
+        db.PurchaseOrderReceipts.Single().SageWeBelegnummer.Should().Be("WE-2026-1", "nicht der fremde Beleg 2027-398676");
     }
 
     [Fact]

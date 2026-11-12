@@ -29,10 +29,16 @@ public static class SageWareneingang
         $"Ziel-Platz {code} ist kein Sage-Platz mit Sage-Buchung (nicht in Sage vorhanden oder „Sage-Buchung erlaubt“ aus) – Sage-Wareneingang nicht möglich. Bitte einen Sage-Platz wählen.";
 
     /// <summary>Korrelation am Sage-Beleg (Memo): WE#&lt;erste Receipt-Id der Gruppe&gt;# (Trennzeichen-Regel wie SM#&lt;id&gt;#).</summary>
-    public static string Memo(int ersteReceiptId) => $"WE#{ersteReceiptId}#";
+    /// v1.99.9: mit System-Kürzel <c>WE#&lt;K&gt;#&lt;id&gt;#</c> (<see cref="SageSystemKuerzel"/>).
+    public static string Memo(int receiptId, string? kuerzel = null) => SageSystemKuerzel.Kennung("WE", kuerzel, receiptId);
 
-    public static string UnklarText(int ersteReceiptId) =>
-        $"Ergebnis unklar – keine Antwort von Sage. Vor dem nächsten Versuch prüft der Dienst in Sage, ob ein Wareneingangsbeleg mit Memo {Memo(ersteReceiptId)} existiert.";
+    /// <summary>v1.99.9: Kennung eines Receipts - die beim Senden gespeicherte; nie gesendet (Versuche 0) = mit dem aktuellen Kürzel;
+    /// gesendet vor v1.99.9 (ohne gespeicherte Kennung) = altes Format ohne Kürzel. Kopf-Memo = Kennung des ersten Receipts der Gruppe.</summary>
+    public static string Kennung(PurchaseOrderReceipt r, string? kuerzel) =>
+        r.SageWeKennung ?? (r.SageWeVersuche == 0 ? Memo(r.Id, kuerzel) : Memo(r.Id));
+
+    public static string UnklarText(string kennung) =>
+        $"Ergebnis unklar – keine Antwort von Sage. Vor dem nächsten Versuch prüft der Dienst in Sage, ob ein Wareneingangsbeleg mit Memo {kennung} existiert.";
 
     // ---- v1.99.7 E5 (Variante A) und Q-2 ----
 

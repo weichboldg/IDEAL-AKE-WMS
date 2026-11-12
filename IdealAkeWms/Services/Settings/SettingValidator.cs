@@ -65,6 +65,10 @@ public static class SettingValidator
                 var s = stammdaten.FirstOrDefault(x => string.Equals(x, t, StringComparison.OrdinalIgnoreCase));
                 return s != null ? SettingPruefung.Ok(s) : Fehler(name, roh, "ein vorhandener Stammdaten-Eintrag");
 
+            case SettingType.String when d.Muster is { } muster:
+                // v1.99.9: festes Format (System-Kuerzel); gespeichert wird der getrimmte Wert
+                return System.Text.RegularExpressions.Regex.IsMatch(t, muster.Regex) ? SettingPruefung.Ok(t) : Fehler(name, roh, muster.Erlaubt);
+
             default:
                 return SettingPruefung.Ok(roh ?? "");
         }

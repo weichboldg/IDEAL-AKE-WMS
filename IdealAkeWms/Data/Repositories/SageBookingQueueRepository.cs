@@ -87,10 +87,11 @@ public class SageBookingQueueRepository : ISageBookingQueueRepository
         return await query.OrderByDescending(q => q.Id).ToListAsync();
     }
 
-    public async Task MarkSentAsync(int id)
+    public async Task MarkSentAsync(int id, string kennung)
     {
         var item = await _context.SageBookingQueueItems.FindAsync(id);
         if (item is null) return;
+        item.SageKennung = kennung;
         item.Status = SageBookingQueueStatus.Gesendet;
         item.SentAt = DateTime.Now;
         item.LastAttemptAt = DateTime.Now;
