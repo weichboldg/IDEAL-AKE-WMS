@@ -736,3 +736,27 @@ beide Exit 0), `SQL\`, `deploy\`, `publish-info.txt` (Version 1.99.11, Commit `0
 10. TS-129.17 Benutzer ohne `stock_keyuser`/`admin`/`picking`: kein Knopf, direkter POST abgewiesen (AK 13).
 11. P-C1/P-C2 am AKE-Dienst-Server (Dienstkonto, Recht „Ändern“ auf Freigabe und NTFS), P-C3 Leser/enaio-Import.
 12. Rendering und Kontrast von Maske und Liste an einem Lager-Terminal.
+## DEV-Test mit dem Dienstkonto (2026-11-12 17:24–17:29, Auftrag Gerald)
+
+- Freigabe: Auf dem DEV-Rechner gibt es nur `Entwicklung$` (`C:\Entwicklung`, Freigaberecht „Jeder: Lesen“, Inhaber `t1_adminweg`). Die
+  Freigaberechte wurden nicht geändert. Verwendet wurde der Ersatzweg `\localhost\D$\Dev\csv-ausgang\ake`. Das Dienstkonto
+  `AKENB\svc_idealakewms` kann dort schreiben; die Datei gehört ihm.
+- Ablauf auf AKE-DEV (v1.99.12):
+  - Dienst gestoppt, Sage-WE an. Bestellung 2027-168594 Pos. 1 mit 1 Stk nach GL;0;0;0 gebucht, Lieferschein WMS-TEST-CSV,
+    Barcode AKE1235564654 → Receipt 10, Status „offen“. Sage-WE wieder aus.
+  - Dienst gestartet. Q-2 setzt den Eintrag auf „Klären“; erst dann bietet die Liste „Als übergeben markieren“ an, für „offen“ gibt
+    es die Aktion nicht. Markiert mit TEST-CSV-1 → „an Sage übergeben“, CSV-Spalte „Sage-Wareneingang deaktiviert – CSV-Übergabe wartet“.
+  - Weil die CSV laut Spec nur bei eingeschaltetem Sage-WE geschrieben wird, war Sage-WE nach Rückfrage bei Gerald etwa 10 s an
+    (17:28:31–17:28:41), bei laufendem Dienst. Vorher geprüft: kein Eintrag offen, Fehler oder Klären, Lagerbuchung aus. Ergebnis
+    17:28:39 „geschrieben“, Versuche 0, kein Sage-Sendeversuch.
+- Datei `AKE1235564654.csv` (UTF-8 mit BOM, 239 Byte):
+  ```
+  Barcode;Kreditornummer;Kreditorname;Bestellnummer;Lieferschein;SageBelegnummer;Erfasser;Datum;UebergebenAm
+  AKE1235564654;K31705;Schachermayer GmbH;2027-168594;WMS-TEST-CSV;TEST-CSV-1;Gerald Weichbold;2026-11-12 17:24;2026-11-12 17:26
+  ```
+- Endzustand AKE-DEV: Sage-WE, Lagerbuchung und CSV-Übergabe aus, `WareneingangBarcodeAktiv` an (Wunsch Gerald). Die 5 Sync-Schalter
+  stehen auf true. Web 8081/8082 HTTP 200 v1.99.12, beide Dienste laufen.
+- Befunde, nur Hinweis:
+  - Die Erfolgsmeldung nach „Als übergeben markieren“ erscheint doppelt (Layout-Banner und Seiten-Banner).
+  - Der Hinweis „Sage-Wareneingang deaktiviert – CSV-Übergabe wartet.“ steht auch ohne wartenden Eintrag, solange die CSV-Übergabe
+    an und Sage-WE aus ist.
