@@ -2,7 +2,7 @@
 type: spec
 title: Offene Bestellungen – tägliche Erinnerungs-Mail bei Lieferverzug (Einkauf-Sammelliste, Kreditor-Mail mit Testbetrieb)
 slug: 2026-11-12-offene-bestellungen-mahnmail-lieferverzug-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-11-12
 updated: 2026-11-12
 freigabe_von: "Gerald Weichbold (Chat Koordination, 2026-11-12 14:58)"
@@ -337,7 +337,19 @@ Kein Epic, eine Umsetzung im Bündel-Worktree.
 
 ## Deploy
 
-*Vorläufig, der QA-Lauf bestätigt das gegen den echten Diff.*
+**Final (QA 2026-11-12, gegen den echten Diff `4c1b5523..dae22a49`):** web **ja** (`IdealAkeWms/`: Katalog, `SettingValidator`,
+`MailAdressen`, Kreditor-Felder/Views, Hilfe/Changelog), service **ja** (`IDEALAKEWMSService/`: Lauf, Planer, Mail-HTML, `MailService`,
+`SyncWorker`, Logo als EmbeddedResource), migration **ja** (`20261112143552_AddPurchaseOrderReminders`, SQL/145, additiv).
+**Publish erledigt:** `C:\git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish` (IDEALAKEWMSWeb + IDEALAKEWMSWebService,
+SQL, deploy; `publish-info.txt` Version 1.99.10, Commit `dae22a49df492eafa442028cbb4241fa4c67ba02`). Ablauf des Menschen: Publish aus dem
+Worktree → Testsystem → Test → Merge. Nach dem Merge nur dann aus main neu publizieren, wenn der Merge getestete Dateien mit parallelen
+main-Änderungen zusammengeführt hat. Reihenfolge: DB-Backup → Dienst stoppen → SQL/145 (bzw. EF-Migrate beim ersten Web-Aufruf) → Web →
+Dienst starten → `/ServiceSettings` prüfen (Hauptschalter aus, Testbetrieb an).
+> [!warning] `MailSettings:PickupDirectory` in Produktion und auf den Testsystemen **NIE** setzen – dann geht keine Mail raus, sondern
+> landet als `.eml` im Ordner. Nur DEV/QA. Vor dem Ende des Testbetriebs: P-M1 (Termin-Bedeutung) und P-M4 (Relay/Absender extern) durch
+> den Menschen, dazu P-M3 (erste Welle).
+
+*Ursprüngliche Planung (Spec-Agent):*
 
 - **Web-App:** ja. Katalog `ServiceSettingDefinitions` und `SettingValidator` liegen im Web-Projekt, bei Rückfrage 5 = ja kommen die
   Kreditor-Masken dazu.
@@ -521,3 +533,112 @@ Gilt vor dem Text oben.
 **Nur Manual-UAT:** SMTP-Versand und Relay an Externe (P-M4), Absender/Reply-To im echten Client, Darstellung Outlook Desktop/Web/Handy
 (CID-Logo, Farben), Prüfabfragen P-M1 – P-M3. Unit-getestet: Planer, HTML/Text, Lauf (Fake-Mail, InMemory), Pickup-`.eml`, Einstellungsprüfung,
 Kreditor-Felder, Rest-Funktion.
+
+## QA-Nachweis (qa-agent, 2026-11-12)
+
+Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Commit-Range `4c1b5523..dae22a49` (37c831a4, dae22a49), HEAD `dae22a49`. Kein QA-Fix-Commit
+nötig.
+
+### 1 Build und Tests
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler, 28 Warnungen (vorbestehend).
+- `dotnet test`: `IdealAkeWms.Tests` 2685 bestanden / 1 übersprungen / 0 Fehler (2686); `IDEALAKEWMSService.Tests` 589 bestanden / 0 / 0.
+
+### 2 Code-Review (selbst, synchron)
+Geprüft: `LieferverzugPlaner` (Fälligkeit, Wiederholungsschlüssel (BelPosId, Termin), Reihenfolge der Sonderfälle, Grenze alle-oder-keine nur
+echte Mails, 24-h-Regel `jetzt − MAX(SyncedAt)`; beide Uhren `DateTime.Now`, `EinkaufBestellungenSyncService.cs:62`), `LieferverzugMailService`
+(Gate/Zeitfenster/„heute schon gesendet“ über die Tabelle, Protokoll erst nach `true`, Einzel-Fehlerfang, DryRun ohne Mail/Zeile, Fehlermail nur
+bei Grenze und nicht im DryRun, `ISyncLogger` letzter Ctor-Parameter), `MailService` (bestehende `SendAsync` delegiert unverändert; Pickup hat
+Vorrang, sonst identischer SMTP-Pfad; außer dem Test-Fake kein weiterer `IMailService`-Implementierer), `LieferverzugMailHtml` (alle Werte
+`HtmlEncode`, nur feste `<br>` in Kopfzellen; Kontrast AKE-Band #43a6e2/#053153 ≈ 5,0:1, Testbanner #ef7d00/#000 ≈ 7,6:1, IDEAL-Band weiß auf
+#053153), Rest-Regel `ErfasstJeBelPos.Rest/RestAus` (Maske ruft `RestAus`, Dienst `Rest` – eine Formel), `MailAdressen` (eine Regel für
+Validator, Kreditor-Maske und Versand), Kreditor-Felder (`ApplyWmsFelder`, Serverprüfung in `ValidateUniqueAsync`, Audit über `SetModified`),
+Katalog/ADR 0020, SQL/145 + FreshInstall (2 Stellen), Manifest, `SyncLogServices.All` + `DisplayNames`.
+Defektklassen der Vorlage: kein `<script>`-Embedding, kein `hidden` + `d-*`, keine stille `?? 0` (fehlender Rest = nicht fällig), keine parallelen
+Arrays, Validierung serverseitig (Validator + Controller), Regel nicht dupliziert.
+
+Befunde (keiner blockierend, keiner behoben – Bewertung):
+- **B1 (Hinweis):** „Einmal am Tag“ sperrt auf irgendeine Protokollzeile von heute. Wirft nach erfolgreichen Kreditor-Mails der Versand der
+  Sammelliste (SMTP-Fehler), kommt die Sammelliste an diesem Tag nicht mehr (Warnung + `fehler` im Lauf). Akzeptiert (Abweichung 2, strenge F6-Lesart).
+- **B2 (Hinweis, kosmetisch):** Bei veraltetem Stand prüft der Planer Adresse/Sperre vor „Stand alt“; Kreditoren ohne Adresse zählen dann als
+  `ohne_adresse`, nicht als `ausgesetzt` (DEV IDEAL: `ohne_adresse=98, ausgesetzt=0`). Es geht keine Kreditor-Mail raus, AK 11 ist erfüllt.
+- **B3 (Hinweis Manual-UAT):** Die Sammelliste mit ~1000 Positionen hat ≈ 1,1 MB HTML (DEV AKE). Outlook zeigt das, Webmailer kürzen evtl. – in
+  TS-128.9 im echten Client ansehen.
+- **B4 (vorbestehend):** `ServiceSettings.Value` max. 500 Zeichen (Abweichung 9) – gilt für alle Listen-Einstellungen, nicht neu.
+
+Bewertung der Abweichungen 1–9 aus „Umsetzung“: **1** fachlich richtig (sonst täglich alle Testmails), AK 9 bleibt erfüllt (echte Zeilen nur aus
+dem echten Modus) – akzeptiert. **2** akzeptiert (s. B1). **3** DE+EN mit zweisprachigen Spaltenköpfen statt Tabellen-Wiederholung – gleiche
+Aussage, kürzer, akzeptiert (in .eml belegt). **4** nvarchar(20) folgt der Quelle SQL/112 – richtig. **5** Kontrast-Begründung nachgerechnet –
+richtig. **6** zusätzliche Counts sind „Melden statt still“ – akzeptiert. **7** ohne gültige Adresse keine Testbetrieb-Mail – konsistent mit dem
+Echtbetrieb, akzeptiert. **8** Warnung je Zyklus bei leeren Empfängern – gewollt, durch die Manifest-Prüfung ergänzt. **9** vorbestehend (B4).
+
+### 3 Beweisart je Akzeptanzkriterium
+| AK | Beweis |
+|---|---|
+| 1 | Unit (Lauf-Tests) + DEV: MailAktiv aus → 0 Läufe (Ausgangszustand) |
+| 2, 3 | Unit (`Faelligkeit_*`, `Lauf_ImWmsVollErfasst_*`); EBZ nicht im Cache (Spec belegt) |
+| 4 | Unit (eine Funktion, `SageWareneingangGrundlageTests`) – Vergleich mit der Maske: Manual-UAT |
+| 5 | Unit (InMemory) + **DEV SQL Server**: Dienst-Neustart 16:01, nächster Zyklus 16:05 → kein zweiter Lauf, keine neue .eml |
+| 6 | Unit + DEV .eml (97 Gruppen mit Statuszeile, Link) |
+| 7 | Unit + DEV .eml (92 Testbetrieb-Mails, alle `To: qa-einkauf@example.invalid`, Betreff + Banner „TESTBETRIEB – wäre an …“) |
+| 8 | Unit (Fake-Mailservice) – echter Versand/Reply-To im Client: **Manual-UAT** |
+| 9, 10, 12 | Unit (Planer); Grenze mit echter Fehlermail: Manual-UAT (ErrorNotification auf DEV aus) |
+| 11 | Unit + DEV IDEAL (Stand 07.11. → Hinweis in der Sammelliste, 0 Kreditor-Mails) |
+| 13, 17, 18 | Unit (Fake-Mailservice/InMemory) |
+| 14 | Unit + DEV .eml (multipart/alternative, related + Logo `Content-Id: <logo-ideal-ake>`, Text ohne Tags, nackte URL) – Darstellung im Client: **Manual-UAT** |
+| 15 | Code + Nachrechnung – Sichtprüfung im Client: Manual-UAT |
+| 16 | Unit (`SettingValidatorTests`) + DEV Browser: `abc@` in „Einkauf: Empfänger“ → „Nicht gespeichert“, DB-Wert unverändert |
+| 19 | erfüllt (Punkt 1) |
+
+### 4 Geänderte bestehende Tests
+Nur additiv, keine Zeile entfernt: `NachlaufManifestDriftTests` (Liste um `SQL/145`), `SageWareneingangGrundlageTests` (neue Asserts zur
+Rest-Funktion), `CreditorsControllerTests`, `ServiceSettingDefinitionsTests`, `SettingValidatorTests` (neue Fälle). Kein „Sonstiges“.
+
+### 5 Checkliste / 5a ADR 0020
+Migration + SQL/145 (OBJECT_ID-/COL_LENGTH-Guard, History separat) ✓, FreshInstall Schema (Creditors-Spalten + Tabelle) und MigrationId ✓, Audit
+(Creditor über `SetModified`, auf DEV `ModifiedBy` belegt; Protokolltabelle bewusst ohne, Antwort 13) ✓, beide `AppVersion` 1.99.10 + Anwender-
+und Brain-Changelog ✓, TS-128 + Index ✓, Manifest (SQL/145, Prüfung, Einstellung, Info) ✓. ADR 0020: Bool-Schalter, Int mit Grenzen + Einheit,
+Standort als Choice, Mail-Adressen serverseitig geprüft, Anzeigename/Wirkung/Verwendung/Default/Standort „beide“, Warnhinweise bei Außenwirkung
+(MailAktiv, EinkaufAktiv, KreditorAktiv, Testbetrieb, KreditorAbsender) ✓ – in `/ServiceSettings` DEV AKE angesehen.
+
+### 6 DEV-Deploy und Testlauf
+- Standort `beide`. `dev-deploy.ps1 -Standort AKE|IDEAL -Quelle <Worktree>` (elevated): beide Exit 0, „HTTP 200, Fusszeile v1.99.10“ = AppVersion.
+  Migration per EF auf beiden DEV-DBs; `SQL/145` danach zusätzlich auf AKE_WMS_DEV und IDEAL_WMS_DEV: Exit 0, keine Ausgabe (idempotent).
+- Nach dem Deploy die 5 AKE-DEV-Sync-Schalter wieder `true` (Auftrag Gerald); `SageLagerbuchungAktiv`/`SageWareneingangBelegAktiv` false,
+  `Sync:SageSystemKuerzel=DEV`.
+- **Mail-Umleitung:** `MailSettings:PickupDirectory` in `D:\Dev\AKE\Service\appsettings.DEV.json` = `D:\Dev\mail-pickup\ake` und in
+  `D:\Dev\IDEAL\Service\appsettings.DEV.json` = `D:\Dev\mail-pickup\ideal` (Sicherung `*.bak-qa-20261112`). **Bleibt gesetzt.** Vor dem Lauf
+  belegt mit einer Probe (deployte `IDEALAKEWMSService.dll` + DEV-Konfiguration, Empfänger `.invalid`): je eine `.eml`, kein SMTP.
+- Testlauf (Testbetrieb an, Empfänger `qa-einkauf@example.invalid`, Antwort `qa-antwort@example.invalid`, AKE-Absender `qa-absender@example.invalid`):
+
+| Schritt | Ergebnis | Status |
+|---|---|---|
+| TS-128.1 Aus | vor dem Einschalten 0 Läufe `LieferverzugMail` auf beiden DEV | OK |
+| TS-128.2 Fälligkeit | AKE faellig=1014 (Termin ≤ heute−3, Rest > 0); Gegenprobe Termin −2 nicht gezielt gebaut | OK (teilweise, Rest per Unit) |
+| TS-128.3 Sammelliste + Neustart | AKE 1 Sammelliste (97 Lieferanten, Statuszeilen, Link `…/PurchaseOrders?nurUeberfaellig=true`); Neustart → kein zweiter Lauf | OK |
+| TS-128.4 Testbetrieb | 92 Kreditor-Mails, alle an `qa-einkauf@example.invalid`, Betreff/Banner „TESTBETRIEB – wäre an <Name>, <Adresse> gegangen“, From = KreditorAbsender, Reply-To = Antwortadresse; Dienst-Log 93× „NICHT gesendet, sondern abgelegt“, 0× SMTP | OK |
+| TS-128.5 Echtbetrieb | würde externe Adressen anschreiben | NICHT MÖGLICH (Mail-Grenze) |
+| TS-128.6 Sonderfälle | 5× „keine Adresse“ in der AKE-Liste; gesperrt/ungültig nicht in den Daten | OK (teilweise) |
+| TS-128.7 Stand alt | IDEAL (Stand 07.11.): Hinweis „Bestelldaten von 07.11.2026 19:25 – Kreditor-Mails ausgesetzt“, 0 Kreditor-Mails | OK |
+| TS-128.8 Grenze | braucht Testbetrieb aus + Fehlermail | NICHT MÖGLICH |
+| TS-128.9 Darstellung | .eml: AKE-Band #43a6e2/Schrift #053153, IDEAL-Band #053153/weiß, Logo per CID, Fuß Firma/Adresse/www, DE+EN, Text ohne Tags; Mailclient nicht geöffnet | OK (Struktur), Client offen |
+| TS-128.10 Einstellungen negativ | `abc@` abgelehnt („Nicht gespeichert“), DB unverändert; 61/24 nur Unit | OK |
+| TS-128.11 DryRun | nicht auf DEV | Unit |
+| TS-128.12 Kreditor-Felder | Sage-Kreditor Id 3: „Adresse für Erinnerungen“ gespeichert, `ModifiedBy` gesetzt | OK |
+| TS-128.13–15 | Unit | Unit |
+
+- Danach `Lieferverzug:MailAktiv=false` auf beiden DEV-DBs (Testbetrieb an, Empfänger `.invalid` stehen gelassen). DEV-Testdaten: 2017 Zeilen
+  `PurchaseOrderReminders` AKE, 1018 IDEAL; Kreditor 3 `ReminderEmail=qa-kreditor3@example.invalid`.
+
+### 7 Publish
+`<worktree>\publish` geleert und neu: IDEALAKEWMSWeb + IDEALAKEWMSWebService (Exit 0), `SQL\`, `deploy\`, `publish-info.txt` (1.99.10, `dae22a49df49…`).
+
+## Manuelle Test-Checkliste (offen für den Menschen)
+1. Testsystem: Publish einspielen (Update-Skript), `/ServiceSettings` > Lieferverzug-Mail: Hauptschalter aus, Testbetrieb an. **PickupDirectory nicht setzen.**
+2. TS-128.3/128.4 auf dem Testsystem mit echtem SMTP an ein internes Postfach (Einkauf-Empfänger intern, Testbetrieb an).
+3. TS-128.9: Mails in Outlook Desktop/Web und auf dem Handy öffnen (Logo, Farben AKE/IDEAL, Text-Ansicht); Größe der Sammelliste (B3) beurteilen.
+4. TS-128.2 Gegenprobe Termin heute−2 und Rest = 0 durch WMS-Erfassung, Rest mit der Maske „Wareneingang zu Bestellung“ vergleichen (AK 4).
+5. TS-128.5 Echtbetrieb nur mit eigener Kreditor-Testadresse – erst nach P-M4 (Relay/Absender extern, IT).
+6. TS-128.8 Grenze mit Fehlermail (ErrorNotification an, Testbetrieb aus, Grenze 1) auf dem Testsystem.
+7. TS-128.11 DryRun auf dem Testsystem.
+8. P-M1 (Termin-Bedeutung in Sage) und P-M3 (erste Welle) **vor** dem Abschalten des Testbetriebs.
+9. IDEAL: Schalter bleibt aus bis zur SData-Schnittstelle für offene Bestellungen.

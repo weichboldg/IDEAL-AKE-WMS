@@ -6,7 +6,7 @@ date: 2026-11-12
 # v1.99.10 — Offene Bestellungen: tägliche Erinnerungs-Mail bei Lieferverzug
 
 Buendel `feature/2026-08-07-ideal-teile-1-5`, Commits `37c831a4` (Code, SQL/145, Tests, Manifest), `dae22a49` (TS-128, Hilfe, Changelog, README).
-Spec [[2026-11-12-offene-bestellungen-mahnmail-lieferverzug-spec]]. Nicht gemergt, nicht gepusht, vor QA (qa-agent steht aus).
+Spec [[2026-11-12-offene-bestellungen-mahnmail-lieferverzug-spec]]. Nicht gemergt, nicht gepusht, Testbereit (QA 2026-11-12: Build/Tests gruen, DEV AKE+IDEAL v1.99.10, Mails nur als .eml im Pickup-Ordner geprueft); wartet Schranke 2.
 
 ## Kernpunkte
 
