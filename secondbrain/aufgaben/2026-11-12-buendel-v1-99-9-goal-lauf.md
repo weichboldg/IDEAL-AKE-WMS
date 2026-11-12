@@ -14,9 +14,10 @@ kein Push, kein Merge.
 | Spec | Typ | SQL-Block | Version | Status | Commits | Blocker |
 |---|---|---|---|---|---|---|
 | [[2026-11-08-wareneingang-teil-2-sage-we-beleg-rahmenabrufe-spec]] (nur Freigabe-Nachtrag 14:20 System-Kürzel) | Epic (Nachtrag) | SQL/144 | 1.99.9 | **Testbereit** (QA 2026-11-12) | `115e8a09`, `c47f0136`, QA `4c1b5523`; Brain `443ee5fc`, QA `0aa7891c` | – |
-| [[2026-11-12-offene-bestellungen-mahnmail-lieferverzug-spec]] | Spec | offen | 1.99.10 | InUmsetzung | – | – |
+| [[2026-11-12-offene-bestellungen-mahnmail-lieferverzug-spec]] | Spec | SQL/145 | 1.99.10 | **Testbereit** (QA 2026-11-12) | `37c831a4`, `dae22a49`; Brain `c29cdda7`, QA `ebc0e7ff` | – |
 | [[2026-11-12-wareneingang-barcode-lieferschein-csv-export-spec]] | Spec | offen | 1.99.11 | InUmsetzung | – | – |
 
 - Vorprüfung 2026-11-12: Teil 2 stand auf Testbereit, der Auftrag nennt den Nachtrag ausdrücklich (ersetzt die Freigabe). Mahnmail und
   Barcode/CSV: Freigegeben, alle Freigabe-Antworten ausgefüllt, kein offener BLOCKER, Freigabe-Nachtrag Mahnmail (Antwort 7/12) gilt vor dem Rumpf.
 - v1.99.9: SM# hat dasselbe Problem → gleiches Kürzel (`SM#<K>#<id>#`), Kennung je Queue-Eintrag gespeichert. Kürzel muss mit Buchstaben beginnen (enger als Nachtrag, begründet). DEV AKE/IDEAL deployt, `Sync:SageSystemKuerzel = DEV`, 5 Sync-Schalter true. Publish v1.99.9 `4c1b5523`.
+- v1.99.10: TS-128. Neue Option `MailSettings:PickupDirectory` (.eml statt SMTP; in Prod NIE setzen). DEV AKE/IDEAL: Pickup `D:\Dev\mail-pickupke|ideal` bleibt gesetzt, `Lieferverzug:MailAktiv` false, Empfänger `.invalid`. QA-Lauf AKE: 92 Testbetrieb-Mails + 1 Sammelliste als .eml, 0 SMTP. Publish v1.99.10 `dae22a49`.
