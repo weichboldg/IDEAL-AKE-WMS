@@ -102,6 +102,15 @@
                         <strong>Seit v1.99.9</strong> kann die Kennung ein System-Kürzel tragen (<code>WE#DEV#7#</code>, Service-Einstellung
                         &bdquo;System-Kürzel für Sage-Kennungen&ldquo;, nur auf Testsystemen; Produktion leer = <code>WE#7#</code>). Die Spalte
                         &bdquo;Memo&ldquo; zeigt die Kennung, mit der gesendet wurde bzw. gesendet wird.
+                        <strong>Seit v1.99.11</strong> gibt es (Einstellung <code>WareneingangBarcodeAktiv</code>) neben der Lieferschein-Nr. das Feld
+                        <em>&bdquo;Barcode (Lieferschein)&ldquo;</em> für den Aufkleber auf dem Lieferschein: Handscanner (auch ohne angetipptes Feld), Kamera-Knopf
+                        oder Tastatur; der Wert wird unverändert übernommen (nur Buchstaben, Ziffern, - und _, höchstens 50 Zeichen, z. B. <code>AKE1235564654</code>)
+                        und darf nur an einem Wareneingang hängen. Ist der Sage-Wareneingang aus, ist das Feld gesperrt. Nach der Übergabe an Sage (auch nach
+                        <em>Als übergeben markieren</em>) schreibt der Dienst die Datei <code>&lt;Barcode&gt;.csv</code> (UTF-8, Strichpunkt, Kopfzeile: Barcode,
+                        Kreditornummer, Kreditorname, Bestellnummer, Lieferschein, SageBelegnummer, Erfasser, Datum, UebergebenAm) auf die Netzfreigabe aus den
+                        Service-Einstellungen &bdquo;Wareneingang-CSV&ldquo;; eine vorhandene Datei wird nie überschrieben. Den Stand zeigt die Spalte &bdquo;CSV&ldquo;
+                        der Sage-Wareneingänge (wartet / offen / geschrieben / Fehler). Netzfehler wiederholt der Dienst selbst (Standard 3-mal, frühestens nach
+                        15 Minuten); danach und bei &bdquo;Datei existiert bereits&ldquo; auf der Freigabe nachsehen und <em>CSV erneut schreiben</em>.
                     </dd>
 
                     <dt>Erinnerungs-Mails bei Lieferverzug (seit v1.99.10)</dt>

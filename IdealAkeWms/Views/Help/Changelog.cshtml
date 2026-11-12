@@ -9,6 +9,23 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.99.11</strong> <span class="text-white-50 ms-2">12.11.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>Wareneingang zu Bestellung: Barcode des Lieferscheins und CSV-Datei für das DMS</h6>
+                <ul>
+                    <li><strong>Neu:</strong> Feld &bdquo;Barcode (Lieferschein)&ldquo; neben der Lieferschein-Nr. Der Barcode-Aufkleber wird mit dem Handscanner, der Kamera oder per Tastatur erfasst und unverändert übernommen (nur Buchstaben, Ziffern, - und _, höchstens 50 Zeichen). Ein Barcode darf nur an einem Wareneingang hängen.</li>
+                    <li><strong>Neu:</strong> Nach der Übergabe an Sage legt der Dienst die Datei &bdquo;&lt;Barcode&gt;.csv&ldquo; mit den Daten des Wareneingangs (Lieferant, Bestellung, Lieferschein, Sage-Beleg, Erfasser, Datum) auf die eingestellte Netzfreigabe. Eine vorhandene Datei wird nie überschrieben.</li>
+                    <li>Liste &bdquo;Sage-Wareneingänge&ldquo;: neue Spalten &bdquo;Barcode&ldquo; und &bdquo;CSV&ldquo; (Stand der Datei), bei einem Fehler der Knopf &bdquo;CSV erneut schreiben&ldquo;. Netzfehler wiederholt der Dienst selbst.</li>
+                    <li>Ist der Sage-Wareneingang aus, ist das Feld gesperrt; die Liste und die Service-Einstellungen zeigen &bdquo;Sage-Wareneingang deaktiviert &ndash; CSV-Übergabe wartet&ldquo;.</li>
+                    <li>Einstellungen: &bdquo;Wareneingang: Barcode-Feld&ldquo; (Einstellungen &rarr; Lager und Buchungen) und &bdquo;Wareneingang-CSV&ldquo; (Service-Einstellungen), standardmäßig aus.</li>
+                    <li>Scannen: Ein Barcode-Feld übernimmt den Scan jetzt unverändert, auch mit Strichpunkt oder als lange Ziffernfolge (vorher wie ein Artikel-QR-Code ausgewertet).</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.99.10</strong> <span class="text-white-50 ms-2">12.11.2026</span>
             </div>
             <div class="card-body">
