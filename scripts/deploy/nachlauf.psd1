@@ -252,7 +252,7 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
 @{ Id='v1.97.0-Info'; Version='1.97.0'; Typ='Info'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
    Text='Anwender-Info: "Auftrag drucken" in der Stueckliste druckt in der Sortierreihenfolge der Ansicht (alle Zeilen, auch gefilterte).'; Quelle='2026-11-11-v1-97-0-auftrag-drucken-sortierung' }
 @{ Id='v1.99.4-SageWe'; Version='1.99.4'; Typ='Einstellung'; Firma='AKE'; Phase='Nachher'; Ausfuehrung='anzeigen'
-   Text='SageWareneingangBelegAktiv (/ServiceSettings) erst nach dokumentiertem Schreibtest und Abnahme TS-116.12 einschalten; IDEAL bleibt aus (kein SData-Endpunkt). Danach sind nur Sage-Plaetze mit Sage-Buchung erlaubt als Ziel buchbar.'
+   Text='SageWareneingangBelegAktiv (/ServiceSettings) erst nach dokumentiertem Schreibtest und Abnahme TS-116.14 einschalten; IDEAL bleibt aus (kein SData-Endpunkt). Danach sind nur Sage-Plaetze mit Sage-Buchung erlaubt als Ziel buchbar.'
    Quelle='2026-11-11-v1-99-4-wareneingang-sage-we-beleg' }
 @{ Id='v1.99.4-Lieferschein'; Version='1.99.4'; Typ='Einstellung'; Firma='AKE'; Phase='Nachher'; Ausfuehrung='anzeigen'
    Text='WareneingangLieferscheinPflicht (/Settings > Lager und Buchungen) nach Absprache mit Lager und Einkauf setzen (Standard aus = Lieferschein-Nr. optional).'
