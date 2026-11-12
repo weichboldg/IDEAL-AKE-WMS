@@ -228,4 +228,25 @@ public class PurchaseOrdersReceiveTests
         db.PurchaseOrderReceipts.Single(r => r.BelPosId == 1002).SageWeStatus.Should().Be(SageWareneingangStatus.Offen);
         db.SageBookingQueueItems.Should().BeEmpty();
     }
+
+    // ----- v1.99.6 (Freigabe-Nachtrag 2026-11-12): Positionsmemo -----
+
+    [Fact]
+    public async Task Positionsmemo_AlsNotizDerBewegung_Getrimmt_LeerBleibtNull_AuchOhneSageWe()
+    {
+        var (ctrl, db) = await BuildAsync();
+        var a = E(1001, "1"); a.Memo = "  Kante beschädigt ";
+        await ctrl.Receive(100, new List<PurchaseOrderReceiveInput> { a, E(1002, "1") });
+        db.StockMovements.OrderBy(m => m.Id).Select(m => m.Note).ToList().Should().Equal("Kante beschädigt", null);
+    }
+
+    [Fact]
+    public async Task Positionsmemo_LaengerAls200_Zeilenfehler_NichtsGebucht()
+    {
+        var (ctrl, db) = await BuildAsync();
+        var a = E(1001, "1"); a.Memo = new string('M', 201);
+        var vm = (PurchaseOrderReceiveViewModel)((ViewResult)await ctrl.Receive(100, new List<PurchaseOrderReceiveInput> { a })).Model!;
+        vm.Zeilen.Single(z => z.Row.Line.BelPosId == 1001).Fehler.Should().Be("Positionsmemo höchstens 200 Zeichen.");
+        db.StockMovements.Should().BeEmpty();
+    }
 }

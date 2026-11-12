@@ -66,7 +66,8 @@ public partial class PurchaseOrdersController
                 ?? (e.StorageLocationId is not { } sid || !erlaubtePlaetze.Contains(sid) ? "Bitte einen Ziel-Lagerplatz wählen." : null)
                 // v1.99.4 (F2, Freigabe-Antwort 3): bei Sage-WE nur Sage-Plaetze mit Sage-Buchung, auch fuer NurInSage-Zeilen
                 ?? (vm.SageWeAktiv && !SageWareneingang.IstSageWePlatz(plaetze[e.StorageLocationId!.Value]) ? SageWareneingang.PlatzFehler(plaetze[e.StorageLocationId.Value].Code) : null)
-                ?? (menge > z.Rest && !e.UeberlieferungBestaetigt ? $"Überlieferung ({menge:0.###} > Rest {z.Rest:0.###}) bitte bestätigen." : null);
+                ?? (menge > z.Rest && !e.UeberlieferungBestaetigt ? $"Überlieferung ({menge:0.###} > Rest {z.Rest:0.###}) bitte bestätigen." : null)
+                ?? (e.Memo?.Trim() is { Length: > PurchaseOrderReceiveViewModel.MemoMaxLaenge } ? "Positionsmemo höchstens 200 Zeichen." : null);
             buchen.Add((z, menge));
         }
 
@@ -109,6 +110,7 @@ public partial class PurchaseOrdersController
                 CreatedAt = now,
                 CreatedBy = name,
                 CreatedByWindows = windows,
+                Note = string.IsNullOrWhiteSpace(z.Eingabe.Memo) ? null : z.Eingabe.Memo.Trim(),   // v1.99.6 Positionsmemo
                 PurchaseOrderReceipt = new PurchaseOrderReceipt
                 {
                     BelId = l.BelId, BelPosId = l.BelPosId, Belegnummer = l.Belegnummer, LieferantKto = l.LieferantKto, Quantity = menge,

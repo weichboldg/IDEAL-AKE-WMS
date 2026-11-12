@@ -37,6 +37,7 @@ public partial class PurchaseOrdersController
         ["menge"] = z => z.Receipt.Quantity.ToString("0.###"),
         ["platz"] = z => z.Receipt.StockMovement.StorageLocation.Code,
         ["lieferschein"] = z => z.Receipt.Lieferschein,
+        ["memo-position"] = z => z.Receipt.StockMovement.Note,
         ["status"] = z => SageWeStatusText(z.Receipt.SageWeStatus),
         ["versuche"] = z => z.Receipt.SageWeVersuche.ToString(),
         ["sagebeleg"] = z => z.Receipt.SageWeBelegnummer,

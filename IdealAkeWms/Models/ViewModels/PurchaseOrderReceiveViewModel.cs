@@ -20,6 +20,8 @@ public class PurchaseOrderReceiveViewModel
 
     /// <summary>Sage-Feld EKLieferschein(20) (sage-sdata-masterdata).</summary>
     public const int LieferscheinMaxLaenge = 20;
+    /// <summary>v1.99.6: Positionsmemo (Notiz der Bewegung hat 500; 200 laesst Platz fuer die Kennung im Sage-Artikelmemo).</summary>
+    public const int MemoMaxLaenge = 200;
 }
 
 public class PurchaseOrderReceiveRow
@@ -43,4 +45,6 @@ public class PurchaseOrderReceiveInput
     public string? Menge { get; set; }
     public int? StorageLocationId { get; set; }
     public bool UeberlieferungBestaetigt { get; set; }
+    /// <summary>v1.99.6 (Freigabe-Nachtrag 2026-11-12): Positionsmemo, gespeichert als Notiz der Bewegung; im Sage-Wareneingang vor der Kennung.</summary>
+    public string? Memo { get; set; }
 }

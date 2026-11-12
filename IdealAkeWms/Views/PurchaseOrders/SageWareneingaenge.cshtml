@@ -3,8 +3,8 @@
 @model IdealAkeWms.Models.ViewModels.SageWareneingaengeViewModel
 @{
     ViewData["Title"] = "Wareneingänge an Sage";
-    // Spalten: gebucht, bestellung, pos, artikel, menge, platz, lieferschein, status, versuche, sagebeleg, memo, fehler, actions
-    const int colCount = 13;
+    // Spalten: gebucht, bestellung, pos, artikel, menge, platz, lieferschein, memo-position, status, versuche, sagebeleg, memo, fehler, actions
+    const int colCount = 14;
 }
 @* v1.99.4 Spec 2026-11-08-wareneingang-teil-2-sage-we-beleg-rahmenabrufe E3/F4: Status je Wareneingang (Text, nie nur Farbe), Listen-View-Pattern. *@
 
@@ -61,6 +61,7 @@
                 <th class="text-end" data-filterable data-filter-type="number" data-col-key="menge">Menge</th>
                 <th data-filterable data-col-key="platz">Ziel-Platz</th>
                 <th data-filterable data-col-key="lieferschein">Lieferschein</th>
+                <th data-filterable data-col-key="memo-position">Positionsmemo</th>
                 <th data-filterable data-col-key="status">Status</th>
                 <th data-filterable data-filter-type="number" data-col-key="versuche">Vers.</th>
                 <th data-filterable data-col-key="sagebeleg">Sage-Beleg</th>
@@ -81,6 +82,7 @@
                     <td class="text-end">@r.Quantity.ToString("0.###")</td>
                     <td>@r.StockMovement.StorageLocation.Code</td>
                     <td>@r.Lieferschein</td>
+                    <td>@r.StockMovement.Note</td>
                     <td class="@(r.SageWeStatus == SageWareneingangStatus.Fehler ? "text-danger-emphasis fw-semibold" : "")">@PurchaseOrdersController.SageWeStatusText(r.SageWeStatus)</td>
                     <td>@r.SageWeVersuche</td>
                     <td>@r.SageWeBelegnummer</td>

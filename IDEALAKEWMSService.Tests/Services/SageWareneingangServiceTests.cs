@@ -114,6 +114,12 @@ public class SageWareneingangServiceTests
         pos.BelegPositionLagermengen.Single().Should().BeEquivalentTo(new SageWeLagermenge { PlatzId = 77, Kurzbezeichnung = "HR;0;0;0", MengeBasis = 2m });
         pos.Artikelmemo.Should().Be($"WE#{a.Id}# LS LS-4711 Platz HR;0;0;0", "v1.99.5: Memo je Position");
         SageWareneingangPayloadBuilder.PositionsMemo(7, null, "GL;0;0;0").Should().Be("WE#7# Platz GL;0;0;0");
+        // v1.99.6: Eingabe des Lagers vorne, Kennung dahinter; leer = nur Kennung
+        SageWareneingangPayloadBuilder.PositionsMemo(7, "WMS-TEST-2", "GL;0;0;0", " Kante beschädigt ")
+            .Should().Be("Kante beschädigt | WE#7# LS WMS-TEST-2 Platz GL;0;0;0");
+        SageWareneingangPayloadBuilder.PositionsMemo(7, "WMS-TEST-2", "GL;0;0;0", "  ").Should().Be("WE#7# LS WMS-TEST-2 Platz GL;0;0;0");
+        gruppe[0].StockMovement.Note = "Kante beschädigt";
+        SageWareneingangPayloadBuilder.Build(gruppe).StandardBelegPositionen.Single().Artikelmemo.Should().StartWith("Kante beschädigt | WE#");
         SageWareneingangClient.Serialize(p).Should().Contain("\"EKLieferschein\":\"LS-4711\"");
     }
 

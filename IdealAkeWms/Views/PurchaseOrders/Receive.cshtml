@@ -77,6 +77,7 @@
                         <th>Einheit</th>
                         <th>Ziel-Lagerplatz</th>
                         <th style="min-width: 8rem;">Ist-Menge</th>
+                        <th style="min-width: 12rem;">Positionsmemo</th>
                         <th>Status</th>
                     </tr>
                 </thead>
@@ -144,6 +145,13 @@
                                                @(z.Eingabe.UeberlieferungBestaetigt ? "checked" : "") />
                                         <label class="form-check-label small" for="ueber_@i">Überlieferung bestätigt</label>
                                     </div>
+                                }
+                            </td>
+                            <td>
+                                @if (!gesperrt)
+                                {
+                                    <input type="text" name="zeilen[@i].Memo" value="@z.Eingabe.Memo" autocomplete="off" class="form-control" style="min-height:44px"
+                                           maxlength="@IdealAkeWms.Models.ViewModels.PurchaseOrderReceiveViewModel.MemoMaxLaenge" aria-label="Positionsmemo Position @(i + 1)" />
                                 }
                             </td>
                             <td>

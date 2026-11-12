@@ -58,8 +58,12 @@ public sealed class SageWareneingangPayloadException(string message) : Exception
 public static class SageWareneingangPayloadBuilder
 {
     /// <summary>v1.99.5: ordnet jede Sage-Position genau einem WMS-Wareneingang zu (Muster Kopf-Memo WE#&lt;id&gt;#).</summary>
-    public static string PositionsMemo(int receiptId, string? lieferschein, string lagerkennung) =>
-        $"{SageWareneingang.Memo(receiptId)}{(string.IsNullOrWhiteSpace(lieferschein) ? "" : $" LS {lieferschein.Trim()}")} Platz {lagerkennung}";
+    public static string PositionsMemo(int receiptId, string? lieferschein, string lagerkennung, string? eingabe = null)
+    {
+        var kennung = $"{SageWareneingang.Memo(receiptId)}{(string.IsNullOrWhiteSpace(lieferschein) ? "" : $" LS {lieferschein.Trim()}")} Platz {lagerkennung}";
+        // v1.99.6 (Freigabe-Nachtrag 2026-11-12): Eingabe des Lagers vorne, Kennung dahinter; leer = nur Kennung
+        return string.IsNullOrWhiteSpace(eingabe) ? kennung : $"{eingabe.Trim()} | {kennung}";
+    }
 
     public static SageWareneingangRequest Build(IReadOnlyList<PurchaseOrderReceipt> gruppe)
     {
@@ -79,7 +83,7 @@ public static class SageWareneingangPayloadBuilder
             positionen.Add(new SageWeBelegPosition
             {
                 PositionHandle = r.BelPosId, Artikelnummer = artikel.Trim(), MengeBasis = r.Quantity,
-                Artikelmemo = PositionsMemo(r.Id, r.Lieferschein, platz!.SageLagerkennung!),
+                Artikelmemo = PositionsMemo(r.Id, r.Lieferschein, platz!.SageLagerkennung!, r.StockMovement.Note),
                 BelegPositionLagermengen = { new SageWeLagermenge { PlatzId = platz!.SageLagerplatzId!.Value, Kurzbezeichnung = platz.SageLagerkennung!, MengeBasis = r.Quantity } },
             });
         }
