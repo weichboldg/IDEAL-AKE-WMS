@@ -33,6 +33,12 @@ public interface IPurchaseOrderReceiptRepository
     /// <summary>v1.99.4 (E3): „Erneut senden“ - alle Fehler-Receipts der Gruppe auf Offen, Fehlertext leer, Versuche bleiben, Modified* gesetzt.
     /// Liefert die Anzahl; 0 = nichts im Status Fehler.</summary>
     Task<int> SageWeErneutSendenAsync(Guid vorgang, string user, string windowsUser);
+
+    /// <summary>v1.99.7 (E5): Fehler/Klären-Gruppe von Hand auf Uebergeben (Belegnummer, SageWeAm = jetzt, Fehlertext leer). Liefert die Anzahl.</summary>
+    Task<int> SageWeAlsUebergebenAsync(Guid vorgang, string belegnummer, string user, string windowsUser);
+
+    /// <summary>v1.99.7 (Q-2): Anzahl Wareneingänge, die noch nicht an Sage übergeben sind (Offen, Fehler, Klären).</summary>
+    Task<int> SageWeNichtUebergebenAsync();
 }
 
 public class PurchaseOrderReceiptRepository : IPurchaseOrderReceiptRepository
@@ -66,7 +72,8 @@ public class PurchaseOrderReceiptRepository : IPurchaseOrderReceiptRepository
 
     public async Task<int> SageWeErneutSendenAsync(Guid vorgang, string user, string windowsUser)
     {
-        var gruppe = await _db.PurchaseOrderReceipts.Where(r => r.SageWeVorgang == vorgang && r.SageWeStatus == SageWareneingangStatus.Fehler).ToListAsync();
+        var gruppe = await _db.PurchaseOrderReceipts.Where(r => r.SageWeVorgang == vorgang
+            && (r.SageWeStatus == SageWareneingangStatus.Fehler || r.SageWeStatus == SageWareneingangStatus.Klaeren)).ToListAsync();
         var now = DateTime.Now;
         foreach (var r in gruppe)
         {
@@ -77,4 +84,25 @@ public class PurchaseOrderReceiptRepository : IPurchaseOrderReceiptRepository
         await _db.SaveChangesAsync();
         return gruppe.Count;
     }
+
+    public async Task<int> SageWeAlsUebergebenAsync(Guid vorgang, string belegnummer, string user, string windowsUser)
+    {
+        var gruppe = await _db.PurchaseOrderReceipts.Where(r => r.SageWeVorgang == vorgang
+            && (r.SageWeStatus == SageWareneingangStatus.Fehler || r.SageWeStatus == SageWareneingangStatus.Klaeren)).ToListAsync();
+        var now = DateTime.Now;
+        foreach (var r in gruppe)
+        {
+            r.SageWeStatus = SageWareneingangStatus.Uebergeben;
+            r.SageWeBelegnummer = belegnummer;
+            r.SageWeAm = now;
+            r.SageWeFehler = null;
+            r.ModifiedAt = now; r.ModifiedBy = user; r.ModifiedByWindows = windowsUser;
+        }
+        await _db.SaveChangesAsync();
+        return gruppe.Count;
+    }
+
+    public Task<int> SageWeNichtUebergebenAsync() =>
+        _db.PurchaseOrderReceipts.CountAsync(r => r.SageWeStatus == SageWareneingangStatus.Offen
+            || r.SageWeStatus == SageWareneingangStatus.Fehler || r.SageWeStatus == SageWareneingangStatus.Klaeren);
 }

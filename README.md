@@ -680,8 +680,11 @@ C:\Services\IDEALAKEWMSService\
 > (Kategorie „Sage-Lagerbuchung"): globaler Schalter `SageLagerbuchungAktiv` (Default aus),
 > **Sage-Wareneingangsbeleg (v1.99.4):** `SageWareneingangBelegAktiv` (Default `false`, nur AKE, unabhängig von `SageLagerbuchungAktiv`) –
 > Wareneingänge zu Bestellungen gehen als ein Sage-Wareneingang (ELL, Belegübernahme, `$service/StandardBelegService`) je Buchung der Maske an
-> Sage und nicht in die Lagerbuchungs-Warteschlange; Ziel nur Sage-Plätze mit „Sage-Buchung erlaubt“. Kein automatisches Wiederholen
-> (Liste „Wareneingänge an Sage“, „Erneut senden“ nach Prüfung in Sage); hängend nach `Sync:SageLagerbuchungStuckMinutes` = Fehler „Ergebnis unklar“.
+> Sage und nicht in die Lagerbuchungs-Warteschlange; Ziel nur Sage-Plätze mit „Sage-Buchung erlaubt“. Hängend nach
+> `Sync:SageLagerbuchungStuckMinutes` = Fehler „Ergebnis unklar“. **Seit v1.99.7** automatisches Wiederholen mit Sage-Prüfung
+> (`Sync:SageWareneingangMaxWiederholungen`, Standard 3, 0 = nie; `Sync:SageWareneingangWiederholAbstandMinuten`, Standard 15): vor jedem
+> erneuten Senden Suche `EinkaufBelegeInfo` nach Memo `WE#<Id>#` (gefunden = übergeben ohne Senden), sonst Sicherungsnetz (Bestellung + Datum +
+> Lieferschein) → Status „Klären“. Schalter aus = offene Einträge auf „Klären“, kein Nachschicken. Liste „Lager → Sage-Wareneingänge“.
 > `SData:BaseUrl` (Host+Port ohne Pfad, z.B. `https://sagetest01.ake.at:5493`), `SData:Application`
 > (Default `ol`), `SData:ServiceContract` (Default `CommonWawiServices`), `SData:Dataset` (Mandant,
 > z.B. `ake_TEST2026;1`), sowie Intervall/Batch/Retry/Cap-Keys. Zusätzlich je Lagerplatz das Feld

@@ -1,6 +1,7 @@
 @model IdealAkeWms.Models.ViewModels.ServiceSettingsViewModel
 @using IdealAkeWms.Models
 @using IdealAkeWms.Services
+@inject IdealAkeWms.Data.Repositories.IPurchaseOrderReceiptRepository Receipts
 @{
     ViewData["Title"] = "Service-Einstellungen";
     // B6 / ADR 0020: Warnhinweis an gesperrten Quellenschaltern - dieselbe Regel wie im Dienst (SageQuelleSperre).
@@ -8,6 +9,9 @@
     var artikelView = alleItems.FirstOrDefault(i => i.Key == IdealAkeWms.Services.SageSdata.SageQuelleSperre.ArtikelViewKey)?.Wirksam;
     var namen = alleItems.ToDictionary(i => i.Key, i => i.Anzeigename);
     var ungueltig = alleItems.Where(i => i.Ungueltig).ToList();
+    // v1.99.7 Q-2: Sage-Wareneingang aus, aber noch nicht uebergebene Eintraege
+    var sageWeAn = SageWareneingang.IstAn(alleItems.FirstOrDefault(i => i.Key == SageWareneingang.ToggleKey)?.Wirksam);
+    var sageWeHinweis = sageWeAn ? null : SageWareneingang.AusHinweis(false, await Receipts.SageWeNichtUebergebenAsync());
 }
 
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
@@ -47,6 +51,13 @@
     </button>
     <span class="form-text ms-2">Prüft die SData-Schnittstelle (URL/TLS/Anmeldung) mit den Werten dieser Seite.</span>
 </div>
+
+@if (sageWeHinweis != null)
+{
+    <div class="alert alert-warning" role="alert">
+        <strong>&#9888; @sageWeHinweis</strong> <a asp-controller="PurchaseOrders" asp-action="SageWareneingaenge">Zu den Sage-Wareneingängen</a>
+    </div>
+}
 
 @if (ungueltig.Any())
 {

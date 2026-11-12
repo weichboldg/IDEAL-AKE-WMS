@@ -148,6 +148,8 @@ try
     })
     .ConfigurePrimaryHttpMessageHandler(SageSchreibHandler);
     builder.Services.AddScoped<SageWareneingangService>();
+    // v1.99.7 E5: Sage-Pruefung vor jedem erneuten Senden (EinkaufBelegeInfo, nur GET).
+    builder.Services.AddScoped<IDEALAKEWMSService.Services.Sdata.ISageWareneingangLookup, IDEALAKEWMSService.Services.Sdata.SdataWareneingangLookupReader>();
 
     // Sage-SData-Lese-Client (Stammdaten-Abgleich, v1.73.0): Paging ueber CommonWawiServicesResources, TLS-Schalter je Anfrage.
     IDEALAKEWMSService.Services.Sdata.SdataRegistrierung.AddSageSdataReadClient(builder.Services);

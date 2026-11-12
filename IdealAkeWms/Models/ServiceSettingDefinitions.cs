@@ -66,8 +66,13 @@ public static class ServiceSettingDefinitions
         ["SageLagerbuchungAktiv"] = ("Lagerbuchungen an Sage senden", "Dienst: Sage-Buchungs-Worker; Warteschlange", null, "Sendet Buchungen an Sage."),
         ["SageLagerbuchungUmbuchungAktiv"] = ("Umbuchungen an Sage senden", "Dienst: Sage-Buchungs-Worker", null, "Sendet Buchungen an Sage."),
         ["SageWareneingangBelegAktiv"] = ("Wareneingänge als Sage-Wareneingangsbeleg buchen",
-            "Lager → Wareneingang zu Bestellung (Status und Platzregel beim Buchen); Dienst: Sage-Buchungs-Worker, Lauf „Sage-Wareneingang“; Liste „Wareneingänge an Sage“",
+            "Lager → Wareneingang zu Bestellung (Status und Platzregel beim Buchen); Dienst: Sage-Buchungs-Worker, Lauf „Sage-Wareneingang“; Liste „Sage-Wareneingänge“",
             "AKE (IDEAL aus, kein SData-Endpunkt)", "Schreibt Wareneingangsbelege nach Sage: Bestellung wird beliefert, Bestand in Sage gebucht. Nur nach erfolgreichem Schreibtest am AKE-Test einschalten. Der Einkauf darf diese Positionen danach nicht mehr von Hand schließen. Wareneingänge auf Plätze ohne Sage-Buchung sind gesperrt."),
+        ["Sync:SageWareneingangMaxWiederholungen"] = ("Sage-Wareneingang: automatische Wiederholungen",
+            "Dienst: Sage-Buchungs-Worker, Lauf „Sage-Wareneingang“ (Wiederholen nach Fehler); Liste „Sage-Wareneingänge“",
+            "AKE (IDEAL ohne Wirkung, Sage-Wareneingang aus)", "Wiederholt das Anlegen von Wareneingangsbelegen in Sage. Vor jedem Versuch sucht der Dienst den Beleg in Sage; 0 = nur „Erneut senden“ von Hand."),
+        ["Sync:SageWareneingangWiederholAbstandMinuten"] = ("Sage-Wareneingang: Abstand der Wiederholungen",
+            "Dienst: Sage-Buchungs-Worker, Lauf „Sage-Wareneingang“", "AKE (IDEAL ohne Wirkung)", null),
         ["SData:BaseUrl"] = ("SData: Adresse", "Sage-Buchung, Sage-Abgleich, FA-Struktur live", null, null),
         ["SData:Application"] = ("SData: Application", "Sage-Buchung, Sage-Abgleich, FA-Struktur live", null, null),
         ["SData:ServiceContract"] = ("SData: ServiceContract", "Sage-Buchung", null, null),
@@ -118,6 +123,8 @@ public static class ServiceSettingDefinitions
     private static readonly Dictionary<string, (int? Min, int? Max, string Einheit)> IntMeta = new()
     {
         ["Sync:SageLagerbuchungIntervalSeconds"] = (5, null, "s"),
+        ["Sync:SageWareneingangMaxWiederholungen"] = (0, 10, ""),
+        ["Sync:SageWareneingangWiederholAbstandMinuten"] = (5, 1440, "min"),
         ["Sync:BdeAutoPauseIntervalMinutes"] = (0, null, "min"),
         ["Sync:LagerbestandIntervalMinutes"] = (0, null, "min"),
     };
@@ -171,6 +178,8 @@ public static class ServiceSettingDefinitions
         // ----- Sage-Lagerbuchung (ausgehend: WMS -> Sage via SData) -----
         new("SageLagerbuchungAktiv",                 SettingType.Bool, "false", "Sage-Lagerbuchung", "Globaler Schalter: manuelle Ein-/Ausbuchungen an Sage melden (kumulativ zum Lagerplatz-Flag 'Sage-Buchung erlaubt')"),
         new("SageWareneingangBelegAktiv",            SettingType.Bool, "false", "Sage-Lagerbuchung", "Wareneingaenge zu Sage-Bestellungen werden beim Buchen fuer Sage vorgemerkt und vom Dienst als EIN Sage-Wareneingangsbeleg (ELL, Beleguebernahme aus der Bestellung, platzgenau, mit Lieferschein-Nr.) je WE-Buchung angelegt - NICHT zusaetzlich als Lagerbuchung-Zugang. Ziel nur Sage-Plaetze mit 'Sage-Buchung erlaubt'. Aus = Verhalten wie Teil 1 (Lagerbuchungs-Queue). Umschalten wirkt nur auf neue Buchungen. Unabhaengig von SageLagerbuchungAktiv (v1.99.4)."),
+        new("Sync:SageWareneingangMaxWiederholungen", SettingType.Int, "3", "Sage-Lagerbuchung", "Sage-Wareneingang (v1.99.7): so oft wiederholt der Dienst einen Wareneingang mit Status 'Fehler' automatisch (0 = nie, nur 'Erneut senden'). Vor JEDEM Versuch sucht er den Beleg in Sage ueber die Memo-Kennung WE#<Id>#: gefunden = an Sage uebergeben ohne Senden; moeglicher Beleg ohne Kennung (Bestellung + Datum + Lieferschein) = 'Klaeren', kein Senden. Danach bleibt 'Fehler'."),
+        new("Sync:SageWareneingangWiederholAbstandMinuten", SettingType.Int, "15", "Sage-Lagerbuchung", "Sage-Wareneingang (v1.99.7): Mindestabstand in Minuten zwischen einem Fehler und der automatischen Wiederholung (5 bis 1440)."),
         new("SageLagerbuchungUmbuchungAktiv",        SettingType.Bool, "false", "Sage-Lagerbuchung", "WMS-Umbuchungen an Sage melden (v1.73.0, kumulativ zu SageLagerbuchungAktiv): Sage-Platz -> Sage-Platz als Umbuchung, Sage -> WMS-only als Entnahme, WMS-only -> Sage als Zugang, WMS-only -> WMS-only nie. Default aus = nur Ein-/Ausbuchungen wie bisher."),
         new("SData:BaseUrl",                         SettingType.String, "",    "Sage-Lagerbuchung", "Host+Port der Sage-SData-API (z.B. https://sagetest01.ake.at:5493). Ein angehaengtes /sdata ist erlaubt (wird nicht verdoppelt). Ziel-URL = {BaseUrl}/sdata/{Application}/{ServiceContract}/{Dataset}/$service/LagerbuchungService"),
         new("SData:Application",                     SettingType.String, "ol",  "Sage-Lagerbuchung", "SData-Application-Segment (per SData-Discovery ermittelt, i.d.R. konstant 'ol')"),

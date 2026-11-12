@@ -20,6 +20,9 @@ public enum SageWareneingangStatus
     Uebergeben = 3,
     Fehler = 4,
     NurInSage = 5,
+    /// <summary>v1.99.7 E5: kein automatisches Senden - möglicher Beleg in Sage ohne passende Memo-Kennung (Sicherungsnetz) oder beim
+    /// Ausschalten liegengeblieben (Q-2). Weiter nur „Erneut senden“ oder „als übergeben markieren“ von Hand.</summary>
+    Klaeren = 6,
 }
 
 /// <summary>

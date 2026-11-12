@@ -6,6 +6,7 @@ using IdealAkeWms.Services;
 using IdealAkeWms.Services.SyncLogger;
 using IdealAkeWms.Tests.Helpers;
 using IDEALAKEWMSService.Services;
+using IDEALAKEWMSService.Services.Sdata;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -29,6 +30,31 @@ public class SageWareneingangServiceTests
             return Task.FromResult(Antwort(request));
         }
     }
+
+    /// <summary>v1.99.7 E5: Sage-Suche ohne SData. Wirft, wenn <see cref="Wirft"/> gesetzt (Sage nicht erreichbar).</summary>
+    private sealed class FakeLookup : ISageWareneingangLookup
+    {
+        public List<SageWeBelegTreffer> Memo { get; } = new();
+        public List<SageWeBelegTreffer> Kandidaten { get; } = new();
+        public bool Wirft { get; set; }
+        public int MemoAufrufe { get; private set; }
+        public int KandidatenAufrufe { get; private set; }
+        public (int BelId, DateTime Ab, string? Ls)? LetzteKandidatenSuche { get; private set; }
+        public Task<IReadOnlyList<SageWeBelegTreffer>> NachMemoAsync(int ersteReceiptId, CancellationToken ct)
+        {
+            MemoAufrufe++;
+            if (Wirft) throw new IdealAkeWms.Services.SageSdata.SdataLeseException("EinkaufBelegeInfo", 503, "Sage nicht erreichbar");
+            return Task.FromResult<IReadOnlyList<SageWeBelegTreffer>>(Memo);
+        }
+        public Task<IReadOnlyList<SageWeBelegTreffer>> KandidatenAsync(int bestellBelId, DateTime abDatum, string? lieferschein, CancellationToken ct)
+        {
+            KandidatenAufrufe++;
+            LetzteKandidatenSuche = (bestellBelId, abDatum, lieferschein);
+            return Task.FromResult<IReadOnlyList<SageWeBelegTreffer>>(Kandidaten);
+        }
+    }
+
+    private static readonly SageWeWiederholung Wdh = new(3, 15);
 
     private static (ApplicationDbContext db, int sageLoc, int wmsLoc) Db()
     {
@@ -60,8 +86,17 @@ public class SageWareneingangServiceTests
         return m.PurchaseOrderReceipt!;
     }
 
-    private static SageWareneingangService Svc(ApplicationDbContext db, ISageWareneingangClient client, FakeSyncLogger? log = null) =>
-        new(db, client, NullLogger<SageWareneingangService>.Instance, log ?? new FakeSyncLogger());
+    private static SageWareneingangService Svc(ApplicationDbContext db, ISageWareneingangClient client, FakeSyncLogger? log = null, FakeLookup? lookup = null) =>
+        new(db, client, lookup ?? new FakeLookup(), NullLogger<SageWareneingangService>.Instance, log ?? new FakeSyncLogger());
+
+    /// <summary>Fehler nach einem echten Versuch, aelter als der Abstand.</summary>
+    private static PurchaseOrderReceipt FehlerNachVersuch(ApplicationDbContext db, int versuche = 1, string? lieferschein = "LS-4711")
+    {
+        var r = Receipt(db, 1, Guid.NewGuid(), SageWareneingangStatus.Fehler, lieferschein: lieferschein);
+        r.SageWeVersuche = versuche; r.SageWeFehler = "Ergebnis unklar"; r.ModifiedAt = DateTime.Now.AddMinutes(-30);
+        db.SaveChanges();
+        return r;
+    }
 
     [Fact]
     public async Task ZweiPositionenEinAbsenden_EinBeleg_Uebergeben_MitBelegnummer_AK11()
@@ -73,7 +108,7 @@ public class SageWareneingangServiceTests
         var client = new FakeClient();
         var log = new FakeSyncLogger();
 
-        await Svc(db, client, log).RunOnceAsync(Endpoint, 10, 50);
+        await Svc(db, client, log).RunOnceAsync(Endpoint, 10, 50, Wdh);
 
         client.Gesendet.Should().ContainSingle();
         client.Gesendet[0].StandardBelegPositionen.Select(p => p.PositionHandle).Should().Equal(1, 2);
@@ -91,7 +126,7 @@ public class SageWareneingangServiceTests
         Receipt(db, 1, Guid.NewGuid(), SageWareneingangStatus.Offen);
         Receipt(db, 1, Guid.NewGuid(), SageWareneingangStatus.Offen);
         var client = new FakeClient();
-        await Svc(db, client).RunOnceAsync(Endpoint, 10, 50);
+        await Svc(db, client).RunOnceAsync(Endpoint, 10, 50, Wdh);
         client.Gesendet.Should().HaveCount(2);
     }
 
@@ -140,16 +175,16 @@ public class SageWareneingangServiceTests
     }
 
     [Fact]
-    public async Task Fehler_WirdNichtAutomatischWiederholt_AK16()
+    public async Task Fehler_WirdNichtVorAblaufDesAbstandsWiederholt_AK16()
     {
         var (db, _, _) = Db();
         Receipt(db, 1, Guid.NewGuid(), SageWareneingangStatus.Offen);
         var client = new FakeClient { Antwort = _ => new(false, null, "{\"ErrorText\":\"Artikel gesperrt\"}", "Artikel gesperrt") };
 
-        await Svc(db, client).RunOnceAsync(Endpoint, 10, 50);
-        await Svc(db, client).RunOnceAsync(Endpoint, 10, 50);
+        await Svc(db, client).RunOnceAsync(Endpoint, 10, 50, Wdh);
+        await Svc(db, client).RunOnceAsync(Endpoint, 10, 50, Wdh);
 
-        client.Gesendet.Should().ContainSingle("Variante B: kein Auto-Retry");
+        client.Gesendet.Should().ContainSingle("v1.99.7: erst nach dem Abstand (15 min) wird wiederholt");
         var r = db.PurchaseOrderReceipts.Single();
         (r.SageWeStatus, r.SageWeVersuche).Should().Be((SageWareneingangStatus.Fehler, 1));
         r.SageWeFehler.Should().Contain("Artikel gesperrt");
@@ -164,11 +199,182 @@ public class SageWareneingangServiceTests
         db.SaveChanges();
         var client = new FakeClient();
 
-        await Svc(db, client).RunOnceAsync(Endpoint, 10, 50);
+        await Svc(db, client).RunOnceAsync(Endpoint, 10, 50, Wdh);
 
         client.Gesendet.Should().BeEmpty();
         db.PurchaseOrderReceipts.Single().SageWeStatus.Should().Be(SageWareneingangStatus.Fehler);
         db.PurchaseOrderReceipts.Single().SageWeFehler.Should().StartWith("Ergebnis unklar").And.Contain($"WE#{r.Id}#");
+    }
+
+    // ---------------- v1.99.7 E5 (Variante A), Q-2 ----------------
+
+    [Fact]
+    public async Task E5_MemoGefunden_Uebergeben_OhneSenden()
+    {
+        var (db, _, _) = Db();
+        var r = FehlerNachVersuch(db);
+        var client = new FakeClient();
+        var lookup = new FakeLookup();
+        lookup.Memo.Add(new SageWeBelegTreffer(363226, 2027, 398676, $"WE#{r.Id}#"));
+        var log = new FakeSyncLogger();
+
+        await Svc(db, client, log, lookup).RunOnceAsync(Endpoint, 10, 50, Wdh);
+
+        client.Gesendet.Should().BeEmpty("Beleg in Sage gefunden - kein POST");
+        var x = db.PurchaseOrderReceipts.Single();
+        (x.SageWeStatus, x.SageWeBelegnummer, x.SageWeFehler, x.SageWeVersuche).Should().Be((SageWareneingangStatus.Uebergeben, "2027-398676", (string?)null, 1));
+        x.SageWeAm.Should().NotBeNull();
+        lookup.KandidatenAufrufe.Should().Be(0);
+        log.Runs.Single().FinalCounts!["in Sage gefunden"].Should().Be(1);
+    }
+
+    [Fact]
+    public async Task E5_KeinTreffer_KeinKandidat_WirdErneutGesendet()
+    {
+        var (db, _, _) = Db();
+        var r = FehlerNachVersuch(db);
+        var client = new FakeClient();
+        var lookup = new FakeLookup();
+
+        await Svc(db, client, null, lookup).RunOnceAsync(Endpoint, 10, 50, Wdh);
+
+        client.Gesendet.Should().ContainSingle();
+        (lookup.MemoAufrufe, lookup.KandidatenAufrufe).Should().Be((1, 1));
+        lookup.LetzteKandidatenSuche.Should().Be((500, new DateTime(2026, 11, 11), "LS-4711"));
+        var x = db.PurchaseOrderReceipts.Single();
+        (x.SageWeStatus, x.SageWeVersuche).Should().Be((SageWareneingangStatus.Uebergeben, 2));
+    }
+
+    [Fact]
+    public async Task E5_Sicherungsnetz_Treffer_Klaeren_OhneSenden_FremdeKennungZaehltNicht()
+    {
+        var (db, _, _) = Db();
+        var r = FehlerNachVersuch(db);
+        var client = new FakeClient();
+        var lookup = new FakeLookup();
+        lookup.Kandidaten.Add(new SageWeBelegTreffer(1, 2027, 1000, "WE#99999#"));   // anderer WMS-Wareneingang
+        lookup.Kandidaten.Add(new SageWeBelegTreffer(2, 2027, 1001, "von Hand geaendert"));
+
+        await Svc(db, client, null, lookup).RunOnceAsync(Endpoint, 10, 50, Wdh);
+
+        client.Gesendet.Should().BeEmpty();
+        var x = db.PurchaseOrderReceipts.Single();
+        x.SageWeStatus.Should().Be(SageWareneingangStatus.Klaeren);
+        x.SageWeFehler.Should().Contain("2027-1001").And.NotContain("2027-1000").And.Contain("Memo fehlt/geändert");
+
+        await Svc(db, client, null, lookup).RunOnceAsync(Endpoint, 10, 50, Wdh);
+        client.Gesendet.Should().BeEmpty("Klären wird nie automatisch gesendet");
+    }
+
+    [Fact]
+    public async Task E5_MehrereTreffer_Fehler_ZaehltVersuch_OhneSenden()
+    {
+        var (db, _, _) = Db();
+        FehlerNachVersuch(db);
+        var client = new FakeClient();
+        var lookup = new FakeLookup();
+        lookup.Memo.AddRange(new[] { new SageWeBelegTreffer(1, 2027, 1, "x"), new SageWeBelegTreffer(2, 2027, 2, "x") });
+
+        await Svc(db, client, null, lookup).RunOnceAsync(Endpoint, 10, 50, Wdh);
+
+        client.Gesendet.Should().BeEmpty();
+        var x = db.PurchaseOrderReceipts.Single();
+        (x.SageWeStatus, x.SageWeVersuche).Should().Be((SageWareneingangStatus.Fehler, 2));
+        x.SageWeFehler.Should().StartWith("Mehrere Sage-Belege").And.Contain("2027-1, 2027-2");
+    }
+
+    [Fact]
+    public async Task E5_SucheScheitert_NichtGesendet_VersucheUnveraendert()
+    {
+        var (db, _, _) = Db();
+        FehlerNachVersuch(db);
+        var client = new FakeClient();
+
+        await Svc(db, client, null, new FakeLookup { Wirft = true }).RunOnceAsync(Endpoint, 10, 50, Wdh);
+
+        client.Gesendet.Should().BeEmpty("ohne Sage-Prüfung wird nie gesendet");
+        var x = db.PurchaseOrderReceipts.Single();
+        (x.SageWeStatus, x.SageWeVersuche).Should().Be((SageWareneingangStatus.Fehler, 1));
+        x.SageWeFehler.Should().Contain("Sage-Prüfung").And.Contain("nicht gesendet");
+    }
+
+    [Fact]
+    public async Task E5_Grenze_ErreichtOderNull_KeineWiederholung_PayloadFehlerOhneVersuch_Nie()
+    {
+        var (db, _, _) = Db();
+        FehlerNachVersuch(db, versuche: 4);                         // 3 Wiederholungen schon gemacht
+        var ohneVersuch = Receipt(db, 2, Guid.NewGuid(), SageWareneingangStatus.Fehler);
+        ohneVersuch.ModifiedAt = DateTime.Now.AddHours(-1); db.SaveChanges();   // Payload-Fehler, nie gesendet
+        var client = new FakeClient();
+        var lookup = new FakeLookup();
+
+        await Svc(db, client, null, lookup).RunOnceAsync(Endpoint, 10, 50, Wdh);
+        await Svc(db, client, null, lookup).RunOnceAsync(Endpoint, 10, 50, new SageWeWiederholung(0, 15));
+
+        client.Gesendet.Should().BeEmpty();
+        lookup.MemoAufrufe.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task E5_ErneutSendenVonHand_SuchtMemo_OhneSicherungsnetz()
+    {
+        var (db, _, _) = Db();
+        var r = Receipt(db, 1, Guid.NewGuid(), SageWareneingangStatus.Offen);
+        r.SageWeVersuche = 1; db.SaveChanges();                     // „Erneut senden“ setzt Offen, Versuche bleiben
+        var client = new FakeClient();
+        var lookup = new FakeLookup();
+        lookup.Kandidaten.Add(new SageWeBelegTreffer(2, 2027, 1001, "x"));
+
+        await Svc(db, client, null, lookup).RunOnceAsync(Endpoint, 10, 50, Wdh);
+
+        (lookup.MemoAufrufe, lookup.KandidatenAufrufe).Should().Be((1, 0));
+        client.Gesendet.Should().ContainSingle("der Mensch hat geprüft");
+    }
+
+    [Fact]
+    public async Task E5_Erstversand_OhneSuche()
+    {
+        var (db, _, _) = Db();
+        Receipt(db, 1, Guid.NewGuid(), SageWareneingangStatus.Offen);
+        var lookup = new FakeLookup();
+        await Svc(db, new FakeClient(), null, lookup).RunOnceAsync(Endpoint, 10, 50, Wdh);
+        lookup.MemoAufrufe.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Q2_Ausgeschaltet_OffenUndFehler_WerdenKlaeren_NichtsGesendet()
+    {
+        var (db, _, _) = Db();
+        Receipt(db, 1, Guid.NewGuid(), SageWareneingangStatus.Offen);
+        FehlerNachVersuch(db);
+        Receipt(db, 3, Guid.NewGuid(), SageWareneingangStatus.Uebergeben);
+        var log = new FakeSyncLogger();
+
+        (await Svc(db, new FakeClient(), log).AusgeschaltetAsync()).Should().Be(2);
+        (await Svc(db, new FakeClient(), log).AusgeschaltetAsync()).Should().Be(0);
+
+        db.PurchaseOrderReceipts.Count(r => r.SageWeStatus == SageWareneingangStatus.Klaeren).Should().Be(2);
+        db.PurchaseOrderReceipts.Where(r => r.SageWeStatus == SageWareneingangStatus.Klaeren).Should()
+            .OnlyContain(r => r.SageWeFehler!.StartsWith("Sage-Wareneingang war ausgeschaltet") && r.ModifiedBy == SageWareneingang.ServiceActor);
+        db.PurchaseOrderReceipts.Single(r => r.SageWeFehler != null && r.SageWeFehler.Contains("Vorher: Ergebnis unklar")).Should().NotBeNull();
+        log.Runs.Should().ContainSingle("ohne Arbeit kein Protokoll-Eintrag");
+
+        var client = new FakeClient();
+        await Svc(db, client).RunOnceAsync(Endpoint, 10, 50, Wdh);
+        client.Gesendet.Should().BeEmpty("nach dem Wiedereinschalten nichts automatisch nachschicken");
+    }
+
+    [Fact]
+    public void Lookup_Filter_EngUndKodierbar()
+    {
+        SdataWareneingangLookupReader.WhereMemo(7).Should().Be("Belegkennzeichen eq 'ELL' and Memo like '%WE#7#%'");
+        SdataWareneingangLookupReader.WhereKandidaten(362313, new DateTime(2026, 11, 11, 14, 5, 0), " O'Neil ")
+            .Should().Be("Belegkennzeichen eq 'ELL' and ReferenzBelID eq 362313 and Belegdatum ge @2026-11-11@ and Lieferschein eq 'O''Neil'");
+        SdataWareneingangLookupReader.WhereKandidaten(1, new DateTime(2026, 11, 11), null).Should().NotContain("Lieferschein");
+        SdataWareneingangLookupReader.FremdeKennung("WE#7#", 7).Should().BeFalse();
+        SdataWareneingangLookupReader.FremdeKennung("x WE#70# y", 7).Should().BeTrue();
+        SdataWareneingangLookupReader.FremdeKennung(null, 7).Should().BeFalse();
+        new SageWeBelegTreffer(1, 2027, 398675, null).Anzeige.Should().Be("2027-398675");
     }
 
     [Fact]
@@ -179,7 +385,7 @@ public class SageWareneingangServiceTests
         Receipt(db, 2, null, SageWareneingangStatus.NichtNoetig);
         var client = new FakeClient();
         var log = new FakeSyncLogger();
-        await Svc(db, client, log).RunOnceAsync(Endpoint, 10, 50);
+        await Svc(db, client, log).RunOnceAsync(Endpoint, 10, 50, Wdh);
         client.Gesendet.Should().BeEmpty();
         log.Runs.Should().BeEmpty();
     }
@@ -209,6 +415,8 @@ public class SageWareneingangServiceTests
         services.AddScoped(_ => TestDbContextFactory.Create());
         services.AddHttpClient<ISageWareneingangClient, SageWareneingangClient>();
         services.AddScoped<SageWareneingangService>();
+        services.AddScoped<IdealAkeWms.Services.SageSdata.ISageSdataReadClient>(_ => new Mock<IdealAkeWms.Services.SageSdata.ISageSdataReadClient>().Object);
+        services.AddScoped<ISageWareneingangLookup, SdataWareneingangLookupReader>();
         using var sp = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = true });
         using var s = sp.CreateScope();
         s.ServiceProvider.GetRequiredService<SageWareneingangService>().Should().NotBeNull();

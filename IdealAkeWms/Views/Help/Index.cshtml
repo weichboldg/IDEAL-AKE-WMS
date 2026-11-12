@@ -92,8 +92,13 @@
                         der Zeile ein Hinweis und nichts wird gebucht. Positionen mit Charge/Seriennummer bucht der Einkauf in Sage.
                         Je Position gibt es ein Feld <em>Positionsmemo</em> (seit v1.99.6, höchstens 200 Zeichen): Der Text steht als Notiz an der
                         Einbuchung und im Sage-Wareneingang im Positions-Memo vor der WMS-Kennung.
-                        Den Stand zeigt <em>Lager &rarr; Wareneingänge an Sage</em>; ein Fehler wird nicht automatisch wiederholt &ndash; zuerst in Sage
-                        nachsehen, ob der Beleg (Memo <code>WE#&hellip;#</code>, Lieferschein-Nr.) schon existiert, dann <em>Erneut senden</em>.
+                        Den Stand zeigt <em>Lager &rarr; Sage-Wareneingänge</em> (bis v1.99.6 &bdquo;Wareneingänge an Sage&ldquo;).
+                        <strong>Seit v1.99.7</strong> wiederholt der Dienst einen Fehler selbst (Anzahl und Abstand in den Service-Einstellungen) und sucht
+                        vor jedem Versuch den Beleg in Sage über die Memo-Kennung <code>WE#&hellip;#</code>: gefunden = <em>an Sage übergeben</em>, ohne
+                        zweiten Beleg. Findet er einen Beleg derselben Bestellung ohne Kennung (gleicher Tag oder später, gleiche Lieferschein-Nr.), steht der
+                        Eintrag auf <strong>Klären</strong> und wird nicht gesendet: in Sage prüfen, dann <em>Als übergeben markieren</em> (mit
+                        Sage-Belegnummer) oder <em>Erneut senden</em>. Ist der Sage-Wareneingang ausgeschaltet, gehen offene Einträge auf <em>Klären</em>
+                        und werden auch nach dem Wiedereinschalten nicht von selbst nachgeschickt.
                     </dd>
 
                     <dt>Sage-Lagerbuchungen (seit v1.28.0)</dt>

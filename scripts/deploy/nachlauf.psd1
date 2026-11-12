@@ -263,5 +263,11 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
 @{ Id='v1.99.0-Info'; Version='1.99.0'; Typ='Info'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
    Text='Betrieb: Das Update-Skript prueft Kommissionierbereiche, RCSI, Rollen und DUMMY-Artikel und repariert nur nach Bestaetigung; Daten-/Einmal-Skripte laufen nur nach SCHARF bzw. uebernehmen; Marker in dbo.DeployScriptRuns.'
    Quelle='2026-11-11-v1-99-0-update-skript-prueft-und-fuehrt-aus' }
+@{ Id='v1.99.7-SageWeWiederholen'; Version='1.99.7'; Typ='Einstellung'; Firma='AKE'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Text='Neu in /ServiceSettings > Sage-Lagerbuchung: Sync:SageWareneingangMaxWiederholungen (Standard 3, 0 = nur Erneut senden) und Sync:SageWareneingangWiederholAbstandMinuten (Standard 15). Wirkt nur mit SageWareneingangBelegAktiv; vor jeder Wiederholung sucht der Dienst den Beleg in Sage (nur lesend). Werte bestaetigen oder anpassen.'
+   Quelle='2026-11-12-v1-99-7-wareneingang-e5-auto-retry' }
+@{ Id='v1.99.7-EinkaufKlaeren'; Version='1.99.7'; Typ='Info'; Firma='AKE'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Text='Einkauf/Lager informieren: Liste heisst jetzt Lager -> Sage-Wareneingaenge (eigener Block mit Sage-Lagerbuchungen). Fehler wiederholt der Dienst selbst; Status Klaeren = moeglicher Beleg in Sage ohne WMS-Kennung: in Sage pruefen, dann Als uebergeben markieren oder Erneut senden. Ist der Sage-Wareneingang aus, gehen offene Eintraege auf Klaeren und werden nie automatisch nachgeschickt.'
+   Quelle='2026-11-12-v1-99-7-wareneingang-e5-auto-retry' }
 )
 }

@@ -9,6 +9,21 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.99.7</strong> <span class="text-white-50 ms-2">12.11.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>Sage-Wareneingänge: automatisch wiederholen mit Prüfung in Sage</h6>
+                <ul>
+                    <li><strong>Neu:</strong> Nach einem Fehler versucht der Dienst es selbst erneut (Anzahl und Abstand in den Service-Einstellungen). Vorher sucht er den Beleg in Sage: Ist er schon da, wird der Eintrag &bdquo;an Sage übergeben&ldquo;, ohne zweiten Beleg.</li>
+                    <li><strong>Neu &ndash; Status &bdquo;Klären&ldquo;:</strong> Liegt in Sage ein möglicher Beleg derselben Bestellung ohne WMS-Kennung, sendet der Dienst nicht. In Sage prüfen, dann &bdquo;Als übergeben markieren&ldquo; (mit Sage-Belegnummer) oder &bdquo;Erneut senden&ldquo;.</li>
+                    <li>Ist der Sage-Wareneingang ausgeschaltet, zeigen Liste und Service-Einstellungen einen Hinweis mit der Zahl offener Einträge; sie werden auch nach dem Wiedereinschalten nicht von selbst nachgeschickt.</li>
+                    <li>Menü &bdquo;Lager&ldquo;: &bdquo;Sage-Lagerbuchungen&ldquo; und &bdquo;Sage-Wareneingänge&ldquo; (bisher &bdquo;Wareneingänge an Sage&ldquo;) stehen in einem eigenen Block.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.99.6</strong> <span class="text-white-50 ms-2">12.11.2026</span>
             </div>
             <div class="card-body">

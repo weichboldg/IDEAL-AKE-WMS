@@ -17,11 +17,12 @@ namespace IdealAkeWms.Tests.Controllers;
 /// <summary>v1.99.4 (Spec 2026-11-08-wareneingang-teil-2-sage-we-beleg-rahmenabrufe E3, AK 8/9): Liste „Wareneingänge an Sage“ und „Erneut senden“.</summary>
 public class SageWareneingaengeListeTests
 {
-    private static readonly Guid VorgangA = Guid.NewGuid(), VorgangB = Guid.NewGuid();
+    private static readonly Guid VorgangA = Guid.NewGuid(), VorgangB = Guid.NewGuid(), VorgangC = Guid.NewGuid();
 
-    private static async Task<(PurchaseOrdersController ctrl, ApplicationDbContext db)> BuildAsync()
+    private static async Task<(PurchaseOrdersController ctrl, ApplicationDbContext db)> BuildAsync(bool sageWeAn = true)
     {
         var db = TestDbContextFactory.Create();
+        if (sageWeAn) db.ServiceSettings.Add(new ServiceSetting { Key = SageWareneingang.ToggleKey, Value = "true" });
         db.Articles.Add(new Article { Id = 5, ArticleNumber = "00722001", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" });
         db.StorageLocations.Add(new StorageLocation { Id = 9, Code = "HR 0 0 0", IsActive = true, CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" });
         StockMovement M(int belPosId, SageWareneingangStatus st, Guid? vorgang) => new()
@@ -37,7 +38,7 @@ public class SageWareneingaengeListeTests
             },
         };
         db.StockMovements.AddRange(M(1, SageWareneingangStatus.Fehler, VorgangA), M(2, SageWareneingangStatus.Fehler, VorgangA),
-            M(3, SageWareneingangStatus.Uebergeben, VorgangB), M(4, SageWareneingangStatus.NichtNoetig, null));
+            M(3, SageWareneingangStatus.Uebergeben, VorgangB), M(4, SageWareneingangStatus.NichtNoetig, null), M(5, SageWareneingangStatus.Klaeren, VorgangC));
         await db.SaveChangesAsync();
 
         var user = new Mock<ICurrentUserService>();
@@ -58,10 +59,11 @@ public class SageWareneingaengeListeTests
     {
         var (ctrl, _) = await BuildAsync();
         var vm = (SageWareneingaengeViewModel)((ViewResult)await ctrl.SageWareneingaenge(null, null, null, null)).Model!;
-        vm.Zeilen.Should().HaveCount(3, "NichtNoetig (Teil 1) erscheint nicht");
+        vm.Zeilen.Should().HaveCount(4, "NichtNoetig (Teil 1) erscheint nicht");
         var ersteId = vm.Zeilen.Where(z => z.Receipt.SageWeVorgang == VorgangA).Min(z => z.Receipt.Id);
         vm.Zeilen.Where(z => z.Receipt.SageWeVorgang == VorgangA).Should().OnlyContain(z => z.Memo == $"WE#{ersteId}#");
-        vm.Pagination.TotalCount.Should().Be(3);
+        vm.Pagination.TotalCount.Should().Be(4);
+        vm.AusHinweis.Should().BeNull("Schalter an");
 
         var fehler = (SageWareneingaengeViewModel)((ViewResult)await ctrl.SageWareneingaenge(SageWareneingangStatus.Fehler, null, null, null)).Model!;
         fehler.Zeilen.Should().HaveCount(2);
@@ -102,5 +104,54 @@ public class SageWareneingaengeListeTests
                 new[] { SageWareneingangStatus.Uebergeben, SageWareneingangStatus.Fehler, SageWareneingangStatus.Uebergeben })
             .SageWeText(PurchaseOrdersController.SageWeStatusText).Should().Be("Sage-Wareneingang: 2× an Sage übergeben, 1× Fehler");
         ErfasstJeBelPos.Leer.SageWeText(PurchaseOrdersController.SageWeStatusText).Should().BeNull();
+    }
+
+    // ---------------- v1.99.7 E5 / Q-2 ----------------
+
+    [Fact]
+    public async Task ErneutSenden_AuchKlaeren_AufOffen()
+    {
+        var (ctrl, db) = await BuildAsync();
+        await ctrl.SageWeErneutSenden(VorgangC);
+        db.PurchaseOrderReceipts.Single(r => r.SageWeVorgang == VorgangC).SageWeStatus.Should().Be(SageWareneingangStatus.Offen);
+    }
+
+    [Fact]
+    public async Task Q2_SchalterAus_ErneutSendenGesperrt_HinweisMitAnzahl()
+    {
+        var (ctrl, db) = await BuildAsync(sageWeAn: false);
+        await ctrl.SageWeErneutSenden(VorgangA);
+        db.PurchaseOrderReceipts.Where(r => r.SageWeVorgang == VorgangA).Should().OnlyContain(r => r.SageWeStatus == SageWareneingangStatus.Fehler);
+        ctrl.TempData["WarningMessage"]!.ToString().Should().Contain("ausgeschaltet");
+
+        var vm = (SageWareneingaengeViewModel)((ViewResult)await ctrl.SageWareneingaenge(null, null, null, null)).Model!;
+        vm.AusHinweis.Should().Be("Sage-Wareneingang ist aus – 3 Einträge offen, werden nicht gesendet. Auch nach dem Wiedereinschalten nur über „Erneut senden“.");
+    }
+
+    [Fact]
+    public async Task AlsUebergeben_KlaerenUndFehler_MitBelegnummer_OhneNummerAbgelehnt()
+    {
+        var (ctrl, db) = await BuildAsync();
+        await ctrl.SageWeAlsUebergeben(VorgangC, "  ");
+        db.PurchaseOrderReceipts.Single(r => r.SageWeVorgang == VorgangC).SageWeStatus.Should().Be(SageWareneingangStatus.Klaeren);
+        ctrl.TempData["WarningMessage"]!.ToString().Should().Contain("Belegnummer");
+
+        await ctrl.SageWeAlsUebergeben(VorgangC, " 2027-398676 ");
+        var c = db.PurchaseOrderReceipts.Single(r => r.SageWeVorgang == VorgangC);
+        (c.SageWeStatus, c.SageWeBelegnummer, c.SageWeFehler, c.ModifiedBy).Should().Be((SageWareneingangStatus.Uebergeben, "2027-398676", (string?)null, "Tester"));
+        c.SageWeAm.Should().NotBeNull();
+
+        await ctrl.SageWeAlsUebergeben(VorgangB, "2027-1");
+        ctrl.TempData["WarningMessage"]!.ToString().Should().Contain("nicht (mehr)", "Uebergeben bleibt unverändert");
+        (await new PurchaseOrderReceiptRepository(db).SageWeAlsUebergebenAsync(VorgangA, "2027-2", "u", "w")).Should().Be(2);
+    }
+
+    [Fact]
+    public void Attribute_AlsUebergeben_KeyUser_PostAntiForgery()
+    {
+        var m = typeof(PurchaseOrdersController).GetMethod(nameof(PurchaseOrdersController.SageWeAlsUebergeben))!;
+        m.GetCustomAttributes(typeof(RequireStockKeyUserAccessAttribute), true).Should().NotBeEmpty();
+        m.GetCustomAttributes(typeof(HttpPostAttribute), true).Should().NotBeEmpty();
+        m.GetCustomAttributes(typeof(ValidateAntiForgeryTokenAttribute), true).Should().NotBeEmpty();
     }
 }

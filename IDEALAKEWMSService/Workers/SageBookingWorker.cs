@@ -69,6 +69,8 @@ public class SageBookingWorker : BackgroundService
                 // SageLagerbuchungAktiv); dieselbe EINE Instanz ist zustaendig (Idempotenz "Status vor dem Call").
                 if (await ServiceSettings.GetBoolSafeAsync(_configuration, SageWareneingang.ToggleKey, false, stoppingToken))
                     await ProcessSageWareneingangAsync(stoppingToken);
+                else
+                    await SageWareneingangAusAsync(stoppingToken);   // v1.99.7 Q-2: Liegengebliebenes auf „Klären“, nie nachschicken
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -92,7 +94,17 @@ public class SageBookingWorker : BackgroundService
         var service = scope.ServiceProvider.GetRequiredService<SageWareneingangService>();
         var batchSize = await ServiceSettings.GetIntSafeAsync(_configuration, "Sync:SageLagerbuchungBatchSize", 50, ct);
         var stuckMinutes = await ServiceSettings.GetIntSafeAsync(_configuration, "Sync:SageLagerbuchungStuckMinutes", 10, ct);
-        await service.RunOnceAsync(await BuildEndpointAsync(ct), stuckMinutes, batchSize, ct);
+        // v1.99.7 E5: Wiederholgrenzen (ADR 0020, Katalog ServiceSettingDefinitions)
+        var wiederholung = new SageWeWiederholung(
+            await ServiceSettings.GetIntSafeAsync(_configuration, SageWareneingang.MaxWiederholungenKey, 3, ct),
+            await ServiceSettings.GetIntSafeAsync(_configuration, SageWareneingang.WiederholAbstandKey, 15, ct));
+        await service.RunOnceAsync(await BuildEndpointAsync(ct), stuckMinutes, batchSize, wiederholung, ct);
+    }
+
+    private async Task SageWareneingangAusAsync(CancellationToken ct)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        await scope.ServiceProvider.GetRequiredService<SageWareneingangService>().AusgeschaltetAsync(ct);
     }
 
     private async Task<SageBookingEndpoint> BuildEndpointAsync(CancellationToken ct) => new(

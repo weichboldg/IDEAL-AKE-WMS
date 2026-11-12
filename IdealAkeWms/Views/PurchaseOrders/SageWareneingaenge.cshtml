@@ -2,21 +2,35 @@
 @using IdealAkeWms.Models
 @model IdealAkeWms.Models.ViewModels.SageWareneingaengeViewModel
 @{
-    ViewData["Title"] = "Wareneingänge an Sage";
+    ViewData["Title"] = "Sage-Wareneingänge";
     // Spalten: gebucht, bestellung, pos, artikel, menge, platz, lieferschein, memo-position, status, versuche, sagebeleg, memo, fehler, actions
     const int colCount = 14;
 }
 @* v1.99.4 Spec 2026-11-08-wareneingang-teil-2-sage-we-beleg-rahmenabrufe E3/F4: Status je Wareneingang (Text, nie nur Farbe), Listen-View-Pattern. *@
 
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
-    <h2 class="page-header mb-0">Wareneingänge an Sage</h2>
+    <h2 class="page-header mb-0">Sage-Wareneingänge</h2>
     <a asp-action="Receive" class="btn btn-outline-secondary">Wareneingang zu Bestellung</a>
 </div>
 
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success">@TempData["SuccessMessage"]</div>
+}
+@if (TempData["WarningMessage"] != null)
+{
+    <div class="alert alert-warning">@TempData["WarningMessage"]</div>
+}
+@if (Model.AusHinweis != null)
+{
+    @* v1.99.7 Q-2 *@
+    <div class="alert alert-warning" role="alert"><strong>&#9888; @Model.AusHinweis</strong></div>
+}
+
 <p class="text-muted small">
-    Wareneingänge, die als Sage-Wareneingangsbeleg (ELL) an Sage gehen: ein Beleg je Buchung der Maske. Ein Fehler wird nicht automatisch
-    wiederholt. Vor „Erneut senden“ in Sage nachsehen, ob der Beleg schon existiert (Memo in der Spalte „Memo“, Lieferschein-Nr.) – sonst
-    entsteht ein zweiter Wareneingang.
+    Wareneingänge, die als Sage-Wareneingangsbeleg (ELL) an Sage gehen: ein Beleg je Buchung der Maske. Nach einem Fehler wiederholt der Dienst
+    selbst und sucht vorher den Beleg in Sage (Memo in der Spalte „Memo“). Findet er einen möglichen Beleg ohne diese Kennung, steht der Eintrag
+    auf <strong>Klären</strong>: in Sage prüfen, dann „Als übergeben markieren“ (Beleg existiert) oder „Erneut senden“ (Beleg fehlt).
 </p>
 
 <div class="card filter-card mb-3">
@@ -83,19 +97,24 @@
                     <td>@r.StockMovement.StorageLocation.Code</td>
                     <td>@r.Lieferschein</td>
                     <td>@r.StockMovement.Note</td>
-                    <td class="@(r.SageWeStatus == SageWareneingangStatus.Fehler ? "text-danger-emphasis fw-semibold" : "")">@PurchaseOrdersController.SageWeStatusText(r.SageWeStatus)</td>
+                    <td class="@(r.SageWeStatus == SageWareneingangStatus.Fehler ? "text-danger-emphasis fw-semibold" : r.SageWeStatus == SageWareneingangStatus.Klaeren ? "text-warning-emphasis fw-bold" : "")">@PurchaseOrdersController.SageWeStatusText(r.SageWeStatus)</td>
                     <td>@r.SageWeVersuche</td>
                     <td>@r.SageWeBelegnummer</td>
                     <td class="text-nowrap">@z.Memo</td>
                     <td><span class="small text-danger-emphasis" style="white-space:pre-wrap;">@r.SageWeFehler</span></td>
                     <td class="text-nowrap">
-                        @if (Model.CanErneutSenden && r.SageWeStatus == SageWareneingangStatus.Fehler && r.SageWeVorgang is { } vorgang)
+                        @if (Model.CanErneutSenden && r.SageWeStatus is SageWareneingangStatus.Fehler or SageWareneingangStatus.Klaeren && r.SageWeVorgang is { } vorgang)
                         {
                             <form asp-action="SageWeErneutSenden" asp-route-vorgang="@vorgang" method="post" class="d-inline">
                                 @Html.AntiForgeryToken()
-                                <button type="submit" class="btn btn-sm btn-outline-primary" title="Vorher in Sage nachsehen, ob der Beleg (Memo @z.Memo, Lieferschein @r.Lieferschein) schon existiert – sonst entsteht ein zweiter Wareneingang.">Erneut senden</button>
+                                <button type="submit" class="btn btn-sm btn-outline-primary" title="Der Dienst sucht vorher die Memo-Kennung @z.Memo in Sage. Einen Beleg ohne diese Kennung findet er dabei nicht – den vorher selbst prüfen.">Erneut senden</button>
                             </form>
-                            <div class="small text-body-secondary">Vorher in Sage prüfen (Memo @z.Memo)</div>
+                            <form asp-action="SageWeAlsUebergeben" asp-route-vorgang="@vorgang" method="post" class="d-flex gap-1 mt-1">
+                                @Html.AntiForgeryToken()
+                                <input type="text" name="belegnummer" maxlength="30" required class="form-control form-control-sm" style="width: 9rem;"
+                                       placeholder="Sage-Beleg-Nr." aria-label="Sage-Belegnummer für @z.Memo" autocomplete="off" />
+                                <button type="submit" class="btn btn-sm btn-outline-secondary text-nowrap">Als übergeben markieren</button>
+                            </form>
                         }
                     </td>
                 </tr>
@@ -103,7 +122,7 @@
             @if (!Model.Zeilen.Any())
             {
                 <tr>
-                    <td colspan="@colCount" class="text-center text-muted py-4">Keine Wareneingänge an Sage.</td>
+                    <td colspan="@colCount" class="text-center text-muted py-4">Keine Sage-Wareneingänge.</td>
                 </tr>
             }
         </tbody>
