@@ -12,6 +12,10 @@
     // v1.99.7 Q-2: Sage-Wareneingang aus, aber noch nicht uebergebene Eintraege
     var sageWeAn = SageWareneingang.IstAn(alleItems.FirstOrDefault(i => i.Key == SageWareneingang.ToggleKey)?.Wirksam);
     var sageWeHinweis = sageWeAn ? null : SageWareneingang.AusHinweis(false, await Receipts.SageWeNichtUebergebenAsync());
+    // v1.99.11 Wareneingang-CSV F4: CSV-Schalter an, aber Sage-Wareneingang aus bzw. kein Pfad
+    var csvAn = SageWareneingang.IstAn(alleItems.FirstOrDefault(i => i.Key == WareneingangCsv.AktivKey)?.Wirksam);
+    var csvHinweise = csvAn ? WareneingangCsv.Hinweise(true, sageWeAn, alleItems.FirstOrDefault(i => i.Key == WareneingangCsv.PfadKey)?.Wirksam,
+        await Receipts.CsvWartendAsync()) : new List<string>();
 }
 
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
@@ -56,6 +60,12 @@
 {
     <div class="alert alert-warning" role="alert">
         <strong>&#9888; @sageWeHinweis</strong> <a asp-controller="PurchaseOrders" asp-action="SageWareneingaenge">Zu den Sage-Wareneingängen</a>
+    </div>
+}
+@foreach (var h in csvHinweise)
+{
+    <div class="alert alert-warning" role="alert">
+        <strong>&#9888; @h</strong> <a asp-controller="PurchaseOrders" asp-action="SageWareneingaenge">Zu den Sage-Wareneingängen</a>
     </div>
 }
 

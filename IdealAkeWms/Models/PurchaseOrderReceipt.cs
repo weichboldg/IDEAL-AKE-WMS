@@ -62,4 +62,11 @@ public class PurchaseOrderReceipt : AuditableEntity
     public string? SageWeKennung { get; set; }
     /// <summary>Lieferschein-Nr. des Lieferanten (F6), an jedem Receipt eines Absendens; an Sage nur im Sage-WE als EKLieferschein.</summary>
     public string? Lieferschein { get; set; }
+
+    // ---- v1.99.11 (Spec 2026-11-12-wareneingang-barcode-lieferschein-csv-export F1/F3a) ----
+    /// <summary>Barcode des Lieferschein-Aufklebers, an jedem Receipt eines Absendens (wie <see cref="Lieferschein"/>); Dateiname der CSV
+    /// (<c>WareneingangCsv.IstGueltigerBarcode</c>). Im WMS nur an EINEM Absenden (ohne Gross/Klein).</summary>
+    public string? Barcode { get; set; }
+    /// <summary>Kreditorname beim Buchen (Snapshot aus dem Bestell-Cache, der nach der Uebergabe verschwindet) fuer die CSV.</summary>
+    public string? LieferantName { get; set; }
 }

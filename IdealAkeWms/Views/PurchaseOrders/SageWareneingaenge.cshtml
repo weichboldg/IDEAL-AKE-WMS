@@ -3,8 +3,8 @@
 @model IdealAkeWms.Models.ViewModels.SageWareneingaengeViewModel
 @{
     ViewData["Title"] = "Sage-Wareneingänge";
-    // Spalten: gebucht, bestellung, pos, artikel, menge, platz, lieferschein, memo-position, status, versuche, sagebeleg, memo, fehler, actions
-    const int colCount = 14;
+    // Spalten: gebucht, bestellung, pos, artikel, menge, platz, lieferschein, barcode, memo-position, status, versuche, sagebeleg, memo, fehler, csv, actions
+    const int colCount = 16;
 }
 @* v1.99.4 Spec 2026-11-08-wareneingang-teil-2-sage-we-beleg-rahmenabrufe E3/F4: Status je Wareneingang (Text, nie nur Farbe), Listen-View-Pattern. *@
 
@@ -25,6 +25,11 @@
 {
     @* v1.99.7 Q-2 *@
     <div class="alert alert-warning" role="alert"><strong>&#9888; @Model.AusHinweis</strong></div>
+}
+@foreach (var h in Model.CsvHinweise)
+{
+    @* v1.99.11 Wareneingang-CSV F4 *@
+    <div class="alert alert-warning" role="alert"><strong>&#9888; @h</strong></div>
 }
 
 <p class="text-muted small">
@@ -75,12 +80,14 @@
                 <th class="text-end" data-filterable data-filter-type="number" data-col-key="menge">Menge</th>
                 <th data-filterable data-col-key="platz">Ziel-Platz</th>
                 <th data-filterable data-col-key="lieferschein">Lieferschein</th>
+                <th data-filterable data-col-key="barcode">Barcode</th>
                 <th data-filterable data-col-key="memo-position">Positionsmemo</th>
                 <th data-filterable data-col-key="status">Status</th>
                 <th data-filterable data-filter-type="number" data-col-key="versuche">Vers.</th>
                 <th data-filterable data-col-key="sagebeleg">Sage-Beleg</th>
                 <th data-filterable data-col-key="memo">Memo</th>
                 <th data-filterable data-col-key="fehler">Fehler</th>
+                <th data-filterable data-col-key="csv" title="CSV-Datei für das DMS (Wareneingang-CSV)">CSV</th>
                 <th data-col-key="actions"></th>
             </tr>
         </thead>
@@ -96,12 +103,14 @@
                     <td class="text-end">@r.Quantity.ToString("0.###")</td>
                     <td>@r.StockMovement.StorageLocation.Code</td>
                     <td>@r.Lieferschein</td>
+                    <td class="text-nowrap">@r.Barcode</td>
                     <td>@r.StockMovement.Note</td>
                     <td class="@(r.SageWeStatus == SageWareneingangStatus.Fehler ? "text-danger-emphasis fw-semibold" : r.SageWeStatus == SageWareneingangStatus.Klaeren ? "text-warning-emphasis fw-bold" : "")">@PurchaseOrdersController.SageWeStatusText(r.SageWeStatus)</td>
                     <td>@r.SageWeVersuche</td>
                     <td>@r.SageWeBelegnummer</td>
                     <td class="text-nowrap">@z.Memo</td>
                     <td><span class="small text-danger-emphasis" style="white-space:pre-wrap;">@r.SageWeFehler</span></td>
+                    <td class="small @(z.CsvFehler ? "text-danger-emphasis fw-semibold" : "")">@z.Csv</td>
                     <td class="text-nowrap">
                         @if (Model.CanErneutSenden && r.SageWeStatus is SageWareneingangStatus.Fehler or SageWareneingangStatus.Klaeren && r.SageWeVorgang is { } vorgang)
                         {
@@ -114,6 +123,15 @@
                                 <input type="text" name="belegnummer" maxlength="30" required class="form-control form-control-sm" style="width: 9rem;"
                                        placeholder="Sage-Beleg-Nr." aria-label="Sage-Belegnummer für @z.Memo" autocomplete="off" />
                                 <button type="submit" class="btn btn-sm btn-outline-secondary text-nowrap">Als übergeben markieren</button>
+                            </form>
+                        }
+                        @if (Model.CanErneutSenden && z.CsvFehler && r.SageWeVorgang is { } csvVorgang)
+                        {
+                            @* v1.99.11 F4: nur bei CSV-Fehler; Hinweis vor dem Klick, weil eine vorhandene Datei nie überschrieben wird *@
+                            <form asp-action="CsvErneutSchreiben" asp-route-vorgang="@csvVorgang" method="post" class="mt-1">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-sm btn-outline-primary text-nowrap">CSV erneut schreiben</button>
+                                <div class="small text-body-secondary text-wrap" style="max-width: 16rem;">Vorher auf der Freigabe prüfen, ob @(r.Barcode).csv schon existiert bzw. verarbeitet wurde.</div>
                             </form>
                         }
                     </td>

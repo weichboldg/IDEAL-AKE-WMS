@@ -61,6 +61,7 @@ public class SageBookingWorker : BackgroundService
                 _configuration, "Sync:SageLagerbuchungIntervalSeconds", 20, stoppingToken);
             if (intervalSeconds < 5) intervalSeconds = 5;   // Untergrenze gegen DB-Last
 
+            var sageWeAn = false;   // v1.99.11: derselbe gelesene Wert gated die Wareneingang-CSV (Lesefehler = aus)
             try
             {
                 if (await ServiceSettings.GetBoolSafeAsync(_configuration, "SageLagerbuchungAktiv", false, stoppingToken))
@@ -69,7 +70,8 @@ public class SageBookingWorker : BackgroundService
                 // SageLagerbuchungAktiv); dieselbe EINE Instanz ist zustaendig (Idempotenz "Status vor dem Call").
                 // QA v1.99.7 F-2: NICHT die Safe-Variante - ein DB-Lesefehler darf nicht als „aus“ gelten und Q-2 (Offen/Fehler -> Klären)
                 // ausloesen; er landet im catch unten, der Takt wird wiederholt.
-                if (await ServiceSettings.GetBoolAsync(_configuration, SageWareneingang.ToggleKey, false, stoppingToken))
+                sageWeAn = await ServiceSettings.GetBoolAsync(_configuration, SageWareneingang.ToggleKey, false, stoppingToken);
+                if (sageWeAn)
                     await ProcessSageWareneingangAsync(stoppingToken);
                 else
                     await SageWareneingangAusAsync(stoppingToken);   // v1.99.7 Q-2: Liegengebliebenes auf „Klären“, nie nachschicken
@@ -82,6 +84,22 @@ public class SageBookingWorker : BackgroundService
             {
                 _logger.LogError(ex, "Unerwarteter Fehler im SageBookingWorker.");
                 await NotifyErrorAsync("SageBookingWorker (unerwartet)", ex, stoppingToken);
+            }
+
+            // v1.99.11 (Wareneingang-CSV F3): eigener Schritt NACH dem Sage-WE-Schritt (im selben Takt uebergeben = sofort CSV), nur bei
+            // eingeschaltetem Sage-Wareneingang. Eigenes try: ein Fehler hier haelt die Sage-Buchungen nicht auf und umgekehrt.
+            try
+            {
+                if (sageWeAn) await ProcessWareneingangCsvAsync(stoppingToken);
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                break;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unerwarteter Fehler im Schritt Wareneingang-CSV.");
+                await NotifyErrorAsync("SageBookingWorker (Wareneingang-CSV)", ex, stoppingToken);
             }
 
             await Task.Delay(TimeSpan.FromSeconds(intervalSeconds), stoppingToken);
@@ -103,6 +121,19 @@ public class SageBookingWorker : BackgroundService
         // v1.99.9: System-Kuerzel der Kennung WE#[K#]<id>#; Lesefehler/ungueltig -> Takt abbrechen (nichts senden), nicht ohne Kuerzel senden.
         var kuerzel = SageSystemKuerzel.Pruefen(await ServiceSettings.GetValueAsync(_configuration, SageSystemKuerzel.Key, ct));
         await service.RunOnceAsync(await BuildEndpointAsync(ct), stuckMinutes, batchSize, wiederholung, kuerzel, ct);
+    }
+
+    private async Task ProcessWareneingangCsvAsync(CancellationToken ct)
+    {
+        // Lesefehler = aus bzw. leer = nichts schreiben (harmlos, anders als Q-2)
+        if (!await ServiceSettings.GetBoolSafeAsync(_configuration, WareneingangCsv.AktivKey, false, ct)) return;
+        var pfad = await ServiceSettings.GetValueSafeAsync(_configuration, WareneingangCsv.PfadKey, ct);
+        if (string.IsNullOrWhiteSpace(pfad)) return;   // Hinweis in Liste, /ServiceSettings und Manifest-Pruefung
+        var wiederholung = new WareneingangCsvWiederholung(
+            await ServiceSettings.GetIntSafeAsync(_configuration, WareneingangCsv.MaxWiederholungenKey, 3, ct),
+            await ServiceSettings.GetIntSafeAsync(_configuration, WareneingangCsv.WiederholAbstandKey, 15, ct));
+        using var scope = _scopeFactory.CreateScope();
+        await scope.ServiceProvider.GetRequiredService<WareneingangCsvService>().RunOnceAsync(pfad, wiederholung, ct);
     }
 
     private async Task SageWareneingangAusAsync(CancellationToken ct)

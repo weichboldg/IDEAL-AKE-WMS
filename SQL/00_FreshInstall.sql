@@ -2402,6 +2402,8 @@ BEGIN
         [SageWeVersuche]            INT               NOT NULL CONSTRAINT DF_PurchaseOrderReceipts_SageWeVersuche DEFAULT 0,
         [Lieferschein]              NVARCHAR(20)      NULL,
         [SageWeKennung]             NVARCHAR(20)      NULL,  -- v1.99.9 (SQL/144): beim Senden verwendete Kennung WE#[K#]<Id>#
+        [Barcode]                   NVARCHAR(50)      NULL,  -- v1.99.11 (SQL/146): Barcode des Lieferschein-Aufklebers (Dateiname der CSV)
+        [LieferantName]             NVARCHAR(50)      NULL,  -- v1.99.11 (SQL/146): Kreditorname beim Buchen (Snapshot)
         [CreatedAt]                 DATETIME2         NOT NULL,
         [CreatedBy]                 NVARCHAR(200)     NOT NULL,
         [CreatedByWindows]          NVARCHAR(200)     NOT NULL,
@@ -2413,7 +2415,33 @@ BEGIN
     CREATE INDEX [IX_PurchaseOrderReceipts_BelPosId] ON [dbo].[PurchaseOrderReceipts]([BelPosId]);
     CREATE INDEX [IX_PurchaseOrderReceipts_SageWeVorgang] ON [dbo].[PurchaseOrderReceipts]([SageWeVorgang]);
     CREATE INDEX [IX_PurchaseOrderReceipts_SageWeStatus] ON [dbo].[PurchaseOrderReceipts]([SageWeStatus]);
+    CREATE INDEX [IX_PurchaseOrderReceipts_Barcode] ON [dbo].[PurchaseOrderReceipts]([Barcode]);
     PRINT 'Tabelle PurchaseOrderReceipts erstellt.';
+END
+GO
+
+-- WareneingangCsvExporte (v1.99.11 / SQL/146, Wareneingang-CSV F2): eine Zeile je Sage-WE-Vorgang (UNIQUE), Status 1/2/3, Audit-Felder.
+IF OBJECT_ID(N'dbo.WareneingangCsvExporte', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[WareneingangCsvExporte] (
+        [Id]                 INT IDENTITY(1,1) NOT NULL CONSTRAINT [PK_WareneingangCsvExporte] PRIMARY KEY,
+        [SageWeVorgang]      UNIQUEIDENTIFIER  NOT NULL,
+        [Barcode]            NVARCHAR(50)      NOT NULL,
+        [Status]             INT               NOT NULL,  -- 1 Offen, 2 Geschrieben, 3 Fehler
+        [Versuche]           INT               NOT NULL CONSTRAINT [DF_WareneingangCsvExporte_Versuche] DEFAULT 0,
+        [Fehler]             NVARCHAR(1000)    NULL,
+        [Datei]              NVARCHAR(400)     NULL,
+        [GeschriebenAm]      DATETIME2         NULL,
+        [CreatedAt]          DATETIME2         NOT NULL,
+        [CreatedBy]          NVARCHAR(200)     NOT NULL,
+        [CreatedByWindows]   NVARCHAR(200)     NOT NULL,
+        [ModifiedAt]         DATETIME2         NULL,
+        [ModifiedBy]         NVARCHAR(200)     NULL,
+        [ModifiedByWindows]  NVARCHAR(200)     NULL
+    );
+    CREATE UNIQUE INDEX [UX_WareneingangCsvExporte_SageWeVorgang] ON [dbo].[WareneingangCsvExporte]([SageWeVorgang]);
+    CREATE INDEX [IX_WareneingangCsvExporte_Status] ON [dbo].[WareneingangCsvExporte]([Status]);
+    PRINT 'Tabelle WareneingangCsvExporte erstellt.';
 END
 GO
 
@@ -3215,6 +3243,9 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261112143552_AddPurchaseOrderReminders')
    AND OBJECT_ID(N'dbo.PurchaseOrderReminders', N'U') IS NOT NULL AND COL_LENGTH(N'dbo.Creditors', N'ReminderEmail') IS NOT NULL -- sonst steht SQL/145 noch aus
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261112143552_AddPurchaseOrderReminders', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261112151318_AddWareneingangBarcodeCsv')
+   AND OBJECT_ID(N'dbo.WareneingangCsvExporte', N'U') IS NOT NULL AND COL_LENGTH(N'dbo.PurchaseOrderReceipts', N'Barcode') IS NOT NULL -- sonst steht SQL/146 noch aus
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261112151318_AddWareneingangBarcodeCsv', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';

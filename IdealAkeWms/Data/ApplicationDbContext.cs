@@ -57,6 +57,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<SagePurchaseOrderLine> SagePurchaseOrderLines => Set<SagePurchaseOrderLine>();
     public DbSet<PurchaseOrderReceipt> PurchaseOrderReceipts => Set<PurchaseOrderReceipt>();
     public DbSet<PurchaseOrderReminder> PurchaseOrderReminders => Set<PurchaseOrderReminder>(); // v1.99.10 Lieferverzug-Mails
+    public DbSet<WareneingangCsvExport> WareneingangCsvExporte => Set<WareneingangCsvExport>(); // v1.99.11 Wareneingang-CSV
     public DbSet<BdeShift> BdeShifts => Set<BdeShift>();
     public DbSet<BdeTerminal> BdeTerminals => Set<BdeTerminal>();
     public DbSet<CachedBomHeader> CachedBomHeaders => Set<CachedBomHeader>();
@@ -1452,8 +1453,28 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.SageWeFehler).HasMaxLength(1000);
             entity.Property(e => e.Lieferschein).HasMaxLength(20);
             entity.Property(e => e.SageWeKennung).HasMaxLength(20);   // v1.99.9 System-Kuerzel
+            entity.Property(e => e.Barcode).HasMaxLength(50);          // v1.99.11 Wareneingang-CSV (Dateiname)
+            entity.Property(e => e.LieferantName).HasMaxLength(50);    // v1.99.11 Snapshot wie SagePurchaseOrderLine.LieferantName
             entity.HasIndex(e => e.SageWeVorgang).HasDatabaseName("IX_PurchaseOrderReceipts_SageWeVorgang");
             entity.HasIndex(e => e.SageWeStatus).HasDatabaseName("IX_PurchaseOrderReceipts_SageWeStatus");
+            entity.HasIndex(e => e.Barcode).HasDatabaseName("IX_PurchaseOrderReceipts_Barcode");
+        });
+
+        // v1.99.11 (Spec 2026-11-12-wareneingang-barcode-lieferschein-csv-export F2): Ausgangstabelle der CSV-Uebergabe, eine Zeile je Vorgang.
+        modelBuilder.Entity<WareneingangCsvExport>(entity =>
+        {
+            entity.ToTable("WareneingangCsvExporte");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Barcode).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.Status).HasConversion<int>();
+            entity.Property(e => e.Fehler).HasMaxLength(1000);
+            entity.Property(e => e.Datei).HasMaxLength(400);
+            entity.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.ModifiedBy).HasMaxLength(200);
+            entity.Property(e => e.ModifiedByWindows).HasMaxLength(200);
+            entity.HasIndex(e => e.SageWeVorgang).IsUnique().HasDatabaseName("UX_WareneingangCsvExporte_SageWeVorgang");
+            entity.HasIndex(e => e.Status).HasDatabaseName("IX_WareneingangCsvExporte_Status");
         });
 
         // BDE: Activities

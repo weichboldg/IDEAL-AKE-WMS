@@ -42,7 +42,7 @@ public partial class PurchaseOrdersController
     [RequireStockAccess]
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Receive(int belId, List<PurchaseOrderReceiveInput>? zeilen, string? lieferschein = null)
+    public async Task<IActionResult> Receive(int belId, List<PurchaseOrderReceiveInput>? zeilen, string? lieferschein = null, string? barcode = null)
     {
         zeilen ??= new();
         var vm = await BuildReceiveAsync(belId, zeilen);
@@ -77,6 +77,20 @@ public partial class PurchaseOrdersController
             ModelState.AddModelError(string.Empty, "Lieferschein-Nr. höchstens 20 Zeichen (Sage-Feld EKLieferschein).");
         if (vm.Lieferschein == null && vm.LieferscheinPflicht)
             ModelState.AddModelError(string.Empty, "Bitte die Lieferschein-Nummer des Lieferanten eingeben.");
+
+        // v1.99.11 (Wareneingang-CSV F1): Barcode des Lieferschein-Aufklebers, nur bei eingeschaltetem Feld (sonst ignoriert). Getrimmt, keine
+        // Umformung (Aufkleber = Dateiname); im WMS nur an einem Absenden (ohne Gross/Klein, Windows-Dateinamen).
+        vm.Barcode = !vm.BarcodeAktiv || string.IsNullOrWhiteSpace(barcode) ? null : barcode.Trim();
+        if (vm.Barcode != null)
+        {
+            if (!vm.SageWeAktiv)
+                ModelState.AddModelError(string.Empty, "Barcode nicht möglich: Der Sage-Wareneingang ist aus – für diese Buchung entsteht keine CSV-Datei.");
+            else if (!WareneingangCsv.IstGueltigerBarcode(vm.Barcode))
+                ModelState.AddModelError(string.Empty, WareneingangCsv.BarcodeFehlerText);
+            else if (await _receipts.BarcodeVergebenAsync(vm.Barcode) is { } vergeben)
+                ModelState.AddModelError(string.Empty,
+                    $"Barcode {vm.Barcode} ist bereits dem Wareneingang zu Bestellung {vergeben.Belegnummer} vom {vergeben.CreatedAt:dd.MM.yyyy HH:mm} zugeordnet.");
+        }
 
         if (buchen.Count == 0)
             ModelState.AddModelError(string.Empty, "Keine Menge eingegeben – nichts gebucht.");
@@ -116,6 +130,7 @@ public partial class PurchaseOrdersController
                     BelId = l.BelId, BelPosId = l.BelPosId, Belegnummer = l.Belegnummer, LieferantKto = l.LieferantKto, Quantity = menge,
                     OffenLautSageBeimBuchen = l.MengeOffen, SagePlatzId = l.SagePlatzId, Lieferart = art,
                     Lieferschein = vm.Lieferschein,
+                    Barcode = vm.Barcode, LieferantName = l.LieferantName,   // v1.99.11 Wareneingang-CSV
                     SageWeStatus = !vm.SageWeAktiv ? SageWareneingangStatus.NichtNoetig
                         : l.Chargenpflicht || l.Nachweispflicht ? SageWareneingangStatus.NurInSage : SageWareneingangStatus.Offen,
                     SageWeVorgang = vm.SageWeAktiv && !(l.Chargenpflicht || l.Nachweispflicht) ? vorgang : null,
@@ -147,6 +162,8 @@ public partial class PurchaseOrdersController
             Lagerplaetze = await _locations.GetActiveOrderedExcludingPickingTransportAsync() ?? new(),
             SageWeAktiv = SageWareneingang.IstAn(await _serviceSettings.GetValueAsync(SageWareneingang.ToggleKey)),
             LieferscheinPflicht = string.Equals((await _settings.GetValueAsync(AppSettingKeys.WareneingangLieferscheinPflicht))?.Trim(), "true",
+                StringComparison.OrdinalIgnoreCase),
+            BarcodeAktiv = string.Equals((await _settings.GetValueAsync(AppSettingKeys.WareneingangBarcodeAktiv))?.Trim(), "true",
                 StringComparison.OrdinalIgnoreCase),
             Zeilen = rows.Select(r => new PurchaseOrderReceiveRow
             {

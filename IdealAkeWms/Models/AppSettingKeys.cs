@@ -118,4 +118,8 @@ public static class AppSettingKeys
     // v1.99.4 (Spec 2026-11-08-wareneingang-teil-2-sage-we-beleg-rahmenabrufe F6, Freigabe-Antwort 5): Lieferschein-Nr. des Lieferanten in
     // "Wareneingang zu Bestellung" als Pflichtfeld (Default aus = optional). Kein Seed; nur exakt "true" ohne Gross/Klein aktiviert.
     public const string WareneingangLieferscheinPflicht = "WareneingangLieferscheinPflicht";
+
+    // v1.99.11 (Spec 2026-11-12-wareneingang-barcode-lieferschein-csv-export F1): Feld „Barcode (Lieferschein)“ in "Wareneingang zu Bestellung"
+    // (Default aus). Die Datei schreibt nur der Dienst-Schalter WareneingangCsvAktiv (ServiceSetting). Kein Seed; nur exakt "true" aktiviert.
+    public const string WareneingangBarcodeAktiv = "WareneingangBarcodeAktiv";
 }

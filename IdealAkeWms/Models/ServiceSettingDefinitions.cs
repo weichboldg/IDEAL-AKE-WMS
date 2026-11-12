@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using IdealAkeWms.Services;
 
 namespace IdealAkeWms.Models;
 
@@ -76,6 +77,16 @@ public static class ServiceSettingDefinitions
         ["Sync:SageSystemKuerzel"] = ("System-Kürzel für Sage-Kennungen",
             "Dienst: Sage-Buchungs-Worker (Lagerbuchungen SM#…#, Lauf „Sage-Wareneingang“ WE#…#) – Memo am Sage-Beleg und Suche vor dem erneuten Senden; Liste „Sage-Wareneingänge“ (Spalte Memo)",
             null, "In der Produktion LEER lassen. Nur Testsysteme, die mit anderen WMS in dieselbe Sage-Datenbank schreiben, bekommen ein eigenes Kürzel (DEV, AT, ATI, IT). Ändern wirkt nur auf neue Sendungen; bereits gesendete Einträge behalten ihre Kennung."),
+        // v1.99.11 Wareneingang-CSV (Spec 2026-11-12-wareneingang-barcode-lieferschein-csv-export)
+        ["WareneingangCsvAktiv"] = ("Wareneingang: CSV-Übergabe auf Netzlaufwerk",
+            "Dienst: Sage-Buchungs-Worker, Lauf „Wareneingang-CSV“; Liste „Sage-Wareneingänge“ (Spalte CSV, Hinweis); /ServiceSettings (Hinweis)",
+            "AKE (IDEAL aus)", "Schreibt Dateien auf die Netzfreigabe aus „Wareneingang-CSV: Pfad“; ein anderes System (enaio) liest sie. Das Dienstkonto braucht dort Schreib- und Änderungsrecht. Wirkt nur bei eingeschaltetem Sage-Wareneingang. Beim Einschalten werden alle wartenden Vorgänge sofort geschrieben."),
+        ["WareneingangCsvPfad"] = ("Wareneingang-CSV: Pfad", "Dienst: Lauf „Wareneingang-CSV“", "AKE",
+            "Ein falscher Pfad legt Dateien an einer Stelle ab, die der Leser nicht sieht. Pfad mit dem Betreiber des Lesers (enaio) abstimmen."),
+        ["Sync:WareneingangCsvMaxWiederholungen"] = ("Wareneingang-CSV: automatische Wiederholungen",
+            "Dienst: Lauf „Wareneingang-CSV“ (Wiederholen nach Schreibfehler); Liste „Sage-Wareneingänge“", "AKE (IDEAL ohne Wirkung)", null),
+        ["Sync:WareneingangCsvWiederholAbstandMinuten"] = ("Wareneingang-CSV: Abstand der Wiederholungen",
+            "Dienst: Lauf „Wareneingang-CSV“", "AKE (IDEAL ohne Wirkung)", null),
         ["SData:BaseUrl"] = ("SData: Adresse", "Sage-Buchung, Sage-Abgleich, FA-Struktur live", null, null),
         ["SData:Application"] = ("SData: Application", "Sage-Buchung, Sage-Abgleich, FA-Struktur live", null, null),
         ["SData:ServiceContract"] = ("SData: ServiceContract", "Sage-Buchung", null, null),
@@ -151,6 +162,8 @@ public static class ServiceSettingDefinitions
         ["Sync:SageLagerbuchungIntervalSeconds"] = (5, null, "s"),
         ["Sync:SageWareneingangMaxWiederholungen"] = (0, 10, ""),
         ["Sync:SageWareneingangWiederholAbstandMinuten"] = (5, 1440, "min"),
+        ["Sync:WareneingangCsvMaxWiederholungen"] = (0, 10, ""),
+        ["Sync:WareneingangCsvWiederholAbstandMinuten"] = (5, 1440, "min"),
         ["Sync:BdeAutoPauseIntervalMinutes"] = (0, null, "min"),
         ["Sync:LagerbestandIntervalMinutes"] = (0, null, "min"),
         ["Lieferverzug:TageNachTermin"] = (0, 60, "Tage"),
@@ -212,6 +225,14 @@ public static class ServiceSettingDefinitions
         new("Sync:SageWareneingangWiederholAbstandMinuten", SettingType.Int, "15", "Sage-Lagerbuchung", "Sage-Wareneingang (v1.99.7): Mindestabstand in Minuten zwischen einem Fehler und der automatischen Wiederholung (5 bis 1440)."),
         new("Sync:SageSystemKuerzel", SettingType.String, "", "Sage-Lagerbuchung", "System-Kuerzel in den Memo-Kennungen an Sage (v1.99.9): leer = WE#<Id># bzw. SM#<Id># (Produktion), sonst WE#<Kuerzel>#<Id># bzw. SM#<Kuerzel>#<Id>#. Damit findet die Suche vor dem erneuten Senden keine Belege anderer WMS-Datenbanken in derselben Sage-Testdatenbank. Gilt nur fuer neue Sendungen.",
             Muster: (IdealAkeWms.Services.SageSystemKuerzel.Muster, IdealAkeWms.Services.SageSystemKuerzel.MusterText)),
+
+        // ----- Wareneingang-CSV (v1.99.11, Spec 2026-11-12-wareneingang-barcode-lieferschein-csv-export) -----
+        new("WareneingangCsvAktiv", SettingType.Bool, "false", WeCsvKategorie, "An: Fuer jeden an Sage uebergebenen Wareneingang mit Barcode schreibt der Dienst <Barcode>.csv auf den Pfad 'Wareneingang-CSV: Pfad', zuerst als .tmp, dann umbenannt; nie ueberschrieben. Nur bei eingeschaltetem Sage-Wareneingang, sonst wartet die Uebergabe (Hinweis). Aus: nichts wird geschrieben, die Uebergabe wartet. Beim Einschalten werden wartende Vorgaenge nachgeholt (v1.99.11).",
+            AbhaengigVon: SageWareneingang.ToggleKey),
+        new("WareneingangCsvPfad", SettingType.String, "", WeCsvKategorie, "Zielordner der CSV-Dateien als UNC-Pfad (\\\\server\\freigabe\\ordner), Dateien direkt darin. Leer = nichts schreiben (Hinweis). Gespeichert wird nur die Form, die Erreichbarkeit prueft erst der Dienst (v1.99.11).",
+            Muster: (WareneingangCsv.PfadMuster, WareneingangCsv.PfadMusterText), AbhaengigVon: "WareneingangCsvAktiv"),
+        new("Sync:WareneingangCsvMaxWiederholungen", SettingType.Int, "3", WeCsvKategorie, "So oft schreibt der Dienst eine CSV nach einem Schreibfehler (Netz, Recht) automatisch erneut (0 = nie, nur 'CSV erneut schreiben'). Eine bereits vorhandene Datei wird nie automatisch wiederholt (v1.99.11)."),
+        new("Sync:WareneingangCsvWiederholAbstandMinuten", SettingType.Int, "15", WeCsvKategorie, "Mindestabstand in Minuten zwischen einem Schreibfehler und der automatischen Wiederholung (5 bis 1440, v1.99.11)."),
         new("SageLagerbuchungUmbuchungAktiv",        SettingType.Bool, "false", "Sage-Lagerbuchung", "WMS-Umbuchungen an Sage melden (v1.73.0, kumulativ zu SageLagerbuchungAktiv): Sage-Platz -> Sage-Platz als Umbuchung, Sage -> WMS-only als Entnahme, WMS-only -> Sage als Zugang, WMS-only -> WMS-only nie. Default aus = nur Ein-/Ausbuchungen wie bisher."),
         new("SData:BaseUrl",                         SettingType.String, "",    "Sage-Lagerbuchung", "Host+Port der Sage-SData-API (z.B. https://sagetest01.ake.at:5493). Ein angehaengtes /sdata ist erlaubt (wird nicht verdoppelt). Ziel-URL = {BaseUrl}/sdata/{Application}/{ServiceContract}/{Dataset}/$service/LagerbuchungService"),
         new("SData:Application",                     SettingType.String, "ol",  "Sage-Lagerbuchung", "SData-Application-Segment (per SData-Discovery ermittelt, i.d.R. konstant 'ol')"),
@@ -297,6 +318,7 @@ public static class ServiceSettingDefinitions
     };
 
     private const string LvKategorie = "Lieferverzug-Mail";
+    private const string WeCsvKategorie = "Wareneingang-CSV";
 
     /// <summary>Findet eine Definition per Key (case-sensitiv, wie DB-Key).</summary>
     public static bool TryGet(string key, [NotNullWhen(true)] out SettingDefinition? def)

@@ -46,6 +46,20 @@ public interface IPurchaseOrderReceiptRepository
 
     /// <summary>v1.99.7 (Q-2): Anzahl Wareneingänge, die noch nicht an Sage übergeben sind (Offen, Fehler, Klären).</summary>
     Task<int> SageWeNichtUebergebenAsync();
+
+    // ---- v1.99.11 Wareneingang-CSV (Spec 2026-11-12-wareneingang-barcode-lieferschein-csv-export) ----
+
+    /// <summary>F1: erster Wareneingang mit diesem Barcode (ohne Gross/Klein) oder null.</summary>
+    Task<PurchaseOrderReceipt?> BarcodeVergebenAsync(string barcode);
+
+    /// <summary>F4: Ausgangszeilen der angezeigten Vorgaenge (eine Abfrage, kein N+1).</summary>
+    Task<Dictionary<Guid, WareneingangCsvExport>> GetCsvExporteAsync(IReadOnlyCollection<Guid> vorgaenge);
+
+    /// <summary>F4: Anzahl Vorgaenge mit Barcode ohne Ausgangszeile (wartende CSV-Uebergaben).</summary>
+    Task<int> CsvWartendAsync();
+
+    /// <summary>F4: „CSV erneut schreiben“ - Ausgangszeile im Status Fehler auf Offen, Fehlertext leer, Modified* gesetzt. 0 = nicht (mehr) Fehler.</summary>
+    Task<int> CsvErneutSchreibenAsync(Guid vorgang, string user, string windowsUser);
 }
 
 public class PurchaseOrderReceiptRepository : IPurchaseOrderReceiptRepository
@@ -112,4 +126,35 @@ public class PurchaseOrderReceiptRepository : IPurchaseOrderReceiptRepository
     public Task<int> SageWeNichtUebergebenAsync() =>
         _db.PurchaseOrderReceipts.CountAsync(r => r.SageWeStatus == SageWareneingangStatus.Offen
             || r.SageWeStatus == SageWareneingangStatus.Fehler || r.SageWeStatus == SageWareneingangStatus.Klaeren);
+
+    // ponytail: ToUpper auf beiden Seiten (InMemory kennt keine Kollation, fallstricke §26); nutzt den Index nicht, reicht fuer die Tabellengroesse.
+    public Task<PurchaseOrderReceipt?> BarcodeVergebenAsync(string barcode)
+    {
+        var b = barcode.Trim().ToUpper();
+        return _db.PurchaseOrderReceipts.AsNoTracking().Where(r => r.Barcode != null && r.Barcode.ToUpper() == b)
+            .OrderBy(r => r.Id).FirstOrDefaultAsync();
+    }
+
+    public async Task<Dictionary<Guid, WareneingangCsvExport>> GetCsvExporteAsync(IReadOnlyCollection<Guid> vorgaenge)
+    {
+        if (vorgaenge.Count == 0) return new Dictionary<Guid, WareneingangCsvExport>();
+        return await _db.WareneingangCsvExporte.AsNoTracking().Where(e => vorgaenge.Contains(e.SageWeVorgang))
+            .ToDictionaryAsync(e => e.SageWeVorgang);
+    }
+
+    public Task<int> CsvWartendAsync() =>
+        _db.PurchaseOrderReceipts.Where(r => r.Barcode != null && r.SageWeVorgang != null
+                && !_db.WareneingangCsvExporte.Any(e => e.SageWeVorgang == r.SageWeVorgang))
+            .Select(r => r.SageWeVorgang).Distinct().CountAsync();
+
+    public async Task<int> CsvErneutSchreibenAsync(Guid vorgang, string user, string windowsUser)
+    {
+        var e = await _db.WareneingangCsvExporte.FirstOrDefaultAsync(x => x.SageWeVorgang == vorgang && x.Status == WareneingangCsvStatus.Fehler);
+        if (e == null) return 0;
+        e.Status = WareneingangCsvStatus.Offen;
+        e.Fehler = null;
+        e.ModifiedAt = DateTime.Now; e.ModifiedBy = user; e.ModifiedByWindows = windowsUser;
+        await _db.SaveChangesAsync();
+        return 1;
+    }
 }

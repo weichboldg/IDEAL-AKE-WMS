@@ -68,7 +68,7 @@ async function openScannerModal(targetSelectId, scanType, qrFaEnabled, faTargetI
     // Altes Modal entfernen
     let modal = document.getElementById('scannerModal');
     if (modal) modal.remove();
-    const title = scanType === 'article' ? 'Artikel QR-Code scannen' : 'Lagerplatz Barcode scannen';
+    const title = scanType === 'article' ? 'Artikel QR-Code scannen' : scanType === 'raw' ? 'Barcode scannen' : 'Lagerplatz Barcode scannen';
 
     modal = document.createElement('div');
     modal.id = 'scannerModal';
@@ -424,10 +424,16 @@ function initTextInputScanner(buttonId, targetInputId, valueExtractor, onScanned
             valueExtractor: valueExtractor,
             onScanned: onScanned || null
         };
-        openScannerModal(targetInputId, valueExtractor === 'fa' ? 'productionOrder' : 'article', false, null);
+        openScannerModal(targetInputId, textScanType(valueExtractor), false, null);
     });
-    _hwScanTargets.push({ buttonId: buttonId, targetId: targetInputId, scanType: valueExtractor === 'fa' ? 'productionOrder' : 'article',
+    _hwScanTargets.push({ buttonId: buttonId, targetId: targetInputId, scanType: textScanType(valueExtractor),
         qrFaEnabled: false, faTargetId: null, textInput: { targetInputId: targetInputId, valueExtractor: valueExtractor, onScanned: onScanned || null } });
+}
+
+// v1.99.11 (Wareneingang-CSV): 'raw' wurde bis dahin als 'article' ausgewertet (QR-Trennzeichen schnitt ab, Ziffern gingen in die EAN-
+// bzw. Matchcode-Aufloesung). 'raw' = Wert unveraendert uebernehmen (processScannedValue ohne Zerlegung, Wrapper greifen nur bei 'article').
+function textScanType(valueExtractor) {
+    return valueExtractor === 'fa' ? 'productionOrder' : valueExtractor === 'raw' ? 'raw' : 'article';
 }
 
 var _textInputScanCallback = null;

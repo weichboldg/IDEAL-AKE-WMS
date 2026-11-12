@@ -3843,6 +3843,10 @@ namespace IdealAkeWms.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("Barcode")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
                     b.Property<int>("BelId")
                         .HasColumnType("int");
 
@@ -3870,6 +3874,10 @@ namespace IdealAkeWms.Migrations
                     b.Property<string>("LieferantKto")
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("LieferantName")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<byte>("Lieferart")
                         .HasColumnType("tinyint");
@@ -3926,6 +3934,9 @@ namespace IdealAkeWms.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Barcode")
+                        .HasDatabaseName("IX_PurchaseOrderReceipts_Barcode");
 
                     b.HasIndex("BelPosId")
                         .HasDatabaseName("IX_PurchaseOrderReceipts_BelPosId");
@@ -5246,6 +5257,75 @@ namespace IdealAkeWms.Migrations
                     b.HasIndex("WarehouseRequisitionId", "Position");
 
                     b.ToTable("WarehouseRequisitionItems", "dbo");
+                });
+
+            modelBuilder.Entity("IdealAkeWms.Models.WareneingangCsvExport", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Barcode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("CreatedByWindows")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Datei")
+                        .HasMaxLength(400)
+                        .HasColumnType("nvarchar(400)");
+
+                    b.Property<string>("Fehler")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTime?>("GeschriebenAm")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ModifiedByWindows")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<Guid>("SageWeVorgang")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Versuche")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SageWeVorgang")
+                        .IsUnique()
+                        .HasDatabaseName("UX_WareneingangCsvExporte_SageWeVorgang");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("IX_WareneingangCsvExporte_Status");
+
+                    b.ToTable("WareneingangCsvExporte", "dbo");
                 });
 
             modelBuilder.Entity("IdealAkeWms.Models.WorkOperation", b =>

@@ -85,6 +85,8 @@ Eintraege = @(
    Datei='144_AddSageKennungen.sql'; MigrationId='20261112141208_AddSageKennungen'; Voraussetzung='additiv'; Quelle='2026-11-12-v1-99-9-sage-system-kuerzel' }
 @{ Id='SQL/145'; Version='1.99.10'; Typ='Schema'; Firma='beide'; Phase='Schema'; Ausfuehrung='automatisch'
    Datei='145_AddPurchaseOrderReminders.sql'; MigrationId='20261112143552_AddPurchaseOrderReminders'; Voraussetzung='additiv'; Quelle='2026-11-12-v1-99-10-lieferverzug-mail' }
+@{ Id='SQL/146'; Version='1.99.11'; Typ='Schema'; Firma='beide'; Phase='Schema'; Ausfuehrung='automatisch'
+   Datei='146_AddWareneingangBarcodeCsv.sql'; MigrationId='20261112151318_AddWareneingangBarcodeCsv'; Voraussetzung='additiv'; Quelle='2026-11-12-v1-99-11-wareneingang-barcode-csv' }
 
 # ---------------------------------------------------------------- Pruefungen (jeder Lauf; Reparatur nur nach Bestaetigung) -------
 @{ Id='Pruefung/Kommissionierbereiche'; Version='1.88.0'; Typ='Pruefung'; Firma='beide'; Phase='Haltepunkt'; Ausfuehrung='Reparatur'; Braucht=@('SQL/133')
@@ -120,6 +122,10 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
    Pruefung='SELECT CASE WHEN EXISTS (SELECT 1 FROM dbo.ServiceSettings WHERE [Key] = N''Lieferverzug:MailAktiv'' AND LOWER(LTRIM(RTRIM([Value]))) = N''true'') AND NOT EXISTS (SELECT 1 FROM dbo.ServiceSettings WHERE [Key] = N''Lieferverzug:EinkaufEmpfaenger'' AND LEN(LTRIM(RTRIM([Value]))) > 0) THEN 1 ELSE 0 END'
    Text='Lieferverzug-Mails sind an, aber ohne Einkauf-Empfaenger: es geht keine Mail raus (auch keine Testbetrieb-Mail). /ServiceSettings > Lieferverzug-Mail > Einkauf: Empfaenger eintragen.'
    Quelle='2026-11-12-v1-99-10-lieferverzug-mail' }
+@{ Id='Pruefung/WareneingangCsv'; Version='1.99.11'; Typ='Pruefung'; Firma='AKE'; Phase='Nachher'; Ausfuehrung='anzeigen'; Braucht=@('SQL/146')
+   Pruefung='SELECT CASE WHEN EXISTS (SELECT 1 FROM dbo.ServiceSettings WHERE [Key] = N''WareneingangCsvAktiv'' AND LOWER(LTRIM(RTRIM([Value]))) = N''true'') AND (NOT EXISTS (SELECT 1 FROM dbo.ServiceSettings WHERE [Key] = N''WareneingangCsvPfad'' AND LEN(LTRIM(RTRIM([Value]))) > 0) OR NOT EXISTS (SELECT 1 FROM dbo.ServiceSettings WHERE [Key] = N''SageWareneingangBelegAktiv'' AND LOWER(LTRIM(RTRIM([Value]))) = N''true'')) THEN 1 ELSE 0 END'
+   Text='WareneingangCsvAktiv ist an, aber WareneingangCsvPfad leer oder SageWareneingangBelegAktiv aus: es wird keine CSV geschrieben (/ServiceSettings > Wareneingang-CSV).'
+   Quelle='2026-11-12-v1-99-11-wareneingang-barcode-csv' }
 @{ Id='Pruefung/QrTrennzeichenKomma'; Version='1.69.0'; Typ='Pruefung'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
    Pruefung='SELECT CASE WHEN EXISTS (SELECT 1 FROM dbo.AppSettings WHERE [Key] = N''QrTrennzeichen'' AND [Value] = N'','') THEN (SELECT COUNT(*) FROM dbo.StorageLocations WHERE Code LIKE N''%,%'') ELSE 0 END'
    Text='QrTrennzeichen = Komma, aber Lagerplatz-Codes enthalten ein Komma: Trennzeichen unter /Settings aendern oder Codes bereinigen.'
@@ -286,5 +292,11 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
 @{ Id='v1.99.10-LieferverzugInfo'; Version='1.99.10'; Typ='Info'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
    Text='Einkauf informieren: taegliche Sammelliste verzoegerter Bestellpositionen; im Testbetrieb kommen auch die Lieferanten-Mails beim Einkauf an (Betreff TESTBETRIEB). Vor dem Echtbetrieb: Mail-Relay fuer externe Empfaenger und die Absenderadresse der Kreditor-Mail mit der IT klaeren (P-M4); Kreditor-Felder Keine Erinnerungsmails / Adresse fuer Erinnerungen unter Stammdaten > Kreditoren pflegen.'
    Quelle='2026-11-12-v1-99-10-lieferverzug-mail' }
+@{ Id='v1.99.11-WareneingangCsv'; Version='1.99.11'; Typ='Einstellung'; Firma='AKE'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Text='Wareneingang-CSV: zuerst Dienstkonto pruefen (P-C1, LocalSystem = Computerkonto DOMAENE/SERVER$) und Recht Aendern auf Freigabe und NTFS des Zielordners setzen (P-C2), dann /ServiceSettings > Wareneingang-CSV: Pfad (UNC-Pfad server/freigabe/ordner mit Backslashes) setzen, WareneingangCsvAktiv einschalten (wartende Vorgaenge mit Barcode werden sofort geschrieben), zuletzt /Settings > Lager und Buchungen: WareneingangBarcodeAktiv. Wiederholung nach Schreibfehler: Sync:WareneingangCsvMaxWiederholungen (3) / Sync:WareneingangCsvWiederholAbstandMinuten (15). IDEAL bleibt aus.'
+   Quelle='2026-11-12-v1-99-11-wareneingang-barcode-csv' }
+@{ Id='v1.99.11-LagerBarcode'; Version='1.99.11'; Typ='Info'; Firma='AKE'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Text='Lager informieren: Wareneingang zu Bestellung hat ein Feld Barcode (Lieferschein-Aufkleber); die CSV entsteht erst nach der Uebergabe an Sage. Stand in Lager > Sage-Wareneingaenge, Spalte CSV.'
+   Quelle='2026-11-12-v1-99-11-wareneingang-barcode-csv' }
 )
 }

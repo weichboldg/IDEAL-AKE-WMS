@@ -18,7 +18,7 @@ namespace IdealAkeWms.Tests.Controllers;
 /// <summary>Spec 2026-11-08-wareneingang-aus-sage-bestellungen E3 (AK 12, 13, 15-17) mit echten Repositories (InMemory).</summary>
 public class PurchaseOrdersReceiveTests
 {
-    private static async Task<(PurchaseOrdersController ctrl, ApplicationDbContext db)> BuildAsync(bool lieferscheinPflicht = false, bool sageWe = false)
+    private static async Task<(PurchaseOrdersController ctrl, ApplicationDbContext db)> BuildAsync(bool lieferscheinPflicht = false, bool sageWe = false, bool barcode = false)
     {
         var db = TestDbContextFactory.Create();
         db.Articles.AddRange(
@@ -48,6 +48,7 @@ public class PurchaseOrdersReceiveTests
         user.Setup(u => u.CanAccessStockAsync()).ReturnsAsync(true);
         var settings = new Mock<IAppSettingRepository>();
         settings.Setup(x => x.GetValueAsync(AppSettingKeys.WareneingangLieferscheinPflicht)).ReturnsAsync(lieferscheinPflicht ? "true" : null);
+        settings.Setup(x => x.GetValueAsync(AppSettingKeys.WareneingangBarcodeAktiv)).ReturnsAsync(barcode ? "true" : null);
         var ctrl = new PurchaseOrdersController(new SagePurchaseOrderLineRepository(db), new StorageLocationRepository(db),
             settings.Object, user.Object, new PurchaseOrderReceiptRepository(db), new StockMovementRepository(db), new ServiceSettingRepository(db))
         {
@@ -248,5 +249,83 @@ public class PurchaseOrdersReceiveTests
         var vm = (PurchaseOrderReceiveViewModel)((ViewResult)await ctrl.Receive(100, new List<PurchaseOrderReceiveInput> { a })).Model!;
         vm.Zeilen.Single(z => z.Row.Line.BelPosId == 1001).Fehler.Should().Be("Positionsmemo höchstens 200 Zeichen.");
         db.StockMovements.Should().BeEmpty();
+    }
+
+    // ----- v1.99.11 (Spec 2026-11-12-wareneingang-barcode-lieferschein-csv-export F1, AK 1-4) -----
+
+    private static List<string> Fehler(PurchaseOrdersController c) => c.ModelState[string.Empty]?.Errors.Select(e => e.ErrorMessage).ToList() ?? new();
+
+    [Fact]
+    public async Task Barcode_SchalterAus_Ignoriert_AK1()
+    {
+        var (ctrl, db) = await BuildAsync(sageWe: true);
+        await ctrl.Receive(100, new List<PurchaseOrderReceiveInput> { E(1001, "1") }, null, "AKE1235564654");
+        db.PurchaseOrderReceipts.Single().Barcode.Should().BeNull();
+        ((PurchaseOrderReceiveViewModel)((ViewResult)await ctrl.Receive(100, (string?)null)).Model!).BarcodeAktiv.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Barcode_Gueltig_AnAllenReceipts_MitKreditorname_AK2()
+    {
+        var (ctrl, db) = await BuildAsync(sageWe: true, barcode: true);
+        await ctrl.Receive(100, new List<PurchaseOrderReceiveInput> { E(1001, "1"), E(1002, "1") }, "LS-1", " AKE1235564654 ");
+        db.PurchaseOrderReceipts.Select(r => new { r.Barcode, r.LieferantName }).ToList()
+            .Should().HaveCount(2).And.OnlyContain(r => r.Barcode == "AKE1235564654" && r.LieferantName == "L");
+    }
+
+    [Theory]
+    [InlineData("AB;12")]
+    [InlineData("AB 12")]
+    [InlineData("Ä12")]
+    [InlineData("CON")]
+    public async Task Barcode_Ungueltig_Fehler_NichtsGebucht_EingabeBleibt_AK3(string barcode)
+    {
+        var (ctrl, db) = await BuildAsync(sageWe: true, barcode: true);
+        var vm = (PurchaseOrderReceiveViewModel)((ViewResult)await ctrl.Receive(100, new List<PurchaseOrderReceiveInput> { E(1001, "1") }, null, barcode)).Model!;
+        Fehler(ctrl).Should().Contain(WareneingangCsv.BarcodeFehlerText);
+        vm.Barcode.Should().Be(barcode);
+        db.StockMovements.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Barcode_51Zeichen_Fehler_50Zeichen_Ok_AK3()
+    {
+        var (ctrl, db) = await BuildAsync(sageWe: true, barcode: true);
+        await ctrl.Receive(100, new List<PurchaseOrderReceiveInput> { E(1001, "1") }, null, new string('A', 51));
+        db.StockMovements.Should().BeEmpty();
+        ctrl.ModelState.Clear();   // neuer Request
+        await ctrl.Receive(100, new List<PurchaseOrderReceiveInput> { E(1001, "1") }, null, new string('A', 50));
+        db.StockMovements.Should().HaveCount(1);
+    }
+
+    [Fact]
+    public async Task Barcode_Duplikat_OhneGrossKlein_Fehler_MitBestellungUndDatum_AK4()
+    {
+        var (ctrl, db) = await BuildAsync(sageWe: true, barcode: true);
+        await ctrl.Receive(100, new List<PurchaseOrderReceiveInput> { E(1001, "1") }, null, "AKE123");
+        await ctrl.Receive(100, new List<PurchaseOrderReceiveInput> { E(1002, "1") }, null, "ake123");
+        db.StockMovements.Should().HaveCount(1);
+        Fehler(ctrl).Should().ContainSingle(e => e.StartsWith("Barcode ake123 ist bereits dem Wareneingang zu Bestellung 2026-100 vom "));
+    }
+
+    [Fact]
+    public async Task Barcode_SageWeAus_Fehler_FeldGesperrt_Rueckfrage7()
+    {
+        var (ctrl, db) = await BuildAsync(barcode: true);
+        await ctrl.Receive(100, new List<PurchaseOrderReceiveInput> { E(1001, "1") }, null, "AKE123");
+        db.StockMovements.Should().BeEmpty();
+        Fehler(ctrl).Should().ContainSingle(e => e.Contains("Sage-Wareneingang ist aus"));
+        // ohne Barcode (gesperrtes Feld postet nichts) wird gebucht
+        ctrl.ModelState.Clear();   // neuer Request
+        await ctrl.Receive(100, new List<PurchaseOrderReceiveInput> { E(1001, "1") });
+        db.PurchaseOrderReceipts.Single().Barcode.Should().BeNull();
+    }
+
+    [Fact]
+    public void Einstellung_BarcodeAktiv_ImKatalog_SchalterStandardAus()
+    {
+        var d = AppSettingDefinitions.All.Single(x => x.Key == AppSettingKeys.WareneingangBarcodeAktiv);
+        (d.Type, d.DefaultValue, d.Seed, d.AbhaengigVon).Should().Be((SettingType.Bool, "false", false, AppSettingKeys.WareneingangBestellungAktiv));
+        d.Anzeigename.Should().Be("Wareneingang: Barcode-Feld (Lieferschein-Aufkleber)");
     }
 }

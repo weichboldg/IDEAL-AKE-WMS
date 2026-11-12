@@ -46,6 +46,26 @@ public class SettingValidatorTests
         IdealAkeWms.Services.SageSystemKuerzel.Gueltig(wert).Should().Be(gueltig);
     }
 
+    // v1.99.11 Wareneingang-CSV (AK 14): Pfad nur UNC oder leer
+    [Theory]
+    [InlineData("", true)]
+    [InlineData(@"\\server\freigabe", true)]
+    [InlineData(@"\\server\freigabe\ordner", true)]
+    [InlineData(@" \\server\freigabe\ordner\ ", true)]
+    [InlineData(@"C:\temp", false)]
+    [InlineData("abc", false)]
+    [InlineData(@"\\server", false)]
+    [InlineData(@"\server\freigabe", false)]
+    [InlineData(@"\\server\frei*gabe", false)]
+    [InlineData("//server/freigabe", false)]
+    public void WareneingangCsvPfad_NurUncOderLeer(string wert, bool gueltig)
+    {
+        var p = SettingValidator.Validate(Svc(IdealAkeWms.Services.WareneingangCsv.PfadKey), wert, exakt: true);
+        p.Gueltig.Should().Be(gueltig);
+        if (!gueltig) p.Fehler.Should().Contain("Wareneingang-CSV: Pfad").And.Contain("UNC-Pfad");
+        else p.Kanonisch.Should().Be(wert.Trim());
+    }
+
     [Fact]
     public void SystemKuerzel_Katalog_DefaultLeer_BeideStandorte_Warnhinweis()
     {

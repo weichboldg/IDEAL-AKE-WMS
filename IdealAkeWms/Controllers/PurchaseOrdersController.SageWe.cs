@@ -41,12 +41,14 @@ public partial class PurchaseOrdersController
         ["menge"] = z => z.Receipt.Quantity.ToString("0.###"),
         ["platz"] = z => z.Receipt.StockMovement.StorageLocation.Code,
         ["lieferschein"] = z => z.Receipt.Lieferschein,
+        ["barcode"] = z => z.Receipt.Barcode,   // v1.99.11 Wareneingang-CSV
         ["memo-position"] = z => z.Receipt.StockMovement.Note,
         ["status"] = z => SageWeStatusText(z.Receipt.SageWeStatus),
         ["versuche"] = z => z.Receipt.SageWeVersuche.ToString(),
         ["sagebeleg"] = z => z.Receipt.SageWeBelegnummer,
         ["memo"] = z => z.Memo,
         ["fehler"] = z => z.Receipt.SageWeFehler,
+        ["csv"] = z => z.Csv,                   // v1.99.11: gerenderter Text (WareneingangCsv.StatusText)
     };
 
     public async Task<IActionResult> SageWareneingaenge(SageWareneingangStatus? status, string? bestellung, DateTime? von, DateTime? bis,
@@ -60,10 +62,22 @@ public partial class PurchaseOrdersController
         var kuerzel = (await _serviceSettings.GetValueAsync(SageSystemKuerzel.Key))?.Trim();
         var memoJeVorgang = receipts.Where(r => r.SageWeVorgang != null).GroupBy(r => r.SageWeVorgang!.Value)
             .ToDictionary(g => g.Key, g => SageWeMemo(g.MinBy(r => r.Id)!, kuerzel));
-        var zeilen = receipts.Select(r => new SageWareneingangZeile
+        // v1.99.11 (Wareneingang-CSV F4): Ausgangszeilen der Vorgaenge mit Barcode in EINER Abfrage, Schalter wie im Dienst
+        var sageWeAn = SageWareneingang.IstAn(await _serviceSettings.GetValueAsync(SageWareneingang.ToggleKey));
+        var csvAn = SageWareneingang.IstAn(await _serviceSettings.GetValueAsync(WareneingangCsv.AktivKey));
+        var csvPfad = await _serviceSettings.GetValueAsync(WareneingangCsv.PfadKey);
+        var exporte = await _receipts.GetCsvExporteAsync(receipts.Where(r => r.Barcode != null && r.SageWeVorgang != null)
+            .Select(r => r.SageWeVorgang!.Value).Distinct().ToList());
+        var zeilen = receipts.Select(r =>
         {
-            Receipt = r,
-            Memo = r.SageWeVorgang is { } v && memoJeVorgang.TryGetValue(v, out var m) ? m : null,
+            var export = r.SageWeVorgang is { } ev && exporte.TryGetValue(ev, out var x) ? x : null;
+            return new SageWareneingangZeile
+            {
+                Receipt = r,
+                Memo = r.SageWeVorgang is { } v && memoJeVorgang.TryGetValue(v, out var m) ? m : null,
+                Csv = WareneingangCsv.StatusText(r, export, csvAn, sageWeAn, csvPfad),
+                CsvFehler = export?.Status == WareneingangCsvStatus.Fehler,
+            };
         });
         var gefiltert = ColumnFilterHelper.Apply(zeilen.AsQueryable(), ColumnFilterHelper.ReadFromQuery(HttpContext?.Request), SageWeColumnMap,
             ColumnFilterTypes.For("PurchaseOrders/SageWareneingaenge")).ToList();
@@ -73,8 +87,8 @@ public partial class PurchaseOrdersController
             Zeilen = gefiltert.Skip((page - 1) * effectivePageSize).Take(effectivePageSize).ToList(),
             Status = status, Bestellung = bestellung, Von = von, Bis = bis,
             CanErneutSenden = await _user.CanTransferStockAsync(),
-            AusHinweis = SageWareneingang.AusHinweis(SageWareneingang.IstAn(await _serviceSettings.GetValueAsync(SageWareneingang.ToggleKey)),
-                await _receipts.SageWeNichtUebergebenAsync()),
+            AusHinweis = SageWareneingang.AusHinweis(sageWeAn, await _receipts.SageWeNichtUebergebenAsync()),
+            CsvHinweise = csvAn ? WareneingangCsv.Hinweise(csvAn, sageWeAn, csvPfad, await _receipts.CsvWartendAsync()) : new(),
             Pagination = new PaginationState
             {
                 CurrentPage = page, PageSize = effectivePageSize, PageSizeRaw = PageSize.ResolveRaw(pageSize, userDefault), TotalCount = gefiltert.Count,
@@ -116,6 +130,19 @@ public partial class PurchaseOrdersController
         var n = await _receipts.SageWeAlsUebergebenAsync(vorgang, b, _user.GetDisplayName(), _user.GetWindowsUserName());
         if (n == 0) TempData["WarningMessage"] = "Nicht markiert: Der Wareneingang steht nicht (mehr) auf „Fehler“ oder „Klären“.";
         else TempData["SuccessMessage"] = $"{n} Position(en) als an Sage übergeben markiert (Beleg {b}). Es wird nichts gesendet.";
+        return RedirectToAction(nameof(SageWareneingaenge));
+    }
+
+    /// <summary>v1.99.11 (Wareneingang-CSV F4): Ausgangszeile im Status Fehler zurück auf Offen - der Dienst schreibt beim nächsten Takt neu
+    /// (eine vorhandene Datei wird auch dann nicht überschrieben). Recht wie „Erneut senden“.</summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [RequireStockKeyUserAccess]
+    public async Task<IActionResult> CsvErneutSchreiben(Guid vorgang)
+    {
+        var n = await _receipts.CsvErneutSchreibenAsync(vorgang, _user.GetDisplayName(), _user.GetWindowsUserName());
+        if (n == 0) TempData["WarningMessage"] = "Nichts vorgemerkt: Die CSV-Übergabe steht nicht (mehr) auf „Fehler“.";
+        else TempData["SuccessMessage"] = "CSV zum erneuten Schreiben vorgemerkt. Der Dienst schreibt sie beim nächsten Takt (eine vorhandene Datei wird nicht überschrieben).";
         return RedirectToAction(nameof(SageWareneingaenge));
     }
 }

@@ -17,6 +17,10 @@ public class PurchaseOrderReceiveViewModel
     public bool LieferscheinPflicht { get; set; }
     /// <summary>v1.99.4 (F2): ServiceSetting SageWareneingangBelegAktiv - Status beim Buchen und Platzregel.</summary>
     public bool SageWeAktiv { get; set; }
+    /// <summary>v1.99.11 (Wareneingang-CSV F1): Barcode des Lieferschein-Aufklebers (Kopf, einmal je Absenden); bleibt bei Fehlern stehen.</summary>
+    public string? Barcode { get; set; }
+    /// <summary>v1.99.11: AppSetting WareneingangBarcodeAktiv - Feld sichtbar.</summary>
+    public bool BarcodeAktiv { get; set; }
 
     /// <summary>Sage-Feld EKLieferschein(20) (sage-sdata-masterdata).</summary>
     public const int LieferscheinMaxLaenge = 20;

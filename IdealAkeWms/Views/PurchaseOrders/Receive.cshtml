@@ -58,11 +58,36 @@
     <form method="post" asp-action="Receive" asp-route-belId="@Model.BelId">
         @Html.AntiForgeryToken()
         @* v1.99.4 (F6): eine Lieferung = ein Lieferschein; gilt fuer alle Positionen dieses Absendens. *@
-        <div class="mb-3" style="max-width: 22rem;">
+        <div class="d-flex flex-wrap gap-3 mb-3">
+        <div style="width: 22rem; max-width: 100%;">
             <label for="lieferschein" class="form-label mb-1">Lieferschein-Nr. (Lieferant)@(Model.LieferscheinPflicht ? " *" : "")</label>
             <input type="text" id="lieferschein" name="lieferschein" class="form-control" style="min-height:44px" maxlength="@IdealAkeWms.Models.ViewModels.PurchaseOrderReceiveViewModel.LieferscheinMaxLaenge"
                    value="@Model.Lieferschein" autocomplete="off" aria-describedby="lieferscheinHilfe" @(Model.LieferscheinPflicht ? "required" : "") />
             <div id="lieferscheinHilfe" class="form-text">@(Model.LieferscheinPflicht ? "Pflichtfeld, höchstens 20 Zeichen." : "Optional, höchstens 20 Zeichen.")</div>
+        </div>
+        @if (Model.BarcodeAktiv)
+        {
+            @* v1.99.11 (Wareneingang-CSV F1): Barcode des Lieferschein-Aufklebers, roh übernommen (Dateiname der CSV). Bei ausgeschaltetem
+               Sage-Wareneingang gesperrt: ohne Übergabe an Sage entsteht nie eine CSV (Freigabe-Antwort 7). *@
+            <div style="width: 22rem; max-width: 100%;">
+                <label for="barcode" class="form-label mb-1">Barcode (Lieferschein)</label>
+                <div class="input-group">
+                    <input type="text" id="barcode" name="barcode" class="form-control" style="min-height:44px" maxlength="@IdealAkeWms.Services.WareneingangCsv.BarcodeMaxLaenge"
+                           value="@Model.Barcode" autocomplete="off" aria-describedby="barcodeHilfe" @(Model.SageWeAktiv ? "" : "disabled") />
+                    @if (Model.SageWeAktiv)
+                    {
+                        <button type="button" id="btnScanBarcode" data-hw-scan-kamera-ziel class="btn btn-outline-secondary" style="min-height:44px" title="Barcode mit der Kamera scannen" aria-label="Barcode mit der Kamera scannen">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                                <path d="M1.5 1a.5.5 0 0 0-.5.5v3a.5.5 0 0 1-1 0v-3A1.5 1.5 0 0 1 1.5 0h3a.5.5 0 0 1 0 1zM11 .5a.5.5 0 0 1 .5-.5h3A1.5 1.5 0 0 1 16 1.5v3a.5.5 0 0 1-1 0v-3a.5.5 0 0 0-.5-.5h-3a.5.5 0 0 1-.5-.5M.5 11a.5.5 0 0 1 .5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 1 0 1h-3A1.5 1.5 0 0 1 0 14.5v-3a.5.5 0 0 1 .5-.5m15 0a.5.5 0 0 1 .5.5v3a1.5 1.5 0 0 1-1.5 1.5h-3a.5.5 0 0 1 0-1h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 1 .5-.5M3 4.5a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0zm2 0a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0zm2 0a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0zm2 0a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5zm3 0a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0z"/>
+                            </svg>
+                        </button>
+                    }
+                </div>
+                <div id="barcodeHilfe" class="form-text">@(Model.SageWeAktiv
+                    ? "Optional: Aufkleber scannen. Nur Buchstaben, Ziffern, - und _, höchstens 50 Zeichen. Nach der Übergabe an Sage entsteht daraus die CSV-Datei."
+                    : "Sage-Wareneingang ist aus – für diese Buchung entsteht keine CSV-Datei.")</div>
+            </div>
+        }
         </div>
         <div class="table-responsive">
             <table class="table table-sm align-middle">
@@ -183,6 +208,15 @@
 }
 
 @section Scripts {
+    @if (Model.BelId != null && Model.BarcodeAktiv && Model.SageWeAktiv)
+    {
+        @* v1.99.11: Kamera/Hardware-Scanner ins Barcode-Feld, roh ('raw': keine Artikel-QR-, EAN- oder Matchcode-Auswertung). *@
+        <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+        <script src="~/js/barcode-scanner.js" asp-append-version="true"></script>
+        <script>
+            document.addEventListener('DOMContentLoaded', function () { initTextInputScanner('btnScanBarcode', 'barcode', 'raw'); });
+        </script>
+    }
     <script>
         // Anzeige „vollständig / Teillieferung / Überlieferung“ als Text (Server prüft beim Buchen erneut).
         document.querySelectorAll('tr[data-rest]').forEach(function (tr) {

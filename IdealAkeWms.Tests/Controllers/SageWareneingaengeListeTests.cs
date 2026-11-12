@@ -172,4 +172,77 @@ public class SageWareneingaengeListeTests
         m.GetCustomAttributes(typeof(HttpPostAttribute), true).Should().NotBeEmpty();
         m.GetCustomAttributes(typeof(ValidateAntiForgeryTokenAttribute), true).Should().NotBeEmpty();
     }
+
+    // ----- v1.99.11 (Spec 2026-11-12-wareneingang-barcode-lieferschein-csv-export F4, AK 9, 13, 15) -----
+
+    private static async Task CsvSetup(ApplicationDbContext db, bool csvAn, string? pfad = @"\\srv\wms-csv")
+    {
+        foreach (var r in db.PurchaseOrderReceipts) r.Barcode = "BC" + r.BelPosId;
+        if (csvAn) db.ServiceSettings.Add(new ServiceSetting { Key = WareneingangCsv.AktivKey, Value = "true" });
+        if (pfad != null) db.ServiceSettings.Add(new ServiceSetting { Key = WareneingangCsv.PfadKey, Value = pfad });
+        await db.SaveChangesAsync();
+    }
+
+    [Fact]
+    public async Task Csv_Spalte_JeZustand_UndFilterUeberGerendertenText_AK15()
+    {
+        var (ctrl, db) = await BuildAsync();
+        await CsvSetup(db, csvAn: true);
+        db.WareneingangCsvExporte.Add(new WareneingangCsvExport { SageWeVorgang = VorgangA, Barcode = "BC1", Status = WareneingangCsvStatus.Fehler,
+            Fehler = WareneingangCsv.KollisionText, Versuche = 1, CreatedAt = DateTime.Now, CreatedBy = "s", CreatedByWindows = "s" });
+        await db.SaveChangesAsync();
+
+        var vm = (SageWareneingaengeViewModel)((ViewResult)await ctrl.SageWareneingaenge(null, null, null, null)).Model!;
+        vm.Zeilen.Where(z => z.Receipt.SageWeVorgang == VorgangA).Should().OnlyContain(z => z.Csv == "Fehler: " + WareneingangCsv.KollisionText && z.CsvFehler);
+        vm.Zeilen.Single(z => z.Receipt.SageWeVorgang == VorgangB).Csv.Should().Be("wartet auf den Dienst (nächster Takt)");
+        vm.Zeilen.Single(z => z.Receipt.SageWeVorgang == VorgangC).Csv.Should().Be("wartet auf Sage-Übergabe");
+        vm.CsvHinweise.Should().BeEmpty();
+
+        ctrl.HttpContext.Request.QueryString = new QueryString("?colf_csv=wartet");
+        var gefiltert = (SageWareneingaengeViewModel)((ViewResult)await ctrl.SageWareneingaenge(null, null, null, null)).Model!;
+        gefiltert.Zeilen.Select(z => z.Receipt.SageWeVorgang).Should().BeEquivalentTo(new Guid?[] { VorgangB, VorgangC });
+    }
+
+    [Fact]
+    public async Task Csv_SageWeAus_HinweisUndText_PfadLeer_Hinweis_AK9()
+    {
+        var (ctrl, db) = await BuildAsync(sageWeAn: false);
+        await CsvSetup(db, csvAn: true, pfad: null);
+        var vm = (SageWareneingaengeViewModel)((ViewResult)await ctrl.SageWareneingaenge(null, null, null, null)).Model!;
+        vm.Zeilen.Single(z => z.Receipt.SageWeVorgang == VorgangB).Csv.Should().Be(WareneingangCsv.AusSageWeText);
+        vm.CsvHinweise.Should().HaveCount(2);
+        vm.CsvHinweise[0].Should().StartWith(WareneingangCsv.AusSageWeText).And.Contain("3 Wareneingänge mit Barcode");
+        vm.CsvHinweise[1].Should().Be("CSV-Übergabe an, aber kein Pfad gesetzt – es wird nichts geschrieben.");
+    }
+
+    [Fact]
+    public async Task Csv_SchalterAus_KeinHinweis_TextWartet_OhneBarcodeStrich()
+    {
+        var (ctrl, db) = await BuildAsync();
+        await CsvSetup(db, csvAn: false);
+        db.PurchaseOrderReceipts.Single(r => r.SageWeVorgang == VorgangC).Barcode = null;
+        await db.SaveChangesAsync();
+        var vm = (SageWareneingaengeViewModel)((ViewResult)await ctrl.SageWareneingaenge(null, null, null, null)).Model!;
+        vm.CsvHinweise.Should().BeEmpty();
+        vm.Zeilen.Single(z => z.Receipt.SageWeVorgang == VorgangB).Csv.Should().Be("CSV-Übergabe aus – wartet");
+        vm.Zeilen.Single(z => z.Receipt.SageWeVorgang == VorgangC).Csv.Should().Be("–");
+    }
+
+    [Fact]
+    public async Task CsvErneutSchreiben_NurBeiFehler_AufOffen_AuditGesetzt_AK13()
+    {
+        var (ctrl, db) = await BuildAsync();
+        db.WareneingangCsvExporte.Add(new WareneingangCsvExport { SageWeVorgang = VorgangB, Barcode = "BC3", Status = WareneingangCsvStatus.Fehler,
+            Fehler = "Zugriff verweigert", Versuche = 4, CreatedAt = DateTime.Now, CreatedBy = "s", CreatedByWindows = "s" });
+        await db.SaveChangesAsync();
+
+        await ctrl.CsvErneutSchreiben(VorgangB);
+        var e = db.WareneingangCsvExporte.Single();
+        (e.Status, e.Fehler, e.ModifiedBy, e.ModifiedByWindows).Should().Be((WareneingangCsvStatus.Offen, (string?)null, "Tester", "AKE\\tester"));
+
+        await ctrl.CsvErneutSchreiben(VorgangB);
+        ctrl.TempData["WarningMessage"].Should().Be("Nichts vorgemerkt: Die CSV-Übergabe steht nicht (mehr) auf „Fehler“.");
+        typeof(PurchaseOrdersController).GetMethod(nameof(PurchaseOrdersController.CsvErneutSchreiben))!
+            .GetCustomAttributes(typeof(RequireStockKeyUserAccessAttribute), false).Should().NotBeEmpty();
+    }
 }

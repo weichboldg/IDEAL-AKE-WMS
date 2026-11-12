@@ -151,6 +151,7 @@ try
     })
     .ConfigurePrimaryHttpMessageHandler(SageSchreibHandler);
     builder.Services.AddScoped<SageWareneingangService>();
+    builder.Services.AddScoped<WareneingangCsvService>();   // v1.99.11 Wareneingang-CSV (Schritt im SageBookingWorker)
     // v1.99.7 E5: Sage-Pruefung vor jedem erneuten Senden (EinkaufBelegeInfo, nur GET).
     builder.Services.AddScoped<IDEALAKEWMSService.Services.Sdata.ISageWareneingangLookup, IDEALAKEWMSService.Services.Sdata.SdataWareneingangLookupReader>();
 

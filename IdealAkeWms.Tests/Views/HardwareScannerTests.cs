@@ -132,10 +132,22 @@ public class HardwareScannerTests
             "ProductionOrders/Index.cshtml|btnScanOrderNumber", "ProductionOrders/Index.cshtml|btnScanArticleNumber",
             "PickingLeitstand/Index.cshtml|btnScanOrderNumber", "PickingLeitstand/Index.cshtml|btnScanArticleNumber",
             "Tracking/OseonIndex.cshtml|btnScanCustomerOrder", "Tracking/OseonIndex.cshtml|btnScanArticle",
+            "PurchaseOrders/Receive.cshtml|btnScanBarcode",   // v1.99.11 Wareneingang-CSV (Bestellnummer + Barcode)
         };
         views.SelectMany(v => System.Text.RegularExpressions.Regex.Matches(v.Value, @"<[^>]*\bdata-hw-scan-kamera-ziel\b[^>]*>")
                 .Select(m => v.Key + "|" + System.Text.RegularExpressions.Regex.Match(m.Value, @"\bid=""([^""]+)""").Groups[1].Value))
             .Should().BeEquivalentTo(erwartet, "Kamera-Knopf je Seite mit mehr als einem Scan-Feld (Freigabe-Nachtrag 3)");
+    }
+
+    /// <summary>v1.99.11 (Wareneingang-CSV, Befund 'raw' = 'article'): 'raw' wird roh uebernommen - keine QR-Zerlegung, keine EAN-/Matchcode-
+    /// Aufloesung (die Wrapper greifen nur bei scanType 'article'); Fenstertitel „Barcode scannen“. Das Barcode-Feld nutzt 'raw'.</summary>
+    [Fact]
+    public void RawScan_BleibtRaw_BarcodeFeldNutztRaw()
+    {
+        var js = Read("wwwroot", "js", "barcode-scanner.js");
+        js.Should().Contain("valueExtractor === 'raw' ? 'raw' : 'article'").And.Contain("scanType === 'raw' ? 'Barcode scannen'");
+        js.Should().NotContain("valueExtractor === 'fa' ? 'productionOrder' : 'article'");
+        Read("Views", "PurchaseOrders", "Receive.cshtml").Should().Contain("initTextInputScanner('btnScanBarcode', 'barcode', 'raw')");
     }
 
     [Fact]
