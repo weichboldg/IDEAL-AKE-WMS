@@ -88,7 +88,8 @@ public class SageWareneingangService
                                ?? "Unbekannter Sende-Fehler";
                     foreach (var r in gruppe) Setze(r, SageWareneingangStatus.Fehler, fehlerText: text);
                     fehler++;
-                    await run.LogWarningAsync($"Sage-Wareneingang {payload.Memo} fehlgeschlagen: {text}", ct: ct);
+                    // SyncLogs.Message ist nvarchar(1000) - Schreibtest 2026-11-12: laengerer Text liess den Protokoll-Eintrag scheitern
+                    await run.LogWarningAsync(Kappen($"Sage-Wareneingang {payload.Memo} fehlgeschlagen: {text}", 900)!, ct: ct);
                 }
                 await _ctx.SaveChangesAsync(ct);
             }

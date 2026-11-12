@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using System.Xml.Linq;
 using IdealAkeWms.Services;
 
 namespace IDEALAKEWMSService.Services;
@@ -65,10 +66,24 @@ public class SageWareneingangClient : ISageWareneingangClient
         }
     }
 
-    /// <summary>HTTP 2xx: Erfolg nur ohne ErrorText; Belegnummer aus BelegnummerFormatiert (falls geliefert).</summary>
+    /// <summary>HTTP 2xx: Erfolg nur ohne ErrorText; Belegnummer aus BelegnummerFormatiert (falls geliefert). Sage antwortet ohne format=json
+    /// als SData-Atom-XML (Schreibtest 2026-11-12: &lt;entry&gt;…&lt;sdata:payload&gt;…&lt;BelegnummerFormatiert&gt;, ResultNumber 200 = Ok) - beide
+    /// Formate werden gelesen; der erste ErrorText/BelegnummerFormatiert im Dokument ist der des Belegkopfs.</summary>
     public static SageWareneingangSendResult Auswerten(string? body)
     {
         string? beleg = null, fehler = null;
+        if (body != null && body.TrimStart().StartsWith('<'))
+        {
+            try
+            {
+                var doc = XDocument.Parse(body);
+                beleg = doc.Descendants().FirstOrDefault(e => e.Name.LocalName == "BelegnummerFormatiert")?.Value;
+                fehler = doc.Descendants().FirstOrDefault(e => e.Name.LocalName == "ErrorText")?.Value;
+                if (beleg == null && fehler == null) return new(false, null, Cap(body), "Antwort von Sage ohne Beleg-Ergebnis - bitte in Sage prüfen.");
+                return string.IsNullOrWhiteSpace(fehler) ? new(true, beleg, Cap(body), null) : new(false, beleg, Cap(body), fehler);
+            }
+            catch (System.Xml.XmlException) { return new(false, null, Cap(body), "Antwort von Sage nicht lesbar - bitte in Sage prüfen."); }
+        }
         try
         {
             using var doc = JsonDocument.Parse(string.IsNullOrWhiteSpace(body) ? "{}" : body);
@@ -78,7 +93,7 @@ public class SageWareneingangClient : ISageWareneingangClient
                 if (doc.RootElement.TryGetProperty("ErrorText", out var f) && f.ValueKind == JsonValueKind.String) fehler = f.GetString();
             }
         }
-        catch (JsonException) { return new(false, null, Cap(body), "Antwort von Sage nicht lesbar (kein JSON) – bitte in Sage prüfen."); }
+        catch (JsonException) { return new(false, null, Cap(body), "Antwort von Sage nicht lesbar - bitte in Sage prüfen."); }
         return string.IsNullOrWhiteSpace(fehler) ? new(true, beleg, Cap(body), null) : new(false, beleg, Cap(body), fehler);
     }
 
