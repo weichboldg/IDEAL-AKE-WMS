@@ -2,7 +2,7 @@
 type: spec
 title: Kommissionieraufträge (Kopf/Zeilen, KO-Nummernkreis, Typ, Kommissionierbereiche), 1–n je FA
 slug: 2026-11-08-kommissionierung-auftraege-kopf-zeilen-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-11-07
 updated: 2026-11-12
 source_backlog: "[[2026-11-07-kommissionierung-auftraege-kopf-zeilen]]"
@@ -1139,3 +1139,70 @@ Wunsch Gerald 2026-11-11/12 (Screenshot `idealweb01:88/Picking`): In der Liste �
 - **Druck:** Die Auftragsliste hat keinen eigenen Druck. Der Auftragsdruck (`PrintPicking`) zeigt den Matchcode des FA-Artikels im Kopf unter
   „Artikel“ (ohne Matchcode keine Zeile). **Befund (nicht gebaut):** Matchcode je Komponentenzeile im Auftragsdruck wäre ein eigener Wunsch.
 - Test `PickingControllerTests.Index_MatchcodeSpalte_AusArtikelstamm_Filterbar_Registriert`; TS-120.17; Changelog. Web 2646/2647.
+
+## QA-Nachweis Nachtrag v1.99.8 (qa-agent, 2026-11-12) – Ergebnis: Testbereit
+
+Prüfbereich: `git show 557ea63b` (11 Dateien) im Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, HEAD `bb788f0e` (QA-Korrektur der Wareneingang-Spec, nicht Gegenstand, aber im Deploy-Stand). Build/Tests über den ganzen Worktree.
+
+### 1. Build und Tests (selbst ausgeführt, HEAD `bb788f0e`)
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler, 28 Warnungen (Bestand).
+- `dotnet test`: IdealAkeWms.Tests **2646 bestanden / 1 übersprungen / 0 Fehler** (2647); IDEALAKEWMSService.Tests **534 / 0 / 0**.
+
+### 2. Code-Review (selbst gelesen, Diff + Umfeld)
+Geprüft: `PickingController.Index` (`PickingController.cs:148-173`), `RenderAuftragDruckenAsync` (`:635-670`), `MatchcodeLookup.BuildAsync`, `ColumnMap`, `ColumnDefinitions.Picking`, `Views/Picking/Index.cshtml` (th, td, `#column-config`), `PrintPicking.cshtml`, `column-preferences.js` `mergeWithDefaults`.
+- **Quelle:** `Article.Matchcode` über `MatchcodeLookup.BuildAsync` (ein Batch je Listenaufbau, OrdinalIgnoreCase, AK-14-Log), gleiche Quelle wie die FA-Liste; `ProductionOrder` hat keinen Matchcode. Nicht eindeutig: nur Anzeige und Filter, kein Schlüssel – auf DEV belegt (3 Aufträge desselben FA mit demselben Matchcode, Filter liefert alle 3).
+- **Registrierung:** die drei Quellen sind gleich (je 11 Keys, `matchcode` an Index 4 nach `article-number`; per `grep` verglichen). Gespeicherte Spaltenauswahl alter Benutzer: `mergeWithDefaults` fügt neue Keys an der Konfigurationsposition ein.
+- **Spaltenfilter vor Paging:** Lookup vor dem Projizieren, `ColumnFilterHelper.Apply` vor `Skip/Take`, `TotalCount = filtered.Count`. Textfilter (kein Eintrag in `ColumnFilterTypes` nötig).
+- **Druck:** Die Auftragsliste hat keinen eigenen Druck (kein Print/Drucken in `Views/Picking/Index.cshtml`; Druck-Actions im Controller nur `PrintBom` und `AuftragDrucken`). Die Auslegung „Matchcode im Kopf des Auftragsdrucks“ ist vertretbar und deckt Punkt 3 des Nachtrags („falls dort Spalten gedruckt werden“) ab. Null-Artikelnummer → leeres Dictionary → keine Zeile.
+- Defektklassen: kein Server-Wert in `<script>` (nur statisches `#column-config`), kein `hidden`+`d-*`, kein stiller Fallback (fehlender Matchcode bleibt leer), keine Parallel-Arrays, keine Client-only-Regel (Filter serverseitig), Regel an einer Stelle (`MatchcodeLookup`).
+
+**Befunde:**
+- **N-1 (niedrig, Testlücke, nicht behoben):** Für `Picking/Index` gibt es keinen Drei-Quellen-Wächter (th / `#column-config` / `ColumnDefinitions`). `ViewKeyDriftGuardTests` prüft nur die viewKey-Registrierung, der neue Test nur die Position im Katalog; „Drift-Wächter grün“ in der Dev-Notiz ist daher schwächer als es klingt. Heute sind die drei Quellen gleich (von Hand verglichen). Nachziehen wie `OffeneBestellungen_DreiQuellenGleich_UndToolbarHost` wäre ein kurzer Test – Entscheidung Mensch.
+- **N-2 (kosmetisch, nicht behoben):** Der neue Test steht in `PickingControllerTests.cs` zwischen dem Kommentar „Hotfix v1.30.3 (Z3) … Spalte Werkbank“ und dessen Test `Index_WorkbenchColumn_FilledFromWorkplaceAndFilterable`; der Kommentar hängt jetzt am falschen Test.
+- Hinweis H-1 (kein Befund dieser Änderung): `AuftragDrucken` für einen Auftrag, dessen FA keinen BOM-Cache hat, wirft auf DEV `Invalid object name 'ake.dbo.vw_AKE_Kommissionierung_StuecklistenDB'` (`PickingController.cs:640`, vor dem neuen Code; Sage-View fehlt auf DEV). Bestandsverhalten, Umgebung.
+
+Code wurde in diesem QA-Lauf nicht geändert.
+
+### 3. Beweisart
+| Punkt | Beweis |
+|---|---|
+| Matchcode aus Artikelstamm je Zeile, leer ohne Treffer | automatisch: `PickingControllerTests.Index_MatchcodeSpalte_AusArtikelstamm_Filterbar_Registriert` (Mock-Repository) + DEV AKE |
+| Spaltenfilter serverseitig vor dem Blättern | automatisch (gleicher Test, Query `colf_matchcode`) + DEV AKE (Trefferzahl) |
+| Spalte direkt nach Artikelnummer im Katalog | automatisch (gleicher Test) |
+| th / `#column-config` gleich dem Katalog | Handprüfung (grep), kein Wächter – N-1 |
+| Zahnrad aus, bleibt nach Neuladen | Manual-UAT (Browser-JS) – DEV AKE erledigt |
+| Druckkopf „Matchcode:“, ohne Matchcode keine Zeile | Manual-UAT (Razor-View) – DEV AKE erledigt |
+| Echter `GetMatchcodesByArticleNumbersAsync` gegen SQL Server | Manual-UAT (bestehende Methode, in der FA-Liste schon im Einsatz) – DEV AKE erledigt |
+
+### 4. Geänderte Bestandstests
+`PickingControllerTests.Setup`: optionaler Parameter `IArticleRepository? articles = null` (Default wie bisher `Mock.Of`) – reine Signaturerweiterung, kein Verhalten bestehender Tests geändert. Sonst nur ein neuer Test.
+
+### 5. Checkliste CLAUDE.md / ADR 0020
+Keine Migration, kein SQL, keine Einstellung (ADR 0020 nicht betroffen), kein Audit-Feld. Version 1.99.8 in beiden `AppVersion.cs`, Anwender-Changelog ergänzt, TS-120.17 in `docs/TESTSZENARIEN.md`, Testindex Zeile 120 bereits nachgezogen, Brain-Changelog [[2026-11-12-v1-99-8-kommissionierung-matchcode]] durch QA angelegt (fehlte), feature-map ergänzt. Kein Nachlauf-Schritt nötig (`nachlauf.psd1` ohne Eintrag 1.99.8 – korrekt).
+
+### 6. DEV-Deploy und Testlauf
+- `standort: beide` → `dev-deploy.ps1 -Standort AKE` und `-Standort IDEAL`, Quelle Worktree, erhöhte Shell: beide Exit 0, „HTTP 200, Fusszeile v1.99.8“, „Fertig: AKE v1.99.8 auf http://localhost:8081/“ bzw. „Fertig: IDEAL v1.99.8 auf http://localhost:8082/“. Danach die 5 AKE-Sync-Schalter (`Articles`, `ArtikelLieferant`, `Kreditoren`, `Debitoren`, `EinkaufBestellungen`) wieder `true` (nach IDEAL-Deploy nochmals geprüft); `SageLagerbuchungAktiv`/`SageWareneingangBelegAktiv` `false`.
+- Testdaten AKE (alle zurückgesetzt): AKE-DEV hat 3 Aufträge (Id 19–21) an FA 363 (`S0416233`, ohne Artikelstamm-Eintrag). Vorübergehend PickingOrders 20→FA 3041, 21→FA 3036 (zurück auf 363), danach temporärer Artikel `S0416233` mit Matchcode „QA-TEST MATCHCODE“ (Id 105633, gelöscht), Spaltenauswahl-Zeile `UserViewPreferences` Id 19 (vom Test angelegt, gelöscht).
+
+| Schritt TS-120.17 | Ergebnis | |
+|---|---|---|
+| Liste `/Picking?showAll=true&status=alle` (Leitstand an) | Spalte „Matchcode“ nach „Artikelnummer“; KO-00002 „Kühlkombi Green GE-288-146-Z RAL9005 Sonder“, KO-00003 „Kombination UKWS-UB 202-E Sonder“, KO-00001 leer (kein Artikelstamm) | OK |
+| Spaltenfilter `colf_matchcode=kühl` | 1 Treffer KO-2026-00002, Zähler 1, „Einträge 1–1 von 1“ | OK |
+| Zahnrad: Matchcode aus, neu laden | gespeichert (`"matchcode","visible":false`), nach Neuladen fehlt die Spalte samt Filterfeld | OK |
+| Nicht eindeutig (3 Aufträge, gleicher Matchcode), Filter `qa-test` | alle 3 erscheinen | OK |
+| Auftrag drucken `/Picking/AuftragDrucken/19` mit Matchcode | Kopf „Artikel: S0416233 - …“, darunter „Matchcode: QA-TEST MATCHCODE“, 149 Positionen | OK |
+| Negativ ohne Matchcode | nur „Artikel:“-Zeile, keine Matchcode-Zeile (HTTP 200) | OK |
+| Zahnrad wieder einblenden | nicht per UI geklickt; Testzeile gelöscht (zurück auf Standard) | NICHT MÖGLICH per UI (Screenshot-Zeitüberschreitung im Browser), bleibt für den Menschen |
+| IDEAL 8082 | Liste rendert v1.99.8 mit `data-col-key="matchcode"` und `#column-config`-Eintrag; 0 Kommissionieraufträge in IDEAL_WMS_DEV | NICHT MÖGLICH (Daten); Deploy OK |
+
+### 7. Publish
+`C:\git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish\` (`IDEALAKEWMSWeb`, `IDEALAKEWMSWebService`, `SQL`, `deploy`, vorher geleert), `publish-info.txt`: Version 1.99.8, Commit `bb788f0e8da5239cc0c9bbdf4e96ef7f54355e81`, Branch `feature/2026-08-07-ideal-teile-1-5`, Erstellt 2026-11-12 12:04.
+
+### Deploy (aus dem echten Diff `557ea63b`)
+web: ja · service: ja (nur `AppVersion.cs`) · migration: nein. Der Bündel-Gesamtstand bleibt `deploy.migration: true` (frühere Versionen). Quelle `<worktree>\publish` v1.99.8 (enthält auch Wareneingang v1.99.7 inkl. `bb788f0e`). Nach dem Merge nur dann aus main neu publizieren, wenn der Merge getestete Dateien mit parallelen main-Änderungen kombiniert hat.
+
+### Manuelle Checkliste (offen)
+1. TS-120.17 auf IDEAL (braucht Kommissionieraufträge an FAs mit Matchcode im Artikelstamm).
+2. Testsystem AKE und IDEAL: TS-120.17 komplett (Spalte, Teiltext-Filter mit Trefferzahl über mehrere Seiten, Zahnrad aus **und wieder ein** per UI, Auftrag drucken mit/ohne Matchcode).
+3. N-1 entscheiden: Drei-Quellen-Wächter für `Picking/Index` nachziehen?
+4. Offen als eigener Wunsch (Dev-Befund): Matchcode je Komponentenzeile im Auftragsdruck.
