@@ -126,3 +126,9 @@ Fuer Endanwender gibt es zusaetzlich die hand-gepflegte Uebersicht `/Users/RoleO
 | Quellen-Weiche (`Sync:Quelle:<Bereich>`) | Wahl der Sage-Lesequelle je Abgleich: `View` (SQL, Default/Notfall), `SData`, `Vergleich` (liest beide, schreibt View). Code `…QuelleSwitch`. [[0019-quellen-weiche-view-sdata-je-abgleich]] |
 | Kreditor / Debitor | Lieferant bzw. Kunde (Sage-Kontokorrent `KtoArt` `K`/`D`). Code `Creditor`/`Debitor`, UI „Kreditoren“/„Debitoren“. Herkunft Sage oder WMS (`Source`). |
 | Übergabe an Sage | Status eines im WMS angelegten Stammsatzes (`SageUebergabeStatus` NichtNoetig/Offen/Uebergeben/Fehler) + Outbox `SageStammdatenOutbox`; Senden noch nicht gebaut. |
+
+- **Sage-Wareneingangsbeleg (ELL)** (v1.99.4): Wareneingang in Sage (Belegkennzeichen ELL), den das WMS je Buchung der Maske „Wareneingang zu
+  Bestellung“ als Belegübernahme aus der Bestellung anlegt (Schalter `SageWareneingangBelegAktiv`). Ersetzt fuer diese Wareneingaenge den
+  Lagerbuchung-Zugang und das Schliessen von Hand durch den Einkauf.
+- **Lieferschein-Nr. (Lieferant)** (v1.99.4): Lieferschein des Lieferanten, je Buchung der Maske an jedem Wareneingang gespeichert, an Sage nur im
+  Sage-Wareneingangsbeleg (`EKLieferschein`, 20 Zeichen).

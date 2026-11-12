@@ -158,3 +158,8 @@ Warum die Flags in Satelliten liegen: [[0009-app-status-in-satelliten-tabellen-n
 - `StockApiController` `fa-lookup`/`fa-search` (v1.87.0) unter dem Klassenfilter `RequireStockOrPickingOrTrackingAccess`. FA-Links in Lager-Tools
   folgen dem FA-Leserecht `FaBuchungsText.CanViewProductionOrdersAsync` (= Regel von `RequirePickingOrTrackingOrLeitstandAccess`, ein Ort).
 
+## Wareneingang Teil 2 (v1.99.4)
+
+- `PurchaseOrdersController.SageWareneingaenge` (GET): Liste „Wareneingänge an Sage“, Klassen-Filter `RequireStockReadAccess` + Feature-Gate
+  `RequireWareneingangBestellungAktiv`. `SageWeErneutSenden` (POST): `RequireStockKeyUserAccess` (admin, stock_keyuser, picking), nur Status Fehler.
+  `Receive` (POST): neuer Parameter `lieferschein`; Platzregel und Sage-WE-Status, wenn `SageWareneingangBelegAktiv` an. Keine neue Rolle.

@@ -192,3 +192,7 @@ konsolidiertes `../../SQL/00_FreshInstall.sql`. Der Workflow ist verbindlich —
   (Einmal-Skript `SQL/Einmalig/2026-11-08_v1.88.0_Kommissionierauftraege_Altbestand.sql`). [[0021-kommissionierauftrag-als-beleg-neben-der-stueckliste]]
 - `StockMovements.ProductionOrderId` (v1.87.0, SQL/109) – verknuepfter FA neben dem Text, Regel `IProductionOrderRepository.FindForBookingAsync`.
 
+- `PurchaseOrderReceipts` – v1.99.4 (SQL/143, Migration `20261111200627_AddPurchaseOrderReceiptSageWe`, [[2026-11-08-wareneingang-teil-2-sage-we-beleg-rahmenabrufe-spec]]): `SageWeStatus` (int,
+  Enum `SageWareneingangStatus` NichtNoetig/Offen/Gesendet/Uebergeben/Fehler/NurInSage, DEFAULT 0 nur in SQL/Migration), `SageWeVorgang` (Guid, ein
+  ELL-Beleg je Absenden der Maske), `SageWeAm`, `SageWeBelegnummer`, `SageWeFehler`, `SageWeVersuche`, `Lieferschein` (nvarchar(20), Sage `EKLieferschein`).
+  Status ≠ NichtNoetig = nie in der Lagerbuchungs-Queue. Rest-Regel: `ErfasstJeBelPos.Abzuziehen(SyncedAt)`.

@@ -341,3 +341,12 @@ Quellen-Weiche je Abgleich: [[0019-quellen-weiche-view-sdata-je-abgleich]]. Ordn
 - Umbuchung: `SageLagerbuchungUmbuchungAktiv` (Default false); einzige Typliste `SageBookingEnqueueDecision` (`BookableTypes`, `Buchungsart`,
   `IstUmbuchungMitFaBezug`); Nacherfassung `EnqueueMissingAsync(..., umbuchungAktiv)`.
 - Outbox `SageStammdatenOutbox` ohne Worker (G5); `LagerplatzSyncService` übernimmt manuelle Plätze mit Übergabe Offen/Fehler bei gleichem Code.
+
+## Sage-Wareneingang (v1.99.4, [[2026-11-08-wareneingang-teil-2-sage-we-beleg-rahmenabrufe-spec]])
+
+- `SageWareneingangService.RunOnceAsync` (Dienst), aufgerufen als eigener Schritt im `SageBookingWorker`-Takt, Gate **nur**
+  `SageWareneingangBelegAktiv` (ServiceSetting, Default aus, AKE). Eine Gruppe (`SageWeVorgang`) = ein POST `$service/StandardBelegService`
+  (`SageWareneingangClient`, Payload `SageWareneingangPayloadBuilder`, Belegübernahme EBB → ELL). Status vor dem POST auf Gesendet (+1 Versuch),
+  Erfolg → Uebergeben + Belegnummer, Fehler bleibt (Variante B, kein Auto-Retry), haengend nach `Sync:SageLagerbuchungStuckMinutes` → Fehler
+  „Ergebnis unklar“. Aktivitaets-Protokoll `SageWareneingang` („Sage-Wareneingang“), Counts `gesendet`, `uebergeben`, `fehler`, `unklar`; kein
+  Lauf-Eintrag ohne Arbeit. Antwort kommt als SData-Atom-XML (Schreibtest 2026-11-12).

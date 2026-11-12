@@ -10,7 +10,7 @@ freigabe_am: 2026-11-11
 source_backlog: "[[2026-11-08-wareneingang-teil-2-sage-we-beleg-rahmenabrufe]]"
 depends_on: "[[2026-11-08-wareneingang-aus-sage-bestellungen-spec]]"
 folge_backlog: "[[2026-11-11-wareneingang-teil-3-rahmenabrufe]]"
-version: "nach 1.99.1 (Dev-Lauf legt fest)"
+version: "1.99.4"
 sql_nummern: "eine Migration in E1: nächste freie Nummer bei der Umsetzung, derzeit 143 (142 = AddDeployScriptRuns, v1.99.0), Freigabe-Antwort 1"
 testszenario: "TS-116 (Erweiterung 116.10 ff., ersetzt den Platzhalter 116.7)"
 task: ""
@@ -509,9 +509,9 @@ bleibt damit ohne Wirkung.
 | 1 | Sage-WE-Grundlage: Receipt-Felder (7 Spalten inkl. `SageWeVersuche`, `Lieferschein`) + Migration, `SageWareneingangStatus`, Ausschluss in Decision/Decorator/`EnqueueMissingAsync`, Rest-Regel EBB, `SyncedAt` vor dem Lesen; Tests | – | 143 | erledigt | `f45412d4` |
 | 2 | Lieferschein-Nr. in der WE-Maske (Kopf-Feld, Prüfung, Speichern) + AppSetting `WareneingangLieferscheinPflicht` im Katalog; Tests | E1 | – | erledigt | `aa4655f8` |
 | 3 | Liste „Wareneingänge an Sage“ (Listen-View-Pattern) + „Erneut senden“ von Hand mit Hinweis + Status-Zeile in Receive | E1 | – | erledigt | `f7dc750e` |
-| 4 | Sender Variante B: Setting in den Katalog, Status beim Buchen (Offen/NurInSage), Platzregel, Payload-Builder (inkl. `EKLieferschein`, `Memo`), Client, `SageWareneingangService` (hängend → „unklar“), Worker-Schritt, SyncLog-Name, DI-Test; danach Schreibtest über DEV und Eintrag „Schreibtest-Ergebnis“ | E1-E3; Schreibtest braucht DEV mit Worktree-Stand und die Test-Bestellung (Gerald/Einkauf); Fehler beim Schreibtest → Ergebnis eintragen, Gerald fragen, E4 ohne festgelegten Payload als Blocker | – | Code erledigt, **Schreibtest wartet auf Geralds OK** | `053cb28d`, `a449e814` |
-| 5 | Auto-Retry Variante A: `SdataWareneingangLookupReader`, Prüfung vor jedem Wiederholen, Versuche-Grenze; Tests | **blockiert bis P-W9 (a)+(b) belegt** (nach dem Schreibtest); sonst Blocker eintragen, nicht bauen | – | blockiert | |
-| 6 | Abschluss: beide `AppVersion.cs` (nach 1.99.1), Anwender-Changelog, Hilfe (Sage-WE, Lieferschein, Platzregel, entfallende Arbeitsanweisung), README AppSettings + ServiceSettings, `scripts/deploy/nachlauf.psd1`, TS-116.10 ff. | E1-E4 (+E5, falls gebaut) | – | offen | |
+| 4 | Sender Variante B: Setting in den Katalog, Status beim Buchen (Offen/NurInSage), Platzregel, Payload-Builder (inkl. `EKLieferschein`, `Memo`), Client, `SageWareneingangService` (hängend → „unklar“), Worker-Schritt, SyncLog-Name, DI-Test; danach Schreibtest über DEV und Eintrag „Schreibtest-Ergebnis“ | E1-E3; Schreibtest braucht DEV mit Worktree-Stand und die Test-Bestellung (Gerald/Einkauf); Fehler beim Schreibtest → Ergebnis eintragen, Gerald fragen, E4 ohne festgelegten Payload als Blocker | – | erledigt, Schreibtest 2026-11-12 erfolgreich (Beleg 2027-398675) | `053cb28d`, `a449e814`, `0d265005` |
+| 5 | Auto-Retry Variante A: `SdataWareneingangLookupReader`, Prüfung vor jedem Wiederholen, Versuche-Grenze; Tests | **blockiert bis P-W9 (a)+(b) belegt** (nach dem Schreibtest); sonst Blocker eintragen, nicht bauen | – | **blockiert** (P-W9 (a)/(b) offen: Mensch; Agenten lesen weder AKESQL20 noch SData mit Zugangsdaten) | |
+| 6 | Abschluss: beide `AppVersion.cs` (nach 1.99.1), Anwender-Changelog, Hilfe (Sage-WE, Lieferschein, Platzregel, entfallende Arbeitsanweisung), README AppSettings + ServiceSettings, `scripts/deploy/nachlauf.psd1`, TS-116.10 ff. | E1-E4 (+E5, falls gebaut) | – | erledigt (v1.99.4) | `2d09489a` |
 
 Brain-Update (Hauptcheckout): [[feature-map]], [[datenmodell]] (Receipt-Spalten), [[services]] (Lauf „Sage-Wareneingang“, Gate),
 [[integrationen]] (StandardBelegService genutzt), [[sage-sdata-commonwawiservices]] Z. 12 („Im WMS genutzt“ ergänzen, nach E4),
@@ -614,3 +614,62 @@ Jeweils mit Warum. Changelog-Notiz und Testindex.
 8. Abrufe mit Rest 0 ausblenden; Grenze „in Sage direkt gebucht“ akzeptiert? → **Entfällt mit 6 (Rahmenabrufe später).**
 9. Charge/Seriennummer: NurInSage, kein WE, kein Queue-Zugang? → **Chargen-/seriennummernpflichtige Artikel gibt es derzeit nicht (Gerald 2026-11-11). Die Regel bleibt als Absicherung wie empfohlen (NurInSage).**
 10. Schreibtest-Freigabe, Ausführender, Rückbau? → **Freigegeben: Schreibtest über DEV gegen den Sage-AKE-Test (sagetest01, ake_TEST2026); Rückbau des Test-Belegs in Sage durch Gerald bzw. den Einkauf (Gerald 2026-11-11).**
+
+## Umsetzung (goal-Lauf 2026-11-11/12)
+
+Buendel-Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Version **1.99.4**, SQL **143** (beim Start geprueft). Commits: E1 `f45412d4`,
+E2 `aa4655f8`, E3 `f7dc750e`, E4 `053cb28d` + `a449e814` (Belegjahr nicht senden) + `0d265005` (Schreibtest-Fix), E6 `2d09489a`. E5 nicht gebaut.
+
+- **E1:** 7 Spalten + 2 Indizes (`SQL/143_AddPurchaseOrderReceiptSageWe.sql`, Migration `20261111200627_AddPurchaseOrderReceiptSageWe`, FreshInstall an
+  beiden Stellen; zweimal gelaufen auf einer Leer-DB, zweiter Lauf ohne Ausgabe, Altbestand 0/0/NULL). Enum `SageWareneingangStatus`. Ausschluss:
+  `SageBookingEnqueueDecision.ShouldEnqueue(..., hatSageWareneingang)`, Decorator liest den mitgespeicherten Receipt, `EnqueueMissingAsync` eigene
+  EF-Bedingung. Rest-Regel an EINER Stelle: `ErfasstJeBelPos.Abzuziehen(SyncedAt)` (eine Abfrage je Maske); `SyncedAt` vor dem SData-Lesen.
+- **E2:** Feld „Lieferschein-Nr. (Lieferant)“ im Kopf, Post-Parameter `lieferschein`, Pruefung (>20 / Pflicht), an jedem Receipt; AppSetting
+  `WareneingangLieferscheinPflicht` (Katalog `B(...)`, abhaengig von `WareneingangBestellungAktiv`, Drift-Zaehler 55 -> 56).
+- **E3:** `PurchaseOrdersController.SageWareneingaenge` (Listen-View-Pattern, Filterkarte Status/Bestellung/Zeitraum, Server-Spaltenfilter, Register
+  `PurchaseOrders/SageWareneingaenge`) + `SageWeErneutSenden` (`RequireStockKeyUserAccess`, ganze Gruppe Fehler -> Offen, Fehlertext leer,
+  Versuche bleiben); Statuszeile „Sage-Wareneingang: n× …“ in der Maske; Menue Lager -> „Wareneingänge an Sage“.
+- **E4 (Variante B):** `SageWareneingang` (Web: Schalter-Key, Platzregel, Memo), Status beim Buchen (`Offen` mit EINEM `SageWeVorgang` je Absenden,
+  `NurInSage` bei Charge/Nachweis), Platzregel als Zeilenfehler; Dienst: `SageWareneingangPayloadBuilder`, `SageWareneingangClient`
+  (`$service/StandardBelegService`), `SageWareneingangService` (Status vor dem POST auf Gesendet + Versuch, Erfolg -> Uebergeben + Belegnummer,
+  Fehler bleibt, haengend -> Fehler „Ergebnis unklar“, kein Protokoll-Lauf ohne Arbeit), eigener Schritt im `SageBookingWorker` nur ueber
+  `SageWareneingangBelegAktiv`; SyncLog `SageWareneingang` / „Sage-Wareneingang“; ServiceSetting im Katalog (Anzeigename, Verwendung, Standort, Warnhinweis).
+- **E6:** Version 1.99.4, Changelog-Karte, Hilfe (Abschnitt Wareneingang), README (AppSetting + Sage-Abschnitt), `nachlauf.psd1` (`SQL/143`,
+  `v1.99.4-SageWe`, `v1.99.4-Lieferschein`, `v1.99.4-EinkaufWe`), TS-116.11–116.17.
+
+**Nachweis:** `dotnet build IdealAkeWms.slnx` 0 Fehler; `dotnet test` Web **2639/2640** (1 uebersprungen, Bestand), Dienst **522/522**; neue Tests
+`SageWareneingangGrundlageTests` (AK 1-3), `PurchaseOrdersReceiveTests` (AK 5-7, 10, 11, 14, 15), `SageWareneingaengeListeTests` (AK 8, 9),
+`SageWareneingangServiceTests` (AK 11-13, 16, 17, echte Sage-Antwort). Bewusst geaenderte Bestandstests: `PurchaseOrdersReceiveTests`/
+`PurchaseOrdersControllerTests` (neuer Ctor-Parameter `IServiceSettingRepository`, `GetErfasstJeBelPosAsync` liefert `ErfasstJeBelPos`),
+`AppSettingDefinitionsTests` (Zaehler 56), `NachlaufManifestDriftTests` (`SQL/143` in der Reihenfolge).
+
+## Schreibtest-Ergebnis (2026-11-12, freigegeben von Gerald im Chat nach Vorlage von Beleg und Aufruf)
+
+- **Vorbereitung (lesend):** Bestellung **2027-168715** (BelId 362313, Lieferant K30601 Gasperlmair Glas), zwei Positionen: 404456 EK001640
+  (4 Stk) und 404457 EK001641 (2 Stk), beide Platz `GL;0;0;0` (PlatzId 2872, WMS-Platz 2035 mit „Sage-Buchung erlaubt“), keine Charge, Einheit Stk.
+  Auswahl aus dem DEV-Cache (Stand Abgleich 2026-11-11 20:47).
+- **Buchen:** AKE-DEV mit Worktree-Stand (Dienst gestoppt), `SageWareneingangBelegAktiv` an, ueber die echte Maske (HTTP mit Windows-Anmeldung):
+  nur Pos. 404456, **1 Stk**, Lieferschein `WMS-TEST-1` → Receipt #4 `Offen`, kein Queue-Eintrag. Request vorab mit dem echten Builder erzeugt und
+  Gerald gezeigt; `Belegjahr` vorher entfernt (optional; Bestellnummer 2027-… = Geschaeftsjahr ≠ Kalenderjahr).
+- **Request** (`POST https://sagetest01.ake.at:5493/sdata/ol/CommonWawiServices/ake_TEST2026;1/$service/StandardBelegService`, ohne Zugangsdaten):
+  `{"Erfassungsart":4100,"BelegTransformArt":1,"IsBelegTransform":true,"BelegKennzeichen":"ELL","TransformSettings":[{"SourceBelegHandle":362313}],
+  "Belegdatum":"2026-11-11","A0Konto":"K30601","InteressentAdresse":false,"EKLieferschein":"WMS-TEST-1","Memo":"WE#4#","MemoSpecified":true,
+  "StandardBelegPositionen":[{"PositionHandle":404456,"Positionstyp":1,"Artikelnummer":"EK001640","AuspraegungsHandle":0,"Mengenart":1,"MengeBasis":1.0,
+  "BelegPositionLagermengen":[{"PlatzId":2872,"Kurzbezeichnung":"GL;0;0;0","MengeBasis":1.0}]}]}`
+- **Senden:** genau ein Versuch (08:28:51), danach Schalter sofort wieder aus. **Response HTTP 200 als SData-Atom-XML** (nicht JSON):
+  `Handle 363225`, `VorgangHandle 66927`, **`BelegnummerFormatiert 2027-398675`**, `ResultNumber 200`, `ResultText Ok`, `ErrorText` leer; eine
+  Position `Handle 406344`, `VorgangPositionHandle 246324`.
+- **Befund 1 (behoben `0d265005`):** Der Client las nur JSON und setzte den Wareneingang auf `Fehler` („nicht lesbar“), obwohl Sage den Beleg angelegt
+  hatte. Es wurde nichts wiederholt (Variante B). Fix: Atom-XML und JSON lesen (erster `ErrorText`/`BelegnummerFormatiert` = Belegkopf);
+  `ResultNumber 200` = Ok. Die echte Antwort ist Testfall (`SageWareneingangServiceTests.Antwort_SdataAtomXml_Schreibtest_…`). Receipt #4 auf DEV
+  danach von Hand auf `Uebergeben`/2027-398675 gesetzt (Audit „Dev-Lauf: Korrektur nach Schreibtest“).
+- **Befund 2 (behoben `0d265005`):** Warnung ins Aktivitaets-Protokoll > 1000 Zeichen (`SyncLogs.Message`) → Protokoll-Eintrag scheiterte; Text gekappt.
+- **Ergebnis in Sage (lesend ueber den WMS-Abgleich „Offene Bestellungen“, 2026-11-12 08:45):** Pos. 404456 geliefert 0 → **1**, offen 4 → **3**;
+  Pos. 404457 unveraendert offen 2 (nicht uebernommen). Maske: Rest Pos. 1 = **3** (Uebergeben mit `SageWeAm` ≤ `SyncedAt` nicht doppelt abgezogen),
+  Statuszeile „1× an Sage übergeben“; Liste zeigt 2027-398675, Memo `WE#4#`, `WMS-TEST-1`. Kein Eintrag in `SageBookingQueueItems`.
+- **Payload festgelegt:** so wie oben (`PositionHandle` = BelPosId, ohne `VorgangPositionHandle`, `Kurzbezeichnung` = Lagerkennung) – Sage hat genau
+  die gelistete Position mit der Menge auf dem gesendeten Platz uebernommen.
+- **Offen fuer Gerald (lesend in Sage):** Lieferschein `WMS-TEST-1` und Platz-Bestand am Beleg 2027-398675 sichten; **P-W9 (a)** Sage-SQL (Memo am
+  ELL-Beleg) und **(b)** SData-Lookup `EinkaufBelegeInfo … where <Memo> like '%WE#4#%'` – Agenten duerfen AKESQL20 nicht und SData nicht mit
+  Zugangsdaten von Hand abfragen. **Rueckbau** des Belegs 2027-398675 durch Gerald bzw. den Einkauf; danach Abgleich, Pos. 404456 wieder offen 4.
+- **E5 bleibt blockiert** bis P-W9 (a)+(b) belegt.

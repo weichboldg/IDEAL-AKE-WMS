@@ -227,3 +227,10 @@ Belege, Kunden, Lieferanten, DMS) · [[sage-sdata-masterdata]] (PPS-, EK-, Lager
 [[sage-sdata-realtimedata]] (1219 Lese-Datenquellen). Kernbefund: Lesen der FA-/EK-/Lagerdaten geht ohne
 Direkt-SQL; Produktions-Rueckmeldungen haben **keinen** dokumentierten Schreibweg (nur interne
 `strFaBeleg`-Struktur, 403).
+
+## Sage-Wareneingangsbeleg (v1.99.4, [[2026-11-08-wareneingang-teil-2-sage-we-beleg-rahmenabrufe-spec]])
+
+Schreibend: `POST {SData:BaseUrl}/sdata/{Application}/{ServiceContract}/{Dataset}/$service/StandardBelegService`, Basic-Auth wie die Lagerbuchung
+(`SageLagerbuchung:Username/Password`), TLS-Schalter wie dort. Erfassungsart 4100, BelegTransformArt 1, BelegKennzeichen ELL,
+`TransformSettings[].SourceBelegHandle` = BelId, `EKLieferschein`, `Memo WE#<id>#`, Positionen `PositionHandle` = BelPosId mit
+`BelegPositionLagermengen{PlatzId, Kurzbezeichnung = Lagerkennung, MengeBasis}`. Am AKE-Test 2026-11-12 belegt (Beleg 2027-398675).

@@ -1734,6 +1734,21 @@ Code: `hardware-scanner.js` Block „Scannen ohne Feld“, CSS `.hw-scan-bereit`
   GetNewClosure“; richtig ist `[Delegate]({ … }.GetNewClosure())`. Eine Funktion mit einem Element liefert einen Skalar, kein Array
   (`.Count` wirft unter StrictMode) – `@(...)` um den Aufruf. **Warum wichtig:** Beides fiel erst im DEV-Lauf auf (TS-126), nicht im Parser.
 
+## 31. Sage-Wareneingangsbeleg (v1.99.4, [[2026-11-08-wareneingang-teil-2-sage-we-beleg-rahmenabrufe-spec]])
+
+- **Eine Ausschlussregel muss im Decorator UND in `EnqueueMissingAsync` stehen.** Die Nacherfassung nutzt die Decision nicht, sondern einen eigenen
+  EF-Filter. **Warum wichtig:** Fehlt die Bedingung dort, holt der 15-Minuten-Sweep einen Sage-WE-Wareneingang als Zugang nach – der Bestand in Sage
+  stiege doppelt.
+- **Rest darf uebergebene Wareneingaenge nicht doppelt abziehen.** Abgezogen wird nur, was zum Abgleich-Stand noch nicht in Sage war
+  (`Uebergeben` mit `SageWeAm` ≤ `SyncedAt` nicht); `SyncedAt` wird vor dem Lesen genommen. **Warum wichtig:** Sonst zeigt die Maske nach dem
+  naechsten Abgleich einen zu kleinen Rest und meldet Ueberlieferungen, die keine sind.
+- **Wiederholen nach Sage-Schreibfehlern nur mit belegter Korrelation (Lookup vor jedem Senden), sonst von Hand.** **Warum wichtig:** Ein Fehler
+  kann nach dem Anlegen des Belegs entstehen (Timeout, nicht lesbare Antwort) – blindes Wiederholen legt einen zweiten Wareneingang an.
+- **SData-Services antworten ohne `format=json` als Atom-XML; `ResultNumber 200` heisst Ok.** **Warum wichtig:** Im Schreibtest 2026-11-12 wertete
+  ein reiner JSON-Leser den angelegten Beleg als Fehler. Erst der Status „Fehler statt Wiederholen“ verhinderte einen zweiten Beleg.
+- **`SyncLogs.Message` ist nvarchar(1000).** Lange Sage-Antworten vor dem Protokollieren kappen. **Warum wichtig:** Sonst scheitert der
+  Protokoll-Eintrag (SqlException „String or binary data would be truncated“), und genau die Fehlermeldung fehlt im Aktivitaets-Protokoll.
+
 ## Sage-SData-Lesen (v1.73.0, [[2026-11-06-sage-sdata-stammdaten-sync-spec]])
 
 - **`startIndex` ist 0-basiert.** Am AKE-Test liefert `startIndex=1` die erste Zeile nicht (LagerorteInfo 35 von 36; Lookup mit einem Treffer leer).

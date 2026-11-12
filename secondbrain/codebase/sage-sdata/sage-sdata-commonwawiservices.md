@@ -131,3 +131,9 @@ Body JSON mit den Request-Feldern. `*` = `sme:isMandatory`. `(n)` = maxLength. A
 ## Ressourcen (109 `resourceKind`)
 
 Nur Request-/Response-Sample-Typen der Operationen (z. B. `BasisBelegServiceRequestSample`, `Lagerbuchung`, `BelegPosition`); keine eigenständig abfragbaren Daten.
+
+## Nachtrag 2026-11-12: StandardBelegService im WMS genutzt (v1.99.4)
+
+**Im WMS genutzt** ist jetzt zusaetzlich `StandardBelegService` fuer den Sage-Wareneingangsbeleg (ELL, Belegübernahme aus der Bestellung,
+[[2026-11-08-wareneingang-teil-2-sage-we-beleg-rahmenabrufe-spec]]). Belegt am AKE-Test: Response als Atom-XML (ohne `format=json`), `ResultNumber 200` = Ok, `ErrorText` leer bei Erfolg,
+`BelegnummerFormatiert` im Kopf; ohne `VorgangPositionHandle` wird genau die gelistete Position uebernommen (`PositionHandle` = BelPosId).
