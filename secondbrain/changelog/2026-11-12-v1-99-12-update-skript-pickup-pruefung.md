@@ -6,7 +6,7 @@ date: 2026-11-12
 # v1.99.12 — Update-Skript: Prüfung MailSettings:PickupDirectory
 
 Bündel `feature/2026-08-07-ideal-teile-1-5`, Commit `56906459` (auf v1.99.11 `0dc0cea0`). Spec
-[[2026-11-11-update-skript-prueft-und-fuehrt-aus-mit-bestaetigung-spec]] (Freigabe-Nachtrag 2026-11-12 17:04). Nicht gemergt, nicht gepusht, vor QA.
+[[2026-11-11-update-skript-prueft-und-fuehrt-aus-mit-bestaetigung-spec]] (Freigabe-Nachtrag 2026-11-12 17:04). Nicht gemergt, nicht gepusht. **Testbereit** (QA 2026-11-12: Build 0 Fehler, Tests 2715/1/0 + 599/0/0, DEV AKE+IDEAL v1.99.12, `-NurPruefen` Test-Ziel Hinweis, simuliertes Prod Abbruch vor dem Stoppen; Hinweise H7–H9 in der Spec).
 
 ## Kernpunkte
 

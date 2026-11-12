@@ -2,9 +2,9 @@
 type: spec
 title: Update-Skript prüft und führt aus, mit Bestätigung (v1.99.0)
 slug: 2026-11-11-update-skript-prueft-und-fuehrt-aus-mit-bestaetigung-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-11-11
-updated: 2026-11-11
+updated: 2026-11-12
 freigabe_von: "Gerald Weichbold (Chat Koordination, „Ok“ 2026-11-11 18:38)"
 freigabe_am: 2026-11-11
 source_backlog: "[[2026-11-11-buendel-deploy-update-skript]]"
@@ -687,6 +687,19 @@ Empfohlene Commit-Reihenfolge im Dev-Lauf (kein Epic, nur zur Orientierung):
 
 ## Deploy
 
+**Final v1.99.12 (qa-agent 2026-11-12, aus dem echten Diff `0dc0cea0..56906459`; ersetzt das Paket v1.99.2):**
+- `deploy.web: true` (nur `IdealAkeWms/AppVersion.cs` und die Changelog-Karte); `deploy.service: true` (nur `IDEALAKEWMSService/AppVersion.cs`);
+  `deploy.migration: false` fuer diesen Nachtrag (keine Datei unter `*/Migrations/`, kein SQL). Fachlich geaendert sind nur `deploy\Update-IdealAkeWms.ps1`
+  und `deploy\nachlauf.psd1` im Paket. Das Paket ist das ganze Buendel v1.99.12 (alle Specs bis v1.99.11 mit ihren Migrationen); je Zielsystem
+  gilt weiter der v1.99.0-Ablauf unten, nur mit diesem Paket.
+- **Paket:** `C:\git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish\` (v1.99.12, `publish-info.txt` Commit
+  `56906459440af1fff9242bcb6cdccb1848102af0`, Erstellt 2026-11-12 17:17; vorher geleert). Beide Komponenten, `SQL\`, `deploy\`.
+- Neu fuer den Bediener: Ist `MailSettings:PickupDirectory` in der Dienst-`appsettings*.json` eines Prod-Systems gesetzt, bricht das Skript in
+  der Vorpruefung ab (auch `-NurPruefen`), bevor etwas gestoppt wird. Wert von Hand entfernen, Skript neu starten. Der Deploy-Schritt steht als
+  `Pruefung/MailPickup` in `nachlauf.psd1`.
+- Nach dem Merge nur dann aus `main` neu publizieren, wenn der Merge getestete Dateien mit parallelen main-Aenderungen zusammenfuehrt
+  (Befehle unten).
+
 **Final v1.99.2 (qa-agent 2026-11-11, aus dem echten Diff `f79ba893..81b95ac2`; ersetzt das Paket v1.99.1):**
 - `deploy.web: true` (nur `IdealAkeWms/AppVersion.cs` und die Changelog-Karte); `deploy.service: true` (nur `IDEALAKEWMSService/AppVersion.cs`);
   `deploy.migration: false` fuer diesen Nachtrag (keine Datei unter `*/Migrations/`, kein SQL). Fachlich geaendert ist nur
@@ -1271,3 +1284,97 @@ Im Lauf mit `-NurPruefen` lief wie seit v1.99.2 der Altbestand-Trockenlauf lesen
 **Befunde/Hinweise:** H7 (Hinweis): Setzt `appsettings.json` den Wert und die Umgebungsdatei `""`, meldet das Skript „gesetzt“ (Get-Einstellung
 überschreibt nur mit nicht-leeren Werten), der Dienst sieht leer → Abbruch auf der sicheren Seite. H8 (Hinweis): Umgebungsvariablen
 `MailSettings__PickupDirectory` liest das Skript nicht (wie bei der DB-Ermittlung).
+
+## QA-Nachweis Nachtrag v1.99.12 (qa-agent 2026-11-12)
+
+Gepruefter Bereich: `0dc0cea0..56906459` (nur der Freigabe-Nachtrag 17:04). Build und Tests ueber den ganzen Buendel-Worktree, Stand `56906459`.
+
+**1. Build und Tests:**
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler, 28 Warnungen (Bestand, NuGet-/CS83xx-Hinweise).
+- `dotnet test`: IdealAkeWms.Tests **2715 bestanden / 1 uebersprungen / 0 Fehler** (2716); IDEALAKEWMSService.Tests **599 / 0 / 0**.
+
+**2. Code-Review** (selbst, in diesem Lauf). Gelesen: ganzer Diff (`Update-IdealAkeWms.ps1`, `nachlauf.psd1`, `NachlaufManifestDriftTests.cs`,
+README, TS-126.28–126.31, Changelog-Karte, beide `AppVersion.cs`) mit Umgebung: `Get-Einstellung :141-152`, `Get-Ermittlung :190-222`,
+`Get-PruefStand`/`Format-PruefText :409-420`, Vorpruefung `:684-741` (Reihenfolge Pruefungen → Marker → Trockenlauf → Plan → `$sperre`-Abbruch →
+`-NurPruefen`), Hauptlauf `:922-945` (Prod-Eingabe, `catch` → `Show-Zustand`), Kopierschritt `:614-633`/`:829-833` (robocopy `/XF appsettings*.json`,
+Schutzstand-Hash), `Show-Nachlauf :889-920`, `Import-Ziele` (psm1 `:38`), `MailService.cs:31-33`, `ServiceSettingDefinitions.cs:13`.
+- `Get-Einstellung -MitDatei`: kein zweiter Parser; ohne Schalter Rueckgabe unveraendert (`[string]` oder `$null`), DB-Ermittlung und KeysPath
+  unberuehrt. `Get-PruefStand` liefert fuer `Appsettings` immer `[int]` 0/1, damit greift `$st -is [int]` im Sperr-Zweig.
+- Abbruch auf Prod: `Stop-Mit` `:732` steht nach dem Plan und vor `if ($NurPruefen)` `:734`, Schritt 2 `:744` und 3; davor laufen nur lesende
+  Schritte (Fusszeile, History, SQL-Pruefungen, Marker, Altbestand-Trockenlauf). `throw` → `catch :937` → `Show-Zustand`, Exit 1. Mehrere Systeme:
+  Prod laeuft zuletzt (`:84`), Test-Systeme davor sind unberuehrt.
+- PS 5.1 + StrictMode 2: `$e.Ziel.Prod` auf Hashtable ohne Schluessel = `$null` (wie bisher `:926`); `$m['Appsettings']` als Index statt Property;
+  `.Replace('{Wert}', [string]$null)` sicher. Eigene Probe (`powershell.exe` 5.1, StrictMode 2, Funktionen per AST aus der **Paketkopie**):
+  leer, nur Leerzeichen, Schluessel fehlt, Abschnitt fehlt, keine Datei, `null` → 0; Basis gesetzt → 1 mit `appsettings.json`; Umgebungsdatei
+  ueberschreibt → 1 mit `appsettings.Prod.json`; H7-Fall → 1 (Basiswert); kaputtes JSON → `ABBRUCH: … ist kein gueltiges JSON`.
+- Drift-Test: `Manifest_Pruefungen_Gueltig` jetzt genau eines von `Pruefung`/`Appsettings`, `Appsettings` nur `Vorher` + `anzeigen`; neuer Test
+  belegt die Textreihenfolge Sperre < `-NurPruefen` < Schritt 2/3. Beweist die Reihenfolge im Text, nicht das Verhalten (dafuer DEV unten).
+- Standard-Defektklassen: keine Razor-/JS-Logik (nur statische Changelog-Karte); keine neue Einstellung im Sinn von ADR 0020 (der Wert ist eine
+  bestehende `appsettings`-Zeile, `MailSettings:*` ist bewusst nicht im ServiceSettings-Katalog, `ServiceSettingDefinitions.cs:13`).
+- **Abweichung „Phase Vorher UND erneut Nachher“:** reicht. `Show-Nachlauf` ruft nach dem Start (`:885`, Schritt 7) fuer jede Pruefung erneut
+  `Get-PruefStand` auf, liest die Datei also wirklich neu (keine Wiederanzeige eines gespeicherten Werts). Ein zweiter Manifest-Eintrag mit Phase
+  `Nachher` haette nichts zusaetzlich gefunden: Das Skript kopiert `appsettings*.json` nie (`/XF`) und bricht ab, wenn sie sich waehrend des Kopierens
+  aendern (Schutzstand `:832`). Auf Prod kommt ein gesetzter Wert gar nicht bis zum Start. Fachlich gleichwertig, kein Befund.
+
+| # | Schwere | Fundstelle | Befund | Behandlung |
+|---|---|---|---|---|
+| H7 | Hinweis | `Get-Einstellung :148` | Basis gesetzt, Umgebungsdatei `""`: Skript meldet „gesetzt“, der Dienst sieht leer. Falsch-positiv auf der sicheren Seite (Prod bricht ab; der Wert gehoert dann ohnehin entfernt). | akzeptiert |
+| H8 | Hinweis | `Get-Ermittlung :191-195` | Umgebungsvariable `MailSettings__PickupDirectory` (Dienst-Registry `Environment` oder Maschine) liest das Skript nicht, `IConfiguration` des Dienstes schon. Auf den Zielsystemen bisher nur `DOTNET_ENVIRONMENT` ueblich; Restrisiko klein. | offen, Punkt 2 der Checkliste |
+| H9 | Hinweis (Kosmetik) | `Invoke-System :652` | Nur Leerzeichen als Wert: Ermittlungszeile zeigt „Ordner    “ statt „-“, die Pruefung sagt richtig OK. | offen (Kosmetik) |
+
+**3. Beweisart je Nachtrag-Punkt** (kein automatisierter Test fuer Skriptverhalten):
+
+| Punkt | Beweis |
+|---|---|
+| 1 Pruefung im Manifest, liest Dienst-`appsettings*.json` wie die DB-Ermittlung | Drift-Test (Eintrag, Feld, Phase) + Code-Review + Probe |
+| 1a Prod + gesetzt → Abbruch vor dem Stoppen, Wert und Datei | QA-DEV (simuliertes Prod, beide Standorte, `-NurPruefen`) + Drift-Test (Reihenfolge); Volllauf: Code-Review (Abbruch vor `-NurPruefen`, also identisch) |
+| 1b Test + gesetzt → Hinweis | QA-DEV (beide Standorte) |
+| 1c nicht gesetzt → OK | Probe (DEV hat den Wert gesetzt) |
+| 1d erneut Nachher | Nachlauf-Liste im `-NurPruefen`-Lauf (derselbe Codepfad wie Schritt 7) + Code-Review; im Volllauf **Manual-UAT** (Checkliste 4) |
+| 2 Ermittlungszeile „Mail: SMTP … \| Ordner …“ | QA-DEV |
+| 3 DEV-Tests | unten |
+
+**4. Geaenderte bestehende Tests:** `NachlaufManifestDriftTests.Manifest_Pruefungen_Gueltig` – Verhalten absichtlich durch den Nachtrag geaendert
+(neue Variante `Appsettings` statt SQL; fuer SQL-Pruefungen bleiben Lese-Waechter, Phase und Ausfuehrung unveraendert geprueft). Kein Fixture angepasst.
+
+**5. Checkliste:** keine Migration, kein SQL; Version 1.99.12 in beiden `AppVersion.cs`; Anwender-Changelog-Karte; README (Update-Skript); TS-126.28–126.31
+in `docs/TESTSZENARIEN.md`; Testindex (126.28–126.31) und Brain-Changelog [[2026-11-12-v1-99-12-update-skript-pickup-pruefung]] vorhanden. 5a: keine
+neue Einstellung (siehe oben). Der Deploy-Schritt „Wert auf Prod entfernen“ steht als `Pruefung/MailPickup` in `nachlauf.psd1`.
+
+**6. DEV** (`standort: beide`):
+- `dev-deploy.ps1 -Standort AKE` und `-Standort IDEAL` aus dem Worktree (`56906459`), erhoehte Shell: Exit 0/0, „HTTP 200, Fusszeile v1.99.12“,
+  DEV-Absicherung angewandt, Dienste gestartet.
+- Skripttest: Kopie von `publish\` im Scratchpad (`qa_v19912\pkg`) mit temporaerer `ziele.psd1` (je eine Zeile AKE/IDEAL `DEV` auf
+  `D:\Dev\<F>\Web`/`Service`, Url `localhost:808x`; keine echte Ziel-Zeile), nur `-NurPruefen`. Gestartet mit leerem `PSModulePath` (sonst findet
+  `powershell.exe` aus pwsh heraus `Import-PowerShellDataFile` nicht – Eigenheit der Testumgebung, kein Skriptfehler).
+
+| Schritt | Ergebnis | Status |
+|---|---|---|
+| 126.28 AKE-DEV `Prod=$false` | „Mail           SMTP smtp.ake.at \| Ordner D:\Dev\mail-pickup\ake“; „[Pruefung/MailPickup] Abweichung 1 - Hinweis: Mails gehen nur in D:\Dev\mail-pickup\ake (D:\Dev\AKE\Service\appsettings.DEV.json) …“; Nachlauf zeigt die Zeile erneut; „-NurPruefen: nichts gestoppt“; Exit 0 | OK |
+| 126.28 IDEAL-DEV `Prod=$false` | dasselbe mit `D:\Dev\mail-pickup\ideal` und `D:\Dev\IDEAL\Service\appsettings.DEV.json`; Exit 0 | OK |
+| 126.29 AKE-DEV `Prod=$true` (Eingabe `AKE-PROD`, DB j) | „PROD, Abbruch vor dem Stoppen: …“; nach dem Plan „ABBRUCH: Produktivsystem AKE-DEV: [Pruefung/MailPickup] … Wert von Hand entfernen … Nichts gestoppt, Web und Dienst laufen weiter.“; Zustand App-Pool/Site Started, Dienst Running, „Letzter Schritt: 1. Vorpruefung (lesend)“; kein 5a-Bericht, keine Backup-Frage; Exit 1 | OK |
+| 126.29 IDEAL-DEV `Prod=$true` (`IDEAL-PROD`) | dasselbe; Exit 1 | OK |
+| Dienste vor/nach allen 4 Laeufen | `AKE_WMS_DEV_Service` PID 48152, `IDEAL_WMS_DEV_Service` PID 28364, beide Running, unveraendert | OK |
+| 126.29 Volllauf mit simuliertem Prod | nicht ausgefuehrt (Auftrag: nur `-NurPruefen`); der Abbruch steht vor `-NurPruefen`, also identisch | NICHT MOEGLICH (Auftrag) |
+| 126.30 Wert leer/Leerzeichen/fehlt | DEV hat den Wert gesetzt; belegt durch die Probe oben | live NICHT MOEGLICH, Probe OK |
+| 126.31 je Prod-System | Mensch | offen |
+
+- Schlusszustand DEV: `http://localhost:8081/` und `:8082/` HTTP 200, Fusszeile v1.99.12; `AKE_WMS_DEV_Service`, `IDEAL_WMS_DEV_Service` Running;
+  beide DEV-DBs: `Sync:*Enabled` = true 0-mal, `SageLagerbuchungAktiv` false, `SageWareneingangBelegAktiv` false, `Sync:SageSystemKuerzel` DEV;
+  `MailSettings:PickupDirectory` in beiden `appsettings.DEV.json` gesetzt. Die 5 AKE-DEV-Sync-Schalter (Auftrag Koordinator) hat QA **nicht**
+  eingeschaltet: Die QA-Regel verbietet, `Sync:*Enabled` einzuschalten; zurueck an den Koordinator.
+- Browser: kein Szenario braucht den Browser.
+
+**7. Publish:** `C:\git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish\` neu (vorher geleert): `IDEALAKEWMSWeb\`,
+`IDEALAKEWMSWebService\`, `SQL\`, `deploy\`, `publish-info.txt` (Version 1.99.12, Commit `56906459440af1fff9242bcb6cdccb1848102af0`, Branch
+`feature/2026-08-07-ideal-teile-1-5`, Erstellt 2026-11-12 17:17). Exit 0/0.
+
+**Urteil:** Testbereit. Keine Code-Befunde; H7 akzeptiert, H8/H9 Hinweise.
+
+**Manuelle Checkliste (Gerald, Schranke 2; ergaenzt die v1.99.2-Liste, deren Punkte mit dem Paket v1.99.12 weiter gelten):**
+1. TS-126.31: je Prod-System (AKE-Prod, IDEAL-Prod) `-NurPruefen` mit dem Paket v1.99.12: „Mail: SMTP <Host> | Ordner -“ und
+   „[Pruefung/MailPickup] OK“. Sonst den Wert aus der genannten Datei entfernen, erneut.
+2. H8: je Prod-Dienst einmal `reg query HKLM\SYSTEM\CurrentControlSet\Services\<Dienst> /v Environment` – kein `MailSettings__PickupDirectory`.
+3. Je Test-System `-NurPruefen`: Hinweiszeile nur, wenn dort bewusst ein Ablageordner gesetzt ist.
+4. TS-126.20 Volllauf je Zielsystem (wie v1.99.2-Liste); in Schritt 7 die Zeile `[Pruefung/MailPickup]` ansehen (Nachher-Pruefung).
+5. H9 entscheiden; danach Merge (Schranke 2).
