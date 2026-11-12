@@ -685,6 +685,11 @@ C:\Services\IDEALAKEWMSService\
 > (`Sync:SageWareneingangMaxWiederholungen`, Standard 3, 0 = nie; `Sync:SageWareneingangWiederholAbstandMinuten`, Standard 15): vor jedem
 > erneuten Senden Suche `EinkaufBelegeInfo` nach Memo `WE#<Id>#` (gefunden = übergeben ohne Senden), sonst Sicherungsnetz (Bestellung + Datum +
 > Lieferschein) → Status „Klären“. Schalter aus = offene Einträge auf „Klären“, kein Nachschicken. Liste „Lager → Sage-Wareneingänge“.
+> **System-Kürzel (v1.99.9):** `Sync:SageSystemKuerzel` (Default leer, beide Standorte; nur `A–Z`/`0–9`, Buchstabe vorne, höchstens 5
+> Zeichen, Server prüft) – leer = `WE#<Id>#`/`SM#<id>#` (**Produktion: leer lassen**), sonst `WE#<K>#<Id>#`/`SM#<K>#<id>#`. Für Testsysteme,
+> die gemeinsam in eine Sage-Testdatenbank schreiben (DEV, AT = AKE-Test, ATI = AKE Test-IDEAL, IT = IDEAL-Test). Die verwendete Kennung wird
+> beim Senden gespeichert (`PurchaseOrderReceipts.SageWeKennung`, `SageBookingQueueItems.SageKennung`, SQL/144); die Suche vor dem erneuten
+> Senden nutzt sie. Ein ungültiger Wert (von Hand in der DB) stoppt das Senden mit Fehler im Dienst-Log/Fehlermail.
 > `SData:BaseUrl` (Host+Port ohne Pfad, z.B. `https://sagetest01.ake.at:5493`), `SData:Application`
 > (Default `ol`), `SData:ServiceContract` (Default `CommonWawiServices`), `SData:Dataset` (Mandant,
 > z.B. `ake_TEST2026;1`), sowie Intervall/Batch/Retry/Cap-Keys. Zusätzlich je Lagerplatz das Feld
