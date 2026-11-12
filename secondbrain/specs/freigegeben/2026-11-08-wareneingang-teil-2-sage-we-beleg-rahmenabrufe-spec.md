@@ -940,6 +940,51 @@ Nachlauf: kein Deploy-Schritt → kein Eintrag in `nachlauf.psd1` nötig.
 - Position (TS-116.18, Positions-Memo `WE#7# LS WMS-TEST-2 Platz GL;0;0;0`): noch nicht geprüft.
 - **(a) positiv.** Offen: (b) SData-Lookup über `EinkaufBelegeInfo`, danach Rückbau der beiden Belege.
 
+### (b) Ergebnis – Dev-Lauf 2026-11-12, SData nur `GET`, Sage-AKE-Test
+
+Die Lesezugriffe liefen mit dem Ziel aus der DEV-Konfiguration des AKE-DEV-Dienstes (`SdataLeseZielLeser`; Basis
+`https://sagetest01.ake.at:5493/`, Dataset `ake_TEST2026;1`). Die Abfragen gingen über den echten Lese-Client: `SageSdataReadClient.BuildQueryUrl`
+bzw. `QueryAllAsync` mit Basic-Auth und `Accept: application/json`. Es gab keinen POST. Zugangsdaten sind hier nicht festgehalten.
+
+1. **`EinkaufBelegeInfo/$schema` → HTTP 401**, sowohl mit `Accept: application/xml` als auch mit `*/*`. Der API-Benutzer darf das Schema nicht
+   lesen; dieselben Zugangsdaten bekommen auf die Datenabfragen HTTP 200. Die Feldnamen stammen deshalb aus dem vollständigen Datensatz
+   (`…/EinkaufBelegeInfo?format=json&count=1&where=BelID eq 363225`, gekürzt):
+   `"$key":"BelID:=363225;Mandant:=1;"`, `"BelID":363225`, `"Belegkennzeichen":"ELL"`, `"Belegart":"Wareneingang"`, `"Belegjahr":2027`,
+   `"Belegnummer":398675`, `"Memo":"WE#4#"`, `"Status":0`, `"StatusStatistik":202`, `"Lieferschein":"WMS-TEST-1"`,
+   `"ReferenzBelID":362313`.
+   → **BelId-Feld `BelID`, Memo-Feld `Memo`.** Die Lieferschein-Nr. steht zusätzlich im Feld `Lieferschein`. `ReferenzBelID` ist die
+   Bestellung (362313), aus der der Beleg übernommen wurde.
+2. **Lookup, so wie der Dienst kodiert** (führendes `%` → `%25`, `#` → `%23`):
+
+   | Anfrage (ohne Basis-Pfad `…/sdata/ol/CommonWawiServicesResources/ake_TEST2026;1/`) | Treffer |
+   |---|---|
+   | `EinkaufBelegeInfo?format=json&orderBy=BelID&count=5&startIndex=0&select=BelID,Belegkennzeichen,Memo&where=Memo like '%25WE%237%23%25'` | genau 1: `BelID=363226`, `ELL`, `Memo=WE#7#` (`$totalResults` 1) |
+   | dto. `where=Memo like '%25WE%234%23%25'` | genau 1: `BelID=363225`, `ELL`, `Memo=WE#4#` (`$totalResults` 1) |
+   | dto. `where=Memo like '%25WE%231%23%25'` (Gegenprobe: Präfix darf nicht auf `WE#1x#` springen) | 0 |
+
+   → Führendes `%` und `%23` funktionieren. Damit sind die zwei ungeprüften Punkte aus `SdataBuchungLookupReader.cs:31-33` belegt. Das
+   schließende `#` verhindert Präfix-Treffer schon durch den Aufbau der Kennung.
+3. **Erledigte und alte Belege:** Die Info-Ressource liefert sie. Eine Seite (`count=3`) mit `where=Belegkennzeichen eq 'ELL' and Status ne 0`
+   meldet `$totalResults` 89 950. Die ersten Treffer sind BelID 23961 (Belegjahr 2015, `Status` 2) und BelID 43055 (2016, `Status` 2). Mit
+   `Belegjahr lt 2026` sind es 78 558 Treffer. Die Annahme aus P-W7 („nur offene Belege“) trifft für `EinkaufBelegeInfo` also **nicht** zu.
+   Was `Status` 2 in Sage bedeutet (weitergeführt oder erledigt?), ist nicht belegt; für den Lookup spielt es keine Rolle.
+   - **Fallstrick für den Lookup-Bau:** `QueryAllAsync` blättert alle Seiten. Ein breiter Filter wie nur `Belegkennzeichen eq 'ELL'` (rund
+     90 000 Belege, 5 je Seite) lief im Test über 10 Minuten und wurde abgebrochen. Der Lookup filtert daher immer auf die Memo-Kennung.
+     Sinnvoll ist zusätzlich `Belegkennzeichen eq 'ELL' and …`.
+
+**(b) positiv → P-W9 belegt ((a) und (b)) → Variante A ist baubar, E5 kann gebaut werden.**
+
+Vorgaben für E5:
+- Lookup `EinkaufBelegeInfo`, `select=BelID,Belegnummer,Belegjahr,Memo`,
+  `where=Belegkennzeichen eq 'ELL' and Memo like '%WE#<Id>#%'`.
+- Bei genau einem Treffer: `Uebergeben` mit Belegnummer und **ohne POST**.
+- Bei 0 Treffern: wiederholen.
+- Bei mehr als einem Treffer: `Fehler` mit Meldung, nicht still behandeln.
+
+Restrisiko: Das Kopf-Memo ist in Sage von Hand änderbar. Wird es überschrieben, findet der Lookup den Beleg nicht mehr, und ein Wiederholen
+legt einen zweiten Wareneingang an. Ob die Kennung zusätzlich gegen `Lieferschein` + `ReferenzBelID` geprüft wird, entscheidet Gerald.
+Der Rückbau von 2027-398675/398676 steht weiter aus (Gerald).
+
 ## Freigabe-Nachtrag 2026-11-12 (Gerald, Chat): Positionsmemo-Feld im Wareneingang, v1.99.6
 
 Positions-Memo am Beleg 2027-398676 in Sage uebernommen (Gerald). Neu: je Position ein Eingabefeld „Positionsmemo“ in „Wareneingang zu Bestellung“.
@@ -1042,3 +1087,8 @@ Testdaten auf DEV AKE: Receipts #8 (BelPos 406335) und #9 (BelPos 406336) der Be
 3. Bedienung am Lager-Terminal (Tablet): Feld gut treffbar, Tabelle querscrollbar.
 4. Offene Punkte aus v1.99.4/v1.99.5 (Rückbau der Test-Belege, P-W9, TS-116.11 ff.).
 5. Testsystem-Lauf mit dem Paket aus `publish` (v1.99.6), danach Schranke 2.
+- **Position (TS-116.18), Gerald 2026-11-12, `KHKEKBelegePositionen`, nur lesend:**
+  - BelID 363226, Position 406347 (EK001641, Deckglas, 1,00 Stk, 42,63): Das Positions-Memo `WE#7# LS WMS-TEST-2 Platz GL;0;0;0` ist
+    **angekommen**.
+  - BelID 363225, Position 406344 (EK001640, 1,00 Stk, 23,43): an derselben Stelle NULL. Erwartet, weil der erste Test vor v1.99.5 (Positions-Memo) lief.
+  - Spaltennamen nicht mitgeliefert, die Zuordnung zur Spalte ist daher unbelegt.
