@@ -2,7 +2,7 @@
 type: spec
 title: "Wareneingang Teil 2: Sage-Wareneingangsbeleg (ELL)"
 slug: 2026-11-08-wareneingang-teil-2-sage-we-beleg-rahmenabrufe-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-11-08
 updated: 2026-11-12
 freigabe_von: "Gerald Weichbold (Chat Koordination, 2026-11-11 20:40 „beide freigeben“)"
@@ -10,7 +10,7 @@ freigabe_am: 2026-11-11
 source_backlog: "[[2026-11-08-wareneingang-teil-2-sage-we-beleg-rahmenabrufe]]"
 depends_on: "[[2026-11-08-wareneingang-aus-sage-bestellungen-spec]]"
 folge_backlog: "[[2026-11-11-wareneingang-teil-3-rahmenabrufe]]"
-version: "1.99.4"
+version: "1.99.5"
 sql_nummern: "eine Migration in E1: nächste freie Nummer bei der Umsetzung, derzeit 143 (142 = AddDeployScriptRuns, v1.99.0), Freigabe-Antwort 1"
 testszenario: "TS-116 (Erweiterung 116.10 ff., ersetzt den Platzhalter 116.7)"
 task: ""
@@ -523,6 +523,13 @@ Jeweils mit Warum. Changelog-Notiz und Testindex.
 
 ## Deploy
 
+**Stand v1.99.5 (qa-agent 2026-11-12, echter Diff `bd9b58d0..c155b1b2`):** `IDEALAKEWMSService/` geändert (Payload `Artikelmemo`) → **Dienst ja**;
+`IdealAkeWms/` nur `AppVersion.cs` + `Changelog.cshtml` → **Web ja** (Versionsgleichheit, Changelog); keine Datei unter `*/Migrations/` → **keine
+neue Migration** (`SQL/143` aus v1.99.4 bleibt Teil des Pakets, falls das Zielsystem noch vor v1.99.4 steht). Kein Nachlauf-Eintrag nötig.
+Publish: `C:\git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish` (Version 1.99.5, Commit `c155b1b2`, beide Komponenten,
+`SQL\` + `deploy\`). Reihenfolge unverändert wie unten (Backup, Update-Skript mit `SQL/143` falls offen, Web, Dienst). Nach dem Merge nur dann aus
+main neu publizieren, wenn der Merge getestete Dateien mit parallelen main-Änderungen zusammengeführt hat.
+
 *Vom qa-agent 2026-11-12 gegen den echten Diff `d2d4ed46..152ab6f1` bestätigt (Abschnitt „QA-Nachweis“ unten): `IdealAkeWms/` geändert → Web ja;
 `IDEALAKEWMSService/` geändert → Dienst ja; neue Datei `IdealAkeWms/Migrations/20261111200627_AddPurchaseOrderReceiptSageWe.cs` → Migration ja.
 Publish liegt fertig in `C:\git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish` (Version 1.99.4, Commit `152ab6f1`, beide
@@ -843,3 +850,70 @@ geliefert 0 → **1**, offen 2 → **1**; Pos. 404456 unveraendert (geliefert 1 
 Erster Test laut Gerald: Kopf-Memo und Lieferschein-Nr. in Sage angekommen.
 
 **Offen fuer Gerald:** Positions-Memo am Beleg 2027-398676 in Sage sichten (TS-116.18); Rueckbau 2027-398675 und 2027-398676; P-W9 (a)/(b).
+
+## QA-Nachweis Nachtrag v1.99.5 (qa-agent, 2026-11-12)
+
+Umfang: nur der Freigabe-Nachtrag „Memo je Position“, Diff `bd9b58d0..c155b1b2` (6 Dateien, +25/−3). Build und Tests über den ganzen Worktree.
+
+### 1. Build und Tests (HEAD `c155b1b2`)
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler, 25 Warnungen (Bestand).
+- `dotnet test`: `IDEALAKEWMSService.Tests` 522 bestanden / 0 übersprungen / 0 Fehler; `IdealAkeWms.Tests` 2639 bestanden / 1 übersprungen
+  (Bestand) / 0 Fehler.
+
+### 2. Code-Review
+Geprüft: `SageWareneingangPayload.cs` (neues `SageWeBelegPosition.Artikelmemo`, `PositionsMemo`, Aufruf in `Build`), Serialisierung
+`SageWareneingangClient.Serialize` (System.Text.Json, Eigenschaftsname unverändert `Artikelmemo`), Vertrag `StandardBelegPosition.Artikelmemo`
+in [[sage-sdata-commonwawiservices]] (Feld vorhanden, kein `ArtikelmemoSpecified` im Vertrag), Test, Changelog-Karte, TS-116.18.
+- Kein Befund im Code: `platz!.SageLagerkennung!` ist durch `SageWareneingang.IstSageWePlatz(platz)` davor abgesichert (gleiche Annahme wie
+  die bestehende `Kurzbezeichnung`-Zeile). Kopf-Memo und Positions-Memo nutzen dieselbe Quelle `SageWareneingang.Memo(id)` (eine Regel, eine
+  Stelle); `WE#<id>#` mit schließendem `#` verhindert Präfix-Treffer (`WE#1#` ≠ `WE#10#`). Lieferschein wird getrimmt, leer/Leerzeichen → ohne „LS“
+  (Test belegt beide Zweige). Keine Einstellung, kein Skript-Block, kein stiller Fallback.
+- **B-1 (Brain, behoben im Hauptcheckout):** Testindex-Zeile „116 (Teil 2)“ nannte nur 116.11–116.17 → auf 116.18 erweitert. Brain-Changelog
+  für v1.99.5 fehlte → [[2026-11-12-v1-99-5-wareneingang-memo-je-position]] angelegt. `feature-map` stand noch auf „InUmsetzung, QA ausstehend“ →
+  auf Testbereit mit v1.99.5 gezogen.
+- **H-1 (Hinweis, nicht behoben):** `AppVersion.Date` steht in Web und Dienst weiter auf `2026-11-11`, die Changelog-Karte nennt 12.11.2026
+  (gleiches Muster schon bei v1.99.4). Kosmetisch; beim nächsten Bump mitziehen.
+- **H-2 (Hinweis):** Ob Sage das Positions-Memo tatsächlich speichert, belegt nur TS-116.18 in Sage (Beleg 2027-398676). Gesendet wurde es
+  nachweislich (Dienst-Log 09:08:26, `"Artikelmemo":"WE#7# LS WMS-TEST-2 Platz GL;0;0;0"`).
+
+### 3. Beweisart
+- Payload enthält `Artikelmemo` im vereinbarten Format, mit/ohne Lieferschein: automatisiert (`SageWareneingangServiceTests`, neue Assertions).
+- Sage übernimmt das Memo an der Position: **Manual-UAT** (TS-116.18, nur Gerald/Einkauf), nicht grün gezählt.
+
+### 4. Geänderte Bestandstests
+- `SageWareneingangServiceTests` (Payload-Test): nur zwei Assertions **ergänzt**, keine bestehende geändert. Verhalten bewusst erweitert durch den
+  Freigabe-Nachtrag v1.99.5. Kein Befund.
+
+### 5. Checkliste
+Keine Migration, kein SQL, kein FreshInstall, keine Audit-Felder, keine Einstellung (ADR 0020 entfällt). Version 1.99.5 in beiden `AppVersion.cs`,
+Anwender-Changelog ja, Brain-Changelog nachgezogen (B-1), `docs/TESTSZENARIEN.md` TS-116.18 + Fußzeile, Testindex nachgezogen (B-1).
+Nachlauf: kein Deploy-Schritt → kein Eintrag in `nachlauf.psd1` nötig.
+
+### 6. DEV-Deploy und Testlauf
+- Standort laut Frontmatter AKE; nach Vorgabe AKE **und** IDEAL deployt, je Web + Dienst aus dem Worktree, Shell mit Administratorrechten.
+- `dev-deploy.ps1 -Standort AKE`: Exit 0, „HTTP 200, Fusszeile v1.99.5“. `-Standort IDEAL`: Exit 0, „HTTP 200, Fusszeile v1.99.5“.
+- Schalter danach (beide DEV-DBs): `SageWareneingangBelegAktiv`, `SageLagerbuchungAktiv`, `SageLagerbuchungUmbuchungAktiv` = false. Die
+  Absicherung setzt auf AKE die `Sync:*Enabled` wieder auf false; Wiedereinschalten macht der Koordinator.
+
+| Schritt | Ausgeführt | Ergebnis | Urteil |
+|---|---|---|---|
+| Fußzeile/Changelog | `http://localhost:8081/Help/Changelog` im Browser | Karte „v1.99.5 12.11.2026“, Fußzeile „IDEAL-AKE WMS v1.99.5“ | OK |
+| Receipts #4/#7 | `sqlcmd` AKE_WMS_DEV | #4 `WMS-TEST-1` Status 3 2027-398675 Versuche 1; #7 `WMS-TEST-2` Status 3 2027-398676 Versuche 1; unverändert | OK |
+| Kein weiterer Sage-POST | Dienst-Logs AKE/IDEAL 2026-11-12 | genau zwei POSTs (08:28:46, 09:08:26 = die zwei freigegebenen Schreibtests), danach keiner; 0 neue `SageBookingQueueItems` | OK |
+| Payload im echten Lauf | Dienst-Log 09:08:26 | `"Artikelmemo":"WE#7# LS WMS-TEST-2 Platz GL;0;0;0"` im Request | OK |
+| TS-116.18 Memo in Sage sichten | – | Liest den Beleg in Sage; Sage gehört nicht in den Agentenlauf (Gerald/Einkauf) | NICHT MÖGLICH (Regel) |
+
+### 7. Publish
+- Ordner `C:\git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish` vorher geleert, neu: `IDEALAKEWMSWeb`,
+  `IDEALAKEWMSWebService`, `SQL`, `deploy`, `publish-info.txt` (Version 1.99.5, Commit `c155b1b2c0bd73157096a0d124cbc0264eb31348`,
+  Branch `feature/2026-08-07-ideal-teile-1-5`, Erstellt 2026-11-12 09:17).
+- Zu deployen: Dienst (wirksam) und Web (Version/Changelog), keine neue Migration.
+
+**Urteil:** Testbereit (v1.99.5).
+
+### Manuelle Test-Checkliste (offen, Mensch) – ergänzt die Liste aus v1.99.4 oben
+1. TS-116.18: Beleg 2027-398676 in Sage öffnen; Position EK001641 trägt „WE#7# LS WMS-TEST-2 Platz GL;0;0;0“.
+2. Rückbau 2027-398675 und 2027-398676 (Gerald/Einkauf), danach Abgleich: Pos. 404456 und 404457 wieder offen.
+3. P-W9 (a)/(b) wie oben (entscheidet E5).
+4. Alle offenen Punkte der v1.99.4-Checkliste (TS-116.11, .13, .14, .15 mit `stock_read`, .16, Q-2/Q-8).
+5. Testsystem-Lauf mit dem Paket aus `publish` (v1.99.5), danach Schranke 2.
