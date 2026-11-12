@@ -9,6 +9,20 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.99.12</strong> <span class="text-white-50 ms-2">12.11.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>Update-Skript: Prüfung des Mail-Ablageordners (Betrieb)</h6>
+                <ul>
+                    <li><strong>Neu:</strong> Die Vorprüfung liest <code>MailSettings:PickupDirectory</code> aus der <code>appsettings*.json</code> des Dienstes. Ist der Wert auf einem Produktivsystem gesetzt, bricht das Update ab, bevor Web und Dienst gestoppt werden &ndash; sonst gingen alle Mails des Dienstes nur als Datei in diesen Ordner. Auf Testsystemen erscheint ein Hinweis.</li>
+                    <li>Die Ermittlung zeigt zusätzlich die Zeile &bdquo;Mail: SMTP &hellip; | Ordner &hellip;&ldquo;.</li>
+                    <li>Für die Anwender ändert sich nichts.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.99.11</strong> <span class="text-white-50 ms-2">12.11.2026</span>
             </div>
             <div class="card-body">

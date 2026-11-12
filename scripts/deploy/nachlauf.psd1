@@ -12,6 +12,9 @@
 # Typ Pruefung (v1.99.0, ADR 0023; bei JEDEM Lauf, kein Versionsfilter): Pruefung (lesendes SQL, EINE Zahl: 0 = in Ordnung, > 0 = Abweichungen),
 #   Reparatur (SQL, in einer Transaktion) ODER Datei (idempotentes Skript, sqlcmd), OhneTransaktion ($true fuer ALTER DATABASE).
 #   Phase Haltepunkt = nach dem Schema bei gestopptem Web und Dienst, Reparatur nur nach Bestaetigung; Phase Nachher = nur lesend.
+#   v1.99.12: Appsettings='Abschnitt:Schluessel' statt Pruefung = Einstellung der Dienst-appsettings*.json (wie die DB-Ermittlung), gesetzt = 1;
+#   Text kennt {Wert} {Datei}. Phase Vorher = in der Vorpruefung, auf Prod-Systemen (Prod=$true) Abbruch vor dem Stoppen, sonst Hinweis;
+#   die Nachlauf-Liste zeigt jede Pruefung erneut (Stand nachher).
 # Daten/Einmalig (v1.99.0): Trockenlauf = automatisch, Zeile "TREFFER: n"; 0 -> entfaellt, > 0 -> SCHARF + Backup aus diesem Lauf.
 #   Transaktion = ganze Datei in EINER Transaktion, Ausgabe, dann uebernehmen/verwerfen. Marker je Id in dbo.DeployScriptRuns (SQL/142):
 #   ein Eintrag mit Marker wird nie wieder angeboten; soll ein Skript bewusst erneut laufen, bekommt es eine neue Id (z. B. SQL/110#2).
@@ -138,6 +141,10 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
    Pruefung='SELECT CASE WHEN EXISTS (SELECT 1 FROM dbo.ServiceSettings WHERE [Key] = N''Sync:ArticlesViewName'' AND LTRIM(RTRIM(ISNULL([Value], N''''))) <> N'''') THEN 0 ELSE 1 END'
    Text='Sync:ArticlesViewName ist leer: unter /ServiceSettings setzen und nicht mehr leeren (v1.60.0).'
    Quelle='2026-10-15-v1-60-0-ideal-sage-views-umstellung' }
+@{ Id='Pruefung/MailPickup'; Version='1.99.12'; Typ='Pruefung'; Firma='beide'; Phase='Vorher'; Ausfuehrung='anzeigen'
+   Appsettings='MailSettings:PickupDirectory'
+   Text='Mails gehen nur in {Wert} ({Datei}): alle Dienst-Mails (Lieferverzug, Meldebestand, Fehler, Bestellung) landen als .eml im Ordner statt per SMTP.'
+   Quelle='2026-11-12-v1-99-12-update-skript-pickup-pruefung' }
 
 # ---------------------------------------------------------------- Daten und Einmal-Skripte (nur mit Eingabe am Zielserver, ADR 0023)
 @{ Id='Einmalig/2026-11-08_v1.88.0_Kommissionierauftraege_Altbestand'; Version='1.88.0'; Typ='Einmalig'; Firma='beide'; Phase='Haltepunkt'; Ausfuehrung='Trockenlauf'

@@ -95,6 +95,11 @@ powershell -ExecutionPolicy Bypass -File C:\<FIRMA>\deploy\v1.98.0\deploy\Update
   gültig ist; leer = Backup überspringen (v1.99.1). Der Altbestand-Trockenlauf läuft schon in der Vorprüfung (v1.99.2): 0 Treffer =
   entfällt ohne Halt; Treffer = Backup Pflicht, sonst Abbruch vor dem Stoppen. `SCHARF` und `uebernehmen` gibt es nur mit einem Backup aus demselben Lauf. Bei
   jedem Abbruch zeigt es den Zustand von App-Pool, Site und Dienst und den Weg zum Weitermachen.
+- **Mail-Ablageordner** (v1.99.12, `Pruefung/MailPickup`, Phase `Vorher`, Nachlauf erneut): Ist `MailSettings:PickupDirectory` in der
+  `appsettings*.json` des Dienstes gesetzt (gleiche Lese-Logik wie die DB-Ermittlung, Umgebungsdatei vor `appsettings.json`), landen alle
+  Dienst-Mails als `.eml` im Ordner statt per SMTP. Prod-System (`Prod=$true` in `ziele.psd1`): **Abbruch vor dem Stoppen** mit Wert und
+  Datei, keine Reparatur (die Datei ist nicht im Paket) - Wert von Hand entfernen, Skript neu starten. Test-System: Hinweis „Mails gehen nur
+  in <Ordner>“. Die Ermittlung zeigt „Mail: SMTP <Host> | Ordner <Pfad>“.
 - `sqlcmd` muss auf dem Web-Server installiert sein (ODBC-Variante „Microsoft Command Line Utilities for SQL Server“ nach dem
   „Microsoft ODBC Driver for SQL Server“).
 - Neuinstallation: `scripts\deploy\Install-IdealAkeWms.ps1` (standortneutral, gleiche Ordner-/Rechteprüfung).

@@ -137,14 +137,16 @@ function Get-Umgebung([string]$webConfig) {
     $n = $x.SelectSingleNode("//environmentVariable[@name='ASPNETCORE_ENVIRONMENT']")
     if ($n) { return $n.value } else { return 'Production' }
 }
-function Get-Einstellung([string]$ordner, [string]$umgebung, [string]$abschnitt, [string]$schluessel) {
-    $wert = $null
+# -MitDatei (v1.99.12): Wert und die Datei, aus der er stammt (Umgebungsdatei vor appsettings.json)
+function Get-Einstellung([string]$ordner, [string]$umgebung, [string]$abschnitt, [string]$schluessel, [switch]$MitDatei) {
+    $wert = $null; $datei = $null
     foreach ($d in @('appsettings.json', "appsettings.$umgebung.json")) {
         $p = Join-Path $ordner $d
         if (-not (Test-Path $p)) { continue }
         try { $j = Get-Content $p -Raw -Encoding UTF8 | ConvertFrom-Json } catch { Stop-Mit "$p ist kein gueltiges JSON ($($_.Exception.Message))." }
-        if ($j.PSObject.Properties[$abschnitt] -and $j.$abschnitt.PSObject.Properties[$schluessel] -and $j.$abschnitt.$schluessel) { $wert = [string]$j.$abschnitt.$schluessel }
+        if ($j.PSObject.Properties[$abschnitt] -and $j.$abschnitt.PSObject.Properties[$schluessel] -and $j.$abschnitt.$schluessel) { $wert = [string]$j.$abschnitt.$schluessel; $datei = $p }
     }
+    if ($MitDatei) { return [pscustomobject]@{ Wert = $wert; Datei = $datei } }
     return $wert
 }
 function Get-Db([string]$cs, [string]$wo) {
@@ -216,6 +218,7 @@ function Get-Ermittlung($ziel) {
         UmgebungWeb = $uWeb; UmgebungDienst = $uDienst; Db = $dbWeb; Url = $url
         PoolIdentitaet = (Get-PoolIdentitaet $t.Pool); DienstIdentitaet = (Get-DienstIdentitaet $d.StartName)
         KeysPath = (Get-Einstellung $web $uWeb 'DataProtection' 'KeysPath')
+        SmtpHost = (Get-Einstellung $dienst $uDienst 'MailSettings' 'SmtpHost'); Pickup = (Get-Einstellung $dienst $uDienst 'MailSettings' 'PickupDirectory')
     }
 }
 
@@ -403,7 +406,15 @@ function Invoke-SqlTransaktion($e, [string]$name, [string]$text, $marker, [strin
 }
 
 # ================================================================================================ v1.99.0: Pruefungen
+# v1.99.12: Pruefung auf eine Einstellung der Dienst-appsettings*.json (Appsettings='Abschnitt:Schluessel', ohne DB); 1 = gesetzt
+function Get-AppsettingsWert($e, $m) { $t = $m.Appsettings.Split(':', 2); return Get-Einstellung $e.Dienst $e.UmgebungDienst $t[0] $t[1] -MitDatei }
+function Format-PruefText($e, $m) {
+    $t = Format-Text $m.Text $e
+    if ($m['Appsettings']) { $w = Get-AppsettingsWert $e $m; $t = $t.Replace('{Wert}', [string]$w.Wert).Replace('{Datei}', [string]$w.Datei) }
+    return $t
+}
 function Get-PruefStand($e, $m, $history) {
+    if ($m['Appsettings']) { $w = Get-AppsettingsWert $e $m; return $(if ($w.Wert -and $w.Wert.Trim()) { 1 } else { 0 }) }   # wie MailService: Leerraum = nicht gesetzt
     if (Get-BrauchtFehlend $m $history) { return 'nach Schema' }
     try { return [int](Invoke-Lesen $e $m.Pruefung).Rows[0][0] } catch { return "Fehler: $($_.Exception.GetBaseException().Message)" }
 }
@@ -638,6 +649,7 @@ function Invoke-System($e) {
         "Umgebung       Web $($e.UmgebungWeb), Dienst $($e.UmgebungDienst)"
         "DB             $($e.Db.Server) / $($e.Db.Datenbank)  ($(if ($e.Db.Windows) { 'Windows-Anmeldung' } else { "SQL-Login $($e.Db.Benutzer)" }))"
         "URL            $($e.Url)"
+        "Mail           SMTP $(if ($e.SmtpHost) { $e.SmtpHost } else { '-' }) | Ordner $(if ($e.Pickup) { $e.Pickup } else { '-' })"
         "sqlcmd         $sqlcmd  ($sqlcmdVersion)"
         "SQL-Ordner     $SqlOrdner"
         "Protokoll      $LogPfad"
@@ -675,11 +687,13 @@ function Invoke-System($e) {
     $fehlend = @($schema | Where-Object { $history -notcontains $_.MigrationId })
     Write-Host "  Fehlende Schema-Skripte (Manifest-Reihenfolge): $(if ($fehlend) { ($fehlend | ForEach-Object { $_.Id }) -join ', ' } else { 'keine' })"
     $pruefungen = @($manifest | Where-Object { $_.Typ -eq 'Pruefung' -and (Test-PasstFirma $_ $e) })
-    $pruefStand = @{}
+    $pruefStand = @{}; $sperre = @()
     if ($pruefungen) { Write-Host '  Pruefungen (0 = in Ordnung):' }
     foreach ($m in $pruefungen) {
         $st = Get-PruefStand $e $m $history; $pruefStand[$m.Id] = $st
-        $hinweis = if ($st -isnot [int] -or $st -eq 0) { '' } elseif ($m.Ausfuehrung -eq 'Reparatur') { if ($m.Phase -eq 'Haltepunkt') { ' - wird in 4a nach Bestaetigung repariert' } else { '' } } else { " - von Hand: $(Format-Text $m.Text $e)" }
+        # v1.99.12 (Freigabe-Nachtrag 17:04): Phase Vorher mit Abweichung auf einem Prod-System -> Abbruch vor dem Stoppen, keine Reparatur
+        if ($m.Phase -eq 'Vorher' -and $st -is [int] -and $st -gt 0 -and $e.Ziel.Prod) { $sperre += "[$($m.Id)] $(Format-PruefText $e $m)" }
+        $hinweis = if ($st -isnot [int] -or $st -eq 0) { '' } elseif ($m.Phase -eq 'Vorher') { " - $(if ($e.Ziel.Prod) { 'PROD, Abbruch vor dem Stoppen: ' } else { 'Hinweis: ' })$(Format-PruefText $e $m)" } elseif ($m.Ausfuehrung -eq 'Reparatur') { if ($m.Phase -eq 'Haltepunkt') { ' - wird in 4a nach Bestaetigung repariert' } else { '' } } else { " - von Hand: $(Format-Text $m.Text $e)" }
         Write-Host "    [$($m.Id)] $(Format-Pruefstand $st)$hinweis"
     }
     if (-not (Test-MarkerTabelle $e)) { Write-Host '  Marker-Tabelle fehlt (kommt mit SQL/142) - Daten-/Einmal-Eintraege ohne Marker-Stand.' }
@@ -689,7 +703,7 @@ function Invoke-System($e) {
         Write-Host "  $($m.Id): $stand"
     }
     Show-BackupPfad $e
-    $vorher = @($manifest | Where-Object { $_.Phase -eq 'Vorher' -and $_.Typ -ne 'Ordner' -and (Test-PasstFirma $_ $e) -and (Test-Neuer $_ $installiert) })
+    $vorher = @($manifest | Where-Object { $_.Phase -eq 'Vorher' -and $_.Typ -notin 'Ordner', 'Pruefung' -and (Test-PasstFirma $_ $e) -and (Test-Neuer $_ $installiert) })
     if ($vorher) { Write-Host '  Vorher:'; $vorher | ForEach-Object { Write-Host "    [$($_.Id)] $(Format-Text $_.Text $e)" } }
     # Haltepunkt- und VorStart-Eintraege ohne Marker und ohne Spur > 0 verlangen gestopptes Web und Dienst
     $halte = @(Get-OffeneEintraege $e 'Haltepunkt' $installiert)
@@ -715,6 +729,7 @@ function Invoke-System($e) {
                 "Reparaturen: $(if ($reparatur) { @($reparatur | ForEach-Object { $_.Id }) -join ', ' } else { 'keine' }); " +
                 "Haltepunkt: $(if ($halte) { @($halte | ForEach-Object { $_.Id }) -join ', ' } else { 'keiner' }); kopieren: $Komponente; Ordner/Rechte; " +
                 "vor dem Start: $(if ($vorStart) { @($vorStart | ForEach-Object { $_.Id }) -join ', ' } else { 'nichts' }); starten; Nachlauf.")
+    if ($sperre) { Stop-Mit "Produktivsystem $($e.Name): $($sperre -join '; ') Keine automatische Reparatur (die Datei ist nicht im Paket und wird nie ueberschrieben): Wert von Hand entfernen, dann Skript neu starten. Nichts gestoppt, Web und Dienst laufen weiter." }
 
     if ($NurPruefen) {
         Write-Schritt '5a. Ordner und Rechte (nur Bericht)'
@@ -897,7 +912,7 @@ function Show-Nachlauf($e, $installiert, [bool]$ausfuehren) {
         $history = @(); try { $history = Get-History $e } catch { }
         foreach ($m in $pr) {
             $st = Get-PruefStand $e $m $history
-            Write-Host "    [$($m.Id)] $(Format-Pruefstand $st)$(if ($st -isnot [int] -or $st -ne 0) { " - $(Format-Text $m.Text $e)" })" -ForegroundColor $(if ($st -is [int] -and $st -eq 0) { 'Gray' } else { 'Yellow' })
+            Write-Host "    [$($m.Id)] $(Format-Pruefstand $st)$(if ($st -isnot [int] -or $st -ne 0) { " - $(Format-PruefText $e $m)" })" -ForegroundColor $(if ($st -is [int] -and $st -eq 0) { 'Gray' } else { 'Yellow' })
         }
     }
     $w = @(Get-Warnungen)

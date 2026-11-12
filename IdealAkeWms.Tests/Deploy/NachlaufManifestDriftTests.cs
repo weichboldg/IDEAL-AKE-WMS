@@ -149,13 +149,43 @@ public class NachlaufManifestDriftTests
             .Should().Contain(@"'\b(INSERT|UPDATE|DELETE|MERGE|DROP|ALTER|CREATE|EXEC|EXECUTE|TRUNCATE|GRANT)\b'", "Waechter im Skript = Kopie hier");
         foreach (var x in p)
         {
-            x.Should().ContainKey("Pruefung", x["Id"]);
+            (x.ContainsKey("Pruefung") ^ x.ContainsKey("Appsettings")).Should().BeTrue($"{x["Id"]}: genau eines von Pruefung (SQL)/Appsettings");
+            if (x.ContainsKey("Appsettings"))
+            {
+                // v1.99.12: Dienst-appsettings, kein SQL; nur anzeigen (Abbruch auf Prod vor dem Stoppen, keine Reparatur)
+                x["Appsettings"].Should().MatchRegex(@"^\w+:\w+$", x["Id"]);
+                x["Phase"].Should().Be("Vorher", x["Id"]);
+                x["Ausfuehrung"].Should().Be("anzeigen", x["Id"]);
+                continue;
+            }
             Regex.IsMatch(x["Pruefung"], LeseWaechter).Should().BeFalse($"{x["Id"]}: Pruefung muss lesend sein");
             x["Phase"].Should().BeOneOf(new[] { "Haltepunkt", "Nachher" }, x["Id"]);
             x["Ausfuehrung"].Should().BeOneOf(new[] { "Reparatur", "anzeigen" }, x["Id"]);
             if (x["Ausfuehrung"] == "Reparatur") (x.ContainsKey("Reparatur") ^ x.ContainsKey("Datei")).Should().BeTrue($"{x["Id"]}: genau eines von Reparatur/Datei");
             if (x["Phase"] == "Nachher") x["Ausfuehrung"].Should().Be("anzeigen", $"{x["Id"]}: keine Reparatur nach dem Start");
         }
+    }
+
+    /// <summary>
+    /// v1.99.12 (Freigabe-Nachtrag 2026-11-12 17:04): Pruefung/MailPickup liest MailSettings:PickupDirectory aus der Dienst-appsettings; der
+    /// Prod-Abbruch steht in der Vorpruefung VOR dem Ende von -NurPruefen und vor Schritt 2 (Backup) und 3 (Stoppen). Beweist die Reihenfolge
+    /// im Skripttext, nicht das Verhalten am Server (TS-126.28/126.29).
+    /// </summary>
+    [Fact]
+    public void Pruefung_MailPickup_AbbruchAufProdVorDemStoppen()
+    {
+        var m = Eintraege(ManifestText).Single(x => x["Id"] == "Pruefung/MailPickup");
+        m["Appsettings"].Should().Be("MailSettings:PickupDirectory");
+        m["Firma"].Should().Be("beide");
+        m["Text"].Should().Contain("Mails gehen nur in {Wert}");
+        var skript = File.ReadAllText(Path.Combine(Root, "scripts", "deploy", "Update-IdealAkeWms.ps1"));
+        var sperre = skript.IndexOf("if ($sperre) { Stop-Mit", StringComparison.Ordinal);
+        sperre.Should().BePositive("Prod-Abbruch der Vorher-Pruefung");
+        sperre.Should().BeLessThan(skript.IndexOf("if ($NurPruefen) {", StringComparison.Ordinal));
+        sperre.Should().BeLessThan(skript.IndexOf("Start-Schritt '2'", StringComparison.Ordinal));
+        sperre.Should().BeLessThan(skript.IndexOf("Start-Schritt '3'", StringComparison.Ordinal));
+        skript.Should().Contain("$m.Phase -eq 'Vorher' -and $st -is [int] -and $st -gt 0 -and $e.Ziel.Prod", "nur Prod bricht ab, Test bekommt den Hinweis");
+        skript.Should().Contain("Pickup = (Get-Einstellung $dienst $uDienst 'MailSettings' 'PickupDirectory')", "Ermittlungs-Anzeige aus derselben Lese-Logik wie die DB");
     }
 
     /// <summary>v1.99.0: jedes Braucht verweist auf einen Schema-Eintrag mit MigrationId (sonst Abbruch im Skript).</summary>
