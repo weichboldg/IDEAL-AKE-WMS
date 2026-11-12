@@ -139,6 +139,8 @@ public class PrintPickingViewModel
     public DateTime? Faelligkeit { get; set; }
     public string OrderNumber { get; set; } = string.Empty;
     public string? ArticleNumber { get; set; }
+    /// <summary>v1.99.8: Matchcode des FA-Artikels im Druckkopf.</summary>
+    public string? Matchcode { get; set; }
     public string? Description1 { get; set; }
     public decimal Quantity { get; set; }
     public DateTime? ProductionDate { get; set; }

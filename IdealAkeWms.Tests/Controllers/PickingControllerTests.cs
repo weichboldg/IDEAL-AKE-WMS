@@ -19,7 +19,8 @@ public class PickingControllerTests
     /// v1.88.0 Auftragsliste: PickingController mit Kommissionierauftraegen aus <see cref="IPickingOrderRepository.GetListeAsync"/>.
     /// LeitstandAktiv=true (sonst IndexDropdown), KommissionierTage=4, VorkommissionierTage=1, keine Feiertage.
     /// </summary>
-    private static PickingController Setup(List<PickingOrder> auftraege, string queryString, bool zuweisung = false, int? userId = null)
+    private static PickingController Setup(List<PickingOrder> auftraege, string queryString, bool zuweisung = false, int? userId = null,
+        IArticleRepository? articles = null)
     {
         var current = new Mock<ICurrentUserService>();
         current.Setup(s => s.GetDefaultPageSizeAsync()).ReturnsAsync((int?)null);
@@ -42,7 +43,7 @@ public class PickingControllerTests
         var ctrl = new PickingController(
             Mock.Of<IProductionOrderRepository>(), Mock.Of<IProductionOrderPickingStatusRepository>(), current.Object, settings.Object,
             holidays.Object, new BusinessDayService(), Mock.Of<IBomRepository>(),
-            Mock.Of<IStockMovementRepository>(), Mock.Of<IStorageLocationRepository>(), Mock.Of<IArticleRepository>(),
+            Mock.Of<IStockMovementRepository>(), Mock.Of<IStorageLocationRepository>(), articles ?? Mock.Of<IArticleRepository>(),
             Mock.Of<IPickingTransferService>(), Mock.Of<IUserRepository>(), Mock.Of<IEnaioDmsDocumentRepository>(),
             Mock.Of<IPartRequisitionRepository>(), Mock.Of<IArticleAttributeRepository>(), Mock.Of<IServiceSettingRepository>(),
             po.Object, areas.Object, null!, NullLogger<PickingController>.Instance);
@@ -317,6 +318,31 @@ public class PickingControllerTests
 
     // Hotfix v1.30.3 (Z3), uebernommen in v1.96.0: Spalte Werkbank, server-seitig filterbar. Im Buendel listet /Picking
     // Kommissionierauftraege (v1.88.0) – Werkbank kommt vom FA des Auftrags.
+    /// <summary>v1.99.8 (Freigabe-Nachtrag 2026-11-12): Matchcode des FA-Artikels in der Auftragsliste, Spaltenfilter, Spalte registriert.</summary>
+    [Fact]
+    public async Task Index_MatchcodeSpalte_AusArtikelstamm_Filterbar_Registriert()
+    {
+        List<PickingOrder> Liste()
+        {
+            var a = Auftrag(1, "FA-1001"); a.ProductionOrder!.ArticleNumber = "50001929";
+            var b = Auftrag(2, "FA-2002"); b.ProductionOrder!.ArticleNumber = "50009999";
+            var c = Auftrag(3, "FA-3003");   // ohne Artikelnummer
+            return new() { a, b, c };
+        }
+        var articles = new Mock<IArticleRepository>();
+        articles.Setup(r => r.GetMatchcodesByArticleNumbersAsync(It.IsAny<List<string>>()))
+            .ReturnsAsync(new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase) { ["50001929"] = "KUEHLZELLE K1" });
+
+        var vm = (PickingListViewModel)((ViewResult)await Setup(Liste(), "", articles: articles.Object).Index()).Model!;
+        vm.Items.Select(i => i.Matchcode).Should().Equal("KUEHLZELLE K1", null, null);
+
+        var gefiltert = (PickingListViewModel)((ViewResult)await Setup(Liste(), "?colf_matchcode=kuehl", articles: articles.Object).Index()).Model!;
+        gefiltert.Items.Should().ContainSingle().Which.OrderNumber.Should().Be("FA-1001");
+
+        var keys = ColumnDefinitions.Picking.Columns.Select(c => c.Key).ToList();
+        keys.IndexOf("matchcode").Should().Be(keys.IndexOf("article-number") + 1, "direkt nach Artikelnummer");
+    }
+
     [Fact]
     public async Task Index_WorkbenchColumn_FilledFromWorkplaceAndFilterable()
     {

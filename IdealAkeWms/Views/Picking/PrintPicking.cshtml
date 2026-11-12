@@ -141,6 +141,10 @@
             @if (!string.IsNullOrEmpty(Model.ArticleNumber))
             {
                 <p><strong>Artikel:</strong> @Model.ArticleNumber - @Model.Description1</p>
+                @if (!string.IsNullOrWhiteSpace(Model.Matchcode))
+                {
+                    <p><strong>Matchcode:</strong> @Model.Matchcode</p>
+                }
             }
             @if (Model.Quantity > 0)
             {

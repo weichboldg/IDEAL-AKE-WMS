@@ -25,6 +25,8 @@ public class PickingOrderListItem
     public int? ProductionOrderId { get; set; }
     public string? OrderNumber { get; set; }
     public string? ArticleNumber { get; set; }
+    /// <summary>v1.99.8: Matchcode des FA-Artikels (Article.Matchcode ueber MatchcodeLookup, nicht eindeutig - nur Anzeige/Filter).</summary>
+    public string? Matchcode { get; set; }
     public string? Description1 { get; set; }
     public string? WorkplaceName { get; set; }
     public string Bereich { get; set; } = string.Empty;

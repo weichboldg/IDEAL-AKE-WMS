@@ -90,6 +90,7 @@ public class PickingController : Controller
         ["nummer"] = i => i.Nummer,
         ["order-number"] = i => i.OrderNumber,
         ["article-number"] = i => i.ArticleNumber,
+        ["matchcode"] = i => i.Matchcode,   // v1.99.8
         ["description"] = i => i.Description1,
         ["workbench"] = i => i.WorkplaceName,
         ["bereich"] = i => i.Bereich,
@@ -144,6 +145,8 @@ public class PickingController : Controller
         var kommissionierTage = await _settingRepository.GetIntValueAsync("KommissionierTage", 4);
         var vorkommissionierTage = await _settingRepository.GetIntValueAsync("VorkommissionierTage", 1);
         var holidays = await _holidayRepository.GetHolidayDatesAsync();
+        // v1.99.8: Matchcode des FA-Artikels, ein Batch-Lookup je Listenaufbau (wie FA-Liste)
+        var matchcodes = await MatchcodeLookup.BuildAsync(_articleRepository, auftraege.Select(o => o.ProductionOrder?.ArticleNumber), _logger, "Kommissionierauftraege");
 
         var allItems = auftraege.Select(o =>
         {
@@ -159,7 +162,8 @@ public class PickingController : Controller
             return new PickingOrderListItem
             {
                 Id = o.Id, Nummer = o.Nummer, ProductionOrderId = o.ProductionOrderId, OrderNumber = fa?.OrderNumber,
-                ArticleNumber = fa?.ArticleNumber, Description1 = fa?.Description1, WorkplaceName = fa?.ProductionWorkplace?.Name,
+                ArticleNumber = fa?.ArticleNumber, Matchcode = matchcodes.GetValueOrDefault(fa?.ArticleNumber ?? string.Empty),
+                Description1 = fa?.Description1, WorkplaceName = fa?.ProductionWorkplace?.Name,
                 Bereich = o.PickingArea.Name, PickingPriority = o.PickingPriority, Faelligkeit = faellig, Status = o.Status,
                 AssignedPickerName = o.AssignedPickerName,
             };
@@ -662,6 +666,8 @@ public class PickingController : Controller
             ProductionDate = order.ProductionDate,
             PrintedBy = _currentUserService.GetDisplayName(),
             PickedBy = auftrag.AssignedPickerName,
+            Matchcode = (await MatchcodeLookup.BuildAsync(_articleRepository, new[] { order.ArticleNumber }, _logger, "Auftrag-Druck"))
+                .GetValueOrDefault(order.ArticleNumber ?? string.Empty),   // v1.99.8
             Items = SortiereZeilen(auftrag.Zeilen, reihenfolge).Select(z => new PrintPickingItem
             {
                 Artikelnummer = z.ArticleNumber,

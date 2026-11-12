@@ -194,6 +194,7 @@ public static class ColumnDefinitions
             new ColumnDef("nummer",      "Auftrag",          Locked: true),
             new ColumnDef("order-number","FA Nr.",           Locked: false),
             new ColumnDef("article-number","Artikelnummer",  Locked: false),
+            new ColumnDef("matchcode",   "Matchcode",        Locked: false),   // v1.99.8
             new ColumnDef("description", "Bezeichnung",      Locked: false),
             new ColumnDef("workbench",   "Werkbank",         Locked: false),
             new ColumnDef("bereich",     "Bereich",          Locked: false),
