@@ -2,7 +2,7 @@
 type: spec
 title: "Wareneingang Teil 2: Sage-Wareneingangsbeleg (ELL)"
 slug: 2026-11-08-wareneingang-teil-2-sage-we-beleg-rahmenabrufe-spec
-status: Testbereit
+status: InUmsetzung
 created: 2026-11-08
 updated: 2026-11-12
 freigabe_von: "Gerald Weichbold (Chat Koordination, 2026-11-11 20:40 „beide freigeben“)"
@@ -821,3 +821,9 @@ Erfüllt:
 8. TS-116.15 mit einem Benutzer, der nur `stock_read` hat: Der Knopf fehlt, ein direkter POST endet auf AccessDenied (AK 8).
 9. Q-2 entscheiden (Hinweis, wenn der Schalter aus ist und noch offene Belege existieren). Für Q-8 die DEV-Absicherung um `SageWareneingangBelegAktiv` ergänzen.
 10. Testsystem-Lauf mit dem Paket aus `publish` (Update-Skript, `SQL/143`, Nachher-Einträge), danach Schranke 2.
+
+## Freigabe-Nachtrag 2026-11-12 (Gerald, Chat): Memo je Position, v1.99.5
+
+Nach dem Schreibtest: Memo am Belegkopf und Lieferschein-Nr. sind in Sage angekommen (Gerald). Zusaetzlich je Position ein Memo
+(`StandardBelegPosition.Artikelmemo`), Inhalt laut Vorschlag: `WE#<Wareneingangs-Id># LS <Lieferschein> Platz <Lagerkennung>` (LS-Teil entfaellt
+ohne Lieferschein). Zweiter Test-Beleg am AKE-Test nur nach Geralds OK (Beleginhalt und Aufruf vorher zeigen), Rueckbau durch Gerald.
