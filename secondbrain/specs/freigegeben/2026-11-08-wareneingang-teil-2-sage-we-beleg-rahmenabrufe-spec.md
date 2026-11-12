@@ -827,3 +827,19 @@ Erfüllt:
 Nach dem Schreibtest: Memo am Belegkopf und Lieferschein-Nr. sind in Sage angekommen (Gerald). Zusaetzlich je Position ein Memo
 (`StandardBelegPosition.Artikelmemo`), Inhalt laut Vorschlag: `WE#<Wareneingangs-Id># LS <Lieferschein> Platz <Lagerkennung>` (LS-Teil entfaellt
 ohne Lieferschein). Zweiter Test-Beleg am AKE-Test nur nach Geralds OK (Beleginhalt und Aufruf vorher zeigen), Rueckbau durch Gerald.
+
+## Umsetzung Nachtrag v1.99.5 und zweiter Schreibtest (2026-11-12)
+
+Commit `c155b1b2` (auf `bd9b58d0`): `SageWeBelegPosition.Artikelmemo` = `SageWareneingangPayloadBuilder.PositionsMemo(receiptId, lieferschein,
+lagerkennung)` → `WE#<id># LS <Lieferschein> Platz <Lagerkennung>` (ohne Lieferschein ohne „LS …“). Version 1.99.5, Changelog-Karte, TS-116.18.
+Build 0 Fehler; `dotnet test` Web 2639/2640 (1 uebersprungen, Bestand), Dienst 522/522.
+
+**Zweiter Schreibtest (OK Gerald im Chat nach Vorlage von Request und Aufruf):** AKE-DEV v1.99.5 (Dienst gestoppt), ueber die Maske Bestellung
+2027-168715 Pos. 404457 EK001641 **1 Stk** auf `GL;0;0;0`, Lieferschein `WMS-TEST-2` → Wareneingang #7. Request wie im ersten Test plus
+`"Artikelmemo": "WE#7# LS WMS-TEST-2 Platz GL;0;0;0"`, Kopf `"EKLieferschein": "WMS-TEST-2", "Memo": "WE#7#"`, `Belegdatum 2026-11-12`.
+Genau ein Versuch (09:08:27), Schalter sofort wieder aus. Antwort Atom-XML `BelegnummerFormatiert 2027-398676`, `ResultNumber 200`, `Ok` – diesmal
+direkt im WMS als **Uebergeben** mit Belegnummer ausgewertet (Fix `0d265005` im echten Ablauf belegt). Abgleich 09:14 (lesend): Pos. 404457
+geliefert 0 → **1**, offen 2 → **1**; Pos. 404456 unveraendert (geliefert 1 aus Beleg 2027-398675, noch nicht zurueckgebaut).
+Erster Test laut Gerald: Kopf-Memo und Lieferschein-Nr. in Sage angekommen.
+
+**Offen fuer Gerald:** Positions-Memo am Beleg 2027-398676 in Sage sichten (TS-116.18); Rueckbau 2027-398675 und 2027-398676; P-W9 (a)/(b).
