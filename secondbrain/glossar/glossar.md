@@ -132,3 +132,7 @@ Fuer Endanwender gibt es zusaetzlich die hand-gepflegte Uebersicht `/Users/RoleO
   Lagerbuchung-Zugang und das Schliessen von Hand durch den Einkauf.
 - **Lieferschein-Nr. (Lieferant)** (v1.99.4): Lieferschein des Lieferanten, je Buchung der Maske an jedem Wareneingang gespeichert, an Sage nur im
   Sage-Wareneingangsbeleg (`EKLieferschein`, 20 Zeichen).
+- **Barcode (Lieferschein-Aufkleber)** (v1.99.11): Aufkleber, den das Lager auf den Lieferschein des Lieferanten klebt; in „Wareneingang zu
+  Bestellung“ gescannt und an jedem Wareneingang des Absendens gespeichert (`PurchaseOrderReceipt.Barcode`). Er ist zugleich der Dateiname der
+  **Wareneingang-CSV** `<Barcode>.csv`, die der Dienst nach der Uebergabe an Sage auf einen UNC-Pfad legt (Indexdaten fuer das DMS/enaio).
+  Nicht zu verwechseln mit der Lieferschein-Nr. (Lieferant) und mit Artikel-/Lagerplatz-Barcodes (Scan-Modus `'raw'`, keine Zerlegung).

@@ -2,7 +2,7 @@
 type: spec
 title: "Wareneingang zu Bestellung: Barcode-Feld und CSV-Übergabe auf einen UNC-Pfad"
 slug: 2026-11-12-wareneingang-barcode-lieferschein-csv-export-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-11-12
 updated: 2026-11-12
 freigabe_von: "Gerald Weichbold (Chat Koordination, 2026-11-12 14:58)"
@@ -59,8 +59,6 @@ deploy:
   service: true
   migration: true
 freigabe_entscheidung: ""
-freigabe_von: ""
-freigabe_am: ""
 ---
 
 # Wareneingang zu Bestellung: Barcode-Feld und CSV-Übergabe auf einen UNC-Pfad
@@ -412,7 +410,20 @@ Entfällt (kein Epic). Umsetzung als ein Commit-Paket im Bündel-Worktree; bei T
 
 ## Deploy
 
-*Vorläufig – der qa-agent bestätigt gegen den echten Diff.*
+**Final (qa-agent 2026-11-12, gegen den echten Diff `dae22a49..0dc0cea0`):** `IdealAkeWms/` geändert → **web: ja**; `IDEALAKEWMSService/` geändert
+(`WareneingangCsvService`, `SageBookingWorker`, `Program.cs`, `AppVersion.cs`) → **service: ja**; neue Datei unter `IdealAkeWms/Migrations/`
+(`20261112151318_AddWareneingangBarcodeCsv`) → **migration: ja** (additiv, nicht daten-destruktiv).
+- **Publish fertig:** `C:\git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish` – Version 1.99.11, Commit `0dc0cea0`, beide
+  Komponenten (`IDEALAKEWMSWeb`, `IDEALAKEWMSWebService`), dazu `SQL\`, `deploy\`, `publish-info.txt`. Zu deployen sind Web **und** Dienst.
+- **Ablauf Mensch:** Publish aus dem Worktree → Testsystem (`deploy\Update-IdealAkeWms.ps1`, führt SQL/146 aus) → testen → Merge. Nach dem Merge
+  nur dann erneut aus `main` publizieren, wenn der Merge getestete Dateien mit parallelen `main`-Änderungen zusammengeführt hat.
+- **Reihenfolge:** DB-Backup (Standard) → Dienst stoppen → SQL/146 (Update-Skript) → Web → Dienst → **Hand-Schritte P-C1/P-C2** (Dienstkonto am
+  AKE-Dienst-Server ermitteln; Recht „Ändern“ auf Freigabe **und** NTFS des Zielordners für dieses Konto bzw. das Computerkonto) → Pfad setzen →
+  `WareneingangCsvAktiv` an → `WareneingangBarcodeAktiv` an. IDEAL: alles aus lassen.
+- Manifest geprüft: `SQL/146`, `Pruefung/WareneingangCsv`, `v1.99.11-WareneingangCsv` (enthält P-C1/P-C2), `v1.99.11-LagerBarcode` stehen in
+  `scripts/deploy/nachlauf.psd1`.
+
+*Ursprünglicher Entwurf des spec-agent (bestätigt):*
 
 - **Web-App:** ja (Maske, Scan-JS, Liste, Einstellungen, Katalog, Repository).
 - **Service:** ja (neuer Schritt im `SageBookingWorker`, `WareneingangCsvService`).
@@ -577,3 +588,151 @@ SQL-Server-Übersetzung der Abfragen (`NOT EXISTS`, `IN` mit `NieWiederholen`).
 8. Ein Schalter oder zwei (Feld vs. Dienst)? → **Wie empfohlen (Gerald 2026-11-12).**
 9. Scan ohne angetipptes Feld geht ins Barcode-Feld – akzeptiert? → **Wie empfohlen (Gerald 2026-11-12).**
 10. Version/SQL-/TS-Nummer in Bau-Reihenfolge durch den Dev-Lauf? → **Wie empfohlen (Gerald 2026-11-12).**
+
+## QA-Nachweis (qa-agent, 2026-11-12)
+
+Geprüft: Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Commit-Bereich `dae22a49..0dc0cea0` (`895646a5`, `0dc0cea0`), Version 1.99.11.
+Kein Code-Fix nötig (kein `qa:`-Commit); Brain-Korrektur siehe B-5.
+
+### 1. Build und Tests (Worktree)
+- `dotnet build IdealAkeWms.slnx`: **0 Fehler**, 28 Warnungen (vorbestehend, keine in geänderten Dateien).
+- `dotnet test IdealAkeWms.Tests`: **2714 bestanden / 1 übersprungen / 0 fehlgeschlagen** (2715; Skip = `ProductionOrderEagerCreateAgentJobTests`, vorbestehend).
+- `dotnet test IDEALAKEWMSService.Tests`: **599 bestanden / 0 / 0** (599).
+
+### 2. Code-Review (selbst, in diesem Lauf)
+Gelesen: kompletter Diff ohne Designer/Snapshot (Controller `Receive`/`SageWe`, Repository, `WareneingangCsv`, `WareneingangCsvService`,
+`SageBookingWorker`, Views `Receive`/`SageWareneingaenge`/`ServiceSettings`, `barcode-scanner.js`, Settings-Kataloge, SQL/146, FreshInstall, Manifest, Tests).
+Defektklassen gezielt geprüft: kein Modellwert in `<script>` (nur Konstanten `initTextInputScanner('btnScanBarcode', 'barcode', 'raw')`), kein
+`hidden` + `d-*`, keine stillen Fallbacks (`GetIntSafeAsync` 3/15 = Katalog-Defaults, Lesefehler beim CSV-Schalter = nicht schreiben, laut Spec gewollt),
+keine parallelen Arrays (ein Parameter `barcode`), alle Regeln serverseitig (Barcode, Duplikat, Sage-WE aus, Pfad-Muster), Barcode-Regel und
+Statustexte an **einem** Ort (`IdealAkeWms/Services/WareneingangCsv.cs`, vom Dienst wiederverwendet).
+
+Geprüfte Schwerpunkte laut Auftrag:
+- Barcode-Regel `^(?!(?:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])$)[A-Za-z0-9_-]{1,50}$` (IgnoreCase): Muster `AKE1235564654` gültig; `;`, Leerzeichen,
+  Umlaute, 51 Zeichen, `CON` abgewiesen (Tests); der Dienst prüft vor dem Schreiben erneut (Altwert → Fehler ohne Datei).
+- Duplikat `ToUpper()` beidseitig: auf **echtem SQL Server** belegt (DEV, `qa-ake1235564654` gegen gespeichertes `QA-AKE1235564654` → Meldung mit
+  Bestellung 2027-168715 und Datum, nichts gebucht).
+- Ausgangszeile erst, wenn alle Receipts des Vorgangs `Uebergeben` sind (`NOT EXISTS` auf echtem SQL Server gelaufen); „Als übergeben markieren“
+  führt in denselben Status → abgedeckt (Test `AlsUebergebenMarkiert_BekommtCsvMitHandBelegnummer_AK8`).
+- `.tmp` → `File.Move(..., overwrite: false)`, Kollision vorher per `File.Exists`, `.tmp` im catch best effort gelöscht: auf der DEV-Freigabe belegt.
+- Kollision/ungültig nie automatisch: Erkennung über feste Texte `NieWiederholen` (siehe B-3). Wiederholung bei `Versuche` 1..Max, Abstand über
+  `ModifiedAt ?? CreatedAt`: 3 Wiederholungen nach dem ersten Fehler (bis zu 4 Versuche); auf DEV belegt (Abstand nicht erreicht → kein Lauf;
+  nach 16 min → geschrieben).
+- Höchstens 10 je Takt (`Take(MaxDateienJeTakt)`, Test). Gate im Worker: `sageWeAn` ist derselbe gelesene Wert wie beim Sage-WE-Schritt; der
+  CSV-Schritt steht in eigenem try nach dem Sage-WE-Block (Lagerbuchungen laufen vorher, ein CSV-Fehler hält sie nicht auf).
+- Feld gesperrt bei Sage-WE aus (disabled, kein Kamera-Knopf, kein Skript); trotzdem gepostet → ModelState-Fehler (Abweichung 3).
+- `'raw'`-Fix: `textScanType()` an einer Stelle, Fenstertitel; der Wächtertest prüft Zeichenketten, kein Browser-Verhalten.
+- Rolle `CsvErneutSchreiben`: `[HttpPost]`, `[ValidateAntiForgeryToken]`, `[RequireStockKeyUserAccess]` + Klassen-Filter/Feature-Gate; Knopf nur mit
+  `CanErneutSenden` und CSV-Fehler.
+- ADR 0020: AppSetting Bool (Katalog), ServiceSettings Bool, String mit `Muster` (Server lehnt ab, DEV belegt), Int mit `IntMeta`-Grenzen (0–10,
+  5–1440); Anzeigename, Wirkung, Verwendung, Default, Standort vorhanden; Warnhinweis bei `WareneingangCsvAktiv` und `WareneingangCsvPfad`
+  (Außenwirkung), bei den Int-Keys nicht nötig. Vollständig.
+- SQL/146 idempotent belegt: Scratch-DB mit Minimal-Tabelle (Lauf 1 legt alles an + History, Lauf 2 ohne Änderung, DEFAULT 0 für `Versuche` greift);
+  AKE_WMS_DEV und IDEAL_WMS_DEV nach EF-Migration ohne Änderung, Exit 0. FreshInstall an beiden Stellen (Schema + MigrationId mit Guard) im Diff
+  geprüft. SQL/AgentJobs nicht betroffen. Manifest: 4 Einträge vorhanden, `NachlaufManifestDriftTests` grün.
+
+Befunde:
+- **B-1 (Hinweis, offen gelassen):** Die Duplikat-Sperre ist eine App-Prüfung, der Index ist nicht UNIQUE. Zwei gleichzeitige Absenden mit demselben
+  Barcode könnten beide durchgehen; die Folge ist sichtbar (zweite Datei → „Fehler: Datei existiert bereits“), überschrieben wird nie. Die Spec fordert
+  keine DB-Sperre.
+- **B-2 (Hinweis, offen gelassen):** Wirft die Lagerbuchungs-Verarbeitung im gemeinsamen try, bevor `sageWeAn` gelesen ist, entfällt der CSV-Schritt
+  in diesem Takt (`sageWeAn` bleibt false). Sicher (Default = nicht schreiben), der nächste Takt holt nach.
+- **B-3 (Hinweis, akzeptiert):** „Nie automatisch“ hängt an den festen Fehlertexten (Abweichung 2). Ändert ein späteres Release `KollisionText`,
+  würden Alt-Zeilen bis zu Max automatisch versucht – harmlos, weil `File.Exists` erneut Kollision meldet und nie überschreibt. Bei einer Textänderung
+  den alten Text in `NieWiederholen` stehen lassen.
+- **B-4 (Hinweis):** Ein Absenden nur aus „nur in Sage“-Positionen (chargen-/nachweispflichtig) speichert den Barcode ohne Vorgang; er ist danach
+  vergeben, eine CSV entsteht nie. Die Liste zeigt es („keine CSV (nur in Sage)“), laut F4 so vorgesehen.
+- **B-5 (behoben, Brain):** Das Spec-Frontmatter hatte `freigabe_von`/`freigabe_am` doppelt (leere Zweitbelegung, ungültiges YAML) – entfernt.
+- **B-6 (Beobachtung außerhalb des Diffs):** `SQL/00_FreshInstall.sql` läuft auf einer leeren DB (`sqlcmd -I`) nicht fehlerfrei durch (Msg 207
+  `AssignedPickerId`, Msg 2714 `WarehouseRequisitions`/`WarehouseRequisitionItems`, danach fehlt `__EFMigrationsHistory`). Die Fundstellen liegen nicht
+  in diesem Diff. Folgeaufgabe [[2026-11-12-freshinstall-leere-db-fehler]].
+
+Abweichungen 1–8 des Umsetzers (die Liste hat 8 Punkte) bewertet: 1 kein Interface – ok, Tests mit echten lokalen Dateien, auf DEV zusätzlich über
+SMB belegt; 2 Wiederholung wie Antwort 1d – ok (B-3); 3 Fehler statt still ignorieren – ok (Melden statt still behandeln); 4 reservierte Namen – ok,
+nötig für gültige Dateinamen; 5 Pfadprüfung über `SettingDefinition.Muster` – ok, Server lehnt ab (DEV belegt); 6 zwei Zusatz-Zustände der Spalte –
+ok, Text statt Farbe; 7 `ToUpper` – ok, auf SQL Server belegt; 8 Werkzeug-Fund – keine Code-Wirkung.
+
+### 3. Beweisart je Akzeptanzkriterium
+| AK | Beweis | Ergebnis |
+|---|---|---|
+| 1 | Test `Barcode_SchalterAus_Ignoriert_AK1` + DEV-Browser (kein Feld) | grün / OK |
+| 2 | Test `Barcode_Gueltig_AnAllenReceipts_MitKreditorname_AK2`; echtes Buchen mit Barcode auf DEV nicht erlaubt (nur mit Sage-WE aus) | grün; **Manual-UAT** |
+| 3 | Tests `Barcode_Ungueltig_*`, `Barcode_51Zeichen_*` + DEV-Browser (`ABC;123` → Meldung, nichts gebucht, Wert bleibt) | grün / OK |
+| 4 | Test (InMemory) + DEV, echter SQL Server (Duplikat in Kleinbuchstaben abgewiesen) | grün / OK |
+| 5 | Wächtertest prüft nur Zeichenketten; Scanverhalten im Browser | **Manual-UAT** (Gerät) |
+| 6 | – | **Manual-UAT** (Kamera) |
+| 7 | Test + DEV-Harness gegen echten SQL Server und SMB-Pfad `\\localhost\D$\Dev\csv-ausgang\ake` | grün / OK |
+| 8 | Test `AlsUebergebenMarkiert_*` | grün; Hand-Weg im Browser **Manual-UAT** |
+| 9 | DEV-Dienst echt (CSV an, Pfad gesetzt, Sage-WE aus → keine Zeile, kein Protokoll, keine Datei) + Hinweis in Liste und `/ServiceSettings` | OK |
+| 10 | Worker-Gate nur Code-Review; Sage-WE darf auf DEV bei laufendem Dienst nicht an sein | **Manual-UAT** |
+| 11 | Test + DEV-Harness (Datei-Hash unverändert, Fehler, Warnung im Protokoll) | grün / OK |
+| 12 | Test + DEV-Harness (nicht vorhandene Freigabe → Fehler, Versuche + 1, Lauf beendet); „Lagerbuchungen laufen weiter“ und „Recht entziehen“ | OK; Rest **Manual-UAT** |
+| 13 | Test (Logik + Attribut) + DEV-Browser (Knopf → Offen, `ModifiedBy` Gerald Weichbold / `AKENB\gerald.weichbold`); 403 ohne Recht | OK; 403 **Manual-UAT** |
+| 14 | Test `WareneingangCsvPfad_NurUncOderLeer` (11 Fälle) + DEV-Browser (`C:\temp` abgelehnt, Wert unverändert) | grün / OK |
+| 15 | Tests `Csv_Spalte_*_AK15`, `CsvExportCoverageTests` + DEV-Browser (`colf_csv=wartet` 2/2, `colf_barcode=4654` 1/1); Export nicht heruntergeladen | grün / OK |
+| 16 | Drift-Guards im Testlauf | grün |
+| 17 | DEV IDEAL: Schalter aus, kein Protokoll „Wareneingang-CSV“, Liste ohne Hinweis | OK |
+
+### 4. Geänderte bestehende Tests
+- `AppSettingDefinitionsTests` Anzahl 56 → 57: Verhalten absichtlich geändert (neues AppSetting, AK 16).
+- `NachlaufManifestDriftTests` Schema-Liste + `SQL/146`: absichtlich (AK 16).
+- `ServiceSettingDefinitionsTests` + 4 `InlineData`: Erweiterung (AK 16).
+- `HardwareScannerTests` erwartete Kamera-Knopf-Liste + `Receive.cshtml|btnScanBarcode`: absichtlich (AK 16).
+- `PurchaseOrdersReceiveTests.BuildAsync` neuer optionaler Parameter `barcode = false` + Mock: Fixture-Erweiterung, alte Tests unverändert.
+- Kategorie „Sonstiges“: keine.
+
+### 6. DEV-Deploy und Testlauf
+- Standort laut Frontmatter AKE, zusätzlich IDEAL (Auftrag). `dev-deploy.ps1 -Standort AKE` und `-Standort IDEAL` aus dem Worktree, erhöhte Shell:
+  beide **Exit 0**, „HTTP 200, Fusszeile v1.99.11“. Danach die 5 AKE-Sync-Schalter wieder `true` (Anweisung Gerald). SQL/146 auf beiden DEV-DBs
+  ausgeführt (Exit 0, nichts zu tun – EF hatte schon migriert).
+- Sage-Schutz: `SageWareneingangBelegAktiv` stand nur bei **gestopptem** AKE-Dienst kurz auf `true` (Browser-Prüfung Feld aktiv und Validierung,
+  Absenden ohne Mengen, nichts gebucht: Receipts 6 → 6, keine neue Bewegung), danach `false`, erst dann Dienst gestartet. `SageLagerbuchungAktiv`
+  durchgehend `false`. Die CSV-Logik lief per Harness (temporärer Test, nicht committet, gelöscht) bei gestopptem Dienst direkt gegen AKE_WMS_DEV,
+  ohne Sage-Client.
+
+| TS | Schritt | Ergebnis | Status |
+|---|---|---|---|
+| 129.1 | Schalter aus, Bestellung 2027-168974 öffnen | kein Barcode-Feld | OK |
+| 129.2 | Schalter an, Sage-WE aus | Feld gesperrt (grau), Hinweis „Sage-Wareneingang ist aus – …“, kein Kamera-Knopf | OK |
+| 129.3 | Buchen mit gültigem Barcode | nicht ausgeführt (Buchen auf DEV nur mit Sage-WE aus erlaubt) | NICHT MÖGLICH |
+| 129.4 | `ABC;123`, Absenden ohne Mengen (Sage-WE an, Dienst gestoppt) | Meldung Barcode-Regel + „Keine Menge …“, Wert bleibt, nichts gebucht | OK |
+| 129.5 | `qa-ake1235564654` gegen vorhandenes `QA-AKE1235564654` | „… bereits dem Wareneingang zu Bestellung 2027-168715 vom 11.11.2026 21:22 …“, nichts gebucht | OK |
+| 129.6 | Netum mit angetipptem Feld | Gerät nötig | NICHT MÖGLICH |
+| 129.7 | Scan ohne angetipptes Feld | Tastatur-Simulation `~09…` kam nicht an (Präfix/Tempo nicht nachstellbar) | NICHT MÖGLICH |
+| 129.8 | Kamera „Barcode scannen“ | Knopf vorhanden; Kamera nicht geöffnet | NICHT MÖGLICH |
+| 129.9 | `/ServiceSettings` Pfad `C:\temp` | „Nicht gespeichert: … nur ein UNC-Pfad wie \\server\freigabe\ordner oder leer“, DB-Wert unverändert | OK |
+| 129.10 | Schalter an, Pfad leer | nur per Test belegt | nicht ausgeführt (Test grün) |
+| 129.11 | Übergebene DEV-Receipts 4/7 (echte Belege 2027-398675/398676) mit Barcode per SQL, Harness | `QA-AKE1235564654.csv`: BOM EF BB BF, CRLF, Kopfzeile + 1 Datenzeile, Quoting `"QA Lieferant; ""Test"""`; keine `.tmp`; Status 2 mit `Datei`/`GeschriebenAm`; Protokoll `geschrieben=1, fehler=1` | OK |
+| 129.12 | Lauf ohne fällige Arbeit | kein weiterer Protokoll-Eintrag | OK |
+| 129.13 | CSV an, Pfad gesetzt, Sage-WE aus, Dienst läuft | keine Zeile, kein Protokoll, keine Datei; Liste + `/ServiceSettings`: „⚠ Sage-Wareneingang deaktiviert – CSV-Übergabe wartet (2 Wareneingänge mit Barcode).“, Spalte CSV gleicher Text | OK; „wieder an“ NICHT MÖGLICH |
+| 129.14 | Kollision (`QA-AKE1235564655.csv` vorab angelegt) | Datei-Hash unverändert, „Fehler: Datei existiert bereits – nicht überschrieben.“, Warnung, Knopf + Hinweis sichtbar; „CSV erneut schreiben“ → Offen, Audit gesetzt; nach Entfernen der Datei geschrieben | OK |
+| 129.15 | Pfad `\\localhost\QaNichtVorhanden$\x` | „Der Netzwerkname wurde nicht gefunden …“, Versuche 1 → 2, keine `.tmp`; sofort erneut: kein Lauf; nach 16 min (per SQL gealtert) automatisch geschrieben, eigene `.tmp`-Leiche überschrieben und umbenannt | OK; „Recht entziehen“ NICHT MÖGLICH |
+| 129.16 | Spaltenfilter CSV/Barcode | 2/2 bzw. 1/1 serverseitig; Export nicht heruntergeladen | OK |
+| 129.17 | Rolle ohne Key-User | nur ein Windows-Benutzer verfügbar | NICHT MÖGLICH |
+| 129.18 | DEV IDEAL | Schalter aus, kein Protokoll „Wareneingang-CSV“, Liste ohne Hinweis | OK |
+
+Testdaten aufgeräumt: Barcode/LieferantName an Receipts 4/7 wieder NULL, `WareneingangCsvExporte` leer, Dateien in `D:\Dev\csv-ausgang\ake` gelöscht.
+Bleiben: 3 Harness-Läufe „Wareneingang-CSV“ in `AKE_WMS_DEV.dbo.SyncLogs`, AppSetting-Zeile `WareneingangBarcodeAktiv = false`,
+`WareneingangCsvPfad = \\localhost\D$\Dev\csv-ausgang\ake` (Schalter aus).
+
+**DEV-Endzustand AKE:** `SageWareneingangBelegAktiv` false, `SageLagerbuchungAktiv` false, `WareneingangCsvAktiv` false, `WareneingangBarcodeAktiv` false,
+`ErrorNotification:Enabled` false, `Notifications:MeldebestandEnabled` false, `Sync:ArticlesEnabled`/`ArtikelLieferantEnabled`/`KreditorenEnabled`/
+`DebitorenEnabled`/`EinkaufBestellungenEnabled` true, `Sync:SageSystemKuerzel` DEV; Dienst läuft. **IDEAL:** v1.99.11, Sage-WE/Lagerbuchung/CSV aus.
+
+### 7. Publish
+`C:\git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish` vorher geleert; `IDEALAKEWMSWeb` und `IDEALAKEWMSWebService` (Release,
+beide Exit 0), `SQL\`, `deploy\`, `publish-info.txt` (Version 1.99.11, Commit `0dc0cea00f881c56facae17b434d7a05f4fa028e`, Erstellt 2026-11-12 16:41).
+
+## Manuelle Testcheckliste (offen für den Menschen)
+1. TS-129.3 Buchen mit gültigem Barcode, zwei Positionen, auf dem Testsystem mit Sage-WE an: beide Receipts mit Barcode + Kreditorname (AK 2).
+2. TS-129.6 Netum mit angetipptem Barcode-Feld: `ABC;123` und `4006381333931` roh, auch mit `QrErstesFeld = Matchcode` (AK 5).
+3. TS-129.7 Scan ohne angetipptes Feld landet im Barcode-Feld mit „✓ Gescannt“.
+4. TS-129.8 Kamera am Handy: Titel „Barcode scannen“, Wert roh (AK 6).
+5. TS-129.10 Schalter an + Pfad leer: Hinweis in Liste und `/ServiceSettings`; Update-Skript-Prüfung `Pruefung/WareneingangCsv` meldet 1.
+6. TS-129.11 auf dem Testsystem über den echten Dienst: nach der Sage-Übergabe bzw. „Als übergeben markieren“ (AK 8) entsteht die Datei.
+7. TS-129.13 Teil 2: Sage-WE wieder an → wartender Vorgang im nächsten Takt geschrieben (AK 10).
+8. TS-129.15 Recht entziehen → „Zugriff verweigert“; eine Lagerbuchung im selben Takt läuft weiter (AK 12).
+9. TS-129.16 CSV-Export der Liste enthält „Barcode“ und „CSV“.
+10. TS-129.17 Benutzer ohne `stock_keyuser`/`admin`/`picking`: kein Knopf, direkter POST abgewiesen (AK 13).
+11. P-C1/P-C2 am AKE-Dienst-Server (Dienstkonto, Recht „Ändern“ auf Freigabe und NTFS), P-C3 Leser/enaio-Import.
+12. Rendering und Kontrast von Maske und Liste an einem Lager-Terminal.

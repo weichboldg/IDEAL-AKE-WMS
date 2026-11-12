@@ -234,3 +234,12 @@ Schreibend: `POST {SData:BaseUrl}/sdata/{Application}/{ServiceContract}/{Dataset
 (`SageLagerbuchung:Username/Password`), TLS-Schalter wie dort. Erfassungsart 4100, BelegTransformArt 1, BelegKennzeichen ELL,
 `TransformSettings[].SourceBelegHandle` = BelId, `EKLieferschein`, `Memo WE#<id>#`, Positionen `PositionHandle` = BelPosId mit
 `BelegPositionLagermengen{PlatzId, Kurzbezeichnung = Lagerkennung, MengeBasis}`. Am AKE-Test 2026-11-12 belegt (Beleg 2027-398675).
+
+## Wareneingang-CSV — Datei-Ausgang auf UNC (v1.99.11, [[2026-11-12-wareneingang-barcode-lieferschein-csv-export-spec]])
+
+Ausgehend, schreibend auf eine Netzfreigabe (`ServiceSetting WareneingangCsvPfad`, nur UNC, Form vom Server geprueft, Erreichbarkeit nicht).
+Schritt im `SageBookingWorker` nach dem Sage-WE-Schritt, Gate `WareneingangCsvAktiv` **und** `SageWareneingangBelegAktiv` **und** Pfad gesetzt.
+Je Sage-WE-Vorgang mit Barcode, dessen Receipts alle `Uebergeben` sind: `<Barcode>.tmp` (UTF-8 mit BOM) → `File.Move(..., overwrite: false)` auf
+`<Barcode>.csv`, nie ueberschreiben; Status in `WareneingangCsvExporte`, Lauf „Wareneingang-CSV“. Zugriff mit dem Dienstkonto (LocalSystem =
+Computerkonto `DOMAENE\SERVER$`), braucht „Aendern“ auf Freigabe und NTFS (Hand-Schritt P-C1/P-C2). Leser: eigener enaio-Import (Freigabe-Antwort 2),
+raeumt die Dateien selbst auf. QA 2026-11-12 auf DEV gegen `\localhost\D$\Dev\csv-ausgang\ake` belegt (Schreiben, Kollision, Netzfehler, Wiederholung).

@@ -163,3 +163,13 @@ Warum die Flags in Satelliten liegen: [[0009-app-status-in-satelliten-tabellen-n
 - `PurchaseOrdersController.SageWareneingaenge` (GET): Liste „Wareneingänge an Sage“, Klassen-Filter `RequireStockReadAccess` + Feature-Gate
   `RequireWareneingangBestellungAktiv`. `SageWeErneutSenden` (POST): `RequireStockKeyUserAccess` (admin, stock_keyuser, picking), nur Status Fehler.
   `Receive` (POST): neuer Parameter `lieferschein`; Platzregel und Sage-WE-Status, wenn `SageWareneingangBelegAktiv` an. Keine neue Rolle.
+
+## Wareneingang-CSV (v1.99.11, [[2026-11-12-wareneingang-barcode-lieferschein-csv-export-spec]])
+
+- `PurchaseOrdersController.CsvErneutSchreiben(Guid vorgang)` (POST, AntiForgery): `RequireStockKeyUserAccess` (admin, stock_keyuser, picking) wie
+  `SageWeErneutSenden`; zusaetzlich Klassen-Filter `RequireStockReadAccess` + Feature-Gate `RequireWareneingangBestellungAktiv`. Setzt die
+  Ausgangszeile `WareneingangCsvExporte` nur im Status Fehler auf Offen (Fehlertext leer, `Modified*` aus `ICurrentUserService`); sonst
+  `WarningMessage`. Knopf in der Liste „Sage-Wareneingaenge“ nur mit `CanErneutSenden` und CSV-Fehler. Keine neue Rolle.
+- `Receive` (POST): neuer Parameter `barcode`, ausgewertet nur bei AppSetting `WareneingangBarcodeAktiv` (sonst ignoriert); Pruefung Zeichen/Laenge/
+  reservierte Namen, Sage-WE aus = Fehler, Duplikat ohne Gross/Klein (`IPurchaseOrderReceiptRepository.BarcodeVergebenAsync`). Recht unveraendert
+  `RequireStockAccess`.

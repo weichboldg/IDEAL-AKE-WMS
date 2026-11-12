@@ -6,8 +6,8 @@ date: 2026-11-12
 # v1.99.11 — Wareneingang zu Bestellung: Barcode des Lieferscheins und CSV-Übergabe auf einen UNC-Pfad
 
 Buendel `feature/2026-08-07-ideal-teile-1-5`, Commits `895646a5` (Code, Migration, SQL/146, Tests, Manifest), `0dc0cea0` (TS-129, Hilfe,
-Changelog, README, Version). Spec [[2026-11-12-wareneingang-barcode-lieferschein-csv-export-spec]]. Nicht gemergt, nicht gepusht, **vor QA**
-(umgesetzt, Status setzt der qa-agent); wartet danach Schranke 2.
+Changelog, README, Version). Spec [[2026-11-12-wareneingang-barcode-lieferschein-csv-export-spec]]. Nicht gemergt, nicht gepusht, **Testbereit**
+(QA 2026-11-12: Build/Tests gruen, DEV AKE+IDEAL v1.99.11, CSV-Schreiben/Kollision/Netzfehler/Wiederholung auf DEV-Freigabe belegt, Publish `0dc0cea0`); wartet Schranke 2.
 
 ## Kernpunkte
 
