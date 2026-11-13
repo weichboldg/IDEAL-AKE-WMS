@@ -24,6 +24,11 @@ Worktree, Datei `IDEALAKEWMSService/Services/LieferverzugMailService.cs`, sofern
 - **Vorschlag:** Die Tagessperre je Art prüfen (Sammelliste: `Art = Einkauf` heute vorhanden, Kreditor-Mails: Wiederholregel je Position, besteht
   schon). Den Lauf bei `fehler > 0` als Warnung/Fehler beenden und `_errorNotifier` benachrichtigen. Test: Sammelliste wirft → nächster Zyklus
   sendet nur die Sammelliste, keine Kreditor-Mail doppelt.
+- **DEV-Nachmessung 2026-11-14:** nicht reproduzierbar ohne Eingriff (SMTP-Fehler nur beim Senden der Sammelliste lässt sich auf DEV mit
+  PickupDirectory nicht erzeugen). Beobachtet, was den Befund stützt: Nach Löschen der heutigen Zeilen schrieb der Lauf 20:42 erst 999 Zeilen
+  `Art 1` (Kreditor, Testbetrieb) und 1119 Zeilen `Art 0` (Sammelliste) – 91 `.eml`. Der Folgezyklus 21:02 startete gar keinen Lauf
+  „LieferverzugMail“ (keine Protokollzeile, keine neue Datei) – die Sperre hängt also an „irgendeine Zeile von heute“, unabhängig von der Art.
+  Bericht [[02-wareneingang-einkauf]].
 
 ## LV-2 · niedrig · Mail gesendet, Protokoll scheitert: Die Kreditor-Mail geht im nächsten Zyklus erneut raus
 
@@ -43,6 +48,9 @@ Worktree, Datei `IDEALAKEWMSService/Services/LieferverzugMailService.cs`, sofern
   15-Minuten-Takt sind das bis zu ~68 Fehlermails pro Tag ab der eingestellten Uhrzeit. Die Spec (AK 8) akzeptiert nur die wiederholte
   **Warnung** bei leerer Empfängerliste, nicht die Fehlermail.
 - **Vorschlag:** Die Fehlermail höchstens einmal je Tag senden, z. B. mit einem Marker im Protokoll oder der Tagessperre aus LV-1 je Art.
+- **DEV-Nachmessung 2026-11-14:** auf DEV nicht beobachtbar: `Lieferverzug:Testbetrieb = true`, die Grenze `KreditorMaxJeLauf` (30) gilt nur im
+  Echtbetrieb; Lauf 20:42 mit 90 Testbetrieb-Mails ohne Grenzen-Warnung (`ausgesetzt=0`). Echtbetrieb mit Test-Postfächern wäre nötig.
+  Bericht [[02-wareneingang-einkauf]].
 
 ## Geprüft ohne Befund
 

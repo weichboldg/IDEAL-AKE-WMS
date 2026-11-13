@@ -26,6 +26,11 @@ Gegenstand: `git diff main...HEAD`, Bündel-Worktree. Nichts behoben (Schranke 1
 - **Vorschlag:** Einmal-Token als Hidden-Feld beim GET erzeugen und als `SageWeVorgang` übernehmen, mit UNIQUE-Prüfung oder vorheriger
   Existenzprüfung: Ein zweiter POST mit demselben Token meldet „bereits gebucht“. Zusätzlich den Knopf beim Absenden sperren, das ist aber nur
   Komfort. Manual-UAT: Doppelklick am Handgerät.
+- **DEV-Nachmessung 2026-11-14:** reproduziert (serverseitig). AKE-DEV, Bestellung 2027-168321 Pos. 402142 (Rest 27,5, Sage-WE aus): zwei
+  gleichzeitige identische `POST /PurchaseOrders/Receive` mit 3 Stk → beide „1 Position(en) eingebucht …“, zwei Receipts 14/15, zwei Bewegungen
+  19534/19535 (20:25:30.162/.164), „im WMS erfasst“ +6. Ein echter Doppelklick auf „Einbuchen“ im Desktop-Chrome schickte dagegen nur einen POST
+  (Web-Log 20:25:48, Receipt 16) – Chrome unterdrückt das zweite Absenden; Netz-Wiederholung am Handgerät nicht prüfbar. Sage-Queue unverändert
+  (Schalter aus). Bericht [[02-wareneingang-einkauf]].
 
 ## WE-2 · mittel · Mehrzeilige Buchung ist nicht atomar
 
@@ -40,6 +45,9 @@ Gegenstand: `git diff main...HEAD`, Bündel-Worktree. Nichts behoben (Schranke 1
   Das widerspricht F2 („EIN Vorgang = ein ELL-Beleg“). Das Zeitfenster ist klein, aber real.
 - **Vorschlag:** Alle Bewegungen in einer Transaktion speichern, also ein `SaveChanges` für alle Zeilen. Die Enqueue-Entscheidung des Decorators
   danach je Bewegung treffen, oder die Schleife in `BeginTransactionAsync` einschließen. Test: dritte Zeile mit erzwungenem Fehler → 0 Bewegungen.
+- **DEV-Nachmessung 2026-11-14:** ohne Code-Eingriff nicht messbar (ein Speicherfehler in Zeile 3 lässt sich von außen nicht erzwingen).
+  Beobachtet nur: Die Prüfung vor dem Speichern hält – bei jedem Zeilenfehler (Menge 0, „abc“, −1, 4 Nachkommastellen, Platz leer, Memo 201,
+  Überlieferung ohne Häkchen) entstand keine Bewegung. Bericht [[02-wareneingang-einkauf]].
 
 ## WE-3 · niedrig · Meldungen erscheinen in „Sage-Wareneingänge“ doppelt
 
@@ -48,6 +56,10 @@ Gegenstand: `git diff main...HEAD`, Bündel-Worktree. Nichts behoben (Schranke 1
   hinzugekommene Liste hat ihn wieder.
 - **Szenario:** „Erneut senden“ oder „Als übergeben markieren“ → die Erfolgs- bzw. Warnmeldung steht zweimal oben.
 - **Vorschlag:** Den Block `:15-22` entfernen.
+- **DEV-Nachmessung 2026-11-14:** reproduziert. AKE-DEV, Receipt 13 per SQL kurz auf „Klären“: „Erneut senden“ (Sage-WE aus) → die Warnung
+  „Nicht eingereiht: Der Sage-Wareneingang ist ausgeschaltet …“ steht zweimal (oben aus dem Layout, unter dem Titel aus der Seite); ebenso
+  „Nicht markiert: Bitte die Sage-Belegnummer angeben (höchstens 45 Zeichen).“ beim 46-Zeichen-Versuch. Bild
+  ![[WE-3-sage-wareneingaenge-meldung-doppelt.jpg]] Bericht [[02-wareneingang-einkauf]].
 
 ## WE-4 · niedrig · Barcode-Duplikatprüfung ohne Sperre
 
@@ -67,6 +79,12 @@ Gegenstand: `git diff main...HEAD`, Bündel-Worktree. Nichts behoben (Schranke 1
   `RequireLagerProcessingAccess` hat (Zugriffsmatrix [[controller]]). Der Link auf Bedarfsmeldungen (`PartRequisitions`,
   `RequirePickingOrStockAccess`) passt.
 - **Vorschlag:** Link nur zeigen, wenn der Nutzer das Recht hat, sonst nur die Nummer als Text.
+- **DEV-Nachmessung 2026-11-14:** im Browser nicht prüfbar (nur ein Windows-Benutzer, Admin). Aus dem Code belegt: `RequireStockAccess` =
+  `CanAccessStockAsync` = admin, `stock`, `stock_keyuser`, **`picking`** (`CurrentUserService.cs:100-101`); der Link-Ziel-Filter
+  `RequireLagerProcessingAccess` = `CanProcessLagerAsync` = admin, `stock`, `stock_keyuser` (`:125-126`). Ein Benutzer nur mit `picking` darf also
+  „Wareneingang zu Bestellung“ buchen und landet über den Link auf „Zugriff verweigert“. Der Link selbst wurde mit Admin geprüft
+  (`/WarehousePicking/Details/41`, `/50` → 200). Zusatz: Nr. 50 ist eine Glasbestellung, der Hinweis sagt „Lagerbestellung“ (N-7 im Bericht
+  [[02-wareneingang-einkauf]]).
 
 ## WE-6 · Hinweis · „Sage-Wareneingänge“ lädt ohne Zeitraum alle Wareneingänge in den Speicher
 
@@ -105,3 +123,12 @@ Gegenstand: `git diff main...HEAD`, Bündel-Worktree. Nichts behoben (Schranke 1
   ServiceSettings im Katalog (`ServiceSettingDefinitions`). Tests vorhanden (`PurchaseOrdersReceiveTests`, `SageWareneingangServiceTests`,
   `WareneingangCsvServiceTests`). Es fehlt ein Test für WE-1/WE-2.
 - Tippfehler in UI-Texten: keine gefunden.
+
+## Nachtrag aus der DEV-Regression (B2, 2026-11-14)
+
+Neue Befunde aus [[02-wareneingang-einkauf]] (Abschnitt „Neue Befunde“, dort mit Beleg und Vorschlag):
+- **N-7 (niedrig):** Hinweis „Offener Bedarf“ schreibt auch bei Glasbestellungen „Lagerbestellung Nr. …“ (`Receive.cshtml:152`,
+  `PurchaseProposalRepository.GetOffeneLagerbestellungenAsync` ohne `Type`); AKE-DEV 2027-168530 → „Lagerbestellung Nr. 50“ = „Glasbestellung #50“.
+  Zugleich fachlich klären, ob Glasbestellungen in den Bestellvorschlägen als offener Bedarf zählen sollen.
+- **N-8 (Hinweis):** Bedarfsmeldung ohne Einheit (`PartRequisitions.Unit` NULL) erscheint im Hinweis nur als Zahl („…: 4“).
+- **N-9 (Hinweis):** Maske bei 1523 px quer scrollbar, Spalte „Überlieferung“ erst nach Querscrollen sichtbar (Terminals schmaler).

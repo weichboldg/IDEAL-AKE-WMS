@@ -19,6 +19,11 @@ Spec: [[2026-11-08-einkauf-bestellvorschlaege-spec]].
 - **Prüfabfrage (Mensch, Sage):** Für einen Artikel mit Basismengeneinheit ≠ Lagermengeneinheit prüfen, in welcher Einheit die Sage-„Bestellmenge“
   in der Artikelmaske steht und was SData dafür liefert.
 - **Vorschlag:** Steht sie nicht in der Lagereinheit: den Fallback bei Basis ≠ Lager wie die letzte Bestellmenge sperren (Hinweis, keine Menge).
+- **DEV-Nachmessung 2026-11-14:** auf AKE-DEV derzeit ohne Wirkung, latent. 102 Artikel mit Meldebestand haben Basis ≠ Lager; davon hat **keiner**
+  zugleich `ArticleSageDetails.Bestellmenge > 0` und keine letzte Bestellung (Abfrage = 0). Spaltenfilter Hinweis `Fallback` → 0 Zeilen. Fällt
+  die letzte Bestellung weg (Rückblick 3 Jahre), greift der ungesperrte Fallback. Gegenprobe EK003604 (Basis Stk, Lager PKG, mit letzter
+  Bestellung): Sperre greift („Einheit Basis ≠ Lager – letzte Bestellmenge nicht verwendet“, kein Fallback). Einheitenfrage bleibt Prüfabfrage
+  in Sage. Bericht [[02-wareneingang-einkauf]].
 
 ## Bereits bekannt (nicht neu gezählt)
 

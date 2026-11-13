@@ -34,3 +34,11 @@ Spec: [[2026-11-08-wareneingang-aus-sage-bestellungen-spec]] (E1/E2), [[2026-11-
 - Migration 112 und 149: Guards, FreshInstall an beiden Stellen. `Sync:EinkaufBestellungenEnabled` im Katalog. Tests `EinkaufBestellungenSyncTests`,
   `PurchaseOrdersControllerTests`.
 - Tippfehler: keine gefunden.
+
+## Nachtrag aus der DEV-Regression (B2, 2026-11-14)
+
+Neuer Befund aus [[02-wareneingang-einkauf]] (Abschnitt „Neue Befunde“):
+- **N-10 (Hinweis, nur DEV):** IDEAL-DEV hat `WareneingangBestellungAktiv = true` bei ausgeschaltetem Abgleich und zeigt 1022 Bestellungen aus einem
+  Cache vom 07.11.2026 19:25 – Buchen gegen veraltete Bestellungen möglich. Vorschlag: Schalter auf IDEAL-DEV aus bzw. Cache leeren; Deploy-Checkliste:
+  auf IDEAL-PROD aus, solange kein Abgleich läuft.
+- OB-1 auf AKE-DEV unauffällig: Abgleiche 20:22 und 20:42 ohne Fehler (`uebernommen=1167`), Belegnummer max. 11 Zeichen im Cache.
