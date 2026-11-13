@@ -2,7 +2,7 @@
 type: spec
 title: Einkauf – Bestellvorschläge für Nachbestellartikel (Epic)
 slug: 2026-11-08-einkauf-bestellvorschlaege-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-11-07
 updated: 2026-11-13
 source_backlog: "[[2026-11-07-einkauf-bestellvorschlaege]]"
@@ -11,8 +11,8 @@ depends_on: "[[2026-11-08-wareneingang-aus-sage-bestellungen-spec]]"
 task: "[[2026-11-13-buendel-v1-99-19-goal-lauf]]"
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
 branch: "feature/2026-08-07-ideal-teile-1-5"
-version: "1.99.20 (Vorschlag: 1.99.16–1.99.18 vergibt der goal-Lauf [[2026-11-13-buendel-v1-99-16-goal-lauf]], 1.99.19 schlägt [[2026-11-13-lieferverzug-nachbesserung-keyuser-spec]] vor; Dev-Lauf prüft)"
-sql_block: "148–150 (reserviert 2026-11-13; 148 E3 ArticleSuppliers letzte Bestellung, 149 E5 PurchaseProposalTransfers, 150 Reserve; letzte belegte Nummer im Bündel 147, Dev-Lauf prüft)"
+version: "1.99.20 (E1/E2/E4/E6), 1.99.21 (E3), 1.99.22 (Freigabe-Nachtrag 3); urspr. Vorschlag: 1.99.16–1.99.18 vergibt der goal-Lauf [[2026-11-13-buendel-v1-99-16-goal-lauf]], 1.99.19 schlägt [[2026-11-13-lieferverzug-nachbesserung-keyuser-spec]] vor; Dev-Lauf prüft)"
+sql_block: "148–150 (belegt: 148 E3, 149 Freigabe-Nachtrag 3 Belegnummer 45 – E5 braucht daher 150 oder höher; reserviert 2026-11-13; 148 E3 ArticleSuppliers letzte Bestellung, 149 E5 PurchaseProposalTransfers, 150 Reserve; letzte belegte Nummer im Bündel 147, Dev-Lauf prüft)"
 testszenario: "TS-136"
 standort: beide
 affected_code:
@@ -566,7 +566,19 @@ EBZ-Abfrage billig), Datumsfilter `@…@` wirkt, nur Mandant 1.
 
 ## Deploy
 
-> [!info] Final (qa-agent 2026-11-13, aus dem echten Diff `65496165..cf3f41cb`, gelieferte Etappen E1/E2/E4/E6)
+> [!info] Final (qa-agent 2026-11-13 Wiederaufnahme, aus dem echten Diff `cf3f41cb..90bbbbd7`: E3 v1.99.21, Freigabe-Nachtrag 3 v1.99.22, QA-Fix)
+> - **Web:** ja (Bestellvorschläge E3-Spalten/Fallback; Wareneingang zu Bestellung Spalte „Überlieferung“ + Hinweis offene Bedarfe; Belegnummer 45; Hilfe/Changelog).
+> - **Service:** ja (`ArtikelLieferantSyncService` zweiter Leseschritt „letzte Bestellung“; `SageWareneingangService` Belegnummer 45).
+> - **Migration:** ja – `20261113171808_AddArticleSupplierLetzteBestellung` = `SQL/148` (additiv) und `20261113172929_WidenBelegnummer45` = `SQL/149`
+>   (Verbreiterung 20/30 → 45, Index `IX_SagePurchaseOrderLines_Belegnummer` drop/recreate, nicht destruktiv). Beide im Manifest (`SQL/148`, `SQL/149`,
+>   Phase Schema, automatisch) und in `00_FreshInstall.sql` an beiden Stellen.
+> - **Reihenfolge:** DB-Backup → Update-Skript `deploy/Update-IdealAkeWms.ps1` (Schema SQL/148 + SQL/149, Haltepunkt `Pruefung/RolleEinkauf`) → Web + Dienst →
+>   Info `v1.99.20-EinkaufAktivieren`. Kein Einmal-Skript.
+> - **Publish:** `<Worktree>/publish` neu (Ordner vorher gelöscht), **v1.99.22**, Commit `90bbbbd76c78d1115c468a024f04eab039b01cd7`, `publish-info.txt` (Erstellt
+>   2026-11-13 19:00), `deploy.zip` neu (19:00; IDEALAKEWMSWeb, IDEALAKEWMSWebService, SQL, deploy, publish-info.txt – Aufbau wie beim letzten Lauf). Beide Komponenten deployen.
+> - Nach dem Merge nur dann neu aus `main` publishen, wenn der Merge getestete Dateien mit parallelen main-Änderungen kombiniert hat.
+>
+> *Überholt (Stand v1.99.20):* Final (qa-agent 2026-11-13, aus dem echten Diff `65496165..cf3f41cb`, gelieferte Etappen E1/E2/E4/E6)
 > - **Web:** ja (Controller, View, Menü, Einstellungen, Rolle, Hilfe/Changelog).
 > - **Service:** nur `IDEALAKEWMSService/AppVersion.cs` (1.99.20) – fachlich keine Änderung; mitdeployen, damit Web und Dienst denselben Stand zeigen.
 > - **Migration:** **nein** (keine Datei unter `*/Migrations/`, kein neues `SQL/`; SQL/148 und SQL/149 bleiben frei, weil E3/E5 blockiert).
@@ -839,3 +851,126 @@ Rolle `einkauf` (Id 19) **bleibt** angelegt (keinem Benutzer zugewiesen); UserRo
 8. P2 (Gerald): Einheit der Mindestbestellmenge laut Sage-Lieferantenmaske – entscheidet, ob der Wächter (Faktor = 1) gelockert wird.
 9. A3 (Gerald): Leseweise der letzten Bestellmenge → entsperrt E3 (dann 13 (a) im Repository nachziehen, SQL/148).
 10. IDEAL: `EinkaufAktiv` aus lassen bis zur SData-Schnittstelle; Regression TS-136.10 auf dem IDEAL-Testsystem.
+
+## QA-Nachweis Wiederaufnahme (qa-agent, 2026-11-13 18:30–19:05): E3 + Freigabe-Nachtrag 3
+
+Geprüfter Bereich: `cf3f41cb..4689922c` (E3 `ca2f49ed` v1.99.21, Nachtrag 3 `4689922c` v1.99.22) + QA-Fix `90bbbbd7`. Worktree
+`.claude/worktrees/2026-08-07-ideal-teile-1-5`, Branch `feature/2026-08-07-ideal-teile-1-5`. Ergebnis: **Testbereit für E0–E4, E6 und Freigabe-Nachtrag 3**;
+**E5 bleibt blockiert** (Dispo-Stapel, Sage-Schreiben). Hinweis: SQL/149 ist durch Nachtrag 3 belegt – E5 braucht SQL/150 oder höher.
+
+### 1. Build und Tests
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler (28 bzw. nach QA-Fix 27 Warnungen, vorbestehend).
+- `dotnet test` vor und nach QA-Fix gleich: **IdealAkeWms.Tests 2853 / 0 / 1 übersprungen** (2854); **IDEALAKEWMSService.Tests 626 / 0 / 0**.
+
+### 2. Code-Review (selbst, in diesem Lauf)
+Gelesen: `ArtikelLieferantSyncService` (Haupt- und E3-Schritt, Audit, Fehlerpfad), `EinkaufBestellungenSyncService.Datum`, `SageWareneingangService` (Kappen 45),
+`PurchaseProposalCalculator`, `PurchaseProposalsController.BaueZeilen`/Spaltenfilter, `PurchaseProposalRepository` (letzte Bestellungen, Bedarfe mit Id/Bezug/Besteller),
+`Views/PurchaseProposals/Index.cshtml`, `PurchaseOrdersController.Receive`/`.SageWe`, `Views/PurchaseOrders/Receive.cshtml` + `SageWareneingaenge.cshtml`,
+`ApplicationDbContext`, beide Migrationen, `SQL/148`, `SQL/149`, `00_FreshInstall.sql`, `nachlauf.psd1`, `ColumnDefinitions`/`ColumnFilterTypes`, TS-136/TS-137, `SyncWorker`
+(Reihenfolge/Gates). Fallstrick-Klassen: keine Werte in `<script>` (JSON-Block statisch), kein `hidden` mit `d-*`, keine neue POST-Action/kein neues Listen-Binding
+(Checkbox bleibt `zeilen[i].UeberlieferungBestaetigt`, indexiert), Länge 45 serverseitig (`SageWeAlsUebergeben`) + `maxlength`, eine Rechenregel (`Berechne`),
+Bedarfs-Abfragen wiederverwendet statt dupliziert (Receive nutzt `IPurchaseProposalRepository`). Lokalzeit `DateTime.Now`; Audit `ModifiedAt/By/ByWindows` am E3-Schritt
+gesetzt (Zeitstempel = Laufbeginn wie im Hauptschritt). `?? new()` hinter den Bedarfs-Abfragen fängt nur Mock-null ab (echtes Repository liefert nie null).
+
+| # | Schwere | Befund | Behandlung |
+|---|---|---|---|
+| Q-2 | gering (A11y/Text) | Badge „Fallback“ und Grund ohne Leerzeichen im DOM („Fallback47 × Sage-Bestellmenge“ für Screenreader/Kopieren). | behoben `90bbbbd7`; Build/Tests grün, DEV neu deployt |
+| Q-3 | mittel (Betrieb) | Der E3-Schritt liest bei **jedem** Dienst-Zyklus (Default `WorkerSettings:SyncIntervalMinutes` 15) alle EBB/EBZ-Positionen der letzten 3 Jahre: AKE-DEV 38.047 Zeilen in **287 s** (EBB 283 s, 37 Seiten). Der SyncWorker läuft sequenziell – „Offene Bestellungen“ und Lieferverzug-Mails warten jedes Mal ~5 min, SData/Sage tragen die Last alle 15 min. | **offen für Gerald** (eigenes Intervall, z. B. täglich, oder so lassen). Nicht gebaut – neue Einstellung bräuchte ADR-0020-Pflege. |
+| Q-4 | gering | Eine Sage-Position mit `MengeBasis = 0` wird als „jüngste“ abgelegt (DEV: 1 Zeile, EK023626, kein Nachbestellartikel). Beim Hauptlieferanten zeigte die Liste L = 0 und „keine letzte Bestellung – Menge prüfen“, ohne anderen Lieferanten/Fallback. | gemeldet, heute ohne Wirkung; Vorschlag: Menge ≤ 0 im Dienst überspringen. |
+| Q-5 | gering (Text) | Fallback-Hinweis „keine Bestellung in 3 Jahren“ gilt auch, wenn es eine Bestellung bei einem Lieferanten **ohne** Artikel-Lieferant-Zeile gibt (DEV: 255 Paare, nur im Protokoll). | gemeldet; Text bleibt (Protokoll nennt die Paare). |
+
+Bewertung der gemeldeten Auslegungen: (1) Konstante `LetzteBestellungRueckblickJahre = 3` statt Einstellung – deckt Nachtrag 2 („sonst Konstante mit Kommentar“), ok.
+(2) Fallback mit Erhöhungsregel wie L – folgerichtig, auf DEV belegt (940 = 47 × 20). (3) Fallback erst, wenn irgendeine letzte Bestellung gelesen ist, sonst Banner – ok,
+verhindert ein falsches „keine Bestellung in 3 Jahren“ vor dem ersten Lauf. (4) Basis ≠ Lager → 13 b ohne Fallback – ok (auf DEV an EK003604 gesehen). (5) Leeren ohne
+Treffer, nur EBB = 0 als Fehler – ok (EBZ darf leer sein). (6) `PurchaseProposalRepositoryTests`: Werkbank/FA ergänzt, weil die Abfragen deren Namen projizieren; beide FKs
+sind Pflicht (`WarehouseRequisition.ProductionWorkplaceId`, `PartRequisition.ProductionOrderId` = `int`) – bildet die echte DB ab, versteckt nichts. (7) Links auf DEV
+geöffnet: `/WarehousePicking/Details/8` („Lagerbestellung #8“, Teilgeliefert), `/PartRequisitions?searchTerm=00725321` (genau die 2 offenen). Einheit der
+Sage-Bestellmenge (angenommen Lagereinheit) bleibt **offen für Gerald**. ADR 0020: keine neue oder geänderte Einstellung im Diff. `deploy.zip` war v1.99.20 – neu gebaut (s. 7).
+
+### 3. Nachweisart je Akzeptanzkriterium (neu bzw. geändert)
+| AK | Nachweis |
+|---|---|
+| 7 (E3) Vorschlag = L, Erhöhung, ohne L | automatisch (`PurchaseProposalCalculatorTests`, `PurchaseProposalsControllerTests` E3) + DEV: 00722001 L 400 / 09.04.2026 / `2027-168142` (= E0/P-L2 b); Bedarf 120 → 400 „letzte Bestellmenge“; Bedarf 600 → verfügbar −400, „kritisch“, 800 „2 × letzte Bestellmenge“; anderer Lieferant EK015904 „letzte Bestellung bei Szkloland Sp. z o.o. (K34029)“; Fallback 00393476 (Test-Bedarf 1000) → 940 „47 × Sage-Bestellmenge“ + Badge + Hinweis, Banner „1 Zeile“, Hinweis-Filter `Fallback` = 1 Zeile |
+| 8 (E3) Basis ≠ Lager | automatisch + DEV (EK003604, EK005564, 00717191: Spalten leer, Hinweis „Einheit Basis ≠ Lager – letzte Bestellmenge nicht verwendet“, kein Fallback) |
+| 9 (E3) Lesefehler | automatisch (`KontokorrentArtikelLieferantTests` Lesefehler, EBB leer); DEV nicht provozierbar (beide Schritte nutzen dasselbe SData-Ziel) → Manual-UAT |
+| 17 Dienst-Test E3 | vorhanden (`KontokorrentArtikelLieferantTests`: jüngster Beleg über alle Seiten, EBZ, Leeren, Audit, Lesefehler, EBB leer, where/orderBy) |
+| TS-137 Belegnummer 45 | automatisch (`SageWareneingaengeListeTests` 45/46, Modell-Länge) + DEV SQL Server: 5 Spalten `max_length = 90`, Index vorhanden; 45 Zeichen in Transaktion gespeichert (Rollback), 46 → „String or binary data would be truncated“ |
+| TS-137 Hinweis offene Bedarfe | automatisch (`PurchaseOrdersReceiveTests`) + DEV (s. 6) |
+| TS-137 Layout | DEV-Screenshots vorher/nachher; Touch am Terminal Manual-UAT |
+
+### 4. Geänderte bestehende Tests
+- `PurchaseOrdersControllerTests`, `PurchaseOrdersReceiveTests`, `SageWareneingaengeListeTests`, `PurchaseProposalsControllerTests` (Builder): neuer Ctor-Parameter
+  `IPurchaseProposalRepository` bzw. neue optionale Parameter – reine Typanpassung.
+- `NachlaufManifestDriftTests`: Liste um `SQL/148`, `SQL/149` – gewollt (neue Schema-Einträge).
+- `PurchaseProposalRepositoryTests`: Fixture um Werkbank + FA – Fixture-Realismus für Pflicht-FKs (Auslegung 6), kein Verhalten geändert. Keine „sonstigen“ Änderungen.
+
+### 5. Checkliste
+Migrationen + `SQL/148`/`SQL/149` mit Guards (COL_LENGTH, DDL je Batch, History separat), je DEV-DB zweimal ohne Fehler; `00_FreshInstall.sql` Schema + `MigrationId`
+(mit Bedingung) für beide; `SQL/AgentJobs` nicht betroffen; Manifest `SQL/148`, `SQL/149`; Version 1.99.22 in beiden `AppVersion.cs`; Anwender-Changelog + Hilfe;
+Brain-Changelogs v1.99.21/v1.99.22; TS-136 (E3) + TS-137 in `docs/TESTSZENARIEN.md`; [[testszenarien-index]] Zeilen 136/137. Frontend: Bootstrap-Muster, Server-Spaltenfilter
+für die zwei neuen Spalten, Badge `text-bg-info` (schwarz auf Cyan), Bedarfs-Hinweis Text + gelber Rand (Farbe nur zusätzlich), Checkbox-Label 44 × 44 px mit verstecktem Text.
+
+### 6. DEV-Deploy und Testlauf
+- **Vorher-Screenshot** (v1.99.20, AKE-DEV, Bestellung 2027-168972): Checkbox „Überlieferung bestätigt“ unter dem Ist-Mengen-Feld, Memo tiefer als die Ist-Menge.
+- `SQL/148` + `SQL/149` auf `AKE_WMS_DEV` und `IDEAL_WMS_DEV` je **zweimal** (Exit 0; 2. Lauf ohne Änderung).
+- `dev-deploy.ps1` (Shell erhöht) aus dem Worktree, AKE und IDEAL, je Exit 0, Fußzeile **v1.99.22** – erst `4689922c`, nach QA-Fix erneut `90bbbbd7`.
+- **Sicherheitsprüfung vor den Syncs (AKE-DEV):** `SageLagerbuchungAktiv`, `SageLagerbuchungUmbuchungAktiv`, `SageWareneingangBelegAktiv` = false; E5 hat weder Code noch
+  Schalter; Lieferverzug `MailAktiv = true` mit `Testbetrieb = true`, Dienst-`MailSettings:PickupDirectory` gesetzt (Pickup hat Vorrang vor SMTP, `MailService.cs:30-36`);
+  Pickup-Ordner vor und nach den Läufen 385 Dateien – keine Mail entstanden. Die drei Syncs lesen nur (SData GET).
+- **Läufe AKE-DEV 18:43–18:49 (`dbo.SyncLogs` 5661755–5661778):** Kreditoren Erfolg (2287 unverändert); Artikel-Lieferanten Erfolg (34.802 gelesen, 15.424 Hauptlieferanten;
+  E3 `letzte_bestellung_positionen=38047`, `_ebz=1759`, `_gefunden=10909`, `_aktualisiert=10654`, `_geleert=0`, `_ohne_zuordnung=255`, `_uebersprungen=70`); Offene
+  Bestellungen Erfolg (1167 Positionen, 34 Einheit abweichend). Nach dem Re-Deploy (DEV-Absicherung setzt die Syncs zurück) erneut eingeschaltet, zweiter Zyklus ab 18:59.
+
+| TS | Schritt | Ergebnis | Status |
+|---|---|---|---|
+| 136.6 | Lauf + Werte 00722001 | Protokoll EBB/EBZ, Zähler, Erfolg; 400 / 09.04.2026 / `2027-168142`; Audit `ArtikelLieferantSync` | OK |
+| 136.6a | verfügbar 80 (Test-Bedarf 120) | 400, „letzte Bestellmenge“ | OK |
+| 136.6b | verfügbar −400 (Test-Bedarf 600) | „kritisch“, 800, „2 × letzte Bestellmenge“ | OK |
+| 136.6c | anderer Lieferant | EK015904 (ohne Hauptlieferant): Werte von K34029, Hinweis „letzte Bestellung bei …“ | OK |
+| 136.6d | Fallback | real 0 Fälle unter 50 Vorschlägen; mit Test-Bedarf für 00393476: 940 „47 × Sage-Bestellmenge“, Badge, Hinweis, Banner, Filter = 1 Zeile | OK |
+| 136.6e | weder L noch Sage-Bestellmenge | 00393912: Grund „keine letzte Bestellung – Menge prüfen“; Banner „19 Zeilen …“ | OK |
+| 136.6f | Basis ≠ Lager | EK003604 u. a.: Spalten leer, Hinweis, kein Fallback | OK |
+| 136.6g | Zahlfilter `>=400` | 320 Zeilen = unabhängige SQL-Zählung 320 | OK |
+| 136.6g | Datumsfilter, CSV | nicht ausgeführt | NICHT MÖGLICH (Download) |
+| 136.18 | nie gelesen | Liste vor dem ersten Lauf nicht geöffnet | NICHT MÖGLICH (automatisch belegt) |
+| 136.19 | Lesefehler nur im 2. Schritt | s. AK 9 | NICHT MÖGLICH |
+| 136.20 | ohne Artikel-Lieferant-Zeile | Warnung mit 255 Paaren und Beispielen | OK |
+| 136.10 | IDEAL-DEV Gate aus | Redirect + Warnung, kein Menü, v1.99.22 | OK |
+| 137.1 | Schema + 2. Lauf | 5 × `max_length 90`, Index da; 2. Lauf ohne Änderung | OK |
+| 137.2 | 45/46 „Klären“ | keine Fehler/Klären-Einträge auf DEV; DB-Ebene 45 ok / 46 abgewiesen (Rollback) | teilweise; Browser NICHT MÖGLICH |
+| 137.3 | Layout vorher/nachher | eigene Spalte „Überlieferung“, Ist-Menge/Häkchen/Memo auf einer Linie, Zeilen niedriger | OK (Screenshots) |
+| 137.3 | Tippen neben das Kästchen | Zustand nach Klick nicht per Screenshot belegbar (Browser-Erfassung hing) | NICHT MÖGLICH |
+| 137.4 | Buchen mit/ohne Häkchen | nicht gebucht | NICHT MÖGLICH |
+| 137.5/137.6 | Hinweis Lagerbestellung | 2027-168883, 00720623: „Lagerbestellung Nr. 8 – A1, gerald.weichbold: 1 Stk“, „Nr. 15 …: 1 Stk“ (Teilgeliefert, nur Rest); Link öffnet „Lagerbestellung #8“ | OK |
+| 137.7 | Hinweis Bedarfsmeldung | 2026-166281 (4 Pos. 00725321): „FA 2602151 – gerald.weichbold: 1“, „FA 2602098 …: 2“; Link zeigt genau die 2 offenen | OK |
+| 137.8 | nur Anzeige beim Buchen | nicht gebucht | NICHT MÖGLICH (automatisch belegt) |
+| 137.9/137.10 | Schalter aus | nicht umgestellt | automatisch belegt |
+| 137.11 | Entwurf/abgeschlossen | 00720623 Entwurf Nr. 2 und abgeschlossene Nr. 1 nicht angezeigt; 00720624 ohne Block | OK |
+| 137.12/137.13 | gesperrte Position, Graustufen | nicht gesehen | NICHT MÖGLICH |
+
+Screenshots im Ordner `secondbrain/tests/2026-11-13-qa-einkauf-e3-nachtrag-3-screenshots/`: `ts137-3-vorher-links.jpg`, `ts137-3-vorher-rechts.jpg`,
+`ts137-3-nachher-links.jpg`, `ts137-3-nachher-rechts.jpg`, `ts137-5-hinweis-lagerbestellung.jpg`, `ts137-5-hinweis-rechts.jpg`, `ts136-liste-ake-dev-endzustand.jpg`.
+
+**DEV-Endzustand (bleibt so, Auftrag Gerald 18:09):**
+- AKE-DEV ServiceSettings: `Sync:Quelle:Artikel = SData` (war so), `Sync:KreditorenEnabled`, `Sync:ArtikelLieferantEnabled`, `Sync:EinkaufBestellungenEnabled` = true; aus
+  bleiben `SageLagerbuchungAktiv`, `SageLagerbuchungUmbuchungAktiv`, `SageWareneingangBelegAktiv`, `Sync:ArticlesEnabled` und alle übrigen `Sync:*`; Lieferverzug unverändert
+  (Testbetrieb, Pickup). **Achtung:** jeder `dev-deploy.ps1`-Lauf setzt die drei Syncs wieder auf false.
+- AKE-DEV AppSettings: `EinkaufAktiv = true` (neu), `BestellungenAktiv = true`, `LagerbestellungAktiv = true` (beide schon so).
+- Rolle: gerald.weichbold (UserId 14) hat **admin + einkauf** (UserRoles neu mit RoleId 19; admin-Zuordnung 40 unverändert).
+- Anzeige: **50 Vorschläge**, **0 Fallback-Zeilen** (real), **19 Zeilen „Menge prüfen“**; 10.654 Artikel-Lieferant-Zeilen mit letzter Bestellung. Test-Bedarfsmeldungen 23/24 gelöscht.
+- IDEAL-DEV: **nicht eingeschaltet** – 0 Hauptlieferanten, und `SData:Dataset` zeigt dort auf `ake_TEST2026;1` (ein Sync schriebe AKE-Daten in die IDEAL-DB); `EinkaufAktiv` nicht gesetzt.
+
+### 7. Publish
+`<Worktree>/publish/` neu (Ordner gelöscht): `IDEALAKEWMSWeb`, `IDEALAKEWMSWebService`, `SQL`, `deploy`, `publish-info.txt` (Version 1.99.22, Commit
+`90bbbbd76c78d1115c468a024f04eab039b01cd7`, Erstellt 2026-11-13 19:00) und `deploy.zip` (neu, 19:00, gleicher Aufbau wie zuvor).
+
+### Manuelle Test-Checkliste (Schranke 2) – offen nach diesem Lauf
+1. **Q-3 entscheiden:** E3-Schritt in jedem 15-min-Zyklus (~5 min SData-Last, verzögert Offene Bestellungen/Lieferverzug) – so lassen oder eigenes Intervall (Folge-Spec).
+2. Einheit der Sage-Bestellmenge (Fallback) bestätigen – angenommen Lagereinheit.
+3. TS-136.6g CSV mit „letzte Bestellmenge/-am“ und Datumsfilter „letzte Bestellung am“.
+4. TS-136.19 Lesefehler im zweiten Schritt (falls gezielt erzeugbar).
+5. TS-137.2 „Klären“ mit 45/46 Zeichen im Browser (braucht einen Fehler/Klären-Eintrag).
+6. TS-137.3 am Terminal/Tablet: Tippen neben das Kästchen hakt an; TS-137.4 Buchen mit/ohne Häkchen.
+7. TS-137.8, 137.12, 137.13.
+8. Offen aus dem ersten Lauf: Punkte 1–8 und 10 der Checkliste oben (Punkt 9/A3 erledigt).
+9. Testsystem-Lauf mit `publish/` v1.99.22: Update-Skript (DB-Backup, SQL/148 + SQL/149), AKE-Voraussetzungen, `EinkaufAktiv`.
