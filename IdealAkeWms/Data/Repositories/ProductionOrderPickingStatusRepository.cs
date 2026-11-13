@@ -210,9 +210,12 @@ public class ProductionOrderPickingStatusRepository : IProductionOrderPickingSta
 
     public async Task<int> GetMaxPickingPriorityAsync(int? excludeProductionOrderId = null)
     {
+        // Bewusst OHNE IsReleasedForPicking: eine zurueckgenommene, noch offene HauptFA behaelt ihre Prio
+        // und bekommt sie bei erneuter Freigabe zurueck. Zaehlte sie nicht mit, vergaebe die naechste
+        // Freigabe dieselbe Zahl (Doppelte, Spec 2026-11-13-doppelte-kommissionier-prio-nach-ruecknahme, Variante B).
         var q = _context.ProductionOrders
             .Where(ProductionOrder.IsHauptFa)
-            .Where(p => p.PickingStatus != null && p.PickingStatus.IsReleasedForPicking
+            .Where(p => p.PickingStatus != null
                         && !p.IsDone && !p.IsCancelled && p.PickingStatus.PickingPriority != null);
 
         if (excludeProductionOrderId.HasValue)

@@ -149,6 +149,10 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
    Appsettings='SageLagerbuchung:Password'
    Text='SData-Kennwort steht noch im Klartext in {Datei}. Erst in den Service-Einstellungen eintragen und den Lauf Sage-Lagerbuchung pruefen, dann aus der Datei entfernen (auch Web: appsettings.Production.json).'
    Quelle='2026-11-13-v1-99-14-sdata-teil-2-userfelder-stueckliste' }
+@{ Id='Pruefung/DoppeltePrio'; Version='1.99.17'; Typ='Pruefung'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Pruefung='SELECT COUNT(*) FROM (SELECT ps.PickingPriority FROM dbo.ProductionOrderPickingStatus ps JOIN dbo.ProductionOrders po ON po.Id = ps.ProductionOrderId WHERE ps.PickingPriority IS NOT NULL AND po.IsDone = 0 AND po.IsCancelled = 0 AND (po.SubOrderNumber = N'''' OR po.SubOrderNumber = po.OrderNumber) GROUP BY ps.PickingPriority HAVING COUNT(*) > 1) d'
+   Text='Offene FAs mit gleicher Kommissionier-Prio (Altbestand vor v1.99.17, freigegeben oder zurueckgenommen): im Leitstand per Prio-Eingabe korrigieren; Liste mit Pruefabfrage 1 der Spec 2026-11-13-doppelte-kommissionier-prio-nach-ruecknahme. Eine bewusst gleiche Prio (zwei FAs gleich dringend) ist erlaubt.'
+   Quelle='2026-11-13-v1-99-17-doppelte-kommissionier-prio' }
 
 # ---------------------------------------------------------------- Daten und Einmal-Skripte (nur mit Eingabe am Zielserver, ADR 0023)
 @{ Id='Einmalig/2026-11-08_v1.88.0_Kommissionierauftraege_Altbestand'; Version='1.88.0'; Typ='Einmalig'; Firma='beide'; Phase='Haltepunkt'; Ausfuehrung='Trockenlauf'

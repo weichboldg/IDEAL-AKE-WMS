@@ -1399,13 +1399,18 @@
 
                     <dt>Priorisierung</dt>
                     <dd>Jeder freigegebene Auftrag erhaelt eine numerische Prioritaet (1 = hoechste).
-                        Bei Freigabe wird automatisch die naechste freie Nummer vorgeschlagen.
-                        Die Prioritaet kann jederzeit per Inline-Eingabe geaendert werden.
+                        Bei Freigabe ohne Prioritaet wird automatisch die naechste freie Nummer vergeben &mdash;
+                        hoeher als jede Prioritaet offener Auftraege, auch zurueckgenommener (seit v1.99.17).
+                        Die vergebene Nummer kann deshalb hoeher sein als jede im Leitstand sichtbare.
+                        Die Prioritaet kann jederzeit per Inline-Eingabe geaendert werden; eine schon vergebene
+                        Nummer ist dabei bewusst erlaubt (zwei Auftraege gleich dringend).
                         Auftraege ohne Prioritaet werden ans Ende sortiert.</dd>
 
                     <dt>Freigabe zuruecknehmen</dt>
-                    <dd>Eine Freigabe kann jederzeit zurueckgenommen werden. Der Auftrag verschwindet
-                        aus der Kommissionierliste. Bereits kommissionierte Teile bleiben erhalten.</dd>
+                    <dd>Eine Freigabe kann jederzeit zurueckgenommen werden. Kommissionierauftraege ohne gepickte
+                        oder umgebuchte Zeile werden storniert; Auftraege mit Fortschritt bleiben in der
+                        Kommissionierliste und werden gemeldet. Bereits kommissionierte Teile bleiben erhalten.
+                        Der Auftrag behaelt seine Prioritaet: bei erneuter Freigabe steht er wieder an seinem Platz.</dd>
 
                     <dt>Nur am HauptFA (IDEAL, seit v1.46.0)</dt>
                     <dd>Freigabe, Prioritaets-Eingabe, Massenauswahl und die interaktive Stueckliste

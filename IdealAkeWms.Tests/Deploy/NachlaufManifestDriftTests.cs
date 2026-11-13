@@ -173,7 +173,7 @@ public class NachlaufManifestDriftTests
     public void Manifest_Pruefungen_Gueltig()
     {
         var p = Eintraege(ManifestText).Where(x => x["Typ"] == "Pruefung").ToList();
-        p.Select(x => x["Id"]).Should().Contain(new[] { "Pruefung/Kommissionierbereiche", "Pruefung/RCSI", "Pruefung/RollenBeschichtungsauftrag", "Pruefung/DummyArtikel" });
+        p.Select(x => x["Id"]).Should().Contain(new[] { "Pruefung/Kommissionierbereiche", "Pruefung/RCSI", "Pruefung/RollenBeschichtungsauftrag", "Pruefung/DummyArtikel", "Pruefung/DoppeltePrio" });
         File.ReadAllText(Path.Combine(Root, "scripts", "deploy", "Update-IdealAkeWms.ps1"))
             .Should().Contain(@"'\b(INSERT|UPDATE|DELETE|MERGE|DROP|ALTER|CREATE|EXEC|EXECUTE|TRUNCATE|GRANT)\b'", "Waechter im Skript = Kopie hier");
         foreach (var x in p)

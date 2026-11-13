@@ -326,4 +326,75 @@ public class ProductionOrderPickingStatusRepositoryTests
             .IsReleasedForPicking.Should().Be(!release); // unveraendert
     }
 
+
+    // Spec 2026-11-13-doppelte-kommissionier-prio-nach-ruecknahme (Variante B):
+    // eine zurueckgenommene, noch offene HauptFA behaelt ihre Prio und zaehlt ins MAX.
+    [Fact]
+    public async Task GetMaxPickingPriority_CountsRevokedOpenHauptFa_IgnoresDoneCancelledSubFa()
+    {
+        using var context = TestDbContextFactory.Create();
+        TestDataHelper.CreateOrderWithStatuses(context, "10", releaseForPicking: true, pickingPriority: 5, orderId: 1);
+        TestDataHelper.CreateOrderWithStatuses(context, "11", releaseForPicking: false, pickingPriority: 7, orderId: 2); // zurueckgenommen
+        TestDataHelper.CreateOrderWithStatuses(context, "12", releaseForPicking: false, isDone: true, pickingPriority: 90, orderId: 3);
+        var cancelled = TestDataHelper.CreateOrderWithStatuses(context, "13", releaseForPicking: false, pickingPriority: 91, orderId: 4);
+        cancelled.Order.IsCancelled = true;
+        var sub = TestDataHelper.CreateOrderWithStatuses(context, "14", releaseForPicking: false, pickingPriority: 92, orderId: 5);
+        sub.Order.SubOrderNumber = "14-1";
+        await context.SaveChangesAsync();
+
+        var repo = new ProductionOrderPickingStatusRepository(context);
+
+        (await repo.GetMaxPickingPriorityAsync()).Should().Be(7);
+        (await repo.GetMaxPickingPriorityAsync(excludeProductionOrderId: 2)).Should().Be(5);
+    }
+
+    [Fact]
+    public async Task SingleRelease_AfterRevoke_NewOrderGetsNextNumber_RevokedKeepsItsOwn()
+    {
+        // Ablauf wie PickingLeitstandController.SetRelease: ohne Prio -> MAX(exclude self) + 1, sonst behalten.
+        using var context = TestDbContextFactory.Create();
+        TestDataHelper.CreateOrderWithStatuses(context, "X", articleNumber: "A", orderId: 1);
+        TestDataHelper.CreateOrderWithStatuses(context, "Y", articleNumber: "A", orderId: 2);
+        await context.SaveChangesAsync();
+        var repo = new ProductionOrderPickingStatusRepository(context);
+
+        async Task Release(int id)
+        {
+            var ps = await repo.GetByProductionOrderIdAsync(id);
+            var prio = ps!.PickingPriority ?? await repo.GetMaxPickingPriorityAsync(id) + 1;
+            await repo.SetReleaseAsync(id, true, prio, "t", "t", "t");
+        }
+
+        await Release(1);                                          // X = 1
+        await repo.SetReleaseAsync(1, false, null, null, "t", "t"); // X zurueckgenommen, Prio bleibt
+        await Release(2);                                          // Y = 2 (nicht 1)
+        await Release(1);                                          // X behaelt 1
+
+        (await repo.GetByProductionOrderIdAsync(1))!.PickingPriority.Should().Be(1);
+        (await repo.GetByProductionOrderIdAsync(2))!.PickingPriority.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task SetReleaseBatch_MixedSelection_RevokedKeepsPrio_NoDuplicates()
+    {
+        // DEV-Fall 2614167/2614168: X zurueckgenommen mit 32, freigegebenes MAX 31, Y ohne Prio -> Y = 33.
+        using var context = TestDbContextFactory.Create();
+        TestDataHelper.CreateOrderWithStatuses(context, "Z", releaseForPicking: true, pickingPriority: 31, articleNumber: "A", orderId: 1);
+        TestDataHelper.CreateOrderWithStatuses(context, "X", releaseForPicking: false, pickingPriority: 32, articleNumber: "A", orderId: 2);
+        TestDataHelper.CreateOrderWithStatuses(context, "Y", releaseForPicking: false, articleNumber: "A", orderId: 3);
+        TestDataHelper.CreateOrderWithStatuses(context, "W", releaseForPicking: false, articleNumber: "A", orderId: 4);
+        await context.SaveChangesAsync();
+
+        var repo = new ProductionOrderPickingStatusRepository(context);
+        var result = await repo.SetReleaseBatchAsync(new[] { 2, 3, 4 }, true, null, null, "t", "t", "t");
+
+        result.Processed.Should().Be(3);
+        var prios = await context.ProductionOrderPickingStatuses
+            .OrderBy(s => s.ProductionOrderId).Select(s => s.PickingPriority).ToListAsync();
+        prios[0].Should().Be(31);
+        prios[1].Should().Be(32);
+        prios.Skip(2).Should().BeEquivalentTo(new int?[] { 33, 34 });
+        prios.Should().OnlyHaveUniqueItems();
+    }
+
 }

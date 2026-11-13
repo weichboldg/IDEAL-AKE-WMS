@@ -27,15 +27,15 @@ public interface IProductionOrderPickingStatusRepository
     Task<int> GetReleasedForPickingCountAsync();
 
     /// <summary>
-    /// Returns the current MAX(PickingPriority) over all released-and-not-done orders,
-    /// or 0 if none exist. Optionally excludes one ProductionOrderId from the calculation.
+    /// Returns the current MAX(PickingPriority) over all open (not done, not cancelled) HauptFAs with a priority,
+    /// released or revoked (a revoked order keeps its priority), or 0 if none exist. Optionally excludes one ProductionOrderId from the calculation.
     /// </summary>
     Task<int> GetMaxPickingPriorityAsync(int? excludeProductionOrderId = null);
 
     /// <summary>
     /// Bulk release/unrelease for a set of production orders in a single SaveChanges roundtrip.
     /// When releasing: skips orders without ArticleNumber and reports them in SkippedNoArticle.
-    /// Assigns priorities continuing from MAX(existing released priority) for orders that don't have one.
+    /// Assigns priorities continuing from <see cref="GetMaxPickingPriorityAsync"/> for orders that don't have one.
     /// When releasing and assignedPickerId is provided, sets picker on every processed row.
     /// </summary>
     Task<BulkReleaseResult> SetReleaseBatchAsync(
