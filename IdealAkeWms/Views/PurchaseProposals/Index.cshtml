@@ -179,7 +179,7 @@ else
 </div>
 @if (Model.Items.Count == 0 && Model.ArtikelGesamt > 0)
 {
-    <div class="alert alert-light border">Kein Artikel im gewählten Filter. Für alle Artikel mit Meldebestand den Umfang „alle Artikel mit Meldebestand“ wählen.</div>
+    <div class="alert alert-light border">Kein Artikel im gewählten Filter.@(Model.Umfang == PurchaseProposalListViewModel.UmfangVorschlaege ? " Für alle Artikel mit Meldebestand den Umfang „alle Artikel mit Meldebestand“ wählen." : "")</div>
 }
 
 <partial name="_Pagination" model="Model.Pagination" />
