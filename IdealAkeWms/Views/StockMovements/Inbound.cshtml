@@ -189,7 +189,7 @@
 
             var lastFaQuery = null;
             var requestSeq = 0;
-            var deFormatter = new Intl.NumberFormat('de-AT', { maximumFractionDigits: 3 });
+            var deFormatter = new Intl.NumberFormat('de-AT', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
 
             function escapeHtml(s) {
                 var div = document.createElement('div');
@@ -221,9 +221,10 @@
                     var unit = i.unit && i.unit.trim() !== '' ? i.unit : 'Stk';
                     html += '<li>Lagerplatz <strong>' + escapeHtml(i.storageLocation) + '</strong> &mdash; '
                          + escapeHtml(deFormatter.format(i.quantity)) + ' ' + escapeHtml(unit)
-                         + ' Artikel ' + escapeHtml(i.articleNumber) + '</li>';
+                         + ' am Platz, Artikel ' + escapeHtml(i.articleNumber) + '</li>';
                 });
-                html += '</ul>';
+                // Spec 2026-08-05 Teil 1 AK7: Menge = gesamter Platzbestand (nicht der FA-Anteil) — das sagt der Hinweis ausdruecklich.
+                html += '</ul><div class="small mt-1">Menge = gesamter Bestand des Artikels am Platz, nicht nur der Anteil dieses FA.</div>';
                 return html;
             }
 

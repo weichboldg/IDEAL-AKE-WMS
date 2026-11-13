@@ -2,7 +2,7 @@
 // IdealAkeWms/Services/ColumnFilterSyntax.cs. parse/matches sind reiner Kern ohne DOM; darunter die gemeinsamen Browser-Hilfen
 // (Hilfe-Knopf, Kurztext, Rot-Markierung) fuer alle Filterzeilen. Beide Kerne pruefen gegen
 // IdealAkeWms.Tests/Js/column-filter-cases.json (C#-Theory + column-filter-syntax.check.js) — Aenderungen IMMER an beiden.
-//   7% beginnt · %7 endet · =x genau · ; oder (Text auch ,) · ! nicht (alle Teile) · (leer)
+//   7% beginnt · %7 endet · =x genau · ; oder (Text auch ,) · ! nicht (alle Teile) · (leer) · "a;b" ein Teil (trennt nicht)
 //   Zahl/Datum: >x >=x <x <=x, a...b (inklusive, vertauscht egal); = mit lesbarem Wert vergleicht den Wert
 (function (root) {
     'use strict';
@@ -68,6 +68,25 @@
         return { part: { op: 'contains', value: ends ? value : t } };
     }
 
+    // Teile an ; (Text auch ,) trennen. Beginnt ein Teil mit " oder =", reicht er bis zum naechsten " — Trenner darin trennen nicht,
+    // die Anfuehrungszeichen fallen weg, Rest bis zum Trenner (z. B. %) gehoert dazu. Ohne schliessendes " gilt alles wie bisher.
+    function splitParts(payload, seps) {
+        var parts = [], i = 0, n = payload.length;
+        while (i <= n) {
+            var start = i;
+            while (i < n && /\s/.test(payload.charAt(i))) i++;
+            var q = payload.charAt(i) === '"' ? i : (payload.charAt(i) === '=' && payload.charAt(i + 1) === '"' ? i + 1 : -1);
+            var close = q < 0 ? -1 : payload.indexOf('"', q + 1);
+            var head = '';
+            if (close >= 0) { head = payload.substring(i, q) + payload.substring(q + 1, close); i = close + 1; } else i = start;
+            var end = i;
+            while (end < n && seps.indexOf(payload.charAt(end)) < 0) end++;
+            parts.push(head + payload.substring(i, end));
+            i = end + 1;
+        }
+        return parts;
+    }
+
     function parse(raw, type) {
         type = type || 'text';
         var trimmed = (raw == null ? '' : String(raw)).trim();
@@ -75,8 +94,7 @@
         if (!trimmed) return result;
         result.negate = trimmed.charAt(0) === '!';
         var payload = result.negate ? trimmed.substring(1) : trimmed;
-        var sep = type === 'text' ? /[;,]/ : /;/;
-        payload.split(sep).forEach(function (token) {
+        splitParts(payload, type === 'text' ? ';,' : ';').forEach(function (token) {
             var tok = token.trim();
             if (!tok) return;
             var res = parsePart(tok.toLowerCase(), type);
@@ -122,7 +140,7 @@
             hint.id = HINT_ID;
             hint.className = 'visually-hidden';
             hint.textContent = 'Filter: 7% beginnt mit, %7 endet mit, =Wert genau, Semikolon oder, Ausrufezeichen am Anfang nicht, '
-                + '(leer) leer. Zahl und Datum: >5, <=01.10.2026, 40000...70000. Text: Komma oder.';
+                + '(leer) leer. Zahl und Datum: >5, <=01.10.2026, 40000...70000. Text: Komma oder. In Anfuehrungszeichen ein Begriff.';
             document.body.appendChild(hint);
         }
         return HINT_ID;
@@ -165,7 +183,8 @@
     function helpContent() {
         var rows = [['7%', 'beginnt mit 7'], ['%7', 'endet mit 7'], ['=KA', 'genau KA (Zahl/Datum: gleicher Wert)'],
             ['KA;SW', 'KA oder SW'], ['!KA;SW', 'weder KA noch SW'], ['(leer)', 'leeres Feld (!(leer) = nicht leer)'],
-            ['>5  <=5', 'Vergleich (Zahl, Datum)'], ['1...5', 'von bis (Zahl, Datum)'], ['KA,SW', 'oder – nur in Textspalten']];
+            ['>5  <=5', 'Vergleich (Zahl, Datum)'], ['1...5', 'von bis (Zahl, Datum)'], ['KA,SW', 'oder – nur in Textspalten'],
+            ['"GL;0;0;0"', 'genau dieser Text als ein Begriff (; und , trennen in Anführungszeichen nicht)']];
         var table = document.createElement('table');
         table.className = 'table table-sm mb-1 col-filter-help-table';
         rows.forEach(function (r) {

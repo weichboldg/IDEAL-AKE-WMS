@@ -251,7 +251,7 @@ public static class ColumnFilterSyntax
 
         var parts = new List<ColumnFilterPart>();
         var invalid = new List<string>();
-        foreach (var token in payload.Split(separators, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        foreach (var token in SplitParts(payload, separators))
         {
             var t = token.ToLowerInvariant();
             var (part, error) = ParsePart(t, type);
@@ -259,6 +259,30 @@ public static class ColumnFilterSyntax
             else if (part != null) parts.Add(part);
         }
         return new ParsedColumnFilter(negate, parts, invalid);
+    }
+
+    /// <summary>Teile an den Trennern; beginnt ein Teil mit <c>"</c> oder <c>="</c>, reicht er bis zum naechsten <c>"</c> — Trenner darin
+    /// trennen nicht, die Anfuehrungszeichen fallen weg, der Rest bis zum Trenner (z. B. <c>%</c>) gehoert dazu. Ohne schliessendes
+    /// <c>"</c> wie bisher (Spec 2026-11-12-befunde-ake-regression-dev, Punkt 1). JS-Spiegel <c>splitParts</c>.</summary>
+    private static IEnumerable<string> SplitParts(string payload, char[] separators)
+    {
+        var n = payload.Length;
+        var i = 0;
+        while (i <= n)
+        {
+            var start = i;
+            while (i < n && char.IsWhiteSpace(payload[i])) i++;
+            var q = i < n && payload[i] == '"' ? i : i + 1 < n && payload[i] == '=' && payload[i + 1] == '"' ? i + 1 : -1;
+            var close = q < 0 ? -1 : payload.IndexOf('"', q + 1);
+            var head = string.Empty;
+            if (close >= 0) { head = payload[i..q] + payload[(q + 1)..close]; i = close + 1; }
+            else i = start;
+            var end = payload.IndexOfAny(separators, i);
+            if (end < 0) end = n;
+            var token = (head + payload[i..end]).Trim();
+            if (token.Length > 0) yield return token;
+            i = end + 1;
+        }
     }
 
     private static (ColumnFilterPart? Part, string? Error) ParsePart(string t, ColumnFilterType type)

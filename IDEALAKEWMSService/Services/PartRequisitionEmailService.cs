@@ -266,9 +266,11 @@ public class PartRequisitionEmailService : IPartRequisitionEmailService
 
         // Use parameterized query for safety
         var parameters = ids.Select((id, i) => $"@id{i}").ToList();
-        var sql = $"UPDATE [dbo].[PartRequisitions] SET EmailSentAt = GETUTCDATE() WHERE Id IN ({string.Join(",", parameters)})";
+        // Ortszeit des Dienstrechners wie alle Schreiber (ADR 0010); nicht GETDATE()/GETUTCDATE() — Zeitzone des SQL-Servers nicht belegt.
+        var sql = $"UPDATE [dbo].[PartRequisitions] SET EmailSentAt = @jetzt WHERE Id IN ({string.Join(",", parameters)})";
 
         await using var cmd = new SqlCommand(sql, conn);
+        cmd.Parameters.Add("@jetzt", System.Data.SqlDbType.DateTime2).Value = DateTime.Now;
         for (int i = 0; i < ids.Count; i++)
             cmd.Parameters.AddWithValue($"@id{i}", ids[i]);
 

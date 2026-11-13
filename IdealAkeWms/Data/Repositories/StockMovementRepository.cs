@@ -528,7 +528,13 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
             .Distinct()
             .ToListAsync();
 
-        return orders;
+        // v1.99.13: Texte aus „Trotzdem buchen“ („A;B“) in Einzelnummern zerlegen, jede einmal — wirkt fuer Konfliktpruefung, Modal,
+        // Zusammenfuehren und „Lagerplatz ausbuchen“; Altbestand mit Wiederholungen wird beim Lesen normalisiert.
+        return orders
+            .SelectMany(o => o.Split([';', ','], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            .Distinct()
+            .Order(StringComparer.Ordinal)
+            .ToList();
     }
 
     public async Task<Dictionary<(int ArticleId, int StorageLocationId), decimal>> GetCurrentStockByArticleAndLocationAsync()

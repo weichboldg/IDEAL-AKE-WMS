@@ -387,4 +387,19 @@ public class PickingControllerTests
         PickingController.SortiereZeilen(zeilen, null).Select(z => z.BomPosition).Should().Equal(null, "1", "2", "3", "10");
         PickingController.SortiereZeilen(zeilen, "2,10,1").Select(z => z.BomPosition).Should().Equal("2", "10", "1", null, "3");
     }
+
+    // v1.99.13 (Spec 2026-11-12-befunde-ake-regression-dev, Punkt 4a): EINE Vorschlagsregel fuer Seite und Auftragsdruck —
+    // Hauptlagerplatz mit buchbarem Bestand, sonst buchbarer Platz mit hoechster Menge, sonst NAN.
+    [Fact]
+    public void QuellVorschlag_HauptplatzVorMengeVorNan()
+    {
+        StockLocationInfo L(int id, decimal menge, bool haupt = false) => new() { StorageLocationId = id, Quantity = menge, IsPrimaryStorageLocation = haupt };
+        var buchbar = new HashSet<int> { 1, 2, 3 };
+
+        PickingController.QuellVorschlag(new[] { L(1, 5), L(2, 1, haupt: true) }, buchbar, 99).Should().Be(2, "Hauptlagerplatz gewinnt");
+        PickingController.QuellVorschlag(new[] { L(1, 5), L(3, 8), L(4, 50, haupt: true) }, buchbar, 99)
+            .Should().Be(3, "nicht buchbarer Hauptlagerplatz zaehlt nicht, sonst hoechste Menge");
+        PickingController.QuellVorschlag(new[] { L(2, 0, haupt: true), L(4, 7) }, buchbar, 99).Should().Be(99, "ohne buchbaren Bestand NAN");
+        PickingController.QuellVorschlag(Array.Empty<StockLocationInfo>(), buchbar, null).Should().BeNull("ohne NAN-Platz nichts");
+    }
 }

@@ -451,8 +451,14 @@ Dokument aktualisiert werden (siehe CLAUDE.md → "Testszenarien-Pflicht").
 
 **Erwartetes Verhalten:**
 - Lagerplatz-Dropdown wird automatisch auf `K-WAGEN-03` gesetzt.
-- Blaues Info-Alert: "FA `12345` liegt bereits: Lagerplatz **K-WAGEN-03** — 5,000 Stk Artikel 87015207. → Lagerplatz wurde uebernommen."
+- Blaues Info-Alert: "FA `12345` liegt bereits: Lagerplatz **K-WAGEN-03** — 5,000 Stk am Platz, Artikel 87015207." darunter
+  "Menge = gesamter Bestand des Artikels am Platz, nicht nur der Anteil dieses FA." und "→ Lagerplatz wurde uebernommen."
+  (seit v1.99.13: drei Nachkommastellen und Erklaersatz).
 - Submit-Button bleibt aktiv.
+- **Negativ (Mischplatz, v1.99.13, Spec 2026-11-12-befunde-ake-regression-dev Variante A):** Liegen auf dem Platz zusaetzlich 2 Stk
+  desselben Artikels **ohne** FA, zeigt der Hinweis den ganzen Platzbestand (z. B. 7,000 Stk), nicht nur die 5 Stk des FA — so in
+  AK7 der Spec 2026-08-05-wms-bugs-improvements-teil-1 entschieden. Die Bestandsuebersicht mit FA-Filter zeigt weiter nur den FA-Anteil.
+  Ausfuehrlich: TS-130.2.
 
 ---
 
@@ -484,7 +490,9 @@ Dokument aktualisiert werden (siehe CLAUDE.md → "Testszenarien-Pflicht").
 
 **Erwartetes Verhalten:**
 - Lagerplatz-Dropdown bleibt leer.
-- Gelbes Warning-Alert: "FA `12345` liegt auf mehreren Lagerplaetzen: K-WAGEN-03 — 5,000 Stk; K-LAGER-05 — 3,000 Stk. → Bitte gezielt buchen."
+- Gelbes Warning-Alert: "FA `12345` liegt auf mehreren Lagerplaetzen: K-WAGEN-03 — 5,000 Stk am Platz …; K-LAGER-05 — 3,000 Stk am Platz …"
+  mit dem Erklaersatz "Menge = gesamter Bestand des Artikels am Platz, nicht nur der Anteil dieses FA." → Bitte gezielt buchen.
+- Die Mengen sind Platzbestaende (auch Bestand ohne FA am selben Platz zaehlt mit, siehe TS-130.2).
 
 ---
 
@@ -11697,8 +11705,80 @@ dafür `SageWareneingangBelegAktiv` an und den Sage-Wareneingang über einen Sta
 | 129.17 | Rolle: Benutzer ohne `stock_keyuser`/`admin`/`picking` | Kein Knopf „CSV erneut schreiben“; direkter POST `/PurchaseOrders/CsvErneutSchreiben?vorgang=<guid>` → Zugriff verweigert (AK 13) |
 | 129.18 | DEV IDEAL nach Deploy | Keine Änderung sichtbar (Schalter aus), kein Protokoll-Eintrag „Wareneingang-CSV“ (AK 17) |
 
+## TS-130 — Bugfixes aus der AKE-Regression: Filter in Anführungszeichen, FA-Hinweis Einbuchung, Bedarfsmeldung Ortszeit, Auftragsdruck Lagerplatz, Wagen-Modal (v1.99.13)
+
+Spec `2026-11-12-befunde-ake-regression-dev-spec` (Freigabe-Antworten: Variante A, Operatoren wirken in Anführungszeichen weiter, Druck = Vorschlag (a),
+Altdaten nicht umrechnen). Querverweise TS-91 (Filter-Suchsyntax), TS-2.12–2.20 (FA-Lagerplatz-Hinweis), TS-120 (Kommissionieraufträge).
+**Gilt für beide Standorte** (AKE und IDEAL); Filterfälle mit `;` vor allem auf AKE (Lagerplatz-Codes `XX;n;n;n`).
+**Vorbedingungen:** DEV mit Web und Dienst v1.99.13, keine Migration. AKE: Bestandsübersicht mit Plätzen „GL;0;0;0“ (und, falls vorhanden,
+„GL;0;0;01“) und Plätzen, die mit „LL“ beginnen. IDEAL: einen Testplatz mit `;` im Code anlegen oder eine Textspalte mit `,` im Wert nehmen.
+Für 130.4: freigegebener FA mit offenem Kommissionierauftrag, mindestens ein Bauteil mit buchbarem Bestand, eines ohne. Für 130.5: ein
+Kommissionierwagen W und vier Test-FAs A, B, C, D mit Kommissionieraufträgen. DEV-Mail: PickupDirectory (.eml).
+
+### TS-130.1 — Spaltenfilter: Wert in Anführungszeichen
+
+| Nr | Schritt | Erwartet |
+|---|---|---|
+| 130.1.1 | `/StockOverview`, Spalte Lagerplatz: `"GL;0;0;0"` | Nur Zeilen, deren Lagerplatz „GL;0;0;0“ enthält (Trefferzahl notieren; auf akenet01 26). Kein ODER-Treffer auf alle Plätze mit „0“ |
+| 130.1.2 | `="GL;0;0;0"`, dann `"=GL;0;0;0"` | Beide nur der Platz „GL;0;0;0“, nicht „GL;0;0;01“ |
+| 130.1.3 | `"GL;0;0;0"%` | „GL;0;0;0“ und „GL;0;0;01“ (beginnt mit) |
+| 130.1.4 | `!"GL;0;0;0"` | Genau die Zeilen aus 130.1.1 sind ausgeblendet, alle anderen sichtbar |
+| 130.1.5 | `"GL;0;0;0";LL%` | „GL;0;0;0“ ODER alle Plätze, die mit „LL“ beginnen |
+| 130.1.6 | Dieselben Eingaben wie 130.1.1 und 130.1.5 in einer Client-Liste (Kommissionierauftrags-Seite bzw. Stückliste, Spalte Lagerplatz) | Gleiche Trefferlogik wie in der Server-Liste |
+| 130.1.7 | „?“ in der Filterzeile; Hilfeseite → Filter-Syntax | Popover hat die Zeile `"GL;0;0;0"` – „genau dieser Text als ein Begriff (; und , trennen in Anführungszeichen nicht)“; Hilfeseite erklärt Anführungszeichen mit Beispielen |
+| 130.1.8 | **Negativ:** `GL;0;0;0` ohne Anführungszeichen | Wie bisher ODER („gl“ oder „0“), Trefferzahl wie vor dem Update (AKE-DEV 3302) |
+| 130.1.9 | **Negativ:** `=GL;0;0;0` ohne Anführungszeichen | Wie bisher „genau gl“ ODER „enthält 0“ (trifft also NICHT genau) – dafür gibt es die Anführungszeichen |
+| 130.1.10 | **Negativ:** Bezeichnungsspalte `1/2"` | Sucht weiter nach dem Text mit Zoll-Zeichen |
+| 130.1.11 | **Negativ:** `"abc` (ohne schließendes Anführungszeichen); `""` | `"abc` wie vor dem Update (sucht `"abc`); `""` filtert nicht (alle Zeilen) |
+| 130.1.12 | Automatisch | `ColumnFilterSyntaxTests` (C#-Theory) und `Kern_NodeSelbstpruefung_GleicheTabelle` (Node) grün mit den Fällen Q01–Q14 aus `column-filter-cases.json` |
+
+### TS-130.2 — FA-Hinweis Einbuchung: Mischplatz (Variante A)
+
+| Nr | Schritt | Erwartet |
+|---|---|---|
+| 130.2.1 | Vorbereitung: Artikel X auf Platz P einbuchen: 2 Stk **ohne** FA, dann 1 Stk **mit** FA F | Zwei Bewegungen in der Historie |
+| 130.2.2 | Einbuchung öffnen, Artikel wählen, Lagerplatz leer lassen, FA F eintippen → Tab | Blaues Info-Alert „Lagerplatz **P** — 3,000 Stk am Platz, Artikel X“, darunter „Menge = gesamter Bestand des Artikels am Platz, nicht nur der Anteil dieses FA.“; Platz P übernommen |
+| 130.2.3 | Bestandsübersicht, Filter FA F | Zeigt weiter 1,000 (FA-Anteil, historischer Pfad unverändert) |
+| 130.2.4 | **Negativ:** FA ohne Bestand eintippen | Kein Hinweis |
+| 130.2.5 | **Negativ:** FA auf zwei Plätzen | Gelbe Warnung mit beiden Plätzen (Mengen mit drei Nachkommastellen, „am Platz“, Erklärsatz), Lagerplatz wird NICHT übernommen |
+
+### TS-130.3 — Bedarfsmeldungen in Ortszeit
+
+| Nr | Schritt | Erwartet |
+|---|---|---|
+| 130.3.1 | Offener Kommissionierauftrag → „Bestellen“ → Bedarfsmeldung anlegen; Uhrzeit notieren | `/PartRequisitions` „Bestellt am“ = Ortszeit der Anlage ± 1 Minute (vorher 1 h, im Sommer 2 h zu früh); gleich der Uhrzeit einer Lagerbewegung derselben Minute |
+| 130.3.2 | Diese Meldung stornieren | SQL `SELECT CancelledAt, ModifiedAt FROM dbo.PartRequisitions WHERE Id = <id>` = Ortszeit ± 1 Minute |
+| 130.3.3 | Zweite Meldung anlegen, Mailversand des Dienstes abwarten (DEV: `.eml` im PickupDirectory) | Tooltip „Gesendet“ = Ortszeit des Versands; Mail-„Zeitpunkt“ = Ortszeit der Anlage |
+| 130.3.4 | Dritte Meldung per Einbuchung mit Zuordnung erfüllen | SQL: `FulfilledAt`, `ModifiedAt` = Ortszeit ± 1 Minute |
+| 130.3.5 | Spaltenfilter „Bestellt am“ `=<heute>` | Findet die neuen Meldungen |
+| 130.3.6 | **Negativ (Altdaten):** Meldungen von vor dem Update | Unverändert (nicht umgerechnet, Freigabe-Antwort 4): zeigen weiter die um 1 bzw. 2 h frühere Zeit |
+| 130.3.7 | Automatisch | `PartRequisitionRepositoryTests.FulfillAsync_SetsStatusAndReference` / `CancelAsync_SetsStatusAndCancelledBy` prüfen Zeiten nahe `DateTime.Now` (scheitern auf MEZ/MESZ, wenn wieder `UtcNow` geschrieben wird) |
+
+### TS-130.4 — Auftrag drucken: Spalte Lagerplatz
+
+| Nr | Schritt | Erwartet |
+|---|---|---|
+| 130.4.1 | Auftragsseite öffnen, „Quell-Lagerplatz“ je Zeile notieren; ohne Umbuchen „Auftrag drucken“ | Spalte Lagerplatz je offener Zeile = Vorschlag der Seite; Bauteil ohne buchbaren Bestand „NAN“ |
+| 130.4.2 | Zwei Zeilen umbuchen, eine davon mit einem vom Vorschlag abweichenden Quell-Platz; erneut drucken | Umgebuchte Zeilen zeigen den tatsächlichen Quell-Platz (auch den abweichenden); offene weiter den Vorschlag |
+| 130.4.3 | Auftrag „teilweise“ abschließen, Teilauftrag und Folgeauftrag drucken | Übertragene Zeilen im Teilauftrag leer; Folgeauftrag zeigt bei offenen Zeilen den Vorschlag |
+| 130.4.4 | „Vollständig“ abschließen mit nicht gebrauchten Zeilen, drucken | Entfallene Zeilen leer |
+| 130.4.5 | **Negativ:** Hauptlagerplatz eines Bauteils nicht buchbar | Wird nicht gedruckt (wie auf der Seite); stattdessen buchbarer Platz mit höchster Menge bzw. NAN |
+| 130.4.6 | Automatisch | `PickingControllerTests.QuellVorschlag_HauptplatzVorMengeVorNan` (eine Regel für Seite und Druck) |
+
+### TS-130.5 — Modal „Kommissionierwagen belegt“: FA-Liste
+
+| Nr | Schritt | Erwartet |
+|---|---|---|
+| 130.5.1 | FA A auf Wagen W umbuchen; dann FA B und FA C jeweils mit „Trotzdem buchen“ auf W | Bewegungshistorie: Texte „A“, „A;B“, „A;B;C“ (jede Nummer einmal) |
+| 130.5.2 | Umbuchung von FA D auf W | Modal zeigt „A; B; C“ – jede Nummer einmal, umbrochen innerhalb des Modals (auch am Handy) |
+| 130.5.3 | „Trotzdem buchen“ | Neue Bewegung trägt „A;B;C;D“; erneutes Buchen lässt den Text nicht wachsen |
+| 130.5.4 | Altbestand: Wagen mit alten Texten mit Wiederholungen (z. B. „2618052;2618052;2602108“) | Modal zeigt jede Nummer einmal (Normalisierung beim Lesen, keine Datenkorrektur) |
+| 130.5.5 | **Negativ:** Umbuchung von FA A auf einen Wagen, auf dem nur A liegt | Kein Modal |
+| 130.5.6 | **Negativ:** „Lagerplatz ausbuchen“ (`/StockMovements/OutboundAll`) für W | FA-Feld vorbelegt mit den Einzelnummern „A; B; C; D“ |
+| 130.5.7 | Automatisch | `StockMovementRepositoryProductionOrderTests.GetProductionOrdersAtLocation_ZerlegtTexteInEinzelneNummern` |
+
 ---
 
 *Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) + Teil 6 (Standorteinstellungen, v1.34.0) + BOM-Guard hierarchisch (2026-08-18, abgelöst) + FA-Liste-Hierarchie (v1.35.0) + BOM-Bridge (v1.36.0) + Materialisierung fachliche Felder K1/K2 (v1.37.0) + Skopierung der Tabellen-Selektoren (TS-72) + FA-Liste ausgebaut: Matchcode, Kopfdaten je Zeile, HauptFA-Zeile, Freigabe-Kaskade (v1.38.0, TS-73) + PDF-Erzeugung für FaHierarchy-Druckdokumente (v1.39.0, TS-74) + Matchcode im Artikelstamm (v1.40.0, TS-75) + FA-Arbeitsgang-Erkennung aus der Struktur (v1.41.0, TS-76, ersetzt durch TS-77) + Arbeitsgänge (WorkOperation) aus der Struktur + Werkbank-Anlage aus Sage (v1.44.0, TS-77) + Arbeitsgänge je (Sub-)FA im FA-Struktur-Modal (v1.45.0, TS-78) + Kommissionierung nur am HauptFA
-(v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80) + Beschichtungsauftrag Summiert als Standard (v1.48.0, TS-81) + Briefkopf Beschichtungsauftrag (v1.49.0, TS-82) + Beschichtungsauftrag als eigenes Objekt (v1.50.0, TS-83) + Beschichtungsaufträge bedienen (v1.51.0, TS-84) + Arbeitsgänge als Symbole im FA-Baum (v1.52.0, TS-85) + CSV-Export für alle Tabellen (v1.53.0, TS-86) + Arbeitsgang-Stammdaten (v1.54.0, TS-87) + Status je Arbeitsgang-Kürzel im FA-Baum (v1.55.0, TS-88) + Menü Beschichtung + Kurzanleitungen (v1.56.0, TS-89) + BDE-Terminal mit Arbeitsgang-Status (v1.57.0, TS-90) + Spaltenfilter-Suchsyntax Etappe A + B (v1.58.0/v1.58.1, TS-91.A/B) + Fußzeile nach Word-Vorlage (v1.59.0, TS-92) + Sage-Quellen auf WMS-Views (v1.60.0–v1.60.2, TS-93) + Arbeitsgang-Abgleich aus der Sage-View (v1.61.0, TS-94) + Stückliste Matchcode und Lagerplatz-Limit (v1.62.0, TS-95) + BDE Stufe 1: Werkbänke, AG-Fertigmeldung (v1.63.0, TS-96) + BDE-Terminal Liste nach Haupt-FA, Scan ohne AG (v1.64.0, TS-97) + Spaltenauswahl/Zahnrad zentraler Toolbar-Host (v1.65.0, TS-98) + Hardware-Barcodescanner (v1.66.0–v1.66.2, TS-99) + Vault- und enaio-Links konfigurierbar (v1.67.0, TS-100) + QR erstes Feld Matchcode / Trennzeichen (v1.68.0/v1.69.0, TS-101) + Aktivitäts-Protokoll Spaltenfilter/Namen (v1.70.0, TS-102) + FA-Struktur live aus Sage (v1.71.0, TS-103) + Lagerplatz-Etikett 93 × 55 mm und Vormontage-Felder (v1.72.0, TS-104/TS-105) + Sage-Abgleich über SData (v1.73.0, TS-106) + Fehlteile „Nur meine Werkbänke“ Trefferzahl (v1.75.0, TS-108) + Bestandsübersicht QR-FA nur mit `QrMitFaNummer` (v1.76.0, TS-101.22–101.25) + Einstellungen Auswahlfelder und Beschreibung (v1.77.0, TS-109) + EAN-Scan Einkaufsartikel (v1.78.0, TS-110) + Bereinigungen nach dem Bündel 2026-11-07 (v1.79.0, TS-111) + Artikelinfo Lieferanten (v1.80.0, TS-112) + Fehlteile-Karte je Bestelltyp (v1.81.0, TS-113) + Wareneingang zu Sage-Bestellung (v1.84.0, TS-116) + Artikel Lieferanten/Mengeneinheiten (v1.85.0, TS-112.12–112.16) + Offene Bestellungen Nachbesserung (v1.86.0, TS-116.8/116.9) + Lager-Tools FA-Verknüpfung (v1.87.0, TS-115) + Kommissionieraufträge (v1.88.0, TS-120) + Kommissionieraufträge Nachbesserung (v1.89.0, TS-120.1/120.9/120.13/120.14) + Lager-Tools FA-Karte je Pflicht (v1.90.0, TS-115.3) + Offene Bestellungen Legende (v1.91.0, TS-116.8) + OSEON-Relevanzfilter/BDE-Checkboxen (v1.92.0, TS-121) + Meldebestand-Mail Bestandsregel (v1.93.0, TS-122) + Menüleiste Umbruch/Kontrast (v1.94.0, TS-123) + Nachbesserung Vorab-Abnahme (v1.95.0, TS-115.13/115.14/116.10/120.15) + Übernahme AKE-Hotfixes v1.30.2–1.30.4 (v1.96.0, TS-107, TS-124) + Auftrag drucken in Sortierreihenfolge (v1.97.0, TS-120.16) + Matchcode in der Kommissionier-Auftragsliste (v1.99.8, TS-120.17) + Update-Skript je Zielsystem (v1.98.0, TS-125) + Update-Skript Url-Vorrang und Dienst-Stopp-Limit (v1.98.1, TS-125.17/125.18) + Update-Skript prüft und führt aus, mit Bestätigung (v1.99.0–v1.99.2, TS-126) + Update-Skript Prüfung Mail-Ablageordner (v1.99.12, TS-126.28–126.31) + Vormontage Spalte Abteilung (v1.99.3, TS-127) + Wareneingang Sage-Wareneingangsbeleg und Lieferschein (v1.99.4–v1.99.6, TS-116.11–116.19) + Sage-Wareneingang automatisch wiederholen mit Sage-Prüfung, Klären (v1.99.7, TS-116.20–116.24) + System-Kürzel in den Sage-Kennungen WE#/SM# (v1.99.9, TS-116.25–116.30) + Lieferverzug-Mails (v1.99.10, TS-128) + Wareneingang Barcode und CSV-Übergabe (v1.99.11, TS-129)*
+(v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80) + Beschichtungsauftrag Summiert als Standard (v1.48.0, TS-81) + Briefkopf Beschichtungsauftrag (v1.49.0, TS-82) + Beschichtungsauftrag als eigenes Objekt (v1.50.0, TS-83) + Beschichtungsaufträge bedienen (v1.51.0, TS-84) + Arbeitsgänge als Symbole im FA-Baum (v1.52.0, TS-85) + CSV-Export für alle Tabellen (v1.53.0, TS-86) + Arbeitsgang-Stammdaten (v1.54.0, TS-87) + Status je Arbeitsgang-Kürzel im FA-Baum (v1.55.0, TS-88) + Menü Beschichtung + Kurzanleitungen (v1.56.0, TS-89) + BDE-Terminal mit Arbeitsgang-Status (v1.57.0, TS-90) + Spaltenfilter-Suchsyntax Etappe A + B (v1.58.0/v1.58.1, TS-91.A/B) + Fußzeile nach Word-Vorlage (v1.59.0, TS-92) + Sage-Quellen auf WMS-Views (v1.60.0–v1.60.2, TS-93) + Arbeitsgang-Abgleich aus der Sage-View (v1.61.0, TS-94) + Stückliste Matchcode und Lagerplatz-Limit (v1.62.0, TS-95) + BDE Stufe 1: Werkbänke, AG-Fertigmeldung (v1.63.0, TS-96) + BDE-Terminal Liste nach Haupt-FA, Scan ohne AG (v1.64.0, TS-97) + Spaltenauswahl/Zahnrad zentraler Toolbar-Host (v1.65.0, TS-98) + Hardware-Barcodescanner (v1.66.0–v1.66.2, TS-99) + Vault- und enaio-Links konfigurierbar (v1.67.0, TS-100) + QR erstes Feld Matchcode / Trennzeichen (v1.68.0/v1.69.0, TS-101) + Aktivitäts-Protokoll Spaltenfilter/Namen (v1.70.0, TS-102) + FA-Struktur live aus Sage (v1.71.0, TS-103) + Lagerplatz-Etikett 93 × 55 mm und Vormontage-Felder (v1.72.0, TS-104/TS-105) + Sage-Abgleich über SData (v1.73.0, TS-106) + Fehlteile „Nur meine Werkbänke“ Trefferzahl (v1.75.0, TS-108) + Bestandsübersicht QR-FA nur mit `QrMitFaNummer` (v1.76.0, TS-101.22–101.25) + Einstellungen Auswahlfelder und Beschreibung (v1.77.0, TS-109) + EAN-Scan Einkaufsartikel (v1.78.0, TS-110) + Bereinigungen nach dem Bündel 2026-11-07 (v1.79.0, TS-111) + Artikelinfo Lieferanten (v1.80.0, TS-112) + Fehlteile-Karte je Bestelltyp (v1.81.0, TS-113) + Wareneingang zu Sage-Bestellung (v1.84.0, TS-116) + Artikel Lieferanten/Mengeneinheiten (v1.85.0, TS-112.12–112.16) + Offene Bestellungen Nachbesserung (v1.86.0, TS-116.8/116.9) + Lager-Tools FA-Verknüpfung (v1.87.0, TS-115) + Kommissionieraufträge (v1.88.0, TS-120) + Kommissionieraufträge Nachbesserung (v1.89.0, TS-120.1/120.9/120.13/120.14) + Lager-Tools FA-Karte je Pflicht (v1.90.0, TS-115.3) + Offene Bestellungen Legende (v1.91.0, TS-116.8) + OSEON-Relevanzfilter/BDE-Checkboxen (v1.92.0, TS-121) + Meldebestand-Mail Bestandsregel (v1.93.0, TS-122) + Menüleiste Umbruch/Kontrast (v1.94.0, TS-123) + Nachbesserung Vorab-Abnahme (v1.95.0, TS-115.13/115.14/116.10/120.15) + Übernahme AKE-Hotfixes v1.30.2–1.30.4 (v1.96.0, TS-107, TS-124) + Auftrag drucken in Sortierreihenfolge (v1.97.0, TS-120.16) + Matchcode in der Kommissionier-Auftragsliste (v1.99.8, TS-120.17) + Update-Skript je Zielsystem (v1.98.0, TS-125) + Update-Skript Url-Vorrang und Dienst-Stopp-Limit (v1.98.1, TS-125.17/125.18) + Update-Skript prüft und führt aus, mit Bestätigung (v1.99.0–v1.99.2, TS-126) + Update-Skript Prüfung Mail-Ablageordner (v1.99.12, TS-126.28–126.31) + Vormontage Spalte Abteilung (v1.99.3, TS-127) + Wareneingang Sage-Wareneingangsbeleg und Lieferschein (v1.99.4–v1.99.6, TS-116.11–116.19) + Sage-Wareneingang automatisch wiederholen mit Sage-Prüfung, Klären (v1.99.7, TS-116.20–116.24) + System-Kürzel in den Sage-Kennungen WE#/SM# (v1.99.9, TS-116.25–116.30) + Lieferverzug-Mails (v1.99.10, TS-128) + Wareneingang Barcode und CSV-Übergabe (v1.99.11, TS-129) + Bugfixes AKE-Regression: Filter in Anführungszeichen, Bedarfsmeldung Ortszeit, Auftragsdruck Lagerplatz, Wagen-Modal (v1.99.13, TS-130)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*

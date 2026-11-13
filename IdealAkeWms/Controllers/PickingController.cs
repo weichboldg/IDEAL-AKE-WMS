@@ -331,30 +331,7 @@ public class PickingController : Controller
             // TreeLevel aus Position ableiten: Anzahl Punkte = Ebene (z.B. "15" = 0, "15.1" = 1, "15.1.1" = 2)
             var treeLevel = string.IsNullOrEmpty(bom.Position) ? 0 : bom.Position.Count(c => c == '.');
 
-            // Auto-Suggest: Hauptlagerplatz bevorzugen (wenn dort buchbarer Bestand > 0),
-            // sonst buchbarer Lagerplatz mit hoechster Menge, sonst NAN.
-            // Sage-synchronisierte Lagerplaetze sind by default IstBuchbar=false
-            // und tauchen deshalb nicht im Dropdown auf — wuerden sie hier als
-            // Suggestion gewinnen, blieb das Select leer ("--").
-            int? suggestedLocationId = null;
-            var buchbarStock = locations
-                .Where(sl => sl.Quantity > 0 && buchbarLocationIds.Contains(sl.StorageLocationId))
-                .ToList();
-            // 1. Hauptlagerplatz bevorzugen, wenn dort buchbarer Bestand > 0 liegt.
-            var primaryBuchbar = buchbarStock
-                .FirstOrDefault(sl => sl.IsPrimaryStorageLocation);
-            if (primaryBuchbar != null)
-            {
-                suggestedLocationId = primaryBuchbar.StorageLocationId;
-            }
-            else if (buchbarStock.Count > 0)
-            {
-                suggestedLocationId = buchbarStock.OrderByDescending(sl => sl.Quantity).First().StorageLocationId;
-            }
-            else if (nanLocationId.HasValue)
-            {
-                suggestedLocationId = nanLocationId;
-            }
+            var suggestedLocationId = QuellVorschlag(locations, buchbarLocationIds, nanLocationId);
 
             // Gespeicherten SourceStorageLocationId nur uebernehmen, wenn er aktuell
             // buchbar ist — sonst fiele der Wert im Dropdown unsichtbar weg ("--").
@@ -641,6 +618,15 @@ public class PickingController : Controller
         var bezeichnung = bomItems.Where(b => b.Ressourcenummer != null)
             .GroupBy(b => b.Ressourcenummer!, StringComparer.OrdinalIgnoreCase).ToDictionary(g => g.Key, g => g.First().Bezeichnung1, StringComparer.OrdinalIgnoreCase);
         var plaetze = (await _storageLocationRepository.GetAllAsync()).ToDictionary(l => l.Id, l => l.Code);
+        // v1.99.13 (Punkt 4a): offene/gepickte Zeilen ohne Quell-Platz drucken den Vorschlag der Auftragsseite (gleiche Regel, gleiche Daten).
+        var stockByArticle = await _stockMovementRepository.GetStockByArticleNumbersAsync(
+            auftrag.Zeilen.Select(z => z.ArticleNumber).Distinct().ToList());
+        var buchbarIds = (await _storageLocationRepository.GetActiveOrderedExcludingPickingTransportAsync()).Select(sl => sl.Id).ToHashSet();
+        var nanId = (await _storageLocationRepository.GetByCodeAsync("NAN"))?.Id;
+        int? QuellPlatz(PickingOrderLine z) => z.SourceStorageLocationId
+            ?? (z.Status is PickingOrderLineStatus.Offen or PickingOrderLineStatus.Gepickt
+                ? QuellVorschlag(stockByArticle.GetValueOrDefault(z.ArticleNumber) ?? new List<StockLocationInfo>(), buchbarIds, nanId)
+                : null);
 
         DateTime? faellig = null;
         if (order.ProductionDate is { } termin)
@@ -675,10 +661,21 @@ public class PickingController : Controller
                 Bezeichnung1 = bezeichnung.GetValueOrDefault(z.ArticleNumber),
                 Menge = z.SollMenge,
                 IstMenge = z.IstMenge,
-                Lagerplatz = z.SourceStorageLocationId is { } sl ? plaetze.GetValueOrDefault(sl) : null,
+                Lagerplatz = QuellPlatz(z) is { } sl ? plaetze.GetValueOrDefault(sl) : null,
                 Status = PickingOrderListItem.ZeilenStatusText(z.Status),
             }).ToList()
         });
+    }
+
+    /// <summary>Vorgeschlagener Quell-Lagerplatz (Auftragsseite und Auftragsdruck, v1.99.13): Hauptlagerplatz mit buchbarem Bestand > 0,
+    /// sonst buchbarer Platz mit der hoechsten Menge, sonst NAN. Nur buchbare Plaetze — Sage-synchronisierte sind standardmaessig
+    /// IstBuchbar=false und fehlen im Dropdown; als Vorschlag blieb das Select sonst leer („--“).</summary>
+    internal static int? QuellVorschlag(IEnumerable<StockLocationInfo> locations, ISet<int> buchbarIds, int? nanId)
+    {
+        var buchbar = locations.Where(sl => sl.Quantity > 0 && buchbarIds.Contains(sl.StorageLocationId)).ToList();
+        return (buchbar.FirstOrDefault(sl => sl.IsPrimaryStorageLocation)
+                ?? buchbar.OrderByDescending(sl => sl.Quantity).FirstOrDefault())?.StorageLocationId
+            ?? nanId;
     }
 
     /// <summary>v1.97.0: Zeilen in der Reihenfolge der Positionsliste (Anzeige-Reihenfolge), ohne Liste nach Position.</summary>

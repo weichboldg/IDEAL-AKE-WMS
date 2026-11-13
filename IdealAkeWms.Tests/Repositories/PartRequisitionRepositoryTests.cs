@@ -143,6 +143,9 @@ public class PartRequisitionRepositoryTests
         loaded!.Status.Should().Be(PartRequisitionStatus.Erfuellt);
         loaded.FulfilledByStockMovementId.Should().Be(stockMovement.Id);
         loaded.FulfilledAt.Should().NotBeNull();
+        // Ortszeit wie ueberall im Projekt (Spec 2026-11-12-befunde-ake-regression-dev, Punkt 3) — mit UtcNow scheitert das auf MEZ/MESZ.
+        loaded.FulfilledAt!.Value.Should().BeCloseTo(DateTime.Now, TimeSpan.FromMinutes(1));
+        loaded.ModifiedAt!.Value.Should().BeCloseTo(DateTime.Now, TimeSpan.FromMinutes(1));
     }
 
     [Fact]
@@ -159,6 +162,8 @@ public class PartRequisitionRepositoryTests
         loaded!.Status.Should().Be(PartRequisitionStatus.Storniert);
         loaded.CancelledBy.Should().Be("Lagerist");
         loaded.CancelledAt.Should().NotBeNull();
+        loaded.CancelledAt!.Value.Should().BeCloseTo(DateTime.Now, TimeSpan.FromMinutes(1));
+        loaded.ModifiedAt!.Value.Should().BeCloseTo(DateTime.Now, TimeSpan.FromMinutes(1));
     }
 
     [Fact]

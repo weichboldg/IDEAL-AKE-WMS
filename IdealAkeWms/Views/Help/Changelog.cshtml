@@ -9,6 +9,22 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.99.13</strong> <span class="text-white-50 ms-2">13.11.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>Fehlerbehebungen aus dem Regressionstest</h6>
+                <ul>
+                    <li><strong>Spaltenfilter:</strong> Ein Wert in Anführungszeichen ist <em>ein</em> Suchbegriff &ndash; Semikolon und Komma trennen darin nicht. <code>"GL;0;0;0"</code> findet genau diesen Lagerplatz-Text (vorher &bdquo;GL oder 0&ldquo;). <code>=</code>, <code>%</code> und <code>!</code> wirken weiter: <code>="GL;0;0;0"</code> genau, <code>"GL;0;0;0"%</code> beginnt mit, <code>!"GL;0;0;0"</code> nicht. Ohne Anführungszeichen bleibt alles wie bisher. Die Filterhilfe &bdquo;?&ldquo; nennt die neue Schreibweise.</li>
+                    <li><strong>Einbuchung, Hinweis zum FA-Lagerplatz:</strong> Die Menge steht jetzt mit drei Nachkommastellen (&bdquo;3,000 Stk am Platz&ldquo;) und der Hinweis sagt, dass es der gesamte Bestand des Artikels am Platz ist, nicht nur der Anteil dieses FA. Das Verhalten selbst ist unverändert.</li>
+                    <li><strong>Bedarfsmeldungen:</strong> &bdquo;Bestellt am&ldquo;, &bdquo;Gesendet&ldquo;, Storno- und Erfüllt-Zeit werden in Ortszeit gespeichert (vorher eine Stunde, im Sommer zwei Stunden zu früh). Bereits vorhandene Meldungen behalten ihre bisherige Zeit.</li>
+                    <li><strong>Auftrag drucken:</strong> Die Spalte &bdquo;Lagerplatz&ldquo; zeigt bei noch nicht umgebuchten Zeilen den Quell-Lagerplatz, den die Auftragsseite vorschlägt (ohne buchbaren Bestand &bdquo;NAN&ldquo;). Umgebuchte Zeilen zeigen wie bisher den tatsächlichen Platz, entfallene und übertragene bleiben leer.</li>
+                    <li><strong>Kommissionierwagen belegt:</strong> Das Fenster nennt jede FA-Nummer am Wagen nur noch einmal und bricht lange Listen um. &bdquo;Trotzdem buchen&ldquo; hängt die FA-Nummern nicht mehr immer wieder an; &bdquo;Lagerplatz ausbuchen&ldquo; belegt das FA-Feld ebenfalls mit den einzelnen Nummern.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.99.12</strong> <span class="text-white-50 ms-2">12.11.2026</span>
             </div>
             <div class="card-body">

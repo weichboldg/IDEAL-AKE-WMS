@@ -23,7 +23,9 @@
                                 Liegt sie an genau einem Platz und ist der Lagerplatz noch nicht gewaehlt &rarr; Platz wird automatisch uebernommen.
                                 Liegt sie an mehreren Plaetzen &rarr; gelbe Warnung mit Mengen; bitte gezielt buchen.
                                 Liegt sie auf einem inaktiven/nicht buchbaren Platz &rarr; gelbe Warnung mit Hinweis,
-                                manuell zu waehlen.</li>
+                                manuell zu waehlen. Die angezeigte Menge ist der <strong>gesamte Bestand des Artikels am Platz</strong>
+                                (&bdquo;3,000 Stk am Platz&ldquo;), nicht nur der mit diesem FA gebuchte Anteil &mdash; den zeigt die
+                                Bestandsuebersicht mit FA-Filter.</li>
                             <li><strong>FA-Prüfung (seit v1.87.0):</strong> Unter dem FA-Feld steht, ob der FA im WMS existiert, sein Status
                                 (offen, erledigt, storniert, in Sage vermisst) und – mit FA-Leserecht – ein Link zum FA. Beim Tippen werden offene
                                 FAs vorgeschlagen. Unbekannt oder mehrdeutig: gelbe Karte, Buchen bleibt möglich, die Buchung wird dann nicht verknüpft
@@ -461,6 +463,12 @@
                             <li><code>!KA;SW</code> &rarr; weder KA noch SW (das <code>!</code> am Anfang gilt fuer alle Teile;
                                 leere Felder bleiben dabei sichtbar)</li>
                             <li><code>(leer)</code> &rarr; Feld ist leer &middot; <code>!(leer)</code> &rarr; Feld ist nicht leer</li>
+                            <li><code>"GL;0;0;0"</code> &rarr; genau dieser Text als <em>ein</em> Suchbegriff: In Anfuehrungszeichen
+                                trennen <code>;</code> und <code>,</code> nicht (seit v1.99.13; z.&nbsp;B. AKE-Lagerplaetze).
+                                Die Zeichen davor und dahinter wirken weiter: <code>="GL;0;0;0"</code> genau,
+                                <code>"GL;0;0;0"%</code> beginnt mit, <code>!"GL;0;0;0"</code> nicht, <code>"GL;0;0;0";LL%</code>
+                                oder. Ohne Anfuehrungszeichen bleibt <code>GL;0;0;0</code> &bdquo;GL oder 0&ldquo;. Ein <code>"</code>
+                                mitten im Begriff (Zoll: <code>1/2"</code>) ist ein normales Zeichen.</li>
                             <li><strong>Zahl- und Datumsspalten:</strong> <code>&gt;2</code>, <code>&gt;=01.10.2026</code>,
                                 <code>&lt;01.10.2026</code>, <code>&lt;=5</code> und <code>1...3</code> bzw.
                                 <code>01.10.2026...31.10.2026</code> (von&ndash;bis, beide Grenzen inklusive). Datum als TT.MM.JJJJ,

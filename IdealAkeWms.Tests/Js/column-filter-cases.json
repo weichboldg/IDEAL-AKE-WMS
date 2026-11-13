@@ -82,5 +82,21 @@
   {"id": "B11 Enumname enthaelt", "type": "text", "filter": "ausbuchung", "cell": "sage-ausbuchung", "match": true, "sql": true},
   {"id": "B12 Enumname genau", "type": "text", "filter": "=ausbuchung", "cell": "sage-ausbuchung", "match": false},
   {"id": "B13 Stueckliste Alle Ziele", "type": "text", "filter": "!(leer)", "cell": "  ", "match": false},
-  {"id": "B14 Stueckliste Menge Zahl", "type": "number", "filter": ">=10", "cell": "12,5", "match": true}
+  {"id": "B14 Stueckliste Menge Zahl", "type": "number", "filter": ">=10", "cell": "12,5", "match": true},
+  {"id": "Q01 Anfuehrung trennt nicht", "type": "text", "filter": "\"gl;0;0;0\"", "cell": "GL;0;0;0", "match": true, "sql": true},
+  {"id": "Q02 Anfuehrung nicht anderer Platz", "type": "text", "filter": "\"gl;0;0;0\"", "cell": "GL;1;0;0", "match": false, "sql": true},
+  {"id": "Q03 genau vor Anfuehrung", "type": "text", "filter": "=\"gl;0;0;0\"", "cell": "GL;0;0;01", "match": false, "sql": true},
+  {"id": "Q03b genau vor Anfuehrung trifft", "type": "text", "filter": "=\"GL;0;0;0\"", "cell": "GL;0;0;0", "match": true},
+  {"id": "Q04 genau in Anfuehrung", "type": "text", "filter": "\"=gl;0;0;0\"", "cell": "GL;0;0;0", "match": true},
+  {"id": "Q05 Negation", "type": "text", "filter": "!\"gl;0;0;0\"", "cell": "GL;0;0;0", "match": false, "sql": true},
+  {"id": "Q05b Negation trifft Rest", "type": "text", "filter": "!\"gl;0;0;0\"", "cell": "GL;1;0;0", "match": true, "sql": true},
+  {"id": "Q06 Anfuehrung ODER Rest", "type": "text", "filter": "\"gl;0;0;0\";ll%", "cell": "LL;1;32;0", "match": true, "sql": true},
+  {"id": "Q07 Komma in Anfuehrung", "type": "text", "filter": "\"a,b\"", "cell": "b", "match": false},
+  {"id": "Q08 Prozent hinter Anfuehrung", "type": "text", "filter": "\"gl;0;0;0\"%", "cell": "GL;0;0;01", "match": true, "sql": true},
+  {"id": "Q09 Zoll-Zeichen Bestand", "type": "text", "filter": "1/2\"", "cell": "Rohr 1/2\"", "match": true},
+  {"id": "Q10 ohne Schluss Bestand", "type": "text", "filter": "\"a;b", "cell": "b", "match": true},
+  {"id": "Q11 leere Anfuehrung wirkungslos", "type": "text", "filter": "\"\"", "cell": "x", "match": true},
+  {"id": "Q12 Datum Anfuehrung ein Teil", "type": "date", "filter": "\"kw41;kw42\"", "cell": "15.10.2026 kw42", "match": false},
+  {"id": "Q13 leer in Anfuehrung", "type": "text", "filter": "\"(leer)\"", "cell": " ", "match": true},
+  {"id": "Q14 Leerzeichen vor Anfuehrung", "type": "text", "filter": "ka; \"gl;0\"", "cell": "GL;0;5", "match": true}
 ]

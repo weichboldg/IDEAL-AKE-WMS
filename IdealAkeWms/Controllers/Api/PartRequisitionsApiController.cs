@@ -103,7 +103,7 @@ public class PartRequisitionsApiController : ControllerBase
             Notes = request.Notes,
             OrderRecipientGroupId = recipientGroupId,
             SentToEmails = string.IsNullOrEmpty(sentToEmails) ? null : sentToEmails,
-            CreatedAt = DateTime.UtcNow,
+            CreatedAt = DateTime.Now,
             CreatedBy = displayName,
             CreatedByWindows = windowsUser
         }).ToList();

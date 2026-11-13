@@ -15,6 +15,25 @@ public class StockMovementRepositoryProductionOrderTests
 {
     private const string Fa = "1234567";
 
+    // v1.99.13 (Spec 2026-11-12-befunde-ake-regression-dev, Punkt 4c): FA-Texte am Wagen einzeln, jede Nummer einmal, sortiert —
+    // sonst waechst der Text bei jedem „Trotzdem buchen“ („A; A;B; A;A;B;C …“).
+    [Fact]
+    public async Task GetProductionOrdersAtLocation_ZerlegtTexteInEinzelneNummern()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        SeedArticleAndLocation(ctx, articleId: 1, locationId: 1);
+        ctx.StockMovements.AddRange(
+            NewMovementWithOrder(1, 1, 1m, MovementType.Einbuchung, "A"),
+            NewMovementWithOrder(1, 1, 1m, MovementType.Einbuchung, "A;B"),
+            NewMovementWithOrder(1, 1, 1m, MovementType.Einbuchung, "A; A ;B;;C"),
+            NewMovementWithOrder(1, 1, 1m, MovementType.Einbuchung, "D,C"));
+        await ctx.SaveChangesAsync();
+
+        var result = await new StockMovementRepository(ctx).GetProductionOrdersAtLocationAsync(1);
+
+        result.Should().Equal("A", "B", "C", "D");
+    }
+
     // --- true-Pfad (Default) ---------------------------------------------------------------
 
     [Fact] // AK1: getaggt eingebucht, ungetaggt komplett ausgebucht -> keine Zeile mehr

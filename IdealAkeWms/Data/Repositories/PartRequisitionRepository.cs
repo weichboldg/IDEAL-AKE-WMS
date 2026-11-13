@@ -112,8 +112,8 @@ public class PartRequisitionRepository : IPartRequisitionRepository
 
         requisition.Status = PartRequisitionStatus.Erfuellt;
         requisition.FulfilledByStockMovementId = stockMovementId;
-        requisition.FulfilledAt = DateTime.UtcNow;
-        requisition.ModifiedAt = DateTime.UtcNow;
+        requisition.FulfilledAt = DateTime.Now;
+        requisition.ModifiedAt = DateTime.Now;
         requisition.ModifiedBy = modifiedBy;
         requisition.ModifiedByWindows = modifiedByWindows;
         await _context.SaveChangesAsync();
@@ -125,9 +125,9 @@ public class PartRequisitionRepository : IPartRequisitionRepository
         if (requisition == null || requisition.Status != PartRequisitionStatus.Offen) return;
 
         requisition.Status = PartRequisitionStatus.Storniert;
-        requisition.CancelledAt = DateTime.UtcNow;
+        requisition.CancelledAt = DateTime.Now;
         requisition.CancelledBy = cancelledBy;
-        requisition.ModifiedAt = DateTime.UtcNow;
+        requisition.ModifiedAt = DateTime.Now;
         requisition.ModifiedBy = modifiedBy;
         requisition.ModifiedByWindows = modifiedByWindows;
         await _context.SaveChangesAsync();
