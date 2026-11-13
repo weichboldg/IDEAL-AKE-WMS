@@ -138,6 +138,7 @@ public class SageBookingWorker : BackgroundService
     }
 
     private string? _weZugangGemeldet;
+    private string? _lbZugangGemeldet;
 
     private async Task ProcessWareneingangCsvAsync(CancellationToken ct)
     {
@@ -192,15 +193,23 @@ public class SageBookingWorker : BackgroundService
 
         var (endpoint, zugang) = await BuildEndpointAsync(ct);
 
-        await using var run = await _syncLogger.BeginRunAsync(SyncLogServices.SageLagerbuchung, ct);
-        int gesendet = 0, bestaetigt = 0, fehler = 0, nacherfasst = 0, uebersprungen = 0;
         // v1.99.14 F6: Kennwort nicht entschluesselbar = in diesem Lauf nichts an Sage, kein Rueckfall; Rueckfall appsettings = Warnung.
+        // Fehler nur einmal je Zustandswechsel protokollieren (Takt 20 s), wie beim Sage-Wareneingang.
         if (zugang.Fehler is { } zugangsFehler)
         {
-            await run.LogErrorAsync(zugangsFehler, ct: ct);
-            await run.FinishFailedAsync(zugangsFehler, ct: ct);
+            if (_lbZugangGemeldet != zugangsFehler)
+            {
+                await using var fehlerLauf = await _syncLogger.BeginRunAsync(SyncLogServices.SageLagerbuchung, ct);
+                await fehlerLauf.LogErrorAsync(zugangsFehler, ct: ct);
+                await fehlerLauf.FinishFailedAsync(zugangsFehler, ct: ct);
+                _lbZugangGemeldet = zugangsFehler;
+            }
             return;
         }
+        _lbZugangGemeldet = null;
+
+        await using var run = await _syncLogger.BeginRunAsync(SyncLogServices.SageLagerbuchung, ct);
+        int gesendet = 0, bestaetigt = 0, fehler = 0, nacherfasst = 0, uebersprungen = 0;
         if (zugang.Warnung is { } zugangsWarnung)
             await run.LogWarningAsync(zugangsWarnung, ct: ct);
 

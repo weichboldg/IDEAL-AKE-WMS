@@ -366,6 +366,36 @@ public class SageTestSdataTests
     }
 
     [Fact]
+    public async Task UngueltigeZahl_Meldung_KeineAnfrage() // QA Q-2: „abc“ fiel still auf den Default
+    {
+        var (c, _) = Register("https://sagetest01:5493", new() { ["Ressource"] = "PpsFaBelegeInfo", ["Anzahl"] = "abc" });
+        c.ModelState.AddModelError("Anzahl", "The value 'abc' is not valid.");
+        var f = (SageTestFeldlisteViewModel)((ViewResult)await c.Feldliste(
+            new SageTestFeldlisteViewModel { Ressource = "PpsFaBelegeInfo", OrderBy = "BelID" }, CancellationToken.None)).Model!;
+        f.Fehler.Should().ContainSingle(x => x.StartsWith("Anzahl:"));
+        f.Ausgefuehrt.Should().BeFalse();
+
+        c.ModelState.AddModelError("FaNummer", "The value 'abc' is not valid.");
+        var s = (SageTestStuecklisteViewModel)((ViewResult)await c.Stueckliste(new SageTestStuecklisteViewModel(), CancellationToken.None)).Model!;
+        s.Fehler.Should().ContainSingle(x => x.StartsWith("FaNummer:"));
+        s.Ausgefuehrt.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Stueckliste_Einrueckung_KulturunabhaengigFormatiert() // QA Q-1: „0,5rem“ unter de-AT ist ungueltiges CSS
+    {
+        var view = File.ReadAllText(Path.Combine(Rueckwaerts("IdealAkeWms"), "Views", "SageTest", "Stueckliste.cshtml"));
+        view.Should().Contain("padding-left: @((0.5 + z.Tiefe * 1.25).ToString(System.Globalization.CultureInfo.InvariantCulture))rem");
+    }
+
+    private static string Rueckwaerts(string ordner)
+    {
+        var d = new DirectoryInfo(AppContext.BaseDirectory);
+        while (d != null && !Directory.Exists(Path.Combine(d.FullName, ordner))) d = d.Parent;
+        return Path.Combine(d!.FullName, ordner);
+    }
+
+    [Fact]
     public async Task OhneBaseUrl_NichtKonfiguriert_KeineAnfrage()
     {
         var (c, _) = Register(null, new() { ["Ressource"] = "PpsFaBelegeInfo", ["Artikelnummer"] = "86003871" });

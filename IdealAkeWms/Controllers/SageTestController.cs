@@ -33,15 +33,24 @@ public class SageTestController : Controller
 
     private Task<SdataWebStand> StandAsync() => SdataZugangsdaten.WebStandAsync(_settings, _configuration, _schutz);
 
+    /// <summary>QA Q-2: Bindungsfehler (z. B. „abc“ in einem Zahlenfeld) nicht still auf den Default fallen lassen.</summary>
+    private List<string> UngueltigeZahlen()
+    {
+        var felder = ModelState.Where(e => e.Value?.Errors.Count > 0).Select(e => $"{e.Key}: keine gültige ganze Zahl.").ToList();
+        ModelState.Clear();
+        return felder;
+    }
+
     [HttpGet]
     public async Task<IActionResult> Index() => View(await StandAsync());
 
     [HttpGet]
     public async Task<IActionResult> Feldliste(SageTestFeldlisteViewModel eingabe, CancellationToken ct)
     {
-        ModelState.Clear(); // Pruefung unten (ADR 0020: Server prueft, deutsche Meldungen)
+        var ungueltig = UngueltigeZahlen(); // Pruefung unten (ADR 0020: Server prueft, deutsche Meldungen)
         var vm = eingabe;
         vm.Stand = await StandAsync();
+        if (ungueltig.Count > 0) { vm.Fehler.AddRange(ungueltig); return View(vm); } // keine Anfrage an Sage
         if (!Request.Query.ContainsKey(nameof(SageTestFeldlisteViewModel.Ressource)))
             return View(vm); // erster Aufruf: nur Formular
 
@@ -113,9 +122,10 @@ public class SageTestController : Controller
     [HttpGet]
     public async Task<IActionResult> Stueckliste(SageTestStuecklisteViewModel eingabe, CancellationToken ct)
     {
-        ModelState.Clear();
+        var ungueltig = UngueltigeZahlen();
         var vm = eingabe;
         vm.Stand = await StandAsync();
+        if (ungueltig.Count > 0) { vm.Fehler.AddRange(ungueltig); return View(vm); } // keine Anfrage an Sage
         vm.Mandant ??= SageTestAufbereitung.MandantAusDataset(vm.Stand.Dataset);
         var artikel = vm.Artikelnummer?.Trim();
         vm.Artikelnummer = string.IsNullOrEmpty(artikel) ? null : artikel;

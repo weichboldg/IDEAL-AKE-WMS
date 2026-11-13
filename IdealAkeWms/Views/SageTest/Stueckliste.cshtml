@@ -103,7 +103,7 @@
                     @foreach (var z in Model.Zeilen)
                     {
                         <tr class="@(z.IstFa ? "fw-semibold" : "")">
-                            <td style="padding-left: @(0.5 + z.Tiefe * 1.25)rem">@(z.IstFa ? $"FA {z.Position}" : z.Position)</td>
+                            <td style="padding-left: @((0.5 + z.Tiefe * 1.25).ToString(System.Globalization.CultureInfo.InvariantCulture))rem">@(z.IstFa ? $"FA {z.Position}" : z.Position)</td>
                             <td>@(z.Ebene ?? z.Tiefe.ToString())</td>
                             <td>@z.Ressourcetyp</td>
                             <td>@z.Ressourcenummer</td>
