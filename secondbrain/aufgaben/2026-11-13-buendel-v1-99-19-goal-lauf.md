@@ -14,7 +14,7 @@ Grenzen: nichts an Sage schreiben, keine Mails an externe Adressen (Lieferverzug
 
 | Spec | Typ | SQL-Block | Version | TS | Status | Commits | Blocker |
 |---|---|---|---|---|---|---|---|
-| [[2026-11-13-lieferverzug-nachbesserung-keyuser-spec]] | Spec | – | 1.99.19 | TS-128 erweitert (128.16–128.23) | InUmsetzung (QA läuft) | `c31c06b0` | |
+| [[2026-11-13-lieferverzug-nachbesserung-keyuser-spec]] | Spec | – | 1.99.19 | TS-128 erweitert (128.16–128.23) | InUmsetzung (Nachtrag 2 in Arbeit) | `c31c06b0` | |
 | [[2026-11-08-einkauf-bestellvorschlaege-spec]] | Epic | ab 148 | 1.99.20 | TS-136 | InUmsetzung (E0 erledigt) | | E3 blockiert (A3 Leseweise), E5 blockiert (gewollt) |
 
 - Vorprüfung 2026-11-13: beide `status: Freigegeben` (Gerald 2026-11-13), Freigabe-Antworten vollständig (Lieferverzug 1–5, Bestellvorschläge
@@ -29,3 +29,6 @@ Grenzen: nichts an Sage schreiben, keine Mails an externe Adressen (Lieferverzug
   MengeBasis = Basiseinheit belegt. **A3 = Blocker E3** (1-Jahres-Fenster findet nur 55 % der letzten Bestellungen; Leseweise entscheidet Gerald) →
   SQL/148 bleibt ungenutzt. A2 (Wächter E4) konservativ: zusätzlich `UmrechnungsfaktorEK = 1`. A1 Ressourcenname Partner-Vertrag, A4 Belegnummer 45.
   P2-Maskenprüfung offen (Gerald). IDEAL_WMS_DEV: 0 Hauptlieferanten.
+- Lieferverzug Zwischen-QA (vor Nachtrag 2): Build 0, Web 2811/0/1, Dienst 619/0, DEV AKE+IDEAL v1.99.19 deployt; Review ohne Blocker (Q1–Q7,
+  Q2/Q5 werden mit Nachtrag 2 erledigt, Q7 Testindex nach Nachtrag 2). Abgebrochen auf Anweisung, weil Gerald 16:42 **Freigabe-Nachtrag 2**
+  (Lieferanten-Artikelnummer in Kreditor-Mail und Einkauf-Liste) nachgereicht hat → Umsetzung läuft, danach Nach-QA mit TS-128.16 ff. auf DEV.

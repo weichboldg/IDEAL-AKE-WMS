@@ -419,6 +419,19 @@ werden. Das ist die Frage, die Teil-3-Antwort 1 an Till stellt.
 - Liegt die erste Welle (P-L1 auf DEV) trotz 180 Tagen und ohne Abrufe über `KreditorMaxJeLauf`: als Befund melden – angepasst wird dann das
   Limit, nicht der Filter (Entscheidung Gerald danach).
 
+## Freigabe-Nachtrag 2 2026-11-13 16:42 (Gerald, geht dem Rumpf vor)
+- **Lieferanten-Artikelnummer in die Kreditor-Mail** (und in die Einkauf-Liste). Gerald (Screenshot der Einkauf-Mail „Lieferverzug: 1018
+  Bestellposition(en)“): „Beim Kreditor-Mail sollten wir die Lieferanten-Artikelnummer auch anführen.“ Das ersetzt R11 der Lieferverzug-Spec
+  v1.99.10 („keine Lieferanten-Artikelnummer, nicht im Cache“) insoweit.
+- **Quelle (Koordination, Code gelesen, Bündel v1.99.18):** `ArticleSupplier.SageBestellnummer` = „Lieferanten-Artikelnummer (Sage
+  `Bestellnummer`)“ (`IdealAkeWms/Models/ArticleSupplier.cs:17-18`), geschrieben vom Artikel-Lieferant-Abgleich
+  (`IDEALAKEWMSService/Services/Sdata/ArtikelLieferantSyncService.cs:202`), je Artikel **und** Lieferant. Zuordnung über Artikel der Position +
+  Kreditor der Bestellung. Prüfen, ob `EinkaufPositionenInfo` je Position eine eigene Lieferanten-Artikelnummer liefert (P-W1-Feldliste) –
+  wenn ja, die Positionsnummer bevorzugen (sie steht auf der Bestellung), sonst `ArticleSupplier`. Fehlt sie: Spalte leer, kein Fehler.
+  Ohne `Sync:ArtikelLieferantEnabled` bleibt die Spalte leer – Hinweis in Hilfe/Changelog.
+- Spalte „Lief.-Art.-Nr.“ in Kreditor-Mail (DE + EN „Supplier item no.“) und Einkauf-Liste; HTML und Text.
+- Beobachtung: Die Einkauf-Mail zeigt **1018 Positionen** – Bestätigung für MaxAlterTage (Antwort 1).
+
 ## Freigabe-Antworten (Mensch fuellt aus — Schranke 1)
 
 <!--
@@ -434,3 +447,71 @@ werden. Das ist die Frage, die Teil-3-Antwort 1 an Till stellt.
 3. Schalter „Kreditor-Mail auch für Rahmenabrufe“ (Default aus) jetzt mitbauen oder Teil-3-Antwort 1 unverändert → **Jetzt mitbauen, Default aus; ersetzt insoweit Antwort 1 der Teil-3-Spec. Einschalten erst nach P-L4 (Gerald 2026-11-13 16:27).**
 4. Spalte „bestätigt“ als Folge-Spec nach P-L3 → **Ja, Folge-Spec (Gerald 2026-11-13 16:27).**
 5. Einstellung „nur bestätigte an Kreditoren“ als Folge-Spec nach P-L3 → **Ja, Folge-Spec (zusammen mit 4) (Gerald 2026-11-13 16:27).**
+
+## QA-Nachweis – Zwischen-QA vor Nachtrag 2 (qa-agent, 2026-11-13)
+
+> [!warning] Status bleibt **InUmsetzung**
+> Abbruch auf Anweisung der Koordination: Freigabe-Nachtrag 2 (Lieferanten-Artikelnummer, 16:42) ist noch nicht umgesetzt. Nach dessen
+> Umsetzung folgt eine Nach-QA (vollständig: Build/Tests, Review des Nachtrag-Commits, DEV-Deploy, TS-128.16–128.23 auf DEV, Publish).
+
+Geprüft: Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Commit-Bereich `d9e4c89e..c31c06b0` (14 Dateien, +340/−35).
+
+**1. Build und Tests (eigener Lauf, HEAD `c31c06b0`)**
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler, 28 Warnungen (vorbestehend).
+- `IdealAkeWms.Tests`: 2811 bestanden / 0 Fehler / 1 übersprungen (2812). `IDEALAKEWMSService.Tests`: 619 / 0 / 0.
+
+**2. Code-Review (selbst, in diesem Lauf)** – gelesen: `LieferverzugPlaner.cs` (Planen, Entscheiden, Mit), `LieferverzugMailService.cs`
+(LesenAsync, RunAsync bis Counts), `LieferverzugMailHtml.cs` (Einkauf, TabelleStart/Zeile – Zellen über `HtmlEncode`), `ServiceSettingDefinitions.cs`
+(Meta/IntMeta/Basis), Test-Diff, Hilfe/Changelog/README/TESTSZENARIEN, Manifest. Aufrufer von `Einkauf(...)`/`new LieferverzugPlan(...)` per Grep: nur Dienst + Tests.
+Bekannte Fehlerklassen: kein `<script>`-Einbetten, kein `hidden`+`d-*`, kein stiller `?? 0`, keine Parallel-Arrays, Grenzen serverseitig
+(`IntMeta` → `SettingValidator`), Kreditor-Schwelle an genau einer Stelle (`LieferverzugEinstellungen.KreditorSchwelle`).
+
+| # | Schwere | Befund | Behandlung |
+|---|---|---|---|
+| Q1 | Info | Abweichung (1): Betreff „bei m Lieferant(en)“ = verschiedene Konten aus Gruppen ∪ Zu klären (`AnzahlLieferanten`), Count `kreditoren` = Gruppenzahl. Konsistent, weil n (`AnzahlFaellig`) die Zu-klären-Positionen ebenfalls enthält. | akzeptiert |
+| Q2 | niedrig | Abweichung (2): Zu klären zeigt `LieferantName` aus dem Cache + Konto, der Gruppenkopf bevorzugt den WMS-Kreditornamen (`Planen` Name = `k?.Name ?? …`). Derselbe Lieferant kann in beiden Teilen der Mail verschieden heißen; das Konto ist gleich. | akzeptiert; optional bei Nachtrag 2 angleichen |
+| Q3 | Info | Abweichung (3): Manifest-`Quelle='2026-11-13-v1-99-19-lieferverzug-nachbesserung-keyuser'` – Brain-Changelog existiert noch nicht; `NachlaufManifestDriftTests` prüft das nicht. | Koordination legt den Changelog an (vor Merge prüfen) |
+| Q4 | niedrig | `AbrufeAusgenommen` wird in `Entscheiden` erst nach den Sonderfällen gesetzt: bei Kreditor-Mails aus, kein Kreditor, gesperrt, inaktiv, ohne Adresse, Stand alt zählt `rahmenabruf_ausgenommen` 0, obwohl Abrufe in der Gruppe stehen. Statuszeile ist dann ohnehin der Sonderfall, nichts wird verschwiegen. | akzeptiert (Count = „wegen Schalter ausgenommen bei sonst möglicher Mail“); im Nachweis vermerkt |
+| Q5 | niedrig | Einleitungssatz der Sammelliste nennt „Kreditor-Mails gehen frühestens N Tage … raus“ auch bei `KreditorAktiv = false`. | kosmetisch, offen für Nachtrag-2-Runde |
+| Q6 | Info | Keine Querprüfung `MaxAlterTage` vs. Kreditor-Schwelle: `MaxAlterTage` < Schwelle ⇒ nie eine Kreditor-Mail. Spec verzichtet bewusst auf feldübergreifende Prüfung. | akzeptiert |
+| Q7 | niedrig | `secondbrain/tests/testszenarien-index.md` Zeile TS-128 nennt noch nur 128.1–128.15. | nach Nachtrag 2 nachziehen (Koordination/Nach-QA) |
+
+**3. Beweisart je AK**
+| AK | Beweis |
+|---|---|
+| 1 | Grenzen automatisiert (`SettingValidatorTests` 61/−1/3651/0/180, Drift-Liste); Anzeige in `/ServiceSettings` Manual-UAT (Browser, offen) |
+| 2, 3, 4 | automatisiert (`ZweiSchwellen_…`, `NurVorlauf_…`, `MaximumRegel_…`) |
+| 5, 6 | automatisiert (`Altersgrenze_ZuKlaeren_…`, `Altersgrenze_Null_…`) |
+| 7, 9 | automatisiert mit EF InMemory + Fake-Mail (`Lauf_NurZuKlaeren_…`, `Lauf_DryRun_…`); echter Lauf auf DEV offen |
+| 8 | automatisiert (`ZuKlaeren_ZaehltNichtFuerGrenze`) |
+| 10 | automatisiert (`Rahmenabruf_SchalterAus_…`) |
+| 11 | automatisiert (alle bisherigen Lieferverzug-Tests mit `kreditorTage = tage`, `maxAlter = 0` grün) |
+| 12 | erfüllt (Punkt 1) |
+| Darstellung im Mailclient | Manual-UAT |
+
+**4. Geänderte bestehende Tests**
+- `LieferverzugMailTests.E(...)`: neue Parameter mit Defaults `kreditorTage = 3 = tage`, `maxAlter = 0` – Typänderung, hält altes Verhalten (AK 11).
+- `EinkaufMail_GruppiertMitStatusLinkUndHinweis`: Signatur `Einkauf(..., E())` statt `3` – Typänderung.
+- `Lauf_Rahmenabruf_RestRegelF2_GeliefertStrich_AuchKreditorMail`: `E(test: false, mitAbrufen: true)` – Verhalten absichtlich geändert (F3/AK 10, Freigabe-Antwort 3).
+- `ServiceSettingDefinitionsTests` / `SettingValidatorTests`: nur neue InlineData. Kein „sonstiger“ Fall.
+
+**5. Checkliste / 5a ADR 0020** – keine Migration, kein SQL, kein FreshInstall (korrekt: Seed aus Katalog). Version 1.99.19 in beiden
+`AppVersion.cs`, Anwender-Changelog, Hilfe, README, TESTSZENARIEN 128.16–128.23, Manifest (5 Einträge) vorhanden. Brain-Changelog fehlt (Q3),
+Testindex fehlt (Q7). ADR 0020: Int-Werte mit Bereich und Einheit, serverseitig geprüft; Bool als Schalter; Anzeigename, Wirkung, Verwendung,
+Default, Standort „beide“, Warnhinweis bei Kreditor-Schwelle/Altersgrenze/Rahmenabruf-Schalter vorhanden.
+
+**6. DEV**
+- Deploy (elevated) `dev-deploy.ps1 -Quelle <Worktree>`: **AKE** Exit 0, Fußzeile v1.99.19 (http://localhost:8081/); **IDEAL** Exit 0, Fußzeile v1.99.19 (http://localhost:8082/). Web + Dienst.
+- Seed geprüft (`sqlcmd`, beide DEV-DBs): `KreditorTageNachTermin = 3`, `MaxAlterTage = 180`, `KreditorMitRahmenabrufen = false`.
+- **P-L1 auf AKE_WMS_DEV** (Schwellen 1/3/180): EBB Kreditor-Mail 1014 Pos./96 Kto, EBZ Kreditor-Mail 34/13, zu klären EBB 4/3 + EBZ 73/7 (ältester 03.07.2019).
+  `KreditorenKlasse3` = **99** mit Abrufen, **96** ohne Abrufe (F3 aus) > `KreditorMaxJeLauf` 30 ⇒ **Befund P-L1 bestätigt** (laut Nachtrag kein Blocker; Entscheidung Gerald: Limit anpassen).
+- TS-128.16–128.23 auf DEV: **nicht ausgeführt** (Abbruch vor Nachtrag 2; die Mailinhalte ändern sich mit der neuen Spalte). Keine DEV-Einstellung geändert, nichts zurückzusetzen.
+  Vorbereitet für die Nach-QA: AKE-DEV-Dienst nutzt `PickupDirectory D:\Dev\mail-pickup\ake` (Vorrang vor SmtpHost, `MailService.cs:30-36`), Testbetrieb an,
+  heute bereits ein Lauf um 12:55 (v1.99.18, 2229 Reminder-Zeilen) – vor einem Testlauf `DELETE … PurchaseOrderReminders WHERE SentAt >= heute` (nur DEV).
+
+**7. Publish** – nicht durch QA erneuert. Im Worktree liegt der Umsetzer-Publish `publish\` v1.99.19, Commit `c31c06b0` (16:40); er wird mit Nachtrag 2 ungültig.
+
+**Deploy (bestätigt am Diff):** web ja (`ServiceSettingDefinitions`, Hilfe, Changelog), service ja (Planer, Lauf, Mail-HTML), migration nein.
+
+**Offen für Nach-QA / Mensch:** Nachtrag 2 umsetzen und reviewen; TS-128.16–128.23 auf DEV (Pickup); 128.22 im Browser; Darstellung im Mailclient;
+Q3/Q5/Q7; Limit-Entscheidung P-L1; Daten-Durchsicht „Zu klären“ mit dem Einkauf.
