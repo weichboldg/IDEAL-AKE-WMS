@@ -109,3 +109,10 @@ Zusammengefasste Gründe der 74 NICHT-PRUEFBAR-Zeilen:
    Hierarchie-Umschaltung (63), Lieferverzug Echtbetrieb (128.5).
 10. **Prüffragen** – Server-Kultur von akenet01/idealweb01 (Zahl ab 1.000 mit Punkt oder Leerzeichen, N-B4-2); IDEAL-DEV `SData:BaseUrl`
     leeren (N-B4-4) und `WareneingangBestellungAktiv` (N-10); Briefkopf IDEAL-DEV (N-B3-3).
+
+## Entscheidungsbedarf (aus den Antworten Gerald 2026-11-13 22:47)
+
+- **Glas-/Vorkommissionierungs-Regeln je Standort** (B-5): offen – Montag mit Gerald und Lager/Keyuser klären. Bis dahin auf AKE-DEV nur die
+  Artikelregel 87068574 → Glas; Standardbereich Lager.
+- Badge „Kommissionierung“ = offene Aufträge (K-16), CSV kulturunabhängig (N-B4-2), Prüfung `TageNachTermin` ohne Werterzwingung (UP-4) –
+  als Folge-Specs in den Backlog-Notizen.
