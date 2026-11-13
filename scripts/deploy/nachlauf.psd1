@@ -358,5 +358,8 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
 @{ Id='v1.99.19-LieferverzugInfo'; Version='1.99.19'; Typ='Info'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
    Text='Einkauf informieren: Sammelliste ab 1 Tag, Lieferanten erst ab 3 Tagen; Positionen mit Liefertermin aelter als 180 Tage stehen unter Zu klaeren und gehen nie an Lieferanten - bitte in Sage bereinigen. Rahmenabrufe gehen bis auf Weiteres nicht an Lieferanten. Neue Spalte Lief.-Art.-Nr. in beiden Mails: nur mit Sync:ArtikelLieferantEnabled gefuellt, sonst leer.'
    Quelle='2026-11-13-v1-99-19-lieferverzug-nachbesserung-keyuser' }
+@{ Id='v1.99.20-EinkaufAktivieren'; Version='1.99.20'; Typ='Info'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Text='Bestellvorschlaege: EinkaufAktiv bleibt aus. AKE: erst nach erfolgreichen Laeufen Artikel (SData), Kreditoren, Artikel-Lieferanten und Offene Bestellungen einschalten und Rolle einkauf zuweisen. IDEAL: aus lassen bis zur SData-Schnittstelle.'
+   Quelle='2026-11-13-v1-99-20-einkauf-bestellvorschlaege' }
 )
 }

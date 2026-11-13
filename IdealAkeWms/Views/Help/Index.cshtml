@@ -172,6 +172,51 @@
                         Nachweis: <em>Aktivitäts-Protokoll</em>, Lauf &bdquo;Lieferverzug-Mails&ldquo;.
                     </dd>
 
+                    <dt>Einkauf &rarr; Bestellvorschläge (seit v1.99.20)</dt>
+                    <dd>
+                        Arbeitsliste des Einkaufs für alle Artikel mit <strong>Meldebestand in Sage</strong>. Nur lesen &ndash; es wird nichts an Sage
+                        geschickt. Voraussetzung: Einstellung <em>&bdquo;Einkauf &ndash; Bestellvorschläge&ldquo;</em> (<code>EinkaufAktiv</code>, Standard
+                        <strong>aus</strong>, auch für Administratoren) und Rolle <code>einkauf</code> (oder admin). Damit die Spalten gefüllt sind, müssen die
+                        Dienst-Abgleiche Artikel über SData (<code>Sync:Quelle:Artikel = SData</code>), Kreditoren, Artikel-Lieferanten
+                        (<code>Sync:ArtikelLieferantEnabled</code>) und Offene Bestellungen (<code>Sync:EinkaufBestellungenEnabled</code>) mindestens einmal
+                        gelaufen sein. <strong>IDEAL:</strong> ausgeschaltet lassen, bis dort die SData-Schnittstelle läuft.
+                        <ol class="mb-1">
+                            <li><em>Einkauf &rarr; Bestellvorschläge</em> öffnen. Standard: nur Artikel, die nachbestellt werden müssen, sortiert nach Lieferant
+                                und Artikelnummer.</li>
+                            <li>Filterkarte: Lieferant, Artikelgruppe, Umfang (&bdquo;nur Vorschläge&ldquo; oder &bdquo;alle Artikel mit Meldebestand&ldquo;),
+                                Dringlichkeit (&bdquo;kritisch&ldquo; = verfügbar unter 0, &bdquo;nachbestellen&ldquo; = verfügbar bis Meldebestand).
+                                Jede Spalte hat zusätzlich einen Spaltenfilter; <em>CSV</em> exportiert die sichtbaren Spalten.</li>
+                            <li>Zeile lesen: <em>Vorschlag</em> und <em>Grund</em>, Lieferant, Bestellnr. des Lieferanten, Wunschtermin. Die Bestellung legt
+                                der Einkauf weiter in Sage an.</li>
+                            <li>Hinweise beachten: Banner oben (fehlende Sage-Daten, fehlende Lieferanten, offene Bestellungen nicht gelesen, abweichende
+                                Einheiten) und die Spalte <em>Hinweis</em> je Zeile.</li>
+                        </ol>
+                        <strong>Rechnung:</strong> <em>verfügbar</em> = Bestand WMS + offen bestellt &minus; offene Bedarfe. Vorschlag, wenn verfügbar
+                        &le; Meldebestand.
+                        <ul class="mb-1">
+                            <li><em>Bestand WMS</em>: alle Lagerplätze außer Kommissionierwagen, auch inaktive und nicht buchbare &ndash; derselbe Wert wie in der
+                                Meldebestand-Mail.</li>
+                            <li><em>offen bestellt</em>: Rest aller offenen Sage-Bestellungen und Rahmenabrufe des Artikels, abzüglich der im WMS schon erfassten
+                                Wareneingänge (dieselbe Rechnung wie <em>Offene Bestellungen</em>). Positionen mit abweichender Einheit zählen nicht (Banner).
+                                Sind die offenen Bestellungen nicht gelesen, steht &bdquo;&ndash;&ldquo; und gerechnet wird ohne sie.</li>
+                            <li><em>offene Bedarfe</em>: abgesendete Lagerbestellungen (teilgeliefert nur der Rest &bdquo;wird nachgeliefert&ldquo;) und offene
+                                Bedarfsmeldungen &ndash; welche, legt die Einstellung <code>EinkaufOffeneBedarfe</code> fest (Standard beide, leer = keine).
+                                Bedarfe in anderer Einheit als der Artikel zählen nicht (Banner).</li>
+                            <li><em>Vorschlag</em>: Solange die letzte Bestellmenge noch nicht gelesen wird, ist der Vorschlag die Fehlmenge bis zum
+                                Meldebestand (bei Fehlmenge 0 der Meldebestand), Grund &bdquo;keine letzte Bestellung &ndash; Menge prüfen&ldquo;.
+                                Danach wird auf die <em>Mindestbestellmenge</em> des Hauptlieferanten aufgerundet &ndash; nur, wenn deren Einheit leer oder
+                                gleich der Artikel-Einheit ist und der Umrechnungsfaktor 1 beträgt; sonst steht ein Hinweis da und es wird nicht gerundet.</li>
+                            <li><em>Sage verfügbar</em> ist eine Vergleichsspalte (Stand: letzter Artikel-Abgleich, im Tooltip); sie fließt nicht in die Rechnung ein.
+                                <em>USER_Mindestbestand</em> wird nur angezeigt.</li>
+                            <li><em>Lieferant</em> = Hauptlieferant aus Sage. Fehlt der Kreditor im WMS, steht die Sage-Kontonummer mit Hinweis
+                                &bdquo;Kreditor fehlt im WMS&ldquo;. <em>WBZ</em> = Wiederbeschaffungszeit des Lieferanten (sonst des Artikels) in Tagen,
+                                <em>Wunschtermin</em> = heute + WBZ.</li>
+                        </ul>
+                        <strong>Achtung beim Einschalten:</strong> Ohne die Dienst-Abgleiche zeigt die Liste vor allem Banner und &bdquo;&ndash;&ldquo;; Vorschläge
+                        sind dann zu hoch (offene Bestellungen fehlen). Erst einschalten, wenn die Abgleiche erfolgreich gelaufen sind, und die Rolle
+                        <code>einkauf</code> unter <em>Rollen</em> zuweisen.
+                    </dd>
+
                     <dt>Sage-Lagerbuchungen (seit v1.28.0)</dt>
                     <dd>
                         Manuelle <strong>Ein- und Ausbuchungen</strong> koennen automatisch und zeitnah an

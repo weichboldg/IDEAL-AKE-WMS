@@ -371,6 +371,7 @@ Die App startet und führt beim ersten Start automatisch `Database.Migrate()` au
 - **`vorbau`**: FA-Abarbeitungsliste (FA-Vorbau-AG einsehen und abhaken, seit v1.22.0)
 - **`lagerbestellung`**: Lagerbestellungen erfassen + eigene Fehlteile (eng abgegrenzt, seit v1.23.0)
 - **`glasbestellung`**: wie `lagerbestellung`, aber fuer den Bestelltyp Glas (seit v1.25.0)
+- **`einkauf`**: Einkauf → Bestellvorschlaege lesen (seit v1.99.20, zusaetzlich Schalter `EinkaufAktiv`); Anlage per Update-Skript (`Pruefung/RolleEinkauf`)
 - **`bde_user`**: Terminal-Buchung: Arbeitsgaenge scannen, Status wechseln
 - **`bde_shiftlead`**: + BDE-Stammdaten, Buchungsliste, Cockpit
 - **`bde_admin`**: + Buchungen korrigieren/stornieren, Terminals konfigurieren
@@ -480,6 +481,8 @@ Bei Änderungen der Tabellenstruktur müssen diese Scripts angepasst werden.
 | `WareneingangBestellungAktiv` | `false` (kein Seed) | Menüpunkte „Offene Bestellungen“ / „Wareneingang zu Bestellung“ (v1.84.0); aus = Seiten 404. Nur exakt `true`. |
 | `WareneingangLieferscheinPflicht` | `false` (kein Seed) | „Wareneingang zu Bestellung“: Lieferschein-Nr. des Lieferanten Pflicht (v1.99.4); aus = optional. Nur exakt `true`. |
 | `WareneingangBarcodeAktiv` | `false` (kein Seed) | „Wareneingang zu Bestellung“: Feld „Barcode (Lieferschein)“ neben der Lieferschein-Nr. (v1.99.11); die CSV schreibt nur der Dienst-Schalter `WareneingangCsvAktiv`. Nur exakt `true`. |
+| `EinkaufAktiv` | `false` (kein Seed) | Hauptmenü „Einkauf → Bestellvorschläge“ (v1.99.20) für admin und Rolle `einkauf`; aus = kein Menü, `/PurchaseProposals` leitet auf die Startseite um (auch admin). Nur exakt `true`. Erst einschalten, wenn die Dienst-Abgleiche Artikel (SData), Kreditoren, Artikel-Lieferanten und Offene Bestellungen gelaufen sind; IDEAL aus lassen bis zur SData-Schnittstelle. |
+| `EinkaufOffeneBedarfe` | nicht gesetzt = `Lagerbestellungen,Bedarfsmeldungen` (kein Seed) | Mehrfachauswahl: welche offenen WMS-Bedarfe die verfügbare Menge der Bestellvorschläge mindern (abgesendete Lagerbestellungen, teilgeliefert nur Rest „wird nachgeliefert“; offene Bedarfsmeldungen). Leer = keine. |
 | `OffeneBestellungenVorschauWochen` | `2` (kein Seed) | Standard-Horizont der Vorschau „Offene Bestellungen“ in Wochen (1–26, v1.84.0). |
 | `FaPflichtBuchungsarten` | leer (kein Seed) | „FA-Pflicht bei Buchungen“ (v1.87.0): Mehrfachauswahl aus `Wareneingang`, `Sammel-Wareneingang`, `Warenausgang`, `Umbuchung`; gewählte Arten buchen nur mit eindeutig im WMS gefundenem FA (erledigt/storniert = Warnung). Leer = keine Pflicht. Achtung: mit `Umbuchung` geht keine Umbuchung mehr an Sage (Umbuchungen mit FA werden nie gemeldet). |
 | `LagerplatzEtikettRolle93x55` | `false` (kein Seed) | Lagerplatz-Etiketten im Rollenformat 93 × 55 mm (v1.72.0): ein Etikett je Seite, ohne Rahmen, für Sammel- und Einzeldruck. Nur exakt `true` aktiviert; aus/fehlend = A4 mit drei Etiketten je Seite. Im Druckdialog Rollendrucker, Papierformat 93 × 55 mm, Ränder „Keine“. Pflege: Standorteinstellungen → Druck (nur Admin) |
