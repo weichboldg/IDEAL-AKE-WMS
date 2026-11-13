@@ -25,12 +25,12 @@ FA-Nummer und einem Bildschirmfoto.
 |---|---|---|---|
 | 01 | Kommissionierung (Leitstand, Freigabe, Kommissionierauftrag, Wagen, Abschluss, Druck) | Leitstand, Lager/Kommissionierer | [01-kommissionierung.md](01-kommissionierung.md) |
 | 02 | Kommissionierbereiche (Lager, Glas, Vorkommissionierung, Zuordnungsregeln) | Stammdaten-Pflege, Leitstand | [02-kommissionierbereiche.md](02-kommissionierbereiche.md) |
-| 03 | Lagerbestellung und Glasbestellung | Produktion, Lager | folgt |
-| 04 | Bedarfsmeldung | Produktion, Lager, Einkauf | folgt |
-| 05 | Wareneingang zu Bestellung | Lager | folgt |
-| 06 | Offene Bestellungen und Rahmenabrufe | Lager, Einkauf | folgt |
-| 07 | Lieferverzug-Mail | Einkauf | folgt |
-| 08 | Bestellvorschläge | Einkauf | folgt |
+| 03 | Lagerbestellung und Glasbestellung (Liste erfassen, Lager-Abschluss, Fehlteile) | Produktion, Lager | [03-lagerbestellung-glasbestellung.md](03-lagerbestellung-glasbestellung.md) |
+| 04 | Bedarfsmeldung (aus Stückliste, Liste, Erfüllen beim Einbuchen) | Produktion, Lager, Einkauf | [04-bedarfsmeldung.md](04-bedarfsmeldung.md) |
+| 05 | Wareneingang zu Bestellung (Scannen, Überlieferung, Hinweise, Sage-Wareneingang) | Lager | [05-wareneingang-zu-bestellung.md](05-wareneingang-zu-bestellung.md) |
+| 06 | Offene Bestellungen und Rahmenabrufe | Lager, Einkauf | [06-offene-bestellungen-rahmenabrufe.md](06-offene-bestellungen-rahmenabrufe.md) |
+| 07 | Lieferverzug-Mail (Sammelliste, „Zu klären“, Kreditor-Mail, Testbetrieb) | Einkauf | [07-lieferverzug-mail.md](07-lieferverzug-mail.md) |
+| 08 | Bestellvorschläge (Rechnung, letzte Bestellmenge, Fallback, Banner, CSV) | Einkauf | [08-bestellvorschlaege.md](08-bestellvorschlaege.md) |
 | 09 | Einbuchen, Ausbuchen, Umbuchen | Lager | folgt |
 | 10 | Bestände und Spaltenfilter-Suche | alle | folgt |
 | 11 | BDE-Terminal | Produktion | folgt |

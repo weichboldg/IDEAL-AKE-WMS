@@ -196,7 +196,7 @@ Stückliste“ an ist):
 ![Fenster „Bedarfsmeldung erstellen“](bilder/01-15-bedarfsmeldung-dialog.jpg)
 
 Die Meldung erscheint unter **Bestellungen → Bedarfsmeldungen** und wird an die Empfängergruppe der Artikelgruppe gemeldet. Eine schon
-bestellte Zeile trägt ein oranges Symbol (Maus darüber: wann und von wem). Mehr dazu in Anleitung 04 (folgt).
+bestellte Zeile trägt ein oranges Symbol (Maus darüber: wann und von wem). Mehr dazu in [Anleitung 04](04-bedarfsmeldung.md).
 
 ### 10. Freigabe zurücknehmen
 
