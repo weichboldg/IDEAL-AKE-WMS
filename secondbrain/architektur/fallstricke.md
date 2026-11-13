@@ -1830,3 +1830,19 @@ Code: `hardware-scanner.js` Block „Scannen ohne Feld“, CSS `.hw-scan-bereit`
 - **„Nie automatisch wiederholen“ hängt an festen Fehlertexten** (`WareneingangCsv.NieWiederholen`: Kollision, ungültiger Barcode).
   **Warum wichtig:** Wer eine Kollision mit eigenem Text meldet statt über die Konstante, lässt den Dienst eine vorhandene Datei alle 15 Minuten erneut
   prüfen und als Fehler zählen; Texte nur über die Konstanten setzen.
+
+## 33. SData-Kennwort verschlüsselt in den Service-Einstellungen (v1.99.14, [[2026-11-13-sdata-teil-2-userfelder-stueckliste-spec]], ADR [[0024-sdata-kennwort-verschluesselt-in-den-service-einstellungen]])
+
+- **Der Dienst entschlüsselt mit dem Schlüsselring der WEB-App** (`DataProtection:KeysPath` im Dienst = Pfad der Web-App, `ApplicationName`
+  gleich, Dienstkonto braucht Leserecht). **Warum wichtig:** Ein eigener oder fehlender Schlüsselring im Dienst macht `dp1:`-Werte
+  unentschlüsselbar – dann sendet der Dienst bewusst NICHTS an Sage (kein stiller Rückfall auf appsettings), Lagerbuchung und Abgleiche stehen.
+  Das Update-Skript stellt Ordner und Recht her (Platzhalter `{DataProtection}`).
+- **Nicht entschlüsselbar ≠ leer.** Leerer `SData:Username` → appsettings-Rückfall mit Warnung (Übergang); gesetzter Benutzer mit
+  unentschlüsselbarem Kennwort → Fehler, kein Rückfall. **Warum wichtig:** Ein Rückfall bei Entschlüsselungsfehler würde einen kaputten oder
+  absichtlich gewechselten Zugang mit dem alten Klartext-Kennwort überdecken.
+- **Typ `Geheim` statt Text für jedes Geheimnis in `ServiceSettings`.** **Warum wichtig:** Textfeld (`value=`), Orphan-Liste,
+  `Einstellungspruefung`-Befund und Freitext-Pflege zeigen bzw. protokollieren sonst den gespeicherten Wert; nur der Typ `Geheim` schaltet alle
+  vier Stellen auf „gesetzt/nicht gesetzt“.
+- **Ressourcen-`$schema` liefert am AKE-Test 401, das Vertrags-`$schema` 200** (Lesetest [[sage-sdata-benutzerfelder-lesetest]]).
+  **Warum wichtig:** Ein Werkzeug, das nur das Ressourcen-Schema liest, meldet „keine Felder“ – die Feldliste schneidet die Ressource deshalb aus
+  dem Vertrags-Schema heraus. `SpecificUserfields`/`CustomFields` gehen nur als `include`, als eigene Ressource antworten sie 500.

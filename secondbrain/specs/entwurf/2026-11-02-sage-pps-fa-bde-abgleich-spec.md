@@ -519,6 +519,8 @@ Gerald entscheidet bei G4 anders. Den Branch während der Arbeit mit `scripts/sy
 23. **D9:** Bedarfsprüfung beim Einlasten: Wird der gelöschte Unter-FA protokolliert? Bleibt die Vaterposition als Material mit
     `BelIDNachfolger = 0`?
 24. **D10:** Zeit-RM geplant auf die AG-Position (BelPosID) oder ungeplant mit Position 0, wenn die FAs keine AG-Positionen haben (Q6b)?
+- *Ergänzung 2026-11-13:* Fragen zu Benutzerfeldern (FA, Werkstattauftrag `KHKIFAuftraege`, Stückliste) U1–U9 aus dem Lesetest:
+  [[sage-sdata-benutzerfelder-lesetest]] „Fragen an DPS“. Dort auch belegt: `[WA Nummer]` = BelID von `KHKIFAuftraege`, nicht die PPS-FA-BelID (G13).
 
 ## Freigabe-Antworten (Mensch fuellt aus — Schranke 1)
 

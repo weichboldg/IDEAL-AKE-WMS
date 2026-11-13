@@ -15,7 +15,7 @@ Nach jedem Build beide Apps nach `<Worktree>\publish`.
 | Spec | Typ | SQL-Block | Version | TS | Status | Commits | Blocker |
 |---|---|---|---|---|---|---|---|
 | [[2026-11-12-befunde-ake-regression-dev-spec]] | Spec (Bugfix) | – | 1.99.13 | TS-130 | **Testbereit** (QA 2026-11-13) | `7cc8e684`, `a8dd9d2e` | – |
-| [[2026-11-13-sdata-teil-2-userfelder-stueckliste-spec]] | Spec | ab 147 (Gate-Zeile löschen) | 1.99.14 | TS-131 | InUmsetzung | – | – |
+| [[2026-11-13-sdata-teil-2-userfelder-stueckliste-spec]] | Spec | ab 147 (Gate-Zeile löschen) | 1.99.14 | TS-131 | **Testbereit** (QA 2026-11-13) | `7f3b1a66`, `cd38fbaa`, `0b1cc9a2`, `7048071a` | – |
 | [[2026-11-11-wareneingang-teil-3-rahmenabrufe-spec]] | Spec | – | 1.99.15 | TS-132 | InUmsetzung | – | E2 wartet auf Gerald (gewollt) |
 
 - Vorprüfung 2026-11-13: alle drei Freigegeben (Gerald 2026-11-13), alle Freigabe-Antworten ausgefüllt, keine Varianten-Spec ohne
@@ -34,3 +34,8 @@ Nach jedem Build beide Apps nach `<Worktree>\publish`.
   (Mailversand, nur Testsystem), 130.4.2 abweichender Quell-Platz, 130.4.3/4 (hätte KO-2026-00008 abgeschlossen), Umbruch langer Wagen-Liste
   → Manual-UAT. Befunde R-1 (`AppVersion.Date` 12.11. – erledigt sich mit 1.99.14), R-2 Brain-Changelog (nachgezogen). Testdaten in AKE_WMS_DEV:
   Bedarfsmeldungen 17/18, Bewegungen 19426–19428, KO-2026-00008 Pos 9/20/31 umgebucht.
+- v1.99.14 QA 2026-11-13: Build 0 Fehler, Web 2779/0/1 skip, Dienst 603/0; DEV AKE+IDEAL deployt (v1.99.14), Publish `0b1cc9a2`.
+  **Nicht Testbereit:** Befund Q-1 – Einrückung Stückliste live kulturabhängig (`Stueckliste.cshtml:106`, `0,5rem` ungültig), AK 11. Leichte
+  Befunde Q-2…Q-6 in der Spec. DEV-Konfig: Dienst-`DataProtection:KeysPath` an AKE und IDEAL ergänzt (bleibt); SQL/147 auf IDEAL_WMS_DEV ausgeführt.
+- v1.99.14 QA-Nachprüfung (Fix `7048071a`): Q-1/Q-2/Q-3/Q-6 erledigt, im Browser geprüft (Einrückung, `Anzahl=abc`/`FaNummer=abc`); Web 2781/0/1,
+  Dienst 603/0; DEV AKE+IDEAL neu deployt. **Testbereit** 2026-11-13; Q-4/Q-5 als Hinweise in der Checkliste.

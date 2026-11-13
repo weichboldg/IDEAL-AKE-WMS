@@ -2,7 +2,7 @@
 type: spec
 title: "SData Teil 2: Register Sage-Test (Feldliste, Stückliste live, FA-Struktur live), Lesetest Benutzerfelder, SData-Zugangsdaten verschlüsselt in den Service-Einstellungen"
 slug: 2026-11-13-sdata-teil-2-userfelder-stueckliste-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-11-13
 updated: 2026-11-13
 source_backlog: "[[2026-11-11-sdata-teil-2-userfelder-stueckliste]]"
@@ -405,3 +405,163 @@ Entfällt – kein Epic. Reihenfolge der Commits siehe „Technischer Lösungsen
 3. Eigene Rolle für Sage-Test → **Nein, nur Admin (RequireAdminAccess) (Gerald 2026-11-13).**
 4. Stückliste live: Artikelnummer und/oder FA-Nummer → **Beide (Gerald 2026-11-13).**
 5. Schlüsselring: Schutzziel reicht / DPAPI zusätzlich → **Schutzziel reicht; DPAPI als eigene Aufgabe (Gerald 2026-11-13).**
+
+## QA-Nachweis 2026-11-13 (qa-agent) – Ergebnis: NICHT Testbereit (1 Befund mit Fix-Bedarf)
+
+Geprüfter Stand: Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Branch `feature/2026-08-07-ideal-teile-1-5`, HEAD `0b1cc9a2`;
+Commit-Bereich dieser Spec `a8dd9d2e..0b1cc9a2` (`7f3b1a66`, `cd38fbaa`, `0b1cc9a2`). Standort laut Frontmatter: beide.
+
+### 1. Build und Tests
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler, 28 Warnungen (bestehend).
+- `dotnet test`: IdealAkeWms.Tests **2779 bestanden / 1 übersprungen / 0 fehlgeschlagen** (2780); IDEALAKEWMSService.Tests **603 / 0 / 0**.
+
+### 2. Code-Review (selbst, synchron, Diff `a8dd9d2e..0b1cc9a2`)
+Gelesen: `SdataZugangsdaten`, `ServiceSettingsController` (SaveSettings-Zweig Geheim, TestSageConnection, Create/Edit/Delete), `SettingValidator`,
+`SettingItem`, `Einstellungspruefung`, `_SettingField` (Geheim-Zweig), `SageTestController`, `SageTestAufbereitung`, `SageSdataReadClient`
+(QueryPageAsync/GetSchemaAsync/include), `SageSdataFaController`, Views SageTest/*, `_EinstellungenTabs`, `_Layout`, Dienst `SageQuelleSchalter`,
+`SageQuelleWeiche`, `SageBookingWorker`, `SageWareneingangService`, 5 SData-Sync-Services, `SQL/147`, `nachlauf.psd1`, `IdealAkeWms.Deploy.psm1`,
+`Update-IdealAkeWms.ps1`, ADR 0024, Lesetest-Notiz, TS-131.
+
+| # | Schwere | Befund | Behandlung |
+|---|---|---|---|
+| **Q-1** | mittel (AK 11 nicht erfüllt) | **Einrückung der Stückliste live hängt an der Server-Kultur.** `Views/SageTest/Stueckliste.cshtml:106` `style="padding-left: @(0.5 + z.Tiefe * 1.25)rem"` formatiert den double mit de-Kultur → `0,5rem` / `1,75rem` / `4,25rem` = ungültiges CSS, wird verworfen. Nur gerade Tiefen (ganzzahliges Ergebnis, `3rem`) rücken ein. Auf DEV belegt: Artikel 86003871 – Ebene-2-Zeilen **nicht** eingerückt; FA 836 – nur die Sub-FA-Zeilen (Tiefe 2) eingerückt, Positionen (Tiefe 1/3) nicht. Unit-Test `RessourcenBaum_86003871_…` prüft nur `Tiefe`, nicht das Markup. | **offen – Fix nötig** (z. B. `.ToString(CultureInfo.InvariantCulture)` oder feste Klassen je Tiefe). Danach TS-131.9.1/131.9.2 erneut. |
+| Q-2 | leicht | Stiller Rückfall: `/SageTest/Feldliste?…&Anzahl=abc` → Binder scheitert, `ModelState.Clear()` (`SageTestController.cs:43`) verwirft den Fehler, gelesen wird mit Default 3 (auf DEV belegt). Gleiches für `FaNummer=abc` (wirkt wie „nicht eingegeben“). | offen, Empfehlung: Bindungsfehler vor `Clear()` als Meldung übernehmen. Kein Abnahmehindernis (Admin-Werkzeug, nur GET). |
+| Q-3 | leicht | `SageBookingWorker.ProcessOnceAsync`: bei „nicht entschlüsselbar“ schreibt jeder Takt (Default 20 s) einen fehlgeschlagenen Lauf „Sage-Lagerbuchung“; der Wareneingang-Zweig entprellt (`_weZugangGemeldet`), die Lagerbuchung nicht. Beim appsettings-Rückfall je Takt eine Warnzeile (spec-konform „einmal je Lauf“, aber Lauf = Takt). | offen, Empfehlung: gleiche Entprellung wie beim Wareneingang. Kein Abnahmehindernis. |
+| Q-4 | leicht / Hinweis | `TestSageConnection` mit leerem Kennwort sendet das **gespeicherte** Kennwort per Basic-Auth an die im Fenster **frei eingetragene** Adresse – ein Admin kann es so an einen eigenen Server schicken (gleiche Macht hat er über `SData:BaseUrl`; Schutzziel Antwort 5). Ein leeres Kennwort ersetzt außerdem einen eingegebenen Benutzer. | Hinweis an Gerald; Option: gespeicherte Zugangsdaten nur bei unveränderter Adresse. |
+| Q-5 | leicht | `Pruefung/SDataKennwortAppsettings` prüft nur die **Dienst**-appsettings (`Update-IdealAkeWms.ps1:410`); Web-`appsettings.Production.json` nur über den Text. Kein automatischer Abgleich Dienst-`DataProtection:KeysPath` = Web-Wert (fehlt er: „nicht entschlüsselbar“, fail-safe, sichtbar). | offen, Folgeaufgabe; Hinweistext `v1.99.14-SDataZugang` deckt es manuell ab. |
+| Q-6 | leicht (Brain) | F7 verlangt einen additiven Verweis von [[sage-sdata-commonwawiservicesresources]] auf [[sage-sdata-benutzerfelder-lesetest]] – fehlt (Grep 0 Treffer). PPS-Spec verlinkt ihn (AK 14 erfüllt). | offen, eine Zeile im Hauptcheckout. |
+
+Gezielt geprüfte Fehlerklassen ohne Befund: Werte in `<script>` (nur `@Url.Action`), `hidden` + `d-*` (nur `d-none` per classList), parallele Arrays
+(keine), Browser-only-Validierung (Feldliste/Stückliste/Kennwortlänge serverseitig), eine Regel an mehreren Stellen (Zugangsauflösung nur in
+`SdataZugangsdaten`; alle Leser von `SageLagerbuchung:*` laufen darüber – Grep belegt), Klartext (`ToString`-Overrides an `SdataZugang`,
+`SdataLeseZiel`, `SageBookingEndpoint`; Validator ohne Wert; Einstellungsprüfung überspringt Geheim).
+
+### 3. Nachweisart je AK
+| AK | Nachweis |
+|---|---|
+| 1 | Unit (`SageTest_NurAdmin`) + DEV (Reiter auf 4 Seiten, aktiver markiert); Nicht-Admin: Manual-UAT |
+| 2 | Unit (`Zugriff_NurAdmin_KeinGateMehr`) + DEV (kein Menüpunkt, FA 835 über Register); picking-Benutzer: Manual-UAT |
+| 3 | DEV: Link statt Modal, Modal vorbelegt, leeres Kennwort → gespeicherte Zugangsdaten (HTTP 401 mit Testkennwort, erwartbar). „$schema 200“ mit echtem Kennwort: **Manual-UAT** |
+| 4 | Unit (`Speichern_*`) + DEV (`dp1:`, unverändert, entfernen) |
+| 5 | **Manual-UAT** (Testbuchung/Abgleich auf DEV gesperrt) |
+| 6 | Unit (`Weiche_ZugangAusAppsettings_*`, `Aufloesen_OhneDbBenutzer_*`) + DEV-Web („aus appsettings“, Hinweis); Dienstläufe: Manual-UAT |
+| 7 | Unit + DEV-Web (Klartext; fremder Schlüsselring an IDEAL-DEV: Status, Register, Verbindungstest ohne Anfrage); Dienstlauf: Manual-UAT |
+| 8 | DEV (SyncLogs 0, Serilog Web/Dienst 0, Edit abgelehnt) + Unit (`Freitext_CreateEditDelete_LehnenGeheimAb`) |
+| 9, 10 | DEV gegen AKE-Test (Feldliste, include, Negativfälle) + Unit |
+| 11 | DEV: Inhalt korrekt (17 Positionen 11+6, FA-Modus, Negativfälle) – **Einrückung FEHLER (Q-1)** |
+| 12 | Unit (`Client_EineSeiteMitInclude_UndSchema_NurGet`) |
+| 13 | DEV IDEAL (BaseUrl kurz geleert) + Unit |
+| 14 | Notiz vorhanden (L1–L10, Schreibbarkeit, Fragen an DPS U1–U9), PPS-Spec verlinkt; Q-6 |
+| 15 | **Manual-UAT** (Update-Skript nicht gegen DEV lauffähig, s. u.); Manifest-Struktur per Drift-Test |
+| 16 | grün (s. 1) |
+
+### 4. Geänderte bestehende Tests
+- `BereinigungenV179Tests`, `ServiceSettingsControllerTests`: nur Konstruktor (Typänderung).
+- `SageSdataFaControllerTests`: Gate-Test ersetzt durch Admin-Attribut-Test – gewollt (Antwort 2/3, AK 2); Meldung `SData:Username` statt `SageLagerbuchung:Username` – gewollt (F6).
+- `AppSettingDefinitionsTests` 57 → 56 – gewollt (Gate entfällt). `ColumnFilterSyntaxTests`: `SageTest/Stueckliste` Client-Liste – gewollt (F4).
+- `NachlaufManifestDriftTests`: Appsettings-Prüfung darf Phase `Nachher` – gewollt (Manifest). `SageQuelleTests`: nur ergänzt. „Sonstiges“: keine.
+
+### 5. Checkliste / ADR 0020
+Keine Migration, `00_FreshInstall` unverändert (richtig). `SQL/147` idempotent, ohne Transaktionssteuerung/sqlcmd-Direktiven; auf IDEAL_WMS_DEV
+zweimal ausgeführt: 1 Zeile gelöscht, dann „nichts zu tun“. Manifest: `SQL/147`, `v1.99.14-DataProtectionDienst`, `Pruefung/SDataKennwortAppsettings`,
+`v1.99.14-SDataZugang`, `v1.99.14-SageTestInfo` vorhanden. Version 1.99.14 in beiden `AppVersion.cs`, Anwender- und Brain-Changelog vorhanden.
+TS-131 in `docs/TESTSZENARIEN.md`, TS-103 angepasst, Index-Zeile 131 vorhanden. ADR 0020: `SData:Username` (≤100 serverseitig, Anzeigename,
+Wirkung, Verwendung, Standort, Warnung) und `SData:Password` (Geheim, 1–128 serverseitig, Warnung) vollständig. ADR 0024 gelesen: deckt
+Entscheidung, Schutzgrenze und Deploy-Folgen.
+
+### 6. DEV-Deploy und Testlauf
+- `dev-deploy.ps1 -Standort AKE` und `-Standort IDEAL`, Quelle Worktree: beide Exit 0, Fußzeile **v1.99.14** = AppVersion.
+- DEV-Konfig: `DataProtection:KeysPath` in `D:\Dev\AKE\Service\appsettings.DEV.json` (`D:\Dev\AKE\keys`) und `D:\Dev\IDEAL\Service\appsettings.DEV.json`
+  (`D:\Dev\IDEAL\keys`) **ergänzt (bleibt)**. Leserecht Dienstkonto `svc_idealakewms@ake.at` über „Authentifizierte Benutzer: Ändern“ vorhanden.
+- Für den Rückfall-Test kurzzeitig `SageLagerbuchung:*` aus der Dienst-DEV-Datei in `D:\Dev\AKE\Web\appsettings.DEV.json` kopiert (ohne Ausgabe),
+  danach Originaldatei wiederhergestellt. IDEAL `SData:BaseUrl` kurz geleert und wiederhergestellt. `SData:Username/Password` an AKE- und IDEAL-DEV am
+  Ende leer. Testkennwort frei erfunden (nicht das echte).
+
+| Schritt | Ergebnis | Status |
+|---|---|---|
+| 131.1.1 Reiter 4 Seiten | überall gleich, aktiver markiert | OK |
+| 131.1.2 Admin-Menü ohne „Sage-Test“ | ja | OK |
+| 131.1.3 / 131.2.2 Nicht-Admin | kein zweiter Benutzer im Browser (Windows-Anmeldung) | NICHT MÖGLICH (Unit belegt Filter) |
+| 131.2.1 kein Menüpunkt FA live | ja | OK |
+| 131.2.3 FA live 835 über Register | Reiter, Rücklink, 7 FAs, 11 Positionen, 5 Aufrufe (appsettings-Rückfall) | OK |
+| 131.2.4 Schalter weg | Standorteinstellungen ohne Schalter | OK |
+| 131.2.5 SQL/147 | IDEAL-DEV gelöscht, 2. Lauf „nichts zu tun“; AKE-DEV ohne Zeile | OK |
+| 131.3.1/131.3.2 Kennwort setzen | Badge „gesetzt“, DB `dp1:` (159 Zeichen), kein Klartext | OK |
+| 131.3.3 leer speichern | Hash des DB-Werts unverändert | OK |
+| 131.3.4 Fehler anderer Einstellung | Browser blockt Intervall < 5 clientseitig; Serverpfad über 131.3.5 belegt | OK (über 131.3.5) |
+| 131.3.5 129 Zeichen | Meldung ohne Wert + „Kennwort nicht gespeichert …“ am Feld, DB unverändert | OK |
+| 131.3.6 entfernen | DB leer | OK |
+| 131.3.7 Edit per URL | Warnung, zurück auf Liste | OK (Create: Unit) |
+| 131.3.8 Serilog | „SData: Kennwort geändert/entfernt durch AKENB\…“ ohne Wert | OK |
+| 131.4.1–131.4.3 echtes Kennwort, Testbuchung, Abgleich | echtes Kennwort nicht verwendet; Buchung/Syncs auf DEV gesperrt | NICHT MÖGLICH |
+| 131.4.4 Register liest (Rückfall) | Feldliste, Stückliste, FA live HTTP 200 | OK |
+| 131.4.5 Rückfall-Warnung | Register „aus appsettings“ + Hinweis; Dienstläufe gesperrt | OK (Web) / NICHT MÖGLICH (Dienst) |
+| 131.5.1 Klartext per SQL | „nicht entschlüsselbar“, Register ohne Anfrage, kein Rückfall trotz appsettings | OK |
+| 131.5.2 Dienstlauf | SageLagerbuchungAktiv/Syncs aus | NICHT MÖGLICH |
+| 131.5.3 Verbindungstest | „Fehler – SData-Kennwort nicht entschlüsselbar …“, keine Anfrage | OK |
+| 131.5.4 fremder Schlüsselring | AKE-`dp1:` in IDEAL-DEV: „nicht entschlüsselbar“, kein Rückfall | OK |
+| 131.6.1–131.6.3 Verbindungstest | Link, Vorbelegung, leeres Kennwort → „Zugangsdaten: gespeichert (Service-Einstellungen)“, HTTP 401 (Testkennwort) | OK (200 = Manual-UAT) |
+| 131.6.4 Quelltext/Netzwerk | Code: kein value, JSON ohne Kennwort; Entwicklerwerkzeuge im Lauf nicht verfügbar | teilweise → Manual-UAT |
+| 131.7.1/131.7.2 | SyncLogs 0, Serilog Web+Dienst AKE/IDEAL 0 Treffer | OK |
+| 131.7.3 Einstellungsprüfung | Unit (`SettingItem_UndEinstellungspruefung_*`) | OK (Unit) |
+| 131.8.1 Feldliste PpsFaBelegeInfo | Schema 401 → Vertrags-Schema, Rechte nur Lesen, 67 Felder, 3 Benutzerfelder, URL ohne Zugangsdaten | OK |
+| 131.8.2 include SpecificUserfields | `…SpecificUserfields.USER_*` als Benutzerfeld mit Typ „(Daten)“ | OK |
+| 131.8.4–131.8.8 Negativ | alle Meldungen, keine Anfrage | OK |
+| 131.8.9 unbekannte Ressource | „HTTP 404: Die Resource 'Gibtsnicht' …“ | OK |
+| 131.8.10 RealTimeData mit orderBy/count | 200, 90 Felder, `KHKPpsFaBelege_USER_*` als Benutzerfeld | OK |
+| 131.9.1 Stückliste 86003871 | 17 Positionen (11+6), Kopf 32 Felder/1 Benutzerfeld, je Zeile 74 Felder/5 Benutzerfelder; **keine Einrückung** | **FEHLER (Q-1)** |
+| 131.9.2/131.9.3 FA 836 | Titel „FA 836 gehört zur Struktur 835 …“, BelPosID/Soll; Einrückung nur bei Tiefe 2 | **FEHLER (Q-1)** |
+| 131.9.4–131.9.6 Negativ | Meldungen wie erwartet | OK |
+| 131.9.7 nichts gespeichert | Code ohne DB-Schreibweg | OK (Review) |
+| 131.10.1 IDEAL ohne BaseUrl | Register/Feldliste/Stückliste „nicht konfiguriert: SData:BaseUrl“ | OK |
+| 131.10.2 IDEAL-Regression | nicht durchgespielt | NICHT MÖGLICH → Manual-UAT |
+| 131.11 Update-Skript | `ziele.psd1` kennt kein DEV-Ziel; `-NurPruefen` landet in der System-Auswahl und läuft bei geschlossener Eingabe in eine Endlosschleife („Ungueltig.“) – Zusatzfund, nicht diese Spec | NICHT MÖGLICH |
+| TS-103.3–103.13 | 103.3 über 131.2.3 OK; übrige nicht einzeln | Manual-UAT |
+
+### 7. Publish
+`<Worktree>\publish\` geleert und neu: `IDEALAKEWMSWeb`, `IDEALAKEWMSWebService`, `SQL`, `deploy`, `publish-info.txt` (Version 1.99.14, Commit
+`0b1cc9a2c0308a192713d5ca3f51b8e1fd786d66`). **Achtung:** enthält Befund Q-1 – nach dem Fix neu publishen.
+
+### Deploy (aus dem echten Diff, gilt nach dem Fix)
+- Web: ja (`IdealAkeWms/`), Dienst: ja (`IDEALAKEWMSService/`), Migration: nein; Daten-Skript `SQL/147` (Update-Skript, Transaktion).
+- Reihenfolge: Backup → Web → `SQL/147` → Dienst (Schritt 5a Ordnerrecht `{DataProtection}`; Dienst-`DataProtection:KeysPath` = Web-Wert) → danach
+  Zugangsdaten in `/ServiceSettings`, Lauf „Sage-Lagerbuchung“ prüfen, erst dann `SageLagerbuchung:*` aus beiden appsettings entfernen.
+- Nach dem Merge nur neu publishen, wenn der Merge geprüfte Dateien mit parallelen main-Änderungen zusammenführt.
+
+### Offen für den Menschen (nach dem Fix von Q-1)
+1. TS-131.9.1/131.9.2: Einrückung Ebene 1/2 bzw. FA-Struktur sichtbar.
+2. Echtes SData-Kennwort in `/ServiceSettings` (AKE-Test) eintragen; Register: Verbindungstest `$schema` = 200, Feldliste/Stückliste/FA live lesen (AK 3, 5).
+3. Entwicklerwerkzeuge: Quelltext `/ServiceSettings`, `/SageTest` und Netzwerk `TestSageConnection` ohne Kennwort (131.6.4).
+4. Testsystem: Testbuchung mit DB-Zugang, ein SData-Abgleich (AK 5); Rückfall mit genau einer Warnung je Lauf (AK 6, 131.4.5).
+5. Testsystem: nicht entschlüsselbarer Wert → Lauf „Sage-Lagerbuchung“ fehlgeschlagen, nichts gesendet (131.5.2).
+6. Nicht-Admin (picking) auf `/SageTest`, `/SageTest/Feldliste`, `/SageSdataFa` → verweigert (131.1.3, 131.2.2).
+7. Update-Skript auf dem Testsystem: Schritt 5a `v1.99.14-DataProtectionDienst`, Prüfung `SDataKennwortAppsettings`, `SQL/147`, Nachlauf (131.11).
+8. IDEAL-Regression 131.10.2 und TS-103.4–103.13 als Admin.
+
+## QA-Nachprüfung 2026-11-13 (qa-agent, Reparaturversuch 1) – Ergebnis: **Testbereit**
+
+Review des Diffs `0b1cc9a2..7048071a` (`SageBookingWorker.cs`, `SageTestController.cs`, `Stueckliste.cshtml`, `SageTestSdataTests.cs`):
+- **Q-1 erledigt:** `padding-left` mit `CultureInfo.InvariantCulture` formatiert, Quelltext-Wächtertest dazu. DEV (Browser): Artikel 86003871 – Ebene-2-Zeilen
+  eingerückt; FA 836 – Tiefen 0/1/2/3 gestaffelt (FA 835, Position, Sub-FA, Sub-FA-Position). TS-131.9.1–131.9.3 **OK**.
+- **Q-2 erledigt:** `UngueltigeZahlen()` übernimmt Bindungsfehler vor `ModelState.Clear()` als Meldung und bricht ohne Anfrage an Sage ab. DEV:
+  `Feldliste?…&Anzahl=abc` → „Anzahl: keine gültige ganze Zahl.“, keine Tabelle/URL; `Stueckliste?FaNummer=abc` → „FaNummer: keine gültige ganze
+  Zahl.“ **OK**. (Meldung nennt den Parameternamen, nicht die Feldbeschriftung – kosmetisch, kein Befund.)
+- **Q-3 erledigt:** Lagerbuchung protokolliert „nicht entschlüsselbar“ nur einmal je Zustandswechsel (`_lbZugangGemeldet`, gleiches Muster wie
+  Wareneingang); der reguläre Lauf beginnt erst nach der Prüfung. Code-Review OK; Dienstlauf auf DEV gesperrt → Checkliste Punkt 5.
+- **Q-6 erledigt:** Verweis in [[sage-sdata-commonwawiservicesresources]] Zeile 93.
+- Q-4, Q-5: Hinweise, bleiben in der Checkliste (Punkte 9, 10).
+
+Build 0 Fehler; Tests IdealAkeWms.Tests **2781 / 0 / 1 übersprungen**, IDEALAKEWMSService.Tests **603 / 0** (selbst gelaufen). DEV-Deploy
+`dev-deploy.ps1` AKE und IDEAL aus dem Worktree: beide Exit 0, Fußzeile v1.99.14. Für den Browser-Test erneut kurz `SageLagerbuchung:*` in
+`D:\Dev\AKE\Web\appsettings.DEV.json` (Rückfall), danach Original wiederhergestellt; `SData:Username/Password` an AKE- und IDEAL-DEV leer.
+Publish: `<Worktree>\publish\` – DLLs 10:42 nach Commit `7048071a` (10:42:16), `publish-info.txt` Commit `7048071ab236322dd18dcaa4e6b5e3a7ce2cee0c`,
+Version 1.99.14 (Zeile „Erstellt“ steht noch auf 10:36 – nur kosmetisch).
+
+Deploy wie oben (Web + Dienst, keine Migration, `SQL/147` Daten, Dienst-`DataProtection:KeysPath` = Web-Wert, Ordnerrecht Schritt 5a).
+
+**Ergänzung der Checkliste für den Menschen:**
+9. Q-4 entscheiden: Soll der Verbindungstest die gespeicherten Zugangsdaten nur an die gespeicherte Adresse senden?
+10. Q-5: Nach dem Deploy von Hand prüfen, dass `SageLagerbuchung:Password` auch aus dem Web-`appsettings.Production.json` entfernt ist und
+    `DataProtection:KeysPath` in Dienst und Web gleich ist (das Update-Skript prüft nur die Dienst-Datei).
+11. Q-3 auf dem Testsystem: nicht entschlüsselbarer Wert bei aktiver Lagerbuchung → genau **ein** fehlgeschlagener Lauf, kein weiterer je Takt;
+    nach Neueingabe wieder normale Läufe.
