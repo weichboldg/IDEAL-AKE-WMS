@@ -5,7 +5,7 @@ date: 2026-11-13
 ---
 # v1.99.22 — Belegnummer 45 Zeichen, Wareneingang zu Bestellung: Spalte „Überlieferung“, Hinweis auf offene Bedarfe
 
-Buendel `feature/2026-08-07-ideal-teile-1-5`, Commit `4689922c`. Spec [[2026-11-08-einkauf-bestellvorschlaege-spec]] (Freigabe-Nachtrag 3
+Buendel `feature/2026-08-07-ideal-teile-1-5`, Commit `4689922c`, QA `90bbbbd7`. **Testbereit** (QA 2026-11-13, DEV AKE+IDEAL). Spec [[2026-11-08-einkauf-bestellvorschlaege-spec]] (Freigabe-Nachtrag 3
 2026-11-13 18:07–18:12), Backlog [[2026-11-13-belegnummer-laenge-45]], [[2026-11-12-lagerbestellungen-und-bedarfsmeldungen-gespraech]] Punkt 2.
 /goal-Lauf [[2026-11-13-buendel-v1-99-19-goal-lauf]]. Nicht gemergt.
 

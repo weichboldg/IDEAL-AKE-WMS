@@ -5,7 +5,7 @@ date: 2026-11-13
 ---
 # v1.99.21 — Einkauf Bestellvorschläge E3: letzte Bestellmenge (3 Jahre), Fallback Sage-Bestellmenge
 
-Buendel `feature/2026-08-07-ideal-teile-1-5`, Commit `ca2f49ed`. Spec [[2026-11-08-einkauf-bestellvorschlaege-spec]] (Etappe 3, Freigabe-Nachtrag 2
+Buendel `feature/2026-08-07-ideal-teile-1-5`, Commit `ca2f49ed`. **Testbereit** (QA 2026-11-13, DEV AKE; Q-3: Schritt läuft je Dienst-Zyklus ~287 s auf AKE-DEV – Entscheidung Gerald). Spec [[2026-11-08-einkauf-bestellvorschlaege-spec]] (Etappe 3, Freigabe-Nachtrag 2
 2026-11-13 18:07). /goal-Lauf [[2026-11-13-buendel-v1-99-19-goal-lauf]]. Nicht gemergt.
 
 ## Kernpunkte

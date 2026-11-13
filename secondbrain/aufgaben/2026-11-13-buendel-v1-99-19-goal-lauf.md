@@ -1,6 +1,6 @@
 ---
 type: aufgabe
-status: offen
+status: erledigt
 created: 2026-11-13
 ---
 # /goal-Lauf 2026-11-13 (Abend): Lieferverzug-Nachbesserung, Einkauf Bestellvorschläge (Epic)
@@ -65,9 +65,9 @@ dafür von Testbereit zurück auf InUmsetzung. Versionen ab 1.99.21, TS ab TS-13
 
 | Teil | Version | SQL | TS | Status | Commits | Blocker |
 |---|---|---|---|---|---|---|
-| E3 letzte Bestellmenge (3 Jahre, Fallback Sage-Bestellmenge) | 1.99.21 | 148 | TS-136 erweitert (136.6–136.6g, 136.18–136.20) | umgesetzt, QA läuft | `ca2f49ed` | |
-| Nachtrag 3: Belegnummer 45, Wareneingang Layout „Überlieferung“, Hinweis Lagerbestellungen/Bedarfsmeldungen | 1.99.22 | 149 | TS-137 | umgesetzt, QA läuft | `4689922c` | |
-| DEV sichtbar (AKE-DEV Gate, Rolle `einkauf` für Gerald, Syncs) | – | – | – | qa-agent | | |
+| E3 letzte Bestellmenge (3 Jahre, Fallback Sage-Bestellmenge) | 1.99.21 | 148 | TS-136 erweitert (136.6–136.6g, 136.18–136.20) | **Testbereit** (QA 2026-11-13) | `ca2f49ed` | – |
+| Nachtrag 3: Belegnummer 45, Wareneingang Layout „Überlieferung“, Hinweis Lagerbestellungen/Bedarfsmeldungen | 1.99.22 | 149 | TS-137 | **Testbereit** (QA 2026-11-13) | `4689922c`, QA `90bbbbd7` | – |
+| DEV sichtbar (AKE-DEV Gate, Rolle `einkauf` für Gerald, Syncs) | – | – | – | **erledigt** (AKE-DEV: 50 Vorschläge) | – | IDEAL-DEV nicht eingeschaltet (0 Hauptlieferanten, Dataset zeigt auf AKE) |
 - E3 `ca2f49ed`: Migration `20261113171808_AddArticleSupplierLetzteBestellung` / SQL/148 (`ArticleSuppliers.LetzteBestellmenge`, `-Am`, `-Beleg` nvarchar(45));
   Dienst `ArtikelLieferantSyncService.LetzteBestellungAsync` (EBB+EBZ, 3 Jahre, alle Seiten, jüngster je Artikel/`A0Empfaenger`, `MengeBasis`);
   Rückblick als Konstante `ArticleSupplier.LetzteBestellungRueckblickJahre = 3`; Fallback Sage-Bestellmenge mit Badge/Hinweis/Banner, nur wenn
@@ -76,3 +76,23 @@ dafür von Testbereit zurück auf InUmsetzung. Versionen ab 1.99.21, TS ab TS-13
   `BelegnummerFormatiert` varchar(45) belegt; Index `IX_SagePurchaseOrderLines_Belegnummer` drop/recreate); Wareneingang Spalte „Überlieferung“,
   Hinweis offene Lagerbestellungen/Bedarfsmeldungen mit Link (nur Anzeige). Web 2853/0/1, Dienst 626/0. Publish v1.99.22 `4689922c`;
   `deploy.zip` noch v1.99.20 (kein Bau-Skript). Offen: Einheit der Sage-Bestellmenge (angenommen Lagereinheit) → Prüfabfrage Gerald (EK003604).
+- QA Wiederaufnahme 2026-11-13: Build 0, Web 2853/0/1, Dienst 626/0; Q-2 (Leerzeichen Badge/Grund) behoben `90bbbbd7`; SQL/148+149 je zweimal auf
+  AKE_WMS_DEV und IDEAL_WMS_DEV; DEV AKE+IDEAL v1.99.22. Sicherheitsprüfung: alle Sage-schreibenden Schalter aus, Pickup-Ordner unverändert (385).
+  Läufe AKE-DEV 18:43–18:49: Kreditoren, Artikel-Lieferanten (`letzte_bestellung_positionen` 38.047, gefunden 10.909, ohne Zuordnung 255), Offene Bestellungen.
+  TS-136 E3 + TS-137 im Browser OK (Screenshots `secondbrain/tests/2026-11-13-qa-einkauf-e3-nachtrag-3-screenshots/`). **Testbereit** (Brain `a92435ff`).
+- **DEV-Endzustand (bleibt):** AKE-DEV `Sync:KreditorenEnabled`, `Sync:ArtikelLieferantEnabled`, `Sync:EinkaufBestellungenEnabled` = true
+  (**jeder `dev-deploy.ps1` setzt sie wieder auf false**), `EinkaufAktiv = true`, gerald.weichbold hat admin + `einkauf`; Liste 50 Vorschläge,
+  0 Fallback, 19 „Menge prüfen“. IDEAL-DEV nicht eingeschaltet (0 Hauptlieferanten; `SData:Dataset` zeigt auf `ake_TEST2026;1` – ein Sync würde
+  AKE-Daten in die IDEAL-DB schreiben).
+- Publish `<Worktree>\publish` = v1.99.22 `90bbbbd7` (neu aufgebaut, `deploy.zip` 19:00 neu). SQL/149 durch Nachtrag 3 belegt → E5 braucht SQL/150+.
+
+## Abschluss Wiederaufnahme (2026-11-13)
+
+- Einkauf Bestellvorschläge **Testbereit für E0–E4, E6 + Freigabe-Nachtrag 3** (v1.99.21 `ca2f49ed`, v1.99.22 `4689922c`, QA `90bbbbd7`;
+  SQL/148, SQL/149; TS-136, TS-137). **E5 blockiert** (gewollt). Nächste freie SQL 150, nächstes TS-Kapitel TS-138.
+- Kein Sage-Schreiben, keine Mail, keine Prod-DB, kein Merge, kein Push.
+- **Offen für Gerald:** Q-3 – Schritt „letzte Bestellung“ läuft in jedem Dienst-Zyklus (~287 s auf AKE-DEV) und verzögert die Folgeschritte
+  (Offene Bestellungen, Lieferverzug) → so lassen oder eigenes Intervall (Folge-Spec); Einheit der Sage-Bestellmenge im Fallback (angenommen
+  Lagereinheit, z. B. EK003604); Q-4 `MengeBasis = 0` als jüngster Beleg (1 Zeile, ohne Wirkung heute); Q-5 Fallback-Text auch bei Bestellung bei
+  Lieferant ohne ArticleSuppliers-Zeile (255 Paare, im Log); Schranke 2 laut Checkliste in der Spec (CSV, Datumsfilter, TS-136.19, TS-137.2/.3/.4/.8/.12/.13);
+  Testsystem-Lauf v1.99.22 mit DB-Backup und SQL/148+149.
