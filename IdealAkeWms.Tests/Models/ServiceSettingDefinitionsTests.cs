@@ -150,6 +150,9 @@ public class ServiceSettingDefinitionsTests
     [InlineData("Lieferverzug:KreditorAbsender")] // v1.99.10
     [InlineData("Lieferverzug:AntwortAdresse")] // v1.99.10
     [InlineData("Lieferverzug:Standort")] // v1.99.10
+    [InlineData("Lieferverzug:KreditorTageNachTermin")] // v1.99.19
+    [InlineData("Lieferverzug:MaxAlterTage")] // v1.99.19
+    [InlineData("Lieferverzug:KreditorMitRahmenabrufen")] // v1.99.19
     [InlineData("WareneingangCsvAktiv")] // v1.99.11
     [InlineData("WareneingangCsvPfad")] // v1.99.11
     [InlineData("Sync:WareneingangCsvMaxWiederholungen")] // v1.99.11

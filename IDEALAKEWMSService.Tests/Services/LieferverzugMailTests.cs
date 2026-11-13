@@ -21,8 +21,11 @@ public class LieferverzugMailTests
     private static readonly DateTime Jetzt = new(2026, 11, 12, 8, 0, 0); // Donnerstag
     private static readonly DateTime Heute = Jetzt.Date;
 
-    private static LieferverzugEinstellungen E(bool test = true, bool kreditor = true, int max = 30, bool einkauf = true, string[]? einkaufAn = null) =>
-        new(einkauf, einkaufAn ?? new[] { "einkauf@test.invalid" }, kreditor, test, 3, 7, 7, max, "einkauf@test.invalid", null, "AKE", "https://wms.test");
+    /// <summary>Defaults wie v1.99.10 (AK 11 der Nachbesserung): Kreditor-Schwelle = Sammelliste, keine Altersgrenze.</summary>
+    private static LieferverzugEinstellungen E(bool test = true, bool kreditor = true, int max = 30, bool einkauf = true, string[]? einkaufAn = null,
+        int tage = 3, int kreditorTage = 3, int maxAlter = 0, bool mitAbrufen = false) =>
+        new(einkauf, einkaufAn ?? new[] { "einkauf@test.invalid" }, kreditor, test, tage, 7, 7, max, "einkauf@test.invalid", null, "AKE", "https://wms.test",
+            kreditorTage, maxAlter, mitAbrufen);
 
     private static SagePurchaseOrderLine L(int belPosId, int? terminTageZurueck, string kto = "70001", int? creditorId = 1, decimal offen = 5m,
         bool gesperrt = false, bool abweichend = false) => new()
@@ -182,11 +185,140 @@ public class LieferverzugMailTests
     public void EinkaufMail_GruppiertMitStatusLinkUndHinweis()
     {
         var plan = Plan(new[] { L(1, 5), L(2, 5, kto: "70002", creditorId: null) }, K(Kr()), E(test: false), stand: Jetzt.AddDays(-2));
-        var m = LieferverzugMailHtml.Einkauf(plan, "AKE", Jetzt.AddDays(-2), "https://wms.test/", Heute, 3);
+        var m = LieferverzugMailHtml.Einkauf(plan, "AKE", Jetzt.AddDays(-2), "https://wms.test/", Heute, E());
         System.Net.WebUtility.HtmlDecode(m.Html).Should().Contain("Lieferant 1 (70001)").And.Contain("Kreditor-Mail: ausgesetzt – Bestelldaten veraltet")
             .And.Contain("kein Kreditor im WMS").And.Contain("https://wms.test/PurchaseOrders?nurUeberfaellig=true")
             .And.Contain("Kreditor-Mails ausgesetzt");
         m.Text.Should().NotContain("<a").And.Contain("https://wms.test/PurchaseOrders?nurUeberfaellig=true");
+    }
+
+    // ---------------------------------------------------------------- v1.99.19 Nachbesserung (Spec 2026-11-13-lieferverzug-nachbesserung-keyuser)
+
+    private static SagePurchaseOrderLine Abruf(int id, int tage, string kto = "70001", int? creditorId = 1)
+    {
+        var l = L(id, tage, kto: kto, creditorId: creditorId);
+        (l.Belegkennzeichen, l.MengeGeliefert) = ("EBZ", 0m);
+        return l;
+    }
+
+    [Fact] // AK 2, 4, TS-128.16: Sammelliste ab 1 Tag, Kreditor-Mail ab 3 Tagen, Rest "erst ab" in der Statuszeile
+    public void ZweiSchwellen_SammellisteAlle_KreditorNurAbSchwelle()
+    {
+        var l = new[] { L(1, 1), L(2, 2), L(3, 3), L(4, 10) };
+        var g = Plan(l, K(Kr()), E(test: true, tage: 1, kreditorTage: 3)).Gruppen.Single();
+        g.Positionen.Select(p => p.Line.BelPosId).Should().BeEquivalentTo(new[] { 1, 2, 3, 4 });
+        g.Grund.Should().Be(LieferverzugGrund.Testbetrieb, "Testbetrieb folgt derselben Schwelle");
+        g.MailPositionen!.Select(p => p.Line.BelPosId).Should().BeEquivalentTo(new[] { 3, 4 });
+        g.Status.Should().EndWith($"– 2 Position(en) erst ab {Heute.AddDays(-2).AddDays(3):dd.MM.yyyy}");
+    }
+
+    [Fact] // AK 2, TS-128.17: nur Vorlauf -> keine Kreditor-Mail, Status "Kreditor-Mail ab", am Tag Termin+3 dann in der Mail
+    public void NurVorlauf_KeineKreditorMail_StatusAbDatum()
+    {
+        var g = Plan(new[] { L(1, 1) }, K(Kr()), E(test: false, tage: 1, kreditorTage: 3)).Gruppen.Single();
+        g.Grund.Should().Be(LieferverzugGrund.Vorlauf);
+        g.MailPositionen.Should().BeNull();
+        g.Status.Should().Be($"Kreditor-Mail ab {Heute.AddDays(2):dd.MM.yyyy} (3 Tage nach Liefertermin)");
+
+        Plan(new[] { L(1, 3) }, K(Kr()), E(test: false, tage: 1, kreditorTage: 3)).Gruppen.Single().Grund.Should().Be(LieferverzugGrund.Gesendet);
+    }
+
+    [Fact] // AK 3, TS-128.18: wirksam ist das Maximum beider Schwellen
+    public void MaximumRegel_SammellisteHoeherAlsKreditor()
+    {
+        var plan = Plan(new[] { L(1, 4), L(2, 5) }, K(Kr()), E(test: false, tage: 5, kreditorTage: 3));
+        plan.Gruppen.Single().Positionen.Select(p => p.Line.BelPosId).Should().Equal(2);
+        plan.Gruppen.Single().MailPositionen!.Select(p => p.Line.BelPosId).Should().Equal(2);
+    }
+
+    [Fact] // AK 5, TS-128.19: Altersgrenze 180 - heute-181 und Abruf heute-400 zu klaeren, heute-180 normal
+    public void Altersgrenze_ZuKlaeren_NieInGruppeOderKreditorMail()
+    {
+        var l = new[] { L(1, 181), Abruf(2, 400), L(3, 180) };
+        var plan = Plan(l, K(Kr()), E(test: false, maxAlter: 180));
+        plan.ZuKlaeren.Select(p => p.Line.BelPosId).Should().BeEquivalentTo(new[] { 1, 2 });
+        plan.Gruppen.Single().Positionen.Select(p => p.Line.BelPosId).Should().Equal(3);
+        plan.Gruppen.Single().MailPositionen!.Select(p => p.Line.BelPosId).Should().Equal(3);
+        plan.AnzahlFaellig.Should().Be(3);
+
+        var m = LieferverzugMailHtml.Einkauf(plan, "AKE", Jetzt, null, Heute, E(test: false, maxAlter: 180));
+        m.Betreff.Should().Be($"Lieferverzug: 3 Bestellposition(en) bei 1 Lieferant(en), davon 2 zu klären – {Heute:dd.MM.yyyy}");
+        var html = System.Net.WebUtility.HtmlDecode(m.Html);
+        html.Should().Contain("Zu klären – Liefertermin älter als 180 Tage (keine Erinnerung an Lieferanten)")
+            .And.Contain("Bitte in Sage prüfen: geliefert, storniert oder Termin anpassen.").And.Contain(">Rahmenabruf<").And.Contain(">Bestellung<")
+            .And.Contain("Sage 70001 (70001)");
+        m.Text.Should().Contain("Zu klären – Liefertermin älter als 180 Tage").And.Contain("| Rahmenabruf").And.NotContain("<td");
+    }
+
+    [Fact] // AK 6, TS-128.21: Grenze 0 = aus
+    public void Altersgrenze_Null_KeinAbschnitt()
+    {
+        var plan = Plan(new[] { L(1, 400) }, K(Kr()), E(test: false, maxAlter: 0));
+        plan.ZuKlaeren.Should().BeEmpty();
+        plan.Gruppen.Single().MailPositionen.Should().HaveCount(1);
+        var m = LieferverzugMailHtml.Einkauf(plan, "AKE", Jetzt, null, Heute, E(maxAlter: 0));
+        m.Html.Should().NotContain("Zu kl");
+        m.Betreff.Should().NotContain("zu klären");
+    }
+
+    [Fact] // AK 8, TS-128.20: 31 Kreditoren nur mit alten Positionen, Grenze 30 -> keine Grenzen-Warnung
+    public void ZuKlaeren_ZaehltNichtFuerGrenze()
+    {
+        var l = Enumerable.Range(1, 31).Select(i => L(i, 200, kto: "K" + i, creditorId: i)).ToArray();
+        var plan = Plan(l, K(Enumerable.Range(1, 31).Select(i => Kr(i)).ToArray()), E(test: false, max: 30, maxAlter: 180));
+        plan.GrenzeUeberschritten.Should().BeFalse();
+        plan.Gruppen.Should().BeEmpty();
+        plan.ZuKlaeren.Should().HaveCount(31);
+        plan.AnzahlLieferanten.Should().Be(31);
+    }
+
+    [Fact] // AK 10, TS-128.23: Schalter aus -> Abruf nur Sammelliste mit Statuszeile; an -> Kreditor-Mail
+    public void Rahmenabruf_SchalterAus_NurSammelliste()
+    {
+        var aus = Plan(new[] { Abruf(1, 10) }, K(Kr()), E(test: false)).Gruppen.Single();
+        aus.Positionen.Should().HaveCount(1);
+        aus.Grund.Should().Be(LieferverzugGrund.Rahmenabruf);
+        aus.MailPositionen.Should().BeNull();
+        aus.Status.Should().Be("1 Rahmenabruf/-abrufe nicht an Lieferanten (Einstellung)");
+        aus.AbrufeAusgenommen.Should().Be(1);
+
+        var gemischt = Plan(new[] { Abruf(1, 10), L(2, 10) }, K(Kr()), E(test: false)).Gruppen.Single();
+        gemischt.MailPositionen!.Select(p => p.Line.BelPosId).Should().Equal(2);
+        gemischt.Status.Should().EndWith("– 1 Rahmenabruf/-abrufe nicht an Lieferanten (Einstellung)");
+
+        var an = Plan(new[] { Abruf(1, 10) }, K(Kr()), E(test: false, mitAbrufen: true)).Gruppen.Single();
+        an.Grund.Should().Be(LieferverzugGrund.Gesendet);
+        an.MailPositionen.Should().HaveCount(1);
+    }
+
+    [Fact] // AK 7, 9: nur Positionen zu klaeren -> Sammelliste geht trotzdem, Protokoll Art = Einkauf je Position, Counts
+    public async Task Lauf_NurZuKlaeren_SammellisteMitProtokollUndCounts()
+    {
+        var (svc, db, mail, log, _) = Svc();
+        Seed(db, L(1, 200), Abruf(2, 300, kto: "70002", creditorId: 2));
+        await svc.RunAsync(E(test: false, maxAlter: 180), false, Jetzt);
+
+        mail.Gesendet.Should().ContainSingle().Which.Betreff.Should().Contain("davon 2 zu klären");
+        db.PurchaseOrderReminders.Where(r => r.Art == PurchaseOrderReminderArt.Einkauf).Select(r => r.BelPosId).Should().BeEquivalentTo(new[] { 1, 2 });
+        db.PurchaseOrderReminders.Should().NotContain(r => r.Art == PurchaseOrderReminderArt.Kreditor);
+        var c = log.Runs.Single().FinalCounts!;
+        c["zu_klaeren"].Should().Be(2);
+        c["faellig"].Should().Be(2);
+        c["vorlauf"].Should().Be(0);
+        c["rahmenabruf_ausgenommen"].Should().Be(0);
+    }
+
+    [Fact] // AK 9: DryRun mit vorlauf und rahmenabruf_ausgenommen
+    public async Task Lauf_DryRun_CountsVorlaufUndAbrufe()
+    {
+        var (svc, db, _, log, _) = Svc();
+        Seed(db, L(1, 1), Abruf(2, 10, kto: "70002", creditorId: 2));
+        await svc.RunAsync(E(test: false, tage: 1, kreditorTage: 3), dryRun: true, Jetzt);
+        var run = log.Runs.Single();
+        run.FinalMessageSuffix.Should().Be("[DryRun]");
+        run.FinalCounts!["vorlauf"].Should().Be(1);
+        run.FinalCounts!["rahmenabruf_ausgenommen"].Should().Be(1);
+        run.FinalCounts!["kreditor_geplant"].Should().Be(0);
     }
 
     // ---------------------------------------------------------------- Lauf
@@ -315,7 +447,7 @@ public class LieferverzugMailTests
         var (svc, db, mail, _, _) = Svc(new Dictionary<int, ErfasstJeBelPos> { [3] = new(10m, uebergeben), [4] = new(4m, uebergeben) });
         Seed(db, Abruf(3, 10m), Abruf(4, 10m));
 
-        await svc.RunAsync(E(test: false), false, Jetzt);
+        await svc.RunAsync(E(test: false, mitAbrufen: true), false, Jetzt); // v1.99.19 F3: nur mit Schalter in der Kreditor-Mail
 
         var einkauf = mail.Gesendet.Single(n => n.Empfaenger.Contains("einkauf@test.invalid"));
         einkauf.Text.Should().Contain("2027-4 |").And.Contain("geliefert –,").And.Contain("Rest 6 Stk").And.NotContain("2027-3 |", "Rest 0 nie");

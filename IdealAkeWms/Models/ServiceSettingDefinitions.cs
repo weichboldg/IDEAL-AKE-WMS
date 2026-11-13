@@ -139,7 +139,11 @@ public static class ServiceSettingDefinitions
         // v1.99.10 Lieferverzug-Mail (Spec 2026-11-12-offene-bestellungen-mahnmail-lieferverzug): beide Standorte, Werte je Installation;
         // wirkt nur mit Daten aus Sync:EinkaufBestellungenEnabled (IDEAL bis zur SData-Schnittstelle aus).
         ["Lieferverzug:MailAktiv"] = ("Lieferverzug-Mails", LvVerwendung, null, "Versendet Mails, bei abgeschaltetem Testbetrieb auch an Lieferanten."),
-        ["Lieferverzug:TageNachTermin"] = ("Tage nach Liefertermin", LvVerwendung, null, null),
+        ["Lieferverzug:TageNachTermin"] = ("Sammelliste: Tage nach Liefertermin", LvVerwendung, null, null),
+        // v1.99.19 (Spec 2026-11-13-lieferverzug-nachbesserung-keyuser F1–F3)
+        ["Lieferverzug:KreditorTageNachTermin"] = ("Kreditor-Mail: Tage nach Liefertermin", LvVerwendung, null, "Ein kleinerer Wert erinnert Lieferanten früher (externe Mails, sofern der Testbetrieb aus ist)."),
+        ["Lieferverzug:MaxAlterTage"] = ("Altersgrenze (Tage nach Liefertermin)", LvVerwendung, null, "0 schaltet die Grenze ab: dann können auch sehr alte Positionen (z. B. Rahmenabrufe seit 2019) an Lieferanten gehen."),
+        ["Lieferverzug:KreditorMitRahmenabrufen"] = ("Kreditor-Mail auch für Rahmenabrufe", LvVerwendung, null, "Abruf-Lieferungen, die direkt in Sage gebucht wurden, zieht das WMS nicht ab. Einschalten erinnert Lieferanten möglicherweise an bereits Geliefertes."),
         ["Lieferverzug:Uhrzeit"] = ("Versand ab (Uhr)", LvVerwendung, null, null),
         ["Lieferverzug:EinkaufAktiv"] = ("Sammelliste an den Einkauf", LvVerwendung, null, "Versendet Mails."),
         ["Lieferverzug:EinkaufEmpfaenger"] = ("Einkauf: Empfänger", LvVerwendung, null, null),
@@ -172,6 +176,8 @@ public static class ServiceSettingDefinitions
         ["Sync:BdeAutoPauseIntervalMinutes"] = (0, null, "min"),
         ["Sync:LagerbestandIntervalMinutes"] = (0, null, "min"),
         ["Lieferverzug:TageNachTermin"] = (0, 60, "Tage"),
+        ["Lieferverzug:KreditorTageNachTermin"] = (0, 60, "Tage"),
+        ["Lieferverzug:MaxAlterTage"] = (0, 3650, "Tage"),
         ["Lieferverzug:Uhrzeit"] = (0, 23, "Uhr"),
         ["Lieferverzug:KreditorWiederholTage"] = (1, 60, "Tage"),
         ["Lieferverzug:KreditorMaxJeLauf"] = (1, 500, ""),
@@ -308,7 +314,10 @@ public static class ServiceSettingDefinitions
 
         // ----- Lieferverzug-Mail (v1.99.10, Spec 2026-11-12-offene-bestellungen-mahnmail-lieferverzug) -----
         new("Lieferverzug:MailAktiv", SettingType.Bool, "false", LvKategorie, "Hauptschalter: Der Dienst prueft einmal am Tag (Mo-Fr ab der Uhrzeit unten) die offenen Bestellpositionen aus dem Cache 'Offene Bestellungen (Sage)' auf Lieferverzug und versendet die Mails nach den Einstellungen unten. Aus = kein Lauf. Ohne Bestell-Abgleich wirkungslos."),
-        new("Lieferverzug:TageNachTermin", SettingType.Int, "3", LvKategorie, "Eine Position gilt als verzoegert, wenn heute mindestens so viele Kalendertage nach ihrem Liefertermin liegt und noch ein Rest offen ist (Rest wie in 'Wareneingang zu Bestellung'). Positionen ohne Liefertermin nie."),
+        new("Lieferverzug:TageNachTermin", SettingType.Int, "3", LvKategorie, "Ab so vielen Kalendertagen nach dem Liefertermin steht eine Position mit Rest > 0 in der Sammelliste an den Einkauf (Rest wie in 'Wareneingang zu Bestellung'). Positionen ohne Liefertermin nie. Zugleich Untergrenze fuer die Kreditor-Mail."),
+        new("Lieferverzug:KreditorTageNachTermin", SettingType.Int, "3", LvKategorie, "Eine Position kommt fruehestens so viele Kalendertage nach ihrem Liefertermin in die Kreditor-Mail. Wirksam ist der groessere Wert aus dieser Einstellung und 'Sammelliste: Tage nach Liefertermin', damit jede Kreditor-Position auch in der Sammelliste steht. Bis dahin zeigt die Sammelliste 'Kreditor-Mail ab <Datum>'."),
+        new("Lieferverzug:MaxAlterTage", SettingType.Int, "180", LvKategorie, "Positionen, deren Liefertermin mehr als so viele Tage zurueckliegt, stehen nur im Abschnitt 'Zu klaeren' der Sammelliste und gehen nie an Lieferanten (zaehlen auch nicht fuer die Grenze je Lauf). Gilt fuer Bestellungen und Rahmenabrufe. 0 = keine Grenze."),
+        new("Lieferverzug:KreditorMitRahmenabrufen", SettingType.Bool, "false", LvKategorie, "Aus: Rahmenabrufe (EBZ) stehen nur in der Sammelliste, nie in einer Kreditor-Mail (Statuszeile nennt sie). An: wie Bestellungen. Erst einschalten, wenn geklaert ist, dass Abruf-Lieferungen nicht direkt in Sage gebucht werden (P-L4)."),
         new("Lieferverzug:Uhrzeit", SettingType.Int, "7", LvKategorie, "Versand im ersten Sync-Zyklus ab dieser Stunde, nur Montag bis Freitag (Feiertage werden nicht beruecksichtigt). Hoechstens einmal am Tag, auch nach einem Dienst-Neustart."),
         new("Lieferverzug:EinkaufAktiv", SettingType.Bool, "true", LvKategorie, "Taegliche Sammelliste aller verzoegerten Positionen, gruppiert nach Kreditor mit Status der Kreditor-Mail, an die Einkauf-Empfaenger. Nur wenn mindestens eine Position verzoegert ist."),
         new("Lieferverzug:EinkaufEmpfaenger", SettingType.String, "", LvKategorie, "Empfaenger der Sammelliste UND im Testbetrieb aller umgeleiteten Kreditor-Mails (Adressen durch Komma, Semikolon oder Zeilenumbruch getrennt; jede wird geprueft). Leer = keine Mail, Warnung im Lauf.",

@@ -53,7 +53,11 @@ public class LieferverzugMailService
             Absender: await Str("Lieferverzug:KreditorAbsender"),
             AntwortAdresse: await Str("Lieferverzug:AntwortAdresse"),
             Standort: await Str("Lieferverzug:Standort") == "IDEAL" ? "IDEAL" : "AKE",
-            AppBaseUrl: await Str("Notifications:AppBaseUrl"));
+            AppBaseUrl: await Str("Notifications:AppBaseUrl"),
+            // v1.99.19 (Spec 2026-11-13-lieferverzug-nachbesserung-keyuser F1–F3)
+            KreditorTageNachTermin: await Int("Lieferverzug:KreditorTageNachTermin", 3, 0, 60),
+            MaxAlterTage: await Int("Lieferverzug:MaxAlterTage", 180, 0, 3650),
+            KreditorMitRahmenabrufen: await ServiceSettings.GetBoolSafeAsync(c, "Lieferverzug:KreditorMitRahmenabrufen", false, ct));
     }
 
     public async Task RunAsync(LieferverzugEinstellungen e, bool dryRun, DateTime jetzt, CancellationToken ct = default)
@@ -138,12 +142,12 @@ public class LieferverzugMailService
 
         if (e.EinkaufAktiv && e.EinkaufEmpfaenger.Count > 0 && !dryRun)
         {
-            var inhalt = LieferverzugMailHtml.Einkauf(plan, e.Standort, stand, e.AppBaseUrl, heute, e.TageNachTermin);
+            var inhalt = LieferverzugMailHtml.Einkauf(plan, e.Standort, stand, e.AppBaseUrl, heute, e);
             try
             {
                 if (await _mail.SendMitOptionenAsync(new MailNachricht(inhalt.Betreff, inhalt.Html, inhalt.Text, e.EinkaufEmpfaenger, Bilder: bilder), ct))
                 {
-                    await ProtokollAsync(PurchaseOrderReminderArt.Einkauf, plan.Gruppen.SelectMany(g => g.Positionen).ToList(), e.EinkaufEmpfaenger, false, null, jetzt, ct);
+                    await ProtokollAsync(PurchaseOrderReminderArt.Einkauf, plan.Gruppen.SelectMany(g => g.Positionen).Concat(plan.ZuKlaeren).ToList(), e.EinkaufEmpfaenger, false, null, jetzt, ct);
                     einkaufGesendet = 1;
                 }
                 else
@@ -176,6 +180,9 @@ public class LieferverzugMailService
             ["inaktiv"] = Anzahl(LieferverzugGrund.Inaktiv),
             ["nicht_dran"] = Anzahl(LieferverzugGrund.NichtDran),
             ["ausgesetzt"] = Anzahl(LieferverzugGrund.StandAlt) + Anzahl(LieferverzugGrund.Grenze),
+            ["zu_klaeren"] = plan.ZuKlaeren.Count,
+            ["vorlauf"] = Anzahl(LieferverzugGrund.Vorlauf),
+            ["rahmenabruf_ausgenommen"] = plan.Gruppen.Sum(g => g.AbrufeAusgenommen),
             ["nicht_gesendet"] = nichtGesendet,
             ["fehler"] = fehler,
         }, messageSuffix: dryRun ? "[DryRun]" : null, ct: ct);

@@ -9,6 +9,20 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.99.19</strong> <span class="text-white-50 ms-2">13.11.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>Lieferverzug-Mails: eigene Schwelle für Lieferanten, Altersgrenze und Abschnitt &bdquo;Zu klären&ldquo;</h6>
+                <ul>
+                    <li><strong>Zwei Schwellen:</strong> <em>Sammelliste: Tage nach Liefertermin</em> steuert die tägliche Liste an den Einkauf, die neue Einstellung <em>Kreditor-Mail: Tage nach Liefertermin</em> (Standard 3) die Erinnerung an den Lieferanten. Wirksam ist für Lieferanten der größere der beiden Werte. Bis dahin zeigt die Sammelliste &bdquo;Kreditor-Mail ab &lt;Datum&gt;&ldquo; bzw. &bdquo;n Position(en) erst ab &lt;Datum&gt;&ldquo;.</li>
+                    <li><strong>Altersgrenze</strong> (neu, Standard 180 Tage, 0 = aus): Positionen, deren Liefertermin länger zurückliegt, stehen in der Sammelliste nur im Abschnitt &bdquo;Zu klären&ldquo; und gehen nie an Lieferanten. Der Betreff nennt &bdquo;davon n zu klären&ldquo;. Bitte diese Positionen in Sage prüfen (geliefert, storniert oder Termin anpassen).</li>
+                    <li><strong>Rahmenabrufe</strong> stehen weiter in der Sammelliste, gehen aber nur an Lieferanten, wenn <em>Kreditor-Mail auch für Rahmenabrufe</em> eingeschaltet ist (Standard aus). Die Statuszeile nennt ausgenommene Abrufe.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.99.18</strong> <span class="text-white-50 ms-2">13.11.2026</span>
             </div>
             <div class="card-body">

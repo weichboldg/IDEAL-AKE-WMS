@@ -131,17 +131,29 @@
                         <code>Sync:EinkaufBestellungenEnabled</code>). Einstellungen unter <em>Service-Einstellungen &rarr; Lieferverzug-Mail</em>
                         (je Standort; Hauptschalter <code>Lieferverzug:MailAktiv</code>, Standard aus).
                         <ul class="mb-1">
-                            <li><strong>Verzögert</strong> ist eine Position, wenn heute mindestens <em>Tage nach Liefertermin</em> (Standard 3,
+                            <li><strong>Verzögert</strong> ist eine Position, wenn heute mindestens <em>Sammelliste: Tage nach Liefertermin</em> (Standard 3,
                                 Kalendertage) nach dem Liefertermin liegt und noch ein Rest offen ist &ndash; derselbe Rest wie in
                                 <em>Wareneingang zu Bestellung</em>, also abzüglich im WMS erfasster, noch nicht in Sage enthaltener Mengen. Positionen ohne
-                                Liefertermin nie. Rahmenabrufe (seit v1.99.15) mit dem Liefertermin des Abrufs, in der Sammelliste und in der
-                                Kreditor-Mail; &bdquo;Geliefert&ldquo; zeigt bei ihnen &bdquo;&ndash;&ldquo;. In Sage direkt gebuchte Abruf-Lieferungen zieht das
-                                WMS nicht ab &ndash; ein so gelieferter Abruf kann deshalb weiter erinnert werden.</li>
+                                Liefertermin nie. Rahmenabrufe (seit v1.99.15) mit dem Liefertermin des Abrufs; &bdquo;Geliefert&ldquo; zeigt bei ihnen
+                                &bdquo;&ndash;&ldquo;. In Sage direkt gebuchte Abruf-Lieferungen zieht das WMS nicht ab.</li>
+                            <li><strong>Zwei Schwellen (seit v1.99.19):</strong> In die Kreditor-Mail kommt eine Position erst ab <em>Kreditor-Mail: Tage nach
+                                Liefertermin</em> (Standard 3); wirksam ist der größere der beiden Werte, damit jede Position der Kreditor-Mail auch in der
+                                Sammelliste steht. Bis dahin zeigt die Sammelliste &bdquo;Kreditor-Mail ab &lt;Datum&gt;&ldquo; bzw. &bdquo;n Position(en) erst ab
+                                &lt;Datum&gt;&ldquo;.</li>
+                            <li><strong>Altersgrenze (seit v1.99.19):</strong> Liegt der Liefertermin mehr als <em>Altersgrenze</em> Tage zurück (Standard 180,
+                                0 = keine Grenze), steht die Position nur im Abschnitt &bdquo;Zu klären&ldquo; am Ende der Sammelliste (mit Art Bestellung bzw.
+                                Rahmenabruf) und geht nie an den Lieferanten; sie zählt auch nicht für die Grenze je Lauf. Bitte in Sage prüfen: geliefert,
+                                storniert oder Termin anpassen.</li>
+                            <li><strong>Rahmenabrufe an Lieferanten (seit v1.99.19):</strong> nur mit <em>Kreditor-Mail auch für Rahmenabrufe</em> (Standard
+                                aus). Ausgeschaltet stehen Abrufe nur in der Sammelliste; die Statuszeile meldet &bdquo;n Rahmenabruf/-abrufe nicht an
+                                Lieferanten (Einstellung)&ldquo;. Erst einschalten, wenn feststeht, dass Abruf-Lieferungen nicht direkt in Sage gebucht werden &ndash;
+                                sonst erinnert die Mail möglicherweise an bereits Geliefertes.</li>
                             <li><strong>Wann:</strong> Montag bis Freitag im ersten Sync-Lauf ab <em>Versand ab (Uhr)</em> (Standard 7), höchstens einmal am
                                 Tag, auch nach einem Dienst-Neustart. Feiertage zählen als Versandtag.</li>
                             <li><strong>Sammelliste an den Einkauf:</strong> alle verzögerten Positionen nach Lieferant, je Lieferant eine Zeile
                                 &bdquo;Kreditor-Mail: &hellip;&ldquo; (gesendet, Testbetrieb, nächste Erinnerung am, keine/ungültige Adresse, abgeschaltet,
-                                Lieferant gesperrt, Kreditor inaktiv, kein Kreditor im WMS, ausgesetzt).</li>
+                                Lieferant gesperrt, Kreditor inaktiv, kein Kreditor im WMS, ausgesetzt, Kreditor-Mail ab &lt;Datum&gt;, Rahmenabrufe nicht an
+                                Lieferanten).</li>
                             <li><strong>Erinnerung an den Lieferanten</strong> (Schalter <em>Erinnerung an Kreditoren</em>): eine Mail je Lieferant in
                                 Deutsch und Englisch, an die <em>Adresse für Erinnerungen</em> des Kreditors, sonst an seine E-Mail. Erneut erst nach
                                 <em>Kreditor: erneut erinnern nach</em> Tagen (Standard 7); ein geänderter Liefertermin beginnt neu. Absender und

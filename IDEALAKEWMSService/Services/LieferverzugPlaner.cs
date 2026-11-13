@@ -8,7 +8,13 @@ namespace IDEALAKEWMSService.Services;
 public sealed record LieferverzugEinstellungen(
     bool EinkaufAktiv, IReadOnlyList<string> EinkaufEmpfaenger, bool KreditorAktiv, bool Testbetrieb,
     int TageNachTermin, int Uhrzeit, int WiederholTage, int MaxJeLauf,
-    string? Absender, string? AntwortAdresse, string Standort, string? AppBaseUrl);
+    string? Absender, string? AntwortAdresse, string Standort, string? AppBaseUrl,
+    int KreditorTageNachTermin, int MaxAlterTage, bool KreditorMitRahmenabrufen)
+{
+    /// <summary>v1.99.19 (Spec 2026-11-13-lieferverzug-nachbesserung-keyuser F1 / Freigabe-Antwort 2): wirksame Kreditor-Schwelle = Maximum
+    /// beider Schwellen – jede Position einer Kreditor-Mail steht damit auch in der Sammelliste.</summary>
+    public int KreditorSchwelle => Math.Max(TageNachTermin, KreditorTageNachTermin);
+}
 
 /// <summary>Kreditor-Daten, die der Planer braucht (aus <see cref="Creditor"/>).</summary>
 public sealed record LieferverzugKreditor(int Id, string Name, string? Email, string? ReminderEmail, bool ReminderDisabled, bool IsActive);
@@ -20,7 +26,11 @@ public sealed record LieferverzugPosition(SagePurchaseOrderLine Line, decimal Re
 public enum LieferverzugGrund
 {
     Gesendet, Testbetrieb, NichtDran, OhneAdresse, Abgeschaltet, Gesperrt, KeinKreditor, Inaktiv, KreditorMailsAus, StandAlt, Grenze,
-    Fehler, NichtGesendet
+    Fehler, NichtGesendet,
+    /// <summary>v1.99.19 F1: alle Positionen noch unter der Kreditor-Schwelle.</summary>
+    Vorlauf,
+    /// <summary>v1.99.19 F3: nur Rahmenabrufe, Schalter „Kreditor-Mail auch für Rahmenabrufe“ aus.</summary>
+    Rahmenabruf
 }
 
 /// <summary>Alle faelligen Positionen eines Lieferanten (Sage-Konto) mit dem Ergebnis fuer die Kreditor-Mail.</summary>
@@ -36,11 +46,16 @@ public sealed class LieferverzugGruppe
     public List<LieferverzugPosition>? MailPositionen { get; set; }
     public LieferverzugGrund Grund { get; set; }
     public string Status { get; set; } = "";
+    /// <summary>v1.99.19 F3: Rahmenabrufe, die wegen des Schalters nicht in die Kreditor-Mail gehen (Count rahmenabruf_ausgenommen).</summary>
+    public int AbrufeAusgenommen { get; set; }
 }
 
-public sealed record LieferverzugPlan(IReadOnlyList<LieferverzugGruppe> Gruppen, bool StandAlt, bool GrenzeUeberschritten, int AnzahlEchteMails)
+/// <param name="ZuKlaeren">v1.99.19 F2: faellige Positionen ueber der Altersgrenze – nur Abschnitt „Zu klären“ der Sammelliste, nie Kreditor-Mail.</param>
+public sealed record LieferverzugPlan(IReadOnlyList<LieferverzugGruppe> Gruppen, bool StandAlt, bool GrenzeUeberschritten, int AnzahlEchteMails,
+    IReadOnlyList<LieferverzugPosition> ZuKlaeren)
 {
-    public int AnzahlFaellig => Gruppen.Sum(g => g.Positionen.Count);
+    public int AnzahlFaellig => Gruppen.Sum(g => g.Positionen.Count) + ZuKlaeren.Count;
+    public int AnzahlLieferanten => Gruppen.Select(g => g.Kto ?? "").Union(ZuKlaeren.Select(p => p.Line.LieferantKto ?? "")).Count();
     public IEnumerable<LieferverzugGruppe> MitMail => Gruppen.Where(g => g.MailPositionen != null);
 }
 
@@ -73,9 +88,17 @@ public static class LieferverzugPlaner
 
         var faellig = zeilen
             .Where(l => TerminUeberschritten(l, heute, e.TageNachTermin) && restJeBelPos.TryGetValue(l.BelPosId, out var r) && r > 0m)
-            .Select(l => new LieferverzugPosition(l, restJeBelPos[l.BelPosId], (heute - l.Liefertermin!.Value.Date).Days));
+            .Select(l => new LieferverzugPosition(l, restJeBelPos[l.BelPosId], (heute - l.Liefertermin!.Value.Date).Days))
+            .ToList();
 
-        var gruppen = faellig
+        // v1.99.19 F2: Altersgrenze (0 = aus) – zu klaerende Positionen bilden keine Gruppe, zaehlen nicht fuer Grenze und Wiederholung
+        bool ZuAlt(LieferverzugPosition p) => e.MaxAlterTage > 0 && p.TageUeberfaellig > e.MaxAlterTage;
+        var zuKlaeren = faellig.Where(ZuAlt)
+            .OrderBy(p => p.Line.LieferantName ?? p.Line.LieferantKto, StringComparer.CurrentCultureIgnoreCase).ThenBy(p => p.Line.LieferantKto)
+            .ThenBy(p => p.Line.Liefertermin).ThenBy(p => p.Line.Belegnummer).ThenBy(p => p.Line.BelPosId)
+            .ToList();
+
+        var gruppen = faellig.Where(p => !ZuAlt(p))
             .GroupBy(p => p.Line.LieferantKto ?? "")
             .Select(g =>
             {
@@ -103,7 +126,7 @@ public static class LieferverzugPlaner
             foreach (var g in gruppen.Where(g => g.MailPositionen != null))
                 Setzen(g, LieferverzugGrund.Grenze, $"ausgesetzt – mehr als {e.MaxJeLauf} Kreditor-Mails fällig (Grenze je Lauf)", null);
 
-        return new LieferverzugPlan(gruppen, standAlt, grenze, grenze ? 0 : echte);
+        return new LieferverzugPlan(gruppen, standAlt, grenze, grenze ? 0 : echte, zuKlaeren);
     }
 
     private static void Entscheiden(LieferverzugGruppe g, LieferverzugKreditor? k, IReadOnlyDictionary<(int, DateTime?), DateTime> letzteMail,
@@ -121,10 +144,28 @@ public static class LieferverzugPlaner
         if (!MailAdressen.IstGueltig(g.Adresse)) { Setzen(g, LieferverzugGrund.OhneAdresse, $"ungültige Adresse „{g.Adresse}“", null); return; }
         if (standAlt) { Setzen(g, LieferverzugGrund.StandAlt, "ausgesetzt – Bestelldaten veraltet", null); return; }
 
+        // v1.99.19 F3: Rahmenabrufe nur mit Schalter in die Kreditor-Mail; F1: Kreditor-Schwelle = Maximum beider Schwellen
+        var kandidaten = e.KreditorMitRahmenabrufen ? g.Positionen : g.Positionen.Where(p => !p.Line.IstRahmenabruf).ToList();
+        g.AbrufeAusgenommen = g.Positionen.Count - kandidaten.Count;
+        var schwelle = e.KreditorSchwelle;
+        var vorlauf = kandidaten.Where(p => p.TageUeberfaellig < schwelle).ToList();
+        kandidaten = kandidaten.Where(p => p.TageUeberfaellig >= schwelle).ToList();
+        var abrufText = g.AbrufeAusgenommen > 0 ? $"{g.AbrufeAusgenommen} Rahmenabruf/-abrufe nicht an Lieferanten (Einstellung)" : null;
+        DateTime Ab(IEnumerable<LieferverzugPosition> ps) => ps.Min(p => p.Line.Liefertermin!.Value.Date).AddDays(schwelle);
+        if (kandidaten.Count == 0)
+        {
+            if (vorlauf.Count > 0)
+                Setzen(g, LieferverzugGrund.Vorlauf, Mit($"Kreditor-Mail ab {Ab(vorlauf):dd.MM.yyyy} ({schwelle} Tage nach Liefertermin)", abrufText), null);
+            else
+                Setzen(g, LieferverzugGrund.Rahmenabruf, abrufText!, null);
+            return;
+        }
+        var zusatz = Mit(vorlauf.Count > 0 ? $"{vorlauf.Count} Position(en) erst ab {Ab(vorlauf):dd.MM.yyyy}" : null, abrufText);
+
         // Freigabe-Antwort 4: erstmals beim Faelligwerden, dann alle WiederholTage; geaenderter Termin = neuer Schluessel
         var dran = new List<LieferverzugPosition>();
         DateTime? naechste = null;
-        foreach (var p in g.Positionen)
+        foreach (var p in kandidaten)
         {
             if (letzteMail.TryGetValue((p.Line.BelPosId, p.Line.Liefertermin?.Date), out var zuletzt) && heute < zuletzt.Date.AddDays(e.WiederholTage))
             {
@@ -133,11 +174,15 @@ public static class LieferverzugPlaner
             }
             else dran.Add(p);
         }
-        if (dran.Count == 0) { Setzen(g, LieferverzugGrund.NichtDran, $"nächste Erinnerung am {naechste:dd.MM.yyyy}", null); return; }
+        if (dran.Count == 0) { Setzen(g, LieferverzugGrund.NichtDran, Mit($"nächste Erinnerung am {naechste:dd.MM.yyyy}", zusatz), null); return; }
 
-        if (e.Testbetrieb) Setzen(g, LieferverzugGrund.Testbetrieb, $"TESTBETRIEB – an Einkauf umgeleitet (wäre an {g.Adresse} gegangen)", dran);
-        else Setzen(g, LieferverzugGrund.Gesendet, $"gesendet an {g.Adresse}", dran);
+        if (e.Testbetrieb) Setzen(g, LieferverzugGrund.Testbetrieb, Mit($"TESTBETRIEB – an Einkauf umgeleitet (wäre an {g.Adresse} gegangen)", zusatz), dran);
+        else Setzen(g, LieferverzugGrund.Gesendet, Mit($"gesendet an {g.Adresse}", zusatz), dran);
     }
+
+    /// <summary>Statuszeile mit Zusatz „ – …“ (melden statt still); null-Teile entfallen.</summary>
+    private static string Mit(string? status, string? zusatz) =>
+        string.Join(" – ", new[] { status, zusatz }.Where(x => !string.IsNullOrEmpty(x)));
 
     private static void Setzen(LieferverzugGruppe g, LieferverzugGrund grund, string status, List<LieferverzugPosition>? mail)
     {

@@ -182,6 +182,13 @@ public class SettingValidatorTests
     [InlineData("Lieferverzug:KreditorAbsender", " einkauf@ake.at ", true, "einkauf@ake.at")]
     [InlineData("Lieferverzug:TageNachTermin", "61", false, null)]
     [InlineData("Lieferverzug:TageNachTermin", "0", true, "0")]
+    [InlineData("Lieferverzug:KreditorTageNachTermin", "61", false, null)] // v1.99.19 AK 1
+    [InlineData("Lieferverzug:KreditorTageNachTermin", "-1", false, null)]
+    [InlineData("Lieferverzug:KreditorTageNachTermin", "3", true, "3")]
+    [InlineData("Lieferverzug:MaxAlterTage", "3651", false, null)]
+    [InlineData("Lieferverzug:MaxAlterTage", "-1", false, null)]
+    [InlineData("Lieferverzug:MaxAlterTage", "0", true, "0")]
+    [InlineData("Lieferverzug:MaxAlterTage", "180", true, "180")]
     [InlineData("Lieferverzug:Uhrzeit", "24", false, null)]
     [InlineData("Lieferverzug:Standort", "IDEAL", true, "IDEAL")]
     [InlineData("Lieferverzug:Standort", "ideal", false, null)]

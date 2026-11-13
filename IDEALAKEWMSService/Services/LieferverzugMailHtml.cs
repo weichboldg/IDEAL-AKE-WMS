@@ -86,11 +86,19 @@ public static class LieferverzugMailHtml
         return new(betreff, html.ToString(), text.ToString());
     }
 
-    /// <summary>F2: Sammelliste an den Einkauf, gruppiert nach Kreditor mit Statuszeile; F5 Hinweis bei veraltetem Stand.</summary>
-    public static LieferverzugMailInhalt Einkauf(LieferverzugPlan plan, string standort, DateTime? stand, string? appBaseUrl, DateTime heute, int tageNachTermin)
+    /// <summary>F2: Sammelliste an den Einkauf, gruppiert nach Kreditor mit Statuszeile; F5 Hinweis bei veraltetem Stand.
+    /// v1.99.19 (Spec 2026-11-13-lieferverzug-nachbesserung-keyuser F1/F2): Einleitung mit beiden Schwellen und Altersgrenze, Abschnitt „Zu klären“.</summary>
+    public static LieferverzugMailInhalt Einkauf(LieferverzugPlan plan, string standort, DateTime? stand, string? appBaseUrl, DateTime heute, LieferverzugEinstellungen e)
     {
         var f = FirmaVon(standort);
-        var betreff = $"Lieferverzug: {plan.AnzahlFaellig} Bestellposition(en) bei {plan.Gruppen.Count} Lieferant(en) – {heute:dd.MM.yyyy}";
+        var klaeren = plan.ZuKlaeren.Count;
+        var betreff = $"Lieferverzug: {plan.AnzahlFaellig} Bestellposition(en) bei {plan.AnzahlLieferanten} Lieferant(en)"
+            + (klaeren > 0 ? $", davon {klaeren} zu klären" : "") + $" – {heute:dd.MM.yyyy}";
+        var einleitung = $"Folgende Bestellpositionen sind {e.TageNachTermin} oder mehr Tage nach dem Liefertermin noch offen (Rest wie in „Wareneingang zu Bestellung“). "
+            + $"Kreditor-Mails gehen frühestens {e.KreditorSchwelle} Tage nach dem Liefertermin raus."
+            + (e.MaxAlterTage > 0 ? $" Positionen mit Liefertermin älter als {e.MaxAlterTage} Tage stehen unter „Zu klären“ und gehen nie an Lieferanten." : "");
+        var klaerenTitel = $"Zu klären – Liefertermin älter als {e.MaxAlterTage} Tage (keine Erinnerung an Lieferanten)";
+        const string klaerenSatz = "Bitte in Sage prüfen: geliefert, storniert oder Termin anpassen.";
         var link = string.IsNullOrWhiteSpace(appBaseUrl) ? null : appBaseUrl.TrimEnd('/') + "/PurchaseOrders?nurUeberfaellig=true";
         var hinweis = plan.StandAlt
             ? $"Bestelldaten von {(stand is { } s ? s.ToString("dd.MM.yyyy HH:mm", De) : "(Cache leer)")} – Kreditor-Mails ausgesetzt."
@@ -100,7 +108,7 @@ public static class LieferverzugMailHtml
         Kopf(html, f, "Lieferverzug offener Bestellungen", null);
         if (hinweis != null)
             html.Append($"<tr><td style=\"padding:16px 32px 0;\"><p style=\"margin:0;padding:10px 12px;background:#fff3cd;border:1px solid #8a6d00;color:#000000;font-size:14px;\"><strong>Hinweis:</strong> {HtmlEncode(hinweis)}</p></td></tr>");
-        Absatz(html, $"Folgende Bestellpositionen sind {tageNachTermin} oder mehr Tage nach dem Liefertermin noch offen (Rest wie in „Wareneingang zu Bestellung“). Stand der Bestelldaten: {(stand is { } st ? st.ToString("dd.MM.yyyy HH:mm", De) : "–")}.");
+        Absatz(html, $"{einleitung} Stand der Bestelldaten: {(stand is { } st ? st.ToString("dd.MM.yyyy HH:mm", De) : "–")}.");
         foreach (var g in plan.Gruppen)
         {
             html.Append($"<tr><td style=\"padding:8px 32px 4px;\"><p style=\"margin:0;font-size:15px;font-weight:bold;color:{IdealBlau};\">{HtmlEncode(g.Name)}{(g.Kto != null ? $" ({HtmlEncode(g.Kto)})" : "")}</p>"
@@ -116,13 +124,29 @@ public static class LieferverzugMailHtml
             }
             TabelleEnde(html);
         }
+        if (klaeren > 0)
+        {
+            html.Append($"<tr><td style=\"padding:8px 32px 4px;\"><p style=\"margin:0;font-size:15px;font-weight:bold;color:{IdealBlau};\">{HtmlEncode(klaerenTitel)}</p>"
+                + $"<p style=\"margin:2px 0 0;font-size:13px;color:{Fliesstext};\">{HtmlEncode(klaerenSatz)}</p></td></tr>");
+            TabelleStart(html, f, "Lieferant", "Bestellung", "Artikel", "Bezeichnung", "Bestellt", "Geliefert", "Rest", "Liefertermin", "Tage überfällig", "Art");
+            var i = 0;
+            foreach (var p in plan.ZuKlaeren)
+            {
+                var l = p.Line;
+                var einheit = l.EinheitAbweichend ? $"{l.MengeBasiseinheit} (Basis, Einheit abweichend)" : l.MengeBasiseinheit;
+                Zeile(html, i++, Lieferant(l), l.Belegnummer, l.Artikelnummer, Bezeichnung(l), Menge(l.MengeBestellt, einheit), Geliefert(l, einheit),
+                    Menge(p.Rest, einheit), Datum(l.Liefertermin), p.TageUeberfaellig.ToString(De), Art(l));
+            }
+            TabelleEnde(html);
+        }
         if (link != null)
             html.Append($"<tr><td style=\"padding:0 32px 24px;\"><a href=\"{HtmlEncode(link)}\" style=\"display:inline-block;background:{IdealBlau};color:#ffffff;padding:10px 20px;border-radius:4px;text-decoration:none;font-size:14px;font-weight:bold;\">Zu den offenen Bestellungen</a></td></tr>");
         Fuss(html, f, "Diese Nachricht wurde automatisch vom IDEAL AKE WMS Service erzeugt.");
 
         var text = new StringBuilder();
         if (hinweis != null) text.AppendLine("HINWEIS: " + hinweis).AppendLine();
-        text.AppendLine($"Lieferverzug offener Bestellungen – Stand der Bestelldaten: {(stand is { } st2 ? st2.ToString("dd.MM.yyyy HH:mm", De) : "–")}").AppendLine();
+        text.AppendLine($"Lieferverzug offener Bestellungen – Stand der Bestelldaten: {(stand is { } st2 ? st2.ToString("dd.MM.yyyy HH:mm", De) : "–")}").AppendLine()
+            .AppendLine(einleitung).AppendLine();
         foreach (var g in plan.Gruppen)
         {
             text.AppendLine($"{g.Name}{(g.Kto != null ? $" ({g.Kto})" : "")} – Kreditor-Mail: {g.Status}");
@@ -135,6 +159,18 @@ public static class LieferverzugMailHtml
             }
             text.AppendLine();
         }
+        if (klaeren > 0)
+        {
+            text.AppendLine(klaerenTitel).AppendLine(klaerenSatz);
+            foreach (var p in plan.ZuKlaeren)
+            {
+                var l = p.Line;
+                text.AppendLine($"  - {Lieferant(l)} | {l.Belegnummer} | {l.Artikelnummer} | {Bezeichnung(l)} | bestellt {Menge(l.MengeBestellt, l.MengeBasiseinheit)}, "
+                    + $"geliefert {Geliefert(l, l.MengeBasiseinheit)}, Rest {Menge(p.Rest, l.MengeBasiseinheit)}{(l.EinheitAbweichend ? " (Basis, Einheit abweichend)" : "")} | "
+                    + $"Liefertermin {Datum(l.Liefertermin)} | {p.TageUeberfaellig} Tage überfällig | {Art(l)}");
+            }
+            text.AppendLine();
+        }
         if (link != null) text.AppendLine("Zu den offenen Bestellungen: " + link).AppendLine();
         TextFuss(text, f, "Diese Nachricht wurde automatisch vom IDEAL AKE WMS Service erzeugt.");
         return new(betreff, html.ToString(), text.ToString());
@@ -143,6 +179,9 @@ public static class LieferverzugMailHtml
     private static string Menge(decimal m, string? einheit) => $"{m.ToString("0.###", De)} {einheit}".Trim();
     /// <summary>v1.99.15 (Teil 3, F5): Sage liefert fuer Rahmenabrufe keine gelieferte Menge je Abruf → „–“, nie „0“.</summary>
     private static string Geliefert(IdealAkeWms.Models.SagePurchaseOrderLine l, string? einheit) => l.IstRahmenabruf ? "–" : Menge(l.MengeGeliefert, einheit);
+    private static string Art(IdealAkeWms.Models.SagePurchaseOrderLine l) => l.IstRahmenabruf ? "Rahmenabruf" : "Bestellung";
+    private static string Lieferant(IdealAkeWms.Models.SagePurchaseOrderLine l) =>
+        $"{(string.IsNullOrWhiteSpace(l.LieferantName) ? "(ohne Name)" : l.LieferantName)}{(l.LieferantKto != null ? $" ({l.LieferantKto})" : "")}";
     private static string Datum(DateTime? d) => d?.ToString("dd.MM.yyyy", De) ?? "–";
     private static string Bezeichnung(IdealAkeWms.Models.SagePurchaseOrderLine l) =>
         string.Join(" ", new[] { l.Bezeichnung1, l.Bezeichnung2 }.Where(s => !string.IsNullOrWhiteSpace(s)));
