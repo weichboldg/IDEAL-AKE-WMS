@@ -11956,7 +11956,7 @@ der Spec (interaktiv, nach Geralds OK). In v1.99.15 ist `SageWareneingang.Rahmen
 | 132.2.6 | *Offene Bestellungen* | Abruf fehlt; über der Tabelle „1 Rahmenabruf im WMS vollständig erfasst – ausgeblendet. …“ |
 | 132.2.7 | Filter „auch im WMS vollständig erfasste Abrufe“ an, Filtern | Abruf wieder sichtbar, Meldung weg; Paginierung zählt ihn mit |
 | 132.2.8 | **Negativ:** eine EBB-Position mit Rest 0 (vollständig erfasst) | in beiden Filterständen sichtbar |
-| 132.2.9 | Queue: `SELECT * FROM dbo.SageBookingQueueItems WHERE StockMovementId = <id>` (Abruf auf Sage-Platz gebucht) | Eintrag vorhanden (Lagerbuchung wie Teil 1); bei `SageLagerbuchungAktiv` aus wird er nicht gesendet |
+| 132.2.9 | Queue: `SELECT * FROM dbo.SageBookingQueueItems WHERE StockMovementId = <id>` (Abruf auf Sage-Platz gebucht) | Nur bei `SageLagerbuchungAktiv` an: Eintrag vorhanden (Lagerbuchung wie Teil 1). Bei `SageLagerbuchungAktiv` aus (DEV-Standard) entsteht **kein** Eintrag – der Decorator reiht nur bei eingeschaltetem Schalter ein (`SageBookingEnqueueingStockMovementRepository.AddAsync`); QA 2026-11-13 auf DEV so beobachtet |
 | 132.2.10 | **Negativ:** Belegnummer `2099-999999` eingeben | „Bestellung „2099-999999“ nicht gefunden (nur offene Bestellungen und Rahmenabrufe aus Sage, Stand des letzten Abgleichs).“ |
 
 ### TS-132.3 — Abruf bei eingeschaltetem Sage-Wareneingang (Konstante false, Stand v1.99.15)
