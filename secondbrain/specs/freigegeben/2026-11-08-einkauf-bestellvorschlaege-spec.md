@@ -2,15 +2,15 @@
 type: spec
 title: Einkauf – Bestellvorschläge für Nachbestellartikel (Epic)
 slug: 2026-11-08-einkauf-bestellvorschlaege-spec
-status: Entwurf
+status: InUmsetzung
 created: 2026-11-07
 updated: 2026-11-13
 source_backlog: "[[2026-11-07-einkauf-bestellvorschlaege]]"
 buendel: "[[2026-11-08-buendel-uebersicht]]"
 depends_on: "[[2026-11-08-wareneingang-aus-sage-bestellungen-spec]]"
-task: ""
-worktree: ""
-branch: ""
+task: "[[2026-11-13-buendel-v1-99-19-goal-lauf]]"
+worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
+branch: "feature/2026-08-07-ideal-teile-1-5"
 version: "1.99.20 (Vorschlag: 1.99.16–1.99.18 vergibt der goal-Lauf [[2026-11-13-buendel-v1-99-16-goal-lauf]], 1.99.19 schlägt [[2026-11-13-lieferverzug-nachbesserung-keyuser-spec]] vor; Dev-Lauf prüft)"
 sql_block: "148–150 (reserviert 2026-11-13; 148 E3 ArticleSuppliers letzte Bestellung, 149 E5 PurchaseProposalTransfers, 150 Reserve; letzte belegte Nummer im Bündel 147, Dev-Lauf prüft)"
 testszenario: "TS-136"
@@ -49,11 +49,11 @@ deploy:
   service: true
   migration: true
 freigabe_entscheidung: ""
-freigabe_von: ""
-freigabe_am: ""
+freigabe_von: "Gerald Weichbold"
+freigabe_am: "2026-11-13"
 ---
 
-> [!warning] Zurückgestellt (Gerald 2026-11-07 19:19): „brauchen wir noch nicht“ – NICHT umsetzen. Die Freigabe-Antworten bleiben stehen; bei Wiederaufnahme nur Freigabe neu setzen.
+> [!warning] (überholt 2026-11-13 16:27 – Freigabe erneuert, siehe Freigabe-Nachtrag 2026-11-13) Zurückgestellt (Gerald 2026-11-07 19:19): „brauchen wir noch nicht“ – NICHT umsetzen. Die Freigabe-Antworten bleiben stehen; bei Wiederaufnahme nur Freigabe neu setzen.
 
 > [!note] Überarbeitung 2026-11-13 (Rework nach den Keyuser-Antworten)
 > Eingearbeitet: F3 = letzte Bestellmenge (Einstellung `EinkaufVorschlagsverfahren` entfällt), VPE/P3 und Kennzeichen (alte F6/E3,
@@ -597,6 +597,16 @@ P2, P4, P5 bleiben.
 - **Etappen, die an Sage schreiben, bleiben blockiert und aus** (laut Bündel-Übersicht). Keine Schreibtests an Sage in diesem Lauf.
 - Worktree laut Lauf-Auftrag (Empfehlung Ü1: nach Merge des Bündels frisch von `main`).
 
+## Freigabe-Nachtrag 2026-11-13 16:27 (Gerald, geht dem Rumpf und dem Nachtrag vom 07.11. vor)
+- **Freigabe erneuert:** Der Zurückstellungs-Vermerk vom 07.11. ist überholt. Umsetzen im gemeinsamen /goal-Lauf mit
+  [[2026-11-13-lieferverzug-nachbesserung-keyuser-spec]] **im Bündel-Worktree** `.claude/worktrees/2026-08-07-ideal-teile-1-5`
+  (nicht „frisch von main“ – der entsprechende Punkt im Nachtrag 07.11. gilt nicht mehr). Nummern in Lauf-Reihenfolge nach der Lieferverzug-Spec.
+- **Feature-Schalter Default aus**, an beiden Standorten; IDEAL-Teil hinter der IDEAL-SData-Schnittstelle. Rolle `einkauf`.
+- **Keyuser-Antworten 2026-11-13** (Abschnitt oben) sind verbindlich, wo sie vom Rumpf abweichen; Rückfragen 11–13 wie unten beantwortet.
+- **Etappen, die an Sage schreiben (Übergabe Dispo-Stapel), bleiben blockiert und aus** – kein Schreibtest in diesem Lauf; Code darf hinter dem
+  Schalter entstehen, wenn die Spec das vorsieht, aber kein POST.
+- E0: lesende Prüfabfragen über DEV selbst ausführen; Abweichung von der Spec-Annahme (z. B. Quelle „letzte Bestellmenge“) = Blocker, nicht raten.
+
 ## Freigabe-Antworten (Mensch fuellt aus — Schranke 1)
 
 <!--
@@ -634,6 +644,6 @@ Produktivsystem verfügbar ist). Abweichungen gegenüber den Freigabe-Antworten 
 
 ## Freigabe-Antworten Wiederaufnahme (Rückfragen 11–13, Mensch füllt aus)
 
-11. Erhöhung bei außerordentlichem Bedarf → 
-12. Rahmenabruf als letzte Bestellung → 
-13. Ohne letzte Bestellung beim gewählten Lieferanten → 
+11. Erhöhung bei außerordentlichem Bedarf → **Wie empfohlen: V = (⌊F/L⌋ + 1) × L, Grund „n × letzte Bestellmenge“, danach Mindestbestellmenge (Gerald 2026-11-13 16:27).**
+12. Rahmenabruf als letzte Bestellung → **Ja, Bestellung und Rahmenabruf, der jüngste Beleg gilt (Gerald 2026-11-13 16:27).**
+13. Ohne letzte Bestellung beim gewählten Lieferanten → **Wie empfohlen: (a) jüngste Bestellung bei anderem Lieferanten mit Hinweis, sonst (b) Fehlmenge bzw. Meldebestand mit Hinweis; danach Mindestbestellmenge (Gerald 2026-11-13 16:27).**

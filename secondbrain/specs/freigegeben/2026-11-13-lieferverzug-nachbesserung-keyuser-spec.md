@@ -2,13 +2,13 @@
 type: spec
 title: "Lieferverzug-Mail: Nachbesserung nach Keyuser-Antworten (Kreditor-Schwelle, Altersgrenze, Feld „bestätigt“)"
 slug: 2026-11-13-lieferverzug-nachbesserung-keyuser-spec
-status: Entwurf
+status: InUmsetzung
 created: 2026-11-13
 updated: 2026-11-13
 source_backlog: "[[2026-11-13-lieferverzug-nachbesserung-keyuser]]"
 depends_on: "[[2026-11-12-offene-bestellungen-mahnmail-lieferverzug-spec]]"
 verwandt: "[[2026-11-11-wareneingang-teil-3-rahmenabrufe-spec]], [[2026-11-12-keyuser-fragen-einkauf]]"
-task: ""
+task: "[[2026-11-13-buendel-v1-99-19-goal-lauf]]"
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
 branch: "feature/2026-08-07-ideal-teile-1-5"
 standort: beide
@@ -35,8 +35,8 @@ deploy:
   service: true
   migration: false
 freigabe_entscheidung: ""
-freigabe_von: ""
-freigabe_am: ""
+freigabe_von: "Gerald Weichbold"
+freigabe_am: "2026-11-13"
 ---
 
 # Lieferverzug-Mail: Nachbesserung nach Keyuser-Antworten
@@ -413,6 +413,12 @@ werden. Das ist die Frage, die Teil-3-Antwort 1 an Till stellt.
    offenen Bestellungen durchgängig pflegt. Bei lückenhafter Pflege würde der Filter verzögerte, aber unbestätigte Positionen still verschweigen.
    Gegebenenfalls gehört sie in dieselbe Folge-Spec wie Rückfrage 4.
 
+## Freigabe-Nachtrag 2026-11-13 16:27 (Gerald, geht dem Rumpf vor)
+- Gemeinsamer /goal-Lauf mit [[2026-11-08-einkauf-bestellvorschlaege-spec]] auf dem Bündel (Start v1.99.18 `d9e4c89e`). Versions-/TS-/SQL-Nummern
+  vergibt der Lauf in Lauf-Reihenfolge (Lieferverzug zuerst; Version ab 1.99.19, TS ab 136, SQL ab 148). P-L1–P-L4 sind keine Blocker.
+- Liegt die erste Welle (P-L1 auf DEV) trotz 180 Tagen und ohne Abrufe über `KreditorMaxJeLauf`: als Befund melden – angepasst wird dann das
+  Limit, nicht der Filter (Entscheidung Gerald danach).
+
 ## Freigabe-Antworten (Mensch fuellt aus — Schranke 1)
 
 <!--
@@ -423,8 +429,8 @@ werden. Das ist die Frage, die Teil-3-Antwort 1 an Till stellt.
   Bei Varianten-Specs zusaetzlich freigabe_entscheidung im Frontmatter setzen.
 -->
 
-1. Altersgrenze `MaxAlterTage` (Default 180, EBB+EBZ, 0 = aus) oder nur Bereinigung in Sage oder beides →
-2. Kreditor-Schwelle Default 3, wirksam Maximum beider Schwellen →
-3. Schalter „Kreditor-Mail auch für Rahmenabrufe“ (Default aus) jetzt mitbauen oder Teil-3-Antwort 1 unverändert →
-4. Spalte „bestätigt“ als Folge-Spec nach P-L3 →
-5. Einstellung „nur bestätigte an Kreditoren“ als Folge-Spec nach P-L3 →
+1. Altersgrenze `MaxAlterTage` (Default 180, EBB+EBZ, 0 = aus) oder nur Bereinigung in Sage oder beides → **Beides: MaxAlterTage Default 180; parallel bereinigt der Einkauf alte Abrufe in Sage (kein Warten darauf) (Gerald 2026-11-13 16:27).**
+2. Kreditor-Schwelle Default 3, wirksam Maximum beider Schwellen → **Ja (Gerald 2026-11-13 16:27).**
+3. Schalter „Kreditor-Mail auch für Rahmenabrufe“ (Default aus) jetzt mitbauen oder Teil-3-Antwort 1 unverändert → **Jetzt mitbauen, Default aus; ersetzt insoweit Antwort 1 der Teil-3-Spec. Einschalten erst nach P-L4 (Gerald 2026-11-13 16:27).**
+4. Spalte „bestätigt“ als Folge-Spec nach P-L3 → **Ja, Folge-Spec (Gerald 2026-11-13 16:27).**
+5. Einstellung „nur bestätigte an Kreditoren“ als Folge-Spec nach P-L3 → **Ja, Folge-Spec (zusammen mit 4) (Gerald 2026-11-13 16:27).**
