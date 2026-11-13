@@ -2,7 +2,7 @@
 type: spec
 title: Einkauf – Bestellvorschläge für Nachbestellartikel (Epic)
 slug: 2026-11-08-einkauf-bestellvorschlaege-spec
-status: Testbereit
+status: InUmsetzung
 created: 2026-11-07
 updated: 2026-11-13
 source_backlog: "[[2026-11-07-einkauf-bestellvorschlaege]]"
@@ -448,7 +448,7 @@ in der Tabelle vermerken). Die alte E3 (Kennzeichen) entfällt; die Nummer E3 tr
 | 0 | Prüfabfragen lesend ausführen und eintragen: P-L1 (a–c) SData AKE-Test, P-L2 Sage-SQL AKE-Test, P-L3 WMS-DB, P2, P4 (Freigabe-Nachtrag „E0“). Abweichung von der Spec = Blocker melden | SData-/SQL-Zugang AKE-Test; IDEAL-Teile (P-L1 d) bleiben offen | **erledigt** 2026-11-13 (Ergebnisse E0, A1–A4) | – (nur lesend) |
 | 1 | Grundgerüst: Rolle `einkauf` (3 Stellen + Update-Skript-Prüfung), Gate `EinkaufAktiv`, Menü „Einkauf“, `PurchaseProposalCalculator` + Tests (letzte Bestellmenge als Eingabe, noch leer), Repository, Liste nur lesen (Bestand, Sage verfügbar, Bedarfe, Meldebestand, Vorschlag, Lieferant), Einstellungen `EinkaufAktiv`/`EinkaufOffeneBedarfe`, Version in beiden `AppVersion.cs` – keine Migration | Rückfrage 13 (Verhalten ohne letzte Bestellung gilt bis E3 für alle Zeilen) | **erledigt** 2026-11-13 | `f5209692` |
 | 2 | Offene Sage-Bestellungen aus dem Cache mit Rest-Regel, Spalten „offen bestellt“/„nächster Liefertermin“, Banner Stand/leer/Einheit – keine Migration | – (Teil B ist im Branch) | **erledigt** 2026-11-13 | `31ae0d69` |
-| 3 | Letzte Bestellmenge: **SQL/148**, Dienst-Schritt in `ArtikelLieferantSyncService`, Spalten + Grund, Rückfragen 11/12 in der Rechenregel | **BLOCKER bis P-L1** (SData-Lesepfad bestätigt) und P-L2 (b, c); Rückfragen 11, 12 | **blockiert** (E0 A3: Leseweise – Entscheidung Gerald) | |
+| 3 | Letzte Bestellmenge: **SQL/148**, Dienst-Schritt in `ArtikelLieferantSyncService`, Spalten + Grund, Rückfragen 11/12 in der Rechenregel | **BLOCKER bis P-L1** (SData-Lesepfad bestätigt) und P-L2 (b, c); Rückfragen 11, 12 | offen – entsperrt durch Freigabe-Nachtrag 2 (18:07: 3 Jahre, Fallback Sage-Bestellmenge) | |
 | 4 | Aufrunden auf Mindestbestellmenge + Einheiten-Wächter (Felder vorhanden) – keine Migration | P2 (ohne Antwort: `TODO(P2)`, Wächter strikt) | **erledigt** 2026-11-13 (Wächter konservativ nach E0-A2, `TODO(P2)`) | `9b63dfc6` |
 | 5 | Übergabe an den Sage-Dispo-Stapel: Schalter, Auswahl/Menge/Lieferant, Schreibclient, Stapel-Lesen, Protokoll – **SQL/149** | **BLOCKIERT:** Lesetest P4 + Schreibtest P5 (Freigabe Gerald), Freigabe-Nachtrag „Sage-Schreiben aus“ | blockiert | |
 | 6 | Abschluss: TS-136 + Index, Hilfeseite (Bedienschritte, Formel, Schalter-Warnung), README (AppSettings), Anwender- + Brain-Changelog, feature-map, controller.md, codebase/services/datenmodell, ggf. fallstricke | – | **erledigt** 2026-11-13 | `f5f6bd5b` |
@@ -663,6 +663,33 @@ EBZ-Abfrage billig), Datumsfilter `@…@` wirkt, nur Mandant 1.
 - **Etappen, die an Sage schreiben (Übergabe Dispo-Stapel), bleiben blockiert und aus** – kein Schreibtest in diesem Lauf; Code darf hinter dem
   Schalter entstehen, wenn die Spec das vorsieht, aber kein POST.
 - E0: lesende Prüfabfragen über DEV selbst ausführen; Abweichung von der Spec-Annahme (z. B. Quelle „letzte Bestellmenge“) = Blocker, nicht raten.
+
+## Freigabe-Nachtrag 2 2026-11-13 18:07 (Gerald, geht dem Rumpf vor) – löst Blocker E3 (A3)
+- **Leseweise letzte Bestellmenge:** Rückblick **3 Jahre** (statt 1 Jahr). Findet sich für Artikel/Lieferant keine Bestellung (auch nicht bei einem
+  anderen Lieferanten, Antwort 13a): **Fallback Sage-Bestellmenge** (`ArticleSageDetail.Bestellmenge`), danach Mindestbestellmenge.
+- **Hinweis auf den Fallback Pflicht:** In der Zeile sichtbar, welche Quelle die Menge hat – z. B. Badge/Grund „Fallback: Sage-Bestellmenge (keine
+  Bestellung in 3 Jahren)“; als Text, Farbe nur zusätzlich; filterbar über die Hinweis-Spalte; im Banner die Anzahl der Fallback-Zeilen.
+  Fehlt auch die Sage-Bestellmenge: bisherige Regel (Fehlmenge bzw. Meldebestand, Hinweis „Menge prüfen“).
+- Rückblick-Jahre als Einstellung (Default 3) nur, wenn es ohne Mehraufwand geht; sonst Konstante mit Kommentar.
+
+## Freigabe-Nachtrag 3 2026-11-13 18:07 (Gerald) – Zusatz im selben Lauf, eigener Commit und eigene Version nach dem Epic
+- **Belegnummer 45 Zeichen** ([[2026-11-13-belegnummer-laenge-45]]): `SagePurchaseOrderLines`, `PurchaseOrderReminders`, `PurchaseOrderReceipts`
+  `Belegnummer` von 20 auf 45 (Migration + SQL mit Guard, Index, `00_FreshInstall` zwei Stellen); `SageWeBelegnummer` (30) gegen Sage belegen und
+  ggf. angleichen; Test mit 45-Zeichen-Nummer.
+- **Wareneingang zu Bestellung, Layout:** Die Checkbox „Überlieferung bestätigt“ steht heute in der Zelle „Ist-Menge“ unter dem Eingabefeld
+  (`Views/PurchaseOrders/Receive.cshtml:181-187`, zweites Element mit `min-height:44px`) – dadurch sind die Felder der Zeile nicht auf einer Linie.
+  Gerald: **eigene Spalte „Überlieferung“** mit der Checkbox (zentriert, Touch-Größe bleibt), Zeilen vertikal mittig ausrichten. `frontend-design`
+  laut CLAUDE.md, Konsistenz mit bestehendem Layout; Screenshot vorher/nachher in den QA-Nachweis.
+- TS ergänzen (Wareneingang-Kapitel), Changelog, kein Verhalten am Buchen ändern.
+- **Hinweis offene Lagerbestellungen und Bedarfsmeldungen im „Wareneingang zu Bestellung“ (Gerald 18:12: „alles schreiben“;
+  Backlog [[2026-11-12-lagerbestellungen-und-bedarfsmeldungen-gespraech]] Punkt 2):** je Position ein Hinweis, wenn es zum Artikel offene
+  Lagerbestellungen (Status Submitted/PartiallyDelivered, Rest) bzw. offene Bedarfsmeldungen (Status Offen) gibt – Anzahl/Menge, Besteller/FA,
+  **Link** zur Lagerbestellung bzw. Bedarfsmeldung. Muster: Abschnitt „Offene Bedarfsmeldungen für diesen Artikel“ der Einbuchung
+  (`Views/StockMovements/Inbound.cshtml:84-100`, hinter `BestellungenAktiv`); Lagerbestellungs-Teil hinter `LagerbestellungAktiv`. Nur Anzeige,
+  kein automatisches Erfüllen/Schließen beim Buchen (das ist Thema des Gesprächs „Lagerbestellungen kommissionieren“). Text, Farbe nur zusätzlich.
+- **DEV sichtbar machen (Gerald 18:09):** Nach dem Deploy auf AKE-DEV (und IDEAL-DEV, soweit Daten da sind) die Bestellvorschläge so einschalten
+  und konfigurieren, dass echte Vorschläge angezeigt werden (Gate/Schalter, Rolle `einkauf` für Gerald, nötige Syncs/Quellen laut Spec). Nur DEV;
+  Dispo-Übergabe bleibt aus. Endzustand der Einstellungen in den QA-Nachweis; wenn trotzdem keine Zeile erscheint: Grund nennen.
 
 ## Freigabe-Antworten (Mensch fuellt aus — Schranke 1)
 

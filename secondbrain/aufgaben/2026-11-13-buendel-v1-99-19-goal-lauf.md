@@ -1,6 +1,6 @@
 ---
 type: aufgabe
-status: erledigt
+status: offen
 created: 2026-11-13
 ---
 # /goal-Lauf 2026-11-13 (Abend): Lieferverzug-Nachbesserung, Einkauf Bestellvorschläge (Epic)
@@ -57,3 +57,14 @@ Grenzen: nichts an Sage schreiben, keine Mails an externe Adressen (Lieferverzug
   langes Fenster / nur je Artikel); P2 Einheit Mindestbestellmenge in der Sage-Maske (EK002400, EK007623); A2-Wächter ggf. lockern; Rolle `einkauf`
   zuweisen + `EinkaufAktiv` erst nach den vier Abgleichen; Zusatzfund `IdealAkeWms/appsettings.Development.json` zeigt auf Prod-DB-Namen;
   Nebenfund `SagePurchaseOrderLines.Belegnummer` nvarchar(20) < Sage 45; AKE-DEV `SData:Username/Password` leer (appsettings-Rückfall).
+
+## Wiederaufnahme 2026-11-13 Abend (Auftrag Gerald, /goal-run): E3 + Freigabe-Nachtrag 3
+
+Start v1.99.20 `cf3f41cb`. Auftrag gibt E3 und den Zusatz ausdrücklich frei (Freigabe-Nachträge 2 und 3, 18:07–18:12, gehen dem Rumpf vor); Spec
+dafür von Testbereit zurück auf InUmsetzung. Versionen ab 1.99.21, TS ab TS-137, SQL ab 148. E5 bleibt blockiert.
+
+| Teil | Version | SQL | TS | Status | Commits | Blocker |
+|---|---|---|---|---|---|---|
+| E3 letzte Bestellmenge (3 Jahre, Fallback Sage-Bestellmenge) | 1.99.21 | 148 | TS-136 erweitert | in Arbeit | | |
+| Nachtrag 3: Belegnummer 45, Wareneingang Layout „Überlieferung“, Hinweis Lagerbestellungen/Bedarfsmeldungen | 1.99.22 | 149 | TS-137 | offen | | |
+| DEV sichtbar (AKE-DEV Gate, Rolle `einkauf` für Gerald, Syncs) | – | – | – | offen | | |
