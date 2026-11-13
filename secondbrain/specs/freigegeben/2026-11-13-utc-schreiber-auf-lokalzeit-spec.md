@@ -2,12 +2,12 @@
 type: spec
 title: "Zeitstempel-Schreiber mit UTC auf Lokalzeit umstellen (Web, Dienst, raw SQL) – mit Wächter-Test"
 slug: 2026-11-13-utc-schreiber-auf-lokalzeit-spec
-status: Entwurf
+status: InUmsetzung
 created: 2026-11-13
 updated: 2026-11-13
 source_backlog: "[[2026-11-13-utc-schreiber-auf-lokalzeit]]"
 herkunft: "[[2026-11-12-befunde-ake-regression-dev-spec]] (Rückfrage 6, Freigabe-Antwort 6)"
-task: ""
+task: "[[2026-11-13-buendel-v1-99-16-goal-lauf]]"
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
 branch: "feature/2026-08-07-ideal-teile-1-5"
 standort: beide
@@ -53,8 +53,8 @@ deploy:
   service: true
   migration: false
 freigabe_entscheidung: ""
-freigabe_von: ""
-freigabe_am: ""
+freigabe_von: "Gerald Weichbold"
+freigabe_am: "2026-11-13"
 ---
 
 # Zeitstempel-Schreiber mit UTC auf Lokalzeit umstellen
@@ -444,6 +444,11 @@ Brain-Changelog mit den Zahlen der Prüfabfragen, ADR 0025 (Vorschlag), [[fallst
     angezeigt (kein Fehlerbild). Empfehlung **umstellen** (Writer `DateTime.Now` + `ToLocalTime()` entfernen, im selben Commit) – noch nicht
     in Produktion, eine Konvention statt zwei.
 
+## Freigabe-Nachtrag 2026-11-13 13:58 (Gerald, geht dem Rumpf vor)
+- Gemeinsamer /goal-Lauf mit [[2026-11-13-updater-zweiter-trockenlauf-altbestand-spec]], [[2026-11-13-doppelte-kommissionier-prio-nach-ruecknahme-spec]]
+  und [[2026-11-13-utc-schreiber-auf-lokalzeit-spec]] auf dem Bündel (v1.99.15). **Versions-/TS-/SQL-Nummern vergibt der Lauf in Lauf-Reihenfolge**
+  (Versionen ab 1.99.16, TS ab 133, SQL ab 148); Nummern in den Specs sind Vorschläge.
+
 ## Freigabe-Antworten (Mensch fuellt aus — Schranke 1)
 
 <!--
@@ -453,15 +458,15 @@ Brain-Changelog mit den Zahlen der Prüfabfragen, ADR 0025 (Vorschlag), [[fallst
   als seinen Auftrag. Antworte je Frage in **fett** hinter dem Pfeil.
 -->
 
-1. Altdaten Users umrechnen/unverändert (Ergebnis A1) →
-2. Altdaten Roles + UserRoles umrechnen/unverändert (Ergebnis A2) →
-3. Altdaten Empfänger-Tabellen umrechnen/unverändert (Ergebnis A3) →
-4. Altdaten UserViewPreferences umrechnen/unverändert (Ergebnis A4) →
-5. Altdaten StorageLocations NAN umrechnen/unverändert (Ergebnis A5) →
-6. Altdaten PickingStatus + BdeStatus umrechnen/unverändert (Ergebnis A6) →
-7. Altdaten WorkOperations (AKE) umrechnen/unverändert (Ergebnis A7) →
-8. Altdaten ProductionOrders umrechnen/unverändert (Ergebnis A8) →
-9. Altdaten Articles umrechnen/unverändert (Ergebnis A9) →
-10. Altdaten OSEON-Tabellen (AKE) umrechnen/unverändert (Ergebnis A10) →
-11. Altdaten SData-Tabellen umrechnen/unverändert (Ergebnis A11) →
-12. ArticleSageDetails umstellen oder UTC-Ausnahme →
+1. Altdaten Users umrechnen/unverändert (Ergebnis A1) → **Unverändert (Gerald 2026-11-13).**
+2. Altdaten Roles + UserRoles umrechnen/unverändert (Ergebnis A2) → **Unverändert (Gerald 2026-11-13).**
+3. Altdaten Empfänger-Tabellen umrechnen/unverändert (Ergebnis A3) → **Unverändert (Gerald 2026-11-13).**
+4. Altdaten UserViewPreferences umrechnen/unverändert (Ergebnis A4) → **Unverändert (Gerald 2026-11-13).**
+5. Altdaten StorageLocations NAN umrechnen/unverändert (Ergebnis A5) → **Unverändert (Gerald 2026-11-13).**
+6. Altdaten PickingStatus + BdeStatus umrechnen/unverändert (Ergebnis A6) → **Unverändert (Gerald 2026-11-13).**
+7. Altdaten WorkOperations (AKE) umrechnen/unverändert (Ergebnis A7) → **Unverändert (Gerald 2026-11-13).**
+8. Altdaten ProductionOrders umrechnen/unverändert (Ergebnis A8) → **Unverändert (Gerald 2026-11-13).**
+9. Altdaten Articles umrechnen/unverändert (Ergebnis A9) → **Unverändert (Gerald 2026-11-13).**
+10. Altdaten OSEON-Tabellen (AKE) umrechnen/unverändert (Ergebnis A10) → **Unverändert (Gerald 2026-11-13).**
+11. Altdaten SData-Tabellen umrechnen/unverändert (Ergebnis A11) → **Unverändert (Gerald 2026-11-13).**
+12. ArticleSageDetails umstellen oder UTC-Ausnahme → **Umstellen auf Lokalzeit, `ToLocalTime()` im selben Commit entfernen (Gerald 2026-11-13).**

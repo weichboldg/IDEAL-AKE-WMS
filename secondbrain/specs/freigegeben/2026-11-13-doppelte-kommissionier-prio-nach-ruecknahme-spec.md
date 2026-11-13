@@ -2,12 +2,12 @@
 type: spec
 title: "Doppelte Kommissionier-Prio nach „Freigabe zurücknehmen“ (Varianten-Spec)"
 slug: 2026-11-13-doppelte-kommissionier-prio-nach-ruecknahme-spec
-status: Entwurf
+status: InUmsetzung
 created: 2026-11-13
 updated: 2026-11-13
 source_backlog: "[[2026-11-13-doppelte-kommissionier-prio-nach-ruecknahme]]"
 herkunft: "[[2026-11-12-befunde-ake-regression-dev-spec]]"
-task: ""
+task: "[[2026-11-13-buendel-v1-99-16-goal-lauf]]"
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
 branch: "feature/2026-08-07-ideal-teile-1-5"
 standort: beide
@@ -32,9 +32,9 @@ deploy:
   web: true
   service: false
   migration: false
-freigabe_entscheidung: ""
-freigabe_von: ""
-freigabe_am: ""
+freigabe_entscheidung: "B"
+freigabe_von: "Gerald Weichbold"
+freigabe_am: "2026-11-13"
 ---
 
 # Doppelte Kommissionier-Prio nach „Freigabe zurücknehmen“
@@ -318,6 +318,11 @@ Danach `secondbrain/tests/testszenarien-index.md` nachziehen.
 3. **Manuelle Doppelvergabe** per Inline-Eingabe weiter erlaubt (Empfehlung, keine Änderung) oder Warnung im Leitstand?
 4. **Nur bei Variante A:** weiterlaufende Kommissionieraufträge (mit Fortschritt) nach Rücknahme – Prio behalten (Empfehlung) oder leeren?
 
+## Freigabe-Nachtrag 2026-11-13 13:58 (Gerald, geht dem Rumpf vor)
+- Gemeinsamer /goal-Lauf mit [[2026-11-13-updater-zweiter-trockenlauf-altbestand-spec]], [[2026-11-13-doppelte-kommissionier-prio-nach-ruecknahme-spec]]
+  und [[2026-11-13-utc-schreiber-auf-lokalzeit-spec]] auf dem Bündel (v1.99.15). **Versions-/TS-/SQL-Nummern vergibt der Lauf in Lauf-Reihenfolge**
+  (Versionen ab 1.99.16, TS ab 133, SQL ab 148); Nummern in den Specs sind Vorschläge.
+
 ## Freigabe-Antworten (Mensch fuellt aus — Schranke 1)
 
 <!--
@@ -328,7 +333,7 @@ Danach `secondbrain/tests/testszenarien-index.md` nachziehen.
   Bei Varianten-Specs zusaetzlich freigabe_entscheidung im Frontmatter setzen.
 -->
 
-1. Variante A / B / C →
-2. Bestehende Doppelte (a) anzeigen / (b) Skript / (c) nichts – Trefferzahl Prüfabfrage 1 AKE / IDEAL →
-3. Manuelle Doppelvergabe erlaubt lassen oder Warnung →
-4. Nur bei A: weiterlaufende Aufträge Prio behalten oder leeren →
+1. Variante A / B / C → **B – behaltene Prio zählt ins MAX (Gerald 2026-11-13).**
+2. Bestehende Doppelte (a) anzeigen / (b) Skript / (c) nichts – Trefferzahl Prüfabfrage 1 AKE / IDEAL → **(a) anzeigen über Prüfung im Nachlauf, Korrektur per Hand; Trefferzahlen liefert Gerald nach (blockiert den Lauf nicht) (Gerald 2026-11-13).**
+3. Manuelle Doppelvergabe erlaubt lassen oder Warnung → **Erlaubt lassen (Gerald 2026-11-13).**
+4. Nur bei A: weiterlaufende Aufträge Prio behalten oder leeren → **Entfällt (Variante B) (Gerald 2026-11-13).**

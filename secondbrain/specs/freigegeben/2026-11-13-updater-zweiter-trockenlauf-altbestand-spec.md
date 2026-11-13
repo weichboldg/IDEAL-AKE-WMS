@@ -2,12 +2,12 @@
 type: spec
 title: "Bugfix Update-Skript: zweiter Trockenlauf des Altbestand-Skripts liefert TREFFER 0"
 slug: 2026-11-13-updater-zweiter-trockenlauf-altbestand-spec
-status: Entwurf
+status: InUmsetzung
 created: 2026-11-13
 updated: 2026-11-13
 source_backlog: "[[2026-11-13-updater-zweiter-trockenlauf-altbestand]]"
 bug: "[[2026-11-13-updater-zweiter-trockenlauf-altbestand-bug]]"
-task: ""
+task: "[[2026-11-13-buendel-v1-99-16-goal-lauf]]"
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
 branch: "feature/2026-08-07-ideal-teile-1-5"
 standort: beide
@@ -29,8 +29,8 @@ deploy:
   service: true
   migration: false
 freigabe_entscheidung: ""
-freigabe_von: ""
-freigabe_am: ""
+freigabe_von: "Gerald Weichbold"
+freigabe_am: "2026-11-13"
 ---
 
 ## Ziel / Nutzen (das Warum)
@@ -308,6 +308,15 @@ Sperre jeden Schreibweg abschneidet. Der QA-Lauf belegt AK 2 stattdessen durch L
 3. Soll der Dev-Lauf die Regel „auch die Wiederholungssperre gibt im Trockenlauf `TREFFER: 0` aus“ zusätzlich in `.claude/agents/spec-agent.md`
    und `secondbrain/_templates/spec.md` ergänzen (Hauptcheckout, Abschnitt Manifest/ADR 0023)? Empfehlung: ja, eine Zeile je Datei.
 
+## Freigabe-Nachtrag 2026-11-13 13:58 (Gerald, geht dem Rumpf vor)
+- Gemeinsamer /goal-Lauf mit [[2026-11-13-updater-zweiter-trockenlauf-altbestand-spec]], [[2026-11-13-doppelte-kommissionier-prio-nach-ruecknahme-spec]]
+  und [[2026-11-13-utc-schreiber-auf-lokalzeit-spec]] auf dem Bündel (v1.99.15). **Versions-/TS-/SQL-Nummern vergibt der Lauf in Lauf-Reihenfolge**
+  (Versionen ab 1.99.16, TS ab 133, SQL ab 148); Nummern in den Specs sind Vorschläge.
+- **Zusätzlich im Umfang (Zusatzfund /goal-Lauf 2026-11-13, [[2026-11-13-buendel-v1-99-13-goal-lauf]]):** (1) `-NurPruefen` und jede
+  Ja/Nein-/Eingabe-Frage dürfen ohne Eingabe nicht endlos warten – leere Eingabe bzw. Ende der Eingabe führt zu einer definierten Antwort
+  (bei `-NurPruefen` nur lesend weiter, sonst „nein“/Abbruch ohne Änderung); Ursache im Skript belegen. (2) DEV-Ziel(e) in `ziele.psd1`
+  vorschlagen (AKE-DEV/IDEAL-DEV mit Pfaden und Url von DEV, Prod=$false) – Pfade aus der DEV-Installation belegen, nicht raten.
+
 ## Freigabe-Antworten (Mensch fuellt aus — Schranke 1)
 
 <!--
@@ -317,6 +326,6 @@ Sperre jeden Schreibweg abschneidet. Der QA-Lauf belegt AK 2 stattdessen durch L
   als seinen Auftrag. Antworte je Frage in **fett** hinter dem Pfeil.
 -->
 
-1. Spur-Abfrage scheitert → künftig „entfällt“ statt Abbruch am Haltepunkt, gewollt? →
-2. Drift-Wächter: Heuristik `IF EXISTS`-Sperre reicht, oder Kennzeichen-Konvention? →
-3. Regel zusätzlich in `spec-agent.md` und `_templates/spec.md` ergänzen? →
+1. Spur-Abfrage scheitert → künftig „entfällt“ statt Abbruch am Haltepunkt, gewollt? → **Ja, gewollt (Gerald 2026-11-13).**
+2. Drift-Wächter: Heuristik `IF EXISTS`-Sperre reicht, oder Kennzeichen-Konvention? → **Heuristik reicht (Gerald 2026-11-13).**
+3. Regel zusätzlich in `spec-agent.md` und `_templates/spec.md` ergänzen? → **Ja, eine Zeile je Datei (Gerald 2026-11-13).**
