@@ -31,6 +31,7 @@ Ergänzt [[2026-11-14-review-befunde-kommissionierung]]. Grundlage: [[2026-11-08
 - **Vorschlag:** Knopf „Als Standard setzen“, der alten und neuen Standard in **einer** Transaktion tauscht (zwei `SaveChanges` wegen
   gefiltertem UNIQUE-Index, Q2); Abwählen des letzten Standards wieder sperren (ADR 0020-Maske der Spec: „den letzten Standard nicht abwählbar“).
   Entscheidung Gerald.
+- **DEV-Nachmessung 2026-11-14:** reproduziert. AKE-DEV: Lager als Standard abgewählt (Warnung „keinen aktiven Standardbereich“), dann FA 2607171 (Id 144) freigegeben → Meldung „Kein aktiver Standardbereich …“ + „0 Kommissionierauftrag/-aufträge für 0 FA angelegt“, FA trotzdem freigegeben (Prio 42, Kommissionierer gesetzt), kein Auftrag (Screenshot `B-1-freigegeben-ohne-kommissionierauftrag.jpg`). Erholung: Standard wieder gesetzt, „Fehlende Kommissionieraufträge erzeugen“ → KO-2026-00020/-21/-22. Bericht [[01-kommissionierung]].
 
 ## B-2 – Druck-Fälligkeit „Vorkommissionierung“ ohne Werkbank-Override
 - **Schwere:** niedrig

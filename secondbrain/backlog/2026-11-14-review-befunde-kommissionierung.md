@@ -54,6 +54,7 @@ Bereichs-/Typ-Befunde stehen in [[2026-11-14-review-befunde-kommissionierbereich
 - **Vorschlag:** Statusprüfung **innerhalb** des Versuchs nach dem Neulesen wiederholen (bei Abschluss → Meldung „bereits …“, kein
   Wiederholen). Zusätzlich die Knöpfe beim Klick sperren (wie `submitBtn.disabled` beim Umbuchen, `Bom.cshtml:1438`). Unit-Test:
   `AbschliessenAsync` zweimal hintereinander auf denselben Auftrag → zweiter Aufruf Fehler, genau ein Folgeauftrag.
+- **DEV-Nachmessung 2026-11-14:** nicht reproduziert (zweiter Folgeauftrag entstand nicht), aber nur durch einen anderen Fehler maskiert. AKE-DEV, KO-2026-00021 (Zeile EK019437 Soll 2/Ist 1 umgebucht): zwei gleichzeitige `POST /Picking/AuftragAbschliessen vollstaendig=false` → 1× 200 (Folgeauftrag KO-2026-00023), 1× **HTTP 500** (Deadlock-Opfer, Log `idealakewms-20261113_004.log` 19:58:28, `PickingOrderWorkflow.cs:222`). Die Wiederholung in `Nummernkreis.MitVersuchenAsync` greift nicht, weil EF den Deadlock als `InvalidOperationException` → `DbUpdateException` → `SqlException 1205` verpackt und `IstDeadlock` nur eine Ebene tief prüft (`Nummernkreis.cs:15`). Wird das behoben, ist der K-1-Pfad (Wiederholversuch ohne Statusprüfung) offen. Zweiter Versuch mit 150 ms Abstand (KO-2026-00023): Meldung „bereits teilweise abgeschlossen“, genau ein Folgeauftrag KO-2026-00024. Knöpfe werden beim Klick nicht gesperrt (Code `Bom.cshtml:1668-1686`). Bericht [[01-kommissionierung]].
 
 ## K-2 – Auftragszeilen ohne Treffer in der aktuellen Stückliste verschwinden still
 - **Schwere:** mittel
@@ -68,6 +69,7 @@ Bereichs-/Typ-Befunde stehen in [[2026-11-14-review-befunde-kommissionierbereich
   wird `Entfallen`, ohne dass jemand sie gesehen hat.
 - **Vorschlag:** Anzeige von den Auftragszeilen aus aufbauen (Stückliste nur zur Anreicherung) oder mindestens Hinweis-Banner
   „n Zeilen dieses Auftrags fehlen in der aktuellen Stückliste: …“ (Melden statt still behandeln).
+- **DEV-Nachmessung 2026-11-14:** reproduziert. AKE-DEV KO-2026-00020 (82 Zeilen), Zeile 2641 per SQL auf Position `99.99` gesetzt (simuliert geänderte Sage-Stückliste, danach zurückgesetzt): Auftragsseite „81 Positionen“, Zeile 2641 fehlt, kein Hinweis; `AuftragDrucken/53` zeigt 82 Zeilen inkl. `99.99`. Bericht [[01-kommissionierung]].
 
 ## K-3 – `ToggleDone` setzt `IsDonePicking` an den Kommissionieraufträgen vorbei
 - **Schwere:** mittel
@@ -82,6 +84,7 @@ Bereichs-/Typ-Befunde stehen in [[2026-11-14-review-befunde-kommissionierbereich
   `/Picking` unsichtbar, steht im Leitstand aber weiter als „Offen“.
 - **Vorschlag:** Beim Setzen auf erledigt offene Aufträge des FA nennen (Warnung) oder den Knopf sperren, solange Aufträge offen
   sind; Entscheidung Gerald. Mindestens Warnung im TempData.
+- **DEV-Nachmessung 2026-11-14:** reproduziert. AKE-DEV FA 2625005 (Id 3043) mit drei offenen Aufträgen KO-2026-00028/-29/-30: `POST /Picking/ToggleDone` → keine Meldung, `IsDonePicking = 1`; `/Picking?showAll=true` zeigt die drei Aufträge vorher, danach keinen; Aufträge bleiben `Offen`. (Danach zurückgeschaltet.) Bericht [[01-kommissionierung]].
 
 ## K-4 – FA „vollständig“, obwohl Reste ohne Auftrag bestehen
 - **Schwere:** mittel
@@ -96,6 +99,7 @@ Bereichs-/Typ-Befunde stehen in [[2026-11-14-review-befunde-kommissionierbereich
   abgeschlossen, bevor der Leitstand prüft → FA erledigt, die Prüfung aus Entscheidung Q11 läuft ins Leere, der Rest (B1) geht still verloren.
 - **Vorschlag:** Vor dem Setzen von `IsDonePicking` die Restmengen rechnen (`PickingOrderRestmengen.Berechne` gegen die Stückliste) bzw.
   `AltbestandPruefen` prüfen; bei Rest nur „teilkommissioniert“ + Warnung „FA hat noch Positionen ohne Auftrag“.
+- **DEV-Nachmessung 2026-11-14:** reproduziert (Variante Rücknahme mit Fortschritt). AKE-DEV FA 2629001 (Id 2802): drei Aufträge, eine Zeile von KO-2026-00031 (Lager) umgebucht, Sammel-Rücknahme → KO-2026-00032 (Glas, 2 Zeilen) und -00033 (VK, 9 Zeilen) storniert, -00031 bleibt; -00031 „Vollständig“ → Antwort `faAbgeschlossen: true`, FA `IsDonePicking = 1`, „abgeschlossen“, obwohl 11 Positionen nie kommissioniert wurden und 108 Zeilen „Entfallen“ (zugleich K-5). Bericht [[01-kommissionierung]].
 
 ## K-5 – „Vollständig abgeschlossen“ ohne Umbuchung, ohne Rückfrage
 - **Schwere:** mittel
@@ -116,6 +120,7 @@ Bereichs-/Typ-Befunde stehen in [[2026-11-14-review-befunde-kommissionierbereich
   zurück; seit v1.88.0 werden dabei alle Aufträge ohne Fortschritt **storniert** und der Kommissionierer am FA gelöscht. Dasselbe bei
   Doppelklick. Vor v1.88.0 war der Umschalter harmlos, jetzt hat er Storno-Wirkung.
 - **Vorschlag:** Gewünschten Zielzustand mitsenden (`release=true/false`) und bei Abweichung melden statt umschalten (wie `BulkRelease`).
+- **DEV-Nachmessung 2026-11-14:** reproduziert. AKE-DEV FA 2629001 (Id 2802), zweimal `POST /PickingLeitstand/ToggleRelease` (wie Doppelklick bzw. veraltete Seite, jeweils mit Kommissionierer): 1. „3 … angelegt (KO-2026-00025, -00026, -00027)“, 2. „3 … storniert (KO-2026-00025, -00026, -00027)“, FA nicht mehr freigegeben, Kommissionierer gelöscht. Bericht [[01-kommissionierung]].
 
 ## K-7 – Nebenläufige Änderung endet als HTTP 500
 - **Schwere:** niedrig
@@ -236,3 +241,15 @@ Bereichs-/Typ-Befunde stehen in [[2026-11-14-review-befunde-kommissionierbereich
 - `IdealAkeWms/Views/Picking/Bom.cshtml:198` – Tooltip „Position laut Sage-**Stueckliste**“ → „Stückliste“ (neu im Bündel).
 - `IdealAkeWms/Views/PickingLeitstand/Index.cshtml:297` und `IdealAkeWms/Views/PickingLeitstand/_PickingLeitstandRow.cshtml:284` –
   „Kommissionierer **aendern**“ → „ändern“ (vorbestehend aus `main`).
+
+## Nachtrag aus der DEV-Regression (B1, 2026-11-14)
+
+Neue Befunde aus [[01-kommissionierung]] (Abschnitt „Neue Befunde“, dort mit Beleg und Vorschlag):
+- **N-1 (hoch):** Unterpositionen in Glas-/VK-Aufträgen (und IDEAL Sub-FA-Baugruppen) unsichtbar, wenn die Vater-Zeile nicht im Auftrag ist
+  (`Bom.cshtml:233`, `:950-980`); AKE KO-2026-00048 2/2, KO-2026-00022 8/12, IDEAL KO-2026-00005 73/79 Zeilen unsichtbar.
+- **N-2 (mittel):** `Nummernkreis.IstDeadlock` (`Nummernkreis.cs:15`) prüft nur eine Ausnahme-Ebene → gleichzeitige Freigabe/„Teilweise“ endet als
+  HTTP 500 (Deadlock 1205 verpackt), FA freigegeben ohne Auftrag; betrifft auch den BA-Nummernkreis. **Mit K-1 zusammen beheben.**
+- **N-3 (niedrig):** Sammelfreigabe bei nicht lesbarer Stückliste → HTTP 500, Freigabe aber gespeichert.
+- **N-4 (Hinweis):** Sammelfreigabe gibt auch FAs mit `IsDonePicking = 1` frei (ergänzt K-8).
+- **N-5 (Hinweis):** Bedarfsmeldung ohne konfigurierten Empfänger anlegbar.
+- **N-6 (Hinweis):** Altlast KO-2026-00014 offen, obwohl FA 2607170 nicht freigegeben.
