@@ -78,6 +78,8 @@ Rollen-Bedeutungen: [[glossar]].
 | `[RequireBeschichtungsauftragWriteAccess]` | admin, **`beschichtungsauftrag_schreiben`** *(neue Rolle, v1.51.0)* | BeschichtungsauftraegeController — action-level an jeder schreibenden Action (Create, Bearbeiten, PositionenHinzufuegen, Bemerkung, Status, Reklamation GET+POST). Read/Edit-Split (ADR 0006); Waechter `BeschichtungsauftraegeControllerTests.JedeSchreibendeAction_HatSchreibfilter_UndPostsAntiforgery`. |
 | `[RequireFaHierarchyKommissionierlistenAktiv]` | *(kein Rollen-Filter — AppSetting-Gate)* | FaHierarchyKommissionierListenController (class-level), **kumulativ** zu `[RequireLagerProcessingAccess]`. Toggle `FaHierarchyKommissionierlistenAktiv` (Default false): MVC → Redirect Home + WarningMessage. Invert-default-Attribut-Muster (v1.31.0). |
 | `[RequireFaHierarchyBeschichtungAktiv]` | *(kein Rollen-Filter — AppSetting-Gate)* | FaHierarchyBeschichtungController, BeschichtungsauftraegeController (class-level), **kumulativ** zu `[RequireBeschichtungsauftragAccess]`. Toggle `FaHierarchyBeschichtungAktiv` (Default false). |
+| `[RequireEinkaufAccess]` | admin, **`einkauf`** *(neue Rolle, v1.99.20)* | PurchaseProposalsController (class-level, nur Lesen – keine POST-Action, Wächter-Test). Kumulativ dazu `[RequireEinkaufAktiv]`. |
+| `[RequireEinkaufAktiv]` | *(kein Rollen-Filter — AppSetting-Gate)* | PurchaseProposalsController (class-level), kumulativ zu `[RequireEinkaufAccess]`. Toggle `EinkaufAktiv` (Default false, nur exakt "true" schaltet frei; sonst Startseite mit Warnung). |
 | `[RequireFaHierarchyVormontageAktiv]` | *(kein Rollen-Filter — AppSetting-Gate)* | FaHierarchyVormontageController (class-level), **kumulativ** zu `[RequireVorbauAccess]`. Toggle `FaHierarchyVormontageAktiv` (Default false). |
 | *(kein Filter)* | jeder eingeloggte User | UserViewPreferencesApiController (Login-Check, kein Rollen-Filter) |
 
@@ -173,3 +175,9 @@ Warum die Flags in Satelliten liegen: [[0009-app-status-in-satelliten-tabellen-n
 - `Receive` (POST): neuer Parameter `barcode`, ausgewertet nur bei AppSetting `WareneingangBarcodeAktiv` (sonst ignoriert); Pruefung Zeichen/Laenge/
   reservierte Namen, Sage-WE aus = Fehler, Duplikat ohne Gross/Klein (`IPurchaseOrderReceiptRepository.BarcodeVergebenAsync`). Recht unveraendert
   `RequireStockAccess`.
+
+
+**Neue Rolle `einkauf`** (v1.99.20, [[2026-11-08-einkauf-bestellvorschlaege-spec]]) an den drei Pflichtstellen: `RoleKeys.Einkauf` +
+`RequireEinkaufAccessAttribute` + `ICurrentUserService.CanAccessEinkaufAsync` (admin oder einkauf), diese Datei, `Views/Users/RoleOverview.cshtml`.
+Kein Seed, kein `00_FreshInstall`-Eintrag – angelegt über die Update-Skript-Prüfung `Pruefung/RolleEinkauf` (Reparatur nach dem
+Beschichtungsauftrag-Muster); Zuweisung an den Einkauf ist Hand-Schritt unter `/Roles`. Seite `/PurchaseProposals` (Menü „Einkauf → Bestellvorschläge“).

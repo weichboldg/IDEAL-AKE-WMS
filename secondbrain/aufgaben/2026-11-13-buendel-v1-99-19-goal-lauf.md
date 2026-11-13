@@ -15,7 +15,7 @@ Grenzen: nichts an Sage schreiben, keine Mails an externe Adressen (Lieferverzug
 | Spec | Typ | SQL-Block | Version | TS | Status | Commits | Blocker |
 |---|---|---|---|---|---|---|---|
 | [[2026-11-13-lieferverzug-nachbesserung-keyuser-spec]] | Spec | – | 1.99.19 | TS-128 erweitert (128.16–128.26) | **Testbereit** (Nach-QA 2026-11-13) | `c31c06b0`, `def97b36`, QA `65496165` | – |
-| [[2026-11-08-einkauf-bestellvorschlaege-spec]] | Epic | ab 148 | 1.99.20 | TS-136 | InUmsetzung (E0 erledigt) | | E3 blockiert (A3 Leseweise), E5 blockiert (gewollt) |
+| [[2026-11-08-einkauf-bestellvorschlaege-spec]] | Epic | – (148 ungenutzt, E3 blockiert) | 1.99.20 | TS-136 | InUmsetzung (E0/E1/E2/E4/E6 erledigt, QA läuft) | `f5209692`, `31ae0d69`, `9b63dfc6`, `f5f6bd5b` | E3 blockiert (A3 Leseweise), E5 blockiert (gewollt) |
 
 - Vorprüfung 2026-11-13: beide `status: Freigegeben` (Gerald 2026-11-13), Freigabe-Antworten vollständig (Lieferverzug 1–5, Bestellvorschläge
   1–10 + 11–13), keine Varianten-Spec, worktree/branch leer bzw. = Bündel. Nächste freie SQL im Worktree: 148 (letzte 147).
@@ -36,3 +36,5 @@ Grenzen: nichts an Sage schreiben, keine Mails an externe Adressen (Lieferverzug
   Nach-QA: Build 0, Web 2811/0/1, Dienst 623/0; N1 (doppeltes Leerzeichen) im QA-Commit `65496165` behoben; DEV AKE+IDEAL v1.99.19; TS-128.16–.26 OK
   außer 128.25 teilweise (ArticleSuppliers nicht geleert). AKE_WMS_DEV: heutige `PurchaseOrderReminders` gelöscht/neu (1120 Einkauf-Zeilen bleiben),
   synthetische Cache-Zeilen 990101–990111 wieder entfernt, Einstellungen zurückgesetzt. **Testbereit**, Publish v1.99.19 = `65496165`.
+- Epic v1.99.20: E1 `f5209692`, E2 `31ae0d69`, E4 `9b63dfc6` (Wächter konservativ A2), E6 `f5f6bd5b`; Build 0, Web 2845/0/1, Dienst 623/0;
+  Publish v1.99.20 = `f5f6bd5b`. Keine Migration. Rolle `einkauf` ohne Seed (Manifest-Prüfung). QA läuft.
