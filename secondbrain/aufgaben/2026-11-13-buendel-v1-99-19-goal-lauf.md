@@ -14,7 +14,7 @@ Grenzen: nichts an Sage schreiben, keine Mails an externe Adressen (Lieferverzug
 
 | Spec | Typ | SQL-Block | Version | TS | Status | Commits | Blocker |
 |---|---|---|---|---|---|---|---|
-| [[2026-11-13-lieferverzug-nachbesserung-keyuser-spec]] | Spec | – | 1.99.19 | TS-128 erweitert (128.16–128.23) | InUmsetzung (Nachtrag 2 in Arbeit) | `c31c06b0` | |
+| [[2026-11-13-lieferverzug-nachbesserung-keyuser-spec]] | Spec | – | 1.99.19 | TS-128 erweitert (128.16–128.26) | **Testbereit** (Nach-QA 2026-11-13) | `c31c06b0`, `def97b36`, QA `65496165` | – |
 | [[2026-11-08-einkauf-bestellvorschlaege-spec]] | Epic | ab 148 | 1.99.20 | TS-136 | InUmsetzung (E0 erledigt) | | E3 blockiert (A3 Leseweise), E5 blockiert (gewollt) |
 
 - Vorprüfung 2026-11-13: beide `status: Freigegeben` (Gerald 2026-11-13), Freigabe-Antworten vollständig (Lieferverzug 1–5, Bestellvorschläge
@@ -32,3 +32,7 @@ Grenzen: nichts an Sage schreiben, keine Mails an externe Adressen (Lieferverzug
 - Lieferverzug Zwischen-QA (vor Nachtrag 2): Build 0, Web 2811/0/1, Dienst 619/0, DEV AKE+IDEAL v1.99.19 deployt; Review ohne Blocker (Q1–Q7,
   Q2/Q5 werden mit Nachtrag 2 erledigt, Q7 Testindex nach Nachtrag 2). Abgebrochen auf Anweisung, weil Gerald 16:42 **Freigabe-Nachtrag 2**
   (Lieferanten-Artikelnummer in Kreditor-Mail und Einkauf-Liste) nachgereicht hat → Umsetzung läuft, danach Nach-QA mit TS-128.16 ff. auf DEV.
+- v1.99.19 Nachtrag 2 `def97b36` (Lief.-Art.-Nr. aus `ArticleSupplier.SageBestellnummer`, `EinkaufPositionenInfo` hat keine – GET belegt; Q2/Q5).
+  Nach-QA: Build 0, Web 2811/0/1, Dienst 623/0; N1 (doppeltes Leerzeichen) im QA-Commit `65496165` behoben; DEV AKE+IDEAL v1.99.19; TS-128.16–.26 OK
+  außer 128.25 teilweise (ArticleSuppliers nicht geleert). AKE_WMS_DEV: heutige `PurchaseOrderReminders` gelöscht/neu (1120 Einkauf-Zeilen bleiben),
+  synthetische Cache-Zeilen 990101–990111 wieder entfernt, Einstellungen zurückgesetzt. **Testbereit**, Publish v1.99.19 = `65496165`.
