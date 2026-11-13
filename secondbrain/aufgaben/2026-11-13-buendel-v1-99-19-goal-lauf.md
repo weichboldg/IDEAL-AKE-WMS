@@ -1,6 +1,6 @@
 ---
 type: aufgabe
-status: offen
+status: erledigt
 created: 2026-11-13
 ---
 # /goal-Lauf 2026-11-13 (Abend): Lieferverzug-Nachbesserung, Einkauf Bestellvorschläge (Epic)
@@ -15,7 +15,7 @@ Grenzen: nichts an Sage schreiben, keine Mails an externe Adressen (Lieferverzug
 | Spec | Typ | SQL-Block | Version | TS | Status | Commits | Blocker |
 |---|---|---|---|---|---|---|---|
 | [[2026-11-13-lieferverzug-nachbesserung-keyuser-spec]] | Spec | – | 1.99.19 | TS-128 erweitert (128.16–128.26) | **Testbereit** (Nach-QA 2026-11-13) | `c31c06b0`, `def97b36`, QA `65496165` | – |
-| [[2026-11-08-einkauf-bestellvorschlaege-spec]] | Epic | – (148 ungenutzt, E3 blockiert) | 1.99.20 | TS-136 | InUmsetzung (E0/E1/E2/E4/E6 erledigt, QA läuft) | `f5209692`, `31ae0d69`, `9b63dfc6`, `f5f6bd5b` | E3 blockiert (A3 Leseweise), E5 blockiert (gewollt) |
+| [[2026-11-08-einkauf-bestellvorschlaege-spec]] | Epic | – (148 ungenutzt, E3 blockiert) | 1.99.20 | TS-136 | **Testbereit** E0+E1+E2+E4+E6 (QA 2026-11-13) | `f5209692`, `31ae0d69`, `9b63dfc6`, `f5f6bd5b`, QA `cf3f41cb` | E3 blockiert (A3 Leseweise → Gerald), E5 blockiert (gewollt) |
 
 - Vorprüfung 2026-11-13: beide `status: Freigegeben` (Gerald 2026-11-13), Freigabe-Antworten vollständig (Lieferverzug 1–5, Bestellvorschläge
   1–10 + 11–13), keine Varianten-Spec, worktree/branch leer bzw. = Bündel. Nächste freie SQL im Worktree: 148 (letzte 147).
@@ -38,3 +38,22 @@ Grenzen: nichts an Sage schreiben, keine Mails an externe Adressen (Lieferverzug
   synthetische Cache-Zeilen 990101–990111 wieder entfernt, Einstellungen zurückgesetzt. **Testbereit**, Publish v1.99.19 = `65496165`.
 - Epic v1.99.20: E1 `f5209692`, E2 `31ae0d69`, E4 `9b63dfc6` (Wächter konservativ A2), E6 `f5f6bd5b`; Build 0, Web 2845/0/1, Dienst 623/0;
   Publish v1.99.20 = `f5f6bd5b`. Keine Migration. Rolle `einkauf` ohne Seed (Manifest-Prüfung). QA läuft.
+- Epic QA 2026-11-13: Build 0, Web 2845/0/1, Dienst 623/0; Q-1 (Leer-Text) behoben `cf3f41cb`; DEV AKE+IDEAL v1.99.20; TS-136 im Browser gegen
+  SQL-Gegenproben OK (offene Bedarfe 13, offen bestellt 7, Banner 16/5/30, Gate, Rolle, Aufrunden 200/290, Wächter RLL); CSV/Buchungen/Update-Skript/
+  leerer Cache → Mensch. **Testbereit** (E3/E5 blockiert). DEV: Rolle `einkauf` (Roles.Id 19) auf AKE-DEV bleibt, keinem Benutzer zugewiesen;
+  `EinkaufAktiv`-Zeile gelöscht wie vorher; admin-Zuordnung gerald.weichbold (UserRoles 40) wiederhergestellt; Test-Bedarfsmeldungen 19–22 gelöscht.
+  Publish v1.99.20 = `cf3f41cb`; `publish\deploy.zip` vom qa-agent neu gebaut (vorher Stand 08:15).
+
+## Abschluss (2026-11-13)
+
+- **Lieferverzug-Nachbesserung v1.99.19 Testbereit** (`c31c06b0`, Nachtrag 2 `def97b36`, QA `65496165`; TS-128.16–128.26). Keine Migration.
+- **Einkauf Bestellvorschläge v1.99.20 Testbereit für E0/E1/E2/E4/E6** (`f5209692`, `31ae0d69`, `9b63dfc6`, `f5f6bd5b`, QA `cf3f41cb`; TS-136).
+  Keine Migration; SQL/148 + 149 frei. **Blocker:** E3 (A3 Leseweise letzte Bestellmenge – Gerald), E5 (Dispo-Stapel schreibt an Sage – gewollt).
+- Publish `<Worktree>\publish` = v1.99.20 `cf3f41cb`. Nächste freie SQL 148, nächstes TS-Kapitel TS-137.
+- Kein Sage-POST/PUT/DELETE (nur GETs mit `where`/`orderBy`), keine Mail per SMTP (nur `.eml` in `D:\Dev\mail-pickupke`), keine Prod-DB, kein Merge,
+  im Lauf kein Push (Push `d9e4c89e` vorher auf Geralds Anweisung).
+- **Offen für Gerald:** Schranke 2 je Spec (Checklisten am Spec-Ende); Limit-Entscheidung P-L1 (96–99 Kreditoren > `KreditorMaxJeLauf` 30);
+  Durchsicht „Zu klären“ mit dem Einkauf + P-L2–P-L4; Mailclient-Darstellung (breitere Tabellen); E3-Leseweise (A3: Fenster + Nachlesen je Artikel /
+  langes Fenster / nur je Artikel); P2 Einheit Mindestbestellmenge in der Sage-Maske (EK002400, EK007623); A2-Wächter ggf. lockern; Rolle `einkauf`
+  zuweisen + `EinkaufAktiv` erst nach den vier Abgleichen; Zusatzfund `IdealAkeWms/appsettings.Development.json` zeigt auf Prod-DB-Namen;
+  Nebenfund `SagePurchaseOrderLines.Belegnummer` nvarchar(20) < Sage 45; AKE-DEV `SData:Username/Password` leer (appsettings-Rückfall).

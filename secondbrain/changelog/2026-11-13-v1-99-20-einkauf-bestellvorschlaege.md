@@ -5,7 +5,7 @@ date: 2026-11-13
 ---
 # v1.99.20 — Einkauf: Bestellvorschläge für Nachbestellartikel (Epic, Etappen E1/E2/E4/E6)
 
-Buendel `feature/2026-08-07-ideal-teile-1-5`, Commits `f5209692` (E1), `31ae0d69` (E2), `9b63dfc6` (E4), `f5f6bd5b` (E6). Spec
+Buendel `feature/2026-08-07-ideal-teile-1-5`, Commits `f5209692` (E1), `31ae0d69` (E2), `9b63dfc6` (E4), `f5f6bd5b` (E6), QA `cf3f41cb`. **Testbereit** (QA 2026-11-13, DEV AKE+IDEAL). Spec
 [[2026-11-08-einkauf-bestellvorschlaege-spec]] (Epic; E0 lesend erledigt, **E3 blockiert** – Leseweise letzte Bestellmenge, **E5 blockiert** –
 Dispo-Stapel schreibt an Sage). Nicht gemergt; /goal-Lauf [[2026-11-13-buendel-v1-99-19-goal-lauf]].
 

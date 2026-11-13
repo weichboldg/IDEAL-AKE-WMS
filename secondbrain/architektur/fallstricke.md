@@ -1888,3 +1888,16 @@ Code: `hardware-scanner.js` Block „Scannen ohne Feld“, CSS `.hw-scan-bereit`
   Ausnahmeliste fehl (und bei einer veralteten Ausnahme).
 - **Eine Zeit je Lauf/Aufruf.** **Warum wichtig:** Mehrere `Now`-Aufrufe in einer Sammelfreigabe oder einem Sync-Lauf ergeben unterschiedliche
   Stempel für zusammengehörige Zeilen; `ReleasedAt = ModifiedAt` bzw. `ReportedAt = ModifiedAt` setzt einen Wert voraus.
+
+## 37. Lieferverzug und Einkauf: Zahlen aus Sage erst messen (v1.99.19/v1.99.20, [[2026-11-13-lieferverzug-nachbesserung-keyuser-spec]], [[2026-11-08-einkauf-bestellvorschlaege-spec]])
+
+- **`AppSettingKeys` enthält nur Einstellungs-Keys als String-Konstanten.** Der Drift-Test verlangt jede `const string` dort als eigene Einstellung;
+  feste Auswahlwerte gehören in eine verschachtelte Klasse (`AppSettingKeys.EinkaufBedarfWerte`). **Warum:** sonst rot ohne erkennbaren Bezug.
+- **„Letzte Bestellung“ über SData ist nach `BelPosId` sortiert, nicht nach Datum** – der jüngste Beleg lässt sich nur über alle Seiten bestimmen,
+  und ein 1-Jahres-Fenster findet am AKE-Test nur 55 % der letzten Bestellungen (E0-A3). **Warum:** ein Fenster wirkt vollständig, ist es aber nicht.
+- **Gleiche Einheit heißt nicht Faktor 1:** `ArtikelLieferant` hat Stk/Stk mit `UmrechnungsfaktorEK` 2 oder 5 (und 0). Wer auf die Mindestbestellmenge
+  aufrundet, prüft Einheit **und** Faktor (E0-A2). **Warum:** sonst wird in der falschen Einheit gerundet.
+- **`EinkaufPositionenInfo` hat keine Lieferanten-Artikelnummer** (91 Felder, GET 2026-11-13) – Quelle ist `ArticleSupplier.SageBestellnummer`, die nur
+  mit `Sync:ArtikelLieferantEnabled` gefüllt wird. Die Partner-Ressource heißt `eptEinkaufsbelege.100036671.DPSBS_DMS_Connector` (ohne Suffix 404).
+- **Erste Welle Kreditor-Mails:** Auch mit `MaxAlterTage` 180 lagen auf AKE-DEV 96–99 Kreditoren über `KreditorMaxJeLauf` 30 („alle oder keine“) –
+  vor dem Einschalten Zahl prüfen.
