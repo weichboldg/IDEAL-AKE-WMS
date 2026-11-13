@@ -70,7 +70,7 @@ public class LieferverzugMailService
 
         var ids = kandidaten.Select(l => l.BelPosId).ToList();
         var erfasst = await _receipts.GetErfasstJeBelPosAsync(ids);
-        var rest = kandidaten.ToDictionary(l => l.BelPosId, l => erfasst.GetValueOrDefault(l.BelPosId, ErfasstJeBelPos.Leer).Rest(l.MengeOffen, l.SyncedAt));
+        var rest = kandidaten.ToDictionary(l => l.BelPosId, l => erfasst.GetValueOrDefault(l.BelPosId, ErfasstJeBelPos.Leer).Rest(l));
 
         var creditorIds = kandidaten.Where(l => l.CreditorId != null).Select(l => l.CreditorId!.Value).Distinct().ToList();
         var kreditoren = await _ctx.Creditors.AsNoTracking().Where(c => creditorIds.Contains(c.Id))

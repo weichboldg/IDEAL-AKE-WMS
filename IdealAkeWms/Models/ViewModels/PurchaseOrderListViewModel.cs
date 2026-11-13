@@ -11,6 +11,10 @@ public class PurchaseOrderListViewModel
     public string? Artikel { get; set; }
     public string? Lagerplatz { get; set; }
     public bool NurUeberfaellig { get; set; }
+    /// <summary>v1.99.15 (Teil 3, F3): Filter „auch im WMS vollständig erfasste Abrufe“ (Standard aus).</summary>
+    public bool AuchErfassteAbrufe { get; set; }
+    /// <summary>v1.99.15: Anzahl ausgeblendeter Rahmenabrufe mit Rest 0 (Meldung über der Tabelle).</summary>
+    public int AusgeblendeteAbrufe { get; set; }
     public DateTime HorizontBis { get; set; }
     /// <summary>Letzter Abgleich (max SyncedAt); null = Cache leer (Hinweis mit Dienst-Schalter).</summary>
     public DateTime? Stand { get; set; }
@@ -35,4 +39,7 @@ public class PurchaseOrderLineRow
     public string? SageWeText { get; init; }
     public bool Ueberfaellig { get; init; }
     public bool OhneTermin => Line.Liefertermin == null;
+    /// <summary>v1.99.15: Rahmenabruf mit Rest 0 (Rest-Regel <c>ErfasstJeBelPos</c>, dieselbe wie in der Maske).</summary>
+    public bool AbrufVollstaendigErfasst => Line.IstRahmenabruf
+        && IdealAkeWms.Data.Repositories.ErfasstJeBelPos.RestAus(Line.MengeOffen, ImWmsAbzuziehen) == 0m;
 }

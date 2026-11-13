@@ -19,7 +19,7 @@ public partial class PurchaseOrdersController
             var ids = await _lines.GetBelIdsByBelegnummerAsync(belegnummer);
             if (ids.Count == 1) return RedirectToAction(nameof(Receive), new { belId = ids[0] });
             TempData["WarningMessage"] = ids.Count == 0
-                ? $"Bestellung „{belegnummer.Trim()}“ nicht gefunden (nur offene normale Bestellungen aus Sage, Stand des letzten Abgleichs)."
+                ? $"Bestellung „{belegnummer.Trim()}“ nicht gefunden (nur offene Bestellungen und Rahmenabrufe aus Sage, Stand des letzten Abgleichs)."
                 : $"Belegnummer „{belegnummer.Trim()}“ gehört zu {ids.Count} Bestellungen – bitte über „Offene Bestellungen“ wählen.";
             return RedirectToAction(nameof(Receive));
         }
@@ -84,7 +84,8 @@ public partial class PurchaseOrdersController
         if (vm.Barcode != null)
         {
             if (!vm.SageWeAktiv)
-                ModelState.AddModelError(string.Empty, "Barcode nicht möglich: Der Sage-Wareneingang ist aus – für diese Buchung entsteht keine CSV-Datei.");
+                ModelState.AddModelError(string.Empty, vm.AbrufOhneSageWe ? "Barcode nicht möglich: " + SageWareneingang.AbrufOhneSageWeText
+                    : "Barcode nicht möglich: Der Sage-Wareneingang ist aus – für diese Buchung entsteht keine CSV-Datei.");
             else if (!WareneingangCsv.IstGueltigerBarcode(vm.Barcode))
                 ModelState.AddModelError(string.Empty, WareneingangCsv.BarcodeFehlerText);
             else if (await _receipts.BarcodeVergebenAsync(vm.Barcode) is { } vergeben)
@@ -152,6 +153,7 @@ public partial class PurchaseOrdersController
         var rows = await ZeilenAsync(lines);
         var eingabe = (eingaben ?? new()).GroupBy(e => e.BelPosId).ToDictionary(g => g.Key, g => g.First());
         var k = rows[0].Line;
+        var schalterAn = SageWareneingang.IstAn(await _serviceSettings.GetValueAsync(SageWareneingang.ToggleKey));
         return new PurchaseOrderReceiveViewModel
         {
             BelId = belId,
@@ -160,7 +162,11 @@ public partial class PurchaseOrdersController
             LieferantGesperrt = rows.Any(r => r.Line.LieferantGesperrt),
             Liefertermin = rows.Min(r => r.Line.Liefertermin),
             Lagerplaetze = await _locations.GetActiveOrderedExcludingPickingTransportAsync() ?? new(),
-            SageWeAktiv = SageWareneingang.IstAn(await _serviceSettings.GetValueAsync(SageWareneingang.ToggleKey)),
+            // v1.99.15 (Teil 3, F4): alle Zeilen einer Maske haben dieselbe BelId, also dieselbe Belegart - Platzregel, Status beim Buchen
+            // und Barcode-Sperre folgen daraus ohne weitere Aenderung.
+            SageWeAktiv = SageWareneingang.GiltFuer(schalterAn, k),
+            SageWeSchalterAn = schalterAn,
+            Rahmenabruf = k.IstRahmenabruf,
             LieferscheinPflicht = string.Equals((await _settings.GetValueAsync(AppSettingKeys.WareneingangLieferscheinPflicht))?.Trim(), "true",
                 StringComparison.OrdinalIgnoreCase),
             BarcodeAktiv = string.Equals((await _settings.GetValueAsync(AppSettingKeys.WareneingangBarcodeAktiv))?.Trim(), "true",

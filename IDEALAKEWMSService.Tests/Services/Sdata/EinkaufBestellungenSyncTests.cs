@@ -20,9 +20,16 @@ public class EinkaufBestellungenSyncTests
 
     private static SdataEinkaufPositionZeile Pos(int belPosId, string artikel, string kto = "K31013", string kz = "EBB",
         decimal bestellt = 10m, decimal geliefert = 0m, string me = "Stk", string lme = "Stk", int? platz = 11, int sperre = 0,
-        string? termin = "2026-11-20T00:00:00+01:00", string? basis = null) =>
+        string? termin = "2026-11-20T00:00:00+01:00", string? basis = null, decimal? mengeBasis = null) =>
         new(belPosId / 10, belPosId, kz, $"2026-{belPosId / 10}", kto, "Lieferant " + kto, sperre, termin, null, artikel, "Bez", null,
-            0, 0, me, basis ?? me, lme, bestellt, geliefert, platz, "HR;0;0;0");
+            0, 0, me, basis ?? me, lme, bestellt, geliefert, platz, "HR;0;0;0", mengeBasis);
+
+    /// <summary>v1.99.15: Der Fake antwortet je where wie Sage (eq 'EBB' / eq 'EBZ', ohne Gross/Klein und Leerzeichen); Zeilen fremder
+    /// Belegart liefert er in der EBB-Antwort mit (prueft die doppelte Absicherung).</summary>
+    private static List<SdataEinkaufPositionZeile> Antwort(string? where, SdataEinkaufPositionZeile[] zeilen) =>
+        zeilen.Where(z => z.Belegkennzeichen!.Trim().ToUpperInvariant() is var kz && kz is "EBB" or "EBZ"
+                ? where == EinkaufBestellungenSyncService.Where(kz)
+                : where == EinkaufBestellungenSyncService.Where("EBB")).ToList();
 
     private static (EinkaufBestellungenSyncService svc, Mock<ISageSdataReadClient> client) Svc(IdealAkeWms.Data.ApplicationDbContext ctx,
         FakeSyncLogger log, params SdataEinkaufPositionZeile[] zeilen)
@@ -31,7 +38,11 @@ public class EinkaufBestellungenSyncTests
         client.Setup(c => c.QueryAllAsync<SdataEinkaufPositionZeile>(It.IsAny<SdataLeseZiel>(), It.IsAny<string>(),
                 EinkaufBestellungenSyncService.Ressource, It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string>(),
                 It.IsAny<CancellationToken>(), It.IsAny<int>()))
-            .ReturnsAsync(new SdataSeiten<SdataEinkaufPositionZeile>(zeilen, EinkaufBestellungenSyncService.Ressource, 1, zeilen.Length, 1));
+            .ReturnsAsync((SdataLeseZiel _, string _, string _, string? where, string? _, string _, CancellationToken _, int _) =>
+            {
+                var a = Antwort(where, zeilen);
+                return new SdataSeiten<SdataEinkaufPositionZeile>(a, EinkaufBestellungenSyncService.Ressource, 1, a.Count, 1);
+            });
         return (new(ctx, client.Object, new ConfigurationBuilder().Build(), NullLogger<EinkaufBestellungenSyncService>.Instance, log), client);
     }
 
@@ -44,22 +55,31 @@ public class EinkaufBestellungenSyncTests
     }
 
     [Fact]
-    public async Task Lauf_NurEbb_Zuordnung_Basiseinheit_EinheitAbweichend_Sperre_AK2_AK3()
+    public async Task Lauf_EbbUndEbz_Zuordnung_Basiseinheit_EinheitAbweichend_Sperre_AK2_AK3()
     {
+        // v1.99.15 (Teil 3, E1) BEWUSST GEAENDERT: bis v1.99.14 erwartete dieser Test, dass EBZ (103) NICHT uebernommen und nur EBB gelesen
+        // wird. Jetzt: zwei Abfragen (EBB, EBZ), EBZ uebernommen; eine fremde Belegart (ERK) faengt die doppelte Absicherung ab.
         using var ctx = TestDbContextFactory.Create();
         await SeedStammAsync(ctx);
         var log = new FakeSyncLogger();
         var (svc, client) = Svc(ctx, log,
             Pos(101, "00722001", bestellt: 9000m, geliefert: 8698m),
             Pos(102, "FEHLT", kto: "K99999", platz: 77, me: "RLL", lme: "Stk", sperre: 1, termin: null),
-            Pos(103, "00722001", kz: "EBZ"));
+            Pos(103, "00722001", kz: "EBZ", bestellt: 34800m, geliefert: 33604m, mengeBasis: 2400m),
+            Pos(104, "00722001", kz: "ERK"));
 
         await svc.RunAsync(dryRun: false, ziel: Ziel);
 
-        client.Verify(c => c.QueryAllAsync<SdataEinkaufPositionZeile>(It.IsAny<SdataLeseZiel>(), It.IsAny<string>(),
-            "EinkaufPositionenInfo", "Belegkennzeichen eq 'EBB'", It.IsAny<string?>(), "BelPosId", It.IsAny<CancellationToken>(), It.IsAny<int>()), Times.Once);
+        foreach (var where in new[] { "Belegkennzeichen eq 'EBB'", "Belegkennzeichen eq 'EBZ'" })
+            client.Verify(c => c.QueryAllAsync<SdataEinkaufPositionZeile>(It.IsAny<SdataLeseZiel>(), It.IsAny<string>(),
+                "EinkaufPositionenInfo", where, It.IsAny<string?>(), "BelPosId", It.IsAny<CancellationToken>(), It.IsAny<int>()), Times.Once);
+        client.Invocations.Should().HaveCount(2, "genau zwei Abfragen, kein or");
         var zeilen = ctx.SagePurchaseOrderLines.OrderBy(z => z.BelPosId).ToList();
-        zeilen.Select(z => z.BelPosId).Should().Equal(101, 102);
+        zeilen.Select(z => z.BelPosId).Should().Equal(101, 102, 103);
+        var abruf = zeilen[2];
+        (abruf.Belegkennzeichen, abruf.MengeBestellt, abruf.MengeGeliefert, abruf.MengeOffen, abruf.IstRahmenabruf)
+            .Should().Be(("EBZ", 2400m, 0m, 2400m, true), "EBZ: Abrufmenge aus MengeBasis, PositionGG* (Rahmen) wirken nicht");
+        (zeilen[0].Belegkennzeichen, zeilen[0].IstRahmenabruf).Should().Be(("EBB", false));
         var a = zeilen[0];
         (a.ArticleId, a.CreditorId, a.StorageLocationId, a.MengeOffen, a.EinheitAbweichend, a.LieferantGesperrt, a.Liefertermin)
             .Should().Be(((int?)5, (int?)3, (int?)9, 302m, false, false, (DateTime?)new DateTime(2026, 11, 20)));
@@ -68,10 +88,12 @@ public class EinkaufBestellungenSyncTests
             .Should().Be(((int?)null, (int?)null, (int?)null, true, true, (DateTime?)null));
 
         var lauf = log.Runs.Single(r => r.ServiceName == SyncLogServices.EinkaufBestellungen);
-        lauf.FinalCounts!["uebernommen"].Should().Be(2);
+        lauf.FinalCounts!["uebernommen"].Should().Be(3);
         lauf.FinalCounts["belegart_ausgeschlossen"].Should().Be(1);
+        (lauf.FinalCounts["positionen"], lauf.FinalCounts["positionen_ebb"], lauf.FinalCounts["positionen_ebz"]).Should().Be((4, 3, 1));
         (lauf.FinalCounts["artikel_fehlt"], lauf.FinalCounts["kreditor_fehlt"], lauf.FinalCounts["lagerplatz_fehlt"], lauf.FinalCounts["einheit_abweichend"])
             .Should().Be((1, 1, 1, 1));
+        lauf.FinalCounts["menge_fehlt"].Should().Be(0);
         lauf.Events.Should().Contain(e => e.Level == "Warning" && e.Message.Contains("FEHLT"))
             .And.Contain(e => e.Level == "Warning" && e.Message.Contains("K99999") && e.Message.Contains("Sync:KreditorenEnabled"))
             .And.Contain(e => e.Level == "Warning" && e.Message.Contains("ID 77"));
@@ -127,8 +149,53 @@ public class EinkaufBestellungenSyncTests
     public void Vertrag_NurBelegteFelder_NieAllInfo_AK5()
     {
         EinkaufBestellungenSyncService.Ressource.Should().Be("EinkaufPositionenInfo");
-        EinkaufBestellungenSyncService.Select.Should().NotContain("AllInfo").And.NotContain("BelPosID").And.Contain("PositionGGBestellt");
-        EinkaufBestellungenSyncService.Where.Should().NotContain(" ne ").And.NotContain(" gt ''");
+        EinkaufBestellungenSyncService.Select.Should().NotContain("AllInfo").And.NotContain("BelPosID").And.Contain("PositionGGBestellt")
+            .And.Contain("MengeBasis");
+        EinkaufBestellungenSyncService.Belegarten.Should().Equal("EBB", "EBZ");
+        foreach (var art in EinkaufBestellungenSyncService.Belegarten)
+            EinkaufBestellungenSyncService.Where(art).Should().Be($"Belegkennzeichen eq '{art}'").And.NotContain(" ne ").And.NotContain(" or ");
+    }
+
+    [Fact]
+    public async Task Ebz_OhneMengeBasis_MengeFehlt_Warnung_Rest0()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        await SeedStammAsync(ctx);
+        var log = new FakeSyncLogger();
+        await Svc(ctx, log, Pos(101, "00722001"), Pos(103, "00722001", kz: "ebz ", mengeBasis: null)).svc.RunAsync(false, ziel: Ziel);
+        var abruf = ctx.SagePurchaseOrderLines.Single(z => z.BelPosId == 103);
+        (abruf.Belegkennzeichen, abruf.MengeBestellt, abruf.MengeOffen).Should().Be(("EBZ", 0m, 0m), "gelesener Wert getrimmt und gross; ohne MengeBasis nie buchbar");
+        log.Runs.Single().FinalCounts!["menge_fehlt"].Should().Be(1);
+        log.Runs.Single().Events.Should().Contain(e => e.Level == "Warning" && e.Message.Contains("MengeBasis"));
+    }
+
+    [Theory]
+    [InlineData("EBB")]
+    [InlineData("EBZ")]
+    public async Task EmptyGuard_JeBelegart_CacheUnveraendert_AK4(string leer)
+    {
+        using var ctx = TestDbContextFactory.Create();
+        await SeedStammAsync(ctx);
+        await Svc(ctx, new FakeSyncLogger(), Pos(101, "00722001"), Pos(103, "00722001", kz: "EBZ", mengeBasis: 5m)).svc.RunAsync(false, ziel: Ziel);
+
+        var log = new FakeSyncLogger();
+        var andere = leer == "EBB" ? Pos(113, "00722001", kz: "EBZ", mengeBasis: 7m) : Pos(111, "00722001");
+        await Svc(ctx, log, andere).svc.RunAsync(false, ziel: Ziel);
+
+        ctx.SagePurchaseOrderLines.Select(z => z.BelPosId).OrderBy(x => x).Should().Equal(new[] { 101, 103 }, "ganzer Cache bleibt stehen");
+        log.Runs.Single().Events.Should().Contain(e => e.Level == "Warning" && e.Message.Contains("Empty-Guard")
+            && e.Message.Contains($"Belegkennzeichen eq '{leer}'") && e.Message.Contains("Cache hat 1"));
+    }
+
+    [Fact]
+    public async Task EmptyGuard_BelegartOhneCacheZeilen_KeinGuard()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        await SeedStammAsync(ctx);
+        await Svc(ctx, new FakeSyncLogger(), Pos(101, "00722001")).svc.RunAsync(false, ziel: Ziel);   // erster Lauf nach Deploy: Cache nur EBB, EBZ 0
+        ctx.SagePurchaseOrderLines.Should().HaveCount(1);
+        await Svc(ctx, new FakeSyncLogger(), Pos(101, "00722001"), Pos(103, "00722001", kz: "EBZ", mengeBasis: 5m)).svc.RunAsync(false, ziel: Ziel);
+        ctx.SagePurchaseOrderLines.Should().HaveCount(2);
     }
 
     [Fact]

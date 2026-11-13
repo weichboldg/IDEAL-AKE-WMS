@@ -11,17 +11,21 @@ namespace IDEALAKEWMSService.Services.Sdata;
 public sealed record SdataEinkaufPositionZeile(int? BelId, int? BelPosId, string? Belegkennzeichen, string? BelegnummerFormatiert,
     string? A0Empfaenger, string? A0Name1, int? Liefersperre, string? Liefertermin, string? BelegLiefertermin, string? Artikelnummer,
     string? Bezeichnung1, string? Bezeichnung2, int? Chargenpflicht, int? Nachweispflicht, string? Mengeneinheit, string? MengeBasiseinheit,
-    string? Lagermengeneinheit, decimal? PositionGGBestellt, decimal? PositionGGGeliefert, int? PlatzID, string? Kurzbezeichnung);
+    string? Lagermengeneinheit, decimal? PositionGGBestellt, decimal? PositionGGGeliefert, int? PlatzID, string? Kurzbezeichnung,
+    decimal? MengeBasis = null);
 
 /// <summary>
 /// v1.84.0, Spec 2026-11-08-wareneingang-aus-sage-bestellungen E1 (+ Entscheidung E0-Blocker): liest offene Sage-Einkaufsbestellungen aus
 /// SData <c>EinkaufPositionenInfo</c> (die Sage-View liefert nur offene Positionen) in den Cache <see cref="SagePurchaseOrderLine"/>.
 /// <list type="bullet">
-/// <item>Nur <c>EBB</c> (normale Bestellung), per <c>where Belegkennzeichen eq 'EBB'</c> – Rahmenabrufe <c>EBZ</c> teilen sich Vorgangsmengen (B-1).</item>
+/// <item><c>EBB</c> (normale Bestellung) und seit v1.99.15 <c>EBZ</c> (Rahmenabruf), je eine Abfrage <c>where Belegkennzeichen eq '…'</c>
+/// (kein <c>or</c>, kein <c>ne</c>). EBZ-Mengen aus <c>MengeBasis</c> des Abrufs, geliefert 0: die <c>PositionGG*</c>-Felder gelten bei EBZ
+/// fuer den ganzen Rahmen (Teil 1 B-1; P-W8 2026-11-13: 108 Abrufe, Menge = MengeBasis bei gleicher Einheit).</item>
 /// <item>Kopfdaten aus den Positionen (<c>EinkaufBelegekopfInfo</c> liefert mehrere Zeilen je Beleg, B-3); <c>Liefersperre</c> = Lieferant gesperrt.</item>
 /// <item>Mengen in der Basiseinheit; <c>Mengeneinheit ≠ Lagermengeneinheit</c> → <see cref="SagePurchaseOrderLine.EinheitAbweichend"/> (B-2).</item>
 /// <item>Zuordnung Artikel / Kreditor / Lagerplatz; nicht zuordenbar = Warnung mit Beispielen, Zeile bleibt mit leerem Verweis.</item>
-/// <item>Vollersatz je Lauf in einer Transaktion; Empty-Guard: 0 Positionen bei nicht leerem Cache = Warnung, Cache unveraendert.</item>
+/// <item>Vollersatz je Lauf in einer Transaktion; Empty-Guard je Belegart: liefert eine Abfrage 0 Zeilen, waehrend der Cache Zeilen dieser
+/// Belegart hat = Warnung, ganzer Cache unveraendert (ein still leerer Filter loescht sonst die Haelfte).</item>
 /// </list>
 /// Kein View-Weg, keine Quellen-Weiche (SData-only wie <see cref="ArtikelLieferantSyncService"/>). Nie <c>EinkaufPositionenAllInfo</c>.
 /// Gate <c>Sync:EinkaufBestellungenEnabled</c>. Lesefehler: Lauf Fehler + throw (Mail ueber RunResilientAsync). Schreibt nie nach Sage.
@@ -29,12 +33,14 @@ public sealed record SdataEinkaufPositionZeile(int? BelId, int? BelPosId, string
 public class EinkaufBestellungenSyncService
 {
     public const string Ressource = "EinkaufPositionenInfo";
-    public const string Where = "Belegkennzeichen eq 'EBB'";
     public const string Select = "BelId,BelPosId,Belegkennzeichen,BelegnummerFormatiert,A0Empfaenger,A0Name1,Liefersperre,Liefertermin,"
         + "BelegLiefertermin,Artikelnummer,Bezeichnung1,Bezeichnung2,Chargenpflicht,Nachweispflicht,Mengeneinheit,MengeBasiseinheit,"
-        + "Lagermengeneinheit,PositionGGBestellt,PositionGGGeliefert,PlatzID,Kurzbezeichnung";
+        + "Lagermengeneinheit,PositionGGBestellt,PositionGGGeliefert,PlatzID,Kurzbezeichnung,MengeBasis";
     public const string OrderBy = "BelPosId";
-    public const string Belegart = "EBB";
+    public const string Bestellung = "EBB";
+    /// <summary>Gelesene Belegarten, je eine Abfrage (Reihenfolge = Abfrage-Reihenfolge).</summary>
+    public static readonly IReadOnlyList<string> Belegarten = [Bestellung, SagePurchaseOrderLine.KennzeichenRahmenabruf];
+    public static string Where(string belegart) => $"Belegkennzeichen eq '{belegart}'";
     public const int Seitengroesse = 1000;
 
     private readonly ApplicationDbContext _ctx;
@@ -57,17 +63,22 @@ public class EinkaufBestellungenSyncService
     {
         await using var run = await _syncLogger.BeginRunAsync(SyncLogServices.EinkaufBestellungen, ct);
 
-        IReadOnlyList<SdataEinkaufPositionZeile> zeilen;
+        var zeilen = new List<SdataEinkaufPositionZeile>();
+        var jeArt = new Dictionary<string, int>();
         // v1.99.4 (Wareneingang Teil 2, F5): Stand VOR dem Lesen - Rest-Regel vergleicht SageWeAm <= SyncedAt
         var now = DateTime.Now;
         try
         {
             ziel ??= await SdataLeseZielLeser.LesenAsync(_config, ct);
             if (ziel.Warnung is { } zugangsWarnung) await run.LogWarningAsync(zugangsWarnung, ct: ct); // v1.99.14 F6: Rueckfall appsettings
-            var seiten = await _client.QueryAllAsync<SdataEinkaufPositionZeile>(ziel, SageSdataReadClient.VertragResources, Ressource,
-                Where, Select, OrderBy, ct, Seitengroesse);
-            zeilen = seiten.Zeilen;
-            await run.LogInfoAsync(seiten.Zusammenfassung, ct: ct);
+            foreach (var art in Belegarten)
+            {
+                var seiten = await _client.QueryAllAsync<SdataEinkaufPositionZeile>(ziel, SageSdataReadClient.VertragResources, Ressource,
+                    Where(art), Select, OrderBy, ct, Seitengroesse);
+                zeilen.AddRange(seiten.Zeilen);
+                jeArt[art] = seiten.Zeilen.Count;
+                await run.LogInfoAsync($"{art}: {seiten.Zusammenfassung}", ct: ct);
+            }
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -80,10 +91,12 @@ public class EinkaufBestellungenSyncService
         try
         {
             var bestand = await _ctx.SagePurchaseOrderLines.ToListAsync(ct);
-            if (zeilen.Count == 0 && bestand.Count > 0)
+            foreach (var art in Belegarten)
             {
-                await run.LogWarningAsync($"{Ressource} liefert 0 offene Positionen ({Where}), Cache hat {bestand.Count} – Cache bleibt unveraendert (Empty-Guard).", ct: ct);
-                await run.FinishSuccessAsync(new Dictionary<string, int> { ["positionen"] = 0, ["uebernommen"] = 0 }, ct: ct);
+                var imCache = bestand.Count(b => string.Equals(b.Belegkennzeichen, art, StringComparison.OrdinalIgnoreCase));
+                if (jeArt[art] > 0 || imCache == 0) continue;
+                await run.LogWarningAsync($"{Ressource} liefert 0 offene Positionen ({Where(art)}), Cache hat {imCache} – Cache bleibt unveraendert (Empty-Guard).", ct: ct);
+                await run.FinishSuccessAsync(new Dictionary<string, int> { ["positionen"] = zeilen.Count, ["uebernommen"] = 0 }, ct: ct);
                 return new SyncResult(0, 0, 0);
             }
 
@@ -110,8 +123,10 @@ public class EinkaufBestellungenSyncService
                 var nummer = z.Artikelnummer?.Trim();
                 if (z.BelPosId is not { } belPosId || z.BelId is not { } belId || string.IsNullOrEmpty(nummer)
                     || string.IsNullOrWhiteSpace(z.BelegnummerFormatiert)) { ohneSchluessel++; continue; }
-                // Doppelte Absicherung zum where: nur EBB (Rahmenabrufe teilen sich Vorgangsmengen, E0 B-1).
-                if (!string.Equals(z.Belegkennzeichen?.Trim(), Belegart, StringComparison.OrdinalIgnoreCase)) { belegartAus++; continue; }
+                // Doppelte Absicherung zum where: nur EBB und EBZ.
+                var belegart = z.Belegkennzeichen?.Trim().ToUpperInvariant();
+                if (belegart == null || !Belegarten.Contains(belegart)) { belegartAus++; continue; }
+                var abruf = belegart == SagePurchaseOrderLine.KennzeichenRahmenabruf;
                 if (!gesehen.Add(belPosId)) { doppelt++; continue; }
 
                 var kto = Text(z.A0Empfaenger);
@@ -125,9 +140,10 @@ public class EinkaufBestellungenSyncService
 
                 var termin = Datum(z.Liefertermin) ?? Datum(z.BelegLiefertermin);
                 if (termin == null && (!string.IsNullOrWhiteSpace(z.Liefertermin) || !string.IsNullOrWhiteSpace(z.BelegLiefertermin))) terminKaputt++;
-                if (z.PositionGGBestellt == null || z.PositionGGGeliefert == null) mengeFehlt++; // QA Q-6: melden statt still 0
-                var bestellt = z.PositionGGBestellt ?? 0m;
-                var geliefert = z.PositionGGGeliefert ?? 0m;
+                // EBZ (F1): Abrufmenge = MengeBasis, geliefert 0 - PositionGG* gelten fuer den ganzen Rahmen und wirken hier nie.
+                if (abruf ? z.MengeBasis == null : z.PositionGGBestellt == null || z.PositionGGGeliefert == null) mengeFehlt++; // QA Q-6: melden statt still 0
+                var bestellt = (abruf ? z.MengeBasis : z.PositionGGBestellt) ?? 0m;
+                var geliefert = abruf ? 0m : z.PositionGGGeliefert ?? 0m;
                 // E0 B-2 + Nachbesserung v1.86.0: gebucht wird die Menge in der BASISeinheit auf einen Artikel mit Lagereinheit -> gesperrt, wenn
                 // Bestell- ODER Basiseinheit von der Lagereinheit abweicht (EK003604 am AKE-Test: Bestellung PKG, Basis Stk, Lager PKG).
                 var abweichend = !string.Equals(Text(z.Mengeneinheit), Text(z.Lagermengeneinheit), StringComparison.OrdinalIgnoreCase)
@@ -138,7 +154,7 @@ public class EinkaufBestellungenSyncService
 
                 neu.Add(new SagePurchaseOrderLine
                 {
-                    BelPosId = belPosId, BelId = belId, Belegkennzeichen = Belegart, Belegnummer = z.BelegnummerFormatiert!.Trim(),
+                    BelPosId = belPosId, BelId = belId, Belegkennzeichen = belegart, Belegnummer = z.BelegnummerFormatiert!.Trim(),
                     LieferantKto = kto, LieferantName = Text(z.A0Name1), LieferantGesperrt = sperre, CreditorId = creditorId,
                     Artikelnummer = nummer, ArticleId = articleId, Bezeichnung1 = Text(z.Bezeichnung1), Bezeichnung2 = Text(z.Bezeichnung2),
                     MengeBestellt = bestellt, MengeGeliefert = geliefert, MengeOffen = bestellt - geliefert,
@@ -151,7 +167,7 @@ public class EinkaufBestellungenSyncService
 
             if (ohneSchluessel > 0) await run.LogWarningAsync($"{ohneSchluessel} Position(en) ohne BelId/BelPosId/Artikelnummer/Belegnummer uebersprungen.", ct: ct);
             if (doppelt > 0) await run.LogWarningAsync($"{doppelt} Position(en) mit bereits gelesener BelPosId uebersprungen (erste Zeile gilt).", ct: ct);
-            if (belegartAus > 0) await run.LogInfoAsync($"{belegartAus} Position(en) anderer Belegart als {Belegart} nicht uebernommen.", ct: ct);
+            if (belegartAus > 0) await run.LogInfoAsync($"{belegartAus} Position(en) anderer Belegart als {string.Join("/", Belegarten)} nicht uebernommen.", ct: ct);
             if (artikelFehltZeilen > 0)
                 await run.LogWarningAsync(SdataSchluessel.Kappen($"{artikelFehltZeilen} Position(en) zu Artikeln, die es im WMS nicht gibt (nicht buchbar): " +
                     string.Join(", ", artikelFehlt.Take(20))), ct: ct);
@@ -164,7 +180,7 @@ public class EinkaufBestellungenSyncService
             if (einheitAbweichend > 0)
                 await run.LogInfoAsync($"{einheitAbweichend} Position(en) mit Bestell- oder Basiseinheit ≠ Lagermengeneinheit – im WMS markiert und nicht buchbar.", ct: ct);
             if (mengeFehlt > 0)
-                await run.LogWarningAsync($"{mengeFehlt} Position(en) ohne PositionGGBestellt/PositionGGGeliefert – fehlender Wert als 0 gefuehrt, bitte in Sage pruefen.", ct: ct);
+                await run.LogWarningAsync($"{mengeFehlt} Position(en) ohne Menge (EBB PositionGGBestellt/PositionGGGeliefert, EBZ MengeBasis) – fehlender Wert als 0 gefuehrt, bitte in Sage pruefen.", ct: ct);
             if (terminKaputt > 0) await run.LogWarningAsync($"{terminKaputt} Position(en) mit unlesbarem Liefertermin – als „ohne Termin“ gefuehrt.", ct: ct);
 
             if (!dryRun)
@@ -180,6 +196,8 @@ public class EinkaufBestellungenSyncService
             await run.FinishSuccessAsync(new Dictionary<string, int>
             {
                 ["positionen"] = zeilen.Count,
+                ["positionen_ebb"] = jeArt[Bestellung],
+                ["positionen_ebz"] = jeArt[SagePurchaseOrderLine.KennzeichenRahmenabruf],
                 ["koepfe"] = neu.Select(n => n.BelId).Distinct().Count(),
                 ["uebernommen"] = neu.Count,
                 ["belegart_ausgeschlossen"] = belegartAus,

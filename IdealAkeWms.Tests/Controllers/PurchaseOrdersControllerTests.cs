@@ -27,7 +27,7 @@ public partial class PurchaseOrdersControllerTests
     };
 
     internal static (PurchaseOrdersController ctrl, Mock<ISagePurchaseOrderLineRepository> lines, Mock<ICurrentUserService> user) Build(
-        List<SagePurchaseOrderLine> zeilen, int wochen = 2, bool canStock = true)
+        List<SagePurchaseOrderLine> zeilen, int wochen = 2, bool canStock = true, Dictionary<int, ErfasstJeBelPos>? erfasst = null)
     {
         var lines = new Mock<ISagePurchaseOrderLineRepository>();
         lines.Setup(l => l.GetAllAsync()).ReturnsAsync(zeilen);
@@ -39,7 +39,7 @@ public partial class PurchaseOrdersControllerTests
         var user = new Mock<ICurrentUserService>();
         user.Setup(u => u.CanAccessStockAsync()).ReturnsAsync(canStock);
         var receipts = new Mock<IPurchaseOrderReceiptRepository>();
-        receipts.Setup(r => r.GetErfasstJeBelPosAsync(It.IsAny<IReadOnlyCollection<int>>())).ReturnsAsync(new Dictionary<int, ErfasstJeBelPos>());
+        receipts.Setup(r => r.GetErfasstJeBelPosAsync(It.IsAny<IReadOnlyCollection<int>>())).ReturnsAsync(erfasst ?? new Dictionary<int, ErfasstJeBelPos>());
         var ctrl = new PurchaseOrdersController(lines.Object, locations.Object, settings.Object, user.Object, receipts.Object,
             Mock.Of<IStockMovementRepository>(), Mock.Of<IServiceSettingRepository>())
         {
@@ -49,6 +49,52 @@ public partial class PurchaseOrdersControllerTests
     }
 
     private static PurchaseOrderListViewModel Vm(IActionResult r) => (PurchaseOrderListViewModel)((ViewResult)r).Model!;
+
+    // ----- v1.99.15 (Spec 2026-11-11-wareneingang-teil-3-rahmenabrufe F3, AK 6-7) -----
+
+    private static SagePurchaseOrderLine Abruf(int belPosId, decimal menge)
+    {
+        var l = L(belPosId, DateTime.Today.AddDays(1), offen: menge);
+        l.Belegkennzeichen = "EBZ";
+        return l;
+    }
+
+    [Fact]
+    public async Task Abruf_HinweisRahmenabruf_GeliefertStrich_Spaltenfilter_AK6()
+    {
+        var (ctrl, _, _) = Build(new List<SagePurchaseOrderLine> { L(11, DateTime.Today.AddDays(1)), Abruf(21, 10m) });
+        var vm = Vm(await ctrl.Index());
+        var abruf = vm.Items.Single(i => i.Line.BelPosId == 21);
+        PurchaseOrdersController.Hinweis(abruf).Should().StartWith("Rahmenabruf");
+        PurchaseOrdersController.Hinweis(vm.Items.Single(i => i.Line.BelPosId == 11)).Should().NotContain("Rahmenabruf");
+        PurchaseOrdersController.GeliefertText(abruf.Line).Should().Be("–");
+        PurchaseOrdersController.GeliefertText(vm.Items.Single(i => i.Line.BelPosId == 11).Line).Should().Be("0");
+
+        ctrl.ControllerContext.HttpContext.Request.QueryString = new QueryString("?colf_hinweis=Rahmenabruf");
+        Vm(await ctrl.Index()).Items.Select(i => i.Line.BelPosId).Should().Equal(21);
+    }
+
+    [Fact]
+    public async Task Abruf_Rest0_Ausgeblendet_Gezaehlt_MitFilterSichtbar_EbbRest0Bleibt_AK7()
+    {
+        var sync = new DateTime(2026, 11, 8, 6, 0, 0);
+        var uebergeben = new List<(DateTime, decimal)> { (sync.AddHours(-1), 4m) };
+        var erfasst = new Dictionary<int, ErfasstJeBelPos>
+        {
+            [21] = new(10m, uebergeben),   // Abruf 10, alles erfasst (4 davon an Sage uebergeben) -> Rest 0
+            [31] = new(3m, uebergeben),    // Abruf 10, 3 erfasst -> Rest 7
+            [11] = new(5m, Array.Empty<(DateTime, decimal)>()),   // EBB offen 5, 5 erfasst -> Rest 0, bleibt sichtbar
+        };
+        var (ctrl, _, _) = Build(new List<SagePurchaseOrderLine> { L(11, DateTime.Today.AddDays(1)), Abruf(21, 10m), Abruf(31, 10m) }, erfasst: erfasst);
+
+        var vm = Vm(await ctrl.Index());
+        vm.Items.Select(i => i.Line.BelPosId).Should().BeEquivalentTo(new[] { 11, 31 });
+        (vm.AusgeblendeteAbrufe, vm.Pagination.TotalCount, vm.AuchErfassteAbrufe).Should().Be((1, 2, false));
+
+        vm = Vm(await ctrl.Index(auchErfassteAbrufe: true));
+        vm.Items.Select(i => i.Line.BelPosId).Should().BeEquivalentTo(new[] { 11, 21, 31 });
+        (vm.AusgeblendeteAbrufe, vm.AuchErfassteAbrufe).Should().Be((0, true));
+    }
 
     [Fact]
     public async Task Vorschau_HorizontXWochen_UeberfaelligUndOhneTerminImmer_AK7()

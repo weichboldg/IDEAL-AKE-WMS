@@ -7,6 +7,8 @@ namespace IdealAkeWms.Data.Repositories;
 /// v1.99.4 (Wareneingang Teil 2, F5): im WMS erfasste Menge einer Bestellposition plus die an Sage uebergebenen Teilmengen (Zeitpunkt der
 /// Uebergabe). <see cref="Abzuziehen"/> ist die EINE Stelle der Rest-Regel: abgezogen wird alles, was zum Abgleich-Stand noch nicht in Sage
 /// enthalten war - alles ausser Uebergeben mit SageWeAm &lt;= SyncedAt (sonst zoege das WMS eine Uebergabe zweimal ab).
+/// v1.99.15 (Wareneingang Teil 3, F2): bei Rahmenabrufen (EBZ) wird ALLES abgezogen, auch Uebergebenes - Sage verkleinert die offene Menge je
+/// Abruf nie (Abrufmenge = <c>MengeBasis</c>). Daher nimmt die Regel die Cache-Zeile, nicht nur SyncedAt (kein Aufrufer vergisst die Belegart).
 /// </summary>
 public sealed record ErfasstJeBelPos(decimal Gesamt, IReadOnlyList<(DateTime Am, decimal Menge)> Uebergeben,
     IReadOnlyList<SageWareneingangStatus>? SageWe = null)
@@ -17,11 +19,12 @@ public sealed record ErfasstJeBelPos(decimal Gesamt, IReadOnlyList<(DateTime Am,
     public string? SageWeText(Func<SageWareneingangStatus, string> text) => SageWe is { Count: > 0 } s
         ? "Sage-Wareneingang: " + string.Join(", ", s.GroupBy(x => x).OrderBy(g => g.Key).Select(g => $"{g.Count()}× {text(g.Key)}"))
         : null;
-    public decimal Abzuziehen(DateTime syncedAt) => Gesamt - Uebergeben.Where(u => u.Am <= syncedAt).Sum(u => u.Menge);
+    public decimal Abzuziehen(SagePurchaseOrderLine l) =>
+        l.IstRahmenabruf ? Gesamt : Gesamt - Uebergeben.Where(u => u.Am <= l.SyncedAt).Sum(u => u.Menge);
 
     /// <summary>v1.99.10: Rest = offen laut Sage − im WMS noch abzuziehen, nie negativ. EINE Funktion fuer die Maske „Wareneingang zu
     /// Bestellung“ und die Lieferverzug-Mail (sonst laufen beide auseinander).</summary>
-    public decimal Rest(decimal mengeOffen, DateTime syncedAt) => RestAus(mengeOffen, Abzuziehen(syncedAt));
+    public decimal Rest(SagePurchaseOrderLine l) => RestAus(l.MengeOffen, Abzuziehen(l));
 
     /// <summary>Rest aus einem bereits berechneten <see cref="Abzuziehen"/> (Zeilenmodell der Maske).</summary>
     public static decimal RestAus(decimal mengeOffen, decimal abzuziehen) => Math.Max(0m, mengeOffen - abzuziehen);

@@ -9,7 +9,7 @@ namespace IdealAkeWms.Controllers;
 
 /// <summary>
 /// v1.84.0, Spec 2026-11-08-wareneingang-aus-sage-bestellungen E2/E3: „Offene Bestellungen“ (Vorschau der naechsten X Wochen aus dem Cache
-/// offener Sage-Bestellpositionen, nur EBB) und „Wareneingang zu Bestellung“. Lesen = <see cref="RequireStockReadAccessAttribute"/>,
+/// offener Sage-Bestellpositionen, EBB und seit v1.99.15 Rahmenabrufe EBZ) und „Wareneingang zu Bestellung“. Lesen = <see cref="RequireStockReadAccessAttribute"/>,
 /// Buchen = <see cref="RequireStockAccessAttribute"/> (Read/Edit-Split, ADR 0006); Feature-Gate <c>WareneingangBestellungAktiv</c> kumulativ (404).
 /// </summary>
 [RequireStockReadAccess]
@@ -46,7 +46,7 @@ public partial class PurchaseOrdersController : Controller
         ["artikel"] = r => r.Line.Artikelnummer,
         ["bezeichnung"] = r => r.Line.Bezeichnung1,
         ["bestellt"] = r => r.Line.MengeBestellt.ToString("0.###"),
-        ["geliefert"] = r => r.Line.MengeGeliefert.ToString("0.###"),
+        ["geliefert"] = r => GeliefertText(r.Line),
         ["offen"] = r => r.Line.MengeOffen.ToString("0.###"),
         ["erfasst"] = r => r.ImWmsErfasst.ToString("0.###"),
         ["einheit"] = r => r.Line.MengeBasiseinheit,
@@ -54,9 +54,14 @@ public partial class PurchaseOrdersController : Controller
         ["hinweis"] = r => Hinweis(r),
     };
 
-    /// <summary>Text der Hinweis-Spalte (Farbe nie allein): Termin, Einheit, Charge/Serie, Lieferant gesperrt.</summary>
+    /// <summary>v1.99.15 (Teil 3, F3): Sage liefert fuer Rahmenabrufe keine gelieferte Menge je Abruf → „–“, nie „0“.</summary>
+    internal static string GeliefertText(SagePurchaseOrderLine l) => l.IstRahmenabruf ? "–" : l.MengeGeliefert.ToString("0.###");
+    internal const string GeliefertAbrufTitel = "Sage liefert für Rahmenabrufe keine gelieferte Menge je Abruf";
+
+    /// <summary>Text der Hinweis-Spalte (Farbe nie allein): Rahmenabruf, Termin, Einheit, Charge/Serie, Lieferant gesperrt.</summary>
     internal static string Hinweis(PurchaseOrderLineRow r) => string.Join(" · ", new[]
     {
+        r.Line.IstRahmenabruf ? "Rahmenabruf" : null,
         r.Ueberfaellig ? "überfällig" : null,
         r.OhneTermin ? "ohne Termin" : null,
         r.Line.EinheitAbweichend ? "Einheit abweichend" : null,
@@ -65,7 +70,7 @@ public partial class PurchaseOrdersController : Controller
     }.Where(t => t != null));
 
     public async Task<IActionResult> Index(int? wochen = null, string? lieferant = null, string? bestellung = null, string? artikel = null,
-        string? lagerplatz = null, bool nurUeberfaellig = false, int page = 1, int? pageSize = null)
+        string? lagerplatz = null, bool nurUeberfaellig = false, bool auchErfassteAbrufe = false, int page = 1, int? pageSize = null)
     {
         if (page < 1) page = 1;
         var standard = await _settings.GetIntValueAsync(AppSettingKeys.OffeneBestellungenVorschauWochen, 2);
@@ -88,6 +93,15 @@ public partial class PurchaseOrdersController : Controller
                           || (r.Line.Bezeichnung1?.Contains(artikel.Trim(), StringComparison.OrdinalIgnoreCase) ?? false));
         if (!string.IsNullOrWhiteSpace(lagerplatz))
             q = q.Where(r => r.ZielLagerplatz?.Contains(lagerplatz.Trim(), StringComparison.OrdinalIgnoreCase) ?? false);
+        // v1.99.15 (Teil 3, F3, Entscheidung 2): im WMS vollstaendig erfasste Rahmenabrufe (Rest 0) standardmaessig ausblenden - gezaehlt und
+        // gemeldet (nie still weg); vor Spaltenfilter und Pagination. EBB mit Rest 0 bleibt sichtbar.
+        var ausgeblendeteAbrufe = 0;
+        if (!auchErfassteAbrufe)
+        {
+            var liste = q.ToList();
+            q = liste.Where(r => !r.AbrufVollstaendigErfasst);
+            ausgeblendeteAbrufe = liste.Count(r => r.AbrufVollstaendigErfasst);
+        }
 
         var sortiert = q.OrderBy(r => r.Line.Liefertermin == null).ThenBy(r => r.Line.Liefertermin).ThenBy(r => r.Line.Belegnummer)
             .ThenBy(r => r.Line.BelPosId).ToList();
@@ -107,7 +121,7 @@ public partial class PurchaseOrdersController : Controller
                 TotalCount = gefiltert.Count,
             },
             Wochen = x, Lieferant = lieferant, Bestellung = bestellung, Artikel = artikel, Lagerplatz = lagerplatz,
-            NurUeberfaellig = nurUeberfaellig, HorizontBis = bis, Stand = await _lines.GetStandAsync(),
+            NurUeberfaellig = nurUeberfaellig, AuchErfassteAbrufe = auchErfassteAbrufe, AusgeblendeteAbrufe = ausgeblendeteAbrufe, HorizontBis = bis, Stand = await _lines.GetStandAsync(),
             CanReceive = await _user.CanAccessStockAsync(), Lieferanten = lieferanten,
         };
         return View(vm);
@@ -126,7 +140,7 @@ public partial class PurchaseOrdersController : Controller
             ZielLagerplatz = l.StorageLocationId is { } sid && plaetze.TryGetValue(sid, out var code) ? code : l.SagePlatzKurzbezeichnung,
             ZielNichtImWms = l.SagePlatzId != null && l.StorageLocationId == null,
             ImWmsErfasst = erfasst.GetValueOrDefault(l.BelPosId, ErfasstJeBelPos.Leer).Gesamt,
-            ImWmsAbzuziehen = erfasst.GetValueOrDefault(l.BelPosId, ErfasstJeBelPos.Leer).Abzuziehen(l.SyncedAt),
+            ImWmsAbzuziehen = erfasst.GetValueOrDefault(l.BelPosId, ErfasstJeBelPos.Leer).Abzuziehen(l),   // v1.99.15: Belegart-abhaengig (EBZ zieht alles ab)
             SageWeText = erfasst.GetValueOrDefault(l.BelPosId, ErfasstJeBelPos.Leer).SageWeText(SageWeStatusText),
             Ueberfaellig = l.Liefertermin != null && l.Liefertermin < heute,
         }).ToList();

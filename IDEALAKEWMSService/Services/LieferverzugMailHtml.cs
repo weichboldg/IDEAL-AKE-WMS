@@ -111,7 +111,7 @@ public static class LieferverzugMailHtml
             {
                 var l = p.Line;
                 var einheit = l.EinheitAbweichend ? $"{l.MengeBasiseinheit} (Basis, Einheit abweichend)" : l.MengeBasiseinheit;
-                Zeile(html, i++, l.Belegnummer, l.Artikelnummer, Bezeichnung(l), Menge(l.MengeBestellt, einheit), Menge(l.MengeGeliefert, einheit),
+                Zeile(html, i++, l.Belegnummer, l.Artikelnummer, Bezeichnung(l), Menge(l.MengeBestellt, einheit), Geliefert(l, einheit),
                     Menge(p.Rest, einheit), Datum(l.Liefertermin), p.TageUeberfaellig.ToString(De));
             }
             TabelleEnde(html);
@@ -130,7 +130,7 @@ public static class LieferverzugMailHtml
             {
                 var l = p.Line;
                 text.AppendLine($"  - {l.Belegnummer} | {l.Artikelnummer} | {Bezeichnung(l)} | bestellt {Menge(l.MengeBestellt, l.MengeBasiseinheit)}, "
-                    + $"geliefert {Menge(l.MengeGeliefert, l.MengeBasiseinheit)}, Rest {Menge(p.Rest, l.MengeBasiseinheit)}{(l.EinheitAbweichend ? " (Basis, Einheit abweichend)" : "")} | "
+                    + $"geliefert {Geliefert(l, l.MengeBasiseinheit)}, Rest {Menge(p.Rest, l.MengeBasiseinheit)}{(l.EinheitAbweichend ? " (Basis, Einheit abweichend)" : "")} | "
                     + $"Liefertermin {Datum(l.Liefertermin)} | {p.TageUeberfaellig} Tage überfällig");
             }
             text.AppendLine();
@@ -141,6 +141,8 @@ public static class LieferverzugMailHtml
     }
 
     private static string Menge(decimal m, string? einheit) => $"{m.ToString("0.###", De)} {einheit}".Trim();
+    /// <summary>v1.99.15 (Teil 3, F5): Sage liefert fuer Rahmenabrufe keine gelieferte Menge je Abruf → „–“, nie „0“.</summary>
+    private static string Geliefert(IdealAkeWms.Models.SagePurchaseOrderLine l, string? einheit) => l.IstRahmenabruf ? "–" : Menge(l.MengeGeliefert, einheit);
     private static string Datum(DateTime? d) => d?.ToString("dd.MM.yyyy", De) ?? "–";
     private static string Bezeichnung(IdealAkeWms.Models.SagePurchaseOrderLine l) =>
         string.Join(" ", new[] { l.Bezeichnung1, l.Bezeichnung2 }.Where(s => !string.IsNullOrWhiteSpace(s)));

@@ -15,8 +15,15 @@ public class PurchaseOrderReceiveViewModel
     public string? Lieferschein { get; set; }
     /// <summary>v1.99.4 (F6): AppSetting WareneingangLieferscheinPflicht.</summary>
     public bool LieferscheinPflicht { get; set; }
-    /// <summary>v1.99.4 (F2): ServiceSetting SageWareneingangBelegAktiv - Status beim Buchen und Platzregel.</summary>
+    /// <summary>v1.99.4 (F2): Sage-WE fuer diese Maske - Status beim Buchen und Platzregel. Seit v1.99.15
+    /// <c>SageWareneingang.GiltFuer</c> (Schalter SageWareneingangBelegAktiv und Belegart).</summary>
     public bool SageWeAktiv { get; set; }
+    /// <summary>v1.99.15: ServiceSetting SageWareneingangBelegAktiv selbst (unterscheidet „Schalter aus“ von „Abruf ohne Sage-WE“).</summary>
+    public bool SageWeSchalterAn { get; set; }
+    /// <summary>v1.99.15 (Teil 3, F3): Rahmenabruf (EBZ) - Kopf-Badge und Hinweise.</summary>
+    public bool Rahmenabruf { get; set; }
+    /// <summary>v1.99.15 (F4): Schalter an, aber Rahmenabrufe laufen ohne Sage-WE (<c>SageWareneingang.RahmenabrufMitSageWe</c> = false).</summary>
+    public bool AbrufOhneSageWe => Rahmenabruf && SageWeSchalterAn && !SageWeAktiv;
     /// <summary>v1.99.11 (Wareneingang-CSV F1): Barcode des Lieferschein-Aufklebers (Kopf, einmal je Absenden); bleibt bei Fehlern stehen.</summary>
     public string? Barcode { get; set; }
     /// <summary>v1.99.11: AppSetting WareneingangBarcodeAktiv - Feld sichtbar.</summary>

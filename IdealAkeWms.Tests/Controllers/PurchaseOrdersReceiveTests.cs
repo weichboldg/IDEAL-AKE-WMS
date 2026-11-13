@@ -31,14 +31,15 @@ public class PurchaseOrdersReceiveTests
         db.StorageLocations.Add(new StorageLocation { Id = 11, Code = "SAGE-AUS", IsActive = true, IstBuchbar = true, SageBuchungErlaubt = false,
             SageLagerkennung = "HR;1;0;0", SageLagerplatzId = 78, CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" });
         if (sageWe) db.ServiceSettings.Add(new ServiceSetting { Key = SageWareneingang.ToggleKey, Value = "true" });
-        SagePurchaseOrderLine L(int belPosId, int? articleId, string art, decimal offen, bool einheit = false, int belId = 100) => new()
+        SagePurchaseOrderLine L(int belPosId, int? articleId, string art, decimal offen, bool einheit = false, int belId = 100, string kz = "EBB") => new()
         {
-            BelPosId = belPosId, BelId = belId, Belegkennzeichen = "EBB", Belegnummer = $"2026-{belId}", LieferantKto = "K1", LieferantName = "L",
+            BelPosId = belPosId, BelId = belId, Belegkennzeichen = kz, Belegnummer = $"2026-{belId}", LieferantKto = "K1", LieferantName = "L",
             Artikelnummer = art, ArticleId = articleId, MengeBestellt = offen, MengeOffen = offen, Mengeneinheit = einheit ? "RLL" : "Stk",
             Lagermengeneinheit = "Stk", MengeBasiseinheit = "Stk", EinheitAbweichend = einheit, StorageLocationId = 9, SyncedAt = DateTime.Now,
         };
         db.SagePurchaseOrderLines.AddRange(L(1001, 5, "00722001", 10m), L(1002, 6, "00722002", 4m), L(1003, null, "FEHLT", 3m),
-            L(1004, 5, "00722001", 2m, einheit: true), L(2001, 5, "00722001", 1m, belId: 200), L(3001, 5, "00722001", 1m, belId: 300));
+            L(1004, 5, "00722001", 2m, einheit: true), L(2001, 5, "00722001", 1m, belId: 200), L(3001, 5, "00722001", 1m, belId: 300),
+            L(4001, 5, "00722001", 10m, belId: 400, kz: "EBZ"));   // v1.99.15: Rahmenabruf
         db.SagePurchaseOrderLines.Local.Single(l => l.BelPosId == 3001).Belegnummer = "2026-200"; // zwei Belege mit gleicher Nummer
         await db.SaveChangesAsync();
 
@@ -68,7 +69,8 @@ public class PurchaseOrdersReceiveTests
         ((RedirectToActionResult)await ctrl.Receive(null, " 2026-100 ")).RouteValues!["belId"].Should().Be(100);
 
         await ctrl.Receive(null, "2026-999");
-        ctrl.TempData["WarningMessage"].Should().Be("Bestellung „2026-999“ nicht gefunden (nur offene normale Bestellungen aus Sage, Stand des letzten Abgleichs).");
+        ctrl.TempData["WarningMessage"].Should().Be("Bestellung „2026-999“ nicht gefunden (nur offene Bestellungen und Rahmenabrufe aus Sage, Stand des letzten Abgleichs).");
+        ((RedirectToActionResult)await ctrl.Receive(null, "2026-400")).RouteValues!["belId"].Should().Be(400, "Abruf per Belegnummer (AK 8)");
 
         await ctrl.Receive(null, "2026-200");
         ctrl.TempData["WarningMessage"]!.ToString().Should().Contain("gehört zu 2 Bestellungen");
@@ -327,5 +329,62 @@ public class PurchaseOrdersReceiveTests
         var d = AppSettingDefinitions.All.Single(x => x.Key == AppSettingKeys.WareneingangBarcodeAktiv);
         (d.Type, d.DefaultValue, d.Seed, d.AbhaengigVon).Should().Be((SettingType.Bool, "false", false, AppSettingKeys.WareneingangBestellungAktiv));
         d.Anzeigename.Should().Be("Wareneingang: Barcode-Feld (Lieferschein-Aufkleber)");
+    }
+
+    // ----- v1.99.15 (Spec 2026-11-11-wareneingang-teil-3-rahmenabrufe F4, AK 8-9) -----
+
+    [Theory]
+    [InlineData(true, "EBB", false, true)]
+    [InlineData(true, "EBZ", false, false)]
+    [InlineData(true, "EBZ", true, true)]
+    [InlineData(false, "EBB", true, false)]
+    [InlineData(false, "EBZ", true, false)]
+    public void GiltFuer_SchalterUndKonstante(bool schalter, string kz, bool abrufMitSageWe, bool erwartet) =>
+        SageWareneingang.GiltFuer(schalter, new SagePurchaseOrderLine { Belegkennzeichen = kz }, abrufMitSageWe).Should().Be(erwartet);
+
+    [Fact]
+    public void Konstante_RahmenabrufMitSageWe_BisZumSchreibtestAus() =>
+        SageWareneingang.RahmenabrufMitSageWe.Should().BeFalse("E2 (Schreibtest) ist noch nicht erfolgt");
+
+    [Fact]
+    public async Task Abruf_SageWeAn_KonstanteAus_NichtNoetig_OhnePlatzregel_EbbUnveraendert_AK9()
+    {
+        var (ctrl, db) = await BuildAsync(sageWe: true);
+        var vm = (PurchaseOrderReceiveViewModel)((ViewResult)await ctrl.Receive(400, (string?)null)).Model!;
+        (vm.Rahmenabruf, vm.SageWeAktiv, vm.AbrufOhneSageWe).Should().Be((true, false, true));
+
+        await ctrl.Receive(400, new List<PurchaseOrderReceiveInput> { E(4001, "3", platz: 10) });   // OHNE-SAGE: keine Platzregel
+        var abruf = db.PurchaseOrderReceipts.Single();
+        (abruf.SageWeStatus, abruf.SageWeVorgang).Should().Be((SageWareneingangStatus.NichtNoetig, (Guid?)null));
+
+        await ctrl.Receive(100, new List<PurchaseOrderReceiveInput> { E(1001, "1") });
+        db.PurchaseOrderReceipts.Single(r => r.BelPosId == 1001).SageWeStatus.Should().Be(SageWareneingangStatus.Offen, "EBB im selben Zustand unveraendert");
+        var vmEbb = (PurchaseOrderReceiveViewModel)((ViewResult)await ctrl.Receive(100, new List<PurchaseOrderReceiveInput> { E(1001, "1", platz: 10) })).Model!;
+        vmEbb.Zeilen.Single(z => z.Row.Line.BelPosId == 1001).Fehler.Should().Be(SageWareneingang.PlatzFehler("OHNE-SAGE"));
+    }
+
+    [Fact]
+    public async Task Abruf_SageWeAn_KonstanteAus_Barcode_AbgewiesenMitAbrufText_AK9()
+    {
+        var (ctrl, db) = await BuildAsync(sageWe: true, barcode: true);
+        await ctrl.Receive(400, new List<PurchaseOrderReceiveInput> { E(4001, "1") }, null, "AKE123");
+        db.StockMovements.Should().BeEmpty();
+        Fehler(ctrl).Should().ContainSingle(e => e == "Barcode nicht möglich: " + SageWareneingang.AbrufOhneSageWeText);
+    }
+
+    [Fact]
+    public async Task Abruf_Rest_ZiehtAuchUebergebenesAb_Rest0_OeffnetTrotzdem_AK5()
+    {
+        var (ctrl, db) = await BuildAsync();
+        await ctrl.Receive(400, new List<PurchaseOrderReceiveInput> { E(4001, "3") });
+        var r = db.PurchaseOrderReceipts.Single();
+        r.SageWeStatus = SageWareneingangStatus.Uebergeben; r.SageWeAm = DateTime.Now.AddDays(-1);   // vor SyncedAt: bei EBB nicht abgezogen
+        await db.SaveChangesAsync();
+        var vm = (PurchaseOrderReceiveViewModel)((ViewResult)await ctrl.Receive(400, (string?)null)).Model!;
+        vm.Zeilen.Single().Rest.Should().Be(7m);
+
+        await ctrl.Receive(400, new List<PurchaseOrderReceiveInput> { E(4001, "7") });
+        vm = (PurchaseOrderReceiveViewModel)((ViewResult)await ctrl.Receive(400, (string?)null)).Model!;
+        vm.Zeilen.Single().Rest.Should().Be(0m, "Abruf mit Rest 0 oeffnet sich trotzdem (Ueberlieferung mit Bestaetigung moeglich)");
     }
 }

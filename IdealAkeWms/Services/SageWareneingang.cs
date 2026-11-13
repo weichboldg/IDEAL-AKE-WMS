@@ -17,6 +17,20 @@ public static class SageWareneingang
     /// <summary>Sage-Belegkennzeichen des Wareneingangs (P-W7: ELL, Konstante, kein Setting).</summary>
     public const string BelegKennzeichen = "ELL";
 
+    /// <summary>
+    /// v1.99.15 (Spec 2026-11-11-wareneingang-teil-3-rahmenabrufe F4): Rahmenabrufe (EBZ) als Sage-Wareneingang? <c>true</c> erst nach dem
+    /// EINEN erfolgreichen Schreibtest (E2, inkl. ReferenzBelID = Abruf-BelId), sonst <c>false</c> = Abrufe NichtNoetig (Lagerbuchung wie Teil 1).
+    /// Bewusst keine Einstellung (kein Umschalten im Betrieb).
+    /// </summary>
+    public const bool RahmenabrufMitSageWe = false;
+
+    /// <summary>v1.99.15: gilt der Sage-WE fuer diese Bestellzeile? Parameter <paramref name="rahmenabrufMitSageWe"/> nur fuer Tests beider Werte.</summary>
+    public static bool GiltFuer(bool schalterAn, SagePurchaseOrderLine l, bool rahmenabrufMitSageWe = RahmenabrufMitSageWe) =>
+        schalterAn && (!l.IstRahmenabruf || rahmenabrufMitSageWe);
+
+    /// <summary>v1.99.15: Text, wenn der Schalter an ist, ein Rahmenabruf aber ohne Sage-WE laeuft (Barcode-Hinweis und -Fehler).</summary>
+    public const string AbrufOhneSageWeText = "Für Rahmenabrufe gibt es keinen Sage-Wareneingang – für diese Buchung entsteht keine CSV-Datei.";
+
     /// <summary>Nur exakt "true" (ohne Gross/Klein, getrimmt) schaltet ein.</summary>
     public static bool IstAn(string? wert) => string.Equals(wert?.Trim(), "true", StringComparison.OrdinalIgnoreCase);
 

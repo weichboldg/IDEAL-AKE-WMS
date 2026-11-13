@@ -302,6 +302,27 @@ public class LieferverzugMailTests
         log.Runs.Should().BeEmpty();
     }
 
+    [Fact] // v1.99.15 (Teil 3, AK 11): Abrufe nach Rest-Regel F2 (auch Uebergebenes abgezogen), „Geliefert“ = „–“, in beiden Mails (Freigabe-Antwort 1)
+    public async Task Lauf_Rahmenabruf_RestRegelF2_GeliefertStrich_AuchKreditorMail()
+    {
+        SagePurchaseOrderLine Abruf(int id, decimal menge)
+        {
+            var l = L(id, 5, offen: menge);
+            (l.Belegkennzeichen, l.MengeBestellt, l.MengeGeliefert) = ("EBZ", menge, 0m);
+            return l;
+        }
+        var uebergeben = new List<(DateTime, decimal)> { (Jetzt.AddHours(-2), 4m) };   // vor SyncedAt: bei EBB nicht abgezogen
+        var (svc, db, mail, _, _) = Svc(new Dictionary<int, ErfasstJeBelPos> { [3] = new(10m, uebergeben), [4] = new(4m, uebergeben) });
+        Seed(db, Abruf(3, 10m), Abruf(4, 10m));
+
+        await svc.RunAsync(E(test: false), false, Jetzt);
+
+        var einkauf = mail.Gesendet.Single(n => n.Empfaenger.Contains("einkauf@test.invalid"));
+        einkauf.Text.Should().Contain("2027-4 |").And.Contain("geliefert –,").And.Contain("Rest 6 Stk").And.NotContain("2027-3 |", "Rest 0 nie");
+        System.Net.WebUtility.HtmlDecode(einkauf.Html).Should().Contain("2027-4").And.NotContain("2027-3");
+        mail.Gesendet.Should().Contain(n => n.Empfaenger.Contains("lieferant@test.invalid"), "Abrufe auch in der Kreditor-Mail, keine Planer-Bedingung");
+    }
+
     [Fact] // F6: ausserhalb des Zeitfensters kein Lauf; Einkauf-Empfaenger leer -> keine Mail, Warnung
     public async Task Lauf_AusserhalbFenster_Nichts_OhneEmpfaenger_Warnung()
     {
