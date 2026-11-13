@@ -445,10 +445,10 @@ in der Tabelle vermerken). Die alte E3 (Kennzeichen) entfällt; die Nummer E3 tr
 
 | # | Etappe | Abhängigkeit | Status | Commit |
 |---|--------|--------------|--------|--------|
-| 0 | Prüfabfragen lesend ausführen und eintragen: P-L1 (a–c) SData AKE-Test, P-L2 Sage-SQL AKE-Test, P-L3 WMS-DB, P2, P4 (Freigabe-Nachtrag „E0“). Abweichung von der Spec = Blocker melden | SData-/SQL-Zugang AKE-Test; IDEAL-Teile (P-L1 d) bleiben offen | offen | |
+| 0 | Prüfabfragen lesend ausführen und eintragen: P-L1 (a–c) SData AKE-Test, P-L2 Sage-SQL AKE-Test, P-L3 WMS-DB, P2, P4 (Freigabe-Nachtrag „E0“). Abweichung von der Spec = Blocker melden | SData-/SQL-Zugang AKE-Test; IDEAL-Teile (P-L1 d) bleiben offen | **erledigt** 2026-11-13 (Ergebnisse E0, A1–A4) | – (nur lesend) |
 | 1 | Grundgerüst: Rolle `einkauf` (3 Stellen + Update-Skript-Prüfung), Gate `EinkaufAktiv`, Menü „Einkauf“, `PurchaseProposalCalculator` + Tests (letzte Bestellmenge als Eingabe, noch leer), Repository, Liste nur lesen (Bestand, Sage verfügbar, Bedarfe, Meldebestand, Vorschlag, Lieferant), Einstellungen `EinkaufAktiv`/`EinkaufOffeneBedarfe`, Version in beiden `AppVersion.cs` – keine Migration | Rückfrage 13 (Verhalten ohne letzte Bestellung gilt bis E3 für alle Zeilen) | offen | |
 | 2 | Offene Sage-Bestellungen aus dem Cache mit Rest-Regel, Spalten „offen bestellt“/„nächster Liefertermin“, Banner Stand/leer/Einheit – keine Migration | – (Teil B ist im Branch) | offen | |
-| 3 | Letzte Bestellmenge: **SQL/148**, Dienst-Schritt in `ArtikelLieferantSyncService`, Spalten + Grund, Rückfragen 11/12 in der Rechenregel | **BLOCKER bis P-L1** (SData-Lesepfad bestätigt) und P-L2 (b, c); Rückfragen 11, 12 | offen | |
+| 3 | Letzte Bestellmenge: **SQL/148**, Dienst-Schritt in `ArtikelLieferantSyncService`, Spalten + Grund, Rückfragen 11/12 in der Rechenregel | **BLOCKER bis P-L1** (SData-Lesepfad bestätigt) und P-L2 (b, c); Rückfragen 11, 12 | **blockiert** (E0 A3: Leseweise – Entscheidung Gerald) | |
 | 4 | Aufrunden auf Mindestbestellmenge + Einheiten-Wächter (Felder vorhanden) – keine Migration | P2 (ohne Antwort: `TODO(P2)`, Wächter strikt) | offen | |
 | 5 | Übergabe an den Sage-Dispo-Stapel: Schalter, Auswahl/Menge/Lieferant, Schreibclient, Stapel-Lesen, Protokoll – **SQL/149** | **BLOCKIERT:** Lesetest P4 + Schreibtest P5 (Freigabe Gerald), Freigabe-Nachtrag „Sage-Schreiben aus“ | blockiert | |
 | 6 | Abschluss: TS-136 + Index, Hilfeseite (Bedienschritte, Formel, Schalter-Warnung), README (AppSettings), Anwender- + Brain-Changelog, feature-map, controller.md, codebase/services/datenmodell, ggf. fallstricke | – | offen | |
@@ -518,6 +518,51 @@ P2, P4, P5 bleiben.
   SELECT COUNT(*) AS MitHauptlieferant FROM dbo.Articles a
   WHERE a.ReorderLevel > 0 AND EXISTS (SELECT 1 FROM dbo.ArticleSuppliers s WHERE s.ArticleId = a.Id AND s.IstHauptlieferant = 1);
   ```
+
+### Ergebnisse E0 (2026-11-13, /goal-Lauf [[2026-11-13-buendel-v1-99-19-goal-lauf]], nur lesend: SData GET mit `orderBy`/`where`, SQL nur SELECT)
+
+Zugang: SData `https://sagetest01.ake.at:5493/sdata/ol/…`, Dataset `ake_TEST2026;1`, Basic-Auth über den appsettings-Rückfall der DEV-Dienst-Konfiguration
+(`SData:Username`/`Password` in `AKE_WMS_DEV.ServiceSettings` leer, [[fallstricke]] §33). Sage-SQL `AKESQL20.ake.at`/`ake_TEST2026`; WMS `.`/`AKE_WMS_DEV`, `IDEAL_WMS_DEV`.
+P5 (Schreibtest) und IDEAL (P-L1 d) nicht ausgeführt.
+
+- **P-L1 (a)** Vertrags-`$schema` 200 (325 ms). `EinkaufPositionenAllInfo` (134 Felder, alle filterbar, nur GET): `Mandant`, `BelId`, `BelPosId`, `VorPosId`,
+  `Belegkennzeichen` string(3), `Belegart`, `Belegdatum` dateTime, `BelegnummerFormatiert` **string(45)**, `Belegnummer` int, `A0Empfaenger` string(20),
+  `A0Matchcode`, `A0Name1`, `Artikelnummer` string(50), `Menge`, `Mengeneinheit`(5), `MengeBasis`, `MengeBasiseinheit`(5), `MengeEKEinheit`,
+  `MengeEKUmrechnung`, `Lagermengeneinheit`, `UmrechnungsFaktorLME`, `PositionGGErfuellt`. Schreibweise `BelId`/`BelPosId` (nicht `BelID`).
+- **P-L1 (b)** EBB + `00722001`: 200, 376 ms, 55 Zeilen, alle K31013; jüngste BelId 360630, 2026-04-09, 2027-168142, 400 lfm = Basis 400 (= P-L2 b).
+  EBZ: 0 Zeilen. Sammelabfrage 1 Jahr (`Belegdatum ge @2025-11-13@`, `count=1000`): EBB 7.760 Zeilen / 8 Seiten / **27,4 s**, EBZ 420 / 1,4 s.
+  Nur gezählt: EBB ab 2023-11-13 36.288 (9,0 s), EBB gesamt 173.030 (19,6 s für `count=1`), EBZ gesamt 3.995. Drei Jahre geschätzt 5–6 min (nicht gemessen).
+  **Paging:** Sortierung nach `BelPosId`, nicht nach Datum – „jüngster Beleg“ nur über alle Seiten bestimmbar.
+- **P-L1 (c)** Partner-Vertrag: `$schema` 200 (4,4 s); `…/eptEinkaufsbelege?…` **404** `ResourceKindNotFound`; richtiger Name
+  `eptEinkaufsbelege.100036671.DPSBS_DMS_Connector` → 200 (611 ms), Felder wie Spec, aber ohne Einheiten, ohne Belegkennzeichen, ohne `$totalResults`.
+- **P-L2** (a) nur Mandant 1, 64.002 Bestellungen. (b) 00722001: 5 Bestellungen, alle K31013 (jüngste 360630, 2026-04-09, 400). (c) 173.030 Positionen,
+  37 mit Menge ≠ MengeBasis; belegt: `MengeBasis = Menge × MengeEKUmrechnung` (Abweichung > 0,01 nur 6 Positionen), `Menge` = Bestell-Einheit;
+  EK003604 jüngste 2026-05-22 Menge 2 = Basis 2 (Einheit PKG / Basis Stk / Lager PKG). (d) jüngster Beleg je Artikel: Bestellung 24.518, **Rahmenabruf 190**.
+- **P-L3** AKE_WMS_DEV: 2.814 mit Meldebestand, davon 2.784 mit Hauptlieferant (ArticleSuppliers 33.158, letzte Änderung 2026-11-08). IDEAL_WMS_DEV: 1.511 / **0**
+  (keine Artikel-Lieferanten). Abgleich der 2.814 gegen Sage-SQL: 2.778 mit Bestellhistorie, letzte im letzten Jahr nur bei **1.537**, in 3 Jahren bei 2.291.
+- **P2** `ArtikelLieferantInfo` 00722001: 200, K31013, Mindestbestellmenge 200, Einkaufsmengeneinheit lfm, Faktor 1 – an diesem Artikel nicht entscheidbar.
+  SQL-Hinweis (kein Maskenbeleg): bei den 13 von 34.802 `KHKArtikelLieferant`-Zeilen mit Faktor ≠ 1 passt die Mindestmenge zur **Einkaufseinheit**
+  (EK002400 24 PKG Faktor 3; EK007623 5 Stk Faktor 5). **Maskenprüfung offen → Gerald.**
+- **P4** Ressourcen-`$schema` 401 (bekannt); aus dem Vertrags-Schema: `DispositionStapelPositionenInfo` (73 Felder; Schlüssel `Mandant`+`ID`, `DispoPosID`;
+  `Stapelkennung` string(10), `Lieferant`, `Artikelnummer` string(31), `Menge`, `MengeBasis`, `MengeBasisEinheit`, `MengeEKEinheit`, `MengeEKMindest`,
+  `Bestelltermin`, `Liefertermin`, `Bestellnummer`, `RahmenvertragsID`; kein `MengeBasisFix`). Filter `Stapelkennung eq 'WMSTEST01'` → 200, 0 Zeilen
+  (kalt 24,8 s, warm 0,76 s, mit `Mandant eq 1` 0,05 s). Ein Stapel WMSTEST01, `KHKDispostapelPositionen` leer → positiver Filterbeleg erst mit P5.
+
+**Abweichungen (laut Freigabe-Nachtrag „Abweichung = Blocker, nicht raten“):**
+- **A1** Partner-Ressource heißt `eptEinkaufsbelege.100036671.DPSBS_DMS_Connector` (ohne Suffix 404). Für E3 ohne Folgen – Lesepfad ist `EinkaufPositionenAllInfo`.
+- **A2 (E4)** Einheiten-Wächter F5 („Einkaufsmengeneinheit leer oder = `Article.Unit`“) reicht nicht: gleiche Einheit mit Faktor ≠ 1 kommt vor
+  (EK002042 Stk/Stk ×2, EK007623 Stk/Stk ×5, EK015491 ×2; Faktor 0 bei EK003375, EK016975). Umsetzung **konservativ**: Aufrunden zusätzlich nur bei
+  `ArticleSupplier.UmrechnungsfaktorEK = 1`, sonst kein Aufrunden mit Hinweis (Wächter strikter, keine Umrechnung geraten); Entscheidung über eine
+  Umrechnung bleibt bei Gerald zusammen mit P2.
+- **A3 (E3) – BLOCKER:** Ein Lauf mit 1-Jahres-Fenster (~29 s) findet die letzte Bestellung nur für 1.537 von 2.778 AKE-Meldebestandsartikeln mit
+  Historie (55 %), 3 Jahre ~82 % bei geschätzt 5–6 min; je Artikel ~0,35–0,5 s → 16–23 min. **Zu entscheiden (Gerald): Fenster + Nachlesen je Artikel
+  für den Rest, langes Fenster, oder nur je Artikel.** Bis dahin bleibt E3 (und damit SQL/148) blockiert; die Liste rechnet für alle Zeilen nach
+  Rückfrage 13 (b).
+- **A4** Länge Belegnummer für SQL/148: `BelegnummerFormatiert` string(45) → n = 45. Nebenfund: `SagePurchaseOrderLines.Belegnummer` (Teil B) ist nur
+  nvarchar(20) – heute reichen 11 Zeichen.
+
+Bestätigt ohne Abweichung: Lieferant = `A0Empfaenger` (K31013), Bedeutung `Menge`/`MengeBasis`, Rahmenabruf als jüngster Beleg selten (190 Artikel,
+EBZ-Abfrage billig), Datumsfilter `@…@` wirkt, nur Mandant 1.
 
 ## Deploy
 

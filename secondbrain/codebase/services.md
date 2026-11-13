@@ -388,6 +388,9 @@ Quellen-Weiche je Abgleich: [[0019-quellen-weiche-view-sdata-je-abgleich]]. Ordn
 | `Lieferverzug:KreditorAktiv` | Bool | `false` | Erinnerung an Kreditoren |
 | `Lieferverzug:Testbetrieb` | Bool | `true` | Kreditor-Mails an den Einkauf umleiten |
 | `Lieferverzug:KreditorWiederholTage` | Int 1–60 | `7` | Wiederholabstand je Position |
+| `Lieferverzug:KreditorTageNachTermin` | Int 0–60 | `3` | ab v1.99.19: Kreditor-Schwelle; wirksam = Maximum mit `TageNachTermin` |
+| `Lieferverzug:MaxAlterTage` | Int 0–3650 | `180` | ab v1.99.19: ältere Positionen (EBB+EBZ) nicht an Kreditoren, sondern „Zu klären“ in der Sammelliste; 0 = keine Grenze |
+| `Lieferverzug:KreditorMitRahmenabrufen` | Bool | `false` | ab v1.99.19: EBZ-Positionen auch an Kreditoren (sonst nur Sammelliste) |
 | `Lieferverzug:KreditorMaxJeLauf` | Int 1–500 | `30` | Grenze echter Kreditor-Mails je Lauf (Warnung + Fehlermail) |
 | `Lieferverzug:KreditorAbsender` | String (eine Mail) | (leer = `MailSettings:FromAddress`) | Absender der Kreditor-Mail (Freigabe-Antwort 7) |
 | `Lieferverzug:AntwortAdresse` | String (eine Mail) | (leer = erste Einkauf-Adresse) | Reply-To der Kreditor-Mail |
