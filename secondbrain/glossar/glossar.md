@@ -136,3 +136,7 @@ Fuer Endanwender gibt es zusaetzlich die hand-gepflegte Uebersicht `/Users/RoleO
   Bestellung“ gescannt und an jedem Wareneingang des Absendens gespeichert (`PurchaseOrderReceipt.Barcode`). Er ist zugleich der Dateiname der
   **Wareneingang-CSV** `<Barcode>.csv`, die der Dienst nach der Uebergabe an Sage auf einen UNC-Pfad legt (Indexdaten fuer das DMS/enaio).
   Nicht zu verwechseln mit der Lieferschein-Nr. (Lieferant) und mit Artikel-/Lagerplatz-Barcodes (Scan-Modus `'raw'`, keine Zerlegung).
+- **Rahmenabruf (EBZ)** (v1.99.15): Sage-Beleg mit `Belegkennzeichen = 'EBZ'` – ein Abruf aus einer Rahmenbestellung (je Abruf-Beleg eine
+  Position, `VorPosId` zeigt auf die Rahmenposition). Steht seit v1.99.15 neben den Einzelbestellungen (EBB) in „Offene Bestellungen“, im
+  Wareneingang und in den Lieferverzug-Mails. Offen = Abrufmenge (`MengeBasis`) minus alle im WMS erfassten Wareneingänge; die
+  Vorgangsmengen (`PositionGGBestellt/Geliefert`) gelten je Rahmen, nicht je Abruf. Spaltenfilter-Hinweis „Rahmenabruf“.

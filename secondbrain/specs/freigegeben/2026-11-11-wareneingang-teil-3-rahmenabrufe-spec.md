@@ -2,7 +2,7 @@
 type: spec
 title: "Wareneingang Teil 3: Rahmenabrufe (EBZ) lesen, anzeigen, buchen"
 slug: 2026-11-11-wareneingang-teil-3-rahmenabrufe-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-11-13
 updated: 2026-11-13
 source_backlog: "[[2026-11-11-wareneingang-teil-3-rahmenabrufe]]"
@@ -345,7 +345,12 @@ Abrufe dann mit `NichtNoetig`).
 
 ## Deploy
 
-*Vorläufig – der qa-agent bestätigt gegen den echten Diff.*
+*Vom qa-agent am 2026-11-13 gegen den echten Diff `7048071a..e92894c9` bestätigt:* `IdealAkeWms/` geändert → **web: ja**;
+`IDEALAKEWMSService/` geändert → **service: ja**; keine neue Datei unter `*/Migrations/` → **migration: nein**; kein SQL, kein Einmal-Skript.
+**Publish fertig:** `C:\git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish` (Web `IDEALAKEWMSWeb`, Dienst
+`IDEALAKEWMSWebService`, `SQL\`, `deploy\`, `publish-info.txt` Version 1.99.15, Commit `e92894c9`). Beide Komponenten deployen.
+Ablauf des Menschen: Publish aus dem Worktree → Testsystem → testen → Merge. Nach dem Merge nur dann neu aus `main` publishen, wenn der
+Merge getestete Dateien mit parallelen `main`-Änderungen zusammengeführt hat.
 
 - **Web-App:** ja (Controller, Views, Repository-Regel, Hilfe, Changelog, Settings-Text).
 - **Service:** ja (Abgleich `EinkaufBestellungenSyncService`, Lieferverzug-Mail; der Dienst referenziert das Web-Projekt für `ErfasstJeBelPos`/`SageWareneingang`).
@@ -396,3 +401,195 @@ Brain-Changelog, Testindex.
 1. Abrufe in der Kreditor-Mail oder nur in der Einkauf-Sammelliste? → **Beide – Abrufe in Einkauf-Sammelliste und Kreditor-Mail, keine Planer-Bedingung. Begründung: Keyuser Till (13.11.) will Rahmenabrufe erinnert haben; im Testbetrieb gehen Kreditor-Mails nur an den Einkauf, der so sieht, ob Abrufe falsch erinnert werden. Vor dem Echtbetrieb klärt die Koordination mit Till, ob Abruf-Lieferungen direkt in Sage gebucht werden; nur dann folgt die Bedingung „nur Sammelliste“ als Nachtrag (Gerald 2026-11-13).**
 2. Schreibtest: Request vorher zeigen und auf OK warten, oder Freigabe vom 12.11. reicht? → **Request vorher zeigen und auf Geralds OK warten; E2 läuft interaktiv, nicht im /goal-Lauf – der Lauf setzt E0, E1, E3 um und hält vor E2 an (Gerald 2026-11-13).**
 3. Schreibtest „klappt“ nur mit `ReferenzBelID` = Abruf-BelId? → **Ja; sonst bleibt EBZ bei NichtNoetig (Gerald 2026-11-13).**
+
+## P-W8 Ergebnis (E0, lesend)
+
+Umsetzung 2026-11-13 und **unabhängig vom qa-agent wiederholt** (2026-11-13, nur `GET` über `SageSdataReadClient.QueryAllAsync`, Ziel des
+AKE-DEV-Dienstes `sagetest01`/`ake_TEST2026;1`, `where Belegkennzeichen eq 'EBZ'`, Select wie im Entwurf, keine Zugangsdaten notiert):
+
+1. **108 Zeilen** (1 Seite), `MengeBasis = null`: **0**, `Menge = null`: 0, `MengeBasis <= 0`: 0; 108 verschiedene `BelId` (je Abruf-Beleg eine Position).
+2. Gleiche Einheit (`Mengeneinheit = MengeBasiseinheit`): 106, davon `Menge ≠ MengeBasis`: **0**.
+3. Verschiedene Einheiten: 2 (BelPosId 389738 `2027-166490` und 405952 `2027-168914`, Bestellung `lfm`/Basis `Stk`), davon `Menge ≠ MengeBasis`: 0;
+   im WMS `EinheitAbweichend` (gesperrt). Im DEV-Cache sind 3 EBZ-Zeilen gesperrt – die dritte (402224 `2027-168341`) weicht von der
+   Lagermengeneinheit ab (Prüfung gegen `Lagermengeneinheit`, wie EBB).
+4. `VorPosId` mit mehr als einem Abruf: 16, höchstens 18 (VorPosId 129746 = EK013128, Bestätigung B-1); `VorPosId = null`: 0.
+5. Ohne `Liefertermin` und ohne `BelegLiefertermin`: 0 (auch ohne Positions-Liefertermin: 0).
+
+**Kein Blocker-Kriterium verletzt** (kein HTTP-Fehler, > 0 Zeilen, kein `MengeBasis = null`, Punkt 2 = 0). Plausibel: Ergebnis der Umsetzung
+(108 / nie null / 0 Abweichungen / 2 verschiedene Einheiten) exakt reproduziert.
+**Hinweis für die Fachseite:** Die Abruf-Termine reichen von **2019-07-03** bis 2027-01-15; im DEV-Cache liegen **107 von 108 Abrufen** vor
+heute − `TageNachTermin` (3). Wegen der akzeptierten Grenze (in Sage direkt gebuchte Abruf-Lieferungen werden nicht abgezogen) stehen sie alle
+in den Lieferverzug-Mails – im Echtbetrieb auch in Kreditor-Mails (ein Lieferant bekäme Erinnerungen für Abrufe aus 2019). Freigabe-Antwort 1 sieht
+die Klärung mit Till vor dem Echtbetrieb vor; diese Zahl gehört in dieses Gespräch.
+
+## Schreibtest-Ergebnis Rahmenabruf (E2)
+
+**Nicht durchgeführt – bewusst nicht Teil dieses Laufs** (Freigabe-Antwort 2: E2 interaktiv nach Geralds OK). `SageWareneingang.RahmenabrufMitSageWe`
+steht auf **`false`**; Testbereit bezieht sich auf E0 + E1 + E3. Vorbereiteter Request (von der Umsetzung erzeugt, **nicht gesendet**, ohne
+Zugangsdaten/Authorization-Header):
+
+```
+POST https://sagetest01.ake.at:5493/sdata/ol/CommonWawiServices/ake_TEST2026;1/$service/StandardBelegService
+Content-Type: application/json; charset=utf-8
+{"Erfassungsart":4100,"BelegTransformArt":1,"IsBelegTransform":true,"BelegKennzeichen":"ELL","TransformSettings":[{"SourceBelegHandle":363218}],
+ "Belegdatum":"2026-11-13","A0Konto":"K30810","InteressentAdresse":false,"EKLieferschein":"WMS-TEST-EBZ-1","Memo":"WE#DEV#11#","MemoSpecified":true,
+ "StandardBelegPositionen":[{"PositionHandle":406315,"Positionstyp":1,"Artikelnummer":"EK000247","AuspraegungsHandle":0,"Mengenart":1,"MengeBasis":1,
+ "Artikelmemo":"WE#DEV#11# LS WMS-TEST-EBZ-1 Platz GL;0;0;0","BelegPositionLagermengen":[{"PlatzId":2872,"Kurzbezeichnung":"GL;0;0;0","MengeBasis":1}]}]}
+```
+
+Abruf `2027-168973` (BelId 363218, BelPosId 406315, EK000247, Innotec K30810, Rest 60 im DEV-Cache nach dem QA-Abgleich, Ziel-Platz `GL;0;0;0`
+= WMS-Id 2035 / Sage-PlatzId 2872, `SageBuchungErlaubt` = 1). **Achtung:** `WE#DEV#11#` war die vorhergesagte nächste Receipt-Id; der qa-agent hat
+auf DEV inzwischen die Receipts 11 und 12 angelegt (TS-132.2). Beim echten Buchen in E2 entsteht eine neue Id (≥ 13) – der Dienst bildet
+Memo/Artikelmemo aus der echten Id; vor dem Senden den Request mit dieser Vorlage vergleichen (abweichen dürfen nur Id und Belegdatum).
+
+## QA-Nachweis (qa-agent, 2026-11-13)
+
+Geprüfter Bereich: Commits `5c3538b3`, `47c95931`, `de4a85ac` (leer) auf Basis `7048071a` (v1.99.14), dazu QA-Commit `e92894c9` (nur
+`docs/TESTSZENARIEN.md`). Worktree `C:\git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5`, Branch `feature/2026-08-07-ideal-teile-1-5`.
+
+### 1. Build und Tests (Worktree, HEAD `de4a85ac`)
+- `dotnet build IdealAkeWms.slnx`: **0 Fehler**, 28 Warnungen (bestehende Nullable-/NU19xx-Warnungen).
+- `dotnet test`: **IDEALAKEWMSService.Tests 608 bestanden / 0 übersprungen / 0 Fehler**; **IdealAkeWms.Tests 2793 bestanden / 1 übersprungen /
+  0 Fehler** (2794 gesamt). Der QA-Commit `e92894c9` ändert nur eine Zeile in `docs/TESTSZENARIEN.md` (kein Code).
+
+### 2. Unabhängiges Code-Review (im Lauf selbst, Diff `7048071a..de4a85ac`)
+Geprüft: `EinkaufBestellungenSyncService` (zwei Abfragen, Belegart-Prüfung, Mengen je Belegart, Empty-Guard je Belegart, Counts),
+`ErfasstJeBelPos.Abzuziehen/Rest` und alle Aufrufer (`PurchaseOrdersController.cs:143`, `LieferverzugMailService.cs:73`,
+`PurchaseOrderLineRow.AbrufVollstaendigErfasst` über `RestAus`), `SageWareneingang.GiltFuer` und `BuildReceiveAsync` (Server setzt `SageWeAktiv` aus
+Schalter + Cache-Zeile, nicht aus dem Formular → Status/Vorgang/Platzregel/Barcode-Sperre nur serverseitig), `PurchaseOrdersController.Index`
+(Ausblenden vor Spaltenfilter und Pagination, Zähler), Views `Index`/`Receive`, `LieferverzugMailHtml.Geliefert`, alle `MengeGeliefert`-Leser
+(nur View mit `IstRahmenabruf`-Zweig, `ColumnMap`, Mail-HTML), Pagination-Partial (nimmt die aktuelle Query mit, `auchErfassteAbrufe` bleibt erhalten).
+Defektklassen: keine Werte in `<script>`; kein `hidden` mit `d-*`; keine neuen parallelen Arrays; keine reine Browser-Validierung (Barcode-Sperre
+serverseitig, `Receive.cs:85-87`); Rest-Regel an **einer** Stelle (Maske, Liste und Mail rufen dieselbe Funktion); kein stiller Rückfall
+(`MengeBasis = null` → `menge_fehlt`-Warnung).
+
+Befunde:
+- **R-1 (Hinweis, kein Fix):** Ein EBZ mit `MengeBasis = null` (bzw. 0) wird mit `MengeOffen = 0` geführt und zählt in *Offene Bestellungen* als
+  „im WMS vollständig erfasst – ausgeblendet“, obwohl nichts erfasst ist (`PurchaseOrderListViewModel.AbrufVollstaendigErfasst`). Gemeldet wird er
+  trotzdem (Zähler + Protokoll-Warnung `menge_fehlt`); P-W8 zeigt 0 solche Zeilen. Akzeptiert, nicht gebaut.
+- **R-2 (Hinweis):** Der Zähler ausgeblendeter Abrufe gilt nach den Filterkarten-Filtern, vor den Spaltenfiltern (spec-konform) – mit Spaltenfilter
+  kann die Meldung einen Abruf zählen, der nicht zum Spaltenfilter passt. Kein Fix.
+- **D-1 (Befund, vom qa-agent behoben, Commit `e92894c9`):** TS-132.2.9 erwartete einen Queue-Eintrag bei ausgeschaltetem `SageLagerbuchungAktiv`.
+  Der Decorator reiht nur bei eingeschaltetem Schalter ein (`SageBookingEnqueueingStockMovementRepository.cs:51-53`); auf DEV so beobachtet
+  (StockMovement 19430 ohne Queue-Eintrag). Erwartung im Szenario korrigiert; Code unverändert (Verhalten Teil 1).
+
+### 3. Nachweisart je Akzeptanzkriterium
+| AK | Nachweis |
+|---|---|
+| 1 | QA: P-W8 wiederholt (oben) |
+| 2 | Automatisch (`EinkaufBestellungenSyncTests`) + DEV-Protokoll `positionen_ebb=1059`, `positionen_ebz=108` |
+| 3 | Automatisch + DEV: `2023-147973` bestellt = offen = 2400, geliefert 0; SQL: EBZ mit `MengeGeliefert ≠ 0` = 0 |
+| 4 | Nur automatisch (Empty-Guard beide Richtungen); gegen echtes SData nicht provozierbar |
+| 5 | Automatisch (`SageWareneingangGrundlageTests`) + DEV (Abruf 33: 3 erfasst → Rest 30 auch nach erneutem Abgleich; 3 + 30 mit einem `Uebergeben` vor `SyncedAt` → Rest 0) |
+| 6 | Automatisch + DEV-Browser |
+| 7 | Automatisch + DEV-Browser (Meldung, Filter, EBB mit Rest 0 sichtbar) |
+| 8 | Automatisch + DEV-Browser (Belegnummer öffnet Abruf, Badge, Meldung `2099-999999`) |
+| 9 | Nur automatisch (`PurchaseOrdersReceiveTests`, `GiltFuer` beide Werte); **DEV NICHT MÖGLICH** (TS-132.3) → Manual-UAT, nicht als grün gezählt |
+| 10 | DEV-Browser (`2027-166490` gesperrt mit Text) |
+| 11 | Automatisch (`LieferverzugMailTests`) + DEV (TS-132.6, Nachtrag unten) |
+| 12, 13 | E2 – nicht Teil dieses Laufs (offen für Gerald) |
+| 14 | Quelltext + DEV-Browser |
+| 15 | Build/Tests grün; geänderte Bestandstests siehe 4 |
+
+### 4. Geänderte Bestandstests
+- `EinkaufBestellungenSyncTests` Lauf „nur EBB“ → zwei Abfragen, EBZ übernommen: **Verhalten bewusst geändert (AK 2/3)**.
+- `EinkaufBestellungenSyncService.Where` Konstante → `Where(art)`: **Typ-Änderung**.
+- `PurchaseOrdersReceiveTests` Meldung „nur offene normale Bestellungen“ → „… Bestellungen und Rahmenabrufe …“: **Verhalten bewusst geändert (AK 8)**;
+  Hilfsfunktion `L(…)` mit Belegkennzeichen-Parameter: **Typ-Änderung**.
+- `PurchaseOrdersControllerTests.Build` mit optionalem `erfasst`: **Typ-Änderung** (Vorgabe unverändert leer).
+- `SageWareneingangGrundlageTests` `Abzuziehen(DateTime)`/`Rest(decimal, DateTime)` → Cache-Zeile, EBB-Erwartungswerte unverändert:
+  **Typ-Änderung (Signatur, F2)**.
+- „Sonstiges“: keine.
+
+### 5. Checkliste
+Migration/SQL/FreshInstall: entfällt (kein Schema, kein Migrations-Ordner im Diff). Audit: kein neuer Schreibweg. Version 1.99.15 in beiden
+`AppVersion.cs`; Anwender-Changelog ergänzt; Brain-Changelog [[2026-11-13-v1-99-15-wareneingang-teil-3-rahmenabrufe]] vorhanden.
+`docs/TESTSZENARIEN.md` TS-132 + Hinweis in TS-116; Testindex Zeile 132 vorhanden. README `Sync:EinkaufBestellungenEnabled` nachgezogen.
+`nachlauf.psd1`: Info `v1.99.15-Rahmenabrufe` (AKE, Nachher, anzeigen, Quelle = Changelog-Slug) deckt „Abgleich laufen lassen, Einkauf informieren“ ab.
+**ADR 0020:** nur Beschreibungstext von `Sync:EinkaufBestellungenEnabled` geändert (Bool, Wirkung/Standort unverändert, „liest nur“); keine neue
+Einstellung (`RahmenabrufMitSageWe` ist Code-Konstante laut Abschnitt „Einstellungen“).
+Kontrast: Badge `bg-info-subtle text-info-emphasis` und `alert-info` sind Bootstrap-5.3-Tokens (hell und dunkel deutlich über 4,5:1); das Badge trägt
+Text, Farbe nie allein. Im Browser hell gesehen, dunkel nur über die Tokens bewertet (nicht umgeschaltet).
+
+### 6. DEV-Deploy und Testlauf (AKE)
+`standort: AKE` (Frontmatter). `dev-deploy.ps1 -Standort AKE -Quelle <Worktree>` in erhöhter Shell: **Exit 0**, „HTTP 200, Fusszeile v1.99.15“,
+DEV-Absicherung angewendet, Dienst gestartet; AppVersion des Branches 1.99.15 → passt. IDEAL-DEV nicht deployt (Standort AKE).
+
+**Abgleich auf DEV:** `Sync:EinkaufBestellungenEnabled` wurde **nicht** eingeschaltet (harte DEV-Grenze des qa-agent). Stattdessen lief
+`EinkaufBestellungenSyncService.RunAsync` des Worktrees zweimal einmalig aus einem Scratch-Programm gegen `AKE_WMS_DEV` (SData nur `GET`; schreibt nur
+den DEV-Cache und `SyncLogs`). `SageWareneingangBelegAktiv` und `SageLagerbuchungAktiv` blieben durchgehend `false`.
+
+| Schritt | Ergebnis | Urteil |
+|---|---|---|
+| 132.1.1 | SyncLog 5661667: `positionen=1167, positionen_ebb=1059, positionen_ebz=108`, `menge_fehlt=0`; Info-Zeilen „EBB: … 1059 Zeile(n)“, „EBZ: … 108 Zeile(n)“ | OK |
+| 132.1.2 | SQL: EBB 1059, EBZ 108, keine andere Belegart | OK |
+| 132.1.3 | SQL: 0 Belegnummern mit mehreren BelId | OK |
+| 132.1.4 | Browser, Wochen 26, Spaltenfilter Hinweis `Rahmenabruf`: „Einträge 1–25 von 108“, Hinweis „Rahmenabruf · überfällig“, geliefert „–“ mit Text „Sage liefert für Rahmenabrufe keine gelieferte Menge je Abruf“ | OK |
+| 132.1.5 | WMS: `2023-147973` bestellt/offen 2400 Stk, Termin 09.01.2023; Vergleich in der Sage-Oberfläche | WMS OK; Sage-Vergleich offen (Mensch) |
+| 132.1.6 | Stand-Text wie erwartet | OK |
+| 132.1.7 | `2027-166490`: „Einheit abweichend (Bestellung lfm, Basis Stk, Lager lfm) – nicht buchbar, bis geklärt“ | OK |
+| 132.1.8 | Benutzer nur mit `stock_read` steht auf DEV nicht zur Verfügung | NICHT MÖGLICH |
+| 132.2.1 | `2026-162238` (Calorflex, Abruf 33) per Belegnummer geöffnet; Badge „Rahmenabruf“ + Satz „Offen = Abrufmenge; …“ | OK |
+| 132.2.2 | 3 auf `GL;0;0;0` gebucht → Receipt 11, `SageWeStatus` 0 (`NichtNoetig`), `SageWeVorgang` NULL; Rest 30 | OK |
+| 132.2.3 | Abgleich erneut → Maske: offen 33, erfasst 3, Rest 30 | OK |
+| 132.2.4 | 31 ohne Häkchen → „Überlieferung (31 > Rest 30) bitte bestätigen.“, nichts gebucht | OK |
+| 132.2.5 | 30 gebucht → Receipt 12 (`Vollstaendig`), Rest 0 | OK |
+| 132.2.6 | Zusätzlich Receipt 11 per SQL auf `Uebergeben` mit `SageWeAm` < `SyncedAt` (EBZ-Regel): Abruf fehlt, Meldung „1 Rahmenabruf im WMS vollständig erfasst – ausgeblendet. …“ | OK |
+| 132.2.7 | Filter an → Abruf sichtbar (offen 33, erfasst 33), Meldung weg, „Einträge 1–1 von 1“ | OK |
+| 132.2.8 | EBB `2027-168715` (BelPos 404457 offen 1, erfasst 1 = Rest 0) ohne Filter sichtbar | OK |
+| 132.2.9 | Kein Queue-Eintrag für StockMovement 19430 – richtig bei `SageLagerbuchungAktiv` aus; Szenario-Erwartung war falsch (D-1, korrigiert) | OK nach D-1 |
+| 132.2.10 | „Bestellung „2099-999999“ nicht gefunden (nur offene Bestellungen und Rahmenabrufe aus Sage, …)“ | OK |
+| 132.3.1–5 | Einschalten von `SageWareneingangBelegAktiv` mit Dienst-Stopp wurde vom Berechtigungssystem dieses Laufs abgelehnt; Einstellung blieb `false`, Dienst lief weiter. Nur Unit-Tests | NICHT MÖGLICH |
+| 132.4 / 132.5 | gelten erst nach E2 | entfällt |
+| 132.6 | siehe Nachtrag TS-132.6 | – |
+| 132.7.1 / 132.7.2 | Hilfe: Absatz „Rahmenabrufe (seit v1.99.15)“ im Browser vorhanden; Quelltext: „(noch) nicht angezeigt“ / „Rahmenabrufe nie“ 0 Treffer | OK |
+| 132.7.3 | Manifest-Eintrag `v1.99.15-Rahmenabrufe` statisch geprüft (Info, AKE, Nachher, anzeigen; keine Schema-/Daten-Einträge). Trockenlauf des Update-Skripts braucht Eingaben am Zielserver; DEV steht schon auf 1.99.15 | NICHT MÖGLICH (statisch OK) |
+
+**Nachtrag TS-132.6 (Lieferverzug):** Vorher geprüft: `MailSettings:PickupDirectory` in beiden DEV-Diensten gesetzt
+(`D:\Dev\mail-pickup\ake` bzw. `\ideal`, `appsettings.DEV.json`), `MailService` legt dann nur `.eml` ab (Vorrang vor SMTP); `Lieferverzug:Testbetrieb`
+= true. Alle `PurchaseOrderReminders` in AKE_WMS_DEV gelöscht (2017 Zeilen, damit der Tageslauf und die 7-Tage-Wiederholung erneut greifen); der
+laufende Dienst (Gate `Lieferverzug:MailAktiv` war auf DEV schon an) lief 12:55: SyncLog 5661675 `faellig=1120` (vorher 1014 → +106 Abrufe),
+`kreditoren=101`, `einkauf_gesendet=1`, `testbetrieb_umgeleitet=96`, `fehler=0`; 97 `.eml` im Pickup-Ordner, alle an die Einkauf-Adresse.
+
+| Schritt | Ergebnis | Urteil |
+|---|---|---|
+| 132.6.1 | Sammelliste enthält `2023-147973` und `2026-163064`, Spalte „Geliefert“ = „–“ (HTML und Text: „geliefert –, Rest 2400 Stk“); Kreditor-Mails (Testbetrieb-Umleitung) an ebm-papst und Calorflex enthalten die Abrufe | OK |
+| 132.6.2 | Termin in der Mail = `Liefertermin` des Abrufs im Cache (09.01.2023); Gegenprobe in Sage | offen (Mensch) |
+| 132.6.3 | Abruf `2026-162238` (Rest 0, inkl. einer als `Uebergeben` gesetzten Teilmenge) fehlt in Sammelliste und allen Kreditor-Mails | OK |
+
+DEV-Daten durch den qa-agent: Receipts 11/12 + StockMovements 19430/19431 (Abruf `2026-162238`, Platz `GL;0;0;0`); Receipt 11 zeitweise
+`Uebergeben` (`SageWeBelegnummer = 'QA-TEST'`), nach TS-132.6 wieder auf `NichtNoetig` ohne Datum/Belegnummer zurückgesetzt; alle
+`PurchaseOrderReminders` gelöscht (danach neue des QA-Laufs 12:55); `SagePurchaseOrderLines` zweimal neu abgeglichen (EBB + EBZ, bleibt so).
+**DEV-Konfiguration:** nichts geändert – `SageWareneingangBelegAktiv`, `SageLagerbuchungAktiv`, `Sync:EinkaufBestellungenEnabled` am Ende `false`
+wie vorher; Dienst lief durchgehend (nur durch das Deploy neu gestartet).
+
+### Ergebnis
+**Testbereit** für E0 + E1 + E3 (Konstante `RahmenabrufMitSageWe = false`). E2 (Schreibtest) ist bewusst offen. Einziger Befund D-1 (Szenario-Text)
+vom qa-agent behoben; R-1/R-2 sind Hinweise.
+
+### Manuelle Test-Checkliste (Mensch, offen)
+1. **TS-132.3 auf DEV oder Testsystem:** `SageWareneingangBelegAktiv` an, **Dienst gestoppt**, `WareneingangBarcodeAktiv` an → Abruf öffnen: Kopfsatz
+   „… geht als Lagerbuchung an Sage …“, Barcode-Feld gesperrt mit Abruf-Text; 1 auf Nicht-Sage-Platz buchen → `NichtNoetig`, kein Vorgang;
+   Barcode per Entwicklerwerkzeug erzwingen → Fehler mit Abruf-Text; Gegenprobe EBB (Platzregel, `Offen`). Danach Einträge zurücksetzen, Schalter aus,
+   Dienst starten. (AK 9 – im QA-Lauf nicht möglich.)
+2. **TS-132.1.8:** Benutzer nur mit `stock_read` → Abrufe sichtbar, kein Knopf „Wareneingang“.
+3. **TS-132.1.5 / 132.6.2:** In der Sage-Oberfläche `2023-147973` öffnen: Abrufmenge 2400 Stk (nicht Rahmen 34.800), Liefertermin 09.01.2023 = Termin in
+   WMS und Mail.
+4. **Fachklärung vor Echtbetrieb (Freigabe-Antwort 1):** 107 von 108 Abrufen am AKE-Test sind überfällig, ältester Termin 03.07.2019 – im Echtbetrieb
+   bekämen Lieferanten (z. B. ebm-papst) Erinnerungen für alte Abrufe. Mit Till klären, ob Abruf-Lieferungen direkt in Sage gebucht werden; ggf.
+   Nachtrag „nur Sammelliste“. Testmails liegen in `D:\Dev\mail-pickup\ake\20261113-1255*.eml`.
+5. **E2 Schreibtest (interaktiv, nach Geralds OK, genau ein POST):** Vorbedingungen auf AKE-DEV: `Sync:SageWareneingangMaxWiederholungen = 0`,
+   `Sync:SageSystemKuerzel = DEV`, `SageLagerbuchungAktiv` aus, `SageWareneingangBelegAktiv` erst unmittelbar vor dem Senden an. Commit
+   `RahmenabrufMitSageWe = true` + Tests für den true-Pfad, auf AKE-DEV deployen, Abgleich einmal laufen lassen. Abruf `2027-168973` (BelId 363218,
+   BelPosId 406315) mit Menge 1 auf Ziel-Platz `GL;0;0;0`, Lieferschein `WMS-TEST-EBZ-1` buchen; Request mit der Vorlage im Abschnitt E2 vergleichen
+   (Id ≠ 11, siehe Achtung). Ein Sende-Lauf, danach Schalter sofort aus. Prüfen (nur GET): `ResultNumber 200`, ELL-Beleg mit `Memo like '%WE#DEV#<id>#%'`
+   genau 1 Treffer, **Erfolg nur mit `ReferenzBelID = 363218`**, Vorgangsposition `PositionGGGeliefert` +1, Receipt `Uebergeben`, kein Queue-Eintrag,
+   Rest nach Abgleich = 59. Sonst: kein zweiter Versuch, Konstante zurück auf `false`. Ergebnis in Abschnitt E2 eintragen (AK 12/13).
+6. **TS-132.7.3:** Update-Skript am Testsystem: Nachher-Eintrag `v1.99.15-Rahmenabrufe` wird angezeigt, keine Schema-/Daten-Einträge.
+7. **Testsystem-Lauf** mit dem Publish aus `…\2026-08-07-ideal-teile-1-5\publish` (Web + Dienst), danach einen Abgleich „Offene Bestellungen (Sage)“
+   laufen lassen und TS-132.1/132.2 dort wiederholen; Einkauf informieren (Nachlauf-Info).
+
+### 7. Publish
+`C:\git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish\` – Zielordner vorher geleert; `IDEALAKEWMSWeb` + `IDEALAKEWMSWebService`
+(Release), `SQL\`, `deploy\`, `publish-info.txt` (Version 1.99.15, Commit `e92894c932b604a6fca2f871d3a83b0856641161`, Branch
+`feature/2026-08-07-ideal-teile-1-5`). Eine ältere `deploy.zip` lag schon im Ordner und blieb unangetastet.

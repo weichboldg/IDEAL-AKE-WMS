@@ -1846,3 +1846,18 @@ Code: `hardware-scanner.js` Block „Scannen ohne Feld“, CSS `.hw-scan-bereit`
 - **Ressourcen-`$schema` liefert am AKE-Test 401, das Vertrags-`$schema` 200** (Lesetest [[sage-sdata-benutzerfelder-lesetest]]).
   **Warum wichtig:** Ein Werkzeug, das nur das Ressourcen-Schema liest, meldet „keine Felder“ – die Feldliste schneidet die Ressource deshalb aus
   dem Vertrags-Schema heraus. `SpecificUserfields`/`CustomFields` gehen nur als `include`, als eigene Ressource antworten sie 500.
+
+## 34. Rahmenabrufe EBZ (v1.99.15, [[2026-11-11-wareneingang-teil-3-rahmenabrufe-spec]])
+
+- **EBZ-Vorgangsmengen gelten je Rahmen, nicht je Abruf.** `PositionGGBestellt/Geliefert` einer Abruf-Position sind die Summen der
+  Rahmenposition (P-W8: 2400 Stk Abruf, Vorgang 34800/33604). **Warum wichtig:** Rest aus den Vorgangsmengen wäre für jeden Abruf falsch –
+  der Abgleich setzt für EBZ `MengeBestellt = MengeOffen = MengeBasis`, `MengeGeliefert = 0`.
+- **Rest EBZ zieht ALLE WMS-Wareneingänge ab, auch `Uebergeben`** (`ErfasstJeBelPos.Abzuziehen(SagePurchaseOrderLine)`). **Warum wichtig:**
+  Sage reduziert die offene Menge je Abruf nie; ein Abzug nur bis zum letzten Abgleich (wie bei EBB) ließe gelieferte Abrufe nach dem nächsten
+  Abgleich wieder offen erscheinen. Grenze: in Sage direkt gebuchte Abruf-Lieferungen zieht das WMS nicht ab (Hilfeseite). Die alten
+  `DateTime`-Überladungen sind entfernt, damit kein Aufrufer die Belegart-Prüfung umgeht.
+- **Empty-Guard je Belegart.** **Warum wichtig:** Liefert eine der beiden Abfragen still 0 Zeilen (Filterfehler), würde ein gemeinsamer Guard
+  den halben Cache löschen.
+- **Sage-WE für Abrufe hängt an der Konstante `SageWareneingang.RahmenabrufMitSageWe`** (nicht an einer Einstellung). Erst nach dem einen
+  Schreibtest (E2, Erfolg nur mit `ReferenzBelID` = Abruf-BelId) auf `true`; sonst würde das E5-Sicherungsnetz einen Abruf-Wareneingang ohne
+  Kennung nicht finden und eine Wiederholung einen zweiten Beleg anlegen.
