@@ -2327,7 +2327,7 @@ BEGIN
         [BelPosId]                  INT               NOT NULL,
         [BelId]                     INT               NOT NULL,
         [Belegkennzeichen]          NVARCHAR(3)       NOT NULL,
-        [Belegnummer]               NVARCHAR(20)      NOT NULL,
+        [Belegnummer]               NVARCHAR(45)      NOT NULL,  -- v1.99.22 (SQL/149): 20 -> 45
         [LieferantKto]              NVARCHAR(20)      NULL,
         [LieferantName]             NVARCHAR(50)      NULL,
         [LieferantGesperrt]         BIT               NOT NULL,
@@ -2367,7 +2367,7 @@ BEGIN
         [Id]            INT IDENTITY(1,1) NOT NULL CONSTRAINT [PK_PurchaseOrderReminders] PRIMARY KEY,
         [Art]           INT               NOT NULL,  -- 0 = Einkauf-Sammelliste, 1 = Kreditor-Mail
         [BelPosId]      INT               NOT NULL,
-        [Belegnummer]   NVARCHAR(20)      NOT NULL,
+        [Belegnummer]   NVARCHAR(45)      NOT NULL,  -- v1.99.22 (SQL/149): 20 -> 45
         [LieferantKto]  NVARCHAR(20)      NULL,
         [CreditorId]    INT               NULL,
         [Liefertermin]  DATE              NULL,
@@ -2390,7 +2390,7 @@ BEGIN
         [StockMovementId]           INT               NOT NULL CONSTRAINT FK_PurchaseOrderReceipts_StockMovements_StockMovementId REFERENCES [dbo].[StockMovements]([Id]),
         [BelId]                     INT               NOT NULL,
         [BelPosId]                  INT               NOT NULL,
-        [Belegnummer]               NVARCHAR(20)      NOT NULL,
+        [Belegnummer]               NVARCHAR(45)      NOT NULL,  -- v1.99.22 (SQL/149): 20 -> 45
         [LieferantKto]              NVARCHAR(20)      NULL,
         [Quantity]                  DECIMAL(18,4)     NOT NULL,
         [OffenLautSageBeimBuchen]   DECIMAL(18,4)     NULL,
@@ -2400,7 +2400,7 @@ BEGIN
         [SageWeStatus]              INT               NOT NULL CONSTRAINT DF_PurchaseOrderReceipts_SageWeStatus DEFAULT 0,
         [SageWeVorgang]             UNIQUEIDENTIFIER  NULL,
         [SageWeAm]                  DATETIME2         NULL,
-        [SageWeBelegnummer]         NVARCHAR(30)      NULL,
+        [SageWeBelegnummer]         NVARCHAR(45)      NULL,  -- v1.99.22 (SQL/149): 30 -> 45
         [SageWeFehler]              NVARCHAR(1000)    NULL,
         [SageWeVersuche]            INT               NOT NULL CONSTRAINT DF_PurchaseOrderReceipts_SageWeVersuche DEFAULT 0,
         [Lieferschein]              NVARCHAR(20)      NULL,
@@ -3252,6 +3252,9 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261113171808_AddArticleSupplierLetzteBestellung')
    AND COL_LENGTH(N'dbo.ArticleSuppliers', N'LetzteBestellungBeleg') IS NOT NULL -- sonst steht SQL/148 noch aus
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261113171808_AddArticleSupplierLetzteBestellung', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261113172929_WidenBelegnummer45')
+   AND COL_LENGTH(N'dbo.PurchaseOrderReceipts', N'SageWeBelegnummer') = 90 AND COL_LENGTH(N'dbo.SagePurchaseOrderLines', N'Belegnummer') = 90 -- sonst steht SQL/149 noch aus
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261113172929_WidenBelegnummer45', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';

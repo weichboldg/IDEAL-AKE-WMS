@@ -23,11 +23,13 @@ public partial class PurchaseOrdersController : Controller
     private readonly IPurchaseOrderReceiptRepository _receipts;
     private readonly IStockMovementRepository _movements;
     private readonly IServiceSettingRepository _serviceSettings;
+    private readonly IPurchaseProposalRepository _bedarfe; // v1.99.22 offene Bedarfe im Wareneingang (Abfragen der Bestellvorschlaege)
 
     public PurchaseOrdersController(ISagePurchaseOrderLineRepository lines, IStorageLocationRepository locations, IAppSettingRepository settings,
         ICurrentUserService user, IPurchaseOrderReceiptRepository receipts, IStockMovementRepository movements,
-        IServiceSettingRepository serviceSettings)
+        IServiceSettingRepository serviceSettings, IPurchaseProposalRepository bedarfe)
     {
+        _bedarfe = bedarfe;
         _serviceSettings = serviceSettings;
         _lines = lines;
         _locations = locations;

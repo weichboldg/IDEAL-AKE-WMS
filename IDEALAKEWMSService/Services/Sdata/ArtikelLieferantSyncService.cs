@@ -284,7 +284,7 @@ public class ArtikelLieferantSyncService
             if (!artikel.TryGetValue(nummer, out var articleId)) { artikelFehlt++; continue; }
             var beleg = Text(z.BelegnummerFormatiert);
             var neu = (Am: am.Value, BelId: belId, BelPosId: z.BelPosId ?? 0, Menge: Math.Round(menge, 3),
-                Beleg: beleg is { Length: > 45 } ? null : beleg, Nummer: nummer); // Spalte nvarchar(45) = Sage string(45)
+                Beleg: beleg is { Length: > SagePurchaseOrderLine.BelegnummerMaxLaenge } ? null : beleg, Nummer: nummer); // Spalte = Sage string(45)
             if (!juengste.TryGetValue((articleId, kto), out var bisher)
                 || (neu.Am, neu.BelId, neu.BelPosId).CompareTo((bisher.Am, bisher.BelId, bisher.BelPosId)) > 0)
                 juengste[(articleId, kto)] = neu;

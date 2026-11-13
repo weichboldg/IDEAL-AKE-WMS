@@ -18,7 +18,8 @@ namespace IdealAkeWms.Tests.Controllers;
 /// <summary>Spec 2026-11-08-wareneingang-aus-sage-bestellungen E3 (AK 12, 13, 15-17) mit echten Repositories (InMemory).</summary>
 public class PurchaseOrdersReceiveTests
 {
-    private static async Task<(PurchaseOrdersController ctrl, ApplicationDbContext db)> BuildAsync(bool lieferscheinPflicht = false, bool sageWe = false, bool barcode = false)
+    private static async Task<(PurchaseOrdersController ctrl, ApplicationDbContext db)> BuildAsync(bool lieferscheinPflicht = false, bool sageWe = false, bool barcode = false,
+        string? lagerbestellungAktiv = null, string? bestellungenAktiv = null)
     {
         var db = TestDbContextFactory.Create();
         db.Articles.AddRange(
@@ -50,8 +51,10 @@ public class PurchaseOrdersReceiveTests
         var settings = new Mock<IAppSettingRepository>();
         settings.Setup(x => x.GetValueAsync(AppSettingKeys.WareneingangLieferscheinPflicht)).ReturnsAsync(lieferscheinPflicht ? "true" : null);
         settings.Setup(x => x.GetValueAsync(AppSettingKeys.WareneingangBarcodeAktiv)).ReturnsAsync(barcode ? "true" : null);
+        settings.Setup(x => x.GetValueAsync(AppSettingKeys.LagerbestellungAktiv)).ReturnsAsync(lagerbestellungAktiv);
+        settings.Setup(x => x.GetValueAsync(AppSettingKeys.BestellungenAktiv)).ReturnsAsync(bestellungenAktiv);
         var ctrl = new PurchaseOrdersController(new SagePurchaseOrderLineRepository(db), new StorageLocationRepository(db),
-            settings.Object, user.Object, new PurchaseOrderReceiptRepository(db), new StockMovementRepository(db), new ServiceSettingRepository(db))
+            settings.Object, user.Object, new PurchaseOrderReceiptRepository(db), new StockMovementRepository(db), new ServiceSettingRepository(db), new PurchaseProposalRepository(db))
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
         };
@@ -386,5 +389,50 @@ public class PurchaseOrdersReceiveTests
         await ctrl.Receive(400, new List<PurchaseOrderReceiveInput> { E(4001, "7") });
         vm = (PurchaseOrderReceiveViewModel)((ViewResult)await ctrl.Receive(400, (string?)null)).Model!;
         vm.Zeilen.Single().Rest.Should().Be(0m, "Abruf mit Rest 0 oeffnet sich trotzdem (Ueberlieferung mit Bestaetigung moeglich)");
+    }
+
+    // ----- v1.99.22 (Freigabe-Nachtrag 3): Hinweis offene Lagerbestellungen / Bedarfsmeldungen je Position -----
+
+    private static async Task BedarfeSeedAsync(ApplicationDbContext db)
+    {
+        db.ProductionWorkplaces.Add(new ProductionWorkplace { Id = 7, Name = "Werkbank A1", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" });
+        db.ProductionOrders.Add(new ProductionOrder { Id = 8, OrderNumber = "2614167", SubOrderNumber = "2614167", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" });
+        db.WarehouseRequisitions.Add(new WarehouseRequisition { Id = 31, ProductionWorkplaceId = 7, Status = WarehouseRequisitionStatus.Submitted, CreatedBy = "Müller", CreatedByWindows = "t" });
+        db.WarehouseRequisitions.Add(new WarehouseRequisition { Id = 32, ProductionWorkplaceId = 7, Status = WarehouseRequisitionStatus.Draft, CreatedBy = "Müller", CreatedByWindows = "t" });
+        db.WarehouseRequisitionItems.AddRange(
+            new WarehouseRequisitionItem { WarehouseRequisitionId = 31, Position = 1, ArticleNumber = " 00722001", ArticleDescription = "x", Unit = "Stk", QuantityRequested = 5m, CreatedBy = "t", CreatedByWindows = "t" },
+            new WarehouseRequisitionItem { WarehouseRequisitionId = 32, Position = 1, ArticleNumber = "00722001", ArticleDescription = "x", Unit = "Stk", QuantityRequested = 99m, CreatedBy = "t", CreatedByWindows = "t" });
+        db.PartRequisitions.AddRange(
+            new PartRequisition { Id = 41, ProductionOrderId = 8, ArticleNumber = "00722002", Quantity = 3m, Unit = "Stk", Status = PartRequisitionStatus.Offen, CreatedBy = "Huber", CreatedByWindows = "t" },
+            new PartRequisition { Id = 42, ProductionOrderId = 8, ArticleNumber = "00722002", Quantity = 7m, Status = PartRequisitionStatus.Erfuellt, CreatedBy = "Huber", CreatedByWindows = "t" });
+        await db.SaveChangesAsync();
+    }
+
+    [Fact]
+    public async Task Hinweis_OffeneLagerbestellungUndBedarfsmeldung_JeArtikel_NurOffene()
+    {
+        var (ctrl, db) = await BuildAsync(bestellungenAktiv: "true");
+        await BedarfeSeedAsync(db);
+
+        var vm = (PurchaseOrderReceiveViewModel)((ViewResult)await ctrl.Receive(belId: 100)).Model!;
+
+        var z1 = vm.Zeilen.First(z => z.Row.Line.Artikelnummer == "00722001");
+        z1.OffeneLagerbestellungen.Should().ContainSingle().Which.Should().Be(new OffenerBedarf(" 00722001", "Stk", 5m, 31, "Werkbank A1", "Müller"));
+        z1.OffeneBedarfsmeldungen.Should().BeEmpty();
+        var z2 = vm.Zeilen.Single(z => z.Row.Line.Artikelnummer == "00722002");
+        z2.OffeneLagerbestellungen.Should().BeEmpty();
+        z2.OffeneBedarfsmeldungen.Should().ContainSingle().Which.Should().Be(new OffenerBedarf("00722002", "Stk", 3m, 41, "2614167", "Huber"));
+    }
+
+    [Fact]
+    public async Task Hinweis_SchalterAus_KeineHinweise_BuchenUnveraendert()
+    {
+        var (ctrl, db) = await BuildAsync(lagerbestellungAktiv: "false", bestellungenAktiv: null);
+        await BedarfeSeedAsync(db);
+
+        var vm = (PurchaseOrderReceiveViewModel)((ViewResult)await ctrl.Receive(belId: 100)).Model!;
+
+        vm.Zeilen.Should().OnlyContain(z => z.OffeneLagerbestellungen.Count == 0 && z.OffeneBedarfsmeldungen.Count == 0);
+        db.PartRequisitions.Single(p => p.Id == 41).Status.Should().Be(PartRequisitionStatus.Offen, "nur Anzeige, nichts erfuellt");
     }
 }

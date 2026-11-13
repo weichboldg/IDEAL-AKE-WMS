@@ -114,7 +114,7 @@ public partial class PurchaseOrdersController
         return RedirectToAction(nameof(SageWareneingaenge));
     }
 
-    /// <summary>v1.99.7 (E5, „Klären“): Beleg existiert in Sage - von Hand als übergeben markieren (Belegnummer Pflicht, max. 30 Zeichen), ohne Senden.
+    /// <summary>v1.99.7 (E5, „Klären“): Beleg existiert in Sage - von Hand als übergeben markieren (Belegnummer Pflicht, max. 45 Zeichen seit v1.99.22), ohne Senden.
     /// Gilt für Fehler und Klären. Die Rest-Regel zählt die Menge danach als in Sage enthalten (Übergabe-Zeitpunkt = jetzt).</summary>
     [HttpPost]
     [ValidateAntiForgeryToken]
@@ -122,9 +122,9 @@ public partial class PurchaseOrdersController
     public async Task<IActionResult> SageWeAlsUebergeben(Guid vorgang, string? belegnummer)
     {
         var b = belegnummer?.Trim();
-        if (string.IsNullOrEmpty(b) || b.Length > 30)
+        if (string.IsNullOrEmpty(b) || b.Length > SagePurchaseOrderLine.BelegnummerMaxLaenge)
         {
-            TempData["WarningMessage"] = "Nicht markiert: Bitte die Sage-Belegnummer angeben (höchstens 30 Zeichen).";
+            TempData["WarningMessage"] = "Nicht markiert: Bitte die Sage-Belegnummer angeben (höchstens 45 Zeichen).";
             return RedirectToAction(nameof(SageWareneingaenge));
         }
         var n = await _receipts.SageWeAlsUebergebenAsync(vorgang, b, _user.GetDisplayName(), _user.GetWindowsUserName());

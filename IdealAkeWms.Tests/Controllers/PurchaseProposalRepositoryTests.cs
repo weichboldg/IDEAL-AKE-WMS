@@ -12,6 +12,9 @@ public class PurchaseProposalRepositoryTests
     public async Task OffeneBedarfe_SubmittedVoll_TeilgeliefertNurRestNachlieferung_SonstNicht()
     {
         using var db = TestDbContextFactory.Create();
+        // v1.99.22: Werkbank und FA wie in echten Daten (Pflicht-FK) – die Abfragen projizieren seit dem Wareneingang-Hinweis deren Namen.
+        db.ProductionWorkplaces.Add(new ProductionWorkplace { Id = 1, Name = "WB", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" });
+        db.ProductionOrders.Add(new ProductionOrder { Id = 1, OrderNumber = "FA1", SubOrderNumber = "FA1", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" });
         void Bestellung(int id, WarehouseRequisitionStatus status, params (string Nr, decimal Soll, decimal? Ist, ShortageStatus S)[] pos)
         {
             db.WarehouseRequisitions.Add(new WarehouseRequisition { Id = id, ProductionWorkplaceId = 1, Status = status, CreatedBy = "t", CreatedByWindows = "t" });

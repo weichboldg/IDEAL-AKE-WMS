@@ -117,6 +117,7 @@
                         <th>Einheit</th>
                         <th>Ziel-Lagerplatz</th>
                         <th style="min-width: 8rem;">Ist-Menge</th>
+                        <th class="text-center">Überlieferung</th>
                         <th style="min-width: 12rem;">Positionsmemo</th>
                         <th>Status</th>
                     </tr>
@@ -139,6 +140,24 @@
                                 @if (z.Row.SageWeText != null)
                                 {
                                     <div class="small text-body-secondary">@z.Row.SageWeText</div>
+                                }
+                                @if (z.OffeneLagerbestellungen.Count > 0 || z.OffeneBedarfsmeldungen.Count > 0)
+                                {
+                                    @* v1.99.22 (Freigabe-Nachtrag 3): nur Hinweis mit Link, kein Erfüllen/Schließen beim Buchen. Text trägt die Bedeutung, Rand nur zusätzlich. *@
+                                    <div class="small mt-1 ps-2 border-start border-3 border-warning" role="note">
+                                        <div class="fw-semibold">Offener Bedarf zu diesem Artikel:</div>
+                                        @foreach (var g in z.OffeneLagerbestellungen.GroupBy(b => b.Id))
+                                        {
+                                            var b = g.First();
+                                            <div>Lagerbestellung <a asp-controller="WarehousePicking" asp-action="Details" asp-route-id="@g.Key">Nr. @g.Key</a>
+                                                – @b.Bezug, @b.Besteller: @g.Sum(x => x.Menge).ToString("0.###") @b.Unit</div>
+                                        }
+                                        @foreach (var b in z.OffeneBedarfsmeldungen)
+                                        {
+                                            <div>Bedarfsmeldung <a asp-controller="PartRequisitions" asp-action="Index" asp-route-searchTerm="@b.ArticleNumber.Trim()">FA @b.Bezug</a>
+                                                – @b.Besteller: @b.Menge.ToString("0.###") @b.Unit</div>
+                                        }
+                                    </div>
                                 }
                             </td>
                             <td class="text-end">@l.MengeBestellt.ToString("0.###")</td>
@@ -180,11 +199,17 @@
                                 {
                                     <input type="text" inputmode="decimal" name="zeilen[@i].Menge" value="@z.Eingabe.Menge" autocomplete="off"
                                            class="form-control ist-menge" aria-label="Ist-Menge Position @(i + 1)" style="min-height:44px" />
-                                    <div class="form-check mt-1 d-flex align-items-center gap-2" style="min-height:44px">
-                                        <input type="checkbox" class="form-check-input mt-0" style="width:1.5rem;height:1.5rem" id="ueber_@i" name="zeilen[@i].UeberlieferungBestaetigt" value="true"
+                                }
+                            </td>
+                            <td class="text-center">
+                                @if (!gesperrt)
+                                {
+                                    @* v1.99.22: eigene Spalte, damit Ist-Menge, Platz und Memo auf einer Linie stehen; die ganze 44-px-Fläche ist das Label. *@
+                                    <label class="d-inline-flex align-items-center justify-content-center m-0" style="min-width:44px;min-height:44px;cursor:pointer" for="ueber_@i">
+                                        <input type="checkbox" class="form-check-input m-0" style="width:1.5rem;height:1.5rem" id="ueber_@i" name="zeilen[@i].UeberlieferungBestaetigt" value="true"
                                                @(z.Eingabe.UeberlieferungBestaetigt ? "checked" : "") />
-                                        <label class="form-check-label small" for="ueber_@i">Überlieferung bestätigt</label>
-                                    </div>
+                                        <span class="visually-hidden">Überlieferung bestätigt, Position @(i + 1)</span>
+                                    </label>
                                 }
                             </td>
                             <td>
@@ -213,7 +238,7 @@
                 </tbody>
             </table>
         </div>
-        <p class="small text-body-secondary">Leere Ist-Menge = Position nicht buchen. Gebucht wird nur, wenn alle eingegebenen Zeilen gültig sind.</p>
+        <p class="small text-body-secondary">Leere Ist-Menge = Position nicht buchen. Gebucht wird nur, wenn alle eingegebenen Zeilen gültig sind. Häkchen „Überlieferung“ = Ist-Menge über dem Rest ist bestätigt.</p>
         @if (Model.SageWeAktiv)
         {
             <p class="small text-body-secondary">Sage-Wareneingang ist an: Die gebuchten Positionen gehen als ein Sage-Wareneingangsbeleg an Sage (Ziel nur Sage-Plätze mit Sage-Buchung). Stand unter „Sage-Wareneingänge“.</p>

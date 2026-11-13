@@ -154,6 +154,7 @@ public partial class PurchaseOrdersController
         var eingabe = (eingaben ?? new()).GroupBy(e => e.BelPosId).ToDictionary(g => g.Key, g => g.First());
         var k = rows[0].Line;
         var schalterAn = SageWareneingang.IstAn(await _serviceSettings.GetValueAsync(SageWareneingang.ToggleKey));
+        var (lager, meldungen) = await OffeneBedarfeAsync(rows.Select(r => r.Line.Artikelnummer));
         return new PurchaseOrderReceiveViewModel
         {
             BelId = belId,
@@ -176,7 +177,25 @@ public partial class PurchaseOrdersController
                 Row = r,
                 Eingabe = eingabe.TryGetValue(r.Line.BelPosId, out var e) ? e
                     : new PurchaseOrderReceiveInput { BelPosId = r.Line.BelPosId, StorageLocationId = r.Line.StorageLocationId },
+                OffeneLagerbestellungen = lager[Schluessel(r.Line.Artikelnummer)].ToList(),
+                OffeneBedarfsmeldungen = meldungen[Schluessel(r.Line.Artikelnummer)].ToList(),
             }).ToList(),
         };
+    }
+
+    private static string Schluessel(string? artikelnummer) => (artikelnummer ?? "").Trim().ToUpperInvariant();
+
+    /// <summary>v1.99.22 (Freigabe-Nachtrag 3, Backlog 2026-11-12 Punkt 2): offene Lagerbestellungen (hinter <c>LagerbestellungAktiv</c>, nur
+    /// „false“ sperrt) und offene Bedarfsmeldungen (hinter <c>BestellungenAktiv</c>, nur „true“) zu den Artikeln der Bestellung – dieselben
+    /// Abfragen wie die Bestellvorschläge (<see cref="IPurchaseProposalRepository"/>), nur Anzeige.</summary>
+    private async Task<(ILookup<string, OffenerBedarf> Lager, ILookup<string, OffenerBedarf> Meldungen)> OffeneBedarfeAsync(IEnumerable<string?> artikel)
+    {
+        var nummern = artikel.Select(Schluessel).ToHashSet();
+        var lagerAn = !string.Equals(await _settings.GetValueAsync(AppSettingKeys.LagerbestellungAktiv), "false", StringComparison.OrdinalIgnoreCase);
+        var meldungenAn = string.Equals(await _settings.GetValueAsync(AppSettingKeys.BestellungenAktiv), "true", StringComparison.OrdinalIgnoreCase);
+        var lager = lagerAn ? await _bedarfe.GetOffeneLagerbestellungenAsync() ?? new() : new List<OffenerBedarf>();
+        var meldungen = meldungenAn ? await _bedarfe.GetOffeneBedarfsmeldungenAsync() ?? new() : new List<OffenerBedarf>();
+        return (lager.Where(b => nummern.Contains(Schluessel(b.ArticleNumber))).ToLookup(b => Schluessel(b.ArticleNumber)),
+                meldungen.Where(b => nummern.Contains(Schluessel(b.ArticleNumber))).ToLookup(b => Schluessel(b.ArticleNumber)));
     }
 }

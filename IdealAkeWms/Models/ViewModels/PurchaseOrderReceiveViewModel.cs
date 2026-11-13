@@ -46,6 +46,10 @@ public class PurchaseOrderReceiveRow
         : null;
     public PurchaseOrderReceiveInput Eingabe { get; set; } = new();
     public string? Fehler { get; set; }
+    /// <summary>v1.99.22 (Freigabe-Nachtrag 3): offene Lagerbestellungen zum Artikel (nur mit LagerbestellungAktiv) – nur Hinweis mit Link.</summary>
+    public List<IdealAkeWms.Data.Repositories.OffenerBedarf> OffeneLagerbestellungen { get; set; } = new();
+    /// <summary>v1.99.22: offene Bedarfsmeldungen zum Artikel (nur mit BestellungenAktiv) – nur Hinweis mit Link, kein Erfüllen.</summary>
+    public List<IdealAkeWms.Data.Repositories.OffenerBedarf> OffeneBedarfsmeldungen { get; set; } = new();
 }
 
 /// <summary>Eingabe je Position (Post). Menge leer = Position nicht buchen. Menge als Text, kulturunabhaengig gelesen (Komma oder Punkt,

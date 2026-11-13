@@ -21,6 +21,11 @@ public class SagePurchaseOrderLine
     /// <summary>v1.99.15: Rahmenabruf (EBZ) - Rest-Regel und Sage-WE weichen ab (<c>ErfasstJeBelPos</c>, <c>SageWareneingang.GiltFuer</c>).
     /// Nur Getter, von EF nicht gemappt.</summary>
     public bool IstRahmenabruf => string.Equals(Belegkennzeichen, KennzeichenRahmenabruf, StringComparison.OrdinalIgnoreCase);
+    /// <summary>v1.99.22: Laenge jeder Sage-Belegnummer im WMS (<c>BelegnummerFormatiert</c>: SData string(45), E0-A4; Sage-Views
+    /// <c>vwDPSBS_CWS_*</c> varchar(45), auch <c>…EKWareneingangOffen</c>). Gilt fuer <c>SagePurchaseOrderLines</c>, <c>PurchaseOrderReminders</c>,
+    /// <c>PurchaseOrderReceipts</c> (<c>Belegnummer</c> und <c>SageWeBelegnummer</c>) und <c>ArticleSuppliers.LetzteBestellungBeleg</c>.</summary>
+    public const int BelegnummerMaxLaenge = 45;
+
     /// <summary><c>BelegnummerFormatiert</c>, z. B. <c>2027-168975</c> (Belegjahr-Belegnummer).</summary>
     public string Belegnummer { get; set; } = string.Empty;
     public string? LieferantKto { get; set; }

@@ -120,7 +120,7 @@
                             </form>
                             <form asp-action="SageWeAlsUebergeben" asp-route-vorgang="@vorgang" method="post" class="d-flex gap-1 mt-1">
                                 @Html.AntiForgeryToken()
-                                <input type="text" name="belegnummer" maxlength="30" required class="form-control form-control-sm" style="width: 9rem;"
+                                <input type="text" name="belegnummer" maxlength="@SagePurchaseOrderLine.BelegnummerMaxLaenge" required class="form-control form-control-sm" style="width: 9rem;"
                                        placeholder="Sage-Beleg-Nr." aria-label="Sage-Belegnummer für @z.Memo" autocomplete="off" />
                                 <button type="submit" class="btn btn-sm btn-outline-secondary text-nowrap">Als übergeben markieren</button>
                             </form>

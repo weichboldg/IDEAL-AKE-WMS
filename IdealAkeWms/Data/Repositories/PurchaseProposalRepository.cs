@@ -3,8 +3,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace IdealAkeWms.Data.Repositories;
 
-/// <summary>v1.99.20: ein offener WMS-Bedarf (Lagerbestellposition bzw. Bedarfsmeldung), Zuordnung ueber die Artikelnummer (kein FK).</summary>
-public sealed record OffenerBedarf(string ArticleNumber, string? Unit, decimal Menge);
+/// <summary>v1.99.20: ein offener WMS-Bedarf (Lagerbestellposition bzw. Bedarfsmeldung), Zuordnung ueber die Artikelnummer (kein FK).
+/// v1.99.22 (Hinweis im Wareneingang zu Bestellung): <paramref name="Id"/> = Lagerbestellung- bzw. Bedarfsmeldungs-Id (Link),
+/// <paramref name="Bezug"/> = Werkbank bzw. FA-Nr., <paramref name="Besteller"/> = angelegt von.</summary>
+public sealed record OffenerBedarf(string ArticleNumber, string? Unit, decimal Menge, int Id = 0, string? Bezug = null, string? Besteller = null);
 
 /// <summary>
 /// v1.99.20 (Spec 2026-11-08-einkauf-bestellvorschlaege): Datensammlung der Bestellvorschlaege, nur lesend. Gerechnet wird im
@@ -86,14 +88,15 @@ public class PurchaseProposalRepository : IPurchaseProposalRepository
                      || (i.WarehouseRequisition.Status == WarehouseRequisitionStatus.PartiallyDelivered && i.ShortageStatus == ShortageStatus.WillBeRestocked))
             .Select(i => new
             {
-                i.ArticleNumber, i.Unit,
+                i.ArticleNumber, i.Unit, i.WarehouseRequisitionId, Werkbank = i.WarehouseRequisition.ProductionWorkplace.Name, i.WarehouseRequisition.CreatedBy,
                 Menge = i.WarehouseRequisition.Status == WarehouseRequisitionStatus.Submitted ? i.QuantityRequested : i.QuantityRequested - (i.QuantityPicked ?? 0m),
             })
             .ToListAsync();
-        return rows.Where(r => r.Menge > 0).Select(r => new OffenerBedarf(r.ArticleNumber, r.Unit, r.Menge)).ToList();
+        return rows.Where(r => r.Menge > 0)
+            .Select(r => new OffenerBedarf(r.ArticleNumber, r.Unit, r.Menge, r.WarehouseRequisitionId, r.Werkbank, r.CreatedBy)).ToList();
     }
 
     public Task<List<OffenerBedarf>> GetOffeneBedarfsmeldungenAsync() =>
         _db.PartRequisitions.AsNoTracking().Where(p => p.Status == PartRequisitionStatus.Offen)
-            .Select(p => new OffenerBedarf(p.ArticleNumber, p.Unit, p.Quantity)).ToListAsync();
+            .Select(p => new OffenerBedarf(p.ArticleNumber, p.Unit, p.Quantity, p.Id, p.ProductionOrder.OrderNumber, p.CreatedBy)).ToListAsync();
 }

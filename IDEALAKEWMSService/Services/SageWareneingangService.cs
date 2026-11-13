@@ -117,7 +117,7 @@ public class SageWareneingangService
                         {
                             Setze(r, p.Neu, p.Text);
                             if (auto && p.Mehrfach) r.SageWeVersuche++;
-                            if (p.Neu == SageWareneingangStatus.Uebergeben) { r.SageWeAm = DateTime.Now; r.SageWeBelegnummer = Kappen(p.Beleg, 30); }
+                            if (p.Neu == SageWareneingangStatus.Uebergeben) { r.SageWeAm = DateTime.Now; r.SageWeBelegnummer = Kappen(p.Beleg, SagePurchaseOrderLine.BelegnummerMaxLaenge); }
                         }
                         await _ctx.SaveChangesAsync(ct);
                         if (p.Neu == SageWareneingangStatus.Uebergeben) { gefunden++; uebergeben++; }
@@ -150,7 +150,7 @@ public class SageWareneingangService
                 var jetzt = DateTime.Now;
                 if (result.Success)
                 {
-                    foreach (var r in gruppe) { Setze(r, SageWareneingangStatus.Uebergeben); r.SageWeAm = jetzt; r.SageWeBelegnummer = Kappen(result.Belegnummer, 30); }
+                    foreach (var r in gruppe) { Setze(r, SageWareneingangStatus.Uebergeben); r.SageWeAm = jetzt; r.SageWeBelegnummer = Kappen(result.Belegnummer, SagePurchaseOrderLine.BelegnummerMaxLaenge); }
                     uebergeben++;
                 }
                 else

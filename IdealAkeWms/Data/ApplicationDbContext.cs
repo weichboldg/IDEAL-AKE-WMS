@@ -1380,7 +1380,7 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.Einzelpreis).HasColumnType("decimal(18,4)");
             entity.Property(e => e.LetzteBestellmenge).HasColumnType("decimal(18,3)");   // v1.99.21 E3 (SQL/148)
             entity.Property(e => e.LetzteBestellungAm).HasColumnType("date");
-            entity.Property(e => e.LetzteBestellungBeleg).HasMaxLength(45);
+            entity.Property(e => e.LetzteBestellungBeleg).HasMaxLength(SagePurchaseOrderLine.BelegnummerMaxLaenge);
             entity.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
             entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
             entity.Property(e => e.ModifiedBy).HasMaxLength(200);
@@ -1396,7 +1396,7 @@ public class ApplicationDbContext : DbContext
             entity.ToTable("SagePurchaseOrderLines");
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Belegkennzeichen).HasMaxLength(3).IsRequired();
-            entity.Property(e => e.Belegnummer).HasMaxLength(20).IsRequired();
+            entity.Property(e => e.Belegnummer).HasMaxLength(SagePurchaseOrderLine.BelegnummerMaxLaenge).IsRequired(); // v1.99.22: 20 -> 45 (SQL/149)
             entity.Property(e => e.LieferantKto).HasMaxLength(20);
             entity.Property(e => e.LieferantName).HasMaxLength(50);
             entity.Property(e => e.Artikelnummer).HasMaxLength(50).IsRequired();
@@ -1423,7 +1423,7 @@ public class ApplicationDbContext : DbContext
             entity.ToTable("PurchaseOrderReminders");
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Art).HasConversion<int>();
-            entity.Property(e => e.Belegnummer).HasMaxLength(20).IsRequired();
+            entity.Property(e => e.Belegnummer).HasMaxLength(SagePurchaseOrderLine.BelegnummerMaxLaenge).IsRequired(); // v1.99.22: 20 -> 45 (SQL/149)
             entity.Property(e => e.LieferantKto).HasMaxLength(20);
             entity.Property(e => e.Liefertermin).HasColumnType("date");
             entity.Property(e => e.Rest).HasColumnType("decimal(18,4)");
@@ -1439,7 +1439,7 @@ public class ApplicationDbContext : DbContext
             entity.HasKey(e => e.Id);
             entity.HasOne(e => e.StockMovement).WithOne(m => m.PurchaseOrderReceipt)
                 .HasForeignKey<PurchaseOrderReceipt>(e => e.StockMovementId).OnDelete(DeleteBehavior.Restrict);
-            entity.Property(e => e.Belegnummer).HasMaxLength(20).IsRequired();
+            entity.Property(e => e.Belegnummer).HasMaxLength(SagePurchaseOrderLine.BelegnummerMaxLaenge).IsRequired(); // v1.99.22: 20 -> 45 (SQL/149)
             entity.Property(e => e.LieferantKto).HasMaxLength(20);
             entity.Property(e => e.Quantity).HasColumnType("decimal(18,4)");
             entity.Property(e => e.OffenLautSageBeimBuchen).HasColumnType("decimal(18,4)");
@@ -1452,7 +1452,7 @@ public class ApplicationDbContext : DbContext
             entity.HasIndex(e => e.BelPosId).HasDatabaseName("IX_PurchaseOrderReceipts_BelPosId");
             // v1.99.4 (Wareneingang Teil 2): DEFAULT 0 nur in Migration/SQL, kein HasDefaultValue (fallstricke: EF liesse 0 sonst weg)
             entity.Property(e => e.SageWeStatus).HasConversion<int>();
-            entity.Property(e => e.SageWeBelegnummer).HasMaxLength(30);
+            entity.Property(e => e.SageWeBelegnummer).HasMaxLength(SagePurchaseOrderLine.BelegnummerMaxLaenge); // v1.99.22: 30 -> 45 (SQL/149)
             entity.Property(e => e.SageWeFehler).HasMaxLength(1000);
             entity.Property(e => e.Lieferschein).HasMaxLength(20);
             entity.Property(e => e.SageWeKennung).HasMaxLength(20);   // v1.99.9 System-Kuerzel

@@ -76,7 +76,11 @@
                                 (z. B. <code>2027-168975</code>) eingeben oder mit dem Handscanner scannen.</li>
                             <li>Je Position Ziel-Lagerplatz prüfen (vorbelegt mit dem Sage-Platz) und Ist-Menge eingeben (Komma oder Punkt); leer = nicht buchen.
                                 Die Zeile zeigt &bdquo;vollständig&ldquo;, &bdquo;Teillieferung&ldquo; oder &bdquo;Überlieferung&ldquo;; eine Überlieferung
-                                braucht das Häkchen &bdquo;Überlieferung bestätigt&ldquo;.</li>
+                                braucht das Häkchen in der Spalte &bdquo;Überlieferung&ldquo; (seit v1.99.22 eigene Spalte neben der Ist-Menge).</li>
+                            <li>Seit v1.99.22 steht unter dem Artikel ein Hinweis, wenn es dazu <strong>offene Lagerbestellungen</strong> (abgesendet oder
+                                teilgeliefert mit Rest &bdquo;wird nachgeliefert&ldquo;; nur mit eingeschalteten Lagerbestellungen) oder <strong>offene
+                                Bedarfsmeldungen</strong> (nur mit <code>BestellungenAktiv</code>) gibt &ndash; mit Menge, Werkbank bzw. FA, Besteller und Link.
+                                Das ist nur ein Hinweis: Beim Einbuchen wird nichts erfüllt oder abgeschlossen; die Ware bei Bedarf gleich weiterleiten.</li>
                             <li><em>Einbuchen</em>: gebucht wird nur, wenn alle eingegebenen Zeilen gültig sind. Je Position entsteht eine Einbuchung
                                 (an Sage-Plätzen wie jede Einbuchung in der Sage-Lagerbuchungs-Warteschlange) und ein Eintrag &bdquo;im WMS erfasst&ldquo;.</li>
                         </ol>

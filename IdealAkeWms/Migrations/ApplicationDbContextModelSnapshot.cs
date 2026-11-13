@@ -3865,8 +3865,8 @@ namespace IdealAkeWms.Migrations
 
                     b.Property<string>("Belegnummer")
                         .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
+                        .HasMaxLength(45)
+                        .HasColumnType("nvarchar(45)");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
@@ -3920,8 +3920,8 @@ namespace IdealAkeWms.Migrations
                         .HasColumnType("datetime2");
 
                     b.Property<string>("SageWeBelegnummer")
-                        .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)");
+                        .HasMaxLength(45)
+                        .HasColumnType("nvarchar(45)");
 
                     b.Property<string>("SageWeFehler")
                         .HasMaxLength(1000)
@@ -3980,8 +3980,8 @@ namespace IdealAkeWms.Migrations
 
                     b.Property<string>("Belegnummer")
                         .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
+                        .HasMaxLength(45)
+                        .HasColumnType("nvarchar(45)");
 
                     b.Property<int?>("CreditorId")
                         .HasColumnType("int");
@@ -4291,8 +4291,8 @@ namespace IdealAkeWms.Migrations
 
                     b.Property<string>("Belegnummer")
                         .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
+                        .HasMaxLength(45)
+                        .HasColumnType("nvarchar(45)");
 
                     b.Property<string>("Bezeichnung1")
                         .HasMaxLength(50)

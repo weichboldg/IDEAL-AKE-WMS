@@ -46,7 +46,7 @@ public class SageWareneingaengeListeTests
         user.Setup(u => u.GetWindowsUserName()).Returns("AKE\\tester");
         user.Setup(u => u.CanTransferStockAsync()).ReturnsAsync(true);
         var ctrl = new PurchaseOrdersController(new SagePurchaseOrderLineRepository(db), new StorageLocationRepository(db), Mock.Of<IAppSettingRepository>(),
-            user.Object, new PurchaseOrderReceiptRepository(db), new StockMovementRepository(db), new ServiceSettingRepository(db))
+            user.Object, new PurchaseOrderReceiptRepository(db), new StockMovementRepository(db), new ServiceSettingRepository(db), new PurchaseProposalRepository(db))
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
         };
@@ -162,6 +162,30 @@ public class SageWareneingaengeListeTests
         await ctrl.SageWeAlsUebergeben(VorgangB, "2027-1");
         ctrl.TempData["WarningMessage"]!.ToString().Should().Contain("nicht (mehr)", "Uebergeben bleibt unverändert");
         (await new PurchaseOrderReceiptRepository(db).SageWeAlsUebergebenAsync(VorgangA, "2027-2", "u", "w")).Should().Be(2);
+    }
+
+    [Fact]
+    public async Task AlsUebergeben_Belegnummer45Zeichen_Angenommen_46Abgelehnt_v1_99_22()
+    {
+        var (ctrl, db) = await BuildAsync();
+        await ctrl.SageWeAlsUebergeben(VorgangC, new string('9', 46));
+        db.PurchaseOrderReceipts.Single(r => r.SageWeVorgang == VorgangC).SageWeStatus.Should().Be(SageWareneingangStatus.Klaeren);
+        ctrl.TempData["WarningMessage"]!.ToString().Should().Contain("höchstens 45 Zeichen");
+
+        var nr45 = "2027-" + new string('1', 40);
+        await ctrl.SageWeAlsUebergeben(VorgangC, nr45);
+        db.PurchaseOrderReceipts.Single(r => r.SageWeVorgang == VorgangC).SageWeBelegnummer.Should().Be(nr45);
+    }
+
+    [Fact]
+    public void Belegnummer_ImModellUeberall45Zeichen_v1_99_22()
+    {
+        using var db = IdealAkeWms.Tests.Helpers.TestDbContextFactory.Create();
+        int? Laenge<T>(string feld) => db.Model.FindEntityType(typeof(T))!.FindProperty(feld)!.GetMaxLength();
+        new[] { Laenge<SagePurchaseOrderLine>("Belegnummer"), Laenge<PurchaseOrderReminder>("Belegnummer"), Laenge<PurchaseOrderReceipt>("Belegnummer"),
+                Laenge<PurchaseOrderReceipt>("SageWeBelegnummer"), Laenge<ArticleSupplier>("LetzteBestellungBeleg") }
+            .Should().OnlyContain(l => l == 45).And.HaveCount(5);
+        SagePurchaseOrderLine.BelegnummerMaxLaenge.Should().Be(45, "Sage BelegnummerFormatiert string(45)");
     }
 
     [Fact]

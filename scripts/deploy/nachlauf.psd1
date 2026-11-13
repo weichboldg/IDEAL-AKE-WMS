@@ -92,6 +92,8 @@ Eintraege = @(
    Datei='146_AddWareneingangBarcodeCsv.sql'; MigrationId='20261112151318_AddWareneingangBarcodeCsv'; Voraussetzung='additiv'; Quelle='2026-11-12-v1-99-11-wareneingang-barcode-csv' }
 @{ Id='SQL/148'; Version='1.99.21'; Typ='Schema'; Firma='beide'; Phase='Schema'; Ausfuehrung='automatisch'
    Datei='148_AddArticleSupplierLetzteBestellung.sql'; MigrationId='20261113171808_AddArticleSupplierLetzteBestellung'; Voraussetzung='additiv'; Quelle='2026-11-13-v1-99-21-einkauf-letzte-bestellmenge' }
+@{ Id='SQL/149'; Version='1.99.22'; Typ='Schema'; Firma='beide'; Phase='Schema'; Ausfuehrung='automatisch'
+   Datei='149_WidenBelegnummer45.sql'; MigrationId='20261113172929_WidenBelegnummer45'; Voraussetzung='Spalten verbreitern (20/30 -> 45), Index neu; nicht destruktiv'; Quelle='2026-11-13-v1-99-22-belegnummer-45-wareneingang' }
 
 # ---------------------------------------------------------------- Pruefungen (jeder Lauf; Reparatur nur nach Bestaetigung) -------
 @{ Id='Pruefung/Kommissionierbereiche'; Version='1.88.0'; Typ='Pruefung'; Firma='beide'; Phase='Haltepunkt'; Ausfuehrung='Reparatur'; Braucht=@('SQL/133')
