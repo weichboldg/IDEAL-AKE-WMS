@@ -41,8 +41,8 @@ public static class SageQuelleSchalter
 }
 
 /// <summary>
-/// Baut das SData-Ziel eines Abgleich-Laufs: Endpunkt aus ServiceSettings (DB-first, wie <c>SageBookingWorker</c>), Zugangsdaten aus
-/// appsettings <c>SageLagerbuchung:*</c>, TLS-Schalter <see cref="SageTlsPolicy"/> (reist je Anfrage in den Request-Options).
+/// Baut das SData-Ziel eines Abgleich-Laufs: Endpunkt aus ServiceSettings (DB-first, wie <c>SageBookingWorker</c>), Zugangsdaten seit v1.99.14 aus
+/// ServiceSettings (<see cref="ZugangAsync"/>, Rueckfall appsettings <c>SageLagerbuchung:*</c>), TLS-Schalter <see cref="SageTlsPolicy"/> (reist je Anfrage in den Request-Options).
 /// Wirft bei fehlender Konfiguration — ein Abgleich mit Quelle SData darf nie still leer laufen.
 /// </summary>
 public static class SdataLeseZielLeser

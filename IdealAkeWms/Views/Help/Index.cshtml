@@ -161,9 +161,17 @@
                                 sind alle Meldungen mit Status (<em>offen &rarr; gesendet &rarr; bestaetigt</em> bzw. <em>Fehler</em>)
                                 nachvollziehbar. Fehlgeschlagene Meldungen lassen sich mit <em>&bdquo;Erneut senden&ldquo;</em>
                                 wieder einreihen; der Dienst prueft dabei vorher in Sage, ob die Buchung schon existiert (keine Doppelbuchung).</li>
-                            <li><strong>Verbindungstest (Admin):</strong> Auf <em>Service-Einstellungen</em> prueft der Button
-                                <strong>&bdquo;Sage-Verbindung testen&ldquo;</strong> URL, TLS-Zertifikat und Anmeldung und zeigt
-                                Status, Antwort-Header und Antwort an &mdash; ohne eine echte Buchung anzulegen.</li>
+                            <li><strong>Verbindungstest (Admin):</strong> Im Reiter <em>Einstellungen &rarr; Sage-Test</em> (seit v1.99.14,
+                                vorher auf den Service-Einstellungen) prueft <strong>&bdquo;Sage-Verbindung testen&ldquo;</strong> URL,
+                                TLS-Zertifikat und Anmeldung und zeigt Status, Antwort-Header und Antwort an &mdash; ohne eine echte Buchung
+                                anzulegen. Kennwort leer = gespeicherte Zugangsdaten.</li>
+                            <li><strong>Zugangsdaten (seit v1.99.14):</strong> <em>Service-Einstellungen &rarr; Sage-Lagerbuchung</em>,
+                                Felder &bdquo;SData: Benutzer&ldquo; und &bdquo;SData: Kennwort&ldquo;. Das Kennwort wird verschlüsselt
+                                gespeichert und nie angezeigt (Status &bdquo;gesetzt&ldquo; / &bdquo;nicht gesetzt&ldquo; /
+                                &bdquo;nicht entschlüsselbar &ndash; neu eingeben&ldquo;); leer speichern = unverändert. Nach einer
+                                Datenbank-Kopie auf ein anderes System oder nach dem Löschen der Server-Schlüssel ist es &bdquo;nicht
+                                entschlüsselbar&ldquo;: Dann sendet der Dienst nichts an Sage, bis es neu eingegeben ist. Ohne Benutzer gelten
+                                die Werte <code>SageLagerbuchung</code> aus der Datei weiter (Warnung im Aktivitäts-Protokoll).</li>
                         </ul>
                         <small class="text-muted">Lesen: Lager-Lesezugriff; Requeue: Lager-Keyuser/Administratoren.
                         Konfiguration: Administratoren.</small>
@@ -927,9 +935,31 @@
                         </ul>
                     </dd>
 
-                    <dt>FA-Struktur live aus Sage (seit v1.71.0)</dt>
+                    <dt>Register Sage-Test (seit v1.99.14, nur Administratoren)</dt>
                     <dd>
-                        Der Menüpunkt <strong>FA-Struktur (Sage live)</strong> zeigt eine FA-Struktur direkt aus Sage, ohne sie ins
+                        Unter <em>Einstellungen</em> steht eine Reiterleiste: Einstellungen, Service-Einstellungen, Standorteinstellungen und
+                        <strong>Sage-Test</strong>. Der Reiter Sage-Test zeigt Adresse, Dataset, Benutzer, Kennwort-Status und TLS-Prüfung
+                        und enthält vier Werkzeuge, die Sage nur lesen und nichts speichern. Fehlen Adresse oder Dataset (z. B. IDEAL bis
+                        zum SData-Endpunkt), steht oben &bdquo;Sage-SData nicht konfiguriert&ldquo; und es geht keine Anfrage an Sage.
+                        <ul class="mt-1 mb-1">
+                            <li><strong>Sage-Verbindung testen:</strong> eine Abfrage mit den gespeicherten (änderbaren) Werten.</li>
+                            <li><strong>Feldliste:</strong> Vertrag, Ressource, <code>orderBy</code> (Pflicht), optional <code>where</code>
+                                (bei RealTimeData Pflicht) und <code>include</code>, 1&ndash;5 Beispielzeilen. Ergebnis: jedes Feld mit Typ/Länge
+                                laut Schema, &bdquo;im Schema&ldquo; / &bdquo;in den Daten&ldquo;, Beispielwerten und der Kennzeichnung
+                                &bdquo;Benutzerfeld&ldquo; (USER_-Felder und <code>SpecificUserfields.&lt;Name&gt;</code>); darüber die
+                                Rechte der Ressource laut Schema (Lesen/Anlegen/Ändern/Löschen). Ist das Schema der Ressource nicht lesbar
+                                (am AKE-Test HTTP 401), liest die Seite das Schema des ganzen Vertrags.</li>
+                            <li><strong>Stückliste live:</strong> Artikelnummer &rarr; Ressourcenliste aus Sage, Positionen eingerückt nach
+                                Ebene; FA-Nummer &rarr; die ganze FA-Struktur mit allen Positionen (Sub-FA unter der Position, die sie
+                                liefert). Je Zeile &bdquo;alle Felder&ldquo; zum Aufklappen inkl. Benutzerfelder; der Kopf darüber ebenso.
+                                Mandant ist mit der Zahl nach dem letzten <code>;</code> im Dataset vorbelegt.</li>
+                            <li><strong>FA-Struktur live:</strong> siehe unten.</li>
+                        </ul>
+                    </dd>
+
+                    <dt>FA-Struktur live aus Sage (seit v1.71.0; seit v1.99.14 im Register Sage-Test)</dt>
+                    <dd>
+                        Die Seite <strong>FA-Struktur (Sage live)</strong> zeigt eine FA-Struktur direkt aus Sage, ohne sie ins
                         WMS zu übernehmen &mdash; zum Vergleich mit der materialisierten <em>FA-Struktur</em>. Es wird nichts
                         gespeichert und nichts an Sage geschrieben.
                         <ul class="mt-1 mb-1">
@@ -946,11 +976,11 @@
                                 zugeordnete Sub-FAs&ldquo; &mdash; nichts wird weggelassen.</li>
                             <li><strong>Diagnose:</strong> unten aufklappbar, je Sage-Aufruf Adresse, Status, Dauer, Zeilenzahl und
                                 die Rohdaten. Ist Sage nicht erreichbar, werden die übrigen Aufrufe übersprungen.</li>
-                            <li><strong>Voraussetzungen:</strong> Schalter unter Standorteinstellungen &rarr; Feature-Schalter
-                                &bdquo;Sage-Live-Ansicht FA-Struktur aktiv&ldquo; (Standard aus), <code>SData:BaseUrl</code> und
-                                <code>SData:Dataset</code> unter Service-Einstellungen und die Sage-Zugangsdaten der Web-App (README
-                                &bdquo;Web-App: Sage-Zugangsdaten&ldquo;). Fehlt etwas, nennt die Seite die fehlenden Werte.
-                                Sichtbar für Benutzer mit Kommissionierung, Teileverfolgung, Leitstand-Freigabe oder Vorbau.</li>
+                            <li><strong>Voraussetzungen:</strong> <code>SData:BaseUrl</code>, <code>SData:Dataset</code> und die
+                                SData-Zugangsdaten unter Service-Einstellungen. Fehlt etwas, nennt die Seite die fehlenden Werte.
+                                Seit v1.99.14 nur für Administratoren über <em>Einstellungen &rarr; Sage-Test</em>; der Menüpunkt und der
+                                Schalter &bdquo;Sage-Live-Ansicht FA-Struktur aktiv&ldquo; entfallen (RealTimeData ist für Endanwender
+                                nicht freigegeben).</li>
                         </ul>
                     </dd>
 

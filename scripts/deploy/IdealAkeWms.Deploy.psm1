@@ -143,8 +143,8 @@ function Test-OrdnerUndRechte {
         @{ Name = 'Web-Ordner'; Pfad = $WebPfad; Identitaet = 'Web'; Recht = 'LesenAusfuehren'; Pflicht = $true; Herstellen = $false }
     )
     foreach ($m in $ManifestEintraege | Where-Object { $_.Typ -eq 'Ordner' }) {
-        $p = $m.Pfad.Replace('{Web}', $WebPfad).Replace('{Dienst}', $DienstPfad)
-        $ra = if ($m.RechtAuf) { $m.RechtAuf.Replace('{Web}', $WebPfad).Replace('{Dienst}', $DienstPfad) } else { $p }
+        $p = $m.Pfad.Replace('{Web}', $WebPfad).Replace('{Dienst}', $DienstPfad).Replace('{DataProtection}', $DataProtectionPfad)
+        $ra = if ($m.RechtAuf) { $m.RechtAuf.Replace('{Web}', $WebPfad).Replace('{Dienst}', $DienstPfad).Replace('{DataProtection}', $DataProtectionPfad) } else { $p }
         $liste += @{ Name = $m.Id; Pfad = $p; RechtAuf = $ra; Identitaet = $m.Identitaet; Recht = $m.Recht; Pflicht = [bool]$m.Pflicht; Herstellen = [bool]$m.Herstellen }
     }
     $liste += @(

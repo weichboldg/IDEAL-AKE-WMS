@@ -10655,17 +10655,21 @@ GROUP BY Service ORDER BY Service`.
 ## TS-103 — FA-Struktur live aus Sage (SData, nur lesen) (v1.71.0)
 
 Bezug: Spec [[2026-10-30-sage-sdata-fa-ansicht-spec]]. Nur am **AKE-Testsystem** (akenet01.ake.at:4445 gegen `sagetest01.ake.at:5493`,
-Dataset `ake_TEST2026;1`) prüfbar; für IDEAL gibt es keinen SData-Host – dort Schalter aus lassen.
+Dataset `ake_TEST2026;1`) prüfbar; für IDEAL gibt es keinen SData-Host.
 
-**Vorbedingungen:** `/ServiceSettings`: `SData:BaseUrl` = `https://sagetest01.ake.at:5493`, `SData:Dataset` = `ake_TEST2026;1`.
-Auf dem Server im Web-Ordner `appsettings.Production.json` mit `SageLagerbuchung:Username/Password` des SData-Servicebenutzers
-(README „Web-App: Sage-Zugangsdaten“), App-Pool recycelt. Vom IIS-Host aus `sagetest01.ake.at:5493` erreichbar (Firewall prüfen).
-Ein Benutzer mit Rolle picking und einer ohne picking/tracking/Leitstand-Freigabe/Vorbau.
+> **Seit v1.99.14 (TS-131):** kein Menüpunkt und kein Schalter mehr – die Seite ist ein Admin-Werkzeug im Register
+> *Einstellungen → Sage-Test*. 103.1 und 103.2 sind überholt (ersetzt durch TS-131.2); Zugangsdaten stehen in `/ServiceSettings`
+> (`SData:Username`/`SData:Password`, TS-131.3). 103.3–103.13 gelten unverändert, als Admin.
+
+**Vorbedingungen:** `/ServiceSettings`: `SData:BaseUrl` = `https://sagetest01.ake.at:5493`, `SData:Dataset` = `ake_TEST2026;1`,
+`SData:Username`/`SData:Password` des SData-Servicebenutzers (README „SData-Zugangsdaten“; Übergang: Rückfall auf
+`SageLagerbuchung:*` in `appsettings.Production.json`). Vom IIS-Host aus `sagetest01.ake.at:5493` erreichbar (Firewall prüfen).
+Ein Admin-Benutzer und einer mit Rolle picking ohne Admin.
 
 | Nr | Schritte | Erwartung |
 |---|---|---|
-| 103.1 | Schalter „Sage-Live-Ansicht FA-Struktur aktiv“ aus; Menü ansehen, dann `/SageSdataFa` direkt aufrufen | Kein Menüpunkt; Startseite mit Warnung „Die Sage-Live-Ansicht der FA-Struktur ist deaktiviert.“ |
-| 103.2 | Standorteinstellungen → Feature-Schalter → „Sage-Live-Ansicht FA-Struktur aktiv“ an; als picking-Benutzer und als Benutzer ohne Rolle anmelden | picking: Menüpunkt „FA-Struktur (Sage live)“, Seite mit Eingabefeld, keine Diagnose. Ohne Rolle: kein Menüpunkt, URL → Zugriff verweigert. |
+| 103.1 | *(überholt seit v1.99.14 – Schalter entfällt, siehe TS-131.2)* | – |
+| 103.2 | *(überholt seit v1.99.14 – nur Admin über Register Sage-Test, siehe TS-131.2)* | – |
 | 103.3 | FA-Nummer `835` → „Aus Sage laden“ | 7 FAs: Haupt-FA 835 (offen, „Haupt-FA“, `MAN`) mit 11 Positionen (10 MA, 1 AG „999 TESTFertigung“, Arbeitsplatz 9999); die 6 MA-Positionen 86003870/66/62/57/55/53 zeigen „Sub-FA 836…841“, Klick springt zur Sub-FA-Karte. Sub-FA 836: 1 Position 00722001, „Menge je Einheit“ 0,6. Keine Warnung. Rückmeldungen/Fertigmeldungen „keine Rückmeldung“/„keine Fertigmeldung“. Diagnose: **5** Aufrufe, alle 200; die URL der Positionen enthält `BelID eq 835 or BelID eq 836 …`, keine Zugangsdaten. |
 | 103.3b | FA-Nummer `846` | Struktur mit Haupt-FA 846 (Badge `VK`) und ihren Sub-FAs (3 FAs), keine Warnung „kein Haupt-FA“. |
 | 103.4 | FA-Nummer `836` | Hinweis „BelID 836 gehört zur Struktur 835 – angezeigt wird die ganze Struktur.“, danach wie 103.3. |
@@ -10674,7 +10678,7 @@ Ein Benutzer mit Rolle picking und einer ohne picking/tracking/Leitstand-Freigab
 | 103.7 | Eine FA ohne Positionen (falls vorhanden) aufklappen | „Keine Positionen.“ |
 | 103.8 | `/ServiceSettings`: `SData:BaseUrl` leeren, Seite neu laden; danach `https://user:pw@sagetest01.ake.at:5493` eintragen | „Sage-SData nicht konfiguriert: SData:BaseUrl“ bzw. „… enthält Zugangsdaten …“, kein Eingabefeld, keine Diagnose. Wert zurücksetzen. |
 | 103.9 | `SData:BaseUrl` auf einen nicht erreichbaren Port (`https://sagetest01.ake.at:5999`), `835` laden | Nach höchstens ~20 s rotes Banner „Sage nicht erreichbar: …“; Diagnose: 1. Aufruf „0 keine Verbindung“, die übrigen 4 „übersprungen“. Keine Fehlerseite. Wert zurücksetzen. |
-| 103.10 | Falsches Passwort in `appsettings.Production.json`, App-Pool recyceln, `835` laden | Banner „FA-Suche fehlgeschlagen (HTTP 401 …)“ (oder 403), Diagnose mit Status und gekürztem Body, übrige Aufrufe „übersprungen“. Danach richtiges Passwort, recyceln. |
+| 103.10 | Falsches Kennwort in `/ServiceSettings` → `SData: Kennwort` speichern (Übergang: in `appsettings.Production.json`, App-Pool recyceln), `835` laden | Banner „FA-Suche fehlgeschlagen (HTTP 401 …)“ (oder 403), Diagnose mit Status und gekürztem Body, übrige Aufrufe „übersprungen“. Danach richtiges Passwort, recyceln. |
 | 103.11 | `SageLagerbuchungSslZertifikatPruefen` = `false`, Seite neu laden; dann `true` | `false`: gelbe Warnung zur TLS-Prüfung, Aufrufe 200. `true`: Warnung weg. Hat der Server eine nicht vertraute Kette, scheitert der Aufruf mit Status 0 (TLS) – **erst auf einer neuen Verbindung**: bis zu 2 Minuten warten oder App-Pool recyceln. Bleibt es bei 200, ist die Kette am Server vertraut (Befund notieren). |
 | 103.12 | Diagnose aufklappen, bei einem Aufruf „Rohdaten anzeigen“ | JSON-Antwort, höchstens 4000 Zeichen; URL ohne Benutzer/Passwort. |
 | 103.13 | Vergleich (informativ): dieselbe Struktur unter „FA-Struktur“ (materialisiert) öffnen | Nur Beobachtung für den Entscheid zur Materialisierung, keine Abnahmebedingung (P-5). |
@@ -11777,8 +11781,136 @@ Kommissionierwagen W und vier Test-FAs A, B, C, D mit Kommissionieraufträgen. D
 | 130.5.6 | **Negativ:** „Lagerplatz ausbuchen“ (`/StockMovements/OutboundAll`) für W | FA-Feld vorbelegt mit den Einzelnummern „A; B; C; D“ |
 | 130.5.7 | Automatisch | `StockMovementRepositoryProductionOrderTests.GetProductionOrdersAtLocation_ZerlegtTexteInEinzelneNummern` |
 
+## TS-131 — Register Sage-Test und SData-Zugangsdaten (v1.99.14)
+
+Bezug: Spec [[2026-11-13-sdata-teil-2-userfelder-stueckliste-spec]]. Beide Standorte; Lesen gegen Sage nur am AKE-Test (`sagetest01.ake.at:5493`,
+Dataset `ake_TEST2026;1`). **Nur GET** – dieser Test schreibt nichts an Sage (Ausnahme 131.4.2: eine Testbuchung über den bestehenden Weg,
+nur mit `Sync:SageSystemKuerzel` ≠ leer auf Testsystemen). Ersetzt TS-103.1/103.2.
+
+**Vorbedingungen:**
+- AKE-DEV mit `SData:BaseUrl` = `https://sagetest01.ake.at:5493/`, `SData:Dataset` = `ake_TEST2026;1`; Zugangsdaten des SData-Servicebenutzers
+  bekannt (nicht notieren, nicht in Screenshots).
+- Web `DataProtection:KeysPath` (DEV: `D:\Dev\AKE\keys`) steht **gleich** in der Dienst-`appsettings.DEV.json`; Dienstkonto hat Leserecht auf den Ordner.
+- Ein Admin-Benutzer und einer mit Rolle picking ohne Admin. IDEAL-DEV ohne `SData:BaseUrl`.
+- Ein Testkennwort-Merkwort für die Suche in 131.7 (das echte Kennwort; nur lokal suchen, nirgends eintragen).
+- Automatisch: `SageTestSdataTests` (Zugangsdaten, Speichern, Freitext-Sperre, Lese-Client nur GET, Aufbereitung mit echten Antworten des
+  AKE-Tests, Register-Prüfungen), `SageSdataFaControllerTests` (nur Admin, kein Rückfall), `SageQuelleTests.Weiche_ZugangAusAppsettings_*`,
+  `NachlaufManifestDriftTests`.
+
+### TS-131.1 — Reiterleiste
+
+| Nr | Schritt | Erwartet |
+|---|---|---|
+| 131.1.1 | Als Admin `/Settings`, `/ServiceSettings`, `/StandortEinstellungen`, `/SageTest` öffnen | Überall dieselbe Reiterleiste „Einstellungen \| Service-Einstellungen \| Standorteinstellungen \| Sage-Test“; der aktuelle Reiter ist markiert (DOM: `aria-current="page"`) |
+| 131.1.2 | Admin-Menü ansehen | Einträge Einstellungen/Service-Einstellungen/Standorteinstellungen wie bisher; **kein** Eintrag „Sage-Test“ |
+| 131.1.3 | **Negativ:** als picking-Benutzer `/SageTest`, `/SageTest/Feldliste`, `/SageTest/Stueckliste` per URL | Zugriff verweigert, keine Anfrage an Sage |
+
+### TS-131.2 — FA-Struktur live nur noch im Register
+
+| Nr | Schritt | Erwartet |
+|---|---|---|
+| 131.2.1 | Hauptmenü als Admin und als picking-Benutzer | Für niemanden „FA-Struktur (Sage live)“ |
+| 131.2.2 | **Negativ:** picking-Benutzer ruft `/SageSdataFa?belId=835` auf | Zugriff verweigert |
+| 131.2.3 | Admin: Register Sage-Test → „FA-Struktur live“ → `835` | Reiterleiste (Sage-Test aktiv), Link „Zurück zum Register Sage-Test“; Ablauf wie TS-103.3 |
+| 131.2.4 | `/Settings` und Standorteinstellungen → Feature-Schalter | Schalter „Sage-Live-Ansicht FA-Struktur aktiv“ nicht mehr vorhanden; nach dem Update-Skript (SQL/147) steht der Key auch nicht unter „Nicht im Katalog“ |
+| 131.2.5 | SQL: `SELECT * FROM dbo.AppSettings WHERE [Key] = N'SageSdataFaAnsichtAktiv'` nach SQL/147 | 0 Zeilen; zweiter Lauf des Skripts meldet „nichts zu tun“ |
+
+### TS-131.3 — Kennwort in den Service-Einstellungen
+
+| Nr | Schritt | Erwartet |
+|---|---|---|
+| 131.3.1 | `/ServiceSettings` → Gruppe „Sage-Lagerbuchung“ | Felder „SData: Benutzer“ (Text) und „SData: Kennwort“: Status-Badge „nicht gesetzt“, leeres Kennwortfeld ohne `value` (Quelltext prüfen), Hinweise Wirkung/Verwendung/Standard/Standort/Warnung |
+| 131.3.2 | Benutzer und Kennwort eintragen, speichern | „Einstellungen gespeichert.“; Badge „gesetzt“; Kennwortfeld wieder leer. SQL `SELECT [Value] FROM dbo.ServiceSettings WHERE [Key] = N'SData:Password'` beginnt mit `dp1:` und enthält das Kennwort nicht |
+| 131.3.3 | Ohne Eingabe im Kennwortfeld erneut speichern | Wert in der DB unverändert (gleicher `dp1:`-Text) |
+| 131.3.4 | **Negativ:** Kennwort eingeben und gleichzeitig ein ungültiges Feld (z. B. „Sage-Buchung: Intervall“ = `abc`) speichern | „Nicht gespeichert“ mit Fehler zum Intervall; unter dem Kennwortfeld „Kennwort nicht gespeichert, bitte erneut eingeben.“; Feld leer; DB-Wert unverändert |
+| 131.3.5 | **Negativ:** Kennwort mit 129 Zeichen | Meldung „1 bis 128 Zeichen erlaubt …“ ohne den Wert; nichts gespeichert |
+| 131.3.6 | „Kennwort entfernen“ anhaken, speichern | Badge „nicht gesetzt“; DB-Wert leer. Danach wieder richtig setzen |
+| 131.3.7 | **Negativ:** `/ServiceSettings/Edit/SData:Password` per URL; „Sonstige / Erweitert → Neu“ mit Key `SData:Password` | Zurück auf `/ServiceSettings` mit Warnung „Das Kennwort wird nur über das Kennwortfeld … gepflegt“; nichts gespeichert; der Key erscheint nie in „Sonstige / Erweitert“ |
+| 131.3.8 | Web-Log (Serilog) nach 131.3.2/131.3.6 | Zeilen „SData: Kennwort geändert durch <Windows-Benutzer>.“ bzw. „… entfernt …“ – ohne Wert |
+
+### TS-131.4 — Dienst und Web lesen die DB-Zugangsdaten
+
+| Nr | Schritt | Erwartet |
+|---|---|---|
+| 131.4.1 | Kennwort gesetzt (131.3.2); `SageLagerbuchung:*` aus Dienst-`appsettings.DEV.json` und Web-`appsettings.Production.json` (bzw. DEV) entfernen; Dienst neu starten, App-Pool recyceln | Register Sage-Test: Benutzer (Quelle: Service-Einstellungen), Kennwort „gesetzt“ |
+| 131.4.2 | Eine Testbuchung (nur mit `Sync:SageSystemKuerzel` gesetzt, `SageLagerbuchungAktiv` an) | Lauf „Sage-Lagerbuchung“: gesendet/bestätigt; keine Warnung „Zugangsdaten aus appsettings“ |
+| 131.4.3 | Ein SData-Abgleich (z. B. `Sync:Quelle:Lagerplaetze` = `Vergleich`) | Lauf ohne Fehler, keine Zugangs-Warnung |
+| 131.4.4 | Register: Feldliste, Stückliste live, FA-Struktur live | Alle lesen (HTTP 200) |
+| 131.4.5 | **Rückfall (Übergang):** `SData:Username` leeren, `SageLagerbuchung:*` in beide Dateien zurück, Neustart | Alles läuft wie vor dem Deploy; Lauf „Sage-Lagerbuchung“ und der SData-Abgleichslauf zeigen je **eine** Warnung „Zugangsdaten aus appsettings – bitte in die Service-Einstellungen übernehmen“ (ohne Werte); Register: Kennwort „aus appsettings“, gelber Hinweis |
+
+### TS-131.5 — Nicht entschlüsselbar (kein Rückfall)
+
+| Nr | Schritt | Erwartet |
+|---|---|---|
+| 131.5.1 | `SData:Username` gesetzt; SQL `UPDATE dbo.ServiceSettings SET [Value] = N'klartext' WHERE [Key] = N'SData:Password'` (appsettings-Werte bleiben stehen) | `/ServiceSettings`: Badge „nicht entschlüsselbar – neu eingeben“; Register: „Sage-SData nicht konfiguriert: SData-Kennwort nicht entschlüsselbar – in den Service-Einstellungen neu eingeben“, keine Anfrage |
+| 131.5.2 | Dienst: Testbuchung bzw. Abgleichslauf abwarten | Lauf „Sage-Lagerbuchung“ fehlgeschlagen mit dieser Meldung, nichts gesendet (Queue-Eintrag bleibt offen); Abgleich mit Quelle SData fehlgeschlagen mit derselben Meldung; **kein** Rückfall auf die appsettings-Werte |
+| 131.5.3 | „Sage-Verbindung testen“ mit leerem Kennwort | Fehler mit dieser Meldung, keine Anfrage |
+| 131.5.4 | **Negativ (fremder Schlüsselring):** Wert aus einem anderen System (z. B. `dp1:`-Wert von IDEAL-DEV) eintragen | Wie 131.5.1–131.5.2 |
+| 131.5.5 | Kennwort korrekt neu eingeben | Badge „gesetzt“, Läufe wieder grün |
+
+### TS-131.6 — Verbindungstest im Register
+
+| Nr | Schritt | Erwartet |
+|---|---|---|
+| 131.6.1 | `/ServiceSettings` | Statt des Fensters ein Link „Sage-Verbindung testen – Register Sage-Test“ |
+| 131.6.2 | Register → „Sage-Verbindung testen“ | Adresse, Application, ServiceContract, Dataset, TLS mit den gespeicherten Werten vorbelegt; Benutzer vorbelegt, Kennwort leer mit Platzhalter „gespeichertes Kennwort verwenden“ |
+| 131.6.3 | „Testen“ mit `$schema` | HTTP 200, Zusatz „Zugangsdaten: gespeichert (Service-Einstellungen)“ |
+| 131.6.4 | Browser-Entwicklertools: Seitenquelltext und Netzwerk (Anfrage + JSON-Antwort von `TestSageConnection`) | Das Kennwort steht nirgends |
+| 131.6.5 | **Negativ:** Adresse im Fenster auf `https://sagetest01.ake.at:5999` ändern, testen | Fehler „Verbindungsfehler …“, keine Fehlerseite; gespeicherte Werte unverändert |
+
+### TS-131.7 — Kennwort in keinem Protokoll
+
+| Nr | Schritt | Erwartet |
+|---|---|---|
+| 131.7.1 | Nach 131.3–131.6: SQL `SELECT COUNT(*) FROM dbo.SyncLogs WHERE Message LIKE N'%<Testkennwort>%'` | 0 |
+| 131.7.2 | Suche nach dem Testkennwort in den Serilog-Dateien von Web (`logs\`) und Dienst (`logs\`) | 0 Treffer |
+| 131.7.3 | Web neu starten; Lauf „Einstellungsprüfung“ (falls vorhanden) ansehen, auch nach 131.5.1 (Klartext in der DB) | Keine Zeile zu `SData:Password` |
+
+### TS-131.8 — Feldliste
+
+| Nr | Schritt | Erwartet |
+|---|---|---|
+| 131.8.1 | Vertrag `CommonWawiServicesResources`, Ressource `PpsFaBelegeInfo`, where `BelID eq 835`, orderBy `BelID`, Anzahl 1 | Hinweis „Schema der Ressource nicht lesbar (HTTP 401).“ und „Felder aus dem Schema des Vertrags.“ (am AKE-Test belegt); Rechte „Lesen: ja \| Anlegen: nein \| Ändern: nein \| Löschen: nein“; jedes Schemafeld mit Typ, Spalten „im Schema“/„in den Daten“, Beispielwerte; `USER_DPSBS…` als „Benutzerfeld“ (Text, nicht nur Farbe); `$totalResults` 1; URL ohne Zugangsdaten |
+| 131.8.2 | Vertrag `CommonWawiServicesResourcesSpecific`, Ressource `PpsRessourcenListenInfo`, where `Mandant eq 1 and Artikelnummer eq '86003871'`, orderBy `Artikelnummer`, include `SpecificUserfields`, Anzahl 1 | Zeile `SpecificUserfields.USER_VKZuschlag` als Benutzerfeld mit Typ „decimal (8) (Daten)“ |
+| 131.8.3 | Spaltenfilter „Art“ = `Benutzerfeld` | Nur Benutzerfelder |
+| 131.8.4 | **Negativ:** orderBy leer (HTML-Pflicht im Entwicklerwerkzeug entfernen oder URL `?Ressource=PpsFaBelegeInfo&OrderBy=`) | Rote Meldung „orderBy ist Pflicht …“, keine Anfrage an Sage (Dienst-/Web-Log ohne SData-Aufruf) |
+| 131.8.5 | **Negativ:** URL mit `Anzahl=0` bzw. `Anzahl=6` | „Anzahl Beispielzeilen: 1 bis 5.“, keine Anfrage |
+| 131.8.6 | **Negativ:** URL mit `Vertrag=Fremd` | „Vertrag nur aus der Liste.“, keine Anfrage |
+| 131.8.7 | **Negativ:** `RealTimeData`, Ressource `dtsFaBelegsuche.Sage.PPS`, ohne where | „Bei RealTimeData ist where Pflicht …“, keine Anfrage |
+| 131.8.8 | **Negativ:** Ressource `a/b` bzw. `x?y` | „Ressource angeben, ohne /, ?, & und #.“ |
+| 131.8.9 | **Negativ:** unbekannte Ressource `Gibtsnicht` | Rote Meldung mit HTTP-Status und Sage-Diagnose, keine leere Tabelle ohne Meldung |
+| 131.8.10 | RealTimeData `dtsFaBelegsuche.Sage.PPS`, where `BelID eq 835`, orderBy `BelID` | Felder `KHKPpsFaBelege_USER_…` als Benutzerfeld; Schema ggf. „nicht lesbar“ (Hinweis). Antwortet Sage mit Fehler auf `orderBy`/`count`: Befund notieren (Abweichung zur Spec, siehe QA) |
+
+### TS-131.9 — Stückliste live
+
+| Nr | Schritt | Erwartet |
+|---|---|---|
+| 131.9.1 | Artikelnummer `86003871` (Mandant vorbelegt 1) | Titel „Ressourcenliste 86003871 …“; „Kopf: alle Felder“ mit `SpecificUserfields.USER_VKZuschlag`; 17 Positionen: 11 auf Ebene 1, 6 eingerückt auf Ebene 2 unter ihrer Unterbaugruppe; Spalten Ressourcetyp, Ressourcenummer, Matchcode, Menge, ArtikelnummerUBG, Platz; je Zeile „N Felder, 5 Benutzerfelder“ aufklappbar (USER_VKPreis, USER_EPDMVERSION, USER_AUSCAD, USER_Positionsnummer …) |
+| 131.9.2 | FA-Nummer `835` (Artikelnummer leer) | „FA-Struktur 835“; FA-Zeilen fett, darunter ihre Positionen mit BelPosID, Soll-/Istmenge; Sub-FAs eingerückt unter der Position, die sie liefert |
+| 131.9.3 | FA-Nummer `836` | Titel „FA 836 gehört zur Struktur 835 – angezeigt wird die ganze Struktur“ |
+| 131.9.4 | **Negativ:** Artikelnummer `99999999` | „Keine Ressourcenliste für Artikel 99999999 (Mandant 1) in Sage gefunden.“, keine leere Tabelle |
+| 131.9.5 | **Negativ:** FA-Nummer `999999999` | „FA 999999999 in Sage nicht gefunden.“ |
+| 131.9.6 | **Negativ:** Artikelnummer und FA-Nummer zugleich; Artikelnummer mit `'` | „Entweder Artikelnummer oder FA-Nummer, nicht beides.“ bzw. „Artikelnummer ohne ', & und #.“, keine Anfrage |
+| 131.9.7 | Nichts gespeichert | `CachedBom*`, `FaHierarchy*`, `ProductionOrderPositions` unverändert (Zeilenzahl vorher/nachher) |
+
+### TS-131.10 — IDEAL ohne Endpunkt
+
+| Nr | Schritt | Erwartet |
+|---|---|---|
+| 131.10.1 | IDEAL-DEV (kein `SData:BaseUrl`): Register Sage-Test, Feldliste, Stückliste, FA-Struktur live | „Sage-SData nicht konfiguriert: SData:BaseUrl …“, keine Anfrage an Sage |
+| 131.10.2 | FA-Liste, FA-Struktur, Kommissionierung, Dienstläufe | Wie vor dem Update |
+
+### TS-131.11 — Update-Skript
+
+| Nr | Schritt | Erwartet |
+|---|---|---|
+| 131.11.1 | Update-Skript gegen DEV (Trockenlauf/NurPruefen) | Schritt 5a: Eintrag `v1.99.14-DataProtectionDienst` (Dienst liest den Schlüsselordner, Pfad = DataProtection-Pfad der Web-App) OK bzw. Leserecht hergestellt |
+| 131.11.2 | Solange `SageLagerbuchung:Password` in der Dienst-`appsettings*.json` steht | Prüfung `Pruefung/SDataKennwortAppsettings` = Abweichung 1 mit Datei; **kein** Abbruch (auch auf Prod nur Hinweis); nach dem Entfernen OK |
+| 131.11.3 | Daten-Eintrag `SQL/147` | Läuft in einer Transaktion (uebernehmen/verwerfen); danach Marker; Spur 1 = nichts zu tun |
+| 131.11.4 | Nachlauf-Liste | Einträge `v1.99.14-SDataZugang` und `v1.99.14-SageTestInfo` |
+
 ---
 
 *Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) + Teil 6 (Standorteinstellungen, v1.34.0) + BOM-Guard hierarchisch (2026-08-18, abgelöst) + FA-Liste-Hierarchie (v1.35.0) + BOM-Bridge (v1.36.0) + Materialisierung fachliche Felder K1/K2 (v1.37.0) + Skopierung der Tabellen-Selektoren (TS-72) + FA-Liste ausgebaut: Matchcode, Kopfdaten je Zeile, HauptFA-Zeile, Freigabe-Kaskade (v1.38.0, TS-73) + PDF-Erzeugung für FaHierarchy-Druckdokumente (v1.39.0, TS-74) + Matchcode im Artikelstamm (v1.40.0, TS-75) + FA-Arbeitsgang-Erkennung aus der Struktur (v1.41.0, TS-76, ersetzt durch TS-77) + Arbeitsgänge (WorkOperation) aus der Struktur + Werkbank-Anlage aus Sage (v1.44.0, TS-77) + Arbeitsgänge je (Sub-)FA im FA-Struktur-Modal (v1.45.0, TS-78) + Kommissionierung nur am HauptFA
-(v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80) + Beschichtungsauftrag Summiert als Standard (v1.48.0, TS-81) + Briefkopf Beschichtungsauftrag (v1.49.0, TS-82) + Beschichtungsauftrag als eigenes Objekt (v1.50.0, TS-83) + Beschichtungsaufträge bedienen (v1.51.0, TS-84) + Arbeitsgänge als Symbole im FA-Baum (v1.52.0, TS-85) + CSV-Export für alle Tabellen (v1.53.0, TS-86) + Arbeitsgang-Stammdaten (v1.54.0, TS-87) + Status je Arbeitsgang-Kürzel im FA-Baum (v1.55.0, TS-88) + Menü Beschichtung + Kurzanleitungen (v1.56.0, TS-89) + BDE-Terminal mit Arbeitsgang-Status (v1.57.0, TS-90) + Spaltenfilter-Suchsyntax Etappe A + B (v1.58.0/v1.58.1, TS-91.A/B) + Fußzeile nach Word-Vorlage (v1.59.0, TS-92) + Sage-Quellen auf WMS-Views (v1.60.0–v1.60.2, TS-93) + Arbeitsgang-Abgleich aus der Sage-View (v1.61.0, TS-94) + Stückliste Matchcode und Lagerplatz-Limit (v1.62.0, TS-95) + BDE Stufe 1: Werkbänke, AG-Fertigmeldung (v1.63.0, TS-96) + BDE-Terminal Liste nach Haupt-FA, Scan ohne AG (v1.64.0, TS-97) + Spaltenauswahl/Zahnrad zentraler Toolbar-Host (v1.65.0, TS-98) + Hardware-Barcodescanner (v1.66.0–v1.66.2, TS-99) + Vault- und enaio-Links konfigurierbar (v1.67.0, TS-100) + QR erstes Feld Matchcode / Trennzeichen (v1.68.0/v1.69.0, TS-101) + Aktivitäts-Protokoll Spaltenfilter/Namen (v1.70.0, TS-102) + FA-Struktur live aus Sage (v1.71.0, TS-103) + Lagerplatz-Etikett 93 × 55 mm und Vormontage-Felder (v1.72.0, TS-104/TS-105) + Sage-Abgleich über SData (v1.73.0, TS-106) + Fehlteile „Nur meine Werkbänke“ Trefferzahl (v1.75.0, TS-108) + Bestandsübersicht QR-FA nur mit `QrMitFaNummer` (v1.76.0, TS-101.22–101.25) + Einstellungen Auswahlfelder und Beschreibung (v1.77.0, TS-109) + EAN-Scan Einkaufsartikel (v1.78.0, TS-110) + Bereinigungen nach dem Bündel 2026-11-07 (v1.79.0, TS-111) + Artikelinfo Lieferanten (v1.80.0, TS-112) + Fehlteile-Karte je Bestelltyp (v1.81.0, TS-113) + Wareneingang zu Sage-Bestellung (v1.84.0, TS-116) + Artikel Lieferanten/Mengeneinheiten (v1.85.0, TS-112.12–112.16) + Offene Bestellungen Nachbesserung (v1.86.0, TS-116.8/116.9) + Lager-Tools FA-Verknüpfung (v1.87.0, TS-115) + Kommissionieraufträge (v1.88.0, TS-120) + Kommissionieraufträge Nachbesserung (v1.89.0, TS-120.1/120.9/120.13/120.14) + Lager-Tools FA-Karte je Pflicht (v1.90.0, TS-115.3) + Offene Bestellungen Legende (v1.91.0, TS-116.8) + OSEON-Relevanzfilter/BDE-Checkboxen (v1.92.0, TS-121) + Meldebestand-Mail Bestandsregel (v1.93.0, TS-122) + Menüleiste Umbruch/Kontrast (v1.94.0, TS-123) + Nachbesserung Vorab-Abnahme (v1.95.0, TS-115.13/115.14/116.10/120.15) + Übernahme AKE-Hotfixes v1.30.2–1.30.4 (v1.96.0, TS-107, TS-124) + Auftrag drucken in Sortierreihenfolge (v1.97.0, TS-120.16) + Matchcode in der Kommissionier-Auftragsliste (v1.99.8, TS-120.17) + Update-Skript je Zielsystem (v1.98.0, TS-125) + Update-Skript Url-Vorrang und Dienst-Stopp-Limit (v1.98.1, TS-125.17/125.18) + Update-Skript prüft und führt aus, mit Bestätigung (v1.99.0–v1.99.2, TS-126) + Update-Skript Prüfung Mail-Ablageordner (v1.99.12, TS-126.28–126.31) + Vormontage Spalte Abteilung (v1.99.3, TS-127) + Wareneingang Sage-Wareneingangsbeleg und Lieferschein (v1.99.4–v1.99.6, TS-116.11–116.19) + Sage-Wareneingang automatisch wiederholen mit Sage-Prüfung, Klären (v1.99.7, TS-116.20–116.24) + System-Kürzel in den Sage-Kennungen WE#/SM# (v1.99.9, TS-116.25–116.30) + Lieferverzug-Mails (v1.99.10, TS-128) + Wareneingang Barcode und CSV-Übergabe (v1.99.11, TS-129) + Bugfixes AKE-Regression: Filter in Anführungszeichen, Bedarfsmeldung Ortszeit, Auftragsdruck Lagerplatz, Wagen-Modal (v1.99.13, TS-130)*
+(v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80) + Beschichtungsauftrag Summiert als Standard (v1.48.0, TS-81) + Briefkopf Beschichtungsauftrag (v1.49.0, TS-82) + Beschichtungsauftrag als eigenes Objekt (v1.50.0, TS-83) + Beschichtungsaufträge bedienen (v1.51.0, TS-84) + Arbeitsgänge als Symbole im FA-Baum (v1.52.0, TS-85) + CSV-Export für alle Tabellen (v1.53.0, TS-86) + Arbeitsgang-Stammdaten (v1.54.0, TS-87) + Status je Arbeitsgang-Kürzel im FA-Baum (v1.55.0, TS-88) + Menü Beschichtung + Kurzanleitungen (v1.56.0, TS-89) + BDE-Terminal mit Arbeitsgang-Status (v1.57.0, TS-90) + Spaltenfilter-Suchsyntax Etappe A + B (v1.58.0/v1.58.1, TS-91.A/B) + Fußzeile nach Word-Vorlage (v1.59.0, TS-92) + Sage-Quellen auf WMS-Views (v1.60.0–v1.60.2, TS-93) + Arbeitsgang-Abgleich aus der Sage-View (v1.61.0, TS-94) + Stückliste Matchcode und Lagerplatz-Limit (v1.62.0, TS-95) + BDE Stufe 1: Werkbänke, AG-Fertigmeldung (v1.63.0, TS-96) + BDE-Terminal Liste nach Haupt-FA, Scan ohne AG (v1.64.0, TS-97) + Spaltenauswahl/Zahnrad zentraler Toolbar-Host (v1.65.0, TS-98) + Hardware-Barcodescanner (v1.66.0–v1.66.2, TS-99) + Vault- und enaio-Links konfigurierbar (v1.67.0, TS-100) + QR erstes Feld Matchcode / Trennzeichen (v1.68.0/v1.69.0, TS-101) + Aktivitäts-Protokoll Spaltenfilter/Namen (v1.70.0, TS-102) + FA-Struktur live aus Sage (v1.71.0, TS-103) + Lagerplatz-Etikett 93 × 55 mm und Vormontage-Felder (v1.72.0, TS-104/TS-105) + Sage-Abgleich über SData (v1.73.0, TS-106) + Fehlteile „Nur meine Werkbänke“ Trefferzahl (v1.75.0, TS-108) + Bestandsübersicht QR-FA nur mit `QrMitFaNummer` (v1.76.0, TS-101.22–101.25) + Einstellungen Auswahlfelder und Beschreibung (v1.77.0, TS-109) + EAN-Scan Einkaufsartikel (v1.78.0, TS-110) + Bereinigungen nach dem Bündel 2026-11-07 (v1.79.0, TS-111) + Artikelinfo Lieferanten (v1.80.0, TS-112) + Fehlteile-Karte je Bestelltyp (v1.81.0, TS-113) + Wareneingang zu Sage-Bestellung (v1.84.0, TS-116) + Artikel Lieferanten/Mengeneinheiten (v1.85.0, TS-112.12–112.16) + Offene Bestellungen Nachbesserung (v1.86.0, TS-116.8/116.9) + Lager-Tools FA-Verknüpfung (v1.87.0, TS-115) + Kommissionieraufträge (v1.88.0, TS-120) + Kommissionieraufträge Nachbesserung (v1.89.0, TS-120.1/120.9/120.13/120.14) + Lager-Tools FA-Karte je Pflicht (v1.90.0, TS-115.3) + Offene Bestellungen Legende (v1.91.0, TS-116.8) + OSEON-Relevanzfilter/BDE-Checkboxen (v1.92.0, TS-121) + Meldebestand-Mail Bestandsregel (v1.93.0, TS-122) + Menüleiste Umbruch/Kontrast (v1.94.0, TS-123) + Nachbesserung Vorab-Abnahme (v1.95.0, TS-115.13/115.14/116.10/120.15) + Übernahme AKE-Hotfixes v1.30.2–1.30.4 (v1.96.0, TS-107, TS-124) + Auftrag drucken in Sortierreihenfolge (v1.97.0, TS-120.16) + Matchcode in der Kommissionier-Auftragsliste (v1.99.8, TS-120.17) + Update-Skript je Zielsystem (v1.98.0, TS-125) + Update-Skript Url-Vorrang und Dienst-Stopp-Limit (v1.98.1, TS-125.17/125.18) + Update-Skript prüft und führt aus, mit Bestätigung (v1.99.0–v1.99.2, TS-126) + Update-Skript Prüfung Mail-Ablageordner (v1.99.12, TS-126.28–126.31) + Vormontage Spalte Abteilung (v1.99.3, TS-127) + Wareneingang Sage-Wareneingangsbeleg und Lieferschein (v1.99.4–v1.99.6, TS-116.11–116.19) + Sage-Wareneingang automatisch wiederholen mit Sage-Prüfung, Klären (v1.99.7, TS-116.20–116.24) + System-Kürzel in den Sage-Kennungen WE#/SM# (v1.99.9, TS-116.25–116.30) + Lieferverzug-Mails (v1.99.10, TS-128) + Wareneingang Barcode und CSV-Übergabe (v1.99.11, TS-129) + Bugfixes AKE-Regression: Filter in Anführungszeichen, Bedarfsmeldung Ortszeit, Auftragsdruck Lagerplatz, Wagen-Modal (v1.99.13, TS-130) + Register Sage-Test und SData-Zugangsdaten (v1.99.14, TS-131)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*

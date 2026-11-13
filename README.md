@@ -482,25 +482,29 @@ Bei Änderungen der Tabellenstruktur müssen diese Scripts angepasst werden.
 | `FaPflichtBuchungsarten` | leer (kein Seed) | „FA-Pflicht bei Buchungen“ (v1.87.0): Mehrfachauswahl aus `Wareneingang`, `Sammel-Wareneingang`, `Warenausgang`, `Umbuchung`; gewählte Arten buchen nur mit eindeutig im WMS gefundenem FA (erledigt/storniert = Warnung). Leer = keine Pflicht. Achtung: mit `Umbuchung` geht keine Umbuchung mehr an Sage (Umbuchungen mit FA werden nie gemeldet). |
 | `LagerplatzEtikettRolle93x55` | `false` (kein Seed) | Lagerplatz-Etiketten im Rollenformat 93 × 55 mm (v1.72.0): ein Etikett je Seite, ohne Rahmen, für Sammel- und Einzeldruck. Nur exakt `true` aktiviert; aus/fehlend = A4 mit drei Etiketten je Seite. Im Druckdialog Rollendrucker, Papierformat 93 × 55 mm, Ränder „Keine“. Pflege: Standorteinstellungen → Druck (nur Admin) |
 | `FaHierarchyVormontageAktiv` | `false` | Feature-Schalter IDEAL-Vormontage-Listen (Teil 5, zwei Sichten: Einzelne Teile + Summiert) — nur exakt `true` aktiviert (Default aus). Kumuliert mit Vorbau-Zugriff (`vorbau`, wie FA-Abarbeitungsliste) |
-| `SageSdataFaAnsichtAktiv` | `false` | Feature-Schalter „FA-Struktur (Sage live)" (v1.71.0): liest FA-Struktur, Stückliste und Rückmeldungen direkt per SData `RealTimeData` aus Sage, nur lesen. Nur exakt `true` aktiviert. Zugriff wie FA-Struktur (Kommissionierung, Teileverfolgung, Leitstand-Freigabe, Vorbau). Braucht `SData:BaseUrl`, `SData:Dataset` und die Web-App-Zugangsdaten (siehe „Web-App: Sage-Zugangsdaten"). |
 
-## Web-App: Sage-Zugangsdaten
+## SData-Zugangsdaten (Service-Einstellungen, seit v1.99.14)
 
-Seit v1.71.0 liest die Web-App für „FA-Struktur (Sage live)" selbst aus Sage (SData, nur GET). Benutzer und Passwort
-stehen **nicht** im Repo und nicht in der `appsettings.json` der Web-App, sondern in einer eigenen Datei
-`appsettings.Production.json` im Web-Ordner auf dem Server (neben `IdealAkeWms.dll`):
+Benutzer und Kennwort der Sage-Schnittstelle (SData) stehen in `/ServiceSettings` → Gruppe „Sage-Lagerbuchung“:
+`SData:Username` und `SData:Password`. Web-App (Register „Sage-Test“, FA-Struktur live) und Dienst (Lagerbuchung,
+Sage-Wareneingang, alle SData-Abgleiche) lösen sie an **einer** Stelle auf (`SdataZugangsdaten`, ADR „SData-Kennwort verschlüsselt
+in den Service-Einstellungen“).
 
-```json
-{ "SageLagerbuchung": { "Username": "<SData-Servicebenutzer>", "Password": "<Passwort>" } }
-```
-
-- Die `web.config` setzt `ASPNETCORE_ENVIRONMENT=Production`; die Datei wird automatisch geladen. Der Publish bringt sie
-  nicht mit und überschreibt sie daher nicht. **Ausnahme:** Ein Publish oder Kopiervorgang, der den Zielordner vorher
-  leert, löscht sie mit – dann neu anlegen.
-- Nach dem Anlegen oder Ändern den App-Pool recyceln.
-- **Zwei Stellen:** Der Dienst liest dieselben Zugangsdaten aus seiner eigenen `appsettings.json` (Sage-Lagerbuchung). Ein
-  Passwortwechsel muss beide Dateien treffen.
-- Fehlen die Werte, zeigt die Seite „Sage-SData nicht konfiguriert" und setzt keinen Aufruf ab. Eine `SData:BaseUrl` mit
+- **Kennwort verschlüsselt:** gespeichert als `dp1:` + Schutztext der ASP.NET-Core-DataProtection (Schlüsselring der Web-App,
+  `DataProtection:KeysPath` bzw. `%ProgramData%\IdealAkeWms\DataProtection-Keys`). Die Maske zeigt nur den Status
+  („gesetzt“ / „nicht gesetzt“ / „nicht entschlüsselbar – neu eingeben“); leeres Feld = unverändert, „Kennwort entfernen“ leert es.
+  Erlaubt: 1–128 Zeichen. Der Freitext-Weg „Sonstige/Erweitert“ lehnt den Key ab.
+- **Dienst:** liest denselben Schlüsselring **nur lesend** (legt keine Schlüssel an). Ist im Web `DataProtection:KeysPath` gesetzt,
+  muss die Dienst-`appsettings.json` denselben Wert haben; das Dienstkonto braucht Leserecht auf den Ordner (Update-Skript Schritt 5a,
+  Manifest `v1.99.14-DataProtectionDienst`).
+- **Nicht entschlüsselbar** (DB auf ein anderes System kopiert, Schlüsselordner gelöscht, Wert per SQL im Klartext eingetragen):
+  kein Aufruf an Sage, Meldung „SData-Kennwort nicht entschlüsselbar – in den Service-Einstellungen neu eingeben“ im Lauf, **kein**
+  Rückfall auf die Datei. Kennwort neu eingeben.
+- **Rückfall (Übergang):** Solange `SData:Username` leer ist, gelten `SageLagerbuchung:Username/Password` aus der Dienst-`appsettings.json`
+  bzw. der Web-`appsettings.Production.json` weiter, mit Warnung „Zugangsdaten aus appsettings …“ je Lauf. Reihenfolge: nach dem Deploy
+  Benutzer/Kennwort in `/ServiceSettings` eintragen, Lauf „Sage-Lagerbuchung“ prüfen, dann die Einträge aus beiden Dateien entfernen
+  (Update-Skript: Prüfung `Pruefung/SDataKennwortAppsettings`).
+- Fehlen Adresse oder Dataset, zeigt das Register „Sage-SData nicht konfiguriert“ und setzt keinen Aufruf ab. Eine `SData:BaseUrl` mit
   `benutzer:passwort@` wird abgelehnt – Zugangsdaten gehören nie in die URL.
 
 ## PDF-Erzeugung (appsettings.json)
@@ -681,8 +685,8 @@ C:\Services\IDEALAKEWMSService\
 > **DryRun-Tipp**: Zuerst `SyncDryRun: true` setzen und parallel mit den SQL Agent Jobs testen. Erst nach erfolgreichem Test auf `false` umstellen und die Agent Jobs deaktivieren.
 
 > **Sage-Lagerbuchungen (v1.28.0)**: Der `SageLagerbuchung`-Block (Basic-Auth-Credentials der
-> SData-API) ist **appsettings-only** und muss am Zielserver manuell befüllt werden (wie
-> `ConnectionStrings`/`MailSettings`). Alle übrigen Werte sind DB-first unter `/ServiceSettings`
+> SData-API) ist seit v1.99.14 nur noch **Rückfall**, solange `SData:Username` in `/ServiceSettings` leer ist (siehe
+> „SData-Zugangsdaten“). Alle übrigen Werte sind DB-first unter `/ServiceSettings`
 > (Kategorie „Sage-Lagerbuchung"): globaler Schalter `SageLagerbuchungAktiv` (Default aus),
 > **Sage-Wareneingangsbeleg (v1.99.4):** `SageWareneingangBelegAktiv` (Default `false`, nur AKE, unabhängig von `SageLagerbuchungAktiv`) –
 > Wareneingänge zu Bestellungen gehen als ein Sage-Wareneingang (ELL, Belegübernahme, `$service/StandardBelegService`) je Buchung der Maske an

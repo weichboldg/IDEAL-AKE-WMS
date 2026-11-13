@@ -693,7 +693,7 @@ function Invoke-System($e) {
         $st = Get-PruefStand $e $m $history; $pruefStand[$m.Id] = $st
         # v1.99.12 (Freigabe-Nachtrag 17:04): Phase Vorher mit Abweichung auf einem Prod-System -> Abbruch vor dem Stoppen, keine Reparatur
         if ($m.Phase -eq 'Vorher' -and $st -is [int] -and $st -gt 0 -and $e.Ziel.Prod) { $sperre += "[$($m.Id)] $(Format-PruefText $e $m)" }
-        $hinweis = if ($st -isnot [int] -or $st -eq 0) { '' } elseif ($m.Phase -eq 'Vorher') { " - $(if ($e.Ziel.Prod) { 'PROD, Abbruch vor dem Stoppen: ' } else { 'Hinweis: ' })$(Format-PruefText $e $m)" } elseif ($m.Ausfuehrung -eq 'Reparatur') { if ($m.Phase -eq 'Haltepunkt') { ' - wird in 4a nach Bestaetigung repariert' } else { '' } } else { " - von Hand: $(Format-Text $m.Text $e)" }
+        $hinweis = if ($st -isnot [int] -or $st -eq 0) { '' } elseif ($m.Phase -eq 'Vorher') { " - $(if ($e.Ziel.Prod) { 'PROD, Abbruch vor dem Stoppen: ' } else { 'Hinweis: ' })$(Format-PruefText $e $m)" } elseif ($m.Ausfuehrung -eq 'Reparatur') { if ($m.Phase -eq 'Haltepunkt') { ' - wird in 4a nach Bestaetigung repariert' } else { '' } } else { " - von Hand: $(Format-PruefText $e $m)" }
         Write-Host "    [$($m.Id)] $(Format-Pruefstand $st)$hinweis"
     }
     if (-not (Test-MarkerTabelle $e)) { Write-Host '  Marker-Tabelle fehlt (kommt mit SQL/142) - Daten-/Einmal-Eintraege ohne Marker-Stand.' }

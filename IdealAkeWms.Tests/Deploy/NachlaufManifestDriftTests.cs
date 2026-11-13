@@ -154,7 +154,8 @@ public class NachlaufManifestDriftTests
             {
                 // v1.99.12: Dienst-appsettings, kein SQL; nur anzeigen (Abbruch auf Prod vor dem Stoppen, keine Reparatur)
                 x["Appsettings"].Should().MatchRegex(@"^\w+:\w+$", x["Id"]);
-                x["Phase"].Should().Be("Vorher", x["Id"]);
+                // v1.99.14: Phase Nachher = nur Hinweis, nie Abbruch (SData-Kennwort steht bis zur Umstellung bewusst noch in der Datei)
+                x["Phase"].Should().BeOneOf(new[] { "Vorher", "Nachher" }, x["Id"]);
                 x["Ausfuehrung"].Should().Be("anzeigen", x["Id"]);
                 continue;
             }

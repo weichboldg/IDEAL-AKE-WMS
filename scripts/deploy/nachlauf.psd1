@@ -7,7 +7,7 @@
 #   Datei (relativ zum SQL-Ordner), MigrationId (nur Schema), Braucht (Ids, deren MigrationId in der History stehen muss),
 #   Voraussetzung (Text), Spur (lesendes SQL, >0 = lief schon), Pruefabfrage (lesendes SQL, Ergebnis wird angezeigt),
 #   Text (Platzhalter {Sqlcmd} {Server} {DB} {SqlOrdner} {LogPfad} {Web} {Dienst}), Quelle (Changelog).
-# Typ Ordner (Schritt 5a, bei jedem Lauf): Pfad, RechtAuf (Ordner, auf den das Recht vererbt gesetzt wird), Identitaet (Web|Dienst),
+# Typ Ordner (Schritt 5a, bei jedem Lauf; Pfad kennt {Web} {Dienst} und seit v1.99.14 {DataProtection}): Pfad, RechtAuf (Ordner, auf den das Recht vererbt gesetzt wird), Identitaet (Web|Dienst),
 #   Recht (Lesen|LesenAusfuehren|Aendern), Pflicht ($true = Abbruch, wenn nicht herstellbar), Herstellen ($true = anlegen + icacls).
 # Typ Pruefung (v1.99.0, ADR 0023; bei JEDEM Lauf, kein Versionsfilter): Pruefung (lesendes SQL, EINE Zahl: 0 = in Ordnung, > 0 = Abweichungen),
 #   Reparatur (SQL, in einer Transaktion) ODER Datei (idempotentes Skript, sqlcmd), OhneTransaktion ($true fuer ALTER DATABASE).
@@ -145,6 +145,10 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
    Appsettings='MailSettings:PickupDirectory'
    Text='Mails gehen nur in {Wert} ({Datei}): alle Dienst-Mails (Lieferverzug, Meldebestand, Fehler, Bestellung) landen als .eml im Ordner statt per SMTP.'
    Quelle='2026-11-12-v1-99-12-update-skript-pickup-pruefung' }
+@{ Id='Pruefung/SDataKennwortAppsettings'; Version='1.99.14'; Typ='Pruefung'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Appsettings='SageLagerbuchung:Password'
+   Text='SData-Kennwort steht noch im Klartext in {Datei}. Erst in den Service-Einstellungen eintragen und den Lauf Sage-Lagerbuchung pruefen, dann aus der Datei entfernen (auch Web: appsettings.Production.json).'
+   Quelle='2026-11-13-v1-99-14-sdata-teil-2-userfelder-stueckliste' }
 
 # ---------------------------------------------------------------- Daten und Einmal-Skripte (nur mit Eingabe am Zielserver, ADR 0023)
 @{ Id='Einmalig/2026-11-08_v1.88.0_Kommissionierauftraege_Altbestand'; Version='1.88.0'; Typ='Einmalig'; Firma='beide'; Phase='Haltepunkt'; Ausfuehrung='Trockenlauf'
@@ -159,6 +163,12 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
    Spur='SELECT CASE WHEN EXISTS (SELECT 1 FROM dbo.AppSettings WHERE [Key] IN (N''OseonRueckmeldungAktiv'', N''SageRueckmeldungAktiv'', N''StammdatenADGruppe'')) THEN 0 ELSE 1 END'
    Text='P-4: Werte oben stehen im Protokoll. Loescht Settings-Zeilen ohne Leser (idempotent); in einer Transaktion, danach uebernehmen/verwerfen. Spur 1 = nichts zu tun.'
    Quelle='2026-11-08-v1-79-0-bereinigungen-nach-buendel; 2026-11-08-v1-94-0-menueleiste-umbruch-kontrast' }
+@{ Id='SQL/147'; Version='1.99.14'; Typ='Daten'; Firma='beide'; Phase='VorStart'; Ausfuehrung='Transaktion'
+   Datei='147_RemoveAppSettingSageSdataFaAnsichtAktiv.sql'
+   Pruefabfrage='SELECT [Key],[Value] FROM [dbo].[AppSettings] WHERE [Key] = N''SageSdataFaAnsichtAktiv'''
+   Spur='SELECT CASE WHEN EXISTS (SELECT 1 FROM dbo.AppSettings WHERE [Key] = N''SageSdataFaAnsichtAktiv'') THEN 0 ELSE 1 END'
+   Text='Loescht den entfallenen Schalter (idempotent); in einer Transaktion, danach uebernehmen/verwerfen. Spur 1 = nichts zu tun.'
+   Quelle='2026-11-13-v1-99-14-sdata-teil-2-userfelder-stueckliste' }
 @{ Id='SQL/110'; Version='1.87.0'; Typ='Daten'; Firma='beide'; Phase='Nachher'; Ausfuehrung='Trockenlauf'; Braucht=@('SQL/109')
    Datei='110_BackfillStockMovementProductionOrderId.sql'
    Voraussetzung='nach Web- und Dienst-Start'
@@ -181,6 +191,10 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
    Pfad='{Web}\App_Data\Fotos\Kommissionierung'; RechtAuf='{Web}\App_Data'; Identitaet='Web'; Recht='Aendern'; Pflicht=$true; Herstellen=$true
    Text='Kommissionierfotos liegen seit v1.30.4/v1.96.0 in App_Data; ohne Schreibrecht startet die App nicht.'
    Quelle='2026-11-11-v1-96-0-vorwaerts-merge-main-hotfixes' }
+@{ Id='v1.99.14-DataProtectionDienst'; Version='1.99.14'; Typ='Ordner'; Firma='beide'; Phase='Vorher'; Ausfuehrung='automatisch'
+   Pfad='{DataProtection}'; Identitaet='Dienst'; Recht='Lesen'; Pflicht=$true; Herstellen=$true
+   Text='Der Dienst entschluesselt das SData-Kennwort mit dem Schluesselring der Web-App und braucht Leserecht.'
+   Quelle='2026-11-13-v1-99-14-sdata-teil-2-userfelder-stueckliste' }
 
 # ---------------------------------------------------------------- Vorher (Anzeige vor jeder Aenderung) -------------------------
 @{ Id='v0-Backup'; Version='0.0.0'; Typ='Info'; Firma='beide'; Phase='Vorher'; Ausfuehrung='anzeigen'
@@ -305,5 +319,11 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
 @{ Id='v1.99.11-LagerBarcode'; Version='1.99.11'; Typ='Info'; Firma='AKE'; Phase='Nachher'; Ausfuehrung='anzeigen'
    Text='Lager informieren: Wareneingang zu Bestellung hat ein Feld Barcode (Lieferschein-Aufkleber); die CSV entsteht erst nach der Uebergabe an Sage. Stand in Lager > Sage-Wareneingaenge, Spalte CSV.'
    Quelle='2026-11-12-v1-99-11-wareneingang-barcode-csv' }
+@{ Id='v1.99.14-SDataZugang'; Version='1.99.14'; Typ='Einstellung'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Text='Service-Einstellungen > Sage-Lagerbuchung: SData: Benutzer und SData: Kennwort eintragen (Kennwort wird verschluesselt gespeichert). IDEAL erst mit SData-Endpunkt. Ist im Web DataProtection:KeysPath gesetzt, braucht die Dienst-appsettings.json denselben Wert.'
+   Quelle='2026-11-13-v1-99-14-sdata-teil-2-userfelder-stueckliste' }
+@{ Id='v1.99.14-SageTestInfo'; Version='1.99.14'; Typ='Info'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Text='Menuepunkt FA-Struktur (Sage live) entfaellt; Admins: Einstellungen > Reiter Sage-Test. Anwender informieren, falls sie die Seite genutzt haben.'
+   Quelle='2026-11-13-v1-99-14-sdata-teil-2-userfelder-stueckliste' }
 )
 }
