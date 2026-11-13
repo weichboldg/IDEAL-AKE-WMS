@@ -81,6 +81,12 @@ public static class SettingValidator
                 return SettingPruefung.Ok(string.Join(",", adressen));
             }
 
+            case SettingType.Geheim:
+                // v1.99.14: nie den Wert in die Meldung (Fehler() wuerde ihn zitieren); leer = unveraendert (Controller)
+                return (roh?.Length ?? 0) is >= 1 and <= IdealAkeWms.Services.SageSdata.SdataZugangsdaten.MaxLaenge
+                    ? SettingPruefung.Ok(roh!)
+                    : new(false, null, $"„{name}“: 1 bis {IdealAkeWms.Services.SageSdata.SdataZugangsdaten.MaxLaenge} Zeichen erlaubt (Kennwort nicht gespeichert, bitte erneut eingeben).");
+
             default:
                 return SettingPruefung.Ok(roh ?? "");
         }

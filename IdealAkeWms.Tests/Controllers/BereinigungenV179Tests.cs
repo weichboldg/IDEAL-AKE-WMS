@@ -82,7 +82,10 @@ public class BereinigungenV179Tests
 
     private static ServiceSettingsController BuildSvc(Mock<IServiceSettingRepository> repo)
     {
-        var ctrl = new ServiceSettingsController(repo.Object, Mock.Of<ISyncLogger>(), Mock.Of<ICurrentUserService>())
+        var ctrl = new ServiceSettingsController(repo.Object, Mock.Of<ISyncLogger>(), Mock.Of<ICurrentUserService>(),
+            new Microsoft.AspNetCore.DataProtection.EphemeralDataProtectionProvider(),
+            new Microsoft.Extensions.Configuration.ConfigurationBuilder().Build(),
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<ServiceSettingsController>.Instance)
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
         };

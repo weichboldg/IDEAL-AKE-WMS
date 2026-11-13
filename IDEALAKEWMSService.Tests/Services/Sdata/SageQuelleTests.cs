@@ -77,6 +77,8 @@ public class SageQuelleTests
         protected override string Bereich => SageQuelleSchalter.Lagerplaetze;
         protected override Task<string?> SdataGesperrtBisAsync(CancellationToken ct) => Task.FromResult(Gesperrt);
         protected override Task<string?> LeseSchalterAsync(CancellationToken ct) => Task.FromResult(Schalter);
+        public string? ZugangWarnung { get; set; }
+        protected override Task<string?> LeseZugangsWarnungAsync(CancellationToken ct) => Task.FromResult(ZugangWarnung);
 
         public Task<List<Zeile>> GetAllAsync() => LeseAsync<List<Zeile>, Zeile>(
             _ => { ViewAufrufe++; return Task.FromResult(View()); },
@@ -119,6 +121,24 @@ public class SageQuelleTests
         w.SdataAufrufe.Should().Be(0);
         logger.Verify(l => l.BeginRunAsync(SyncLogServices.SageQuellenvergleich, It.IsAny<CancellationToken>()), Times.Once);
         run.Verify(r => r.LogWarningAsync(It.Is<string>(m => m.Contains("'Neu'")), SageQuelleSchalter.Lagerplaetze, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Theory]
+    [InlineData("SData", true)]
+    [InlineData("Vergleich", true)]
+    [InlineData("View", false)]
+    public async Task Weiche_ZugangAusAppsettings_WarnungImLaufDesBereichs(string schalter, bool erwartet)
+    {
+        // v1.99.14 F6 (AK 6): Rueckfall auf appsettings = einmal je Lauf eine Warnung, ohne Werte; bei View kein Zugriff, keine Warnung
+        var (w, _, _) = Baue(schalter);
+        w.ZugangWarnung = SdataZugangsdaten.WarnungAppsettings;
+        await w.GetAllAsync();
+        var bereichsLauf = new Mock<ISyncRun>();
+
+        await w.LogQuelleAsync(bereichsLauf.Object, CancellationToken.None);
+
+        bereichsLauf.Verify(r => r.LogWarningAsync(SdataZugangsdaten.WarnungAppsettings, It.IsAny<string?>(), It.IsAny<CancellationToken>()),
+            erwartet ? Times.Once() : Times.Never());
     }
 
     [Fact]

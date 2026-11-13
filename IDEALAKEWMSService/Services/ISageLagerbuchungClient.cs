@@ -11,7 +11,11 @@ public sealed record SageBookingEndpoint(
     string ServiceContract,
     string Dataset,
     string Username,
-    string Password);
+    string Password)
+{
+    // v1.99.14: Kennwort nie in Logs (Record-ToString wuerde es ausgeben).
+    public override string ToString() => $"SageBookingEndpoint {{ BaseUrl = {BaseUrl}, Dataset = {Dataset}, Username = {Username} }}";
+}
 
 /// <summary>Ergebnis eines Sende-Versuchs — Erfolg plus rohe Antwort, oder Fehlertext.</summary>
 public sealed record SageBookingSendResult(bool Success, string? ResponseRaw, string? Error);

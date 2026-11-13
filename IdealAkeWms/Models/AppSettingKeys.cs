@@ -74,9 +74,6 @@ public static class AppSettingKeys
     // RequireFaHierarchyVormontageAktivAttribute.
     public const string FaHierarchyVormontageAktiv = "FaHierarchyVormontageAktiv";
 
-    // Sage-SData FA-Ansicht (v1.71.0): Feature-Toggle der Live-Ansicht „FA-Struktur (Sage live)“ (SageSdataFaController).
-    // INVERTIERTE Default-aus-Semantik (nur exakt "true" aktiviert). Kein Seed; Zeile entsteht ueber die Standorteinstellungen.
-    public const string SageSdataFaAnsichtAktiv = "SageSdataFaAnsichtAktiv";
 
     // IDEAL FA-Hierarchie (Teil 6 — Standorteinstellungen-Maske): Firmendaten fuer Druckkopf/Anzeige.
     // Reine AppSettings-Werte OHNE Katalog/Seed: Teil 6 rendert sie kuratiert (eigene Feldliste) und

@@ -45,8 +45,14 @@ public sealed class SettingItem
         : string.Equals((wert ?? "").Trim(), d.DefaultValue.Trim(), StringComparison.Ordinal);
 
     /// <param name="exakt">Choice nur exakt gueltig (ServiceSettings, siehe <see cref="SettingValidator"/>).</param>
+    /// <summary>v1.99.14 Geheim: Status-Text („gesetzt“ …), vom Controller gesetzt; der Wert selbst erreicht das Item nie.</summary>
+    public string? GeheimStatus { get; init; }
+
     public static SettingItem Aus(SettingDefinition d, string? roh, IReadOnlyList<(string Wert, string Text)>? optionen = null, bool exakt = false)
     {
+        // v1.99.14: Geheimnis nie als Wert (weder Rohwert noch Wirksam), nie „ungueltig“ mit Zitat.
+        if (d.Type == SettingType.Geheim)
+            return new SettingItem { Definition = d, RohWert = null, Wirksam = "", Optionen = optionen ?? Array.Empty<(string, string)>() };
         optionen ??= Array.Empty<(string, string)>();
         string wirksam, standard;
         if (d.Type == SettingType.Bool)

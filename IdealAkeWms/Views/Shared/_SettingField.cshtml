@@ -15,6 +15,7 @@
     string Text(string wert) => d.Type switch
     {
         SettingType.Bool => wert == "true" ? "an" : "aus",
+        SettingType.Geheim => "nicht gesetzt",
         _ when string.IsNullOrEmpty(wert) => "leer",
         SettingType.Choice => d.Werte?.FirstOrDefault(w => w.Wert == wert).Text ?? wert,
         SettingType.MasterData => Model.Optionen.FirstOrDefault(o => string.Equals(o.Wert, wert, StringComparison.OrdinalIgnoreCase)).Text ?? wert,
@@ -119,6 +120,28 @@
                     <option value="@o.Wert" selected="@(string.Equals(o.Wert, Model.Wirksam, StringComparison.OrdinalIgnoreCase))">@o.Text</option>
                 }
             </select>
+            break;
+
+        case SettingType.Geheim:
+            @* v1.99.14 (Spec 2026-11-13-sdata-teil-2 F6): nie ein value - nur Status; leer speichern = unveraendert. *@
+            var status = Model.GeheimStatus ?? "nicht gesetzt";
+            var statusKlasse = status == IdealAkeWms.Services.SageSdata.SdataZugangsdaten.StatusGesetzt ? "text-bg-success"
+                : status == IdealAkeWms.Services.SageSdata.SdataZugangsdaten.StatusNichtGesetzt ? "text-bg-secondary" : "text-bg-danger";
+            <div class="mb-1"><span class="badge @statusKlasse">Status: @status</span></div>
+            <input type="password" class="form-control" id="@id" name="settings[@d.Key]" autocomplete="new-password" aria-describedby="@hilfeId"
+                   placeholder="neues Kennwort eingeben – leer lassen = unverändert" maxlength="@IdealAkeWms.Services.SageSdata.SdataZugangsdaten.MaxLaenge"
+                   disabled="@(!canEdit)" style="max-width: 22rem;" />
+            @if (ViewData["GeheimHinweis"] is string geheimHinweis)
+            {
+                <div class="text-danger small mt-1" role="alert">@geheimHinweis</div>
+            }
+            @if (status != IdealAkeWms.Services.SageSdata.SdataZugangsdaten.StatusNichtGesetzt)
+            {
+                <div class="form-check mt-1">
+                    <input type="checkbox" class="form-check-input" id="@(id)_entfernen" name="geheimEntfernen" value="@d.Key" disabled="@(!canEdit)" />
+                    <label class="form-check-label" for="@(id)_entfernen">Kennwort entfernen</label>
+                </div>
+            }
             break;
 
         default:

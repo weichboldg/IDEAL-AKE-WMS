@@ -40,8 +40,8 @@ public class SageSdataFaControllerTests
     }
 
     private readonly FakeClient _client = new();
-    private readonly Mock<IAppSettingRepository> _app = new();
     private readonly Mock<IServiceSettingRepository> _svc = new();
+    private readonly Microsoft.AspNetCore.DataProtection.IDataProtectionProvider _schutz = new Microsoft.AspNetCore.DataProtection.EphemeralDataProtectionProvider();
     private readonly Dictionary<string, string?> _config = new()
     {
         ["SageLagerbuchung:Username"] = "sdatauser",
@@ -50,14 +50,13 @@ public class SageSdataFaControllerTests
 
     public SageSdataFaControllerTests()
     {
-        _app.Setup(a => a.GetValueAsync(AppSettingKeys.SageSdataFaAnsichtAktiv)).ReturnsAsync("true");
         _svc.Setup(s => s.GetValueAsync("SData:BaseUrl")).ReturnsAsync("https://sagetest01.ake.at:5493");
         _svc.Setup(s => s.GetValueAsync("SData:Dataset")).ReturnsAsync("ake_TEST2026;1");
     }
 
     private SageSdataFaController Controller()
     {
-        var c = new SageSdataFaController(_client, _app.Object, _svc.Object, new ConfigurationBuilder().AddInMemoryCollection(_config).Build());
+        var c = new SageSdataFaController(_client, _svc.Object, new ConfigurationBuilder().AddInMemoryCollection(_config).Build(), _schutz);
         var http = new DefaultHttpContext();
         c.ControllerContext = new ControllerContext { HttpContext = http };
         c.TempData = new TempDataDictionary(http, Mock.Of<ITempDataProvider>());
@@ -82,16 +81,36 @@ public class SageSdataFaControllerTests
     }
 
     [Fact]
-    public async Task GateAus_RedirectHomeMitWarnung_KeinAufruf()
+    public void Zugriff_NurAdmin_KeinGateMehr()
     {
-        _app.Setup(a => a.GetValueAsync(AppSettingKeys.SageSdataFaAnsichtAktiv)).ReturnsAsync((string?)null);
-        var c = Controller();
+        // v1.99.14 F5: Testwerkzeug im Register Sage-Test (Freigabe-Antwort 2/3)
+        typeof(SageSdataFaController).GetCustomAttributes(typeof(IdealAkeWms.Filters.RequireAdminAccessAttribute), true).Should().ContainSingle();
+    }
 
-        var r = await c.Index(835, CancellationToken.None);
+    [Fact]
+    public async Task KennwortNichtEntschluesselbar_KeinAufruf_KeinRueckfall()
+    {
+        // v1.99.14 F6/AK 7: Klartext per SQL eingetragen -> Fehler, KEIN Rueckfall auf die appsettings-Zugangsdaten
+        _svc.Setup(s => s.GetValueAsync(SdataZugangsdaten.BenutzerKey)).ReturnsAsync("dbuser");
+        _svc.Setup(s => s.GetValueAsync(SdataZugangsdaten.KennwortKey)).ReturnsAsync("klartext");
 
-        r.Should().BeOfType<RedirectToActionResult>().Which.ControllerName.Should().Be("Home");
-        c.TempData["WarningMessage"].Should().Be("Die Sage-Live-Ansicht der FA-Struktur ist deaktiviert.");
+        var vm = await Vm(835);
+
+        vm.NichtKonfiguriert.Should().ContainSingle().Which.Should().Contain("nicht entschlüsselbar").And.NotContain("klartext");
         _client.Aufrufe.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task DbZugangsdaten_GewinnenVorAppsettings()
+    {
+        _svc.Setup(s => s.GetValueAsync(SdataZugangsdaten.BenutzerKey)).ReturnsAsync("dbuser");
+        _svc.Setup(s => s.GetValueAsync(SdataZugangsdaten.KennwortKey)).ReturnsAsync(SdataZugangsdaten.Schuetzen("dbkennwort", _schutz));
+        Struktur835();
+
+        await Vm(835);
+
+        _client.Aufrufe.Should().NotBeEmpty();
+        _client.Aufrufe.Should().OnlyContain(a => a.Ziel.Username == "dbuser" && a.Ziel.Password == "dbkennwort");
     }
 
     [Fact]
@@ -102,7 +121,7 @@ public class SageSdataFaControllerTests
 
         var vm = await Vm(835);
 
-        vm.NichtKonfiguriert.Should().BeEquivalentTo("SData:BaseUrl", "SageLagerbuchung:Username");
+        vm.NichtKonfiguriert.Should().BeEquivalentTo("SData:BaseUrl", "SData:Username");
         _client.Aufrufe.Should().BeEmpty();
     }
 

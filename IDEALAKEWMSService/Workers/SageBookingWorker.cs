@@ -120,8 +120,24 @@ public class SageBookingWorker : BackgroundService
             await ServiceSettings.GetIntSafeAsync(_configuration, SageWareneingang.WiederholAbstandKey, 15, ct));
         // v1.99.9: System-Kuerzel der Kennung WE#[K#]<id>#; Lesefehler/ungueltig -> Takt abbrechen (nichts senden), nicht ohne Kuerzel senden.
         var kuerzel = SageSystemKuerzel.Pruefen(await ServiceSettings.GetValueAsync(_configuration, SageSystemKuerzel.Key, ct));
-        await service.RunOnceAsync(await BuildEndpointAsync(ct), stuckMinutes, batchSize, wiederholung, kuerzel, ct);
+        var (endpoint, zugang) = await BuildEndpointAsync(ct);
+        if (zugang.Fehler is { } fehler)
+        {
+            // v1.99.14 F6: nicht entschluesselbar = nichts senden, kein Rueckfall. Einmal je Zustandswechsel protokollieren (Takt 20 s).
+            if (_weZugangGemeldet != fehler)
+            {
+                await using var run = await _syncLogger.BeginRunAsync(SyncLogServices.SageWareneingang, ct);
+                await run.LogErrorAsync(fehler, ct: ct);
+                await run.FinishFailedAsync(fehler, ct: ct);
+                _weZugangGemeldet = fehler;
+            }
+            return;
+        }
+        _weZugangGemeldet = null;
+        await service.RunOnceAsync(endpoint, stuckMinutes, batchSize, wiederholung, kuerzel, ct, zugang.Warnung);
     }
+
+    private string? _weZugangGemeldet;
 
     private async Task ProcessWareneingangCsvAsync(CancellationToken ct)
     {
@@ -142,13 +158,20 @@ public class SageBookingWorker : BackgroundService
         await scope.ServiceProvider.GetRequiredService<SageWareneingangService>().AusgeschaltetAsync(ct);
     }
 
-    private async Task<SageBookingEndpoint> BuildEndpointAsync(CancellationToken ct) => new(
-        BaseUrl: await ServiceSettings.GetValueSafeAsync(_configuration, "SData:BaseUrl", ct) ?? string.Empty,
-        Application: await ServiceSettings.GetValueSafeAsync(_configuration, "SData:Application", ct) ?? "ol",
-        ServiceContract: await ServiceSettings.GetValueSafeAsync(_configuration, "SData:ServiceContract", ct) ?? "CommonWawiServices",
-        Dataset: await ServiceSettings.GetValueSafeAsync(_configuration, "SData:Dataset", ct) ?? string.Empty,
-        Username: _configuration["SageLagerbuchung:Username"] ?? string.Empty,
-        Password: _configuration["SageLagerbuchung:Password"] ?? string.Empty);
+    /// <summary>EINE Endpunkt-Erzeugung fuer Lagerbuchung und Sage-Wareneingang (v1.99.14). Zugangsdaten ueber
+    /// <see cref="IDEALAKEWMSService.Services.Sdata.SdataLeseZielLeser.ZugangAsync"/> (DB-first, Kennwort verschluesselt, F6).
+    /// Application/ServiceContract: Fallback auf die Katalog-Defaults, falls der DB-Read scheitert (null).</summary>
+    private async Task<(SageBookingEndpoint Endpoint, IdealAkeWms.Services.SageSdata.SdataZugang Zugang)> BuildEndpointAsync(CancellationToken ct)
+    {
+        var zugang = await IDEALAKEWMSService.Services.Sdata.SdataLeseZielLeser.ZugangAsync(_configuration, ct);
+        return (new SageBookingEndpoint(
+            BaseUrl: await ServiceSettings.GetValueSafeAsync(_configuration, "SData:BaseUrl", ct) ?? string.Empty,
+            Application: await ServiceSettings.GetValueSafeAsync(_configuration, "SData:Application", ct) ?? "ol",
+            ServiceContract: await ServiceSettings.GetValueSafeAsync(_configuration, "SData:ServiceContract", ct) ?? "CommonWawiServices",
+            Dataset: await ServiceSettings.GetValueSafeAsync(_configuration, "SData:Dataset", ct) ?? string.Empty,
+            Username: zugang.Benutzer,
+            Password: zugang.Kennwort), zugang);
+    }
 
     private async Task ProcessOnceAsync(CancellationToken ct)
     {
@@ -167,18 +190,19 @@ public class SageBookingWorker : BackgroundService
         // ab (catch in ExecuteAsync), statt ohne Kuerzel zu senden.
         var kuerzel = SageSystemKuerzel.Pruefen(await ServiceSettings.GetValueAsync(_configuration, SageSystemKuerzel.Key, ct));
 
-        var endpoint = new SageBookingEndpoint(
-            BaseUrl: await ServiceSettings.GetValueSafeAsync(_configuration, "SData:BaseUrl", ct) ?? string.Empty,
-            // Application/ServiceContract sind i.d.R. konstant; Fallback auf die Katalog-Defaults,
-            // falls der DB-Read scheitert (null).
-            Application: await ServiceSettings.GetValueSafeAsync(_configuration, "SData:Application", ct) ?? "ol",
-            ServiceContract: await ServiceSettings.GetValueSafeAsync(_configuration, "SData:ServiceContract", ct) ?? "CommonWawiServices",
-            Dataset: await ServiceSettings.GetValueSafeAsync(_configuration, "SData:Dataset", ct) ?? string.Empty,
-            Username: _configuration["SageLagerbuchung:Username"] ?? string.Empty,
-            Password: _configuration["SageLagerbuchung:Password"] ?? string.Empty);
+        var (endpoint, zugang) = await BuildEndpointAsync(ct);
 
         await using var run = await _syncLogger.BeginRunAsync(SyncLogServices.SageLagerbuchung, ct);
         int gesendet = 0, bestaetigt = 0, fehler = 0, nacherfasst = 0, uebersprungen = 0;
+        // v1.99.14 F6: Kennwort nicht entschluesselbar = in diesem Lauf nichts an Sage, kein Rueckfall; Rueckfall appsettings = Warnung.
+        if (zugang.Fehler is { } zugangsFehler)
+        {
+            await run.LogErrorAsync(zugangsFehler, ct: ct);
+            await run.FinishFailedAsync(zugangsFehler, ct: ct);
+            return;
+        }
+        if (zugang.Warnung is { } zugangsWarnung)
+            await run.LogWarningAsync(zugangsWarnung, ct: ct);
 
         try
         {

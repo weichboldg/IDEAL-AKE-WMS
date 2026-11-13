@@ -1,0 +1,149 @@
+@model IdealAkeWms.Models.ViewModels.SageTestStuecklisteViewModel
+@{
+    ViewData["Title"] = "Sage-Test: Stückliste live";
+}
+@* Spec 2026-11-13-sdata-teil-2-userfelder-stueckliste F4: Artikelnummer -> PpsRessourcenListenInfo (mehrstufig, RowGuid/RowGuidParent),
+   FA-Nummer -> PpsFaBelegeInfo + PpsFaBelegePositionenInfo (Baum ueber BelIDNachfolger). Client-Spaltenfilter (klein, unpaginiert,
+   auf eine Stueckliste vorgefiltert). Einrueckung per padding nach Tiefe; Auf/Zu der Felder per <details> (kein eigenes JS).
+   Nichts wird gespeichert, kein Bezug zu CachedBom*/FaHierarchy*. *@
+
+<partial name="_EinstellungenTabs" model="@("sagetest")" />
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+    <h2 class="page-header mb-0">Stückliste live</h2>
+    <a asp-action="Index" class="btn btn-outline-secondary btn-sm">Zurück zum Register Sage-Test</a>
+</div>
+<p class="text-body-secondary small mb-3">
+    Artikelnummer: Ressourcenliste aus Sage (mehrstufig). FA-Nummer: FA-Struktur mit allen Positionen. Nur lesen.
+</p>
+
+@if (Model.Stand is { NichtKonfiguriert.Count: > 0 } s)
+{
+    <div class="alert alert-warning" role="status">
+        <strong>Sage-SData nicht konfiguriert:</strong> @string.Join(", ", s.NichtKonfiguriert). Es geht keine Anfrage an Sage.
+    </div>
+}
+
+<div class="card filter-card mb-3">
+    <div class="card-body py-2">
+        <form method="get" asp-action="Stueckliste" class="row g-2 align-items-end">
+            <div class="col-md-4">
+                <label for="Artikelnummer" class="form-label mb-0 small">Artikelnummer</label>
+                <input id="Artikelnummer" name="Artikelnummer" class="form-control form-control-sm" value="@Model.Artikelnummer" placeholder="z. B. 86003871" />
+            </div>
+            <div class="col-md-3">
+                <label for="FaNummer" class="form-label mb-0 small">oder FA-Nummer (BelID)</label>
+                <input id="FaNummer" name="FaNummer" type="number" min="1" step="1" inputmode="numeric" class="form-control form-control-sm" value="@Model.FaNummer" />
+            </div>
+            <div class="col-6 col-md-2">
+                <label for="Mandant" class="form-label mb-0 small">Mandant</label>
+                <input id="Mandant" name="Mandant" type="number" min="0" step="1" class="form-control form-control-sm" value="@Model.Mandant" />
+            </div>
+            <div class="col-6 col-md-3">
+                <button type="submit" class="btn btn-primary btn-sm w-100">Stückliste lesen</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@if (Model.Fehler.Count > 0)
+{
+    <div class="alert alert-danger" role="alert">
+        <ul class="mb-0">
+            @foreach (var f in Model.Fehler) { <li>@f</li> }
+        </ul>
+    </div>
+}
+
+@if (Model.Ausgefuehrt && Model.Titel is not null)
+{
+    <h3 class="h5">@Model.Titel</h3>
+    <details class="mb-3">
+        <summary>Kopf: alle Felder (@Model.Kopf.Count, davon Benutzerfelder: @Model.Kopf.Count(k => k.Benutzerfeld))</summary>
+        <table class="table table-sm table-striped mt-2 mb-0">
+            <thead><tr><th>Feld</th><th>Wert</th><th>Art</th></tr></thead>
+            <tbody>
+                @foreach (var k in Model.Kopf)
+                {
+                    <tr>
+                        <td><code>@k.Feld</code></td>
+                        <td class="text-break">@k.Wert</td>
+                        <td>@if (k.Benutzerfeld) { <span class="badge text-bg-primary">Benutzerfeld</span> @k.TypDaten } else { <text>Standard</text> }</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </details>
+
+    @if (Model.Zeilen.Count > 0)
+    {
+        <div class="d-flex justify-content-end mb-1" data-table-toolbar></div>
+        <div class="table-responsive">
+            <table class="table table-sm table-striped mb-0 filterable-table" data-view-key="SageTestStueckliste">
+                <thead>
+                    <tr>
+                        <th data-filterable data-col-key="position">@(Model.FaModus ? "FA / Position" : "Position")</th>
+                        <th data-filterable data-col-key="ebene">Ebene</th>
+                        <th data-filterable data-col-key="typ">Ressourcetyp</th>
+                        <th data-filterable data-col-key="nummer">Ressourcenummer</th>
+                        <th data-filterable data-col-key="bezeichnung">Bezeichnung/Matchcode</th>
+                        <th class="text-end" data-filterable data-filter-type="number" data-col-key="menge">Menge</th>
+                        <th data-filterable data-col-key="ag">Arbeitsgang</th>
+                        <th data-filterable data-col-key="ubg">ArtikelnummerUBG</th>
+                        <th data-filterable data-col-key="platz">Platz</th>
+                        @if (Model.FaModus)
+                        {
+                            <th data-filterable data-col-key="belposid">BelPosID</th>
+                            <th class="text-end" data-filterable data-filter-type="number" data-col-key="soll">Sollmenge</th>
+                            <th class="text-end" data-filterable data-filter-type="number" data-col-key="ist">Istmenge</th>
+                        }
+                        <th data-csv-export="false">Alle Felder</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var z in Model.Zeilen)
+                    {
+                        <tr class="@(z.IstFa ? "fw-semibold" : "")">
+                            <td style="padding-left: @(0.5 + z.Tiefe * 1.25)rem">@(z.IstFa ? $"FA {z.Position}" : z.Position)</td>
+                            <td>@(z.Ebene ?? z.Tiefe.ToString())</td>
+                            <td>@z.Ressourcetyp</td>
+                            <td>@z.Ressourcenummer</td>
+                            <td>@z.Bezeichnung</td>
+                            <td class="text-end">@z.Menge</td>
+                            <td>@z.Arbeitsgang</td>
+                            <td>@z.ArtikelnummerUbg</td>
+                            <td>@z.Platz</td>
+                            @if (Model.FaModus)
+                            {
+                                <td>@z.BelPosId</td>
+                                <td class="text-end">@z.Sollmenge</td>
+                                <td class="text-end">@z.Istmenge</td>
+                            }
+                            <td>
+                                <details>
+                                    <summary>@z.AlleFelder.Count Felder@(z.AlleFelder.Any(f => f.Benutzerfeld) ? $", {z.AlleFelder.Count(f => f.Benutzerfeld)} Benutzerfelder" : "")</summary>
+                                    <dl class="small mb-0 mt-1">
+                                        @foreach (var f in z.AlleFelder)
+                                        {
+                                            <dt class="fw-normal"><code>@f.Feld</code>@if (f.Benutzerfeld) { <span class="badge text-bg-primary ms-1">Benutzerfeld</span> }</dt>
+                                            <dd class="mb-1 text-break">@(f.Wert ?? "–")</dd>
+                                        }
+                                    </dl>
+                                </details>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+}
+
+@if (Model.Aufrufe.Count > 0)
+{
+    <details class="mt-3">
+        <summary class="small">Aufrufe an Sage (@Model.Aufrufe.Count)</summary>
+        <ul class="small mb-0">
+            @foreach (var a in Model.Aufrufe) { <li class="text-break">@a</li> }
+        </ul>
+    </details>
+}

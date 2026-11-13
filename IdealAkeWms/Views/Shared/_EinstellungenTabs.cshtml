@@ -1,0 +1,22 @@
+@model string
+@* Reiterleiste der Einstellungen (v1.99.14, Spec 2026-11-13-sdata-teil-2-userfelder-stueckliste F1), Muster _BdeMasterDataTabs.
+   Alle vier Ziele sind [RequireAdminAccess] - keine eigene Sichtbarkeitsregel. Model = aktiver Reiter
+   (einstellungen | service | standort | sagetest). *@
+@{
+    var reiter = new (string Key, string Controller, string Text)[]
+    {
+        ("einstellungen", "Settings", "Einstellungen"),
+        ("service", "ServiceSettings", "Service-Einstellungen"),
+        ("standort", "StandortEinstellungen", "Standorteinstellungen"),
+        ("sagetest", "SageTest", "Sage-Test"),
+    };
+}
+<ul class="nav nav-tabs mb-3">
+    @foreach (var r in reiter)
+    {
+        <li class="nav-item">
+            <a class="nav-link @(Model == r.Key ? "active" : "")" aria-current="@(Model == r.Key ? "page" : null)"
+               asp-controller="@r.Controller" asp-action="Index">@r.Text</a>
+        </li>
+    }
+</ul>

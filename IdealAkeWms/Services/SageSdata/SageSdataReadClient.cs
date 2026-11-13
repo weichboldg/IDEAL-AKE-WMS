@@ -24,7 +24,19 @@ public interface ISageSdataReadClient
     /// </summary>
     Task<SdataSeiten<T>> QueryAllAsync<T>(SdataLeseZiel ziel, string vertrag, string ressource, string? where, string? select,
         string orderBy, CancellationToken ct, int count = SageSdataReadClient.Seitengroesse);
+
+    /// <summary>v1.99.14 (Register Sage-Test): GENAU eine Seite (<c>startIndex=0</c>), ohne select, optional mit <c>include</c>; nur GET.
+    /// Wirft wie <see cref="QueryAllAsync{T}"/> (<see cref="SdataLeseException"/>). Default-Implementierung nur fuer Test-Fakes.</summary>
+    Task<SdataEineSeite> QueryPageAsync(SdataLeseZiel ziel, string vertrag, string ressource, string? where, string orderBy, string? include,
+        int count, CancellationToken ct) => throw new NotSupportedException();
+
+    /// <summary>v1.99.14: <c>GET {Vertrag}/{Ressource}/$schema</c> bzw. ohne Ressource das Schema des ganzen Vertrags (XSD-Text); nur GET.
+    /// Wirft <see cref="SdataLeseException"/> bei HTTP-/Verbindungsfehler. Default-Implementierung nur fuer Test-Fakes.</summary>
+    Task<string> GetSchemaAsync(SdataLeseZiel ziel, string vertrag, string? ressource, CancellationToken ct) => throw new NotSupportedException();
 }
+
+/// <summary>Eine gelesene Seite (Register Sage-Test): Zeilen als <see cref="JsonElement"/> (Felder vorab unbekannt).</summary>
+public sealed record SdataEineSeite(IReadOnlyList<JsonElement> Zeilen, int? Gesamt, string Url, long DauerMs);
 
 /// <summary>
 /// Spec 2026-10-30-sage-sdata-fa-ansicht (v1.71.0). Muster wie der Lagerbuchungs-Client des Dienstes
@@ -153,10 +165,11 @@ public sealed class SageSdataReadClient : ISageSdataReadClient
     /// sonst zerschneiden (<c>#</c> = Fragment, z. B. Memo <c>SM#123#</c>) bzw. falsch dekodiert.
     /// </summary>
     public static string BuildQueryUrl(SdataLeseZiel ziel, string vertrag, string ressource, string? where, string? select,
-        string orderBy, int count, int startIndex)
+        string orderBy, int count, int startIndex, string? include = null)
     {
         var query = $"{ressource}?format=json&orderBy={orderBy}&count={count}&startIndex={startIndex}"
             + (string.IsNullOrWhiteSpace(select) ? "" : $"&select={select}")
+            + (string.IsNullOrWhiteSpace(include) ? "" : $"&include={include}")
             + (string.IsNullOrWhiteSpace(where) ? "" : "&where=" + where.Replace("%", "%25").Replace("#", "%23").Replace("&", "%26").Replace("+", "%2B"));
         return SdataUrlBuilder.BuildResourceUrl(ziel.BaseUrl, ziel.Application, vertrag, ziel.Dataset, query);
     }
@@ -203,6 +216,49 @@ public sealed class SageSdataReadClient : ISageSdataReadClient
 
         _logger.LogInformation("Sage-SData {Ressource}: {Zeilen} Zeilen in {Seiten} Seite(n), {Ms} ms.", ressource, zeilen.Count, seiten, uhr.ElapsedMilliseconds);
         return new SdataSeiten<T>(zeilen, ressource, seiten, gesamt, uhr.ElapsedMilliseconds);
+    }
+
+    public async Task<SdataEineSeite> QueryPageAsync(SdataLeseZiel ziel, string vertrag, string ressource, string? where, string orderBy,
+        string? include, int count, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(ressource)) throw new ArgumentException("SData-Ressource fehlt.", nameof(ressource));
+        if (string.IsNullOrWhiteSpace(orderBy))
+            throw new ArgumentException("SData-Abfrage ohne orderBy ist gesperrt (Sage antwortet sonst mit HTTP 500).", nameof(orderBy));
+        if (count <= 0) throw new ArgumentOutOfRangeException(nameof(count), count, "Anzahl muss größer 0 sein.");
+        var uhr = Stopwatch.StartNew();
+        var url = BuildQueryUrl(ziel, vertrag, ressource, where, null, orderBy, count, 0, include);
+        var feed = await LeseSeiteAsync<JsonElement>(ziel, ressource, url, ct);
+        return new SdataEineSeite(feed.Resources!, feed.TotalResults, url, uhr.ElapsedMilliseconds);
+    }
+
+    public async Task<string> GetSchemaAsync(SdataLeseZiel ziel, string vertrag, string? ressource, CancellationToken ct)
+    {
+        var url = SdataUrlBuilder.BuildResourceUrl(ziel.BaseUrl, ziel.Application, vertrag, ziel.Dataset,
+            string.IsNullOrWhiteSpace(ressource) ? "$schema" : $"{ressource}/$schema");
+        var name = string.IsNullOrWhiteSpace(ressource) ? vertrag : ressource;
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeout.CancelAfter(SeitenTimeout);
+        try
+        {
+            using var message = new HttpRequestMessage(HttpMethod.Get, url);
+            message.Options.Set(ZertifikatPruefenOption, ziel.ZertifikatPruefen);
+            message.Headers.Authorization = new AuthenticationHeaderValue("Basic",
+                Convert.ToBase64String(Encoding.UTF8.GetBytes($"{ziel.Username}:{ziel.Password}")));
+            using var response = await _http.SendAsync(message, timeout.Token);
+            var body = await response.Content.ReadAsStringAsync(timeout.Token);
+            if (!response.IsSuccessStatusCode)
+                throw new SdataLeseException(name, (int)response.StatusCode,
+                    DiagnoseText(body) ?? $"{response.ReasonPhrase} {(body.Length <= 300 ? body : body[..300])}".Trim());
+            return body;
+        }
+        catch (OperationCanceledException ex) when (!ct.IsCancellationRequested)
+        {
+            throw new SdataLeseException(name, 0, $"Zeitüberschreitung ({SeitenTimeout.TotalSeconds:0} s).", ex);
+        }
+        catch (HttpRequestException ex)
+        {
+            throw new SdataLeseException(name, 0, ex.InnerException is null ? ex.Message : $"{ex.Message} ({ex.InnerException.Message})", ex);
+        }
     }
 
     private async Task<SdataFeed<T>> LeseSeiteAsync<T>(SdataLeseZiel ziel, string ressource, string url, CancellationToken ct)

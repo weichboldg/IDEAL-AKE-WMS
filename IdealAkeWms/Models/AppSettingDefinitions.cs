@@ -20,7 +20,6 @@ public static class AppSettingDefinitions
     private const string GBde = "BDE";
     private const string GOseon = "Teileverfolgung und OSEON (AKE)";
     private const string GIdeal = "IDEAL FA-Hierarchie";
-    private const string GSage = "Sage";
     private const string GAnmeldung = "Anmeldung";
     private const string GFirma = "Firma und Druck";
     private const string GLinks = "Links (Vault, enaio)";
@@ -186,10 +185,6 @@ public static class AppSettingDefinitions
             "Menü, Vormontage", "IDEAL", seed: true),
         I(AppSettingKeys.FaHierarchyMaxDepth, "500", GIdeal, "FA-Struktur: max. Tiefe", "Höchste Rekursionstiefe beim Aufbau der FA-Struktur (Reißleine).",
             "FA-Struktur", "IDEAL", seed: true, "Ebenen"),
-
-        // ---- Sage ----
-        B(AppSettingKeys.SageSdataFaAnsichtAktiv, "false", GSage, "FA-Struktur live aus Sage", "Zeigt die Ansicht „FA-Struktur (Sage live)“ (liest nur).",
-            "Menü, FA-Struktur (Sage live)", Beide, seed: false),
 
         // ---- Anmeldung ----
         B(AppSettingKeys.WindowsAuthAktiv, "false", GAnmeldung, "Windows-Anmeldung", "Automatische Anmeldung mit dem Windows-Konto.",

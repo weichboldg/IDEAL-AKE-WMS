@@ -31,17 +31,12 @@ builder.Services.AddDbContextFactory<ApplicationDbContext>(options =>
 // ausgegebene Antiforgery-Tokens lassen sich nicht mehr entschluesseln -> Fehlerseite beim
 // naechsten Formular-POST (z. B. Abmelden). Pfad ueber Config 'DataProtection:KeysPath'
 // ueberschreibbar; Default unter %ProgramData% (ueberlebt Redeploys).
-var dataProtectionKeysPath = builder.Configuration["DataProtection:KeysPath"];
-if (string.IsNullOrWhiteSpace(dataProtectionKeysPath))
-{
-    dataProtectionKeysPath = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
-        "IdealAkeWms", "DataProtection-Keys");
-}
+// v1.99.14: Pfad an EINER Stelle (SdataZugangsdaten.SchluesselPfad) - der Dienst liest denselben Ring (SData-Kennwort, nur lesend).
+var dataProtectionKeysPath = IdealAkeWms.Services.SageSdata.SdataZugangsdaten.SchluesselPfad(builder.Configuration);
 Directory.CreateDirectory(dataProtectionKeysPath);
 builder.Services.AddDataProtection()
     .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionKeysPath))
-    .SetApplicationName("IdealAkeWms");
+    .SetApplicationName(IdealAkeWms.Services.SageSdata.SdataZugangsdaten.ApplicationName);
 
 // Authentication - Windows-Auth über IIS in-process Hosting
 builder.Services.AddAuthentication(IISServerDefaults.AuthenticationScheme);

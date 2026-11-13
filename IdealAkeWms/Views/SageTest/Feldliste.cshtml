@@ -1,0 +1,141 @@
+@model IdealAkeWms.Models.ViewModels.SageTestFeldlisteViewModel
+@using IdealAkeWms.Models.ViewModels
+@{
+    ViewData["Title"] = "Sage-Test: Feldliste";
+    string JaNein(bool b) => b ? "ja" : "nein";
+}
+@* Spec 2026-11-13-sdata-teil-2-userfelder-stueckliste F3. Client-Spaltenfilter (CLAUDE.md Listen-Views: kleine, unpaginierte
+   Diagnose-Ausgabe einer Ressource, max. 5 Beispielzeilen) - bewusst ohne Server-Mode und Pagination. *@
+
+<partial name="_EinstellungenTabs" model="@("sagetest")" />
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+    <h2 class="page-header mb-0">Feldliste</h2>
+    <a asp-action="Index" class="btn btn-outline-secondary btn-sm">Zurück zum Register Sage-Test</a>
+</div>
+<p class="text-body-secondary small mb-3">
+    Liest zuerst das Schema der Ressource, dann eine Seite Daten ohne Feldauswahl (nur GET, nacheinander).
+</p>
+
+@if (Model.Stand is { NichtKonfiguriert.Count: > 0 } s)
+{
+    <div class="alert alert-warning" role="status">
+        <strong>Sage-SData nicht konfiguriert:</strong> @string.Join(", ", s.NichtKonfiguriert). Es geht keine Anfrage an Sage.
+    </div>
+}
+
+<div class="card filter-card mb-3">
+    <div class="card-body py-2">
+        <form method="get" asp-action="Feldliste" class="row g-2 align-items-end">
+            <div class="col-md-4">
+                <label for="Vertrag" class="form-label mb-0 small">Vertrag</label>
+                <select id="Vertrag" name="Vertrag" class="form-select form-select-sm">
+                    @foreach (var v in SageTestFeldlisteViewModel.Vertraege)
+                    {
+                        <option value="@v" selected="@(v == Model.Vertrag)">@v</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label for="Ressource" class="form-label mb-0 small">Ressource</label>
+                <input id="Ressource" name="Ressource" class="form-control form-control-sm" value="@Model.Ressource" list="ressourcen" required />
+                <datalist id="ressourcen">
+                    @foreach (var r in SageTestFeldlisteViewModel.Vorschlaege) { <option value="@r"></option> }
+                </datalist>
+            </div>
+            <div class="col-md-4">
+                <label for="OrderBy" class="form-label mb-0 small">orderBy (Pflicht)</label>
+                <input id="OrderBy" name="OrderBy" class="form-control form-control-sm" value="@Model.OrderBy" placeholder="z. B. BelID" required />
+            </div>
+            <div class="col-md-5">
+                <label for="Where" class="form-label mb-0 small">where (bei RealTimeData Pflicht)</label>
+                <input id="Where" name="Where" class="form-control form-control-sm" value="@Model.Where" placeholder="z. B. BelID eq 835" />
+            </div>
+            <div class="col-md-4">
+                <label for="Include" class="form-label mb-0 small">include (optional)</label>
+                <input id="Include" name="Include" class="form-control form-control-sm" value="@Model.Include" placeholder="z. B. SpecificUserfields" />
+            </div>
+            <div class="col-6 col-md-1">
+                <label for="Anzahl" class="form-label mb-0 small">Zeilen</label>
+                <input id="Anzahl" name="Anzahl" type="number" min="1" max="5" step="1" class="form-control form-control-sm" value="@Model.Anzahl" />
+            </div>
+            <div class="col-6 col-md-2">
+                <button type="submit" class="btn btn-primary btn-sm w-100">Felder lesen</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@if (Model.Fehler.Count > 0)
+{
+    <div class="alert alert-danger" role="alert">
+        <ul class="mb-0">
+            @foreach (var f in Model.Fehler) { <li>@f</li> }
+        </ul>
+    </div>
+}
+@foreach (var h in Model.Hinweise)
+{
+    <div class="alert alert-info py-2" role="status">@h</div>
+}
+
+@if (Model.Ausgefuehrt)
+{
+    <div class="card mb-3">
+        <div class="card-body py-2 small">
+            @if (Model.Schema is { } schema)
+            {
+                <div><span class="fw-semibold">Rechte laut Schema (Vertrag, nicht Benutzer):</span>
+                    Lesen: @JaNein(schema.Lesen) | Anlegen: @JaNein(schema.Anlegen) | Ändern: @JaNein(schema.Aendern) | Löschen: @JaNein(schema.Loeschen)</div>
+            }
+            else
+            {
+                <div><span class="fw-semibold">Rechte laut Schema:</span> unbekannt (Schema nicht lesbar)</div>
+            }
+            <div><span class="fw-semibold">Felder:</span> @Model.Felder.Count, davon Benutzerfelder: @Model.Felder.Count(f => f.Benutzerfeld)
+                | <span class="fw-semibold">Zeilen gelesen:</span> @Model.Zeilen | <span class="fw-semibold">$totalResults:</span> @(Model.Gesamt?.ToString() ?? "–")
+                | <span class="fw-semibold">Dauer:</span> @Model.DauerMs ms</div>
+            @if (Model.Url is not null)
+            {
+                <div class="text-break"><span class="fw-semibold">URL:</span> <code>@Model.Url</code></div>
+            }
+        </div>
+    </div>
+
+    @if (Model.Felder.Count > 0)
+    {
+        <div class="d-flex justify-content-end mb-1" data-table-toolbar></div>
+        <div class="table-responsive">
+            <table class="table table-sm table-striped mb-0 filterable-table" data-view-key="SageTestFeldliste">
+                <thead>
+                    <tr>
+                        <th data-filterable data-col-key="feld">Feld</th>
+                        <th data-filterable data-col-key="typ">Typ/Länge (Schema)</th>
+                        <th data-filterable data-col-key="schema">im Schema</th>
+                        <th data-filterable data-col-key="daten">in den Daten</th>
+                        <th data-filterable data-col-key="art">Art</th>
+                        @for (var i = 0; i < Model.Zeilen; i++)
+                        {
+                            <th data-filterable data-col-key="@($"wert{i + 1}")">Beispiel @(i + 1)</th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var f in Model.Felder)
+                    {
+                        <tr>
+                            <td><code>@f.Feld</code></td>
+                            <td>@(f.TypLaenge ?? "–")</td>
+                            <td>@JaNein(f.ImSchema)</td>
+                            <td>@JaNein(f.InDaten)</td>
+                            <td>@if (f.Benutzerfeld) { <span class="badge text-bg-primary">Benutzerfeld</span> } else { <text>Standard</text> }</td>
+                            @for (var i = 0; i < Model.Zeilen; i++)
+                            {
+                                <td class="text-break">@(i < f.Beispiele.Length ? f.Beispiele[i] : null)</td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+}

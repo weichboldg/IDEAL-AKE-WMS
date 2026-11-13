@@ -53,8 +53,22 @@ public static class SdataLeseZielLeser
         var application = (await ServiceSettings.GetValueSafeAsync(configuration, "SData:Application", ct))?.Trim();
         var dataset = (await ServiceSettings.GetValueSafeAsync(configuration, "SData:Dataset", ct))?.Trim();
         var pruefen = SageTlsPolicy.ShouldVerifyCertificate(await ServiceSettings.GetValueSafeAsync(configuration, SageTlsPolicy.SettingKey, ct));
-        return Bauen(baseUrl, application, dataset, configuration["SageLagerbuchung:Username"], configuration["SageLagerbuchung:Password"], pruefen);
+        var zugang = await ZugangAsync(configuration, ct);
+        if (zugang.Fehler is { } f)
+            throw new InvalidOperationException(f + ".");   // kein Sage-Aufruf, kein Rueckfall auf appsettings
+        return Bauen(baseUrl, application, dataset, zugang.Benutzer, zugang.Kennwort, pruefen) with { Warnung = zugang.Warnung };
     }
+
+    /// <summary>
+    /// v1.99.14 (Spec 2026-11-13-sdata-teil-2 F6): Zugangsdaten an EINER Stelle (<see cref="SdataZugangsdaten"/>) — DB first, Kennwort mit dem
+    /// Schluesselring der Web-App entschluesselt (nur lesend). Bewusst NICHT die Safe-Variante: ein DB-Lesefehler darf nicht still auf
+    /// appsettings zurueckfallen.
+    /// </summary>
+    public static async Task<SdataZugang> ZugangAsync(IConfiguration configuration, CancellationToken ct) =>
+        SdataZugangsdaten.Aufloesen(
+            await ServiceSettings.GetValueAsync(configuration, SdataZugangsdaten.BenutzerKey, ct),
+            await ServiceSettings.GetValueAsync(configuration, SdataZugangsdaten.KennwortKey, ct),
+            configuration, SdataZugangsdaten.DienstProvider(configuration));
 
     public static SdataLeseZiel Bauen(string? baseUrl, string? application, string? dataset, string? username, string? password, bool zertifikatPruefen)
     {
@@ -62,7 +76,7 @@ public static class SdataLeseZielLeser
         if (string.IsNullOrWhiteSpace(baseUrl)) fehlt.Add("SData:BaseUrl");
         else if (baseUrl.Contains('@')) fehlt.Add("SData:BaseUrl ohne Zugangsdaten");
         if (string.IsNullOrWhiteSpace(dataset)) fehlt.Add("SData:Dataset");
-        if (string.IsNullOrWhiteSpace(username)) fehlt.Add("SageLagerbuchung:Username");
+        if (string.IsNullOrWhiteSpace(username)) fehlt.Add("SData:Username (bzw. appsettings SageLagerbuchung:Username)");
         if (fehlt.Count > 0)
             throw new InvalidOperationException("SData nicht konfiguriert: " + string.Join(", ", fehlt) + ".");
         return new SdataLeseZiel(baseUrl!, string.IsNullOrWhiteSpace(application) ? "ol" : application, dataset!, username!, password ?? string.Empty, zertifikatPruefen);

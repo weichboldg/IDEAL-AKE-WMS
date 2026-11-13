@@ -63,6 +63,7 @@ public static class ColumnFilterTypes
             ["ProductionWorkplaces/Index"] = L(("pre-picking-days", N), ("sage-missing", D)),
             ["Roles/Index"] = L(("user-count", N)),
             ["SageBookingQueue/Index"] = L(("id", N), ("quantity", N), ("created-at", D), ("sent-at", D), ("confirmed-at", D), ("attempts", N)),
+            ["SageTest/Stueckliste"] = L(("menge", N), ("soll", N), ("ist", N)), // v1.99.14 Register Sage-Test, Client-Modus
             ["StockMovements/Index"] = L(("datetime", D)),
             ["StockOverview/Index"] = L(("reorder-level", N), ("current-stock", N)),
             ["StorageLocations/Index"] = L(("capacity", N), ("created-at", D)),

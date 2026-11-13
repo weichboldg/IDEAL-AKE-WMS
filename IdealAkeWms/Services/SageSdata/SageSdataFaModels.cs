@@ -59,6 +59,9 @@ public sealed record SdataErgebnis<T>(IReadOnlyList<T> Zeilen, SdataCall Call);
 public sealed record SdataLeseZiel(
     string BaseUrl, string Application, string Dataset, string Username, string Password, bool ZertifikatPruefen)
 {
+    /// <summary>v1.99.14: Rueckfall auf appsettings-Zugangsdaten — der Lauf schreibt sie einmal als Warnung (ohne Werte).</summary>
+    public string? Warnung { get; init; }
+
     // Zugangsdaten nie in Logs/Diagnose: ToString des Records wuerde sie sonst ausgeben.
     public override string ToString() => $"SdataLeseZiel {{ BaseUrl = {BaseUrl}, Dataset = {Dataset} }}";
 }

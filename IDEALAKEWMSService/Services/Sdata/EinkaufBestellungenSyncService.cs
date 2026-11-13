@@ -63,6 +63,7 @@ public class EinkaufBestellungenSyncService
         try
         {
             ziel ??= await SdataLeseZielLeser.LesenAsync(_config, ct);
+            if (ziel.Warnung is { } zugangsWarnung) await run.LogWarningAsync(zugangsWarnung, ct: ct); // v1.99.14 F6: Rueckfall appsettings
             var seiten = await _client.QueryAllAsync<SdataEinkaufPositionZeile>(ziel, SageSdataReadClient.VertragResources, Ressource,
                 Where, Select, OrderBy, ct, Seitengroesse);
             zeilen = seiten.Zeilen;

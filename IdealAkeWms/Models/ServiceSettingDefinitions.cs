@@ -87,16 +87,21 @@ public static class ServiceSettingDefinitions
             "Dienst: Lauf „Wareneingang-CSV“ (Wiederholen nach Schreibfehler); Liste „Sage-Wareneingänge“", "AKE (IDEAL ohne Wirkung)", null),
         ["Sync:WareneingangCsvWiederholAbstandMinuten"] = ("Wareneingang-CSV: Abstand der Wiederholungen",
             "Dienst: Lauf „Wareneingang-CSV“", "AKE (IDEAL ohne Wirkung)", null),
-        ["SData:BaseUrl"] = ("SData: Adresse", "Sage-Buchung, Sage-Abgleich, FA-Struktur live", null, null),
-        ["SData:Application"] = ("SData: Application", "Sage-Buchung, Sage-Abgleich, FA-Struktur live", null, null),
+        ["SData:BaseUrl"] = ("SData: Adresse", "Sage-Buchung, Sage-Abgleich, Register Sage-Test", null, null),
+        ["SData:Application"] = ("SData: Application", "Sage-Buchung, Sage-Abgleich, Register Sage-Test", null, null),
         ["SData:ServiceContract"] = ("SData: ServiceContract", "Sage-Buchung", null, null),
-        ["SData:Dataset"] = ("SData: Dataset (Mandant)", "Sage-Buchung, Sage-Abgleich, FA-Struktur live", null, null),
+        ["SData:Dataset"] = ("SData: Dataset (Mandant)", "Sage-Buchung, Sage-Abgleich, Register Sage-Test", null, null),
+        // v1.99.14 (Spec 2026-11-13-sdata-teil-2-userfelder-stueckliste F6): Zugangsdaten DB-first, Kennwort verschluesselt
+        ["SData:Username"] = ("SData: Benutzer", SDataZugangVerwendung, "beide (IDEAL erst mit SData-Endpunkt)",
+            "Gilt auch für die Schreibwege an Sage (Lagerbuchung, Wareneingang). Falscher Benutzer = Buchungen schlagen fehl."),
+        ["SData:Password"] = ("SData: Kennwort", SDataZugangVerwendung, "beide (IDEAL erst mit SData-Endpunkt)",
+            "Gilt auch für die Schreibwege an Sage (Lagerbuchung, Wareneingang). Falscher Benutzer = Buchungen schlagen fehl. Nach dem Wechsel der Server-Schlüssel (DataProtection-Ordner gelöscht) oder nach dem Kopieren der Datenbank auf ein anderes System neu eingeben."),
         ["Sync:SageLagerbuchungIntervalSeconds"] = ("Sage-Buchung: Intervall", "Dienst: Sage-Buchungs-Worker", null, null),
         ["Sync:SageLagerbuchungBatchSize"] = ("Sage-Buchung: Einträge je Durchlauf", "Dienst: Sage-Buchungs-Worker", null, null),
         ["Sync:SageLagerbuchungMaxRetries"] = ("Sage-Buchung: max. Versuche", "Dienst: Sage-Buchungs-Worker", null, null),
         ["Sync:SageLagerbuchungMaxErrorsPerRun"] = ("Sage-Buchung: Fehlermail ab Fehlern je Lauf", "Dienst: Sage-Buchungs-Worker", null, null),
         ["Sync:SageLagerbuchungStuckMinutes"] = ("Sage-Buchung: hängend nach", "Dienst: Sage-Buchungs-Worker; Sage-Wareneingang (hängend → Fehler „Ergebnis unklar“)", null, null),
-        ["SageLagerbuchungSslZertifikatPruefen"] = ("SData: TLS-Zertifikat prüfen", "Sage-Buchung, Sage-Abgleich, FA-Struktur live", null, null),
+        ["SageLagerbuchungSslZertifikatPruefen"] = ("SData: TLS-Zertifikat prüfen", "Sage-Buchung, Sage-Abgleich, Register Sage-Test", null, null),
         ["Sync:Quelle:Lagerplaetze"] = ("Quelle Lagerplatz-Abgleich", "Dienst: Lauf „Lagerplatz“", null, WarnSData),
         ["Sync:Quelle:Lagerbestand"] = ("Quelle Lagerbestand-Abgleich", "Dienst: Lauf „Lagerbestand“", null, WarnSData),
         ["Sync:Quelle:Artikel"] = ("Quelle Artikel-Abgleich", "Dienst: Lauf „Artikel“", "AKE frei; IDEAL gesperrt bis P-R1", WarnSData),
@@ -238,12 +243,15 @@ public static class ServiceSettingDefinitions
         new("SData:Application",                     SettingType.String, "ol",  "Sage-Lagerbuchung", "SData-Application-Segment (per SData-Discovery ermittelt, i.d.R. konstant 'ol')"),
         new("SData:ServiceContract",                 SettingType.String, "CommonWawiServices", "Sage-Lagerbuchung", "SData-ServiceContract-Segment (i.d.R. konstant 'CommonWawiServices')"),
         new("SData:Dataset",                         SettingType.String, "",    "Sage-Lagerbuchung", "Mandant/dataset-Segment der SData-URL (pro Standort/Instanz, z.B. ake_TEST2026;1 — Semikolon literal, NICHT kodieren)"),
+        new(IdealAkeWms.Services.SageSdata.SdataZugangsdaten.BenutzerKey, SettingType.String, "", "Sage-Lagerbuchung", "Benutzer der SData-Anmeldung (v1.99.14). Gesetzt = gilt zusammen mit dem Kennwort unten; leer = Rueckfall auf appsettings SageLagerbuchung:Username/Password mit Warnung im Lauf.",
+            Muster: (@"^.{0,100}$", "höchstens 100 Zeichen")),
+        new(IdealAkeWms.Services.SageSdata.SdataZugangsdaten.KennwortKey, SettingType.Geheim, "", "Sage-Lagerbuchung", "Kennwort zu 'SData: Benutzer' (v1.99.14), 1 bis 128 Zeichen. Wird verschluesselt gespeichert und nie angezeigt; leeres Feld = unveraendert. Nicht entschluesselbar = kein Sage-Aufruf, Meldung im Lauf."),
         new("Sync:SageLagerbuchungIntervalSeconds",  SettingType.Int,  "20",    "Sage-Lagerbuchung", "Poll-Intervall (Sekunden) des SageBookingWorker fuer offene Queue-Eintraege ('fast live')"),
         new("Sync:SageLagerbuchungBatchSize",        SettingType.Int,  "50",    "Sage-Lagerbuchung", "Maximale Anzahl Queue-Eintraege, die je Worker-Tick verarbeitet werden"),
         new("Sync:SageLagerbuchungMaxRetries",       SettingType.Int,  "5",     "Sage-Lagerbuchung", "Maximale automatische Sende-Versuche je Eintrag; danach bleibt er auf 'Fehler' und braucht ein manuelles Requeue"),
         new("Sync:SageLagerbuchungMaxErrorsPerRun",  SettingType.Int,  "50",    "Sage-Lagerbuchung", "Sicherheits-Cap: mehr Fehler je Lauf -> Fehlermail (ISyncErrorNotifier)"),
         new("Sync:SageLagerbuchungStuckMinutes",     SettingType.Int,  "10",    "Sage-Lagerbuchung", "Ein 'Gesendet'-Eintrag aelter als X Minuten gilt als haengend und wird ueber den Sage-Memo-Lookup aufgeloest (nie blind neu gesendet)"),
-        new("SageLagerbuchungSslZertifikatPruefen",  SettingType.Bool, "true",  "Sage-Lagerbuchung", "TLS-Zertifikat des Sage-SData-Servers pruefen. NUR fuer Testsysteme mit ungueltigem Zertifikat auf 'false' setzen (analog Postman 'Enable SSL certificate verification'). Wirkt nur auf die Sage-SData-Clients (Lagerbuchung + FA-Ansicht Sage live + Stammdaten-Abgleich). Fehlt/unparsebar -> geprueft (fail-safe)."),
+        new("SageLagerbuchungSslZertifikatPruefen",  SettingType.Bool, "true",  "Sage-Lagerbuchung", "TLS-Zertifikat des Sage-SData-Servers pruefen. NUR fuer Testsysteme mit ungueltigem Zertifikat auf 'false' setzen (analog Postman 'Enable SSL certificate verification'). Wirkt nur auf die Sage-SData-Clients (Lagerbuchung + Sage-Test + Stammdaten-Abgleich). Fehlt/unparsebar -> geprueft (fail-safe)."),
 
         // ----- Sage-Abgleich ueber SData (Spec 2026-11-06-sage-sdata-stammdaten-sync, v1.73.0) -----
         // Default View bzw. false = Verhalten unveraendert. Endpunkt/Zugang wie Sage-Lagerbuchung (SData:*, appsettings SageLagerbuchung).
@@ -318,6 +326,7 @@ public static class ServiceSettingDefinitions
     };
 
     private const string LvKategorie = "Lieferverzug-Mail";
+    private const string SDataZugangVerwendung = "Dienst: Sage-Buchungs-Worker (Lagerbuchung, Sage-Wareneingang), alle SData-Abgleiche; Web: Register Sage-Test, FA-Struktur live";
     private const string WeCsvKategorie = "Wareneingang-CSV";
 
     /// <summary>Findet eine Definition per Key (case-sensitiv, wie DB-Key).</summary>

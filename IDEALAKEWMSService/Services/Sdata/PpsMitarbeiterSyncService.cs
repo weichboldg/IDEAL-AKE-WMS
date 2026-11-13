@@ -49,6 +49,7 @@ public class PpsMitarbeiterSyncService
         try
         {
             ziel ??= await SdataLeseZielLeser.LesenAsync(_config, ct);
+            if (ziel.Warnung is { } zugangsWarnung) await run.LogWarningAsync(zugangsWarnung, ct: ct); // v1.99.14 F6: Rueckfall appsettings
             var seiten = await _client.QueryAllAsync<SdataPpsMitarbeiterZeile>(ziel, SageSdataReadClient.VertragResources, Ressource,
                 null, Select, "Nummer", ct);
             zeilen = seiten.Zeilen;

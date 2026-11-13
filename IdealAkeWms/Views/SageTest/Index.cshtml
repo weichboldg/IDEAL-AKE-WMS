@@ -1,0 +1,216 @@
+@model IdealAkeWms.Services.SageSdata.SdataWebStand
+@using IdealAkeWms.Services.SageSdata
+@{
+    ViewData["Title"] = "Sage-Test";
+    var kennwortKlasse = Model.KennwortStatus == SdataZugangsdaten.StatusGesetzt ? "text-bg-success"
+        : Model.KennwortStatus == SdataZugangsdaten.StatusAppsettings ? "text-bg-warning"
+        : Model.KennwortStatus == SdataZugangsdaten.StatusNichtGesetzt ? "text-bg-secondary" : "text-bg-danger";
+    var konfiguriert = Model.NichtKonfiguriert.Count == 0;
+}
+@* Spec 2026-11-13-sdata-teil-2-userfelder-stueckliste F1/F2: Testwerkzeuge fuer Admins, nur lesen. Das Kennwort erreicht den Browser nie. *@
+
+<partial name="_EinstellungenTabs" model="@("sagetest")" />
+
+<h2 class="page-header">Sage-Test</h2>
+<p class="text-body-secondary small mb-3">
+    Werkzeuge zum Prüfen der Sage-Schnittstelle (SData). Alle Abfragen lesen nur; nichts wird in Sage oder im WMS gespeichert.
+</p>
+
+@if (!konfiguriert)
+{
+    <div class="alert alert-warning" role="status">
+        <strong>Sage-SData nicht konfiguriert:</strong> @string.Join(", ", Model.NichtKonfiguriert).
+        Bis dahin geht keine Anfrage an Sage. Werte unter <a asp-controller="ServiceSettings" asp-action="Index">Service-Einstellungen</a> ergänzen.
+    </div>
+}
+@if (Model.Zugang.Warnung is { } warnung)
+{
+    <div class="alert alert-warning" role="status"><strong>&#9888; @warnung.</strong></div>
+}
+@if (!Model.ZertifikatPruefen)
+{
+    <div class="alert alert-warning" role="status">
+        <strong>&#9888; TLS-Zertifikatsprüfung ist deaktiviert.</strong> Nur für Testsysteme zulässig.
+    </div>
+}
+
+<div class="card mb-3">
+    <div class="card-header fw-semibold">Konfiguration</div>
+    <div class="card-body">
+        <dl class="row mb-0">
+            <dt class="col-sm-3">Adresse</dt>
+            <dd class="col-sm-9">@(string.IsNullOrEmpty(Model.BaseUrl) ? "nicht gesetzt" : Model.BaseUrl)</dd>
+            <dt class="col-sm-3">Dataset (Mandant)</dt>
+            <dd class="col-sm-9">@(string.IsNullOrEmpty(Model.Dataset) ? "nicht gesetzt" : Model.Dataset)</dd>
+            <dt class="col-sm-3">Benutzer</dt>
+            <dd class="col-sm-9">@(string.IsNullOrEmpty(Model.Zugang.Benutzer) ? "nicht gesetzt" : Model.Zugang.Benutzer)
+                <span class="text-body-secondary small">(Quelle: @Model.Zugang.Quelle)</span></dd>
+            <dt class="col-sm-3">Kennwort</dt>
+            <dd class="col-sm-9"><span class="badge @kennwortKlasse">@Model.KennwortStatus</span></dd>
+            <dt class="col-sm-3">TLS-Zertifikat prüfen</dt>
+            <dd class="col-sm-9 mb-0">@(Model.ZertifikatPruefen ? "an" : "aus")</dd>
+        </dl>
+    </div>
+</div>
+
+<div class="card mb-3">
+    <div class="card-header fw-semibold">Werkzeuge</div>
+    <div class="list-group list-group-flush">
+        <button type="button" class="list-group-item list-group-item-action" data-bs-toggle="modal" data-bs-target="#sageTestModal">
+            <span class="fw-semibold">Sage-Verbindung testen</span>
+            <span class="d-block small text-body-secondary">Eine Abfrage (GET) mit den gespeicherten Werten oder abweichenden Eingaben; zeigt Status, Kopfzeilen und Antwort.</span>
+        </button>
+        <a class="list-group-item list-group-item-action" asp-action="Feldliste">
+            <span class="fw-semibold">Feldliste</span>
+            <span class="d-block small text-body-secondary">Alle Felder einer Ressource mit Typ, Beispielwerten und Benutzerfeldern; Schreibrechte laut Schema.</span>
+        </a>
+        <a class="list-group-item list-group-item-action" asp-action="Stueckliste">
+            <span class="fw-semibold">Stückliste live</span>
+            <span class="d-block small text-body-secondary">Ressourcenliste zu einer Artikelnummer oder FA-Struktur mit Positionen zu einer FA-Nummer, mehrstufig.</span>
+        </a>
+        <a class="list-group-item list-group-item-action" asp-controller="SageSdataFa" asp-action="Index">
+            <span class="fw-semibold">FA-Struktur live</span>
+            <span class="d-block small text-body-secondary">FA-Struktur, Stückliste und Rückmeldungen über RealTimeData (für Endanwender nicht freigegeben).</span>
+        </a>
+    </div>
+</div>
+
+@Html.AntiForgeryToken()
+<div class="modal fade" id="sageTestModal" tabindex="-1" aria-labelledby="sageTestTitel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="sageTestTitel">Sage-Verbindung testen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-body-secondary small mb-3">
+                    Nebenwirkungsfreier <strong>GET</strong> &mdash; es wird nie etwas angelegt. Vorbelegt mit den gespeicherten Werten;
+                    Änderungen gelten nur für diesen Test. Kennwort leer = gespeicherte Zugangsdaten.
+                </p>
+                <div class="row g-2">
+                    <div class="col-md-8">
+                        <label class="form-label small mb-0" for="sageTestBaseUrl">Adresse</label>
+                        <input id="sageTestBaseUrl" class="form-control form-control-sm" value="@Model.BaseUrl" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small mb-0" for="sageTestApplication">Application</label>
+                        <input id="sageTestApplication" class="form-control form-control-sm" value="@Model.Application" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small mb-0" for="sageTestContract">ServiceContract</label>
+                        <input id="sageTestContract" class="form-control form-control-sm" value="@Model.ServiceContract" list="sageTestContracts" />
+                        <datalist id="sageTestContracts">
+                            <option value="CommonWawiServices"></option>
+                            <option value="CommonWawiServicesResources"></option>
+                            <option value="CommonWawiServicesResourcesSpecific"></option>
+                            <option value="RealTimeData"></option>
+                        </datalist>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small mb-0" for="sageTestDataset">Dataset</label>
+                        <input id="sageTestDataset" class="form-control form-control-sm" value="@Model.Dataset" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small mb-0" for="sageTestUser">Benutzer</label>
+                        <input id="sageTestUser" class="form-control form-control-sm" autocomplete="off" value="@Model.Zugang.Benutzer" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small mb-0" for="sageTestPass">Kennwort</label>
+                        <input id="sageTestPass" type="password" class="form-control form-control-sm" autocomplete="new-password"
+                               placeholder="gespeichertes Kennwort verwenden" />
+                    </div>
+                    <div class="col-12">
+                        <div class="form-check">
+                            <input id="sageTestTls" type="checkbox" class="form-check-input" @(Model.ZertifikatPruefen ? "checked" : "") />
+                            <label class="form-check-label small" for="sageTestTls">TLS-Zertifikat prüfen</label>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label small mb-0" for="sageTestResource">Ressource (relativ zum Dataset)</label>
+                        <input id="sageTestResource" class="form-control form-control-sm" list="sageTestResources" value="$schema" />
+                        <datalist id="sageTestResources">
+                            <option value="$schema"></option>
+                            <option value="PpsFaBelegeInfo?where=BelID eq 835&amp;orderBy=BelID&amp;count=1&amp;format=json"></option>
+                            <option value="Artikel?orderBy=Artikelnummer&amp;count=1&amp;format=json"></option>
+                        </datalist>
+                    </div>
+                </div>
+                <button type="button" id="sageTestRun" class="btn btn-primary btn-sm mt-3">Testen</button>
+
+                <div id="sageTestResult" class="mt-3 d-none" aria-live="polite">
+                    <div id="sageTestStatus" class="mb-2"></div>
+                    <div class="small text-body-secondary">Angeforderte URL:</div>
+                    <pre id="sageTestUrl" class="small bg-body-tertiary border p-2 mb-2" style="white-space:pre-wrap;word-break:break-all;"></pre>
+                    <div class="small text-body-secondary">Kopfzeilen der Antwort:</div>
+                    <pre id="sageTestHeaders" class="small bg-body-tertiary border p-2 mb-2" style="white-space:pre-wrap;max-height:12rem;overflow:auto;"></pre>
+                    <div class="small text-body-secondary">Antwort:</div>
+                    <pre id="sageTestBody" class="small bg-body-tertiary border p-2 mb-0" style="white-space:pre-wrap;max-height:22rem;overflow:auto;"></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Sage-Verbindungstest (umgezogen aus /ServiceSettings, v1.99.14): Logik bleibt ServiceSettings/TestSageConnection.
+        (function () {
+            var runBtn = document.getElementById('sageTestRun');
+            if (!runBtn) return;
+            function wert(id) { return document.getElementById(id).value; }
+            runBtn.addEventListener('click', async function () {
+                var token = document.querySelector('input[name="__RequestVerificationToken"]');
+                var payload = {
+                    baseUrl: wert('sageTestBaseUrl'),
+                    application: wert('sageTestApplication'),
+                    serviceContract: wert('sageTestContract'),
+                    dataset: wert('sageTestDataset'),
+                    verifyCertificate: document.getElementById('sageTestTls').checked,
+                    username: wert('sageTestUser'),
+                    password: wert('sageTestPass'),
+                    resource: wert('sageTestResource')
+                };
+                runBtn.disabled = true;
+                var original = runBtn.textContent;
+                runBtn.textContent = 'Teste…';
+                var ergebnis = document.getElementById('sageTestResult');
+                var st = document.getElementById('sageTestStatus');
+                try {
+                    var resp = await fetch('@Url.Action("TestSageConnection", "ServiceSettings")', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': token ? token.value : '' },
+                        body: JSON.stringify(payload)
+                    });
+                    var data = await resp.json();
+                    ergebnis.classList.remove('d-none');
+                    st.textContent = '';
+                    var badge = document.createElement('span');
+                    badge.className = 'badge ' + (data.error ? 'text-bg-danger' : data.ok ? 'text-bg-success' : 'text-bg-danger');
+                    badge.textContent = data.error ? 'Fehler' : 'HTTP ' + data.status;
+                    st.appendChild(badge);
+                    var text = document.createElement('span');
+                    text.className = 'small ms-2';
+                    text.textContent = (data.error || data.reason || '') + (data.zugang ? ' – Zugangsdaten: ' + data.zugang : '');
+                    st.appendChild(text);
+                    if (data.sslVerify === false) {
+                        var tls = document.createElement('span');
+                        tls.className = 'badge text-bg-warning ms-2';
+                        tls.textContent = 'TLS-Prüfung aus';
+                        st.appendChild(tls);
+                    }
+                    document.getElementById('sageTestUrl').textContent = data.requestUrl || '';
+                    document.getElementById('sageTestHeaders').textContent =
+                        (data.headers || []).map(function (h) { return h.name + ': ' + h.value; }).join('\n');
+                    document.getElementById('sageTestBody').textContent = data.body || '';
+                } catch (e) {
+                    ergebnis.classList.remove('d-none');
+                    st.textContent = 'Fehler: ' + String(e);
+                } finally {
+                    runBtn.disabled = false;
+                    runBtn.textContent = original;
+                }
+            });
+        })();
+    </script>
+}

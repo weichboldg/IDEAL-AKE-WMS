@@ -4,6 +4,7 @@ using IdealAkeWms.Models;
 using IdealAkeWms.Models.ViewModels;
 using IdealAkeWms.Services;
 using IdealAkeWms.Services.SageSdata;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Mvc;
 
 namespace IdealAkeWms.Controllers;
@@ -11,53 +12,36 @@ namespace IdealAkeWms.Controllers;
 /// <summary>
 /// Spec 2026-10-30-sage-sdata-fa-ansicht (v1.71.0): FA-Struktur und Stueckliste LIVE aus Sage per SData RealTimeData —
 /// Machbarkeitsnachweis, nur lesen. Keine Persistenz, kein Schreiben an Sage, kein Bezug zu <c>FaHierarchy*</c>.
-/// Zugriff: derselbe Class-Level-Read-Filter wie <see cref="FaHierarchyController"/>; Gate <c>SageSdataFaAnsichtAktiv</c>
-/// inline (Default aus, nur exakt "true"; Semantik wie RequireFaHierarchyKommissionierlistenAktivFilter).
+/// v1.99.14 (Spec 2026-11-13-sdata-teil-2-userfelder-stueckliste F5): Testwerkzeug im Register Sage-Test, nur Admin; Gate
+/// <c>SageSdataFaAnsichtAktiv</c> entfaellt; Endpunkt + Zugangsdaten ueber <see cref="SdataZugangsdaten.WebStandAsync"/> (F6).
 /// <para>Seitenaufbau = 5 Aufrufe, sequenziell (Sage-Last): BelID → StrukturID, Struktur, dann je Quelle ein or-Aufruf
 /// ueber alle BelIDs (Bloecke zu 50). Nach dem ersten Verbindungsfehler werden die uebrigen Aufrufe uebersprungen;
 /// HTTP-Fehler einer Quelle brechen nicht ab.</para>
 /// </summary>
-[RequirePickingOrTrackingOrLeitstandAccess]
+[RequireAdminAccess]
 public class SageSdataFaController : Controller
 {
     private readonly ISageSdataReadClient _client;
-    private readonly IAppSettingRepository _appSettings;
     private readonly IServiceSettingRepository _serviceSettings;
     private readonly IConfiguration _configuration;
+    private readonly IDataProtectionProvider _schutz;
 
-    public SageSdataFaController(ISageSdataReadClient client, IAppSettingRepository appSettings,
-        IServiceSettingRepository serviceSettings, IConfiguration configuration)
+    public SageSdataFaController(ISageSdataReadClient client, IServiceSettingRepository serviceSettings, IConfiguration configuration,
+        IDataProtectionProvider schutz)
     {
         _client = client;
-        _appSettings = appSettings;
         _serviceSettings = serviceSettings;
         _configuration = configuration;
+        _schutz = schutz;
     }
 
     [HttpGet]
     public async Task<IActionResult> Index(int? belId, CancellationToken ct)
     {
-        var aktiv = string.Equals(await _appSettings.GetValueAsync(AppSettingKeys.SageSdataFaAnsichtAktiv), "true", StringComparison.OrdinalIgnoreCase);
-        if (!aktiv)
-        {
-            TempData["WarningMessage"] = "Die Sage-Live-Ansicht der FA-Struktur ist deaktiviert.";
-            return RedirectToAction("Index", "Home");
-        }
-
         var vm = new SageSdataFaViewModel { BelId = belId };
-        var baseUrl = (await _serviceSettings.GetValueAsync("SData:BaseUrl"))?.Trim();
-        var application = (await _serviceSettings.GetValueAsync("SData:Application"))?.Trim();
-        var dataset = (await _serviceSettings.GetValueAsync("SData:Dataset"))?.Trim();
-        var username = _configuration["SageLagerbuchung:Username"];
-        var password = _configuration["SageLagerbuchung:Password"] ?? string.Empty;
-        var pruefen = SageTlsPolicy.ShouldVerifyCertificate(await _serviceSettings.GetValueAsync(SageTlsPolicy.SettingKey));
-        vm.ZertifikatPruefungAus = !pruefen;
-
-        if (string.IsNullOrEmpty(baseUrl)) vm.NichtKonfiguriert.Add("SData:BaseUrl");
-        else if (baseUrl.Contains('@')) // user:pw@host — Zugangsdaten nie in URL/Diagnose (Freigabe-Nachtrag 6)
-            vm.NichtKonfiguriert.Add("SData:BaseUrl enthält Zugangsdaten (die gehören nicht in die URL)");
-        if (string.IsNullOrEmpty(dataset)) vm.NichtKonfiguriert.Add("SData:Dataset");
-        if (string.IsNullOrWhiteSpace(username)) vm.NichtKonfiguriert.Add("SageLagerbuchung:Username");
+        var stand = await SdataZugangsdaten.WebStandAsync(_serviceSettings, _configuration, _schutz);
+        vm.ZertifikatPruefungAus = !stand.ZertifikatPruefen;
+        vm.NichtKonfiguriert.AddRange(stand.NichtKonfiguriert);
         if (vm.NichtKonfiguriert.Count > 0)
             return View(vm);
 
@@ -71,8 +55,7 @@ public class SageSdataFaController : Controller
         if (belId is null)
             return View(vm);
 
-        var ziel = new SdataLeseZiel(baseUrl!, string.IsNullOrEmpty(application) ? "ol" : application, dataset!, username!, password, pruefen);
-        await LadeAsync(vm, ziel, belId.Value, ct);
+        await LadeAsync(vm, stand.Ziel!, belId.Value, ct);
         return View(vm);
     }
 

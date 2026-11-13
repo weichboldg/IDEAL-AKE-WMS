@@ -98,6 +98,7 @@ public class KontokorrentSyncService
         try
         {
             ziel ??= await SdataLeseZielLeser.LesenAsync(_config, ct);
+            if (ziel.Warnung is { } zugangsWarnung) await run.LogWarningAsync(zugangsWarnung, ct: ct); // v1.99.14 F6: Rueckfall appsettings
             var seiten = await _client.QueryAllAsync<SdataKontoZeile>(ziel, SageSdataReadClient.VertragResources, Ressource, where, select, "Kto", ct);
             zeilen = seiten.Zeilen;
             await run.LogInfoAsync(seiten.Zusammenfassung + $" ({where})", ct: ct);

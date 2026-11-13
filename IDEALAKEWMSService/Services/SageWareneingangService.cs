@@ -53,7 +53,7 @@ public class SageWareneingangService
 
     /// <param name="kuerzel">v1.99.9: System-Kuerzel (<see cref="SageSystemKuerzel"/>, geprueft); wirkt nur auf Receipts, die noch nie gesendet wurden.</param>
     public async Task RunOnceAsync(SageBookingEndpoint endpoint, int stuckMinutes, int batchSize, SageWeWiederholung wiederholung,
-        string? kuerzel = null, CancellationToken ct = default)
+        string? kuerzel = null, CancellationToken ct = default, string? zugangWarnung = null)
     {
         var jetzt0 = DateTime.Now;
         var grenze = jetzt0.AddMinutes(-Math.Max(1, stuckMinutes));
@@ -74,6 +74,7 @@ public class SageWareneingangService
 
         await using var run = await _syncLogger.BeginRunAsync(SyncLogServices.SageWareneingang, ct);
         int gesendet = 0, uebergeben = 0, fehler = 0, unklar = 0, gefunden = 0, klaeren = 0;
+        if (zugangWarnung is not null) await run.LogWarningAsync(zugangWarnung, ct: ct); // v1.99.14 F6: Rueckfall appsettings
         try
         {
             foreach (var g in haengend.GroupBy(r => r.SageWeVorgang))

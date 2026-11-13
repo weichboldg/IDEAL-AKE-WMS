@@ -11,7 +11,10 @@ public enum SettingType
     /// <summary>Fester Wertebereich, mehrere Werte kommagetrennt in Katalog-Reihenfolge (Checkbox-Gruppe).</summary>
     MultiChoice,
     /// <summary>Verweis auf Stammdaten (<see cref="SettingDefinition.Stammdaten"/>); gespeichert wird der Schluessel.</summary>
-    MasterData
+    MasterData,
+    /// <summary>v1.99.14: Geheimnis (SData-Kennwort) — nie angezeigt, nie protokolliert, gespeichert verschluesselt (<c>dp1:</c>,
+    /// <c>SdataZugangsdaten</c>). Leere Eingabe = unveraendert.</summary>
+    Geheim
 }
 
 /// <summary>Stammdaten-Quelle eines <see cref="SettingType.MasterData"/>-Werts.</summary>

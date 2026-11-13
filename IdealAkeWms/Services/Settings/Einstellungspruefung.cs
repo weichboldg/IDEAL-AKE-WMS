@@ -24,7 +24,7 @@ public static class Einstellungspruefung
             foreach (var (key, value) in zeilen)
             {
                 var d = katalog.FirstOrDefault(x => x.Key == key);
-                if (d == null || value == null) continue;
+                if (d == null || value == null || d.Type == SettingType.Geheim) continue; // v1.99.14: Geheimnis nie protokollieren
                 var optionen = d.Type == SettingType.MasterData && stammdaten.TryGetValue(d.Stammdaten, out var s)
                     ? s.Select(x => (x, x)).ToList() : null;
                 var item = SettingItem.Aus(d, value, optionen, exakt);

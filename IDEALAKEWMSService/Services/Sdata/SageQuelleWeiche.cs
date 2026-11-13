@@ -50,9 +50,22 @@ public abstract class SageQuelleWeiche
 
     /// <summary>Zeile „Quelle: …“ im Lauf des Bereichs (F1); wirkt die Quelle wegen Sperre/unbekanntem Wert wie View, als Warnung
     /// mit Grund (B6) — nicht nur im Lauf „Sage-Quellenvergleich“.</summary>
-    public Task LogQuelleAsync(ISyncRun run, CancellationToken ct) => QuellenWarnung is { } w
-        ? run.LogWarningAsync($"Quelle: {GenutzteQuelle} – {w}", ct: ct)
-        : run.LogInfoAsync($"Quelle: {GenutzteQuelle}", ct: ct);
+    public async Task LogQuelleAsync(ISyncRun run, CancellationToken ct)
+    {
+        if (QuellenWarnung is { } w) await run.LogWarningAsync($"Quelle: {GenutzteQuelle} – {w}", ct: ct);
+        else await run.LogInfoAsync($"Quelle: {GenutzteQuelle}", ct: ct);
+        if (ZugangsWarnung is { } z) await run.LogWarningAsync(z, ct: ct); // v1.99.14 F6: einmal je Lauf, ohne Werte
+    }
+
+    /// <summary>v1.99.14 (F6): Rueckfall auf appsettings-Zugangsdaten beim letzten SData-/Vergleich-Aufruf, sonst null.</summary>
+    public string? ZugangsWarnung { get; private set; }
+
+    /// <summary>Warnung des Zugangs; ueberschreibbar fuer Tests (kein DB-Zugriff). Lesefehler = keine Warnung (der SData-Aufruf meldet ihn).</summary>
+    protected virtual async Task<string?> LeseZugangsWarnungAsync(CancellationToken ct)
+    {
+        try { return (await SdataLeseZielLeser.ZugangAsync(_configuration, ct)).Warnung; }
+        catch (Exception ex) when (ex is not OperationCanceledException) { return null; }
+    }
 
     /// <summary>Rohwert des Schalters; ueberschreibbar fuer Tests.</summary>
     protected virtual Task<string?> LeseSchalterAsync(CancellationToken ct) =>
@@ -69,6 +82,7 @@ public abstract class SageQuelleWeiche
         var wahl = SageQuelleSchalter.Parse(Bereich, await LeseSchalterAsync(ct), await SdataGesperrtBisAsync(ct));
         GenutzteQuelle = wahl.Quelle;
         QuellenWarnung = wahl.Warnung;
+        ZugangsWarnung = wahl.Quelle == SageQuelle.View ? null : await LeseZugangsWarnungAsync(ct);
         if (wahl.Warnung is not null)
         {
             await using var warnLauf = await _syncLogger.BeginRunAsync(SyncLogServices.SageQuellenvergleich, ct);

@@ -10,7 +10,9 @@ using IdealAkeWms.Models.ViewModels;
 using IdealAkeWms.Services;
 using IdealAkeWms.Services.Settings;
 using IdealAkeWms.Services.HierarchischeStruktur;
+using IdealAkeWms.Services.SageSdata;
 using IdealAkeWms.Services.SyncLogger;
+using Microsoft.AspNetCore.DataProtection;
 
 namespace IdealAkeWms.Controllers;
 
@@ -20,15 +22,33 @@ public class ServiceSettingsController : Controller
     private readonly IServiceSettingRepository _repository;
     private readonly ISyncLogger _syncLogger;
     private readonly ICurrentUserService _currentUser;
+    private readonly IDataProtectionProvider _schutz;
+    private readonly IConfiguration _configuration;
+    private readonly ILogger<ServiceSettingsController> _logger;
 
     public ServiceSettingsController(
         IServiceSettingRepository repository,
         ISyncLogger syncLogger,
-        ICurrentUserService currentUser)
+        ICurrentUserService currentUser,
+        IDataProtectionProvider schutz,
+        IConfiguration configuration,
+        ILogger<ServiceSettingsController> logger)
     {
         _repository = repository;
         _syncLogger = syncLogger;
         _currentUser = currentUser;
+        _schutz = schutz;
+        _configuration = configuration;
+        _logger = logger;
+    }
+
+    /// <summary>v1.99.14: Geheim-Keys (SData-Kennwort) laufen nie ueber den Freitext-Fallback (Klartext in die DB bzw. Schutztext ins Formular).</summary>
+    private static bool IstGeheim(string? key) => key != null && ServiceSettingDefinitions.TryGet(key, out var d) && d.Type == SettingType.Geheim;
+
+    private IActionResult GeheimAbgelehnt()
+    {
+        TempData["WarningMessage"] = "Das Kennwort wird nur über das Kennwortfeld der Service-Einstellungen gepflegt (verschlüsselt).";
+        return RedirectToAction(nameof(Index));
     }
 
     public async Task<IActionResult> Index()
@@ -39,9 +59,12 @@ public class ServiceSettingsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> SaveSettings(Dictionary<string, string> settings)
+    public async Task<IActionResult> SaveSettings(Dictionary<string, string> settings, string[]? geheimEntfernen = null)
     {
         settings ??= new Dictionary<string, string>();
+        var entfernen = (geheimEntfernen ?? Array.Empty<string>()).ToHashSet(StringComparer.Ordinal);
+        var geheimEingegeben = false;
+        var geheimGeaendert = new List<(SettingDefinition Def, bool Entfernt)>();
 
         // v1.77.0 E4a (F5, ADR 0020): ALLE Katalog-Keys pruefen, bevor geschrieben wird — bei einem Fehler wird nichts gespeichert
         // (vorher wurden die uebrigen Werte trotzdem geschrieben). Choice exakt (der Dienst liest ordinal). Speichern ohne Nebenwirkung (F4).
@@ -53,6 +76,23 @@ public class ServiceSettingsController : Controller
                 continue; // unbekannte Keys ignorieren (Orphans laufen ueber Edit/Delete)
 
             var roh = rawValue ?? string.Empty;
+            // v1.99.14 Geheim (F6): leer = unveraendert; „entfernen“ = leerer Wert; Eingabe = pruefen, verschluesseln. Wert nie in Meldungen.
+            if (def.Type == SettingType.Geheim)
+            {
+                var vorhanden = bestand.TryGetValue(key, out var alt) && !string.IsNullOrEmpty(alt.Value);
+                if (entfernen.Contains(key))
+                {
+                    if (vorhanden) { schreiben.Add((def, "")); geheimGeaendert.Add((def, true)); }
+                    continue;
+                }
+                if (roh.Length == 0) continue;
+                geheimEingegeben = true;
+                var g = SettingValidator.Validate(def, roh, exakt: true);
+                if (!g.Gueltig) { ModelState.AddModelError(key, g.Fehler!); continue; }
+                schreiben.Add((def, SdataZugangsdaten.Schuetzen(roh, _schutz)));
+                geheimGeaendert.Add((def, false));
+                continue;
+            }
             // Checkbox-Altformen wie bisher als „an“ lesen.
             if (def.Type == SettingType.Bool && (roh == "1" || roh.Equals("on", StringComparison.OrdinalIgnoreCase))) roh = "true";
             // Unveraendert = weder pruefen noch schreiben (F4, QA B2).
@@ -92,10 +132,17 @@ public class ServiceSettingsController : Controller
             }
         }
 
+        if (ModelState.IsValid)
+            foreach (var (def, entfernt) in geheimGeaendert)
+                _logger.LogInformation("{Einstellung} {Aktion} durch {Benutzer}.", def.Anzeigename ?? def.Key,
+                    entfernt ? "entfernt" : "geändert", _currentUser.GetWindowsUserName());
+
         if (!ModelState.IsValid)
         {
             // Fehler sichtbar machen: View mit gemergtem Stand zurueckgeben.
-            // F5 / QA B1: mit den eingegebenen Werten zurueck.
+            // F5 / QA B1: mit den eingegebenen Werten zurueck - v1.99.14: Geheimnisse NIE (Feld bleibt leer, Hinweis).
+            if (geheimEingegeben)
+                ViewData["GeheimHinweis"] = "Kennwort nicht gespeichert, bitte erneut eingeben.";
             var vm = await BuildViewModelAsync(settings);
             return View(nameof(Index), vm);
         }
@@ -131,6 +178,18 @@ public class ServiceSettingsController : Controller
         req ??= new SageConnectionTestRequest();
         var resource = string.IsNullOrWhiteSpace(req.Resource) ? "$schema" : req.Resource.Trim();
         var url = SdataUrlBuilder.BuildResourceUrl(req.BaseUrl, req.Application, req.ServiceContract, req.Dataset, resource);
+        var zugangsQuelle = "Eingabe im Fenster";
+        if (string.IsNullOrEmpty(req.Password))
+        {
+            // v1.99.14 F2: leeres Kennwort = gespeicherte Zugangsdaten (F6, nur serverseitig); nicht entschluesselbar = kein Aufruf, kein Rueckfall
+            var z = (await SdataZugangsdaten.WebStandAsync(_repository, _configuration, _schutz)).Zugang;
+            if (z.Fehler is not null)
+                return Json(new { ok = false, requestUrl = url, sslVerify = req.VerifyCertificate, status = 0, reason = (string?)null,
+                    headers = Array.Empty<object>(), body = (string?)null, error = z.Fehler, zugang = z.Quelle });
+            req.Username = z.Benutzer;
+            req.Password = z.Kennwort;
+            zugangsQuelle = z.Quelle == "keine" ? "keine gespeicherten Zugangsdaten" : $"gespeichert ({z.Quelle})";
+        }
 
         using var handler = new HttpClientHandler();
         if (!req.VerifyCertificate)
@@ -161,7 +220,8 @@ public class ServiceSettingsController : Controller
                 reason = response.ReasonPhrase,
                 headers,
                 body = body.Length > 50000 ? body.Substring(0, 50000) + "\n… (gekuerzt)" : body,
-                error = (string?)null
+                error = (string?)null,
+                zugang = zugangsQuelle
             });
         }
         catch (Exception ex)
@@ -175,7 +235,8 @@ public class ServiceSettingsController : Controller
                 reason = (string?)null,
                 headers = Array.Empty<object>(),
                 body = (string?)null,
-                error = ex.Message
+                error = ex.Message,
+                zugang = zugangsQuelle
             });
         }
     }
@@ -189,8 +250,12 @@ public class ServiceSettingsController : Controller
                 dbByKey[k] = v ?? "";
 
         // v1.77.0 E3: SettingItem nach Katalog (Bool „leer = Default“ zeigt den wirksamen Zustand, AK 11; Choice exakt wie der Dienst liest).
+        var echt = dbRows.ToDictionary(s => s.Key, s => (string?)s.Value, StringComparer.Ordinal);
         var items = ServiceSettingDefinitions.All
-            .Select(def => SettingItem.Aus(def, dbByKey.GetValueOrDefault(def.Key), exakt: true))
+            .Select(def => def.Type == SettingType.Geheim
+                // v1.99.14: Status aus dem GESPEICHERTEN Wert, nie aus der Eingabe; der Wert selbst erreicht die View nie
+                ? new SettingItem { Definition = def, Wirksam = "", GeheimStatus = SdataZugangsdaten.Status(echt.GetValueOrDefault(def.Key), _schutz) }
+                : SettingItem.Aus(def, dbByKey.GetValueOrDefault(def.Key), exakt: true))
             .ToList();
         var catalogKeys = ServiceSettingDefinitions.All.Select(d => d.Key).ToHashSet(StringComparer.Ordinal);
         return new ServiceSettingsViewModel
@@ -211,6 +276,7 @@ public class ServiceSettingsController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(ServiceSetting setting)
     {
+        if (IstGeheim(setting.Key)) return GeheimAbgelehnt();
         if (!ModelState.IsValid)
             return View(setting);
 
@@ -221,6 +287,7 @@ public class ServiceSettingsController : Controller
 
     public async Task<IActionResult> Edit(string id)
     {
+        if (IstGeheim(id)) return GeheimAbgelehnt();
         var settings = await _repository.GetAllAsync();
         var item = settings.FirstOrDefault(s => s.Key == id);
         if (item == null)
@@ -235,6 +302,7 @@ public class ServiceSettingsController : Controller
     {
         if (id != setting.Key)
             return NotFound();
+        if (IstGeheim(id)) return GeheimAbgelehnt();
 
         if (!ModelState.IsValid)
             return View(setting);
@@ -248,6 +316,7 @@ public class ServiceSettingsController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Delete(string id)
     {
+        if (IstGeheim(id)) return GeheimAbgelehnt();
         await _repository.DeleteAsync(id);
         TempData["SuccessMessage"] = "Einstellung gelöscht.";
         return RedirectToAction(nameof(Index));
