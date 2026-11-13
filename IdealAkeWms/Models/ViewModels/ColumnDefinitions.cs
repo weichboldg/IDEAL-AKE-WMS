@@ -718,6 +718,7 @@ public static class ColumnDefinitions
             new ColumnDef("vorschlag",           "Vorschlag",            Locked: true),
             new ColumnDef("grund",               "Grund",                Locked: false),
             new ColumnDef("einheit",             "Einheit",              Locked: false),
+            new ColumnDef("mindestbestellmenge", "Mindestbestellmenge",  Locked: false),
             new ColumnDef("sage-bestellmenge",   "Sage-Bestellmenge",    Locked: false),
             new ColumnDef("bestellnummer",       "Bestellnr. Lieferant", Locked: false),
             new ColumnDef("wbz",                 "WBZ (Tage)",           Locked: false),

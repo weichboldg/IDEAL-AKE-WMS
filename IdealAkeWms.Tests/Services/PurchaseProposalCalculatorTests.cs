@@ -60,6 +60,35 @@ public class PurchaseProposalCalculatorTests
         R(-915m, 85m, l: 400m).Vorschlag.Should().Be(1200m);
     }
 
+    private static PurchaseProposalResult M(decimal mindest, string? ek, decimal? faktor, string? unit = "Stk", decimal? l = null) =>
+        PurchaseProposalCalculator.Berechne(new PurchaseProposalInput(60m, 0m, 0m, 85m, l, null, mindest, ek, faktor, unit));
+
+    [Fact]
+    public void Mindestbestellmenge_GleicheEinheitFaktor1_Aufgerundet_E4()
+    {
+        var r = M(200m, "stk ", 1m);
+        r.Vorschlag.Should().Be(200m);
+        r.Grund.Should().Be("keine letzte Bestellung – Menge prüfen, auf Mindestbestellmenge aufgerundet");
+        M(200m, null, 1m).Vorschlag.Should().Be(200m);          // EK-Einheit leer
+        M(10m, "Stk", 1m).Vorschlag.Should().Be(25m);           // schon groesser: keine Rundung
+        M(10m, "Stk", 1m).Grund.Should().NotContain("Mindestbestellmenge");
+        M(500m, "Stk", 1m, l: 400m).Vorschlag.Should().Be(500m);
+    }
+
+    [Theory]
+    [InlineData("PKG", 3)]     // EK002400: andere Einheit
+    [InlineData("Stk", 5)]     // EK007623: gleiche Einheit, Faktor ≠ 1 (A2)
+    [InlineData("Stk", 0)]     // EK003375: Faktor 0
+    public void Mindestbestellmenge_EinheitOderFaktorAbweichend_KeineRundung_Hinweis_A2(string ek, decimal faktor)
+    {
+        var r = M(200m, ek, faktor);
+        r.Vorschlag.Should().Be(25m);
+        r.Hinweise.Should().ContainSingle().Which.Should().Contain("nicht aufgerundet");
+    }
+
+    [Fact]
+    public void Mindestbestellmenge_FaktorUnbekannt_KeineRundung() => M(200m, "Stk", null).Vorschlag.Should().Be(25m);
+
     [Fact]
     public void LetzteBestellungAndererLieferant_Hinweis_Rueckfrage13a()
     {

@@ -37,6 +37,10 @@ public class PurchaseProposalsController : Controller
 
     private static string Zahl(decimal? d) => d?.ToString("0.###") ?? "–";
 
+    /// <summary>Zelltext Mindestbestellmenge mit Einkaufseinheit, wenn sie von der Artikel-Einheit abweichen kann.</summary>
+    internal static string? MindestText(ArticleSupplierRow? l) => l?.Mindestbestellmenge is { } m
+        ? (m.ToString("0.###") + " " + l.Einkaufsmengeneinheit?.Trim()).Trim() : null;
+
     // Spaltenfilter (Server-Mode) – Zelltexte wie in der View.
     private static readonly Dictionary<string, Func<PurchaseProposalRow, string?>> ColumnMap = new()
     {
@@ -53,6 +57,7 @@ public class PurchaseProposalsController : Controller
         ["vorschlag"] = r => r.Ergebnis.Vorschlag?.ToString("0.###"),
         ["grund"] = r => r.Ergebnis.Grund,
         ["einheit"] = r => r.Article.Unit,
+        ["mindestbestellmenge"] = r => MindestText(r.Lieferant),
         ["sage-bestellmenge"] = r => Zahl(r.Sage?.Bestellmenge),
         ["bestellnummer"] = r => r.Lieferant?.SageBestellnummer,
         ["wbz"] = r => r.Wbz?.ToString(),
@@ -203,7 +208,9 @@ public class PurchaseProposalsController : Controller
             {
                 Article = a, Lieferant = l, LieferantText = text, LieferantKto = kto, BestandWms = bestandWms, OffeneBedarfe = offeneBedarfe,
                 OffenBestellt = offenBestellt, NaechsterLiefertermin = termin,
-                Ergebnis = PurchaseProposalCalculator.Berechne(new PurchaseProposalInput(bestandWms, offenBestellt ?? 0m, offeneBedarfe, a.ReorderLevel ?? 0m)),
+                Ergebnis = PurchaseProposalCalculator.Berechne(new PurchaseProposalInput(bestandWms, offenBestellt ?? 0m, offeneBedarfe, a.ReorderLevel ?? 0m,
+                    Mindestbestellmenge: l?.Mindestbestellmenge, Einkaufsmengeneinheit: l?.Einkaufsmengeneinheit, UmrechnungsfaktorEK: l?.UmrechnungsfaktorEK,
+                    ArtikelEinheit: a.Unit)),
                 Wbz = wbz, Wunschtermin = wbz is { } t ? heute.AddDays(t) : null, Hinweise = hinweise,
             };
         }).ToList();

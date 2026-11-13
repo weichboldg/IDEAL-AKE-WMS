@@ -62,4 +62,14 @@ public partial class PurchaseProposalsControllerTests
         var (ctrl, _) = Build(new() { A(1, "A1", 85m) }, bestellungen: new List<SagePurchaseOrderLine>());
         Vm(await ctrl.Index()).Items.Single().OffenBestellt.Should().Be(0m);
     }
+
+    [Fact]
+    public async Task Mindestbestellmenge_DesHauptlieferanten_Angehoben_E4_AK12()
+    {
+        var lieferanten = new Dictionary<int, ArticleSupplierRow> { [1] = new(10, "Zulieferer", "K31013", true, "B-1", 200m, "Stk", 14, true, 1m) };
+        var r = Vm(await Build(new() { A(1, "A1", 85m) }, Bestand(("A1", 60m)), lieferanten: lieferanten).ctrl.Index()).Items.Single();
+        r.Ergebnis.Vorschlag.Should().Be(200m);
+        r.Ergebnis.Grund.Should().EndWith("auf Mindestbestellmenge aufgerundet");
+        IdealAkeWms.Controllers.PurchaseProposalsController.MindestText(r.Lieferant).Should().Be("200 Stk");
+    }
 }

@@ -59,6 +59,7 @@ else
 }
 <div class="alert alert-light border py-2 small" role="note">
     Letzte Bestellmenge noch nicht verfügbar: Vorschlag = Fehlmenge bis zum Meldebestand, bei Fehlmenge 0 der Meldebestand – Grund „@PurchaseProposalCalculator.GrundOhneLetzteBestellung“.
+    Danach Aufrunden auf die Mindestbestellmenge des Hauptlieferanten, nur bei gleicher Einheit und Umrechnungsfaktor 1 (sonst Hinweis, keine Rundung).
 </div>
 
 <div class="card filter-card mb-3">
@@ -126,6 +127,7 @@ else
                 <th data-filterable data-filter-type="number" data-col-key="vorschlag" class="text-end">Vorschlag</th>
                 <th data-filterable data-col-key="grund">Grund</th>
                 <th data-filterable data-col-key="einheit">Einheit</th>
+                <th data-filterable data-col-key="mindestbestellmenge" class="text-end">Mindestbestellmenge</th>
                 <th data-filterable data-filter-type="number" data-col-key="sage-bestellmenge" class="text-end">Sage-Bestellmenge</th>
                 <th data-filterable data-col-key="bestellnummer">Bestellnr. Lieferant</th>
                 <th data-filterable data-filter-type="number" data-col-key="wbz" class="text-end">WBZ (Tage)</th>
@@ -161,6 +163,7 @@ else
                     <td class="text-end fw-semibold">@(e.Vorschlag?.ToString("0.###"))</td>
                     <td>@e.Grund</td>
                     <td>@r.Article.Unit</td>
+                    <td class="text-end">@IdealAkeWms.Controllers.PurchaseProposalsController.MindestText(r.Lieferant)</td>
                     <td class="text-end">@(r.Sage?.Bestellmenge?.ToString("0.###") ?? "–")</td>
                     <td>@r.Lieferant?.SageBestellnummer</td>
                     <td class="text-end">@r.Wbz</td>
@@ -200,6 +203,7 @@ else
     { "key": "vorschlag", "label": "Vorschlag", "locked": true, "defaultWidth": null },
     { "key": "grund", "label": "Grund", "locked": false, "defaultWidth": null },
     { "key": "einheit", "label": "Einheit", "locked": false, "defaultWidth": null },
+    { "key": "mindestbestellmenge", "label": "Mindestbestellmenge", "locked": false, "defaultWidth": null },
     { "key": "sage-bestellmenge", "label": "Sage-Bestellmenge", "locked": false, "defaultWidth": null },
     { "key": "bestellnummer", "label": "Bestellnr. Lieferant", "locked": false, "defaultWidth": null },
     { "key": "wbz", "label": "WBZ (Tage)", "locked": false, "defaultWidth": null },
