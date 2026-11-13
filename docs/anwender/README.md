@@ -31,7 +31,7 @@ FA-Nummer und einem Bildschirmfoto.
 | 06 | Offene Bestellungen und Rahmenabrufe | Lager, Einkauf | [06-offene-bestellungen-rahmenabrufe.md](06-offene-bestellungen-rahmenabrufe.md) |
 | 07 | Lieferverzug-Mail (Sammelliste, „Zu klären“, Kreditor-Mail, Testbetrieb) | Einkauf | [07-lieferverzug-mail.md](07-lieferverzug-mail.md) |
 | 08 | Bestellvorschläge (Rechnung, letzte Bestellmenge, Fallback, Banner, CSV) | Einkauf | [08-bestellvorschlaege.md](08-bestellvorschlaege.md) |
-| 09 | Einbuchen, Ausbuchen, Umbuchen | Lager | folgt |
-| 10 | Bestände und Spaltenfilter-Suche | alle | folgt |
-| 11 | BDE-Terminal | Produktion | folgt |
-| 12 | Register Sage-Test (Admin) | Administration | folgt |
+| 09 | Einbuchen, Ausbuchen, Umbuchen (auch Mehrfach-Einbuchung, Lagerplatz aus-/umbuchen, Scanner) | Lager, Kommissionierer | [09-einbuchen-ausbuchen-umbuchen.md](09-einbuchen-ausbuchen-umbuchen.md) |
+| 10 | Bestände und Spaltenfilter-Suche (Suchsyntax, Zahnrad, CSV) | alle | [10-bestaende-spaltenfilter.md](10-bestaende-spaltenfilter.md) |
+| 11 | BDE-Terminal (Anmelden, Liste nach Haupt-FA, Scan, Melden) | Produktion | [11-bde-terminal.md](11-bde-terminal.md) |
+| 12 | Register Sage-Test (Verbindungstest, Feldliste, Stückliste und FA-Struktur live) | Administration | [12-register-sage-test.md](12-register-sage-test.md) |
