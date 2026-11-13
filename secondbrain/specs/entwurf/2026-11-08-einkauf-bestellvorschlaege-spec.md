@@ -4,55 +4,46 @@ title: Einkauf – Bestellvorschläge für Nachbestellartikel (Epic)
 slug: 2026-11-08-einkauf-bestellvorschlaege-spec
 status: Entwurf
 created: 2026-11-07
-updated: 2026-11-07
+updated: 2026-11-13
 source_backlog: "[[2026-11-07-einkauf-bestellvorschlaege]]"
 buendel: "[[2026-11-08-buendel-uebersicht]]"
 depends_on: "[[2026-11-08-wareneingang-aus-sage-bestellungen-spec]]"
 task: ""
 worktree: ""
 branch: ""
-version: "1.87.0"
-sql_block: "128–132 (reserviert; genutzt 128, 129, 130; 131–132 Reserve)"
-testszenario: "TS-119"
-standort: AKE
+version: "1.99.20 (Vorschlag: 1.99.16–1.99.18 vergibt der goal-Lauf [[2026-11-13-buendel-v1-99-16-goal-lauf]], 1.99.19 schlägt [[2026-11-13-lieferverzug-nachbesserung-keyuser-spec]] vor; Dev-Lauf prüft)"
+sql_block: "148–150 (reserviert 2026-11-13; 148 E3 ArticleSuppliers letzte Bestellung, 149 E5 PurchaseProposalTransfers, 150 Reserve; letzte belegte Nummer im Bündel 147, Dev-Lauf prüft)"
+testszenario: "TS-136"
+standort: beide
 affected_code:
-  - "IdealAkeWms/Models/RoleKeys.cs (neu: Einkauf = \"einkauf\")"
-  - "IdealAkeWms/Services/ICurrentUserService.cs + CurrentUserService.cs (neu: CanAccessEinkaufAsync, Muster :138)"
-  - "IdealAkeWms/Filters/RequireEinkaufAccessAttribute.cs (neu, Rolle) + RequireEinkaufAktivAttribute.cs (neu, AppSetting-Gate, Default aus)"
-  - "IdealAkeWms/Models/AppSettingKeys.cs + AppSettingDefinitions.cs (5 neue Keys, Gruppe „Einkauf“)"
-  - "IdealAkeWms/Controllers/PurchaseProposalsController.cs (neu) + Views/PurchaseProposals/Index.cshtml (neu)"
+  - "IdealAkeWms/Models/RoleKeys.cs (neu: Einkauf = \"einkauf\"; heute keine Einkauf-Rolle, RoleKeys.cs:3-27)"
+  - "IdealAkeWms/Services/ICurrentUserService.cs + CurrentUserService.cs (neu: CanAccessEinkaufAsync, Muster CurrentUserService.cs:107-108)"
+  - "IdealAkeWms/Filters/RequireEinkaufAccessAttribute.cs (neu, Muster RequireStockReadAccessAttribute.cs:13-18) + RequireEinkaufAktivAttribute.cs (neu, Gate, Muster RequireFaHierarchyKommissionierlistenAktivAttribute.cs:28-34)"
+  - "IdealAkeWms/Models/AppSettingKeys.cs + AppSettingDefinitions.cs (4 neue Keys, Gruppe „Einkauf“; MultiChoice-Muster AppSettingDefinitions.cs:62/95)"
+  - "IdealAkeWms/Controllers/PurchaseProposalsController.cs (neu) + Views/PurchaseProposals/Index.cshtml (neu) + ColumnDefinitions (viewKey)"
   - "IdealAkeWms/Services/PurchaseProposalCalculator.cs (neu, reine Rechenregel an EINEM Ort)"
-  - "IdealAkeWms/Data/Repositories/IPurchaseProposalRepository.cs + PurchaseProposalRepository.cs (neu, Datensammlung)"
-  - "IdealAkeWms/Data/Repositories/StockMovementRepository.cs (nur gelesen: GetCurrentStockAsync :16-193)"
-  - "IdealAkeWms/Views/Shared/_Layout.cshtml (neuer Hauptmenüpunkt „Einkauf“, nach „Bestellungen“ :243-267)"
+  - "IdealAkeWms/Data/Repositories/IPurchaseProposalRepository.cs + PurchaseProposalRepository.cs (neu, Datensammlung; Lieferanten als ArticleSupplierRow, ArticleSupplierRow.cs:7-9)"
+  - "IdealAkeWms/Data/Repositories/StockMovementRepository.cs (nur genutzt: GetStockByArticleNumbersAsync :395-459, Regel der Meldebestand-Mail StockCheckService.cs:20-43)"
+  - "IdealAkeWms/Data/Repositories/SagePurchaseOrderLineRepository.cs (nur genutzt: GetAllAsync :28, GetStandAsync :39-40) + PurchaseOrderReceiptRepository.cs (nur genutzt: GetErfasstJeBelPosAsync :74, ErfasstJeBelPos.Rest :22-30) – E2"
+  - "IdealAkeWms/Models/ArticleSupplier.cs (+ LetzteBestellmenge, LetzteBestellungAm, LetzteBestellungBeleg – E3) + IDEALAKEWMSService/Services/Sdata/ArtikelLieferantSyncService.cs (zweiter Leseschritt letzte Bestellung – E3, Lesepfad nach P-L1)"
+  - "IdealAkeWms/Views/Shared/_Layout.cshtml (neues Dropdown „Einkauf“ nach „Bestellungen“ :248-272, Variablen-Block :50-68)"
   - "IdealAkeWms/Views/Users/RoleOverview.cshtml (Rolle einkauf)"
-  - "IdealAkeWms/Models/ArticlePurchaseSetting.cs (neu, Satellit, E3) + ApplicationDbContext"
-  - "IdealAkeWms/Models/ArticleSageDetail.cs (+ Basismengeneinheit, Lagermengeneinheit, UmrechnungsFaktorLME, E4)"
-  - "IDEALAKEWMSService/Services/Sdata/SdataArtikelReader.cs (SelectArtikel :45-49 + Details :265-282 um die drei Felder, E4)"
-  - "IdealAkeWms/Models/PurchaseProposalTransfer.cs (neu, Übergabe-Protokoll, E5)"
-  - "IdealAkeWms/Services/SageSdata/SageDispoStapelClient.cs (neu, POST $service/DispositionStapel*Service, E5)"
-  - "Reader offener Sage-Bestellpositionen aus [[2026-11-08-wareneingang-aus-sage-bestellungen-spec]] (nur verwendet, E2)"
-  - "Migrationen + SQL/128_AddArticlePurchaseSettings.sql, SQL/129_AddArticleSageDetailUnits.sql, SQL/130_AddPurchaseProposalTransfers.sql, SQL/00_FreshInstall.sql"
-  - "IdealAkeWms/AppVersion.cs + IDEALAKEWMSService/AppVersion.cs (1.87.0), Views/Help/Changelog.cshtml, Views/Help/Index.cshtml, README.md, docs/TESTSZENARIEN.md (TS-119)"
+  - "E5 BLOCKIERT: IdealAkeWms/Models/PurchaseProposalTransfer.cs (neu) + Sage-Schreibclient DispositionStapel*Service (neu) – erst nach Schreibtest P5"
+  - "Migrationen + SQL/148_AddArticleSupplierLetzteBestellung.sql (E3), SQL/149_AddPurchaseProposalTransfers.sql (E5, blockiert), SQL/00_FreshInstall.sql, scripts/deploy/nachlauf.psd1"
+  - "IdealAkeWms/AppVersion.cs + IDEALAKEWMSService/AppVersion.cs, Views/Help/Changelog.cshtml, Views/Help/Index.cshtml, README.md, docs/TESTSZENARIEN.md (TS-136)"
 open_questions:
-  - "1. Offene Bedarfe: zählen offene Lagerbestellungen (Status Submitted voll, PartiallyDelivered nur Rest mit „wird nachgeliefert“) und offene Bedarfsmeldungen (Status Offen) beide als Bedarf? (Empfehlung: ja, beide; Default der Einstellung EinkaufOffeneBedarfe = beide)"
-  - "2. Vorschlagsverfahren-Default: „Feste Bestellmenge“ (Vielfaches der Sage-Bestellmenge) oder „Auffüllen auf Meldebestand + Bestellmenge“? (Empfehlung: Feste Bestellmenge)"
-  - "3. USER_Mindestbestand: was bedeutet das Feld fachlich (Sicherheitsbestand? Altfeld?) – rechnen oder nur anzeigen? (Empfehlung: in diesem Epic nur Anzeigespalte, nicht rechnen)"
-  - "4. Bestand: zählen alle WMS-Lagerplätze außer Kommissionierwagen, auch inaktive und nicht buchbare? (Empfehlung: ja, wie Bestandsaggregation und Meldebestand-Regel, fallstricke §7)"
-  - "5. Dispo-Stapel: ein fester WMS-Stapel (Kennung aus Einstellung, wiederverwendet) oder ein Stapel je Lieferant? (Empfehlung: ein fester WMS-Stapel – Lieferant steht je Position, Stapel-Löschen wirkt nicht)"
-  - "6. Übergabe-Weg: synchron aus der Web-App mit eigenem Protokoll oder über Outbox + neuen Dienst-Worker? (Empfehlung: synchron aus der Web-App, Protokolltabelle, kein neuer Worker)"
-  - "7. Direkte Sage-Bestellung (StandardBelegService, Erfassungsart 4100) aus dem WMS: in diesem Epic oder eigene Folge-Spec? (Empfehlung: eigene Folge-Spec; hier nur Dispo-Stapel)"
-  - "8. Rolle: eine Rolle „einkauf“ für Liste, Kennzeichen und Übergabe (ohne getrennte Leserolle)? (Empfehlung: ja, eine Rolle; admin per Wildcard)"
-  - "9. Rundung: nur auf die Mindestbestellmenge des Lieferanten aufrunden (eine VPE/ein Bestellvielfaches liegt nicht im WMS)? (Empfehlung: ja; VPE erst nach Prüfabfrage P3 als Folgearbeit)"
-  - "10. Betrieb AKE: werden vor der Abnahme Sync:Quelle:Artikel = SData und Sync:ArtikelLieferantEnabled = true gesetzt? Ohne beide fehlen Bestellmenge, Lieferant, WBZ und Sage-verfügbar. (Empfehlung: ja, Deploy-Voraussetzung)"
+  - "11. Erhöhung bei außerordentlichem Bedarf: Reicht eine letzte Bestellmenge L nicht (Fehlmenge ≥ L), Vorschlag = (⌊Fehlmenge / L⌋ + 1) × L mit Grund „n × letzte Bestellmenge“? (Empfehlung: ja – Alternative „Fehlmenge, aufgerundet auf Mindestbestellmenge“ lässt verfügbar genau auf dem Meldebestand und erzeugt sofort wieder einen Vorschlag)"
+  - "12. Zählt ein Rahmenabruf (Sage-Belegart „Rahmenabruf“, EBZ) als letzte Bestellung, oder nur die Belegart „Bestellung“ (EBB)? (Empfehlung: beide, der jüngste Beleg gilt – sonst haben reine Rahmenartikel keine letzte Bestellmenge)"
+  - "13. Ohne letzte Bestellung beim gewählten Lieferanten: (a) letzte Bestellung des Artikels bei einem anderen Lieferanten nehmen (mit Hinweis), sonst (b) Fehlmenge, bei Fehlmenge 0 der Meldebestand, Hinweis „keine letzte Bestellung – Menge prüfen“? (Empfehlung: a, dann b)"
 epic: true
 etappen:
-  - "E1 Grundgerüst: Rolle einkauf, Gate EinkaufAktiv, Hauptmenü „Einkauf“, Rechenregel, Liste Bestellvorschläge nur lesen (ohne offene Bestellungen), CSV – keine Migration"
-  - "E2 Offene Sage-Bestellungen einrechnen (Reader aus Teil B) – keine Migration; hängt an Teil B"
-  - "E3 Kennzeichen „nicht disponieren“ + „ignorieren bis“ – SQL/128"
-  - "E4 Einheiten + Rundung auf Mindestbestellmenge, Einheiten-Wächter – SQL/129; Rundung unverifiziert bis P1/P2"
-  - "E5 Übergabe an den Sage-Dispo-Stapel hinter Schalter (Default aus), Menge/Lieferant anpassen, Protokoll – SQL/130; hängt an Rückfragen 5/6 und Prüfschritten P4/P5"
-  - "E6 Abschluss: TS-119, Hilfe, README, Changelog, Brain"
+  - "E0 Prüfabfragen lesend (P-L1 SData AKE-Test, P-L2 Sage-SQL AKE-Test, P-L3 WMS-DB, P2, P4) – Ergebnisse eintragen, Abweichung = Blocker"
+  - "E1 Grundgerüst: Rolle einkauf, Gate EinkaufAktiv, Menü „Einkauf“, Rechenregel, Liste nur lesen, CSV – keine Migration"
+  - "E2 Offene Sage-Bestellungen aus dem vorhandenen Cache (Teil B) mit Rest-Regel – keine Migration"
+  - "E3 Letzte Bestellmenge je Artikel und Lieferant – SQL/148; BLOCKER bis P-L1 (SData-Lesepfad) und Rückfragen 11–13"
+  - "E4 Aufrunden auf Mindestbestellmenge + Einheiten-Wächter – keine Migration (Einheiten liegen seit v1.85.0 vor); Rundung unverifiziert bis P2"
+  - "E5 Übergabe an den Sage-Dispo-Stapel – SQL/149; BLOCKIERT bis Lesetest P4 und Schreibtest P5 (schreibt an Sage)"
+  - "E6 Abschluss: TS-136, Hilfe, README, Changelog, Brain"
 deploy:
   web: true
   service: true
@@ -64,60 +55,72 @@ freigabe_am: ""
 
 > [!warning] Zurückgestellt (Gerald 2026-11-07 19:19): „brauchen wir noch nicht“ – NICHT umsetzen. Die Freigabe-Antworten bleiben stehen; bei Wiederaufnahme nur Freigabe neu setzen.
 
+> [!note] Überarbeitung 2026-11-13 (Rework nach den Keyuser-Antworten)
+> Eingearbeitet: F3 = letzte Bestellmenge (Einstellung `EinkaufVorschlagsverfahren` entfällt), VPE/P3 und Kennzeichen (alte F6/E3,
+> `ArticlePurchaseSettings`, alte SQL/128) entfallen, `standort: beide`, Teil B wird wiederverwendet (Cache `SagePurchaseOrderLine`),
+> Einheiten-Spalten liegen seit v1.85.0 vor (alte SQL/129 und P1 entfallen), Nummern gegen den Bündel-Stand (HEAD `cb204c96`) neu vergeben.
+> Überholte Aussagen des alten Rumpfs sind als *ueberholt* markiert; die Abschnitte Prüfabfragen, Freigabe-Nachtrag, Freigabe-Antworten und
+> Keyuser-Antworten sind unverändert.
 
 # Einkauf – Bestellvorschläge für Nachbestellartikel (Epic)
 
-Bündel [[2026-11-08-buendel-uebersicht]], Teil C. Hängt ab von [[2026-11-08-wareneingang-aus-sage-bestellungen-spec]] (Teil B, Reader
-offener Sage-Bestellungen) und nutzt die Lieferantenanzeige aus [[2026-11-08-artikeldetails-lieferanten-anzeigen-spec]] (Teil A).
-Datenbasis: [[2026-11-06-sage-sdata-stammdaten-sync-spec]] (G7 „eigene Folge-Spec, hier nur Datenbasis“, Z. 943/970).
+Bündel [[2026-11-08-buendel-uebersicht]], Teil C. Teil B ([[2026-11-08-wareneingang-aus-sage-bestellungen-spec]]) ist umgesetzt
+(v1.84.0–v1.99.15: Cache `SagePurchaseOrderLine`, Dienst `EinkaufBestellungenSyncService`, Rahmenabrufe seit v1.99.15); die Lieferantenanzeige
+aus [[2026-11-08-artikeldetails-lieferanten-anzeigen-spec]] (Teil A) liefert das Zeilenformat `ArticleSupplierRow`. Datenbasis:
+[[2026-11-06-sage-sdata-stammdaten-sync-spec]]. Keyuser-Antworten: [[2026-11-12-keyuser-fragen-einkauf]].
 
 ## Ziel / Nutzen (das Warum)
 
 Sage rechnet bei AKE keine Bestellvorschläge; die „Erweiterte Disposition“ ist nicht lizenziert, die Sage-Disposition wird kaum genutzt
-(Entscheidung Gerald 2026-11-07 16:26). Der Einkauf erkennt Nachbestellbedarf heute nur über die Meldebestand-Mail und die
-Farbcodierung der Bestandsübersicht. Das Epic gibt dem Einkauf eine eigene Arbeitsliste „Einkauf → Bestellvorschläge“: je Artikel mit
-Sage-Meldebestand eine Projektion aus WMS-Bestand, offenen Sage-Bestellungen und offenen WMS-Bedarfen, eine vorgeschlagene Menge beim
-Hauptlieferanten und – in der letzten fachlichen Etappe, hinter einem Schalter – die Übergabe in den Sage-Dispositionsstapel, aus dem der
-Einkauf in Sage die Bestellungen erzeugt. **Die Vorschlagslogik liegt im WMS, Sage bekommt nur das Ergebnis** (verbindlich).
+(Entscheidung Gerald 2026-11-07 16:26). Der Einkauf erkennt Nachbestellbedarf heute nur über die Meldebestand-Mail und die Farbcodierung der
+Bestandsübersicht. Das Epic gibt dem Einkauf **beider Standorte** (sieben Personen laut Keyuser-Antworten) eine Arbeitsliste „Einkauf →
+Bestellvorschläge“: je Artikel mit Sage-Meldebestand eine Projektion aus WMS-Bestand, offenen Sage-Bestellungen und offenen WMS-Bedarfen und
+als Vorschlag die **letzte Bestellmenge** beim Lieferanten, aufgerundet auf dessen Mindestbestellmenge. Die Übergabe in den Sage-Dispositionsstapel
+bleibt als letzte fachliche Etappe im Plan, aber blockiert bis zu ihrem Schreibtest. **Die Vorschlagslogik liegt im WMS, Sage bekommt nur das
+Ergebnis** (verbindlich).
 
 ## Umfang (In-Scope / Out-of-Scope)
 
 **In-Scope**
 - Neuer Hauptmenüpunkt **„Einkauf“**, erster Unterpunkt **„Bestellvorschläge“** (verbindlich).
 - Rechenregel (eine Klasse) und Liste nach Listen-View-Pattern, CSV über den vorhandenen CSV-Knopf.
-- Offene Sage-Bestellungen als Zugang (Reader aus Teil B), offene Lagerbestellungen/Bedarfsmeldungen als Abgang (Einstellung).
-- WMS-Kennzeichen „nicht disponieren“ und „ignorieren bis“ je Artikel (Satellit).
-- Einheiten-Wächter und Aufrunden auf die Mindestbestellmenge.
-- Übergabe ausgewählter Zeilen an den Sage-**Dispositionsstapel** (`DispositionStapelService` + `DispositionStapelPositionenService`),
-  Schalter Default **aus**, Warnhinweis Außenwirkung, Protokoll je Position.
+- Offene Sage-Bestellungen aus dem vorhandenen Cache als Zugang (E2), offene Lagerbestellungen/Bedarfsmeldungen als Abgang (Einstellung).
+- Letzte Bestellmenge je Artikel und Lieferant aus Sage (E3, Lesepfad SData – Blocker bis P-L1).
+- Einheiten-Wächter und Aufrunden auf die Mindestbestellmenge (E4).
+- Übergabe ausgewählter Zeilen an den Sage-**Dispositionsstapel** (E5) – **blockiert** bis Lesetest P4 und Schreibtest P5; Schalter Default aus.
+
+**Standort:** Der Code ist standortneutral (`standort: beide`). Alle Sage-Daten der Liste kommen über SData-Abgleiche (Artikel-Zusatzfelder,
+Artikel-Lieferanten, offene Bestellungen, letzte Bestellung). An IDEAL gibt es noch keinen SData-Endpunkt: Artikelquelle SData dort gesperrt bis
+P-R1 (`ArtikelQuelleSwitch.cs:11/41-47`), `Sync:EinkaufBestellungenEnabled` „IDEAL ohne SData-Endpunkt aus lassen“
+(`ServiceSettingDefinitions.cs:117`). Deshalb bleibt `EinkaufAktiv` an IDEAL aus, bis dort die SData-Schnittstelle läuft; der IDEAL-Teil hängt
+an ihr (Keyuser-Antworten, Rückfrage 8/Standort).
 
 **Out-of-Scope**
-- Direkte Sage-Bestellung (`StandardBelegService`, Erfassungsart 4100) – Rückfrage 7, Empfehlung eigene Folge-Spec.
+- Direkte Sage-Bestellung (`StandardBelegService`, Erfassungsart 4100) – eigene Folge-Spec, Priorität höher (Keyuser 2026-11-13, Rückfrage 7).
+- Sonderbedarfe anderer Abteilungen → [[2026-11-13-sonderbedarfe-erfassen]].
+- Kennzeichen „nicht disponieren“ / „ignorieren bis“ – entfällt (Keyuser: am Anfang nicht nötig).
+- VPE / Bestellvielfaches – entfällt (Keyuser: in Sage keine Verpackungseinheiten, nur Mindestbestellmengen).
 - Stufe 2 der Notiz: verbrauchsbasierte Meldebestände, Reichweite, Sicherheitsbestand nach ABC/XYZ, FA-Stücklisten-Bedarfe.
-- „Auffüllen auf Höchstbestand“: Im belegten Sage-Schema gibt es kein Höchstbestand-Feld (Artikel-Felder und `ArtikelVariantenExtended`-
-  Zusatzfelder vollständig gelistet in [[sage-sdata-artikel-felder]] Z. 12-49; dort nur `Meldebestand`, `Bestellmenge`, `Bestellzeitpunkt`,
-  `Dispoformel`, `Dispofaktor`). Die Bedeutung von `Dispoformel`/`Dispofaktor` ist ungeprüft und wird nicht verwendet.
-- Vorschau-Horizont / Zeitraster (Bestellrhythmusverfahren): offene Bestellungen zählen unabhängig vom Liefertermin (Bestellpunktverfahren).
-- Änderungen an Lagerbestellungen, Bedarfsmeldungen und Fehlteilen (Menü „Bestellungen“ bleibt unverändert; Abgrenzung unten).
+- „Auffüllen auf Höchstbestand“: im belegten Sage-Schema gibt es kein Höchstbestand-Feld ([[sage-sdata-artikel-felder]] Z. 12-49).
+- Vorschau-Horizont / Zeitraster: offene Bestellungen zählen unabhängig vom Liefertermin (Bestellpunktverfahren).
+- Änderungen an Lagerbestellungen, Bedarfsmeldungen und Fehlteilen (Menü „Bestellungen“ bleibt unverändert).
 - Änderung des Meldebestands in Sage (`apiArtikel` PUT, ungeprüft laut [[sage-sdata-wms-schnittstellenkatalog]] Z. 34).
-- IDEAL: Die Sage-Zusatzfelder werden dort nicht gelesen (Artikelquelle SData gesperrt bis P-R1, `ArtikelQuelleSwitch.cs:41-49`); das Gate
-  bleibt an IDEAL aus.
 
-**Abgrenzung Menü „Bestellungen“:** Bedarfsmeldungen (`PartRequisition`, Meldung aus der Stückliste an den Einkauf per Mail) und
-Lagerbestellungen (`WarehouseRequisition`, Produktion bestellt beim Lager; Typ Lager/Glas, `WarehouseRequisitionType.cs:7-11`) bleiben
-dort. Dieses Epic **liest** sie nur als offene Bedarfe. Den Lager/Glas-Typ plant das Kommissionierungs-Epic; hier wird nicht nach Typ
-gefiltert, weil nur Artikel mit Meldebestand > 0 in die Liste kommen.
+**Abgrenzung Menü „Bestellungen“:** Bedarfsmeldungen (`PartRequisition`) und Lagerbestellungen (`WarehouseRequisition`, Typ Lager/Glas)
+bleiben dort. Dieses Epic **liest** sie nur als offene Bedarfe; es wird nicht nach Typ gefiltert, weil nur Artikel mit Meldebestand > 0 in
+die Liste kommen.
 
 ## Fachliche Anforderungen
 
 ### F1 Nachbestellartikel (verbindlich, Entscheidung 2026-11-07 16:30)
-Nachbestellartikel = WMS-Artikel mit **Meldebestand > 0 in Sage** und **ohne** WMS-Kennzeichen „nicht disponieren“ (ab E3).
-Beleg Feld: Meldebestand steht im WMS als `Article.ReorderLevel` (`Article.cs:42-43`, Anzeige „Meldebestand“). Geschrieben **nur** vom
-Artikel-Abgleich: View-Weg `SageArticleSql.cs:18` (`v.Meldebestand AS ReorderLevel`) → `SageImportService.cs:449/474/516`; SData-Weg
-`SdataArtikelReader.cs:255` (`ArtikelVariantenExtended.Meldebestand`, 0 → null). Sage-„0“ wird auf beiden Wegen zu `null`
-(`SageImportHelpers.cs:12-14`). Also gilt: `ReorderLevel > 0` ⇔ Sage-Meldebestand > 0.
-Einschränkung (belegt): Im WMS stehen an AKE nur Ressourcenummern aus Stücklisten und `IstBestellartikel AND Aktiv`
-(`SdataArtikelReader.cs:32-35`, `WhereBestellartikel` :58). Ein Sage-Artikel mit Meldebestand außerhalb dieser Menge erscheint nicht.
+Nachbestellartikel = WMS-Artikel mit **Meldebestand > 0 in Sage**. *(ueberholt: „und ohne Kennzeichen nicht disponieren (ab E3)“ – Kennzeichen
+entfallen.)*
+Beleg Feld: Meldebestand steht im WMS als `Article.ReorderLevel` (`Article.cs:43`). Geschrieben **nur** vom Artikel-Abgleich: View-Weg
+`SageArticleSql.cs:18` (`v.Meldebestand AS ReorderLevel`) → `SageImportService.cs:449/474/516`; SData-Weg `SdataArtikelReader.cs:260`
+(0 → null). Sage-„0“ wird auf beiden Wegen zu `null` (`SageImportHelpers.cs:14`, `SdataArtikelReader.cs:260`). Also gilt:
+`ReorderLevel > 0` ⇔ Sage-Meldebestand > 0.
+Einschränkung (belegt, AKE-SData-Weg): Im WMS stehen nur Ressourcenummern aus Stücklisten und `IstBestellartikel AND Aktiv`
+(`SdataArtikelReader.cs:35`, `WhereBestellartikel` :63). Ein Sage-Artikel mit Meldebestand außerhalb dieser Menge erscheint nicht.
 
 > [!warning] Brain-Korrektur
 > Backlog und [[feature-map]] Z. 25 nennen `Article.MinimumStock` – dieses Feld gibt es nicht (kein Treffer im Code); das Feld heißt
@@ -126,185 +129,249 @@ Einschränkung (belegt): Im WMS stehen an AKE nur Ressourcenummern aus Stücklis
 ### F2 Projektion je Artikel
 ```
 verfügbar = WMS-Bestand
-          + offen bestellt (Sage, offene EK-Positionen, ab E2)
-          + im Dispo-Stapel (WMS-Stapel in Sage, ab E5)
+          + offen bestellt (Sage-Cache, Rest nach der Rest-Regel, ab E2)
+          + im Dispo-Stapel (WMS-Stapel in Sage, ab E5 – blockiert)
           − offene Bedarfe (gemäß Einstellung EinkaufOffeneBedarfe)
-Vorschlag, wenn verfügbar ≤ Meldebestand  (und nicht „nicht disponieren“, nicht „ignoriert bis ≥ heute“)
+Vorschlag, wenn verfügbar ≤ Meldebestand
 ```
-- **WMS-Bestand** (verbindlich „Bestand = WMS-Bestand“): Summe `CurrentQuantity` je Artikel aus `StockMovementRepository.GetCurrentStockAsync`
-  (`StockMovementRepository.cs:16-193`), **ohne** Plätze mit `IsPickingTransport` (Feld im Ergebnis, :52/:74). Begründung Wagen-Ausschluss:
-  [[fallstricke]] §7 „Kommissionierwagen“. Artikel ohne Bewegung = 0. Lagerplatz-Umfang: Rückfrage 4.
-  **Nicht** `StockCheckService` wiederverwenden: dessen SQL zählt eine Umbuchung zwischen zwei regulären Plätzen als Zugang (das erste
-  `WHEN sm.MovementType = 2 …` trifft, der Quellabzug wird nie erreicht, `StockCheckService.cs:41-42`) und lässt Artikel ohne Bewegung
-  weg (`INNER JOIN`, :58). Befund wird gemeldet, nicht in diesem Epic behoben.
-- **Sage verfügbar** (Vergleichsspalte, verbindlich): `ArticleSageDetail.LagerbestandVerfuegbar` (`ArticleSageDetail.cs:57`), Stand =
-  letzter Artikel-Abgleich (`ArticleSageDetail.ModifiedAt`, sonst `CreatedAt`). Der Satellit wird **nur** bei `Sync:Quelle:Artikel = SData`
-  geschrieben (`SageImportService.cs:534-539`, `ArticleSageDetail.cs:7-9`); Default ist `View` (`ServiceSettingDefinitions.cs:80`). Fehlt die
-  Zeile: Zelle „–“ und Banner (Rückfrage 10).
-- **Offen bestellt** (E2): offene Menge der offenen Sage-EK-Positionen je Artikel aus dem Reader von Teil B (`EinkaufPositionenInfo`,
-  1.167 offene Positionen am AKE-Test, [[sage-sdata-wms-schnittstellenkatalog]] Z. 41). Feldnamen, Mengeneinheit und „offen“-Definition
-  übernimmt dieses Epic **unverändert** von Teil B; nicht neu herleiten. Dazu „nächster Liefertermin“.
-- **Offene Bedarfe** (Einstellung `EinkaufOffeneBedarfe`, Rückfrage 1):
+- **WMS-Bestand** (verbindlich „Bestand = WMS-Bestand“; Rückfrage 4: alle Plätze außer Kommissionierwagen): über
+  `IStockMovementRepository.GetStockByArticleNumbersAsync` (`StockMovementRepository.cs:395-459`) – Ein-/Sage-Einbuchung und Umbuchungs-Ziel
+  plus, Aus-/Sage-Ausbuchung minus (:417-424), Umbuchungs-Quelle minus (:429-449), Kommissionierwagen auf beiden Seiten ausgenommen
+  (:405, :435), kein Filter auf aktiv/buchbar. Es ist dieselbe Regel wie in der Meldebestand-Mail seit v1.93.0 (`StockCheckService.cs:20-23`,
+  Aufruf :41-43, Summe je Artikel und „ohne Bewegung = 0“ :58-59). Damit zeigen Liste und Mail denselben Bestand.
+  *(ueberholt: „Summe aus `GetCurrentStockAsync` und Gruppierung in C#“ sowie der Befund zum `StockCheckService`-SQL – seit v1.93.0 behoben,
+  das eigene SQL gibt es nicht mehr, `StockCheckService.cs:28-29` liest nur noch den Artikelstamm.)*
+- **Sage verfügbar** (Vergleichsspalte, verbindlich): `ArticleSageDetail.LagerbestandVerfuegbar` (`ArticleSageDetail.cs:68`), Stand = letzter
+  Artikel-Abgleich (`ModifiedAt`, sonst `CreatedAt`). Der Satellit wird **nur** bei `Sync:Quelle:Artikel = SData` geschrieben
+  (`SageImportService.cs:534-539`, `ArticleSageDetail.cs:7-9`; Default `View`, `ServiceSettingDefinitions.cs:260`). Fehlt die Zeile: Zelle „–“
+  und Banner mit Anzahl.
+- **Offen bestellt** (E2, Teil B wiederverwendet, keine eigene Sage-Abfrage im Web):
+  - Quelle: Cache `SagePurchaseOrderLine` über `ISagePurchaseOrderLineRepository.GetAllAsync()` (`SagePurchaseOrderLineRepository.cs:14/28`;
+    laut Klassenkommentar :7-9 die einzige Lese-Schnittstelle für offene Sage-Bestellungen, „auch für das spätere Einkaufs-Epic“). Geschrieben
+    nur vom Dienst (`EinkaufBestellungenSyncService.cs:186-193`, Vollersatz je Lauf), Gate `Sync:EinkaufBestellungenEnabled` (Default false,
+    `ServiceSettingDefinitions.cs:270`). Enthalten sind Bestellungen `EBB` und Rahmenabrufe `EBZ` (`EinkaufBestellungenSyncService.cs:40-42`).
+  - Menge je Position = **Rest** nach der Rest-Regel `ErfasstJeBelPos.Rest(l)` (`PurchaseOrderReceiptRepository.cs:22-30`) mit
+    `GetErfasstJeBelPosAsync` (:38/:74) – dieselbe Funktion wie die Maske „Wareneingang zu Bestellung“ und die Lieferverzug-Mail (:25-26).
+    Grund: Ein im WMS erfasster Wareneingang steht sofort im WMS-Bestand, verringert die offene Menge im Cache aber erst nach Sage-Übergabe und
+    nächstem Abgleich ([[fallstricke]] Z. 1765-1767). Mit `MengeOffen` direkt würde er doppelt zählen.
+  - Zuordnung über `SagePurchaseOrderLine.ArticleId` (beim Lauf aufgelöst, :32; ohne FK). Positionen ohne `ArticleId` gehören zu keinem
+    WMS-Artikel und erscheinen nicht. Mengen stehen in der Basiseinheit (:9, :35-40). Positionen mit `EinheitAbweichend = true` (:44-46, gesetzt
+    `EinkaufBestellungenSyncService.cs:149-151`) werden **nicht** eingerechnet und im Sammelbanner gezählt.
+  - „Nächster Liefertermin“ = frühester `Liefertermin` (:51) der Positionen mit Rest > 0.
+  - Stand = `GetStandAsync()` (`SagePurchaseOrderLineRepository.cs:19/39-40`). Bei `null` (Cache leer) zeigt die Liste einen Banner „Offene
+    Bestellungen aus Sage nicht gelesen (Dienst-Abgleich Sync:EinkaufBestellungenEnabled)“, die Spalte „–“ statt 0, und die Projektion ist als
+    „ohne offene Bestellungen“ gekennzeichnet. *(ueberholt: Live-Lesen von `EinkaufPositionenInfo` im Web und der Sage-Lesefehler-Banner – das
+    Web liest nur den Cache; Lesefehler protokolliert der Dienst, `EinkaufBestellungenSyncService.cs:83-89`.)*
+- **Offene Bedarfe** (Einstellung `EinkaufOffeneBedarfe`, Rückfrage 1 beantwortet: beide):
   - Lagerbestellungen: Kopf `Status = Submitted` → `QuantityRequested`; `Status = PartiallyDelivered` → je Position mit
     `ShortageStatus = WillBeRestocked` der Rest `QuantityRequested − (QuantityPicked ?? 0)`. Belege: `WarehouseRequisition.cs:11`,
-    `WarehouseRequisitionItem.cs:20-21/44`, Status-Ableitung `WarehouseRequisitionRepository.cs:240-250`, Rest-Formel wie
-    `WarehouseRequisitionRepository.cs:439`. `Draft`, `Closed`, `Cancelled` zählen nicht. Belegt: Abschluss bucht **keinen** Bestand
-    (`CloseAsync` :195-238 setzt nur Mengen/Status); daher ist eine offene Lagerbestellung noch nicht im WMS-Bestand abgezogen.
-  - Bedarfsmeldungen: `Status = Offen` (`PartRequisitionStatus.cs:5`) → `Quantity` (`PartRequisition.cs:22`). Erfüllt wird sie bei der
-    Einbuchung (`StockMovementsController.cs:142-152` → `PartRequisitionRepository.cs:108-120`).
-  - Zuordnung über `ArticleNumber` (beide Tabellen haben keinen Artikel-FK: `PartRequisition.cs:11`, `WarehouseRequisitionItem.cs:12`),
-    getrimmt, Groß/Klein egal. Weicht `Unit` von `Article.Unit` ab (beide nicht leer), wird die Zeile **nicht** eingerechnet und im
-    Sammelbanner gezählt („n Bedarfe mit abweichender Einheit nicht eingerechnet“) – melden statt still behandeln.
-- **Im Dispo-Stapel** (E5): `MengeBasis` der Positionen des WMS-Stapels, live gelesen aus `DispositionStapelPositionenInfo`
-  (Feldnamen: Prüfschritt P4). Nur gelesen, wenn `EinkaufDispoUebergabeAktiv = true`.
+    `WarehouseRequisitionItem.cs:20-21/44`, Status-Ableitung `WarehouseRequisitionRepository.cs:240-250`, Rest-Formel wie :439. `Draft`,
+    `Closed`, `Cancelled` zählen nicht. Belegt: Abschluss bucht **keinen** Bestand (`CloseAsync` :193-238 setzt nur Mengen, Notizen, Status,
+    Audit-Felder), daher ist eine offene Lagerbestellung noch nicht im WMS-Bestand abgezogen.
+  - Bedarfsmeldungen: `Status = Offen` → `Quantity` (`PartRequisition.cs:22/29`). Erfüllt wird sie bei der Einbuchung
+    (`StockMovementsController.cs:169` → `PartRequisitionRepository.cs:111-113`).
+  - Zuordnung über `ArticleNumber` (kein Artikel-FK: `PartRequisition.cs:11`, `WarehouseRequisitionItem.cs:12`), getrimmt, Groß/Klein egal.
+    Weicht `Unit` (`PartRequisition.cs:25`, `WarehouseRequisitionItem.cs:18`) von `Article.Unit` (`Article.cs:36`) ab (beide nicht leer), wird
+    die Zeile **nicht** eingerechnet und im Sammelbanner gezählt.
+- **Im Dispo-Stapel** (E5, blockiert): `MengeBasis` der Positionen des WMS-Stapels, live aus `DispositionStapelPositionenInfo` (Feldnamen: P4),
+  nur bei `EinkaufDispoUebergabeAktiv = true`.
 
-### F3 Vorschlagsmenge (Einstellung `EinkaufVorschlagsverfahren`, Rückfrage 2)
-`Fehlmenge = Meldebestand − verfügbar` (≥ 0, da Vorschlag nur bei verfügbar ≤ Meldebestand); `B = ArticleSageDetail.Bestellmenge`
-(`ArticleSageDetail.cs:59`, aus `ArtikelVariantenExtended.Bestellmenge`, `SdataArtikelReader.cs:279`).
-- **FesteMenge:** `B × max(1, ⌈Fehlmenge / B⌉)` – mindestens eine Bestellmenge, so viele, dass nach Lieferung verfügbar > Meldebestand
-  wird (bei Gleichstand genau eine).
-- **Auffuellen:** `Meldebestand + B − verfügbar`.
-- `B` fehlt oder ≤ 0: Vorschlag = `Fehlmenge`, bei Fehlmenge 0 → Meldebestand; Zeile mit Hinweis „ohne Sage-Bestellmenge“.
-- Danach (E4) Aufrunden auf die Mindestbestellmenge des gewählten Lieferanten, nur bei passender Einheit (F5).
-- Alle Mengen in Lagermengeneinheit (`Article.Unit` = Sage `Lagermengeneinheit`, `SdataArtikelReader.cs:254`; WMS-Bestand ebenso).
+### F3 Vorschlagsmenge = letzte Bestellmenge (Keyuser 2026-11-13, ersetzt Rückfrage 2)
+```
+F  = Meldebestand − verfügbar                    (≥ 0, da Vorschlag nur bei verfügbar ≤ Meldebestand)
+L  = letzte Bestellmenge des Artikels beim gewählten Lieferanten (E3)
+V  = L                                            Regelfall
+     Erhöhung bei außerordentlichem Bedarf        Rückfrage 11 (Vorschlag: V = (⌊F / L⌋ + 1) × L, Grund „n × letzte Bestellmenge“)
+     ohne L                                       Rückfrage 13 (Vorschlag: L eines anderen Lieferanten, sonst F bzw. Meldebestand)
+V  = max(V, Mindestbestellmenge)                  E4, nur bei passender Einheit (F5)
+```
+*(ueberholt: Einstellung `EinkaufVorschlagsverfahren` mit `FesteMenge`/`Auffuellen` auf Basis der Sage-Bestellmenge. `ArticleSageDetail.Bestellmenge`
+(:70) bleibt reine Anzeigespalte „Sage-Bestellmenge“.)*
+
+- **Definition L:** Menge der jüngsten Sage-Bestellposition des Artikels beim Lieferanten, Reihenfolge Belegdatum absteigend, dann BelID
+  absteigend; Belegarten laut Rückfrage 12. Menge in der **Basiseinheit** (`MengeBasis`). L gilt nur, wenn `ArticleSageDetail.Basismengeneinheit`
+  = `Lagermengeneinheit` (`ArticleSageDetail.cs:30/32`); sonst bleibt L leer mit Hinweis „Einheit Basis ≠ Lager“ (gleiche Sperrregel wie der
+  Cache, `EinkaufBestellungenSyncService.cs:147-151`). Dass `MengeBasis` die Basiseinheit ist und `Menge` die Bestelleinheit, ist für die
+  Belegtabellen **unverifiziert** (P-L2 c).
+- **Beleg AKE (Sage-SQL, nur lesend, Gerald 2026-11-13, `AKESQL20.ake.at` / `ake_TEST2026` = SageConnection von `D:\Dev\AKE\Web`, Testkopie):**
+  Tabellen `KHKEKBelege` (Mandant smallint, BelID int, Belegart, Belegdatum, A0Empfaenger) und `KHKEKBelegePositionen` (Mandant smallint,
+  BelID int, Artikelnummer varchar, Menge money, MengeBasis money, Liefertermin datetime), Join über Mandant + BelID. `Belegart` enthält
+  **Text**: Wareneingang 98.226 (2014-04-11 … 2026-11-13), Bestellung 64.002 (2008-01-10 … 2026-07-08), Rahmenabruf 3.455, Preisanfrage 1.356,
+  Rahmenvertrag EK 522, Retour 428, RMA-Anmeldung 293, RMA-Retour 3, Liefererinnerung 1, Mahnung 1. Abfrage (sinngemäß):
+  ```sql
+  WITH x AS (
+    SELECT p.Mandant, p.Artikelnummer, p.Menge, p.MengeBasis, b.Belegdatum, b.BelID, b.A0Empfaenger,
+           ROW_NUMBER() OVER (PARTITION BY p.Mandant, p.Artikelnummer ORDER BY b.Belegdatum DESC, b.BelID DESC) AS rn
+    FROM KHKEKBelegePositionen p
+    JOIN KHKEKBelege b ON b.Mandant = p.Mandant AND b.BelID = p.BelID
+    WHERE b.Belegart = 'Bestellung' AND ISNULL(p.Artikelnummer, '') <> '')
+  SELECT COUNT(*) FROM x WHERE rn = 1;   -- 24.686 Artikel mit letzter Bestellung
+  ```
+  Damit ist für AKE belegt, **dass** es die Daten gibt. **Nicht** geprüft: Wert des Mandanten-Filters, ob `A0Empfaenger` die Lieferanten-Kto ist
+  (Hinweis, kein Beleg: in der SData-Ressource `EinkaufPositionenInfo` liest der Dienst `A0Empfaenger` als Lieferanten-Kto,
+  `EinkaufBestellungenSyncService.cs:132`), Rahmenabrufe, `Menge` vs `MengeBasis`, IDEAL. Prüfschritt P-L2.
+- **Lesepfad im WMS: nur SData**, für beide Standorte gleich (IDEAL ist nur über SData erreichbar; Teil B ist ebenso SData-only,
+  `EinkaufBestellungenSyncService.cs:30`). Kandidaten, Entscheidung nach P-L1:
+  1. `EinkaufPositionenAllInfo` (Vertrag `CommonWawiServicesResources`, Schwester der schon genutzten `EinkaufPositionenInfo`). Ohne `where`
+     Timeout > 20 s ([[sage-sdata-wms-schnittstellenkatalog]] Z. 18); im Lese-Client nur mit `where` zugelassen (`SageSdataReadClient.cs:150`).
+     Feldnamen (Datumsfeld, `Menge`, `MengeBasis`) für diese Ressource unbelegt.
+  2. `eptEinkaufsbelege` im Partner-Vertrag `apiDMSConnector.100036671.DPSBS_DMS_Connector` (Felder VorID, Bestellung, Bestelldatum,
+     Lieferantennummer, VorPosID, Artikelnummer, Menge, MengeBasis …, [[sage-sdata-api-vertraege]] Z. 91-97). Leserecht des SData-Benutzers
+     ungeprüft (Z. 103), Lesetests der API-Verträge stehen aus (Z. 12-13). *Korrektur:* Die Ressource liegt **nicht** in
+     `CommonWawiServicesResourcesSpecific` (dort nur Kommissionier-, Sammelmappen- und Lizenz-Ressourcen, Z. 105-113).
+  Bleibt P-L1 ohne bestätigten Pfad, ist **E3 Blocker** (kein Raten, kein Direkt-SQL als Ersatz).
+- **Ablage:** drei Spalten an `ArticleSuppliers` (Artikel + Kreditor = „beim Lieferanten“): `LetzteBestellmenge`, `LetzteBestellungAm`,
+  `LetzteBestellungBeleg` (SQL/148). Schreiber: ein zweiter Leseschritt im Dienst `ArtikelLieferantSyncService` nach dessen Hauptschritt (gleiches
+  Gate `Sync:ArtikelLieferantEnabled`, `ServiceSettingDefinitions.cs:269`, Default false; Audit wie dort). Zuordnung Lieferant über Kto →
+  `Creditor.SageKto`, Artikel über Artikelnummer (Muster `EinkaufBestellungenSyncService.cs:103-108`). Letzte Bestellung zu einem Lieferanten
+  ohne `ArticleSuppliers`-Zeile: nicht abgelegt, im Protokoll als Warnung mit Beispielen gezählt. Lesefehler des Schritts: Warnung im
+  Protokoll, gespeicherte Werte bleiben, der Artikel-Lieferanten-Lauf selbst bleibt erfolgreich. Ob in einem Lauf (mit Datumsfenster) oder
+  je Artikel gelesen wird, legt das Ergebnis von P-L1/P-L3 fest (Laufzeit); Datumsfilter nur als `@yyyy-MM-dd@` ([[fallstricke]] Z. 1774-1776).
+- Spalten: „letzte Bestellmenge“, „letzte Bestellung am“ (mit Beleg), „Vorschlag“, „Grund“ (z. B. „letzte Bestellmenge“, „2 × letzte
+  Bestellmenge“, „auf Mindestbestellmenge aufgerundet“, „keine letzte Bestellung – Menge prüfen“).
+- Alle Mengen in Lagermengeneinheit (`Article.Unit` = Sage `Lagermengeneinheit`, Kommentar `ArticleSageDetail.cs:28-29`).
 
 ### F4 Lieferant, WBZ, Liefertermin
-- **Hauptlieferant:** `ArticleSupplier` mit `IstHauptlieferant = true` (`ArticleSupplier.cs:28-29`) → `Creditor` (Name, `SageKto`,
-  `Creditor.cs:15-18/74-77`); Bestellnummer `ArticleSupplier.SageBestellnummer` (:18), Mindestbestellmenge (:21), WBZ (:25, Tage).
-  Geschrieben nur vom Lese-Abgleich `ArtikelLieferantSyncService` (Gate `Sync:ArtikelLieferantEnabled`, Default false,
-  `ServiceSettingDefinitions.cs:194`; Doku `ArtikelLieferantSyncService.cs:17-23`).
-- Fehlt eine `ArticleSupplier`-Zeile, aber `ArticleSageDetail.Hauptlieferant` (Kto-Text, :62) ist gesetzt: Kto anzeigen, Hinweis
-  „Kreditor fehlt im WMS“, Zeile nicht übergebbar.
-- **Letzter Lieferant** `ArticleSageDetail.LetzterLieferant` (:63), **ABC** (:54) – Anzeige.
-- **WBZ** = WBZ des gewählten Lieferanten, sonst `ArticleSageDetail.Wiederbeschaffungszeit` (:65). Einheit Tage, belegt am AKE-Test:
-  Bestelltermin 13.11. + WBZ 14 → Sage-Liefertermin 27.11. ([[sdata-befund-ake-test-2026-10-30]] §14 B1/B2).
-- **Wunschtermin** = heute + WBZ (Kalendertage), nur Anzeige; Sage setzt den Liefertermin der Stapelposition selbst (B2).
-- Lieferant änderbar auf einen anderen `ArticleSupplier` desselben Artikels (E5).
+- **Gewählter Lieferant = Hauptlieferant:** `ArticleSupplier` mit `IstHauptlieferant = true` (`ArticleSupplier.cs:32`) → Kreditor (Name,
+  `SageKto`, Projektion wie `ArticleRepository.cs:66-71`); Bestellnummer `SageBestellnummer` (:18), Mindestbestellmenge (:21), Einkaufsmengeneinheit
+  (:22), WBZ (:28, Tage). Geschrieben nur vom Lese-Abgleich `ArtikelLieferantSyncService` (u. a. :205-206; Gate `Sync:ArtikelLieferantEnabled`).
+- Fehlt eine `ArticleSupplier`-Zeile, aber `ArticleSageDetail.Hauptlieferant` (:73, Kto-Text) ist gesetzt: Kto anzeigen, Hinweis „Kreditor fehlt
+  im WMS“, keine letzte Bestellmenge, Zeile nicht übergebbar.
+- **Letzter Lieferant** `ArticleSageDetail.LetzterLieferant` (:74), **ABC** `ABCKlasse` (:65), **USER_Mindestbestand** `UserMindestbestand` (:80,
+  Rückfrage 3: nur Anzeige) – Anzeige.
+- **WBZ** = WBZ des gewählten Lieferanten, sonst `ArticleSageDetail.Wiederbeschaffungszeit` (:76). Einheit Tage, belegt am AKE-Test
+  ([[sdata-befund-ake-test-2026-10-30]] §14 B1/B2). **Wunschtermin** = heute + WBZ (Kalendertage), nur Anzeige.
+- Lieferant änderbar auf einen anderen `ArticleSupplier` desselben Artikels nur in E5 (blockiert).
 
-### F5 Einheiten-Wächter (E4)
-- Mindestbestellmenge rundet nur, wenn `ArticleSupplier.Einkaufsmengeneinheit` (:22) leer oder gleich `Article.Unit` ist **und**
-  Prüfabfrage P2 die Einheit der Mindestbestellmenge bestätigt hat. Sonst: keine Rundung, Hinweis in der Zeile. Bis P2 beantwortet ist,
-  gilt die Rundung als **unverifiziert** (Code-Kommentar `TODO(P2)`).
-- Übergabe an Sage (`MengeBasis`, Basismengeneinheit) nur, wenn `Basismengeneinheit = Lagermengeneinheit` (Felder neu in E4); sonst
-  Zeile gesperrt mit Hinweis „Einheit Lager ≠ Basis – in Sage bestellen“. Umrechnung über `UmrechnungsFaktorLME` erst, wenn P1 die
-  Richtung belegt (Folgearbeit).
+### F5 Mindestbestellmenge und Einheiten-Wächter (E4)
+- **Quelle Mindestbestellmenge:** `ArticleSupplier.Mindestbestellmenge` (`ArticleSupplier.cs:21`), aus SData `ArtikelLieferantInfo`
+  (`ArtikelLieferantSyncService.cs:29` select, :206 geschrieben, auf 3 Stellen gerundet). *Nicht* `ArticleSageDetail.MinimaleLosgroesse`
+  (:57, Ressource Artikel – Losgröße, kein Lieferantenwert).
+- Aufrunden `V = max(V, Mindestbestellmenge)` nur, wenn `Einkaufsmengeneinheit` (:22) leer oder gleich `Article.Unit` ist **und** P2 die Einheit
+  der Mindestbestellmenge bestätigt hat. Sonst keine Rundung, Hinweis in der Zeile. Bis P2 beantwortet ist, gilt die Rundung als
+  **unverifiziert** (Code-Kommentar `TODO(P2)`).
+- Übergabe an Sage (E5, `MengeBasis`) nur, wenn `Basismengeneinheit = Lagermengeneinheit`; sonst Zeile gesperrt mit Hinweis „Einheit Lager ≠ Basis
+  – in Sage bestellen“. Die Felder liegen seit v1.85.0 vor: `ArticleSageDetail.cs:28-33`, Migration `20261107182445_AddArtikelMengeneinheiten`
+  = `SQL/140_AddArtikelMengeneinheiten.sql`, gelesen `SdataArtikelReader.cs:53`, gemappt :275-276. Umrechnung über `UmrechnungsFaktorLME`
+  bleibt Folgearbeit. *(ueberholt: neue Spalten in E4, SQL/129, Erweiterung des `SdataArtikelReader`, P1 – alles schon vorhanden.)*
 
-### F6 Kennzeichen je Artikel (E3)
-- „Nicht disponieren“ (verbindlich): Artikel erscheint nicht als Vorschlag; im Filter „alle Artikel mit Meldebestand“ sichtbar mit
-  Kennzeichen, dort zurücknehmbar.
-- „Ignorieren bis <Datum>“: Vorschlag ausgeblendet bis einschließlich Datum; Datum ≥ heute Pflicht (Server prüft).
-- Optional Bemerkung (500 Zeichen).
+### F6 Kennzeichen je Artikel – *ueberholt, entfällt* (Keyuser 2026-11-13)
+Keine Kennzeichen „nicht disponieren“ / „ignorieren bis“, kein Satellit `ArticlePurchaseSettings`, keine Aktion `SetFlags`, kein Filter
+„alle Artikel mit Meldebestand“ für Kennzeichen (der Umfang-Filter in F8 bleibt).
 
-### F7 Übergabe an den Sage-Dispositionsstapel (E5, verbindlich „Übergabe an den Dispo-Stapel“)
+### F7 Übergabe an den Sage-Dispositionsstapel (E5) – **BLOCKIERT**
+> [!danger] Schreibt an Sage – blockiert
+> Vorbedingung zum Entsperren: Lesetest P4 und Schreibtest P5 am AKE-Test mit Freigabe Gerald; Freigabe-Nachtrag 2026-11-07: „Etappen, die an
+> Sage schreiben, bleiben blockiert und aus“. Beim Entsperren die seitherigen Schreib-Lehren übernehmen: `ResultNumber 200` = Ok, ohne
+> `format=json` Atom-XML ([[fallstricke]] Z. 1770-1771), vor erneutem Senden Lookup statt blindem Wiederholen (Z. 1768-1769), Memo-/Kennungs-
+> Eindeutigkeit je WMS (Z. 1784-1789). Alle Fundstellen dieses Abschnitts dann neu prüfen.
+
 Bedeutung belegt: Der Dispositionsstapel ist in Sage das Ergebnis der Disposition, aus dem der Einkauf Bestellungen erzeugt
-([[sage-sdata-commonwawiservices]] Z. 99-105; Backlog „Sage 100 Disposition“). Am AKE-Test geprüft (§14): Stapel anlegen (B1, Typ 0
-Manuell), Position anlegen (B2, `MengeBasis 200`, Lieferant K31013 fix → `PosHandle 383`; Sage ergänzt Lieferanten-Bestellnummer,
-Einzelpreis, Liefertermin), Position löschen (B3) wirkt, **Stapel löschen (B4) wirkt nicht** → Stapel wiederverwenden.
+([[sage-sdata-commonwawiservices]] Z. 99-105). Am AKE-Test geprüft (§14): Stapel anlegen (B1, Typ 0 Manuell), Position anlegen (B2, `MengeBasis 200`,
+Lieferant K31013 fix → `PosHandle 383`; Sage ergänzt Lieferanten-Bestellnummer, Einzelpreis, Liefertermin), Position löschen (B3) wirkt,
+**Stapel löschen (B4) wirkt nicht** → Stapel wiederverwenden.
 - Nur sichtbar und serverseitig erlaubt bei `EinkaufDispoUebergabeAktiv = true` (Default false) – zusätzlich zu Gate und Rolle.
 - Zeilen auswählen, Menge (> 0, Dezimal kulturfest) und Lieferant (aus `ArticleSupplier` des Artikels) anpassen, „An Sage übergeben“ mit
   Bestätigungsdialog (Warntext wie Einstellung).
 - Server prüft je Zeile neu: Rolle, Gate, Schalter, Menge > 0, Lieferant gehört zum Artikel und hat `SageKto`, Einheiten-Wächter (F5),
-  keine Protokollzeile im Status `Gesendet` für diesen Artikel, Artikel nicht schon im WMS-Stapel (Lesen P4). Abgewiesene Zeilen →
-  Sammelmeldung mit Grund je Artikel (`TempData["WarningMessage"]`), übergebene → `SuccessMessage` mit Anzahl.
-- Ablauf je Zeile: Stapel sicherstellen (`DispositionStapelService`, nur wenn in `DispositionStapelInfo` nicht vorhanden; Typ Manuell = 0,
-  `DispoMode` Wawi = 0) → Protokollzeile **vor** dem Aufruf auf `Gesendet` → `DispositionStapelPositionenService` (`OperationMode` Neu = 0,
-  `Artikelnummer`, `AuspraegungHandle = 0` wie `SageLagerbuchungPayloadBuilder.cs:57`, `MengeBasis`, `MengeBasisFix`, `Lieferant = SageKto`,
-  `IsLieferantFix = true`) → `Bestaetigt` mit `PosHandle` oder `Fehler` mit `ResultText`/`ErrorText`. Je Service `ResultNumber`
-  auswerten (Befund §14 Folgerung 3: Fehlercodes uneinheitlich).
-- Timeout/unklare Antwort: Status bleibt `Gesendet`, Zeile zeigt „unklar – im Sage-Stapel prüfen“; kein automatischer Neuversuch. Die
-  nächste Liste liest den Stapel live (F2) – ist die Position dort, setzt der Server die Protokollzeile beim nächsten Laden auf `Bestaetigt`.
-- Zugangsdaten und Ziel wie die SData-Leseansicht: `SData:BaseUrl`, `SData:Application`, `SData:Dataset` (ServiceSettings),
-  `SageLagerbuchung:Username/Password` (Konfiguration), TLS-Policy `SageTlsPolicy` – Muster `SageSdataFaController.cs:48-53`.
-  URL über `SdataUrlBuilder.BuildResourceUrl(…, "$service/DispositionStapelPositionenService")` (`SdataUrlBuilder.cs:26-39`, Vertrag
-  `CommonWawiServices`). POST/Fehlerbehandlung nach `SageLagerbuchungClient.cs:33-75` (Body ins Log gekappt, nie Zugangsdaten).
+  keine Protokollzeile `Gesendet` für diesen Artikel, Artikel nicht schon im WMS-Stapel (P4). Abgewiesene Zeilen → Sammelmeldung mit Grund
+  (`TempData["WarningMessage"]`), übergebene → `SuccessMessage` mit Anzahl.
+- Ablauf je Zeile (Rückfragen 5/6 beantwortet: ein fester Stapel, synchron aus der Web-App): Stapel sicherstellen → Protokollzeile **vor** dem
+  Aufruf auf `Gesendet` → `DispositionStapelPositionenService` (`OperationMode` Neu = 0, `Artikelnummer`, `AuspraegungHandle = 0`, `MengeBasis`,
+  `MengeBasisFix`, `Lieferant = SageKto`, `IsLieferantFix = true`) → `Bestaetigt` mit `PosHandle` oder `Fehler` mit Text. Timeout/unklare
+  Antwort: Status bleibt `Gesendet`, Zeile „unklar – im Sage-Stapel prüfen“, kein automatischer Neuversuch; das nächste Laden liest den Stapel
+  und setzt ggf. `Bestaetigt`.
+- Zugang: *(ueberholt: `SData:*`-ServiceSettings + `SageLagerbuchung:Username/Password` aus der Konfiguration.)* Seit v1.99.14 liegt der
+  SData-Zugang verschlüsselt in den ServiceSettings (ADR [[0024-sdata-kennwort-verschluesselt-in-den-service-einstellungen]], [[fallstricke]]
+  §33); Ziel-Objekt `SdataLeseZiel` (`SageSdataFaModels.cs:59`). Keine Zugangsdaten in Log oder Meldung.
 
 ### F8 Liste „Einkauf → Bestellvorschläge“
 - Spalten: Lieferant (Name + Kto), Artikel, Bezeichnung, Bestand WMS, Sage verfügbar, offen bestellt (E2), nächster Liefertermin (E2),
-  im Dispo-Stapel (E5), offene Bedarfe, verfügbar, Meldebestand, Bestellmenge, Vorschlag, Einheit, Mindestbestellmenge (E4),
-  Bestellnummer Lieferant, WBZ, Wunschtermin, letzter Lieferant, ABC, USER_Mindestbestand (Anzeige, Rückfrage 3), Status/Hinweis.
-- Standardsortierung Lieferant, dann Artikelnummer („je Lieferant gruppiert“ ohne eigene Gruppenzeilen – CSV und Spaltenfilter
-  bleiben einfach).
-- Filterkarte: Lieferant (Auswahl aus Kreditoren mit Artikel-Lieferant-Zeilen), Artikelgruppe, Umfang „nur Vorschläge“ (Default) / „alle
-  Artikel mit Meldebestand“, Dringlichkeit „kritisch (verfügbar < 0)“ / „nachbestellen (≤ Meldebestand)“ / alle.
-- Dringlichkeit als Text-Badge („kritisch“, „nachbestellen“), Farbe nur zusätzlich (WCAG AA, Farbe nie alleiniger Bedeutungsträger).
-- Banner: Sage-Zusatzfelder fehlen (Anzahl Artikel ohne `ArticleSageDetail`), Artikel-Lieferanten fehlen, Bedarfe mit abweichender
-  Einheit, offene Bestellungen nicht lesbar (E2, Sage-Fehler → Liste ohne diese Spalte, Banner mit Fehlertext, kein stilles 0).
+  im Dispo-Stapel (E5), offene Bedarfe, verfügbar, Meldebestand, letzte Bestellmenge + am/Beleg (E3), Vorschlag, Grund, Einheit,
+  Mindestbestellmenge (E4), Sage-Bestellmenge, Bestellnummer Lieferant, WBZ, Wunschtermin, letzter Lieferant, ABC, USER_Mindestbestand,
+  Status/Hinweis.
+- Standardsortierung Lieferant, dann Artikelnummer (ohne eigene Gruppenzeilen).
+- Filterkarte: Lieferant (Auswahl aus Kreditoren mit Artikel-Lieferant-Zeilen), Artikelgruppe, Umfang „nur Vorschläge“ (Default) / „alle Artikel
+  mit Meldebestand“, Dringlichkeit „kritisch (verfügbar < 0)“ / „nachbestellen (≤ Meldebestand)“ / alle.
+- Dringlichkeit als Text-Badge, Farbe nur zusätzlich (WCAG AA, Farbe nie alleiniger Bedeutungsträger).
+- Banner (melden statt still): Sage-Zusatzfelder fehlen (Anzahl ohne `ArticleSageDetail`), Artikel-Lieferanten fehlen, offene Bestellungen nicht
+  gelesen bzw. Stand des Caches, Positionen/Bedarfe mit abweichender Einheit nicht eingerechnet, Artikel ohne letzte Bestellmenge (E3).
 
 ## Technischer Lösungsentwurf
 
-- **Rechenregel an einem Ort:** `PurchaseProposalCalculator` (statisch, rein, keine DB) nimmt je Artikel ein Eingabe-Record (Bestand,
-  offen bestellt, im Stapel, Bedarfe, Meldebestand, Bestellmenge, Mindestbestellmenge, Einheiten, Kennzeichen, Verfahren, heute) und
-  liefert Projektion, Vorschlag, Dringlichkeit, Hinweise. Unit-Tests decken F2/F3/F5/F6 ab.
-- **Datensammlung:** `PurchaseProposalRepository` lädt in wenigen Abfragen: Artikel mit `ReorderLevel > 0` + `SageDetail`
-  (`Article.cs:58`) + Satellit (E3); Lieferanten (`ArticleSuppliers` + `Creditors`); offene Bedarfe (zwei gruppierte Abfragen); Bestand über
-  `IStockMovementRepository.GetCurrentStockAsync()` und Gruppierung in C# (Wagen raus). Bei der Lieferanten-Abfrage die Methode aus Teil A
-  wiederverwenden, falls Teil A eine je-Artikel-Liste liefert; sonst eine eigene Abfrage hier (keine zweite Kopie anlegen, wenn A sie hat).
-- **Listen-View-Pattern (ADR 0005):** Die Liste ist berechnet → Spaltenfilter **in C# nach der Berechnung** über
-  `ColumnFilterHelper.ReadFromQuery` + `ColumnFilterSyntax.Matches` (`ColumnFilterSyntax.cs:345`), dann `PageSize.Resolve` +
-  `PaginationState` + `_Pagination`. `data-server-column-filter="true"`, `data-col-key` auf jedem `<th>`, viewKey in
-  `ColumnDefinitions.GetByViewKey` registrieren ([[fallstricke]] §3). CSV kommt über `csv-export.js` ohne Zusatzcode
-  (`csv-export.js:1-8`, `pageSize=0`, Kappung 5000 mit Warnung). Referenz `ProductionOrdersController.Index`.
+- **Rechenregel an einem Ort:** `PurchaseProposalCalculator` (statisch, rein, keine DB) nimmt je Artikel ein Eingabe-Record (Bestand, offen
+  bestellt, im Stapel, Bedarfe, Meldebestand, letzte Bestellmenge, Mindestbestellmenge, Einheiten, heute) und liefert Projektion, Vorschlag,
+  Grund, Dringlichkeit, Hinweise. Unit-Tests decken F2/F3/F5 ab.
+- **Datensammlung:** `PurchaseProposalRepository` lädt: Artikel mit `ReorderLevel > 0` + `SageDetail` (`Article.cs:58`); Lieferanten aller
+  dieser Artikel in **einer** Abfrage als `ArticleSupplierRow` (Teil A hat nur `GetSuppliersAsync(int articleId)` je Artikel,
+  `ArticleRepository.cs:66` – für die Liste wäre das N+1; die Projektion von :71 als Muster); offene Bedarfe (zwei gruppierte Abfragen);
+  Bestand über `GetStockByArticleNumbersAsync` (s. F2); offene Bestellungen über `ISagePurchaseOrderLineRepository` +
+  `IPurchaseOrderReceiptRepository` (E2).
+- **Listen-View-Pattern (ADR 0005):** berechnete Liste → Spaltenfilter **in C# nach der Berechnung** über `ColumnFilterHelper.ReadFromQuery` +
+  `ColumnFilterSyntax.Matches` (`ColumnFilterSyntax.cs:373`), dann `PageSize.Resolve` + `PaginationState` + `_Pagination`.
+  `data-server-column-filter="true"`, `data-col-key` auf jedem `<th>`, viewKey in `ColumnDefinitions.GetByViewKey` registrieren
+  ([[fallstricke]] §3, Drift-Guard `ViewKeyDriftGuardTests`). CSV über `csv-export.js` ohne Zusatzcode. Referenz `ProductionOrdersController.Index`.
 - **Controller** `PurchaseProposalsController` (MVC): Class-Level `[RequireEinkaufAccess]` + `[RequireEinkaufAktiv]` (kumulativ, ADR 0006/0011);
-  `Index` (GET), `SetFlags` (POST, E3), `Transfer` (POST, E5) mit `[ValidateAntiForgeryToken]`; Redirect + `TempData["SuccessMessage"|"WarningMessage"]`.
+  `Index` (GET); `Transfer` (POST, E5, blockiert) mit `[ValidateAntiForgeryToken]`. *(ueberholt: `SetFlags` – Kennzeichen entfallen.)*
 - **Gate-Attribut** nach Invert-Default-Muster (nur exakt `"true"` aktiviert, MVC → Redirect Home + WarningMessage), wie
-  `RequireFaHierarchyKommissionierlistenAktiv` ([[controller]] Z. 78).
-- **Menü** in `_Layout.cshtml` als eigenes Dropdown „Einkauf“ nach „Bestellungen“ (:243-267), sichtbar bei `EinkaufAktiv && CanAccessEinkaufAsync`.
-- **Sage-Schreibclient (E5):** `SageDispoStapelClient` im Web-Projekt (`Services/SageSdata/`), typisierter `HttpClient` wie
-  `ISageSdataReadClient` (`Program.cs:158-163`, Zertifikats-Callback). Kein neuer Dienst-Worker (Rückfrage 6). Lesen der Stapel-Infos über
-  `ISageSdataReadClient.QueryAllAsync` (`SageSdataReadClient.cs:164`, Vertrag `CommonWawiServicesResources` :127).
-- **E4 Dienst:** `SdataArtikelReader.SelectArtikel` um `Basismengeneinheit,UmrechnungsFaktorLME` erweitern (Feldnamen laut Schema
-  [[sage-sdata-artikel-felder]] Z. 19; `Lagermengeneinheit` wird schon gelesen, :46, aber nicht im Satelliten gespeichert) und in
-  `Details` (:265-282) mappen. Achtung [[fallstricke]] „Sage-SData-Lesen“: falscher Feldname im `select` = HTTP 500 → Feldnamen vor dem
-  Commit mit P1 am AKE-Test bestätigen.
-- **Abhängigkeit Teil B (E2):** Der Reader offener Bestellpositionen kommt aus Teil B. Ist er beim Start von E2 nicht im Branch, wird E2
-  als Blocker in der Etappen-Tabelle vermerkt und E3/E4 laufen weiter.
+  `RequireFaHierarchyKommissionierlistenAktivAttribute.cs:28-34`.
+- **Menü** in `_Layout.cshtml` als eigenes Dropdown „Einkauf“ direkt nach „Bestellungen“ (:248-272), Sichtbarkeits-Variablen im Block :50-68,
+  sichtbar bei `EinkaufAktiv && CanAccessEinkaufAsync`.
+- **Dienst (E3):** zweiter Leseschritt in `ArtikelLieferantSyncService` (F3 „Ablage“); Feldnamen ausschließlich aus P-L1 ins `select`
+  (falscher Name = HTTP 500, [[fallstricke]] Z. 1795-1797); Lookups eng filtern (Z. 1777-1780).
+- **E5 (blockiert):** Schreibclient und Protokolltabelle erst nach P4/P5; Bauform dann gegen die Schreib-Lehren aus F7 prüfen.
 
 ## Migrations-/SQL-Auswirkungen
 
 | Nr. | Etappe | Inhalt | Guard |
 |---|---|---|---|
-| — | E1, E2 | keine | – |
-| **128** | E3 | `SQL/128_AddArticlePurchaseSettings.sql`: Tabelle `ArticlePurchaseSettings` (`Id`, `ArticleId` UNIQUE FK → `Articles` ON DELETE CASCADE, `DoNotReorder` bit NOT NULL DEFAULT 0, `IgnoreUntil` date NULL, `Remark` nvarchar(500) NULL, Audit-Spalten) | `IF OBJECT_ID(N'dbo.ArticlePurchaseSettings', N'U') IS NULL`, Index-Guard über `sys.indexes` |
-| **129** | E4 | `SQL/129_AddArticleSageDetailUnits.sql`: `ArticleSageDetails` + `Basismengeneinheit` nvarchar(5) NULL, `Lagermengeneinheit` nvarchar(5) NULL, `UmrechnungsFaktorLME` decimal(18,6) NULL (Längen/Typen laut `$schema` P-S1 vor dem Commit prüfen) | `IF COL_LENGTH(N'dbo.ArticleSageDetails', N'Basismengeneinheit') IS NULL` je Spalte |
-| **130** | E5 | `SQL/130_AddPurchaseProposalTransfers.sql`: Tabelle `PurchaseProposalTransfers` (`Id`, `ArticleId` FK, `CreditorId` FK, `Quantity` decimal(18,3), `Unit` nvarchar(20), `Stapelkennung` nvarchar(n nach P5), `Status` int (Muster `SageBookingQueueStatus`: Offen/Gesendet/Bestaetigt/Fehler), `SagePosHandle` int NULL, `SentAt` datetime2 NULL, `LastError` nvarchar(1000) NULL, `ResponseRaw` nvarchar(4000) NULL, Audit-Spalten); Index (`ArticleId`, `Status`) | `IF OBJECT_ID(N'dbo.PurchaseProposalTransfers', N'U') IS NULL` |
-| 131–132 | – | Reserve | – |
+| — | E1, E2, E4 | keine (E4: Einheiten-Spalten seit `SQL/140_AddArtikelMengeneinheiten.sql`) | – |
+| **148** | E3 | `SQL/148_AddArticleSupplierLetzteBestellung.sql`: `ArticleSuppliers` + `LetzteBestellmenge` decimal(18,3) NULL, `LetzteBestellungAm` date NULL, `LetzteBestellungBeleg` nvarchar(n) NULL (n = Länge laut P-L1-Schema; mindestens wie `SagePurchaseOrderLines.Belegnummer`) | `IF COL_LENGTH(N'dbo.ArticleSuppliers', N'LetzteBestellmenge') IS NULL` je Spalte |
+| **149** | E5 (blockiert) | `SQL/149_AddPurchaseProposalTransfers.sql`: Tabelle `PurchaseProposalTransfers` (`Id`, `ArticleId` FK, `CreditorId` FK, `Quantity` decimal(18,3), `Unit` nvarchar(20), `Stapelkennung` nvarchar(n nach P5), `Status` int (Offen/Gesendet/Bestaetigt/Fehler), `SagePosHandle` int NULL, `SentAt` datetime2 NULL, `LastError` nvarchar(1000) NULL, `ResponseRaw` nvarchar(4000) NULL, Audit-Spalten); Index (`ArticleId`, `Status`) | `IF OBJECT_ID(N'dbo.PurchaseProposalTransfers', N'U') IS NULL` |
+| 150 | – | Reserve | – |
 
-Je Nummer: Model → `dotnet ef migrations add` → SQL-Skript mit Guard (DDL eigener Batch) → `__EFMigrationsHistory`-Insert in separatem
-Batch → `SQL/00_FreshInstall.sql` an **beiden** Stellen (Schema + `MigrationId`). Status-Spalten ohne EF-`HasDefaultValue` (Sentinel-
-Fallstrick, [[fallstricke]] „Sage-SData-Lesen“), DEFAULT nur in SQL/Migration. Nicht daten-destruktiv (nur neue Tabellen/Spalten).
-`SQL/AgentJobs/` nicht betroffen (kein Pflichtfeld an `Articles`, kein Folge-MERGE). Die SQL-Nummern prüft der Dev-Lauf gegen den Stand
-des Bündels nach ([[2026-11-08-buendel-uebersicht]]).
+*(ueberholt: SQL/128 `ArticlePurchaseSettings` – entfällt; SQL/129 Einheiten – seit SQL/140 vorhanden; SQL/130 → jetzt 149.)*
+Je Nummer: Model → `dotnet ef migrations add` → SQL-Skript mit Guard (DDL eigener Batch) → `__EFMigrationsHistory`-Insert in separatem Batch →
+`SQL/00_FreshInstall.sql` an **beiden** Stellen (Schema + `MigrationId`). Status-Spalten ohne EF-`HasDefaultValue` (Sentinel-Fallstrick,
+[[fallstricke]] Z. 1801). Nicht daten-destruktiv (nur neue Spalten/Tabellen). `SQL/AgentJobs/` nicht betroffen (kein Pflichtfeld, kein
+Folge-MERGE). Nummern prüft der Dev-Lauf gegen den Bündel-Stand (letzte belegte 147: `SQL/147_RemoveAppSettingSageSdataFaAnsichtAktiv.sql`;
+der goal-Lauf v1.99.16–18 und die Lieferverzug-Nachbesserung belegen keine SQL-Nummer).
 
 ## Einstellungen
 
 Alle in `AppSettingDefinitions.All` (neue Gruppe „Einkauf“, Drift-Guard `AppSettingDefinitionsTests`), Keys in `AppSettingKeys`. Kein Seed
-(fehlende Zeile = Default).
+(fehlende Zeile = Default). Jede Instanz (AKE, IDEAL) hat ihre eigene Datenbank, die Werte gelten also je Standort.
 
 | Key | Typ | Erlaubte Werte | Default | Wirkung | Verwendung | Standort | Warnhinweis |
 |---|---|---|---|---|---|---|---|
-| `EinkaufAktiv` | Bool (Schalter, nur exakt „true“ aktiviert) | an / aus | aus | Schaltet Hauptmenü „Einkauf“ und alle Seiten unter `/PurchaseProposals` frei (kumulativ zur Rolle `einkauf`). | Menü, `PurchaseProposalsController` | AKE | – |
-| `EinkaufVorschlagsverfahren` | Choice (Auswahlliste) | `FesteMenge` = „Feste Bestellmenge (Vielfaches der Sage-Bestellmenge)“; `Auffuellen` = „Auffüllen auf Meldebestand + Bestellmenge“ | `FesteMenge` (Rückfrage 2) | Bestimmt die Vorschlagsmenge (F3). | Bestellvorschläge | AKE | – |
-| `EinkaufOffeneBedarfe` | MultiChoice (Auswahl, leer erlaubt) | `Lagerbestellungen`, `Bedarfsmeldungen` | beide (Rückfrage 1) | Welche offenen WMS-Bedarfe die verfügbare Menge mindern; leer = keine (wirkt anders als „nicht gesetzt“ = beide). | Bestellvorschläge | AKE | – |
-| `EinkaufDispoUebergabeAktiv` | Bool (Schalter, nur exakt „true“) | an / aus | aus | Zeigt „An Sage übergeben“ und erlaubt den POST; liest den WMS-Dispo-Stapel live für die Spalte „im Dispo-Stapel“. Wirkt nur mit `EinkaufAktiv`. | Bestellvorschläge (E5) | AKE | „Schreibt Bestellvorschläge in den Sage-Dispositionsstapel (AKE-Sage). Positionen lassen sich nur in Sage entfernen; das Löschen eines Stapels über die Schnittstelle wirkt nicht.“ |
-| `EinkaufDispoStapelkennung` | String (frei, Server prüft Länge 1…n nach P5 und Zeichen `[A-Za-z0-9_-]`) | Sage-Stapelkennung | `WMS` | Kennung des einen WMS-Stapels in Sage (Rückfrage 5); wird angelegt, wenn nicht vorhanden, und wiederverwendet. | Bestellvorschläge (E5) | AKE | „Eine neue Kennung legt beim nächsten Übergeben einen weiteren Stapel in Sage an; der alte bleibt bestehen.“ |
+| `EinkaufAktiv` | Bool (nur exakt „true“ aktiviert) | an / aus | **aus** | Schaltet Hauptmenü „Einkauf“ und alle Seiten unter `/PurchaseProposals` frei (kumulativ zur Rolle `einkauf`). | Menü, `PurchaseProposalsController` | beide (IDEAL erst einschalten, wenn die SData-Abgleiche dort laufen) | – |
+| `EinkaufOffeneBedarfe` | MultiChoice (Auswahl, leer erlaubt) | `Lagerbestellungen`, `Bedarfsmeldungen` | beide (Rückfrage 1) | Welche offenen WMS-Bedarfe die verfügbare Menge mindern; leer = keine (wirkt anders als „nicht gesetzt“ = beide). | Bestellvorschläge | beide | – |
+| `EinkaufDispoUebergabeAktiv` (E5, blockiert) | Bool (nur exakt „true“) | an / aus | aus | Zeigt „An Sage übergeben“ und erlaubt den POST; liest den WMS-Dispo-Stapel live. Wirkt nur mit `EinkaufAktiv`. | Bestellvorschläge (E5) | AKE; IDEAL erst nach eigenem Schreibtest | „Schreibt Bestellvorschläge in den Sage-Dispositionsstapel. Positionen lassen sich nur in Sage entfernen; das Löschen eines Stapels über die Schnittstelle wirkt nicht.“ |
+| `EinkaufDispoStapelkennung` (E5, blockiert) | String (Server prüft Länge 1…n nach P5 und Zeichen `[A-Za-z0-9_-]`) | Sage-Stapelkennung | `WMS` | Kennung des einen WMS-Stapels (Rückfrage 5); angelegt, wenn nicht vorhanden, und wiederverwendet. | Bestellvorschläge (E5) | wie oben | „Eine neue Kennung legt beim nächsten Übergeben einen weiteren Stapel in Sage an; der alte bleibt bestehen.“ |
 
-Unverändert gelesen (keine Änderung): ServiceSettings `Sync:Quelle:Artikel`, `Sync:ArtikelLieferantEnabled`, `SData:*`, `SageTlsPolicy`.
+*(ueberholt: `EinkaufVorschlagsverfahren` – entfällt, F3 ist fest „letzte Bestellmenge“.)*
+Unverändert gelesen: ServiceSettings `Sync:Quelle:Artikel`, `Sync:ArtikelLieferantEnabled` (E3 schreibt im selben Lauf, keine neue
+ServiceSetting), `Sync:EinkaufBestellungenEnabled`, `Sync:KreditorenEnabled`, SData-Zugang.
 
 ## Audit-Feld-Auswirkungen
 
-- `ArticlePurchaseSetting` und `PurchaseProposalTransfer` erben `AuditableEntity` (ADR 0003). Anlage: `CreatedAt/By/ByWindows`; jedes Update
-  (Kennzeichen ändern, Status `Gesendet` → `Bestaetigt`/`Fehler`, Nachziehen nach Stapel-Lesen) setzt `ModifiedAt`, `ModifiedBy`,
-  `ModifiedByWindows` aus `ICurrentUserService`.
-- `ArticleSageDetail` (E4): neue Felder schreibt nur der Dienst wie bisher (`ArticleSageDetailsWriter`, Schreiber-Name unverändert).
-- Keine Änderung an `Articles`, `PartRequisitions`, `WarehouseRequisition*` (nur gelesen).
+- `ArticleSupplier` erbt bereits `AuditableEntity` (`ArticleSupplier.cs:9`): Der E3-Schritt setzt bei jeder Änderung der drei Spalten
+  `ModifiedAt`, `ModifiedBy`, `ModifiedByWindows` mit dem Dienst-Schreibernamen wie der vorhandene Abgleich.
+- `PurchaseProposalTransfer` (E5, blockiert) erbt `AuditableEntity`; Statuswechsel setzen die Modified-Felder aus `ICurrentUserService`.
+- Keine Änderung an `Articles`, `ArticleSageDetails`, `PartRequisitions`, `WarehouseRequisition*`, `SagePurchaseOrderLines` (nur gelesen; der
+  Cache ist ohnehin kein `AuditableEntity`, `SagePurchaseOrderLine.cs:7-8`).
 
 ## Rollen und Zugriff
 
-- **Neue Rolle `einkauf`** (Rückfrage 8): `RoleKeys.Einkauf`, `CurrentUserService.CanAccessEinkaufAsync()` = admin oder einkauf
-  (Muster `CurrentUserService.cs:138`). **Drei Pflichtstellen:** Attribut `RequireEinkaufAccessAttribute`, [[controller]] (Filter-Tabelle +
-  Zugriffsmatrix), `Views/Users/RoleOverview.cshtml`. Kein Seed: der Admin legt die Rolle mit Key `einkauf` unter `/Roles` an
-  (Deploy-Schritt, Muster `beschichtungsauftrag_schreiben`, [[controller]] Z. 122).
-- Gate `[RequireEinkaufAktiv]` kumulativ (Class-Level). Übergabe zusätzlich serverseitig an `EinkaufDispoUebergabeAktiv` gebunden.
+- **Neue Rolle `einkauf`** (Rückfrage 8 beantwortet: eine Rolle). Belegt, dass es sie noch nicht gibt: `RoleKeys.cs:3-27` (vollständig, kein
+  Einkauf-Key), kein `CanAccessEinkauf*` in `CurrentUserService.cs`, kein Filter mit „Einkauf“ in `IdealAkeWms/Filters/`. Offene Bestellungen und
+  Lieferverzug nutzen andere Rechte (`PurchaseOrdersController.cs:15-16`: `stock_read` + Gate; Lieferverzug nur Mail-Empfänger-Settings,
+  `ServiceSettingDefinitions.cs:144-145`). `RoleKeys.Einkauf`, `CurrentUserService.CanAccessEinkaufAsync()` = admin oder einkauf (Muster
+  :107-108). **Drei Pflichtstellen:** Attribut `RequireEinkaufAccessAttribute`, [[controller]] (Filter-Tabelle + Zugriffsmatrix),
+  `Views/Users/RoleOverview.cshtml`.
+- Anlage der Rolle über das Update-Skript (Prüfung mit Reparatur, Muster `Pruefung/RollenBeschichtungsauftrag`, `scripts/deploy/nachlauf.psd1:109-118`);
+  Zuweisen an die sieben Einkäufer AKE + IDEAL (Keyuser-Antworten) bleibt Hand-Schritt unter `/Roles`.
+- Gate `[RequireEinkaufAktiv]` kumulativ (Class-Level). Übergabe (E5) zusätzlich an `EinkaufDispoUebergabeAktiv` gebunden.
 - Wächter-Test: jede POST-Action hat Antiforgery und beide Filter (Muster `BeschichtungsauftraegeControllerTests.JedeSchreibendeAction_…`).
 
 ## Akzeptanzkriterien
@@ -312,78 +379,79 @@ Unverändert gelesen (keine Änderung): ServiceSettings `Sync:Quelle:Artikel`, `
 1. Ohne `EinkaufAktiv = true` ist kein Menü „Einkauf“ sichtbar und `/PurchaseProposals` leitet auf Home mit Warnung um – auch für admin.
 2. Mit Gate an sieht nur admin oder Rolle `einkauf` den Menüpunkt „Einkauf → Bestellvorschläge“; andere erhalten beim Direktaufruf den
    Zugriffsfehler des Rollenfilters.
-3. Die Liste zeigt im Umfang „nur Vorschläge“ genau die Artikel mit `ReorderLevel > 0`, deren `verfügbar ≤ Meldebestand` ist (F2), ohne
-   „nicht disponieren“ und ohne aktives „ignorieren bis“.
-4. „Bestand WMS“ entspricht der Summe der Bestandsübersicht des Artikels **ohne** Kommissionierwagen-Plätze; ein Artikel ohne Bewegung
-   zeigt 0. Eine Umbuchung zwischen zwei regulären Plätzen ändert den Wert nicht.
-5. Offene Lagerbestellungen (Submitted; PartiallyDelivered nur Rest „wird nachgeliefert“) und offene Bedarfsmeldungen mindern
-   „verfügbar“ gemäß `EinkaufOffeneBedarfe`; Draft/Closed/Cancelled bzw. Erfüllt/Storniert nicht. Abweichende Einheiten werden nicht
-   gerechnet und im Banner gezählt.
-6. Vorschlagsmenge: Verfahren `FesteMenge` liefert ein Vielfaches der Sage-Bestellmenge (min. 1×), `Auffuellen` liefert
-   `Meldebestand + Bestellmenge − verfügbar`; ohne Bestellmenge Fehlmenge mit Hinweis.
-7. „Sage verfügbar“ zeigt `LagerbestandVerfuegbar` aus dem Satelliten mit Stand-Datum; fehlt der Satellit, „–“ und Banner mit Anzahl.
-8. Lieferant = Hauptlieferant aus `ArticleSuppliers`; fehlt der Kreditor, erscheint der Kto aus `ArticleSageDetail.Hauptlieferant` mit
-   Hinweis, die Zeile ist nicht übergebbar.
-9. (E2) „offen bestellt“ und „nächster Liefertermin“ kommen aus dem Teil-B-Reader; ein Sage-Lesefehler zeigt einen Banner mit Fehlertext,
-   die Spalte bleibt leer statt 0, die Projektion ist als „ohne offene Bestellungen“ gekennzeichnet.
-10. (E3) „Nicht disponieren“ und „ignorieren bis“ lassen sich setzen und zurücknehmen; ein Datum vor heute wird abgewiesen; Audit-Felder
-    sind gesetzt.
-11. (E4) Rundung auf Mindestbestellmenge greift nur bei gleicher Einheit; sonst Hinweis, keine Rundung. Artikel mit
-    Basismengeneinheit ≠ Lagermengeneinheit sind für die Übergabe gesperrt (Hinweis sichtbar).
-12. (E5) Mit `EinkaufDispoUebergabeAktiv = false` gibt es keinen Übergabe-Knopf und der POST wird serverseitig abgewiesen.
-13. (E5) Mit Schalter an legt „An Sage übergeben“ je ausgewählter Zeile eine Position im Stapel `EinkaufDispoStapelkennung` an (Lieferant
-    fix, Menge wie angepasst); das Protokoll zeigt `Bestaetigt` mit Sage-PosHandle, in Sage ist die Position mit Bestellnummer/Preis/
-    Liefertermin sichtbar.
-14. (E5) Ein Artikel, der schon im WMS-Stapel steht oder eine Protokollzeile `Gesendet` hat, wird abgewiesen (Sammelmeldung mit Grund);
-    danach zählt „im Dispo-Stapel“ in die Projektion, der Artikel wird nicht erneut vorgeschlagen, solange die Menge reicht.
-15. (E5) Sage-Fehler (HTTP oder `ResultNumber` ≠ Erfolg) ergibt Protokollstatus `Fehler` mit Text; keine Zugangsdaten in Log/Meldung.
-16. Spaltenfilter (Server-Mode), Pagination und CSV funktionieren; CSV enthält nur sichtbare Spalten in Bildschirmreihenfolge.
-17. Dringlichkeit ist als Text erkennbar (nicht nur Farbe); Kontrast WCAG AA.
-18. Build und alle Tests grün; neue Unit-Tests für `PurchaseProposalCalculator` (F2/F3/F5/F6), Drift-Guard für die 5 Keys, Wächter-Test für
-    Filter/Antiforgery.
+3. Die Liste zeigt im Umfang „nur Vorschläge“ genau die Artikel mit `ReorderLevel > 0`, deren `verfügbar ≤ Meldebestand` ist (F2).
+4. „Bestand WMS“ entspricht für jeden Artikel dem Bestand, den die Meldebestand-Mail für ihn rechnet (`GetStockByArticleNumbersAsync`): ohne
+   Kommissionierwagen, Artikel ohne Bewegung 0, eine Umbuchung zwischen zwei regulären Plätzen ändert den Wert nicht.
+5. Offene Lagerbestellungen (Submitted; PartiallyDelivered nur Rest „wird nachgeliefert“) und offene Bedarfsmeldungen mindern „verfügbar“ gemäß
+   `EinkaufOffeneBedarfe`; Draft/Closed/Cancelled bzw. Erfüllt/Storniert nicht. Abweichende Einheiten werden nicht gerechnet und im Banner gezählt.
+6. (E2) „offen bestellt“ = Summe der Reste (`ErfasstJeBelPos.Rest`) aller Cache-Positionen (EBB und EBZ) des Artikels; ein im WMS erfasster,
+   noch nicht nach Sage übergebener Wareneingang mindert „offen bestellt“ um seine Menge (keine Doppelzählung mit dem WMS-Bestand).
+   Positionen mit abweichender Einheit zählen nicht und erscheinen im Banner. Bei leerem Cache: Banner, Spalte „–“, Kennzeichnung „ohne
+   offene Bestellungen“.
+7. (E3) Vorschlag = letzte Bestellmenge beim gewählten Lieferanten; Spalten „letzte Bestellmenge“ und „letzte Bestellung am“ (mit Beleg) zeigen
+   die Werte, die P-L1/P-L2 für den Referenzartikel liefern. Erhöhung bei außerordentlichem Bedarf und Verhalten ohne letzte Bestellung laut
+   Antworten 11–13, jeweils mit sichtbarem Grund.
+8. (E3) Bei `Basismengeneinheit ≠ Lagermengeneinheit` bleibt die letzte Bestellmenge leer, Hinweis „Einheit Basis ≠ Lager“.
+9. (E3) Ein Lesefehler beim Schritt „letzte Bestellung“ erzeugt eine Warnung im Aktivitäts-Protokoll, die gespeicherten Werte bleiben, der
+   Artikel-Lieferanten-Lauf endet erfolgreich.
+10. „Sage verfügbar“ zeigt `LagerbestandVerfuegbar` mit Stand-Datum; fehlt der Satellit, „–“ und Banner mit Anzahl.
+11. Lieferant = Hauptlieferant aus `ArticleSuppliers`; fehlt der Kreditor, erscheint der Kto aus `ArticleSageDetail.Hauptlieferant` mit Hinweis.
+12. (E4) Vorschlag kleiner als die Mindestbestellmenge wird auf sie angehoben – nur bei gleicher Einheit; sonst Hinweis, keine Rundung.
+13. (E5, blockiert) Mit `EinkaufDispoUebergabeAktiv = false` kein Übergabe-Knopf, POST serverseitig abgewiesen; mit Schalter an legt
+    „An Sage übergeben“ je Zeile eine Position im Stapel an (Protokoll `Bestaetigt` mit PosHandle); doppelte Übergabe abgewiesen; Sage-Fehler
+    → `Fehler` mit Text ohne Zugangsdaten; Artikel mit Basis ≠ Lager gesperrt.
+14. Spaltenfilter (Server-Mode), Pagination und CSV funktionieren; CSV enthält nur sichtbare Spalten in Bildschirmreihenfolge.
+15. Dringlichkeit ist als Text erkennbar (nicht nur Farbe); Kontrast WCAG AA.
+16. IDEAL-DEV mit `EinkaufAktiv` aus: kein Menü, keine Verhaltensänderung an bestehenden Seiten (Regression).
+17. Build und alle Tests grün; Unit-Tests für `PurchaseProposalCalculator` (F2/F3/F5), Drift-Guard für die neuen Keys und den viewKey,
+    Wächter-Test für Filter/Antiforgery, Dienst-Test für den E3-Schritt (Zuordnung, Einheiten-Sperre, Fehlerfall Werte bleiben).
 
 ## Test-Szenarien
 
-Neues Kapitel **TS-119 „Einkauf – Bestellvorschläge“** in `docs/TESTSZENARIEN.md`, Index [[testszenarien-index]] nachziehen. Umgebung AKE-DEV
-mit `Sync:Quelle:Artikel = SData`, `Sync:ArtikelLieferantEnabled = true`, Sage AKE-Test (sagetest01, `ake_TEST2026;1`). Referenzartikel
-`00722001` (Sage: Bestand 200, Meldebestand 85, Hauptlieferant K31013, WBZ 14 – [[sage-sdata-wms-schnittstellenkatalog]] Z. 34).
+Neues Kapitel **TS-136 „Einkauf – Bestellvorschläge“** in `docs/TESTSZENARIEN.md`, Index [[testszenarien-index]] nachziehen. Umgebung AKE-DEV mit
+`Sync:Quelle:Artikel = SData`, `Sync:ArtikelLieferantEnabled = true`, `Sync:KreditorenEnabled = true`, `Sync:EinkaufBestellungenEnabled = true`,
+Sage AKE-Test. Referenzartikel `00722001` (Sage: Bestand 200, Meldebestand 85, Hauptlieferant K31013, WBZ 14 –
+[[sage-sdata-wms-schnittstellenkatalog]] Z. 34). IDEAL-DEV nur Regression (TS-136.10).
 
-- **TS-119.1 Gate/Rolle:** Gate aus → kein Menü, Direktaufruf Redirect. Gate an, Benutzer ohne Rolle → kein Menü, Direktaufruf verweigert.
-  Rolle `einkauf` → Menü „Einkauf → Bestellvorschläge“.
-- **TS-119.2 Projektion:** Testartikel mit Meldebestand > 0; WMS-Bestand über Einbuchung knapp über Meldebestand → kein Vorschlag; Ausbuchung
-  unter Meldebestand → Vorschlag, Dringlichkeit „nachbestellen“; Ausbuchung ins Minus (falls erlaubt) → „kritisch“.
-- **TS-119.3 Wagen/Umbuchung:** Umbuchung regulär → regulär ändert „Bestand WMS“ nicht; Umbuchung auf Kommissionierwagen mindert ihn.
-- **TS-119.4 Bedarfe:** Lagerbestellung absenden (Submitted) → „offene Bedarfe“ steigt; mit Fehlteil „wird nachgeliefert“ abschließen → nur Rest
-  zählt; Bedarfsmeldung offen → zählt, nach Einbuchung mit Erfüllung → zählt nicht. Einstellung leer → keine Bedarfe. Negativ: Bedarf mit
-  anderer Einheit → nicht gerechnet, Banner.
-- **TS-119.5 Verfahren:** gleicher Artikel unter `FesteMenge` und `Auffuellen` – Mengen nachrechnen; Artikel ohne Sage-Bestellmenge → Hinweis.
-- **TS-119.6 Lieferant/Satellit fehlt:** Artikel ohne `ArticleSageDetail` → „–“ und Banner; Kreditor fehlt → Kto mit Hinweis, nicht übergebbar.
-- **TS-119.7 (E2) Offene Bestellungen:** Artikel mit offener Sage-Bestellung → „offen bestellt“ und Liefertermin, Vorschlag fällt ggf. weg;
-  SData-URL falsch → Banner, Spalte leer.
-- **TS-119.8 (E3) Kennzeichen:** „nicht disponieren“ setzen → Vorschlag weg, im Umfang „alle“ sichtbar, zurücknehmen; „ignorieren bis“ morgen →
-  weg, Datum gestern → abgewiesen; Audit-Spalten per SQL prüfen.
-- **TS-119.9 (E4) Einheiten/Rundung:** Lieferant mit Mindestbestellmenge > Vorschlag → aufgerundet (nur gleiche Einheit); Artikel mit
-  Basis ≠ Lager → Übergabe gesperrt.
-- **TS-119.10 (E5) Übergabe:** Schalter aus → kein Knopf, POST per Werkzeug abgewiesen. Schalter an: 00722001 mit K31013 übergeben → Protokoll
-  `Bestaetigt`, in Sage Stapel `WMS` mit Position, Bestellnummer/Preis/Termin ergänzt; erneut übergeben → abgewiesen „bereits im Dispo-Stapel“;
-  Spalte „im Dispo-Stapel“ gefüllt. Position in Sage löschen → Spalte leert sich. Negativ: falsches Passwort → `Fehler` ohne Zugangsdaten im Text.
-  **Nach dem Test die Position in Sage löschen** (Stapel bleibt, B4).
-- **TS-119.11 Liste:** Spaltenfilter (Text, Zahl), Pagination, CSV (nur sichtbare Spalten), Sortierung Lieferant/Artikel, Kontrast/Text-Badge.
+- **TS-136.1 Gate/Rolle:** Gate aus → kein Menü, Direktaufruf Redirect (auch admin). Gate an, Benutzer ohne Rolle → kein Menü, Direktaufruf
+  verweigert. Rolle `einkauf` → Menü „Einkauf → Bestellvorschläge“. Update-Skript-Prüfung legt die fehlende Rolle an.
+- **TS-136.2 Projektion:** Testartikel mit Meldebestand > 0; WMS-Bestand über Einbuchung knapp über Meldebestand → kein Vorschlag; Ausbuchung
+  unter Meldebestand → Vorschlag „nachbestellen“; ins Minus (falls erlaubt) → „kritisch“.
+- **TS-136.3 Bestand wie Mail:** Wert „Bestand WMS“ mit der Meldebestand-Mail vergleichen; Umbuchung regulär → regulär ändert nichts, Umbuchung
+  auf Kommissionierwagen mindert.
+- **TS-136.4 Bedarfe:** Lagerbestellung absenden → „offene Bedarfe“ steigt; mit Fehlteil „wird nachgeliefert“ abschließen → nur Rest; Bedarfsmeldung
+  offen → zählt, nach Einbuchung mit Erfüllung → nicht. Einstellung leer → keine Bedarfe. Negativ: andere Einheit → nicht gerechnet, Banner.
+- **TS-136.5 (E2) Offene Bestellungen:** Artikel mit offener Sage-Bestellung (Liste „Offene Bestellungen“ als Gegenprobe) → „offen bestellt“ =
+  Rest dort, Liefertermin; Teilmenge im WMS über „Wareneingang zu Bestellung“ erfassen → „offen bestellt“ sinkt um diese Menge, „Bestand WMS“
+  steigt, „verfügbar“ bleibt gleich. Rahmenabruf (EBZ) zählt. Negativ: Cache leeren (DEV) → Banner, Spalte „–“.
+- **TS-136.6 (E3) Letzte Bestellmenge:** Artikel-Lieferanten-Lauf → Werte für 00722001 wie P-L1/P-L2 (Menge, Datum, Beleg); Vorschlag = letzte
+  Bestellmenge, Grund sichtbar. Außerordentlicher Bedarf (Bestand per Ausbuchung weit unter Meldebestand) → Erhöhung laut Antwort 11. Artikel ohne
+  letzte Bestellung → Verhalten laut Antwort 13. Artikel mit Basis ≠ Lager (z. B. EK003604) → leer mit Hinweis. Negativ: SData-Ziel falsch →
+  Warnung im Aktivitäts-Protokoll, Werte bleiben.
+- **TS-136.7 (E4) Mindestbestellmenge:** Lieferant mit Mindestbestellmenge > Vorschlag → angehoben (nur gleiche Einheit), Grund „auf
+  Mindestbestellmenge aufgerundet“; andere Einkaufseinheit → keine Rundung, Hinweis.
+- **TS-136.8 Lieferant/Satellit fehlt:** Artikel ohne `ArticleSageDetail` → „–“ und Banner; Kreditor fehlt → Kto mit Hinweis.
+- **TS-136.9 Liste:** Spaltenfilter (Text, Zahl), Pagination, CSV (nur sichtbare Spalten), Sortierung Lieferant/Artikel, Kontrast/Text-Badge.
+- **TS-136.10 IDEAL-Regression:** IDEAL-DEV, `EinkaufAktiv` aus → kein Menü, Bestellungen-/Lager-Menü unverändert.
+- **TS-136.11 (E5, erst nach Entsperren):** Schalter aus → kein Knopf, POST per Werkzeug abgewiesen; Schalter an: 00722001 mit K31013 übergeben →
+  `Bestaetigt`, in Sage Stapel `WMS` mit Position; erneut → abgewiesen; falsches Passwort → `Fehler` ohne Zugangsdaten. **Danach die Position in
+  Sage löschen** (Stapel bleibt, B4).
 
 ## Etappen (nur bei epic: true)
 
-Ein Worktree (Bündel-Worktree laut [[2026-11-08-buendel-uebersicht]]), je Etappe ein Commit, ein Merge am Ende. Branch während der Arbeit
-mit `scripts/sync-worktree.ps1 -Slug <slug>` auf main-Stand halten. Jede Etappe baut und testet grün für sich; eine offene Rückfrage oder
-Prüfabfrage blockiert nur ihre Etappe, die übrigen laufen weiter (Blocker in der Tabelle vermerken).
+Ein Worktree, je Etappe ein Commit, ein Merge am Ende. Branch während der Arbeit mit `scripts/sync-worktree.ps1 -Slug <slug>` aktuell halten.
+Jede Etappe baut und testet grün für sich; eine offene Rückfrage oder Prüfabfrage blockiert nur ihre Etappe, die übrigen laufen weiter (Blocker
+in der Tabelle vermerken). Die alte E3 (Kennzeichen) entfällt; die Nummer E3 trägt jetzt die letzte Bestellmenge.
 
 | # | Etappe | Abhängigkeit | Status | Commit |
 |---|--------|--------------|--------|--------|
-| 1 | Grundgerüst: Rolle `einkauf` (3 Stellen), Gate `EinkaufAktiv`, Menü „Einkauf“, `PurchaseProposalCalculator` + Tests, Repository, Liste nur lesen (Bestand, Sage verfügbar, Bedarfe, Meldebestand, Bestellmenge, Vorschlag, Lieferant), Einstellungen `EinkaufAktiv`/`EinkaufVorschlagsverfahren`/`EinkaufOffeneBedarfe`, Version 1.87.0 in beiden `AppVersion.cs` – keine Migration | Rückfragen 1, 2, 4, 8 (Defaults wie empfohlen bauen, falls Antwort fehlt: als Blocker vermerken) | offen | |
-| 2 | Offene Sage-Bestellungen einrechnen (Reader aus Teil B), Spalten „offen bestellt“, „nächster Liefertermin“, Fehler-Banner – keine Migration | **Teil B** im Branch ([[2026-11-08-wareneingang-aus-sage-bestellungen-spec]]) | offen | |
-| 3 | Satellit `ArticlePurchaseSettings` (nicht disponieren, ignorieren bis, Bemerkung), Aktionen + Filter „alle Artikel mit Meldebestand“ – **SQL/128** | – | offen | |
-| 4 | Einheiten: `ArticleSageDetails` + Basis-/Lager-ME, `UmrechnungsFaktorLME` (Dienst-Reader), Mindestbestellmenge-Rundung, Einheiten-Wächter – **SQL/129** | Prüfabfrage P1 (Feldnamen vor Commit), P2 (Einheit Mindestbestellmenge; ohne Antwort: Rundung als `TODO(P2)` unverifiziert, Wächter strikt), Rückfrage 9 | offen | |
-| 5 | Übergabe an den Sage-Dispo-Stapel: Schalter `EinkaufDispoUebergabeAktiv` (aus) + `EinkaufDispoStapelkennung`, Auswahl/Menge/Lieferant, `SageDispoStapelClient`, Stapel-Lesen, Protokoll `PurchaseProposalTransfers` – **SQL/130** | Rückfragen 5, 6, 7; Prüfschritte P4, P5 (ohne P4/P5: Etappe als Blocker, nicht raten) | offen | |
-| 6 | Abschluss: TS-119 + Index, Hilfeseite (konkrete Bedienschritte, Formel, Schalter-Warnung), README (AppSettings), Anwender- + Brain-Changelog v1.87.0, feature-map, controller.md, codebase/services/datenmodell, ggf. fallstricke | – | offen | |
+| 0 | Prüfabfragen lesend ausführen und eintragen: P-L1 (a–c) SData AKE-Test, P-L2 Sage-SQL AKE-Test, P-L3 WMS-DB, P2, P4 (Freigabe-Nachtrag „E0“). Abweichung von der Spec = Blocker melden | SData-/SQL-Zugang AKE-Test; IDEAL-Teile (P-L1 d) bleiben offen | offen | |
+| 1 | Grundgerüst: Rolle `einkauf` (3 Stellen + Update-Skript-Prüfung), Gate `EinkaufAktiv`, Menü „Einkauf“, `PurchaseProposalCalculator` + Tests (letzte Bestellmenge als Eingabe, noch leer), Repository, Liste nur lesen (Bestand, Sage verfügbar, Bedarfe, Meldebestand, Vorschlag, Lieferant), Einstellungen `EinkaufAktiv`/`EinkaufOffeneBedarfe`, Version in beiden `AppVersion.cs` – keine Migration | Rückfrage 13 (Verhalten ohne letzte Bestellung gilt bis E3 für alle Zeilen) | offen | |
+| 2 | Offene Sage-Bestellungen aus dem Cache mit Rest-Regel, Spalten „offen bestellt“/„nächster Liefertermin“, Banner Stand/leer/Einheit – keine Migration | – (Teil B ist im Branch) | offen | |
+| 3 | Letzte Bestellmenge: **SQL/148**, Dienst-Schritt in `ArtikelLieferantSyncService`, Spalten + Grund, Rückfragen 11/12 in der Rechenregel | **BLOCKER bis P-L1** (SData-Lesepfad bestätigt) und P-L2 (b, c); Rückfragen 11, 12 | offen | |
+| 4 | Aufrunden auf Mindestbestellmenge + Einheiten-Wächter (Felder vorhanden) – keine Migration | P2 (ohne Antwort: `TODO(P2)`, Wächter strikt) | offen | |
+| 5 | Übergabe an den Sage-Dispo-Stapel: Schalter, Auswahl/Menge/Lieferant, Schreibclient, Stapel-Lesen, Protokoll – **SQL/149** | **BLOCKIERT:** Lesetest P4 + Schreibtest P5 (Freigabe Gerald), Freigabe-Nachtrag „Sage-Schreiben aus“ | blockiert | |
+| 6 | Abschluss: TS-136 + Index, Hilfeseite (Bedienschritte, Formel, Schalter-Warnung), README (AppSettings), Anwender- + Brain-Changelog, feature-map, controller.md, codebase/services/datenmodell, ggf. fallstricke | – | offen | |
 
 ## Prüfabfragen für den Menschen (nur lesend, AKE-Test; P5 ist ein Schreibtest mit Rücksetzen)
 
@@ -403,35 +471,104 @@ Abhängige Aussagen sind bis zur Antwort **unverifiziert**.
   `MengeBasisFix = true` (bleibt die Menge bei einem Sage-Dispo-Lauf erhalten?). Danach Position löschen (B3-Muster).
 - **P6** (gehört Teil B): Einheit und Offen-Definition der Menge aus `EinkaufPositionenInfo` – hier nur übernommen.
 
+### Prüfabfragen Wiederaufnahme 2026-11-13 (nur lesend)
+
+Stand zu den Punkten oben: **P1 entfällt** (Felder werden seit v1.85.0 gelesen, `SdataArtikelReader.cs:53`; Umrechnungsrichtung erst für die
+Folgearbeit Umrechnung), **P3 entfällt** (Keyuser: keine VPE in Sage), **P6 erledigt** durch Teil B (`SagePurchaseOrderLine.cs:9-11`, E0 B-2).
+P2, P4, P5 bleiben.
+
+- **P-L1 SData-Lesepfad letzte Bestellung** (für E3; Blocker, solange offen). Header `Accept: application/json`, immer mit `orderBy`.
+  - (a) Vertrags-`$schema` (das Ressourcen-`$schema` liefert am AKE-Test 401, [[fallstricke]] Z. 1855):
+    `GET {Basis}/sdata/ol/CommonWawiServicesResources/ake_TEST2026;1/$schema` → in `EinkaufPositionenAllInfo` die Namen für Belegkennzeichen,
+    Belegdatum, Lieferanten-Kto (`A0Empfaenger`?), Artikelnummer, `Menge`, `MengeBasis`, `Mengeneinheit`, `MengeBasiseinheit`, Belegnummer
+    notieren (mit Länge).
+  - (b) Mit den Namen aus (a), eng gefiltert (nie ohne `where`):
+    `GET {Basis}/sdata/ol/CommonWawiServicesResources/ake_TEST2026;1/EinkaufPositionenAllInfo?select=<Namen aus a>&where=Belegkennzeichen eq 'EBB' and Artikelnummer eq '00722001'&orderBy=BelPosId&format=json`
+    → jüngste Position mit P-L2 (b) vergleichen; Antwortzeit notieren. Danach Laufzeit einer Sammelabfrage messen:
+    `where=Belegkennzeichen eq 'EBB' and <Datumsfeld> ge @2025-11-13@` (Abbruch nach 60 s melden) – entscheidet „ein Lauf“ vs „je Artikel“.
+  - (c) Partner-Vertrag (Aufrufform laut [[sage-sdata-api-vertraege]] Z. 12, noch nie gelesen):
+    `GET {Basis}/sdata/ol/apiDMSConnector.100036671.DPSBS_DMS_Connector/ake_TEST2026;1/eptEinkaufsbelege?where=Artikelnummer eq '00722001'&orderBy=VorPosID&count=20&format=json`
+    → HTTP-Status (200/401/403), Felder `Bestelldatum`, `Lieferantennummer`, `Menge`, `MengeBasis` wie im Schema?
+  - (d) **IDEAL:** (a)–(c) gegen den IDEAL-SData-Endpunkt, sobald es ihn gibt – bis dahin offen; der IDEAL-Teil bleibt aus.
+- **P-L2 Sage-SQL AKE-Test** (`AKESQL20.ake.at` / `ake_TEST2026`, nur SELECT; ergänzt den Beleg vom 2026-11-13):
+  ```sql
+  -- (a) Mandant
+  SELECT b.Mandant, COUNT(*) AS Belege FROM KHKEKBelege b WHERE b.Belegart = 'Bestellung' GROUP BY b.Mandant;
+  -- (b) Lieferant = A0Empfaenger? (00722001: erwartet K31013, fallstricke Z. 1806)
+  SELECT TOP 5 b.Mandant, b.Belegdatum, b.BelID, b.A0Empfaenger, p.Menge, p.MengeBasis
+  FROM KHKEKBelegePositionen p JOIN KHKEKBelege b ON b.Mandant = p.Mandant AND b.BelID = p.BelID
+  WHERE b.Belegart IN ('Bestellung', 'Rahmenabruf') AND p.Artikelnummer = '00722001'
+  ORDER BY b.Belegdatum DESC, b.BelID DESC;
+  -- (c) Menge vs MengeBasis (EK003604: Bestellung PKG, Basis Stk, EinkaufBestellungenSyncService.cs:148)
+  SELECT COUNT(*) AS Positionen, SUM(CASE WHEN p.Menge <> p.MengeBasis THEN 1 ELSE 0 END) AS MengeUngleichBasis
+  FROM KHKEKBelegePositionen p JOIN KHKEKBelege b ON b.Mandant = p.Mandant AND b.BelID = p.BelID
+  WHERE b.Belegart = 'Bestellung';
+  SELECT TOP 5 b.Belegdatum, p.Menge, p.MengeBasis
+  FROM KHKEKBelegePositionen p JOIN KHKEKBelege b ON b.Mandant = p.Mandant AND b.BelID = p.BelID
+  WHERE b.Belegart = 'Bestellung' AND p.Artikelnummer = 'EK003604' ORDER BY b.Belegdatum DESC;
+  -- (d) Rahmenabrufe als jüngster Beleg (für Rückfrage 12)
+  WITH x AS (SELECT b.Belegart, ROW_NUMBER() OVER (PARTITION BY p.Mandant, p.Artikelnummer ORDER BY b.Belegdatum DESC, b.BelID DESC) AS rn
+             FROM KHKEKBelegePositionen p JOIN KHKEKBelege b ON b.Mandant = p.Mandant AND b.BelID = p.BelID
+             WHERE b.Belegart IN ('Bestellung', 'Rahmenabruf') AND ISNULL(p.Artikelnummer, '') <> '')
+  SELECT Belegart, COUNT(*) AS Artikel FROM x WHERE rn = 1 GROUP BY Belegart;
+  ```
+- **P-L3 WMS-DB** (AKE-DEV und IDEAL-DEV, nur SELECT) – Mengengerüst für E3 und die Liste:
+  ```sql
+  SELECT COUNT(*) AS MitMeldebestand FROM dbo.Articles WHERE ReorderLevel > 0;
+  SELECT COUNT(*) AS MitHauptlieferant FROM dbo.Articles a
+  WHERE a.ReorderLevel > 0 AND EXISTS (SELECT 1 FROM dbo.ArticleSuppliers s WHERE s.ArticleId = a.Id AND s.IstHauptlieferant = 1);
+  ```
+
 ## Deploy
 
 *Vorläufig – der qa-agent bestätigt gegen den echten Diff.*
-- **Web-App:** ja (Controller, Views, Menü, Einstellungen, Sage-Schreibclient, Migrationen 128–130).
-- **Service:** ja (E4: `SdataArtikelReader` liest drei weitere Felder).
-- **Migration:** ja – `SQL/128`, `SQL/129`, `SQL/130` in Reihenfolge, DB vor Web und Dienst; nicht daten-destruktiv.
-- **Voraussetzungen AKE:** Rolle `einkauf` unter `/Roles` anlegen und zuweisen; `Sync:Quelle:Artikel = SData` und
-  `Sync:ArtikelLieferantEnabled = true` aktiv und mindestens ein Lauf erfolgreich (Rückfrage 10); Kreditoren-Abgleich gelaufen. Danach
-  `EinkaufAktiv = true`. `EinkaufDispoUebergabeAktiv` erst nach TS-119.10 auf dem Testsystem und ausdrücklicher Freigabe einschalten.
-- **IDEAL:** Deploy unschädlich, Gate bleibt aus.
+- **Web-App:** ja (Controller, View, Menü, Einstellungen, Rolle; E3 Spalten; E5 nur nach Entsperren).
+- **Service:** ja ab E3 (`ArtikelLieferantSyncService` liest die letzte Bestellung). E1/E2/E4 allein: nein.
+- **Migration:** ja ab E3 – `SQL/148`; `SQL/149` nur mit E5. DB vor Web und Dienst; nicht daten-destruktiv.
+- **Voraussetzungen AKE** (Rückfrage 10 beantwortet): `Sync:Quelle:Artikel = SData`, `Sync:ArtikelLieferantEnabled = true`,
+  `Sync:KreditorenEnabled = true`, `Sync:EinkaufBestellungenEnabled = true`, je mindestens ein erfolgreicher Lauf. Rolle `einkauf` zuweisen.
+  Danach `EinkaufAktiv = true`.
+- **IDEAL:** Deploy unschädlich, `EinkaufAktiv` bleibt aus bis zur IDEAL-SData-Schnittstelle (dann dieselben Voraussetzungen wie AKE).
+- **Manifest-Einträge** (`scripts/deploy/nachlauf.psd1`, ADR 0022/0023, ASCII; Version = vergebene Version, Vorschlag 1.99.20):
+  - `@{ Id='SQL/148'; Version='1.99.20'; Typ='Schema'; Firma='beide'; Phase='Schema'; Ausfuehrung='automatisch'; Datei='148_AddArticleSupplierLetzteBestellung.sql'; MigrationId='<aus dem Dev-Lauf>'; Voraussetzung='additiv' }`
+  - `@{ Id='Pruefung/RolleEinkauf'; Version='1.99.20'; Typ='Pruefung'; Firma='beide'; Phase='Haltepunkt'; Ausfuehrung='Reparatur'; Pruefung='SELECT COUNT(*) FROM (VALUES (N''einkauf'')) v(k) WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k)'; Reparatur=<INSERT wie Pruefung/RollenBeschichtungsauftrag, nachlauf.psd1:111-116>; Text='Rolle einkauf fehlt (kein Seed). Zuweisen an den Einkauf bleibt Hand-Schritt unter /Roles.' }`
+  - `@{ Id='v1.99.20-EinkaufAktivieren'; Version='1.99.20'; Typ='Info'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'; Text='Bestellvorschlaege: EinkaufAktiv bleibt aus. AKE: erst nach erfolgreichen Laeufen Artikel (SData), Kreditoren, Artikel-Lieferanten und Offene Bestellungen einschalten und Rolle einkauf zuweisen. IDEAL: aus lassen bis zur SData-Schnittstelle.' }`
+  - `SQL/149` und ein Einstellung-Eintrag zu `EinkaufDispoUebergabeAktiv` erst mit E5 (blockiert).
 - **Publish-Befehle** (im Worktree):
   `dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb`
   `dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService`
 
 ## Zusatzfunde (gemeldet, nicht Teil dieses Epics)
 
-- `StockCheckService` (Meldebestand-Mail) zählt Umbuchungen zwischen zwei regulären Plätzen als Zugang (`StockCheckService.cs:41-42`, CASE
-  bricht vor dem Quellabzug ab; gleiche Logik im `HAVING` :66-67) und übersieht Artikel ohne Bewegung (`INNER JOIN` :58). Folge: zu hoher
-  Bestand, Mail bleibt aus. Eigener Bug-Datensatz empfohlen.
+- *ueberholt:* `StockCheckService` zählte Umbuchungen regulär → regulär als Zugang – seit v1.93.0 behoben (`StockCheckService.cs:20-23`, TS-122).
 - Backlog/[[feature-map]] nennen `Article.MinimumStock`; das Feld heißt `Article.ReorderLevel`.
-- Backlog nennt eine VPE in `ArticleSuppliers`; die Tabelle hat keine (`ArticleSupplier.cs:11-29`).
+- *ueberholt:* „Backlog nennt eine VPE in `ArticleSuppliers`; die Tabelle hat keine“ – seit v1.85.0 gibt es `UmrechnungsfaktorVPEK`
+  (`ArticleSupplier.cs:26`); fachlich ohne Belang (Keyuser: keine VPE).
+- Die Aufgabe dieses Reworks nannte `eptEinkaufsbelege` als Ressource in `CommonWawiServicesResourcesSpecific`; laut
+  [[sage-sdata-api-vertraege]] Z. 91-97 liegt sie im Partner-Vertrag `apiDMSConnector…` (siehe F3).
 
 ## Offene Rueckfragen
+
+11. **Erhöhung bei außerordentlichem Bedarf:** Reicht die letzte Bestellmenge L nicht (Fehlmenge F ≥ L), wie viel wird vorgeschlagen?
+    **Empfehlung:** `V = (⌊F / L⌋ + 1) × L` (ein Vielfaches der gewohnten Menge, so dass nach Lieferung verfügbar > Meldebestand), Grund
+    „n × letzte Bestellmenge“ in der Liste; danach Mindestbestellmenge. Die Alternative aus den Keyuser-Antworten („Fehlmenge > L → Fehlmenge,
+    aufgerundet auf Mindestbestellmenge“) hebt verfügbar nur genau auf den Meldebestand; weil der Vorschlag bei verfügbar ≤ Meldebestand
+    greift, stünde der Artikel nach der Bestellung sofort wieder auf der Liste.
+12. **Rahmenabrufe:** Zählt ein Rahmenabruf (Belegart „Rahmenabruf“, 3.455 Belege am AKE-Test; im Cache `EBZ`) als letzte Bestellung?
+    **Empfehlung:** ja, Bestellung und Rahmenabruf, der jüngste Beleg gilt – sonst haben Artikel, die nur über Rahmen bezogen werden, keine
+    letzte Bestellmenge. P-L2 (d) zeigt, wie viele Artikel das betrifft.
+13. **Ohne letzte Bestellung beim gewählten Lieferanten:** **Empfehlung:** (a) die jüngste Bestellung des Artikels bei einem anderen Lieferanten
+    nehmen, Hinweis „letzte Bestellung bei <Lieferant>“; gibt es keine, (b) Fehlmenge, bei Fehlmenge 0 der Meldebestand, Hinweis „keine letzte
+    Bestellung – Menge prüfen“; danach Mindestbestellmenge.
+
+### Beantwortet (Rückfragen 1–10, Freigabe 2026-11-07; Abweichungen siehe Keyuser-Antworten 2026-11-13)
 
 1. **Offene Bedarfe:** Zählen offene Lagerbestellungen (Submitted voll, PartiallyDelivered nur Rest „wird nachgeliefert“) und offene
    Bedarfsmeldungen (Offen) beide als Bedarf? Risiko: Hat der Einkauf für eine Bedarfsmeldung schon bestellt, steht sie zusätzlich in
    „offen bestellt“ und gleicht sich aus; doppelt mindernd wirkt sie nicht. **Empfehlung:** ja, beide; Default der Einstellung = beide.
 2. **Vorschlagsverfahren-Default:** „Feste Bestellmenge“ oder „Auffüllen auf Meldebestand + Bestellmenge“? **Empfehlung:** Feste
    Bestellmenge – die Sage-Bestellmenge ist gepflegt (00722001) und entspricht der klassischen Sage-Logik Meldebestand + Bestellmenge.
+   *(ueberholt durch Keyuser 2026-11-13: letzte Bestellmenge, F3.)*
 3. **USER_Mindestbestand:** Fachliche Bedeutung (Sicherheitsbestand? Altfeld?) – rechnen oder nur anzeigen? **Empfehlung:** in diesem Epic nur
    Anzeigespalte; Bedeutung klärt Gerald, Rechnen ggf. in Stufe 2.
 4. **Bestand-Umfang:** Alle WMS-Plätze außer Kommissionierwagen, auch inaktive und nicht buchbare? **Empfehlung:** ja, wie Bestandsaggregation
@@ -446,7 +583,7 @@ Abhängige Aussagen sind bis zur Antwort **unverifiziert**.
 8. **Rolle:** eine Rolle `einkauf` für Liste, Kennzeichen und Übergabe? **Empfehlung:** ja; der Übergabe-Schalter begrenzt die Außenwirkung,
    eine getrennte Leserolle ist derzeit ohne Bedarf.
 9. **Rundung:** nur auf die Mindestbestellmenge aufrunden (VPE/Bestellvielfaches liegt nicht im WMS)? **Empfehlung:** ja; VPE nach P3 als
-   Folgearbeit.
+   Folgearbeit. *(Keyuser 2026-11-13: keine VPE in Sage – P3 entfällt.)*
 10. **Betrieb AKE:** Werden vor der Abnahme `Sync:Quelle:Artikel = SData` und `Sync:ArtikelLieferantEnabled = true` gesetzt (Default View
     bzw. false)? Ohne beides fehlen Bestellmenge, Lieferant, WBZ und Sage-verfügbar, die Liste zeigt nur Banner. **Empfehlung:** ja, als
     Deploy-Voraussetzung.
@@ -479,3 +616,24 @@ Abhängige Aussagen sind bis zur Antwort **unverifiziert**.
 8. Rolle einkauf → **wie empfohlen (Gerald 2026-11-07 19:17)**
 9. Rundung → **wie empfohlen (Gerald 2026-11-07 19:17)**
 10. Betrieb AKE (SData-Artikel + Artikel-Lieferanten) → **wie empfohlen (Gerald 2026-11-07 19:17)**
+
+## Keyuser-Antworten 2026-11-13 (Till Zöhrer, Einkauf) – vor Wiederaufnahme einarbeiten
+Quelle: [[2026-11-12-keyuser-fragen-einkauf]]. Spec bleibt zurückgestellt (Gerald 2026-11-12: wird benötigt, sobald die Sage-Schnittstelle am
+Produktivsystem verfügbar ist). Abweichungen gegenüber den Freigabe-Antworten vom 07.11.:
+- **Rückfrage 2 / F3 Vorschlagsmenge – abweichend:** Vorschlag = **letzte Bestellmenge** des Artikels (beim Lieferanten), erhöht bei
+  außerordentlichem Bedarf; danach Aufrunden auf Mindestbestellmenge. Datenquelle der letzten Bestellmenge ist **unbelegt** (Prüfabfrage
+  nötig, z. B. letzte EBB-Position je Artikel aus `EinkaufPositionenInfo`). „Außerordentlicher Bedarf“ = Fehlmenge > letzte Bestellmenge?
+  → Rückfrage an Gerald/Till bei Wiederaufnahme.
+- **Rückfrage 3:** USER_Mindestbestand vermutlich Altfeld, nur anzeigen (unverändert); Till prüft final.
+- **Rückfrage 7:** direkte Bestellerzeugung aus dem WMS ausdrücklich gewünscht → Folge-Spec bleibt, Priorität höher.
+- **Rückfrage 9:** keine Verpackungseinheiten in Sage, nur Mindestbestellmengen → P3/VPE entfällt.
+- **F6 Kennzeichen:** am Anfang nicht nötig (Etappe E3 kann entfallen oder später kommen).
+- **Rückfrage 8 / Standort:** Nutzer = gesamter Einkauf IDEAL + AKE (Bianca, Melisa, Andrea, Janes, Marko, Andreas, Till) → `standort: beide`,
+  IDEAL-Teil hängt an der IDEAL-SData-Schnittstelle.
+- **Neu:** Sonderbedarfe anderer Abteilungen in die Liste → [[2026-11-13-sonderbedarfe-erfassen]].
+
+## Freigabe-Antworten Wiederaufnahme (Rückfragen 11–13, Mensch füllt aus)
+
+11. Erhöhung bei außerordentlichem Bedarf → 
+12. Rahmenabruf als letzte Bestellung → 
+13. Ohne letzte Bestellung beim gewählten Lieferanten → 
