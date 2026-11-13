@@ -2,7 +2,7 @@
 type: spec
 title: Einkauf – Bestellvorschläge für Nachbestellartikel (Epic)
 slug: 2026-11-08-einkauf-bestellvorschlaege-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-11-07
 updated: 2026-11-13
 source_backlog: "[[2026-11-07-einkauf-bestellvorschlaege]]"
@@ -47,7 +47,7 @@ etappen:
 deploy:
   web: true
   service: true
-  migration: true
+  migration: false
 freigabe_entscheidung: ""
 freigabe_von: "Gerald Weichbold"
 freigabe_am: "2026-11-13"
@@ -566,6 +566,18 @@ EBZ-Abfrage billig), Datumsfilter `@…@` wirkt, nur Mandant 1.
 
 ## Deploy
 
+> [!info] Final (qa-agent 2026-11-13, aus dem echten Diff `65496165..cf3f41cb`, gelieferte Etappen E1/E2/E4/E6)
+> - **Web:** ja (Controller, View, Menü, Einstellungen, Rolle, Hilfe/Changelog).
+> - **Service:** nur `IDEALAKEWMSService/AppVersion.cs` (1.99.20) – fachlich keine Änderung; mitdeployen, damit Web und Dienst denselben Stand zeigen.
+> - **Migration:** **nein** (keine Datei unter `*/Migrations/`, kein neues `SQL/`; SQL/148 und SQL/149 bleiben frei, weil E3/E5 blockiert).
+> - **Publish:** erledigt in `<Worktree>\publish` (v1.99.20, Commit `cf3f41cb`, `publish-info.txt`, `deploy.zip` neu erstellt). Reihenfolge: Update-Skript
+>   (`deploy\Update-IdealAkeWms.ps1`) → Haltepunkt `Pruefung/RolleEinkauf` (legt Rolle `einkauf` an) → Web + Dienst → Info `v1.99.20-EinkaufAktivieren` beachten.
+>   Manifest-Einträge `Pruefung/RolleEinkauf` und `v1.99.20-EinkaufAktivieren` liegen in `scripts/deploy/nachlauf.psd1` (geprüft); der Schema-Eintrag SQL/148
+>   kommt erst mit E3.
+> - Nach dem Merge nur dann neu aus `main` publishen, wenn der Merge getestete Dateien mit parallelen main-Änderungen kombiniert hat.
+>
+> Die folgenden Punkte sind der vorläufige Entwurf des Spec-Agents (E3/E5-Teile gelten erst nach Entsperren).
+
 *Vorläufig – der qa-agent bestätigt gegen den echten Diff.*
 - **Web-App:** ja (Controller, View, Menü, Einstellungen, Rolle; E3 Spalten; E5 nur nach Entsperren).
 - **Service:** ja ab E3 (`ArtikelLieferantSyncService` liest die letzte Bestellung). E1/E2/E4 allein: nein.
@@ -692,3 +704,111 @@ Produktivsystem verfügbar ist). Abweichungen gegenüber den Freigabe-Antworten 
 11. Erhöhung bei außerordentlichem Bedarf → **Wie empfohlen: V = (⌊F/L⌋ + 1) × L, Grund „n × letzte Bestellmenge“, danach Mindestbestellmenge (Gerald 2026-11-13 16:27).**
 12. Rahmenabruf als letzte Bestellung → **Ja, Bestellung und Rahmenabruf, der jüngste Beleg gilt (Gerald 2026-11-13 16:27).**
 13. Ohne letzte Bestellung beim gewählten Lieferanten → **Wie empfohlen: (a) jüngste Bestellung bei anderem Lieferanten mit Hinweis, sonst (b) Fehlmenge bzw. Meldebestand mit Hinweis; danach Mindestbestellmenge (Gerald 2026-11-13 16:27).**
+
+## QA-Nachweis (qa-agent, 2026-11-13)
+
+Geprüfter Bereich: `65496165..f5f6bd5b` (E1 `f5209692`, E2 `31ae0d69`, E4 `9b63dfc6`, E6 `f5f6bd5b`) + QA-Fix `cf3f41cb`. Worktree
+`.claude/worktrees/2026-08-07-ideal-teile-1-5`, Branch `feature/2026-08-07-ideal-teile-1-5`. Ergebnis: **Testbereit für E0, E1, E2, E4, E6**; E3 (A3,
+Leseweise letzte Bestellmenge – Entscheidung Gerald) und E5 (Dispo-Stapel, Sage-Schreiben) bleiben **blockiert** wie in der Etappen-Tabelle.
+
+### 1. Build und Tests
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler, 28 Warnungen (vorbestehend).
+- `dotnet test` (vor und nach QA-Fix gleich): **IdealAkeWms.Tests 2845 bestanden / 0 Fehler / 1 übersprungen** (2846); **IDEALAKEWMSService.Tests 623 / 0 / 0**.
+
+### 2. Code-Review (selbst, in diesem Lauf)
+Gelesen: `PurchaseProposalsController`, `PurchaseProposalCalculator`, `PurchaseProposalRepository`, beide Filter, `PurchaseProposalListViewModel`,
+`Views/PurchaseProposals/Index.cshtml`, `_Layout`-Menü, `AppSettingDefinitions`/`AppSettingKeys`, `ColumnDefinitions`/`ColumnFilterTypes`, `CurrentUserService`,
+`RoleOverview`, `nachlauf.psd1`, Hilfe, README, TS-136; dazu die genutzten Bausteine `StockMovementRepository.GetStockByArticleNumbersAsync` (Schlüssel wie
+`StockCheckService.BuildBelowReorder` – derselbe Bestand wie die Mail), `ErfasstJeBelPos.Rest`, `PurchaseOrderReceiptRepository.GetErfasstJeBelPosAsync`,
+`WarehouseRequisitionRepository.DeriveStatus`, `SettingValidator` (MultiChoice leer erlaubt). Fallstrick-Klassen: keine Werte in `<script>` (die JSON-Blöcke
+sind statisch), kein `hidden` mit `d-*`, keine POST-Action und kein Listen-Binding, keine reine Browser-Validierung, Rest-Regel nur über
+`ErfasstJeBelPos.Rest` (keine zweite Implementierung). `offenBestellt ?? 0m` bei leerem Cache ist gewollt und sichtbar (Banner + Hinweis „ohne offene Bestellungen“).
+
+| # | Schwere | Befund | Behandlung |
+|---|---|---|---|
+| Q-1 | gering (Text) | Leer-Hinweis „Kein Artikel im gewählten Filter. Für alle Artikel … Umfang ‚alle Artikel mit Meldebestand‘ wählen“ erschien auch bei Umfang „alle“ (auf DEV gesehen: Spaltenfilter ohne Treffer). | behoben `cf3f41cb` (Satz nur bei Umfang „nur Vorschläge“); Build/Tests grün, DEV neu deployt |
+
+Bewertung der gemeldeten Abweichungen: (1) fehlende Spalten „letzte Bestellmenge/-am“ + fester Hinweis – folgerichtig aus dem E3-Blocker, ok. (2) Rückfrage 13 (a) nur im
+Rechner, Repository lädt nur Hauptlieferanten – ok, solange L leer ist; **beim Entsperren von E3 nachziehen** (L anderer Lieferanten laden). (3) Lieferanten- und
+Artikelgruppen-Filter aus den Zeilen – ok (nur relevante Kreditoren, Kto-only-Zeilen inklusive). (4) Banner über alle Nachbestellartikel – ok, der Text „x von 2814“ nennt
+die Basis. (5) „Dringlichkeit“ (Text-Badge) und „Hinweis“ getrennt – ok, besser für Filter und WCAG. (6) F = L → Erhöhung – entspricht Rückfrage 11 („F ≥ L“), getestet.
+(7) Rolle ohne Seed/FreshInstall, nur Manifest-Prüfung – entspricht „Rollen und Zugriff“; auf DEV mit der Reparatur-SQL geprüft (Prüfung 1 → 0).
+ADR 0020: `EinkaufAktiv` Bool (Schalter), `EinkaufOffeneBedarfe` MultiChoice mit festen Werten, `LeerErlaubt`, `AbhaengigVon`; Server prüft über `SettingValidator`;
+Anzeigename, Wirkung, Verwendung, Default, Standort vorhanden (DEV-Maske angesehen); kein Warnhinweis nötig (keine Außenwirkung). Keine Befunde.
+
+### 3. Nachweisart je Akzeptanzkriterium
+| AK | Nachweis |
+|---|---|
+| 1 Gate aus | automatisch (`Gate_NurExaktTrue_SonstRedirectHome_AK1`, Wächter-Test) + DEV AKE/IDEAL (Redirect + Warnung, kein Menü, auch admin) |
+| 2 Rolle | automatisch (`Rolle_Fehlt_AccessDenied_AK2`) + DEV (nur `einkauf`: Menü „Einkauf“; ohne: „Zugriff verweigert“) |
+| 3 Umfang/Vorschlag | automatisch + DEV (50 Vorschläge; `≤` inklusiv an 00393912 und EK023362 gesehen) |
+| 4 Bestand wie Mail | Code-Beleg (gleiche Funktion, gleicher Schlüssel) + Unit „ohne Bewegung 0“; **Umbuchung regulär/Wagen Manual-UAT** |
+| 5 Bedarfe | automatisch (InMemory) + DEV gegen SQL Server: 13 Artikel mit Bedarf = unabhängige SQL-Summe; Trim und Groß/Klein, Storniert nicht, andere Einheit → Banner |
+| 6 offen bestellt (E2) | automatisch + DEV: 7 Artikel = SQL-Summe `MengeOffen`, frühester Termin, Banner 16 = SQL; Abzug WMS-Wareneingang **Manual-UAT** |
+| 7–9 (E3) | blockiert |
+| 10 Sage verfügbar | DEV (Wert + Tooltip „Stand Artikel-Abgleich“, Banner 5 ohne Satellit, „–“) |
+| 11 Lieferant | automatisch + DEV (K30029 „Kreditor fehlt im WMS“, Banner 30) |
+| 12 Mindestbestellmenge | automatisch + DEV (00722001: 45 verfügbar → Vorschlag 200; EK000656/EK003436 RLL ≠ Stk → Hinweis, keine Rundung) |
+| 13 (E5) | blockiert (keine POST-Action, Wächter-Test) |
+| 14 Spaltenfilter/Pagination/CSV | DEV: Textfilter Artikel, Zahlfilter `>0`, Pagination 1–25 von 2814; **CSV Manual-UAT** (Download nicht ausgeführt) |
+| 15 Dringlichkeit/Kontrast | DEV: Badges „nachbestellen“ (schwarz auf gelb), „kritisch“ (weiß auf rot), „kein Bedarf“ (hell mit Rahmen) – Text immer vorhanden |
+| 16 IDEAL-Regression | DEV IDEAL: kein Menü, Redirect mit Warnung |
+| 17 Build/Tests | grün (s. 1); Dienst-Test E3 entfällt (blockiert) |
+
+### 4. Geänderte bestehende Tests
+- `IdealAkeWms.Tests/Helpers/FakeCurrentUserService.cs`: +`CanAccessEinkaufAsync` – reine Typanpassung (Interface).
+- `IdealAkeWms.Tests/Models/AppSettingDefinitionsTests.cs`: Anzahl 56 → 58 – gewollt (zwei neue Einstellungen). Keine „sonstigen“ Änderungen.
+
+### 5. Checkliste
+Keine Migration (korrekt), Version 1.99.20 in beiden `AppVersion.cs`, Anwender-Changelog + Hilfe + README, TS-136 in `docs/TESTSZENARIEN.md`, Index
+[[testszenarien-index]] Zeile 136 vorhanden, Rolle an drei Stellen (Attribut, [[controller]], `RoleOverview`), Manifest `Pruefung/RolleEinkauf` + Info-Eintrag.
+Frontend: Bootstrap-Muster, Filterkarte, Server-Spaltenfilter mit `data-col-key` auf jedem `<th>`, `_Pagination`, viewKey registriert.
+
+### 6. DEV-Deploy und Testlauf
+- Deploy (`dev-deploy.ps1`, Shell erhöht) aus dem Worktree, **AKE und IDEAL**, je Exit 0, Fußzeile **v1.99.20**; erst `f5f6bd5b`, nach dem QA-Fix erneut `cf3f41cb`.
+- AKE-DEV Vorbereitung: Rolle `einkauf` per Reparatur-SQL aus `Pruefung/RolleEinkauf` angelegt (Prüfung vorher 1, nachher 0; `Roles.Id` 19); `EinkaufAktiv = true`
+  per SQL gesetzt (Einstellungsmaske nur angesehen, nicht gespeichert).
+
+| TS | Schritt | Ergebnis | Status |
+|---|---|---|---|
+| 136.1 | Gate aus, admin, Direktaufruf | Startseite + Warnung, kein Menü | OK |
+| 136.1 | Gate an, admin | Menü „Einkauf → Bestellvorschläge“, Liste | OK |
+| 136.1 | Gate an, Testbenutzer nur `einkauf` (UserRoles 40 kurz auf Rolle 19) | nur Menü „Einkauf“, Liste lädt | OK |
+| 136.1/136.13 | ohne `einkauf` (Rolle ohne Rechte), `?umfang=alle&pageSize=0` | „Zugriff verweigert“ | OK |
+| 136.1 | Update-Skript Trocken-/Scharflauf | nur die Reparatur-SQL direkt geprüft | NICHT MÖGLICH (Skriptlauf bleibt Mensch) |
+| 136.2 | Projektion / kritisch | Test-Bedarfsmeldung: verfügbar 45 → „nachbestellen“, Vorschlag 200; erhöht → verfügbar −205, „kritisch“, Vorschlag 290 | OK |
+| 136.3 | Bestand wie Mail, Umbuchungen | nicht gebucht | NICHT MÖGLICH (Buchungen bleiben Mensch) |
+| 136.4 | Bedarfsmeldungen/Lagerbestellungen | 150 lfm + „00722001 “ 5 LFM gezählt (155), 10 Stk → Banner 1, Storniert 999 nicht; Submitted voll, Teilgeliefert nur „wird nachgeliefert“ (EK008285 nicht); 13 Artikel = SQL | OK |
+| 136.4 | Einstellung nur Bedarfsmeldungen / leer | nicht umgestellt | offen (automatisch belegt) |
+| 136.5 | offen bestellt, Termin, Stand | = SQL (7 Artikel), Stand 13.11.2026 12:44 | OK |
+| 136.5 | Teilmenge über „Wareneingang zu Bestellung“ | nicht gebucht | NICHT MÖGLICH |
+| 136.7 | Mindestbestellmenge / Wächter | s. AK 12 | OK |
+| 136.8 | Satellit/Kreditor fehlt | Banner 5 / 30, „–“, K30029 „Kreditor fehlt im WMS“, „kein Lieferant · Sage-Zusatzfelder fehlen“ | OK |
+| 136.9 | Spaltenfilter, Pagination, Sortierung | Text- und Zahlfilter, 1–25 von 2814, Lieferant dann Artikel, ohne Lieferant zuletzt | OK |
+| 136.9 | CSV, Zahnrad | nicht ausgeführt (Download) | NICHT MÖGLICH |
+| 136.10 | IDEAL-DEV, Gate nicht gesetzt | kein Menü, Redirect + Warnung | OK |
+| 136.12 | `TRUE`/`1`/`ja` | automatisch (Theory) | nicht im Browser |
+| 136.15 | Cache leer | DEV-Cache nicht geleert | NICHT MÖGLICH (automatisch belegt) |
+| 136.17 | Filter ohne Treffer | Meldung erscheint; Text Q-1 korrigiert | OK nach Fix |
+
+Ladezeit der Liste auf AKE-DEV (2.814 Artikel): erster Aufruf 2,1 s, danach ~0,2 s (IIS-Log).
+
+**DEV-Stand danach:** AKE-DEV und IDEAL-DEV auf v1.99.20 (`cf3f41cb`). AKE-DEV: `EinkaufAktiv` wieder **nicht gesetzt** (Ausgangszustand, Zeile gelöscht);
+Rolle `einkauf` (Id 19) **bleibt** angelegt (keinem Benutzer zugewiesen); UserRoles 40 (gerald.weichbold → admin) wiederhergestellt; Test-Bedarfsmeldungen
+19–22 gelöscht. IDEAL-DEV unverändert (keine Einstellung, keine Rolle).
+
+### 7. Publish
+`<Worktree>\publish\` neu erstellt (Ordner vorher geleert): `IDEALAKEWMSWeb`, `IDEALAKEWMSWebService`, `SQL`, `deploy`, `publish-info.txt` (Version 1.99.20, Commit
+`cf3f41cb628fd0649a3217f4f1b612e4055abe1d`, Erstellt 2026-11-13 17:38) und `deploy.zip` (neu; die alte Zip von 08:15 war veraltet).
+
+### Manuelle Test-Checkliste (Schranke 2)
+1. TS-136.1 Update-Skript auf dem Testsystem: Trockenlauf meldet `Pruefung/RolleEinkauf`, Scharflauf legt die Rolle an; Rolle den Einkäufern unter `/Roles` zuweisen.
+2. Voraussetzungen AKE-Test: Artikel (SData), Kreditoren, Artikel-Lieferanten, Offene Bestellungen je ein erfolgreicher Lauf; dann `EinkaufAktiv` an.
+3. TS-136.3 Bestand wie Meldebestand-Mail; Umbuchung regulär → regulär ändert nichts, auf den Kommissionierwagen mindert.
+4. TS-136.4 Lagerbestellung absenden bzw. mit „wird nachgeliefert“ abschließen; Einstellung `EinkaufOffeneBedarfe` auf nur Bedarfsmeldungen und auf leer.
+5. TS-136.5 Teilmenge über „Wareneingang zu Bestellung“ → offen bestellt sinkt, Bestand steigt, verfügbar gleich; Rahmenabruf zählt.
+6. TS-136.9 CSV (nur sichtbare Spalten, Bildschirmreihenfolge) und Spalten ausblenden über das Zahnrad.
+7. TS-136.15 leerer Cache (nur DEV/Test) → Banner, „–“, Hinweis je Zeile.
+8. P2 (Gerald): Einheit der Mindestbestellmenge laut Sage-Lieferantenmaske – entscheidet, ob der Wächter (Faktor = 1) gelockert wird.
+9. A3 (Gerald): Leseweise der letzten Bestellmenge → entsperrt E3 (dann 13 (a) im Repository nachziehen, SQL/148).
+10. IDEAL: `EinkaufAktiv` aus lassen bis zur SData-Schnittstelle; Regression TS-136.10 auf dem IDEAL-Testsystem.
