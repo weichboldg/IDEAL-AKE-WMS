@@ -124,7 +124,7 @@ public class LieferverzugMailService
                     await run.LogWarningAsync($"Kreditor-Mail an {g.Name} nicht gesendet: Mailversand übersprungen (MailSettings:SmtpHost?).", g.Kto, ct);
                     continue;
                 }
-                await ProtokollAsync(PurchaseOrderReminderArt.Kreditor, g.MailPositionen!, empfaenger, test, g.CreditorId, ct);
+                await ProtokollAsync(PurchaseOrderReminderArt.Kreditor, g.MailPositionen!, empfaenger, test, g.CreditorId, jetzt, ct);
                 if (test) umgeleitet++; else kreditorGesendet++;
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
@@ -143,7 +143,7 @@ public class LieferverzugMailService
             {
                 if (await _mail.SendMitOptionenAsync(new MailNachricht(inhalt.Betreff, inhalt.Html, inhalt.Text, e.EinkaufEmpfaenger, Bilder: bilder), ct))
                 {
-                    await ProtokollAsync(PurchaseOrderReminderArt.Einkauf, plan.Gruppen.SelectMany(g => g.Positionen).ToList(), e.EinkaufEmpfaenger, false, null, ct);
+                    await ProtokollAsync(PurchaseOrderReminderArt.Einkauf, plan.Gruppen.SelectMany(g => g.Positionen).ToList(), e.EinkaufEmpfaenger, false, null, jetzt, ct);
                     einkaufGesendet = 1;
                 }
                 else
@@ -189,11 +189,10 @@ public class LieferverzugMailService
 
     /// <summary>F7: eine Zeile je Mail und Position, sofort gespeichert – ein spaeterer Fehler im Lauf darf eine gesendete Mail nicht vergessen.</summary>
     private async Task ProtokollAsync(PurchaseOrderReminderArt art, IReadOnlyList<LieferverzugPosition> positionen, IReadOnlyList<string> empfaenger,
-        bool testbetrieb, int? creditorId, CancellationToken ct)
+        bool testbetrieb, int? creditorId, DateTime now, CancellationToken ct)
     {
         var an = string.Join(",", empfaenger);
         if (an.Length > 1000) an = an[..1000];
-        var now = DateTime.Now;
         _ctx.PurchaseOrderReminders.AddRange(positionen.Select(p => new PurchaseOrderReminder
         {
             Art = art, BelPosId = p.Line.BelPosId, Belegnummer = p.Line.Belegnummer, LieferantKto = p.Line.LieferantKto,
