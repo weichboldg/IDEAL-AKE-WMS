@@ -58,3 +58,10 @@ Install-Skript-Befund zum SData-Kennwort steht in [[2026-11-14-review-befunde-sd
 - `ziele.psd1`: Dubletten-Prüfung je Firma, DEV-Ziele `Prod=$false`, Drift-Test `Ziele_AlleSystemeMitGueltigerHttpUrl_DevNieProd`
   (H-2 „DEV-Zeilen auf Servern“ bereits in [[2026-11-13-buendel-v1-99-16-goal-lauf]] notiert).
 - Drift-Tests `NachlaufManifestDriftTests` grün (im gezielten Testlauf enthalten); Pester-Tests gibt es nicht (Skriptlogik wie UP-1 ungetestet).
+
+## Nachtrag aus den Antworten Gerald (2026-11-13 22:47, [[2026-11-14-wochenend-goal-lauf]])
+
+- **UP-4 (niedrig):** `Pruefung/LieferverzugSammellisteTage` (`scripts/deploy/nachlauf.psd1:350-353`) meldet einen Treffer, solange
+  `Lieferverzug:TageNachTermin` nicht genau `1` ist. Entscheidung Gerald: Katalog-Default **bleibt 3** (neutral), AKE setzt 1 per Einstellung
+  (Keyuser Till); eine Prüfung darf **keinen Wert erzwingen**. Vorschlag: Prüfung in einen reinen Hinweis umwandeln (Text „AKE: Vorgabe Einkauf 1 Tag –
+  aktuellen Wert prüfen“, Firma AKE, ohne Trefferbedingung auf `= 1`) bzw. den aktuellen Wert anzeigen.

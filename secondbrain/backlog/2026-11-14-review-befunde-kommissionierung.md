@@ -253,3 +253,11 @@ Neue Befunde aus [[01-kommissionierung]] (Abschnitt „Neue Befunde“, dort mit
 - **N-4 (Hinweis):** Sammelfreigabe gibt auch FAs mit `IsDonePicking = 1` frei (ergänzt K-8).
 - **N-5 (Hinweis):** Bedarfsmeldung ohne konfigurierten Empfänger anlegbar.
 - **N-6 (Hinweis):** Altlast KO-2026-00014 offen, obwohl FA 2607170 nicht freigegeben.
+
+## Nachtrag aus den Antworten Gerald (2026-11-13 22:47, [[2026-11-14-wochenend-goal-lauf]])
+
+- **K-16 (Folge-Spec, mittel):** Zahl am Menüpunkt „Kommissionierung“ zählt heute **freigegebene FAs** (seit v1.14.0); Gerald will **offene
+  Kommissionieraufträge** (Status Offen/In Arbeit). Vorschlag Koordination: für Kommissionierer die eigenen, für Leitstand/Admin alle. In der
+  Anwender-Anleitung 01 bewusst nicht beschrieben, bis umgesetzt.
+- **Entscheidungsbedarf (Montag, Gerald + Lager/Keyuser):** produktive Glas-/Vorkommissionierungs-Regeln je Standort (B-5); auf AKE-DEV gibt es nur
+  die Artikelregel 87068574 → Glas.

@@ -32,3 +32,14 @@ Bezug: [[2026-10-06-csv-export-alle-tabellen-spec]] (TS-86). Pfade relativ zum W
   `/MissingPartsLager?page=99`: „Eintraege 2451–21 von 21“. Nur über veraltete oder handgebaute Links erreichbar.
 - **Vorschlag:** Seite auf die letzte vorhandene begrenzen (wie `PaginationState` es für die übrigen Listen vorsieht) oder Zähler „0 von 15“ mit
   Link auf Seite 1.
+
+## Nachtrag aus den Antworten Gerald (2026-11-13 22:47, [[2026-11-14-wochenend-goal-lauf]])
+
+- **N-B4-2 präzisiert (mittel):** akenet01:4445 schreibt Tausender mit **Punkt** („4.500,000“, Abnahme 13.11.), idealweb01 vermutlich gleich
+  (nicht geprüft) – der Leerzeichen-Fall entsteht nur auf Rechnern mit anderer Kultur. Entscheidung: **CSV-Export darf nicht von der
+  Server-Kultur abhängen** – Mengen ohne Tausendertrennzeichen, Dezimalkomma, fest de-AT bzw. invariant formatiert; dazu eine **feste App-Kultur**
+  (BV4-Härtung) statt der Kultur des Servers.
+- **Fertigungmenge:** Spaltenname der Sage-View/DB bleibt (nicht umbenennen); nur sichtbare Texte heißen jetzt „Fertigungsmenge“ (Worktree
+  `95ea581b`: `ColumnDefinitions.cs:440/466`, `FaHierarchyVormontage/Index.cshtml:82/176`, `Summiert.cshtml:70/85/133`; Tests 32/0).
+  **Prüfabfrage für Gerald:** Spaltenliste der Sage-View der FA-Struktur (`SELECT name FROM sys.columns WHERE object_id = OBJECT_ID('<View>')`
+  auf der Sage-DB) – heißt die Spalte dort `Fertigungmenge`? (WMS: `SQL/89_AddFaHierarchy.sql:43`, `FaHierarchySql.cs:144`.)
