@@ -2,7 +2,7 @@
 type: spec
 title: "Lieferverzug-Mail: Nachbesserung nach Keyuser-Antworten (Kreditor-Schwelle, Altersgrenze, Feld „bestätigt“)"
 slug: 2026-11-13-lieferverzug-nachbesserung-keyuser-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-11-13
 updated: 2026-11-13
 source_backlog: "[[2026-11-13-lieferverzug-nachbesserung-keyuser]]"
@@ -14,7 +14,7 @@ branch: "feature/2026-08-07-ideal-teile-1-5"
 standort: beide
 version_vorschlag: "1.99.19 (1.99.16–1.99.18 vergibt der laufende goal-Lauf [[2026-11-13-buendel-v1-99-16-goal-lauf]]; Dev-Lauf prüft)"
 sql_nummer_vorschlag: "keine (keine Migration)"
-testszenario: "TS-128 erweitert um 128.16 – 128.23"
+testszenario: "TS-128 erweitert um 128.16 – 128.26"
 affected_code:
   - "IDEALAKEWMSService/Services/LieferverzugPlaner.cs:8-11 (Record LieferverzugEinstellungen + KreditorTageNachTermin, MaxAlterTage, ggf. KreditorMitRahmenabrufen R 3), :20-24 (Grund Vorlauf, ggf. Rahmenabruf), :41-45 (Plan + ZuKlaeren, AnzahlFaellig), :74-76 (Aufteilung fällig / zu klären), :109-140 (Entscheiden: Kreditor-Schwelle vor der Wiederholung)"
   - "IDEALAKEWMSService/Services/LieferverzugMailService.cs:44-56 (LesenAsync), :87 (Abbruch nur wenn auch ZuKlaeren leer), :146 (Protokoll Sammelliste inkl. ZuKlaeren), :164-181 (Counts zu_klaeren, vorlauf)"
@@ -293,7 +293,7 @@ Kein Epic. Die Umsetzung erfolgt in einem Commit im Bündel-Worktree.
 
 ## Deploy
 
-*Vorläufig (Spec-Agent). Der qa-agent bestätigt gegen den echten Diff.*
+*Bestätigt durch die Nach-QA am echten Diff `d9e4c89e..65496165` (2026-11-13): web ja, service ja, migration nein. Publish im Worktree `publish` v1.99.19 `65496165`.*
 
 - **Web-App:** ja (Katalog `ServiceSettingDefinitions` und Validierung liegen im Web-Projekt, dazu Hilfe und Changelog).
 - **Service:** ja (Planer, Lauf, Mail-HTML).
@@ -450,7 +450,7 @@ werden. Das ist die Frage, die Teil-3-Antwort 1 an Till stellt.
 
 ## QA-Nachweis – Zwischen-QA vor Nachtrag 2 (qa-agent, 2026-11-13)
 
-> [!warning] Status bleibt **InUmsetzung**
+> [!warning] Status bleibt **InUmsetzung** (überholt durch die Nach-QA unten: Testbereit)
 > Abbruch auf Anweisung der Koordination: Freigabe-Nachtrag 2 (Lieferanten-Artikelnummer, 16:42) ist noch nicht umgesetzt. Nach dessen
 > Umsetzung folgt eine Nach-QA (vollständig: Build/Tests, Review des Nachtrag-Commits, DEV-Deploy, TS-128.16–128.23 auf DEV, Publish).
 
@@ -515,3 +515,91 @@ Default, Standort „beide“, Warnhinweis bei Kreditor-Schwelle/Altersgrenze/Ra
 
 **Offen für Nach-QA / Mensch:** Nachtrag 2 umsetzen und reviewen; TS-128.16–128.23 auf DEV (Pickup); 128.22 im Browser; Darstellung im Mailclient;
 Q3/Q5/Q7; Limit-Entscheidung P-L1; Daten-Durchsicht „Zu klären“ mit dem Einkauf.
+
+## QA-Nachweis – Nach-QA nach Freigabe-Nachtrag 2 (qa-agent, 2026-11-13)
+
+> [!success] Status **Testbereit** (v1.99.19, HEAD `65496165`)
+> Baut auf der Zwischen-QA oben auf (Review `d9e4c89e..c31c06b0`, Q1–Q7). Hier: Review `c31c06b0..def97b36` + QA-Fix `65496165`, Build/Tests,
+> DEV AKE + IDEAL, TS-128.16–128.26 auf DEV AKE, Publish.
+
+**1. Build und Tests (eigener Lauf, nach QA-Fix, HEAD `65496165`)**
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler, 28 Warnungen (vorbestehend).
+- `IdealAkeWms.Tests`: 2811 bestanden / 0 Fehler / 1 übersprungen (2812). `IDEALAKEWMSService.Tests`: 623 / 0 / 0 (vor dem Fix auf `def97b36` ebenso).
+
+**2. Code-Review `c31c06b0..def97b36` (selbst, in diesem Lauf)** – gelesen: `LieferverzugPlaner.Planen` (neue Namens-Zuordnung je Konto,
+`LiefArtNr`-Lookup), `LieferverzugMailService.RunAsync` (Abfrage `ArticleSuppliers`), `LieferverzugMailHtml` (Kreditor-/Einkauf-Tabellen HTML und Text,
+`Lieferant(p)`, Einleitung), Test-Diff, Hilfe, Changelog, TESTSZENARIEN 128.24–128.26, Manifest-Info.
+- `ToDictionary((ArticleId, CreditorId))` ist sicher: eindeutiger Index `IX_ArticleSuppliers_ArticleId_CreditorId` (`ApplicationDbContext.cs:1385`).
+- Zuordnung nur über Artikel **und** Kreditor der Position (Nummer eines anderen Lieferanten erscheint nicht; Test `Lauf_LiefArtNrAusArtikelLieferant` mit „FALSCH“).
+- Zellen über `Zeile` → `HtmlEncode`; kein `<script>`, kein `hidden`/`d-*`, keine Parallel-Arrays. Fehlende Nummer = leere Zelle (kein Ersatzwert, dokumentiert).
+- `Contains` über Kandidaten-Listen: gleiches Muster wie die vorhandene `letzteMail`-Abfrage; auf DEV AKE mit rund 1130 Kandidaten fehlerfrei gelaufen.
+- Quelle `EinkaufPositionenInfo` ohne Lieferanten-Artikelnummer: vom Umsetzer per lesendem GET (91 Felder) belegt, von QA nicht wiederholt.
+
+| # | Schwere | Befund | Behandlung |
+|---|---|---|---|
+| Q2 | – | Zwischen-QA: Name in „Zu klären“ ≠ Gruppenkopf | **erledigt** (`def97b36`, ein Name je Konto); auf DEV belegt: Cache-Name `SAGE-NAME-QA`, beide Teile zeigen „AICHINGER GmbH (K30035)“ |
+| Q3 | – | Brain-Changelog fehlte | **erledigt** ([[2026-11-13-v1-99-19-lieferverzug-nachbesserung-keyuser]]) |
+| Q5 | – | Einleitung nennt Kreditor-Schwelle auch bei `KreditorAktiv` aus | **erledigt** (`def97b36`); auf DEV belegt (Läufe 16:59/17:02) |
+| Q7 | – | Testindex TS-128 nur bis 128.15 | **erledigt** durch QA (Hauptcheckout `secondbrain/tests/testszenarien-index.md`, 128.16–128.26) |
+| N1 | niedrig | Nach dem Q5-Fix: ohne Kreditor-Satz doppeltes Leerzeichen im Text-Teil („Bestellung“).␣␣Positionen …“), gefunden im DEV-Lauf 16:59 | **behoben** im QA-Commit `65496165` (Leerzeichen an den Satz gehängt), Test-Assertion ergänzt; DEV-Lauf 17:02 zeigt den korrigierten Satz |
+| N2 | Info | Text-Teil der Kreditor-Mail lässt „Lief.-Art.-Nr.“ ganz weg, wenn keine Nummer bekannt ist (HTML: leere Zelle) | akzeptiert (Text-Teil hat kein Spaltenraster) |
+| N3 | Info | Eine `SageBestellnummer` nur aus Leerzeichen käme in InMemory als leere Nummer durch; SQL Server wertet Leerzeichen-Strings gleich `''` und filtert sie | akzeptiert, kein Code |
+
+**3. Beweisart je AK** – wie Zwischen-QA; zusätzlich Nachtrag 2: Spalte „Lief.-Art.-Nr.“ automatisiert (`LiefArtNr_InKreditorMailUndSammelliste_FehltLeer`,
+`Lauf_LiefArtNrAusArtikelLieferant`, InMemory), Q2/Q5 automatisiert (`ZuKlaeren_LieferantGleicherNameWieGruppe`, `Einleitung_KreditorSchwelleNurBeiKreditorAktiv`).
+Echte SQL-Abfrage auf `ArticleSuppliers`, Lauf und `.eml`-Inhalt: **auf DEV AKE belegt** (Punkt 6). Darstellung im Mailclient und SMTP: Manual-UAT.
+
+**4. Geänderte bestehende Tests (`def97b36`)**
+- Zu-klären-HTML-Test: erwartet jetzt „Lieferant 1 (70001)“ statt „Sage 70001 (70001)“ – Verhalten absichtlich geändert (Q2). Sonst nur neue Tests.
+- QA-Commit: `Einleitung_KreditorSchwelleNurBeiKreditorAktiv` um eine Assertion ergänzt (N1).
+
+**5. Checkliste / 5a** – keine Migration, kein SQL, kein FreshInstall; Nachtrag 2 bringt keine neue Einstellung (nur Spalte). Hilfe, Anwender-Changelog,
+TESTSZENARIEN 128.24–128.26 und Manifest-Info (`v1.99.19-LieferverzugInfo`, Hinweis Lief.-Art.-Nr. nur mit `Sync:ArtikelLieferantEnabled`) vorhanden.
+Version 1.99.19 in beiden `AppVersion.cs`.
+
+**6. DEV (Standort beide)**
+- Deploy `dev-deploy.ps1` (elevated) zweimal, `def97b36` und nach dem QA-Fix `65496165`: **AKE** Exit 0, Fußzeile v1.99.19 (http://localhost:8081/);
+  **IDEAL** Exit 0, Fußzeile v1.99.19 (http://localhost:8082/). Web + Dienst.
+- IDEAL_WMS_DEV: Seed `KreditorTageNachTermin = 3`, `MaxAlterTage = 180`, `KreditorMitRahmenabrufen = false`. `Lieferverzug:MailAktiv = false` → kein Lauf auf IDEAL-DEV (nicht eingeschaltet).
+- **DEV-Eingriffe (nur AKE_WMS_DEV):** heutige `PurchaseOrderReminders` vor jedem Lauf gelöscht (zuerst 2229 Zeilen aus dem 12:55-Lauf v1.99.18, danach je Lauf die eigenen).
+  Synthetische Cache-Zeilen `SagePurchaseOrderLines` BelPosId 990101–990109 (Kreditor 36 AICHINGER, K30035, Cache-Name `SAGE-NAME-QA`) und 990111
+  (Kreditor 39 Aigner, K30038) angelegt und am Ende samt ihren Reminder-Zeilen gelöscht. Es bleiben 1120 heutige Einkauf-Zeilen (heute kein weiterer Lauf).
+  Einstellungen je Lauf geändert und auf den Ausgangswert zurückgesetzt: `TageNachTermin 3`, `KreditorTageNachTermin 3`, `MaxAlterTage 180`,
+  `KreditorMitRahmenabrufen false`, `KreditorAktiv true`, `Testbetrieb true` (Endstand per `sqlcmd` geprüft). Mails nur als `.eml` im Pickup `D:\Dev\mail-pickup\ake`, kein SMTP.
+- Läufe (Dienst-Neustart, `dbo.SyncLogs`):
+  - L1 16:54 (Schwellen 1/3, Alter 180, Abrufe aus): `faellig=1130, kreditoren=100, testbetrieb_umgeleitet=91, zu_klaeren=78, vorlauf=1, rahmenabruf_ausgenommen=35, fehler=0`.
+  - L2 16:56 (5/3, Alter 0, Abrufe an): `faellig=1124, testbetrieb_umgeleitet=97, zu_klaeren=0, vorlauf=0, rahmenabruf_ausgenommen=0, fehler=0`.
+  - L3 16:58 (2/3, Alter **1**): `faellig=1128, kreditoren=0, zu_klaeren=1128, testbetrieb_umgeleitet=0, fehler=0`.
+  - L4 16:59 / L5 17:02 (3/3/180, `KreditorAktiv` aus; L5 nach QA-Fix): `faellig=1127, zu_klaeren=78, fehler=0`.
+
+| TS | Ausgeführt | Ergebnis | |
+|---|---|---|---|
+| 128.16 | L1, AICHINGER −1/−2/−3/−4/−10 | Sammelliste alle; Testbetrieb-Kreditor-Mail nur −3, −4, −10, −180; Status „2 Position(en) erst ab 14.11.2026 – 1 Rahmenabruf/-abrufe nicht an Lieferanten (Einstellung)“ | OK |
+| 128.17 | L1, Aigner nur −1 | keine Kreditor-Mail, Status „Kreditor-Mail ab 15.11.2026 (3 Tage nach Liefertermin)“, Count `vorlauf=1` | OK |
+| 128.18 | L2, 5/3, Termin −4 | −4 in keiner Mail | OK |
+| 128.19 | L1, −181 EBB, −400 EBZ, −180 | „Zu klären“ mit Art Bestellung/Rahmenabruf, nicht in der Kreditor-Mail; −180 normal in Gruppe und Kreditor-Mail; Betreff „davon 78 zu klären“ (mit realen Altfällen), Protokoll `Art = Einkauf` für 990105/990106 | OK |
+| 128.20 | L3, alle fälligen über der Grenze | Sammelliste nur Abschnitt „Zu klären“, 0 Gruppen, keine Kreditor-Mail, kein Grenzen-Hinweis | OK |
+| 128.21 | L2, `MaxAlterTage = 0` | kein Abschnitt „Zu klären“; −400 EBZ und −181 in Gruppe und Kreditor-Mail | OK |
+| 128.22 | Browser 2, `/ServiceSettings` AKE-DEV | Einträge mit Anzeigename, Wirkung, Verwendung, Standard, Standort „beide“ und Warnhinweis sichtbar; 61 lehnt bereits der Browser ab („Wert muss kleiner als oder gleich 60 sein“), nichts gespeichert (DB weiter 3). Server-Ablehnung nur automatisiert (`SettingValidatorTests`); 3651/−1 im Browser nicht einzeln geprüft | OK (Server automatisiert) |
+| 128.23 | L1 aus / L2 an | aus: EBZ −10 in der Sammelliste, nicht in der Kreditor-Mail, Statuszeile meldet es; an: EBZ −10 und −400 in der Kreditor-Mail | OK |
+| 128.24 | L1/L2, vorhandene `ArticleSuppliers` (10 409 mit Nummer, Abgleich aus) | Kreditor-Mail HTML Spalte „Lief.-Art.-Nr. / Supplier item no.“ mit 1803584/309500030/308131291, Text „Lief.-Art.-Nr./supplier item no. …“; Sammelliste (Gruppen und „Zu klären“) Spalte „Lief.-Art.-Nr.“; Artikel EK000015 ohne Eintrag: leere Zelle, kein Fehler | OK |
+| 128.25 | teilweise | `Sync:ArtikelLieferantEnabled` auf AKE-DEV aus; leere Zelle bei Artikel ohne Eintrag belegt. Leere `ArticleSuppliers` **nicht** hergestellt (33 158 Zeilen nicht gelöscht) | NICHT MÖGLICH (teilweise; automatisiert: Plan ohne Nummern-Daten → leer) |
+| 128.26 | L1 und L4/L5 | gleicher Name „AICHINGER GmbH (K30035)“ in Gruppenkopf und „Zu klären“ trotz Cache-Name `SAGE-NAME-QA`; mit `KreditorAktiv` aus nennt die Einleitung keine Kreditor-Schwelle (L4 zeigte N1, L5 korrigiert) | OK |
+
+**7. Publish** – `C:\git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish\` neu erzeugt (Zielordner vorher geleert): `IDEALAKEWMSWeb`,
+`IDEALAKEWMSWebService`, `SQL`, `deploy`, `publish-info.txt` (Version 1.99.19, Commit `654961654b8cae28c71911d622f496a3ac24d3e6`, 2026-11-13 17:04). Beide Publish Exit 0.
+
+**Deploy (bestätigt am Diff):** web ja (Hilfe, Changelog, `ServiceSettingDefinitions`), service ja (Planer, Lauf, Mail-HTML), migration nein.
+Reihenfolge: Update-Skript (`publish\deploy\Update-IdealAkeWms.ps1`), Web, Dienst, danach Manifest-Einträge v1.99.19 (Einstellungen, Adressen, Info Einkauf).
+Nach dem Merge nur dann aus `main` neu publizieren, wenn der Merge getestete Dateien mit parallelen `main`-Änderungen zusammengeführt hat.
+
+### Manuelle Test-Checkliste (Schranke 2, offen für den Menschen)
+
+1. TS-128.25 vollständig: auf einem System ohne `ArticleSuppliers`-Daten (z. B. Testsystem vor dem ersten Artikel-Lieferant-Abgleich) prüfen, dass die Spalte überall leer bleibt und der Lauf ohne Warnung endet.
+2. TS-128.22 serverseitig im Browser nur bei Bedarf (3651/−1 bzw. Umgehung der Browser-Prüfung); automatisiert durch `SettingValidatorTests` belegt.
+3. Darstellung von Sammelliste und Kreditor-Mail (neue Spalte, Abschnitt „Zu klären“) im echten Mailclient: `.eml` aus `D:\Dev\mail-pickup\ake` öffnen (z. B. `20261113-165449-644-…eml` Sammelliste, `20261113-165448-820-…eml` AICHINGER).
+4. IDEAL: Lauf mit `Lieferverzug:MailAktiv` auf dem Testsystem IDEAL (auf IDEAL-DEV aus), Darstellung mit IDEAL-Kopf.
+5. Testsystem-Lauf nach dem Deploy (Testbetrieb an): Spalte „Lief.-Art.-Nr.“ mit eingeschaltetem `Sync:ArtikelLieferantEnabled` an drei Bestellungen in Sage gegenprüfen (Nummer = Bestellnummer beim Lieferanten).
+6. P-L1-Befund (KreditorenKlasse3 96–99 > `KreditorMaxJeLauf` 30): Limit-Entscheidung Gerald vor dem Echtbetrieb (laut Nachtrag 1 kein Blocker).
+7. Daten-Durchsicht „Zu klären“ mit dem Einkauf (Till), drei Positionen in Sage gegenprüfen; P-L2 bis P-L4 (Sage, nur lesend).
+8. Relay/Absender extern (P-M4) mit der IT vor dem Echtbetrieb; Adressen AKE/IDEAL laut Manifest setzen.
