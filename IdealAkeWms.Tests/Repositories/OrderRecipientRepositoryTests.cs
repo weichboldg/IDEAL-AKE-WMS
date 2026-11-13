@@ -126,5 +126,7 @@ public class OrderRecipientRepositoryTests
         var after = await repo.GetGroupsByArticleGroupAsync("Elektronik");
         after.Should().ContainSingle(g => g.Name == "Lager");
         after.Should().NotContain(g => g.Name == "Einkauf");
+        context.ArticleGroupRecipientMappings.Single(m => m.ArticleGroup == "Elektronik")
+            .CreatedAt.Should().BeCloseTo(DateTime.Now, TimeSpan.FromMinutes(1)); // Lokalzeit (ADR 0025)
     }
 }

@@ -222,7 +222,7 @@ public class AccountController : Controller
         if (!string.IsNullOrEmpty(newPassword))
             user.PasswordHash = _passwordService.HashPassword(newPassword);
 
-        user.ModifiedAt = DateTime.UtcNow;
+        user.ModifiedAt = DateTime.Now;
         user.ModifiedBy = _currentUserService.GetCurrentAppUserName() ?? string.Empty;
         user.ModifiedByWindows = _currentUserService.GetWindowsUserName();
 

@@ -5,6 +5,7 @@ namespace IDEALAKEWMSService.Services;
 /// SubOrderNumber = OrderNumber NUR wenn die Spalte in der Ziel-DB existiert (IDEAL-Schema,
 /// NOT NULL + UNIQUE). Gegen eine DB ohne die Spalte bleibt der INSERT unveraendert.
 /// Der UPDATE-Zweig laesst SubOrderNumber unangetastet.
+/// CreatedAt/ModifiedAt = Parameter <c>@Jetzt</c> (Ortszeit des Dienstrechners, ADR 0025); der Aufrufer setzt ihn.
 /// </summary>
 public static class SageProductionOrderSql
 {
@@ -14,8 +15,8 @@ public static class SageProductionOrderSql
             ? "[OrderNumber],[SubOrderNumber],[Quantity],[Customer],[ArticleNumber],[Description1],[Description2],[ProductionDate],[DeliveryDate],[IsDone],[CreatedAt],[CreatedBy],[CreatedByWindows]"
             : "[OrderNumber],[Quantity],[Customer],[ArticleNumber],[Description1],[Description2],[ProductionDate],[DeliveryDate],[IsDone],[CreatedAt],[CreatedBy],[CreatedByWindows]";
         var insertVals = includeSubOrderNumber
-            ? "@OrderNumber,@OrderNumber,@Quantity,@Customer,@ArticleNumber,@Description1,@Description2,@ProductionDate,@DeliveryDate,0,GETUTCDATE(),'IDEALAKEWMSService',SYSTEM_USER"
-            : "@OrderNumber,@Quantity,@Customer,@ArticleNumber,@Description1,@Description2,@ProductionDate,@DeliveryDate,0,GETUTCDATE(),'IDEALAKEWMSService',SYSTEM_USER";
+            ? "@OrderNumber,@OrderNumber,@Quantity,@Customer,@ArticleNumber,@Description1,@Description2,@ProductionDate,@DeliveryDate,0,@Jetzt,'IDEALAKEWMSService',SYSTEM_USER"
+            : "@OrderNumber,@Quantity,@Customer,@ArticleNumber,@Description1,@Description2,@ProductionDate,@DeliveryDate,0,@Jetzt,'IDEALAKEWMSService',SYSTEM_USER";
 
         return $"""
             IF EXISTS (SELECT 1 FROM [dbo].[ProductionOrders] WHERE [OrderNumber] = @OrderNumber)
@@ -28,7 +29,7 @@ public static class SageProductionOrderSql
                     [Description2]   = @Description2,
                     [ProductionDate] = @ProductionDate,
                     [DeliveryDate]   = @DeliveryDate,
-                    [ModifiedAt]     = GETUTCDATE(),
+                    [ModifiedAt]     = @Jetzt,
                     [ModifiedBy]     = 'IDEALAKEWMSService',
                     [ModifiedByWindows] = SYSTEM_USER
                 WHERE [OrderNumber] = @OrderNumber

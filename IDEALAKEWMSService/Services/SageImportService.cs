@@ -121,6 +121,8 @@ public class SageImportService : ISageImportService
                 hasSubOrderNumber = Convert.ToInt32(await colCmd.ExecuteScalarAsync(ct)) == 1;
             }
             var mergeSql = SageProductionOrderSql.BuildUpsert(hasSubOrderNumber);
+            // Ortszeit des Dienstrechners, eine Zeit je Lauf fuer Upsert, Eager-Create und Reconcile (ADR 0025) - nicht die Uhr des SQL-Servers.
+            var jetzt = DateTime.Now;
             if (hasSubOrderNumber)
                 _logger.LogInformation("ProductionOrders-Sync: SubOrderNumber-Spalte vorhanden — wird mit OrderNumber befuellt (IDEAL-Schema-Kompatibilitaet).");
 
@@ -135,6 +137,7 @@ public class SageImportService : ISageImportService
                 cmd.Parameters.AddWithValue("@Description2", (object?)orderFromSage.Description2 ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@ProductionDate", (object?)orderFromSage.ProductionDate ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@DeliveryDate", (object?)orderFromSage.DeliveryDate ?? DBNull.Value);
+                cmd.Parameters.Add("@Jetzt", System.Data.SqlDbType.DateTime2).Value = jetzt;
 
                 await using var reader = await cmd.ExecuteReaderAsync(ct);
                 if (await reader.ReadAsync(ct))
@@ -174,7 +177,7 @@ public class SageImportService : ISageImportService
                                 HasCoatingParts, IsCoatingDone, IsDonePicking,
                                 CreatedAt, CreatedBy, CreatedByWindows)
                         VALUES (p.ProductionOrderId, 0, 0, 0, 0, 0, 0,
-                                GETUTCDATE(), 'IDEALAKEWMSService', SYSTEM_USER);
+                                @Jetzt, 'IDEALAKEWMSService', SYSTEM_USER);
 
                     MERGE [dbo].[ProductionOrderBdeStatus] AS s
                     USING (SELECT Id AS ProductionOrderId FROM [dbo].[ProductionOrders]) AS p
@@ -183,10 +186,11 @@ public class SageImportService : ISageImportService
                         INSERT (ProductionOrderId, IsDoneBde,
                                 CreatedAt, CreatedBy, CreatedByWindows)
                         VALUES (p.ProductionOrderId, 0,
-                                GETUTCDATE(), 'IDEALAKEWMSService', SYSTEM_USER);
+                                @Jetzt, 'IDEALAKEWMSService', SYSTEM_USER);
                     """;
 
                 await using var eagerCmd = new SqlCommand(eagerCreateSql, wmsConn) { CommandTimeout = 60 };
+                eagerCmd.Parameters.Add("@Jetzt", System.Data.SqlDbType.DateTime2).Value = jetzt;
                 var statusRows = await eagerCmd.ExecuteNonQueryAsync(ct);
                 _logger.LogInformation("Sage-Import Eager-Create: {Rows} Status-Zeilen ergaenzt fuer neue FAs", statusRows);
             }
@@ -288,10 +292,11 @@ public class SageImportService : ISageImportService
                     {
                         await using var reactCmd = new SqlCommand(
                             "UPDATE [dbo].[ProductionOrders] SET [IsCancelled] = 0, [CancelledAt] = NULL, [CancelledBy] = NULL, " +
-                            "[ModifiedAt] = GETUTCDATE(), [ModifiedBy] = 'IDEALAKEWMSService', [ModifiedByWindows] = SYSTEM_USER " +
+                            "[ModifiedAt] = @Jetzt, [ModifiedBy] = 'IDEALAKEWMSService', [ModifiedByWindows] = SYSTEM_USER " +
                             "WHERE [OrderNumber] = @OrderNumber",
                             wmsConn) { CommandTimeout = 60 };
                         reactCmd.Parameters.AddWithValue("@OrderNumber", orderNumber);
+                        reactCmd.Parameters.Add("@Jetzt", System.Data.SqlDbType.DateTime2).Value = jetzt;
                         var reactRows = await reactCmd.ExecuteNonQueryAsync(ct);
                         reactivated += reactRows;
                         if (reactRows > 0)
@@ -320,14 +325,15 @@ public class SageImportService : ISageImportService
                     {
                         foreach (var orderNumber in reconcilePlan.ToCancel)
                         {
-                            // CancelledAt via GETUTCDATE() (wie ModifiedAt) — beide Audit-Spalten
-                            // derselben Zeile in derselben Zeitbasis (kein Local/UTC-Mix).
+                            // CancelledAt = ModifiedAt = @Jetzt (Ortszeit des Dienstrechners, ADR 0025) - beide Spalten
+                            // derselben Zeile mit demselben Stempel.
                             await using var cancelCmd = new SqlCommand(
-                                "UPDATE [dbo].[ProductionOrders] SET [IsCancelled] = 1, [CancelledAt] = GETUTCDATE(), [CancelledBy] = 'System-Reconcile', " +
-                                "[ModifiedAt] = GETUTCDATE(), [ModifiedBy] = 'IDEALAKEWMSService', [ModifiedByWindows] = SYSTEM_USER " +
+                                "UPDATE [dbo].[ProductionOrders] SET [IsCancelled] = 1, [CancelledAt] = @Jetzt, [CancelledBy] = 'System-Reconcile', " +
+                                "[ModifiedAt] = @Jetzt, [ModifiedBy] = 'IDEALAKEWMSService', [ModifiedByWindows] = SYSTEM_USER " +
                                 "WHERE [OrderNumber] = @OrderNumber AND [IsDone] = 0 AND [IsCancelled] = 0",
                                 wmsConn) { CommandTimeout = 60 };
                             cancelCmd.Parameters.AddWithValue("@OrderNumber", orderNumber);
+                            cancelCmd.Parameters.Add("@Jetzt", System.Data.SqlDbType.DateTime2).Value = jetzt;
                             var cancelRows = await cancelCmd.ExecuteNonQueryAsync(ct);
                             cancelled += cancelRows;
                             if (cancelRows > 0)
@@ -436,6 +442,8 @@ public class SageImportService : ISageImportService
             }
 
             int inserted = 0, updated = 0, missingPrimaryLocation = 0;
+            // Ortszeit des Dienstrechners, eine Zeit je Lauf (ADR 0025) - nicht die Uhr des SQL-Servers.
+            var jetzt = DateTime.Now;
 
             foreach (var article in sageArticles)
             {
@@ -450,7 +458,7 @@ public class SageImportService : ISageImportService
                             [SagePrimaryStorageLocation] = @SagePrimaryStorageLocation,
                             [PrimaryStorageLocationId]   = CASE WHEN @UpdatePrimaryId = 1 THEN @PrimaryStorageLocationId ELSE [PrimaryStorageLocationId] END,
                             [Matchcode]         = @Matchcode,
-                            [ModifiedAt]        = GETUTCDATE(),
+                            [ModifiedAt]        = @Jetzt,
                             [ModifiedBy]        = 'IDEALAKEWMSService',
                             [ModifiedByWindows] = SYSTEM_USER
                         WHERE [ArticleNumber] = @ArticleNumber
@@ -473,7 +481,7 @@ public class SageImportService : ISageImportService
                              [CreatedAt],[CreatedBy],[CreatedByWindows])
                         VALUES (@ArticleNumber, @Description, @Unit, @ArticleGroup, @ReorderLevel,
                                 @PrimaryStorageLocationId, @SagePrimaryStorageLocation, @Matchcode,
-                                GETUTCDATE(), 'IDEALAKEWMSService', SYSTEM_USER)
+                                @Jetzt, 'IDEALAKEWMSService', SYSTEM_USER)
                         SELECT 1 AS IsInsert, 1 AS Affected
                     END
                     """;
@@ -518,6 +526,7 @@ public class SageImportService : ISageImportService
                 cmd.Parameters.AddWithValue("@PrimaryStorageLocationId", (object?)primaryId ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@UpdatePrimaryId", updatePrimaryId);
                 cmd.Parameters.Add("@Matchcode", System.Data.SqlDbType.NVarChar, 200).Value = (object?)article.Matchcode ?? DBNull.Value;
+                cmd.Parameters.Add("@Jetzt", System.Data.SqlDbType.DateTime2).Value = jetzt;
 
                 await using var reader = await cmd.ExecuteReaderAsync(ct);
                 if (await reader.ReadAsync(ct))

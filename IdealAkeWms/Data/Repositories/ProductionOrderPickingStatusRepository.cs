@@ -72,10 +72,11 @@ public class ProductionOrderPickingStatusRepository : IProductionOrderPickingSta
             .FirstOrDefaultAsync(s => s.ProductionOrderId == productionOrderId)
             ?? throw new InvalidOperationException($"PickingStatus row missing for FA {productionOrderId}.");
 
+        var jetzt = DateTime.Now; // Lokalzeit (ADR 0025), ReleasedAt = ModifiedAt
         row.IsReleasedForPicking = released;
         if (released)
         {
-            row.ReleasedAt = DateTime.UtcNow;
+            row.ReleasedAt = jetzt;
             row.ReleasedBy = releasedBy;
             if (priority.HasValue) row.PickingPriority = priority;
         }
@@ -85,7 +86,7 @@ public class ProductionOrderPickingStatusRepository : IProductionOrderPickingSta
             row.AssignedPickerName = null;
         }
 
-        row.ModifiedAt = DateTime.UtcNow;
+        row.ModifiedAt = jetzt;
         row.ModifiedBy = modifiedBy;
         row.ModifiedByWindows = modifiedByWindows;
         await _context.SaveChangesAsync();
@@ -246,7 +247,7 @@ public class ProductionOrderPickingStatusRepository : IProductionOrderPickingSta
         if (release)
             maxPrio = await GetMaxPickingPriorityAsync();
 
-        var now = DateTime.UtcNow;
+        var now = DateTime.Now; // Lokalzeit (ADR 0025), eine Zeit fuer die ganze Sammelfreigabe
 
         foreach (var row in rows)
         {

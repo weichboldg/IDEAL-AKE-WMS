@@ -27,7 +27,7 @@ public static class ArtikelBenutzerfelderWriter
         var warnungen = new List<string>();
         if (mit.Count == 0) return new(0, 0, 0, 0, 0, warnungen);
 
-        var jetzt = DateTime.UtcNow;
+        var jetzt = DateTime.Now; // Ortszeit des Dienstrechners (ADR 0025)
         var windows = $@"{Environment.UserDomainName}\{Environment.UserName}";
 
         // Definitionen

@@ -205,7 +205,7 @@ using (var scope = app.Services.CreateScope())
             Code = "NAN",
             Description = "Nicht zugeordnet (Fallback)",
             IsPickingTransport = false,
-            CreatedAt = DateTime.UtcNow,
+            CreatedAt = DateTime.Now,
             CreatedBy = "system",
             CreatedByWindows = "system"
         });
@@ -240,7 +240,7 @@ using (var scope = app.Services.CreateScope())
                 Description = description,
                 SortOrder = sortOrder,
                 IsSystem = true,
-                CreatedAt = DateTime.UtcNow,
+                CreatedAt = DateTime.Now,
                 CreatedBy = "system",
                 CreatedByWindows = "system"
             });
@@ -257,7 +257,7 @@ using (var scope = app.Services.CreateScope())
             Name = "admin",
             IsActive = true,
             PasswordHash = passwordService.HashPassword(""),
-            CreatedAt = DateTime.UtcNow,
+            CreatedAt = DateTime.Now,
             CreatedBy = "system",
             CreatedByWindows = "system"
         };
@@ -278,7 +278,7 @@ using (var scope = app.Services.CreateScope())
         {
             UserId = adminUser.Id,
             RoleId = adminRole.Id,
-            CreatedAt = DateTime.UtcNow,
+            CreatedAt = DateTime.Now,
             CreatedBy = "system",
             CreatedByWindows = "system"
         });

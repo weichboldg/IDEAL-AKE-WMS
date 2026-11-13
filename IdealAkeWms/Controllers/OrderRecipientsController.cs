@@ -75,7 +75,7 @@ public class OrderRecipientsController : Controller
         {
             Name = vm.Name,
             Description = vm.Description,
-            CreatedAt = DateTime.UtcNow,
+            CreatedAt = DateTime.Now,
             CreatedBy = _currentUserService.GetDisplayName(),
             CreatedByWindows = _currentUserService.GetWindowsUserName()
         };
@@ -143,7 +143,7 @@ public class OrderRecipientsController : Controller
 
         group.Name = vm.Name;
         group.Description = vm.Description;
-        group.ModifiedAt = DateTime.UtcNow;
+        group.ModifiedAt = DateTime.Now;
         group.ModifiedBy = _currentUserService.GetDisplayName();
         group.ModifiedByWindows = _currentUserService.GetWindowsUserName();
 
@@ -200,7 +200,7 @@ public class OrderRecipientsController : Controller
             Name = model.Name,
             Email = model.Email,
             IsActive = model.IsActive,
-            CreatedAt = DateTime.UtcNow,
+            CreatedAt = DateTime.Now,
             CreatedBy = _currentUserService.GetDisplayName(),
             CreatedByWindows = _currentUserService.GetWindowsUserName()
         };
@@ -229,7 +229,7 @@ public class OrderRecipientsController : Controller
         recipient.Name = model.Name;
         recipient.Email = model.Email;
         recipient.IsActive = model.IsActive;
-        recipient.ModifiedAt = DateTime.UtcNow;
+        recipient.ModifiedAt = DateTime.Now;
         recipient.ModifiedBy = _currentUserService.GetDisplayName();
         recipient.ModifiedByWindows = _currentUserService.GetWindowsUserName();
 

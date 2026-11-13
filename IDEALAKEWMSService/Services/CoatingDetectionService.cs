@@ -183,17 +183,19 @@ public class CoatingDetectionService : ICoatingDetectionService
                 return new SyncResult(0, 0, 0);
             }
 
+            var jetzt = DateTime.Now; // Ortszeit des Dienstrechners, eine Zeit je Lauf (ADR 0025)
+
             // 6) Bulk update — set HasCoatingParts=1 for matches
             if (orderIdsTrue.Count > 0)
             {
-                updatedTrue = await BulkUpdateCoatingFlagAsync(conn, orderIdsTrue, hasCoatingParts: true, ct);
+                updatedTrue = await BulkUpdateCoatingFlagAsync(conn, orderIdsTrue, hasCoatingParts: true, jetzt, ct);
             }
 
             // 7) Bulk update — set HasCoatingParts=0 AND IsCoatingDone=0 for non-matches
             // (per spec: when flag becomes false, also reset IsCoatingDone)
             if (orderIdsFalse.Count > 0)
             {
-                updatedFalse = await BulkUpdateCoatingFlagAsync(conn, orderIdsFalse, hasCoatingParts: false, ct);
+                updatedFalse = await BulkUpdateCoatingFlagAsync(conn, orderIdsFalse, hasCoatingParts: false, jetzt, ct);
             }
 
             _logger.LogInformation(
@@ -220,7 +222,7 @@ public class CoatingDetectionService : ICoatingDetectionService
     }
 
     private async Task<int> BulkUpdateCoatingFlagAsync(
-        SqlConnection conn, List<int> orderIds, bool hasCoatingParts, CancellationToken ct)
+        SqlConnection conn, List<int> orderIds, bool hasCoatingParts, DateTime jetzt, CancellationToken ct)
     {
         // Use a temp table for large IN lists
         var dt = new System.Data.DataTable();
@@ -244,7 +246,7 @@ public class CoatingDetectionService : ICoatingDetectionService
         // Audit-Felder werden auf der Status-Tabelle gepflegt, nicht mehr auf FA.
         var updateSql = hasCoatingParts
             ? @"UPDATE ps SET ps.[HasCoatingParts] = 1,
-                              ps.[ModifiedAt] = GETUTCDATE(),
+                              ps.[ModifiedAt] = @Jetzt,
                               ps.[ModifiedBy] = 'CoatingDetection',
                               ps.[ModifiedByWindows] = SYSTEM_USER
                 FROM [dbo].[ProductionOrderPickingStatus] ps
@@ -252,7 +254,7 @@ public class CoatingDetectionService : ICoatingDetectionService
                 WHERE ps.[HasCoatingParts] = 0"
             : @"UPDATE ps SET ps.[HasCoatingParts] = 0,
                               ps.[IsCoatingDone] = 0,
-                              ps.[ModifiedAt] = GETUTCDATE(),
+                              ps.[ModifiedAt] = @Jetzt,
                               ps.[ModifiedBy] = 'CoatingDetection',
                               ps.[ModifiedByWindows] = SYSTEM_USER
                 FROM [dbo].[ProductionOrderPickingStatus] ps
@@ -262,6 +264,7 @@ public class CoatingDetectionService : ICoatingDetectionService
         int affected;
         await using (var cmd = new SqlCommand(updateSql, conn) { CommandTimeout = 60 })
         {
+            cmd.Parameters.Add("@Jetzt", System.Data.SqlDbType.DateTime2).Value = jetzt;
             affected = await cmd.ExecuteNonQueryAsync(ct);
         }
 

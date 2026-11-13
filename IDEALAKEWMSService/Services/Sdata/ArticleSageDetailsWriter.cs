@@ -24,7 +24,7 @@ public static class ArticleSageDetailsWriter
         var idJeNummer = await ArtikelIdsAsync(ctx, ct);
         var vorhanden = await ctx.ArticleSageDetails.ToDictionaryAsync(d => d.ArticleId, ct);
 
-        var jetzt = DateTime.UtcNow;
+        var jetzt = DateTime.Now; // Ortszeit des Dienstrechners (ADR 0025)
         var windows = $@"{Environment.UserDomainName}\{Environment.UserName}"; // Dienstkonto, entspricht SYSTEM_USER des Raw-SQL-Upserts
         int neu = 0, geaendert = 0, ohneArtikel = 0;
         foreach (var a in mitDetails)

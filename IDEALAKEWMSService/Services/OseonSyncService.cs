@@ -170,11 +170,14 @@ public class OseonSyncService : IOseonSyncService
                 return new SyncResult(0, 0, 0, "Keine geänderten Datensätze in OSEON.");
             }
 
+            // Ortszeit des Dienstrechners, eine Zeit je Lauf (ADR 0025) - nicht die Uhr des SQL-Servers.
+            var jetzt = DateTime.Now;
+
             // 1. Werkbänke auto-anlegen (Bulk-Insert fehlender)
-            await EnsureWorkplacesExistBulkAsync(wmsConn, selection.Orders, ct);
+            await EnsureWorkplacesExistBulkAsync(wmsConn, selection.Orders, jetzt, ct);
 
             // 2. Bulk MERGE: Orders
-            var orderMerge = await BulkMergeOrdersAsync(wmsConn, selection.Orders, hasTimestampColumns, ct);
+            var orderMerge = await BulkMergeOrdersAsync(wmsConn, selection.Orders, hasTimestampColumns, jetzt, ct);
             foreach (var (number, oldId, newId) in orderMerge.Reissued)
             {
                 await run.LogWarningAsync(
@@ -189,7 +192,7 @@ public class OseonSyncService : IOseonSyncService
             }
 
             // 3. Bulk MERGE: Work Operations (AGAs)
-            var opsCollationDuplicates = await BulkMergeOperationsAsync(wmsConn, selection.Operations, hasTimestampColumns, ct);
+            var opsCollationDuplicates = await BulkMergeOperationsAsync(wmsConn, selection.Operations, hasTimestampColumns, jetzt, ct);
 
             var collationDuplicates = orderMerge.CollationDuplicates + opsCollationDuplicates;
             if (collationDuplicates > 0)
@@ -235,7 +238,7 @@ public class OseonSyncService : IOseonSyncService
     /// Bulk-Insert aller fehlenden Werkbänke in einem Durchgang.
     /// </summary>
     private async Task EnsureWorkplacesExistBulkAsync(SqlConnection conn,
-        IReadOnlyList<OseonRawRow> orders, CancellationToken ct)
+        IReadOnlyList<OseonRawRow> orders, DateTime jetzt, CancellationToken ct)
     {
         var distinctWorkplaces = orders
             .Select(o => o.WorkplaceName)
@@ -252,7 +255,7 @@ public class OseonSyncService : IOseonSyncService
             INSERT INTO #TmpWorkplaces ([Name]) VALUES {0};
 
             INSERT INTO [dbo].[ProductionWorkplaces] ([Name], [CreatedAt], [CreatedBy], [CreatedByWindows])
-            SELECT DISTINCT t.[Name], GETUTCDATE(), 'IDEALAKEWMSService', SYSTEM_USER
+            SELECT DISTINCT t.[Name], @Jetzt, 'IDEALAKEWMSService', SYSTEM_USER
             FROM #TmpWorkplaces t
             WHERE NOT EXISTS (SELECT 1 FROM [dbo].[ProductionWorkplaces] pw WHERE pw.[Name] = t.[Name]);
 
@@ -262,6 +265,7 @@ public class OseonSyncService : IOseonSyncService
         // Parametrisierte VALUES-Liste
         var valuesClauses = new List<string>();
         var cmd = new SqlCommand { Connection = conn, CommandTimeout = 60 };
+        cmd.Parameters.Add("@Jetzt", SqlDbType.DateTime2).Value = jetzt;
 
         for (int i = 0; i < distinctWorkplaces.Count; i++)
         {
@@ -281,7 +285,7 @@ public class OseonSyncService : IOseonSyncService
     /// Statt ~5000 einzelne Roundtrips → 1 BulkCopy + 1 MERGE Statement.
     /// </summary>
     private async Task<OrderMergeResult> BulkMergeOrdersAsync(SqlConnection conn,
-        IReadOnlyList<OseonRawRow> orders, bool hasTimestampColumns, CancellationToken ct)
+        IReadOnlyList<OseonRawRow> orders, bool hasTimestampColumns, DateTime jetzt, CancellationToken ct)
     {
         // DataTable für BulkCopy aufbauen
         var dt = new DataTable();
@@ -418,7 +422,7 @@ public class OseonSyncService : IOseonSyncService
                     target.[QuantityTarget]        = source.[QuantityTarget],
                     target.[QuantityActual]        = source.[QuantityActual],
                     target.[DueDate]               = source.[DueDate]{tsUpdate},
-                    target.[ModifiedAt]            = GETUTCDATE(),
+                    target.[ModifiedAt]            = @Jetzt,
                     target.[ModifiedBy]            = 'IDEALAKEWMSService',
                     target.[ModifiedByWindows]     = SYSTEM_USER
             WHEN NOT MATCHED THEN
@@ -429,25 +433,28 @@ public class OseonSyncService : IOseonSyncService
                 VALUES (source.[OseonId],source.[OseonOrderNumber],source.[CustomerOrderNumber],source.[OseonStatus],
                         source.[ArticleNumber],source.[Description1],source.[Description2],source.[WorkplaceName],
                         source.[WorkplaceId],source.[QuantityTarget],source.[QuantityActual],source.[DueDate]{tsInsertVals},
-                        GETUTCDATE(),'IDEALAKEWMSService',SYSTEM_USER)
+                        @Jetzt,'IDEALAKEWMSService',SYSTEM_USER)
             OUTPUT $action, deleted.[OseonId], inserted.[OseonId], inserted.[OseonOrderNumber];
             """;
 
         int inserted = 0, updated = 0;
         var reissued = new List<(string Number, long OldId, long NewId)>();
         await using (var cmd = new SqlCommand(mergeSql, conn) { CommandTimeout = 120 })
-        await using (var reader = await cmd.ExecuteReaderAsync(ct))
         {
-            while (await reader.ReadAsync(ct))
+            cmd.Parameters.Add("@Jetzt", SqlDbType.DateTime2).Value = jetzt;
+            await using (var reader = await cmd.ExecuteReaderAsync(ct))
             {
-                var action = reader.GetString(0);
-                if (action == "INSERT") { inserted++; continue; }
+                while (await reader.ReadAsync(ct))
+                {
+                    var action = reader.GetString(0);
+                    if (action == "INSERT") { inserted++; continue; }
 
-                updated++;
-                var oldId = reader.GetInt64(1);
-                var newId = reader.GetInt64(2);
-                if (oldId != newId)
-                    reissued.Add((reader.IsDBNull(3) ? "" : reader.GetString(3), oldId, newId));
+                    updated++;
+                    var oldId = reader.GetInt64(1);
+                    var newId = reader.GetInt64(2);
+                    if (oldId != newId)
+                        reissued.Add((reader.IsDBNull(3) ? "" : reader.GetString(3), oldId, newId));
+                }
             }
         }
 
@@ -483,7 +490,7 @@ public class OseonSyncService : IOseonSyncService
     /// Rückgabe: Anzahl der vom SQL-Wächter verworfenen Zeilen (nach DB-Kollation doppelt).
     /// </summary>
     private async Task<int> BulkMergeOperationsAsync(SqlConnection conn,
-        IReadOnlyList<OseonRawRow> operationRows, bool hasTimestampColumns, CancellationToken ct)
+        IReadOnlyList<OseonRawRow> operationRows, bool hasTimestampColumns, DateTime jetzt, CancellationToken ct)
     {
         if (operationRows.Count == 0) return 0;
 
@@ -577,7 +584,7 @@ public class OseonSyncService : IOseonSyncService
                     target.[OseonStatus]             = source.[OseonStatus],
                     target.[IsFirstOperation]        = source.[IsFirstOperation],
                     target.[IsLastOperation]         = source.[IsLastOperation]{tsUpdate},
-                    target.[ModifiedAt]              = GETUTCDATE(),
+                    target.[ModifiedAt]              = @Jetzt,
                     target.[ModifiedBy]              = 'IDEALAKEWMSService',
                     target.[ModifiedByWindows]       = SYSTEM_USER
             WHEN NOT MATCHED THEN
@@ -586,11 +593,14 @@ public class OseonSyncService : IOseonSyncService
                         [CreatedAt],[CreatedBy],[CreatedByWindows])
                 VALUES (source.[OrderId],source.[PositionNumber],source.[Name],source.[Description],
                         source.[OseonStatus],source.[IsFirstOperation],source.[IsLastOperation]{tsInsertVals},
-                        GETUTCDATE(),'IDEALAKEWMSService',SYSTEM_USER);
+                        @Jetzt,'IDEALAKEWMSService',SYSTEM_USER);
             """;
 
         await using (var cmd = new SqlCommand(mergeSql, conn) { CommandTimeout = 120 })
+        {
+            cmd.Parameters.Add("@Jetzt", SqlDbType.DateTime2).Value = jetzt;
             await cmd.ExecuteNonQueryAsync(ct);
+        }
 
         // Temp-Table aufräumen
         await using (var cmd = new SqlCommand("DROP TABLE #TmpOseonOps", conn))
@@ -638,7 +648,7 @@ public class OseonSyncService : IOseonSyncService
             const string updateSql = """
                 UPDATE po SET
                     po.ProductionWorkplaceId = oseon.ProductionWorkplaceId,
-                    po.ModifiedAt = GETUTCDATE(),
+                    po.ModifiedAt = @Jetzt,
                     po.ModifiedBy = 'IDEALAKEWMSService',
                     po.ModifiedByWindows = SYSTEM_USER
                 FROM [dbo].[ProductionOrders] po
@@ -653,6 +663,7 @@ public class OseonSyncService : IOseonSyncService
                 """;
 
             await using var updateCmd = new SqlCommand(updateSql, conn);
+            updateCmd.Parameters.Add("@Jetzt", SqlDbType.DateTime2).Value = DateTime.Now; // Ortszeit (ADR 0025)
             var updated = await updateCmd.ExecuteNonQueryAsync(ct);
 
             _logger.LogInformation("Werkbank-Sync: {Updated} Produktionsaufträge aktualisiert.", updated);

@@ -238,6 +238,9 @@ public class ProductionOrderPickingStatusRepositoryTests
         ps.ReleasedBy.Should().Be("alice");
         ps.PickingPriority.Should().Be(7);
         ps.ModifiedBy.Should().Be("alice");
+        // v1.99.18 (Spec 2026-11-13-utc-schreiber-auf-lokalzeit, ADR 0025): Lokalzeit, eine Zeit je Aufruf.
+        ps.ReleasedAt!.Value.Should().BeCloseTo(DateTime.Now, TimeSpan.FromMinutes(1));
+        ps.ModifiedAt.Should().Be(ps.ReleasedAt);
     }
 
     [Fact]
@@ -322,6 +325,9 @@ public class ProductionOrderPickingStatusRepositoryTests
 
         result.Processed.Should().Be(1);
         result.SkippedSubFa.Should().Equal("100-7");
+        var verarbeitet = await context.ProductionOrderPickingStatuses.SingleAsync(s => s.ProductionOrderId == 2);
+        verarbeitet.ModifiedAt!.Value.Should().BeCloseTo(DateTime.Now, TimeSpan.FromMinutes(1)); // Lokalzeit (ADR 0025)
+        if (release) verarbeitet.ReleasedAt.Should().Be(verarbeitet.ModifiedAt);
         (await context.ProductionOrderPickingStatuses.SingleAsync(s => s.ProductionOrderId == 3))
             .IsReleasedForPicking.Should().Be(!release); // unveraendert
     }

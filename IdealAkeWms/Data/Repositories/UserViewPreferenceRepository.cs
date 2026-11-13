@@ -24,7 +24,7 @@ public class UserViewPreferenceRepository : IUserViewPreferenceRepository
         if (existing != null)
         {
             existing.SettingsJson = settingsJson;
-            existing.ModifiedAt = DateTime.UtcNow;
+            existing.ModifiedAt = DateTime.Now;
             existing.ModifiedBy = modifiedBy;
             existing.ModifiedByWindows = modifiedByWindows;
         }
@@ -35,7 +35,7 @@ public class UserViewPreferenceRepository : IUserViewPreferenceRepository
                 UserId = userId,
                 ViewKey = viewKey,
                 SettingsJson = settingsJson,
-                CreatedAt = DateTime.UtcNow,
+                CreatedAt = DateTime.Now,
                 CreatedBy = modifiedBy,
                 CreatedByWindows = modifiedByWindows
             });

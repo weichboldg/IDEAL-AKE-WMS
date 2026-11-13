@@ -58,6 +58,7 @@ public class FaHierarchyNode
     /// <summary>Sage-Boolean (Bit bzw. Ja/Nein) -&gt; bit.</summary>
     public bool EKBedarf { get; set; }
 
-    /// <summary>Zeitpunkt des letzten Full-Refresh (Lokalzeit, analog <see cref="CachedBomHeader.CachedAt"/>).</summary>
+    /// <summary>Zeitpunkt des letzten Full-Refresh in Lokalzeit des Dienstrechners (<c>DateTime.Now</c> in
+    /// SageFaStrukturReader/SdataFaStrukturReader, ADR 0025). Nicht analog <see cref="CachedBomHeader.CachedAt"/> – das ist bewusst UTC.</summary>
     public DateTime SyncedAt { get; set; }
 }

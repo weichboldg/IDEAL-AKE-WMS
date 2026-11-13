@@ -53,6 +53,7 @@ public class UserViewPreferenceRepositoryTests
         var result = await repo.GetByUserAndViewAsync(user.Id, "ProductionOrders");
         result.Should().NotBeNull();
         result!.SettingsJson.Should().Be(json);
+        result.CreatedAt.Should().BeCloseTo(DateTime.Now, TimeSpan.FromMinutes(1)); // Lokalzeit (ADR 0025)
     }
 
     [Fact]
@@ -69,6 +70,7 @@ public class UserViewPreferenceRepositoryTests
         var result = await repo.GetByUserAndViewAsync(user.Id, "ProductionOrders");
         result!.SettingsJson.Should().Be(newJson);
         result.ModifiedBy.Should().Be("test2");
+        result.ModifiedAt!.Value.Should().BeCloseTo(DateTime.Now, TimeSpan.FromMinutes(1)); // Lokalzeit (ADR 0025)
     }
 
     [Fact]

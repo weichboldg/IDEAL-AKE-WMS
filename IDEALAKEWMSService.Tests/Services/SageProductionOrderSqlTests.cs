@@ -130,4 +130,20 @@ public class SageProductionOrderSqlTests
         update.Should().NotContain("[SubOrderNumber]");
         update.Should().NotContain("SubOrderNumber");
     }
+
+    // v1.99.18 (Spec 2026-11-13-utc-schreiber-auf-lokalzeit, ADR 0025): Ortszeit des Dienstrechners als Parameter, nie die SQL-Server-Uhr.
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void BuildUpsert_SchreibtJetztParameter_InInsertUndUpdate(bool includeSubOrderNumber)
+    {
+        var sql = SageProductionOrderSql.BuildUpsert(includeSubOrderNumber);
+
+        sql.Should().NotContainAny("GETUTCDATE", "GETDATE", "SYSUTCDATETIME");
+        sql.Should().Contain("[ModifiedAt]     = @Jetzt");
+        var insert = InsertClause(sql);
+        var vals = ExtractParenList(insert.Substring(insert.IndexOf("VALUES", StringComparison.Ordinal)), "VALUES");
+        var cols = ExtractParenList(insert, "INSERT INTO");
+        vals[Array.IndexOf(cols, "[CreatedAt]")].Should().Be("@Jetzt");
+    }
 }

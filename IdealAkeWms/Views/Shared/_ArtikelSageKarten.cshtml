@@ -14,8 +14,9 @@
         : (faktor is { } f && sd.Basismengeneinheit is { } b && !string.Equals(einheit, b, StringComparison.OrdinalIgnoreCase)
             ? $"{einheit} (1 {einheit} = {f.ToString("0.######")} {b})" : einheit)
           + (dezimal is { } d ? $", {d} {(d == 1 ? "Nachkommastelle" : "Nachkommastellen")}" : "");
-    // v1.85.0 Nachbesserung 4: ModifiedAt wechselt nur, wenn sich ein Wert aendert – kein „gelesen am“ (UTC gespeichert, lokal angezeigt).
-    var geaendert = (sd.ModifiedAt ?? sd.CreatedAt).ToLocalTime();
+    // v1.85.0 Nachbesserung 4: ModifiedAt wechselt nur, wenn sich ein Wert aendert – kein „gelesen am“. Seit v1.99.18 in Ortszeit
+    // gespeichert und ohne Umrechnung angezeigt (ADR 0025; Writer ArticleSageDetailsWriter im selben Commit umgestellt).
+    var geaendert = sd.ModifiedAt ?? sd.CreatedAt;
     var gruppen = new (string Titel, (string Name, string Wert)[] Felder)[]
     {
         ("Stamm", new[] { ("Bezeichnung 2", T(sd.Bezeichnung2)), ("Hauptartikelgruppe", T(sd.Hauptartikelgruppe)),

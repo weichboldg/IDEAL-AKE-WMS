@@ -119,7 +119,7 @@ public class OrderRecipientRepository : IOrderRecipientRepository
             {
                 ArticleGroup = articleGroup,
                 OrderRecipientGroupId = groupId,
-                CreatedAt = DateTime.UtcNow,
+                CreatedAt = DateTime.Now,
                 CreatedBy = createdBy,
                 CreatedByWindows = createdByWindows
             });

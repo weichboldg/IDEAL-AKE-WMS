@@ -251,11 +251,12 @@ public class TrackingController : Controller
         if (operation == null)
             return NotFound();
 
+        var jetzt = DateTime.Now; // Lokalzeit (ADR 0025), ReportedAt = ModifiedAt
         operation.IsReported = true;
-        operation.ReportedAt = DateTime.UtcNow;
+        operation.ReportedAt = jetzt;
         operation.ReportedBy = _currentUserService.GetDisplayName();
         operation.ReportedByWindows = _currentUserService.GetWindowsUserName();
-        operation.ModifiedAt = DateTime.UtcNow;
+        operation.ModifiedAt = jetzt;
         operation.ModifiedBy = _currentUserService.GetDisplayName();
         operation.ModifiedByWindows = _currentUserService.GetWindowsUserName();
 
@@ -284,7 +285,7 @@ public class TrackingController : Controller
         operation.ReportedAt = null;
         operation.ReportedBy = null;
         operation.ReportedByWindows = null;
-        operation.ModifiedAt = DateTime.UtcNow;
+        operation.ModifiedAt = DateTime.Now;
         operation.ModifiedBy = _currentUserService.GetDisplayName();
         operation.ModifiedByWindows = _currentUserService.GetWindowsUserName();
 

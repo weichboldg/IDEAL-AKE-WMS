@@ -128,7 +128,7 @@ public class UsersController : Controller
             DefaultFilterFaWorklistDescription1 = string.IsNullOrWhiteSpace(vm.DefaultFilterFaWorklistDescription1) ? null : vm.DefaultFilterFaWorklistDescription1.Trim(),
             DefaultFilterBomDescription1 = string.IsNullOrWhiteSpace(vm.DefaultFilterBomDescription1) ? null : vm.DefaultFilterBomDescription1.Trim(),
             DefaultFilterBomKommissionierziel = kommissionierziel,
-            CreatedAt = DateTime.UtcNow,
+            CreatedAt = DateTime.Now,
             CreatedBy = _currentUserService.GetDisplayName(),
             CreatedByWindows = _currentUserService.GetWindowsUserName()
         };
@@ -203,7 +203,7 @@ public class UsersController : Controller
             WindowsUserName = sam,
             Email = string.IsNullOrWhiteSpace(candidate?.Email) ? null : candidate.Email.Trim(),
             IsActive = true,
-            CreatedAt = DateTime.UtcNow,
+            CreatedAt = DateTime.Now,
             CreatedBy = _currentUserService.GetDisplayName(),
             CreatedByWindows = _currentUserService.GetWindowsUserName()
         };
@@ -307,7 +307,7 @@ public class UsersController : Controller
         if (!string.IsNullOrEmpty(newPassword))
             existing.PasswordHash = _passwordService.HashPassword(newPassword);
 
-        existing.ModifiedAt = DateTime.UtcNow;
+        existing.ModifiedAt = DateTime.Now;
         existing.ModifiedBy = _currentUserService.GetDisplayName();
         existing.ModifiedByWindows = _currentUserService.GetWindowsUserName();
 
