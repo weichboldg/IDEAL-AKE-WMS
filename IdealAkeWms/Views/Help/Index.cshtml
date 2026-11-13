@@ -163,6 +163,10 @@
                             <li><strong>Schutz:</strong> Sind die Bestelldaten älter als 24 Stunden, gehen keine Lieferanten-Mails raus (Hinweis in der
                                 Sammelliste). Wären mehr Lieferanten-Mails fällig als <em>Kreditor: max. Mails je Lauf</em> (Standard 30), geht keine raus
                                 (Warnung und Fehlermail).</li>
+                            <li><strong>Lieferanten-Artikelnummer (seit v1.99.19):</strong> Spalte &bdquo;Lief.-Art.-Nr.&ldquo; (englisch &bdquo;Supplier item
+                                no.&ldquo;) in der Lieferanten-Mail und der Sammelliste. Quelle: Sage-Bestellnummer des Artikels beim Lieferanten der Bestellung
+                                (Artikel-Lieferant-Abgleich). Die offenen Bestellungen aus Sage liefern keine eigene Lieferanten-Artikelnummer je Position.
+                                Ohne <code>Sync:ArtikelLieferantEnabled</code> bleibt die Spalte leer, ebenso wenn für den Artikel keine Nummer gepflegt ist.</li>
                             <li>Je Kreditor abschaltbar: <em>Stammdaten &rarr; Kreditoren &rarr; Bearbeiten &rarr; Erinnerungen bei Lieferverzug</em>.</li>
                         </ul>
                         Nachweis: <em>Aktivitäts-Protokoll</em>, Lauf &bdquo;Lieferverzug-Mails&ldquo;.

@@ -348,7 +348,7 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
    Text='Lieferverzug IDEAL: Absender und Antwortadresse der Kreditor-Mail nicht einkauf_ideal@ideal-ake.at. Setzen in /ServiceSettings; Relay P-M4.'
    Quelle='2026-11-13-v1-99-19-lieferverzug-nachbesserung-keyuser' }
 @{ Id='v1.99.19-LieferverzugInfo'; Version='1.99.19'; Typ='Info'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
-   Text='Einkauf informieren: Sammelliste ab 1 Tag, Lieferanten erst ab 3 Tagen; Positionen mit Liefertermin aelter als 180 Tage stehen unter Zu klaeren und gehen nie an Lieferanten - bitte in Sage bereinigen. Rahmenabrufe gehen bis auf Weiteres nicht an Lieferanten.'
+   Text='Einkauf informieren: Sammelliste ab 1 Tag, Lieferanten erst ab 3 Tagen; Positionen mit Liefertermin aelter als 180 Tage stehen unter Zu klaeren und gehen nie an Lieferanten - bitte in Sage bereinigen. Rahmenabrufe gehen bis auf Weiteres nicht an Lieferanten. Neue Spalte Lief.-Art.-Nr. in beiden Mails: nur mit Sync:ArtikelLieferantEnabled gefuellt, sonst leer.'
    Quelle='2026-11-13-v1-99-19-lieferverzug-nachbesserung-keyuser' }
 )
 }

@@ -52,8 +52,8 @@ public static class LieferverzugMailHtml
             + "uns per Antwort auf diese Mail einen neuen Liefertermin.");
         Absatz(html, "Good day, the delivery date for the following order items has passed. Please deliver the open quantity or reply to this "
             + "e-mail with a new delivery date.", kursiv: true);
-        TabelleStart(html, f, "Bestellung<br>Order", "Artikel<br>Item", "Bezeichnung<br>Description", "Bestellt<br>Ordered", "Offen<br>Open",
-            "Liefertermin<br>Delivery date");
+        TabelleStart(html, f, "Bestellung<br>Order", "Artikel<br>Item", "Lief.-Art.-Nr.<br>Supplier item no.", "Bezeichnung<br>Description",
+            "Bestellt<br>Ordered", "Offen<br>Open", "Liefertermin<br>Delivery date");
         var i = 0;
         foreach (var p in positionen)
         {
@@ -61,7 +61,7 @@ public static class LieferverzugMailHtml
             var (bestellt, offen) = l.EinheitAbweichend
                 ? ("siehe Bestellung / see order", "siehe Bestellung / see order")
                 : (Menge(l.MengeBestellt, l.MengeBasiseinheit), Menge(p.Rest, l.MengeBasiseinheit));
-            Zeile(html, i++, l.Belegnummer, l.Artikelnummer, Bezeichnung(l), bestellt, offen, Datum(l.Liefertermin));
+            Zeile(html, i++, l.Belegnummer, l.Artikelnummer, p.LiefArtNr ?? "", Bezeichnung(l), bestellt, offen, Datum(l.Liefertermin));
         }
         TabelleEnde(html);
         Absatz(html, "Vielen Dank. · Thank you.");
@@ -79,7 +79,7 @@ public static class LieferverzugMailHtml
             var l = p.Line;
             var mengen = l.EinheitAbweichend ? "Menge siehe Bestellung / quantity see order"
                 : $"bestellt/ordered {Menge(l.MengeBestellt, l.MengeBasiseinheit)}, offen/open {Menge(p.Rest, l.MengeBasiseinheit)}";
-            text.AppendLine($"- {l.Belegnummer} | {l.Artikelnummer} | {Bezeichnung(l)} | {mengen} | Liefertermin/delivery date {Datum(l.Liefertermin)}");
+            text.AppendLine($"- {l.Belegnummer} | {l.Artikelnummer}{(p.LiefArtNr != null ? $" | Lief.-Art.-Nr./supplier item no. {p.LiefArtNr}" : "")} | {Bezeichnung(l)} | {mengen} | Liefertermin/delivery date {Datum(l.Liefertermin)}");
         }
         text.AppendLine().AppendLine("Vielen Dank. / Thank you.");
         TextFuss(text, f, null);
@@ -95,7 +95,7 @@ public static class LieferverzugMailHtml
         var betreff = $"Lieferverzug: {plan.AnzahlFaellig} Bestellposition(en) bei {plan.AnzahlLieferanten} Lieferant(en)"
             + (klaeren > 0 ? $", davon {klaeren} zu klären" : "") + $" – {heute:dd.MM.yyyy}";
         var einleitung = $"Folgende Bestellpositionen sind {e.TageNachTermin} oder mehr Tage nach dem Liefertermin noch offen (Rest wie in „Wareneingang zu Bestellung“). "
-            + $"Kreditor-Mails gehen frühestens {e.KreditorSchwelle} Tage nach dem Liefertermin raus."
+            + (e.KreditorAktiv ? $"Kreditor-Mails gehen frühestens {e.KreditorSchwelle} Tage nach dem Liefertermin raus." : "")
             + (e.MaxAlterTage > 0 ? $" Positionen mit Liefertermin älter als {e.MaxAlterTage} Tage stehen unter „Zu klären“ und gehen nie an Lieferanten." : "");
         var klaerenTitel = $"Zu klären – Liefertermin älter als {e.MaxAlterTage} Tage (keine Erinnerung an Lieferanten)";
         const string klaerenSatz = "Bitte in Sage prüfen: geliefert, storniert oder Termin anpassen.";
@@ -113,13 +113,13 @@ public static class LieferverzugMailHtml
         {
             html.Append($"<tr><td style=\"padding:8px 32px 4px;\"><p style=\"margin:0;font-size:15px;font-weight:bold;color:{IdealBlau};\">{HtmlEncode(g.Name)}{(g.Kto != null ? $" ({HtmlEncode(g.Kto)})" : "")}</p>"
                 + $"<p style=\"margin:2px 0 0;font-size:13px;color:{Fliesstext};\">Kreditor-Mail: {HtmlEncode(g.Status)}</p></td></tr>");
-            TabelleStart(html, f, "Bestellung", "Artikel", "Bezeichnung", "Bestellt", "Geliefert", "Rest", "Liefertermin", "Tage überfällig");
+            TabelleStart(html, f, "Bestellung", "Artikel", "Lief.-Art.-Nr.", "Bezeichnung", "Bestellt", "Geliefert", "Rest", "Liefertermin", "Tage überfällig");
             var i = 0;
             foreach (var p in g.Positionen)
             {
                 var l = p.Line;
                 var einheit = l.EinheitAbweichend ? $"{l.MengeBasiseinheit} (Basis, Einheit abweichend)" : l.MengeBasiseinheit;
-                Zeile(html, i++, l.Belegnummer, l.Artikelnummer, Bezeichnung(l), Menge(l.MengeBestellt, einheit), Geliefert(l, einheit),
+                Zeile(html, i++, l.Belegnummer, l.Artikelnummer, p.LiefArtNr ?? "", Bezeichnung(l), Menge(l.MengeBestellt, einheit), Geliefert(l, einheit),
                     Menge(p.Rest, einheit), Datum(l.Liefertermin), p.TageUeberfaellig.ToString(De));
             }
             TabelleEnde(html);
@@ -128,13 +128,13 @@ public static class LieferverzugMailHtml
         {
             html.Append($"<tr><td style=\"padding:8px 32px 4px;\"><p style=\"margin:0;font-size:15px;font-weight:bold;color:{IdealBlau};\">{HtmlEncode(klaerenTitel)}</p>"
                 + $"<p style=\"margin:2px 0 0;font-size:13px;color:{Fliesstext};\">{HtmlEncode(klaerenSatz)}</p></td></tr>");
-            TabelleStart(html, f, "Lieferant", "Bestellung", "Artikel", "Bezeichnung", "Bestellt", "Geliefert", "Rest", "Liefertermin", "Tage überfällig", "Art");
+            TabelleStart(html, f, "Lieferant", "Bestellung", "Artikel", "Lief.-Art.-Nr.", "Bezeichnung", "Bestellt", "Geliefert", "Rest", "Liefertermin", "Tage überfällig", "Art");
             var i = 0;
             foreach (var p in plan.ZuKlaeren)
             {
                 var l = p.Line;
                 var einheit = l.EinheitAbweichend ? $"{l.MengeBasiseinheit} (Basis, Einheit abweichend)" : l.MengeBasiseinheit;
-                Zeile(html, i++, Lieferant(l), l.Belegnummer, l.Artikelnummer, Bezeichnung(l), Menge(l.MengeBestellt, einheit), Geliefert(l, einheit),
+                Zeile(html, i++, Lieferant(p), l.Belegnummer, l.Artikelnummer, p.LiefArtNr ?? "", Bezeichnung(l), Menge(l.MengeBestellt, einheit), Geliefert(l, einheit),
                     Menge(p.Rest, einheit), Datum(l.Liefertermin), p.TageUeberfaellig.ToString(De), Art(l));
             }
             TabelleEnde(html);
@@ -153,7 +153,7 @@ public static class LieferverzugMailHtml
             foreach (var p in g.Positionen)
             {
                 var l = p.Line;
-                text.AppendLine($"  - {l.Belegnummer} | {l.Artikelnummer} | {Bezeichnung(l)} | bestellt {Menge(l.MengeBestellt, l.MengeBasiseinheit)}, "
+                text.AppendLine($"  - {l.Belegnummer} | {l.Artikelnummer}{LiefArtNrText(p)} | {Bezeichnung(l)} | bestellt {Menge(l.MengeBestellt, l.MengeBasiseinheit)}, "
                     + $"geliefert {Geliefert(l, l.MengeBasiseinheit)}, Rest {Menge(p.Rest, l.MengeBasiseinheit)}{(l.EinheitAbweichend ? " (Basis, Einheit abweichend)" : "")} | "
                     + $"Liefertermin {Datum(l.Liefertermin)} | {p.TageUeberfaellig} Tage überfällig");
             }
@@ -165,7 +165,7 @@ public static class LieferverzugMailHtml
             foreach (var p in plan.ZuKlaeren)
             {
                 var l = p.Line;
-                text.AppendLine($"  - {Lieferant(l)} | {l.Belegnummer} | {l.Artikelnummer} | {Bezeichnung(l)} | bestellt {Menge(l.MengeBestellt, l.MengeBasiseinheit)}, "
+                text.AppendLine($"  - {Lieferant(p)} | {l.Belegnummer} | {l.Artikelnummer}{LiefArtNrText(p)} | {Bezeichnung(l)} | bestellt {Menge(l.MengeBestellt, l.MengeBasiseinheit)}, "
                     + $"geliefert {Geliefert(l, l.MengeBasiseinheit)}, Rest {Menge(p.Rest, l.MengeBasiseinheit)}{(l.EinheitAbweichend ? " (Basis, Einheit abweichend)" : "")} | "
                     + $"Liefertermin {Datum(l.Liefertermin)} | {p.TageUeberfaellig} Tage überfällig | {Art(l)}");
             }
@@ -180,8 +180,9 @@ public static class LieferverzugMailHtml
     /// <summary>v1.99.15 (Teil 3, F5): Sage liefert fuer Rahmenabrufe keine gelieferte Menge je Abruf → „–“, nie „0“.</summary>
     private static string Geliefert(IdealAkeWms.Models.SagePurchaseOrderLine l, string? einheit) => l.IstRahmenabruf ? "–" : Menge(l.MengeGeliefert, einheit);
     private static string Art(IdealAkeWms.Models.SagePurchaseOrderLine l) => l.IstRahmenabruf ? "Rahmenabruf" : "Bestellung";
-    private static string Lieferant(IdealAkeWms.Models.SagePurchaseOrderLine l) =>
-        $"{(string.IsNullOrWhiteSpace(l.LieferantName) ? "(ohne Name)" : l.LieferantName)}{(l.LieferantKto != null ? $" ({l.LieferantKto})" : "")}";
+    /// <summary>QA Q2: derselbe Name wie im Gruppenkopf (<see cref="LieferverzugPosition.Lieferant"/>) plus Konto.</summary>
+    private static string Lieferant(LieferverzugPosition p) => $"{p.Lieferant}{(p.Line.LieferantKto != null ? $" ({p.Line.LieferantKto})" : "")}";
+    private static string LiefArtNrText(LieferverzugPosition p) => p.LiefArtNr != null ? $" | Lief.-Art.-Nr. {p.LiefArtNr}" : "";
     private static string Datum(DateTime? d) => d?.ToString("dd.MM.yyyy", De) ?? "–";
     private static string Bezeichnung(IdealAkeWms.Models.SagePurchaseOrderLine l) =>
         string.Join(" ", new[] { l.Bezeichnung1, l.Bezeichnung2 }.Where(s => !string.IsNullOrWhiteSpace(s)));

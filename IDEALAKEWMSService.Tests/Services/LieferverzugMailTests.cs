@@ -246,7 +246,7 @@ public class LieferverzugMailTests
         var html = System.Net.WebUtility.HtmlDecode(m.Html);
         html.Should().Contain("Zu klären – Liefertermin älter als 180 Tage (keine Erinnerung an Lieferanten)")
             .And.Contain("Bitte in Sage prüfen: geliefert, storniert oder Termin anpassen.").And.Contain(">Rahmenabruf<").And.Contain(">Bestellung<")
-            .And.Contain("Sage 70001 (70001)");
+            .And.Contain(">Lieferant 1 (70001)<", "QA Q2: derselbe Name wie im Gruppenkopf (WMS-Kreditor)");
         m.Text.Should().Contain("Zu klären – Liefertermin älter als 180 Tage").And.Contain("| Rahmenabruf").And.NotContain("<td");
     }
 
@@ -319,6 +319,70 @@ public class LieferverzugMailTests
         run.FinalCounts!["vorlauf"].Should().Be(1);
         run.FinalCounts!["rahmenabruf_ausgenommen"].Should().Be(1);
         run.FinalCounts!["kreditor_geplant"].Should().Be(0);
+    }
+
+    [Fact] // Freigabe-Nachtrag 2: Lief.-Art.-Nr. je (Artikel, Kreditor) in Kreditor-Mail und Sammelliste, HTML und Text; fehlt = leer
+    public void LiefArtNr_InKreditorMailUndSammelliste_FehltLeer()
+    {
+        var l1 = L(1, 5); l1.ArticleId = 11;
+        var l2 = L(2, 5); l2.ArticleId = 12;   // ohne ArticleSupplier
+        var l3 = L(3, 400); l3.ArticleId = 11; // zu klaeren
+        var nr = new Dictionary<(int, int), string> { [(11, 1)] = "LF-4711" };
+        var plan = LieferverzugPlaner.Planen(new[] { l1, l2, l3 }, Rest(l1, l2, l3), K(Kr()), KeineMail, E(test: false, maxAlter: 180), Jetzt, Jetzt.AddHours(-1), nr);
+        var g = plan.Gruppen.Single();
+        g.Positionen.Single(p => p.Line.BelPosId == 1).LiefArtNr.Should().Be("LF-4711");
+        g.Positionen.Single(p => p.Line.BelPosId == 2).LiefArtNr.Should().BeNull();
+        plan.ZuKlaeren.Single().LiefArtNr.Should().Be("LF-4711");
+
+        var k = LieferverzugMailHtml.Kreditor(g, g.MailPositionen!, "AKE", testbetrieb: false);
+        var kHtml = System.Net.WebUtility.HtmlDecode(k.Html);
+        kHtml.Should().Contain("Lief.-Art.-Nr.<br>Supplier item no.").And.Contain(">LF-4711<");
+        k.Text.Should().Contain("2027-1 | EK1 | Lief.-Art.-Nr./supplier item no. LF-4711 |").And.Contain("2027-2 | EK2 | Teil");
+
+        var m = LieferverzugMailHtml.Einkauf(plan, "AKE", Jetzt, null, Heute, E(test: false, maxAlter: 180));
+        System.Net.WebUtility.HtmlDecode(m.Html).Should().Contain(">Lief.-Art.-Nr.<").And.Contain(">LF-4711<");
+        m.Text.Should().Contain("2027-1 | EK1 | Lief.-Art.-Nr. LF-4711 |").And.Contain("2027-2 | EK2 | Teil").And.Contain("2027-3 | EK3 | Lief.-Art.-Nr. LF-4711 |");
+
+        Plan(new[] { l1 }, K(Kr()), E()).Gruppen.Single().Positionen.Single().LiefArtNr.Should().BeNull("ohne Abgleich-Daten leer, kein Fehler");
+    }
+
+    [Fact] // QA Q2: ohne WMS-Kreditor gilt der Sage-Name – in Gruppe und Zu klären gleich
+    public void ZuKlaeren_LieferantGleicherNameWieGruppe()
+    {
+        var plan = Plan(new[] { L(1, 5, creditorId: null), L(2, 400, creditorId: null) }, K(), E(maxAlter: 180));
+        plan.Gruppen.Single().Name.Should().Be("Sage 70001");
+        plan.ZuKlaeren.Single().Lieferant.Should().Be("Sage 70001");
+
+        var mitKreditor = Plan(new[] { L(1, 5), L(2, 400) }, K(Kr()), E(maxAlter: 180));
+        mitKreditor.Gruppen.Single().Name.Should().Be("Lieferant 1");
+        mitKreditor.ZuKlaeren.Single().Lieferant.Should().Be("Lieferant 1");
+    }
+
+    [Fact] // QA Q5: Kreditor-Schwelle in der Einleitung nur bei eingeschalteten Kreditor-Mails
+    public void Einleitung_KreditorSchwelleNurBeiKreditorAktiv()
+    {
+        var plan = Plan(new[] { L(1, 5) }, K(Kr()), E());
+        LieferverzugMailHtml.Einkauf(plan, "AKE", Jetzt, null, Heute, E(kreditor: true)).Text.Should().Contain("Kreditor-Mails gehen frühestens 3 Tage");
+        LieferverzugMailHtml.Einkauf(plan, "AKE", Jetzt, null, Heute, E(kreditor: false)).Text.Should().NotContain("Kreditor-Mails gehen");
+    }
+
+    [Fact] // Freigabe-Nachtrag 2: Lauf liest ArticleSuppliers (Artikel + Kreditor der Bestellung), leere Bestellnummer = leer
+    public async Task Lauf_LiefArtNrAusArtikelLieferant()
+    {
+        var (svc, db, mail, _, _) = Svc();
+        var l1 = L(1, 5); l1.ArticleId = 11;
+        var l2 = L(2, 5); l2.ArticleId = 12;
+        Seed(db, l1, l2);
+        db.ArticleSuppliers.AddRange(
+            new ArticleSupplier { ArticleId = 11, CreditorId = 1, Artikelnummer = "EK1", SageBestellnummer = " LF-4711 ", CreatedAt = Jetzt, CreatedBy = "t", CreatedByWindows = "t" },
+            new ArticleSupplier { ArticleId = 11, CreditorId = 2, Artikelnummer = "EK1", SageBestellnummer = "FALSCH", CreatedAt = Jetzt, CreatedBy = "t", CreatedByWindows = "t" },
+            new ArticleSupplier { ArticleId = 12, CreditorId = 1, Artikelnummer = "EK2", SageBestellnummer = "", CreatedAt = Jetzt, CreatedBy = "t", CreatedByWindows = "t" });
+        db.SaveChanges();
+
+        await svc.RunAsync(E(test: false), false, Jetzt);
+
+        var kreditor = mail.Gesendet.Single(n => n.Empfaenger.Contains("lieferant@test.invalid"));
+        kreditor.Text.Should().Contain("EK1 | Lief.-Art.-Nr./supplier item no. LF-4711 |").And.NotContain("FALSCH").And.Contain("2027-2 | EK2 | Teil");
     }
 
     // ---------------------------------------------------------------- Lauf

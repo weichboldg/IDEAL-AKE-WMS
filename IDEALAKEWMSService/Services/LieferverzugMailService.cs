@@ -87,7 +87,15 @@ public class LieferverzugMailService
             .GroupBy(r => (r.BelPosId, r.Liefertermin?.Date))
             .ToDictionary(g => ((int, DateTime?))g.Key, g => g.Max(r => r.SentAt));
 
-        var plan = LieferverzugPlaner.Planen(kandidaten, rest, kreditoren, letzteMail, e, jetzt, stand);
+        // v1.99.19 Freigabe-Nachtrag 2: Lieferanten-Artikelnummer aus dem Artikel-Lieferant-Abgleich (EinkaufPositionenInfo liefert keine;
+        // ohne Sync:ArtikelLieferantEnabled leer)
+        var articleIds = kandidaten.Where(l => l.ArticleId != null).Select(l => l.ArticleId!.Value).Distinct().ToList();
+        var liefArtNr = (await _ctx.ArticleSuppliers.AsNoTracking()
+                .Where(a => creditorIds.Contains(a.CreditorId) && articleIds.Contains(a.ArticleId) && a.SageBestellnummer != null && a.SageBestellnummer != "")
+                .Select(a => new { a.ArticleId, a.CreditorId, a.SageBestellnummer }).ToListAsync(ct))
+            .ToDictionary(a => (a.ArticleId, a.CreditorId), a => a.SageBestellnummer!.Trim());
+
+        var plan = LieferverzugPlaner.Planen(kandidaten, rest, kreditoren, letzteMail, e, jetzt, stand, liefArtNr);
         if (plan.AnzahlFaellig == 0 || (!e.EinkaufAktiv && !plan.MitMail.Any() && !plan.GrenzeUeberschritten)) return;
 
         await using var run = await _syncLogger.BeginRunAsync(SyncLogServices.LieferverzugMail, ct);

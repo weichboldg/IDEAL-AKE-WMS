@@ -20,7 +20,10 @@ public sealed record LieferverzugEinstellungen(
 public sealed record LieferverzugKreditor(int Id, string Name, string? Email, string? ReminderEmail, bool ReminderDisabled, bool IsActive);
 
 /// <summary>Eine faellige Position mit Rest (Rest-Regel) und Tagen seit dem Liefertermin.</summary>
-public sealed record LieferverzugPosition(SagePurchaseOrderLine Line, decimal Rest, int TageUeberfaellig);
+/// <param name="LiefArtNr">v1.99.19 Freigabe-Nachtrag 2: Lieferanten-Artikelnummer aus <see cref="ArticleSupplier.SageBestellnummer"/>
+/// (Artikel der Position + Kreditor der Bestellung); null = unbekannt, Spalte bleibt leer.</param>
+/// <param name="Lieferant">v1.99.19 (QA Q2): Anzeigename des Lieferanten wie im Gruppenkopf (WMS-Kreditorname, sonst Sage-Name, sonst Konto).</param>
+public sealed record LieferverzugPosition(SagePurchaseOrderLine Line, decimal Rest, int TageUeberfaellig, string? LiefArtNr = null, string Lieferant = "");
 
 /// <summary>Grund/Status der Kreditor-Mail je Kreditor (Statuszeile der Einkauf-Liste und Count).</summary>
 public enum LieferverzugGrund
@@ -79,22 +82,37 @@ public static class LieferverzugPlaner
     /// <param name="restJeBelPos">Rest nach der Rest-Regel; fehlt eine Position, gilt sie als nicht faellig.</param>
     /// <param name="letzteMail">Letzte Kreditor-Mail je (BelPosId, Liefertermin) – nur Zeilen des aktuellen Modus (echt bzw. Testbetrieb).</param>
     /// <param name="stand">MAX(SyncedAt) des Caches; null = Cache leer.</param>
+    /// <param name="liefArtNr">Lieferanten-Artikelnummer je (ArticleId, CreditorId); null = keine bekannt.</param>
     public static LieferverzugPlan Planen(IEnumerable<SagePurchaseOrderLine> zeilen, IReadOnlyDictionary<int, decimal> restJeBelPos,
         IReadOnlyDictionary<int, LieferverzugKreditor> kreditoren, IReadOnlyDictionary<(int BelPosId, DateTime? Termin), DateTime> letzteMail,
-        LieferverzugEinstellungen e, DateTime jetzt, DateTime? stand)
+        LieferverzugEinstellungen e, DateTime jetzt, DateTime? stand,
+        IReadOnlyDictionary<(int ArticleId, int CreditorId), string>? liefArtNr = null)
     {
         var heute = jetzt.Date;
         var standAlt = stand == null || jetzt - stand.Value > MaxStandAlter;
 
-        var faellig = zeilen
+        string? LiefArtNr(SagePurchaseOrderLine l) =>
+            liefArtNr != null && l.ArticleId is { } a && l.CreditorId is { } c && liefArtNr.TryGetValue((a, c), out var n) ? n : null;
+        var roh = zeilen
             .Where(l => TerminUeberschritten(l, heute, e.TageNachTermin) && restJeBelPos.TryGetValue(l.BelPosId, out var r) && r > 0m)
-            .Select(l => new LieferverzugPosition(l, restJeBelPos[l.BelPosId], (heute - l.Liefertermin!.Value.Date).Days))
+            .Select(l => new LieferverzugPosition(l, restJeBelPos[l.BelPosId], (heute - l.Liefertermin!.Value.Date).Days, LiefArtNr(l)))
             .ToList();
+
+        // QA Q2: ein Name je Konto fuer Gruppenkopf und Abschnitt „Zu klären“ (WMS-Kreditorname, sonst Sage-Name, sonst Konto)
+        var namen = roh.GroupBy(p => p.Line.LieferantKto ?? "").ToDictionary(g => g.Key, g =>
+        {
+            var pos = g.OrderBy(p => p.Line.Liefertermin).ThenBy(p => p.Line.Belegnummer).ThenBy(p => p.Line.BelPosId).ToList();
+            var cid = pos.Select(p => p.Line.CreditorId).FirstOrDefault(c => c != null);
+            var k = cid is { } id && kreditoren.TryGetValue(id, out var kk) ? kk : null;
+            return (Kreditor: k, Name: k?.Name ?? pos.Select(p => p.Line.LieferantName).FirstOrDefault(n => !string.IsNullOrWhiteSpace(n))
+                ?? (g.Key.Length == 0 ? "(ohne Lieferant)" : g.Key));
+        });
+        var faellig = roh.Select(p => p with { Lieferant = namen[p.Line.LieferantKto ?? ""].Name }).ToList();
 
         // v1.99.19 F2: Altersgrenze (0 = aus) – zu klaerende Positionen bilden keine Gruppe, zaehlen nicht fuer Grenze und Wiederholung
         bool ZuAlt(LieferverzugPosition p) => e.MaxAlterTage > 0 && p.TageUeberfaellig > e.MaxAlterTage;
         var zuKlaeren = faellig.Where(ZuAlt)
-            .OrderBy(p => p.Line.LieferantName ?? p.Line.LieferantKto, StringComparer.CurrentCultureIgnoreCase).ThenBy(p => p.Line.LieferantKto)
+            .OrderBy(p => p.Lieferant, StringComparer.CurrentCultureIgnoreCase).ThenBy(p => p.Line.LieferantKto)
             .ThenBy(p => p.Line.Liefertermin).ThenBy(p => p.Line.Belegnummer).ThenBy(p => p.Line.BelPosId)
             .ToList();
 
@@ -103,12 +121,11 @@ public static class LieferverzugPlaner
             .Select(g =>
             {
                 var pos = g.OrderBy(p => p.Line.Liefertermin).ThenBy(p => p.Line.Belegnummer).ThenBy(p => p.Line.BelPosId).ToList();
-                var cid = pos.Select(p => p.Line.CreditorId).FirstOrDefault(c => c != null);
-                var k = cid is { } id && kreditoren.TryGetValue(id, out var kk) ? kk : null;
+                var (k, name) = namen[g.Key];
                 return new LieferverzugGruppe
                 {
                     Kto = g.Key.Length == 0 ? null : g.Key,
-                    Name = k?.Name ?? pos.Select(p => p.Line.LieferantName).FirstOrDefault(n => !string.IsNullOrWhiteSpace(n)) ?? (g.Key.Length == 0 ? "(ohne Lieferant)" : g.Key),
+                    Name = name,
                     CreditorId = k?.Id,
                     Positionen = pos,
                 };
