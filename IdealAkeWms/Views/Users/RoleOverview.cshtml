@@ -216,6 +216,18 @@
                 </td>
             </tr>
             <tr>
+                <td><code>einkauf</code></td>
+                <td>Einkauf</td>
+                <td>v1.99.20: Hauptmenü „Einkauf“ – Bestellvorschläge für Artikel mit Sage-Meldebestand (nur lesen).</td>
+                <td>
+                    <ul class="mb-0 small">
+                        <li>Einkauf → Bestellvorschläge (<code>/PurchaseProposals</code>, Filter <code>RequireEinkaufAccess</code>), CSV</li>
+                        <li>Sichtbar nur wenn AppSetting <code>EinkaufAktiv</code> aktiv ist (Filter <code>RequireEinkaufAktiv</code>, Default aus – auch für admin)</li>
+                        <li>Anlage der Rolle über das Update-Skript (Prüfung <code>Pruefung/RolleEinkauf</code>), Zuweisen unter /Roles</li>
+                    </ul>
+                </td>
+            </tr>
+            <tr>
                 <td><code>bde_user</code></td>
                 <td>BDE-Benutzer</td>
                 <td>Terminal-Buchung.</td>

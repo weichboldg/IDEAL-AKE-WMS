@@ -23,6 +23,7 @@ public static class AppSettingDefinitions
     private const string GAnmeldung = "Anmeldung";
     private const string GFirma = "Firma und Druck";
     private const string GLinks = "Links (Vault, enaio)";
+    private const string GEinkauf = "Einkauf";
 
     private static readonly (string, string)[] Wochentage =
     {
@@ -136,6 +137,16 @@ public static class AppSettingDefinitions
             "Kommagetrennte Artikelgruppen der Glasbestellung; in der Lagerbestellung ausgenommen.", "Artikelsuche Lager-/Glasbestellung", Beide, seed: true),
         S(AppSettingKeys.GemeinsameArtikelgruppen, "EUZ", GBestellung, "Gemeinsame Artikelgruppen",
             "Kommagetrennte Artikelgruppen, die in Lager- und Glasbestellungen wählbar sind.", "Artikelsuche Lager-/Glasbestellung", Beide, seed: true),
+
+        // ---- Einkauf (v1.99.20, Spec 2026-11-08-einkauf-bestellvorschlaege) ----
+        B(AppSettingKeys.EinkaufAktiv, "false", GEinkauf, "Einkauf – Bestellvorschläge",
+            "An = Hauptmenü „Einkauf“ mit „Bestellvorschläge“ für admin und Rolle einkauf; aus = Menü weg, Seite leitet auf die Startseite um (auch für admin). Braucht die Dienst-Abgleiche Artikel (SData), Kreditoren, Artikel-Lieferanten und Offene Bestellungen (Sage).",
+            "Menü Einkauf → Bestellvorschläge", "beide (IDEAL erst einschalten, wenn die SData-Abgleiche dort laufen)", seed: false),
+        new(AppSettingKeys.EinkaufOffeneBedarfe, SettingType.MultiChoice, "Lagerbestellungen,Bedarfsmeldungen", GEinkauf,
+            "Welche offenen WMS-Bedarfe die verfügbare Menge der Bestellvorschläge mindern: Lagerbestellungen (abgesendet; teilgeliefert nur der Rest „wird nachgeliefert“) und offene Bedarfsmeldungen. Leer = keine (wirkt anders als „nicht gesetzt“ = beide).",
+            Anzeigename: "Einkauf – offene Bedarfe einrechnen", Verwendung: "Einkauf → Bestellvorschläge (Spalte „offene Bedarfe“)", Standort: Beide,
+            Werte: new[] { (AppSettingKeys.EinkaufBedarfWerte.Lagerbestellungen, "Lagerbestellungen"), (AppSettingKeys.EinkaufBedarfWerte.Bedarfsmeldungen, "Bedarfsmeldungen") },
+            LeerErlaubt: true, AbhaengigVon: AppSettingKeys.EinkaufAktiv),
 
         // ---- Leitstand und FA-Vervollständigung ----
         B(AppSettingKeys.LeitstandAktiv, "false", GLeitstand, "Leitstand", "Kommissionier-Freigabe und Priorisierung über den Leitstand; die Freigabe legt die Kommissionieraufträge an. Aus: Auswahlliste – das Öffnen eines FA legt sie an.",

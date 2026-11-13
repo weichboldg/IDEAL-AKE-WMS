@@ -1,0 +1,181 @@
+using System.Reflection;
+using FluentAssertions;
+using IdealAkeWms.Controllers;
+using IdealAkeWms.Data.Repositories;
+using IdealAkeWms.Filters;
+using IdealAkeWms.Models;
+using IdealAkeWms.Models.ViewModels;
+using IdealAkeWms.Services;
+using IdealAkeWms.Tests.Helpers;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Abstractions;
+using Microsoft.AspNetCore.Mvc.Filters;
+using Microsoft.AspNetCore.Mvc.ViewFeatures;
+using Microsoft.AspNetCore.Routing;
+using Moq;
+
+namespace IdealAkeWms.Tests.Controllers;
+
+/// <summary>v1.99.20 Spec 2026-11-08-einkauf-bestellvorschlaege E1 (AK 1-5, 10, 11, 14, 15, 17).</summary>
+public partial class PurchaseProposalsControllerTests
+{
+    private static Article A(int id, string nr, decimal melde, string? unit = "Stk", string? gruppe = null, ArticleSageDetail? sage = null) => new()
+    {
+        Id = id, ArticleNumber = nr, Description = "Artikel " + nr, ReorderLevel = melde, Unit = unit, ArticleGroup = gruppe, SageDetail = sage,
+    };
+
+    private static Dictionary<string, List<StockLocationInfo>> Bestand(params (string Nr, decimal Menge)[] b) =>
+        b.ToDictionary(x => x.Nr, x => new List<StockLocationInfo> { new() { Code = "L1", Quantity = x.Menge } });
+
+    internal static (PurchaseProposalsController ctrl, Mock<IAppSettingRepository> settings) Build(List<Article> artikel,
+        Dictionary<string, List<StockLocationInfo>>? bestand = null, Dictionary<int, ArticleSupplierRow>? lieferanten = null,
+        List<OffenerBedarf>? lager = null, List<OffenerBedarf>? meldungen = null, string? bedarfeEinstellung = null)
+    {
+        var repo = new Mock<IPurchaseProposalRepository>();
+        repo.Setup(r => r.GetNachbestellartikelAsync()).ReturnsAsync(artikel);
+        repo.Setup(r => r.GetHauptlieferantenAsync()).ReturnsAsync(lieferanten ?? new Dictionary<int, ArticleSupplierRow>());
+        repo.Setup(r => r.GetOffeneLagerbestellungenAsync()).ReturnsAsync(lager ?? new List<OffenerBedarf>());
+        repo.Setup(r => r.GetOffeneBedarfsmeldungenAsync()).ReturnsAsync(meldungen ?? new List<OffenerBedarf>());
+        var stock = new Mock<IStockMovementRepository>();
+        stock.Setup(s => s.GetStockByArticleNumbersAsync(It.IsAny<List<string>>())).ReturnsAsync(bestand ?? new Dictionary<string, List<StockLocationInfo>>());
+        var settings = new Mock<IAppSettingRepository>();
+        settings.Setup(s => s.GetValueAsync(AppSettingKeys.EinkaufOffeneBedarfe)).ReturnsAsync(bedarfeEinstellung);
+        var ctrl = new PurchaseProposalsController(repo.Object, stock.Object, settings.Object, new FakeCurrentUserService())
+        {
+            ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
+        };
+        return (ctrl, settings);
+    }
+
+    private static PurchaseProposalListViewModel Vm(IActionResult r) => (PurchaseProposalListViewModel)((ViewResult)r).Model!;
+
+    [Fact]
+    public async Task NurVorschlaege_Standard_AlleMitUmfang_AK3()
+    {
+        var (ctrl, _) = Build(new() { A(1, "A1", 85m), A(2, "A2", 10m) }, Bestand(("A1", 85m), ("A2", 11m)));
+        Vm(await ctrl.Index()).Items.Select(i => i.Article.ArticleNumber).Should().Equal("A1");
+        var alle = Vm(await ctrl.Index(umfang: "alle"));
+        alle.Items.Should().HaveCount(2);
+        alle.Items.Single(i => i.Article.ArticleNumber == "A2").Ergebnis.Vorschlag.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task OhneBewegung_Bestand0_Kritisch_Filter_AK4_AK15()
+    {
+        var (ctrl, _) = Build(new() { A(1, "A1", 5m), A(2, "A2", 5m) }, Bestand(("A2", -2m)));
+        var vm = Vm(await ctrl.Index());
+        vm.Items.Single(i => i.Article.ArticleNumber == "A1").BestandWms.Should().Be(0m);
+        Vm(await ctrl.Index(dringlichkeit: "kritisch")).Items.Select(i => i.Article.ArticleNumber).Should().Equal("A2");
+
+        ctrl.ControllerContext.HttpContext.Request.QueryString = new QueryString("?colf_dringlichkeit=kritisch");
+        Vm(await ctrl.Index()).Items.Select(i => i.Article.ArticleNumber).Should().Equal("A2");
+    }
+
+    [Fact]
+    public async Task Bedarfe_Einstellung_FehltBeide_LeerKeine_EinheitAbweichendGezaehlt_AK5()
+    {
+        var lager = new List<OffenerBedarf> { new(" a1 ", "Stk", 3m), new("A1", "m", 7m), new("FREMD", null, 9m) };
+        var meldungen = new List<OffenerBedarf> { new("A1", null, 2m) };
+        var artikel = new List<Article> { A(1, "A1", 85m) };
+
+        var vm = Vm(await Build(artikel, Bestand(("A1", 100m)), lager: lager, meldungen: meldungen).ctrl.Index(umfang: "alle"));
+        vm.Items.Single().OffeneBedarfe.Should().Be(5m);
+        vm.Items.Single().Ergebnis.Verfuegbar.Should().Be(95m);
+        vm.BedarfeEinheitAbweichend.Should().Be(1);
+
+        Vm(await Build(artikel, lager: lager, meldungen: meldungen, bedarfeEinstellung: "").ctrl.Index(umfang: "alle"))
+            .Items.Single().OffeneBedarfe.Should().Be(0m);
+        Vm(await Build(artikel, lager: lager, meldungen: meldungen, bedarfeEinstellung: "Bedarfsmeldungen").ctrl.Index(umfang: "alle"))
+            .Items.Single().OffeneBedarfe.Should().Be(2m);
+    }
+
+    [Fact]
+    public async Task Lieferant_KreditorFehlt_KtoMitHinweis_Banner_Sortierung_AK10_AK11()
+    {
+        var mitSage = new ArticleSageDetail { Hauptlieferant = "K99", LagerbestandVerfuegbar = 4m, Wiederbeschaffungszeit = 7 };
+        var lieferanten = new Dictionary<int, ArticleSupplierRow>
+        {
+            [2] = new(10, "Zulieferer", "K31013", true, "B-1", 200m, "Stk", 14, true, 1m),
+            [3] = new(11, "Alpha", "K10000", true, null, null, null, null, true),
+        };
+        var (ctrl, _) = Build(new() { A(1, "A1", 5m, sage: mitSage), A(2, "A2", 5m), A(3, "A3", 5m), A(4, "A4", 5m) }, lieferanten: lieferanten);
+        var vm = Vm(await ctrl.Index());
+
+        vm.Items.Select(i => i.Article.ArticleNumber).Should().Equal("A3", "A1", "A2", "A4");   // Alpha, K99, Zulieferer, ohne
+        var a1 = vm.Items.Single(i => i.Article.ArticleNumber == "A1");
+        a1.LieferantText.Should().Be("K99");
+        a1.Hinweis.Should().Contain("Kreditor fehlt im WMS");
+        a1.Wbz.Should().Be(7);
+        a1.Wunschtermin.Should().Be(DateTime.Today.AddDays(7));
+        vm.Items.Single(i => i.Article.ArticleNumber == "A2").Wbz.Should().Be(14);
+        vm.Items.Single(i => i.Article.ArticleNumber == "A4").Hinweis.Should().Contain("kein Lieferant").And.Contain("Sage-Zusatzfelder fehlen");
+        vm.OhneSageDetail.Should().Be(3);
+        vm.OhneArtikelLieferant.Should().Be(2);
+        Vm(await ctrl.Index(lieferant: "K99")).Items.Select(i => i.Article.ArticleNumber).Should().Equal("A1");
+    }
+
+    [Fact]
+    public async Task OhneLetzteBestellung_GrundSichtbar_Rueckfrage13b()
+    {
+        var (ctrl, _) = Build(new() { A(1, "A1", 85m) }, Bestand(("A1", 60m)));
+        var r = Vm(await ctrl.Index()).Items.Single();
+        r.Ergebnis.Vorschlag.Should().Be(25m);
+        r.Ergebnis.Grund.Should().Be(PurchaseProposalCalculator.GrundOhneLetzteBestellung);
+    }
+
+    [Fact]
+    public void Waechter_RolleUndGate_AmController_KeinePostAction_AK1_AK2()
+    {
+        var t = typeof(PurchaseProposalsController);
+        t.GetCustomAttribute<RequireEinkaufAccessAttribute>().Should().NotBeNull();
+        t.GetCustomAttribute<RequireEinkaufAktivAttribute>().Should().NotBeNull();
+        t.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+            .Where(m => m.GetCustomAttributes().Any(a => a is HttpPostAttribute)).Should().BeEmpty("E5 (Uebergabe an Sage) ist blockiert");
+    }
+
+    private static ActionExecutingContext Ctx(Controller c)
+    {
+        var ac = new ActionContext(new DefaultHttpContext(), new RouteData(), new ActionDescriptor());
+        c.TempData = new TempDataDictionary(ac.HttpContext, Mock.Of<ITempDataProvider>());
+        return new ActionExecutingContext(ac, new List<IFilterMetadata>(), new Dictionary<string, object?>(), c);
+    }
+
+    [Theory]
+    [InlineData(null, false)]
+    [InlineData("", false)]
+    [InlineData("false", false)]
+    [InlineData("1", false)]
+    [InlineData("TRUE", true)]
+    public async Task Gate_NurExaktTrue_SonstRedirectHome_AK1(string? wert, bool durch)
+    {
+        var settings = new Mock<IAppSettingRepository>();
+        settings.Setup(s => s.GetValueAsync(AppSettingKeys.EinkaufAktiv)).ReturnsAsync(wert);
+        var ctx = Ctx(Build(new()).ctrl);
+        var weiter = false;
+        await new RequireEinkaufAktivFilter(settings.Object).OnActionExecutionAsync(ctx, () => { weiter = true; return Task.FromResult<ActionExecutedContext>(null!); });
+        weiter.Should().Be(durch);
+        if (!durch) ctx.Result.Should().BeOfType<RedirectToActionResult>().Which.ControllerName.Should().Be("Home");
+    }
+
+    [Fact]
+    public async Task Rolle_Fehlt_AccessDenied_AK2()
+    {
+        var user = new Mock<ICurrentUserService>();
+        user.Setup(u => u.CanAccessEinkaufAsync()).ReturnsAsync(false);
+        var ctx = Ctx(Build(new()).ctrl);
+        await new RequireEinkaufAccessFilter(user.Object).OnActionExecutionAsync(ctx, () => Task.FromResult<ActionExecutedContext>(null!));
+        ctx.Result.Should().BeOfType<RedirectToActionResult>().Which.ActionName.Should().Be("AccessDenied");
+    }
+
+    [Fact]
+    public void Einstellungen_DefaultAus_BedarfeBeideLeerErlaubt()
+    {
+        AppSettingDefinitions.All.Single(d => d.Key == AppSettingKeys.EinkaufAktiv).DefaultValue.Should().Be("false");
+        var b = AppSettingDefinitions.All.Single(d => d.Key == AppSettingKeys.EinkaufOffeneBedarfe);
+        b.Type.Should().Be(SettingType.MultiChoice);
+        b.DefaultValue.Should().Be("Lagerbestellungen,Bedarfsmeldungen");
+        b.LeerErlaubt.Should().BeTrue();
+        RoleKeys.Einkauf.Should().Be("einkauf");
+    }
+}

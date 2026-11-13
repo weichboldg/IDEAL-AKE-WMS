@@ -1,0 +1,194 @@
+@model IdealAkeWms.Models.ViewModels.PurchaseProposalListViewModel
+@using IdealAkeWms.Services
+@using IdealAkeWms.Models.ViewModels
+@{
+    ViewData["Title"] = "Bestellvorschläge";
+}
+@* v1.99.20 Spec 2026-11-08-einkauf-bestellvorschlaege F8: Arbeitsliste des Einkaufs, nur lesend. Gerechnet wird im PurchaseProposalCalculator.
+   Listen-View-Pattern (ADR 0005): Filterkarte, Server-Spaltenfilter nach der Berechnung, Pagination, CSV ueber csv-export.js.
+   Dringlichkeit als Text-Badge, Farbe nur zusaetzlich (WCAG AA). Banner melden fehlende Daten statt still. *@
+
+<h2 class="page-header mb-1">Bestellvorschläge</h2>
+<p class="text-body-secondary small mb-3">
+    Artikel mit Sage-Meldebestand. Verfügbar = Bestand WMS − offene Bedarfe (@Model.BedarfeText); Vorschlag, wenn verfügbar ≤ Meldebestand.
+    Mengen in der Lagereinheit des Artikels.
+</p>
+
+@if (Model.ArtikelGesamt == 0)
+{
+    <div class="alert alert-info" role="status">
+        <strong>Kein Artikel mit Meldebestand.</strong> Der Meldebestand kommt aus Sage über den Artikel-Abgleich; ohne ihn bleibt die Liste leer.
+    </div>
+}
+@if (Model.OhneSageDetail > 0)
+{
+    <div class="alert alert-warning py-2 small" role="status">
+        @Model.OhneSageDetail von @Model.ArtikelGesamt Artikeln ohne Sage-Zusatzfelder (Spalten „Sage verfügbar“, „Sage-Bestellmenge“, ABC u. a. zeigen „–“).
+        Gefüllt nur mit Artikel-Abgleich über SData (Service-Einstellung <code>Sync:Quelle:Artikel = SData</code>).
+    </div>
+}
+@if (Model.OhneArtikelLieferant > 0)
+{
+    <div class="alert alert-warning py-2 small" role="status">
+        @Model.OhneArtikelLieferant von @Model.ArtikelGesamt Artikeln ohne Hauptlieferant im WMS (Hinweis je Zeile). Gefüllt vom Abgleich
+        Artikel-Lieferanten (<code>Sync:ArtikelLieferantEnabled</code>) und Kreditoren (<code>Sync:KreditorenEnabled</code>).
+    </div>
+}
+@if (Model.BedarfeEinheitAbweichend > 0)
+{
+    <div class="alert alert-warning py-2 small" role="status">
+        @Model.BedarfeEinheitAbweichend offene @(Model.BedarfeEinheitAbweichend == 1 ? "Bedarfszeile" : "Bedarfszeilen") mit anderer Einheit als der Artikel – nicht eingerechnet.
+    </div>
+}
+<div class="alert alert-light border py-2 small" role="note">
+    Letzte Bestellmenge noch nicht verfügbar: Vorschlag = Fehlmenge bis zum Meldebestand, bei Fehlmenge 0 der Meldebestand – Grund „@PurchaseProposalCalculator.GrundOhneLetzteBestellung“.
+</div>
+
+<div class="card filter-card mb-3">
+    <div class="card-body p-2">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-12 col-md-3">
+                <label for="lieferant" class="form-label small mb-0">Lieferant</label>
+                <select id="lieferant" name="lieferant" class="form-select form-select-sm">
+                    <option value="">— Alle —</option>
+                    @foreach (var l in Model.Lieferanten)
+                    {
+                        <option value="@l.Kto" selected="@(string.Equals(l.Kto, Model.Lieferant, StringComparison.OrdinalIgnoreCase))">@l.Text</option>
+                    }
+                </select>
+            </div>
+            <div class="col-6 col-md-2">
+                <label for="artikelgruppe" class="form-label small mb-0">Artikelgruppe</label>
+                <select id="artikelgruppe" name="artikelgruppe" class="form-select form-select-sm">
+                    <option value="">— Alle —</option>
+                    @foreach (var g in Model.Artikelgruppen)
+                    {
+                        <option value="@g" selected="@(string.Equals(g, Model.Artikelgruppe, StringComparison.OrdinalIgnoreCase))">@g</option>
+                    }
+                </select>
+            </div>
+            <div class="col-6 col-md-3">
+                <label for="umfang" class="form-label small mb-0">Umfang</label>
+                <select id="umfang" name="umfang" class="form-select form-select-sm">
+                    <option value="@PurchaseProposalListViewModel.UmfangVorschlaege" selected="@(Model.Umfang == PurchaseProposalListViewModel.UmfangVorschlaege)">nur Vorschläge</option>
+                    <option value="@PurchaseProposalListViewModel.UmfangAlle" selected="@(Model.Umfang == PurchaseProposalListViewModel.UmfangAlle)">alle Artikel mit Meldebestand</option>
+                </select>
+            </div>
+            <div class="col-6 col-md-2">
+                <label for="dringlichkeit" class="form-label small mb-0">Dringlichkeit</label>
+                <select id="dringlichkeit" name="dringlichkeit" class="form-select form-select-sm">
+                    <option value="">alle</option>
+                    <option value="kritisch" selected="@(Model.Dringlichkeit == "kritisch")">kritisch (verfügbar &lt; 0)</option>
+                    <option value="nachbestellen" selected="@(Model.Dringlichkeit == "nachbestellen")">nachbestellen (≤ Meldebestand)</option>
+                </select>
+            </div>
+            <div class="col-12 d-flex gap-2">
+                <button type="submit" class="btn btn-sm btn-primary">Filtern</button>
+                <a asp-action="Index" class="btn btn-sm btn-outline-secondary">Zurücksetzen</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="d-flex justify-content-end mb-1" data-table-toolbar></div>
+<div class="table-responsive">
+    <table class="table table-sm table-striped filterable-table" data-server-column-filter="true" data-view-key="PurchaseProposals">
+        <thead>
+            <tr>
+                <th data-filterable data-col-key="lieferant">Lieferant</th>
+                <th data-filterable data-col-key="artikel">Artikel</th>
+                <th data-filterable data-col-key="bezeichnung">Bezeichnung</th>
+                <th data-filterable data-col-key="dringlichkeit">Dringlichkeit</th>
+                <th data-filterable data-filter-type="number" data-col-key="bestand" class="text-end">Bestand WMS</th>
+                <th data-filterable data-filter-type="number" data-col-key="sage-verfuegbar" class="text-end">Sage verfügbar</th>
+                <th data-filterable data-filter-type="number" data-col-key="bedarfe" class="text-end">offene Bedarfe</th>
+                <th data-filterable data-filter-type="number" data-col-key="verfuegbar" class="text-end">verfügbar</th>
+                <th data-filterable data-filter-type="number" data-col-key="meldebestand" class="text-end">Meldebestand</th>
+                <th data-filterable data-filter-type="number" data-col-key="vorschlag" class="text-end">Vorschlag</th>
+                <th data-filterable data-col-key="grund">Grund</th>
+                <th data-filterable data-col-key="einheit">Einheit</th>
+                <th data-filterable data-filter-type="number" data-col-key="sage-bestellmenge" class="text-end">Sage-Bestellmenge</th>
+                <th data-filterable data-col-key="bestellnummer">Bestellnr. Lieferant</th>
+                <th data-filterable data-filter-type="number" data-col-key="wbz" class="text-end">WBZ (Tage)</th>
+                <th data-filterable data-date-filter data-col-key="wunschtermin">Wunschtermin</th>
+                <th data-filterable data-col-key="letzter-lieferant">letzter Lieferant</th>
+                <th data-filterable data-col-key="abc">ABC</th>
+                <th data-filterable data-filter-type="number" data-col-key="user-mindestbestand" class="text-end">USER_Mindestbestand</th>
+                <th data-filterable data-col-key="hinweis">Hinweis</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var r in Model.Items)
+            {
+                var e = r.Ergebnis;
+                var badge = e.Dringlichkeit switch
+                {
+                    PurchaseProposalDringlichkeit.Kritisch => "text-bg-danger",
+                    PurchaseProposalDringlichkeit.Nachbestellen => "text-bg-warning",
+                    _ => "text-bg-light border",
+                };
+                <tr>
+                    <td>@(r.LieferantText ?? "–")</td>
+                    <td>@r.Article.ArticleNumber</td>
+                    <td>@r.Article.Description</td>
+                    <td><span class="badge @badge">@PurchaseProposalCalculator.Text(e.Dringlichkeit)</span></td>
+                    <td class="text-end">@r.BestandWms.ToString("0.###")</td>
+                    <td class="text-end" title="@(r.SageStand is { } st ? "Stand Artikel-Abgleich " + st.ToString("dd.MM.yyyy HH:mm") : "Sage-Zusatzfelder fehlen")">@(r.Sage?.LagerbestandVerfuegbar?.ToString("0.###") ?? "–")</td>
+                    <td class="text-end">@r.OffeneBedarfe.ToString("0.###")</td>
+                    <td class="text-end fw-semibold">@e.Verfuegbar.ToString("0.###")</td>
+                    <td class="text-end">@(r.Article.ReorderLevel?.ToString("0.###"))</td>
+                    <td class="text-end fw-semibold">@(e.Vorschlag?.ToString("0.###"))</td>
+                    <td>@e.Grund</td>
+                    <td>@r.Article.Unit</td>
+                    <td class="text-end">@(r.Sage?.Bestellmenge?.ToString("0.###") ?? "–")</td>
+                    <td>@r.Lieferant?.SageBestellnummer</td>
+                    <td class="text-end">@r.Wbz</td>
+                    <td>@(r.Wunschtermin?.ToString("dd.MM.yyyy"))</td>
+                    <td>@r.Sage?.LetzterLieferant</td>
+                    <td>@r.Sage?.ABCKlasse</td>
+                    <td class="text-end">@(r.Sage?.UserMindestbestand?.ToString("0.###"))</td>
+                    <td>@r.Hinweis</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+@if (Model.Items.Count == 0 && Model.ArtikelGesamt > 0)
+{
+    <div class="alert alert-light border">Kein Artikel im gewählten Filter. Für alle Artikel mit Meldebestand den Umfang „alle Artikel mit Meldebestand“ wählen.</div>
+}
+
+<partial name="_Pagination" model="Model.Pagination" />
+
+<script type="application/json" id="view-config">
+{ "viewKey": "PurchaseProposals", "supportsReorder": false, "supportsSortDefault": false }
+</script>
+<script type="application/json" id="column-config">
+[
+    { "key": "lieferant", "label": "Lieferant", "locked": true, "defaultWidth": null },
+    { "key": "artikel", "label": "Artikel", "locked": true, "defaultWidth": null },
+    { "key": "bezeichnung", "label": "Bezeichnung", "locked": false, "defaultWidth": null },
+    { "key": "dringlichkeit", "label": "Dringlichkeit", "locked": false, "defaultWidth": null },
+    { "key": "bestand", "label": "Bestand WMS", "locked": false, "defaultWidth": null },
+    { "key": "sage-verfuegbar", "label": "Sage verfügbar", "locked": false, "defaultWidth": null },
+    { "key": "bedarfe", "label": "offene Bedarfe", "locked": false, "defaultWidth": null },
+    { "key": "verfuegbar", "label": "verfügbar", "locked": false, "defaultWidth": null },
+    { "key": "meldebestand", "label": "Meldebestand", "locked": false, "defaultWidth": null },
+    { "key": "vorschlag", "label": "Vorschlag", "locked": true, "defaultWidth": null },
+    { "key": "grund", "label": "Grund", "locked": false, "defaultWidth": null },
+    { "key": "einheit", "label": "Einheit", "locked": false, "defaultWidth": null },
+    { "key": "sage-bestellmenge", "label": "Sage-Bestellmenge", "locked": false, "defaultWidth": null },
+    { "key": "bestellnummer", "label": "Bestellnr. Lieferant", "locked": false, "defaultWidth": null },
+    { "key": "wbz", "label": "WBZ (Tage)", "locked": false, "defaultWidth": null },
+    { "key": "wunschtermin", "label": "Wunschtermin", "locked": false, "defaultWidth": null },
+    { "key": "letzter-lieferant", "label": "letzter Lieferant", "locked": false, "defaultWidth": null },
+    { "key": "abc", "label": "ABC", "locked": false, "defaultWidth": null },
+    { "key": "user-mindestbestand", "label": "USER_Mindestbestand", "locked": false, "defaultWidth": null },
+    { "key": "hinweis", "label": "Hinweis", "locked": false, "defaultWidth": null }
+]
+</script>
+
+@section Scripts {
+    <script src="~/js/column-preferences.js" asp-append-version="true"></script>
+    <script src="~/js/table-filter.js" asp-append-version="true"></script>
+}

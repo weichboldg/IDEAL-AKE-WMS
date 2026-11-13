@@ -24,4 +24,7 @@ public static class RoleKeys
     public const string Beschichtungsauftrag = "beschichtungsauftrag";
     /// <summary>Beschichtungsauftrag-Ausbau Teil 4 — Schreibrecht (anlegen, bearbeiten, Status, Reklamation); schliesst Lesen ein.</summary>
     public const string BeschichtungsauftragSchreiben = "beschichtungsauftrag_schreiben";
+
+    /// <summary>v1.99.20 (Spec 2026-11-08-einkauf-bestellvorschlaege): Einkauf – Bestellvorschlaege (eine Rolle fuer Liste und spaeter Uebergabe).</summary>
+    public const string Einkauf = "einkauf";
 }

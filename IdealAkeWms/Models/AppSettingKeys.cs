@@ -119,4 +119,16 @@ public static class AppSettingKeys
     // v1.99.11 (Spec 2026-11-12-wareneingang-barcode-lieferschein-csv-export F1): Feld „Barcode (Lieferschein)“ in "Wareneingang zu Bestellung"
     // (Default aus). Die Datei schreibt nur der Dienst-Schalter WareneingangCsvAktiv (ServiceSetting). Kein Seed; nur exakt "true" aktiviert.
     public const string WareneingangBarcodeAktiv = "WareneingangBarcodeAktiv";
+
+    // v1.99.20 (Spec 2026-11-08-einkauf-bestellvorschlaege): Gate Menue „Einkauf“ (Default aus, nur exakt "true") und welche offenen
+    // WMS-Bedarfe die verfuegbare Menge mindern (Komma-Liste der Werte unten; Zeile fehlt = beide, leer = keine). Kein Seed.
+    public const string EinkaufAktiv = "EinkaufAktiv";
+    public const string EinkaufOffeneBedarfe = "EinkaufOffeneBedarfe";
+
+    /// <summary>Feste Werte von <see cref="EinkaufOffeneBedarfe"/> (geschachtelt: keine eigenen Keys).</summary>
+    public static class EinkaufBedarfWerte
+    {
+        public const string Lagerbestellungen = "Lagerbestellungen";
+        public const string Bedarfsmeldungen = "Bedarfsmeldungen";
+    }
 }

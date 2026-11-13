@@ -106,6 +106,7 @@ builder.Services.AddScoped<IFaHierarchyOrderInfoRepository, FaHierarchyOrderInfo
 builder.Services.AddScoped<ICreditorRepository, CreditorRepository>();
 builder.Services.AddScoped<ISagePurchaseOrderLineRepository, SagePurchaseOrderLineRepository>(); // v1.84.0 Wareneingang aus Sage-Bestellungen
 builder.Services.AddScoped<IPurchaseOrderReceiptRepository, PurchaseOrderReceiptRepository>();
+builder.Services.AddScoped<IPurchaseProposalRepository, PurchaseProposalRepository>(); // v1.99.20 Einkauf – Bestellvorschlaege
 builder.Services.AddScoped<IDebitorRepository, DebitorRepository>();
 // IDEAL Teil 3: gemeinsamer Listen-/Druck-Baustein (Teil 4/5 erweitern ihn) + Teil-3-Service.
 builder.Services.AddScoped<FaHierarchyListBuilder>();

@@ -116,6 +116,14 @@ FROM (VALUES (N''beschichtungsauftrag'', N''Beschichtungsauftrag (IDEAL)'', N''B
 WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
    Text='Rollen beschichtungsauftrag / beschichtungsauftrag_schreiben fehlen (kein Seed; nur IDEAL-Prod hat sie aus der Installation, v1.99.1). Zuweisen bleibt Hand-Schritt (unter /Roles).'
    Quelle='2026-10-12-v1-51-0-beschichtungsauftraege-oberflaeche; 2026-11-11-v1-99-0-update-skript-prueft-und-fuehrt-aus' }
+@{ Id='Pruefung/RolleEinkauf'; Version='1.99.20'; Typ='Pruefung'; Firma='beide'; Phase='Haltepunkt'; Ausfuehrung='Reparatur'
+   Pruefung='SELECT COUNT(*) FROM (VALUES (N''einkauf'')) v(k) WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k)'
+   Reparatur='INSERT INTO dbo.Roles ([Key], [Name], [Description], [IsSystem], [SortOrder], [CreatedAt], [CreatedBy], [CreatedByWindows])
+SELECT v.k, v.n, v.d, 1, (SELECT ISNULL(MAX(SortOrder), 0) FROM dbo.Roles) + v.o, SYSDATETIME(), N''Update-Skript'', LEFT(SUSER_SNAME(), 200)
+FROM (VALUES (N''einkauf'', N''Einkauf'', N''Einkauf - Bestellvorschlaege (Liste lesen).'', 1)) v(k, n, d, o)
+WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
+   Text='Rolle einkauf fehlt (kein Seed). Zuweisen an den Einkauf bleibt Hand-Schritt unter /Roles.'
+   Quelle='2026-11-13-v1-99-20-einkauf-bestellvorschlaege' }
 @{ Id='Pruefung/DummyArtikel'; Version='1.30.0'; Typ='Pruefung'; Firma='beide'; Phase='Haltepunkt'; Ausfuehrung='Reparatur'
    Pruefung='SELECT CASE WHEN EXISTS (SELECT 1 FROM dbo.Articles WHERE ArticleNumber = N''DUMMY'') THEN 0 ELSE 1 END'
    Datei='86_SeedDummyArticle.sql'

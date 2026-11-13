@@ -697,6 +697,36 @@ public static class ColumnDefinitions
         ]
     };
 
+    /// <summary>PurchaseProposals/Index.cshtml — Einkauf → Bestellvorschläge (v1.99.20, Spec 2026-11-08-einkauf-bestellvorschlaege F8).</summary>
+    public static readonly ViewConfig PurchaseProposals = new(
+        "PurchaseProposals", "Bestellvorschläge",
+        SupportsReorder: false, SupportsSortDefault: false)
+    {
+        Columns =
+        [
+            new ColumnDef("lieferant",           "Lieferant",            Locked: true),
+            new ColumnDef("artikel",             "Artikel",              Locked: true),
+            new ColumnDef("bezeichnung",         "Bezeichnung",          Locked: false),
+            new ColumnDef("dringlichkeit",       "Dringlichkeit",        Locked: false),
+            new ColumnDef("bestand",             "Bestand WMS",          Locked: false),
+            new ColumnDef("sage-verfuegbar",     "Sage verfügbar",       Locked: false),
+            new ColumnDef("bedarfe",             "offene Bedarfe",       Locked: false),
+            new ColumnDef("verfuegbar",          "verfügbar",            Locked: false),
+            new ColumnDef("meldebestand",        "Meldebestand",         Locked: false),
+            new ColumnDef("vorschlag",           "Vorschlag",            Locked: true),
+            new ColumnDef("grund",               "Grund",                Locked: false),
+            new ColumnDef("einheit",             "Einheit",              Locked: false),
+            new ColumnDef("sage-bestellmenge",   "Sage-Bestellmenge",    Locked: false),
+            new ColumnDef("bestellnummer",       "Bestellnr. Lieferant", Locked: false),
+            new ColumnDef("wbz",                 "WBZ (Tage)",           Locked: false),
+            new ColumnDef("wunschtermin",        "Wunschtermin",         Locked: false),
+            new ColumnDef("letzter-lieferant",   "letzter Lieferant",    Locked: false),
+            new ColumnDef("abc",                 "ABC",                  Locked: false),
+            new ColumnDef("user-mindestbestand", "USER_Mindestbestand",  Locked: false),
+            new ColumnDef("hinweis",             "Hinweis",              Locked: false),
+        ]
+    };
+
     public static ViewConfig? GetByViewKey(string viewKey) => viewKey switch
     {
         "ProductionOrders" => ProductionOrders,
@@ -716,6 +746,7 @@ public static class ColumnDefinitions
         "FaHierarchyVormontageSummiert"  => FaHierarchyVormontageSummiert,
         "FaHierarchyStructure"           => FaHierarchyStructure,
         "Beschichtungsauftraege"         => Beschichtungsauftraege,
+        "PurchaseProposals"              => PurchaseProposals,
         "BeschichtungsauftragPositionen" => BeschichtungsauftragPositionen,
         "OperationConfigs"               => OperationConfigs,
         "StorageLocations"               => StorageLocations,

@@ -82,6 +82,9 @@
                             var faVormontageAktiv = string.Equals(
                                 await AppSettings.GetValueAsync(IdealAkeWms.Models.AppSettingKeys.FaHierarchyVormontageAktiv),
                                 "true", StringComparison.OrdinalIgnoreCase);
+                            // v1.99.20 Einkauf – Bestellvorschlaege: Gate EinkaufAktiv (nur exakt "true") UND Rolle einkauf/admin.
+                            var showEinkauf = string.Equals(await AppSettings.GetValueAsync(IdealAkeWms.Models.AppSettingKeys.EinkaufAktiv), "true", StringComparison.OrdinalIgnoreCase)
+                                && await CurrentUserService.CanAccessEinkaufAsync();
                             var showFaList = canPick || canViewTracking || canManagePickingRelease || hasVorbauAccess;
                             // IDEAL Teil 2: FA-Struktur (read-only Baumanzeige). KEIN eigenes
                             // Feature-Toggle — gegatet exakt ueber den Class-Level-Zugriff des
@@ -267,6 +270,17 @@
                                             <li><a class="dropdown-item" asp-controller="MissingPartsLager" asp-action="Index">Lager: Fehlteile</a></li>
                                         }
                                     }
+                                </ul>
+                            </li>
+                        }
+                        @if (showEinkauf)
+                        {
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle @(ViewContext.RouteData.Values["controller"]?.ToString() == "PurchaseProposals" ? "active" : "")" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    Einkauf
+                                </a>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" asp-controller="PurchaseProposals" asp-action="Index">Bestellvorschläge</a></li>
                                 </ul>
                             </li>
                         }

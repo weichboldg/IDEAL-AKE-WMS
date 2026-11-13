@@ -21,6 +21,8 @@ public interface ICurrentUserService
     Task<bool> CanAccessStockReadAsync();
     Task<bool> CanAccessLagerbestellungAsync();
     Task<bool> CanAccessGlasbestellungAsync();
+    /// <summary>v1.99.20: Einkauf → Bestellvorschlaege (admin oder einkauf).</summary>
+    Task<bool> CanAccessEinkaufAsync();
     /// <summary>Darf der User Lager-Bestellungen sehen/anlegen (Reiter Lager)?</summary>
     Task<bool> CanOrderLagerAsync();
     /// <summary>Darf der User Glas-Bestellungen sehen/anlegen (Reiter Glas)?</summary>
