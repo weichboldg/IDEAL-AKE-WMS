@@ -67,7 +67,7 @@ else
         <p class="mb-0 mt-2 small text-muted">
             Nach <strong>Matchcode</strong> summierte Mengensicht des gewählten VM-Bedarfs
             (<code>@(Model.SelectedBereich ?? "—")</code>). Zwei getrennte Summen: <em>Sollmenge</em>
-            und <em>Fertigungmenge</em>. Die Kalenderwoche filtert auf den Fertigstellungstermin
+            und <em>Fertigungsmenge</em>. Die Kalenderwoche filtert auf den Fertigstellungstermin
             (<code>FE_Termin</code>) <strong>vor</strong> der Aggregation. Filter auf Arbeitsbereich, Abteilung, HauptFA, Kunde, FE-Termin und
             den PN-Spalten wirken je Position <strong>vor</strong> dem Zusammenzählen.
         </p>
@@ -82,7 +82,7 @@ else
                 <th data-filterable data-col-key="arbeitsbereich">Arbeitsbereich</th>
                 <th data-filterable data-col-key="montage-abteilung" title="Montage-Abteilung des HauptFA (aus den Auftragsdaten)">Abteilung</th>
                 <th class="text-end" data-filterable data-filter-type="number" data-col-key="sollmenge">Summe Sollmenge</th>
-                <th class="text-end" data-filterable data-filter-type="number" data-col-key="fertigungmenge">Summe Fertigungmenge</th>
+                <th class="text-end" data-filterable data-filter-type="number" data-col-key="fertigungmenge">Summe Fertigungsmenge</th>
                 <th data-filterable data-col-key="hauptfa">HauptFA</th>
                 <th data-filterable data-col-key="kunde">Kunde</th>
                 <th class="text-nowrap" data-filterable data-col-key="fe-termin" data-date-filter>FE-Termin</th>
@@ -130,7 +130,7 @@ else
     { "key": "arbeitsbereich", "label": "Arbeitsbereich", "locked": false, "defaultWidth": null },
     { "key": "montage-abteilung", "label": "Abteilung", "locked": false, "defaultWidth": null },
     { "key": "sollmenge", "label": "Summe Sollmenge", "locked": false, "defaultWidth": 55 },
-    { "key": "fertigungmenge", "label": "Summe Fertigungmenge", "locked": false, "defaultWidth": 55 },
+    { "key": "fertigungmenge", "label": "Summe Fertigungsmenge", "locked": false, "defaultWidth": 55 },
     { "key": "hauptfa", "label": "HauptFA", "locked": false, "defaultWidth": null },
     { "key": "kunde", "label": "Kunde", "locked": false, "defaultWidth": null },
     { "key": "fe-termin", "label": "FE-Termin", "locked": false, "defaultWidth": null },

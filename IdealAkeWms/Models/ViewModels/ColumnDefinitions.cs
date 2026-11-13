@@ -437,7 +437,7 @@ public static class ColumnDefinitions
             new ColumnDef("artnr",         "Artnr.",        Locked: false),
             new ColumnDef("matchcode",     "Matchcode",     Locked: true),
             new ColumnDef("sollmenge",     "Sollmenge",     Locked: false, DefaultWidth: 55),
-            new ColumnDef("fertigungmenge","Fertigungmenge",Locked: false, DefaultWidth: 55),
+            new ColumnDef("fertigungmenge","Fertigungsmenge",Locked: false, DefaultWidth: 55),
             new ColumnDef("vmbedarf",      "VMBedarf",      Locked: false),
             new ColumnDef("material",      "Material",      Locked: false),
             new ColumnDef("kunde",         "Kunde",         Locked: false),   // v1.72.0
@@ -463,7 +463,7 @@ public static class ColumnDefinitions
             new ColumnDef("arbeitsbereich","Arbeitsbereich",        Locked: false),   // v1.72.0
             new ColumnDef("montage-abteilung","Abteilung",          Locked: false),   // v1.99.3
             new ColumnDef("sollmenge",     "Summe Sollmenge",       Locked: false, DefaultWidth: 55),
-            new ColumnDef("fertigungmenge","Summe Fertigungmenge",  Locked: false, DefaultWidth: 55),
+            new ColumnDef("fertigungmenge","Summe Fertigungsmenge",  Locked: false, DefaultWidth: 55),
             new ColumnDef("hauptfa",       "HauptFA",               Locked: false),   // v1.72.0
             new ColumnDef("kunde",         "Kunde",                 Locked: false),   // v1.72.0
             new ColumnDef("fe-termin",     "FE-Termin",             Locked: false),   // v1.72.0
