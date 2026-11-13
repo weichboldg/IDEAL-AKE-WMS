@@ -181,3 +181,17 @@ Warum die Flags in Satelliten liegen: [[0009-app-status-in-satelliten-tabellen-n
 `RequireEinkaufAccessAttribute` + `ICurrentUserService.CanAccessEinkaufAsync` (admin oder einkauf), diese Datei, `Views/Users/RoleOverview.cshtml`.
 Kein Seed, kein `00_FreshInstall`-Eintrag – angelegt über die Update-Skript-Prüfung `Pruefung/RolleEinkauf` (Reparatur nach dem
 Beschichtungsauftrag-Muster); Zuweisung an den Einkauf ist Hand-Schritt unter `/Roles`. Seite `/PurchaseProposals` (Menü „Einkauf → Bestellvorschläge“).
+
+## Nachtrag 2026-11-14 (Wochenend-Lauf): Controller ohne Eintrag
+
+- `SageTestController` (Register „Sage-Test“, v1.99.14, [[2026-11-13-sdata-teil-2-userfelder-stueckliste-spec]]) – Klasse `[RequireAdminAccess]`,
+  nur `[HttpGet]`: `Index` (Stand/Verbindung), `Feldliste`, `Stueckliste` (live je Artikel/FA). Liest ueber `ISageSdataReadClient`, schreibt nie
+  nach Sage. Zugangsdaten ueber `SdataZugangsdaten` ([[0024-sdata-kennwort-verschluesselt-in-den-service-einstellungen]]). Kein Feature-Gate
+  (Gate `SageSdataFaAnsichtAktiv` seit v1.99.14 entfernt, SQL/147).
+- `SageSdataFaController` (FA-Struktur live aus SData, v1.71.0) – Klasse `[RequireAdminAccess]`, `Index(belId)`; seit v1.99.14 ohne eigenes Gate
+  und ohne eigenen Menuepunkt (Aufruf aus dem Register Sage-Test).
+- `PurchaseOrdersController` ist auf drei Dateien verteilt: `PurchaseOrdersController.cs` (Offene Bestellungen), `.Receive.cs` (Wareneingang zu
+  Bestellung, `Receive`), `.SageWe.cs` (Liste „Sage-Wareneingänge“ `SageWareneingaenge`, Erneut senden, Klären → als übergeben markieren,
+  CSV erneut schreiben). Filter siehe die Abschnitte Wareneingang oben.
+- `PurchaseProposalsController` (`/PurchaseProposals`, v1.99.20/21) – `[RequireEinkaufAccess]` + `[RequireEinkaufAktiv]` (siehe oben), nur Lesen +
+  CSV; Rechenstelle `PurchaseProposalCalculator`.

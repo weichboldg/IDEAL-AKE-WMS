@@ -162,3 +162,18 @@ erklaert:
 | App-Pool Idle Timeout | `0`, Start Mode `AlwaysRunning`, Preload `True` | Kein Kaltstart; **und**: jedes App-Pool-Recycling verwirft ephemere DataProtection-Keys → Antiforgery-Token nicht mehr entschluesselbar → 400. Deshalb persistente Keys in `Program.cs` UND wenig Recycling. Siehe [[fallstricke]] Abschnitt 4. |
 
 Regelmaessiges Recycling entweder `0` oder hoch (z. B. 1740 min = 29 h).
+
+
+## Nachtrag 2026-11-14 (Wochenend-Lauf): Fachmodule seit v1.88 und Deploy-Skripte
+
+Die Zaehlwerte oben (SQL-Nummernkreis „bis 81“, Anzahl Filter/ViewModels/Tests) sind Stand 2026-07-27; im Bündel reicht der SQL-Kreis bis
+`149_WidenBelegnummer45.sql`. Einstiegspfade relativ zum Bündel-Worktree `feature/2026-08-07-ideal-teile-1-5`.
+
+| Modul | Web (Controller / Services) | Dienst | Daten |
+|---|---|---|---|
+| Kommissionierauftraege und -bereiche (v1.88.0 ff.) | `PickingController`, `PickingLeitstandController`, `PickingAreasController`; `Services/PickingOrderWorkflow.cs`, `PickingTransferService.cs`, `PickingOrderRestmengen.cs`, `PrePickingDaysResolver.cs` | – | `PickingOrders`, `PickingOrderLines`, `PickingAreas`, `PickingAreaRules` ([[datenmodell]]) |
+| Wareneingang Teil 1–3 (v1.84.0, v1.99.4–v1.99.15) | `PurchaseOrdersController` (`.cs`, `.Receive.cs`, `.SageWe.cs`); `Services/SageWareneingang.cs`, `WareneingangCsv.cs` | `Services/SageWareneingangService.cs` (+ `Client`, `Payload`), `WareneingangCsvService.cs`, `Sdata/EinkaufBestellungenSyncService.cs` | `SagePurchaseOrderLines`, `PurchaseOrderReceipts`, `WareneingangCsvExporte` |
+| Lieferverzug-Mails (v1.99.10, v1.99.19) | – (nur `/ServiceSettings`) | `Services/LieferverzugPlaner.cs`, `LieferverzugMailHtml.cs`, `LieferverzugMailService.cs` | `PurchaseOrderReminders`, `Creditors.Reminder*` |
+| Einkauf – Bestellvorschlaege (v1.99.20–v1.99.22) | `PurchaseProposalsController`; `Services/PurchaseProposalCalculator.cs` | `Sdata/ArtikelLieferantSyncService.cs` (`LetzteBestellungAsync`) | `ArticleSuppliers` (+ letzte Bestellung, SQL/148), `ArticleSageDetails` |
+| Register Sage-Test (v1.99.14) | `SageTestController`, `SageSdataFaController`; `Services/SageSdata/SdataZugangsdaten.cs`, `SageTestAufbereitung.cs` | `SageBookingWorker` (gleiche Zugangsdaten) | `ServiceSettings` (`SData:*`) |
+| Update-Skript (v1.98.0 ff.) | – | – | `scripts/deploy/Update-IdealAkeWms.ps1`, `Install-IdealAkeWms.ps1`, `IdealAkeWms.Deploy.psm1`, Manifest `nachlauf.psd1`, Ziele `ziele.psd1`; Tabelle `DeployScriptRuns` (SQL/142) – [[0022-update-je-zielsystem-per-skript-mit-nachlauf-manifest]], [[0023-daten-und-einmal-skripte-fuehrt-das-update-skript-mit-bestaetigung-aus]] |

@@ -412,3 +412,23 @@ Quellen-Weiche je Abgleich: [[0019-quellen-weiche-view-sdata-je-abgleich]]. Ordn
 | `WareneingangCsvPfad` | String (Muster: leer oder UNC) | (leer = nichts) | Zielordner `\\server\freigabe[\ordner]` |
 | `Sync:WareneingangCsvMaxWiederholungen` | Int 0–10 | `3` | automatische Wiederholungen nach Schreibfehler |
 | `Sync:WareneingangCsvWiederholAbstandMinuten` | Int 5–1440 | `15` | Mindestabstand Fehler → Wiederholung |
+
+
+## Nachtrag 2026-11-14 (Wochenend-Lauf): Einkauf und Artikel-Lieferanten seit v1.99.19
+
+- **Letzte Bestellung (v1.99.21, SQL/148):** `IDEALAKEWMSService/Services/Sdata/ArtikelLieferantSyncService.cs`, Methode
+  `LetzteBestellungAsync` nach dem Hauptschritt des Laufs „Artikel-Lieferanten“ (Gate unveraendert `Sync:ArtikelLieferantEnabled`, kein eigener
+  Schalter). Liest SData `EinkaufPositionenAllInfo` (EBB und EBZ, `Belegdatum` ab heute minus 3 Jahre, `orderBy=BelPosId`, alle Seiten),
+  juengster Beleg je Artikel + `A0Empfaenger` (Datum↓, BelId↓, BelPosId↓), speichert `MengeBasis` in `ArticleSuppliers.LetzteBestellmenge`/
+  `LetzteBestellungAm`/`LetzteBestellungBeleg`. Kein Treffer = Werte geleert; Lesefehler oder 0 EBB = Warnung, Werte bleiben. Counts
+  `letzte_bestellung_*`. Laufzeit am AKE-Test ca. 5–6 min laenger (Q-3 in [[2026-11-13-v1-99-21-einkauf-letzte-bestellmenge]]).
+- **Bestellvorschlaege (v1.99.20, Web):** `IdealAkeWms/Services/PurchaseProposalCalculator.cs` – eine Rechenstelle: Fehlmenge F aus WMS-Bestand,
+  Sage verfuegbar, offenen Bedarfen (`EinkaufOffeneBedarfe`), offen bestellt (Cache `SagePurchaseOrderLines`, Rest-Regel `ErfasstJeBelPos.Rest`)
+  und Meldebestand; Menge V = (⌊F/L⌋+1)×L mit L = letzte Bestellmenge, ohne Bestellung in 3 Jahren Fallback `ArticleSageDetail.Bestellmenge`
+  (`HinweisFallback`), Aufrunden auf `Mindestbestellmenge` nur bei vergleichbarer Einheit und `UmrechnungsfaktorEK = 1`. Kein Schreibweg,
+  kein Dienst-Lauf. E5 (Dispo-Stapel, schreibt an Sage) blockiert.
+- **Lieferverzug Lief.-Art.-Nr. (v1.99.19):** `LieferverzugMailService`/`LieferverzugMailHtml` lesen `ArticleSupplier.SageBestellnummer` je
+  Artikel + Kreditor der Bestellung; ohne Lauf „Artikel-Lieferanten“ bleibt die Spalte leer. Abschnitt „Zu klären“ = `ZuKlaeren` des Plans
+  (Altersgrenze `Lieferverzug:MaxAlterTage`), Count `zu_klaeren`.
+- **Offene Bestellungen (Sage):** `IDEALAKEWMSService/Services/Sdata/EinkaufBestellungenSyncService.cs` (EBB + seit v1.99.15 EBZ); Belegnummer
+  seit v1.99.22 bis 45 Zeichen (SQL/149).

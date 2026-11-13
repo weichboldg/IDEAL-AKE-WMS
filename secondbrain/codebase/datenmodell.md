@@ -223,3 +223,27 @@ Migration `20261112151318_AddWareneingangBarcodeCsv`, [[2026-11-12-wareneingang-
   `Fehler` (nvarchar(1000)), `Datei` (nvarchar(400), voller Pfad), `GeschriebenAm`. Angelegt und fortgeschrieben nur vom Dienst
   (`system:wareneingang-csv`); „CSV erneut schreiben“ (`CsvErneutSchreibenAsync`) setzt Fehler → Offen mit Audit aus `ICurrentUserService`.
   „Wartet“ ist kein Status (Barcode ohne Zeile, angezeigt).
+
+## Nachtrag 2026-11-14 (Wochenend-Lauf): Schema seit v1.89 ohne eigenen Eintrag
+
+Belegt aus den Skripten im Bündel-Worktree (`SQL/14x_*.sql`) und den Changelogs. Der Eintrag `PurchaseOrderReminders.Belegnummer (nvarchar(20) …)`
+oben ist durch SQL/149 ueberholt (jetzt 45).
+- `ArticleSageDetails` + `Basismengeneinheit`, `DezimalstellenBasis`, `Lagermengeneinheit`, `UmrechnungsFaktorLME`, `Verkaufsmengeneinheit`,
+  `DezimalstellenVK`, `UmrechnungsfaktorVK`, `VerpackungseinheitVK`, `UmrechnungsfaktorVPVK`; `ArticleSuppliers` + `DezimalstellenEK`,
+  `UmrechnungsfaktorVPEK` (SQL/140, Migration `20261107182445_AddArtikelMengeneinheiten`, additiv).
+- `PickingOrders.AltbestandPruefen` (bit NOT NULL, DEFAULT 0, SQL/141): Altbestand-Auftrag eines offenen FA mit Auftragsmenge ≠ 1; solange
+  gesetzt, legt `PickingOrderWorkflow.ErzeugeOffeneAsync` fuer den FA nichts an; „Altbestand geprueft“ im Leitstand loescht es.
+- `DeployScriptRuns` (SQL/142, v1.99.0, [[0023-daten-und-einmal-skripte-fuehrt-das-update-skript-mit-bestaetigung-aus]]): `ManifestId`,
+  `FileName`, `FileSha256`, `Mode`, `Hits`, `Output`, `PackageVersion`, `PackageCommit`, `ExecutedAt`, `ExecutedBy`, `Note`. Geschrieben und
+  gelesen nur vom Update-Skript (`scripts/deploy/`), nie von der Anwendung; ein eingetragener Lauf wird nicht erneut angeboten.
+- `PurchaseOrderReceipts.SageWeKennung` / `SageBookingQueueItems.SageKennung` (nvarchar(20), SQL/144, v1.99.9): beim Senden verwendete
+  Memo-Kennung (`WE#[K#]<Id>#` bzw. `SM#[K#]<Id>#`, K = `Sync:SageSystemKuerzel`); die Suche vor dem erneuten Senden nutzt sie.
+- `PurchaseOrderReceipts.SageWeStatus` kennt seit v1.99.7 zusaetzlich `Klaeren = 6` (Enum `SageWareneingangStatus`, kein Schema-Wechsel, int).
+- `ArticleSuppliers.LetzteBestellmenge` (decimal(18,3)), `LetzteBestellungAm` (date), `LetzteBestellungBeleg` (nvarchar(45)) – SQL/148,
+  Migration `20261113171808_AddArticleSupplierLetzteBestellung`, v1.99.21, additiv. Geschrieben nur vom Dienst
+  (`ArtikelLieferantSyncService.LetzteBestellungAsync`, Rueckblick `ArticleSupplier.LetzteBestellungRueckblickJahre` = 3), gelesen von
+  `PurchaseProposalsController`/`PurchaseProposalCalculator`. Kein Treffer mehr = Werte geleert.
+- Belegnummer 45 (SQL/149, Migration `20261113172929_WidenBelegnummer45`, v1.99.22, nicht destruktiv): `SagePurchaseOrderLines.Belegnummer`,
+  `PurchaseOrderReminders.Belegnummer`, `PurchaseOrderReceipts.Belegnummer` 20 → 45, `PurchaseOrderReceipts.SageWeBelegnummer` 30 → 45; Index
+  `IX_SagePurchaseOrderLines_Belegnummer` drop/recreate. Konstante `SagePurchaseOrderLine.BelegnummerMaxLaenge = 45` (auch fuer „Klären → als
+  übergeben markieren“ und die Kuerzung im `SageWareneingangService`).
