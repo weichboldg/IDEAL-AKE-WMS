@@ -65,6 +65,14 @@ dafür von Testbereit zurück auf InUmsetzung. Versionen ab 1.99.21, TS ab TS-13
 
 | Teil | Version | SQL | TS | Status | Commits | Blocker |
 |---|---|---|---|---|---|---|
-| E3 letzte Bestellmenge (3 Jahre, Fallback Sage-Bestellmenge) | 1.99.21 | 148 | TS-136 erweitert | in Arbeit | | |
-| Nachtrag 3: Belegnummer 45, Wareneingang Layout „Überlieferung“, Hinweis Lagerbestellungen/Bedarfsmeldungen | 1.99.22 | 149 | TS-137 | offen | | |
-| DEV sichtbar (AKE-DEV Gate, Rolle `einkauf` für Gerald, Syncs) | – | – | – | offen | | |
+| E3 letzte Bestellmenge (3 Jahre, Fallback Sage-Bestellmenge) | 1.99.21 | 148 | TS-136 erweitert (136.6–136.6g, 136.18–136.20) | umgesetzt, QA läuft | `ca2f49ed` | |
+| Nachtrag 3: Belegnummer 45, Wareneingang Layout „Überlieferung“, Hinweis Lagerbestellungen/Bedarfsmeldungen | 1.99.22 | 149 | TS-137 | umgesetzt, QA läuft | `4689922c` | |
+| DEV sichtbar (AKE-DEV Gate, Rolle `einkauf` für Gerald, Syncs) | – | – | – | qa-agent | | |
+- E3 `ca2f49ed`: Migration `20261113171808_AddArticleSupplierLetzteBestellung` / SQL/148 (`ArticleSuppliers.LetzteBestellmenge`, `-Am`, `-Beleg` nvarchar(45));
+  Dienst `ArtikelLieferantSyncService.LetzteBestellungAsync` (EBB+EBZ, 3 Jahre, alle Seiten, jüngster je Artikel/`A0Empfaenger`, `MengeBasis`);
+  Rückblick als Konstante `ArticleSupplier.LetzteBestellungRueckblickJahre = 3`; Fallback Sage-Bestellmenge mit Badge/Hinweis/Banner, nur wenn
+  letzte Bestellungen schon gelesen sind. Web 2849/0/1, Dienst 626/0.
+- Nachtrag 3 `4689922c`: Migration `20261113172929_WidenBelegnummer45` / SQL/149 (Belegnummer 20→45 in 3 Tabellen, `SageWeBelegnummer` 30→45 – Sage-Views
+  `BelegnummerFormatiert` varchar(45) belegt; Index `IX_SagePurchaseOrderLines_Belegnummer` drop/recreate); Wareneingang Spalte „Überlieferung“,
+  Hinweis offene Lagerbestellungen/Bedarfsmeldungen mit Link (nur Anzeige). Web 2853/0/1, Dienst 626/0. Publish v1.99.22 `4689922c`;
+  `deploy.zip` noch v1.99.20 (kein Bau-Skript). Offen: Einheit der Sage-Bestellmenge (angenommen Lagereinheit) → Prüfabfrage Gerald (EK003604).
