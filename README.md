@@ -106,6 +106,32 @@ powershell -ExecutionPolicy Bypass -File C:\<FIRMA>\deploy\v1.98.0\deploy\Update
   „Microsoft ODBC Driver for SQL Server“).
 - Neuinstallation: `scripts\deploy\Install-IdealAkeWms.ps1` (standortneutral, gleiche Ordner-/Rechteprüfung).
 
+**Hinweise Bündel v1.99.x (Stand v1.99.22):**
+
+- **Reihenfolge je System:** Datenbank (Schema-Skripte) → Web → Dienst. Das Skript hält diese Reihenfolge selbst ein (Schema vor dem
+  Start, Web vor Dienst); bei Handarbeit nicht abweichen – die Changelogs v1.99.21/v1.99.22 setzen „DB vor Web und Dienst“ voraus.
+- **Schema-Skripte seit v1.99:** `SQL/142` (`DeployScriptRuns`), `143` (Sage-WE am Wareneingang), `144` (Sage-Kennungen), `145`
+  (`PurchaseOrderReminders`), `146` (Barcode/CSV), `147` (Daten, Transaktion: entfernt die AppSetting-Zeile `SageSdataFaAnsichtAktiv`),
+  `148` (`ArticleSuppliers.LetzteBestellmenge`/`LetzteBestellungAm`/`LetzteBestellungBeleg`, additiv), `149` (Belegnummer 20/30 → 45 Zeichen,
+  Index `IX_SagePurchaseOrderLines_Belegnummer` neu, nicht destruktiv). **148 und 149 sind laut Deploy-Fahrplan auf noch keinem Zielsystem
+  eingespielt** (zuletzt verteilt: v1.99.12 = bis 146). Alle stehen im Manifest `scripts\deploy\nachlauf.psd1` und laufen automatisch.
+- **Ab v1.99.17 (Kommissionier-Prio):** vor dem Deploy die lesende Prüfabfrage der Spec `2026-11-13-doppelte-kommissionier-prio-nach-ruecknahme`
+  auf der Ziel-DB, danach `Pruefung/DoppeltePrio` lesen und Doppelte im Leitstand von Hand korrigieren.
+- **Ab v1.99.20:** Rolle `einkauf` legt `Pruefung/RolleEinkauf` (Haltepunkt, Reparatur nach Bestätigung) an.
+- **Sage-schreibende und außenwirksame Schalter bleiben nach dem Deploy aus, bis sie je System freigegeben sind** (das Skript schaltet nichts
+  davon ein, die Nachlauf-Liste nennt sie nur):
+  - `SageLagerbuchungAktiv`, `SageLagerbuchungUmbuchungAktiv` (Buchungen an Sage);
+  - `SageWareneingangBelegAktiv` (Wareneingangsbelege in Sage) – nur AKE, erst nach dokumentiertem Schreibtest und Abnahme TS-116.14; vorher
+    die Wareneingangs-Zielplätze mit „Sage-Buchung erlaubt“ versehen, sonst ist kein Wareneingang buchbar;
+  - `WareneingangCsvAktiv` (Dateien auf dem enaio-Netzlaufwerk) – erst nach Recht „Ändern“ für das Dienstkonto (P-C1/P-C2);
+  - `Lieferverzug:KreditorAktiv` bleibt aus bzw. `Lieferverzug:Testbetrieb` bleibt **an** (sonst externe Mails an Lieferanten) – Testbetrieb
+    erst nach P-L1, Relay P-M4 und Freigabe Einkauf abschalten; für die erste Welle `Lieferverzug:KreditorMaxJeLauf` einmalig 100, danach zurück auf 30;
+  - auf Testsystemen vorher `Sync:SageSystemKuerzel` setzen (`DEV`, `AT`, `ATI`, `IT`), in Produktion leer lassen;
+  - IDEAL: alle SData-abhängigen Schalter (Sage-Wareneingang, CSV, `Sync:EinkaufBestellungenEnabled`, `EinkaufAktiv`,
+    `WareneingangBestellungAktiv`) aus, bis die SData-Schnittstelle dort freigegeben ist.
+- Fachliche Gates ohne Sage-Schreibwirkung (`EinkaufAktiv`, `WareneingangBestellungAktiv`) erst einschalten, wenn die vorausgesetzten
+  Dienst-Abgleiche gelaufen sind (Abschnitt „AppSettings“).
+
 Historische Liste bis SQL/88 (ältere Systeme; ab SQL/89 gilt das Manifest). SQL-Scripte in Reihenfolge auf dem SQL Server ausführen:
 
 | Nr. | Script | Beschreibung |
@@ -430,7 +456,7 @@ Bei Änderungen der Tabellenstruktur müssen diese Scripts angepasst werden.
 
 | Schlüssel | Default | Beschreibung |
 |-----------|---------|-------------|
-| `KommissionierTage` | `4` | Arbeitstage vor Fertigungstermin |
+| `KommissionierTage` | `4` | Arbeitstage vor Fertigungstermin; zugleich Fälligkeit der Kommissionieraufträge (KO-Aufträge, v1.88.0) |
 | `VorkommissionierTage` | `1` | Zusätzliche Tage vor Kommissionierung |
 | `BeschichtungTage` | `10` | Arbeitstage vor Kommissionierung für Beschichtung |
 | `WarningThresholdPercent` | `150` | Meldebestand Warnschwelle (%) |
@@ -446,8 +472,8 @@ Bei Änderungen der Tabellenstruktur müssen diese Scripts angepasst werden.
 | `OseonAmpelGelbTage` | `1` | OSEON Ampel: Gelb ab X Tagen vor Termin |
 | `OseonAmpelBlauTage` | `2` | OSEON Ampel: Blau ab X Tagen vor Termin |
 | `BestellungenAktiv` | `false` | Bedarfsmeldungen aus Stückliste aktivieren |
-| `LeitstandAktiv` | `false` | Leitstand: Kommissionier-Freigabe und Priorisierung |
-| `KommissionierungMitZuweisung` | `false` | Kommissionierung mit Anwenderzuweisung aktivieren |
+| `LeitstandAktiv` | `false` | Leitstand: Kommissionier-Freigabe und Priorisierung; die Freigabe legt die Kommissionieraufträge an. Aus = Auswahlliste, das Öffnen eines FA legt sie an |
+| `KommissionierungMitZuweisung` | `false` | Kommissionierung mit Anwenderzuweisung aktivieren: Freigabe verlangt einen Kommissionierer, „Nur meine“ filtert die Auftragsliste (abhängig von `LeitstandAktiv`) |
 | `LackierteilKategorieName` | (leer) | Name der Artikelkategorie die als Lackierteil gilt |
 | `FaCompletionAktiv` | `false` | FA-Vervollständigung + FA-Abarbeitungsliste aktivieren |
 | `BdeAktiv` | `false` | BDE-Modul aktivieren |
@@ -470,6 +496,7 @@ Bei Änderungen der Tabellenstruktur müssen diese Scripts angepasst werden.
 | `FaHierarchyMaxTiefe` | `500` | IDEAL FA-Baumanzeige: Tiefen-Cap (Reissleine) je Struktur (Teil 2) |
 | `FaHierarchyKommissionierlistenAktiv` | `false` | Feature-Schalter IDEAL-Kommissionierlisten (Teil 3) — nur exakt `true` aktiviert (Default aus) |
 | `FaHierarchyBeschichtungAktiv` | `false` | Feature-Schalter IDEAL-Beschichtungsauftrag (Teil 4) — nur exakt `true` aktiviert (Default aus). Kumuliert mit Rolle `beschichtungsauftrag` (Lesen) bzw. `beschichtungsauftrag_schreiben` (Aufträge anlegen/bearbeiten, ab v1.51.0; Rolle unter `/Roles` mit genau diesem Key anlegen) |
+| `Firmenname` / `Firmenanschrift` | (leer, kein Seed) | Firmendaten für den Ersatz-Briefkopf, wenn `BriefkopfVorlagePfad` leer ist oder die Datei fehlt (Anschrift mehrzeilig). Pflege: Standorteinstellungen → Firmendaten (nur Admin) |
 | `BriefkopfVorlagePfad` | (leer) | Voller Pfad zur `briefkopf.html` der IT im Unterordner `Branding\` des Programmordners (nicht `wwwroot\`) — Briefkopf des IDEAL-Beschichtungsauftrags (v1.49.0), Fusszeile ab v1.59.0. Leer/Datei fehlt ⇒ Ersatz-Kopf aus `Firmenname` + `Firmenanschrift`. Pflege: Standorteinstellungen → Firmendaten (nur Admin) |
 | `HardwareScannerAktiv` | `false` | Hardware-Barcodescanner (v1.66.0): Tastatur-Scanner füllen auf allen Scan-Seiten dieselben Ziele wie der Kamera-Scan (`wwwroot/js/hardware-scanner.js`, nur bei exakt `true` geladen). Geräte-Abschalter in „Mein Profil“ (Browser-`localStorage`, kein Server-Wert). Pflege: Standorteinstellungen → Hardware-Scanner (nur Admin) |
 | `HardwareScannerPraefix` | `~09` (leer) | Präfix, den der Scanner vor jeden Code setzt; Abschluss Enter. Scanner auf DE-Layout stellen — `~` ist dort AltGr++ und auf manchen Geräten eine Tottaste (dann anderen Präfix wählen, TS-99.1) |
@@ -478,9 +505,9 @@ Bei Änderungen der Tabellenstruktur müssen diese Scripts angepasst werden.
 | `VaultLinkVorlage` | AKE-Vault-Adresse (Seed) | Vault-Adresse mit Platzhalter `{Artikelnummer}` (URL-kodiert eingesetzt; ohne Platzhalter angehängt). Leer = keine Links. |
 | `EnaioLinksAktiv` | `true` (Seed) | enaio-Dokument-Symbole an FA-Nummern (v1.67.0, Gruppe „enaio (Dokumente)“) — nur `false` blendet aus. Unabhängig vom Sync-Schalter `Sync:EnaioDmsEnabled`. |
 | `EnaioLinkVorlage` | `http://akeosapp.ake.at/oscontentviewer/viewer/{ObjektId}/?pagecount=1` (Seed) | enaio-Viewer-Adresse mit Platzhalter `{ObjektId}`. Leer = keine Links. |
-| `WareneingangBestellungAktiv` | `false` (kein Seed) | Menüpunkte „Offene Bestellungen“ / „Wareneingang zu Bestellung“ (v1.84.0); aus = Seiten 404. Nur exakt `true`. |
-| `WareneingangLieferscheinPflicht` | `false` (kein Seed) | „Wareneingang zu Bestellung“: Lieferschein-Nr. des Lieferanten Pflicht (v1.99.4); aus = optional. Nur exakt `true`. |
-| `WareneingangBarcodeAktiv` | `false` (kein Seed) | „Wareneingang zu Bestellung“: Feld „Barcode (Lieferschein)“ neben der Lieferschein-Nr. (v1.99.11); die CSV schreibt nur der Dienst-Schalter `WareneingangCsvAktiv`. Nur exakt `true`. |
+| `WareneingangBestellungAktiv` | `false` (kein Seed) | Menüpunkte „Offene Bestellungen“ / „Wareneingang zu Bestellung“ (v1.84.0); aus = Seiten 404. Nur exakt `true`. Braucht den Dienst-Abgleich `Sync:EinkaufBestellungenEnabled`. Standort: AKE (IDEAL erst mit SData-Endpunkt). |
+| `WareneingangLieferscheinPflicht` | `false` (kein Seed) | „Wareneingang zu Bestellung“: Lieferschein-Nr. des Lieferanten Pflicht (v1.99.4); aus = optional. Nur exakt `true`. An Sage geht die Nummer nur beim Sage-Wareneingangsbeleg (EKLieferschein). Standort: AKE (IDEAL erst mit SData-Endpunkt). |
+| `WareneingangBarcodeAktiv` | `false` (kein Seed) | „Wareneingang zu Bestellung“: Feld „Barcode (Lieferschein)“ neben der Lieferschein-Nr. (v1.99.11), Spalte Barcode in „Sage-Wareneingänge“; die CSV schreibt nur der Dienst-Schalter `WareneingangCsvAktiv`. Nur exakt `true`. Standort: AKE (IDEAL ohne Wirkung, Sage-Wareneingang aus). |
 | `EinkaufAktiv` | `false` (kein Seed) | Hauptmenü „Einkauf → Bestellvorschläge“ (v1.99.20) für admin und Rolle `einkauf`; aus = kein Menü, `/PurchaseProposals` leitet auf die Startseite um (auch admin). Nur exakt `true`. Erst einschalten, wenn die Dienst-Abgleiche Artikel (SData), Kreditoren, Artikel-Lieferanten und Offene Bestellungen gelaufen sind; IDEAL aus lassen bis zur SData-Schnittstelle. |
 | `EinkaufOffeneBedarfe` | nicht gesetzt = `Lagerbestellungen,Bedarfsmeldungen` (kein Seed) | Mehrfachauswahl: welche offenen WMS-Bedarfe die verfügbare Menge der Bestellvorschläge mindern (abgesendete Lagerbestellungen, teilgeliefert nur Rest „wird nachgeliefert“; offene Bedarfsmeldungen). Leer = keine. |
 | `OffeneBestellungenVorschauWochen` | `2` (kein Seed) | Standard-Horizont der Vorschau „Offene Bestellungen“ in Wochen (1–26, v1.84.0). |
@@ -958,6 +985,11 @@ vollständiger Katalog". Wichtige Gruppen:
 | Erkennung/Reconciliation | `Sync:CoatingDetectionEnabled`, `Sync:FaWorkStepDetectionEnabled`, `Sync:WorkOperationStructureDetectionEnabled` (IDEAL: `WorkOperation`-Arbeitsgänge aus `FaHierarchyNode.Arbeitsschritte`, Match über `ProductionWorkplace.ArbeitsschrittCode`, nur bei Master `ProduktionsauftragHierarchisch` und nach der Werkbank-Anlage `Sync:ProductionWorkplaceSyncEnabled`; unbekannte Kürzel werden gemeldet, ausgeschlossene über `Sync:ProductionWorkplaceSyncAusschlussliste` bewusst ausgenommen), `Sync:ProductionOrderReconcileEnabled` (+ `Sync:ReconcileMaxCancelPerRun`) |
 | Mails | `Sync:PartRequisitionEmailEnabled`, `Sync:WarehouseRequisitionEmailEnabled`, `Notifications:*`, `ErrorNotification:Enabled`/`Recipients` |
 | Lieferverzug-Mail (seit v1.99.10, je Standort) | `Lieferverzug:MailAktiv` (Default aus), `Lieferverzug:Testbetrieb` (Default **an**: Kreditor-Mails gehen an den Einkauf), `Lieferverzug:EinkaufAktiv`/`EinkaufEmpfaenger`, `Lieferverzug:KreditorAktiv` (Default aus), `TageNachTermin` (3, Sammelliste), `KreditorTageNachTermin` (3, seit v1.99.19; wirksam für die Kreditor-Mail ist das Maximum beider), `MaxAlterTage` (180, seit v1.99.19; ältere Positionen nur im Abschnitt „Zu klären“ der Sammelliste, nie an Lieferanten; 0 = aus), `KreditorMitRahmenabrufen` (Default aus, seit v1.99.19; aus = Rahmenabrufe nur in der Sammelliste), `Uhrzeit` (7, Mo–Fr), `KreditorWiederholTage` (7), `KreditorMaxJeLauf` (30), `KreditorAbsender` (leer = `MailSettings:FromAddress`), `AntwortAdresse` (leer = erste Einkauf-Adresse), `Standort` (AKE/IDEAL, CI). Liest nur den Cache „Offene Bestellungen“ (`Sync:EinkaufBestellungenEnabled`); IDEAL aus bis zur SData-Schnittstelle. Vor dem Echtbetrieb: SMTP-Relay für externe Empfänger und den Absender mit der IT klären. Protokoll `dbo.PurchaseOrderReminders` (SQL/145). |
+| Lieferverzug – Ergänzung v1.99.19 | Vorgabe Einkauf: `Lieferverzug:TageNachTermin` = **1** (Katalog-Default 3; das Update-Skript meldet Abweichung über `Pruefung/LieferverzugSammellisteTage`). Absender/Antwort: AKE `Einkauf@ideal-ake.at`, IDEAL `einkauf_ideal@ideal-ake.at` (`Pruefung/LieferverzugAdressenAKE`/`…IDEAL`). Spalte „Lief.-Art.-Nr.“ in Kreditor-Mail und Sammelliste kommt aus den Artikel-Lieferanten – ohne `Sync:ArtikelLieferantEnabled` bleibt sie leer. Warnhinweise: `Testbetrieb` ausschalten = ab dem nächsten Versandtag externe Mails; `MaxAlterTage = 0` lässt auch sehr alte Positionen an Lieferanten gehen; `KreditorMitRahmenabrufen` an kann an bereits direkt in Sage Geliefertes erinnern (erst nach P-L4). `Pruefung/LieferverzugEmpfaenger`: Mail an, aber kein Einkauf-Empfänger = keine Mail. |
+| Sage-Lagerbuchung / Sage-Wareneingang (**schreibt nach Sage**) | `SageLagerbuchungAktiv` (aus), `SageLagerbuchungUmbuchungAktiv` (aus), `SageWareneingangBelegAktiv` (aus; nur AKE, IDEAL aus – kein SData-Endpunkt; erst nach Schreibtest, danach darf der Einkauf diese Positionen nicht mehr von Hand schließen, Wareneingänge auf Plätze ohne Sage-Buchung sind gesperrt), `Sync:SageWareneingangMaxWiederholungen` (3, 0–10), `Sync:SageWareneingangWiederholAbstandMinuten` (15, 5–1440), `Sync:SageSystemKuerzel` (leer; Produktion leer lassen, Testsysteme `DEV`/`AT`/`ATI`/`IT`; wirkt nur auf neue Sendungen), `Sync:SageLagerbuchungIntervalSeconds` (20, ≥ 5)/`BatchSize` (50)/`MaxRetries` (5)/`MaxErrorsPerRun` (50)/`StuckMinutes` (10), `SageLagerbuchungSslZertifikatPruefen` (an). Details im Abschnitt „Sage-Lagerbuchungen“ unter Schritt 2. |
+| SData-Endpunkt und Zugang | `SData:BaseUrl` (leer), `SData:Application` (`ol`), `SData:ServiceContract` (`CommonWawiServices`), `SData:Dataset` (leer), `SData:Username` (leer, ≤ 100 Zeichen), `SData:Password` (Typ Geheim, verschlüsselt, 1–128 Zeichen) – seit v1.99.14, ADR 0024; Standort beide, IDEAL erst mit SData-Endpunkt. Warnhinweis: gilt auch für die Schreibwege an Sage; nach Kopie der DB oder Verlust des Schlüsselordners neu eingeben. Abschnitt „SData-Zugangsdaten“. |
+| Wareneingang-CSV (nur AKE) | `WareneingangCsvAktiv` (aus; schreibt Dateien auf die Netzfreigabe, enaio liest sie; wirkt nur mit `SageWareneingangBelegAktiv`; beim Einschalten werden wartende Vorgänge sofort geschrieben), `WareneingangCsvPfad` (leer, nur UNC-Pfad; falscher Pfad = Dateien landen unsichtbar für den Leser), `Sync:WareneingangCsvMaxWiederholungen` (3, 0–10), `Sync:WareneingangCsvWiederholAbstandMinuten` (15, 5–1440). `Pruefung/WareneingangCsv` meldet „an, aber Pfad leer oder Sage-WE aus“. |
+| Sage-Abgleich (SData, nur lesend) | `Sync:Quelle:*` (`View`/`SData`/`Vergleich`, Default `View`), `Sync:ArtikelBenutzerfelder`, `Sync:PpsMitarbeiterEnabled`, `Sync:StillstandsgruendeEnabled`, `Sync:KreditorenEnabled`/`Sync:DebitorenEnabled` (aus; überschreiben WMS-Werte, Sage führend), `Sync:ArtikelLieferantEnabled` (aus; seit v1.99.21 liest derselbe Lauf zusätzlich die **letzte Bestellung** je Artikel und Lieferant der letzten 3 Jahre aus `EinkaufPositionenAllInfo` in `ArticleSuppliers.LetzteBestellmenge`/`LetzteBestellungAm`/`LetzteBestellungBeleg`, SQL/148 – Lauf wird um ca. 5–6 min länger; Grundlage der Bestellvorschläge und der Lief.-Art.-Nr. der Lieferverzug-Mail), `Sync:EinkaufBestellungenEnabled` (aus; seit v1.99.15 auch Rahmenabrufe EBZ; Standort AKE, IDEAL ohne SData-Endpunkt aus). Details im Abschnitt „Sage-Abgleich über SData“ unter Schritt 2. |
 | Worker | `WorkerSettings:SyncIntervalMinutes`, `WorkerSettings:SyncDryRun`, `Sync:BdeAutoPauseIntervalMinutes` |
 | Bereinigung | `Cleanup:AktivitaetsprotokollAufbewahrungTage` (Default 180, `0` = nie löschen) |
 | Sage-Quellen (seit v1.60.0) | `Sync:FaHierarchyListeViewName`/`…InfosViewName` (Default `[vw_IDEAL_AKE_WMS_FAListe]`/`…FAInfos]`), `Sync:ProductionWorkplaceSyncViewName` (Default `KHKPpsArbeitsplaetze`), `Sync:ArticlesViewName` (Default leer = bisheriger Select) |
