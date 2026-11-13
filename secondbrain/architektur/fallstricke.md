@@ -1870,3 +1870,11 @@ Code: `hardware-scanner.js` Block „Scannen ohne Feld“, CSS `.hw-scan-bereit`
 - **Sage-WE für Abrufe hängt an der Konstante `SageWareneingang.RahmenabrufMitSageWe`** (nicht an einer Einstellung). Erst nach dem einen
   Schreibtest (E2, Erfolg nur mit `ReferenzBelID` = Abruf-BelId) auf `true`; sonst würde das E5-Sicherungsnetz einen Abruf-Wareneingang ohne
   Kennung nicht finden und eine Wiederholung einen zweiten Beleg anlegen.
+
+## 35. Kommissionier-Prio: MAX zählt zurückgenommene FAs mit (v1.99.17, [[2026-11-13-doppelte-kommissionier-prio-nach-ruecknahme-spec]])
+
+- **`GetMaxPickingPriorityAsync` filtert bewusst NICHT auf `IsReleasedForPicking`.** Bei „Freigabe zurücknehmen“ bleibt die Prio stehen
+  (und weiterlaufende Kommissionieraufträge behalten sie). **Warum wichtig:** Zählte das MAX nur aktuell freigegebene FAs, bekam ein neu
+  freigegebener FA die Zahl eines zurückgenommenen – nach dessen erneuter Freigabe standen zwei FAs auf derselben Prio (DEV 2614167/2614168
+  beide 32, sogar im selben Sammellauf). Folge der Regel: Die vorgeschlagene Zahl kann über jeder im Leitstand sichtbaren liegen (gewollt,
+  Hilfeseite). Manuelle Doppelvergabe bleibt erlaubt; Altbestand zeigt `Pruefung/DoppeltePrio`.

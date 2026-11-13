@@ -2,7 +2,7 @@
 type: spec
 title: "Doppelte Kommissionier-Prio nach „Freigabe zurücknehmen“ (Varianten-Spec)"
 slug: 2026-11-13-doppelte-kommissionier-prio-nach-ruecknahme-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-11-13
 updated: 2026-11-13
 source_backlog: "[[2026-11-13-doppelte-kommissionier-prio-nach-ruecknahme]]"
@@ -30,7 +30,7 @@ epic: false
 etappen: []
 deploy:
   web: true
-  service: false
+  service: true
   migration: false
 freigabe_entscheidung: "B"
 freigabe_von: "Gerald Weichbold"
@@ -293,21 +293,20 @@ Danach `secondbrain/tests/testszenarien-index.md` nachziehen.
 
 ## Deploy
 
-*Vorläufig – der QA-Lauf bestätigt gegen den echten Diff.*
+*Final aus dem echten Diff `cb204c96..73911686` (QA 2026-11-13).*
 
-- **Web-App:** ja (Repository, Hilfe, Changelog, Version)
-- **Service:** nein (`IDEALAKEWMSService` liest/schreibt `PickingPriority` nicht)
-- **Migration:** nein
-- **Manifest-Einträge** (`scripts/deploy/nachlauf.psd1`, ADR 0022/0023):
-  - Nur bei Rückfrage 2 = (a): `Id='Pruefung/DoppeltePrio'; Version='1.99.16'; Typ='Pruefung'; Firma='beide'; Phase='Nachher';
-    Ausfuehrung='anzeigen'`, `Pruefung` = Anzahl Prio-Werte mit mehr als einem offenen HauptFA (Kern von Prüfabfrage 1:
-    `SELECT COUNT(*) FROM (SELECT ps.PickingPriority FROM dbo.ProductionOrderPickingStatus ps JOIN dbo.ProductionOrders po ON po.Id =
-    ps.ProductionOrderId WHERE ps.PickingPriority IS NOT NULL AND po.IsDone = 0 AND po.IsCancelled = 0 AND (po.SubOrderNumber = N'''' OR
-    po.SubOrderNumber = po.OrderNumber) GROUP BY ps.PickingPriority HAVING COUNT(*) > 1) d`), `Text='Offene FAs mit gleicher
-    Kommissionier-Prio (Altbestand vor v1.99.16): im Leitstand per Prio-Eingabe korrigieren; Liste mit Prüfabfrage 1 der Spec.'`.
-  - Sonst: keine.
-- **Publish-Befehle** (im Worktree):
+- **Web-App:** ja (`IdealAkeWms/`: Repository `GetMaxPickingPriorityAsync`, Interface-Doku, Hilfe, Changelog, `AppVersion` 1.99.17)
+- **Service:** nur Versionsnummer (`IDEALAKEWMSService/AppVersion.cs` 1.99.17), keine Logik; fachlich nicht nötig, im Bündel ohnehin mitgeliefert
+- **Migration:** nein (keine Datei unter `*/Migrations/`, kein `SQL/`-Skript, `00_FreshInstall.sql` und `SQL/AgentJobs/` unberührt)
+- **Manifest** (`scripts/deploy/nachlauf.psd1`): `Pruefung/DoppeltePrio` (Version 1.99.17, Firma beide, Phase Nachher, anzeigen) – vorhanden und im
+  Lauf `-NurPruefen` gegen DEV geprüft (AKE: Abweichung 4, IDEAL: OK). Kein weiterer Deploy-Schritt (kein Einmal-Skript, keine Einstellung, keine Rolle).
+- **Publish:** im QA-Lauf erledigt: `C:\git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish` (IDEALAKEWMSWeb + IDEALAKEWMSWebService +
+  SQL + deploy, `publish-info.txt` Version 1.99.17, Commit `7391168661fe572309368e7dbe7857b43a3a4a61`). Fachlich nötig ist nur die Web-App; im Bündel
+  wie gewohnt beide Komponenten über `deploy\Update-IdealAkeWms.ps1`.
+- Reihenfolge: kein DB-Schritt; das Update-Skript zeigt nachher `Pruefung/DoppeltePrio` – Trefferzahl notieren, Korrektur per Hand im Leitstand.
+- Nach dem Merge nur dann neu aus `main` publishen, wenn der Merge getestete Dateien mit parallelen main-Änderungen zusammengeführt hat:
   `dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb`
+  `dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService`
 
 ## Offene Rueckfragen
 
@@ -337,3 +336,91 @@ Danach `secondbrain/tests/testszenarien-index.md` nachziehen.
 2. Bestehende Doppelte (a) anzeigen / (b) Skript / (c) nichts – Trefferzahl Prüfabfrage 1 AKE / IDEAL → **(a) anzeigen über Prüfung im Nachlauf, Korrektur per Hand; Trefferzahlen liefert Gerald nach (blockiert den Lauf nicht) (Gerald 2026-11-13).**
 3. Manuelle Doppelvergabe erlaubt lassen oder Warnung → **Erlaubt lassen (Gerald 2026-11-13).**
 4. Nur bei A: weiterlaufende Aufträge Prio behalten oder leeren → **Entfällt (Variante B) (Gerald 2026-11-13).**
+
+## QA-Nachweis (qa-agent, 2026-11-13)
+
+Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Branch `feature/2026-08-07-ideal-teile-1-5`, geprüfter Commit-Bereich `cb204c96..73911686`
+(HEAD `7391168661fe572309368e7dbe7857b43a3a4a61`), AppVersion 1.99.17 (Web + Service). Standort laut Frontmatter: beide.
+
+### 1. Build und Tests
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler, 28 Warnungen (bestehend, u. a. CS8601 in Tests).
+- `dotnet test`: IdealAkeWms.Tests 2798 bestanden / 1 übersprungen / 0 Fehler (2799); IDEALAKEWMSService.Tests 608 / 0 / 0 (608).
+
+### 2. Code-Review (selbst, in diesem Lauf)
+Geprüft: kompletter Diff (10 Dateien), `ProductionOrderPickingStatusRepository.cs` :68-92 (`SetReleaseAsync`), :123-135 (`SetPriorityAsync`),
+:211-298 (`GetMaxPickingPriorityAsync`, `SetReleaseBatchAsync`), `PickingLeitstandController.cs` :357-424 (`ToggleRelease`) und :426-495 (`BulkRelease`),
+`PickingOrderWorkflow.FreigabeZuruecknehmenAsync` :246-268, `ProductionOrder.IsHauptFa` (`Models/ProductionOrder.cs:29-30`), Manifest-Eintrag, Hilfe, Changelog, TS-134.
+- Aufrufer von `GetMaxPickingPriorityAsync`: nur `PickingLeitstandController.cs:399` (Einzel) und Repo `:247` (Sammel) – beide Freigabewege laufen über die eine geänderte Stelle.
+- Kein Nebeneffekt auf `SetPriorityAsync` (liest MAX nicht) und Rücknahme (Rücknahme-Zweige in `SetReleaseAsync` und Batch setzen die Prio weiterhin nicht; unverändert).
+- Defektklassen: keine Script-Einbettung, kein `hidden`/`d-*`, kein neues `?? 0` (das `?? 0` am MAX ist bestehende Semantik „keine Prio = 0“),
+  keine parallelen Arrays, keine nur-Browser-Validierung. Regel an zwei Orten: C#-Expression `IsHauptFa` und SQL-Kopie in `Pruefung/DoppeltePrio`
+  (`SubOrderNumber = N'' OR SubOrderNumber = OrderNumber`) – deckungsgleich, Spalte NOT NULL (`00_FreshInstall.sql:391`); eine lesende Prüfung muss SQL sein, kein Befund.
+- **Befunde: keine.** Hinweise (kein Handlungsbedarf vor dem Merge):
+  - **H-1** Prod-Sprung: es zählt jetzt jede offene HauptFA mit Prio, auch nie oder lange nicht freigegebene (z. B. Altdaten aus `SQL/60_ProductionOrderSplit.sql`).
+    Die erste automatische Prio nach dem Deploy kann deutlich höher liegen als die im Leitstand sichtbaren (von der Spec als „Lücke, kosmetisch“ akzeptiert).
+    DEV: AKE MAX freigegeben 31 / MAX alle offenen 32; IDEAL 3 / 3. Prüfabfrage je Prod-DB (lesend, Gerald):
+    `SELECT MAX(CASE WHEN ps.IsReleasedForPicking=1 THEN ps.PickingPriority END) MaxFreigegeben, MAX(ps.PickingPriority) MaxAlleOffen FROM dbo.ProductionOrderPickingStatus ps JOIN dbo.ProductionOrders po ON po.Id=ps.ProductionOrderId WHERE ps.PickingPriority IS NOT NULL AND po.IsDone=0 AND po.IsCancelled=0 AND (po.SubOrderNumber=N'' OR po.SubOrderNumber=po.OrderNumber);`
+  - **H-2** Die Hilfe sagt weiter „naechste freie Nummer“; vergeben wird MAX+1 (Lücken werden nicht gefüllt). Der Folgesatz („hoeher als jede Prioritaet offener Auftraege“) stellt es klar.
+  - **H-3** Umgebung: `Update-IdealAkeWms.ps1`, aus einer PowerShell-7-Sitzung per `powershell` (5.1) gestartet, scheitert an `Import-PowerShellDataFile` (geerbter PSModulePath);
+    aus Git-Bash/cmd mit `powershell.exe -NoProfile` läuft es. Kein Code-Befund dieser Spec.
+
+### 3. Beweisart je AK
+| AK | Beweis |
+|---|---|
+| 1 Einzel MAX+1, Sammel fortlaufend | Unit (`SingleRelease_AfterRevoke_…`, `SetReleaseBatch_MixedSelection_…`) + DEV-Browser AKE/IDEAL |
+| 2 Sub-FA/erledigt/storniert zählen nicht | Unit (`GetMaxPickingPriority_CountsRevokedOpenHauptFa_IgnoresDoneCancelledSubFa`, bestehend `:302-303`) + DEV (134.8 AKE; IDEAL: Sub-FA 1043423 mit Prio 4 ignoriert) |
+| 3 Inline-Eingabe unverändert | DEV-Browser 134.7 (kein Code geändert) |
+| 4 Hilfe/Changelog | DEV-Browser (gerendert AKE/IDEAL); Lesung des Wortlauts Manual-UAT |
+| 5 Build/Tests | grün (s. o.) |
+| 6 MAX unabhängig von IsReleasedForPicking | Unit |
+| 7, 8 Einzel Rücknahme/Neufreigabe | Unit + DEV-Browser 134.1 (AKE und IDEAL) |
+| 9 Sammel gemischt | Unit + DEV-Browser 134.2 (AKE und IDEAL) |
+| 10 weiterlaufender Auftrag | DEV-Browser 134.4 mit per SQL simuliertem Fortschritt; mit echtem Pick Manual-UAT |
+
+### 4. Geänderte bestehende Tests
+- `NachlaufManifestDriftTests.Manifest_Pruefungen_Gueltig`: erwartete Id-Liste um `Pruefung/DoppeltePrio` erweitert – Verhalten bewusst durch die Spec geändert (Rückfrage 2 = anzeigen). Kein „Sonstiges“.
+- `ProductionOrderPickingStatusRepositoryTests`: nur 3 neue Tests angehängt; bestehender MAX-Test `:281-304` unverändert und grün.
+
+### 5. Checkliste
+Keine Migration/SQL (korrekt, keine Schemaänderung); Version in beiden `AppVersion.cs` 1.99.17; Anwender-Changelog v1.99.17; Brain-Changelog
+[[2026-11-13-v1-99-17-doppelte-kommissionier-prio]] vorhanden; `docs/TESTSZENARIEN.md` TS-134 + Querverweis bei TS-4.10 (Zeile 1379); Testindex Zeile 134 vorhanden;
+Manifest-Eintrag vorhanden. Audit: keine neue Schreibstelle. ADR 0020: keine neue oder geänderte Einstellung. Worktree ohne `secondbrain/` (sparse) – OK.
+
+### 6. DEV-Deploy und Testlauf
+- `dev-deploy.ps1 -Standort AKE` (elevated): Exit 0, „HTTP 200, Fusszeile v1.99.17“, „Fertig: AKE v1.99.17 auf http://localhost:8081/“.
+- `dev-deploy.ps1 -Standort IDEAL`: Exit 0, „HTTP 200, Fusszeile v1.99.17“, „Fertig: IDEAL v1.99.17 auf http://localhost:8082/“.
+- Testdaten AKE: M = 32; X = 2646002, Y = 2645001, Z = 2638001, W = 2607170, weitere 2604043, 2621027. IDEAL: M = 3; X = 1059463, Y = 1064052, Z = 1065036.
+
+| Schritt | Durchgeführt / Ergebnis | Status |
+|---|---|---|
+| 134.1 AKE | X frei → 33; zurück (KO-00009 storniert, kein Prio-Feld); Y frei → **34**; X erneut → **33** (KO-00011); Zählung DoppeltePrio unverändert 4 | OK |
+| 134.1 IDEAL | X frei → 4 (KO-00001); zurück; Y frei → **5**; Doppelte 0 | OK |
+| 134.2 AKE | X zurück (33); Sammel {X, Z} mit Kommissionierer → X **33**, Z **35** (MAX war 34); Meldung „2 Auftrag/Aufträge freigegeben …“ | OK |
+| 134.2 IDEAL | Sammel {X zurückgenommen 4, Z ohne Prio} → X **4**, Z **6**; Doppelte 0 | OK |
+| 134.3 AKE | Sammel-Rücknahme X, Y, Z (KOs storniert, Prio 33/34/35 bleiben, kein Prio-Feld); W frei → **36** | OK |
+| 134.4 AKE | W: eine Zeile von KO-00014 per SQL auf Gepickt (Fortschritt simuliert, kein Bestand auf DEV); W zurück → Warnung „Aufträge mit bereits gepickten oder umgebuchten Zeilen bleiben bestehen – bitte klären: FA 2607170 …“; 2604043 frei → **37**; Prüfabfrage 3 leer; `/Picking`: KO-00014 (36) vor KO-00015 (37) | OK (Pick simuliert) |
+| 134.5 AKE | `/Picking` nach 134.1: KO-00011 (33, X) vor KO-00010 (34, Y) | OK |
+| 134.6 | `Update-IdealAkeWms.ps1 -Firma AKE -System DEV -Quelle <publish> -NurPruefen`: „[Pruefung/DoppeltePrio] Abweichung 4 …“ (Vorprüfung und Nachlauf), Exit 0, „nichts gestoppt, nichts geschrieben“. IDEAL DEV: „[Pruefung/DoppeltePrio] OK“ | OK |
+| 134.7 AKE | W Inline 36 → 33: gespeichert, keine Meldung, KO-00014 auf 33 durchgeschrieben, Doppelte 4 → 5; zurück auf 36 → 4 | OK |
+| 134.8 AKE | Erledigter FA 2602025 Prio 2→999, stornierter 2620185 28→998 (SQL, temporär); 2621027 frei → **38** (nicht 1000); beide Werte zurückgesetzt | OK |
+| 134.9 IDEAL | UI bietet an Sub-FA-Zeilen weder Freigabe-Knopf noch Markier-Kästchen (`_PickingLeitstandRow.cshtml:23`); Sub-FA-Ausschluss im MAX auf echten Daten belegt (freigegebene Sub-FA 1043423 mit Prio 4, X bekam trotzdem 4). Server-Warnung „Übersprungen (Sub-FA …)“ nur per gebautem POST erreichbar | NICHT MÖGLICH (UI) / Regel OK |
+| 134.10 | Browser läuft als Admin (Windows-Auth), kein Benutzer ohne `leitstand` verfügbar; `[RequireLeitstandAccess]` unverändert (`:359`, `:428`, `:574`) | NICHT MÖGLICH |
+| 134.11 | Altbestand AKE (Prio 1/13/17/32) unverändert, Zählung durchgehend 4 | OK |
+| Hilfe/Changelog | `/Help/Changelog` Karte v1.99.17 mit Überschrift und drei Punkten; `/Help` Priorisierung/Freigabe zurücknehmen mit neuem Text (AKE/IDEAL). Kartenkopf nutzt das bestehende Muster (`--ake-primary` + weiß) | OK |
+
+**DEV-Datenänderungen (QA):**
+- AKE_WMS_DEV: FAs 2646002, 2645001, 2638001 (Prio 33/34/35, zurückgenommen), 2607170 (Prio 36, zurückgenommen; **KO-2026-00014 bleibt Offen, Zeile 2109 per SQL auf Gepickt**, PickedBy `QA-TS134.4`), 2604043 (37, freigegeben, KO-00015), 2621027 (38, freigegeben, KO-00016); KOs KO-2026-00009 … -00016 neu. `Users.IsPicker` für Id 14 (Gerald Weichbold) während des Tests 1, danach wieder 0. Prio von 2602025/2620185 temporär geändert und zurückgesetzt. **KO-2026-00008 (FA 2625004) nicht angefasst** (Status 20, Prio 32).
+- IDEAL_WMS_DEV: 1059463 (4, freigegeben; KO-00001 storniert, KO-00003 offen), 1064052 (5, freigegeben, KO-00002), 1065036 (6, freigegeben, KO-00004). Versehentlich `HasGlass` an Sub-FA 1065141 (Id 132) per Klick gesetzt, per SQL auf 0 zurück (ModifiedAt/By 14:44 bleibt).
+
+### 7. Publish
+`<Worktree>\publish` geleert und neu: `IDEALAKEWMSWeb`, `IDEALAKEWMSWebService` (beide `dotnet publish` Exit 0), `SQL\`, `deploy\`, `publish-info.txt`
+(Version 1.99.17, Commit `7391168661fe572309368e7dbe7857b43a3a4a61`, Branch `feature/2026-08-07-ideal-teile-1-5`, Erstellt 2026-11-13 14:35).
+
+### Manuelle Checkliste für Gerald (offen)
+1. Testsystem nach Deploy des Bündels: `Pruefung/DoppeltePrio` im Nachlauf ablesen (AKE/IDEAL), Trefferzahl notieren; Doppelte im Leitstand per Prio-Eingabe korrigieren.
+2. Prüfabfrage aus H-1 je Prod-DB (lesend): Abstand MaxFreigegeben/MaxAlleOffen einschätzen (Sprung der ersten Auto-Prio).
+3. TS-134.4 mit echtem Pick (Bestand vorhanden): Zeile picken/umbuchen, FA zurücknehmen, neuen FA freigeben → andere Prio, Prüfabfrage 3 leer.
+4. TS-134.9 Sub-FA (IDEAL): bestätigen, dass an Sub-FAs weder Knopf noch Kästchen erscheinen; MAX bleibt.
+5. TS-134.10 mit einem Benutzer ohne `leitstand`: Freigabe, Rücknahme, Prio-Eingabe abgewiesen.
+6. Hilfe „Priorisierung“/„Freigabe zuruecknehmen“ und Changelog v1.99.17 lesen (Wortlaut, H-2).
+7. DEV-Aufräumen nach Wunsch: KO-2026-00014 (AKE, simulierter Pick) klären oder stornieren.

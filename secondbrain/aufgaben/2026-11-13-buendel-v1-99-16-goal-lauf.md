@@ -14,7 +14,7 @@ Vorgänger-Lauf: [[2026-11-13-buendel-v1-99-13-goal-lauf]]. DEV-Browser: Browser
 | Spec | Typ | SQL-Block | Version | TS | Status | Commits | Blocker |
 |---|---|---|---|---|---|---|---|
 | [[2026-11-13-updater-zweiter-trockenlauf-altbestand-spec]] | Spec (Bugfix) | – | 1.99.16 | TS-133 | Testbereit (QA 2026-11-13, H-1..H-3 Hinweise) | `cb204c96` | – |
-| [[2026-11-13-doppelte-kommissionier-prio-nach-ruecknahme-spec]] | Spec (Variante B) | – | 1.99.17 | TS-134 | InUmsetzung | – | – |
+| [[2026-11-13-doppelte-kommissionier-prio-nach-ruecknahme-spec]] | Spec (Variante B) | – | 1.99.17 | TS-134 | Testbereit (QA 2026-11-13, keine Befunde, Hinweise H-1..H-3) | `73911686` | – |
 | [[2026-11-13-utc-schreiber-auf-lokalzeit-spec]] | Spec | – | 1.99.18 | TS-135 | InUmsetzung | – | – |
 
 - Vorprüfung 2026-11-13: alle drei Freigegeben (Gerald 2026-11-13), Freigabe-Antworten vollständig, Prio = Variante B (`freigabe_entscheidung`),
