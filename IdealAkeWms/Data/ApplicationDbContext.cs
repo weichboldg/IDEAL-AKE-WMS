@@ -1386,7 +1386,7 @@ public class ApplicationDbContext : DbContext
             entity.HasIndex(e => e.CreditorId).HasDatabaseName("IX_ArticleSuppliers_CreditorId");
         });
 
-        // v1.84.0 (Spec 2026-11-08-wareneingang-aus-sage-bestellungen E1): Cache offener Sage-Bestellpositionen (EBB), je Lauf ersetzt.
+        // v1.84.0 (Spec 2026-11-08-wareneingang-aus-sage-bestellungen E1): Cache offener Sage-Bestellpositionen (EBB, seit v1.99.15 auch EBZ), je Lauf ersetzt.
         // Kein AuditableEntity, keine FKs (Verweise sind beim Lauf aufgeloeste Werte). Laengen laut Sage-SQL (E0, P-W1).
         modelBuilder.Entity<SagePurchaseOrderLine>(entity =>
         {

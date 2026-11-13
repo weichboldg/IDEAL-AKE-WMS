@@ -34,7 +34,7 @@ public static class SyncLogServices
     public const string Kreditoren = "Kreditoren"; // Sage-Kontokorrent KtoArt K (SData) -> Creditors (v1.73.0 E8c)
     public const string Debitoren = "Debitoren"; // Sage-Kontokorrent KtoArt D (SData) -> Debitors (v1.73.0 E8c)
     public const string ArtikelLieferant = "ArtikelLieferant"; // Sage-ArtikelLieferantInfo (SData) -> ArticleSuppliers (v1.73.0 E8c)
-    public const string EinkaufBestellungen = "EinkaufBestellungen"; // Sage-EinkaufPositionenInfo (SData, EBB) -> SagePurchaseOrderLines (v1.84.0 E1)
+    public const string EinkaufBestellungen = "EinkaufBestellungen"; // Sage-EinkaufPositionenInfo (SData, EBB + EBZ seit v1.99.15) -> SagePurchaseOrderLines (v1.84.0 E1)
     public const string SageWareneingang = "SageWareneingang"; // Wareneingang zu Bestellung -> Sage-Wareneingangsbeleg ELL (SData StandardBelegService, v1.99.4)
     public const string WareneingangCsv = "WareneingangCsv"; // CSV je an Sage uebergebenem Wareneingang mit Barcode auf UNC-Pfad (v1.99.11)
     public const string LieferverzugMail = "LieferverzugMail"; // Erinnerungs-Mails bei Lieferverzug aus dem Bestell-Cache (v1.99.10)

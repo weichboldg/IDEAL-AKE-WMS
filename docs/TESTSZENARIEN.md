@@ -11385,7 +11385,7 @@ Regression: TS-79 (nur HauptFA), TS-80 (Kommissionierlisten summiert, unverände
 Spec `2026-11-08-wareneingang-aus-sage-bestellungen-spec` (Epic E1–E4; E5 Folge-Spec). **Standort:** AKE (IDEAL ohne SData-Endpunkt).
 **Migration:** `SQL/112_AddSagePurchaseOrderLines.sql`, `SQL/113_AddPurchaseOrderReceipts.sql`. Web + Dienst.
 **Vorbedingungen:** AKE-Test-SData erreichbar; `Sync:KreditorenEnabled` und Lagerplatz-Abgleich gelaufen; Benutzer S mit `stock`, Benutzer R nur
-`stock_read`. E0-Befund (Spec): nur `EBB` (1.059 offene Positionen am AKE-Test), Mengen in der Basiseinheit, Kopf aus den Positionen,
+`stock_read`. E0-Befund (Spec): nur `EBB` (1.059 offene Positionen am AKE-Test; **seit v1.99.15 zusätzlich Rahmenabrufe `EBZ`, siehe TS-132**), Mengen in der Basiseinheit, Kopf aus den Positionen,
 `Liefersperre` = Lieferant gesperrt. Automatisiert: `EinkaufBestellungenSyncTests` (Dienst), `PurchaseOrdersControllerTests`, `PurchaseOrdersReceiveTests`.
 
 | Nr | Schritte | Erwartung |
@@ -11909,8 +11909,104 @@ nur mit `Sync:SageSystemKuerzel` ≠ leer auf Testsystemen). Ersetzt TS-103.1/10
 | 131.11.3 | Daten-Eintrag `SQL/147` | Läuft in einer Transaktion (uebernehmen/verwerfen); danach Marker; Spur 1 = nichts zu tun |
 | 131.11.4 | Nachlauf-Liste | Einträge `v1.99.14-SDataZugang` und `v1.99.14-SageTestInfo` |
 
+## TS-132 — Rahmenabrufe (EBZ) in Offene Bestellungen und Wareneingang (v1.99.15)
+
+Spec [[2026-11-11-wareneingang-teil-3-rahmenabrufe-spec]]. Querverweise TS-116 (Offene Bestellungen, Wareneingang, Sage-WE), TS-128
+(Lieferverzug-Mail), TS-129 (Barcode/CSV). **Standort:** AKE (IDEAL: Abgleich aus, kein Effekt). Keine Migration. Web + Dienst.
+**Sage-Schreibregel:** Kein Szenario hier schreibt nach Sage, ausgenommen 132.5 (nur Gerald/Einkauf am AKE-Test) und der eine Schreibtest E2
+der Spec (interaktiv, nach Geralds OK). In v1.99.15 ist `SageWareneingang.RahmenabrufMitSageWe = false` (E2 noch nicht erfolgt): Abrufe gehen
+**nicht** als Sage-Wareneingang. 132.4 gilt erst, wenn E2 klappt und die Konstante auf `true` steht.
+
+**Vorbedingungen:**
+- AKE-DEV mit Dienst und Web v1.99.15; `Sync:EinkaufBestellungenEnabled` an; SData auf den AKE-Test (`sagetest01`, `ake_TEST2026;1`);
+  Kreditoren- und Lagerplatz-Abgleich gelaufen. Einstellung `WareneingangBestellungAktiv` an.
+- `SageLagerbuchungAktiv` aus (DEV), `SageWareneingangBelegAktiv` je Szenario (Default aus). Mails nur in den Pickup-Ordner (TS-128).
+- Benutzer S mit `stock`, Benutzer R nur `stock_read`.
+- P-W8 (2026-11-13, lesend): am AKE-Test 108 offene Abruf-Positionen (108 Abruf-Belege, je eine Position), `MengeBasis` nie leer, bei gleicher
+  Einheit immer `Menge = MengeBasis`; 2 Abrufe mit Bestelleinheit `lfm`/Basis `Stk` (nicht buchbar); 16 Rahmen-Vorgangspositionen mit mehreren
+  Abrufen (bis 18, `VorPosId` 129746).
+- Automatisch: `EinkaufBestellungenSyncTests` (zwei Abfragen, EBZ-Mengen, Empty-Guard je Belegart, Counts), `SageWareneingangGrundlageTests`
+  (Rest-Regel EBZ/EBB), `PurchaseOrdersControllerTests` (Hinweis, „–“, Rest-0-Filter), `PurchaseOrdersReceiveTests` (Einstieg, NichtNoetig,
+  Barcode-Text, `GiltFuer`), `LieferverzugMailTests` (Abruf fällig nach Rest-Regel, „–“).
+
+### TS-132.1 — Abrufe lesen und anzeigen
+
+| Nr | Schritt | Erwartet |
+|---|---|---|
+| 132.1.1 | Abgleich „Offene Bestellungen (Sage)“ laufen lassen; Aktivitäts-Protokoll öffnen | Lauf erfolgreich; Info-Zeilen „EBB: …“ und „EBZ: …“; Counts `positionen` = `positionen_ebb` + `positionen_ebz`, `positionen_ebz` ≈ 108 (AKE-Test); `menge_fehlt` 0 |
+| 132.1.2 | DEV-DB: `SELECT Belegkennzeichen, COUNT(*) FROM dbo.SagePurchaseOrderLines GROUP BY Belegkennzeichen;` | Zwei Zeilen `EBB` und `EBZ`; keine andere Belegart |
+| 132.1.3 | DEV-DB: `SELECT Belegnummer FROM dbo.SagePurchaseOrderLines GROUP BY Belegnummer HAVING COUNT(DISTINCT BelId) > 1;` | Ergebnis notieren. Treffer → diese Nummer in „Wareneingang zu Bestellung“ eingeben: Meldung „Belegnummer … gehört zu n Bestellungen – bitte über „Offene Bestellungen“ wählen.“ |
+| 132.1.4 | *Lager → Offene Bestellungen*, Wochen 26; Spaltenfilter Hinweis = `Rahmenabruf` | Nur Abrufe; Hinweis beginnt mit „Rahmenabruf“; Spalte „geliefert (Sage)“ zeigt „–“ (Tooltip „Sage liefert für Rahmenabrufe keine gelieferte Menge je Abruf“), nie „0“ |
+| 132.1.5 | Einen Abruf aus einem Rahmen mit mehreren Abrufen (z. B. Belegnummer `2023-147973`, VorPosId 129746) in Sage öffnen und vergleichen | bestellt = offen = Abrufmenge in der Basiseinheit (2.400 Stk), nicht die Rahmenmenge (34.800); Liefertermin = Termin des Abrufs |
+| 132.1.6 | Stand-Text über der Tabelle | „Bestellungen (EBB) und Rahmenabrufe (EBZ); bei Abrufen: offen = Abrufmenge, abzüglich im WMS erfasster Mengen“ |
+| 132.1.7 | **Negativ:** Abruf mit abweichender Einheit (`2027-166490` bzw. `2027-168914`, Bestellung lfm, Basis Stk) öffnen | Zeile „Einheit abweichend (…) – nicht buchbar, bis geklärt“, nichts buchbar |
+| 132.1.8 | **Negativ:** Benutzer R öffnet *Offene Bestellungen* | Abrufe sichtbar, kein Knopf „Wareneingang“ |
+
+### TS-132.2 — Abruf buchen ohne Sage-Wareneingang
+
+`SageWareneingangBelegAktiv` aus. Einen Abruf mit Rest 10 wählen (oder `MengeOffen` einer DEV-Zeile per SQL auf 10 setzen).
+
+| Nr | Schritt | Erwartet |
+|---|---|---|
+| 132.2.1 | *Wareneingang zu Bestellung*, Belegnummer des Abrufs scannen/eingeben | Maske öffnet; Kopf zeigt das Kennzeichen „Rahmenabruf“ (Text, nicht nur Farbe) und „Offen = Abrufmenge; in Sage direkt gebuchte Abruf-Lieferungen zieht das WMS nicht ab.“ |
+| 132.2.2 | 3 buchen | Erfolg; Rest 7; Receipt `SageWeStatus` = `NichtNoetig` (`SELECT SageWeStatus FROM dbo.PurchaseOrderReceipts WHERE BelPosId = <id>`) |
+| 132.2.3 | Abgleich erneut laufen lassen, Maske neu öffnen | Rest weiter 7 (Sage verkleinert die Abrufmenge nicht) |
+| 132.2.4 | **Negativ:** 8 eingeben ohne Häkchen „Überlieferung bestätigt“ | Zeilenfehler „Überlieferung (8 > Rest 7) bitte bestätigen.“, nichts gebucht |
+| 132.2.5 | 7 buchen | Rest 0; Maske öffnet sich weiter (Überlieferung mit Häkchen möglich) |
+| 132.2.6 | *Offene Bestellungen* | Abruf fehlt; über der Tabelle „1 Rahmenabruf im WMS vollständig erfasst – ausgeblendet. …“ |
+| 132.2.7 | Filter „auch im WMS vollständig erfasste Abrufe“ an, Filtern | Abruf wieder sichtbar, Meldung weg; Paginierung zählt ihn mit |
+| 132.2.8 | **Negativ:** eine EBB-Position mit Rest 0 (vollständig erfasst) | in beiden Filterständen sichtbar |
+| 132.2.9 | Queue: `SELECT * FROM dbo.SageBookingQueueItems WHERE StockMovementId = <id>` (Abruf auf Sage-Platz gebucht) | Eintrag vorhanden (Lagerbuchung wie Teil 1); bei `SageLagerbuchungAktiv` aus wird er nicht gesendet |
+| 132.2.10 | **Negativ:** Belegnummer `2099-999999` eingeben | „Bestellung „2099-999999“ nicht gefunden (nur offene Bestellungen und Rahmenabrufe aus Sage, Stand des letzten Abgleichs).“ |
+
+### TS-132.3 — Abruf bei eingeschaltetem Sage-Wareneingang (Konstante false, Stand v1.99.15)
+
+`SageWareneingangBelegAktiv` an, **Dienst gestoppt** (sonst würde er EBB-Einträge senden), Einstellung `WareneingangBarcodeAktiv` an.
+
+| Nr | Schritt | Erwartet |
+|---|---|---|
+| 132.3.1 | Abruf öffnen | Kopf zusätzlich: „Rahmenabruf: Wareneingang geht als Lagerbuchung an Sage; der Einkauf schließt den Abruf in Sage von Hand.“; Barcode-Feld gesperrt, Hilfetext „Für Rahmenabrufe gibt es keinen Sage-Wareneingang – für diese Buchung entsteht keine CSV-Datei.“ |
+| 132.3.2 | 1 auf einen Platz **ohne** Sage-Kennung buchen | Gebucht (keine Platzregel); Receipt `NichtNoetig`, `SageWeVorgang` NULL; erscheint nicht in *Lager → Sage-Wareneingänge* |
+| 132.3.3 | **Negativ:** Barcode per POST erzwingen (Feld im Browser-Entwicklerwerkzeug freischalten) | Fehler „Barcode nicht möglich: Für Rahmenabrufe gibt es keinen Sage-Wareneingang – …“, nichts gebucht |
+| 132.3.4 | Gegenprobe EBB im selben Zustand | Platzregel greift (Nicht-Sage-Platz → Zeilenfehler), Receipt `Offen` mit Vorgang, Barcode-Feld offen |
+| 132.3.5 | Aufräumen | DEV-Einträge per SQL zurücksetzen, `SageWareneingangBelegAktiv` aus, Dienst starten |
+
+### TS-132.4 — Abruf mit Sage-Wareneingang (nur wenn E2 klappt; Konstante true)
+
+Gilt erst nach dem erfolgreichen Schreibtest E2 und einem Release mit `RahmenabrufMitSageWe = true`. Ohne Senden: Schalter an, Dienst gestoppt.
+
+| Nr | Schritt | Erwartet |
+|---|---|---|
+| 132.4.1 | Abruf auf Sage-Platz buchen | Receipt `Offen` mit `SageWeVorgang`; Kopf ohne den Satz „geht als Lagerbuchung“ |
+| 132.4.2 | **Negativ:** Abruf auf Nicht-Sage-Platz | Zeilenfehler (Platzregel), nichts gebucht |
+| 132.4.3 | Barcode eingeben | erlaubt |
+| 132.4.4 | Aufräumen | Einträge per SQL zurücksetzen, Schalter aus |
+
+### TS-132.5 — Sage-Wareneingang für einen Abruf am AKE-Test (nur Gerald/Einkauf, schreibt nach Sage)
+
+Nur wenn E2 klappt. Teilmenge eines Abrufs buchen → ELL-Beleg in Sage mit Lieferschein, `ReferenzBelID` = Abruf-BelId, Abruf in Sage beliefert;
+WMS-Rest nach Abgleich = Abrufmenge − gebuchte Menge; mit Barcode entsteht die CSV (TS-129).
+
+### TS-132.6 — Lieferverzug-Mail mit Abruf
+
+Wie TS-128 (Pickup-Ordner, Testbetrieb an, `PurchaseOrderReminders` des Tages löschen).
+
+| Nr | Schritt | Erwartet |
+|---|---|---|
+| 132.6.1 | Abruf mit Liefertermin vor heute − `TageNachTermin`, Rest > 0; Lauf auslösen | Einkauf-Sammelliste enthält den Abruf; Spalte „Geliefert“ = „–“ (HTML und Textteil); Kreditor-Mail (im Testbetrieb an den Einkauf umgeleitet) enthält ihn ebenfalls (Freigabe-Antwort 1) |
+| 132.6.2 | Fachlich: Termin des Abrufs in Sage gegenprüfen | Termin in der Mail = Liefertermin des Abrufs (bisher unverifiziert) |
+| 132.6.3 | **Negativ:** Abruf im WMS voll erfasst (Rest 0, auch wenn die Teilmengen an Sage übergeben wurden) | fehlt in beiden Mails |
+
+### TS-132.7 — Hilfe und Update-Skript
+
+| Nr | Schritt | Erwartet |
+|---|---|---|
+| 132.7.1 | Hilfe → Abschnitt „Offene Bestellungen und Wareneingang zu Bestellung“ | Absatz „Rahmenabrufe (seit v1.99.15)“ mit Grenze „in Sage direkt gebuchte Abruf-Lieferungen zieht das WMS nicht ab“, Filter für vollständig erfasste Abrufe, Lagerbuchung statt Sage-Wareneingang; „Rahmenabrufe werden (noch) nicht angezeigt“ ist weg |
+| 132.7.2 | Hilfe → „Erinnerungs-Mails bei Lieferverzug“ | „Rahmenabrufe nie“ ersetzt durch Abrufe mit Abruf-Termin in beiden Mails |
+| 132.7.3 | Update-Skript (Trockenlauf) gegen DEV | Nachher-Eintrag `v1.99.15-Rahmenabrufe` (anzeigen), keine Schema-/Daten-Einträge |
+
 ---
 
 *Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) + Teil 6 (Standorteinstellungen, v1.34.0) + BOM-Guard hierarchisch (2026-08-18, abgelöst) + FA-Liste-Hierarchie (v1.35.0) + BOM-Bridge (v1.36.0) + Materialisierung fachliche Felder K1/K2 (v1.37.0) + Skopierung der Tabellen-Selektoren (TS-72) + FA-Liste ausgebaut: Matchcode, Kopfdaten je Zeile, HauptFA-Zeile, Freigabe-Kaskade (v1.38.0, TS-73) + PDF-Erzeugung für FaHierarchy-Druckdokumente (v1.39.0, TS-74) + Matchcode im Artikelstamm (v1.40.0, TS-75) + FA-Arbeitsgang-Erkennung aus der Struktur (v1.41.0, TS-76, ersetzt durch TS-77) + Arbeitsgänge (WorkOperation) aus der Struktur + Werkbank-Anlage aus Sage (v1.44.0, TS-77) + Arbeitsgänge je (Sub-)FA im FA-Struktur-Modal (v1.45.0, TS-78) + Kommissionierung nur am HauptFA
-(v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80) + Beschichtungsauftrag Summiert als Standard (v1.48.0, TS-81) + Briefkopf Beschichtungsauftrag (v1.49.0, TS-82) + Beschichtungsauftrag als eigenes Objekt (v1.50.0, TS-83) + Beschichtungsaufträge bedienen (v1.51.0, TS-84) + Arbeitsgänge als Symbole im FA-Baum (v1.52.0, TS-85) + CSV-Export für alle Tabellen (v1.53.0, TS-86) + Arbeitsgang-Stammdaten (v1.54.0, TS-87) + Status je Arbeitsgang-Kürzel im FA-Baum (v1.55.0, TS-88) + Menü Beschichtung + Kurzanleitungen (v1.56.0, TS-89) + BDE-Terminal mit Arbeitsgang-Status (v1.57.0, TS-90) + Spaltenfilter-Suchsyntax Etappe A + B (v1.58.0/v1.58.1, TS-91.A/B) + Fußzeile nach Word-Vorlage (v1.59.0, TS-92) + Sage-Quellen auf WMS-Views (v1.60.0–v1.60.2, TS-93) + Arbeitsgang-Abgleich aus der Sage-View (v1.61.0, TS-94) + Stückliste Matchcode und Lagerplatz-Limit (v1.62.0, TS-95) + BDE Stufe 1: Werkbänke, AG-Fertigmeldung (v1.63.0, TS-96) + BDE-Terminal Liste nach Haupt-FA, Scan ohne AG (v1.64.0, TS-97) + Spaltenauswahl/Zahnrad zentraler Toolbar-Host (v1.65.0, TS-98) + Hardware-Barcodescanner (v1.66.0–v1.66.2, TS-99) + Vault- und enaio-Links konfigurierbar (v1.67.0, TS-100) + QR erstes Feld Matchcode / Trennzeichen (v1.68.0/v1.69.0, TS-101) + Aktivitäts-Protokoll Spaltenfilter/Namen (v1.70.0, TS-102) + FA-Struktur live aus Sage (v1.71.0, TS-103) + Lagerplatz-Etikett 93 × 55 mm und Vormontage-Felder (v1.72.0, TS-104/TS-105) + Sage-Abgleich über SData (v1.73.0, TS-106) + Fehlteile „Nur meine Werkbänke“ Trefferzahl (v1.75.0, TS-108) + Bestandsübersicht QR-FA nur mit `QrMitFaNummer` (v1.76.0, TS-101.22–101.25) + Einstellungen Auswahlfelder und Beschreibung (v1.77.0, TS-109) + EAN-Scan Einkaufsartikel (v1.78.0, TS-110) + Bereinigungen nach dem Bündel 2026-11-07 (v1.79.0, TS-111) + Artikelinfo Lieferanten (v1.80.0, TS-112) + Fehlteile-Karte je Bestelltyp (v1.81.0, TS-113) + Wareneingang zu Sage-Bestellung (v1.84.0, TS-116) + Artikel Lieferanten/Mengeneinheiten (v1.85.0, TS-112.12–112.16) + Offene Bestellungen Nachbesserung (v1.86.0, TS-116.8/116.9) + Lager-Tools FA-Verknüpfung (v1.87.0, TS-115) + Kommissionieraufträge (v1.88.0, TS-120) + Kommissionieraufträge Nachbesserung (v1.89.0, TS-120.1/120.9/120.13/120.14) + Lager-Tools FA-Karte je Pflicht (v1.90.0, TS-115.3) + Offene Bestellungen Legende (v1.91.0, TS-116.8) + OSEON-Relevanzfilter/BDE-Checkboxen (v1.92.0, TS-121) + Meldebestand-Mail Bestandsregel (v1.93.0, TS-122) + Menüleiste Umbruch/Kontrast (v1.94.0, TS-123) + Nachbesserung Vorab-Abnahme (v1.95.0, TS-115.13/115.14/116.10/120.15) + Übernahme AKE-Hotfixes v1.30.2–1.30.4 (v1.96.0, TS-107, TS-124) + Auftrag drucken in Sortierreihenfolge (v1.97.0, TS-120.16) + Matchcode in der Kommissionier-Auftragsliste (v1.99.8, TS-120.17) + Update-Skript je Zielsystem (v1.98.0, TS-125) + Update-Skript Url-Vorrang und Dienst-Stopp-Limit (v1.98.1, TS-125.17/125.18) + Update-Skript prüft und führt aus, mit Bestätigung (v1.99.0–v1.99.2, TS-126) + Update-Skript Prüfung Mail-Ablageordner (v1.99.12, TS-126.28–126.31) + Vormontage Spalte Abteilung (v1.99.3, TS-127) + Wareneingang Sage-Wareneingangsbeleg und Lieferschein (v1.99.4–v1.99.6, TS-116.11–116.19) + Sage-Wareneingang automatisch wiederholen mit Sage-Prüfung, Klären (v1.99.7, TS-116.20–116.24) + System-Kürzel in den Sage-Kennungen WE#/SM# (v1.99.9, TS-116.25–116.30) + Lieferverzug-Mails (v1.99.10, TS-128) + Wareneingang Barcode und CSV-Übergabe (v1.99.11, TS-129) + Bugfixes AKE-Regression: Filter in Anführungszeichen, Bedarfsmeldung Ortszeit, Auftragsdruck Lagerplatz, Wagen-Modal (v1.99.13, TS-130) + Register Sage-Test und SData-Zugangsdaten (v1.99.14, TS-131)*
+(v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80) + Beschichtungsauftrag Summiert als Standard (v1.48.0, TS-81) + Briefkopf Beschichtungsauftrag (v1.49.0, TS-82) + Beschichtungsauftrag als eigenes Objekt (v1.50.0, TS-83) + Beschichtungsaufträge bedienen (v1.51.0, TS-84) + Arbeitsgänge als Symbole im FA-Baum (v1.52.0, TS-85) + CSV-Export für alle Tabellen (v1.53.0, TS-86) + Arbeitsgang-Stammdaten (v1.54.0, TS-87) + Status je Arbeitsgang-Kürzel im FA-Baum (v1.55.0, TS-88) + Menü Beschichtung + Kurzanleitungen (v1.56.0, TS-89) + BDE-Terminal mit Arbeitsgang-Status (v1.57.0, TS-90) + Spaltenfilter-Suchsyntax Etappe A + B (v1.58.0/v1.58.1, TS-91.A/B) + Fußzeile nach Word-Vorlage (v1.59.0, TS-92) + Sage-Quellen auf WMS-Views (v1.60.0–v1.60.2, TS-93) + Arbeitsgang-Abgleich aus der Sage-View (v1.61.0, TS-94) + Stückliste Matchcode und Lagerplatz-Limit (v1.62.0, TS-95) + BDE Stufe 1: Werkbänke, AG-Fertigmeldung (v1.63.0, TS-96) + BDE-Terminal Liste nach Haupt-FA, Scan ohne AG (v1.64.0, TS-97) + Spaltenauswahl/Zahnrad zentraler Toolbar-Host (v1.65.0, TS-98) + Hardware-Barcodescanner (v1.66.0–v1.66.2, TS-99) + Vault- und enaio-Links konfigurierbar (v1.67.0, TS-100) + QR erstes Feld Matchcode / Trennzeichen (v1.68.0/v1.69.0, TS-101) + Aktivitäts-Protokoll Spaltenfilter/Namen (v1.70.0, TS-102) + FA-Struktur live aus Sage (v1.71.0, TS-103) + Lagerplatz-Etikett 93 × 55 mm und Vormontage-Felder (v1.72.0, TS-104/TS-105) + Sage-Abgleich über SData (v1.73.0, TS-106) + Fehlteile „Nur meine Werkbänke“ Trefferzahl (v1.75.0, TS-108) + Bestandsübersicht QR-FA nur mit `QrMitFaNummer` (v1.76.0, TS-101.22–101.25) + Einstellungen Auswahlfelder und Beschreibung (v1.77.0, TS-109) + EAN-Scan Einkaufsartikel (v1.78.0, TS-110) + Bereinigungen nach dem Bündel 2026-11-07 (v1.79.0, TS-111) + Artikelinfo Lieferanten (v1.80.0, TS-112) + Fehlteile-Karte je Bestelltyp (v1.81.0, TS-113) + Wareneingang zu Sage-Bestellung (v1.84.0, TS-116) + Artikel Lieferanten/Mengeneinheiten (v1.85.0, TS-112.12–112.16) + Offene Bestellungen Nachbesserung (v1.86.0, TS-116.8/116.9) + Lager-Tools FA-Verknüpfung (v1.87.0, TS-115) + Kommissionieraufträge (v1.88.0, TS-120) + Kommissionieraufträge Nachbesserung (v1.89.0, TS-120.1/120.9/120.13/120.14) + Lager-Tools FA-Karte je Pflicht (v1.90.0, TS-115.3) + Offene Bestellungen Legende (v1.91.0, TS-116.8) + OSEON-Relevanzfilter/BDE-Checkboxen (v1.92.0, TS-121) + Meldebestand-Mail Bestandsregel (v1.93.0, TS-122) + Menüleiste Umbruch/Kontrast (v1.94.0, TS-123) + Nachbesserung Vorab-Abnahme (v1.95.0, TS-115.13/115.14/116.10/120.15) + Übernahme AKE-Hotfixes v1.30.2–1.30.4 (v1.96.0, TS-107, TS-124) + Auftrag drucken in Sortierreihenfolge (v1.97.0, TS-120.16) + Matchcode in der Kommissionier-Auftragsliste (v1.99.8, TS-120.17) + Update-Skript je Zielsystem (v1.98.0, TS-125) + Update-Skript Url-Vorrang und Dienst-Stopp-Limit (v1.98.1, TS-125.17/125.18) + Update-Skript prüft und führt aus, mit Bestätigung (v1.99.0–v1.99.2, TS-126) + Update-Skript Prüfung Mail-Ablageordner (v1.99.12, TS-126.28–126.31) + Vormontage Spalte Abteilung (v1.99.3, TS-127) + Wareneingang Sage-Wareneingangsbeleg und Lieferschein (v1.99.4–v1.99.6, TS-116.11–116.19) + Sage-Wareneingang automatisch wiederholen mit Sage-Prüfung, Klären (v1.99.7, TS-116.20–116.24) + System-Kürzel in den Sage-Kennungen WE#/SM# (v1.99.9, TS-116.25–116.30) + Lieferverzug-Mails (v1.99.10, TS-128) + Wareneingang Barcode und CSV-Übergabe (v1.99.11, TS-129) + Bugfixes AKE-Regression: Filter in Anführungszeichen, Bedarfsmeldung Ortszeit, Auftragsdruck Lagerplatz, Wagen-Modal (v1.99.13, TS-130) + Register Sage-Test und SData-Zugangsdaten (v1.99.14, TS-131) + Rahmenabrufe in Offene Bestellungen und Wareneingang (v1.99.15, TS-132)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*

@@ -46,12 +46,26 @@
         <div class="card-body py-2">
             <dl class="row mb-0">
                 <dt class="col-sm-3 fw-normal text-muted">Bestellung</dt>
-                <dd class="col-sm-9 fw-semibold">@Model.Belegnummer</dd>
+                <dd class="col-sm-9 fw-semibold">@Model.Belegnummer
+                    @if (Model.Rahmenabruf)
+                    {
+                        @* v1.99.15 (Teil 3, F3): Text-Badge, Farbe nie allein *@
+                        <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle ms-1">Rahmenabruf</span>
+                    }
+                </dd>
                 <dt class="col-sm-3 fw-normal text-muted">Lieferant</dt>
                 <dd class="col-sm-9">@Model.LieferantText</dd>
                 <dt class="col-sm-3 fw-normal text-muted">Liefertermin</dt>
                 <dd class="col-sm-9">@(Model.Liefertermin?.ToString("dd.MM.yyyy") ?? "ohne Termin")</dd>
             </dl>
+            @if (Model.Rahmenabruf)
+            {
+                <p class="small mb-0 mt-1">Offen = Abrufmenge; in Sage direkt gebuchte Abruf-Lieferungen zieht das WMS nicht ab.</p>
+                @if (Model.AbrufOhneSageWe)
+                {
+                    <p class="small mb-0">Rahmenabruf: Wareneingang geht als Lagerbuchung an Sage; der Einkauf schließt den Abruf in Sage von Hand.</p>
+                }
+            }
         </div>
     </div>
 
@@ -85,6 +99,7 @@
                 </div>
                 <div id="barcodeHilfe" class="form-text">@(Model.SageWeAktiv
                     ? "Optional: Aufkleber scannen. Nur Buchstaben, Ziffern, - und _, höchstens 50 Zeichen. Nach der Übergabe an Sage entsteht daraus die CSV-Datei."
+                    : Model.AbrufOhneSageWe ? IdealAkeWms.Services.SageWareneingang.AbrufOhneSageWeText
                     : "Sage-Wareneingang ist aus – für diese Buchung entsteht keine CSV-Datei.")</div>
             </div>
         }

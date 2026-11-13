@@ -794,8 +794,8 @@ C:\Services\IDEALAKEWMSService\
 > Warnung). Zuordnungen, die Sage nicht mehr liefert, werden entfernt (ohne zuordenbare Zeile nichts). Läuft nach Artikel- und
 > Kreditoren-Abgleich; Lauf „Artikel-Lieferanten-Abgleich (Sage)“. Keine Oberfläche.
 > **`Sync:EinkaufBestellungenEnabled`** (v1.84.0, Default `false`, Migration `SQL/112`/`SQL/113`): liest offene Positionen normaler
-> Sage-Bestellungen (`EinkaufPositionenInfo`, nur `EBB`, Mengen in der Basiseinheit) in den Cache `SagePurchaseOrderLines` (je Lauf ersetzt,
-> Empty-Guard), ordnet Artikel/Kreditor/Lagerplatz zu (fehlende = Warnung). Lauf „Offene Bestellungen (Sage)“, nach dem Artikel-Lieferanten-Abgleich.
+> Sage-Bestellungen (`EinkaufPositionenInfo`, `EBB`; seit v1.99.15 auch Rahmenabrufe `EBZ` mit der Abrufmenge `MengeBasis`, je eine
+> Abfrage, Mengen in der Basiseinheit) in den Cache `SagePurchaseOrderLines` (je Lauf ersetzt, Empty-Guard je Belegart), ordnet Artikel/Kreditor/Lagerplatz zu (fehlende = Warnung). Lauf „Offene Bestellungen (Sage)“, nach dem Artikel-Lieferanten-Abgleich.
 > Liest nur. Oberfläche: Lager → Offene Bestellungen / Wareneingang zu Bestellung (AppSetting `WareneingangBestellungAktiv`).
 > **Übergabe WMS → Sage (E9, Migration `SQL/107`, kein Schalter, kein Worker):** Im WMS neu angelegte Lagerplätze und BDE-Mitarbeiter
 > stehen auf `SageUebergabeStatus = Offen` und bekommen eine Zeile in `SageStammdatenOutbox`; **gesendet wird nichts** (es gibt noch keinen

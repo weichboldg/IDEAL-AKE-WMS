@@ -9,6 +9,22 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.99.15</strong> <span class="text-white-50 ms-2">13.11.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>Wareneingang: Rahmenabrufe (nur AKE)</h6>
+                <ul>
+                    <li><strong>Offene Bestellungen und Wareneingang zu Bestellung</strong> zeigen jetzt auch Rahmenabrufe aus Sage, gekennzeichnet mit &bdquo;Rahmenabruf&ldquo; (Spalte Hinweis bzw. Kopf der Maske). Ein Abruf lässt sich wie eine Bestellung per Belegnummer öffnen, scannen und einbuchen.</li>
+                    <li><strong>Offen</strong> = Abrufmenge minus im WMS erfasste Menge. &bdquo;geliefert (Sage)&ldquo; zeigt bei Abrufen &bdquo;&ndash;&ldquo;, weil Sage die gelieferte Menge nur für den ganzen Rahmen führt. In Sage direkt gebuchte Abruf-Lieferungen zieht das WMS nicht ab.</li>
+                    <li>Im WMS vollständig erfasste Abrufe sind in &bdquo;Offene Bestellungen&ldquo; ausgeblendet; die Zahl steht über der Tabelle, der Filter &bdquo;auch im WMS vollständig erfasste Abrufe&ldquo; zeigt sie.</li>
+                    <li>Abrufe gehen als <strong>Lagerbuchung</strong> an Sage (auch bei eingeschaltetem Sage-Wareneingang); der Einkauf schließt den Abruf in Sage von Hand. Das Barcode-Feld ist bei Abrufen gesperrt.</li>
+                    <li><strong>Lieferverzug-Mail:</strong> überfällige Abrufe stehen mit dem Liefertermin des Abrufs in der Sammelliste und in der Kreditor-Mail; &bdquo;Geliefert&ldquo; zeigt &bdquo;&ndash;&ldquo;.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.99.14</strong> <span class="text-white-50 ms-2">13.11.2026</span>
             </div>
             <div class="card-body">

@@ -325,5 +325,8 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
 @{ Id='v1.99.14-SageTestInfo'; Version='1.99.14'; Typ='Info'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
    Text='Menuepunkt FA-Struktur (Sage live) entfaellt; Admins: Einstellungen > Reiter Sage-Test. Anwender informieren, falls sie die Seite genutzt haben.'
    Quelle='2026-11-13-v1-99-14-sdata-teil-2-userfelder-stueckliste' }
+@{ Id='v1.99.15-Rahmenabrufe'; Version='1.99.15'; Typ='Info'; Firma='AKE'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Text='Einkauf und Lager informieren: Rahmenabrufe (EBZ) stehen jetzt in Offene Bestellungen und Wareneingang. Offen = Abrufmenge minus im WMS erfasst; in Sage direkt gebuchte Abruf-Lieferungen zieht das WMS nicht ab. Abrufe sind auch in den Lieferverzug-Mails. Abrufe gehen als Lagerbuchung, Einkauf schliesst in Sage von Hand (kein Sage-Wareneingang, auch wenn SageWareneingangBelegAktiv an ist; Barcode/CSV fuer Abrufe gesperrt). Nach dem Deploy einen Abgleich Offene Bestellungen (Sage) laufen lassen.'
+   Quelle='2026-11-13-v1-99-15-wareneingang-teil-3-rahmenabrufe' }
 )
 }

@@ -25,7 +25,7 @@
 else
 {
     <p class="text-body-secondary small mb-2">
-        Stand: @Model.Stand.Value.ToString("dd.MM.yyyy HH:mm") · nur normale Bestellungen (EBB) · Mengen in der Basiseinheit ·
+        Stand: @Model.Stand.Value.ToString("dd.MM.yyyy HH:mm") · Bestellungen (EBB) und Rahmenabrufe (EBZ); bei Abrufen: offen = Abrufmenge, abzüglich im WMS erfasster Mengen · Mengen in der Basiseinheit ·
         Liefertermin bis @Model.HorizontBis.ToString("dd.MM.yyyy"), überfällige und ohne Termin immer dabei
     </p>
 }
@@ -65,6 +65,13 @@ else
                     <label class="form-check-label small" for="nurUeberfaellig">nur überfällig</label>
                 </div>
             </div>
+            @* v1.99.15 (Teil 3, F3): im WMS vollständig erfasste Rahmenabrufe (Rest 0) sind standardmäßig ausgeblendet. *@
+            <div class="col-12 col-md-3">
+                <div class="form-check">
+                    <input type="checkbox" class="form-check-input" id="auchErfassteAbrufe" name="auchErfassteAbrufe" value="true" @(Model.AuchErfassteAbrufe ? "checked" : "") />
+                    <label class="form-check-label small" for="auchErfassteAbrufe">auch im WMS vollständig erfasste Abrufe</label>
+                </div>
+            </div>
             <div class="col-12 d-flex gap-2">
                 <button type="submit" class="btn btn-sm btn-primary">Filtern</button>
                 <a asp-action="Index" class="btn btn-sm btn-outline-secondary">Zurücksetzen</a>
@@ -75,6 +82,14 @@ else
 
 <p class="small mb-1"><span class="badge bg-danger-subtle text-danger-emphasis border border-danger-subtle">rot hinterlegt</span>@* v1.91.0 (N-1): Zeilenton wie table-danger, dunkler Text *@
     = überfällig (Liefertermin vor heute); der Text steht zusätzlich in der Spalte „Hinweis“.</p>
+@if (Model.AusgeblendeteAbrufe > 0)
+{
+    @* v1.99.15 (Teil 3, F3): melden statt still ausblenden *@
+    <div class="alert alert-info py-2 small" role="status">
+        @Model.AusgeblendeteAbrufe @(Model.AusgeblendeteAbrufe == 1 ? "Rahmenabruf" : "Rahmenabrufe") im WMS vollständig erfasst – ausgeblendet.
+        Anzeigen mit dem Filter „auch im WMS vollständig erfasste Abrufe“.
+    </div>
+}
 @* v1.95.0 (Abnahme B5.1): Toolbar-Host fuer das Zahnrad (Spaltenauswahl, Katalog ColumnDefinitions.PurchaseOrders) *@
 <div class="d-flex justify-content-end mb-1" data-table-toolbar></div>
 <div class="table-responsive">
@@ -108,7 +123,14 @@ else
                     <td>@l.Artikelnummer</td>
                     <td>@l.Bezeichnung1</td>
                     <td class="text-end">@l.MengeBestellt.ToString("0.###")</td>
-                    <td class="text-end">@l.MengeGeliefert.ToString("0.###")</td>
+                    @if (l.IstRahmenabruf)
+                    {
+                        <td class="text-end" title="@IdealAkeWms.Controllers.PurchaseOrdersController.GeliefertAbrufTitel"><span aria-hidden="true">–</span><span class="visually-hidden">@IdealAkeWms.Controllers.PurchaseOrdersController.GeliefertAbrufTitel</span></td>
+                    }
+                    else
+                    {
+                        <td class="text-end">@l.MengeGeliefert.ToString("0.###")</td>
+                    }
                     <td class="text-end">@l.MengeOffen.ToString("0.###")</td>
                     <td class="text-end">@r.ImWmsErfasst.ToString("0.###")</td>
                     <td>@l.MengeBasiseinheit</td>

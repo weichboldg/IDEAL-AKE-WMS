@@ -66,7 +66,7 @@
                     <dt>Offene Bestellungen und Wareneingang zu Bestellung (seit v1.84.0)</dt>
                     <dd>
                         Voraussetzung: Einstellung <em>&bdquo;Wareneingang zu Sage-Bestellungen&ldquo;</em> an (<code>WareneingangBestellungAktiv</code>)
-                        und der Dienst-Abgleich <code>Sync:EinkaufBestellungenEnabled</code> (liest die offenen Positionen normaler Sage-Bestellungen,
+                        und der Dienst-Abgleich <code>Sync:EinkaufBestellungenEnabled</code> (liest die offenen Positionen normaler Sage-Bestellungen und Rahmenabrufe,
                         braucht Kreditoren- und Lagerplatz-Abgleich).
                         <ol class="mb-1">
                             <li><em>Lager &rarr; Offene Bestellungen</em>: Positionen mit Liefertermin bis heute + X Wochen (Einstellung
@@ -83,7 +83,7 @@
                         Mengen in der Basiseinheit. Nicht buchbar (mit Text in der Zeile): Artikel nicht im WMS, Bestell- oder Basiseinheit ≠ Lagereinheit.
                         Rot hinterlegt = überfällig. Ist der Sage-Lagerplatz im WMS nicht buchbar, steht das als Hinweis an der Zeile.
                         &bdquo;Lieferant gesperrt&ldquo; ist ein Hinweis aus Sage, Buchen bleibt möglich. Die Bestellposition in Sage schließt der Einkauf
-                        (ohne zweite Lagerbuchung). Rahmenabrufe werden (noch) nicht angezeigt.
+                        (ohne zweite Lagerbuchung).
                         <br />
                         <strong>Seit v1.99.4:</strong> Oben in der Maske steht das Feld <em>&bdquo;Lieferschein-Nr. (Lieferant)&ldquo;</em> (höchstens
                         20 Zeichen; Pflicht nur mit der Einstellung <code>WareneingangLieferscheinPflicht</code>). Ist der Dienst-Schalter
@@ -113,6 +113,16 @@
                         Service-Einstellungen &bdquo;Wareneingang-CSV&ldquo;; eine vorhandene Datei wird nie überschrieben. Den Stand zeigt die Spalte &bdquo;CSV&ldquo;
                         der Sage-Wareneingänge (wartet / offen / geschrieben / Fehler). Netzfehler wiederholt der Dienst selbst (Standard 3-mal, frühestens nach
                         15 Minuten); danach und bei &bdquo;Datei existiert bereits&ldquo; auf der Freigabe nachsehen und <em>CSV erneut schreiben</em>.
+                        <br />
+                        <strong>Rahmenabrufe (seit v1.99.15):</strong> Neben normalen Bestellungen (EBB) stehen auch Rahmenabrufe (EBZ) in beiden Masken &ndash;
+                        in der Spalte &bdquo;Hinweis&ldquo; als &bdquo;Rahmenabruf&ldquo; (über den Spaltenfilter auffindbar), im Kopf der Wareneingangsmaske als
+                        Kennzeichen &bdquo;Rahmenabruf&ldquo;. Offen = Abrufmenge minus im WMS erfasste Menge; &bdquo;geliefert (Sage)&ldquo; zeigt &bdquo;&ndash;&ldquo;,
+                        weil Sage die gelieferte Menge nur für den ganzen Rahmen führt. <strong>Grenze:</strong> Eine Abruf-Lieferung, die in Sage direkt
+                        (ohne WMS) gebucht wurde, zieht das WMS nicht ab &ndash; der Abruf bleibt offen, bis der Rahmen in Sage endet. Im WMS vollständig
+                        erfasste Abrufe sind in <em>Offene Bestellungen</em> ausgeblendet (die Zahl steht über der Tabelle); der Filter
+                        &bdquo;auch im WMS vollständig erfasste Abrufe&ldquo; zeigt sie. Abrufe gehen <strong>nicht</strong> als Sage-Wareneingang an Sage, auch
+                        wenn <code>SageWareneingangBelegAktiv</code> an ist: Sie gehen wie Teil 1 als Lagerbuchung (an Sage-Plätzen), der Einkauf schließt den
+                        Abruf in Sage von Hand, jeder aktive Platz ist wählbar und das Barcode-Feld ist gesperrt (keine CSV-Datei).
                     </dd>
 
                     <dt>Erinnerungs-Mails bei Lieferverzug (seit v1.99.10)</dt>
@@ -124,7 +134,9 @@
                             <li><strong>Verzögert</strong> ist eine Position, wenn heute mindestens <em>Tage nach Liefertermin</em> (Standard 3,
                                 Kalendertage) nach dem Liefertermin liegt und noch ein Rest offen ist &ndash; derselbe Rest wie in
                                 <em>Wareneingang zu Bestellung</em>, also abzüglich im WMS erfasster, noch nicht in Sage enthaltener Mengen. Positionen ohne
-                                Liefertermin und Rahmenabrufe nie.</li>
+                                Liefertermin nie. Rahmenabrufe (seit v1.99.15) mit dem Liefertermin des Abrufs, in der Sammelliste und in der
+                                Kreditor-Mail; &bdquo;Geliefert&ldquo; zeigt bei ihnen &bdquo;&ndash;&ldquo;. In Sage direkt gebuchte Abruf-Lieferungen zieht das
+                                WMS nicht ab &ndash; ein so gelieferter Abruf kann deshalb weiter erinnert werden.</li>
                             <li><strong>Wann:</strong> Montag bis Freitag im ersten Sync-Lauf ab <em>Versand ab (Uhr)</em> (Standard 7), höchstens einmal am
                                 Tag, auch nach einem Dienst-Neustart. Feiertage zählen als Versandtag.</li>
                             <li><strong>Sammelliste an den Einkauf:</strong> alle verzögerten Positionen nach Lieferant, je Lieferant eine Zeile

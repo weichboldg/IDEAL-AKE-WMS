@@ -5,7 +5,8 @@ using IdealAkeWms.Services;
 namespace IDEALAKEWMSService.Services;
 
 // v1.99.4 (Spec 2026-11-08-wareneingang-teil-2-sage-we-beleg-rahmenabrufe F2/E4): Request an $service/StandardBelegService (Vertrag
-// CommonWawiServices, Brain sage-sdata-commonwawiservices "StandardBelegService"). Belegübernahme Bestellung (EBB) -> Wareneingang (ELL).
+// CommonWawiServices, Brain sage-sdata-commonwawiservices "StandardBelegService"). Belegübernahme Bestellung (EBB) -> Wareneingang (ELL);
+// Rahmenabrufe (EBZ) erst nach dem Schreibtest E2 (SageWareneingang.RahmenabrufMitSageWe, v1.99.15), sonst NichtNoetig.
 // LESART DER SCHEMA-DOKU: welche Positions-Handles bei einer Übernahme zu belegen sind und ob Kurzbezeichnung die Lagerkennung oder die
 // Platz-Kurzbezeichnung erwartet, ist unbelegt (Spec "Prüfschritte", Schreibtest). Der Schreibtest legt das fest; Felder bewusst minimal.
 
