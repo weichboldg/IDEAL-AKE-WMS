@@ -50,7 +50,7 @@ Grenzen: nichts an Sage schreiben, keine Mails an externe Adressen (Lieferverzug
 - **Einkauf Bestellvorschläge v1.99.20 Testbereit für E0/E1/E2/E4/E6** (`f5209692`, `31ae0d69`, `9b63dfc6`, `f5f6bd5b`, QA `cf3f41cb`; TS-136).
   Keine Migration; SQL/148 + 149 frei. **Blocker:** E3 (A3 Leseweise letzte Bestellmenge – Gerald), E5 (Dispo-Stapel schreibt an Sage – gewollt).
 - Publish `<Worktree>\publish` = v1.99.20 `cf3f41cb`. Nächste freie SQL 148, nächstes TS-Kapitel TS-137.
-- Kein Sage-POST/PUT/DELETE (nur GETs mit `where`/`orderBy`), keine Mail per SMTP (nur `.eml` in `D:\Dev\mail-pickupke`), keine Prod-DB, kein Merge,
+- Kein Sage-POST/PUT/DELETE (nur GETs mit `where`/`orderBy`), keine Mail per SMTP (nur `.eml` in `D:\Dev\mail-pickup\ake`), keine Prod-DB, kein Merge,
   im Lauf kein Push (Push `d9e4c89e` vorher auf Geralds Anweisung).
 - **Offen für Gerald:** Schranke 2 je Spec (Checklisten am Spec-Ende); Limit-Entscheidung P-L1 (96–99 Kreditoren > `KreditorMaxJeLauf` 30);
   Durchsicht „Zu klären“ mit dem Einkauf + P-L2–P-L4; Mailclient-Darstellung (breitere Tabellen); E3-Leseweise (A3: Fenster + Nachlesen je Artikel /
