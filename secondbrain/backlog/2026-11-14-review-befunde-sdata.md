@@ -26,6 +26,7 @@ Pfade relativ zum Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5/`.
 - **Vorschlag:** Gespeicherte Zugangsdaten nur verwenden, wenn die Formular-Adresse (Schema+Host+Port) dem gespeicherten `SData:BaseUrl`
   entspricht; sonst Kennwort-Eingabe verlangen. Zusätzlich gespeicherte Zugangsdaten nie über `http://` senden. ADR 0024 „Nie im Klartext“ um
   diesen Weg ergänzen.
+- **DEV-Nachmessung 2026-11-14:** auf DEV nicht reproduzierbar, Befund bleibt. Verbindungstest an lokalen Listener `http://127.0.0.1:9123/` mit leerem Kennwortfeld: Authorization-Header vorhanden: **nein** – AKE-DEV hat im Web keine gespeicherten Zugangsdaten („Zugangsdaten: keine gespeicherten Zugangsdaten“, `SData:Username` leer). Mit gesetztem `SData:Password` ginge er laut Code mit; Live-Beleg erst nach Eintragen der Zugangsdaten (Gerald). ([[04-uebrige-module]])
 
 ## SD-2 – Freie SData-Abfragen im Register umgehen die where-/orderBy-Sperre
 - **Schwere:** niedrig (nur Admin, nur GET)
@@ -52,6 +53,7 @@ Pfade relativ zum Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5/`.
 - **Prüfabfrage (Mensch, DEV):** `SELECT collation_name FROM sys.columns WHERE object_id = OBJECT_ID('dbo.ServiceSettings') AND name = 'Key';`
   (CI → Befund trifft zu).
 - **Vorschlag:** `IstGeheim` mit `StringComparison.OrdinalIgnoreCase` gegen den Katalog prüfen (eine Zeile).
+- **DEV-Nachmessung 2026-11-14:** trifft zu. `ServiceSettings.Key` hat auf AKE-DEV und IDEAL-DEV die Kollation `Latin1_General_CI_AS` (Prüfabfrage gelaufen, Freitext-Weg selbst nicht ausgeführt). ([[04-uebrige-module]])
 
 ## SD-4 – Prüfung „SDataKennwortAppsettings“ sieht nur die Dienst-Datei
 - **Schwere:** niedrig
@@ -60,6 +62,7 @@ Pfade relativ zum Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5/`.
   Dienst-Datei; der Text verweist auf die Web-Datei, aber eine dort verbliebene Klartext-Zeile zeigt nie „Abweichung“. Das Web liest den
   Rückfall (`SdataZugangsdaten.Aufloesen:82-85`) weiter aus der Web-Datei.
 - **Vorschlag:** Zweite Prüfung (oder `Appsettings` mit Ort `Web`) für `SageLagerbuchung:Password` in den Web-appsettings.
+- **DEV-Nachmessung 2026-11-14:** bestätigt. `-NurPruefen` auf AKE-DEV und IDEAL-DEV meldet nur „Klartext in D:\Dev\…\Service\appsettings.DEV.json“; die Web-Datei wird nicht betrachtet. ([[04-uebrige-module]])
 
 ## SD-5 – Install-Skript schreibt das SData-Kennwort weiterhin im Klartext in beide appsettings
 - **Schwere:** mittel (Geheimnis im Klartext bei jeder Neuinstallation)
@@ -92,3 +95,11 @@ Pfade relativ zum Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5/`.
   `KontokorrentSyncService`, `StillstandsgruendeSyncService`, `ArtikelLieferantSyncService`) gesetzt, `DateTime.Now`.
 - Tests: gezielter Lauf `dotnet test IdealAkeWms.Tests` (Filter Zeitstempel/Manifest/Katalog/Spaltenfilter/Sage-Test/ServiceSettings):
   261 bestanden, 0 Fehler (2026-11-13).
+
+## Nachtrag aus der DEV-Regression B4 ([[04-uebrige-module]])
+
+### N-B4-4 – IDEAL-DEV zeigt mit `SData:BaseUrl` auf den AKE-Test (Hinweis, nur DEV)
+- **Befund:** `IDEAL_WMS_DEV.ServiceSettings`: `SData:BaseUrl = https://sagetest01.ake.at:5493/`, `SData:Dataset = ake_TEST2026;1`. Die
+  TS-131-Vorbedingung lautet „IDEAL-DEV ohne SData:BaseUrl“. Ohne Zugangsdaten passiert nichts; sobald dort Zugangsdaten eingetragen werden, liest
+  IDEAL-DEV im Register Sage-Test (und in `Vergleich`/`SData`-Läufen) AKE-Daten.
+- **Vorschlag:** Auf IDEAL-DEV leeren (Gerald); in der DEV-Einrichtung festhalten.

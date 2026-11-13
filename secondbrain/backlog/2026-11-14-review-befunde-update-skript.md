@@ -27,6 +27,7 @@ Install-Skript-Befund zum SData-Kennwort steht in [[2026-11-14-review-befunde-sd
   `StockMovement.ProductionOrderId`) steht nirgends mehr, Lauf meldet Erfolg. „Melden statt still behandeln“ verletzt.
 - **Vorschlag:** `deploy-info.txt` erst nach erfolgreichem Start (Schritt 6) schreiben **oder** für `Daten` den Versionsfilter fallen lassen
   (der Marker in `dbo.DeployScriptRuns` verhindert Doppelläufe ohnehin, ADR 0023). Pester-/Drift-Test für den Neustart-Fall.
+- **DEV-Nachmessung 2026-11-14:** im Code unverändert (`Update-IdealAkeWms.ps1:836-837` schreibt `deploy-info.txt` beim Kopieren, `:682-683` liest sie als installierte Version, `:268` `Test-Neuer`). `-NurPruefen` AKE-DEV zeigt den Versionsfilter („SQL/110: nicht faellig (eingefuehrt mit v1.87.0, installiert v1.99.22)“). Abbruch in Schritt 5/6 nur über einen Volllauf mit Stopp auslösbar → auf DEV nicht gefahrlos, nicht gemacht. ([[04-uebrige-module]])
 
 ## UP-2 – COMMIT im Daten-Skript beendet die äußere Transaktion samt Marker
 - **Schwere:** niedrig
@@ -43,6 +44,7 @@ Install-Skript-Befund zum SData-Kennwort steht in [[2026-11-14-review-befunde-sd
   Zeitzone der SQL-Server ausdrücklich „nicht belegt“. Der Marker nimmt die Server-Uhr; Anzeige „erledigt am …“ (Zeile 332) kann um die
   Zeitzonen-Differenz abweichen. Kein Fehlverhalten, nur Konventionsbruch.
 - **Vorschlag:** `@Jetzt = Get-Date` als Parameter, oder ADR-0025-Ausnahme dokumentieren.
+- **DEV-Nachmessung 2026-11-14:** im Code unverändert (`:336`); auf DEV ohne sichtbare Wirkung (SQL-Server = DEV-PC). ([[04-uebrige-module]])
 
 ## Geprüft ohne Befund
 - Prod-Schutz: `FIRMA-PROD` eintippen (case-sensitiv) je Prod-System vor dem Transcript (`:932-935`), Prod immer zuletzt (`:87`),

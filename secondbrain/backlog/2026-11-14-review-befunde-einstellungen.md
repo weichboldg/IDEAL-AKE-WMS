@@ -19,6 +19,7 @@ Geheim-Typ und `/ServiceSettings`-Freitextweg siehe [[2026-11-14-review-befunde-
   (gegengeprüft, auch `SData:Username/Password` über Konstanten), aber `ServiceSettingDefinitionsTests` prüft das nicht; ein neuer Key ohne
   `Meta` erscheint in `/ServiceSettings` still mit technischem Namen und „Dienst“.
 - **Vorschlag:** Test „jeder Katalog-Key hat einen Meta-Eintrag (und umgekehrt)“.
+- **DEV-Nachmessung 2026-11-14:** nicht messbar – in `/ServiceSettings` (AKE-DEV) kein Feld mit technischem Namen statt Anzeigename; Serverprüfung `/Settings` (99 bzw. erfundener Key) wirkt, nichts gespeichert. ([[04-uebrige-module]])
 
 ## Geprüft ohne Befund
 - Katalog-Drift: alle per String-Literal gelesenen Dienst-Keys (`ServiceSettings.Get*Async(…, "…")`, 58 Keys) stehen im Katalog; Drift-Test
@@ -39,3 +40,15 @@ Bündel-Migrationen (jede MigrationId in `SQL/NN_*.sql` und `00_FreshInstall.sql
   `IdealAkeWms/Views/FaHierarchyVormontage/Summiert.cshtml:133` (+ Spaltenköpfe): vermutlich „Fertigungsmenge“. Der Spaltenname
   `Fertigungmenge` stammt aus dem Modell/der Tabelle `FaHierarchy` (`SQL/89_AddFaHierarchy.sql:43`) – nur die Oberflächenbeschriftung wäre zu
   korrigieren, falls die Sage-Quelle nicht selbst so heißt (Prüfung Mensch).
+
+## Nachtrag aus der DEV-Regression B4 ([[04-uebrige-module]])
+
+### N-B4-1 – Hardware-Scanner-Teile erscheinen bei ausgeschaltetem Standort-Schalter
+- **Schwere:** niedrig
+- **Fundstelle:** `IdealAkeWms/Views/Shared/_Layout.cshtml:18-19,33`; Leser `IdealAkeWms/Views/Account/Profile.cshtml:206`,
+  `IdealAkeWms/wwwroot/js/barcode-scanner.js:113` (`hasAttribute('data-hw-scan-praefix')`)
+- **Befund:** Razor rendert `data-*`-Attribute auch bei `null` (leerer Wert); AKE-DEV mit Schalter aus: `<body data-hw-scan-praefix="" …>`.
+  „Mein Profil“ zeigt deshalb die Karte „Dieses Gerät – Hardware-Scanner auf diesem Gerät verwenden“, das Kamera-Fenster das Feld „Handscanner“,
+  obwohl `hardware-scanner.js` nicht geladen ist. TS-99.1a/101.16 („`<body>` ohne Attribut“) nicht erfüllt. ![[N-B4-1-hardware-scanner-karte-im-profil-bei-schalter-aus.jpg]]
+- **Vorschlag:** Leser auf nicht leeren Wert prüfen oder Attribute im Layout nur bei aktivem Schalter ausgeben; Wächter-Test „Layout bei
+  Schalter aus ohne `data-hw-scan-praefix=`“.

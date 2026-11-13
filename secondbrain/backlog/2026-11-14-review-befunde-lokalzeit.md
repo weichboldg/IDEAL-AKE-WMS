@@ -18,6 +18,7 @@ Gegenstand: `git diff main...HEAD` im Bündel-Worktree. Nichts behoben (Schranke
   Audit-Zeitstempel mit der SQL-Server-Uhr (Zeitzone laut ADR nicht belegt). Bereits als H-1 in [[2026-11-13-buendel-v1-99-16-goal-lauf]]
   vermerkt, aber ohne eigene Aufgabe.
 - **Vorschlag:** `@Jetzt = DateTime.Now` (SqlDbType.DateTime2) wie in den übrigen Dienst-Schreibern.
+- **DEV-Nachmessung 2026-11-14:** im Code unverändert (`OseonSyncService.cs:744,751`); auf DEV ohne Versatz (`ArticleCategories` „Lackierteile“ `ModifiedAt` 12.11. 19:34:12 zu Lauf 19:34:14), weil der SQL-Server der lokale PC ist. Stichprobe der übrigen Abendschreibzeiten (Freigaben, KO-Aufträge, Bedarfsmeldung 25, Receipts, Benutzer) in Ortszeit. ([[04-uebrige-module]])
 
 ## LZ-2 – Wächter erkennt GETDATE() im Dienst nicht
 - **Schwere:** Hinweis
@@ -26,6 +27,7 @@ Gegenstand: `git diff main...HEAD` im Bündel-Worktree. Nichts behoben (Schranke
   `GETDATE()` gibt es legitim (`BomCacheSyncService.cs:423`, `CoatingDetectionService.cs:108`, `OseonSyncService.cs:99`).
 - **Vorschlag:** Zweiter Fall im Wächter: `GETDATE\(\)` nur in `IDEALAKEWMSService/`, mit Ausnahmeliste für die drei lesenden Vergleiche
   (oder Muster `= GETDATE()`/`, GETDATE()` in INSERT/UPDATE).
+- **DEV-Nachmessung 2026-11-14:** bestätigt: `ZeitstempelKonventionTests.cs:25` Muster nur `UtcNow|GETUTCDATE|SYSUTCDATETIME`. ([[04-uebrige-module]])
 
 ## Geprüft ohne Befund
 - Kein `UtcNow`/`GETUTCDATE`/`SYSUTCDATETIME` außerhalb der Ausnahmeliste in `IdealAkeWms/` und `IDEALAKEWMSService/` (Wächter grün,
