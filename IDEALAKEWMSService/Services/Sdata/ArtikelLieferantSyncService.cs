@@ -11,6 +11,10 @@ public sealed record SdataArtikelLieferantZeile(string? Lieferant, string? Artik
     string? Bezeichnung2, decimal? Mindestbestellmenge, string? Einkaufsmengeneinheit, decimal? UmrechnungsfaktorEK, int? Wiederbeschaffungszeit,
     decimal? Einzelpreis, int? DezimalstellenEK = null, decimal? UmrechnungsfaktorVPEK = null);
 
+/// <summary>v1.99.21 E3: Zeile aus <c>EinkaufPositionenAllInfo</c> (Namen laut Vertrags-$schema, E0 P-L1 a; Belegdatum dateTime als Text).</summary>
+public sealed record SdataLetzteBestellungZeile(int? BelId, int? BelPosId, string? Belegkennzeichen, string? Belegdatum,
+    string? BelegnummerFormatiert, string? A0Empfaenger, string? Artikelnummer, decimal? MengeBasis);
+
 /// <summary>Zeile aus <c>ArtikelVariantenExtended</c> — nur der Hauptlieferant (Kto-Format, z. B. K31013).</summary>
 public sealed record SdataHauptlieferantZeile(string? Artikelnummer, string? Hauptlieferant);
 
@@ -38,6 +42,14 @@ public class ArtikelLieferantSyncService
     public const string OrderByVarianten = "Artikelnummer,AuspraegungID"; // AuspraegungID wie SdataArtikelReader (stabile Sortierung)
     // ponytail: 34.802 Zeilen am AKE-Test in grossen Seiten (wie SdataArtikelReader.SeitengroesseRessourcen).
     public const int Seitengroesse = 5000;
+
+    // v1.99.21 E3: Feldnamen aus dem Vertrags-$schema (E0 P-L1 a, 2026-11-13); nur mit where (SageSdataReadClient.NurMitWhere).
+    public const string RessourceLetzteBestellung = "EinkaufPositionenAllInfo";
+    public const string SelectLetzteBestellung = "BelId,BelPosId,Belegkennzeichen,Belegdatum,BelegnummerFormatiert,A0Empfaenger,Artikelnummer,MengeBasis";
+    public const string OrderByLetzteBestellung = "BelPosId";
+    /// <summary>Datum nur als <c>@yyyy-MM-dd@</c> (fallstricke §31: in Anfuehrungszeichen still 0 Treffer).</summary>
+    public static string WhereLetzteBestellung(string belegart, DateTime ab) =>
+        $"Belegkennzeichen eq '{belegart}' and Belegdatum ge @{ab.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)}@";
 
     private readonly ApplicationDbContext _ctx;
     private readonly ISageSdataReadClient _client;
@@ -164,8 +176,11 @@ public class ArtikelLieferantSyncService
 
             if (!dryRun) await _ctx.SaveChangesAsync(ct);
 
+            // v1.99.21 (E3): zweiter Leseschritt im selben Lauf; Lesefehler = Warnung, der Lauf bleibt erfolgreich.
+            var letzte = await LetzteBestellungAsync(run, ziel!, dryRun, artikel, kreditoren, now, ct);
+
             var uebersprungen = ohneSchluessel + doppelt + kreditorFehltZeilen;
-            await run.FinishSuccessAsync(new Dictionary<string, int>
+            await run.FinishSuccessAsync(new Dictionary<string, int>(letzte)
             {
                 ["gelesen"] = zeilen.Count,
                 ["neu"] = neu,
@@ -214,4 +229,113 @@ public class ArtikelLieferantSyncService
     }
 
     private static string? Text(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+
+    /// <summary>
+    /// v1.99.21 (Spec 2026-11-08-einkauf-bestellvorschlaege E3, Freigabe-Nachtrag 2): juengste Sage-Bestellposition je Artikel + Lieferant
+    /// (<c>A0Empfaenger</c> = Kto) aus <see cref="RessourceLetzteBestellung"/>, Belegarten EBB und EBZ (Antwort 12: der juengste Beleg gilt),
+    /// Rueckblick <see cref="ArticleSupplier.LetzteBestellungRueckblickJahre"/> Jahre. SData sortiert nach <c>BelPosId</c>, nicht nach Datum
+    /// (E0) – deshalb alle Seiten lesen und clientseitig nach Belegdatum↓, BelId↓, BelPosId↓ waehlen. Abgelegt nur an vorhandenen
+    /// <see cref="ArticleSupplier"/>-Zeilen; ohne Treffer im Rueckblick werden gespeicherte Werte geleert. Lesefehler oder EBB leer:
+    /// Warnung, nichts geaendert. Menge = <c>MengeBasis</c> (Basiseinheit, P-L2 c); die Einheiten-Sperre Basis ≠ Lager prueft die Liste.
+    /// </summary>
+    private async Task<Dictionary<string, int>> LetzteBestellungAsync(ISyncRun run, SdataLeseZiel ziel, bool dryRun,
+        IReadOnlyDictionary<string, int> artikel, IReadOnlyDictionary<string, int> kreditoren, DateTime now, CancellationToken ct)
+    {
+        var ab = now.Date.AddYears(-ArticleSupplier.LetzteBestellungRueckblickJahre);
+        var zeilen = new List<SdataLetzteBestellungZeile>();
+        var jeArt = new Dictionary<string, int>();
+        try
+        {
+            foreach (var art in EinkaufBestellungenSyncService.Belegarten)
+            {
+                var seiten = await _client.QueryAllAsync<SdataLetzteBestellungZeile>(ziel, SageSdataReadClient.VertragResources,
+                    RessourceLetzteBestellung, WhereLetzteBestellung(art, ab), SelectLetzteBestellung, OrderByLetzteBestellung, ct,
+                    EinkaufBestellungenSyncService.Seitengroesse);
+                zeilen.AddRange(seiten.Zeilen);
+                jeArt[art] = seiten.Zeilen.Count;
+                await run.LogInfoAsync($"Letzte Bestellung {art}: {seiten.Zusammenfassung}", ct: ct);
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning(ex, "Letzte Bestellung aus Sage (SData) nicht lesbar.");
+            await run.LogWarningAsync(SdataSchluessel.Kappen($"Letzte Bestellung: {RessourceLetzteBestellung} nicht lesbar – gespeicherte Werte " +
+                $"bleiben unveraendert: {ex.Message}"), ct: ct);
+            return new() { ["letzte_bestellung_lesefehler"] = 1 };
+        }
+
+        var ebb = jeArt[EinkaufBestellungenSyncService.Bestellung];
+        if (ebb == 0)
+        {
+            // Bestellungen der letzten Jahre sind nie leer (AKE-Test: 36.288 Positionen in 3 Jahren) – 0 = Filter/Feld kaputt.
+            await run.LogWarningAsync($"Letzte Bestellung: {RessourceLetzteBestellung} liefert 0 Bestellpositionen " +
+                $"({WhereLetzteBestellung(EinkaufBestellungenSyncService.Bestellung, ab)}) – gespeicherte Werte bleiben unveraendert.", ct: ct);
+            return new() { ["letzte_bestellung_positionen"] = zeilen.Count };
+        }
+
+        int ohneDaten = 0, artikelFehlt = 0;
+        var juengste = new Dictionary<(int ArticleId, string Kto), (DateTime Am, int BelId, int BelPosId, decimal Menge, string? Beleg, string Nummer)>();
+        foreach (var z in zeilen)
+        {
+            var nummer = Text(z.Artikelnummer);
+            var kto = Text(z.A0Empfaenger)?.ToUpperInvariant();
+            var am = EinkaufBestellungenSyncService.Datum(z.Belegdatum);
+            if (nummer == null || kto == null || am == null || z.MengeBasis is not { } menge || z.BelId is not { } belId) { ohneDaten++; continue; }
+            if (!artikel.TryGetValue(nummer, out var articleId)) { artikelFehlt++; continue; }
+            var beleg = Text(z.BelegnummerFormatiert);
+            var neu = (Am: am.Value, BelId: belId, BelPosId: z.BelPosId ?? 0, Menge: Math.Round(menge, 3),
+                Beleg: beleg is { Length: > 45 } ? null : beleg, Nummer: nummer); // Spalte nvarchar(45) = Sage string(45)
+            if (!juengste.TryGetValue((articleId, kto), out var bisher)
+                || (neu.Am, neu.BelId, neu.BelPosId).CompareTo((bisher.Am, bisher.BelId, bisher.BelPosId)) > 0)
+                juengste[(articleId, kto)] = neu;
+        }
+
+        var lieferanten = _ctx.ArticleSuppliers.Local.GroupBy(s => (s.ArticleId, s.CreditorId)).ToDictionary(g => g.Key, g => g.First());
+        var getroffen = new HashSet<ArticleSupplier>();
+        var ohneZuordnung = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
+        int ohneZuordnungZahl = 0, aktualisiert = 0, geleert = 0;
+        void Audit(ArticleSupplier s) { s.ModifiedAt = now; s.ModifiedBy = ServiceUser; s.ModifiedByWindows = ServiceUser; }
+        foreach (var ((articleId, kto), w) in juengste)
+        {
+            if (!kreditoren.TryGetValue(kto, out var creditorId) || !lieferanten.TryGetValue((articleId, creditorId), out var s))
+            {
+                ohneZuordnungZahl++;
+                ohneZuordnung.Add($"{w.Nummer}/{kto}");
+                continue;
+            }
+            getroffen.Add(s);
+            if (Setzen(s, w.Menge, w.Am, w.Beleg)) { aktualisiert++; Audit(s); }
+        }
+        foreach (var s in lieferanten.Values.Where(s => !getroffen.Contains(s)))
+            if (Setzen(s, null, null, null)) { geleert++; Audit(s); }
+
+        if (ohneDaten > 0)
+            await run.LogWarningAsync($"Letzte Bestellung: {ohneDaten} Position(en) ohne Artikelnummer, Lieferant, Belegdatum, BelId oder MengeBasis uebersprungen.", ct: ct);
+        if (artikelFehlt > 0)
+            await run.LogInfoAsync($"Letzte Bestellung: {artikelFehlt} Position(en) zu Artikeln, die es im WMS nicht gibt — nicht uebernommen.", ct: ct);
+        if (ohneZuordnungZahl > 0)
+            await run.LogWarningAsync(SdataSchluessel.Kappen($"Letzte Bestellung: {ohneZuordnungZahl} Artikel/Lieferant ohne Artikel-Lieferant-Zeile " +
+                $"im WMS – nicht abgelegt: {string.Join(", ", ohneZuordnung.Take(20))}"), ct: ct);
+        if (!dryRun) await _ctx.SaveChangesAsync(ct);
+
+        return new()
+        {
+            ["letzte_bestellung_positionen"] = zeilen.Count,
+            ["letzte_bestellung_positionen_ebz"] = jeArt[SagePurchaseOrderLine.KennzeichenRahmenabruf],
+            ["letzte_bestellung_gefunden"] = juengste.Count,
+            ["letzte_bestellung_aktualisiert"] = aktualisiert,
+            ["letzte_bestellung_geleert"] = geleert,
+            ["letzte_bestellung_ohne_zuordnung"] = ohneZuordnungZahl,
+            ["letzte_bestellung_uebersprungen"] = ohneDaten,
+        };
+    }
+
+    private static bool Setzen(ArticleSupplier s, decimal? menge, DateTime? am, string? beleg)
+    {
+        if (s.LetzteBestellmenge == menge && s.LetzteBestellungAm == am && s.LetzteBestellungBeleg == beleg) return false;
+        s.LetzteBestellmenge = menge;
+        s.LetzteBestellungAm = am;
+        s.LetzteBestellungBeleg = beleg;
+        return true;
+    }
 }

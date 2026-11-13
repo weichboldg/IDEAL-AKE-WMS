@@ -6,7 +6,7 @@ namespace IdealAkeWms.Models;
 /// </summary>
 public sealed record ArticleSupplierRow(int CreditorId, string Name, string? SageKto, bool IsActive, string? SageBestellnummer,
     decimal? Mindestbestellmenge, string? Einkaufsmengeneinheit, int? Wiederbeschaffungszeit, bool IstHauptlieferant,
-    decimal? UmrechnungsfaktorEK = null);
+    decimal? UmrechnungsfaktorEK = null, decimal? LetzteBestellmenge = null, DateTime? LetzteBestellungAm = null, string? LetzteBestellungBeleg = null);
 
 /// <summary>v1.85.0 Nachbesserung 2: eine Zeile der Karte „Artikel dieses Lieferanten“ (Kreditor-Details).</summary>
 public sealed record LieferantArtikelRow(string ArticleNumber, string? Description, string? SageBestellnummer, decimal? Mindestbestellmenge,

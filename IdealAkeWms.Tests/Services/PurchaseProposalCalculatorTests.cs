@@ -95,4 +95,19 @@ public class PurchaseProposalCalculatorTests
         R(60m, 85m, l: 50m, anderer: "Muster GmbH").Hinweise.Should().Equal("letzte Bestellung bei Muster GmbH");
         R(60m, 85m, l: 50m).Hinweise.Should().BeEmpty();
     }
+
+    [Fact]
+    public void Fallback_SageBestellmenge_NurOhneL_MitErhoehungUndHinweis_Nachtrag2()
+    {
+        static PurchaseProposalResult F(decimal bestand, decimal? l, decimal? sage) =>
+            PurchaseProposalCalculator.Berechne(new PurchaseProposalInput(bestand, 0m, 0m, 85m, l, FallbackSageBestellmenge: sage));
+        var r = F(60m, null, 100m);
+        (r.Vorschlag, r.Grund, r.Fallback).Should().Be(((decimal?)100m, PurchaseProposalCalculator.GrundSageBestellmenge, true));
+        r.Hinweise.Should().Equal(PurchaseProposalCalculator.HinweisFallback);
+        PurchaseProposalCalculator.HinweisFallback.Should().Be("Fallback: Sage-Bestellmenge (keine Bestellung in 3 Jahren)");
+        var hoch = F(0m, null, 40m); // F = 85 -> (⌊85/40⌋+1)×40 = 120
+        (hoch.Vorschlag, hoch.Grund).Should().Be(((decimal?)120m, "3 × " + PurchaseProposalCalculator.GrundSageBestellmenge));
+        F(60m, 50m, 100m).Should().Match<PurchaseProposalResult>(x => x.Vorschlag == 50m && !x.Fallback, "L hat Vorrang");
+        F(60m, null, 0m).Should().Match<PurchaseProposalResult>(x => x.Vorschlag == 25m && !x.Fallback && x.Grund == PurchaseProposalCalculator.GrundOhneLetzteBestellung);
+    }
 }

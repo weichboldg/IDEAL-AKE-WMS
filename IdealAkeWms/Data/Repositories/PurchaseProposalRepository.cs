@@ -19,6 +19,14 @@ public interface IPurchaseProposalRepository
     /// <summary>Hauptlieferant je ArticleId (F4) der Nachbestellartikel, eine Abfrage (kein N+1).</summary>
     Task<Dictionary<int, ArticleSupplierRow>> GetHauptlieferantenAsync();
 
+    /// <summary>E3 (v1.99.21, Rueckfrage 13 a): juengste letzte Bestellung je ArticleId ueber ALLE Lieferanten der Nachbestellartikel
+    /// (<c>ArticleSupplier.LetzteBestellmenge</c> gesetzt; neuestes Datum, bei Gleichstand Kreditorname), eine Abfrage.</summary>
+    Task<Dictionary<int, ArticleSupplierRow>> GetLetzteBestellungenAsync();
+
+    /// <summary>E3: true, sobald der Lauf „Artikel-Lieferanten“ irgendeine letzte Bestellung abgelegt hat. Sonst gilt fuer alle Zeilen
+    /// Rueckfrage 13 b (kein Fallback „keine Bestellung in 3 Jahren“, das waere ohne gelesene Daten falsch) und die Liste zeigt einen Banner.</summary>
+    Task<bool> HatLetzteBestellungenAsync();
+
     /// <summary>Offene Lagerbestellungen: Submitted → angefordert; PartiallyDelivered → nur Positionen „wird nachgeliefert“ mit Rest &gt; 0.</summary>
     Task<List<OffenerBedarf>> GetOffeneLagerbestellungenAsync();
 
@@ -45,11 +53,31 @@ public class PurchaseProposalRepository : IPurchaseProposalRepository
                           {
                               s.ArticleId,
                               Row = new ArticleSupplierRow(c.Id, c.Name, c.SageKto, c.IsActive, s.SageBestellnummer, s.Mindestbestellmenge,
-                                  s.Einkaufsmengeneinheit, s.Wiederbeschaffungszeit, s.IstHauptlieferant, s.UmrechnungsfaktorEK),
+                                  s.Einkaufsmengeneinheit, s.Wiederbeschaffungszeit, s.IstHauptlieferant, s.UmrechnungsfaktorEK,
+                                  s.LetzteBestellmenge, s.LetzteBestellungAm, s.LetzteBestellungBeleg),
                           }).ToListAsync();
         // Mehrere Hauptlieferanten je Artikel kommen laut Abgleich nicht vor; falls doch, gewinnt der erste nach Name (stabil).
         return rows.GroupBy(r => r.ArticleId).ToDictionary(g => g.Key, g => g.Select(r => r.Row).OrderBy(r => r.Name).First());
     }
+
+    public async Task<Dictionary<int, ArticleSupplierRow>> GetLetzteBestellungenAsync()
+    {
+        var rows = await (from s in _db.ArticleSuppliers.AsNoTracking()
+                          join a in _db.Articles.AsNoTracking() on s.ArticleId equals a.Id
+                          join c in _db.Creditors.AsNoTracking() on s.CreditorId equals c.Id
+                          where s.LetzteBestellmenge != null && a.ReorderLevel > 0
+                          select new
+                          {
+                              s.ArticleId,
+                              Row = new ArticleSupplierRow(c.Id, c.Name, c.SageKto, c.IsActive, s.SageBestellnummer, s.Mindestbestellmenge,
+                                  s.Einkaufsmengeneinheit, s.Wiederbeschaffungszeit, s.IstHauptlieferant, s.UmrechnungsfaktorEK,
+                                  s.LetzteBestellmenge, s.LetzteBestellungAm, s.LetzteBestellungBeleg),
+                          }).ToListAsync();
+        return rows.GroupBy(r => r.ArticleId).ToDictionary(g => g.Key,
+            g => g.Select(r => r.Row).OrderByDescending(r => r.LetzteBestellungAm).ThenBy(r => r.Name).First());
+    }
+
+    public Task<bool> HatLetzteBestellungenAsync() => _db.ArticleSuppliers.AnyAsync(s => s.LetzteBestellungAm != null);
 
     public async Task<List<OffenerBedarf>> GetOffeneLagerbestellungenAsync()
     {

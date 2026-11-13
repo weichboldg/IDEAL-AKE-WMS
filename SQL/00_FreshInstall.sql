@@ -2279,6 +2279,9 @@ BEGIN
         [Wiederbeschaffungszeit]    INT               NULL,
         [Einzelpreis]               DECIMAL(18,4)     NULL,
         [IstHauptlieferant]         BIT               NOT NULL,
+        [LetzteBestellmenge]        DECIMAL(18,3)     NULL,  -- v1.99.21 / SQL/148: letzte Bestellung (EinkaufPositionenAllInfo)
+        [LetzteBestellungAm]        DATE              NULL,
+        [LetzteBestellungBeleg]     NVARCHAR(45)      NULL,
         [CreatedAt]                 DATETIME2         NOT NULL,
         [CreatedBy]                 NVARCHAR(200)     NOT NULL,
         [CreatedByWindows]          NVARCHAR(200)     NOT NULL,
@@ -3246,6 +3249,9 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261112151318_AddWareneingangBarcodeCsv')
    AND OBJECT_ID(N'dbo.WareneingangCsvExporte', N'U') IS NOT NULL AND COL_LENGTH(N'dbo.PurchaseOrderReceipts', N'Barcode') IS NOT NULL -- sonst steht SQL/146 noch aus
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261112151318_AddWareneingangBarcodeCsv', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261113171808_AddArticleSupplierLetzteBestellung')
+   AND COL_LENGTH(N'dbo.ArticleSuppliers', N'LetzteBestellungBeleg') IS NOT NULL -- sonst steht SQL/148 noch aus
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261113171808_AddArticleSupplierLetzteBestellung', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';

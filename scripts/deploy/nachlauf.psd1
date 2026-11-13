@@ -90,6 +90,8 @@ Eintraege = @(
    Datei='145_AddPurchaseOrderReminders.sql'; MigrationId='20261112143552_AddPurchaseOrderReminders'; Voraussetzung='additiv'; Quelle='2026-11-12-v1-99-10-lieferverzug-mail' }
 @{ Id='SQL/146'; Version='1.99.11'; Typ='Schema'; Firma='beide'; Phase='Schema'; Ausfuehrung='automatisch'
    Datei='146_AddWareneingangBarcodeCsv.sql'; MigrationId='20261112151318_AddWareneingangBarcodeCsv'; Voraussetzung='additiv'; Quelle='2026-11-12-v1-99-11-wareneingang-barcode-csv' }
+@{ Id='SQL/148'; Version='1.99.21'; Typ='Schema'; Firma='beide'; Phase='Schema'; Ausfuehrung='automatisch'
+   Datei='148_AddArticleSupplierLetzteBestellung.sql'; MigrationId='20261113171808_AddArticleSupplierLetzteBestellung'; Voraussetzung='additiv'; Quelle='2026-11-13-v1-99-21-einkauf-letzte-bestellmenge' }
 
 # ---------------------------------------------------------------- Pruefungen (jeder Lauf; Reparatur nur nach Bestaetigung) -------
 @{ Id='Pruefung/Kommissionierbereiche'; Version='1.88.0'; Typ='Pruefung'; Firma='beide'; Phase='Haltepunkt'; Ausfuehrung='Reparatur'; Braucht=@('SQL/133')

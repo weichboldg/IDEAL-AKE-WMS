@@ -27,6 +27,12 @@ public class PurchaseProposalListViewModel
     public DateTime? BestellungenStand { get; set; }
     /// <summary>E2: offene Bestellpositionen der Nachbestellartikel mit abweichender Einheit (nicht eingerechnet).</summary>
     public int PositionenEinheitAbweichend { get; set; }
+    /// <summary>E3: hat der Lauf „Artikel-Lieferanten“ schon letzte Bestellungen abgelegt? Sonst Banner, kein Fallback.</summary>
+    public bool LetzteBestellungenGelesen { get; set; }
+    /// <summary>E3: Zeilen mit Fallback Sage-Bestellmenge (keine Bestellung im Rueckblick).</summary>
+    public int FallbackZeilen { get; set; }
+    /// <summary>E3: Vorschlaege ohne letzte Bestellung und ohne Sage-Bestellmenge (Grund „… Menge prüfen“).</summary>
+    public int OhneMengenquelle { get; set; }
     /// <summary>Welche offenen Bedarfe eingerechnet werden (Einstellung EinkaufOffeneBedarfe), Anzeigetext.</summary>
     public string BedarfeText { get; set; } = "";
 }
@@ -46,6 +52,8 @@ public class PurchaseProposalRow
     /// <summary>E2: frühester Liefertermin der Positionen mit Rest &gt; 0.</summary>
     public DateTime? NaechsterLiefertermin { get; init; }
     public required PurchaseProposalResult Ergebnis { get; init; }
+    /// <summary>E3: Quelle der verwendeten letzten Bestellung (Hauptlieferant oder anderer Lieferant); null = keine bzw. Einheit Basis ≠ Lager.</summary>
+    public ArticleSupplierRow? LetzteBestellung { get; init; }
     public int? Wbz { get; init; }
     public DateTime? Wunschtermin { get; init; }
     public List<string> Hinweise { get; init; } = new();

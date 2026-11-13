@@ -715,6 +715,8 @@ public static class ColumnDefinitions
             new ColumnDef("bedarfe",             "offene Bedarfe",       Locked: false),
             new ColumnDef("verfuegbar",          "verfügbar",            Locked: false),
             new ColumnDef("meldebestand",        "Meldebestand",         Locked: false),
+            new ColumnDef("letzte-bestellmenge", "letzte Bestellmenge",  Locked: false),   // v1.99.21 E3
+            new ColumnDef("letzte-bestellung-am", "letzte Bestellung am", Locked: false),
             new ColumnDef("vorschlag",           "Vorschlag",            Locked: true),
             new ColumnDef("grund",               "Grund",                Locked: false),
             new ColumnDef("einheit",             "Einheit",              Locked: false),

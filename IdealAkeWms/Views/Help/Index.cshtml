@@ -202,8 +202,18 @@
                             <li><em>offene Bedarfe</em>: abgesendete Lagerbestellungen (teilgeliefert nur der Rest &bdquo;wird nachgeliefert&ldquo;) und offene
                                 Bedarfsmeldungen &ndash; welche, legt die Einstellung <code>EinkaufOffeneBedarfe</code> fest (Standard beide, leer = keine).
                                 Bedarfe in anderer Einheit als der Artikel zählen nicht (Banner).</li>
-                            <li><em>Vorschlag</em>: Solange die letzte Bestellmenge noch nicht gelesen wird, ist der Vorschlag die Fehlmenge bis zum
-                                Meldebestand (bei Fehlmenge 0 der Meldebestand), Grund &bdquo;keine letzte Bestellung &ndash; Menge prüfen&ldquo;.
+                            <li><em>Vorschlag</em> (seit v1.99.21) = <em>letzte Bestellmenge</em> beim Hauptlieferanten: Menge der jüngsten Sage-Bestellung
+                                oder des jüngsten Rahmenabrufs der letzten 3 Jahre (Spalten <em>letzte Bestellmenge</em> und <em>letzte Bestellung am</em> mit
+                                Belegnummer). Gibt es beim Hauptlieferanten keine, gilt die jüngste Bestellung bei einem anderen Lieferanten (Hinweis
+                                &bdquo;letzte Bestellung bei &hellip;&ldquo;). Reicht die Menge nicht, um über den Meldebestand zu kommen, wird ein Vielfaches
+                                vorgeschlagen (Grund z.&nbsp;B. &bdquo;2 &times; letzte Bestellmenge&ldquo;).
+                                Gibt es in 3 Jahren bei keinem Lieferanten eine Bestellung, nimmt die Liste die <strong>Sage-Bestellmenge</strong> des Artikels
+                                (Badge &bdquo;Fallback&ldquo;, Hinweis &bdquo;Fallback: Sage-Bestellmenge (keine Bestellung in 3 Jahren)&ldquo;; diese Zeilen findet
+                                der Spaltenfilter <em>Hinweis</em> mit <code>Fallback</code>, der Banner nennt ihre Anzahl). Fehlt auch sie, ist der Vorschlag die
+                                Fehlmenge bis zum Meldebestand (bei Fehlmenge 0 der Meldebestand), Grund &bdquo;keine letzte Bestellung &ndash; Menge prüfen&ldquo;.
+                                Weicht in Sage die Basis- von der Lagereinheit ab, wird die letzte Bestellmenge nicht verwendet (Hinweis &bdquo;Einheit Basis
+                                &ne; Lager&ldquo;). Die letzten Bestellungen liest der Dienst-Lauf <em>Artikel-Lieferanten</em> mit (dauert dadurch einige Minuten
+                                länger); ein Lesefehler steht als Warnung im Aktivitäts-Protokoll, die bisherigen Werte bleiben.
                                 Danach wird auf die <em>Mindestbestellmenge</em> des Hauptlieferanten aufgerundet &ndash; nur, wenn deren Einheit leer oder
                                 gleich der Artikel-Einheit ist und der Umrechnungsfaktor 1 beträgt; sonst steht ein Hinweis da und es wird nicht gerundet.</li>
                             <li><em>Sage verfügbar</em> ist eine Vergleichsspalte (Stand: letzter Artikel-Abgleich, im Tooltip); sie fließt nicht in die Rechnung ein.

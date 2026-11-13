@@ -31,7 +31,8 @@ public partial class PurchaseProposalsControllerTests
     internal static (PurchaseProposalsController ctrl, Mock<IAppSettingRepository> settings) Build(List<Article> artikel,
         Dictionary<string, List<StockLocationInfo>>? bestand = null, Dictionary<int, ArticleSupplierRow>? lieferanten = null,
         List<OffenerBedarf>? lager = null, List<OffenerBedarf>? meldungen = null, string? bedarfeEinstellung = null,
-        List<SagePurchaseOrderLine>? bestellungen = null, Dictionary<int, ErfasstJeBelPos>? erfasst = null)
+        List<SagePurchaseOrderLine>? bestellungen = null, Dictionary<int, ErfasstJeBelPos>? erfasst = null,
+        Dictionary<int, ArticleSupplierRow>? letzte = null, bool letzteGelesen = false)
     {
         var lines = new Mock<ISagePurchaseOrderLineRepository>();
         lines.Setup(l => l.GetAllAsync()).ReturnsAsync(bestellungen ?? new List<SagePurchaseOrderLine>());
@@ -41,6 +42,8 @@ public partial class PurchaseProposalsControllerTests
         var repo = new Mock<IPurchaseProposalRepository>();
         repo.Setup(r => r.GetNachbestellartikelAsync()).ReturnsAsync(artikel);
         repo.Setup(r => r.GetHauptlieferantenAsync()).ReturnsAsync(lieferanten ?? new Dictionary<int, ArticleSupplierRow>());
+        repo.Setup(r => r.GetLetzteBestellungenAsync()).ReturnsAsync(letzte ?? new Dictionary<int, ArticleSupplierRow>());
+        repo.Setup(r => r.HatLetzteBestellungenAsync()).ReturnsAsync(letzteGelesen);
         repo.Setup(r => r.GetOffeneLagerbestellungenAsync()).ReturnsAsync(lager ?? new List<OffenerBedarf>());
         repo.Setup(r => r.GetOffeneBedarfsmeldungenAsync()).ReturnsAsync(meldungen ?? new List<OffenerBedarf>());
         var stock = new Mock<IStockMovementRepository>();
@@ -128,6 +131,71 @@ public partial class PurchaseProposalsControllerTests
         var r = Vm(await ctrl.Index()).Items.Single();
         r.Ergebnis.Vorschlag.Should().Be(25m);
         r.Ergebnis.Grund.Should().Be(PurchaseProposalCalculator.GrundOhneLetzteBestellung);
+    }
+
+    // ----- v1.99.21 E3: letzte Bestellmenge, Fallback Sage-Bestellmenge (Freigabe-Nachtrag 2) -----
+
+    private static ArticleSupplierRow Lf(int creditorId, string name, decimal? letzte = null, int tag = 1, bool haupt = true) =>
+        new(creditorId, name, "K" + creditorId, true, null, null, null, 14, haupt, 1m, letzte, letzte == null ? null : new DateTime(2026, 4, tag), letzte == null ? null : "2027-" + tag);
+
+    private static ArticleSageDetail Sd(decimal? bestellmenge = null, string? basis = "Stk", string? lager = "Stk") =>
+        new() { Bestellmenge = bestellmenge, Basismengeneinheit = basis, Lagermengeneinheit = lager };
+
+    [Fact]
+    public async Task LetzteBestellung_Hauptlieferant_SonstAndererLieferant_Spalten_AK7()
+    {
+        var (ctrl, _) = Build(new() { A(1, "A1", 85m, sage: Sd(500m)), A(2, "A2", 85m, sage: Sd(500m)) }, Bestand(("A1", 60m), ("A2", 60m)),
+            lieferanten: new() { [1] = Lf(1, "Huber", 400m, tag: 9), [2] = Lf(1, "Huber") },
+            letzte: new() { [1] = Lf(2, "Maier", 30m, tag: 20, haupt: false), [2] = Lf(2, "Maier", 30m, tag: 20, haupt: false) }, letzteGelesen: true);
+        var vm = Vm(await ctrl.Index());
+
+        var a1 = vm.Items.Single(i => i.Article.ArticleNumber == "A1");
+        (a1.Ergebnis.Vorschlag, a1.Ergebnis.Grund, a1.Ergebnis.Fallback).Should().Be(((decimal?)400m, PurchaseProposalCalculator.GrundLetzteBestellmenge, false));
+        (a1.LetzteBestellung!.LetzteBestellmenge, a1.LetzteBestellung.LetzteBestellungAm).Should().Be(((decimal?)400m, (DateTime?)new DateTime(2026, 4, 9)));
+        var a2 = vm.Items.Single(i => i.Article.ArticleNumber == "A2");
+        (a2.Ergebnis.Vorschlag, a2.Ergebnis.Grund).Should().Be(((decimal?)30m, PurchaseProposalCalculator.GrundLetzteBestellmenge));
+        a2.Hinweis.Should().Contain("letzte Bestellung bei Maier (K2)");
+        vm.FallbackZeilen.Should().Be(0);
+
+        ctrl.ControllerContext.HttpContext.Request.QueryString = new QueryString("?colf_letzte-bestellmenge=400");
+        Vm(await ctrl.Index()).Items.Select(i => i.Article.ArticleNumber).Should().Equal("A1");
+    }
+
+    [Fact]
+    public async Task KeineBestellungIn3Jahren_FallbackSageBestellmenge_HinweisFilterbar_Banner_Nachtrag2()
+    {
+        var (ctrl, _) = Build(new() { A(1, "A1", 85m, sage: Sd(100m)), A(2, "A2", 85m, sage: Sd(null)), A(3, "A3", 85m, sage: Sd(40m)) },
+            Bestand(("A1", 60m), ("A2", 60m), ("A3", 60m)), letzteGelesen: true);
+        var vm = Vm(await ctrl.Index());
+
+        var a1 = vm.Items.Single(i => i.Article.ArticleNumber == "A1");
+        (a1.Ergebnis.Vorschlag, a1.Ergebnis.Grund, a1.Ergebnis.Fallback).Should().Be(((decimal?)100m, PurchaseProposalCalculator.GrundSageBestellmenge, true));
+        a1.Hinweis.Should().Contain("Fallback: Sage-Bestellmenge (keine Bestellung in 3 Jahren)");
+        var a2 = vm.Items.Single(i => i.Article.ArticleNumber == "A2");
+        (a2.Ergebnis.Vorschlag, a2.Ergebnis.Grund, a2.Ergebnis.Fallback).Should().Be(((decimal?)25m, PurchaseProposalCalculator.GrundOhneLetzteBestellung, false),
+            "ohne Sage-Bestellmenge bisherige Regel");
+        vm.Items.Single(i => i.Article.ArticleNumber == "A3").Ergebnis.Vorschlag.Should().Be(40m, "F = 25 < 40: Sage-Bestellmenge selbst");
+        vm.FallbackZeilen.Should().Be(2);
+        vm.OhneMengenquelle.Should().Be(1);
+
+        ctrl.ControllerContext.HttpContext.Request.QueryString = new QueryString("?colf_hinweis=Fallback");
+        Vm(await ctrl.Index()).Items.Select(i => i.Article.ArticleNumber).Should().Equal("A1", "A3");
+    }
+
+    [Fact]
+    public async Task NochNichtGelesen_KeinFallback_EinheitBasisUngleichLager_LeerMitHinweis_AK8()
+    {
+        var (ctrl, _) = Build(new() { A(1, "A1", 85m, sage: Sd(100m)), A(2, "A2", 85m, sage: Sd(100m, basis: "Stk", lager: "PKG")) },
+            Bestand(("A1", 60m), ("A2", 60m)), lieferanten: new() { [2] = Lf(1, "Huber", 400m) });
+        var vm = Vm(await ctrl.Index());
+
+        vm.LetzteBestellungenGelesen.Should().BeFalse();
+        var a1 = vm.Items.Single(i => i.Article.ArticleNumber == "A1");
+        (a1.Ergebnis.Grund, a1.Ergebnis.Fallback).Should().Be((PurchaseProposalCalculator.GrundOhneLetzteBestellung, false), "ohne gelesene Daten kein Fallback");
+        var a2 = vm.Items.Single(i => i.Article.ArticleNumber == "A2");
+        a2.LetzteBestellung.Should().BeNull();
+        a2.Ergebnis.Grund.Should().Be(PurchaseProposalCalculator.GrundOhneLetzteBestellung);
+        a2.Hinweis.Should().Contain("Einheit Basis ≠ Lager");
     }
 
     [Fact]

@@ -222,7 +222,7 @@ public class EinkaufBestellungenSyncService
 
     private static string? Text(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
 
-    private static DateTime? Datum(string? s) =>
+    internal static DateTime? Datum(string? s) =>
         !string.IsNullOrWhiteSpace(s) && DateTimeOffset.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out var t)
             ? t.Date : null;
 }

@@ -54,6 +54,8 @@ public class PurchaseProposalsController : Controller
         ["bedarfe"] = r => Zahl(r.OffeneBedarfe),
         ["verfuegbar"] = r => Zahl(r.Ergebnis.Verfuegbar),
         ["meldebestand"] = r => Zahl(r.Article.ReorderLevel),
+        ["letzte-bestellmenge"] = r => r.LetzteBestellung?.LetzteBestellmenge?.ToString("0.###"),
+        ["letzte-bestellung-am"] = r => r.LetzteBestellung?.LetzteBestellungAm?.ToString("dd.MM.yyyy"),
         ["vorschlag"] = r => r.Ergebnis.Vorschlag?.ToString("0.###"),
         ["grund"] = r => r.Ergebnis.Grund,
         ["einheit"] = r => r.Article.Unit,
@@ -77,6 +79,8 @@ public class PurchaseProposalsController : Controller
 
         var artikel = await _repo.GetNachbestellartikelAsync();
         var lieferanten = await _repo.GetHauptlieferantenAsync();
+        var letzte = await _repo.GetLetzteBestellungenAsync();
+        var letzteGelesen = await _repo.HatLetzteBestellungenAsync();
         var bestand = artikel.Count == 0
             ? new Dictionary<string, List<StockLocationInfo>>()
             : await _stock.GetStockByArticleNumbersAsync(artikel.Select(a => a.ArticleNumber).Distinct().ToList());
@@ -102,7 +106,7 @@ public class PurchaseProposalsController : Controller
         }
 
         var (alle, bedarfeEinheitAbweichend, positionenEinheitAbweichend) =
-            BaueZeilen(artikel, lieferanten, bestand, bedarfe, bestellungen, erfasst, DateTime.Today);
+            BaueZeilen(artikel, lieferanten, bestand, bedarfe, bestellungen, erfasst, DateTime.Today, letzte, letzteGelesen);
 
         IEnumerable<PurchaseProposalRow> q = alle;
         if (umfangWert == PurchaseProposalListViewModel.UmfangVorschlaege) q = q.Where(r => r.Ergebnis.IstVorschlag);
@@ -140,6 +144,9 @@ public class PurchaseProposalsController : Controller
             BedarfeEinheitAbweichend = bedarfeEinheitAbweichend,
             BestellungenStand = stand,
             PositionenEinheitAbweichend = positionenEinheitAbweichend,
+            LetzteBestellungenGelesen = letzteGelesen,
+            FallbackZeilen = alle.Count(r => r.Ergebnis.Fallback),
+            OhneMengenquelle = alle.Count(r => r.Ergebnis.Grund.StartsWith(PurchaseProposalCalculator.GrundOhneLetzteBestellung, StringComparison.Ordinal)),
             BedarfeText = (mitLager, mitBedarfsmeldungen) switch
             {
                 (true, true) => "Lagerbestellungen und Bedarfsmeldungen",
@@ -160,11 +167,14 @@ public class PurchaseProposalsController : Controller
 
     /// <summary>Datensammlung → Zeilen: Bestand je Artikel (Summe der Plaetze, ohne Bewegung 0, Regel der Meldebestand-Mail), offene Bedarfe
     /// (Artikelnummer getrimmt, Gross/Klein egal; abweichende Einheit nicht gerechnet, gezaehlt), offene Bestellungen (E2: Rest je Position,
-    /// <c>EinheitAbweichend</c> nicht gerechnet, gezaehlt; <paramref name="bestellungen"/> null = Cache leer), Lieferant, WBZ, Rechner.</summary>
+    /// <c>EinheitAbweichend</c> nicht gerechnet, gezaehlt; <paramref name="bestellungen"/> null = Cache leer), Lieferant, WBZ, Rechner.
+    /// E3: letzte Bestellung beim Hauptlieferanten, sonst die juengste bei einem anderen Lieferanten (<paramref name="letzte"/>, Rueckfrage 13 a);
+    /// Basis ≠ Lager (Sage-Zusatzfelder) → nicht verwendet mit Hinweis; gar keine Bestellung im Rueckblick und Daten gelesen
+    /// (<paramref name="letzteGelesen"/>) → Fallback Sage-Bestellmenge (Freigabe-Nachtrag 2).</summary>
     internal static (List<PurchaseProposalRow> Zeilen, int BedarfeEinheitAbweichend, int PositionenEinheitAbweichend) BaueZeilen(List<Article> artikel,
         IReadOnlyDictionary<int, ArticleSupplierRow> lieferanten, IReadOnlyDictionary<string, List<StockLocationInfo>> bestand,
         IReadOnlyList<OffenerBedarf> bedarfe, IReadOnlyList<SagePurchaseOrderLine>? bestellungen, IReadOnlyDictionary<int, ErfasstJeBelPos> erfasst,
-        DateTime heute)
+        DateTime heute, IReadOnlyDictionary<int, ArticleSupplierRow>? letzte = null, bool letzteGelesen = false)
     {
         var positionenAbweichend = bestellungen?.Count(l => l.EinheitAbweichend) ?? 0;
         var restJeArtikel = (bestellungen ?? new List<SagePurchaseOrderLine>()).Where(l => !l.EinheitAbweichend && l.ArticleId != null)
@@ -204,13 +214,24 @@ public class PurchaseProposalsController : Controller
             if (bestellungen == null) hinweise.Add("ohne offene Bestellungen");
             else if (restJeArtikel.TryGetValue(a.Id, out var o)) { offenBestellt = o.Summe; termin = o.Termin; }
             else offenBestellt = 0m;
+            var quelle = l?.LetzteBestellmenge != null ? l : letzte?.GetValueOrDefault(a.Id);
+            var fallback = letzteGelesen && quelle == null ? a.SageDetail?.Bestellmenge : null;
+            if (quelle != null && EinheitWeichtAb(a.SageDetail?.Basismengeneinheit, a.SageDetail?.Lagermengeneinheit))
+            {
+                hinweise.Add("Einheit Basis ≠ Lager – letzte Bestellmenge nicht verwendet");
+                quelle = null;
+            }
             return new PurchaseProposalRow
             {
                 Article = a, Lieferant = l, LieferantText = text, LieferantKto = kto, BestandWms = bestandWms, OffeneBedarfe = offeneBedarfe,
                 OffenBestellt = offenBestellt, NaechsterLiefertermin = termin,
+                LetzteBestellung = quelle,
                 Ergebnis = PurchaseProposalCalculator.Berechne(new PurchaseProposalInput(bestandWms, offenBestellt ?? 0m, offeneBedarfe, a.ReorderLevel ?? 0m,
+                    LetzteBestellmenge: quelle?.LetzteBestellmenge,
+                    LetzteBestellungLieferant: quelle != null && quelle.CreditorId != l?.CreditorId
+                        ? (string.IsNullOrWhiteSpace(quelle.SageKto) ? quelle.Name : $"{quelle.Name} ({quelle.SageKto})") : null,
                     Mindestbestellmenge: l?.Mindestbestellmenge, Einkaufsmengeneinheit: l?.Einkaufsmengeneinheit, UmrechnungsfaktorEK: l?.UmrechnungsfaktorEK,
-                    ArtikelEinheit: a.Unit)),
+                    ArtikelEinheit: a.Unit, FallbackSageBestellmenge: fallback)),
                 Wbz = wbz, Wunschtermin = wbz is { } t ? heute.AddDays(t) : null, Hinweise = hinweise,
             };
         }).ToList();

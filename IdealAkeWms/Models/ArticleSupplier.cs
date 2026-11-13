@@ -30,4 +30,14 @@ public class ArticleSupplier : AuditableEntity
 
     /// <summary>Wahr, wenn <c>ArtikelVariantenExtended.Hauptlieferant</c> dieses Artikels = Kontonummer des Kreditors.</summary>
     public bool IstHauptlieferant { get; set; }
+
+    // v1.99.21 (Spec 2026-11-08-einkauf-bestellvorschlaege E3, SQL/148): juengste Sage-Bestellposition (EBB oder EBZ) des Artikels bei diesem
+    // Lieferanten im Rueckblick, aus SData EinkaufPositionenAllInfo; nur vom Lauf „Artikel-Lieferanten“ geschrieben. Menge = MengeBasis (Basiseinheit).
+    /// <summary>Rueckblick der letzten Bestellung in Jahren (Freigabe-Nachtrag 2: 3 Jahre). Bewusst Konstante statt Einstellung: Dienst
+    /// (Datumsfilter) und Web (Hinweistext „keine Bestellung in 3 Jahren“) muessten sonst beide dieselbe Service-Einstellung lesen.</summary>
+    public const int LetzteBestellungRueckblickJahre = 3;
+    public decimal? LetzteBestellmenge { get; set; }
+    public DateTime? LetzteBestellungAm { get; set; }
+    /// <summary>Sage <c>BelegnummerFormatiert</c> (string(45), E0-A4).</summary>
+    public string? LetzteBestellungBeleg { get; set; }
 }

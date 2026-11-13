@@ -1378,6 +1378,9 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.UmrechnungsfaktorEK).HasColumnType("decimal(18,6)");
             entity.Property(e => e.UmrechnungsfaktorVPEK).HasColumnType("decimal(18,6)");
             entity.Property(e => e.Einzelpreis).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.LetzteBestellmenge).HasColumnType("decimal(18,3)");   // v1.99.21 E3 (SQL/148)
+            entity.Property(e => e.LetzteBestellungAm).HasColumnType("date");
+            entity.Property(e => e.LetzteBestellungBeleg).HasMaxLength(45);
             entity.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
             entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
             entity.Property(e => e.ModifiedBy).HasMaxLength(200);

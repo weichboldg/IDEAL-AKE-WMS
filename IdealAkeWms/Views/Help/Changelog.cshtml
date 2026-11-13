@@ -9,6 +9,23 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.99.21</strong> <span class="text-white-50 ms-2">13.11.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>Bestellvorschläge: letzte Bestellmenge</h6>
+                <ul>
+                    <li>Der <strong>Vorschlag</strong> ist jetzt die Menge der letzten Bestellung beim Hauptlieferanten (Bestellung oder Rahmenabruf der letzten
+                        3 Jahre), sonst der letzten Bestellung bei einem anderen Lieferanten; reicht sie nicht, ein Vielfaches davon. Neue Spalten
+                        <em>letzte Bestellmenge</em> und <em>letzte Bestellung am</em> (mit Belegnummer).</li>
+                    <li>Ohne Bestellung in 3 Jahren: <strong>Sage-Bestellmenge</strong> als Fallback, erkennbar am Badge &bdquo;Fallback&ldquo; und am Hinweis
+                        (filterbar), mit Anzahl im Banner. Fehlt auch sie, bleibt es bei &bdquo;Menge prüfen&ldquo;.</li>
+                    <li>Gelesen werden die letzten Bestellungen vom Dienst-Lauf &bdquo;Artikel-Lieferanten&ldquo; (nur lesend aus Sage).</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.99.20</strong> <span class="text-white-50 ms-2">13.11.2026</span>
             </div>
             <div class="card-body">

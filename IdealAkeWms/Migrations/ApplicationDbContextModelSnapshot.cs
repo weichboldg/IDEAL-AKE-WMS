@@ -664,6 +664,16 @@ namespace IdealAkeWms.Migrations
                     b.Property<bool>("IstHauptlieferant")
                         .HasColumnType("bit");
 
+                    b.Property<decimal?>("LetzteBestellmenge")
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<DateTime?>("LetzteBestellungAm")
+                        .HasColumnType("date");
+
+                    b.Property<string>("LetzteBestellungBeleg")
+                        .HasMaxLength(45)
+                        .HasColumnType("nvarchar(45)");
+
                     b.Property<decimal?>("Mindestbestellmenge")
                         .HasColumnType("decimal(18,3)");
 

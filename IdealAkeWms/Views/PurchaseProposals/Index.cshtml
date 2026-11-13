@@ -57,8 +57,29 @@ else
         @Model.BedarfeEinheitAbweichend offene @(Model.BedarfeEinheitAbweichend == 1 ? "Bedarfszeile" : "Bedarfszeilen") mit anderer Einheit als der Artikel – nicht eingerechnet.
     </div>
 }
+@if (!Model.LetzteBestellungenGelesen)
+{
+    <div class="alert alert-warning py-2 small" role="status">
+        <strong>Letzte Bestellmengen noch nicht gelesen</strong> (Dienst-Lauf „Artikel-Lieferanten“, <code>Sync:ArtikelLieferantEnabled</code>).
+        Bis dahin: Vorschlag = Fehlmenge bis zum Meldebestand, bei Fehlmenge 0 der Meldebestand – Grund „@PurchaseProposalCalculator.GrundOhneLetzteBestellung“.
+    </div>
+}
+@if (Model.FallbackZeilen > 0)
+{
+    <div class="alert alert-info py-2 small" role="status">
+        <strong>@Model.FallbackZeilen @(Model.FallbackZeilen == 1 ? "Zeile" : "Zeilen") mit Fallback Sage-Bestellmenge</strong> – keine Bestellung in den letzten
+        @ArticleSupplier.LetzteBestellungRueckblickJahre Jahren, auch nicht bei einem anderen Lieferanten. Spalte „Hinweis“ nach „Fallback“ filtern, um sie zu sehen.
+    </div>
+}
+@if (Model.OhneMengenquelle > 0)
+{
+    <div class="alert alert-warning py-2 small" role="status">
+        @Model.OhneMengenquelle @(Model.OhneMengenquelle == 1 ? "Zeile" : "Zeilen") ohne letzte Bestellung und ohne Sage-Bestellmenge (oder mit Einheit Basis ≠ Lager) – Menge prüfen (Grund „@PurchaseProposalCalculator.GrundOhneLetzteBestellung“).
+    </div>
+}
 <div class="alert alert-light border py-2 small" role="note">
-    Letzte Bestellmenge noch nicht verfügbar: Vorschlag = Fehlmenge bis zum Meldebestand, bei Fehlmenge 0 der Meldebestand – Grund „@PurchaseProposalCalculator.GrundOhneLetzteBestellung“.
+    Vorschlag = letzte Bestellmenge beim Hauptlieferanten (jüngste Bestellung oder jüngster Rahmenabruf der letzten @ArticleSupplier.LetzteBestellungRueckblickJahre Jahre), sonst die jüngste bei einem anderen Lieferanten;
+    reicht sie nicht bis über den Meldebestand, ein Vielfaches davon. Ohne Bestellung in diesem Zeitraum: Sage-Bestellmenge (Fallback), sonst Fehlmenge bzw. Meldebestand.
     Danach Aufrunden auf die Mindestbestellmenge des Hauptlieferanten, nur bei gleicher Einheit und Umrechnungsfaktor 1 (sonst Hinweis, keine Rundung).
 </div>
 
@@ -124,6 +145,8 @@ else
                 <th data-filterable data-filter-type="number" data-col-key="bedarfe" class="text-end">offene Bedarfe</th>
                 <th data-filterable data-filter-type="number" data-col-key="verfuegbar" class="text-end">verfügbar</th>
                 <th data-filterable data-filter-type="number" data-col-key="meldebestand" class="text-end">Meldebestand</th>
+                <th data-filterable data-filter-type="number" data-col-key="letzte-bestellmenge" class="text-end">letzte Bestellmenge</th>
+                <th data-filterable data-date-filter data-col-key="letzte-bestellung-am">letzte Bestellung am</th>
                 <th data-filterable data-filter-type="number" data-col-key="vorschlag" class="text-end">Vorschlag</th>
                 <th data-filterable data-col-key="grund">Grund</th>
                 <th data-filterable data-col-key="einheit">Einheit</th>
@@ -160,8 +183,16 @@ else
                     <td class="text-end">@r.OffeneBedarfe.ToString("0.###")</td>
                     <td class="text-end fw-semibold">@e.Verfuegbar.ToString("0.###")</td>
                     <td class="text-end">@(r.Article.ReorderLevel?.ToString("0.###"))</td>
+                    <td class="text-end">@(r.LetzteBestellung?.LetzteBestellmenge?.ToString("0.###"))</td>
+                    <td>
+                        @if (r.LetzteBestellung?.LetzteBestellungAm is { } am)
+                        {
+                            @am.ToString("dd.MM.yyyy")
+                            <div class="small text-body-secondary">@r.LetzteBestellung.LetzteBestellungBeleg</div>
+                        }
+                    </td>
                     <td class="text-end fw-semibold">@(e.Vorschlag?.ToString("0.###"))</td>
-                    <td>@e.Grund</td>
+                    <td>@if (e.Fallback) {<span class="badge text-bg-info me-1">Fallback</span>}@e.Grund</td>
                     <td>@r.Article.Unit</td>
                     <td class="text-end">@IdealAkeWms.Controllers.PurchaseProposalsController.MindestText(r.Lieferant)</td>
                     <td class="text-end">@(r.Sage?.Bestellmenge?.ToString("0.###") ?? "–")</td>
@@ -200,6 +231,8 @@ else
     { "key": "bedarfe", "label": "offene Bedarfe", "locked": false, "defaultWidth": null },
     { "key": "verfuegbar", "label": "verfügbar", "locked": false, "defaultWidth": null },
     { "key": "meldebestand", "label": "Meldebestand", "locked": false, "defaultWidth": null },
+    { "key": "letzte-bestellmenge", "label": "letzte Bestellmenge", "locked": false, "defaultWidth": null },
+    { "key": "letzte-bestellung-am", "label": "letzte Bestellung am", "locked": false, "defaultWidth": null },
     { "key": "vorschlag", "label": "Vorschlag", "locked": true, "defaultWidth": null },
     { "key": "grund", "label": "Grund", "locked": false, "defaultWidth": null },
     { "key": "einheit", "label": "Einheit", "locked": false, "defaultWidth": null },
