@@ -192,7 +192,7 @@ else
                         }
                     </td>
                     <td class="text-end fw-semibold">@(e.Vorschlag?.ToString("0.###"))</td>
-                    <td>@if (e.Fallback) {<span class="badge text-bg-info me-1">Fallback</span>}@e.Grund</td>
+                    <td>@if (e.Fallback) {<text><span class="badge text-bg-info me-1">Fallback</span> </text>}@e.Grund</td>
                     <td>@r.Article.Unit</td>
                     <td class="text-end">@IdealAkeWms.Controllers.PurchaseProposalsController.MindestText(r.Lieferant)</td>
                     <td class="text-end">@(r.Sage?.Bestellmenge?.ToString("0.###") ?? "–")</td>
