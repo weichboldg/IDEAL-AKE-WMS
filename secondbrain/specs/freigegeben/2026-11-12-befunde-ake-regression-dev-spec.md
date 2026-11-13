@@ -2,7 +2,7 @@
 type: spec
 title: "Bugfix-Bündel aus der AKE-Regression auf DEV v1.99.12: Filter in Anführungszeichen, FA-Hinweis Einbuchung, Bedarfsmeldung Lokalzeit, Auftragsdruck Lagerplatz, Wagen-Modal"
 slug: 2026-11-12-befunde-ake-regression-dev-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-11-13
 updated: 2026-11-13
 source_backlog: "[[2026-11-12-befunde-ake-regression-dev]]"
@@ -412,6 +412,25 @@ beide `AppVersion.cs`, Anwender-Changelog, Hilfeseite (Filter-Syntax, Einbuchung
   ```
 - QA testet auf AKE-DEV und IDEAL-DEV (`standort: beide`); Filter-Fälle mit `;` vor allem auf AKE (Lagerplatz-Codes).
 
+### Deploy – final (qa-agent 2026-11-13, aus dem echten Diff `56906459..a8dd9d2e`)
+
+- **Web: ja** – `IdealAkeWms/` (ColumnFilterSyntax.cs + column-filter-syntax.js, PickingController, PartRequisitionsApiController,
+  PartRequisitionRepository, StockMovementRepository, Views Help/Index, Help/Changelog, Picking/Bom, StockMovements/Inbound, AppVersion).
+- **Service: ja** – `IDEALAKEWMSService/` (PartRequisitionEmailService `EmailSentAt = @jetzt`, LieferverzugMailService Protokoll-Zeit = Laufzeit
+  `jetzt`, AppVersion).
+- **Migration: nein** – keine Datei unter `*/Migrations/`, kein `SQL/`-Skript, `00_FreshInstall.sql` unberührt.
+- **Manifest `scripts/deploy/nachlauf.psd1`: keine Einträge nötig** (Freigabe-Antwort 4 = nicht umrechnen → kein Einmal-Skript; kein Setting,
+  kein Recht, kein Ordner).
+- **Paket:** `C:\git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish` – Version **1.99.13**, Commit `a8dd9d2e003229ac3174f75b91bc0fbaa4548de2`,
+  beide Komponenten (IDEALAKEWMSWeb + IDEALAKEWMSWebService), `SQL\`, `deploy\`, `publish-info.txt`. Auf dem Testsystem
+  `deploy\Update-IdealAkeWms.ps1` starten. Reihenfolge: Dienst stoppen → Web → Dienst (kein DB-Schritt; Backup nur nach Hausregel).
+  Hinweis: Das Bündel bekommt im selben /goal-Lauf noch v1.99.14/v1.99.15 – das Paket wird dann neu erzeugt und enthält diesen Stand mit.
+- Nach dem Merge nur dann aus `main` neu publishen, wenn der Merge getestete Dateien mit parallelen main-Änderungen zusammengeführt hat:
+  ```
+  dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb
+  dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService
+  ```
+
 ## Offene Rueckfragen
 
 1. **Punkt 2, Variante:** A = Verhalten bleibt wie in AK7 von [[2026-08-05-wms-bugs-improvements-teil-1-spec]] entschieden (Menge =
@@ -449,3 +468,161 @@ beide `AppVersion.cs`, Anwender-Changelog, Hilfeseite (Filter-Syntax, Einbuchung
 4. Altdaten Bedarfsmeldungen umrechnen (ja/nein, Ergebnis Prüfabfrage) → **Nein, nicht umrechnen (AKE nie im Einsatz, IDEAL nur Anzeigeversatz 1 h). Prüfabfrage trotzdem vorher ausführen und Anzahl im Changelog nennen (Gerald 2026-11-13).**
 5. Doppelte Prio: in diese Spec oder eigener Backlog → **Eigener Backlog-Eintrag (Gerald 2026-11-13).**
 6. Zusatzfund UTC: eigener Backlog-Eintrag (ja/nein) → **Ja (Gerald 2026-11-13).**
+
+## QA-Nachweis (qa-agent, 2026-11-13)
+
+Worktree `C:\git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5`, Branch `feature/2026-08-07-ideal-teile-1-5`, geprüfter
+Commit-Bereich `56906459..a8dd9d2e` (`7cc8e684` feature-complete, `a8dd9d2e` Zusatzfund Lieferverzug-Protokollzeit). HEAD = `a8dd9d2e`.
+
+### 1. Build und Tests
+- `dotnet build IdealAkeWms.slnx`: **0 Fehler**, 28 Warnungen (vorbestehend, u. a. CS8601 in Tests, NU1902/1903 Paketwarnungen).
+- `dotnet test`: **IDEALAKEWMSService.Tests 599 bestanden / 0 übersprungen / 0 fehlgeschlagen**; **IdealAkeWms.Tests 2733 bestanden /
+  1 übersprungen / 0 fehlgeschlagen** (übersprungen: `ProductionOrderEagerCreateAgentJobTests.EagerCreate_TwoMergesProduce2Rows_PerNewOrder_AndAreIdempotent`,
+  vorbestehend, braucht echten SQL Server).
+- Node-Lauf (AK 7) direkt: `node IdealAkeWms.Tests/Js/column-filter-syntax.check.js <js-kern> column-filter-cases.json` →
+  „column-filter-syntax core ok (100 Faelle)“, Exit 0; im Testlauf zusätzlich `ColumnFilterSyntaxTests.Kern_NodeSelbstpruefung_GleicheTabelle` bestanden.
+
+### 2. Code-Review (selbst, in diesem Lauf)
+Geprüft: kompletter Diff beider Commits und der Code darum – `ColumnFilterSyntax.SplitParts` gegen JS `splitParts` (Zeile für Zeile gleiche
+Logik: Leerzeichen-Überspringen, `"`/`="`-Erkennung nur am Teil-Anfang, ohne Schluss-`"` Rücksprung auf `start` = Bestandsverhalten, `""` →
+leerer Teil verworfen, `="` → `=` bleibt vor dem Inhalt); alle `ColumnFilterSyntax.Parse`/`.parse(`-Aufrufer (13 C#-Stellen, 3 JS-Stellen;
+keine zweite eigene Zerlegung im Code – Suche nach `Split(';'`/`split(/[;,]/`); Einbettung von Filterwerten in `<script>`
+(`Bom.cshtml:1271-1274` JSON-kodiert, ok); `PickingController.QuellVorschlag` gegen die entfernte Inline-Regel (identisch: buchbar und Menge > 0,
+Hauptplatz vor höchster Menge vor NAN) und dessen Druck-Aufruf (gleiche Datenquellen `GetStockByArticleNumbersAsync`,
+`GetActiveOrderedExcludingPickingTransportAsync`, `GetByCodeAsync("NAN")`); Entfallen/Uebertragen haben nie einen Quell-Platz
+(`PickingOrderWorkflow.cs:183-188` setzt sie nur für nicht umgebuchte Zeilen) → AK 18 hält; `GetProductionOrdersAtLocationAsync`-Normalisierung
+und alle drei Aufrufer (`PickingTransferService.cs:82-102`, `StockMovementsController.cs:504`) – Konfliktvergleich jetzt je Einzelnummer;
+Bedarfsmeldungen: alle vier Schreiber auf Ortszeit, `@jetzt` als `DateTime2`-Parameter; `LieferverzugMailService`: `jetzt` kommt in Produktion
+aus `SyncWorker` als `DateTime.Now`, also verhaltensgleich; Einbuchung `Inbound.cshtml` Text/Format (`escapeHtml` bleibt auf allen Werten).
+
+Befunde (keiner blockierend, kein Code-Defekt):
+- **R-1 (leicht, Doku):** `AppVersion.Date` steht in Web und Dienst weiter auf `2026-11-12`, der Anwender-Changelog nennt 13.11.2026.
+  Behandlung: offen gelassen (kosmetisch; der nächste Versions-Bump im Bündel zieht das Datum nach).
+- **R-2 (leicht, Brain-Checkliste):** Brain-Changelog `secondbrain/changelog/2026-11-13-v1-99-13-*.md` fehlt noch; laut Freigabe-Antwort 4
+  gehört dort die Anzahl der Prüfabfrage hinein (AKE Prod 3, AKE_WMS_DEV 16, IDEAL_WMS_DEV 0, IDEAL Prod offen). Behandlung: an die Koordination
+  (Brain-Commit „testbereit“), kein Code betroffen.
+- Beobachtung, kein Befund: Ein Filter, der schon heute mit `"` begann und ein Schluss-`"` hatte, sucht nicht mehr nach den Anführungszeichen
+  selbst – so in Regel 4 der Spec gewollt.
+
+### 3. Beweisart je AK
+| AK | Beweis |
+|---|---|
+| 1–4 | Automatisiert (Theory Q01–Q08, Q03b, Q05b, C# + Node, inkl. `sql: true`-Fälle über den SQL-Bauer); Trefferzahl auf AKE-DEV = **Manual-UAT** |
+| 5, 6 | Automatisiert (Bestandsfälle inkl. T31 unverändert grün, Q09, Q10) |
+| 7 | Automatisiert (C#-Theory + Node-Lauf, oben belegt) |
+| 8 | Kern automatisiert (gleiche Tabelle, beide Kerne); Gleichheit im Browser **Manual-UAT** |
+| 9 | **Manual-UAT** (Popover/Hilfeseite; Text im Diff vorhanden) |
+| 10–12 | **Manual-UAT** (Browser-JS) |
+| 13 | **Manual-UAT** (Anlage über API-Controller; nur Code-Review) |
+| 14 | Automatisiert (`PartRequisitionRepositoryTests` Fulfill/Cancel nahe `DateTime.Now`) |
+| 15 | **Manual-UAT** (raw SQL im Dienst; auf DEV gesperrt, siehe 6) |
+| 16 | Entschieden „nicht umrechnen“; Prüfabfrage DEV bestätigt (siehe 6) |
+| 17, 18 | Regel automatisiert (`QuellVorschlag_HauptplatzVorMengeVorNan`); Druckausgabe **Manual-UAT** |
+| 19 | Automatisiert (eine Methode mit Unit-Test, Seite und Druck rufen sie) |
+| 20, 21, 23, 24 | Normalisierung automatisiert (`GetProductionOrdersAtLocation_ZerlegtTexteInEinzelneNummern`); Modal/Buchung/Vorbelegung **Manual-UAT** |
+| 22 | **Manual-UAT** (CSS `text-break`) |
+| 25 | Automatisiert, grün |
+
+### 4. Geänderte bestehende Tests
+- `PartRequisitionRepositoryTests.FulfillAsync_SetsStatusAndReference` und `CancelAsync_SetsStatusAndCancelledBy`: nur zusätzliche Assertions
+  (Zeit nahe `DateTime.Now`) – **Verhalten absichtlich geändert durch AK 14/25**. Keine Fixture angepasst.
+- `PickingControllerTests`, `StockMovementRepositoryProductionOrderTests`: nur neue Tests angehängt. `column-filter-cases.json`: nur neue Fälle
+  Q01–Q14 angehängt, kein Bestandsfall geändert. `LieferverzugMailTests` unverändert (wird durch `a8dd9d2e` wieder grün, ohne Teständerung).
+- Kein „sonstiger“ Eingriff.
+
+### 5. Checkliste CLAUDE.md
+- Migration/SQL/FreshInstall/AgentJobs: nicht betroffen (keine Schema-Änderung).
+- Audit-Felder: `ModifiedAt` in Fulfill/Cancel jetzt Ortszeit, `ModifiedBy*` unverändert gesetzt.
+- Version 1.99.13 in beiden `AppVersion.cs`, Anwender-Changelog ergänzt (R-1 Datum).
+- `docs/TESTSZENARIEN.md` TS-130.1–130.5 + TS-2.13/2.15 angepasst; Index-Zeile 130 in `secondbrain/tests/testszenarien-index.md` vorhanden.
+- Brain-Changelog fehlt (R-2).
+- 5a ADR 0020: keine neue/geänderte Einstellung im Diff – entfällt.
+
+### 6. DEV-Deploy und Testlauf
+- Standort laut Frontmatter `beide`. Shell erhöht (Administrator = True).
+- `dev-deploy.ps1 -Standort AKE -Quelle <worktree>`: Exit 0, „HTTP 200, Fusszeile v1.99.13“, DEV-Absicherung gelaufen, „Fertig: AKE v1.99.13 auf
+  http://localhost:8081/“. `dev-deploy.ps1 -Standort IDEAL …`: Exit 0, „HTTP 200, Fusszeile v1.99.13“, „Fertig: IDEAL v1.99.13 auf http://localhost:8082/“.
+- Dienst-Logs `D:\Dev\AKE\Service\logs\service-20261113.log` und `D:\Dev\IDEAL\Service\logs\service-20261113.log`: SyncWorker/SageBookingWorker/
+  CleanupWorker „gestartet. Version 1.99.13“; beide Dienste RUNNING. Letzte Migration beider DEV-DBs `20261112151318_AddWareneingangBarcodeCsv`.
+- DEV-Sicherung geprüft: `ErrorNotification:Enabled=false`, `Notifications:MeldebestandEnabled=false`, kein `Sync:*Enabled=true`,
+  `SageLagerbuchungAktiv` nicht gesetzt.
+
+| Schritt | Durchgeführt | Ergebnis | Bewertung |
+|---|---|---|---|
+| TS-130.1.1–130.1.11 (Filter, AKE + IDEAL, Server-/Client-Liste, Popover) | nein | Browser-Steuerung nicht verfügbar: zwei Chrome-Instanzen verbunden, die Auswahl verlangt eine Rückfrage an den Menschen, die der qa-agent als Unteragent nicht stellen kann; Windows-SSO per curl endet am Login-Formular | NICHT MÖGLICH |
+| TS-130.1.12 automatisiert | ja | C#-Theory + Node grün (100 Fälle) | OK |
+| Datenvorprüfung Filter AKE-DEV | ja | `StorageLocations`: genau ein Platz `GL;0;0;0`, kein `GL;0;0;01`; 3285 Plätze mit `;` | OK (130.1.2/130.1.3 treffen auf DEV denselben Platz) |
+| TS-130.2 Einbuchung Mischplatz | nein | Browser nicht verfügbar | NICHT MÖGLICH |
+| TS-130.3.1/3.2/3.4/3.5 Bedarfsmeldung Ortszeit | nein | Browser nicht verfügbar | NICHT MÖGLICH |
+| TS-130.3.3 Dienst-Mailversand „Gesendet“ | nein | Versand hängt an `Sync:PartRequisitionEmailEnabled` (`SyncWorker.cs:154`), auf DEV gesperrt (harte Grenze) | NICHT MÖGLICH |
+| TS-130.3.6 Altdaten / Prüfabfrage | ja | `AKE_WMS_DEV`: 16 Zeilen (7 mit Mail, 4 erfüllt, 3 storniert; erste 2026-04-03, letzte 2026-11-12 19:06:35 = der UTC-Befund); `IDEAL_WMS_DEV`: 0 | OK (bestätigt, nichts geschrieben) |
+| TS-130.4 Auftragsdruck | nein | Browser nicht verfügbar | NICHT MÖGLICH |
+| TS-130.5 Wagen-Modal | nein | Browser nicht verfügbar | NICHT MÖGLICH |
+| Datenvorprüfung Wagen AKE-DEV | ja | `Wagen 1` (Id 3) trägt gewachsene Texte `2618052;2618052;2602108;…;2614027;2625004` (Befund belegt), `Wagen 2` (Id 3294) `2616156;2614027` → Testdaten für 130.5.4 | OK |
+
+**Nachlauf Browser-Teil (2026-11-13, nach Auswahl „Browser 1“ durch Gerald):** erneut NICHT MÖGLICH. In Browser 1 zeigen
+`http://localhost:8081/`, `/Account/Login`, `http://127.0.0.1:8081/Account/Login` und der Rechnername durchgehend eine Chrome-Fehlerseite
+(„Frame … is showing error page“), während derselbe Login vom QA-Rechner `PC-WEICHBOLD` per curl HTTP 200 liefert. Schluss: Browser 1 läuft
+nicht auf `PC-WEICHBOLD` bzw. erreicht dessen localhost nicht. Für den Browser-Teil die Chrome-Instanz auf `PC-WEICHBOLD` wählen (vermutlich
+„Browser 2“, deviceId c77ddde4-afec-4e14-bd48-1a77da724d46 – nicht geprüft). Es wurde nichts gebucht oder geändert.
+
+**Browser-Teil mit „Browser 2“ (2026-11-13 09:30–09:50, AKE-DEV http://localhost:8081, Fußzeile v1.99.13; IDEAL-Smoke :8082).**
+Ergebnis: **kein FEHLER**, alle ausgeführten Schritte OK. Diese Ergebnisse ersetzen die NICHT-MÖGLICH-Zeilen der Tabelle oben.
+
+| Schritt | Durchgeführt | Ergebnis | Bewertung |
+|---|---|---|---|
+| 130.1.1 `"GL;0;0;0"` (/StockOverview, Lagerplatz) | ja | 26 von 4501 Zeilen, nur Platz GL;0;0;0 (= akenet01) | OK |
+| 130.1.2 `="GL;0;0;0"` / `"=GL;0;0;0"` | ja | je 26 (auf DEV kein GL;0;0;01). Unterschied genau/enthält mit Präfix-Paar geprüft: `"HR;1;1;1"` 55, `="HR;1;1;1"` 1, `"=HR;1;1;1"` 1 (HR;1;1;10/11/12 ausgeschlossen) | OK |
+| 130.1.3 `"GL;0;0;0"%` | ja | 26 (kein längerer GL;0;0;0…-Platz auf DEV) | OK |
+| 130.1.4 `!"GL;0;0;0"` | ja | 4475 = 4501 − 26 | OK |
+| 130.1.5 `"GL;0;0;0";LL%` | ja | 1175 = 26 + 1149 (`LL%` allein 1149) | OK |
+| 130.1.6 Client-Liste (Kommissionierauftrag KO-2026-00008, Spalte Lagerplatz) + Server-SQL-Pfad | ja | Client: `"WA;0;0;0"` 1 Zeile (00725318), ohne Anführung `WA;0;0;0` ODER (viele Zeilen). Server-SQL (/StockMovements): `"HR;1;1;1"` 269, `="HR;1;1;1"` 13 = SQL-Gegenzählung 269/13 | OK |
+| 130.1.7 Popover „?“ + Hilfeseite | ja | Popover-Zeile `"GL;0;0;0"` – „genau dieser Text als ein Begriff (; und , trennen in Anführungszeichen nicht)“; Hilfeseite enthält den neuen Eintrag | OK |
+| 130.1.8 `GL;0;0;0` ohne Anführung | ja | 3297 (ODER; Bestand gegenüber 3302 im Testbericht leicht verändert) | OK |
+| 130.1.9 `=GL;0;0;0` ohne Anführung | ja | 2162 (ODER „genau gl“ / „enthält 0“, wie vorher ~2167) | OK |
+| 130.1.10 Zoll `3/4"` (Bezeichnung) | ja | 6 Zeilen, alle mit `3/4"` | OK |
+| 130.1.11 `"Warnung` (ohne Schluss) / `""` | ja | `"Warnung` 2 Zeilen mit wörtlichem `"Warnung…`; `""` 4501 = ungefiltert | OK |
+| 130.2 Einbuchung Mischplatz | ja | FA 2604043: gelbe Warnung „Lagerplatz **Test** — 3,000 Stk am Platz, Artikel 00102251“ (Mischplatz: 2 ohne FA + 1 mit FA) und „TEST 1 — 2,000 Stk am Platz“, Erklärsatz, Lagerplatz nicht übernommen. FA 2610063 (ein Platz): „1;1;1 — 1,000 Stk am Platz“ + Erklärsatz, „Lagerplatz wurde übernommen“. FA 2614168 ohne Bestand: kein Hinweis. Bestandsübersicht FA 2604043: Test 1,000 / TEST 1 1,000 | OK |
+| 130.3.1 Anlage | ja | Bedarfsmeldung Id 17 (00725318, FA 2625004) um 09:42:22 Ortszeit; Liste „Bestellt am“ 13.11.2026 09:42 | OK |
+| 130.3.2 Storno (Bootstrap-Modal) | ja | `CancelledAt` 09:42:48, `ModifiedAt` 09:42:48, CancelledBy gesetzt | OK |
+| 130.3.4 Erfüllen per Einbuchung | ja | Id 18 angelegt 09:43:18, per Einbuchung (00725318, 1 Stk, Test, Zuordnung angehakt) erfüllt: `FulfilledAt`/`ModifiedAt` 09:43:47 = Bewegung 19426 09:43:47; kein `SageBookingQueueItems`-Eintrag | OK |
+| 130.3.5 Filter „Bestellt am“ `=13.11.2026` | ja | genau die 2 neuen Meldungen | OK |
+| 130.3.3 Mailversand „Gesendet“ | nein | auf DEV gesperrt (`Sync:PartRequisitionEmailEnabled`) | NICHT MÖGLICH (Testsystem) |
+| 130.4.1 Druck offener Auftrag | ja | Spalte Lagerplatz gefüllt: offene Zeilen NAN bzw. Vorschlag wie Seite (00730557 → TEST 2, Seite „TEST 2 (1,000)“; EK000422 → TEST 1); 00725318 nach Einbuchung auf Test → Seite und Druck „Test“ | OK |
+| 130.4.2 umgebuchte Zeilen | ja (teilweise) | 00725318 (Quelle Test), 87017455 und 00730610 (Quelle NAN) zeigen den tatsächlichen Quell-Platz. Abweichend vom Vorschlag gewählter Quell-Platz **nicht** geprüft | OK (Teil offen) |
+| 130.4.3 / 130.4.4 Teilweise/Vollständig abschließen | nein | bewusst nicht ausgeführt: würde den Regressions-Auftrag KO-2026-00008 von Gerald abschließen | offen für den Menschen |
+| 130.4.5 Hauptplatz nicht buchbar | ja | 00730557: Hauptplatz HR;2;1;22 (3357, nicht buchbar) wird nicht vorgeschlagen; Druck TEST 2 | OK |
+| 130.5.4 Altbestand Wagen 1 | ja | Modal zeigt „2602011; 2602108; 2614027; 2618052; 2625004“ – jede Nummer einmal (Altdaten mit Wiederholungen) | OK |
+| 130.5.2 / 130.5.3 Trotzdem buchen, zweimal | ja | Bewegungen 19427 und 19428 tragen beide `2602011;2602108;2614027;2618052;2625004`; zweites Modal unverändert, Text wächst nicht. Modal-Text passt in die Breite; Umbruch einer *langen* Liste auf DEV nicht nachstellbar (Liste ist nach der Normalisierung kurz), `text-break` laut Diff gesetzt | OK |
+| 130.5.5 nur dieselbe FA am Wagen | ja | WAGEN N3 trägt nur 2625004 → Umbuchung von FA 2625004 ohne Modal | OK |
+| 130.5.6 „Lagerplatz ausbuchen“ Wagen 1 | ja | FA-Feld vorbelegt „2602011; 2602108; 2614027; 2618052; 2625004“ (nicht ausgebucht) | OK |
+| IDEAL-Smoke | ja | :8082 Fußzeile v1.99.13; `"LIFT1;1;0;0"` 8 Zeilen, nur dieser Platz; `""` = ungefiltert (6337) | OK |
+
+Auf DEV angelegte Testdaten (AKE_WMS_DEV): Bedarfsmeldungen 17 (storniert) und 18 (erfüllt); Einbuchung 19426 (00725318, 1 Stk, Test);
+Umbuchungen 19427/19428 (Wagen 1) und eine nach WAGEN N3; Zeilen 20, 9, 31 von KO-2026-00008 sind jetzt umgebucht. Keine Mail versendet, nichts an Sage.
+Nebenbeobachtung, nicht Teil dieser Spec: Auf der Auftragsseite kehrt nach jedem Neuladen der Spaltenfilter „Bezeichnung 1 = Verdampfer“ zurück
+(vermutlich ein gespeicherter Filter aus einer früheren Sitzung); das hat die Prüfung nicht beeinflusst.
+
+### 7. Publish
+`C:\git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish\` neu erzeugt (Zielordner vorher geleert): `IDEALAKEWMSWeb`,
+`IDEALAKEWMSWebService`, `SQL`, `deploy`, `publish-info.txt` (Version 1.99.13, Commit `a8dd9d2e003229ac3174f75b91bc0fbaa4548de2`, Branch
+`feature/2026-08-07-ideal-teile-1-5`, Erstellt 2026-11-13 09:00). Im Ordner liegt zusätzlich ein älteres `deploy.zip` (nicht von diesem Lauf, nicht angefasst).
+
+### Manuelle Test-Checkliste (offen für den Menschen; DEV AKE + IDEAL laufen auf v1.99.13)
+**Stand nach dem Browser-Teil:** Punkte 1–5 und 8 hat QA auf AKE-DEV erledigt (Ergebnisse oben). Offen bleiben: Punkt 6, aus Punkt 7 nur
+130.4.2 mit abweichendem Quell-Platz sowie 130.4.3/130.4.4 (Abschließen), Umbruch einer langen FA-Liste im Modal, außerdem Punkte 9 und 10.
+1. AKE-DEV `/StockOverview`, Spalte Lagerplatz: `"GL;0;0;0"`, `="GL;0;0;0"`, `"=GL;0;0;0"`, `"GL;0;0;0"%`, `!"GL;0;0;0"`, `"GL;0;0;0";LL%` –
+   Trefferzahlen notieren (TS-130.1.1–130.1.5). Gegenprobe `GL;0;0;0` ohne Anführung = weiter 3302, `=GL;0;0;0` weiter ODER (130.1.8/130.1.9).
+2. Dieselben Eingaben in einer Client-Liste (Kommissionierauftrag/Stückliste, Spalte Lagerplatz) und in einer Server-Mode-Liste mit SQL-Pfad
+   (z. B. Bewegungshistorie, Spalte Lagerplatz) – gleiche Treffer (130.1.6, AK 8).
+3. `1/2"`, `"abc`, `""` (130.1.10/130.1.11); Popover „?“ und Hilfeseite zeigen die neue Zeile (130.1.7). IDEAL-DEV: Gegenprobe mit `,` in einer Textspalte.
+4. Einbuchung Mischplatz (TS-130.2): „3,000 Stk am Platz“ + Erklärsatz, Platz übernommen; zwei Plätze → gelbe Warnung; FA ohne Bestand → kein
+   Hinweis; Bestandsübersicht mit FA-Filter weiter 1,000.
+5. Bedarfsmeldung anlegen, stornieren, per Einbuchung erfüllen – Zeiten = Ortszeit ± 1 min (TS-130.3.1/3.2/3.4/3.5); Abfrage
+   `SELECT TOP 5 Id, CreatedAt, CancelledAt, FulfilledAt, ModifiedAt FROM dbo.PartRequisitions ORDER BY Id DESC`.
+6. Dienst-Mailversand „Gesendet“ in Ortszeit (TS-130.3.3) – nur auf dem Testsystem mit Mail-Ablageordner; auf DEV gesperrt.
+7. Auftragsdruck (TS-130.4.1–130.4.5): offene Zeilen = Vorschlag der Seite bzw. NAN, umgebuchte = tatsächlicher Platz, übertragene/entfallene leer.
+8. Wagen-Modal (TS-130.5.1–130.5.6): AKE-DEV „Wagen 1“ zeigt jede FA einmal (Altbestand), mehrfach „Trotzdem buchen“ → Text wächst nicht,
+   Umbruch im Modal (auch schmales Fenster), „Lagerplatz ausbuchen“ belegt Einzelnummern; nur dieselbe FA → kein Modal.
+9. IDEAL-Prod: Prüfabfrage Altdaten `dbo.PartRequisitions` (lesend) nachholen, Zahl im Brain-Changelog eintragen (R-2).
+10. Testsystem-Lauf mit dem Paket `publish\` (v1.99.13 bzw. späterer Bündelstand): Fußzeile, Dienst-Start, Stichprobe der Punkte 1, 4, 7, 8.
