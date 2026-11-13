@@ -364,6 +364,8 @@ public class LieferverzugMailTests
         var plan = Plan(new[] { L(1, 5) }, K(Kr()), E());
         LieferverzugMailHtml.Einkauf(plan, "AKE", Jetzt, null, Heute, E(kreditor: true)).Text.Should().Contain("Kreditor-Mails gehen frühestens 3 Tage");
         LieferverzugMailHtml.Einkauf(plan, "AKE", Jetzt, null, Heute, E(kreditor: false)).Text.Should().NotContain("Kreditor-Mails gehen");
+        // QA Nach-QA: ohne Kreditor-Satz kein doppeltes Leerzeichen vor dem Altersgrenzen-Satz
+        LieferverzugMailHtml.Einkauf(plan, "AKE", Jetzt, null, Heute, E(kreditor: false, maxAlter: 180)).Text.Should().Contain("Bestellung“). Positionen mit Liefertermin");
     }
 
     [Fact] // Freigabe-Nachtrag 2: Lauf liest ArticleSuppliers (Artikel + Kreditor der Bestellung), leere Bestellnummer = leer

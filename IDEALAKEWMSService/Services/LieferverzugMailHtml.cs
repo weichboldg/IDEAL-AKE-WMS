@@ -94,8 +94,8 @@ public static class LieferverzugMailHtml
         var klaeren = plan.ZuKlaeren.Count;
         var betreff = $"Lieferverzug: {plan.AnzahlFaellig} Bestellposition(en) bei {plan.AnzahlLieferanten} Lieferant(en)"
             + (klaeren > 0 ? $", davon {klaeren} zu klären" : "") + $" – {heute:dd.MM.yyyy}";
-        var einleitung = $"Folgende Bestellpositionen sind {e.TageNachTermin} oder mehr Tage nach dem Liefertermin noch offen (Rest wie in „Wareneingang zu Bestellung“). "
-            + (e.KreditorAktiv ? $"Kreditor-Mails gehen frühestens {e.KreditorSchwelle} Tage nach dem Liefertermin raus." : "")
+        var einleitung = $"Folgende Bestellpositionen sind {e.TageNachTermin} oder mehr Tage nach dem Liefertermin noch offen (Rest wie in „Wareneingang zu Bestellung“)."
+            + (e.KreditorAktiv ? $" Kreditor-Mails gehen frühestens {e.KreditorSchwelle} Tage nach dem Liefertermin raus." : "")
             + (e.MaxAlterTage > 0 ? $" Positionen mit Liefertermin älter als {e.MaxAlterTage} Tage stehen unter „Zu klären“ und gehen nie an Lieferanten." : "");
         var klaerenTitel = $"Zu klären – Liefertermin älter als {e.MaxAlterTage} Tage (keine Erinnerung an Lieferanten)";
         const string klaerenSatz = "Bitte in Sage prüfen: geliefert, storniert oder Termin anpassen.";
