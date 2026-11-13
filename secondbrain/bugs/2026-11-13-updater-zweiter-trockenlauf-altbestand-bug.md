@@ -1,7 +1,7 @@
 ---
 type: bug
 title: "Update-Skript: zweiter Trockenlauf des Altbestand-Skripts meldet „TREFFER: (leer)“"
-status: offen
+status: Testbereit
 severity: niedrig
 created: 2026-11-13
 affected_code:

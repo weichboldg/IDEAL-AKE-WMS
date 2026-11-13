@@ -2,7 +2,7 @@
 type: spec
 title: "Bugfix Update-Skript: zweiter Trockenlauf des Altbestand-Skripts liefert TREFFER 0"
 slug: 2026-11-13-updater-zweiter-trockenlauf-altbestand-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-11-13
 updated: 2026-11-13
 source_backlog: "[[2026-11-13-updater-zweiter-trockenlauf-altbestand]]"
@@ -275,18 +275,24 @@ Sperre jeden Schreibweg abschneidet. Der QA-Lauf belegt AK 2 stattdessen durch L
 
 ## Deploy
 
-*Vorläufig, der QA-Lauf bestätigt gegen den echten Diff.*
+*Final (QA 2026-11-13 gegen den echten Diff `e92894c9..cb204c96`).*
 
-- **Web-App:** ja. Nur wegen des Versionssprungs: Das Update-Skript vergleicht die Fußzeile mit der Paketversion (`Update-IdealAkeWms.ps1:860-861`).
-- **Service:** ja. Nur wegen des Versionssprungs (`IDEALAKEWMSService/AppVersion.cs`).
-- **Migration:** nein.
-- **Manifest-Einträge:** keine neuen. Der Eintrag `Einmalig/2026-11-08_v1.88.0_Kommissionierauftraege_Altbestand` (`nachlauf.psd1:154-159`)
-  bleibt unverändert, auch Id, Version und Text. Das geänderte Einmal-Skript und das geänderte Update-Skript kommen mit dem Paket.
-- **Reihenfolge:** keine Besonderheit. Das neue Update-Skript wirkt ab dem nächsten Lauf aus dem neuen Paket.
-- **Publish-Befehle** (im Worktree):
+- **Web-App:** ja – nur Versionssprung (`IdealAkeWms/AppVersion.cs`) und Anwender-Changelog (`Views/Help/Changelog.cshtml`); das
+  Update-Skript vergleicht die Fusszeile mit der Paketversion.
+- **Service:** ja – nur Versionssprung (`IDEALAKEWMSService/AppVersion.cs`).
+- **Migration:** nein (keine Datei unter `*/Migrations/`, kein `SQL/XX`, kein `00_FreshInstall.sql`).
+- **Paket-Inhalt, der wirkt:** `deploy/Update-IdealAkeWms.ps1`, `deploy/IdealAkeWms.Deploy.psm1`, `deploy/Install-IdealAkeWms.ps1`,
+  `deploy/ziele.psd1` (neue Zeilen AKE-DEV/IDEAL-DEV) und `SQL/Einmalig/2026-11-08_v1.88.0_Kommissionierauftraege_Altbestand.sql`.
+- **Manifest (`nachlauf.psd1`):** unverändert, keine neuen Einträge, kein manueller Deploy-Schritt; der Altbestand-Eintrag bleibt (Id, Version,
+  Text). Vorhandene Marker gelten weiter (QA 133.5: Marker mit altem Hash → „erledigt am …“).
+- **Publish (erledigt durch QA):** `C:\git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish` – v1.99.16, Commit
+  `cb204c96672051716b951fbd8b299c85996cb41b`, `IDEALAKEWMSWeb` + `IDEALAKEWMSWebService` + `SQL\` + `deploy\` + `publish-info.txt`.
+  Achtung: Im Ordner liegt zusätzlich ein altes `deploy.zip` (13.11. 08:15, Paket vom 12.11.) – **nicht** das v1.99.16-Paket.
+- **Reihenfolge:** keine Besonderheit; das neue Update-Skript wirkt ab dem Lauf aus diesem Paket.
+- **Ablauf Mensch:** Paket aus dem Worktree → Testsystem → testen → Merge. Nach dem Merge nur dann aus `main` neu publishen, wenn der Merge
+  getestete Dateien mit parallelen `main`-Änderungen zusammengeführt hat:
   `dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb`
   `dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService`
-  Danach das Paket wie im Bündel üblich bauen (inkl. `SQL/` und `scripts/deploy/`).
 
 **Brain-Nachträge (Hauptcheckout, nicht im Worktree):**
 - `fallstricke.md` §30 neuer Punkt: „Eine Wiederholungssperre in einer Trockenlauf-Datei muss im Trockenlauf `TREFFER: 0` ausgeben.“
@@ -329,3 +335,118 @@ Sperre jeden Schreibweg abschneidet. Der QA-Lauf belegt AK 2 stattdessen durch L
 1. Spur-Abfrage scheitert → künftig „entfällt“ statt Abbruch am Haltepunkt, gewollt? → **Ja, gewollt (Gerald 2026-11-13).**
 2. Drift-Wächter: Heuristik `IF EXISTS`-Sperre reicht, oder Kennzeichen-Konvention? → **Heuristik reicht (Gerald 2026-11-13).**
 3. Regel zusätzlich in `spec-agent.md` und `_templates/spec.md` ergänzen? → **Ja, eine Zeile je Datei (Gerald 2026-11-13).**
+
+## QA-Nachweis 2026-11-13 (qa-agent, Commit `cb204c96`, Basis `e92894c9` = v1.99.15)
+
+Ergebnis: **Testbereit.** Keine blockierenden Befunde; drei Hinweise (H-1 bis H-3) zur Entscheidung durch Gerald.
+
+### 1. Build und Tests (Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`)
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler, 28 Warnungen (bestehende Nullable-/NuGet-Warnungen).
+- `dotnet test`: IDEALAKEWMSService.Tests 608 bestanden / 0 übersprungen / 0 Fehler; IdealAkeWms.Tests 2795 bestanden / 1 übersprungen / 0 Fehler (2796).
+
+### 2. Code-Review (selbst, synchron; `git diff e92894c9 cb204c96`, 11 Dateien)
+Geprüft: Altbestand-SQL (Sperr-Block, Batch/`RETURN`, Literal genau einmal, Guard-Reihenfolge), `Update-IdealAkeWms.ps1` (Firma-/System-Schleife,
+`Read-Ja`-Aufrufer, Fluss A `:583-589`, `-NurPruefen`-Weg bis `return 0`), `IdealAkeWms.Deploy.psm1` (`Read-Ja` mit `$leer`), `Install-IdealAkeWms.ps1`,
+`ziele.psd1` (+ `Get-Ermittlung` `:163-221` für Server ohne DEV-Pfade), `NachlaufManifestDriftTests` (`SperrBloecke`, Rotproben, Ziele-Test),
+README, Changelog-View, TESTSZENARIEN; dazu die zwei Zeilen im Hauptcheckout (`.claude/agents/spec-agent.md`, `secondbrain/_templates/spec.md`).
+Die Defektklassen der QA-Liste (Script-Einbettung, `hidden` + `d-*`, `?? 0`, Array-Binding, Browser-Validierung) sind nicht berührt (keine Web-Logik geändert).
+- **AK 2 per Diff belegt:** `RAISERROR(... NICHT ERNEUT AUSFUEHREN ..., 16, 1); RETURN;` ist unverändert; neu ist nur der innere Block
+  `IF @Trockenlauf = 1 BEGIN ... TREFFER: 0; RETURN; END` davor. Der Scharflauf ersetzt das Literal durch `= 0` (`Update-IdealAkeWms.ps1:579`), damit greift der RAISERROR.
+- **`[bool]$leer` mit `[switch]$NurPruefen`:** in Windows PowerShell 5.1.26100 nachgemessen – bindet als `$false`/`$true`, kein Bindungsfehler.
+- Nur die zwei rein lesenden Fragen (`:665` geteilter App-Pool, `:667` DB-Verbindung) bekommen `$NurPruefen`; alle anderen `Read-Ja` bleiben leer = nein.
+  Unter `-NurPruefen` folgt keine weitere Ja/Nein-Frage (`return 0` vor Schritt 2); die Versionsfrage `:686` hat leer = unbekannt.
+- **H-1 (Hinweis, niedrig) – Wortlaut der Warnung bei Exit ≠ 0 trotz TREFFER-Zeile:** `:586` meldet in beiden Fällen „ohne Zeile TREFFER (Exit n)“.
+  Liefert ein Skript eine TREFFER-Zeile und scheitert danach (Exit 1), ist „ohne Zeile TREFFER“ sachlich falsch. Der Wortlaut ist von der Spec so
+  vorgegeben (Teil 2, AK 7); Exit-Code und „Scharflauf ist übernommen“ stehen drin, die Warnung wird nicht verschluckt. Vorschlag für eine Folge:
+  „zweiter Trockenlauf ohne gültiges Ergebnis (Exit n, TREFFER x)“. Nicht blockierend.
+- **H-2 (Hinweis) – DEV-Zeilen in `ziele.psd1` auf Servern:** Das Menü zeigt auf jedem Server zusätzlich `4 DEV` (AKE) bzw. `3 DEV` (IDEAL), ohne „(PROD)“;
+  die Nummern der bestehenden Systeme bleiben. Wählt jemand DEV auf einem Server, bricht `Get-Ermittlung` (`:166-167`) mit „D:\Dev\AKE\Web fehlt (AKE-DEV)“
+  ab; die Ermittlung läuft für alle gewählten Systeme vor dem ersten Lauf (`:223`), also vor jedem Stopp und ohne DB-Kontakt (Trap: „Nichts gestoppt,
+  nichts geaendert“). Harmlos, nur Menü-Rauschen. Akzeptiert.
+- **H-3 (Hinweis) – Grenze von `SperrBloecke`:** zählt `BEGIN`/`CASE` als Öffner, `END` als Schliesser. Ein `BEGIN TRAN` im Sperr-Block hätte kein `END`
+  → Block schliesst nicht → Sperre wird übersehen (nur falsch-negativ, nie falsch-rot). `IF NOT EXISTS` bzw. `IF (SELECT COUNT…) > 0` erkennt die Regel
+  ebenfalls nicht (ponytail-Kommentar nennt das; Freigabe-Antwort 2: Heuristik reicht). Heute keine Trockenlauf-Datei betroffen.
+- Rotprobe `Manifest_SperreOhneTrefferNullImTrockenlauf_MachtWaechterRot`: `Replace("TREFFER: 0", "TREFFER: X")` trifft nur den Sperr-Block (`:96` ist `CONCAT`),
+  die Prüfung „ohne Zeile TREFFER“ bleibt grün – so beabsichtigt.
+- Hauptcheckout-Zeilen (Freigabe-Antwort 3): je eine Zeile in `spec-agent.md` (Deploy/ADR 0023) und `_templates/spec.md` (Kommentar im Deploy-Block) –
+  inhaltlich richtig, keine Nebenänderung. Noch nicht committet.
+- `Install-IdealAkeWms.ps1`: der Leer-Abbruch ist ein nacktes `throw` (das Skript hat keinen `trap`) → Ausgabe mit PowerShell-Fehlerblock statt nur der
+  Meldung; Text und Exit 1 stimmen. Kosmetik, kein Befund.
+
+### 3. Beweisart je AK
+| AK | Beweis |
+|---|---|
+| 1 | DEV-Lauf 133.1 (sqlcmd `-b` auf DB-Kopie mit Spur-Zeile): Exit 0, „bereits ueberfuehrt … Nichts zu tun.“ + `TREFFER: 0`; `PickingOrders` Anzahl/Checksumme und `PickingItems` vorher = nachher |
+| 2 | Diff (RAISERROR-Zweig unverändert); Scharflauf 133.9 bleibt Gerald (ADR 0023) |
+| 3 | DEV-Lauf 133.2 (Kopie ohne Spur): Zählung, Liste, `TREFFER: 15` wie vor dem Fix |
+| 4 | DEV-Lauf 133.10 (Wegwerf-Kopie ohne Spalte, Spur-Zeile vorhanden): Exit 1, „SQL/141 fehlt“, kein `TREFFER: 0` |
+| 5 | automatisiert (`Manifest_DatenUndEinmalSkripte_NurMitBestaetigung`, ASCII-Test) |
+| 6 | DEV-Lauf 133.3 (synthetisch `Test/Sperre`, Form des Fixes): „OK Test/Sperre: zweiter Trockenlauf TREFFER: 0“ |
+| 7 | DEV-Lauf 133.7 (synthetisch `Test/SperreAlt`, Stand vor dem Fix): Warnung „ohne Zeile TREFFER (Exit 1). Scharflauf ist uebernommen …“, kein Leerwert |
+| 8 | DEV-Lauf 133.8 (synthetisch `Test/Rest`): „TREFFER: 1 (erwartet 0)“ |
+| 9 | automatisiert (Rotprobe + alle Drift-Tests grün) |
+| 10 | DEV-Lauf 133.5 (Marker mit altem `FileSha256`, `-NurPruefen`): „erledigt am … (Scharf, Treffer 15)“, nicht angeboten |
+| 11 | Build/Test oben; beide `AppVersion.cs` = 1.99.16, Changelog-Karte v1.99.16 |
+| Nachtrag (1) | DEV-Läufe 133.11/133.12/133.13/133.17 + automatisiert `DeploySkripte_AuswahlSchleifen_BrechenBeiLeererEingabeAb` |
+| Nachtrag (2) | DEV-Läufe 133.14/133.15 + automatisiert `Ziele_AlleSystemeMitGueltigerHttpUrl_DevNieProd` |
+
+### 4. Geänderte bestehende Tests
+- `Ziele_AlleFuenfSystemeMitGueltigerHttpUrl` → `Ziele_AlleSystemeMitGueltigerHttpUrl_DevNieProd`: Verhalten bewusst geändert (Freigabe-Nachtrag 13:58 Punkt 2,
+  DEV-Ziele; zusätzlich `Prod=$false` für DEV). Kein Fixture-Zurechtbiegen.
+- Sonst nur neue Tests (`Manifest_SperreOhneTrefferNullImTrockenlauf_MachtWaechterRot`, `DeploySkripte_AuswahlSchleifen_BrechenBeiLeererEingabeAb`) und eine
+  neue Bedingung in `DatenFehler`.
+
+### 5. Checkliste CLAUDE.md / ADR 0020
+- Migration/SQL-XX/FreshInstall/AgentJobs: entfällt (nur Inhalt eines Einmal-Skripts, ADR 0015). Audit-Felder: entfällt (Trockenlauf-Zweig schreibt nicht).
+- Version beide `AppVersion.cs` 1.99.16, Anwender-Changelog, Brain-Changelog [[2026-11-13-v1-99-16-updater-zweiter-trockenlauf]], feature-map, fallstricke
+  (zwei Punkte v1.99.16), `docs/TESTSZENARIEN.md` TS-133, Testindex Zeile 133, README (Update-Skript): alle vorhanden.
+- ADR 0020: keine neue oder geänderte Einstellung (Spec „Einstellungen: keine“); `ziele.psd1` ist Deploy-Konfiguration, keine App-Einstellung.
+- Manifest: kein neuer Deploy-Schritt nötig; `nachlauf.psd1` unverändert – passt.
+
+### 6. DEV-Deploy und Testlauf
+- Standort laut Frontmatter: **beide**. Shell elevated: ja.
+- `dev-deploy.ps1 -Standort AKE -Quelle <Worktree>`: Exit 0, „HTTP 200, Fusszeile v1.99.16“, „Fertig: AKE v1.99.16 auf http://localhost:8081/“.
+- `dev-deploy.ps1 -Standort IDEAL -Quelle <Worktree>`: Exit 0, „HTTP 200, Fusszeile v1.99.16“, „Fertig: IDEAL v1.99.16 auf http://localhost:8082/“.
+- Ausgaben: `D:\Dev\deploytest\ts133\133_*.txt`, Transkripte und Trockenlauf-Dateien in `D:\Dev\deploytest\ts133\logs\`.
+
+| Schritt | Ausgeführt | Ergebnis | Status |
+|---|---|---|---|
+| 133.1 | Kopie `AKE_WMS_TS133` (COPY_ONLY von `AKE_WMS_DEV`), synthetische Spur-Zeile `QA-TS133-SPUR`, echtes Altbestand-Skript `sqlcmd -b -i` | Exit 0; „Altbestand wurde bereits ueberfuehrt … Nichts zu tun.“, `TREFFER: 0`; keine Zählungstabellen; `PickingOrders` 9 Zeilen/Checksumme gleich, `PickingItems` 11092 gleich | OK |
+| 133.2 | dieselbe Kopie vor dem Einfügen der Spur | Zählung (15 FAs), Liste „Altbestand pruefen“ (FA 2616156), `TREFFER: 15`, Exit 0 | OK |
+| 133.3 | Paketkopie mit Eintrag `Test/Sperre` (Phase Nachher, Firma AKE), Volllauf `-Firma AKE -System DEV -BackupPfad …`, Eingaben j/j/n/SCHARF×3 | Backup aus dem Lauf, Stopp, Kopieren, Start (Fusszeile v1.99.16); `Test/Sperre` TREFFER 2 → SCHARF → „A geschrieben: 2“, Marker Scharf; „OK Test/Sperre: zweiter Trockenlauf TREFFER: 0“; Exit 0 | OK |
+| 133.4 | Folgelauf `-NurPruefen` (statt zweitem Volllauf; Marker-Abfrage ist dieselbe) | „Test/Sperre: erledigt am 13.11.2026 14:20 (Scharf, Treffer 2)“, kein Trockenlauf, kein Halt | OK |
+| 133.5 | synthetischer Marker Altbestand (Scharf, alter Hash `E05C34AD…`, Paket 1.99.12) in `AKE_WMS_DEV`, `-NurPruefen` mit geschlossener Eingabe | „erledigt am 13.11.2026 14:18 (Scharf, Treffer 15)“ in Vorprüfung und Nachlauf, nicht angeboten; im Volllauf 133.3 ebenfalls nicht | OK |
+| 133.6 | `dotnet test` | alle Drift-Tests grün, Rotproben eingebaut | OK |
+| 133.7 | `Test/SperreAlt` (Sperre ohne Trockenlauf-Zweig) im selben Volllauf | „Test/SperreAlt: zweiter Trockenlauf ohne Zeile TREFFER (Exit 1). Scharflauf ist uebernommen (Marker Scharf); Ausgabe im Log-Ordner pruefen.“; Marker Scharf steht | OK |
+| 133.8 | `Test/Rest` im selben Volllauf | „Test/Rest: zweiter Trockenlauf TREFFER: 1 (erwartet 0).“ | OK |
+| 133.9 | – | Scharflauf des echten Skripts nur durch Gerald (ADR 0023); AK 2 per Diff | NICHT MOEGLICH (Grenze) |
+| 133.10 | Wegwerf-Kopie: Default-Constraint und Spalte `AltbestandPruefen` entfernt (Spur-Zeile vorhanden) | Exit 1, „SQL/141 fehlt (dbo.PickingOrders.AltbestandPruefen). Abbruch, nichts geaendert.“, kein `TREFFER: 0` | OK |
+| 133.11 | `-Firma AKE -NurPruefen` mit geschlossener Eingabe | Liste 1 Prod (PROD), 2 Test, 3 Test-IDEAL, 4 DEV; „ABBRUCH: keine Eingabe fuer die Systeme (-System angeben).“, „Nichts gestoppt, nichts geaendert.“, Exit 1, 7 Zeilen, 0× „Ungueltig.“ | OK |
+| 133.12 | `-NurPruefen` ohne Firma, geschlossene Eingabe | „ABBRUCH: keine Eingabe fuer die Firma (-Firma angeben).“, Exit 1, 0× „Ungueltig.“ | OK |
+| 133.13 | `Install-IdealAkeWms.ps1` mit Platzhaltern, ohne `-Firma`, geschlossene Eingabe | „ABBRUCH: keine Eingabe fuer die Firma (-Firma angeben). Nichts geaendert.“, Exit 1, vor jedem Schritt (mit PS-Fehlerblock) | OK |
+| 133.14 | `-Firma AKE -System DEV -NurPruefen`, geschlossene Eingabe | `D:\Dev\AKE\Web`, Site/Pool `AKE_WMS_DEV`, Dienst `AKE_WMS_DEV_Service`, DB `./AKE_WMS_DEV`, URL `http://localhost:8081/`; ohne Antwort lesend weiter; Vorprüfung, 5a-Bericht, Nachlauf; „-NurPruefen: nichts gestoppt, nichts geschrieben.“, Exit 0 | OK |
+| 133.15 | `-Firma IDEAL -System DEV -NurPruefen`, geschlossene Eingabe | `D:\Dev\IDEAL\Web`, `IDEAL_WMS_DEV`, URL `http://localhost:8082/`; Altbestand-Trockenlauf in der Vorprüfung TREFFER 0 → entfällt; Exit 0 | OK |
+| 133.16 | Menüliste (aus 133.11) | AKE `4  DEV` ohne „(PROD)“; IDEAL-Liste nicht angezeigt (Ziele-Test belegt die Zeile) | OK (AKE), IDEAL offen |
+| 133.17 | `-Firma AKE -System DEV` ohne `-NurPruefen`, geschlossene Eingabe | „Ende ohne DB-Kontakt.“, Exit 2; App-Pool Started, Dienst Running | OK |
+| 133.18 | – | auf DEV kein geteilter App-Pool; Code `:665` per Review (nur leer = ja, `n` = nein) | NICHT MOEGLICH (kein geteilter Pool) |
+
+**DEV-Änderungen und Rücksetzung:** DB-Kopie `AKE_WMS_TS133` angelegt und wieder gelöscht. In `AKE_WMS_DEV` Tabelle `dbo.TS133_Probe` und 4 Marker-Zeilen
+in `DeployScriptRuns` (Altbestand-Synthetik + `Test/*`) angelegt und wieder entfernt (`DeployScriptRuns` danach 0 Zeilen wie vorher). Paketkopie
+`D:\Dev\deploytest\ts133\paket` und das Lauf-Backup `AKE_WMS_DEV_20261113_141928_vor_v1.99.16.bak` gelöscht. Bleibt: Der Volllauf 133.3 hat das identische
+v1.99.16-Paket nach `D:\Dev\AKE\Web` und `D:\Dev\AKE\Service` kopiert und dort `deploy-info.txt` geschrieben; Rollen-Reparatur abgelehnt (unverändert).
+AKE-DEV läuft mit Fusszeile v1.99.16.
+
+### 7. Publish
+`C:\git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish`: `IDEALAKEWMSWeb` und `IDEALAKEWMSWebService` vorher geleert und neu publiziert
+(Release), `SQL\` und `deploy\` kopiert, `publish-info.txt`: Version 1.99.16, Commit `cb204c96672051716b951fbd8b299c85996cb41b`, Branch
+`feature/2026-08-07-ideal-teile-1-5`, Erstellt 2026-11-13 14:15. Das alte `publish\deploy.zip` (13.11. 08:15) wurde nicht angefasst.
+
+### Manuelle Checkliste (Gerald)
+1. **AKE Test-IDEAL Prüfschritt** (Abschnitt „Prüfschritt“): `DeployScriptRuns` für `Einmalig/2026-11-08%` → eine Zeile `Scharf`; Aufträge `Migration-KO-Altbestand` > 0.
+2. **133.9** (nur Gerald): echtes Altbestand-Skript mit `@Trockenlauf = 0` von Hand in SSMS auf einer DEV-Kopie mit Spur-Zeile → `RAISERROR` „NICHT ERNEUT AUSFUEHREN“, nichts angelegt.
+3. **133.18:** auf einem System mit geteiltem App-Pool `-NurPruefen`, Frage „Trotzdem weiter …?“ mit `n` → Abbruch „geteilter App-Pool nicht bestaetigt.“
+4. **133.16 IDEAL:** interaktiv `-Firma IDEAL` → Liste zeigt `3  DEV` ohne „(PROD)“.
+5. **Testsystem-Lauf** mit dem Paket aus `publish\` (nicht `deploy.zip`): auf einem System mit erledigtem Altbestand „erledigt am …“, kein Angebot.
+6. Nächstes Update eines Systems mit **offenem** Altbestand (IDEAL-Prod/AKE-Prod): nach SCHARF „OK … zweiter Trockenlauf TREFFER: 0“ ohne Warnung.
+7. Entscheiden: H-1 (Wortlaut bei Exit ≠ 0 mit TREFFER-Zeile) als Folge-Backlog? H-2 (DEV-Zeilen im Server-Menü) so lassen?
+8. Die zwei Hauptcheckout-Zeilen (`.claude/agents/spec-agent.md`, `secondbrain/_templates/spec.md`) committen.

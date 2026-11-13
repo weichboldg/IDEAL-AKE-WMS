@@ -124,7 +124,8 @@ DEPLOY SECTION (fill provisionally):
   (Vorher|Schema|Haltepunkt|VorStart|Nachher), Ausfuehrung (automatisch only for Schema/Ordner;
   Daten/Einmalig: Trockenlauf|Transaktion|anzeigen; Pruefung: Reparatur|anzeigen), Text. ADR 0023:
   a Trockenlauf script needs exactly one "DECLARE @Trockenlauf BIT = 1;" and a "TREFFER: n" line in
-  its dry-run branch; Transaktion scripts contain no ROLLBACK and no sqlcmd directives; a seed or
+  its dry-run branch; a repeat lock (IF EXISTS ... RAISERROR) must also print "TREFFER: 0" in a dry run (the second dry run after SCHARF hits it);
+  Transaktion scripts contain no ROLLBACK and no sqlcmd directives; a seed or
   state that is SQL-checkable gets a Pruefung entry (or a startup seed), not a manual step.
   Schema entries keep deploy order (never file sort). No deploy step -> write "keine".
 

@@ -1748,6 +1748,15 @@ Code: `hardware-scanner.js` Block „Scannen ohne Feld“, CSS `.hw-scan-bereit`
   GetNewClosure“; richtig ist `[Delegate]({ … }.GetNewClosure())`. Eine Funktion mit einem Element liefert einen Skalar, kein Array
   (`.Count` wirft unter StrictMode) – `@(...)` um den Aufruf. **Warum wichtig:** Beides fiel erst im DEV-Lauf auf (TS-126), nicht im Parser.
 
+- **v1.99.16: Auch die Wiederholungssperre eines Fluss-A-Skripts muss im Trockenlauf `TREFFER: 0` ausgeben.** Fluss A startet nach dem
+  Commit einen zweiten Trockenlauf; ein `RAISERROR … RETURN` ohne Trockenlauf-Zweig liefert Exit 1 ohne `TREFFER`, und die Prüfung
+  `$null -ne 0` warnte mit leerem Wert ([[2026-11-13-updater-zweiter-trockenlauf-altbestand-spec]]). **Warum wichtig:** Nach jedem
+  erfolgreichen Scharflauf stand eine Fehlwarnung; der Drift-Test (`SperrBloecke`) prüft jetzt jede `IF EXISTS … RAISERROR`-Sperre –
+  mit BEGIN/CASE/END-Zählung, weil eine kurze Regex am inneren `END` des Trockenlauf-Zweigs endet und die Rotprobe nicht fängt.
+- **v1.99.16: Jede Auswahl-Schleife braucht einen Ausgang für leere Eingabe.** `Read-Eingabe` liefert bei geschlossener Eingabe `''`;
+  `while (-not $System)` fragte dann endlos („Ungueltig.“ 2670× in 8 s). **Warum wichtig:** `-NurPruefen` ohne Konsole (Pipe, Aufgabe)
+  hing statt abzubrechen; Leer = Abbruch ohne Änderung, Drift-Test `DeploySkripte_AuswahlSchleifen_BrechenBeiLeererEingabeAb`.
+
 ## 31. Sage-Wareneingangsbeleg (v1.99.4, [[2026-11-08-wareneingang-teil-2-sage-we-beleg-rahmenabrufe-spec]])
 
 - **Eine Ausschlussregel muss im Decorator UND in `EnqueueMissingAsync` stehen.** Die Nacherfassung nutzt die Decision nicht, sondern einen eigenen
