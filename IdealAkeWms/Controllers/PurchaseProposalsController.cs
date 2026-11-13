@@ -21,10 +21,14 @@ public class PurchaseProposalsController : Controller
     private readonly IStockMovementRepository _stock;
     private readonly IAppSettingRepository _settings;
     private readonly ICurrentUserService _user;
+    private readonly ISagePurchaseOrderLineRepository _lines;
+    private readonly IPurchaseOrderReceiptRepository _receipts;
 
     public PurchaseProposalsController(IPurchaseProposalRepository repo, IStockMovementRepository stock, IAppSettingRepository settings,
-        ICurrentUserService user)
+        ICurrentUserService user, ISagePurchaseOrderLineRepository lines, IPurchaseOrderReceiptRepository receipts)
     {
+        _lines = lines;
+        _receipts = receipts;
         _repo = repo;
         _stock = stock;
         _settings = settings;
@@ -41,6 +45,8 @@ public class PurchaseProposalsController : Controller
         ["bezeichnung"] = r => r.Article.Description,
         ["bestand"] = r => Zahl(r.BestandWms),
         ["sage-verfuegbar"] = r => Zahl(r.Sage?.LagerbestandVerfuegbar),
+        ["offen-bestellt"] = r => Zahl(r.OffenBestellt),
+        ["liefertermin"] = r => r.NaechsterLiefertermin?.ToString("dd.MM.yyyy"),
         ["bedarfe"] = r => Zahl(r.OffeneBedarfe),
         ["verfuegbar"] = r => Zahl(r.Ergebnis.Verfuegbar),
         ["meldebestand"] = r => Zahl(r.Article.ReorderLevel),
@@ -79,7 +85,19 @@ public class PurchaseProposalsController : Controller
         if (mitLager) bedarfe.AddRange(await _repo.GetOffeneLagerbestellungenAsync());
         if (mitBedarfsmeldungen) bedarfe.AddRange(await _repo.GetOffeneBedarfsmeldungenAsync());
 
-        var (alle, bedarfeEinheitAbweichend) = BaueZeilen(artikel, lieferanten, bestand, bedarfe, DateTime.Today);
+        // E2: offene Sage-Bestellungen nur aus dem Cache (Teil B), Rest nach der EINEN Rest-Regel (ErfasstJeBelPos.Rest).
+        var stand = await _lines.GetStandAsync();
+        List<SagePurchaseOrderLine>? bestellungen = null;
+        var erfasst = new Dictionary<int, ErfasstJeBelPos>();
+        if (stand != null)
+        {
+            var ids = artikel.Select(a => a.Id).ToHashSet();
+            bestellungen = (await _lines.GetAllAsync()).Where(l => l.ArticleId is { } id && ids.Contains(id)).ToList();
+            erfasst = await _receipts.GetErfasstJeBelPosAsync(bestellungen.Select(l => l.BelPosId).ToList());
+        }
+
+        var (alle, bedarfeEinheitAbweichend, positionenEinheitAbweichend) =
+            BaueZeilen(artikel, lieferanten, bestand, bedarfe, bestellungen, erfasst, DateTime.Today);
 
         IEnumerable<PurchaseProposalRow> q = alle;
         if (umfangWert == PurchaseProposalListViewModel.UmfangVorschlaege) q = q.Where(r => r.Ergebnis.IstVorschlag);
@@ -115,6 +133,8 @@ public class PurchaseProposalsController : Controller
             OhneSageDetail = alle.Count(r => r.Sage == null),
             OhneArtikelLieferant = alle.Count(r => r.Lieferant == null),
             BedarfeEinheitAbweichend = bedarfeEinheitAbweichend,
+            BestellungenStand = stand,
+            PositionenEinheitAbweichend = positionenEinheitAbweichend,
             BedarfeText = (mitLager, mitBedarfsmeldungen) switch
             {
                 (true, true) => "Lagerbestellungen und Bedarfsmeldungen",
@@ -134,11 +154,19 @@ public class PurchaseProposalsController : Controller
         !string.IsNullOrWhiteSpace(a) && !string.IsNullOrWhiteSpace(b) && !string.Equals(a.Trim(), b.Trim(), StringComparison.OrdinalIgnoreCase);
 
     /// <summary>Datensammlung → Zeilen: Bestand je Artikel (Summe der Plaetze, ohne Bewegung 0, Regel der Meldebestand-Mail), offene Bedarfe
-    /// (Artikelnummer getrimmt, Gross/Klein egal; abweichende Einheit nicht gerechnet, gezaehlt), Lieferant, WBZ, Rechner.</summary>
-    internal static (List<PurchaseProposalRow> Zeilen, int BedarfeEinheitAbweichend) BaueZeilen(List<Article> artikel,
+    /// (Artikelnummer getrimmt, Gross/Klein egal; abweichende Einheit nicht gerechnet, gezaehlt), offene Bestellungen (E2: Rest je Position,
+    /// <c>EinheitAbweichend</c> nicht gerechnet, gezaehlt; <paramref name="bestellungen"/> null = Cache leer), Lieferant, WBZ, Rechner.</summary>
+    internal static (List<PurchaseProposalRow> Zeilen, int BedarfeEinheitAbweichend, int PositionenEinheitAbweichend) BaueZeilen(List<Article> artikel,
         IReadOnlyDictionary<int, ArticleSupplierRow> lieferanten, IReadOnlyDictionary<string, List<StockLocationInfo>> bestand,
-        IReadOnlyList<OffenerBedarf> bedarfe, DateTime heute)
+        IReadOnlyList<OffenerBedarf> bedarfe, IReadOnlyList<SagePurchaseOrderLine>? bestellungen, IReadOnlyDictionary<int, ErfasstJeBelPos> erfasst,
+        DateTime heute)
     {
+        var positionenAbweichend = bestellungen?.Count(l => l.EinheitAbweichend) ?? 0;
+        var restJeArtikel = (bestellungen ?? new List<SagePurchaseOrderLine>()).Where(l => !l.EinheitAbweichend && l.ArticleId != null)
+            .Select(l => (ArticleId: l.ArticleId!.Value, l.Liefertermin, Menge: erfasst.GetValueOrDefault(l.BelPosId, ErfasstJeBelPos.Leer).Rest(l)))
+            .GroupBy(x => x.ArticleId)
+            .ToDictionary(g => g.Key, g => (Summe: g.Sum(x => x.Menge), Termin: g.Where(x => x.Menge > 0).Min(x => x.Liefertermin)));
+
         var artikelJeNummer = artikel.GroupBy(a => Schluessel(a.ArticleNumber)).ToDictionary(g => g.Key, g => g.First());
         var bedarfJeNummer = new Dictionary<string, decimal>();
         var abweichend = 0;
@@ -166,13 +194,19 @@ public class PurchaseProposalsController : Controller
             var wbz = l?.Wiederbeschaffungszeit ?? a.SageDetail?.Wiederbeschaffungszeit;
             var bestandWms = bestand.TryGetValue(a.ArticleNumber, out var plaetze) ? plaetze.Sum(p => p.Quantity) : 0m;
             var offeneBedarfe = bedarfJeNummer.GetValueOrDefault(Schluessel(a.ArticleNumber));
+            decimal? offenBestellt = null;
+            DateTime? termin = null;
+            if (bestellungen == null) hinweise.Add("ohne offene Bestellungen");
+            else if (restJeArtikel.TryGetValue(a.Id, out var o)) { offenBestellt = o.Summe; termin = o.Termin; }
+            else offenBestellt = 0m;
             return new PurchaseProposalRow
             {
                 Article = a, Lieferant = l, LieferantText = text, LieferantKto = kto, BestandWms = bestandWms, OffeneBedarfe = offeneBedarfe,
-                Ergebnis = PurchaseProposalCalculator.Berechne(new PurchaseProposalInput(bestandWms, 0m, offeneBedarfe, a.ReorderLevel ?? 0m)),
+                OffenBestellt = offenBestellt, NaechsterLiefertermin = termin,
+                Ergebnis = PurchaseProposalCalculator.Berechne(new PurchaseProposalInput(bestandWms, offenBestellt ?? 0m, offeneBedarfe, a.ReorderLevel ?? 0m)),
                 Wbz = wbz, Wunschtermin = wbz is { } t ? heute.AddDays(t) : null, Hinweise = hinweise,
             };
         }).ToList();
-        return (zeilen, abweichend);
+        return (zeilen, abweichend, positionenAbweichend);
     }
 }

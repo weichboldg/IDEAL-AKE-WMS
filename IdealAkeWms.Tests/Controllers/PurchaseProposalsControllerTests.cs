@@ -30,8 +30,14 @@ public partial class PurchaseProposalsControllerTests
 
     internal static (PurchaseProposalsController ctrl, Mock<IAppSettingRepository> settings) Build(List<Article> artikel,
         Dictionary<string, List<StockLocationInfo>>? bestand = null, Dictionary<int, ArticleSupplierRow>? lieferanten = null,
-        List<OffenerBedarf>? lager = null, List<OffenerBedarf>? meldungen = null, string? bedarfeEinstellung = null)
+        List<OffenerBedarf>? lager = null, List<OffenerBedarf>? meldungen = null, string? bedarfeEinstellung = null,
+        List<SagePurchaseOrderLine>? bestellungen = null, Dictionary<int, ErfasstJeBelPos>? erfasst = null)
     {
+        var lines = new Mock<ISagePurchaseOrderLineRepository>();
+        lines.Setup(l => l.GetAllAsync()).ReturnsAsync(bestellungen ?? new List<SagePurchaseOrderLine>());
+        lines.Setup(l => l.GetStandAsync()).ReturnsAsync(bestellungen == null ? null : new DateTime(2026, 11, 13, 6, 0, 0));
+        var receipts = new Mock<IPurchaseOrderReceiptRepository>();
+        receipts.Setup(r => r.GetErfasstJeBelPosAsync(It.IsAny<IReadOnlyCollection<int>>())).ReturnsAsync(erfasst ?? new Dictionary<int, ErfasstJeBelPos>());
         var repo = new Mock<IPurchaseProposalRepository>();
         repo.Setup(r => r.GetNachbestellartikelAsync()).ReturnsAsync(artikel);
         repo.Setup(r => r.GetHauptlieferantenAsync()).ReturnsAsync(lieferanten ?? new Dictionary<int, ArticleSupplierRow>());
@@ -41,7 +47,7 @@ public partial class PurchaseProposalsControllerTests
         stock.Setup(s => s.GetStockByArticleNumbersAsync(It.IsAny<List<string>>())).ReturnsAsync(bestand ?? new Dictionary<string, List<StockLocationInfo>>());
         var settings = new Mock<IAppSettingRepository>();
         settings.Setup(s => s.GetValueAsync(AppSettingKeys.EinkaufOffeneBedarfe)).ReturnsAsync(bedarfeEinstellung);
-        var ctrl = new PurchaseProposalsController(repo.Object, stock.Object, settings.Object, new FakeCurrentUserService())
+        var ctrl = new PurchaseProposalsController(repo.Object, stock.Object, settings.Object, new FakeCurrentUserService(), lines.Object, receipts.Object)
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
         };

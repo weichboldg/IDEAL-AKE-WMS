@@ -23,6 +23,10 @@ public class PurchaseProposalListViewModel
     public int OhneSageDetail { get; set; }
     public int OhneArtikelLieferant { get; set; }
     public int BedarfeEinheitAbweichend { get; set; }
+    /// <summary>E2: Stand des Caches offener Sage-Bestellungen (max SyncedAt); null = Cache leer → Banner, Spalte „–“.</summary>
+    public DateTime? BestellungenStand { get; set; }
+    /// <summary>E2: offene Bestellpositionen der Nachbestellartikel mit abweichender Einheit (nicht eingerechnet).</summary>
+    public int PositionenEinheitAbweichend { get; set; }
     /// <summary>Welche offenen Bedarfe eingerechnet werden (Einstellung EinkaufOffeneBedarfe), Anzeigetext.</summary>
     public string BedarfeText { get; set; } = "";
 }
@@ -37,6 +41,10 @@ public class PurchaseProposalRow
     public string? LieferantKto { get; init; }
     public decimal BestandWms { get; init; }
     public decimal OffeneBedarfe { get; init; }
+    /// <summary>E2: Summe der Reste offener Sage-Bestellungen (EBB und EBZ); null = Cache leer.</summary>
+    public decimal? OffenBestellt { get; init; }
+    /// <summary>E2: frühester Liefertermin der Positionen mit Rest &gt; 0.</summary>
+    public DateTime? NaechsterLiefertermin { get; init; }
     public required PurchaseProposalResult Ergebnis { get; init; }
     public int? Wbz { get; init; }
     public DateTime? Wunschtermin { get; init; }
