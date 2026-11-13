@@ -1,6 +1,6 @@
 ---
 typ: aufgabe
-status: offen
+status: erledigt
 created: 2026-11-13
 auftrag: "Gerald 2026-11-13 19:35"
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
@@ -46,3 +46,6 @@ Stand: Bündel v1.99.22 (`90bbbbd7`), DEV AKE (`localhost:8081`) und IDEAL (`loc
 ## Grenzen
 Nichts an Sage schreiben; keine Mails an externe Adressen; keine Einstellungen außerhalb DEV; kein Anwendungscode-Fix ohne Spec
 (Ausnahme Tippfehler); kein Merge, kein Push.
+
+
+Erledigt im /goal-Lauf [[2026-11-14-wochenend-goal-lauf]] (Abschluss 2026-11-14).

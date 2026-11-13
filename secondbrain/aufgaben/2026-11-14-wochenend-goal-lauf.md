@@ -1,6 +1,6 @@
 ---
 type: aufgabe
-status: offen
+status: erledigt
 created: 2026-11-13
 auftrag: "[[2026-11-14-wochenend-review-test-anwenderdoku]]"
 ---
@@ -17,7 +17,7 @@ Anwendungscode-Fix ohne Spec (außer Tippfehler), kein Merge, kein Push.
 | A2 | Review Wareneingang 1–3, Sage-WE/CSV, Lieferverzug, Bestellvorschläge, Offene Bestellungen | **erledigt** | 11 Befunde (1 hoch WE-1, 2 mittel WE-2/LV-1, 5 niedrig, 3 Hinweis): [[2026-11-14-review-befunde-wareneingang]], [[2026-11-14-review-befunde-lieferverzug]], [[2026-11-14-review-befunde-offene-bestellungen]], [[2026-11-14-review-befunde-bestellvorschlaege]] |
 | A3 | Review SData Teil 2, Update-Skript, UTC/Lokalzeit, übrige Bündel-Module | **erledigt** | 14 Befunde (0 hoch, 4 mittel SD-1 Kennwort an freie Adresse im Verbindungstest, SD-5 Klartext-Kennwort im Install-Skript, UP-1 Neustart-Update verliert Daten-Einträge, BDE-1 doppelte Fertigmeldung; 5 niedrig, 5 Hinweis): [[2026-11-14-review-befunde-sdata]], [[2026-11-14-review-befunde-update-skript]], [[2026-11-14-review-befunde-lokalzeit]], [[2026-11-14-review-befunde-bde]], [[2026-11-14-review-befunde-einstellungen]]. Gezielter `dotnet test` 261/0. „Fertigungmenge“ (UI, = DB-Spaltenname) nicht geändert → Frage an Gerald |
 | B | Regression DEV AKE + IDEAL, Bericht `secondbrain/tests/2026-11-14-wochenend-regression-dev/` | **erledigt** (B1–B4): IDEAL-Hierarchie/Beschichtung/BDE, B4 übrige Module folgen | B1 [[01-kommissionierung]]: 41 OK / 5 FEHLER / 11 NICHT PRUEFBAR; neu N-1 (hoch, unsichtbare Unterpositionen), N-2 (Deadlock-500); K-2/K-3/K-4/K-6/B-1 reproduziert, K-1 durch N-2 verdeckt. B2 [[02-wareneingang-einkauf]]: 79 OK / 1 FEHLER (WE-1 reproduziert) / 19 NICHT PRUEFBAR; WE-3 reproduziert; neu N-7–N-10 (Glasbestellung als „Lagerbestellung“, Einheit fehlt, Querscrollen, IDEAL-DEV Wareneingang an ohne Abgleich); Lieferverzug-Lauf nur Pickup (91 .eml). B3 [[03-ideal-hierarchie-beschichtung-bde]]: 82 OK / 1 FEHLER (BDE-1 serverseitig reproduziert) / 24 NICHT PRUEFBAR, TS-79/80 vervollständigt; neu N-B3-1–6 in [[2026-11-14-review-befunde-ideal-hierarchie]]; Chrome-Screenshot-Werkzeug ab 21:26 ausgefallen, Ersatz Edge headless. B4 [[04-uebrige-module]]: 74 OK / 2 FEHLER (N-B4-2 CSV Tausender mit Leerzeichen → Excel-Text, N-B4-1 Scanner-Karte bei Schalter aus) / 20 NICHT PRUEFBAR; SD-3/SD-4/LZ-2 bestätigt, SD-1 live nicht belegbar (keine Web-Zugangsdaten). **Gesamt [[README]] der Regression: 276 OK / 9 FEHLER / 74 NICHT PRUEFBAR, 20 neue Befunde** |
-| C | Anwender-Doku `docs/anwender/`, README, Brain | läuft (C1 erledigt `494747d3`: 01 Kommissionierung 18 Bilder, 02 Kommissionierbereiche 3 Bilder, Index; C2 erledigt `15833616`: 03–08, 25 Bilder; C3 09–12 läuft; README + Brain erledigt) | README Worktree `e7ac143c` (AppSettings/ServiceSettings seit v1.99, Deploy-Hinweise v1.99.x); Brain: glossar (24 Begriffe + 3 Rollen), codebase datenmodell/controller/services/module, testszenarien-index (Regression 2026-11-14). Unstimmigkeit: `Lieferverzug:TageNachTermin` Katalog-Default 3 vs Manifest-Prüfung erwartet 1 → Gerald |
+| C | Anwender-Doku `docs/anwender/`, README, Brain | **erledigt** (C1 erledigt `494747d3`: 01 Kommissionierung 18 Bilder, 02 Kommissionierbereiche 3 Bilder, Index; C2 erledigt `15833616`: 03–08, 25 Bilder; C3 erledigt `1539c0c1`: 09–12, 21 Bilder – zusammen 12 Anleitungen, 66 Bilder, Links geprüft; README + Brain erledigt) | README Worktree `e7ac143c` (AppSettings/ServiceSettings seit v1.99, Deploy-Hinweise v1.99.x); Brain: glossar (24 Begriffe + 3 Rollen), codebase datenmodell/controller/services/module, testszenarien-index (Regression 2026-11-14). Unstimmigkeit: `Lieferverzug:TageNachTermin` Katalog-Default 3 vs Manifest-Prüfung erwartet 1 → Gerald |
 
 **Teil A Summe:** 45 Befunde (2 hoch: K-1 doppelter Folgeauftrag bei „Teilweise“, WE-1 doppeltes Absenden „Einbuchen“ bucht doppelt), alle als
 Backlog-Notizen `2026-11-14-review-befunde-*`, nichts behoben (Schranke 1). Gemeinsames Muster: fehlende Sperre gegen Doppel-Absenden
@@ -56,3 +56,19 @@ Hinweistext „Glasbestellung“ (N-7)?; Meldung „Standard-Werkbank im Profil 
 `WarehouseRequisitionsApiController.cs:252/271`); Status leer bei Teilgeliefert (`WarehouseRequisitions/Edit.cshtml:22-28`); Bedarfsmeldungs-Dialog
 „Fehler beim Laden der Empfänger“ bei leerer Artikelgruppe; IDEAL „Wareneingang zu Sage-Bestellungen“ aus lassen (N-10)?
 C2-Testdaten AKE-DEV: Lagerbestellung #52 (Entwurf) + 2 Positionen.
+
+## Abschluss (2026-11-14)
+
+- **A Review:** 45 Befunde in Backlog-Notizen `2026-11-14-review-befunde-*` (2 hoch: K-1, WE-1); Tippfehler korrigiert `433da6c4`, sichtbare Texte
+  „Fertigungsmenge“ `95ea581b`.
+- **B Regression DEV AKE + IDEAL:** 276 OK / 9 FEHLER / 74 NICHT PRUEFBAR, 20 neue Befunde; Bericht + Übersicht in `secondbrain/tests/2026-11-14-wochenend-regression-dev/`.
+- **C Doku:** `docs/anwender/` 01–12 + Index (Worktree `494747d3`, `15833616`, `1539c0c1`), README `e7ac143c`, Brain (glossar, codebase, testindex);
+  Folge-Specs: [[2026-11-14-hilfe-verlinkt-anwender-anleitungen]], [[2026-11-14-review-befunde-lager]] (neu aus C3).
+- Kein Sage-Schreiben, keine Mail an externe Adressen (Lieferverzug nur `.eml` im DEV-Pickup), keine Einstellung außerhalb DEV, kein Merge, kein Push.
+- **Panne:** C2 hat Gerald einmal im gemeinsamen Browser abgemeldet (22:38) und per Windows-Anmeldung wieder angemeldet; nichts gebucht.
+- **Offen für Gerald:** Folge-Specs aus den Review-Notizen priorisieren (Vorschlag zuerst: Doppel-Absenden-Schutz K-1/N-2/WE-1/BDE-1/K-6 als Querschnitt,
+  N-1 unsichtbare Unterpositionen, SD-1 Verbindungstest); Glas-/VK-Regeln (Montag); offene Fragen aus C2/C3 (Lagerbestellung bucht keinen Bestand,
+  Glasbestellungen als Bedarf, Werkbank-Meldung, Status Teilgeliefert, Empfänger-Fehlertext, IDEAL Wareneingang aus, Kommissionierer darf
+  Lagerplatz aus-/umbuchen?, Ausbuchung Menge 0, Produktivwerte QR/Scanner/Minusbuchungen).
+- **DEV-Testdaten (Spuren in den Berichten):** AKE KO-2026-00020–00060 (meist storniert, KO-2026-00057 Teilweise), Umbuchungen 19432–19545 auf Wagen
+  (NAN negativ), Receipts 13–20, Lagerbestellung #52 (Entwurf), FA-Prios/IsDonePicking; IDEAL BDE-Terminal 2 + Buchungen 7–17 (storniert), BA-2026-00005.

@@ -24,3 +24,7 @@ Auslieferung der Markdown-Dateien).
 3. Zugriffsschutz: Anleitungen nur nach Anmeldung (wie Hilfe).
 4. Textvorschläge der Läufe für die Hilfeseite selbst (Bedarfsmeldung erfüllen nur über Einbuchung; Teilgeliefert bei Fehlteil, Abschließen bucht
    keinen Bestand; Glasbestellungen zählen in den Bestellvorschlägen) prüfen und übernehmen.
+
+## Nachtrag C3 (2026-11-14)
+Anleitungen 09–12 fertig (Worktree `1539c0c1`); alle 12 Dateien ohne Obsidian-Syntax, 66 Bilder, Link-Prüfung ohne Fehler. Zuordnung für Verweise:
+Lager → 09, Bestandsübersicht/Filter-Syntax/CSV → 10, BDE → 11, Sage-Lagerbuchungen/Verbindungstest → 12. Veraltete Hilfetexte: [[2026-11-14-review-befunde-lager]] L-2/L-3.
