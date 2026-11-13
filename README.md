@@ -76,6 +76,8 @@ powershell -ExecutionPolicy Bypass -File C:\<FIRMA>\deploy\v1.98.0\deploy\Update
 
 - Ohne Parameter fragt das Skript Firma (`AKE` | `IDEAL`) und System(e) aus `scripts\deploy\ziele.psd1`; `-Firma`/`-System Test,Test-IDEAL`
   überspringen die Abfrage. Mehrere Systeme: Nicht-Prod zuerst, Prod zuletzt und nur nach Eingabe `<FIRMA>-PROD`.
+  Leere bzw. fehlende Eingabe bei Firma/System = Abbruch ohne Änderung (v1.99.16). Bei `-NurPruefen` gilt eine leere Antwort auf die rein
+  lesenden Fragen (DB-Verbindung, geteilter App-Pool) als ja, sonst ist leer immer nein. Ziel `DEV` je Firma = Entwickler-PC (`D:\Dev\<FIRMA>`).
 - `-Komponente Web|Dienst|Beide` (Default `Beide`) wählt, was getauscht wird; Schema, Ordner/Rechte und Nachlauf laufen immer.
 - Startseite für die Versionsprüfung: `-SiteUrl` vor `Url` aus `ziele.psd1` vor IIS-Bindung (v1.98.1). Mit `-WebPfad` gilt die
   `Url` aus `ziele.psd1` nicht. Passen Schema/Port nicht zur Bindung, warnt das Skript.

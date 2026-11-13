@@ -9,6 +9,21 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.99.16</strong> <span class="text-white-50 ms-2">13.11.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>Update-Skript: Bugfix zweiter Trockenlauf, Eingabe-Abbruch, DEV-Ziele (Betrieb)</h6>
+                <ul>
+                    <li><strong>Altbestand-Skript der Kommissionieraufträge:</strong> Nach einem erfolgreichen Scharflauf meldete das Update-Skript irreführend &bdquo;zweiter Trockenlauf TREFFER:&nbsp; (erwartet 0)&ldquo; mit leerem Wert. Der Trockenlauf meldet jetzt &bdquo;bereits überführt &hellip; Nichts zu tun&ldquo; und <code>TREFFER: 0</code>; ein erneuter Scharflauf bleibt gesperrt. Vorhandene Vermerke gelten weiter.</li>
+                    <li>Fehlt beim zweiten Trockenlauf die Zeile TREFFER, nennt die Warnung jetzt den Exit-Code und dass der Scharflauf übernommen ist.</li>
+                    <li><strong>Keine Endlosschleife mehr ohne Eingabe:</strong> Bleibt die Abfrage von Firma oder System leer (z. B. Aufruf ohne Tastatureingabe), bricht das Skript mit &bdquo;keine Eingabe &hellip; Nichts gestoppt, nichts geändert&ldquo; ab, statt endlos &bdquo;Ungueltig.&ldquo; zu schreiben. Bei <code>-NurPruefen</code> gilt eine leere Antwort auf die rein lesenden Fragen (DB-Verbindung, geteilter App-Pool) als &bdquo;ja&ldquo;; alle anderen Fragen bleiben bei leerer Antwort &bdquo;nein&ldquo;.</li>
+                    <li><strong>Neue Ziele</strong> <code>AKE</code>/<code>IDEAL</code> &rarr; System <code>DEV</code> (Entwickler-PC, kein Produktivsystem).</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.99.15</strong> <span class="text-white-50 ms-2">13.11.2026</span>
             </div>
             <div class="card-body">

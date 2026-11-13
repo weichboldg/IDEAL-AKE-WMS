@@ -20,10 +20,11 @@ function Assert-Administrator {
 # Eingabe; leere/geschlossene Eingabe (z. B. Pipe zu Ende, PS 5.1 wirft dann) = Leerstring.
 function Read-Eingabe([string]$text) { try { return ([string](Read-Host $text)).Trim() } catch { return '' } }
 
-function Read-Ja([string]$frage) {
+# v1.99.16: $leer = Antwort bei leerer/geschlossener Eingabe; Standard nein. Nur rein lesende Fragen unter -NurPruefen geben $NurPruefen mit.
+function Read-Ja([string]$frage, [bool]$leer = $false) {
     for ($i = 0; $i -lt 5; $i++) {
         $e = Read-Eingabe "  ?   $frage [j/n]"
-        if (-not $e) { return $false }
+        if (-not $e) { return $leer }
         switch -Regex ($e.Trim().ToLower()) { '^(j|ja|y|yes)$' { return $true } '^(n|nein|no)$' { return $false } }
         Write-Host '      Bitte j oder n eingeben.'
     }

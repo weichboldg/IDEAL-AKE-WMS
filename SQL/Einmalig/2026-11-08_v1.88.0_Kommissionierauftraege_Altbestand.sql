@@ -46,6 +46,13 @@ BEGIN
 END
 IF EXISTS (SELECT 1 FROM dbo.PickingOrders WHERE CreatedBy = @Wer)
 BEGIN
+    IF @Trockenlauf = 1
+    BEGIN
+        -- v1.99.16: Trockenlauf nach erfolgtem Lauf (z. B. zweiter Trockenlauf des Update-Skripts) -> erledigt, nichts zu tun
+        PRINT N'Altbestand wurde bereits ueberfuehrt (Auftraege mit CreatedBy = Migration-KO-Altbestand vorhanden). Nichts zu tun.';
+        PRINT N'TREFFER: 0';
+        RETURN;
+    END
     RAISERROR(N'Altbestand wurde bereits ueberfuehrt (Auftraege mit CreatedBy = Migration-KO-Altbestand vorhanden). NICHT ERNEUT AUSFUEHREN. Abbruch.', 16, 1);
     RETURN;
 END

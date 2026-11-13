@@ -53,8 +53,10 @@ trap {
 $ziele = Import-Ziele (Join-Path $PSScriptRoot 'ziele.psd1')
 $manifest = @((Import-PowerShellDataFile (Join-Path $PSScriptRoot 'nachlauf.psd1')).Eintraege)
 
+# v1.99.16: leere bzw. geschlossene Eingabe (Read-Eingabe liefert dann '') = Abbruch ohne Aenderung - vorher endlos "Ungueltig."
 while (-not $Firma) {
     $e = (Read-Eingabe '  ?   Firma (AKE | IDEAL)').ToUpper()
+    if (-not $e) { Stop-Mit 'keine Eingabe fuer die Firma (-Firma angeben).' }
     if ($e -in 'AKE', 'IDEAL') { $Firma = $e } else { Write-Host '      Ungueltig.' }
 }
 $firmaZiele = @($ziele | Where-Object { $_.Firma -eq $Firma })
@@ -62,6 +64,7 @@ if ($System) { $System = @($System -split ',' | ForEach-Object { $_.Trim() } | W
 while (-not $System) {
     for ($i = 0; $i -lt $firmaZiele.Count; $i++) { Write-Host ("      {0}  {1}{2}" -f ($i + 1), $firmaZiele[$i].System, $(if ($firmaZiele[$i].Prod) { '  (PROD)' } else { '' })) }
     $e = Read-Eingabe '  ?   Systeme (Nummern oder Namen, mehrere mit Komma)'
+    if (-not $e) { Stop-Mit 'keine Eingabe fuer die Systeme (-System angeben).' }
     $wahl = @(); $gueltig = $true
     foreach ($t in @($e -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })) {
         $n = 0
@@ -580,7 +583,10 @@ function Invoke-FlussA($e, $m, [bool]$halt) {
     if ((Get-FileHash $datei -Algorithm SHA256).Hash -ne $hash) { Write-Warnung "$($m.Id): Datei-Hash nach dem Lauf veraendert." }
     if (-not $r.Uebernommen) { & $nein 'Scharflauf fehlgeschlagen (zurueckgerollt).'; return }
     $t2 = Invoke-Trockenlauf $e $m $datei
-    if ($t2.Treffer -ne 0) { Write-Warnung "$($m.Id): zweiter Trockenlauf TREFFER: $($t2.Treffer) (erwartet 0)." } else { Write-Ok "$($m.Id): zweiter Trockenlauf TREFFER: 0" }
+    # v1.99.16: fehlende Zeile TREFFER bzw. Exit <> 0 ehrlich melden (vorher "TREFFER:  (erwartet 0)" mit leerem Wert)
+    if ($null -eq $t2.Treffer -or $t2.Exit -ne 0) { Write-Warnung "$($m.Id): zweiter Trockenlauf ohne Zeile TREFFER (Exit $($t2.Exit)). Scharflauf ist uebernommen (Marker Scharf); Ausgabe im Log-Ordner pruefen." }
+    elseif ($t2.Treffer -ne 0) { Write-Warnung "$($m.Id): zweiter Trockenlauf TREFFER: $($t2.Treffer) (erwartet 0)." }
+    else { Write-Ok "$($m.Id): zweiter Trockenlauf TREFFER: 0" }
 }
 # Fluss B: ohne Trockenlauf-Schalter; ganze Datei in EINER Transaktion, Ausgabe zeigen, dann uebernehmen/verwerfen
 function Invoke-FlussB($e, $m) {
@@ -656,9 +662,9 @@ function Invoke-System($e) {
     ) | ForEach-Object { Write-Host "  $_" }
     if ($e.PoolGeteilt.Count -gt 1) {
         Write-Warnung "App-Pool $($e.Pool) wird auch genutzt von: $($e.PoolGeteilt -join ', ')"
-        if (-not (Read-Ja 'Trotzdem weiter (der App-Pool wird gestoppt)?')) { Stop-Mit 'geteilter App-Pool nicht bestaetigt.' }
+        if (-not (Read-Ja 'Trotzdem weiter (der App-Pool wird gestoppt)?' $NurPruefen)) { Stop-Mit 'geteilter App-Pool nicht bestaetigt.' }
     }
-    if (-not (Read-Ja "Verbindung zu $($e.Db.Server)/$($e.Db.Datenbank) herstellen (nur lesend)?")) {
+    if (-not (Read-Ja "Verbindung zu $($e.Db.Server)/$($e.Db.Datenbank) herstellen (nur lesend)?" $NurPruefen)) {
         Write-Host '  Ende ohne DB-Kontakt.'; return 2
     }
 

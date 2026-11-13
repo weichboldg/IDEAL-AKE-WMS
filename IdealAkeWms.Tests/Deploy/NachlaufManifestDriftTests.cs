@@ -115,6 +115,16 @@ public class NachlaufManifestDriftTests
     public void Manifest_TrockenlaufDateiOhneTreffer_MachtWaechterRot() =>
         DatenFehler(ManifestText, d => SqlText(d).Replace("TREFFER: ", "TREFFER ")).Should().Contain(f => f.Contains("ohne Zeile TREFFER"));
 
+    /// <summary>v1.99.16 (Bug 2026-11-13-updater-zweiter-trockenlauf-altbestand): Rotprobe - die Wiederholungssperre des Altbestands ohne
+    /// TREFFER: 0 im Trockenlauf (Stand vor dem Fix) macht den Waechter rot; die Pruefung "ohne Zeile TREFFER" bleibt dabei gruen.</summary>
+    [Fact]
+    public void Manifest_SperreOhneTrefferNullImTrockenlauf_MachtWaechterRot()
+    {
+        var fehler = DatenFehler(ManifestText, d => SqlText(d).Replace("TREFFER: 0", "TREFFER: X"));
+        fehler.Should().ContainSingle(f => f.Contains("Sperre (IF EXISTS") && f.Contains("Altbestand"));
+        fehler.Should().NotContain(f => f.Contains("ohne Zeile TREFFER"));
+    }
+
     private static string SqlText(string datei) => File.ReadAllText(Path.Combine(Root, "SQL", datei.Replace('\\', Path.DirectorySeparatorChar)));
 
     internal static List<string> DatenFehler(string manifest, Func<string, string> sql)
@@ -130,10 +140,29 @@ public class NachlaufManifestDriftTests
             var t = sql(x["Datei"]);
             if (a == "Trockenlauf" && Regex.Matches(t, Regex.Escape("DECLARE @Trockenlauf BIT = 1;")).Count != 1) fehler.Add($"{x["Id"]}: Literal nicht genau einmal");
             if (a == "Trockenlauf" && !t.Contains("TREFFER: ")) fehler.Add($"{x["Id"]}: ohne Zeile TREFFER");
+            // v1.99.16: Fluss A startet nach jedem Scharflauf einen zweiten Trockenlauf - dann greift die Wiederholungssperre und muss TREFFER: 0 liefern.
+            // ponytail: erkennt nur IF EXISTS-Sperren; Sperren als IF (SELECT COUNT...) > 0 rutschen durch - dann Kennzeichen-Konvention (Rueckfrage 2)
+            if (a == "Trockenlauf" && SperrBloecke(t).Any(b => Regex.IsMatch(b, @"(?i)\b(RAISERROR|THROW)\b") && !b.Contains("TREFFER: 0")))
+                fehler.Add($"{x["Id"]}: Sperre (IF EXISTS ... RAISERROR) ohne TREFFER: 0 im Trockenlauf");
             if (Regex.IsMatch(t, @"(?i)\bROLLBACK\b")) fehler.Add($"{x["Id"]}: ROLLBACK");
             if (Regex.IsMatch(t, @"(?m)^\s*:") || t.Contains("$(")) fehler.Add($"{x["Id"]}: sqlcmd-Direktive");
         }
         return fehler;
+    }
+
+    /// <summary>Rumpf jedes Blocks "IF EXISTS (...) BEGIN ... END" bis zum PASSENDEN END (BEGIN/CASE oeffnen, END schliesst) - der Fix
+    /// verschachtelt "IF @Trockenlauf = 1 BEGIN ... END" vor das RAISERROR, ein kurzer Treffer bis zum ersten END saehe das RAISERROR nie.</summary>
+    private static IEnumerable<string> SperrBloecke(string t)
+    {
+        foreach (Match kopf in Regex.Matches(t, @"(?is)\bIF\s+EXISTS\b[^;]*?\bBEGIN\b"))
+        {
+            var tiefe = 1;
+            foreach (Match w in Regex.Matches(t[(kopf.Index + kopf.Length)..], @"(?i)\b(BEGIN|CASE|END)\b"))
+            {
+                tiefe += w.Value.Equals("END", StringComparison.OrdinalIgnoreCase) ? -1 : 1;
+                if (tiefe == 0) { yield return t.Substring(kopf.Index + kopf.Length, w.Index); break; }
+            }
+        }
     }
 
     /// <summary>Kopie des Schluesselwort-Waechters aus Invoke-Lesen (Update-IdealAkeWms.ps1, function Invoke-Lesen) - beide gleich halten.</summary>
@@ -236,13 +265,34 @@ public class NachlaufManifestDriftTests
         }
     }
 
-    /// <summary>F3 (v1.98.1): die Url aus ziele.psd1 hat Vorrang vor der IIS-Bindung - jedes der 5 Systeme hat eine gueltige http/https-Url.</summary>
+    /// <summary>v1.99.16 (Freigabe-Nachtrag 13:58): eine Auswahl-Schleife "while (-not $X)" mit Read-Eingabe bricht bei leerer bzw. geschlossener
+    /// Eingabe ab (Read-Eingabe liefert dann ''), sonst endlos "Ungueltig." - z. B. -NurPruefen ohne -System in einer Sitzung ohne Eingabe.</summary>
     [Fact]
-    public void Ziele_AlleFuenfSystemeMitGueltigerHttpUrl()
+    public void DeploySkripte_AuswahlSchleifen_BrechenBeiLeererEingabeAb()
     {
-        var ziele = Regex.Matches(File.ReadAllText(Path.Combine(Root, "scripts", "deploy", "ziele.psd1")), @"(?m)^\s*@\{ Firma=.*$")
-            .Select(z => Regex.Matches(z.Value, @"(\w+)='([^']*)'").ToDictionary(m => m.Groups[1].Value, m => m.Groups[2].Value)).ToList();
-        ziele.Select(z => z["Firma"] + "-" + z["System"]).Should().BeEquivalentTo("IDEAL-Prod", "IDEAL-Test", "AKE-Prod", "AKE-Test", "AKE-Test-IDEAL");
+        foreach (var f in new[] { "Update-IdealAkeWms.ps1", "Install-IdealAkeWms.ps1" })
+        {
+            var schleifen = AuswahlSchleifen(File.ReadAllText(Path.Combine(Root, "scripts", "deploy", f)));
+            schleifen.Should().NotBeEmpty(f);
+            schleifen.Should().OnlyContain(s => s.Contains("if (-not $e) {"), f);
+        }
+        AuswahlSchleifen("while (-not $Firma) {\n    $e = Read-Eingabe 'x'\n    if ($e) { $Firma = $e } else { Write-Host 'Ungueltig.' }\n}\n")
+            .Should().ContainSingle(s => !s.Contains("if (-not $e) {"), "Rotprobe: Stand vor v1.99.16");
+    }
+
+    private static List<string> AuswahlSchleifen(string text) =>
+        Regex.Matches(text, @"(?ms)^while \(-not \$\w+\) \{.*?^\}").Select(m => m.Value).Where(s => s.Contains("Read-Eingabe")).ToList();
+
+    /// <summary>F3 (v1.98.1): die Url aus ziele.psd1 hat Vorrang vor der IIS-Bindung - jedes System hat eine gueltige http/https-Url.
+    /// v1.99.16: DEV-Ziele AKE-DEV/IDEAL-DEV (Entwickler-PC, D:\Dev) mit Prod=$false.</summary>
+    [Fact]
+    public void Ziele_AlleSystemeMitGueltigerHttpUrl_DevNieProd()
+    {
+        var zeilen = Regex.Matches(File.ReadAllText(Path.Combine(Root, "scripts", "deploy", "ziele.psd1")), @"(?m)^\s*@\{ Firma=.*$").Select(m => m.Value).ToList();
+        zeilen.Where(z => z.Contains("System='DEV'")).Should().HaveCount(2).And.OnlyContain(z => z.Contains("Prod=$false"));
+        var ziele = zeilen
+            .Select(z => Regex.Matches(z, @"(\w+)='([^']*)'").ToDictionary(m => m.Groups[1].Value, m => m.Groups[2].Value)).ToList();
+        ziele.Select(z => z["Firma"] + "-" + z["System"]).Should().BeEquivalentTo("IDEAL-Prod", "IDEAL-Test", "AKE-Prod", "AKE-Test", "AKE-Test-IDEAL", "AKE-DEV", "IDEAL-DEV");
         foreach (var z in ziele)
         {
             z.Should().ContainKey("Url", $"{z["Firma"]}-{z["System"]}");

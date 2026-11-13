@@ -95,6 +95,7 @@ Import-Module (Join-Path $PSScriptRoot 'IdealAkeWms.Deploy.psm1') -Force -Disabl
 Assert-Administrator   # zusaetzlich zu #Requires: klare Meldung
 while (-not $Firma) {
     $e = (Read-Eingabe '  ?   Firma (AKE | IDEAL)').ToUpper()
+    if (-not $e) { throw 'ABBRUCH: keine Eingabe fuer die Firma (-Firma angeben). Nichts geaendert.' }   # v1.99.16: sonst endlos "Ungueltig."
     if ($e -in 'AKE', 'IDEAL') { $Firma = $e } else { Write-Host '      Ungueltig.' }
 }
 
