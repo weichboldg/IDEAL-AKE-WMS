@@ -1878,3 +1878,13 @@ Code: `hardware-scanner.js` Block „Scannen ohne Feld“, CSS `.hw-scan-bereit`
   freigegebener FA die Zahl eines zurückgenommenen – nach dessen erneuter Freigabe standen zwei FAs auf derselben Prio (DEV 2614167/2614168
   beide 32, sogar im selben Sammellauf). Folge der Regel: Die vorgeschlagene Zahl kann über jeder im Leitstand sichtbaren liegen (gewollt,
   Hilfeseite). Manuelle Doppelvergabe bleibt erlaubt; Altbestand zeigt `Pruefung/DoppeltePrio`.
+
+## 36. Zeitstempel in Lokalzeit, UTC nur mit Eintrag in der Ausnahmeliste (v1.99.18, ADR [[0025-zeitstempel-in-lokalzeit-des-schreibenden-rechners]])
+
+- **Neue Schreiber nehmen `DateTime.Now` (Web) bzw. einen Parameter `@Jetzt` mit `DateTime.Now` des Dienstrechners (raw SQL) – nie
+  `UtcNow`/`GETUTCDATE()`/`SYSUTCDATETIME()`.** **Warum wichtig:** Die Anzeigen rechnen nicht um; UTC-Zeilen stehen 1–2 h zu früh, und
+  dieselbe Spalte mischte bis v1.99.18 UTC und Ortszeit (Seeds per SQL mit `GETDATE`, `Program.cs` mit `UtcNow`) – Altdaten sind deshalb
+  nicht sicher umrechenbar und bleiben, wie sie sind. `ZeitstempelKonventionTests` schlägt bei jedem neuen UTC-Aufruf außerhalb der
+  Ausnahmeliste fehl (und bei einer veralteten Ausnahme).
+- **Eine Zeit je Lauf/Aufruf.** **Warum wichtig:** Mehrere `Now`-Aufrufe in einer Sammelfreigabe oder einem Sync-Lauf ergeben unterschiedliche
+  Stempel für zusammengehörige Zeilen; `ReleasedAt = ModifiedAt` bzw. `ReportedAt = ModifiedAt` setzt einen Wert voraus.

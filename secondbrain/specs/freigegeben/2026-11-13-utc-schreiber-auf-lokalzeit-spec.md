@@ -2,7 +2,7 @@
 type: spec
 title: "Zeitstempel-Schreiber mit UTC auf Lokalzeit umstellen (Web, Dienst, raw SQL) – mit Wächter-Test"
 slug: 2026-11-13-utc-schreiber-auf-lokalzeit-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-11-13
 updated: 2026-11-13
 source_backlog: "[[2026-11-13-utc-schreiber-auf-lokalzeit]]"
@@ -396,7 +396,7 @@ entfällt (kein Epic – rund 45 Zeilen in 18 Dateien, keine Schema-Änderung, e
 
 ## Deploy
 
-**Vorläufig** – der QA-Lauf bestätigt gegen den echten Diff. Version Vorschlag **v1.99.16** (Bündel steht auf v1.99.15; der Lauf prüft),
+**Vorläufig** – vom QA-Lauf 2026-11-13 gegen den echten Diff bestätigt, final siehe „QA-Nachweis 2026-11-13 / Deploy (final)“ unten. Version Vorschlag **v1.99.16** (Bündel steht auf v1.99.15; der Lauf prüft),
 beide `AppVersion.cs`, Anwender-Changelog (Satz: „Zeitstempel einheitlich in Ortszeit; ältere Einträge bleiben, wie sie sind“),
 Brain-Changelog mit den Zahlen der Prüfabfragen, ADR 0025 (Vorschlag), [[fallstricke]]-Ergänzung.
 
@@ -470,3 +470,123 @@ Brain-Changelog mit den Zahlen der Prüfabfragen, ADR 0025 (Vorschlag), [[fallst
 10. Altdaten OSEON-Tabellen (AKE) umrechnen/unverändert (Ergebnis A10) → **Unverändert (Gerald 2026-11-13).**
 11. Altdaten SData-Tabellen umrechnen/unverändert (Ergebnis A11) → **Unverändert (Gerald 2026-11-13).**
 12. ArticleSageDetails umstellen oder UTC-Ausnahme → **Umstellen auf Lokalzeit, `ToLocalTime()` im selben Commit entfernen (Gerald 2026-11-13).**
+
+## QA-Nachweis 2026-11-13 (qa-agent, v1.99.18)
+
+Geprüft im Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Commit-Bereich `73911686..4716888b` (99399be4, c703c1e3, 4716888b leer)
+plus QA-Commit `d9e4c89e` (nur `docs/TESTSZENARIEN.md`). Der Commit-Text von `4716888b` nennt falsche Zahlen („Web 26 + Dienst 23“);
+richtig laut Diff: Web 24 × `UtcNow` → `Now` + 1 × `ToLocalTime()` entfernt; Dienst 20 Stellen (18 × `GETUTCDATE()` → `@Jetzt`, 2 × `UtcNow` in den SData-Writern).
+
+### 1. Build und Tests
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler, 28 Warnungen (bestehend).
+- `dotnet test`: IdealAkeWms.Tests 2801 bestanden / 1 übersprungen / 0 Fehler (2802); IDEALAKEWMSService.Tests 610 / 0 / 0.
+
+### 2. Code-Review (selbst, in diesem Lauf)
+Geprüft: gesamter Diff (Web, Dienst, Tests, View, Changelog, TESTSZENARIEN), Code um die Stellen, ADR [[0025-zeitstempel-in-lokalzeit-des-schreibenden-rechners]] (ungecommittet im Hauptcheckout).
+- **Vollständigkeit, eigene Suche** `rg -i "UtcNow|GETUTCDATE|SYSUTCDATETIME|ToUniversalTime|SYSDATETIMEOFFSET|GetUtcNow"` über `IdealAkeWms/`,
+  `IDEALAKEWMSService/` (ohne bin/obj/wwwroot/lib): nur `PdfRenderService.cs:89`, `HierarchischeStrukturStatus.cs:28`, `BomCacheSyncService.cs:100/224/510/529`,
+  Kommentare `SyncRun.cs:86`, `PartRequisitionEmailService.cs:269`, Text `Views/Help/Changelog.cshtml:2823` – deckt sich exakt mit der Wächter-Ausnahmeliste.
+  `SQL/` + `scripts/`: nur `SQL/35_AddEnaioDmsDocuments.sql:14` (toter Default U4); `SQL/AgentJobs/`: 0 Treffer. `ToLocalTime|LocalDateTime`: nur die zwei
+  U2-Anzeigen (`HierarchieUmstellung/Index.cshtml:81`, `StandortEinstellungen/Index.cshtml:55`).
+- **Rotprobe Wächter (selbst):** temporäre Datei `IdealAkeWms/Controllers/QaRotprobe.cs` mit `System.DateTime.UtcNow` → `Kein_UTC_Schreiber_ausserhalb_der_Ausnahmeliste`
+  schlägt fehl mit „IdealAkeWms/Controllers/QaRotprobe.cs:2: …“; Datei danach entfernt, Arbeitsbaum sauber.
+- **Eine Zeit je Lauf/Aufruf:** `SageImportService` (FA-Lauf: Upsert, Eager-Create, Reaktivierung, Reconcile ein `jetzt`; Artikel-Lauf eigenes `jetzt`),
+  `OseonSyncService` (Werkbänke, Auftrags-MERGE, AG-MERGE ein `jetzt`; Werkbank-Übertrag ist eigene Methode mit eigenem Lauf und einem `DateTime.Now`),
+  `CoatingDetectionService` (beide Bulk-Updates ein `jetzt`), `TrackingController.Report` und `SetReleaseAsync` je eine Variable, Sammelfreigabe `now`. OK.
+- **Leser Lokalzeit gegen UTC:** Vergleiche auf Zeitspalten (`rg` auf `CreatedAt|ModifiedAt|ReleasedAt|ReportedAt|CancelledAt|CachedAt` mit `<`/`>`) betreffen nur
+  nicht umgestellte Tabellen (PurchaseOrderReceipts, WarehouseRequisitions, PartRequisitions) bzw. `CachedAt`, das zusammen mit seinen Vergleichen UTC bleibt
+  (`BomCacheSyncService.cs:100/119/224/233`). Token/Cookie-Ablauf berührt der Diff nicht. Hierarchie-Stand bleibt `DateTimeOffset` (U2). Keine Mischung.
+- `@Jetzt` an jedem nutzenden Kommando als `SqlDbType.DateTime2` gesetzt (Upsert, eagerCmd, reactCmd, cancelCmd, Artikel-cmd, 4 OSEON-Kommandos, Coating). OK.
+- `_ArtikelSageKarten.cshtml` und `ArticleSageDetailsWriter` im selben Commit `99399be4` umgestellt (Freigabe-Antwort 12). OK.
+- Fehlerklassen der QA-Liste (Script-JSON, hidden + d-*, stille Fallbacks, Parallel-Arrays, nur-Browser-Validierung) vom Diff nicht berührt;
+  „eine Regel an mehreren Orten“ ist jetzt per Wächter abgesichert.
+
+**Befunde**
+- **F1 (TS-Text, behoben):** TS-135.6 erwartete „Einzel: `ReleasedAt = ModifiedAt`“. Auf DEV (`KommissionierungMitZuweisung = true`) ruft
+  `PickingLeitstandController.ToggleRelease` nach `SetReleaseAsync` noch `SetAssignedPickerAsync`, das `ModifiedAt` ~25 ms später erneut setzt
+  (gemessen ReleasedAt 15:10:11.706, ModifiedAt 15:10:11.731). Beide Ortszeit; AK 6 verlangt Gleichheit nur für die Sammelfreigabe; Verhalten vor
+  v1.99.18 gleich – kein Code-Defekt. Erwartungstext TS-135.6 präzisiert, QA-Commit `d9e4c89e`.
+- **H-1 (Hinweis, kein Blocker):** ADR 0025 sagt „Dienst … nie `GETUTCDATE()`/`GETDATE()` im Dienst-Code“. Bestehende `GETDATE()`-Schreiber im Dienst:
+  `OseonSyncService.cs:744`/`:751` (`ArticleCategories.ModifiedAt/CreatedAt`, OSEON-Kategorien, nur AKE) – Lokalzeit des SQL-Servers, kein UTC, laut Spec
+  Out-of-Scope. Mensch entscheidet: ADR-Satz als Regel für neuen Code lesen oder Stelle später auf `@Jetzt` ziehen (nicht mitgebaut).
+- **H-2 (Hinweis):** Commit-Text `4716888b` mit falschen Zahlen (s. o.); im Brain korrekt.
+
+### 3. Nachweisart je Akzeptanzkriterium
+| AK | Nachweis |
+|---|---|
+| 1 `/Users` Erstellt am + Filter | Manual-UAT DEV OK (TS-135.1, AKE + IDEAL) |
+| 2 Users.ModifiedAt | Manual-UAT DEV OK (TS-135.2) |
+| 3 Rollen/Zuweisung | xUnit `RoleRepositoryTests` + DEV OK (TS-135.3) |
+| 4 Empfänger/Zuordnung | xUnit `OrderRecipientRepositoryTests` + DEV OK (TS-135.4) |
+| 5 Ansichtseinstellung | xUnit `UserViewPreferenceRepositoryTests` + DEV OK (TS-135.5) |
+| 6 Leitstand | xUnit `ProductionOrderPickingStatusRepositoryTests` (Einzel/Sammel) + DEV OK (TS-135.6) |
+| 7 Teileverfolgung (AKE) | Manual-UAT DEV OK (TS-135.7) |
+| 8 Artikel-Abgleich | Manual-UAT **offen** (raw SQL; DEV-Syncs gesperrt) |
+| 9 FA-Import | xUnit `SageProductionOrderSqlTests` nur SQL-Text; Ausführung Manual-UAT **offen** |
+| 10 OSEON/Lackierteil (AKE) | Manual-UAT **offen** (raw SQL, Syncs gesperrt) |
+| 11 SData | Anzeige ohne Versatz DEV OK (Altzeile); Schreiblauf Manual-UAT **offen** |
+| 12 Bewusst-UTC | Hierarchie-/Standort-Stand DEV OK; PDF und BOM-Cache **offen** |
+| 13 Wächter | xUnit `ZeitstempelKonventionTests` + QA-Rotprobe OK |
+| 14 Altdaten | unverändert, kein Skript (Diff ohne `SQL/`-Datei) – OK |
+| 15 Build/Tests | OK |
+
+### 4. Geänderte bestehende Tests
+`ProductionOrderPickingStatusRepositoryTests`, `UserViewPreferenceRepositoryTests`, `OrderRecipientRepositoryTests`, `SageProductionOrderSqlTests`: nur
+**zusätzliche** Asserts bzw. ein neuer Theory-Test (AK 3–6, 9); keine bestehende Erwartung und keine Fixture geändert. `RoleRepositoryTests` neu.
+
+### 5. Checkliste
+Keine Schema-Änderung → keine Migration, kein SQL-Skript, kein FreshInstall – OK. `ModifiedBy*` unverändert gesetzt. Version 1.99.18 in beiden
+`AppVersion.cs`, Anwender-Changelog, Brain-Changelog [[2026-11-13-v1-99-18-zeitstempel-lokalzeit]]. TS-135 in `docs/TESTSZENARIEN.md`, Index-Zeile 135 in
+[[testszenarien-index]]. ADR 0025 vorhanden (H-1). 5a Einstellungen: keine. Nachlauf: kein Deploy-Schritt → kein Eintrag in `nachlauf.psd1` nötig.
+
+### 6. DEV-Deploy und Testlauf
+Standort `beide`. Elevated Shell. `dev-deploy.ps1 -Standort AKE` und `-Standort IDEAL`, `-Quelle <Worktree>` (Stand `4716888b`): beide Exit 0,
+„HTTP 200, Fusszeile v1.99.18“ = AppVersion. Dienst-Logs nach Start ohne Fehler (bekannte EF-/TLS-Warnungen), `SyncLogs` ab 15:00 ohne Fehler.
+Rechneruhr 15:04 MEZ, SQL `GETUTCDATE` 14:04 → Ortszeit = UTC+1. Browser: eigener Tab im verbundenen Chrome (Geräteauswahl über das Werkzeug nicht möglich).
+
+| Schritt | Durchgeführt | Ergebnis | Status |
+|---|---|---|---|
+| 135.1 | AKE: „QA TS135 Formular“ (Formular), „Kilian Leitner“ (AD-Benutzer anlegen, Rolle Stammdaten ansehen); `/Users?colf_created-at==13.11.2026`. IDEAL: „QA TS135 IDEAL“ | Erstellt am 15:04 / 15:05 bzw. 15:14 = Ortszeit; Filter findet genau die neuen | OK |
+| 135.2 | beide AKE-Benutzer bearbeitet (deaktiviert), eigenes Profil gespeichert | `ModifiedAt` 15:05:55 / 15:06:03 / 15:06:17 | OK |
+| 135.3 | Rolle `qa_ts135` angelegt + bearbeitet; Zuweisung über AD-Anlage | Roles 18: 15:06:27 / 15:06:39; UserRoles 80: 15:05:30 | OK |
+| 135.4 | Gruppe angelegt/bearbeitet, Empfänger angelegt/gespeichert, Artikelgruppen-Zuordnung unverändert gespeichert | Gruppe 15:06:52/15:07:02, Empfänger 15:07:13/15:07:24, Zuordnungen 15:07:45 (Inhalt vorher = nachher) | OK |
+| 135.5 | `/StorageLocations` Spalte „Erstellt am“ aus/ein | UserViewPreferences 21: 15:08:08 / 15:08:23 | OK |
+| 135.6 | FA 2618090 einzeln frei, 2618092 + 2627001 Sammel, alle drei zurück | Einzel ReleasedAt .706 / ModifiedAt .731 (F1); Sammel beide 15:10:37.3364077; Rücknahme 15:10:55 bzw. beide 15:11:03.5005366 | OK (TS-Text F1 korrigiert) |
+| 135.7 | AKE: AG von FA 2602086 rückgemeldet; Übersicht + Werkbank A2; zurückgenommen | „13.11.2026 15:11 — Gerald Weichbold“ in beiden; ReportedAt = ModifiedAt 15:11:42.5671501; danach ReportedAt NULL, ModifiedAt 15:12:14 | OK |
+| 135.8 | – | Dienst-Syncs auf DEV gesperrt | NICHT MÖGLICH |
+| 135.9 | – | braucht 135.8 | NICHT MÖGLICH |
+| 135.10 | Karte Sage-Zusatzfelder EK001641 (AKE) | „letzte Änderung 12.11.2026 08:13“ = gespeicherter Wert ohne Umrechnung; SData-Schreiblauf gesperrt | Anzeige OK, Lauf NICHT MÖGLICH |
+| 135.11 | – | PDF wird heruntergeladen (Download ohne Zustimmung nicht); `PdfRenderService` vom Diff unberührt | NICHT MÖGLICH |
+| 135.12 | IDEAL `/StandortEinstellungen`, `/HierarchieUmstellung` | 13.11.2026 15:03 bzw. 15:13 = Ortszeit (AKE ohne hierarchische Daten: Zeile nicht angezeigt) | OK |
+| 135.13 | – | BOM-Cache-Lauf braucht aktiven Sync | NICHT MÖGLICH |
+| 135.14 | Altzeilen Users (Id 20: 16.07.2026 08:37) und ArticleSageDetails EK001641 | unverändert; SData-Altzeile erwartungsgemäß 1 h früher | OK |
+| 135.15 | – | braucht Anmeldung als Nicht-Admin (Passworteingabe nicht durch QA); Diff ändert keine Zugriffs-Attribute | NICHT MÖGLICH |
+
+**DEV-Datenänderungen (QA):** AKE_WMS_DEV: Users 21 „QA TS135 Formular“ + 22 „Kilian Leitner“ (nur WMS-Datensatz, kein AD-Eingriff) angelegt, beide deaktiviert,
+ohne Passwort, IsPicker 0 (21 war kurz Kommissionierer für die Leitstand-Freigabe); UserRoles 80; Users 14 `ModifiedAt` (Profil gespeichert); Rolle 18 `qa_ts135`;
+OrderRecipientGroups 5 „QA TS135 Gruppe“ + OrderRecipients 3 (`qa.ts135@example.invalid`); ArticleGroupRecipientMappings neu geschrieben (Inhalt gleich);
+UserViewPreferences 21; PickingStatus FA 2618090/2618092/2627001 freigegeben und zurückgenommen (Prio 39/40/41 bleiben, Kommissionieraufträge dabei
+erzeugt und durch die Rücknahme storniert); WorkOperations 15 rückgemeldet und zurückgenommen. IDEAL_WMS_DEV: Users 9 „QA TS135 IDEAL“ angelegt, deaktiviert.
+Nicht gelöscht (Löschen löst Bestätigungsdialoge aus): Rolle 18, Gruppe 5 + Empfänger 3, die Testbenutzer.
+
+### 7. Publish
+`<Worktree>\publish\` geleert und neu: `IDEALAKEWMSWeb` + `IDEALAKEWMSWebService` (beide Exit 0), `publish\SQL`, `publish\deploy`; `publish-info.txt`:
+Version 1.99.18, Commit `d9e4c89ee48315615fbf740eef30772cea1bae42`, Branch `feature/2026-08-07-ideal-teile-1-5`, Erstellt 2026-11-13 15:16.
+
+### Deploy (final, aus dem Diff)
+- `deploy.web: true` (Controller, Repositories, `Program.cs`, `_ArtikelSageKarten.cshtml`, Changelog), `deploy.service: true` (SageImport, SageProductionOrderSql,
+  OSEON, Coating, SData-Writer), `deploy.migration: false` (keine Datei unter `Migrations/`, kein SQL-Skript).
+- Paket `<Worktree>\publish` (v1.99.18), beide Komponenten nötig. Reihenfolge: Dienst stoppen → Web → Dienst; kein DB-Schritt, kein Nachlauf-Eintrag.
+- Nach dem Merge nur dann neu aus `main` publizieren, wenn der Merge getestete Dateien mit parallelen main-Änderungen zusammengeführt hat.
+
+### Manuelle Checkliste (Mensch, offen)
+1. Testsystem mit aktiven Syncs: Artikel-Abgleich, FA-Import (inkl. Reconcile-Storno/Reaktivierung, `CancelledAt = ModifiedAt`), AKE OSEON-Sync und
+   Lackierteil-Erkennung → Abfragen TS-135.8; Zeiten = Laufzeit im Aktivitäts-Protokoll ± 1 min.
+2. TS-135.9: vom Abgleich neu angelegter Artikel in `/Articles` „Erstellt am“ = Ortszeit.
+3. TS-135.10: SData-Lauf mit Wertänderung → Karte „Sage-Zusatzfelder“ Ortszeit; `ArticleAttributeValues` neueste Zeile Ortszeit.
+4. TS-135.11: Auftrag drucken / Kommissionierliste als PDF.
+5. TS-135.13 (AKE): BOM-Cache-Lauf zweimal, zweiter überspringt unveränderte Artikel.
+6. TS-135.15: Nicht-Admin auf `/Users/Create`, `/Roles/Create`; Stammdaten-Leser auf `/OrderRecipients/Create` → verweigert.
+7. Kurzlauf TS-135.1 und 135.7 (AKE) auf dem Testsystem nach dem Update-Skript.
+8. Optional DEV aufräumen: Rolle `qa_ts135`, Gruppe „QA TS135 Gruppe“, Testbenutzer.
+9. Entscheidung zu H-1 (ADR-Satz vs. `GETDATE()` in `OseonSyncService` ArticleCategories).
