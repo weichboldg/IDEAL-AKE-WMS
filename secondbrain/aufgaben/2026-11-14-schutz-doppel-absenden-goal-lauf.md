@@ -14,7 +14,7 @@ Grenzen: nichts an Sage schreiben, keine Mails an externe Adressen, keine Einste
 
 | Spec | Typ | SQL-Block | Version | TS | Status | Commits | Blocker |
 |---|---|---|---|---|---|---|---|
-| [[2026-11-14-schutz-doppel-absenden-und-unsichtbare-positionen-spec]] | Spec | 150 | 1.99.23 | TS-138 | InUmsetzung (feature-complete, QA läuft) | `32dc3119`, `648d09fe`, `1969e3b3`, `7cd357f0`, `510b3020` | – |
+| [[2026-11-14-schutz-doppel-absenden-und-unsichtbare-positionen-spec]] | Spec | 150 | 1.99.23 | TS-138 | Testbereit (QA 2026-11-14) | `32dc3119`, `648d09fe`, `1969e3b3`, `7cd357f0`, `510b3020`, QA `1a73bc6a` | – |
 
 - Vorprüfung 2026-11-14: `status: Freigegeben` (Gerald 2026-11-14), Antworten 1–6 vollständig, Nachtrag 09:00, keine Varianten-Spec,
   worktree/branch = Bündel. Nächste freie SQL im Worktree: 150 (letzte 149). Nächster ADR: 0026. Rückfrage 3 kein Blocker (Gerald 09:01).
@@ -42,3 +42,4 @@ Grenzen: nichts an Sage schreiben, keine Mails an externe Adressen, keine Einste
   `data-mehrfach-erlaubt`: keine nötig.**
 - Brain: ADR 0026, [[fallstricke]] §38 + §8-Hinweis + „keine feste Request-Kultur“ als überholt markiert, Changelog
   [[2026-11-14-v1-99-23-schutz-doppel-absenden]], [[testszenarien-index]] TS-138, [[feature-map]].
+- 2026-11-14 QA (qa-agent): **Testbereit**. Build 0 Fehler, Web 2872/0/1, Dienst 626/0. Deploy DEV AKE + IDEAL v1.99.23 (exit 0), SQL/150 beide DEV-DBs idempotent. Parallel-POST-Nachstellung K-1 (3+1 Läufe), N-2 (4 Läufe, verpackter Deadlock im Log wiederholt), K-6, WE-1 (4 Läufe, 2601 abgefangen), BDE-1 (6/6) grün. Befunde F1 (gleichzeitige Freigabe desselben FA: grüne „0 angelegt“-Meldung) offen, F2 (TS-138.6a) behoben `1a73bc6a`. Inventur der 129 POST-Formulare bestätigt: keine Opt-outs. Publish neu (Commit `1a73bc6a`). Nachweis in der Spec.

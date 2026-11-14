@@ -2,7 +2,7 @@
 type: spec
 title: "Schutz gegen Doppel-Absenden und unsichtbare Positionen"
 slug: 2026-11-14-schutz-doppel-absenden-und-unsichtbare-positionen-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-11-14
 updated: 2026-11-14
 source_backlog: "[[2026-11-14-review-befunde-kommissionierung]]"
@@ -356,7 +356,16 @@ Unit-/Node-Tests (Build-Nachweis): AK-1, AK-2, AK-3, AK-4, AK-6, AK-7, AK-8, AK-
 
 ## Deploy
 
-**Vorläufig** – der QA-Lauf bestätigt gegen den echten Diff.
+**Final (QA 2026-11-14, gegen den echten Diff `1539c0c1..1a73bc6a`):** `IdealAkeWms/` geändert → Web ja; `IDEALAKEWMSService/` nur
+`AppVersion.cs` → Dienst ja (nur Version, keine Logik); neue Datei `IdealAkeWms/Migrations/20261114080950_AddPurchaseOrderReceiptAbsendekennung.cs`
+→ Migration ja. Paket: `<Worktree>\publish` (= `C:\git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish`), v1.99.23,
+Commit `1a73bc6a` (Code-Stand `510b3020`, danach nur `docs/`), beide Komponenten + `publish\SQL` + `publish\deploy` + `publish-info.txt`
++ `deploy.zip` (09:39). Reihenfolge auf dem Zielsystem: DB-Backup → `deploy\Update-IdealAkeWms.ps1` (stoppt, Schema-Schritt `SQL/150`
+laut Manifest, Web + Dienst, Info „Seiten neu laden“) → Dienst starten. Kein Einmal-Skript. Ablauf Mensch: publish aus dem Worktree →
+Testsystem → Test → Merge. **Nach dem Merge nur dann erneut aus `main` publishen, wenn der Merge getestete Dateien mit parallelen
+`main`-Änderungen zusammengeführt hat.**
+
+Vorläufige Angaben des Dev-Laufs (bestätigt):
 
 - **Web-App:** ja (Controller, Views, JS, `Program.cs`).
 - **Service:** ja, nur wegen `AppVersion.cs` (keine Dienst-Logik; feste Kultur im Dienst nur nach Rückfrage 2).
@@ -416,3 +425,165 @@ Kette prüfen“, neuer Eintrag „Doppel-Absenden“ (Regel A + Restfenster WE-
 4. Client-Sperre opt-in oder global → **Global für alle POST-Formulare mit Leitplanken (siehe Freigabe-Nachtrag)** (Gerald 2026-11-14).
 5. Wareneingang ohne Kennung ablehnen oder buchen → **Ablehnen mit „Seite neu laden“** (Gerald 2026-11-14).
 6. CSV ganze Zahlen mit Punkt in Textspalten → **Unverändert lassen** (Gerald 2026-11-14).
+
+## QA-Nachweis 2026-11-14 (qa-agent, unabhängig)
+
+Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Branch `feature/2026-08-07-ideal-teile-1-5`. Geprüfter Diff dieser Spec:
+`1539c0c1..510b3020` (Commits `32dc3119`, `648d09fe`, `1969e3b3`, `7cd357f0`, `510b3020`) + QA-Commit `1a73bc6a` (nur `docs/TESTSZENARIEN.md`,
+TS-138.6a präzisiert). Build/Test über den ganzen Worktree. Ergebnis: **Testbereit** (keine blockierenden Befunde).
+
+### 1. Build und Tests (HEAD `510b3020`; `1a73bc6a` ändert nur `docs/`)
+
+- `dotnet build IdealAkeWms.slnx`: **0 Fehler**, 28 Warnungen (bestehend: CS8601/CS8321/NU1902/NU1903).
+- `dotnet test`: `IdealAkeWms.Tests` **2872 bestanden / 0 Fehler / 1 übersprungen** (2873); `IDEALAKEWMSService.Tests` **626 / 0 / 0**.
+  Node-Check `csv-export.check.js` läuft in `CsvExportCoverageTests` (Kern_NodeSelbstpruefung) mit – grün.
+
+### 2. Code-Review (selbst, in diesem Lauf)
+
+Gelesen: ganzer Diff ohne Designer-Datei, dazu `Nummernkreis.MitVersuchenAsync`, `PickingOrderWorkflow.AbschliessenAsync`, `ToggleRelease`,
+`PurchaseOrdersController.Receive.cs` (GET/POST ganz), `Repository.AddAsync` (eine `SaveChanges` für Bewegung + Receipt), Sage-Queue-Decorator,
+`BdeBookingService.InTransactionAsync`/`ReportCompletionAsync`, `site.js`, `bde-terminal.js promptQty`, `Bom.cshtml` (Vater-Position, Abschluss),
+`csv-export.js`, `Program.cs`, `SQL/150`, `00_FreshInstall.sql` (2 Stellen), `nachlauf.psd1`.
+
+Geprüft und ohne Befund:
+- **SQL/150:** `SET QUOTED_IDENTIFIER ON`/`ANSI_NULLS ON` vor dem gefilterten Index; Tabellen-Guard mit `NOEXEC`; Spalte (`COL_LENGTH`) und Index
+  (`sys.indexes`) je eigener Batch; History separat; am Ende `NOEXEC OFF`. Auf beiden DEV-DBs nach dem EF-Migrate nochmals gelaufen: exit 0, idempotent.
+  Beide DBs: Spalte 16 Byte, Index `unique=1`, Filter `([Absendekennung] IS NOT NULL)`, History-Zeile vorhanden.
+- **FreshInstall:** Spalte + UNIQUE-Index im Tabellenblock, `MigrationId` mit Guard auf die Spalte. **Manifest:** `SQL/150` nach `SQL/149`, Info
+  `v1.99.23-SeitenNeuLaden` (Deploy-Schritt „Seiten neu laden“ vorhanden). Drift-Test um `SQL/150` ergänzt.
+- **site.js:** Ausnahmen GET (auch `formmethod`), `target`/`formtarget="_blank"`, `data-mehrfach-erlaubt`; Sperre erst per `setTimeout(0)` (Name/Wert
+  des Knopfs bleibt in den Formulardaten), `defaultPrevented` vor und nach dem Tick (später registrierte jQuery-Listener), zweites Absenden →
+  `preventDefault`; Freigabe nach 10 s und bei `pageshow.persisted`; `aria-disabled` + `aria-busy`; Symbol-Knöpfe: Spinner + `visually-hidden`-Text;
+  vorher schon gesperrte Knöpfe bleiben gesperrt (`wmsWarDisabled`). `form.submit()` aus Skripten nicht betroffen. `wmsSperren` mit Rückgabe `null`.
+- **Applock:** `sp_getapplock … @LockOwner='Transaction'` als erster Schritt im Lambda von `InTransactionAsync` (EF-Transaktion offen, `ExecuteSqlRaw`
+  läuft in ihr); Rückgabe < 0 → Klartext; InMemory-Weiche identisch zu `InTransactionAsync`. Ungültige Ergebnisse committen eine leere Transaktion – Sperre frei.
+- **K-1:** Statusprüfung im Versuch, ein Wortlaut (lokale Funktion), `ergebnis.Fehler` vor dem FA-Status-Block. **K-6:** `release` als Zielzustand, alle
+  Aufrufer (`_PickingLeitstandRow`, Modal) senden ihn; `ProductionOrders/ToggleRelease` ist nur 301. **WE-1:** Kennung vor Zeilenprüfung, leere/fehlende
+  Kennung abgewiesen, `IstSqlFehler(2601/2627)` nur um `AddAsync`, Bewegung + Receipt atomar (eine `SaveChanges`), Queue erst nach Erfolg.
+- **Feste Kultur:** Thread-Default + `UseRequestLocalization` mit genau einer Kultur, keine Provider. Formulare mit `type=number` binden weiter invariant (`__Invariant`).
+- **Audit:** neue Receipts mit `Created*` wie bisher; abgewiesene Doppelversuche schreiben nichts. Keine Einstellung (ADR 0020 entfällt, Abschnitt „Einstellungen: keine“).
+- Fehlerklassen: kein neuer Wert in `<script>` (nur bestehendes `@(Model.Auftrag?.Id ?? 0)`), kein `hidden` + `d-*`, keine stille `?? 0`-Umdeutung
+  (`VaterPosition ?? ""` = „kein Vater“, gewollt), keine neue positionsgebundene Liste, Server prüft überall selbst, Abschluss-Text an einer Stelle.
+
+Befunde:
+
+| # | Schwere | Befund | Umgang |
+|---|---|---|---|
+| F1 | niedrig | Zwei **gleichzeitige** `release=true` für **denselben** FA bestehen beide die Zielzustandsprüfung (Lesen ohne Sperre); Daten richtig (ein Auftragssatz), die zweite Antwort ist aber grün „0 Kommissionierauftrag/-aufträge für 0 FA angelegt; 1 FA ohne offene Restmenge“ statt „bereits freigegeben“ (DEV gemessen). Restfenster wie in C2 für die Rücknahme beschrieben. | Nicht blockierend; Entscheidung Gerald (Folgeaufgabe ja/nein). |
+| F2 | niedrig (Doku) | TS-138.6a erwartete „Zähler = sichtbare Zeilen“; im IDEAL-Auftrag stehen aber Baugruppen-Zeilen mit Kindern im selben Auftrag, deren Kinder laut C5 zugeklappt starten (KO-2026-00003: 90 Zeilen, 8 verborgen, alle unter sichtbarer Baugruppe mit Aufklapp-Pfeil). | Behoben: TS-138.6a präzisiert, Commit `1a73bc6a`. |
+| F3 | Info | Abgefangene UNIQUE-Kollisionen (2601) und Deadlock-Wiederholungen schreibt EF als `[ERR]` ins Web-Log. Kein Mailweg (ErrorNotification gilt nur für Dienst-Syncs). | Kein Handlungsbedarf; beim Log-Lesen beachten. |
+| F4 | Info | Applock nur in `ReportCompletionAsync`; andere Wege mit End-Menge (Stopp/Fertig mit `IsFinal`) sind nicht dagegen serialisiert. | Laut Spec nicht im Umfang (BDE-2, übrige BDE-Aktionen). |
+| F5 | Info (Zusatzfund, nicht im Diff) | `ToggleRelease` prüft nicht, ob `assignedPickerId` ein Kommissionierer ist (DEV: Freigabe mit Benutzer 4 angenommen, während die Seite „Kein Benutzer als Kommissionierer“ zeigte). | Nur gemeldet, nicht mitgebaut. |
+
+### 3. Nachweisart je Akzeptanzkriterium
+
+| AK | Nachweis |
+|---|---|
+| AK-1 | automatisiert (`NummernkreisTests`); zusätzlich DEV: verpackter Deadlock `InvalidOperationException → DbUpdateException → SqlException 1205` im Web-Log 09:29:06, „Versuch 1/3, 2/3 gescheitert“, dann Meldung „bereits … – nichts geändert“ |
+| AK-2, AK-3 | automatisiert (`PickingOrderWorkflowTests`) + DEV TS-138.1b |
+| AK-4 | automatisiert (`PickingLeitstandControllerTests`, Theory 4 Fälle) + DEV TS-138.2 |
+| AK-5 | DEV: Zeilen- und Modal-Formular senden `release` (`data-einmal-absenden` laut Nachtrag durch die globale Sperre ersetzt) |
+| AK-6, AK-7, AK-8 | automatisiert (`PurchaseOrdersReceiveTests`) + DEV TS-138.4c/f |
+| AK-9 | **Manual-UAT** – auf DEV ausgeführt (TS-138.4b, 4/4 OK) |
+| AK-10 | **Manual-UAT** – auf DEV ausgeführt (TS-138.5b, 6/6 OK) |
+| AK-11 | **Manual-UAT** – auf DEV ausgeführt (TS-138.1b 3/3 + 138.1c; TS-138.3 4/4 OK) |
+| AK-12 | **Manual-UAT** – teilweise auf DEV (Doppelklick Wareneingang, Leitstand-Zeile, Abschluss: je 1 POST); Enter doppelt, 10-s-Freigabe, `confirm`-Abbrechen, `btnQtyOk` offen |
+| AK-13 | automatisiert (`BomViewModelVaterPositionTests`) + DEV TS-138.6a/c |
+| AK-14 | automatisiert (Node `csv-export.check.js`) |
+| AK-15 | **Manual-UAT** – DEV AKE: `/StockOverview` 00000905 zeigt `-10.026,000` (kein U+00A0) bei Server-Kultur `de-AT` |
+| AK-16 | Build/Tests grün, Version 1.99.23 in beiden `AppVersion.cs`, Changelog, Hilfe, TS-138, TS-86.5 |
+
+### 4. Geänderte bestehende Tests
+
+| Test | Einordnung |
+|---|---|
+| `PickingLeitstandControllerTests` – alle `ToggleRelease_*` (Aufruf um `release:` ergänzt; Rücknahme sendet `release:false`, Theorie `!isReleasedForPicking`) | Verhalten absichtlich geändert, AK-4 |
+| `PurchaseOrdersReceiveTests` – alle POST-Aufrufe über Helfer `Post(...)` mit neuer Kennung | Signaturanpassung (neuer Parameter), Erwartungen unverändert |
+| `PickingOrderWorkflowTests.SetupAsync` – optionale Repository-Hülle | Fixture-Erweiterung, bestehende Fälle unverändert |
+| `NachlaufManifestDriftTests` – Liste um `SQL/150` | Pflicht-Nachzug (neues Skript) |
+| `csv-export.check.js` – Erwartung `-1.234,500` → `-1234,500` | Verhalten absichtlich geändert, AK-14 |
+
+Kein Fall „sonstiges“.
+
+### 5. Checkliste CLAUDE.md
+
+Migration + idempotentes `SQL/150` ✔ · FreshInstall 2 Stellen ✔ · AgentJobs nicht betroffen ✔ · Audit ✔ · Version 1.99.23 Web + Dienst ✔ ·
+Anwender-Changelog + Hilfe ✔ · Brain-Changelog [[2026-11-14-v1-99-23-schutz-doppel-absenden]] ✔ · ADR [[0026-schreibaktionen-senden-die-absicht-der-server-prueft-am-schreibort]] ✔ ·
+[[fallstricke]] §38 ✔ · [[feature-map]] ✔ · `docs/TESTSZENARIEN.md` TS-138 + TS-86.5 ✔ · [[testszenarien-index]] TS-138 ✔ · Manifest ✔. ADR 0020: keine Einstellung.
+
+**POST-Formular-Inventur (Nachtrag 09:00) – nachgeprüft:** 129 POST-Formulare in 73 Views (Grep `<form[^>]*method="post"`, ohne Groß/Klein;
+kein `Html.BeginForm`). Keine POST-Aktion liefert eine Datei (alle `return File(...)` sind PDF-Aktionen mit `[HttpGet]`:
+`Beschichtungsauftraege/Pdf`, `FaHierarchyBeschichtung/Pdf` + `PdfSummiert`, `FaHierarchyKommissionierListen/Pdf` + `PdfSummiert`); kein Formular mit
+`target`, kein Knopf mit `formtarget`/`formmethod`. **Opt-outs `data-mehrfach-erlaubt`: keine nötig.**
+
+| Formular | Grund, warum kein Opt-out nötig ist |
+|---|---|
+| `Picking/Bom.cshtml` `transferForm` (Umbuchen) | Seiten-Listener `preventDefault()` + AJAX → globale Sperre greift nicht (`defaultPrevented`) |
+| `PickingLeitstand/Index.cshtml` Sammel-Freigabe `formRelease` mit Kommissionierer-Modal | Listener `preventDefault()` öffnet das Modal → frei; das Modal-Formular sendet normal und navigiert |
+| `PickingLeitstand/Index.cshtml` `formRelease`/`formUnrelease`/`formNachziehen` ohne Modal | `attachIds` ohne Abbruch → normales Absenden mit Navigation |
+| `FaCompletion/Edit.cshtml:201`, `:321`; `OrderRecipients/Edit.cshtml:77`; `OrderRecipients/Index.cshtml:49`; `Roles/Edit.cshtml:74`; `ServiceSettings/Index.cshtml:172` | `onsubmit="return confirm(...)"` – „Abbrechen“ setzt `defaultPrevented` → Knopf bleibt frei; „OK“ navigiert |
+| `OrderRecipients/Edit.cshtml:68` | `onsubmit` kopiert nur Werte, kein Abbruch → normales Absenden |
+| alle übrigen Formulare (Stammdaten anlegen/ändern/löschen, Lagerbewegungen, Wareneingang, Leitstand-Zeile und -Modal, Settings, Benutzer/Rollen, BDE-Stammdaten, Login/Logout im Layout …) | Standard-PRG: Antwort ist Redirect oder View → Seite lädt neu, die Sperre endet mit der Navigation (sonst nach 10 s bzw. `pageshow`) |
+
+### 6. DEV-Deploy und Testlauf
+
+- Standort laut Frontmatter `beide`. Elevated: ja. `D:\Dev\scripts\dev-deploy.ps1 -Standort AKE|IDEAL -Quelle <Worktree>`: beide **exit 0**, „HTTP 200,
+  Fusszeile v1.99.23“, DEV-Absicherung angewendet, Dienste gestartet (AKE http://localhost:8081, IDEAL http://localhost:8082).
+- Schalter vor den Tests geprüft (beide DBs): `SageLagerbuchungAktiv`, `SageLagerbuchungUmbuchungAktiv`, `SageWareneingangBelegAktiv`,
+  `WareneingangCsvAktiv`, `ErrorNotification:Enabled`, `Notifications:MeldebestandEnabled`, alle `Sync:*Enabled` = **false**. Nichts an Sage geschrieben,
+  keine Mail. `SageBookingQueueItems` vor/nach den WE-Läufen 16/16.
+- Gleichzeitige POSTs: PowerShell-`HttpClient` mit Windows-Anmeldung, zwei getrennte Sitzungen („Tabs“), Token aus dem Formular, zwei `SendAsync`
+  ohne Warten, dann `WaitAll` (ein JavaScript-Werkzeug im Browser stand nicht zur Verfügung). Doppelklicks im Chrome-Tab, Netzwerkprotokoll ausgewertet.
+
+| Schritt | durchgeführt | Ergebnis | Status |
+|---|---|---|---|
+| 138.1a | AKE KO-2026-00074 (Id 112), eine Zeile per SQL umgebucht (Ist < Soll), Modal „Teilweise“ Doppelklick | 1 POST `AuftragAbschliessen` (200), Status 30, 1 Folgeauftrag | OK |
+| 138.1b | 3 Läufe parallel teilweise + teilweise (KO-00070 → 71 → 72) | je eine Antwort 200 mit Folgeauftrag, die andere 400 „Auftrag … ist bereits teilweise abgeschlossen – nichts geändert.“; je genau 1 Folgeauftrag; Log: verpackter Deadlock 1205 wiederholt | OK |
+| 138.1c | parallel teilweise + vollständig (KO-00073) | 200 vollständig, 400 „… ist bereits abgeschlossen – nichts geändert.“, 0 Folgeaufträge | OK |
+| 138.2a | FA 2646002 (Id 3048): Sitzung 1 `release=true` → KO-2026-00061; Sitzung 2 (veraltet) `release=true` mit anderem Kommissionierer | „FA 2646002 ist bereits freigegeben – nichts geändert.“; Auftrag aktiv, Kommissionierer unverändert | OK |
+| 138.2b | Rücknahme Sitzung 1, dann Sitzung 2 | 1. storniert KO-00061; 2. „ist nicht (mehr) freigegeben – nichts geändert.“ | OK |
+| 138.2c | Doppelklick Symbolknopf „Freigabe zurücknehmen“ (FA 2627001) | genau 1 POST `ToggleRelease` | OK (Zeile); Modal-Weg NICHT MOEGLICH: Kommissionierer-Auswahl auf DEV leer |
+| 138.2d | POST ohne `release` | „Die Seite ist veraltet – bitte neu laden. Es wurde nichts geändert.“ | OK |
+| 138.3 | 4 Läufe parallel Freigabe FA 3047 + 3045, danach jeweils parallele Rücknahme | kein 500, je Lauf jeder FA genau 1 aktiver Auftrag (KO-00062 … 69), Rücknahme storniert je 1 | OK; Zusatz gleicher FA parallel → F1 |
+| 138.4a | Chrome, Bestellung 2020-128897 Pos. EK007848, Doppelklick „Einbuchen“ | 1 POST, 1 Receipt | OK |
+| 138.4b | 4 Läufe parallel, gleiche Kennung, Menge 1 | je 1 Erfolg + 1 Warnung „Diese Eingabe wurde bereits gebucht …“, kein 500; Receipts 1→4, Bewegungen 1→4, Queue 16→16; Log: 4× 2601 auf `IX_PurchaseOrderReceipts_Absendekennung_BelPosId` abgefangen (echter Gleichstand) | OK |
+| 138.4c | erneutes Senden mit gebuchter Kennung (Skript) / Zurück-Taste im Chrome | Skript: Warnung „bereits gebucht“, nichts gebucht. Chrome: Seite neu geladen (kein bfcache), Knopf bedienbar, Menge leer → „Keine Menge eingegeben – nichts gebucht.“ | OK (nichts doppelt) |
+| 138.4d | Barcode | braucht Sage-WE im Testbetrieb (`SageWareneingangBelegAktiv`) – bleibt aus | NICHT MOEGLICH |
+| 138.4e | Menge „abc“ → View mit Fehler, Kennung im Formular erhalten; korrigiert „2“ mit derselben Kennung | genau 1 Buchung | OK |
+| 138.4f | ohne Kennung / `Guid.Empty` | „Die Seite ist veraltet – bitte neu laden. Es wurde nichts gebucht.“ | OK |
+| 138.4g | Prüf-SQL Dubletten | leer | OK |
+| 138.5a | Touch-Terminal „OK“ doppelt | Terminal-Ablauf im Browser nicht automatisierbar (Terminal-Benutzer) | NICHT MOEGLICH |
+| 138.5b | IDEAL Werkbank 65 „Entgraten Fläche“ temporär `BdeNurAgFertigmeldung=1`, Werker 1, Terminal 2, AGs 919/915/911/905/897/893 je 2 parallele `ReportCompletion` | je 1× `Success`, 1× „Arbeitsgang ist bereits fertig gemeldet.“; Prüf-SQL je genau 1 `IsFinal` | OK (6/6) |
+| 138.5c | Mengen-Modal abbrechen/neu öffnen | nicht im Browser geprüft | NICHT MOEGLICH |
+| 138.6a | IDEAL KO-2026-00002/3/4/5 (Server-HTML ausgewertet) | 0 Zeilen verborgen ohne vorhandenen Vater; ohne den Fix wären 45/76/50/73 Zeilen ohne direkten Vater unsichtbar; verborgen nur Kinder sichtbarer Baugruppen mit Aufklapp-Pfeil | OK (nach F2-Präzisierung) |
+| 138.6b | AKE Glas-/VK-Auftrag | auf AKE-DEV kein Auftrag mit fehlender Vater-Zeile (4 geprüfte Aufträge vollständig) | NICHT MOEGLICH (keine Daten) |
+| 138.6c | volle Stückliste IDEAL FA 131 und AKE FA 3047 | alle Zeilen mit Punkt starten verborgen (250/250, 173/173) – wie bisher | OK |
+| 138.7a–c | CSV-Export | Datei-Download nicht ohne Rückfrage; Kern per Node-Test belegt | NICHT MOEGLICH (Mensch) |
+| 138.8a | AKE `/StockOverview` 00000905 | `-10.026,000`, kein U+00A0 (Server-Kultur `de-AT`) | OK |
+| 138.8b | Wareneingang Menge `2,5` | gespeichert 2.5000 | OK |
+| 138.8c | Server-Spaltenfilter `>1000` | nicht ausgeführt | offen (Mensch) |
+| 138.9 | allgemeine Sperre | 3 Formulare per Doppelklick je 1 POST (s. o.); Enter doppelt, 10-s-Freigabe, `confirm`-Abbrechen nicht geprüft (keine Dialoge auslösen) | teilweise OK, Rest Mensch |
+
+**Testdaten aufgeräumt:** AKE: 7 Test-Wareneingänge (Receipts 21–31) samt Bewegungen 19546–19556 auf BelPosId 128139 entfernt (vorher geprüft: keine
+Queue-/Kommissionier-/Bedarfs-Referenz); Benutzer 4 `IsPicker` zurück auf 0; Freigaben FA 3045/3047 zurückgenommen. Verbleibend: Test-Aufträge
+KO-2026-00061 … 00076 (storniert bzw. abgeschlossen; Zeilenstatus in KO-00070 … 00074 per SQL gesetzt), FA 3048 dabei freigegeben und „vollständig
+kommissioniert“. IDEAL: 6 Test-Fertigmeldungen storniert (`IsCancelled=1`, Grund „QA v1.99.23 TS-138.5b Testbuchung“), Werkbank 65
+`BdeNurAgFertigmeldung` zurück auf 0.
+
+### 7. Publish
+
+`C:\git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish` neu erzeugt (Zielordner vorher geleert): `IDEALAKEWMSWeb` +
+`IDEALAKEWMSWebService` (beide exit 0, `IdealAkeWms.dll` ProductVersion `1.0.0+510b3020…`), `SQL` (inkl. `150_…`), `deploy`, `publish-info.txt`
+(Version 1.99.23, Commit `1a73bc6a47dcaa4bd75f6b22448c49eac8c40a61`), `deploy.zip` neu.
+
+### Manuelle Test-Checkliste für Gerald (offen)
+
+1. TS-138.2c im **Modal** (Freigabe mit Kommissionierer-Auswahl): Doppelklick „Freigeben“ → ein POST (DEV hatte keine Kommissionierer in der Auswahl).
+2. TS-138.4d Barcode mit Sage-WE im **Testbetrieb** (nur Testsystem): parallele POSTs → ein Wareneingang mit Barcode, ein ELL-Beleg.
+3. TS-138.5a/5c am **Touch-Terminal** IDEAL (Werkbank „nur AG-Fertigmeldung“): „OK“ doppelt → eine Fertigmeldung; Modal abbrechen/neu öffnen → „OK“ bedienbar.
+4. TS-138.6b AKE Glas-/VK-Auftrag mit Teilen unter einer Baugruppe des Lager-Auftrags (auf DEV keine Daten): alle Zeilen sichtbar und anhakbar.
+5. TS-138.7a–c CSV-Export `/StockOverview`: `-10026,000` ohne Apostroph, Excel-Summe; Text/Datum/Position unverändert.
+6. TS-138.8c Server-Spaltenfilter `>1000` auf einer Mengenspalte.
+7. TS-138.9 mit DevTools „Slow 3G“: Enter doppelt → ein POST; Knopf nach ≤ 10 s frei; `confirm` → „Abbrechen“ lässt Knopf frei; Symbolknopf behält Breite.
+8. Befund F1 entscheiden (Meldung bei gleichzeitiger Freigabe desselben FA) – Folgeaufgabe ja/nein.
+9. Testsystem-Lauf mit `publish\deploy\Update-IdealAkeWms.ps1` (DB-Backup vorher, `SQL/150`, Info „Seiten neu laden“), TS-138 dort stichprobenartig, dann Merge.
