@@ -91,6 +91,27 @@ public class BomViewModel
     public string? ArticleNumber { get; set; }
     public string? Description1 { get; set; }
     public List<BomItemViewModel> Items { get; set; } = new();
+
+    private HashSet<string>? _positionen;
+
+    /// <summary>
+    /// v1.99.23 (N-1): naechster VORHANDENER Vorfahre der Zeile in <see cref="Items"/> (Punkt-Praefixe von hinten), sonst null. Im
+    /// Kommissionierauftrag fehlen Vater-Zeilen, deren Baugruppe in einem anderen Auftrag liegt – die Zeile haengt dann am Grossvater
+    /// bzw. steht oben und bleibt sichtbar. Die volle Stueckliste hat keine Luecken: Ergebnis = direkter Vater wie bisher.
+    /// </summary>
+    public string? VaterPosition(BomItemViewModel item)
+    {
+        var pos = item.Position;
+        if (string.IsNullOrEmpty(pos)) return null;
+        _positionen ??= Items.Where(i => !string.IsNullOrEmpty(i.Position)).Select(i => i.Position!).ToHashSet();
+        for (var i = pos.LastIndexOf('.'); i > 0; i = pos.LastIndexOf('.', i - 1))
+        {
+            var vater = pos[..i];
+            if (_positionen.Contains(vater)) return vater;
+        }
+        return null;
+    }
+
     public string? FilterText { get; set; }
     public string? DefaultFilterBeschaffung { get; set; }
     public string? DefaultFilterArtikelgruppe { get; set; }

@@ -460,10 +460,16 @@
                     hint.classList.add('d-none');
                 }
             }
+            // v1.99.23 (BDE-1): ein Klick je Oeffnen – „OK“ bleibt gesperrt, bis das Modal neu geoeffnet wird (Server prueft zusaetzlich).
+            const btnOk = document.getElementById('btnQtyOk');
+            if (window.wmsFreigabeQtyOk) { window.wmsFreigabeQtyOk(); window.wmsFreigabeQtyOk = null; }
             modal.show();
             document.getElementById('inputGood').value = prefillGood != null ? prefillGood : '';
             document.getElementById('inputScrap').value = '0';
-            document.getElementById('btnQtyOk').onclick = async function () {
+            btnOk.onclick = async function () {
+                const freigabe = window.wmsSperren(btnOk);
+                if (!freigabe) return;
+                window.wmsFreigabeQtyOk = freigabe;
                 const g = parseFloat(document.getElementById('inputGood').value || '0');
                 const s = parseFloat(document.getElementById('inputScrap').value || '0');
                 modal.hide();

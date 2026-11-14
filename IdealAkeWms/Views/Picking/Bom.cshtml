@@ -220,11 +220,8 @@ else if (Model.BackController == "Picking")
         <tbody>
             @foreach (var item in Model.Items)
             {
-                var parentPos = "";
-                if (!string.IsNullOrEmpty(item.Position) && item.Position.Contains('.'))
-                {
-                    parentPos = item.Position.Substring(0, item.Position.LastIndexOf('.'));
-                }
+                @* v1.99.23 (N-1): Vater nur, wenn er in der Liste steht – sonst bliebe die Zeile im Auftrag unsichtbar *@
+                var parentPos = Model.VaterPosition(item) ?? "";
 
                 var rowClass = item.IsTransferred ? "table-secondary" : item.IsPicked ? "table-success" : "";
                 var isBg = item.IsBaugruppe;
@@ -235,7 +232,7 @@ else if (Model.BackController == "Picking")
                     data-position="@item.Position"
                     @if (!string.IsNullOrEmpty(parentPos)) { <text>data-parent-pos="@parentPos"</text> }
                     @if (isBg) { <text>data-baugruppe-id="@item.Ressourcenummer"</text> }
-                    @if (item.TreeLevel > 0) { <text>style="display:none;"</text> }>
+                    @if (!string.IsNullOrEmpty(parentPos)) { <text>style="display:none;"</text> }>
                     @if (!Model.ReadOnly)
                     {
                         <td>
@@ -1667,6 +1664,9 @@ else if (Model.BackController == "Picking")
 
             document.querySelectorAll('.set-status-btn').forEach(function (btn) {
                 btn.addEventListener('click', function () {
+                    // v1.99.23 (K-1): beide Abschluss-Knoepfe bis zur Antwort sperren; der Server prueft zusaetzlich am Schreibort.
+                    var freigabe = window.wmsSperren(document.querySelectorAll('.set-status-btn'));
+                    if (!freigabe) return;
                     // v1.88.0: Auftrag abschliessen (vollstaendig / teilweise mit Folgeauftrag)
                     $.ajax({
                         url: '@Url.Action("AuftragAbschliessen")',
@@ -1680,6 +1680,7 @@ else if (Model.BackController == "Picking")
                             window.location.href = '@Url.Action("Index")';
                         },
                         error: function (xhr) {
+                            freigabe();
                             alert(xhr.responseText || 'Fehler beim Abschließen des Auftrags.');
                         }
                     });

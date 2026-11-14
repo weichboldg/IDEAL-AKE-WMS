@@ -270,6 +270,11 @@ public class BdeBookingService : IBdeBookingService
     {
         return InTransactionAsync(async () =>
         {
+            // v1.99.23 (BDE-1, ADR 0026): zwei gleichzeitige Fertigmeldungen desselben Arbeitsgangs – die zweite wartet hier, bis die erste
+            // committet, und sieht dann deren IsFinal-Buchung (Pruefung unten). Kein Index moeglich (IsFinal und Arbeitsgang in zwei Tabellen).
+            if (!await SperreArbeitsgangAsync(workOperationId))
+                return BdeBookingResult.Invalid("Arbeitsgang wird gerade an einem anderen Terminal gemeldet – bitte erneut versuchen.");
+
             var gateError = await EnsureWorkplaceIsBdeActiveAsync(workplaceId);
             if (gateError != null) return gateError;
 
@@ -578,6 +583,19 @@ public class BdeBookingService : IBdeBookingService
         var result = await action();
         await tx.CommitAsync();
         return result;
+    }
+
+    /// <summary>v1.99.23 (BDE-1): exklusive Anwendungssperre je Arbeitsgang bis zum Transaktionsende (sp_getapplock, 10 s). false =
+    /// Zeitueberschreitung. InMemory (Tests): keine Sperre, true. Muss innerhalb von <see cref="InTransactionAsync"/> laufen.</summary>
+    private async Task<bool> SperreArbeitsgangAsync(int workOperationId)
+    {
+        if (_ctx.Database.ProviderName?.Contains("InMemory", StringComparison.OrdinalIgnoreCase) == true) return true;
+        var ergebnis = new Microsoft.Data.SqlClient.SqlParameter("@ergebnis", System.Data.SqlDbType.Int) { Direction = System.Data.ParameterDirection.Output };
+        var resource = new Microsoft.Data.SqlClient.SqlParameter("@resource", System.Data.SqlDbType.NVarChar, 255) { Value = $"BDE-Fertigmeldung:{workOperationId}" };
+        await _ctx.Database.ExecuteSqlRawAsync(
+            "EXEC @ergebnis = sys.sp_getapplock @Resource = @resource, @LockMode = 'Exclusive', @LockOwner = 'Transaction', @LockTimeout = 10000",
+            ergebnis, resource);
+        return ergebnis.Value is int r && r >= 0;
     }
 
     private async Task<bool> ReadBoolSettingAsync(string key)

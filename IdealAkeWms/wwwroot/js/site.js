@@ -155,3 +155,96 @@ window.tableToolbarHost = function (table) {
         navigate({ pageSize: size, page: 1 });
     });
 })();
+
+// v1.99.23 (Spec 2026-11-14-schutz-doppel-absenden, Freigabe-Nachtrag, ADR 0026): Doppel-Absenden-Schutz im Browser – nur Komfort,
+// der Schutz selbst liegt am Server (Pruefung am Schreibort). Global fuer alle POST-Formulare; ausgenommen GET, target="_blank"
+// (auch per formtarget am Knopf) und data-mehrfach-erlaubt. Hat ein Seiten-Listener das Absenden abgebrochen (preventDefault, confirm
+// „Abbrechen“), bleibt alles frei. Freigabe nach 10 s und bei pageshow (Zurueck-Taste/bfcache), damit nie etwas dauerhaft haengt.
+// form.submit() aus Skripten loest kein submit-Ereignis aus und ist nicht betroffen.
+// window.wmsSperren(knoepfe) fuer AJAX-Knoepfe: sperrt und gibt die Freigabe-Funktion zurueck; null = laeuft schon (Aufrufer bricht ab).
+(function () {
+    'use strict';
+    var FREIGABE_MS = 10000;
+
+    function knoepfeVon(form) {
+        var liste = Array.prototype.slice.call(form.querySelectorAll('button:not([type]), button[type="submit"], input[type="submit"]'));
+        if (form.id) {
+            Array.prototype.forEach.call(document.querySelectorAll('[form="' + form.id + '"]'), function (k) {
+                if (k.matches('button:not([type]), button[type="submit"], input[type="submit"]') && liste.indexOf(k) < 0) liste.push(k);
+            });
+        }
+        return liste;
+    }
+
+    function sperren(knoepfe) {
+        knoepfe.forEach(function (k) {
+            if (k.dataset.wmsGesperrt === '1') return;
+            k.dataset.wmsGesperrt = '1';
+            k.dataset.wmsWarDisabled = k.disabled ? '1' : '0';
+            k.disabled = true;
+            k.setAttribute('aria-disabled', 'true');
+            k.setAttribute('aria-busy', 'true');
+            if (k.tagName === 'INPUT') {
+                k.dataset.wmsText = k.value;
+                k.value = 'wird gesendet …';
+            } else {
+                k.dataset.wmsHtml = k.innerHTML;
+                // Knopf nur mit Symbol: Breite halten, Text nur fuer Screenreader
+                var mitText = k.textContent.trim().length > 0;
+                k.innerHTML = '<span class="spinner-border spinner-border-sm' + (mitText ? ' me-1' : '') + '" aria-hidden="true"></span>'
+                    + (mitText ? 'wird gesendet …' : '<span class="visually-hidden">wird gesendet …</span>');
+            }
+        });
+    }
+
+    function freigeben(knoepfe) {
+        knoepfe.forEach(function (k) {
+            if (k.dataset.wmsGesperrt !== '1') return;
+            k.disabled = k.dataset.wmsWarDisabled === '1';
+            k.removeAttribute('aria-disabled');
+            k.removeAttribute('aria-busy');
+            if (k.tagName === 'INPUT') k.value = k.dataset.wmsText;
+            else k.innerHTML = k.dataset.wmsHtml;
+            delete k.dataset.wmsGesperrt; delete k.dataset.wmsWarDisabled; delete k.dataset.wmsText; delete k.dataset.wmsHtml;
+        });
+    }
+
+    function formFreigeben(form) {
+        if (form.dataset.wmsSendet !== '1') return;
+        delete form.dataset.wmsSendet;
+        clearTimeout(form._wmsTimer);
+        freigeben(knoepfeVon(form));
+    }
+
+    document.addEventListener('submit', function (e) {
+        var form = e.target;
+        if (!(form instanceof HTMLFormElement) || e.defaultPrevented) return;
+        var k = e.submitter;
+        var methode = ((k && k.getAttribute('formmethod')) || form.getAttribute('method') || 'get').toLowerCase();
+        var ziel = ((k && k.getAttribute('formtarget')) || form.getAttribute('target') || '').toLowerCase();
+        if (methode !== 'post' || ziel === '_blank' || form.hasAttribute('data-mehrfach-erlaubt')) return;
+        if (form.dataset.wmsSendet === '1') { e.preventDefault(); return; }   // zweites Absenden verworfen
+        form.dataset.wmsSendet = '1';
+        // Erst nach dem Absenden sperren: sofortiges disabled naehme Name/Wert des ausloesenden Knopfs aus den Formulardaten.
+        // Spaeter registrierte Listener (jQuery-Delegation) koennen noch abbrechen – dann nichts sperren.
+        setTimeout(function () {
+            if (e.defaultPrevented) { delete form.dataset.wmsSendet; return; }
+            sperren(knoepfeVon(form));
+            form._wmsTimer = setTimeout(function () { formFreigeben(form); }, FREIGABE_MS);
+        }, 0);
+    });
+
+    window.addEventListener('pageshow', function (e) {
+        if (!e.persisted) return;
+        Array.prototype.forEach.call(document.querySelectorAll('form[data-wms-sendet]'), formFreigeben);
+        freigeben(Array.prototype.slice.call(document.querySelectorAll('[data-wms-gesperrt]')));
+    });
+
+    window.wmsSperren = function (knoepfe) {
+        var liste = knoepfe instanceof Element ? [knoepfe] : Array.prototype.slice.call(knoepfe);
+        if (liste.some(function (k) { return k.dataset.wmsGesperrt === '1'; })) return null;
+        sperren(liste);
+        var timer = setTimeout(function () { freigeben(liste); }, FREIGABE_MS);
+        return function () { clearTimeout(timer); freigeben(liste); };
+    };
+})();
