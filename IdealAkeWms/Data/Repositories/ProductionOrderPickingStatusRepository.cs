@@ -65,12 +65,24 @@ public class ProductionOrderPickingStatusRepository : IProductionOrderPickingSta
         await _context.SaveChangesAsync();
     }
 
-    public async Task SetReleaseAsync(int productionOrderId, bool released, int? priority, string? releasedBy,
+    public async Task<bool> SetReleaseAsync(int productionOrderId, bool released, int? priority, string? releasedBy,
         string modifiedBy, string modifiedByWindows)
     {
         var row = await _context.ProductionOrderPickingStatuses
             .FirstOrDefaultAsync(s => s.ProductionOrderId == productionOrderId)
             ?? throw new InvalidOperationException($"PickingStatus row missing for FA {productionOrderId}.");
+
+        // v1.99.23 (F1, ADR 0026): Pruefung am Schreibort – nur EIN gleichzeitiger Klick gewinnt den Zustandswechsel (bedingtes UPDATE,
+        // atomar in SQL Server); der Verlierer schreibt nichts. InMemory (Tests): Vergleich am geladenen Satz.
+        // ponytail: Anspruch und Rest-Felder in zwei Anweisungen ohne Transaktion – scheitert das SaveChanges danach, steht das Flag ohne
+        // ReleasedAt/Modified*; bei Bedarf beide in eine Transaktion legen.
+        if (_context.Database.IsRelational())
+        {
+            var gewonnen = await _context.Database.ExecuteSqlInterpolatedAsync(
+                $"UPDATE [dbo].[ProductionOrderPickingStatus] SET [IsReleasedForPicking] = {released} WHERE [ProductionOrderId] = {productionOrderId} AND [IsReleasedForPicking] <> {released}");
+            if (gewonnen == 0) return false;
+        }
+        else if (row.IsReleasedForPicking == released) return false;
 
         var jetzt = DateTime.Now; // Lokalzeit (ADR 0025), ReleasedAt = ModifiedAt
         row.IsReleasedForPicking = released;
@@ -90,6 +102,7 @@ public class ProductionOrderPickingStatusRepository : IProductionOrderPickingSta
         row.ModifiedBy = modifiedBy;
         row.ModifiedByWindows = modifiedByWindows;
         await _context.SaveChangesAsync();
+        return true;
     }
 
     public async Task SetAssignedPickerAsync(int productionOrderId, int? pickerId, string? pickerName,

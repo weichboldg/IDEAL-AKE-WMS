@@ -16,7 +16,8 @@ public interface IProductionOrderPickingStatusRepository
     Task<ProductionOrderPickingStatus?> GetByProductionOrderIdAsync(int productionOrderId);
     Task<Dictionary<int, ProductionOrderPickingStatus>> GetByProductionOrderIdsAsync(IEnumerable<int> productionOrderIds);
     Task SetFieldAsync(int productionOrderId, string field, bool value, string modifiedBy, string modifiedByWindows);
-    Task SetReleaseAsync(int productionOrderId, bool released, int? priority, string? releasedBy, string modifiedBy, string modifiedByWindows);
+    /// <summary>v1.99.23 (F1, ADR 0026): false = der FA stand schon im Zielzustand (paralleler Klick hat gewonnen) – nichts geschrieben.</summary>
+    Task<bool> SetReleaseAsync(int productionOrderId, bool released, int? priority, string? releasedBy, string modifiedBy, string modifiedByWindows);
     Task SetAssignedPickerAsync(int productionOrderId, int? pickerId, string? pickerName, string modifiedBy, string modifiedByWindows);
     Task SetPickingStatusTextAsync(int productionOrderId, string? statusText, string modifiedBy, string modifiedByWindows);
     Task SetIsDonePickingAsync(int productionOrderId, bool value, string modifiedBy, string modifiedByWindows);

@@ -12295,6 +12295,7 @@ ohne `await` dazwischen. Nichts an Sage schreiben: Sage-Lagerbuchungen/Sage-WE a
 | 138.2c | Doppelklick auf „Freigeben“ (Zeile und Modal mit Kommissionierer) | Genau ein POST (DevTools Netzwerk), Knopf „wird gesendet …“ |
 | 138.2d | Negativ: im Zeilen-Formular das Feld `release` per DevTools entfernen, absenden | „Die Seite ist veraltet – bitte neu laden. Es wurde nichts geändert.“ |
 | 138.3 | Parallele Freigaben (AKE, Manual-UAT): zwei gleichzeitige `ToggleRelease release=true` für zwei verschiedene FAs, 4 Läufe | Kein 500; jeder FA hat seine Aufträge (Prüfabfrage: kein freigegebener Test-FA ohne Kommissionierauftrag) |
+| 138.3b | Gleichstand derselbe FA (AKE, Manual-UAT, F1): zwei gleichzeitige `ToggleRelease release=true` für **denselben** FA, 4 Läufe | Ein Satz Aufträge; eine Antwort grün („… angelegt“), die andere gelb „FA … ist bereits freigegeben – nichts geändert.“ (keine grüne „0 Kommissionierauftrag …“-Meldung); `ReleasedBy`/`ReleasedAt` vom Gewinner |
 | 138.4a | Wareneingang doppelt (AKE): Bestellung mit Rest ≥ 10; Doppelklick „Einbuchen“ | Ein POST, ein Wareneingang, eine Bewegung |
 | 138.4b | Zwei gleichzeitige identische POSTs (gleiche `absendekennung`) | Ein Wareneingang, eine Bewegung, zweite Antwort Warnung „Diese Eingabe wurde bereits gebucht – nichts doppelt gebucht. …“, kein 500, kein zweiter Eintrag in der Sage-Lagerbuchungs-Warteschlange |
 | 138.4c | Nach der Buchung Zurück-Taste, erneut „Einbuchen“ | Knopf wieder bedienbar (pageshow), Warnung „bereits gebucht“, nichts gebucht |

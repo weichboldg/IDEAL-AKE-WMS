@@ -376,13 +376,11 @@ public class PickingLeitstandController : Controller
             return NotFound("PickingStatus-Zeile fehlt.");
 
         // v1.99.23 (K-6, ADR 0026): das Formular sendet den Zielzustand, kein „dreh um“. Veraltete Seite/Doppelklick → nichts aendern.
-        var veraltet = release switch
-        {
-            null => "Die Seite ist veraltet – bitte neu laden. Es wurde nichts geändert.",
-            true when ps.IsReleasedForPicking => $"FA {order.OrderNumber} ist bereits freigegeben – nichts geändert.",
-            false when !ps.IsReleasedForPicking => $"FA {order.OrderNumber} ist nicht (mehr) freigegeben – nichts geändert.",
-            _ => null,
-        };
+        string BereitsText(bool ziel) => ziel
+            ? $"FA {order.OrderNumber} ist bereits freigegeben – nichts geändert."
+            : $"FA {order.OrderNumber} ist nicht (mehr) freigegeben – nichts geändert.";
+        var veraltet = release is not { } r ? "Die Seite ist veraltet – bitte neu laden. Es wurde nichts geändert."
+            : r == ps.IsReleasedForPicking ? BereitsText(r) : null;
         if (veraltet != null)
         {
             TempData["WarningMessage"] = veraltet;
@@ -415,9 +413,15 @@ public class PickingLeitstandController : Controller
             newPriority = maxPrio + 1;
         }
 
-        await _pickingStatusRepository.SetReleaseAsync(
-            id, newReleased, newPriority, _currentUserService.GetDisplayName(),
-            _currentUserService.GetDisplayName(), _currentUserService.GetWindowsUserName());
+        if (!await _pickingStatusRepository.SetReleaseAsync(
+                id, newReleased, newPriority, _currentUserService.GetDisplayName(),
+                _currentUserService.GetDisplayName(), _currentUserService.GetWindowsUserName()))
+        {
+            // F1: gleichzeitiger Klick derselben Absicht hat gewonnen – dieselbe Meldung wie bei der veralteten Seite
+            TempData["WarningMessage"] = BereitsText(newReleased);
+            if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl)) return Redirect(returnUrl);
+            return RedirectToAction(nameof(Index));
+        }
 
         if (newReleased && assignedPickerId.HasValue)
         {

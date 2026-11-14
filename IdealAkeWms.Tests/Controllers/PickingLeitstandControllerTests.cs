@@ -42,6 +42,8 @@ public class PickingLeitstandControllerTests
 
     public PickingLeitstandControllerTests()
     {
+        _pickingStatusRepo.Setup(r => r.SetReleaseAsync(It.IsAny<int>(), It.IsAny<bool>(), It.IsAny<int?>(),
+            It.IsAny<string?>(), It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(true);
         _bomRepo.Setup(b => b.GetBomItemsAsync(It.IsAny<BomKey>(), It.IsAny<BomScope>()))
             .ReturnsAsync(new BomQueryResult(new List<BomItem>(), BomDataSources.Sage));
         _pickingOrderRepo.Setup(r => r.GetByProductionOrderAsync(It.IsAny<int>())).ReturnsAsync(new List<PickingOrder>());
@@ -573,6 +575,26 @@ public class PickingLeitstandControllerTests
         _pickingStatusRepo.Verify(r => r.SetReleaseAsync(
             It.IsAny<int>(), It.IsAny<bool>(), It.IsAny<int?>(),
             It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+        _pickingStatusRepo.Verify(r => r.SetAssignedPickerAsync(
+            It.IsAny<int>(), It.IsAny<int?>(), It.IsAny<string?>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+    }
+
+    /// <summary>v1.99.23 (F1): zwei gleichzeitige Freigaben desselben FA – der Verlierer (SetReleaseAsync false) meldet „bereits
+    /// freigegeben“, setzt keinen Kommissionierer und erzeugt keine Auftraege.</summary>
+    [Fact]
+    public async Task ToggleRelease_GleichstandVerloren_BereitsFreigegeben_F1()
+    {
+        _orderRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(MakeOrder(1, "FA-100"));
+        _pickingStatusRepo.Setup(r => r.GetByProductionOrderIdAsync(1)).ReturnsAsync(MakePs(productionOrderId: 1, released: false));
+        _settingRepo.Setup(s => s.GetValueAsync("KommissionierungMitZuweisung")).ReturnsAsync("false");
+        _pickingStatusRepo.Setup(r => r.SetReleaseAsync(1, true, It.IsAny<int?>(), It.IsAny<string?>(), It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync(false);
+
+        var result = await _controller.ToggleRelease(1, release: true, assignedPickerId: 5, returnUrl: null);
+
+        result.Should().BeOfType<RedirectToActionResult>();
+        _controller.TempData["WarningMessage"].Should().Be("FA FA-100 ist bereits freigegeben – nichts geändert.");
+        _controller.TempData.ContainsKey("SuccessMessage").Should().BeFalse();
         _pickingStatusRepo.Verify(r => r.SetAssignedPickerAsync(
             It.IsAny<int>(), It.IsAny<int?>(), It.IsAny<string?>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
     }

@@ -243,6 +243,21 @@ public class ProductionOrderPickingStatusRepositoryTests
         ps.ModifiedAt.Should().Be(ps.ReleasedAt);
     }
 
+    /// <summary>v1.99.23 (F1): zweiter Aufruf mit demselben Zielzustand schreibt nichts und meldet false.</summary>
+    [Fact]
+    public async Task SetReleaseAsync_SchonImZielzustand_False_NichtsGeschrieben()
+    {
+        using var context = TestDbContextFactory.Create();
+        var created = TestDataHelper.CreateOrderWithStatuses(context, "WA-F1");
+        var repo = new ProductionOrderPickingStatusRepository(context);
+
+        (await repo.SetReleaseAsync(created.Order.Id, true, 7, "alice", "alice", "a")).Should().BeTrue();
+        (await repo.SetReleaseAsync(created.Order.Id, true, 9, "bob", "bob", "b")).Should().BeFalse();
+
+        var ps = await repo.GetByProductionOrderIdAsync(created.Order.Id);
+        (ps!.ReleasedBy, ps.PickingPriority, ps.ModifiedBy).Should().Be(("alice", (int?)7, "alice"));
+    }
+
     [Fact]
     public async Task SetReleaseAsync_OnRevoke_ClearsAssignedPickerFields()
     {
