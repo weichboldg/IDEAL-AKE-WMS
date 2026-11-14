@@ -803,6 +803,8 @@ dann gilt nur „Menge absteigend“, kein Fehler ([[2026-10-16-stueckliste-matc
 
 ## 8. Tests, EF, SQL Server
 
+> Seit v1.99.23: Deadlock/UNIQUE-Fehler über die ganze Ausnahme-Kette prüfen (`Nummernkreis.IstSqlFehler`), siehe §38.
+
 ### InMemory-DB unterstuetzt kein `rowversion`
 Tests nutzen `TestApplicationDbContext`.
 **Warum:** Der InMemory-Provider kennt keine Concurrency-Token; ohne den Test-Kontext scheitert
@@ -1503,6 +1505,11 @@ Reklamations-Teileauswahl in [[2026-10-06-beschichtungsauftrag-ausbau-teil-4-spe
 ohne `filterable-table`-Klasse. Mehrere Tabellen erst nach Umbau der Skripte auf Instanzen (eigene Entscheidung).
 
 ### Die Anwendung hat keine feste Request-Kultur — Dezimal-Eingaben selbst lesen
+> [!warning] Überholt seit v1.99.23
+> `Program.cs` setzt jetzt eine feste App-Kultur `de-DE` (Thread-Default + `UseRequestLocalization` mit genau einer Kultur), siehe §38 und
+> [[2026-11-14-schutz-doppel-absenden-und-unsichtbare-positionen-spec]]. Der Text unten beschreibt den Stand bis v1.99.22; `TryMenge`
+> (Komma und Punkt) bleibt richtig, die Server-Kultur entscheidet nicht mehr.
+
 `Program.cs` konfiguriert weder `UseRequestLocalization` noch eine Thread-Kultur (Grep `Culture|Localization`: kein
 Treffer). Das Model-Binding parst `decimal` deshalb mit der Kultur des Servers (IIS-Konto) — „2.5" aus einem
 `type="number"`-Feld wird unter `de-AT` zu 25, „2,5" unter `en-US` zu 25.
@@ -1901,3 +1908,25 @@ Code: `hardware-scanner.js` Block „Scannen ohne Feld“, CSS `.hw-scan-bereit`
   mit `Sync:ArtikelLieferantEnabled` gefüllt wird. Die Partner-Ressource heißt `eptEinkaufsbelege.100036671.DPSBS_DMS_Connector` (ohne Suffix 404).
 - **Erste Welle Kreditor-Mails:** Auch mit `MaxAlterTage` 180 lagen auf AKE-DEV 96–99 Kreditoren über `KreditorMaxJeLauf` 30 („alle oder keine“) –
   vor dem Einschalten Zahl prüfen.
+
+## 38. Doppel-Absenden, verpackter Deadlock, feste Kultur (v1.99.23, [[2026-11-14-schutz-doppel-absenden-und-unsichtbare-positionen-spec]], ADR [[0026-schreibaktionen-senden-die-absicht-der-server-prueft-am-schreibort]])
+
+- **Ein Deadlock kommt verpackt an.** EF wirft ihn als `InvalidOperationException` → `DbUpdateException` → `SqlException 1205`; eine Prüfung
+  nur von `ex` und `ex.InnerException` übersieht ihn (bis v1.99.22 `Nummernkreis.IstDeadlock`) – Folge HTTP 500 statt Wiederholung (N-2).
+  **Regel:** `Nummernkreis.IstSqlFehler(ex, …)` läuft die ganze Kette ab; dasselbe für UNIQUE (2601/2627).
+- **Wiederholversuch = neue Welt.** Wer in `MitVersuchenAsync` neu liest, muss auch den Status neu prüfen – die Vorprüfung vor der Schleife
+  gilt nach einem verlorenen Gleichstand nicht mehr (K-1: zweiter Folgeauftrag). **Warum:** der Gewinner hat inzwischen geschrieben.
+- **Umschalter sind gefährlich.** Ein Knopf, der „dreh um“ sendet, macht auf einer veralteten Seite das Gegenteil (K-6: Freigabe-Klick
+  stornierte Aufträge). **Regel:** Zielzustand mitsenden, Server meldet „bereits …“ (ADR 0026).
+- **Knopf-Sperre nie sofort `disabled`.** Ein im `submit`-Ereignis gesperrter Knopf fehlt mit Name/Wert in den Formulardaten; `site.js` sperrt
+  per `setTimeout(…, 0)` und prüft dort `e.defaultPrevented` (später registrierte Listener, `confirm`-Abbruch). `form.submit()` aus Skripten
+  löst kein `submit` aus und ist nicht gesperrt. Formulare, die bewusst mehrfach senden: `data-mehrfach-erlaubt`.
+- **Restfenster:** zwei verschiedene Wareneingangs-Seiten mit demselben Barcode gleichzeitig (WE-4, Barcode-Prüfung ohne Sperre); zwei
+  gleichzeitige Rücknahmen → RowVersion-Konflikt als 500 (K-7).
+- **Feste Kultur `de-DE`, nicht `de-AT`.** Unter ICU ist der Tausendertrenner von `de-AT` U+00A0 – der Server-Spaltenfilter
+  (`ColumnFilterSyntax`) liest nur den Punkt als Tausender, und der CSV-Export schrieb `-10 026,000` als Text. **Regel:** Kultur bleibt eine
+  Code-Konstante; der Windows-Dienst hat sie (noch) nicht (Freigabe-Antwort 2).
+- **CSV schreibt Zahlen ohne Tausendertrenner** (`csv-export.js cleanValue`): mit Dezimalteil immer, ganze Zahlen nur in Spalten mit
+  `data-filter-type="number"` – sonst würden Positionen wie `1.234` zu `1234` (Freigabe-Antwort 6).
+- **Unterpositionen ohne Vater-Zeile:** Im Kommissionierauftrag fehlen Baugruppen anderer Aufträge; eine Zeile mit `TreeLevel > 0` startete
+  versteckt und wurde nie sichtbar (N-1). **Regel:** versteckt nur, wenn `BomViewModel.VaterPosition` einen vorhandenen Vorfahren findet.

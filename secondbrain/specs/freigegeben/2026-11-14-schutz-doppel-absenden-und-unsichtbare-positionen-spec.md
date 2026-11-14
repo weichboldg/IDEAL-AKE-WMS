@@ -2,7 +2,7 @@
 type: spec
 title: "Schutz gegen Doppel-Absenden und unsichtbare Positionen"
 slug: 2026-11-14-schutz-doppel-absenden-und-unsichtbare-positionen-spec
-status: Entwurf
+status: InUmsetzung
 created: 2026-11-14
 updated: 2026-11-14
 source_backlog: "[[2026-11-14-review-befunde-kommissionierung]]"
@@ -15,7 +15,7 @@ weitere_quellen:
   - "[[03-ideal-hierarchie-beschichtung-bde]]"
   - "[[04-uebrige-module]]"
 bug: "[[2026-11-14-schutz-doppel-absenden-und-unsichtbare-positionen-bug]]"
-task: ""
+task: "[[2026-11-14-schutz-doppel-absenden-goal-lauf]]"
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
 branch: "feature/2026-08-07-ideal-teile-1-5"
 standort: beide
@@ -60,8 +60,8 @@ deploy:
   service: true
   migration: true
 freigabe_entscheidung: ""
-freigabe_von: ""
-freigabe_am: ""
+freigabe_von: "Gerald Weichbold"
+freigabe_am: "2026-11-14"
 ---
 
 # Schutz gegen Doppel-Absenden und unsichtbare Positionen
@@ -391,6 +391,16 @@ Kette prüfen“, neuer Eintrag „Doppel-Absenden“ (Regel A + Restfenster WE-
 6. **CSV, ganze Zahlen mit Punkt** (`1.234`) in Spalten **ohne** `data-filter-type="number"`: unverändert lassen (Empfehlung – Verwechslung
    mit Positionen/Nummern) oder ebenfalls ohne Punkt exportieren?
 
+## Freigabe-Nachtrag 2026-11-14 09:00 (Gerald, geht dem Rumpf vor) – Client-Sperre global
+- **Global für alle POST-Formulare** (statt nur `data-einmal-absenden` an einzelnen Formularen). Automatisch **ausgenommen:** GET-Formulare,
+  Formulare mit `target="_blank"` und Formulare mit `data-mehrfach-erlaubt` (Opt-out, z. B. Scan-/AJAX-/Download-Formulare).
+- Nach dem Absenden: Absende-Knöpfe sperren, Text „wird gesendet …“; **Freigabe nach 10 Sekunden und bei `pageshow`** (Zurückblättern/bfcache),
+  damit nie etwas dauerhaft hängt. Barrierefreiheit: `aria-disabled`/`aria-busy`.
+- **Serverseitige Idempotenz bleibt** an den Buchungsstellen der Spec (Wareneingang, Abschluss „Teilweise“, Freigabe, BDE-Fertigmeldung) – die
+  Client-Sperre ist nur zusätzlicher Schutz.
+- Der Lauf prüft **alle bestehenden POST-Formulare**, setzt nötige Opt-outs und listet sie im QA-Nachweis (Formular, Grund).
+- Version/TS/SQL in Lauf-Reihenfolge (Vorschlag 1.99.23, SQL 150, TS ab 138). Rückfrage 3 entfällt (Gerald 09:01: IDEAL soll de-DE sein, noch nicht produktiv) – kein Blocker.
+
 ## Freigabe-Antworten (Mensch fuellt aus — Schranke 1)
 
 <!--
@@ -400,9 +410,9 @@ Kette prüfen“, neuer Eintrag „Doppel-Absenden“ (Regel A + Restfenster WE-
   als seinen Auftrag. Antworte je Frage in **fett** hinter dem Pfeil.
 -->
 
-1. Feste App-Kultur de-DE oder de-AT-Klon mit Tausenderpunkt →
-2. Feste Kultur auch im Dienst →
-3. Prüfschritt idealweb01 Zahlformat (Ergebnis) →
-4. Client-Sperre opt-in oder global →
-5. Wareneingang ohne Kennung ablehnen oder buchen →
-6. CSV ganze Zahlen mit Punkt in Textspalten →
+1. Feste App-Kultur de-DE oder de-AT-Klon mit Tausenderpunkt → **de-DE** (Gerald 2026-11-14).
+2. Feste Kultur auch im Dienst → **Nein, eigene Aufgabe** (Gerald 2026-11-14).
+3. Prüfschritt idealweb01 Zahlformat (Ergebnis) → **Entfällt: IDEAL soll de-DE sein und ist noch nicht produktiv – kein Blocker** (Gerald 2026-11-14 09:01).
+4. Client-Sperre opt-in oder global → **Global für alle POST-Formulare mit Leitplanken (siehe Freigabe-Nachtrag)** (Gerald 2026-11-14).
+5. Wareneingang ohne Kennung ablehnen oder buchen → **Ablehnen mit „Seite neu laden“** (Gerald 2026-11-14).
+6. CSV ganze Zahlen mit Punkt in Textspalten → **Unverändert lassen** (Gerald 2026-11-14).
