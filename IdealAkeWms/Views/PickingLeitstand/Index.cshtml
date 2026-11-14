@@ -262,6 +262,7 @@
                 <form asp-controller="PickingLeitstand" asp-action="ToggleRelease" method="post">
                     @Html.AntiForgeryToken()
                     <input type="hidden" name="id" id="releaseModalOrderId" />
+                    <input type="hidden" name="release" value="true" />
                     <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
                     <div class="modal-header">
                         <h5 class="modal-title" id="releaseModalLabel">Kommissionier-Freigabe</h5>

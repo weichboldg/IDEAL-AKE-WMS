@@ -450,7 +450,7 @@ public class PickingLeitstandControllerTests
         _pickingStatusRepo.Setup(r => r.GetReleasedForPickingAsync()).ReturnsAsync(new List<ProductionOrder>());
         _settingRepo.Setup(s => s.GetValueAsync("KommissionierungMitZuweisung")).ReturnsAsync("false");
 
-        var result = await _controller.ToggleRelease(1, assignedPickerId: null, returnUrl: null);
+        var result = await _controller.ToggleRelease(1, release: true, assignedPickerId: null, returnUrl: null);
 
         result.Should().BeOfType<RedirectToActionResult>();
         _pickingStatusRepo.Verify(r => r.SetReleaseAsync(
@@ -463,7 +463,7 @@ public class PickingLeitstandControllerTests
     {
         _orderRepo.Setup(r => r.GetByIdAsync(999)).ReturnsAsync((ProductionOrder?)null);
 
-        var result = await _controller.ToggleRelease(999, assignedPickerId: null, returnUrl: null);
+        var result = await _controller.ToggleRelease(999, release: true, assignedPickerId: null, returnUrl: null);
 
         result.Should().BeOfType<NotFoundResult>();
         _pickingStatusRepo.Verify(r => r.SetReleaseAsync(
@@ -478,7 +478,7 @@ public class PickingLeitstandControllerTests
         _orderRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(order);
         _pickingStatusRepo.Setup(r => r.GetByProductionOrderIdAsync(1)).ReturnsAsync((ProductionOrderPickingStatus?)null);
 
-        var result = await _controller.ToggleRelease(1, assignedPickerId: null, returnUrl: null);
+        var result = await _controller.ToggleRelease(1, release: true, assignedPickerId: null, returnUrl: null);
 
         result.Should().BeOfType<NotFoundObjectResult>();
     }
@@ -505,7 +505,7 @@ public class PickingLeitstandControllerTests
         _settingRepo.Setup(s => s.GetValueAsync("KommissionierungMitZuweisung")).ReturnsAsync("true");
         _userRepo.Setup(r => r.GetByIdAsync(5)).ReturnsAsync(picker);
 
-        await _controller.ToggleRelease(1, assignedPickerId: 5, returnUrl: null);
+        await _controller.ToggleRelease(1, release: true, assignedPickerId: 5, returnUrl: null);
 
         _pickingStatusRepo.Verify(r => r.SetReleaseAsync(
             1, true, It.IsAny<int?>(),
@@ -525,7 +525,7 @@ public class PickingLeitstandControllerTests
         _pickingStatusRepo.Setup(r => r.GetByProductionOrderIdAsync(1)).ReturnsAsync(ps);
         _settingRepo.Setup(s => s.GetValueAsync("KommissionierungMitZuweisung")).ReturnsAsync("true");
 
-        var result = await _controller.ToggleRelease(1, assignedPickerId: null, returnUrl: null);
+        var result = await _controller.ToggleRelease(1, release: true, assignedPickerId: null, returnUrl: null);
 
         result.Should().BeOfType<RedirectToActionResult>();
         _controller.TempData["WarningMessage"].Should().Be("Bitte einen Kommissionierer zuweisen.");
@@ -544,7 +544,7 @@ public class PickingLeitstandControllerTests
         _pickingStatusRepo.Setup(r => r.GetByProductionOrderIdAsync(1)).ReturnsAsync(ps);
         _settingRepo.Setup(s => s.GetValueAsync("KommissionierungMitZuweisung")).ReturnsAsync("true");
 
-        await _controller.ToggleRelease(1, assignedPickerId: null, returnUrl: null);
+        await _controller.ToggleRelease(1, release: false, assignedPickerId: null, returnUrl: null);
 
         _pickingStatusRepo.Verify(r => r.SetReleaseAsync(
             1, false, It.IsAny<int?>(),
@@ -552,6 +552,29 @@ public class PickingLeitstandControllerTests
         _pickingStatusRepo.Verify(r => r.SetAssignedPickerAsync(
             It.IsAny<int>(), It.IsAny<int?>(), It.IsAny<string?>(),
             It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+    }
+
+    /// <summary>v1.99.23 (K-6, AK-4): veraltete Seite/Doppelklick – Zielzustand schon erreicht bzw. ohne Zielzustand: nichts aendern.</summary>
+    [Theory]
+    [InlineData(true, true, "FA FA-100 ist bereits freigegeben – nichts geändert.")]
+    [InlineData(false, false, "FA FA-100 ist nicht (mehr) freigegeben – nichts geändert.")]
+    [InlineData(true, null, "Die Seite ist veraltet – bitte neu laden. Es wurde nichts geändert.")]
+    [InlineData(false, null, "Die Seite ist veraltet – bitte neu laden. Es wurde nichts geändert.")]
+    public async Task ToggleRelease_ZielzustandSchonErreichtOderFehlt_NichtsGeaendert_AK4(bool istFreigegeben, bool? release, string meldung)
+    {
+        _orderRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(MakeOrder(1, "FA-100"));
+        _pickingStatusRepo.Setup(r => r.GetByProductionOrderIdAsync(1))
+            .ReturnsAsync(MakePs(productionOrderId: 1, released: istFreigegeben, assignedPickerId: 5, assignedPickerName: "Max"));
+
+        var result = await _controller.ToggleRelease(1, release, assignedPickerId: 9, returnUrl: null);
+
+        result.Should().BeOfType<RedirectToActionResult>();
+        _controller.TempData["WarningMessage"].Should().Be(meldung);
+        _pickingStatusRepo.Verify(r => r.SetReleaseAsync(
+            It.IsAny<int>(), It.IsAny<bool>(), It.IsAny<int?>(),
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+        _pickingStatusRepo.Verify(r => r.SetAssignedPickerAsync(
+            It.IsAny<int>(), It.IsAny<int?>(), It.IsAny<string?>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
     }
 
     // --- BulkRelease Tests ---
@@ -626,7 +649,7 @@ public class PickingLeitstandControllerTests
         _orderRepo.Setup(r => r.GetByIdAsync(7)).ReturnsAsync(order);
         _pickingStatusRepo.Setup(r => r.GetByProductionOrderIdAsync(7)).ReturnsAsync(ps);
 
-        var result = await _controller.ToggleRelease(7, assignedPickerId: null, returnUrl: null);
+        var result = await _controller.ToggleRelease(7, release: !isReleasedForPicking, assignedPickerId: null, returnUrl: null);
 
         result.Should().BeOfType<RedirectToActionResult>();
         _controller.TempData["WarningMessage"].Should().Be("Kommissionierung erfolgt nur am HauptFA 100.");

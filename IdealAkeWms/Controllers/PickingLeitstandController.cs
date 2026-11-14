@@ -357,7 +357,7 @@ public class PickingLeitstandController : Controller
     [HttpPost]
     [ValidateAntiForgeryToken]
     [RequireLeitstandAccess]
-    public async Task<IActionResult> ToggleRelease(int id, int? assignedPickerId, string? returnUrl)
+    public async Task<IActionResult> ToggleRelease(int id, bool? release, int? assignedPickerId, string? returnUrl)
     {
         var order = await _productionOrderRepository.GetByIdAsync(id);
         if (order == null)
@@ -374,6 +374,21 @@ public class PickingLeitstandController : Controller
         var ps = await _pickingStatusRepository.GetByProductionOrderIdAsync(id);
         if (ps == null)
             return NotFound("PickingStatus-Zeile fehlt.");
+
+        // v1.99.23 (K-6, ADR 0026): das Formular sendet den Zielzustand, kein „dreh um“. Veraltete Seite/Doppelklick → nichts aendern.
+        var veraltet = release switch
+        {
+            null => "Die Seite ist veraltet – bitte neu laden. Es wurde nichts geändert.",
+            true when ps.IsReleasedForPicking => $"FA {order.OrderNumber} ist bereits freigegeben – nichts geändert.",
+            false when !ps.IsReleasedForPicking => $"FA {order.OrderNumber} ist nicht (mehr) freigegeben – nichts geändert.",
+            _ => null,
+        };
+        if (veraltet != null)
+        {
+            TempData["WarningMessage"] = veraltet;
+            if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl)) return Redirect(returnUrl);
+            return RedirectToAction(nameof(Index));
+        }
 
         if (!ps.IsReleasedForPicking && string.IsNullOrEmpty(order.ArticleNumber))
         {
@@ -392,7 +407,7 @@ public class PickingLeitstandController : Controller
             return RedirectToAction(nameof(Index));
         }
 
-        var newReleased = !ps.IsReleasedForPicking;
+        var newReleased = release!.Value;
         int? newPriority = ps.PickingPriority;
         if (newReleased && !newPriority.HasValue)
         {

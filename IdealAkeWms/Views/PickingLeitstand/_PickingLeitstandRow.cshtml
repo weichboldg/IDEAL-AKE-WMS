@@ -240,6 +240,8 @@
                 <form asp-controller="PickingLeitstand" asp-action="ToggleRelease" method="post" style="display:inline">
                     @Html.AntiForgeryToken()
                     <input type="hidden" name="id" value="@item.Id" />
+                    @* v1.99.23 (K-6): Zielzustand statt Umschalten – veraltete Seite aendert nichts *@
+                    <input type="hidden" name="release" value="@(item.IsReleasedForPicking ? "false" : "true")" />
                     <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
                     @if (item.IsReleasedForPicking)
                     {
