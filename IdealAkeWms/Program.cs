@@ -8,6 +8,13 @@ using Microsoft.AspNetCore.Server.IIS;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 
+// v1.99.23 (N-B4-2, Freigabe-Antwort 1): feste App-Kultur de-DE statt der Kultur des Servers – Zahlen (Tausenderpunkt, Dezimalkomma)
+// und Datum sehen auf jedem Server gleich aus, Model-Binding liest Dezimalzahlen ueberall deutsch. Nicht de-AT: unter ICU waere der
+// Tausendertrenner U+00A0, den der Server-Spaltenfilter (ColumnFilterSyntax) nicht als Zahl liest. Feste Konstante, keine Einstellung.
+var appKultur = System.Globalization.CultureInfo.GetCultureInfo("de-DE");
+System.Globalization.CultureInfo.DefaultThreadCurrentCulture = appKultur;
+System.Globalization.CultureInfo.DefaultThreadCurrentUICulture = appKultur;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Serilog konfigurieren aus appsettings.json
@@ -418,6 +425,14 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+// v1.99.23: genau eine Kultur je Anfrage – die Browser-Sprache waehlt nichts anderes (keine Provider).
+app.UseRequestLocalization(new Microsoft.AspNetCore.Builder.RequestLocalizationOptions
+{
+    DefaultRequestCulture = new Microsoft.AspNetCore.Localization.RequestCulture(appKultur),
+    SupportedCultures = new[] { appKultur },
+    SupportedUICultures = new[] { appKultur },
+    RequestCultureProviders = new List<Microsoft.AspNetCore.Localization.IRequestCultureProvider>(),
+});
 app.UseRouting();
 
 app.UseAuthentication();

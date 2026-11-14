@@ -9,9 +9,21 @@ const { cleanValue, quoteField, toCsv, fileName } = core;
 for (const [input, expected] of [
     ['=1+1', "'=1+1"], ['+43 664 1234567', "'+43 664 1234567"], ['@SUMME(A1:A2)', "'@SUMME(A1:A2)"], ['-x', "'-x"],
     ['=HYPERLINK("http://x";"klick")', '\'=HYPERLINK("http://x";"klick")'],
-    ['-5,000', '-5,000'], ['-1.234,500', '-1.234,500'], ['+12', '+12'], ['1.234', '1.234'], ['-', "'-"],
+    ['-5,000', '-5,000'], ['-1.234,500', '-1234,500'], ['+12', '+12'], ['1.234', '1.234'], ['-', "'-"],
     ['-1.23,4', "'-1.23,4"],
 ]) assert.strictEqual(cleanValue(input), expected, `cleanValue(${JSON.stringify(input)})`);
+
+// v1.99.23 (N-B4-2, AK-14): ohne Tausendertrenner, unabhaengig von der Server-Kultur (U+00A0 aus ICU-de-AT, Punkt aus de-DE).
+assert.strictEqual(cleanValue('-10\u00a0026,000'), '-10026,000');
+assert.strictEqual(cleanValue('-10 026,000'), '-10026,000');
+assert.strictEqual(cleanValue('10.026,000'), '10026,000');
+assert.strictEqual(cleanValue('1.234.567,5'), '1234567,5');
+assert.strictEqual(cleanValue('1.234'), '1.234', 'ganze Zahl in Textspalte unveraendert (Antwort 6)');
+assert.strictEqual(cleanValue('1.234', true), '1234', 'ganze Zahl in Zahl-Spalte ohne Punkt');
+assert.strictEqual(cleanValue('-1.234', true), '-1234');
+assert.strictEqual(cleanValue('12.10.2026', true), '12.10.2026', 'Datum bleibt');
+assert.strictEqual(cleanValue('+43 664 1234567'), "'+43 664 1234567", 'Telefonnummer bleibt Text');
+assert.strictEqual(cleanValue('1.23,4'), '1.23,4', 'keine gueltige Gruppierung');
 
 // Tab/CR am Anfang: Whitespace wird normalisiert und getrimmt — es bleibt kein gefaehrliches Zeichen vorne stehen.
 assert.strictEqual(cleanValue('\t=1'), "'=1");

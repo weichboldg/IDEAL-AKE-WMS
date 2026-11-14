@@ -9,6 +9,29 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.99.23</strong> <span class="text-white-50 ms-2">14.11.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>Schutz gegen doppeltes Absenden, alle Positionen im Kommissionierauftrag sichtbar</h6>
+                <ul>
+                    <li>Ein <strong>doppelter Klick</strong>, eine Netz-Wiederholung am Handgerät oder eine veraltete Seite bucht nichts mehr doppelt. Statt
+                        dessen erscheint eine Meldung &bdquo;bereits &hellip; &ndash; nichts geändert&ldquo; bzw. &bdquo;bereits gebucht&ldquo;. Betrifft den
+                        <strong>Wareneingang zu Bestellung</strong>, den Abschluss &bdquo;Teilweise&ldquo;/&bdquo;Vollständig&ldquo; eines Kommissionierauftrags,
+                        die <strong>Freigabe im Leitstand</strong> und die <strong>AG-Fertigmeldung</strong> am BDE-Terminal.</li>
+                    <li>Leitstand: Eine Seite mit altem Stand kann eine Freigabe nicht mehr ungewollt zurücknehmen (oder umgekehrt) &ndash; sie meldet, dass der FA
+                        bereits freigegeben bzw. nicht (mehr) freigegeben ist.</li>
+                    <li>Nach dem Absenden eines Formulars ist der Knopf kurz gesperrt (&bdquo;wird gesendet &hellip;&ldquo;), höchstens 10 Sekunden.</li>
+                    <li>Kommissionierauftrag: Teile, deren Baugruppe in einem anderen Auftrag liegt, sind jetzt <strong>sichtbar</strong> (vorher ausgeblendet).</li>
+                    <li>CSV-Export: Mengen stehen <strong>ohne Tausendertrenner</strong> mit Dezimalkomma in der Datei (z.&nbsp;B. <code>-10026,000</code>), damit
+                        Excel sie als Zahl liest. Zahlen und Datum werden auf jedem Server gleich (deutsch) angezeigt.</li>
+                    <li>Nach dem Update offene Seiten &bdquo;Wareneingang zu Bestellung&ldquo; und Leitstand neu laden: Seiten von vorher werden mit
+                        &bdquo;Seite ist veraltet&ldquo; abgewiesen, nichts wird gebucht.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.99.22</strong> <span class="text-white-50 ms-2">13.11.2026</span>
             </div>
             <div class="card-body">

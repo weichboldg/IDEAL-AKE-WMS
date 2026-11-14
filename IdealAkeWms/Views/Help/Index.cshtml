@@ -83,6 +83,10 @@
                                 Das ist nur ein Hinweis: Beim Einbuchen wird nichts erfüllt oder abgeschlossen; die Ware bei Bedarf gleich weiterleiten.</li>
                             <li><em>Einbuchen</em>: gebucht wird nur, wenn alle eingegebenen Zeilen gültig sind. Je Position entsteht eine Einbuchung
                                 (an Sage-Plätzen wie jede Einbuchung in der Sage-Lagerbuchungs-Warteschlange) und ein Eintrag &bdquo;im WMS erfasst&ldquo;.</li>
+                            <li>Seit v1.99.23 bucht <strong>dieselbe Seite nur einmal</strong>: Doppelklick, Netz-Wiederholung am Handgerät oder Zurück-Taste
+                                und erneut <em>Einbuchen</em> melden &bdquo;Diese Eingabe wurde bereits gebucht &ndash; nichts doppelt gebucht&ldquo;. Dann den
+                                Stand der Bestellung prüfen; für eine weitere Lieferung die Seite neu öffnen. Nach einem Prüffehler (rote Zeile) bucht die
+                                korrigierte Eingabe normal. &bdquo;Die Seite ist veraltet&ldquo; = Seite vor dem Update geöffnet, bitte neu laden.</li>
                         </ol>
                         Mengen in der Basiseinheit. Nicht buchbar (mit Text in der Zeile): Artikel nicht im WMS, Bestell- oder Basiseinheit ≠ Lagereinheit.
                         Rot hinterlegt = überfällig. Ist der Sage-Lagerplatz im WMS nicht buchbar, steht das als Hinweis an der Zeile.
@@ -631,6 +635,10 @@
                                 Datum ohne KW. Nur farbige Markierungen (z.&nbsp;B. erledigte Zeilen grau) sind nicht
                                 enthalten. Werte, die mit <code>=</code>, <code>+</code>, <code>-</code> oder <code>@@</code>
                                 beginnen und keine Zahl sind, bekommen ein <code>'</code> davor, damit Excel nichts ausfuehrt.</li>
+                            <li><strong>Zahlen (seit v1.99.23):</strong> ohne Tausendertrenner, mit Dezimalkomma &ndash; am Bildschirm
+                                <code>-10.026,000</code>, in der Datei <code>-10026,000</code>; Excel rechnet damit. Ganze Zahlen verlieren den
+                                Punkt nur in Mengen-/Zahlspalten (<code>1.234</code> &rarr; <code>1234</code>), in Textspalten (z.&nbsp;B. Position
+                                <code>1.234</code>) bleiben sie unverändert. Datum bleibt <code>TT.MM.JJJJ</code>.</li>
                             <li><strong>Datei:</strong> <code>Liste_JJJJ-MM-TT_HHMM.csv</code>, Semikolon-getrennt, per
                                 Doppelklick in Excel lesbar. Kommt eine rote Meldung (z.&nbsp;B. Sitzung abgelaufen), entsteht
                                 keine Datei &mdash; Seite neu laden und erneut exportieren.</li>
@@ -1436,10 +1444,15 @@
                         Zeilen anhaken, Quell-Lagerplatz und Ist-Menge (größer 0, höchstens Soll) prüfen, auf den Wagen oder die Werkbank umbuchen. Danach
                         <strong>Vollständig</strong> (nicht umgebuchte Zeilen werden nicht gebraucht) oder <strong>Teilweise</strong> (Reste gehen in einen
                         Folgeauftrag mit neuer Nummer). Sind alle Aufträge eines FA erledigt, gilt der FA als kommissioniert. Kommissionier-Umbuchungen
-                        gehen wie bisher nicht an Sage.</dd>
+                        gehen wie bisher nicht an Sage. Seit v1.99.23: Ein zweiter Abschluss desselben Auftrags (Doppeltipp, zweites Gerät) ändert nichts
+                        und meldet &bdquo;Auftrag &hellip; ist bereits &hellip; &ndash; nichts geändert&ldquo;; es entsteht höchstens ein Folgeauftrag. Teile,
+                        deren Baugruppe in einem anderen Auftrag liegt, stehen sichtbar in der Liste (ohne Aufklappen).</dd>
                     <dt>Leitstand</dt>
                     <dd>Die Status-Spalte zeigt die Aufträge des FA. Freigabe zurücknehmen storniert Aufträge ohne gepickte oder umgebuchte Zeile; die
-                        übrigen bleiben und werden gemeldet. Priorität und Kommissionierer am FA gelten auch für seine offenen Aufträge.</dd>
+                        übrigen bleiben und werden gemeldet. Priorität und Kommissionierer am FA gelten auch für seine offenen Aufträge.
+                        Seit v1.99.23 sendet der Knopf, was er tun soll (freigeben bzw. zurücknehmen): Ist der FA inzwischen schon so, meldet der Leitstand
+                        &bdquo;FA &hellip; ist bereits freigegeben &ndash; nichts geändert&ldquo; bzw. &bdquo;&hellip; ist nicht (mehr) freigegeben&ldquo;,
+                        und es wird nichts storniert. &bdquo;Die Seite ist veraltet&ldquo; = Seite vor dem Update geöffnet, bitte neu laden.</dd>
                     <dt>Kommissionierbereiche</dt>
                     <dd><em>Stammdaten → Kommissionierbereiche</em>: Lager (Standard), Glas, Vorkommissionierung. Regeln ordnen Zeilen zu – erste passende in der
                         Reihenfolge Artikel, Kommissionierziel, Lagerort (Lagerkennung des Hauptlagerplatzes), Artikelgruppe; sonst Standardbereich. Ein Bereich

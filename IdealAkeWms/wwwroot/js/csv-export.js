@@ -15,12 +15,17 @@
     var KW_DATE = /^(\d{2}\.\d{2}\.\d{4}(?: \d{2}:\d{2})?)\s*KW\s*\d{1,2}$/;
     var PLAIN_NUMBER = /^[+-]?(\d{1,3}(\.\d{3})+|\d+)(,\d+)?$/;
     var DANGEROUS_START = /^[=+\-@\t\r]/;
+    // v1.99.23 (N-B4-2): Zahl mit Tausendertrenner (Punkt oder – nach der Normalisierung – Leerzeichen aus U+00A0/U+202F der Server-Kultur)
+    var GROUPED_NUMBER = /^([+-]?)(\d{1,3}(?:[. ]\d{3})+)(,\d+)?$/;
 
-    /** Whitespace normalisieren, „dd.MM.yyyy KWnn" → „dd.MM.yyyy", CSV-Injection entschaerfen (ausser reinen Zahlen). */
-    function cleanValue(raw) {
+    /** Whitespace normalisieren, „dd.MM.yyyy KWnn" → „dd.MM.yyyy", Tausendertrenner entfernen (Dezimalkomma bleibt; ganze Zahlen nur in
+     *  Zahl-Spalten, sonst Verwechslung mit Positionen/Nummern – Freigabe-Antwort 6), CSV-Injection entschaerfen (ausser reinen Zahlen). */
+    function cleanValue(raw, zahlSpalte) {
         var v = String(raw == null ? '' : raw).replace(/\s+/g, ' ').trim();
         var kw = v.match(KW_DATE);
         if (kw) v = kw[1];
+        var g = v.match(GROUPED_NUMBER);
+        if (g && (g[3] || zahlSpalte)) v = g[1] + g[2].replace(/[. ]/g, '') + (g[3] || '');
         if (DANGEROUS_START.test(v) && !PLAIN_NUMBER.test(v)) v = "'" + v;
         return v;
     }
@@ -131,7 +136,7 @@
             if (!label) return; // Aktions-/Auswahlspalten ohne Ueberschrift (Antwort 14 a)
             if (!key || src[key] === undefined)
                 throw new Error('Export abgebrochen: Die Spalte „' + label + '" ist nicht zuordenbar. Bitte der IT melden.');
-            columns.push({ key: key, label: label, idx: src[key] });
+            columns.push({ key: key, label: label, idx: src[key], zahl: th.getAttribute('data-filter-type') === 'number' });
         });
 
         var sort = activeSort(liveTable);
@@ -161,7 +166,7 @@
 
         var header = (groupCol ? ['HauptFA'] : []).concat(columns.map(function (c) { return c.label; }));
         var body = rows.map(function (r) {
-            var vals = columns.map(function (c) { return cleanValue(cellValue(r.tr.children[c.idx])); });
+            var vals = columns.map(function (c) { return cleanValue(cellValue(r.tr.children[c.idx]), c.zahl); });
             return groupCol ? [cleanValue(r.tbody.getAttribute('data-group') || '')].concat(vals) : vals;
         });
         return { header: header.map(cleanValue), body: body };
