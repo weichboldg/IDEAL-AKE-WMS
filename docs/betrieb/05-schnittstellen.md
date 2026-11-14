@@ -1,0 +1,203 @@
+# 05 – Schnittstellen zu Fremdsystemen
+
+**Stand:** v1.99.23, 2026-11-14 · **Zielgruppe:** IT-Administratoren (ohne Entwicklerwissen) · **Zweck:** Je Fremdsystem: in welche Richtung
+Daten fließen, welcher Teil (Web oder Dienst) zugreift, welches Konto welche Rechte braucht, wie man die Schnittstelle schaltet und was bei
+einem Ausfall passiert.
+
+Übersicht aller Kapitel: [00-index.md](00-index.md). Schalter im Detail: [04-konfiguration.md](04-konfiguration.md). Konten und Rechte:
+[09-sicherheit-konten-rechte.md](09-sicherheit-konten-rechte.md). Server je System: [02-systeme-umgebungen.md](02-systeme-umgebungen.md).
+
+Grundsatz: Das WMS **liest** aus den Fremdsystemen und schreibt nur in klar benannten Ausnahmen zurück – an Sage ausschließlich über die
+SData-Schnittstelle (Lagerbuchungen, Wareneingangsbelege), nie per SQL. (Quelle: [[integrationen]] Einleitung und Korrektur 2026-11-02)
+
+---
+
+## 1. Übersicht
+
+| Fremdsystem | Richtung | Teil | Weg | Schalter (Hauptschalter) |
+|---|---|---|---|---|
+| Sage – SQL-Views/Tabellen | lesen | Dienst (Web nur Stückliste AKE) | SQL, Windows-Anmeldung | `Sync:*Enabled` je Abgleich |
+| Sage – SData | lesen | Dienst (Abgleiche), Web (Register Sage-Test) | HTTPS, Basic-Auth | `Sync:Quelle:*`, SData-Abgleiche `Sync:*Enabled` |
+| Sage – SData | **schreiben** | nur Dienst | HTTPS POST | `SageLagerbuchungAktiv`, `SageWareneingangBelegAktiv` |
+| OSEON / TRUMPF (AKE) | lesen | Dienst (Abgleich), Web (Stücklisten-Fallback) | SQL + gespeicherte Prozedur | `Sync:OseonTrackingEnabled`, `Sync:OseonArticleCategoryEnabled` |
+| enaio – Datenbank | lesen | Dienst | SQL-View | `Sync:EnaioDmsEnabled` |
+| enaio / Vault – Links | (nur Verweis) | Browser des Anwenders | HTTP-Link | `EnaioLinksAktiv`, `VaultLinksAktiv` |
+| Mail (SMTP-Relay / Pickup-Ordner) | senden | Dienst | SMTP | Mail-Schalter, siehe 04 §5.3 |
+| CSV-Ablage (UNC) | Dateien schreiben | Dienst | SMB-Freigabe | `WareneingangCsvAktiv` |
+| Active Directory (LDAP) | lesen | Web | LDAP | `WindowsAuthBerechtigungsgruppe` |
+| Windows-Anmeldung (Negotiate) | Anmeldung | Web (IIS) | Kerberos/NTLM | `WindowsAuthAktiv` |
+| Feiertage (date.nager.at) | lesen | Dienst, Web (Import-Knopf) | HTTPS ins Internet | `Sync:FeiertagSyncEnabled` |
+
+Allgemeines Ausfallverhalten im Dienst: Jeder Abgleich läuft für sich gekapselt; fällt ein Fremdsystem aus, laufen die anderen Blöcke weiter.
+Der Fehler steht im Aktivitäts-Protokoll (`/SyncLog`) und – wenn `ErrorNotification:Enabled` an ist – in einer Fehlermail.
+(Quelle: [[fallstricke]] §5 „Sync-Bloecke sind einzeln gekapselt“, `IDEALAKEWMSService/Workers/SyncWorker.cs:45`, [[services]] „Reader / Zulieferer“)
+Überwachung: [06-logs-ueberwachung.md](06-logs-ueberwachung.md); typische Fehlbilder: [07-troubleshooting.md](07-troubleshooting.md).
+
+---
+
+## 2. Sage – SQL lesend
+
+| Punkt | Inhalt | Quelle |
+|---|---|---|
+| Richtung / Zweck | Sage → WMS: Fertigungsaufträge, Artikel (inkl. Hauptlagerplatz, Meldebestand), Lagerplätze, Lagerbestand, FA-Zusatzinfos; IDEAL zusätzlich FA-Struktur, Arbeitsplätze, Arbeitsgänge, Artikel über eigene Views `vw_IDEAL_AKE_WMS_*` | [[integrationen]] „Sage – Was gelesen wird“ |
+| Teil | **Dienst** über `ConnectionStrings:SageConnection` | `IDEALAKEWMSService/Services/SageImportService.cs:46`, `SageArbeitsplatzReader.cs:18`, `SageBestandReader.cs:18`, `SageLagerplatzReader.cs:18`, `SageZusatzinfoReader.cs:25`, `SageFaStrukturReader.cs:35` |
+| | **Web (AKE)**: Stückliste live aus `[ake].[dbo].[vw_AKE_Kommissionierung_StuecklistenDB]` – über die **WMS**-Verbindung als datenbankübergreifende Abfrage, nicht über `SageConnection` | `IdealAkeWms/Data/Repositories/BomRepository.cs:44` |
+| | Dienst, BOM-Cache: dieselbe View, ebenfalls datenbankübergreifend | `IDEALAKEWMSService/Services/BomCacheSyncService.cs:294` |
+| | Dienst, Sicherungsnetz der Lagerbuchung: liest `KHKLagerplatzbuchungen` (Memo-Kennung), Quelle umschaltbar auf SData | `IDEALAKEWMSService/Services/SageBuchungLookupReader.cs:12-15`, [[services]] „Sage-SData-Abgleich“ |
+| Server | AKE: `AKESQL20.ake.at`, Datenbank `ake`. IDEAL: eigener Sage-SQL-Server, Name je Installation → [02-systeme-umgebungen.md](02-systeme-umgebungen.md) | `IDEALAKEWMSService/appsettings.json:4`, `scripts/deploy/Install-IdealAkeWms.ps1:355` |
+| Konto / Rechte | Windows-Anmeldung (`Trusted_Connection`) mit dem **Dienstkonto**; Leserecht auf die genutzten Views/KHK-Tabellen, IDEAL zusätzlich Leserecht in `PPSImport`. AKE-Web: App-Pool-Konto braucht Leserecht auf die Stücklisten-View in `ake` | `scripts/deploy/Install-IdealAkeWms.ps1:483-486`; Web-Bedarf abgeleitet aus `BomRepository.cs:44` (**zu prüfen** am AKE-Server, welche Rechte heute vergeben sind) |
+| Schalter | `Sync:ProductionOrdersEnabled`, `Sync:ArticlesEnabled` (beide Standard **an**), `Sync:LagerplaetzeEnabled`, `Sync:LagerbestandEnabled`, `Sync:FaZusatzinfoEnabled`, `Sync:HierarchicalFaEnabled`, `Sync:ProductionWorkplaceSyncEnabled`, `Sync:OperationConfigSyncEnabled`, `Sync:BomCacheEnabled` | `IdealAkeWms/Models/ServiceSettingDefinitions.cs:199-298` |
+| View-Namen | IDEAL je Einstellung (`Sync:ArticlesViewName`, `Sync:FaHierarchy*ViewName`, `Sync:ProductionWorkplaceSyncViewName`, `Sync:OperationConfigSyncViewName`) | [[integrationen]] Zeile „IDEAL ab v1.60.0“ |
+| Bei Ausfall | Lesefehler = Lauf mit Fehler + Fehlermail; andere Blöcke laufen weiter. Fehlt eine View: FA-Struktur = Fehler + Mail, sonst Warnung und Überspringen. Leere Antworten lösen keine Löschungen aus (Leer-Schutz, Obergrenzen für Storno/Nullsetzen) | [[integrationen]] Zeile „IDEAL ab v1.60.0“, [[services]] „Sync-Bloecke“ (Caps), [[fallstricke]] §5 |
+| Prüffrage Sage | Welche SQL-Rechte hat das Dienstkonto in der Sage-Datenbank tatsächlich (nur `db_datareader` bzw. Einzel-`SELECT`)? In SSMS als Dienstkonto prüfen: `SELECT * FROM fn_my_permissions(NULL, 'DATABASE');` | – |
+
+Hinweis: Die Skripte in `SQL/AgentJobs/` sind kein aktiver Importweg mehr (01 archiviert, 02 nur Notfall). (Quelle: [[integrationen]] „Fallen dieser Integration“)
+
+---
+
+## 3. Sage – SData lesend
+
+| Punkt | Inhalt | Quelle |
+|---|---|---|
+| Richtung / Zweck | Sage → WMS: Stammdaten-Abgleiche ohne Direkt-SQL (Lagerplätze, Bestand, Artikel, Arbeitsplätze, wahlweise statt View), dazu nur über SData: PPS-Mitarbeiter, Stillstandsgründe, Kreditoren, Debitoren, Artikel-Lieferanten, offene Bestellungen | [[services]] „Sage-SData-Abgleich (v1.73.0)“ |
+| Teil | **Dienst** (Abgleiche, Lesezugriffe vor erneutem Senden); **Web** (Register „Sage-Test“ in den Einstellungen, Verbindungstest; nur Anzeige) | `IDEALAKEWMSService/Program.cs:155-159`, `IdealAkeWms/Program.cs:166-172`, `scripts/deploy/nachlauf.psd1` Eintrag `v1.99.14-SageTestInfo` |
+| Endpunkt | `GET {SData:BaseUrl}/sdata/{SData:Application}/{Vertrag}/{SData:Dataset}/…` mit `format=json` | `IdealAkeWms/Services/SageSdata/SageSdataReadClient.cs:12,79,174` |
+| Server | AKE-Test: `sagetest01.ake.at`, Port 5493, Dataset `ake_TEST2026;1`. AKE-Prod: Wert in `/ServiceSettings`. IDEAL: **offen** (eigener Sage-Server, SData-Host noch nicht bekannt) | [[sage-sdata-uebersicht]] „Zugang“ |
+| Konto / Rechte | SData-Servicebenutzer, HTTP Basic. Benutzer/Kennwort in `/ServiceSettings` (`SData:Username`, `SData:Password`, verschlüsselt). Der Benutzer hat am AKE-Test keinen Zugriff auf den Vertrag `MasterData` (403) | `IdealAkeWms/Services/SageSdata/SageSdataReadClient.cs:96,245`, [[0024-sdata-kennwort-verschluesselt-in-den-service-einstellungen]], [[sage-sdata-uebersicht]] Zeile 94 |
+| Netzwerk | Dienst- und Web-Server brauchen HTTPS-Zugang zum SData-Port. Zeitlimit Web 20 s | `IdealAkeWms/Program.cs:167` |
+| Schalter | `Sync:Quelle:*` (`View`/`SData`/`Vergleich`), `Sync:PpsMitarbeiterEnabled`, `Sync:StillstandsgruendeEnabled`, `Sync:KreditorenEnabled`, `Sync:DebitorenEnabled`, `Sync:ArtikelLieferantEnabled`, `Sync:EinkaufBestellungenEnabled`; TLS-Prüfung `SageLagerbuchungSslZertifikatPruefen` | `ServiceSettingDefinitions.cs:260-276` |
+| Bei Ausfall | Lesefehler: Lauf mit Fehler + Fehlermail. Leere Antwort ändert nichts (Leer-Schutz). Kennwort nicht entschlüsselbar: **kein** Aufruf an Sage, Meldung „SData-Kennwort nicht entschlüsselbar – in den Service-Einstellungen neu eingeben“ | `README.md:805,812`, [[0024-sdata-kennwort-verschluesselt-in-den-service-einstellungen]] „Entscheidung“ |
+
+---
+
+## 4. Sage – SData schreibend
+
+**Einziger Schreibweg an Sage.** Nur der Dienst schreibt, und nur, wenn der jeweilige Schalter an ist.
+
+| Punkt | Lagerbuchung | Wareneingangsbeleg | Quelle |
+|---|---|---|---|
+| Zweck | Manuelle Ein-/Ausbuchungen (optional Umbuchungen) an Sage melden | Wareneingang zu einer Sage-Bestellung als Sage-Beleg anlegen (Bestellung → Lieferschein) | [[integrationen]] „Sage-Lagerbuchung“, „Sage-Wareneingangsbeleg“ |
+| Ablauf | Web legt beim Buchen einen Eintrag in `SageBookingQueueItems` an; der Dienst (`SageBookingWorker`) sendet | Web merkt beim Buchen vor; der Dienst sendet im selben Takt | [[integrationen]], [[services]] „Sage-Wareneingang“ |
+| Endpunkt | `POST …/$service/LagerbuchungService` | `POST …/$service/StandardBelegService` | [[integrationen]] Zeilen 198 und 233 |
+| Konto | derselbe SData-Servicebenutzer wie beim Lesen | dito | `ServiceSettingDefinitions.cs:95-98` |
+| Schalter | `SageLagerbuchungAktiv` **und** Lagerplatz-Kennzeichen „Sage-Buchung erlaubt“; Umbuchungen zusätzlich `SageLagerbuchungUmbuchungAktiv` | `SageWareneingangBelegAktiv` (unabhängig vom Lagerbuchungs-Schalter) | `IDEALAKEWMSService/Workers/SageBookingWorker.cs:67-75`, [[integrationen]] „Enqueue“ |
+| Takt | alle 20 s (`Sync:SageLagerbuchungIntervalSeconds`, mindestens 5 s) | dito | `SageBookingWorker.cs:60-62` |
+| Schutz vor Doppelbuchung | Kennung `SM#…#` im Sage-Memo; vor jedem erneuten Senden Suche in Sage. Gilt nur bei **genau einem** laufenden Dienst je WMS-Datenbank | Kennung `WE#…#`; vor erneutem Senden Suche in Sage | [[fallstricke]] §8 „Idempotenz nur bei genau EINER Worker-Instanz“, §31 |
+| Bei Ausfall | Einträge bleiben offen bzw. „Fehler“; automatische Wiederholung bis `Sync:SageLagerbuchungMaxRetries` (5); „Gesendet“ ohne Antwort gilt nach 10 min als hängend und wird über die Suche geklärt; schlägt die Suche fehl, wird **nicht** neu gesendet. Ab 50 Fehlern je Lauf Fehlermail | Fehler bleibt stehen; Wiederholung nur nach `Sync:SageWareneingangMaxWiederholungen` mit vorheriger Suche; hängend → „Ergebnis unklar“ (von Hand klären). Bei ausgeschaltetem Schalter gehen Liegengebliebene auf „Klären“, nie automatisch nachsenden | `ServiceSettingDefinitions.cs:255-259`, `README.md:813-815`, [[services]] „Sage-Wareneingang“, [[fallstricke]] §31 |
+| Testsysteme | `Sync:SageSystemKuerzel` setzen, wenn mehrere WMS in dieselbe Sage-Test-DB schreiben; Produktion leer | dito | [[fallstricke]] §31 „Memo-Kennungen …“ |
+
+**Prüffragen Sage (für den Menschen):**
+- Ist der `LagerbuchungService` am **produktiven** AKE-Sage inzwischen lizenziert? Stand 2026-11-03: nur am Testsystem, in Produktion nicht
+  lizenziert. (Quelle: [[sage-sdata-uebersicht]] Zeile 67)
+- IDEAL: Gibt es einen SData-Endpunkt und eine Lizenz? Bis dahin alle Sage-Schreibschalter an IDEAL aus.
+  (Quelle: `ServiceSettingDefinitions.cs:69-71`, `secondbrain/aufgaben/2026-11-12-deploy-fahrplan-buendel-v1-99.md:91`)
+
+Vor dem Einschalten von `SageWareneingangBelegAktiv` an einem AKE-System: Wareneingangs-Zielplätze im WMS buchbar und „Sage-Buchung erlaubt“;
+auf AKE Test-IDEAL war das bei keinem Platz gesetzt. (Quelle: `secondbrain/aufgaben/2026-11-12-deploy-fahrplan-buendel-v1-99.md:58-60`)
+
+---
+
+## 5. OSEON / TRUMPF (nur AKE)
+
+| Punkt | Inhalt | Quelle |
+|---|---|---|
+| Richtung / Zweck | OSEON → WMS: Kundenaufträge, Subaufträge, Arbeitsgänge (Teileverfolgung), Artikelkategorien; Stückliste als Rückfall, wenn Sage keine liefert | [[integrationen]] „OSEON / TRUMPF“ |
+| Teil | Dienst (Abgleich, BOM-Cache); Web (Stücklisten-Rückfall über die Prozedur `sp_AKE_Kommissionierung_OseonStuecklistenDB`) | `IDEALAKEWMSService/Services/OseonSyncService.cs:32`, `IDEALAKEWMSService/Services/BomCacheSyncService.cs:338`, `IdealAkeWms/Data/Repositories/BomRepository.cs:18,69-71` |
+| Server | `aketrumpf01.ake.at\TRUMPFSQL2`, Datenbank `T1000_V01_V001` | `IdealAkeWms/appsettings.json:4`, `IDEALAKEWMSService/appsettings.json:5` |
+| Konto / Rechte | Windows-Anmeldung. Dienstkonto: Leserecht auf die genutzten Tabellen; App-Pool-Konto: Ausführen der Prozedur. **Zu prüfen** am OSEON-Server, welche Rechte vergeben sind | Bedarf abgeleitet aus den Fundstellen oben |
+| Schreiben | Keiner. Der frühere Schalter `OseonRueckmeldungAktiv` wurde in v1.79.0 entfernt (kein Leser) | `IdealAkeWms/Models/AppSettingDefinitions.cs:182` |
+| Schalter | `Sync:OseonTrackingEnabled`, `Sync:OseonArticleCategoryEnabled` (Standard aus); Modul `TeileverfolgungAktiv` | `ServiceSettingDefinitions.cs:202-203`, [[integrationen]] „Fallen“ |
+| IDEAL | `OseonConnection` bleibt leer, der Key muss aber vorhanden sein | `scripts/deploy/Install-IdealAkeWms.ps1:263` |
+| Bei Ausfall | Abgleich: Fehler im Lauf, andere Blöcke laufen weiter. Stückliste: liefert Sage nichts und ist OSEON nicht erreichbar, fängt die Web-App den Verbindungsfehler nicht ab – Folge vermutlich Fehlerseite (**zu prüfen**) | `IdealAkeWms/Data/Repositories/BomRepository.cs:53-59,62-67` |
+
+---
+
+## 6. enaio (DMS) und Vault – Datenbank-Abgleich und Links
+
+| Punkt | enaio-Abgleich | enaio-Links | Vault-Links | Quelle |
+|---|---|---|---|---|
+| Richtung / Zweck | enaio → WMS: Werkstattaufträge/Zeichnungen je FA (`EnaioDmsDocuments`, voller Abgleich ohne Delta) | Symbol an der FA-Nummer öffnet den enaio-Viewer | Link an der Artikelnummer öffnet die Vault-Suche | [[integrationen]] „enaio“, `README.md:504-507` |
+| Teil | Dienst | Browser des Anwenders | Browser des Anwenders | – |
+| Endpunkt | View `[enaio].[dbo].[vw_IDEAL-AKE_Fertigungsauftraege]` (Einstellung `Sync:EnaioDmsViewName`) über `EnaioDmsConnection` (`AKESQL20.ake.at`, DB `enaio`) | Vorlage `EnaioLinkVorlage` (Standard `http://akeosapp.ake.at/oscontentviewer/viewer/{ObjektId}/…`) | Vorlage `VaultLinkVorlage` (Standard `http://akevault24.ake.at/AutodeskTC/…`) | `ServiceSettingDefinitions.cs:205`, `IDEALAKEWMSService/appsettings.json:6`, `AppSettingDefinitions.cs:215,220` |
+| Konto / Rechte | Dienstkonto: Leserecht auf die View | Anwender braucht Zugang zum enaio-Viewer (Server greift nicht zu) | Anwender braucht Zugang zum Vault | – |
+| Schalter | `Sync:EnaioDmsEnabled` (aus) | `EnaioLinksAktiv` (an) – unabhängig vom Abgleich | `VaultLinksAktiv` (an); IDEAL ohne Vault ausschalten | `ServiceSettingDefinitions.cs:204`, `README.md:504-507` |
+| Bei Ausfall | Lauf mit Fehler; vorhandene Verknüpfungen bleiben | Link führt im Browser ins Leere; WMS unberührt | dito | [[fallstricke]] §5 |
+
+IDEAL: `EnaioDmsConnection` leer, enaio-Abgleich aus. (Quelle: `scripts/deploy/Install-IdealAkeWms.ps1:264,357`)
+
+---
+
+## 7. Mail – SMTP-Relay bzw. Pickup-Ordner
+
+| Punkt | Inhalt | Quelle |
+|---|---|---|
+| Zweck | Fehlermails, Meldebestand, Bedarfsmeldungen, Lager-/Glasbestellungen, Lieferverzug (Einkauf-Sammelliste, Lieferanten-Erinnerung), Sammelmeldungen der IDEAL-Abgleiche | [[integrationen]] „SMTP“, [[services]] „Lieferverzug-Mails“ |
+| Teil | nur **Dienst** (`MailService`) | `IDEALAKEWMSService/Program.cs:100` |
+| Endpunkt | `MailSettings:SmtpHost`/`SmtpPort` (Standard 25) in der Dienst-`appsettings.json`; Absender `MailSettings:FromAddress` | `IDEALAKEWMSService/appsettings.json:8-16`, `IDEALAKEWMSService/Services/MailService.cs:32,39-40,70` |
+| Verschlüsselung | `SmtpUseSsl = true` → TLS ab Verbindungsbeginn; sonst **ohne** Verschlüsselung (kein STARTTLS) | `IDEALAKEWMSService/Services/MailService.cs:78-79` |
+| Konto | optional SMTP-Benutzer (`SmtpUsername`/`SmtpPassword`, Datei) – meist anonymes Relay. Für Lieferanten-Mails muss das Relay **externe Empfänger** und den Absender `Lieferverzug:KreditorAbsender` zulassen (IT klären) | `MailService.cs:72-82`, `ServiceSettingDefinitions.cs:154` |
+| Pickup-Ordner | `MailSettings:PickupDirectory` (nur DEV/QA): Mails als `.eml` ablegen statt senden; Dienstkonto braucht Schreibrecht auf den Ordner (legt ihn selbst an) | `MailService.cs:30-67` |
+| Schalter | siehe [04-konfiguration.md](04-konfiguration.md) §5.3 | – |
+| Bei Ausfall | `SmtpHost` leer → Mail übersprungen, Warnung im Log. Relay nicht erreichbar → Fehler im Log (`logs/notifications/`), der aufrufende Lauf meldet „nicht gesendet“; die Fehlermail selbst wirft nie | `MailService.cs:33-37,90-94`, `IDEALAKEWMSService/Services/LieferverzugMailService.cs:136,164`, [[services]] „Reader / Zulieferer“ |
+| Achtung Produktion | Ist `PickupDirectory` gesetzt, geht **nichts** raus, das Protokoll zeigt trotzdem „gesendet“. Das Update-Skript prüft das (`Pruefung/MailPickup`) | [[fallstricke]] §5 „Mails pruefen ohne Versand“, `scripts/deploy/nachlauf.psd1:158-161` |
+
+---
+
+## 8. CSV-Ablage auf UNC-Freigabe (Wareneingang, AKE)
+
+| Punkt | Inhalt | Quelle |
+|---|---|---|
+| Richtung / Zweck | WMS → Netzfreigabe: je an Sage übergebenem Wareneingang mit Barcode eine Datei `<Barcode>.csv`; ein eigener enaio-Import liest und räumt die Dateien selbst auf | [[integrationen]] „Wareneingang-CSV“ |
+| Teil | **Dienst**, Schritt im `SageBookingWorker` nach dem Sage-Wareneingang | `IDEALAKEWMSService/Workers/SageBookingWorker.cs:89-93` |
+| Endpunkt | `WareneingangCsvPfad`, nur UNC `\\server\freigabe[\ordner]`; der Server prüft nur die Form, nicht die Erreichbarkeit | `ServiceSettingDefinitions.cs:243`, [[integrationen]] „Wareneingang-CSV“ |
+| Konto / Rechte | Dienstkonto. Läuft es als `LocalSystem`, greift es als **Computerkonto `DOMÄNE\SERVER$`** zu. Recht „Ändern“ auf Freigabe **und** NTFS (anlegen, schreiben, umbenennen, eigene `.tmp` löschen) | [[fallstricke]] §32 „Dienstkonto LocalSystem …“, `scripts/deploy/nachlauf.psd1:334-337` |
+| Schreibweise | erst `<Barcode>.tmp`, dann Umbenennen auf `.csv` (nie überschreiben); höchstens 10 Dateien je Takt | [[services]] „Wareneingang-CSV“ |
+| Schalter | `WareneingangCsvAktiv` **und** `SageWareneingangBelegAktiv` **und** Pfad gesetzt | [[services]] „Wareneingang-CSV“ |
+| Bei Ausfall | Schreibfehler (Netz, Recht) → Wiederholung bis `Sync:WareneingangCsvMaxWiederholungen` (3) im Abstand `…WiederholAbstandMinuten` (15); Namenskollision oder ungültiger Barcode nie automatisch; Status je Vorgang in „Sage-Wareneingänge“ (Spalte CSV); Fehler stören die Sage-Buchungen nicht | [[services]] „Wareneingang-CSV“, `SageBookingWorker.cs:87-103` |
+| Prüffrage | Freigabe und Format mit dem Betreiber des enaio-Imports abgestimmt? (Hand-Schritte P-C1/P-C2) | `secondbrain/aufgaben/2026-11-12-deploy-fahrplan-buendel-v1-99.md:97` |
+
+---
+
+## 9. Active Directory (LDAP)
+
+| Punkt | Inhalt | Quelle |
+|---|---|---|
+| Zweck | **Nur** beim Anlegen von AD-Benutzern: Mitglieder der Gruppe `WindowsAuthBerechtigungsgruppe` auflisten, E-Mail übernehmen. Keine Rechtevergabe über AD | [[integrationen]] „Active Directory“, [[0006-rollenkonzept-statische-keys-mit-admin-wildcard]] |
+| Teil | Web (`ActiveDirectoryService`, Seite Benutzer → AD-Benutzer anlegen) | `IdealAkeWms/Services/ActiveDirectoryService.cs:22-37` |
+| Endpunkt | Domäne aus `Security:AdDomain` (leer = Domäne des Servers), Abfrage über `System.DirectoryServices.AccountManagement` | `ActiveDirectoryService.cs:28,43-46` |
+| Konto | App-Pool-Identität (bei `ApplicationPoolIdentity` das Computerkonto); braucht normales Leserecht im AD | **zu prüfen**, im Code nicht weiter belegt |
+| Schalter | Gruppe leer → keine Abfrage, leere Liste | `ActiveDirectoryService.cs:24-26` |
+| Bei Ausfall | Fehler wird abgefangen: Warnung im Log, Picker zeigt eine leere Liste; Anmeldung bestehender Benutzer ist nicht betroffen | `ActiveDirectoryService.cs:33-37` |
+
+---
+
+## 10. Windows-Anmeldung (IIS, Negotiate)
+
+| Punkt | Inhalt | Quelle |
+|---|---|---|
+| Zweck | Domänen-Benutzer am Windows-Arbeitsplatz ohne Formular anmelden; die Windows-Identität wird auf `WindowsUserName` eines WMS-Benutzers abgebildet und in eine App-Sitzung überführt | [[0002-dual-auth-session-login-plus-windows-sso]] „Entscheidung“ |
+| Teil | Web unter IIS in-process; Windows- **und** anonyme Authentifizierung aktiv | `IdealAkeWms/web.config:5-10`, [[fallstricke]] §4 „AddNegotiate() ist unter IIS in-process falsch“ |
+| Ablauf | Nur Windows-Desktop-Browser bekommen die stille Anfrage; Handys/Tablets landen direkt am Formular. Knopf „Mit Windows anmelden“ erzwingt sie | [[0002-dual-auth-session-login-plus-windows-sso]] „Entscheidung“ |
+| Schalter | `WindowsAuthAktiv` (Standard aus) | `AppSettingDefinitions.cs:201` |
+| Kerberos/NTLM | IIS verhandelt Kerberos oder NTLM. Mitglieder der AD-Gruppe **Protected Users** dürfen kein NTLM – dann braucht es Kerberos und damit passende SPNs. Am IDEAL-Test fiel das für die SQL-Anmeldung des Update-Kontos auf (kein SPN für die benannte Instanz) | `secondbrain/aufgaben/2026-11-11-buendel-deploy-update-skript.md:31-45` |
+| SPN Web | Für die Web-Seite (`HTTP/<Hostname>`) ist im Brain nichts festgehalten. **Zu prüfen**, wenn Benutzer aus Protected Users per SSO angemeldet werden sollen: `setspn -Q HTTP/<Hostname>` und App-Pool-Konto | – |
+| Bei Ausfall | Jeder Fehler und jeder Nicht-Treffer fällt zum Anmeldeformular durch; kein Zugriff ohne gültige Anmeldung | [[0002-dual-auth-session-login-plus-windows-sso]] „Entscheidung“ und „Konsequenzen“ |
+| Test | Echter Handshake nur am Zielsystem prüfbar (`docs/TESTSZENARIEN.md` Kap. 40) | [[fallstricke]] §4 „Windows-Auth und AD-LDAP sind nicht InMemory-testbar“ |
+
+---
+
+## 11. Feiertage (date.nager.at)
+
+| Punkt | Inhalt | Quelle |
+|---|---|---|
+| Zweck | Feiertage für Arbeitstags-Rechnung und BDE-Schichtkalender | [[integrationen]] „Feiertage“ |
+| Teil / Endpunkt | Dienst: `https://date.nager.at/` (Land `Sync:FeiertagCountryCode`, Region `Sync:FeiertagRegion`); Web: Import-Knopf in den Einstellungen, fest Land `AT` | `IDEALAKEWMSService/Program.cs:111-115`, `IdealAkeWms/Services/HolidayImportService.cs:20` |
+| Netzwerk | Ausgehendes HTTPS ins Internet vom Server (ggf. Proxy – **zu prüfen**) | – |
+| Schalter | `Sync:FeiertagSyncEnabled` (aus) | `ServiceSettingDefinitions.cs:292` |
+| Bei Ausfall | Lauf mit Fehler; vorhandene Feiertage bleiben | [[fallstricke]] §5 |
+
+---
+
+Weiter: Abfragen zum Prüfen der Warteschlangen und Läufe [08-diagnose-abfragen.md](08-diagnose-abfragen.md) · Installation/Update
+[03-installation-update-rollback.md](03-installation-update-rollback.md) · Architektur [01-architektur-technologie.md](01-architektur-technologie.md) ·
+Sicherung [10-backup-restore.md](10-backup-restore.md).
