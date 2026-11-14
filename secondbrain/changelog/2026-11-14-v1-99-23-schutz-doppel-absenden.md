@@ -8,7 +8,7 @@ date: 2026-11-14
 Buendel `feature/2026-08-07-ideal-teile-1-5`, feature-complete `510b3020` (wip `32dc3119` B1+K-1, `648d09fe` K-6, `1969e3b3` WE-1, `7cd357f0` BDE-1/Client/N-1). Spec
 [[2026-11-14-schutz-doppel-absenden-und-unsichtbare-positionen-spec]], Bug [[2026-11-14-schutz-doppel-absenden-und-unsichtbare-positionen-bug]],
 ADR [[0026-schreibaktionen-senden-die-absicht-der-server-prueft-am-schreibort]], /goal-Lauf [[2026-11-14-schutz-doppel-absenden-goal-lauf]].
-Nicht gemergt.
+**Testbereit** (QA 2026-11-14, `1a73bc6a`). Nicht gemergt.
 
 ## Kernpunkte
 

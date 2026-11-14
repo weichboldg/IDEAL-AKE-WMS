@@ -1,6 +1,6 @@
 ---
 type: aufgabe
-status: offen
+status: erledigt
 created: 2026-11-14
 ---
 # /goal-Lauf 2026-11-14: Schutz gegen Doppel-Absenden und unsichtbare Positionen
@@ -43,3 +43,12 @@ Grenzen: nichts an Sage schreiben, keine Mails an externe Adressen, keine Einste
 - Brain: ADR 0026, [[fallstricke]] §38 + §8-Hinweis + „keine feste Request-Kultur“ als überholt markiert, Changelog
   [[2026-11-14-v1-99-23-schutz-doppel-absenden]], [[testszenarien-index]] TS-138, [[feature-map]].
 - 2026-11-14 QA (qa-agent): **Testbereit**. Build 0 Fehler, Web 2872/0/1, Dienst 626/0. Deploy DEV AKE + IDEAL v1.99.23 (exit 0), SQL/150 beide DEV-DBs idempotent. Parallel-POST-Nachstellung K-1 (3+1 Läufe), N-2 (4 Läufe, verpackter Deadlock im Log wiederholt), K-6, WE-1 (4 Läufe, 2601 abgefangen), BDE-1 (6/6) grün. Befunde F1 (gleichzeitige Freigabe desselben FA: grüne „0 angelegt“-Meldung) offen, F2 (TS-138.6a) behoben `1a73bc6a`. Inventur der 129 POST-Formulare bestätigt: keine Opt-outs. Publish neu (Commit `1a73bc6a`). Nachweis in der Spec.
+
+## Abschluss 2026-11-14
+
+- **Testbereit** (qa-agent, QA `1a73bc6a`, Brain `73e819a0`): Build 0, Web 2872/0/1, Dienst 626/0; DEV AKE + IDEAL v1.99.23, SQL/150 auf beiden DEV-DBs.
+  Gleichstände nachgestellt: 138.1b 3/3, 138.3 4/4, 138.4b 4/4, 138.5b 6/6 – kein 500, je genau ein Ergebnis. Nichts an Sage, keine Mail.
+- Offen für Gerald (Checkliste in der Spec): 138.2c Modal, 138.4d Barcode mit Sage-WE, 138.5a/5c Touch-Terminal, 138.6b AKE Glas/VK, 138.7 CSV, 138.8c, 138.9;
+  Entscheidung **F1** (gleichzeitige Freigabe desselben FA meldet grün „0 Aufträge … ohne offene Restmenge“ statt „bereits freigegeben“ – Daten korrekt).
+- Hinweise F3–F5 (ERR-Logzeilen abgefangener 2601/1205, Applock nur Fertigmeldung, `assignedPickerId` ungeprüft) – nicht gebaut.
+- Kein Merge, kein Push. Schranke 2 beim Menschen.
