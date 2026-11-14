@@ -365,6 +365,9 @@ laut Manifest, Web + Dienst, Info „Seiten neu laden“) → Dienst starten. Ke
 Testsystem → Test → Merge. **Nach dem Merge nur dann erneut aus `main` publishen, wenn der Merge getestete Dateien mit parallelen
 `main`-Änderungen zusammengeführt hat.**
 
+**Nachtrag Nach-QA F1 (2026-11-14):** Paket neu aus Commit `08672fcc` (11:06, `deploy.zip` neu); `08672fcc` ändert nur Web-Code
+(`IdealAkeWms/`), keine Migration, kein Manifest-Eintrag nötig; Deploy-Reihenfolge und Komponenten unverändert (Dienst nur Version).
+
 Vorläufige Angaben des Dev-Laufs (bestätigt):
 
 - **Web-App:** ja (Controller, Views, JS, `Program.cs`).
@@ -469,7 +472,7 @@ Befunde:
 
 | # | Schwere | Befund | Umgang |
 |---|---|---|---|
-| F1 | niedrig | Zwei **gleichzeitige** `release=true` für **denselben** FA bestehen beide die Zielzustandsprüfung (Lesen ohne Sperre); Daten richtig (ein Auftragssatz), die zweite Antwort ist aber grün „0 Kommissionierauftrag/-aufträge für 0 FA angelegt; 1 FA ohne offene Restmenge“ statt „bereits freigegeben“ (DEV gemessen). Restfenster wie in C2 für die Rücknahme beschrieben. | Nicht blockierend; Entscheidung Gerald (Folgeaufgabe ja/nein). |
+| F1 | niedrig | Zwei **gleichzeitige** `release=true` für **denselben** FA bestehen beide die Zielzustandsprüfung (Lesen ohne Sperre); Daten richtig (ein Auftragssatz), die zweite Antwort ist aber grün „0 Kommissionierauftrag/-aufträge für 0 FA angelegt; 1 FA ohne offene Restmenge“ statt „bereits freigegeben“ (DEV gemessen). Restfenster wie in C2 für die Rücknahme beschrieben. | Nicht blockierend; Entscheidung Gerald (Folgeaufgabe ja/nein). **Nachtrag: erledigt** – Gerald: zweite Antwort „bereits freigegeben“; umgesetzt `08672fcc`, Nach-QA grün (Abschnitt „Nach-QA F1“). |
 | F2 | niedrig (Doku) | TS-138.6a erwartete „Zähler = sichtbare Zeilen“; im IDEAL-Auftrag stehen aber Baugruppen-Zeilen mit Kindern im selben Auftrag, deren Kinder laut C5 zugeklappt starten (KO-2026-00003: 90 Zeilen, 8 verborgen, alle unter sichtbarer Baugruppe mit Aufklapp-Pfeil). | Behoben: TS-138.6a präzisiert, Commit `1a73bc6a`. |
 | F3 | Info | Abgefangene UNIQUE-Kollisionen (2601) und Deadlock-Wiederholungen schreibt EF als `[ERR]` ins Web-Log. Kein Mailweg (ErrorNotification gilt nur für Dienst-Syncs). | Kein Handlungsbedarf; beim Log-Lesen beachten. |
 | F4 | Info | Applock nur in `ReportCompletionAsync`; andere Wege mit End-Menge (Stopp/Fertig mit `IsFinal`) sind nicht dagegen serialisiert. | Laut Spec nicht im Umfang (BDE-2, übrige BDE-Aktionen). |
@@ -585,5 +588,71 @@ kommissioniert“. IDEAL: 6 Test-Fertigmeldungen storniert (`IsCancelled=1`, Gru
 5. TS-138.7a–c CSV-Export `/StockOverview`: `-10026,000` ohne Apostroph, Excel-Summe; Text/Datum/Position unverändert.
 6. TS-138.8c Server-Spaltenfilter `>1000` auf einer Mengenspalte.
 7. TS-138.9 mit DevTools „Slow 3G“: Enter doppelt → ein POST; Knopf nach ≤ 10 s frei; `confirm` → „Abbrechen“ lässt Knopf frei; Symbolknopf behält Breite.
-8. Befund F1 entscheiden (Meldung bei gleichzeitiger Freigabe desselben FA) – Folgeaufgabe ja/nein.
+8. ~~Befund F1 entscheiden~~ – entschieden und umgesetzt (`08672fcc`, Nach-QA F1). Offen nur noch: TS-138.3b auf dem Testsystem stichprobenartig.
 9. Testsystem-Lauf mit `publish\deploy\Update-IdealAkeWms.ps1` (DB-Backup vorher, `SQL/150`, Info „Seiten neu laden“), TS-138 dort stichprobenartig, dann Merge.
+
+## Nach-QA F1 2026-11-14 (qa-agent, eng begrenzt auf `1a73bc6a..08672fcc`)
+
+Anlass: Befund F1; Entscheidung Gerald: die zweite gleichzeitige Freigabe meldet „FA … ist bereits freigegeben – nichts geändert.“
+Umsetzung `08672fcc`: `ProductionOrderPickingStatusRepository.SetReleaseAsync` → `Task<bool>`, relational bedingtes
+`UPDATE … WHERE [IsReleasedForPicking] <> @released` (ein Gewinner), InMemory Vergleich; Controller meldet bei `false` die Warnung und
+setzt weder Kommissionierer noch erzeugt/storniert er Aufträge. Neues Szenario TS-138.3b.
+
+**1. Build und Tests (HEAD `08672fcc`):** `dotnet build IdealAkeWms.slnx` 0 Fehler (28 Warnungen, bekannt). `dotnet test`:
+IdealAkeWms.Tests **2874 bestanden / 1 übersprungen / 0 Fehler** (2875; +2 neue Tests), IDEALAKEWMSService.Tests **626 / 0 / 0**.
+
+**2. Code-Review (selbst, nur dieser Diff):**
+- Tabellen-/Spaltennamen geprüft: `ToTable("ProductionOrderPickingStatus")` (`ApplicationDbContext.cs:508`), Spalten `IsReleasedForPicking`
+  `BIT NOT NULL DEFAULT 0` und `ProductionOrderId` (`SQL/00_FreshInstall.sql:428 ff.`) – `<>` auf NOT-NULL-Bit ist eindeutig, kein NULL-Loch.
+  `ExecuteSqlInterpolatedAsync` parametrisiert (`bool` → `bit`), keine Injektion.
+- Zusammenspiel mit dem getrackten `SaveChanges`: Der Satz wird vor dem UPDATE geladen (Snapshot = alter Zustand); `row.IsReleasedForPicking =
+  released` gilt danach als geändert und wird im `SaveChanges` noch einmal auf denselben Wert geschrieben – harmlos. Kein Concurrency-Token
+  auf der Entität (kein `RowVersion` gemappt), daher keine `DbUpdateConcurrencyException` durch das vorgezogene UPDATE.
+- Audit-Felder: `ModifiedAt/By/ByWindows` (und `ReleasedAt/By`) nur beim Gewinner im selben `SaveChanges`; der Verlierer schreibt nichts
+  (DEV: `ReleasedAt`/`ModifiedAt` je Lauf vom Gewinner, s. u.).
+- Rücknahme `release=false`: gleicher Weg; Gewinner leert `AssignedPicker*` und storniert, Verlierer „FA … ist nicht (mehr) freigegeben –
+  nichts geändert.“, ruft `FreigabeZuruecknehmenAsync` nicht auf.
+- Einziger Aufrufer `PickingLeitstandController.cs:416` (Grep `SetReleaseAsync`, keine Decorator-Implementierung, `BulkRelease` nutzt den
+  Aufruf nicht). Bestehende Repository-Tests (`OnRevoke`, Prio-Folge) unverändert grün; Controller-Tests: nur Mock-Default `ReturnsAsync(true)`
+  ergänzt (Typ-Anpassung, kein Verhalten geändert).
+- Restrisiko laut `ponytail:`-Kommentar: Anspruch (UPDATE, Autocommit) und Rest-Felder (`SaveChanges`) ohne gemeinsame Transaktion. Scheitert
+  das `SaveChanges`, steht `IsReleasedForPicking=1` ohne neue `ReleasedAt`/`Modified*` und ohne Aufträge; der nächste Klick meldet
+  „bereits freigegeben“, Abhilfe Rücknahme + neue Freigabe. Sehr unwahrscheinlich (gleiche Zeile, gleiche Verbindung), sichtbar, kein
+  Datenverlust → akzeptiert, wie kommentiert.
+- Hinweis (kein Befund, nicht im Umfang): gegenläufige Klicks im selben Augenblick (A gibt frei, B nimmt zurück, beide bestehen die
+  Vorprüfung in unterschiedlicher Reihenfolge) sind nicht abgedeckt – das ist kein Doppel-Absenden derselben Absicht; vorher genauso.
+- **Befunde: keine.**
+
+**3. Nachweisart:** Verlierer-Zweig im Controller und `false` am Repository automatisiert (InMemory:
+`ToggleRelease_GleichstandVerloren_BereitsFreigegeben_F1`, `SetReleaseAsync_SchonImZielzustand_False_NichtsGeschrieben`). Das bedingte
+UPDATE selbst (raw SQL, echter Gleichstand) ist nicht InMemory-testbar → **Manual-UAT, auf DEV AKE ausgeführt** (TS-138.3b).
+
+**6. DEV-Deploy und Testlauf:** elevated; `dev-deploy.ps1 -Standort AKE` und `-Standort IDEAL` (IDEAL zur Konsistenz, gleicher Code-Stand
+auf beiden DEV-Sites) je **exit 0**, „HTTP 200, Fusszeile v1.99.23“, DEV-Absicherung angewendet, Dienst gestartet. Keine Migration in diesem
+Diff. Schalter unverändert aus (keine Sage-/Sync-/Mail-Schalter gesetzt). Test per PowerShell-`HttpClient` (zwei getrennte Windows-Sitzungen
+„A“/„B“, zwei `SendAsync` ohne Warten, `WaitAll`), FA 2645001 (Id 3047), A mit Kommissionierer 4, B mit Kommissionierer 3 – so ist der
+Gewinner in der DB erkennbar.
+
+| Lauf | Freigabe parallel | DB danach | Rücknahme | Status |
+|---|---|---|---|---|
+| 1 | A grün „1 Kommissionierauftrag/-aufträge für 1 FA angelegt (KO-2026-00077).“, B gelb „FA 2645001 ist bereits freigegeben – nichts geändert.“ | freigegeben, Picker 4 (= A), 1 Auftrag KO-00077 | parallel: A „storniert (KO-2026-00077)“, B „FA 2645001 ist nicht (mehr) freigegeben – nichts geändert.“ | OK |
+| 2 | A grün (KO-00078), B gelb „bereits freigegeben“ | Picker 4, 1 neuer Auftrag | parallel: A storniert KO-00078, B „nicht (mehr) freigegeben“ | OK |
+| 3 | **B** grün (KO-00079), A gelb „bereits freigegeben“ | Picker **3** (= B, Gewinner), 1 neuer Auftrag | einzeln: storniert | OK |
+| 4 | A grün (KO-00080), B gelb | Picker 4, 1 neuer Auftrag | einzeln: storniert | OK |
+| 5 (Sperre) | Zeile 4 s per `UPDLOCK` in sqlcmd gehalten, beide POSTs in dieser Zeit (beide Antworten erst nach ~3,7 s ⇒ beide hatten die Vorprüfung bestanden und warteten am UPDATE): A grün (KO-00081), B gelb „bereits freigegeben“ | Picker 4, 1 Auftrag; `ReleasedAt` 11:05:12.096 = Gewinner | – | OK |
+| 6 (Sperre) | Rücknahme mit gehaltener Sperre (~3,6 s): A „storniert (KO-2026-00081)“, B „nicht (mehr) freigegeben – nichts geändert.“ | nicht freigegeben, Picker NULL, KO-00081 Status 90 | – | OK |
+
+Je Lauf genau **ein** neuer Auftrag, keine grüne „0 Kommissionierauftrag …“-Meldung mehr, alle Antworten 302 (kein 500); Web-Log
+`D:\Dev\AKE\Web\logs\` seit dem Deploy ohne `ERR`/Exception. `ReleasedAt`/`ModifiedAt`/`AssignedPickerId` stammen je Lauf vom Gewinner
+(Lauf 3: Picker 3 = Sitzung B). Lauf 5/6 belegen deterministisch den Weg über das bedingte UPDATE (nicht nur die Vorprüfung).
+Begleitmeldung „Kein Benutzer als Kommissionierer gekennzeichnet …“ ist DEV-Datenstand (kein Benutzer `IsPicker`), bekannt als F5.
+
+**Testdaten:** FA 3047 am Ende nicht freigegeben, `AssignedPicker*` NULL, `PickingPriority` 34 unverändert. Test-Aufträge KO-2026-00077 …
+00081 (Id 115–119) storniert (Status 90) und bleiben wie die früheren Test-Aufträge stehen. Keine Einstellung geändert, nichts an Sage, keine Mail.
+
+**7. Publish:** `C:\git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish` geleert und neu: `IDEALAKEWMSWeb` +
+`IDEALAKEWMSWebService` (beide exit 0, ProductVersion `1.0.0+08672fcc…`), `SQL` (inkl. `150_…`), `deploy`, `publish-info.txt`
+(Version 1.99.23, Commit `08672fccce8bb39f685f60ff3131a6b3fe55ff58`, 11:06), `deploy.zip` neu.
+
+**Ergebnis:** F1 **erledigt**. Status bleibt **Testbereit**. Offen für Gerald unverändert die Checkliste oben (Punkt 8 erledigt), plus
+TS-138.3b stichprobenartig auf dem Testsystem.

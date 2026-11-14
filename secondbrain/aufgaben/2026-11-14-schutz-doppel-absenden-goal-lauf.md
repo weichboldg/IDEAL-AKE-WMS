@@ -52,3 +52,12 @@ Grenzen: nichts an Sage schreiben, keine Mails an externe Adressen, keine Einste
   Entscheidung **F1** (gleichzeitige Freigabe desselben FA meldet grün „0 Aufträge … ohne offene Restmenge“ statt „bereits freigegeben“ – Daten korrekt).
 - Hinweise F3–F5 (ERR-Logzeilen abgefangener 2601/1205, Applock nur Fertigmeldung, `assignedPickerId` ungeprüft) – nicht gebaut.
 - Kein Merge, kein Push. Schranke 2 beim Menschen.
+
+## Nach-QA F1 2026-11-14
+
+- Gerald entschied F1: zweite gleichzeitige Freigabe meldet „FA … ist bereits freigegeben – nichts geändert.“ Umsetzung `08672fcc`
+  (bedingtes UPDATE in `SetReleaseAsync`, Rückgabe `bool`), TS-138.3b.
+- qa-agent: Build 0 Fehler, Web 2874/0/1, Dienst 626/0; Review ohne Befunde (Restrisiko ohne Transaktion akzeptiert, siehe Spec).
+  DEV AKE + IDEAL v1.99.23 (exit 0). TS-138.3b auf AKE: 4 Läufe Freigabe parallel + 2 Läufe mit per `UPDLOCK` erzwungenem Gleichstand
+  (Freigabe und Rücknahme) – je ein Auftrag, eine grüne + eine gelbe Antwort mit exaktem Text, Gewinner in der DB, kein 500.
+  Publish neu (Commit `08672fcc`). **F1 erledigt, weiter Testbereit.** Nachweis: [[2026-11-14-schutz-doppel-absenden-und-unsichtbare-positionen-spec]].
