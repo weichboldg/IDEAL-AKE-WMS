@@ -161,17 +161,19 @@ public class PickingOrderWorkflow
         var r = new PickingOrderErzeugung();
         var auftrag = await _repo.GetMitZeilenAsync(pickingOrderId);
         if (auftrag == null) { r.Fehler = "Kommissionierauftrag nicht gefunden."; return r; }
-        if (auftrag.Status is not (PickingOrderStatus.Offen or PickingOrderStatus.InArbeit))
-        {
-            r.Fehler = $"Auftrag {auftrag.Nummer} ist bereits {Models.ViewModels.PickingOrderListItem.StatusText(auftrag.Status).ToLowerInvariant()}.";
-            return r;
-        }
+        // v1.99.23 (K-1): ein Wortlaut fuer Vorpruefung und Pruefung im Versuch (Regel „Pruefung am Schreibort“, ADR 0026).
+        static bool NichtMehrOffen(PickingOrder a) => a.Status is not (PickingOrderStatus.Offen or PickingOrderStatus.InArbeit);
+        static string BereitsText(PickingOrder a) =>
+            $"Auftrag {a.Nummer} ist bereits {Models.ViewModels.PickingOrderListItem.StatusText(a.Status).ToLowerInvariant()} – nichts geändert.";
+        if (NichtMehrOffen(auftrag)) { r.Fehler = BereitsText(auftrag); return r; }
 
         var (ok, ergebnis) = await Nummernkreis.MitVersuchenAsync(MaxNummerVersuche, () => _repo.InSerializableTransactionAsync(async () =>
         {
             var lauf = new PickingOrderErzeugung();
             // Je Versuch neu lesen: ein gescheiterter Versuch verwirft den Change-Tracker (Nummernkreis).
             auftrag = (await _repo.GetMitZeilenAsync(pickingOrderId))!;
+            // K-1: zweite Anfrage bzw. Wiederholversuch nach verlorenem Gleichstand – Status erneut pruefen, nichts schreiben.
+            if (NichtMehrOffen(auftrag)) { lauf.Fehler = BereitsText(auftrag); return lauf; }
             var now = Jetzt();
             var name = _user.GetDisplayName();
             var win = _user.GetWindowsUserName();
@@ -228,7 +230,8 @@ public class PickingOrderWorkflow
             r.Fehler = $"Auftrag {auftrag.Nummer}: Abschluss nach {MaxNummerVersuche} Versuchen gescheitert (Details im Log) – bitte erneut versuchen.";
             return r;
         }
-        r.Nummern.AddRange(ergebnis!.Nummern);
+        if (ergebnis!.Fehler != null) { r.Fehler = ergebnis.Fehler; return r; }
+        r.Nummern.AddRange(ergebnis.Nummern);
         r.Meldungen.AddRange(ergebnis.Meldungen);
 
         if (auftrag.ProductionOrderId is { } faId)

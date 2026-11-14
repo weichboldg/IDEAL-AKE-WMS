@@ -17,7 +17,8 @@ public class PickingOrderWorkflowTests
 {
     private readonly List<BomItem> _stueckliste = new();
 
-    private async Task<(PickingOrderWorkflow W, ApplicationDbContext Db)> SetupAsync(decimal faMenge = 2m)
+    private async Task<(PickingOrderWorkflow W, ApplicationDbContext Db)> SetupAsync(decimal faMenge = 2m,
+        Func<IPickingOrderRepository, IPickingOrderRepository>? repoHuelle = null)
     {
         var db = TestDbContextFactory.Create();
         var lager = new PickingArea { Id = 1, Name = "Lager", Kuerzel = "L", IsActive = true, IsDefault = true, CreatedBy = "t", CreatedByWindows = "t" };
@@ -43,7 +44,9 @@ public class PickingOrderWorkflowTests
         var user = new Mock<ICurrentUserService>();
         user.Setup(u => u.GetDisplayName()).Returns("Leitstand");
         user.Setup(u => u.GetWindowsUserName()).Returns("AKE\\l");
-        var w = new PickingOrderWorkflow(new PickingOrderRepository(db), new PickingAreaRepository(db), new ProductionOrderRepository(db),
+        IPickingOrderRepository repo = new PickingOrderRepository(db);
+        if (repoHuelle != null) repo = repoHuelle(repo);
+        var w = new PickingOrderWorkflow(repo, new PickingAreaRepository(db), new ProductionOrderRepository(db),
             new ProductionOrderPickingStatusRepository(db), bom.Object, user.Object, NullLogger<PickingOrderWorkflow>.Instance)
         { Jetzt = () => new DateTime(2026, 11, 8) };
         return (w, db);
@@ -234,6 +237,72 @@ public class PickingOrderWorkflowTests
         (abg.Status, abg.AbgeschlossenVon, abg.ModifiedBy).Should().Be((PickingOrderStatus.Abgeschlossen, "Leitstand", "Leitstand"));
         (await w.ErzeugeOffeneAsync(10)).Nummern.Should().BeEmpty("„vollständig“ heißt: der Rest wird nicht gebraucht");
         (await w.AbschliessenAsync(auftrag.Id, true)).Fehler.Should().Contain("bereits abgeschlossen");
+    }
+
+    /// <summary>v1.99.23 (K-1): Repository-Huelle – vor dem ersten Abschluss-Versuch schliesst „eine zweite Anfrage“ den Auftrag ab,
+    /// der Versuch verliert den Gleichstand (Concurrency-Fehler), der Wiederholversuch muss den neuen Status sehen.</summary>
+    private sealed class GleichstandRepo(IPickingOrderRepository inner) : IPickingOrderRepository
+    {
+        public ApplicationDbContext? Db { get; set; }
+        public int? AuftragId { get; set; } // gesetzt = beim naechsten Transaktionsaufruf einmal den Gleichstand verlieren
+        public Task<int> GetMaxLaufendeNummerAsync(int jahr) => inner.GetMaxLaufendeNummerAsync(jahr);
+        public Task<List<PickingOrderLine>> GetAktiveZeilenAsync(int id) => inner.GetAktiveZeilenAsync(id);
+        public Task<Dictionary<string, (string? Lagerort, string? Artikelgruppe)>> GetArtikelBereichsdatenAsync(IReadOnlyCollection<string> a) => inner.GetArtikelBereichsdatenAsync(a);
+        public Task<List<PickingOrder>> GetByProductionOrderAsync(int id) => inner.GetByProductionOrderAsync(id);
+        public Task<Dictionary<int, List<PickingOrder>>> GetByProductionOrdersAsync(IReadOnlyCollection<int> ids) => inner.GetByProductionOrdersAsync(ids);
+        public Task<List<PickingOrder>> GetListeAsync(bool nurOffene) => inner.GetListeAsync(nurOffene);
+        public Task<PickingOrder?> GetMitZeilenAsync(int id) => inner.GetMitZeilenAsync(id);
+        public void Add(PickingOrder order) => inner.Add(order);
+        public Task SaveChangesAsync() => inner.SaveChangesAsync();
+        public void VerwerfeAenderungen() => inner.VerwerfeAenderungen();
+        public async Task<T> InSerializableTransactionAsync<T>(Func<Task<T>> action)
+        {
+            if (AuftragId is not { } id) return await inner.InSerializableTransactionAsync(action);
+            AuftragId = null;
+            Db!.PickingOrders.Single(o => o.Id == id).Status = PickingOrderStatus.TeilweiseAbgeschlossen;
+            await Db.SaveChangesAsync();
+            throw new Microsoft.EntityFrameworkCore.DbUpdateConcurrencyException("Gleichstand verloren");
+        }
+    }
+
+    [Fact]
+    public async Task Abschluss_GleichstandVerloren_WiederholversuchPrueftStatus_KeinFolgeauftrag_AK2()
+    {
+        Pos("A1", "10", 10m);
+        GleichstandRepo? huelle = null;
+        var (w, db) = await SetupAsync(faMenge: 1m, repoHuelle: inner => huelle = new GleichstandRepo(inner));
+        await w.ErzeugeOffeneAsync(10);
+        var auftrag = db.PickingOrders.Single();
+        Umgebucht(db.PickingOrderLines.Single(), 4m);
+        await db.SaveChangesAsync();
+        var statusVorher = db.ProductionOrderPickingStatuses.Single().PickingStatus;
+        huelle!.Db = db;
+        huelle.AuftragId = auftrag.Id;
+
+        var r = await w.AbschliessenAsync(auftrag.Id, vollstaendig: false);
+
+        r.Fehler.Should().Be($"Auftrag {auftrag.Nummer} ist bereits teilweise abgeschlossen – nichts geändert.");
+        r.Nummern.Should().BeEmpty();
+        db.PickingOrders.Should().ContainSingle("kein Folgeauftrag");
+        db.ProductionOrderPickingStatuses.Single().PickingStatus.Should().Be(statusVorher, "FA-Status unveraendert");
+        db.PickingOrderLines.Single().Status.Should().Be(PickingOrderLineStatus.Umgebucht);
+    }
+
+    [Fact]
+    public async Task Abschluss_Teilweise_Zweimal_GenauEinFolgeauftrag_AK3()
+    {
+        Pos("A1", "10", 10m);
+        var (w, db) = await SetupAsync(faMenge: 1m);
+        await w.ErzeugeOffeneAsync(10);
+        var auftrag = db.PickingOrders.Single();
+        Umgebucht(db.PickingOrderLines.Single(), 4m);
+        await db.SaveChangesAsync();
+
+        (await w.AbschliessenAsync(auftrag.Id, false)).Fehler.Should().BeNull();
+        var zweiter = await w.AbschliessenAsync(auftrag.Id, false);
+
+        zweiter.Fehler.Should().EndWith("– nichts geändert.");
+        db.PickingOrders.Count(o => o.UrsprungsauftragId == auftrag.Id).Should().Be(1);
     }
 
     [Fact]

@@ -12,7 +12,18 @@ public static class Nummernkreis
 {
     public static string Format(string praefix, int jahr, int laufendeNummer) => $"{praefix}-{jahr}-{laufendeNummer:D5}";
 
-    public static bool IstDeadlock(Exception ex) => ex is SqlException { Number: 1205 } || ex.InnerException is SqlException { Number: 1205 };
+    /// <summary>v1.99.23 (N-2): Deadlock in jeder Tiefe der Ausnahme-Kette (EF verpackt ihn z. B. als
+    /// InvalidOperationException → DbUpdateException → SqlException 1205).</summary>
+    public static bool IstDeadlock(Exception ex) => IstSqlFehler(ex, 1205);
+
+    /// <summary>v1.99.23: true, wenn irgendeine Ausnahme der InnerException-Kette eine SqlException mit einer der Nummern ist
+    /// (1205 Deadlock, 2601/2627 UNIQUE-Verletzung).</summary>
+    public static bool IstSqlFehler(Exception ex, params int[] nummern)
+    {
+        for (Exception? e = ex; e != null; e = e.InnerException)
+            if (e is SqlException sql && nummern.Contains(sql.Number)) return true;
+        return false;
+    }
 
     /// <summary>Fuehrt <paramref name="anlage"/> bis zu <paramref name="maxVersuche"/>-mal aus. Rueckgabe <c>Ok=false</c>, wenn alle Versuche
     /// am Speichern scheiterten (Aufrufer formuliert die Meldung).</summary>
