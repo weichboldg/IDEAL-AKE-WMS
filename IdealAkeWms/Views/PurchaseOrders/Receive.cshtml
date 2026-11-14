@@ -71,6 +71,8 @@
 
     <form method="post" asp-action="Receive" asp-route-belId="@Model.BelId">
         @Html.AntiForgeryToken()
+        @* v1.99.23 (WE-1): Kennung dieses Absendens – ein zweites Absenden derselben Seite bucht nichts *@
+        <input type="hidden" name="absendekennung" value="@Model.Absendekennung" />
         @* v1.99.4 (F6): eine Lieferung = ein Lieferschein; gilt fuer alle Positionen dieses Absendens. *@
         <div class="d-flex flex-wrap gap-3 mb-3">
         <div style="width: 22rem; max-width: 100%;">

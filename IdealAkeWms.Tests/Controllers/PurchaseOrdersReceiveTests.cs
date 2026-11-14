@@ -65,6 +65,11 @@ public class PurchaseOrdersReceiveTests
     private static PurchaseOrderReceiveInput E(int belPosId, string? menge, bool ueber = false, int? platz = 9) =>
         new() { BelPosId = belPosId, Menge = menge, StorageLocationId = platz, UeberlieferungBestaetigt = ueber };
 
+    /// <summary>v1.99.23 (WE-1): POST wie die Maske – jedes Absenden mit eigener Kennung (sonst „Seite veraltet“).</summary>
+    private static Task<IActionResult> Post(PurchaseOrdersController ctrl, int belId, List<PurchaseOrderReceiveInput> zeilen,
+        string? lieferschein = null, string? barcode = null, Guid? kennung = null) =>
+        ctrl.Receive(belId, zeilen, lieferschein, barcode, kennung ?? Guid.NewGuid());
+
     [Fact]
     public async Task Einstieg_Belegnummer_Eindeutig_Unbekannt_Mehrfach_AK12()
     {
@@ -84,7 +89,7 @@ public class PurchaseOrdersReceiveTests
     {
         var (ctrl, db) = await BuildAsync();
 
-        var r = await ctrl.Receive(100, new List<PurchaseOrderReceiveInput> { E(1001, "2,5"), E(1002, "4"), E(1003, null) });
+        var r = await Post(ctrl, 100, new List<PurchaseOrderReceiveInput> { E(1001, "2,5"), E(1002, "4"), E(1003, null) });
 
         r.Should().BeOfType<RedirectToActionResult>();
         var bewegungen = await db.StockMovements.Include(m => m.PurchaseOrderReceipt).OrderBy(m => m.Id).ToListAsync();
@@ -106,7 +111,7 @@ public class PurchaseOrdersReceiveTests
     {
         var (ctrl, db) = await BuildAsync();
 
-        var r = await ctrl.Receive(100, new List<PurchaseOrderReceiveInput> { E(1001, "3"), E(1002, "0") });
+        var r = await Post(ctrl, 100, new List<PurchaseOrderReceiveInput> { E(1001, "3"), E(1002, "0") });
 
         r.Should().BeOfType<ViewResult>();
         db.StockMovements.Should().BeEmpty();
@@ -124,7 +129,7 @@ public class PurchaseOrdersReceiveTests
     public async Task NichtBuchbar_Gruende_AK15_AK16(int belPosId, string menge, string fehler)
     {
         var (ctrl, db) = await BuildAsync();
-        var vm = (PurchaseOrderReceiveViewModel)((ViewResult)await ctrl.Receive(100, new List<PurchaseOrderReceiveInput> { E(belPosId, menge) })).Model!;
+        var vm = (PurchaseOrderReceiveViewModel)((ViewResult)await Post(ctrl, 100, new List<PurchaseOrderReceiveInput> { E(belPosId, menge) })).Model!;
         vm.Zeilen.Single(z => z.Row.Line.BelPosId == belPosId).Fehler.Should().Contain(fehler);
         db.StockMovements.Should().BeEmpty();
     }
@@ -133,7 +138,7 @@ public class PurchaseOrdersReceiveTests
     public async Task Ueberlieferung_MitBestaetigung_Gebucht_AK15()
     {
         var (ctrl, db) = await BuildAsync();
-        await ctrl.Receive(100, new List<PurchaseOrderReceiveInput> { E(1001, "11", ueber: true) });
+        await Post(ctrl, 100, new List<PurchaseOrderReceiveInput> { E(1001, "11", ueber: true) });
         db.PurchaseOrderReceipts.Single().Lieferart.Should().Be(PurchaseOrderReceiptLieferart.Ueberlieferung);
     }
 
@@ -150,7 +155,7 @@ public class PurchaseOrdersReceiveTests
     public async Task Lieferschein_Getrimmt_AnJedemReceiptDesAbsendens_AK5()
     {
         var (ctrl, db) = await BuildAsync();
-        await ctrl.Receive(100, new List<PurchaseOrderReceiveInput> { E(1001, "1"), E(1002, "1") }, " LS-4711 ");
+        await Post(ctrl, 100, new List<PurchaseOrderReceiveInput> { E(1001, "1"), E(1002, "1") }, " LS-4711 ");
         db.PurchaseOrderReceipts.Select(r => r.Lieferschein).ToList().Should().Equal("LS-4711", "LS-4711");
     }
 
@@ -158,7 +163,7 @@ public class PurchaseOrdersReceiveTests
     public async Task Lieferschein_LaengerAls20_Fehler_NichtsGebucht_EingabeBleibt_AK5()
     {
         var (ctrl, db) = await BuildAsync();
-        var r = await ctrl.Receive(100, new List<PurchaseOrderReceiveInput> { E(1001, "1") }, new string('X', 21));
+        var r = await Post(ctrl, 100, new List<PurchaseOrderReceiveInput> { E(1001, "1") }, new string('X', 21));
         var vm = (PurchaseOrderReceiveViewModel)((ViewResult)r).Model!;
         ctrl.ModelState[string.Empty]!.Errors.Select(e => e.ErrorMessage).Should().Contain("Lieferschein-Nr. höchstens 20 Zeichen (Sage-Feld EKLieferschein).");
         vm.Lieferschein.Should().Be(new string('X', 21));
@@ -173,7 +178,7 @@ public class PurchaseOrdersReceiveTests
     public async Task Lieferschein_Pflicht_NurPerEinstellung_AK6(bool pflicht, string? lieferschein, int gebucht)
     {
         var (ctrl, db) = await BuildAsync(lieferscheinPflicht: pflicht);
-        await ctrl.Receive(100, new List<PurchaseOrderReceiveInput> { E(1001, "1") }, lieferschein);
+        await Post(ctrl, 100, new List<PurchaseOrderReceiveInput> { E(1001, "1") }, lieferschein);
         db.StockMovements.Count().Should().Be(gebucht);
         if (gebucht == 0)
             ctrl.ModelState[string.Empty]!.Errors.Select(e => e.ErrorMessage).Should().Contain("Bitte die Lieferschein-Nummer des Lieferanten eingeben.");
@@ -193,7 +198,7 @@ public class PurchaseOrdersReceiveTests
     public async Task SageWeAus_NichtNoetig_JederPlatzWieTeil1_AK10()
     {
         var (ctrl, db) = await BuildAsync();
-        await ctrl.Receive(100, new List<PurchaseOrderReceiveInput> { E(1001, "1", platz: 10), E(1002, "1", platz: 11) });
+        await Post(ctrl, 100, new List<PurchaseOrderReceiveInput> { E(1001, "1", platz: 10), E(1002, "1", platz: 11) });
         db.PurchaseOrderReceipts.Should().HaveCount(2).And.OnlyContain(r => r.SageWeStatus == SageWareneingangStatus.NichtNoetig && r.SageWeVorgang == null);
     }
 
@@ -201,8 +206,8 @@ public class PurchaseOrdersReceiveTests
     public async Task SageWeAn_ZweiPositionen_Offen_GleicherVorgang_ZweitesAbsendenNeuerVorgang_AK11_AK12()
     {
         var (ctrl, db) = await BuildAsync(sageWe: true);
-        await ctrl.Receive(100, new List<PurchaseOrderReceiveInput> { E(1001, "1"), E(1002, "1") });
-        await ctrl.Receive(100, new List<PurchaseOrderReceiveInput> { E(1001, "1") });
+        await Post(ctrl, 100, new List<PurchaseOrderReceiveInput> { E(1001, "1"), E(1002, "1") });
+        await Post(ctrl, 100, new List<PurchaseOrderReceiveInput> { E(1001, "1") });
         var r = db.PurchaseOrderReceipts.OrderBy(x => x.Id).ToList();
         r.Should().OnlyContain(x => x.SageWeStatus == SageWareneingangStatus.Offen && x.SageWeVorgang != null);
         r[0].SageWeVorgang.Should().Be(r[1].SageWeVorgang!.Value);
@@ -216,7 +221,7 @@ public class PurchaseOrdersReceiveTests
     public async Task SageWeAn_PlatzOhneSageOderSageBuchungAus_Zeilenfehler_NichtsGebucht_AK15(int platz, string code)
     {
         var (ctrl, db) = await BuildAsync(sageWe: true);
-        var vm = (PurchaseOrderReceiveViewModel)((ViewResult)await ctrl.Receive(100,
+        var vm = (PurchaseOrderReceiveViewModel)((ViewResult)await Post(ctrl, 100,
             new List<PurchaseOrderReceiveInput> { E(1001, "1"), E(1002, "1", platz: platz) })).Model!;
         vm.Zeilen.Single(z => z.Row.Line.BelPosId == 1002).Fehler.Should().Be(SageWareneingang.PlatzFehler(code)).And.Contain(code);
         db.StockMovements.Should().BeEmpty("nichts aus diesem Absenden wird gebucht");
@@ -228,7 +233,7 @@ public class PurchaseOrdersReceiveTests
         var (ctrl, db) = await BuildAsync(sageWe: true);
         db.SagePurchaseOrderLines.Single(l => l.BelPosId == 1001).Chargenpflicht = true;
         await db.SaveChangesAsync();
-        await ctrl.Receive(100, new List<PurchaseOrderReceiveInput> { E(1001, "1"), E(1002, "1") });
+        await Post(ctrl, 100, new List<PurchaseOrderReceiveInput> { E(1001, "1"), E(1002, "1") });
         var nurSage = db.PurchaseOrderReceipts.Single(r => r.BelPosId == 1001);
         (nurSage.SageWeStatus, nurSage.SageWeVorgang).Should().Be((SageWareneingangStatus.NurInSage, (Guid?)null));
         db.PurchaseOrderReceipts.Single(r => r.BelPosId == 1002).SageWeStatus.Should().Be(SageWareneingangStatus.Offen);
@@ -242,7 +247,7 @@ public class PurchaseOrdersReceiveTests
     {
         var (ctrl, db) = await BuildAsync();
         var a = E(1001, "1"); a.Memo = "  Kante beschädigt ";
-        await ctrl.Receive(100, new List<PurchaseOrderReceiveInput> { a, E(1002, "1") });
+        await Post(ctrl, 100, new List<PurchaseOrderReceiveInput> { a, E(1002, "1") });
         db.StockMovements.OrderBy(m => m.Id).Select(m => m.Note).ToList().Should().Equal("Kante beschädigt", null);
     }
 
@@ -251,7 +256,7 @@ public class PurchaseOrdersReceiveTests
     {
         var (ctrl, db) = await BuildAsync();
         var a = E(1001, "1"); a.Memo = new string('M', 201);
-        var vm = (PurchaseOrderReceiveViewModel)((ViewResult)await ctrl.Receive(100, new List<PurchaseOrderReceiveInput> { a })).Model!;
+        var vm = (PurchaseOrderReceiveViewModel)((ViewResult)await Post(ctrl, 100, new List<PurchaseOrderReceiveInput> { a })).Model!;
         vm.Zeilen.Single(z => z.Row.Line.BelPosId == 1001).Fehler.Should().Be("Positionsmemo höchstens 200 Zeichen.");
         db.StockMovements.Should().BeEmpty();
     }
@@ -264,7 +269,7 @@ public class PurchaseOrdersReceiveTests
     public async Task Barcode_SchalterAus_Ignoriert_AK1()
     {
         var (ctrl, db) = await BuildAsync(sageWe: true);
-        await ctrl.Receive(100, new List<PurchaseOrderReceiveInput> { E(1001, "1") }, null, "AKE1235564654");
+        await Post(ctrl, 100, new List<PurchaseOrderReceiveInput> { E(1001, "1") }, null, "AKE1235564654");
         db.PurchaseOrderReceipts.Single().Barcode.Should().BeNull();
         ((PurchaseOrderReceiveViewModel)((ViewResult)await ctrl.Receive(100, (string?)null)).Model!).BarcodeAktiv.Should().BeFalse();
     }
@@ -273,7 +278,7 @@ public class PurchaseOrdersReceiveTests
     public async Task Barcode_Gueltig_AnAllenReceipts_MitKreditorname_AK2()
     {
         var (ctrl, db) = await BuildAsync(sageWe: true, barcode: true);
-        await ctrl.Receive(100, new List<PurchaseOrderReceiveInput> { E(1001, "1"), E(1002, "1") }, "LS-1", " AKE1235564654 ");
+        await Post(ctrl, 100, new List<PurchaseOrderReceiveInput> { E(1001, "1"), E(1002, "1") }, "LS-1", " AKE1235564654 ");
         db.PurchaseOrderReceipts.Select(r => new { r.Barcode, r.LieferantName }).ToList()
             .Should().HaveCount(2).And.OnlyContain(r => r.Barcode == "AKE1235564654" && r.LieferantName == "L");
     }
@@ -286,7 +291,7 @@ public class PurchaseOrdersReceiveTests
     public async Task Barcode_Ungueltig_Fehler_NichtsGebucht_EingabeBleibt_AK3(string barcode)
     {
         var (ctrl, db) = await BuildAsync(sageWe: true, barcode: true);
-        var vm = (PurchaseOrderReceiveViewModel)((ViewResult)await ctrl.Receive(100, new List<PurchaseOrderReceiveInput> { E(1001, "1") }, null, barcode)).Model!;
+        var vm = (PurchaseOrderReceiveViewModel)((ViewResult)await Post(ctrl, 100, new List<PurchaseOrderReceiveInput> { E(1001, "1") }, null, barcode)).Model!;
         Fehler(ctrl).Should().Contain(WareneingangCsv.BarcodeFehlerText);
         vm.Barcode.Should().Be(barcode);
         db.StockMovements.Should().BeEmpty();
@@ -296,10 +301,10 @@ public class PurchaseOrdersReceiveTests
     public async Task Barcode_51Zeichen_Fehler_50Zeichen_Ok_AK3()
     {
         var (ctrl, db) = await BuildAsync(sageWe: true, barcode: true);
-        await ctrl.Receive(100, new List<PurchaseOrderReceiveInput> { E(1001, "1") }, null, new string('A', 51));
+        await Post(ctrl, 100, new List<PurchaseOrderReceiveInput> { E(1001, "1") }, null, new string('A', 51));
         db.StockMovements.Should().BeEmpty();
         ctrl.ModelState.Clear();   // neuer Request
-        await ctrl.Receive(100, new List<PurchaseOrderReceiveInput> { E(1001, "1") }, null, new string('A', 50));
+        await Post(ctrl, 100, new List<PurchaseOrderReceiveInput> { E(1001, "1") }, null, new string('A', 50));
         db.StockMovements.Should().HaveCount(1);
     }
 
@@ -307,8 +312,8 @@ public class PurchaseOrdersReceiveTests
     public async Task Barcode_Duplikat_OhneGrossKlein_Fehler_MitBestellungUndDatum_AK4()
     {
         var (ctrl, db) = await BuildAsync(sageWe: true, barcode: true);
-        await ctrl.Receive(100, new List<PurchaseOrderReceiveInput> { E(1001, "1") }, null, "AKE123");
-        await ctrl.Receive(100, new List<PurchaseOrderReceiveInput> { E(1002, "1") }, null, "ake123");
+        await Post(ctrl, 100, new List<PurchaseOrderReceiveInput> { E(1001, "1") }, null, "AKE123");
+        await Post(ctrl, 100, new List<PurchaseOrderReceiveInput> { E(1002, "1") }, null, "ake123");
         db.StockMovements.Should().HaveCount(1);
         Fehler(ctrl).Should().ContainSingle(e => e.StartsWith("Barcode ake123 ist bereits dem Wareneingang zu Bestellung 2026-100 vom "));
     }
@@ -317,12 +322,12 @@ public class PurchaseOrdersReceiveTests
     public async Task Barcode_SageWeAus_Fehler_FeldGesperrt_Rueckfrage7()
     {
         var (ctrl, db) = await BuildAsync(barcode: true);
-        await ctrl.Receive(100, new List<PurchaseOrderReceiveInput> { E(1001, "1") }, null, "AKE123");
+        await Post(ctrl, 100, new List<PurchaseOrderReceiveInput> { E(1001, "1") }, null, "AKE123");
         db.StockMovements.Should().BeEmpty();
         Fehler(ctrl).Should().ContainSingle(e => e.Contains("Sage-Wareneingang ist aus"));
         // ohne Barcode (gesperrtes Feld postet nichts) wird gebucht
         ctrl.ModelState.Clear();   // neuer Request
-        await ctrl.Receive(100, new List<PurchaseOrderReceiveInput> { E(1001, "1") });
+        await Post(ctrl, 100, new List<PurchaseOrderReceiveInput> { E(1001, "1") });
         db.PurchaseOrderReceipts.Single().Barcode.Should().BeNull();
     }
 
@@ -356,13 +361,13 @@ public class PurchaseOrdersReceiveTests
         var vm = (PurchaseOrderReceiveViewModel)((ViewResult)await ctrl.Receive(400, (string?)null)).Model!;
         (vm.Rahmenabruf, vm.SageWeAktiv, vm.AbrufOhneSageWe).Should().Be((true, false, true));
 
-        await ctrl.Receive(400, new List<PurchaseOrderReceiveInput> { E(4001, "3", platz: 10) });   // OHNE-SAGE: keine Platzregel
+        await Post(ctrl, 400, new List<PurchaseOrderReceiveInput> { E(4001, "3", platz: 10) });   // OHNE-SAGE: keine Platzregel
         var abruf = db.PurchaseOrderReceipts.Single();
         (abruf.SageWeStatus, abruf.SageWeVorgang).Should().Be((SageWareneingangStatus.NichtNoetig, (Guid?)null));
 
-        await ctrl.Receive(100, new List<PurchaseOrderReceiveInput> { E(1001, "1") });
+        await Post(ctrl, 100, new List<PurchaseOrderReceiveInput> { E(1001, "1") });
         db.PurchaseOrderReceipts.Single(r => r.BelPosId == 1001).SageWeStatus.Should().Be(SageWareneingangStatus.Offen, "EBB im selben Zustand unveraendert");
-        var vmEbb = (PurchaseOrderReceiveViewModel)((ViewResult)await ctrl.Receive(100, new List<PurchaseOrderReceiveInput> { E(1001, "1", platz: 10) })).Model!;
+        var vmEbb = (PurchaseOrderReceiveViewModel)((ViewResult)await Post(ctrl, 100, new List<PurchaseOrderReceiveInput> { E(1001, "1", platz: 10) })).Model!;
         vmEbb.Zeilen.Single(z => z.Row.Line.BelPosId == 1001).Fehler.Should().Be(SageWareneingang.PlatzFehler("OHNE-SAGE"));
     }
 
@@ -370,7 +375,7 @@ public class PurchaseOrdersReceiveTests
     public async Task Abruf_SageWeAn_KonstanteAus_Barcode_AbgewiesenMitAbrufText_AK9()
     {
         var (ctrl, db) = await BuildAsync(sageWe: true, barcode: true);
-        await ctrl.Receive(400, new List<PurchaseOrderReceiveInput> { E(4001, "1") }, null, "AKE123");
+        await Post(ctrl, 400, new List<PurchaseOrderReceiveInput> { E(4001, "1") }, null, "AKE123");
         db.StockMovements.Should().BeEmpty();
         Fehler(ctrl).Should().ContainSingle(e => e == "Barcode nicht möglich: " + SageWareneingang.AbrufOhneSageWeText);
     }
@@ -379,14 +384,14 @@ public class PurchaseOrdersReceiveTests
     public async Task Abruf_Rest_ZiehtAuchUebergebenesAb_Rest0_OeffnetTrotzdem_AK5()
     {
         var (ctrl, db) = await BuildAsync();
-        await ctrl.Receive(400, new List<PurchaseOrderReceiveInput> { E(4001, "3") });
+        await Post(ctrl, 400, new List<PurchaseOrderReceiveInput> { E(4001, "3") });
         var r = db.PurchaseOrderReceipts.Single();
         r.SageWeStatus = SageWareneingangStatus.Uebergeben; r.SageWeAm = DateTime.Now.AddDays(-1);   // vor SyncedAt: bei EBB nicht abgezogen
         await db.SaveChangesAsync();
         var vm = (PurchaseOrderReceiveViewModel)((ViewResult)await ctrl.Receive(400, (string?)null)).Model!;
         vm.Zeilen.Single().Rest.Should().Be(7m);
 
-        await ctrl.Receive(400, new List<PurchaseOrderReceiveInput> { E(4001, "7") });
+        await Post(ctrl, 400, new List<PurchaseOrderReceiveInput> { E(4001, "7") });
         vm = (PurchaseOrderReceiveViewModel)((ViewResult)await ctrl.Receive(400, (string?)null)).Model!;
         vm.Zeilen.Single().Rest.Should().Be(0m, "Abruf mit Rest 0 oeffnet sich trotzdem (Ueberlieferung mit Bestaetigung moeglich)");
     }
@@ -434,5 +439,68 @@ public class PurchaseOrdersReceiveTests
 
         vm.Zeilen.Should().OnlyContain(z => z.OffeneLagerbestellungen.Count == 0 && z.OffeneBedarfsmeldungen.Count == 0);
         db.PartRequisitions.Single(p => p.Id == 41).Status.Should().Be(PartRequisitionStatus.Offen, "nur Anzeige, nichts erfuellt");
+    }
+
+    // --- v1.99.23 (WE-1/WE-4): Absendekennung ---
+
+    [Fact]
+    public async Task ZweiterPost_GleicheKennung_NichtsGebucht_Warnung_AK6()
+    {
+        var (ctrl, db) = await BuildAsync(barcode: true, sageWe: true);
+        var k = Guid.NewGuid();
+        await Post(ctrl, 100, new List<PurchaseOrderReceiveInput> { E(1001, "3"), E(1002, "1") }, null, "AKE777", k);
+        db.PurchaseOrderReceipts.Should().HaveCount(2);
+
+        var r = await Post(ctrl, 100, new List<PurchaseOrderReceiveInput> { E(1001, "3"), E(1002, "1") }, null, "AKE777", k);
+
+        ((RedirectToActionResult)r).RouteValues!["belId"].Should().Be(100);
+        ctrl.TempData["WarningMessage"].Should().Be(PurchaseOrdersController.BereitsGebuchtText);
+        db.PurchaseOrderReceipts.Should().HaveCount(2, "nichts doppelt gebucht");
+        db.StockMovements.Should().HaveCount(2);
+    }
+
+    [Fact]
+    public async Task JederReceipt_TraegtKennung_AuchOhneSageWe_AK7()
+    {
+        var (ctrl, db) = await BuildAsync();
+        var k = Guid.NewGuid();
+        await Post(ctrl, 100, new List<PurchaseOrderReceiveInput> { E(1001, "1"), E(1002, "1") }, kennung: k);
+        db.PurchaseOrderReceipts.AsEnumerable().Select(x => (x.SageWeStatus, x.Absendekennung)).ToList()
+            .Should().OnlyContain(x => x.SageWeStatus == SageWareneingangStatus.NichtNoetig && x.Absendekennung == k).And.HaveCount(2);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Post_OhneKennung_Abgelehnt_NichtsGebucht_AK8(bool leer)
+    {
+        var (ctrl, db) = await BuildAsync();
+        var r = await ctrl.Receive(100, new List<PurchaseOrderReceiveInput> { E(1001, "1") }, null, null, leer ? Guid.Empty : null);
+        ((RedirectToActionResult)r).RouteValues!["belId"].Should().Be(100);
+        ctrl.TempData["WarningMessage"].Should().Be(PurchaseOrdersController.SeiteVeraltetText);
+        db.StockMovements.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Pruefehler_DannKorrektur_GleicheKennung_BuchtEinmal()
+    {
+        var (ctrl, db) = await BuildAsync();
+        var k = Guid.NewGuid();
+        var vm = (PurchaseOrderReceiveViewModel)((ViewResult)await Post(ctrl, 100, new List<PurchaseOrderReceiveInput> { E(1001, "abc") }, kennung: k)).Model!;
+        vm.Absendekennung.Should().Be(k, "die Korrektur sendet dieselbe Kennung");
+        db.StockMovements.Should().BeEmpty();
+        ctrl.ModelState.Clear();   // neue Anfrage = neuer ModelState
+        await Post(ctrl, 100, new List<PurchaseOrderReceiveInput> { E(1001, "2") }, kennung: k);
+        db.PurchaseOrderReceipts.Should().ContainSingle().Which.Absendekennung.Should().Be(k);
+    }
+
+    [Fact]
+    public async Task Get_SetztNeueKennung()
+    {
+        var (ctrl, _) = await BuildAsync();
+        var a = ((PurchaseOrderReceiveViewModel)((ViewResult)await ctrl.Receive(100, (string?)null)).Model!).Absendekennung;
+        var b = ((PurchaseOrderReceiveViewModel)((ViewResult)await ctrl.Receive(100, (string?)null)).Model!).Absendekennung;
+        a.Should().NotBe(Guid.Empty);
+        b.Should().NotBe(a);
     }
 }

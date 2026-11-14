@@ -55,6 +55,9 @@ public interface IPurchaseOrderReceiptRepository
     /// <summary>F1: erster Wareneingang mit diesem Barcode (ohne Gross/Klein) oder null.</summary>
     Task<PurchaseOrderReceipt?> BarcodeVergebenAsync(string barcode);
 
+    /// <summary>v1.99.23 (WE-1): true, wenn mit dieser Absendekennung schon ein Wareneingang gebucht ist.</summary>
+    Task<bool> AbsendekennungGebuchtAsync(Guid absendekennung);
+
     /// <summary>F4: Ausgangszeilen der angezeigten Vorgaenge (eine Abfrage, kein N+1).</summary>
     Task<Dictionary<Guid, WareneingangCsvExport>> GetCsvExporteAsync(IReadOnlyCollection<Guid> vorgaenge);
 
@@ -137,6 +140,9 @@ public class PurchaseOrderReceiptRepository : IPurchaseOrderReceiptRepository
         return _db.PurchaseOrderReceipts.AsNoTracking().Where(r => r.Barcode != null && r.Barcode.ToUpper() == b)
             .OrderBy(r => r.Id).FirstOrDefaultAsync();
     }
+
+    public Task<bool> AbsendekennungGebuchtAsync(Guid absendekennung) =>
+        _db.PurchaseOrderReceipts.AnyAsync(r => r.Absendekennung == absendekennung);
 
     public async Task<Dictionary<Guid, WareneingangCsvExport>> GetCsvExporteAsync(IReadOnlyCollection<Guid> vorgaenge)
     {

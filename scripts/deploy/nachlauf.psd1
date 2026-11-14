@@ -94,6 +94,8 @@ Eintraege = @(
    Datei='148_AddArticleSupplierLetzteBestellung.sql'; MigrationId='20261113171808_AddArticleSupplierLetzteBestellung'; Voraussetzung='additiv'; Quelle='2026-11-13-v1-99-21-einkauf-letzte-bestellmenge' }
 @{ Id='SQL/149'; Version='1.99.22'; Typ='Schema'; Firma='beide'; Phase='Schema'; Ausfuehrung='automatisch'
    Datei='149_WidenBelegnummer45.sql'; MigrationId='20261113172929_WidenBelegnummer45'; Voraussetzung='Spalten verbreitern (20/30 -> 45), Index neu; nicht destruktiv'; Quelle='2026-11-13-v1-99-22-belegnummer-45-wareneingang' }
+@{ Id='SQL/150'; Version='1.99.23'; Typ='Schema'; Firma='beide'; Phase='Schema'; Ausfuehrung='automatisch'
+   Datei='150_AddPurchaseOrderReceiptAbsendekennung.sql'; MigrationId='20261114080950_AddPurchaseOrderReceiptAbsendekennung'; Voraussetzung='additiv, Spalte NULL + gefilterter UNIQUE-Index'; Quelle='2026-11-14-v1-99-23-schutz-doppel-absenden' }
 
 # ---------------------------------------------------------------- Pruefungen (jeder Lauf; Reparatur nur nach Bestaetigung) -------
 @{ Id='Pruefung/Kommissionierbereiche'; Version='1.88.0'; Typ='Pruefung'; Firma='beide'; Phase='Haltepunkt'; Ausfuehrung='Reparatur'; Braucht=@('SQL/133')
@@ -365,5 +367,8 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
 @{ Id='v1.99.20-EinkaufAktivieren'; Version='1.99.20'; Typ='Info'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
    Text='Bestellvorschlaege: EinkaufAktiv bleibt aus. AKE: erst nach erfolgreichen Laeufen Artikel (SData), Kreditoren, Artikel-Lieferanten und Offene Bestellungen einschalten und Rolle einkauf zuweisen. IDEAL: aus lassen bis zur SData-Schnittstelle.'
    Quelle='2026-11-13-v1-99-20-einkauf-bestellvorschlaege' }
+@{ Id='v1.99.23-SeitenNeuLaden'; Version='1.99.23'; Typ='Info'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Text='Offene Seiten Wareneingang zu Bestellung und Leitstand (auch am Handgeraet) neu laden: Seiten von vor dem Update werden mit Seite ist veraltet abgewiesen, nichts wird gebucht.'
+   Quelle='2026-11-14-v1-99-23-schutz-doppel-absenden' }
 )
 }

@@ -1461,6 +1461,9 @@ public class ApplicationDbContext : DbContext
             entity.HasIndex(e => e.SageWeVorgang).HasDatabaseName("IX_PurchaseOrderReceipts_SageWeVorgang");
             entity.HasIndex(e => e.SageWeStatus).HasDatabaseName("IX_PurchaseOrderReceipts_SageWeStatus");
             entity.HasIndex(e => e.Barcode).HasDatabaseName("IX_PurchaseOrderReceipts_Barcode");
+            // v1.99.23 (WE-1): ein Absenden je Bestellposition hoechstens einmal (echter Gleichstand zweier POSTs), SQL/150
+            entity.HasIndex(e => new { e.Absendekennung, e.BelPosId }).IsUnique().HasFilter("[Absendekennung] IS NOT NULL")
+                .HasDatabaseName("IX_PurchaseOrderReceipts_Absendekennung_BelPosId");
         });
 
         // v1.99.11 (Spec 2026-11-12-wareneingang-barcode-lieferschein-csv-export F2): Ausgangstabelle der CSV-Uebergabe, eine Zeile je Vorgang.

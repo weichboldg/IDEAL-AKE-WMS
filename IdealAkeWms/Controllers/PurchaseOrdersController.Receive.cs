@@ -31,6 +31,7 @@ public partial class PurchaseOrdersController
             TempData["WarningMessage"] = "Diese Bestellung ist nicht (mehr) offen – Sage hat sie geschlossen oder der Abgleich ist noch nicht gelaufen.";
             return RedirectToAction(nameof(Receive));
         }
+        vm.Absendekennung = Guid.NewGuid();   // v1.99.23 (WE-1): Kennung dieses Absendens
         return View(vm);
     }
 
@@ -42,7 +43,8 @@ public partial class PurchaseOrdersController
     [RequireStockAccess]
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Receive(int belId, List<PurchaseOrderReceiveInput>? zeilen, string? lieferschein = null, string? barcode = null)
+    public async Task<IActionResult> Receive(int belId, List<PurchaseOrderReceiveInput>? zeilen, string? lieferschein = null, string? barcode = null,
+        Guid? absendekennung = null)
     {
         zeilen ??= new();
         var vm = await BuildReceiveAsync(belId, zeilen);
@@ -51,6 +53,20 @@ public partial class PurchaseOrdersController
             TempData["WarningMessage"] = "Diese Bestellung ist nicht (mehr) offen – nichts gebucht.";
             return RedirectToAction(nameof(Receive));
         }
+
+        // v1.99.23 (WE-1, ADR 0026): Kennung des Absendens VOR der Zeilenpruefung – ein zweiter POST scheiterte sonst am kleineren Rest
+        // („Ueberlieferung bestaetigen“) statt „bereits gebucht“ zu melden. Seite ohne Kennung (vor dem Update geoeffnet): ablehnen (Antwort 5).
+        if (absendekennung is not { } kennung || kennung == Guid.Empty)
+        {
+            TempData["WarningMessage"] = SeiteVeraltetText;
+            return RedirectToAction(nameof(Receive), new { belId });
+        }
+        if (await _receipts.AbsendekennungGebuchtAsync(kennung))
+        {
+            TempData["WarningMessage"] = BereitsGebuchtText;
+            return RedirectToAction(nameof(Receive), new { belId });
+        }
+        vm.Absendekennung = kennung;
 
         var erlaubtePlaetze = vm.Lagerplaetze.Select(l => l.Id).ToHashSet();
         var plaetze = vm.Lagerplaetze.ToDictionary(l => l.Id);
@@ -135,15 +151,29 @@ public partial class PurchaseOrdersController
                     SageWeStatus = !vm.SageWeAktiv ? SageWareneingangStatus.NichtNoetig
                         : l.Chargenpflicht || l.Nachweispflicht ? SageWareneingangStatus.NurInSage : SageWareneingangStatus.Offen,
                     SageWeVorgang = vm.SageWeAktiv && !(l.Chargenpflicht || l.Nachweispflicht) ? vorgang : null,
+                    Absendekennung = kennung,
                     CreatedAt = now, CreatedBy = name, CreatedByWindows = windows,
                 },
             };
-            await _movements.AddAsync(movement);
+            try
+            {
+                await _movements.AddAsync(movement);
+            }
+            catch (Microsoft.EntityFrameworkCore.DbUpdateException ex) when (Nummernkreis.IstSqlFehler(ex, 2601, 2627))
+            {
+                // Gleichstand: ein paralleler POST derselben Seite hat diese Position schon gebucht (UNIQUE Absendekennung+BelPosId, SQL/150).
+                // Der Sage-Queue-Decorator reiht erst nach erfolgreichem AddAsync ein – die abgewiesene Zeile erzeugt keinen Queue-Eintrag.
+                TempData["WarningMessage"] = BereitsGebuchtText;
+                return RedirectToAction(nameof(Receive), new { belId });
+            }
         }
 
         TempData["SuccessMessage"] = $"{buchen.Count} Position(en) eingebucht (davon {teil} Teil-, {ueber} Überlieferung).";
         return RedirectToAction(nameof(Receive), new { belId });
     }
+
+    internal const string SeiteVeraltetText = "Die Seite ist veraltet – bitte neu laden. Es wurde nichts gebucht.";
+    internal const string BereitsGebuchtText = "Diese Eingabe wurde bereits gebucht – nichts doppelt gebucht. Bitte den Stand der Bestellung prüfen.";
 
     /// <summary>Maske aus dem Cache (Server-Wahrheit) bauen; <paramref name="eingaben"/> = gepostete Werte (bleiben bei Fehlern stehen).</summary>
     private async Task<PurchaseOrderReceiveViewModel?> BuildReceiveAsync(int belId, List<PurchaseOrderReceiveInput>? eingaben)

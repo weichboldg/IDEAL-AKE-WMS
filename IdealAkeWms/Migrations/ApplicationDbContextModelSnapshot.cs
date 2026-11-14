@@ -3853,6 +3853,9 @@ namespace IdealAkeWms.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<Guid?>("Absendekennung")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<string>("Barcode")
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
@@ -3960,6 +3963,11 @@ namespace IdealAkeWms.Migrations
                     b.HasIndex("StockMovementId")
                         .IsUnique()
                         .HasDatabaseName("IX_PurchaseOrderReceipts_StockMovementId");
+
+                    b.HasIndex("Absendekennung", "BelPosId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_PurchaseOrderReceipts_Absendekennung_BelPosId")
+                        .HasFilter("[Absendekennung] IS NOT NULL");
 
                     b.ToTable("PurchaseOrderReceipts", "dbo");
                 });

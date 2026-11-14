@@ -2407,6 +2407,7 @@ BEGIN
         [SageWeKennung]             NVARCHAR(20)      NULL,  -- v1.99.9 (SQL/144): beim Senden verwendete Kennung WE#[K#]<Id>#
         [Barcode]                   NVARCHAR(50)      NULL,  -- v1.99.11 (SQL/146): Barcode des Lieferschein-Aufklebers (Dateiname der CSV)
         [LieferantName]             NVARCHAR(50)      NULL,  -- v1.99.11 (SQL/146): Kreditorname beim Buchen (Snapshot)
+        [Absendekennung]            UNIQUEIDENTIFIER  NULL,  -- v1.99.23 (SQL/150): Kennung des Absendens (WE-1)
         [CreatedAt]                 DATETIME2         NOT NULL,
         [CreatedBy]                 NVARCHAR(200)     NOT NULL,
         [CreatedByWindows]          NVARCHAR(200)     NOT NULL,
@@ -2419,6 +2420,8 @@ BEGIN
     CREATE INDEX [IX_PurchaseOrderReceipts_SageWeVorgang] ON [dbo].[PurchaseOrderReceipts]([SageWeVorgang]);
     CREATE INDEX [IX_PurchaseOrderReceipts_SageWeStatus] ON [dbo].[PurchaseOrderReceipts]([SageWeStatus]);
     CREATE INDEX [IX_PurchaseOrderReceipts_Barcode] ON [dbo].[PurchaseOrderReceipts]([Barcode]);
+    CREATE UNIQUE INDEX [IX_PurchaseOrderReceipts_Absendekennung_BelPosId] ON [dbo].[PurchaseOrderReceipts]([Absendekennung], [BelPosId])
+        WHERE [Absendekennung] IS NOT NULL;   -- v1.99.23 (SQL/150)
     PRINT 'Tabelle PurchaseOrderReceipts erstellt.';
 END
 GO
@@ -3255,6 +3258,10 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261113172929_WidenBelegnummer45')
    AND COL_LENGTH(N'dbo.PurchaseOrderReceipts', N'SageWeBelegnummer') = 90 AND COL_LENGTH(N'dbo.SagePurchaseOrderLines', N'Belegnummer') = 90 -- sonst steht SQL/149 noch aus
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261113172929_WidenBelegnummer45', '10.0.2');
+GO
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261114080950_AddPurchaseOrderReceiptAbsendekennung')
+   AND COL_LENGTH(N'dbo.PurchaseOrderReceipts', N'Absendekennung') IS NOT NULL -- sonst steht SQL/150 noch aus
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261114080950_AddPurchaseOrderReceiptAbsendekennung', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';

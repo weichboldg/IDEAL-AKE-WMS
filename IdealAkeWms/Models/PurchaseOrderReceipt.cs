@@ -69,4 +69,9 @@ public class PurchaseOrderReceipt : AuditableEntity
     public string? Barcode { get; set; }
     /// <summary>Kreditorname beim Buchen (Snapshot aus dem Bestell-Cache, der nach der Uebergabe verschwindet) fuer die CSV.</summary>
     public string? LieferantName { get; set; }
+
+    /// <summary>v1.99.23 (WE-1, ADR 0026): Kennung des Absendens (Guid aus dem GET der Maske), an JEDEM Receipt eines Absendens – auch
+    /// NichtNoetig/NurInSage (deshalb nicht <see cref="SageWeVorgang"/>). Gefilterter UNIQUE (Absendekennung, BelPosId): ein zweites Absenden
+    /// derselben Seite bucht nichts. NULL = vor v1.99.23 gebucht.</summary>
+    public Guid? Absendekennung { get; set; }
 }

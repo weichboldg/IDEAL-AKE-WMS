@@ -28,6 +28,8 @@ public class PurchaseOrderReceiveViewModel
     public string? Barcode { get; set; }
     /// <summary>v1.99.11: AppSetting WareneingangBarcodeAktiv - Feld sichtbar.</summary>
     public bool BarcodeAktiv { get; set; }
+    /// <summary>v1.99.23 (WE-1): Kennung des Absendens – im GET neu, im POST uebernommen (Korrektur nach Pruefehler sendet dieselbe).</summary>
+    public Guid Absendekennung { get; set; }
 
     /// <summary>Sage-Feld EKLieferschein(20) (sage-sdata-masterdata).</summary>
     public const int LieferscheinMaxLaenge = 20;
