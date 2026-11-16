@@ -190,12 +190,15 @@ public class BomCacheRepositoryTests
             Item("10", "OTHER", 9m)
         });
 
-        var result = await repo.GetComponentMengePerDeviceAsync("COMP");
+        var all = await repo.GetComponentMengePerDeviceAsync(new[] { "COMP", "OTHER", "NONE" });
+        var result = all["comp"];   // Schluessel Gross/Klein-unabhaengig wie die SQL-Kollation
 
         result.Should().HaveCount(2);
         result["DEVICE1"].Should().Be(5m);
         result["DEVICE2"].Should().Be(4m);
         result.ContainsKey("DEVICE3").Should().BeFalse();
+        all["OTHER"].Should().BeEquivalentTo(new Dictionary<string, decimal> { ["DEVICE1"] = 7m, ["DEVICE3"] = 9m });
+        all.ContainsKey("NONE").Should().BeFalse();
     }
 
     [Fact]
@@ -204,7 +207,7 @@ public class BomCacheRepositoryTests
         using var db = TestDbContextFactory.Create();
         var repo = new BomCacheRepository(db);
 
-        var result = await repo.GetComponentMengePerDeviceAsync("");
+        var result = await repo.GetComponentMengePerDeviceAsync(new[] { "", " " });
 
         result.Should().BeEmpty();
     }

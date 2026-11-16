@@ -169,8 +169,8 @@ public static class AppSettingDefinitions
             "An = Hauptmenü „Einkauf“ mit „Bestellvorschläge“ für admin und Rolle einkauf; aus = Menü weg, Seite leitet auf die Startseite um (auch für admin). Braucht die Dienst-Abgleiche Artikel (SData), Kreditoren, Artikel-Lieferanten und Offene Bestellungen (Sage).",
             "Menü Einkauf → Bestellvorschläge", "beide (IDEAL erst einschalten, wenn die SData-Abgleiche dort laufen)", seed: false),
         new(AppSettingKeys.EinkaufOffeneBedarfe, SettingType.MultiChoice, "Lagerbestellungen,Bedarfsmeldungen", GEinkauf,
-            "Welche offenen WMS-Bedarfe die verfügbare Menge der Bestellvorschläge mindern: Lagerbestellungen (abgesendet; teilgeliefert nur der Rest „wird nachgeliefert“) und offene Bedarfsmeldungen. Leer = keine (wirkt anders als „nicht gesetzt“ = beide).",
-            Anzeigename: "Einkauf – offene Bedarfe einrechnen", Verwendung: "Einkauf → Bestellvorschläge (Spalte „offene Bedarfe“)", Standort: Beide,
+            "Welche offenen WMS-Bedarfe die verfügbare Menge mindern – in den Bestellvorschlägen und in der Artikelinfo (Verfügbarer Bestand): Lagerbestellungen (abgesendet; teilgeliefert nur der Rest „wird nachgeliefert“) und offene Bedarfsmeldungen. Angerechnet ohne Doppelzählung mit den FA-Bedarfen: je Auftrag der größere Wert aus FA-Rest und Bedarfsmeldungen, je Artikel der größere Wert aus diesem FA-Teil und den Lagerbestellungen. FA-Bedarfe zählen immer. Leer = keine (wirkt anders als „nicht gesetzt“ = beide).",
+            Anzeigename: "Einkauf – offene Bedarfe einrechnen", Verwendung: "Einkauf → Bestellvorschläge (Spalte „offene Bedarfe“) und Artikelinfo (Verfügbarer Bestand)", Standort: Beide,
             Werte: new[] { (AppSettingKeys.EinkaufBedarfWerte.Lagerbestellungen, "Lagerbestellungen"), (AppSettingKeys.EinkaufBedarfWerte.Bedarfsmeldungen, "Bedarfsmeldungen") },
             LeerErlaubt: true, AbhaengigVon: AppSettingKeys.EinkaufAktiv),
 

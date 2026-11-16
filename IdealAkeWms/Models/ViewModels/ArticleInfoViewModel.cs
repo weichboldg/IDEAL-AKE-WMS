@@ -1,3 +1,5 @@
+using IdealAkeWms.Services;
+
 namespace IdealAkeWms.Models.ViewModels;
 
 public class ArticleInfoViewModel
@@ -12,13 +14,16 @@ public class ArticleInfoViewModel
     public decimal TotalStock => StockByLocation.Sum(s => s.CurrentQuantity);
 
     /// <summary>
-    /// Summe der geplanten Verbraeuche dieses Bauteils ueber alle OFFENEN
-    /// Fertigungsauftraege (BOM-Menge pro Geraet x FA-Stueckzahl).
+    /// v1.99.30 (Spec 2026-11-16-bestellvorschlaege-nachbesserung F4, Antwort 7): Bedarfe nach derselben Regel wie die Bestellvorschlaege
+    /// (FA-Rest, Bedarfsmeldungen, Lagerbestellungen, angerechnet). Ersetzt <c>PlannedConsumption</c> (voller FA-Verbrauch ohne Rest).
     /// </summary>
-    public decimal PlannedConsumption { get; set; }
+    public ArtikelBedarf Bedarf { get; set; } = ArtikelBedarf.Leer;
+    /// <summary>Einstellung <c>EinkaufOffeneBedarfe</c>: zaehlen Lagerbestellungen / Bedarfsmeldungen (Anzeige „nicht gezaehlt“).</summary>
+    public bool BedarfeMitLagerbestellungen { get; set; } = true;
+    public bool BedarfeMitBedarfsmeldungen { get; set; } = true;
 
-    /// <summary>Gesamtbestand abzueglich der geplanten Verbraeuche offener FAs.</summary>
-    public decimal AvailableStock => TotalStock - PlannedConsumption;
+    /// <summary>Gesamtbestand abzueglich der angerechneten Bedarfe.</summary>
+    public decimal AvailableStock => TotalStock - Bedarf.Angerechnet;
 
     public string? CategoryName { get; set; }
     public List<AttributeDisplayValue> AttributeDisplayValues { get; set; } = new();
@@ -49,6 +54,10 @@ public class ArticleUsageItem
 
     /// <summary>Sub-FA-Nummer (IDEAL Teil 7). Im Flachmodus == OrderNumber (Backfill); hierarchisch die Zeilen-Nummer.</summary>
     public string? SubOrderNumber { get; set; }
+
+    /// <summary>v1.99.30: BOM-Menge dieses Bauteils im FA und Rest nach Ausbuchungen (Spalte „Rest“).</summary>
+    public decimal Soll { get; set; }
+    public decimal Rest { get; set; }
 }
 
 public class AttributeDisplayValue

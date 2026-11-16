@@ -108,10 +108,10 @@
 
                         <dt class="col-sm-4">
                             Verfügbarer Bestand
-                            @* Hierarchisch (IDEAL) speist sich der geplante Verbrauch aus der Sollmenge
-                               je Sub-FA — das Label sagt es, damit die Zahl nachvollziehbar bleibt. *@
+                            @* v1.99.30: dieselben Bedarfe wie die Bestellvorschläge (FA-Rest, Bedarfsmeldungen, Lagerbestellungen, angerechnet).
+                               Hierarchisch (IDEAL) speist sich der FA-Bedarf aus der Sollmenge je Sub-FA — das Label sagt es. *@
                             <span class="text-muted" data-bs-toggle="tooltip"
-                                  title="Gesamtbestand abzüglich geplanter Verbräuche offener Fertigungsaufträge@(Model.Hierarchical ? " (Sollmenge aus der FA-Struktur)" : "")">
+                                  title="Gesamtbestand abzüglich der angerechneten Bedarfe: Rest offener Fertigungsaufträge@(Model.Hierarchical ? " (Sollmenge aus der FA-Struktur)" : ""), offene Bedarfsmeldungen und Lagerbestellungen ohne Doppelzählung">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="currentColor" viewBox="0 0 16 16">
                                     <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
                                     <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"/>
@@ -126,6 +126,34 @@
                                 }>
                                 @Model.AvailableStock @Model.Unit
                             </strong>
+                        </dd>
+
+                        <dt class="col-sm-4">Bedarfe</dt>
+                        <dd class="col-sm-8" id="artikelinfo-bedarfe">
+                            <table class="table table-sm table-borderless w-auto mb-1 small">
+                                <tbody>
+                                    <tr><td class="ps-0">FA-Bedarf (Rest)</td><td class="text-end">@Model.Bedarf.FaRest @Model.Unit</td></tr>
+                                    <tr>
+                                        <td class="ps-0">Offene Bedarfsmeldungen</td>
+                                        <td class="text-end">@(Model.BedarfeMitBedarfsmeldungen ? $"{Model.Bedarf.Bedarfsmeldungen} {Model.Unit}" : "nicht gezählt (Einstellung)")</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="ps-0">Offene Lagerbestellungen</td>
+                                        <td class="text-end">@(Model.BedarfeMitLagerbestellungen ? $"{Model.Bedarf.Lagerbestellungen} {Model.Unit}" : "nicht gezählt (Einstellung)")</td>
+                                    </tr>
+                                    <tr class="border-top"><td class="ps-0"><strong>Angerechnet</strong></td><td class="text-end"><strong>@Model.Bedarf.Angerechnet @Model.Unit</strong></td></tr>
+                                </tbody>
+                            </table>
+                            <div class="form-text mt-0">
+                                Bedarfsmeldung und Lagerbestellung werden nicht zusätzlich zum FA-Bedarf gezählt (je Auftrag bzw. Artikel gilt der größere Wert);
+                                kommissionierte Mengen sind schon ausgebucht und zählen nicht mehr.
+                            </div>
+                            @if (Model.Bedarf.EinheitAbweichend > 0)
+                            {
+                                <div class="small text-warning-emphasis mt-1" role="status">
+                                    @Model.Bedarf.EinheitAbweichend offene @(Model.Bedarf.EinheitAbweichend == 1 ? "Bedarfszeile" : "Bedarfszeilen") mit anderer Einheit als der Artikel – nicht gerechnet.
+                                </div>
+                            }
                         </dd>
                     </dl>
                 </div>
@@ -146,6 +174,7 @@
                                     @if (Model.Hierarchical) { <th>Sub-FA (Baugruppe)</th> }
                                     <th>Fertigungstermin</th>
                                     <th>Liefertermin</th>
+                                    <th class="text-end" title="Stücklistenmenge abzüglich der schon ausgebuchten Menge">Rest</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -156,6 +185,7 @@
                                         @if (Model.Hierarchical) { <td>@order.SubOrderNumber</td> }
                                         <td>@order.ProductionDate?.ToString("dd.MM.yyyy")</td>
                                         <td>@order.DeliveryDate?.ToString("dd.MM.yyyy")</td>
+                                        <td class="text-end">@order.Rest @Model.Unit@if (order.Rest != order.Soll) {<span class="text-muted"> von @order.Soll</span>}</td>
                                     </tr>
                                 }
                             </tbody>

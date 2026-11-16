@@ -5,8 +5,10 @@ namespace IdealAkeWms.Data.Repositories;
 
 /// <summary>v1.99.20: ein offener WMS-Bedarf (Lagerbestellposition bzw. Bedarfsmeldung), Zuordnung ueber die Artikelnummer (kein FK).
 /// v1.99.22 (Hinweis im Wareneingang zu Bestellung): <paramref name="Id"/> = Lagerbestellung- bzw. Bedarfsmeldungs-Id (Link),
-/// <paramref name="Bezug"/> = Werkbank bzw. FA-Nr., <paramref name="Besteller"/> = angelegt von.</summary>
-public sealed record OffenerBedarf(string ArticleNumber, string? Unit, decimal Menge, int Id = 0, string? Bezug = null, string? Besteller = null);
+/// <paramref name="Bezug"/> = Werkbank bzw. FA-Nr., <paramref name="Besteller"/> = angelegt von.
+/// v1.99.30 (F4): <paramref name="ProductionOrderId"/> = FA der Bedarfsmeldung (Pflicht-FK), fuer „max je FA“; Lagerbestellungen haben keinen FA.</summary>
+public sealed record OffenerBedarf(string ArticleNumber, string? Unit, decimal Menge, int Id = 0, string? Bezug = null, string? Besteller = null,
+    int? ProductionOrderId = null);
 
 /// <summary>
 /// v1.99.20 (Spec 2026-11-08-einkauf-bestellvorschlaege): Datensammlung der Bestellvorschlaege, nur lesend. Gerechnet wird im
@@ -118,5 +120,5 @@ public class PurchaseProposalRepository : IPurchaseProposalRepository
 
     public Task<List<OffenerBedarf>> GetOffeneBedarfsmeldungenAsync() =>
         _db.PartRequisitions.AsNoTracking().Where(p => p.Status == PartRequisitionStatus.Offen)
-            .Select(p => new OffenerBedarf(p.ArticleNumber, p.Unit, p.Quantity, p.Id, p.ProductionOrder.OrderNumber, p.CreatedBy)).ToListAsync();
+            .Select(p => new OffenerBedarf(p.ArticleNumber, p.Unit, p.Quantity, p.Id, p.ProductionOrder.OrderNumber, p.CreatedBy, p.ProductionOrderId)).ToListAsync();
 }

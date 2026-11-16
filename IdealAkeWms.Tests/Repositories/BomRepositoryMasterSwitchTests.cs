@@ -30,11 +30,12 @@ public class BomRepositoryMasterSwitchTests
     {
         var expected = new BomQueryResult(new List<BomItem>(), BomDataSources.FaHierarchie, true);
         _hierBom.Setup(r => r.GetBomItemsAsync(It.IsAny<BomKey>(), BomScope.FullStructure)).ReturnsAsync(expected);
-        _hierCache.Setup(r => r.GetDeviceArticleNumbersByComponentAsync("C")).ReturnsAsync(new List<string> { "1" });
+        _hierCache.Setup(r => r.GetComponentMengePerDeviceAsync(It.IsAny<IReadOnlyCollection<string>>()))
+            .ReturnsAsync(new Dictionary<string, Dictionary<string, decimal>> { ["C"] = new() { ["1"] = 1m } });
 
         var sut = Sut(master);
         (await sut.GetBomItemsAsync(new BomKey("A", "1", "1"), BomScope.FullStructure)).Should().BeSameAs(expected);
-        (await sut.GetDeviceArticleNumbersByComponentAsync("C")).Should().ContainSingle();
+        (await sut.GetComponentMengePerDeviceAsync(new[] { "C" })).Should().ContainSingle();
         _flatBom.VerifyNoOtherCalls();
         _flatCache.VerifyNoOtherCalls();
     }

@@ -15,10 +15,8 @@ public class ArticlesController : Controller
     private readonly ICurrentUserService _currentUserService;
     private readonly IArticleAttributeRepository _attributeRepository;
     private readonly IArticleCategoryRepository _categoryRepository;
-    private readonly IBomCacheRepository _bomCacheRepository;
-    private readonly IProductionOrderRepository _productionOrderRepository;
+    private readonly IPlannedConsumptionService _plannedConsumption;
     private readonly IStorageLocationRepository _storageLocationRepository;
-    private readonly IServiceSettingRepository _serviceSettingRepository;
     private readonly ICreditorRepository _creditorRepository;
 
     public ArticlesController(
@@ -27,10 +25,8 @@ public class ArticlesController : Controller
         ICurrentUserService currentUserService,
         IArticleAttributeRepository attributeRepository,
         IArticleCategoryRepository categoryRepository,
-        IBomCacheRepository bomCacheRepository,
-        IProductionOrderRepository productionOrderRepository,
+        IPlannedConsumptionService plannedConsumption,
         IStorageLocationRepository storageLocationRepository,
-        IServiceSettingRepository serviceSettingRepository,
         ICreditorRepository creditorRepository)
     {
         _articleRepository = articleRepository;
@@ -38,17 +34,10 @@ public class ArticlesController : Controller
         _currentUserService = currentUserService;
         _attributeRepository = attributeRepository;
         _categoryRepository = categoryRepository;
-        _bomCacheRepository = bomCacheRepository;
-        _productionOrderRepository = productionOrderRepository;
+        _plannedConsumption = plannedConsumption;
         _storageLocationRepository = storageLocationRepository;
-        _serviceSettingRepository = serviceSettingRepository;
         _creditorRepository = creditorRepository;
     }
-
-    // IDEAL FA-Liste-Hierarchie (Z4): Master-Zustand lesen (Muster wie ProductionOrdersController).
-    private static bool IsTrue(string? v) =>
-        v != null && (v.Equals("true", StringComparison.OrdinalIgnoreCase) || v == "1"
-                   || v.Equals("on", StringComparison.OrdinalIgnoreCase));
 
     public async Task<IActionResult> Index(int page = 1, int? pageSize = null, string? search = null)
     {
@@ -280,53 +269,22 @@ public class ArticlesController : Controller
             return new AttributeDisplayValue { Name = def.Name, DisplayValue = displayValue };
         }).ToList();
 
-        var hierarchical = IsTrue(await _serviceSettingRepository.GetValueAsync(
-            IdealAkeWms.Services.HierarchischeStruktur.HierarchischeStrukturKeys.Master));
-
-        // Production orders containing this article (via BOM-Bridge / BOM cache)
-        var deviceKeys = await _bomCacheRepository.GetDeviceArticleNumbersByComponentAsync(article.ArticleNumber);
-        var usedInOrders = new List<ArticleUsageItem>();
-        decimal plannedConsumption = 0m;
-        if (deviceKeys.Count > 0)
-        {
-            // Hierarchisch: Keys sind SubOrderNumbers der Eltern-Sub-FAs (Partition DirectChildren);
-            // flach: Geraete-Artikelnummern wie bisher.
-            var orders = hierarchical
-                ? await _productionOrderRepository.GetBySubOrderNumbersAsync(deviceKeys)
-                : await _productionOrderRepository.GetByArticleNumbersAsync(deviceKeys);
-
-            // "Abgeschlossen" = Sage-IsDone ODER App-Komm-IsDonePicking (Konvention seit v1.21.1).
-            // Stornierte FAs (IsCancelled) verhalten sich wie erledigte (FA-Reconciliation v1.25.0).
-            var openOrders = orders
-                .Where(o => !o.IsDone && !o.IsCancelled && !(o.PickingStatus != null && o.PickingStatus.IsDonePicking))
-                .ToList();
-
-            // Flach (AKE) unveraendert nach Fertigungstermin; hierarchisch nach HauptFA + Sub-FA,
-            // damit die Sub-FAs eines Auftrags in der Artikelinfo beisammen stehen.
-            var orderedOpenOrders = hierarchical
-                ? openOrders.OrderBy(o => o.OrderNumber).ThenBy(o => o.SubOrderNumber)
-                : openOrders.OrderBy(o => o.ProductionDate);
-
-            usedInOrders = orderedOpenOrders
-                .Select(o => new ArticleUsageItem
-                {
-                    Id = o.Id,
-                    OrderNumber = o.OrderNumber,
-                    ProductionDate = o.ProductionDate,
-                    DeliveryDate = o.DeliveryDate,
-                    SubOrderNumber = o.SubOrderNumber
-                })
-                .ToList();
-
-            // Geplanter Verbrauch je offenem FA = BOM-Menge des Bauteils pro Geraet x FA-Stueckzahl.
-            var mengePerDevice = await _bomCacheRepository.GetComponentMengePerDeviceAsync(article.ArticleNumber);
-            // Hierarchisch: Sollmenge je Eltern-Sub-FA ist bereits die Auftragsgesamtmenge (keine × Quantity).
-            plannedConsumption = hierarchical
-                ? openOrders.Where(o => o.SubOrderNumber != null)
-                    .Sum(o => mengePerDevice.GetValueOrDefault(o.SubOrderNumber!))
-                : openOrders.Where(o => o.ArticleNumber != null)
-                    .Sum(o => mengePerDevice.GetValueOrDefault(o.ArticleNumber!) * o.Quantity);
-        }
+        // v1.99.30 (Spec 2026-11-16-bestellvorschlaege-nachbesserung F4, Antwort 7): Bedarfe aus demselben Service wie die Bestellvorschlaege –
+        // FA-Rest (BOM − Ausbuchungen), max je FA mit Bedarfsmeldungen, max je Artikel mit Lagerbestellungen (Einstellung EinkaufOffeneBedarfe).
+        var bedarfe = await _plannedConsumption.GetJeArtikelAsync(new[] { article });
+        var hierarchical = bedarfe.Hierarchisch;
+        var bedarf = bedarfe.Fuer(article.ArticleNumber);
+        // Flach (AKE) nach Fertigungstermin; hierarchisch nach HauptFA + Sub-FA, damit die Sub-FAs eines Auftrags beisammen stehen.
+        var ausStueckliste = bedarf.Fas.Where(f => f.AusStueckliste);
+        var usedInOrders = (hierarchical
+                ? ausStueckliste.OrderBy(f => f.OrderNumber).ThenBy(f => f.SubOrderNumber)
+                : ausStueckliste.OrderBy(f => f.ProductionDate))
+            .Select(f => new ArticleUsageItem
+            {
+                Id = f.ProductionOrderId, OrderNumber = f.OrderNumber, ProductionDate = f.ProductionDate, DeliveryDate = f.DeliveryDate,
+                SubOrderNumber = f.SubOrderNumber, Soll = f.Soll, Rest = f.Rest,
+            })
+            .ToList();
 
         var vm = new ArticleInfoViewModel
         {
@@ -337,7 +295,9 @@ public class ArticlesController : Controller
             ArticleGroup = article.ArticleGroup,
             ReorderLevel = article.ReorderLevel ?? 0,
             StockByLocation = stock,
-            PlannedConsumption = plannedConsumption,
+            Bedarf = bedarf,
+            BedarfeMitLagerbestellungen = bedarfe.MitLagerbestellungen,
+            BedarfeMitBedarfsmeldungen = bedarfe.MitBedarfsmeldungen,
             CategoryName = categoryName,
             AttributeDisplayValues = attrDisplayValues,
             UsedInOrders = usedInOrders,

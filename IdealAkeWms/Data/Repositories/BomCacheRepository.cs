@@ -142,33 +142,24 @@ public class BomCacheRepository : IBomCacheRepository
         await _db.SaveChangesAsync();
     }
 
-    public async Task<List<string>> GetDeviceArticleNumbersByComponentAsync(string componentArticleNumber)
+    public async Task<Dictionary<string, Dictionary<string, decimal>>> GetComponentMengePerDeviceAsync(IReadOnlyCollection<string> componentArticleNumbers)
     {
-        if (string.IsNullOrWhiteSpace(componentArticleNumber))
-            return new List<string>();
-
-        return await (
-            from i in _db.CachedBomItems
-            join h in _db.CachedBomHeaders on i.CachedBomHeaderId equals h.Id
-            where i.Ressourcenummer == componentArticleNumber
-            select h.Artikelnummer
-        ).Distinct().ToListAsync();
-    }
-
-    public async Task<Dictionary<string, decimal>> GetComponentMengePerDeviceAsync(string componentArticleNumber)
-    {
-        if (string.IsNullOrWhiteSpace(componentArticleNumber))
-            return new Dictionary<string, decimal>();
+        // SQL vergleicht Gross/Klein-unabhaengig (Kollation) -> Ergebnis ebenso schluesseln. Lange Liste: EF 10 nimmt OPENJSON (fallstricke).
+        var liste = componentArticleNumbers.Where(c => !string.IsNullOrWhiteSpace(c)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        if (liste.Count == 0) return new Dictionary<string, Dictionary<string, decimal>>(StringComparer.OrdinalIgnoreCase);
 
         var rows = await (
             from i in _db.CachedBomItems
             join h in _db.CachedBomHeaders on i.CachedBomHeaderId equals h.Id
-            where i.Ressourcenummer == componentArticleNumber
-            group i.Menge by h.Artikelnummer into g
-            select new { Artikelnummer = g.Key, Menge = g.Sum() }
+            where i.Ressourcenummer != null && liste.Contains(i.Ressourcenummer)
+            group i.Menge by new { i.Ressourcenummer, h.Artikelnummer } into g
+            select new { g.Key.Ressourcenummer, g.Key.Artikelnummer, Menge = g.Sum() }
         ).ToListAsync();
 
-        return rows.ToDictionary(r => r.Artikelnummer, r => r.Menge);
+        return rows.GroupBy(r => r.Ressourcenummer!, StringComparer.OrdinalIgnoreCase).ToDictionary(g => g.Key,
+            g => g.GroupBy(r => r.Artikelnummer, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(x => x.Key, x => x.Sum(r => r.Menge), StringComparer.OrdinalIgnoreCase),
+            StringComparer.OrdinalIgnoreCase);
     }
 
     public async Task DeleteOrphansAsync(List<string> currentArticleNumbers)

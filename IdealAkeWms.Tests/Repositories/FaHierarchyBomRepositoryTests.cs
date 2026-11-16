@@ -258,10 +258,9 @@ public class FaHierarchyBomRepositoryTests
         nodes.Add(N(100, 1043421, 0, pos: 9, artnr: "L1", sollmenge: 2m)); // L1 auch unter 1043421
 
         var sut = Sut(nodes);
-        var parents = await sut.GetDeviceArticleNumbersByComponentAsync("L1");
-        var menge = await sut.GetComponentMengePerDeviceAsync("L1");
+        var menge = (await sut.GetComponentMengePerDeviceAsync(new[] { "L1" }))["L1"];
 
-        parents.Should().BeEquivalentTo(new[] { "1043422", "1043421" });
+        menge.Keys.Should().BeEquivalentTo(new[] { "1043422", "1043421" });
         menge.Should().BeEquivalentTo(new Dictionary<string, decimal> { ["1043422"] = 5m, ["1043421"] = 2m });
     }
 

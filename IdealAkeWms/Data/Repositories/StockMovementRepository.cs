@@ -571,6 +571,19 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
         return dict;
     }
 
+    public async Task<Dictionary<(int ProductionOrderId, string ArticleNumber), decimal>> GetAusbuchungenJeFaAsync(IReadOnlyCollection<int> productionOrderIds)
+    {
+        if (productionOrderIds.Count == 0) return new();
+        var ids = productionOrderIds.Distinct().ToList();
+        var rows = await _dbSet.AsNoTracking()
+            .Where(sm => sm.MovementType == MovementType.Ausbuchung && sm.ProductionOrderId != null && ids.Contains(sm.ProductionOrderId.Value))
+            .GroupBy(sm => new { FaId = sm.ProductionOrderId!.Value, sm.Article.ArticleNumber })
+            .Select(g => new { g.Key.FaId, g.Key.ArticleNumber, Menge = g.Sum(sm => sm.Quantity) })
+            .ToListAsync();
+        return rows.GroupBy(r => (r.FaId, r.ArticleNumber.Trim().ToUpperInvariant()))
+            .ToDictionary(g => g.Key, g => g.Sum(r => r.Menge));
+    }
+
     /// <summary>Maps Bewegungshistorie Column-Keys auf StockMovement-Properties.</summary>
     /// <remarks>
     /// internal statt private (Task 6, Matchcode): direkt gegen einen nie verbundenen SqlServer-

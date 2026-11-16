@@ -26,14 +26,16 @@ public class ArtikelinfoLieferantenTests
         attr.Setup(a => a.GetActiveDefinitionsOrderedAsync()).ReturnsAsync(new List<ArticleAttributeDefinition>());
         attr.Setup(a => a.GetValuesByArticleIdAsync(It.IsAny<int>())).ReturnsAsync(new List<ArticleAttributeValue>());
         var bom = new Mock<IBomCacheRepository>();
-        bom.Setup(b => b.GetDeviceArticleNumbersByComponentAsync(It.IsAny<string>())).ReturnsAsync(new List<string>());
-        bom.Setup(b => b.GetComponentMengePerDeviceAsync(It.IsAny<string>())).ReturnsAsync(new Dictionary<string, decimal>());
+        bom.Setup(b => b.GetComponentMengePerDeviceAsync(It.IsAny<IReadOnlyCollection<string>>())).ReturnsAsync(new Dictionary<string, Dictionary<string, decimal>>());
         var orders = new Mock<IProductionOrderRepository>();
         orders.Setup(o => o.GetByArticleNumbersAsync(It.IsAny<List<string>>())).ReturnsAsync(new List<ProductionOrder>());
         var creditors = new Mock<ICreditorRepository>();
         var ctrl = new ArticlesController(article.Object, stock.Object, Mock.Of<ICurrentUserService>(), attr.Object,
-            Mock.Of<IArticleCategoryRepository>(), bom.Object, orders.Object, Mock.Of<IStorageLocationRepository>(),
-            Mock.Of<IServiceSettingRepository>(), creditors.Object)
+            Mock.Of<IArticleCategoryRepository>(), new PlannedConsumptionService(bom.Object, orders.Object, stock.Object,
+                Mock.Of<IPurchaseProposalRepository>(r => r.GetOffeneLagerbestellungenAsync() == Task.FromResult(new List<OffenerBedarf>())
+                    && r.GetOffeneBedarfsmeldungenAsync() == Task.FromResult(new List<OffenerBedarf>())),
+                Mock.Of<IAppSettingRepository>(), Mock.Of<IServiceSettingRepository>()),
+            Mock.Of<IStorageLocationRepository>(), creditors.Object)
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
         };

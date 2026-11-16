@@ -199,27 +199,19 @@ public sealed class FaHierarchyBomRepository : IBomRepository, IBomCacheReposito
     public async Task<BomQueryResult?> GetByArticleNumberAsync(BomKey key) =>
         await GetBomItemsAsync(key, BomScope.DirectChildren);
 
-    /// <summary>Artikelinfo (Spec Design G): "Geraete" sind hier die SubOrderNumbers der Eltern-Sub-FAs,
-    /// deren direktes Kind das Bauteil ist (Partition DirectChildren, jeder Knoten genau einmal).</summary>
-    public async Task<List<string>> GetDeviceArticleNumbersByComponentAsync(string componentArticleNumber)
+    /// <summary>Artikelinfo/Bestellvorschlaege (Spec Design G): "Geraete" sind hier die SubOrderNumbers der Eltern-Sub-FAs,
+    /// deren direktes Kind das Bauteil ist (Partition DirectChildren, jeder Knoten genau einmal); Menge = Summe Sollmenge.</summary>
+    public async Task<Dictionary<string, Dictionary<string, decimal>>> GetComponentMengePerDeviceAsync(IReadOnlyCollection<string> componentArticleNumbers)
     {
-        if (string.IsNullOrWhiteSpace(componentArticleNumber)) return new List<string>();
+        var set = componentArticleNumbers.Where(c => !string.IsNullOrWhiteSpace(c)).ToHashSet(StringComparer.Ordinal);
+        if (set.Count == 0) return new Dictionary<string, Dictionary<string, decimal>>(StringComparer.Ordinal);
         var all = await _nodes.GetAllAsync();
         return all
-            .Where(n => n.VaterFA.HasValue && string.Equals(n.Artnr, componentArticleNumber, StringComparison.Ordinal))
-            .Select(n => n.VaterFA!.Value.ToString(CultureInfo.InvariantCulture))
-            .Distinct(StringComparer.Ordinal)
-            .ToList();
-    }
-
-    public async Task<Dictionary<string, decimal>> GetComponentMengePerDeviceAsync(string componentArticleNumber)
-    {
-        if (string.IsNullOrWhiteSpace(componentArticleNumber)) return new Dictionary<string, decimal>();
-        var all = await _nodes.GetAllAsync();
-        return all
-            .Where(n => n.VaterFA.HasValue && string.Equals(n.Artnr, componentArticleNumber, StringComparison.Ordinal))
-            .GroupBy(n => n.VaterFA!.Value.ToString(CultureInfo.InvariantCulture), StringComparer.Ordinal)
-            .ToDictionary(g => g.Key, g => g.Sum(n => n.Sollmenge), StringComparer.Ordinal);
+            .Where(n => n.VaterFA.HasValue && n.Artnr != null && set.Contains(n.Artnr))
+            .GroupBy(n => n.Artnr!, StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => g
+                .GroupBy(n => n.VaterFA!.Value.ToString(CultureInfo.InvariantCulture), StringComparer.Ordinal)
+                .ToDictionary(x => x.Key, x => x.Sum(n => n.Sollmenge), StringComparer.Ordinal), StringComparer.Ordinal);
     }
 
     // Sync-/Cache-interne Methoden: werden durch die Klasse-D-Gates (Task 4) im hierarchischen Modus nie

@@ -43,17 +43,10 @@ public interface IBomCacheRepository
     Task DeleteOrphansAsync(List<string> currentArticleNumbers);
 
     /// <summary>
-    /// Returns device article numbers (CachedBomHeader.Artikelnummer) whose BOMs
-    /// contain a component with the given Ressourcenummer.
+    /// v1.99.30 (Spec 2026-11-16-bestellvorschlaege-nachbesserung F4): je Bauteil (Ressourcenummer) die "Geraete", deren Stueckliste es
+    /// enthaelt, mit der summierten Menge aller passenden Positionen je Geraet. Flach: Geraet = CachedBomHeader.Artikelnummer;
+    /// hierarchisch: SubOrderNumber der Eltern-Sub-FA. Eine Abfrage fuer alle Bauteile (kein N+1); Bauteile ohne Treffer fehlen.
+    /// Ersetzt GetDeviceArticleNumbersByComponentAsync + GetComponentMengePerDeviceAsync(string) (dieselbe Schluesselmenge).
     /// </summary>
-    Task<List<string>> GetDeviceArticleNumbersByComponentAsync(string componentArticleNumber);
-
-    /// <summary>
-    /// Returns the per-device total quantity (Menge) of the given component across all
-    /// cached BOMs that reference it. Keyed by device article number
-    /// (CachedBomHeader.Artikelnummer); the value is the summed Menge of every BOM
-    /// position whose Ressourcenummer matches <paramref name="componentArticleNumber"/>
-    /// for that one device.
-    /// </summary>
-    Task<Dictionary<string, decimal>> GetComponentMengePerDeviceAsync(string componentArticleNumber);
+    Task<Dictionary<string, Dictionary<string, decimal>>> GetComponentMengePerDeviceAsync(IReadOnlyCollection<string> componentArticleNumbers);
 }

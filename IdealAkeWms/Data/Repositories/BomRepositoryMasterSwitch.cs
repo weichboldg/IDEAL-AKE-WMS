@@ -66,11 +66,8 @@ public sealed class BomRepositoryMasterSwitch : IBomRepository, IBomCacheReposit
         List<BomItem> items)
         => await (await CacheAsync()).UpsertBomAsync(articleNumber, source, contentHash, items);
 
-    public async Task<List<string>> GetDeviceArticleNumbersByComponentAsync(string componentArticleNumber)
-        => await (await CacheAsync()).GetDeviceArticleNumbersByComponentAsync(componentArticleNumber);
-
-    public async Task<Dictionary<string, decimal>> GetComponentMengePerDeviceAsync(string componentArticleNumber)
-        => await (await CacheAsync()).GetComponentMengePerDeviceAsync(componentArticleNumber);
+    public async Task<Dictionary<string, Dictionary<string, decimal>>> GetComponentMengePerDeviceAsync(IReadOnlyCollection<string> componentArticleNumbers)
+        => await (await CacheAsync()).GetComponentMengePerDeviceAsync(componentArticleNumbers);
 
     public async Task DeleteOrphansAsync(List<string> currentArticleNumbers)
         => await (await CacheAsync()).DeleteOrphansAsync(currentArticleNumbers);

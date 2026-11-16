@@ -42,16 +42,30 @@ public class ArticlesControllerTests
         serviceSetting.Setup(s => s.GetValueAsync(It.IsAny<string>()))
             .ReturnsAsync(hierarchical ? "true" : (string?)null);
 
+        // v1.99.30: echter PlannedConsumptionService ueber denselben Mocks (Bedarfe = dieselbe Regel wie die Bestellvorschlaege).
+        bom.Setup(b => b.GetComponentMengePerDeviceAsync(It.IsAny<IReadOnlyCollection<string>>()))
+            .ReturnsAsync(new Dictionary<string, Dictionary<string, decimal>>());   // Default; Tests ueberschreiben
+        stock.Setup(s => s.GetAusbuchungenJeFaAsync(It.IsAny<IReadOnlyCollection<int>>()))
+            .ReturnsAsync(new Dictionary<(int, string), decimal>());
+        var bedarfe = new Mock<IPurchaseProposalRepository>();
+        bedarfe.Setup(b => b.GetOffeneLagerbestellungenAsync()).ReturnsAsync(new List<OffenerBedarf>());
+        bedarfe.Setup(b => b.GetOffeneBedarfsmeldungenAsync()).ReturnsAsync(new List<OffenerBedarf>());
+        var planned = new PlannedConsumptionService(bom.Object, orders.Object, stock.Object, bedarfe.Object,
+            Mock.Of<IAppSettingRepository>(), serviceSetting.Object);
+
         var ctrl = new ArticlesController(
             article.Object, stock.Object, user.Object, attr.Object,
-            category.Object, bom.Object, orders.Object, storageLocations.Object,
-            serviceSetting.Object, Mock.Of<ICreditorRepository>());
+            category.Object, planned, storageLocations.Object,
+            Mock.Of<ICreditorRepository>());
         ctrl.ControllerContext = new ControllerContext
         {
             HttpContext = new DefaultHttpContext()
         };
         return (ctrl, article, stock, attr, category, bom, orders);
     }
+
+    internal static Dictionary<string, Dictionary<string, decimal>> BomOf(string comp, Dictionary<string, decimal> jeGeraet) =>
+        new(StringComparer.OrdinalIgnoreCase) { [comp] = jeGeraet };
 
     private static StockOverviewItem Stock(decimal qty) => new StockOverviewItem
     {
@@ -82,10 +96,8 @@ public class ArticlesControllerTests
             .ReturnsAsync(new List<StockOverviewItem> { Stock(100m) });
 
         // Two devices contain COMP
-        bom.Setup(b => b.GetDeviceArticleNumbersByComponentAsync("COMP"))
-            .ReturnsAsync(new List<string> { "DEV1", "DEV2" });
-        bom.Setup(b => b.GetComponentMengePerDeviceAsync("COMP"))
-            .ReturnsAsync(new Dictionary<string, decimal> { ["DEV1"] = 2m, ["DEV2"] = 3m });
+        bom.Setup(b => b.GetComponentMengePerDeviceAsync(It.IsAny<IReadOnlyCollection<string>>()))
+            .ReturnsAsync(BomOf("COMP", new Dictionary<string, decimal> { ["DEV1"] = 2m, ["DEV2"] = 3m }));
 
         // FA1 open (DEV1, qty 4); FA2 komm-done (DEV2, qty 5) -> must be excluded
         orders.Setup(o => o.GetByArticleNumbersAsync(It.IsAny<List<string>>()))
@@ -104,7 +116,7 @@ public class ArticlesControllerTests
         vm.UsedInOrders.Should().ContainSingle(o => o.OrderNumber == "FA1");
 
         // Planned consumption = Menge(DEV1)=2 x FA1.Quantity=4 = 8 (FA2 excluded)
-        vm.PlannedConsumption.Should().Be(8m);
+        vm.Bedarf.Angerechnet.Should().Be(8m);
         vm.TotalStock.Should().Be(100m);
         vm.AvailableStock.Should().Be(92m);
     }
@@ -120,10 +132,8 @@ public class ArticlesControllerTests
             .ReturnsAsync(new List<StockOverviewItem>());
         // Hierarchisch liefert der Reverse-Lookup die SubOrderNumbers der Eltern-Sub-FAs,
         // nicht Geraete-Artikelnummern (BOM-Bridge).
-        bom.Setup(b => b.GetDeviceArticleNumbersByComponentAsync("COMP"))
-            .ReturnsAsync(new List<string> { "H1-1", "H1-2", "H2-1" });
-        bom.Setup(b => b.GetComponentMengePerDeviceAsync("COMP"))
-            .ReturnsAsync(new Dictionary<string, decimal> { ["H1-1"] = 1m, ["H1-2"] = 1m, ["H2-1"] = 1m });
+        bom.Setup(b => b.GetComponentMengePerDeviceAsync(It.IsAny<IReadOnlyCollection<string>>()))
+            .ReturnsAsync(BomOf("COMP", new Dictionary<string, decimal> { ["H1-1"] = 1m, ["H1-2"] = 1m, ["H2-1"] = 1m }));
 
         // Zwei Sub-FAs unter HauptFA H1, eine unter H2 — alle offen.
         ProductionOrder Sub(int id, string haupt, string sub) => new()
@@ -149,8 +159,7 @@ public class ArticlesControllerTests
         var (ctrl, article, stock, _, _, bom, orders) = Build(hierarchical: true);
         article.Setup(a => a.GetByArticleNumberAsync("COMP")).ReturnsAsync(new Article { Id = 1, ArticleNumber = "COMP", Unit = "Stk" });
         stock.Setup(s => s.GetCurrentStockAsync("COMP", null, null, null)).ReturnsAsync(new List<StockOverviewItem>());
-        bom.Setup(b => b.GetDeviceArticleNumbersByComponentAsync("COMP")).ReturnsAsync(new List<string> { "1043421", "1043422" });
-        bom.Setup(b => b.GetComponentMengePerDeviceAsync("COMP")).ReturnsAsync(new Dictionary<string, decimal> { ["1043421"] = 5m, ["1043422"] = 2m });
+        bom.Setup(b => b.GetComponentMengePerDeviceAsync(It.IsAny<IReadOnlyCollection<string>>())).ReturnsAsync(BomOf("COMP", new Dictionary<string, decimal> { ["1043421"] = 5m, ["1043422"] = 2m }));
         orders.Setup(o => o.GetBySubOrderNumbersAsync(It.IsAny<IReadOnlyCollection<string>>())).ReturnsAsync(new List<ProductionOrder>
         {
             new() { Id = 1, OrderNumber = "1035235", SubOrderNumber = "1043421", ArticleNumber = "A1", Quantity = 4m, PickingStatus = new ProductionOrderPickingStatus() },
@@ -161,7 +170,7 @@ public class ArticlesControllerTests
 
         vm.UsedInOrders.Should().HaveCount(2);
         vm.UsedInHauptFaCount.Should().Be(1);
-        vm.PlannedConsumption.Should().Be(7m);          // 5 + 2, KEINE × Quantity
+        vm.Bedarf.Angerechnet.Should().Be(7m);          // 5 + 2, KEINE × Quantity
         orders.Verify(o => o.GetByArticleNumbersAsync(It.IsAny<List<string>>()), Times.Never);
     }
 
@@ -174,10 +183,8 @@ public class ArticlesControllerTests
             .ReturnsAsync(new Article { Id = 1, ArticleNumber = "COMP", Unit = "Stk" });
         stock.Setup(s => s.GetCurrentStockAsync("COMP", null, null, null))
             .ReturnsAsync(new List<StockOverviewItem> { Stock(50m) });
-        bom.Setup(b => b.GetDeviceArticleNumbersByComponentAsync("COMP"))
-            .ReturnsAsync(new List<string> { "DEV1" });
-        bom.Setup(b => b.GetComponentMengePerDeviceAsync("COMP"))
-            .ReturnsAsync(new Dictionary<string, decimal> { ["DEV1"] = 2m });
+        bom.Setup(b => b.GetComponentMengePerDeviceAsync(It.IsAny<IReadOnlyCollection<string>>()))
+            .ReturnsAsync(BomOf("COMP", new Dictionary<string, decimal> { ["DEV1"] = 2m }));
         orders.Setup(o => o.GetByArticleNumbersAsync(It.IsAny<List<string>>()))
             .ReturnsAsync(new List<ProductionOrder>
             {
@@ -190,7 +197,7 @@ public class ArticlesControllerTests
             .Should().BeOfType<ArticleInfoViewModel>().Subject;
 
         vm.UsedInOrders.Should().BeEmpty();
-        vm.PlannedConsumption.Should().Be(0m);
+        vm.Bedarf.Angerechnet.Should().Be(0m);
         vm.AvailableStock.Should().Be(50m);
     }
 
@@ -203,10 +210,8 @@ public class ArticlesControllerTests
             .ReturnsAsync(new Article { Id = 1, ArticleNumber = "COMP", Unit = "Stk" });
         stock.Setup(s => s.GetCurrentStockAsync("COMP", null, null, null))
             .ReturnsAsync(new List<StockOverviewItem> { Stock(100m) });
-        bom.Setup(b => b.GetDeviceArticleNumbersByComponentAsync("COMP"))
-            .ReturnsAsync(new List<string> { "DEV1", "DEV2" });
-        bom.Setup(b => b.GetComponentMengePerDeviceAsync("COMP"))
-            .ReturnsAsync(new Dictionary<string, decimal> { ["DEV1"] = 2m, ["DEV2"] = 3m });
+        bom.Setup(b => b.GetComponentMengePerDeviceAsync(It.IsAny<IReadOnlyCollection<string>>()))
+            .ReturnsAsync(BomOf("COMP", new Dictionary<string, decimal> { ["DEV1"] = 2m, ["DEV2"] = 3m }));
 
         // FA1 open (DEV1, qty 4); FA2 cancelled (DEV2, qty 5) -> must be excluded from list AND plannedConsumption
         orders.Setup(o => o.GetByArticleNumbersAsync(It.IsAny<List<string>>()))
@@ -223,7 +228,7 @@ public class ArticlesControllerTests
 
         vm.UsedInOrders.Should().ContainSingle(o => o.OrderNumber == "FA1");
         // Planned consumption = Menge(DEV1)=2 x FA1.Quantity=4 = 8 (FA2 cancelled -> excluded)
-        vm.PlannedConsumption.Should().Be(8m);
+        vm.Bedarf.Angerechnet.Should().Be(8m);
     }
 
     [Fact]
@@ -237,8 +242,6 @@ public class ArticlesControllerTests
             .ReturnsAsync(new List<Article> { new() { Id = 1, ArticleNumber = "1000042", Matchcode = "SCHRAUBE", Unit = "Stk" } });
         stock.Setup(s => s.GetCurrentStockAsync("1000042", null, null, null))
             .ReturnsAsync(new List<StockOverviewItem>());
-        bom.Setup(b => b.GetDeviceArticleNumbersByComponentAsync("1000042"))
-            .ReturnsAsync(new List<string>());
 
         var result = await ctrl.Info("SCHRAUBE");
 

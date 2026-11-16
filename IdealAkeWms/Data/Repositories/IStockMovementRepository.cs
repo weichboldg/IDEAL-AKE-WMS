@@ -52,4 +52,11 @@ public interface IStockMovementRepository : IRepository<StockMovement>
     /// Beruecksichtigt alle MovementType-Werte inklusive Umbuchung-Quell-Seite.
     /// </summary>
     Task<Dictionary<(int ArticleId, int StorageLocationId), decimal>> GetCurrentStockByArticleAndLocationAsync();
+
+    /// <summary>
+    /// v1.99.30 (Spec 2026-11-16-bestellvorschlaege-nachbesserung F4, Antwort 2): Summe der Ausbuchungen je (FA-Id, Artikelnummer) fuer den
+    /// FA-Rest „BOM-Menge − schon ausgebucht“. Nur <see cref="Models.MovementType.Ausbuchung"/>: die Einbuchung setzt ebenfalls
+    /// <c>ProductionOrderId</c>; welche weiteren Arten zaehlen, klaert P-N8 – bis dahin nicht annehmen. Artikelnummer getrimmt, gross.
+    /// </summary>
+    Task<Dictionary<(int ProductionOrderId, string ArticleNumber), decimal>> GetAusbuchungenJeFaAsync(IReadOnlyCollection<int> productionOrderIds);
 }
