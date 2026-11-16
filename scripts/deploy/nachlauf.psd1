@@ -413,5 +413,11 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
 @{ Id='v1.99.29-WareneingangCsvFormat'; Version='1.99.29'; Typ='Info'; Firma='AKE'; Phase='Nachher'; Ausfuehrung='anzeigen'
    Text='Wareneingang-CSV: Format ohne Kopfzeile, Erfasser = Windows-Kontoname ohne Domaene - das ist das enaio-Zielformat.'
    Quelle='2026-11-16-v1-99-29-wareneingang-csv-enaio' }
+@{ Id='v1.99.30-LetzteBestellungUhrzeiten'; Version='1.99.30'; Typ='Info'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Text='Letzte Bestellung (Einkauf) laeuft jetzt nur zu Sync:LetzteBestellungUhrzeitNacht/-Mittag (Default 3/12 Uhr, Gate Sync:ArtikelLieferantEnabled); ein verpasster Termin wird direkt nach dem Dienststart nachgeholt. Im Aktivitaetsprotokoll pruefen.'
+   Quelle='2026-11-16-v1-99-30-bestellvorschlaege-nachbesserung' }
+@{ Id='v1.99.30-ArtikelinfoBedarfe'; Version='1.99.30'; Typ='Info'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Text='Artikelinfo: Verfuegbarer Bestand rechnet jetzt wie die Bestellvorschlaege (FA-Rest, Lagerbestellungen/Bedarfsmeldungen nur einmal). Lager/Produktion informieren; Zahlen koennen von der Vorversion abweichen.'
+   Quelle='2026-11-16-v1-99-30-bestellvorschlaege-nachbesserung' }
 )
 }
