@@ -4,6 +4,8 @@ using IdealAkeWms.Filters;
 using IdealAkeWms.Models;
 using IdealAkeWms.Models.ViewModels;
 using IdealAkeWms.Services;
+using IdealAkeWms.Services.Beschichtung;
+using IdealAkeWms.Services.HierarchischeStruktur;
 using IdealAkeWms.Services.Settings;
 
 namespace IdealAkeWms.Controllers;
@@ -19,6 +21,7 @@ public class SettingsController : Controller
     private readonly IOrderRecipientRepository _recipients;
     private readonly IStorageLocationRepository _storageLocations;
     private readonly IOperationConfigRepository _operations;
+    private readonly IServiceSettingRepository _serviceSettings;
 
     public SettingsController(
         IAppSettingRepository settingRepository,
@@ -28,7 +31,8 @@ public class SettingsController : Controller
         IArticleCategoryRepository categories,
         IOrderRecipientRepository recipients,
         IStorageLocationRepository storageLocations,
-        IOperationConfigRepository operations)
+        IOperationConfigRepository operations,
+        IServiceSettingRepository serviceSettings)
     {
         _settingRepository = settingRepository;
         _holidayRepository = holidayRepository;
@@ -38,6 +42,7 @@ public class SettingsController : Controller
         _recipients = recipients;
         _storageLocations = storageLocations;
         _operations = operations;
+        _serviceSettings = serviceSettings;
     }
 
     public async Task<IActionResult> Index() => View(await BuildViewModelAsync(null));
@@ -120,6 +125,16 @@ public class SettingsController : Controller
         if (Gilt(AppSettingKeys.BdeNurFaMeldung).Trim().Equals("true", StringComparison.OrdinalIgnoreCase)
             && string.IsNullOrWhiteSpace(Gilt(AppSettingKeys.BdeDefaultArbeitsgang)))
             fehler.Add("„BDE: Default-Arbeitsgang“ ist Pflicht, solange „BDE: nur FA-Meldung“ an ist.");
+
+        // v1.99.25 (Spec 2026-11-16-beschichtungslogik-je-standort A8, AK 3/19): eine Beschichtungsquelle ohne Datenbasis im aktuellen
+        // Auftragsmodell wird abgelehnt (dieselbe Regel, mit der der Leser sie wie „Automatisch“ behandelt). Erst wenn die Einzelwerte gueltig sind.
+        if (fehler.Count == 0)
+        {
+            var hierarchisch = string.Equals((await _serviceSettings.GetValueAsync(HierarchischeStrukturKeys.Master))?.Trim(), "true",
+                StringComparison.OrdinalIgnoreCase); // wie der Dienst (ServiceSettings.GetBoolAsync) und die Manifest-Pruefung
+            fehler.AddRange(BeschichtungResolver.ResolveQuellen(Gilt(AppSettingKeys.BeschichtungKennzeichenQuelle),
+                Gilt(AppSettingKeys.BeschichtungTerminQuelle), hierarchisch).Warnungen);
+        }
 
         if (fehler.Count > 0)
         {

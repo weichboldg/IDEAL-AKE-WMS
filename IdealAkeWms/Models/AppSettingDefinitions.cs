@@ -58,15 +58,41 @@ public static class AppSettingDefinitions
             "FA-Liste, Kommissionierung (Auftragsliste, Druck), Leitstand, Werkbank-Arbeitsliste", Beide, seed: false, "Arbeitstage"),
         I("VorkommissionierTage", "1", GTermine, "Vorkommissionier-Vorlauf", "Arbeitstage vor dem Kommissionier-Termin für die Vorkommissionierung.",
             "FA-Liste, Leitstand, Werkbank-Arbeitsliste", Beide, seed: false, "Arbeitstage"),
-        I("BeschichtungTage", "10", GTermine, "Beschichtungs-Vorlauf", "Arbeitstage vor dem FA-Termin, zu denen Lackierteile zur Beschichtung müssen.",
+        I("BeschichtungTage", "10", GTermine, "Beschichtungs-Vorlauf", "Arbeitstage vor dem FA-Termin, zu denen Lackierteile zur Beschichtung müssen. Wirkt nur bei Termin-Quelle „Berechnet“.",
             "FA-Liste, Leitstand, Werkbank-Arbeitsliste", Beide, seed: false, "Arbeitstage"),
         new(AppSettingKeys.BeschichtungAbholtage, SettingType.MultiChoice, "Dienstag,Donnerstag", GTermine,
-            "Wochentage, an denen der Beschichter abholt; der Beschichtungstermin fällt auf den letzten Abholtag davor. Leer = keine Abholtage (wirkt anders als „nicht gesetzt“ = Dienstag, Donnerstag).",
+            "Wochentage, an denen der Beschichter abholt; der Beschichtungstermin fällt auf den letzten Abholtag davor. Leer = keine Abholtage (wirkt anders als „nicht gesetzt“ = Dienstag, Donnerstag). Wirkt nur bei Termin-Quelle „Berechnet“.",
             Anzeigename: "Beschichtung – Abholtage", Verwendung: "FA-Liste, Leitstand, Werkbank-Arbeitsliste (Beschichtungstermin)", Standort: Beide,
             Werte: Wochentage, LeerErlaubt: true),
         M(AppSettingKeys.LackierteilKategorieName, "", GTermine, "Kategorie „Lackierteil“",
-            "Artikelkategorie, deren Artikel als Lackierteil gelten (eigener Beschichtungstermin). Leer = Lackierteil-Erkennung aus.",
-            "FA-Liste, Leitstand, Werkbank-Arbeitsliste; Dienst Lackierteil-Erkennung", Beide, seed: true, SettingStammdaten.Artikelkategorie, leerErlaubt: true),
+            "Artikelkategorie, deren Artikel als Lackierteil gelten (eigener Beschichtungstermin). Leer = Lackierteil-Erkennung aus. Wirkt nur bei Kennzeichen-Quelle „Artikelkategorie“.",
+            "FA-Liste, Leitstand, Werkbank-Arbeitsliste; Dienst Lackierteil-Erkennung", Beide, seed: true, SettingStammdaten.Artikelkategorie, leerErlaubt: true,
+            abhaengig: AppSettingKeys.BeschichtungKennzeichenQuelle),
+        // v1.99.25 (Spec 2026-11-16-beschichtungslogik-je-standort E1, ADR 0020): Quelle je Achse; Automatisch = heutiges Verhalten je Auftragsmodell.
+        // Kombination mit dem Master prueft SettingsController.SaveSettings (A8), Aufloesung BeschichtungResolver.ResolveQuellen.
+        new(AppSettingKeys.BeschichtungKennzeichenQuelle, SettingType.Choice, IdealAkeWms.Services.Beschichtung.BeschichtungResolver.Automatisch, GTermine,
+            "Legt fest, welcher Dienst-Lauf das Kennzeichen „beschichtet“ schreibt. Automatisch: hierarchisches Auftragsmodell (IDEAL) = FA-Struktur, flach (AKE) = Artikelkategorie. Abgelehnt wird „Artikelkategorie“ bei hierarchischem und „FA-Struktur“ bei flachem Auftragsmodell.",
+            Anzeigename: "Quelle Beschichtet-Kennzeichen",
+            Verwendung: "Dienst: Lackierteil-Erkennung, FA-Materialisierung, Lackierteil-Erkennung nach dem Sage-Import. FA-Liste, Leitstand und Arbeitsliste lesen den Wert noch nicht (Folgeversion).",
+            Standort: Beide,
+            Warnhinweis: "Umschalten berechnet das Kennzeichen beim nächsten Lauf neu; fällt es weg, wird „Beschichtung erledigt“ zurückgesetzt.",
+            Werte: new[]
+            {
+                (IdealAkeWms.Services.Beschichtung.BeschichtungResolver.Automatisch, "Automatisch (nach Auftragsmodell)"),
+                ("Artikelkategorie", "Artikelkategorie (OSEON-Kategorie über die Stückliste)"),
+                ("FaStruktur", "FA-Struktur (Sage, Spalte Beschichtet)"),
+            }, Seed: true),
+        new(AppSettingKeys.BeschichtungTerminQuelle, SettingType.Choice, IdealAkeWms.Services.Beschichtung.BeschichtungResolver.Automatisch, GTermine,
+            "Woher der Beschichtungstermin kommt. Automatisch: hierarchisches Auftragsmodell (IDEAL) = View, flach (AKE) = Berechnet. „View“ übernimmt Start_Beschichtung aus der Sage-View unverändert (keine Berechnung im WMS) und ist nur bei hierarchischem Auftragsmodell wählbar.",
+            Anzeigename: "Quelle Beschichtungstermin",
+            Verwendung: "FA-Liste, Kommissionier-Leitstand, Werkbank-Arbeitsliste – noch ohne Wirkung: die Listen lesen den Wert erst mit einer Folgeversion.",
+            Standort: Beide,
+            Werte: new[]
+            {
+                (IdealAkeWms.Services.Beschichtung.BeschichtungResolver.Automatisch, "Automatisch (nach Auftragsmodell)"),
+                ("Berechnet", "Berechnet (Kommissioniertermin minus Beschichtungstage, auf Abholtag)"),
+                ("View", "View (Sage-View Start_Beschichtung am Kopf, unverändert)"),
+            }, Seed: true),
 
         // ---- Lager und Buchungen ----
         I("WarningThresholdPercent", "150", GLager, "Bestand: Warnschwelle", "Bestand unter diesem Prozentsatz des Meldebestands wird gelb markiert.",

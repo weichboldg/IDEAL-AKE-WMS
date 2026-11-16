@@ -41,6 +41,11 @@ public static class AppSettingKeys
     public const string TeileverfolgungAktiv = "TeileverfolgungAktiv";
     public const string LackierteilKategorieName = "LackierteilKategorieName";
     public const string BeschichtungAbholtage = "BeschichtungAbholtage";
+    /// <summary>v1.99.25 (Spec 2026-11-16-beschichtungslogik-je-standort): Choice Automatisch/Artikelkategorie/FaStruktur — wer HasCoatingParts schreibt
+    /// (<c>Services.Beschichtung.BeschichtungResolver.ResolveQuellen</c>).</summary>
+    public const string BeschichtungKennzeichenQuelle = "BeschichtungKennzeichenQuelle";
+    /// <summary>v1.99.25: Choice Automatisch/Berechnet/View — woher der Beschichtungstermin kommt (BeschichtungResolver).</summary>
+    public const string BeschichtungTerminQuelle = "BeschichtungTerminQuelle";
 
     // OSEON / Reporting
     public const string OseonReportingHorizonDays = "OseonReportingHorizonDays";

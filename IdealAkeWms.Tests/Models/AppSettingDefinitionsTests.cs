@@ -26,12 +26,14 @@ public class AppSettingDefinitionsTests
         ("FaHierarchyKommissionierlistenAktiv", "false"), ("FaHierarchyBeschichtungAktiv", "false"), ("FaHierarchyVormontageAktiv", "false"),
         ("FaHierarchyMaxTiefe", "500"),
         ("OseonAmpelGelbTage", "1"), ("OseonAmpelBlauTage", "2"), ("QrMitFaNummer", "false"), ("QrErstesFeld", "Artikelnummer"), ("QrTrennzeichen", ";"),
+        // v1.99.25 (Spec 2026-11-16-beschichtungslogik-je-standort): neue Keys mit Seed
+        ("BeschichtungKennzeichenQuelle", "Automatisch"), ("BeschichtungTerminQuelle", "Automatisch"),
     };
 
     [Fact]
     public void Seed_GleichDerFrueherenListe_AK2()
     {
-        FruehererSeed.Should().HaveCount(36);
+        FruehererSeed.Should().HaveCount(38);
         AppSettingDefinitions.SeedEintraege.Select(e => (e.Key, e.Value)).Should().BeEquivalentTo(FruehererSeed);
     }
 
@@ -39,7 +41,7 @@ public class AppSettingDefinitionsTests
     public void Katalog_EnthaeltJedenKeyGenauEinmal_MitPflichtangaben_AK1()
     {
         var all = AppSettingDefinitions.All;
-        all.Should().HaveCount(58);  // v1.99.20: +2 EinkaufAktiv, EinkaufOffeneBedarfe; v1.99.14: -1 SageSdataFaAnsichtAktiv (Gate entfaellt); v1.99.11: +1 WareneingangBarcodeAktiv; v1.79.0 F5: zwei Rueckmelde-Schalter entfernt; v1.84.0: +2 Wareneingang aus Sage-Bestellungen; v1.87.0: +1 FaPflichtBuchungsarten; v1.99.4: +1 WareneingangLieferscheinPflicht
+        all.Should().HaveCount(60);  // v1.99.25: +2 BeschichtungKennzeichenQuelle, BeschichtungTerminQuelle; v1.99.20: +2 EinkaufAktiv, EinkaufOffeneBedarfe; v1.99.14: -1 SageSdataFaAnsichtAktiv (Gate entfaellt); v1.99.11: +1 WareneingangBarcodeAktiv; v1.79.0 F5: zwei Rueckmelde-Schalter entfernt; v1.84.0: +2 Wareneingang aus Sage-Bestellungen; v1.87.0: +1 FaPflichtBuchungsarten; v1.99.4: +1 WareneingangLieferscheinPflicht
         all.Select(d => d.Key).Should().OnlyHaveUniqueItems();
         all.Should().OnlyContain(d => !string.IsNullOrWhiteSpace(d.Anzeigename) && !string.IsNullOrWhiteSpace(d.Description)
             && !string.IsNullOrWhiteSpace(d.Verwendung) && !string.IsNullOrWhiteSpace(d.Standort) && !string.IsNullOrWhiteSpace(d.Category));
@@ -60,5 +62,23 @@ public class AppSettingDefinitionsTests
         AppSettingDefinitions.TryGetWerte(AppSettingKeys.QrTrennzeichen, out var trenn).Should().BeTrue();
         trenn!.Select(w => w.Wert).Should().Equal(";", ",");
         AppSettingDefinitions.TryGetWerte(AppSettingKeys.BeschichtungAbholtage, out _).Should().BeFalse("MultiChoice ist kein Dropdown");
+    }
+
+    [Fact]
+    public void BeschichtungQuellen_AlsChoice_OhneSData_AK1_AK19()
+    {
+        AppSettingDefinitions.TryGetWerte(AppSettingKeys.BeschichtungKennzeichenQuelle, out var k).Should().BeTrue();
+        k!.Select(w => w.Wert).Should().Equal("Automatisch", "Artikelkategorie", "FaStruktur");
+        AppSettingDefinitions.TryGetWerte(AppSettingKeys.BeschichtungTerminQuelle, out var t).Should().BeTrue();
+        t!.Select(w => w.Wert).Should().Equal("Automatisch", "Berechnet", "View");
+        foreach (var key in new[] { AppSettingKeys.BeschichtungKennzeichenQuelle, AppSettingKeys.BeschichtungTerminQuelle })
+        {
+            AppSettingDefinitions.TryGet(key, out var d).Should().BeTrue();
+            (d!.DefaultValue, d.Seed, d.Standort, d.Category).Should().Be(("Automatisch", true, "beide", "Termine und Beschichtung"));
+        }
+        AppSettingDefinitions.TryGet(AppSettingKeys.BeschichtungKennzeichenQuelle, out var kd);
+        kd!.Warnhinweis.Should().NotBeNullOrWhiteSpace("Umschalten setzt „Beschichtung erledigt“ zurueck (ADR 0020)");
+        AppSettingDefinitions.TryGet(AppSettingKeys.LackierteilKategorieName, out var lack);
+        lack!.AbhaengigVon.Should().Be(AppSettingKeys.BeschichtungKennzeichenQuelle);
     }
 }

@@ -25,7 +25,7 @@ public class SettingsControllerQrErstesFeldTests
             new() { Key = AppSettingKeys.QrTrennzeichen, Value = "alt" },
         });
         var ctrl = new SettingsController(repo.Object, Mock.Of<IHolidayRepository>(), Mock.Of<ICurrentUserService>(), Mock.Of<IHolidayImportService>(),
-            Mock.Of<IArticleCategoryRepository>(), Mock.Of<IOrderRecipientRepository>(), Mock.Of<IStorageLocationRepository>(), Mock.Of<IOperationConfigRepository>())
+            Mock.Of<IArticleCategoryRepository>(), Mock.Of<IOrderRecipientRepository>(), Mock.Of<IStorageLocationRepository>(), Mock.Of<IOperationConfigRepository>(), Mock.Of<IServiceSettingRepository>())
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
         };

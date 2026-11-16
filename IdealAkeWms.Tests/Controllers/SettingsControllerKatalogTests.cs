@@ -29,7 +29,7 @@ public class SettingsControllerKatalogTests
         var holidays = new Mock<IHolidayRepository>();
         holidays.Setup(h => h.GetAllOrderedAsync()).ReturnsAsync(new List<Holiday>());
         var ctrl = new SettingsController(repo.Object, holidays.Object, Mock.Of<ICurrentUserService>(), Mock.Of<IHolidayImportService>(),
-            cats.Object, recipients.Object, locations.Object, ops.Object)
+            cats.Object, recipients.Object, locations.Object, ops.Object, Mock.Of<IServiceSettingRepository>())
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
         };
