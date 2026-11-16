@@ -1943,3 +1943,16 @@ Code: `hardware-scanner.js` Block „Scannen ohne Feld“, CSS `.hw-scan-bereit`
   speichert `/Settings` nichts, bis er korrigiert ist (Meldung nennt das Feld) – gleiches Muster wie die BDE-Pflichtregel.
 - **Offen (Spec, Rückfrage 19):** Das BomCache-Fenster lässt komm-erledigte WAs aus, die Erkennung prüft sie aber und setzt ohne Cache-Treffer
   `HasCoatingParts`/`IsCoatingDone` zurück – heutiges Verhalten, nicht gemessen.
+
+## 40. FA-Struktur IDEAL über SData (v1.99.26, [[2026-11-16-fa-struktur-ideal-ueber-sdata-spec]], ADR [[0029-fa-struktur-ideal-knoten-aus-sdata-fainfos-aus-view-hybrid]])
+
+- **SData mit `where` ohne `orderBy` → HTTP 500**, auch bei RealTimeData. **Warum:** Sage paginiert serverseitig nur sortiert. Seit v1.99.26
+  wirft `SageSdataReadClient.BuildUrl` vor dem Request eine `ArgumentException` – neue Abfragen immer mit `orderBy`.
+- **`PpsFaBelegeInfo` liefert beendete Haupt-FAs nicht** (FA 1059463), `dtsFaBelegsuche` schon. **Warum wichtig:** ohne Wurzel fehlt die
+  ganze Struktur bzw. die Stückliste live bleibt leer – deshalb Kopf über die Belegsuche.
+- **Ressourcenliste (Artikel) ≠ FA-Stückliste.** Artikel 80141025 hat 6 Ressourcen, FA 1059463 aber 13 Positionen (L12). Die Artikel-Ansicht
+  in „Stückliste live“ heißt deshalb „Ressourcenliste (Vorlage)“ – nie als FA-Stückliste lesen.
+- **RealTimeData im Dienst nur im Modus „Vergleich“** – Regel nur in `FaStrukturQuelleSwitch.RealTimeDataErlaubt`, Sperre des Umschaltens nur
+  in `SageQuelleSperre` lockern (P-FS3/DPS, Rückfragen 4/5). **Warum:** Blattfelder (Beschichtet, Maße, EKBedarf) haben in SData keine
+  Quelle; ein frühes Umschalten setzt `Beschichtet` an Blättern auf false und ändert die Beschichtungslogik.
+

@@ -324,7 +324,7 @@ Quellen-Weiche je Abgleich: [[0019-quellen-weiche-view-sdata-je-abgleich]]. Ordn
 | Lagerplätze | `ISageLagerplatzReader` | `SageLagerplatzReader` | `SdataLagerplatzReader` | `LagerplatzQuelleSwitch` / `Sync:Quelle:Lagerplaetze` |
 | Lagerbestand | `ISageBestandReader` | `SageBestandReader` | `SdataBestandReader` | `BestandQuelleSwitch` / `Sync:Quelle:Lagerbestand` |
 | Artikel | `ISageArtikelReader` (neu, aus `SageImportService`) | `SageArtikelReader` | `SdataArtikelReader` | `ArtikelQuelleSwitch` (gesperrt P-R1) / `Sync:Quelle:Artikel` |
-| FA-Struktur | `ISageFaStrukturReader` (neu, aus `FaHierarchySyncService`) | `SageFaStrukturReader` | `SdataFaStrukturReader` (Kanten + Positionen) | `FaStrukturQuelleSwitch` (gesperrt P-F2) / `Sync:Quelle:FaStruktur` |
+| FA-Struktur | `ISageFaStrukturReader` (neu, aus `FaHierarchySyncService`) | `SageFaStrukturReader` | `SdataFaStrukturReader` (Kanten + Positionen; seit v1.99.26 Knotenfelder `FelderSetzen`, Köpfe `FaKoepfeLesenAsync` über `dtsFaBelegsuche`) | `FaStrukturQuelleSwitch` (Hybrid `HybridAsync`, RealTimeData nur im Vergleich `RealTimeDataErlaubt`; Umschalten gesperrt bis P-FS3, `SageQuelleSperre`) / `Sync:Quelle:FaStruktur` |
 | Werkbank + Arbeitsgang | `ISageArbeitsplatzReader` | `SageArbeitsplatzReader` | `SdataArbeitsplatzReader` | `ArbeitsplatzQuelleSwitch` / `Sync:Quelle:Arbeitsplaetze` |
 | Lagerbuchungs-Lookup | `ISageBuchungLookupReader` | `SageBuchungLookupReader` | `SdataBuchungLookupReader` | `BuchungLookupQuelleSwitch` / `Sync:Quelle:LagerbuchungLookup` |
 

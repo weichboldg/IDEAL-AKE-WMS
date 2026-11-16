@@ -1478,3 +1478,10 @@ parallelen `main`-Änderungen zusammengeführt hat.
 4. **TS-106.12.e** mit Kreditor C = Sage-Name1 (+Name2) (z. B. `"carlo" Loysch GmbH`): Warnung „1 moegliche Dublette(n) …“ mit WMS-Id und `K31013`.
 5. Beim späteren Entsperren von SData an IDEAL (P-R1): prüfen, dass `PpsRessourcenPositionenInfo` dort nicht leer ist (H2).
 6. Danach die übrigen Punkte der vorigen Listen, Brain-Änderungen committen, Merge (Schranke 2).
+
+## Nachtrag 2026-11-16: G11 für Knotenfelder überholt
+
+G11 (Knotenfelder nicht aus SData) ist für die Knotenfelder überholt durch [[2026-11-16-fa-struktur-ideal-ueber-sdata-spec]] und ADR
+[[0029-fa-struktur-ideal-knoten-aus-sdata-fainfos-aus-view-hybrid]]: FA-Köpfe über `dtsFaBelegsuche`, Blätter über Artikel. FAInfos bleibt View;
+Umschalten bleibt gesperrt (P-FS3). P-F2 gilt weiter für das Umschalten.
+

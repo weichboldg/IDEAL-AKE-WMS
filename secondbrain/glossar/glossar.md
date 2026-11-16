@@ -184,3 +184,12 @@ Kommissionierwagen, Sage-Wareneingangsbeleg (ELL), Rahmenabruf (EBZ), Kreditor/D
 | Kennzeichen-Quelle | AppSetting `BeschichtungKennzeichenQuelle`: woher „beschichtet“ kommt – `Artikelkategorie` (AKE: Kategorie `LackierteilKategorieName` über BomCache) oder `FaStruktur` (IDEAL: `FaHierarchyNode.Beschichtet`). [[0028-beschichtungsquelle-je-achse-ueber-appsettings-mit-automatisch]] |
 | Termin-Quelle | AppSetting `BeschichtungTerminQuelle`: `Berechnet` (Vorkommissioniertermin minus Beschichtungstage, auf Abholtag) oder `View` (`Start_Beschichtung` aus FAInfos, unverändert). |
 | Automatisch (Beschichtungsquelle) | Default beider Quellen: folgt dem Master `ProduktionsauftragHierarchisch` (flach = Artikelkategorie/Berechnet, hierarchisch = FaStruktur/View). |
+
+## Ergaenzungen 2026-11-16 (FA-Struktur über SData, v1.99.26)
+
+| Begriff | Bedeutung |
+|---|---|
+| Ressourcenliste (Vorlage) | Stückliste eines **Artikels** in Sage (Ressourcen), Vorlage für neue FAs. Nicht gleich der FA-Stückliste: ein FA kann mehr oder andere Positionen haben. Anzeige in „Stückliste live“ im Artikel-Modus. [[0029-fa-struktur-ideal-knoten-aus-sdata-fainfos-aus-view-hybrid]] |
+| FA-Stückliste | Positionen eines konkreten Fertigungsauftrags (Belegpositionen). Im FA-Modus von „Stückliste live“, seit v1.99.26 auch für beendete Haupt-FAs. |
+| Hybrid (FA-Struktur) | Modus SData an der IDEAL: Knoten und Knotenfelder aus SData, FAInfos aus der View. Gebaut, bis P-FS3 gesperrt. |
+

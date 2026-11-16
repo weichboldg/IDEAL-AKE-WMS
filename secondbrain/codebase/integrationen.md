@@ -213,7 +213,8 @@ werden asynchron ueber eine Queue an die Sage-SData-REST-API gemeldet. Details:
 
 `SageSdataReadClient` (Web, typed HttpClient, Timeout 20 s) liest per `GET {SData:BaseUrl}/sdata/{SData:Application}/RealTimeData/{SData:Dataset}/…`
 die Quellen `dtsFaBelegsuche`, `dtsTeileverwendungsnachweis`, `dtsRueckKorrektur`, `dtsFertigmeldungen` — nur Anzeige, keine
-Persistenz. Contract `RealTimeData` ist Konstante (nicht `SData:ServiceContract`, der gehört der Lagerbuchung). Zugang aus
+Persistenz. **Seit v1.99.26** liest auch der Dienst `dtsFaBelegsuche` (FA-Köpfe, `USER_OS*`) – nur lesend und nur im Modus „Vergleich“
+von `Sync:Quelle:FaStruktur` ([[0029-fa-struktur-ideal-knoten-aus-sdata-fainfos-aus-view-hybrid]]); jede Abfrage mit `where` braucht `orderBy`. Contract `RealTimeData` ist Konstante (nicht `SData:ServiceContract`, der gehört der Lagerbuchung). Zugang aus
 `SageLagerbuchung:Username/Password` der **Web**-Konfiguration (`appsettings.Production.json` auf dem Server, nicht im Repo).
 TLS-Schalter `SageLagerbuchungSslZertifikatPruefen` gilt für beide SData-Clients; im Web reist er je Anfrage in
 `HttpRequestMessage.Options`. Spec [[2026-10-30-sage-sdata-fa-ansicht-spec]].
