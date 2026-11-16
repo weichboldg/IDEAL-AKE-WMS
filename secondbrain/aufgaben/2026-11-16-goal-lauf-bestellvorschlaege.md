@@ -1,6 +1,6 @@
 ---
 type: aufgabe
-status: offen
+status: erledigt
 created: 2026-11-16
 quelle: Gerald, Chat 2026-11-16 (/goal + Dev-Lauf-Auftrag)
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
@@ -23,7 +23,7 @@ Restfragen aus dem Rumpf-Nachzug: R1 (Artikelinfo-Link nur mit `stammdaten_lesen
 
 | Spec | Typ | SQL | Version | Status | Commits | Blocker |
 |---|---|---|---|---|---|---|
-| [[2026-11-16-bestellvorschlaege-nachbesserung-spec]] | Epic | 155 | 1.99.30 | InUmsetzung | – | E7/E8 nur Ersatzlösung bis P-N1..P-N9 |
+| [[2026-11-16-bestellvorschlaege-nachbesserung-spec]] | Epic | 155 | 1.99.30 | **Testbereit** (qa-agent) | `223d7015`…`fd9f49db`, QA-Fix `54f04740` | E8 Blocker P-N6/P-N9; E7 Ersatzlösung bis P-N1..P-N4/P-N7; QA Q2 (Kommissionierwagen doppelt, P-N8) zur Entscheidung |
 
 ## Protokoll
 
@@ -37,3 +37,12 @@ Restfragen aus dem Rumpf-Nachzug: R1 (Artikelinfo-Link nur mit `stammdaten_lesen
 - 2026-11-16: E7 erledigt als Ersatzlösung (`4a580fc5`): `PositionRechenbar` (Basis = Lager trotz EinheitAbweichend → eingerechnet), `BasisNichtLager` sperrt letzte Bestellmenge und Sage-Bestellmenge bei Basis ≠ Lager oder UmrechnungsFaktorLME ≠ 1 (BV-1), Zeilenhinweise + Banner nur noch nicht umrechenbare. Abweichung: kein eigener Helper `Einheiten.InLager` – die Ersatzregel ist ein Gleichheits-Check, zwei statische Methoden am Controller neben `EinheitWeichtAb` reichen; der Helper kommt mit der ersten echten Umrechnung. **Blocker P-N1/P-N2/P-N3/P-N4/P-N7** (alle offen) für die Umrechnung über Einheitengrenzen. MBM-Wächter unverändert (P-N2). Web-Suite 2997 grün.
 - 2026-11-16: E8 übersprungen – **Blocker P-N6/P-N9** (kein belegter Leseweg für EK-Rahmenverträge); nichts gebaut, SQL/156 unverbraucht. Lieferant-Kaskade `WaehleLieferant` hat die Stelle für die Rahmenvertrag-Stufe kommentiert.
 - 2026-11-16 E9 Abschluss: fd9f49db (wip feature-complete), Web 2997 gruen/1 uebersprungen, Service 675 gruen, Migrationstest . gruen; Brain: Changelog, feature-map, Testindex TS-154, services.md, datenmodell.md, fallstricke §37, Spec-Deploy-Abgleich. Offen: qa-agent, Info-Manifest-Eintraege.
+
+## Abschluss (2026-11-16)
+
+Spec **Testbereit** (qa-agent). Worktree-HEAD `54f04740`, v1.99.30, SQL/155, TS-154. Tests Web 2997/0/1, Dienst 675/0/0. DEV AKE+IDEAL
+v1.99.30, Migration auf beiden. Publish `<Worktree>\publish\` (publish-info: 1.99.30, `54f04740`); alte `publish\deploy.zip` nicht verwenden.
+
+Offen für Gerald: Q2 (Bestand im Kommissionierwagen fehlt im Listen-Bestand, FA-Rest sinkt erst bei Ausbuchung → Liste schlägt zu viel vor;
+Lösung a: FA-bezogene Umbuchung in Wagen mindert Rest, b: Liste zählt Wagenbestand wie Artikelinfo); P-N1..P-N9; Till: Mengenregel A und
+Grenzfall E5 (TS-154.6); R1 Recht Einkauf auf Artikelinfo; Lager/Produktion über geänderte Artikelinfo informieren; Manual-Checkliste in der Spec.

@@ -2,7 +2,7 @@
 type: spec
 title: Bestellvorschläge – Nachbesserung (Laufzeit, FA-Bedarfe, Mengenregel, Einheiten, Dringlichkeit, Rahmenverträge)
 slug: 2026-11-16-bestellvorschlaege-nachbesserung-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-11-16
 updated: 2026-11-16
 source_backlog: "[[2026-11-13-bestellvorschlaege-nachbesserung]]"
@@ -730,6 +730,22 @@ SData-Abfragen über die bekannte Basis-URL des AKE-Test (wie in [[sage-sdata-ap
 - Kein SQL/156 (E8 übersprungen). Web und Dienst geändert, wie oben.
 - Migrationstest auf `.`: FreshInstall + SQL/155 zweimal grün, DB gelöscht.
 
+**Endgültig (QA 2026-11-16, gegen den echten Diff `5064fb0f..54f04740`):**
+
+- `deploy.web: true` (IdealAkeWms/: Controller, Rechner, `PlannedConsumptionService`, Repositories, Views, Hilfe, Changelog),
+  `deploy.service: true` (IDEALAKEWMSService/: `LetzteBestellungSyncService`, `SyncWorker`, `Program.cs`),
+  `deploy.migration: true` (neu `IdealAkeWms/Migrations/20261116190709_AddArticleLastOrderUnassigned.cs` + `SQL/155`).
+- Manifest vollständig: `SQL/155` plus die zwei Info-Einträge `v1.99.30-LetzteBestellungUhrzeiten` und `v1.99.30-ArtikelinfoBedarfe`
+  (QA-Fix-Commit `54f04740`, ASCII, `NachlaufManifestDriftTests` grün).
+- Reihenfolge auf dem Zielsystem: 1. DB-Backup, 2. Dienst stoppen, 3. Web + `SQL/155` (bzw. Migration beim ersten Request; additiv, nicht
+  daten-destruktiv), 4. Dienst aus **demselben** Stand starten (er schreibt in `ArticleLastOrdersUnassigned`), 5. Info-Einträge zeigen.
+  Kein Einmal-Skript.
+- Publish fertig: `C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish\` (IDEALAKEWMSWeb + IDEALAKEWMSWebService +
+  SQL + deploy), Version **1.99.30**, Commit `54f0474076aac353ca07fbfb05b71b910acda6b4` (`publish-info.txt`). Die alte `publish\deploy.zip`
+  ist veraltet und **nicht** zu verwenden.
+- Beide Komponenten deployen (Web und Dienst).
+- Nach dem Merge nur dann neu aus `main` publishen, wenn der Merge getestete Dateien mit parallelen main-Änderungen zusammengeführt hat.
+
 ## Nachtrag 2026-11-16 19:49 (Gerald, Koordination) – Artikelnummer, Matchcode, Link zur Artikelinfo
 
 **Anforderung Gerald:** In der Liste Bestellvorschläge Artikelnummer **und Matchcode** anzeigen und die Artikelnummer zu den Artikeldetails
@@ -801,3 +817,170 @@ berechnet (FA-/Stücklistendaten aus dem Sage-Abgleich, Logik wie Artikelinfo). 
 6. Dringlichkeit: alle offenen Bestellungen oder nur Liefertermin ≤ heute + WBZ? → **Gerald 2026-11-16 19:49 „passt“ (Koordination, abweichend vom spec-agent): nur offene Bestellungen mit Liefertermin ≤ heute + WBZ (Liefertermin aus dem Cache SagePurchaseOrderLines, wie Lieferverzug-Mail) – Tills Fall EK023973.**
 7. Artikelinfo: nur umstellen oder Regeln auch dort? → **Gerald 2026-11-16 19:49 „gerne noch adaptieren“: dieselbe Regel auch in der Artikelinfo (nur einmal abziehen, Rest kommissionierter FAs) – Liste und Artikelinfo zeigen dieselben Bedarfe (Nachtrag 19:49: Link aus der Liste). Sichtbare Änderung für Lager/Produktion im Changelog nennen.**
 8. Rahmenvertrag: Lieferant-Vorrang + Hinweis oder auch Mengenquelle? → **Gerald 2026-11-16 19:49 „passt“ (Empfehlung Koordination): Lieferant des offenen Rahmenvertrags hat Vorrang, Restmenge nur Hinweis; mit Till bestätigen.**
+
+## QA-Nachweis (qa-agent, 2026-11-16)
+
+Geprüft: Commit-Bereich `5064fb0f..fd9f49db` (E1–E7, E9), QA-Fix `54f04740`. Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`.
+Ergebnis: **Testbereit**. E8 übersprungen (Blocker P-N6/P-N9, kein QA-Fehler). E7 ist eine Ersatzlösung (P-N1–P-N4, P-N7 offen).
+
+### 1. Build und Tests (HEAD `54f04740`, nach dem QA-Fix wiederholt)
+
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler, 28 Warnungen (alle vorbestehend).
+- `IdealAkeWms.Tests`: 2997 bestanden, 1 übersprungen, 0 Fehler (2998).
+- `IDEALAKEWMSService.Tests`: 675 bestanden, 0 Fehler.
+- Dieselben Zahlen schon auf `fd9f49db`.
+
+### 2. Code-Review (selbst, in diesem Lauf)
+
+Gelesen: der Diff aller Etappen und der umgebende Code von `PlannedConsumptionService`, `StockMovementRepository.GetAusbuchungenJeFaAsync`,
+`BomCacheRepository`/`FaHierarchyBomRepository`/`BomRepositoryMasterSwitch` (Listen-Variante), `PurchaseProposalRepository`,
+`PurchaseProposalsController` (BaueZeilen, WaehleLieferant, BasisNichtLager, PositionRechenbar, ColumnMap), `PurchaseProposalCalculator`,
+`ArticlesController.Info` + `ArticleInfoViewModel` + `Info.cshtml`, `Index.cshtml`, `ColumnDefinitions`, `ColumnFilterSyntax`,
+`ServiceSettingDefinitions`, `SyncLogServices`, `LetzteBestellungSyncService`, `SyncWorker`, Dienst-`Program.cs`, Migration, SQL/155,
+FreshInstall (Schema Z. 2308ff, MigrationId Z. 3302ff).
+
+Bestätigt:
+
+- Die Bedarfsregel steht an **einem** Ort (`PlannedConsumptionService`). Liste und Artikelinfo rufen ihn beide auf.
+- Die max-Regel ist umgesetzt: je FA `max(Rest, Bedarfsmeldungen)`, je Artikel `max(FA-Teil, Lagerbestellungen)`.
+- Der FA-Rest zieht nur `MovementType.Ausbuchung` ab.
+- Das Dringlichkeitsfenster ist heute + WBZ. Offene Positionen zählen nur mit Liefertermin ≤ Grenze.
+- Mengenregel A ist umgesetzt. MBM wird nur bei `MindestmengeVergleichbar` angewandt, es wird nie Faktor 1 geraten.
+- Die Laufzeiten sind 3/12 Uhr, ein verpasster Termin wird nachgeholt (Planer-Theorien).
+- Für die zwei neuen Keys gibt es Katalog, Meta und IntMeta 0–23. Die Drift-Tests sind grün.
+- Das Aktivitätsprotokoll ist da: Dienst `LetzteBestellung` steht in `SyncLogServices`, die Counts-Keys sind deutsch, der ISyncLogger ist der letzte Ctor-Parameter.
+- Die neuen Spalten haben `data-col-key` und einen serverseitigen Filter (`matchcode`, `naechster-bedarf` D, `fa-bedarf` N).
+- Der Artikelinfo-Link erscheint nur bei `HasMasterDataReadAccessAsync` (R1).
+- `returnUrl` wird nur bei `Url.IsLocalUrl` übernommen.
+- Kein `@Html.Raw` in Skripten, kein `hidden` zusammen mit `d-*`.
+
+Befunde:
+
+| # | Schwere | Befund | Behandlung |
+|---|---|---|---|
+| Q1 | Niedrig | Die zwei Info-Einträge im Manifest `scripts/deploy/nachlauf.psd1` fehlten (Spec-Deploy-Abschnitt). | **Behoben** in `54f04740` (Ids auf 1.99.30, ASCII, 131 Einträge parsebar, Deploy-/Nachlauf-Tests 19/19 grün). |
+| Q2 | Mittel | **Kommissionierwagen:** Die Liste zählt Bestand ohne Kommissionierwagen (`StockMovementRepository.cs:400-435`, `!IsPickingTransport`). Kommissionieren ist auf AKE eine Umbuchung in den Wagen (DEV: 126 Umbuchungen mit FA-Bezug in einen Wagen, 498 Stk; Ausbuchung aus dem Wagen 7×/36). Der FA-Rest zieht nur Ausbuchungen ab. Eine Menge, die im Wagen liegt, fehlt deshalb im Listen-Bestand **und** steckt noch im FA-Rest. Sie wird also doppelt gezählt. Die Artikelinfo rechnet den Wagen in den Gesamtbestand ein. Beide zeigen dieselben **Bedarfe** (AK 7 erfüllt), aber der „verfügbare Bestand“ weicht um den Wagenbestand ab. Beispiel 00730607: Artikelinfo 45171, Liste 45143, Differenz 28 = Wagen 2 (4) + WAGEN N3 (24). Der Infotext „kommissionierte Mengen sind schon ausgebucht“ stimmt für den AKE-Ablauf nur, nachdem aus dem Wagen ausgebucht wurde. Die Wirkung ist konservativ: die Liste schlägt eher zu viel vor. | **Offen, nicht gefixt:** Das ist eine fachliche Entscheidung und gehört zu P-N8 („bis P-N8 nur Ausbuchung“). Gerald entscheidet: (a) Umbuchung in einen Kommissionierwagen mit FA-Bezug mindert den Rest, oder (b) der Listen-Bestand zählt den Wagen mit, wie die Artikelinfo. Steht in der Checkliste. |
+| Q3 | Niedrig, vorbestehend | `BasisNichtLager` liefert `null`, wenn SageDetail fehlt oder eine Einheit leer ist. Dann wird L ohne Einheitenprüfung verwendet. Die Zeile zeigt aber sichtbar „Sage-Zusatzfelder fehlen“. AKE DEV: 5 von 2814 Meldebestand-Artikeln ohne Detail, 0 mit leerer Einheit. | Nicht gefixt (sichtbar gemeldet, kein stiller Fallback). Nach P-N1/P-N7 mit der Umrechnung schärfen. |
+| Q4 | Hinweis | `MindestmengeVergleichbar` verlangt Faktor == 1. Bei leerem Faktor ist das strenger als die Spec („leer oder 1“). | Kein Fehler: es wird nie geraten, die Zeile bekommt den Hinweis „MBM nicht umrechenbar“. |
+| Q5 | Hinweis | AppSetting-Änderungen (z. B. `EinkaufOffeneBedarfe`) wirken erst nach Ablauf des Caches bzw. nach einem App-Pool-Recycle. | Vorbestehendes Cache-Verhalten, kein Befund dieser Spec. |
+
+Ponytail/Over-Engineering: keine Auffälligkeit. Die Listen-BOM-Methode ersetzt zwei Einzelmethoden, statt eine dritte zu bauen.
+
+### 3. Beweisart je AK
+
+| AK | Beweis |
+|---|---|
+| 1 | Automatisch (`KontokorrentArtikelLieferantTests`: `EinkaufPositionenAllInfo` Times.Never, Counts ohne letzte Bestellung) |
+| 2 | Teilweise automatisch (Planer). Dienst-Neustart auf DEV: **Manual-UAT** (Gate `Sync:ArtikelLieferantEnabled` auf DEV aus) |
+| 3 | Automatisch (Planer-Theorien: Nacht, Mittag, Mitternacht, gleich, kein Lauf) |
+| 4 | Automatisch für die Ablehnung von 24 (generischer `SettingValidator`/IntMeta). Die Auswahl 0–23 und die Texte sind auf DEV gerendert gesehen. Das Speichern von 24 im Browser ist **Manual-UAT** |
+| 5 | Automatisch (MengeBasis ≤ 0 übersprungen). EK023626 auf DEV: **Manual-UAT** (Lauf aus) |
+| 6 | Automatisch (E2-Tests). DEV 00394205: Hinweis mit Kto K30029 sichtbar |
+| 7 / 7a | Automatisch (PlannedConsumptionServiceTests, ArticlesControllerTests) + DEV-Stichprobe AKE 00730607 und IDEAL 50000292/50001003 (gleiche Bedarfe). EK023973 fehlt in AKE_WMS_DEV |
+| 8, 9, 10 | Automatisch + DEV mit Testdaten (siehe 6c) |
+| 11 / 11a | Automatisch (E5-Tests). DEV: EK014367 „kritisch“ mit Lagerbestellung |
+| 12 | Automatisch für den Filterschlüssel. Serverfilter im Browser: **Manual-UAT** |
+| 13 | Automatisch (CalculatorTests). DEV EK000051 MBM 300, EK015744 L 40 |
+| 14–17 | Automatisch (E7-Tests, je Fall). DEV EK005564/EK014367/EK003604 Hinweise sichtbar. Die Umrechnung über Einheitengrenzen ist Blocker |
+| 18 | Automatisch (Kaskade). EK023973 auf DEV nicht vorhanden: **Manual-UAT** auf dem Testsystem |
+| 19 | Blocker E8, nicht gebaut |
+| 20, 20c | Automatisch (Filter/Link-Flag). Fremde Rolle im Browser: **Manual-UAT** |
+| 20a | Matchcode-Spalte und Filter auf DEV OK. Zahnrad/CSV: **Manual-UAT** |
+| 20b | DEV OK (Rücksprung mit derselben Query). Externe returnUrl per HTTP geprüft (siehe 6c) |
+| 20d | DEV-Changelog geprüft |
+| 21 | Automatisch, grün |
+
+Nicht als grün gezählt: alles, was echtes Model-Binding, Browser-JS, Sage-Reads oder einen Dienstlauf braucht (oben als Manual-UAT markiert).
+
+### 4. Geänderte bestehende Tests
+
+- **Nur Typänderung (Compile-Fix):** `ArticlesControllerTests`, `ArtikelinfoLieferantenTests`, `BomCacheRepositoryTests`,
+  `BomRepositoryMasterSwitchTests`, `FaHierarchyBomRepositoryTests`, `PurchaseOrdersReceiveTests` (ein Record-Feld mehr),
+  `NachlaufManifestDriftTests` (Eintrag SQL/155).
+- **Verhalten absichtlich geändert:**
+  - `PurchaseProposalCalculatorTests`: Mengenregel A (AK 13)
+  - `PurchaseProposalsControllerTests`: max-Regel, 97 statt 95 (AK 9); 26 statt 25 (AK 13); Hinweistexte (AK 6/17); Lieferant-Hinweis (F8)
+  - `KontokorrentArtikelLieferantTests`: eigener Lauf (AK 1), Counts-Keys, Schreiber „LetzteBestellung“
+- **Sonstiges:** keine.
+
+### 5. CLAUDE.md-Checkliste / ADR 0020
+
+- Migration + idempotentes `SQL/155` (OBJECT_ID-Guard, History-Insert in eigenem Batch) und FreshInstall an beiden Stellen: OK.
+  SQL/155 lief auf beiden DEV-DBs ein zweites Mal mit „existiert bereits“, Exit 0.
+- Audit: `ArticleLastOrderUnassigned` mit Audit, Schreiber „LetzteBestellung“: OK.
+- Version 1.99.30 in beiden `AppVersion.cs`, Anwender-Changelog + Brain-Changelog: OK.
+- TS-154 in `docs/TESTSZENARIEN.md` (154.1–154.13) und Indexzeile in [[testszenarien-index]]: OK.
+- ADR 0020 für `Sync:LetzteBestellungUhrzeitNacht/-Mittag`: Auswahl 0–23 („Uhr“), Server validiert, Anzeigename/Wirkung/Verwendung/Default/
+  Standort vorhanden (DEV /ServiceSettings gerendert). Hinweis auf Laufzeit und wartende Läufe im Text. `EinkaufOffeneBedarfe`: nur die
+  Beschreibung ist geändert. OK.
+
+### 6. DEV-Deploy und TS-154
+
+**a/b Deploy** (elevated, `dev-deploy.ps1`, Web + Dienst):
+
+- Erster Deploy von `fd9f49db`: AKE und IDEAL je Exit 0, Fußzeile v1.99.30.
+- Redeploy von `54f04740`: AKE Exit 0, „Fertig: AKE v1.99.30“; IDEAL Exit 0, „Fertig: IDEAL v1.99.30“.
+- Beide DEV-DBs stehen auf Migration `20261116190709_AddArticleLastOrderUnassigned`.
+- `standort: beide` laut Frontmatter.
+
+**Performance AKE DEV** (Invoke-WebRequest; ein Vorher-Wert ist nicht mehr messbar, weil die Vorversion überschrieben ist):
+
+- `/PurchaseProposals?umfang=alle` mit 2814 Artikeln: 539 / 440 / 366 ms.
+- `/Articles/Info?articleNumber=00730607`: 512 / 268 ms.
+- IDEAL hierarchisch: Liste 3,2 s beim ersten Aufruf nach dem Recycle, danach 0,2 s; Artikelinfo 645 / 102 ms.
+
+**c TS-154 je Schritt:**
+
+| Schritt | Ergebnis | Status |
+|---|---|---|
+| 154.1–154.3 Lauf „Letzte Bestellung“, Neustart, Basismenge 0 | DEV-Sicherheit: `Sync:ArtikelLieferantEnabled=false` (Gate), darf nicht eingeschaltet werden | NICHT MÖGLICH |
+| 154.4 FA-Bedarf + Doppelzählung | 00730607: FA-Bedarf 225, verfügbar = Bestand − 225. Mit Testdaten: Lagerbestellung 300 + Bedarfsmeldung 100 zu FA 2638001 (Rest 80) → angerechnet 300 (Liste und Artikelinfo gleich). LB 100 + BM 100 → 245. Teil-Ausbuchung 30 mit FA → Rest 195. Einbuchung 50 mit FA → Rest unverändert. `EinkaufOffeneBedarfe` leer → „nicht gezählt (Einstellung)“, angerechnet 225 (erst nach App-Pool-Recycle, Q5). Testdaten und Einstellung wieder entfernt (sqlcmd-Zählung 0) | OK |
+| 154.5 EK023973 Dringlichkeit | Artikel fehlt in AKE_WMS_DEV. Ersatz EK014367 + Lagerbestellung 1 kg → „kritisch“, verfügbar −1 (Testdaten entfernt) | NICHT MÖGLICH (Ersatz OK) |
+| 154.6 Abgleich mit Till | Mensch | NICHT MÖGLICH |
+| 154.7 Mengenregel | EK000051 MBM 300, EK015744 L 40, EK007623 MBM 5, 00394205 Vorschlag 51 | OK |
+| 154.8 Einheiten-Hinweise | EK005564 (5 Positionen lfm≠Stk nicht gezählt, Hinweis), EK014367 (Stk→kg Hinweis, MBM 10 kg), EK003604 (Stk→PKG, letzte Menge nicht verwendet). Banner zählt 16 nicht umrechenbare Positionen | OK (Ersatzlösung) |
+| 154.9 Rahmenvertrag | E8 Blocker | NICHT MÖGLICH |
+| 154.10 Einstellungen /ServiceSettings | Beide Uhrzeiten mit Text, Default 3/12, Standort beide gerendert. Speichern von 24 nicht im Browser geprüft | OK (24: offen) |
+| 154.11 Matchcode-Spalte/Filter | `colf_matchcode=Blindniete` filtert serverseitig. Zahnrad/CSV nicht geklickt | OK (Zahnrad/CSV offen) |
+| 154.11a Link + Zurück | Klick auf 00730607 → Artikelinfo mit Knopf „Zurück zu Bestellvorschlägen“. Zurück → genau `?umfang=alle&colf_matchcode=Blindniete&lieferant=K31705` | OK |
+| 154.11b externe returnUrl | `https://example.com`, `//example.com`, `/\example.com` → kein Knopf, kein Hidden-Feld. Lokal → Knopf | OK |
+| 154.12 Artikelinfo-Aufschlüsselung | AKE 00730607: FA-Bedarf (Rest) 225 = Liste 225, FA-Tabelle mit Spalte „Rest“. IDEAL hierarchisch 50000292 / 50001003: Artikelinfo 38 / 15 = Liste 38 / 15. Vorschlag 40 / 15 nach Regel A. Für den Vergleich `EinkaufAktiv` und `ReorderLevel=1` auf IDEAL_WMS_DEV kurz gesetzt und danach zurückgesetzt (Zählung 0). Verfügbar-Abweichung durch Wagenbestand siehe Q2 | OK (mit Q2) |
+| 154.13 Hilfe + Changelog | Changelog 1.99.30 mit FA-Bedarf/Dringlichkeit/Mengenregel und Artikelinfo-Hinweis; Hilfe nennt FA-Bedarf/Nächster Bedarf/Letzte Bestellung | OK |
+
+`pageSize=10` wird bewusst ignoriert (erlaubt sind nur 25/50/100/Alle, `PageSize.AllowedOptions`). Kein Befund.
+
+**DEV-Datenlage P-N8 (AKE, Bewegungen mit FA-Bezug):**
+
+| Bewegungsart | Ziel/Quelle | Anzahl | Menge |
+|---|---|---|---|
+| Einbuchung | – | 14 | 28 |
+| Ausbuchung | aus Lager | 1 | 1 |
+| Ausbuchung | aus Wagen | 7 | 36 |
+| Umbuchung | Lager → Lager | 8 | 22 |
+| Umbuchung | Lager → Wagen | 126 | 498 |
+
+Grundlage für Q2.
+
+### 7. Publish
+
+`C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish\` neu erzeugt. Die Zielordner wurden vorher geleert.
+
+- `publish-info.txt`: Version 1.99.30, Commit `54f0474076aac353ca07fbfb05b71b910acda6b4`, Erstellt 2026-11-16 21:24.
+- Beide DLLs tragen `+54f04740…`.
+- `SQL\` und `deploy\` (mit `Update-IdealAkeWms.ps1`) sind kopiert.
+- `deploy.zip` ist alt: nicht verwenden.
+
+## Manuelle Test-Checkliste (Mensch, offen)
+
+1. **Q2 entscheiden** (P-N8): Soll eine Umbuchung in einen Kommissionierwagen mit FA-Bezug den FA-Rest mindern, oder soll die Liste den
+   Wagenbestand wie die Artikelinfo mitzählen? Bis dahin schlägt die Liste bei Ware im Wagen eher zu viel vor.
+2. Testsystem: Dienst mit `Sync:ArtikelLieferantEnabled=true`. Lauf „Letzte Bestellung (Einkauf)“ im Aktivitätsprotokoll zu 3/12 Uhr. Neustart
+   nach dem Lauf → kein zweiter Lauf. Neustart nach einem verpassten Termin → genau ein Lauf (TS-154.1/154.2).
+3. Testsystem: EK023626 mit Basismenge 0 wird nicht letzte Bestellung (TS-154.3). `ArticleLastOrdersUnassigned` ist gefüllt.
+4. Testsystem: EK023973 mit Dringlichkeit (Bedarf nach heute + WBZ → „Nachbestellen“), Lieferant bzw. Hinweis „Kein Lieferant in Sage
+   hinterlegt“ (TS-154.5, AK 18).
+5. /ServiceSettings: 24 für eine Uhrzeit speichern → abgelehnt (AK 4).
+6. Bestellvorschläge: Matchcode im Zahnrad abwählen, CSV-Export enthält Matchcode; Spaltenfilter „Nächster Bedarf“ (AK 12, 20a).
+7. Benutzer ohne Stammdaten-Lesezugriff: Artikelnummer ohne Link. Fremde Rolle: /PurchaseProposals verweigert (AK 20, 20c).
+8. Abgleich mit Till an seinen Artikeln (TS-154.6). Prüfabfragen P-N1–P-N9 offen, E7-Umrechnung und E8 Rahmenverträge hängen daran.
+9. Lager/Produktion über die geänderte Artikelinfo-Zahl informieren (Info-Eintrag im Manifest).
