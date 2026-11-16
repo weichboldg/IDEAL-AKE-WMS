@@ -80,7 +80,7 @@ public class UsersController : Controller
         var aktiv = users.Where(u => u.IsActive).OrderBy(u => u.Name).ToList();
         ViewBag.OhneKennwortLokal = aktiv.Where(u => string.IsNullOrEmpty(u.PasswordHash) && u.WindowsUserName == null).Select(u => u.Name).ToList();
         ViewBag.OhneKennwortAd = aktiv.Where(u => string.IsNullOrEmpty(u.PasswordHash) && u.WindowsUserName != null).Select(u => u.Name).ToList();
-        ViewBag.OffeneErstkennwoerter = aktiv.Where(u => u.MussKennwortAendern).Select(u => u.Name).ToList();
+        ViewBag.OffeneErstkennwoerter = aktiv.Where(u => u.MussKennwortAendern && !string.IsNullOrEmpty(u.PasswordHash)).Select(u => u.Name).ToList();
 
         // Server-Side-Spaltenfilter: vor der Pagination —
         // Filter muss ueber ALLE Eintraege wirken, nicht nur die aktuelle Seite.
@@ -101,7 +101,7 @@ public class UsersController : Controller
 
     public async Task<IActionResult> Create()
     {
-        var vm = new UserEditViewModel { IsActive = true, MussKennwortAendern = true };
+        var vm = new UserEditViewModel { IsActive = true };
         await PopulateRolesAsync(vm, new List<int>());
         return View(vm);
     }
@@ -139,7 +139,7 @@ public class UsersController : Controller
             CreatedByWindows = _currentUserService.GetWindowsUserName()
         };
 
-        var (erzeugt, kennwortWarnung) = ApplyPassword(user, vm, newPassword);
+        var (erzeugt, kennwortHinweis) = ApplyPassword(user, vm, newPassword);
 
         await _userRepository.AddAsync(user);
 
@@ -149,8 +149,8 @@ public class UsersController : Controller
             _currentUserService.GetDisplayName(),
             _currentUserService.GetWindowsUserName());
 
-        TempData["SuccessMessage"] = $"Benutzer '{user.Name}' wurde erfolgreich angelegt." + ErstkennwortText(erzeugt);
-        SetWarning(droppedTargets, kennwortWarnung);
+        TempData["SuccessMessage"] = $"Benutzer '{user.Name}' wurde erfolgreich angelegt." + ErstkennwortText(erzeugt) + kennwortHinweis;
+        SetWarning(droppedTargets);
         return RedirectToAction(nameof(Index));
     }
 
@@ -257,7 +257,7 @@ public class UsersController : Controller
             DefaultFilterArtikelgruppe = user.DefaultFilterArtikelgruppe,
             RecursiveFilterSearch = user.RecursiveFilterSearch,
             IsPicker = user.IsPicker,
-            MussKennwortAendern = user.MussKennwortAendern,
+            MussKennwortAendern = user.MussKennwortAendern && !string.IsNullOrEmpty(user.PasswordHash),
             DefaultPageSize = user.DefaultPageSize,
             DefaultWorkStepId = user.DefaultWorkStepId,
             DefaultWorkbenches = user.DefaultWorkbenches,
@@ -310,7 +310,7 @@ public class UsersController : Controller
         var (kommissionierziel, droppedTargets) = KommissionierzielFilterWert.Normalize(vm.DefaultFilterBomKommissionierziel);
         existing.DefaultFilterBomKommissionierziel = kommissionierziel;
 
-        var (erzeugt, kennwortWarnung) = ApplyPassword(existing, vm, newPassword);
+        var (erzeugt, kennwortHinweis) = ApplyPassword(existing, vm, newPassword);
 
         existing.ModifiedAt = DateTime.Now;
         existing.ModifiedBy = _currentUserService.GetDisplayName();
@@ -324,36 +324,37 @@ public class UsersController : Controller
             _currentUserService.GetDisplayName(),
             _currentUserService.GetWindowsUserName());
 
-        TempData["SuccessMessage"] = $"Benutzer '{existing.Name}' wurde erfolgreich gespeichert." + ErstkennwortText(erzeugt);
-        SetWarning(droppedTargets, kennwortWarnung);
+        TempData["SuccessMessage"] = $"Benutzer '{existing.Name}' wurde erfolgreich gespeichert." + ErstkennwortText(erzeugt) + kennwortHinweis;
+        SetWarning(droppedTargets);
         return RedirectToAction(nameof(Index));
     }
 
     /// <summary>Erstkennwort + Pflichtwechsel (ADR 0027, Regel P): „erzeugen“ hat Vorrang vor dem eingegebenen Feld; die Checkbox
     /// MussKennwortAendern ist massgeblich (Freigabe-Antwort 15, Geraetekonten ohne Haken). Liefert das erzeugte Kennwort (nur zur
-    /// einmaligen Anzeige, nie gespeichert/geloggt) und ggf. eine Warnung „Haken ohne Kennwort“.</summary>
-    private (string? Erzeugt, string? Warnung) ApplyPassword(User user, UserEditViewModel vm, string? newPassword)
+    /// einmaligen Anzeige, nie gespeichert/geloggt). Ohne gespeichertes Kennwort wird der Haken nie gespeichert (QA-Befund B-2, Gerald
+    /// 2026-11-16 19:02) – dann ein Hinweis fuer die Erfolgsmeldung.</summary>
+    private (string? Erzeugt, string Hinweis) ApplyPassword(User user, UserEditViewModel vm, string? newPassword)
     {
         var erzeugt = vm.ErstkennwortErzeugen ? _passwordService.GenerateInitialPassword() : null;
         var neu = erzeugt ?? newPassword;
         if (!string.IsNullOrEmpty(neu))
             user.PasswordHash = _passwordService.HashPassword(neu);
-        user.MussKennwortAendern = vm.MussKennwortAendern;
-        var warnung = vm.MussKennwortAendern && string.IsNullOrEmpty(user.PasswordHash)
-            ? "Haken gesetzt, aber kein Kennwort – der Benutzer kann sich im Formular erst nach dem Setzen eines Kennworts anmelden."
-            : null;
-        return (erzeugt, warnung);
+        var hatKennwort = !string.IsNullOrEmpty(user.PasswordHash);
+        user.MussKennwortAendern = vm.MussKennwortAendern && hatKennwort;
+        var hinweis = vm.MussKennwortAendern && !hatKennwort
+            ? " Hinweis: ohne Kennwort wird „Kennwort bei der nächsten Anmeldung ändern“ nicht gespeichert"
+              + (user.WindowsUserName != null ? " – der Benutzer meldet sich per Windows an." : " – ohne Kennwort ist keine Formular-Anmeldung möglich.")
+            : "";
+        return (erzeugt, hinweis);
     }
 
     private static string ErstkennwortText(string? erzeugt) => erzeugt == null ? "" :
         $" Erstkennwort: {erzeugt} – jetzt notieren und dem Benutzer geben; es wird nicht noch einmal angezeigt.";
 
-    private void SetWarning(bool droppedTargets, string? kennwortWarnung)
+    private void SetWarning(bool droppedTargets)
     {
-        var teile = new[] { droppedTargets ? "Alle Ziele schließt Einzelziele aus — gespeichert wurde nur 'Alle Ziele'." : null, kennwortWarnung }
-            .Where(t => t != null).ToList();
-        if (teile.Count > 0)
-            TempData["WarningMessage"] = string.Join(" ", teile);
+        if (droppedTargets)
+            TempData["WarningMessage"] = "Alle Ziele schließt Einzelziele aus — gespeichert wurde nur 'Alle Ziele'.";
     }
 
     [HttpPost]

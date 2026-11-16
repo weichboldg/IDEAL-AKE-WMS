@@ -81,13 +81,13 @@ public class ErstkennwortTests
 
     // ----- /Users (AK 7, 8b) -----
 
-    private static UsersController Users(Mock<IUserRepository> repo)
+    private static UsersController Users(Mock<IUserRepository> repo, Mock<IRoleRepository>? roles = null)
     {
         var currentUser = new Mock<ICurrentUserService>();
         currentUser.Setup(x => x.GetDisplayName()).Returns("admin");
         currentUser.Setup(x => x.GetWindowsUserName()).Returns("win-admin");
         currentUser.Setup(x => x.GetDefaultPageSizeAsync()).ReturnsAsync((int?)null);
-        var ctrl = new UsersController(repo.Object, new Mock<IRoleRepository>().Object, currentUser.Object, Pw,
+        var ctrl = new UsersController(repo.Object, (roles ?? new Mock<IRoleRepository>()).Object, currentUser.Object, Pw,
             new Mock<IUserViewPreferenceRepository>().Object, new Mock<IWorkStepRepository>().Object,
             new Mock<IProductionWorkplaceRepository>().Object, new Mock<IActiveDirectoryService>().Object,
             new Mock<IServiceSettingRepository>().Object);
@@ -162,13 +162,49 @@ public class ErstkennwortTests
         existing.MussKennwortAendern.Should().BeFalse();
     }
 
+    // QA-Befund B-2 (Gerald 2026-11-16 19:02): ohne Kennwort wird der Haken nie gespeichert, nur ein Hinweis in der Erfolgsmeldung.
     [Fact]
-    public async Task Edit_HakenOhneKennwort_Warnhinweis()
+    public async Task Edit_HakenOhneKennwort_NichtGespeichert_Hinweis()
+    {
+        var (ctrl, existing) = EditSetup(haken: true);
+        await ctrl.Edit(5, Vm(haken: true), null);
+        existing.MussKennwortAendern.Should().BeFalse();
+        ctrl.TempData["SuccessMessage"]!.ToString().Should().Contain("nicht gespeichert").And.Contain("keine Formular-Anmeldung");
+        ctrl.TempData.ContainsKey("WarningMessage").Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Edit_AdBenutzerOhneKennwort_KeinHaken_WindowsHinweis()
     {
         var (ctrl, existing) = EditSetup();
+        existing.WindowsUserName = "huber";
         await ctrl.Edit(5, Vm(haken: true), null);
-        existing.MussKennwortAendern.Should().BeTrue();
-        ctrl.TempData["WarningMessage"]!.ToString().Should().Contain("kein Kennwort");
+        existing.MussKennwortAendern.Should().BeFalse();
+        existing.PasswordHash.Should().BeNull();
+        ctrl.TempData["SuccessMessage"]!.ToString().Should().Contain("per Windows an");
+    }
+
+    [Fact]
+    public async Task Create_OhneKennwort_HakenNichtGespeichert()
+    {
+        User? added = null;
+        var repo = new Mock<IUserRepository>();
+        repo.Setup(r => r.AddAsync(It.IsAny<User>())).Callback<User>(u => added = u).ReturnsAsync((User u) => u);
+        var ctrl = Users(repo);
+        await ctrl.Create(new UserEditViewModel { Name = "ohne", IsActive = true, MussKennwortAendern = true }, null);
+        added!.PasswordHash.Should().BeNull();
+        added.MussKennwortAendern.Should().BeFalse();
+        ctrl.TempData["SuccessMessage"]!.ToString().Should().Contain("nicht gespeichert");
+    }
+
+    [Fact]
+    public async Task Create_Get_HakenNichtVorbelegt()
+    {
+        var roles = new Mock<IRoleRepository>();
+        roles.Setup(r => r.GetAllOrderedAsync()).ReturnsAsync(new List<Role>());
+        var ctrl = Users(new Mock<IUserRepository>(), roles);
+        var result = (Microsoft.AspNetCore.Mvc.ViewResult)await ctrl.Create();
+        ((UserEditViewModel)result.Model!).MussKennwortAendern.Should().BeFalse();
     }
 
     [Fact]
@@ -177,7 +213,7 @@ public class ErstkennwortTests
         var users = new List<User>
         {
             new() { Id = 1, Name = "admin", IsActive = true, PasswordHash = "h", MussKennwortAendern = true, CreatedBy = "t", CreatedByWindows = "t" },
-            new() { Id = 2, Name = "lager", IsActive = true, CreatedBy = "t", CreatedByWindows = "t" },
+            new() { Id = 2, Name = "lager", IsActive = true, MussKennwortAendern = true, CreatedBy = "t", CreatedByWindows = "t" }, // Altbestand: Haken ohne Hash (B-3)
             new() { Id = 3, Name = "Huber", WindowsUserName = "huber", IsActive = true, CreatedBy = "t", CreatedByWindows = "t" },
             new() { Id = 4, Name = "alt", IsActive = false, CreatedBy = "t", CreatedByWindows = "t" },
             new() { Id = 5, Name = "ok", IsActive = true, PasswordHash = "h", CreatedBy = "t", CreatedByWindows = "t" },

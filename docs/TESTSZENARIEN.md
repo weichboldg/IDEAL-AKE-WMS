@@ -12363,8 +12363,8 @@ Kennwort + Neustart → unverändert.
 
 ### TS-139.4a — Pflichtwechsel lokaler Benutzer, positiv
 
-**Schritte:** `/Users/Create` → `ts139-erst`, Rolle `stock`, Erstkennwort `Start-139a` → der Haken „Muss Kennwort bei der nächsten
-Anmeldung ändern“ ist vorbelegt → speichern; `/Users/Edit` zeigt Haken gesetzt und „Gespeichertes Kennwort: ja“; abmelden; `ts139-erst` +
+**Schritte:** `/Users/Create` öffnen → der Haken „Muss Kennwort bei der nächsten Anmeldung ändern“ ist **nicht** gesetzt; `ts139-erst`,
+Rolle `stock`, Erstkennwort `Start-139a` eintippen und Feld verlassen → der Haken ist jetzt vorausgewählt → speichern; `/Users/Edit` zeigt Haken gesetzt und „Gespeichertes Kennwort: ja“; abmelden; `ts139-erst` +
 `Start-139a`. **Erwartet:** Schritt „Neues Kennwort festlegen“, `/` leitet auf das Login (keine Sitzung); bisheriges + `Neu-139a` zweimal →
 angemeldet, „Kennwort geändert.“; `/Users/Edit` Haken weg, `ModifiedBy = ts139-erst`; abmelden, `Start-139a` → „Falsches Passwort.“,
 `Neu-139a` → direkt angemeldet. **Einmal am Netum-Handgerät durchspielen** (Bildschirmtastatur, Scanner-Fokus; Freigabe-Antwort 16).
@@ -12390,8 +12390,11 @@ wird ignoriert (erzeugen hat Vorrang).
 
 **Schritte:** a) Benutzer mit eigenem Kennwort, `/Users/Edit` Haken setzen ohne neues Kennwort → speichern → Login mit dem bisherigen
 Kennwort; b) Haken wieder abwählen → speichern → Login; c) Gerätekonto: neues Kennwort eintragen, vorbelegten Haken **entfernen** → speichern
-→ Login; d) Haken bei Benutzer **ohne** Kennwort → speichern. **Erwartet:** a) Schritt erscheint; b) direkt angemeldet (Abwählen erlaubt,
-Freigabe-Antwort 15); c) direkt angemeldet; d) Warnhinweis „Haken gesetzt, aber kein Kennwort …“, Login mit leerem Feld → Meldung aus 139.1.
+→ Login; d) Haken bei Benutzer **ohne** Kennwort (lokal, dann AD-Benutzer) manuell setzen → speichern; e) `/Users` ansehen. **Erwartet:** a) Schritt
+erscheint; b) direkt angemeldet (Abwählen erlaubt, Freigabe-Antwort 15); c) direkt angemeldet; d) Erfolgsmeldung mit „Hinweis: ohne Kennwort
+wird … nicht gespeichert – ohne Kennwort ist keine Formular-Anmeldung möglich.“ (AD: „… meldet sich per Windows an.“), kein gelber
+Warnhinweis, `MussKennwortAendern = 0` in der DB, `/Users/Edit` zeigt den Haken nicht; Login mit leerem Feld → Meldung aus 139.1;
+e) der Benutzer steht nur in der Zeile „ohne Kennwort“, **nicht** unter „offenem Erstkennwort“ (QA-Befunde B-2/B-3).
 
 ### TS-139.4e — AD-Benutzer mit Erstkennwort (Manual-UAT)
 
