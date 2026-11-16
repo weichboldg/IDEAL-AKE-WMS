@@ -223,7 +223,7 @@ public class FaMaterializationSyncService : IFaMaterializationSyncService
                 var coatingMap = orderIds.ToDictionary(
                     x => x.Id,
                     x => coating.GetValueOrDefault(x.SubOrderNumber!));
-                await _pickingStatus.SetCoatingPartsAsync(coatingMap, "FaMaterialization", Environment.UserName);
+                await _pickingStatus.SetCoatingPartsAsync(coatingMap, "FaMaterialization", ServiceUser);
                 coatingFlags = coatingMap.Count(kv => kv.Value);
             }
 

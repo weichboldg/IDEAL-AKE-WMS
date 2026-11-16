@@ -12336,14 +12336,14 @@ auf v1.99.25; Admin-Benutzer; lesender SQL-Zugriff auf die DEV-DB.
 |---|---|---|
 | 140.1 | `/Settings` > Termine und Beschichtung (beide Standorte) | Zwei Auswahlfelder „Quelle Beschichtet-Kennzeichen“ (Automatisch / Artikelkategorie / FaStruktur) und „Quelle Beschichtungstermin“ (Automatisch / Berechnet / View), beide auf **Automatisch**; je Feld Wirkung, Verwendung, Standort „beide“; am Kennzeichen-Feld der Warnhinweis „Umschalten berechnet das Kennzeichen …“ |
 | 140.2 | Termin-Quelle aufklappen | Kein Wert `SData` |
-| 140.3 | Texte `BeschichtungTage`, `BeschichtungAbholtage`, `LackierteilKategorieName` | Zusatz „Wirkt nur bei Termin-Quelle „Berechnet““ bzw. „Wirkt nur bei Kennzeichen-Quelle „Artikelkategorie““; `LackierteilKategorieName` hängt sichtbar von der Kennzeichen-Quelle ab |
+| 140.3 | Texte `BeschichtungTage`, `BeschichtungAbholtage`, `LackierteilKategorieName` | Zusatz „Wirkt nur bei Termin-Quelle „Berechnet““ bzw. „Wirkt nur bei Kennzeichen-Quelle „Artikelkategorie““; `LackierteilKategorieName` zeigt „Wirkt nur bei passender Auswahl in „Quelle Beschichtet-Kennzeichen““ (nicht „… an ist“, QA Q-2) |
 | 140.4 | AKE: Kennzeichen-Quelle **FaStruktur** speichern | Gelbe Meldung „„Quelle Beschichtet-Kennzeichen“: „FaStruktur“ passt nicht zum Auftragsmodell (flach, …) – wirkt wie „Automatisch“ …“; **nichts** gespeichert (auch andere geänderte Felder nicht) |
 | 140.5 | AKE: Termin-Quelle **View** speichern | Abgelehnt wie 140.4 (View an der AKE nicht wählbar) |
 | 140.6 | IDEAL: Kennzeichen-Quelle **Artikelkategorie** speichern | Abgelehnt mit „(hierarchisch, ProduktionsauftragHierarchisch an)“ |
 | 140.7 | AKE: Artikelkategorie + Berechnet speichern; IDEAL: FaStruktur + View, danach FaStruktur + Berechnet speichern | Gespeichert, grüne Meldung; danach beide wieder auf Automatisch |
 | 140.8 | Negativ: per SQL `UPDATE AppSettings SET [Value] = N'FaStruktur' WHERE [Key] = N'BeschichtungKennzeichenQuelle'` (AKE-DEV), danach Lauf „Lackierteile“ anstoßen | Aktivitäts-Protokoll: Warnung „passt nicht zum Auftragsmodell … wirkt wie „Automatisch“ (Artikelkategorie)“, Lauf arbeitet wie bisher; `/Settings` speichern beliebiger Felder wird abgelehnt, bis der Wert korrigiert ist; Wert danach zurücksetzen |
 | 140.9 | Negativ: Fremdwert per SQL (`N'SData'`) | Wie 140.8, Warnung „ist kein gültiger Wert“ |
-| 140.10 | Update-Skript (Trockenlauf) mit dem Fremdwert aus 140.8 | `Pruefung/BeschichtungQuelleKombination`: „Abweichung 1 – Beschichtungsquelle passt nicht …“, kein Abbruch; nach Korrektur „OK“ |
+| 140.10 | Update-Skript (Trockenlauf) mit dem Fremdwert aus 140.8 | `Pruefung/BeschichtungQuelleKombination`: „Abweichung 1 – Beschichtungsquelle passt nicht …“, kein Abbruch; nach Korrektur „OK“. Ebenso ein Fremdwert (z. B. `SData`) → Abweichung 1 (QA Q-3) |
 
 Automatisch belegt: `BeschichtungResolverTests` (Matrix, AK 4–8, 13, 17), `SettingsControllerBeschichtungQuelleTests` (A8, AK 2, 3, 19),
 `AppSettingDefinitionsTests.BeschichtungQuellen_AlsChoice_OhneSData_AK1_AK19`, `NachlaufManifestDriftTests`.
@@ -12386,6 +12386,7 @@ schreiben (Sage-Lagerbuchungen/Sage-WE auf DEV aus).
 | 144.6 | Wie 144.5 mit `Sync:CoatingDetectionEnabled` = true | Lackierteil-Erkennung läuft für den neuen WA (wie vor dem Update) |
 | 144.7 | Negativ: FA-Materialisierung bei effektiver Quelle Artikelkategorie (nur nachstellbar, wenn die Materialisierung bei Master aus läuft; sonst „nicht herstellbar“ notieren) | Protokoll-Info „Lack-Flag nicht geschrieben: Kennzeichen-Quelle Artikelkategorie …“, `lackflag_gesetzt` = 0 |
 | 144.8 | Negativ: IDEAL, per SQL `BeschichtungKennzeichenQuelle` = `Artikelkategorie`; Läufe „Lackierteile“ und „FA-Materialisierung“ | Beide Läufe: Warnung „passt nicht zum Auftragsmodell“; Verhalten wie Automatisch (Lackierteile übersprungen, Materialisierung schreibt); Wert danach zurücksetzen |
+| 144.9 | Update-Skript (Trockenlauf) an einem flachen System mit `Sync:BomCacheEnabled` = true und `Sync:CoatingDetectionEnabled` = false | `Pruefung/LackierteilErkennungImportHook`: „Abweichung 1 – Seit v1.99.25 setzt der Sage-Import …“, kein Abbruch; mit Erkennung an bzw. an der IDEAL „OK“ (QA Q-1) |
 
 Automatisch belegt: `HierarchicalModeGateTests` (Gate + Warnung), `SageImportHookGateTests` (AK 11), `FaMaterializationCoatingWriteTests`
 (Quelle Artikelkategorie schreibt nicht, Audit-Felder), `ProductionOrderPickingStatusRepositoryTests` (Audit in `SetCoatingPartsAsync`).

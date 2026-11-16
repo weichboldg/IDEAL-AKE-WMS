@@ -30,6 +30,7 @@
     var alleItems = Model.Groups.SelectMany(g => g.Items).ToList();
     var ungueltig = alleItems.Where(i => i.Ungueltig).ToList();
     var namen = alleItems.ToDictionary(i => i.Key, i => i.Anzeigename);
+    var auswahlKeys = alleItems.Where(i => i.Definition.Type != SettingType.Bool).Select(i => i.Key).ToHashSet();
 }
 
 @if (ViewData["WarningMessage"] is string nichtGespeichert)
@@ -69,7 +70,7 @@
                         {
                             var abhaengig = item.Definition.AbhaengigVon is { } k && namen.TryGetValue(k, out var n) ? n : null;
                             <partial name="_SettingField" model="item"
-                                     view-data='new ViewDataDictionary(ViewData) { ["CanEdit"] = canEdit, ["Abhaengig"] = abhaengig }' />
+                                     view-data='new ViewDataDictionary(ViewData) { ["CanEdit"] = canEdit, ["Abhaengig"] = abhaengig, ["AbhaengigAuswahl"] = item.Definition.AbhaengigVon is { } ak && auswahlKeys.Contains(ak) }' />
                         }
                     </div>
                 </div>

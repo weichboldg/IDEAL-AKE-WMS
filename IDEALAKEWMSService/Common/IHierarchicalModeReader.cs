@@ -47,7 +47,7 @@ public sealed class HierarchicalModeReader : IHierarchicalModeReader
             }
         }
         catch (OperationCanceledException) { throw; }
-        catch { /* wie GetBoolSafeAsync: DB-Hickup = Automatisch */ }
+        catch (Exception ex) { Serilog.Log.Warning(ex, "Beschichtungsquelle nicht lesbar, wirkt wie Automatisch"); }
         return BeschichtungResolver.ResolveQuellen(kennzeichen, termin, hierarchisch);
     }
 }

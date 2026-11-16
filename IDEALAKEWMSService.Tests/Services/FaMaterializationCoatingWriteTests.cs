@@ -67,7 +67,7 @@ public class FaMaterializationCoatingWriteTests
         await Build(ctx).RunAsync(dryRun: false);
 
         var status = await ctx.ProductionOrderPickingStatuses.SingleAsync();
-        (status.ModifiedBy, status.ModifiedByWindows).Should().Be(("FaMaterialization", Environment.UserName));
+        (status.ModifiedBy, status.ModifiedByWindows).Should().Be(("FaMaterialization", "IDEALAKEWMSService"));
     }
 
     [Fact]

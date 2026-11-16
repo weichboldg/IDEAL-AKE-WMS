@@ -11,6 +11,7 @@
     var id = "setting_" + System.Text.RegularExpressions.Regex.Replace(d.Key, "[^A-Za-z0-9_]", "_");
     var hilfeId = id + "_hilfe";
     var abhaengigName = ViewData["Abhaengig"] as string;
+    var abhaengigAuswahl = ViewData["AbhaengigAuswahl"] as bool? == true;
     var suchtext = $"{Model.Anzeigename} {d.Key} {d.Description} {d.Verwendung}".ToLowerInvariant();
     string Text(string wert) => d.Type switch
     {
@@ -175,7 +176,7 @@
         <div><span class="fw-semibold">Standard:</span> @standardText@(string.IsNullOrEmpty(d.Standort) ? "" : $"; Standort: {d.Standort}")</div>
         @if (abhaengigName != null)
         {
-            <div><span class="fw-semibold">Wirkt nur, wenn &bdquo;@abhaengigName&ldquo; an ist.</span></div>
+            <div><span class="fw-semibold">@(abhaengigAuswahl ? $"Wirkt nur bei passender Auswahl in „{abhaengigName}“." : $"Wirkt nur, wenn „{abhaengigName}“ an ist.")</span></div>
         }
         @if (Model.Ungueltig)
         {
