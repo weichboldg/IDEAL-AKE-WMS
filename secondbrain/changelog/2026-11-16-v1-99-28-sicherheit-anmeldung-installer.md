@@ -21,6 +21,8 @@ Bug [[2026-11-14-sicherheit-anmeldung-und-installer-bug]]. Nicht gemergt. Versio
   WarehouseRequisitions/-Items, Wächter-Test `FreshInstallIndexSpaltenTests`.
 - Installer: `-SageLagerbuchungCredential` entfernt; FA-Abgleich nach dem Aufwärmen in der DB aus (`Sync:ProductionOrdersEnabled=false`);
   SMTP-Warnung. Dienst: Warnung bei SMTP-Benutzer ohne `SmtpUseSsl`; tote Blöcke in `appsettings.json` entfernt (außer `Feiertag*`).
+- Nachbesserung `504acdd3` (QA B-2/B-3, Gerald 19:02): Haken beim Öffnen nicht vorbelegt, ohne Kennwort nie gespeichert (Hinweis statt
+  Warnung), „offenes Erstkennwort“ nur mit Kennwort + Haken. Nachzug `4f3bf15d`/`8f24ec51`: `Pruefung/FreshInstallIndizes`.
 
 ## Migration / SQL
 

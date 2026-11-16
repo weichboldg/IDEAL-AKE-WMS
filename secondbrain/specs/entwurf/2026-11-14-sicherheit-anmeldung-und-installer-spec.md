@@ -2,7 +2,7 @@
 type: spec
 title: "Bugfix Sicherheit: Anmeldung nur mit Kennwort oder Windows, Erstinstallation, Installer ohne Klartext-Zugangsdaten (BH-1 bis BH-5)"
 slug: 2026-11-14-sicherheit-anmeldung-und-installer-spec
-status: Testbereit
+status: InUmsetzung
 created: 2026-11-14
 updated: 2026-11-16
 source_backlog: "[[2026-11-14-sicherheit-anmeldung-und-installer]]"
@@ -831,8 +831,8 @@ Fokuspunkte: Regel R/P korrekt (Hash leer → R außer `IsDevelopment()` mit lee
 | # | Schwere | Befund | Behandlung |
 |---|---|---|---|
 | B-1 | Mittel | `Pruefung/FreshInstallIndizes` ohne Systemfilter: auf über Migrationen entstandenen IDEAL-DBs tragen gleichwertige Indizes andere Namen → Falschtreffer „SQL/151 nötig“. Gemessen: `IDEAL_WMS_DEV` (Kopie IDEAL-Test) = **24**, `AKE_WMS_DEV` 0, frische FreshInstall-DB 0. Der Spec-Entwurf sah `System=@('Prod')` vor. | **Behoben** `8f24ec51`: `System=@('Prod')`; `-NurPruefen` IDEAL-DEV listet die Prüfung nicht mehr. TS-139.8 nachgezogen (sagte noch „Prüfung nicht gebaut“). |
-| B-2 | Niedrig | `/Users/Create` GET belegt den Haken schon beim Öffnen vor (`MussKennwortAendern = true`), die Spec sagt „bei eingegebenem/erzeugtem Kennwort vorausgewählt“ (das JS tut das zusätzlich). Folge: Benutzer ohne Kennwort angelegt → Warnung „Haken gesetzt, aber kein Kennwort“ und gespeicherter Haken. | Offen, Entscheidung Gerald (1 Zeile). Verhalten sonst korrekt und gemeldet. |
-| B-3 | Niedrig | `/Users`-Hinweis „offenes Erstkennwort“ zählt auch aktive Benutzer mit Haken **ohne** Kennwort (DEV: `Testuser` stand in beiden Listen). | Offen, Entscheidung Gerald (Filter auf gesetzten Hash). Hängt mit B-2 zusammen. |
+| B-2 | Niedrig | `/Users/Create` GET belegt den Haken schon beim Öffnen vor (`MussKennwortAendern = true`), die Spec sagt „bei eingegebenem/erzeugtem Kennwort vorausgewählt“ (das JS tut das zusätzlich). Folge: Benutzer ohne Kennwort angelegt → Warnung „Haken gesetzt, aber kein Kennwort“ und gespeicherter Haken. | **Behoben in `504acdd3`** (Nachbesserung 2026-11-16, Entscheidung Gerald 19:02). |
+| B-3 | Niedrig | `/Users`-Hinweis „offenes Erstkennwort“ zählt auch aktive Benutzer mit Haken **ohne** Kennwort (DEV: `Testuser` stand in beiden Listen). | **Behoben in `504acdd3`** (Filter Hash + Haken). |
 | B-4 | Info | `Pruefung/SmtpBenutzer` meldet jeden gesetzten SMTP-Benutzer, auch mit `SmtpUseSsl = true` (Text nennt die Bedingung). Nur Hinweis. | Hingenommen. |
 | B-5 | Info | `Pruefung/BenutzerOhneKennwort` läuft bei **jedem** künftigen Update: ein später ohne Kennwort angelegter lokaler Benutzer sperrt den nächsten Prod-Deploy. Gewollt („melden“), aber dauerhaft. | Zur Kenntnis. |
 
@@ -913,3 +913,18 @@ DEV-Testdaten: IDEAL-DEV neuer Benutzer `ts139-erst` (Rolle Lager, Kennwort aus 
 13. Entscheiden: B-2 / B-3.
 14. Nach dem Prod-Deploy sofort als `admin` anmelden, wenn das Start-Log die Erstkennwort-Warnung zeigt.
 15. Hinweis: IDEAL-DEV `admin` steht nach diesem Lauf auf `wms-admin` mit Pflichtwechsel.
+
+## Nachbesserung 2026-11-16 (B-2/B-3)
+
+Entscheidung Gerald 2026-11-16 19:02, umgesetzt in `504acdd3` (Bündel, Version bleibt 1.99.29, Anwender-Changelog-Zeile in der Karte 1.99.28):
+
+- **B-2:** `/Users/Create` belegt den Haken beim Öffnen nicht mehr vor; das vorhandene JS wählt ihn vor, sobald ein Kennwort eingegeben
+  oder „Erstkennwort erzeugen“ gewählt wird. `/Users/Edit` zeigt den Haken nur bei gespeichertem Kennwort. Server (`UsersController.ApplyPassword`):
+  ohne `PasswordHash` nach dem Speichern wird der Haken **nie** gespeichert, auch manuell angehakt nicht – statt der Warnung ein Hinweis in der
+  Erfolgsmeldung (lokal: keine Formular-Anmeldung; AD: Windows-Anmeldung). `CreateAdUser` hat weder Kennwort noch Haken – unverändert.
+- **B-3:** „offenes Erstkennwort“ nur für aktive Benutzer mit Hash **und** Haken; Benutzer ohne Kennwort nur in den Zeilen „ohne Kennwort“.
+- Tests (`ErstkennwortTests`): Haken ohne Hash nicht gespeichert (Create/Edit), AD ohne Kennwort ohne Haken mit Windows-Hinweis, Create-GET
+  nicht vorbelegt, B-3-Filter mit Altbestand (Haken ohne Hash). TS-139.4a/139.4d angepasst. Build grün, Web 2955 bestanden / 1 übersprungen,
+  Dienst 663 bestanden.
+- Altbestand: ein vor der Nachbesserung gespeicherter Haken ohne Kennwort bleibt in der DB, wirkt aber nicht (Login braucht Hash, Liste und
+  Edit filtern) und wird beim nächsten Speichern entfernt.
