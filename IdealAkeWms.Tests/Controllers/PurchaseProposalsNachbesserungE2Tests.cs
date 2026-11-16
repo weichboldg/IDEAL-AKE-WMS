@@ -71,7 +71,7 @@ public class PurchaseProposalsNachbesserungE2Tests
         Z("A1").Hinweis.Should().Contain("kein Hauptlieferant – einziger Artikel-Lieferant");
         Z("A2").LieferantText.Should().Be("Maier (K2)");
         Z("A2").Hinweis.Should().Contain("kein Hauptlieferant – Lieferant der letzten Bestellung");
-        Z("A2").Ergebnis.Vorschlag.Should().Be(40m, "F = 25 ≥ L = 20 des gewaehlten Lieferanten: 2 × 20 (Mengenregel bis E6 unveraendert)");
+        Z("A2").Ergebnis.Vorschlag.Should().Be(26m, "v 60 + L 20 ≤ M 85: Mengenregel A (E6) M − v + 1, kein Vielfaches");
         Z("A3").LieferantText.Should().BeNull();
         Z("A3").Hinweis.Should().Contain(PurchaseProposalsController.HinweisMehrereLieferanten);
         Z("A4").Hinweis.Should().Contain(PurchaseProposalsController.HinweisKeinLieferant);

@@ -95,7 +95,7 @@ else
 </div>
 <div class="alert alert-light border py-2 small" role="note">
     Vorschlag = letzte Bestellmenge beim Hauptlieferanten (jüngste Bestellung oder jüngster Rahmenabruf der letzten @ArticleSupplier.LetzteBestellungRueckblickJahre Jahre), sonst die jüngste bei einem anderen Lieferanten;
-    reicht sie nicht bis über den Meldebestand, ein Vielfaches davon. Ohne Bestellung in diesem Zeitraum: Sage-Bestellmenge (Fallback), sonst Fehlmenge bzw. Meldebestand.
+    reicht sie nicht bis über den Meldebestand, Meldebestand − verfügbar + 1 Lagereinheit (kein Vielfaches). Ohne Bestellung in diesem Zeitraum: Sage-Bestellmenge (Fallback, gleiche Regel), sonst Meldebestand − verfügbar + 1.
     Danach Aufrunden auf die Mindestbestellmenge des Hauptlieferanten, nur bei gleicher Einheit und Umrechnungsfaktor 1 (sonst Hinweis, keine Rundung).
 </div>
 

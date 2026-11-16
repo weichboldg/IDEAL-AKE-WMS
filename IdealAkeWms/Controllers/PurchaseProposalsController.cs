@@ -243,7 +243,7 @@ public class PurchaseProposalsController : Controller
                     Mindestbestellmenge: l?.Mindestbestellmenge, Einkaufsmengeneinheit: l?.Einkaufsmengeneinheit, UmrechnungsfaktorEK: l?.UmrechnungsfaktorEK,
                     ArtikelEinheit: a.Unit, FallbackSageBestellmenge: fallback,
                     LetzteBestellungOhneArtikelLieferant: quelle?.OhneArtikelLieferant == true, KeineBestellungImRueckblick: keineBestellung,
-                    VerfuegbarFenster: fenster)),
+                    VerfuegbarFenster: fenster, DezimalstellenLager: a.SageDetail?.DezimalstellenLager)),
                 Wbz = wbz, Wunschtermin = wbz is { } t ? heute.AddDays(t) : null, Hinweise = hinweise,
             };
         }).ToList();

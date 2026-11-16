@@ -19,11 +19,12 @@ public enum PurchaseProposalDringlichkeit { KeinBedarf, Nachbestellen, Kritisch 
 /// (unterscheidet „noch nicht gelesen“ von „keine Bestellung“ fuer den Hinweis ohne Sage-Bestellmenge).</param>
 /// <param name="VerfuegbarFenster">v1.99.30 F5: verfuegbar bis heute + WBZ (<see cref="PurchaseProposalCalculator.VerfuegbarBis"/>); entscheidet
 /// „kritisch“. null = wie bisher <c>verfuegbar &lt; 0</c>.</param>
+/// <param name="DezimalstellenLager">v1.99.30 F6: <c>ArticleSageDetail.DezimalstellenLager</c>; der Vorschlag wird darauf aufgerundet (null = ganze Einheit).</param>
 public sealed record PurchaseProposalInput(decimal BestandWms, decimal OffenBestellt, decimal OffeneBedarfe, decimal Meldebestand,
     decimal? LetzteBestellmenge = null, string? LetzteBestellungLieferant = null,
     decimal? Mindestbestellmenge = null, string? Einkaufsmengeneinheit = null, decimal? UmrechnungsfaktorEK = null, string? ArtikelEinheit = null,
     decimal? FallbackSageBestellmenge = null, bool LetzteBestellungOhneArtikelLieferant = false, bool KeineBestellungImRueckblick = false,
-    decimal? VerfuegbarFenster = null);
+    decimal? VerfuegbarFenster = null, int? DezimalstellenLager = null);
 
 /// <param name="Fallback">E3: Menge stammt aus der Sage-Bestellmenge, weil es im Rueckblick keine Bestellung gibt (Banner zaehlt diese Zeilen).</param>
 public sealed record PurchaseProposalResult(decimal Verfuegbar, decimal Fehlmenge, PurchaseProposalDringlichkeit Dringlichkeit,
@@ -35,15 +36,17 @@ public sealed record PurchaseProposalResult(decimal Verfuegbar, decimal Fehlmeng
 /// <summary>
 /// v1.99.20 (Spec 2026-11-08-einkauf-bestellvorschlaege F2/F3/F5): die EINE Rechenregel der Bestellvorschlaege – rein, ohne DB.
 /// verfuegbar = Bestand WMS + offen bestellt − offene Bedarfe; Vorschlag, wenn verfuegbar ≤ Meldebestand; kritisch bei verfuegbar &lt; 0.
-/// Menge: letzte Bestellmenge L, bei Fehlmenge F ≥ L (⌊F/L⌋+1)×L (Rueckfrage 11); ohne L die Sage-Bestellmenge als Fallback (Freigabe-Nachtrag 2,
-/// gleiche Erhoehungsregel), sonst F, bei F = 0 der Meldebestand (Rueckfrage 13 b);
-/// danach Aufrunden auf die Mindestbestellmenge (E4) nur mit Einheiten-Waechter <see cref="MindestmengeVergleichbar"/>.
+/// Menge (v1.99.30 F6, Mengenregel A, Antwort 3 – ersetzt das Vielfache (⌊F/L⌋+1)×L): V = L (ohne L die Sage-Bestellmenge als Fallback);
+/// reicht sie nicht (v + L ≤ M) oder gibt es keine, V = M − v + 1 Lagereinheit (bis ueber den Meldebestand), aufgerundet auf DezimalstellenLager;
+/// danach Aufrunden auf die Mindestbestellmenge nur mit Einheiten-Waechter <see cref="MindestmengeVergleichbar"/>.
 /// </summary>
 public static class PurchaseProposalCalculator
 {
     public const string GrundLetzteBestellmenge = "letzte Bestellmenge";
     public const string GrundOhneLetzteBestellung = "keine letzte Bestellung – Menge prüfen";
     public const string GrundMindestbestellmenge = "auf Mindestbestellmenge aufgerundet";
+    /// <summary>F6: L (bzw. Sage-Bestellmenge) reicht nicht ueber den Meldebestand – Vorschlag = Meldebestand − verfuegbar + 1.</summary>
+    public const string GrundBisUeberMeldebestand = "reicht nicht – bis über Meldebestand";
     public const string GrundSageBestellmenge = "Sage-Bestellmenge";
     /// <summary>F3 (v1.99.30): Hinweis nach Ursache statt pauschal. Gemeinsamer Anfang „Keine Bestellung in 3 Jahren“ (filterbar in der Hinweis-Spalte).</summary>
     public static readonly string HinweisKeineBestellung = $"Keine Bestellung in {Models.ArticleSupplier.LetzteBestellungRueckblickJahre} Jahren";
@@ -81,11 +84,10 @@ public static class PurchaseProposalCalculator
         {
             fallback = e.LetzteBestellmenge is not > 0m;
             var name = fallback ? GrundSageBestellmenge : GrundLetzteBestellmenge;
-            if (f >= l)
+            if (verfuegbar + l <= e.Meldebestand)
             {
-                var n = Math.Floor(f / l) + 1;
-                vorschlag = n * l;
-                grund = $"{n:0} × {name}";
+                vorschlag = BisUeber(f, e.DezimalstellenLager);
+                grund = $"{name} {GrundBisUeberMeldebestand}";
             }
             else
             {
@@ -98,7 +100,7 @@ public static class PurchaseProposalCalculator
         }
         else
         {
-            vorschlag = f > 0 ? f : e.Meldebestand;
+            vorschlag = BisUeber(f, e.DezimalstellenLager);
             grund = GrundOhneLetzteBestellung;
             if (e.KeineBestellungImRueckblick) hinweise.Add(HinweisOhneSageBestellmenge);
         }
@@ -113,6 +115,13 @@ public static class PurchaseProposalCalculator
             }
         }
         return new(verfuegbar, f, dringlichkeit, vorschlag, grund, hinweise, fallback);
+    }
+
+    /// <summary>F6: Fehlmenge + 1 Lagereinheit, aufgerundet auf die Lager-Dezimalstellen (ohne Angabe ganze Einheit).</summary>
+    private static decimal BisUeber(decimal fehlmenge, int? dezimalstellen)
+    {
+        var faktor = (decimal)Math.Pow(10, Math.Clamp(dezimalstellen ?? 0, 0, 6));
+        return Math.Ceiling((fehlmenge + 1m) * faktor) / faktor;
     }
 
     public const string HinweisOhneLiefertermin = "offene Bestellung ohne Liefertermin – für Dringlichkeit nicht gezählt";

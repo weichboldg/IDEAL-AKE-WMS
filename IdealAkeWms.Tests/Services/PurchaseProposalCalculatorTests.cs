@@ -35,30 +35,38 @@ public class PurchaseProposalCalculatorTests
     }
 
     [Fact]
-    public void OhneLetzteBestellung_Fehlmenge_Bei0Meldebestand_Rueckfrage13b()
+    public void OhneLetzteBestellung_BisUeberMeldebestand_F6()
     {
         var r = R(60m, 85m);
-        r.Vorschlag.Should().Be(25m);
+        r.Vorschlag.Should().Be(26m);             // M − v + 1
         r.Fehlmenge.Should().Be(25m);
         r.Grund.Should().Be("keine letzte Bestellung – Menge prüfen");
-        R(85m, 85m).Vorschlag.Should().Be(85m);
+        R(85m, 85m).Vorschlag.Should().Be(1m);    // genau am Meldebestand: eine Lagereinheit darueber
     }
+
+    /// <summary>v1.99.30 F6 Mengenregel A (Antwort 3, AK 13): L reicht → L; reicht nicht (v + L ≤ M) → M − v + 1; nie ein Vielfaches von L (EK015744).</summary>
+    [Theory]
+    [InlineData(60, 400, 400, "letzte Bestellmenge")]                                   // 60 + 400 > 85: L reicht
+    [InlineData(-315, 400, 401, "letzte Bestellmenge reicht nicht – bis über Meldebestand")]   // alt 800
+    [InlineData(-915, 400, 1001, "letzte Bestellmenge reicht nicht – bis über Meldebestand")]  // alt 1200
+    [InlineData(65, 20, 21, "letzte Bestellmenge reicht nicht – bis über Meldebestand")]       // 65 + 20 = 85 ≤ M: reicht nicht
+    public void Mengenregel_A_AK13(decimal bestand, decimal l, decimal erwartet, string grund)
+    {
+        var r = R(bestand, 85m, l: l);
+        (r.Vorschlag, r.Grund).Should().Be(((decimal?)erwartet, grund));
+    }
+
+    [Theory]
+    [InlineData(null, 2.5, 4)]     // ohne Dezimalstellen: ganze Einheit, aufgerundet
+    [InlineData(2, 2.5, 3.5)]
+    [InlineData(1, 2.55, 3.5)]     // 3,45 aufwaerts auf 3,5
+    public void Mengenregel_A_AufDezimalstellenLagerAufgerundet(int? dez, decimal verfuegbar, decimal erwartet) =>
+        PurchaseProposalCalculator.Berechne(new PurchaseProposalInput(verfuegbar, 0m, 0m, 5m, DezimalstellenLager: dez)).Vorschlag.Should().Be(erwartet);
 
     [Fact]
-    public void LetzteBestellmenge_Regelfall_UndVielfachesAbFehlmengeGleichL_Rueckfrage11()
-    {
-        var r = R(60m, 85m, l: 400m);
-        r.Vorschlag.Should().Be(400m);
-        r.Grund.Should().Be("letzte Bestellmenge");
-
-        // F = 400 = L → (⌊400/400⌋ + 1) × 400 = 800
-        var gleich = R(-315m, 85m, l: 400m);
-        gleich.Vorschlag.Should().Be(800m);
-        gleich.Grund.Should().Be("2 × letzte Bestellmenge");
-
-        // F = 1000, L = 400 → (2 + 1) × 400 = 1200
-        R(-915m, 85m, l: 400m).Vorschlag.Should().Be(1200m);
-    }
+    public void Mengenregel_A_MindestbestellmengeGroesser_EK000051() =>
+        // L 200, MBM 300 (gleiche Einheit, Faktor 1): bleibt 300 (Till: „so lassen“)
+        PurchaseProposalCalculator.Berechne(new PurchaseProposalInput(60m, 0m, 0m, 85m, 200m, null, 300m, "Stk", 1m, "Stk")).Vorschlag.Should().Be(300m);
 
     private static PurchaseProposalResult M(decimal mindest, string? ek, decimal? faktor, string? unit = "Stk", decimal? l = null) =>
         PurchaseProposalCalculator.Berechne(new PurchaseProposalInput(60m, 0m, 0m, 85m, l, null, mindest, ek, faktor, unit));
@@ -70,7 +78,7 @@ public class PurchaseProposalCalculatorTests
         r.Vorschlag.Should().Be(200m);
         r.Grund.Should().Be("keine letzte Bestellung – Menge prüfen, auf Mindestbestellmenge aufgerundet");
         M(200m, null, 1m).Vorschlag.Should().Be(200m);          // EK-Einheit leer
-        M(10m, "Stk", 1m).Vorschlag.Should().Be(25m);           // schon groesser: keine Rundung
+        M(10m, "Stk", 1m).Vorschlag.Should().Be(26m);           // schon groesser: keine Rundung
         M(10m, "Stk", 1m).Grund.Should().NotContain("Mindestbestellmenge");
         M(500m, "Stk", 1m, l: 400m).Vorschlag.Should().Be(500m);
     }
@@ -82,12 +90,12 @@ public class PurchaseProposalCalculatorTests
     public void Mindestbestellmenge_EinheitOderFaktorAbweichend_KeineRundung_Hinweis_A2(string ek, decimal faktor)
     {
         var r = M(200m, ek, faktor);
-        r.Vorschlag.Should().Be(25m);
+        r.Vorschlag.Should().Be(26m);
         r.Hinweise.Should().ContainSingle().Which.Should().Contain("nicht aufgerundet");
     }
 
     [Fact]
-    public void Mindestbestellmenge_FaktorUnbekannt_KeineRundung() => M(200m, "Stk", null).Vorschlag.Should().Be(25m);
+    public void Mindestbestellmenge_FaktorUnbekannt_KeineRundung() => M(200m, "Stk", null).Vorschlag.Should().Be(26m);
 
     [Fact]
     public void LetzteBestellungAndererLieferant_Hinweis_Rueckfrage13a()
@@ -97,7 +105,7 @@ public class PurchaseProposalCalculatorTests
     }
 
     [Fact]
-    public void Fallback_SageBestellmenge_NurOhneL_MitErhoehungUndHinweis_Nachtrag2()
+    public void Fallback_SageBestellmenge_NurOhneL_MengenregelA_Hinweis_Nachtrag2()
     {
         static PurchaseProposalResult F(decimal bestand, decimal? l, decimal? sage) =>
             PurchaseProposalCalculator.Berechne(new PurchaseProposalInput(bestand, 0m, 0m, 85m, l, FallbackSageBestellmenge: sage));
@@ -105,9 +113,9 @@ public class PurchaseProposalCalculatorTests
         (r.Vorschlag, r.Grund, r.Fallback).Should().Be(((decimal?)100m, PurchaseProposalCalculator.GrundSageBestellmenge, true));
         r.Hinweise.Should().Equal(PurchaseProposalCalculator.HinweisFallback);
         PurchaseProposalCalculator.HinweisFallback.Should().Be("Keine Bestellung in 3 Jahren – Sage-Bestellmenge");
-        var hoch = F(0m, null, 40m); // F = 85 -> (⌊85/40⌋+1)×40 = 120
-        (hoch.Vorschlag, hoch.Grund).Should().Be(((decimal?)120m, "3 × " + PurchaseProposalCalculator.GrundSageBestellmenge));
+        var hoch = F(0m, null, 40m); // 0 + 40 ≤ 85 → M − v + 1 = 86 (alt 3 × 40 = 120)
+        (hoch.Vorschlag, hoch.Grund).Should().Be(((decimal?)86m, PurchaseProposalCalculator.GrundSageBestellmenge + " " + PurchaseProposalCalculator.GrundBisUeberMeldebestand));
         F(60m, 50m, 100m).Should().Match<PurchaseProposalResult>(x => x.Vorschlag == 50m && !x.Fallback, "L hat Vorrang");
-        F(60m, null, 0m).Should().Match<PurchaseProposalResult>(x => x.Vorschlag == 25m && !x.Fallback && x.Grund == PurchaseProposalCalculator.GrundOhneLetzteBestellung);
+        F(60m, null, 0m).Should().Match<PurchaseProposalResult>(x => x.Vorschlag == 26m && !x.Fallback && x.Grund == PurchaseProposalCalculator.GrundOhneLetzteBestellung);
     }
 }

@@ -147,7 +147,7 @@ public partial class PurchaseProposalsControllerTests
     {
         var (ctrl, _) = Build(new() { A(1, "A1", 85m) }, Bestand(("A1", 60m)));
         var r = Vm(await ctrl.Index()).Items.Single();
-        r.Ergebnis.Vorschlag.Should().Be(25m);
+        r.Ergebnis.Vorschlag.Should().Be(26m);   // v1.99.30 F6: M − v + 1
         r.Ergebnis.Grund.Should().Be(PurchaseProposalCalculator.GrundOhneLetzteBestellung);
     }
 
@@ -190,8 +190,8 @@ public partial class PurchaseProposalsControllerTests
         (a1.Ergebnis.Vorschlag, a1.Ergebnis.Grund, a1.Ergebnis.Fallback).Should().Be(((decimal?)100m, PurchaseProposalCalculator.GrundSageBestellmenge, true));
         a1.Hinweis.Should().Contain("Keine Bestellung in 3 Jahren – Sage-Bestellmenge");
         var a2 = vm.Items.Single(i => i.Article.ArticleNumber == "A2");
-        (a2.Ergebnis.Vorschlag, a2.Ergebnis.Grund, a2.Ergebnis.Fallback).Should().Be(((decimal?)25m, PurchaseProposalCalculator.GrundOhneLetzteBestellung, false),
-            "ohne Sage-Bestellmenge bisherige Regel");
+        (a2.Ergebnis.Vorschlag, a2.Ergebnis.Grund, a2.Ergebnis.Fallback).Should().Be(((decimal?)26m, PurchaseProposalCalculator.GrundOhneLetzteBestellung, false),
+            "ohne Sage-Bestellmenge M − v + 1 (F6)");
         vm.Items.Single(i => i.Article.ArticleNumber == "A3").Ergebnis.Vorschlag.Should().Be(40m, "F = 25 < 40: Sage-Bestellmenge selbst");
         vm.FallbackZeilen.Should().Be(2);
         vm.OhneMengenquelle.Should().Be(1);
