@@ -454,11 +454,11 @@ Neues Kapitel **TS-151 „Arbeitsgang-Mapping: Sage-Arbeitsgangnummer“** in `d
 
 ## Etappen (nur bei epic: true)
 
-entfällt (epic: false).
+entfällt (epic: false) – eine Umsetzung als Ganzes (Version 1.99.27 reserviert).
 
 | # | Etappe | Status | Commit |
 |---|--------|--------|--------|
-| – | – | – | – |
+| 1 | Gesamte Spec (v1.99.27) | **Blocker** – P-AG1..5 (Gerald) nicht eingetragen (Lauf 2026-11-16, Freigabe-Antworten 1/2); nicht begonnen, daher keine Version, kein Changelog, kein Brain-Eintrag | – |
 
 ## Deploy
 
