@@ -381,5 +381,11 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
 @{ Id='v1.99.25-Beschichtungsquelle-Info'; Version='1.99.25'; Typ='Info'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
    Text='Neue Einstellungen Quelle Beschichtet-Kennzeichen / Quelle Beschichtungstermin (/Settings > Termine und Beschichtung) stehen auf Automatisch, das Verhalten ist unveraendert. Die Listen lesen die Termin-Quelle erst mit einer Folgeversion. Die Lackierteil-Erkennung nach dem Sage-Import laeuft nur noch bei Sync:CoatingDetectionEnabled.'
    Quelle='2026-11-16-v1-99-25-beschichtungslogik-je-standort' }
+@{ Id='v1.99.26-IDEAL-FaStrukturVergleich'; Version='1.99.26'; Typ='Einstellung'; Firma='IDEAL'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Text='Sync:Quelle:FaStruktur = Vergleich setzen (/ServiceSettings), Lauf FA-Hierarchie abwarten, Protokoll Sage-Quellenvergleich pruefen. SData erst nach Freigabe (Spec 2026-11-16-fa-struktur-ideal-ueber-sdata, Rueckfragen 4/5); bis dahin gesperrt, wirkt wie View.'
+   Quelle='2026-11-16-v1-99-26-fa-struktur-ideal-sdata' }
+@{ Id='v1.99.26-Info'; Version='1.99.26'; Typ='Info'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Text='Sage-Test > Stueckliste live: Artikel-Modus heisst jetzt Ressourcenliste (Vorlage); FA-Modus zeigt auch beendete Haupt-FAs.'
+   Quelle='2026-11-16-v1-99-26-fa-struktur-ideal-sdata' }
 )
 }

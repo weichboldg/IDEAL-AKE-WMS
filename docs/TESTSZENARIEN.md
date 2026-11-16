@@ -12393,6 +12393,93 @@ Automatisch belegt: `HierarchicalModeGateTests` (Gate + Warnung), `SageImportHoo
 
 ---
 
+## TS-146 — orderBy bei RealTimeData (v1.99.26)
+
+Spec `2026-11-16-fa-struktur-ideal-ueber-sdata-spec`, Etappe 1. Standort: beide. **Keine Migration.** Web.
+
+**Vorbedingungen:** DEV IDEAL und DEV AKE auf v1.99.26 mit SData-Zugang; Admin-Benutzer. Nichts an Sage schreiben.
+
+| Nr | Szenario | Erwartet |
+|---|---|---|
+| 146.1 | IDEAL: Sage-Test > FA-Struktur live, FA 1069595 | Kein HTTP 500; Positionen, Rückmeldungen und Fertigmeldungen geladen (oder je Quelle ein klarer Fehlertext) |
+| 146.2 | Wie 146.1 mit FA 1059463 | Wie 146.1 |
+| 146.3 | Aufrufe aufklappen | Jede URL mit `where` enthält `&orderBy=` |
+| 146.4 | Negativ AKE: FA-Struktur live mit einem AKE-FA | Funktioniert wie vor dem Update |
+
+Automatisch belegt: `SageSdataReadClientTests.WhereOhneOrderBy_ArgumentException_OhneRequest` (AK 1), `SageSdataFaControllerTests` (alle URLs mit `orderBy`, AK 2).
+
+---
+
+## TS-147 — Stückliste live: beendeter Haupt-FA, Ressourcenliste (v1.99.26)
+
+Spec `2026-11-16-fa-struktur-ideal-ueber-sdata-spec`, Etappe 2. Standort: beide (Daten IDEAL). **Keine Migration.** Web.
+
+**Vorbedingungen:** wie TS-146.
+
+| Nr | Szenario | Erwartet |
+|---|---|---|
+| 147.1 | IDEAL: Sage-Test > Stückliste live, FA-Nummer 1059463 (beendet) | Wurzel 1059463 oben, darunter 13 Positionen inkl. Unter-FAs; Aufrufe zeigen „Kopf über dtsFaBelegsuche (in PpsFaBelegeInfo nicht vorhanden, beendet?)“ |
+| 147.2 | FA-Nummer 1065143 (Unter-FA von 1059463) | Ganze Struktur 1059463 mit Wurzel oben |
+| 147.3 | Artikelnummer 80141025 | Überschrift beginnt mit „Ressourcenliste (Vorlage)“; Hinweis „Ressourcenliste (Vorlage) – nicht die FA-Stückliste. … nicht die Stückliste eines Fertigungsauftrags“ als Text sichtbar (nicht nur Farbe) |
+| 147.4 | Negativ: FA-Nummer, die es nirgends gibt (z. B. 999999999) | Roter Hinweis „FA 999999999 in Sage nicht gefunden.“, keine weiteren Aufrufe |
+| 147.5 | Negativ: Artikelnummer mit `'` | Eingabefehler, kein Aufruf an Sage |
+
+Automatisch belegt: `SageTestSdataTests.Stueckliste_BeendeterHauptFa_…`, `…_UnterFaEinesBeendetenHauptFa_…`, `…_FaNirgendsGefunden_…`, `…_ArtikelModus_HinweisRessourcenlisteMitText`.
+
+---
+
+## TS-148 — Vergleichslauf FA-Struktur mit Knotenfeldern (v1.99.26)
+
+Spec `2026-11-16-fa-struktur-ideal-ueber-sdata-spec`, Etappe 4. Standort: IDEAL. **Keine Migration.** Dienst.
+
+**Vorbedingungen:** DEV IDEAL auf v1.99.26, Dienst läuft, SData-Zugang in `/ServiceSettings`; `Sync:Quelle:FaStruktur` = `Vergleich` (nur DEV).
+
+| Nr | Szenario | Erwartet |
+|---|---|---|
+| 148.1 | Lauf „FA-Hierarchie“ abwarten, FA-Struktur-Ansicht öffnen | Daten wie mit `View` (Knotenzahl unverändert, geschrieben nur aus der View) |
+| 148.2 | Aktivitäts-Protokoll > „Sage-Quellenvergleich“ | Zähler „Schlüssel View“, „Schlüssel SData“, „abweichend“; bis 20 Beispiele „FaStruktur [FA …] Feld: View '…' / SData '…'“ mit Feldnamen wie `Arbeitsschritte`, `Material`, `Beschichtet` |
+| 148.3 | Stichprobe 1059463 und 1069595: Abweichungen je Feld gegen P-FS5 notieren | Erwartete Abweichungen: `Artikelgruppe` (SData nur Code), Blätter `Beschichtet`/`Breite`/`Hoehe`/`Tiefe`/`EKBedarf` (keine Quelle am Artikel) |
+| 148.4 | Lauf „FA-Hierarchie“ im Protokoll | Hinweis „Quelle SData (RealTimeData): dtsFaBelegsuche…“ und Artikel-Abfrage in Blöcken |
+| 148.5 | Negativ: SData nicht erreichbar (z. B. falsche Adresse auf DEV) | Lauf schreibt aus der View; Fehlermail; Lauf „Sage-Quellenvergleich“ fehlgeschlagen |
+| 148.6 | Negativ: unbekanntes Artikelfeld (nur nachstellbar per Code/Sage-Änderung, sonst „nicht herstellbar“ notieren) | Warnung „Benutzerfeld … ist in Sage (Artikel) unbekannt – übersprungen. Feldzuordnung FA-Struktur prüfen …“, Lauf läuft weiter |
+
+Automatisch belegt: `FaStrukturSdataTests.Projizieren_UnterFaBekommtFaFelder_…` (AK 7), `SageBool_EineRegel_ViewUndSdata`, `Vergleich_NurArbeitsschritteAnEinemBlatt_…` (AK 8), `LesenAsync_UnbekanntesArtikelfeld_Warnung_LaufLaeuftWeiter` (AK 12).
+
+---
+
+## TS-149 — Beendeter Haupt-FA im Dienst (v1.99.26)
+
+Spec `2026-11-16-fa-struktur-ideal-ueber-sdata-spec`, Etappe 3. Standort: IDEAL. **Keine Migration.** Dienst.
+
+**Vorbedingungen:** wie TS-148.
+
+| Nr | Szenario | Erwartet |
+|---|---|---|
+| 149.1 | Vergleichslauf mit Struktur 1059463 im Lesefenster | Hinweis „… Haupt-FA(s) ohne Kopf in PpsFaBelegeInfo über dtsFaBelegsuche ergänzt: 1059463“; keine Warnung „ohne Haupt-FA in der SData-Menge“ für 1059463 |
+| 149.2 | Negativ: `Sync:Quelle:FaStruktur` = `SData` | Wirkt wie `View` (Sperre, TS-150); RealTimeData wird nicht gelesen |
+
+Automatisch belegt: `FaStrukturSdataTests.LesenAsync_BeendeterHauptFa_…`, `…_HauptFaAuchInBelegsucheNicht_WarnungOhneWurzel`, `…_OhneRealTimeDataFreigabe_KeinAufrufBelegsuche_Hinweis`, `RealTimeData_NurImModusVergleich` (AK 6).
+
+---
+
+## TS-150 — Umschalten SData und Rückweg (v1.99.26)
+
+Spec `2026-11-16-fa-struktur-ideal-ueber-sdata-spec`, Etappe 5. Standort: IDEAL. **Keine Migration.** Dienst.
+
+**Stand v1.99.26:** Umschalten ist **gesperrt** (Auflage 2026-11-16 bis DPS-Freigabe RealTimeData/P-FS3 und Rückfragen 4/5). Der Hybrid
+(Knoten aus SData, FAInfos aus der View) ist gebaut und nur per Unit-Test belegt.
+
+| Nr | Szenario | Erwartet |
+|---|---|---|
+| 150.1 | `/ServiceSettings`: `Sync:Quelle:FaStruktur` | Warnhinweis „SData ist hier gesperrt bis P-FS3 (DPS-Freigabe RealTimeData im Dienst offen; Rückfragen 4/5 …)“ |
+| 150.2 | `= SData` setzen, Lauf „FA-Hierarchie“ | Daten wie mit `View`; Protokoll: Warnung „… = SData ist gesperrt bis P-FS3 … – Quelle View.“ |
+| 150.3 | Zurück auf `View` | Nächster Lauf schreibt aus der View, keine Warnung |
+| 150.4 | Nach späterer Freigabe (nicht in v1.99.26): `= SData` | Lauf überspringt nicht, schreibt Knoten nur für Strukturen mit FAInfos-Zeile; FAInfos wie mit `View`; Struktur ohne FAInfos erscheint nicht |
+
+Automatisch belegt: `FaStrukturSdataTests.Weiche_SData_BleibtGesperrt_WirktWieView_MitWarnungUndGrund`, `Sperre_FaStruktur_BleibtGesetzt_BeginntMitPruefabfrage`, `Weiche_SData_Hybrid_BeiSimulierterFreigabe_…` (AK 10 ohne Freigabe).
+
+---
+
 *Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) + Teil 6 (Standorteinstellungen, v1.34.0) + BOM-Guard hierarchisch (2026-08-18, abgelöst) + FA-Liste-Hierarchie (v1.35.0) + BOM-Bridge (v1.36.0) + Materialisierung fachliche Felder K1/K2 (v1.37.0) + Skopierung der Tabellen-Selektoren (TS-72) + FA-Liste ausgebaut: Matchcode, Kopfdaten je Zeile, HauptFA-Zeile, Freigabe-Kaskade (v1.38.0, TS-73) + PDF-Erzeugung für FaHierarchy-Druckdokumente (v1.39.0, TS-74) + Matchcode im Artikelstamm (v1.40.0, TS-75) + FA-Arbeitsgang-Erkennung aus der Struktur (v1.41.0, TS-76, ersetzt durch TS-77) + Arbeitsgänge (WorkOperation) aus der Struktur + Werkbank-Anlage aus Sage (v1.44.0, TS-77) + Arbeitsgänge je (Sub-)FA im FA-Struktur-Modal (v1.45.0, TS-78) + Kommissionierung nur am HauptFA
-(v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80) + Beschichtungsauftrag Summiert als Standard (v1.48.0, TS-81) + Briefkopf Beschichtungsauftrag (v1.49.0, TS-82) + Beschichtungsauftrag als eigenes Objekt (v1.50.0, TS-83) + Beschichtungsaufträge bedienen (v1.51.0, TS-84) + Arbeitsgänge als Symbole im FA-Baum (v1.52.0, TS-85) + CSV-Export für alle Tabellen (v1.53.0, TS-86) + Arbeitsgang-Stammdaten (v1.54.0, TS-87) + Status je Arbeitsgang-Kürzel im FA-Baum (v1.55.0, TS-88) + Menü Beschichtung + Kurzanleitungen (v1.56.0, TS-89) + BDE-Terminal mit Arbeitsgang-Status (v1.57.0, TS-90) + Spaltenfilter-Suchsyntax Etappe A + B (v1.58.0/v1.58.1, TS-91.A/B) + Fußzeile nach Word-Vorlage (v1.59.0, TS-92) + Sage-Quellen auf WMS-Views (v1.60.0–v1.60.2, TS-93) + Arbeitsgang-Abgleich aus der Sage-View (v1.61.0, TS-94) + Stückliste Matchcode und Lagerplatz-Limit (v1.62.0, TS-95) + BDE Stufe 1: Werkbänke, AG-Fertigmeldung (v1.63.0, TS-96) + BDE-Terminal Liste nach Haupt-FA, Scan ohne AG (v1.64.0, TS-97) + Spaltenauswahl/Zahnrad zentraler Toolbar-Host (v1.65.0, TS-98) + Hardware-Barcodescanner (v1.66.0–v1.66.2, TS-99) + Vault- und enaio-Links konfigurierbar (v1.67.0, TS-100) + QR erstes Feld Matchcode / Trennzeichen (v1.68.0/v1.69.0, TS-101) + Aktivitäts-Protokoll Spaltenfilter/Namen (v1.70.0, TS-102) + FA-Struktur live aus Sage (v1.71.0, TS-103) + Lagerplatz-Etikett 93 × 55 mm und Vormontage-Felder (v1.72.0, TS-104/TS-105) + Sage-Abgleich über SData (v1.73.0, TS-106) + Fehlteile „Nur meine Werkbänke“ Trefferzahl (v1.75.0, TS-108) + Bestandsübersicht QR-FA nur mit `QrMitFaNummer` (v1.76.0, TS-101.22–101.25) + Einstellungen Auswahlfelder und Beschreibung (v1.77.0, TS-109) + EAN-Scan Einkaufsartikel (v1.78.0, TS-110) + Bereinigungen nach dem Bündel 2026-11-07 (v1.79.0, TS-111) + Artikelinfo Lieferanten (v1.80.0, TS-112) + Fehlteile-Karte je Bestelltyp (v1.81.0, TS-113) + Wareneingang zu Sage-Bestellung (v1.84.0, TS-116) + Artikel Lieferanten/Mengeneinheiten (v1.85.0, TS-112.12–112.16) + Offene Bestellungen Nachbesserung (v1.86.0, TS-116.8/116.9) + Lager-Tools FA-Verknüpfung (v1.87.0, TS-115) + Kommissionieraufträge (v1.88.0, TS-120) + Kommissionieraufträge Nachbesserung (v1.89.0, TS-120.1/120.9/120.13/120.14) + Lager-Tools FA-Karte je Pflicht (v1.90.0, TS-115.3) + Offene Bestellungen Legende (v1.91.0, TS-116.8) + OSEON-Relevanzfilter/BDE-Checkboxen (v1.92.0, TS-121) + Meldebestand-Mail Bestandsregel (v1.93.0, TS-122) + Menüleiste Umbruch/Kontrast (v1.94.0, TS-123) + Nachbesserung Vorab-Abnahme (v1.95.0, TS-115.13/115.14/116.10/120.15) + Übernahme AKE-Hotfixes v1.30.2–1.30.4 (v1.96.0, TS-107, TS-124) + Auftrag drucken in Sortierreihenfolge (v1.97.0, TS-120.16) + Matchcode in der Kommissionier-Auftragsliste (v1.99.8, TS-120.17) + Update-Skript je Zielsystem (v1.98.0, TS-125) + Update-Skript Url-Vorrang und Dienst-Stopp-Limit (v1.98.1, TS-125.17/125.18) + Update-Skript prüft und führt aus, mit Bestätigung (v1.99.0–v1.99.2, TS-126) + Update-Skript Prüfung Mail-Ablageordner (v1.99.12, TS-126.28–126.31) + Vormontage Spalte Abteilung (v1.99.3, TS-127) + Wareneingang Sage-Wareneingangsbeleg und Lieferschein (v1.99.4–v1.99.6, TS-116.11–116.19) + Sage-Wareneingang automatisch wiederholen mit Sage-Prüfung, Klären (v1.99.7, TS-116.20–116.24) + System-Kürzel in den Sage-Kennungen WE#/SM# (v1.99.9, TS-116.25–116.30) + Lieferverzug-Mails (v1.99.10, TS-128) + Wareneingang Barcode und CSV-Übergabe (v1.99.11, TS-129) + Bugfixes AKE-Regression: Filter in Anführungszeichen, Bedarfsmeldung Ortszeit, Auftragsdruck Lagerplatz, Wagen-Modal (v1.99.13, TS-130) + Register Sage-Test und SData-Zugangsdaten (v1.99.14, TS-131) + Rahmenabrufe in Offene Bestellungen und Wareneingang (v1.99.15, TS-132) + Update-Skript zweiter Trockenlauf mit Wiederholungssperre, Eingabe-Abbruch, DEV-Ziele (v1.99.16, TS-133) + Kommissionier-Prio nach Freigabe zurücknehmen ohne Doppelte (v1.99.17, TS-134) + Zeitstempel in Ortszeit (v1.99.18, TS-135) + Lieferverzug-Mail Nachbesserung: Kreditor-Schwelle, Altersgrenze, Rahmenabrufe, Lieferanten-Artikelnummer (v1.99.19, TS-128.16–128.26) + Einkauf: Bestellvorschläge (v1.99.20, TS-136) + letzte Bestellmenge (v1.99.21, TS-136.6–136.6g, 136.18–136.20) + Belegnummer 45, Wareneingang Überlieferung-Spalte und Hinweis offene Bedarfe (v1.99.22, TS-137) + Doppel-Absenden-Schutz, unsichtbare Unterpositionen, CSV ohne Tausendertrenner, feste Kultur de-DE (v1.99.23, TS-138) + Beschichtungsquelle Einstellungen und Dienst (v1.99.25, TS-140, TS-144; TS-141–143 zurückgestellt)*
+(v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80) + Beschichtungsauftrag Summiert als Standard (v1.48.0, TS-81) + Briefkopf Beschichtungsauftrag (v1.49.0, TS-82) + Beschichtungsauftrag als eigenes Objekt (v1.50.0, TS-83) + Beschichtungsaufträge bedienen (v1.51.0, TS-84) + Arbeitsgänge als Symbole im FA-Baum (v1.52.0, TS-85) + CSV-Export für alle Tabellen (v1.53.0, TS-86) + Arbeitsgang-Stammdaten (v1.54.0, TS-87) + Status je Arbeitsgang-Kürzel im FA-Baum (v1.55.0, TS-88) + Menü Beschichtung + Kurzanleitungen (v1.56.0, TS-89) + BDE-Terminal mit Arbeitsgang-Status (v1.57.0, TS-90) + Spaltenfilter-Suchsyntax Etappe A + B (v1.58.0/v1.58.1, TS-91.A/B) + Fußzeile nach Word-Vorlage (v1.59.0, TS-92) + Sage-Quellen auf WMS-Views (v1.60.0–v1.60.2, TS-93) + Arbeitsgang-Abgleich aus der Sage-View (v1.61.0, TS-94) + Stückliste Matchcode und Lagerplatz-Limit (v1.62.0, TS-95) + BDE Stufe 1: Werkbänke, AG-Fertigmeldung (v1.63.0, TS-96) + BDE-Terminal Liste nach Haupt-FA, Scan ohne AG (v1.64.0, TS-97) + Spaltenauswahl/Zahnrad zentraler Toolbar-Host (v1.65.0, TS-98) + Hardware-Barcodescanner (v1.66.0–v1.66.2, TS-99) + Vault- und enaio-Links konfigurierbar (v1.67.0, TS-100) + QR erstes Feld Matchcode / Trennzeichen (v1.68.0/v1.69.0, TS-101) + Aktivitäts-Protokoll Spaltenfilter/Namen (v1.70.0, TS-102) + FA-Struktur live aus Sage (v1.71.0, TS-103) + Lagerplatz-Etikett 93 × 55 mm und Vormontage-Felder (v1.72.0, TS-104/TS-105) + Sage-Abgleich über SData (v1.73.0, TS-106) + Fehlteile „Nur meine Werkbänke“ Trefferzahl (v1.75.0, TS-108) + Bestandsübersicht QR-FA nur mit `QrMitFaNummer` (v1.76.0, TS-101.22–101.25) + Einstellungen Auswahlfelder und Beschreibung (v1.77.0, TS-109) + EAN-Scan Einkaufsartikel (v1.78.0, TS-110) + Bereinigungen nach dem Bündel 2026-11-07 (v1.79.0, TS-111) + Artikelinfo Lieferanten (v1.80.0, TS-112) + Fehlteile-Karte je Bestelltyp (v1.81.0, TS-113) + Wareneingang zu Sage-Bestellung (v1.84.0, TS-116) + Artikel Lieferanten/Mengeneinheiten (v1.85.0, TS-112.12–112.16) + Offene Bestellungen Nachbesserung (v1.86.0, TS-116.8/116.9) + Lager-Tools FA-Verknüpfung (v1.87.0, TS-115) + Kommissionieraufträge (v1.88.0, TS-120) + Kommissionieraufträge Nachbesserung (v1.89.0, TS-120.1/120.9/120.13/120.14) + Lager-Tools FA-Karte je Pflicht (v1.90.0, TS-115.3) + Offene Bestellungen Legende (v1.91.0, TS-116.8) + OSEON-Relevanzfilter/BDE-Checkboxen (v1.92.0, TS-121) + Meldebestand-Mail Bestandsregel (v1.93.0, TS-122) + Menüleiste Umbruch/Kontrast (v1.94.0, TS-123) + Nachbesserung Vorab-Abnahme (v1.95.0, TS-115.13/115.14/116.10/120.15) + Übernahme AKE-Hotfixes v1.30.2–1.30.4 (v1.96.0, TS-107, TS-124) + Auftrag drucken in Sortierreihenfolge (v1.97.0, TS-120.16) + Matchcode in der Kommissionier-Auftragsliste (v1.99.8, TS-120.17) + Update-Skript je Zielsystem (v1.98.0, TS-125) + Update-Skript Url-Vorrang und Dienst-Stopp-Limit (v1.98.1, TS-125.17/125.18) + Update-Skript prüft und führt aus, mit Bestätigung (v1.99.0–v1.99.2, TS-126) + Update-Skript Prüfung Mail-Ablageordner (v1.99.12, TS-126.28–126.31) + Vormontage Spalte Abteilung (v1.99.3, TS-127) + Wareneingang Sage-Wareneingangsbeleg und Lieferschein (v1.99.4–v1.99.6, TS-116.11–116.19) + Sage-Wareneingang automatisch wiederholen mit Sage-Prüfung, Klären (v1.99.7, TS-116.20–116.24) + System-Kürzel in den Sage-Kennungen WE#/SM# (v1.99.9, TS-116.25–116.30) + Lieferverzug-Mails (v1.99.10, TS-128) + Wareneingang Barcode und CSV-Übergabe (v1.99.11, TS-129) + Bugfixes AKE-Regression: Filter in Anführungszeichen, Bedarfsmeldung Ortszeit, Auftragsdruck Lagerplatz, Wagen-Modal (v1.99.13, TS-130) + Register Sage-Test und SData-Zugangsdaten (v1.99.14, TS-131) + Rahmenabrufe in Offene Bestellungen und Wareneingang (v1.99.15, TS-132) + Update-Skript zweiter Trockenlauf mit Wiederholungssperre, Eingabe-Abbruch, DEV-Ziele (v1.99.16, TS-133) + Kommissionier-Prio nach Freigabe zurücknehmen ohne Doppelte (v1.99.17, TS-134) + Zeitstempel in Ortszeit (v1.99.18, TS-135) + Lieferverzug-Mail Nachbesserung: Kreditor-Schwelle, Altersgrenze, Rahmenabrufe, Lieferanten-Artikelnummer (v1.99.19, TS-128.16–128.26) + Einkauf: Bestellvorschläge (v1.99.20, TS-136) + letzte Bestellmenge (v1.99.21, TS-136.6–136.6g, 136.18–136.20) + Belegnummer 45, Wareneingang Überlieferung-Spalte und Hinweis offene Bedarfe (v1.99.22, TS-137) + Doppel-Absenden-Schutz, unsichtbare Unterpositionen, CSV ohne Tausendertrenner, feste Kultur de-DE (v1.99.23, TS-138) + Beschichtungsquelle Einstellungen und Dienst (v1.99.25, TS-140, TS-144; TS-141–143 zurückgestellt) + FA-Struktur IDEAL über SData, Stückliste live (v1.99.26, TS-146–150)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*

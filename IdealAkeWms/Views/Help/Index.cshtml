@@ -1068,10 +1068,21 @@
                                 &bdquo;Benutzerfeld&ldquo; (USER_-Felder und <code>SpecificUserfields.&lt;Name&gt;</code>); darüber die
                                 Rechte der Ressource laut Schema (Lesen/Anlegen/Ändern/Löschen). Ist das Schema der Ressource nicht lesbar
                                 (am AKE-Test HTTP 401), liest die Seite das Schema des ganzen Vertrags.</li>
-                            <li><strong>Stückliste live:</strong> Artikelnummer &rarr; Ressourcenliste aus Sage, Positionen eingerückt nach
-                                Ebene; FA-Nummer &rarr; die ganze FA-Struktur mit allen Positionen (Sub-FA unter der Position, die sie
-                                liefert). Je Zeile &bdquo;alle Felder&ldquo; zum Aufklappen inkl. Benutzerfelder; der Kopf darüber ebenso.
-                                Mandant ist mit der Zahl nach dem letzten <code>;</code> im Dataset vorbelegt.</li>
+                            <li><strong>Stückliste live:</strong> Artikelnummer &rarr; <strong>Ressourcenliste (Vorlage)</strong> des Artikels
+                                aus Sage, Positionen eingerückt nach Ebene. Das ist <em>nicht</em> die Stückliste eines Fertigungsauftrags: Ein FA
+                                kann mehr oder andere Positionen haben (Beispiel IDEAL: Artikel 80141025 hat 6, FA 1059463 hat 13). FA-Nummer
+                                &rarr; die ganze FA-Struktur mit allen Positionen (Sub-FA unter der Position, die sie liefert), der Haupt-FA
+                                oben &ndash; auch bei einer Unter-FA-Nummer. Ein <strong>beendeter Haupt-FA</strong>, den Sage in der FA-Liste
+                                nicht mehr führt, wird über die Belegsuche gefunden; das Aufruf-Protokoll unten nennt diesen Weg. Gibt es die
+                                Nummer nirgends, steht &bdquo;FA &hellip; in Sage nicht gefunden&ldquo;. Je Zeile &bdquo;alle Felder&ldquo; zum
+                                Aufklappen inkl. Benutzerfelder; der Kopf darüber ebenso. Mandant ist mit der Zahl nach dem letzten <code>;</code>
+                                im Dataset vorbelegt.</li>
+                            <li><strong>Sage-Quellenvergleich FA-Struktur (IDEAL, seit v1.99.26):</strong> Mit <code>Sync:Quelle:FaStruktur</code> =
+                                <code>Vergleich</code> liest der Lauf &bdquo;FA-Hierarchie&ldquo; die Struktur zusätzlich über die Sage-Schnittstelle
+                                und vergleicht je Knoten alle Felder. Unter-FAs nehmen die Benutzerfelder des FA-Kopfs, Teile ohne eigenen FA die des
+                                Artikels; Beschichtet, Breite, Höhe, Tiefe und EK-Bedarf haben am Artikel keine Quelle und weichen dort bewusst ab.
+                                Ein unbekanntes Artikel-Feld erscheint als Warnung, der Lauf läuft weiter. Geschrieben wird nur aus der View.
+                                <code>SData</code> ist gesperrt und wirkt wie <code>View</code>, bis die Freigabe vorliegt.</li>
                             <li><strong>FA-Struktur live:</strong> siehe unten.</li>
                         </ul>
                     </dd>

@@ -797,6 +797,11 @@ C:\Services\IDEALAKEWMSService\
 > `BelPosID`, Ressource, Menge, `PlatzID` + Kurzbezeichnung aus `LagerplaetzeInfo`; Count-Key `positionen`) in eigener Transaktion; leere
 > Antwort oder Schreibfehler lassen den alten Stand stehen (Warnung bzw. Fehler + Mail). `View` fasst die Tabelle nie an. `SQL/101` legt
 > außerdem `SageFaStates` an (Lesemodell des Rückmelde-Epics, bleibt bis dahin leer). Keine neuen Einstellungen.
+> **v1.99.26** (Spec 2026-11-16-fa-struktur-ideal-ueber-sdata): `Vergleich` vergleicht **alle** Knotenfelder (FA-Knoten: `USER_OS*` am
+> FA-Kopf über RealTimeData `dtsFaBelegsuche`, nur in diesem Modus; Blätter und Stammfelder: `Artikel`; Lücke an Blättern: Beschichtet,
+> Breite, Höhe, Tiefe, EKBedarf) und ergänzt beendete Haupt-FAs, die `PpsFaBelegeInfo` nicht liefert. `SData` ist als Hybrid gebaut (Knoten
+> aus SData, FAInfos aus der View, nur Strukturen mit FAInfos), bleibt aber **gesperrt** bis P-FS3/DPS-Freigabe und Rückfragen 4/5
+> (Sperrgrund an `/ServiceSettings`). SData erst nach abweichungsfreiem Vergleich umschalten. Keine Migration, keine neuen Keys.
 > **`Sync:Quelle:Arbeitsplaetze`** (E6a): gilt für **beide** Leser der Sage-Arbeitsplätze – Werkbank-Anlage und Arbeitsgang-Abgleich (kein
 > eigener Schalter). `SData` liest `PpsArbeitsplaetzeInfo` (nur `Aktiv`, im Code gefiltert; `Sync:ProductionWorkplaceSyncViewName` und
 > `…Mandant` wirken dort nicht – den Mandanten legt das Dataset fest) und schreibt zusätzlich `SageBdeTerminalId`, `SageKostenstelle`,

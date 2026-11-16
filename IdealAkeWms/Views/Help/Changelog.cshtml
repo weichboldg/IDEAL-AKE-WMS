@@ -9,6 +9,28 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.99.26</strong> <span class="text-white-50 ms-2">16.11.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>FA-Struktur IDEAL über die Sage-Schnittstelle (nur Vergleich), Stückliste live</h6>
+                <ul>
+                    <li><strong>Sage-Test &gt; Stückliste live:</strong> Die FA-Nummer eines <strong>beendeten Haupt-FA</strong> (oder einer seiner
+                        Unter-FAs) zeigt jetzt die ganze Struktur mit dem Haupt-FA oben. Der Artikel-Modus heißt
+                        <strong>&bdquo;Ressourcenliste (Vorlage)&ldquo;</strong> mit dem Hinweis, dass das nicht die Stückliste eines Fertigungsauftrags ist.</li>
+                    <li>Die FA-Struktur live und alle Sage-Abfragen mit Filter senden immer eine Sortierung mit. An der IDEAL antwortete Sage ohne sie
+                        mit einem Fehler (HTTP 500).</li>
+                    <li><code>Sync:Quelle:FaStruktur</code> = <code>Vergleich</code> vergleicht jetzt <strong>alle Felder</strong> je Knoten (z.&nbsp;B.
+                        Matchcode, Arbeitsschritte, Material, Beschichtet, Maße) und auch beendete Haupt-FAs. Geschrieben wird weiter nur aus der View;
+                        Abweichungen stehen im Lauf &bdquo;Sage-Quellenvergleich&ldquo;.</li>
+                    <li><code>SData</code> bleibt an der FA-Struktur <strong>gesperrt</strong> und wirkt wie <code>View</code> (Warnung mit Grund in den
+                        Service-Einstellungen und im Protokoll), bis die Freigabe durch DPS und die offenen Fragen geklärt sind.</li>
+                    <li>Nach dem Update ändert sich ohne Umstellen nichts (Standard <code>View</code>).</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.99.25</strong> <span class="text-white-50 ms-2">16.11.2026</span>
             </div>
             <div class="card-body">
