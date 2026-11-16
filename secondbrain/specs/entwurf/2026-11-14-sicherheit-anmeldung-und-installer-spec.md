@@ -4,7 +4,7 @@ title: "Bugfix Sicherheit: Anmeldung nur mit Kennwort oder Windows, Erstinstalla
 slug: 2026-11-14-sicherheit-anmeldung-und-installer-spec
 status: Entwurf
 created: 2026-11-14
-updated: 2026-11-14
+updated: 2026-11-16
 source_backlog: "[[2026-11-14-sicherheit-anmeldung-und-installer]]"
 weitere_quellen:
   - "[[2026-11-14-betriebshandbuch-goal-lauf]]"
@@ -16,43 +16,54 @@ worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
 branch: "feature/2026-08-07-ideal-teile-1-5"
 standort: beide
 version_vorschlag: "1.99.24"
-sql_vorschlag: "151 (nur wenn Rückfrage 4 die Index-Reparatur bestätigt)"
+sql_vorschlag: "152 fest (User.MussKennwortAendern, Nachtrag 2026-11-16); 151 nur wenn Rückfrage 4 die Index-Reparatur bestätigt"
 ts_vorschlag: "TS-139"
 adr_vorschlag: "0027"
 affected_code:
-  - "IdealAkeWms/Controllers/AccountController.cs (Login POST :64-116: Kennwortregel :82-101, Erstkennwort-Schritt)"
+  - "IdealAkeWms/Controllers/AccountController.cs (Login POST :64-116: Kennwortregel :82-101, Pflichtwechsel-Schritt; Profile POST :222-227 löscht MussKennwortAendern)"
   - "IdealAkeWms/Models/ViewModels/LoginViewModel.cs (neu NewPassword, NewPasswordRepeat, KennwortFestlegen)"
-  - "IdealAkeWms/Views/Account/Login.cshtml (:75-80 Hinweistext, Felder Erstkennwort)"
-  - "IdealAkeWms/Controllers/UsersController.cs (Index :70-94: Hinweis-Banner Benutzer ohne Kennwort)"
-  - "IdealAkeWms/Views/Users/Index.cshtml (Banner)"
-  - "IdealAkeWms/Program.cs (:55-61 Cookie.SecurePolicy, AddAntiforgery; :259-279 Start-Warnung admin ohne Kennwort)"
+  - "IdealAkeWms/Views/Account/Login.cshtml (:75-80 Hinweistext, Felder Pflichtwechsel)"
+  - "IdealAkeWms/Models/User.cs (neu bool MussKennwortAendern)"
+  - "IdealAkeWms/Migrations/<Zeitstempel>_AddUserMussKennwortAendern.cs + .Designer.cs + ApplicationDbContextModelSnapshot.cs"
+  - "SQL/152_AddUserMussKennwortAendern.sql (neu, COL_LENGTH-Guard, History separat, Muster SQL/141)"
+  - "IdealAkeWms/Services/PasswordService.cs + IPasswordService (neu GenerateInitialPassword)"
+  - "IdealAkeWms/Controllers/UsersController.cs (Index :70-94 Hinweis-Banner; Create POST :103-151 und Edit GET/POST :230-326 Erstkennwort + Haken)"
+  - "IdealAkeWms/Models/ViewModels/UserEditViewModel.cs (neu MussKennwortAendern, ErstkennwortErzeugen)"
+  - "IdealAkeWms/Views/Users/Index.cshtml (Banner), Views/Users/Create.cshtml (:89-93), Views/Users/Edit.cshtml (:173-177)"
+  - "IdealAkeWms/Program.cs (:55-61 Cookie.SecurePolicy, AddAntiforgery; :259-279 admin-Seed mit Erstkennwort + Haken statt Leer-Hash, Start-Warnung)"
   - "IDEALAKEWMSService/Services/MailService.cs (:70-82, je nach Rückfrage 9)"
   - "IDEALAKEWMSService/appsettings.json (:17-20, :25-50 tote Blöcke, je nach Rückfrage 6)"
-  - "SQL/00_FreshInstall.sql (:1260-1263 entfernen; :1803/:1838 Guards)"
+  - "SQL/00_FreshInstall.sql (:1260-1263 entfernen; :1803/:1838 Guards; Users :24-55 Spalte MussKennwortAendern; MigrationId-Block nach :3262-3264)"
   - "SQL/151_RepairFreshInstallIndexes.sql (nur nach Rückfrage 4)"
-  - "scripts/deploy/Install-IdealAkeWms.ps1 (:82, :269-274, :362-373, :420-449, :480-493)"
-  - "scripts/deploy/nachlauf.psd1 (Pruefung/BenutzerOhneKennwort, Info-Einträge, ggf. Pruefung/FreshInstallIndizes, Pruefung/SmtpBenutzer)"
-  - "Tests: IdealAkeWms.Tests/Controllers/AccountControllerTests.cs (Login-Fälle neu), IdealAkeWms.Tests/Repositories/FreshInstallIndexSpaltenTests.cs (neu), NachlaufManifestDriftTests"
-  - "docs/TESTSZENARIEN.md (TS-139 neu; TS-1.6 :174, TS-40.4 :5250, TS-40.7 :5299 anpassen), docs/betrieb/03, 07, 09, README.md :63, Views/Help/Index.cshtml, Views/Help/Changelog.cshtml, AppVersion.cs (Web + Service)"
-  - "Brain (Hauptcheckout): ADR 0027 neu, fallstricke §4, codebase/controller.md (Account), feature-map, changelog"
+  - "scripts/deploy/Install-IdealAkeWms.ps1 (:29, :82, :269-274, :362-373, :420-449, :480-493; Erstkennwort-Ausgabe admin nach Rückfrage 11)"
+  - "scripts/deploy/nachlauf.psd1 (SQL/152 Schema, Pruefung/BenutzerOhneKennwort auf Erstkennwort mit Pflichtwechsel umgestellt, Info-Einträge, ggf. Pruefung/FreshInstallIndizes, Pruefung/SmtpBenutzer)"
+  - "Tests: IdealAkeWms.Tests/Controllers/AccountControllerTests.cs (Login- und Pflichtwechsel-Fälle neu), UsersControllerTests (Erstkennwort/Haken), PasswordService-Test (GenerateInitialPassword), IdealAkeWms.Tests/Repositories/FreshInstallIndexSpaltenTests.cs (neu), NachlaufManifestDriftTests"
+  - "docs/TESTSZENARIEN.md (TS-139 neu; TS-1.6 :174, TS-40.4 :5250, TS-40.7 :5299 anpassen), docs/betrieb/03, docs/betrieb/07-troubleshooting.md (Abschnitt 2: Meldung R, Pflichtwechsel, Rückweg admin), docs/betrieb/09-sicherheit-konten-rechte.md (:21, R1/R2 :187-188), README.md :63, Views/Help/Index.cshtml, Views/Help/Changelog.cshtml, AppVersion.cs (Web + Service)"
+  - "Brain (Hauptcheckout): ADR 0027 neu (Umsetzungs-Lieferobjekt, Inhalt siehe Lösungsentwurf 9), fallstricke §4, codebase/controller.md (Account, Users), codebase/datenmodell.md (User.MussKennwortAendern), feature-map, changelog"
   - "Bug: [[2026-11-14-sicherheit-anmeldung-und-installer-bug]]"
 open_questions:
-  - "BH-1 Regel: A streng (Formular nur mit gespeichertem Kennwort; Ausnahme nur der Erstkennwort-Schritt für admin), B nur AD-Benutzer sperren (lokale ohne Kennwort weiter wie heute) oder C = A plus Übergangsschalter? Empfehlung A."
-  - "Übergang: Ergebnis der Prüfabfrage P-1 je System (IDEAL-Prod, IDEAL-Test, AKE-Prod, AKE-Test, AKE-Test-IDEAL) – und soll Pruefung/BenutzerOhneKennwort den Prod-Deploy sperren (Phase Vorher, Empfehlung) oder nur hinweisen (Phase Nachher)?"
+  - "BH-1 Regel: A streng (Formular nur mit gespeichertem Kennwort), B nur AD-Benutzer sperren (lokale ohne Kennwort weiter wie heute) oder C = A plus Übergangsschalter? Empfehlung A. [Neubewertung Nachtrag 2026-11-16: Regel R für Benutzer ohne Kennwort ist bestätigt (= Kern von A); weiter offen nur die formale Bestätigung A gegen C]"
+  - "Übergang: Ergebnis der Prüfabfrage P-1 je System (IDEAL-Prod, IDEAL-Test, AKE-Prod, AKE-Test, AKE-Test-IDEAL) – und soll Pruefung/BenutzerOhneKennwort den Prod-Deploy sperren (Phase Vorher, Empfehlung) oder nur hinweisen (Phase Nachher)? [Neubewertung Nachtrag 2026-11-16: geändert – Abhilfe ist jetzt Erstkennwort mit Pflichtwechsel; P-1-Ergebnis und Sperre/Hinweis weiter offen]"
   - "Lokale QA unter Kestrel (Testbenutzer QA-Agent/QA-Picker ohne Kennwort): Ausnahme nur bei IsDevelopment() mit sichtbarem Hinweis (Empfehlung) oder keine Ausnahme (QA-Testbenutzer bekommen Kennwörter, Ablage außerhalb des Brains)?"
   - "BH-2: Ergebnis P-2 auf IDEAL-Prod (fehlen Indizes aus Abschnitt 15?) – bei Treffern SQL/151 + Pruefung/FreshInstallIndizes (Reparatur, nur IDEAL-Prod) oder Reparatur von Hand? Guards für WarehouseRequisitions/-Items und der Wächter-Test mit in diese Spec? Empfehlung: ja, ja, ja."
   - "BH-3: Parameter -SageLagerbuchungCredential ersatzlos entfernen (Empfehlung) oder behalten und mit Hinweis abbrechen? SMTP-Kennwort: weiter in der Dienst-Datei (ADR 0008/0024) mit Warnhinweis des Installers (Empfehlung) oder eigener ADR für den Umzug nach ServiceSettings (Typ Geheim)?"
   - "BH-4: Installer setzt Sync:ProductionOrdersEnabled nach dem ersten Web-Start in der DB auf false (Variante A, Empfehlung wegen Autostart des Dienstes nach Neustart) oder nur die wirkungslose Zeile streichen (Variante B)? Tote Blöcke Sync (außer Feiertag*), WorkerSettings, ErrorNotification aus IDEALAKEWMSService/appsettings.json entfernen (Empfehlung ja)?"
-  - "BH-5a admin ohne Kennwort: Erstkennwort-Schritt bei der ersten Anmeldung (Empfehlung), Installer fragt Kennwort ab und schreibt den Hash (zweite PBKDF2-Implementierung in PowerShell) oder unverändert nur mit Warnung?"
+  - "BH-5a admin ohne Kennwort: Erstkennwort-Schritt bei der ersten Anmeldung (Empfehlung), Installer fragt Kennwort ab und schreibt den Hash (zweite PBKDF2-Implementierung in PowerShell) oder unverändert nur mit Warnung? [ERLEDIGT durch Nachtrag 2026-11-16: Erstkennwort + Pflichtwechsel (Haken), Leer-Hash-Ausnahme E entfällt; Folgefrage = Rückfrage 11]"
   - "BH-5b Cookie: SecurePolicy SameAsRequest für Sitzungs- und Antiforgery-Cookie (Empfehlung; HTTP-Systeme IDEAL-Test :88 und DEV laufen weiter), Always (bricht HTTP-Systeme) oder unverändert?"
   - "BH-5c SMTP: nur Warnung, wenn ein SMTP-Benutzer ohne SmtpUseSsl gesetzt ist, plus Pruefung/SmtpBenutzer (Empfehlung), oder StartTlsWhenAvailable (Risiko: Relay mit ungültigem Zertifikat -> keine Mails mehr), oder unverändert? Dazu Prüfschritt: MailSettings je Dienst-Datei (Host, Port, SmtpUseSsl, Benutzer gesetzt ja/nein)."
   - "Zusatzfunde (keine Sperre nach Fehlversuchen, keine Mindestlänge, unterschiedliche Meldungen verraten vorhandene Benutzernamen, Installer-Mindestzahl 75 Migrationen BH-7): Folgeaufgabe (Empfehlung) oder in diese Spec?"
+  - "Erstkennwort für admin nach Installation/Rückweg: S1 festes dokumentiertes Erstkennwort, S2 Web-Start erzeugt ein Zufalls-Erstkennwort in eine geschützte Datei unter App_Data, Installer zeigt es einmal und löscht die Datei (Empfehlung), oder S3 anderer Weg?"
+  - "Anzeige-Ort des vom WMS erzeugten Erstkennworts: einmal im Erfolgs-Banner nach dem Speichern (TempData, verschlüsseltes Cookie, Empfehlung) oder eigene Anzeigeseite/Druckzettel?"
+  - "Gültigkeitsdauer des Erstkennworts: keine (Empfehlung; /Users zeigt offene Erstkennwörter) oder Ablauf nach n Tagen (braucht eigene Spalte ErstkennwortGesetztAm)?"
+  - "Kennwortregeln beim Pflichtwechsel: nur nicht leer, neu ungleich alt, Wiederholung gleich (Empfehlung, Ist hat keine Regeln) oder zusätzlich Mindestlänge n (berührt Zusatzfund Rückfrage 10)?"
+  - "Haken manuell löschen / Kennwort ohne Haken setzen (Gerätekonten BDE-Terminal, gemeinsame Handgeräte-Konten): erlaubt (Empfehlung, Checkbox in /Users/Edit maßgeblich) oder nie?"
+  - "Handgeräte-/Terminal-Login mit Pflichtwechsel: Schritt auf Handgerät/Terminal akzeptiert (Bildschirmtastatur, Hardware-Scanner-Fokus) – Prüfschritt am Netum/Terminal – oder Gerätekonten grundsätzlich ohne Haken (siehe Rückfrage 15)?"
 epic: false
 etappen: []
 deploy:
   web: true
   service: true
-  migration: false
+  migration: true
 freigabe_entscheidung: ""
 freigabe_von: ""
 freigabe_am: ""
@@ -62,6 +73,11 @@ freigabe_am: ""
 
 Bug-Datensatz: [[2026-11-14-sicherheit-anmeldung-und-installer-bug]]. Befunde aus [[2026-11-14-betriebshandbuch-goal-lauf]]
 (Tabelle „Befunde beim Erstellen“). Basis Bündel v1.99.23 (`IdealAkeWms/AppVersion.cs:5`), Zielversion **1.99.24**.
+
+> [!important] Nachtrag 2026-11-16 16:27 eingearbeitet
+> Erstkennwort durch Admin + Pflichtwechsel (neue Spalte `User.MussKennwortAendern`, SQL/152) ersetzt die Leer-Hash-Ausnahme E.
+> Entscheidung und Neubewertung der Rückfragen 1, 2, 7: Abschnitt [[#Nachtrag 2026-11-16 16:27 – Erstkennwort durch Admin + Pflichtwechsel]].
+> Code-Fundstellen gelten für den Bündel-Worktree `feature/2026-08-07-ideal-teile-1-5` (Stand v1.99.23, geprüft 2026-11-16).
 
 ## Ziel / Nutzen (das Warum)
 
@@ -77,7 +93,9 @@ Bug-Datensatz: [[2026-11-14-sicherheit-anmeldung-und-installer-bug]]. Befunde au
 
 ## Umfang (In-Scope / Out-of-Scope)
 
-**In-Scope:** Anmelderegel im Formular (BH-1) mit Übergang, Erstkennwort-Schritt für `admin` (BH-5a), Korrektur
+**In-Scope:** Anmelderegel im Formular (BH-1) mit Übergang, Erstkennwort durch Admin + Pflichtwechsel für alle Benutzer mit
+Kennwort-Formular-Anmeldung (Spalte `User.MussKennwortAendern`, `/Users/Create`, `/Users/Edit`, Login-Zwischenschritt) und
+`admin`-Seed mit Erstkennwort + Haken (BH-5a, Nachtrag 2026-11-16), Korrektur
 `00_FreshInstall.sql` mit Nachweis auf leerer DB (BH-2), Installer ohne Klartext-SData und mit wirksamem FA-Schutz (BH-3/BH-4),
 Cookie-Flag (BH-5b), SMTP-Hinweis (BH-5c), Manifest, Doku `docs/betrieb/03`, `07`, `09`, Hilfe, Changelog, Testszenarien.
 
@@ -138,22 +156,71 @@ bestätigt. Benutzer ohne Hash (lokal oder AD) werden im Formular abgewiesen:
 „Für diesen Benutzer ist kein Kennwort hinterlegt. Bitte „Mit Windows anmelden“ verwenden oder beim Administrator ein Kennwort setzen
 lassen.“ (Ist `WindowsAuthAktiv` aus, entfällt der erste Halbsatz.) Es entsteht keine Sitzung.
 
-**Ausnahme E (Erstkennwort, BH-5a, Rückfrage 7):** Bestätigt der gespeicherte Hash das **leere** Kennwort (laut Ist-Stand nur der
+~~**Ausnahme E (Erstkennwort, BH-5a, Rückfrage 7):** Bestätigt der gespeicherte Hash das **leere** Kennwort (laut Ist-Stand nur der
 `admin`-Seed) und wurde das Feld leer gelassen, zeigt die Anmeldeseite statt einer Sitzung den Schritt „Erstes Kennwort festlegen“
 (neues Kennwort + Wiederholung). Der Server prüft beim Speichern erneut, dass der Hash noch das leere Kennwort bestätigt, dass das
 neue Kennwort nicht leer ist und beide Eingaben gleich sind; erst dann Hash setzen, Audit-Felder, Sitzung. Danach gilt für `admin`
 Regel R. Der Rückweg „admin-Kennwort vergessen“ bleibt der heutige: `PasswordHash` per SQL auf `NULL`, App-Pool neu starten →
-Seed setzt den Leer-Hash (`Program.cs:275-278`) → Erstkennwort-Schritt (Doku `07-troubleshooting`).
+Seed setzt den Leer-Hash (`Program.cs:275-278`) → Erstkennwort-Schritt (Doku `07-troubleshooting`).~~
+*Ueberholt durch Nachtrag 2026-11-16 16:27: es gibt keinen Leer-Hash und keine Anmeldung mit leerem Feld mehr; an die Stelle tritt
+Regel P.*
+
+**Regel P (Erstkennwort durch Admin + Pflichtwechsel, Nachtrag 2026-11-16):**
+- Neues Feld `User.MussKennwortAendern` (bool, NOT NULL, Default `false`). Bedeutung: das gespeicherte Kennwort hat ein Admin bzw.
+  der Seed vergeben; der Benutzer muss es bei der nächsten Formular-Anmeldung durch ein eigenes ersetzen.
+- **Setzen:** `/Users/Create` und `/Users/Edit` – wird ein Kennwort eingegeben **oder** vom WMS erzeugt (Option „Erstkennwort
+  erzeugen“), setzt der Server den Haken automatisch. Der Haken ist zusätzlich als Checkbox „Muss Kennwort bei der nächsten Anmeldung
+  ändern“ manuell setzbar (nur sinnvoll bei vorhandenem Kennwort; ohne Kennwort gilt Regel R, der Haken wirkt erst mit einem
+  Kennwort). Ob der Admin den Haken auch **abwählen** bzw. ein Kennwort ohne Haken setzen darf (Gerätekonten), entscheidet
+  Rückfrage 15: „nie“ → ein neues Kennwort setzt den Haken immer, die Checkbox kann ihn nur setzen; „erlaubt“ (Empfehlung) → die
+  Checkbox ist maßgeblich und bei neu eingegebenem/erzeugtem Kennwort vorausgewählt.
+- **Erzeugtes Erstkennwort:** `IPasswordService.GenerateInitialPassword()` (Zufall per `RandomNumberGenerator.GetItems`, 12 Zeichen
+  aus einem Alphabet ohne verwechselbare Zeichen `0 O 1 l I`). Es wird **genau einmal** angezeigt (Ort: Rückfrage 12, Empfehlung
+  Erfolgs-Banner `TempData["SuccessMessage"]` nach dem Redirect – TempData ist lesend einmalig, Default-Provider = verschlüsseltes
+  Cookie, `Program.cs` registriert keinen anderen), nie im Klartext gespeichert, nie geloggt.
+- **Login:** richtiges, nicht leeres Kennwort + Haken gesetzt → keine Sitzung, sondern Zwischenschritt „Neues Kennwort festlegen“
+  auf derselben Seite (`/Account/Login`, Felder: bisheriges Kennwort erneut, neues Kennwort, Wiederholung). Der Server prüft bei
+  **jedem** POST erneut: Benutzer aktiv, Hash vorhanden, bisheriges Kennwort bestätigt den Hash, Haken noch gesetzt, neues Kennwort
+  nicht leer/nicht nur Leerzeichen, neu ≠ bisheriges (`VerifyPassword(hash, neu)` = false), Wiederholung gleich; weitere Regeln nur
+  nach Rückfrage 14. Erst dann `PasswordHash = HashPassword(neu)`, `MussKennwortAendern = false`, Audit-Felder, Sitzung. Der Schritt ist
+  zustandslos (kein Session-Merker, kein Klartext in versteckten Feldern): Abbruch, Zurück, Schließen oder Fehler → keine Sitzung,
+  Hash und Haken unverändert.
+- **Ohne gespeichertes Kennwort** gilt weiter Regel R (keine Formular-Anmeldung, auch nicht mit Haken).
+- **Selbst gewähltes Kennwort** über `/Account/Profile` (`AccountController.cs:222-223`) löscht den Haken ebenfalls (der Benutzer hat
+  dann ein eigenes Kennwort; erreichbar mit Haken nur über SSO oder die Entwicklungs-Ausnahme).
+- **AD-Benutzer:** Windows-SSO unverändert (`WindowsAutoLoginMiddleware.cs:114-118` prüft weder Kennwort noch Haken). Ein Erstkennwort
+  bekommen sie nur bei Bedarf (Handgerät ohne SSO); `/Users/Edit` zeigt das Kennwortfeld auch für AD-Benutzer
+  (`Views/Users/Edit.cshtml:173-177`, keine Bedingung auf `WindowsUserName`).
+- **Warum nicht Selbstvergabe ohne Kennwort:** Ein Benutzer ohne Kennwort, der sich beim ersten Login „selbst“ ein Kennwort gibt, ist
+  von jedem übernehmbar, der den Benutzernamen kennt (Namen wie `lager` sind erratbar, Belege unter Ist-Stand) – der Erste am
+  Formular besitzt danach das Konto, der echte Benutzer ist ausgesperrt. Das Erstkennwort durch den Admin bindet die erste Anmeldung
+  an ein Geheimnis, das nur der Admin weitergibt (ADR 0027).
+
+**`admin` nach Installation (BH-5a, Nachtrag 2026-11-16):** Der Start-Seed (`Program.cs:259-279`) legt `admin` nicht mehr mit dem
+Leer-Hash an, sondern mit einem Erstkennwort + `MussKennwortAendern = true`. Welches Erstkennwort und wie es zum Installateur kommt,
+entscheidet **Rückfrage 11** (Empfehlung S2: Zufalls-Erstkennwort in eine Datei unter `App_Data`, Installer gibt es nach dem Aufwärmen
+einmal aus und löscht die Datei; S1 festes, dokumentiertes Erstkennwort). Der Seed greift, wenn
+`string.IsNullOrEmpty(admin.PasswordHash)` **oder** der Hash das leere Kennwort bestätigt – so werden bestehende `admin`-Konten mit
+Leer-Hash (Ist: `Program.cs:267`, `:277`) beim ersten Start von v1.99.24 automatisch auf Erstkennwort + Haken umgestellt, statt nach
+Regel R ausgesperrt zu sein. Ein `admin` mit eigenem Kennwort bleibt unberührt.
+
+**Rückweg „admin-Kennwort vergessen“ (umgedeutet):** (1) Ein anderer Admin setzt unter `/Users/Edit` ein Erstkennwort → Haken →
+Pflichtwechsel. (2) Kein Admin mehr anmeldbar: `UPDATE dbo.Users SET PasswordHash = NULL WHERE Name = N'admin'`, App-Pool neu starten →
+Seed setzt Erstkennwort + Haken (Weg nach Rückfrage 11) → Pflichtwechsel. Doku `docs/betrieb/07-troubleshooting.md`.
 
 **Übergang:** Vor dem Deploy erhebt Gerald je System P-1. Jeder aktive **lokale** Benutzer ohne Kennwort, der weiter arbeiten soll
 (Terminals, Handgeräte), bekommt vorher über `/Users/Edit` ein Kennwort (geht schon heute, `UsersController.cs:307-308`) oder wird
-deaktiviert. AD-Benutzer ohne Kennwort brauchen nur dann eines, wenn sie ohne SSO arbeiten (Mobilgerät ohne Knopf, oder
+deaktiviert. *Nachtrag 2026-11-16:* ab v1.99.24 ist die Abhilfe „Erstkennwort mit Pflichtwechsel setzen“ (Regel P); ein im alten
+Stand gesetztes Kennwort trägt noch keinen Haken (Spalte entsteht erst mit SQL/152, Default `false`) – wer den Pflichtwechsel auch
+für diese Konten will, setzt nach dem Deploy den Haken unter `/Users/Edit`. AD-Benutzer ohne Kennwort brauchen nur dann eines, wenn sie ohne SSO arbeiten (Mobilgerät ohne Knopf, oder
 `WindowsAuthAktiv` aus). Die Prüfung `Pruefung/BenutzerOhneKennwort` zählt genau die Benutzer, die nach dem Deploy **keinen**
 Anmeldeweg mehr hätten, und sperrt den Prod-Deploy, solange sie > 0 ist (Rückfrage 2). Kein Schalter (Begründung unter „Einstellungen“).
 
 **Sichtbarkeit (Melden statt still):** `/Users` zeigt einen Hinweis „n aktive Benutzer ohne Kennwort: … (lokal: keine Anmeldung
-mehr möglich; AD: nur Windows-Anmeldung)“ und „admin hat noch kein Kennwort (Erstkennwort offen)“. Der Web-Start schreibt eine
-Warnung ins Log, solange der `admin`-Hash das leere Kennwort bestätigt.
+mehr möglich; AD: nur Windows-Anmeldung)“ und „n Benutzer mit offenem Erstkennwort (Pflichtwechsel ausstehend): …“ (alle aktiven
+mit `MussKennwortAendern = true`, `admin` eingeschlossen; ersetzt den früheren Text „admin hat noch kein Kennwort“). Der Web-Start
+schreibt eine Warnung ins Log, solange `admin` den Haken trägt („Benutzer admin hat ein Erstkennwort – bei der ersten Anmeldung
+ändern.“; nie das Kennwort selbst).
 
 **Lokale QA unter Kestrel (Rückfrage 3, Empfehlung):** Nur wenn `app.Environment.IsDevelopment()` gilt Regel R nicht für Benutzer
 ohne Hash; die Anmeldeseite zeigt dann sichtbar „Entwicklungsmodus: Anmeldung ohne Kennwort erlaubt“. Belegt nur über
@@ -240,50 +307,103 @@ vor dem Deploy ein Kennwort bekommen können.
 
 | Punkt | Ist (Beleg) | Empfehlung | Folgen |
 |---|---|---|---|
-| a) `admin` ohne Kennwort | Seed mit Leer-Hash `Program.cs:260-279`; Installer-Text `:29`, `:481` | Erstkennwort-Schritt (Ausnahme E) + Start-Warnung + Hinweis `/Users` | Fenster bleibt bis zur ersten Anmeldung (wie heute, nur kürzer); Installer-Text: „beim ersten Anmelden als admin ein Kennwort festlegen“. Alternative Installer-Abfrage braucht eine zweite PBKDF2-Implementierung (`PasswordService.cs:8-22`) in PowerShell – Drift-Risiko, nicht testbar. |
+| a) `admin` ohne Kennwort | Seed mit Leer-Hash `Program.cs:260-279`; Installer-Text `:29`, `:481` | **Entschieden (Nachtrag 2026-11-16):** Seed mit Erstkennwort + Haken, Pflichtwechsel (Regel P), Erstkennwort-Weg nach Rückfrage 11 + Start-Warnung + Hinweis `/Users`. *Ueberholt:* „Erstkennwort-Schritt (Ausnahme E)“ | Fenster bleibt bis zur ersten Anmeldung (wie heute, nur kürzer); Installer-Text: „beim ersten Anmelden als admin ein Kennwort festlegen“. Alternative Installer-Abfrage braucht eine zweite PBKDF2-Implementierung (`PasswordService.cs:8-22`) in PowerShell – Drift-Risiko, nicht testbar. |
 | b) Cookie ohne `Secure` | `Program.cs:55-61` setzt nur `HttpOnly`/`IsEssential`/`Name`; Antiforgery nicht konfiguriert | `options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest` für Sitzung und `AddAntiforgery(o => o.Cookie.SecurePolicy = …SameAsRequest)` | HTTPS-Systeme (IDEAL-Prod, AKE-Prod/Test/Test-IDEAL, `ziele.psd1:9`, `:11-13`) senden das Cookie nur noch verschlüsselt; HTTP-Systeme (IDEAL-Test :88 `:10`, DEV `:14-15`) laufen unverändert. `Always` würde dort die Anmeldung brechen. Den heutigen Default (laut ASP.NET-Core-Doku `None`) belegt der Dev-Lauf in den Browser-Entwicklerwerkzeugen. |
 | c) SMTP ohne TLS | `SmtpUseSsl` false → `SecureSocketOptions.None` (`MailService.cs:71`, `:78`): auch ein angebotenes STARTTLS wird nicht genutzt; ein gesetzter Benutzer meldet sich unverschlüsselt an (`:81-82`) | Warnung im Dienst-Log beim Senden, wenn `SmtpUsername` gesetzt und `SmtpUseSsl` false, plus `Pruefung/SmtpBenutzer` im Update-Skript | kein Verhaltenswechsel. Alternative `StartTlsWhenAvailable` verschlüsselt opportunistisch, aber ein Relay mit ungültigem/selbstsigniertem Zertifikat lässt dann jeden Versand scheitern (Fehlermails, Lieferverzug, Meldebestand). Wie die Relays je Standort konfiguriert sind, steht nur in den Server-Dateien → Prüfschritt (Rückfrage 9). |
 
 ## Technischer Loesungsentwurf
 
-Kein neues Muster, keine neue Abhängigkeit, kein neuer Filter, keine Migration.
+Kein neues Muster, keine neue Abhängigkeit, kein neuer Filter. ~~keine Migration~~ *(ueberholt durch Nachtrag 2026-11-16: eine
+additive Migration für `User.MussKennwortAendern`, siehe Migrations-/SQL-Auswirkungen.)*
 
+0. **Modell:** `User.MussKennwortAendern` (`bool`, `[Display(Name = "Muss Kennwort bei der nächsten Anmeldung ändern")]`) in
+   `Models/User.cs` (Klasse `User : AuditableEntity`, `:5`); Migration `AddUserMussKennwortAendern` (`defaultValue: false`), SQL/152,
+   FreshInstall an beiden Stellen. Name bewusst deutsch wie die Entscheidung (Muster `AltbestandPruefen`, SQL/141).
 1. **`AccountController.Login` POST** (`:64-116`) – die Kennwortprüfung `:82-101` wird ersetzt:
    - `user.PasswordHash` leer → wenn `IsDevelopment()` (Rückfrage 3) wie heute anmelden, sonst Meldung R, View, keine Sitzung.
-   - Feld leer → wenn `VerifyPassword(hash, "")` (Ausnahme E): ist `vm.NewPassword` leer → View mit `KennwortFestlegen = true`
-     und Hinweis; sonst prüfen (nicht leer, gleich `NewPasswordRepeat`, Hash bestätigt am Schreibort weiterhin das leere Kennwort –
-     ADR 0026 „Server prüft am Schreibort“), dann `PasswordHash = HashPassword(neu)`, `ModifiedAt/By/ByWindows`, `UpdateAsync`,
-     Sitzung wie `:104-110`, `TempData["SuccessMessage"] = "Kennwort festgelegt."`. Sonst „Falsches Passwort.“
-   - Feld nicht leer → `VerifyPassword` wie heute.
+   - Feld leer → „Falsches Passwort.“ (Regel R; kein Leer-Hash mehr, siehe Seed).
+     ~~Feld leer → wenn `VerifyPassword(hash, "")` (Ausnahme E): ist `vm.NewPassword` leer → View mit `KennwortFestlegen = true` …~~
+     *(ueberholt, Nachtrag 2026-11-16)*
+   - `VerifyPassword(hash, vm.Password)` falsch → „Falsches Passwort.“ wie heute (`:85-90`).
+   - Richtig und `MussKennwortAendern = false` → Sitzung wie heute (`:104-115`).
+   - Richtig und `MussKennwortAendern = true` (Regel P): ist `vm.NewPassword` leer → View mit `KennwortFestlegen = true`, Hinweis
+     „Ihr Kennwort wurde vom Administrator vergeben. Bitte jetzt ein eigenes Kennwort festlegen.“, **keine Sitzung**. Sonst prüfen
+     (nicht leer/Whitespace, `NewPassword == NewPasswordRepeat`, `!VerifyPassword(hash, NewPassword)`, Regeln nach Rückfrage 14) –
+     Fehler → Meldung im `vm.ErrorMessage`, `KennwortFestlegen = true`, keine Sitzung, nichts gespeichert. Gültig →
+     `PasswordHash = HashPassword(neu)`, `MussKennwortAendern = false`, `ModifiedAt/By/ByWindows`, `UpdateAsync`, Sitzung wie
+     `:104-110`, `TempData["SuccessMessage"] = "Kennwort geändert."`. Prüfung am Schreibort nach ADR 0026 (bisheriges Kennwort und
+     Haken werden im selben POST erneut geprüft, nichts aus dem Client übernommen).
    - **Kein** neuer Pfad: der Schritt postet an dieselbe Action `/Account/Login`; die LoginRedirect-Ausnahmeliste
      (`LoginRedirectMiddleware.cs:20-28`, [[fallstricke]] „LoginRedirect zählt Account-Pfade einzeln auf“) bleibt unverändert.
      `NormalizeUserForSession` greift auf `/account/*` ohnehin (`WindowsAutoLoginMiddleware.cs:68`).
    - Die Meldungen bleiben im bestehenden `vm.ErrorMessage` (`Login.cshtml:56-61`), kein TempData-`ErrorMessage`.
 2. **`LoginViewModel`**: `NewPassword`, `NewPasswordRepeat` (`DataType.Password`), `KennwortFestlegen` (bool).
    **`Login.cshtml`**: Hinweis `:79` ersetzen durch „Kein Kennwort? Mit Windows anmelden oder beim Administrator melden.“; bei
-   `KennwortFestlegen` die zwei Felder mit `autocomplete="new-password"` und Überschrift „Erstes Kennwort für admin festlegen“;
+   `KennwortFestlegen` Überschrift „Neues Kennwort festlegen“ (~~„Erstes Kennwort für admin festlegen“~~ *ueberholt*), Benutzername
+   schreibgeschützt, Feld „Bisheriges Kennwort“ (`autocomplete="current-password"`) und die zwei neuen Felder mit
+   `autocomplete="new-password"`, Knopf „Kennwort ändern und anmelden“, Link „Abbrechen“ (GET `/Account/Login`, keine Sitzung);
    im Entwicklungsmodus der Hinweis (Rückfrage 3). Skill `frontend-design` ist Pflicht (Bootstrap-Bestand, Kontrast AA).
-3. **`UsersController.Index`** (`:70-94`): aus der schon geladenen Liste `users` (`:77`) die aktiven ohne Hash bzw. `admin` mit
-   Leer-Hash ermitteln (`VerifyPassword` einmal je Leer-Kandidat – nur `admin`) → `ViewBag`, Banner in `Views/Users/Index.cshtml`
-   (Bootstrap `alert-warning`, Text nicht nur Farbe). Keine neue Spalte, daher keine Listen-View-Pflichten.
-4. **`Program.cs`**: nach dem Seed (`:259-279`) `if (passwordService.VerifyPassword(adminUser.PasswordHash!, ""))
-   app.Logger.LogWarning("Benutzer admin hat noch kein Kennwort – bei der ersten Anmeldung festlegen.")`; Cookie-Flags (BH-5b).
+3. **`UsersController.Index`** (`:70-94`): aus der schon geladenen Liste `users` (`:77`) die aktiven ohne Hash und die aktiven mit
+   `MussKennwortAendern` ermitteln (kein `VerifyPassword` mehr nötig, ~~`admin` mit Leer-Hash~~ *ueberholt*) → `ViewBag`, Banner in
+   `Views/Users/Index.cshtml` (Bootstrap `alert-warning`, Text nicht nur Farbe). Keine neue Spalte, daher keine Listen-View-Pflichten.
+3a. **`UsersController.Create`/`Edit`** (`:103-151`, `:230-326`) + `UserEditViewModel` (neu `MussKennwortAendern`,
+   `ErstkennwortErzeugen`) + Views (`Create.cshtml:89-93`, `Edit.cshtml:173-177`): Feld „Erstkennwort“ (bisher „Passwort“), Checkbox
+   „Erstkennwort erzeugen“ und Checkbox „Muss Kennwort bei der nächsten Anmeldung ändern“ (Edit zeigt den gespeicherten Stand).
+   Server: erzeugen hat Vorrang vor dem eingegebenen Feld; neues Kennwort (eingegeben oder erzeugt) → Hash + Haken (Abwählen nach
+   Rückfrage 15); Haken ohne vorhandenes Kennwort → Speichern mit `TempData["WarningMessage"]` „Haken gesetzt, aber kein Kennwort –
+   der Benutzer kann sich im Formular erst nach dem Setzen eines Kennworts anmelden.“. Erzeugtes Kennwort genau einmal anzeigen
+   (Rückfrage 12). Audit wie heute (`:131-133` bzw. `:310-312`).
+3b. **`AccountController.Profile` POST** (`:222-227`): bei gesetztem `newPassword` zusätzlich `MussKennwortAendern = false`.
+3c. **`IPasswordService`/`PasswordService`**: `GenerateInitialPassword()` (eine Zeile `RandomNumberGenerator.GetString(alphabet, 12)`
+   bzw. `GetItems`; .NET-Bordmittel, keine Abhängigkeit).
+4. **`Program.cs`** Seed (`:259-279`): Bedingung `IsNullOrEmpty(hash) || VerifyPassword(hash, "")` → Erstkennwort nach Rückfrage 11,
+   `MussKennwortAendern = true`, `ModifiedAt = DateTime.Now`, `ModifiedBy = ModifiedByWindows = "system"` (bei Neuanlage
+   `Created*` wie `:268-270`); kein `HashPassword("")` mehr. Danach `if (adminUser.MussKennwortAendern) app.Logger.LogWarning("Benutzer
+   admin hat ein Erstkennwort – bei der ersten Anmeldung ändern.")` (~~Leer-Hash-Warnung~~ *ueberholt*); Cookie-Flags (BH-5b).
 5. **`MailService`** (BH-5c Empfehlung): vor `ConnectAsync` (`:79`) `LogWarning`, wenn `username` gesetzt und `!useSsl`.
 6. **`00_FreshInstall.sql`**: `:1260-1263` löschen; Guards `:1803`/`:1838`. Nachweis siehe AK 9-11.
-7. **`Install-IdealAkeWms.ps1`**: BH-3/BH-4 wie oben; Text `:29`, `:481` auf den Erstkennwort-Schritt umstellen.
+7. **`Install-IdealAkeWms.ps1`**: BH-3/BH-4 wie oben; Text `:29` („admin-Passwort setzen (ist nach der Installation LEER …)“) und
+   `:481` („Passwort LEER“) auf „als admin mit dem Erstkennwort anmelden, das WMS verlangt sofort ein eigenes Kennwort“ umstellen;
+   bei Rückfrage 11 = S2 gibt Schritt 6 nach erfolgreichem Aufwärmen (`$script:WebGestartet`) das Erstkennwort aus der Datei einmal aus
+   und löscht die Datei (fehlt sie: Hinweis „admin hat bereits ein Kennwort“).
 8. **Manifest** `nachlauf.psd1`: Einträge unter „Deploy“.
-9. **ADR 0027** (Dev-Lauf schreibt die Datei im Hauptcheckout, `secondbrain/architektur/adr/`): Entwurf
+9. **ADR 0027** – Umsetzungs-Lieferobjekt (Dev-Lauf schreibt die Datei im Hauptcheckout, `secondbrain/architektur/adr/`; die Spec-Phase
+   legt sie nicht an). Nummer geprüft 2026-11-16: höchste vorhandene ADR 0026, 0028/0029 von
+   [[2026-11-16-beschichtungslogik-je-standort-spec]] bzw. [[2026-11-16-fa-struktur-ideal-ueber-sdata-spec]] reserviert. Entwurf
+   (angepasst durch Nachtrag 2026-11-16):
 
-   > **0027 – Formular-Anmeldung nur mit gespeichertem Kennwort; AD-Benutzer ohne Kennwort nur per Windows.**
-   > Kontext: BH-1. Optionen A/B/C wie oben. Entscheidung: Regel R, Ausnahme E (Erstkennwort `admin`), Entwicklungs-Ausnahme
-   > (falls Rückfrage 3 so entschieden), kein Schalter, Übergang über `Pruefung/BenutzerOhneKennwort`. Konsequenzen: Terminals und
-   > Handgeräte brauchen Kennwörter; QA unter Kestrel; Rückweg admin per SQL `NULL` + Neustart; ergänzt (nicht ersetzt) ADR 0002.
+   > **0027 – Formular-Anmeldung nur mit gespeichertem Kennwort; Erstkennwort durch Admin mit Pflichtwechsel; AD-Benutzer ohne
+   > Kennwort nur per Windows.**
+   > Kontext: BH-1, BH-5a. Optionen A/B/C wie oben; für Benutzer ohne Kennwort zusätzlich „Selbstvergabe beim ersten Login“ –
+   > verworfen, weil jeder, der den Benutzernamen kennt, das Konto übernehmen kann (wer zuerst kommt, setzt das Kennwort; der echte
+   > Benutzer ist ausgesperrt). Entscheidung: Regel R (kein Formular ohne gespeichertes, nicht leeres Kennwort), Regel P
+   > (Admin/Seed vergibt Erstkennwort, `User.MussKennwortAendern`, Pflichtwechsel vor der Sitzung, zustandslos, Server prüft je POST),
+   > `admin`-Seed mit Erstkennwort + Haken statt Leer-Hash, Entwicklungs-Ausnahme (falls Rückfrage 3 so entschieden), kein Schalter,
+   > Übergang über `Pruefung/BenutzerOhneKennwort`. Konsequenzen: Terminals und Handgeräte brauchen Kennwörter (Erstkennwort mit
+   > Pflichtwechsel, Gerätekonten nach Rückfrage 15); QA unter Kestrel; Rückweg admin per `/Users/Edit` oder SQL `NULL` + Neustart →
+   > Erstkennwort + Haken; Windows-SSO prüft weder Kennwort noch Haken; ergänzt (nicht ersetzt) ADR 0002.
 
 ## Migrations-/SQL-Auswirkungen
 
-- **Keine EF-Migration**, kein Modellwechsel, keine `MigrationId`, keine AgentJobs betroffen (nur Index-/Guard-Zeilen im Konsolidat).
-- `SQL/00_FreshInstall.sql`: Stelle (a) Schema-Objekte korrigiert (`:1260-1263` weg, zwei Guards); Stelle (b) `MigrationId`-Block
-  unverändert. ADR 0004 bleibt erfüllt (Konsolidat = Modell).
+- ~~**Keine EF-Migration**, kein Modellwechsel, keine `MigrationId`~~ *(ueberholt durch Nachtrag 2026-11-16)*. Keine AgentJobs
+  betroffen: kein Skript unter `SQL/AgentJobs/` liest oder schreibt `dbo.Users` (Suche `dbo.Users` dort ohne Treffer, 2026-11-16).
+- **EF-Migration `AddUserMussKennwortAendern`** (additiv, nicht destruktiv): Model `User.MussKennwortAendern` →
+  `dotnet ef migrations add AddUserMussKennwortAendern --project IdealAkeWms` (Spalte `bit NOT NULL`, `defaultValue: false`; folgt
+  auf `20261114080950_AddPurchaseOrderReceiptAbsendekennung`, Dev-Lauf prüft die letzte Migration beim Start, weil der laufende
+  /goal-Lauf [[2026-11-16-goal-lauf-beschichtung-fa-sdata-arbeitsgaenge]] im selben Worktree baut).
+- **`SQL/152_AddUserMussKennwortAendern.sql`** im Muster `SQL/141_AddPickingOrderAltbestandPruefen.sql`: `OBJECT_ID(N'[dbo].[Users]',
+  N'U')`-Vorprüfung mit `NOEXEC`, dann eigener Batch `IF COL_LENGTH(N'dbo.Users', N'MussKennwortAendern') IS NULL ALTER TABLE
+  [dbo].[Users] ADD [MussKennwortAendern] bit NOT NULL CONSTRAINT [DF_Users_MussKennwortAendern] DEFAULT CAST(0 AS bit);`, danach
+  separater Batch `__EFMigrationsHistory`-Insert mit `IF NOT EXISTS`. Bestehende Zeilen bekommen `0` (kein Pflichtwechsel für
+  vorhandene Kennwörter, kein Datenverlust, kein Backup-Zwang über das übliche hinaus). **Nummer 152**: höchste Datei im Worktree
+  `SQL/150_…` (geprüft 2026-11-16), 151 bleibt für die bedingte Index-Reparatur dieser Spec (Rückfrage 4, Antwortzeile 4 nennt sie so),
+  152 ist frei ([[2026-11-16-beschichtungslogik-je-standort-spec]] Antwort 9 gibt sie zurück, [[2026-11-16-goal-lauf-beschichtung-fa-sdata-arbeitsgaenge]]
+  Z. 16 „152 frei/ungenutzt“), 153 ist von [[2026-11-16-arbeitsgang-mapping-sage-arbeitsgangnummer-spec]] reserviert. Dev-Lauf prüft
+  beim Start erneut.
+- `SQL/00_FreshInstall.sql`: Stelle (a) Schema-Objekte korrigiert (`:1260-1263` weg, zwei Guards) **und** im `CREATE TABLE [dbo].[Users]`
+  (`:24-55`) die Spalte `[MussKennwortAendern] BIT NOT NULL DEFAULT 0` ergänzt; der `admin`-Insert (`:1541-1549`, `PasswordHash` NULL)
+  bleibt – der Start-Seed setzt Erstkennwort + Haken. Stelle (b) `MigrationId`-Block: neue Zeile nach `:3262-3264`. ADR 0004 bleibt
+  erfüllt (Konsolidat = Modell).
 - **SQL/151 nur nach Rückfrage 4** (P-2b zeigt fehlende Indizes auf IDEAL-Prod): `SQL/151_RepairFreshInstallIndexes.sql` = der
   korrigierte Abschnitt 15 (`:1209-1277` ohne die zwei Zeilen), jede Anweisung mit `IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE
   name = …)` bzw. `OBJECT_ID(…,'F') IS NULL`, eigener Batch, keine `ROLLBACK`, keine sqlcmd-Direktiven, kein History-Eintrag (keine
@@ -309,6 +429,11 @@ FROM dbo.Users WHERE IsActive = 1 AND (PasswordHash IS NULL OR PasswordHash = N'
 GROUP BY CASE WHEN WindowsUserName IS NULL THEN N'Lokal' ELSE N'AD' END;
 -- Ob admin noch das leere Kennwort hat, zeigt SQL nicht (Hash mit Salz, PasswordService.cs:10-21):
 -- Prüfschritt im Browser des alten Stands: admin + leeres Kennwort -> wird angemeldet = sofort Kennwort setzen.
+-- (Nachtrag 2026-11-16: nicht mehr zwingend – der Start-Seed von v1.99.24 stellt einen Leer-Hash-admin auf Erstkennwort + Haken um.)
+
+-- P-1c nach dem Deploy (ab SQL/152): offene Erstkennwörter
+SELECT u.Id, u.Name, u.WindowsUserName, u.ModifiedAt, u.ModifiedBy
+FROM dbo.Users u WHERE u.IsActive = 1 AND u.MussKennwortAendern = 1 ORDER BY u.Name;
 
 -- P-2a falsche Indizes/Spalten (erwartet: NULL, NULL und 0 Zeilen)
 SELECT COL_LENGTH(N'dbo.ProductionOrders', N'AssignedPickerId') AS Spalte1, COL_LENGTH(N'dbo.ProductionOrders', N'IsReleasedForPicking') AS Spalte2;
@@ -338,6 +463,8 @@ Der Dev-Lauf gleicht die P-2b-Liste gegen den Abschnitt 15 des korrigierten Skri
 
 Kein neuer Schlüssel. Bewusst **kein** Schalter für die Anmelderegel (Variante C verworfen, Begründung unter „Varianten BH-1“).
 `MailSettings:*` bleiben appsettings-only (ADR 0008/0024), unverändert in Name und Bedeutung.
+`User.MussKennwortAendern` (Nachtrag 2026-11-16) ist ein Benutzer-Datenfeld, keine Einstellung nach ADR 0020 (kein AppSetting,
+kein ServiceSetting, kein Schalter).
 
 | Key | Typ | Erlaubte Werte | Default | Wirkung | Verwendung | Standort | Warnhinweis |
 |---|---|---|---|---|---|---|---|
@@ -345,10 +472,16 @@ Kein neuer Schlüssel. Bewusst **kein** Schalter für die Anmelderegel (Variante
 
 ## Audit-Feld-Auswirkungen
 
-- Erstkennwort-Schritt (Ausnahme E): `ModifiedAt = DateTime.Now` (Lokalzeit, ADR 0025), `ModifiedBy` = Name des Benutzers (`admin`),
-  `ModifiedByWindows = _currentUserService.GetWindowsUserName()` – beim Formular-Login `"SYSTEM"` (bewusst akzeptiert, [[fallstricke]]
-  §4 „Antiforgery-Wurzel-Fix“). Gleiches Muster wie `AccountController.cs:225-227`.
-- Kennwort setzen über `/Users/Edit` unverändert (`UsersController.cs:310-312`).
+- Pflichtwechsel im Login (Regel P; ~~Erstkennwort-Schritt Ausnahme E~~ *ueberholt*): `ModifiedAt = DateTime.Now` (Lokalzeit,
+  ADR 0025), `ModifiedBy` = Name des Benutzers (es gibt noch keine Sitzung), `ModifiedByWindows =
+  _currentUserService.GetWindowsUserName()` – beim Formular-Login `"SYSTEM"` (bewusst akzeptiert, [[fallstricke]] §4
+  „Antiforgery-Wurzel-Fix“). Gleiches Muster wie `AccountController.cs:225-227`. Gilt für Löschen des Hakens und neuen Hash zugleich.
+- Haken setzen/löschen und Erstkennwort über `/Users/Edit`: bestehende Audit-Zeilen `UsersController.cs:310-312`; `/Users/Create`:
+  `Created*` (`:131-133`), wie heute.
+- `/Account/Profile` löscht den Haken: bestehende Audit-Zeilen `AccountController.cs:225-227`.
+- Start-Seed setzt Erstkennwort + Haken: `ModifiedAt = DateTime.Now`, `ModifiedBy`/`ModifiedByWindows = "system"` (wie `Created*` in
+  `Program.cs:268-270`); bei Neuanlage nur `Created*`. Bisher setzt `Program.cs:277` den Hash **ohne** Audit – wird mitkorrigiert.
+- `SQL/152` setzt den Default `0` für alle Bestandszeilen ohne Audit (Schemaänderung, kein fachliches Update).
 - Installer-`UPDATE` auf `ServiceSettings` (BH-4 A): Tabelle ohne Audit-Spalten (`00_FreshInstall.sql:1097-1102`, kein `AuditableEntity`,
   vgl. [[fallstricke]] „AppSettings ist kein AuditableEntity“) – die Installer-Ausgabe und das Transcript (`Install-…ps1:104`) belegen es.
 - Rückweg „admin-Kennwort per SQL `NULL`“: Hand-Schritt ohne Audit; Doku nennt das.
@@ -359,25 +492,42 @@ Kein neuer Schlüssel. Bewusst **kein** Schalter für die Anmelderegel (Variante
    `/Account/Login`). Mit beliebigem Text im Feld → dieselbe Meldung.
 2. AD-Benutzer ohne Kennwort: Formular → Meldung R (mit Hinweis „Mit Windows anmelden“, wenn `WindowsAuthAktiv`); SSO am Domänen-PC
    meldet ihn weiter an (TS-40.1, Manual-UAT).
-3. Benutzer mit Kennwort: richtiges Kennwort → angemeldet; falsches → „Falsches Passwort.“; leeres Feld → „Falsches Passwort.“ (kein
-   Erstkennwort-Schritt, weil der Hash das leere Kennwort nicht bestätigt).
-4. `admin` mit Leer-Hash, leeres Feld → Schritt „Erstes Kennwort festlegen“, keine Sitzung. Leeres neues Kennwort oder abweichende
-   Wiederholung → Meldung, keine Sitzung, Hash unverändert. Gültige Eingabe → angemeldet, `ModifiedAt/By/ByWindows` gesetzt; danach
-   `admin` mit leerem Feld → „Falsches Passwort.“
-5. Ein manipulierter POST mit `NewPassword` für einen Benutzer, dessen Hash das leere Kennwort **nicht** bestätigt (oder ohne Hash),
-   ändert nichts (Hash unverändert, keine Sitzung).
+3. Benutzer mit Kennwort ohne Haken: richtiges Kennwort → angemeldet; falsches → „Falsches Passwort.“; leeres Feld → „Falsches
+   Passwort.“ (kein Pflichtwechsel-Schritt).
+4. *(Neu gefasst, Nachtrag 2026-11-16; ~~`admin` mit Leer-Hash, leeres Feld → Schritt „Erstes Kennwort festlegen“~~ ueberholt.)*
+   Benutzer mit Kennwort **und** Haken: richtiges Kennwort → Schritt „Neues Kennwort festlegen“, **keine Sitzung** (`/` leitet weiter
+   auf Login). Im Schritt jeweils Meldung, keine Sitzung, Hash und Haken unverändert bei: neues Kennwort leer bzw. nur Leerzeichen;
+   neues = bisheriges; Wiederholung ungleich; bisheriges Kennwort falsch. Gültige Eingabe → angemeldet, Hash neu, Haken `false`,
+   `ModifiedAt/By/ByWindows` gesetzt; danach Anmeldung mit dem Erstkennwort → „Falsches Passwort.“, mit dem neuen → direkt angemeldet.
+5. Ein manipulierter POST mit `NewPassword` für einen Benutzer **ohne** Haken, ohne Hash oder mit falschem bisherigem Kennwort ändert
+   nichts (Hash unverändert, keine Sitzung). (~~Hash bestätigt das leere Kennwort nicht~~ *ueberholt*.)
+5a. Abbruch des Schritts (Link „Abbrechen“, Zurück, Tab schließen) ergibt keine Sitzung; der nächste Login mit dem Erstkennwort zeigt
+   den Schritt erneut.
+5b. Benutzer **ohne** Kennwort, bei dem der Haken manuell gesetzt ist: weiterhin Meldung R, keine Sitzung (Regel R vor Regel P).
 6. `IsDevelopment()` (nur `dotnet run`): Benutzer ohne Hash meldet sich mit leerem Feld an, Hinweis „Entwicklungsmodus …“ ist auf der
    Anmeldeseite sichtbar – nur falls Rückfrage 3 so entschieden; unter IIS (`Production`/`DEV`) gilt AK 1.
-7. `/Users` zeigt für Admins den Hinweis mit Anzahl und Namen der aktiven Benutzer ohne Kennwort, getrennt lokal/AD, und
-   „admin hat noch kein Kennwort“, solange der Leer-Hash besteht; ohne Treffer kein Hinweis.
-8. Web-Start mit Leer-Hash bei `admin` schreibt genau eine Warnung ins Log.
+7. `/Users` zeigt für Admins den Hinweis mit Anzahl und Namen der aktiven Benutzer ohne Kennwort, getrennt lokal/AD, und die aktiven
+   Benutzer mit offenem Erstkennwort (Haken, `admin` eingeschlossen; ~~„admin hat noch kein Kennwort“~~ *ueberholt*); ohne Treffer kein
+   Hinweis.
+8. Web-Start, solange `admin` den Haken trägt, schreibt genau eine Warnung ins Log, ohne das Kennwort. (~~mit Leer-Hash~~ *ueberholt*)
+8a. Start-Seed: `admin` fehlt, hat `PasswordHash` NULL/leer **oder** einen Leer-Hash → nach dem Start Erstkennwort (Weg nach
+   Rückfrage 11) + Haken, `Modified*` = `system`; die Anmeldung mit leerem Feld ergibt „Falsches Passwort.“. `admin` mit eigenem
+   Kennwort ohne Haken → unverändert (Hash und `ModifiedAt` gleich). Kein Code-Weg setzt mehr `HashPassword("")` (Suche ohne Treffer).
+8b. `/Users/Create` und `/Users/Edit`: eingegebenes Kennwort → Hash + Haken gesetzt; „Erstkennwort erzeugen“ → Hash + Haken, das
+   erzeugte Kennwort (12 Zeichen) steht genau einmal im Erfolgs-Banner (bzw. Ort nach Rückfrage 12) und ist nach Neuladen weg; es
+   steht weder in der DB noch im Log. Haken manuell setzen ohne neues Kennwort → gespeichert, Audit gesetzt. Haken manuell abwählen →
+   nach Rückfrage 15. Haken ohne Kennwort → Warnhinweis. AD-Benutzer: dieselben Felder, SSO danach unverändert (AK 2).
+8c. `/Account/Profile` mit neuem Kennwort löscht den Haken.
+8d. `SQL/152` zweimal hintereinander auf einer DEV-Kopie: erster Lauf legt die Spalte an und trägt die History ein, zweiter meldet
+   „existiert bereits“, Exit 0; Bestandsbenutzer haben `0`. Die FreshInstall-Prüf-DB (AK 9/10) hat die Spalte und die `MigrationId`.
 9. `00_FreshInstall.sql` (Kopie mit ersetztem Kopf `:7-17` → `USE [WMS_FreshInstall_Pruefung]`) läuft mit
    `sqlcmd -S . -E -C -b -I -f 65001` auf einer neu angelegten leeren DB der **lokalen** Instanz `.` mit Exit-Code 0 und ohne
    „Msg“/„Meldung“ durch; ein zweiter Lauf gegen dieselbe DB ebenso. Vorher `SELECT @@SERVERNAME` ins Protokoll – nie gegen
    `AKESQL20` oder einen IDEAL-Server. Danach `DROP DATABASE [WMS_FreshInstall_Pruefung]`. Die Kopie liegt im Scratch-Ordner, nicht im Repo.
 10. In der Prüf-DB aus AK 9: alle Namen aus P-2b vorhanden; `SELECT COUNT(*) FROM dbo.__EFMigrationsHistory` = Anzahl der Migrationen
     in `IdealAkeWms/Migrations` (ohne `.Designer.cs` und Snapshot); ein Web-Start (Kestrel, `ConnectionStrings__DefaultConnection`
-    auf die Prüf-DB) läuft ohne Migrationsfehler und legt `admin` mit Leer-Hash an (Erstkennwort-Schritt erreichbar). Erst danach AK 9 `DROP`.
+    auf die Prüf-DB) läuft ohne Migrationsfehler und versieht `admin` mit Erstkennwort + Haken (Pflichtwechsel erreichbar;
+    ~~mit Leer-Hash an (Erstkennwort-Schritt erreichbar)~~ *ueberholt*). Erst danach AK 9 `DROP`.
 11. `FreshInstallIndexSpaltenTests` grün; die Ausnahmeliste nennt je Tabelle den Grund. Mit den alten Zeilen `:1260-1263` schlägt der
     Test fehl (im Dev-Lauf einmal belegt).
 12. Installer: kein Parameter `SageLagerbuchungCredential`, kein Abschnitt `SageLagerbuchung` mit Kennwort in den geschriebenen Dateien;
@@ -395,13 +545,20 @@ Kein neuer Schlüssel. Bewusst **kein** Schalter für die Anmelderegel (Variante
     `-NurPruefen` gegen eine DEV-Kopie mit `Prod=$true`-Testziel oder als Manual-UAT belegt). `NachlaufManifestDriftTests` grün.
 17. Doku: `docs/betrieb/03` (Z. 92, 115), `07` (Abschnitt 2: Meldung R, Erstkennwort, Rückweg admin), `09` (Z. 20-21, 153-154,
     R1/R2/R4/R5/R7 Z. 187-193) und `README.md:63` sagen dasselbe wie der Code; Hilfe (Anmeldung, Benutzerverwaltung) und
-    `Views/Help/Changelog.cshtml` v1.99.24; beide `AppVersion.cs` auf 1.99.24.
-18. Build und alle Tests grün; neue Tests in `AccountControllerTests` für AK 1, 3, 4, 5 (und 6, falls entschieden).
+    `Views/Help/Changelog.cshtml` v1.99.24; beide `AppVersion.cs` auf 1.99.24. *Nachtrag 2026-11-16:* `07-troubleshooting.md`
+    Abschnitt 2 beschreibt Meldung R, den Pflichtwechsel und den umgedeuteten Rückweg (Erstkennwort mit Haken; SQL `NULL` + Neustart);
+    `09-sicherheit-konten-rechte.md` Z. 21 (`admin` „ohne Kennwort angelegt“ → Erstkennwort + Pflichtwechsel) und R1/R2 (Z. 187-188)
+    entsprechend; Installer-Texte `:29`/`:481` ohne „LEER“.
+18. Build und alle Tests grün; neue Tests in `AccountControllerTests` für AK 1, 3, 4, 5, 5a, 5b (und 6, falls entschieden), in
+    `UsersControllerTests` für AK 8b, für den Seed (AK 8a, InMemory) und `GenerateInitialPassword` (Länge, Alphabet, zwei Aufrufe
+    verschieden).
+19. Manifest: `SQL/152` als Schema-Eintrag (vor den Web-Schritten), `Pruefung/BenutzerOhneKennwort` mit dem neuen Abhilfe-Text
+    („Erstkennwort mit Pflichtwechsel setzen“); `NachlaufManifestDriftTests` grün.
 
 ## Test-Szenarien
 
 Neu **TS-139** in `docs/TESTSZENARIEN.md` (danach `secondbrain/tests/testszenarien-index.md`); angepasst: TS-1.6 (`:174` „admin mit
-Passwort leer“ → Erstkennwort, Verweis TS-139.4), TS-40.4 (`:5250` „ohne Passwort“ → „ohne Kennwort, Formular gesperrt“), TS-40.7
+Passwort leer“ → Erstkennwort + Pflichtwechsel, Verweis TS-139.4), TS-40.4 (`:5250` „ohne Passwort“ → „ohne Kennwort, Formular gesperrt“), TS-40.7
 (`:5299` „Formular-Anmeldung mit lokalen Credentials“ → „mit Kennwort“). Windows-SSO/Negotiate, LDAP und Mobilgeräte = **Manual-UAT**.
 
 - **TS-139.1 Lokaler Benutzer ohne Kennwort.** Vorb.: DEV-IIS (nicht `dotnet run`), Benutzer `ts139-lokal` ohne Kennwort, aktiv, Rolle
@@ -411,12 +568,35 @@ Passwort leer“ → Erstkennwort, Verweis TS-139.4), TS-40.4 (`:5250` „ohne P
   a) Handy-Browser, Formular, Feld leer; b) Knopf „Mit Windows anmelden“ am Handy; c) Domänen-PC frische Sitzung. Erwartet: a) Meldung R
   mit Windows-Hinweis; b)/c) angemeldet (TS-40.9/40.1). **Manual-UAT.** Negativ: `WindowsAuthAktiv = false` → Meldung ohne Windows-Hinweis, kein Knopf.
 - **TS-139.3 Kennwort richtig/falsch/leer.** Vorb.: Benutzer mit Kennwort. Erwartet wie AK 3.
-- **TS-139.4 Erstkennwort admin.** Vorb.: Prüf-DB aus AK 10 bzw. DEV-Kopie mit `admin`-Hash `NULL` + App-Pool-Neustart. Schritte: `admin`,
-  Feld leer → Schritt erscheint; leer absenden; abweichende Wiederholung; gültig. Erwartet wie AK 4; `/Users`-Hinweis „admin hat noch
-  kein Kennwort“ vorher sichtbar, nachher weg; Log-Warnung beim Start vorher vorhanden. Negativ: AK 5 per Browser-Konsole (POST mit
-  `NewPassword` für `ts139-lokal`) → nichts geändert.
+- **TS-139.4 Erstkennwort admin (Seed/Rückweg).** *(neu gefasst, Nachtrag 2026-11-16; ~~Feld leer → Schritt erscheint~~ ueberholt)*
+  Vorb.: Prüf-DB aus AK 10 bzw. DEV-Kopie mit `admin`-Hash `NULL` (Rückweg) + App-Pool-Neustart; zweite Variante: DEV-Kopie mit
+  Leer-Hash-`admin` aus dem alten Stand. Schritte: Erstkennwort auf dem Weg nach Rückfrage 11 holen; `admin` mit leerem Feld → „Falsches
+  Passwort.“; `admin` + Erstkennwort → Schritt „Neues Kennwort festlegen“; gültig abschließen. Erwartet wie AK 4/8a; `/Users`-Hinweis
+  „offenes Erstkennwort: admin“ vorher sichtbar, nachher weg; Log-Warnung beim Start vorher vorhanden, enthält kein Kennwort.
+- **TS-139.4a Pflichtwechsel lokaler Benutzer – positiv.** Vorb.: DEV-IIS, Admin angemeldet. Schritte: `/Users/Create` → `ts139-erst`,
+  Rolle `stock`, Kennwort `Start-139a` eingeben → speichern; `/Users/Edit` zeigt Haken gesetzt; abmelden; `ts139-erst` + `Start-139a`.
+  Erwartet: Schritt „Neues Kennwort festlegen“, `/` leitet auf Login (keine Sitzung); neues `Neu-139a` zweimal + bisheriges →
+  angemeldet, „Kennwort geändert.“; `/Users/Edit` Haken weg, `ModifiedBy = ts139-erst`; abmelden, `Start-139a` → „Falsches Passwort.“,
+  `Neu-139a` → direkt angemeldet.
+- **TS-139.4b Pflichtwechsel – Negativfälle.** Vorb.: `ts139-erst` erneut mit Erstkennwort (Edit, neues Kennwort `Start-139b`).
+  Schritte je Fall Login + Schritt: (1) neues Kennwort leer; (2) nur Leerzeichen; (3) neu = `Start-139b`; (4) Wiederholung ungleich;
+  (5) bisheriges Kennwort im Schritt falsch; (6) Link „Abbrechen“ bzw. Browser-Zurück, dann `/` aufrufen; (7) per Browser-Konsole POST
+  mit `NewPassword` für einen Benutzer ohne Haken. Erwartet: (1)-(5) Meldung, keine Sitzung, Haken bleibt, Login mit `Start-139b`
+  zeigt den Schritt wieder; (6) keine Sitzung, Login-Seite; (7) nichts geändert (AK 5).
+- **TS-139.4c Erzeugtes Erstkennwort.** Schritte: `/Users/Edit` `ts139-erst`, „Erstkennwort erzeugen“ → speichern. Erwartet: Banner
+  zeigt ein 12-stelliges Kennwort genau einmal (Ort nach Rückfrage 12); Seite neu laden bzw. `/Users/Edit` erneut → nicht mehr sichtbar;
+  `SELECT PasswordHash, MussKennwortAendern FROM dbo.Users WHERE Name = N'ts139-erst'` zeigt Hash ≠ Klartext und `1`; Web-Log
+  enthält das Kennwort nicht. Login mit dem erzeugten Kennwort → Pflichtwechsel wie 139.4a.
+- **TS-139.4d Haken manuell.** Schritte: Benutzer mit eigenem Kennwort, `/Users/Edit` Haken setzen ohne neues Kennwort → speichern →
+  Login mit dem bisherigen Kennwort → Schritt erscheint. Abwählen: nach Rückfrage 15 (erlaubt → nächster Login ohne Schritt; nie →
+  Checkbox nicht abwählbar bzw. Server setzt zurück). Negativ: Haken bei Benutzer **ohne** Kennwort → Warnhinweis beim Speichern,
+  Login mit leerem Feld → Meldung R (AK 5b).
+- **TS-139.4e AD-Benutzer mit Erstkennwort.** Vorb.: AKE-Test, `WindowsAuthAktiv = true`, AD-Benutzer. Schritte: Erstkennwort unter
+  `/Users/Edit`; a) Domänen-PC frische Sitzung; b) Handy-Formular mit Erstkennwort. Erwartet: a) SSO angemeldet ohne Schritt, Haken
+  bleibt; b) Pflichtwechsel wie 139.4a. **Manual-UAT** (Handgerät: Bildschirmtastatur/Scanner-Fokus nach Rückfrage 16).
 - **TS-139.5 Übergang Terminal.** Vorb.: BDE aktiv, Terminal-Benutzer ohne Kennwort (DEV). Schritte: `-NurPruefen` → Zahl ≥ 1 mit
-  Hinweis; als Admin unter `/Users/Edit` Kennwort setzen; `-NurPruefen` → 0; am Terminal mit Kennwort anmelden → BDE-Terminal öffnet
+  Hinweis „Erstkennwort mit Pflichtwechsel setzen“; als Admin unter `/Users/Edit` Erstkennwort setzen; `-NurPruefen` → 0; am Terminal
+  mit Erstkennwort anmelden → Pflichtwechsel (bzw. ohne, falls Rückfrage 15 Gerätekonten ohne Haken erlaubt) → BDE-Terminal öffnet
   mit Default-Werkbank. Negativ: ohne Kennwort → Meldung R.
 - **TS-139.6 Entwicklungsmodus** (nur falls Rückfrage 3 = Ausnahme): `dotnet run`, Benutzer ohne Kennwort → angemeldet, Hinweis sichtbar;
   dieselbe DB über DEV-IIS → Meldung R.
@@ -424,7 +604,8 @@ Passwort leer“ → Erstkennwort, Verweis TS-139.4), TS-40.4 (`:5250` „ohne P
   `DROP`. Negativ: Wächter-Test mit den alten Zeilen rot (AK 11).
 - **TS-139.8 Index-Prüfung IDEAL-Prod** (nur falls SQL/151): `-NurPruefen` zeigt `Pruefung/FreshInstallIndizes` mit Zahl; Reparatur in 4a
   nach Bestätigung; danach P-2b leer. **Manual-UAT Gerald.**
-- **TS-139.9 Installer.** Parser-Prüfung; Code-Lesung: keine Kennwort-Ausgabe, kein `SageLagerbuchung`-Kennwort; Voll-Lauf bei der
+- **TS-139.9 Installer.** Parser-Prüfung; Code-Lesung: keine Kennwort-Ausgabe außer dem `admin`-Erstkennwort (nur bei Rückfrage 11 = S2,
+  einmal, Datei danach gelöscht), kein `SageLagerbuchung`-Kennwort; Voll-Lauf bei der
   nächsten Neuinstallation (Manual-UAT): `/ServiceSettings` zeigt `Sync:ProductionOrdersEnabled = false`, Ausgabe nennt Einschalten nach Teil 2.
 - **TS-139.10 Cookies.** AKE-Test (HTTPS) und DEV (HTTP): Entwicklerwerkzeuge › Anwendung › Cookies `IdealAkeWms.Session` und
   `.AspNetCore.Antiforgery.*`: HTTPS mit `Secure`, HTTP ohne; Anmeldung und ein Formular-POST (Profil speichern) auf beiden ohne 400.
@@ -445,20 +626,28 @@ Passwort leer“ → Erstkennwort, Verweis TS-139.4), TS-40.4 (`:5250` „ohne P
 - **Web-App:** ja (Account, Users-Hinweis, Program.cs).
 - **Service:** ja, falls BH-5c (MailService) bzw. die Bereinigung der Dienst-`appsettings.json` umgesetzt wird; die bestehende
   Server-Datei wird nicht überschrieben.
-- **Migration:** nein. SQL/151 nur nach Rückfrage 4, kein EF-Bezug.
-- **Reihenfolge Übergang:** (1) P-1 je System, (2) Kennwörter setzen bzw. deaktivieren **im alten Stand**, (3) `admin` mit leerem
-  Kennwort prüfen und ggf. setzen, (4) Deploy (Prüfung sperrt Prod sonst), (5) Anwender-Info.
+- **Migration:** ~~nein~~ *(ueberholt, Nachtrag 2026-11-16)* **ja, additiv:** `SQL/152_AddUserMussKennwortAendern.sql` (Schema, vor
+  dem Web-Start; das neue Web liest die Spalte beim Seed und im Login). SQL/151 weiterhin nur nach Rückfrage 4, kein EF-Bezug.
+- **Reihenfolge Übergang:** (1) P-1 je System, (2) Kennwörter setzen bzw. deaktivieren **im alten Stand** (ohne Haken, die Spalte gibt
+  es noch nicht), (3) ~~`admin` mit leerem Kennwort prüfen und ggf. setzen~~ *ueberholt: der Seed stellt Leer-Hash-`admin` selbst auf
+  Erstkennwort + Haken um; wer das nicht will, setzt `admin` im alten Stand ein eigenes Kennwort*, (4) Deploy inkl. SQL/152 (Prüfung
+  sperrt Prod sonst), (5) nach dem Deploy auf Wunsch Haken für die in (2) gesetzten Kennwörter unter `/Users/Edit` setzen, P-1c,
+  (6) Anwender-Info.
 - **Manifest-Einträge** (`scripts/deploy/nachlauf.psd1`, ADR 0022/0023):
 
 | Id | Version | Typ | Firma | Phase | Ausführung | Inhalt / Text |
 |---|---|---|---|---|---|---|
-| `Pruefung/BenutzerOhneKennwort` | 1.99.24 | Pruefung | beide | Vorher | anzeigen | `Pruefung='SELECT COUNT(*) FROM dbo.Users u WHERE u.IsActive = 1 AND (u.PasswordHash IS NULL OR u.PasswordHash = N'''') AND (u.WindowsUserName IS NULL OR NOT EXISTS (SELECT 1 FROM dbo.AppSettings WHERE [Key] = N''WindowsAuthAktiv'' AND LOWER([Value]) = N''true''))'` (Vergleich wie `WindowsAutoLoginMiddleware.cs:93-94`, ohne Trim). Text: „Aktive Benutzer ohne Kennwort, die sich ab v1.99.24 nicht mehr anmelden können (lokal, bzw. AD bei WindowsAuthAktiv aus): vorher unter /Users/Edit ein Kennwort setzen oder deaktivieren; Liste mit P-1 der Spec 2026-11-14-sicherheit-anmeldung-und-installer.“ Prod: Abbruch vor dem Stoppen (Rückfrage 2; bei „nur Hinweis“ Phase Nachher). |
-| `v1.99.24-AnmeldungKennwort` | 1.99.24 | Info | beide | Vorher | anzeigen | „Ab v1.99.24 meldet das Formular nur mit Kennwort an. Vorher P-1 ausführen; AD-Benutzer ohne Kennwort nur noch per Windows-Anmeldung; admin mit leerem Kennwort im alten Stand prüfen (wird angemeldet = jetzt Kennwort setzen).“ |
-| `v1.99.24-AnwenderInfo` | 1.99.24 | Info | beide | Nachher | anzeigen | „Anwender-Info: Anmeldung am Formular nur noch mit Kennwort; Terminals/Handgeräte mit dem neuen Kennwort anmelden; Domänen-PCs unverändert per Windows.“ |
+| `SQL/152` (Nachtrag 2026-11-16) | 1.99.24 | Schema | beide | Schema | automatisch | `Datei='152_AddUserMussKennwortAendern.sql'; MigrationId='<beim Dev-Lauf>_AddUserMussKennwortAendern'; Voraussetzung='additiv, Spalte bit NOT NULL DEFAULT 0'; Quelle='<changelog-slug v1.99.24>'`. Eingereiht nach `SQL/150` (`nachlauf.psd1:97-98`); Deploy-Reihenfolge = Manifest, nicht Dateisortierung. |
+| `Pruefung/BenutzerOhneKennwort` (Text geändert, Nachtrag 2026-11-16) | 1.99.24 | Pruefung | beide | Vorher | anzeigen | Zählung unverändert wie in der Zeile darunter. **Neuer Text** (ersetzt den alten): „Aktive Benutzer ohne Kennwort, die sich ab v1.99.24 nicht mehr anmelden können (lokal, bzw. AD bei WindowsAuthAktiv aus): vorher unter /Users/Edit ein Erstkennwort setzen (ab v1.99.24 mit Pflichtwechsel bei der ersten Anmeldung) oder deaktivieren; Liste mit P-1 der Spec 2026-11-14-sicherheit-anmeldung-und-installer.“ Prod: Abbruch vor dem Stoppen (Rückfrage 2). |
+| ~~`Pruefung/BenutzerOhneKennwort`~~ *(Text ueberholt, siehe Zeile oben; Zählabfrage gilt)* | 1.99.24 | Pruefung | beide | Vorher | anzeigen | `Pruefung='SELECT COUNT(*) FROM dbo.Users u WHERE u.IsActive = 1 AND (u.PasswordHash IS NULL OR u.PasswordHash = N'''') AND (u.WindowsUserName IS NULL OR NOT EXISTS (SELECT 1 FROM dbo.AppSettings WHERE [Key] = N''WindowsAuthAktiv'' AND LOWER([Value]) = N''true''))'` (Vergleich wie `WindowsAutoLoginMiddleware.cs:93-94`, ohne Trim). Text: „Aktive Benutzer ohne Kennwort, die sich ab v1.99.24 nicht mehr anmelden können (lokal, bzw. AD bei WindowsAuthAktiv aus): vorher unter /Users/Edit ein Kennwort setzen oder deaktivieren; Liste mit P-1 der Spec 2026-11-14-sicherheit-anmeldung-und-installer.“ Prod: Abbruch vor dem Stoppen (Rückfrage 2; bei „nur Hinweis“ Phase Nachher). |
+| `v1.99.24-AnmeldungKennwort` | 1.99.24 | Info | beide | Vorher | anzeigen | *(Text angepasst, Nachtrag 2026-11-16)* „Ab v1.99.24 meldet das Formular nur mit Kennwort an; vom Admin vergebene Kennwörter (Erstkennwort) muss der Benutzer bei der ersten Anmeldung ändern. Vorher P-1 ausführen; AD-Benutzer ohne Kennwort nur noch per Windows-Anmeldung. admin mit leerem Kennwort wird beim ersten Start auf ein Erstkennwort mit Pflichtwechsel umgestellt (Weg nach Rückfrage 11) – wer das nicht will, setzt admin vorher ein Kennwort.“ |
+| `v1.99.24-AnwenderInfo` | 1.99.24 | Info | beide | Nachher | anzeigen | „Anwender-Info: Anmeldung am Formular nur noch mit Kennwort; wer vom Administrator ein Erstkennwort bekommt, legt bei der ersten Anmeldung ein eigenes fest; Terminals/Handgeräte mit dem neuen Kennwort anmelden; Domänen-PCs unverändert per Windows.“ |
 | `Pruefung/FreshInstallIndizes` (nur Rückfrage 4) | 1.99.24 | Pruefung | IDEAL (`System=@('Prod')`) | Haltepunkt | Reparatur | `Pruefung` = Anzahl aus P-2b (als `SELECT COUNT(*) FROM (…) x`), `Datei='151_RepairFreshInstallIndexes.sql'`. Text: „Indizes aus Abschnitt 15 der Erstinstallation fehlen (Abbruch 2026-11-04): Reparatur legt sie idempotent an (nur IDEAL-Prod, FreshInstall-Herkunft).“ |
 | `Pruefung/SmtpBenutzer` (nur Rückfrage 9 = Empfehlung) | 1.99.24 | Pruefung | beide | Nachher | anzeigen | `Appsettings='MailSettings:SmtpUsername'`. Text: „SMTP-Anmeldung als {Wert} ({Datei}): mit SmtpUseSsl = false geht das Kennwort unverschlüsselt – anonymes Relay oder SmtpUseSsl = true (Port 465).“ |
 
-  Keine Schema-, Daten-, Einmal- oder Ordner-Einträge; kein Trockenlauf-Skript. Bestehender Eintrag `v1.71.0-AppsettingsProd`
+  ~~Keine Schema-, Daten-, Einmal- oder Ordner-Einträge~~ *(ueberholt: ein Schema-Eintrag SQL/152)*; keine Daten-, Einmal- oder
+  Ordner-Einträge (bei Rückfrage 11 = S2 nutzt der Seed das vorhandene `App_Data`, kein neuer Ordner – Dev-Lauf prüft das Schreibrecht
+  des App-Pools dort, belegt durch die Kommissionierfotos seit v1.30.4, `Program.cs:415`); kein Trockenlauf-Skript. Bestehender Eintrag `v1.71.0-AppsettingsProd`
   („mit Abschnitt SageLagerbuchung“) bleibt; Hinweis an den Dev-Lauf: Text ist seit ADR 0024 überholt – melden, nicht still ändern.
 - **Publish-Befehle** (im Worktree):
   `dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb`
@@ -468,9 +657,13 @@ Passwort leer“ → Erstkennwort, Verweis TS-139.4), TS-40.4 (`:5250` „ohne P
 ## Offene Rueckfragen
 
 1. **BH-1 Regel:** A streng (Empfehlung), B nur AD-Benutzer, oder C = A + Übergangsschalter? Begründung unter „Varianten BH-1“.
+   *Neubewertung 2026-11-16: weiter offen (nur Bestätigung). Der Nachtrag hält „ohne gesetztes Kennwort gilt weiter Regel R“ fest
+   = Kern von A; B ist damit nicht vereinbar. Offen bleibt, ob A ohne Schalter (C) bestätigt wird.*
 2. **Übergang:** Ergebnis P-1 je System (IDEAL-Prod, IDEAL-Test, AKE-Prod, AKE-Test, AKE-Test-IDEAL) – wie viele lokale/AD-Benutzer,
    Terminals, Kommissionierer ohne Kennwort, und steht `WindowsAuthAktiv` auf `true`? Soll `Pruefung/BenutzerOhneKennwort` den
    Prod-Deploy sperren (Phase Vorher, Empfehlung) oder nur hinweisen (Phase Nachher)?
+   *Neubewertung 2026-11-16: geändert, weiter offen. Die Abhilfe der Prüfung lautet jetzt „Erstkennwort mit Pflichtwechsel setzen“
+   (Manifest-Text angepasst); P-1-Ergebnis je System und Sperre/Hinweis sind nicht entschieden.*
 3. **Lokale QA unter Kestrel:** Ausnahme nur bei `IsDevelopment()` mit sichtbarem Hinweis (Empfehlung: hält die QA-Läufe mit
    `QA-Agent`/`QA-Picker` ohne Geheimnis im Brain lauffähig, greift unter IIS nie) oder keine Ausnahme?
 4. **BH-2:** Ergebnis P-2b auf IDEAL-Prod. Bei Treffern: SQL/151 + `Pruefung/FreshInstallIndizes` (Empfehlung) oder Reparatur von
@@ -482,6 +675,8 @@ Passwort leer“ → Erstkennwort, Verweis TS-139.4), TS-40.4 (`:5250` „ohne P
    oder B – nur die wirkungslose Zeile streichen? Tote Blöcke aus `IDEALAKEWMSService/appsettings.json` entfernen (Empfehlung ja,
    `Feiertag*` bleiben)?
 7. **BH-5a:** Erstkennwort-Schritt (Empfehlung), Installer-Abfrage mit Hash in PowerShell, oder unverändert mit Warnung?
+   *Neubewertung 2026-11-16: erledigt durch Nachtrag – Erstkennwort durch Admin bzw. Seed + Pflichtwechsel (Haken); die
+   Leer-Hash-Ausnahme E, die Installer-Abfrage und „unverändert“ entfallen. Folgefrage zum admin-Erstkennwort = Rückfrage 11.*
 8. **BH-5b:** `SecurePolicy = SameAsRequest` für Sitzung und Antiforgery (Empfehlung), `Always` (bricht IDEAL-Test :88 und DEV)
    oder unverändert?
 9. **BH-5c:** Warnung + `Pruefung/SmtpBenutzer` (Empfehlung), `StartTlsWhenAvailable` (Zertifikatsrisiko am Relay) oder unverändert?
@@ -490,6 +685,28 @@ Passwort leer“ → Erstkennwort, Verweis TS-139.4), TS-40.4 (`:5250` „ohne P
 10. **Zusatzfunde** (keine Sperre nach Fehlversuchen, keine Mindestlänge, unterschiedliche Meldungen verraten vorhandene Namen
     `AccountController.cs:77`/`:87`, Installer-Mindestzahl 75 Migrationen `Install-IdealAkeWms.ps1:433` = BH-7): Folgeaufgabe
     (Empfehlung) oder in diese Spec?
+11. **admin-Erstkennwort (neu, aus Nachtrag 2026-11-16):** Wie kommt `admin` nach Installation bzw. Rückweg (`PasswordHash` NULL +
+    Neustart) zu seinem Erstkennwort? **S1** festes, im Betriebshandbuch dokumentiertes Erstkennwort (eine Zeile; jeder mit Doku-Zugang
+    kennt es bis zur ersten Anmeldung – ähnlich dem heutigen Leer-Fenster). **S2 (Empfehlung)** der Web-Start erzeugt ein
+    Zufalls-Erstkennwort (`GenerateInitialPassword`), schreibt es in `App_Data\admin-erstkennwort.txt` (Rechte: App-Pool +
+    Administratoren), loggt nur den Dateipfad; der Installer gibt es nach dem Aufwärmen einmal aus und löscht die Datei; nach
+    erfolgreichem Pflichtwechsel löscht das Web die Datei, falls noch vorhanden. Nur wer Zugriff auf den Server hat, kommt an das
+    Kennwort. **S3** anderer Weg.
+12. **Anzeige-Ort des erzeugten Erstkennworts (neu):** einmal im Erfolgs-Banner nach Speichern (`TempData["SuccessMessage"]`, read-once;
+    Default-TempData-Provider = mit DataProtection verschlüsseltes Cookie, ein Request lang im Browser; Empfehlung) oder eigene
+    Anzeigeseite ohne Redirect bzw. Druckzettel zum Aushändigen?
+13. **Gültigkeitsdauer des Erstkennworts (neu):** keine (Empfehlung; `/Users`-Hinweis und P-1c zeigen offene Erstkennwörter) oder
+    Ablauf nach n Tagen? Ablauf braucht eine eigene Spalte (z. B. `ErstkennwortGesetztAm`), denn `ModifiedAt` wird von jeder
+    anderen Bearbeitung überschrieben (`UsersController.cs:310`).
+14. **Kennwortregeln beim Pflichtwechsel (neu):** nur nicht leer, neu ≠ bisheriges, Wiederholung gleich (Empfehlung; heute gibt es keine
+    Regeln, `UsersController.cs:136`/`:307`, `AccountController.cs:222` prüfen nur „nicht leer“) oder zusätzlich Mindestlänge n
+    (berührt Zusatzfund Mindestlänge, Rückfrage 10 – dann auch für `/Users` und `/Account/Profile`)?
+15. **Haken abwählen / Kennwort ohne Haken (neu):** Darf der Admin für Gerätekonten (BDE-Terminal `BdeTerminal.UserId`, gemeinsame
+    Handgeräte-Konten) ein Kennwort ohne Pflichtwechsel setzen bzw. den Haken abwählen? Erlaubt (Empfehlung: Checkbox maßgeblich, bei
+    neuem Kennwort vorausgewählt) oder nie (neues Kennwort setzt den Haken immer)?
+16. **Handgeräte-/Terminal-Login mit Pflichtwechsel (neu):** Ist der Zwischenschritt auf Handgerät/BDE-Terminal akzeptiert (drei
+    Kennwortfelder auf Bildschirmtastatur; Hardware-Scanner-Fokus auf der Login-Seite)? Prüfschritt: am Netum-Handgerät und an einem
+    BDE-Terminal einmal TS-139.4a durchspielen. Oder Gerätekonten grundsätzlich ohne Haken (hängt an Rückfrage 15)?
 
 ## Freigabe-Antworten (Mensch fuellt aus — Schranke 1)
 
@@ -511,3 +728,56 @@ Passwort leer“ → Erstkennwort, Verweis TS-139.4), TS-40.4 (`:5250` „ohne P
 8. BH-5b: SameAsRequest / Always / unverändert →
 9. BH-5c: Warnung + Prüfung / StartTlsWhenAvailable / unverändert; MailSettings je Server →
 10. Zusatzfunde: Folgeaufgabe oder in diese Spec →
+11. admin-Erstkennwort: S1 fest dokumentiert / S2 Zufall in App_Data-Datei, Installer zeigt einmal / S3 → 
+12. Anzeige erzeugtes Erstkennwort: Erfolgs-Banner einmal / eigene Seite / Druckzettel →
+13. Gültigkeit Erstkennwort: keine / Ablauf nach n Tagen (n = ?) →
+14. Kennwortregeln Pflichtwechsel: nur leer/gleich/Wiederholung / zusätzlich Mindestlänge n →
+15. Haken abwählen bzw. Kennwort ohne Haken für Gerätekonten: erlaubt / nie →
+16. Pflichtwechsel an Handgerät/Terminal akzeptiert (Prüfschritt) / Gerätekonten ohne Haken →
+
+## Nachtrag 2026-11-16 16:27 – Erstkennwort durch Admin + Pflichtwechsel
+
+**Entscheidung Gerald 2026-11-16 16:27** (wörtlich übernommen aus dem Auftrag, in den Rumpf eingearbeitet am 2026-11-16):
+
+> Benutzer ohne Kennwort sollen bei der Erstanmeldung ein eigenes Kennwort vergeben. Umsetzen als „Erstkennwort durch Admin +
+> Pflichtwechsel“ — NICHT Selbstvergabe ohne Kennwort (das wäre Kontoübernahme durch jeden, der den Benutzernamen kennt).
+> - Neue Spalte `User.MussKennwortAendern` (bool, NOT NULL DEFAULT 0): Model → EF-Migration → idempotentes SQL-Skript mit Guard →
+>   `__EFMigrationsHistory` separat → `SQL/00_FreshInstall.sql` an beiden Stellen; Audit-Felder bei jedem Setzen/Löschen des Hakens.
+> - `/Users/Create` und `/Users/Edit`: Erstkennwort setzen (optional vom WMS erzeugt und genau einmal angezeigt) setzt den Haken
+>   automatisch; Haken auch manuell setzbar.
+> - Login: richtiges Kennwort + Haken gesetzt → Zwischenschritt „Neues Kennwort festlegen“ (neu ≠ alt, nicht leer, Wiederholung
+>   gleich, bestehende Kennwortregeln), erst danach Sitzung; Haken wird dabei gelöscht. Ohne gesetztes Kennwort gilt weiter Regel R.
+> - admin nach Installation: statt der Leer-Hash-Ausnahme E → Seed mit Erstkennwort + Haken bzw. Erstkennwort-Ablauf; Ausnahme E und
+>   den Rückweg „PasswordHash NULL“ anpassen (Rückweg muss weiter funktionieren, auf „Erstkennwort mit Haken setzen“ umdeuten).
+> - AD-Benutzer: SSO unverändert; Erstkennwort nur bei Bedarf (Handgeräte ohne SSO).
+> - Übergang P-1 (`Pruefung/BenutzerOhneKennwort`): auf „Erstkennwort mit Pflichtwechsel setzen“ umstellen.
+> - ADR 0027 ergänzen; Akzeptanzkriterien und TS-139 erweitern; Manifest und `docs/betrieb/07`, `/09` in affected_code.
+
+**Eingearbeitet in:** Frontmatter (`updated`, `sql_vorschlag`, `affected_code`, `open_questions`, `deploy.migration: true`), Hinweis
+oben, Umfang, Soll (Regel P, `admin`-Seed, Rückweg; Ausnahme E als ueberholt markiert), BH-5-Tabelle Zeile a, Lösungsentwurf 0-4, 7, 9
+(ADR 0027), Migrations-/SQL (Migration, SQL/152, FreshInstall, P-1c), Einstellungen, Audit, AK 3-5b, 7-8d, 10, 17-19, TS-1.6, TS-139.4
+bis 139.5, 139.9, Deploy (Migration, Reihenfolge, Manifest SQL/152, Prüfungs- und Info-Texte).
+
+**Belegte Nummern:** SQL/152 (Begründung unter Migrations-/SQL), ADR 0027 bleibt (0028/0029 anderweitig reserviert), TS-139 bleibt.
+
+**Belegte Code-Stellen (Worktree, Stand v1.99.23):** Login POST `AccountController.cs:64-116` (Kennwortprüfung `:82-101`, Sitzung
+`:104-110`), Profile-Kennwort `:222-227`; `User : AuditableEntity` `Models/User.cs:5`, `PasswordHash` `:19-20`; `UsersController`
+Create `:103-151` (Hash `:136-137`), CreateAdUser `:200-209` (kein Hash), Edit `:273-326` (Hash `:307-308`, Audit `:310-312`); Views
+`Users/Create.cshtml:89-93`, `Users/Edit.cshtml:173-177` (Kennwortfeld auch für AD-Benutzer); Seed `Program.cs:259-279` (Leer-Hash
+`:267`, `:275-278`, ohne Audit); FreshInstall `Users` `:22-57`, `admin`-Insert `:1541-1549`, letzte `MigrationId` `:3262-3264`;
+`PasswordService.cs:8-44`; Manifest `SQL/150` `nachlauf.psd1:97-98`; Installer `:29`, `:481`. Schreibwege `PasswordHash =`/`new User`
+im Web- und Dienstcode (ohne Tests): nur Program.cs, AccountController.cs, UsersController.cs (Suche 2026-11-16). `SQL/AgentJobs`
+berührt `dbo.Users` nicht.
+
+**Neubewertung der Rückfragen:**
+- **1 – weiter offen (Bestätigung):** Regel R ist durch den Nachtrag bestätigt (= Kern von A), formal fehlt A ohne Schalter vs. C.
+- **2 – geändert, weiter offen:** Abhilfe jetzt Erstkennwort mit Pflichtwechsel (Manifest-Text); P-1-Ergebnisse und Sperre/Hinweis offen.
+- **7 – erledigt:** Erstkennwort + Pflichtwechsel; Ausnahme E, Installer-Abfrage und „unverändert“ entfallen.
+
+**Neue Rückfragen aus dem Nachtrag:** 11 (admin-Erstkennwort-Weg), 12 (Anzeige-Ort), 13 (Gültigkeitsdauer), 14 (Kennwortregeln),
+15 (Haken abwählen / Gerätekonten), 16 (Handgeräte-/Terminal-Login mit Pflichtwechsel).
+
+**Abgeleitet, nicht ausdrücklich entschieden (zur Kenntnis, bei Widerspruch melden):** `/Account/Profile` mit neuem Kennwort löscht den
+Haken (selbst gewähltes Kennwort); der Seed stellt auch bestehende Leer-Hash-`admin`-Konten auf Erstkennwort + Haken um (sonst wären
+sie nach Regel R ausgesperrt); der Pflichtwechsel-Schritt verlangt das bisherige Kennwort erneut (zustandslos, kein Klartext im
+Formular, kein Session-Merker); Spalte `MussKennwortAendern` bekommt für Bestandsbenutzer `0`.
