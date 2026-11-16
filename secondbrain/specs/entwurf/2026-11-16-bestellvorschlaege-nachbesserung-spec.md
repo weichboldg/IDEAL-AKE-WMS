@@ -2,7 +2,7 @@
 type: spec
 title: Bestellvorschläge – Nachbesserung (Laufzeit, FA-Bedarfe, Mengenregel, Einheiten, Dringlichkeit, Rahmenverträge)
 slug: 2026-11-16-bestellvorschlaege-nachbesserung-spec
-status: Freigegeben
+status: InUmsetzung
 created: 2026-11-16
 updated: 2026-11-16
 source_backlog: "[[2026-11-13-bestellvorschlaege-nachbesserung]]"
@@ -10,9 +10,9 @@ weitere_backlog: "[[2026-11-14-review-befunde-bestellvorschlaege]]"
 bezug:
   - "[[2026-11-08-einkauf-bestellvorschlaege-spec]]"
   - "[[2026-11-16-einkauf-klaerung-gerald-till]]"
-task: ""
-worktree: ""
-branch: ""
+task: "[[2026-11-16-goal-lauf-bestellvorschlaege]]"
+worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
+branch: "feature/2026-08-07-ideal-teile-1-5"
 standort: beide
 version_vorschlag: "1.99.31"
 sql_vorschlag: "SQL/155"
