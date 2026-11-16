@@ -679,3 +679,36 @@ Hinweis zur Pruefabfrage P-A4 (Abschnitt bleibt unveraendert): `CachedBomHeaders
 14. Standort-Maske → **Gerald 2026-11-16 15:40 „passt“ (Empfehlung): nein, nur /Settings mit Hinweis-Link.**
 15. AKE-View-Datum (P-A5) → **Gerald 2026-11-16 15:40 „passt“ (Empfehlung): bis P-A5 ist „View“ an der AKE nicht wählbar; P-A5 vor E5 erheben (Gerald).**
 16. Version v1.99.25 → **Gerald 2026-11-16 15:40 „passt“ (Empfehlung): ja, Reihenfolge 1.99.24 Sicherheit, 1.99.25 Beschichtung; Nummern beim Start prüfen.**
+
+## Kritische Pruefung (2026-11-16)
+
+Geprueft nach dem Nachtrag (Commit `9f999e5c`) gegen den Bündel-Worktree `feature/2026-08-07-ideal-teile-1-5`. Antworten 1–16 sind vollstaendig und stehen jetzt im Rumpf; SQL/152 und die Master-Sperre sind konsistent als *ueberholt* markiert. Die Befunde betreffen E2/E5.
+
+### BLOCKER
+
+- **B-1 Sollmenge der AKE-Positionen ist offen, geht aber nach aussen (Rueckfrage 18).** Der Beschichtungsauftrag geht an den Beschichter. Eine falsche Menge ist dort ein echter Fehler, keine Anzeigefrage. Zwei Lesarten sind moeglich: `CachedBomItem.Menge` (`IdealAkeWms/Models/CachedBomItem.cs:31`) ist die Menge je Stuecklistenartikel, und die Stueckliste haengt am Artikel, nicht am WA (`CachedBomHeader.cs:17`). Dazu kommt `Baugruppe` (`CachedBomItem.cs:20`, gefuellt in `BomCacheSyncService.cs:292`, `:315`). Ist die Stueckliste mehrstufig abgeflacht, gilt `Menge` womoeglich je Baugruppe und nicht je Endprodukt. Dann waere `Menge × Quantity` fuer Unterpositionen falsch. „Der /goal-Lauf baut die Empfehlung“ reicht hier nicht.
+  **Frage an Gerald:** Ist `Menge` in der AKE-Stueckliste je 1 Stueck Endartikel, auch bei Zeilen mit gefuellter `Baugruppe`? Dann gilt `Menge × ProductionOrder.Quantity`. Bitte an einem Beispiel-WA gegen Sage/OSEON gegenpruefen.
+
+### SOLLTE
+
+- **S-1 Haltepunkt H1 sitzt an der falschen Etappe.** Antwort 7 verlangt P-I1 vor der Aenderung der Aktiv-Kennung, weil die IDEAL heute bei leerem `LackierteilKategorieName` an allen Zeilen einen Haken sieht. Diese Aenderung baut aber **E2**: Die Zeilen-Views `_ProductionOrderRow.cshtml:16-20` und `_PickingLeitstandRow.cshtml:82-94` werden dort auf `Aktiv` aus dem Resolver umgestellt (Etappen-Tabelle E2, „Abhaengig von: Freigabe-Antwort 7“). E4 bringt nur den View-Termin in Leitstand und Arbeitsliste. Damit ist die Verhaltensaenderung schon gebaut, bevor H1 greift.
+  **Vorschlag:** H1 vor E2 legen. Oder E2 baut mit `Aktiv` = heutige Logik, und der Wechsel auf „FaStruktur = immer aktiv“ zieht nach E4 hinter H1 um. Gerald entscheidet, die Spec nennt danach eine Stelle.
+- **S-2 Stille Luecke: WA mit `HasCoatingParts = true`, aber ohne BomCache.** Die flache Quelle liest die Positionen aus `CachedBomHeaders/Items`. Der BomCache loescht Koepfe ausserhalb des aktuellen Fensters (`BomCacheSyncService.cs:600-621`, `DELETE … WHERE Artikelnummer NOT IN (…)`). Die Erkennung setzt Flags ausserhalb des Fensters nicht zurueck (Spec, Migrations-Abschnitt). Folge: Ein Lackier-WA kann gekennzeichnet sein und trotzdem ohne jeden Hinweis aus der Vorschlagsliste fallen. Das widerspricht der Hausregel „melden statt still behandeln“.
+  **Vorschlag:** In der Vorschlagsliste ein Banner oder eine Sammelmeldung „N WA mit Beschichtungskennzeichen ohne Stuecklisten-Cache“ plus Logger-Warnung. Dazu ein AK (15b) und ein Negativfall in TS-145.
+- **S-3 „Offene WAs“ der flachen Quelle sind nicht definiert** (Loesungsentwurf E5, „offene mit `HasCoatingParts = true`“). Unklar bleibt, ob `IsDone`, `IsCancelled` und `IsDonePicking` ausgeschlossen werden. `ProductionOrder.cs:101` sagt: `IsCancelled` verhaelt sich in allen Offen-Queries wie `IsDone`. Das Erkennungsfenster filtert beides nicht (Rueckfrage 13).
+  **Vorschlag:** In E5 und AK 15 festschreiben: `IsDone = 0 AND IsCancelled = 0`. `IsDonePicking` bleibt bewusst drin (lackiert wird nach dem Kommissionieren). Dazu ein Negativfall „stornierter WA erscheint nicht“.
+- **S-4 Der Positionsschluessel `Position = CachedBomItem.SortOrder` ist bei Stuecklistenaenderungen nicht stabil.** Aendert sich der Inhalt, loescht der BomCache alle Items eines Kopfes und legt sie neu an (`BomCacheSyncService.cs:518-521`, `SortOrder` neu vergeben `:550`, `:582`). Nach einer Stuecklistenaenderung zeigt die Vergabe-Anzeige (`BeschichtungsauftragVergabeAnzeige.cs:43`, Schluessel `PositionsSchluessel(VaterFA, SubFA, Position)`) deshalb womoeglich die falsche Zeile als vergeben.
+  **Vorschlag:** Den Grenzfall dokumentieren und einen Negativfall in TS-145 aufnehmen: Stueckliste aendert sich nach der Anlage, dann die Vergabe-Anzeige pruefen. Mindestens sollte eine Warnung erscheinen, wenn Artnr der Position und Artnr des Snapshots nicht zusammenpassen. Eine stabilere Ersatzloesung, z.B. ein Schluessel ueber `Ressourcenummer`, gibt es nur mit Schema-Aenderung. Das bleibt deshalb bewusst ausserhalb dieser Version.
+- **S-5 Die Pruefabfrage `Pruefung/BeschichtungQuelleKombination` schweigt, wenn die ServiceSettings-Zeile fehlt.** Der `CROSS JOIN` auf `ServiceSettings WHERE Key = 'ProduktionsauftragHierarchisch'` liefert 0 Zeilen, wenn der Key nicht angelegt ist. Dann meldet die Pruefung nie einen Befund, auch wenn `FaStruktur` an der AKE steht.
+  **Vorschlag:** `LEFT JOIN` bzw. `COALESCE(s.m, 'false')`, passend zum Default des Masters, und im Manifest-Test pruefen.
+- **S-6 P-A4 hat einen falschen Spaltennamen** (`h.ArticleNumber` statt `h.Artikelnummer`, Hinweis im Nachtrag). Laut Auftrag bleibt der Abschnitt unveraendert. Gerald muss die Abfrage aber vor dem Ausfuehren korrigieren, sonst bricht sie ab.
+
+### HINWEIS
+
+- **H-1 Rueckfrage 17 (SData-Achse) blockiert nicht**, nichts davon wird gebaut. Antwort 1 und die Lesetest-Notiz widersprechen sich aber. Das sollte in der SData-Schwester-Spec [[2026-11-16-fa-struktur-ideal-ueber-sdata-spec]] geklaert werden, nicht hier.
+- **H-2 Die AKE-Annahme `HauptFA = int(OrderNumber)` ist eindeutig.** Im flachen Modus gilt `SubOrderNumber == OrderNumber` (`ProductionOrder.cs:15-17`, `:30`), mit Unique-Index auf `SubOrderNumber` (`ApplicationDbContext.cs:493`). Eine WA-Nummer entspricht also genau einem Auftrag, eine Kollision mehrerer Auftraege unter einem `HauptFA` gibt es nicht. P-A3 bleibt der Beleg fuer „numerisch“.
+- **H-3 Die Vorschlagsliste laedt alle Positionen in den Speicher** (`BeschichtungsauftragService.cs:98-99`, `GetAllAsync`). An der AKE ist die Menge durch das BomCache-Fenster begrenzt (`Sync:BomCacheMaxOrders`, Default 200), unkritisch.
+- **H-4 Groesse:** rund 30 Dateien in 3 Schichten (Katalog/Resolver, Web, Dienst) plus Doku. Als Epic mit sechs Etappen ist das schaffbar. Das Buendel ist aber schon sehr gross (bis v1.99.24), das Merge-Risiko waechst mit jeder Etappe.
+- **H-5 Status/Ablage:** `status: Freigegeben` und `freigabe_*` hat der Mensch gesetzt, die Datei liegt aber noch in `specs/entwurf/`. Das Verschieben nach `specs/freigegeben/` bleibt die Geste des Menschen.
+
+**NACHBESSERUNG NOETIG: Sollmenge der AKE-Positionen klaeren (B-1) und H1 vor die Aktiv-Kennungs-Aenderung in E2 legen (S-1).**
