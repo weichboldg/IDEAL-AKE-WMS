@@ -2,7 +2,7 @@
 type: spec
 title: "Bugfix Sicherheit: Anmeldung nur mit Kennwort oder Windows, Erstinstallation, Installer ohne Klartext-Zugangsdaten (BH-1 bis BH-5)"
 slug: 2026-11-14-sicherheit-anmeldung-und-installer-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-11-14
 updated: 2026-11-16
 source_backlog: "[[2026-11-14-sicherheit-anmeldung-und-installer]]"
@@ -928,3 +928,43 @@ Entscheidung Gerald 2026-11-16 19:02, umgesetzt in `504acdd3` (Bündel, Version 
   Dienst 663 bestanden.
 - Altbestand: ein vor der Nachbesserung gespeicherter Haken ohne Kennwort bleibt in der DB, wirkt aber nicht (Login braucht Hash, Liste und
   Edit filtern) und wird beim nächsten Speichern entfernt.
+
+## QA-Nachweis Nachbesserung 2026-11-16 (qa-agent, `8f24ec51..504acdd3`)
+
+**Ergebnis: Testbereit.** Reviewt nur Commit `504acdd3`; Build, Tests, DEV-Deploy und Publish auf HEAD `504acdd3`.
+
+**1. Build und Tests:** `dotnet build IdealAkeWms.slnx` 0 Fehler. `dotnet test`: **IdealAkeWms.Tests 2955 bestanden / 1 übersprungen / 0 Fehler (2956)**; **IDEALAKEWMSService.Tests 663 / 0 / 0**.
+
+**2. Code-Review** (selbst, in diesem Lauf) gegen Auftrag Gerald 19:02. Geprüft: `UsersController` Index (B-3-Filter `:83`), Create GET (`:104`, kein Vorbelegen), Edit GET (`:260`, Haken nur mit Hash), `ApplyPassword` (`:336-349`: Hash zuerst gesetzt, dann `Haken = vm && hatKennwort`, Hinweis lokal/AD je `WindowsUserName`), `SetWarning` nur noch „Alle Ziele“, `CreateAdUser` (`:204-213`, legt weder Hash noch Haken an – unverändert, korrekt), JS in Create/Edit (setzt den Haken nur bei `change` mit Wert bzw. angehaktem „erzeugen“; keine eingebetteten Server-Werte), Hilfetexte Create/Edit, Changelog, TS-139.4a/4d, Tests. Andere Leser des Hakens (`AccountController:114` prüft erst den Hash, `AdminSeed`/`Program.cs:265` setzen immer mit Hash) – kein weiterer Pfad betroffen; kein Weg, der einen Hash entfernt (Suche `PasswordHash = null` ohne Treffer im Web-Code). Regel liegt einmal im Server, das JS ist nur Vorauswahl.
+
+| # | Schwere | Befund | Behandlung |
+|---|---|---|---|
+| N-1 | Info | Im Worktree liegen **nicht committete** Änderungen eines parallelen Doku-Laufs (`IdealAkeWms/Views/Help/Index.cshtml` +10 Zeilen: Hinweis auf `docs/anwender`/`docs/betrieb`, Satz zum Haken ohne Kennwort; dazu README/docs). Die Hilfeseite ist damit im DEV-Deploy und im Publish enthalten, obwohl `publish-info.txt` Commit `504acdd3` nennt. Inhaltlich unbedenklich (nur Hilfetext, passt zu B-2/B-3). | Nicht angefasst (fremde Arbeit). Nach dem Commit dieser Änderungen Publish wiederholen, damit `publish-info.txt` den Stand trägt. |
+
+Sonst keine Befunde. Defektklassen: kein `@Html.Raw` in `<script>`, kein `hidden`+`d-*`, keine stille Rückfallstelle (Haken ohne Hash wird sichtbar gemeldet statt still verworfen), keine parallelen Arrays, Regel serverseitig erzwungen.
+
+**3. Nachweisart:** B-2 Server (Create/Edit ohne Hash, AD-Hinweis, Create-GET) automatisiert (`ErstkennwortTests`) + DEV-Browser (echtes Model-Binding); JS-Vorauswahl nur DEV-Browser (Manual-UAT-Art, hier durchgeführt); B-3 automatisiert + DEV.
+
+**4. Geänderte bestehende Tests:** `Edit_HakenOhneKennwort_Warnhinweis` → `…_NichtGespeichert_Hinweis`: Verhalten bewusst geändert (B-2, Entscheidung 19:02). `Index_HinweisOhneKennwortUndOffeneErstkennwoerter`: Fixture `lager` bekommt Haken ohne Hash, damit der B-3-Filter überhaupt geprüft wird – Verhalten bewusst (B-3), Erwartung unverändert. Helfer `Users(...)` optionaler Rollen-Mock – Typänderung. Kein „anderes“.
+
+**5. Checkliste:** keine Migration/SQL; Version bleibt 1.99.29 (Auftrag); Anwender-Changelog ergänzt; TS-139.4a/4d angepasst (Index unverändert gültig, TS-139 bereits indiziert); keine neue Einstellung (ADR 0020 n/a).
+
+**6. DEV-Deploy und Testlauf.** `dev-deploy.ps1 -Quelle <worktree>` elevated: AKE „HTTP 200, Fusszeile v1.99.29 … Fertig: AKE v1.99.29 auf http://localhost:8081/“ Exit 0; IDEAL analog :8082 Exit 0. Footer = AppVersion 1.99.29 ✓. Browser-Schritte auf IDEAL-DEV (angemeldet als Gerald Weichbold, SSO):
+
+| Schritt | Ergebnis | Status |
+|---|---|---|
+| 139.4a `/Users/Create` öffnen | Haken nicht gesetzt | OK |
+| 139.4a Kennwort `Start-139a` eingetippt, Feld verlassen | Haken vorausgewählt; gespeichert → `ts139-b2a` Hash 1 / Haken 1; `/Users` „offenes Erstkennwort: admin, ts139-b2a“ | OK |
+| 139.4a Login `ts139-b2a` + `Start-139a` (POST) | Schritt „Neues Kennwort festlegen“ | OK (Rest des Wechsels unverändert, im Hauptlauf belegt) |
+| 139.4d-d lokal, Create ohne Kennwort, Haken manuell | Erfolgsmeldung „… Hinweis: ohne Kennwort wird „Kennwort bei der nächsten Anmeldung ändern“ nicht gespeichert – ohne Kennwort ist keine Formular-Anmeldung möglich.“, kein gelber Warnhinweis; DB `ts139-b2d` Hash 0 / Haken 0 | OK |
+| 139.4d-d lokal, Edit (Altbestand: Haken per SQL auf 1) | `/Users/Edit` zeigt Haken **nicht**; manuell angehakt + gespeichert → gleicher Hinweis, DB Haken 0 | OK |
+| 139.4d-d AD (`Gerald Weichbold`, ohne Kennwort), Haken manuell | Hinweis „… – der Benutzer meldet sich per Windows an.“, DB Haken 0, Rollen unverändert (1) | OK |
+| 139.4d-d Login `ts139-b2d` leer | Meldung R („Für diesen Benutzer ist kein Kennwort hinterlegt …“) | OK |
+| 139.4d-e `/Users` mit Altbestand (`ts139-b2d` Haken 1 ohne Hash) | `ts139-b2d` nur in „lokale Benutzer ohne Kennwort“, nicht unter „offenem Erstkennwort“ | OK |
+| 139.4d a–c (Benutzer mit Kennwort) | Code unverändert, im Hauptlauf belegt | nicht wiederholt |
+
+Aufgeräumt: `ts139-b2a`, `ts139-b2d` samt Rollen gelöscht; `ts139-erst` bleibt. Punkt 13 der offenen Liste („Entscheiden: B-2 / B-3“) ist mit der Nachbesserung erledigt.
+
+**7. Publish:** `<worktree>\publish\` neu (Ordner geleert): `IDEALAKEWMSWeb`, `IDEALAKEWMSWebService` (beide Exit 0), `SQL`, `deploy`, `publish-info.txt`: Version 1.99.29, Commit `504acdd390c86e96b7a9282bd4bb2d7378eae60e`, Branch `feature/2026-08-07-ideal-teile-1-5`, Erstellt 2026-11-16 19:14. Achtung N-1: enthält die nicht committete Hilfeseiten-Änderung. Deploy-Wirkung dieser Nachbesserung: nur Web (keine Migration, kein Dienst-Code).
+
+**Offen für Gerald (zusätzlich zur Liste oben):** 139.4a/4d einmal auf dem Testsystem (Haken beim Öffnen leer, nach Eingabe vorausgewählt, ohne Kennwort nur Hinweis).
