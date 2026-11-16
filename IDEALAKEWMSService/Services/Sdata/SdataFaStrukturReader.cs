@@ -140,6 +140,10 @@ public sealed class SdataFaStrukturReader : ISageFaStrukturReader
 
     /// <summary>E4, FA-Knoten (Wurzel, Unter-FA): <c>USER_OS*</c> am FA-Kopf (<c>dtsFaBelegsuche</c>, Namen belegt L10). Arbeitshypothese bis
     /// P-FS1 (Freigabe-Antwort 2), wird nur verglichen. Kein Filter auf USER-Felder (HTTP 500, L10).</summary>
+    /// <summary>In <c>dtsFaBelegsuche</c> tragen die Kopf-Benutzerfelder das Tabellen-Praefix (L8, QA IDEAL 2026-11-16 R1). Ohne Praefix
+    /// antwortet Sage 200 und laesst die Felder still weg.</summary>
+    public const string PraefixBelegsuche = "KHKPpsFaBelege_";
+
     public static readonly string[] FelderFa =
     {
         "USER_OSBemerkungPN", "USER_OSFertigungsInfoPN", "USER_OSKommissionieren", "USER_OSAbteilung", "USER_OSArbeitsschritte",
@@ -174,11 +178,11 @@ public sealed class SdataFaStrukturReader : ISageFaStrukturReader
                 + $"FA-Felder leer, {fehlend.Count} Haupt-FA(s) nicht in {RessourceKoepfe} nicht nachgelesen."));
             return (new(), new());
         }
-        var zeilen = await BelegsucheAsync(ziel, ids, SelectBelegsucheKopf + "," + string.Join(",", FelderFa), hinweise, ct);
+        var zeilen = await BelegsucheAsync(ziel, ids, SelectBelegsucheKopf + "," + string.Join(",", FelderFa.Select(f => PraefixBelegsuche + f)), hinweise, ct);
         var felder = new Dictionary<int, Dictionary<string, string?>>();
         foreach (var z in zeilen)
             if (Zahl(z, "BelID") is { } belId)
-                felder.TryAdd(belId, FelderFa.ToDictionary(f => f, f => Text(z, f), StringComparer.OrdinalIgnoreCase));
+                felder.TryAdd(belId, FelderFa.ToDictionary(f => f, f => Text(z, PraefixBelegsuche + f), StringComparer.OrdinalIgnoreCase));
         var wurzeln = zeilen.Select(z => new SdataFaKopfZeile(Zahl(z, "BelID"), Zahl(z, "StrukturID"), Text(z, "Artikelnummer"), null, null))
             .Where(k => k.BelID is not null && k.BelID == k.StrukturID && fehlend.Contains(k.BelID.Value))
             .DistinctBy(k => k.BelID).ToList();

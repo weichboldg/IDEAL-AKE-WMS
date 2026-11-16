@@ -147,11 +147,12 @@ public class FaStrukturSdataTests
     {
         var client = new Mock<ISageSdataReadClient>(MockBehavior.Strict);
         var koepfe = new[] { K(1065143, 1059463, "50002143") };
+        var selectBelegsuche = SdataFaStrukturReader.SelectBelegsucheKopf + "," + string.Join(",", SdataFaStrukturReader.FelderFa.Select(f => SdataFaStrukturReader.PraefixBelegsuche + f));
         client.Setup(c => c.QueryAllAsync<SdataFaKopfZeile>(Ziel, SageSdataReadClient.VertragResources, "PpsFaBelegeInfo",
                 SdataFaStrukturReader.WhereKoepfe(Jetzt), SdataFaStrukturReader.SelectKoepfe, "BelID", It.IsAny<CancellationToken>(), It.IsAny<int>()))
             .ReturnsAsync(new SdataSeiten<SdataFaKopfZeile>(koepfe, "PpsFaBelegeInfo", 1, 1, 1));
         client.Setup(c => c.GetAsync<Dictionary<string, JsonElement>>(Ziel, SageSdataQuellen.FaBelegsuche, "BelID eq 1059463 or BelID eq 1065143",
-                SdataFaStrukturReader.SelectBelegsucheKopf + "," + string.Join(",", SdataFaStrukturReader.FelderFa), "BelID", It.IsAny<CancellationToken>()))
+                selectBelegsuche, "BelID", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new SdataErgebnis<Dictionary<string, JsonElement>>(belegsuche,
                 new SdataCall(SageSdataQuellen.FaBelegsuche, "url", 200, 1, belegsuche.Length, null, null)));
         var pos = new[]
@@ -329,13 +330,13 @@ public class FaStrukturSdataTests
     {
         var client = Client1059463(
             Zeile("""{"BelID":1059463,"StrukturID":1059463,"Artikelnummer":"80141025"}"""),
-            Zeile("""{"BelID":1065143,"StrukturID":1059463,"Artikelnummer":"50002143","USER_OSArbeitsschritte":"SG","USER_OSBeschichtet":-1}"""));
+            Zeile("""{"BelID":1065143,"StrukturID":1059463,"Artikelnummer":"50002143","KHKPpsFaBelege_USER_OSArbeitsschritte":"SG","KHKPpsFaBelege_USER_OSBeschichtet":-1,"USER_OSMaterial":"ohnePraefix"}"""));
         Artikel(client, Zeile("""{"Artikelnummer":"73002467","Matchcode":"MC-73","USER_OSArbeitsschritte":"LA","IstBestellartikel":-1}"""));
 
         var l = await Reader(client, realTimeData: true).LesenAsync(Ziel, Jetzt, CancellationToken.None);
 
         var bg = l.Knoten.Single(n => n.SubFA == 1065143);
-        (bg.Arbeitsschritte, bg.Beschichtet).Should().Be(("SG", true));
+        (bg.Arbeitsschritte, bg.Beschichtet, bg.Material).Should().Be(("SG", true, null)); // R1: nur Praefix-Namen zaehlen
         var blatt = l.Knoten.Single(n => n.Artnr == "73002467");
         (blatt.Matchcode, blatt.Arbeitsschritte, blatt.Beschaffungsartikel).Should().Be(("MC-73", "LA", true));
     }
