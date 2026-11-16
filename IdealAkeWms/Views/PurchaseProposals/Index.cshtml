@@ -50,7 +50,7 @@ else
 @if (Model.PositionenEinheitAbweichend > 0)
 {
     <div class="alert alert-warning py-2 small" role="status">
-        @Model.PositionenEinheitAbweichend offene @(Model.PositionenEinheitAbweichend == 1 ? "Bestellposition" : "Bestellpositionen") mit abweichender Einheit – nicht eingerechnet (Liste „Offene Bestellungen“, Hinweis „Einheit abweichend“).
+        @Model.PositionenEinheitAbweichend offene @(Model.PositionenEinheitAbweichend == 1 ? "Bestellposition" : "Bestellpositionen") mit nicht umrechenbarer Einheit (Basiseinheit ≠ Lagereinheit) – nicht eingerechnet (Liste „Offene Bestellungen“, Hinweis „Einheit abweichend“). Positionen, bei denen nur die Bestelleinheit abweicht, sind eingerechnet.
     </div>
 }
 @if (Model.BedarfeEinheitAbweichend > 0)

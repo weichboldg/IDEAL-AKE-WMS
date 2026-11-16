@@ -176,6 +176,18 @@ public class PurchaseProposalsController : Controller
     private static bool EinheitWeichtAb(string? a, string? b) =>
         !string.IsNullOrWhiteSpace(a) && !string.IsNullOrWhiteSpace(b) && !string.Equals(a.Trim(), b.Trim(), StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>v1.99.30 F7 Ersatzloesung (P-N1/P-N4/P-N7 offen): Mengen in der Basiseinheit (letzte Bestellung, Sage-Bestellmenge) gelten nur,
+    /// wenn Basis = Lager und <c>UmrechnungsFaktorLME</c> leer oder 1 ist. Sonst nicht umrechenbar – nie still Faktor 1, keine angenommene Richtung.</summary>
+    internal static string? BasisNichtLager(ArticleSageDetail? d) =>
+        EinheitWeichtAb(d?.Basismengeneinheit, d?.Lagermengeneinheit) ? $"Einheit {d!.Basismengeneinheit!.Trim()} → {d.Lagermengeneinheit!.Trim()} nicht umrechenbar"
+        : d?.UmrechnungsFaktorLME is { } f && f != 1m ? $"Einheit gleich, Faktor {f:0.###}" : null;
+
+    /// <summary>v1.99.30 F7 Ersatzloesung (P-N3): eine offene Position zaehlt trotz <c>EinheitAbweichend</c>, wenn ihre Basiseinheit (Einheit der
+    /// Cache-Mengen) gleich der Lagereinheit ist – dann weicht nur die Bestelleinheit ab. Fehlt eine der beiden, zaehlt sie nicht.</summary>
+    internal static bool PositionRechenbar(SagePurchaseOrderLine l) =>
+        !l.EinheitAbweichend || (!string.IsNullOrWhiteSpace(l.MengeBasiseinheit) && !string.IsNullOrWhiteSpace(l.Lagermengeneinheit)
+            && string.Equals(l.MengeBasiseinheit.Trim(), l.Lagermengeneinheit.Trim(), StringComparison.OrdinalIgnoreCase));
+
     /// <summary>Datensammlung → Zeilen: Bestand je Artikel (Summe der Plaetze, ohne Bewegung 0, Regel der Meldebestand-Mail), Bedarfe aus dem
     /// <see cref="IPlannedConsumptionService"/> (v1.99.30: FA-Rest, Bedarfsmeldungen, Lagerbestellungen; abgezogen wird die angerechnete Summe
     /// ohne Doppelzaehlung, dieselbe wie in der Artikelinfo), offene Bestellungen (E2: Rest je Position,
@@ -188,9 +200,11 @@ public class PurchaseProposalsController : Controller
         PlannedConsumptionResult bedarfe, IReadOnlyList<SagePurchaseOrderLine>? bestellungen, IReadOnlyDictionary<int, ErfasstJeBelPos> erfasst,
         DateTime heute, IReadOnlyDictionary<int, ArticleSupplierRow>? letzte = null, bool letzteGelesen = false)
     {
-        var positionenAbweichend = bestellungen?.Count(l => l.EinheitAbweichend) ?? 0;
+        var nichtRechenbar = (bestellungen ?? new List<SagePurchaseOrderLine>()).Where(l => !PositionRechenbar(l) && l.ArticleId != null)
+            .GroupBy(l => l.ArticleId!.Value).ToDictionary(g => g.Key, g => g.ToList());
+        var positionenAbweichend = nichtRechenbar.Values.Sum(g => g.Count);
         // Positionen je Artikel (Rest nach der EINEN Rest-Regel, mit Liefertermin fuer das Dringlichkeits-Fenster F5).
-        var restJeArtikel = (bestellungen ?? new List<SagePurchaseOrderLine>()).Where(l => !l.EinheitAbweichend && l.ArticleId != null)
+        var restJeArtikel = (bestellungen ?? new List<SagePurchaseOrderLine>()).Where(l => PositionRechenbar(l) && l.ArticleId != null)
             .Select(l => (ArticleId: l.ArticleId!.Value, l.Liefertermin, Menge: erfasst.GetValueOrDefault(l.BelPosId, ErfasstJeBelPos.Leer).Rest(l)))
             .GroupBy(x => x.ArticleId)
             .ToDictionary(g => g.Key, g => g.Select(x => (x.Menge, x.Liefertermin)).ToList());
@@ -220,15 +234,20 @@ public class PurchaseProposalsController : Controller
             var fenster = PurchaseProposalCalculator.VerfuegbarBis(bestandWms, positionen, bedarf, heute, wbz);
             if (positionen.Any(p => p.Menge > 0 && p.Liefertermin == null)) hinweise.Add(PurchaseProposalCalculator.HinweisOhneLiefertermin);
             if (wbz == null) hinweise.Add(PurchaseProposalCalculator.HinweisOhneWbz);
+            if (nichtRechenbar.GetValueOrDefault(a.Id) is { } ohne)
+                hinweise.Add($"{ohne.Count} offene Bestellposition(en) Einheit {ohne[0].MengeBasiseinheit?.Trim() ?? "?"} → {ohne[0].Lagermengeneinheit?.Trim() ?? "?"} nicht umrechenbar – nicht gezählt");
             // Antwort 4: eine Bestellung ohne Artikel-Lieferant gilt, wenn sie juenger ist als ALLE zugeordneten (das sichert das Repository zu),
             // auch vor dem Hauptlieferanten; sonst wie bisher Hauptlieferant, dann juengste bei einem anderen (Rueckfrage 13 a).
             var quelle = juengste?.OhneArtikelLieferant == true || l?.LetzteBestellmenge == null ? juengste : l;
             var keineBestellung = letzteGelesen && quelle == null;
             var fallback = keineBestellung ? a.SageDetail?.Bestellmenge : null;
-            if (quelle != null && EinheitWeichtAb(a.SageDetail?.Basismengeneinheit, a.SageDetail?.Lagermengeneinheit))
+            if (BasisNichtLager(a.SageDetail) is { } einheit)
             {
-                hinweise.Add("Einheit Basis ≠ Lager – letzte Bestellmenge nicht verwendet");
+                if (quelle != null) hinweise.Add($"{einheit} – letzte Bestellmenge nicht verwendet, Menge prüfen");
+                // BV-1: Sage-Bestellmenge bis P-N1 nur bei Basis = Lager (heute wurde sie ungeprueft genommen).
+                if (fallback is > 0m) hinweise.Add($"{einheit} – Sage-Bestellmenge nicht verwendet, Menge prüfen");
                 quelle = null;
+                fallback = null;
             }
             return new PurchaseProposalRow
             {

@@ -215,7 +215,7 @@ public partial class PurchaseProposalsControllerTests
         var a2 = vm.Items.Single(i => i.Article.ArticleNumber == "A2");
         a2.LetzteBestellung.Should().BeNull();
         a2.Ergebnis.Grund.Should().Be(PurchaseProposalCalculator.GrundOhneLetzteBestellung);
-        a2.Hinweis.Should().Contain("Einheit Basis ≠ Lager");
+        a2.Hinweis.Should().Contain("Einheit Stk → PKG nicht umrechenbar – letzte Bestellmenge nicht verwendet");
     }
 
     [Fact]
