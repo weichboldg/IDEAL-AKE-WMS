@@ -2,7 +2,7 @@
 type: spec
 title: "Bugfix Sicherheit: Anmeldung nur mit Kennwort oder Windows, Erstinstallation, Installer ohne Klartext-Zugangsdaten (BH-1 bis BH-5)"
 slug: 2026-11-14-sicherheit-anmeldung-und-installer-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-11-14
 updated: 2026-11-16
 source_backlog: "[[2026-11-14-sicherheit-anmeldung-und-installer]]"
@@ -623,7 +623,18 @@ Passwort leer“ → Erstkennwort + Pflichtwechsel, Verweis TS-139.4), TS-40.4 (
 
 ## Deploy
 
-**Vorläufig** – der QA-Lauf bestätigt gegen den echten Diff.
+> [!success] Final (QA-Lauf 2026-11-16, gegen den echten Diff `5163df17..4f3bf15d` ohne `f12f46f7`, plus QA-Fix `8f24ec51`) – geht allem darunter vor
+> - **deploy.web: true** (`IdealAkeWms/`: AccountController, UsersController, Program.cs, AdminSeed, PasswordService, Views Account/Users/Help).
+> - **deploy.service: true** (`IDEALAKEWMSService/`: `MailService`-Warnung, `appsettings.json` ohne tote Blöcke – die Server-Datei wird nicht überschrieben, der Dienst braucht nur die neuen DLLs).
+> - **deploy.migration: true** (`IdealAkeWms/Migrations/20261116165705_AddUserMussKennwortAendern.cs` neu) → `SQL/152_AddUserMussKennwortAendern.sql`, additiv. Kein SQL/151.
+> - **Paket:** `C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish\` – Version **1.99.29** (HEAD enthält die darüberliegende Spec Wareneingang-CSV `f12f46f7`), Commit `8f24ec51`, `publish-info.txt` vorhanden, beide Komponenten + `SQL\` + `deploy\`. Im Ordner liegt zusätzlich ein altes `deploy.zip` (07:31, nicht aus diesem Lauf) – nicht mitkopieren bzw. ignorieren.
+> - **Reihenfolge je System:** (1) vorher P-1 (Benutzer ohne Kennwort) und auf IDEAL-Prod P-2b; Kennwörter setzen/deaktivieren im alten Stand; (2) Update-Skript: Backup → Web+Dienst stoppen → `SQL/152` (Schema, vor dem Web-Start) → Dateien → Web-Start (Seed stellt `admin` mit Leer-Hash/NULL auf `wms-admin` + Pflichtwechsel um) → Dienst; (3) **sofort** als `admin` anmelden, falls der Seed umgestellt hat (Start-Log-Warnung); (4) Anwender-Info.
+> - **Manifest** geprüft: `SQL/152`, `Pruefung/BenutzerOhneKennwort` (Vorher, sperrt Prod), `Pruefung/FreshInstallIndizes` (IDEAL, **jetzt `System=@('Prod')`**, QA-Fix B-1), `Pruefung/SmtpBenutzer` (Nachher), `v1.99.28-AnmeldungKennwort`, `v1.99.28-AnwenderInfo` – alle Deploy-Schritte der Spec sind drin.
+> - Nach dem Merge nur dann aus `main` neu publizieren, wenn der Merge getestete Dateien mit parallelen main-Änderungen zusammengeführt hat:
+>   `dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb`
+>   `dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService`
+
+*Vorläufige Angaben (Spec-/Dev-Lauf):*
 
 > [!info] Stand nach Umsetzung 2026-11-16 (Dev-Lauf, Commits `6447db0a`, `4559e0a2`) – geht den vorläufigen Angaben darunter vor
 > - **Version 1.99.28** (nicht 1.99.24), Changelog [[2026-11-16-v1-99-28-sicherheit-anmeldung-installer]], ADR [[0027-formular-anmeldung-nur-mit-kennwort-erstkennwort-mit-pflichtwechsel]].
@@ -802,3 +813,103 @@ berührt `dbo.Users` nicht.
 Haken (selbst gewähltes Kennwort); der Seed stellt auch bestehende Leer-Hash-`admin`-Konten auf Erstkennwort + Haken um (sonst wären
 sie nach Regel R ausgesperrt); der Pflichtwechsel-Schritt verlangt das bisherige Kennwort erneut (zustandslos, kein Klartext im
 Formular, kein Session-Merker); Spalte `MussKennwortAendern` bekommt für Bestandsbenutzer `0`.
+
+## QA-Nachweis 2026-11-16 (qa-agent)
+
+**Ergebnis: Testbereit.** Reviewt: Commits `6447db0a`, `4559e0a2`, `4f3bf15d` (Basis `5163df17`), ohne `f12f46f7` (eigene Spec). Build, Tests, DEV-Deploy und Publish auf HEAD inkl. `f12f46f7` und QA-Fix `8f24ec51`.
+
+### 1. Build und Tests (Worktree, HEAD `4f3bf15d`)
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler, 28 Warnungen (bestehend).
+- `dotnet test`: **IdealAkeWms.Tests 2952 bestanden / 1 übersprungen / 0 Fehler (2953)**; **IDEALAKEWMSService.Tests 663 / 0 / 0**.
+- Nach QA-Fix `8f24ec51` (nur Manifest + Doku): `NachlaufManifestDriftTests` 17/17 grün.
+
+### 2. Code-Review (selbst, in diesem Lauf)
+Geprüft: AccountController Login/StartSession/Profile, LoginViewModel, Login.cshtml (Kennwortfelder werden nicht zurückgeschrieben – `DataType.Password`, kein Klartext in versteckten Feldern; hidden nur `KennwortFestlegen`/`returnUrl`, `Url.IsLocalUrl` unverändert), UsersController Index/Create/Edit + `ApplyPassword`, Views Users (JS ohne eingebettete Server-Werte), AdminSeed + Program.cs (Cookie `SameAsRequest` für Session und Antiforgery), `PasswordService.GenerateInitialPassword`, User-Modell, Migration + Snapshot, SQL/152, FreshInstall (Users-Spalte, Abschnitt 15, Guards WarehouseRequisitions/-Items, MigrationId mit `COL_LENGTH`-Bedingung), MailService, Dienst-`appsettings.json` (Dienst liest `Sync:*`/`WorkerSettings:*`/`ErrorNotification:*` nur über `Common/ServiceSettings.cs:19-55` aus der DB, `IConfiguration` dort nur für den Connection-String; `Feiertag*` bleiben), Installer (kein Zugriff mehr auf entfernte Blöcke, Parser 0 Fehler), nachlauf.psd1 + `Update-IdealAkeWms.ps1:695-703` (Prüfungen ohne Versionsfilter, Vorher+Prod>0 = Abbruch), Drift-Test-Änderung, neue Tests.
+
+Fokuspunkte: Regel R/P korrekt (Hash leer → R außer `IsDevelopment()` mit leerem Feld; leeres Feld/falsches Kennwort → „Falsches Passwort.“; Haken → Schritt, bisheriges Kennwort und Haken je POST neu geprüft, zustandslos). Kontoübernahme: kein Weg setzt ohne bestätigtes Kennwort einen Hash (manipulierte POSTs auf DEV geprüft). Audit: Login-Wechsel (`ModifiedBy` = Benutzer, `ModifiedByWindows` = `SYSTEM` wie Spec), Edit, Profile, Seed (`system`); Create `Created*`. Kein `HashPassword("")` mehr (Suche ohne Treffer). Restrisiken laut Entscheidung: `wms-admin` ist bis zur ersten admin-Anmeldung jedem mit Betriebshandbuch bekannt (S1, Freigabe 11) – wie bisher das Leer-Fenster; Benutzernamen-Aufzählung über unterschiedliche Meldungen = Folgeaufgabe [[2026-11-16-anmeldung-zusatzfunde-folgeaufgabe]].
+
+| # | Schwere | Befund | Behandlung |
+|---|---|---|---|
+| B-1 | Mittel | `Pruefung/FreshInstallIndizes` ohne Systemfilter: auf über Migrationen entstandenen IDEAL-DBs tragen gleichwertige Indizes andere Namen → Falschtreffer „SQL/151 nötig“. Gemessen: `IDEAL_WMS_DEV` (Kopie IDEAL-Test) = **24**, `AKE_WMS_DEV` 0, frische FreshInstall-DB 0. Der Spec-Entwurf sah `System=@('Prod')` vor. | **Behoben** `8f24ec51`: `System=@('Prod')`; `-NurPruefen` IDEAL-DEV listet die Prüfung nicht mehr. TS-139.8 nachgezogen (sagte noch „Prüfung nicht gebaut“). |
+| B-2 | Niedrig | `/Users/Create` GET belegt den Haken schon beim Öffnen vor (`MussKennwortAendern = true`), die Spec sagt „bei eingegebenem/erzeugtem Kennwort vorausgewählt“ (das JS tut das zusätzlich). Folge: Benutzer ohne Kennwort angelegt → Warnung „Haken gesetzt, aber kein Kennwort“ und gespeicherter Haken. | Offen, Entscheidung Gerald (1 Zeile). Verhalten sonst korrekt und gemeldet. |
+| B-3 | Niedrig | `/Users`-Hinweis „offenes Erstkennwort“ zählt auch aktive Benutzer mit Haken **ohne** Kennwort (DEV: `Testuser` stand in beiden Listen). | Offen, Entscheidung Gerald (Filter auf gesetzten Hash). Hängt mit B-2 zusammen. |
+| B-4 | Info | `Pruefung/SmtpBenutzer` meldet jeden gesetzten SMTP-Benutzer, auch mit `SmtpUseSsl = true` (Text nennt die Bedingung). Nur Hinweis. | Hingenommen. |
+| B-5 | Info | `Pruefung/BenutzerOhneKennwort` läuft bei **jedem** künftigen Update: ein später ohne Kennwort angelegter lokaler Benutzer sperrt den nächsten Prod-Deploy. Gewollt („melden“), aber dauerhaft. | Zur Kenntnis. |
+
+Defektklassen-Liste: kein `@Html.Raw` in `<script>`, kein `hidden` + `d-*`, keine stille `?? 0`-Rückfallstelle, keine parallelen Arrays, Regeln serverseitig (JS setzt nur den Haken vor), Regel R/P an einer Stelle (Login POST).
+
+### 3. Nachweisart je AK
+| AK | Nachweis |
+|---|---|
+| 1, 3, 4, 5, 5a, 5b | automatisiert (`AccountControllerLoginTests`) und DEV-IIS (unten) |
+| 2 | Meldung mit Windows-Hinweis automatisiert + DEV; SSO = **Manual-UAT** |
+| 6 | automatisiert; `dotnet run` nicht ausgeführt = Manual-UAT |
+| 7, 8, 8a | automatisiert (`ErstkennwortTests`) + DEV (Seed-Umstellung, Start-Log, Hinweis) |
+| 8b | automatisiert + DEV-Browser (echtes Model-Binding) |
+| 8c | nur automatisiert (`Profile_NeuesKennwort_LoeschtHaken`); DEV braucht Sitzung mit Haken (nur SSO) – Manual-UAT |
+| 8d | SQL/152 zweimal auf Prüf-DB (SQL Server) |
+| 9, 10 | FreshInstall-Lauf lokale Instanz (unten); Web-Start auf Prüf-DB nicht ausgeführt (Seed auf DEV belegt) |
+| 11 | automatisiert (`FreshInstallIndexSpaltenTests`) |
+| 12 | Parser + Code-Lesung; Voll-Lauf = Manual-UAT |
+| 13 | Dienst-Tests grün, Code-Lesung |
+| 14 | DEV HTTP belegt; HTTPS = Manual-UAT |
+| 15 | Code-Lesung; Lauf NICHT MÖGLICH auf DEV (Mail aus) |
+| 16, 19 | `-NurPruefen` DEV + `NachlaufManifestDriftTests`; Prod-Abbruch per Code-Lesung `Update-IdealAkeWms.ps1:701` |
+| 17 | Doku-Lesung (TS-1.6/40.4/40.7, Installer-Texte ohne „LEER“) |
+| 18 | grün |
+
+### 4. Geänderte bestehende Tests
+- `AccountControllerTests` – Typ-Änderung (neuer Ctor-Parameter `IWebHostEnvironment`, Production).
+- `NachlaufManifestDriftTests` – `SQL/152` registriert; Prüfungen in Phase `Vorher` zugelassen, nur mit `anzeigen` – Verhalten bewusst geändert (Freigabe-Antwort 2, AK 19). Kein „anderes“.
+
+### 5. Checkliste
+Migration + SQL/152 (Guard, History separat) ✓; FreshInstall an beiden Stellen ✓; AgentJobs nicht betroffen ✓; Audit ✓; Version beide `AppVersion.cs` (1.99.28, HEAD 1.99.29 durch Folgespec) + Changelog ✓; TS-139 + Index ✓; ADR 0027 vorhanden. ADR 0020: keine neue Einstellung (`Sync:ProductionOrdersEnabled` nur Installationswert).
+
+### 6. DEV-Deploy und Testlauf
+`standort: beide` → beide Sites, elevated, `dev-deploy.ps1 -Quelle <worktree>` (HEAD `4f3bf15d`): AKE „HTTP 200, Fusszeile v1.99.29 … Fertig: AKE v1.99.29 auf http://localhost:8081/“, Exit 0; IDEAL dasselbe für :8082, Exit 0. Footer = AppVersion 1.99.29 ✓. Migration in beiden DEV-DBs eingetragen. (QA-Fix `8f24ec51` berührt keine deployte Komponente.)
+
+| Schritt | Ergebnis | Status |
+|---|---|---|
+| 139.1 `Testuser` (IDEAL, lokal ohne Kennwort) leer / `x` | Meldung R mit Windows-Hinweis, `/` → 302 Login | OK |
+| 139.2 AD/SSO/Handy | – | NICHT MÖGLICH (Manual-UAT) |
+| 139.3 / AK 8a negativ | AKE-DEV `admin` mit eigenem Kennwort nach Deploy unverändert (`ModifiedAt` 2026-07-10); falsches Kennwort → „Falsches Passwort.“ | OK |
+| 139.4 Seed Variante 2 | IDEAL-DEV `admin` mit Leer-Hash → nach Start `wms-admin`, Haken 1, `ModifiedBy=system`; Start-Log `[WRN] Benutzer admin hat ein Erstkennwort …` ohne Kennwort; leer → „Falsches Passwort.“; `wms-admin` → Schritt, keine Sitzung | OK |
+| 139.4b (1)-(5) an `admin` | (1)/(2) „Bitte ein neues Kennwort eingeben.“, (3) „…unterscheiden.“, (4) „Die Wiederholung stimmt nicht…“, (5) „Falsches Passwort.“; Hash+Haken unverändert | OK |
+| 139.4b (7) manipulierter POST | AKE `admin` ohne Haken + falsches Kennwort + `NewPassword` → „Falsches Passwort.“, Hash unverändert; AKE `lager` ohne Kennwort + `NewPassword` → Meldung R, Hash bleibt NULL | OK |
+| 139.4 Wechsel `admin` im Browser | Schritt-Ansicht korrekt (Benutzer schreibgeschützt, Felder leer, Abbrechen), gültig → angemeldet, Haken 0, `ModifiedBy=admin`, `ModifiedByWindows=SYSTEM` | OK |
+| 139.4 Rückweg | `PasswordHash=NULL` + App-Pool-Recycle → `wms-admin` + Haken + Warnung; Login → Schritt. **Endzustand IDEAL-DEV: admin = `wms-admin` mit Pflichtwechsel** | OK |
+| 139.4a `ts139-erst` (IDEAL) | Create mit `Start-139a`, Haken vorbelegt; Login → Schritt; Wechsel auf `Neu-139a` → 302 `/`, Haken 0, `ModifiedBy=ts139-erst`; alt → „Falsches Passwort.“, neu → angemeldet | OK |
+| 139.4a am Netum | – | NICHT MÖGLICH (Gerät) |
+| 139.4c erzeugt | Haken per JS mit angehakt; Banner „Erstkennwort: <12 Zeichen> – jetzt notieren …“ einmal, nach Neuladen weg; DB Hash ≠ Klartext, Haken 1; Web-Logs ohne Kennwort; Login → Schritt; Abbrechen → `/` 302 | OK |
+| 139.4d a/c/d | c) neues Kennwort, Haken abgewählt → direkt angemeldet; a) Haken manuell → Schritt; d) Haken bei `Testuser` ohne Kennwort → Warnung, Login → Meldung R (Haken danach per SQL zurück); dabei B-3 beobachtet | OK |
+| 139.4e AD mit Erstkennwort | – | NICHT MÖGLICH (SSO/Handy) |
+| 139.5 `-NurPruefen` (aus `publish\deploy`, `-System DEV`) | IDEAL-DEV `[Pruefung/BenutzerOhneKennwort] Abweichung 5 - Hinweis: …`, AKE-DEV 7; admin zählt nicht; `[Pruefung/SmtpBenutzer] OK`; keine fehlenden Schema-Skripte; FreshInstallIndizes auf DEV nicht gelistet (nach B-1) | OK; Terminal NICHT MÖGLICH |
+| 139.6 `dotnet run` | – | NICHT MÖGLICH in diesem Lauf (automatisiert belegt) |
+| 139.7 / AK 9-10 | `@@SERVERNAME` = PC-WEICHBOLD; Scratch-Kopie mit `USE [WMS_FreshInstall_QA]` auf neuer leerer DB: Lauf 1 und 2 Exit 0, 0 Meldungen; History 100 = 100 Migrationen; Spalte vorhanden; falsche Indizes 0; FreshInstallIndizes-Zählung 0; admin `PasswordHash NULL`; DB gedroppt | OK |
+| AK 8d SQL/152 | Prüf-DB mit Bestand: Lauf 1 „angelegt … eingetragen“, Lauf 2 „existiert bereits“, Exit 0, Bestand 0, History 1; gedroppt | OK |
+| 139.8 IDEAL-Prod P-2b | – | NICHT MÖGLICH (Gerald) |
+| 139.9 Installer | Parser 0 Fehler; kein SageLagerbuchung-Parameter/Schreibblock | OK; Voll-Lauf NICHT MÖGLICH |
+| 139.10 Cookies | DEV HTTP: `IdealAkeWms.Session` und `.AspNetCore.Antiforgery.*` ohne `Secure`; Formular-POSTs ohne 400 | OK (HTTP); HTTPS NICHT MÖGLICH |
+| 139.11 SMTP-Hinweis | Mailversand auf DEV aus | NICHT MÖGLICH |
+
+DEV-Testdaten: IDEAL-DEV neuer Benutzer `ts139-erst` (Rolle Lager, Kennwort aus TS-139.4d, ohne Haken).
+
+### 7. Publish
+`<worktree>\publish\` neu: `IDEALAKEWMSWeb`, `IDEALAKEWMSWebService`, `SQL`, `deploy`, `publish-info.txt` (Version 1.99.29, Commit `8f24ec516516114560d435b858e26277de101fd6`, Erstellt 2026-11-16 18:32). Aus dem Paket lief `-NurPruefen` gegen beide DEV-Systeme fehlerfrei.
+
+### Manuelle Testliste für Gerald (offen)
+1. Vor dem Deploy: P-1 je System (IDEAL-Prod, IDEAL-Test, AKE-Prod, AKE-Test, AKE-Test-IDEAL); betroffene Konten Kennwort setzen oder deaktivieren (Prod-Lauf bricht sonst ab).
+2. Vor dem Deploy IDEAL-Prod: P-2b; Treffer > 0 → SQL/151 klären (Prüfung sperrt Prod).
+3. MailSettings je Dienst-Datei erheben (Host, Port, SmtpUseSsl, Benutzer ja/nein).
+4. TS-139.2 (Handy-Formular, Knopf „Mit Windows anmelden“, Domänen-PC SSO).
+5. TS-139.4e (AD-Benutzer mit Erstkennwort: SSO ohne Schritt, Handy mit Pflichtwechsel).
+6. TS-139.4a einmal am Netum-Handgerät.
+7. TS-139.5 an einem BDE-Terminal (Gerätekonto ohne Haken).
+8. TS-139.10 auf AKE-Test (HTTPS): beide Cookies mit `Secure`, Login + Profil speichern ohne 400.
+9. TS-139.11 SMTP-Warnung auf einem Testsystem mit SMTP-Benutzer.
+10. TS-139.6 einmal per `dotnet run`.
+11. AK 8c: Benutzer mit Haken per SSO angemeldet → Profil neues Kennwort → Haken weg.
+12. TS-139.9 Installer-Voll-Lauf bei der nächsten Neuinstallation.
+13. Entscheiden: B-2 / B-3.
+14. Nach dem Prod-Deploy sofort als `admin` anmelden, wenn das Start-Log die Erstkennwort-Warnung zeigt.
+15. Hinweis: IDEAL-DEV `admin` steht nach diesem Lauf auf `wms-admin` mit Pflichtwechsel.
