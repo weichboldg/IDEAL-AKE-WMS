@@ -91,7 +91,9 @@ public sealed class SdataFaStrukturReader : ISageFaStrukturReader
 
         // E3 (F3): Haupt-FAs, die PpsFaBelegeInfo nicht liefert (beendet, 1059463), ueber dtsFaBelegsuche nachlesen - nur fuer die
         // Struktur (Wurzel + Wurzel-Positionen), nicht fuer ProductionOrderPositions (Schreibverhalten unveraendert).
-        var struktur = menge.Concat(await WurzelnNachlesenAsync(ziel, menge, hinweise, ct)).ToList();
+        // E4: im selben Aufruf die USER_OS*-Felder aller FAs der Struktur (FA-Knoten).
+        var (wurzeln, faFelder) = await FaKoepfeLesenAsync(ziel, menge, hinweise, ct);
+        var struktur = menge.Concat(wurzeln).ToList();
 
         var positionen = new List<SdataFaPositionZeile>();
         var ids = struktur.Where(k => k.BelID is not null).Select(k => k.BelID!.Value).ToList();
@@ -101,8 +103,16 @@ public sealed class SdataFaStrukturReader : ISageFaStrukturReader
                 RessourcePositionen, block, SelectPositionen, "BelPosID", ct)).Zeilen);
         hinweise.Add(new($"Quelle SData: {RessourcePositionen}, {bloecke.Count} Block/Bloecke, {positionen.Count} Zeile(n)"));
 
+        // E4: Artikelfelder (Matchcode, Bezeichnungen, Gruppe, Bestellartikel, Hauptlagerplatz, Blatt-USER_OS*) je Artnr der Knoten.
+        var artnr = positionen.Where(p => string.Equals(p.RessourceTyp?.Trim(), "MA", StringComparison.OrdinalIgnoreCase))
+            .Select(p => p.RessourceNummer).Concat(struktur.Select(k => k.Artikelnummer))
+            .Where(n => !string.IsNullOrWhiteSpace(n)).Select(n => SdataArtikelReader.Schluessel(n))
+            .Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.OrdinalIgnoreCase).ToList();
+        var artikelFelder = await SdataArtikelReader.BenutzerfelderLesenAsync(_client, ziel, FelderArtikel.ToList(), artnr, hinweise, ct,
+            "Feldzuordnung FA-Struktur prüfen (Spec 2026-11-16-fa-struktur-ideal-ueber-sdata, P-FS5).");
+
         var plaetze = new List<SdataLagerplatzZeile>();
-        if (positionen.Any(p => p.PlatzID > 0))
+        if (positionen.Any(p => p.PlatzID > 0) || artikelFelder.Values.Any(f => Zahl(f.GetValueOrDefault("PlatzID")) > 0))
         {
             var gelesen = await _client.QueryAllAsync<SdataLagerplatzZeile>(ziel, SageSdataReadClient.VertragResources,
                 SdataLagerplatzReader.RessourceLagerplaetze, null, SdataArtikelReader.SelectPlaetze, "PlatzID", ct);
@@ -111,11 +121,11 @@ public sealed class SdataFaStrukturReader : ISageFaStrukturReader
         }
 
         var jetzt = DateTime.Now;
-        var knoten = Projizieren(struktur, positionen, jetzt, hinweise);
+        var knoten = Projizieren(struktur, positionen, jetzt, hinweise, faFelder, artikelFelder, plaetze);
         var faPositionen = PositionenProjizieren(menge, positionen, plaetze, jetzt, hinweise);
         _logger.LogInformation("Sage (SData) liefert {Knoten} FA-Struktur-Knoten und {Positionen} Positionen aus {Koepfe} FAs.",
             knoten.Count, faPositionen.Count, menge.Count);
-        // TODO(P-F2): FAInfos bleiben SQL (G11) – InfosAnzahl 0 laesst den Abgleich im (gesperrten) Modus SData ueberspringen statt leeren.
+        // FAInfos bleiben SQL (G11): InfosAnzahl 0; im Modus SData ergaenzt die Weiche sie aus der View (E5).
         return new FaStrukturLesung(knoten, new(), knoten.Count, 0, faPositionen);
     }
 
@@ -128,29 +138,54 @@ public sealed class SdataFaStrukturReader : ISageFaStrukturReader
 
     public const string SelectBelegsucheKopf = "BelID,StrukturID,Artikelnummer";
 
+    /// <summary>E4, FA-Knoten (Wurzel, Unter-FA): <c>USER_OS*</c> am FA-Kopf (<c>dtsFaBelegsuche</c>, Namen belegt L10). Arbeitshypothese bis
+    /// P-FS1 (Freigabe-Antwort 2), wird nur verglichen. Kein Filter auf USER-Felder (HTTP 500, L10).</summary>
+    public static readonly string[] FelderFa =
+    {
+        "USER_OSBemerkungPN", "USER_OSFertigungsInfoPN", "USER_OSKommissionieren", "USER_OSAbteilung", "USER_OSArbeitsschritte",
+        "USER_OSArtikeltyp", "USER_OSMaterial", "USER_OSVMBedarf", "USER_OSBeschichtet", "USER_OSBreite", "USER_OSHoehe", "USER_OSTiefe",
+        "USER_OSEKBedarf",
+    };
+
+    /// <summary>E4, Artikel je Artnr: Stammfelder fuer alle Knoten + <c>USER_OS*</c> fuer Blaetter (Namen am Artikel belegt L10). Beschichtet,
+    /// Breite, Hoehe, Tiefe, EKBedarf gibt es am Artikel nicht (Luecke, Rueckfrage 4) - sie bleiben an Blaettern leer und werden verglichen.</summary>
+    public static readonly string[] FelderArtikel =
+    {
+        "Matchcode", "Bezeichnung1", "Bezeichnung2", "Artikelgruppe", "IstBestellartikel", "PlatzID",
+        "USER_OSBemerkungPN", "USER_OSFertigungsInfoPN", "USER_OSKommissionieren", "USER_OSAbteilung", "USER_OSArbeitsschritte",
+        "USER_OSArtikeltyp", "USER_OSMaterial", "USER_OSVMBedarf",
+    };
+
     /// <summary>
-    /// E3: Koepfe fehlender Haupt-FAs ueber <c>dtsFaBelegsuche</c> (RealTimeData, BelID-Bloecke, <c>orderBy=BelID</c>). Nur wenn
-    /// <see cref="RealTimeDataErlaubt"/>; sonst ein Hinweis, und die Warnung "ohne Wurzel" aus <see cref="Projizieren"/> bleibt.
-    /// Uebernommen wird nur eine Zeile mit BelID = StrukturID (Haupt-FA). HTTP-/Lesefehler werfen (Vertrag des Readers).
+    /// E3+E4: ein <c>dtsFaBelegsuche</c>-Lauf (RealTimeData, BelID-Bloecke, <c>orderBy=BelID</c>) ueber alle FAs der Menge und die fehlenden
+    /// Haupt-FAs. Liefert die Koepfe fehlender Haupt-FAs (nur Zeilen mit BelID = StrukturID) und die <see cref="FelderFa"/> je BelID.
+    /// Nur wenn <see cref="RealTimeDataErlaubt"/>; sonst ein Hinweis, keine Wurzel-Ergaenzung (Warnung "ohne Wurzel" bleibt) und leere
+    /// FA-Felder. HTTP-/Lesefehler werfen (Vertrag des Readers).
     /// </summary>
-    private async Task<List<SdataFaKopfZeile>> WurzelnNachlesenAsync(SdataLeseZiel ziel, IReadOnlyList<SdataFaKopfZeile> menge,
-        List<SdataHinweis> hinweise, CancellationToken ct)
+    private async Task<(List<SdataFaKopfZeile> Wurzeln, Dictionary<int, Dictionary<string, string?>> Felder)> FaKoepfeLesenAsync(
+        SdataLeseZiel ziel, IReadOnlyList<SdataFaKopfZeile> menge, List<SdataHinweis> hinweise, CancellationToken ct)
     {
         var fehlend = FehlendeWurzeln(menge);
-        if (fehlend.Count == 0) return new();
+        var ids = menge.Where(k => k.BelID is not null).Select(k => k.BelID!.Value).Concat(fehlend).Distinct().Order().ToList();
+        if (ids.Count == 0) return (new(), new());
         if (!RealTimeDataErlaubt)
         {
-            hinweise.Add(new($"{fehlend.Count} Haupt-FA(s) nicht in {RessourceKoepfe}; RealTimeData ({SageSdataQuellen.FaBelegsuche}) liest der Dienst "
-                + "nur im Modus Vergleich (Freigabe-Antwort 1) – nicht nachgelesen."));
-            return new();
+            hinweise.Add(new($"RealTimeData ({SageSdataQuellen.FaBelegsuche}) liest der Dienst nur im Modus Vergleich (Freigabe-Antwort 1) – "
+                + $"FA-Felder leer, {fehlend.Count} Haupt-FA(s) nicht in {RessourceKoepfe} nicht nachgelesen."));
+            return (new(), new());
         }
-        var zeilen = await BelegsucheAsync(ziel, fehlend, SelectBelegsucheKopf, hinweise, ct);
+        var zeilen = await BelegsucheAsync(ziel, ids, SelectBelegsucheKopf + "," + string.Join(",", FelderFa), hinweise, ct);
+        var felder = new Dictionary<int, Dictionary<string, string?>>();
+        foreach (var z in zeilen)
+            if (Zahl(z, "BelID") is { } belId)
+                felder.TryAdd(belId, FelderFa.ToDictionary(f => f, f => Text(z, f), StringComparer.OrdinalIgnoreCase));
         var wurzeln = zeilen.Select(z => new SdataFaKopfZeile(Zahl(z, "BelID"), Zahl(z, "StrukturID"), Text(z, "Artikelnummer"), null, null))
             .Where(k => k.BelID is not null && k.BelID == k.StrukturID && fehlend.Contains(k.BelID.Value))
             .DistinctBy(k => k.BelID).ToList();
-        hinweise.Add(new($"{wurzeln.Count} von {fehlend.Count} Haupt-FA(s) ohne Kopf in {RessourceKoepfe} über {SageSdataQuellen.FaBelegsuche} ergänzt"
-            + (wurzeln.Count > 0 ? ": " + string.Join(", ", wurzeln.Take(20).Select(w => w.BelID)) : "") + "."));
-        return wurzeln;
+        if (fehlend.Count > 0)
+            hinweise.Add(new($"{wurzeln.Count} von {fehlend.Count} Haupt-FA(s) ohne Kopf in {RessourceKoepfe} über {SageSdataQuellen.FaBelegsuche} ergänzt"
+                + (wurzeln.Count > 0 ? ": " + string.Join(", ", wurzeln.Take(20).Select(w => w.BelID)) : "") + "."));
+        return (wurzeln, felder);
     }
 
     /// <summary>Zeilen aus <c>dtsFaBelegsuche</c> je BelID-Block (Felder ohne Gross/Klein). Wirft bei HTTP-/Verbindungsfehler.</summary>
@@ -175,8 +210,49 @@ public sealed class SdataFaStrukturReader : ISageFaStrukturReader
     private static string? Text(IReadOnlyDictionary<string, JsonElement> z, string feld) =>
         z.TryGetValue(feld, out var w) ? SdataArtikelReader.AlsText(w) : null;
 
-    private static int? Zahl(IReadOnlyDictionary<string, JsonElement> z, string feld) =>
-        int.TryParse(Text(z, feld), NumberStyles.Integer, CultureInfo.InvariantCulture, out var i) ? i : null;
+    private static int? Zahl(IReadOnlyDictionary<string, JsonElement> z, string feld) => Zahl(Text(z, feld));
+
+    private static int? Zahl(string? text) =>
+        int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var i) ? i : null;
+
+    /// <summary>
+    /// E4: Feldzuordnung an EINER Stelle (Spec-Tabelle „Knotenfelder“, Arbeitshypothese bis P-FS1/P-FS5 - korrigiert wird nur hier).
+    /// FA-Knoten (<c>SubFA != 0</c>, auch die Wurzel) nehmen die <c>USER_OS*</c> ihres FA-Kopfs, Blaetter die des Artikels; Stammfelder
+    /// kommen fuer alle Knoten vom Artikel der <c>Artnr</c>. Bool wie der View-Weg (<see cref="SageFaStrukturReader.SageBool"/>), Dezimal
+    /// NULL → 0.
+    /// </summary>
+    internal static void FelderSetzen(FaHierarchyNode n, IReadOnlyDictionary<string, string?>? fa, IReadOnlyDictionary<string, string?>? artikel,
+        IReadOnlyDictionary<int, string?> platzJe)
+    {
+        var os = n.SubFA != 0 ? fa : artikel;
+        string? F(IReadOnlyDictionary<string, string?>? d, string k) => d?.GetValueOrDefault(k);
+        n.Matchcode = F(artikel, "Matchcode");
+        n.Bezeichnung1 = F(artikel, "Bezeichnung1"); // TODO(P-FS5): View nimmt fuer Unter-FAs den Beleg bevorzugt - Feldnamen am FA-Kopf ungeprueft
+        n.Bezeichnung2 = F(artikel, "Bezeichnung2");
+        n.Artikelgruppe = F(artikel, "Artikelgruppe"); // TODO(P-FS5): View liefert "CODE - Bezeichnung", hier nur der Code
+        n.Beschaffungsartikel = SageFaStrukturReader.SageBool(Wert(F(artikel, "IstBestellartikel"))); // offen: Rueckfrage 3
+        n.Hauptlagerplatz = Zahl(F(artikel, "PlatzID")) is int platz && platz > 0 ? platzJe.GetValueOrDefault(platz) : null;
+        n.BemerkungPN = F(os, "USER_OSBemerkungPN");
+        n.FertigungsInfoPN = F(os, "USER_OSFertigungsInfoPN");
+        n.Kommissionieren = F(os, "USER_OSKommissionieren");
+        n.Arbeitsbereich = F(os, "USER_OSAbteilung"); // offen: Rueckfrage 3, Name allein ist kein Beleg
+        n.Arbeitsschritte = F(os, "USER_OSArbeitsschritte");
+        n.Artikeltyp = F(os, "USER_OSArtikeltyp");
+        n.Material = F(os, "USER_OSMaterial");
+        n.VMBedarf = F(os, "USER_OSVMBedarf");
+        n.Beschichtet = SageFaStrukturReader.SageBool(Wert(F(os, "USER_OSBeschichtet"))); // Blatt: keine Quelle (Rueckfrage 4)
+        n.Breite = Dezimal(F(os, "USER_OSBreite"));
+        n.Hoehe = Dezimal(F(os, "USER_OSHoehe"));
+        n.Tiefe = Dezimal(F(os, "USER_OSTiefe"));
+        n.EKBedarf = SageFaStrukturReader.SageBool(Wert(F(os, "USER_OSEKBedarf")));
+    }
+
+    /// <summary>Text als Zahl, wenn er eine ist (so greift die Zahl-Regel des View-Wegs: -1/1 → true), sonst als Text ("Ja").</summary>
+    private static object? Wert(string? text) =>
+        decimal.TryParse(text, NumberStyles.Number, CultureInfo.InvariantCulture, out var d) ? d : text;
+
+    private static decimal Dezimal(string? text) =>
+        decimal.TryParse(text, NumberStyles.Number, CultureInfo.InvariantCulture, out var d) ? d : 0m;
 
     /// <summary>
     /// E4b-Lesefilter (F6, R7): nur FAs mit <c>IstEingelastet</c> und <c>Aktiv</c> (Sage -1). Nicht eingelastete/inaktive (z. B.
@@ -260,7 +336,8 @@ public sealed class SdataFaStrukturReader : ISageFaStrukturReader
     /// (z. B. Haupt-FA laenger als <see cref="BeendetFensterTage"/> beendet) bekommt keine Wurzel und wird als Hinweis gemeldet.
     /// </summary>
     public static List<FaHierarchyNode> Projizieren(IReadOnlyList<SdataFaKopfZeile> koepfe, IReadOnlyList<SdataFaPositionZeile> positionen,
-        DateTime syncedAt, List<SdataHinweis>? hinweise = null)
+        DateTime syncedAt, List<SdataHinweis>? hinweise = null, IReadOnlyDictionary<int, Dictionary<string, string?>>? faFelder = null,
+        IReadOnlyDictionary<string, Dictionary<string, string?>>? artikelFelder = null, IReadOnlyList<SdataLagerplatzZeile>? plaetze = null)
     {
         if (koepfe.Any(k => k.BelID is null || k.StrukturID is null))
             throw new SdataLeseException(RessourceKoepfe, 0, "Zeile ohne BelID/StrukturID – Feldnamen prüfen (P-S1).");
@@ -307,6 +384,14 @@ public sealed class SdataFaStrukturReader : ISageFaStrukturReader
         if (ohneWurzel.Count > 0)
             hinweise?.Add(new($"{ohneWurzel.Count} Struktur(en) ohne Haupt-FA in der SData-Menge (keine Wurzel): "
                 + string.Join(", ", ohneWurzel.Take(20)) + (ohneWurzel.Count > 20 ? " …" : ""), Warnung: true));
+
+        // E4: Knotenfelder (FelderSetzen). Ohne gelesene Felder (alte Aufrufer, Tests der Kanten) bleiben sie leer wie bisher.
+        if (faFelder is null && artikelFelder is null) return result;
+        var platzJe = (plaetze ?? Array.Empty<SdataLagerplatzZeile>()).Where(p => p.PlatzID is not null).GroupBy(p => p.PlatzID!.Value)
+            .ToDictionary(g => g.Key, g => g.First().Kurzbezeichnung);
+        foreach (var n in result)
+            FelderSetzen(n, n.SubFA != 0 ? faFelder?.GetValueOrDefault(n.SubFA) : null,
+                artikelFelder?.GetValueOrDefault(SdataArtikelReader.Schluessel(n.Artnr)), platzJe);
         return result;
     }
 }

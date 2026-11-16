@@ -27,7 +27,31 @@ public class FaStrukturQuelleSwitch : SageQuelleWeiche, ISageFaStrukturReader
         new("Artnr", k => k.VaterFA is null ? null : k.Artnr?.Trim()),
         new("Sollmenge", k => k.VaterFA is null ? null : k.Sollmenge),
         new("Fertigungmenge", k => k.VaterFA is null ? null : k.Fertigungmenge),
+        // Spec 2026-11-16-fa-struktur-ideal-ueber-sdata E4: alle Knotenfelder (Arbeitshypothese bis P-FS1, Freigabe-Antwort 2). Blattfelder
+        // ohne SData-Quelle (Beschichtet, Breite, Hoehe, Tiefe, EKBedarf; Rueckfrage 4) werden bewusst mitverglichen - Abweichung sichtbar.
+        new("Matchcode", k => T(k.Matchcode)),
+        new("Bezeichnung1", k => T(k.Bezeichnung1)),
+        new("Bezeichnung2", k => T(k.Bezeichnung2)),
+        new("Artikelgruppe", k => T(k.Artikelgruppe)),
+        new("Beschaffungsartikel", k => k.Beschaffungsartikel),
+        new("Hauptlagerplatz", k => T(k.Hauptlagerplatz)),
+        new("BemerkungPN", k => T(k.BemerkungPN)),
+        new("FertigungsInfoPN", k => T(k.FertigungsInfoPN)),
+        new("Kommissionieren", k => T(k.Kommissionieren)),
+        new("Arbeitsbereich", k => T(k.Arbeitsbereich)),
+        new("Arbeitsschritte", k => T(k.Arbeitsschritte)),
+        new("Artikeltyp", k => T(k.Artikeltyp)),
+        new("Material", k => T(k.Material)),
+        new("VMBedarf", k => T(k.VMBedarf)),
+        new("Beschichtet", k => k.Beschichtet),
+        new("Breite", k => k.Breite),
+        new("Hoehe", k => k.Hoehe),
+        new("Tiefe", k => k.Tiefe),
+        new("EKBedarf", k => k.EKBedarf),
     };
+
+    /// <summary>Text fuer den Vergleich: getrimmt, leer = null (View liefert '' wo SData nichts liefert).</summary>
+    private static string? T(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
 
     private readonly ISageFaStrukturReader _view;
     private readonly ISageFaStrukturReader _sdata;

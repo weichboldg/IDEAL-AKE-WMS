@@ -127,6 +127,7 @@ public class FaStrukturSdataTests
                 "BelID eq 835 or BelID eq 836 or BelID eq 837 or BelID eq 838 or BelID eq 839 or BelID eq 840 or BelID eq 841",
                 SdataFaStrukturReader.SelectPositionen, "BelPosID", It.IsAny<CancellationToken>(), It.IsAny<int>()))
             .ReturnsAsync(new SdataSeiten<SdataFaPositionZeile>(pos, "PpsFaBelegePositionenInfo", 1, pos.Length, 1));
+        Artikel(client);
         var reader = new SdataFaStrukturReader(client.Object, new ConfigurationBuilder().Build(), NullLogger<SdataFaStrukturReader>.Instance);
 
         var l = await reader.LesenAsync(Ziel, Jetzt, CancellationToken.None);
@@ -149,8 +150,8 @@ public class FaStrukturSdataTests
         client.Setup(c => c.QueryAllAsync<SdataFaKopfZeile>(Ziel, SageSdataReadClient.VertragResources, "PpsFaBelegeInfo",
                 SdataFaStrukturReader.WhereKoepfe(Jetzt), SdataFaStrukturReader.SelectKoepfe, "BelID", It.IsAny<CancellationToken>(), It.IsAny<int>()))
             .ReturnsAsync(new SdataSeiten<SdataFaKopfZeile>(koepfe, "PpsFaBelegeInfo", 1, 1, 1));
-        client.Setup(c => c.GetAsync<Dictionary<string, JsonElement>>(Ziel, SageSdataQuellen.FaBelegsuche, "BelID eq 1059463",
-                It.Is<string>(s => s.StartsWith(SdataFaStrukturReader.SelectBelegsucheKopf)), "BelID", It.IsAny<CancellationToken>()))
+        client.Setup(c => c.GetAsync<Dictionary<string, JsonElement>>(Ziel, SageSdataQuellen.FaBelegsuche, "BelID eq 1059463 or BelID eq 1065143",
+                SdataFaStrukturReader.SelectBelegsucheKopf + "," + string.Join(",", SdataFaStrukturReader.FelderFa), "BelID", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new SdataErgebnis<Dictionary<string, JsonElement>>(belegsuche,
                 new SdataCall(SageSdataQuellen.FaBelegsuche, "url", 200, 1, belegsuche.Length, null, null)));
         var pos = new[]
@@ -167,8 +168,15 @@ public class FaStrukturSdataTests
                 var treffer = pos.Where(p => ids.Contains(p.BelID!.Value)).ToList();
                 return new SdataSeiten<SdataFaPositionZeile>(treffer, "PpsFaBelegePositionenInfo", 1, treffer.Count, 1);
             });
+        Artikel(client);
         return client;
     }
+
+    /// <summary>E4: Artikel-Abfrage (Stamm- und Blattfelder); ohne Zeilen = keine Felder.</summary>
+    private static void Artikel(Mock<ISageSdataReadClient> client, params Dictionary<string, JsonElement>[] zeilen) =>
+        client.Setup(c => c.QueryAllAsync<Dictionary<string, JsonElement>>(Ziel, SageSdataReadClient.VertragResources, "Artikel",
+                It.IsAny<string?>(), It.IsAny<string?>(), "Artikelnummer", It.IsAny<CancellationToken>(), It.IsAny<int>()))
+            .ReturnsAsync(new SdataSeiten<Dictionary<string, JsonElement>>(zeilen, "Artikel", 1, zeilen.Length, 1));
 
     private static SdataFaStrukturReader Reader(Mock<ISageSdataReadClient> client, bool realTimeData) =>
         new(client.Object, new ConfigurationBuilder().Build(), NullLogger<SdataFaStrukturReader>.Instance) { RealTimeDataErlaubt = realTimeData };
@@ -218,7 +226,7 @@ public class FaStrukturSdataTests
     public async Task LesenAsync_BelegsucheHttpFehler_Wirft()
     {
         var client = Client1059463();
-        client.Setup(c => c.GetAsync<Dictionary<string, JsonElement>>(Ziel, SageSdataQuellen.FaBelegsuche, "BelID eq 1059463",
+        client.Setup(c => c.GetAsync<Dictionary<string, JsonElement>>(Ziel, SageSdataQuellen.FaBelegsuche, It.IsAny<string>(),
                 It.IsAny<string>(), "BelID", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new SdataErgebnis<Dictionary<string, JsonElement>>(Array.Empty<Dictionary<string, JsonElement>>(),
                 new SdataCall(SageSdataQuellen.FaBelegsuche, "url", 500, 1, 0, "HTTP 500", null)));
@@ -234,6 +242,125 @@ public class FaStrukturSdataTests
     [InlineData(null, false)]
     public void RealTimeData_NurImModusVergleich(SageQuelle? quelle, bool erlaubt) =>
         FaStrukturQuelleSwitch.RealTimeDataErlaubt(quelle).Should().Be(erlaubt, "Freigabe-Antwort 1: bis DPS-Antwort/P-FS3");
+
+    // ----- Spec 2026-11-16-fa-struktur-ideal-ueber-sdata E4: Knotenfelder + erweiterter Vergleich -----
+
+    private static Dictionary<string, string?> D(params (string K, string? V)[] w) =>
+        w.ToDictionary(x => x.K, x => x.V, StringComparer.OrdinalIgnoreCase);
+
+    [Fact]
+    public void Projizieren_UnterFaBekommtFaFelder_BlattArtikelfelder_AlleGefuellt_BoolWieView()
+    {
+        var koepfe = new[] { K(900, 900, "G"), K(901, 900, "BG") };
+        var pos = new[] { Pos(1, 900, 1, 901, "MA", "BG"), Pos(2, 901, 1, 0, "MA", "BLATT") };
+        var fa = new Dictionary<int, Dictionary<string, string?>>
+        {
+            [901] = D(("USER_OSBemerkungPN", "Bem"), ("USER_OSFertigungsInfoPN", "FInfo"), ("USER_OSKommissionieren", "Ja"),
+                ("USER_OSAbteilung", "Montage"), ("USER_OSArbeitsschritte", "SG"), ("USER_OSArtikeltyp", "BG"), ("USER_OSMaterial", "1.4301"),
+                ("USER_OSVMBedarf", "VM"), ("USER_OSBeschichtet", "-1"), ("USER_OSBreite", "100.5"), ("USER_OSHoehe", "200"),
+                ("USER_OSTiefe", "300"), ("USER_OSEKBedarf", "Ja")),
+        };
+        var artikel = new Dictionary<string, Dictionary<string, string?>>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["BG"] = D(("Matchcode", "MC-BG"), ("Bezeichnung1", "Baugruppe"), ("Bezeichnung2", "Z2"), ("Artikelgruppe", "100"),
+                ("IstBestellartikel", "0"), ("PlatzID", "11")),
+            ["BLATT"] = D(("Matchcode", "MC-B"), ("Bezeichnung1", "Blech"), ("Bezeichnung2", "Z2b"), ("Artikelgruppe", "200"),
+                ("IstBestellartikel", "-1"), ("PlatzID", "11"), ("USER_OSBemerkungPN", "BemA"), ("USER_OSFertigungsInfoPN", "FA"),
+                ("USER_OSKommissionieren", "Nein"), ("USER_OSAbteilung", "Laser"), ("USER_OSArbeitsschritte", "LA"),
+                ("USER_OSArtikeltyp", "Blech"), ("USER_OSMaterial", "DC01"), ("USER_OSVMBedarf", "x")),
+        };
+
+        var k = SdataFaStrukturReader.Projizieren(koepfe, pos, Jetzt, null, fa, artikel, Plaetze);
+
+        var bg = k.Single(n => n.SubFA == 901);
+        (bg.Matchcode, bg.Bezeichnung1, bg.Bezeichnung2, bg.Artikelgruppe, bg.Hauptlagerplatz).Should().Be(("MC-BG", "Baugruppe", "Z2", "100", "HR 0 0 0 "), "Kurzbezeichnung roh wie die View");
+        (bg.BemerkungPN, bg.FertigungsInfoPN, bg.Kommissionieren, bg.Arbeitsbereich, bg.Arbeitsschritte, bg.Artikeltyp, bg.Material, bg.VMBedarf)
+            .Should().Be(("Bem", "FInfo", "Ja", "Montage", "SG", "BG", "1.4301", "VM"));
+        (bg.Beschichtet, bg.EKBedarf, bg.Beschaffungsartikel, bg.Breite, bg.Hoehe, bg.Tiefe).Should().Be((true, true, false, 100.5m, 200m, 300m),
+            "-1 und Ja → true, 0 → false (Regel des View-Wegs)");
+
+        var blatt = k.Single(n => n.SubFA == 0);
+        (blatt.Matchcode, blatt.Bezeichnung1, blatt.Arbeitsschritte, blatt.Arbeitsbereich, blatt.Material, blatt.Hauptlagerplatz)
+            .Should().Be(("MC-B", "Blech", "LA", "Laser", "DC01", "HR 0 0 0 "));
+        blatt.Beschaffungsartikel.Should().BeTrue("IstBestellartikel -1");
+        (blatt.Beschichtet, blatt.EKBedarf, blatt.Breite).Should().Be((false, false, 0m), "Blatt: keine Quelle (Rueckfrage 4), NULL → false/0");
+
+        k.Single(n => n.VaterFA is null).Matchcode.Should().BeNull("Wurzel-Artikel G ohne Artikelzeile → leer");
+    }
+
+    [Theory]
+    [InlineData(-1, true)]
+    [InlineData(1, true)]
+    [InlineData(0, false)]
+    [InlineData("Ja", true)]
+    [InlineData("Nein", false)]
+    [InlineData(null, false)]
+    public void SageBool_EineRegel_ViewUndSdata(object? wert, bool erwartet) =>
+        SageFaStrukturReader.SageBool(wert is int i ? (decimal)i : wert).Should().Be(erwartet);
+
+    [Fact]
+    public void Vergleich_NurArbeitsschritteAnEinemBlatt_GenauEineAbweichendeZeileMitFeldname()
+    {
+        FaHierarchyNode Blatt(string? schritte) => new()
+        {
+            HauptFA = 900, VaterFA = 900, Position = 1, SubFA = 0, HauptArtnr = "G", Artnr = "B", Sollmenge = 1, Fertigungmenge = 1,
+            Matchcode = "MC", Arbeitsschritte = schritte, Beschichtet = true,
+        };
+        var wurzel = new FaHierarchyNode { HauptFA = 900, SubFA = 900, HauptArtnr = "G", Artnr = "G", Matchcode = "W" };
+
+        var e = SdataVergleich.Vergleiche(new[] { wurzel, Blatt("LA") }, new[] { wurzel, Blatt("LA,SG") },
+            FaStrukturQuelleSwitch.Schluessel, FaStrukturQuelleSwitch.VergleichsFelder);
+
+        e.AbweichendeSchluessel.Should().Be(1);
+        e.Beispiele.Should().ContainSingle().Which.Should().Match<SdataAbweichung>(a => a.Feld == "Arbeitsschritte" && a.Schluessel == "Blatt 900/1");
+    }
+
+    [Fact]
+    public void Vergleich_LeererTextGleichNull_KeineAbweichung()
+    {
+        var v = new FaHierarchyNode { HauptFA = 1, SubFA = 1, Material = "", BemerkungPN = " x " };
+        var s = new FaHierarchyNode { HauptFA = 1, SubFA = 1, Material = null, BemerkungPN = "x" };
+        SdataVergleich.Vergleiche(new[] { v }, new[] { s }, FaStrukturQuelleSwitch.Schluessel, FaStrukturQuelleSwitch.VergleichsFelder)
+            .AbweichendeSchluessel.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task LesenAsync_FaFelderAusBelegsuche_ArtikelfelderAmBlatt()
+    {
+        var client = Client1059463(
+            Zeile("""{"BelID":1059463,"StrukturID":1059463,"Artikelnummer":"80141025"}"""),
+            Zeile("""{"BelID":1065143,"StrukturID":1059463,"Artikelnummer":"50002143","USER_OSArbeitsschritte":"SG","USER_OSBeschichtet":-1}"""));
+        Artikel(client, Zeile("""{"Artikelnummer":"73002467","Matchcode":"MC-73","USER_OSArbeitsschritte":"LA","IstBestellartikel":-1}"""));
+
+        var l = await Reader(client, realTimeData: true).LesenAsync(Ziel, Jetzt, CancellationToken.None);
+
+        var bg = l.Knoten.Single(n => n.SubFA == 1065143);
+        (bg.Arbeitsschritte, bg.Beschichtet).Should().Be(("SG", true));
+        var blatt = l.Knoten.Single(n => n.Artnr == "73002467");
+        (blatt.Matchcode, blatt.Arbeitsschritte, blatt.Beschaffungsartikel).Should().Be(("MC-73", "LA", true));
+    }
+
+    [Fact]
+    public async Task LesenAsync_UnbekanntesArtikelfeld_Warnung_LaufLaeuftWeiter()
+    {
+        var client = Client1059463(Zeile("""{"BelID":1059463,"StrukturID":1059463,"Artikelnummer":"80141025"}"""));
+        var alle = "Artikelnummer," + string.Join(",", SdataFaStrukturReader.FelderArtikel);
+        var ohne = "Artikelnummer," + string.Join(",", SdataFaStrukturReader.FelderArtikel.Where(f => f != "USER_OSMaterial"));
+        client.Setup(c => c.QueryAllAsync<Dictionary<string, JsonElement>>(Ziel, SageSdataReadClient.VertragResources, "Artikel",
+                It.IsAny<string?>(), It.IsAny<string?>(), "Artikelnummer", It.IsAny<CancellationToken>(), It.IsAny<int>()))
+            .ReturnsAsync((SdataLeseZiel _, string _, string _, string? _, string? select, string _, CancellationToken _, int _) =>
+                select == alle || select == "Artikelnummer,USER_OSMaterial"
+                    ? throw new SdataLeseException("Artikel", 500, "Invalid column name 'USER_OSMaterial'")
+                    : new SdataSeiten<Dictionary<string, JsonElement>>(
+                        select == ohne ? new[] { Zeile("""{"Artikelnummer":"73002467","Matchcode":"MC-73"}""") } : Array.Empty<Dictionary<string, JsonElement>>(),
+                        "Artikel", 1, 1, 1));
+        var reader = Reader(client, realTimeData: true);
+
+        var l = await reader.LesenAsync(Ziel, Jetzt, CancellationToken.None);
+
+        reader.Hinweise.Should().Contain(h => h.Warnung && h.Text.Contains("USER_OSMaterial") && h.Text.Contains("unbekannt"));
+        l.Knoten.Single(n => n.Artnr == "73002467").Matchcode.Should().Be("MC-73");
+    }
 
     // ----- E4b: Lesefilter eingelastet/aktiv -----
 
@@ -338,6 +465,7 @@ public class FaStrukturSdataTests
         client.Setup(c => c.QueryAllAsync<SdataLagerplatzZeile>(Ziel, SageSdataReadClient.VertragResources, "LagerplaetzeInfo",
                 null, "PlatzID,Kurzbezeichnung", "PlatzID", It.IsAny<CancellationToken>(), It.IsAny<int>()))
             .ReturnsAsync(new SdataSeiten<SdataLagerplatzZeile>(Plaetze, "LagerplaetzeInfo", 1, Plaetze.Length, 1));
+        Artikel(client);
         var reader = new SdataFaStrukturReader(client.Object, new ConfigurationBuilder().Build(), NullLogger<SdataFaStrukturReader>.Instance);
 
         var l = await reader.LesenAsync(Ziel, Jetzt, CancellationToken.None);

@@ -119,9 +119,12 @@ public sealed class SdataArtikelReader : ISageArtikelReader
     /// die uebrigen werden erneut gelesen. Faellt kein Feld als Ursache auf, war es ein echter Fehler → werfen.
     /// TODO(P-S1): Annahme „unbekanntes Feld im select = HTTP 500“ (Etabliertes Muster E1); liefert Sage stattdessen nichts, greift die
     /// Pruefung „in keiner Zeile geliefert“ unten (Warnung).
+    /// Auch vom FA-Struktur-Reader genutzt (Blatt-/Artikelfelder, Spec 2026-11-16-fa-struktur-ideal-ueber-sdata E4); <paramref name="pruefen"/>
+    /// nennt in der Warnung, wo die Feldliste steht.
     /// </summary>
-    private async Task<Dictionary<string, Dictionary<string, string?>>> BenutzerfelderLesenAsync(SdataLeseZiel ziel, List<string> felder,
-        IReadOnlyList<string> nummern, List<SdataHinweis> hinweise, CancellationToken ct)
+    internal static async Task<Dictionary<string, Dictionary<string, string?>>> BenutzerfelderLesenAsync(ISageSdataReadClient client,
+        SdataLeseZiel ziel, List<string> felder, IReadOnlyList<string> nummern, List<SdataHinweis> hinweise, CancellationToken ct,
+        string pruefen = BenutzerfelderKey + " prüfen.")
     {
         var ergebnis = new Dictionary<string, Dictionary<string, string?>>(StringComparer.OrdinalIgnoreCase);
         if (felder.Count == 0 || nummern.Count == 0) return ergebnis;
@@ -129,7 +132,7 @@ public sealed class SdataArtikelReader : ISageArtikelReader
         List<Dictionary<string, JsonElement>> zeilen;
         try
         {
-            zeilen = await InBloeckenAsync<Dictionary<string, JsonElement>>(ziel, RessourceArtikel, "Artikelnummer," + string.Join(",", felder),
+            zeilen = await InBloeckenAsync<Dictionary<string, JsonElement>>(client, ziel, RessourceArtikel, "Artikelnummer," + string.Join(",", felder),
                 "Artikelnummer", nummern, hinweise, ct);
         }
         catch (SdataLeseException ex) when (ex.Status == 500)
@@ -139,17 +142,17 @@ public sealed class SdataArtikelReader : ISageArtikelReader
             {
                 try
                 {
-                    await _client.QueryAllAsync<Dictionary<string, JsonElement>>(ziel, SageSdataReadClient.VertragResources, RessourceArtikel,
+                    await client.QueryAllAsync<Dictionary<string, JsonElement>>(ziel, SageSdataReadClient.VertragResources, RessourceArtikel,
                         InFilter(new[] { nummern[0] }), "Artikelnummer," + feld, "Artikelnummer", ct, 1);
                 }
                 catch (SdataLeseException probe) when (probe.Status == 500) { unbekannt.Add(feld); }
             }
             if (unbekannt.Count == 0) throw;
             foreach (var feld in unbekannt)
-                hinweise.Add(new($"Benutzerfeld {feld} ist in Sage (Artikel) unbekannt – übersprungen. {BenutzerfelderKey} prüfen.", Warnung: true));
+                hinweise.Add(new($"Benutzerfeld {feld} ist in Sage (Artikel) unbekannt – übersprungen. {pruefen}", Warnung: true));
             felder = felder.Except(unbekannt).ToList();
             if (felder.Count == 0) return ergebnis;
-            zeilen = await InBloeckenAsync<Dictionary<string, JsonElement>>(ziel, RessourceArtikel, "Artikelnummer," + string.Join(",", felder),
+            zeilen = await InBloeckenAsync<Dictionary<string, JsonElement>>(client, ziel, RessourceArtikel, "Artikelnummer," + string.Join(",", felder),
                 "Artikelnummer", nummern, hinweise, ct);
         }
 
@@ -204,10 +207,10 @@ public sealed class SdataArtikelReader : ISageArtikelReader
         var bekannt = new HashSet<string>(bestell.Zeilen.Select(a => Schluessel(a.Artikelnummer)), StringComparer.OrdinalIgnoreCase);
         var nurRessource = ressourcen.Zeilen.Select(r => r.Ressourcenummer).Where(n => !string.IsNullOrWhiteSpace(n) && !bekannt.Contains(Schluessel(n)))
             .Select(n => n!).DistinctBy(Schluessel, StringComparer.OrdinalIgnoreCase).ToList();
-        artikel.AddRange(await InBloeckenAsync<SdataArtikelZeile>(ziel, RessourceArtikel, SelectArtikel, "Artikelnummer", nurRessource, hinweise, ct));
+        artikel.AddRange(await InBloeckenAsync<SdataArtikelZeile>(_client, ziel, RessourceArtikel, SelectArtikel, "Artikelnummer", nurRessource, hinweise, ct));
 
         var nummern = artikel.Select(a => a.Artikelnummer).Where(n => !string.IsNullOrWhiteSpace(n)).Select(n => n!).ToList();
-        var varianten = await InBloeckenAsync<SdataArtikelVarianteZeile>(ziel, RessourceVarianten, SelectVarianten, "Artikelnummer,AuspraegungID",
+        var varianten = await InBloeckenAsync<SdataArtikelVarianteZeile>(_client, ziel, RessourceVarianten, SelectVarianten, "Artikelnummer,AuspraegungID",
             nummern, hinweise, ct);
         var plaetze = await _client.QueryAllAsync<SdataLagerplatzZeile>(ziel, SageSdataReadClient.VertragResources,
             SdataLagerplatzReader.RessourceLagerplaetze, null, SelectPlaetze, "PlatzID", ct);
@@ -220,7 +223,7 @@ public sealed class SdataArtikelReader : ISageArtikelReader
         foreach (var f in benutzerfelder.Ungueltig ?? new())
             hinweise.Add(new($"Benutzerfeld „{f}“ ist kein gültiger Feldname (erwartet USER_…) – übersprungen. {BenutzerfelderKey} prüfen.", Warnung: true));
         var stamm = artikel.Select(a => a.Artikelnummer!).DistinctBy(Schluessel, StringComparer.OrdinalIgnoreCase).ToList();
-        var userWerte = await BenutzerfelderLesenAsync(ziel, benutzerfelder.Gueltig ?? new(), stamm, hinweise, ct);
+        var userWerte = await BenutzerfelderLesenAsync(_client, ziel, benutzerfelder.Gueltig ?? new(), stamm, hinweise, ct);
         if (userWerte.Count > 0)
             result = result.Select(d => userWerte.TryGetValue(Schluessel(d.ArticleNumber), out var w) ? d with { Benutzerfelder = w } : d).ToList();
         _logger.LogInformation("Sage (SData) liefert {Count} Artikel. {Hinweise}", result.Count, string.Join(" | ", hinweise.Select(h => h.Text)));
@@ -291,15 +294,15 @@ public sealed class SdataArtikelReader : ISageArtikelReader
     };
 
     /// <summary>Artikelnummern blockweise per <c>Artikelnummer in ('…',…)</c> lesen; eine Hinweis-Zeile fuer alle Bloecke.</summary>
-    private async Task<List<T>> InBloeckenAsync<T>(SdataLeseZiel ziel, string ressource, string select, string orderBy,
-        IReadOnlyList<string> nummern, List<SdataHinweis> hinweise, CancellationToken ct)
+    private static async Task<List<T>> InBloeckenAsync<T>(ISageSdataReadClient client, SdataLeseZiel ziel, string ressource, string select,
+        string orderBy, IReadOnlyList<string> nummern, List<SdataHinweis> hinweise, CancellationToken ct)
     {
         var zeilen = new List<T>();
         int bloecke = 0, seiten = 0;
         long ms = 0;
         foreach (var block in nummern.Chunk(Blockgroesse))
         {
-            var r = await _client.QueryAllAsync<T>(ziel, SageSdataReadClient.VertragResources, ressource, InFilter(block), select, orderBy, ct);
+            var r = await client.QueryAllAsync<T>(ziel, SageSdataReadClient.VertragResources, ressource, InFilter(block), select, orderBy, ct);
             zeilen.AddRange(r.Zeilen);
             bloecke++;
             seiten += r.Seiten;
@@ -313,7 +316,7 @@ public sealed class SdataArtikelReader : ISageArtikelReader
     internal static string InFilter(IEnumerable<string> nummern) =>
         "Artikelnummer in (" + string.Join(",", nummern.Select(n => "'" + n.Replace("'", "''") + "'")) + ")";
 
-    private static string Schluessel(string? nummer) => nummer?.TrimEnd() ?? "";
+    internal static string Schluessel(string? nummer) => nummer?.TrimEnd() ?? "";
 
     // TODO(P-S1): Nachkommastellen unbelegt; Spalten decimal(18,3) bzw. MittlererEK (18,4). Runden, damit der Satellit nicht bei jedem
     // Lauf eine Abweichung zur gespeicherten (gerundeten) Zahl sieht.

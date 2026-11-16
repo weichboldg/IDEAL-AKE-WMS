@@ -177,11 +177,13 @@ public sealed class SageFaStrukturReader : ISageFaStrukturReader
     private static decimal? DecN(SqlDataReader r, int o) => r.IsDBNull(o) ? (decimal?)null : Convert.ToDecimal(r.GetValue(o));
     private static DateTime? DateN(SqlDataReader r, int o) => r.IsDBNull(o) ? (DateTime?)null : Convert.ToDateTime(r.GetValue(o));
 
-    /// <summary>Sage-VB6-Boolean-Mapping: 'Ja'/'-1'/'1'/true =&gt; true; 'Nein'/'0'/NULL =&gt; false.</summary>
-    private static bool Bool(SqlDataReader r, int o)
+    private static bool Bool(SqlDataReader r, int o) => SageBool(r.IsDBNull(o) ? null : r.GetValue(o));
+
+    /// <summary>Sage-VB6-Boolean-Mapping: 'Ja'/'-1'/'1'/true =&gt; true; 'Nein'/'0'/NULL =&gt; false. Gemeinsam mit dem SData-Weg
+    /// (<see cref="Sdata.SdataFaStrukturReader"/>, Spec 2026-11-16-fa-struktur-ideal-ueber-sdata) - eine Regel, nicht dupliziert.</summary>
+    internal static bool SageBool(object? v)
     {
-        if (r.IsDBNull(o)) return false;
-        var v = r.GetValue(o);
+        if (v is null) return false;
         if (v is bool b) return b;
         if (v is string s)
         {
