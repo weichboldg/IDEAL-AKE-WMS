@@ -96,8 +96,19 @@ Eintraege = @(
    Datei='149_WidenBelegnummer45.sql'; MigrationId='20261113172929_WidenBelegnummer45'; Voraussetzung='Spalten verbreitern (20/30 -> 45), Index neu; nicht destruktiv'; Quelle='2026-11-13-v1-99-22-belegnummer-45-wareneingang' }
 @{ Id='SQL/150'; Version='1.99.23'; Typ='Schema'; Firma='beide'; Phase='Schema'; Ausfuehrung='automatisch'
    Datei='150_AddPurchaseOrderReceiptAbsendekennung.sql'; MigrationId='20261114080950_AddPurchaseOrderReceiptAbsendekennung'; Voraussetzung='additiv, Spalte NULL + gefilterter UNIQUE-Index'; Quelle='2026-11-14-v1-99-23-schutz-doppel-absenden' }
+@{ Id='SQL/152'; Version='1.99.28'; Typ='Schema'; Firma='beide'; Phase='Schema'; Ausfuehrung='automatisch'
+   Datei='152_AddUserMussKennwortAendern.sql'; MigrationId='20261116165705_AddUserMussKennwortAendern'; Voraussetzung='additiv, Spalte bit NOT NULL DEFAULT 0'; Quelle='2026-11-16-v1-99-28-sicherheit-anmeldung-installer' }
 
 # ---------------------------------------------------------------- Pruefungen (jeder Lauf; Reparatur nur nach Bestaetigung) -------
+# v1.99.28 (ADR 0027): admin zaehlt nicht - der Web-Start stellt admin ohne Kennwort auf das Standard-Erstkennwort mit Pflichtwechsel um.
+@{ Id='Pruefung/BenutzerOhneKennwort'; Version='1.99.28'; Typ='Pruefung'; Firma='beide'; Phase='Vorher'; Ausfuehrung='anzeigen'
+   Pruefung='SELECT COUNT(*) FROM dbo.Users u WHERE u.IsActive = 1 AND u.Name <> N''admin'' AND (u.PasswordHash IS NULL OR u.PasswordHash = N'''') AND (u.WindowsUserName IS NULL OR NOT EXISTS (SELECT 1 FROM dbo.AppSettings WHERE [Key] = N''WindowsAuthAktiv'' AND LOWER([Value]) = N''true''))'
+   Text='Aktive Benutzer ohne Kennwort, die sich ab v1.99.28 nicht mehr anmelden koennen (lokal, bzw. AD bei WindowsAuthAktiv aus): vorher unter /Users/Edit ein Erstkennwort setzen (ab v1.99.28 mit Pflichtwechsel bei der ersten Anmeldung) oder deaktivieren; Liste mit P-1 der Spec 2026-11-14-sicherheit-anmeldung-und-installer.'
+   Quelle='2026-11-16-v1-99-28-sicherheit-anmeldung-installer' }
+@{ Id='Pruefung/SmtpBenutzer'; Version='1.99.28'; Typ='Pruefung'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Appsettings='MailSettings:SmtpUsername'
+   Text='SMTP-Anmeldung als {Wert} ({Datei}): mit SmtpUseSsl = false geht das Kennwort unverschluesselt - anonymes Relay oder SmtpUseSsl = true (Port 465).'
+   Quelle='2026-11-16-v1-99-28-sicherheit-anmeldung-installer' }
 @{ Id='Pruefung/Kommissionierbereiche'; Version='1.88.0'; Typ='Pruefung'; Firma='beide'; Phase='Haltepunkt'; Ausfuehrung='Reparatur'; Braucht=@('SQL/133')
    Pruefung='SELECT CASE WHEN EXISTS (SELECT 1 FROM dbo.PickingAreas) THEN 0 ELSE 1 END'
    Datei='133_AddPickingAreasAndOrders.sql'
@@ -243,6 +254,9 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
    Text='P5 je Standort (Arbeitsgang-Abgleich), Abfrage in der Spec.'; Quelle='2026-10-16-v1-61-0-arbeitsgang-abgleich-sage-view' }
 @{ Id='v1.71.0-AppsettingsProd'; Version='1.71.0'; Typ='Info'; Firma='beide'; Phase='Vorher'; Ausfuehrung='anzeigen'
    Text='appsettings.Production.json mit Abschnitt SageLagerbuchung im Web-Ordner (Schritt 5a prueft die Datei, ueberschreibt sie nie).'; Quelle='2026-10-30-v1-71-0-sage-sdata-fa-ansicht' }
+@{ Id='v1.99.28-AnmeldungKennwort'; Version='1.99.28'; Typ='Info'; Firma='beide'; Phase='Vorher'; Ausfuehrung='anzeigen'
+   Text='Ab v1.99.28 meldet das Formular nur mit Kennwort an; vom Admin vergebene Kennwoerter (Erstkennwort) muss der Benutzer bei der ersten Anmeldung aendern. Vorher P-1 ausfuehren; AD-Benutzer ohne Kennwort nur noch per Windows-Anmeldung. admin ohne Kennwort bekommt beim ersten Start das Standard-Erstkennwort wms-admin mit Pflichtwechsel - sofort danach als admin anmelden; wer das nicht will, setzt admin vorher ein Kennwort.'
+   Quelle='2026-11-16-v1-99-28-sicherheit-anmeldung-installer' }
 @{ Id='v1.84.0-Einkauf'; Version='1.84.0'; Typ='Info'; Firma='AKE'; Phase='Vorher'; Ausfuehrung='anzeigen'
    Text='Einkauf informieren: kein WE-Beleg mit Lagerbuchung in Sage (Doppelbestand).'; Quelle='2026-11-08-v1-84-0-wareneingang-aus-sage-bestellungen' }
 @{ Id='v1.93.0-Zaehlung'; Version='1.93.0'; Typ='Info'; Firma='beide'; Phase='Vorher'; Ausfuehrung='anzeigen'
@@ -387,5 +401,8 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
 @{ Id='v1.99.26-Info'; Version='1.99.26'; Typ='Info'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
    Text='Sage-Test > Stueckliste live: Artikel-Modus heisst jetzt Ressourcenliste (Vorlage); FA-Modus zeigt auch beendete Haupt-FAs.'
    Quelle='2026-11-16-v1-99-26-fa-struktur-ideal-sdata' }
+@{ Id='v1.99.28-AnwenderInfo'; Version='1.99.28'; Typ='Info'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Text='Anwender-Info: Anmeldung am Formular nur noch mit Kennwort; wer vom Administrator ein Erstkennwort bekommt, legt bei der ersten Anmeldung ein eigenes fest; Terminals/Handgeraete mit dem neuen Kennwort anmelden; Domaenen-PCs unveraendert per Windows.'
+   Quelle='2026-11-16-v1-99-28-sicherheit-anmeldung-installer' }
 )
 }

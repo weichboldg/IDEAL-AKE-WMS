@@ -1,6 +1,6 @@
 # 07 – Troubleshooting
 
-**Stand:** v1.99.23, 2026-11-14 · **Zielgruppe:** IT-Administratoren (ohne Entwicklerwissen)
+**Stand:** v1.99.28, 2026-11-16 · **Zielgruppe:** IT-Administratoren (ohne Entwicklerwissen)
 
 Fehlerbilder, die im Projekt tatsächlich aufgetreten oder ausdrücklich dokumentiert sind – je Fall Ursache, Prüfung, Lösung und Quelle.
 Was nicht belegt ist, steht als **zu prüfen** da. Log-Orte: [06-logs-ueberwachung.md](06-logs-ueberwachung.md); lesende SQL-Abfragen
@@ -33,6 +33,10 @@ Quellenangaben: Pfade relativ zum Repository (Worktree), Brain-Notizen als `[[Na
 | Nicht-Domänen-Geräte kommen gar nicht mehr auf die Seite | Anonyme Authentifizierung in IIS abgeschaltet | IIS → Site → Authentifizierung: **Windows und Anonym** müssen an sein | Beide aktivieren (steht so in `web.config`) | `IdealAkeWms/web.config:5-9`; [[fallstricke]] §4 „AddNegotiate() ist unter IIS in-process falsch“ |
 | Update-Skript bricht beim ersten DB-Kontakt ab: „Die Anmeldung stammt aus einer nicht vertrauenswürdigen Domäne …“ (SQL 18452) | Ausführendes Konto ist Mitglied von **Protected Users** (NTLM gesperrt) **und** die benannte SQL-Instanz hat keinen SPN (Kerberos geht nicht) | `whoami /groups`; `setspn -Q MSSQLSvc/<host>*`; nach Verbindung A-1.5 (`auth_scheme`) | Empfohlen: SPNs `MSSQLSvc/<FQDN>:<Instanz>` und `:<Port>` auf das Instanzkonto, `klist purge`, Test mit `auth_scheme = KERBEROS`. Behelf (IDEAL-Test 11.11.): Konto aus Protected Users nehmen → `NTLM` | [[2026-11-11-buendel-deploy-update-skript]] Befund IDEAL-Test; [[2026-11-12-deploy-fahrplan-buendel-v1-99]] „Einmal je Server“ |
 | Wie oben, zusätzlich LDAP-Fehler 0x31 | RDP-Sitzung zu alt, Kerberos-Tickets abgelaufen | Anmeldezeit der Sitzung | Ab- und wieder anmelden | [[2026-11-11-buendel-deploy-update-skript]] |
+| Formular meldet „Für diesen Benutzer ist kein Kennwort hinterlegt …“ | Seit v1.99.28 meldet das Formular nur mit gespeichertem Kennwort an (Regel R); der Benutzer hat keins (lokal, oder AD-Benutzer ohne Kennwort) | `/Users`: Hinweis „ohne Kennwort“ über der Liste; Diagnose-Abfrage P-1 der Spec | `/Users/Edit`: Erstkennwort setzen oder erzeugen lassen (Haken = Pflichtwechsel; für Terminals/Geräte Haken weg); AD-Benutzer: „Mit Windows anmelden“ | ADR 0027; `IdealAkeWms/Controllers/AccountController.cs` (`MeldungOhneKennwort`) |
+| Nach der Anmeldung erscheint „Neues Kennwort festlegen“ | Erstkennwort vom Administrator (Haken „Muss Kennwort bei der nächsten Anmeldung ändern“) | `/Users` Hinweis „offenes Erstkennwort“ | Bisheriges Kennwort + neues zweimal eingeben (neu ≠ bisherig). „Abbrechen“ meldet nicht an | ADR 0027; `docs/TESTSZENARIEN.md` TS-139 |
+| admin-Kennwort vergessen / niemand kommt als admin hinein | – | – | **Rückweg:** `UPDATE dbo.Users SET PasswordHash = NULL WHERE Name = N'admin'`, dann App-Pool neu starten → admin hat das Standard-Erstkennwort `wms-admin` mit Pflichtwechsel; **sofort** anmelden und ein eigenes festlegen | `IdealAkeWms/Services/AdminSeed.cs`; `README.md` „Neuinstallation“ |
+| Update-Skript bricht auf Prod in der Vorprüfung ab: `[Pruefung/BenutzerOhneKennwort]` | Aktive Benutzer (ausser admin) ohne Kennwort, die sich nach v1.99.28 nicht mehr anmelden könnten | `-NurPruefen`; P-1 der Spec | Im **alten** Stand Kennwörter setzen oder Benutzer deaktivieren, dann erneut | `scripts/deploy/nachlauf.psd1` `Pruefung/BenutzerOhneKennwort` |
 
 **zu prüfen (offen laut Brain):** SPNs für `IdealSQL2\SAGE100TEST` (Port 54723) und ob das Konto danach wieder in Protected Users kommt;
 für AKE: Konto und SPN von AKESQL20 (Quelle: [[2026-11-12-deploy-fahrplan-buendel-v1-99]]). Konten und Rechte: [09-sicherheit-konten-rechte.md](09-sicherheit-konten-rechte.md).

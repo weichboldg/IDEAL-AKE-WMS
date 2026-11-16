@@ -1,6 +1,6 @@
 # 03 – Installation, Update und Rückfall
 
-**Stand:** v1.99.23, 2026-11-14 · **Zielgruppe:** IT-Administratoren, die installieren oder aktualisieren · **Zweck:** Schritt für Schritt
+**Stand:** v1.99.28, 2026-11-16 · **Zielgruppe:** IT-Administratoren, die installieren oder aktualisieren · **Zweck:** Schritt für Schritt
 durch Erstinstallation und Update mit dem Update-Skript, und ehrlich, was beim Zurückgehen möglich ist und was nicht.
 
 Übersicht: [00-index.md](00-index.md). Zielsysteme: [02-systeme-umgebungen.md](02-systeme-umgebungen.md). Sicherung:
@@ -81,17 +81,19 @@ Ablauf des Skripts (jeder Schritt bricht bei Fehler ab): (Quelle: `scripts/deplo
 | 0 | Fragt **ein** AD-Konto für App-Pool **und** Dienst ab und prüft das Kennwort gegen das AD; fragt Pfade für Web, Dienst, DataProtection (Enter = Vorschlag) |
 | 1 | Prüft Administrator, IIS-Features (Web-Server, Windows-Auth, Application Initialization), ASP.NET Core Module V2 + Hosting Bundle 10.x, Publish-Ordner, Edge |
 | 2 | Optional `-SqlTeil1Ausfuehren`: Schema-Skript `<FIRMA>-Prod-1-Datenbank.sql` per `sqlcmd` |
-| 3 | Web-Dateien kopieren, `appsettings.Production.json` schreiben (Verbindung, `DataProtection:KeysPath`, `Security:AdDomain`, optional SData-Zugang), Branding kopieren |
+| 3 | Web-Dateien kopieren, `appsettings.Production.json` schreiben (Verbindung, `DataProtection:KeysPath`, `Security:AdDomain`), Branding kopieren. SData-Zugang **nicht** im Skript: `/ServiceSettings` (verschlüsselt, ADR 0024) |
 | 4 | IIS: Auth-Abschnitte entsperren; App-Pool (No Managed Code, AlwaysRunning, Idle 0, kein Recycling-Intervall, `loadUserProfile`), Site mit Bindungen, Preload, Windows- **und** anonyme Authentifizierung. Pool bleibt gestoppt, bis das Schema da ist |
-| 5 | Dienst-Dateien kopieren, Dienst-`appsettings.json` anpassen (Verbindungen, Mail, `Sync.ProductionOrdersEnabled=false`), Recht „Als Dienst anmelden“, Dienst registrieren (Autostart, Neustart bei Absturz) – **nicht** gestartet |
+| 5 | Dienst-Dateien kopieren, Dienst-`appsettings.json` anpassen (Verbindungen, Mail; bei `-SmtpCredential` Warnung: Kennwort im Klartext, ohne `-SmtpSsl` unverschlüsselt), Recht „Als Dienst anmelden“, Dienst registrieren (Autostart, Neustart bei Absturz) – **nicht** gestartet |
 | 5b | Ordner und Rechte wie beim Update (`Test-OrdnerUndRechte`) |
-| 6 | Web aufwärmen (erster Start: `Migrate()` + Startdaten), nur wenn das Schema vorhanden ist |
+| 6 | Web aufwärmen (erster Start: `Migrate()` + Startdaten), nur wenn das Schema vorhanden ist; danach `Sync:ProductionOrdersEnabled = false` in `dbo.ServiceSettings` (der Dienst liest den Schalter nur aus der DB). Ohne Web-Start: Warnung, von Hand unter `/ServiceSettings` setzen |
 | 7 | Optional `-SqlTeil2Ausfuehren`: Standort-Konfiguration `<FIRMA>-Prod-2-Konfiguration.sql` (erst nach dem Web-Start) |
 | 8 | Optional `-DienstStarten` – erst **nach** Teil 2 |
 
-Danach von Hand (Skript gibt die Liste aus): als `admin` mit **leerem** Kennwort anmelden und sofort ein Kennwort setzen; SQL-Rechte für
+Danach von Hand (Skript gibt die Liste aus): **sofort** als `admin` mit dem Standard-Erstkennwort `wms-admin` anmelden – das WMS verlangt
+sofort ein eigenes Kennwort (Pflichtwechsel, ADR 0027); SQL-Rechte für
 Web- und Dienstkonto; erster Dienst-Zyklus mit DryRun, dann `WorkerSettings:SyncDryRun = false`; IDEAL: Backup, dann `/HierarchieUmstellung`
-(Einwegtor); Benutzer und Rollen; `WindowsAuthAktiv` erst, wenn AD-Benutzer angelegt sind. (Quelle: `scripts/deploy/Install-IdealAkeWms.ps1:480-493`)
+(Einwegtor); Benutzer und Rollen; `WindowsAuthAktiv` erst, wenn AD-Benutzer angelegt sind; FA-Abgleich nach Teil 2 unter `/ServiceSettings` einschalten; SData-Zugang unter
+`/ServiceSettings`. (Quelle: `scripts/deploy/Install-IdealAkeWms.ps1`, Abschnitt „Fertig - naechste Schritte“)
 Protokoll: `C:\ProgramData\IdealAkeWms\Install-<FIRMA>-<Zeit>.log`. (Quelle: `scripts/deploy/Install-IdealAkeWms.ps1:102-104`)
 
 > **zu prüfen (wichtig):** Das Skript erwartet `<FIRMA>-Prod-1-Datenbank.sql` und `<FIRMA>-Prod-2-Konfiguration.sql` im Skriptordner
@@ -112,13 +114,15 @@ Protokoll: `C:\ProgramData\IdealAkeWms\Install-<FIRMA>-<Zeit>.log`. (Quelle: `sc
   [[2026-11-04-ideal-produktiv-installation]] „Festgehaltene Entscheidungen“)
 - Setzt **kein** `READ_COMMITTED_SNAPSHOT` (RCSI). Für IDEAL mit hierarchischer FA-Struktur ist RCSI Pflicht; das Update-Skript prüft es
   später (`Pruefung/RCSI`). (Quelle: [[2026-11-04-ideal-produktiv-installation]] „Festgehaltene Entscheidungen“, `scripts/deploy/nachlauf.psd1:110-114`)
-- Beim ersten Web-Start entstehen Benutzer `admin` (leeres Kennwort) und Lagerplatz `NAN`. (Quelle: `README.md:62-64`,
-  `SQL/00_FreshInstall.sql:1541-1547`, `IdealAkeWms/Program.cs:208-221`)
+- Beim ersten Web-Start entstehen Benutzer `admin` (Standard-Erstkennwort `wms-admin` mit Pflichtwechsel, seit v1.99.28) und Lagerplatz
+  `NAN`. (Quelle: `README.md:62-66`, `IdealAkeWms/Services/AdminSeed.cs`, `IdealAkeWms/Program.cs`)
 
-> **Bekannter Fehler (zu prüfen, ob behoben):** Am 04.11.2026 brach Abschnitt „15. Indexes“ mit Meldung 207 „Ungültiger Spaltenname
-> AssignedPickerId“ ab. Die beiden Index-Anweisungen stehen unverändert in `SQL/00_FreshInstall.sql:1260-1263` (Tabelle `ProductionOrders`),
-> die Spalten liegen aber in `ProductionOrderPickingStatus` (`SQL/00_FreshInstall.sql:433-436`). Bei einer Neuinstallation mit
-> Fehlermeldung rechnen; übrige Abschnitte prüfen. (Quelle: [[2026-11-04-ideal-produktiv-installation]] „Offen / ungeprüft“)
+> **Behoben in v1.99.28:** Am 04.11.2026 brach Abschnitt „15. Indexes“ mit Meldung 207 „Ungültiger Spaltenname AssignedPickerId“ ab.
+> Meldung 207 entsteht beim Übersetzen des **ganzen Batches** – damals fehlten deshalb **alle** Indizes des Abschnitts samt FK, nicht nur
+> die beiden falschen. Die beiden Anweisungen (Spalten liegen in `ProductionOrderPickingStatus`) sind entfernt, `WarehouseRequisitions`/
+> `-Items` haben einen `OBJECT_ID`-Guard, und der Test `FreshInstallIndexSpaltenTests` prüft jede Index-Spalte gegen das EF-Modell.
+> Systeme aus der Erstinstallation vom 04.11. (IDEAL-Prod): Prüfabfrage P-2b der Spec 2026-11-14-sicherheit-anmeldung-und-installer
+> ausführen; bei Treffern fehlende Indizes nachziehen (offen, siehe Spec Rückfrage 4).
 
 ---
 
@@ -169,9 +173,9 @@ Laufen bei **jedem** Lauf (ohne Versionsfilter), lesend; Ergebnis 0 = in Ordnung
 
 | Phase | Verhalten | Beispiele | Beleg |
 |---|---|---|---|
-| Vorher | in der Vorprüfung; auf Prod Abbruch vor dem Stoppen, sonst Hinweis | `Pruefung/MailPickup` | `scripts/deploy/nachlauf.psd1:158-161` |
+| Vorher | in der Vorprüfung; auf Prod Abbruch vor dem Stoppen, sonst Hinweis | `Pruefung/MailPickup`, `Pruefung/BenutzerOhneKennwort` (aktive Benutzer ohne Kennwort ausser admin, v1.99.28) | `scripts/deploy/nachlauf.psd1:158-161` |
 | Haltepunkt | nach dem Schema bei gestopptem Web und Dienst; Reparatur nur nach `j` | Kommissionierbereiche, RCSI, Rollen Beschichtungsauftrag, Rolle Einkauf, DUMMY-Artikel | `scripts/deploy/nachlauf.psd1:101-137` |
-| Nachher | nur lesend, Text = Hand-Schritt | Lieferverzug-Empfänger, Wareneingang-CSV, QR-Trennzeichen, Firmenanschrift, `Sync:ArticlesViewName`, SData-Kennwort in appsettings, doppelte Prio | `scripts/deploy/nachlauf.psd1:138-169` |
+| Nachher | nur lesend, Text = Hand-Schritt | Lieferverzug-Empfänger, Wareneingang-CSV, QR-Trennzeichen, Firmenanschrift, `Sync:ArticlesViewName`, SData-Kennwort in appsettings, SMTP-Benutzer (`Pruefung/SmtpBenutzer`), doppelte Prio | `scripts/deploy/nachlauf.psd1:138-169` |
 
 Besonderheit RCSI: Die Reparatur (`ALTER DATABASE … SET READ_COMMITTED_SNAPSHOT ON WITH ROLLBACK IMMEDIATE`) zeigt vorher alle anderen
 Sitzungen auf der DB, weil sie diese beendet. Ohne Recht `ALTER` die Frage mit `n` beantworten. (Quelle: `scripts/deploy/Update-IdealAkeWms.ps1:438-444`,

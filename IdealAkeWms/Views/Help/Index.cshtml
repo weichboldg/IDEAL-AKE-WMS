@@ -2168,7 +2168,18 @@
                         <br /><strong>Seit v1.23.0:</strong> Benutzer koennen entweder <em>lokal</em> (mit Passwort)
                         oder als <em>AD-Benutzer</em> (Windows-Anmeldung, ohne Passwort) angelegt werden &mdash;
                         siehe Abschnitt &bdquo;Windows-Anmeldung &amp; AD-Benutzer&ldquo;. Die Liste zeigt den
-                        Typ (AD/Lokal) in einer eigenen Spalte.</dd>
+                        Typ (AD/Lokal) in einer eigenen Spalte.
+                        <br /><strong>Seit v1.99.28 &ndash; Anmeldung nur mit Kennwort:</strong> Das Anmeldeformular meldet nur Benutzer
+                        mit gespeichertem Kennwort an (&bdquo;Für diesen Benutzer ist kein Kennwort hinterlegt&ldquo; sonst). AD-Benutzer
+                        ohne Kennwort melden sich per Windows an.
+                        <br /><strong>Erstkennwort:</strong> Beim Anlegen/Bearbeiten im Feld &bdquo;Erstkennwort&ldquo; ein Kennwort eintragen
+                        oder &bdquo;Erstkennwort erzeugen&ldquo; anhaken (12 Zeichen; wird nach dem Speichern <em>einmal</em> im Hinweis
+                        angezeigt &ndash; notieren und dem Benutzer geben). Der Haken &bdquo;Muss Kennwort bei der nächsten Anmeldung
+                        ändern&ldquo; ist dann gesetzt: der Benutzer meldet sich mit dem Erstkennwort an, legt sofort ein eigenes fest
+                        (neu &ne; bisherig, Wiederholung gleich) und ist danach angemeldet. Für <strong>Terminal- und Gerätekonten</strong>
+                        den Haken entfernen. Die Benutzerliste zeigt aktive Benutzer ohne Kennwort und offene Erstkennwörter.
+                        <br /><strong>admin:</strong> Hat admin kein Kennwort (Neuinstallation oder Kennwort per SQL geleert), setzt der
+                        Start das Standard-Erstkennwort laut Betriebshandbuch mit Pflichtwechsel &ndash; sofort als admin anmelden.</dd>
 
                     <dt>Arbeitsplaetze</dt>
                     <dd>Konfiguration der Workstations mit Standard-Drucker (UNC-Pfad). Wird fuer den automatischen Etikettendruck verwendet.</dd>

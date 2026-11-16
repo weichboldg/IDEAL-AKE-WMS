@@ -26,7 +26,9 @@
     Was das Skript bewusst NICHT tut:
       - Datenbank anlegen (legst du leer vorab an).
       - Master "ProduktionsauftragHierarchisch" schalten (Einwegtor, Seite /HierarchieUmstellung).
-      - admin-Passwort setzen (ist nach der Installation LEER - sofort aendern).
+      - admin-Kennwort setzen: admin bekommt beim ersten Web-Start das Standard-Erstkennwort 'wms-admin' mit Pflichtwechsel
+        (ADR 0027) - SOFORT nach der Installation als admin anmelden und ein eigenes Kennwort festlegen.
+      - SData-Zugang der Sage-Lagerbuchung schreiben: nur unter /ServiceSettings (verschluesselt, ADR 0024), nie in Dateien.
       - SQL-Logins/Rechte anlegen (siehe Hinweise am Ende der Ausgabe).
 
 .EXAMPLE
@@ -72,14 +74,13 @@ param(
     [pscredential] $ServiceCredential,                   # veraltet: wird auf $AppPoolCredential gesetzt
     [string] $AdDomain = '',                             # Security:AdDomain, leer = aktuelle Domaene
 
-    # --- Mail / Sage-Lagerbuchung -------------------------------------------------------------------------
+    # --- Mail (SData-Zugang der Sage-Lagerbuchung NICHT hier: /ServiceSettings, verschluesselt, ADR 0024) ---------------
     [string] $SmtpHost = '',
     [int]    $SmtpPort = 25,
     [switch] $SmtpSsl,
     [pscredential] $SmtpCredential,
     [string] $FromAddress = 'wms@ideal-ake.at',
     [string] $FehlermailEmpfaenger = '',
-    [pscredential] $SageLagerbuchungCredential,          # SData-Servicebenutzer; leer = Sage-Lagerbuchung bleibt unkonfiguriert
 
     # --- Ablauf -------------------------------------------------------------------------------------------
     [switch] $SqlTeil1Ausfuehren,
@@ -266,12 +267,6 @@ try {
         Security       = [ordered]@{ AdDomain = $AdDomain }
         DataProtection = [ordered]@{ KeysPath = $DataProtectionPfad }
     }
-    if ($SageLagerbuchungCredential) {
-        $webCfg.SageLagerbuchung = [ordered]@{
-            Username = $SageLagerbuchungCredential.UserName
-            Password = $SageLagerbuchungCredential.GetNetworkCredential().Password
-        }
-    }
     # appsettings.Production.json ueberschreibt die Repo-appsettings.json (die auf AKESQL20 zeigt!) -
     # die web.config setzt ASPNETCORE_ENVIRONMENT=Production (README Z. 431-448).
     $webCfg | ConvertTo-Json -Depth 10 | Set-Content -Path (Join-Path $WebPfad 'appsettings.Production.json') -Encoding UTF8
@@ -362,15 +357,13 @@ try {
     if ($SmtpCredential) {
         $svc.MailSettings.SmtpUsername = $SmtpCredential.UserName
         $svc.MailSettings.SmtpPassword = $SmtpCredential.GetNetworkCredential().Password
+        # ADR 0008/0024: SMTP bleibt appsettings-only - deshalb wenigstens sichtbar warnen (BH-3/BH-5c).
+        Warn "SMTP-Kennwort steht im Klartext in $svcJsonPfad; anonymes internes Relay bevorzugen, Dateirechte eng halten."
+        if (-not $SmtpSsl) { Warn 'SMTP-Anmeldung ohne -SmtpSsl: das Kennwort geht unverschluesselt ueber das Netz (Port 465 + -SmtpSsl oder anonymes Relay).' }
     }
-    if ($SageLagerbuchungCredential) {
-        $svc.SageLagerbuchung.Username = $SageLagerbuchungCredential.UserName
-        $svc.SageLagerbuchung.Password = $SageLagerbuchungCredential.GetNetworkCredential().Password
-    }
-    # Nur Default-Referenz (die DB gewinnt), aber gegen Fehlstart abgesichert:
-    $svc.Sync.ProductionOrdersEnabled = $false
+    # Sync:ProductionOrdersEnabled liest der Dienst NUR aus dbo.ServiceSettings - abgeschaltet wird in Schritt 6 in der DB (BH-4).
     $svc | ConvertTo-Json -Depth 30 | Set-Content -Path $svcJsonPfad -Encoding UTF8
-    Ok 'appsettings.json des Dienstes angepasst (Verbindungen, Mail; ProductionOrdersEnabled=false)'
+    Ok 'appsettings.json des Dienstes angepasst (Verbindungen, Mail)'
 
     $svcPrincipal = if ($ServiceCredential) { $ServiceCredential.UserName } else { 'NT AUTHORITY\SYSTEM' }
     & icacls $DienstPfad /grant "${svcPrincipal}:(OI)(CI)M" /T /Q | Out-Null     # logs\ relativ zur EXE
@@ -448,6 +441,23 @@ try {
         }
     }
 
+    # FA-Abgleich aus (BH-4, Variante A): der Dienst liest Sync:ProductionOrdersEnabled nur aus dbo.ServiceSettings und startet nach
+    # einem Server-Neustart automatisch - deshalb in der DB abschalten, sobald der Web-Start die Zeile sicher angelegt hat.
+    $faAus = 'Sync:ProductionOrdersEnabled'
+    if ($script:WebGestartet) {
+        $cn = New-Object System.Data.SqlClient.SqlConnection "Server=$SqlServer;Database=$Datenbank;Integrated Security=true;TrustServerCertificate=true"
+        try {
+            $cn.Open()
+            $cmd = $cn.CreateCommand()
+            $cmd.CommandText = "UPDATE dbo.ServiceSettings SET [Value] = N'false' WHERE [Key] = N'$faAus'"
+            if ($cmd.ExecuteNonQuery() -eq 1) { Ok "FA-Abgleich aus ($faAus = false) - nach Teil 2 unter /ServiceSettings einschalten" }
+            else { Warn "$faAus nicht gefunden - unter /ServiceSettings auf false setzen, BEVOR der Dienst laeuft." }
+        } catch { Warn "$faAus konnte nicht gesetzt werden ($($_.Exception.Message)) - unter /ServiceSettings auf false setzen, BEVOR der Dienst laeuft." }
+        finally { $cn.Dispose() }
+    } else {
+        Warn "Web nicht gestartet: $faAus steht noch auf true - nach dem ersten Web-Start unter /ServiceSettings auf false setzen, BEVOR der Dienst laeuft (Autostart nach Neustart!)."
+    }
+
     # =================================================================================================
     Schritt '7. Datenbank - Teil 2 (Standort-Konfiguration)'
     # =================================================================================================
@@ -478,18 +488,21 @@ try {
     Schritt 'Fertig - naechste Schritte'
     # =================================================================================================
     @"
-  1. $baseUrl oeffnen, als admin anmelden (Passwort LEER) und sofort ein Passwort setzen (Mein Profil).
+  1. SOFORT: $baseUrl oeffnen, als admin mit dem Standard-Erstkennwort 'wms-admin' anmelden - das WMS verlangt
+     sofort ein eigenes Kennwort (Pflichtwechsel). Bis dahin kennt jeder mit Betriebshandbuch das Kennwort.
   2. SQL-Rechte (falls noch nicht): Web-Konto '$poolPrincipal' und Dienst-Konto '$svcPrincipal'
        - WMS-DB [$Datenbank]: db_datareader, db_datawriter, EXECUTE (Web zusaetzlich db_ddladmin nur,
          falls kuenftige Updates per Migrate() laufen sollen)
        - Sage-DB [$SageDatabase] (nur Dienst): lesen auf die Views vw_IDEAL_AKE_WMS_* und KHK-Tabellen,
          zusaetzlich Leserecht in PPSImport (UAT IDEAL 2026-08-11).
   3. Dienst starten (falls nicht geschehen). Erster Zyklus laeuft mit DryRun (Teil 2): /SyncLog pruefen,
-     dann /ServiceSettings -> WorkerSettings:SyncDryRun = false.
+     dann /ServiceSettings -> WorkerSettings:SyncDryRun = false. Der FA-Abgleich ist aus
+     (Sync:ProductionOrdersEnabled = false): nach Teil 2 / Standort-Konfiguration unter /ServiceSettings einschalten.
   4. Nach erfolgreichem Struktur-Import: Backup, dann /HierarchieUmstellung (Einwegtor).
      Danach Werkbank-Anlage und Arbeitsgang-Erkennung mit DryRun (Abschnitt "Danach" in Teil 2).
   5. Benutzer anlegen, Rollen vergeben (beschichtungsauftrag / _schreiben sind angelegt).
   6. WindowsAuthAktiv erst einschalten, wenn die ersten AD-Benutzer angelegt sind.
+  7. SData-Zugang unter /ServiceSettings > Sage-Lagerbuchung eintragen (verschluesselt gespeichert, ADR 0024).
 "@ | Write-Host
     if ($script:Warnungen) {
         Write-Host ''; Write-Host 'Warnungen:' -ForegroundColor Yellow

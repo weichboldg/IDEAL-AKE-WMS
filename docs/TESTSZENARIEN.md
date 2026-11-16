@@ -171,7 +171,7 @@ Dokument aktualisiert werden (siehe CLAUDE.md → "Testszenarien-Pflicht").
 ### TS-1.6 — Admin-Wildcard: Admin-User hat Zugriff auf alle Bereiche
 
 **Vorbedingungen:**
-- Benutzer `admin` mit Passwort leer (Standard-Seeding).
+- Benutzer `admin` mit eigenem Kennwort (nach der Installation: Standard-Erstkennwort `wms-admin` mit Pflichtwechsel, siehe TS-139.4).
 
 **Schritte:**
 1. Als `admin` einloggen.
@@ -5247,7 +5247,7 @@ angemeldet. Zusaetzlich existiert ein lokaler Benutzer mit Passwort.
 
 **Erwartet:**
 - Der Benutzer erscheint in der Benutzerliste mit Typ-Spalte **„AD"** (nicht
-  „Lokal"), ohne Passwort, aktiv.
+  „Lokal"), ohne Kennwort (Anmeldeformular für ihn gesperrt, nur Windows-Anmeldung; seit v1.99.28), aktiv.
 - Die vergebenen Rollen sind gesetzt (im Bearbeiten-Dialog sichtbar).
 - Der `WindowsUserName` (SAM) ist hinterlegt — danach greift fuer diesen Benutzer
   der Auto-Login (TS-40.1).
@@ -5296,8 +5296,8 @@ oder iPhone/iPad (Mobile-Browser), frische Session (keine Cookies).
 
 **Erwartet:** Es erscheint **direkt** das Anmelde-Formular. **Kein**
 Windows-Anmeldedialog, kein Passwort-Prompt-Popup. Es wird KEINE
-Negotiate-Challenge gesendet (UA-Gate). Eine Formular-Anmeldung mit lokalen
-Credentials funktioniert normal. (Auch nach mehrfachem Neuladen kein Dialog.)
+Negotiate-Challenge gesendet (UA-Gate). Eine Formular-Anmeldung mit Kennwort
+funktioniert normal (Benutzer ohne Kennwort: Meldung laut TS-139.2). (Auch nach mehrfachem Neuladen kein Dialog.)
 
 ### TS-40.8 — Windows-Desktop → Auto-Login wie bisher (v1.25.0-Fold)
 
@@ -12324,10 +12324,135 @@ Deadlock sind nicht InMemory-prüfbar).
 
 ---
 
+## TS-139 — Anmeldung nur mit Kennwort, Erstkennwort mit Pflichtwechsel, Installer (v1.99.28)
+
+Spec `2026-11-14-sicherheit-anmeldung-und-installer-spec`, ADR 0027. Standort: beide. Migration `SQL/152_AddUserMussKennwortAendern.sql`.
+Web + Dienst + `scripts/deploy`. Windows-SSO/Negotiate, LDAP, Handgeräte und Cookies = **Manual-UAT**.
+
+**Vorbedingungen (alle):** DEV-IIS (nicht `dotnet run`, sonst greift die Entwicklungs-Ausnahme aus 139.6) auf v1.99.28, SQL/152 eingespielt;
+Admin-Benutzer mit eigenem Kennwort; lesender SQL-Zugriff auf die DEV-DB.
+
+### TS-139.1 — Lokaler Benutzer ohne Kennwort
+
+**Vorb.:** Benutzer `ts139-lokal`, aktiv, Rolle `stock`, **ohne** Kennwort. **Schritte:** abmelden; Name, Kennwortfeld leer → Anmelden;
+dann mit Kennwort `x`. **Erwartet:** beide Male „Für diesen Benutzer ist kein Kennwort hinterlegt. Bitte beim Administrator ein Kennwort
+setzen lassen.“, Anmeldeseite bleibt, `/` leitet auf das Login. `/Users` zeigt den Hinweis „aktive lokale Benutzer ohne Kennwort …
+ts139-lokal“. **Negativ:** inaktiver Benutzer → „Benutzer nicht gefunden oder inaktiv.“ wie bisher.
+
+### TS-139.2 — AD-Benutzer ohne Kennwort (Manual-UAT)
+
+**Vorb.:** AKE-Test (HTTPS, IIS), `WindowsAuthAktiv = true`, AD-Benutzer ohne Kennwort. **Schritte:** a) Handy-Browser, Formular, Feld
+leer; b) Knopf „Mit Windows anmelden“ am Handy; c) Domänen-PC, frische Sitzung. **Erwartet:** a) Meldung „… Bitte „Mit Windows anmelden“
+verwenden oder beim Administrator ein Kennwort setzen lassen.“; b)/c) angemeldet (TS-40.9/40.1). **Negativ:** `WindowsAuthAktiv = false`
+→ Meldung ohne Windows-Hinweis, kein Knopf.
+
+### TS-139.3 — Kennwort richtig / falsch / leer
+
+**Vorb.:** Benutzer mit Kennwort, ohne Haken. **Erwartet:** richtig → angemeldet; falsch → „Falsches Passwort.“; Feld leer → „Falsches
+Passwort.“ (keine Sitzung).
+
+### TS-139.4 — admin-Erstkennwort (Seed und Rückweg)
+
+**Vorb.:** DEV-Kopie bzw. Prüf-DB (139.7). **Schritte:** `UPDATE dbo.Users SET PasswordHash = NULL WHERE Name = N'admin'`, App-Pool neu
+starten, Web-Log prüfen; `/Users` ansehen (anderer Admin); Login `admin` mit leerem Feld; dann `admin` + `wms-admin`; im Schritt „Neues
+Kennwort festlegen“ gültig abschließen. Variante 2: admin mit gehashtem Leer-Kennwort aus dem alten Stand → gleiches Bild.
+**Erwartet:** Start-Log enthält die Warnung „Benutzer admin hat ein Erstkennwort … jetzt als admin anmelden …“ ohne Kennwort; `/Users`
+zeigt „offenes Erstkennwort: admin“; leeres Feld → „Falsches Passwort.“; `wms-admin` → Schritt, keine Sitzung; gültig → angemeldet,
+„Kennwort geändert.“; danach `MussKennwortAendern = 0`, nächster Start ohne Warnung, Hinweis weg. **Negativ:** admin mit eigenem
+Kennwort + Neustart → unverändert.
+
+### TS-139.4a — Pflichtwechsel lokaler Benutzer, positiv
+
+**Schritte:** `/Users/Create` → `ts139-erst`, Rolle `stock`, Erstkennwort `Start-139a` → der Haken „Muss Kennwort bei der nächsten
+Anmeldung ändern“ ist vorbelegt → speichern; `/Users/Edit` zeigt Haken gesetzt und „Gespeichertes Kennwort: ja“; abmelden; `ts139-erst` +
+`Start-139a`. **Erwartet:** Schritt „Neues Kennwort festlegen“, `/` leitet auf das Login (keine Sitzung); bisheriges + `Neu-139a` zweimal →
+angemeldet, „Kennwort geändert.“; `/Users/Edit` Haken weg, `ModifiedBy = ts139-erst`; abmelden, `Start-139a` → „Falsches Passwort.“,
+`Neu-139a` → direkt angemeldet. **Einmal am Netum-Handgerät durchspielen** (Bildschirmtastatur, Scanner-Fokus; Freigabe-Antwort 16).
+
+### TS-139.4b — Pflichtwechsel, Negativfälle
+
+**Vorb.:** `ts139-erst` erneut mit Erstkennwort `Start-139b` (Edit, Haken gesetzt). **Schritte** je Fall Login + Schritt: (1) neues Kennwort
+leer; (2) nur Leerzeichen; (3) neu = `Start-139b`; (4) Wiederholung ungleich; (5) bisheriges Kennwort im Schritt falsch; (6) „Abbrechen“
+bzw. Browser-Zurück, dann `/`; (7) per Browser-Konsole POST mit `NewPassword` für einen Benutzer **ohne** Haken. **Erwartet:** (1)/(2) „Bitte
+ein neues Kennwort eingeben.“, (3) „Das neue Kennwort muss sich vom bisherigen unterscheiden.“, (4) „Die Wiederholung stimmt nicht mit dem
+neuen Kennwort überein.“, (5) „Falsches Passwort.“ – jeweils keine Sitzung, Haken bleibt, Login mit `Start-139b` zeigt den Schritt wieder;
+(6) keine Sitzung, Login-Seite; (7) normale Anmeldung, Kennwort unverändert.
+
+### TS-139.4c — Erzeugtes Erstkennwort
+
+**Schritte:** `/Users/Edit` `ts139-erst`, „Erstkennwort erzeugen“ anhaken (der Pflichtwechsel-Haken wird mit angehakt) → speichern.
+**Erwartet:** Erfolgsmeldung enthält „Erstkennwort: <12 Zeichen> – jetzt notieren …“ genau einmal; neu laden bzw. `/Users/Edit` erneut →
+nicht mehr sichtbar; `SELECT PasswordHash, MussKennwortAendern FROM dbo.Users WHERE Name = N'ts139-erst'` zeigt Hash ≠ Klartext und `1`;
+Web-Log enthält das Kennwort nicht. Login mit dem erzeugten Kennwort → Pflichtwechsel wie 139.4a. Ein gleichzeitig eingetipptes Kennwort
+wird ignoriert (erzeugen hat Vorrang).
+
+### TS-139.4d — Haken manuell, abwählen, Haken ohne Kennwort
+
+**Schritte:** a) Benutzer mit eigenem Kennwort, `/Users/Edit` Haken setzen ohne neues Kennwort → speichern → Login mit dem bisherigen
+Kennwort; b) Haken wieder abwählen → speichern → Login; c) Gerätekonto: neues Kennwort eintragen, vorbelegten Haken **entfernen** → speichern
+→ Login; d) Haken bei Benutzer **ohne** Kennwort → speichern. **Erwartet:** a) Schritt erscheint; b) direkt angemeldet (Abwählen erlaubt,
+Freigabe-Antwort 15); c) direkt angemeldet; d) Warnhinweis „Haken gesetzt, aber kein Kennwort …“, Login mit leerem Feld → Meldung aus 139.1.
+
+### TS-139.4e — AD-Benutzer mit Erstkennwort (Manual-UAT)
+
+**Vorb.:** AKE-Test, `WindowsAuthAktiv = true`, AD-Benutzer. **Schritte:** Erstkennwort unter `/Users/Edit`; a) Domänen-PC frische Sitzung;
+b) Handy-Formular mit Erstkennwort. **Erwartet:** a) SSO angemeldet ohne Schritt, Haken bleibt; b) Pflichtwechsel wie 139.4a.
+
+### TS-139.5 — Übergang Terminal / Update-Skript
+
+**Vorb.:** Terminal-Benutzer ohne Kennwort (DEV). **Schritte:** `Update-IdealAkeWms.ps1 -NurPruefen` → `[Pruefung/BenutzerOhneKennwort]`
+mit Zahl ≥ 1 und Hinweis „… Erstkennwort setzen … oder deaktivieren“ (DEV = Hinweis, Prod = Abbruch vor dem Stoppen); als Admin unter
+`/Users/Edit` Kennwort setzen, Haken entfernen (Gerätekonto, Freigabe-Antwort 16); `-NurPruefen` → 0; am Terminal anmelden → BDE-Terminal
+öffnet mit Default-Werkbank. **Negativ:** admin ohne Kennwort zählt nicht (der Start setzt das Erstkennwort). Ohne Kennwort am Terminal →
+Meldung aus 139.1.
+
+### TS-139.6 — Entwicklungsmodus
+
+**Schritte:** `dotnet run --project IdealAkeWms` (Development), Benutzer ohne Kennwort, Feld leer → Anmelden. **Erwartet:** angemeldet;
+Login-Seite zeigt vorher den Hinweis „Entwicklungsmodus: Anmeldung ohne Kennwort erlaubt …“. **Negativ:** dieselbe DB über DEV-IIS →
+Meldung aus 139.1, kein Hinweis.
+
+### TS-139.7 — Erstinstallation auf leerer lokaler DB
+
+**Schritte:** leere DB auf einer **lokalen** Instanz anlegen (nie AKESQL20/IDEAL), `SQL/00_FreshInstall.sql` mit `USE` auf diese DB per
+`sqlcmd -b` zweimal ausführen, `SELECT @@SERVERNAME` protokollieren. **Erwartet:** beide Läufe Exit-Code 0, keine Meldung 207/2714;
+alle Indizes aus P-2b vorhanden; `IX_ProductionOrders_IsReleasedForPicking_IsDone` / `_AssignedPickerId` **nicht**; Anzahl
+`__EFMigrationsHistory` = Anzahl der Migrationen; `Users.MussKennwortAendern` vorhanden; admin-Zeile mit `PasswordHash NULL` (das
+Erstkennwort setzt der Web-Start, 139.4). Danach `DROP DATABASE`. **Negativ:** `FreshInstallIndexSpaltenTests` mit den alten Index-Zeilen → rot.
+
+### TS-139.8 — Index-Prüfung IDEAL-Prod (Manual-UAT Gerald)
+
+Vor dem Deploy auf IDEAL-Prod Prüfabfrage P-2b der Spec ausführen. Treffer → Reparatur laut Spec Rückfrage 4 (SQL/151 +
+`Pruefung/FreshInstallIndizes` sind **nicht** gebaut, erst bei Treffern). Keine Treffer → nichts zu tun.
+
+### TS-139.9 — Installer
+
+**Schritte:** Parser-Prüfung `[System.Management.Automation.Language.Parser]::ParseFile` → 0 Fehler; Code-Lesung: kein
+`-SageLagerbuchungCredential` mehr, keine Kennwort-Ausgabe. Voll-Lauf bei der nächsten Neuinstallation (Manual-UAT): `/ServiceSettings`
+zeigt `Sync:ProductionOrdersEnabled = false`; Ausgabe nennt `wms-admin` + sofort anmelden, FA-Abgleich nach Teil 2 einschalten,
+SData-Zugang unter `/ServiceSettings`; mit `-SmtpCredential` ohne `-SmtpSsl` zwei Warnungen. **Negativ:** Web nicht gestartet → Warnung
+„… steht noch auf true …“.
+
+### TS-139.10 — Cookies (Manual-UAT)
+
+AKE-Test (HTTPS) und DEV (HTTP): Entwicklerwerkzeuge › Anwendung › Cookies `IdealAkeWms.Session` und `.AspNetCore.Antiforgery.*`:
+HTTPS mit `Secure`, HTTP ohne; Anmeldung und ein Formular-POST (Profil speichern) auf beiden ohne Fehler 400.
+
+### TS-139.11 — SMTP-Hinweis
+
+**Schritte:** DEV-Dienst mit `SmtpHost` auf einen nicht vorhandenen Host, `SmtpUsername = test`, `SmtpUseSsl = false`, Fehlermail auslösen.
+**Erwartet:** Warnung „SMTP-Anmeldung als test ohne SmtpUseSsl …“ im Notifications-Log (ohne Kennwort), danach der bekannte Versandfehler;
+`-NurPruefen` zeigt `[Pruefung/SmtpBenutzer]` mit 1. **Negativ:** ohne Benutzer keine Warnung. Danach Werte zurück.
+
+Automatisch belegt (xUnit): `AccountControllerLoginTests` (139.1, 139.3, 139.4a/b, 139.6), `ErstkennwortTests` (139.4 Seed, 139.4c/d,
+`/Users`-Hinweis), `FreshInstallIndexSpaltenTests` (139.7 Negativ), `NachlaufManifestDriftTests` (SQL/152, Prüfungen).
+
+---
+
 ## TS-140 — Einstellungen Beschichtungsquelle (v1.99.25)
 
 Spec `2026-11-16-beschichtungslogik-je-standort-spec`, Etappe 1. Standort: beide. **Keine Migration** (die Keys legt der Web-Start per Seed an).
-Web + Dienst. TS-139 ist für v1.99.24 reserviert.
+Web + Dienst.
 
 **Vorbedingungen:** DEV AKE (`ProduktionsauftragHierarchisch` = false oder Zeile fehlt) und DEV IDEAL (`ProduktionsauftragHierarchisch` = true)
 auf v1.99.25; Admin-Benutzer; lesender SQL-Zugriff auf die DEV-DB.

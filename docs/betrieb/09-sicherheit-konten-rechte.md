@@ -1,6 +1,6 @@
 # 09 – Sicherheit, Konten und Rechte
 
-**Stand:** v1.99.23, 2026-11-14 · **Zielgruppe:** IT-Administratoren (ohne Entwicklerwissen) · **Zweck:** Unter welchen Konten Web-App und
+**Stand:** v1.99.28, 2026-11-16 · **Zielgruppe:** IT-Administratoren (ohne Entwicklerwissen) · **Zweck:** Unter welchen Konten Web-App und
 Dienst laufen, welche Rechte sie auf SQL Server, Ordner und Freigaben brauchen, wie Anmeldung und Rollen funktionieren und wo Geheimnisse
 liegen – und was nie im Klartext stehen darf.
 
@@ -17,8 +17,8 @@ Einstellungen: [04-konfiguration.md](04-konfiguration.md). Server und Pfade je S
 | **Dienstkonto** (`IDEALAKEWMSService`) | Abgleiche, Mails, Sage-Buchungen, CSV-Ablage | (a) `LocalSystem` (Registrierung laut README ohne Konto), im Netz als `DOMÄNE\SERVER$`; (b) AD-Konto mit Recht „Als Dienst anmelden“ (setzt das Installationsskript) | `README.md:838-850`, `scripts/deploy/Install-IdealAkeWms.ps1:371-404`, [[fallstricke]] §32 |
 | **Ausführendes Konto Update-Skript** | `deploy\Update-IdealAkeWms.ps1` in einer Administrator-PowerShell am Zielserver | Windows-Administrator am Server + SQL-Rechte (Abschnitt 2.3) | `secondbrain/aufgaben/2026-11-11-buendel-deploy-update-skript.md:7-14` |
 | **SData-Servicebenutzer** | Sage-Schnittstelle (lesen und schreiben) | ein Benutzer je Sage-Installation | [[sage-sdata-uebersicht]] „Zugang“, [[0024-sdata-kennwort-verschluesselt-in-den-service-einstellungen]] |
-| **SMTP-Benutzer** (optional) | Anmeldung am Mail-Relay, meist nicht nötig | leer = anonym | `IDEALAKEWMSService/Services/MailService.cs:72-82` |
-| **`admin`** (WMS-Benutzer) | erster Anmelde-Benutzer, Rolle `admin` | wird beim ersten Start **ohne Kennwort** angelegt – sofort ändern | `IdealAkeWms/Program.cs:259-292`, `scripts/deploy/Install-IdealAkeWms.ps1:29,480` |
+| **SMTP-Benutzer** (optional) | Anmeldung am Mail-Relay, meist nicht nötig | leer = anonym; gesetzt ohne `SmtpUseSsl` → Warnung im Dienst-Log und `Pruefung/SmtpBenutzer` | `IDEALAKEWMSService/Services/MailService.cs:70-86` |
+| **`admin`** (WMS-Benutzer) | erster Anmelde-Benutzer, Rolle `admin` | wird beim ersten Start mit dem Standard-Erstkennwort `wms-admin` und Pflichtwechsel angelegt (seit v1.99.28; ebenso, wenn `PasswordHash` geleert wurde) – **sofort** anmelden | `IdealAkeWms/Services/AdminSeed.cs`, ADR 0027 |
 
 Das Installationsskript schlägt **ein** AD-Konto für App-Pool **und** Dienst vor (Quelle: `scripts/deploy/Install-IdealAkeWms.ps1:71-72`).
 Welches Konto auf welchem System tatsächlich läuft, ist im Brain nur teilweise festgehalten: Im Protokoll AKE Test-IDEAL steht das Konto
@@ -180,17 +180,17 @@ Fehlerbilder rund um Anmeldung (400 bei POST, Button ohne Wirkung): [07-troubles
 
 ---
 
-## 8. Bekannte Sicherheitsrisiken (Stand Code v1.99.23)
+## 8. Bekannte Sicherheitsrisiken (Stand Code v1.99.28)
 
 | Nr. | Befund | Fundstelle | Empfehlung |
 |---|---|---|---|
-| R1 | Benutzer `admin` wird beim ersten Start ohne Kennwort angelegt (bzw. ein leerer Hash nachgetragen) | `IdealAkeWms/Program.cs:260-279` | direkt nach Installation Kennwort setzen; regelmäßig prüfen |
-| R2 | **Benutzer ohne gespeichertes Kennwort melden sich im Formular mit leerem Kennwort an.** AD-Benutzer werden ohne Kennwort angelegt – damit ist das Formular für sie ohne Kennwort offen (Anmeldename = WMS-Benutzername) | `IdealAkeWms/Controllers/AccountController.cs:82-101`, `IdealAkeWms/Controllers/UsersController.cs:199-209` | an die Entwicklung melden; bis dahin bewusst entscheiden, ob Anmeldung aus dem Netz ohne SSO möglich sein soll |
+| R1 | ~~admin ohne Kennwort~~ **seit v1.99.28 entschärft:** admin bekommt das Standard-Erstkennwort `wms-admin` mit Pflichtwechsel. Restrisiko: bis zur ersten Anmeldung kennt jeder mit Betriebshandbuch das Kennwort | `IdealAkeWms/Services/AdminSeed.cs`, ADR 0027 | direkt nach Installation bzw. Rückweg als admin anmelden; `/Users` zeigt offene Erstkennwörter |
+| R2 | ~~Benutzer ohne Kennwort melden sich mit leerem Kennwort an~~ **behoben in v1.99.28:** das Formular meldet nur mit gespeichertem Kennwort an (Ausnahme nur `Development`, mit Hinweis). Vom Admin vergebene Kennwörter können einen Pflichtwechsel tragen | `IdealAkeWms/Controllers/AccountController.cs` (Login), ADR 0027 | vor dem Update `Pruefung/BenutzerOhneKennwort` beachten (sperrt Prod) |
 | R3 | DataProtection-Schlüsselring liegt unverschlüsselt im Dateisystem | [[0024-sdata-kennwort-verschluesselt-in-den-service-einstellungen]] „Negativ / Risiken“ | Ordnerrechte eng; Folgeaufgabe DPAPI laut ADR |
-| R4 | Mails ohne Verschlüsselung, wenn `SmtpUseSsl = false` (kein STARTTLS); ein gesetzter SMTP-Benutzer würde unverschlüsselt übertragen | `IDEALAKEWMSService/Services/MailService.cs:78-82` | anonymes internes Relay oder `SmtpUseSsl = true` |
-| R5 | Das Installationsskript schreibt angegebene SData- und SMTP-Zugangsdaten im Klartext in `appsettings.Production.json` bzw. Dienst-`appsettings.json` | `scripts/deploy/Install-IdealAkeWms.ps1:268-273,362-369` | SData-Zugang ohne `-SageLagerbuchungCredential` installieren und in `/ServiceSettings` eintragen |
+| R4 | Mails ohne Verschlüsselung, wenn `SmtpUseSsl = false` (kein STARTTLS); ein gesetzter SMTP-Benutzer würde unverschlüsselt übertragen. Seit v1.99.28 Warnung im Dienst-Log beim Senden und `Pruefung/SmtpBenutzer` | `IDEALAKEWMSService/Services/MailService.cs:75-86` | anonymes internes Relay oder `SmtpUseSsl = true` |
+| R5 | Das Installationsskript schreibt ein angegebenes SMTP-Kennwort im Klartext in die Dienst-`appsettings.json` (mit Warnung). `-SageLagerbuchungCredential` gibt es seit v1.99.28 nicht mehr | `scripts/deploy/Install-IdealAkeWms.ps1` Schritt 5 | SData-Zugang in `/ServiceSettings` eintragen; SMTP anonym bevorzugen |
 | R6 | TLS-Prüfung zum Sage-Server abschaltbar (`SageLagerbuchungSslZertifikatPruefen = false`) | `IdealAkeWms/Models/ServiceSettingDefinitions.cs:260` | nur auf Testsystemen; Warnung erscheint in `/ServiceSettings` und im Start-Log |
-| R7 | Testsysteme mit reiner HTTP-Bindung (z. B. IDEAL-Test Port 88): Sitzungs-Cookie und Formulardaten gehen unverschlüsselt; im Code ist keine `Secure`-Pflicht für das Cookie gesetzt | `scripts/deploy/ziele.psd1:4`, `IdealAkeWms/Program.cs:55-61` | Prod nur HTTPS (ist laut Zielliste so); Test nach Möglichkeit ebenfalls |
+| R7 | Testsysteme mit reiner HTTP-Bindung (z. B. IDEAL-Test Port 88): Sitzungs-Cookie und Formulardaten gehen unverschlüsselt; seit v1.99.28 tragen Sitzungs- und Antiforgery-Cookie bei HTTPS das `Secure`-Attribut (`SameAsRequest`), bei HTTP weiter nicht | `scripts/deploy/ziele.psd1:4`, `IdealAkeWms/Program.cs` (`AddSession`, `AddAntiforgery`) | Prod nur HTTPS (ist laut Zielliste so); Test nach Möglichkeit ebenfalls |
 | R8 | `MailSettings:PickupDirectory` in Produktion gesetzt = keine Mail geht raus, Protokoll meldet trotzdem „gesendet“ (kein Sicherheits-, aber ein stilles Betriebsrisiko) | [[fallstricke]] §5 „Mails pruefen ohne Versand“ | Prüfung `Pruefung/MailPickup` des Update-Skripts beachten |
 
 Klartext-Kennwörter in den geprüften Konfigurationsdateien: keine. `IdealAkeWms/appsettings*.json`, `IDEALAKEWMSService/appsettings*.json`

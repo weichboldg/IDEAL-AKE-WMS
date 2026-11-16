@@ -60,7 +60,9 @@ Die `web.config` enthält ein `requestTimeout` von 5 Minuten (Standard: 2 Minute
 `SQL/00_FreshInstall.sql` auf dem SQL Server ausführen — erstellt alle Tabellen, Views, Indexes und Standard-Daten in einem Script.
 
 Beim ersten App-Start werden automatisch angelegt (Startup-Seeding in `Program.cs`):
-- Benutzer **`admin`** mit leerem Passwort und Stammdaten-Zugriff
+- Benutzer **`admin`** mit dem Standard-Erstkennwort **`wms-admin`** und Pflichtwechsel (seit v1.99.28, ADR 0027) und Stammdaten-Zugriff —
+  sofort nach der Installation als admin anmelden und ein eigenes Kennwort festlegen. Dasselbe gilt, wenn `PasswordHash` von admin
+  per SQL geleert und die App neu gestartet wird (Rückweg bei vergessenem Kennwort). Das Formular meldet nur mit Kennwort an.
 - Lagerplatz **`NAN`** als Fallback für negative Buchungen
 
 #### Update bestehender Installation

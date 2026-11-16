@@ -9,6 +9,29 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.99.28</strong> <span class="text-white-50 ms-2">16.11.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>Anmeldung nur mit Kennwort, Erstkennwort mit Pflichtwechsel</h6>
+                <ul>
+                    <li>Das Anmeldeformular meldet <strong>nur noch mit gespeichertem Kennwort</strong> an. Ein Benutzer ohne Kennwort sieht
+                        &bdquo;Für diesen Benutzer ist kein Kennwort hinterlegt&ldquo; mit dem Hinweis auf die Windows-Anmeldung bzw. den Administrator.
+                        Die Windows-Anmeldung ist unverändert.</li>
+                    <li><strong>Erstkennwort:</strong> Unter Benutzer &gt; Anlegen/Bearbeiten vergibt der Administrator ein Kennwort oder lässt eins
+                        erzeugen (einmalig im Hinweis angezeigt). Mit dem Haken &bdquo;Muss Kennwort bei der nächsten Anmeldung ändern&ldquo; legt der
+                        Benutzer bei der ersten Anmeldung ein eigenes Kennwort fest. Für Terminal- und Gerätekonten den Haken entfernen.</li>
+                    <li>Die Benutzerliste zeigt aktive Benutzer ohne Kennwort und offene Erstkennwörter.</li>
+                    <li><strong>admin</strong> ohne Kennwort bekommt beim Start das Standard-Erstkennwort laut Betriebshandbuch und muss es bei der
+                        ersten Anmeldung ändern.</li>
+                    <li>Sitzungs- und Formular-Cookies sind bei HTTPS als &bdquo;Secure&ldquo; markiert.</li>
+                    <li>Betrieb: Installationsskript ohne SData-Zugangsdaten (die gehören in die Service-Einstellungen), FA-Abgleich nach der
+                        Installation aus, Warnung bei SMTP-Anmeldung ohne Verschlüsselung; Erstinstallations-Skript läuft wieder vollständig durch.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.99.26</strong> <span class="text-white-50 ms-2">16.11.2026</span>
             </div>
             <div class="card-body">
