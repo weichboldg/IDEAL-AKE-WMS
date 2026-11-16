@@ -63,7 +63,7 @@ public class SageSdataFaController : Controller
     {
         var abgebrochen = false;
 
-        async Task<SdataErgebnis<T>?> Aufruf<T>(string quelle, string where, string select, string? orderBy)
+        async Task<SdataErgebnis<T>?> Aufruf<T>(string quelle, string where, string select, string orderBy)
         {
             if (abgebrochen)
             {
@@ -86,7 +86,7 @@ public class SageSdataFaController : Controller
         }
 
         // 1. BelID → StrukturID (Haupt- und Sub-FA ueber denselben Weg).
-        var such = await Aufruf<SageFaKopf>(SageSdataQuellen.FaBelegsuche, $"BelID eq {belId}", "BelID,StrukturID", null);
+        var such = await Aufruf<SageFaKopf>(SageSdataQuellen.FaBelegsuche, $"BelID eq {belId}", "BelID,StrukturID", "BelID");
         if (such is null || !such.Call.Erfolgreich)
         {
             if (such is not null && !such.Call.Verbindungsfehler)
@@ -133,7 +133,7 @@ public class SageSdataFaController : Controller
             var alle = new List<T>();
             foreach (var (where, blockIds) in bloecke)
             {
-                var e = await Aufruf<T>(quelle, where, select, null);
+                var e = await Aufruf<T>(quelle, where, select, "BelID");
                 if (e is not null) alle.AddRange(e.Zeilen);
                 var grund = e is null ? "übersprungen" : e.Call.Erfolgreich ? null : e.Call.Fehler;
                 if (grund is null) continue;

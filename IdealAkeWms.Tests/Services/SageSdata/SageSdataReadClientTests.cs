@@ -63,7 +63,7 @@ public class SageSdataReadClientTests
     {
         var (client, stub) = Erzeuge(HttpStatusCode.OK, "{\"$resources\":[]}");
 
-        await client.GetAsync<SageFaPosition>(Ziel, SageSdataQuellen.Teileverwendungsnachweis, "KopfArtikelnummer eq '86003871' or BelID eq 836", "BelID", null, CancellationToken.None);
+        await client.GetAsync<SageFaPosition>(Ziel, SageSdataQuellen.Teileverwendungsnachweis, "KopfArtikelnummer eq '86003871' or BelID eq 836", "BelID", "BelID", CancellationToken.None);
 
         var uri = stub.Anfragen.Single().RequestUri!.AbsoluteUri;
         uri.Should().Contain("/ake_TEST2026;1/").And.Contain("where=KopfArtikelnummer%20eq%20'86003871'%20or%20BelID%20eq%20836");
@@ -76,7 +76,7 @@ public class SageSdataReadClientTests
         var (client, _) = Erzeuge(HttpStatusCode.OK, SageSdataFixtures.Feed(SageSdataFixtures.Positionen, "belid_836")
             .Replace("\"BelID\": 836", "\"BelID\": 836, \"$url\": \"https://x\", \"$updated\": \"2026-10-30\""));
 
-        var e = await client.GetAsync<SageFaPosition>(Ziel, SageSdataQuellen.Teileverwendungsnachweis, "BelID eq 836", "BelID", null, CancellationToken.None);
+        var e = await client.GetAsync<SageFaPosition>(Ziel, SageSdataQuellen.Teileverwendungsnachweis, "BelID eq 836", "BelID", "BelID", CancellationToken.None);
 
         e.Zeilen.Single().Menge.Should().Be(0.6m);
         e.Zeilen.Single().Ressourcenummer.Should().Be("00722001");
@@ -87,7 +87,7 @@ public class SageSdataReadClientTests
     {
         var (client, _) = Erzeuge(HttpStatusCode.Forbidden, "kein Zugriff");
 
-        var e = await client.GetAsync<SageFaKopf>(Ziel, SageSdataQuellen.FaBelegsuche, "BelID eq 1", "BelID", null, CancellationToken.None);
+        var e = await client.GetAsync<SageFaKopf>(Ziel, SageSdataQuellen.FaBelegsuche, "BelID eq 1", "BelID", "BelID", CancellationToken.None);
 
         e.Zeilen.Should().BeEmpty();
         e.Call.Status.Should().Be(403);
@@ -101,7 +101,7 @@ public class SageSdataReadClientTests
     {
         var (client, _) = Erzeuge(_ => throw new HttpRequestException("Der angegebene Host ist unbekannt. (nirgends:5493)"));
 
-        var e = await client.GetAsync<SageFaKopf>(Ziel, SageSdataQuellen.FaBelegsuche, "BelID eq 1", "BelID", null, CancellationToken.None);
+        var e = await client.GetAsync<SageFaKopf>(Ziel, SageSdataQuellen.FaBelegsuche, "BelID eq 1", "BelID", "BelID", CancellationToken.None);
 
         e.Call.Status.Should().Be(0);
         e.Call.Verbindungsfehler.Should().BeTrue();
@@ -113,7 +113,7 @@ public class SageSdataReadClientTests
     {
         var (client, _) = Erzeuge(_ => throw new TaskCanceledException("timeout"));
 
-        var e = await client.GetAsync<SageFaKopf>(Ziel, SageSdataQuellen.FaBelegsuche, "BelID eq 1", "BelID", null, CancellationToken.None);
+        var e = await client.GetAsync<SageFaKopf>(Ziel, SageSdataQuellen.FaBelegsuche, "BelID eq 1", "BelID", "BelID", CancellationToken.None);
 
         e.Call.Status.Should().Be(0);
         e.Call.Fehler.Should().Contain("Zeitüberschreitung nach 20 s");
@@ -124,7 +124,7 @@ public class SageSdataReadClientTests
     {
         var (client, _) = Erzeuge(HttpStatusCode.OK, "<html>Login</html>");
 
-        var e = await client.GetAsync<SageFaKopf>(Ziel, SageSdataQuellen.FaBelegsuche, "BelID eq 1", "BelID", null, CancellationToken.None);
+        var e = await client.GetAsync<SageFaKopf>(Ziel, SageSdataQuellen.FaBelegsuche, "BelID eq 1", "BelID", "BelID", CancellationToken.None);
 
         e.Zeilen.Should().BeEmpty();
         e.Call.Fehler.Should().StartWith("Antwort nicht lesbar");
@@ -139,9 +139,24 @@ public class SageSdataReadClientTests
     {
         var (client, stub) = Erzeuge(HttpStatusCode.OK, "{}");
 
-        var act = () => client.GetAsync<SageFaPosition>(Ziel, SageSdataQuellen.Teileverwendungsnachweis, where, "BelID", null, CancellationToken.None);
+        var act = () => client.GetAsync<SageFaPosition>(Ziel, SageSdataQuellen.Teileverwendungsnachweis, where, "BelID", "BelID", CancellationToken.None);
 
         await act.Should().ThrowAsync<ArgumentException>();
+        stub.Anfragen.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData(" ")]
+    public async Task WhereOhneOrderBy_ArgumentException_OhneRequest(string? orderBy)
+    {
+        // Spec 2026-11-16-fa-struktur-ideal-ueber-sdata AK 1: IDEAL antwortet ohne orderBy mit 500 -> vorher abbrechen.
+        var (client, stub) = Erzeuge(HttpStatusCode.OK, "{}");
+
+        var act = () => client.GetAsync<SageFaKopf>(Ziel, SageSdataQuellen.FaBelegsuche, "BelID eq 1", "BelID", orderBy, CancellationToken.None);
+
+        (await act.Should().ThrowAsync<ArgumentException>()).Which.ParamName.Should().Be("orderBy");
         stub.Anfragen.Should().BeEmpty();
     }
 
@@ -150,7 +165,7 @@ public class SageSdataReadClientTests
     {
         var (client, _) = Erzeuge(HttpStatusCode.InternalServerError, new string('x', 5000));
 
-        var e = await client.GetAsync<SageFaKopf>(Ziel, SageSdataQuellen.FaBelegsuche, "BelID eq 1", "BelID", null, CancellationToken.None);
+        var e = await client.GetAsync<SageFaKopf>(Ziel, SageSdataQuellen.FaBelegsuche, "BelID eq 1", "BelID", "BelID", CancellationToken.None);
 
         e.Call.Rohdaten!.Length.Should().Be(4000);
     }

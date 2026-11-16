@@ -186,6 +186,9 @@ public class SageSdataFaControllerTests
         vm.Struktur.Meldungen.Should().BeEmpty();
         vm.Aufrufe.Should().HaveCount(5).And.OnlyContain(a => a.Erfolgreich);
         vm.Aufrufe.Should().OnlyContain(a => !a.Url!.Contains("geheim") && !a.Url.Contains("sdatauser"));
+        // AK 2 (Spec 2026-11-16-fa-struktur-ideal-ueber-sdata): jeder Aufruf mit where traegt orderBy (der Fake baut die URL ueber
+        // SageSdataReadClient.BuildUrl und wuerde ohne orderBy werfen).
+        vm.Aufrufe.Should().OnlyContain(a => a.Url!.Contains("&orderBy=BelID"));
     }
 
     [Fact]

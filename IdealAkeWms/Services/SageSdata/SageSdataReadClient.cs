@@ -9,9 +9,10 @@ namespace IdealAkeWms.Services.SageSdata;
 public interface ISageSdataReadClient
 {
     /// <summary>
-    /// <c>GET {Basis}/sdata/{App}/RealTimeData/{Dataset}/{quelle}?where=…&amp;select=…[&amp;orderBy=…]&amp;format=json</c>.
-    /// Wirft nie bei HTTP- oder Verbindungsfehlern (leere Zeilen + Diagnose), nur bei leerem <paramref name="where"/>
-    /// (<see cref="ArgumentException"/>) und bei Abbruch durch <paramref name="ct"/>.
+    /// <c>GET {Basis}/sdata/{App}/RealTimeData/{Dataset}/{quelle}?where=…&amp;select=…&amp;orderBy=…&amp;format=json</c>.
+    /// Wirft nie bei HTTP- oder Verbindungsfehlern (leere Zeilen + Diagnose), nur bei leerem <paramref name="where"/> oder leerem
+    /// <paramref name="orderBy"/> (<see cref="ArgumentException"/>, kein HTTP-Aufruf; IDEAL antwortet ohne orderBy mit 500, Spec
+    /// 2026-11-16-fa-struktur-ideal-ueber-sdata F1) und bei Abbruch durch <paramref name="ct"/>.
     /// </summary>
     Task<SdataErgebnis<T>> GetAsync<T>(SdataLeseZiel ziel, string quelle, string where, string select, string? orderBy, CancellationToken ct);
 
@@ -73,9 +74,13 @@ public sealed class SageSdataReadClient : ISageSdataReadClient
         errors == System.Net.Security.SslPolicyErrors.None
         || (request is not null && request.Options.TryGetValue(ZertifikatPruefenOption, out var pruefen) && !pruefen);
 
+    /// <summary>Wirft bei gesetztem <paramref name="where"/> ohne <paramref name="orderBy"/> (Waechter fuer alle RealTimeData-Wege,
+    /// auch Test-Fakes, die die URL hierueber bauen).</summary>
     public static string BuildUrl(SdataLeseZiel ziel, string quelle, string where, string select, string? orderBy)
     {
-        var query = $"{quelle}?where={where}&select={select}" + (orderBy is null ? "" : $"&orderBy={orderBy}") + "&format=json";
+        if (!string.IsNullOrWhiteSpace(where) && string.IsNullOrWhiteSpace(orderBy))
+            throw new ArgumentException("SData-Abfrage mit where ohne orderBy ist gesperrt (Sage IDEAL antwortet sonst mit HTTP 500).", nameof(orderBy));
+        var query = $"{quelle}?where={where}&select={select}" + (string.IsNullOrWhiteSpace(orderBy) ? "" : $"&orderBy={orderBy}") + "&format=json";
         return SdataUrlBuilder.BuildResourceUrl(ziel.BaseUrl, ziel.Application, ServiceContract, ziel.Dataset, query);
     }
 
