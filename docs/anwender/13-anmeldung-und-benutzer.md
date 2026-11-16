@@ -1,6 +1,6 @@
 # 13 – Anmeldung und Benutzer (Erstkennwort mit Pflichtwechsel)
 
-Stand: Version 1.99.29 · Standorte AKE und IDEAL · Bilder aus dem AKE-Testsystem
+Stand: Version 1.99.29 · Standorte AKE und IDEAL · Bilder aus den Testsystemen AKE und IDEAL
 
 ## Zweck
 
@@ -34,6 +34,8 @@ Einstellungen*).
 - **Am Büro-PC:** **Mit Windows anmelden** klicken (oder die Seite meldet automatisch an). Kein Kennwort nötig.
 - **Am Handgerät / Terminal:** Benutzername und Passwort eingeben, **Anmelden**.
 
+![Rote Meldung „Für diesen Benutzer ist kein Kennwort hinterlegt …“ auf der Anmeldeseite (Testbenutzer, IDEAL-Testsystem)](bilder/13-04-meldung-kein-kennwort.jpg)
+
 Erscheint **„Für diesen Benutzer ist kein Kennwort hinterlegt.“**, hat der Benutzer kein WMS-Kennwort. Die Meldung sagt, was zu tun ist:
 mit **Mit Windows anmelden** weiter (wenn der Knopf da ist) oder beim Administrator ein Kennwort setzen lassen. Ein leeres Passwortfeld
 hilft nicht mehr – das war vor Version 1.99.28 möglich und ist bewusst abgeschaltet.
@@ -62,8 +64,8 @@ Abgelehnt wird (rote Meldung, man bleibt im Schritt):
 **Abbrechen** führt zurück zur Anmeldeseite – **ohne** Anmeldung. Beim nächsten Versuch kommt der Schritt wieder, bis ein eigenes
 Kennwort festgelegt ist.
 
-> Ein Bild des Schritts „Neues Kennwort festlegen“ fehlt bewusst: Dafür müsste man sich auf dem Testsystem abmelden und mit einem
-> Erstkennwort neu anmelden. Der Schritt hat dieselbe Gestaltung wie die Anmeldeseite oben, nur mit drei Kennwortfeldern.
+> Ein Bild des Schritts „Neues Kennwort festlegen“ fehlt bewusst: Dafür müsste auf dem Testsystem ein Erstkennwort gespeichert und damit
+> angemeldet werden (diese Doku-Runde hat nichts gespeichert). Der Schritt hat dieselbe Gestaltung wie die Anmeldeseite oben, nur mit drei Kennwortfeldern.
 
 ### 3. Eigenes Kennwort später ändern
 

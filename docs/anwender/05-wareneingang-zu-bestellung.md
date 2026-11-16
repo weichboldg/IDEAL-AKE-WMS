@@ -139,9 +139,9 @@ WMS-Betreuung melden.
 
 **Bekannte Fehler (Stand 14.11.2026, Behebung geplant):**
 
-- **„Einbuchen“ nur einmal drücken.** Wird zweimal abgeschickt (Doppeltipp am Handgerät, Netz hängt und man drückt nochmal, F5 nach dem
-  Buchen), bucht das WMS zweimal – bei eingeschaltetem Sage-Wareneingang entstehen dann auch zwei Belege in Sage. Nach dem Klick warten, bis die
-  grüne Meldung kommt. Im Zweifel nicht nochmal buchen, sondern die Spalte **im WMS erfasst** prüfen.
+- ~~„Einbuchen“ nur einmal drücken~~ – **behoben seit Version 1.99.23.** Ein Doppelklick, eine Netz-Wiederholung am Handgerät oder F5 bucht
+  nichts mehr doppelt; es erscheint „bereits … – nichts geändert“ bzw. „bereits gebucht“. Eine vor dem Update geöffnete Seite wird mit „Seite ist
+  veraltet“ abgewiesen – neu laden.
 - **Fehlermeldung mitten im Buchen.** Bricht das Speichern bei mehreren Positionen mit einer Fehlerseite ab (sehr selten, z. B. Datenbank kurz
   weg), können die ersten Positionen schon gebucht sein. Bestellung neu öffnen, **im WMS erfasst** prüfen und nur den Rest buchen.
 - **Glasbestellung heißt „Lagerbestellung“.** Im Hinweis „Offener Bedarf“ steht bei einer Glasbestellung „Lagerbestellung Nr. …“. Der Link
