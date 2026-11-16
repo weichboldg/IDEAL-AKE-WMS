@@ -631,15 +631,15 @@ Sage-Prüfungen. Alles gehört fachlich zu einer Liste, die Till als Ganzes abni
 | # | Etappe | Status | Commit |
 |---|--------|--------|--------|
 | 0 | Prüfabfragen P-N1–P-N9 auswerten (Mensch); Ergebnisse in diese Spec. Kein Code. | offen | – |
-| 1 | Eigene Laufzeit `LetzteBestellung` + Planer (3/12 Uhr, verpassten Termin nach Dienststart nachholen) + Einstellungen + SyncLog-Name; Basismenge 0 (AK 1–5). Antwort 5 | offen | |
-| 2 | `ArticleLastOrderUnassigned` + SQL/155 + FreshInstall; Hinweistexte F3 inkl. Lieferant; Lieferant-Kaskade F8 (AK 6, 18). Antwort 4 | offen | |
-| 3 | Gemeinsamer Bedarfs-Service (`PlannedConsumptionService`) + Listen-BOM-Methoden + FA-Rest + max-Regeln + `OffenerBedarf.ProductionOrderId`; Artikelinfo auf dieselbe Regel mit Aufschlüsselung und Spalte „Rest“, `EinkaufOffeneBedarfe`-Beschreibung (AK 7, 7a, 9, 10 für die Artikelinfo). Antworten 1, 2, 7; Ausbuchungsarten bis P-N8 nur `Ausbuchung` | offen | |
-| 4 | Bestellvorschläge auf den Service: Spalte „FA-Bedarf“, Banner; Spalte Matchcode, Link zur Artikelinfo mit `returnUrl` + Zurück-Knopf (AK 8–10, 20a–20c) | offen | |
-| 5 | Dringlichkeit nach Termin/WBZ, offene Bestellungen nur mit Liefertermin ≤ heute + WBZ (Cache `SagePurchaseOrderLines.Liefertermin`), Spalte „Nächster Bedarf“ (AK 11, 11a, 12). Antwort 6 | offen | |
-| 6 | Mengenregel A, MBM immer bei Umrechenbarkeit (AK 13). Antwort 3 | offen | |
-| 7 | Umrechnungs-Helper **Ersatzlösung** (F7): nur gleiche Kürzel mit Faktor leer/1, sonst Hinweis; offene Bestellungen mit Basis = Lager trotz `EinheitAbweichend` eingerechnet; Sage-Bestellmenge bei Basis ≠ Lager gesperrt (BV-1) (AK 14–17 in der Ersatzform). **Blocker P-N1/P-N2/P-N3/P-N4/P-N7** nur für die Freischaltung der Umrechnung über Einheitengrenzen – liegt eine Antwort vor, Regel + Unit-Test mit Prüfwerten in dieser Etappe; sonst Blocker vermerken, nicht stoppen | offen | |
-| 8 | **Blocker P-N6/P-N9:** Rahmenvertrag lesen und anzeigen (Antwort 8: Lieferant-Vorrang, Rest nur Hinweis; AK 19), ggf. SQL/156. Ohne Belege: Etappe überspringen (nichts bauen), Blocker vermerken | offen | |
-| 9 | Abschluss: TS-154 (inkl. 154.11/154.12, Testartikel EK000051, EK014367, EK005564, EK023973, 00394205, EK003604, EK002400, EK007623), Hilfe (`Views/Help`, konkrete Details), **`docs/anwender/08-bestellvorschlaege.md`** (Rechenregel neu, Matchcode/Link, Abschnitt Artikelinfo-Hinweis: gleiche Bedarfe), **`docs/betrieb/04-konfiguration.md`** (§5.2: `Sync:LetzteBestellungUhrzeitNacht/-Mittag`), Anwender-Changelog mit Hinweis „sichtbare Änderung für Lager/Produktion“ (Artikelinfo), beide `AppVersion.cs`, README/ServiceSettings, Brain (feature-map, services.md, datenmodell.md, fallstricke §37 ergänzen, Testindex) | offen | |
+| 1 | Eigene Laufzeit `LetzteBestellung` + Planer (3/12 Uhr, verpassten Termin nach Dienststart nachholen) + Einstellungen + SyncLog-Name; Basismenge 0 (AK 1–5). Antwort 5 | erledigt | 223d7015 |
+| 2 | `ArticleLastOrderUnassigned` + SQL/155 + FreshInstall; Hinweistexte F3 inkl. Lieferant; Lieferant-Kaskade F8 (AK 6, 18). Antwort 4 | erledigt | 92e6fcc3 |
+| 3 | Gemeinsamer Bedarfs-Service (`PlannedConsumptionService`) + Listen-BOM-Methoden + FA-Rest + max-Regeln + `OffenerBedarf.ProductionOrderId`; Artikelinfo auf dieselbe Regel mit Aufschlüsselung und Spalte „Rest“, `EinkaufOffeneBedarfe`-Beschreibung (AK 7, 7a, 9, 10 für die Artikelinfo). Antworten 1, 2, 7; Ausbuchungsarten bis P-N8 nur `Ausbuchung` | erledigt | 6a3e7502 |
+| 4 | Bestellvorschläge auf den Service: Spalte „FA-Bedarf“, Banner; Spalte Matchcode, Link zur Artikelinfo mit `returnUrl` + Zurück-Knopf (AK 8–10, 20a–20c) | erledigt | 6c2e039c |
+| 5 | Dringlichkeit nach Termin/WBZ, offene Bestellungen nur mit Liefertermin ≤ heute + WBZ (Cache `SagePurchaseOrderLines.Liefertermin`), Spalte „Nächster Bedarf“ (AK 11, 11a, 12). Antwort 6 | erledigt | addd7c0b |
+| 6 | Mengenregel A, MBM immer bei Umrechenbarkeit (AK 13). Antwort 3 | erledigt | 34c38ce8 |
+| 7 | Umrechnungs-Helper **Ersatzlösung** (F7): nur gleiche Kürzel mit Faktor leer/1, sonst Hinweis; offene Bestellungen mit Basis = Lager trotz `EinheitAbweichend` eingerechnet; Sage-Bestellmenge bei Basis ≠ Lager gesperrt (BV-1) (AK 14–17 in der Ersatzform). **Blocker P-N1/P-N2/P-N3/P-N4/P-N7** nur für die Freischaltung der Umrechnung über Einheitengrenzen – liegt eine Antwort vor, Regel + Unit-Test mit Prüfwerten in dieser Etappe; sonst Blocker vermerken, nicht stoppen | erledigt (Ersatzlösung; Blocker P-N1/P-N2/P-N3/P-N4/P-N7 für die Umrechnung über Einheitengrenzen) | 4a580fc5 |
+| 8 | **Blocker P-N6/P-N9:** Rahmenvertrag lesen und anzeigen (Antwort 8: Lieferant-Vorrang, Rest nur Hinweis; AK 19), ggf. SQL/156. Ohne Belege: Etappe überspringen (nichts bauen), Blocker vermerken | übersprungen – Blocker P-N6/P-N9 (kein Leseweg belegt, nichts gebaut, SQL/156 unverbraucht) | – |
+| 9 | Abschluss: TS-154 (inkl. 154.11/154.12, Testartikel EK000051, EK014367, EK005564, EK023973, 00394205, EK003604, EK002400, EK007623), Hilfe (`Views/Help`, konkrete Details), **`docs/anwender/08-bestellvorschlaege.md`** (Rechenregel neu, Matchcode/Link, Abschnitt Artikelinfo-Hinweis: gleiche Bedarfe), **`docs/betrieb/04-konfiguration.md`** (§5.2: `Sync:LetzteBestellungUhrzeitNacht/-Mittag`), Anwender-Changelog mit Hinweis „sichtbare Änderung für Lager/Produktion“ (Artikelinfo), beide `AppVersion.cs`, README/ServiceSettings, Brain (feature-map, services.md, datenmodell.md, fallstricke §37 ergänzen, Testindex) | erledigt | fd9f49db |
 
 ## Pruefabfragen fuer Gerald (nur lesend; Sage 4445 / AKE-Test bzw. WMS-DEV)
 
@@ -720,6 +720,15 @@ SData-Abfragen über die bekannte Basis-URL des AKE-Test (wie in [[sage-sdata-ap
 - Die BDE-Teileliste-Spec ([[2026-11-13-bde-vereinfacht-teileliste-blechfertigung-spec]]) nennt noch Version 1.99.28. Die ist inzwischen von
   „Sicherheit Anmeldung“ belegt; BDE braucht eine neue Nummer (Vorschlag 1.99.30).
 - Diese Spec nimmt **1.99.31 / SQL/155 / TS-154**. Der Dev-Lauf prüft das beim Start erneut.
+
+**Abgleich mit dem echten Diff (Umsetzung 2026-11-16, Stand `fd9f49db`):**
+
+- Version **1.99.30** statt 1.99.31 (nächste freie Nummer), SQL/155, TS-154 wie vorgeschlagen. Migration `20261116190709_AddArticleLastOrderUnassigned`,
+  Tabelle `ArticleLastOrdersUnassigned`.
+- Manifest: nur `SQL/155` (Version 1.99.30, Quelle `2026-11-16-v1-99-30-bestellvorschlaege-nachbesserung`) eingetragen, Drift-Test
+  `SchemaReihenfolge` um SQL/155 ergänzt. Die zwei Info-Einträge oben sind **nicht** eingetragen (offen für QA/Gerald; Ids dann mit 1.99.30).
+- Kein SQL/156 (E8 übersprungen). Web und Dienst geändert, wie oben.
+- Migrationstest auf `.`: FreshInstall + SQL/155 zweimal grün, DB gelöscht.
 
 ## Nachtrag 2026-11-16 19:49 (Gerald, Koordination) – Artikelnummer, Matchcode, Link zur Artikelinfo
 

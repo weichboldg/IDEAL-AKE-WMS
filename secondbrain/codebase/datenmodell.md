@@ -243,6 +243,10 @@ oben ist durch SQL/149 ueberholt (jetzt 45).
   Migration `20261113171808_AddArticleSupplierLetzteBestellung`, v1.99.21, additiv. Geschrieben nur vom Dienst
   (`ArtikelLieferantSyncService.LetzteBestellungAsync`, Rueckblick `ArticleSupplier.LetzteBestellungRueckblickJahre` = 3), gelesen von
   `PurchaseProposalsController`/`PurchaseProposalCalculator`. Kein Treffer mehr = Werte geleert.
+- `ArticleLastOrdersUnassigned` (SQL/155, Migration `20261116190709_AddArticleLastOrderUnassigned`, v1.99.30, additiv): juengste Sage-Bestellung
+  (EBB/EBZ, 3 Jahre) je Artikel bei Lieferanten **ohne** `ArticleSuppliers`-Zeile – `ArticleId` (FK Articles CASCADE), `Kto` nvarchar(20),
+  `Menge` decimal(18,3) (Basiseinheit), `Am` date, `Beleg` nvarchar(45), Audit-Felder; UNIQUE (ArticleId, Kto). Geschrieben nur vom Dienst
+  (`LetzteBestellungSyncService`), gelesen von `PurchaseProposalRepository` (letzte Bestellung, Hinweis „kein Artikel-Lieferant in Sage“).
 - Belegnummer 45 (SQL/149, Migration `20261113172929_WidenBelegnummer45`, v1.99.22, nicht destruktiv): `SagePurchaseOrderLines.Belegnummer`,
   `PurchaseOrderReminders.Belegnummer`, `PurchaseOrderReceipts.Belegnummer` 20 → 45, `PurchaseOrderReceipts.SageWeBelegnummer` 30 → 45; Index
   `IX_SagePurchaseOrderLines_Belegnummer` drop/recreate. Konstante `SagePurchaseOrderLine.BelegnummerMaxLaenge = 45` (auch fuer „Klären → als

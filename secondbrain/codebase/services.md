@@ -422,6 +422,16 @@ Quellen-Weiche je Abgleich: [[0019-quellen-weiche-view-sdata-je-abgleich]]. Ordn
   juengster Beleg je Artikel + `A0Empfaenger` (Datum↓, BelId↓, BelPosId↓), speichert `MengeBasis` in `ArticleSuppliers.LetzteBestellmenge`/
   `LetzteBestellungAm`/`LetzteBestellungBeleg`. Kein Treffer = Werte geleert; Lesefehler oder 0 EBB = Warnung, Werte bleiben. Counts
   `letzte_bestellung_*`. Laufzeit am AKE-Test ca. 5–6 min laenger (Q-3 in [[2026-11-13-v1-99-21-einkauf-letzte-bestellmenge]]).
+  **Seit v1.99.30 abgeloest:** eigener `IDEALAKEWMSService/Services/Sdata/LetzteBestellungSyncService.cs` (SyncLog-Service `LetzteBestellung`,
+  Aufruf im `SyncWorker` nach dem Artikel-Lieferanten-Lauf, `RunWennFaelligAsync`), nur zu `Sync:LetzteBestellungUhrzeitNacht` (3) /
+  `Sync:LetzteBestellungUhrzeitMittag` (12) je einmal pro Tag und Fenster, Gate weiter `Sync:ArtikelLieferantEnabled`. `MengeBasis <= 0` zaehlt
+  nicht. Bestellungen bei Lieferanten ohne Artikel-Lieferant-Zeile → `ArticleLastOrdersUnassigned`. Counts `positionen`, `positionen_ebz`,
+  `menge_null`, `gefunden`, `aktualisiert`, `geleert`, `lesefehler` ([[2026-11-16-v1-99-30-bestellvorschlaege-nachbesserung]]).
+- **Bedarfsregel (v1.99.30, Web):** `IdealAkeWms/Services/PlannedConsumptionService.cs` (`IPlannedConsumptionService.GetJeArtikelAsync`) – EINE
+  Stelle fuer Artikelinfo und Bestellvorschlaege: offene FAs (`!IsDone && !IsCancelled && !IsDonePicking`) mit Stuecklisten-Treffer
+  (`IBomCacheRepository.GetComponentMengePerDeviceAsync`, flach Menge × Quantity, hierarchisch Sollmenge), Rest = Soll − Ausbuchungen zum FA
+  (`IStockMovementRepository.GetAusbuchungenJeFaAsync`), je FA max(Rest, Bedarfsmeldungen), Artikel max(FA-Teil, Lagerbestellungen);
+  `EinkaufOffeneBedarfe` steuert Lagerbestellungen/Bedarfsmeldungen. `ArtikelBedarf.AngerechnetBis`/`NaechsterBedarf` fuer die Dringlichkeit.
 - **Bestellvorschlaege (v1.99.20, Web):** `IdealAkeWms/Services/PurchaseProposalCalculator.cs` – eine Rechenstelle: Fehlmenge F aus WMS-Bestand,
   Sage verfuegbar, offenen Bedarfen (`EinkaufOffeneBedarfe`), offen bestellt (Cache `SagePurchaseOrderLines`, Rest-Regel `ErfasstJeBelPos.Rest`)
   und Meldebestand; Menge V = (⌊F/L⌋+1)×L mit L = letzte Bestellmenge, ohne Bestellung in 3 Jahren Fallback `ArticleSageDetail.Bestellmenge`

@@ -1915,6 +1915,19 @@ Code: `hardware-scanner.js` Block „Scannen ohne Feld“, CSS `.hw-scan-bereit`
   mit `Sync:ArtikelLieferantEnabled` gefüllt wird. Die Partner-Ressource heißt `eptEinkaufsbelege.100036671.DPSBS_DMS_Connector` (ohne Suffix 404).
 - **Erste Welle Kreditor-Mails:** Auch mit `MaxAlterTage` 180 lagen auf AKE-DEV 96–99 Kreditoren über `KreditorMaxJeLauf` 30 („alle oder keine“) –
   vor dem Einschalten Zahl prüfen.
+- **Bedarfe nie doppelt und nie an zwei Stellen rechnen (v1.99.30, [[2026-11-16-bestellvorschlaege-nachbesserung-spec]]).** Bedarfsmeldung und
+  Lagerbestellung beschreiben oft denselben Bedarf wie der FA – Summieren zieht ihn doppelt ab (Till: Vorschläge zu hoch). Deshalb je FA
+  max(FA-Rest, Meldung), dann max(FA-Teil, Lagerbestellungen), und zwar nur in `PlannedConsumptionService`; Artikelinfo und Liste lesen dort
+  (Gleichheitstest `PurchaseProposalsNachbesserungE4Tests`). **Warum:** Die Artikelinfo hatte eine eigene Rechnung (Soll ohne Ausbuchungen) und
+  zeigte damit andere Zahlen als der Einkauf – zwei Wahrheiten zum selben Artikel.
+- **Nur `Ausbuchung` mindert den FA-Rest.** Eine Einbuchung mit FA-Nummer (Rücklage) darf den Rest nicht erhöhen bzw. senken – sonst sinkt der
+  Bedarf beim Zurücklegen. **Warum:** `StockMovement.ProductionOrderId` hängt an beiden Richtungen.
+- **Gleiche Einheit heißt auch bei `UmrechnungsFaktorLME` nicht Faktor 1, und `EinheitAbweichend` heißt nicht „nicht rechenbar“.** Die
+  Cache-Mengen offener Bestellungen sind in der Basiseinheit; weicht nur die Bestelleinheit ab, ist die Menge brauchbar (EK005564). Über
+  Einheitengrenzen wird bis P-N1/2/3/4/7 nichts umgerechnet, nur gemeldet. **Warum:** Richtung und Bedeutung der Faktoren sind in Sage nicht
+  belegt; ein geratener Faktor 1 sieht plausibel aus und ist unbemerkt falsch.
+- **`sqlcmd` setzt `QUOTED_IDENTIFIER` OFF** – `00_FreshInstall.sql` bricht dann mit Meldung 1934 an gefilterten Indizes ab (Rückgabewert trotzdem
+  „gelaufen“ ohne `-b`). Migrationstest immer mit `sqlcmd -I`.
 
 ## 38. Doppel-Absenden, verpackter Deadlock, feste Kultur (v1.99.23, [[2026-11-14-schutz-doppel-absenden-und-unsichtbare-positionen-spec]], ADR [[0026-schreibaktionen-senden-die-absicht-der-server-prueft-am-schreibort]])
 
