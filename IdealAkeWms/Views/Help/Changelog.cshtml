@@ -9,6 +9,23 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.99.29</strong> <span class="text-white-50 ms-2">16.11.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>Wareneingang-CSV für enaio: ohne Kopfzeile, Erfasser = Windows-Kontoname</h6>
+                <ul>
+                    <li>Die Datei <code>&lt;Barcode&gt;.csv</code> enthält <strong>keine Kopfzeile</strong> mehr, nur die eine Datenzeile mit 9 Feldern
+                        (Strichpunkt, UTF-8): Barcode, Kreditornummer, Kreditorname, Bestellnummer, Lieferschein, Sage-Belegnummer, Erfasser, Datum,
+                        übergeben am. enaio ordnet nach der Position zu.</li>
+                    <li><strong>Erfasser</strong> ist der Windows-Kontoname des buchenden Benutzers ohne Domäne (z.&nbsp;B. <code>jmuster</code>).
+                        Lokale WMS-Benutzer ohne Windows-Konto behalten ihren WMS-Namen.</li>
+                    <li>Nur die CSV ändert sich; Mails, Druck und Sage-Belege bleiben unverändert. Nur AKE.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.99.28</strong> <span class="text-white-50 ms-2">16.11.2026</span>
             </div>
             <div class="card-body">

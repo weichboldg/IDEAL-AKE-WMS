@@ -61,7 +61,7 @@ public class WareneingangCsvService
         if (faellig.Count == 0) return;   // kein Protokoll-Eintrag je Takt ohne Arbeit (ADR 0010)
 
         var vorgaenge = faellig.Select(e => e.SageWeVorgang).ToList();
-        var erste = (await _ctx.PurchaseOrderReceipts.AsNoTracking()
+        var erste = (await _ctx.PurchaseOrderReceipts.AsNoTracking().Include(r => r.StockMovement).ThenInclude(m => m.User)   // Erfasser (v1.99.29)
                 .Where(r => r.SageWeVorgang != null && vorgaenge.Contains(r.SageWeVorgang.Value)).ToListAsync(ct))
             .GroupBy(r => r.SageWeVorgang!.Value).ToDictionary(g => g.Key, g => g.MinBy(r => r.Id)!);
 
@@ -128,17 +128,20 @@ public class WareneingangCsvService
         }
     }
 
-    /// <summary>F3a (Freigabe-Antworten 1c, 2, 3): Kopfzeile + eine Datenzeile, Trennzeichen <c>;</c>, CRLF, Datum <c>yyyy-MM-dd HH:mm</c>,
-    /// Felder mit <c>;</c>, <c>"</c> oder Zeilenumbruch in Anfuehrungszeichen (inneres <c>"</c> verdoppelt), leere Werte leer.
-    /// Das BOM setzt der Schreiber (UTF-8 mit BOM).</summary>
+    /// <summary>F3a (Freigabe-Antworten 1c, 2, 3): eine Datenzeile ohne Kopfzeile (v1.99.29: enaio ordnet nach Position zu), Trennzeichen
+    /// <c>;</c>, CRLF, Datum <c>yyyy-MM-dd HH:mm</c>, Felder mit <c>;</c>, <c>"</c> oder Zeilenumbruch in Anfuehrungszeichen (inneres
+    /// <c>"</c> verdoppelt), leere Werte leer. Das BOM setzt der Schreiber (UTF-8 mit BOM).
+    /// Erfasser (v1.99.29): <c>WindowsUserName</c> des Benutzers der Bewegung ohne Domaene, sonst <c>User.Name</c>, ohne Benutzer
+    /// <c>CreatedBy</c>. Nie <c>CreatedByWindows</c>/<c>StockMovement.WindowsUser</c> - das ist die Sitzungs-Identitaet, nicht der Benutzer.</summary>
     public static string CsvInhalt(PurchaseOrderReceipt r, string barcode)
     {
         static string F(string? v) => string.IsNullOrEmpty(v) ? ""
             : v.IndexOfAny(new[] { ';', '"', '\r', '\n' }) >= 0 ? "\"" + v.Replace("\"", "\"\"") + "\"" : v;
         static string D(DateTime? d) => d?.ToString("yyyy-MM-dd HH:mm", System.Globalization.CultureInfo.InvariantCulture) ?? "";
-        return "Barcode;Kreditornummer;Kreditorname;Bestellnummer;Lieferschein;SageBelegnummer;Erfasser;Datum;UebergebenAm\r\n"
-            + string.Join(";", F(barcode), F(r.LieferantKto), F(r.LieferantName), F(r.Belegnummer), F(r.Lieferschein), F(r.SageWeBelegnummer),
-                F(r.CreatedBy), D(r.CreatedAt), D(r.SageWeAm)) + "\r\n";
+        var u = r.StockMovement?.User;   // ?.: Receipt ohne geladene Bewegung (statischer Aufruf)
+        var erfasser = WindowsAccountHelper.ExtractSam(u?.WindowsUserName) ?? u?.Name ?? r.CreatedBy;
+        return string.Join(";", F(barcode), F(r.LieferantKto), F(r.LieferantName), F(r.Belegnummer), F(r.Lieferschein), F(r.SageWeBelegnummer),
+                F(erfasser), D(r.CreatedAt), D(r.SageWeAm)) + "\r\n";
     }
 
     private static string? Kappen(string? v, int max) => string.IsNullOrEmpty(v) ? v : (v.Length <= max ? v : v[..max]);

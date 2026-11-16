@@ -79,8 +79,8 @@ public sealed class WareneingangCsvServiceTests : IDisposable
         var bytes = File.ReadAllBytes(e.Datei!);
         bytes.Take(3).Should().Equal(new byte[] { 0xEF, 0xBB, 0xBF }, "UTF-8 mit BOM");
         var text = Encoding.UTF8.GetString(bytes, 3, bytes.Length - 3);
-        text.Should().Be("Barcode;Kreditornummer;Kreditorname;Bestellnummer;Lieferschein;SageBelegnummer;Erfasser;Datum;UebergebenAm\r\n"
-                         + "AKE1235564654;70001;\"Muster; \"\"GmbH\"\"\";2026-500;LS-4711;2027-398675;Max Lager;2026-11-12 09:30;2026-11-12 10:05\r\n");
+        // v1.99.29: ohne Kopfzeile, genau eine Zeile; ohne UserId an der Bewegung -> Erfasser = CreatedBy
+        text.Should().Be("AKE1235564654;70001;\"Muster; \"\"GmbH\"\"\";2026-500;LS-4711;2027-398675;Max Lager;2026-11-12 09:30;2026-11-12 10:05\r\n");
         log.Runs.Single().ServiceName.Should().Be(SyncLogServices.WareneingangCsv);
         log.Runs.Single().FinalCounts.Should().BeEquivalentTo(new Dictionary<string, int> { ["geschrieben"] = 1, ["fehler"] = 0 });
 
@@ -186,7 +186,7 @@ public sealed class WareneingangCsvServiceTests : IDisposable
         File.WriteAllText(Path.Combine(_dir, "BC1.tmp"), "halb");
         await Svc(db, new FakeSyncLogger()).RunOnceAsync(_dir, Wdh);
         Directory.GetFiles(_dir).Select(f => Path.GetFileName(f)).Should().Equal("BC1.csv");
-        File.ReadAllText(Path.Combine(_dir, "BC1.csv")).Should().StartWith("Barcode;");
+        File.ReadAllText(Path.Combine(_dir, "BC1.csv")).Should().StartWith("BC1;");
     }
 
     [Fact]
@@ -215,7 +215,60 @@ public sealed class WareneingangCsvServiceTests : IDisposable
     public void CsvInhalt_LeereWerteLeer_ZeilenumbruchGequotet()
     {
         var r = new PurchaseOrderReceipt { Belegnummer = "2026-1", Lieferschein = "A\nB", CreatedBy = "x", CreatedAt = new DateTime(2026, 1, 2, 3, 4, 0) };
-        WareneingangCsvService.CsvInhalt(r, "BC").Split("\r\n")[1].Should().Be("BC;;;2026-1;\"A\nB\";;x;2026-01-02 03:04;");
+        WareneingangCsvService.CsvInhalt(r, "BC").Should().Be("BC;;;2026-1;\"A\nB\";;x;2026-01-02 03:04;\r\n", "genau eine Zeile, keine Kopfzeile");
+    }
+
+    /// <summary>v1.99.29 (Spec 2026-11-14-wareneingang-csv-erfasser-samaccountname F2, AK 3-7): Erfasser = WindowsUserName ohne Domaene,
+    /// sonst User.Name, ohne Benutzer CreatedBy - nie CreatedByWindows/WindowsUser (Sitzung).</summary>
+    [Theory]
+    [InlineData("jmuster", "jmuster")]
+    [InlineData("AKE\\jmuster", "jmuster")]
+    [InlineData("jmuster@ake.at", "jmuster")]
+    [InlineData(" jmuster ", "jmuster")]
+    [InlineData("JMuster", "JMuster")]   // Schreibweise wie gespeichert (Freigabe-Antwort 3)
+    [InlineData(null, "Max Anzeige")]
+    [InlineData("", "Max Anzeige")]
+    [InlineData("  ", "Max Anzeige")]
+    public void CsvInhalt_Erfasser_AusBenutzerDerBewegung(string? windowsUserName, string erwartet)
+    {
+        var r = new PurchaseOrderReceipt
+        {
+            CreatedBy = "Max Lager", CreatedByWindows = "AKE\\terminal01",
+            StockMovement = new StockMovement { WindowsUser = "AKE\\terminal01", User = new User { Name = "Max Anzeige", WindowsUserName = windowsUserName } },
+        };
+        WareneingangCsvService.CsvInhalt(r, "BC").Split(';')[6].Should().Be(erwartet);
+    }
+
+    [Fact]
+    public void CsvInhalt_Erfasser_OhneBewegungOderBenutzer_CreatedBy()
+    {
+        var ohneBewegung = new PurchaseOrderReceipt { CreatedBy = "Max Lager", CreatedByWindows = "AKE\\terminal01" };
+        var ohneUser = new PurchaseOrderReceipt { CreatedBy = "Max Lager", CreatedByWindows = "AKE\\terminal01", StockMovement = new StockMovement { WindowsUser = "AKE\\terminal01" } };
+        WareneingangCsvService.CsvInhalt(ohneBewegung, "BC").Split(';')[6].Should().Be("Max Lager");
+        WareneingangCsvService.CsvInhalt(ohneUser, "BC").Split(';')[6].Should().Be("Max Lager");
+    }
+
+    [Fact]
+    public void CsvInhalt_Erfasser_Sonderzeichen_Escaping_AK9()
+    {
+        var r = new PurchaseOrderReceipt { CreatedBy = "x", StockMovement = new StockMovement { User = new User { Name = "Muster; \"Max\"" } } };
+        WareneingangCsvService.CsvInhalt(r, "BC").Should().Be("BC;;;;;;\"Muster; \"\"Max\"\"\";0001-01-01 00:00;\r\n");
+    }
+
+    [Fact]
+    public async Task RunOnce_IncludeWirkt_DateiMitKontoname_AK8()
+    {
+        var db = Db();
+        db.Users.Add(new User { Id = 77, Name = "Max Anzeige", WindowsUserName = "AKE\\jmuster", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" });
+        db.SaveChanges();
+        var r = Receipt(db, Guid.NewGuid(), "BC7");
+        db.StockMovements.Single(m => m.Id == r.StockMovementId).UserId = 77;
+        db.SaveChanges();
+        db.ChangeTracker.Clear();   // nichts aus dem Tracker - nur das Include liefert den Benutzer
+
+        await Svc(db, new FakeSyncLogger()).RunOnceAsync(_dir, Wdh);
+
+        File.ReadAllText(Path.Combine(_dir, "BC7.csv")).Should().Contain(";2027-398675;jmuster;2026-11-12 09:30;").And.NotContain("Max Lager");
     }
 
     [Fact]

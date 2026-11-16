@@ -404,5 +404,8 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
 @{ Id='v1.99.28-AnwenderInfo'; Version='1.99.28'; Typ='Info'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
    Text='Anwender-Info: Anmeldung am Formular nur noch mit Kennwort; wer vom Administrator ein Erstkennwort bekommt, legt bei der ersten Anmeldung ein eigenes fest; Terminals/Handgeraete mit dem neuen Kennwort anmelden; Domaenen-PCs unveraendert per Windows.'
    Quelle='2026-11-16-v1-99-28-sicherheit-anmeldung-installer' }
+@{ Id='v1.99.29-WareneingangCsvFormat'; Version='1.99.29'; Typ='Info'; Firma='AKE'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Text='Wareneingang-CSV: Format ohne Kopfzeile, Erfasser = Windows-Kontoname ohne Domaene - das ist das enaio-Zielformat.'
+   Quelle='2026-11-16-v1-99-29-wareneingang-csv-enaio' }
 )
 }

@@ -738,7 +738,9 @@ C:\Services\IDEALAKEWMSService\
 > Senden nutzt sie. Ein ungültiger Wert (von Hand in der DB) stoppt das Senden mit Fehler im Dienst-Log/Fehlermail.
 > **Wareneingang-CSV (v1.99.11, Kategorie „Wareneingang-CSV“, nur AKE):** `WareneingangCsvAktiv` (Default `false`) – für jeden an Sage
 > übergebenen Wareneingang mit Barcode schreibt der Sage-Buchungs-Worker nach dem Sage-WE-Schritt `<Barcode>.tmp` und benennt sie auf
-> `<Barcode>.csv` um (UTF-8 mit BOM, `;`, Kopfzeile, CRLF, nie überschreiben; höchstens 10 Dateien je Takt). Wirkt nur bei
+> `<Barcode>.csv` um (UTF-8 mit BOM, `;`, seit v1.99.29 **ohne Kopfzeile** – eine Zeile mit 9 Feldern nach Position: Barcode,
+> Kreditornummer, Kreditorname, Bestellnummer, Lieferschein, Sage-Belegnummer, Erfasser = Windows-Kontoname ohne Domäne bzw. WMS-Benutzername,
+> Datum, übergeben am –, CRLF, nie überschreiben; höchstens 10 Dateien je Takt). Wirkt nur bei
 > `SageWareneingangBelegAktiv` = an und gesetztem `WareneingangCsvPfad` (Default leer; nur UNC-Pfad wie `\\server\freigabe\ordner` oder
 > leer, Server prüft die Form, nicht die Erreichbarkeit). Wiederholung nach Schreibfehler: `Sync:WareneingangCsvMaxWiederholungen`
 > (Standard 3, 0–10) und `Sync:WareneingangCsvWiederholAbstandMinuten` (Standard 15, 5–1440); „Datei existiert bereits“ nie automatisch.
