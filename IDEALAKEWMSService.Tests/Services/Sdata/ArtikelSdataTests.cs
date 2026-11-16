@@ -201,7 +201,7 @@ public class ArtikelSdataTests
     }
 
     [Theory]
-    [InlineData("FaStruktur", null, "P-F2")]
+    [InlineData("FaStruktur", null, "P-FS3")]
     [InlineData("Artikel", "vw_X", "P-R1")]
     [InlineData("Artikel", " ", null)]
     [InlineData("Artikel", null, null)]

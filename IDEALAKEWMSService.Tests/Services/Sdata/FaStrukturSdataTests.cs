@@ -494,9 +494,13 @@ public class FaStrukturSdataTests
     private sealed class TestSwitch : FaStrukturQuelleSwitch
     {
         public string? Schalter { get; set; }
+        /// <summary>Nur fuer den Hybrid-Test: simuliert die spaetere Freigabe. Default = echte Sperre (SageQuelleSperre).</summary>
+        public bool SperreSimuliertAufgehoben { get; set; }
         public TestSwitch(ISageFaStrukturReader view, ISageFaStrukturReader sdata, ISyncErrorNotifier notifier, ISyncLogger logger)
             : base(view, sdata, new ConfigurationBuilder().Build(), notifier, logger) { }
         protected override Task<string?> LeseSchalterAsync(CancellationToken ct) => Task.FromResult(Schalter);
+        protected override Task<string?> SdataGesperrtBisAsync(CancellationToken ct) =>
+            SperreSimuliertAufgehoben ? Task.FromResult<string?>(null) : base.SdataGesperrtBisAsync(ct);
     }
 
     private static FaHierarchyNode N(int haupt, int? vater, int? pos, int sub, string? artnr = null, decimal menge = 1m) =>
@@ -535,16 +539,40 @@ public class FaStrukturSdataTests
     }
 
     [Fact]
-    public async Task Weiche_SData_GesperrtBisPF2_WirktWieView_MitWarnung()
+    public async Task Weiche_SData_BleibtGesperrt_WirktWieView_MitWarnungUndGrund()
     {
+        // Auflage Gerald 2026-11-16: Umschalten auf SData bleibt gesperrt bis DPS-Antwort/P-FS3 und Rueckfragen 4/5 - Hybrid ist gebaut,
+        // aber weder waehlbar noch wirksam.
         var (w, view, sdata, logger, _) = Weiche("SData");
 
         (await w.LesenAsync()).Should().BeSameAs(view.Lesung);
 
         (view.Aufrufe, sdata.Aufrufe).Should().Be((1, 0));
         w.GenutzteQuelle.Should().Be(SageQuelle.View);
+        w.QuellenWarnung.Should().Contain("gesperrt bis P-FS3").And.Contain("Rückfragen 4/5").And.Contain("Quelle View");
         logger.Runs.Single(r => r.ServiceName == SyncLogServices.SageQuellenvergleich).Events
-            .Should().ContainSingle(e => e.Level == "Warning" && e.Message.Contains("gesperrt bis P-F2"));
+            .Should().ContainSingle(e => e.Level == "Warning" && e.Message.Contains("gesperrt bis P-FS3"));
+    }
+
+    [Fact]
+    public void Sperre_FaStruktur_BleibtGesetzt_BeginntMitPruefabfrage() =>
+        SageQuelleSperre.Grund(SageQuelleSchalter.FaStruktur, null).Should().StartWith("P-FS3").And.Contain("RealTimeData");
+
+    [Fact]
+    public async Task Weiche_SData_Hybrid_BeiSimulierterFreigabe_KnotenAusSData_InfosAusView_NurStrukturenMitInfos()
+    {
+        var (w, view, sdata, logger, _) = Weiche("SData");
+        w.SperreSimuliertAufgehoben = true;
+
+        var l = await w.LesenAsync();
+
+        w.GenutzteQuelle.Should().Be(SageQuelle.SData);
+        l.Knoten.Should().HaveCount(3).And.OnlyContain(k => k.HauptFA == 835, "Struktur 999 hat keine FAInfos-Zeile");
+        l.Knoten.Should().Contain(k => k.Artnr == "WURZEL-ARTNR", "Knoten aus SData");
+        l.Infos.Should().BeSameAs(view.Lesung.Infos);
+        l.InfosAnzahl.Should().Be(1, "sonst ueberspraenge der Empty-Guard den Lauf");
+        (view.Aufrufe, sdata.Aufrufe).Should().Be((1, 1));
+        logger.Runs.Should().BeEmpty("SData-Modus ohne Warnung und ohne Vergleichslauf");
     }
 
     [Fact]

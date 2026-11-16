@@ -19,7 +19,15 @@ public sealed class SageFaStrukturReader : ISageFaStrukturReader
         _config = config;
     }
 
-    public async Task<FaStrukturLesung> LesenAsync(CancellationToken ct = default)
+    public Task<FaStrukturLesung> LesenAsync(CancellationToken ct = default) => LesenAsync(nurInfos: false, ct);
+
+    /// <summary>
+    /// Spec 2026-11-16-fa-struktur-ideal-ueber-sdata (E5, F6): nur der FAInfos-Teil (Existenzpruefung, Roh-Zeilenzahl, FAInfos-Select) fuer
+    /// den hybriden SData-Modus der Weiche. Kein neuer SQL-Text; Knoten bleiben leer, <c>ListeAnzahl</c> = 0 (nicht gelesen).
+    /// </summary>
+    public Task<FaStrukturLesung> InfosLesenAsync(CancellationToken ct = default) => LesenAsync(nurInfos: true, ct);
+
+    private async Task<FaStrukturLesung> LesenAsync(bool nurInfos, CancellationToken ct)
     {
         // 1) View-Namen aus ServiceSettings lesen + validieren (Whitelist + QUOTENAME). Ungueltig -> FaHierarchyViewNameException, kein SQL.
         var listeRaw = await ServiceSettings.GetValueAsync(_config, "Sync:FaHierarchyListeViewName", ct);
@@ -49,14 +57,14 @@ public sealed class SageFaStrukturReader : ISageFaStrukturReader
 
         // 2) Empty-Guard: ungefilterte Roh-Zeilenzahlen BEIDER Views VOR jeder Mutation
         //    (sonst maskiert die Existenzpruefung einen leeren FAInfos-Read als "0 Struktur-Zeilen").
-        var listeCount = await ScalarCountAsync(conn, FaHierarchySql.BuildCountSql(quotedListe), ct);
+        var listeCount = nurInfos ? 0L : await ScalarCountAsync(conn, FaHierarchySql.BuildCountSql(quotedListe), ct);
         var infosCount = await ScalarCountAsync(conn, FaHierarchySql.BuildCountSql(quotedInfos), ct);
-        if (listeCount == 0 || infosCount == 0)
+        if ((!nurInfos && listeCount == 0) || infosCount == 0)
             return new FaStrukturLesung(new(), new(), listeCount, infosCount);
 
         // 3) Zielzeilen im Speicher aufbauen (Existenzpruefung im SQL, Anforderung 2).
         var syncedAt = DateTime.Now;
-        var nodes = await ReadNodesAsync(conn, FaHierarchySql.BuildNodeSelectSql(quotedListe, quotedInfos), syncedAt, ct);
+        var nodes = nurInfos ? new List<FaHierarchyNode>() : await ReadNodesAsync(conn, FaHierarchySql.BuildNodeSelectSql(quotedListe, quotedInfos), syncedAt, ct);
         var infos = await ReadOrderInfosAsync(conn, FaHierarchySql.BuildInfosSelectSql(quotedInfos), syncedAt, ct);
         return new FaStrukturLesung(nodes, infos, listeCount, infosCount);
     }

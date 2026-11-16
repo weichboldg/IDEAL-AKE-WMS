@@ -6,8 +6,8 @@ namespace IDEALAKEWMSService.Services.Sdata;
 /// <summary>
 /// Spec 2026-11-06-sage-sdata-stammdaten-sync (E4a/F6): Quellen-Weiche fuer <see cref="ISageFaStrukturReader"/> (Schalter
 /// <c>Sync:Quelle:FaStruktur</c>, Default View). View = <see cref="SageFaStrukturReader"/> (bisheriger Lese-Code unveraendert),
-/// SData = <see cref="SdataFaStrukturReader"/> (nur Kanten, G11). <c>SData</c> ist gesperrt bis P-F2 und wirkt wie <c>View</c> mit
-/// Warnung; <c>Vergleich</c> ist erlaubt, vergleicht die Kanten und gibt die View-Daten zurueck — ergaenzt um die FA-Positionen aus
+/// SData = <see cref="SdataFaStrukturReader"/> (Knoten + Felder, hybrid mit FAInfos aus der View, E5). <c>SData</c> ist gesperrt
+/// (<see cref="SageQuelleSperre"/>) und wirkt wie <c>View</c> mit Warnung; <c>Vergleich</c> ist erlaubt, vergleicht die Kanten und gibt die View-Daten zurueck — ergaenzt um die FA-Positionen aus
 /// SData (E4b, <see cref="FaStrukturLesung.Positionen"/>).
 /// Registrierung: <see cref="SdataRegistrierung.AddFaStrukturQuelle"/>.
 /// </summary>
@@ -66,8 +66,8 @@ public class FaStrukturQuelleSwitch : SageQuelleWeiche, ISageFaStrukturReader
 
     protected override string Bereich => SageQuelleSchalter.FaStruktur;
 
-    // TODO(P-F2): Sperre (SageQuelleSperre.Grund "FaStruktur") aufheben erst, wenn FAInfos (SQL) und die Knotenfelder im SData-Weg
-    // belegt sind (G11).
+    // Spec 2026-11-16-fa-struktur-ideal-ueber-sdata E5: Hybrid gebaut (HybridAsync); die Sperre (SageQuelleSperre.Grund "FaStruktur")
+    // bleibt bis DPS-Freigabe RealTimeData/P-FS3 und Rueckfragen 4/5 - Auflage Gerald 2026-11-16. Aufheben nur in SageQuelleSperre.
 
     /// <summary>Hinweise des SData-Readers — leer, wenn diesmal nur die View gelesen wurde.</summary>
     public IReadOnlyList<SdataHinweis> SdataHinweise =>
@@ -92,13 +92,25 @@ public class FaStrukturQuelleSwitch : SageQuelleWeiche, ISageFaStrukturReader
                 if (_sdata is SdataFaStrukturReader r) r.RealTimeDataErlaubt = RealTimeDataErlaubt(GenutzteQuelle);
                 var s = await _sdata.LesenAsync(c);
                 positionen = s.Positionen;
-                return s;
+                return GenutzteQuelle == SageQuelle.SData ? await HybridAsync(s, c) : s;
             },
             l => mitInfos is null ? l.Knoten : l.Knoten.Where(k => mitInfos.Contains(k.HauptFA)),
             Schluessel, VergleichsFelder, ct);
         // E4b/F6: Positionen gibt es nur aus SData (keine View-Quelle) — sie werden geschrieben, sobald SData gelesen wurde, also auch im
         // Vergleichsmodus. View und gesperrtes SData lesen SData nicht; scheitert der SData-Read im Vergleich, bleibt positionen null.
         return positionen is null || ReferenceEquals(lesung.Positionen, positionen) ? lesung : lesung with { Positionen = positionen };
+    }
+
+    /// <summary>
+    /// E5/F6 (SData-Modus): Knoten aus SData, FAInfos aus der View (<see cref="SageFaStrukturReader.InfosLesenAsync"/>), geschrieben nur
+    /// Strukturen mit FAInfos-Zeile - dieselbe Grenze wie das EXISTS des View-Selects. Ohne FAInfos-Zeilen bleibt <c>InfosAnzahl</c> 0 und
+    /// der Empty-Guard des Abgleichs greift wie bisher. Erreichbar erst, wenn <see cref="SageQuelleSperre"/> den Bereich freigibt.
+    /// </summary>
+    private async Task<FaStrukturLesung> HybridAsync(FaStrukturLesung sdata, CancellationToken ct)
+    {
+        var v = _view is SageFaStrukturReader sql ? await sql.InfosLesenAsync(ct) : await _view.LesenAsync(ct);
+        var mit = v.Infos.Select(i => i.HauptFA).ToHashSet();
+        return sdata with { Knoten = sdata.Knoten.Where(k => mit.Contains(k.HauptFA)).ToList(), Infos = v.Infos, InfosAnzahl = v.InfosAnzahl };
     }
 
     /// <summary>Freigabe-Antwort 1: RealTimeData (dtsFaBelegsuche) im Dienst nur lesend und nur im Modus Vergleich - bis DPS-Antwort bzw.

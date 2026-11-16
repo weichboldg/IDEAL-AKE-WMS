@@ -6,7 +6,7 @@ namespace IdealAkeWms.Models;
 /// Position eines Sage-Fertigungsauftrags aus SData <c>PpsFaBelegePositionenInfo</c> (Spec 2026-11-06-sage-sdata-stammdaten-sync,
 /// E4b/F6): je FA der gefilterten Menge (eingelastet + aktiv, offen oder kuerzlich beendet) alle Positionen (MA, AG …) mit
 /// <see cref="BelPosID"/> und Lagerplatz — Grundlage der spaeteren Rueckmeldungen. Wird nur aus SData befuellt, sobald
-/// <c>Sync:Quelle:FaStruktur</c> SData liest (Vergleich bzw. SData nach P-F2); im View-Betrieb bleibt die Tabelle unberuehrt.
+/// <c>Sync:Quelle:FaStruktur</c> SData liest (Vergleich bzw. SData nach Freigabe, SageQuelleSperre); im View-Betrieb bleibt die Tabelle unberuehrt.
 /// NICHT <see cref="AuditableEntity"/> — Cache, Full-Refresh je Lauf durch den <c>FaHierarchySyncService</c> (Praezedenz
 /// <see cref="FaHierarchyNode"/>); Nachvollziehbarkeit ueber <see cref="SyncedAt"/> + Aktivitaets-Protokoll.
 /// </summary>

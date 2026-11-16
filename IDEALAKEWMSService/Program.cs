@@ -69,7 +69,7 @@ try
     builder.Services.AddScoped<IBomCacheSyncService, BomCacheSyncService>();
     builder.Services.AddScoped<ILagerplatzSyncService, LagerplatzSyncService>();
     builder.Services.AddScoped<ILagerbestandSyncService, LagerbestandSyncService>();
-    // FA-Struktur: Quellen-Weiche (Sync:Quelle:FaStruktur, Default View = SQL-Lese-Code unveraendert; SData gesperrt bis P-F2), v1.73.0 E4a.
+    // FA-Struktur: Quellen-Weiche (Sync:Quelle:FaStruktur, Default View = SQL-Lese-Code unveraendert; SData gesperrt, SageQuelleSperre), v1.73.0 E4a; Hybrid v1.99.26.
     IDEALAKEWMSService.Services.Sdata.SdataRegistrierung.AddFaStrukturQuelle(builder.Services);
     builder.Services.AddScoped<IFaHierarchySyncService, FaHierarchySyncService>();
     builder.Services.AddScoped<IFaMaterializationSyncService, FaMaterializationSyncService>();

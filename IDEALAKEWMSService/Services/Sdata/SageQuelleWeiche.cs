@@ -44,7 +44,7 @@ public abstract class SageQuelleWeiche
 
     protected IConfiguration Configuration => _configuration;
 
-    /// <summary>Gesetzt (z. B. „P-F2 …“) = Umschalten auf SData gesperrt, bis die Pruefabfrage beantwortet ist. Regel an EINEM Ort:
+    /// <summary>Gesetzt (z. B. „P-FS3 …“) = Umschalten auf SData gesperrt, bis die Pruefabfrage beantwortet ist. Regel an EINEM Ort:
     /// <see cref="SageQuelleSperre"/> (auch Grundlage des Warnhinweises in /ServiceSettings).</summary>
     protected virtual Task<string?> SdataGesperrtBisAsync(CancellationToken ct) => Task.FromResult(SageQuelleSperre.Grund(Bereich, null));
 
