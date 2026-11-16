@@ -21,10 +21,11 @@ affected_code:
   - IDEALAKEWMSService/AppVersion.cs
   - scripts/deploy/nachlauf.psd1
   - docs/TESTSZENARIEN.md
-open_questions:
-  - "1. enaio-Import umstellen und Zeitpunkt: Überspringt der enaio-Import heute die erste Zeile als Kopfzeile oder ordnet er über Spaltennamen zu? Dann liest er ab dem Deploy die Datenzeile nicht mehr bzw. findet die Spalten nicht. Empfehlung: Import vor dem Deploy auf 9 Spalten nach Position ohne Kopfzeile umstellen, Umstellung und Deploy im selben Fenster; ist WareneingangCsvAktiv auf AKE-Prod noch aus (P-4), entfällt das Risiko bis zum Einschalten."
-  - "2. Dateien im Übergang: Dateien im alten Format (mit Kopfzeile), die beim Deploy noch auf der Freigabe liegen, schreibt das WMS nicht um. Soll die Freigabe vor dem Deploy leer sein (enaio hat alles abgeholt), oder muss der Import beide Formate verkraften? Empfehlung: Freigabe vor dem Deploy leer (P-5)."
-  - "3. Schreibweise des Kontonamens: Das WMS gibt WindowsUserName so aus, wie es gespeichert ist (Groß-/Kleinschreibung aus dem AD, z. B. JMuster). Braucht enaio eine feste Schreibweise (z. B. klein)? Empfehlung: unverändert ausgeben, enaio vergleicht ohne Groß-/Kleinschreibung."
+open_questions: []
+beantwortete_fragen:
+  - "1 -> BEANTWORTET: enaio-Import darf keine Ueberschriften haben; ohne Kopfzeile ist genau das Zielformat, keine Import-Umstellung (Freigabe-Antwort 1)"
+  - "2 -> BEANTWORTET: noch nicht produktiv, keine Altdateien, kein Uebergang (Freigabe-Antwort 2)"
+  - "3 -> BEANTWORTET: Schreibweise egal -> unveraendert wie gespeichert ausgeben, kein Zusatzcode; @ kommt im Kontonamen nicht vor (Freigabe-Antwort 3)"
 epic: false
 etappen: []
 deploy:
@@ -55,7 +56,9 @@ einmal abgestimmt und einmal getestet wird:
    es einem Benutzer zuordnen. Ein lokaler WMS-Benutzer ohne Windows-Konto behält seinen WMS-Namen.
 
 Grundlage ist die Vorgänger-Spec [[2026-11-12-wareneingang-barcode-lieferschein-csv-export-spec]] (v1.99.11, TS-129). Dort heißt es
-in Antwort 2: „Den enaio-Import gestalten wir selbst.“
+in Antwort 2: „Den enaio-Import gestalten wir selbst.“ Die Datei ohne Kopfzeile ist **genau das Zielformat** des enaio-Imports, der
+keine Überschriften verträgt. Am Import muss nichts umgestellt werden (Freigabe-Antwort 1). Der Export ist **noch nicht produktiv**
+(Freigabe-Antwort 2), deshalb gibt es keine Altdateien und keinen Übergang.
 
 ## Umfang (In-Scope / Out-of-Scope)
 
@@ -77,7 +80,10 @@ in Antwort 2: „Den enaio-Import gestalten wir selbst.“
   - Die Mails mit „Erfasser“ (Lagerbestellungen) nehmen weiter `CreatedBy` (`WarehouseRequisitionEmailService.cs:152,179,199,225`).
   - Wareneingangs-Maske und Liste „Sage-Wareneingänge“ zeigen keinen Erfasser: kein `CreatedBy` in `Views/PurchaseOrders/*` und
     `PurchaseOrdersController.SageWe.cs` (Grep ohne Treffer).
-- Bereits geschriebene Dateien werden nicht umgeschrieben.
+- Bereits geschriebene Dateien werden nicht umgeschrieben. Auf Prod gibt es keine, weil der Export noch nicht produktiv ist
+  (Freigabe-Antwort 2). Betroffen sind nur Testdateien aus TS-129 auf DEV.
+- Keine Umformung der Schreibweise (z. B. auf Kleinbuchstaben). Laut Gerald ist die Schreibweise egal (Freigabe-Antwort 3), also wird
+  ohne Zusatzcode ausgegeben, was gespeichert ist.
 - Am Benutzerstamm ändert sich nichts. Kein Bereinigungsskript für `Users.WindowsUserName`, keine neue Prüfung beim Anlegen.
 - Kein Schreiben nach Sage, keine Einstellungen auf Test oder Prod.
 
@@ -107,7 +113,7 @@ Alle Felder beziehen sich auf das erste Receipt des Vorgangs (`MinBy(Id)`, `Ware
 **F2 – Erfasser.** Die erste zutreffende Regel gilt:
 1. Hat die Bewegung des Receipts (`PurchaseOrderReceipt.StockMovement`) einen Benutzer (`StockMovement.UserId` → `User`) mit nicht
    leerem `WindowsUserName`, wird dieser **ohne Domäne** ausgegeben. Aus `DOMAIN\name` wird `name`, aus `name@domain` wird `name`.
-   Getrimmt, Schreibweise wie gespeichert.
+   Getrimmt, Schreibweise wie gespeichert. Das ist entschieden: Die Schreibweise ist egal (Freigabe-Antwort 3), also keine Umformung.
 2. Hat der Benutzer kein `WindowsUserName` (lokaler WMS-Benutzer), wird `User.Name` ausgegeben.
 3. Hat die Bewegung keine `UserId` (Altbestand, oder der Benutzer wurde gelöscht: FK `SetNull`, `ApplicationDbContext.cs:410-413`),
    wird wie bisher `PurchaseOrderReceipt.CreatedBy` ausgegeben.
@@ -157,9 +163,11 @@ Deshalb **wird beim Lesen normalisiert**, über den vorhandenen, getesteten Helf
 (`IdealAkeWms/Services/WindowsAccountHelper.cs:7-22`, Tests `WindowsAccountHelperTests.cs:10-17`: Backslash-Form, `@`-Form, leer → null).
 Den Helfer nutzt auch die Windows-Anmeldung. Der Dienst referenziert `IdealAkeWms.Services` bereits (`WareneingangCsvService.cs:4`).
 
-> [!warning] Grenze von ExtractSam
-> Ein echter sAMAccountName mit `@` würde am `@` abgeschnitten. Das AD erlaubt `@` im sAMAccountName. P-1 zeigt, ob es solche Werte
-> gibt. Bei Treffern meldet der Dev-Lauf das vor dem Umsetzen, statt still abzuschneiden.
+> [!note] Grenze von ExtractSam (unkritisch)
+> Ein sAMAccountName mit `@` würde am `@` abgeschnitten. Laut Gerald kommt ein `@` im Kontonamen nicht vor (Freigabe-Antwort 3).
+> P-1 bleibt nur als Kontrolle, ist kein Blocker, und es gibt keinen Zusatzcode dafür.
+>
+> *Überholt (Entwurf vom 2026-11-16):* „Bei Treffern meldet der Dev-Lauf das vor dem Umsetzen, statt still abzuschneiden.“
 
 ## Technischer Loesungsentwurf
 
@@ -222,8 +230,9 @@ Rollen und Zugriffsfilter: keine Änderung. Listen-View-Pattern: keine neue Tabe
     Receipts/Bewegungen), `SageWareneingangPayload.cs`, `SageLagerbuchungPayloadBuilder.cs`, `WarehouseRequisitionEmailService.cs`,
     die Views unter `Views/PurchaseOrders/` und `PurchaseOrdersController.SageWe.cs`. Bestehende Tests dieser Klassen bleiben grün,
     ohne Anpassung.
-11. **Alte Dateien:** Eine vor dem Deploy geschriebene Datei bleibt unverändert. „CSV erneut schreiben“ für einen alten Vorgang schreibt
-    das neue Format.
+11. **Erneut schreiben:** „CSV erneut schreiben“ für einen Vorgang, der schon vor v1.99.29 übergeben wurde (DEV), schreibt das neue
+    Format. *Überholt:* der Teil „vor dem Deploy geschriebene Datei bleibt unverändert“ als Übergangsfall. Es gibt keine Prod-Altdateien
+    (Freigabe-Antwort 2), und eine vorhandene Datei überschreibt der Dienst ohnehin nie (Bestand v1.99.11).
 12. **Hilfe:** `/Help` (Abschnitt Wareneingang, bisher `Index.cshtml:119-121`) sagt „ohne Kopfzeile“ und nennt die 9 Felder in
     Reihenfolge. Feld 7 ist dort beschrieben als „Windows-Kontoname ohne Domäne, sonst WMS-Benutzername“. Der Anwender-Changelog
     v1.99.29 nennt beide Änderungen.
@@ -256,7 +265,7 @@ markieren“. Kein Sage-Schreiben durch Agenten. Ein AD-Benutzer A (`WindowsUser
 | 153.4 | Negativ, Domänenform: `UPDATE dbo.Users SET WindowsUserName = N'AKE\<sam>' WHERE Id = <A>`, buchen, übergeben; dann `N'<sam>@ake.at'`; danach Ausgangswert zurück | Beide Male Feld 7 = `<sam>` (AK 4) |
 | 153.5 | Negativ, ohne UserId: vor der Übergabe `UPDATE dbo.StockMovements SET UserId = NULL WHERE Id = <Bewegung des ersten Receipts>` | Feld 7 = `PurchaseOrderReceipts.CreatedBy` dieses Receipts (AK 6) |
 | 153.6 | Negativ, Sonderzeichen: Name von L auf `Muster; "Max"` setzen, buchen, übergeben | Feld 7 = `"Muster; ""Max"""`. Die Zeile hat weiter 9 Felder (AK 9) |
-| 153.7 | Datei aus TS-129 (vor dem Deploy geschrieben) auf der Freigabe ansehen; danach „CSV erneut schreiben“ für einen alten Vorgang (Datei vorher entfernen) | Die alte Datei ist unverändert (mit Kopfzeile). Die neu geschriebene Datei ist ohne Kopfzeile, Feld 7 nach F2 (AK 11) |
+| 153.7 | DEV: „CSV erneut schreiben“ für einen Vorgang aus TS-129 (die Datei vorher von der Test-Freigabe entfernen) | Die neu geschriebene Datei ist ohne Kopfzeile, Feld 7 nach F2 (AK 11). Kein Übergangstest: Der Export ist noch nicht produktiv (Freigabe-Antwort 2) |
 | 153.8 | Bestand: zu 153.1 SQL `SELECT CreatedBy FROM dbo.PurchaseOrderReceipts WHERE Barcode = …`; Sage-WE-Memo in der Liste „Sage-Wareneingänge“ bzw. im Payload-Log | `CreatedBy` = Anzeigename wie vorher. Memo ohne Benutzer, Format wie TS-116 (AK 10) |
 | 153.9 | `/Help` → Wareneingang | „ohne Kopfzeile“, 9 Felder in Reihenfolge, Erfasser-Regel. Changelog v1.99.29 (AK 12) |
 | 153.10 | DEV IDEAL nach Deploy | Keine Änderung sichtbar, kein Protokoll-Eintrag „Wareneingang-CSV“ (AK 13) |
@@ -279,16 +288,18 @@ Entfällt (`epic: false`).
 - **Manifest-Einträge** (`scripts/deploy/nachlauf.psd1`, ADR 0022/0023), ein Eintrag. Der Text ist nur ASCII, weil PS 5.1 die
   `.psd1` ohne BOM als ANSI liest (Dateikopf Zeile 2):
   ```powershell
-  @{ Id='v1.99.29-WareneingangCsvFormat'; Version='1.99.29'; Typ='Info'; Firma='AKE'; Phase='Vorher'; Ausfuehrung='anzeigen'
-     Text='Formataenderung fuer den enaio-Import (ohne Kopfzeile, Erfasser = Windows-Kontoname ohne Domaene) - vor Deploy mit enaio-Betreuer abstimmen: Import auf 9 Spalten nach Position ohne Kopfzeile umstellen; Freigabe WareneingangCsvPfad vorher leer (abgeholt).'
+  @{ Id='v1.99.29-WareneingangCsvFormat'; Version='1.99.29'; Typ='Info'; Firma='AKE'; Phase='Nachher'; Ausfuehrung='anzeigen'
+     Text='Wareneingang-CSV: Format ohne Kopfzeile, Erfasser = Windows-Kontoname ohne Domaene - das ist das enaio-Zielformat.'
      Quelle='2026-11-16-v1-99-29-wareneingang-csv-erfasser' }
   ```
-  - **Typ Info, Phase Vorher:** Die Abstimmung muss *vor* dem Stoppen erfolgen. `Haltepunkt` läuft erst nach dem Schema bei gestopptem
-    Web und Dienst (`nachlauf.psd1:14`) und kommt dafür zu spät. Vorbild: `v1.84.0-Einkauf` (`nachlauf.psd1:242`, Info/AKE/Vorher).
+  - **Empfehlung: Eintrag behalten.** Gerald wollte einen Hinweis „Formatänderung für enaio“. Der Eintrag kostet eine Zeile und
+    dokumentiert den Formatwechsel für den enaio-Betreuer. Er ist kein Hand-Schritt mehr.
+  - **Typ Info, Phase Nachher:** Eine Abstimmung vor dem Deploy ist nicht mehr nötig (Freigabe-Antworten 1 und 2), daher Nachher.
+    *Überholt:* Phase Vorher und der Text „vor Deploy mit enaio-Betreuer abstimmen … Import umstellen … Freigabe vorher leer“.
   - **Firma AKE:** Der Export ist auf AKE im Einsatz, IDEAL hat den Schalter aus. Belege: `Pruefung/WareneingangCsv` und
     `v1.99.11-WareneingangCsv` mit `Firma='AKE'` (`nachlauf.psd1:142,338`), Vorgänger-Spec `standort: AKE`, TS-129.18.
-  - Kein Pruefung-Eintrag. Ob enaio umgestellt ist, lässt sich nicht per SQL prüfen.
-  - Einordnung im Block „Vorher“ nach Version. Die Reihenfolge ist hier nicht deploy-kritisch.
+  - Kein Pruefung-Eintrag: Es gibt keinen SQL-prüfbaren Zustand.
+  - Einordnung im Block „Nachher“ nach Version. Die Reihenfolge ist hier nicht deploy-kritisch.
 - **Publish-Befehle** (im Worktree):
   ```
   dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb
@@ -298,7 +309,7 @@ Entfällt (`epic: false`).
 ### Prüfabfragen (nur lesend, AKE-DB `IDEAL_AKE_WMS`; Ergebnis vor dem Dev-Lauf bzw. vor dem Deploy an Gerald)
 
 ```sql
--- P-1: Formen von WindowsUserName im Benutzerstamm (Treffer in 'mit @' oder 'mit Backslash' vor dem Umsetzen melden)
+-- P-1: Formen von WindowsUserName im Benutzerstamm (nur Kontrolle, kein Blocker; '@' kommt laut Freigabe-Antwort 3 nicht vor)
 SELECT Form, COUNT(*) AS Anzahl
 FROM (SELECT CASE
         WHEN WindowsUserName IS NULL THEN '1 NULL (lokal)'
@@ -322,12 +333,10 @@ JOIN dbo.StockMovements m ON m.Id = r.StockMovementId
 LEFT JOIN dbo.Users u ON u.Id = m.UserId
 WHERE r.Barcode IS NOT NULL ORDER BY r.Id DESC;
 
--- P-4: Ist der Export auf diesem System eingeschaltet? (zu Rückfrage 1)
-SELECT [Key], [Value] FROM dbo.ServiceSettings
-WHERE [Key] IN (N'WareneingangCsvAktiv', N'WareneingangCsvPfad', N'SageWareneingangBelegAktiv');
 ```
 
-- **P-5** (Dateisystem, zu Rückfrage 2), am Dienst-Server: `Get-ChildItem '<WareneingangCsvPfad>' -Filter *.csv | Measure-Object`. Erwartung vor dem Deploy: 0.
+- *Überholt (Freigabe-Antworten 1 und 2):* **P-4** (Schalterstand des Exports, zu Rückfrage 1) und **P-5** (Dateien auf der Freigabe vor
+  dem Deploy, zu Rückfrage 2). Der Export ist noch nicht produktiv, und eine Import-Umstellung gibt es nicht, deshalb entfallen beide.
 
 ### Brain-Pflichten des Dev-Laufs
 
@@ -335,6 +344,22 @@ WHERE [Key] IN (N'WareneingangCsvAktiv', N'WareneingangCsvPfad', N'SageWareneing
   und vorher mit enaio abstimmen. **Warum:** Der Import ordnet nach Position zu.“
 - Ein Changelog-Eintrag `2026-11-16-v1-99-29-wareneingang-csv-erfasser` (= `Quelle` im Manifest).
 - [[feature-map]], [[testszenarien-index]].
+
+## Nachtrag 2026-11-16: Freigabe-Antworten in den Rumpf gezogen
+
+Die Antworten von Gerald (Block „Freigabe-Antworten“, unverändert) sind in den Rumpf übernommen. Geändert wurde:
+- **Frontmatter:** `open_questions: []`, neu `beantwortete_fragen` (1–3). `status` und `freigabe_*` sind unverändert.
+- **Ziel / Nutzen:** Ohne Kopfzeile ist das enaio-Zielformat, keine Import-Umstellung; der Export ist noch nicht produktiv (Antworten 1, 2).
+- **Umfang / Out-of-Scope:** Keine Prod-Altdateien. Keine Umformung der Schreibweise (Antwort 3, Ponytail: kein Zusatzcode).
+- **F2:** „Schreibweise wie gespeichert“ ist entschieden.
+- **Grenze von ExtractSam:** von Warnung auf Hinweis herabgestuft. Ein `@` kommt nicht vor (Antwort 3), P-1 bleibt nur als Kontrolle.
+  Der alte Satz ist als überholt markiert.
+- **AK 11 und TS-153.7:** Der Übergangsfall entfällt (überholt markiert). Es bleibt nur „CSV erneut schreiben“ schreibt das neue Format.
+- **Deploy/Manifest:** Info-Eintrag behalten, aber Phase **Nachher** mit knappem Text „ist enaio-Zielformat“. Die Abstimmung vor dem
+  Deploy entfällt (überholt markiert).
+- **Prüfabfragen:** P-4 und P-5 entfallen (überholt markiert). P-1 ist nur Kontrolle, P-2 und P-3 bleiben.
+- Das Risiko „enaio liest ab dem Deploy nichts mehr“ besteht nicht mehr, weil der Import keine Kopfzeile erwartet und der Export
+  nicht produktiv ist.
 
 ## Offene Rueckfragen
 
@@ -360,6 +385,6 @@ WHERE [Key] IN (N'WareneingangCsvAktiv', N'WareneingangCsvPfad', N'SageWareneing
   Bei Varianten-Specs zusaetzlich freigabe_entscheidung im Frontmatter setzen.
 -->
 
-1. enaio-Import umstellen und Zeitpunkt →
-2. Dateien im Übergang (Freigabe vor Deploy leer?) →
-3. Schreibweise des Kontonamens (unverändert oder fest klein?) →
+1. enaio-Import umstellen und Zeitpunkt → **Gerald 2026-11-16: Der enaio-Import darf keine Überschriften haben – die Datenzeile ohne Kopfzeile ist genau das Zielformat, keine Umstellung des Imports nötig.**
+2. Dateien im Übergang (Freigabe vor Deploy leer?) → **Gerald 2026-11-16: Ist noch nicht produktiv – es gibt keine Altdateien, kein Übergang zu regeln.**
+3. Schreibweise des Kontonamens (unverändert oder fest klein?) → **Gerald 2026-11-16: Kann immer klein sein, egal. Zusatz: Ein `@` sollte im Kontonamen nicht vorkommen (P-1-Grenze von `ExtractSam` damit unkritisch).**
