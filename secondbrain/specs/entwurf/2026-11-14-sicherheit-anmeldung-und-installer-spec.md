@@ -628,13 +628,16 @@ Passwort leer“ → Erstkennwort + Pflichtwechsel, Verweis TS-139.4), TS-40.4 (
 > [!info] Stand nach Umsetzung 2026-11-16 (Dev-Lauf, Commits `6447db0a`, `4559e0a2`) – geht den vorläufigen Angaben darunter vor
 > - **Version 1.99.28** (nicht 1.99.24), Changelog [[2026-11-16-v1-99-28-sicherheit-anmeldung-installer]], ADR [[0027-formular-anmeldung-nur-mit-kennwort-erstkennwort-mit-pflichtwechsel]].
 > - **Web + Dienst:** ja (Dienst: `MailService`-Warnung, `appsettings.json` ohne tote Blöcke; Server-Datei wird nicht überschrieben).
-> - **Migration:** `SQL/152_AddUserMussKennwortAendern.sql`, MigrationId `20261116165705_AddUserMussKennwortAendern`. **Kein SQL/151,
->   kein `Pruefung/FreshInstallIndizes`** (Rückfrage 4: nur Guards + Wächter-Test) – P-2b auf IDEAL-Prod vor dem Deploy, siehe
+> - **Migration:** `SQL/152_AddUserMussKennwortAendern.sql`, MigrationId `20261116165705_AddUserMussKennwortAendern`. **Kein SQL/151**
+>   (nicht bauen, solange P-2b fehlt). Nachzug `4f3bf15d`: **`Pruefung/FreshInstallIndizes`** (Firma IDEAL – nur dort Erstinstallation
+>   über `00_FreshInstall.sql`; AKE-DBs entstanden über Migrationen, Indexnamen dort nicht belegt; Phase Vorher, `anzeigen`): zählt die
+>   30 Indizes + FK `FK_StockMovements_ProductionOrders_ProductionOrderId` aus Abschnitt 15, die fehlen. > 0 = SQL/151 nötig, vor dem Deploy
+>   mit Gerald klären; sperrt IDEAL-Prod, auf IDEAL-Test nur Hinweis, baut nichts. Lokal belegt: leere DB 31, FreshInstall neu 0. Siehe
 >   [[2026-11-16-anmeldung-zusatzfunde-folgeaufgabe]].
 > - **Manifest** (`scripts/deploy/nachlauf.psd1`, alle `Quelle='2026-11-16-v1-99-28-sicherheit-anmeldung-installer'`):
 >   `SQL/152` (Schema, nach `SQL/150`); `Pruefung/BenutzerOhneKennwort` (Vorher, anzeigen, sperrt Prod; **Abweichung:** Abfrage schließt
 >   `admin` aus, weil der Seed ihn auf `wms-admin` + Haken umstellt – sonst sperrte jede Erstinstallation den Prod-Deploy);
->   `Pruefung/SmtpBenutzer` (Nachher, `Appsettings='MailSettings:SmtpUsername'`); `v1.99.28-AnmeldungKennwort` (Info, Vorher);
+>   `Pruefung/FreshInstallIndizes` (IDEAL, Vorher, anzeigen); `Pruefung/SmtpBenutzer` (Nachher, `Appsettings='MailSettings:SmtpUsername'`); `v1.99.28-AnmeldungKennwort` (Info, Vorher);
 >   `v1.99.28-AnwenderInfo` (Info, Nachher). `NachlaufManifestDriftTests` erlaubt SQL-Prüfungen jetzt auch in Phase Vorher (nur `anzeigen`).
 > - **admin (Rückfrage 11 = S1):** festes Erstkennwort `wms-admin` + Haken, keine Datei unter `App_Data`, keine Installer-Ausgabe.
 > - **Installer:** `-SageLagerbuchungCredential` entfernt, `Sync:ProductionOrdersEnabled=false` per DB-UPDATE nach dem Aufwärmen,

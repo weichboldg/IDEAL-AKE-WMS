@@ -21,7 +21,7 @@ ADR [[0027-formular-anmeldung-nur-mit-kennwort-erstkennwort-mit-pflichtwechsel]]
 
 - [ ] **P-2b auf IDEAL-Prod.** Beleg aus dem Dev-Lauf: Meldung 207 bricht den **ganzen** Batch „15. Indexes“ beim Übersetzen ab – auf einer
   lokalen Prüf-DB mit dem alten Skript fehlten **alle** Indizes des Abschnitts samt FK. IDEAL-Prod (Erstinstallation 04.11.) fehlen sie
-  daher sehr wahrscheinlich. Bei Treffern: SQL/151 + `Pruefung/FreshInstallIndizes` (Rückfrage 4) bauen – nicht Teil von v1.99.28.
+  daher sehr wahrscheinlich. `Pruefung/FreshInstallIndizes` (seit `4f3bf15d`, IDEAL, Vorher) sperrt IDEAL-Prod bei Treffern; dann SQL/151 bauen – nicht Teil von v1.99.28.
 - [ ] P-1 je System (Benutzer ohne Kennwort) – `Pruefung/BenutzerOhneKennwort` sperrt sonst den Prod-Deploy.
 - [ ] MailSettings je Dienst-Datei (Host, Port, SmtpUseSsl, Benutzer gesetzt ja/nein).
 
