@@ -2,7 +2,7 @@
 type: spec
 title: FA-Struktur IDEAL über SData (Knotenfelder, beendete Haupt-FAs, orderBy, Stückliste live)
 slug: 2026-11-16-fa-struktur-ideal-ueber-sdata-spec
-status: Testbereit
+status: InUmsetzung
 created: 2026-11-16
 updated: 2026-11-16
 source_backlog: "[[2026-11-16-fa-struktur-ideal-ueber-sdata]]"
@@ -685,3 +685,112 @@ Spec, Erstellt 2026-11-16 17:28, Komponenten Web + Dienst). Beide `dotnet publis
 7. TS-150.2/150.3: `= SData` wirkt wie View, mit der Warnung „gesperrt bis P-FS3“. Danach zurück auf `View` bzw. `Vergleich`.
 8. Prüfabfragen P-FS1..P-FS8 (Gerald) und DPS-Antwort zu RealTimeData. Vor dem Entsperren Befund Q1 beachten.
 9. Danach Merge (Schranke 2).
+
+## QA mit IDEAL-Daten (qa-agent, 2026-11-16)
+
+Zweiter QA-Lauf mit echten IDEAL-Daten auf DEV IDEAL (`http://localhost:8082`, DB `IDEAL_WMS_DEV`), Auftrag Gerald über den Hauptagenten.
+Sage nur gelesen (GET), keine Anwendungsänderung, kein Commit.
+
+**Ergebnis: Status zurück auf `InUmsetzung`.** Grund ist Befund **R1**: Die `USER_OS*`-Felder der FA-Knoten werden ohne den Tabellenpräfix
+angefordert. Sage liefert sie dann stillschweigend nicht. Das ist mit einem echten GET belegt. Im Vergleich und später beim Umschalten wären
+alle FA-Knoten-Fachfelder leer (Arbeitsbereich, Arbeitsschritte, Material, Kommissionieren, Beschichtet, Maße …).
+
+### Vorprüfung Schreibschalter (vor Beginn, erneut 19:48)
+`dbo.ServiceSettings`:
+- Aus: `SageLagerbuchungAktiv`, `SageLagerbuchungUmbuchungAktiv`, `SageWareneingangBelegAktiv`, `WareneingangCsvAktiv`,
+  `ErrorNotification:Enabled`, `Notifications:MeldebestandEnabled` und `Lieferverzug:MailAktiv` stehen alle auf `false`.
+- AppSettings: `FaCompletionAktiv` und `BestellungenAktiv` stehen auf `false`.
+- Rückmelde- oder Fertigmelde-Schreibschalter gibt es im Katalog keine (grep `ServiceSettingDefinitions`).
+- SData-Ziel: `SData:BaseUrl = https://idealsage100tes.ideal.ideal-ake.at:5493`, `SData:Dataset = IDEAL;1`, `SData:Username = sage`.
+
+Der Lauf wurde also fortgesetzt.
+
+### Version
+- Fußzeile DEV IDEAL: **v1.99.29**, nicht v1.99.26. Ausgeliefert ist Commit `504acdd3`, Deploy 19:10.
+- Es gab **keinen Redeploy**:
+  - `git diff --stat 5163df17..HEAD` ändert keine Datei der FA-Struktur, von SData, SageTest oder der Quellen-Weiche. Dazwischen liegen nur Commits zu Sicherheit, Installer und Doku.
+  - Ein älterer Stand auf der bereits vorwärts migrierten DEV-DB wäre falsch.
+- Der geprüfte Code ist also identisch mit v1.99.26.
+
+### Ergebnisse je Testszenario
+| TS | Schritt | Ergebnis | Bewertung |
+|---|---|---|---|
+| 146.1 | FA-Struktur live 1069595 | 13 FAs, Wurzel 80143269, 8 Positionen. 5 Aufrufe in 868 ms, alle 200 und alle mit `orderBy=BelID` (P-FS7) | OK |
+| 146.2 | FA-Struktur live 1059463 (beendet) | 68 FAs, 13 Positionen an der Wurzel. 8 Aufrufe in 835 ms, alle 200. 52 Unter-FAs „nicht eindeutig zugeordnet“ (bestehende Artikel-Heuristik, sichtbar gewarnt, außerhalb dieser Spec) | OK |
+| 147.1 | Stückliste live, FA 1059463 | Wurzel oben, 13 Positionen, Aufruf „Kopf über dtsFaBelegsuche“ vorhanden. Aber: `PpsFaBelegeInfo where StrukturID` liefert 54 statt 68 FAs, die beendeten Unter-FAs fehlen (Befund R3). Ihre Kinder hängen flach mit „Ebene 0“ am Ende | OK mit Lücke (R3) |
+| 147.2 | Stückliste live, FA 1065143 | „gehört zur Struktur 1059463 – angezeigt wird die ganze Struktur“. 1065143 selbst steht flach, weil der Vater 1065142 beendet ist (R3) | OK mit Lücke (R3) |
+| 147.3 | Artikel 80141025 | Überschrift „Ressourcenliste (Vorlage)“ mit Hinweistext. 6 Positionen gegenüber 13 im FA (L12), 1 Aufruf | OK |
+| 147.4 | FA 999999999 | „FA 999999999 in Sage nicht gefunden.“, 2 Aufrufe | OK |
+| 147.5 | `80141'025` | „Artikelnummer ohne ', & und #.“, kein Aufruf | OK |
+| 148 | Dienstlauf FA-Hierarchie im Modus Vergleich | Der Lauf startete 19:41:57 und **brach nach etwa 10 s ab**. Fehler: Die Anmeldung von `AKENB\svc_idealakewms` an der DB `IDEAL_TEST_2026_05_03` (`idealsql2\SAGE100TEST`) schlägt fehl. Die View wird zuerst gelesen, deshalb gab es keinen SData-Teil und keinen Quellenvergleichs-Lauf | NICHT MÖGLICH (DEV-Infrastruktur, zuletzt am 29.10. gelaufen) |
+| 149 | Wurzel beendeter Haupt-FA im Dienst | Kein Dienstlauf möglich (siehe 148). Statisch: Befund R2 | NICHT MÖGLICH, Risiko R2 |
+| 150.2 | `= SData` | Warnung „Sync:Quelle:FaStruktur = SData ist gesperrt bis P-FS3 (…) - Quelle View.“ (SyncLogs Id 14298636), danach derselbe Anmeldefehler der View | OK (Sperre und Rückfall wirken) |
+| 150.3 | `= View` | Keine Sperrwarnung, derselbe Anmeldefehler | OK |
+
+**Laufzeit (P-FS6)** ist nicht messbar, weil der Dienstlauf an der View-Anmeldung scheiterte. Zum Vergleich:
+- Live-Diagnose 835–868 ms für 5–8 Aufrufe je Struktur.
+- Letzter View-Lauf am 29.10. etwa 0,5 s für 759 Knoten.
+
+### Feldvergleich (Stichprobe statt Dienstlauf, nur GET)
+- Die View-Werte stammen aus `dbo.FaHierarchyNodes` (HauptFA 1059463, Stand 29.10.).
+- Die SData-Werte stammen live aus `dtsFaBelegsuche.Sage.PPS`, BelID 1059463/1065141/1065142/1065143/1065145, und aus `Artikel`, Artnr 50001312/73000531/73002467.
+
+| Feld | Knoten | View | SData | Bewertung |
+|---|---|---|---|---|
+| Arbeitsbereich, Arbeitsschritte, Material, Kommissionieren, VMBedarf | FA-Knoten | gefüllt (z. B. 1065145 H2-02 / VM / 4301 BLANK / LÖT / VM) | in Sage gleich gefüllt, **im Code aber leer**, weil ohne Präfix angefordert | **unerwartet, schwer (R1)** |
+| Breite/Hoehe/Tiefe | FA-Knoten | 1065141: 2010/40/510 | Sage 2010/40/510 (mit Präfix), Code leer | **unerwartet (R1)** |
+| Beschichtet, EKBedarf | FA-Knoten | 0 (5 von 180 FA-Knoten beschichtet) | Sage 0, Code leer, also `false` | Stichprobe zufällig gleich; bei beschichteten FAs **unerwartet (R1)** |
+| Artikeltyp | FA-Knoten | BG | am FA-Kopf leer (nil) in allen 5 Stichproben | **unerwartet, Mapping**: Die View nimmt den Artikeltyp offenbar vom Artikel, die Zuordnung `SdataFaStrukturReader.cs:240` nimmt ihn vom FA-Kopf (R4) |
+| Arbeitsbereich, Arbeitsschritte, Artikeltyp, Material, Kommissionieren | Blatt | 50001312 H4-04 / ST EG KA / FT / 4301 BLANK. 73000531 H2-02 / – / ZK / - / LÖT. 73002467 H2-02 / VM / ZK / - / LÖT | Artikel-`USER_OS*` identisch | erwartet, gleich |
+| Matchcode, Bezeichnung1/2 | Blatt | identisch | identisch | erwartet, gleich |
+| Bezeichnung1 | FA-Knoten | 1065145 „Verdampfer CUCU …“, 1065141 NULL | FA-Kopf nil, Code nimmt den Artikel | ungeprüft (P-FS5, TODO `:230`) |
+| Artikelgruppe | alle | „KK16 - AGGN0 290a“ (575 von 575 Blättern mit Text) | „KK16“ | erwartet (TODO P-FS5 `:231`), Abweichung an jedem Knoten |
+| Beschichtet/Breite/Hoehe/Tiefe/EKBedarf | Blatt | 26 von 575 Blättern mit Maß, 11 beschichtet | am Artikel keine Quelle, also 0/false | erwartet (Rückfrage 4), aber Datenverlust an 26 bzw. 11 Blättern |
+| Beschaffungsartikel | Blatt | 73002467/73000531 = 1, 50001312 = 0 | `IstBestellartikel` -1/-1/0 | erwartet, gleich |
+| HauptArtnr, Hauptlagerplatz | – | nicht verglichen | – | offen für den Vergleichslauf |
+
+### Befunde
+- **R1 (schwer, belegt):** `SdataFaStrukturReader.FelderFa` (`IDEALAKEWMSService/Services/Sdata/SdataFaStrukturReader.cs:142-147`) und `FelderSetzen` (`:235-249`) verwenden `USER_OSAbteilung` usw. Am RealTimeData-Vertrag heißen die Felder aber `KHKPpsFaBelege_USER_OS…` (Lesetest L8/L10, Feldliste heute).
+  - Probe mit `select=…,USER_OSAbteilung,USER_OSArbeitsschritte,USER_OSKommissionieren`: HTTP 200, die USER-Felder **fehlen kommentarlos** in der Antwort.
+  - Probe mit `KHKPpsFaBelege_USER_…`: `H2-02 / VM / LÖT` werden geliefert.
+  - Folge: Jeder FA-Knoten (Wurzel und Unter-FA) bekommt im SData-Zweig alle 13 OS-Felder leer bzw. 0/false. Im Vergleich gibt es Abweichungen an jedem FA-Knoten; nach dem Entsperren gingen Fachfelder verloren.
+  - Die Unit-Tests (`FaStrukturSdataTests.cs:258ff, :332`) bauen die Antwort mit denselben unpräfixierten Namen. Deshalb sind sie grün.
+  - Fix-Richtung, nicht umgesetzt: Präfix in `FelderFa` und beim Lesen (eine Stelle). Die Testantworten mit den echten Namen bauen.
+- **R2 (hoch, Hypothese, nur mit Dienstlauf belegbar):** Die beendete Haupt-FA 1059463 geht im Dienst vermutlich ganz verloren, nicht nur ihre Wurzel.
+  - Die View hat 264 Knoten bzw. 68 FA-Knoten inklusive beendeter und nicht eingelasteter FAs.
+  - Der SData-Weg verliert aber beendete FAs schon in `PpsFaBelegeInfo` (R3) und nicht eingelastete in `KoepfeFiltern` (E4b). Live ist jede Unter-FA von 1059463 entweder beendet oder „nicht eingelastet“ (alle 5 Stichproben `IstEingelastet 0`).
+  - `FehlendeWurzeln(menge)` (`:133-136`) leitet die fehlenden Wurzeln nur aus der gefilterten Menge ab. Ist sie für 1059463 leer, wird keine Wurzel ergänzt.
+  - Erwartung: alle 264 Schlüssel „(fehlt in SData)“. TS-149.1 schlüge fehl.
+  - Der Unit-Test zu AK 6 deckt nur den Fall ab, dass die Unter-FAs in der Menge sind.
+  - Zu klären: Ist es fachlich gewollt, dass nicht eingelastete FAs gefiltert werden, wenn die View sie zeigt?
+- **R3 (mittel, belegt, dokumentierte Lücke):** `PpsFaBelegeInfo` filtert beendete FAs auf **allen** Ebenen, nicht nur die Haupt-FA. Bei 1059463 sind es 54 statt 68 FAs; es fehlen 1065141, 1065142, 1065147, 1065150, 1065151, 1065163, 1065164, 1065176, 1065177, 1065189, 1065190, 1065202 und 1065206.
+  - Das beantwortet P-FS4.
+  - In der Stückliste live hängen die Kinder deshalb flach (Ebene 0). AK 3 ist nur teilweise erfüllt.
+  - Das liegt im Rahmen der Spec („Nicht ergänzt werden fehlende Unter-FAs … P-FS4“), wiegt mit echten Daten aber schwerer als angenommen.
+- **R4 (mittel, Mapping-Hypothese):** Artikeltyp am FA-Knoten: Der FA-Kopf liefert nil, die View zeigt BG. Vermutlich kommt der Wert in der View vom Artikel. Die Zuordnung in `:240` sollte den Artikeltyp für FA-Knoten vom Artikel nehmen. Das ist mit P-FS5 zu bestätigen.
+- **R5 (Info, DEV-Infrastruktur):** `AKENB\svc_idealakewms` hat keinen Zugriff (mehr) auf `IDEAL_TEST_2026_05_03` (`idealsql2\SAGE100TEST`, `D:\Dev\IDEAL\Service\appsettings.DEV.json`). Deshalb sind TS-148/149 und P-FS6 auf DEV nicht prüfbar.
+
+### Eingestellt und zurückgestellt (DEV IDEAL)
+- Ausgangswerte: `Sync:Quelle:FaStruktur = View`, `Sync:HierarchicalFaEnabled = false`.
+- 19:41:53: `Vergleich` und `true` gesetzt, Dienst neu gestartet.
+- Danach `SData` und `View` (TS-150.2/150.3), jeweils mit Neustart.
+- Zurückgestellt auf `View` und `false`. Rücklesen um 19:48: `Sync:Quelle:FaStruktur|View`, `Sync:HierarchicalFaEnabled|false`, alle Schreibschalter `false`, SData-Ziel unverändert.
+- Daten unverändert: `FaHierarchyNodes` 755 Knoten in 4 Strukturen (SyncedAt 29.10. 09:03), `ProductionOrderPositions` 0, `ProductionOrders` 194.
+- SyncLogs seit Id 14298621 nur: BdeAutoPause/Cleanup/FaMaterialization je 6 Info, FaHierarchy 6 Error + 3 Info, SageQuellenvergleich 2 Info + 1 Warning.
+- Keine Mail (ErrorNotification aus, keine Mailzeile im Dienstlog). Nichts an Sage geschrieben, nur GET (Web-Diagnose, Feldliste und direkte SData-GETs im Browser).
+
+### Screenshots
+`C:\Users\GERALD~1.WEI\AppData\Local\Temp\claude-chrome-screenshots-7wlGp8\`:
+- `screenshot-1794854351544-6.jpg`: ServiceSettings
+- `screenshot-1794854375532-7.jpg`: TS-146.1
+- `screenshot-1794854400782-8.jpg`: TS-146.2
+- `screenshot-1794854451377-9.jpg`: TS-147.1
+- `screenshot-1794854465755-10.jpg`: TS-147.2
+- `screenshot-1794854485130-11.jpg`: TS-147.3
+- `screenshot-1794854881617-12.jpg`: Feldliste mit `KHKPpsFaBelege_USER_OS*`, R1
+
+### Offen für die Umsetzung bzw. den Menschen
+1. R1 beheben (Präfix), die Tests auf echte Feldnamen umstellen, R4 mit P-FS5 klären.
+2. R2 klären: E4b-Filter und Wurzel bzw. Struktur beendeter Haupt-FAs. Gegebenenfalls die Wurzelableitung von der ungefilterten Menge nehmen oder Strukturen über `dtsFaBelegsuche where StrukturID` vervollständigen. Entscheidung fachlich, P-FS4.
+3. DEV: Dem Dienstkonto `svc_idealakewms` Lesezugriff auf `IDEAL_TEST_2026_05_03` geben (oder `SageConnection` in `appsettings.DEV.json` auf eine erreichbare Sage-Test-DB setzen). Danach TS-148/149 mit `Vergleich` wiederholen und P-FS6 messen.
+4. Danach erneut QA, Testbereit, Schranke 2.
