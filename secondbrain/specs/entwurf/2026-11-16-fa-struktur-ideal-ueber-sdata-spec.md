@@ -2,7 +2,7 @@
 type: spec
 title: FA-Struktur IDEAL über SData (Knotenfelder, beendete Haupt-FAs, orderBy, Stückliste live)
 slug: 2026-11-16-fa-struktur-ideal-ueber-sdata-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-11-16
 updated: 2026-11-16
 source_backlog: "[[2026-11-16-fa-struktur-ideal-ueber-sdata]]"
@@ -377,12 +377,12 @@ eigene Zeilen. Jede Etappe baut und testet grün, keine Etappe ändert das Schem
 
 | # | Etappe | Status | Commit |
 |---|--------|--------|--------|
-| 1 | E1 orderBy-Pflicht in `GetAsync` + `SageSdataFaController` :89/:136 + Tests (AK 1, 2). Keine Abhängigkeit. | offen | |
-| 2 | E2 Stückliste live: Kopf über dtsFaBelegsuche, Wurzel in `FaBaum`, Kennzeichnung Artikel-Modus (AK 3–5). Keine Abhängigkeit (Web-Diagnose nutzt RealTimeData schon). | offen | |
-| 3 | E3 Dienst: Wurzel und Positionen beendeter Haupt-FAs (AK 6). **Hängt an Rückfrage 1** (RealTimeData im Dienst bzw. P-FS3). Ohne Antwort: Code hinter der Entscheidung nicht bauen, Blocker festhalten, weiter mit E4 (Blattfelder). | offen | |
-| 4 | E4 Dienst: Knotenfelder (FA-Felder über die Quelle aus Rückfrage 1, Blattfelder über Artikel) + Vergleichsfelder (AK 7, 8, 12). Arbeitshypothese nach Rückfrage 2. Die Feldzuordnung wird nach P-FS1/P-FS5 nur in der Mapping-Stelle korrigiert. | offen | |
-| 5 | E5 Hybrid SData-Modus + Sperre P-F2 nur für die Struktur (AK 9–11). Baubar. **Umschalten auf IDEAL hängt an Rückfragen 4 und 5** (Einstellung Gerald, nicht Teil des Laufs). | offen | |
-| 6 | E6 Doku/Brain: `docs/betrieb/04-konfiguration.md` (Sync:Quelle:FaStruktur), `docs/betrieb/05-schnittstellen.md` (SData-Quellen FA-Struktur inkl. dtsFaBelegsuche), README AppSettings/ServiceSettings, Hilfe + `Views/Help/Changelog.cshtml`, Version 1.99.26 in beiden `AppVersion.cs`, TS-146..150, ADR 0029, Manifest, Brain (siehe Deploy). | offen | |
+| 1 | E1 orderBy-Pflicht in `GetAsync` + `SageSdataFaController` :89/:136 + Tests (AK 1, 2). Keine Abhängigkeit. | erledigt | 21b3fb65 |
+| 2 | E2 Stückliste live: Kopf über dtsFaBelegsuche, Wurzel in `FaBaum`, Kennzeichnung Artikel-Modus (AK 3–5). Keine Abhängigkeit (Web-Diagnose nutzt RealTimeData schon). | erledigt | 28dfdc4c |
+| 3 | E3 Dienst: Wurzel und Positionen beendeter Haupt-FAs (AK 6). **Hängt an Rückfrage 1** (RealTimeData im Dienst bzw. P-FS3). Ohne Antwort: Code hinter der Entscheidung nicht bauen, Blocker festhalten, weiter mit E4 (Blattfelder). | erledigt (RealTimeData nur im Vergleich, Freigabe-Antwort 1) | a3214677 |
+| 4 | E4 Dienst: Knotenfelder (FA-Felder über die Quelle aus Rückfrage 1, Blattfelder über Artikel) + Vergleichsfelder (AK 7, 8, 12). Arbeitshypothese nach Rückfrage 2. Die Feldzuordnung wird nach P-FS1/P-FS5 nur in der Mapping-Stelle korrigiert. | erledigt (Arbeitshypothese) | 24ad7354 |
+| 5 | E5 Hybrid SData-Modus + Sperre P-F2 nur für die Struktur (AK 9–11). Baubar. **Umschalten auf IDEAL hängt an Rückfragen 4 und 5** (Einstellung Gerald, nicht Teil des Laufs). | erledigt, Sperre bleibt (Auflage Gerald, AK 10 nicht erreichbar) | 9fa447f1 |
+| 6 | E6 Doku/Brain: `docs/betrieb/04-konfiguration.md` (Sync:Quelle:FaStruktur), `docs/betrieb/05-schnittstellen.md` (SData-Quellen FA-Struktur inkl. dtsFaBelegsuche), README AppSettings/ServiceSettings, Hilfe + `Views/Help/Changelog.cshtml`, Version 1.99.26 in beiden `AppVersion.cs`, TS-146..150, ADR 0029, Manifest, Brain (siehe Deploy). | erledigt | 5163df17 |
 
 Brain-Pflichten des Dev-Laufs (Hauptcheckout `secondbrain/`, nicht im Worktree):
 - ADR **0029** „FA-Struktur IDEAL: Knoten aus SData, FAInfos aus der View (hybrid); Quelle beendeter Haupt-FAs“. Er nimmt G11 für die
@@ -399,7 +399,15 @@ Brain-Pflichten des Dev-Laufs (Hauptcheckout `secondbrain/`, nicht im Worktree):
 
 ## Deploy
 
-*Vorläufig, QA bestätigt gegen den echten Diff.*
+**Final (QA 2026-11-16, gegen den echten Diff `3f247f11..5163df17`):**
+- `deploy.web: true` (IdealAkeWms/: SageSdataReadClient, SageSdataFaController, SageTestController, View Stueckliste, ServiceSettingDefinitions, SageQuelleSperre, Hilfe/Changelog, AppVersion).
+- `deploy.service: true` (IDEALAKEWMSService/: SdataFaStrukturReader, FaStrukturQuelleSwitch, SageFaStrukturReader, SdataArtikelReader, AppVersion; dazu SageQuelleSperre/ServiceSettingDefinitions über das gemeinsame Projekt).
+- `deploy.migration: false` (keine Datei unter `*/Migrations/`, kein SQL).
+- Paket: `C:\git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish` (IDEALAKEWMSWeb + IDEALAKEWMSWebService + SQL + deploy), Version 1.99.26, Commit `5163df1751b0429938dad6ad8fd64f40d81aa1b4`, erstellt 2026-11-16 17:28.
+  Beide Komponenten müssen deployt werden. Reihenfolge: Web und Dienst gemeinsam (kein Backup-Zwang, kein Schema). Nachlauf: Manifest-Einträge `v1.99.26-IDEAL-FaStrukturVergleich` (Einstellung, nur anzeigen) und `v1.99.26-Info` sind vorhanden (`scripts/deploy/nachlauf.psd1`).
+- Ablauf Mensch: publish aus dem Worktree → Testsystem → Test → Merge. Nach dem Merge nur dann neu aus main publizieren, wenn der Merge getestete Dateien mit parallelen main-Änderungen zusammengeführt hat.
+
+*Vorläufig (Spec-Agent), durch den Abschnitt oben ersetzt:*
 
 - **Web-App:** ja (E1, E2: SageSdataReadClient, SageSdataFaController, SageTestController, View Stueckliste, ServiceSettingDefinitions-Text).
 - **Service:** ja (E3–E5: SdataFaStrukturReader, FaStrukturQuelleSwitch, SageFaStrukturReader, SageQuelleSperre über das gemeinsame Projekt).
@@ -535,3 +543,145 @@ HauptArtnr ↔ Artikelnummer der Wurzel, Artikelgruppe (Format „CODE - Bezeich
 8. P-R1 als eigene Folge-Spec? → **Gerald 2026-11-16 15:59 „passt“ (Empfehlung Koordination): ja, eigene Backlog-Notiz.**
 9. „Verkaufsstückliste“ – Kennzeichnung im Artikel-Modus ausreichend? → **Gerald 2026-11-16 15:29: „dann ist das eh korrekt mit der FA-Liste“ – ja, Kennzeichnung reicht.**
 10. AKE-Regression für E1/E2 in der QA? → **Gerald 2026-11-16 15:59 „passt“ (Empfehlung Koordination): ja, nur die zwei Ansichten (TS-146/147 Negativfälle).**
+
+## QA-Nachweis (qa-agent, 2026-11-16)
+
+Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Branch `feature/2026-08-07-ideal-teile-1-5`, HEAD `5163df17`, geprüfter Bereich
+`3f247f11..5163df17` (E1 21b3fb65, E2 28dfdc4c, E3 a3214677, E4 24ad7354, E5 9fa447f1, E6 5163df17). Arbeitsbaum sauber.
+Verbindliche Auflage Gerald für diesen Lauf (ersetzt AK 10): RealTimeData im Dienst nur lesend und nur im Modus Vergleich; Umschalten
+auf SData bleibt gesperrt.
+
+### 1. Build und Tests
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler, 28 Warnungen (Altbestand, u. a. CS8601/CS8321, NU1902/1903).
+- `dotnet test`: **IdealAkeWms.Tests** 2920 bestanden, 1 übersprungen, 0 Fehler (2921); **IDEALAKEWMSService.Tests** 652 bestanden,
+  0 übersprungen, 0 Fehler. `NachlaufManifestDriftTests` ist Teil davon und grün (AK 13).
+
+### 2. Code-Review (selbst, in diesem Lauf)
+Geprüft wurde der gesamte Produktionsdiff, Web: `SageSdataReadClient`, `SageSdataFaController`, `SageTestController`, `Stueckliste.cshtml`,
+`ServiceSettingDefinitions`, `SageQuelleSperre`. Dienst: `SdataFaStrukturReader`, `FaStrukturQuelleSwitch`, `SageFaStrukturReader`,
+`SdataArtikelReader`, `SageQuelleWeiche`. Dazu der umgebende Code: `SageQuelleWeiche.LeseAsync`, `SageQuelleSchalter.Parse`,
+`FaHierarchySyncService` (Hinweis-Protokoll), `SyncWorker` (Gate), `PositionenProjizieren`, `BenutzerfelderLesenAsync`, außerdem Manifest und TS-Text.
+
+**Auflagen belegt (alle Wege):**
+- Sperre: `SageQuelleSperre.cs:21` liefert für `FaStruktur` immer einen Grund. `SageQuelleSchalter.cs:37-38` macht daraus für `SData` die
+  Quelle `View` mit Warnung. `SageQuelleWeiche.LeseAsync` ruft im Fall View nur `view(ct)`. Der SData-Lambda und damit `HybridAsync`
+  (`FaStrukturQuelleSwitch.cs:95`) werden nicht erreicht. Tests: `Weiche_SData_BleibtGesperrt_…`, `Sperre_FaStruktur_BleibtGesetzt_…`.
+- RealTimeData nur im Vergleich: Einziger Dienst-Aufrufer von `GetAsync` ist `SdataFaStrukturReader.cs:200` (grep `GetAsync<` über
+  `IDEALAKEWMSService`). Er ist nur über `FaKoepfeLesenAsync` erreichbar, hinter `if (!RealTimeDataErlaubt)` (`:171`). Der Schalter steht per
+  Default auf false (`:68`). Gesetzt wird er nur von der Weiche (`FaStrukturQuelleSwitch.cs:92`), mit der Regel `quelle == Vergleich` (`:118`).
+  `SdataFaStrukturReader` hat keinen anderen Verwender (nur die Registrierung `SdataRegistrierung.cs:88-91`). Nur GET, kein Schreibweg.
+- orderBy bei where: Der Wächter sitzt an der gemeinsamen Stelle `SageSdataReadClient.BuildUrl` (`SageSdataReadClient.cs:81`), vor dem HTTP-Aufruf.
+  Alle `GetAsync`-Aufrufer übergeben `"BelID"`: `SageSdataFaController.cs:89` und `:136`, `SageTestController.cs:220`,
+  `SdataFaStrukturReader.cs:200`. `QueryAllAsync`/`QueryPageAsync` erzwingen orderBy schon vorher. Auf DEV beobachtet: alle URLs mit `&orderBy=BelID`.
+
+**Befunde:**
+
+| Nr | Schwere | Fundstelle | Befund | Behandlung |
+|---|---|---|---|---|
+| Q1 | niedrig (latent) | `SdataFaStrukturReader.cs:171-175`, `FaStrukturQuelleSwitch.cs:118` | Hebt man später nur die Sperre in `SageQuelleSperre` auf, läuft der SData-Modus mit `RealTimeDataErlaubt = false`. Die FA-Knotenfelder bleiben leer, beendete Wurzeln fehlen, und gemeldet wird das nur als **Info**-Zeile, nicht als Warnung. Heute unerreichbar (Sperre). | Offen, kein Fix in diesem Lauf (Auflage). Beim Entsperren beide Regeln gemeinsam ändern oder den Hinweis zur Warnung machen. In die Folge-Arbeit „Umschalten“ aufnehmen. |
+| Q2 | niedrig | `SdataFaStrukturReader.cs:177` (Select mit allen `USER_OS*` an `dtsFaBelegsuche`) | Ein unbekanntes FA-Kopffeld ergibt HTTP 500. Das wirft `SdataLeseException`, und der ganze Vergleichslauf scheitert (Fehlermail je Lauf). Eine Feldprobe wie am Artikel gibt es nicht. | Abweichung der Umsetzung, gemeldet und akzeptiert: Der Fehler ist laut, nicht still, und die Namen sind in L10 belegt. Bei Bedarf Feldprobe nachrüsten. |
+| Q3 | niedrig (Text) | `SdataArtikelReader.cs:152`, `:174` | Die Warnungen sagen „Benutzerfeld …“ auch für Stammfelder (Matchcode, Bezeichnung1/2, Artikelgruppe, IstBestellartikel, PlatzID), die der FA-Reader jetzt über dieselbe Methode liest. „In keiner Zeile geliefert“ erscheint auch, wenn ein Feld an allen Blättern leer ist. | Hinweis, kein Fix (kosmetisch, die Meldung bleibt sichtbar). |
+| Q4 | Info | `SdataFaStrukturReader.cs:254` (`Dezimal`) | Nicht lesbarer Text bei Breite/Hoehe/Tiefe wird still zu 0 (NULL → 0 ist Spec-Regel wie im View-Weg). | Im Vergleich als Abweichung sichtbar; akzeptiert. |
+| Q5 | Info | `SdataFaStrukturReader.cs:178-183` | Über `dtsFaBelegsuche` ergänzte Wurzeln laufen nicht durch `KoepfeFiltern` (eingelastet/aktiv). Ihre Positionen landen nur in der Struktur, nicht in `ProductionOrderPositions`: `PositionenProjizieren` überspringt sie, wie im Kommentar beabsichtigt. | Akzeptiert. |
+
+Bewertung der Abweichungen, die der Auftrag zur Beurteilung nennt:
+- AK 10 ist nicht erreichbar, weil die Sperre bleibt. Das entspricht der Auflage und ist korrekt umgesetzt.
+- Bezeichnung1/2 kommen nur vom Artikel (`:230`, TODO P-FS5), Artikelgruppe nur als Code (`:232`). Das sind erwartete Vergleichsabweichungen, in
+  TS-148.3 benannt.
+- Ein `dtsFaBelegsuche`-Durchlauf für E3 und E4: ok (eine Stelle, weniger Last).
+- Die gekürzte Beschreibung von `Sync:Quelle:FaStruktur` ist ok. Der Kerninhalt ist vorhanden (Vergleich, SData hybrid, Sperre, Warnhinweis).
+
+Geprüfte Defektklassen:
+- kein `@Html.Raw` und kein Skriptwert im View-Diff,
+- kein `hidden` zusammen mit `d-*`,
+- keine Array-Bindung,
+- Validierung serverseitig (`SageTestController` prüft die Eingabe vor jedem Aufruf),
+- Bool-Regel an einer Stelle (`SageFaStrukturReader.SageBool`, von beiden Wegen genutzt),
+- stille Rückfälle: kein neuer außer Q4.
+
+„Melden statt still“: Die neuen Wege melden die Wurzel-Ergänzung, den Verzicht auf RealTimeData (als Info, siehe Q1), unbekannte Artikelfelder
+(Warnung) und Lesefehler (Exception → Vergleich fehlgeschlagen + Mail).
+
+### 3. Nachweisart je AK
+| AK | Nachweis |
+|---|---|
+| 1 | Automatisch: `SageSdataReadClientTests.WhereOhneOrderBy_ArgumentException_OhneRequest` (+ DEV: URLs mit orderBy) |
+| 2 | Automatisch: `SageSdataFaControllerTests` (alle URLs `&orderBy=BelID`). Teil „IDEAL-DEV 1069595 kein 500“: **Manual-UAT** (DEV zeigt auf ake_TEST2026) |
+| 3, 4 | Automatisch (Fake): `SageTestSdataTests.Stueckliste_BeendeterHauptFa_…`, `…_UnterFaEinesBeendetenHauptFa_…`. Echte IDEAL-Daten: **Manual-UAT** |
+| 5 | Automatisch: `…_ArtikelModus_HinweisRessourcenlisteMitText`. Im DEV-Browser mit AKE-Artikel EU253711 belegt (Text sichtbar, nicht nur Farbe) |
+| 6 | Automatisch: `FaStrukturSdataTests.LesenAsync_BeendeterHauptFa_…`, `…_HauptFaAuchInBelegsucheNicht_WarnungOhneWurzel` |
+| 7 | Automatisch: `Projizieren_UnterFaBekommtFaFelder_BlattArtikelfelder_…`, `SageBool_EineRegel_ViewUndSdata` |
+| 8 | Automatisch: `Vergleich_NurArbeitsschritteAnEinemBlatt_…` |
+| 9 | **Manual-UAT** (Lauf FA-Hierarchie mit echter View + SData; auf DEV nicht startbar) |
+| 10 | Entfällt per Auflage (Sperre bleibt). Hybrid nur simuliert: `Weiche_SData_Hybrid_BeiSimulierterFreigabe_…`, nicht als grün gezählt |
+| 11 | **Manual-UAT** (Lauf). Rückfall bei Sperre automatisch: `Weiche_SData_BleibtGesperrt_…` |
+| 12 | Automatisch: `LesenAsync_UnbekanntesArtikelfeld_Warnung_LaufLaeuftWeiter` |
+| 13 | Automatisch: Build/Tests grün, `NachlaufManifestDriftTests` grün |
+
+### 4. Geänderte bestehende Tests
+- `ArtikelSdataTests` (Theory Sperrgrund): `"P-F2"` → `"P-FS3"`. Verhalten bewusst geändert (neuer Sperrgrund, E5/Auflage).
+- `SageSdataReadClientTests` (7 Tests): `orderBy` `null` → `"BelID"`. Bewusst geändert durch AK 1 (ohne orderBy wirft der Client jetzt).
+- `SageSdataFaControllerTests`: nur eine Zusatz-Assertion (AK 2), keine Fixture-Änderung.
+- `FaStrukturSdataTests.Weiche_SData_GesperrtBisPF2_…` → `Weiche_SData_BleibtGesperrt_WirktWieView_MitWarnungUndGrund`: Text des Grundes geändert
+  (Auflage). Das Verhalten (SData wirkt wie View) ist unverändert und wird strenger geprüft.
+
+Kategorie „sonstige“: keine.
+
+### 5. Checkliste CLAUDE.md / ADR 0020
+- Migration, SQL, FreshInstall, AgentJobs: entfällt (kein Schema). Audit: entfällt (Cache-Tabellen).
+- Version 1.99.26 in beiden `AppVersion.cs`. `Views/Help/Changelog.cshtml` und Hilfe ergänzt.
+- Brain: Changelog `2026-11-16-v1-99-26-fa-struktur-ideal-sdata`, ADR 0029, fallstricke und feature-map vorhanden.
+- `docs/TESTSZENARIEN.md` TS-146..150 vorhanden; die Testindex-Zeile hat QA ergänzt.
+- ADR 0020 für `Sync:Quelle:FaStruktur`: Auswahlliste (Combobox auf `/ServiceSettings` belegt), Server prüft (bestehendes `QuellenWerte`).
+  Anzeigename, Wirkung, Verwendung, Default, Standort und Warnhinweis vorhanden (DEV-Screenshot). Keine neuen Keys.
+- Manifest: beide Einträge der Spec vorhanden, ASCII.
+
+### 6. DEV-Deploy und Testlauf
+Standort laut Frontmatter IDEAL, zusätzlich AKE (Freigabe-Antwort 10). Elevated Shell bestätigt.
+- `dev-deploy.ps1 -Standort IDEAL -Quelle <worktree>`: Exit 0, „HTTP 200, Fusszeile v1.99.26“, „Fertig: IDEAL v1.99.26 auf http://localhost:8082/“.
+- `dev-deploy.ps1 -Standort AKE -Quelle <worktree>`: Exit 0, „HTTP 200, Fusszeile v1.99.26“, „Fertig: AKE v1.99.26 auf http://localhost:8081/“.
+- DEV-Lage IDEAL: `SData:BaseUrl = https://sagetest01.ake.at:5493/`, Dataset `ake_TEST2026;1`. Das ist der AKE-Testmandant, nicht IDEAL. Es liefen
+  nur GET-Lesungen über die Web-Diagnosen.
+- DEV-Lage AKE: `SData:Username` ist leer. Die Seiten melden „Sage-SData nicht konfiguriert“, es gibt keinen Aufruf.
+- Keine Einstellung geändert (`Sync:Quelle:FaStruktur` blieb `View`), nichts an Sage geschrieben, keine Mails.
+
+| Schritt | Ausgeführt | Ergebnis | Status |
+|---|---|---|---|
+| 146.1 / 146.2 | IDEAL-FAs 1069595 / 1059463 | Gibt es im verbundenen Mandanten ake_TEST2026 nicht | NICHT MÖGLICH (DEV zeigt nicht auf IDEAL-Sage) |
+| 146.3 | IDEAL-DEV, FA-Struktur live 835 (AKE-Testmandant) | 5 Aufrufe, alle 200 OK, alle mit `&orderBy=BelID` (Belegsuche BelID, StrukturID, Teileverwendung, RückKorrektur, Fertigmeldungen) | OK |
+| 146.4 | AKE-Regression: derselbe Code mit AKE-FA 835 (über IDEAL-DEV, Sage AKE-Test) | Struktur 835 mit 6 Sub-FAs, Positionen, Rück-/Fertigmeldungen wie bisher | OK. Auf AKE-DEV selbst NICHT MÖGLICH (SData-Benutzer leer); die Seite rendert mit Konfig-Hinweis |
+| 147.1 / 147.2 | IDEAL-FAs 1059463 / 1065143 | Nicht im verbundenen Mandanten | NICHT MÖGLICH. Ersatz: 1059463 eingegeben → PpsFaBelegeInfo 0 Zeilen → Aufruf „Kopf über dtsFaBelegsuche (in PpsFaBelegeInfo nicht vorhanden, beendet?)“ mit `orderBy=BelID` → „FA 1059463 in Sage nicht gefunden.“ (Rückfallweg läuft) |
+| 147.2 (Regression) | Stückliste live FA 836 (Sub-FA, AKE) | „FA 836 gehört zur Struktur 835 – angezeigt wird die ganze Struktur“, Wurzel 835 oben, 11 Positionen, Sub-FAs eingehängt, 3 Aufrufe (kein RealTimeData nötig) | OK |
+| 147.3 | Artikel-Modus EU253711 (AKE; 80141025 nicht im Mandanten) | Überschrift „Ressourcenliste (Vorlage) EU253711 …“, Hinweis „Ressourcenliste (Vorlage) – nicht die FA-Stückliste. Das ist die Ressourcenliste des Artikels, nicht die Stückliste eines Fertigungsauftrags …“ als Text | OK (mit 80141025 an IDEAL offen) |
+| 147.4 | FA 999999999 | „FA 999999999 in Sage nicht gefunden.“, 2 Aufrufe (Suche + Belegsuche-Rückfall), keine weiteren | OK |
+| 147.5 | Artikelnummer `80141'025` | „Artikelnummer ohne ', & und #.“, kein Aufruf | OK |
+| 148.1 – 148.6 | Lauf FA-Hierarchie im Vergleich | Der Lauf hängt an `Sync:HierarchicalFaEnabled` (`SyncWorker.cs:337`); Einschalten ist auf DEV verboten | NICHT MÖGLICH |
+| 149.1 – 149.2 | wie 148 | wie 148 | NICHT MÖGLICH (149.2 per Unit-Test belegt) |
+| 150.1 | `/ServiceSettings` IDEAL-DEV | Combobox „View – bisheriger SQL-Weg“; Hinweis „SData ist hier gesperrt bis P-FS3 (DPS-Freigabe RealTimeData im Dienst offen; Rückfragen 4/5 …)“ und Achtung-Text „SData erst nach abweichungsfreiem Vergleich …“ | OK |
+| 150.2 – 150.3 | Lauf mit `= SData` / zurück auf `View` | Lauf auf DEV nicht startbar | NICHT MÖGLICH |
+| 150.4 | nach späterer Freigabe | nicht Teil von v1.99.26 | entfällt |
+
+Kein FEHLER.
+
+### 7. Publish
+Ziel `C:\git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish\`, Zielordner vorher geleert. Inhalt: `IDEALAKEWMSWeb`,
+`IDEALAKEWMSWebService`, `SQL`, `deploy` und `publish-info.txt` (Version 1.99.26, Commit `5163df1751b0429938dad6ad8fd64f40d81aa1b4`, Branch,
+Spec, Erstellt 2026-11-16 17:28, Komponenten Web + Dienst). Beide `dotnet publish` mit Exit 0.
+
+**Status-Entscheidung:** Testbereit.
+- Build und Tests grün, DEV-Deploy an beiden Standorten grün, keine FEHLER, nur niedrige Befunde.
+- Das Epic ist im Rahmen der Auflage vollständig gebaut; das gesperrte Umschalten ist dokumentiert.
+
+### Manuelle Checkliste für den Menschen (offen)
+1. Testsystem IDEAL (zeigt auf IDEAL-Sage), TS-146.1/146.2: FA-Struktur live 1069595 und 1059463. Kein 500, alle URLs mit `orderBy` (P-FS7).
+2. TS-147.1: Stückliste live 1059463 zeigt die Wurzel oben, 13 Positionen und den Aufruf „Kopf über dtsFaBelegsuche“. TS-147.2 mit 1065143,
+   TS-147.3 mit Artikel 80141025.
+3. TS-146.4/147 am AKE-Test mit konfiguriertem SData-Benutzer kurz gegenprüfen (auf AKE-DEV ohne Benutzer nicht möglich).
+4. TS-148: `Sync:Quelle:FaStruktur = Vergleich` setzen (Manifest `v1.99.26-IDEAL-FaStrukturVergleich`), Lauf FA-Hierarchie abwarten, Protokoll
+   „Sage-Quellenvergleich“ prüfen. Stichprobe 1059463/1069595 gegen P-FS5. Erwartete Abweichungen: Artikelgruppe nur Code, Bezeichnung1/2 an
+   Unter-FAs, an Blättern Beschichtet/Breite/Hoehe/Tiefe/EKBedarf. Laufzeit gegen P-FS6/Rückfrage 7 notieren.
+5. TS-149.1: Hinweis „… über dtsFaBelegsuche ergänzt: 1059463“, keine Warnung „ohne Haupt-FA“ für 1059463.
+6. TS-148.5: Bei einem SData-Fehler im Vergleich schreibt der Lauf aus der View, der Lauf „Sage-Quellenvergleich“ endet fehlgeschlagen, es kommt die Fehlermail.
+7. TS-150.2/150.3: `= SData` wirkt wie View, mit der Warnung „gesperrt bis P-FS3“. Danach zurück auf `View` bzw. `Vergleich`.
+8. Prüfabfragen P-FS1..P-FS8 (Gerald) und DPS-Antwort zu RealTimeData. Vor dem Entsperren Befund Q1 beachten.
+9. Danach Merge (Schranke 2).
