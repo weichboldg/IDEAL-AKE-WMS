@@ -1,0 +1,365 @@
+---
+type: spec
+title: Wareneingang-CSV – ohne Kopfzeile, Erfasser = Windows-Kontoname (sAMAccountName)
+slug: 2026-11-14-wareneingang-csv-erfasser-samaccountname-spec
+status: Entwurf
+created: 2026-11-16
+updated: 2026-11-16
+source_backlog: "[[2026-11-14-wareneingang-csv-erfasser-samaccountname]]"
+task: ""
+worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
+branch: "feature/2026-08-07-ideal-teile-1-5"
+standort: AKE
+version: "1.99.29"
+testszenario: "TS-153"
+affected_code:
+  - IDEALAKEWMSService/Services/WareneingangCsvService.cs
+  - IDEALAKEWMSService.Tests/Services/WareneingangCsvServiceTests.cs
+  - IdealAkeWms/Views/Help/Index.cshtml
+  - IdealAkeWms/Views/Help/Changelog.cshtml
+  - IdealAkeWms/AppVersion.cs
+  - IDEALAKEWMSService/AppVersion.cs
+  - scripts/deploy/nachlauf.psd1
+  - docs/TESTSZENARIEN.md
+open_questions:
+  - "1. enaio-Import umstellen und Zeitpunkt: Überspringt der enaio-Import heute die erste Zeile als Kopfzeile oder ordnet er über Spaltennamen zu? Dann liest er ab dem Deploy die Datenzeile nicht mehr bzw. findet die Spalten nicht. Empfehlung: Import vor dem Deploy auf 9 Spalten nach Position ohne Kopfzeile umstellen, Umstellung und Deploy im selben Fenster; ist WareneingangCsvAktiv auf AKE-Prod noch aus (P-4), entfällt das Risiko bis zum Einschalten."
+  - "2. Dateien im Übergang: Dateien im alten Format (mit Kopfzeile), die beim Deploy noch auf der Freigabe liegen, schreibt das WMS nicht um. Soll die Freigabe vor dem Deploy leer sein (enaio hat alles abgeholt), oder muss der Import beide Formate verkraften? Empfehlung: Freigabe vor dem Deploy leer (P-5)."
+  - "3. Schreibweise des Kontonamens: Das WMS gibt WindowsUserName so aus, wie es gespeichert ist (Groß-/Kleinschreibung aus dem AD, z. B. JMuster). Braucht enaio eine feste Schreibweise (z. B. klein)? Empfehlung: unverändert ausgeben, enaio vergleicht ohne Groß-/Kleinschreibung."
+epic: false
+etappen: []
+deploy:
+  web: true
+  service: true
+  migration: false
+freigabe_entscheidung: ""
+freigabe_von: ""
+freigabe_am: ""
+---
+
+# Wareneingang-CSV – ohne Kopfzeile, Erfasser = Windows-Kontoname
+
+> [!info] Nummern (beim Start geprüft, 2026-11-16)
+> Version **1.99.29**, Testszenario **TS-153**, **keine** SQL-Nummer, **kein** ADR.
+> Geprüft: Worktree `AppVersion.cs` = 1.99.25; reserviert 1.99.24–1.99.28 (SQL/151, /153, /154; TS-139–152; ADR 0027–0030).
+> `secondbrain/` enthält weder „1.99.29“ noch TS-153–159 (Grep über specs/ und aufgaben/ ohne Treffer). Höchstes TS in
+> `docs/TESTSZENARIEN.md` des Worktrees: TS-144. Der Dev-Lauf prüft die Nummern erneut. Wird die Reihenfolge im Bündel
+> geändert, verschiebt sich nur die Version, nicht der Inhalt.
+
+## Ziel / Nutzen (das Warum)
+
+Den Lieferschein-Export liest **enaio** (Gerald 2026-11-16). Zwei Änderungen am Dateiformat werden zusammen umgesetzt, damit enaio
+einmal abgestimmt und einmal getestet wird:
+
+1. **Keine Kopfzeile mehr.** Die Datei enthält nur die Datenzeile.
+2. **Erfasser = Windows-Kontoname (sAMAccountName) ohne Domäne** statt des WMS-Anzeigenamens. Das ist eindeutig, und enaio kann
+   es einem Benutzer zuordnen. Ein lokaler WMS-Benutzer ohne Windows-Konto behält seinen WMS-Namen.
+
+Grundlage ist die Vorgänger-Spec [[2026-11-12-wareneingang-barcode-lieferschein-csv-export-spec]] (v1.99.11, TS-129). Dort heißt es
+in Antwort 2: „Den enaio-Import gestalten wir selbst.“
+
+## Umfang (In-Scope / Out-of-Scope)
+
+**In-Scope**
+- `WareneingangCsvService.CsvInhalt`: Kopfzeile entfällt. Spaltenreihenfolge, Trennzeichen `;`, CRLF, UTF-8 mit BOM, Datumsformat und
+  Quoting bleiben unverändert.
+- Spalte 7 „Erfasser“: neue Herkunft (siehe F2).
+- Die Leseabfrage in `RunOnceAsync` lädt Bewegung und Benutzer mit.
+- Unit-Tests anpassen und ergänzen.
+- Die Hilfe beschreibt das Format mit Spaltenreihenfolge (ohne Überschrift ist die Reihenfolge der Vertrag). Dazu Anwender-Changelog,
+  Version, TS-153, ein Hinweis an TS-129.11 und der Manifest-Eintrag.
+
+**Out-of-Scope** (Gerald 2026-11-16 16:52: nur die CSV)
+- **Alle anderen Ausgaben bleiben unverändert**, ebenso alle gespeicherten Werte:
+  - `PurchaseOrderReceipt.CreatedBy` und `StockMovement.CreatedBy` bleiben der Anzeigename beim Buchen (`PurchaseOrdersController.Receive.cs:120,142,155`).
+  - Die Sage-Wareneingangsbelege enthalten keinen Benutzer. Kopf-Memo = Kennung (`SageWareneingangPayload.cs:100`), Positionsmemo =
+    Eingabe + Kennung + LS + Platz (`SageWareneingangPayload.cs:63-67,89`). Die Sage-Lagerbuchung trägt im Memo nur die Kennung
+    (`SageLagerbuchungPayloadBuilder.cs:71`).
+  - Die Mails mit „Erfasser“ (Lagerbestellungen) nehmen weiter `CreatedBy` (`WarehouseRequisitionEmailService.cs:152,179,199,225`).
+  - Wareneingangs-Maske und Liste „Sage-Wareneingänge“ zeigen keinen Erfasser: kein `CreatedBy` in `Views/PurchaseOrders/*` und
+    `PurchaseOrdersController.SageWe.cs` (Grep ohne Treffer).
+- Bereits geschriebene Dateien werden nicht umgeschrieben.
+- Am Benutzerstamm ändert sich nichts. Kein Bereinigungsskript für `Users.WindowsUserName`, keine neue Prüfung beim Anlegen.
+- Kein Schreiben nach Sage, keine Einstellungen auf Test oder Prod.
+
+> [!note] Überholt im Backlog
+> Der Vorschlag „Kopfzeile `Erfasser` unverändert lassen“ gilt nicht mehr. Die Ergänzung vom 16.11. 16:31 hat ihn ersetzt:
+> **keine Kopfzeile**.
+
+## Fachliche Anforderungen
+
+**F1 – Ohne Kopfzeile.** Die Datei besteht aus genau einer Zeile mit 9 Feldern und CRLF am Ende. Das BOM setzt weiterhin der Schreiber.
+Die Reihenfolge der Felder ist unverändert (`WareneingangCsvService.cs:140-141`):
+
+| Pos. | Feld (bisheriger Spaltenname) | Quelle |
+|---|---|---|
+| 1 | Barcode | `WareneingangCsvExport.Barcode` |
+| 2 | Kreditornummer | `PurchaseOrderReceipt.LieferantKto` |
+| 3 | Kreditorname | `PurchaseOrderReceipt.LieferantName` |
+| 4 | Bestellnummer | `PurchaseOrderReceipt.Belegnummer` |
+| 5 | Lieferschein | `PurchaseOrderReceipt.Lieferschein` |
+| 6 | SageBelegnummer | `PurchaseOrderReceipt.SageWeBelegnummer` |
+| 7 | Erfasser | **neu, siehe F2** |
+| 8 | Datum (`yyyy-MM-dd HH:mm`) | `PurchaseOrderReceipt.CreatedAt` |
+| 9 | UebergebenAm (`yyyy-MM-dd HH:mm`) | `PurchaseOrderReceipt.SageWeAm` |
+
+Alle Felder beziehen sich auf das erste Receipt des Vorgangs (`MinBy(Id)`, `WareneingangCsvService.cs:64-66`), wie bisher.
+
+**F2 – Erfasser.** Die erste zutreffende Regel gilt:
+1. Hat die Bewegung des Receipts (`PurchaseOrderReceipt.StockMovement`) einen Benutzer (`StockMovement.UserId` → `User`) mit nicht
+   leerem `WindowsUserName`, wird dieser **ohne Domäne** ausgegeben. Aus `DOMAIN\name` wird `name`, aus `name@domain` wird `name`.
+   Getrimmt, Schreibweise wie gespeichert.
+2. Hat der Benutzer kein `WindowsUserName` (lokaler WMS-Benutzer), wird `User.Name` ausgegeben.
+3. Hat die Bewegung keine `UserId` (Altbestand, oder der Benutzer wurde gelöscht: FK `SetNull`, `ApplicationDbContext.cs:410-413`),
+   wird wie bisher `PurchaseOrderReceipt.CreatedBy` ausgegeben.
+
+Ob der Benutzer aktiv ist, spielt keine Rolle: Ausgegeben wird, wer gebucht hat. Maßgeblich ist der Benutzerstamm zum Zeitpunkt, an
+dem die Datei geschrieben wird. Die CSV entsteht erst nach der Übergabe an Sage.
+
+**`CreatedByWindows` und `StockMovement.WindowsUser` werden nicht verwendet.** Sie enthalten die Windows-Identität der Sitzung, nicht
+die des Benutzers: `DOMAIN\sam` aus `User.Identity.Name` (`WindowsAutoLoginMiddleware.cs:118`, `AccountController.cs:108`).
+Bei einer Formular-Anmeldung ohne Windows-Identität steht dort `""` bzw. `"SYSTEM"` (`CurrentUserService.cs:33-41`,
+[[fallstricke]] „Antiforgery-Wurzel-Fix“). An einem Terminal mit Windows-Identität ist es das Konto des Terminals.
+
+**F3 – Escaping unverändert.** Ein Feld mit `;`, `"`, CR oder LF steht in Anführungszeichen, ein inneres `"` wird verdoppelt
+(`WareneingangCsvService.cs:136-137`). Das gilt auch für den neuen Erfasser-Wert. `User.Name` ist Freitext (bis 200 Zeichen,
+`User.cs:7-10`).
+
+### Belege: Woher kommt der Erfasser heute?
+
+- Spalte 7 = `F(r.CreatedBy)` (`WareneingangCsvService.cs:141`).
+- `r.CreatedBy = name`, `name = _user.GetDisplayName()` (`PurchaseOrdersController.Receive.cs:120,155`).
+- `GetDisplayName()` = Session-Wert `AppUserName`, sonst Windows-Identität ohne Domäne (`CurrentUserService.cs:43-53`).
+- `AppUserName` = `user.Name` bei Formular- und Windows-Anmeldung (`AccountController.cs:105`, `WindowsAutoLoginMiddleware.cs:115`).
+  Der Erfasser ist heute also der **WMS-Benutzername** (`User.Name`) zum Buchungszeitpunkt. Bei AD-Benutzern ist das der beim Anlegen
+  gewählte Anzeigename, ersatzweise der sam (`UsersController.cs:202`).
+- `StockMovement.UserId = _user.GetCurrentAppUserId()` (Session) wird beim Wareneingang gesetzt (`Receive.cs:119,139`). Ein Receipt
+  entsteht **nur** auf diesem Weg (einziges `new PurchaseOrderReceipt` außerhalb der Tests: `Receive.cs:145`). Die Navigation
+  `PurchaseOrderReceipt.StockMovement` ist vorhanden (`PurchaseOrderReceipt.cs:36-37`), ebenso `StockMovement.User` (`StockMovement.cs:37,53`).
+
+### Belege: Alle Schreibwege von `Users.WindowsUserName`
+
+| Weg | Schreibt `WindowsUserName`? | Form | Beleg |
+|---|---|---|---|
+| AD-Benutzer anlegen (`/Users/CreateAdUser`) | **ja**, einziger Weg | `vm.SamAccountName.Trim()`. Die Auswahlliste stammt aus `UserPrincipal.SamAccountName` (ohne Domäne). | `UsersController.cs:177,203`; `ActiveDirectoryService.cs:56-57`; `CreateAdUser.cshtml:18-19` |
+| Lokalen Benutzer anlegen (`/Users/Create`) | nein (bleibt NULL) | – | `UsersController.cs:114-134` |
+| Benutzer bearbeiten (`/Users/Edit`) | nein: Das Feld ist im VM nur zur Anzeige, der POST übernimmt es nicht | – | `UsersController.cs:247` (nur GET), `290-312` (POST ohne WindowsUserName); `UserEditViewModel.cs:15-17` |
+| Profil (`/Account/Profile`) | nein | – | `AccountController.cs:205-229` |
+| Formular-Anmeldung | nein (setzt nur die Session) | – | `AccountController.cs:104-108` |
+| Windows-Anmeldung (Middleware) | nein (liest nur, `ExtractSam` + Lookup) | – | `WindowsAutoLoginMiddleware.cs:110-118`; `UserRepository.cs:42-52` |
+| Admin-Seed beim Start / FreshInstall | nein (NULL) | – | `Program.cs:263-272`; `SQL/00_FreshInstall.sql:1544-1547` |
+| SQL-Skripte, AgentJobs, Deploy-Skripte | nein: kein `UPDATE`/`INSERT` auf `Users` mit `WindowsUserName` | – | Grep `(UPDATE\|INSERT INTO) …Users` über `*.cs,*.sql,*.ps1,*.psd1`: nur FreshInstall:1544; `SQL/73` legt nur Spalte und Index an |
+| AD-Import/-Sync im Dienst | gibt es nicht. Der Dienst schreibt keine `Users`. | – | Grep `.Users.(Add\|Update)` / `_userRepository.(Add\|Update)Async`: nur `UsersController.cs:139,210,314`, `AccountController.cs:229`, `Program.cs:272` |
+
+**Schluss:** Im normalen Ablauf ist der Wert domänenfrei, denn er kommt aus dem AD-Attribut sAMAccountName. **Garantiert ist das nicht.**
+`CreateAdUser` prüft den geposteten `SamAccountName` nicht gegen die AD-Liste: `candidate` darf `null` sein, und der Benutzer wird
+trotzdem angelegt (`UsersController.cs:197-209`). Direkte DB-Pflege lässt sich ebenfalls nicht ausschließen (Prüfabfrage P-1).
+Deshalb **wird beim Lesen normalisiert**, über den vorhandenen, getesteten Helfer `WindowsAccountHelper.ExtractSam`
+(`IdealAkeWms/Services/WindowsAccountHelper.cs:7-22`, Tests `WindowsAccountHelperTests.cs:10-17`: Backslash-Form, `@`-Form, leer → null).
+Den Helfer nutzt auch die Windows-Anmeldung. Der Dienst referenziert `IdealAkeWms.Services` bereits (`WareneingangCsvService.cs:4`).
+
+> [!warning] Grenze von ExtractSam
+> Ein echter sAMAccountName mit `@` würde am `@` abgeschnitten. Das AD erlaubt `@` im sAMAccountName. P-1 zeigt, ob es solche Werte
+> gibt. Bei Treffern meldet der Dev-Lauf das vor dem Umsetzen, statt still abzuschneiden.
+
+## Technischer Loesungsentwurf
+
+Kleinste Lösung (ponytail): eine Datei Produktivcode, kein neuer Typ, keine neue Abhängigkeit.
+
+1. **`RunOnceAsync`** (`WareneingangCsvService.cs:64-65`): Die Abfrage `erste` bekommt
+   `.Include(r => r.StockMovement).ThenInclude(m => m.User)`. AsNoTracking bleibt.
+2. **`CsvInhalt`** (`WareneingangCsvService.cs:131-142`):
+   - Die Zeile mit der Kopfzeile entfällt. Rückgabe ist nur noch `string.Join(";", …) + "\r\n"`.
+   - Erfasser:
+     `var u = r.StockMovement?.User;`
+     `var erfasser = WindowsAccountHelper.ExtractSam(u?.WindowsUserName) ?? u?.Name ?? r.CreatedBy;`
+     Feld 7 = `F(erfasser)`. `?.` auf `StockMovement` ist nötig: Die Eigenschaft ist zwar `= null!` deklariert, der statische Test
+     (`WareneingangCsvServiceTests.cs:217`) baut aber ein Receipt ohne Bewegung.
+   - Den XML-Kommentar anpassen: „eine Datenzeile ohne Kopfzeile (v1.99.29), Erfasser = …“.
+3. Signatur, Schreiber, Fehlerpfade, Wiederholung und Ausgangstabelle bleiben unverändert.
+
+Muster: kein Repository-Umbau. Der Dienst arbeitet hier schon direkt auf dem `ApplicationDbContext` (Bestand v1.99.11).
+Modul: [[module]] Wareneingang / Dienst `SageBookingWorker` → `WareneingangCsvService` (`SageBookingWorker.cs:153`).
+
+**Wer schreibt die CSV?** Ausschließlich der **Dienst**: `IDEALAKEWMSService/Program.cs:154` (DI) und `SageBookingWorker.cs:153` (Aufruf).
+Die Web-App schreibt keine Datei. Sie ändert sich nur bei Hilfe, Changelog und Version.
+
+## Migrations-/SQL-Auswirkungen
+
+Keine. Keine Schemaänderung, kein `SQL/XX`, keine FreshInstall-Änderung, keine AgentJobs. Gelesen werden nur vorhandene Spalten:
+`StockMovements.UserId` und `Users.WindowsUserName`/`Name`.
+
+## Einstellungen
+
+keine. `WareneingangCsvAktiv`, `WareneingangCsvPfad` usw. bleiben unverändert. Das neue Format gilt ohne Schalter: Gerald hat es
+entschieden, und eine Umschaltung wäre YAGNI.
+
+| Key | Typ | Erlaubte Werte | Default | Wirkung | Verwendung | Standort | Warnhinweis |
+|---|---|---|---|---|---|---|---|
+| – | – | – | – | – | – | – | – |
+
+## Audit-Feld-Auswirkungen
+
+Keine. Es wird keine Entität neu geschrieben oder geändert. Die Audit-Felder an `WareneingangCsvExporte` setzt der Lauf wie bisher
+(`WareneingangCsvService.cs:49,94`). `CreatedBy`/`CreatedByWindows` an Receipt und Bewegung bleiben, wie sie sind.
+Rollen und Zugriffsfilter: keine Änderung. Listen-View-Pattern: keine neue Tabelle oder Ansicht.
+
+## Akzeptanzkriterien
+
+1. **Ohne Kopfzeile:** Eine neu geschriebene `<Barcode>.csv` besteht aus BOM + genau einer Zeile mit 9 durch `;` getrennten Feldern
+   + CRLF. `Barcode;Kreditornummer;…` kommt nicht vor.
+2. **Reihenfolge:** Die Felder 1–6, 8 und 9 haben dieselben Werte und dasselbe Format wie die Datenzeile vor v1.99.29 (Unit-Test mit
+   den Werten aus `WareneingangCsvServiceTests.cs:82-83` ohne Kopfzeile).
+3. **AD-Benutzer:** Bucht ein Benutzer mit `WindowsUserName = jmuster`, steht in Feld 7 `jmuster`, nicht der Anzeigename.
+4. **Domänenformen:** `WindowsUserName = AKE\jmuster` oder `jmuster@ake.at` ergibt in Feld 7 `jmuster` (Unit-Test).
+5. **Lokaler Benutzer:** Ist `WindowsUserName` NULL oder leer, steht in Feld 7 `User.Name`.
+6. **Ohne UserId:** Hat die Bewegung `UserId = NULL`, steht in Feld 7 `PurchaseOrderReceipt.CreatedBy`.
+7. **Nicht die Sitzung:** Feld 7 ist nie der Wert von `CreatedByWindows` oder `StockMovement.WindowsUser`. Test: Benutzer
+   `WindowsUserName = jmuster`, Receipt `CreatedByWindows = "AKE\\terminal01"` → `jmuster`.
+8. **Include wirkt:** Ein Test über `RunOnceAsync` mit Benutzer in der DB liefert in der Datei den Kontonamen, nicht `CreatedBy`.
+   Das schützt gegen ein vergessenes `Include`, das sonst still auf `CreatedBy` zurückfällt.
+9. **Escaping:** `User.Name = Muster; "Max"` (lokaler Benutzer) ergibt Feld 7 `"Muster; ""Max"""`.
+10. **Bestandsverhalten unverändert:** Der Diff ändert keine andere Ausgabe. Unverändert bleiben `Receive.cs` (CreatedBy der
+    Receipts/Bewegungen), `SageWareneingangPayload.cs`, `SageLagerbuchungPayloadBuilder.cs`, `WarehouseRequisitionEmailService.cs`,
+    die Views unter `Views/PurchaseOrders/` und `PurchaseOrdersController.SageWe.cs`. Bestehende Tests dieser Klassen bleiben grün,
+    ohne Anpassung.
+11. **Alte Dateien:** Eine vor dem Deploy geschriebene Datei bleibt unverändert. „CSV erneut schreiben“ für einen alten Vorgang schreibt
+    das neue Format.
+12. **Hilfe:** `/Help` (Abschnitt Wareneingang, bisher `Index.cshtml:119-121`) sagt „ohne Kopfzeile“ und nennt die 9 Felder in
+    Reihenfolge. Feld 7 ist dort beschrieben als „Windows-Kontoname ohne Domäne, sonst WMS-Benutzername“. Der Anwender-Changelog
+    v1.99.29 nennt beide Änderungen.
+13. **IDEAL:** Auf DEV IDEAL ändert sich nichts Sichtbares (Schalter aus), es gibt keinen Protokoll-Eintrag „Wareneingang-CSV“.
+14. Build und `dotnet test` grün. `NachlaufManifestDriftTests` ist mit dem neuen Eintrag grün.
+
+## Test-Szenarien
+
+**Unit-Tests** (`WareneingangCsvServiceTests.cs`):
+- Anpassen: Zeile 82-83 (erwarteter Text ohne Kopfzeile), Zeile 189 (`StartWith("BC1;")` statt `"Barcode;"`), Zeile 218
+  (`Split("\r\n")[0]`). Zusätzlich prüfen, dass genau eine Zeile entsteht.
+- Neu, `[Theory]` über `CsvInhalt` mit Receipt → `StockMovement` → `User` im Speicher. Fälle: `jmuster` → `jmuster`;
+  `AKE\jmuster` → `jmuster`; `jmuster@ake.at` → `jmuster`; ` jmuster ` → `jmuster`; NULL/`""`/`"  "` → `User.Name`;
+  ohne Bewegung bzw. ohne User → `CreatedBy`; `CreatedByWindows = AKE\terminal01` ändert nichts (AK 3–7).
+- Neu: Escaping-Fall mit `;`/`"` im `User.Name` (AK 9).
+- Neu: `RunOnceAsync` mit `Users`-Eintrag und `StockMovement.UserId` → Datei enthält den Kontonamen (AK 8).
+
+**Manuell: neues Kapitel `TS-153` in `docs/TESTSZENARIEN.md`.** Dazu bekommt TS-129.11 den Hinweis „ab v1.99.29 ohne Kopfzeile,
+Erfasser siehe TS-153“. Die Zeile bleibt sonst stehen. Danach `secondbrain/tests/testszenarien-index.md` nachziehen.
+
+Vorbedingungen wie TS-129: DEV AKE, Worktree-Stand v1.99.29 für Web und Dienst, Test-Freigabe, Übergabe per SQL bzw. „Als übergeben
+markieren“. Kein Sage-Schreiben durch Agenten. Ein AD-Benutzer A (`WindowsUserName` gesetzt) und ein lokaler Benutzer L
+(`WindowsUserName` NULL). SQL-Eingriffe nur auf DEV, Ausgangswerte vorher notieren und danach zurücksetzen.
+
+| Nr | Schritt | Erwartet |
+|---|---|---|
+| 153.1 | A meldet sich per Windows an, bucht einen Wareneingang mit Barcode, Übergabe, ein Takt | Genau eine Datei. BOM, **eine** Zeile, 9 Felder, CRLF. Feld 7 = sam von A ohne Domäne. Felder 1–6, 8, 9 wie in TS-129.11. **Keine** Kopfzeile (AK 1–3) |
+| 153.2 | A meldet sich per **Formular** an (z. B. an einem Terminal) und bucht | Feld 7 = sam von A, nicht `SYSTEM`, nicht das Terminal-Konto. SQL: `CreatedByWindows` des Receipts ist leer bzw. eine andere Identität (AK 7) |
+| 153.3 | L bucht | Feld 7 = `User.Name` von L (AK 5) |
+| 153.4 | Negativ, Domänenform: `UPDATE dbo.Users SET WindowsUserName = N'AKE\<sam>' WHERE Id = <A>`, buchen, übergeben; dann `N'<sam>@ake.at'`; danach Ausgangswert zurück | Beide Male Feld 7 = `<sam>` (AK 4) |
+| 153.5 | Negativ, ohne UserId: vor der Übergabe `UPDATE dbo.StockMovements SET UserId = NULL WHERE Id = <Bewegung des ersten Receipts>` | Feld 7 = `PurchaseOrderReceipts.CreatedBy` dieses Receipts (AK 6) |
+| 153.6 | Negativ, Sonderzeichen: Name von L auf `Muster; "Max"` setzen, buchen, übergeben | Feld 7 = `"Muster; ""Max"""`. Die Zeile hat weiter 9 Felder (AK 9) |
+| 153.7 | Datei aus TS-129 (vor dem Deploy geschrieben) auf der Freigabe ansehen; danach „CSV erneut schreiben“ für einen alten Vorgang (Datei vorher entfernen) | Die alte Datei ist unverändert (mit Kopfzeile). Die neu geschriebene Datei ist ohne Kopfzeile, Feld 7 nach F2 (AK 11) |
+| 153.8 | Bestand: zu 153.1 SQL `SELECT CreatedBy FROM dbo.PurchaseOrderReceipts WHERE Barcode = …`; Sage-WE-Memo in der Liste „Sage-Wareneingänge“ bzw. im Payload-Log | `CreatedBy` = Anzeigename wie vorher. Memo ohne Benutzer, Format wie TS-116 (AK 10) |
+| 153.9 | `/Help` → Wareneingang | „ohne Kopfzeile“, 9 Felder in Reihenfolge, Erfasser-Regel. Changelog v1.99.29 (AK 12) |
+| 153.10 | DEV IDEAL nach Deploy | Keine Änderung sichtbar, kein Protokoll-Eintrag „Wareneingang-CSV“ (AK 13) |
+
+## Etappen (nur bei epic: true)
+
+Entfällt (`epic: false`).
+
+| # | Etappe | Status | Commit |
+|---|--------|--------|--------|
+| – | – | – | – |
+
+## Deploy
+
+*Vorläufig. Der QA-Lauf bestätigt den Abschnitt gegen den echten Diff.*
+
+- **Web-App:** ja, nur Hilfe, Anwender-Changelog und `AppVersion` (keine Logik).
+- **Service:** ja. `WareneingangCsvService` liegt im Dienst und schreibt die CSV (`SageBookingWorker.cs:153`).
+- **Migration:** nein.
+- **Manifest-Einträge** (`scripts/deploy/nachlauf.psd1`, ADR 0022/0023), ein Eintrag. Der Text ist nur ASCII, weil PS 5.1 die
+  `.psd1` ohne BOM als ANSI liest (Dateikopf Zeile 2):
+  ```powershell
+  @{ Id='v1.99.29-WareneingangCsvFormat'; Version='1.99.29'; Typ='Info'; Firma='AKE'; Phase='Vorher'; Ausfuehrung='anzeigen'
+     Text='Formataenderung fuer den enaio-Import (ohne Kopfzeile, Erfasser = Windows-Kontoname ohne Domaene) - vor Deploy mit enaio-Betreuer abstimmen: Import auf 9 Spalten nach Position ohne Kopfzeile umstellen; Freigabe WareneingangCsvPfad vorher leer (abgeholt).'
+     Quelle='2026-11-16-v1-99-29-wareneingang-csv-erfasser' }
+  ```
+  - **Typ Info, Phase Vorher:** Die Abstimmung muss *vor* dem Stoppen erfolgen. `Haltepunkt` läuft erst nach dem Schema bei gestopptem
+    Web und Dienst (`nachlauf.psd1:14`) und kommt dafür zu spät. Vorbild: `v1.84.0-Einkauf` (`nachlauf.psd1:242`, Info/AKE/Vorher).
+  - **Firma AKE:** Der Export ist auf AKE im Einsatz, IDEAL hat den Schalter aus. Belege: `Pruefung/WareneingangCsv` und
+    `v1.99.11-WareneingangCsv` mit `Firma='AKE'` (`nachlauf.psd1:142,338`), Vorgänger-Spec `standort: AKE`, TS-129.18.
+  - Kein Pruefung-Eintrag. Ob enaio umgestellt ist, lässt sich nicht per SQL prüfen.
+  - Einordnung im Block „Vorher“ nach Version. Die Reihenfolge ist hier nicht deploy-kritisch.
+- **Publish-Befehle** (im Worktree):
+  ```
+  dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb
+  dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService
+  ```
+
+### Prüfabfragen (nur lesend, AKE-DB `IDEAL_AKE_WMS`; Ergebnis vor dem Dev-Lauf bzw. vor dem Deploy an Gerald)
+
+```sql
+-- P-1: Formen von WindowsUserName im Benutzerstamm (Treffer in 'mit @' oder 'mit Backslash' vor dem Umsetzen melden)
+SELECT Form, COUNT(*) AS Anzahl
+FROM (SELECT CASE
+        WHEN WindowsUserName IS NULL THEN '1 NULL (lokal)'
+        WHEN LTRIM(RTRIM(WindowsUserName)) = N'' THEN '2 leer'
+        WHEN WindowsUserName LIKE N'%\%' THEN '3 mit Backslash (DOMAIN\name)'
+        WHEN WindowsUserName LIKE N'%@%' THEN '4 mit @ (UPN oder sam mit @)'
+        WHEN WindowsUserName <> LTRIM(RTRIM(WindowsUserName)) THEN '5 Leerzeichen am Rand'
+        ELSE '6 sam' END AS Form
+      FROM dbo.Users) x
+GROUP BY Form ORDER BY Form;
+
+-- P-2: Wareneingänge mit Barcode, deren Bewegung keinen Benutzer hat (Rückfall auf CreatedBy)
+SELECT COUNT(*) AS OhneUserId
+FROM dbo.PurchaseOrderReceipts r JOIN dbo.StockMovements m ON m.Id = r.StockMovementId
+WHERE r.Barcode IS NOT NULL AND m.UserId IS NULL;
+
+-- P-3: Vorschau bisheriger und künftiger Erfasser (letzte 20 Wareneingänge mit Barcode)
+SELECT TOP 20 r.Id, r.Barcode, r.CreatedBy AS ErfasserBisher, u.WindowsUserName, u.Name AS UserName, r.CreatedByWindows
+FROM dbo.PurchaseOrderReceipts r
+JOIN dbo.StockMovements m ON m.Id = r.StockMovementId
+LEFT JOIN dbo.Users u ON u.Id = m.UserId
+WHERE r.Barcode IS NOT NULL ORDER BY r.Id DESC;
+
+-- P-4: Ist der Export auf diesem System eingeschaltet? (zu Rückfrage 1)
+SELECT [Key], [Value] FROM dbo.ServiceSettings
+WHERE [Key] IN (N'WareneingangCsvAktiv', N'WareneingangCsvPfad', N'SageWareneingangBelegAktiv');
+```
+
+- **P-5** (Dateisystem, zu Rückfrage 2), am Dienst-Server: `Get-ChildItem '<WareneingangCsvPfad>' -Filter *.csv | Measure-Object`. Erwartung vor dem Deploy: 0.
+
+### Brain-Pflichten des Dev-Laufs
+
+- [[fallstricke]] §32 ergänzen: „Ohne Kopfzeile ist die Spaltenreihenfolge der Vertrag mit enaio. Eine neue Spalte nur am Ende anhängen
+  und vorher mit enaio abstimmen. **Warum:** Der Import ordnet nach Position zu.“
+- Ein Changelog-Eintrag `2026-11-16-v1-99-29-wareneingang-csv-erfasser` (= `Quelle` im Manifest).
+- [[feature-map]], [[testszenarien-index]].
+
+## Offene Rueckfragen
+
+1. **enaio-Import umstellen und Zeitpunkt.** Überspringt der enaio-Import heute die erste Zeile als Kopfzeile, oder ordnet er über
+   Spaltennamen zu? Dann liest er ab dem Deploy die Datenzeile nicht mehr bzw. findet die Spalten nicht.
+   *Empfehlung:* Den Import vor dem Deploy auf 9 Spalten nach Position ohne Kopfzeile umstellen, Umstellung und Deploy im selben
+   Fenster. Ist `WareneingangCsvAktiv` auf AKE-Prod noch aus (P-4), entfällt das Risiko bis zum Einschalten.
+2. **Dateien im Übergang.** Dateien im alten Format (mit Kopfzeile), die beim Deploy noch auf der Freigabe liegen, schreibt das WMS nicht
+   um. Soll die Freigabe vor dem Deploy leer sein (enaio hat alles abgeholt), oder muss der Import beide Formate verkraften?
+   *Empfehlung:* Freigabe vor dem Deploy leer (P-5). Das steht so im Manifest-Text.
+3. **Schreibweise des Kontonamens.** Das WMS gibt `WindowsUserName` so aus, wie es gespeichert ist (Groß-/Kleinschreibung aus dem AD,
+   z. B. `JMuster`). Braucht enaio eine feste Schreibweise, z. B. klein?
+   *Empfehlung:* Unverändert ausgeben, enaio vergleicht ohne Groß-/Kleinschreibung. Eine Umformung wäre eine weitere Formatregel ohne
+   belegten Bedarf.
+
+## Freigabe-Antworten (Mensch fuellt aus — Schranke 1)
+
+<!--
+  ANLEITUNG: Diese Spec ist erst startklar, wenn HIER jede offene Rueckfrage
+  beantwortet ist UND die Datei nach specs/freigegeben/ verschoben wurde UND
+  im Frontmatter status: Freigegeben steht. Der Dev-Lauf liest DIESEN Block
+  als seinen Auftrag. Antworte je Frage in **fett** hinter dem Pfeil.
+  Bei Varianten-Specs zusaetzlich freigabe_entscheidung im Frontmatter setzen.
+-->
+
+1. enaio-Import umstellen und Zeitpunkt →
+2. Dateien im Übergang (Freigabe vor Deploy leer?) →
+3. Schreibweise des Kontonamens (unverändert oder fest klein?) →
