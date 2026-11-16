@@ -706,12 +706,14 @@ public static class ColumnDefinitions
         [
             new ColumnDef("lieferant",           "Lieferant",            Locked: true),
             new ColumnDef("artikel",             "Artikel",              Locked: true),
+            new ColumnDef("matchcode",           "Matchcode",            Locked: false),   // v1.99.30 F11
             new ColumnDef("bezeichnung",         "Bezeichnung",          Locked: false),
             new ColumnDef("dringlichkeit",       "Dringlichkeit",        Locked: false),
             new ColumnDef("bestand",             "Bestand WMS",          Locked: false),
             new ColumnDef("sage-verfuegbar",     "Sage verfügbar",       Locked: false),
             new ColumnDef("offen-bestellt",      "offen bestellt",       Locked: false),
             new ColumnDef("liefertermin",        "nächster Liefertermin", Locked: false),
+            new ColumnDef("fa-bedarf",           "FA-Bedarf",            Locked: false),   // v1.99.30 F4
             new ColumnDef("bedarfe",             "offene Bedarfe",       Locked: false),
             new ColumnDef("verfuegbar",          "verfügbar",            Locked: false),
             new ColumnDef("meldebestand",        "Meldebestand",         Locked: false),

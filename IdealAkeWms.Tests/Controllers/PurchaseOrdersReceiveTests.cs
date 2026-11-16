@@ -426,7 +426,7 @@ public class PurchaseOrdersReceiveTests
         z1.OffeneBedarfsmeldungen.Should().BeEmpty();
         var z2 = vm.Zeilen.Single(z => z.Row.Line.Artikelnummer == "00722002");
         z2.OffeneLagerbestellungen.Should().BeEmpty();
-        z2.OffeneBedarfsmeldungen.Should().ContainSingle().Which.Should().Be(new OffenerBedarf("00722002", "Stk", 3m, 41, "2614167", "Huber"));
+        z2.OffeneBedarfsmeldungen.Should().ContainSingle().Which.Should().Be(new OffenerBedarf("00722002", "Stk", 3m, 41, "2614167", "Huber", 8));
     }
 
     [Fact]

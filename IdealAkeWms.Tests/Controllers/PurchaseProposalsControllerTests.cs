@@ -32,7 +32,9 @@ public partial class PurchaseProposalsControllerTests
         Dictionary<string, List<StockLocationInfo>>? bestand = null, Dictionary<int, ArticleSupplierRow>? lieferanten = null,
         List<OffenerBedarf>? lager = null, List<OffenerBedarf>? meldungen = null, string? bedarfeEinstellung = null,
         List<SagePurchaseOrderLine>? bestellungen = null, Dictionary<int, ErfasstJeBelPos>? erfasst = null,
-        Dictionary<int, ArticleSupplierRow>? letzte = null, bool letzteGelesen = false, Dictionary<int, List<ArticleSupplierRow>>? weitere = null)
+        Dictionary<int, ArticleSupplierRow>? letzte = null, bool letzteGelesen = false, Dictionary<int, List<ArticleSupplierRow>>? weitere = null,
+        Mock<IBomCacheRepository>? bom = null, Mock<IProductionOrderRepository>? orders = null, Mock<IServiceSettingRepository>? serviceSettings = null,
+        Dictionary<(int, string), decimal>? ausgebucht = null, ICurrentUserService? user = null)
     {
         // lieferanten = Hauptlieferant je Artikel (wie bisher), weitere = zusaetzliche Artikel-Lieferanten (F8).
         var alleLieferanten = (lieferanten ?? new()).Select(kv => (kv.Key, kv.Value))
@@ -54,7 +56,18 @@ public partial class PurchaseProposalsControllerTests
         stock.Setup(s => s.GetStockByArticleNumbersAsync(It.IsAny<List<string>>())).ReturnsAsync(bestand ?? new Dictionary<string, List<StockLocationInfo>>());
         var settings = new Mock<IAppSettingRepository>();
         settings.Setup(s => s.GetValueAsync(AppSettingKeys.EinkaufOffeneBedarfe)).ReturnsAsync(bedarfeEinstellung);
-        var ctrl = new PurchaseProposalsController(repo.Object, stock.Object, settings.Object, new FakeCurrentUserService(), lines.Object, receipts.Object)
+        // v1.99.30 E4: echter PlannedConsumptionService (dieselbe Regel wie die Artikelinfo); ohne bom/orders keine FA-Bedarfe.
+        stock.Setup(s => s.GetAusbuchungenJeFaAsync(It.IsAny<IReadOnlyCollection<int>>())).ReturnsAsync(ausgebucht ?? new Dictionary<(int, string), decimal>());
+        if (bom == null)
+        {
+            bom = new Mock<IBomCacheRepository>();
+            bom.Setup(b => b.GetComponentMengePerDeviceAsync(It.IsAny<IReadOnlyCollection<string>>())).ReturnsAsync(new Dictionary<string, Dictionary<string, decimal>>());
+        }
+        serviceSettings ??= new Mock<IServiceSettingRepository>();
+        var planned = new PlannedConsumptionService(bom.Object, (orders ?? new Mock<IProductionOrderRepository>()).Object, stock.Object, repo.Object,
+            settings.Object, serviceSettings.Object);
+        var ctrl = new PurchaseProposalsController(repo.Object, stock.Object, settings.Object, user ?? new FakeCurrentUserService(), lines.Object, receipts.Object,
+            planned, serviceSettings.Object)
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
         };
@@ -94,7 +107,8 @@ public partial class PurchaseProposalsControllerTests
 
         var vm = Vm(await Build(artikel, Bestand(("A1", 100m)), lager: lager, meldungen: meldungen).ctrl.Index(umfang: "alle"));
         vm.Items.Single().OffeneBedarfe.Should().Be(5m);
-        vm.Items.Single().Ergebnis.Verfuegbar.Should().Be(95m);
+        // v1.99.30 F4 (Antwort 1): angerechnet = max(FA-Teil 2 [Bedarfsmeldung], Lagerbestellung 3) = 3, nicht 5.
+        vm.Items.Single().Ergebnis.Verfuegbar.Should().Be(97m);
         vm.BedarfeEinheitAbweichend.Should().Be(1);
 
         Vm(await Build(artikel, lager: lager, meldungen: meldungen, bedarfeEinstellung: "").ctrl.Index(umfang: "alle"))

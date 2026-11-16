@@ -4,9 +4,23 @@
     var notFound = ViewBag.NotFound as string;
     var mehrdeutig = ViewBag.Mehrdeutig as string;
     var searchValue = Model?.ArticleNumber ?? notFound ?? Context.Request.Query["articleNumber"].ToString();
+    // v1.99.30 F11: Ruecksprung (z. B. aus den Bestellvorschlaegen) nur auf lokale Adressen – sonst kein Knopf (Open-Redirect-Schutz).
+    var returnUrl = Context.Request.Query["returnUrl"].ToString();
+    if (string.IsNullOrEmpty(returnUrl) || !Url.IsLocalUrl(returnUrl)) { returnUrl = null; }
 }
 
-<h2 class="page-header">Artikelinfo</h2>
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <h2 class="page-header">Artikelinfo</h2>
+    @if (returnUrl != null)
+    {
+        <a href="@returnUrl" class="btn btn-outline-secondary" id="btnZurueckBestellvorschlaege">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="me-1" viewBox="0 0 16 16" aria-hidden="true">
+                <path fill-rule="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8"/>
+            </svg>
+            Zurück zu Bestellvorschlägen
+        </a>
+    }
+</div>
 
 <div class="row">
     <div class="col-md-8 col-lg-6">
@@ -14,6 +28,10 @@
         <div class="card mb-4">
             <div class="card-body">
                 <form method="get" asp-action="Info" asp-controller="Articles" id="articleInfoForm">
+                    @if (returnUrl != null)
+                    {
+                        <input type="hidden" name="returnUrl" value="@returnUrl" />
+                    }
                     <div class="mb-3">
                         <label for="articleNumber" class="form-label fw-semibold">Artikelnummer / QR-Code scannen</label>
                         <div class="input-group">

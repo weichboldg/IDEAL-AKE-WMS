@@ -35,6 +35,14 @@ public class PurchaseProposalListViewModel
     public int OhneMengenquelle { get; set; }
     /// <summary>Welche offenen Bedarfe eingerechnet werden (Einstellung EinkaufOffeneBedarfe), Anzeigetext.</summary>
     public string BedarfeText { get; set; } = "";
+    /// <summary>v1.99.30 F4: FA-Bedarfe aus der FA-Struktur (IDEAL) statt aus dem Stuecklisten-Cache.</summary>
+    public bool FaBedarfeHierarchisch { get; set; }
+    /// <summary>v1.99.30 F4 (flach): Ende des Stuecklisten-Cache-Fensters (heute + Sync:BomCacheWeeks); FA-Bedarfe danach fehlen.</summary>
+    public DateTime? BomCacheBis { get; set; }
+    /// <summary>v1.99.30: Zeilen mit FA-Bedarf &gt; 0 (Banner).</summary>
+    public int MitFaBedarf { get; set; }
+    /// <summary>v1.99.30 F11 / R1: Artikelnummer als Link zur Artikelinfo nur mit Stammdaten-Lesezugriff.</summary>
+    public bool ArtikelinfoLink { get; set; }
 }
 
 /// <summary>Eine Zeile der Bestellvorschläge (Artikel + aufgelöste Anzeige + Ergebnis des Rechners).</summary>
@@ -46,7 +54,13 @@ public class PurchaseProposalRow
     public string? LieferantText { get; init; }
     public string? LieferantKto { get; init; }
     public decimal BestandWms { get; init; }
-    public decimal OffeneBedarfe { get; init; }
+    /// <summary>v1.99.30 F4: Bedarfe nach der EINEN Regel (<see cref="IPlannedConsumptionService"/>), dieselben wie in der Artikelinfo.</summary>
+    public ArtikelBedarf Bedarf { get; init; } = ArtikelBedarf.Leer;
+    /// <summary>Spalte „FA-Bedarf“: Rest offener FAs (Stückliste − schon ausgebucht).</summary>
+    public decimal FaBedarf => Bedarf.FaRest;
+    /// <summary>Spalte „offene Bedarfe“: offene Lagerbestellungen + Bedarfsmeldungen (gleiche Einheit), wie bisher als Summe angezeigt;
+    /// abgezogen wird <see cref="ArtikelBedarf.Angerechnet"/> (max-Regel mit dem FA-Bedarf).</summary>
+    public decimal OffeneBedarfe => Bedarf.Lagerbestellungen + Bedarf.Bedarfsmeldungen;
     /// <summary>E2: Summe der Reste offener Sage-Bestellungen (EBB und EBZ); null = Cache leer.</summary>
     public decimal? OffenBestellt { get; init; }
     /// <summary>E2: frühester Liefertermin der Positionen mit Rest &gt; 0.</summary>

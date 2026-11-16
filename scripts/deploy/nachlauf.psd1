@@ -98,6 +98,8 @@ Eintraege = @(
    Datei='150_AddPurchaseOrderReceiptAbsendekennung.sql'; MigrationId='20261114080950_AddPurchaseOrderReceiptAbsendekennung'; Voraussetzung='additiv, Spalte NULL + gefilterter UNIQUE-Index'; Quelle='2026-11-14-v1-99-23-schutz-doppel-absenden' }
 @{ Id='SQL/152'; Version='1.99.28'; Typ='Schema'; Firma='beide'; Phase='Schema'; Ausfuehrung='automatisch'
    Datei='152_AddUserMussKennwortAendern.sql'; MigrationId='20261116165705_AddUserMussKennwortAendern'; Voraussetzung='additiv, Spalte bit NOT NULL DEFAULT 0'; Quelle='2026-11-16-v1-99-28-sicherheit-anmeldung-installer' }
+@{ Id='SQL/155'; Version='1.99.30'; Typ='Schema'; Firma='beide'; Phase='Schema'; Ausfuehrung='automatisch'
+   Datei='155_AddArticleLastOrderUnassigned.sql'; MigrationId='20261116190709_AddArticleLastOrderUnassigned'; Voraussetzung='additiv, neue Tabelle'; Quelle='2026-11-16-v1-99-30-bestellvorschlaege-nachbesserung' }
 
 # ---------------------------------------------------------------- Pruefungen (jeder Lauf; Reparatur nur nach Bestaetigung) -------
 # v1.99.28 (ADR 0027): admin zaehlt nicht - der Web-Start stellt admin ohne Kennwort auf das Standard-Erstkennwort mit Pflichtwechsel um.

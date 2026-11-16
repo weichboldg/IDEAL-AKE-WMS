@@ -3,6 +3,8 @@
 @using IdealAkeWms.Models.ViewModels
 @{
     ViewData["Title"] = "Bestellvorschläge";
+    // v1.99.30 F11: Ruecksprung aus der Artikelinfo auf genau diese Liste (Filterkarte, Spaltenfilter, Seite, Seitengroesse stehen in der Query).
+    var returnUrl = $"{Context.Request.Path}{Context.Request.QueryString}";
 }
 @* v1.99.20 Spec 2026-11-08-einkauf-bestellvorschlaege F8: Arbeitsliste des Einkaufs, nur lesend. Gerechnet wird im PurchaseProposalCalculator.
    Listen-View-Pattern (ADR 0005): Filterkarte, Server-Spaltenfilter nach der Berechnung, Pagination, CSV ueber csv-export.js.
@@ -10,7 +12,7 @@
 
 <h2 class="page-header mb-1">Bestellvorschläge</h2>
 <p class="text-body-secondary small mb-3">
-    Artikel mit Sage-Meldebestand. Verfügbar = Bestand WMS + offen bestellt − offene Bedarfe (@Model.BedarfeText); Vorschlag, wenn verfügbar ≤ Meldebestand.
+    Artikel mit Sage-Meldebestand. Verfügbar = Bestand WMS + offen bestellt − angerechnete Bedarfe (FA-Bedarf, @Model.BedarfeText); Vorschlag, wenn verfügbar ≤ Meldebestand.
     Mengen in der Lagereinheit des Artikels.
 </p>
 
@@ -77,6 +79,20 @@ else
         @Model.OhneMengenquelle @(Model.OhneMengenquelle == 1 ? "Zeile" : "Zeilen") ohne letzte Bestellung und ohne Sage-Bestellmenge (oder mit Einheit Basis ≠ Lager) – Menge prüfen (Grund „@PurchaseProposalCalculator.GrundOhneLetzteBestellung“).
     </div>
 }
+<div class="alert alert-info py-2 small" role="note" id="hinweis-fa-bedarfe">
+    <strong>Bedarfe ohne Doppelzählung</strong> (dieselbe Regel wie der „Verfügbare Bestand“ der Artikelinfo): je Fertigungsauftrag zählt der größere Wert aus
+    FA-Bedarf (Stückliste minus schon ausgebucht) und offenen Bedarfsmeldungen zu diesem Auftrag; je Artikel der größere Wert aus dieser Summe und den
+    offenen Lagerbestellungen (sie tragen keinen Auftrag, daher ggf. unterschätzt).
+    @if (Model.FaBedarfeHierarchisch)
+    {
+        <text>FA-Bedarfe aus der FA-Struktur (Sollmenge je Sub-FA).</text>
+    }
+    else if (Model.BomCacheBis is { } bis)
+    {
+        <text>FA-Bedarfe nur aus dem Stücklisten-Cache (FAs bis @bis.ToString("dd.MM.yyyy"), höchstens <code>Sync:BomCacheMaxOrders</code> Aufträge) – spätere Aufträge fehlen.</text>
+    }
+    FA-Bedarfe in Lagereinheit angenommen (die Stückliste trägt keine Einheit). @Model.MitFaBedarf Artikel mit FA-Bedarf.
+</div>
 <div class="alert alert-light border py-2 small" role="note">
     Vorschlag = letzte Bestellmenge beim Hauptlieferanten (jüngste Bestellung oder jüngster Rahmenabruf der letzten @ArticleSupplier.LetzteBestellungRueckblickJahre Jahre), sonst die jüngste bei einem anderen Lieferanten;
     reicht sie nicht bis über den Meldebestand, ein Vielfaches davon. Ohne Bestellung in diesem Zeitraum: Sage-Bestellmenge (Fallback), sonst Fehlmenge bzw. Meldebestand.
@@ -136,13 +152,15 @@ else
             <tr>
                 <th data-filterable data-col-key="lieferant">Lieferant</th>
                 <th data-filterable data-col-key="artikel">Artikel</th>
+                <th data-filterable data-col-key="matchcode">Matchcode</th>
                 <th data-filterable data-col-key="bezeichnung">Bezeichnung</th>
                 <th data-filterable data-col-key="dringlichkeit">Dringlichkeit</th>
                 <th data-filterable data-filter-type="number" data-col-key="bestand" class="text-end">Bestand WMS</th>
                 <th data-filterable data-filter-type="number" data-col-key="sage-verfuegbar" class="text-end">Sage verfügbar</th>
                 <th data-filterable data-filter-type="number" data-col-key="offen-bestellt" class="text-end">offen bestellt</th>
                 <th data-filterable data-date-filter data-col-key="liefertermin">nächster Liefertermin</th>
-                <th data-filterable data-filter-type="number" data-col-key="bedarfe" class="text-end">offene Bedarfe</th>
+                <th data-filterable data-filter-type="number" data-col-key="fa-bedarf" class="text-end" title="Rest offener Fertigungsaufträge: Stücklistenmenge minus schon ausgebucht">FA-Bedarf</th>
+                <th data-filterable data-filter-type="number" data-col-key="bedarfe" class="text-end" title="Offene Lagerbestellungen und Bedarfsmeldungen; angerechnet ohne Doppelzählung mit dem FA-Bedarf">offene Bedarfe</th>
                 <th data-filterable data-filter-type="number" data-col-key="verfuegbar" class="text-end">verfügbar</th>
                 <th data-filterable data-filter-type="number" data-col-key="meldebestand" class="text-end">Meldebestand</th>
                 <th data-filterable data-filter-type="number" data-col-key="letzte-bestellmenge" class="text-end">letzte Bestellmenge</th>
@@ -173,13 +191,24 @@ else
                 };
                 <tr>
                     <td>@(r.LieferantText ?? "–")</td>
-                    <td>@r.Article.ArticleNumber</td>
+                    <td>
+                        @if (Model.ArtikelinfoLink)
+                        {
+                            <a asp-controller="Articles" asp-action="Info" asp-route-articleNumber="@r.Article.ArticleNumber" asp-route-returnUrl="@returnUrl">@r.Article.ArticleNumber</a>
+                        }
+                        else
+                        {
+                            <span title="Artikelinfo braucht die Rolle Stammdaten lesen">@r.Article.ArticleNumber</span>
+                        }
+                    </td>
+                    <td>@r.Article.Matchcode</td>
                     <td>@r.Article.Description</td>
                     <td><span class="badge @badge">@PurchaseProposalCalculator.Text(e.Dringlichkeit)</span></td>
                     <td class="text-end">@r.BestandWms.ToString("0.###")</td>
                     <td class="text-end" title="@(r.SageStand is { } st ? "Stand Artikel-Abgleich " + st.ToString("dd.MM.yyyy HH:mm") : "Sage-Zusatzfelder fehlen")">@(r.Sage?.LagerbestandVerfuegbar?.ToString("0.###") ?? "–")</td>
                     <td class="text-end">@(r.OffenBestellt?.ToString("0.###") ?? "–")</td>
                     <td>@(r.NaechsterLiefertermin?.ToString("dd.MM.yyyy"))</td>
+                    <td class="text-end">@r.FaBedarf.ToString("0.###")</td>
                     <td class="text-end">@r.OffeneBedarfe.ToString("0.###")</td>
                     <td class="text-end fw-semibold">@e.Verfuegbar.ToString("0.###")</td>
                     <td class="text-end">@(r.Article.ReorderLevel?.ToString("0.###"))</td>
@@ -222,12 +251,14 @@ else
 [
     { "key": "lieferant", "label": "Lieferant", "locked": true, "defaultWidth": null },
     { "key": "artikel", "label": "Artikel", "locked": true, "defaultWidth": null },
+    { "key": "matchcode", "label": "Matchcode", "locked": false, "defaultWidth": null },
     { "key": "bezeichnung", "label": "Bezeichnung", "locked": false, "defaultWidth": null },
     { "key": "dringlichkeit", "label": "Dringlichkeit", "locked": false, "defaultWidth": null },
     { "key": "bestand", "label": "Bestand WMS", "locked": false, "defaultWidth": null },
     { "key": "sage-verfuegbar", "label": "Sage verfügbar", "locked": false, "defaultWidth": null },
     { "key": "offen-bestellt", "label": "offen bestellt", "locked": false, "defaultWidth": null },
     { "key": "liefertermin", "label": "nächster Liefertermin", "locked": false, "defaultWidth": null },
+    { "key": "fa-bedarf", "label": "FA-Bedarf", "locked": false, "defaultWidth": null },
     { "key": "bedarfe", "label": "offene Bedarfe", "locked": false, "defaultWidth": null },
     { "key": "verfuegbar", "label": "verfügbar", "locked": false, "defaultWidth": null },
     { "key": "meldebestand", "label": "Meldebestand", "locked": false, "defaultWidth": null },
