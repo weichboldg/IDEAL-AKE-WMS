@@ -1,6 +1,6 @@
 # 07 – Lieferverzug-Mail (für den Einkauf)
 
-Stand: Version 1.99.22 · Standort AKE · Bilder aus einer Testmail des AKE-Testsystems (Mailadressen ersetzt)
+Stand: Version 1.99.29 · Standort AKE · Bilder aus einer Testmail des AKE-Testsystems (Mailadressen ersetzt)
 
 ## Zweck
 

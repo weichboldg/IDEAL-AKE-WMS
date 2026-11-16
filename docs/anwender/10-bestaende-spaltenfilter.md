@@ -1,6 +1,6 @@
 # 10 – Bestände und Spaltenfilter-Suche
 
-Stand: Version 1.99.22 · Standorte AKE und IDEAL · Bilder aus dem AKE-Testsystem
+Stand: Version 1.99.29 · Standorte AKE und IDEAL · Bilder aus dem AKE-Testsystem
 
 ## Zweck
 
@@ -135,7 +135,9 @@ Was drin ist:
 - **alle Treffer** des Filters über alle Seiten, nicht nur die angezeigte Seite – höchstens **5.000** Zeilen (dann gelbe Meldung „Export auf 5.000
   Treffer begrenzt, bitte Filter eingrenzen …“);
 - genau die **sichtbaren Spalten** in der Reihenfolge am Bildschirm, Spalten ohne Überschrift (Knöpfe, Haken) fehlen;
-- Text wie angezeigt, Haken als „Ja“/„Nein“, Datum ohne KW; Farben nicht.
+- Text wie angezeigt, Haken als „Ja“/„Nein“, Datum ohne KW; Farben nicht;
+- **Mengen ohne Tausendertrenner** mit Dezimalkomma (z. B. `-10026,000`), damit Excel sie als Zahl liest – seit Version 1.99.23, auf jedem Server
+  gleich. Am Bildschirm stehen Zahlen weiter mit Tausenderpunkt (`10.026,000`).
 
 Keinen CSV-Knopf gibt es in Baumansichten (FA-Struktur, OSEON-Teileverfolgung) und auf Formular- und Druckseiten.
 
@@ -146,13 +148,11 @@ erste Spalte „HauptFA“ statt eigener Gruppenkopf-Zeilen. Vault- und enaio-Li
 
 ## Hinweise und Stolperfallen
 
-**Bekannte Fehler (Stand 14.11.2026, Behebung geplant):**
+**Bekannte Fehler (Stand 16.11.2026, Version 1.99.29):**
 
-- **CSV: Mengen ab 1.000 kommen in Excel eventuell als Text an.** Je nach Server stehen Tausender mit einem Leerzeichen da (`10 026,000`) – Excel
-  rechnet dann nicht damit; negative Werte ab 1.000 kommen zusätzlich mit einem Apostroph davor (`'-10 026,000`). Auf dem AKE-Produktivsystem
-  steht nach heutigem Stand ein Punkt (`4.500,000`), dort tritt das nicht auf; auf anderen Systemen bitte prüfen. Abhilfe in Excel: Spalte markieren,
-  **Suchen und Ersetzen**, bei „Suchen nach“ mit gedrückter Alt-Taste `0160` auf dem Ziffernblock tippen (geschütztes Leerzeichen), „Ersetzen
-  durch“ leer lassen, **Alle ersetzen**; danach ebenso den Apostroph `'` ersetzen.
+- ~~CSV: Mengen ab 1.000 kommen in Excel eventuell als Text an~~ – **behoben seit Version 1.99.23** (Mengen ohne Tausendertrenner,
+  siehe Schritt 4). Nur CSV-Dateien von **vor** dem Update können noch Leerzeichen oder einen Apostroph in den Mengen haben – dann neu
+  exportieren.
 - **Seite außerhalb der Treffer (Fehlteile):** Wer über ein altes Lesezeichen eine Seite aufruft, die es nicht mehr gibt, sieht in den
   Fehlteil-Listen „Eintraege 26–15 von 15“ und eine leere Tabelle. Dann auf Seite 1 wechseln.
 

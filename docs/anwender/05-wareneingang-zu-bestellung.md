@@ -1,6 +1,6 @@
 # 05 – Wareneingang zu Bestellung
 
-Stand: Version 1.99.22, Abschnitt CSV: 1.99.29 · Standort AKE (IDEAL siehe unten) · Bilder aus dem AKE-Testsystem
+Stand: Version 1.99.29 · Standort AKE (IDEAL siehe unten) · Bilder aus dem AKE-Testsystem
 
 ## Zweck
 
@@ -137,13 +137,14 @@ WMS-Betreuung melden.
 
 ## Hinweise und Stolperfallen
 
-**Bekannte Fehler (Stand 14.11.2026, Behebung geplant):**
+**Bekannte Fehler (Stand 16.11.2026, Version 1.99.29):**
 
 - ~~„Einbuchen“ nur einmal drücken~~ – **behoben seit Version 1.99.23.** Ein Doppelklick, eine Netz-Wiederholung am Handgerät oder F5 bucht
   nichts mehr doppelt; es erscheint „bereits … – nichts geändert“ bzw. „bereits gebucht“. Eine vor dem Update geöffnete Seite wird mit „Seite ist
   veraltet“ abgewiesen – neu laden.
 - **Fehlermeldung mitten im Buchen.** Bricht das Speichern bei mehreren Positionen mit einer Fehlerseite ab (sehr selten, z. B. Datenbank kurz
-  weg), können die ersten Positionen schon gebucht sein. Bestellung neu öffnen, **im WMS erfasst** prüfen und nur den Rest buchen.
+  weg), können die ersten Positionen schon gebucht sein. Bestellung **neu öffnen** (nicht dieselbe Seite erneut absenden – sie meldet dann „bereits
+  gebucht“, obwohl Zeilen fehlen können), **im WMS erfasst** prüfen und nur den Rest buchen.
 - **Glasbestellung heißt „Lagerbestellung“.** Im Hinweis „Offener Bedarf“ steht bei einer Glasbestellung „Lagerbestellung Nr. …“. Der Link
   führt auf die richtige Glasbestellung.
 - **Link „Lagerbestellung Nr. …“ – Zugriff verweigert.** Wer nur Kommissionierer ist, darf die Lagerbestellung nicht öffnen.
@@ -151,8 +152,8 @@ WMS-Betreuung melden.
   erst nach Querscrollen im Bild. Vor dem Einbuchen nach rechts scrollen und den Status jeder Zeile prüfen.
 - **Meldungen doppelt (Sage-Wareneingänge).** Nach „Erneut senden“ oder „Als übergeben markieren“ steht die Meldung zweimal da. Es ist nur
   einmal passiert.
-- **Barcode zweimal gleichzeitig.** Buchen zwei Personen im selben Moment mit demselben Barcode, nimmt das WMS beide an (nur bei eingeschaltetem
-  Sage-Wareneingang relevant).
+- **Barcode zweimal gleichzeitig.** Buchen zwei Personen auf **zwei verschiedenen Seiten** im selben Moment mit demselben Barcode, nimmt das WMS
+  beide an (nur bei eingeschaltetem Sage-Wareneingang relevant). Doppelt abgeschickt von **derselben** Seite geht seit Version 1.99.23 nicht mehr.
 
 **Allgemein:**
 

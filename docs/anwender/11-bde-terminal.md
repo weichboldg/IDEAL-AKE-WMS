@@ -1,6 +1,6 @@
 # 11 – BDE-Terminal
 
-Stand: Version 1.99.22 · Standorte AKE und IDEAL · Bilder aus dem IDEAL-Testsystem
+Stand: Version 1.99.29 · Standorte AKE und IDEAL · Bilder aus dem IDEAL-Testsystem
 
 ## Zweck
 
@@ -91,7 +91,9 @@ Mengen gibt man im Fenster **Mengen melden** ein:
 
 ![Fenster „Mengen melden“ mit Gutmenge, Ausschuss, Abbrechen und Bestätigen](bilder/11-04-mengen-melden.jpg)
 
-**Bestätigen nur einmal antippen** und warten, bis das Fenster zu ist und oben die grüne Bestätigung erscheint (siehe Stolperfallen).
+**Bestätigen** einmal antippen und warten, bis das Fenster zu ist und oben die grüne Bestätigung erscheint. Seit Version 1.99.23 ist der Knopf
+nach dem Antippen kurz gesperrt; eine zweite **Fertigmeldung** desselben Arbeitsgangs (Doppeltipp, zweites Terminal) wird abgewiesen mit
+„Arbeitsgang ist bereits fertig gemeldet.“
 
 **Ungeplante Tätigkeit** (Wartung, Reinigung …): Kategorie wählen und **Starten**; beenden wie eine normale Buchung.
 
@@ -118,11 +120,11 @@ Werkbank wird nur fertig gemeldet.“). Ein zweites Melden lehnt das WMS ab: „
 
 ## Hinweise und Stolperfallen
 
-**Bekannte Fehler (Stand 14.11.2026, Behebung geplant):**
+**Bekannte Fehler (Stand 16.11.2026, Version 1.99.29):**
 
-- **„Bestätigen“ nur einmal tippen.** Wird bei „Fertig melden“ zweimal schnell getippt (oder melden zwei Terminals gleichzeitig denselben
-  Arbeitsgang), kann die Fertigmeldung **doppelt** gespeichert werden – die Gutmenge zählt dann doppelt. Mit der Maus am PC tritt das nicht auf, am
-  Touch-Terminal ist es möglich. Wenn es passiert ist: dem Schichtleiter melden, er storniert die zweite Buchung unter *BDE → Buchungen*.
+- ~~Doppelte Fertigmeldung~~ – **behoben seit Version 1.99.23** für die **Fertigmeldung** (auch bei zwei Terminals gleichzeitig). Für die übrigen
+  Buchungen (Start, Pause, Teilfertigmeldung) schützt nur die kurze Sperre des Knopfs – dort weiterhin einmal tippen. Ist trotzdem etwas doppelt:
+  dem Schichtleiter melden, er storniert die zweite Buchung unter *BDE → Buchungen*.
 - **Doppelte Buchungen schwer zu erkennen (IDEAL).** In *BDE → Buchungen* zeigt die Spalte „Ziel“ nur Haupt-FA und Arbeitsgang (z. B.
   `1059463/EG`), nicht die Sub-FA. Buchungen verschiedener Sub-FAs sehen deshalb gleich aus. Zur Prüfung Zeit und Werker vergleichen.
 

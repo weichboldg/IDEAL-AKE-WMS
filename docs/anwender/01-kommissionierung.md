@@ -1,6 +1,6 @@
 # 01 – Kommissionierung
 
-Stand: Version 1.99.22 · Standorte AKE und IDEAL · Bilder aus dem AKE-Testsystem (IDEAL-Bild extra gekennzeichnet)
+Stand: Version 1.99.29 · Standorte AKE und IDEAL · Bilder aus dem AKE-Testsystem (IDEAL-Bild extra gekennzeichnet)
 
 ## Zweck
 
@@ -59,6 +59,10 @@ Nach der Freigabe zeigt die Zeile:
 
 > **Achtung: Der grüne Haken ist ein Umschalter.** Ein Klick darauf nimmt die Freigabe **zurück** und storniert die Aufträge ohne
 > Fortschritt. Siehe „Hinweise und Stolperfallen“.
+>
+> Seit Version 1.99.23 kann eine **veraltete** Leitstand-Seite (lange offen, ein Kollege hat inzwischen freigegeben oder zurückgenommen)
+> nichts mehr ungewollt umschalten: Es erscheint „FA … ist bereits freigegeben – nichts geändert.“ bzw. „FA … ist nicht (mehr) freigegeben –
+> nichts geändert.“ Eine Seite von vor dem Update meldet „Die Seite ist veraltet – bitte neu laden. Es wurde nichts geändert.“ Dann F5.
 
 **Priorität:** Bei der Freigabe vergibt das WMS automatisch die nächste freie Nummer (höher als jede andere offene, auch als die von
 zurückgenommenen Freigaben – deshalb kann die Zahl höher sein als alle sichtbaren). Ändern: Zahl ins Feld tippen, **Enter** oder
@@ -161,6 +165,9 @@ Nach dem Umbuchen erscheint **Kommissionierung Status** (jederzeit auch über **
   mehr kommissioniert.
 - **Weiter kommissionieren:** Der Auftrag bleibt „In Arbeit“, die Seite lädt neu.
 
+Nach dem Klick ist der Knopf kurz gesperrt („wird gesendet …“, höchstens 10 Sekunden). Ein zweiter Abschluss desselben Auftrags (Doppelklick,
+zweites Gerät) ändert nichts und meldet „Auftrag … ist bereits … – nichts geändert.“ (seit Version 1.99.23).
+
 Nach „Teilweise“ meldet die Liste die neue Nummer:
 
 ![Meldung „Auftrag teilweise abgeschlossen, Rest im Folgeauftrag KO-…“](bilder/01-13-teilweise-folgeauftrag-meldung.jpg)
@@ -222,18 +229,16 @@ Im Leitstand beim FA auf den **grünen Haken** klicken (oder mehrere markieren u
 
 ## Hinweise und Stolperfallen
 
-**Bekannte Fehler (Stand 14.11.2026, Behebung geplant):**
+**Bekannte Fehler (Stand 16.11.2026, Version 1.99.29):**
 
-- **Knöpfe nur einmal drücken.** Doppelklick oder zwei Personen gleichzeitig auf **Freigeben**, **Teilweise** oder **Vollständig**
-  können eine Fehlerseite auslösen. Dann: Seite neu laden und im Leitstand nachsehen. Steht der FA auf „freigegeben“, hat aber **keinen**
-  Kommissionierauftrag, den Leitstand bitten, **„Fehlende Kommissionieraufträge erzeugen“** zu klicken.
-- **Grüner Haken = Zurücknehmen.** Der Freigabe-Knopf schaltet um. Wer auf einer **veralteten** Leitstand-Seite (lange offen, ein
-  Kollege hat inzwischen freigegeben) auf „Freigeben“ klickt, nimmt die Freigabe womöglich zurück und storniert gerade angelegte
-  Aufträge. Vor dem Klick die Seite neu laden (F5).
-- **Unterpositionen evtl. nicht sichtbar.** In Glas- und Vorkommissionier-Aufträgen (AKE) und in Aufträgen mit Sub-FA-Baugruppen (IDEAL)
-  fehlen auf der Auftragsseite manchmal Zeilen, deren Baugruppe in einem anderen Auftrag liegt – auch „Alle aufklappen“ hilft nicht.
-  Erkennbar daran, dass „n Positionen“ mehr Zeilen nennt, als zu sehen sind. Dann **„Auftrag drucken“** – der Druck enthält alle Zeilen –
-  und **nicht „Vollständig“** drücken, sonst gelten die unsichtbaren Zeilen als „nicht gebraucht“. Leitstand informieren.
+- ~~Knöpfe nur einmal drücken~~ – **behoben seit Version 1.99.23.** Doppelklick oder zwei Personen gleichzeitig auf **Freigeben**,
+  **Teilweise** oder **Vollständig** ergeben genau ein Ergebnis; der zweite Versuch meldet „… bereits … – nichts geändert.“ statt einer Fehlerseite.
+- ~~Grüner Haken = Zurücknehmen auf veralteter Seite~~ – **behoben seit Version 1.99.23** (siehe Kasten in Schritt 2). Auf einer aktuellen Seite
+  nimmt ein Klick auf den grünen Haken die Freigabe weiterhin bewusst zurück.
+- ~~Unterpositionen nicht sichtbar~~ – **behoben seit Version 1.99.23:** Zeilen, deren Baugruppe in einem anderen Auftrag liegt, stehen jetzt auf
+  der Auftragsseite. **Offen bleibt:** Eine Auftragszeile, die in der **aktuellen** Stückliste nicht mehr vorkommt (Stückliste nach der Freigabe
+  geändert), fehlt weiter still auf der Auftragsseite. Nennt „n Positionen“ mehr Zeilen, als zu sehen sind: **„Auftrag drucken“** (der Druck
+  enthält alle Zeilen), **nicht „Vollständig“** drücken und den Leitstand informieren.
 - **„Vollständig“ fragt nicht nach.** Ein Klick auf „Vollständig abgeschlossen“ ohne eine einzige Umbuchung setzt alle Zeilen auf
   „nicht gebraucht“ und kann den FA als kommissioniert melden. Es gibt keinen Rückweg in der Oberfläche.
 - **Haken „Als erledigt markieren“ im Leitstand** (Kästchen-Symbol neben dem **i**): Er setzt den FA auf „Komm. erledigt“, **ohne** die

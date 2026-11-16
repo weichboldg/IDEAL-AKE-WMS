@@ -39,12 +39,15 @@ FA-Nummer und einem Bildschirmfoto.
 
 ## Stand und was noch folgt
 
-Stand der Anleitungen: Version **1.99.29** (16.11.2026). Seit Version 1.99.23 neu bzw. ergänzt:
+Stand der Anleitungen: alle Version **1.99.29** (16.11.2026). Seit Version 1.99.22 neu bzw. ergänzt:
 
 | Version | Änderung | Anleitung |
 |---|---|---|
+| 1.99.23 | Schutz gegen Doppel-Absenden (Freigabe, Abschluss, Wareneingang, Fertigmeldung; Knopf kurz gesperrt), alle Positionen im Kommissionierauftrag sichtbar, CSV-Mengen ohne Tausendertrenner | [01](01-kommissionierung.md), [05](05-wareneingang-zu-bestellung.md), [10](10-bestaende-spaltenfilter.md), [11](11-bde-terminal.md) |
+| 1.99.24 | nicht vergeben | – |
 | 1.99.25 | Beschichtung: Quelle für Kennzeichen und Termin einstellbar (Einstellungen, ohne sichtbare Änderung im Alltag) | folgt (siehe unten) |
 | 1.99.26 | Sage-Test → Stückliste live: „Ressourcenliste (Vorlage)“, FA-Struktur auch für beendete Haupt-FAs | [12](12-register-sage-test.md) |
+| 1.99.27 | reserviert, nicht ausgeliefert | – |
 | 1.99.28 | Anmeldung nur mit Kennwort, Erstkennwort mit Pflichtwechsel | [13](13-anmeldung-und-benutzer.md) |
 | 1.99.29 | Wareneingang-CSV an enaio: Erfasser = Windows-Anmeldename; Erstkennwort-Haken nur mit Kennwort | [05](05-wareneingang-zu-bestellung.md), [13](13-anmeldung-und-benutzer.md) |
 

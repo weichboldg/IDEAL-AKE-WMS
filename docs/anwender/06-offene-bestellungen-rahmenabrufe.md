@@ -1,6 +1,6 @@
 # 06 – Offene Bestellungen und Rahmenabrufe
 
-Stand: Version 1.99.22 · Standort AKE (IDEAL siehe unten) · Bilder aus dem AKE-Testsystem
+Stand: Version 1.99.29 · Standort AKE (IDEAL siehe unten) · Bilder aus dem AKE-Testsystem
 
 ## Zweck
 

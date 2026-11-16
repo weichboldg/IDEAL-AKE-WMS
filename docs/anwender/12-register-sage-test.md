@@ -109,6 +109,8 @@ Seit Version 1.99.26 funktioniert das **auch für beendete Haupt-FAs** (und dere
 üblichen FA-Liste; das WMS holt den Kopf dann aus der Sage-Belegsuche. Unter **Aufrufe an Sage** steht in diesem Fall „Kopf über
 dtsFaBelegsuche (in PpsFaBelegeInfo nicht vorhanden, beendet?)“.
 
+![Beendeter Haupt-FA 1059463 (IDEAL): Haupt-FA in Ebene 0 oben, darunter Positionen und Unter-FAs 1065145, 1065146](bilder/12-08-stueckliste-live-beendeter-haupt-fa.jpg)
+
 Gibt es die Nummer in Sage gar nicht, erscheint rot **„FA … in Sage nicht gefunden.“**
 
 ### 5. FA-Struktur live
@@ -132,9 +134,9 @@ Abfragen ohne Sortierung mit einem Fehler (HTTP 500). Das WMS sendet die Sortier
 - **Verbindungstest nur mit der hinterlegten Sage-Adresse benutzen.** Wer im Fenster eine andere Adresse einträgt und das Kennwort leer lässt,
   schickt die gespeicherten Sage-Zugangsdaten an diese Adresse – auch unverschlüsselt über `http://`. Deshalb die Adresse im Testfenster nie
   ändern. Für einen Test gegen ein anderes System Benutzer und Kennwort dort ausdrücklich eingeben. Behebung ist geplant.
-- **IDEAL-Testsystem zeigt auf den AKE-Test.** Im IDEAL-Testsystem steht als Sage-Adresse derzeit der AKE-Testserver mit dem AKE-Testmandanten
-  (unter **Aufrufe an Sage** an `ake_TEST…` zu erkennen). IDEAL-FA-Nummern findet es dort nicht („FA … in Sage nicht gefunden.“). Die Bilder der
-  Stückliste live stammen deshalb aus diesem System, zeigen aber AKE-Testdaten. Bitte die Adresse nicht selbst ändern.
+- **Welches Sage fragt das Testsystem?** Das IDEAL-Testsystem zeigte bis 16.11.2026 abends auf den AKE-Testmandanten; IDEAL-FA-Nummern fand es
+  dort nicht („FA … in Sage nicht gefunden.“). Die Bilder 12-06 und 12-07 zeigen deshalb AKE-Testdaten, Bild 12-08 (beendeter Haupt-FA) schon
+  IDEAL-Daten. Welches System gefragt wird, steht unter **Aufrufe an Sage**. Bitte die Adresse nicht selbst ändern.
 - Im Bild sind keine Zugangsdaten gespeichert – deshalb steht oben „nicht konfiguriert“. Mit gespeicherten Zugangsdaten verschwindet der Hinweis.
 
 **Allgemein:**
