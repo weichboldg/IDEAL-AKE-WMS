@@ -461,6 +461,94 @@ public class SageTestSdataTests
         vm.Kopf.Should().NotContain(k => k.Feld.StartsWith("PpsRessourcenPositionenResolvedInfo"));
         vm.Zeilen.Should().HaveCount(17);
         vm.Mandant.Should().Be(1, "aus dem Dataset ake_TEST2026;1");
+        vm.Titel.Should().StartWith("Ressourcenliste (Vorlage)", "Spec 2026-11-16-fa-struktur-ideal-ueber-sdata AK 5");
+    }
+
+    // ===== Spec 2026-11-16-fa-struktur-ideal-ueber-sdata E2: beendete Haupt-FAs (Kopf ueber dtsFaBelegsuche) =====
+
+    private static JsonElement J(string json) => JsonDocument.Parse(json).RootElement.Clone();
+    private static readonly JsonElement Wurzel1059463 = J("""{"BelID":1059463,"StrukturID":1059463,"Artikelnummer":"80141025","Sollmenge":1}""");
+    private static readonly JsonElement Unter1065143 = J("""{"BelID":1065143,"StrukturID":1059463,"Artikelnummer":"73002467"}""");
+
+    private static void Belegsuche(Mock<ISageSdataReadClient> client, int belId, params JsonElement[] zeilen) =>
+        client.Setup(x => x.GetAsync<JsonElement>(It.IsAny<SdataLeseZiel>(), SageSdataQuellen.FaBelegsuche, $"BelID eq {belId}",
+                SageSdataQuellen.FaSelect, "BelID", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new SdataErgebnis<JsonElement>(zeilen, new SdataCall(SageSdataQuellen.FaBelegsuche, "rtd-url", 200, 3, zeilen.Length, null, null)));
+
+    private static void FaInfo(Mock<ISageSdataReadClient> client, int belId, params JsonElement[] zeilen) =>
+        client.Setup(x => x.QueryPageAsync(It.IsAny<SdataLeseZiel>(), "CommonWawiServicesResources", "PpsFaBelegeInfo", $"BelID eq {belId}",
+                "BelID", null, 1, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new SdataEineSeite(zeilen, zeilen.Length, "url", 5));
+
+    private static void StrukturUndPositionen(Mock<ISageSdataReadClient> client, JsonElement[] fas, string positionenWhere)
+    {
+        client.Setup(x => x.QueryAllAsync<JsonElement>(It.IsAny<SdataLeseZiel>(), "CommonWawiServicesResources", "PpsFaBelegeInfo",
+                "StrukturID eq 1059463", null, "BelID", It.IsAny<CancellationToken>(), It.IsAny<int>()))
+            .ReturnsAsync(new SdataSeiten<JsonElement>(fas, "PpsFaBelegeInfo", 1, fas.Length, 5));
+        var pos = new[]
+        {
+            J("""{"BelID":1059463,"BelPosID":1,"Position":"10","Ressourcenummer":"73002467","BelIDNachfolger":1065143}"""),
+            J("""{"BelID":1059463,"BelPosID":2,"Position":"20","Ressourcenummer":"40000001"}"""),
+            J("""{"BelID":1065143,"BelPosID":3,"Position":"10","Ressourcenummer":"40000002"}"""),
+        };
+        client.Setup(x => x.QueryAllAsync<JsonElement>(It.IsAny<SdataLeseZiel>(), "CommonWawiServicesResources", "PpsFaBelegePositionenInfo",
+                positionenWhere, null, "BelPosID", It.IsAny<CancellationToken>(), It.IsAny<int>()))
+            .ReturnsAsync(new SdataSeiten<JsonElement>(pos, "PpsFaBelegePositionenInfo", 1, pos.Length, 5));
+    }
+
+    [Fact]
+    public async Task Stueckliste_BeendeterHauptFa_KopfUeberBelegsuche_WurzelObenMitPositionen()
+    {
+        var (c, client) = Register("https://sagetest01:5493", new() { ["FaNummer"] = "1059463" });
+        FaInfo(client, 1059463);
+        Belegsuche(client, 1059463, Wurzel1059463);
+        StrukturUndPositionen(client, new[] { Unter1065143 }, "BelID eq 1059463 or BelID eq 1065143");
+
+        var vm = (SageTestStuecklisteViewModel)((ViewResult)await c.Stueckliste(new SageTestStuecklisteViewModel { FaNummer = 1059463 }, CancellationToken.None)).Model!;
+
+        vm.Fehler.Should().BeEmpty();
+        vm.Titel.Should().Be("FA-Struktur 1059463");
+        vm.Zeilen.Select(z => (z.IstFa, z.Position, z.Tiefe)).Should().Equal(
+            (true, "1059463", 0), (false, "10", 1), (true, "1065143", 2), (false, "10", 3), (false, "20", 1));
+        vm.Aufrufe.Should().ContainSingle(a => a.Contains("Kopf über dtsFaBelegsuche (in PpsFaBelegeInfo nicht vorhanden, beendet?)"));
+        vm.Kopf.Should().Contain(k => k.Feld == "Artikelnummer" && k.Wert == "80141025");
+    }
+
+    [Fact]
+    public async Task Stueckliste_UnterFaEinesBeendetenHauptFa_GanzeStrukturMitWurzel()
+    {
+        var (c, client) = Register("https://sagetest01:5493", new() { ["FaNummer"] = "1065143" });
+        FaInfo(client, 1065143, Unter1065143);
+        Belegsuche(client, 1059463, Wurzel1059463);
+        StrukturUndPositionen(client, new[] { Unter1065143 }, "BelID eq 1059463 or BelID eq 1065143");
+
+        var vm = (SageTestStuecklisteViewModel)((ViewResult)await c.Stueckliste(new SageTestStuecklisteViewModel { FaNummer = 1065143 }, CancellationToken.None)).Model!;
+
+        vm.Fehler.Should().BeEmpty();
+        vm.Titel.Should().Contain("gehört zur Struktur 1059463");
+        vm.Zeilen[0].Should().Match<StuecklistenZeile>(z => z.IstFa && z.Position == "1059463" && z.Tiefe == 0);
+        vm.Zeilen.Should().HaveCount(5);
+    }
+
+    [Fact]
+    public async Task Stueckliste_FaNirgendsGefunden_Meldung_KeineWeiterenAufrufe()
+    {
+        var (c, client) = Register("https://sagetest01:5493", new() { ["FaNummer"] = "5" });
+        FaInfo(client, 5);
+        Belegsuche(client, 5);
+
+        var vm = (SageTestStuecklisteViewModel)((ViewResult)await c.Stueckliste(new SageTestStuecklisteViewModel { FaNummer = 5 }, CancellationToken.None)).Model!;
+
+        vm.Fehler.Should().ContainSingle().Which.Should().Be("FA 5 in Sage nicht gefunden.");
+        vm.Zeilen.Should().BeEmpty(); // Strict-Mock: QueryAllAsync wuerde werfen
+    }
+
+    [Fact]
+    public void Stueckliste_ArtikelModus_HinweisRessourcenlisteMitText()
+    {
+        var view = File.ReadAllText(Path.Combine(Rueckwaerts("IdealAkeWms"), "Views", "SageTest", "Stueckliste.cshtml"));
+        view.Should().Contain("Ressourcenliste (Vorlage) – nicht die FA-Stückliste.")
+            .And.Contain("nicht die Stückliste eines Fertigungsauftrags");
     }
 
     [Fact]

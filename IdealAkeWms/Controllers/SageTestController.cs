@@ -169,7 +169,8 @@ public class SageTestController : Controller
             return;
         }
         var kopf = seite.Zeilen[0];
-        vm.Titel = $"Ressourcenliste {SageTestAufbereitung.Text(SageTestAufbereitung.Prop(kopf, "Artikelnummer"))} " +
+        // Spec 2026-11-16-fa-struktur-ideal-ueber-sdata F2 (L12): Ressourcenliste ist die Vorlage, nicht die FA-Stueckliste.
+        vm.Titel = $"Ressourcenliste (Vorlage) {SageTestAufbereitung.Text(SageTestAufbereitung.Prop(kopf, "Artikelnummer"))} " +
                    $"{SageTestAufbereitung.Text(SageTestAufbereitung.Prop(kopf, "Matchcode"))}";
         vm.Kopf = SageTestAufbereitung.Flach(kopf, RessourcePositionen);
         var pos = SageTestAufbereitung.Prop(kopf, RessourcePositionen);
@@ -181,16 +182,25 @@ public class SageTestController : Controller
     {
         var such = await _client.QueryPageAsync(ziel, SageSdataReadClient.VertragResources, "PpsFaBelegeInfo", $"BelID eq {belId}", "BelID", null, 1, ct);
         vm.Aufrufe.Add($"{such.Url} – {such.Zeilen.Count} Zeile(n), {such.DauerMs} ms");
-        if (such.Zeilen.Count == 0)
+        // Spec 2026-11-16-fa-struktur-ideal-ueber-sdata F2: PpsFaBelegeInfo liefert beendete Haupt-FAs nicht (1059463, L12) ->
+        // Kopf ueber dtsFaBelegsuche (RealTimeData, nur lesen).
+        var eingabe = such.Zeilen.Count > 0 ? such.Zeilen[0] : await KopfUeberBelegsucheAsync(vm, ziel, belId, ct);
+        if (eingabe is not { } e)
         {
-            vm.Fehler.Add($"FA {belId} in Sage nicht gefunden.");
+            if (vm.Fehler.Count == 0) vm.Fehler.Add($"FA {belId} in Sage nicht gefunden.");
             return;
         }
-        var strukturId = SageTestAufbereitung.Zahl(SageTestAufbereitung.Prop(such.Zeilen[0], "StrukturID")) ?? belId;
+        var strukturId = SageTestAufbereitung.Zahl(SageTestAufbereitung.Prop(e, "StrukturID")) ?? belId;
         var fas = await _client.QueryAllAsync<JsonElement>(ziel, SageSdataReadClient.VertragResources, "PpsFaBelegeInfo",
             $"StrukturID eq {strukturId}", null, "BelID", ct);
         vm.Aufrufe.Add(fas.Zusammenfassung);
-        var ids = fas.Zeilen.Select(f => SageTestAufbereitung.Zahl(SageTestAufbereitung.Prop(f, "BelID"))).OfType<int>().ToList();
+        var faZeilen = fas.Zeilen.ToList();
+        if (!faZeilen.Any(f => SageTestAufbereitung.Zahl(SageTestAufbereitung.Prop(f, "BelID")) == strukturId))
+        {
+            var wurzelKopf = strukturId == belId && such.Zeilen.Count == 0 ? e : await KopfUeberBelegsucheAsync(vm, ziel, strukturId, ct);
+            if (wurzelKopf is { } w) faZeilen.Insert(0, w);
+        }
+        var ids = faZeilen.Select(f => SageTestAufbereitung.Zahl(SageTestAufbereitung.Prop(f, "BelID"))).OfType<int>().ToList();
         var positionen = new List<JsonElement>();
         foreach (var where in SageSdataQuellen.OrBloecke("BelID", ids))
         {
@@ -199,8 +209,21 @@ public class SageTestController : Controller
             positionen.AddRange(p.Zeilen);
         }
         vm.Titel = strukturId == belId ? $"FA-Struktur {strukturId}" : $"FA {belId} gehört zur Struktur {strukturId} – angezeigt wird die ganze Struktur";
-        var wurzel = fas.Zeilen.FirstOrDefault(f => SageTestAufbereitung.Zahl(SageTestAufbereitung.Prop(f, "BelID")) == strukturId);
+        var wurzel = faZeilen.FirstOrDefault(f => SageTestAufbereitung.Zahl(SageTestAufbereitung.Prop(f, "BelID")) == strukturId);
         vm.Kopf = wurzel.ValueKind == JsonValueKind.Object ? SageTestAufbereitung.Flach(wurzel) : new List<FlachesFeld>();
-        vm.Zeilen = SageTestAufbereitung.FaBaum(fas.Zeilen, positionen, strukturId);
+        vm.Zeilen = SageTestAufbereitung.FaBaum(faZeilen, positionen, strukturId);
+    }
+
+    /// <summary>FA-Kopf ueber <c>dtsFaBelegsuche</c> (RealTimeData, <c>orderBy=BelID</c>); null bei 0 Zeilen oder Fehler (Fehler in <c>vm.Fehler</c>).</summary>
+    private async Task<JsonElement?> KopfUeberBelegsucheAsync(SageTestStuecklisteViewModel vm, SdataLeseZiel ziel, int belId, CancellationToken ct)
+    {
+        var r = await _client.GetAsync<JsonElement>(ziel, SageSdataQuellen.FaBelegsuche, $"BelID eq {belId}", SageSdataQuellen.FaSelect, "BelID", ct);
+        vm.Aufrufe.Add($"{r.Call.Url} – {r.Call.Zeilen} Zeile(n), {r.Call.DauerMs} ms – Kopf über dtsFaBelegsuche (in PpsFaBelegeInfo nicht vorhanden, beendet?)");
+        if (!r.Call.Erfolgreich)
+        {
+            vm.Fehler.Add(r.Call.Verbindungsfehler ? $"Sage nicht erreichbar: {r.Call.Fehler}" : $"FA-Suche über dtsFaBelegsuche fehlgeschlagen ({r.Call.Fehler}).");
+            return null;
+        }
+        return r.Zeilen.Count > 0 ? r.Zeilen[0] : null;
     }
 }

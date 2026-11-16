@@ -13,7 +13,7 @@
     <a asp-action="Index" class="btn btn-outline-secondary btn-sm">Zurück zum Register Sage-Test</a>
 </div>
 <p class="text-body-secondary small mb-3">
-    Artikelnummer: Ressourcenliste aus Sage (mehrstufig). FA-Nummer: FA-Struktur mit allen Positionen. Nur lesen.
+    Artikelnummer: Ressourcenliste (Vorlage) aus Sage, mehrstufig. FA-Nummer: FA-Struktur mit allen Positionen, auch beendete Haupt-FAs. Nur lesen.
 </p>
 
 @if (Model.Stand is { NichtKonfiguriert.Count: > 0 } s)
@@ -57,6 +57,14 @@
 @if (Model.Ausgefuehrt && Model.Titel is not null)
 {
     <h3 class="h5">@Model.Titel</h3>
+    @if (!Model.FaModus)
+    {
+        @* Spec 2026-11-16-fa-struktur-ideal-ueber-sdata F2 (L12): Ressourcenliste != FA-Stueckliste; Text traegt die Bedeutung, nicht die Farbe. *@
+        <div class="alert alert-info py-2" role="note">
+            <strong>Ressourcenliste (Vorlage) – nicht die FA-Stückliste.</strong>
+            Das ist die Ressourcenliste des Artikels, nicht die Stückliste eines Fertigungsauftrags. Die FA-Stückliste zeigt der FA-Modus.
+        </div>
+    }
     <details class="mb-3">
         <summary>Kopf: alle Felder (@Model.Kopf.Count, davon Benutzerfelder: @Model.Kopf.Count(k => k.Benutzerfeld))</summary>
         <table class="table table-sm table-striped mt-2 mb-0">
