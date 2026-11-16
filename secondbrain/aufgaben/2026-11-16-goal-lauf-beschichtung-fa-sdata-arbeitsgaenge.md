@@ -57,4 +57,5 @@ FA-Struktur SData: E1, E2, E3, E4, E5 (Vergleich/lesend, Umschalten gesperrt), E
   möglich (Dienstkonto ohne Zugriff auf die Sage-Test-DB). **Befund R1 schwer:** FA-Knoten-`USER_OS*` ohne Präfix `KHKPpsFaBelege_` angefordert,
   Sage liefert sie stillschweigend nicht; dazu R2 (1059463 im Dienst vermutlich ganz weg), R3 (P-FS4: beendete Unter-FAs fehlen in
   `PpsFaBelegeInfo`), R4 (Artikeltyp FA-Knoten). Spec **zurück auf InUmsetzung**. DEV-Einstellungen zurück auf View/false, belegt.
-
+- 2026-11-16: R1 (Feldpräfix `KHKPpsFaBelege_`) behoben, `5064fb0f`, Tests Web 2955/0/1, Dienst 663/0/0. FA-Struktur bleibt InUmsetzung:
+  offen R2/R4 (Entscheidung Gerald/Fachseite) und R5 (Leserecht `svc_idealakewms` auf `IDEAL_TEST_2026_05_03`), danach QA erneut.

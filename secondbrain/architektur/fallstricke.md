@@ -1980,3 +1980,6 @@ Code: `hardware-scanner.js` Block „Scannen ohne Feld“, CSS `.hw-scan-bereit`
 - **Dienst-`appsettings.json` hat keine `Sync`-Schalter mehr** (außer `Feiertag*`, gebunden an `HolidaySyncOptions`). **Warum:** der Dienst liest
   `Sync:*`, `WorkerSettings:*`, `ErrorNotification:*` nur aus `dbo.ServiceSettings`; Datei-Werte waren wirkungslos und täuschten (BH-4). Der
   Installer schaltet den FA-Abgleich deshalb nach dem Aufwärmen **in der DB** ab.
+- **RealTimeData-Feldnamen tragen das Tabellen-Präfix.** In `dtsFaBelegsuche` heißen die Kopf-Benutzerfelder `KHKPpsFaBelege_USER_OS*`.
+  **Warum gefährlich:** mit den Namen ohne Präfix im `select` antwortet Sage 200 und lässt die Felder still weg – kein Fehler, nur leere Werte
+  (QA IDEAL 2026-11-16, R1). Testantworten immer mit den echten Feldnamen aus der Feldliste bauen.

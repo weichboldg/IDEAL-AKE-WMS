@@ -794,3 +794,11 @@ Der Lauf wurde also fortgesetzt.
 2. R2 klären: E4b-Filter und Wurzel bzw. Struktur beendeter Haupt-FAs. Gegebenenfalls die Wurzelableitung von der ungefilterten Menge nehmen oder Strukturen über `dtsFaBelegsuche where StrukturID` vervollständigen. Entscheidung fachlich, P-FS4.
 3. DEV: Dem Dienstkonto `svc_idealakewms` Lesezugriff auf `IDEAL_TEST_2026_05_03` geben (oder `SageConnection` in `appsettings.DEV.json` auf eine erreichbare Sage-Test-DB setzen). Danach TS-148/149 mit `Vergleich` wiederholen und P-FS6 messen.
 4. Danach erneut QA, Testbereit, Schranke 2.
+
+### Nachtrag 2026-11-16: R1 behoben (`5064fb0f`)
+
+`SdataFaStrukturReader` fragt die FA-Kopf-Felder in `dtsFaBelegsuche` jetzt als `KHKPpsFaBelege_USER_OS*` ab (`PraefixBelegsuche`, eine
+Stelle) und liest sie unter diesem Namen; die Testantworten tragen die echten Namen, ein Feld ohne Präfix wird nachweislich ignoriert.
+Build 0 Fehler, Tests Web 2955/0/1, Dienst 663/0/0. Keine Versionsänderung (Feature v1.99.26 nicht gemergt). **Status bleibt InUmsetzung:**
+R2 (beendete Struktur fehlt vermutlich ganz) und R4 (Artikeltyp-Quelle) brauchen eine Entscheidung; TS-148/149 brauchen Leserecht von
+`svc_idealakewms` auf `IDEAL_TEST_2026_05_03` (R5); danach erneute QA.

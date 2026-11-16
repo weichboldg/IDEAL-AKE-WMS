@@ -27,3 +27,7 @@ Keine, keine neuen Keys. Letzte SQL-Nummer unverändert. Web und Dienst gemeinsa
 - Default View: ohne Umstellen ändert sich nichts. Manifest `v1.99.26-IDEAL-FaStrukturVergleich` (Einstellung, IDEAL) und `v1.99.26-Info`.
 - Im Vergleich mehr Sage-Aufrufe je Lauf (nicht gemessen, P-FS6); erwartete Abweichungen: Artikelgruppe (nur Code) und Blattfelder ohne Quelle.
 - DEV AKE nie mit main deployen.
+
+## Nachtrag QA mit IDEAL-Daten (2026-11-16)
+
+R1 behoben (`5064fb0f`): FA-Kopf-Felder mit Präfix `KHKPpsFaBelege_`. Offen: R2, R4, TS-148/149 (Leserecht DEV-Dienstkonto). Status InUmsetzung.
