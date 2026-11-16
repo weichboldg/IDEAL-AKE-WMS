@@ -1,6 +1,6 @@
 # 12 – Register Sage-Test (Administration)
 
-Stand: Version 1.99.22 · Standorte AKE und IDEAL · Bilder aus dem AKE-Testsystem
+Stand: Version 1.99.29 · Standorte AKE und IDEAL · Bilder aus dem AKE-Testsystem (Stückliste live: IDEAL-Testsystem mit AKE-Testdaten)
 
 ## Zweck
 
@@ -11,7 +11,7 @@ was Sage liefert – ohne dafür in Sage selbst nachzusehen:
 |---|---|
 | **Sage-Verbindung testen** | Erreicht das WMS Sage? Stimmen Adresse, Zertifikat und Anmeldung? |
 | **Feldliste** | Welche Felder (auch Benutzerfelder `USER_…`) hat eine Sage-Ressource, mit Typ und Beispielwerten? |
-| **Stückliste live** | Stückliste eines Artikels bzw. FA-Struktur mit allen Positionen direkt aus Sage |
+| **Stückliste live** | Ressourcenliste (Vorlage) eines Artikels bzw. FA-Struktur eines FA – auch eines beendeten Haupt-FA – direkt aus Sage |
 | **FA-Struktur live** | FA-Struktur, Stückliste und Rückmeldungen eines FA direkt aus Sage |
 
 **Alle Werkzeuge lesen nur.** Es wird nichts in Sage und nichts im WMS gespeichert. Für Lager und Produktion ist das Register nicht gedacht.
@@ -86,13 +86,30 @@ Abgewiesen (ohne Anfrage an Sage) werden: fehlendes orderBy, Zeilen außerhalb 1
 
 ![Stückliste live: Artikelnummer oder FA-Nummer (BelID), Mandant, Knopf „Stückliste lesen“](bilder/12-05-stueckliste-live.jpg)
 
-- **Artikelnummer** (z. B. `86003871`) → die Ressourcenliste des Artikels aus Sage, mehrstufig: Positionen mit Ebene, Ressourcetyp,
-  Ressourcenummer, Bezeichnung/Matchcode, Menge, Arbeitsgang, ArtikelnummerUBG und Platz; je Zeile „N Felder, davon … Benutzerfelder“ zum Aufklappen.
-- **oder FA-Nummer (BelID)** (z. B. `835`) → die ganze FA-Struktur mit allen Positionen, BelPosID, Soll- und Istmenge; Sub-FAs eingerückt unter
-  der Position, die sie liefert. Eine Sub-FA-Nummer zeigt ebenfalls die ganze Struktur.
-- **Mandant** ist vorbelegt (1).
+Nur **eines** der beiden Felder ausfüllen („Entweder Artikelnummer oder FA-Nummer, nicht beides.“). **Mandant** ist vorbelegt (1). Nichts
+davon wird ins WMS übernommen.
 
-Nur eines der beiden Felder ausfüllen („Entweder Artikelnummer oder FA-Nummer, nicht beides.“). Nichts davon wird ins WMS übernommen.
+**Artikelnummer → Ressourcenliste (Vorlage).** Seit Version 1.99.26 heißt das Ergebnis ausdrücklich **„Ressourcenliste (Vorlage)“**,
+darunter steht in einem blauen Kasten: **„Ressourcenliste (Vorlage) – nicht die FA-Stückliste.“** Das ist die Vorlage, nach der Sage einen
+Fertigungsauftrag anlegt – **nicht** die Stückliste eines bestimmten Fertigungsauftrags. Mengen und Positionen eines echten FA können
+abweichen (Änderungen am FA, Ersatzteile). Für die Stückliste eines FA den FA-Modus nehmen.
+
+![Ressourcenliste (Vorlage) zu Artikel 86003871 mit blauem Hinweis „nicht die FA-Stückliste“ und mehrstufiger Positionsliste](bilder/12-06-stueckliste-live-ressourcenliste.jpg)
+
+Angezeigt werden die Positionen mit Ebene, Ressourcetyp, Ressourcenummer, Bezeichnung/Matchcode, Menge, Arbeitsgang, ArtikelnummerUBG und Platz;
+je Zeile „N Felder, davon … Benutzerfelder“ zum Aufklappen.
+
+**FA-Nummer (BelID) → FA-Struktur.** Die ganze Struktur mit dem **Haupt-FA oben** (Zeile „FA …“, Ebene 0), darunter alle Positionen mit
+BelPosID, Soll- und Istmenge; Unter-FAs (fett, „FA …“) eingerückt unter der Position, die sie liefern. Eine Unter-FA-Nummer zeigt ebenfalls
+die ganze Struktur ab dem Haupt-FA.
+
+![FA-Struktur 835: Haupt-FA in Ebene 0 oben, darunter Positionen und Unter-FAs 836, 837, 838](bilder/12-07-stueckliste-live-fa-struktur.jpg)
+
+Seit Version 1.99.26 funktioniert das **auch für beendete Haupt-FAs** (und deren Unter-FAs). Sage führt beendete FAs nicht mehr in der
+üblichen FA-Liste; das WMS holt den Kopf dann aus der Sage-Belegsuche. Unter **Aufrufe an Sage** steht in diesem Fall „Kopf über
+dtsFaBelegsuche (in PpsFaBelegeInfo nicht vorhanden, beendet?)“.
+
+Gibt es die Nummer in Sage gar nicht, erscheint rot **„FA … in Sage nicht gefunden.“**
 
 ### 5. FA-Struktur live
 
@@ -102,18 +119,22 @@ Adresse ohne Zugangsdaten). Die Ansicht ist ein Werkzeug für Vergleiche mit der
 
 ## Unterschiede AKE und IDEAL
 
-Das Register gibt es an beiden Standorten. Lesen gegen Sage geht nur dort, wo eine SData-Schnittstelle eingerichtet ist – derzeit nur am
-AKE-Testsystem. Bei IDEAL zeigt das Register „Sage-SData nicht konfiguriert …“, bis dort die Schnittstelle läuft.
+Das Register gibt es an beiden Standorten. Lesen gegen Sage geht nur dort, wo Sage-Adresse und Zugangsdaten in den Service-Einstellungen
+stehen; sonst zeigt das Register „Sage-SData nicht konfiguriert …“ und schickt keine Anfrage.
+
+Die Änderungen aus Version 1.99.26 (beendete Haupt-FAs, Sortierung bei jeder Abfrage) wurden für **IDEAL** gebaut: Sage an der IDEAL beantwortet
+Abfragen ohne Sortierung mit einem Fehler (HTTP 500). Das WMS sendet die Sortierung jetzt immer mit; im Register merkt man davon nichts.
 
 ## Hinweise und Stolperfallen
 
-**Bekannte Fehler und offene Punkte (Stand 14.11.2026):**
+**Bekannte Fehler und offene Punkte (Stand 16.11.2026):**
 
 - **Verbindungstest nur mit der hinterlegten Sage-Adresse benutzen.** Wer im Fenster eine andere Adresse einträgt und das Kennwort leer lässt,
   schickt die gespeicherten Sage-Zugangsdaten an diese Adresse – auch unverschlüsselt über `http://`. Deshalb die Adresse im Testfenster nie
   ändern. Für einen Test gegen ein anderes System Benutzer und Kennwort dort ausdrücklich eingeben. Behebung ist geplant.
-- **IDEAL-Testsystem zeigt auf den AKE-Test.** Im IDEAL-Testsystem steht als Sage-Adresse derzeit der AKE-Testserver mit dem AKE-Testmandanten.
-  Solange dort keine Zugangsdaten eingetragen sind, passiert nichts; bitte dort keine eintragen, bis die Adresse korrigiert ist.
+- **IDEAL-Testsystem zeigt auf den AKE-Test.** Im IDEAL-Testsystem steht als Sage-Adresse derzeit der AKE-Testserver mit dem AKE-Testmandanten
+  (unter **Aufrufe an Sage** an `ake_TEST…` zu erkennen). IDEAL-FA-Nummern findet es dort nicht („FA … in Sage nicht gefunden.“). Die Bilder der
+  Stückliste live stammen deshalb aus diesem System, zeigen aber AKE-Testdaten. Bitte die Adresse nicht selbst ändern.
 - Im Bild sind keine Zugangsdaten gespeichert – deshalb steht oben „nicht konfiguriert“. Mit gespeicherten Zugangsdaten verschwindet der Hinweis.
 
 **Allgemein:**
@@ -135,6 +156,9 @@ Nein. Alle Werkzeuge stellen nur Leseabfragen (GET).
 **Der Test meldet 401.**
 Benutzer oder Kennwort stimmen nicht oder der SData-Benutzer hat kein Recht auf den Mandanten. In den Service-Einstellungen das Kennwort neu eingeben
 und erneut testen.
+
+**Warum stimmt die Ressourcenliste nicht mit der Stückliste meines FA überein?**
+Die Ressourcenliste ist die Vorlage des Artikels, nicht die Stückliste des FA. Für den FA die FA-Nummer eingeben.
 
 **Warum sieht die Stückliste live anders aus als die Stückliste im WMS?**
 Das Register zeigt den Stand in Sage in diesem Moment. Das WMS arbeitet mit dem zuletzt abgeglichenen Stand. Unterschiede bitte an die

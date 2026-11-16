@@ -34,4 +34,22 @@ FA-Nummer und einem Bildschirmfoto.
 | 09 | Einbuchen, Ausbuchen, Umbuchen (auch Mehrfach-Einbuchung, Lagerplatz aus-/umbuchen, Scanner) | Lager, Kommissionierer | [09-einbuchen-ausbuchen-umbuchen.md](09-einbuchen-ausbuchen-umbuchen.md) |
 | 10 | Bestände und Spaltenfilter-Suche (Suchsyntax, Zahnrad, CSV) | alle | [10-bestaende-spaltenfilter.md](10-bestaende-spaltenfilter.md) |
 | 11 | BDE-Terminal (Anmelden, Liste nach Haupt-FA, Scan, Melden) | Produktion | [11-bde-terminal.md](11-bde-terminal.md) |
-| 12 | Register Sage-Test (Verbindungstest, Feldliste, Stückliste und FA-Struktur live) | Administration | [12-register-sage-test.md](12-register-sage-test.md) |
+| 12 | Register Sage-Test (Verbindungstest, Feldliste, Stückliste live mit Ressourcenliste und beendeten Haupt-FAs, FA-Struktur live) | Administration | [12-register-sage-test.md](12-register-sage-test.md) |
+| 13 | Anmeldung und Benutzer (Windows vs. Formular, Erstkennwort mit Pflichtwechsel, Gerätekonten, AD-Benutzer) | alle; Administration | [13-anmeldung-und-benutzer.md](13-anmeldung-und-benutzer.md) |
+
+## Stand und was noch folgt
+
+Stand der Anleitungen: Version **1.99.29** (16.11.2026). Seit Version 1.99.23 neu bzw. ergänzt:
+
+| Version | Änderung | Anleitung |
+|---|---|---|
+| 1.99.25 | Beschichtung: Quelle für Kennzeichen und Termin einstellbar (Einstellungen, ohne sichtbare Änderung im Alltag) | folgt (siehe unten) |
+| 1.99.26 | Sage-Test → Stückliste live: „Ressourcenliste (Vorlage)“, FA-Struktur auch für beendete Haupt-FAs | [12](12-register-sage-test.md) |
+| 1.99.28 | Anmeldung nur mit Kennwort, Erstkennwort mit Pflichtwechsel | [13](13-anmeldung-und-benutzer.md) |
+| 1.99.29 | Wareneingang-CSV an enaio: Erfasser = Windows-Anmeldename; Erstkennwort-Haken nur mit Kennwort | [05](05-wareneingang-zu-bestellung.md), [13](13-anmeldung-und-benutzer.md) |
+
+**Beschichtung (Anwenderteil) folgt** nach den Ausbaustufen E2/E4/E5 der Beschichtungslogik. Bis dahin beschreibt die Hilfeseite im WMS
+die Beschichtungs-Einstellungen; für Administratoren steht das Wichtigste im Betriebshandbuch
+([docs/betrieb/04-konfiguration.md](../betrieb/04-konfiguration.md)).
+
+**Betriebshandbuch für Administratoren:** [docs/betrieb/00-index.md](../betrieb/00-index.md).

@@ -1,6 +1,6 @@
 # 07 – Troubleshooting
 
-**Stand:** v1.99.28, 2026-11-16 · **Zielgruppe:** IT-Administratoren (ohne Entwicklerwissen)
+**Stand:** v1.99.29, 2026-11-16 · **Zielgruppe:** IT-Administratoren (ohne Entwicklerwissen)
 
 Fehlerbilder, die im Projekt tatsächlich aufgetreten oder ausdrücklich dokumentiert sind – je Fall Ursache, Prüfung, Lösung und Quelle.
 Was nicht belegt ist, steht als **zu prüfen** da. Log-Orte: [06-logs-ueberwachung.md](06-logs-ueberwachung.md); lesende SQL-Abfragen
@@ -67,6 +67,7 @@ Schnittstellen und Schalter: [05-schnittstellen.md](05-schnittstellen.md), [04-k
 | Jede Datei endet mit „Zugriff verweigert“ | Dienst läuft als `LocalSystem` und greift als **Computerkonto** `DOMÄNE\SERVER$` zu; Rechte nur für einen Benutzer reichen nicht | Dienstkonto (P-C1); Rechte auf Freigabe **und** NTFS (P-C2) | Recht „Ändern“ für das tatsächliche Konto auf Freigabe und NTFS | [[fallstricke]] §32; `scripts/deploy/nachlauf.psd1:334-336` |
 | „Datei existiert bereits – nicht überschrieben.“ | Datei mit diesem Barcode liegt schon dort; das WMS ersetzt nie eine Datei | Zielordner | Mit dem Leser (enaio) klären, ob verarbeitet; Datei nicht blind löschen | [[fallstricke]] §32; [[teil-1]] BS16 |
 | CSV aktiv, aber es entsteht keine Datei | `WareneingangCsvPfad` leer oder `SageWareneingangBelegAktiv` aus; CSV entsteht nur aus Status „Übergeben“ | Update-Skript-Prüfung `Pruefung/WareneingangCsv` (A-4.3) | Pfad setzen / Sage-WE einschalten (nur nach Abnahme) | `scripts/deploy/nachlauf.psd1:142-145`; [[fallstricke]] §32 |
+| enaio liest die CSV nicht (oder liest nichts / falsche Spalten) | Seit **v1.99.29** hat die Datei **keine Kopfzeile** mehr und Erfasser = Windows-Kontoname; ein Import, der noch eine Kopfzeile erwartet oder überspringt, verwirft die einzige Datenzeile bzw. ordnet falsch zu. Seltener: BOM oder Trennzeichen nicht erwartet | Datei auf der Freigabe öffnen (Editor): eine Zeile, 9 Felder mit `;`, UTF-8 mit BOM; Version der Web-App/des Dienstes; in „Sage-Wareneingänge“ Spalte CSV = geschrieben | Import beim enaio-Betreiber auf das Format aus [05 Abschnitt 8](05-schnittstellen.md) umstellen (keine Kopfzeile überspringen, Zuordnung nach Position). Bereits gelesene/verworfene Dateien dort nachverarbeiten lassen; das WMS schreibt eine vorhandene Datei nie neu | `IDEALAKEWMSService/Services/WareneingangCsvService.cs:131-145`; Spec `2026-11-14-wareneingang-csv-erfasser-samaccountname-spec`; `docs/TESTSZENARIEN.md` TS-153 |
 
 ## 5. Zahlen, Kultur, Zeitstempel, Filter
 

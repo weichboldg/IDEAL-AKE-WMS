@@ -1,6 +1,6 @@
 # 05 – Schnittstellen zu Fremdsystemen
 
-**Stand:** v1.99.23, 2026-11-14 · **Zielgruppe:** IT-Administratoren (ohne Entwicklerwissen) · **Zweck:** Je Fremdsystem: in welche Richtung
+**Stand:** v1.99.29, 2026-11-16 · **Zielgruppe:** IT-Administratoren (ohne Entwicklerwissen) · **Zweck:** Je Fremdsystem: in welche Richtung
 Daten fließen, welcher Teil (Web oder Dienst) zugreift, welches Konto welche Rechte braucht, wie man die Schnittstelle schaltet und was bei
 einem Ausfall passiert.
 
@@ -155,7 +155,21 @@ IDEAL: `EnaioDmsConnection` leer, enaio-Abgleich aus. (Quelle: `scripts/deploy/I
 | Schreibweise | erst `<Barcode>.tmp`, dann Umbenennen auf `.csv` (nie überschreiben); höchstens 10 Dateien je Takt | [[services]] „Wareneingang-CSV“ |
 | Schalter | `WareneingangCsvAktiv` **und** `SageWareneingangBelegAktiv` **und** Pfad gesetzt | [[services]] „Wareneingang-CSV“ |
 | Bei Ausfall | Schreibfehler (Netz, Recht) → Wiederholung bis `Sync:WareneingangCsvMaxWiederholungen` (3) im Abstand `…WiederholAbstandMinuten` (15); Namenskollision oder ungültiger Barcode nie automatisch; Status je Vorgang in „Sage-Wareneingänge“ (Spalte CSV); Fehler stören die Sage-Buchungen nicht | [[services]] „Wareneingang-CSV“, `SageBookingWorker.cs:87-103` |
-| Prüffrage | Freigabe und Format mit dem Betreiber des enaio-Imports abgestimmt? (Hand-Schritte P-C1/P-C2) | `secondbrain/aufgaben/2026-11-12-deploy-fahrplan-buendel-v1-99.md:97` |
+| Prüffrage | Freigabe und Format (unten) mit dem Betreiber des enaio-Imports **vor dem Einschalten** abgestimmt? (Hand-Schritte P-C1/P-C2). Seit v1.99.29 ohne Kopfzeile: ein Import, der eine Kopfzeile überspringt, verliert sonst die einzige Datenzeile | `secondbrain/aufgaben/2026-11-12-deploy-fahrplan-buendel-v1-99.md:97` |
+
+**Dateiformat (seit v1.99.29):**
+
+| Merkmal | Wert | Quelle |
+|---|---|---|
+| Zeilen | **genau eine Datenzeile, keine Kopfzeile**; enaio ordnet nach Position zu | `IDEALAKEWMSService/Services/WareneingangCsvService.cs:131-145` |
+| Kodierung | UTF-8 **mit BOM**, Zeilenende CRLF | `IDEALAKEWMSService/Services/WareneingangCsvService.cs:118` |
+| Trennzeichen | `;`; Felder mit `;`, `"` oder Zeilenumbruch in Anführungszeichen (inneres `"` verdoppelt); leere Werte leer | `WareneingangCsvService.cs:138-139` |
+| Felder (9, in dieser Reihenfolge) | 1 Barcode · 2 Kreditornummer · 3 Kreditorname · 4 Bestellnummer · 5 Lieferschein · 6 Sage-Belegnummer (WE) · 7 **Erfasser** · 8 Datum (Erfassung im WMS) · 9 übergeben am (an Sage) | `WareneingangCsvService.cs:143-144` |
+| Datumsformat | `yyyy-MM-dd HH:mm`, kulturunabhängig | `WareneingangCsvService.cs:140` |
+| Erfasser | Windows-Kontoname (**sAMAccountName**) des buchenden WMS-Benutzers **ohne Domäne** (z. B. `jmuster`); hat der Benutzer kein Windows-Konto (lokaler WMS-Benutzer): sein **WMS-Name**; ohne Benutzer an der Buchung: Ersteller des Wareneingangs. Nicht die Windows-Sitzung des Rechners | `WareneingangCsvService.cs:134-142`, `IdealAkeWms/Services/WindowsAccountHelper.cs:7` |
+
+Bis v1.99.28 stand eine Kopfzeile in der Datei und als Erfasser der WMS-Anzeigename. Dateien, die vor dem Update geschrieben wurden, behalten
+dieses alte Format. Mails, Druck und Sage-Belege sind von der Änderung nicht betroffen.
 
 ---
 

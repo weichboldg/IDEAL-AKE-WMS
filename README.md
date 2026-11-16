@@ -10,6 +10,11 @@ Webbasiertes Warehouse Management System (WMS) und Betriebsdatenerfassung für I
 > Feature-Status, Release-Historie je Version und offene Aufgaben.
 > Die verbindlichen Entwicklungsregeln stehen in **[CLAUDE.md](CLAUDE.md)**.
 > `PROJECT_STATUS.md` ist seit 2026-07 eingefroren (Inhalt im Brain).
+>
+> **Ausführliche Handbücher** (Stand v1.99.29):
+> - **[docs/anwender/README.md](docs/anwender/README.md)** – Anwender-Anleitungen je Modul (Kommissionierung bis Anmeldung/Benutzer), mit Bildern.
+> - **[docs/betrieb/00-index.md](docs/betrieb/00-index.md)** – Betriebshandbuch für Administratoren (Installation, Update, Schnittstellen,
+>   Troubleshooting, Diagnose-Abfragen, Sicherheit); Regeln für KI-Assistenten in [docs/betrieb/AGENTS.md](docs/betrieb/AGENTS.md).
 
 ## Tech-Stack
 

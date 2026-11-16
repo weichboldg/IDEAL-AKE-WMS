@@ -1,6 +1,6 @@
 # 00 – Betriebshandbuch IdealAkeWms: Übersicht
 
-**Stand:** v1.99.23, 2026-11-14 (Bündel `feature/2026-08-07-ideal-teile-1-5`, Code `08672fcc`; Quelle: `IdealAkeWms/AppVersion.cs:5`) ·
+**Stand:** v1.99.29, 2026-11-16 (Bündel `feature/2026-08-07-ideal-teile-1-5`, Code `504acdd3` inkl. Nachbesserung B-2/B-3; Quelle: `IdealAkeWms/AppVersion.cs:5`; erstellt mit v1.99.23, Kapitel 03, 05, 07, 08, 09 nachgezogen – siehe „Änderungen seit v1.99.23“) ·
 **Zielgruppe:** Administratoren und IT-Kollegen ohne Entwicklerwissen · **Zweck:** Betrieb, Update, Überwachung und Fehlersuche des
 Warehouse-, Produktions- und Betriebsdatensystems der Standorte AKE und IDEAL – mit Fundstelle zu jeder Aussage.
 
@@ -49,15 +49,27 @@ Warehouse-, Produktions- und Betriebsdatensystems der Standorte AKE und IDEAL �
   Dienstname und Dienstkonto je Prod-/Testsystem ([02](02-systeme-umgebungen.md)), Datenbank-Wartungsplan ([10](10-backup-restore.md)),
   Empfänger der Fehlermail und Eskalationsweg ([06](06-logs-ueberwachung.md), [07](07-troubleshooting.md)), Rechte des Dienstkontos in der Sage-DB
   ([05](05-schnittstellen.md)). Diese Angaben lassen sich am Server ablesen (z. B. Update-Skript mit `-NurPruefen`, IIS-Manager, `services.msc`).
-- **Beim Erstellen gefundene Befunde** (nicht behoben, an die Entwicklung gemeldet):
-  - **Sicherheit:** Benutzer ohne hinterlegtes Kennwort – darunter alle aus dem AD angelegten – können sich über das Anmeldeformular mit **leerem
-    Kennwort** anmelden (Quelle: `IdealAkeWms/Controllers/AccountController.cs:94-101`, `IdealAkeWms/Controllers/UsersController.cs:199-209`).
-    Weitere Risiken in [09 Abschnitt 8](09-sicherheit-konten-rechte.md).
-  - **Erstinstallation:** `SQL/00_FreshInstall.sql:1260-1263` legt Indizes auf `ProductionOrders.IsReleasedForPicking`/`AssignedPickerId` an; diese
-    Spalten gibt es in `ProductionOrders` nicht (Tabelle ab `SQL/00_FreshInstall.sql:388`). Eine Neuinstallation bricht dort ab – siehe
-    [03 Abschnitt 4](03-installation-update-rollback.md).
+- **Beim Erstellen gefundene Befunde** (Stand v1.99.23; inzwischen behoben):
+  - **Sicherheit:** ~~Benutzer ohne hinterlegtes Kennwort können sich mit leerem Kennwort anmelden~~ – **behoben in v1.99.28** (Formular nur mit
+    Kennwort, Erstkennwort mit Pflichtwechsel; [09 Abschnitt 4 und 8](09-sicherheit-konten-rechte.md)). Weitere Risiken in [09 Abschnitt 8](09-sicherheit-konten-rechte.md).
+  - **Erstinstallation:** ~~`SQL/00_FreshInstall.sql` bricht bei den Indizes auf `ProductionOrders.IsReleasedForPicking`/`AssignedPickerId` ab~~ –
+    **behoben in v1.99.28**; für die Erstinstallation vom 04.11.2026 (IDEAL-Prod) gibt es die Prüfung `Pruefung/FreshInstallIndizes`
+    ([03 Abschnitt 4](03-installation-update-rollback.md)).
   - **Widersprüchliche Quellen** (z. B. Pfade und Dienstname zwischen `scripts/deploy/ziele.psd1`, `README.md` und `Install-IdealAkeWms.ps1`) sind in den
     Kapiteln an der jeweiligen Stelle genannt. Maßgeblich für Updates ist `scripts/deploy/ziele.psd1` ([02 Abschnitt 1](02-systeme-umgebungen.md)).
+
+## Änderungen seit v1.99.23 (für den Betrieb)
+
+| Version | Änderung | Kapitel |
+|---|---|---|
+| 1.99.24 | nicht vergeben | – |
+| 1.99.25 | Beschichtung: Quelle Kennzeichen/Termin einstellbar; Lackierteil-Erkennung im Import-Hook nur mit `Sync:CoatingDetectionEnabled` | [04](04-konfiguration.md) |
+| 1.99.26 | FA-Struktur IDEAL über SData nur im Vergleich (gesperrt bis DPS-Freigabe), `orderBy` bei jeder SData-Abfrage, Stückliste live für beendete Haupt-FAs | [04](04-konfiguration.md), [05](05-schnittstellen.md) |
+| 1.99.27 | reserviert (Arbeitsgang-Mapping), nicht ausgeliefert | – |
+| 1.99.28 | Anmeldung nur mit Kennwort, Erstkennwort mit Pflichtwechsel, admin-Seed `wms-admin`, Secure-Cookies, Installer ohne SData-Zugang, FreshInstall repariert; Migration `SQL/152`; Prüfungen `BenutzerOhneKennwort`, `SmtpBenutzer`, `FreshInstallIndizes` | [03](03-installation-update-rollback.md), [07](07-troubleshooting.md), [08 A-7.4](08-diagnose-abfragen.md), [09](09-sicherheit-konten-rechte.md) |
+| 1.99.29 | Wareneingang-CSV ohne Kopfzeile, Erfasser = sAMAccountName; Nachbesserung B-2/B-3 (Haken nur mit Kennwort, `/Users`-Hinweis) | [05 Abschnitt 8](05-schnittstellen.md), [07 Abschnitt 4](07-troubleshooting.md), [09 Abschnitt 4](09-sicherheit-konten-rechte.md) |
+
+Anwender-Sicht: `docs/anwender/` – neu Kapitel 13 „Anmeldung und Benutzer“.
 
 ## Weitere Dokumente
 

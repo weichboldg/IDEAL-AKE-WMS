@@ -1,6 +1,6 @@
 # 03 – Installation, Update und Rückfall
 
-**Stand:** v1.99.28, 2026-11-16 · **Zielgruppe:** IT-Administratoren, die installieren oder aktualisieren · **Zweck:** Schritt für Schritt
+**Stand:** v1.99.29, 2026-11-16 · **Zielgruppe:** IT-Administratoren, die installieren oder aktualisieren · **Zweck:** Schritt für Schritt
 durch Erstinstallation und Update mit dem Update-Skript, und ehrlich, was beim Zurückgehen möglich ist und was nicht.
 
 Übersicht: [00-index.md](00-index.md). Zielsysteme: [02-systeme-umgebungen.md](02-systeme-umgebungen.md). Sicherung:
@@ -121,7 +121,8 @@ Protokoll: `C:\ProgramData\IdealAkeWms\Install-<FIRMA>-<Zeit>.log`. (Quelle: `sc
 > Meldung 207 entsteht beim Übersetzen des **ganzen Batches** – damals fehlten deshalb **alle** Indizes des Abschnitts samt FK, nicht nur
 > die beiden falschen. Die beiden Anweisungen (Spalten liegen in `ProductionOrderPickingStatus`) sind entfernt, `WarehouseRequisitions`/
 > `-Items` haben einen `OBJECT_ID`-Guard, und der Test `FreshInstallIndexSpaltenTests` prüft jede Index-Spalte gegen das EF-Modell.
-> Systeme aus der Erstinstallation vom 04.11. (IDEAL-Prod): Prüfabfrage P-2b der Spec 2026-11-14-sicherheit-anmeldung-und-installer
+> Systeme aus der Erstinstallation vom 04.11. (IDEAL-Prod): Das Update-Skript zeigt dort in der Vorprüfung `Pruefung/FreshInstallIndizes`
+> (nur IDEAL-Prod, nur anzeigen) – entspricht Prüfabfrage P-2b der Spec 2026-11-14-sicherheit-anmeldung-und-installer
 > ausführen; bei Treffern fehlende Indizes nachziehen (offen, siehe Spec Rückfrage 4).
 
 ---
@@ -173,7 +174,7 @@ Laufen bei **jedem** Lauf (ohne Versionsfilter), lesend; Ergebnis 0 = in Ordnung
 
 | Phase | Verhalten | Beispiele | Beleg |
 |---|---|---|---|
-| Vorher | in der Vorprüfung; auf Prod Abbruch vor dem Stoppen, sonst Hinweis | `Pruefung/MailPickup`, `Pruefung/BenutzerOhneKennwort` (aktive Benutzer ohne Kennwort ausser admin, v1.99.28) | `scripts/deploy/nachlauf.psd1:158-161` |
+| Vorher | in der Vorprüfung; auf Prod Abbruch vor dem Stoppen, sonst Hinweis | `Pruefung/MailPickup`, `Pruefung/BenutzerOhneKennwort` (aktive Benutzer ohne Kennwort ausser admin, v1.99.28), `Pruefung/FreshInstallIndizes` (nur IDEAL-Prod: Indizes/FK aus der Erstinstallation vom 04.11. fehlen, v1.99.28; legt nichts an) | `scripts/deploy/nachlauf.psd1:158-161` |
 | Haltepunkt | nach dem Schema bei gestopptem Web und Dienst; Reparatur nur nach `j` | Kommissionierbereiche, RCSI, Rollen Beschichtungsauftrag, Rolle Einkauf, DUMMY-Artikel | `scripts/deploy/nachlauf.psd1:101-137` |
 | Nachher | nur lesend, Text = Hand-Schritt | Lieferverzug-Empfänger, Wareneingang-CSV, QR-Trennzeichen, Firmenanschrift, `Sync:ArticlesViewName`, SData-Kennwort in appsettings, SMTP-Benutzer (`Pruefung/SmtpBenutzer`), doppelte Prio | `scripts/deploy/nachlauf.psd1:138-169` |
 

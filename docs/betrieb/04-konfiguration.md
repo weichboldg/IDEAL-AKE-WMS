@@ -1,6 +1,6 @@
 # 04 – Konfiguration
 
-**Stand:** v1.99.23, 2026-11-14 · **Zielgruppe:** IT-Administratoren (ohne Entwicklerwissen) · **Zweck:** Wo welche Einstellung liegt,
+**Stand:** v1.99.29, 2026-11-16 (Einstellungen bis v1.99.26 nachgezogen; v1.99.28/1.99.29 ohne neue Einstellung) · **Zielgruppe:** IT-Administratoren (ohne Entwicklerwissen) · **Zweck:** Wo welche Einstellung liegt,
 wer sie liest und wann eine Änderung wirkt – und welche Schalter nach außen wirken (Sage, Mails, Dateien).
 
 Übersicht aller Kapitel: [00-index.md](00-index.md). Fremdsysteme hinter den Schaltern: [05-schnittstellen.md](05-schnittstellen.md).

@@ -1,6 +1,6 @@
 # 09 – Sicherheit, Konten und Rechte
 
-**Stand:** v1.99.28, 2026-11-16 · **Zielgruppe:** IT-Administratoren (ohne Entwicklerwissen) · **Zweck:** Unter welchen Konten Web-App und
+**Stand:** v1.99.29, 2026-11-16 · **Zielgruppe:** IT-Administratoren (ohne Entwicklerwissen) · **Zweck:** Unter welchen Konten Web-App und
 Dienst laufen, welche Rechte sie auf SQL Server, Ordner und Freigaben brauchen, wie Anmeldung und Rollen funktionieren und wo Geheimnisse
 liegen – und was nie im Klartext stehen darf.
 
@@ -116,6 +116,16 @@ Der Ordner `App_Data` wird von IIS nicht ausgeliefert. (Quelle: `IdealAkeWms/Ser
 - **Abgelaufene Tickets** einer alten RDP-Sitzung führten am IDEAL-Test zu LDAP-Fehler 0x31; Ab- und Anmelden half.
   (Quelle: `secondbrain/aufgaben/2026-11-11-buendel-deploy-update-skript.md:36`)
 - **Sitzung:** Cookie `IdealAkeWms.Session`, `HttpOnly`, 8 Stunden Leerlauf. (Quelle: `IdealAkeWms/Program.cs:54-61`)
+- **Formular-Anmeldung nur mit Kennwort (seit v1.99.28, Regel R):** ohne gespeicherten `PasswordHash` meldet das Formular „Für diesen Benutzer ist
+  kein Kennwort hinterlegt …“ und legt keine Sitzung an; Windows-SSO bleibt unverändert. (Quelle: `IdealAkeWms/Controllers/AccountController.cs:59-62`,
+  ADR `0027`)
+- **Erstkennwort mit Pflichtwechsel (Stand v1.99.29 inkl. QA-Nachbesserung B-2/B-3):** `/Users/Create` und `/Users/Edit` – Kennwort eintragen
+  oder „Erstkennwort erzeugen“ (12 Zeichen, **einmal** in der Erfolgsmeldung, nicht gespeichert/geloggt). Der Haken `MussKennwortAendern` ist beim
+  Öffnen **nicht** vorbelegt, das Formular setzt ihn, sobald ein Kennwort eingegeben/erzeugt wird; für Gerätekonten abwählen. **Ohne
+  gespeichertes Kennwort wird der Haken nie gespeichert** (Erfolgsmeldung mit Hinweis). Der `/Users`-Hinweis „offenes Erstkennwort“ zählt nur
+  aktive Benutzer **mit** Kennwort und Haken. Der Haken fällt weg nach dem Pflichtwechsel oder einem selbst gesetzten Kennwort in *Mein Profil*.
+  (Quelle: `IdealAkeWms/Controllers/UsersController.cs:80-84,333-349`, `IdealAkeWms/Controllers/AccountController.cs:137,270`;
+  Anwender-Anleitung `docs/anwender/13-anmeldung-und-benutzer.md`)
 
 Fehlerbilder rund um Anmeldung (400 bei POST, Button ohne Wirkung): [07-troubleshooting.md](07-troubleshooting.md), Hintergrund [[fallstricke]] §4.
 

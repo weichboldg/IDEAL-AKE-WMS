@@ -1,6 +1,6 @@
 # 08 – Diagnose-Abfragen (nur lesend)
 
-**Stand:** v1.99.23, 2026-11-14 · **Zielgruppe:** IT-Administratoren (ohne Entwicklerwissen)
+**Stand:** v1.99.29, 2026-11-16 · **Zielgruppe:** IT-Administratoren (ohne Entwicklerwissen)
 
 Sammlung **lesender** SQL-Abfragen für die WMS-Datenbank, gruppiert nach Thema. Jede Abfrage hat Zweck, erwartetes Ergebnis und Quelle.
 Die Abfragen stammen aus dem Update-Manifest (`scripts/deploy/nachlauf.psd1`), aus `docs/TESTSZENARIEN.md` und aus den Testberichten;
@@ -509,6 +509,26 @@ SELECT CASE WHEN EXISTS (SELECT 1 FROM dbo.AppSettings WHERE [Key] = N'QrTrennze
 - **Quelle:** `scripts/deploy/nachlauf.psd1:133-137,146-149`.
 
 ---
+
+### A-7.4 Anmeldestand je Benutzer: ohne Kennwort, offenes Erstkennwort (ab v1.99.28)
+
+```sql
+SELECT u.[Name],
+       CASE WHEN u.WindowsUserName IS NULL THEN N'Lokal' ELSE N'AD' END AS Typ,
+       CASE WHEN u.PasswordHash IS NULL OR u.PasswordHash = N'' THEN N'nein' ELSE N'ja' END AS HatKennwort,
+       u.MussKennwortAendern
+FROM dbo.Users u
+WHERE u.IsActive = 1
+  AND (u.PasswordHash IS NULL OR u.PasswordHash = N'' OR u.MussKennwortAendern = 1)
+ORDER BY u.[Name];
+```
+
+- **Zweck:** Wer kommt über das Formular nicht hinein (`HatKennwort = nein`), wer hat ein offenes Erstkennwort (`ja` + `MussKennwortAendern = 1`).
+  Der Hash selbst wird nicht ausgegeben.
+- **Erwartet:** `Lokal`/`nein` nur bei bewusst gesperrten Konten; `AD`/`nein` normal (nur Windows-Anmeldung). `nein` mit `MussKennwortAendern = 1`
+  sollte seit der Nachbesserung B-2 (v1.99.29) nicht mehr neu entstehen; Altfälle stammen aus v1.99.28 und sind wirkungslos (Login meldet Regel R).
+- **Quelle:** `IdealAkeWms/Controllers/UsersController.cs:80-84` (gleiche Regeln wie der Hinweis in `/Users`), Prüfung
+  `Pruefung/BenutzerOhneKennwort` in `scripts/deploy/nachlauf.psd1`; Anwender-Anleitung `docs/anwender/13-anmeldung-und-benutzer.md`.
 
 ## Verwandte Kapitel
 

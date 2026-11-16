@@ -4,6 +4,12 @@
 
 <h2 class="page-header">Hilfe</h2>
 
+<div class="alert alert-info small" role="note">
+    <strong>Ausführliche Anleitungen:</strong> Diese Seite beschreibt alle Funktionen in Kurzform. Schritt-für-Schritt-Anleitungen mit Bildern je
+    Modul (z.&nbsp;B. Kommissionierung, Wareneingang, Anmeldung und Erstkennwort) und das Betriebshandbuch für Administratoren pflegt die
+    WMS-Betreuung im WMS-Quellcode unter <code>docs/anwender</code> bzw. <code>docs/betrieb</code> &ndash; bei Bedarf dort anfragen.
+</div>
+
 <div class="row">
     <div class="col-lg-8">
 
@@ -2181,7 +2187,9 @@
                         angezeigt &ndash; notieren und dem Benutzer geben). Der Haken &bdquo;Muss Kennwort bei der nächsten Anmeldung
                         ändern&ldquo; ist dann gesetzt: der Benutzer meldet sich mit dem Erstkennwort an, legt sofort ein eigenes fest
                         (neu &ne; bisherig, Wiederholung gleich) und ist danach angemeldet. Für <strong>Terminal- und Gerätekonten</strong>
-                        den Haken entfernen. Die Benutzerliste zeigt aktive Benutzer ohne Kennwort und offene Erstkennwörter.
+                        den Haken entfernen. Ohne Kennwort wird der Haken nicht gespeichert (Hinweis in der Erfolgsmeldung).
+                        Die Benutzerliste zeigt aktive Benutzer ohne Kennwort und offene Erstkennwörter (nur Benutzer mit Kennwort).
+                        Ausführlich: Anwender-Anleitung 13 &bdquo;Anmeldung und Benutzer&ldquo; (<code>docs/anwender</code>).
                         <br /><strong>admin:</strong> Hat admin kein Kennwort (Neuinstallation oder Kennwort per SQL geleert), setzt der
                         Start das Standard-Erstkennwort laut Betriebshandbuch mit Pflichtwechsel &ndash; sofort als admin anmelden.</dd>
 

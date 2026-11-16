@@ -1,6 +1,6 @@
 # 05 – Wareneingang zu Bestellung
 
-Stand: Version 1.99.22 · Standort AKE (IDEAL siehe unten) · Bilder aus dem AKE-Testsystem
+Stand: Version 1.99.22, Abschnitt CSV: 1.99.29 · Standort AKE (IDEAL siehe unten) · Bilder aus dem AKE-Testsystem
 
 ## Zweck
 
@@ -121,6 +121,13 @@ CSV-Stand.
   prüft in Sage und klickt **Als übergeben markieren** (Beleg existiert, Sage-Belegnummer eintragen, höchstens 45 Zeichen) oder **Erneut senden**
   (Beleg fehlt).
 - **CSV:** wartet / offen / geschrieben / Fehler. Bei Fehler oder „Datei existiert bereits“ auf der Freigabe nachsehen und **CSV erneut schreiben**.
+
+**Was in der CSV-Datei steht (seit Version 1.99.29):** eine einzige Zeile ohne Überschriften, die enaio nach der Reihenfolge der Felder
+einliest – Barcode, Kreditornummer, Kreditorname, Bestellnummer, Lieferschein, Sage-Belegnummer, **Erfasser**, Datum, übergeben am.
+Als **Erfasser** steht der **Windows-Anmeldename** dessen, der eingebucht hat (z. B. `jmuster`, ohne Domäne), nicht mehr der Anzeigename
+im WMS. Wer im WMS ohne Windows-Konto arbeitet (lokaler Benutzer), steht mit seinem WMS-Benutzernamen drin. Für die Arbeit an der Maske
+ändert sich nichts; Mails, Druck und der Beleg in Sage bleiben gleich. Stimmt in enaio der Erfasser nicht, bitte mit Barcode an die
+WMS-Betreuung melden.
 
 ## Unterschiede AKE und IDEAL
 
