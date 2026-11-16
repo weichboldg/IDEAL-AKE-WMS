@@ -2,7 +2,7 @@
 type: spec
 title: "Bugfix Sicherheit: Anmeldung nur mit Kennwort oder Windows, Erstinstallation, Installer ohne Klartext-Zugangsdaten (BH-1 bis BH-5)"
 slug: 2026-11-14-sicherheit-anmeldung-und-installer-spec
-status: Entwurf
+status: InUmsetzung
 created: 2026-11-14
 updated: 2026-11-16
 source_backlog: "[[2026-11-14-sicherheit-anmeldung-und-installer]]"
@@ -15,7 +15,7 @@ task: ""
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
 branch: "feature/2026-08-07-ideal-teile-1-5"
 standort: beide
-version_vorschlag: "1.99.24"
+version_vorschlag: "1.99.28"
 sql_vorschlag: "152 fest (User.MussKennwortAendern, Nachtrag 2026-11-16); 151 nur wenn Rückfrage 4 die Index-Reparatur bestätigt"
 ts_vorschlag: "TS-139"
 adr_vorschlag: "0027"
@@ -64,9 +64,9 @@ deploy:
   web: true
   service: true
   migration: true
-freigabe_entscheidung: ""
-freigabe_von: ""
-freigabe_am: ""
+freigabe_entscheidung: "A ohne Schalter; Erstkennwort + Pflichtwechsel, admin Standard-Erstkennwort (S1); P-1/P-2b/MailSettings vor Deploy; Version beim Dev-Start = nächste freie"
+freigabe_von: "Gerald Weichbold"
+freigabe_am: "2026-11-16"
 ---
 
 # Bugfix Sicherheit: Anmeldung, Erstinstallation, Installer (BH-1 bis BH-5)
@@ -718,22 +718,22 @@ Passwort leer“ → Erstkennwort + Pflichtwechsel, Verweis TS-139.4), TS-40.4 (
   Bei Varianten-Specs zusaetzlich freigabe_entscheidung im Frontmatter setzen.
 -->
 
-1. BH-1 Regel A / B / C →
-2. Übergang: P-1-Ergebnis je System; Prüfung sperrt Prod (Vorher) oder nur Hinweis (Nachher) →
-3. Kestrel-QA: Ausnahme bei IsDevelopment() ja/nein →
-4. BH-2: P-2b-Ergebnis IDEAL-Prod; SQL/151 + Prüfung ja/nein; Guards + Wächter-Test ja/nein →
-5. BH-3: SData-Parameter entfernen ja/nein; SMTP Warnung oder eigener ADR →
-6. BH-4: Variante A / B; tote Blöcke entfernen ja/nein →
-7. BH-5a: Erstkennwort / Installer-Abfrage / unverändert →
-8. BH-5b: SameAsRequest / Always / unverändert →
-9. BH-5c: Warnung + Prüfung / StartTlsWhenAvailable / unverändert; MailSettings je Server →
-10. Zusatzfunde: Folgeaufgabe oder in diese Spec →
-11. admin-Erstkennwort: S1 fest dokumentiert / S2 Zufall in App_Data-Datei, Installer zeigt einmal / S3 → 
-12. Anzeige erzeugtes Erstkennwort: Erfolgs-Banner einmal / eigene Seite / Druckzettel →
-13. Gültigkeit Erstkennwort: keine / Ablauf nach n Tagen (n = ?) →
-14. Kennwortregeln Pflichtwechsel: nur leer/gleich/Wiederholung / zusätzlich Mindestlänge n →
-15. Haken abwählen bzw. Kennwort ohne Haken für Gerätekonten: erlaubt / nie →
-16. Pflichtwechsel an Handgerät/Terminal akzeptiert (Prüfschritt) / Gerätekonten ohne Haken →
+1. BH-1 Regel A / B / C → **Gerald 2026-11-16 17:28 „Rest passt“ (Empfehlung Koordination): A, ohne Schalter.**
+2. Übergang: P-1-Ergebnis je System; Prüfung sperrt Prod (Vorher) oder nur Hinweis (Nachher) → **Gerald 2026-11-16 17:28 „Rest passt“ (Empfehlung Koordination): Prüfung sperrt Prod (Phase Vorher), Abhilfe Erstkennwort mit Pflichtwechsel. P-1 je System vor dem Deploy erheben (Gerald).**
+3. Kestrel-QA: Ausnahme bei IsDevelopment() ja/nein → **Gerald 2026-11-16 17:28 „Rest passt“ (Empfehlung Koordination): ja, mit sichtbarem Hinweis.**
+4. BH-2: P-2b-Ergebnis IDEAL-Prod; SQL/151 + Prüfung ja/nein; Guards + Wächter-Test ja/nein → **Gerald 2026-11-16 17:28 „Rest passt“ (Empfehlung Koordination): Guards + Wächter-Test ja; SQL/151 + Pruefung/FreshInstallIndizes nur bei Treffern in P-2b (vor Deploy IDEAL-Prod erheben, Gerald).**
+5. BH-3: SData-Parameter entfernen ja/nein; SMTP Warnung oder eigener ADR → **Gerald 2026-11-16 17:28 „Rest passt“ (Empfehlung Koordination): Parameter entfernen; SMTP bleibt in der Dienst-Datei mit Installer-Warnung.**
+6. BH-4: Variante A / B; tote Blöcke entfernen ja/nein → **Gerald 2026-11-16 17:28 „Rest passt“ (Empfehlung Koordination): A; tote Blöcke entfernen (Feiertag* bleiben).**
+7. BH-5a: Erstkennwort / Installer-Abfrage / unverändert → **Durch Nachtrag 16.11. erledigt: Erstkennwort + Pflichtwechsel (siehe 11–16).**
+8. BH-5b: SameAsRequest / Always / unverändert → **Gerald 2026-11-16 17:28 „Rest passt“ (Empfehlung Koordination): SameAsRequest.**
+9. BH-5c: Warnung + Prüfung / StartTlsWhenAvailable / unverändert; MailSettings je Server → **Gerald 2026-11-16 17:28 „Rest passt“ (Empfehlung Koordination): Warnung + Pruefung/SmtpBenutzer; MailSettings je Server vor Deploy erheben (Gerald).**
+10. Zusatzfunde: Folgeaufgabe oder in diese Spec → **Gerald 2026-11-16 17:28 „Rest passt“ (Empfehlung Koordination): Folgeaufgabe.**
+11. admin-Erstkennwort: S1 fest dokumentiert / S2 Zufall in App_Data-Datei, Installer zeigt einmal / S3 → **Gerald 2026-11-16 17:28: S1 – festes Standard-Erstkennwort `wms-admin` (im Betriebshandbuch dokumentiert), admin muss es bei der ersten Anmeldung ändern (Haken MussKennwortAendern). Gilt auch für den Rückweg (PasswordHash NULL + Neustart → Standard-Erstkennwort + Haken). Installer-Abschluss und Start-Warnung fordern zur sofortigen Anmeldung auf (Fenster bis zur ersten Anmeldung).** 
+12. Anzeige erzeugtes Erstkennwort: Erfolgs-Banner einmal / eigene Seite / Druckzettel → **Gerald 2026-11-16 17:28 „Rest passt“ (Empfehlung Koordination): Erfolgs-Banner einmal.**
+13. Gültigkeit Erstkennwort: keine / Ablauf nach n Tagen (n = ?) → **Gerald 2026-11-16 17:28 „Rest passt“ (Empfehlung Koordination): keine; offene Erstkennwörter im /Users-Hinweis.**
+14. Kennwortregeln Pflichtwechsel: nur leer/gleich/Wiederholung / zusätzlich Mindestlänge n → **Gerald 2026-11-16 17:28 „Rest passt“ (Empfehlung Koordination): nur nicht leer / neu ≠ alt / Wiederholung gleich; Mindestlänge mit den Zusatzfunden (Folgeaufgabe).**
+15. Haken abwählen bzw. Kennwort ohne Haken für Gerätekonten: erlaubt / nie → **Gerald 2026-11-16 17:28 „Rest passt“ (Empfehlung Koordination): erlaubt (Checkbox maßgeblich, bei neuem Kennwort vorausgewählt).**
+16. Pflichtwechsel an Handgerät/Terminal akzeptiert (Prüfschritt) / Gerätekonten ohne Haken → **Gerald 2026-11-16 17:28 „Rest passt“ (Empfehlung Koordination): Gerätekonten ohne Haken; Pflichtwechsel einmal am Netum-Handgerät durchspielen (TS-139.4a).**
 
 ## Nachtrag 2026-11-16 16:27 – Erstkennwort durch Admin + Pflichtwechsel
 

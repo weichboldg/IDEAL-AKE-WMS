@@ -2,7 +2,7 @@
 type: spec
 title: Wareneingang-CSV – ohne Kopfzeile, Erfasser = Windows-Kontoname (sAMAccountName)
 slug: 2026-11-14-wareneingang-csv-erfasser-samaccountname-spec
-status: Entwurf
+status: InUmsetzung
 created: 2026-11-16
 updated: 2026-11-16
 source_backlog: "[[2026-11-14-wareneingang-csv-erfasser-samaccountname]]"
@@ -32,9 +32,9 @@ deploy:
   web: true
   service: true
   migration: false
-freigabe_entscheidung: ""
-freigabe_von: ""
-freigabe_am: ""
+freigabe_entscheidung: "Antworten Gerald 1–3 (16.11.)"
+freigabe_von: "Gerald Weichbold"
+freigabe_am: "2026-11-16"
 ---
 
 # Wareneingang-CSV – ohne Kopfzeile, Erfasser = Windows-Kontoname
