@@ -1930,3 +1930,16 @@ Code: `hardware-scanner.js` Block „Scannen ohne Feld“, CSS `.hw-scan-bereit`
   `data-filter-type="number"` – sonst würden Positionen wie `1.234` zu `1234` (Freigabe-Antwort 6).
 - **Unterpositionen ohne Vater-Zeile:** Im Kommissionierauftrag fehlen Baugruppen anderer Aufträge; eine Zeile mit `TreeLevel > 0` startete
   versteckt und wurde nie sichtbar (N-1). **Regel:** versteckt nur, wenn `BomViewModel.VaterPosition` einen vorhandenen Vorfahren findet.
+
+## 39. Beschichtungsquelle: wer schreibt HasCoatingParts (v1.99.25, [[2026-11-16-beschichtungslogik-je-standort-spec]], ADR [[0028-beschichtungsquelle-je-achse-ueber-appsettings-mit-automatisch]])
+
+- **Nur ein Schreiber je Quelle.** `BeschichtungKennzeichenQuelle` entscheidet, ob die Lackierteil-Erkennung (Artikelkategorie) oder die
+  FA-Materialisierung (FaStruktur) `HasCoatingParts` setzt. **Warum:** Schrieben beide, kippten die Flags hin und her, und jeder Wegfall setzt
+  `IsCoatingDone` zurück (§11). Deshalb prüft jeder Lauf die effektive Quelle selbst (`ResolveQuellen`).
+- **Import-Hook braucht seit v1.99.25 `Sync:CoatingDetectionEnabled`.** Vorher lief die Erkennung im Sage-Import-Hook immer, sobald
+  `Sync:BomCacheEnabled` an war. Steht `CoatingDetectionEnabled` auf `false` (Default, `ServiceSettingDefinitions.cs:288`), bekommen neue
+  Aufträge kein Lack-Flag mehr. Das Update-Skript meldet es (`Pruefung/LackierteilErkennungImportHook`).
+- **Unpassender Bestandswert sperrt `/Settings`.** Nach einem Umschalten des Masters kann ein gespeicherter Quellwert unpassend werden; dann
+  speichert `/Settings` nichts, bis er korrigiert ist (Meldung nennt das Feld) – gleiches Muster wie die BDE-Pflichtregel.
+- **Offen (Spec, Rückfrage 19):** Das BomCache-Fenster lässt komm-erledigte WAs aus, die Erkennung prüft sie aber und setzt ohne Cache-Treffer
+  `HasCoatingParts`/`IsCoatingDone` zurück – heutiges Verhalten, nicht gemessen.

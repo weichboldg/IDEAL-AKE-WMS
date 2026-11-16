@@ -176,3 +176,11 @@ Kommissionierwagen, Sage-Wareneingangsbeleg (ELL), Rahmenabruf (EBZ), Kreditor/D
 | Offene Bedarfe (Einkauf) | Offene WMS-Bedarfe, die die verfuegbare Menge der Bestellvorschlaege mindern: abgesendete Lagerbestellungen (teilgeliefert nur der Rest) und offene Bedarfsmeldungen. Zeile fehlt = beide, leer = keine. | AppSetting `EinkaufOffeneBedarfe`, `AppSettingKeys.EinkaufBedarfWerte` | `IdealAkeWms/Models/AppSettingKeys.cs` |
 | Nachlauf-Manifest | Liste aller Deploy-Schritte je Version (Schema, Daten, Einmal, Pruefung, Einstellung, Info) mit Firma, Phase und Ausfuehrung; das Update-Skript arbeitet sie ab und gibt die Hand-Schritte als Nachlauf-Liste aus. Ausgefuehrte Daten-/Einmal-Skripte stehen in `dbo.DeployScriptRuns` (SQL/142). | `scripts/deploy/nachlauf.psd1`, `Update-IdealAkeWms.ps1` | [[0022-update-je-zielsystem-per-skript-mit-nachlauf-manifest]], [[0023-daten-und-einmal-skripte-fuehrt-das-update-skript-mit-bestaetigung-aus]] |
 | SData-Kennwort (Geheim) | Kennwort der Sage-Schnittstelle in den Service-Einstellungen, gespeichert als `dp1:` + DataProtection-Schutztext; die Maske zeigt nur den Status. | `SData:Password`, `SettingType.Geheim`, `SdataZugangsdaten` | [[0024-sdata-kennwort-verschluesselt-in-den-service-einstellungen]] |
+
+## Ergaenzungen 2026-11-16 (Beschichtungsquelle, v1.99.25)
+
+| Begriff | Bedeutung |
+|---|---|
+| Kennzeichen-Quelle | AppSetting `BeschichtungKennzeichenQuelle`: woher „beschichtet“ kommt – `Artikelkategorie` (AKE: Kategorie `LackierteilKategorieName` über BomCache) oder `FaStruktur` (IDEAL: `FaHierarchyNode.Beschichtet`). [[0028-beschichtungsquelle-je-achse-ueber-appsettings-mit-automatisch]] |
+| Termin-Quelle | AppSetting `BeschichtungTerminQuelle`: `Berechnet` (Vorkommissioniertermin minus Beschichtungstage, auf Abholtag) oder `View` (`Start_Beschichtung` aus FAInfos, unverändert). |
+| Automatisch (Beschichtungsquelle) | Default beider Quellen: folgt dem Master `ProduktionsauftragHierarchisch` (flach = Artikelkategorie/Berechnet, hierarchisch = FaStruktur/View). |

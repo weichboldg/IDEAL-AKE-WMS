@@ -544,15 +544,15 @@ Danach `secondbrain/tests/testszenarien-index.md` nachziehen.
 
 | # | Etappe | Inhalt | Abhaengig von | SQL | Status | Commit |
 |---|--------|--------|---------------|-----|--------|--------|
-| 1 | Katalog + Resolver | 2 Choice-Keys (Termin-Quelle ohne `SData`), Beschreibungsergaenzungen, Server-Validierung (A8, `View` an der AKE abgelehnt), `BeschichtungResolver` plus Matrix-Tests (View = `Start_Beschichtung` 1:1); noch kein Verbraucher umgestellt; kein SData-Code (Freigabe-Antwort 17) | Freigabe-Antworten 1, 2, 4, 15, 17 | – | offen | |
+| 1 | Katalog + Resolver | 2 Choice-Keys (Termin-Quelle ohne `SData`), Beschreibungsergaenzungen, Server-Validierung (A8, `View` an der AKE abgelehnt), `BeschichtungResolver` plus Matrix-Tests (View = `Start_Beschichtung` 1:1); noch kein Verbraucher umgestellt; kein SData-Code (Freigabe-Antwort 17) | Freigabe-Antworten 1, 2, 4, 15, 17 | – | erledigt (QA 2026-11-16 gruen) | c61b7a52 |
 | H1 | **Haltepunkt P-I1** (vor E2, Nachtrag 2 / S-1) | Gerald erhebt P-I1 (Schalterstand IDEAL) und traegt das Ergebnis im Abschnitt „Pruefabfragen“ ein. Grund fuer die Lage vor E2: E2 stellt die Aktiv-Kennung der Zeilen-Views (`_ProductionOrderRow.cshtml:16-20`, `_PickingLeitstandRow.cshtml:82-94`) auf den Resolver um. Das ist die Verhaltensaenderung aus Freigabe-Antwort 7. Liegt kein Ergebnis vor, vermerkt der Lauf **E2 und E4** als Blocker und macht mit E3, H2/H3 und E5 weiter. | Gerald; Freigabe-Antwort 7 | – | offen | |
 | 2 | Web-Verbraucher | FA-Liste (Inline-Formel weg), Leitstand, Arbeitsliste, Zeilen-Views (Aktiv-Kennung), Tooltips je `TerminQuelle` auf den Resolver; Waechter-Test AK 9; Verhalten mit Automatisch identisch | E1, **H1**; Freigabe-Antwort 7 | – | **Blocker** | H1 P-I1 (Gerald) nicht eingetragen (Lauf 2026-11-16) |
-| 3 | Dienst | Gates ueber `ResolveQuellen`, Hook-Gate, Audit `SetCoatingPartsAsync`, Protokoll-Meldungen | E1; Freigabe-Antwort 12 | – | offen | |
+| 3 | Dienst | Gates ueber `ResolveQuellen`, Hook-Gate, Audit `SetCoatingPartsAsync`, Protokoll-Meldungen | E1; Freigabe-Antwort 12 | – | erledigt (QA 2026-11-16 gruen) | 318abf1f |
 | 4 | IDEAL-Termin Leitstand/Arbeitsliste | Koepfe je Seite nachladen, Termin aus dem Resolver (View = `Start_Beschichtung` unveraendert); Basisdatum Berechnet = Kopf-`FE_Termin` | E2 (und damit H1); Freigabe-Antworten 3, 4, 5, 6 | – | **Blocker** | H1 P-I1 (Gerald) nicht eingetragen (Lauf 2026-11-16) |
 | H2 | **Haltepunkt P-A5 (+ P-A3, P-A6 als Beleg)** | Gerald erhebt P-A5 (Datumsspalte in `vw_AKE_Kommissionierung_WAListe`?), P-A3 (WA-Nummern numerisch) und P-A6 (Lackierteil-Positionen ganzzahlig) und traegt die Ergebnisse im Abschnitt „Pruefabfragen“ ein. P-A5 aendert in dieser Version nichts am Bau (`View` an der AKE bleibt gesperrt). P-A3 und P-A6 muessen 0 Abweichungen zeigen, sonst E5 Blocker (P-A6: Rueckfrage 20). | Gerald; Freigabe-Antworten 9, 15; Nachtrag 2 | – | offen | |
 | H3 | **Haltepunkt Mengen-Pruefschritt** (Nachtrag 2 / B-1) | Gerald waehlt per Hilfsabfrage H3 einen WA mit Baugruppe und `Quantity > 1`. Er vergleicht in der Kommissionierliste die Mengen der Baugruppen-Zeilen mit Sage/OSEON und traegt WA, Zeilenzahl und Ergebnis im Abschnitt „Pruefabfragen“ ein (AK 21). Fehlt der Eintrag oder weicht die Menge ab, ist E5 Blocker. | Gerald; Freigabe-Antwort 18 | – | offen | |
 | 5 | Vorschlagsliste + Beschichtungsauftrag AKE | Gate-Metadaten (beide), **keine** Master-Bedingung an der Vorschlagsliste. Flache Positionsquelle (WA-Stueckliste als `FaHierarchyNode`-Projektion) fuer `BeschichtungsauftragService` (Liste/Summiert), `BeschichtungsauftragVergabeAnzeige` und die Workflow-Weiche: offen = `IsDone = 0 AND IsCancelled = 0` (A13), Menge ueber `BomQuantityResolver` (A12), Schluessel Artnr + Position (A14), Sammelmeldung plus Logger-Warnung (A15). AKE-Kopfvorbelegung (Start berechnet, Dienstleister/RAL/Retour leer). „(IDEAL)“ aus den Spaltenkatalog-Namen | E1, E3, H2, **H3**; Freigabe-Antworten 8, 9, 10, 11, 18 | – (keine Migration) | **Blocker** | H2 (P-A5, P-A3, P-A6) und H3 nicht eingetragen; Rueckfragen 19/20 offen (Lauf 2026-11-16) |
-| 6 | Doku und Abschluss | TS-140..145 in `docs/TESTSZENARIEN.md`, Hilfe (`Help/Index.cshtml` Beschichtung, `:1265`), `RoleOverview.cshtml` (Vorschlagsliste auch AKE/WA-Stueckliste), Standort-Maske Hinweis-Link, Anwender-Changelog (IDEAL-Termin in Leitstand/Arbeitsliste, AKE-Beschichtung), `docs/betrieb/04-konfiguration.md`, `README.md` AppSettings, Manifest-Eintraege, Versions-Bump beide `AppVersion.cs` auf v1.99.25 (nach 1.99.24 Sicherheit; beim Start pruefen), Brain (ADR 0028, fallstricke, codebase, glossar, feature-map, changelog; Aufgabe Erkennungsfenster-Filter, Rueckfrage 13). Nachtrag 2: Hilfe nennt Sammelmeldung und Mengenregel. fallstricke bekommt „BomCache-Fenster ohne `IsDonePicking`, Erkennungsfenster mit“ samt Folge fuer das Kennzeichen (Rueckfrage 19), mit Warum | E1-E5 | – | offen | |
+| 6 | Doku und Abschluss | TS-140..145 in `docs/TESTSZENARIEN.md`, Hilfe (`Help/Index.cshtml` Beschichtung, `:1265`), `RoleOverview.cshtml` (Vorschlagsliste auch AKE/WA-Stueckliste), Standort-Maske Hinweis-Link, Anwender-Changelog (IDEAL-Termin in Leitstand/Arbeitsliste, AKE-Beschichtung), `docs/betrieb/04-konfiguration.md`, `README.md` AppSettings, Manifest-Eintraege, Versions-Bump beide `AppVersion.cs` auf v1.99.25 (nach 1.99.24 Sicherheit; beim Start pruefen), Brain (ADR 0028, fallstricke, codebase, glossar, feature-map, changelog; Aufgabe Erkennungsfenster-Filter, Rueckfrage 13). Nachtrag 2: Hilfe nennt Sammelmeldung und Mengenregel. fallstricke bekommt „BomCache-Fenster ohne `IsDonePicking`, Erkennungsfenster mit“ samt Folge fuer das Kennzeichen (Rueckfrage 19), mit Warum | E1-E5 | – | teilweise (Teil E1/E3; Rest nach E2/E4/E5) | 4a635534 |
 
 ## Deploy
 
@@ -878,3 +878,208 @@ Rueckfragen 17 und 18 sind beantwortet (Frontmatter `beantwortete_fragen`, Absch
 
 - **Rueckfrage 19:** Das BomCache-Fenster schliesst komm-erledigte WAs aus (`BomCacheSyncService.cs:412-424`), das Erkennungsfenster nicht (`CoatingDetectionService.cs:103-110`). Komm-erledigte Lackier-WAs verlieren dadurch Cache-Kopf und ggf. Kennzeichen. Die Entscheidung „IsDonePicking bleibt drin“ (S-3) greift also nur, solange der Kopf noch im Cache steht. Den Bau aendert das nicht; die Sammelmeldung macht den Fall „Kopf weg, Flag noch 1“ sichtbar.
 - **Rueckfrage 20:** Der Schluessel Artikelnummer + Position passt nur bei ganzzahligen Positionen ohne Schema (`BeschichtungsauftragPosition.Position` `int?`), `CachedBomItem.Position` ist string. P-A6 klaert das vor E5. Bei Treffern kollidieren S-4 und Freigabe-Antwort 9.
+
+## QA-Nachweis Teilumfang E1/E3/E6 (qa-agent, 2026-11-16)
+
+**Ergebnis: QA Teilumfang E1/E3/E6: gruen.** Status bleibt `InUmsetzung`.
+
+Begruendung der Status-Entscheidung:
+
+- Das Epic ist nur teilweise gebaut. E2, E4 und E5 sind blockiert (H1, H2, H3 fehlen).
+- Offen sind die AK 5-9, 13-16 und 20-22.
+- `Testbereit` oeffnet Schranke 2 (Test und Merge) fuer die ganze Spec. Das wuerde einen Abschluss anzeigen, den es nicht gibt.
+- Der gebaute Teil ist trotzdem in sich lauffaehig: Beide Keys stehen auf `Automatisch`, das Verhalten ist unveraendert, die Termin-Quelle ist als „noch ohne Wirkung“ dokumentiert. Er darf mit dem Buendel auf DEV und Test.
+- Vor einem Test- oder Prod-Deploy muss Befund Q-1 erledigt oder ausdruecklich hingenommen sein.
+
+### Geprueft
+
+- Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Branch `feature/2026-08-07-ideal-teile-1-5`.
+- Commit-Bereich `8bfd8c73..4a635534` mit drei Commits:
+  - `c61b7a52` E1
+  - `318abf1f` E3
+  - `4a635534` E6, Teil
+- HEAD `4a635534731efd967a1430b281b38f1566f0ee08`, `AppVersion` 1.99.25 in Web und Dienst.
+
+### 1. Build und Tests
+
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler, 28 Warnungen (alle Bestand: CS8601, NU190x, CS8321).
+- `dotnet test`:
+
+| Testprojekt | bestanden | uebersprungen | Fehler | gesamt |
+|---|---|---|---|---|
+| `IDEALAKEWMSService.Tests` | 631 | 0 | 0 | 631 |
+| `IdealAkeWms.Tests` | 2913 | 1 | 0 | 2914 |
+
+### 2. Code-Review (eigenstaendig, in diesem Lauf)
+
+**Geprueft:**
+
+- der ganze Diff `8bfd8c73..4a635534` (32 Dateien)
+- der Code rund um die Aenderungen: `SettingsController.SaveSettings` (`Gilt`, Reihenfolge der Pruefung), `ServiceSettings.GetBoolSafeAsync`, `SyncWorker.cs:242-265` (Lackierteile) und `:356-368` (Materialisierung), DI in `IDEALAKEWMSService/Program.cs:49`, `:75`, `_SettingField.cshtml` (`AbhaengigVon`-Anzeige), `ArticleSageDetailsWriter.cs:28` (Audit-Konvention)
+
+**Bekannte Fehlerklassen:**
+
+- Kein `<script>`-Einbetten, kein `hidden` auf `d-*`, keine parallelen Arrays.
+- Kein stiller Fallback auf einen Wert: ungueltig wirkt wie `Automatisch`, mit Warnung im Protokoll, siehe aber Q-4.
+- Die A8-Regel prueft der Server (`SettingsController.cs:129-137`) mit derselben Funktion wie der Dienst (`ResolveQuellen`).
+- Die zweite Umsetzung derselben Regel ist die Manifest-SQL (`nachlauf.psd1:170-173`). Sie weicht bei Fremdwerten ab, siehe Q-3.
+
+| Nr | Schwere | Befund | Fundstelle | Behandlung |
+|---|---|---|---|---|
+| Q-1 | **Mittel** | **Sage-Import-Hook: Die Verhaltensaenderung hat keine Deploy-Pruefung.** Bisher lief die Lackierteil-Erkennung im Hook immer, sobald `Sync:BomCacheEnabled` an war. Jetzt braucht sie zusaetzlich `Sync:CoatingDetectionEnabled` (Default `false`, `ServiceSettingDefinitions.cs:288`). Das ist gewollt (Freigabe-Antwort 12). Steht der Schalter an einem flachen System aber aus, bekommen neue WAs **still** kein Lack-Flag mehr: kein Haken im Leitstand, kein Termin. Gemeldet wird das nur als Serilog-Info (`SageImportService.cs:174-178`), nicht im Aktivitaets-Protokoll. `fallstricke.md` §39 verlangt „Vor dem Deploy je System pruefen“, das Manifest erzwingt es aber nicht; der Info-Eintrag `v1.99.25-Beschichtungsquelle-Info` nennt es nur als Satz. Beleg Testsystem AKE: Schalter **AN** (`2026-10-20-ake-testsystem-bestandsaufnahme.md:114`). Prod-Stand unbekannt (AKESQL20 nicht abgefragt). Nach „melden statt still behandeln“ ist kein Laufzeit-Banner noetig, denn die Regel ist bewusst. Die Aenderung muss aber beim Deploy **sichtbar gemeldet** werden. | `SageImportService.cs:224-228`, `scripts/deploy/nachlauf.psd1` (fehlt) | **offen, vor Test-/Prod-Deploy.** Vorschlag: Manifest-Eintrag `Pruefung/LackierteilErkennungImportHook`, Version 1.99.25, Firma beide, Phase Haltepunkt, `anzeigen`. Er zaehlt: Master aus (`COALESCE(...,'false')` wie AK 23), `Sync:BomCacheEnabled = true`, `Sync:CoatingDetectionEnabled <> true` (fehlende Zeile = false). Text: „Lackierteil-Erkennung nach dem Sage-Import laeuft seit v1.99.25 nur mit Sync:CoatingDetectionEnabled; ohne den Schalter bekommen neue WAs kein Lack-Kennzeichen. Unter /ServiceSettings einschalten oder bewusst hinnehmen.“ |
+| Q-2 | Niedrig | **Falscher Abhaengigkeits-Text** an `LackierteilKategorieName`: „Wirkt nur, wenn „Quelle Beschichtet-Kennzeichen“ an ist.“ Der Text ist fuer Bool-Schalter gebaut, die Quelle ist aber ein Choice. Auf DEV AKE und IDEAL sichtbar. | `Views/Shared/_SettingField.cshtml:178`, Ausloeser `AppSettingDefinitions.cs:329-330` | offen. Entweder den Text fuer Choice-Eltern anpassen (z. B. „Wirkt nur bei Quelle Beschichtet-Kennzeichen = Artikelkategorie“) oder `abhaengig` weglassen; die Beschreibung sagt es schon. |
+| Q-3 | Niedrig | **Manifest-Pruefung erkennt Fremdwerte nicht.** Ein per SQL gesetztes `SData` ergibt 0 (DEV AKE gemessen); Resolver und `/Settings` melden den Wert. Damit zwei Fassungen derselben Regel. | `nachlauf.psd1:170-173` | offen. Zaehlen, wenn `[Value] NOT IN ('Automatisch','Artikelkategorie','FaStruktur')` bzw. `('Automatisch','Berechnet','View')`, oder bewusst hinnehmen (`/Settings` markiert den Fremdwert schon beim Laden). |
+| Q-4 | Niedrig | `GetBeschichtungQuellenAsync` schluckt jeden DB-Fehler ohne Log und wirkt dann wie `Automatisch`. Das Muster entspricht `GetBoolSafeAsync`, und der Fallback ist das heutige Verhalten. Es fehlt aber jede Spur. | `IDEALAKEWMSService/Common/IHierarchicalModeReader.cs:48` | offen, hinnehmbar. Optional ein `LogWarning`. |
+| Q-5 | Niedrig | Uneinheitliche Audit-Form: `ModifiedByWindows = Environment.UserName`, auf DEV gemessen `svc_idealakewms`. Andere Dienst-Schreiber verwenden `DOMAIN\User` (`ArticleSageDetailsWriter.cs:28`), die Lackierteil-Erkennung `SYSTEM_USER`. | `FaMaterializationSyncService.cs:226` | offen, hinnehmbar (ADR 0003 erfuellt, nur die Form weicht ab). |
+| Q-6 | Info | `AppVersion.Date` steht in beiden Dateien noch auf `2026-11-13`, der Changelog auf 16.11.2026. | `IdealAkeWms/AppVersion.cs:6`, `IDEALAKEWMSService/AppVersion.cs:6` | offen, trivial. |
+| Q-7 | Info | Die Kennzeichen-Quelle hat unter A8 keinen erreichbaren Effekt: Jeder Wert ungleich `Automatisch` ist entweder gleich dem Automatisch-Ergebnis oder wird abgelehnt. Den Zweig „Lack-Flag nicht geschrieben“ (`FaMaterializationSyncService.cs:213-215`) erreicht man nur, wenn das Lesen des Masters fehlschlaegt. Das ist so entworfen (Spec „Varianten Schluessel“). | – | hingenommen (Spec-Entscheidung). |
+| Q-8 | Info | Folgende E6-Teile fehlen noch, weil sie zu E2/E5 gehoeren oder Brain sind: Standort-Maske Hinweis-Link (Freigabe-Antwort 14, in TS-140 als zurueckgestellt vermerkt), `RoleOverview`, Brain-Changelog v1.99.25 (`secondbrain/changelog/`, nicht vorhanden), Eintrag in `feature-map.md`. Vorhanden sind ADR 0028, `fallstricke` §39 und `codebase/services.md`. Testindex: TS-140/144 **fehlten**; QA hat die Zeile in `testszenarien-index.md` ergaenzt. | – | Testindex erledigt (QA); Rest offen bis E6-Abschluss. |
+| Q-9 | Info | `publish/deploy.zip` (07:31, vor E1) liegt veraltet im Publish-Ordner. | `<worktree>/publish/deploy.zip` | nicht geloescht; der Mensch entscheidet. Massgeblich sind `publish/deploy/` und `publish-info.txt`. |
+
+**Einschaetzung zum Implementierer-Befund** (Hook ohne `CoatingDetectionEnabled`): bestaetigt, Schwere **Mittel**, siehe Q-1. Kein Blocker fuer DEV. Fuer Test und Prod gehoert er vor den Deploy, als Manifest-Pruefung oder als ausdrueckliche Hinnahme durch Gerald.
+
+### 3. Nachweisart je AK (gebauter Umfang)
+
+| AK | Nachweis | Art |
+|---|---|---|
+| 1 | `AppSettingDefinitionsTests.BeschichtungQuellen_AlsChoice_OhneSData_AK1_AK19`, Seed-Test; DEV: beide Keys `Automatisch` an AKE und IDEAL, Auswahl, Texte und Warnhinweis sichtbar | automatisiert + DEV |
+| 2 | `SettingsControllerBeschichtungQuelleTests.Save_WertAusserhalbDerListe_Abgelehnt_AK2`; DEV 140.9 | automatisiert + DEV (echtes Binding) |
+| 3 | `Save_UnpassendeKombination_NichtsGespeichert`; DEV 140.4, 140.5, 140.6 | automatisiert + DEV |
+| 4 | `BeschichtungResolverTests.ResolveQuellen_UngueltigOderUnpassend_*`; DEV 144.8: Warnung im Aktivitaets-Protokoll. Die Web-Seite liest erst mit E2. | automatisiert + DEV (Dienst) |
+| 10 | `HierarchicalModeGateTests`, `FaMaterializationCoatingWriteTests.RunAsync_QuelleArtikelkategorie_*` (Stub). Das „uebersprungen“ der Lackierteil-Erkennung ist auf DEV nicht beobachtbar (`Sync:CoatingDetectionEnabled` darf nicht an). | automatisiert; **Manual-UAT** fuer den echten Lauf |
+| 11 | `SageImportHookGateTests` (interne Methode). Den echten Import-Hook gegen Sage gibt es auf DEV nicht. | automatisiert; **Manual-UAT** |
+| 12 | `ProductionOrderPickingStatusRepositoryTests`, `FaMaterializationCoatingWriteTests.RunAsync_SetztAuditFelder_ADR0003`; DEV 144.3 (echter Dienstlauf, SQL Server) | automatisiert + DEV |
+| 17 | alle Tests gruen; Matrix in `BeschichtungResolverTests` | automatisiert |
+| 18 | Diff ohne Migration und ohne SQL-Skript | Diff |
+| 19 | `AppSettingDefinitionsTests`; DEV 140.2 (Optionen genau Automatisch/Berechnet/View), 140.5 | automatisiert + DEV |
+| 23 | `NachlaufManifestDriftTests`; Pruefungs-SQL auf beiden DEV-DBs ausgefuehrt (gueltig 0, unpassend 1) | automatisiert + DEV |
+| 5-9, 13-16, 20-22 | nicht gebaut (E2/E4/E5 blockiert) | – |
+
+### 4. Geaenderte Bestandstests
+
+| Test | Einordnung |
+|---|---|
+| `BereinigungenV179Tests`, `OperationConfigsControllerTests`, `SettingsControllerKatalogTests`, `SettingsControllerQrErstesFeldTests` | nur Typ (neuer Ctor-Parameter `IServiceSettingRepository`) |
+| `FaMaterializationSyncServiceTests`, `StubHierarchicalModeReader` | nur Typ (neue Abhaengigkeit, neue Interface-Methode) |
+| `ProductionOrderPickingStatusRepositoryTests` | Signatur plus gewollte Zusatzpruefung Audit (AK 12) |
+| `AppSettingDefinitionsTests` (Anzahl 58 → 60, Seed 36 → 38) | gewollt (AK 1) |
+| `HierarchicalModeGateTests` (Counts-Key `uebersprungen_hierarchisch` → `uebersprungen_quelle_fastruktur`) | gewollt (AK 10). Der alte Key gilt in `BomCacheSyncService.cs:46` und `FaWorkStepDetectionService.cs:43` weiter, dort korrekt. |
+
+Kein Befund „sonstiges“.
+
+### 5. Checkliste CLAUDE.md und ADR 0020
+
+**CLAUDE.md:**
+
+- Migration: keine (korrekt, AK 18). FreshInstall: nicht betroffen (Seed beim Start). AgentJobs: nicht betroffen.
+- Audit-Felder: geschlossen (AK 12).
+- Version 1.99.25 in beiden `AppVersion.cs`. Anwender-Changelog vorhanden, Brain-Changelog fehlt (Q-8).
+- `docs/TESTSZENARIEN.md`: TS-140 und TS-144 vorhanden, TS-141 bis 143 Platzhalter. Testindex von QA ergaenzt.
+- README und `docs/betrieb/04` gepflegt.
+
+**ADR 0020** (beide neuen Choice-Keys):
+
+- Auswahlliste: ja
+- Server-Validierung (Wert und Kombination): ja
+- Anzeigename, Wirkung, Verwendung, Default, Standort: ja
+- Warnhinweis an der Kennzeichen-Quelle: ja; die Termin-Quelle wirkt nur auf die Anzeige.
+- Geaenderte Beschreibungen (`BeschichtungTage`, `BeschichtungAbholtage`, `LackierteilKategorieName`, `Sync:CoatingDetectionEnabled`): vorhanden. Q-2 betrifft den Abhaengigkeits-Text.
+
+**Manifest:** `Pruefung/BeschichtungQuelleKombination` und `v1.99.25-Beschichtungsquelle-Info` sind vorhanden. `v1.99.25-Beschichtungsauftrag-AKE` gehoert zu E5 und fehlt zu Recht. Es fehlt die Pruefung zu Q-1.
+
+### 6. DEV-Deploy und Testlauf
+
+**Standort:** `beide` laut Frontmatter.
+
+**Deploy:**
+
+- Erhoehte Shell, `D:\Dev\scripts\dev-deploy.ps1 -Quelle <worktree>`, je Standort Web und Dienst.
+- AKE: „HTTP 200, Fusszeile v1.99.25“, „Fertig: AKE v1.99.25 auf http://localhost:8081/“, Exit 0.
+- IDEAL: „HTTP 200, Fusszeile v1.99.25“, „Fertig: IDEAL v1.99.25 auf http://localhost:8082/“, Exit 0.
+- Dienste `AKE_WMS_DEV_Service` und `IDEAL_WMS_DEV_Service` laufen. Die Service-Logs vom 16.11. enthalten keine ERR/FTL-Eintraege.
+- DEV-Absicherung nach dem Deploy (SQL): alle `Sync:*Enabled` (BomCache, CoatingDetection, ProductionOrders, HierarchicalFa) `false`, `SageLagerbuchungAktiv` `false`, `ErrorNotification:Enabled` `false`.
+- Seed: Beide Keys stehen nach dem Start an beiden DEV-DBs auf `Automatisch`. Master AKE `false`, IDEAL `true`.
+
+**TS-140** (Browser ueber claude-in-chrome, Daten ueber `sqlcmd -S . -E -C`):
+
+| Nr | gemacht | Ergebnis | Status |
+|---|---|---|---|
+| 140.1 | `/Settings` AKE und IDEAL, Gruppe „Termine und Beschichtung“ | zwei Auswahlfelder auf „Automatisch (nach Auftragsmodell)“; Beschreibung, Verwendung, Standard und Standort „beide“ sichtbar; Warnhinweis „Umschalten berechnet das Kennzeichen …“ an der Kennzeichen-Quelle | OK |
+| 140.2 | Optionen der Termin-Quelle gelesen (IDEAL) | genau `Automatisch`, `Berechnet`, `View`; kein `SData` | OK |
+| 140.3 | Texte `BeschichtungTage`, `BeschichtungAbholtage`, `LackierteilKategorieName` | Zusaetze „Wirkt nur bei Termin-Quelle „Berechnet““ bzw. „… Kennzeichen-Quelle „Artikelkategorie““ vorhanden; der Abhaengigkeits-Hinweis lautet aber „… an ist.“ | OK mit Befund Q-2 |
+| 140.4 | AKE: Kennzeichen `FaStruktur` speichern | gelbe Meldung „Nicht gespeichert: „Quelle Beschichtet-Kennzeichen“: „FaStruktur“ passt nicht zum Auftragsmodell (flach, …) – wirkt wie „Automatisch“ (Artikelkategorie) …“; DB unveraendert | OK |
+| 140.5 | AKE: Termin `View` speichern | abgelehnt, Meldung „… „View“ passt nicht zum Auftragsmodell (flach …) … (Berechnet)“ | OK |
+| 140.6 | IDEAL: Kennzeichen `Artikelkategorie` speichern | abgelehnt, „(hierarchisch, ProduktionsauftragHierarchisch an) … (FaStruktur)“ | OK |
+| 140.7 | AKE `Artikelkategorie` + `Berechnet`; IDEAL `FaStruktur` + `View` speichern | beide gespeichert (gruene Meldung, DB geprueft); danach per SQL auf `Automatisch` zurueckgesetzt. Die IDEAL-Variante `FaStruktur` + `Berechnet` wurde nicht einzeln gespeichert; die Resolver-Matrix deckt sie ab. | OK |
+| 140.8 | AKE per SQL `FaStruktur`, dann `/Settings` unveraendert speichern | abgelehnt mit derselben Meldung (Bestandswert sperrt Speichern). Die Dienst-Warnung der Lackierteil-Erkennung ist auf DEV nicht ausloesbar (Lauf nur mit `Sync:CoatingDetectionEnabled`). | OK (Web) / NICHT MOEGLICH (Dienst-Teil) |
+| 140.9 | AKE per SQL `SData` | `/Settings` zeigt beim Laden „„SData“ (ungueltig – bitte waehlen)“ und eine Meldung „… ist nicht erlaubt“ | OK |
+| 140.10 | Pruefungs-SQL des Manifests direkt auf den DEV-DBs (statt Update-Skript-Trockenlauf) | AKE gueltig 0, `FaStruktur` 1, `SData` **0**; IDEAL `FaStruktur`+`View` 0, `Artikelkategorie` 1 | OK mit Befund Q-3; Lauf ueber das Update-Skript NICHT MOEGLICH (bleibt fuer den Menschen) |
+
+**TS-144:**
+
+| Nr | gemacht | Ergebnis | Status |
+|---|---|---|---|
+| 144.1 | – | Die Lackierteil-Erkennung laeuft nur mit `Sync:CoatingDetectionEnabled` (`SyncWorker.cs:242`). Auf DEV gesperrt. | NICHT MOEGLICH |
+| 144.2 | Dienstlaeufe „FA-Materialisierung“ IDEAL auf v1.99.25 (16:40, 16:55; Gate ist nur der Master) | `lackflag_gesetzt=12`, Laeufe erfolgreich | OK |
+| 144.3 | Testdaten: Status-Zeile `ProductionOrderId=286` per SQL auf `HasCoatingParts=0`, naechsten Lauf abgewartet | Zeile 286: `HasCoatingParts=1`, `ModifiedAt 2026-11-16 16:55:01`, `ModifiedBy=FaMaterialization`, `ModifiedByWindows=svc_idealakewms`; vorher NULL/NULL | OK (Form siehe Q-5) |
+| 144.4 | – | braucht `Sync:CoatingDetectionEnabled=true` | NICHT MOEGLICH |
+| 144.5 | – | braucht Sage-Import mit neuem WA plus `Sync:BomCacheEnabled`/`ProductionOrdersEnabled` | NICHT MOEGLICH |
+| 144.6 | – | wie 144.5 plus `CoatingDetectionEnabled` | NICHT MOEGLICH |
+| 144.7 | – | die Materialisierung laeuft nur bei Master an; bei Master an ist die effektive Quelle immer FaStruktur (Q-7) | NICHT MOEGLICH (nicht herstellbar) |
+| 144.8 | IDEAL per SQL `BeschichtungKennzeichenQuelle=Artikelkategorie`, Materialisierungslauf 16:55 | SyncLogs 14298580 Warning „„Quelle Beschichtet-Kennzeichen“: „Artikelkategorie“ passt nicht zum Auftragsmodell (hierarchisch …) – wirkt wie „Automatisch“ (FaStruktur).“; Flag trotzdem geschrieben (Zeile 286). Wert danach auf `Automatisch` zurueckgesetzt. Teil „Lackierteile“ NICHT MOEGLICH (Sync-Gate). | OK (Materialisierung) / NICHT MOEGLICH (Lackierteile) |
+
+**DEV-Endstand:** Beide Keys stehen an AKE und IDEAL wieder auf `Automatisch`. Die Testzeile 286 ist durch den Dienst wieder korrekt (`HasCoatingParts=1`).
+
+### 7. Publish
+
+- Ziel: `C:\git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish\`
+  - `IDEALAKEWMSWeb` und `IDEALAKEWMSWebService`: vorher geleert, `dotnet publish -c Release` fehlerfrei
+  - `SQL\`, `deploy\`
+- `publish-info.txt`:
+  - Version: 1.99.25
+  - Commit: 4a635534731efd967a1430b281b38f1566f0ee08
+  - Branch: feature/2026-08-07-ideal-teile-1-5
+  - Spec: 2026-11-16-beschichtungslogik-je-standort-spec
+  - Erstellt: 2026-11-16 16:55
+- Hinweis: Im Publish-Root liegt eine alte `deploy.zip` (Q-9).
+
+### Deploy (aus dem echten Diff, Teilumfang)
+
+**Komponenten:**
+
+- `deploy.web`: ja (`IdealAkeWms/`: Katalog, Resolver, SettingsController, Repository, Hilfe, Changelog)
+- `deploy.service`: ja (`IDEALAKEWMSService/`: Reader, Lackierteil-Erkennung, Materialisierung, Import-Hook)
+- `deploy.migration`: nein (keine Datei unter `*/Migrations/`, kein SQL-Skript)
+- Web und Dienst gemeinsam deployen (gemeinsamer Katalog und Repository-Signatur).
+
+**Paket und Reihenfolge:**
+
+- Paket: `<worktree>\publish`, v1.99.25. Ablauf beim Menschen: Publish → Testsystem → Test → Merge.
+- Reihenfolge: Update-Skript wie ueblich. Es ist keine Migration und kein Einmal-Skript dabei.
+- Die Pruefung `BeschichtungQuelleKombination` zeigt am Haltepunkt beim Erst-Deploy OK; die Keys entstehen erst beim Web-Start.
+- **Vor dem Deploy an Test und Prod:** Q-1 klaeren (`Sync:CoatingDetectionEnabled` je flachem System).
+
+Nach dem Merge nur dann neu aus `main` publizieren, wenn der Merge getestete Dateien mit parallelen main-Aenderungen zusammengefuehrt hat:
+
+- `dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb`
+- `dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService`
+
+### Manuelle Checkliste (offen fuer den Menschen)
+
+1. Q-1 entscheiden: Manifest-Pruefung zum Import-Hook ergaenzen lassen oder hinnehmen. Je flachem System (AKE Test, AKE Prod) `Sync:CoatingDetectionEnabled` pruefen, wo `Sync:BomCacheEnabled` an ist.
+2. Q-2 (Abhaengigkeits-Text) und Q-3 (Fremdwerte im Manifest) entscheiden.
+3. TS-140.8 Dienst-Teil und TS-144.1/144.4/144.8 (Lackierteile) am Testsystem AKE mit `Sync:CoatingDetectionEnabled=true`: Protokoll-Warnung bzw. unveraenderte Zaehler.
+4. TS-144.5/144.6 am Testsystem AKE: Sage-Import mit neuem WA, Schalter aus bzw. an; Dienst-Log „Lackierteil-Erkennung uebersprungen“ bzw. Lack-Flag gesetzt.
+5. TS-140.10 ueber das Update-Skript (Trockenlauf) mit Fremdwert: „Abweichung 1“, nach Korrektur „OK“.
+6. Testsystem IDEAL: TS-144.2/144.3 nach dem Deploy (Audit `FaMaterialization` an geaenderten Zeilen).
+7. Danach H1, H2 und H3 erheben, damit E2, E4 und E5 gebaut werden koennen. Erst nach dem vollstaendigen Epic folgt der QA-Lauf fuer `Testbereit`.
+
+### Nachtrag Lauf 2026-11-16: QA-Befunde behoben (`3f247f11`)
+
+- **Q-1:** neue Manifest-Prüfung `Pruefung/LackierteilErkennungImportHook` (Nachher, anzeigen), TS-144.9.
+- **Q-2:** Hinweis bei Abhängigkeit von einer Auswahl lautet „Wirkt nur bei passender Auswahl in „…““ (`Settings/Index.cshtml`, `_SettingField.cshtml`); `AbhaengigVon` bleibt laut Einstellungen-Tabelle.
+- **Q-3:** `Pruefung/BeschichtungQuelleKombination` zählt auch Fremdwerte (TS-140.10 ergänzt).
+- **Q-4:** Lesefehler der Quellen wird als Warnung geloggt (`IHierarchicalModeReader.cs`).
+- **Q-5:** `ModifiedByWindows` = `IDEALAKEWMSService` wie die anderen Schreiber der Materialisierung.
+- **Q-6:** `AppVersion.Date` 2026-11-16.
+- Q-7..Q-9 Info, nicht geändert. Build 0 Fehler; Tests Web 2913/0/1, Dienst 631/0/0. Nicht erneut auf DEV deployt (Publish am Ende des Laufs).

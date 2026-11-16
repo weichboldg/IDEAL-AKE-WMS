@@ -19,8 +19,8 @@ letzte SQL 150 (151 reserviert Sicherheit, 152 frei/ungenutzt); letzte TS-138 (1
 
 | Spec | Typ | SQL | Version | Status | Commits | Blocker |
 |---|---|---|---|---|---|---|
-| [[2026-11-16-beschichtungslogik-je-standort-spec]] | Epic | – | 1.99.25 | InUmsetzung | | E2, E4: H1 P-I1 (Gerald) fehlt · E5: H2 (P-A5, P-A3, P-A6) und H3 (Mengen-Vergleich) fehlen; Rückfragen 19/20 offen |
-| [[2026-11-16-fa-struktur-ideal-ueber-sdata-spec]] | Epic | – | 1.99.26 | wartet | | Umschalten auf SData gesperrt bis DPS-Antwort/P-FS3 und Rückfragen 4/5 (Freigabe-Antwort 1) |
+| [[2026-11-16-beschichtungslogik-je-standort-spec]] | Epic | – | 1.99.25 | InUmsetzung (QA Teilumfang E1/E3/E6 grün) | `c61b7a52` E1, `318abf1f` E3, `4a635534` E6 Teil, `3f247f11` QA-Befunde | E2, E4: H1 P-I1 (Gerald) fehlt · E5: H2 (P-A5, P-A3, P-A6) und H3 (Mengen-Vergleich) fehlen; Rückfragen 19/20 offen |
+| [[2026-11-16-fa-struktur-ideal-ueber-sdata-spec]] | Epic | – | 1.99.26 | in Arbeit | | Umschalten auf SData gesperrt bis DPS-Antwort/P-FS3 und Rückfragen 4/5 (Freigabe-Antwort 1) |
 | [[2026-11-16-arbeitsgang-mapping-sage-arbeitsgangnummer-spec]] | Spec | – | 1.99.27 | **Blocker, nicht begonnen** | – | P-AG1..5 (Gerald) nicht in der Spec eingetragen (Freigabe-Antworten 1/2) |
 
 ## Etappen-Stand
@@ -38,3 +38,8 @@ FA-Struktur SData: E1, E2, E3, E4, E5 (Vergleich/lesend, Umschalten gesperrt), E
 ## Protokoll
 
 - 2026-11-16: Lauf gestartet, Vorprüfung durchgeführt (siehe Übersicht).
+- 2026-11-16: Beschichtung E1/E3/E6 (Teil) gebaut; QA Teilumfang grün auf DEV AKE+IDEAL (TS-140, TS-144; Dienst-Schritte ohne Sync-Gates
+  nicht möglich), Status bleibt InUmsetzung. Befunde Q-1..Q-6 behoben (`3f247f11`), Tests Web 2913/0/1, Dienst 631/0/0. Brain: ADR 0028,
+  fallstricke §39, Changelog v1.99.25, feature-map, Glossar, Codekarte.
+- 2026-11-16: FA-Struktur SData gestartet (E1–E6, Vergleich only, Umschalten gesperrt).
+
