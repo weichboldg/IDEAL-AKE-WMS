@@ -202,10 +202,13 @@
                             <li><em>Einkauf &rarr; Bestellvorschläge</em> öffnen. Standard: nur Artikel, die nachbestellt werden müssen, sortiert nach Lieferant
                                 und Artikelnummer.</li>
                             <li>Filterkarte: Lieferant, Artikelgruppe, Umfang (&bdquo;nur Vorschläge&ldquo; oder &bdquo;alle Artikel mit Meldebestand&ldquo;),
-                                Dringlichkeit (&bdquo;kritisch&ldquo; = verfügbar unter 0, &bdquo;nachbestellen&ldquo; = verfügbar bis Meldebestand).
+                                Dringlichkeit (&bdquo;kritisch&ldquo; = reicht nicht bis heute + WBZ, &bdquo;nachbestellen&ldquo; = verfügbar bis Meldebestand).
                                 Jede Spalte hat zusätzlich einen Spaltenfilter; <em>CSV</em> exportiert die sichtbaren Spalten.</li>
                             <li>Zeile lesen: <em>Vorschlag</em> und <em>Grund</em>, Lieferant, Bestellnr. des Lieferanten, Wunschtermin. Die Bestellung legt
                                 der Einkauf weiter in Sage an.</li>
+                            <li>Seit v1.99.30 öffnet die Artikelnummer die <em>Artikelinfo</em> (nur mit Rolle Stammdaten lesen; sonst kein Link, der Tooltip
+                                nennt die Rolle). Dort führt &bdquo;Zurück zu Bestellvorschlägen&ldquo; mit denselben Filtern zurück. Die Spalte
+                                <em>Matchcode</em> ist über das Zahnrad einblendbar und filterbar.</li>
                             <li>Hinweise beachten: Banner oben (fehlende Sage-Daten, fehlende Lieferanten, offene Bestellungen nicht gelesen, abweichende
                                 Einheiten) und die Spalte <em>Hinweis</em> je Zeile.</li>
                         </ol>
@@ -215,23 +218,40 @@
                             <li><em>Bestand WMS</em>: alle Lagerplätze außer Kommissionierwagen, auch inaktive und nicht buchbare &ndash; derselbe Wert wie in der
                                 Meldebestand-Mail.</li>
                             <li><em>offen bestellt</em>: Rest aller offenen Sage-Bestellungen und Rahmenabrufe des Artikels, abzüglich der im WMS schon erfassten
-                                Wareneingänge (dieselbe Rechnung wie <em>Offene Bestellungen</em>). Positionen mit abweichender Einheit zählen nicht (Banner).
+                                Wareneingänge (dieselbe Rechnung wie <em>Offene Bestellungen</em>). Weicht nur die Bestelleinheit ab (Basis = Lager), zählt die Position; Positionen mit Basis &ne; Lager zählen nicht (Banner und Hinweis in der Zeile).
                                 Sind die offenen Bestellungen nicht gelesen, steht &bdquo;&ndash;&ldquo; und gerechnet wird ohne sie.</li>
-                            <li><em>offene Bedarfe</em>: abgesendete Lagerbestellungen (teilgeliefert nur der Rest &bdquo;wird nachgeliefert&ldquo;) und offene
-                                Bedarfsmeldungen &ndash; welche, legt die Einstellung <code>EinkaufOffeneBedarfe</code> fest (Standard beide, leer = keine).
-                                Bedarfe in anderer Einheit als der Artikel zählen nicht (Banner).</li>
+                            <li><em>offene Bedarfe</em> (seit v1.99.30 angerechnet ohne Doppelzählung, dieselbe Zahl wie in der Artikelinfo):
+                                <ul>
+                                    <li><em>FA-Bedarf</em>: offene Fertigungsaufträge (nicht erledigt, nicht storniert, nicht fertig kommissioniert), deren
+                                        Stückliste den Artikel enthält &ndash; nur der noch nicht ausgebuchte Rest (Soll &minus; Ausbuchungen zum FA). Flach: Menge je
+                                        Gerät &times; Stückzahl aus dem Stücklisten-Cache (nur FAs im Cache-Fenster, Datum im Banner); IDEAL hierarchisch: Sollmenge
+                                        der Sub-FA.</li>
+                                    <li>Bedarfsmeldung zu einem FA: je FA zählt nur der größere Wert aus FA-Rest und Meldung (FA 10 + Meldung 4 &rarr; 10).</li>
+                                    <li>Lagerbestellungen (abgesendet, teilgeliefert nur der Rest): angerechnet wird der größere Wert aus FA-Teil und
+                                        Lagerbestellungen (FA 10 + Lagerbestellung 4 &rarr; 10; FA 3 + Lagerbestellung 8 &rarr; 8).</li>
+                                </ul>
+                                Welche WMS-Bedarfe zählen, legt <code>EinkaufOffeneBedarfe</code> fest (Standard beide, leer = keine; FA-Bedarfe zählen immer).
+                                Bedarfe in anderer Einheit als der Artikel zählen nicht (Banner). Spalte <em>nächster Bedarf</em> = frühester Fertigungstermin
+                                (Lagerbestellung und FA ohne Termin = heute).</li>
+                            <li><em>kritisch</em> (seit v1.99.30): Bestand + offene Bestellungen mit Liefertermin bis heute + WBZ decken die Bedarfe mit Termin
+                                bis heute + WBZ nicht. Bestellungen ohne Liefertermin zählen dafür nicht (Hinweis); ohne WBZ gilt 0 Tage (Hinweis
+                                &bdquo;ohne WBZ&ldquo;).</li>
                             <li><em>Vorschlag</em> (seit v1.99.21) = <em>letzte Bestellmenge</em> beim Hauptlieferanten: Menge der jüngsten Sage-Bestellung
                                 oder des jüngsten Rahmenabrufs der letzten 3 Jahre (Spalten <em>letzte Bestellmenge</em> und <em>letzte Bestellung am</em> mit
                                 Belegnummer). Gibt es beim Hauptlieferanten keine, gilt die jüngste Bestellung bei einem anderen Lieferanten (Hinweis
-                                &bdquo;letzte Bestellung bei &hellip;&ldquo;). Reicht die Menge nicht, um über den Meldebestand zu kommen, wird ein Vielfaches
-                                vorgeschlagen (Grund z.&nbsp;B. &bdquo;2 &times; letzte Bestellmenge&ldquo;).
+                                &bdquo;letzte Bestellung bei &hellip;&ldquo;). Reicht die Menge nicht, um über den Meldebestand zu kommen, ist der Vorschlag
+                                seit v1.99.30 Meldebestand &minus; verfügbar + 1 Lagereinheit (aufgerundet auf die Lager-Dezimalstellen; Grund &bdquo;&hellip; reicht
+                                nicht &ndash; bis über Meldebestand&ldquo;), kein Vielfaches mehr. Eine letzte Bestellung bei einem Lieferanten ohne
+                                Artikel-Lieferant in Sage zählt mit (Hinweis &bdquo;kein Artikel-Lieferant in Sage&ldquo;).
                                 Gibt es in 3 Jahren bei keinem Lieferanten eine Bestellung, nimmt die Liste die <strong>Sage-Bestellmenge</strong> des Artikels
                                 (Badge &bdquo;Fallback&ldquo;, Hinweis &bdquo;Fallback: Sage-Bestellmenge (keine Bestellung in 3 Jahren)&ldquo;; diese Zeilen findet
-                                der Spaltenfilter <em>Hinweis</em> mit <code>Fallback</code>, der Banner nennt ihre Anzahl). Fehlt auch sie, ist der Vorschlag die
-                                Fehlmenge bis zum Meldebestand (bei Fehlmenge 0 der Meldebestand), Grund &bdquo;keine letzte Bestellung &ndash; Menge prüfen&ldquo;.
-                                Weicht in Sage die Basis- von der Lagereinheit ab, wird die letzte Bestellmenge nicht verwendet (Hinweis &bdquo;Einheit Basis
-                                &ne; Lager&ldquo;). Die letzten Bestellungen liest der Dienst-Lauf <em>Artikel-Lieferanten</em> mit (dauert dadurch einige Minuten
-                                länger); ein Lesefehler steht als Warnung im Aktivitäts-Protokoll, die bisherigen Werte bleiben.
+                                der Spaltenfilter <em>Hinweis</em> mit <code>Fallback</code>, der Banner nennt ihre Anzahl). Fehlt auch sie, ist der Vorschlag
+                                Meldebestand &minus; verfügbar + 1, Grund &bdquo;keine letzte Bestellung &ndash; Menge prüfen&ldquo;.
+                                Weicht in Sage die Basis- von der Lagereinheit ab (oder ist der Lager-Faktor &ne; 1), werden letzte Bestellmenge und
+                                Sage-Bestellmenge nicht verwendet (Hinweis &bdquo;Einheit &hellip; nicht umrechenbar &ndash; &hellip; Menge prüfen&ldquo;); es wird nie
+                                still umgerechnet. Die letzten Bestellungen liest der Dienst seit v1.99.30 in einem eigenen Lauf zweimal täglich (Standard 3 und
+                                12 Uhr, <code>Sync:LetzteBestellungUhrzeitNacht/-Mittag</code>, nur mit <code>Sync:ArtikelLieferantEnabled</code>); ein Lesefehler
+                                steht als Warnung im Aktivitäts-Protokoll, die bisherigen Werte bleiben.
                                 Danach wird auf die <em>Mindestbestellmenge</em> des Hauptlieferanten aufgerundet &ndash; nur, wenn deren Einheit leer oder
                                 gleich der Artikel-Einheit ist und der Umrechnungsfaktor 1 beträgt; sonst steht ein Hinweis da und es wird nicht gerundet.</li>
                             <li><em>Sage verfügbar</em> ist eine Vergleichsspalte (Stand: letzter Artikel-Abgleich, im Tooltip); sie fließt nicht in die Rechnung ein.
@@ -473,7 +493,16 @@
                         Pro Eintrag werden FA-Nummer (als Link zur Stueckliste), Fertigungstermin und
                         Liefertermin angezeigt.
                         Am Standort IDEAL (hierarchische Auftraege) steht hier die Haupt-FA als Geraet und
-                        die Baugruppe (Sub-FA), in der das Teil verbaut ist; Mengen sind Sollmengen.</dd>
+                        die Baugruppe (Sub-FA), in der das Teil verbaut ist; Mengen sind Sollmengen.
+                        Seit v1.99.30 zeigt die Spalte <em>Rest</em> den noch nicht ausgebuchten Teil (Soll &minus; Ausbuchungen zum FA).</dd>
+
+                    <dt>Verfuegbar und Bedarfe (seit v1.99.30)</dt>
+                    <dd>&bdquo;Verfuegbar&ldquo; = Gesamtbestand &minus; angerechnete Bedarfe &ndash; dieselbe Regel wie in
+                        <em>Einkauf &rarr; Bestellvorschlaege</em>: offener FA-Rest, Bedarfsmeldungen je FA nur der groessere Wert aus FA-Rest und Meldung,
+                        Lagerbestellungen nur soweit sie den FA-Teil uebersteigen. Die Aufschluesselung &bdquo;Bedarfe&ldquo; zeigt alle drei Teile und
+                        die angerechnete Summe. Gegenueber frueheren Versionen kann die Zahl abweichen (bereits ausgebuchte Mengen zaehlen nicht mehr,
+                        Bedarfsmeldungen und Lagerbestellungen kommen dazu). Kommt man aus den Bestellvorschlaegen, fuehrt &bdquo;Zurueck zu
+                        Bestellvorschlaegen&ldquo; zur Liste zurueck.</dd>
                 </dl>
             </div>
         </div>

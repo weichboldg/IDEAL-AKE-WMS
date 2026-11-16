@@ -9,6 +9,43 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.99.30</strong> <span class="text-white-50 ms-2">16.11.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>Bestellvorschläge: Fertigungsbedarfe, Dringlichkeit nach Termin, neue Mengenregel</h6>
+                <ul>
+                    <li>Die verfügbare Menge zieht jetzt auch den <strong>offenen Bedarf der Fertigungsaufträge</strong> ab (Stückliste, nur der noch nicht
+                        ausgebuchte Rest). Bedarfsmeldung und Lagerbestellung zum selben Bedarf zählen nicht doppelt: gerechnet wird je FA der größere Wert.
+                        Neue Spalte <em>FA-Bedarf</em>, Erklärung im Banner.</li>
+                    <li><strong>Kritisch</strong> heißt jetzt: Der Bestand reicht nicht bis heute + Wiederbeschaffungszeit. Bedarfe später als das zählen dafür
+                        nicht, offene Bestellungen nur mit Liefertermin bis dahin. Neue Spalte <em>nächster Bedarf</em>.</li>
+                    <li><strong>Vorschlagsmenge</strong>: die letzte Bestellmenge; reicht sie nicht über den Meldebestand, Meldebestand &minus; verfügbar + 1
+                        &ndash; kein Vielfaches mehr. Danach wie bisher die Mindestbestellmenge.</li>
+                    <li>Letzte Bestellungen bei Lieferanten, die in Sage nicht als Artikel-Lieferant hinterlegt sind, werden berücksichtigt (Hinweis
+                        &bdquo;kein Artikel-Lieferant in Sage&ldquo;); ohne Hauptlieferant wird der einzige Artikel-Lieferant bzw. der Lieferant der letzten
+                        Bestellung gezeigt.</li>
+                    <li>Offene Bestellungen, bei denen nur die Bestelleinheit abweicht, werden eingerechnet. Mengen mit nicht umrechenbarer Einheit werden
+                        nicht verwendet und in der Zeile gemeldet &ndash; es wird nie still umgerechnet.</li>
+                    <li>Neue Spalte <em>Matchcode</em>; die Artikelnummer öffnet die <strong>Artikelinfo</strong> (mit Knopf &bdquo;Zurück zu
+                        Bestellvorschlägen&ldquo;, braucht die Rolle Stammdaten lesen).</li>
+                </ul>
+                <h6>Sichtbare Änderung für Lager und Produktion: Artikelinfo</h6>
+                <ul>
+                    <li>&bdquo;Verfügbar&ldquo; in der <strong>Artikelinfo</strong> rechnet jetzt wie die Bestellvorschläge: offener FA-Rest (bereits
+                        ausgebuchte Mengen zählen nicht mehr), Bedarfsmeldungen und Lagerbestellungen ohne Doppelzählung. Die Zahl kann daher
+                        <strong>anders als bisher</strong> sein. Eine Aufschlüsselung &bdquo;Bedarfe&ldquo; und die Spalte <em>Rest</em> in der
+                        FA-Tabelle zeigen, woraus sie besteht.</li>
+                </ul>
+                <h6>Betrieb</h6>
+                <ul>
+                    <li>Die letzten Bestellungen liest der Dienst nicht mehr in jedem Zyklus, sondern zweimal täglich (Standard 3 und 12 Uhr,
+                        <code>Sync:LetzteBestellungUhrzeitNacht/-Mittag</code>). Datenbank-Skript SQL/155.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.99.29</strong> <span class="text-white-50 ms-2">16.11.2026</span>
             </div>
             <div class="card-body">
