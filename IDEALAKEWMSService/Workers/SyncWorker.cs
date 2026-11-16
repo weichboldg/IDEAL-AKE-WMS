@@ -470,6 +470,15 @@ public class SyncWorker : BackgroundService
                         _logger.LogInformation("Artikel-Lieferanten-Abgleich fertig: Neu={Ins}, Aktualisiert={Upd}, Uebersprungen={Err}",
                             alResult.Inserted, alResult.Updated, alResult.Errors);
                     }, stoppingToken);
+
+                    // v1.99.30 (Spec 2026-11-16-bestellvorschlaege-nachbesserung F1): letzte Bestellung nur, wenn ein Termin
+                    // (Sync:LetzteBestellungUhrzeitNacht/-Mittag) faellig ist – der Lauf liest 3 Jahre EBB/EBZ und dauert Minuten.
+                    await RunResilientAsync("Letzte Bestellung (Einkauf)", async () =>
+                    {
+                        using var lbScope = _scopeFactory.CreateScope();
+                        var lbSvc = lbScope.ServiceProvider.GetRequiredService<IDEALAKEWMSService.Services.Sdata.LetzteBestellungSyncService>();
+                        await lbSvc.RunWennFaelligAsync(dryRun, DateTime.Now, stoppingToken);
+                    }, stoppingToken);
                 }
 
                 // v1.84.0 E1: offene Sage-Bestellungen NACH Artikel-, Kreditoren- und Lagerplatz-Abgleich (ordnet diesen zu).

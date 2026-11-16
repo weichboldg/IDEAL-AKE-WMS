@@ -82,6 +82,8 @@ try
     // Sync:DebitorenEnabled / Sync:ArtikelLieferantEnabled, Default false).
     builder.Services.AddScoped<IDEALAKEWMSService.Services.Sdata.KontokorrentSyncService>();
     builder.Services.AddScoped<IDEALAKEWMSService.Services.Sdata.ArtikelLieferantSyncService>();
+    // v1.99.30: letzte Bestellung als eigener Lauf zu festen Uhrzeiten (gleiches Gate Sync:ArtikelLieferantEnabled).
+    builder.Services.AddScoped<IDEALAKEWMSService.Services.Sdata.LetzteBestellungSyncService>();
     // v1.84.0 E1: offene Sage-Bestellungen (EBB, seit v1.99.15 auch Rahmenabrufe EBZ) -> SagePurchaseOrderLines (Gate Sync:EinkaufBestellungenEnabled, Default false).
     builder.Services.AddScoped<IDEALAKEWMSService.Services.Sdata.EinkaufBestellungenSyncService>();
     // v1.99.10: Lieferverzug-Mails aus dem Bestell-Cache (Gate Lieferverzug:MailAktiv, Default false); Rest-Regel ueber das Web-Repository.

@@ -34,6 +34,7 @@ public static class SyncLogServices
     public const string Kreditoren = "Kreditoren"; // Sage-Kontokorrent KtoArt K (SData) -> Creditors (v1.73.0 E8c)
     public const string Debitoren = "Debitoren"; // Sage-Kontokorrent KtoArt D (SData) -> Debitors (v1.73.0 E8c)
     public const string ArtikelLieferant = "ArtikelLieferant"; // Sage-ArtikelLieferantInfo (SData) -> ArticleSuppliers (v1.73.0 E8c)
+    public const string LetzteBestellung = "LetzteBestellung"; // Sage-EinkaufPositionenAllInfo (SData) -> ArticleSuppliers.LetzteBestellung* (v1.99.30, eigener Lauf zu festen Uhrzeiten)
     public const string EinkaufBestellungen = "EinkaufBestellungen"; // Sage-EinkaufPositionenInfo (SData, EBB + EBZ seit v1.99.15) -> SagePurchaseOrderLines (v1.84.0 E1)
     public const string SageWareneingang = "SageWareneingang"; // Wareneingang zu Bestellung -> Sage-Wareneingangsbeleg ELL (SData StandardBelegService, v1.99.4)
     public const string WareneingangCsv = "WareneingangCsv"; // CSV je an Sage uebergebenem Wareneingang mit Barcode auf UNC-Pfad (v1.99.11)
@@ -58,7 +59,7 @@ public static class SyncLogServices
         ProductionOrder, ProductionOrderReconciliation, Article, FaZusatzinfo,
         SageLagerbuchung, FaHierarchy, HierarchieUmstellung, FaMaterialization,
         WorkOperationStructureDetection, ProductionWorkplaceSync, OperationConfigSync, SageQuellenvergleich,
-        PpsMitarbeiter, Stillstandsgruende, Kreditoren, Debitoren, ArtikelLieferant, EinkaufBestellungen, SageWareneingang,
+        PpsMitarbeiter, Stillstandsgruende, Kreditoren, Debitoren, ArtikelLieferant, LetzteBestellung, EinkaufBestellungen, SageWareneingang,
         WareneingangCsv, LieferverzugMail, PartRequisitionEmail, WarehouseRequisitionEmail, BdeAutoPause,
         CleanupActivityLog, Einstellungspruefung,
     };
@@ -94,6 +95,7 @@ public static class SyncLogServices
         [Kreditoren] = "Kreditoren-Abgleich (Sage)",
         [Debitoren] = "Debitoren-Abgleich (Sage)",
         [ArtikelLieferant] = "Artikel-Lieferanten-Abgleich (Sage)",
+        [LetzteBestellung] = "Letzte Bestellung (Einkauf)",
         [EinkaufBestellungen] = "Offene Bestellungen (Sage)",
         [SageWareneingang] = "Sage-Wareneingang",
         [WareneingangCsv] = "Wareneingang-CSV",

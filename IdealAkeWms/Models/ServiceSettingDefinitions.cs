@@ -115,6 +115,8 @@ public static class ServiceSettingDefinitions
         ["Sync:KreditorenEnabled"] = ("Kreditoren aus Sage", "Dienst: Lauf „Kreditoren“; Stammdaten → Kreditoren", null, "Überschreibt WMS-Werte (Sage ist führend)."),
         ["Sync:DebitorenEnabled"] = ("Debitoren aus Sage", "Dienst: Lauf „Debitoren“; Stammdaten → Debitoren", null, "Überschreibt WMS-Werte (Sage ist führend)."),
         ["Sync:ArtikelLieferantEnabled"] = ("Artikel-Lieferanten aus Sage", "Dienst: Lauf „Artikel-Lieferanten“", null, null),
+        ["Sync:LetzteBestellungUhrzeitNacht"] = ("Letzte Bestellung – Uhrzeit nachts", LbVerwendung, null, null),
+        ["Sync:LetzteBestellungUhrzeitMittag"] = ("Letzte Bestellung – Uhrzeit mittags", LbVerwendung, null, null),
         ["Sync:EinkaufBestellungenEnabled"] = ("Offene Bestellungen aus Sage", "Dienst: Lauf „Offene Bestellungen (Sage)“; Lager → Offene Bestellungen, Wareneingang zu Bestellung", "AKE (IDEAL ohne SData-Endpunkt aus lassen)", null),
         ["Sync:BomCacheEnabled"] = ("Stücklisten-Cache", "Dienst: Lauf „BOM-Cache“; Stückliste", "AKE", null),
         ["Sync:BomCacheWeeks"] = ("Stücklisten-Cache: Wochen voraus", "Dienst: Lauf „BOM-Cache“", "AKE", null),
@@ -157,6 +159,7 @@ public static class ServiceSettingDefinitions
         ["Lieferverzug:Standort"] = ("Absender-Firma (CI)", LvVerwendung, null, null),
     };
 
+    private const string LbVerwendung = "Dienst: Lauf „Letzte Bestellung (Einkauf)“; Einkauf → Bestellvorschläge (letzte Bestellmenge, Lieferant ohne Zuordnung)";
     private const string LvVerwendung = "Dienst: Lauf „Lieferverzug-Mails“ nach „Offene Bestellungen (Sage)“";
 
     /// <summary>v1.99.10: Auswahl Absender-Firma der Lieferverzug-Mails (Hausfarbe, Firmenadresse); exakte Schreibweise wie im Dienst.</summary>
@@ -180,6 +183,8 @@ public static class ServiceSettingDefinitions
         ["Lieferverzug:KreditorTageNachTermin"] = (0, 60, "Tage"),
         ["Lieferverzug:MaxAlterTage"] = (0, 3650, "Tage"),
         ["Lieferverzug:Uhrzeit"] = (0, 23, "Uhr"),
+        ["Sync:LetzteBestellungUhrzeitNacht"] = (0, 23, "Uhr"),
+        ["Sync:LetzteBestellungUhrzeitMittag"] = (0, 23, "Uhr"),
         ["Lieferverzug:KreditorWiederholTage"] = (1, 60, "Tage"),
         ["Lieferverzug:KreditorMaxJeLauf"] = (1, 500, ""),
     };
@@ -274,6 +279,8 @@ public static class ServiceSettingDefinitions
         new("Sync:KreditorenEnabled", SettingType.Bool, "false", "Sage-Abgleich (SData)", "Lieferanten aus Sage (SData, Kontokorrent + Adressen/Ansprechpartner) in die Kreditoren lesen. Sage ist fuehrend: ueberschreibt Name, Matchcode, Adresse, Kontakt und aktiv/inaktiv im WMS; Kurzname, Beschichter, Bemerkung bleiben. Liest nur, schreibt nie nach Sage."),
         new("Sync:DebitorenEnabled", SettingType.Bool, "false", "Sage-Abgleich (SData)", "Kunden aus Sage (SData, Kontokorrent + Adressen/Ansprechpartner) in die Debitoren lesen. Sage ist fuehrend: ueberschreibt Name, Matchcode, Adresse, Kontakt, aktiv/inaktiv, Vertreter und Kundenname FA im WMS; Kurzname und Bemerkung bleiben. Liest nur, schreibt nie nach Sage."),
         new("Sync:ArtikelLieferantEnabled", SettingType.Bool, "false", "Sage-Abgleich (SData)", "Artikel-Lieferanten aus Sage (SData) lesen (braucht Artikel und Kreditoren)."),
+        new("Sync:LetzteBestellungUhrzeitNacht", SettingType.Int, "3", "Sage-Abgleich (SData)", "Ab dieser Stunde liest der Dienst einmal die letzten Bestellungen (3 Jahre EBB/EBZ) aus Sage neu (Lauf 'Letzte Bestellung (Einkauf)', Gate Sync:ArtikelLieferantEnabled). Ein verpasster Termin wird nach dem Dienststart einmal nachgeholt. Der Lauf dauert einige Minuten, in der Zeit warten Offene Bestellungen und Lieferverzug. Beide Uhrzeiten gleich = ein Lauf pro Tag."),
+        new("Sync:LetzteBestellungUhrzeitMittag", SettingType.Int, "12", "Sage-Abgleich (SData)", "Zweiter taeglicher Lauf 'Letzte Bestellung (Einkauf)' ab dieser Stunde (wie Uhrzeit nachts)."),
         new("Sync:EinkaufBestellungenEnabled", SettingType.Bool, "false", "Sage-Abgleich (SData)", "Offene Einkaufsbestellungen (normale Bestellungen EBB und Rahmenabrufe EBZ, Positionen) aus Sage (SData) in den Cache lesen; Zuordnung zu Artikel, Kreditor und Lagerplatz (braucht Kreditoren- und Lagerplatz-Abgleich). Liest nur, schreibt nie nach Sage."),
 
         // ----- BOM-Cache -----

@@ -293,7 +293,6 @@ public class KontokorrentArtikelLieferantTests
         var client = new Mock<ISageSdataReadClient>();
         Setup(client, ArtikelLieferantSyncService.Ressource, zeilen);
         Setup(client, ArtikelLieferantSyncService.RessourceVarianten, haupt);
-        Setup(client, ArtikelLieferantSyncService.RessourceLetzteBestellung, Array.Empty<SdataLetzteBestellungZeile>());
         return new(ctx, client.Object, new ConfigurationBuilder().Build(), NullLogger<ArtikelLieferantSyncService>.Instance, log);
     }
 
@@ -355,8 +354,7 @@ public class KontokorrentArtikelLieferantTests
         lauf.FinalCounts.Should().BeEquivalentTo(new Dictionary<string, int>
         {
             ["gelesen"] = 6, ["neu"] = 1, ["aktualisiert"] = 1, ["unveraendert"] = 0, ["entfernt"] = 1, ["hauptlieferant"] = 1,
-            ["artikel_fehlt"] = 1, ["kreditor_fehlt"] = 1, ["uebersprungen"] = 3,
-            ["letzte_bestellung_positionen"] = 0, // v1.99.21 E3: Fake liefert keine Bestellungen -> Warnung, nichts geaendert
+            ["artikel_fehlt"] = 1, ["kreditor_fehlt"] = 1, ["uebersprungen"] = 3, // v1.99.30: keine Counts der letzten Bestellung mehr (AK 1)
         });
         lauf.Events.Should().Contain(e => e.Level == "Warning" && e.Message.Contains("K99999") && e.Message.Contains("Sync:KreditorenEnabled"));
     }
@@ -379,23 +377,21 @@ public class KontokorrentArtikelLieferantTests
         ArtikelLieferantSyncService.Select.Should().NotContain("USER_");
     }
 
-    // ----- v1.99.21 E3: letzte Bestellung (EinkaufPositionenAllInfo) -----
+    // ----- v1.99.21 E3 / v1.99.30 E1: letzte Bestellung (EinkaufPositionenAllInfo), eigener Lauf -----
 
     private static SdataLetzteBestellungZeile Lb(string art, string? artikel, string? kto, string? datum, int belId, decimal? menge,
         string? beleg = null, int belPosId = 0) => new(belId, belPosId, art, datum, beleg ?? $"2027-{belId}", kto, artikel, menge);
 
-    private static ArtikelLieferantSyncService AlLetzte(IdealAkeWms.Data.ApplicationDbContext ctx, FakeSyncLogger log, SdataArtikelLieferantZeile[] zeilen,
+    private static LetzteBestellungSyncService Lbs(IdealAkeWms.Data.ApplicationDbContext ctx, FakeSyncLogger log,
         SdataLetzteBestellungZeile[] ebb, SdataLetzteBestellungZeile[] ebz, Mock<ISageSdataReadClient>? client = null)
     {
         client ??= new Mock<ISageSdataReadClient>();
-        Setup(client, ArtikelLieferantSyncService.Ressource, zeilen);
-        Setup(client, ArtikelLieferantSyncService.RessourceVarianten, new SdataHauptlieferantZeile("A1", "K1"));
         foreach (var (art, rows) in new[] { ("EBB", ebb), ("EBZ", ebz) })
             client.Setup(c => c.QueryAllAsync<SdataLetzteBestellungZeile>(It.IsAny<SdataLeseZiel>(), It.IsAny<string>(),
-                    ArtikelLieferantSyncService.RessourceLetzteBestellung, It.Is<string?>(w => w!.Contains("'" + art + "'")), It.IsAny<string?>(),
+                    LetzteBestellungSyncService.RessourceLetzteBestellung, It.Is<string?>(w => w!.Contains("'" + art + "'")), It.IsAny<string?>(),
                     It.IsAny<string>(), It.IsAny<CancellationToken>(), It.IsAny<int>()))
-                .ReturnsAsync(new SdataSeiten<SdataLetzteBestellungZeile>(rows, ArtikelLieferantSyncService.RessourceLetzteBestellung, 3, rows.Length, 1));
-        return new(ctx, client.Object, new ConfigurationBuilder().Build(), NullLogger<ArtikelLieferantSyncService>.Instance, log);
+                .ReturnsAsync(new SdataSeiten<SdataLetzteBestellungZeile>(rows, LetzteBestellungSyncService.RessourceLetzteBestellung, 3, rows.Length, 1));
+        return new(ctx, client.Object, new ConfigurationBuilder().Build(), NullLogger<LetzteBestellungSyncService>.Instance, log);
     }
 
     private static async Task<(Article a1, Article a2, Creditor k1, Creditor k2)> LetzteSeed(IdealAkeWms.Data.ApplicationDbContext ctx)
@@ -406,19 +402,40 @@ public class KontokorrentArtikelLieferantTests
         return (a1, a2, k1, k2);
     }
 
+    private static ArticleSupplier As(Article a, Creditor k) => new()
+    {
+        ArticleId = a.Id, CreditorId = k.Id, Artikelnummer = a.ArticleNumber, CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t",
+    };
+
+    [Fact]
+    public async Task ArtikelLieferant_LiestLetzteBestellungNichtMehr()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        var client = new Mock<ISageSdataReadClient>();
+        Setup(client, ArtikelLieferantSyncService.Ressource, Zeile("A1", "K1"));
+        Setup(client, ArtikelLieferantSyncService.RessourceVarianten, new SdataHauptlieferantZeile("A1", "K1"));
+
+        await new ArtikelLieferantSyncService(ctx, client.Object, new ConfigurationBuilder().Build(), NullLogger<ArtikelLieferantSyncService>.Instance,
+            new FakeSyncLogger()).RunAsync(false, ziel: Ziel);
+
+        client.Verify(c => c.QueryAllAsync<SdataLetzteBestellungZeile>(It.IsAny<SdataLeseZiel>(), It.IsAny<string>(), It.IsAny<string>(),
+            It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string>(), It.IsAny<CancellationToken>(), It.IsAny<int>()), Times.Never, "AK 1");
+    }
+
     [Fact]
     public async Task LetzteBestellung_JuengsterBelegUeberAlleSeiten_EbzZaehlt_OhneTrefferGeleert_Audit()
     {
         using var ctx = TestDbContextFactory.Create();
         var (a1, a2, k1, k2) = await LetzteSeed(ctx);
-        ctx.ArticleSuppliers.Add(new ArticleSupplier { ArticleId = a2.Id, CreditorId = k1.Id, Artikelnummer = "A2", LetzteBestellmenge = 9m,
-            LetzteBestellungAm = new DateTime(2020, 1, 1), LetzteBestellungBeleg = "ALT", CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" });
+        var s21Alt = As(a2, k1);
+        s21Alt.LetzteBestellmenge = 9m; s21Alt.LetzteBestellungAm = new DateTime(2020, 1, 1); s21Alt.LetzteBestellungBeleg = "ALT";
+        ctx.ArticleSuppliers.AddRange(As(a1, k1), As(a1, k2), s21Alt);
         await ctx.SaveChangesAsync();
         var log = new FakeSyncLogger();
         var client = new Mock<ISageSdataReadClient>();
         var beleg45 = new string('9', 45);
 
-        await AlLetzte(ctx, log, new[] { Zeile("A1", "K1"), Zeile("A1", "K2"), Zeile("A2", "K1") },
+        await Lbs(ctx, log,
             ebb: new[]
             {
                 // nach BelPosId sortiert (wie SData), der juengste Beleg steht also irgendwo in den Seiten
@@ -426,7 +443,7 @@ public class KontokorrentArtikelLieferantTests
                 Lb("EBB", "A1", "K1", "2025-01-01T00:00:00", 100, 50m, belPosId: 6),
                 Lb("EBB", "A1", "k1 ", "2026-04-09T00:00:00", 360000, 1m, belPosId: 7),   // gleicher Tag, kleinere BelId
                 Lb("EBB", "A1", "K2", "2024-02-01T00:00:00", 200, 20m, belPosId: 8),
-                Lb("EBB", "A1", "K9", "2026-01-01T00:00:00", 300, 5m, belPosId: 9),       // Kreditor fehlt -> nicht abgelegt
+                Lb("EBB", "A1", "K9", "2026-01-01T00:00:00", 300, 5m, belPosId: 9),       // Kreditor fehlt -> nicht zugeordnet
                 Lb("EBB", "X9", "K1", "2026-01-01T00:00:00", 301, 5m, belPosId: 10),      // Artikel nicht im WMS
                 Lb("EBB", "A1", "K1", null, 302, 5m, belPosId: 11),                       // ohne Datum -> uebersprungen
             },
@@ -434,7 +451,7 @@ public class KontokorrentArtikelLieferantTests
 
         var s11 = ctx.ArticleSuppliers.Single(s => s.ArticleId == a1.Id && s.CreditorId == k1.Id);
         (s11.LetzteBestellmenge, s11.LetzteBestellungAm, s11.LetzteBestellungBeleg, s11.ModifiedBy)
-            .Should().Be(((decimal?)400m, (DateTime?)new DateTime(2026, 4, 9), beleg45, "ArtikelLieferantSync"));
+            .Should().Be(((decimal?)400m, (DateTime?)new DateTime(2026, 4, 9), beleg45, "LetzteBestellung"));
         var s12 = ctx.ArticleSuppliers.Single(s => s.ArticleId == a1.Id && s.CreditorId == k2.Id);
         (s12.LetzteBestellmenge, s12.LetzteBestellungAm).Should().Be(((decimal?)30.123m, (DateTime?)new DateTime(2026, 5, 1)), "Rahmenabruf juenger als Bestellung");
         var s21 = ctx.ArticleSuppliers.Single(s => s.ArticleId == a2.Id);
@@ -442,21 +459,42 @@ public class KontokorrentArtikelLieferantTests
             "keine Bestellung im Rueckblick -> geleert");
 
         var lauf = log.Runs.Single();
+        lauf.ServiceName.Should().Be(SyncLogServices.LetzteBestellung);
         lauf.FinishedSuccess.Should().BeTrue();
-        lauf.FinalCounts!["letzte_bestellung_positionen"].Should().Be(8);
-        lauf.FinalCounts["letzte_bestellung_positionen_ebz"].Should().Be(1);
-        lauf.FinalCounts["letzte_bestellung_gefunden"].Should().Be(3);
-        lauf.FinalCounts["letzte_bestellung_aktualisiert"].Should().Be(2);
-        lauf.FinalCounts["letzte_bestellung_geleert"].Should().Be(1);
-        lauf.FinalCounts["letzte_bestellung_ohne_zuordnung"].Should().Be(1);
-        lauf.FinalCounts["letzte_bestellung_uebersprungen"].Should().Be(1);
+        lauf.FinalCounts!["positionen"].Should().Be(8);
+        lauf.FinalCounts["positionen_ebz"].Should().Be(1);
+        lauf.FinalCounts["gefunden"].Should().Be(3);
+        lauf.FinalCounts["aktualisiert"].Should().Be(2);
+        lauf.FinalCounts["geleert"].Should().Be(1);
+        lauf.FinalCounts["ohne_zuordnung"].Should().Be(1);
+        lauf.FinalCounts["uebersprungen"].Should().Be(1);
         lauf.Events.Should().Contain(e => e.Level == "Warning" && e.Message.Contains("A1/K9"));
         var ab = DateTime.Today.AddYears(-3).ToString("yyyy-MM-dd");
         client.Verify(c => c.QueryAllAsync<SdataLetzteBestellungZeile>(Ziel, SageSdataReadClient.VertragResources, "EinkaufPositionenAllInfo",
-            "Belegkennzeichen eq 'EBB' and Belegdatum ge @" + ab + "@", ArtikelLieferantSyncService.SelectLetzteBestellung, "BelPosId",
+            "Belegkennzeichen eq 'EBB' and Belegdatum ge @" + ab + "@", LetzteBestellungSyncService.SelectLetzteBestellung, "BelPosId",
             It.IsAny<CancellationToken>(), It.IsAny<int>()), Times.Once);
         client.Verify(c => c.QueryAllAsync<SdataLetzteBestellungZeile>(Ziel, SageSdataReadClient.VertragResources, "EinkaufPositionenAllInfo",
             "Belegkennzeichen eq 'EBZ' and Belegdatum ge @" + ab + "@", It.IsAny<string?>(), "BelPosId", It.IsAny<CancellationToken>(), It.IsAny<int>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task LetzteBestellung_BasismengeNull_ZaehltNicht_AeltereGilt()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        var (a1, _, k1, _) = await LetzteSeed(ctx);
+        ctx.ArticleSuppliers.Add(As(a1, k1));
+        await ctx.SaveChangesAsync();
+        var log = new FakeSyncLogger();
+
+        await Lbs(ctx, log, new[]
+            {
+                Lb("EBB", "A1", "K1", "2026-06-01T00:00:00", 500, 0m),   // juenger, aber Menge 0 (EK023626)
+                Lb("EBB", "A1", "K1", "2026-02-01T00:00:00", 400, 12m),
+            }, Array.Empty<SdataLetzteBestellungZeile>()).RunAsync(false, ziel: Ziel);
+
+        var s = ctx.ArticleSuppliers.Single();
+        (s.LetzteBestellmenge, s.LetzteBestellungAm).Should().Be(((decimal?)12m, (DateTime?)new DateTime(2026, 2, 1)), "AK 5");
+        log.Runs.Single().FinalCounts!["menge_null"].Should().Be(1);
     }
 
     [Fact]
@@ -464,12 +502,13 @@ public class KontokorrentArtikelLieferantTests
     {
         using var ctx = TestDbContextFactory.Create();
         var (a1, _, k1, _) = await LetzteSeed(ctx);
-        ctx.ArticleSuppliers.Add(new ArticleSupplier { ArticleId = a1.Id, CreditorId = k1.Id, Artikelnummer = "A1", LetzteBestellmenge = 7m,
-            LetzteBestellungAm = new DateTime(2026, 1, 2), CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" });
+        var vorher = As(a1, k1);
+        vorher.LetzteBestellmenge = 7m; vorher.LetzteBestellungAm = new DateTime(2026, 1, 2);
+        ctx.ArticleSuppliers.Add(vorher);
         await ctx.SaveChangesAsync();
         var log = new FakeSyncLogger();
         var client = new Mock<ISageSdataReadClient>();
-        var svc = AlLetzte(ctx, log, new[] { Zeile("A1", "K1") }, Array.Empty<SdataLetzteBestellungZeile>(), Array.Empty<SdataLetzteBestellungZeile>(), client);
+        var svc = Lbs(ctx, log, Array.Empty<SdataLetzteBestellungZeile>(), Array.Empty<SdataLetzteBestellungZeile>(), client);
         client.Setup(c => c.QueryAllAsync<SdataLetzteBestellungZeile>(It.IsAny<SdataLeseZiel>(), It.IsAny<string>(), It.IsAny<string>(),
                 It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string>(), It.IsAny<CancellationToken>(), It.IsAny<int>()))
             .ThrowsAsync(new SdataLeseException("EinkaufPositionenAllInfo", 500, "falsches Feld"));
@@ -479,7 +518,7 @@ public class KontokorrentArtikelLieferantTests
         ctx.ArticleSuppliers.Single().LetzteBestellmenge.Should().Be(7m);
         var lauf = log.Runs.Single();
         lauf.FinishedSuccess.Should().BeTrue();
-        lauf.FinalCounts!["letzte_bestellung_lesefehler"].Should().Be(1);
+        lauf.FinalCounts!["lesefehler"].Should().Be(1);
         lauf.Events.Should().Contain(e => e.Level == "Warning" && e.Message.Contains("nicht lesbar") && e.Message.Contains("bleiben unveraendert"));
     }
 
@@ -488,16 +527,53 @@ public class KontokorrentArtikelLieferantTests
     {
         using var ctx = TestDbContextFactory.Create();
         var (a1, _, k1, _) = await LetzteSeed(ctx);
-        ctx.ArticleSuppliers.Add(new ArticleSupplier { ArticleId = a1.Id, CreditorId = k1.Id, Artikelnummer = "A1", LetzteBestellmenge = 7m,
-            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" });
+        var vorher = As(a1, k1);
+        vorher.LetzteBestellmenge = 7m;
+        ctx.ArticleSuppliers.Add(vorher);
         await ctx.SaveChangesAsync();
         var log = new FakeSyncLogger();
 
-        await AlLetzte(ctx, log, new[] { Zeile("A1", "K1") }, Array.Empty<SdataLetzteBestellungZeile>(),
+        await Lbs(ctx, log, Array.Empty<SdataLetzteBestellungZeile>(),
             new[] { Lb("EBZ", "A1", "K1", "2026-05-01T00:00:00", 1, 3m) }).RunAsync(dryRun: false, ziel: Ziel);
 
         ctx.ArticleSuppliers.Single().LetzteBestellmenge.Should().Be(7m, "EBB leer = Filter kaputt, nichts aendern");
         log.Runs.Single().Events.Should().Contain(e => e.Level == "Warning" && e.Message.Contains("0 Bestellpositionen"));
+    }
+
+    [Fact]
+    public async Task LetzteBestellung_RunWennFaellig_MarkerAusProtokoll()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        var log = new FakeSyncLogger();
+        var svc = Lbs(ctx, log, Array.Empty<SdataLetzteBestellungZeile>(), Array.Empty<SdataLetzteBestellungZeile>());
+        var jetzt = new DateTime(2026, 11, 16, 12, 30, 0);
+        ctx.SyncLogs.Add(new SyncLog { Service = SyncLogServices.LetzteBestellung, Message = "Run gestartet", Timestamp = jetzt.AddMinutes(-20) });
+        await ctx.SaveChangesAsync();
+
+        (await svc.RunWennFaelligAsync(false, jetzt)).Should().BeFalse("Lauf seit 12 Uhr schon gestartet (Neustart loest keinen zweiten aus)");
+        log.Runs.Should().BeEmpty();
+    }
+
+    // AK 3: Nacht- und Mittagstermin, Mitternachtswechsel, beide Uhrzeiten gleich, kein bisheriger Lauf
+    [Theory]
+    [InlineData("2026-11-16 02:59", null, true)]                 // kein Lauf bisher: gestern 12 Uhr verpasst -> nachholen
+    [InlineData("2026-11-16 02:59", "2026-11-15 12:05", false)]  // gestern Mittag gelaufen, 3 Uhr noch nicht erreicht
+    [InlineData("2026-11-16 03:00", "2026-11-15 12:05", true)]   // Nachttermin erreicht
+    [InlineData("2026-11-16 11:00", "2026-11-16 03:01", false)]
+    [InlineData("2026-11-16 12:00", "2026-11-16 03:01", true)]   // Mittagstermin
+    [InlineData("2026-11-17 00:30", "2026-11-16 12:01", false)]  // Mitternachtswechsel: juengster Termin gestern 12 Uhr, schon gelaufen
+    [InlineData("2026-11-17 00:30", "2026-11-16 02:00", true)]   // Mitternachtswechsel: gestern 12 Uhr verpasst
+    public void Planer_Faellig(string jetzt, string? letzter, bool erwartet) =>
+        LetzteBestellungPlaner.Faellig(DateTime.Parse(jetzt, System.Globalization.CultureInfo.InvariantCulture),
+                letzter == null ? null : DateTime.Parse(letzter, System.Globalization.CultureInfo.InvariantCulture), new[] { 3, 12 })
+            .Should().Be(erwartet);
+
+    [Fact]
+    public void Planer_BeideUhrzeitenGleich_EinLaufProTag()
+    {
+        var u = new[] { 5, 5 };
+        LetzteBestellungPlaner.Faellig(new DateTime(2026, 11, 16, 5, 0, 0), new DateTime(2026, 11, 15, 5, 1, 0), u).Should().BeTrue();
+        LetzteBestellungPlaner.Faellig(new DateTime(2026, 11, 16, 23, 0, 0), new DateTime(2026, 11, 16, 5, 1, 0), u).Should().BeFalse();
     }
 
     // ----- Gates + DI -----
@@ -539,11 +615,14 @@ public class KontokorrentArtikelLieferantTests
         services.AddSageSdataReadClient();
         services.AddScoped<KontokorrentSyncService>();
         services.AddScoped<ArtikelLieferantSyncService>();
+        services.AddScoped<LetzteBestellungSyncService>();
         using var sp = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = true });
         using var scope = sp.CreateScope();
 
         scope.ServiceProvider.GetRequiredService<KontokorrentSyncService>().Should().NotBeNull();
         scope.ServiceProvider.GetRequiredService<ArtikelLieferantSyncService>().Should().NotBeNull();
+        scope.ServiceProvider.GetRequiredService<LetzteBestellungSyncService>().Should().NotBeNull();
+        SyncLogServices.DisplayNames[SyncLogServices.LetzteBestellung].Should().Be("Letzte Bestellung (Einkauf)");
         SyncLogServices.All.Should().Contain(new[] { SyncLogServices.Kreditoren, SyncLogServices.Debitoren, SyncLogServices.ArtikelLieferant });
         SyncLogServices.DisplayNames.Should().ContainKeys(SyncLogServices.Kreditoren, SyncLogServices.Debitoren, SyncLogServices.ArtikelLieferant);
     }
