@@ -104,7 +104,7 @@ public class PurchaseProposalCalculatorTests
         var r = F(60m, null, 100m);
         (r.Vorschlag, r.Grund, r.Fallback).Should().Be(((decimal?)100m, PurchaseProposalCalculator.GrundSageBestellmenge, true));
         r.Hinweise.Should().Equal(PurchaseProposalCalculator.HinweisFallback);
-        PurchaseProposalCalculator.HinweisFallback.Should().Be("Fallback: Sage-Bestellmenge (keine Bestellung in 3 Jahren)");
+        PurchaseProposalCalculator.HinweisFallback.Should().Be("Keine Bestellung in 3 Jahren – Sage-Bestellmenge");
         var hoch = F(0m, null, 40m); // F = 85 -> (⌊85/40⌋+1)×40 = 120
         (hoch.Vorschlag, hoch.Grund).Should().Be(((decimal?)120m, "3 × " + PurchaseProposalCalculator.GrundSageBestellmenge));
         F(60m, 50m, 100m).Should().Match<PurchaseProposalResult>(x => x.Vorschlag == 50m && !x.Fallback, "L hat Vorrang");

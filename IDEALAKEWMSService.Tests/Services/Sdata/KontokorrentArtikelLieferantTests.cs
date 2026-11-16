@@ -498,6 +498,40 @@ public class KontokorrentArtikelLieferantTests
     }
 
     [Fact]
+    public async Task LetzteBestellung_OhneZuordnung_Abgelegt_Aktualisiert_Entfernt_Audit_E2()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        var (a1, a2, k1, k2) = await LetzteSeed(ctx);
+        ctx.ArticleSuppliers.Add(As(a1, k1));
+        var stale = new ArticleLastOrderUnassigned { ArticleId = a2.Id, Kto = "K7", Menge = 1m, Am = new DateTime(2024, 1, 1), CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" };
+        var bleibt = new ArticleLastOrderUnassigned { ArticleId = a1.Id, Kto = "K2", Menge = 3m, Am = new DateTime(2025, 1, 1), CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" };
+        ctx.ArticleLastOrdersUnassigned.AddRange(stale, bleibt);
+        await ctx.SaveChangesAsync();
+        var log = new FakeSyncLogger();
+
+        await Lbs(ctx, log, new[]
+            {
+                Lb("EBB", "A1", "K1", "2026-02-01T00:00:00", 400, 12m),
+                Lb("EBB", "A1", "k9 ", "2026-03-01T00:00:00", 410, 30m, "B-410"),   // Kreditor fehlt im WMS
+                Lb("EBB", "A1", "K2", "2026-04-01T00:00:00", 420, 20m, "B-420"),    // Kreditor da, aber keine Artikel-Lieferant-Zeile
+            }, Array.Empty<SdataLetzteBestellungZeile>()).RunAsync(false, ziel: Ziel);
+
+        var rows = ctx.ArticleLastOrdersUnassigned.OrderBy(u => u.Kto).ToList();
+        rows.Select(u => (u.ArticleId, u.Kto, u.Menge, u.Am, u.Beleg)).Should().Equal(
+            (a1.Id, "K2", 20m, new DateTime(2026, 4, 1), (string?)"B-420"),
+            (a1.Id, "K9", 30m, new DateTime(2026, 3, 1), (string?)"B-410"));
+        rows[0].ModifiedBy.Should().Be("LetzteBestellung", "Audit beim Aktualisieren");
+        rows[1].CreatedBy.Should().Be("LetzteBestellung");
+        var c = log.Runs.Single().FinalCounts!;
+        (c["ohne_zuordnung"], c["ohne_zuordnung_neu"], c["ohne_zuordnung_geaendert"], c["ohne_zuordnung_entfernt"]).Should().Be((2, 1, 1, 1));
+        ctx.ArticleSuppliers.Single().LetzteBestellmenge.Should().Be(12m);
+
+        // Empty-Guard: 0 EBB -> nichts geloescht
+        await Lbs(ctx, new FakeSyncLogger(), Array.Empty<SdataLetzteBestellungZeile>(), Array.Empty<SdataLetzteBestellungZeile>()).RunAsync(false, ziel: Ziel);
+        ctx.ArticleLastOrdersUnassigned.Count().Should().Be(2);
+    }
+
+    [Fact]
     public async Task LetzteBestellung_Lesefehler_WerteBleiben_LaufErfolgreich()
     {
         using var ctx = TestDbContextFactory.Create();

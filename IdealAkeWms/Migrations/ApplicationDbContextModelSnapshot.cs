@@ -377,6 +377,65 @@ namespace IdealAkeWms.Migrations
                     b.ToTable("ArticleGroupRecipientMappings", "dbo");
                 });
 
+            modelBuilder.Entity("IdealAkeWms.Models.ArticleLastOrderUnassigned", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("Am")
+                        .HasColumnType("date");
+
+                    b.Property<int>("ArticleId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Beleg")
+                        .HasMaxLength(45)
+                        .HasColumnType("nvarchar(45)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("CreatedByWindows")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Kto")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<decimal>("Menge")
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ModifiedByWindows")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ArticleId", "Kto")
+                        .IsUnique()
+                        .HasDatabaseName("IX_ArticleLastOrdersUnassigned_ArticleId_Kto");
+
+                    b.ToTable("ArticleLastOrdersUnassigned", "dbo");
+                });
+
             modelBuilder.Entity("IdealAkeWms.Models.ArticleSageDetail", b =>
                 {
                     b.Property<int>("Id")
@@ -5661,6 +5720,15 @@ namespace IdealAkeWms.Migrations
                         .IsRequired();
 
                     b.Navigation("OrderRecipientGroup");
+                });
+
+            modelBuilder.Entity("IdealAkeWms.Models.ArticleLastOrderUnassigned", b =>
+                {
+                    b.HasOne("IdealAkeWms.Models.Article", null)
+                        .WithMany()
+                        .HasForeignKey("ArticleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("IdealAkeWms.Models.ArticleSageDetail", b =>

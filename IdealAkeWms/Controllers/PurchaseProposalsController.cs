@@ -78,7 +78,7 @@ public class PurchaseProposalsController : Controller
         var umfangWert = umfang == PurchaseProposalListViewModel.UmfangAlle ? PurchaseProposalListViewModel.UmfangAlle : PurchaseProposalListViewModel.UmfangVorschlaege;
 
         var artikel = await _repo.GetNachbestellartikelAsync();
-        var lieferanten = await _repo.GetHauptlieferantenAsync();
+        var lieferanten = await _repo.GetLieferantenAsync();
         var letzte = await _repo.GetLetzteBestellungenAsync();
         var letzteGelesen = await _repo.HatLetzteBestellungenAsync();
         var bestand = artikel.Count == 0
@@ -140,7 +140,7 @@ public class PurchaseProposalsController : Controller
                 .Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.CurrentCultureIgnoreCase).ToList(),
             ArtikelGesamt = alle.Count,
             OhneSageDetail = alle.Count(r => r.Sage == null),
-            OhneArtikelLieferant = alle.Count(r => r.Lieferant == null),
+            OhneArtikelLieferant = alle.Count(r => r.Lieferant?.IstHauptlieferant != true),
             BedarfeEinheitAbweichend = bedarfeEinheitAbweichend,
             BestellungenStand = stand,
             PositionenEinheitAbweichend = positionenEinheitAbweichend,
@@ -172,7 +172,7 @@ public class PurchaseProposalsController : Controller
     /// Basis ≠ Lager (Sage-Zusatzfelder) → nicht verwendet mit Hinweis; gar keine Bestellung im Rueckblick und Daten gelesen
     /// (<paramref name="letzteGelesen"/>) → Fallback Sage-Bestellmenge (Freigabe-Nachtrag 2).</summary>
     internal static (List<PurchaseProposalRow> Zeilen, int BedarfeEinheitAbweichend, int PositionenEinheitAbweichend) BaueZeilen(List<Article> artikel,
-        IReadOnlyDictionary<int, ArticleSupplierRow> lieferanten, IReadOnlyDictionary<string, List<StockLocationInfo>> bestand,
+        IReadOnlyDictionary<int, List<ArticleSupplierRow>> lieferanten, IReadOnlyDictionary<string, List<StockLocationInfo>> bestand,
         IReadOnlyList<OffenerBedarf> bedarfe, IReadOnlyList<SagePurchaseOrderLine>? bestellungen, IReadOnlyDictionary<int, ErfasstJeBelPos> erfasst,
         DateTime heute, IReadOnlyDictionary<int, ArticleSupplierRow>? letzte = null, bool letzteGelesen = false)
     {
@@ -196,15 +196,8 @@ public class PurchaseProposalsController : Controller
         var zeilen = artikel.Select(a =>
         {
             var hinweise = new List<string>();
-            lieferanten.TryGetValue(a.Id, out var l);
-            string? kto = l?.SageKto;
-            string? text = l == null ? null : string.IsNullOrWhiteSpace(l.SageKto) ? l.Name : $"{l.Name} ({l.SageKto})";
-            if (l == null)
-            {
-                kto = string.IsNullOrWhiteSpace(a.SageDetail?.Hauptlieferant) ? null : a.SageDetail!.Hauptlieferant!.Trim();
-                text = kto;
-                hinweise.Add(kto != null ? "Kreditor fehlt im WMS" : "kein Lieferant");
-            }
+            var juengste = letzte?.GetValueOrDefault(a.Id);
+            var (l, kto, text) = WaehleLieferant(a, lieferanten.GetValueOrDefault(a.Id) ?? new List<ArticleSupplierRow>(), juengste, hinweise);
             if (a.SageDetail == null) hinweise.Add("Sage-Zusatzfelder fehlen");
             var wbz = l?.Wiederbeschaffungszeit ?? a.SageDetail?.Wiederbeschaffungszeit;
             var bestandWms = bestand.TryGetValue(a.ArticleNumber, out var plaetze) ? plaetze.Sum(p => p.Quantity) : 0m;
@@ -214,8 +207,11 @@ public class PurchaseProposalsController : Controller
             if (bestellungen == null) hinweise.Add("ohne offene Bestellungen");
             else if (restJeArtikel.TryGetValue(a.Id, out var o)) { offenBestellt = o.Summe; termin = o.Termin; }
             else offenBestellt = 0m;
-            var quelle = l?.LetzteBestellmenge != null ? l : letzte?.GetValueOrDefault(a.Id);
-            var fallback = letzteGelesen && quelle == null ? a.SageDetail?.Bestellmenge : null;
+            // Antwort 4: eine Bestellung ohne Artikel-Lieferant gilt, wenn sie juenger ist als ALLE zugeordneten (das sichert das Repository zu),
+            // auch vor dem Hauptlieferanten; sonst wie bisher Hauptlieferant, dann juengste bei einem anderen (Rueckfrage 13 a).
+            var quelle = juengste?.OhneArtikelLieferant == true || l?.LetzteBestellmenge == null ? juengste : l;
+            var keineBestellung = letzteGelesen && quelle == null;
+            var fallback = keineBestellung ? a.SageDetail?.Bestellmenge : null;
             if (quelle != null && EinheitWeichtAb(a.SageDetail?.Basismengeneinheit, a.SageDetail?.Lagermengeneinheit))
             {
                 hinweise.Add("Einheit Basis ≠ Lager – letzte Bestellmenge nicht verwendet");
@@ -228,13 +224,47 @@ public class PurchaseProposalsController : Controller
                 LetzteBestellung = quelle,
                 Ergebnis = PurchaseProposalCalculator.Berechne(new PurchaseProposalInput(bestandWms, offenBestellt ?? 0m, offeneBedarfe, a.ReorderLevel ?? 0m,
                     LetzteBestellmenge: quelle?.LetzteBestellmenge,
-                    LetzteBestellungLieferant: quelle != null && quelle.CreditorId != l?.CreditorId
-                        ? (string.IsNullOrWhiteSpace(quelle.SageKto) ? quelle.Name : $"{quelle.Name} ({quelle.SageKto})") : null,
+                    LetzteBestellungLieferant: quelle == null ? null
+                        : quelle.OhneArtikelLieferant ? (quelle.Name == quelle.SageKto ? quelle.SageKto : $"{quelle.SageKto} {quelle.Name}")
+                        : quelle.CreditorId != l?.CreditorId ? quelle.Anzeige : null,
                     Mindestbestellmenge: l?.Mindestbestellmenge, Einkaufsmengeneinheit: l?.Einkaufsmengeneinheit, UmrechnungsfaktorEK: l?.UmrechnungsfaktorEK,
-                    ArtikelEinheit: a.Unit, FallbackSageBestellmenge: fallback)),
+                    ArtikelEinheit: a.Unit, FallbackSageBestellmenge: fallback,
+                    LetzteBestellungOhneArtikelLieferant: quelle?.OhneArtikelLieferant == true, KeineBestellungImRueckblick: keineBestellung)),
                 Wbz = wbz, Wunschtermin = wbz is { } t ? heute.AddDays(t) : null, Hinweise = hinweise,
             };
         }).ToList();
         return (zeilen, abweichend, positionenAbweichend);
+    }
+
+    public const string HinweisKeinLieferant = "Kein Lieferant in Sage hinterlegt";
+    public const string HinweisMehrereLieferanten = "mehrere Lieferanten, kein Hauptlieferant";
+
+    /// <summary>v1.99.30 F8: Lieferant-Kaskade an EINER Stelle. 1. Hauptlieferant (Artikel-Lieferant), 2. Sage-Hauptlieferant ohne Kreditor/Zeile
+    /// im WMS (nur Kto, Hinweis „Kreditor fehlt im WMS“), 3. der einzige Artikel-Lieferant, 4. der Lieferant der juengsten Bestellung (auch ohne
+    /// Zuordnung, F3), sonst leer mit Hinweis. Rueckgabe: Artikel-Lieferant-Zeile (fuer MBM/EK-Einheit/WBZ; null ohne Zeile), Kto, Anzeigetext.
+    /// ponytail: Rahmenvertrag (F9) kommt als erste Stufe davor, sobald E8 (P-N6/P-N9) entblockt ist.</summary>
+    internal static (ArticleSupplierRow? Zeile, string? Kto, string? Text) WaehleLieferant(Article a, IReadOnlyList<ArticleSupplierRow> alle,
+        ArticleSupplierRow? juengste, List<string> hinweise)
+    {
+        // Mehrere Hauptlieferanten je Artikel kommen laut Abgleich nicht vor; falls doch, gewinnt der erste nach Name (stabil).
+        if (alle.Where(x => x.IstHauptlieferant).OrderBy(x => x.Name).FirstOrDefault() is { } haupt) return (haupt, haupt.SageKto, haupt.Anzeige);
+        if (a.SageDetail?.Hauptlieferant?.Trim() is { Length: > 0 } sageHaupt)
+        {
+            hinweise.Add("Kreditor fehlt im WMS");
+            return (null, sageHaupt, sageHaupt);
+        }
+        if (alle.Count == 1)
+        {
+            hinweise.Add("kein Hauptlieferant – einziger Artikel-Lieferant");
+            return (alle[0], alle[0].SageKto, alle[0].Anzeige);
+        }
+        if (juengste != null)
+        {
+            hinweise.Add("kein Hauptlieferant – Lieferant der letzten Bestellung");
+            var zeile = juengste.OhneArtikelLieferant ? null : alle.FirstOrDefault(x => x.CreditorId == juengste.CreditorId) ?? juengste;
+            return (zeile, juengste.SageKto, juengste.Anzeige);
+        }
+        hinweise.Add(alle.Count > 1 ? HinweisMehrereLieferanten : HinweisKeinLieferant);
+        return (null, null, null);
     }
 }

@@ -162,14 +162,43 @@ public class LetzteBestellungSyncService
         var lieferanten = (await _ctx.ArticleSuppliers.ToListAsync(ct)).GroupBy(s => (s.ArticleId, s.CreditorId)).ToDictionary(g => g.Key, g => g.First());
         var getroffen = new HashSet<ArticleSupplier>();
         var ohneZuordnung = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
-        int ohneZuordnungZahl = 0, aktualisiert = 0, geleert = 0;
-        void Audit(ArticleSupplier s) { s.ModifiedAt = now; s.ModifiedBy = ServiceUser; s.ModifiedByWindows = ServiceUser; }
+        // F3 (Antwort 4, SQL/155): Paare ohne Artikel-Lieferant-Zeile werden abgelegt statt verworfen. App-Guard per Dictionary
+        // (InMemory erzwingt UNIQUE(ArticleId, Kto) nicht); Doppelte aus Altbestand bleiben einmal, der Rest wird entfernt.
+        var ungeordnetAlt = (await _ctx.ArticleLastOrdersUnassigned.ToListAsync(ct))
+            .GroupBy(u => (u.ArticleId, u.Kto.Trim().ToUpperInvariant())).ToList();
+        var ungeordnet = ungeordnetAlt.ToDictionary(g => g.Key, g => g.First());
+        foreach (var doppelt in ungeordnetAlt.SelectMany(g => g.Skip(1))) _ctx.ArticleLastOrdersUnassigned.Remove(doppelt);
+        var ungeordnetGetroffen = new HashSet<ArticleLastOrderUnassigned>();
+        int ohneZuordnungZahl = 0, aktualisiert = 0, geleert = 0, ungeordnetNeu = 0, ungeordnetGeaendert = 0, ungeordnetEntfernt = 0;
+        void Audit(AuditableEntity s) { s.ModifiedAt = now; s.ModifiedBy = ServiceUser; s.ModifiedByWindows = ServiceUser; }
         foreach (var ((articleId, kto), w) in juengste)
         {
             if (!kreditoren.TryGetValue(kto, out var creditorId) || !lieferanten.TryGetValue((articleId, creditorId), out var s))
             {
                 ohneZuordnungZahl++;
                 ohneZuordnung.Add($"{w.Nummer}/{kto}");
+                if (kto.Length > KtoMaxLaenge) continue; // Spalte = Creditor.SageKto (20); laengere Konten gibt es im WMS nicht
+                if (ungeordnet.TryGetValue((articleId, kto), out var u))
+                {
+                    ungeordnetGetroffen.Add(u);
+                    if (u.Menge != w.Menge || u.Am != w.Am || u.Beleg != w.Beleg)
+                    {
+                        u.Menge = w.Menge; u.Am = w.Am; u.Beleg = w.Beleg;
+                        ungeordnetGeaendert++; Audit(u);
+                    }
+                }
+                else
+                {
+                    var neu = new ArticleLastOrderUnassigned
+                    {
+                        ArticleId = articleId, Kto = kto, Menge = w.Menge, Am = w.Am, Beleg = w.Beleg,
+                        CreatedAt = now, CreatedBy = ServiceUser, CreatedByWindows = ServiceUser,
+                    };
+                    _ctx.ArticleLastOrdersUnassigned.Add(neu);
+                    ungeordnet[(articleId, kto)] = neu;
+                    ungeordnetGetroffen.Add(neu);
+                    ungeordnetNeu++;
+                }
                 continue;
             }
             getroffen.Add(s);
@@ -177,6 +206,11 @@ public class LetzteBestellungSyncService
         }
         foreach (var s in lieferanten.Values.Where(s => !getroffen.Contains(s)))
             if (Setzen(s, null, null, null)) { geleert++; Audit(s); }
+        foreach (var u in ungeordnet.Values.Where(u => !ungeordnetGetroffen.Contains(u)))
+        {
+            _ctx.ArticleLastOrdersUnassigned.Remove(u);
+            ungeordnetEntfernt++;
+        }
 
         if (ohneDaten > 0)
             await run.LogWarningAsync($"{ohneDaten} Position(en) ohne Artikelnummer, Lieferant, Belegdatum, BelId oder MengeBasis uebersprungen.", ct: ct);
@@ -186,7 +220,7 @@ public class LetzteBestellungSyncService
             await run.LogInfoAsync($"{artikelFehlt} Position(en) zu Artikeln, die es im WMS nicht gibt — nicht uebernommen.", ct: ct);
         if (ohneZuordnungZahl > 0)
             await run.LogWarningAsync(SdataSchluessel.Kappen($"{ohneZuordnungZahl} Artikel/Lieferant ohne Artikel-Lieferant-Zeile " +
-                $"im WMS – nicht abgelegt: {string.Join(", ", ohneZuordnung.Take(20))}"), ct: ct);
+                $"im WMS – als letzte Bestellung ohne Zuordnung abgelegt: {string.Join(", ", ohneZuordnung.Take(20))}"), ct: ct);
         if (!dryRun) await _ctx.SaveChangesAsync(ct);
 
         return new()
@@ -198,9 +232,15 @@ public class LetzteBestellungSyncService
             ["aktualisiert"] = aktualisiert,
             ["geleert"] = geleert,
             ["ohne_zuordnung"] = ohneZuordnungZahl,
+            ["ohne_zuordnung_neu"] = ungeordnetNeu,
+            ["ohne_zuordnung_geaendert"] = ungeordnetGeaendert,
+            ["ohne_zuordnung_entfernt"] = ungeordnetEntfernt,
             ["uebersprungen"] = ohneDaten,
         };
     }
+
+    /// <summary>Laenge von <c>ArticleLastOrdersUnassigned.Kto</c> = <c>Creditors.SageKto</c>.</summary>
+    internal const int KtoMaxLaenge = 20;
 
     private static bool Setzen(ArticleSupplier s, decimal? menge, DateTime? am, string? beleg)
     {

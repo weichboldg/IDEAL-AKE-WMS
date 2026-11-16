@@ -54,6 +54,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<Creditor> Creditors => Set<Creditor>();
     public DbSet<Debitor> Debitors => Set<Debitor>();
     public DbSet<ArticleSupplier> ArticleSuppliers => Set<ArticleSupplier>();
+    public DbSet<ArticleLastOrderUnassigned> ArticleLastOrdersUnassigned => Set<ArticleLastOrderUnassigned>();
     public DbSet<SagePurchaseOrderLine> SagePurchaseOrderLines => Set<SagePurchaseOrderLine>();
     public DbSet<PurchaseOrderReceipt> PurchaseOrderReceipts => Set<PurchaseOrderReceipt>();
     public DbSet<PurchaseOrderReminder> PurchaseOrderReminders => Set<PurchaseOrderReminder>(); // v1.99.10 Lieferverzug-Mails
@@ -1387,6 +1388,23 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.ModifiedByWindows).HasMaxLength(200);
             entity.HasIndex(e => new { e.ArticleId, e.CreditorId }).IsUnique().HasDatabaseName("IX_ArticleSuppliers_ArticleId_CreditorId");
             entity.HasIndex(e => e.CreditorId).HasDatabaseName("IX_ArticleSuppliers_CreditorId");
+        });
+
+        // v1.99.30 (Spec 2026-11-16-bestellvorschlaege-nachbesserung F3, SQL/155): letzte Bestellung bei Lieferanten ohne Artikel-Lieferant-Zeile.
+        modelBuilder.Entity<ArticleLastOrderUnassigned>(entity =>
+        {
+            entity.ToTable("ArticleLastOrdersUnassigned");
+            entity.HasKey(e => e.Id);
+            entity.HasOne<Article>().WithMany().HasForeignKey(e => e.ArticleId).OnDelete(DeleteBehavior.Cascade);
+            entity.Property(e => e.Kto).HasMaxLength(20).IsRequired();
+            entity.Property(e => e.Menge).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.Am).HasColumnType("date");
+            entity.Property(e => e.Beleg).HasMaxLength(SagePurchaseOrderLine.BelegnummerMaxLaenge);
+            entity.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.ModifiedBy).HasMaxLength(200);
+            entity.Property(e => e.ModifiedByWindows).HasMaxLength(200);
+            entity.HasIndex(e => new { e.ArticleId, e.Kto }).IsUnique().HasDatabaseName("IX_ArticleLastOrdersUnassigned_ArticleId_Kto");
         });
 
         // v1.84.0 (Spec 2026-11-08-wareneingang-aus-sage-bestellungen E1): Cache offener Sage-Bestellpositionen (EBB, seit v1.99.15 auch EBZ), je Lauf ersetzt.

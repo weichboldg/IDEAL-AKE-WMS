@@ -18,14 +18,17 @@ public interface IPurchaseProposalRepository
     /// <summary>Nachbestellartikel (F1): <c>ReorderLevel &gt; 0</c> (= Sage-Meldebestand &gt; 0), mit <c>SageDetail</c>, ohne Tracking.</summary>
     Task<List<Article>> GetNachbestellartikelAsync();
 
-    /// <summary>Hauptlieferant je ArticleId (F4) der Nachbestellartikel, eine Abfrage (kein N+1).</summary>
-    Task<Dictionary<int, ArticleSupplierRow>> GetHauptlieferantenAsync();
+    /// <summary>Alle Artikel-Lieferanten je ArticleId der Nachbestellartikel, eine Abfrage (kein N+1). v1.99.30 (F8): statt nur der
+    /// Hauptlieferanten, damit die Lieferant-Kaskade ohne Hauptlieferant den einzigen bzw. den der juengsten Bestellung waehlen kann.</summary>
+    Task<Dictionary<int, List<ArticleSupplierRow>>> GetLieferantenAsync();
 
     /// <summary>E3 (v1.99.21, Rueckfrage 13 a): juengste letzte Bestellung je ArticleId ueber ALLE Lieferanten der Nachbestellartikel
-    /// (<c>ArticleSupplier.LetzteBestellmenge</c> gesetzt; neuestes Datum, bei Gleichstand Kreditorname), eine Abfrage.</summary>
+    /// (<c>ArticleSupplier.LetzteBestellmenge</c> gesetzt; neuestes Datum, bei Gleichstand Kreditorname), eine Abfrage.
+    /// v1.99.30 (F3, Antwort 4): zweite Quelle <c>ArticleLastOrdersUnassigned</c> (Lieferant ohne Artikel-Lieferant-Zeile,
+    /// <see cref="ArticleSupplierRow.OhneArtikelLieferant"/>); sie gilt nur, wenn sie JUENGER ist als alle zugeordneten.</summary>
     Task<Dictionary<int, ArticleSupplierRow>> GetLetzteBestellungenAsync();
 
-    /// <summary>E3: true, sobald der Lauf „Artikel-Lieferanten“ irgendeine letzte Bestellung abgelegt hat. Sonst gilt fuer alle Zeilen
+    /// <summary>E3: true, sobald der Lauf „Letzte Bestellung (Einkauf)“ irgendeine letzte Bestellung abgelegt hat. Sonst gilt fuer alle Zeilen
     /// Rueckfrage 13 b (kein Fallback „keine Bestellung in 3 Jahren“, das waere ohne gelesene Daten falsch) und die Liste zeigt einen Banner.</summary>
     Task<bool> HatLetzteBestellungenAsync();
 
@@ -45,12 +48,12 @@ public class PurchaseProposalRepository : IPurchaseProposalRepository
     public Task<List<Article>> GetNachbestellartikelAsync() =>
         _db.Articles.AsNoTracking().Include(a => a.SageDetail).Where(a => a.ReorderLevel > 0).ToListAsync();
 
-    public async Task<Dictionary<int, ArticleSupplierRow>> GetHauptlieferantenAsync()
+    public async Task<Dictionary<int, List<ArticleSupplierRow>>> GetLieferantenAsync()
     {
         var rows = await (from s in _db.ArticleSuppliers.AsNoTracking()
                           join a in _db.Articles.AsNoTracking() on s.ArticleId equals a.Id
                           join c in _db.Creditors.AsNoTracking() on s.CreditorId equals c.Id
-                          where s.IstHauptlieferant && a.ReorderLevel > 0
+                          where a.ReorderLevel > 0
                           select new
                           {
                               s.ArticleId,
@@ -58,8 +61,7 @@ public class PurchaseProposalRepository : IPurchaseProposalRepository
                                   s.Einkaufsmengeneinheit, s.Wiederbeschaffungszeit, s.IstHauptlieferant, s.UmrechnungsfaktorEK,
                                   s.LetzteBestellmenge, s.LetzteBestellungAm, s.LetzteBestellungBeleg),
                           }).ToListAsync();
-        // Mehrere Hauptlieferanten je Artikel kommen laut Abgleich nicht vor; falls doch, gewinnt der erste nach Name (stabil).
-        return rows.GroupBy(r => r.ArticleId).ToDictionary(g => g.Key, g => g.Select(r => r.Row).OrderBy(r => r.Name).First());
+        return rows.GroupBy(r => r.ArticleId).ToDictionary(g => g.Key, g => g.Select(r => r.Row).OrderBy(r => r.Name).ToList());
     }
 
     public async Task<Dictionary<int, ArticleSupplierRow>> GetLetzteBestellungenAsync()
@@ -75,11 +77,29 @@ public class PurchaseProposalRepository : IPurchaseProposalRepository
                                   s.Einkaufsmengeneinheit, s.Wiederbeschaffungszeit, s.IstHauptlieferant, s.UmrechnungsfaktorEK,
                                   s.LetzteBestellmenge, s.LetzteBestellungAm, s.LetzteBestellungBeleg),
                           }).ToListAsync();
-        return rows.GroupBy(r => r.ArticleId).ToDictionary(g => g.Key,
-            g => g.Select(r => r.Row).OrderByDescending(r => r.LetzteBestellungAm).ThenBy(r => r.Name).First());
+        var ohne = await (from u in _db.ArticleLastOrdersUnassigned.AsNoTracking()
+                          join a in _db.Articles.AsNoTracking() on u.ArticleId equals a.Id
+                          where a.ReorderLevel > 0
+                          select new { u.ArticleId, u.Kto, u.Menge, u.Am, u.Beleg }).ToListAsync();
+        // Name ueber Creditors.SageKto (Gross/Klein egal), sonst die Kto selbst. Eine Abfrage fuer alle Konten.
+        var konten = ohne.Select(u => u.Kto).Distinct().ToList();
+        var kreditoren = konten.Count == 0 ? new Dictionary<string, (int Id, string Name, bool IsActive)>()
+            : (await _db.Creditors.AsNoTracking().Where(c => c.SageKto != null && konten.Contains(c.SageKto)).Select(c => new { c.Id, c.Name, c.SageKto, c.IsActive }).ToListAsync())
+                .GroupBy(c => c.SageKto!.Trim(), StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => (g.First().Id, g.First().Name, g.First().IsActive), StringComparer.OrdinalIgnoreCase);
+        var alle = rows.Select(r => (r.ArticleId, r.Row)).Concat(ohne.Select(u =>
+        {
+            var k = kreditoren.TryGetValue(u.Kto.Trim(), out var c) ? c : (Id: 0, Name: u.Kto.Trim(), IsActive: false);
+            return (u.ArticleId, Row: new ArticleSupplierRow(k.Id, k.Name, u.Kto.Trim(), k.IsActive, null, null, null, null, false, null,
+                u.Menge, u.Am, u.Beleg, OhneArtikelLieferant: true));
+        }));
+        // Juengste gewinnt; bei gleichem Datum die zugeordnete (Antwort 4: ohne Zuordnung nur, wenn juenger als alle zugeordneten).
+        return alle.GroupBy(r => r.ArticleId).ToDictionary(g => g.Key,
+            g => g.Select(r => r.Row).OrderByDescending(r => r.LetzteBestellungAm).ThenBy(r => r.OhneArtikelLieferant).ThenBy(r => r.Name).First());
     }
 
-    public Task<bool> HatLetzteBestellungenAsync() => _db.ArticleSuppliers.AnyAsync(s => s.LetzteBestellungAm != null);
+    public async Task<bool> HatLetzteBestellungenAsync() =>
+        await _db.ArticleSuppliers.AnyAsync(s => s.LetzteBestellungAm != null) || await _db.ArticleLastOrdersUnassigned.AnyAsync();
 
     public async Task<List<OffenerBedarf>> GetOffeneLagerbestellungenAsync()
     {

@@ -12,11 +12,15 @@ public enum PurchaseProposalDringlichkeit { KeinBedarf, Nachbestellen, Kritisch 
 /// <param name="UmrechnungsfaktorEK">E4: <c>ArticleSupplier.UmrechnungsfaktorEK</c>.</param>
 /// <param name="ArtikelEinheit">E4: <c>Article.Unit</c> (Lagermengeneinheit).</param>
 /// <param name="FallbackSageBestellmenge">E3 Freigabe-Nachtrag 2: <c>ArticleSageDetail.Bestellmenge</c> – nur gesetzt, wenn es im Rueckblick bei
-/// KEINEM Lieferanten eine Bestellung gibt; ersetzt dann L (inkl. Erhoehung n × Menge, Rueckfrage 11) mit Hinweis „Fallback …“.</param>
+/// KEINEM Lieferanten eine Bestellung gibt; ersetzt dann L (inkl. Erhoehung n × Menge, Rueckfrage 11) mit Hinweis <see cref="PurchaseProposalCalculator.HinweisFallback"/>.</param>
+/// <param name="LetzteBestellungOhneArtikelLieferant">v1.99.30 F3 (Antwort 4): L stammt von einem Lieferanten ohne Artikel-Lieferant-Zeile;
+/// <paramref name="LetzteBestellungLieferant"/> ist dann „{Kto} {Name}“.</param>
+/// <param name="KeineBestellungImRueckblick">v1.99.30 F3: letzte Bestellungen sind gelesen und es gibt im Rueckblick bei keinem Lieferanten eine
+/// (unterscheidet „noch nicht gelesen“ von „keine Bestellung“ fuer den Hinweis ohne Sage-Bestellmenge).</param>
 public sealed record PurchaseProposalInput(decimal BestandWms, decimal OffenBestellt, decimal OffeneBedarfe, decimal Meldebestand,
     decimal? LetzteBestellmenge = null, string? LetzteBestellungLieferant = null,
     decimal? Mindestbestellmenge = null, string? Einkaufsmengeneinheit = null, decimal? UmrechnungsfaktorEK = null, string? ArtikelEinheit = null,
-    decimal? FallbackSageBestellmenge = null);
+    decimal? FallbackSageBestellmenge = null, bool LetzteBestellungOhneArtikelLieferant = false, bool KeineBestellungImRueckblick = false);
 
 /// <param name="Fallback">E3: Menge stammt aus der Sage-Bestellmenge, weil es im Rueckblick keine Bestellung gibt (Banner zaehlt diese Zeilen).</param>
 public sealed record PurchaseProposalResult(decimal Verfuegbar, decimal Fehlmenge, PurchaseProposalDringlichkeit Dringlichkeit,
@@ -38,9 +42,13 @@ public static class PurchaseProposalCalculator
     public const string GrundOhneLetzteBestellung = "keine letzte Bestellung – Menge prüfen";
     public const string GrundMindestbestellmenge = "auf Mindestbestellmenge aufgerundet";
     public const string GrundSageBestellmenge = "Sage-Bestellmenge";
-    /// <summary>Hinweistext je Fallback-Zeile (Text, filterbar in der Hinweis-Spalte).</summary>
-    public static readonly string HinweisFallback =
-        $"Fallback: Sage-Bestellmenge (keine Bestellung in {Models.ArticleSupplier.LetzteBestellungRueckblickJahre} Jahren)";
+    /// <summary>F3 (v1.99.30): Hinweis nach Ursache statt pauschal. Gemeinsamer Anfang „Keine Bestellung in 3 Jahren“ (filterbar in der Hinweis-Spalte).</summary>
+    public static readonly string HinweisKeineBestellung = $"Keine Bestellung in {Models.ArticleSupplier.LetzteBestellungRueckblickJahre} Jahren";
+    /// <summary>Hinweistext je Fallback-Zeile (Sage-Bestellmenge als Menge).</summary>
+    public static readonly string HinweisFallback = HinweisKeineBestellung + " – Sage-Bestellmenge";
+    /// <summary>Keine Bestellung im Rueckblick und keine Sage-Bestellmenge: Menge aus Fehlmenge bzw. Meldebestand.</summary>
+    public static readonly string HinweisOhneSageBestellmenge = HinweisKeineBestellung + " – Meldebestand";
+    public const string HinweisOhneArtikelLieferant = "kein Artikel-Lieferant in Sage";
 
     /// <summary>E4-Waechter (E0-Abweichung A2, konservativ): Mindestbestellmenge nur vergleichbar, wenn die Einkaufsmengeneinheit leer oder gleich
     /// der Artikel-Einheit ist UND der Umrechnungsfaktor EK genau 1 betraegt (gleiche Einheit mit Faktor ≠ 1 kommt in Sage vor, z. B. Stk/Stk ×5).
@@ -79,12 +87,14 @@ public static class PurchaseProposalCalculator
                 grund = name;
             }
             if (fallback) hinweise.Add(HinweisFallback);
+            else if (e.LetzteBestellungOhneArtikelLieferant) hinweise.Add($"Letzte Bestellung bei {e.LetzteBestellungLieferant} – {HinweisOhneArtikelLieferant}");
             else if (e.LetzteBestellungLieferant != null) hinweise.Add($"letzte Bestellung bei {e.LetzteBestellungLieferant}");
         }
         else
         {
             vorschlag = f > 0 ? f : e.Meldebestand;
             grund = GrundOhneLetzteBestellung;
+            if (e.KeineBestellungImRueckblick) hinweise.Add(HinweisOhneSageBestellmenge);
         }
         if (e.Mindestbestellmenge is > 0m and var m)
         {

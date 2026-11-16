@@ -32,8 +32,12 @@ public partial class PurchaseProposalsControllerTests
         Dictionary<string, List<StockLocationInfo>>? bestand = null, Dictionary<int, ArticleSupplierRow>? lieferanten = null,
         List<OffenerBedarf>? lager = null, List<OffenerBedarf>? meldungen = null, string? bedarfeEinstellung = null,
         List<SagePurchaseOrderLine>? bestellungen = null, Dictionary<int, ErfasstJeBelPos>? erfasst = null,
-        Dictionary<int, ArticleSupplierRow>? letzte = null, bool letzteGelesen = false)
+        Dictionary<int, ArticleSupplierRow>? letzte = null, bool letzteGelesen = false, Dictionary<int, List<ArticleSupplierRow>>? weitere = null)
     {
+        // lieferanten = Hauptlieferant je Artikel (wie bisher), weitere = zusaetzliche Artikel-Lieferanten (F8).
+        var alleLieferanten = (lieferanten ?? new()).Select(kv => (kv.Key, kv.Value))
+            .Concat((weitere ?? new()).SelectMany(kv => kv.Value.Select(v => (kv.Key, v))))
+            .GroupBy(x => x.Key).ToDictionary(g => g.Key, g => g.Select(x => x.Item2).ToList());
         var lines = new Mock<ISagePurchaseOrderLineRepository>();
         lines.Setup(l => l.GetAllAsync()).ReturnsAsync(bestellungen ?? new List<SagePurchaseOrderLine>());
         lines.Setup(l => l.GetStandAsync()).ReturnsAsync(bestellungen == null ? null : new DateTime(2026, 11, 13, 6, 0, 0));
@@ -41,7 +45,7 @@ public partial class PurchaseProposalsControllerTests
         receipts.Setup(r => r.GetErfasstJeBelPosAsync(It.IsAny<IReadOnlyCollection<int>>())).ReturnsAsync(erfasst ?? new Dictionary<int, ErfasstJeBelPos>());
         var repo = new Mock<IPurchaseProposalRepository>();
         repo.Setup(r => r.GetNachbestellartikelAsync()).ReturnsAsync(artikel);
-        repo.Setup(r => r.GetHauptlieferantenAsync()).ReturnsAsync(lieferanten ?? new Dictionary<int, ArticleSupplierRow>());
+        repo.Setup(r => r.GetLieferantenAsync()).ReturnsAsync(alleLieferanten);
         repo.Setup(r => r.GetLetzteBestellungenAsync()).ReturnsAsync(letzte ?? new Dictionary<int, ArticleSupplierRow>());
         repo.Setup(r => r.HatLetzteBestellungenAsync()).ReturnsAsync(letzteGelesen);
         repo.Setup(r => r.GetOffeneLagerbestellungenAsync()).ReturnsAsync(lager ?? new List<OffenerBedarf>());
@@ -118,7 +122,7 @@ public partial class PurchaseProposalsControllerTests
         a1.Wbz.Should().Be(7);
         a1.Wunschtermin.Should().Be(DateTime.Today.AddDays(7));
         vm.Items.Single(i => i.Article.ArticleNumber == "A2").Wbz.Should().Be(14);
-        vm.Items.Single(i => i.Article.ArticleNumber == "A4").Hinweis.Should().Contain("kein Lieferant").And.Contain("Sage-Zusatzfelder fehlen");
+        vm.Items.Single(i => i.Article.ArticleNumber == "A4").Hinweis.Should().Contain(PurchaseProposalsController.HinweisKeinLieferant).And.Contain("Sage-Zusatzfelder fehlen");
         vm.OhneSageDetail.Should().Be(3);
         vm.OhneArtikelLieferant.Should().Be(2);
         Vm(await ctrl.Index(lieferant: "K99")).Items.Select(i => i.Article.ArticleNumber).Should().Equal("A1");
@@ -170,15 +174,16 @@ public partial class PurchaseProposalsControllerTests
 
         var a1 = vm.Items.Single(i => i.Article.ArticleNumber == "A1");
         (a1.Ergebnis.Vorschlag, a1.Ergebnis.Grund, a1.Ergebnis.Fallback).Should().Be(((decimal?)100m, PurchaseProposalCalculator.GrundSageBestellmenge, true));
-        a1.Hinweis.Should().Contain("Fallback: Sage-Bestellmenge (keine Bestellung in 3 Jahren)");
+        a1.Hinweis.Should().Contain("Keine Bestellung in 3 Jahren – Sage-Bestellmenge");
         var a2 = vm.Items.Single(i => i.Article.ArticleNumber == "A2");
         (a2.Ergebnis.Vorschlag, a2.Ergebnis.Grund, a2.Ergebnis.Fallback).Should().Be(((decimal?)25m, PurchaseProposalCalculator.GrundOhneLetzteBestellung, false),
             "ohne Sage-Bestellmenge bisherige Regel");
         vm.Items.Single(i => i.Article.ArticleNumber == "A3").Ergebnis.Vorschlag.Should().Be(40m, "F = 25 < 40: Sage-Bestellmenge selbst");
         vm.FallbackZeilen.Should().Be(2);
         vm.OhneMengenquelle.Should().Be(1);
+        a2.Hinweis.Should().Contain("Keine Bestellung in 3 Jahren – Meldebestand", "F3: Ursache statt pauschal");
 
-        ctrl.ControllerContext.HttpContext.Request.QueryString = new QueryString("?colf_hinweis=Fallback");
+        ctrl.ControllerContext.HttpContext.Request.QueryString = new QueryString("?colf_hinweis=Sage-Bestellmenge");
         Vm(await ctrl.Index()).Items.Select(i => i.Article.ArticleNumber).Should().Equal("A1", "A3");
     }
 
@@ -192,6 +197,7 @@ public partial class PurchaseProposalsControllerTests
         vm.LetzteBestellungenGelesen.Should().BeFalse();
         var a1 = vm.Items.Single(i => i.Article.ArticleNumber == "A1");
         (a1.Ergebnis.Grund, a1.Ergebnis.Fallback).Should().Be((PurchaseProposalCalculator.GrundOhneLetzteBestellung, false), "ohne gelesene Daten kein Fallback");
+        a1.Hinweis.Should().NotContain(PurchaseProposalCalculator.HinweisKeineBestellung, "ohne gelesene Daten keine Aussage ueber 3 Jahre");
         var a2 = vm.Items.Single(i => i.Article.ArticleNumber == "A2");
         a2.LetzteBestellung.Should().BeNull();
         a2.Ergebnis.Grund.Should().Be(PurchaseProposalCalculator.GrundOhneLetzteBestellung);

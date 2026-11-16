@@ -2305,6 +2305,28 @@ BEGIN
 END
 GO
 
+-- ArticleLastOrdersUnassigned (v1.99.30 / SQL/155): letzte Bestellung bei Lieferanten ohne Artikel-Lieferant-Zeile, nur vom Lauf "Letzte Bestellung (Einkauf)" geschrieben.
+IF OBJECT_ID(N'dbo.ArticleLastOrdersUnassigned', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[ArticleLastOrdersUnassigned] (
+        [Id]                INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_ArticleLastOrdersUnassigned PRIMARY KEY,
+        [ArticleId]         INT               NOT NULL CONSTRAINT FK_ArticleLastOrdersUnassigned_Articles_ArticleId REFERENCES [dbo].[Articles]([Id]) ON DELETE CASCADE,
+        [Kto]               NVARCHAR(20)      NOT NULL,
+        [Menge]             DECIMAL(18,3)     NOT NULL,
+        [Am]                DATE              NOT NULL,
+        [Beleg]             NVARCHAR(45)      NULL,
+        [CreatedAt]         DATETIME2         NOT NULL,
+        [CreatedBy]         NVARCHAR(200)     NOT NULL,
+        [CreatedByWindows]  NVARCHAR(200)     NOT NULL,
+        [ModifiedAt]        DATETIME2         NULL,
+        [ModifiedBy]        NVARCHAR(200)     NULL,
+        [ModifiedByWindows] NVARCHAR(200)     NULL
+    );
+    CREATE UNIQUE INDEX [IX_ArticleLastOrdersUnassigned_ArticleId_Kto] ON [dbo].[ArticleLastOrdersUnassigned]([ArticleId], [Kto]);
+    PRINT 'Tabelle ArticleLastOrdersUnassigned erstellt.';
+END
+GO
+
 -- SageStammdatenOutbox (v1.73.0 / SQL/107, E9/F11): vorgemerkte Uebergaben WMS -> Sage, ohne Worker (nichts wird gesendet).
 IF OBJECT_ID(N'dbo.SageStammdatenOutbox', N'U') IS NULL
 BEGIN
@@ -3276,6 +3298,10 @@ GO
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261116165705_AddUserMussKennwortAendern')
    AND COL_LENGTH(N'dbo.Users', N'MussKennwortAendern') IS NOT NULL -- sonst steht SQL/152 noch aus
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261116165705_AddUserMussKennwortAendern', '10.0.2');
+GO
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261116190709_AddArticleLastOrderUnassigned')
+   AND OBJECT_ID(N'dbo.ArticleLastOrdersUnassigned', N'U') IS NOT NULL
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261116190709_AddArticleLastOrderUnassigned', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';

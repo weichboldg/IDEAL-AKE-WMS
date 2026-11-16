@@ -60,7 +60,7 @@ else
 @if (!Model.LetzteBestellungenGelesen)
 {
     <div class="alert alert-warning py-2 small" role="status">
-        <strong>Letzte Bestellmengen noch nicht gelesen</strong> (Dienst-Lauf „Artikel-Lieferanten“, <code>Sync:ArtikelLieferantEnabled</code>).
+        <strong>Letzte Bestellmengen noch nicht gelesen</strong> (Dienst-Lauf „Letzte Bestellung (Einkauf)“, eingeschaltet mit <code>Sync:ArtikelLieferantEnabled</code>, nachts und mittags).
         Bis dahin: Vorschlag = Fehlmenge bis zum Meldebestand, bei Fehlmenge 0 der Meldebestand – Grund „@PurchaseProposalCalculator.GrundOhneLetzteBestellung“.
     </div>
 }
@@ -68,7 +68,7 @@ else
 {
     <div class="alert alert-info py-2 small" role="status">
         <strong>@Model.FallbackZeilen @(Model.FallbackZeilen == 1 ? "Zeile" : "Zeilen") mit Fallback Sage-Bestellmenge</strong> – keine Bestellung in den letzten
-        @ArticleSupplier.LetzteBestellungRueckblickJahre Jahren, auch nicht bei einem anderen Lieferanten. Spalte „Hinweis“ nach „Fallback“ filtern, um sie zu sehen.
+        @ArticleSupplier.LetzteBestellungRueckblickJahre Jahren, auch nicht bei einem anderen Lieferanten. Spalte „Hinweis“ nach „Sage-Bestellmenge“ filtern, um sie zu sehen; „Keine Bestellung“ zeigt zusätzlich die Zeilen ohne Sage-Bestellmenge.
     </div>
 }
 @if (Model.OhneMengenquelle > 0)
