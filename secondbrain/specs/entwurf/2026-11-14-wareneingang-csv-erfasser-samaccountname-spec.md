@@ -282,6 +282,15 @@ Entfällt (`epic: false`).
 
 *Vorläufig. Der QA-Lauf bestätigt den Abschnitt gegen den echten Diff.*
 
+> [!info] Abgleich gegen den echten Diff (Dev-Lauf 2026-11-16, Commit `f12f46f7`, `git diff 4559e0a2..f12f46f7`)
+> 9 Dateien: `IDEALAKEWMSService/Services/WareneingangCsvService.cs` (Include + `CsvInhalt`), `IDEALAKEWMSService.Tests/Services/WareneingangCsvServiceTests.cs`,
+> beide `AppVersion.cs` (1.99.29), `Views/Help/Changelog.cshtml`, `Views/Help/Index.cshtml`, `README.md` (Abschnitt Wareneingang-CSV: „ohne
+> Kopfzeile“ statt „Kopfzeile“, 9 Felder – zusätzlich zu `affected_code`, weil README das alte Format nannte), `docs/TESTSZENARIEN.md` (TS-153,
+> Hinweis TS-129.11), `scripts/deploy/nachlauf.psd1` (ein Info-Eintrag). Keine Migration, kein SQL, keine Einstellung, keine Rolle.
+> **Abweichung:** Manifest-`Quelle` = `2026-11-16-v1-99-29-wareneingang-csv-enaio` (Name der Brain-Changelog-Datei laut Auftrag), nicht
+> `…-wareneingang-csv-erfasser` wie unten im Entwurf. Unverändert laut Diff: `Receive.cs`, `SageWareneingangPayload.cs`,
+> `SageLagerbuchungPayloadBuilder.cs`, `WarehouseRequisitionEmailService.cs`, `Views/PurchaseOrders/*`, `PurchaseOrdersController.SageWe.cs` (AK 10).
+
 - **Web-App:** ja, nur Hilfe, Anwender-Changelog und `AppVersion` (keine Logik).
 - **Service:** ja. `WareneingangCsvService` liegt im Dienst und schreibt die CSV (`SageBookingWorker.cs:153`).
 - **Migration:** nein.

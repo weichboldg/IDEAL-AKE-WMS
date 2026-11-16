@@ -1846,6 +1846,13 @@ Code: `hardware-scanner.js` Block „Scannen ohne Feld“, CSS `.hw-scan-bereit`
 - **„Nie automatisch wiederholen“ hängt an festen Fehlertexten** (`WareneingangCsv.NieWiederholen`: Kollision, ungültiger Barcode).
   **Warum wichtig:** Wer eine Kollision mit eigenem Text meldet statt über die Konstante, lässt den Dienst eine vorhandene Datei alle 15 Minuten erneut
   prüfen und als Fehler zählen; Texte nur über die Konstanten setzen.
+- **Seit v1.99.29 ohne Kopfzeile: die Spaltenreihenfolge ist der Vertrag mit enaio** ([[2026-11-14-wareneingang-csv-erfasser-samaccountname-spec]]).
+  Eine neue Spalte nur am Ende anhängen und vorher mit enaio abstimmen; nie umsortieren. **Warum wichtig:** Der Import ordnet nach Position zu –
+  eine eingeschobene Spalte verschiebt still alle folgenden Werte, kein Fehler, nur falsche Daten in enaio.
+- **Erfasser kommt vom Benutzer der Bewegung, nicht aus `CreatedByWindows`/`StockMovement.WindowsUser`.** **Warum wichtig:** Diese Felder halten
+  die Windows-Identität der Sitzung (Terminal-Konto, bei Formular-Anmeldung `""`/`SYSTEM`), nicht den buchenden Benutzer. Ohne das
+  `Include(StockMovement).ThenInclude(User)` in `RunOnceAsync` fällt der Erfasser still auf `CreatedBy` zurück – der Test `RunOnce_IncludeWirkt_*`
+  schützt davor.
 
 ## 33. SData-Kennwort verschlüsselt in den Service-Einstellungen (v1.99.14, [[2026-11-13-sdata-teil-2-userfelder-stueckliste-spec]], ADR [[0024-sdata-kennwort-verschluesselt-in-den-service-einstellungen]])
 

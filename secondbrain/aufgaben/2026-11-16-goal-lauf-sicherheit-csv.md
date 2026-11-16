@@ -21,8 +21,8 @@ ADR 0027 (Sicherheit).
 
 | Spec | Typ | SQL | Version | Status | Commits | Blocker |
 |---|---|---|---|---|---|---|
-| [[2026-11-14-sicherheit-anmeldung-und-installer-spec]] | Spec | 152 | 1.99.28 | InUmsetzung | – | – |
-| [[2026-11-14-wareneingang-csv-erfasser-samaccountname-spec]] | Spec | – | 1.99.29 | InUmsetzung | – | – |
+| [[2026-11-14-sicherheit-anmeldung-und-installer-spec]] | Spec | 152 | 1.99.28 | InUmsetzung (feature-complete, QA steht aus) | `6447db0a`, `4559e0a2`; Brain `a09873cc` | – |
+| [[2026-11-14-wareneingang-csv-erfasser-samaccountname-spec]] | Spec | – | 1.99.29 | InUmsetzung (feature-complete, QA steht aus) | `f12f46f7` | – |
 
 ## Fragen an Gerald
 
