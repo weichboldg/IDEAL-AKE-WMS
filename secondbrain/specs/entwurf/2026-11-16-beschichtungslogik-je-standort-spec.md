@@ -28,9 +28,14 @@ affected_code:
   - IdealAkeWms/Services/BeschichtungsauftragWorkflow.cs
   - IdealAkeWms/Services/BeschichtungsauftragService.cs
   - IdealAkeWms/Services/BeschichtungsauftragVergabeAnzeige.cs
-  - IdealAkeWms/Controllers/FaHierarchyBeschichtungController.cs (nur Doku-Kommentar; Gate unveraendert, keine Master-Bedingung)
+  - IdealAkeWms/Controllers/FaHierarchyBeschichtungController.cs (Gate unveraendert, keine Master-Bedingung; Sammelmeldung S-2 an Index und Summiert, Nachtrag 2)
+  - IdealAkeWms/Models/ViewModels/FaHierarchyBeschichtungViewModels.cs (Sammelmeldung S-2, Nachtrag 2)
   - IdealAkeWms/Views/FaHierarchyBeschichtung/Summiert.cshtml
   - IdealAkeWms/Views/FaHierarchyBeschichtung/Index.cshtml
+  - IdealAkeWms/Data/Repositories/IBeschichtungsauftragRepository.cs (PositionsSchluessel mit Artnr fuer die flache Quelle, Nachtrag 2)
+  - IdealAkeWms/Data/Repositories/BeschichtungsauftragRepository.cs (GetVergabenAsync liest Artnr in den Schluessel, Nachtrag 2)
+  - IdealAkeWms/Controllers/BeschichtungsauftraegeController.cs (SchluesselText/TrySchluessel mit Artnr, Nachtrag 2)
+  - IdealAkeWms/Services/BomQuantityResolver.cs (nur Aufruf, unveraendert; Mengenregel der Kommissionierung, Nachtrag 2)
   - IdealAkeWms/Models/ViewModels/ColumnDefinitions.cs
   - IdealAkeWms/Views/Users/RoleOverview.cshtml
   - IdealAkeWms/Views/StandortEinstellungen/Index.cshtml (nur Hinweis-Link auf /Settings, Freigabe-Antwort 14)
@@ -43,16 +48,16 @@ affected_code:
   - docs/TESTSZENARIEN.md
   - docs/betrieb/04-konfiguration.md
 open_questions:
-  - "17. (Nachtrag 2026-11-16, nicht blockierend) Antwort 1 nennt USER_OSBeschichtet als spaetere Termin-Quelle SData. Der Lesetest fuehrt das Feld am FA-Kopf (L10, sage-sdata-benutzerfelder-lesetest.md:1073), die Schwester-Spec fa-struktur-ideal-ueber-sdata ordnet es dem Kennzeichen Beschichtet zu (:241), Start_Beschichtung ist ueber SData noch nicht gefunden (L11 :1105-1107). Gehoert die SData-Erweiterung zur Kennzeichen-Quelle, zur Termin-Quelle oder zu beiden? Betrifft nur den dokumentierten Erweiterungspunkt, nichts wird gebaut."
-  - "18. (Nachtrag 2026-11-16, betrifft E5) Sollmenge der AKE-Vorschlagsliste/-Positionen: CachedBomItem.Menge ist die Stuecklistenmenge je Artikel (Kopf je Artikelnummer, CachedBomHeader.cs:17) - so uebernehmen oder mit ProductionOrder.Quantity (ProductionOrder.cs:57) multiplizieren? Empfehlung: multiplizieren (Sollmenge des WA wie an der IDEAL); der /goal-Lauf baut die Empfehlung und vermerkt sie."
+  - "19. (Nachtrag 2, betrifft die Nutzbarkeit von E5, nicht den Bau) Komm-erledigte WAs (IsDonePicking=1) liegen nicht im BomCache-Fenster (BomCacheSyncService.cs:412-424). Ihr Stuecklistenkopf wird geloescht, sobald kein anderer Fensterauftrag denselben Artikel traegt (:66, :147, :617-619), und die Lackierteil-Erkennung setzt ihr Kennzeichen dann auf false (CoatingDetectionService.cs:103-110, :162-170, :255-262). 'Offen' der Vorschlagsliste (IsDone=0 AND IsCancelled=0, IsDonePicking bleibt drin) zeigt solche WAs daher nicht oder nur in der Sammelmeldung. Wird an der AKE vor oder nach dem Kommissionierabschluss beschichtet? Falls danach: Fenster anpassen (eigene Aufgabe wie Rueckfrage 13) oder hinnehmen?"
+  - "20. (Nachtrag 2, nur falls P-A6 nicht-ganzzahlige Positionen zeigt) Der Positionsschluessel Artikelnummer + Position wird ohne Schema-Aenderung in BeschichtungsauftragPosition.Artnr (string) und Position (int?) gespeichert (BeschichtungsauftragPosition.cs:20, :23). CachedBomItem.Position ist string (CachedBomItem.cs:17), die Kommissionierung rechnet mit Punkt-Positionen wie '15.1' (PickingController.cs:331-332). Bei nicht-ganzzahligen Positionen widerspricht die Entscheidung der Freigabe-Antwort 9 (kein Schema): neue Spalte oder anderer Schluessel? Bis dahin haelt der Lauf E5 als Blocker fest."
 beantwortete_fragen:
-  - "1 -> BEANTWORTET: zwei Choice-AppSettings, Default Automatisch; Termin-Quelle SData nur als Erweiterungspunkt vorgesehen, nicht gebaut (Freigabe-Antwort 1)"
+  - "1 -> BEANTWORTET: zwei Choice-AppSettings, Default Automatisch; Termin-Quelle SData nur als Erweiterungspunkt vorgesehen, nicht gebaut (Freigabe-Antwort 1); Feld USER_OSBeschichtet gehoert laut Freigabe-Antwort 17 zur Kennzeichen-Quelle"
   - "2 -> BEANTWORTET: Server lehnt unpassende Kombinationen ab (Freigabe-Antwort 2)"
   - "3 -> BEANTWORTET: IDEAL-Termin auch in Leitstand/Arbeitsliste, E4, im Changelog (Freigabe-Antwort 3)"
   - "4 -> BEANTWORTET: Start_Beschichtung ist in Sage bereits berechnet und wird unveraendert uebernommen, keine WMS-Berechnung darauf; Tooltip nennt die Quelle (Freigabe-Antwort 4)"
   - "5 -> BEANTWORTET: Kombigeraet leer wie heute (Freigabe-Antwort 5)"
   - "6 -> BEANTWORTET: Berechnet an der IDEAL mit Kopf-FE_Termin (Freigabe-Antwort 6)"
-  - "7 -> BEANTWORTET: Aktiv-Kennung IDEAL immer aktiv; P-I1 vor E4 durch Gerald (Freigabe-Antwort 7)"
+  - "7 -> BEANTWORTET: Aktiv-Kennung IDEAL immer aktiv; P-I1 durch Gerald, Haltepunkt H1 jetzt vor E2 statt vor E4 (Freigabe-Antwort 7, verlegt durch Nachtrag 2 / S-1)"
   - "8 -> BEANTWORTET: AKE-Positionen = Lackierteile der WA-Stueckliste, Masse 0, Dienstleister/RAL/Retour manuell, Start aus berechnetem Termin (Freigabe-Antwort 8)"
   - "9 -> BEANTWORTET: AKE-WA-Nummern numerisch, HauptFA bleibt int, kein SQL/152; P-A3 nur als Beleg vor E5 (Freigabe-Antwort 9)"
   - "10 -> BEANTWORTET: Vorschlagsliste auch an der AKE, gleich wie IDEAL, Datenbasis WA-Stueckliste, Kreditor/Beschichter leer und manuell (Freigabe-Antwort 10)"
@@ -62,14 +67,17 @@ beantwortete_fragen:
   - "14 -> BEANTWORTET: nur /Settings, Standort-Maske mit Hinweis-Link (Freigabe-Antwort 14)"
   - "15 -> BEANTWORTET: View an der AKE nicht waehlbar bis P-A5; P-A5 vor E5 durch Gerald (Freigabe-Antwort 15)"
   - "16 -> BEANTWORTET: v1.99.25 nach 1.99.24 Sicherheit, Nummern beim Start pruefen (Freigabe-Antwort 16)"
+  - "17 -> BEANTWORTET: USER_OSBeschichtet ist Erweiterungspunkt der Kennzeichen-Quelle, nicht der Termin-Quelle; nichts wird gebaut (Freigabe-Antwort 17, Nachtrag 2)"
+  - "18 -> BEANTWORTET: Menge ueber BomQuantityResolver wie die Kommissionierung, keine eigene Formel; Haltepunkt H3 Mengen-Pruefschritt vor E5 (Freigabe-Antwort 18, Nachtrag 2)"
 epic: true
 etappen:
   - "E1 Katalog + Resolver (ohne Verhaltensaenderung)"
-  - "E2 Web-Konsumenten lesen nur noch den Resolver"
+  - "H1 Haltepunkt P-I1 (Gerald erhebt) vor E2 (Nachtrag 2, S-1)"
+  - "E2 Web-Konsumenten lesen nur noch den Resolver (inkl. Aktiv-Kennung)"
   - "E3 Dienst schreibt das Kennzeichen nach der effektiven Quelle"
-  - "H1 Haltepunkt P-I1 (Gerald erhebt) vor E4"
   - "E4 IDEAL-Termin im Leitstand und in der Werkbank-Arbeitsliste"
-  - "H2 Haltepunkt P-A5 (Gerald erhebt), P-A3 als Beleg, vor E5"
+  - "H2 Haltepunkt P-A5 (Gerald erhebt), P-A3 und P-A6 als Beleg, vor E5"
+  - "H3 Haltepunkt Mengen-Pruefschritt: ein WA mit Baugruppe, Kommissionierliste gegen Sage/OSEON (Gerald), vor E5 (Nachtrag 2, B-1)"
   - "E5 Beschichtungsauftrag und Vorschlagsliste an der AKE (Gate entkoppeln, flache Datenbasis, keine Migration)"
   - "E6 Doku, Testszenarien, Hilfe, Changelog, Manifest, Brain"
 deploy:
@@ -124,7 +132,8 @@ Ziel:
 - Rollen: bleiben unveraendert, `beschichtungsauftrag` / `beschichtungsauftrag_schreiben`.
 - ~~Beschichtungs-Vorschlagsliste an der AKE (Rueckfrage 10).~~ *ueberholt durch Freigabe-Antwort 10: die Vorschlagsliste kommt an der AKE (In-Scope, E5).*
 - Schema-Aenderung am Beschichtungsauftrag: keine, die AKE-WA-Nummern sind numerisch, `HauptFA` bleibt `int` (Freigabe-Antwort 9).
-- Termin-Quelle `SData` (Freigabe-Antwort 1): nur als Erweiterungspunkt vorgesehen, **nicht gebaut**, kein Auswahlwert in dieser Version. Der Choice-Katalog und `ResolveQuellen` sind so geschnitten, dass ein weiterer Wert spaeter nur einen Katalogeintrag und einen Resolver-Zweig braucht. Zuordnung des Feldes `USER_OSBeschichtet` zur Achse ist offen (Rueckfrage 17 im Nachtrag).
+- ~~Termin-Quelle `SData` (Freigabe-Antwort 1): nur als Erweiterungspunkt vorgesehen, **nicht gebaut**, kein Auswahlwert in dieser Version. Der Choice-Katalog und `ResolveQuellen` sind so geschnitten, dass ein weiterer Wert spaeter nur einen Katalogeintrag und einen Resolver-Zweig braucht. Zuordnung des Feldes `USER_OSBeschichtet` zur Achse ist offen (Rueckfrage 17 im Nachtrag).~~ *ueberholt durch Freigabe-Antwort 17 (Nachtrag 2):*
+- SData-Quelle: **nicht gebaut**, kein Auswahlwert in dieser Version, kein spekulativer Code. `USER_OSBeschichtet` (Lesetest L10, `sage-sdata-benutzerfelder-lesetest.md:1073`) ist der dokumentierte Erweiterungspunkt der **Kennzeichen-Quelle** (A1), **nicht** der Termin-Quelle. Fuer die Termin-Quelle ist keine SData-Datumsquelle bekannt (`Start_Beschichtung` ueber SData nicht gefunden, L11 `:1105-1107`). Der Choice-Katalog und `ResolveQuellen` brauchen fuer einen spaeteren Wert nur einen Katalogeintrag und einen Resolver-Zweig; das ist eine Eigenschaft des Entwurfs, kein Bauauftrag.
 - Erkennungsfenster-Filter (Rueckfrage 13, eigene Aufgabe).
 - Der tote Code `BomCacheRepository.GetArticleNumbersWithCoatingPartsAsync` (`IdealAkeWms/Data/Repositories/BomCacheRepository.cs:50-69`, nur Test-Aufrufer). Er wird gemeldet, nicht mitgebaut.
 
@@ -247,12 +256,30 @@ Kein aktiver AgentJob schreibt die Flags (einzige Fundstelle: `SQL/AgentJobs/_ar
 - Spaltenkataloge tragen „(IDEAL)“ im Anzeigenamen (`ColumnDefinitions.cs:379`, `:404`).
 - `FaHierarchyNode`: `HauptFA` int, `VaterFA` int?, `SubFA` int, `Position` int?, `Sollmenge`/`Breite` decimal, `Beschichtet` bool (`IdealAkeWms/Models/FaHierarchyNode.cs:19-56`).
 
+**Mengenregel der Kommissionierung** (Nachtrag 2, belegt)
+
+- `BomQuantityResolver.Resolve` (`IdealAkeWms/Services/BomQuantityResolver.cs:15-16`): `result.MengeIstAuftragsmenge ? item.Menge : item.Menge * order.Quantity`. Eingabe ist ein `BomQueryResult` plus `BomItem` (ViewModel, `Models/ViewModels/BomViewModels.cs:3`), **kein** `CachedBomItem`.
+- Aufrufer: Kommissionierliste `PickingController.cs:355` und `:553`, Kommissionierauftrag `PickingOrderWorkflow.cs:84`, lesende Stueckliste `ReadOnlyBomBuilder.cs:108`.
+- Weg an der AKE: `IBomRepository` → `BomRepositoryMasterSwitch`, flach → `CachedBomRepository` (`Program.cs:100-107`) → `BomRepository.GetBomItemsAsync`, zuerst der Cache (`BomRepository.cs:28-30`, `BomCacheRepository.GetByArticleNumberAsync` `BomCacheRepository.cs:20-47`). Erst ohne Cache liest er live die Sage-View `vw_AKE_Kommissionierung_StuecklistenDB` (`BomRepository.cs:33-52`), dann OSEON (`:55-57`).
+- Der Cache liefert `new BomQueryResult(items, header.Source)` (`BomCacheRepository.cs:47`), also `MengeIstAuftragsmenge = false` (Default `BomViewModels.cs:3`). Damit gilt an der AKE `Menge × Quantity` fuer **jede** Zeile. `Resolve` kennt keinen Zweig fuer `Baugruppe`.
+- IDEAL zum Vergleich: `FaHierarchyBomRepository` liefert `MengeIstAuftragsmenge: true` (`FaHierarchyBomRepository.cs:14`, `:61`). `Sollmenge` ist dort schon die Auftragsgesamtmenge.
+- Ob die AKE-Stuecklistenmenge auch bei Zeilen mit `Baugruppe` je Stueck Endartikel gilt, steht nur in Sage/OSEON. Das prueft H3. Die Kommissionierung rechnet heute schon so, H3 prueft deshalb dieselbe Regel an der Kommissionierliste.
+
+**BomCache-Fenster und Kennzeichen** (Nachtrag 2, belegt; Grundlage fuer S-2 und Rueckfrage 19)
+
+- Das Cache-Fenster nimmt nur `IsDone = 0 AND IsCancelled = 0`, **ohne** komm-erledigte (`IsDonePicking = 1`), mit `ProductionDate <= +Sync:BomCacheWeeks` (`BomCacheSyncService.cs:412-424`) und `TOP Sync:BomCacheMaxOrders` (`:57-58`).
+- Koepfe, deren Artikel kein Fensterauftrag mehr traegt, werden geloescht (`:66`, `:147`, `DeleteOrphanHeadersAsync` `:595-621`).
+- Das Erkennungsfenster der Lackierteil-Erkennung nimmt dagegen nur `IsDone = 0` (`CoatingDetectionService.cs:103-110`). Ein Auftrag im Erkennungsfenster ohne Lackierteil-Treffer im Cache wird auf `HasCoatingParts = 0, IsCoatingDone = 0` gesetzt (`:162-170`, `:196-199`, `:255-262`), auch wenn sein Kopf nur wegen des Cache-Fensters fehlt.
+- `CachedBomHeaders.Artikelnummer` ist eindeutig (`ApplicationDbContext.cs:1098`). `CachedBomItem.Position` ist string(50) (`CachedBomItem.cs:16-17`, `ApplicationDbContext.cs:1104`). Beim Inhaltswechsel wird `SortOrder` neu vergeben (Kritische Pruefung S-4).
+- Vorhandener Schluessel „Artikelnummer + Position“ der Kommissionierung: `PickingOrderRestmengen.Schluessel(articleNumber, bomPosition)` = (Artikelnummer getrimmt und gross, Position getrimmt) (`PickingOrderRestmengen.cs:16-17`). Doppelte Schluessel in einer Stueckliste kommen vor und werden dort summiert (`:35-38`).
+- Gespeicherter Beschichtungsauftrag: `BeschichtungsauftragPosition.Position` ist `int?`, `Artnr` ist string(200) (`BeschichtungsauftragPosition.cs:20`, `:23`). Der Vergabe-Schluessel `PositionsSchluessel(VaterFA, SubFA, Position)` traegt keine Artikelnummer (`IBeschichtungsauftragRepository.cs:10-14`). Er wird aus dem Speicher gelesen (`BeschichtungsauftragRepository.cs:40-42`) und als Text `VaterFA|SubFA|Position` durch Formulare gereicht (`BeschichtungsauftraegeController.cs:322-333`).
+
 ### Soll
 
 | ID | Anforderung | Begruendung / Quelle |
 |---|---|---|
-| A1 | **Kennzeichen-Quelle** je Standort waehlbar: `Automatisch` / `Artikelkategorie` / `FaStruktur`. `Automatisch` = `FaStruktur`, wenn der Master `ProduktionsauftragHierarchisch` an ist, sonst `Artikelkategorie`. | Fokus 2a; Default = heute |
-| A2 | **Termin-Quelle** je Standort waehlbar: `Automatisch` / `Berechnet` / `View`. `Automatisch` = `View` hierarchisch, sonst `Berechnet`. Ein Wert `SData` ist vorgesehen, aber nicht Teil dieser Version (kein Auswahlwert). | Fokus 2b; Default = heute; Freigabe-Antwort 1 |
+| A1 | **Kennzeichen-Quelle** je Standort waehlbar: `Automatisch` / `Artikelkategorie` / `FaStruktur`. `Automatisch` = `FaStruktur`, wenn der Master `ProduktionsauftragHierarchisch` an ist, sonst `Artikelkategorie`. Erweiterungspunkt (nicht gebaut): eine spaetere SData-Quelle ueber `USER_OSBeschichtet` gehoert zu **dieser** Achse. | Fokus 2a; Default = heute; Freigabe-Antwort 17 |
+| A2 | **Termin-Quelle** je Standort waehlbar: `Automatisch` / `Berechnet` / `View`. `Automatisch` = `View` hierarchisch, sonst `Berechnet`. ~~Ein Wert `SData` ist vorgesehen, aber nicht Teil dieser Version (kein Auswahlwert).~~ *ueberholt durch Freigabe-Antwort 17:* kein `SData`-Wert; `USER_OSBeschichtet` ist kein Termin. | Fokus 2b; Default = heute; Freigabe-Antworten 1, 17 |
 | A3 | **Ein Resolver** liefert je FA: `Beschichtet` (bool), `Termin` (DateTime?), `TerminQuelle`, `Aktiv` (Spalte/Haken relevant). Kein Verbraucher liest mehr `LackierteilKategorieName`, `BeschichtungTage`, `BeschichtungAbholtage` oder `Start_Beschichtung` selbst. | Fokus 3 |
 | A4 | `Termin` bei Quelle `View` = `Start_Beschichtung` des eindeutigen Kopfes, **unveraendert uebernommen**, nur wenn `Beschichtet`. `Start_Beschichtung` ist in Sage bereits berechnet; das WMS rechnet nichts darauf (kein `CoatingDateCalculator`, keine `BeschichtungTage`, kein Abholtag). Der Calculator geht vom Vorkommissionier-Termin aus (`CoatingDateCalculator.cs:11-24`), nicht von `Start_Beschichtung`. Bei Kombigeraet oder leerem Feld: null, **nie** ein Ersatztermin (TS-71.11b). | Bestand, Freigabe-Antworten 4, 5 |
 | A5 | `Termin` bei Quelle `Berechnet` = heutige Formel (`CoatingDateCalculator`), Basisdatum = Vorkommissioniertermin aus dem FA-Datum. Hierarchisch ist das FA-Datum der Kopf-`FE_Termin` (wie die FA-Liste `:199`, `:305`). | Rueckfrage 6 |
@@ -262,6 +289,10 @@ Kein aktiver AgentJob schreibt die Flags (einzige Fundstelle: `SQL/AgentJobs/_ar
 | A9 | IDEAL: FA-Liste, Leitstand und Arbeitsliste zeigen denselben Termin aus dem Resolver. | Fokus 5, Rueckfrage 3 |
 | A10 | Beschichtungs-Vorschlagsliste und Beschichtungsauftrag an der AKE nutzbar, Bedienung gleich wie an der IDEAL (Liste der zu beschichtenden Teile, daraus „Aus Vorschlagsliste erstellen“). Gate `FaHierarchyBeschichtungAktiv` ohne Standortbindung (Standort „beide“), **keine** Master-Bedingung an der Vorschlagsliste. Datenbasis an der AKE = Lackierteile der WA-Stueckliste (die Kette aus `CoatingDetectionService.cs:149-156`). Kreditor/Beschichter (`Dienstleister`), RAL und Retour bleiben leer und werden manuell befuellt; Masse 0; Start aus dem berechneten Termin. `HauptFA` bleibt `int`. Rollen unveraendert. | Fokus 4, Freigabe-Antworten 8-11 |
 | A11 | Alle Bestands-Szenarien TS-71.10, TS-71.10a, TS-71.11 und die Leitstand-/Arbeitslisten-Termine bleiben mit `Automatisch` unveraendert gruen. | Regression |
+| A12 | Menge der AKE-Positionen = `BomQuantityResolver.Resolve` (`BomQuantityResolver.cs:15-16`), dieselbe Regel wie die Kommissionierung; keine eigene Formel. Fuer den AKE-Cache heisst das `Menge × ProductionOrder.Quantity` fuer jede Zeile, auch mit gefuellter `Baugruppe`. Vor E5 bestaetigt Gerald die Regel am Beispiel (H3). | Freigabe-Antwort 18, B-1 |
+| A13 | „Offen“ in der flachen Quelle = `ProductionOrders.IsDone = 0 AND ProductionOrders.IsCancelled = 0` (Felder „Erledigt“ `ProductionOrder.cs:83-84` und „Storniert“ `:102-103`). `ProductionOrderPickingStatus.IsDonePicking` (`ProductionOrderPickingStatus.cs:47`) filtert **nicht**. | Nachtrag 2, S-3 |
+| A14 | Positionsschluessel der flachen Quelle = Artikelnummer (Ressourcenummer der Zeile) + Stuecklisten-Position, nicht `SortOrder`. | Nachtrag 2, S-4 |
+| A15 | Faellt ein offener WA mit `HasCoatingParts = true` aus dem Stuecklisten-Cache, zeigt die Vorschlagsliste eine Sammelmeldung mit Anzahl und Nummern, und der Logger schreibt eine Warnung. Kein stilles Weglassen. | Nachtrag 2, S-2 |
 
 ## Technischer Loesungsentwurf
 
@@ -306,6 +337,8 @@ Datei `IdealAkeWms/Services/Beschichtung/BeschichtungResolver.cs`. Bewusst ohne 
    - `Termin` nach A4/A5: Bei `View` gibt der Resolver `eindeutigerKopf.Start_Beschichtung` 1:1 zurueck und ruft den `CoatingDateCalculator` **nicht** auf; nur bei `Berechnet` laeuft der Calculator mit dem Vorkommissionier-Termin aus `faDatum`.
    - `TerminQuelle` traegt die tatsaechlich genutzte Quelle (`Berechnet` / `View`); daraus entsteht der Tooltip-Text.
 
+**Erweiterungspunkt SData** (Freigabe-Antwort 17, nur Doku, kein Code): Eine spaetere Quelle `USER_OSBeschichtet` waere ein weiterer Wert der **Kennzeichen-Quelle**: ein Katalogeintrag, ein Zweig in `ResolveQuellen` und ein Schreiber fuer `HasCoatingParts` nach A7. Die Termin-Quelle bleibt davon unberuehrt. Der Dev-Lauf legt dafuer weder Enum-Wert noch Platzhalter noch Interface an.
+
 ### Verbraucher
 
 | Verbraucher | heute | danach |
@@ -316,7 +349,7 @@ Datei `IdealAkeWms/Services/Beschichtung/BeschichtungResolver.cs`. Bewusst ohne 
 | Zeilen-Views (`_ProductionOrderRow` `:16-20`, `:100-120`; `_PickingLeitstandRow` `:82-94`; `_FaWorklistRow` `:51`) | `LackierteilKategorieName` im View | `Aktiv` und `Termin` aus dem ViewModel |
 | Spaltenkopf-Tooltips `ProductionOrders/Index.cshtml:106`, `PickingLeitstand/Index.cshtml:140` | Formeltext fest | Text je `TerminQuelle`: `View` = „aus der Sage-View, Feld Start_Beschichtung, unveraendert uebernommen“; `Berechnet` = Formeltext wie heute |
 | Beschichtungsauftrag-Kopf `BeschichtungsauftragWorkflow.cs:404-425` | FAInfos | IDEAL unveraendert; AKE: Start aus `Bestimmen(...).Termin` (Quelle `Berechnet`), Dienstleister/RAL/Retour leer (E5) |
-| Vorschlagsliste `BeschichtungsauftragService.cs:94-111`, `:158-174`; `BeschichtungsauftragVergabeAnzeige.cs:43` | `FaHierarchyNode` mit `Beschichtet` | Positionsquelle nach `ResolveQuellen(...).Kennzeichen`: `FaStruktur` wie heute, `Artikelkategorie` = flache WA-Stuecklisten-Projektion (E5). Kopfzeile an der AKE leer (`_BeschichtungKopf.cshtml:27-30`) |
+| Vorschlagsliste `BeschichtungsauftragService.cs:94-111`, `:158-174`; `BeschichtungsauftragVergabeAnzeige.cs:43` | `FaHierarchyNode` mit `Beschichtet` | Positionsquelle nach `ResolveQuellen(...).Kennzeichen`: `FaStruktur` wie heute, `Artikelkategorie` = flache WA-Stuecklisten-Projektion (E5). Kopfzeile an der AKE leer (`_BeschichtungKopf.cshtml:27-30`). AKE zusaetzlich: Sammelmeldung fuer gekennzeichnete WAs ohne Cache-Positionen (A15) an `Index` und `Summiert` (`FaHierarchyBeschichtungController.cs:62-89`, `:152-180`) |
 
 Die Datumsfilter `coating-date` (`ProductionOrdersController.cs:485`, `:513`; `PickingLeitstandController.cs:695`, `:737`; `FaWorklistController.cs:417`) laufen weiter **nach** der Terminberechnung in C# (ADR 0005). Sie lesen das Ergebnis, nicht die Quelle.
 
@@ -336,15 +369,29 @@ Die Datumsfilter `coating-date` (`ProductionOrdersController.cs:485`, `:513`; `P
   - Key `FaHierarchyBeschichtungAktiv` bleibt (Freigabe-Antwort 11); Anzeigename „Beschichtungsauftrag aktiv“, Gruppe „Termine und Beschichtung“, Standort beide.
   - ~~Die Vorschlagsliste `FaHierarchyBeschichtungController.cs:29` bekommt zusaetzlich die Bedingung „Master an“~~ *ueberholt durch Freigabe-Antwort 10.* Die Vorschlagsliste behaelt ihre beiden Filter (`FaHierarchyBeschichtungController.cs:28-29`) ohne Master-Bedingung; das Menue (`_Layout.cshtml:153-164`) bleibt unveraendert und zeigt an der AKE beide Eintraege, sobald Gate und Rolle passen.
 - **Datenbasis flach (eine Positionsquelle fuer Liste, Vergabe-Anzeige und Workflow):**
-  - Neue Lesemethode, eine Abfrage, liefert die Lackierteil-Positionen offener WAs aus `CachedBomHeaders/Items` mit der Kategorie-Kette `CoatingDetectionService.cs:149-156` (Kopf ueber `CachedBomHeaders.Artikelnummer = ProductionOrders.ArticleNumber`, wie `CoatingDetectionService.cs:90-109`, `:150-155`, `:167`). Welche WAs: offene mit `HasCoatingParts = true` (die von der Erkennung gesetzte Wahrheit), damit Liste und Kennzeichen nicht auseinanderlaufen.
-  - Sie projiziert jede Zeile in die vorhandene Form `FaHierarchyNode` (nur im Speicher, nicht persistiert), damit `AggregateSummiert` (`BeschichtungsauftragService.cs:185-242`), der Listen-Builder, `PositionsSchluessel` und `Snapshot` unveraendert weiterlaufen:
-    `HauptFA = int(OrderNumber)` (numerisch, Freigabe-Antwort 9, P-A3 als Beleg), `HauptArtnr = ProductionOrder.ArticleNumber`, `VaterFA = null`, `SubFA = 0`, `Position = CachedBomItem.SortOrder`, `Artnr = Ressourcenummer`, `Matchcode` per vorhandenem `MatchcodeLookup`, `Sollmenge` nach Rueckfrage 18 (Empfehlung `Menge × ProductionOrder.Quantity`), Masse = 0, `Beschichtet = true`.
-  - Der `PositionsSchluessel` bleibt damit eindeutig je Stuecklistenzeile.
+  - Neue Lesemethode, eine Abfrage, liefert die Lackierteil-Positionen offener WAs aus `CachedBomHeaders/Items` mit der Kategorie-Kette `CoatingDetectionService.cs:149-156` (Kopf ueber `CachedBomHeaders.Artikelnummer = ProductionOrders.ArticleNumber`, wie `CoatingDetectionService.cs:90-109`, `:150-155`, `:167`). ~~Welche WAs: offene mit `HasCoatingParts = true`~~ *praezisiert durch Nachtrag 2 (S-3):* Welche WAs: `ProductionOrders.IsDone = 0 AND ProductionOrders.IsCancelled = 0 AND ProductionOrderPickingStatus.HasCoatingParts = 1` (A13). Die Felder heissen in der Oberflaeche „Erledigt“ und „Storniert“ (`ProductionOrder.cs:83-84`, `:102-103`); `IsCancelled` verhaelt sich in allen Offen-Abfragen wie `IsDone` (`ProductionOrder.cs:100-101`). `IsDonePicking` filtert **nicht**: Lackiert wird nach dem Kommissionieren (Kritische Pruefung S-3). Ob das an der AKE so zutrifft und was der Cache daraus macht, ist Rueckfrage 19. `HasCoatingParts` bleibt die von der Erkennung gesetzte Wahrheit, damit Liste und Kennzeichen nicht auseinanderlaufen.
+  - Sie projiziert jede Zeile in die vorhandene Form `FaHierarchyNode` (nur im Speicher, nicht persistiert), damit `AggregateSummiert` (`BeschichtungsauftragService.cs:185-242`), der Listen-Builder und `Snapshot` unveraendert weiterlaufen:
+    `HauptFA = int(OrderNumber)` (numerisch, Freigabe-Antwort 9, P-A3 als Beleg), `HauptArtnr = ProductionOrder.ArticleNumber`, `VaterFA = null`, `SubFA = 0`, ~~`Position = CachedBomItem.SortOrder`~~ *ueberholt (S-4):* `Position = int(CachedBomItem.Position)` (ganzzahlig laut P-A6, sonst Blocker, Rueckfrage 20), `Artnr = Ressourcenummer`, `Matchcode` per vorhandenem `MatchcodeLookup`, Masse = 0, `Beschichtet = true`.
+    ~~`Sollmenge` nach Rueckfrage 18 (Empfehlung `Menge × ProductionOrder.Quantity`)~~ *ueberholt durch Freigabe-Antwort 18:* `Sollmenge = BomQuantityResolver.Resolve(bomResult, bomItem, order)` (`BomQuantityResolver.cs:15-16`, A12). Die Lesemethode bildet die Zeile auf `BomItem` und den Kopf auf `BomQueryResult(items, header.Source)` ab, so wie `BomCacheRepository.cs:32-47` es tut (dieselbe Abbildung wiederverwenden, nicht kopieren), und ruft dann `Resolve` auf. Keine eigene Mengenformel und kein eigener Baugruppen-Zweig.
+  - ~~Der `PositionsSchluessel` bleibt damit eindeutig je Stuecklistenzeile.~~ *ueberholt (S-4):* **Positionsschluessel = Artikelnummer + Position** (A14):
+    - Normalisiert wie `PickingOrderRestmengen.Schluessel` (`PickingOrderRestmengen.cs:16-17`): Artnr getrimmt und gross, Position getrimmt.
+    - `PositionsSchluessel` (`IBeschichtungsauftragRepository.cs:10-14`) bekommt eine optionale vierte Komponente `Artnr` (Default `null`). Nur die flache Quelle fuellt sie, auf beiden Seiten: aus dem projizierten Knoten und aus der gespeicherten Position (`BeschichtungsauftragPosition.Artnr`, `GetVergabenAsync` `BeschichtungsauftragRepository.cs:40-42`). Die Textform (`BeschichtungsauftraegeController.cs:322-333`) traegt sie als vierten Teil.
+    - An der IDEAL bleibt `Artnr = null`. Gleichheit, Textform und alle Bestandstests bleiben dort unveraendert (AK 16).
+    - Welche Seite fuellt, entscheidet `ResolveQuellen(...).Kennzeichen` (eine Stelle), nicht der Aufrufer.
+    - Damit ist die Vergabe unabhaengig von `SortOrder`, das beim Stuecklistenwechsel neu vergeben wird (S-4).
+    - Doppelte Schluessel einer Stueckliste meldet der vorhandene Hinweis `MeldeDoppelteSchluessel` (`BeschichtungsauftragWorkflow.cs:427-432`) und behandelt sie nicht still.
+    - Schema: keines, solange P-A6 nur ganzzahlige Positionen zeigt (`Position` bleibt `int?`).
+  - **Sammelmeldung (S-2, A15):** Dieselbe Lesemethode liefert zusaetzlich die WAs, die die Offen-Bedingung erfuellen und `HasCoatingParts = 1` tragen, aber **keine** Lackierteil-Zeile im Cache haben (Kopf fehlt, z. B. ausserhalb des Cache-Fensters `BomCacheSyncService.cs:412-424`, `:617-619`, oder Kopf ohne Lackierteil-Zeile).
+    - Ist die Menge nicht leer, zeigen `Index` und `Summiert` oberhalb der Tabelle ein Bootstrap-`alert-warning` mit Icon und Text: „{N} WA mit Beschichtungskennzeichen ohne Lackierteile im Stuecklisten-Cache – nicht in der Vorschlagsliste: {Nummern}“. Hoechstens 20 Nummern, danach „…“.
+    - Dazu ein `ILogger.LogWarning` mit Anzahl und Nummern.
+    - Nur bei Quelle `Artikelkategorie`; an der IDEAL entfaellt die Meldung.
+    - Die Meldung ist eine ViewModel-Eigenschaft, kein `TempData`, denn sie gilt fuer jeden Seitenaufruf.
   - `BeschichtungsauftragService.BuildAsync`/`BuildSummiertAsync`, `BeschichtungsauftragVergabeAnzeige.ErmittelnAsync` und der Workflow waehlen die Quelle ueber `ResolveQuellen(...).Kennzeichen`: `FaStruktur` = `FaHierarchyNode` wie heute, `Artikelkategorie` = flache Projektion.
   - Kopfdaten (`FaHierarchyOrderInfo`) gibt es an der AKE nicht; die Kopfzeile zeigt den bestehenden Hinweis (`_BeschichtungKopf.cshtml:27-30`). Kreditor/Beschichter (`Dienstleister`), RAL und Retour werden im Auftrag manuell befuellt (Freigabe-Antwort 10).
   - Spaltenkataloge: „(IDEAL)“ aus den Anzeigenamen entfernen (`ColumnDefinitions.cs:379`, `:404`); Spalten unveraendert.
 - **Workflow:** `AnlegenAsync` und die Kandidaten-/Pruefstellen (`BeschichtungsauftragWorkflow.cs:88-120`, `:221-222`, `:262-268`) waehlen die Quelle ueber `ResolveQuellen(...).Kennzeichen`. Kopfvorbelegung AKE: Start = `Bestimmen(...).Termin` (Quelle `Berechnet`), Rest leer.
-- **Kein Schema-Eingriff** (Freigabe-Antwort 9): Die AKE-WA-Nummern sind numerisch, `Beschichtungsauftrag.HauptFA` bleibt `int`. ~~Sonst SQL/152 mit Spalte `Auftragsnummer`~~ *ueberholt*. P-A3 wird vor E5 nur als bestaetigender Beleg erhoben; zeigt sie wider Erwarten nicht-numerische Nummern, haelt der Lauf E5 als Blocker fest, statt ein Schema zu erfinden.
+- **Kein Schema-Eingriff** (Freigabe-Antwort 9): Die AKE-WA-Nummern sind numerisch, `Beschichtungsauftrag.HauptFA` bleibt `int`. ~~Sonst SQL/152 mit Spalte `Auftragsnummer`~~ *ueberholt*. P-A3 wird vor E5 nur als bestaetigender Beleg erhoben; zeigt sie wider Erwarten nicht-numerische Nummern, haelt der Lauf E5 als Blocker fest, statt ein Schema zu erfinden. Gleiches gilt fuer P-A6 (Stuecklisten-Positionen der Lackierteile ganzzahlig, Nachtrag 2): nicht-ganzzahlige Positionen → E5 Blocker, Rueckfrage 20.
+- **Mengen-Pruefschritt vor E5 (H3, Freigabe-Antwort 18):** Gerald waehlt mit der Hilfsabfrage H3 (Abschnitt „Pruefabfragen“) einen offenen Lackier-WA mit `Quantity > 1` und Stuecklistenzeilen mit gefuellter `Baugruppe`. Er oeffnet dessen Kommissionierliste und vergleicht die Mengen der Baugruppen-Zeilen mit Sage/OSEON. Passen sie, gilt A12 so, wie sie gebaut wird. Passen sie nicht, ist die Kommissionierung selbst betroffen. Dann haelt der Lauf E5 als Blocker fest und meldet den Befund, statt eine zweite Mengenregel fuer die Beschichtung zu bauen.
 
 ## Migrations-/SQL-Auswirkungen
 
@@ -352,6 +399,7 @@ Die Datumsfilter `coating-date` (`ProductionOrdersController.cs:485`, `:513`; `P
   - Die neuen AppSettings werden per Startup-Seed aus `AppSettingDefinitions.All` angelegt (Seed true, Default `Automatisch`).
   - Keine `SQL/00_FreshInstall.sql`-Aenderung; der FreshInstall-Seed laeuft ueber denselben Startup-Seed.
   - Die flache AKE-Positionsquelle ist eine reine Lesemethode auf vorhandenen Tabellen.
+  - Der Positionsschluessel Artikelnummer + Position (Nachtrag 2) nutzt die vorhandenen Spalten `BeschichtungsauftragPosition.Artnr` und `Position` (`int?`). Er braucht kein Schema, solange P-A6 nur ganzzahlige Positionen zeigt (sonst Rueckfrage 20, E5 Blocker).
 - **Bestand beim Umschalten** (keine Datenmigration, Neuberechnung durch den naechsten Lauf):
   - Wechsel der Kennzeichen-Quelle: Der neue Schreiber ueberschreibt beim naechsten Lauf. Kippt eine Zeile auf false, setzt er `IsCoatingDone` mit zurueck; dieser Verlust ist gewollt und steht im Warnhinweis.
   - Grenze `Artikelkategorie`: Neu berechnet werden nur Auftraege im Erkennungsfenster (8 Wochen / 200). Zeilen ausserhalb behalten den alten Wert, bis sie ins Fenster kommen. Das wird dokumentiert, nicht still behandelt.
@@ -397,10 +445,16 @@ Die Datumsfilter `coating-date` (`ProductionOrdersController.cs:485`, `:513`; `P
 14. AKE (E5): Mit `FaHierarchyBeschichtungAktiv = true` und Rolle `beschichtungsauftrag_schreiben` laesst sich fuer einen WA mit Lackierteilen ueber „Aus Vorschlagsliste erstellen“ ein Beschichtungsauftrag anlegen. Die Positionen entsprechen den Stuecklistenzeilen der Lackierteil-Kategorie, Masse 0. Dienstleister (Kreditor/Beschichter), RAL und Retour sind leer und manuell befuellbar; Start ist mit dem berechneten Termin vorbelegt. Ein WA ohne Lackierteile ergibt den bestehenden Hinweis „keine beschichteten Positionen“.
 15. AKE (E5): Die Vorschlagsliste (Menue „Beschichtung → Vorschlagsliste“, `/FaHierarchyBeschichtung/Summiert` und `/FaHierarchyBeschichtung`) ist mit Gate an und Lese- oder Schreibrolle erreichbar und zeigt je WA (HauptFA = WA-Nummer) die Lackierteile der WA-Stueckliste; die Kopfzeile zeigt „Keine Auftrags-Kopfdaten zu diesem HauptFA.“. ~~Die Vorschlagsliste ist an der AKE nicht erreichbar.~~ *ueberholt durch Freigabe-Antwort 10.*
 15a. AKE (E5), Negativfaelle: Ohne Rolle oder mit Gate aus gilt fuer Vorschlagsliste und Auftrag dasselbe Verhalten wie heute (Redirect plus WarningMessage, API 404); ohne Schreibrolle fehlt „Aus Vorschlagsliste erstellen“. Ein WA ohne Lackierteile erscheint nicht in der Liste. Bereits vergebene Positionen werden wie an der IDEAL als vergeben angezeigt.
+15b. AKE (E5, S-2): Ein offener WA mit `HasCoatingParts = 1` ohne Lackierteil-Zeile im Stuecklisten-Cache (Kopf geloescht oder ohne Lackierteil-Zeile) fehlt in der Liste. `Index` und `Summiert` zeigen dann die Sammelmeldung „{N} WA mit Beschichtungskennzeichen ohne Lackierteile im Stuecklisten-Cache – nicht in der Vorschlagsliste: {Nummern}“, und das Log enthaelt eine Warnung mit denselben Nummern. Ohne solche WAs gibt es keine Meldung. An der IDEAL erscheint die Meldung nie (Unit-Test plus TS-145).
+15c. AKE (E5, S-3): Die flache Quelle nimmt genau die WAs mit `IsDone = 0 AND IsCancelled = 0` (A13). Ein stornierter (`IsCancelled = 1`) oder erledigter (`IsDone = 1`) WA erscheint weder in der Liste noch in der Sammelmeldung. Ein WA mit `IsDonePicking = 1` und vorhandenen Cache-Zeilen erscheint (Unit-Test).
 16. IDEAL (E5): Vorschlagsliste und Beschichtungsauftrag verhalten sich unveraendert (bestehende Tests zu Teil 3/4 und Ausbau Teil 1-4 gruen).
 17. Build und alle Tests gruen; je Standort × Quellwert mindestens ein Resolver-Test (Matrix unten).
 18. Keine EF-Migration, kein neues SQL-Skript; `Beschichtungsauftrag.HauptFA` bleibt `int` (Freigabe-Antwort 9).
 19. `/Settings` bietet fuer `BeschichtungTerminQuelle` genau `Automatisch`, `Berechnet`, `View` an (kein `SData`); an der AKE (Master aus) wird `View` beim Speichern abgelehnt (Freigabe-Antwort 15).
+20. Menge (E5, Freigabe-Antwort 18): Die Menge jeder AKE-Position in Vorschlagsliste und neu angelegtem Auftrag ist das Ergebnis von `BomQuantityResolver.Resolve` fuer diese Stuecklistenzeile. Sie ist identisch mit der Menge derselben Zeile in der Kommissionierliste desselben WA (Unit-Test: `Menge 2,5 × Quantity 4 = 10`, auch fuer eine Zeile mit `Baugruppe`). Kein Code ausser `BomQuantityResolver` multipliziert `Menge` mit `Quantity` (Waechter per Quelltext-Suche wie AK 9).
+21. Haltepunkt H3 ist vor dem E5-Commit im Abschnitt „Pruefabfragen“ eingetragen: WA-Nummer, Anzahl verglichener Baugruppen-Zeilen, Ergebnis „Kommissionierliste = Sage/OSEON“. Fehlt der Eintrag oder weicht er ab, steht E5 als Blocker in der Etappen-Tabelle.
+22. Positionsschluessel (E5, S-4): An der AKE ist der Vergabe-Schluessel Artikelnummer + Position. Nach einer Stuecklistenaenderung, die nur `SortOrder` verschiebt, bleibt eine vergebene Position als vergeben markiert, und eine andere Zeile wird nicht faelschlich als vergeben gezeigt (Unit-Test mit zwei Cache-Staenden). An der IDEAL bleiben Schluessel und Textform unveraendert (Bestandstests gruen).
+23. Manifest-Pruefung `Pruefung/BeschichtungQuelleKombination`: Fehlt die ServiceSettings-Zeile `ProduktionsauftragHierarchisch`, zaehlt die Abfrage wie bei Master aus (Default `false`, `ServiceSettingDefinitions.cs:222`, `IHierarchicalModeReader.cs:21`). `FaStruktur` oder `View` ohne Master-Zeile ergibt also eine Abweichung > 0. `NachlaufManifestDriftTests` gruen.
 
 ## Test-Szenarien
 
@@ -428,6 +482,11 @@ Weitere automatisierte Tests:
 - Gegen-Tests fuer die Dienst-Gates (`CoatingDetectionService` uebersprungen, Hook-Gate).
 - `SetCoatingPartsAsync`-Audit.
 - E5: flache Positionsquelle (InMemory): Lackierteil-Zeilen eines WA → `FaHierarchyNode`-Projektion; `AggregateSummiert` darauf; Vergabe-Anzeige; Workflow-Anlage aus der flachen Basis; WA ohne Lackierteile → keine Zeile. IDEAL-Bestandstests unveraendert.
+- E5 (Nachtrag 2):
+  - Menge ueber `BomQuantityResolver` gleich der Kommissionier-Menge, auch mit `Baugruppe` (AK 20).
+  - Offen-Filter: `IsDone`, `IsCancelled` raus, `IsDonePicking` drin (AK 15c).
+  - Sammelmeldung: gekennzeichneter WA ohne Cache-Kopf bzw. ohne Lackierteil-Zeile wird gezaehlt; IDEAL ohne Meldung (AK 15b).
+  - Positionsschluessel Artnr + Position stabil gegen neue `SortOrder`; `TrySchluessel`/`SchluesselText` mit und ohne vierten Teil (AK 22).
 - `NachlaufManifestDriftTests`.
 
 **Manuelle Szenarien fuer `docs/TESTSZENARIEN.md`** (Pflicht des Dev-Laufs; Nummern ab TS-140, TS-139 ist reserviert):
@@ -456,11 +515,17 @@ Weitere automatisierte Tests:
   - Sage-Import-Hook bei `CoatingDetectionEnabled = false`.
   - Audit `ModifiedBy` in `ProductionOrderPickingStatus` nach einem Materialisierungslauf.
 - **TS-145 — Vorschlagsliste und Beschichtungsauftrag an der AKE**
-  - Vorbedingung: P-A3 erhoben (alle WA-Nummern numerisch), Gate an, Rolle zugewiesen, Lackier-WA mit `HasCoatingParts = true` und BomCache.
+  - Vorbedingung: P-A3 erhoben (alle WA-Nummern numerisch), P-A6 erhoben (Lackierteil-Positionen ganzzahlig), H3 eingetragen (Nachtrag 2), Gate an, Rolle zugewiesen, Lackier-WA mit `HasCoatingParts = true` und BomCache.
   - Vorschlagsliste (Summiert und Liste): WA erscheint mit seinen Lackierteilen, Masse 0, Kopfzeile „Keine Auftrags-Kopfdaten zu diesem HauptFA.“; Spaltenfilter und Paging funktionieren.
   - „Aus Vorschlagsliste erstellen“: Auftrag mit den Lackierteil-Positionen, Start mit dem berechneten Termin vorbelegt, Dienstleister/RAL/Retour leer und manuell speicherbar.
   - Negativfaelle: ohne Rolle bzw. Gate aus kein Menue, Direktaufruf Redirect plus Warnung; ohne Schreibrolle kein Erstellen-Knopf; WA ohne Lackierteile nicht in der Liste; zweite Anlage desselben WA zeigt die Positionen als vergeben.
   - IDEAL-Gegenprobe: Vorschlagsliste und Auftrag wie vorher (Kopfdaten aus FAInfos).
+  - **Nachtrag 2:**
+    - **Mengen-Pruefschritt (H3, vor E5):** Den WA aus der Hilfsabfrage H3 nehmen (`Quantity > 1`, Zeilen mit `Baugruppe`). In der Kommissionierliste die Mengen der Baugruppen-Zeilen gegen Sage/OSEON abgleichen und das Ergebnis eintragen. Danach in der Vorschlagsliste und im daraus angelegten Auftrag pruefen, dass dieselben Zeilen dieselben Mengen wie die Kommissionierliste zeigen.
+    - **Negativfall Sammelmeldung (S-2):** Ein Lackier-WA mit `HasCoatingParts = 1`, dessen Stuecklistenkopf fehlt, ist nicht in der Liste. Die Sammelmeldung nennt ihn mit Nummer, das Log hat die Warnung. Vorbereitung auf DEV: einen solchen WA per P-A7 suchen. Gibt es keinen, notieren „nicht herstellbar“; kein manuelles Loeschen im Cache.
+    - **Negativfall storniert (S-3):** Ein stornierter Lackier-WA (`IsCancelled = 1`) erscheint weder in der Liste noch in der Sammelmeldung.
+    - **Grenzfall Stuecklistenaenderung (S-4):** Nach der Anlage eines Auftrags aendert sich die Stueckliste des Artikels; nach dem naechsten BomCache-Lauf die Vergabe-Anzeige pruefen. Die vergebene Zeile bleibt vergeben (Schluessel Artikelnummer + Position), eine neue Zeile ist frei. Nicht herstellbar → notieren.
+    - **Kopfzeile:** Die Kopfzeile bleibt „Keine Auftrags-Kopfdaten zu diesem HauptFA.“, auch wenn die Sammelmeldung erscheint.
 
 Danach `secondbrain/tests/testszenarien-index.md` nachziehen.
 
@@ -471,19 +536,23 @@ Danach `secondbrain/tests/testszenarien-index.md` nachziehen.
 - Alle Etappen teilen einen Kern, den Resolver und die beiden Keys. Einzeln gemergt, laege nach E1 ruhender Code ohne Verbraucher in `main`.
 - Die Arbeit laeuft im vorhandenen Buendel-Worktree `feature/2026-08-07-ideal-teile-1-5` (ein Merge am Ende).
 - Den Branch waehrend der Arbeit mit `scripts/sync-worktree.ps1 -Slug 2026-08-07-ideal-teile-1-5` auf main-Stand halten.
-- Jede Etappe baut und testet fuer sich gruen und endet mit einem Commit. Keine Etappe wartet auf eine offene Frage: Wo eine Antwort fehlt, baut der `/goal`-Lauf die empfohlene Antwort und vermerkt das (Rueckfrage 18), oder er haelt die Etappe als Blocker fest (E4 ohne P-I1-Ergebnis, E5 ohne P-A5-Ergebnis oder bei nicht-numerischen WA-Nummern in P-A3).
-- Alle Rueckfragen 1-16 sind beantwortet (Freigabe-Antworten); die Spalte „Abhaengig von“ nennt die Antwort, nach der gebaut wird.
+- Jede Etappe baut und testet fuer sich gruen und endet mit einem Commit. ~~Keine Etappe wartet auf eine offene Frage: Wo eine Antwort fehlt, baut der `/goal`-Lauf die empfohlene Antwort und vermerkt das (Rueckfrage 18), oder er haelt die Etappe als Blocker fest (E4 ohne P-I1-Ergebnis, E5 ohne P-A5-Ergebnis oder bei nicht-numerischen WA-Nummern in P-A3).~~ *ueberholt durch Nachtrag 2:* Keine Etappe wartet auf eine offene Frage. Fehlt ein Haltepunkt-Ergebnis, haelt der Lauf die abhaengigen Etappen als Blocker fest und macht mit den unabhaengigen weiter:
+  - ohne P-I1 (H1): **E2 und E4** Blocker, weiter mit E3, H2/H3, E5 (S-1);
+  - ohne P-A5, bei nicht-numerischen WA-Nummern in P-A3 oder nicht-ganzzahligen Positionen in P-A6 (H2): E5 Blocker;
+  - ohne H3-Eintrag oder bei Mengen-Abweichung (H3): E5 Blocker.
+- Alle Rueckfragen 1-18 sind beantwortet (Freigabe-Antworten). Die Spalte „Abhaengig von“ nennt die Antwort, nach der gebaut wird. Rueckfrage 19 aendert nichts am Bau, nur an der Nutzbarkeit. Rueckfrage 20 greift nur, wenn P-A6 > 0 ist.
 
 | # | Etappe | Inhalt | Abhaengig von | SQL | Status | Commit |
 |---|--------|--------|---------------|-----|--------|--------|
-| 1 | Katalog + Resolver | 2 Choice-Keys (Termin-Quelle ohne `SData`), Beschreibungsergaenzungen, Server-Validierung (A8, `View` an der AKE abgelehnt), `BeschichtungResolver` plus Matrix-Tests (View = `Start_Beschichtung` 1:1); noch kein Verbraucher umgestellt | Freigabe-Antworten 1, 2, 4, 15 | – | offen | |
-| 2 | Web-Verbraucher | FA-Liste (Inline-Formel weg), Leitstand, Arbeitsliste, Zeilen-Views, Tooltips je `TerminQuelle` auf den Resolver; Waechter-Test AK 9; Verhalten mit Automatisch identisch | E1; Freigabe-Antwort 7 | – | offen | |
+| 1 | Katalog + Resolver | 2 Choice-Keys (Termin-Quelle ohne `SData`), Beschreibungsergaenzungen, Server-Validierung (A8, `View` an der AKE abgelehnt), `BeschichtungResolver` plus Matrix-Tests (View = `Start_Beschichtung` 1:1); noch kein Verbraucher umgestellt; kein SData-Code (Freigabe-Antwort 17) | Freigabe-Antworten 1, 2, 4, 15, 17 | – | offen | |
+| H1 | **Haltepunkt P-I1** (vor E2, Nachtrag 2 / S-1) | Gerald erhebt P-I1 (Schalterstand IDEAL) und traegt das Ergebnis im Abschnitt „Pruefabfragen“ ein. Grund fuer die Lage vor E2: E2 stellt die Aktiv-Kennung der Zeilen-Views (`_ProductionOrderRow.cshtml:16-20`, `_PickingLeitstandRow.cshtml:82-94`) auf den Resolver um. Das ist die Verhaltensaenderung aus Freigabe-Antwort 7. Liegt kein Ergebnis vor, vermerkt der Lauf **E2 und E4** als Blocker und macht mit E3, H2/H3 und E5 weiter. | Gerald; Freigabe-Antwort 7 | – | offen | |
+| 2 | Web-Verbraucher | FA-Liste (Inline-Formel weg), Leitstand, Arbeitsliste, Zeilen-Views (Aktiv-Kennung), Tooltips je `TerminQuelle` auf den Resolver; Waechter-Test AK 9; Verhalten mit Automatisch identisch | E1, **H1**; Freigabe-Antwort 7 | – | offen | |
 | 3 | Dienst | Gates ueber `ResolveQuellen`, Hook-Gate, Audit `SetCoatingPartsAsync`, Protokoll-Meldungen | E1; Freigabe-Antwort 12 | – | offen | |
-| H1 | **Haltepunkt P-I1** | Gerald erhebt P-I1 (Schalterstand IDEAL) und traegt das Ergebnis im Abschnitt „Pruefabfragen“ ein. Liegt kein Ergebnis vor, vermerkt der Lauf E4 als Blocker und macht mit E5 weiter. | Gerald; Freigabe-Antwort 7 | – | offen | |
-| 4 | IDEAL-Termin Leitstand/Arbeitsliste | Koepfe je Seite nachladen, Termin aus dem Resolver (View = `Start_Beschichtung` unveraendert); Basisdatum Berechnet = Kopf-`FE_Termin` | E2, H1; Freigabe-Antworten 3, 4, 5, 6 | – | offen | |
-| H2 | **Haltepunkt P-A5 (+ P-A3 als Beleg)** | Gerald erhebt P-A5 (Datumsspalte in `vw_AKE_Kommissionierung_WAListe`?) und P-A3 (WA-Nummern numerisch) und traegt die Ergebnisse im Abschnitt „Pruefabfragen“ ein. P-A5 aendert in dieser Version nichts am Bau (`View` an der AKE bleibt gesperrt); P-A3 muss 0 nicht-numerische Nummern zeigen, sonst E5 Blocker. | Gerald; Freigabe-Antworten 9, 15 | – | offen | |
-| 5 | Vorschlagsliste + Beschichtungsauftrag AKE | Gate-Metadaten (beide), **keine** Master-Bedingung an der Vorschlagsliste; flache Positionsquelle (WA-Stueckliste als `FaHierarchyNode`-Projektion) fuer `BeschichtungsauftragService` (Liste/Summiert), `BeschichtungsauftragVergabeAnzeige` und Workflow-Weiche; AKE-Kopfvorbelegung (Start berechnet, Dienstleister/RAL/Retour leer); „(IDEAL)“ aus den Spaltenkatalog-Namen | E1, E3, H2; Freigabe-Antworten 8, 9, 10, 11; Rueckfrage 18 (Empfehlung baubar) | – (keine Migration) | offen | |
-| 6 | Doku und Abschluss | TS-140..145 in `docs/TESTSZENARIEN.md`, Hilfe (`Help/Index.cshtml` Beschichtung, `:1265`), `RoleOverview.cshtml` (Vorschlagsliste auch AKE/WA-Stueckliste), Standort-Maske Hinweis-Link, Anwender-Changelog (IDEAL-Termin in Leitstand/Arbeitsliste, AKE-Beschichtung), `docs/betrieb/04-konfiguration.md`, `README.md` AppSettings, Manifest-Eintraege, Versions-Bump beide `AppVersion.cs` auf v1.99.25 (nach 1.99.24 Sicherheit; beim Start pruefen), Brain (ADR 0028, fallstricke, codebase, glossar, feature-map, changelog; Aufgabe Erkennungsfenster-Filter, Rueckfrage 13) | E1-E5 | – | offen | |
+| 4 | IDEAL-Termin Leitstand/Arbeitsliste | Koepfe je Seite nachladen, Termin aus dem Resolver (View = `Start_Beschichtung` unveraendert); Basisdatum Berechnet = Kopf-`FE_Termin` | E2 (und damit H1); Freigabe-Antworten 3, 4, 5, 6 | – | offen | |
+| H2 | **Haltepunkt P-A5 (+ P-A3, P-A6 als Beleg)** | Gerald erhebt P-A5 (Datumsspalte in `vw_AKE_Kommissionierung_WAListe`?), P-A3 (WA-Nummern numerisch) und P-A6 (Lackierteil-Positionen ganzzahlig) und traegt die Ergebnisse im Abschnitt „Pruefabfragen“ ein. P-A5 aendert in dieser Version nichts am Bau (`View` an der AKE bleibt gesperrt). P-A3 und P-A6 muessen 0 Abweichungen zeigen, sonst E5 Blocker (P-A6: Rueckfrage 20). | Gerald; Freigabe-Antworten 9, 15; Nachtrag 2 | – | offen | |
+| H3 | **Haltepunkt Mengen-Pruefschritt** (Nachtrag 2 / B-1) | Gerald waehlt per Hilfsabfrage H3 einen WA mit Baugruppe und `Quantity > 1`. Er vergleicht in der Kommissionierliste die Mengen der Baugruppen-Zeilen mit Sage/OSEON und traegt WA, Zeilenzahl und Ergebnis im Abschnitt „Pruefabfragen“ ein (AK 21). Fehlt der Eintrag oder weicht die Menge ab, ist E5 Blocker. | Gerald; Freigabe-Antwort 18 | – | offen | |
+| 5 | Vorschlagsliste + Beschichtungsauftrag AKE | Gate-Metadaten (beide), **keine** Master-Bedingung an der Vorschlagsliste. Flache Positionsquelle (WA-Stueckliste als `FaHierarchyNode`-Projektion) fuer `BeschichtungsauftragService` (Liste/Summiert), `BeschichtungsauftragVergabeAnzeige` und die Workflow-Weiche: offen = `IsDone = 0 AND IsCancelled = 0` (A13), Menge ueber `BomQuantityResolver` (A12), Schluessel Artnr + Position (A14), Sammelmeldung plus Logger-Warnung (A15). AKE-Kopfvorbelegung (Start berechnet, Dienstleister/RAL/Retour leer). „(IDEAL)“ aus den Spaltenkatalog-Namen | E1, E3, H2, **H3**; Freigabe-Antworten 8, 9, 10, 11, 18 | – (keine Migration) | offen | |
+| 6 | Doku und Abschluss | TS-140..145 in `docs/TESTSZENARIEN.md`, Hilfe (`Help/Index.cshtml` Beschichtung, `:1265`), `RoleOverview.cshtml` (Vorschlagsliste auch AKE/WA-Stueckliste), Standort-Maske Hinweis-Link, Anwender-Changelog (IDEAL-Termin in Leitstand/Arbeitsliste, AKE-Beschichtung), `docs/betrieb/04-konfiguration.md`, `README.md` AppSettings, Manifest-Eintraege, Versions-Bump beide `AppVersion.cs` auf v1.99.25 (nach 1.99.24 Sicherheit; beim Start pruefen), Brain (ADR 0028, fallstricke, codebase, glossar, feature-map, changelog; Aufgabe Erkennungsfenster-Filter, Rueckfrage 13). Nachtrag 2: Hilfe nennt Sammelmeldung und Mengenregel. fallstricke bekommt „BomCache-Fenster ohne `IsDonePicking`, Erkennungsfenster mit“ samt Folge fuer das Kennzeichen (Rueckfrage 19), mit Warum | E1-E5 | – | offen | |
 
 ## Deploy
 
@@ -504,9 +573,26 @@ Danach `secondbrain/tests/testszenarien-index.md` nachziehen.
 
 Pruefabfrage zu `Pruefung/BeschichtungQuelleKombination`:
 
+*Fruehere Fassung, ueberholt durch Nachtrag 2 (S-5).* Fehlte die ServiceSettings-Zeile, lieferte der `CROSS JOIN` 0 Zeilen, und die Pruefung meldete still OK:
+
 ```sql
+-- UEBERHOLT, nicht verwenden
 SELECT COUNT(*) FROM dbo.AppSettings a CROSS JOIN (SELECT LOWER(LTRIM(RTRIM([Value]))) m FROM dbo.ServiceSettings WHERE [Key]=N''ProduktionsauftragHierarchisch'') s WHERE (a.[Key]=N''BeschichtungKennzeichenQuelle'' AND ((a.[Value]=N''Artikelkategorie'' AND s.m=N''true'') OR (a.[Value]=N''FaStruktur'' AND s.m<>N''true''))) OR (a.[Key]=N''BeschichtungTerminQuelle'' AND a.[Value]=N''View'' AND s.m<>N''true'')
 ```
+
+Gueltige Fassung (Schreibweise wie im `.psd1`, Hochkommas verdoppelt). Die Master-Zeile wird als Skalar mit `COALESCE(..., 'false')` gelesen. Das ist derselbe Default wie im Katalog (`ServiceSettingDefinitions.cs:222`) und im Dienst (`IHierarchicalModeReader.cs:21`, `GetBoolSafeAsync(..., false)`):
+
+```sql
+SELECT COUNT(*) FROM dbo.AppSettings a CROSS JOIN (SELECT COALESCE((SELECT LOWER(LTRIM(RTRIM([Value]))) FROM dbo.ServiceSettings WHERE [Key]=N''ProduktionsauftragHierarchisch''), N''false'') m) s WHERE (a.[Key]=N''BeschichtungKennzeichenQuelle'' AND ((a.[Value]=N''Artikelkategorie'' AND s.m=N''true'') OR (a.[Value]=N''FaStruktur'' AND s.m<>N''true''))) OR (a.[Key]=N''BeschichtungTerminQuelle'' AND a.[Value]=N''View'' AND s.m<>N''true'')
+```
+
+**Verhalten im Update-Skript** (`Ausfuehrung = anzeigen`, belegt in `scripts/deploy/Update-IdealAkeWms.ps1:419-434`, Manifest-Kopf `nachlauf.psd1:12-17`):
+
+- Die Pruefung laeuft bei **jedem** Lauf, ohne Versionsfilter (`nachlauf.psd1:12`). Phase Haltepunkt bedeutet: nach dem Schema, bei gestopptem Web und Dienst (`:14`). Die Nachlauf-Liste zeigt sie erneut mit dem Stand danach (`:17`).
+- Ergebnis 0: eine Zeile „Pruefung Pruefung/BeschichtungQuelleKombination: OK“ (`Update-IdealAkeWms.ps1:432`). Ansonsten still: kein Abbruch, keine Rueckfrage.
+- Ergebnis > 0: eine gelbe Zeile „Abweichung n – Text“ (`:433`) und eine Warnung „von Hand: Text“ (`:434`). Es gibt keine Reparatur, keinen Abbruch, Web und Dienst laufen normal weiter. Der Text ist der Hinweis an den Menschen („unter /Settings korrigieren“).
+- Abfragefehler: Warnung „Fehler: …“ (`:422`, `:431`), kein Abbruch.
+- Beim ersten Deploy gibt es die beiden Keys erst nach dem Web-Start (Startup-Seed). Am Haltepunkt ergibt die Pruefung deshalb 0 und meldet OK. Massgeblich ist der Stand in der Nachlauf-Liste.
 
 Kein Einmal- oder Daten-Skript, also auch keine Trockenlauf-Pflicht.
 
@@ -574,14 +660,53 @@ Kein Einmal- oder Daten-Skript, also auch keine Trockenlauf-Pflicht.
   SELECT COUNT(*) gesamt, SUM(CASE WHEN TRY_CAST(OrderNumber AS int) IS NULL THEN 1 ELSE 0 END) nicht_numerisch FROM dbo.ProductionOrders;
   ```
 
-- **P-A4** Flag-Bestand und BomCache-Abdeckung:
+- **P-A4** Flag-Bestand und BomCache-Abdeckung (korrigiert in Nachtrag 2, S-6):
+
+  Die fruehere Fassung ist *ueberholt*. Sie nutzte `h.ArticleNumber`; die Spalte heisst `Artikelnummer` (`CachedBomHeader.cs:17`, `CoatingDetectionService.cs:150`, `:155`). Ausserdem stand eine `EXISTS`-Unterabfrage in `SUM`, und SQL Server lehnt Unterabfragen in Aggregaten ab. Gueltige Fassung, Join-Schluessel `h.Artikelnummer`, ohne Duplikate, weil `Artikelnummer` eindeutig ist (`ApplicationDbContext.cs:1098`):
 
   ```sql
-  SELECT ps.HasCoatingParts, ps.IsCoatingDone, COUNT(*) n, SUM(CASE WHEN EXISTS (SELECT 1 FROM dbo.CachedBomHeaders h WHERE h.ArticleNumber=po.ArticleNumber) THEN 1 ELSE 0 END) mit_BomCache
-  FROM dbo.ProductionOrders po JOIN dbo.ProductionOrderPickingStatus ps ON ps.ProductionOrderId=po.Id WHERE po.IsDone=0 GROUP BY ps.HasCoatingParts, ps.IsCoatingDone;
+  SELECT ps.HasCoatingParts, ps.IsCoatingDone, ps.IsDonePicking, COUNT(*) n, SUM(CASE WHEN h.Id IS NULL THEN 0 ELSE 1 END) mit_BomCache
+  FROM dbo.ProductionOrders po JOIN dbo.ProductionOrderPickingStatus ps ON ps.ProductionOrderId=po.Id
+  LEFT JOIN dbo.CachedBomHeaders h ON h.Artikelnummer=po.ArticleNumber
+  WHERE po.IsDone=0 AND po.IsCancelled=0
+  GROUP BY ps.HasCoatingParts, ps.IsCoatingDone, ps.IsDonePicking;
   ```
 
-  Den Join-Schluessel von `CachedBomHeaders` vor dem Lauf gegen `CoatingDetectionService.cs:149-156` abgleichen und ggf. anpassen.
+- **P-A6** Stuecklisten-Positionen der Lackierteile ganzzahlig? (Nachtrag 2, S-4, vor E5 in H2; Rueckfrage 20)
+
+  ```sql
+  SELECT COUNT(*) zeilen, SUM(CASE WHEN TRY_CAST(i.Position AS int) IS NULL THEN 1 ELSE 0 END) nicht_ganzzahlig
+  FROM dbo.CachedBomItems i JOIN dbo.Articles a ON a.ArticleNumber=i.Ressourcenummer JOIN dbo.ArticleCategories c ON c.Id=a.ArticleCategoryId
+  WHERE c.Name=(SELECT [Value] FROM dbo.AppSettings WHERE [Key]='LackierteilKategorieName');
+  SELECT h.Artikelnummer, i.Ressourcenummer, i.Position, COUNT(*) n
+  FROM dbo.CachedBomHeaders h JOIN dbo.CachedBomItems i ON i.CachedBomHeaderId=h.Id JOIN dbo.Articles a ON a.ArticleNumber=i.Ressourcenummer JOIN dbo.ArticleCategories c ON c.Id=a.ArticleCategoryId
+  WHERE c.Name=(SELECT [Value] FROM dbo.AppSettings WHERE [Key]='LackierteilKategorieName')
+  GROUP BY h.Artikelnummer, i.Ressourcenummer, i.Position HAVING COUNT(*)>1;
+  ```
+
+  Erwartet: `nicht_ganzzahlig = 0`, sonst E5 Blocker und Rueckfrage 20. Die zweite Abfrage zeigt doppelte Schluessel Artikelnummer + Position. Treffer sind kein Blocker; die Anlage meldet sie (`BeschichtungsauftragWorkflow.cs:427-432`).
+
+- **P-A7** Gekennzeichnete offene WAs ohne Stuecklisten-Cache (Nachtrag 2, S-2; Grundlage fuer Sammelmeldung und Rueckfrage 19):
+
+  ```sql
+  SELECT ps.IsDonePicking, COUNT(*) n, MIN(po.OrderNumber) beispiel
+  FROM dbo.ProductionOrders po JOIN dbo.ProductionOrderPickingStatus ps ON ps.ProductionOrderId=po.Id
+  LEFT JOIN dbo.CachedBomHeaders h ON h.Artikelnummer=po.ArticleNumber
+  WHERE po.IsDone=0 AND po.IsCancelled=0 AND ps.HasCoatingParts=1 AND h.Id IS NULL
+  GROUP BY ps.IsDonePicking;
+  ```
+
+- **H3** Hilfsabfrage Mengen-Pruefschritt (Nachtrag 2, B-1; Ergebnis des Vergleichs hier eintragen: WA, Anzahl Baugruppen-Zeilen, „Kommissionierliste = Sage/OSEON“ ja/nein):
+
+  ```sql
+  SELECT TOP 20 po.OrderNumber, po.ArticleNumber, po.Quantity, COUNT(*) zeilen_mit_baugruppe
+  FROM dbo.ProductionOrders po JOIN dbo.ProductionOrderPickingStatus ps ON ps.ProductionOrderId=po.Id AND ps.HasCoatingParts=1
+  JOIN dbo.CachedBomHeaders h ON h.Artikelnummer=po.ArticleNumber JOIN dbo.CachedBomItems i ON i.CachedBomHeaderId=h.Id
+  WHERE po.IsDone=0 AND po.IsCancelled=0 AND po.Quantity>1 AND LEN(LTRIM(RTRIM(ISNULL(i.Baugruppe,N''))))>0
+  GROUP BY po.OrderNumber, po.ArticleNumber, po.Quantity ORDER BY zeilen_mit_baugruppe DESC;
+  ```
+
+  Pruefschritt: Die Kommissionierliste des gewaehlten WA zeigt `Menge × Quantity` (`PickingController.cs:355`, `BomQuantityResolver.cs:15-16`). Ausnahme: Eine Zeile mit Kommissionierauftrag zeigt dessen `SollMenge`, bei einem Folgeauftrag die Restmenge (`:354-355`). Deshalb einen WA ohne Folgeauftrag waehlen. Diese Mengen fuer die Baugruppen-Zeilen gegen den Sage- bzw. OSEON-Bedarf desselben WA halten. Was in Sage/OSEON als richtig gilt, entscheidet Gerald; die Spec nimmt es nicht an.
 
 **AKE – Sage-Datenbank**
 
@@ -653,6 +778,18 @@ Hinweis zur Pruefabfrage P-A4 (Abschnitt bleibt unveraendert): `CachedBomHeaders
     - Empfehlung: P-A5 ausfuehren; bis dahin ist `View` an der AKE nicht waehlbar.
 16. Zielversion v1.99.25, die naechste freie nach der reservierten 1.99.24?
     - Empfehlung: ja, alle Etappen unter einer Version.
+17. SData-Erweiterung, welche Achse? (Wortlaut im Nachtrag 2026-11-16) → **beantwortet** durch Freigabe-Antwort 17, eingearbeitet in Nachtrag 2.
+18. Sollmenge der AKE-Positionen (Wortlaut im Nachtrag 2026-11-16) → **beantwortet** durch Freigabe-Antwort 18, eingearbeitet in Nachtrag 2.
+19. **Beschichtet die AKE vor oder nach dem Kommissionierabschluss?** (Nachtrag 2, nicht blockierend fuer den Bau)
+    - Komm-erledigte WAs (`IsDonePicking = 1`) liegen nicht im BomCache-Fenster (`BomCacheSyncService.cs:412-424`). Ihr Kopf wird geloescht, wenn kein anderer Fensterauftrag denselben Artikel traegt (`:66`, `:147`, `:617-619`).
+    - Die Lackierteil-Erkennung prueft sie weiter (`CoatingDetectionService.cs:103-110`). Ohne Cache-Treffer setzt sie `HasCoatingParts = 0` und `IsCoatingDone = 0` (`:162-170`, `:255-262`).
+    - Folge fuer die Vorschlagsliste: Solche WAs fehlen, entweder sichtbar in der Sammelmeldung (Kopf weg, Flag noch 1) oder ganz (Flag schon 0). Das Zuruecksetzen des Flags ist bestehendes Verhalten der Erkennung, nicht neu durch diese Spec.
+    - Wird nach dem Kommissionierabschluss beschichtet: Fenster anpassen (eigene Aufgabe wie Rueckfrage 13) oder hinnehmen? P-A7 liefert die Groessenordnung.
+    - Keine Empfehlung, das ist eine Ablauffrage der AKE-Fertigung.
+20. **Positionen nicht ganzzahlig?** (Nachtrag 2, greift nur bei P-A6 > 0)
+    - Der Schluessel Artikelnummer + Position passt ohne Schema nur, wenn die Lackierteil-Positionen ganzzahlig sind (`BeschichtungsauftragPosition.Position` ist `int?`, `:20`).
+    - Bei Punkt-Positionen widerspricht die Entscheidung S-4 der Freigabe-Antwort 9 (kein Schema): neue Spalte `PositionText` (SQL-Nummer neu vergeben) oder ein anderer Schluessel?
+    - Bis zur Antwort ist E5 Blocker.
 
 ## Freigabe-Antworten (Mensch fuellt aus — Schranke 1)
 
@@ -679,6 +816,10 @@ Hinweis zur Pruefabfrage P-A4 (Abschnitt bleibt unveraendert): `CachedBomHeaders
 14. Standort-Maske → **Gerald 2026-11-16 15:40 „passt“ (Empfehlung): nein, nur /Settings mit Hinweis-Link.**
 15. AKE-View-Datum (P-A5) → **Gerald 2026-11-16 15:40 „passt“ (Empfehlung): bis P-A5 ist „View“ an der AKE nicht wählbar; P-A5 vor E5 erheben (Gerald).**
 16. Version v1.99.25 → **Gerald 2026-11-16 15:40 „passt“ (Empfehlung): ja, Reihenfolge 1.99.24 Sicherheit, 1.99.25 Beschichtung; Nummern beim Start prüfen.**
+17. SData-Erweiterung, welche Achse → **Gerald 2026-11-16: „passt“ (Koordinations-Empfehlung): `USER_OSBeschichtet` ist Erweiterungspunkt der Kennzeichen-Quelle, NICHT der Termin-Quelle. Nur dokumentieren, nichts bauen (kein spekulativer Code).**
+18. Sollmenge der AKE-Positionen → **Gerald 2026-11-16: „passt“ (Koordinations-Empfehlung): Menge über `BomQuantityResolver` (`BomQuantityResolver.cs:15-16`), dieselbe Regel wie die Kommissionierung, keine eigene Formel. Neuer Haltepunkt vor E5: Prüfschritt „ein WA mit Baugruppe: Kommissionierliste vs. Sage/OSEON“ (Mensch vergleicht die Mengen), in Etappen-Tabelle, AK und TS-145.**
+19. AKE beschichtet vor oder nach Kommissionierabschluss (Cache-Fenster ohne IsDonePicking) →
+20. Lackierteil-Positionen nicht ganzzahlig (nur falls P-A6 > 0): Schema-Spalte oder anderer Schlüssel →
 
 ## Kritische Pruefung (2026-11-16)
 
@@ -712,3 +853,26 @@ Geprueft nach dem Nachtrag (Commit `9f999e5c`) gegen den Bündel-Worktree `featu
 - **H-5 Status/Ablage:** `status: Freigegeben` und `freigabe_*` hat der Mensch gesetzt, die Datei liegt aber noch in `specs/entwurf/`. Das Verschieben nach `specs/freigegeben/` bleibt die Geste des Menschen.
 
 **NACHBESSERUNG NOETIG: Sollmenge der AKE-Positionen klaeren (B-1) und H1 vor die Aktiv-Kennungs-Aenderung in E2 legen (S-1).**
+
+## Nachtrag 2 2026-11-16: Review-Befunde eingearbeitet
+
+Grundlage sind Geralds Entscheidungen zur Kritischen Pruefung und zu den Rueckfragen 17 und 18. Die Abschnitte „Kritische Pruefung (2026-11-16)“, „Nachtrag 2026-11-16“ und die Freigabe-Antworten 1-16 sind unveraendert (Audit-Trail). `status` und `freigabe_*` sind unveraendert. Belege stammen aus dem Worktree `feature/2026-08-07-ideal-teile-1-5`.
+
+| Befund / Entscheidung | eingearbeitet in |
+|---|---|
+| **B-1 / Rueckfrage 18** Menge ueber `BomQuantityResolver` | Ist-Stand „Mengenregel der Kommissionierung“ (belegt: `BomQuantityResolver.cs:15-16`; Aufrufer `PickingController.cs:355`, `:553`, `PickingOrderWorkflow.cs:84`, `ReadOnlyBomBuilder.cs:108`; AKE-Weg `Program.cs:100-107` → `BomRepository.cs:28-30` → `BomCacheRepository.cs:47`, `MengeIstAuftragsmenge = false`); Soll A12; Loesungsentwurf E5 (`Sollmenge = Resolve(...)`, Abbildung wie `BomCacheRepository.cs:32-47`, alter Text *ueberholt*); neuer Haltepunkt **H3** (Frontmatter `etappen`, Etappen-Tabelle, Loesungsentwurf „Mengen-Pruefschritt“); AK 20, AK 21; automatisierte Tests; TS-145 „Mengen-Pruefschritt“; Pruefabfragen „H3“; Freigabe-Antwort 18 |
+| **S-1** H1 vor E2 | Frontmatter `etappen`; Etappen-Tabelle (H1 vor E2, E2 haengt an H1, E4 ueber E2); Etappen-Text zu den Blockern (*ueberholt* markiert): ohne P-I1 sind E2 und E4 Blocker |
+| **S-2** Sammelmeldung | Soll A15; Verbraucher-Tabelle (Vorschlagsliste); Loesungsentwurf E5 „Sammelmeldung“ (Text, max. 20 Nummern, `LogWarning`, ViewModel statt TempData, nur bei Quelle `Artikelkategorie`); AK 15b; automatisierte Tests; TS-145 Negativfall; Pruefabfrage P-A7; `affected_code` (Controller, ViewModels) |
+| **S-3 / SOLLTE** „offen“ | Soll A13 (`IsDone = 0 AND IsCancelled = 0`, `ProductionOrder.cs:83-84`, `:100-103`; `IsDonePicking` `ProductionOrderPickingStatus.cs:47` filtert nicht); Loesungsentwurf E5 (alter Text *praezisiert*); AK 15c; TS-145 Negativfall storniert; Etappe 5 |
+| **S-4 / SOLLTE** Schluessel Artikelnummer + Position | Ist-Stand (`PickingOrderRestmengen.cs:16-17`, `BeschichtungsauftragPosition.cs:20`, `:23`, `IBeschichtungsauftragRepository.cs:10-14`, `BeschichtungsauftragRepository.cs:40-42`, `BeschichtungsauftraegeController.cs:322-333`); Soll A14; Loesungsentwurf E5 (Projektion `Position = int(CachedBomItem.Position)` statt `SortOrder`, *ueberholt* markiert; optionale `Artnr`-Komponente nur in der flachen Quelle); Migrations-Abschnitt; AK 22; TS-145 Grenzfall; Pruefabfrage P-A6; neue Rueckfrage 20; `affected_code` |
+| **S-5 / SOLLTE** Manifest-Pruefung | Deploy: Abfrage mit `COALESCE(..., 'false')` (Default `ServiceSettingDefinitions.cs:222`, `IHierarchicalModeReader.cs:21`), alte Fassung als *ueberholt* stehen gelassen; Verhalten im Update-Skript ausgeschrieben (`Update-IdealAkeWms.ps1:419-434`, `nachlauf.psd1:12-17`): bei 0 still „OK“, bei > 0 Hinweiszeile plus Warnung, keine Reparatur, kein Abbruch; AK 23 |
+| **S-6 / SOLLTE** P-A4 | Pruefabfrage P-A4 neu: Join `h.Artikelnummer`. Zusaetzlich ersetzt `LEFT JOIN` die `EXISTS`-Unterabfrage in `SUM`, die SQL Server ablehnt. `IsCancelled = 0` und `IsDonePicking` als Gruppe ergaenzt |
+| **H-1 / Rueckfrage 17** SData-Achse | Out-of-Scope (alter Text *ueberholt*), Soll A1/A2, Resolver-Abschnitt „Erweiterungspunkt SData“ (nur Doku, kein Code), Etappe 1, Freigabe-Antwort 17 |
+| H-2 bis H-5 | keine Aenderung noetig (H-2 bestaetigt, H-3 unkritisch, H-4 Groesse bekannt, H-5 Ablage bleibt Geste des Menschen) |
+
+Rueckfragen 17 und 18 sind beantwortet (Frontmatter `beantwortete_fragen`, Abschnitt „Offene Rueckfragen“, Freigabe-Antworten 17/18).
+
+**Neu beim Belegen gefunden** (als Rueckfragen, nicht selbst entschieden):
+
+- **Rueckfrage 19:** Das BomCache-Fenster schliesst komm-erledigte WAs aus (`BomCacheSyncService.cs:412-424`), das Erkennungsfenster nicht (`CoatingDetectionService.cs:103-110`). Komm-erledigte Lackier-WAs verlieren dadurch Cache-Kopf und ggf. Kennzeichen. Die Entscheidung „IsDonePicking bleibt drin“ (S-3) greift also nur, solange der Kopf noch im Cache steht. Den Bau aendert das nicht; die Sammelmeldung macht den Fall „Kopf weg, Flag noch 1“ sichtbar.
+- **Rueckfrage 20:** Der Schluessel Artikelnummer + Position passt nur bei ganzzahligen Positionen ohne Schema (`BeschichtungsauftragPosition.Position` `int?`), `CachedBomItem.Position` ist string. P-A6 klaert das vor E5. Bei Treffern kollidieren S-4 und Freigabe-Antwort 9.
