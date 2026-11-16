@@ -713,6 +713,7 @@ public static class ColumnDefinitions
             new ColumnDef("sage-verfuegbar",     "Sage verfügbar",       Locked: false),
             new ColumnDef("offen-bestellt",      "offen bestellt",       Locked: false),
             new ColumnDef("liefertermin",        "nächster Liefertermin", Locked: false),
+            new ColumnDef("naechster-bedarf",    "nächster Bedarf",      Locked: false),   // v1.99.30 F5
             new ColumnDef("fa-bedarf",           "FA-Bedarf",            Locked: false),   // v1.99.30 F4
             new ColumnDef("bedarfe",             "offene Bedarfe",       Locked: false),
             new ColumnDef("verfuegbar",          "verfügbar",            Locked: false),

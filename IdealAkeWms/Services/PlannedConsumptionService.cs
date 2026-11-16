@@ -30,6 +30,17 @@ public sealed record ArtikelBedarf(IReadOnlyList<FaBedarf> Fas, decimal Lagerbes
     public decimal FaTeil => Fas.Sum(f => f.Angerechnet);
     /// <summary>Antwort 1: je Artikel max(FA-Teil, Σ Lagerbestellungen) – die Lagerbestellung traegt keinen FA, also nie doppelt (ggf. unterschaetzt).</summary>
     public decimal Angerechnet => Math.Max(FaTeil, Lagerbestellungen);
+
+    /// <summary>F5 (Antwort 6): angerechnete Bedarfe mit Termin ≤ <paramref name="grenze"/> – FA nach <c>ProductionDate</c>, FA ohne Termin,
+    /// Bedarfsmeldung ohne Stuecklisten-FA und Lagerbestellung gelten als sofort. Dieselbe max-Regel wie <see cref="Angerechnet"/>.</summary>
+    public decimal AngerechnetBis(DateTime grenze) =>
+        Math.Max(Fas.Where(f => f.ProductionDate == null || f.ProductionDate.Value.Date <= grenze.Date).Sum(f => f.Angerechnet), Lagerbestellungen);
+
+    /// <summary>F5: fruehester Termin eines angerechneten Bedarfs (sofort = <paramref name="heute"/>); null = kein Bedarf.</summary>
+    public DateTime? NaechsterBedarf(DateTime heute) =>
+        Fas.Where(f => f.Angerechnet > 0).Select(f => f.ProductionDate?.Date ?? heute.Date)
+            .Concat(Lagerbestellungen > 0 ? new[] { heute.Date } : Array.Empty<DateTime>())
+            .Select(d => (DateTime?)d).Min();
 }
 
 /// <param name="JeArtikel">Schluessel: Artikelnummer getrimmt, gross. Artikel ohne Bedarf fehlen (<see cref="ArtikelBedarf.Leer"/>).</param>

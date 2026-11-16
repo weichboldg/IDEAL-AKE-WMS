@@ -57,6 +57,7 @@ public class PurchaseProposalsController : Controller
         ["sage-verfuegbar"] = r => Zahl(r.Sage?.LagerbestandVerfuegbar),
         ["offen-bestellt"] = r => Zahl(r.OffenBestellt),
         ["liefertermin"] = r => r.NaechsterLiefertermin?.ToString("dd.MM.yyyy"),
+        ["naechster-bedarf"] = r => r.NaechsterBedarf?.ToString("dd.MM.yyyy"),   // v1.99.30 F5
         ["fa-bedarf"] = r => Zahl(r.FaBedarf),   // v1.99.30 F4
         ["bedarfe"] = r => Zahl(r.OffeneBedarfe),
         ["verfuegbar"] = r => Zahl(r.Ergebnis.Verfuegbar),
@@ -188,10 +189,11 @@ public class PurchaseProposalsController : Controller
         DateTime heute, IReadOnlyDictionary<int, ArticleSupplierRow>? letzte = null, bool letzteGelesen = false)
     {
         var positionenAbweichend = bestellungen?.Count(l => l.EinheitAbweichend) ?? 0;
+        // Positionen je Artikel (Rest nach der EINEN Rest-Regel, mit Liefertermin fuer das Dringlichkeits-Fenster F5).
         var restJeArtikel = (bestellungen ?? new List<SagePurchaseOrderLine>()).Where(l => !l.EinheitAbweichend && l.ArticleId != null)
             .Select(l => (ArticleId: l.ArticleId!.Value, l.Liefertermin, Menge: erfasst.GetValueOrDefault(l.BelPosId, ErfasstJeBelPos.Leer).Rest(l)))
             .GroupBy(x => x.ArticleId)
-            .ToDictionary(g => g.Key, g => (Summe: g.Sum(x => x.Menge), Termin: g.Where(x => x.Menge > 0).Min(x => x.Liefertermin)));
+            .ToDictionary(g => g.Key, g => g.Select(x => (x.Menge, x.Liefertermin)).ToList());
 
         // Doppelte Artikelnummern (nur theoretisch) zaehlen ihre nicht gerechneten Bedarfszeilen einmal.
         var abweichend = bedarfe.JeArtikel.Values.Sum(b => b.EinheitAbweichend);
@@ -203,13 +205,21 @@ public class PurchaseProposalsController : Controller
             var (l, kto, text) = WaehleLieferant(a, lieferanten.GetValueOrDefault(a.Id) ?? new List<ArticleSupplierRow>(), juengste, hinweise);
             if (a.SageDetail == null) hinweise.Add("Sage-Zusatzfelder fehlen");
             var wbz = l?.Wiederbeschaffungszeit ?? a.SageDetail?.Wiederbeschaffungszeit;
-            var bestandWms = bestand.TryGetValue(a.ArticleNumber, out var plaetze) ? plaetze.Sum(p => p.Quantity) : 0m;
             var bedarf = bedarfe.Fuer(a.ArticleNumber);
+            var bestandWms = bestand.TryGetValue(a.ArticleNumber, out var plaetze) ? plaetze.Sum(p => p.Quantity) : 0m;
             decimal? offenBestellt = null;
             DateTime? termin = null;
+            var positionen = restJeArtikel.GetValueOrDefault(a.Id) ?? new List<(decimal Menge, DateTime? Liefertermin)>();
             if (bestellungen == null) hinweise.Add("ohne offene Bestellungen");
-            else if (restJeArtikel.TryGetValue(a.Id, out var o)) { offenBestellt = o.Summe; termin = o.Termin; }
-            else offenBestellt = 0m;
+            else
+            {
+                offenBestellt = positionen.Sum(p => p.Menge);
+                termin = positionen.Where(p => p.Menge > 0).Min(p => p.Liefertermin);
+            }
+            // F5 (Antwort 6): Dringlichkeit im Fenster heute + WBZ; Positionen ohne Liefertermin zaehlen dort nicht (Hinweis), ohne WBZ gilt 0.
+            var fenster = PurchaseProposalCalculator.VerfuegbarBis(bestandWms, positionen, bedarf, heute, wbz);
+            if (positionen.Any(p => p.Menge > 0 && p.Liefertermin == null)) hinweise.Add(PurchaseProposalCalculator.HinweisOhneLiefertermin);
+            if (wbz == null) hinweise.Add(PurchaseProposalCalculator.HinweisOhneWbz);
             // Antwort 4: eine Bestellung ohne Artikel-Lieferant gilt, wenn sie juenger ist als ALLE zugeordneten (das sichert das Repository zu),
             // auch vor dem Hauptlieferanten; sonst wie bisher Hauptlieferant, dann juengste bei einem anderen (Rueckfrage 13 a).
             var quelle = juengste?.OhneArtikelLieferant == true || l?.LetzteBestellmenge == null ? juengste : l;
@@ -223,7 +233,7 @@ public class PurchaseProposalsController : Controller
             return new PurchaseProposalRow
             {
                 Article = a, Lieferant = l, LieferantText = text, LieferantKto = kto, BestandWms = bestandWms, Bedarf = bedarf,
-                OffenBestellt = offenBestellt, NaechsterLiefertermin = termin,
+                OffenBestellt = offenBestellt, NaechsterLiefertermin = termin, NaechsterBedarf = bedarf.NaechsterBedarf(heute),
                 LetzteBestellung = quelle,
                 Ergebnis = PurchaseProposalCalculator.Berechne(new PurchaseProposalInput(bestandWms, offenBestellt ?? 0m, bedarf.Angerechnet, a.ReorderLevel ?? 0m,
                     LetzteBestellmenge: quelle?.LetzteBestellmenge,
@@ -232,7 +242,8 @@ public class PurchaseProposalsController : Controller
                         : quelle.CreditorId != l?.CreditorId ? quelle.Anzeige : null,
                     Mindestbestellmenge: l?.Mindestbestellmenge, Einkaufsmengeneinheit: l?.Einkaufsmengeneinheit, UmrechnungsfaktorEK: l?.UmrechnungsfaktorEK,
                     ArtikelEinheit: a.Unit, FallbackSageBestellmenge: fallback,
-                    LetzteBestellungOhneArtikelLieferant: quelle?.OhneArtikelLieferant == true, KeineBestellungImRueckblick: keineBestellung)),
+                    LetzteBestellungOhneArtikelLieferant: quelle?.OhneArtikelLieferant == true, KeineBestellungImRueckblick: keineBestellung,
+                    VerfuegbarFenster: fenster)),
                 Wbz = wbz, Wunschtermin = wbz is { } t ? heute.AddDays(t) : null, Hinweise = hinweise,
             };
         }).ToList();

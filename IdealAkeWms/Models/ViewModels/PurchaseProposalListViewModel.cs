@@ -65,6 +65,8 @@ public class PurchaseProposalRow
     public decimal? OffenBestellt { get; init; }
     /// <summary>E2: frühester Liefertermin der Positionen mit Rest &gt; 0.</summary>
     public DateTime? NaechsterLiefertermin { get; init; }
+    /// <summary>v1.99.30 F5: fruehester Termin eines angerechneten Bedarfs (FA-Fertigungstermin; Lagerbestellung/ohne Termin = heute).</summary>
+    public DateTime? NaechsterBedarf { get; init; }
     public required PurchaseProposalResult Ergebnis { get; init; }
     /// <summary>E3: Quelle der verwendeten letzten Bestellung (Hauptlieferant oder anderer Lieferant); null = keine bzw. Einheit Basis ≠ Lager.</summary>
     public ArticleSupplierRow? LetzteBestellung { get; init; }

@@ -12,7 +12,7 @@
 
 <h2 class="page-header mb-1">Bestellvorschläge</h2>
 <p class="text-body-secondary small mb-3">
-    Artikel mit Sage-Meldebestand. Verfügbar = Bestand WMS + offen bestellt − angerechnete Bedarfe (FA-Bedarf, @Model.BedarfeText); Vorschlag, wenn verfügbar ≤ Meldebestand.
+    Artikel mit Sage-Meldebestand. Verfügbar = Bestand WMS + offen bestellt − angerechnete Bedarfe (FA-Bedarf, @Model.BedarfeText); Vorschlag, wenn verfügbar ≤ Meldebestand. „kritisch“, wenn Bestand plus offene Bestellungen mit Liefertermin bis heute + WBZ die Bedarfe bis dahin nicht decken (Bestellungen ohne Liefertermin zählen dafür nicht).
     Mengen in der Lagereinheit des Artikels.
 </p>
 
@@ -133,7 +133,7 @@ else
                 <label for="dringlichkeit" class="form-label small mb-0">Dringlichkeit</label>
                 <select id="dringlichkeit" name="dringlichkeit" class="form-select form-select-sm">
                     <option value="">alle</option>
-                    <option value="kritisch" selected="@(Model.Dringlichkeit == "kritisch")">kritisch (verfügbar &lt; 0)</option>
+                    <option value="kritisch" selected="@(Model.Dringlichkeit == "kritisch")">kritisch (reicht nicht bis heute + WBZ)</option>
                     <option value="nachbestellen" selected="@(Model.Dringlichkeit == "nachbestellen")">nachbestellen (≤ Meldebestand)</option>
                 </select>
             </div>
@@ -159,6 +159,7 @@ else
                 <th data-filterable data-filter-type="number" data-col-key="sage-verfuegbar" class="text-end">Sage verfügbar</th>
                 <th data-filterable data-filter-type="number" data-col-key="offen-bestellt" class="text-end">offen bestellt</th>
                 <th data-filterable data-date-filter data-col-key="liefertermin">nächster Liefertermin</th>
+                <th data-filterable data-date-filter data-col-key="naechster-bedarf" title="Frühester Termin eines angerechneten Bedarfs: Fertigungstermin des Auftrags; Lagerbestellung und Auftrag ohne Termin = heute">nächster Bedarf</th>
                 <th data-filterable data-filter-type="number" data-col-key="fa-bedarf" class="text-end" title="Rest offener Fertigungsaufträge: Stücklistenmenge minus schon ausgebucht">FA-Bedarf</th>
                 <th data-filterable data-filter-type="number" data-col-key="bedarfe" class="text-end" title="Offene Lagerbestellungen und Bedarfsmeldungen; angerechnet ohne Doppelzählung mit dem FA-Bedarf">offene Bedarfe</th>
                 <th data-filterable data-filter-type="number" data-col-key="verfuegbar" class="text-end">verfügbar</th>
@@ -208,6 +209,7 @@ else
                     <td class="text-end" title="@(r.SageStand is { } st ? "Stand Artikel-Abgleich " + st.ToString("dd.MM.yyyy HH:mm") : "Sage-Zusatzfelder fehlen")">@(r.Sage?.LagerbestandVerfuegbar?.ToString("0.###") ?? "–")</td>
                     <td class="text-end">@(r.OffenBestellt?.ToString("0.###") ?? "–")</td>
                     <td>@(r.NaechsterLiefertermin?.ToString("dd.MM.yyyy"))</td>
+                    <td>@(r.NaechsterBedarf?.ToString("dd.MM.yyyy"))</td>
                     <td class="text-end">@r.FaBedarf.ToString("0.###")</td>
                     <td class="text-end">@r.OffeneBedarfe.ToString("0.###")</td>
                     <td class="text-end fw-semibold">@e.Verfuegbar.ToString("0.###")</td>
@@ -258,6 +260,7 @@ else
     { "key": "sage-verfuegbar", "label": "Sage verfügbar", "locked": false, "defaultWidth": null },
     { "key": "offen-bestellt", "label": "offen bestellt", "locked": false, "defaultWidth": null },
     { "key": "liefertermin", "label": "nächster Liefertermin", "locked": false, "defaultWidth": null },
+    { "key": "naechster-bedarf", "label": "nächster Bedarf", "locked": false, "defaultWidth": null },
     { "key": "fa-bedarf", "label": "FA-Bedarf", "locked": false, "defaultWidth": null },
     { "key": "bedarfe", "label": "offene Bedarfe", "locked": false, "defaultWidth": null },
     { "key": "verfuegbar", "label": "verfügbar", "locked": false, "defaultWidth": null },

@@ -17,10 +17,13 @@ public enum PurchaseProposalDringlichkeit { KeinBedarf, Nachbestellen, Kritisch 
 /// <paramref name="LetzteBestellungLieferant"/> ist dann „{Kto} {Name}“.</param>
 /// <param name="KeineBestellungImRueckblick">v1.99.30 F3: letzte Bestellungen sind gelesen und es gibt im Rueckblick bei keinem Lieferanten eine
 /// (unterscheidet „noch nicht gelesen“ von „keine Bestellung“ fuer den Hinweis ohne Sage-Bestellmenge).</param>
+/// <param name="VerfuegbarFenster">v1.99.30 F5: verfuegbar bis heute + WBZ (<see cref="PurchaseProposalCalculator.VerfuegbarBis"/>); entscheidet
+/// „kritisch“. null = wie bisher <c>verfuegbar &lt; 0</c>.</param>
 public sealed record PurchaseProposalInput(decimal BestandWms, decimal OffenBestellt, decimal OffeneBedarfe, decimal Meldebestand,
     decimal? LetzteBestellmenge = null, string? LetzteBestellungLieferant = null,
     decimal? Mindestbestellmenge = null, string? Einkaufsmengeneinheit = null, decimal? UmrechnungsfaktorEK = null, string? ArtikelEinheit = null,
-    decimal? FallbackSageBestellmenge = null, bool LetzteBestellungOhneArtikelLieferant = false, bool KeineBestellungImRueckblick = false);
+    decimal? FallbackSageBestellmenge = null, bool LetzteBestellungOhneArtikelLieferant = false, bool KeineBestellungImRueckblick = false,
+    decimal? VerfuegbarFenster = null);
 
 /// <param name="Fallback">E3: Menge stammt aus der Sage-Bestellmenge, weil es im Rueckblick keine Bestellung gibt (Banner zaehlt diese Zeilen).</param>
 public sealed record PurchaseProposalResult(decimal Verfuegbar, decimal Fehlmenge, PurchaseProposalDringlichkeit Dringlichkeit,
@@ -67,7 +70,10 @@ public static class PurchaseProposalCalculator
             return new(verfuegbar, 0m, PurchaseProposalDringlichkeit.KeinBedarf, null, "", hinweise);
 
         var f = e.Meldebestand - verfuegbar;
-        var dringlichkeit = verfuegbar < 0 ? PurchaseProposalDringlichkeit.Kritisch : PurchaseProposalDringlichkeit.Nachbestellen;
+        // F5 (Antwort 6): kritisch, wenn der Bestand nicht bis zum fruehesten Liefertermin einer neuen Bestellung (heute + WBZ) reicht.
+        // ponytail: liegt verfuegbar (alle) ueber dem Meldebestand, gibt es keinen Vorschlag – auch wenn das Fenster negativ ist (dann ist schon
+        // genug bestellt, nur spaet); kein eigener Status dafuer.
+        var dringlichkeit = (e.VerfuegbarFenster ?? verfuegbar) < 0 ? PurchaseProposalDringlichkeit.Kritisch : PurchaseProposalDringlichkeit.Nachbestellen;
         decimal vorschlag;
         string grund;
         var fallback = false;
@@ -107,6 +113,18 @@ public static class PurchaseProposalCalculator
             }
         }
         return new(verfuegbar, f, dringlichkeit, vorschlag, grund, hinweise, fallback);
+    }
+
+    public const string HinweisOhneLiefertermin = "offene Bestellung ohne Liefertermin – für Dringlichkeit nicht gezählt";
+    public const string HinweisOhneWbz = "ohne WBZ – Dringlichkeit nur mit heute fälligen Bedarfen";
+
+    /// <summary>v1.99.30 F5 (Antwort 6): verfuegbar im Fenster bis <c>heute + WBZ</c> (ohne WBZ 0 Tage) = Bestand + Rest der offenen Bestellungen mit
+    /// Liefertermin ≤ Grenze (ueberfaellige zaehlen, ohne Termin nicht) − angerechnete Bedarfe mit Termin ≤ Grenze.</summary>
+    public static decimal VerfuegbarBis(decimal bestandWms, IEnumerable<(decimal Menge, DateTime? Liefertermin)> bestellungen, ArtikelBedarf bedarf,
+        DateTime heute, int? wbz)
+    {
+        var grenze = heute.Date.AddDays(wbz ?? 0);
+        return bestandWms + bestellungen.Where(b => b.Liefertermin is { } t && t.Date <= grenze).Sum(b => b.Menge) - bedarf.AngerechnetBis(grenze);
     }
 
     public static string Text(PurchaseProposalDringlichkeit d) => d switch
