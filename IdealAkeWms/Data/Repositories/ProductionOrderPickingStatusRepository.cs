@@ -152,7 +152,7 @@ public class ProductionOrderPickingStatusRepository : IProductionOrderPickingSta
         string modifiedBy, string modifiedByWindows)
         => SetFieldAsync(productionOrderId, "IsDonePicking", value, modifiedBy, modifiedByWindows);
 
-    public async Task SetCoatingPartsAsync(Dictionary<int, bool> orderIdToHasCoatingParts)
+    public async Task SetCoatingPartsAsync(Dictionary<int, bool> orderIdToHasCoatingParts, string modifiedBy, string modifiedByWindows)
     {
         if (orderIdToHasCoatingParts == null || orderIdToHasCoatingParts.Count == 0) return;
 
@@ -178,7 +178,8 @@ public class ProductionOrderPickingStatusRepository : IProductionOrderPickingSta
             if (changed)
             {
                 row.ModifiedAt = DateTime.Now;
-                // ModifiedBy bleibt leer — Sync-Job, kein User
+                row.ModifiedBy = modifiedBy;               // v1.99.25: Audit-Loch geschlossen (vorher blieb ModifiedBy leer)
+                row.ModifiedByWindows = modifiedByWindows;
             }
         }
 

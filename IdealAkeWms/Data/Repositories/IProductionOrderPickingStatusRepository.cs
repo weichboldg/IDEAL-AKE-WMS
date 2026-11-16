@@ -22,7 +22,9 @@ public interface IProductionOrderPickingStatusRepository
     Task SetPickingStatusTextAsync(int productionOrderId, string? statusText, string modifiedBy, string modifiedByWindows);
     Task SetIsDonePickingAsync(int productionOrderId, bool value, string modifiedBy, string modifiedByWindows);
     Task SetPriorityAsync(int productionOrderId, int? priority, string modifiedBy, string modifiedByWindows);
-    Task SetCoatingPartsAsync(Dictionary<int, bool> orderIdToHasCoatingParts);
+    /// <summary>Setzt HasCoatingParts je Auftrag (nur bestehende Zeilen); bei Wechsel auf false auch IsCoatingDone zurueck.
+    /// v1.99.25: Audit-Felder bei jeder Aenderung (ADR 0003) — Service-Name und Dienstkonto.</summary>
+    Task SetCoatingPartsAsync(Dictionary<int, bool> orderIdToHasCoatingParts, string modifiedBy, string modifiedByWindows);
     Task<List<ProductionOrder>> GetReleasedForPickingAsync();
     Task<List<ProductionOrder>> GetReleasedForPickingByPickerAsync(int pickerId);
     Task<int> GetReleasedForPickingCountAsync();

@@ -5,6 +5,7 @@ using IdealAkeWms.Models;
 using IdealAkeWms.Tests.Helpers;
 using IDEALAKEWMSService.Common;
 using IDEALAKEWMSService.Services;
+using IDEALAKEWMSService.Tests.Helpers;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -29,7 +30,7 @@ public class FaMaterializationSyncServiceTests
         var mail = new Mock<IMailService>();
         return new FaMaterializationSyncService(
             ctx, config, mail.Object,
-            new ProductionOrderPickingStatusRepository(ctx),
+            new ProductionOrderPickingStatusRepository(ctx), new StubHierarchicalModeReader(true),
             NullLogger<FaMaterializationSyncService>.Instance, new FakeSyncLogger());
     }
 

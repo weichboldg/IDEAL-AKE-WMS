@@ -5,6 +5,7 @@ using IdealAkeWms.Models;
 using IdealAkeWms.Tests.Helpers;
 using IDEALAKEWMSService.Common;
 using IDEALAKEWMSService.Services;
+using IDEALAKEWMSService.Tests.Helpers;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -23,14 +24,50 @@ namespace IDEALAKEWMSService.Tests.Services;
 /// </summary>
 public class FaMaterializationCoatingWriteTests
 {
-    private static FaMaterializationSyncService Build(ApplicationDbContext ctx)
+    private static FaMaterializationSyncService Build(ApplicationDbContext ctx, bool hierarchisch = true, FakeSyncLogger? log = null)
     {
         var config = new ConfigurationBuilder().Build(); // leer; SendMissingDigest/Digest no-op
         var mail = new Mock<IMailService>();
         return new FaMaterializationSyncService(
             ctx, config, mail.Object,
-            new ProductionOrderPickingStatusRepository(ctx),
-            NullLogger<FaMaterializationSyncService>.Instance, new FakeSyncLogger());
+            new ProductionOrderPickingStatusRepository(ctx), new StubHierarchicalModeReader(hierarchisch),
+            NullLogger<FaMaterializationSyncService>.Instance, log ?? new FakeSyncLogger());
+    }
+
+    [Fact]
+    public async Task RunAsync_QuelleArtikelkategorie_SchreibtLackFlagNicht_AK9()
+    {
+        // Spec 2026-11-16-beschichtungslogik-je-standort A7: effektive Kennzeichen-Quelle Artikelkategorie (Master aus) -> die
+        // Lackierteil-Erkennung ist Schreiber, die Materialisierung laesst HasCoatingParts unangetastet und meldet das im Protokoll.
+        using var ctx = TestDbContextFactory.Create();
+        ctx.FaHierarchyNodes.AddRange(
+            new FaHierarchyNode { HauptFA = 1000, SubFA = 10, VaterFA = null, Sollmenge = 1, Beschichtet = false },
+            new FaHierarchyNode { HauptFA = 1000, SubFA = 0, VaterFA = 10, Sollmenge = 1, Beschichtet = true });
+        await ctx.SaveChangesAsync();
+        var log = new FakeSyncLogger();
+
+        await Build(ctx, hierarchisch: false, log).RunAsync(dryRun: false);
+
+        var order = await ctx.ProductionOrders.SingleAsync(o => o.SubOrderNumber == "10");
+        var status = await ctx.ProductionOrderPickingStatuses.SingleAsync(s => s.ProductionOrderId == order.Id);
+        status.HasCoatingParts.Should().BeFalse();
+        log.Runs[0].FinalCounts!["lackflag_gesetzt"].Should().Be(0);
+        log.Runs[0].Events.Should().Contain(e => e.Level == "Info" && e.Message.Contains("Kennzeichen-Quelle Artikelkategorie"));
+    }
+
+    [Fact]
+    public async Task RunAsync_SetztAuditFelder_ADR0003()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        ctx.FaHierarchyNodes.AddRange(
+            new FaHierarchyNode { HauptFA = 1000, SubFA = 10, VaterFA = null, Sollmenge = 1, Beschichtet = false },
+            new FaHierarchyNode { HauptFA = 1000, SubFA = 0, VaterFA = 10, Sollmenge = 1, Beschichtet = true });
+        await ctx.SaveChangesAsync();
+
+        await Build(ctx).RunAsync(dryRun: false);
+
+        var status = await ctx.ProductionOrderPickingStatuses.SingleAsync();
+        (status.ModifiedBy, status.ModifiedByWindows).Should().Be(("FaMaterialization", Environment.UserName));
     }
 
     [Fact]

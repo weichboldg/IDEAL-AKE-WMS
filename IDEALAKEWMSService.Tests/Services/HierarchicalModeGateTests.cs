@@ -27,7 +27,22 @@ public class HierarchicalModeGateTests
         result.Inserted.Should().Be(0);
         log.Runs.Should().ContainSingle();
         log.Runs[0].FinishedSuccess.Should().BeTrue();
-        log.Runs[0].FinalCounts!["uebersprungen_hierarchisch"].Should().Be(1);
+        log.Runs[0].FinalCounts!["uebersprungen_quelle_fastruktur"].Should().Be(1);
+    }
+
+    [Fact]
+    public async Task CoatingDetection_UnpassendeQuelle_WirktWieAutomatisch_UndWirdGemeldet_A8()
+    {
+        // Spec 2026-11-16-beschichtungslogik-je-standort: Artikelkategorie bei Master an hat keine Datenbasis -> wie Automatisch
+        // (FA-Struktur), uebersprungen ohne DB-Zugriff, Warnung im Aktivitaets-Protokoll (Melden statt still behandeln).
+        var log = new FakeSyncLogger();
+        var svc = new CoatingDetectionService(EmptyConfig(), new StubHierarchicalModeReader(true, "Artikelkategorie"),
+            NullLogger<CoatingDetectionService>.Instance, log);
+
+        await svc.DetectAndUpdateCoatingFlagsAsync(false, null, CancellationToken.None);
+
+        log.Runs[0].FinalCounts!["uebersprungen_quelle_fastruktur"].Should().Be(1);
+        log.Runs[0].Events.Should().ContainSingle(e => e.Level == "Warning" && e.Message.Contains("passt nicht zum Auftragsmodell"));
     }
 
     [Fact]

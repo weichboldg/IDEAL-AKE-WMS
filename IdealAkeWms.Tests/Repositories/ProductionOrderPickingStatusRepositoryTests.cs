@@ -83,13 +83,15 @@ public class ProductionOrderPickingStatusRepositoryTests
             isCoatingDone: true);
 
         var repo = new ProductionOrderPickingStatusRepository(context);
-        await repo.SetCoatingPartsAsync(new Dictionary<int, bool> { { created.Order.Id, false } });
+        await repo.SetCoatingPartsAsync(new Dictionary<int, bool> { { created.Order.Id, false } }, "FaMaterialization", "svc-wms");
 
         var reloaded = await repo.GetByProductionOrderIdAsync(created.Order.Id);
         reloaded.Should().NotBeNull();
         reloaded!.HasCoatingParts.Should().BeFalse();
         reloaded.IsCoatingDone.Should().BeFalse(); // Cascade-Reset
         reloaded.ModifiedAt.Should().NotBeNull();
+        reloaded.ModifiedBy.Should().Be("FaMaterialization");   // v1.99.25: Audit-Loch geschlossen (ADR 0003)
+        reloaded.ModifiedByWindows.Should().Be("svc-wms");
     }
 
     [Fact]
@@ -102,7 +104,7 @@ public class ProductionOrderPickingStatusRepositoryTests
             isCoatingDone: false);
 
         var repo = new ProductionOrderPickingStatusRepository(context);
-        await repo.SetCoatingPartsAsync(new Dictionary<int, bool> { { created.Order.Id, true } });
+        await repo.SetCoatingPartsAsync(new Dictionary<int, bool> { { created.Order.Id, true } }, "FaMaterialization", "svc-wms");
 
         var reloaded = await repo.GetByProductionOrderIdAsync(created.Order.Id);
         reloaded!.HasCoatingParts.Should().BeTrue();

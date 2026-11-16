@@ -1,6 +1,7 @@
 using IdealAkeWms.Data;
 using IdealAkeWms.Data.Repositories;
 using IdealAkeWms.Models;
+using IdealAkeWms.Services.Beschichtung;
 using IdealAkeWms.Services.SyncLogger;
 using IDEALAKEWMSService.Common;
 using Microsoft.EntityFrameworkCore;
@@ -35,6 +36,7 @@ public class FaMaterializationSyncService : IFaMaterializationSyncService
     private readonly IConfiguration _config;
     private readonly IMailService _mail;
     private readonly IProductionOrderPickingStatusRepository _pickingStatus;
+    private readonly IHierarchicalModeReader _quellen;
     private readonly ILogger<FaMaterializationSyncService> _logger;
     private readonly ISyncLogger _syncLogger;
 
@@ -43,6 +45,7 @@ public class FaMaterializationSyncService : IFaMaterializationSyncService
         IConfiguration config,
         IMailService mail,
         IProductionOrderPickingStatusRepository pickingStatus,
+        IHierarchicalModeReader quellen,
         ILogger<FaMaterializationSyncService> logger,
         ISyncLogger syncLogger) // ISyncLogger als LETZTER Ctor-Parameter (ADR 0010)
     {
@@ -50,6 +53,7 @@ public class FaMaterializationSyncService : IFaMaterializationSyncService
         _config = config;
         _mail = mail;
         _pickingStatus = pickingStatus;
+        _quellen = quellen;
         _logger = logger;
         _syncLogger = syncLogger;
     }
@@ -197,7 +201,18 @@ public class FaMaterializationSyncService : IFaMaterializationSyncService
             // MUSS nach EnsureStatusRowsAsync laufen: SetCoatingPartsAsync aktualisiert nur
             // BESTEHENDE Zeilen.
             var coatingFlags = 0;
-            if (!dryRun)
+            // v1.99.25 (Spec 2026-11-16-beschichtungslogik-je-standort A7): nur bei effektiver Kennzeichen-Quelle FA-Struktur. Mit
+            // „Automatisch“ und Master an immer der Fall (wie bisher); sonst schreibt die Lackierteil-Erkennung das Flag.
+            var quellen = await _quellen.GetBeschichtungQuellenAsync(ct);
+            foreach (var w in quellen.Warnungen)
+            {
+                _logger.LogWarning("FA-Materialisierung: {Warnung}", w);
+                await run.LogWarningAsync(w, ct: ct);
+            }
+            var flagSchreiben = quellen.Kennzeichen == BeschichtungKennzeichenQuelle.FaStruktur;
+            if (!dryRun && !flagSchreiben)
+                await run.LogInfoAsync("Lack-Flag nicht geschrieben: Kennzeichen-Quelle Artikelkategorie (schreibt die Lackierteil-Erkennung).", ct: ct);
+            if (!dryRun && flagSchreiben)
             {
                 var matKeys = srcByKey.Keys.ToList();          // dieselbe Menge wie in EnsureStatusRowsAsync
                 var orderIds = await _ctx.ProductionOrders
@@ -208,7 +223,7 @@ public class FaMaterializationSyncService : IFaMaterializationSyncService
                 var coatingMap = orderIds.ToDictionary(
                     x => x.Id,
                     x => coating.GetValueOrDefault(x.SubOrderNumber!));
-                await _pickingStatus.SetCoatingPartsAsync(coatingMap);
+                await _pickingStatus.SetCoatingPartsAsync(coatingMap, "FaMaterialization", Environment.UserName);
                 coatingFlags = coatingMap.Count(kv => kv.Value);
             }
 

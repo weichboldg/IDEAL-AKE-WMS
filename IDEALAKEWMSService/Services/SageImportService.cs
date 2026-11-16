@@ -38,6 +38,32 @@ public class SageImportService : ISageImportService
         _ctx = ctx;
     }
 
+    /// <summary>Hook fuer neue Auftraege: narrow BOM-Cache, danach die Lackierteil-Erkennung — die seit v1.99.25 (Spec
+    /// 2026-11-16-beschichtungslogik-je-standort, Freigabe-Antwort 12) zusaetzlich an <c>Sync:CoatingDetectionEnabled</c> haengt wie der
+    /// Takt im SyncWorker. Die Kennzeichen-Quelle prueft die Erkennung selbst (eine Stelle).</summary>
+    internal async Task NeueAuftraegeHookAsync(List<string> newArticleNumbers, List<int> newOrderIds, bool coatingEnabled, bool dryRun,
+        CancellationToken ct)
+    {
+        try
+        {
+            var distinctNew = newArticleNumbers.Distinct().ToList();
+            _logger.LogInformation("Sage-Import Hook: starte narrow BOM-Cache fuer {N} neue Artikel", distinctNew.Count);
+            await _bomCacheSync.SyncSpecificArticleNumbersAsync(distinctNew, dryRun, ct);
+
+            if (!coatingEnabled)
+            {
+                _logger.LogInformation("Sage-Import Hook: Lackierteil-Erkennung uebersprungen (Sync:CoatingDetectionEnabled=false)");
+                return;
+            }
+            _logger.LogInformation("Sage-Import Hook: starte Lackierteil-Erkennung fuer {N} neue Auftraege", newOrderIds.Count);
+            await _coatingDetection.DetectAndUpdateCoatingFlagsAsync(dryRun, newOrderIds, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Sage-Import Hook (BOM-Cache / Coating-Detection) fehlgeschlagen");
+        }
+    }
+
     public async Task<SyncResult> SyncProductionOrdersAsync(bool dryRun, CancellationToken ct = default)
     {
         await using var run = await _syncLogger.BeginRunAsync(SyncLogServices.ProductionOrder, ct);
@@ -198,21 +224,8 @@ public class SageImportService : ISageImportService
             // Hook: BOM-Cache + Coating Detection fuer neue Auftraege
             var bomCacheEnabled = await ServiceSettings.GetBoolAsync(_configuration, "Sync:BomCacheEnabled", false, ct);
             if (bomCacheEnabled && newArticleNumbers.Count > 0)
-            {
-                try
-                {
-                    var distinctNew = newArticleNumbers.Distinct().ToList();
-                    _logger.LogInformation("Sage-Import Hook: starte narrow BOM-Cache fuer {N} neue Artikel", distinctNew.Count);
-                    await _bomCacheSync.SyncSpecificArticleNumbersAsync(distinctNew, dryRun, ct);
-
-                    _logger.LogInformation("Sage-Import Hook: starte Lackierteil-Erkennung fuer {N} neue Auftraege", newOrderIds.Count);
-                    await _coatingDetection.DetectAndUpdateCoatingFlagsAsync(dryRun, newOrderIds, ct);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Sage-Import Hook (BOM-Cache / Coating-Detection) fehlgeschlagen");
-                }
-            }
+                await NeueAuftraegeHookAsync(newArticleNumbers, newOrderIds,
+                    await ServiceSettings.GetBoolAsync(_configuration, "Sync:CoatingDetectionEnabled", false, ct), dryRun, ct);
 
             // ---- FA-Reconciliation (v1.25.0) ----------------------------------
             // Verwaiste WMS-offene FAs, die nicht mehr in der Sage-View sind, stornieren;

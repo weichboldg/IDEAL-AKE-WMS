@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using IdealAkeWms.Services.Beschichtung;
 using IdealAkeWms.Services.SyncLogger;
 using IDEALAKEWMSService.Common;
 using Microsoft.Data.SqlClient;
@@ -37,11 +38,20 @@ public class CoatingDetectionService : ICoatingDetectionService
     {
         await using var run = await _syncLogger.BeginRunAsync(SyncLogServices.CoatingDetection, ct);
 
-        if (await _hierarchicalMode.IsHierarchicalAsync(ct))
+        // v1.99.25 (Spec 2026-11-16-beschichtungslogik-je-standort A7): schreibt nur bei effektiver Kennzeichen-Quelle Artikelkategorie.
+        // Mit „Automatisch“ identisch zum frueheren Klasse-D-Gate (hierarchisch = FA-Struktur); bleibt technischer Schutz, weil der
+        // BomCache hierarchisch nicht gefuellt wird und A8 die Kombination Artikelkategorie + Master an verbietet.
+        var quellen = await _hierarchicalMode.GetBeschichtungQuellenAsync(ct);
+        foreach (var w in quellen.Warnungen)
         {
-            _logger.LogInformation("CoatingDetection: uebersprungen — hierarchischer Modus (BOM-Bridge, Klasse-D-Gate).");
-            await run.FinishSuccessAsync(new Dictionary<string, int> { ["uebersprungen_hierarchisch"] = 1 },
-                messageSuffix: "[hierarchischer Modus: uebersprungen]", ct: ct);
+            _logger.LogWarning("CoatingDetection: {Warnung}", w);
+            await run.LogWarningAsync(w, ct: ct);
+        }
+        if (quellen.Kennzeichen != BeschichtungKennzeichenQuelle.Artikelkategorie)
+        {
+            _logger.LogInformation("CoatingDetection: uebersprungen — Kennzeichen-Quelle FA-Struktur (schreibt die FA-Materialisierung).");
+            await run.FinishSuccessAsync(new Dictionary<string, int> { ["uebersprungen_quelle_fastruktur"] = 1 },
+                messageSuffix: "[uebersprungen: Kennzeichen-Quelle FA-Struktur]", ct: ct);
             return new SyncResult(0, 0, 0);
         }
 
