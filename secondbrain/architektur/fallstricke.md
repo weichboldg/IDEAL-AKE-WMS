@@ -1956,3 +1956,20 @@ Code: `hardware-scanner.js` Block „Scannen ohne Feld“, CSS `.hw-scan-bereit`
   in `SageQuelleSperre` lockern (P-FS3/DPS, Rückfragen 4/5). **Warum:** Blattfelder (Beschichtet, Maße, EKBedarf) haben in SData keine
   Quelle; ein frühes Umschalten setzt `Beschichtet` an Blättern auf false und ändert die Beschichtungslogik.
 
+## 41. Anmeldung nur mit Kennwort, Erstinstallation (v1.99.28, [[2026-11-14-sicherheit-anmeldung-und-installer-spec]], ADR [[0027-formular-anmeldung-nur-mit-kennwort-erstkennwort-mit-pflichtwechsel]])
+
+- **Meldung 207 („Ungültiger Spaltenname“) verwirft den ganzen Batch – nicht nur die Zeile.** **Warum:** SQL Server übersetzt den Batch bis
+  `GO` vor der Ausführung; eine unbekannte Spalte in einer bestehenden Tabelle bricht beim Übersetzen ab (bei einer *fehlenden Tabelle* greift
+  dagegen die verzögerte Namensauflösung). Am 04.11.2026 fehlten deshalb auf IDEAL-Prod sehr wahrscheinlich **alle** Indizes aus
+  „15. Indexes“ samt FK (lokal nachgestellt: 0 von ~30). Wächter: `FreshInstallIndexSpaltenTests` prüft jede Index-Spalte in
+  `00_FreshInstall.sql` gegen das EF-Modell.
+- **Regel R/P sitzen nur im Formular-Login** (`AccountController.Login`). Windows-SSO (`WindowsAutoLoginMiddleware`) prüft weder Kennwort noch
+  Haken – ein AD-Benutzer mit offenem Erstkennwort ist per SSO trotzdem drin. **Warum:** SSO ist die Anmeldung, das Kennwort ist nur der
+  Formular-Weg (ADR [[0002-dual-auth-session-login-plus-windows-sso]]).
+- **Lokale QA ohne Kennwort geht nur unter `dotnet run` (Development).** Auf DEV-IIS (Production) gilt Regel R – QA-Testbenutzer brauchen dort
+  Kennwörter. **Warum:** die Ausnahme hängt bewusst an `IsDevelopment()`, nicht an einem Schalter.
+- **`Pruefung/BenutzerOhneKennwort` sperrt Prod in der Vorprüfung** – admin zählt nicht (der Web-Start stellt ihn auf `wms-admin` + Haken).
+  Seit v1.99.28 sind SQL-Prüfungen auch in Phase Vorher erlaubt (nur `anzeigen`, `NachlaufManifestDriftTests`).
+- **Dienst-`appsettings.json` hat keine `Sync`-Schalter mehr** (außer `Feiertag*`, gebunden an `HolidaySyncOptions`). **Warum:** der Dienst liest
+  `Sync:*`, `WorkerSettings:*`, `ErrorNotification:*` nur aus `dbo.ServiceSettings`; Datei-Werte waren wirkungslos und täuschten (BH-4). Der
+  Installer schaltet den FA-Abgleich deshalb nach dem Aufwärmen **in der DB** ab.

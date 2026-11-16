@@ -104,7 +104,7 @@ Details: [[integrationen]].
 
 | Entitaet | Zweck |
 |---|---|
-| `User` | App-Benutzer. AD-User = `WindowsUserName` gesetzt + `PasswordHash` NULL; lokaler User = umgekehrt (Migration 73). Prefs: `DefaultPageSize`, `DefaultWorkStepId` (Migration 70), `DefaultWorkbenches` (komma-separiert, Migration 75 — ersetzte den FK aus Migration 71, **destruktiv**) |
+| `User` | App-Benutzer. AD-User = `WindowsUserName` gesetzt + `PasswordHash` NULL; lokaler User = umgekehrt (Migration 73). Prefs: `DefaultPageSize`, `DefaultWorkStepId` (Migration 70), `DefaultWorkbenches` (komma-separiert, Migration 75 — ersetzte den FK aus Migration 71, **destruktiv**) | **v1.99.28:** `MussKennwortAendern` (bit, Default 0, SQL/152) = Erstkennwort mit Pflichtwechsel vor der Sitzung; AD-User können ein Kennwort haben (Formular-Weg), ohne Kennwort nur Windows (ADR [[0027-formular-anmeldung-nur-mit-kennwort-erstkennwort-mit-pflichtwechsel]]); `admin` ohne Kennwort bekommt beim Start `wms-admin` + Haken (`AdminSeed`).
 | `Role`, `RoleKeys`, `UserRole` | Rollen als statische Keys + Junction. `Role.AdGroup` in v1.23.0 **gedroppt** → [[0006-rollenkonzept-statische-keys-mit-admin-wildcard]] |
 | `Workstation`, `WorkstationUser` | Arbeitsplaetze (Drucker) |
 | `ProductionWorkplace`, `ProductionWorkplaceUser` | Werkbaenke und ihre Zuordnung |

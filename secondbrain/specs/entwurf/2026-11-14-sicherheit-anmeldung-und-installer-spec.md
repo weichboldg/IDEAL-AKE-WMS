@@ -16,6 +16,8 @@ worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
 branch: "feature/2026-08-07-ideal-teile-1-5"
 standort: beide
 version_vorschlag: "1.99.28"
+version: 1.99.28
+sql: 152
 sql_vorschlag: "152 fest (User.MussKennwortAendern, Nachtrag 2026-11-16); 151 nur wenn Rückfrage 4 die Index-Reparatur bestätigt"
 ts_vorschlag: "TS-139"
 adr_vorschlag: "0027"
@@ -622,6 +624,22 @@ Passwort leer“ → Erstkennwort + Pflichtwechsel, Verweis TS-139.4), TS-40.4 (
 ## Deploy
 
 **Vorläufig** – der QA-Lauf bestätigt gegen den echten Diff.
+
+> [!info] Stand nach Umsetzung 2026-11-16 (Dev-Lauf, Commits `6447db0a`, `4559e0a2`) – geht den vorläufigen Angaben darunter vor
+> - **Version 1.99.28** (nicht 1.99.24), Changelog [[2026-11-16-v1-99-28-sicherheit-anmeldung-installer]], ADR [[0027-formular-anmeldung-nur-mit-kennwort-erstkennwort-mit-pflichtwechsel]].
+> - **Web + Dienst:** ja (Dienst: `MailService`-Warnung, `appsettings.json` ohne tote Blöcke; Server-Datei wird nicht überschrieben).
+> - **Migration:** `SQL/152_AddUserMussKennwortAendern.sql`, MigrationId `20261116165705_AddUserMussKennwortAendern`. **Kein SQL/151,
+>   kein `Pruefung/FreshInstallIndizes`** (Rückfrage 4: nur Guards + Wächter-Test) – P-2b auf IDEAL-Prod vor dem Deploy, siehe
+>   [[2026-11-16-anmeldung-zusatzfunde-folgeaufgabe]].
+> - **Manifest** (`scripts/deploy/nachlauf.psd1`, alle `Quelle='2026-11-16-v1-99-28-sicherheit-anmeldung-installer'`):
+>   `SQL/152` (Schema, nach `SQL/150`); `Pruefung/BenutzerOhneKennwort` (Vorher, anzeigen, sperrt Prod; **Abweichung:** Abfrage schließt
+>   `admin` aus, weil der Seed ihn auf `wms-admin` + Haken umstellt – sonst sperrte jede Erstinstallation den Prod-Deploy);
+>   `Pruefung/SmtpBenutzer` (Nachher, `Appsettings='MailSettings:SmtpUsername'`); `v1.99.28-AnmeldungKennwort` (Info, Vorher);
+>   `v1.99.28-AnwenderInfo` (Info, Nachher). `NachlaufManifestDriftTests` erlaubt SQL-Prüfungen jetzt auch in Phase Vorher (nur `anzeigen`).
+> - **admin (Rückfrage 11 = S1):** festes Erstkennwort `wms-admin` + Haken, keine Datei unter `App_Data`, keine Installer-Ausgabe.
+> - **Installer:** `-SageLagerbuchungCredential` entfernt, `Sync:ProductionOrdersEnabled=false` per DB-UPDATE nach dem Aufwärmen,
+>   SMTP-Warnung. Kopfzeile „Stand v1.71.1“ unverändert.
+> - `v1.71.0-AppsettingsProd` unverändert (Text seit ADR 0024 überholt – gemeldet, Folgeaufgabe).
 
 - **Web-App:** ja (Account, Users-Hinweis, Program.cs).
 - **Service:** ja, falls BH-5c (MailService) bzw. die Bereinigung der Dienst-`appsettings.json` umgesetzt wird; die bestehende
