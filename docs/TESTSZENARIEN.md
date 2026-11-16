@@ -12422,8 +12422,10 @@ Erstkennwort setzt der Web-Start, 139.4). Danach `DROP DATABASE`. **Negativ:** `
 
 ### TS-139.8 — Index-Prüfung IDEAL-Prod (Manual-UAT Gerald)
 
-Vor dem Deploy auf IDEAL-Prod Prüfabfrage P-2b der Spec ausführen. Treffer → Reparatur laut Spec Rückfrage 4 (SQL/151 +
-`Pruefung/FreshInstallIndizes` sind **nicht** gebaut, erst bei Treffern). Keine Treffer → nichts zu tun.
+Vor dem Deploy auf IDEAL-Prod Prüfabfrage P-2b der Spec ausführen bzw. `Update-IdealAkeWms.ps1 -NurPruefen` (Eintrag
+`[Pruefung/FreshInstallIndizes]`, nur Firma IDEAL, System Prod; Abweichung > 0 sperrt den Prod-Lauf vor dem Stoppen). Treffer →
+Reparatur laut Spec Rückfrage 4 (SQL/151 ist **nicht** gebaut, erst bei Treffern). Keine Treffer → nichts zu tun. Auf IDEAL-Test und
+DEV läuft die Prüfung nicht (über Migrationen entstanden, gleichwertige Indizes dort unter anderen Namen).
 
 ### TS-139.9 — Installer
 
