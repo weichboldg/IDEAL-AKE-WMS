@@ -2,7 +2,7 @@
 type: spec
 title: Wareneingang-CSV – ohne Kopfzeile, Erfasser = Windows-Kontoname (sAMAccountName)
 slug: 2026-11-14-wareneingang-csv-erfasser-samaccountname-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-11-16
 updated: 2026-11-16
 source_backlog: "[[2026-11-14-wareneingang-csv-erfasser-samaccountname]]"
@@ -280,7 +280,19 @@ Entfällt (`epic: false`).
 
 ## Deploy
 
-*Vorläufig. Der QA-Lauf bestätigt den Abschnitt gegen den echten Diff.*
+> [!success] Final (QA 2026-11-16 gegen `git diff 4559e0a2..f12f46f7`)
+> - **Web: ja** (nur `Views/Help/Index.cshtml`, `Views/Help/Changelog.cshtml`, `AppVersion.cs` – keine Logik). **Service: ja**
+>   (`IDEALAKEWMSService/Services/WareneingangCsvService.cs`, `AppVersion.cs`). **Migration: nein** (keine Datei unter `*/Migrations/`,
+>   kein `SQL/`). Frontmatter `deploy` stimmt.
+> - **Paket:** `C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish` – v1.99.29, `publish-info.txt` Commit
+>   `8f24ec516516114560d435b858e26277de101fd6` (= HEAD, enthält `f12f46f7`; danach nur `docs/` und `nachlauf.psd1`), beide Komponenten,
+>   `publish\deploy\nachlauf.psd1` enthält `v1.99.29-WareneingangCsvFormat` (Z. 411). `publish\deploy.zip` (07:31) ist ein Altstand und nicht
+>   Teil dieses Pakets.
+> - **Reihenfolge:** kein DB-Schritt; Web und Dienst gemeinsam per `deploy\Update-IdealAkeWms.ps1` (Info-Eintrag Nachher, nur AKE).
+> - Ablauf Mensch: Publish aus dem Worktree → Testsystem → Test → Merge. **Nach dem Merge nur dann aus `main` neu publizieren, wenn der Merge
+>   getestete Dateien mit parallelen `main`-Änderungen zusammengeführt hat.**
+
+*Vorläufig (Spec-Agent). Durch den QA-Abschnitt oben bestätigt.*
 
 > [!info] Abgleich gegen den echten Diff (Dev-Lauf 2026-11-16, Commit `f12f46f7`, `git diff 4559e0a2..f12f46f7`)
 > 9 Dateien: `IDEALAKEWMSService/Services/WareneingangCsvService.cs` (Include + `CsvInhalt`), `IDEALAKEWMSService.Tests/Services/WareneingangCsvServiceTests.cs`,
@@ -397,3 +409,101 @@ Die Antworten von Gerald (Block „Freigabe-Antworten“, unverändert) sind in 
 1. enaio-Import umstellen und Zeitpunkt → **Gerald 2026-11-16: Der enaio-Import darf keine Überschriften haben – die Datenzeile ohne Kopfzeile ist genau das Zielformat, keine Umstellung des Imports nötig.**
 2. Dateien im Übergang (Freigabe vor Deploy leer?) → **Gerald 2026-11-16: Ist noch nicht produktiv – es gibt keine Altdateien, kein Übergang zu regeln.**
 3. Schreibweise des Kontonamens (unverändert oder fest klein?) → **Gerald 2026-11-16: Kann immer klein sein, egal. Zusatz: Ein `@` sollte im Kontonamen nicht vorkommen (P-1-Grenze von `ExtractSam` damit unkritisch).**
+
+## QA-Nachweis (qa-agent, 2026-11-16)
+
+**Ergebnis: Testbereit.** Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Zweig `feature/2026-08-07-ideal-teile-1-5`, HEAD `8f24ec51`,
+reviewt: `4559e0a2..f12f46f7` (9 Dateien). Keine Fix-Commits.
+
+### 1. Build und Tests (HEAD `8f24ec51`)
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler, 28 Warnungen (Bestand).
+- `dotnet test`: `IDEALAKEWMSService.Tests` 663 bestanden / 0 übersprungen / 0 Fehler; `IdealAkeWms.Tests` 2952 bestanden / 1 übersprungen
+  (Bestand) / 0 Fehler.
+
+### 2. Code-Review (selbst, in diesem Lauf)
+Geprüft: kompletter Diff `4559e0a2..f12f46f7`, `WareneingangCsvService.cs` ganz (Lauf, Schreiben, `CsvInhalt`), `WindowsAccountHelper.ExtractSam`,
+`SageBookingWorker.cs:64-154` (Gate), einziger Aufrufer von `CsvInhalt` = `WareneingangCsvService.cs:118` (Grep), `CsvErneutSchreibenAsync`
+(`PurchaseOrderReceiptRepository.cs:159`), Hilfe, Changelog, README, TESTSZENARIEN, Manifest.
+- Nur die CSV geändert: `Receive.cs`, `SageWareneingangPayload.cs`, `SageLagerbuchungPayloadBuilder.cs`, `WarehouseRequisitionEmailService.cs`,
+  `Views/PurchaseOrders/*`, `PurchaseOrdersController.SageWe.cs` sind nicht im Diff (`git diff --stat`) – AK 10 belegt.
+- Erfasser-Regel `ExtractSam(u?.WindowsUserName) ?? u?.Name ?? r.CreatedBy` (`WareneingangCsvService.cs:141-142`): `CreatedByWindows` und
+  `StockMovement.WindowsUser` werden nicht gelesen. `Include(StockMovement).ThenInclude(User)` auf der `AsNoTracking`-Abfrage (Z. 64).
+- Kopfzeile entfernt; `F`/`D`, Feldreihenfolge, CRLF, BOM (Schreiber Z. 118) unverändert.
+- Defektklassen der Checkliste: kein Script-Embedding, kein `hidden`, keine reine Browser-Validierung, eine einzige Implementierungsstelle;
+  der Rückfall `?? r.CreatedBy` ist fachlich gewollt (F2 Regel 3), kein stiller Ersatzwert.
+
+Befunde: **keine blockierenden.** Hinweise (ohne Änderung):
+- H-1: `ExtractSam("AKE\")` liefert `""` statt `null` → Feld 7 wäre leer statt `User.Name`. Nur bei von Hand kaputtem `WindowsUserName` möglich
+  (einziger Schreibweg ist `CreateAdUser` aus der AD-Liste); laut Spec kein Zusatzcode → akzeptiert.
+- H-2: Die Hilfe nennt beim Quoting nur Strichpunkt und Anführungszeichen, nicht Zeilenumbruch (der Code quotet auch CR/LF). Kosmetisch.
+- H-3: `publish\deploy.zip` (16.11. 07:31) ist ein Altstand im Paketordner – nicht verwenden.
+
+### 3. Nachweisart je AK
+| AK | Nachweis |
+|---|---|
+| 1 ohne Kopfzeile | automatisiert (`WareneingangCsvServiceTests` Z. 82, `CsvInhalt_LeereWerteLeer…`) + DEV (Bytes: BOM, 1 Zeile, CRLF) |
+| 2 Reihenfolge | automatisiert (Z. 83, Werte wie vorher, ohne Kopfzeile) + DEV |
+| 3 AD-Benutzer | automatisiert (`CsvInhalt_Erfasser_AusBenutzerDerBewegung`) + DEV (`gerald.weichbold` statt `Gerald Weichbold`) |
+| 4 Domänenformen | automatisiert + DEV (`AKE\…`, `…@ake.at` → sam) |
+| 5 lokaler Benutzer | automatisiert (NULL/""/"  ") + DEV (lokaler Benutzer Id 21) |
+| 6 ohne UserId | automatisiert + DEV (`UserId = NULL` → `CreatedBy`) |
+| 7 nicht die Sitzung | automatisiert (`CreatedByWindows = AKE\terminal01`); auf DEV erscheint `CreatedByWindows = AKENB\…` des Receipts nicht. Formular-Anmeldung am Terminal: **Manual-UAT** |
+| 8 Include wirkt | automatisiert (InMemory, `ChangeTracker.Clear`) **und** auf echtem SQL Server (DEV-Sonde, s. 6c) |
+| 9 Escaping | automatisiert + DEV (`"Muster; ""Max"""`) |
+| 10 Bestand | Diff-Review (s. 2); Bestandstests der Klassen ohne Anpassung grün |
+| 11 erneut schreiben | DEV (Knopf „CSV erneut schreiben“ + Lauf → neues Format) |
+| 12 Hilfe | DEV-Browser AKE (`/Help` „Format (seit v1.99.29 ohne Kopfzeile)“, Changelog v1.99.29) |
+| 13 IDEAL | DEV SQL (`SyncLogs` Service `WareneingangCsv` = 0, Schalter aus) |
+| 14 Build/Tests/Manifest | automatisiert (`NachlaufManifestDriftTests` im Testlauf grün) |
+
+Der echte Dienstweg (Worker-Takt) ist auf DEV nicht prüfbar: Der CSV-Schritt läuft nur bei `SageWareneingangBelegAktiv = an`
+(`SageBookingWorker.cs:73,93`), und das schreibt Sage-Belege → **Manual-UAT** auf dem Testsystem.
+
+### 4. Geänderte Bestandstests
+`WareneingangCsvServiceTests.cs` Z. 82-83, 189, 218: Erwartung ohne Kopfzeile – **Verhalten absichtlich geändert (AK 1/2)**. Sonst keine
+Bestandstests geändert, kein „Sonstiges“.
+
+### 5. Checkliste
+Keine Migration/SQL/FreshInstall/AgentJobs (nicht betroffen). Version 1.99.29 in beiden `AppVersion.cs`, Anwender-Changelog, Brain-Changelog
+[[2026-11-16-v1-99-29-wareneingang-csv-enaio]], README, `docs/TESTSZENARIEN.md` TS-153 + Hinweis TS-129.11, [[testszenarien-index]] Zeile 153,
+[[fallstricke]] (Spaltenreihenfolge = Vertrag), [[feature-map]] (jetzt Testbereit). Manifest `v1.99.29-WareneingangCsvFormat` (Info, AKE,
+Nachher, ASCII) vorhanden; `Quelle` = Name der Brain-Changelog-Datei (stimmt). Audit-Felder `WareneingangCsvExporte` wie bisher.
+**5a ADR 0020:** keine neue oder geänderte Einstellung.
+
+### 6. DEV
+- a. Standort laut Frontmatter **AKE**; IDEAL nur Gegenprobe AK 13.
+- b. Kein Neu-Deploy: DEV AKE und IDEAL laufen mit dem HEAD-Build aus dem vorigen QA-Lauf (Binärdateien 16.11. 18:24, nach `f12f46f7`;
+  `8f24ec51` ändert nur `docs/` und das Manifest). Fußzeile AKE `v1.99.29` (Browser), IDEAL-Changelog zeigt v1.99.29; beide Dienste Running.
+- c. TS-153 mit DEV-Daten: Receipt 10, Barcode `AKE1235564654`, Vorgang `8CC7C3DB…`, Bewegung 19402, Benutzer 14 (AD) und 21 (lokal). Der
+  Dienst-Schritt ist ohne Sage-Schreiben nicht auslösbar. Ersatzweise rief eine Wegwerf-Konsole (Scratchpad, referenziert das Dienstprojekt
+  des Worktrees) `WareneingangCsvService.RunOnceAsync` gegen `AKE_WMS_DEV` auf (echter SQL Server, echter `SyncLogger`), Ziel
+  `D:\Dev\csv-ausgang\ake`. Die alte Datei (mit Kopfzeile) liegt als `AKE1235564654.v1-99-11-mit-kopfzeile.csv.bak` daneben. SQL-Eingriffe
+  zurückgesetzt (Users 14/21, Bewegung 19402 `UserId = 14`, geprüft). Export-Zeile 3 steht auf Status 2, `Datei` jetzt `D:\…` statt UNC (DEV-Testdatum).
+
+| Nr | Erledigt | Ergebnis | Status |
+|---|---|---|---|
+| 153.1 | Äquivalent: AD-Benutzer `gerald.weichbold`, Lauf über die Sonde | `AKE1235564654;K31705;Schachermayer GmbH;2027-168594;WMS-TEST-CSV;TEST-CSV-1;gerald.weichbold;2026-11-12 17:24;2026-11-12 17:26` – BOM 239,187,191, 1 Zeile, Ende CR LF, keine Kopfzeile; `SyncLogs` WareneingangCsv „geschrieben=1, fehler=0“ | OK (echte Buchung + Dienst-Takt: NICHT MÖGLICH, braucht Sage-Schreiben) |
+| 153.2 | – | Formular-Anmeldung am Terminal + Buchung + Übergabe braucht Sage-WE an | NICHT MÖGLICH (Unit-Test AK 7 grün) |
+| 153.3 | `UserId` → lokaler Benutzer 21 | Feld 7 = `User.Name` | OK (mit 153.6 kombiniert) |
+| 153.4 | `WindowsUserName = AKE\gerald.weichbold`, dann `gerald.weichbold@ake.at` | beide Male `gerald.weichbold` | OK |
+| 153.5 | `StockMovements.UserId = NULL` | Feld 7 = `Gerald Weichbold` (= `CreatedBy`) | OK |
+| 153.6 | Name von 21 = `Muster; "Max"` | Feld 7 = `"Muster; ""Max"""`, 9 Felder | OK |
+| 153.7 | Export per SQL auf Fehler, Knopf „CSV erneut schreiben“ im Browser → „CSV zum erneuten Schreiben vorgemerkt“, Lauf | neue Datei ohne Kopfzeile, Feld 7 nach F2 | OK (Lauf per Sonde statt Dienst) |
+| 153.8 | SQL Receipt 10 | `CreatedBy = Gerald Weichbold` unverändert, Memo `WE#DEV#10#` ohne Benutzer | OK |
+| 153.9 | Browser `/Help` und `/Help/Changelog` | „Format (seit v1.99.29 ohne Kopfzeile)“, 9 Felder, Erfasser-Regel; Changelog v1.99.29 | OK |
+| 153.10 | SQL `IDEAL_WMS_DEV` | `WareneingangCsvAktiv`/`SageWareneingangBelegAktiv` false, 0 `SyncLogs` WareneingangCsv; Changelog v1.99.29 sichtbar | OK |
+
+Keine Einstellung auf DEV umgeschaltet; nichts an Sage, Test oder Prod.
+
+### 7. Publish
+Im vorigen QA-Lauf erstellt; HEAD seitdem unverändert, daher nicht wiederholt: `…\2026-08-07-ideal-teile-1-5\publish\` (IDEALAKEWMSWeb,
+IDEALAKEWMSWebService, SQL, deploy), `publish-info.txt` Version 1.99.29, Commit `8f24ec51…` (= HEAD).
+
+### Manuelle Testcheckliste (offen für Gerald)
+1. Testsystem AKE: Paket einspielen (Web + Dienst), Fußzeile v1.99.29, Manifest-Info `v1.99.29-WareneingangCsvFormat` erscheint.
+2. TS-153.1 echt: AD-Benutzer per Windows bucht einen WE mit Barcode, Übergabe an Sage (Testsystem mit `SageWareneingangBelegAktiv` und
+   `WareneingangCsvAktiv` an), ein Takt → Datei ohne Kopfzeile, Feld 7 = sam.
+3. TS-153.2: derselbe Benutzer per Formular an einem Terminal → Feld 7 = sam, nicht `SYSTEM` bzw. Terminal-Konto.
+4. TS-153.3: lokaler Benutzer bucht → Feld 7 = WMS-Name.
+5. enaio liest die Datei (9 Felder nach Position) korrekt ein.
+6. Optional: Prüfabfragen P-1–P-3 auf Prod vor dem Deploy.
