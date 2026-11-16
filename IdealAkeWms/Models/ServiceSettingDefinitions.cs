@@ -285,7 +285,7 @@ public static class ServiceSettingDefinitions
         new("Sync:FaWorkStepDetectionEnabled",       SettingType.Bool, "false", "FA-Vervollstaendigung", "Automatische FA-Arbeitsgang-Erkennung aus dem BOM-Cache (laeuft nach BomCache-Sync)"),
 
         // ----- Lackierteile -----
-        new("Sync:CoatingDetectionEnabled",          SettingType.Bool, "false", "Lackierteile", "Lackierteil-Erkennung als separater Sync-Job aktiv"),
+        new("Sync:CoatingDetectionEnabled",          SettingType.Bool, "false", "Lackierteile", "Lackierteil-Erkennung aktiv: eigener Sync-Job und (seit v1.99.25) Lauf nach dem Sage-Import fuer neue Auftraege"),
 
         // ----- BDE / Feiertage -----
         new("Sync:BdeAutoPauseIntervalMinutes",      SettingType.Int,  "60",    "BDE", "Intervall (Minuten) fuer BDE-Auto-Pause am Schichtende"),

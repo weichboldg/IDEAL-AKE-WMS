@@ -167,6 +167,10 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
    Pruefung='SELECT COUNT(*) FROM (SELECT ps.PickingPriority FROM dbo.ProductionOrderPickingStatus ps JOIN dbo.ProductionOrders po ON po.Id = ps.ProductionOrderId WHERE ps.PickingPriority IS NOT NULL AND po.IsDone = 0 AND po.IsCancelled = 0 AND (po.SubOrderNumber = N'''' OR po.SubOrderNumber = po.OrderNumber) GROUP BY ps.PickingPriority HAVING COUNT(*) > 1) d'
    Text='Offene FAs mit gleicher Kommissionier-Prio (Altbestand vor v1.99.17, freigegeben oder zurueckgenommen): im Leitstand per Prio-Eingabe korrigieren; Liste mit Pruefabfrage 1 der Spec 2026-11-13-doppelte-kommissionier-prio-nach-ruecknahme. Eine bewusst gleiche Prio (zwei FAs gleich dringend) ist erlaubt.'
    Quelle='2026-11-13-v1-99-17-doppelte-kommissionier-prio' }
+@{ Id='Pruefung/BeschichtungQuelleKombination'; Version='1.99.25'; Typ='Pruefung'; Firma='beide'; Phase='Haltepunkt'; Ausfuehrung='anzeigen'
+   Pruefung='SELECT COUNT(*) FROM dbo.AppSettings a CROSS JOIN (SELECT COALESCE((SELECT LOWER(LTRIM(RTRIM([Value]))) FROM dbo.ServiceSettings WHERE [Key]=N''ProduktionsauftragHierarchisch''), N''false'') m) s WHERE (a.[Key]=N''BeschichtungKennzeichenQuelle'' AND ((a.[Value]=N''Artikelkategorie'' AND s.m=N''true'') OR (a.[Value]=N''FaStruktur'' AND s.m<>N''true''))) OR (a.[Key]=N''BeschichtungTerminQuelle'' AND a.[Value]=N''View'' AND s.m<>N''true'')'
+   Text='Beschichtungsquelle passt nicht zum Auftragsmodell, wirkt wie Automatisch; unter /Settings korrigieren.'
+   Quelle='2026-11-16-v1-99-25-beschichtungslogik-je-standort' }
 
 # ---------------------------------------------------------------- Daten und Einmal-Skripte (nur mit Eingabe am Zielserver, ADR 0023)
 @{ Id='Einmalig/2026-11-08_v1.88.0_Kommissionierauftraege_Altbestand'; Version='1.88.0'; Typ='Einmalig'; Firma='beide'; Phase='Haltepunkt'; Ausfuehrung='Trockenlauf'
@@ -370,5 +374,8 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
 @{ Id='v1.99.23-SeitenNeuLaden'; Version='1.99.23'; Typ='Info'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
    Text='Offene Seiten Wareneingang zu Bestellung und Leitstand (auch am Handgeraet) neu laden: Seiten von vor dem Update werden mit Seite ist veraltet abgewiesen, nichts wird gebucht.'
    Quelle='2026-11-14-v1-99-23-schutz-doppel-absenden' }
+@{ Id='v1.99.25-Beschichtungsquelle-Info'; Version='1.99.25'; Typ='Info'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Text='Neue Einstellungen Quelle Beschichtet-Kennzeichen / Quelle Beschichtungstermin (/Settings > Termine und Beschichtung) stehen auf Automatisch, das Verhalten ist unveraendert. Die Listen lesen die Termin-Quelle erst mit einer Folgeversion. Die Lackierteil-Erkennung nach dem Sage-Import laeuft nur noch bei Sync:CoatingDetectionEnabled.'
+   Quelle='2026-11-16-v1-99-25-beschichtungslogik-je-standort' }
 )
 }

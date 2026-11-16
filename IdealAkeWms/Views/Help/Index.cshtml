@@ -730,6 +730,30 @@
                         mit Lackierteilen angezeigt.
                     </dd>
 
+                    <dt>Beschichtungsquelle (seit v1.99.25)</dt>
+                    <dd>
+                        Unter <strong>Einstellungen &gt; Termine und Beschichtung</strong> legen zwei Auswahlfelder fest,
+                        woher das Beschichtungs-Kennzeichen und der Beschichtungstermin kommen. Beide stehen auf
+                        <strong>Automatisch</strong> &mdash; das ist das bisherige Verhalten je Standort:
+                        <ul class="mb-1">
+                            <li><strong>Quelle Beschichtet-Kennzeichen:</strong> <em>Artikelkategorie</em> (Lackierteil-Erkennung
+                                ueber die Stueckliste und <strong>LackierteilKategorieName</strong>, flache Auftraege, AKE) oder
+                                <em>FaStruktur</em> (Spalte Beschichtet der Sage-FA-Struktur, hierarchische Auftraege, IDEAL).
+                                Es schreibt immer nur einer der beiden Dienst-Laeufe das Kennzeichen; der andere meldet im
+                                Aktivitaets-Protokoll &bdquo;uebersprungen&ldquo;. Faellt das Kennzeichen nach einem Umschalten weg,
+                                wird &bdquo;Beschichtung erledigt&ldquo; zurueckgesetzt.</li>
+                            <li><strong>Quelle Beschichtungstermin:</strong> <em>Berechnet</em> (Kommissioniertermin minus
+                                Beschichtungstage, auf den letzten Abholtag) oder <em>View</em> (Start_Beschichtung des
+                                Auftragskopfs aus der Sage-View, nur bei hierarchischen Auftraegen). Die Listen werten diese
+                                Einstellung erst mit einer Folgeversion aus.</li>
+                        </ul>
+                        Eine Quelle ohne Datenbasis im aktuellen Auftragsmodell (z.&nbsp;B. <em>FaStruktur</em> oder <em>View</em>
+                        an der AKE) lehnt das Speichern mit einer Meldung ab. Steht ein solcher Wert trotzdem in der Datenbank,
+                        wirkt er wie &bdquo;Automatisch&ldquo;, und der Dienst meldet ihn als Warnung im Aktivitaets-Protokoll.
+                        Die Lackierteil-Erkennung direkt nach dem Sage-Import laeuft nur, wenn
+                        <strong>Sync:CoatingDetectionEnabled</strong> an ist.
+                    </dd>
+
                     <dt>Status</dt>
                     <dd>
                         <span class="badge bg-secondary">offen</span> — Noch nicht kommissioniert<br />

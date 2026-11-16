@@ -474,7 +474,9 @@ Bei Änderungen der Tabellenstruktur müssen diese Scripts angepasst werden.
 | `BestellungenAktiv` | `false` | Bedarfsmeldungen aus Stückliste aktivieren |
 | `LeitstandAktiv` | `false` | Leitstand: Kommissionier-Freigabe und Priorisierung; die Freigabe legt die Kommissionieraufträge an. Aus = Auswahlliste, das Öffnen eines FA legt sie an |
 | `KommissionierungMitZuweisung` | `false` | Kommissionierung mit Anwenderzuweisung aktivieren: Freigabe verlangt einen Kommissionierer, „Nur meine“ filtert die Auftragsliste (abhängig von `LeitstandAktiv`) |
-| `LackierteilKategorieName` | (leer) | Name der Artikelkategorie die als Lackierteil gilt |
+| `LackierteilKategorieName` | (leer) | Name der Artikelkategorie die als Lackierteil gilt; wirkt nur bei Kennzeichen-Quelle `Artikelkategorie` |
+| `BeschichtungKennzeichenQuelle` | `Automatisch` | Wer `HasCoatingParts` schreibt: `Artikelkategorie` (Lackierteil-Erkennung, nur flach) oder `FaStruktur` (FA-Materialisierung, nur hierarchisch); `Automatisch` = nach `ProduktionsauftragHierarchisch`. Unpassende Kombination wird in `/Settings` abgelehnt und wirkt sonst wie `Automatisch` (v1.99.25) |
+| `BeschichtungTerminQuelle` | `Automatisch` | `Berechnet` (Kommissioniertermin minus `BeschichtungTage`, auf Abholtag) oder `View` (`Start_Beschichtung` des Auftragskopfs, nur hierarchisch); noch ohne Wirkung in den Listen (Folgeversion, v1.99.25) |
 | `FaCompletionAktiv` | `false` | FA-Vervollständigung + FA-Abarbeitungsliste aktivieren |
 | `BdeAktiv` | `false` | BDE-Modul aktivieren |
 | `BdeNurFaMeldung` | `false` | Vereinfachter BDE-Modus (FA statt AG) |
