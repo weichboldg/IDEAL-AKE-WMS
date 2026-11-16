@@ -26,6 +26,7 @@ BEGIN
         [Name]                      NVARCHAR(200)     NOT NULL,
         [PersonalNumber]            NVARCHAR(50)      NULL,
         [PasswordHash]              NVARCHAR(500)     NULL,
+        [MussKennwortAendern]       BIT               NOT NULL CONSTRAINT [DF_Users_MussKennwortAendern] DEFAULT 0,
         [WindowsUserName]           NVARCHAR(200)     NULL,
         [IsActive]                  BIT               NOT NULL DEFAULT 1,
         [DefaultFilterBeschaffung]  NVARCHAR(100)     NULL,
@@ -1206,6 +1207,9 @@ GO
 -- =============================================
 -- 15. Indexes
 -- =============================================
+-- v1.99.28: IX_ProductionOrders_IsReleasedForPicking_IsDone / _AssignedPickerId entfernt – die Spalten liegen seit SQL/60 in
+-- ProductionOrderPickingStatus (eigene Indizes dort). Ein unbekannter Spaltenname verwirft den GANZEN Batch (Msg 207 beim Kompilieren),
+-- nicht nur die Anweisung: dann fehlen alle Indizes dieses Abschnitts. Waechter: FreshInstallIndexSpaltenTests.
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_StockMovements_ArticleId')
     CREATE NONCLUSTERED INDEX [IX_StockMovements_ArticleId] ON [dbo].[StockMovements]([ArticleId]);
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_StockMovements_StorageLocationId')
@@ -1257,10 +1261,6 @@ IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_ProductionOrders_IsCan
     CREATE NONCLUSTERED INDEX [IX_ProductionOrders_IsCancelled] ON [dbo].[ProductionOrders]([IsCancelled]);
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_ProductionOrders_ProductionWorkplaceId')
     CREATE NONCLUSTERED INDEX [IX_ProductionOrders_ProductionWorkplaceId] ON [dbo].[ProductionOrders]([ProductionWorkplaceId]);
-IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_ProductionOrders_IsReleasedForPicking_IsDone')
-    CREATE NONCLUSTERED INDEX [IX_ProductionOrders_IsReleasedForPicking_IsDone] ON [dbo].[ProductionOrders]([IsReleasedForPicking], [IsDone]) INCLUDE ([PickingPriority], [ProductionDate], [AssignedPickerId]);
-IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_ProductionOrders_AssignedPickerId')
-    CREATE NONCLUSTERED INDEX [IX_ProductionOrders_AssignedPickerId] ON [dbo].[ProductionOrders]([AssignedPickerId]) WHERE [AssignedPickerId] IS NOT NULL;
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_PickingItems_ProductionOrderId')
     CREATE NONCLUSTERED INDEX [IX_PickingItems_ProductionOrderId] ON [dbo].[PickingItems]([ProductionOrderId]);
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_PickingItems_POId_IsPicked')
@@ -1800,74 +1800,84 @@ BEGIN
 END
 GO
 
-CREATE TABLE [dbo].[WarehouseRequisitions] (
-    [Id] INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
-    [ProductionWorkplaceId] INT NOT NULL,
-    [Status] TINYINT NOT NULL,
-    [Type] INT NOT NULL CONSTRAINT [DF_WarehouseRequisitions_Type] DEFAULT 1,
-    [CreatedByUserId] INT NULL,
-    [OrderRecipientGroupId] INT NULL,
-    [SubmittedAt] DATETIME2 NULL,
-    [SubmittedByUserId] INT NULL,
-    [ClosedAt] DATETIME2 NULL,
-    [ClosedByUserId] INT NULL,
-    [CancelledAt] DATETIME2 NULL,
-    [CancelledByUserId] INT NULL,
-    [CancellationReason] NVARCHAR(500) NULL,
-    [Comment] NVARCHAR(1000) NULL,
-    [EmailSentAt] DATETIME2 NULL,
-    [CancellationEmailSentAt] DATETIME2 NULL,
-    [RowVersion] ROWVERSION NOT NULL,
-    [CreatedAt] DATETIME2 NOT NULL,
-    [CreatedBy] NVARCHAR(200) NOT NULL,
-    [CreatedByWindows] NVARCHAR(200) NOT NULL,
-    [ModifiedAt] DATETIME2 NULL,
-    [ModifiedBy] NVARCHAR(200) NULL,
-    [ModifiedByWindows] NVARCHAR(200) NULL,
-    CONSTRAINT [FK_WarehouseRequisitions_ProductionWorkplaces] FOREIGN KEY ([ProductionWorkplaceId])
-        REFERENCES [dbo].[ProductionWorkplaces]([Id]),
-    CONSTRAINT [FK_WarehouseRequisitions_OrderRecipientGroups] FOREIGN KEY ([OrderRecipientGroupId])
-        REFERENCES [dbo].[OrderRecipientGroups]([Id])
-);
-CREATE INDEX [IX_WarehouseRequisitions_Status] ON [dbo].[WarehouseRequisitions]([Status]);
-CREATE INDEX [IX_WarehouseRequisitions_ProductionWorkplaceId] ON [dbo].[WarehouseRequisitions]([ProductionWorkplaceId]);
-CREATE INDEX [IX_WarehouseRequisitions_SubmittedAt] ON [dbo].[WarehouseRequisitions]([SubmittedAt]);
-CREATE INDEX [IX_WarehouseRequisitions_CreatedByUserId] ON [dbo].[WarehouseRequisitions]([CreatedByUserId]);
+IF OBJECT_ID(N'dbo.WarehouseRequisitions', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[WarehouseRequisitions] (
+        [Id] INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+        [ProductionWorkplaceId] INT NOT NULL,
+        [Status] TINYINT NOT NULL,
+        [Type] INT NOT NULL CONSTRAINT [DF_WarehouseRequisitions_Type] DEFAULT 1,
+        [CreatedByUserId] INT NULL,
+        [OrderRecipientGroupId] INT NULL,
+        [SubmittedAt] DATETIME2 NULL,
+        [SubmittedByUserId] INT NULL,
+        [ClosedAt] DATETIME2 NULL,
+        [ClosedByUserId] INT NULL,
+        [CancelledAt] DATETIME2 NULL,
+        [CancelledByUserId] INT NULL,
+        [CancellationReason] NVARCHAR(500) NULL,
+        [Comment] NVARCHAR(1000) NULL,
+        [EmailSentAt] DATETIME2 NULL,
+        [CancellationEmailSentAt] DATETIME2 NULL,
+        [RowVersion] ROWVERSION NOT NULL,
+        [CreatedAt] DATETIME2 NOT NULL,
+        [CreatedBy] NVARCHAR(200) NOT NULL,
+        [CreatedByWindows] NVARCHAR(200) NOT NULL,
+        [ModifiedAt] DATETIME2 NULL,
+        [ModifiedBy] NVARCHAR(200) NULL,
+        [ModifiedByWindows] NVARCHAR(200) NULL,
+        CONSTRAINT [FK_WarehouseRequisitions_ProductionWorkplaces] FOREIGN KEY ([ProductionWorkplaceId])
+            REFERENCES [dbo].[ProductionWorkplaces]([Id]),
+        CONSTRAINT [FK_WarehouseRequisitions_OrderRecipientGroups] FOREIGN KEY ([OrderRecipientGroupId])
+            REFERENCES [dbo].[OrderRecipientGroups]([Id])
+    );
+    CREATE INDEX [IX_WarehouseRequisitions_Status] ON [dbo].[WarehouseRequisitions]([Status]);
+    CREATE INDEX [IX_WarehouseRequisitions_ProductionWorkplaceId] ON [dbo].[WarehouseRequisitions]([ProductionWorkplaceId]);
+    CREATE INDEX [IX_WarehouseRequisitions_SubmittedAt] ON [dbo].[WarehouseRequisitions]([SubmittedAt]);
+    CREATE INDEX [IX_WarehouseRequisitions_CreatedByUserId] ON [dbo].[WarehouseRequisitions]([CreatedByUserId]);
+
+    PRINT 'Tabelle WarehouseRequisitions erstellt.';
+END
 GO
 
-CREATE TABLE [dbo].[WarehouseRequisitionItems] (
-    [Id] INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
-    [WarehouseRequisitionId] INT NOT NULL,
-    [ArticleNumber] NVARCHAR(100) NOT NULL,
-    [ArticleDescription] NVARCHAR(500) NOT NULL,
-    [Unit] NVARCHAR(20) NULL,
-    [QuantityRequested] DECIMAL(18,4) NOT NULL,
-    [QuantityPicked] DECIMAL(18,4) NULL,
-    [Position] INT NOT NULL,
-    [Note] NVARCHAR(500) NULL,
-    [NoteEinkauf] NVARCHAR(500) NULL,
-    [ShortageStatus] TINYINT NOT NULL CONSTRAINT DF_WarehouseRequisitionItems_ShortageStatus DEFAULT 0,
-    [CreatedAt] DATETIME2 NOT NULL,
-    [CreatedBy] NVARCHAR(200) NOT NULL,
-    [CreatedByWindows] NVARCHAR(200) NOT NULL,
-    [ModifiedAt] DATETIME2 NULL,
-    [ModifiedBy] NVARCHAR(200) NULL,
-    [ModifiedByWindows] NVARCHAR(200) NULL,
-    CONSTRAINT [FK_WarehouseRequisitionItems_WarehouseRequisitions] FOREIGN KEY ([WarehouseRequisitionId])
-        REFERENCES [dbo].[WarehouseRequisitions]([Id]) ON DELETE CASCADE
-);
-CREATE INDEX [IX_WarehouseRequisitionItems_RequisitionId_Position]
-    ON [dbo].[WarehouseRequisitionItems]([WarehouseRequisitionId], [Position]);
--- Gefiltert: DUMMY-Schluessel ausgenommen (mehrere DUMMY-Positionen je Bestellung erlaubt, Teil-7).
-CREATE UNIQUE INDEX [IX_WarehouseRequisitionItems_RequisitionId_ArticleNumber]
-    ON [dbo].[WarehouseRequisitionItems]([WarehouseRequisitionId], [ArticleNumber])
-    WHERE [ArticleNumber] <> 'DUMMY';
-CREATE INDEX [IX_WarehouseRequisitionItems_ShortageStatus_WillBeRestocked]
-    ON [dbo].[WarehouseRequisitionItems]([ShortageStatus])
-    WHERE [ShortageStatus] = 1;
-CREATE INDEX [IX_WarehouseRequisitionItems_ShortageStatus_NoRestock]
-    ON [dbo].[WarehouseRequisitionItems]([ShortageStatus])
-    WHERE [ShortageStatus] = 2;
+IF OBJECT_ID(N'dbo.WarehouseRequisitionItems', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[WarehouseRequisitionItems] (
+        [Id] INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+        [WarehouseRequisitionId] INT NOT NULL,
+        [ArticleNumber] NVARCHAR(100) NOT NULL,
+        [ArticleDescription] NVARCHAR(500) NOT NULL,
+        [Unit] NVARCHAR(20) NULL,
+        [QuantityRequested] DECIMAL(18,4) NOT NULL,
+        [QuantityPicked] DECIMAL(18,4) NULL,
+        [Position] INT NOT NULL,
+        [Note] NVARCHAR(500) NULL,
+        [NoteEinkauf] NVARCHAR(500) NULL,
+        [ShortageStatus] TINYINT NOT NULL CONSTRAINT DF_WarehouseRequisitionItems_ShortageStatus DEFAULT 0,
+        [CreatedAt] DATETIME2 NOT NULL,
+        [CreatedBy] NVARCHAR(200) NOT NULL,
+        [CreatedByWindows] NVARCHAR(200) NOT NULL,
+        [ModifiedAt] DATETIME2 NULL,
+        [ModifiedBy] NVARCHAR(200) NULL,
+        [ModifiedByWindows] NVARCHAR(200) NULL,
+        CONSTRAINT [FK_WarehouseRequisitionItems_WarehouseRequisitions] FOREIGN KEY ([WarehouseRequisitionId])
+            REFERENCES [dbo].[WarehouseRequisitions]([Id]) ON DELETE CASCADE
+    );
+    CREATE INDEX [IX_WarehouseRequisitionItems_RequisitionId_Position]
+        ON [dbo].[WarehouseRequisitionItems]([WarehouseRequisitionId], [Position]);
+    -- Gefiltert: DUMMY-Schluessel ausgenommen (mehrere DUMMY-Positionen je Bestellung erlaubt, Teil-7).
+    CREATE UNIQUE INDEX [IX_WarehouseRequisitionItems_RequisitionId_ArticleNumber]
+        ON [dbo].[WarehouseRequisitionItems]([WarehouseRequisitionId], [ArticleNumber])
+        WHERE [ArticleNumber] <> 'DUMMY';
+    CREATE INDEX [IX_WarehouseRequisitionItems_ShortageStatus_WillBeRestocked]
+        ON [dbo].[WarehouseRequisitionItems]([ShortageStatus])
+        WHERE [ShortageStatus] = 1;
+    CREATE INDEX [IX_WarehouseRequisitionItems_ShortageStatus_NoRestock]
+        ON [dbo].[WarehouseRequisitionItems]([ShortageStatus])
+        WHERE [ShortageStatus] = 2;
+
+    PRINT 'Tabelle WarehouseRequisitionItems erstellt.';
+END
 GO
 
 -- =============================================
@@ -3262,6 +3272,10 @@ GO
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261114080950_AddPurchaseOrderReceiptAbsendekennung')
    AND COL_LENGTH(N'dbo.PurchaseOrderReceipts', N'Absendekennung') IS NOT NULL -- sonst steht SQL/150 noch aus
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261114080950_AddPurchaseOrderReceiptAbsendekennung', '10.0.2');
+GO
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261116165705_AddUserMussKennwortAendern')
+   AND COL_LENGTH(N'dbo.Users', N'MussKennwortAendern') IS NOT NULL -- sonst steht SQL/152 noch aus
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261116165705_AddUserMussKennwortAendern', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';

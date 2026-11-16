@@ -20,7 +20,7 @@ public class AccountControllerTests
         Mock<IProductionWorkplaceRepository>? workplaceRepo = null,
         int? currentUserId = 1)
     {
-        var passwordService = new Mock<IPasswordService>();
+        var passwordService = new Mock<IPasswordService>().Object;
         var appSettings = new Mock<IAppSettingRepository>();
         var serviceSettings = new Mock<IServiceSettingRepository>();
         var currentUser = new Mock<ICurrentUserService>();
@@ -34,12 +34,13 @@ public class AccountControllerTests
 
         var ctrl = new AccountController(
             userRepo.Object,
-            passwordService.Object,
+            passwordService,
             currentUser.Object,
             workStepRepo.Object,
             workplaceRepo.Object,
             appSettings.Object,
-            serviceSettings.Object);
+            serviceSettings.Object,
+            Mock.Of<Microsoft.AspNetCore.Hosting.IWebHostEnvironment>(e => e.EnvironmentName == "Production"));
         var httpContext = new DefaultHttpContext();
         ctrl.ControllerContext = new ControllerContext
         {

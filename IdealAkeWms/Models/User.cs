@@ -19,6 +19,11 @@ public class User : AuditableEntity
     [StringLength(500)]
     public string? PasswordHash { get; set; }
 
+    /// <summary>Kennwort hat ein Admin bzw. der Start-Seed vergeben (Erstkennwort): die naechste
+    /// Formular-Anmeldung verlangt erst ein eigenes Kennwort (ADR 0027, Regel P). Ohne Kennwort wirkungslos.</summary>
+    [Display(Name = "Muss Kennwort bei der nächsten Anmeldung ändern")]
+    public bool MussKennwortAendern { get; set; }
+
     [StringLength(200)]
     [Display(Name = "Windows-Benutzer")]
     public string? WindowsUserName { get; set; }

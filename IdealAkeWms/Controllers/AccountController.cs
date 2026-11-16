@@ -15,6 +15,7 @@ public class AccountController : Controller
     private readonly IProductionWorkplaceRepository _productionWorkplaceRepository;
     private readonly IAppSettingRepository _appSettingRepository;
     private readonly IServiceSettingRepository _serviceSettingRepository;
+    private readonly IWebHostEnvironment _env;
 
     public AccountController(
         IUserRepository userRepository,
@@ -23,7 +24,8 @@ public class AccountController : Controller
         IWorkStepRepository workStepRepository,
         IProductionWorkplaceRepository productionWorkplaceRepository,
         IAppSettingRepository appSettingRepository,
-        IServiceSettingRepository serviceSettingRepository)
+        IServiceSettingRepository serviceSettingRepository,
+        IWebHostEnvironment env)
     {
         _userRepository = userRepository;
         _passwordService = passwordService;
@@ -32,6 +34,7 @@ public class AccountController : Controller
         _productionWorkplaceRepository = productionWorkplaceRepository;
         _appSettingRepository = appSettingRepository;
         _serviceSettingRepository = serviceSettingRepository;
+        _env = env;
     }
 
     // Master ProduktionsauftragHierarchisch (ServiceSetting) — Muster wie PickingController.
@@ -43,11 +46,20 @@ public class AccountController : Controller
         IsTrue(await _serviceSettingRepository.GetValueAsync(
             IdealAkeWms.Services.HierarchischeStruktur.HierarchischeStrukturKeys.Master));
 
-    private async Task SetWindowsAuthAktivAsync()
+    private async Task<bool> SetWindowsAuthAktivAsync()
     {
         var flag = await _appSettingRepository.GetValueAsync(AppSettingKeys.WindowsAuthAktiv);
-        ViewBag.WindowsAuthAktiv = string.Equals(flag, "true", StringComparison.OrdinalIgnoreCase);
+        var aktiv = string.Equals(flag, "true", StringComparison.OrdinalIgnoreCase);
+        ViewBag.WindowsAuthAktiv = aktiv;
+        // Entwicklungs-Ausnahme sichtbar machen (ADR 0027): nur `dotnet run` (launchSettings), nie unter IIS (Production/DEV).
+        ViewBag.Entwicklungsmodus = _env.IsDevelopment();
+        return aktiv;
     }
+
+    /// <summary>Meldung bei Formular-Anmeldung ohne gespeichertes Kennwort (Regel R, ADR 0027).</summary>
+    public static string MeldungOhneKennwort(bool windowsAuthAktiv) => windowsAuthAktiv
+        ? "Für diesen Benutzer ist kein Kennwort hinterlegt. Bitte „Mit Windows anmelden“ verwenden oder beim Administrator ein Kennwort setzen lassen."
+        : "Für diesen Benutzer ist kein Kennwort hinterlegt. Bitte beim Administrator ein Kennwort setzen lassen.";
 
     [HttpGet]
     public async Task<IActionResult> Login(string? returnUrl = null)
@@ -65,6 +77,7 @@ public class AccountController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Login(LoginViewModel vm, string? returnUrl = null)
     {
+        ViewBag.ReturnUrl = returnUrl;
         if (!ModelState.IsValid)
         {
             await SetWindowsAuthAktivAsync();
@@ -79,27 +92,59 @@ public class AccountController : Controller
             return View(vm);
         }
 
-        // Passwort prüfen (wenn gesetzt)
-        if (!string.IsNullOrEmpty(user.PasswordHash))
+        // Regel R (ADR 0027): Formular nur mit gespeichertem, nicht leerem Kennwort. Einzige Ausnahme: Entwicklungsmodus (dotnet run).
+        if (string.IsNullOrEmpty(user.PasswordHash))
         {
-            if (!_passwordService.VerifyPassword(user.PasswordHash, vm.Password ?? string.Empty))
+            if (!_env.IsDevelopment() || !string.IsNullOrEmpty(vm.Password))
             {
-                vm.ErrorMessage = "Falsches Passwort.";
-                await SetWindowsAuthAktivAsync();
+                vm.ErrorMessage = MeldungOhneKennwort(await SetWindowsAuthAktivAsync());
                 return View(vm);
             }
-        }
-        else
-        {
-            // Kein Passwort gesetzt - nur prüfen ob Passwort leer ist
-            if (!string.IsNullOrEmpty(vm.Password))
-            {
-                vm.ErrorMessage = "Für diesen Benutzer ist kein Passwort hinterlegt.";
-                await SetWindowsAuthAktivAsync();
-                return View(vm);
-            }
+            return StartSession(user, returnUrl);
         }
 
+        if (string.IsNullOrEmpty(vm.Password) || !_passwordService.VerifyPassword(user.PasswordHash, vm.Password))
+        {
+            vm.ErrorMessage = "Falsches Passwort.";
+            vm.KennwortFestlegen = false;
+            await SetWindowsAuthAktivAsync();
+            return View(vm);
+        }
+
+        if (!user.MussKennwortAendern)
+            return StartSession(user, returnUrl);
+
+        // Regel P: Erstkennwort -> Pflichtwechsel vor der Sitzung. Zustandslos: bisheriges Kennwort und Haken werden bei JEDEM POST
+        // erneut geprueft (oben), nichts aus dem Client uebernommen ausser den Eingaben.
+        var schrittGepostet = vm.KennwortFestlegen;
+        vm.KennwortFestlegen = true;
+        string? fehler = null;
+        if (string.IsNullOrWhiteSpace(vm.NewPassword))
+            fehler = schrittGepostet ? "Bitte ein neues Kennwort eingeben." : null;
+        else if (vm.NewPassword != vm.NewPasswordRepeat)
+            fehler = "Die Wiederholung stimmt nicht mit dem neuen Kennwort überein.";
+        else if (_passwordService.VerifyPassword(user.PasswordHash, vm.NewPassword))
+            fehler = "Das neue Kennwort muss sich vom bisherigen unterscheiden.";
+
+        if (fehler != null || string.IsNullOrWhiteSpace(vm.NewPassword))
+        {
+            vm.ErrorMessage = fehler;
+            await SetWindowsAuthAktivAsync();
+            return View(vm);
+        }
+
+        user.PasswordHash = _passwordService.HashPassword(vm.NewPassword!);
+        user.MussKennwortAendern = false;
+        user.ModifiedAt = DateTime.Now;
+        user.ModifiedBy = user.Name; // noch keine Sitzung
+        user.ModifiedByWindows = _currentUserService.GetWindowsUserName();
+        await _userRepository.UpdateAsync(user);
+        TempData["SuccessMessage"] = "Kennwort geändert.";
+        return StartSession(user, returnUrl);
+    }
+
+    private IActionResult StartSession(User user, string? returnUrl)
+    {
         // Session setzen
         HttpContext.Session.SetInt32(CurrentUserService.SessionKeyUserId, user.Id);
         HttpContext.Session.SetString(CurrentUserService.SessionKeyUserName, user.Name);
@@ -220,7 +265,10 @@ public class AccountController : Controller
         user.DefaultFilterBomKommissionierziel = kommissionierziel;
 
         if (!string.IsNullOrEmpty(newPassword))
+        {
             user.PasswordHash = _passwordService.HashPassword(newPassword);
+            user.MussKennwortAendern = false; // selbst gewaehltes Kennwort beendet den Pflichtwechsel (ADR 0027)
+        }
 
         user.ModifiedAt = DateTime.Now;
         user.ModifiedBy = _currentUserService.GetCurrentAppUserName() ?? string.Empty;

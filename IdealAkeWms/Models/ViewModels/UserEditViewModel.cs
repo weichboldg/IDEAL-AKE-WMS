@@ -45,6 +45,15 @@ public class UserEditViewModel
     [Display(Name = "Ist Kommissionierer")]
     public bool IsPicker { get; set; }
 
+    /// <summary>Pflichtwechsel bei der naechsten Formular-Anmeldung (ADR 0027). Checkbox ist massgeblich (Freigabe-Antwort 15),
+    /// bei neu eingegebenem/erzeugtem Kennwort in der Maske vorausgewaehlt.</summary>
+    [Display(Name = "Muss Kennwort bei der nächsten Anmeldung ändern")]
+    public bool MussKennwortAendern { get; set; }
+
+    /// <summary>WMS erzeugt ein Erstkennwort (hat Vorrang vor dem eingegebenen Feld); Anzeige genau einmal im Erfolgs-Banner.</summary>
+    [Display(Name = "Erstkennwort erzeugen")]
+    public bool ErstkennwortErzeugen { get; set; }
+
     [Display(Name = "Eintraege pro Seite (Standard)")]
     public int? DefaultPageSize { get; set; }
 

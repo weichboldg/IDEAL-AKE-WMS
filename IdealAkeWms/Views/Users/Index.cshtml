@@ -17,6 +17,32 @@
     </div>
 </div>
 
+@{
+    var ohneKennwortLokal = ViewBag.OhneKennwortLokal as List<string> ?? new List<string>();
+    var ohneKennwortAd = ViewBag.OhneKennwortAd as List<string> ?? new List<string>();
+    var offeneErstkennwoerter = ViewBag.OffeneErstkennwoerter as List<string> ?? new List<string>();
+}
+@if (ohneKennwortLokal.Any() || ohneKennwortAd.Any() || offeneErstkennwoerter.Any())
+{
+    <div class="alert alert-warning small" role="status">
+        <strong>Hinweis Anmeldung:</strong>
+        <ul class="mb-0 mt-1">
+            @if (ohneKennwortLokal.Any())
+            {
+                <li>@ohneKennwortLokal.Count aktive lokale Benutzer ohne Kennwort – keine Anmeldung möglich: @string.Join(", ", ohneKennwortLokal)</li>
+            }
+            @if (ohneKennwortAd.Any())
+            {
+                <li>@ohneKennwortAd.Count aktive AD-Benutzer ohne Kennwort – nur Windows-Anmeldung: @string.Join(", ", ohneKennwortAd)</li>
+            }
+            @if (offeneErstkennwoerter.Any())
+            {
+                <li>@offeneErstkennwoerter.Count Benutzer mit offenem Erstkennwort (Pflichtwechsel ausstehend): @string.Join(", ", offeneErstkennwoerter)</li>
+            }
+        </ul>
+    </div>
+}
+
 @if (!canEdit)
 {
     <div class="alert alert-info small">Sie haben Nur-Lesen-Zugriff. Aenderungen sind nicht moeglich.</div>

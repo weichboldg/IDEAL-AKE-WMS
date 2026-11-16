@@ -76,6 +76,12 @@ public class UsersController : Controller
 
         var users = await _userRepository.GetAllWithRolesAsync();
 
+        // Melden statt still (ADR 0027): wer sich nach Regel R nicht mehr im Formular anmelden kann, und offene Erstkennwoerter.
+        var aktiv = users.Where(u => u.IsActive).OrderBy(u => u.Name).ToList();
+        ViewBag.OhneKennwortLokal = aktiv.Where(u => string.IsNullOrEmpty(u.PasswordHash) && u.WindowsUserName == null).Select(u => u.Name).ToList();
+        ViewBag.OhneKennwortAd = aktiv.Where(u => string.IsNullOrEmpty(u.PasswordHash) && u.WindowsUserName != null).Select(u => u.Name).ToList();
+        ViewBag.OffeneErstkennwoerter = aktiv.Where(u => u.MussKennwortAendern).Select(u => u.Name).ToList();
+
         // Server-Side-Spaltenfilter: vor der Pagination —
         // Filter muss ueber ALLE Eintraege wirken, nicht nur die aktuelle Seite.
         var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
@@ -95,7 +101,7 @@ public class UsersController : Controller
 
     public async Task<IActionResult> Create()
     {
-        var vm = new UserEditViewModel { IsActive = true };
+        var vm = new UserEditViewModel { IsActive = true, MussKennwortAendern = true };
         await PopulateRolesAsync(vm, new List<int>());
         return View(vm);
     }
@@ -133,8 +139,7 @@ public class UsersController : Controller
             CreatedByWindows = _currentUserService.GetWindowsUserName()
         };
 
-        if (!string.IsNullOrEmpty(newPassword))
-            user.PasswordHash = _passwordService.HashPassword(newPassword);
+        var (erzeugt, kennwortWarnung) = ApplyPassword(user, vm, newPassword);
 
         await _userRepository.AddAsync(user);
 
@@ -144,9 +149,8 @@ public class UsersController : Controller
             _currentUserService.GetDisplayName(),
             _currentUserService.GetWindowsUserName());
 
-        TempData["SuccessMessage"] = $"Benutzer '{user.Name}' wurde erfolgreich angelegt.";
-        if (droppedTargets)
-            TempData["WarningMessage"] = "Alle Ziele schließt Einzelziele aus — gespeichert wurde nur 'Alle Ziele'.";
+        TempData["SuccessMessage"] = $"Benutzer '{user.Name}' wurde erfolgreich angelegt." + ErstkennwortText(erzeugt);
+        SetWarning(droppedTargets, kennwortWarnung);
         return RedirectToAction(nameof(Index));
     }
 
@@ -253,6 +257,7 @@ public class UsersController : Controller
             DefaultFilterArtikelgruppe = user.DefaultFilterArtikelgruppe,
             RecursiveFilterSearch = user.RecursiveFilterSearch,
             IsPicker = user.IsPicker,
+            MussKennwortAendern = user.MussKennwortAendern,
             DefaultPageSize = user.DefaultPageSize,
             DefaultWorkStepId = user.DefaultWorkStepId,
             DefaultWorkbenches = user.DefaultWorkbenches,
@@ -266,6 +271,7 @@ public class UsersController : Controller
         };
 
         await PopulateRolesAsync(vm, selectedRoleIds);
+        ViewBag.HatKennwort = !string.IsNullOrEmpty(user.PasswordHash);
         ViewBag.SavedViewPreferences = await _viewPreferenceRepository.GetAllByUserAsync(id);
         return View(vm);
     }
@@ -304,8 +310,7 @@ public class UsersController : Controller
         var (kommissionierziel, droppedTargets) = KommissionierzielFilterWert.Normalize(vm.DefaultFilterBomKommissionierziel);
         existing.DefaultFilterBomKommissionierziel = kommissionierziel;
 
-        if (!string.IsNullOrEmpty(newPassword))
-            existing.PasswordHash = _passwordService.HashPassword(newPassword);
+        var (erzeugt, kennwortWarnung) = ApplyPassword(existing, vm, newPassword);
 
         existing.ModifiedAt = DateTime.Now;
         existing.ModifiedBy = _currentUserService.GetDisplayName();
@@ -319,10 +324,36 @@ public class UsersController : Controller
             _currentUserService.GetDisplayName(),
             _currentUserService.GetWindowsUserName());
 
-        TempData["SuccessMessage"] = $"Benutzer '{existing.Name}' wurde erfolgreich gespeichert.";
-        if (droppedTargets)
-            TempData["WarningMessage"] = "Alle Ziele schließt Einzelziele aus — gespeichert wurde nur 'Alle Ziele'.";
+        TempData["SuccessMessage"] = $"Benutzer '{existing.Name}' wurde erfolgreich gespeichert." + ErstkennwortText(erzeugt);
+        SetWarning(droppedTargets, kennwortWarnung);
         return RedirectToAction(nameof(Index));
+    }
+
+    /// <summary>Erstkennwort + Pflichtwechsel (ADR 0027, Regel P): „erzeugen“ hat Vorrang vor dem eingegebenen Feld; die Checkbox
+    /// MussKennwortAendern ist massgeblich (Freigabe-Antwort 15, Geraetekonten ohne Haken). Liefert das erzeugte Kennwort (nur zur
+    /// einmaligen Anzeige, nie gespeichert/geloggt) und ggf. eine Warnung „Haken ohne Kennwort“.</summary>
+    private (string? Erzeugt, string? Warnung) ApplyPassword(User user, UserEditViewModel vm, string? newPassword)
+    {
+        var erzeugt = vm.ErstkennwortErzeugen ? _passwordService.GenerateInitialPassword() : null;
+        var neu = erzeugt ?? newPassword;
+        if (!string.IsNullOrEmpty(neu))
+            user.PasswordHash = _passwordService.HashPassword(neu);
+        user.MussKennwortAendern = vm.MussKennwortAendern;
+        var warnung = vm.MussKennwortAendern && string.IsNullOrEmpty(user.PasswordHash)
+            ? "Haken gesetzt, aber kein Kennwort – der Benutzer kann sich im Formular erst nach dem Setzen eines Kennworts anmelden."
+            : null;
+        return (erzeugt, warnung);
+    }
+
+    private static string ErstkennwortText(string? erzeugt) => erzeugt == null ? "" :
+        $" Erstkennwort: {erzeugt} – jetzt notieren und dem Benutzer geben; es wird nicht noch einmal angezeigt.";
+
+    private void SetWarning(bool droppedTargets, string? kennwortWarnung)
+    {
+        var teile = new[] { droppedTargets ? "Alle Ziele schließt Einzelziele aus — gespeichert wurde nur 'Alle Ziele'." : null, kennwortWarnung }
+            .Where(t => t != null).ToList();
+        if (teile.Count > 0)
+            TempData["WarningMessage"] = string.Join(" ", teile);
     }
 
     [HttpPost]

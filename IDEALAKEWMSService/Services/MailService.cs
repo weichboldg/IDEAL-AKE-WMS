@@ -72,6 +72,10 @@ public class MailService : IMailService
         var username = _configuration["MailSettings:SmtpUsername"];
         var password = _configuration["MailSettings:SmtpPassword"];
 
+        // BH-5c (Spec 2026-11-14-sicherheit-anmeldung-und-installer): kein Verhaltenswechsel, aber melden statt still.
+        if (!string.IsNullOrEmpty(username) && !useSsl)
+            _logger.LogWarning("SMTP-Anmeldung als {Benutzer} ohne SmtpUseSsl: das Kennwort geht unverschluesselt ueber das Netz - anonymes Relay oder SmtpUseSsl = true (Port 465).", username);
+
         using var client = new SmtpClient();
         try
         {

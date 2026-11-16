@@ -58,7 +58,10 @@ builder.Services.AddSession(options =>
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true;
     options.Cookie.Name = "IdealAkeWms.Session";
+    // Secure nur bei HTTPS-Anfragen: HTTPS-Systeme senden das Cookie nie im Klartext, HTTP-Systeme (IDEAL-Test :88, DEV) laufen weiter (BH-5b).
+    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
 });
+builder.Services.AddAntiforgery(options => options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest);
 
 // Repositories
 builder.Services.AddScoped<IUserRepository, UserRepository>();
@@ -256,27 +259,11 @@ using (var scope = app.Services.CreateScope())
     }
     db.SaveChanges();
 
-    // Standard-Admin-Benutzer
-    var adminUser = db.Users.FirstOrDefault(u => u.Name == "admin");
-    if (adminUser == null)
-    {
-        adminUser = new User
-        {
-            Name = "admin",
-            IsActive = true,
-            PasswordHash = passwordService.HashPassword(""),
-            CreatedAt = DateTime.Now,
-            CreatedBy = "system",
-            CreatedByWindows = "system"
-        };
-        db.Users.Add(adminUser);
-        db.SaveChanges();
-    }
-    else if (adminUser.PasswordHash == null)
-    {
-        adminUser.PasswordHash = passwordService.HashPassword("");
-        db.SaveChanges();
-    }
+    // Standard-Admin-Benutzer: Standard-Erstkennwort + Pflichtwechsel statt Leer-Hash (ADR 0027, Regel P). Gilt auch fuer den
+    // Rueckweg „PasswordHash per SQL auf NULL + Neustart" und stellt Leer-Hash-admin alter Staende um.
+    var adminUser = AdminSeed.Ensure(db, passwordService);
+    if (adminUser.MussKennwortAendern)
+        app.Logger.LogWarning("Benutzer admin hat ein Erstkennwort (nach Installation/Rueckweg das Standard-Erstkennwort laut Betriebshandbuch) - jetzt als admin anmelden und ein eigenes Kennwort festlegen.");
 
     // Admin-Rolle zuweisen
     var adminRole = db.Roles.FirstOrDefault(r => r.Key == RoleKeys.Admin);

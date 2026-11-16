@@ -53,6 +53,16 @@
             <div class="text-center mb-4">
                 <img src="~/images/ideal-ake-logo.svg" alt="IDEAL-AKE WMS" style="max-width: 240px; width: 100%;" />
             </div>
+            @{
+                bool windowsAuthAktiv = ViewBag.WindowsAuthAktiv == true;
+                bool entwicklungsmodus = ViewBag.Entwicklungsmodus == true;
+            }
+            @if (entwicklungsmodus)
+            {
+                <div class="alert alert-warning small" role="note">
+                    <strong>Entwicklungsmodus:</strong> Anmeldung ohne Kennwort erlaubt (nur <code>dotnet run</code>, nie unter IIS).
+                </div>
+            }
             @if (!string.IsNullOrEmpty(Model.ErrorMessage))
             {
                 <div class="alert alert-danger" role="alert">
@@ -60,37 +70,71 @@
                 </div>
             }
 
-            <form asp-action="Login" method="post">
-                <input type="hidden" name="returnUrl" value="@ViewBag.ReturnUrl" />
-
-                <div class="mb-3">
-                    <label asp-for="UserName" class="form-label">Benutzer</label>
-                    <input asp-for="UserName" class="form-control form-control-lg"
-                           placeholder="Benutzername eingeben"
-                           autocomplete="username" autocapitalize="off" autocorrect="off"
-                           spellcheck="false" autofocus />
-                    <span asp-validation-for="UserName" class="text-danger"></span>
-                </div>
-
-                <div class="mb-4">
-                    <label asp-for="Password" class="form-label">Passwort</label>
-                    <input asp-for="Password" class="form-control form-control-lg" placeholder="Passwort eingeben" />
-                    <span asp-validation-for="Password" class="text-danger"></span>
-                    <small class="form-text text-muted">Leer lassen, wenn kein Passwort vergeben.</small>
-                </div>
-
-                <button type="submit" class="btn btn-primary btn-lg w-100">Anmelden</button>
-            </form>
-            @{
-                bool windowsAuthAktiv = ViewBag.WindowsAuthAktiv == true;
-            }
-            @if (windowsAuthAktiv)
+            @if (Model.KennwortFestlegen)
             {
-                <div class="text-center mt-3">
-                    <div class="text-muted small mb-2">oder</div>
-                    <a asp-controller="Account" asp-action="WindowsLogin"
-                       class="btn btn-outline-primary btn-lg w-100">Mit Windows anmelden</a>
+                <h1 class="h5 mb-2">Neues Kennwort festlegen</h1>
+                <div class="alert alert-info small" role="status">
+                    Ihr Kennwort wurde vom Administrator vergeben. Bitte jetzt ein eigenes Kennwort festlegen.
                 </div>
+                <form asp-action="Login" method="post">
+                    <input type="hidden" name="returnUrl" value="@ViewBag.ReturnUrl" />
+                    <input type="hidden" name="KennwortFestlegen" value="true" />
+
+                    <div class="mb-3">
+                        <label asp-for="UserName" class="form-label">Benutzer</label>
+                        <input asp-for="UserName" class="form-control form-control-lg" readonly />
+                    </div>
+                    <div class="mb-3">
+                        <label asp-for="Password" class="form-label">Bisheriges Kennwort</label>
+                        <input asp-for="Password" class="form-control form-control-lg" autocomplete="current-password" required autofocus />
+                    </div>
+                    <div class="mb-3">
+                        <label asp-for="NewPassword" class="form-label">Neues Kennwort</label>
+                        <input asp-for="NewPassword" class="form-control form-control-lg" autocomplete="new-password" required />
+                    </div>
+                    <div class="mb-4">
+                        <label asp-for="NewPasswordRepeat" class="form-label">Neues Kennwort wiederholen</label>
+                        <input asp-for="NewPasswordRepeat" class="form-control form-control-lg" autocomplete="new-password" required />
+                        <small class="form-text text-muted">Das neue Kennwort muss sich vom bisherigen unterscheiden.</small>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-lg w-100">Kennwort ändern und anmelden</button>
+                </form>
+                <div class="text-center mt-3">
+                    <a asp-action="Login" class="btn btn-link">Abbrechen</a>
+                </div>
+            }
+            else
+            {
+                <form asp-action="Login" method="post">
+                    <input type="hidden" name="returnUrl" value="@ViewBag.ReturnUrl" />
+
+                    <div class="mb-3">
+                        <label asp-for="UserName" class="form-label">Benutzer</label>
+                        <input asp-for="UserName" class="form-control form-control-lg"
+                               placeholder="Benutzername eingeben"
+                               autocomplete="username" autocapitalize="off" autocorrect="off"
+                               spellcheck="false" autofocus />
+                        <span asp-validation-for="UserName" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-4">
+                        <label asp-for="Password" class="form-label">Passwort</label>
+                        <input asp-for="Password" class="form-control form-control-lg" placeholder="Passwort eingeben" autocomplete="current-password" />
+                        <span asp-validation-for="Password" class="text-danger"></span>
+                        <small class="form-text text-muted">@(windowsAuthAktiv ? "Kein Kennwort? Mit Windows anmelden oder beim Administrator melden." : "Kein Kennwort? Beim Administrator melden.")</small>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-lg w-100">Anmelden</button>
+                </form>
+                @if (windowsAuthAktiv)
+                {
+                    <div class="text-center mt-3">
+                        <div class="text-muted small mb-2">oder</div>
+                        <a asp-controller="Account" asp-action="WindowsLogin"
+                           class="btn btn-outline-primary btn-lg w-100">Mit Windows anmelden</a>
+                    </div>
+                }
             }
         </div>
     </div>

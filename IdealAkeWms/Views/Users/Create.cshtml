@@ -86,11 +86,22 @@
 
                     <hr />
 
-                    <div class="mb-3">
-                        <label class="form-label">Passwort</label>
-                        <input type="password" name="newPassword" class="form-control" placeholder="Passwort vergeben (optional)" />
-                        <div class="form-text">Wird für die App-Anmeldung auf Mobilgeräten benötigt.</div>
-                    </div>
+                    <fieldset class="mb-3" data-erstkennwort>
+                        <legend class="form-label fs-6 mb-2">Erstkennwort</legend>
+                        <input type="password" name="newPassword" class="form-control" autocomplete="new-password"
+                               aria-describedby="erstkennwortHilfe" placeholder="Erstkennwort vergeben (optional)" data-erstkennwort-eingabe />
+                        <div id="erstkennwortHilfe" class="form-text">Für die Anmeldung im Formular (Handgeräte, Terminals, ohne Windows-Anmeldung). Ohne Kennwort ist nur die Windows-Anmeldung möglich.</div>
+                        <div class="form-check mt-2">
+                            <input asp-for="ErstkennwortErzeugen" class="form-check-input" data-erstkennwort-eingabe />
+                            <label asp-for="ErstkennwortErzeugen" class="form-check-label"></label>
+                            <div class="form-text mt-0">Das WMS erzeugt ein 12-stelliges Kennwort und zeigt es nach dem Speichern genau einmal an.</div>
+                        </div>
+                        <div class="form-check mt-2">
+                            <input asp-for="MussKennwortAendern" class="form-check-input" data-erstkennwort-haken />
+                            <label asp-for="MussKennwortAendern" class="form-check-label"></label>
+                            <div class="form-text mt-0">Bei neuem Kennwort vorausgewählt. Für Gerätekonten (BDE-Terminal, gemeinsame Handgeräte) abwählen.</div>
+                        </div>
+                    </fieldset>
 
                     <div class="d-flex gap-2">
                         <button type="submit" class="btn btn-primary">Speichern</button>
@@ -104,4 +115,15 @@
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    <script>
+        // Neues/erzeugtes Erstkennwort waehlt den Pflichtwechsel vor (ADR 0027, Freigabe-Antwort 15); abwaehlen bleibt moeglich.
+        document.querySelectorAll('[data-erstkennwort]').forEach(function (fs) {
+            var haken = fs.querySelector('[data-erstkennwort-haken]');
+            fs.querySelectorAll('[data-erstkennwort-eingabe]').forEach(function (el) {
+                el.addEventListener('change', function () {
+                    if ((el.type === 'checkbox' && el.checked) || (el.type !== 'checkbox' && el.value)) haken.checked = true;
+                });
+            });
+        });
+    </script>
 }

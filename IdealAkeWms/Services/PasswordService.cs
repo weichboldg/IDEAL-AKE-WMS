@@ -5,6 +5,10 @@ namespace IdealAkeWms.Services;
 
 public class PasswordService : IPasswordService
 {
+    private const string ErstkennwortAlphabet = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+
+    public string GenerateInitialPassword() => RandomNumberGenerator.GetString(ErstkennwortAlphabet, 12);
+
     public string HashPassword(string password)
     {
         byte[] salt = RandomNumberGenerator.GetBytes(16);
