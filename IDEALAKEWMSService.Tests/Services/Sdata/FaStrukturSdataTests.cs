@@ -1,3 +1,4 @@
+using System.Text.Json;
 using FluentAssertions;
 using IdealAkeWms.Models;
 using IdealAkeWms.Services.SageSdata;
@@ -134,6 +135,105 @@ public class FaStrukturSdataTests
         (l.Infos.Count, l.InfosAnzahl).Should().Be((0, 0L), "G11: FAInfos bleiben SQL – im Modus SData wuerde der Empty-Guard greifen");
         reader.Hinweise.Should().Contain(h => h.Text.Contains("PpsFaBelegePositionenInfo") && h.Text.Contains("1 Block"));
     }
+
+    // ----- Spec 2026-11-16-fa-struktur-ideal-ueber-sdata E3: beendete Haupt-FAs ueber dtsFaBelegsuche (nur Vergleich) -----
+
+    internal static Dictionary<string, JsonElement> Zeile(string json) =>
+        JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
+
+    /// <summary>Struktur 1059463 (IDEAL, L11): Haupt-FA fehlt in PpsFaBelegeInfo, Unter-FA 1065143 ist da.</summary>
+    private static Mock<ISageSdataReadClient> Client1059463(params Dictionary<string, JsonElement>[] belegsuche)
+    {
+        var client = new Mock<ISageSdataReadClient>(MockBehavior.Strict);
+        var koepfe = new[] { K(1065143, 1059463, "50002143") };
+        client.Setup(c => c.QueryAllAsync<SdataFaKopfZeile>(Ziel, SageSdataReadClient.VertragResources, "PpsFaBelegeInfo",
+                SdataFaStrukturReader.WhereKoepfe(Jetzt), SdataFaStrukturReader.SelectKoepfe, "BelID", It.IsAny<CancellationToken>(), It.IsAny<int>()))
+            .ReturnsAsync(new SdataSeiten<SdataFaKopfZeile>(koepfe, "PpsFaBelegeInfo", 1, 1, 1));
+        client.Setup(c => c.GetAsync<Dictionary<string, JsonElement>>(Ziel, SageSdataQuellen.FaBelegsuche, "BelID eq 1059463",
+                It.Is<string>(s => s.StartsWith(SdataFaStrukturReader.SelectBelegsucheKopf)), "BelID", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new SdataErgebnis<Dictionary<string, JsonElement>>(belegsuche,
+                new SdataCall(SageSdataQuellen.FaBelegsuche, "url", 200, 1, belegsuche.Length, null, null)));
+        var pos = new[]
+        {
+            Pos(1, 1059463, 1, 1065143, "MA", "50002143"),
+            Pos(2, 1059463, 2, 0, "MA", "73002467"),
+            Pos(3, 1065143, 1, 0, "MA", "50002143-B"),
+        };
+        client.Setup(c => c.QueryAllAsync<SdataFaPositionZeile>(Ziel, SageSdataReadClient.VertragResources, "PpsFaBelegePositionenInfo",
+                It.IsAny<string>(), SdataFaStrukturReader.SelectPositionen, "BelPosID", It.IsAny<CancellationToken>(), It.IsAny<int>()))
+            .ReturnsAsync((SdataLeseZiel _, string _, string _, string? where, string? _, string _, CancellationToken _, int _) =>
+            {
+                var ids = where!.Split(" or ").Select(t => int.Parse(t["BelID eq ".Length..])).ToHashSet();
+                var treffer = pos.Where(p => ids.Contains(p.BelID!.Value)).ToList();
+                return new SdataSeiten<SdataFaPositionZeile>(treffer, "PpsFaBelegePositionenInfo", 1, treffer.Count, 1);
+            });
+        return client;
+    }
+
+    private static SdataFaStrukturReader Reader(Mock<ISageSdataReadClient> client, bool realTimeData) =>
+        new(client.Object, new ConfigurationBuilder().Build(), NullLogger<SdataFaStrukturReader>.Instance) { RealTimeDataErlaubt = realTimeData };
+
+    [Fact]
+    public async Task LesenAsync_BeendeterHauptFa_KopfUeberBelegsuche_WurzelUndWurzelPositionen_MitHauptArtnr()
+    {
+        var client = Client1059463(Zeile("""{"BelID":1059463,"StrukturID":1059463,"Artikelnummer":"80141025"}"""));
+        var reader = Reader(client, realTimeData: true);
+
+        var l = await reader.LesenAsync(Ziel, Jetzt, CancellationToken.None);
+
+        l.Knoten.Select(n => (n.VaterFA, n.Position, n.SubFA, n.Artnr)).Should().Equal(
+            ((int?)null, (int?)null, 1059463, "80141025"), (1059463, 1, 1065143, "50002143"), (1059463, 2, 0, "73002467"),
+            (1065143, 1, 0, "50002143-B"));
+        l.Knoten.Should().OnlyContain(n => n.HauptFA == 1059463 && n.HauptArtnr == "80141025");
+        reader.Hinweise.Should().NotContain(h => h.Text.Contains("ohne Haupt-FA in der SData-Menge"));
+        reader.Hinweise.Should().Contain(h => h.Text.Contains("1 von 1 Haupt-FA(s)") && h.Text.Contains("1059463"));
+        l.Positionen!.Select(p => p.BelID).Should().OnlyContain(id => id == 1065143, "ProductionOrderPositions: Schreibverhalten unveraendert (nur die Menge)");
+    }
+
+    [Fact]
+    public async Task LesenAsync_HauptFaAuchInBelegsucheNicht_WarnungOhneWurzel()
+    {
+        var reader = Reader(Client1059463(), realTimeData: true);
+
+        var l = await reader.LesenAsync(Ziel, Jetzt, CancellationToken.None);
+
+        l.Knoten.Should().ContainSingle().Which.VaterFA.Should().Be(1065143);
+        reader.Hinweise.Should().Contain(h => h.Warnung && h.Text.Contains("ohne Haupt-FA in der SData-Menge") && h.Text.Contains("1059463"));
+    }
+
+    [Fact]
+    public async Task LesenAsync_OhneRealTimeDataFreigabe_KeinAufrufBelegsuche_Hinweis()
+    {
+        var client = Client1059463();
+        var reader = Reader(client, realTimeData: false);
+
+        await reader.LesenAsync(Ziel, Jetzt, CancellationToken.None);
+
+        client.Verify(c => c.GetAsync<Dictionary<string, JsonElement>>(It.IsAny<SdataLeseZiel>(), It.IsAny<string>(), It.IsAny<string>(),
+            It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Never);
+        reader.Hinweise.Should().Contain(h => h.Text.Contains("nur im Modus Vergleich"));
+    }
+
+    [Fact]
+    public async Task LesenAsync_BelegsucheHttpFehler_Wirft()
+    {
+        var client = Client1059463();
+        client.Setup(c => c.GetAsync<Dictionary<string, JsonElement>>(Ziel, SageSdataQuellen.FaBelegsuche, "BelID eq 1059463",
+                It.IsAny<string>(), "BelID", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new SdataErgebnis<Dictionary<string, JsonElement>>(Array.Empty<Dictionary<string, JsonElement>>(),
+                new SdataCall(SageSdataQuellen.FaBelegsuche, "url", 500, 1, 0, "HTTP 500", null)));
+
+        await Reader(client, realTimeData: true).Invoking(r => r.LesenAsync(Ziel, Jetzt, CancellationToken.None))
+            .Should().ThrowAsync<SdataLeseException>().Where(e => e.Status == 500);
+    }
+
+    [Theory]
+    [InlineData(SageQuelle.Vergleich, true)]
+    [InlineData(SageQuelle.SData, false)]
+    [InlineData(SageQuelle.View, false)]
+    [InlineData(null, false)]
+    public void RealTimeData_NurImModusVergleich(SageQuelle? quelle, bool erlaubt) =>
+        FaStrukturQuelleSwitch.RealTimeDataErlaubt(quelle).Should().Be(erlaubt, "Freigabe-Antwort 1: bis DPS-Antwort/P-FS3");
 
     // ----- E4b: Lesefilter eingelastet/aktiv -----
 

@@ -64,6 +64,8 @@ public class FaStrukturQuelleSwitch : SageQuelleWeiche, ISageFaStrukturReader
             },
             async c =>
             {
+                // Freigabe-Antwort 1 (Spec 2026-11-16-fa-struktur-ideal-ueber-sdata): RealTimeData im Dienst nur im Modus Vergleich.
+                if (_sdata is SdataFaStrukturReader r) r.RealTimeDataErlaubt = RealTimeDataErlaubt(GenutzteQuelle);
                 var s = await _sdata.LesenAsync(c);
                 positionen = s.Positionen;
                 return s;
@@ -74,6 +76,10 @@ public class FaStrukturQuelleSwitch : SageQuelleWeiche, ISageFaStrukturReader
         // Vergleichsmodus. View und gesperrtes SData lesen SData nicht; scheitert der SData-Read im Vergleich, bleibt positionen null.
         return positionen is null || ReferenceEquals(lesung.Positionen, positionen) ? lesung : lesung with { Positionen = positionen };
     }
+
+    /// <summary>Freigabe-Antwort 1: RealTimeData (dtsFaBelegsuche) im Dienst nur lesend und nur im Modus Vergleich - bis DPS-Antwort bzw.
+    /// P-FS3. Erst danach darf diese Regel (an genau dieser Stelle) auch SData zulassen.</summary>
+    internal static bool RealTimeDataErlaubt(SageQuelle? quelle) => quelle == SageQuelle.Vergleich;
 
     /// <summary>FA-Knoten (Wurzel, Baugruppe) ueber die eigene BelID (<c>SubFA</c>, global eindeutig) — so vergleicht das Feld
     /// <c>VaterFA</c>/<c>Position</c> die Eltern-Kante. Blaetter (<c>SubFA = 0</c>) ueber ihren Platz im Vater-FA.</summary>

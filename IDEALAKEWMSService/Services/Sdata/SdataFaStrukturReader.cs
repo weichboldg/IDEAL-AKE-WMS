@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.Json;
 using IdealAkeWms.Models;
 using IdealAkeWms.Services.SageSdata;
 
@@ -28,8 +29,9 @@ public sealed record SdataFaPositionZeile(int? BelPosID, int? BelID, int? Positi
 /// <see cref="ProductionOrderPosition"/> (<see cref="FaStrukturLesung.Positionen"/>, Lagerplatz ueber <c>LagerplaetzeInfo</c>). Belegt werden nur <c>HauptFA</c>, <c>VaterFA</c>, <c>SubFA</c>, <c>Position</c>, <c>HauptArtnr</c>, <c>Artnr</c>,
 /// <c>Sollmenge</c>/<c>Fertigungmenge</c>; FAInfos (PPSImport) und die uebrigen Knotenfelder liefert SData nicht (G11).
 /// <para>
-/// TODO(P-F2): Deshalb liefert der Reader <b>keine</b> FAInfos (<see cref="FaStrukturLesung.InfosAnzahl"/> = 0 → der Abgleich wuerde
-/// ueberspringen) und die Weiche sperrt <c>SData</c>. Vor dem Entsperren: FAInfos weiter per SQL lesen und die Knotenfelder belegen.
+/// Spec 2026-11-16-fa-struktur-ideal-ueber-sdata: FAInfos liefert der Reader nie (<see cref="FaStrukturLesung.InfosAnzahl"/> = 0); im
+/// Modus SData liest die Weiche sie hybrid aus der View (E5). Beendete Haupt-FAs (E3) liest der Reader ueber <c>dtsFaBelegsuche</c> nach,
+/// nur wenn <see cref="RealTimeDataErlaubt"/>.
 /// </para>
 /// Wirft bei jedem Lesefehler (<see cref="SdataLeseException"/>), nie leere Liste statt Fehler.
 /// </summary>
@@ -59,6 +61,13 @@ public sealed class SdataFaStrukturReader : ISageFaStrukturReader
     public IReadOnlyList<SdataHinweis> Hinweise { get; private set; } = Array.Empty<SdataHinweis>();
 
     /// <summary>
+    /// Spec 2026-11-16-fa-struktur-ideal-ueber-sdata, Freigabe-Antwort 1: RealTimeData (<c>dtsFaBelegsuche</c>) ist fuer den Betrieb
+    /// (noch) nicht von DPS freigegeben. Der Dienst liest es deshalb NUR lesend und NUR im Modus Vergleich - die Weiche setzt den Schalter
+    /// je Aufruf (<see cref="FaStrukturQuelleSwitch"/>). Default false: ohne Weiche nie RealTimeData.
+    /// </summary>
+    public bool RealTimeDataErlaubt { get; set; }
+
+    /// <summary>
     /// TODO(P-S1/G8): <c>IstBeendet</c>/<c>Istendtermin</c> stehen in keinem $schema-Auszug von <c>PpsFaBelegeInfo</c> (Namen aus
     /// <c>dtsFaBelegsuche</c>, das dieselbe Tabelle KHKPpsFaBelege liest). SData setzt <c>where</c> direkt in SQL um: ein falscher Name
     /// kommt als HTTP 500 zurueck (Vergleichslauf mit Fehler + Mail), nie als stilles Leer. <c>IstEingelastet</c>/<c>Aktiv</c> (E4b) filtert
@@ -80,8 +89,12 @@ public sealed class SdataFaStrukturReader : ISageFaStrukturReader
         hinweise.Add(new(koepfe.Zusammenfassung));
         var menge = KoepfeFiltern(koepfe.Zeilen, hinweise);
 
+        // E3 (F3): Haupt-FAs, die PpsFaBelegeInfo nicht liefert (beendet, 1059463), ueber dtsFaBelegsuche nachlesen - nur fuer die
+        // Struktur (Wurzel + Wurzel-Positionen), nicht fuer ProductionOrderPositions (Schreibverhalten unveraendert).
+        var struktur = menge.Concat(await WurzelnNachlesenAsync(ziel, menge, hinweise, ct)).ToList();
+
         var positionen = new List<SdataFaPositionZeile>();
-        var ids = menge.Where(k => k.BelID is not null).Select(k => k.BelID!.Value).ToList();
+        var ids = struktur.Where(k => k.BelID is not null).Select(k => k.BelID!.Value).ToList();
         var bloecke = SageSdataQuellen.OrBloecke("BelID", ids); // "or" ist am AKE-Test belegt, "in" nicht
         foreach (var block in bloecke)
             positionen.AddRange((await _client.QueryAllAsync<SdataFaPositionZeile>(ziel, SageSdataReadClient.VertragResources,
@@ -98,13 +111,72 @@ public sealed class SdataFaStrukturReader : ISageFaStrukturReader
         }
 
         var jetzt = DateTime.Now;
-        var knoten = Projizieren(menge, positionen, jetzt, hinweise);
+        var knoten = Projizieren(struktur, positionen, jetzt, hinweise);
         var faPositionen = PositionenProjizieren(menge, positionen, plaetze, jetzt, hinweise);
         _logger.LogInformation("Sage (SData) liefert {Knoten} FA-Struktur-Knoten und {Positionen} Positionen aus {Koepfe} FAs.",
             knoten.Count, faPositionen.Count, menge.Count);
         // TODO(P-F2): FAInfos bleiben SQL (G11) – InfosAnzahl 0 laesst den Abgleich im (gesperrten) Modus SData ueberspringen statt leeren.
         return new FaStrukturLesung(knoten, new(), knoten.Count, 0, faPositionen);
     }
+
+    /// <summary>Strukturen der Menge ohne eigenen Kopf (BelID = StrukturID).</summary>
+    public static List<int> FehlendeWurzeln(IReadOnlyList<SdataFaKopfZeile> menge)
+    {
+        var ids = menge.Where(k => k.BelID is not null).Select(k => k.BelID!.Value).ToHashSet();
+        return menge.Where(k => k.StrukturID is not null).Select(k => k.StrukturID!.Value).Distinct().Where(s => !ids.Contains(s)).Order().ToList();
+    }
+
+    public const string SelectBelegsucheKopf = "BelID,StrukturID,Artikelnummer";
+
+    /// <summary>
+    /// E3: Koepfe fehlender Haupt-FAs ueber <c>dtsFaBelegsuche</c> (RealTimeData, BelID-Bloecke, <c>orderBy=BelID</c>). Nur wenn
+    /// <see cref="RealTimeDataErlaubt"/>; sonst ein Hinweis, und die Warnung "ohne Wurzel" aus <see cref="Projizieren"/> bleibt.
+    /// Uebernommen wird nur eine Zeile mit BelID = StrukturID (Haupt-FA). HTTP-/Lesefehler werfen (Vertrag des Readers).
+    /// </summary>
+    private async Task<List<SdataFaKopfZeile>> WurzelnNachlesenAsync(SdataLeseZiel ziel, IReadOnlyList<SdataFaKopfZeile> menge,
+        List<SdataHinweis> hinweise, CancellationToken ct)
+    {
+        var fehlend = FehlendeWurzeln(menge);
+        if (fehlend.Count == 0) return new();
+        if (!RealTimeDataErlaubt)
+        {
+            hinweise.Add(new($"{fehlend.Count} Haupt-FA(s) nicht in {RessourceKoepfe}; RealTimeData ({SageSdataQuellen.FaBelegsuche}) liest der Dienst "
+                + "nur im Modus Vergleich (Freigabe-Antwort 1) – nicht nachgelesen."));
+            return new();
+        }
+        var zeilen = await BelegsucheAsync(ziel, fehlend, SelectBelegsucheKopf, hinweise, ct);
+        var wurzeln = zeilen.Select(z => new SdataFaKopfZeile(Zahl(z, "BelID"), Zahl(z, "StrukturID"), Text(z, "Artikelnummer"), null, null))
+            .Where(k => k.BelID is not null && k.BelID == k.StrukturID && fehlend.Contains(k.BelID.Value))
+            .DistinctBy(k => k.BelID).ToList();
+        hinweise.Add(new($"{wurzeln.Count} von {fehlend.Count} Haupt-FA(s) ohne Kopf in {RessourceKoepfe} über {SageSdataQuellen.FaBelegsuche} ergänzt"
+            + (wurzeln.Count > 0 ? ": " + string.Join(", ", wurzeln.Take(20).Select(w => w.BelID)) : "") + "."));
+        return wurzeln;
+    }
+
+    /// <summary>Zeilen aus <c>dtsFaBelegsuche</c> je BelID-Block (Felder ohne Gross/Klein). Wirft bei HTTP-/Verbindungsfehler.</summary>
+    private async Task<List<Dictionary<string, JsonElement>>> BelegsucheAsync(SdataLeseZiel ziel, IReadOnlyList<int> ids, string select,
+        List<SdataHinweis> hinweise, CancellationToken ct)
+    {
+        var zeilen = new List<Dictionary<string, JsonElement>>();
+        var bloecke = SageSdataQuellen.OrBloecke("BelID", ids);
+        long ms = 0;
+        foreach (var block in bloecke)
+        {
+            var r = await _client.GetAsync<Dictionary<string, JsonElement>>(ziel, SageSdataQuellen.FaBelegsuche, block, select, "BelID", ct);
+            if (!r.Call.Erfolgreich)
+                throw new SdataLeseException(SageSdataQuellen.FaBelegsuche, r.Call.Status, r.Call.Fehler ?? "unbekannter Fehler");
+            zeilen.AddRange(r.Zeilen.Select(z => new Dictionary<string, JsonElement>(z, StringComparer.OrdinalIgnoreCase)));
+            ms += r.Call.DauerMs;
+        }
+        hinweise.Add(new($"Quelle SData (RealTimeData): {SageSdataQuellen.FaBelegsuche}, {bloecke.Count} Block/Bloecke, {zeilen.Count} Zeile(n), {ms} ms"));
+        return zeilen;
+    }
+
+    private static string? Text(IReadOnlyDictionary<string, JsonElement> z, string feld) =>
+        z.TryGetValue(feld, out var w) ? SdataArtikelReader.AlsText(w) : null;
+
+    private static int? Zahl(IReadOnlyDictionary<string, JsonElement> z, string feld) =>
+        int.TryParse(Text(z, feld), NumberStyles.Integer, CultureInfo.InvariantCulture, out var i) ? i : null;
 
     /// <summary>
     /// E4b-Lesefilter (F6, R7): nur FAs mit <c>IstEingelastet</c> und <c>Aktiv</c> (Sage -1). Nicht eingelastete/inaktive (z. B.
