@@ -2,7 +2,7 @@
 type: spec
 title: FA-Struktur IDEAL über SData (Knotenfelder, beendete Haupt-FAs, orderBy, Stückliste live)
 slug: 2026-11-16-fa-struktur-ideal-ueber-sdata-spec
-status: Entwurf
+status: InUmsetzung
 created: 2026-11-16
 updated: 2026-11-16
 source_backlog: "[[2026-11-16-fa-struktur-ideal-ueber-sdata]]"
@@ -45,9 +45,9 @@ deploy:
   web: true
   service: true
   migration: false
-freigabe_entscheidung: ""
-freigabe_von: ""
-freigabe_am: ""
+freigabe_entscheidung: "Empfehlungen 1–10 (1: nur Vergleich bis DPS-Antwort)"
+freigabe_von: "Gerald Weichbold"
+freigabe_am: "2026-11-16"
 ---
 
 # FA-Struktur IDEAL über SData
@@ -525,13 +525,13 @@ HauptArtnr ↔ Artikelnummer der Wurzel, Artikelgruppe (Format „CODE - Bezeich
   als seinen Auftrag. Antworte je Frage in **fett** hinter dem Pfeil.
 -->
 
-1. RealTimeData dtsFaBelegsuche im Dienst erlaubt oder erst P-FS3? →
-2. Arbeitshypothese L11 für E4 bis P-FS1? →
-3. Arbeitsbereich/Beschaffungsartikel/HauptArtnr nur vergleichen, vor Umschalten belegen? →
-4. Blattfelder ohne Quelle: Umschalten sperren oder leer akzeptieren? →
-5. Schwelle und Verantwortlicher für das Umschalten IDEAL auf SData? →
-6. Reihenfolge nach Beschichtungslogik-Spec? →
-7. Laufzeitgrenze Lauf FA-Hierarchie mit SData? →
-8. P-R1 als eigene Folge-Spec? →
-9. „Verkaufsstückliste“ – Kennzeichnung im Artikel-Modus ausreichend? →
-10. AKE-Regression für E1/E2 in der QA? →
+1. RealTimeData dtsFaBelegsuche im Dienst erlaubt oder erst P-FS3? → **Gerald 2026-11-16 15:59 „passt“ (Empfehlung Koordination): Gerald fragt DPS zur Freigabe von RealTimeData für den Betrieb. Bis zur Antwort RealTimeData im Dienst nur lesend und nur im Modus „Vergleich“; Umschalten auf SData erst nach DPS-Antwort bzw. P-FS3.**
+2. Arbeitshypothese L11 für E4 bis P-FS1? → **Gerald 2026-11-16 15:59 „passt“ (Empfehlung Koordination): ja.**
+3. Arbeitsbereich/Beschaffungsartikel/HauptArtnr nur vergleichen, vor Umschalten belegen? → **Gerald 2026-11-16 15:59 „passt“ (Empfehlung Koordination): ja; kein Umschalten bei unerklärter Abweichung.**
+4. Blattfelder ohne Quelle: Umschalten sperren oder leer akzeptieren? → **Gerald 2026-11-16 15:59 „passt“ (Empfehlung Koordination): sperren (mindestens wegen Beschichtet), bis P-FS8/P-FS1 je Feld eine Quelle belegen.**
+5. Schwelle und Verantwortlicher für das Umschalten IDEAL auf SData? → **Gerald 2026-11-16 15:59 „passt“ (Empfehlung Koordination): drei Vergleichsläufe ohne Abweichung oder jede Abweichung einzeln von Gerald freigegeben; Gerald stellt um.**
+6. Reihenfolge nach Beschichtungslogik-Spec? → **Gerald 2026-11-16 15:59 „passt“ (Empfehlung Koordination): ja, nach v1.99.25.**
+7. Laufzeitgrenze Lauf FA-Hierarchie mit SData? → **Gerald 2026-11-16 15:59 „passt“ (Empfehlung Koordination): nach P-FS6 festlegen (z. B. View-Lauf + 2 min), bei Überschreitung bleibt View.**
+8. P-R1 als eigene Folge-Spec? → **Gerald 2026-11-16 15:59 „passt“ (Empfehlung Koordination): ja, eigene Backlog-Notiz.**
+9. „Verkaufsstückliste“ – Kennzeichnung im Artikel-Modus ausreichend? → **Gerald 2026-11-16 15:29: „dann ist das eh korrekt mit der FA-Liste“ – ja, Kennzeichnung reicht.**
+10. AKE-Regression für E1/E2 in der QA? → **Gerald 2026-11-16 15:59 „passt“ (Empfehlung Koordination): ja, nur die zwei Ansichten (TS-146/147 Negativfälle).**

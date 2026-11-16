@@ -2,7 +2,7 @@
 type: spec
 title: Beschichtungslogik je Standort - Quelle fuer Kennzeichen und Termin, ein Resolver, Beschichtungsauftrag auch an der AKE
 slug: 2026-11-16-beschichtungslogik-je-standort-spec
-status: Freigegeben
+status: InUmsetzung
 created: 2026-11-16
 updated: 2026-11-16
 source_backlog: "[[2026-11-16-beschichtungslogik-je-standort]]"
@@ -546,12 +546,12 @@ Danach `secondbrain/tests/testszenarien-index.md` nachziehen.
 |---|--------|--------|---------------|-----|--------|--------|
 | 1 | Katalog + Resolver | 2 Choice-Keys (Termin-Quelle ohne `SData`), Beschreibungsergaenzungen, Server-Validierung (A8, `View` an der AKE abgelehnt), `BeschichtungResolver` plus Matrix-Tests (View = `Start_Beschichtung` 1:1); noch kein Verbraucher umgestellt; kein SData-Code (Freigabe-Antwort 17) | Freigabe-Antworten 1, 2, 4, 15, 17 | – | offen | |
 | H1 | **Haltepunkt P-I1** (vor E2, Nachtrag 2 / S-1) | Gerald erhebt P-I1 (Schalterstand IDEAL) und traegt das Ergebnis im Abschnitt „Pruefabfragen“ ein. Grund fuer die Lage vor E2: E2 stellt die Aktiv-Kennung der Zeilen-Views (`_ProductionOrderRow.cshtml:16-20`, `_PickingLeitstandRow.cshtml:82-94`) auf den Resolver um. Das ist die Verhaltensaenderung aus Freigabe-Antwort 7. Liegt kein Ergebnis vor, vermerkt der Lauf **E2 und E4** als Blocker und macht mit E3, H2/H3 und E5 weiter. | Gerald; Freigabe-Antwort 7 | – | offen | |
-| 2 | Web-Verbraucher | FA-Liste (Inline-Formel weg), Leitstand, Arbeitsliste, Zeilen-Views (Aktiv-Kennung), Tooltips je `TerminQuelle` auf den Resolver; Waechter-Test AK 9; Verhalten mit Automatisch identisch | E1, **H1**; Freigabe-Antwort 7 | – | offen | |
+| 2 | Web-Verbraucher | FA-Liste (Inline-Formel weg), Leitstand, Arbeitsliste, Zeilen-Views (Aktiv-Kennung), Tooltips je `TerminQuelle` auf den Resolver; Waechter-Test AK 9; Verhalten mit Automatisch identisch | E1, **H1**; Freigabe-Antwort 7 | – | **Blocker** | H1 P-I1 (Gerald) nicht eingetragen (Lauf 2026-11-16) |
 | 3 | Dienst | Gates ueber `ResolveQuellen`, Hook-Gate, Audit `SetCoatingPartsAsync`, Protokoll-Meldungen | E1; Freigabe-Antwort 12 | – | offen | |
-| 4 | IDEAL-Termin Leitstand/Arbeitsliste | Koepfe je Seite nachladen, Termin aus dem Resolver (View = `Start_Beschichtung` unveraendert); Basisdatum Berechnet = Kopf-`FE_Termin` | E2 (und damit H1); Freigabe-Antworten 3, 4, 5, 6 | – | offen | |
+| 4 | IDEAL-Termin Leitstand/Arbeitsliste | Koepfe je Seite nachladen, Termin aus dem Resolver (View = `Start_Beschichtung` unveraendert); Basisdatum Berechnet = Kopf-`FE_Termin` | E2 (und damit H1); Freigabe-Antworten 3, 4, 5, 6 | – | **Blocker** | H1 P-I1 (Gerald) nicht eingetragen (Lauf 2026-11-16) |
 | H2 | **Haltepunkt P-A5 (+ P-A3, P-A6 als Beleg)** | Gerald erhebt P-A5 (Datumsspalte in `vw_AKE_Kommissionierung_WAListe`?), P-A3 (WA-Nummern numerisch) und P-A6 (Lackierteil-Positionen ganzzahlig) und traegt die Ergebnisse im Abschnitt „Pruefabfragen“ ein. P-A5 aendert in dieser Version nichts am Bau (`View` an der AKE bleibt gesperrt). P-A3 und P-A6 muessen 0 Abweichungen zeigen, sonst E5 Blocker (P-A6: Rueckfrage 20). | Gerald; Freigabe-Antworten 9, 15; Nachtrag 2 | – | offen | |
 | H3 | **Haltepunkt Mengen-Pruefschritt** (Nachtrag 2 / B-1) | Gerald waehlt per Hilfsabfrage H3 einen WA mit Baugruppe und `Quantity > 1`. Er vergleicht in der Kommissionierliste die Mengen der Baugruppen-Zeilen mit Sage/OSEON und traegt WA, Zeilenzahl und Ergebnis im Abschnitt „Pruefabfragen“ ein (AK 21). Fehlt der Eintrag oder weicht die Menge ab, ist E5 Blocker. | Gerald; Freigabe-Antwort 18 | – | offen | |
-| 5 | Vorschlagsliste + Beschichtungsauftrag AKE | Gate-Metadaten (beide), **keine** Master-Bedingung an der Vorschlagsliste. Flache Positionsquelle (WA-Stueckliste als `FaHierarchyNode`-Projektion) fuer `BeschichtungsauftragService` (Liste/Summiert), `BeschichtungsauftragVergabeAnzeige` und die Workflow-Weiche: offen = `IsDone = 0 AND IsCancelled = 0` (A13), Menge ueber `BomQuantityResolver` (A12), Schluessel Artnr + Position (A14), Sammelmeldung plus Logger-Warnung (A15). AKE-Kopfvorbelegung (Start berechnet, Dienstleister/RAL/Retour leer). „(IDEAL)“ aus den Spaltenkatalog-Namen | E1, E3, H2, **H3**; Freigabe-Antworten 8, 9, 10, 11, 18 | – (keine Migration) | offen | |
+| 5 | Vorschlagsliste + Beschichtungsauftrag AKE | Gate-Metadaten (beide), **keine** Master-Bedingung an der Vorschlagsliste. Flache Positionsquelle (WA-Stueckliste als `FaHierarchyNode`-Projektion) fuer `BeschichtungsauftragService` (Liste/Summiert), `BeschichtungsauftragVergabeAnzeige` und die Workflow-Weiche: offen = `IsDone = 0 AND IsCancelled = 0` (A13), Menge ueber `BomQuantityResolver` (A12), Schluessel Artnr + Position (A14), Sammelmeldung plus Logger-Warnung (A15). AKE-Kopfvorbelegung (Start berechnet, Dienstleister/RAL/Retour leer). „(IDEAL)“ aus den Spaltenkatalog-Namen | E1, E3, H2, **H3**; Freigabe-Antworten 8, 9, 10, 11, 18 | – (keine Migration) | **Blocker** | H2 (P-A5, P-A3, P-A6) und H3 nicht eingetragen; Rueckfragen 19/20 offen (Lauf 2026-11-16) |
 | 6 | Doku und Abschluss | TS-140..145 in `docs/TESTSZENARIEN.md`, Hilfe (`Help/Index.cshtml` Beschichtung, `:1265`), `RoleOverview.cshtml` (Vorschlagsliste auch AKE/WA-Stueckliste), Standort-Maske Hinweis-Link, Anwender-Changelog (IDEAL-Termin in Leitstand/Arbeitsliste, AKE-Beschichtung), `docs/betrieb/04-konfiguration.md`, `README.md` AppSettings, Manifest-Eintraege, Versions-Bump beide `AppVersion.cs` auf v1.99.25 (nach 1.99.24 Sicherheit; beim Start pruefen), Brain (ADR 0028, fallstricke, codebase, glossar, feature-map, changelog; Aufgabe Erkennungsfenster-Filter, Rueckfrage 13). Nachtrag 2: Hilfe nennt Sammelmeldung und Mengenregel. fallstricke bekommt „BomCache-Fenster ohne `IsDonePicking`, Erkennungsfenster mit“ samt Folge fuer das Kennzeichen (Rueckfrage 19), mit Warum | E1-E5 | – | offen | |
 
 ## Deploy
@@ -707,6 +707,8 @@ Kein Einmal- oder Daten-Skript, also auch keine Trockenlauf-Pflicht.
   ```
 
   Pruefschritt: Die Kommissionierliste des gewaehlten WA zeigt `Menge × Quantity` (`PickingController.cs:355`, `BomQuantityResolver.cs:15-16`). Ausnahme: Eine Zeile mit Kommissionierauftrag zeigt dessen `SollMenge`, bei einem Folgeauftrag die Restmenge (`:354-355`). Deshalb einen WA ohne Folgeauftrag waehlen. Diese Mengen fuer die Baugruppen-Zeilen gegen den Sage- bzw. OSEON-Bedarf desselben WA halten. Was in Sage/OSEON als richtig gilt, entscheidet Gerald; die Spec nimmt es nicht an.
+
+  **Aussage Gerald 2026-11-16 (Dev-Lauf-Auftrag):** „B-1 sollte passen.“ Der Pruefschritt H3 (WA, Zeilenzahl, Ergebnis) bleibt offen.
 
 **AKE – Sage-Datenbank**
 

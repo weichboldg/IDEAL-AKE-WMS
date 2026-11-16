@@ -2,7 +2,7 @@
 type: spec
 title: Arbeitsgang-Mapping – Sage-Arbeitsgangnummer in den Arbeitsgang-Stammdaten + Prüfliste
 slug: 2026-11-16-arbeitsgang-mapping-sage-arbeitsgangnummer-spec
-status: Entwurf
+status: Freigegeben
 created: 2026-11-16
 updated: 2026-11-16
 source_backlog: "[[2026-11-16-arbeitsgang-mapping-sage-arbeitsgangnummer]]"
@@ -38,9 +38,9 @@ deploy:
   web: true
   service: true
   migration: true
-freigabe_entscheidung: ""
-freigabe_von: ""
-freigabe_am: ""
+freigabe_entscheidung: "Empfehlungen 1–7, Variante A; P-AG1..5 vor Dev-Lauf"
+freigabe_von: "Gerald Weichbold"
+freigabe_am: "2026-11-16"
 ---
 
 # Arbeitsgang-Mapping: Kürzel → Sage-Arbeitsgangnummer in den Arbeitsgang-Stammdaten
@@ -539,10 +539,14 @@ entfällt (epic: false).
   als seinen Auftrag. Antworte je Frage in **fett** hinter dem Pfeil.
 -->
 
-1. Konflikt Werkbank-Nummer: P-AG1..5 ausgeführt? (b2) mitbauen? →
-2. Datentyp string NVARCHAR(31) statt int? →
-3. Herkunft/Hand-Pflege: Variante A, B oder C? →
-4. SData-Leser PpsArbeitsgaengeInfo als Folgeaufgabe, hier nur View? →
-5. Prüfliste (c) nur als Protokollzeile mit Link? →
-6. Kürzel ohne Nummer in der View: auf leer spiegeln oder letzten Wert behalten? →
-7. Prüfliste nur bei Master ProduktionsauftragHierarchisch = true? →
+1. Konflikt Werkbank-Nummer: P-AG1..5 ausgeführt? (b2) mitbauen? → **Gerald 2026-11-16 16:17 „passt“ (Empfehlung): (b2) mitbauen. P-AG1..5 noch nicht ausgeführt – vor dem Dev-Lauf erheben (Gerald). Echte Arbeitsplatz-Zuordnung je Werkbank = Folgeaufgabe vor jeder Rückmeldung an Sage.**
+2. Datentyp string NVARCHAR(31) statt int? → **Gerald 2026-11-16 16:17 „passt“ (Empfehlung): string NVARCHAR(31); P-AG1 bestätigt den View-Typ vor dem Dev-Lauf.**
+3. Herkunft/Hand-Pflege: Variante A, B oder C? → **Gerald 2026-11-16 16:17 „passt“ (Empfehlung): A (zwei Spalten, Hand vor Sage).**
+4. SData-Leser PpsArbeitsgaengeInfo als Folgeaufgabe, hier nur View? → **Gerald 2026-11-16 16:17 „passt“ (Empfehlung): ja, Folgeaufgabe (orderBy Pflicht, Lesetest L11).**
+5. Prüfliste (c) nur als Protokollzeile mit Link? → **Gerald 2026-11-16 16:17 „passt“ (Empfehlung): ja.**
+6. Kürzel ohne Nummer in der View: auf leer spiegeln oder letzten Wert behalten? → **Gerald 2026-11-16 16:17 „passt“ (Empfehlung): auf leer spiegeln.**
+7. Prüfliste nur bei Master ProduktionsauftragHierarchisch = true? → **Gerald 2026-11-16 16:17 „passt“ (Empfehlung): ja; Spalte, Handwert und Banner an beiden Standorten.**
+
+## Lauf-Vermerk 2026-11-16 (goal-Lauf)
+
+**Blocker, nicht begonnen:** P-AG1..5 (Gerald) sind nicht im Abschnitt Pruefabfragen eingetragen (Freigabe-Antworten 1/2 verlangen sie vor dem Dev-Lauf). Status bleibt Freigegeben. Siehe [[2026-11-16-goal-lauf-beschichtung-fa-sdata-arbeitsgaenge]].
