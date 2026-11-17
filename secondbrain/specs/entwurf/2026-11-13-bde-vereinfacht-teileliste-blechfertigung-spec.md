@@ -2,9 +2,9 @@
 type: spec
 title: BDE-Teileliste (vereinfacht) für die Blechfertigung – Fertigmeldung je Teil, einzeln oder als Block
 slug: 2026-11-13-bde-vereinfacht-teileliste-blechfertigung-spec
-status: Entwurf
+status: Testbereit
 created: 2026-11-16
-updated: 2026-11-16
+updated: 2026-11-17
 source_backlog: "[[2026-11-13-bde-vereinfacht-teileliste-blechfertigung]]"
 task: ""
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
@@ -67,9 +67,9 @@ deploy:
   web: true
   service: true
   migration: true
-freigabe_entscheidung: ""
-freigabe_von: ""
-freigabe_am: ""
+freigabe_entscheidung: "Empfehlungen 1–8 (V1); Bau nach Arbeitsgang-Mapping und Beschichtung"
+freigabe_von: "Gerald Weichbold"
+freigabe_am: "2026-11-16"
 ---
 
 # BDE-Teileliste (vereinfacht) für die Blechfertigung
@@ -387,6 +387,7 @@ Auf der **WMS-DB IDEAL** (Test, danach Prod):
   GROUP BY LTRIM(RTRIM(s.value)) ORDER BY 1;
   ```
 - **P-TL3** – Bestand der Vater-AGs, die nur aus Blatt-Kürzeln stammen (Grundlage Rückfrage 1):
+  > **Ergebnis 2026-11-17 (IDEAL TEST, [[2026-11-17-pruefabfragen-gerald]]):** SQL unten bricht mit Meldung 130 ab (EXISTS im Aggregat) – umgestellt ausgeführt: IF 4, KA 120, SM 6, ST 120 AGs, **0 gebucht/rückgemeldet**. P-TL5: BdeSchichtkalenderAktiv false, BdeShifts 0 Zeilen (PROD und TEST).
   ```sql
   SELECT n.SubFA, n.VaterFA, LTRIM(RTRIM(s.value)) AS Token INTO #Tok
   FROM dbo.FaHierarchyNodes n CROSS APPLY STRING_SPLIT(n.Arbeitsschritte, ' ') s
@@ -508,22 +509,27 @@ Eine Etappe mit Haltepunkt, dessen Bedingung fehlt, wird als Blocker vermerkt; d
 
 ## Deploy
 
-*Vorläufig – die QA bestätigt gegen den echten Diff.*
+*Von der QA 2026-11-17 gegen den echten Diff `b4972700..c7c968fe` (+ uncommitteter F1-Fix) bestätigt.*
 
-- **Web-App:** ja (Option, Teileliste, Melden, Rücknahme, Admin-Liste).
-- **Service:** ja (E7 Struktur-Erkennung; Model über das gemeinsame Projekt). Reihenfolge: Schema vor Dienst und Web.
-- **Migration:** ja, additiv (`SQL/154`). Einmal-Skript (E7) datenlöschend → DB-Backup.
-- **Manifest-Einträge** (`scripts/deploy/nachlauf.psd1`):
-  - `@{ Id='SQL/154'; Version='1.99.28'; Typ='Schema'; Firma='beide'; Phase='Schema'; Ausfuehrung='automatisch'; Datei='154_AddBdeTeileliste.sql'; MigrationId='<beim Start>'; Voraussetzung='additiv, Spalte mit Default + Tabelle mit gefiltertem UNIQUE'; Quelle='<changelog-slug v1.99.28>' }` – hinter `SQL/153` einreihen (Deploy-Reihenfolge, nicht Dateisortierung).
-  - `@{ Id='v1.99.28-TeilelisteOption'; Version='1.99.28'; Typ='Einstellung'; Firma='IDEAL'; Phase='Nachher'; Ausfuehrung='anzeigen'; Text='Stammdaten > Werkbaenke: Option BDE-Teileliste nur nach Abnahme TS-152 an den Start-Werkbaenken (Kuerzel laut P-TL1) einschalten. Bleibt bis dahin aus; nichts wird nach Sage geschrieben.' }`
-  - `@{ Id='Einmalig/<datum>_v1.99.28_RemoveParentWorkOperationsFromLeafTokensTeileliste'; Version='1.99.28'; Typ='Einmalig'; Firma='IDEAL'; Phase='Nachher'; Ausfuehrung='Trockenlauf'; Datei='Einmalig\<datum>_v1.99.28_RemoveParentWorkOperationsFromLeafTokensTeileliste.sql'; Braucht=@('SQL/154'); Voraussetzung='Dienst >= 1.99.28 laeuft, Option an den Start-Werkbaenken gesetzt, DB-Backup' }` – nur bei V1.
-  - `@{ Id='v1.99.28-TeilelisteInfo'; Version='1.99.28'; Typ='Info'; Firma='IDEAL'; Phase='Nachher'; Ausfuehrung='anzeigen'; Text='Neue BDE-Teileliste je Werkbank (Default aus). Werker melden sich per Personalnummer an; Filter gelten je Werker und Werkbank.' }`
-  - Kein Pruefung-Eintrag: kein SQL-prüfbarer Pflichtzustand (Option bewusst aus).
-- **Publish-Befehle** (im Worktree):
+- **Web-App:** ja (`IdealAkeWms/`: Option, Teileliste, Melden, Rücknahme, Admin-Liste Teilmeldungen, Beschichtet je Position, Hilfe/Changelog).
+- **Service:** ja (`IDEALAKEWMSService/Services/WorkOperationStructureDetectionService.cs`, V1 Blatt-Token übersprungen; `AppVersion.cs`).
+- **Migration:** ja, additiv – `IdealAkeWms/Migrations/20261117075856_AddBdeTeileliste.cs` = `SQL/154_AddBdeTeileliste.sql` (Spalte
+  `ProductionWorkplaces.BdeTeileliste` Default 0 + Tabelle `BdeTeilMeldungen` mit gefiltertem UNIQUE `UX_BdeTeilMeldungen_Schluessel`).
+- **Einmal-Skript (datenlöschend, nur IDEAL):** `SQL/Einmalig/2026-11-17_v1.99.32_RemoveParentWorkOperationsFromLeafTokensTeileliste.sql`,
+  Default `@Trockenlauf = 1`. Wirkt erst, wenn die Option an einer Werkbank gesetzt ist (ohne Option: 0 Kandidaten).
+- **Manifest** `scripts/deploy/nachlauf.psd1`: `SQL/154`, `Einmalig/2026-11-17_v1.99.32_…` (Trockenlauf, Braucht SQL/154),
+  `v1.99.32-TeilelisteOption` (Einstellung), `v1.99.32-TeilelisteInfo`, `v1.99.32-BeschichtungListen` (Info) – alle vorhanden.
+- **Reihenfolge Testsystem/PROD IDEAL:** 1. DB-Backup → 2. `SQL/154` (bzw. Migration beim ersten Request) → 3. Web + Service →
+  4. Option an den Start-Werkbänken setzen (nach Abnahme TS-152) → 5. Einmal-Skript **Trockenlauf**, Zählung prüfen und freigeben →
+  6. DB-Backup → 7. Einmal-Skript mit `@Trockenlauf = 0` → 8. zweiter Trockenlauf muss `TREFFER: 0` zeigen.
+  AKE: nur 1–3 (Option ist bei Master aus nicht verfügbar, Einmal-Skript nicht ausführen).
+- **Publish:** im Auftrag dieses QA-Laufs ausdrücklich **nicht** erstellt („publish comes at the end of the run“) – folgt am Ende des
+  Bündellaufs aus dem Worktree:
   ```
   dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb
   dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService
   ```
+- Nach dem Merge nur dann neu aus `main` publishen, wenn der Merge getestete Dateien mit parallelen `main`-Änderungen zusammenführt.
 
 ## Folgearbeit (nach Merge als Aufgabe festhalten)
 
@@ -564,11 +570,154 @@ Eine Etappe mit Haltepunkt, dessen Bedingung fehlt, wird als Blocker vermerkt; d
   als seinen Auftrag. Antworte je Frage in **fett** hinter dem Pfeil.
 -->
 
-1. Konflikt Struktur-Erkennung: V1, V2 oder V3? P-TL3 erhoben? →
-2. Beschichtet je Position: Positions-Methode im Resolver oder FA-Kennzeichen? →
-3. Rücknahme-Frist ohne Schichtende: Ende des Meldetags? →
-4. Filter je Anmeldung: UserViewPreference mit Werker im Schlüssel oder eigene Ablage? →
-5. Block-Umfang: aktuelle Seite oder alle gefilterten? →
-6. Gleicher Schritt: beide Zeilen sofort, E8 nur Kennzeichnung? →
-7. Standard-Wochenauswahl: feste Vorgabe oder AppSetting? →
-8. Sichtbarkeit erledigter/stornierter Aufträge und Zeilen ohne WMS-Auftrag? →
+1. Konflikt Struktur-Erkennung: V1, V2 oder V3? P-TL3 erhoben? → **Gerald 2026-11-16 17:28 „Rest passt“ (Empfehlung Koordination): V1 mit Einmal-Skript (Trockenlauf, gebuchte nur melden); P-TL3 vor dem Dev-Lauf erheben (Gerald).**
+2. Beschichtet je Position: Positions-Methode im Resolver oder FA-Kennzeichen? → **Gerald 2026-11-16 17:28 „Rest passt“ (Empfehlung Koordination): Positions-Methode BeschichtetPosition im Resolver.**
+3. Rücknahme-Frist ohne Schichtende: Ende des Meldetags? → **Gerald 2026-11-16 17:28 „Rest passt“ (Empfehlung Koordination): ja, Ende des Meldetags; P-TL5 zeigt den Kalender.**
+4. Filter je Anmeldung: UserViewPreference mit Werker im Schlüssel oder eigene Ablage? → **Gerald 2026-11-16 17:28 „Rest passt“ (Empfehlung Koordination): UserViewPreference, ViewKey mit Werkbank und Werker, keine Migration.**
+5. Block-Umfang: aktuelle Seite oder alle gefilterten? → **Gerald 2026-11-16 17:28 „Rest passt“ (Empfehlung Koordination): angehakte Zeilen der aktuellen Seite.**
+6. Gleicher Schritt: beide Zeilen sofort, E8 nur Kennzeichnung? → **Gerald 2026-11-16 17:28 „Rest passt“ (Empfehlung Koordination): ja.**
+7. Standard-Wochenauswahl: feste Vorgabe oder AppSetting? → **Gerald 2026-11-16 17:28 „Rest passt“ (Empfehlung Koordination): feste Vorgabe aktuelle KW bis +1.**
+8. Sichtbarkeit erledigter/stornierter Aufträge und Zeilen ohne WMS-Auftrag? → **Gerald 2026-11-16 17:28 „Rest passt“ (Empfehlung Koordination): erledigte/stornierte ausblenden, „kein WMS-Auftrag“ kennzeichnen und meldbar.**
+
+## QA-Nachweis (qa-agent, 2026-11-17)
+
+Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Branch `feature/2026-08-07-ideal-teile-1-5`, Commit-Bereich `b4972700..c7c968fe`
+(E1–E7, E9; **E8 entfallen** laut Freigabe-Antwort 6 „darf entfallen“). Version 1.99.32, `SQL/154`, TS-152, ADR 0030.
+
+### 1. Build und Tests
+
+- `dotnet build IdealAkeWms.slnx`: **0 Fehler**, 28 Warnungen (vorbestehende Nullable-Warnungen).
+- `dotnet test`:
+  - `IdealAkeWms.Tests`: **3104 bestanden, 1 übersprungen, 0 Fehler** (3105 gesamt).
+  - `IDEALAKEWMSService.Tests`: **685 bestanden, 0 übersprungen, 0 Fehler**.
+
+### 2. Code-Review (selbst, synchron in diesem Lauf)
+
+Geprüft: alle Dateien des Diffs – `BdeTeilelisteService`, `BdeTeilelisteController`, `BdeBookingsController` (Teilmeldungen + `StornoTeilmeldung`
+mit `[RequireBdeAdminAccess]`), `BdeBookingService` (Kern-Split `ReportCompletionCoreAsync`, `AnwendungssperreAsync`), `BdeTerminalController`
+(Weiche), `ProductionWorkplacesController` + `_BdeTeilelisteField`, `WerkbankKuerzelFamilie.TeilelisteWirksam`,
+`BeschichtungResolver.BeschichtetPosition`, Views `BdeTeileliste/*` und `BdeBookings/Teilmeldungen`, `bde-teileliste.js`, `bde.css`,
+`ColumnDefinitions`/`ColumnFilterTypes`, Migration, `SQL/154`, `00_FreshInstall.sql`, Einmal-Skript, `WorkOperationStructureDetectionService`,
+`nachlauf.psd1`, alle neuen und geänderten Tests.
+
+| # | Befund | Schwere | Fundstelle | Behandlung |
+|---|---|---|---|---|
+| F1 | Doppelt kodiertes UTF-8 (Mojibake) in den drei Validierungsmeldungen der Option – sichtbarer UI-Text | mittel | `IdealAkeWms/Controllers/ProductionWorkplacesController.cs:263,265,267` | **Behoben (trivial), NICHT committet** – Änderung liegt im Worktree und muss mit dem nächsten Commit mit. Mit dem Fix auf DEV deployt und im Browser geprüft. |
+| F2 | Weißer Text auf Marken-`.btn-success` (#82BF6E, ca. 2,2:1) und `.btn-secondary` (#43A6E2, ca. 2,7:1) unter WCAG AA; die neuen Terminal-Knöpfe „Fertig melden“/„Filtern“ erben das | niedrig–mittel (vorbestehend, global) | `IdealAkeWms/wwwroot/css/site.css:6,8,151-170` | Nicht behoben (globales Theme, außerhalb des Umfangs) → Folgeaufgabe Kontrast (Checkliste Nr. 11). |
+| F3 | AG-Suche der Baugruppen-Meldung nimmt `FirstOrDefault` ohne Sortierung, falls mehrere Aufträge dieselbe `SubOrderNumber` tragen | niedrig | `IdealAkeWms/Services/BdeTeilelisteService.cs:367-368` | Hingenommen: `SubOrderNumber` ist je Sub-FA eindeutig; nur Hinweis. |
+
+Keine Befunde in den Pflicht-Fehlerklassen:
+- `<script>`-Blöcke nur `type="application/json"` mit statischem JSON, kein `@Html.Raw` in JS-Strings.
+- Kein `hidden` neben `d-*` im Diff.
+- Keine stillen Fallbacks: leere Menge = Sollmenge nur bei Block/Summiert (so spezifiziert, AK 10); Text statt Zahl → „Menge ist keine Zahl – nichts gemeldet“.
+- Kein positionsweises Binden paralleler Arrays: Zeilen reisen als `TeilSchluessel`-Text.
+- Validierung serverseitig: Option (Master/BdeAktiv/Kürzel), Mengen, Werker, Werkbank, Kürzel im Token, verpackt, Frist.
+- Eine Regel an einem Ort: `TeilelisteWirksam` für Terminal, Service und Controller; das Einmal-Skript spiegelt die Dienst-Regel (Kürzel aus Werkbänken mit `BdeAktiv` + Option, ohne `SageMissingSince`, nur `CreatedBy='WorkOperationStructureDetection'`), gegen `WorkOperationStructureDetectionService` abgeglichen.
+
+Bewertung der Abweichungen des Umsetzers:
+- **`BdeTeilelisteService` mit `ApplicationDbContext` direkt (Abweichung ADR 0001):** vertretbar – Transaktion + `sp_getapplock` + UNIQUE brauchen einen Kontext; im Code begründet.
+- **Melden als Formular-POST mit PRG:** passend zum Terminal (Antiforgery, kein Doppel-POST beim Zurück). OK.
+- **Applock-Ressource = SHA256 des Schlüssels:** hält die 255-Zeichen-Grenze (Test `Sperre_Hoechstens…`); eigentlicher Schutz ist der gefilterte UNIQUE. OK.
+- **Summiert mit eigenem ViewKey `BdeTeilelisteSummiert`:** andere Spalten als Einzeln, daher richtig. OK.
+- **`operatorId` im Query:** gleiches Vertrauensmodell wie das BDE-Terminal; je Aufruf gegen aktive BDE-Mitarbeiter geprüft, Rücknahme prüft Eigentum. Hingenommen.
+- **Einmal-Skript statt P-TL3-SQL:** `CASE WHEN EXISTS` in einem Nicht-Aggregat-`SELECT INTO #Cand`, Summen danach über `#Cand` → kein Meldung 130. `@Trockenlauf BIT = 1` Default, Abbruch ohne `SQL/154`, `XACT_ABORT ON`, löscht nur nicht rückgemeldete Kandidaten ohne BDE-Buchung, nur Zeilen der Erkennung (manuelle WorkOperations unberührt).
+
+Checkliste CLAUDE.md:
+- Migration + idempotentes `SQL/154` mit Guards, DDL in eigenen Batches, History-Insert separat und geschützt: **ja**.
+- FreshInstall an beiden Stellen (Schema + `MigrationId`): **ja**.
+- Audit-Felder: `BdeTeilMeldung` erbt `AuditableEntity`; Created*/Modified* auf DEV belegt (Meldungen 1, 2, 5 und Buchung 24 mit `ModifiedBy=Gerald Weichbold`, `ModifiedByWindows=AKENB\gerald.weichbold`).
+- Version 1.99.32 in beiden `AppVersion.cs`, Anwender- und Brain-Changelog: **ja** (E9).
+- `docs/TESTSZENARIEN.md` TS-152: **ja**; Index-Zeile 152 in [[testszenarien-index]] von der QA ergänzt.
+- ADR 0020: keine neue AppSetting/ServiceSetting. Die Werkbank-Option hat Anzeigename, Wirkung, Default „aus“, Warnhinweis zur Außenwirkung (Erkennung) und Serverprüfung.
+- Read/Edit-Split: Teilmeldungen lesbar mit BDE-Lesezugriff, Storno nur `[RequireBdeAdminAccess]`.
+- Listen-View-Pattern: Pagination, Filterkarte, Server-Spaltenfilter (`data-server-column-filter`, alle `<th>` mit `data-col-key`).
+- Keine Kürzel-Konstanten: Wächter `TeilelisteKuerzelKonstantenWaechterTests`. Kein Sage-Schreibweg.
+
+### 3. Nachweisart je Akzeptanzkriterium
+
+| AK | Nachweis |
+|---|---|
+| 1 | **DEV (echtes SQL):** Migration in beiden DEV-DBs, gefilterter Index `has_filter=1`; `SQL/154` zweiter Lauf auf IDEAL_WMS_DEV und AKE_WMS_DEV: „existiert bereits“, Exit 0, History genau 1. FreshInstall per Review. |
+| 2 | Unit (`BdeTeilelisteOptionTests`) + DEV: IDEAL-Schalter sichtbar und gespeichert, Validierungstexte (F1); AKE-Maske ohne Feld. Manipulierter AKE-POST nur per Unit (`Create_MasterAus_OptionAbgewiesen`). |
+| 3 | Unit (`Terminal_LeitetNurBeiWirksamerTeilelisteUm`) + DEV: WP 67 leitet um, WP 65 und AKE-Terminal unverändert. `BdeNurFaMeldung` nur Unit. |
+| 4, 5, 6 | Unit (`BdeTeilelisteServiceTests`) + DEV-Sichtprüfung (Korpus aufklappbar, Standardspalten). |
+| 7 | Unit (KW-Filter) + DEV: KW W29–W30 auf `FE_Termin`; Server-Spaltenfilter gegen echtes SQL: **Manual-UAT**. |
+| 8, 9, 10 | Unit + DEV: Summiert → „Gemeldet: 3“ (Gut = Soll); N3 negativ/0/Text abgewiesen. Block-Bestätigungsdialog (`confirm()`): **Manual-UAT**. |
+| 11 | Unit + DEV: Korpus gemeldet → Buchung 24 an WO 523, Vater/Haupt unberührt. |
+| 12 | Unit + **DEV N1**: 6 parallele POSTs auf dieselbe Zeile → genau 1× „Gemeldet: 1“, 5× „bereits gemeldet … nichts geändert“, alle HTTP 200. Zwei echte Terminals: Manual-UAT. |
+| 13 | Unit + DEV: neue Node-Id (1963363 → 1963780) → Zeile bleibt „gemeldet von Hans Guck“; Position 2 → 92 → Hinweis „1 Meldung(en) ohne passende Strukturzeile“. Echter Sync: **Manual-UAT**. |
+| 14, 15 | Unit + DEV (siehe 152.8). Frist mit echtem Schichtkalender und Schichtleiter-Sicht: **Manual-UAT** (IDEAL ohne Kalender → Ende Meldetag, Rückfrage 3). |
+| 16 | Unit (relative Woche, JSON) + DEV: je Werker/Werkbank eigene `UserViewPreferences` (`BdeTL:W67:O1`, `BdeTL:W67:O2`). Folgewoche: Manual-UAT. |
+| 17 | Unit (`Detect_TeilelisteWerkbank_*`, `Detect_OhneWirksameOption_*`); echter Dienstlauf auf DEV gesperrt (`Sync:WorkOperationStructureDetectionEnabled` aus): **Manual-UAT**. |
+| 18 | **DEV (echtes SQL), nur Trockenlauf:** `TREFFER: 119`, WorkOperations 632 vor/nach. Zusatz in zurückgerollter Transaktion: ein rückgemeldeter Kandidat (WO 525) steht in der Meldeliste und zählt nicht (`TREFFER: 118`). Scharfer Lauf + zweiter Trockenlauf: **Manual-UAT** (auch zurückgerollt in dieser Umgebung nicht zugelassen). |
+| 19 | Wächter-Test + Review. |
+| 20 | Grün (siehe 1). |
+
+### 4. Geänderte bestehende Tests
+
+| Test | Änderung | Einordnung |
+|---|---|---|
+| `ProductionWorkplacesControllerTests.CreateController` | `internal`, Parameter `master`, neuer Ctor-Parameter `IServiceSettingRepository` | nur Typ/Signatur (Compile-Fix + Wiederverwendung) |
+| `NachlaufManifestDriftTests` | `"SQL/154"` in die Liste der Manifest-Pflicht-SQLs | Erweiterung um die neue Datei (AK 1) |
+| `BeschichtungResolverTests` | nur neue Theorie `BeschichtetPosition_NurBeiQuelleFaStruktur` angehängt | neu, nichts Bestehendes geändert |
+
+Kein Befund „sonstig“.
+
+### 6. DEV-Deploy und Testlauf
+
+- **Deploy** über `D:\Dev\scripts\dev-deploy.ps1`, Quelle = Worktree (Commit `c7c968fe` + F1-Fix), beide Standorte, Web **und** Service
+  (Binärdateien 17.11.2026 09:37). Footer: **AKE http://localhost:8081 = v1.99.32**, **IDEAL http://localhost:8082 = v1.99.32**;
+  `AKE_WMS_DEV_Service` und `IDEAL_WMS_DEV_Service` laufen; Migration `20261117075856_AddBdeTeileliste` in beiden DEV-DBs.
+- `standort: IDEAL` laut Frontmatter; AKE nur als Regression.
+- Testdaten DEV IDEAL: Werkbank 67 „Kanten“ (KA) über die Maske auf BdeAktiv + Option; Korpus-Knoten 1963692 `Arbeitsschritte` `PU` → `PU  ka `;
+  zweiter BDE-Mitarbeiter `QA152B`; Werker A = Hans Guck (Id 1).
+
+| Schritt | Durchgeführt | Ergebnis | Status |
+|---|---|---|---|
+| 152.1 Option pflegen | Maske IDEAL an/aus, Validierung; AKE-Maske | Schalter nur IDEAL; Fehlermeldungen (nach F1-Fix lesbar); AKE ohne Feld | OK (F1) |
+| 152.2 Terminal-Weiche | WP 67 / WP 65 / AKE-Terminal | WP 67 → Teileliste; WP 65 und AKE unverändert; Teileliste-Direktaufruf WP 65 → zurück aufs Terminal | OK |
+| 152.2 `BdeNurFaMeldung` an | – | nur Unit | NICHT MÖGLICH (globale Einstellung auf DEV bewusst nicht umgeschaltet) |
+| 152.3 Zeilen und Spalten | Liste KA, Korpus aufklappen | nur KA-Knoten, Korpus mit Kindern (nicht meldbar), Standardspalten | OK |
+| 152.4 Woche und Filter | KW W29–W30, Spaltenfilter, Pagination | wirken | OK |
+| 152.5 Einzeln melden | Gut/Ausschuss, „gemeldete zeigen“ | Zeile weg, „gemeldet von Hans Guck, 17.11. 09:42“ | OK |
+| 152.6 Summiert | Summiert-Zeile A-BLATT-A-385-230 (POST) | „Gemeldet: 3“, drei Meldungen Gut = Soll | OK |
+| 152.6 Block-Dialog | `confirm()` | – | NICHT MÖGLICH (Browser-Dialog verboten) |
+| 152.7 Baugruppe | Korpus melden | Buchung 24 an WO 523, Haupt-FA unberührt | OK |
+| 152.8 Rücknahme | A eigene / B fremde / A nach Frist / Baugruppe / Admin | „zurückgenommen“; B: „Nur eigene Meldungen …“; Frist: „Frist abgelaufen (16.11. 23:59) – Rücknahme nur noch über den BDE-Admin“; Baugruppe: „Arbeitsgang-Buchung storniert“ (Buchung 24 `IsCancelled=1`); Admin ohne Grund abgewiesen, mit Grund storniert; B meldet zurückgenommene Zeile neu | OK (per HTTP-POST statt Dialog) |
+| 152.8 Schichtende / Schichtleiter | kein Kalender auf IDEAL, keine Schichtleiter-Kennung | – | NICHT MÖGLICH |
+| 152.9 Filter speichern | zwei Werker an WP 67 | je Werker eigene Ablage | OK (Folgewoche offen) |
+| 152.10 Struktur-Sync | per SQL simuliert (Knoten neu, neue Id) | bleibt gemeldet | OK (simuliert); echter Sync NICHT MÖGLICH (`Sync:HierarchicalFaEnabled` aus) |
+| 152.11 Einmal-Skript | Trockenlauf | `TREFFER: 119`, nichts geändert | OK (Trockenlauf); scharf + Erkennungslauf NICHT MÖGLICH |
+| N1 parallel | 6 gleichzeitige POSTs | genau 1 Meldung | OK |
+| N2 veraltete Seite | zweite Meldung derselben Zeile | „bereits gemeldet von Hans Guck um 09:41 – nichts geändert“ | OK |
+| N3 Menge | negativ / 0 / Text | abgewiesen | OK |
+| N4 verpackt | – | nur Unit | NICHT MÖGLICH (kein passender DEV-Auftrag) |
+| N5 Waisen | Position 2 → 92 | Hinweis „1 Meldung(en) ohne passende Strukturzeile“ | OK |
+| N6 ohne BDE-Rolle | – | Rollenfilter per Review | NICHT MÖGLICH (kein zweiter Web-Benutzer) |
+| N7 manipulierter POST | fremde Werkbank, kaputter Schlüssel, Schlüssel ohne KA, unbekannter Werker | je Fall abgewiesen | OK |
+| N8 nicht angemeldet | ohne Werker | Anmeldemaske, keine Liste | OK |
+| AKE-Regression | Terminal, Werkbank-Maske | unverändert, kein Teileliste-Feld | OK |
+| Beschichtung TS-141.2 / TS-142.3 | Tooltip „Beschichtung“ FA-Liste + Leitstand | AKE „Berechnet: Kommissioniertermin - 10 Arbeitstage …“; IDEAL „Aus der Sage-View, Feld Start_Beschichtung …“ | OK |
+
+**DEV wiederhergestellt** (Abfrage nach dem Aufräumen: `TM=0 | B24=0 | N1963692=PU | Pos92=0 | Prefs=0 | Op=0 | WP67=0/0`): alle
+`BdeTeilMeldungen`, Buchung 24 samt Mengen, `UserViewPreferences BdeTL:%` und Mitarbeiter `QA152B` gelöscht; Korpus wieder `PU`, Position wieder 2,
+Werkbank 67 wieder `BdeAktiv=0`, `BdeTeileliste=0`; WO 523 unverändert (`IsReported=0`). Bleibt: der simuliert neu eingefügte Knoten
+(inhaltsgleich, Id 1963780 statt 1963363), den der nächste Struktur-Sync ersetzt. Keine Einstellung umgeschaltet, nichts an Sage, keine Mail.
+
+### 7. Publish
+
+Nicht in diesem Lauf (Auftrag: Publish am Ende des Bündellaufs). Vor dem Testsystem-Lauf aus dem Worktree erstellen, nach Commit des F1-Fixes.
+
+### Manuelle Testcheckliste (Mensch)
+
+1. F1-Fix (`IdealAkeWms/Controllers/ProductionWorkplacesController.cs`) committen, dann Publish aus dem Worktree samt `publish-info.txt`.
+2. Testsystem IDEAL: Deploy in der Reihenfolge des Deploy-Abschnitts, TS-152 komplett an einer echten Werkbank (Kürzel laut P-TL1).
+3. Block-Meldung mit Bestätigungsdialog (152.6) und Rücknahme-Dialog am Terminal-Gerät.
+4. 152.8 mit Schichtkalender (falls eingeführt) und Schichtleiter-Sicht ohne Storno-Knopf; N6 Benutzer ohne BDE-Rolle; N4 verpackter Auftrag.
+5. 152.2 `BdeNurFaMeldung` an → keine Teileliste, danach zurück.
+6. 152.10 echter FA-Struktur-Sync: gemeldete Zeilen bleiben gemeldet.
+7. 152.11 Einmal-Skript: Trockenlauf → Zählung freigeben → Backup → scharf → zweiter Trockenlauf `TREFFER: 0`; danach Erkennungslauf ohne neuen Vater-AG, Zähler `teileliste_blatt_uebersprungen` im Aktivitäts-Protokoll.
+8. N1 mit zwei echten Terminals gleichzeitig; P-TL4.
+9. 152.9 in der Folgewoche: „aktuelle KW“ rückt mit.
+10. AKE-Sichtprüfung (Terminal, Werkbank-Maske) auf dem Testsystem.
+11. Folgeaufgabe Kontrast `.btn-success`/`.btn-secondary` (F2) anlegen.
