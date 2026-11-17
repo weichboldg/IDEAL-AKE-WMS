@@ -2,9 +2,9 @@
 type: spec
 title: Arbeitsgang-Mapping – Sage-Arbeitsgangnummer in den Arbeitsgang-Stammdaten + Prüfliste
 slug: 2026-11-16-arbeitsgang-mapping-sage-arbeitsgangnummer-spec
-status: Freigegeben
+status: Testbereit
 created: 2026-11-16
-updated: 2026-11-16
+updated: 2026-11-17
 source_backlog: "[[2026-11-16-arbeitsgang-mapping-sage-arbeitsgangnummer]]"
 task: ""
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
@@ -340,6 +340,7 @@ Nur der Beschreibungstext von `Sync:OperationConfigSyncEnabled` (`:228`) bekommt
   - Das ist eine sichtbare Kürzung, kein stilles Take: `ponytail:` Kappung 50, voller Export erst bei Bedarf.
 
 ## Prüfabfragen für den Menschen (nur lesend)
+> **Ergebnisse 2026-11-17 (Koordination, IDEALSQL2, Details [[2026-11-17-pruefabfragen-gerald]]):** P-AG1 View liest `KHKPpsArbeitsgaenge` (Aktiv, Mandant 1), Nummer = Arbeitsgang, varchar(31). P-AG2 27 Zeilen, 110 Schachteln ohne AG, keine Mehrfach-Kürzel. P-AG3 0 Treffer (keine Arbeitsplätze). P-AG4 `KHKPpsArbeitsgaenge` (+Backup_20261008). P-AG5 TEST: Werkbank-Sync liest die AG-View → 26 neue 3-stellige neben 61 alten 4-stelligen Werkbänken (Kürzel doppelt u. a. SL, PL, VL); PROD: 0 Werkbänke, Sync aus. Artikel-Kürzel ohne Sage-AG: ZS, MT, MK, ML, ISO, PG, T, SW, EP.
 
 Auf der **Sage-DB IDEAL** (Test, danach Prod):
 
@@ -458,11 +459,23 @@ entfällt (epic: false) – eine Umsetzung als Ganzes (Version 1.99.27 reservier
 
 | # | Etappe | Status | Commit |
 |---|--------|--------|--------|
-| 1 | Gesamte Spec (v1.99.27) | **Blocker** – P-AG1..5 (Gerald) nicht eingetragen (Lauf 2026-11-16, Freigabe-Antworten 1/2); nicht begonnen, daher keine Version, kein Changelog, kein Brain-Eintrag | – |
+| 1 | Gesamte Spec (v1.99.27, ausgeliefert mit 1.99.32) | Testbereit (QA 2026-11-17) | `5960b6a5` |
 
 ## Deploy
 
-*Vorläufig. Die QA bestätigt das gegen den echten Diff.*
+> [!success] Von der QA am 2026-11-17 gegen den echten Diff `5ced750f..5960b6a5` bestätigt
+> - **Web:** ja (`IdealAkeWms/` Controller, View, ViewModel, Repository, Model, ServiceSettingDefinitions-Texte, Hilfe, Changelog).
+> - **Service:** ja (`IDEALAKEWMSService/Services/OperationConfigSyncService.cs`, Model über das gemeinsame Projekt).
+> - **Migration:** ja, `IdealAkeWms/Migrations/20261117085624_AddOperationConfigSageArbeitsgangnummer.cs` = `SQL/153` (additiv, zwei
+>   Spalten NULL, kein Backup über das Übliche hinaus). Reihenfolge: DB-Backup wie üblich → `SQL/153` (Update-Skript, Manifest
+>   automatisch, `Braucht SQL/96`) → Dienst → Web. Der Dienst darf nicht vor dem Schema starten.
+> - **Manifest** `scripts/deploy/nachlauf.psd1`: `SQL/153` (Version `'1.99.32'`, bewusst statt 1.99.27, Befund R-1 früherer QA) und
+>   Info `v1.99.27-ArbeitsgangNummerPruefen` (IDEAL, Nachher) sind drin. Keine weiteren Handschritte; keine neue Einstellung.
+> - **Publish:** in diesem QA-Lauf auf Anweisung NICHT erstellt („publish comes at the end of the run“); der Bündel-Publish nach
+>   `<worktree>\publish` (beide Komponenten, Version 1.99.32) folgt am Laufende.
+> - Nach dem Merge nur dann erneut aus `main` publishen, wenn der Merge getestete Dateien mit parallelen main-Änderungen kombiniert.
+
+*Ursprünglicher Entwurf (Spec-Agent):*
 
 - **Web-App:** ja (Controller, View, ViewModel, Repository, Model).
 - **Service:** ja (`OperationConfigSyncService`, Model über das gemeinsame Projekt).
@@ -550,3 +563,129 @@ entfällt (epic: false) – eine Umsetzung als Ganzes (Version 1.99.27 reservier
 ## Lauf-Vermerk 2026-11-16 (goal-Lauf)
 
 **Blocker, nicht begonnen:** P-AG1..5 (Gerald) sind nicht im Abschnitt Pruefabfragen eingetragen (Freigabe-Antworten 1/2 verlangen sie vor dem Dev-Lauf). Status bleibt Freigegeben. Siehe [[2026-11-16-goal-lauf-beschichtung-fa-sdata-arbeitsgaenge]].
+*(Überholt: P-AG1..5 am 2026-11-17 eingetragen, umgesetzt in `5960b6a5`.)*
+
+## QA-Nachweis 2026-11-17 (qa-agent)
+
+Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Branch `feature/2026-08-07-ideal-teile-1-5`, HEAD `5960b6a54e2456551e91550b35695f87fb1e425d`,
+geprüfter Bereich `5ced750f..5960b6a5` (ein Commit, 22 Dateien). AppVersion Web + Dienst = 1.99.32 (Changelog-Label 1.99.27 reserviert).
+
+### 1. Build und Tests
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler, 28 Warnungen (bestehend).
+- `dotnet test`: **IdealAkeWms.Tests 3110 bestanden / 1 übersprungen / 0 Fehler (3111)**; **IDEALAKEWMSService.Tests 693 / 0 / 0 (693)**.
+
+### 2. Code-Review (selbst, in diesem Lauf)
+Geprüft: Dienst `OperationConfigSyncService` (Plan, Nummer, Ausführung, Zähler, Guard Tabelle/SData), Controller (Update-Guard, ColumnMap
+`sageag`, Prüfliste, Master-Gate), Repository `EditableProperties`, Model (`StringLength`, NotMapped-Properties), Migration + Snapshot,
+`SQL/153`, `SQL/00_FreshInstall.sql` (beide Stellen), Manifest, View (Banner, Spalte, Abzeichen, Feld, Karten, view-config, Legende),
+ColumnDefinitions, Tests, README/Hilfe. Defektklassen: keine Werte in `<script>` (view-config statisch), kein `hidden` + `d-*`, keine stille
+`?? 0`-Ersetzung (leer → NULL ist Spec FA-1), keine Parallel-Array-Bindung (Formular je Zeile), Länge 31 serverseitig erzwungen
+(`OperationConfigsController.Update`, maxlength nur zusätzlich), Zugriff `[RequireAdminAccess]` auf Klassenebene unverändert (`OperationConfigsController.cs:19`).
+Handwert nie vom Abgleich überschrieben: der Dienst schreibt nur `SageArbeitsgangnummer` über `Change()`. Sage-Wert nicht im Web änderbar:
+nicht in `EditableProperties`, kein Formularfeld (auf SQL Server belegt: nach Web-Speichern des Handwerts blieb `SageArbeitsgangnummer = 140`).
+AK 17: Diff ohne SData-POST/PUT und ohne Sage-Schreibdienst (Suche `PostAsync|PutAsync|HttpMethod|ExecuteSqlRaw|INSERT INTO|UPDATE dbo` in
+hinzugefügten `.cs`-Zeilen: 0 Treffer).
+
+Abweichungen der Umsetzung (beurteilt):
+- Guard „keine Nummer bei Tabelle `KHKPpsArbeitsplaetze` / SData“ (`OperationConfigSyncService.cs:158-159`): **richtig und nötig**, dort ist
+  Spalte 0 die Arbeitsplatznummer; unter SData greift ohnehin der bestehende Skip (`ArbeitsschrittGeliefert:false`). Test `Run_QuelleTabelle…`.
+- Manifest-Version `'1.99.32'` statt `'1.99.27'`: **akzeptiert** (R-1: Test-Neuer blendet Einträge ≤ installierter Version aus).
+- `SQL/153` im Manifest hinter `SQL/154`: **akzeptiert**; Deploy-Reihenfolge = Manifest-Reihenfolge, beide unabhängig, `Braucht SQL/96`.
+- Beschreibungen `Sync:ProductionWorkplaceSyncViewName` / `Sync:OperationConfigSyncEnabled`: **akzeptiert**, inhaltlich durch P-AG1/P-AG3 belegt;
+  keine neue Einstellung, kein Wertebereich geändert (ADR 0020 ohne Befund).
+- Prüfliste (a) gekappt auf 50 mit „… und n weitere“: wie Spec (sichtbar, `ponytail:`-Kommentar).
+- Karte (c) nur als Link: wie Spec (Rückfrage 5); Link führt korrekt auf `/SyncLog?service=OperationConfigSync` (DEV belegt).
+- Test-Helfer `Row()` Default-Nummer `"1"` → `null`: siehe Punkt 4.
+
+Befunde:
+- **Q-1 (niedrig, offen gelassen):** Regel „Ausschlussliste zerlegen“ doppelt: `OperationConfigsController.Index` (Split `,;` + Trim) und
+  `OperationConfigSyncService.cs:108-110`. Heute identisch, Drift-Risiko bei Änderung. Ebenso die Abweichungsregel an drei Stellen
+  (`OperationConfig.SageArbeitsgangnummerWeichtAb`, `Plan` → `AbweichungHand`, Detailzeile in der Ausführung), alle Ordinal nach Trim. Kein Defekt.
+- **Q-2 (niedrig, Hinweis):** Der Zähler `abweichung_hand` zählt auch ausgeschlossene bzw. „nicht in Sage“-Einträge mit Handwert. Das ist
+  deckungsgleich mit dem Web-Banner und wird daher hingenommen.
+- **Q-3 (mittel, Umgebung, NICHT Branch-Code):** `D:\Dev\scripts\dev-deploy.ps1:35` publisht in den bestehenden Site-Ordner, ohne ihn zu
+  leeren. Eine am 2026-11-17 06:53 dort abgelegte, neuere CRLF-Fassung von `wwwroot/js/column-filter-syntax.js` (13010 Byte) wurde deshalb nicht
+  ersetzt. Das Static-Asset-Manifest des Builds meldet 12761 Byte, also lieferte IIS die Datei **abgeschnitten** (`SyntaxError: Unexpected end
+  of input`, danach `table-filter.js` TypeError): Spaltenfilter auf allen Listen an DEV AKE und DEV IDEAL ohne Funktion. Behoben durch Kopieren
+  der Worktree-Datei in beide DEV-Sites; Byte-Vergleich aller übrigen versionierten `wwwroot`-Dateien: keine weitere Abweichung. Empfehlung:
+  dev-deploy vor dem Publish den Zielordner leeren (wie Punkt 7 es für `publish\` schon vorschreibt); dasselbe Risiko beim Update-Skript auf
+  Test/Prod prüfen.
+- Keine Code-Änderung durch die QA.
+
+### 3. Beweisart je Akzeptanzkriterium
+| AK | Beweis |
+|---|---|
+| 1 | DEV (sqlcmd): beide Spalten `nvarchar(31) NULL` + History in AKE_WMS_DEV und IDEAL_WMS_DEV; zweiter Lauf `SQL/153` ohne Ausgabe, Exit 0. FreshInstall auf leerer Scratch-DB (DB-Name ersetzt, `sqlcmd -I`): 0 Fehler, beide Spalten + History, danach `SQL/153` Exit 0, Scratch-DB gelöscht. **Belegt.** |
+| 2, 3, 6, 7, 8 | automatisiert (`OperationConfigSyncServiceTests` Plan/Run, InMemory); echter View-Lauf **Manual-UAT** |
+| 4 | Dienstteil automatisiert; Webteil DEV-Browser **OK** (141, „Hand“, „Sage: 140“, Banner) |
+| 5 | automatisiert (Warnung nur beim Übergang, zweiter Lauf ohne Zeile); echter Lauf Manual-UAT |
+| 9 | automatisiert (`Run_KuerzelNichtGeliefert_KeineNummer`, `Plan_TabelleOderSData_KeineNummer`); N2 auf Test Manual-UAT |
+| 10 | automatisiert (Controller) + DEV-Browser **OK** (Speichern, Leeren, 32 Zeichen) |
+| 11 | automatisiert (Repository, InMemory) + auf SQL Server indirekt belegt (Sage-Wert blieb nach Web-Speichern) |
+| 12 | automatisiert (ColumnMap) + DEV-Browser **OK** (`colf_sageag=14` → EG/EK, `=32` → PL; Zahnrad blendet aus und ein) |
+| 13, 14 | automatisiert (`BuildPruefliste`) + DEV-Anzeige **OK** mit echten Strukturknoten (ZS, SÄ, MK, ISO, MO; Werkbank „as“; b2: 25 Werkbänke) |
+| 15 | Info-Zeile automatisiert; Link DEV **OK**; Inhalt „110 Schachteln“ nur mit echtem Lauf, Manual-UAT |
+| 16 | automatisiert + DEV AKE **OK** (keine Prüfliste, Spalte leer, keine Konsolenfehler) |
+| 17 | Review (siehe oben) |
+
+### 4. Geänderte bestehende Tests
+- `OperationConfigSyncServiceTests.Row()` Default-Nummer `"1"` → `null`: **Verhalten absichtlich geändert (AK 2/3, FA-2)**. Mit `"1"` hätten
+  ältere „keine Änderung“-Tests jetzt eine Nummer geschrieben; die Nummernlogik ist durch eigene Tests mit echten Nummern abgedeckt. Kein verdeckter Defekt.
+- `OperationConfigsControllerTests.Ctrl()`: zwei neue Ctor-Parameter, **reine Typänderung**.
+- `NachlaufManifestDriftTests` Registerliste um `SQL/153`: **gewollte Registrierung**.
+- `OperationConfigRepositoryTests`: nur Ergänzung.
+
+### 5. Checkliste
+- Migration + idempotentes `SQL/153` (DDL in eigenen Batches, History separat, NOEXEC-Schutz bei fehlender Tabelle) ✓
+- FreshInstall an beiden Stellen ✓; `SQL/AgentJobs` nicht betroffen ✓
+- Audit: Web setzt Modified* (DEV: `Gerald Weichbold` / Windows-Konto), Dienst über `Change()` mit `OperationConfigSync` ✓
+- ISyncLogger unverändert letzter Parameter; Zähler deutsch (`nummer_gesetzt`, `nummer_mehrdeutig`, `abweichung_hand`, `ohne_kuerzel`, auch in `EmptyCounts`) ✓
+- Listen-View: `data-col-key="sageag"`, ColumnMap, ColumnDefinitions, view-config, colspan 7 ✓
+- Version 1.99.32 unverändert, Anwender-Changelog „Enthält auch v1.99.27“ ✓, Brain-Changelog [[2026-11-17-v1-99-27-arbeitsgang-mapping-sage-arbeitsgangnummer]] ✓
+- TS-151 in `docs/TESTSZENARIEN.md` ✓; Index-Zeile 151 durch die QA ergänzt ✓; ADR [[0031-sage-arbeitsgangnummer-an-operationconfig-sagewert-plus-handwert]] ✓
+- WCAG: Abzeichen mit Text (`text-bg-secondary` weiß auf #6c757d ≈ 4,7:1, `text-bg-warning` dunkel auf Gelb), nie nur Farbe ✓
+
+### 6. DEV-Deploy und Testlauf
+- `dev-deploy.ps1 -Standort IDEAL -Quelle <worktree>`: Exit 0, „HTTP 200, Fusszeile v1.99.32“, „Fertig: IDEAL v1.99.32 auf http://localhost:8082/“.
+- `dev-deploy.ps1 -Standort AKE -Quelle <worktree>`: Exit 0, „HTTP 200, Fusszeile v1.99.32“, „Fertig: AKE v1.99.32 auf http://localhost:8081/“.
+- Shell erhöht (Administrator = True). `SQL/153` danach auf beiden DEV-DBs nachgefahren (idempotent, keine Ausgabe).
+- **Abgleich-Lauf auf DEV nicht ausgeführt:** Die QA-Regel verbietet, `Sync:*Enabled` auf DEV einzuschalten; die Erlaubnis kam nur als
+  Agent-Auftrag, nicht vom Menschen. Ersatz: Sage-Werte laut P-AG2 als Testdaten per SQL gesetzt (25 Kürzel; SÄ blieb wegen Kodierung ohne
+  Nummer und diente als Fall „ohne Sage-AG“), App-Pool recycelt.
+
+| Schritt | Ergebnis | Status |
+|---|---|---|
+| 151.1 Erstfüllung durch Lauf | Lauf nicht ausgeführt (s. o.); Anzeige der Spalte mit P-AG2-Werten korrekt | NICHT MÖGLICH (Lauf) |
+| 151.2 Wiederholung | braucht Lauf | NICHT MÖGLICH |
+| 151.3 Handwert 141 bei EG | Liste 141 + „Hand“ + „Sage: 140“, Banner „EG: Sage 140 / Hand 141“; DB Hand 141, Sage 140, Modified* gesetzt. Folge-Lauf nicht möglich | OK (Web) |
+| 151.4 Handwert leeren | 140 ohne Abzeichen, Banner weg, DB Hand NULL, Umlaut im Anzeigenamen unverändert | OK |
+| 151.5a Prüfliste Kürzel | ZS (25 Knoten), SÄ ohne Sage-AG (23), MK (15), ISO (3), MO (3) | OK |
+| 151.5b Werkbänke ohne Nummer | „as — Kürzel –, BDE aktiv: nein“ | OK |
+| 151.5c Werkbank-Nummer = Sage-AG | 25 Werkbänke, z. B. „Entgraten Fläche — Nummer 140 = Sage-AG von EG“ | OK |
+| 151.5d Link Protokoll | öffnet Aktivitäts-Protokoll, gefiltert „Arbeitsgang-Abgleich (Sage-View)“; Info-Zeile braucht Lauf | OK (Link) |
+| 151.6 Filter/Zahnrad | `14` → EG, EK; `32` → PL; Spalte aus- und wieder eingeblendet; nach Behebung Q-3 keine Konsolenfehler | OK |
+| N1 32 Zeichen | „Sage-AG (Hand) höchstens 31 Zeichen – nichts gespeichert.“, Handwert unverändert | OK |
+| N2 SData/Tabelle | nur mit Lauf sinnvoll | NICHT MÖGLICH (automatisiert belegt) |
+| N3 Schalter aus | DEV-Schalter ist aus: Spalte und Handwert funktionieren | OK |
+| N4 AKE-Regression | `:8081/OperationConfigs` ohne Prüfliste, Spalte leer, keine Konsolenfehler | OK |
+| N5 Nicht-Admin | kein Nicht-Admin-Konto im DEV-Browser | NICHT MÖGLICH |
+| Sanity v1.99.32 | `/FaHierarchyBeschichtung` und `/BdeBookings/Teilmeldungen` laden; BDE-Teileliste-Terminal: DEV IDEAL hat keine Werkbank mit `BdeTeileliste = 1` | OK / Terminal nicht geprüft |
+
+**Wiederhergestellt:** IDEAL_WMS_DEV `OperationConfigs`: alle `SageArbeitsgangnummer`/`…Manuell` wieder NULL (25 Zeilen, Rest 0), EG Modified*
+wieder NULL, App-Pool recycelt. `Sync:OperationConfigSyncEnabled` blieb durchgehend `false`, `Sync:Quelle:Arbeitsplaetze` `View`. Spalte im
+Zahnrad wieder eingeblendet. Nichts nach Sage geschrieben, keine Mails, keine Test-/Prod-Systeme.
+Nebenbefund: Ein erster FreshInstall-Versuch lief gegen die lokale Scratch-DB `IDEAL_AKE_WMS` (Instanz `.`, angelegt 2026-11-12 von einer
+früheren QA; das Skript erzwingt diesen DB-Namen). Betroffen nur `IF NOT EXISTS`-geschützte Objekte; keine DEV-, Test- oder Prod-DB.
+
+### 7. Publish
+Auf Anweisung des Auftraggebers in diesem Lauf nicht erstellt; folgt am Laufende (Bündel, beide Komponenten, Version 1.99.32).
+
+### Manuelle Checkliste für den Menschen (offen)
+1. IDEAL-Test: Deploy mit Update-Skript (`SQL/153` automatisch), dann einen Arbeitsgang-Abgleich laufen lassen → TS-151.1 (Spalte = P-AG2,
+   `nummer_gesetzt` > 0, Info-Zeile „Sage-Arbeitsgänge ohne Kürzel: 110 Schachteln“).
+2. TS-151.2: zweiter Lauf → `nummer_gesetzt = 0`, `ModifiedAt` unverändert (SQL).
+3. TS-151.3 mit Lauf: Handwert 141 bei EG, Lauf → 141 bleibt, keine Warn-Detailzeile.
+4. TS-151.N2: nur Test, `Sync:Quelle:Arbeitsplaetze = SData` bzw. View-Name `KHKPpsArbeitsplaetze` → keine Nummer ändert sich; zurückstellen.
+5. TS-151.N5: Nicht-Admin → `/OperationConfigs` verweigert.
+6. Prüfliste mit Produktion/AV durchgehen (Kürzel ohne Sage-AG; dreistellige Werkbänke = Arbeitsgangnummern, Folgeaufgabe Werkbank-Nummer).
+7. Q-3: dev-deploy-Skript (und Update-Skript auf dem Zielsystem) auf „Zielordner vor Publish leeren“ prüfen.
