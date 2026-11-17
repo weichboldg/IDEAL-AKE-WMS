@@ -41,6 +41,8 @@ Menü **Lager → Offene Bestellungen**.
 
 ![Offene Bestellungen: Stand, Filterkarte, Legende „rot hinterlegt = überfällig“ und Hinweis auf ausgeblendete Abrufe](bilder/06-01-offene-bestellungen-filter.jpg)
 
+*Bild noch vom Stand vor 1.99.31 (mit Feld „Wochen“, ohne „Überfällige anzeigen“).*
+
 - **Stand:** Zeitpunkt des letzten Abgleichs. Positionen **ohne Termin** sind immer dabei.
 - **Zeitraum:** Der Spaltenfilter **Liefertermin** ist beim Öffnen vorbelegt, z. B. am 17.11.2026 mit `16.11.2026...29.11.2026` (Montag
   der aktuellen KW bis Sonntag der nächsten KW). Filter leeren = alle Termine; im Kalender eine andere KW anklicken = diese KW. Die Spalte
