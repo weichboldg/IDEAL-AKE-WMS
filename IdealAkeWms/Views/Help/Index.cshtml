@@ -2155,6 +2155,36 @@
         </div>
 
         <div class="card mb-3">
+            <div class="card-header"><strong>Blechfertigung – BF-Aufträge (seit v1.99.35, IDEAL)</strong></div>
+            <div class="card-body">
+                <ul>
+                    <li><strong>Einschalten:</strong> <em>Einstellungen &rarr; Blechfertigung</em>: <em>Blechfertigung aktiv</em> (<code>BlechfertigungAktiv</code>)
+                        und <em>Empfängergruppe BF-Aufträge</em> (ohne Gruppe ist Abschicken gesperrt). Dienst: <em>Service-Einstellungen &rarr;
+                        Blechfertigung WiCAM</em> mit <code>Sync:BfAuftragEmailEnabled</code> (Mail), <code>BfCsvAktiv</code> und <code>BfCsvPfad</code> (WiCAM-Pool).</li>
+                    <li><strong>Wer:</strong> Bestellen = Rolle Lagerbestellung oder <code>schachtler</code>; Besteller sehen nur eigene Aufträge.
+                        Freigeben, Menge/Lagerplatz ändern, Streichen, Fertig melden, &bdquo;CSV erneut schreiben&ldquo; nur mit <code>schachtler</code>.</li>
+                    <li><strong>Warenkorb:</strong> Suche nach Artikelnummer, Matchcode oder Bezeichnung &ndash; nur Sage-Lagerartikel mit Artikeltyp BG/FT.
+                        Menge muss ein ganzes Vielfaches der Sage-Bestellmenge sein, wenn die Einheit gleich ist (0/leer = frei). Status aus
+                        <em>BF-Aufträge: Status-Werte</em> (Vorgabe <code>EILT</code>). Ohne Materialnummer PN: Hinweis, Position geht nicht an WiCAM.
+                        <strong>Abschicken</strong> vergibt <code>BF</code> + 8 Ziffern und löst die Mail an die Gruppe aus (nur dann).</li>
+                    <li><strong>Freigabe</strong> (Status bestellt): gesperrt bei Mengenregel-Verstoß, fehlendem Matchcode/Hauptlagerplatz, Zeichen
+                        <code>;</code>, <code>"</code>, Zeilenumbruch oder nicht Windows-1252 &ndash; die Liste über dem Knopf nennt Position und Feld.
+                        Gestrichene Positionen zählen nicht. Termine ab dem Freigabetag: Schachteltermin +<em>BF-Aufträge: Schachteltermin</em>
+                        (1), FE-Termin +<em>BF-Aufträge: FE-Termin</em> (10) Arbeitstage ohne Wochenende und Feiertage. Bemerkung
+                        <code>[Status - ][Fertigungsinfo PN - ]TT.MM[ - Position bei BG]</code>.</li>
+                    <li><strong>WiCAM-CSV:</strong> der Dienst schreibt <code>&lt;BF-Nummer&gt;.csv</code> (erst <code>.tmp</code>, dann umbenannt,
+                        nie überschrieben). Schreibfehler werden 3&times; im Abstand von 15 min wiederholt; &bdquo;Datei existiert bereits&ldquo; nie
+                        automatisch &ndash; in WiCAM klären, dann <strong>CSV erneut schreiben</strong> (nur nach Fehler). Protokoll
+                        &bdquo;Blechfertigung: WiCAM-CSV&ldquo;. Format bis zur Musterdatei aus WiCAM ein Platzhalter.</li>
+                    <li><strong>Fertig melden</strong> (freigegeben, CSV geschrieben): im Auftrag oder per Häkchen in der Liste &ndash; nur Status,
+                        keine Lagerbuchung. <strong>Storno</strong> mit optionalem Grund: Besteller bis zur Freigabe, Schachtler bis Fertig; nach der
+                        Freigabe Hinweis, den Auftrag in WiCAM zu löschen. Ein stornierter Auftrag wird nie als CSV geschrieben.</li>
+                    <li>Liste und Positionen im Auftrag sind über Spaltenfilter und CSV-Export auswertbar. Es wird nichts an Sage geschrieben.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
             <div class="card-header"><strong>Glas-Bestellung</strong></div>
             <div class="card-body">
                 <h5 class="mt-4">Glas-Bestellung (Reiter Lager / Glas)</h5>

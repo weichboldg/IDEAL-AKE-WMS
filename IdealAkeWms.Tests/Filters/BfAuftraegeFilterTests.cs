@@ -84,4 +84,18 @@ public class BfAuftraegeFilterTests
         var (api, _) = await Run(new RequireBlechfertigungAktivFilter(s.Object), new Api());
         if (!weiter) api.Result.Should().BeOfType<NotFoundResult>();
     }
+
+    /// <summary>AK 8: Schachtler-Aktionen per Filter gesperrt (nicht nur ausgeblendet); Stornieren bewusst ohne (Besteller duerfen, Regel im Workflow).</summary>
+    [Theory]
+    [InlineData("UpdatePosition", true)]
+    [InlineData("StreichePosition", true)]
+    [InlineData("Freigeben", true)]
+    [InlineData("CsvErneutSchreiben", true)]
+    [InlineData("FertigMelden", true)]
+    [InlineData("FertigMeldenListe", true)]
+    [InlineData("Stornieren", false)]
+    [InlineData("Submit", false)]
+    public void SchachtlerAktionen_TragenSchachtlerFilter(string action, bool erwartet) =>
+        typeof(IdealAkeWms.Controllers.BfAuftraegeController).GetMethods().Where(m => m.Name == action)
+            .Should().NotBeEmpty().And.OnlyContain(m => m.IsDefined(typeof(RequireSchachtlerAccessAttribute), false) == erwartet);
 }

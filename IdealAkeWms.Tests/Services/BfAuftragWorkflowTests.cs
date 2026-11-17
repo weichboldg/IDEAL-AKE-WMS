@@ -294,6 +294,66 @@ public class BfAuftragWorkflowTests
         (a.CsvStatus, a.CsvVersuche, a.CsvFehler).Should().Be((BfCsvStatus.Offen, 0, (string?)null));
     }
 
+    // ===================== Fertig / Storno (Schritt D) =====================
+
+    [Fact]
+    public async Task FertigMelden_NurFreigegebenMitGeschriebenerCsv_RestGemeldet()
+    {
+        var fx = new Fx();
+        var id = await BestelltAsync(fx, ("BG1", "M-1"));
+        (await fx.Wf.FreigebenAsync(id, null)).Ok.Should().BeTrue();
+
+        var e = await fx.Wf.FertigMeldenAsync(new[] { id });
+        e.Ok.Should().BeFalse("CSV noch offen");
+        e.Text.Should().Contain("nicht geschrieben");
+
+        var a = fx.Db.BfAuftraege.Single();
+        a.CsvStatus = BfCsvStatus.Geschrieben;
+        fx.Db.BfAuftraege.Add(new BfAuftrag { Nummer = "BF00000099", Status = BfAuftragStatus.Bestellt, BestellerName = "x" });
+        fx.Db.SaveChanges();
+        var andere = fx.Db.BfAuftraege.Single(x => x.Nummer == "BF00000099").Id;
+
+        var e2 = await fx.Wf.FertigMeldenAsync(new[] { id, andere, id });
+        e2.Text.Should().Contain("Fertig gemeldet: BF00000001").And.Contain("BF00000099 ist bestellt");
+        (a.Status, a.FertigVon).Should().Be((BfAuftragStatus.Fertig, "Tester"));
+        fx.Db.StockMovements.Should().BeEmpty("nur Status, keine Lagerbuchung");
+    }
+
+    [Fact]
+    public async Task Storno_BestellerBisFreigabe_SchachtlerBisFertig_MitPoolHinweis()
+    {
+        var fx = new Fx();
+        var id = await BestelltAsync(fx, ("BG1", "M-1"));
+        (await fx.Wf.FreigebenAsync(id, null)).Ok.Should().BeTrue();
+        var a = fx.Db.BfAuftraege.Single();
+        a.CsvStatus = BfCsvStatus.Geschrieben; a.CsvDatei = @"C:\pool\BF00000001.csv";
+        fx.Db.SaveChanges();
+
+        (await fx.Wf.StornierenAsync(id, "doppelt", alsSchachtler: false, null)).Ok.Should().BeFalse("Besteller nur bis zur Freigabe");
+
+        var e = await fx.Wf.StornierenAsync(id, " doppelt ", alsSchachtler: true, null);
+        e.Ok.Should().BeTrue(e.Text);
+        e.Text.Should().Contain("CSV liegt bereits im Pool").And.Contain("BF00000001.csv").And.Contain("in WiCAM löschen");
+        (a.Status, a.StornoGrund, a.StorniertVon).Should().Be((BfAuftragStatus.Storniert, "doppelt", "Tester"));
+
+        (await fx.Wf.StornierenAsync(id, null, alsSchachtler: true, null)).Ok.Should().BeFalse("schon storniert");
+    }
+
+    [Fact]
+    public async Task Storno_BestellerBestellt_Ok_FremderNicht_WarenkorbNicht()
+    {
+        var fx = new Fx();
+        var id = await BestelltAsync(fx, ("BG1", "M-1"));
+        fx.User.Setup(u => u.GetCurrentAppUserId()).Returns(99);
+        (await fx.Wf.StornierenAsync(id, null, alsSchachtler: false, null)).Ok.Should().BeFalse("fremder Auftrag");
+        fx.User.Setup(u => u.GetCurrentAppUserId()).Returns(7);
+        (await fx.Wf.StornierenAsync(id, null, alsSchachtler: false, null)).Ok.Should().BeTrue();
+
+        fx.Artikel("FT9", typ: "FT");
+        var entwurf = (await fx.Wf.HinzufuegenAsync("FT9", 1, null, null)).AuftragId!.Value;
+        (await fx.Wf.StornierenAsync(entwurf, null, alsSchachtler: false, null)).Text.Should().Contain("Warenkorb wird nicht storniert");
+    }
+
     // ===================== BfCsv-Regeln =====================
 
     [Theory]

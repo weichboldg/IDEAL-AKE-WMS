@@ -99,4 +99,8 @@ public sealed class BfAuftragDetailViewModel
     public bool IstWarenkorb => Auftrag.Status == BfAuftragStatus.Entwurf;
     public bool BestellerBearbeitet => IstWarenkorb && IstEigentuemer;
     public bool SchachtlerBearbeitet => IstSchachtler && Auftrag.Status == BfAuftragStatus.Bestellt;
+    /// <summary>F6 (Freigabe-Antwort 11): Besteller bis zur Freigabe, Schachtler bis Fertig; Regel wiederholt der Workflow.</summary>
+    public bool DarfStornieren =>
+        (IstEigentuemer && Auftrag.Status == BfAuftragStatus.Bestellt)
+        || (IstSchachtler && Auftrag.Status is BfAuftragStatus.Bestellt or BfAuftragStatus.Freigegeben);
 }

@@ -270,6 +270,72 @@ public class BfAuftragWorkflow
         return await MitRowVersionAsync(a, rowVersion, $"CSV von {Name(a)} wird neu geschrieben (nächster Dienst-Takt).");
     }
 
+    // ===================== Fertig / Storno (Schritt D) =====================
+
+    /// <summary>F5 Fertig melden (je Auftrag, Mehrfachauswahl aus der Liste): nur Status <c>Freigegeben</c> mit geschriebener CSV wird
+    /// <c>Fertig</c> – nur Status, keine Lagerbuchung (AK 14). Uebersprungene Auftraege werden einzeln gemeldet.</summary>
+    public async Task<BfErgebnis> FertigMeldenAsync(IReadOnlyCollection<int> ids, byte[]? rowVersion = null)
+    {
+        ids = ids.Distinct().ToList();
+        if (ids.Count == 0) return new(false, "Kein BF-Auftrag ausgewählt.");
+        var auftraege = await _repo.GetMehrereAsync(ids);
+        var jetzt = Jetzt;
+        var fertig = new List<string>();
+        var nicht = new List<string>();
+        foreach (var a in auftraege.OrderBy(a => a.Nummer))
+        {
+            if (a.Status != BfAuftragStatus.Freigegeben) { nicht.Add($"{Name(a)} ist {StatusText(a.Status)}"); continue; }
+            if (a.CsvStatus != BfCsvStatus.Geschrieben)
+            {
+                nicht.Add($"{Name(a)}: CSV ist „{IdealAkeWms.Models.ViewModels.BfAuftragListRow.CsvText(a.CsvStatus)}“, nicht geschrieben");
+                continue;
+            }
+            a.Status = BfAuftragStatus.Fertig;
+            a.FertigAm = jetzt;
+            a.FertigVon = _user.GetDisplayName();
+            Geaendert(a, jetzt);
+            fertig.Add(Name(a));
+        }
+        var fehlend = ids.Count - auftraege.Count;
+        if (fehlend > 0) nicht.Add($"{fehlend} Auftrag/Aufträge nicht gefunden");
+        var rest = nicht.Count == 0 ? "" : $" Nicht fertig gemeldet: {string.Join("; ", nicht)}.";
+        if (fertig.Count == 0) return new(false, $"Kein Auftrag fertig gemeldet.{rest}", ids.Count == 1 ? ids.First() : null);
+        var text = $"Fertig gemeldet: {string.Join(", ", fertig)}.{rest}";
+        if (ids.Count == 1) return await MitRowVersionAsync(auftraege[0], rowVersion, text);
+        return await SpeichernAsync("BF-Aufträge", async () => { await _repo.SaveChangesAsync(); return new BfErgebnis(nicht.Count == 0, text); });
+    }
+
+    /// <summary>F6 Storno (Freigabe-Antwort 11): Besteller den eigenen abgeschickten Auftrag bis zur Freigabe (der Warenkorb wird ueber „Entfernen“ geleert), Schachtler bis zur
+    /// Fertigmeldung (bestellt, freigegeben). Nach der Freigabe nur WMS-Status – die CSV liegt ggf. schon im Pool (Hinweis, kein Loeschen).
+    /// Ein stornierter Auftrag wird nie als CSV geschrieben (der Dienst nimmt nur <c>Freigegeben</c>).</summary>
+    public async Task<BfErgebnis> StornierenAsync(int auftragId, string? grund, bool alsSchachtler, byte[]? rowVersion)
+    {
+        var a = await _repo.GetMitPositionenAsync(auftragId);
+        if (a is null) return new(false, "BF-Auftrag nicht gefunden.");
+        var alsBesteller = IstEigentuemer(a, _user.GetCurrentAppUserId()) && a.Status == BfAuftragStatus.Bestellt;
+        var alsS = alsSchachtler && a.Status is BfAuftragStatus.Bestellt or BfAuftragStatus.Freigegeben;
+        if (!alsBesteller && !alsS)
+            return new(false, a.Status == BfAuftragStatus.Entwurf ? "Der Warenkorb wird nicht storniert – Positionen entfernen."
+                : a.Status is BfAuftragStatus.Fertig or BfAuftragStatus.Storniert
+                ? $"{Name(a)} ist {StatusText(a.Status)} – Storno nicht mehr möglich."
+                : $"{Name(a)} ist {StatusText(a.Status)} – stornieren darf der Besteller bis zur Freigabe, danach nur der Schachtler.", a.Id);
+        grund = string.IsNullOrWhiteSpace(grund) ? null : grund.Trim();
+        if (grund?.Length > 500) return new(false, "Storno-Grund: höchstens 500 Zeichen.", a.Id);
+
+        var warFreigegeben = a.Status == BfAuftragStatus.Freigegeben;
+        var csv = a.CsvStatus;
+        var jetzt = Jetzt;
+        a.Status = BfAuftragStatus.Storniert;
+        a.StorniertAm = jetzt;
+        a.StorniertVon = _user.GetDisplayName();
+        a.StornoGrund = grund;
+        Geaendert(a, jetzt);
+        var hinweis = !warFreigegeben ? ""
+            : csv == BfCsvStatus.Geschrieben ? $" Die CSV liegt bereits im Pool ({Path.GetFileName(a.CsvDatei)}) – den Auftrag in WiCAM löschen."
+            : " Die CSV wird nicht mehr geschrieben; falls sie gerade im Pool angekommen ist, den Auftrag in WiCAM löschen.";
+        return await MitRowVersionAsync(a, rowVersion, $"{Name(a)} storniert.{hinweis}");
+    }
+
     // ===================== Hilfen =====================
 
     /// <summary>Besteller: nur eigener Entwurf. Schachtler: nur Status Bestellt (Pruefphase).</summary>

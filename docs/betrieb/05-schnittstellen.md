@@ -24,6 +24,7 @@ SData-Schnittstelle (Lagerbuchungen, Wareneingangsbelege), nie per SQL. (Quelle:
 | enaio / Vault – Links | (nur Verweis) | Browser des Anwenders | HTTP-Link | `EnaioLinksAktiv`, `VaultLinksAktiv` |
 | Mail (SMTP-Relay / Pickup-Ordner) | senden | Dienst | SMTP | Mail-Schalter, siehe 04 §5.3 |
 | CSV-Ablage (UNC) | Dateien schreiben | Dienst | SMB-Freigabe | `WareneingangCsvAktiv` |
+| WiCAM-Auftragspool (UNC, IDEAL, seit v1.99.35) | Dateien schreiben | Dienst | SMB-Freigabe | `BfCsvAktiv` (§ 8a) |
 | Active Directory (LDAP) | lesen | Web | LDAP | `WindowsAuthBerechtigungsgruppe` |
 | Windows-Anmeldung (Negotiate) | Anmeldung | Web (IIS) | Kerberos/NTLM | `WindowsAuthAktiv` |
 | Feiertage (date.nager.at) | lesen | Dienst, Web (Import-Knopf) | HTTPS ins Internet | `Sync:FeiertagSyncEnabled` |
@@ -171,6 +172,30 @@ IDEAL: `EnaioDmsConnection` leer, enaio-Abgleich aus. (Quelle: `scripts/deploy/I
 
 Bis v1.99.28 stand eine Kopfzeile in der Datei und als Erfasser der WMS-Anzeigename. Dateien, die vor dem Update geschrieben wurden, behalten
 dieses alte Format. Mails, Druck und Sage-Belege sind von der Änderung nicht betroffen.
+
+---
+
+## 8a. WiCAM-Auftragspool – BF-Aufträge (IDEAL, seit v1.99.35)
+
+| Punkt | Inhalt | Quelle |
+|---|---|---|
+| Richtung / Zweck | WMS → WiCAM: je freigegebenem BF-Auftrag eine Datei `<BF-Nummer>.csv` (z. B. `BF00000042.csv`); WiCAM legt daraus einen Auftrag an. Kein Sage-Bezug | Spec `2026-11-13-blechfertigung-bf-auftraege-wicam-csv` F4 |
+| Teil | **Dienst**, eigener Schritt im `SageBookingWorker` (nicht an den Sage-Wareneingang gebunden) | `IDEALAKEWMSService/Workers/SageBookingWorker.cs:120-134,236-255`, `IDEALAKEWMSService/Services/BfCsvService.cs` |
+| Endpunkt | `BfCsvPfad`, nur UNC; geplant `\\idealcam.ideal.ideal-ake.at\fertigung\u\pn\apools\` | `ServiceSettingDefinitions.cs:307` |
+| Konto / Rechte | Dienstkonto (bei `LocalSystem` das Computerkonto `DOMÄNE\SERVER$`): „Ändern“ auf Freigabe und NTFS | `scripts/deploy/nachlauf.psd1` (`v1.99.35-BfPoolRecht`) |
+| Schreibweise | erst `<BF-Nummer>.tmp`, dann Umbenennen auf `.csv`, nie überschreiben; höchstens 10 Dateien je Takt | `BfCsvService.cs:91-110` |
+| Schalter | `BfCsvAktiv` **und** Pfad gesetzt; die Web-Oberfläche braucht `BlechfertigungAktiv` | – |
+| Bei Ausfall | Schreibfehler → Wiederholung bis `Sync:BfCsvMaxWiederholungen` (3) im Abstand `Sync:BfCsvWiederholAbstandMinuten` (15); Datei existiert schon = Fehler **ohne** automatische Wiederholung („CSV erneut schreiben“ nach Klärung in WiCAM); Status je Auftrag in der Spalte CSV der BF-Aufträge, Protokoll „Blechfertigung: WiCAM-CSV“ | `BfCsvService.cs:32-87` |
+
+**Dateiformat (Platzhalter bis P-1 – vor dem Einschalten mit der Musterdatei aus dem Pool abgleichen):**
+
+| Merkmal | Wert | Quelle |
+|---|---|---|
+| Kodierung | **Windows-1252** ohne BOM, CRLF; ein nicht darstellbares Zeichen wird gemeldet, nie still ersetzt | `IdealAkeWms/Services/BfCsv.cs:48-52` |
+| Kopf | `PART_START`, `CREATE_NEW_ORDER;YES`, `ORDER_NUMBER;<BF-Nummer>`, `ORDER_REMARK_3/1/2`, `ORDER_PRIORITY`, `ORDER_RELEASE`, `PART_END`, dann die Spaltenzeile | `BfCsv.cs:92-105` |
+| Datenzeilen (je übergebener Position, nach Position) | Matchcode (TRIM/CLEAN/UPPER) · Materialnummer (`USER_OSMaterialnummerPN`) · Menge (ganzzahlig bzw. Dezimalkomma) · Bemerkung · Hauptlagerplatz · Besteller · Schachteltermin `dd.MM.yyyy` · FE-Termin `yyyy-MM-dd` | `BfCsv.cs:106-111` |
+| Trenner | `;`, keine Anführungszeichen; `;`, `"` und Zeilenumbruch sperren die Freigabe | `IdealAkeWms/Services/BfAuftragWorkflow.cs:239-257` |
+| Nicht übergeben | gestrichene Positionen und Positionen ohne Materialnummer (Hinweis bei Freigabe) | `BfAuftragWorkflow.cs:203-236` |
 
 ---
 

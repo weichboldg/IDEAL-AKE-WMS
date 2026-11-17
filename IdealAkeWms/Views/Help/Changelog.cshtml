@@ -9,6 +9,31 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.99.35</strong> <span class="text-white-50 ms-2">17.11.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>Blechfertigung: BF-Aufträge (IDEAL)</h6>
+                <ul>
+                    <li>Neues Menü <strong>Blechfertigung</strong> (Einstellung <strong>Blechfertigung aktiv</strong>): Blechteile (Sage-Lagerartikel
+                        BG/FT) in den <strong>BF-Warenkorb</strong> legen und abschicken. Der Auftrag bekommt eine Nummer wie <code>BF00000042</code>,
+                        die Empfängergruppe eine Mail.</li>
+                    <li>Mengenregel: Hat der Artikel in Sage eine Bestellmenge in derselben Einheit, muss die Menge ein ganzes Vielfaches sein
+                        (0 oder leer = frei). Ohne Materialnummer PN gibt es einen Hinweis &ndash; die Position geht nicht an WiCAM.</li>
+                    <li>Neue Rolle <strong>Schachtler (Blechfertigung)</strong>: prüft, ändert Menge/Lagerplatz, streicht Positionen und
+                        <strong>gibt frei</strong>. Schachteltermin (1) und FE-Termin (10) in Arbeitstagen ab dem Freigabetag, ohne Feiertage;
+                        die Bemerkung beginnt mit dem Status, z.&nbsp;B. <code>EILT - Laser - 17.11 - 4</code>.</li>
+                    <li>Nach der Freigabe schreibt der Dienst die Datei <code>&lt;BF-Nummer&gt;.csv</code> in den WiCAM-Pool (Windows-1252, nie
+                        überschrieben). Spalte <strong>CSV</strong> zeigt offen/geschrieben/Fehler; nach einem Fehler gibt es
+                        <strong>CSV erneut schreiben</strong>. Das Dateiformat ist bis zur Musterdatei aus WiCAM ein Platzhalter.</li>
+                    <li><strong>Fertig melden</strong> einzeln oder per Auswahl in der Liste (nur Status, keine Einbuchung).
+                        <strong>Stornieren</strong>: Besteller bis zur Freigabe, Schachtler bis Fertig (Hinweis, wenn die CSV schon im Pool liegt).</li>
+                    <li>Es wird nichts an Sage geschrieben.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.99.34</strong> <span class="text-white-50 ms-2">17.11.2026</span>
             </div>
             <div class="card-body">

@@ -606,6 +606,7 @@ public static class ColumnDefinitions
     {
         Columns =
         [
+            new ColumnDef("auswahl",         "Auswahl",         Locked: true),
             new ColumnDef("nummer",          "Nummer",          Locked: true),
             new ColumnDef("status",          "Status",          Locked: false),
             new ColumnDef("csv",             "CSV",             Locked: false),

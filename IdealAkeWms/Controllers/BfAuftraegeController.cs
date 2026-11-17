@@ -156,6 +156,29 @@ public class BfAuftraegeController : Controller
     public async Task<IActionResult> CsvErneutSchreiben(int id, string? rowVersion) =>
         Weiter(await _workflow.CsvErneutSchreibenAsync(id, Rv(rowVersion)), id);
 
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [RequireSchachtlerAccess]
+    public async Task<IActionResult> FertigMelden(int id, string? rowVersion) =>
+        Weiter(await _workflow.FertigMeldenAsync(new[] { id }, Rv(rowVersion)), id);
+
+    /// <summary>Mehrfachauswahl aus der Liste; zurueck zur Liste.</summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [RequireSchachtlerAccess]
+    public async Task<IActionResult> FertigMeldenListe(int[] ids)
+    {
+        var e = await _workflow.FertigMeldenAsync(ids);
+        TempData[e.Ok ? "SuccessMessage" : "WarningMessage"] = e.Text;
+        return RedirectToAction(nameof(Index));
+    }
+
+    /// <summary>Besteller bis zur Freigabe, Schachtler bis Fertig – die Regel prueft der Workflow (kein Schachtler-Filter, Besteller duerfen).</summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Stornieren(int id, string? grund, string? rowVersion) =>
+        Weiter(await _workflow.StornierenAsync(id, grund, await _user.CanSchachtelnAsync(), Rv(rowVersion)), id);
+
     // ===================== Hilfen =====================
 
     private static byte[]? Rv(string? b64)

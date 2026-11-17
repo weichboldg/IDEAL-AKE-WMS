@@ -458,7 +458,7 @@ Tabellen `dbo.Roles` (`SQL/00_FreshInstall.sql:997-1011`), `dbo.UserRoles` (`:10
 
 ```sql
 SELECT v.k AS RollenKey, CASE WHEN r.Id IS NULL THEN N'fehlt' ELSE N'vorhanden' END AS Stand
-FROM (VALUES (N'beschichtungsauftrag'), (N'beschichtungsauftrag_schreiben'), (N'einkauf')) v(k)
+FROM (VALUES (N'beschichtungsauftrag'), (N'beschichtungsauftrag_schreiben'), (N'einkauf'), (N'schachtler')) v(k)
 LEFT JOIN dbo.Roles r ON r.[Key] = v.k;
 ```
 

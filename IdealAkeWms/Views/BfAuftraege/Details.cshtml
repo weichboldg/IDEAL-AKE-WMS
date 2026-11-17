@@ -279,6 +279,44 @@ else
     </form>
 }
 
+@if (Model.IstSchachtler && a.Status == BfAuftragStatus.Freigegeben)
+{
+    <div class="mt-3">
+        @if (a.CsvStatus == BfCsvStatus.Geschrieben)
+        {
+            <form method="post" asp-action="FertigMelden" class="d-inline">
+                <input type="hidden" name="id" value="@a.Id" /><input type="hidden" name="rowVersion" value="@Model.RowVersion" />
+                <button type="submit" class="btn btn-success">Fertig melden</button>
+            </form>
+            <span class="text-muted ms-2">Nur Status, keine Lagerbuchung.</span>
+        }
+        else
+        {
+            <span class="text-muted">Fertig melden erst, wenn die CSV geschrieben ist (CSV: @BfAuftragListRow.CsvText(a.CsvStatus)).</span>
+        }
+    </div>
+}
+@if (Model.DarfStornieren)
+{
+    <details class="mt-4">
+        <summary class="text-danger">Auftrag stornieren</summary>
+        <form method="post" asp-action="Stornieren" class="row g-2 align-items-end mt-1">
+            <input type="hidden" name="id" value="@a.Id" /><input type="hidden" name="rowVersion" value="@Model.RowVersion" />
+            <div class="col-md-6">
+                <label class="form-label" for="grund">Grund (optional)</label>
+                <input type="text" id="grund" name="grund" class="form-control" maxlength="500" />
+            </div>
+            <div class="col-md-6">
+                <button type="submit" class="btn btn-outline-danger">Stornieren</button>
+            </div>
+            @if (a.Status == BfAuftragStatus.Freigegeben)
+            {
+                <div class="col-12 text-danger small">Der Auftrag ist freigegeben: die CSV liegt ggf. bereits im WiCAM-Pool – den Auftrag dann in WiCAM löschen.</div>
+            }
+        </form>
+    </details>
+}
+
 @section Scripts {
     <script src="~/js/column-preferences.js" asp-append-version="true"></script>
     <script src="~/js/table-filter.js" asp-append-version="true"></script>

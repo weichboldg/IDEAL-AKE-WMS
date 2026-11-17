@@ -36,6 +36,7 @@ FA-Nummer und einem Bildschirmfoto.
 | 11 | BDE-Terminal (Anmelden, Liste nach Haupt-FA, Scan, Melden) | Produktion | [11-bde-terminal.md](11-bde-terminal.md) |
 | 12 | Register Sage-Test (Verbindungstest, Feldliste, Stückliste live mit Ressourcenliste und beendeten Haupt-FAs, FA-Struktur live) | Administration | [12-register-sage-test.md](12-register-sage-test.md) |
 | 13 | Anmeldung und Benutzer (Windows vs. Formular, Erstkennwort mit Pflichtwechsel, Gerätekonten, AD-Benutzer) | alle; Administration | [13-anmeldung-und-benutzer.md](13-anmeldung-und-benutzer.md) |
+| 14 | Blechfertigung – BF-Aufträge (Warenkorb, Schachtler-Freigabe, WiCAM-CSV, Fertig, Storno; IDEAL) | Produktion, Schachtler | [14-blechfertigung-bf-auftraege.md](14-blechfertigung-bf-auftraege.md) |
 
 ## Stand und was noch folgt
 

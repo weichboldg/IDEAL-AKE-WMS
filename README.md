@@ -388,6 +388,12 @@ Die App startet und führt beim ersten Start automatisch `Database.Migrate()` au
   - OR-Syntax: `960,886` &mdash; NOT: `!960` &mdash; Datum: `kw24`
 - **Filter und Pagination in URL kodiert** &mdash; Browser-Back, Lesezeichen, Teilen per Link funktionieren
 
+### Blechfertigung – BF-Aufträge (IDEAL, seit v1.99.35)
+Besteller legen Blechteile (Sage-Lagerartikel BG/FT) in den BF-Warenkorb und schicken ihn ab (BF-Nummer, Mail an die Empfängergruppe).
+Der Schachtler (Rolle `schachtler`) prüft, streicht, gibt frei (Termine in Arbeitstagen ab Freigabe), der Dienst schreibt die WiCAM-CSV
+in den Auftragspool; danach „Fertig melden“ (nur Status, keine Lagerbuchung). Stufe 1 schreibt nichts an Sage.
+Anleitung: `docs/anwender/14-blechfertigung-bf-auftraege.md`.
+
 ### Berechtigungen (Rollenbasiert)
 - **Rollenkonzept**: `Role`-Tabelle + `UserRole`-Junction (Many-to-Many), statische Keys in `RoleKeys.cs`. Rollen werden ausschliesslich explizit pro Benutzer zugewiesen (die fruehere `Role.AdGroup`-Automatik wurde in v1.23.0 entfernt)
 - **`admin`**: Vollzugriff (ueberspringt alle Berechtigungspruefungen). Benutzer, Rollen, Arbeitsplaetze, Einstellungen, Service-Einstellungen, Aktivitaets-Protokoll und BDE-Schichtkalender sind admin-only
@@ -516,6 +522,10 @@ Bei Änderungen der Tabellenstruktur müssen diese Scripts angepasst werden.
 | `EnaioLinkVorlage` | `http://akeosapp.ake.at/oscontentviewer/viewer/{ObjektId}/?pagecount=1` (Seed) | enaio-Viewer-Adresse mit Platzhalter `{ObjektId}`. Leer = keine Links. |
 | `WareneingangBestellungAktiv` | `false` (kein Seed) | Menüpunkte „Offene Bestellungen“ / „Wareneingang zu Bestellung“ (v1.84.0); aus = Seiten 404. Nur exakt `true`. Braucht den Dienst-Abgleich `Sync:EinkaufBestellungenEnabled`. Standort: AKE (IDEAL erst mit SData-Endpunkt). |
 | `WareneingangLieferscheinPflicht` | `false` (kein Seed) | „Wareneingang zu Bestellung“: Lieferschein-Nr. des Lieferanten Pflicht (v1.99.4); aus = optional. Nur exakt `true`. An Sage geht die Nummer nur beim Sage-Wareneingangsbeleg (EKLieferschein). Standort: AKE (IDEAL erst mit SData-Endpunkt). |
+| `BlechfertigungAktiv` | `false` (kein Seed) | Menü „Blechfertigung“ mit BF-Warenkorb und BF-Aufträgen (v1.99.35): Besteller (Rolle Lagerbestellung) oder `schachtler` bestellen Blechteile (Sage-Lagerartikel BG/FT), der Schachtler gibt frei, der Dienst schreibt die WiCAM-CSV (`BfCsvAktiv`/`BfCsvPfad` unter `/ServiceSettings`). Nur exakt `true`. Standort: IDEAL |
+| `BfEmpfaengergruppeId` | (leer) | Empfängergruppe der Bestell-Mail (Auswahl aus Stammdaten); leer = Abschicken gesperrt. Mail über den Dienst-Schalter `Sync:BfAuftragEmailEnabled` |
+| `BfStatuswerte` | `EILT` | Status-Werte je Position, kommagetrennt (je 1–30 Zeichen, ohne `;` `"`); steht vorne in der WiCAM-Bemerkung |
+| `BfSchachtelterminArbeitstage` / `BfFeTerminArbeitstage` | `1` / `10` | Termine ab dem Freigabetag in Arbeitstagen ohne Wochenende und Feiertage (Stammdaten → Feiertage); FE-Termin nie vor dem Schachteltermin |
 | `WareneingangBarcodeAktiv` | `false` (kein Seed) | „Wareneingang zu Bestellung“: Feld „Barcode (Lieferschein)“ neben der Lieferschein-Nr. (v1.99.11), Spalte Barcode in „Sage-Wareneingänge“; die CSV schreibt nur der Dienst-Schalter `WareneingangCsvAktiv`. Nur exakt `true`. Standort: AKE (IDEAL ohne Wirkung, Sage-Wareneingang aus). |
 | `EinkaufAktiv` | `false` (kein Seed) | Hauptmenü „Einkauf → Bestellvorschläge“ (v1.99.20) für admin und Rolle `einkauf`; aus = kein Menü, `/PurchaseProposals` leitet auf die Startseite um (auch admin). Nur exakt `true`. Erst einschalten, wenn die Dienst-Abgleiche Artikel (SData), Kreditoren, Artikel-Lieferanten und Offene Bestellungen gelaufen sind; IDEAL aus lassen bis zur SData-Schnittstelle. |
 | `EinkaufOffeneBedarfe` | nicht gesetzt = `Lagerbestellungen,Bedarfsmeldungen` (kein Seed) | Mehrfachauswahl: welche offenen WMS-Bedarfe die verfügbare Menge der Bestellvorschläge mindern (abgesendete Lagerbestellungen, teilgeliefert nur Rest „wird nachgeliefert“; offene Bedarfsmeldungen). Leer = keine. Seit v1.99.30 gilt dieselbe Auswahl auch für „Verfügbar“ in der Artikelinfo; FA-Bedarfe zählen immer, angerechnet ohne Doppelzählung (je FA max(FA-Rest, Bedarfsmeldung), dann max(FA-Teil, Lagerbestellungen)). |
