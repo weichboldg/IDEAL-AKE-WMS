@@ -219,6 +219,10 @@ von `Sync:Quelle:FaStruktur` ([[0029-fa-struktur-ideal-knoten-aus-sdata-fainfos-
 TLS-Schalter `SageLagerbuchungSslZertifikatPruefen` gilt für beide SData-Clients; im Web reist er je Anfrage in
 `HttpRequestMessage.Options`. Spec [[2026-10-30-sage-sdata-fa-ansicht-spec]].
 
+**Seit v1.99.33** liest der Dienst außerdem `dtsEKBelegMst.Sage.Wawi` (Einkaufs-Belegkopf, Felder `KHKEKBelege_USER_AB`,
+`KHKEKBelege_USER_Kom`) im Abgleich „Offene Bestellungen (Sage)“ – nur GET, Auswahl nur über `BelID` (kein `where` auf USER-Aliasse),
+nur Anzeige im WMS, nicht in der enaio-CSV. Spec [[2026-11-17-wareneingang-sammellieferschein-und-bestellkopf-spec]].
+
 ### Die ganze SData-Schnittstelle (ausgelesen 2026-10-30)
 
 Der `LagerbuchungService` ist einer von 25 Services in einem von 19 Vertraegen. Vollstaendige Karte in

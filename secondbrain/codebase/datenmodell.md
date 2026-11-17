@@ -180,6 +180,8 @@ konsolidiertes `../../SQL/00_FreshInstall.sql`. Der Workflow ist verbindlich —
 - `ArticleSuppliers` (FK Article Cascade, FK Creditor Restrict, UNIQUE ArticleId+CreditorId).
 - `SageStammdatenOutbox` (Status = `SageBookingQueueStatus`, `EntityType`+`EntityKey` = WMS-Id); `StorageLocations`/`BdeOperators` + `SageUebergabeStatus`
 - `SagePurchaseOrderLines` (v1.84.0, SQL/112): Cache offener Sage-Bestellpositionen (bis v1.99.14 nur EBB; **seit v1.99.15 EBB + EBZ**, `Belegkennzeichen` = `EBB`/`EBZ`, `IstRahmenabruf`; EBZ-Mengen aus `MengeBasis`), je Lauf ersetzt, kein AuditableEntity, keine FKs; UNIQUE `BelPosId`. Mengen in der Basiseinheit.
+  **Seit v1.99.33 (SQL/156):** `AbNummer` nvarchar(250), `Kommission` nvarchar(200), beide NULL – Kopfwert (`KHKEKBelege_USER_AB`/`_USER_Kom`
+  aus `dtsEKBelegMst`) an jeder Position des Belegs; Längen aus dem SData-Schema `EKBelegUserField`, P-2a offen; zu lange Werte → `null`.
 - `PurchaseOrderReceipts` (v1.84.0, SQL/113): Wareneingang zu Bestellposition, AuditableEntity, FK `StockMovementId` Restrict + UNIQUE (Navigation `StockMovement.PurchaseOrderReceipt`), Snapshot ohne FK auf den Cache; Andockpunkt Qualitätsprüfung.
   (DEFAULT 0 nur im SQL), `SageUebergabeAm`, `SageUebergabeFehler`; `BdeOperators.Source` DEFAULT 'Manual'.
 
@@ -222,6 +224,8 @@ Migration `20261112151318_AddWareneingangBarcodeCsv`, [[2026-11-12-wareneingang-
   (nvarchar(50)), `Status` (int, Enum `WareneingangCsvStatus` 1 Offen / 2 Geschrieben / 3 Fehler, Index), `Versuche` (DEFAULT 0 nur in SQL),
   `Fehler` (nvarchar(1000)), `Datei` (nvarchar(400), voller Pfad), `GeschriebenAm`. Angelegt und fortgeschrieben nur vom Dienst
   (`system:wareneingang-csv`); „CSV erneut schreiben“ (`CsvErneutSchreibenAsync`) setzt Fehler → Offen mit Audit aus `ICurrentUserService`.
+  **Seit v1.99.33** ist `Barcode` nicht mehr eindeutig je Vorgang (Sammellieferschein); `Datei` ist dann der tatsächliche Name
+  `<Barcode>_n.csv` und Quelle der Nummernvergabe (nur bei Erfolg gesetzt – Fehler-Zeilen zählen nicht).
   „Wartet“ ist kein Status (Barcode ohne Zeile, angezeigt).
 
 ## Nachtrag 2026-11-14 (Wochenend-Lauf): Schema seit v1.89 ohne eigenen Eintrag

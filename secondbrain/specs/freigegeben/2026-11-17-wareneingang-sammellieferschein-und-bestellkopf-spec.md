@@ -416,6 +416,15 @@ Entfällt (`epic: false`). Teil A und Teil B sind getrennte Commits im selben La
   dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService
   ```
 
+**Abgleich mit dem echten Diff (Dev-Lauf 2026-11-17, Commits `32338503`, `19ce63ef`; QA bestätigt noch):**
+- Version **1.99.33** (beide `AppVersion.cs`), **SQL/156** `156_AddSagePurchaseOrderLineAbNummerKommission.sql`, MigrationId
+  `20261117102804_AddSagePurchaseOrderLineAbNummerKommission`, Spalten `AbNummer` NVARCHAR(250), `Kommission` NVARCHAR(200) (P-2a offen,
+  Längen aus dem SData-Schema). FreshInstall an beiden Stellen; AgentJobs nicht betroffen. TS-**156** (nicht 157).
+- Manifest wie oben mit `Id='SQL/156'` (Schema-Block nach SQL/153, `SchemaReihenfolge` im Drift-Test ergänzt), `Pruefung/WareneingangCsvKollision`
+  (AKE, Nachher, `Status = 3 AND Fehler LIKE N''Datei existiert bereits%''`, `Braucht SQL/146`), Info `v1.99.33-WareneingangCsvSammellieferschein`
+  (AKE, **Vorher**, E-1 offen). Kein Daten-/Einmal-Skript.
+- Web und Dienst: ja (wie oben). Keine neue Einstellung.
+
 ### Doku-Pflichten des Dev-Laufs
 
 - `docs/anwender/05-wareneingang-zu-bestellung.md`: Kopf (Z. 47) um AB-Nummer/Kommission; Barcode (Z. 109-111: „nur an **einem** Wareneingang“ →

@@ -1853,6 +1853,14 @@ Code: `hardware-scanner.js` Block „Scannen ohne Feld“, CSS `.hw-scan-bereit`
   die Windows-Identität der Sitzung (Terminal-Konto, bei Formular-Anmeldung `""`/`SYSTEM`), nicht den buchenden Benutzer. Ohne das
   `Include(StockMovement).ThenInclude(User)` in `RunOnceAsync` fällt der Erfasser still auf `CreatedBy` zurück – der Test `RunOnce_IncludeWirkt_*`
   schützt davor.
+- **Seit v1.99.33 (Sammellieferschein): die laufende Nummer kommt aus der DB, nicht aus dem Ordner** ([[2026-11-17-wareneingang-sammellieferschein-und-bestellkopf-spec]]).
+  Start = Zeilen mit gleichem Barcode **und** `Datei`; belegt = `Datei` jeder anderen Zeile **oder** Datei im Ordner. **Warum wichtig:** enaio
+  holt `B.csv` ab und räumt den Ordner leer – eine Nummer nur aus dem Ordner würde den Namen `B.csv` ein zweites Mal vergeben, enaio hielte die
+  zweite Lieferung für die erste. Fremde Barcodes zählen bei „belegt“ mit, weil Barcode `B_1` den Namen `B_1.csv` schon tragen kann.
+- **Der Inhalt bleibt beim Suffix gleich: Feld 1 = Barcode ohne `_n`.** **Warum wichtig:** enaio legt nach dem Barcode ab, nicht nach dem
+  Dateinamen; ein Barcode mit Suffix im Inhalt fände den Aufkleber nicht. Prod erst nach Bestätigung E-1 durch enaio (Manifest-Info).
+- **Grenze (ponytail im Code):** Gelingt das Umbenennen, scheitert aber `SaveChanges`, liegt die Datei im Ordner ohne `Datei` in der DB; der
+  nächste Takt sieht sie über `File.Exists` als belegt und nimmt die nächste Nummer – also eine doppelte Datei, nie eine überschriebene.
 
 ## 33. SData-Kennwort verschlüsselt in den Service-Einstellungen (v1.99.14, [[2026-11-13-sdata-teil-2-userfelder-stueckliste-spec]], ADR [[0024-sdata-kennwort-verschluesselt-in-den-service-einstellungen]])
 
@@ -2012,6 +2020,13 @@ Code: `hardware-scanner.js` Block „Scannen ohne Feld“, CSS `.hw-scan-bereit`
   `PurchaseOrdersControllerTests.Einkauf_Attribute_UndReceiveBleibtGeschuetzt_F2_2_F2_4`.
 - **Einen Controller als Dienst eines anderen nutzen** (`AddScoped<PurchaseOrdersController>`): dessen Class-Filter laufen nicht; Zugriff prüfen
   allein die Attribute des aufrufenden Controllers. `ControllerContext` vor dem Aufruf setzen (sonst `HttpContext`/`Url` null).
+- **AB-Nummer/Kommission aus dem Belegkopf (v1.99.33): `where` nur auf `BelID`, nie auf USER-Aliasse** ([[2026-11-17-wareneingang-sammellieferschein-und-bestellkopf-spec]]).
+  `dtsEKBelegMst.Sage.Wawi` liefert die Felder als `KHKEKBelege_USER_AB`/`KHKEKBelege_USER_Kom` (Präfix = Tabelle). **Warum:** Filtern auf
+  einen USER-Alias ist in RealTimeData nicht belegt; die BelIDs kennt der Abgleich ohnehin. Fehlt der Schlüssel in **jeder** Zeile, ist der
+  Feldname falsch (Warnung „Sage liefert … nicht“) – nicht still leer lassen. Testantworten mit den echten Feldnamen bauen (§41 sinngemäß).
+- **Lesefehler am Kopf ≠ Lauf-Fehler.** Scheitert nur das Kopf-Lesen, ersetzt der Vollersatz trotzdem alle Positionen; AB-Nummer/Kommission
+  kommen dann aus dem alten Cache je `BelID`. **Warum:** Sonst löschte ein Netzaussetzer am Zusatzfeld die Werte aller Bestellungen, und der
+  Lauf ohne Kopf bräche den Wareneingang ab, der nur die Positionen braucht.
 
 ## 43. Beschichtungstermin nur über den Resolver (v1.99.25 E2/E4, Auslieferung mit v1.99.32, [[2026-11-16-beschichtungslogik-je-standort-spec]], ADR [[0028-beschichtungsquelle-je-achse-ueber-appsettings-mit-automatisch]])
 
