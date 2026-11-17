@@ -50,3 +50,4 @@ kein Merge, kein Push.
   Vorher-Prüfung 0/0, Abbruch bei Dubletten auf Scratch-DB belegt. TS-158.3/.4/.12/.13/.14 (Anzeige)/.17/.18 + AKE-Regression OK. Der
   Abgleich-Lauf selbst ist auf DEV nicht möglich (Sync aus, Sage-Test nicht erreichbar). Befunde F2 (Mandant, Blocker vor Prod), F3–F6
   niedrig, siehe Spec. Paket 2 aus `1f0361dd` bauen.
+- **Paket 2** gebaut: `<Worktree>\publish\paket2-v1.99.37\` (Ordner vorher geleert) aus `1f0361dd` – IDEALAKEWMSWeb, IDEALAKEWMSWebService, SQL (inkl. 159), deploy, `publish-info.txt` mit Commit, Spec, QA und offenen Punkten. Paket 1 unverändert. Goal-Lauf abgeschlossen; offen für Gerald: P-AB4 (Blocker vor Prod IDEAL), P-AB1/2/3/5/6/8, voller Lauf TS-158 auf dem Testsystem (F1-Fall bei 158.3), F3 Fachentscheidung, Schranke 2.
