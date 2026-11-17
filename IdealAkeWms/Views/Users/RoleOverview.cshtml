@@ -218,10 +218,12 @@
             <tr>
                 <td><code>einkauf</code></td>
                 <td>Einkauf</td>
-                <td>v1.99.20: Hauptmenü „Einkauf“ – Bestellvorschläge für Artikel mit Sage-Meldebestand (nur lesen).</td>
+                <td>v1.99.20: Hauptmenü „Einkauf“ – Bestellvorschläge, Offene Bestellungen und offene Sage-Wareneingänge (nur lesen, Ansichten seit v1.99.31).</td>
                 <td>
                     <ul class="mb-0 small">
                         <li>Einkauf → Bestellvorschläge (<code>/PurchaseProposals</code>, Filter <code>RequireEinkaufAccess</code>), CSV</li>
+                        <li>Einkauf → Offene Bestellungen (<code>/EinkaufPurchaseOrders</code>) und Einkauf → Sage-Wareneingänge (offen) (<code>/EinkaufPurchaseOrders/SageWareneingaenge</code>), Filter <code>RequireEinkaufAccess</code>; kein Lager-Recht nötig</li>
+                        <li>Wareneingang buchen nur mit Lager-Recht (<code>RequireStockAccess</code>); Aktionen an Sage-Wareneingängen nur mit Lager-Keyuser-Recht (Filter <code>RequireStockKeyUserAccess</code>)</li>
                         <li>Sichtbar nur wenn AppSetting <code>EinkaufAktiv</code> aktiv ist (Filter <code>RequireEinkaufAktiv</code>, Default aus – auch für admin)</li>
                         <li>Anlage der Rolle über das Update-Skript (Prüfung <code>Pruefung/RolleEinkauf</code>), Zuweisen unter /Roles</li>
                     </ul>

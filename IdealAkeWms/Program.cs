@@ -146,6 +146,8 @@ builder.Services.AddScoped<IWarehouseRequisitionRepository, WarehouseRequisition
 builder.Services.AddScoped<IArticleCategoryRepository, ArticleCategoryRepository>();
 builder.Services.AddScoped<IArticleAttributeRepository, ArticleAttributeRepository>();
 builder.Services.AddScoped<IUserViewPreferenceRepository, UserViewPreferenceRepository>();
+// v1.99.31: EinkaufPurchaseOrdersController nutzt die Listen des PurchaseOrdersController (eine Implementierung, zwei Aufrufer).
+builder.Services.AddScoped<IdealAkeWms.Controllers.PurchaseOrdersController>();
 builder.Services.AddScoped<IBdeOperatorRepository, BdeOperatorRepository>();
 builder.Services.AddScoped<IBdeActivityRepository, BdeActivityRepository>();
 builder.Services.AddScoped<IBdeTerminalRepository, BdeTerminalRepository>();

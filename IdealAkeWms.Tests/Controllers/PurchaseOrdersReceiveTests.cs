@@ -54,7 +54,7 @@ public class PurchaseOrdersReceiveTests
         settings.Setup(x => x.GetValueAsync(AppSettingKeys.LagerbestellungAktiv)).ReturnsAsync(lagerbestellungAktiv);
         settings.Setup(x => x.GetValueAsync(AppSettingKeys.BestellungenAktiv)).ReturnsAsync(bestellungenAktiv);
         var ctrl = new PurchaseOrdersController(new SagePurchaseOrderLineRepository(db), new StorageLocationRepository(db),
-            settings.Object, user.Object, new PurchaseOrderReceiptRepository(db), new StockMovementRepository(db), new ServiceSettingRepository(db), new PurchaseProposalRepository(db))
+            settings.Object, user.Object, new PurchaseOrderReceiptRepository(db), new StockMovementRepository(db), new ServiceSettingRepository(db), new PurchaseProposalRepository(db), new UserViewPreferenceRepository(db))
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
         };

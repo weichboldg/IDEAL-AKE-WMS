@@ -9,6 +9,10 @@ public class SageWareneingaengeViewModel
     public DateTime? Von { get; set; }
     public DateTime? Bis { get; set; }
     public bool CanErneutSenden { get; set; }
+    /// <summary>v1.99.31 (F2a): Einkauf → Sage-Wareneingänge (offen) - nur noch nicht übergebene, Statusauswahl eingeschränkt.</summary>
+    public bool NurOffene { get; set; }
+    /// <summary>v1.99.31 (F2a.3): Knopf „Wareneingang zu Bestellung“; Lager unverändert immer, Einkauf nur mit Lager-Recht + Gate.</summary>
+    public bool CanReceive { get; set; } = true;
     /// <summary>v1.99.7 Q-2: Hinweis bei ausgeschaltetem Sage-Wareneingang mit liegengebliebenen Einträgen; null = keiner.</summary>
     public string? AusHinweis { get; set; }
     /// <summary>v1.99.11 (Wareneingang-CSV F4): Hinweise „Sage-Wareneingang deaktiviert – CSV-Übergabe wartet“ bzw. „kein Pfad“; leer = keine.</summary>

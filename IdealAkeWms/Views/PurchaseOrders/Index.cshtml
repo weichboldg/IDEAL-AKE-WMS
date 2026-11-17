@@ -1,15 +1,19 @@
 @model IdealAkeWms.Models.ViewModels.PurchaseOrderListViewModel
 @{
-    ViewData["Title"] = "Offene Bestellungen";
+    // v1.99.31 (F2): dieselbe View fuer Lager → und Einkauf → Offene Bestellungen; Formular/Pagination bleiben auf dem aufrufenden Controller,
+    // Wareneingang-Links zeigen ausdruecklich auf PurchaseOrders (sonst /EinkaufPurchaseOrders/Receive).
+    var titel = Model.Einkauf ? "Offene Bestellungen (Einkauf)" : "Offene Bestellungen";
+    ViewData["Title"] = titel;
+    var colfParams = Context.Request.Query.Where(q => q.Key.StartsWith("colf_", StringComparison.Ordinal)).ToList();
 }
 @* v1.84.0 Spec 2026-11-08-wareneingang-aus-sage-bestellungen F2: Vorschau aus dem Cache offener Sage-Bestellpositionen (nur EBB, Mengen in der
    Basiseinheit). Listen-View-Pattern (ADR 0005): Filterkarte, Server-Spaltenfilter, Pagination. Hinweise als Text, nie nur Farbe. *@
 
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
-    <h2 class="page-header mb-0">Offene Bestellungen</h2>
+    <h2 class="page-header mb-0">@titel</h2>
     @if (Model.CanReceive)
     {
-        <a asp-action="Receive" class="btn btn-primary">Wareneingang zu Bestellung</a>
+        <a asp-controller="PurchaseOrders" asp-action="Receive" class="btn btn-primary">Wareneingang zu Bestellung</a>
     }
 </div>
 
@@ -26,17 +30,19 @@ else
 {
     <p class="text-body-secondary small mb-2">
         Stand: @Model.Stand.Value.ToString("dd.MM.yyyy HH:mm") · Bestellungen (EBB) und Rahmenabrufe (EBZ); bei Abrufen: offen = Abrufmenge, abzüglich im WMS erfasster Mengen · Mengen in der Basiseinheit ·
-        Liefertermin bis @Model.HorizontBis.ToString("dd.MM.yyyy"), überfällige und ohne Termin immer dabei
+        Positionen ohne Liefertermin immer dabei, überfällige gemäß „Überfällige anzeigen“
     </p>
 }
 
 <div class="card filter-card mb-3">
     <div class="card-body p-2">
         <form method="get" class="row g-2 align-items-end">
-            <div class="col-6 col-md-2">
-                <label for="wochen" class="form-label small mb-0">Wochen</label>
-                <input type="number" id="wochen" name="wochen" min="1" max="26" step="1" value="@Model.Wochen" class="form-control form-control-sm" />
-            </div>
+            @* v1.99.31 (F3): Zeitraum ueber den Spaltenfilter Liefertermin (vorbelegt); Spaltenfilter und Merker beim Filtern mitnehmen. *@
+            <input type="hidden" name="kw" value="1" />
+            @foreach (var c in colfParams)
+            {
+                <input type="hidden" name="@c.Key" value="@c.Value" />
+            }
             <div class="col-12 col-md-3">
                 <label for="lieferant" class="form-label small mb-0">Lieferant</label>
                 <select id="lieferant" name="lieferant" class="form-select form-select-sm">
@@ -65,6 +71,14 @@ else
                     <label class="form-check-label small" for="nurUeberfaellig">nur überfällig</label>
                 </div>
             </div>
+            @* v1.99.31 (F4): je Benutzer gemerkt; Hidden-False danach, damit „aus“ ankommt *@
+            <div class="col-6 col-md-2">
+                <div class="form-check">
+                    <input type="checkbox" class="form-check-input" id="ueberfaellige" name="ueberfaellige" value="true" @(Model.Ueberfaellige ? "checked" : "") />
+                    <input type="hidden" name="ueberfaellige" value="false" />
+                    <label class="form-check-label small" for="ueberfaellige">Überfällige anzeigen</label>
+                </div>
+            </div>
             @* v1.99.15 (Teil 3, F3): im WMS vollständig erfasste Rahmenabrufe (Rest 0) sind standardmäßig ausgeblendet. *@
             <div class="col-12 col-md-3">
                 <div class="form-check">
@@ -82,6 +96,13 @@ else
 
 <p class="small mb-1"><span class="badge bg-danger-subtle text-danger-emphasis border border-danger-subtle">rot hinterlegt</span>@* v1.91.0 (N-1): Zeilenton wie table-danger, dunkler Text *@
     = überfällig (Liefertermin vor heute); der Text steht zusätzlich in der Spalte „Hinweis“.</p>
+@if (Model.UeberfaelligAusgeblendet > 0)
+{
+    @* v1.99.31 (F4.4): melden statt still ausblenden *@
+    <div class="alert alert-info py-2 small" role="status">
+        @Model.UeberfaelligAusgeblendet überfällige Position(en) ausgeblendet – anzeigen mit „Überfällige anzeigen“.
+    </div>
+}
 @if (Model.AusgeblendeteAbrufe > 0)
 {
     @* v1.99.15 (Teil 3, F3): melden statt still ausblenden *@
@@ -117,7 +138,7 @@ else
                 var l = r.Line;
                 @* v1.86.0 (Nachbesserung Sichtpruefung): Farbe nur mit Bedeutung – ueberfaellig = rot (table-danger), sonst Bootstrap-Streifen. *@
                 <tr class="@(r.Ueberfaellig ? "table-danger" : "")">
-                    <td>@(l.Liefertermin?.ToString("dd.MM.yyyy") ?? "ohne Termin")</td>
+                    <td class="text-nowrap">@IdealAkeWms.Controllers.PurchaseOrdersController.LieferterminText(l.Liefertermin)</td>
                     <td>@r.LieferantText</td>
                     <td>@l.Belegnummer</td>
                     <td>@l.Artikelnummer</td>
@@ -139,7 +160,7 @@ else
                     <td>
                         @if (Model.CanReceive)
                         {
-                            <a asp-action="Receive" asp-route-belId="@l.BelId" class="btn btn-sm btn-primary d-inline-flex align-items-center" style="min-height:44px">Wareneingang</a>
+                            <a asp-controller="PurchaseOrders" asp-action="Receive" asp-route-belId="@l.BelId" class="btn btn-sm btn-primary d-inline-flex align-items-center" style="min-height:44px">Wareneingang</a>
                         }
                     </td>
                 </tr>

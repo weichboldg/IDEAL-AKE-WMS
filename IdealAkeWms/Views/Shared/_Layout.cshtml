@@ -276,11 +276,14 @@
                         @if (showEinkauf)
                         {
                             <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle @(ViewContext.RouteData.Values["controller"]?.ToString() == "PurchaseProposals" ? "active" : "")" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <a class="nav-link dropdown-toggle @(ViewContext.RouteData.Values["controller"]?.ToString() is "PurchaseProposals" or "EinkaufPurchaseOrders" ? "active" : "")" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                     Einkauf
                                 </a>
                                 <ul class="dropdown-menu">
                                     <li><a class="dropdown-item" asp-controller="PurchaseProposals" asp-action="Index">Bestellvorschläge</a></li>
+                                    @* v1.99.31: nur lesend, Gate nur EinkaufAktiv (wie das Dropdown) *@
+                                    <li><a class="dropdown-item" asp-controller="EinkaufPurchaseOrders" asp-action="Index">Offene Bestellungen</a></li>
+                                    <li><a class="dropdown-item" asp-controller="EinkaufPurchaseOrders" asp-action="SageWareneingaenge">Sage-Wareneingänge (offen)</a></li>
                                 </ul>
                             </li>
                         }

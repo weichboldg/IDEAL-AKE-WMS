@@ -30,7 +30,7 @@ public class RequireEinkaufAktivFilter : IAsyncActionFilter
         }
         if (context.Controller is Controller mvc)
         {
-            mvc.TempData["WarningMessage"] = "Einkauf – Bestellvorschläge ist deaktiviert (Einstellung „Einkauf aktiv“).";
+            mvc.TempData["WarningMessage"] = "Einkauf ist deaktiviert (Einstellung „Einkauf aktiv“).";
             context.Result = new RedirectToActionResult("Index", "Home", null);
         }
         else

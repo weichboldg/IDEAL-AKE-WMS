@@ -5,17 +5,21 @@ public class PurchaseOrderListViewModel
 {
     public List<PurchaseOrderLineRow> Items { get; set; } = new();
     public PaginationState Pagination { get; set; } = new();
-    public int Wochen { get; set; }
+    /// <summary>v1.99.31 (F2): Ansicht Einkauf → Offene Bestellungen (Überschrift, Breadcrumb); false = Lager.</summary>
+    public bool Einkauf { get; set; }
     public string? Lieferant { get; set; }
     public string? Bestellung { get; set; }
     public string? Artikel { get; set; }
     public string? Lagerplatz { get; set; }
     public bool NurUeberfaellig { get; set; }
+    /// <summary>v1.99.31 (F4): Checkbox „Überfällige anzeigen“ (wirksamer Wert nach Präferenz/Default).</summary>
+    public bool Ueberfaellige { get; set; }
+    /// <summary>v1.99.31 (F4.4): wegen der Checkbox ausgeblendete überfällige Positionen (nach allen anderen Filtern, vor Pagination).</summary>
+    public int UeberfaelligAusgeblendet { get; set; }
     /// <summary>v1.99.15 (Teil 3, F3): Filter „auch im WMS vollständig erfasste Abrufe“ (Standard aus).</summary>
     public bool AuchErfassteAbrufe { get; set; }
     /// <summary>v1.99.15: Anzahl ausgeblendeter Rahmenabrufe mit Rest 0 (Meldung über der Tabelle).</summary>
     public int AusgeblendeteAbrufe { get; set; }
-    public DateTime HorizontBis { get; set; }
     /// <summary>Letzter Abgleich (max SyncedAt); null = Cache leer (Hinweis mit Dienst-Schalter).</summary>
     public DateTime? Stand { get; set; }
     public bool CanReceive { get; set; }

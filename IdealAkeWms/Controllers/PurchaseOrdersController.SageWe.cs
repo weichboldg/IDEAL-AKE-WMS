@@ -51,14 +51,29 @@ public partial class PurchaseOrdersController
         ["csv"] = z => z.Csv,                   // v1.99.11: gerenderter Text (WareneingangCsv.StatusText)
     };
 
-    public async Task<IActionResult> SageWareneingaenge(SageWareneingangStatus? status, string? bestellung, DateTime? von, DateTime? bis,
+    /// <summary>v1.99.31 (F2a.2): „offen“ = noch nicht an Sage übergeben (Einkauf → Sage-Wareneingänge (offen)); ohne Uebergeben und NichtNoetig.</summary>
+    public static readonly IReadOnlyList<SageWareneingangStatus> OffeneSageWeStatus =
+    [
+        SageWareneingangStatus.Offen, SageWareneingangStatus.Gesendet, SageWareneingangStatus.Fehler,
+        SageWareneingangStatus.Klaeren, SageWareneingangStatus.NurInSage,
+    ];
+
+    public Task<IActionResult> SageWareneingaenge(SageWareneingangStatus? status, string? bestellung, DateTime? von, DateTime? bis,
         int page = 1, int? pageSize = null)
+        => SageWeListeAsync(false, status, bestellung, von, bis, page, pageSize);
+
+    /// <summary>v1.99.31: gemeinsame Liste für Lager → Sage-Wareneingänge (<paramref name="nurOffene"/> = false, unverändert) und
+    /// Einkauf → Sage-Wareneingänge (offen) (<see cref="EinkaufPurchaseOrdersController"/>, nurOffene = true). Die Einschränkung gilt immer,
+    /// auch bei <c>status=Uebergeben</c> per URL (leere Liste).</summary>
+    internal async Task<IActionResult> SageWeListeAsync(bool nurOffene, SageWareneingangStatus? status, string? bestellung, DateTime? von,
+        DateTime? bis, int page, int? pageSize)
     {
         if (page < 1) page = 1;
         var userDefault = await _user.GetDefaultPageSizeAsync();
         var effectivePageSize = PageSize.Resolve(pageSize, userDefault);
 
         var receipts = await _receipts.GetSageWareneingaengeAsync(status, bestellung, von, bis);
+        if (nurOffene) receipts = receipts.Where(r => OffeneSageWeStatus.Contains(r.SageWeStatus)).ToList();
         var kuerzel = (await _serviceSettings.GetValueAsync(SageSystemKuerzel.Key))?.Trim();
         var memoJeVorgang = receipts.Where(r => r.SageWeVorgang != null).GroupBy(r => r.SageWeVorgang!.Value)
             .ToDictionary(g => g.Key, g => SageWeMemo(g.MinBy(r => r.Id)!, kuerzel));
@@ -82,11 +97,16 @@ public partial class PurchaseOrdersController
         var gefiltert = ColumnFilterHelper.Apply(zeilen.AsQueryable(), ColumnFilterHelper.ReadFromQuery(HttpContext?.Request), SageWeColumnMap,
             ColumnFilterTypes.For("PurchaseOrders/SageWareneingaenge")).ToList();
 
-        return View(new SageWareneingaengeViewModel
+        // F2a.4: Aktionen posten auf diesen Controller (Class-Gate WareneingangBestellungAktiv) - im Einkauf nur mit eingeschaltetem Gate zeigen
+        var canTransfer = await _user.CanTransferStockAsync();
+        var gateAn = !nurOffene || await WareneingangBestellungAnAsync();
+        return View("~/Views/PurchaseOrders/SageWareneingaenge.cshtml", new SageWareneingaengeViewModel
         {
+            NurOffene = nurOffene,
+            CanReceive = !nurOffene || (await _user.CanAccessStockAsync() && gateAn),
             Zeilen = gefiltert.Skip((page - 1) * effectivePageSize).Take(effectivePageSize).ToList(),
             Status = status, Bestellung = bestellung, Von = von, Bis = bis,
-            CanErneutSenden = await _user.CanTransferStockAsync(),
+            CanErneutSenden = canTransfer && gateAn,
             AusHinweis = SageWareneingang.AusHinweis(sageWeAn, await _receipts.SageWeNichtUebergebenAsync()),
             CsvHinweise = csvAn ? WareneingangCsv.Hinweise(csvAn, sageWeAn, csvPfad, await _receipts.CsvWartendAsync()) : new(),
             Pagination = new PaginationState

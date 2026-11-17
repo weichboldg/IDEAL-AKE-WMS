@@ -46,7 +46,7 @@ public class SageWareneingaengeListeTests
         user.Setup(u => u.GetWindowsUserName()).Returns("AKE\\tester");
         user.Setup(u => u.CanTransferStockAsync()).ReturnsAsync(true);
         var ctrl = new PurchaseOrdersController(new SagePurchaseOrderLineRepository(db), new StorageLocationRepository(db), Mock.Of<IAppSettingRepository>(),
-            user.Object, new PurchaseOrderReceiptRepository(db), new StockMovementRepository(db), new ServiceSettingRepository(db), new PurchaseProposalRepository(db))
+            user.Object, new PurchaseOrderReceiptRepository(db), new StockMovementRepository(db), new ServiceSettingRepository(db), new PurchaseProposalRepository(db), new UserViewPreferenceRepository(db))
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
         };
@@ -85,6 +85,23 @@ public class SageWareneingaengeListeTests
 
         var fehler = (SageWareneingaengeViewModel)((ViewResult)await ctrl.SageWareneingaenge(SageWareneingangStatus.Fehler, null, null, null)).Model!;
         fehler.Zeilen.Should().HaveCount(2);
+    }
+
+    [Fact]
+    public async Task Einkauf_NurOffene_OhneUebergeben_AuchPerUrl_AktionenNurMitGate_v1_99_31_F2a()
+    {
+        var (ctrl, _) = await BuildAsync();
+        var vm = (SageWareneingaengeViewModel)((ViewResult)await ctrl.SageWeListeAsync(true, null, null, null, null, 1, null)).Model!;
+        vm.Zeilen.Should().HaveCount(3).And.OnlyContain(z => PurchaseOrdersController.OffeneSageWeStatus.Contains(z.Receipt.SageWeStatus));
+        (vm.NurOffene, vm.Pagination.TotalCount).Should().Be((true, 3));
+        // WareneingangBestellungAktiv aus (Mock liefert null): Aktionen und Knopf waeren 404 -> nicht zeigen
+        (vm.CanErneutSenden, vm.CanReceive).Should().Be((false, false));
+        var uebergeben = (SageWareneingaengeViewModel)((ViewResult)await ctrl.SageWeListeAsync(true, SageWareneingangStatus.Uebergeben, null, null, null, 1, null)).Model!;
+        uebergeben.Zeilen.Should().BeEmpty("status=Uebergeben per URL zeigt im Einkauf nichts");
+        PurchaseOrdersController.OffeneSageWeStatus.Should().NotContain(new[] { SageWareneingangStatus.Uebergeben, SageWareneingangStatus.NichtNoetig });
+        // Lager unveraendert: alle (ohne NichtNoetig), Knopf immer
+        var lager = (SageWareneingaengeViewModel)((ViewResult)await ctrl.SageWareneingaenge(null, null, null, null)).Model!;
+        (lager.Zeilen.Count, lager.NurOffene, lager.CanReceive, lager.CanErneutSenden).Should().Be((4, false, true, true));
     }
 
     [Fact]
