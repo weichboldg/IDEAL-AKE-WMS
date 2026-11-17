@@ -2,7 +2,7 @@
 type: spec
 title: Offene Bestellungen – sofort neu lesen nach Sage-WE, Ansicht im Einkauf, KW-Filter Liefertermin, Checkbox „Überfällige anzeigen“
 slug: 2026-11-16-offene-bestellungen-sofort-neu-lesen-einkauf-kw-filter-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-11-16
 updated: 2026-11-17
 source_backlog: "[[2026-11-16-offene-bestellungen-delta-nach-sage-we]]"
@@ -592,7 +592,16 @@ Kein Epic, entfällt.
 
 ## Deploy
 
-**Provisorisch, der QA-Lauf bestätigt gegen den echten Diff.**
+> **QA-final 2026-11-17 (gegen den echten Diff `5b123c11..d3a00101`):** `IdealAkeWms/` geändert → **Web ja**; `IDEALAKEWMSService/` geändert →
+> **Dienst ja**; keine neue Datei unter `*/Migrations/`, kein `SQL/`-Skript → **Migration nein**. Publish liegt fertig in
+> `C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish` (v1.99.31, Commit `d3a00101`, `publish-info.txt`; Web + Dienst,
+> `SQL\` und `deploy\` aktuell). Die dort liegende alte `publish\deploy.zip` NICHT verwenden. Reihenfolge: Update-Skript `deploy\Update-IdealAkeWms.ps1`
+> (Web + Dienst gemeinsam), kein DB-Backup-Sonderfall (keine Migration), Nachlauf zeigt `v1.99.31-NachWeMinuten` (AKE), `v1.99.31-VorschauWochen`,
+> `v1.99.31-EinkaufAnsichten`. Wer den Anstoß nicht will: `Sync:EinkaufBestellungenNachWeMinuten` vor dem Dienststart auf 0. Fluss: Publish aus dem
+> Worktree → Testsystem → Test → Merge; nach dem Merge nur dann erneut aus `main` publishen, wenn der Merge getestete Dateien mit parallelen
+> `main`-Änderungen zusammengeführt hat.
+
+~~**Provisorisch, der QA-Lauf bestätigt gegen den echten Diff.**~~ ueberholt durch QA-final oben.
 
 > **Abgleich mit dem Diff (Umsetzung 2026-11-17, `8b7d8252`..`9c623d4c`):** Web + Dienst ja, Migration nein – bestätigt. Manifest-Einträge
 > `v1.99.31-NachWeMinuten`, `v1.99.31-VorschauWochen`, `v1.99.31-EinkaufAnsichten` und die Rollenbeschreibung in `Pruefung/RolleEinkauf`
@@ -720,3 +729,132 @@ nicht. Die Aussage „Volllauf ≤ 30 s“ ist bis zum Ergebnis **unbelegt**.
 9. „Nur Lager-Keyuser“ = bestehender Filter inkl. picking, oder einengen auf admin + stock_keyuser? →
 10. „CSV erneut schreiben“ in der Einkauf-Liste nie sichtbar – akzeptiert, oder übergebene Vorgänge mit CSV-Fehler zusätzlich zeigen? →
 11. Rücksprung nach Aktion: Lager → Sage-Wareneingänge (wie heute) oder Einkauf-Liste? →
+
+## QA-Nachweis (qa-agent, 2026-11-17)
+
+Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Review-Bereich `5b123c11..a7bc62d4` (8b7d8252, 2f84a012, 9c623d4c, a7bc62d4) plus QA-Commit
+`d3a00101`. Ergebnis: **Testbereit** (Manual-UAT siehe Checkliste).
+
+### 1. Build und Tests (HEAD a7bc62d4, nach QA-Commit d3a00101 wiederholt, gleiches Ergebnis)
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler, 28 Warnungen (bekannte, keine neuen aus dem Diff).
+- `dotnet test`: IdealAkeWms.Tests **3013 bestanden / 1 übersprungen / 0 Fehler** (3014); IDEALAKEWMSService.Tests **682 / 0 / 0**.
+
+### 2. Code-Review (selbst, in diesem Lauf)
+Geprüft: Diff aller Code-Dateien (Dienst, Controller, Views, Layout, RoleOverview, Kataloge, Program.cs, Manifest) samt Umgebung
+(`EinkaufBestellungenSyncService.RunCoreAsync` inkl. Empty-Guard/Transaktion, `SyncWorker.cs:484-495`, `SageSdataReadClient` Timeout-Pfad,
+`_Pagination`, `Users/Edit`, `RequireWareneingangBestellungAktivFilter`). Defektklassen: kein Wert in `<script>`, kein `hidden`+`d-*`, keine
+stille Rückfallzahl (unlesbare Präferenz → Default ist Absicht), keine parallelen Arrays, keine nur-Browser-Validierung (Bereich der neuen
+ServiceSetting serverseitig über die Bereichstabelle), Regel „überfällig" an EINER Stelle (`Ueberfaellig`), Zelltext einmal (`LieferterminText`
+für View und ColumnMap).
+
+Fokus-Punkte:
+- **Anstoß nur bei Übergaben > 0:** `RunOnceAsync` liefert `uebergeben` nur nach `FinishSuccessAsync`; früher Ausstieg = 0, Wurf = keine Rückgabe;
+  Zugangsfehler-Zweig im Worker gibt 0. `AnstossEntscheidung` (Test-Theorie, 6 Fälle). OK.
+- **Entprellung/Setting:** Key in `All`, Anzeige, Bereich 0–60 min, Warnhinweis; Drift-Test grün; auf DEV unter /ServiceSettings sichtbar (s. 6). OK.
+- **Sperre/Empty-Guard:** statisches `SemaphoreSlim`, regulär `WaitAsync(ct)`, Anstoß `WaitAsync(0)`; Empty-Guard und Transaktion unverändert
+  im gemeinsamen `RunCoreAsync`. Ein SData-Timeout wird vom Client in `SdataLeseException` gewandelt (kein OCE) → Warnpfad greift, keine
+  20-s-Wiederholschleife. OK.
+- **Anlass-Zeile:** erste Info nach `BeginRunAsync`. Wortlaut „n Beleg(e) übergeben" statt „Position(en)" (im Deploy-Abgleich dokumentierte
+  Abweichung, fachlich richtig, weil `uebergeben` Vorgänge zählt). Akzeptiert.
+- **Controller als DI-Dienst:** `EinkaufPurchaseOrdersController` setzt `_listen.ControllerContext`. `TempData`/`Url` des injizierten Controllers
+  lösen über `HttpContext.RequestServices` auf (gleiche TempData-Instanz je Request), Redirects nennen den Controller ausdrücklich. Filter des
+  `PurchaseOrdersController` laufen dabei nicht (gewollt); `ListeAsync`/`SageWeListeAsync` sind `internal` → keine Routen. `ViewData` des injizierten
+  Controllers entsteht ohne MVC-Property-Aktivierung mit `EmptyModelMetadataProvider`; beide Views nutzen kein `asp-for`/`DisplayNameFor`, daher
+  ohne Wirkung; auf DEV korrekt gerendert (Hinweis B-2).
+- **Sage-WE im Einkauf:** Filter `OffeneSageWeStatus` nach dem Repository-Aufruf, auch bei `status=Uebergeben` (DEV: „Keine Eintraege"). Aktionen nur
+  bei `CanTransferStockAsync && WareneingangBestellungAktiv`, Formulare mit `asp-controller="PurchaseOrders"` (DEV: POST landete auf
+  `/PurchaseOrders/SageWeErneutSenden`, Rücksprung Lager-Liste). Serverseitige Absicherung unverändert. OK.
+- **Datumsvorbelegung:** `ISOWeek`, Jahreswechsel-Theorie (30.12.2026 → `28.12.2026...10.01.2027`, 1.1.2027 → KW 53/2026), Clamp 1–26. OK.
+- **Checkbox:** Lager aus / Einkauf an, eigener ViewKey, Hidden-False, `bool?`; Speichern nur bei Abweichung, Audit über `SaveAsync`
+  (DEV: `CreatedBy`/`CreatedByWindows` gesetzt, bei Änderung `ModifiedAt`). Ohne Termin immer sichtbar. OK.
+- **Listen-View-Muster:** Pagination/Filterkarte/Server-Spaltenfilter unverändert; Filterformular trägt `kw` und aktuelle `colf_*` mit. OK.
+- **Rollen drei Stellen:** Attribut (wiederverwendet), `controller.md` (Zeilen `RequireEinkaufAccess`/`RequireEinkaufAktiv`), `RoleOverview.cshtml`. OK.
+- **Manifest:** drei Einträge v1.99.31 und Rollenbeschreibung `Pruefung/RolleEinkauf`, ASCII, `NachlaufManifestDriftTests` grün. OK.
+
+Befunde:
+- **B-1 (behoben, QA-Commit `d3a00101`):** `controller.md:82` nennt für `EinkaufPurchaseOrdersController` „keine POST-Action, Wächter-Test"; einen
+  solchen Test gab es nur für `PurchaseProposalsController`. Ergänzt in `PurchaseOrdersControllerTests.Einkauf_Attribute_UndReceiveBleibtGeschuetzt_F2_2_F2_4`:
+  keine Action mit Nicht-GET-Methode am Einkauf-Controller.
+- **B-2 (Hinweis, kein Fix):** `ViewData` des injizierten `PurchaseOrdersController` nutzt den `EmptyModelMetadataProvider` (Fallback im
+  `Controller.ViewData`-Getter). Heute folgenlos; wer den beiden Views später `asp-for`/DataAnnotations-Anzeigen hinzufügt, muss das beachten.
+- **B-3 (Beobachtung, nicht aus diesem Diff):** Lager → Sage-Wareneingänge zeigt eine TempData-Warnung doppelt (Layout-Banner und View-Banner),
+  z. B. „Nicht eingereiht: Der Sage-Wareneingang ist ausgeschaltet …". Vorbestehend; ggf. eigener Backlog-Eintrag.
+- Rückfragen 9–11 bleiben offen (nicht blockierend); gebaut ist jeweils die genannte Variante, auf DEV bestätigt (Rücksprung Lager-Liste).
+
+### 3. Beweisart je Akzeptanzkriterium
+| AK | Beweis |
+|---|---|
+| 1, 2, 3, 4, 6, 7, 8 | Teilautomatisiert (`AnstossEntscheidung`, Rückgabe `RunOnceAsync`, Sperre/Anlass in `EinkaufBestellungenSyncTests`); echte Übergabe, SData-Lauf, Nebenläufigkeit beider Worker: **Manual-UAT** (auf DEV gesperrt: `Sync:EinkaufBestellungenEnabled`, Sage-WE) |
+| 5 | Automatisiert (Rückgabe 0 ohne Arbeit); Zugangsfehler-Zweig per Review |
+| 9 | Katalog/Bereich automatisiert (Drift-Guard), Anzeige auf DEV geprüft; Ablehnung 61/-1 beim Speichern: **Manual-UAT** |
+| 10, 12, 24, 26 | Automatisiert (`CanReceive`/`CanErneutSenden`) + DEV-Browser (s. 6) |
+| 11, 14, 25 | Reflection-Tests; GET über die echte Filter-Pipeline auf DEV (11); POST-AccessDenied (11/25) und 14: **Manual-UAT** |
+| 13, 28 | Filtertext automatisiert; DEV IDEAL (EinkaufAktiv aus): Umleitung mit Warnung, kein Menü |
+| 15, 15a, 17 | Automatisiert (Vorbelegung inkl. KW 53, Redirect/Merker) + DEV |
+| 16 | Zelltext/Filter automatisiert, auf DEV per URL `colf_liefertermin=KW48`; Kalender-Klick: **Manual-UAT** |
+| 18 | Feld „Wochen" fehlt (Test + DEV); 0/27 Bereich durch bestehenden Test; Anzeige /Settings: **Manual-UAT** |
+| 19, 20, 21, 22 | Automatisiert + DEV (Defaults, Speicherung, Hinweiszeile); Ab-/Anmelden: **Manual-UAT** |
+| 23, 27, 29 | Bestehende Tests grün + DEV (Lager-Liste zeigt „an Sage übergeben") |
+
+### 4. Geänderte bestehende Tests
+- `PurchaseOrdersReceiveTests`, `SageWareneingaengeListeTests` (Ctor-Parameter `UserViewPreferenceRepository`): **nur Typ/Compile-Fix**.
+- `PurchaseOrdersControllerTests.Vorschau_HorizontXWochen_…_AK7` ersetzt durch `Erstaufruf_RedirectMitVorbelegungUndMerker_…`/`Sichtbarkeit_…`:
+  **Verhalten bewusst geändert** (F3.4/F4, AK 15/17/18/19), im Test kommentiert.
+- `PurchaseOrdersControllerTests` Rahmenabruf-Test: Query `?kw=1&colf_hinweis=…` statt `?colf_hinweis=…`: **bewusst** (F3.3, sonst Redirect beim Erstaufruf).
+- `SageWareneingangServiceTests` (Senden): Assertion auf Rückgabe ergänzt: **Verhalten erweitert** (F1.1). Kein „Sonstiges".
+
+### 5. Checkliste CLAUDE.md / ADR 0020
+Keine Migration/kein SQL (richtig, nur bestehende Tabellen); FreshInstall/AgentJobs nicht betroffen; Audit über `UserViewPreferenceRepository.SaveAsync`
+(DEV belegt); Version 1.99.31 in beiden `AppVersion.cs`, Anwender-Changelog ergänzt; `docs/TESTSZENARIEN.md` TS-155 und Index-Zeile 155 im Brain vorhanden.
+ADR 0020: `Sync:EinkaufBestellungenNachWeMinuten` mit Bereich 0–60 (Server), Anzeigename, Wirkung, Verwendung, Default 2, Standort, Warnhinweis;
+`OffeneBestellungenVorschauWochen` Texte neu, Bereich 1–26 unverändert. Kein Mangel. Manifest-Einträge vorhanden (s. Deploy).
+
+### 6. DEV-Deploy und Testlauf
+- Standort `beide` (Frontmatter). Deploy erhöht, beide Komponenten, Quelle Worktree HEAD `a7bc62d4`:
+  - AKE: `dev-deploy.ps1 -Standort AKE` → „HTTP 200, Fusszeile v1.99.31 … Fertig: AKE v1.99.31 auf http://localhost:8081/", Exit 0.
+  - IDEAL: `dev-deploy.ps1 -Standort IDEAL` → „HTTP 200, Fusszeile v1.99.31 … Fertig: IDEAL v1.99.31 auf http://localhost:8082/", Exit 0.
+  - Dienst-Logs `D:\Dev\{AKE,IDEAL}\Service\logs\service-20261117.log`: Worker „Version 1.99.31", keine Fehler. QA-Commit `d3a00101` ändert nur
+    einen Test; DEV-Stand fachlich identisch.
+- Keine Einstellung auf DEV geändert. Temporäre Testdaten, alle zurückgesetzt und belegt: `UserRoles` von Benutzer 14 (admin entfernt, später
+  stock_keyuser ergänzt; Endstand wieder `40 admin`, `81 einkauf`), `PurchaseOrderReceipts.Id=10` kurz auf Klären (Endstand 3, ModifiedAt/By unverändert),
+  QA-Präferenzzeile `PurchaseOrders.Ueberfaellige` gelöscht. Nichts an Sage: „Erneut senden" wurde bei ausgeschaltetem Sage-WE abgewiesen.
+
+| Schritt | Ergebnis | Status |
+|---|---|---|
+| TS-155.1–155.4 Anstoß/Entprellung/0/Fehler | braucht `Sync:EinkaufBestellungenEnabled` und eine echte Sage-WE-Übergabe | NICHT MOEGLICH (DEV-Sperre), Unit-Tests s. 3 |
+| 155.5 nur einkauf (AKE) | Menü nur „Einkauf" (Bestellvorschläge, Offene Bestellungen, Sage-Wareneingänge (offen)); Liste ohne Knopf „Wareneingang"; `/PurchaseOrders/Receive?belId=361998` und `/PurchaseOrders` → „Zugriff verweigert" | OK |
+| 155.5 POST Receive per Werkzeug | kein Skript-Werkzeug im Lauf | NICHT MOEGLICH |
+| 155.6 einkauf + Lager-Recht | als admin: Knopf „Wareneingang zu Bestellung" in der Einkauf-Ansicht (Gate an); Buchung nicht ausgeführt | OK (Buchen offen) |
+| 155.7 Gates | IDEAL (EinkaufAktiv aus): kein Menü Einkauf, `/EinkaufPurchaseOrders/SageWareneingaenge` → Startseite mit „Einkauf ist deaktiviert (Einstellung „Einkauf aktiv")." | OK |
+| 155.8 Vorbelegung | AKE + IDEAL, Lager + Einkauf: Redirect auf `colf_liefertermin=16.11.2026...29.11.2026&kw=1`; Zellen „23.11.2026 KW48"; `?kw=1` (geleert) → 1165 Zeilen (= 1127 + 38 spätere, SQL-Gegenprobe), auch Seite 2 ohne neue Vorbelegung; `colf_liefertermin=KW48` → genau die KW-48-Zeile; kein Feld „Wochen" | OK |
+| 155.8 /Settings auf 1, Kalender-Klick | nicht ausgeführt (Einstellung bleibt; Klick = Manual-UAT) | NICHT MOEGLICH |
+| 155.9 Überfällige | Lager Default aus: „1126 überfällige Position(en) ausgeblendet", 1 Zeile im Bereich (SQL: 1 im Bereich, 1128 überfällig, davon 2 als erfasste Rahmenabrufe ausgeblendet); IDEAL „1021 … ausgeblendet"; Checkbox an → Hinweis weg, 1127 Zeilen, Präferenz `{"an":true}` gespeichert (CreatedBy/Windows gesetzt), neuer Aufruf ohne Parameter behält „an", Seite 2 = 26–50 von 1127; Einkauf Default an | OK |
+| 155.9 Ab-/Anmelden, Users/Edit-Reset | nicht ausgeführt | NICHT MOEGLICH (Manual-UAT) |
+| 155.10 Rest-Regel | nur Regression per Tests | NICHT MOEGLICH (Buchung) |
+| 155.11 (a) nur einkauf | Statusauswahl genau 5 Werte; Klären-Eintrag ohne Aktionen und ohne „Wareneingang zu Bestellung"; `?status=Uebergeben` → „Keine Eintraege" | OK |
+| 155.11 (a) POST mit Token | kein Werkzeug | NICHT MOEGLICH |
+| 155.11 (b) einkauf + stock_keyuser | „Erneut senden"/„Als übergeben markieren" sichtbar; als admin „Erneut senden" geklickt → POST auf PurchaseOrders, Rücksprung Lager → Sage-Wareneingänge, „Nicht eingereiht: Sage-Wareneingang ausgeschaltet", Status unverändert | OK (Erfolgsfall mit Sage-WE an: Manual-UAT) |
+| 155.11 (c) Lager-Liste | zeigt weiter „an Sage übergeben" | OK |
+| 155.11 (d) EinkaufAktiv aus | s. 155.7 | OK |
+| ServiceSettings-Anzeige | `Sync:EinkaufBestellungenNachWeMinuten` mit Name, Wirkung, Verwendung, Standort, Warnhinweis „Achtung", Wert 2 min | OK |
+
+### 7. Publish
+`C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish\` neu erzeugt (Zielordner vorher geleert): `IDEALAKEWMSWeb`,
+`IDEALAKEWMSWebService` (beide Exit 0), `SQL\`, `deploy\`, `publish-info.txt` = Version 1.99.31, Commit `d3a00101d0c9124d2541da7d66ece6a17255f616`,
+Branch `feature/2026-08-07-ideal-teile-1-5`, Erstellt 2026-11-17 07:24. Die alte `publish\deploy.zip` liegt noch dort; nicht verwenden.
+
+## Manuelle Test-Checkliste (Mensch, offen)
+
+1. Testsystem AKE: Publish v1.99.31 per `deploy\Update-IdealAkeWms.ps1` einspielen, Nachlauf-Einträge v1.99.31 lesen.
+2. TS-155.1 echte Sage-WE-Übergabe → Lauf „Offene Bestellungen (Sage)" mit „Anlass: Sage-Wareneingang (n Beleg(e) übergeben)", Position verschwindet; Laufzeit und P-1 notieren.
+3. TS-155.2 Entprellung (zwei Übergaben im Abstand von etwa 30 s, genau ein Nachlauf nach 2 min).
+4. TS-155.3 (a) Einstellung 0, (b) Gate aus/an, (c) 61 und -1 unter /ServiceSettings speichern → Ablehnung.
+5. TS-155.4 Fehler im Anstoß (nur Testsystem/DEV mit falschem `SData:BaseUrl`, danach zurück) → Warnung unter Sage-Wareneingang, Cache nicht leer, keine Mail.
+6. TS-155.5 Benutzer nur einkauf: POST `/PurchaseOrders/Receive` per Werkzeug → AccessDenied, keine Bewegung.
+7. TS-155.6 einkauf + Lager-Recht: Wareneingang aus der Einkauf-Ansicht buchen; mit `WareneingangBestellungAktiv` aus fehlt der Knopf.
+8. TS-155.8 /Settings `OffeneBestellungenVorschauWochen` = 1 → Zurücksetzen → nur aktuelle KW; 0 und 27 abgelehnt; Kalender-Klick auf eine andere KW.
+9. TS-155.9 Ab-/Anmelden behält die Checkbox; Users/Edit → Präferenz zurücksetzen → Default.
+10. TS-155.10 Teilmenge buchen → Rest sinkt sofort.
+11. TS-155.11 (a) POST „Erneut senden" als nur-einkauf → AccessDenied; (b) Keyuser „Erneut senden" mit Sage-WE an → Erfolgsmeldung, Eintrag „offen".
+12. Rückfragen 9–11 beantworten (picking bei Sage-WE-Aktionen, Fall „CSV erneut schreiben", Rücksprung).
+13. Danach Merge (Schranke 2).
