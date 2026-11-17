@@ -244,4 +244,13 @@ public class BdeTeilelisteServiceTests
         BdeTeilelisteController.WochenOffset("unsinn", DateTime.Today).Should().BeNull();
         BdeTeilelisteController.TryLesen("{kaputt").Should().BeNull();
     }
+
+    [Fact]
+    public void Beschichtet_Zelltext_UndSpaltenfilter()
+    {
+        (BdeTeilelisteController.BeschichtetText(true), BdeTeilelisteController.BeschichtetText(false), BdeTeilelisteController.BeschichtetText(null))
+            .Should().Be(("ja", "nein", "–"));
+        var spalten = BdeTeilelisteService.SpaltenEinzeln(new Dictionary<int, VormontageService.KopfWerte>(), n => n.Beschichtet ? "ja" : "nein");
+        spalten["beschichtet"](new FaHierarchyNode { Beschichtet = true }).Should().Be("ja");
+    }
 }

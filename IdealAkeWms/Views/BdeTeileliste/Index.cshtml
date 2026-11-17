@@ -2,7 +2,7 @@
 @using IdealAkeWms.Services
 @{
     ViewData["Title"] = "BDE-Teileliste";
-    const int colCount = 19;
+    const int colCount = 20;
 }
 <link rel="stylesheet" href="~/css/bde.css" asp-append-version="true" />
 
@@ -33,6 +33,7 @@
                     <th data-filterable data-col-key="montage-abteilung">Abteilung</th>
                     <th class="text-nowrap" data-filterable data-col-key="fe-termin" data-date-filter>FE-Termin</th>
                     <th data-filterable data-col-key="material">Material</th>
+                    <th data-filterable data-col-key="beschichtet" title="Kennzeichen Beschichtet der Position aus der FA-Struktur (– = Quelle kennt kein Positions-Kennzeichen)">Beschichtet</th>
                     <th data-filterable data-col-key="artnr">Artikelnummer</th>
                     <th data-filterable data-col-key="subfa">Sub-FA</th>
                     <th data-filterable data-col-key="vaterfa">Vater-Sub-FA</th>
@@ -77,6 +78,7 @@
                         <td>@k?.Abteilung</td>
                         <td>@k?.FeTermin</td>
                         <td>@n.Material</td>
+                        <td>@(Model.Beschichtet?.Invoke(n) ?? "–")</td>
                         <td>@n.Artnr</td>
                         <td>@(n.SubFA == 0 ? null : n.SubFA)</td>
                         <td>@n.VaterFA</td>
@@ -203,6 +205,7 @@
     { "key": "montage-abteilung", "label": "Abteilung", "locked": false, "defaultWidth": null },
     { "key": "fe-termin", "label": "FE-Termin", "locked": false, "defaultWidth": null },
     { "key": "material", "label": "Material", "locked": false, "defaultWidth": null },
+    { "key": "beschichtet", "label": "Beschichtet", "locked": false, "defaultWidth": null },
     { "key": "artnr", "label": "Artikelnummer", "locked": false, "defaultWidth": null, "defaultHidden": true },
     { "key": "subfa", "label": "Sub-FA", "locked": false, "defaultWidth": null, "defaultHidden": true },
     { "key": "vaterfa", "label": "Vater-Sub-FA", "locked": false, "defaultWidth": null, "defaultHidden": true },

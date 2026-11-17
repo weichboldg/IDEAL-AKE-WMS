@@ -26,11 +26,13 @@ public class BdeTeilelisteController : Controller
     private readonly IFaHierarchyOrderInfoRepository _orderInfos;
     private readonly ICurrentUserService _userSvc;
     private readonly IUserViewPreferenceRepository _prefs;
+    private readonly IServiceSettingRepository _serviceSettings;
 
     public BdeTeilelisteController(BdeTeilelisteService svc, IBdeTerminalRepository terminals, IProductionWorkplaceRepository workplaces,
         IBdeOperatorRepository operators, IAppSettingRepository settings, IFaHierarchyOrderInfoRepository orderInfos, ICurrentUserService userSvc,
-        IUserViewPreferenceRepository prefs)
+        IUserViewPreferenceRepository prefs, IServiceSettingRepository serviceSettings)
     {
+        _serviceSettings = serviceSettings;
         _svc = svc; _terminals = terminals; _workplaces = workplaces; _operators = operators; _settings = settings;
         _orderInfos = orderInfos; _userSvc = userSvc; _prefs = prefs;
     }
@@ -132,6 +134,7 @@ public class BdeTeilelisteController : Controller
         var userDefault = await _userSvc.GetDefaultPageSizeAsync();
         var size = PageSize.Resolve(pageSize, userDefault);
         var kw = IsoWeekRange.Resolve(kwVon, kwBis);
+        vm.Beschichtet = await BeschichtetZelleAsync();
         var infos = await _orderInfos.GetAllAsync();
         vm.Kopf = VormontageService.BuildKopfLookup(infos);
 
@@ -201,6 +204,21 @@ public class BdeTeilelisteController : Controller
         TempData[ergebnis.AllesGut ? "SuccessMessage" : "WarningMessage"] = ergebnis.Text();
         return LocalRedirect(zurueck);
     }
+
+    /// <summary>E6: Zelltext „Beschichtet“ je Position ueber den Resolver (Quelle aus den AppSettings, Auftragsmodell aus dem Master).
+    /// Warnungen zu ungueltigen Quellwerten zeigt /Settings beim Speichern; hier wirkt der Wert wie „Automatisch“.</summary>
+    private async Task<Func<FaHierarchyNode, string?>> BeschichtetZelleAsync()
+    {
+        var master = await _serviceSettings.GetValueAsync(IdealAkeWms.Services.HierarchischeStruktur.HierarchischeStrukturKeys.Master);
+        var hierarchisch = master != null && (master.Equals("true", StringComparison.OrdinalIgnoreCase) || master == "1"
+            || master.Equals("on", StringComparison.OrdinalIgnoreCase));
+        var quellen = IdealAkeWms.Services.Beschichtung.BeschichtungResolver.ResolveQuellen(
+            await _settings.GetValueAsync(AppSettingKeys.BeschichtungKennzeichenQuelle),
+            await _settings.GetValueAsync(AppSettingKeys.BeschichtungTerminQuelle), hierarchisch);
+        return n => BeschichtetText(IdealAkeWms.Services.Beschichtung.BeschichtungResolver.BeschichtetPosition(quellen, n));
+    }
+
+    internal static string BeschichtetText(bool? b) => b switch { true => "ja", false => "nein", null => "–" };
 
     internal static GespeicherterFilter? TryLesen(string json)
     {

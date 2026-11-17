@@ -183,4 +183,15 @@ public class BeschichtungResolverTests
         logger.Verify(l => l.Log(LogLevel.Warning, It.IsAny<EventId>(), It.IsAny<It.IsAnyType>(), It.IsAny<Exception?>(),
             It.IsAny<Func<It.IsAnyType, Exception?, string>>()), Times.Once);
     }
+
+    // v1.99.32 (Spec 2026-11-13-bde-vereinfacht-teileliste-blechfertigung, Freigabe-Antwort 2): Kennzeichen je Position.
+    [Theory]
+    [InlineData(true, true, true)]
+    [InlineData(true, false, false)]
+    [InlineData(false, true, null)]
+    public void BeschichtetPosition_NurBeiQuelleFaStruktur(bool hierarchisch, bool nodeBeschichtet, bool? erwartet)
+    {
+        var q = BeschichtungResolver.ResolveQuellen(null, null, hierarchisch);
+        BeschichtungResolver.BeschichtetPosition(q, new FaHierarchyNode { Beschichtet = nodeBeschichtet }).Should().Be(erwartet);
+    }
 }

@@ -120,6 +120,12 @@ public static class BeschichtungResolver
         return new BeschichtungInfo(hasCoatingParts, termin, k.Quellen.Termin, aktiv);
     }
 
+    /// <summary>v1.99.32 (Spec 2026-11-13-bde-vereinfacht-teileliste-blechfertigung, Freigabe-Antwort 2): Kennzeichen JE POSITION.
+    /// Quelle FaStruktur = <see cref="FaHierarchyNode.Beschichtet"/> der Zeile selbst (ein Blechteil traegt sein eigenes Kennzeichen,
+    /// nicht das des Vaters, fallstricke §20); Artikelkategorie kennt kein Positions-Kennzeichen = null (Zelle „–“).</summary>
+    public static bool? BeschichtetPosition(BeschichtungQuellen q, FaHierarchyNode n) =>
+        q.Kennzeichen == BeschichtungKennzeichenQuelle.FaStruktur ? n.Beschichtet : null;
+
     private static T Waehle<T>(string key, string? roh, T auto, Func<T, bool> passt, bool hierarchisch, List<string> warnungen)
         where T : struct, Enum
     {

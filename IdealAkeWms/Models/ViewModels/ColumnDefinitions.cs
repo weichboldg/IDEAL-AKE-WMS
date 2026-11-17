@@ -459,6 +459,7 @@ public static class ColumnDefinitions
             new ColumnDef("montage-abteilung", "Abteilung", Locked: false),
             new ColumnDef("fe-termin", "FE-Termin", Locked: false),
             new ColumnDef("material", "Material", Locked: false),
+            new ColumnDef("beschichtet", "Beschichtet", Locked: false),
             new ColumnDef("artnr", "Artikelnummer", Locked: false, DefaultHidden: true),
             new ColumnDef("subfa", "Sub-FA", Locked: false, DefaultHidden: true),
             new ColumnDef("vaterfa", "Vater-Sub-FA", Locked: false, DefaultHidden: true),
