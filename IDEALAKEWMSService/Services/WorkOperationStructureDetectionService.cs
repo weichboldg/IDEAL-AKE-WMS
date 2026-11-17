@@ -89,6 +89,14 @@ public class WorkOperationStructureDetectionService : IWorkOperationStructureDet
                 (wpByCode.TryGetValue(code, out var l) ? l : wpByCode[code] = new List<ProductionWorkplace>()).Add(wp);
             }
 
+            // 3b) v1.99.32 (Spec 2026-11-13-bde-vereinfacht-teileliste-blechfertigung, ADR 0030, Freigabe-Antwort 1 = V1): Kuerzel von
+            //     Werkbaenken mit BDE-Teileliste melden Blechteile als Teilmeldung - ein Blatt-Token dieser Kuerzel erzeugt KEINEN
+            //     Arbeitsgang an der Vater-Sub-FA mehr. Die eigene Zeile der Sub-FA (Baugruppe) zaehlt weiter. Bewusst ohne die globale
+            //     AppSetting BdeNurFaMeldung (der Dienst kennt nur die Werkbank-Option; Hinweis in der Hilfe).
+            var teilelisteCodes = wpByCode.Where(kv => kv.Value.Any(w => w.BdeAktiv && w.BdeTeileliste))
+                .Select(kv => kv.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var teilelisteBlattUebersprungen = new HashSet<(string SubOrder, string Token)>();
+
             // 4) Je materialisiertem Sub-FA (SubFA != 0): DirectChildren-Scope = eigene Zeile + direkte
             //    BLATT-Kinder (SubFA == 0); Token in Erst-Auftauch-Reihenfolge (fuer WorkOperation.Sequence).
             //    Ein direktes Kind, das selbst ein Sub-FA ist, traegt NUR zu seinem eigenen Auftrag bei
@@ -109,11 +117,16 @@ public class WorkOperationStructureDetectionService : IWorkOperationStructureDet
                 var seq = 0;
                 var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-                foreach (var token in scope
+                foreach (var (quelle, token) in scope
                              .Where(n => !string.IsNullOrWhiteSpace(n.Arbeitsschritte))
                              .SelectMany(n => n.Arbeitsschritte!.Split(TokenSeparators,
-                                 StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)))
+                                 StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Select(t => (n, t))))
                 {
+                    if (!ReferenceEquals(quelle, node) && teilelisteCodes.Contains(token))
+                    {
+                        if (!seen.Contains(token)) teilelisteBlattUebersprungen.Add((subOrder, token.ToUpperInvariant()));
+                        continue; // Blatt-Token einer Teileliste-Werkbank: Teilmeldung statt Arbeitsgang (V1)
+                    }
                     if (!seen.Add(token)) continue; // je Sub-FA jedes Kuerzel nur einmal, Reihenfolge = Erst-Auftauchen
                     var position = seq++;
 
@@ -236,6 +249,7 @@ public class WorkOperationStructureDetectionService : IWorkOperationStructureDet
                 ["arbeitsschritt_mehrere_werkbaenke"] = multiTokenCount,
                 ["arbeitsschritt_unbekannt"] = unknownTokenCount,
                 ["arbeitsschritt_unbekannt_auftraege"] = unknownOrderCount,
+                ["teileliste_blatt_uebersprungen"] = teilelisteBlattUebersprungen.Count,
             }, messageSuffix: dryRun ? "[DryRun]" : null, ct: ct);
 
             return new SyncResult(added, 0, 0);

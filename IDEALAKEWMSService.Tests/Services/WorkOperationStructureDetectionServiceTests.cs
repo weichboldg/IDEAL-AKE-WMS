@@ -412,4 +412,52 @@ public class WorkOperationStructureDetectionServiceTests
         state.HasChanged(new[] { "A", "C" }).Should().BeFalse();
         state.HasChanged(System.Array.Empty<string>()).Should().BeTrue(); // geleert = Aenderung
     }
+
+    // --- v1.99.32 (Spec 2026-11-13-bde-vereinfacht-teileliste-blechfertigung, V1): Blatt-Token einer Teileliste-Werkbank ---
+    [Fact]
+    public async Task Detect_TeilelisteWerkbank_BlattTokenUebersprungen_EigeneZeileBleibt()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        // Korpus(10, "KA PG") -> Blatt(0, "KA LS") + Blatt(0, "KA"); Sub-FA 30 nur mit Blatt "KA".
+        ctx.FaHierarchyNodes.AddRange(
+            Node(subFa: 10, vaterFa: null, arbeitsschritte: "KA PG"),
+            Node(subFa: 0, vaterFa: 10, arbeitsschritte: "ka LS"),
+            Node(subFa: 30, vaterFa: null, arbeitsschritte: "PG"),
+            Node(subFa: 0, vaterFa: 30, arbeitsschritte: "KA"));
+        var ka = Workplace("KA", "Kanterei W1");
+        ka.BdeAktiv = true; ka.BdeTeileliste = true;
+        ctx.ProductionWorkplaces.AddRange(ka, Workplace("PG", "Pulver"), Workplace("LS", "Laser"));
+        ctx.ProductionOrders.AddRange(Order("10"), Order("30"));
+        await ctx.SaveChangesAsync();
+
+        var (svc, log) = Build(ctx);
+        await svc.DetectAsync(dryRun: false);
+
+        var ags = await ctx.WorkOperations.Include(w => w.ProductionOrder).ToListAsync();
+        ags.Where(w => w.ProductionOrder.SubOrderNumber == "10").Select(w => w.OperationNumber)
+            .Should().BeEquivalentTo(new[] { "KA", "PG", "LS" }, "KA der eigenen Baugruppen-Zeile bleibt");
+        ags.Where(w => w.ProductionOrder.SubOrderNumber == "30").Select(w => w.OperationNumber)
+            .Should().BeEquivalentTo(new[] { "PG" }, "KA nur aus dem Blatt = Teilmeldung, kein Arbeitsgang");
+        log.Runs.Single().FinalCounts!["teileliste_blatt_uebersprungen"].Should().Be(1);
+    }
+
+    [Theory]
+    [InlineData(false, true)]   // BDE aus
+    [InlineData(true, false)]   // Option aus
+    public async Task Detect_OhneWirksameOption_BlattTokenWieBisher(bool bdeAktiv, bool teileliste)
+    {
+        using var ctx = TestDbContextFactory.Create();
+        ctx.FaHierarchyNodes.AddRange(Node(subFa: 30, vaterFa: null, arbeitsschritte: "PG"), Node(subFa: 0, vaterFa: 30, arbeitsschritte: "KA"));
+        var ka = Workplace("KA", "Kanterei W1");
+        ka.BdeAktiv = bdeAktiv; ka.BdeTeileliste = teileliste;
+        ctx.ProductionWorkplaces.AddRange(ka, Workplace("PG", "Pulver"));
+        ctx.ProductionOrders.Add(Order("30"));
+        await ctx.SaveChangesAsync();
+
+        var (svc, log) = Build(ctx);
+        await svc.DetectAsync(dryRun: false);
+
+        (await ctx.WorkOperations.Select(w => w.OperationNumber).ToListAsync()).Should().BeEquivalentTo(new[] { "PG", "KA" });
+        log.Runs.Single().FinalCounts!["teileliste_blatt_uebersprungen"].Should().Be(0);
+    }
 }

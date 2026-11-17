@@ -202,6 +202,11 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
    Spur='IF OBJECT_ID(N''dbo.PickingOrders'', N''U'') IS NULL SELECT 0 ELSE SELECT COUNT(*) FROM dbo.PickingOrders WHERE CreatedBy = N''Migration-KO-Altbestand'''
    Text='Trockenlauf automatisch (Zaehlung und Liste "Altbestand pruefen" ins Protokoll). TREFFER 0 -> entfaellt. Sonst Zaehlung freigeben, SCHARF eintippen (Backup aus diesem Lauf Pflicht); ohne SCHARF Abbruch, Web und Dienst bleiben gestoppt.'
    Quelle='2026-11-08-v1-88-0-kommissionierauftraege; 2026-11-08-v1-89-0-kommissionierauftraege-nachbesserung' }
+@{ Id='Einmalig/2026-11-17_v1.99.32_RemoveParentWorkOperationsFromLeafTokensTeileliste'; Version='1.99.32'; Typ='Einmalig'; Firma='IDEAL'; Phase='Nachher'; Ausfuehrung='Trockenlauf'
+   Datei='Einmalig\2026-11-17_v1.99.32_RemoveParentWorkOperationsFromLeafTokensTeileliste.sql'; Braucht=@('SQL/154')
+   Voraussetzung='Dienst und Web >= 1.99.32 laufen, Option BDE-Teileliste an den Start-Werkbaenken gesetzt, DB-Backup'
+   Text='Trockenlauf automatisch (Zaehlung je Kuerzel und Meldeliste gebuchter Arbeitsgaenge ins Protokoll). TREFFER 0 -> entfaellt (z. B. Option noch nirgends an: dann nach dem Setzen erneut anstossen). Sonst Zaehlung freigeben, SCHARF eintippen (Backup aus diesem Lauf Pflicht); zweiter Trockenlauf muss 0 liefern. Gebuchte Arbeitsgaenge bleiben stehen - Meldeliste an den Fachbereich.'
+   Quelle='2026-11-17-v1-99-32-bde-teileliste-blechfertigung' }
 @{ Id='SQL/108'; Version='1.79.0'; Typ='Daten'; Firma='beide'; Phase='VorStart'; Ausfuehrung='Transaktion'
    Datei='108_RemoveAppSettingsRueckmeldungOhneLeser.sql'
    Pruefabfrage='SELECT [Key],[Value] FROM [dbo].[AppSettings] WHERE [Key] IN (N''OseonRueckmeldungAktiv'', N''SageRueckmeldungAktiv'', N''StammdatenADGruppe'')'
