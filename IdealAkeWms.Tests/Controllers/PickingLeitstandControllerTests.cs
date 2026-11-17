@@ -33,6 +33,7 @@ public class PickingLeitstandControllerTests
     private readonly Mock<IProductionOrderBdeStatusRepository> _bdeStatusRepo = new();
     private readonly Mock<IBdeBookingRepository> _bdeBookingRepo = new();
     private readonly Mock<IArticleRepository> _articleRepo = new();
+    private readonly Mock<IFaHierarchyOrderInfoRepository> _orderInfoRepo = new();
     private readonly Mock<ILogger<PickingLeitstandController>> _logger = new();
     // v1.88.0: Kommissionierauftraege nach der Freigabe (Workflow echt, Stueckliste leer → nur Meldung)
     private readonly Mock<IBomRepository> _bomRepo = new();
@@ -57,6 +58,7 @@ public class PickingLeitstandControllerTests
         _settingRepo.Setup(s => s.GetIntValueAsync(It.IsAny<string>(), It.IsAny<int>()))
             .ReturnsAsync((string _, int defaultVal) => defaultVal);
         _settingRepo.Setup(s => s.GetValueAsync(It.IsAny<string>())).ReturnsAsync((string?)null);
+        _orderInfoRepo.Setup(r => r.GetByHauptFaKeysAsync(It.IsAny<IReadOnlyCollection<int>>())).ReturnsAsync(new List<FaHierarchyOrderInfo>());
         _holidayRepo.Setup(h => h.GetHolidayDatesAsync()).ReturnsAsync(new HashSet<DateTime>());
         _businessDayService.Setup(b => b.ParsePickupDays(It.IsAny<string>())).Returns(new HashSet<DayOfWeek>());
         _enaioDmsRepo.Setup(e => e.GetByOrderNumbersAsync(It.IsAny<IEnumerable<string>>()))
@@ -78,6 +80,7 @@ public class PickingLeitstandControllerTests
             _bdeStatusRepo.Object,
             _bdeBookingRepo.Object,
             _articleRepo.Object,
+            _orderInfoRepo.Object,
             new PickingOrderWorkflow(_pickingOrderRepo.Object, _pickingAreaRepo.Object, _orderRepo.Object, _pickingStatusRepo.Object,
                 _bomRepo.Object, _currentUser.Object, Microsoft.Extensions.Logging.Abstractions.NullLogger<PickingOrderWorkflow>.Instance),
             _logger.Object);
@@ -975,4 +978,63 @@ public class PickingLeitstandControllerTests
             It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
     }
 
+
+    // --- Spec 2026-11-16-beschichtungslogik-je-standort, E4: IDEAL-Termin im Leitstand (AK 7) ---
+
+    private void SetupHierarchicalTermin(params FaHierarchyOrderInfo[] heads)
+    {
+        EnableHierarchical();
+        SetupCalendarDaySubtraction();
+        _businessDayService.Setup(b => b.FindPreviousPickupDay(It.IsAny<DateTime>(), It.IsAny<HashSet<DayOfWeek>>()))
+            .Returns((DateTime d, HashSet<DayOfWeek> _) => d);
+        _orderRepo.Setup(r => r.GetForLeitstandGroupedAsync(
+                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<bool>(),
+                It.IsAny<int>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>?>()))
+            .ReturnsAsync(new LeitstandOrderGroupedPage(
+                new List<LeitstandOrderGroup> { new("1000", new List<LeitstandOrderRow> { MakeRowH(1, "1000", "1001"), MakeRowH(2, "1000", "1002") }) },
+                TotalGroupCount: 1, TotalRowCount: 2));
+        _pickingStatusRepo.Setup(r => r.GetByProductionOrderIdsAsync(It.IsAny<IEnumerable<int>>()))
+            .ReturnsAsync(new Dictionary<int, ProductionOrderPickingStatus> { { 1, MakePs(1, hasCoatingParts: true) }, { 2, MakePs(2) } });
+        _faWorkStepRepo.Setup(r => r.GetWorkStepDetailPivotAsync(It.IsAny<List<int>>()))
+            .ReturnsAsync(new Dictionary<int, Dictionary<string, FaWorkStepPivotCell>>());
+        _orderInfoRepo.Setup(r => r.GetByHauptFaKeysAsync(It.IsAny<IReadOnlyCollection<int>>())).ReturnsAsync(heads.ToList());
+    }
+
+    private async Task<List<PickingLeitstandItem>> HierarchischeZeilen() =>
+        ((PickingLeitstandViewModel)((ViewResult)await _controller.Index(null, null, null, false, 1, null)).Model!).Groups.Single().Items;
+
+    [Fact]
+    public async Task Index_Hierarchical_View_StartBeschichtungDesKopfs_NurMitLackFlag_AK7()
+    {
+        SetupHierarchicalTermin(new FaHierarchyOrderInfo { HauptFA = 1000, FE_Termin = new DateTime(2026, 8, 10), Start_Beschichtung = new DateTime(2026, 7, 29) });
+
+        var items = await HierarchischeZeilen();
+
+        items.Single(i => i.SubOrderNumber == "1001").BeschichtungTermin.Should().Be(new DateTime(2026, 7, 29), "1:1 wie die FA-Liste");
+        items.Single(i => i.SubOrderNumber == "1002").BeschichtungTermin.Should().BeNull("ohne Lack-Flag (FaStruktur aktiv)");
+        _orderInfoRepo.Verify(r => r.GetByHauptFaKeysAsync(It.Is<IReadOnlyCollection<int>>(k => k.Single() == 1000)), Times.Once);
+    }
+
+    [Fact]
+    public async Task Index_Hierarchical_Kombigeraet_KeinTermin()
+    {
+        SetupHierarchicalTermin(
+            new FaHierarchyOrderInfo { HauptFA = 1000, MontageAbteilung = "M1", Start_Beschichtung = new DateTime(2026, 7, 29) },
+            new FaHierarchyOrderInfo { HauptFA = 1000, MontageAbteilung = "M2", Start_Beschichtung = new DateTime(2026, 7, 30) });
+
+        (await HierarchischeZeilen()).Should().OnlyContain(i => i.BeschichtungTermin == null);
+    }
+
+    [Fact]
+    public async Task Index_Hierarchical_Berechnet_AusKopfFeTermin_WieFaListe_AK7_AK8()
+    {
+        _settingRepo.Setup(s => s.GetValueAsync(AppSettingKeys.BeschichtungTerminQuelle)).ReturnsAsync("Berechnet");
+        SetupHierarchicalTermin(new FaHierarchyOrderInfo { HauptFA = 1000, FE_Termin = new DateTime(2026, 8, 10), Start_Beschichtung = new DateTime(2026, 1, 1) });
+
+        var items = await HierarchischeZeilen();
+
+        // Gleiche Rechnung wie ProductionOrdersControllerTests.Index_Hierarchical_TerminQuelleBerechnet_*: FE 10.08. - 4 - 1 - 10 = 26.07.
+        items.Single(i => i.SubOrderNumber == "1001").BeschichtungTermin.Should().Be(new DateTime(2026, 7, 26));
+        items.Single(i => i.SubOrderNumber == "1001").VorkommissionierTermin.Should().BeNull("angezeigte VK-Spalte unveraendert (DB-Datum der Zeile)");
+    }
 }

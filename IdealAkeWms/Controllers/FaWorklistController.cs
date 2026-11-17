@@ -35,6 +35,7 @@ public class FaWorklistController : Controller
     private readonly ICurrentUserService _currentUser;
     private readonly IServiceSettingRepository _serviceSettingRepository;
     private readonly IArticleRepository _articleRepository;
+    private readonly IFaHierarchyOrderInfoRepository _faHierarchyOrderInfoRepository;
     private readonly ILogger<FaWorklistController> _logger;
 
     public FaWorklistController(
@@ -52,6 +53,7 @@ public class FaWorklistController : Controller
         ICurrentUserService currentUser,
         IServiceSettingRepository serviceSettingRepository,
         IArticleRepository articleRepository,
+        IFaHierarchyOrderInfoRepository faHierarchyOrderInfoRepository,
         ILogger<FaWorklistController> logger)
     {
         _productionOrderRepository = productionOrderRepository;
@@ -68,6 +70,7 @@ public class FaWorklistController : Controller
         _currentUser = currentUser;
         _serviceSettingRepository = serviceSettingRepository;
         _articleRepository = articleRepository;
+        _faHierarchyOrderInfoRepository = faHierarchyOrderInfoRepository;
         _logger = logger;
     }
 
@@ -208,6 +211,11 @@ public class FaWorklistController : Controller
         var matchcodes = await MatchcodeLookup.BuildAsync(
             _articleRepository, orders.Select(o => o.ArticleNumber), _logger, "FaWorklist");
 
+        // E4: eindeutiger Auftragskopf je HauptFA — EINE Abfrage fuer alle Kandidaten, nur hierarchisch (flach: kein Kopf).
+        var kopf = hierarchical
+            ? await BeschichtungResolver.EindeutigeKoepfeAsync(_faHierarchyOrderInfoRepository, orders.Select(o => o.OrderNumber))
+            : _ => null;
+
         var rows = new List<FaWorklistRow>();
         foreach (var order in orders)
         {
@@ -268,9 +276,15 @@ public class FaWorklistController : Controller
                     row.KommissionierTermin.Value, effectivePrePickingDays, holidays);
             }
 
-            // Beschichtungstermin nur aus dem Resolver (DRY mit FA-Liste und Leitstand).
+            // Beschichtungstermin nur aus dem Resolver (DRY mit FA-Liste und Leitstand). E4: hierarchisch mit dem eindeutigen
+            // Kopf; Berechnet ab dem Kopf-FE_Termin wie die FA-Liste (A5), angezeigte K-/VK-Spalten unveraendert.
+            var head = kopf(order.OrderNumber);
+            var beschichtungVk = head?.FE_Termin is DateTime fe
+                ? _businessDayService.SubtractBusinessDays(
+                    _businessDayService.SubtractBusinessDays(fe, kommissionierTage, holidays), effectivePrePickingDays, holidays)
+                : row.VorkommissionierTermin;
             row.BeschichtungTermin = BeschichtungResolver.Bestimmen(
-                beschichtung, order.PickingStatus?.HasCoatingParts ?? false, row.VorkommissionierTermin, null).Termin;
+                beschichtung, order.PickingStatus?.HasCoatingParts ?? false, beschichtungVk, head).Termin;
 
             // Schritt 6: Merkmal-Werte als Anzeigetext (Dropdown -> Option.Value,
             // Boolean -> JA/NEIN, fehlend -> "").

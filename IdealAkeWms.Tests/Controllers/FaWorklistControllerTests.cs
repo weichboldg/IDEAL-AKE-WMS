@@ -91,7 +91,7 @@ public class FaWorklistControllerTests
             prodRepo, faWorkStepRepo, workStepRepo, attrRepo, userRepo,
             workplaceRepo, settingsRepo, holidayRepo, new BusinessDayService(), enaioRepo,
             readOnlyBomBuilder, userMock.Object, serviceSettingMock.Object, articleRepo,
-            NullLogger<FaWorklistController>.Instance);
+            new FaHierarchyOrderInfoRepository(ctx), NullLogger<FaWorklistController>.Instance);
 
         ctrl.TempData = new TempDataDictionary(
             new DefaultHttpContext(),
@@ -756,5 +756,48 @@ public class FaWorklistControllerTests
         row.WorkplaceName.Should().BeNull();
         row.VorkommissionierTermin.Should().Be(bd.SubtractBusinessDays(komm, 1, noHolidays));
         row.PrePickingDaysOverride.Should().BeNull();
+    }
+
+    // --- Spec 2026-11-16-beschichtungslogik-je-standort, E4: IDEAL-Termin in der Arbeitsliste (AK 7) ---
+
+    private static async Task<List<FaWorklistRow>> HierarchischMitKopf(string? terminQuelle)
+    {
+        var (ctx, ctrl, _) = Build(hierarchical: true);
+        var ve = SeedWorkStep(ctx, "VE", "Elektro", 1);
+        var lack = TestDataHelper.CreateOrderWithStatuses(ctx, "1000", hasCoatingParts: true);
+        lack.Order.SubOrderNumber = "1001";
+        var ohne = TestDataHelper.CreateOrderWithStatuses(ctx, "1000");
+        ohne.Order.SubOrderNumber = "1002";
+        ctx.FaHierarchyOrderInfos.Add(new FaHierarchyOrderInfo
+            { HauptFA = 1000, FE_Termin = new DateTime(2026, 12, 21), Start_Beschichtung = new DateTime(2026, 12, 2) });
+        if (terminQuelle != null)
+            ctx.AppSettings.Add(new AppSetting { Key = AppSettingKeys.BeschichtungTerminQuelle, Value = terminQuelle });
+        ctx.SaveChanges();
+        SeedFaWorkStep(ctx, lack.Order.Id, ve.Id);
+        SeedFaWorkStep(ctx, ohne.Order.Id, ve.Id);
+
+        var vm = (FaWorklistViewModel)((ViewResult)await ctrl.Index(ve.Id)).Model!;
+        return vm.Groups.Single().Items;
+    }
+
+    [Fact]
+    public async Task Index_Hierarchical_View_StartBeschichtungDesKopfs_NurMitLackFlag_AK7()
+    {
+        var items = await HierarchischMitKopf(null);
+
+        items.Single(i => i.SubOrderNumber == "1001").BeschichtungTermin.Should().Be(new DateTime(2026, 12, 2), "1:1 wie FA-Liste und Leitstand");
+        items.Single(i => i.SubOrderNumber == "1002").BeschichtungTermin.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Index_Hierarchical_Berechnet_AusKopfFeTermin_AK7_AK8()
+    {
+        var items = await HierarchischMitKopf("Berechnet");
+
+        var d = new BusinessDayService();
+        var keine = new HashSet<DateTime>();
+        var vk = d.SubtractBusinessDays(d.SubtractBusinessDays(new DateTime(2026, 12, 21), 4, keine), 1, keine);
+        var erwartet = d.FindPreviousPickupDay(d.SubtractBusinessDays(vk, 10, keine), d.ParsePickupDays("Dienstag,Donnerstag"));
+        items.Single(i => i.SubOrderNumber == "1001").BeschichtungTermin.Should().Be(erwartet);
     }
 }

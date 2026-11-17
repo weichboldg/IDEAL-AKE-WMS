@@ -84,6 +84,17 @@ public static class BeschichtungResolver
             days);
     }
 
+    /// <summary>E4: eindeutiger Auftragskopf je HauptFA-Nummer (Leitstand, Arbeitsliste) — EINE Abfrage fuer alle Nummern.
+    /// Kombigeraet (mehrere Koepfe), fehlender Kopf oder nicht-numerische Nummer = null (kein Ersatztermin, wie die FA-Liste).</summary>
+    public static async Task<Func<string?, FaHierarchyOrderInfo?>> EindeutigeKoepfeAsync(
+        IFaHierarchyOrderInfoRepository repo, IEnumerable<string?> hauptFaNummern)
+    {
+        var keys = hauptFaNummern.Select(n => int.TryParse(n, out var k) ? k : (int?)null).OfType<int>().Distinct().ToList();
+        var koepfe = (await repo.GetByHauptFaKeysAsync(keys)).GroupBy(i => i.HauptFA)
+            .Where(g => g.Count() == 1).ToDictionary(g => g.Key, g => g.Single());
+        return n => int.TryParse(n, out var k) ? koepfe.GetValueOrDefault(k) : null;
+    }
+
     /// <summary>Aktiv-Kennung (A6): FaStruktur = immer; Artikelkategorie = <c>LackierteilKategorieName</c> gesetzt.
     /// false = Termin und Spalte fuer alle Zeilen (heutiges Verhalten ohne Kategorie, fallstricke).</summary>
     public static bool Aktiv(BeschichtungKontext k) =>

@@ -773,7 +773,9 @@
                         <strong>LackierteilKategorieName</strong> (Name der Artikelkategorie die als Lackierteil gilt).
                         Wenn das Setting leer ist, wird der Beschichtungstermin fuer alle Auftraege angezeigt
                         (Verhalten wie vor v1.5.0). Wenn gesetzt, wird der Beschichtungstermin nur bei Auftraegen
-                        mit Lackierteilen angezeigt.
+                        mit Lackierteilen angezeigt. Das gilt fuer die Kennzeichen-Quelle <em>Artikelkategorie</em>;
+                        bei <em>FaStruktur</em> (hierarchische Auftraege) stehen Haken und Termin immer nur an Auftraegen
+                        mit Beschichtungs-Kennzeichen, unabhaengig von diesem Setting.
                     </dd>
 
                     <dt>Beschichtungsquelle (seit v1.99.25)</dt>
@@ -790,8 +792,12 @@
                                 wird &bdquo;Beschichtung erledigt&ldquo; zurueckgesetzt.</li>
                             <li><strong>Quelle Beschichtungstermin:</strong> <em>Berechnet</em> (Kommissioniertermin minus
                                 Beschichtungstage, auf den letzten Abholtag) oder <em>View</em> (Start_Beschichtung des
-                                Auftragskopfs aus der Sage-View, nur bei hierarchischen Auftraegen). Die Listen werten diese
-                                Einstellung erst mit einer Folgeversion aus.</li>
+                                Auftragskopfs aus der Sage-View, nur bei hierarchischen Auftraegen). <em>View</em> uebernimmt das
+                                Datum unveraendert, <strong>BeschichtungTage</strong> und Abholtage wirken dann nicht.
+                                FA-Liste, Kommissionier-Leitstand und Werkbank-Arbeitsliste zeigen denselben Termin; der
+                                Tooltip der Spalte nennt die Quelle. Bei <em>Berechnet</em> rechnen hierarchische Auftraege ab dem
+                                Fertigungstermin des Auftragskopfs. Bei mehreren Auftragskoepfen (Kombigeraet) oder leerem
+                                Feld erscheint kein Termin und kein Ersatztermin.</li>
                         </ul>
                         Eine Quelle ohne Datenbasis im aktuellen Auftragsmodell (z.&nbsp;B. <em>FaStruktur</em> oder <em>View</em>
                         an der AKE) lehnt das Speichern mit einer Meldung ab. Steht ein solcher Wert trotzdem in der Datenbank,

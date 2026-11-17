@@ -399,7 +399,7 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
    Text='Offene Seiten Wareneingang zu Bestellung und Leitstand (auch am Handgeraet) neu laden: Seiten von vor dem Update werden mit Seite ist veraltet abgewiesen, nichts wird gebucht.'
    Quelle='2026-11-14-v1-99-23-schutz-doppel-absenden' }
 @{ Id='v1.99.25-Beschichtungsquelle-Info'; Version='1.99.25'; Typ='Info'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
-   Text='Neue Einstellungen Quelle Beschichtet-Kennzeichen / Quelle Beschichtungstermin (/Settings > Termine und Beschichtung) stehen auf Automatisch, das Verhalten ist unveraendert. Die Listen lesen die Termin-Quelle erst mit einer Folgeversion. Die Lackierteil-Erkennung nach dem Sage-Import laeuft nur noch bei Sync:CoatingDetectionEnabled.'
+   Text='Neue Einstellungen Quelle Beschichtet-Kennzeichen / Quelle Beschichtungstermin (/Settings > Termine und Beschichtung) stehen auf Automatisch. AKE: Verhalten unveraendert. IDEAL mit ProduktionsauftragHierarchisch an: FA-Liste, Leitstand und Arbeitsliste zeigen Start_Beschichtung aus der Sage-View, Haken und Termin nur an Auftraegen mit Beschichtungs-Kennzeichen. Die Lackierteil-Erkennung nach dem Sage-Import laeuft nur noch bei Sync:CoatingDetectionEnabled.'
    Quelle='2026-11-16-v1-99-25-beschichtungslogik-je-standort' }
 @{ Id='v1.99.26-IDEAL-FaStrukturVergleich'; Version='1.99.26'; Typ='Einstellung'; Firma='IDEAL'; Phase='Nachher'; Ausfuehrung='anzeigen'
    Text='Sync:Quelle:FaStruktur = Vergleich setzen (/ServiceSettings), Lauf FA-Hierarchie abwarten, Protokoll Sage-Quellenvergleich pruefen. SData erst nach Freigabe (Spec 2026-11-16-fa-struktur-ideal-ueber-sdata, Rueckfragen 4/5); bis dahin gesperrt, wirkt wie View.'

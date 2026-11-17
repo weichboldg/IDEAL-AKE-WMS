@@ -25,6 +25,7 @@ public class PickingLeitstandController : Controller
     private readonly IProductionOrderBdeStatusRepository _bdeStatusRepository;
     private readonly IBdeBookingRepository _bdeBookingRepository;
     private readonly IArticleRepository _articleRepository;
+    private readonly IFaHierarchyOrderInfoRepository _faHierarchyOrderInfoRepository;
     private readonly PickingOrderWorkflow _pickingOrderWorkflow;
     private readonly ILogger<PickingLeitstandController> _logger;
 
@@ -42,6 +43,7 @@ public class PickingLeitstandController : Controller
         IProductionOrderBdeStatusRepository bdeStatusRepository,
         IBdeBookingRepository bdeBookingRepository,
         IArticleRepository articleRepository,
+        IFaHierarchyOrderInfoRepository faHierarchyOrderInfoRepository,
         PickingOrderWorkflow pickingOrderWorkflow,
         ILogger<PickingLeitstandController> logger)
     {
@@ -59,6 +61,7 @@ public class PickingLeitstandController : Controller
         _bdeStatusRepository = bdeStatusRepository;
         _bdeBookingRepository = bdeBookingRepository;
         _articleRepository = articleRepository;
+        _faHierarchyOrderInfoRepository = faHierarchyOrderInfoRepository;
         _logger = logger;
     }
 
@@ -120,7 +123,7 @@ public class PickingLeitstandController : Controller
         // Gemeinsame Zeilen-Anreicherung (Pivot + PickingStatus + Termine) — flach UND gruppiert.
         // Detail-Pivot liefert pro aktivem AG FaWorkStepId + Status (VK-VA-Zellen, 3-Wert-Erledigt).
         PickingLeitstandItem MapItem(LeitstandOrderRow o, ProductionOrderPickingStatus? ps,
-            Dictionary<string, FaWorkStepPivotCell> grp)
+            Dictionary<string, FaWorkStepPivotCell> grp, FaHierarchyOrderInfo? head = null)
         {
             var item = new PickingLeitstandItem
             {
@@ -173,9 +176,15 @@ public class PickingLeitstandController : Controller
                     item.KommissionierTermin.Value, effectivePrePickingDays, holidays);
             }
 
-            // Beschichtungstermin nur aus dem Resolver (DRY mit FA-Liste und FA-Abarbeitungsliste).
+            // Beschichtungstermin nur aus dem Resolver (DRY mit FA-Liste und FA-Abarbeitungsliste). E4: hierarchisch mit dem
+            // eindeutigen Kopf (View = Kopf-Starttermin 1:1); Berechnet rechnet wie die FA-Liste ab dem Kopf-FE_Termin (A5).
+            // Die angezeigten K-/VK-Spalten bleiben unveraendert (DB-Datum der Zeile).
+            var beschichtungVk = head?.FE_Termin is DateTime fe
+                ? _businessDayService.SubtractBusinessDays(
+                    _businessDayService.SubtractBusinessDays(fe, kommissionierTage, holidays), effectivePrePickingDays, holidays)
+                : item.VorkommissionierTermin;
             item.BeschichtungTermin = BeschichtungResolver.Bestimmen(
-                beschichtung, item.HasCoatingParts, item.VorkommissionierTermin, null).Termin;
+                beschichtung, item.HasCoatingParts, beschichtungVk, head).Termin;
 
             return item;
         }
@@ -208,13 +217,18 @@ public class PickingLeitstandController : Controller
             var groupPivotH = await _faWorkStepRepository.GetWorkStepDetailPivotAsync(groupIds);
             var pickingStatusesH = await _pickingStatusRepository.GetByProductionOrderIdsAsync(groupIds);
 
+            // E4: Auftragskoepfe EINMAL je Seite (bei Memory-Filtern fuer alle Gruppen, da ungepaginiert geladen).
+            var kopf = await BeschichtungResolver.EindeutigeKoepfeAsync(
+                _faHierarchyOrderInfoRepository, grouped.Groups.Select(g => g.OrderNumber));
+
             var listGroups = grouped.Groups.Select(g => new PickingLeitstandGroup
             {
                 OrderNumber = g.OrderNumber,
                 Items = g.Rows.Select(r => MapItem(
                     r,
                     pickingStatusesH.GetValueOrDefault(r.Id),
-                    groupPivotH.GetValueOrDefault(r.Id) ?? new Dictionary<string, FaWorkStepPivotCell>())).ToList()
+                    groupPivotH.GetValueOrDefault(r.Id) ?? new Dictionary<string, FaWorkStepPivotCell>(),
+                    kopf(g.OrderNumber))).ToList()
             }).ToList();
 
             var totalGroupCount = grouped.TotalGroupCount;

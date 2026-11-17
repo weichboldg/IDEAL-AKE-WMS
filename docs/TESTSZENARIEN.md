@@ -12481,21 +12481,72 @@ Nicht in v1.99.25: Hinweis-Link der Standort-Maske (Etappe 6 der Spec, gehört z
 
 ---
 
-## TS-141 — AKE Regression Termin
+## TS-141 — AKE Regression Termin (nächste Version nach v1.99.31)
 
-*Zurückgestellt – Etappe blockiert (H1/H2/H3). Die Listen lesen die Termin-Quelle in v1.99.25 noch nicht.*
+Spec `2026-11-16-beschichtungslogik-je-standort-spec`, Etappe 2. Standort: AKE (und jedes System mit `ProduktionsauftragHierarchisch` aus,
+z. B. PROD IDEAL laut P-I1). **Keine Migration.** Web.
+
+**Vorbedingungen:** DEV AKE auf dem neuen Stand, `BeschichtungKennzeichenQuelle` und `BeschichtungTerminQuelle` = Automatisch; Rollen für
+FA-Liste, Leitstand und FA-Abarbeitungsliste; ein offener Lackier-FA (`HasCoatingParts` = 1) mit Fertigungstermin im Fenster. Beschichtungstermin
+dieses FA **vor** dem Update notieren (FA-Liste, Leitstand, Arbeitsliste). Nichts an Sage schreiben.
+
+| Nr | Szenario | Erwartet |
+|---|---|---|
+| 141.1 | FA-Liste, Leitstand, FA-Abarbeitungsliste (AG des FA wählen): Lackier-FA suchen | Beschichtungstermin in allen drei Listen = notierter Wert von vor dem Update |
+| 141.2 | Maus über die Spaltenüberschrift „Beschichtung“ in FA-Liste und Leitstand | Tooltip „Berechnet: Kommissioniertermin - N Arbeitstage, auf den letzten Abholtag“ (N = `BeschichtungTage`) |
+| 141.3 | Spaltenfilter Beschichtungstermin (`coating-date`) mit dem Datum aus 141.1 in FA-Liste und Leitstand | Der FA bleibt sichtbar, andere Termine fallen weg |
+| 141.4 | `LackierteilKategorieName` gesetzt: FA ohne Lackierteile ansehen | Kein Beschichtungstermin, kein Haken (wie vorher) |
+| 141.5 | Negativ: `LackierteilKategorieName` leer speichern, Listen neu laden | Beschichtungstermin an **allen** FA mit Fertigungstermin (fallstricke „Kategorie leer = Termin für alle“); danach Wert zurücksetzen |
+
+Automatisch belegt: `ProductionOrdersControllerTests.Index_Flat_OhneKategorie_AktivFalse_TerminFuerAlle_AK5`, die bestehenden Leitstand-/Arbeitslisten-
+Termintests (`Index_WerkbankOverride_VerschiebtBeschichtungsterminKaskadierend`, `Index_ComputesBeschichtungTermin_WhenFeatureInactive`),
+`BeschichtungTerminQuelleWaechterTests` (AK 9).
 
 ---
 
-## TS-142 — IDEAL Termin aus der View in allen drei Listen
+## TS-142 — IDEAL Termin aus der View in allen drei Listen (nächste Version nach v1.99.31)
 
-*Zurückgestellt – Etappe blockiert (H1/H2/H3).*
+Spec `2026-11-16-beschichtungslogik-je-standort-spec`, Etappen 2 und 4. Standort: IDEAL mit `ProduktionsauftragHierarchisch` = true (laut P-I1
+nur TEST/DEV IDEAL; PROD IDEAL hat den Master aus und verhält sich wie TS-141). **Keine Migration.** Web.
+
+**Vorbedingungen:** DEV IDEAL auf dem neuen Stand, beide Quellen = Automatisch (wirkt als FaStruktur/View); Lauf „FA-Materialisierung“ und
+„FA-Hierarchie“ gelaufen; ein HauptFA mit **genau einem** Auftragskopf mit `Start_Beschichtung` und mindestens einem Sub-FA mit Beschichtungs-
+Kennzeichen sowie einem ohne. Sollwert lesen: `SELECT HauptFA, MontageAbteilung, FE_Termin, Start_Beschichtung FROM FaHierarchyOrderInfos WHERE HauptFA = <Nr>`.
+
+| Nr | Szenario | Erwartet |
+|---|---|---|
+| 142.1 | FA-Liste, Leitstand, FA-Abarbeitungsliste: Sub-FA mit Kennzeichen des HauptFA | In allen drei Listen genau `Start_Beschichtung` aus der Abfrage (datumsgleich, kein Abholtag, keine Verschiebung) |
+| 142.2 | Sub-FA ohne Kennzeichen desselben HauptFA | Kein Beschichtungstermin, kein Haken – auch wenn `LackierteilKategorieName` leer ist |
+| 142.3 | Tooltip der Spaltenüberschrift „Beschichtung“ in FA-Liste und Leitstand | „Aus der Sage-View, Feld Start_Beschichtung, unverändert übernommen“ |
+| 142.4 | Gegenprobe: `BeschichtungTage` in `/Settings` von 10 auf 3 ändern, Listen neu laden | Termin aus 142.1 unverändert; danach Wert zurücksetzen |
+| 142.5 | Negativ: HauptFA mit **mehreren** Auftragsköpfen (Kombigerät) | In allen drei Listen kein Beschichtungstermin, kein Ersatztermin |
+| 142.6 | Negativ: Kopf mit leerem `Start_Beschichtung`, `FE_Termin` gesetzt | Kein Beschichtungstermin, kein Ersatztermin (wie TS-71.11b) |
+| 142.7 | Spaltenfilter Beschichtungstermin im Leitstand mit dem Datum aus 142.1 | Gruppe bleibt mit dem passenden Sub-FA sichtbar |
+
+Automatisch belegt: `PickingLeitstandControllerTests.Index_Hierarchical_View_*_AK7`, `Index_Hierarchical_Kombigeraet_KeinTermin`,
+`FaWorklistControllerTests.Index_Hierarchical_View_*_AK7`, `ProductionOrdersControllerTests.Index_Hierarchical_Automatisch_ViewTooltip_UndAktiv_AK6_AK13`,
+`BeschichtungResolverTests` (AK 6, Kombigerät, leeres Feld).
 
 ---
 
-## TS-143 — IDEAL Termin-Quelle Berechnet
+## TS-143 — IDEAL Termin-Quelle Berechnet (nächste Version nach v1.99.31)
 
-*Zurückgestellt – Etappe blockiert (H1/H2/H3).*
+Spec `2026-11-16-beschichtungslogik-je-standort-spec`, Etappen 2 und 4. Standort: IDEAL mit Master an. **Keine Migration.** Web.
+
+**Vorbedingungen:** wie TS-142; Admin-Benutzer für `/Settings`.
+
+| Nr | Szenario | Erwartet |
+|---|---|---|
+| 143.1 | `/Settings` > Termine und Beschichtung: „Quelle Beschichtungstermin“ = **Berechnet** speichern | Gespeichert, grüne Meldung |
+| 143.2 | FA-Liste, Leitstand, Arbeitsliste: Sub-FA mit Kennzeichen aus TS-142 | Termin = Kopf-`FE_Termin` minus `KommissionierTage` minus (Werkbank-)Vorkommissioniertage minus `BeschichtungTage` Arbeitstage, auf den letzten Abholtag; in allen drei Listen gleich, **nicht** `Start_Beschichtung` |
+| 143.3 | Tooltip der Spaltenüberschrift | Beginnt mit „Berechnet: Kommissioniertermin - N Arbeitstage …“ |
+| 143.4 | `BeschichtungTage` ändern | Termin verschiebt sich entsprechend; danach zurücksetzen |
+| 143.5 | Leitstand: Spalten Kommissioniertermin / VK-Termin des Sub-FA | Unverändert gegenüber vor dem Umschalten (nur der Beschichtungstermin rechnet ab dem Kopf) |
+| 143.6 | Zurückschalten auf **Automatisch** | Wieder `Start_Beschichtung` wie TS-142.1 |
+
+Automatisch belegt: `ProductionOrdersControllerTests.Index_Hierarchical_TerminQuelleBerechnet_AusKopfFeTermin_TooltipBerechnet_AK8`,
+`PickingLeitstandControllerTests.Index_Hierarchical_Berechnet_AusKopfFeTermin_WieFaListe_AK7_AK8`,
+`FaWorklistControllerTests.Index_Hierarchical_Berechnet_AusKopfFeTermin_AK7_AK8`.
 
 ---
 
@@ -12725,5 +12776,5 @@ Kalender-Klick, AccessDenied über die echte Filter-Pipeline.
 ---
 
 *Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) + Teil 6 (Standorteinstellungen, v1.34.0) + BOM-Guard hierarchisch (2026-08-18, abgelöst) + FA-Liste-Hierarchie (v1.35.0) + BOM-Bridge (v1.36.0) + Materialisierung fachliche Felder K1/K2 (v1.37.0) + Skopierung der Tabellen-Selektoren (TS-72) + FA-Liste ausgebaut: Matchcode, Kopfdaten je Zeile, HauptFA-Zeile, Freigabe-Kaskade (v1.38.0, TS-73) + PDF-Erzeugung für FaHierarchy-Druckdokumente (v1.39.0, TS-74) + Matchcode im Artikelstamm (v1.40.0, TS-75) + FA-Arbeitsgang-Erkennung aus der Struktur (v1.41.0, TS-76, ersetzt durch TS-77) + Arbeitsgänge (WorkOperation) aus der Struktur + Werkbank-Anlage aus Sage (v1.44.0, TS-77) + Arbeitsgänge je (Sub-)FA im FA-Struktur-Modal (v1.45.0, TS-78) + Kommissionierung nur am HauptFA
-(v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80) + Beschichtungsauftrag Summiert als Standard (v1.48.0, TS-81) + Briefkopf Beschichtungsauftrag (v1.49.0, TS-82) + Beschichtungsauftrag als eigenes Objekt (v1.50.0, TS-83) + Beschichtungsaufträge bedienen (v1.51.0, TS-84) + Arbeitsgänge als Symbole im FA-Baum (v1.52.0, TS-85) + CSV-Export für alle Tabellen (v1.53.0, TS-86) + Arbeitsgang-Stammdaten (v1.54.0, TS-87) + Status je Arbeitsgang-Kürzel im FA-Baum (v1.55.0, TS-88) + Menü Beschichtung + Kurzanleitungen (v1.56.0, TS-89) + BDE-Terminal mit Arbeitsgang-Status (v1.57.0, TS-90) + Spaltenfilter-Suchsyntax Etappe A + B (v1.58.0/v1.58.1, TS-91.A/B) + Fußzeile nach Word-Vorlage (v1.59.0, TS-92) + Sage-Quellen auf WMS-Views (v1.60.0–v1.60.2, TS-93) + Arbeitsgang-Abgleich aus der Sage-View (v1.61.0, TS-94) + Stückliste Matchcode und Lagerplatz-Limit (v1.62.0, TS-95) + BDE Stufe 1: Werkbänke, AG-Fertigmeldung (v1.63.0, TS-96) + BDE-Terminal Liste nach Haupt-FA, Scan ohne AG (v1.64.0, TS-97) + Spaltenauswahl/Zahnrad zentraler Toolbar-Host (v1.65.0, TS-98) + Hardware-Barcodescanner (v1.66.0–v1.66.2, TS-99) + Vault- und enaio-Links konfigurierbar (v1.67.0, TS-100) + QR erstes Feld Matchcode / Trennzeichen (v1.68.0/v1.69.0, TS-101) + Aktivitäts-Protokoll Spaltenfilter/Namen (v1.70.0, TS-102) + FA-Struktur live aus Sage (v1.71.0, TS-103) + Lagerplatz-Etikett 93 × 55 mm und Vormontage-Felder (v1.72.0, TS-104/TS-105) + Sage-Abgleich über SData (v1.73.0, TS-106) + Fehlteile „Nur meine Werkbänke“ Trefferzahl (v1.75.0, TS-108) + Bestandsübersicht QR-FA nur mit `QrMitFaNummer` (v1.76.0, TS-101.22–101.25) + Einstellungen Auswahlfelder und Beschreibung (v1.77.0, TS-109) + EAN-Scan Einkaufsartikel (v1.78.0, TS-110) + Bereinigungen nach dem Bündel 2026-11-07 (v1.79.0, TS-111) + Artikelinfo Lieferanten (v1.80.0, TS-112) + Fehlteile-Karte je Bestelltyp (v1.81.0, TS-113) + Wareneingang zu Sage-Bestellung (v1.84.0, TS-116) + Artikel Lieferanten/Mengeneinheiten (v1.85.0, TS-112.12–112.16) + Offene Bestellungen Nachbesserung (v1.86.0, TS-116.8/116.9) + Lager-Tools FA-Verknüpfung (v1.87.0, TS-115) + Kommissionieraufträge (v1.88.0, TS-120) + Kommissionieraufträge Nachbesserung (v1.89.0, TS-120.1/120.9/120.13/120.14) + Lager-Tools FA-Karte je Pflicht (v1.90.0, TS-115.3) + Offene Bestellungen Legende (v1.91.0, TS-116.8) + OSEON-Relevanzfilter/BDE-Checkboxen (v1.92.0, TS-121) + Meldebestand-Mail Bestandsregel (v1.93.0, TS-122) + Menüleiste Umbruch/Kontrast (v1.94.0, TS-123) + Nachbesserung Vorab-Abnahme (v1.95.0, TS-115.13/115.14/116.10/120.15) + Übernahme AKE-Hotfixes v1.30.2–1.30.4 (v1.96.0, TS-107, TS-124) + Auftrag drucken in Sortierreihenfolge (v1.97.0, TS-120.16) + Matchcode in der Kommissionier-Auftragsliste (v1.99.8, TS-120.17) + Update-Skript je Zielsystem (v1.98.0, TS-125) + Update-Skript Url-Vorrang und Dienst-Stopp-Limit (v1.98.1, TS-125.17/125.18) + Update-Skript prüft und führt aus, mit Bestätigung (v1.99.0–v1.99.2, TS-126) + Update-Skript Prüfung Mail-Ablageordner (v1.99.12, TS-126.28–126.31) + Vormontage Spalte Abteilung (v1.99.3, TS-127) + Wareneingang Sage-Wareneingangsbeleg und Lieferschein (v1.99.4–v1.99.6, TS-116.11–116.19) + Sage-Wareneingang automatisch wiederholen mit Sage-Prüfung, Klären (v1.99.7, TS-116.20–116.24) + System-Kürzel in den Sage-Kennungen WE#/SM# (v1.99.9, TS-116.25–116.30) + Lieferverzug-Mails (v1.99.10, TS-128) + Wareneingang Barcode und CSV-Übergabe (v1.99.11, TS-129) + Bugfixes AKE-Regression: Filter in Anführungszeichen, Bedarfsmeldung Ortszeit, Auftragsdruck Lagerplatz, Wagen-Modal (v1.99.13, TS-130) + Register Sage-Test und SData-Zugangsdaten (v1.99.14, TS-131) + Rahmenabrufe in Offene Bestellungen und Wareneingang (v1.99.15, TS-132) + Update-Skript zweiter Trockenlauf mit Wiederholungssperre, Eingabe-Abbruch, DEV-Ziele (v1.99.16, TS-133) + Kommissionier-Prio nach Freigabe zurücknehmen ohne Doppelte (v1.99.17, TS-134) + Zeitstempel in Ortszeit (v1.99.18, TS-135) + Lieferverzug-Mail Nachbesserung: Kreditor-Schwelle, Altersgrenze, Rahmenabrufe, Lieferanten-Artikelnummer (v1.99.19, TS-128.16–128.26) + Einkauf: Bestellvorschläge (v1.99.20, TS-136) + letzte Bestellmenge (v1.99.21, TS-136.6–136.6g, 136.18–136.20) + Belegnummer 45, Wareneingang Überlieferung-Spalte und Hinweis offene Bedarfe (v1.99.22, TS-137) + Doppel-Absenden-Schutz, unsichtbare Unterpositionen, CSV ohne Tausendertrenner, feste Kultur de-DE (v1.99.23, TS-138) + Beschichtungsquelle Einstellungen und Dienst (v1.99.25, TS-140, TS-144; TS-141–143 zurückgestellt) + FA-Struktur IDEAL über SData, Stückliste live (v1.99.26, TS-146–150) + Wareneingang-CSV ohne Kopfzeile, Erfasser Windows-Kontoname (v1.99.29, TS-153) + Bestellvorschläge Nachbesserung (v1.99.30, TS-154) + Offene Bestellungen sofort neu lesen, Einkauf-Ansichten, Datumsvorbelegung, Überfällige (v1.99.31, TS-155)*
+(v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80) + Beschichtungsauftrag Summiert als Standard (v1.48.0, TS-81) + Briefkopf Beschichtungsauftrag (v1.49.0, TS-82) + Beschichtungsauftrag als eigenes Objekt (v1.50.0, TS-83) + Beschichtungsaufträge bedienen (v1.51.0, TS-84) + Arbeitsgänge als Symbole im FA-Baum (v1.52.0, TS-85) + CSV-Export für alle Tabellen (v1.53.0, TS-86) + Arbeitsgang-Stammdaten (v1.54.0, TS-87) + Status je Arbeitsgang-Kürzel im FA-Baum (v1.55.0, TS-88) + Menü Beschichtung + Kurzanleitungen (v1.56.0, TS-89) + BDE-Terminal mit Arbeitsgang-Status (v1.57.0, TS-90) + Spaltenfilter-Suchsyntax Etappe A + B (v1.58.0/v1.58.1, TS-91.A/B) + Fußzeile nach Word-Vorlage (v1.59.0, TS-92) + Sage-Quellen auf WMS-Views (v1.60.0–v1.60.2, TS-93) + Arbeitsgang-Abgleich aus der Sage-View (v1.61.0, TS-94) + Stückliste Matchcode und Lagerplatz-Limit (v1.62.0, TS-95) + BDE Stufe 1: Werkbänke, AG-Fertigmeldung (v1.63.0, TS-96) + BDE-Terminal Liste nach Haupt-FA, Scan ohne AG (v1.64.0, TS-97) + Spaltenauswahl/Zahnrad zentraler Toolbar-Host (v1.65.0, TS-98) + Hardware-Barcodescanner (v1.66.0–v1.66.2, TS-99) + Vault- und enaio-Links konfigurierbar (v1.67.0, TS-100) + QR erstes Feld Matchcode / Trennzeichen (v1.68.0/v1.69.0, TS-101) + Aktivitäts-Protokoll Spaltenfilter/Namen (v1.70.0, TS-102) + FA-Struktur live aus Sage (v1.71.0, TS-103) + Lagerplatz-Etikett 93 × 55 mm und Vormontage-Felder (v1.72.0, TS-104/TS-105) + Sage-Abgleich über SData (v1.73.0, TS-106) + Fehlteile „Nur meine Werkbänke“ Trefferzahl (v1.75.0, TS-108) + Bestandsübersicht QR-FA nur mit `QrMitFaNummer` (v1.76.0, TS-101.22–101.25) + Einstellungen Auswahlfelder und Beschreibung (v1.77.0, TS-109) + EAN-Scan Einkaufsartikel (v1.78.0, TS-110) + Bereinigungen nach dem Bündel 2026-11-07 (v1.79.0, TS-111) + Artikelinfo Lieferanten (v1.80.0, TS-112) + Fehlteile-Karte je Bestelltyp (v1.81.0, TS-113) + Wareneingang zu Sage-Bestellung (v1.84.0, TS-116) + Artikel Lieferanten/Mengeneinheiten (v1.85.0, TS-112.12–112.16) + Offene Bestellungen Nachbesserung (v1.86.0, TS-116.8/116.9) + Lager-Tools FA-Verknüpfung (v1.87.0, TS-115) + Kommissionieraufträge (v1.88.0, TS-120) + Kommissionieraufträge Nachbesserung (v1.89.0, TS-120.1/120.9/120.13/120.14) + Lager-Tools FA-Karte je Pflicht (v1.90.0, TS-115.3) + Offene Bestellungen Legende (v1.91.0, TS-116.8) + OSEON-Relevanzfilter/BDE-Checkboxen (v1.92.0, TS-121) + Meldebestand-Mail Bestandsregel (v1.93.0, TS-122) + Menüleiste Umbruch/Kontrast (v1.94.0, TS-123) + Nachbesserung Vorab-Abnahme (v1.95.0, TS-115.13/115.14/116.10/120.15) + Übernahme AKE-Hotfixes v1.30.2–1.30.4 (v1.96.0, TS-107, TS-124) + Auftrag drucken in Sortierreihenfolge (v1.97.0, TS-120.16) + Matchcode in der Kommissionier-Auftragsliste (v1.99.8, TS-120.17) + Update-Skript je Zielsystem (v1.98.0, TS-125) + Update-Skript Url-Vorrang und Dienst-Stopp-Limit (v1.98.1, TS-125.17/125.18) + Update-Skript prüft und führt aus, mit Bestätigung (v1.99.0–v1.99.2, TS-126) + Update-Skript Prüfung Mail-Ablageordner (v1.99.12, TS-126.28–126.31) + Vormontage Spalte Abteilung (v1.99.3, TS-127) + Wareneingang Sage-Wareneingangsbeleg und Lieferschein (v1.99.4–v1.99.6, TS-116.11–116.19) + Sage-Wareneingang automatisch wiederholen mit Sage-Prüfung, Klären (v1.99.7, TS-116.20–116.24) + System-Kürzel in den Sage-Kennungen WE#/SM# (v1.99.9, TS-116.25–116.30) + Lieferverzug-Mails (v1.99.10, TS-128) + Wareneingang Barcode und CSV-Übergabe (v1.99.11, TS-129) + Bugfixes AKE-Regression: Filter in Anführungszeichen, Bedarfsmeldung Ortszeit, Auftragsdruck Lagerplatz, Wagen-Modal (v1.99.13, TS-130) + Register Sage-Test und SData-Zugangsdaten (v1.99.14, TS-131) + Rahmenabrufe in Offene Bestellungen und Wareneingang (v1.99.15, TS-132) + Update-Skript zweiter Trockenlauf mit Wiederholungssperre, Eingabe-Abbruch, DEV-Ziele (v1.99.16, TS-133) + Kommissionier-Prio nach Freigabe zurücknehmen ohne Doppelte (v1.99.17, TS-134) + Zeitstempel in Ortszeit (v1.99.18, TS-135) + Lieferverzug-Mail Nachbesserung: Kreditor-Schwelle, Altersgrenze, Rahmenabrufe, Lieferanten-Artikelnummer (v1.99.19, TS-128.16–128.26) + Einkauf: Bestellvorschläge (v1.99.20, TS-136) + letzte Bestellmenge (v1.99.21, TS-136.6–136.6g, 136.18–136.20) + Belegnummer 45, Wareneingang Überlieferung-Spalte und Hinweis offene Bedarfe (v1.99.22, TS-137) + Doppel-Absenden-Schutz, unsichtbare Unterpositionen, CSV ohne Tausendertrenner, feste Kultur de-DE (v1.99.23, TS-138) + Beschichtungsquelle Einstellungen und Dienst (v1.99.25, TS-140, TS-144) + Beschichtungstermin aus der Quelle in allen drei Listen (nächste Version nach v1.99.31, TS-141–143) + FA-Struktur IDEAL über SData, Stückliste live (v1.99.26, TS-146–150) + Wareneingang-CSV ohne Kopfzeile, Erfasser Windows-Kontoname (v1.99.29, TS-153) + Bestellvorschläge Nachbesserung (v1.99.30, TS-154) + Offene Bestellungen sofort neu lesen, Einkauf-Ansichten, Datumsvorbelegung, Überfällige (v1.99.31, TS-155)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*

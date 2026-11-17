@@ -73,7 +73,7 @@ public static class AppSettingDefinitions
         new(AppSettingKeys.BeschichtungKennzeichenQuelle, SettingType.Choice, IdealAkeWms.Services.Beschichtung.BeschichtungResolver.Automatisch, GTermine,
             "Legt fest, welcher Dienst-Lauf das Kennzeichen „beschichtet“ schreibt. Automatisch: hierarchisches Auftragsmodell (IDEAL) = FA-Struktur, flach (AKE) = Artikelkategorie. Abgelehnt wird „Artikelkategorie“ bei hierarchischem und „FA-Struktur“ bei flachem Auftragsmodell.",
             Anzeigename: "Quelle Beschichtet-Kennzeichen",
-            Verwendung: "Dienst: Lackierteil-Erkennung, FA-Materialisierung, Lackierteil-Erkennung nach dem Sage-Import. FA-Liste, Leitstand und Arbeitsliste lesen den Wert noch nicht (Folgeversion).",
+            Verwendung: "Dienst: Lackierteil-Erkennung, FA-Materialisierung, Lackierteil-Erkennung nach dem Sage-Import. FA-Liste, Leitstand und Arbeitsliste: Beschichtungs-Haken und -Termin bei FA-Struktur nur an Aufträgen mit Kennzeichen.",
             Standort: Beide,
             Warnhinweis: "Umschalten berechnet das Kennzeichen beim nächsten Lauf neu; fällt es weg, wird „Beschichtung erledigt“ zurückgesetzt.",
             Werte: new[]
@@ -85,7 +85,7 @@ public static class AppSettingDefinitions
         new(AppSettingKeys.BeschichtungTerminQuelle, SettingType.Choice, IdealAkeWms.Services.Beschichtung.BeschichtungResolver.Automatisch, GTermine,
             "Woher der Beschichtungstermin kommt. Automatisch: hierarchisches Auftragsmodell (IDEAL) = View, flach (AKE) = Berechnet. „View“ übernimmt Start_Beschichtung aus der Sage-View unverändert (keine Berechnung im WMS) und ist nur bei hierarchischem Auftragsmodell wählbar.",
             Anzeigename: "Quelle Beschichtungstermin",
-            Verwendung: "FA-Liste, Kommissionier-Leitstand, Werkbank-Arbeitsliste – noch ohne Wirkung: die Listen lesen den Wert erst mit einer Folgeversion.",
+            Verwendung: "FA-Liste, Kommissionier-Leitstand, Werkbank-Arbeitsliste (Spalte Beschichtungstermin, Tooltip nennt die Quelle).",
             Standort: Beide,
             Werte: new[]
             {
