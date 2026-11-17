@@ -2,7 +2,7 @@
 type: spec
 title: FA-Struktur mit Abgleich und Lebenslauf statt Full-Replace
 slug: 2026-11-17-fa-struktur-abgleich-statt-full-replace-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-11-17
 updated: 2026-11-17
 source_backlog: "[[2026-11-17-fa-struktur-abgleich-statt-full-replace]]"
@@ -542,7 +542,18 @@ Dev-Lauf 2026-11-17 (Goal Sammel-Abend), **teilweise, Rest offen für die Koordi
 
 ## Deploy
 
-**Vorläufig, wird vom QA-Lauf gegen den echten Diff bestätigt.**
+**Final aus dem echten Diff (QA 2026-11-17, `8e0a346e..1f0361dd`):**
+- **Web-App:** ja (`IdealAkeWms/`: Modell, Migration, Schild `_FaStrukturBadge`, Melde-Abweisung BDE-Teileliste, Setting-Definition).
+- **Service:** ja (`IDEALAKEWMSService/`: Abgleich, `FaStatusLesenAsync`, Materialisierung/Erkennung nur aktive Knoten, R4).
+- **Migration:** ja, `20261117183315_FaStrukturAbgleich` = **SQL/159** (nicht 158), additiv, kein Backup nötig (an PROD sind die Tabellen leer).
+- **Reihenfolge:** Dienst stoppen → Vorher-Prüfung `Pruefung/FaStrukturSchluesselDoppelt` (muss 0 sein) → SQL/159 → Web → Dienst starten.
+- **Manifest** `scripts/deploy/nachlauf.psd1`: `SQL/159`, `Pruefung/FaStrukturSchluesselDoppelt`, `v1.99.37-FaStrukturAufbewahrungTage`,
+  `v1.99.37-FaStrukturBeendetSichtbar` vorhanden (geprüft). Kein Daten-/Einmal-Skript.
+- **Publish:** im QA-Lauf bewusst **nicht** gebaut (Auftrag der Koordination: Paket 2 baut Gerald selbst, aus HEAD `1f0361dd`).
+- Nach dem Merge nur dann aus `main` neu publishen, wenn der Merge geprüfte Dateien mit parallelen main-Änderungen zusammengeführt hat.
+- **Vor Prod (Blocker):** P-AB4 (Mandant in `KHKPpsFaBelege`) und P-AB5 (Leserecht Dienst-Login) klären.
+
+Ursprünglicher Entwurf (vorläufig, Nummern 158 → 159 verschoben):
 
 - **Web-App:** ja (Badges, Melde-Abweisung, Settings-Anzeige).
 - **Service:** ja (Sync, Materialisierung, Erkennung).
@@ -584,3 +595,128 @@ Dev-Lauf 2026-11-17 (Goal Sammel-Abend), **teilweise, Rest offen für die Koordi
 2. Default Aufbewahrungsfrist (Vorschlag 90 Tage) → **Gerald 2026-11-17 18:42 „Rest passt“: 90 Tage.**
 3. Arbeitslisten: anzeigen mit Badge oder ausblenden mit Schalter; Teileliste meldbar ja/nein → **Gerald 2026-11-17 18:42 „Rest passt“ (Empfehlung): anzeigen mit Badge, in der BDE-Teileliste nicht meldbar.**
 4. Mandant der Einzelabfrage (nur falls P-AB4 mehrere zeigt) → **Gerald 2026-11-17 18:42 „Rest passt“ (Empfehlung): bestehender `Sync:ProductionWorkplaceSyncMandant` (Beschreibung erweitern), kein eigener Key.**
+
+## QA-Nachweis (qa-agent, 2026-11-17)
+
+Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Epic-Commits `7a1f7301` … `96049d0d` (ohne Teil 1/2), QA-Fix `1f0361dd`.
+
+### 1. Build und Tests
+- Vor dem Review: `dotnet build IdealAkeWms.slnx` 0 Fehler (29 Warnungen, vorbestehend). `dotnet test`: IdealAkeWms.Tests 3231 bestanden /
+  1 übersprungen / 0 Fehler, IDEALAKEWMSService.Tests 749 / 0 / 0.
+- Nach QA-Fix F1 (`1f0361dd`): Build 0 Fehler. IdealAkeWms.Tests 3231 / 1 / 0, IDEALAKEWMSService.Tests **751** / 0 / 0. Die zwei neuen
+  Tests waren vor dem Fix nachweislich rot (Stash-Gegenprobe).
+
+### 2. Code-Review (selbst, in diesem Lauf)
+Geprüft: `FaHierarchySyncService.cs` (Abgleich, Wächter, DryRun, Positionen, Aufräumen), `FaStrukturAbgleich.cs` (Norm, Schlüssel, Planen,
+Entscheiden), `SageFaStrukturReader.FaStatusLesenAsync`, Weiche, R4 in `SdataFaStrukturReader`, `SQL/159`, EF-Migration, `00_FreshInstall.sql`
+(Schema der 3 Tabellen + 2 Indizes, MigrationId mit Guard), `ApplicationDbContext`, `ServiceSettingDefinitions`, alle Konsumenten der drei
+Tabellen (grep über `.FaHierarchyNodes`/`.FaHierarchyOrderInfos`/`.ProductionOrderPositions`, kein Raw-SQL-Leser, `SQL/AgentJobs` nicht
+betroffen), Partial `_FaStrukturBadge` und 9 Views, BDE-Teileliste (Anzeige und Server-Abweisung), Manifest.
+
+| # | Schwere | Befund | Behandlung |
+|---|---|---|---|
+| F1 | **Hoch (Datenverlust)** | `gelesen` enthielt auch `SubFA` gelesener Knoten, `HauptFA` aus FAInfos und `StrukturID` der Positionen. Ein beendeter Sub-FA, den der offene Vater weiter als Knoten liefert, galt damit als „gelesen“. Seine fehlende eigene Stückliste wurde als `entfernt_position` **ohne Sage-Abfrage gelöscht** (verletzt AK 4). Ebenso eine beendete Haupt-FA, die FAInfos noch liefert, FAListe aber nicht (AK 5). Der Test `SubFaBeendet_…` entfernte Knoten und Kinder gemeinsam und deckte den Fall nicht ab. | **Behoben** in `1f0361dd`: `gelesen` = Owner gelesener Knoten (`VaterFA ?? HauptFA`) + `BelID` gelesener Positionen. Zwei neue Tests (`SubFaBeendet_VaterListetIhnNoch_…`, `HauptFaNurNochInInfos_…`). Fallstrick 48 ergänzt. |
+| F2 | Mittel (bekannt, bestätigt) | `FaStatusLesenAsync` ohne Mandant-Filter. Bei mehrdeutiger BelID gilt „offen“. Möglich ist nur ein falscher Grund, **kein** Datenverlust (ein fremder Mandant verhindert eher das Entfernen). Die Beschreibungserweiterung `Sync:ProductionWorkplaceSyncMandant` aus Freigabe-Antwort 4 ist noch nicht umgesetzt. | Blocker vor Prod bis P-AB4, unverändert |
+| F3 | Niedrig | Die Summiert-Sichten (Kommissionierliste, Vormontage, Beschichtung) zeigen das Schild an der Summenzeile, sobald **eine** beitragende Zeile verschwunden ist. Die Summe kann aktive HauptFAs mit einschließen. | gemeldet, Fachentscheidung |
+| F4 | Niedrig | `Norm` nutzt `ToUpperInvariant`, die CI-Kollation setzt aber z. B. „ß“ = „ss“. Weicht ein Schlüssel nur so ab, scheitert `SaveChanges` am UNIQUE-Index. Dann ist der Lauf rot, die Transaktion wird zurückgerollt und es geht eine Mail raus, **kein** Datenverlust. | gemeldet, keine Änderung (in Artikelnummern nicht erwartet) |
+| F5 | Niedrig | Die Beschreibung von `Sync:HierarchicalFaEnabled` sagt noch „Full-Refresh“. Die Druckansichten haben kein Schild (bekannt). | gemeldet |
+| F6 | Hinweis | `<partial model="null">` (Gruppe ohne OrderInfo, Struktur ohne Wurzel und Kopf): Der PartialTagHelper übernimmt ein explizites `null`, das Partial rendert dann nichts. Auf DEV hatte jede Gruppe einen Kopf, der Null-Fall ist am Bildschirm nicht belegt. | Manual-UAT |
+
+Ohne Befund bestätigt:
+- Der Empty-Guard läuft unverändert vor jeder Mutation.
+- Guard „alles verschwunden“ und Sage-Fehler setzen `entscheiden = false`. Dann wird weder markiert noch entfernt noch aufgeräumt.
+- DryRun: kein `SaveChanges`, keine Transaktion, am Ende `ChangeTracker.Clear()`, eigener Scope je Dienst-Lauf (`SyncWorker.cs:356`).
+- Der Dubletten-Wächter sperrt die HauptFA in allen drei Tabellen.
+- Der erste `VerschwundenSeit` bleibt. Eine Mail bei `unklar` gibt es nur bei einer neuen Markierung.
+- Aufräumen nie bei einer aktiven Zeile, und ein leeres „alle erledigt“ zählt nicht.
+- Positionen-Fehler: Tracker geleert, `entfernt` zurückgesetzt, Lauf grün mit Mail.
+- Materialisierung und Erkennung lesen nur aktive Knoten.
+- BDE-Melden wird serverseitig abgewiesen (`BdeTeilelisteService.cs:302`).
+- Audit-Felder: nicht anwendbar (Cache-Tabellen, wie in der Spec).
+- Kein `@Html.Raw` in Skripten, kein `hidden` mit `d-*`, keine stillen `?? 0` im Diff.
+
+### 3. Nachweisart je Akzeptanzkriterium
+| AK | Nachweis |
+|---|---|
+| 1, 2, 3, 6, 7, 8, 10, 11, 12, 14, 15, 17 | automatisch (`FaStrukturAbgleichTests`, InMemory). Lauf am SQL Server mit Sage: Manual-UAT offen |
+| 4, 5 | automatisch (inkl. F1-Tests). Sage-Seite: Manual-UAT |
+| 9 | automatisch (bestehender Pfad des Empty-Guards) |
+| 13 | Planer automatisch. **Index und Kollation am SQL Server auf DEV belegt** (158.17) |
+| 16 | Anzeige DEV OK. Server-Abweisung über den gemeinsamen `SettingValidator` (Code), Direkt-POST: Manual-UAT |
+| 18 | automatisch (`FelderSetzen_Artikeltyp_ImmerVomArtikel`). Vergleichslauf: Manual-UAT |
+| 19 | automatisch (`FaMaterializationSyncServiceTests`) |
+| 20 | DEV OK (alle 7 Ansichten mit Schild) |
+| 21 | automatisch (`BdeTeilelisteMeldenTests`) + DEV-Anzeige OK |
+| 22 | automatisch (`Positionen_ViewBetrieb_Null_…`) |
+| 23 | **auf DEV belegt** (siehe 6) |
+| 24 | Code-Review (nur `SELECT`). Recht des Dienst-Logins: Manual-UAT P-AB5 |
+
+### 4. Geänderte bestehende Tests
+- `FaStrukturSdataTests`:
+  - Fixture Artikeltyp KOPF/BG: gewollt (AK 18, R4).
+  - DryRun-Count-Keys ohne `geloescht`: gewollt (Abschnitt Aktivitätsprotokoll).
+  - `PositionenErsetzen_*` entfernt, ersetzt durch `Positionen_*` in `FaStrukturAbgleichTests` (E4).
+  - Ctor um `IConfiguration` erweitert: Typ-Anpassung.
+- `NachlaufManifestDriftTests`: Liste um `SQL/159` erweitert (Daten-Anpassung).
+- `FaMaterializationSyncServiceTests`, `WorkOperationStructureDetectionServiceTests`, `BdeTeilelisteMeldenTests`: nur Ergänzungen.
+- Kein Fall „Sonstiges“.
+
+### 5. Checkliste
+- Migration + idempotentes SQL/159 mit Guards ✓
+- FreshInstall an beiden Stellen ✓
+- AgentJobs nicht betroffen ✓
+- Audit n/a ✓
+- Version 1.99.37 in beiden `AppVersion.cs`, Anwender- und Brain-Changelog ✓
+- TS-158 in `docs/TESTSZENARIEN.md` + Index ✓
+- ADR 0032 ✓, Fallstrick 48 ✓
+- ADR 0020 für `Sync:FaStrukturAufbewahrungTage` ✓: Int 1–3650 (Eingabe mit `min/max`, Server `SettingValidator`), Anzeigename, Wirkung,
+  Verwendung, Default 90, Standort IDEAL, Warnhinweis.
+
+### 6. DEV
+- **Vorbereitung:**
+  - Standort laut Frontmatter IDEAL, dazu AKE für die Regression (Auftrag).
+  - Dienste und Sites gestoppt. Zielordner `D:\Dev\<Standort>\Web` und `\Service` geleert, behalten wurden `appsettings.DEV.json*`, `App_Data`
+    und `logs`.
+- **Vorher-Prüfung** `Pruefung/FaStrukturSchluesselDoppelt`: AKE 0, IDEAL 0 (IDEAL: 755 Knoten, 4 Infos, 0 Positionen; AKE leer).
+- **SQL/159:**
+  - IDEAL: **vor** dem Web-Start 2× ausgeführt, beide Läufe Exit 0. Lauf 1 meldete „Migration … eingetragen“, Lauf 2 änderte nichts.
+    Ergebnis: 755 Knoten mit Startwerten, 2 UX-Indizes, 6 NOT-NULL-Spalten.
+  - AKE: EF-Migration beim Start, danach SQL/159 2×, Exit 0.
+- **Abbruchpfad auf einer Scratch-DB** (danach gelöscht):
+  - Dubletten `A1`/`a1 ` und `''`/NULL → Prüfabfrage meldet 2.
+  - SQL/159 bricht mit lesbarer Meldung ab: kein Index, keine History.
+  - Nach der Bereinigung lief das Skript über den halben Stand fehlerfrei.
+- **Deploy** mit `dev-deploy.ps1` aus dem Worktree (HEAD `1f0361dd`, elevated):
+  - **IDEAL: HTTP 200, Fußzeile v1.99.37, Exit 0.**
+  - **AKE: HTTP 200, Fußzeile v1.99.37, Exit 0.**
+  - Dienst-Logs ohne ERR. Die FA-Materialisierung IDEAL lief (0 neu, 0 vermisst).
+- **Grenzen:** Die DEV-Absicherung lässt `Sync:HierarchicalFaEnabled = false`, und Sage-Test ist von hier nicht erreichbar. Der Abgleich-Lauf
+  selbst lief deshalb auf DEV nicht.
+
+| Schritt | Ergebnis |
+|---|---|
+| 158.1, 158.2, 158.5–158.11, 158.15, 158.16 | NICHT MÖGLICH: Lauf FA-Hierarchie auf DEV aus (`Sync:*Enabled` tabu), Sage-Test nicht erreichbar, keine Sage-Schreibrechte |
+| 158.3/158.4 (Anzeige) | OK. Lebenslauf von Hand gesetzt: 1060414 komplett `beendet`, Sub-FA 1065141 in 1059463 `inaktiv` (5 Zeilen). Schild „in Sage beendet“ am Kopf, „in Sage inaktiv“ an den Knoten, Tooltip mit Datum |
+| 158.12 | Anzeige OK (Werkbank 67 KA): Schild + „nicht meldbar“, kein Knopf, kein Haken. Direkt-POST NICHT MÖGLICH ohne Skript (automatisch belegt) |
+| 158.13 | OK: Kommissionierliste, Vormontage und Beschichtung, je Liste und Summiert, mit Schild in Gruppenzeile bzw. an der Artikelnummer |
+| 158.14 | teilweise OK. Anzeige nach ADR 0020 vollständig. 0 vom Browser abgewiesen („größer oder gleich 1“), nicht gespeichert (DB 90). Server-Abweisung per Direkt-POST NICHT MÖGLICH ohne Skript |
+| 158.17 | OK: Kopie einer Knotenzeile mit `Artnr + '   '` scheitert an `UX_FaHierarchyNodes_Schluessel` (Msg 2601), Rollback |
+| 158.18 | OK (beide DBs, siehe oben) |
+| AKE-Regression | OK: v1.99.37, Fertigungsaufträge und Kommissionierung laden unverändert, Tabellen leer |
+
+Testdaten zurückgesetzt: alle `VerschwundenSeit`/`VerschwundenGrund` auf IDEAL_WMS_DEV wieder NULL (Kontrolle 0/0), App-Pool recycelt.
+
+### 7. Publish
+Nicht gebaut (ausdrücklicher Auftrag: Paket 2 baut Gerald). Manifest-Einträge geprüft, siehe Deploy.
+
+### Manuelle Checkliste für Gerald (offen)
+1. P-AB1/P-AB2 auf dem IDEAL-Server (755 Knoten) als Vorher-Prüfung. Bei einem Ergebnis > 0 nicht deployen.
+2. P-AB3, P-AB4 (Mandant, **Blocker vor Prod**), P-AB5 (Leserecht Dienst-Login auf TEST und PROD), P-AB6, P-AB8.
+3. Testsystem IDEAL (Sage-Test erreichbar, `Sync:HierarchicalFaEnabled = true`): TS-158.1, .2, .5, .6, .7. Bei 158.3 einen Sub-FA nehmen, den der
+   offene Vater **weiter** in der Stückliste führt (F1-Fall): Seine Stückliste muss mit „in Sage beendet“ erhalten bleiben.
+4. TS-158.8 (Leer-Wächter), 158.9 (Recht entziehen, nur DEV/Test), 158.10/158.11 (Aufräumen über Frist bzw. Erledigt), 158.16 DryRun.
+5. TS-158.15, Modus Vergleich: Artikeltyp „BG“ vom Artikel.
+6. TS-158.12/158.14 per Direkt-POST (Melden auf eine verschwundene Zeile, Aufbewahrung 0/4000): Der Server weist ab.
+7. Ansicht mit einer Gruppe ohne Auftragskopf (F6) prüfen, dazu Druck/PDF (ohne Schild, bekannt).
+8. Fachentscheidung zu F3 (Schild an gemischten Summenzeilen).
+9. Danach Merge (Schranke 2).

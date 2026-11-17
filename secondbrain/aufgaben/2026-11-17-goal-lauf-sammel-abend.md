@@ -16,7 +16,7 @@ kein Merge, kein Push.
 | 1 | [[2026-11-13-blechfertigung-bf-auftraege-wicam-csv-spec]] B-1 (c) + Test-CSV | 1.99.35 | 158 (unverändert) | `0b31a17d` | Testbereit (`f0d949c6`) | Paket 1 |
 | 2a | [[2026-11-16-beschichtungslogik-je-standort-spec]] Nachtrag 4 | 1.99.36 | – | `8e0a346e` | Testbereit (`f0d949c6`) | Paket 1 |
 | 2b | [[2026-11-13-bde-vereinfacht-teileliste-blechfertigung-spec]] Nachtrag Kontrast | 1.99.36 | – | `e40ecfcb` | Testbereit (`f0d949c6`) | Paket 1 |
-| 3 | [[2026-11-17-fa-struktur-abgleich-statt-full-replace-spec]] E1–E8 | 1.99.37 | 159 | `7a1f7301` `94e327e7` `026d0d32` `354344d8` `8ea8e98d` `2abad047`+`b1f83b1a` `0963a0a5` `7fa7603d`+`96049d0d` | offen | Paket 2 |
+| 3 | [[2026-11-17-fa-struktur-abgleich-statt-full-replace-spec]] E1–E8 | 1.99.37 | 159 | `7a1f7301` `94e327e7` `026d0d32` `354344d8` `8ea8e98d` `2abad047`+`b1f83b1a` `0963a0a5` `7fa7603d`+`96049d0d`, QA-Fix `1f0361dd` | Testbereit (QA 2026-11-17, F1 behoben) | Paket 2 |
 
 ## Protokoll
 
@@ -44,3 +44,9 @@ kein Merge, kein Push.
   Positionen, E5 Aufräumen, E6 R4 (Projektionstest in `b1f83b1a` nachgezogen: E6-Commit war mit rotem Test durchgerutscht, weil das
   grep auf „Fehler!“ die Kette nicht stoppte), E7 Konsumenten + Schild, E8 Doku/Version/TS-158/Manifest. Build 0 Fehler, Tests 749 + 3231
   (1 übersprungen) grün. **Offen für die Koordination:** P-AB1/2 auf dem IDEAL-Server, P-AB3/4/5/6/8, Druckansichten ohne Schild.
+- QA Teil 3 (qa-agent): Build 0 Fehler, Tests 751 + 3231 (1 übersprungen) nach QA-Fix. **F1 Hoch behoben** (`1f0361dd`): `gelesen` zählte
+  `SubFA`/FAInfos-HauptFA mit, dadurch wäre die Stückliste eines beendeten Sub-FA, den der offene Vater weiter führt, als `entfernt_position`
+  gelöscht worden (AK 4/5). Dazu Fallstrick 48 ergänzt. DEV IDEAL + AKE (Zielordner geleert) v1.99.37, HTTP 200. SQL/159 je 2× idempotent,
+  Vorher-Prüfung 0/0, Abbruch bei Dubletten auf Scratch-DB belegt. TS-158.3/.4/.12/.13/.14 (Anzeige)/.17/.18 + AKE-Regression OK. Der
+  Abgleich-Lauf selbst ist auf DEV nicht möglich (Sync aus, Sage-Test nicht erreichbar). Befunde F2 (Mandant, Blocker vor Prod), F3–F6
+  niedrig, siehe Spec. Paket 2 aus `1f0361dd` bauen.

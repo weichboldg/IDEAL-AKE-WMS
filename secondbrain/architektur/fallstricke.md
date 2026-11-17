@@ -2091,3 +2091,7 @@ Code: `hardware-scanner.js` Block „Scannen ohne Feld“, CSS `.hw-scan-bereit`
 - **Seit v1.99.37 löscht der Lauf nicht mehr alles:** `FaHierarchyNodes`/`FaHierarchyOrderInfos`/`ProductionOrderPositions` enthalten in Sage
   beendete oder ungeklärte Zeilen. Wer neu liest (Einmal-Skripte, Berichte, neue Konsumenten), filtert `VerschwundenSeit IS NULL`, wenn er nur
   aktive Struktur will. Warum: sonst entstehen aus beendeten FAs neue Arbeitsgänge oder WMS-Aufträge (ADR 0032).
+- **„Owner gelesen“ heißt: seine Stückliste kam im Read, nicht: die Nummer kam irgendwo vor** (QA 2026-11-17, Commit `1f0361dd`). Nur
+  `VaterFA ?? HauptFA` gelesener Knoten bzw. `BelID` gelesener Positionen zählen. Warum: Ein beendeter Sub-FA steht weiter als Knoten in der
+  Stückliste seines offenen Vaters (`SubFA`), und eine beendete Haupt-FA kann in FAInfos stehen, obwohl FAListe sie nicht mehr liefert. Zählt
+  das als „gelesen“, gilt die fehlende eigene Stückliste als „Position in Sage entfernt“ und wird ohne Sage-Abfrage gelöscht.
