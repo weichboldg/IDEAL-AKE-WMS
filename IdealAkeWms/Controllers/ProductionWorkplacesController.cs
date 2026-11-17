@@ -260,11 +260,11 @@ public class ProductionWorkplacesController : Controller
     {
         if (!vm.BdeTeileliste) return;
         if (!await IsHierarchicalMasterAsync())
-            ModelState.AddModelError(string.Empty, "Die BDE-Teileliste gibt es nur bei hierarchischen ProduktionsauftrÃ¤gen (IDEAL).");
+            ModelState.AddModelError(string.Empty, "Die BDE-Teileliste gibt es nur bei hierarchischen Produktionsaufträgen (IDEAL).");
         else if (!bdeAktiv)
-            ModelState.AddModelError(nameof(vm.BdeTeileliste), "Die BDE-Teileliste braucht â€žBDE aktivâ€œ.");
+            ModelState.AddModelError(nameof(vm.BdeTeileliste), "Die BDE-Teileliste braucht „BDE aktiv“.");
         else if (code == null)
-            ModelState.AddModelError(nameof(vm.BdeTeileliste), "Die BDE-Teileliste braucht ein Arbeitsschritt-KÃ¼rzel an der Werkbank.");
+            ModelState.AddModelError(nameof(vm.BdeTeileliste), "Die BDE-Teileliste braucht ein Arbeitsschritt-Kürzel an der Werkbank.");
     }
 
     private async Task SetFormViewBagAsync()
