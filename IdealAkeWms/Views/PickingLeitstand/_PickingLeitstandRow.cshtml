@@ -80,9 +80,8 @@
     <td>@item.Maschine</td>
     <td>@item.SageStatus</td>
     @{
-        var lackName = Model.LackierteilKategorieName;
-        var featureInactive = string.IsNullOrWhiteSpace(lackName);
-        var showBeschicht = featureInactive || item.HasCoatingParts;
+        // Aktiv-Kennung aus dem BeschichtungResolver (Spec 2026-11-16-beschichtungslogik-je-standort, A6).
+        var showBeschicht = !Model.BeschichtungAktiv || item.HasCoatingParts;
         var beschichtRed = showBeschicht
                            && !item.IsDone
                            && !item.IsCoatingDone

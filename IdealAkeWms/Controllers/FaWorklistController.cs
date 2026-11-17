@@ -5,6 +5,7 @@ using IdealAkeWms.Filters;
 using IdealAkeWms.Models;
 using IdealAkeWms.Models.ViewModels;
 using IdealAkeWms.Services;
+using IdealAkeWms.Services.Beschichtung;
 using PageSize = IdealAkeWms.Services.PageSize;
 
 namespace IdealAkeWms.Controllers;
@@ -196,12 +197,10 @@ public class FaWorklistController : Controller
         // — VOR Filter/Pagination, weil bg-date/picking-date filterbar sind.
         var kommissionierTage = await _settingRepository.GetIntValueAsync("KommissionierTage", 4);
         var vorkommissionierTage = await _settingRepository.GetIntValueAsync("VorkommissionierTage", 1);
-        var holidays = await _holidayRepository.GetHolidayDatesAsync();
-        var beschichtungTage = await _settingRepository.GetIntValueAsync("BeschichtungTage", 10);
-        var beschichtungAbholtageSetting = await _settingRepository.GetValueAsync(AppSettingKeys.BeschichtungAbholtage) ?? "Dienstag,Donnerstag";
-        var pickupDays = _businessDayService.ParsePickupDays(beschichtungAbholtageSetting);
-        var lackierteilName = await _settingRepository.GetValueAsync(AppSettingKeys.LackierteilKategorieName);
-        var coatingFeatureActive = !string.IsNullOrWhiteSpace(lackierteilName);
+        // Beschichtung (Spec 2026-11-16-beschichtungslogik-je-standort, E2): Quelle, Termin und Aktiv-Kennung nur aus dem Resolver.
+        var beschichtung = await BeschichtungResolver.LadenAsync(
+            _settingRepository, _holidayRepository, _businessDayService, hierarchical, _logger);
+        var holidays = beschichtung.Feiertage;
         vm.VorkommissionierTage = vorkommissionierTage;   // Standard-Referenz fuer den Override-Tooltip
 
         // Matchcode-Join (Task 2, Artikelstamm): EIN Batch-Lookup fuer den gefilterten Bestand
@@ -267,11 +266,11 @@ public class FaWorklistController : Controller
                     order.ProductionDate.Value, kommissionierTage, holidays);
                 row.VorkommissionierTermin = _businessDayService.SubtractBusinessDays(
                     row.KommissionierTermin.Value, effectivePrePickingDays, holidays);
-                // Beschichtungstermin: shared CoatingDateCalculator (DRY mit Leitstand).
-                row.BeschichtungTermin = CoatingDateCalculator.Compute(
-                    row.VorkommissionierTermin, beschichtungTage, holidays, pickupDays,
-                    order.PickingStatus?.HasCoatingParts ?? false, coatingFeatureActive, _businessDayService);
             }
+
+            // Beschichtungstermin nur aus dem Resolver (DRY mit FA-Liste und Leitstand).
+            row.BeschichtungTermin = BeschichtungResolver.Bestimmen(
+                beschichtung, order.PickingStatus?.HasCoatingParts ?? false, row.VorkommissionierTermin, null).Termin;
 
             // Schritt 6: Merkmal-Werte als Anzeigetext (Dropdown -> Option.Value,
             // Boolean -> JA/NEIN, fehlend -> "").

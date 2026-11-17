@@ -137,7 +137,7 @@
                 <th data-filterable data-col-key="ausfuehrung">Ausführung E/Z</th>
                 <th data-filterable data-col-key="maschine">Maschine</th>
                 <th data-filterable data-col-key="sage-status">Sage-Status</th>
-                <th class="text-nowrap" data-filterable data-col-key="coating-date" data-date-filter title="Kommissioniertermin - @Model.BeschichtungTage Arbeitstage">Beschicht.</th>
+                <th class="text-nowrap" data-filterable data-col-key="coating-date" data-date-filter title="@Model.BeschichtungTerminTitel">Beschicht.</th>
                 <th class="text-nowrap" data-filterable data-col-key="bg-date" data-date-filter title="Kommissioniertermin - Vorkommissioniertage (Standard @Model.VorkommissionierTage Arbeitstag(e), je Werkbank abweichend)">BG-Termin</th>
                 <th class="text-nowrap" data-filterable data-col-key="picking-date" data-date-filter title="Fertigungstermin - @Model.KommissionierTage Arbeitstage">Komm.</th>
                 <th class="text-nowrap" data-filterable data-col-key="production-date" data-date-filter>Fert.-Termin</th>
@@ -184,7 +184,7 @@
                     PickerAssignmentEnabled = Model.PickerAssignmentEnabled,
                     VorkommissionierTage = Model.VorkommissionierTage,
                     EnaioDmsLinks = Model.EnaioDmsLinks,
-                    LackierteilKategorieName = ViewBag.LackierteilKategorieName as string,
+                    BeschichtungAktiv = Model.BeschichtungAktiv,
                     Hierarchical = Model.Hierarchical,
                 };
         }

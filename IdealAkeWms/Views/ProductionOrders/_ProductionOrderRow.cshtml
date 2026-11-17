@@ -13,9 +13,8 @@
     var faCellNumber = Model.Hierarchical ? (item.SubOrderNumber ?? item.OrderNumber) : item.OrderNumber;
     // Kommissionierung nur am HauptFA (Spec 2026-09-25): Quelle ProductionOrder.IsSubFaOf (item.IsSubFa).
     var isHauptFaRow = Model.Hierarchical && !item.IsSubFa;
-    var lackName = Model.LackierteilKategorieName;
-    var featureInactive = string.IsNullOrWhiteSpace(lackName);
-    var showBeschicht = featureInactive || item.HasCoatingParts;
+    // Aktiv-Kennung aus dem BeschichtungResolver (Spec 2026-11-16-beschichtungslogik-je-standort, A6).
+    var showBeschicht = !Model.BeschichtungAktiv || item.HasCoatingParts;
     var beschichtRed = showBeschicht && !item.IsDone && !item.IsCoatingDone
                        && item.BeschichtungTermin.HasValue && item.BeschichtungTermin.Value < today;
     var rowClass = (item.IsCancelled ? "table-danger" : item.IsDone ? "table-secondary" : "");

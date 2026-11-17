@@ -4,6 +4,7 @@ using IdealAkeWms.Filters;
 using IdealAkeWms.Models;
 using IdealAkeWms.Models.ViewModels;
 using IdealAkeWms.Services;
+using IdealAkeWms.Services.Beschichtung;
 using PageSize = IdealAkeWms.Services.PageSize;
 
 namespace IdealAkeWms.Controllers;
@@ -102,13 +103,14 @@ public class PickingLeitstandController : Controller
 
         var kommissionierTage = await _settingRepository.GetIntValueAsync("KommissionierTage", 4);
         var vorkommissionierTage = await _settingRepository.GetIntValueAsync("VorkommissionierTage", 1);
-        var beschichtungTage = await _settingRepository.GetIntValueAsync("BeschichtungTage", 10);
-        var beschichtungAbholtageSetting = await _settingRepository.GetValueAsync(AppSettingKeys.BeschichtungAbholtage) ?? "Dienstag,Donnerstag";
-        var pickupDays = _businessDayService.ParsePickupDays(beschichtungAbholtageSetting);
-        var holidays = await _holidayRepository.GetHolidayDatesAsync();
-        var lackierteilName = await _settingRepository.GetValueAsync(AppSettingKeys.LackierteilKategorieName);
-        var coatingFeatureActive = !string.IsNullOrWhiteSpace(lackierteilName);
-        ViewBag.LackierteilKategorieName = lackierteilName;
+
+        // IDEAL FA-Liste-Hierarchie: nur bei Master ProduktionsauftragHierarchisch = true.
+        var hierarchical = IsTrue(await _serviceSettingRepository.GetValueAsync(
+            IdealAkeWms.Services.HierarchischeStruktur.HierarchischeStrukturKeys.Master));
+        // Beschichtung (Spec 2026-11-16-beschichtungslogik-je-standort, E2): Quelle, Termin und Aktiv-Kennung nur aus dem Resolver.
+        var beschichtung = await BeschichtungResolver.LadenAsync(
+            _settingRepository, _holidayRepository, _businessDayService, hierarchical, _logger);
+        var holidays = beschichtung.Feiertage;
 
         // Matchcode (Task 2, Artikelstamm): kein DB-Feld auf ProductionOrder mehr — je Aufbau (flach
         // ODER hierarchisch) per Batch-Lookup gegen Article befuellt, BEVOR MapItem/der Postfilter
@@ -169,11 +171,11 @@ public class PickingLeitstandController : Controller
                     o.ProductionDate.Value, kommissionierTage, holidays);
                 item.VorkommissionierTermin = _businessDayService.SubtractBusinessDays(
                     item.KommissionierTermin.Value, effectivePrePickingDays, holidays);
-                // Beschichtungstermin: shared CoatingDateCalculator (DRY mit FA-Abarbeitungsliste).
-                item.BeschichtungTermin = CoatingDateCalculator.Compute(
-                    item.VorkommissionierTermin, beschichtungTage, holidays, pickupDays,
-                    ps?.HasCoatingParts ?? false, coatingFeatureActive, _businessDayService);
             }
+
+            // Beschichtungstermin nur aus dem Resolver (DRY mit FA-Liste und FA-Abarbeitungsliste).
+            item.BeschichtungTermin = BeschichtungResolver.Bestimmen(
+                beschichtung, item.HasCoatingParts, item.VorkommissionierTermin, null).Termin;
 
             return item;
         }
@@ -184,10 +186,6 @@ public class PickingLeitstandController : Controller
             ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
         var canPick = await _currentUserService.CanPickAsync();
         var canManagePickingRelease = await _currentUserService.CanManagePickingReleaseAsync();
-
-        // IDEAL FA-Liste-Hierarchie: nur bei Master ProduktionsauftragHierarchisch = true.
-        var hierarchical = IsTrue(await _serviceSettingRepository.GetValueAsync(
-            IdealAkeWms.Services.HierarchischeStruktur.HierarchischeStrukturKeys.Master));
 
         PickingLeitstandViewModel vm;
 
@@ -253,7 +251,8 @@ public class PickingLeitstandController : Controller
                 ShowDone = showDone,
                 KommissionierTage = kommissionierTage,
                 VorkommissionierTage = vorkommissionierTage,
-                BeschichtungTage = beschichtungTage,
+                BeschichtungTerminTitel = BeschichtungResolver.TerminTitel(beschichtung),
+                BeschichtungAktiv = BeschichtungResolver.Aktiv(beschichtung),
                 CanPick = canPick,
                 CanManagePickingRelease = canManagePickingRelease,
                 LeitstandAktiv = leitstandAktiv,
@@ -322,7 +321,8 @@ public class PickingLeitstandController : Controller
             ShowDone = showDone,
             KommissionierTage = kommissionierTage,
             VorkommissionierTage = vorkommissionierTage,
-            BeschichtungTage = beschichtungTage,
+            BeschichtungTerminTitel = BeschichtungResolver.TerminTitel(beschichtung),
+            BeschichtungAktiv = BeschichtungResolver.Aktiv(beschichtung),
             CanPick = canPick,
             CanManagePickingRelease = canManagePickingRelease,
             LeitstandAktiv = leitstandAktiv,

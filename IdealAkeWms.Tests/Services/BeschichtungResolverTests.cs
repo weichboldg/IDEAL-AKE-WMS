@@ -1,4 +1,7 @@
 using FluentAssertions;
+using IdealAkeWms.Data.Repositories;
+using Microsoft.Extensions.Logging;
+using Moq;
 using IdealAkeWms.Models;
 using IdealAkeWms.Services;
 using IdealAkeWms.Services.Beschichtung;
@@ -157,5 +160,27 @@ public class BeschichtungResolverTests
     {
         BeschichtungResolver.Bestimmen(Kontext(hierarchisch, kategorieGesetzt: kategorieGesetzt), true, null, null)
             .Aktiv.Should().Be(aktiv);
+    }
+
+    [Fact]
+    public async Task LadenAsync_FremdwertWirktWieAutomatisch_UndLoggtWarnung_AK4()
+    {
+        var settings = new Mock<IAppSettingRepository>();
+        settings.Setup(s => s.GetValueAsync(It.IsAny<string>())).ReturnsAsync((string?)null);
+        settings.Setup(s => s.GetValueAsync(AppSettingKeys.BeschichtungTerminQuelle)).ReturnsAsync("SData");
+        settings.Setup(s => s.GetValueAsync(AppSettingKeys.LackierteilKategorieName)).ReturnsAsync("Lack");
+        settings.Setup(s => s.GetIntValueAsync("BeschichtungTage", 10)).ReturnsAsync(7);
+        var holidays = new Mock<IHolidayRepository>();
+        holidays.Setup(h => h.GetHolidayDatesAsync()).ReturnsAsync(new HashSet<DateTime>());
+        var logger = new Mock<ILogger>();
+
+        var k = await BeschichtungResolver.LadenAsync(settings.Object, holidays.Object, Days, hierarchisch: true, logger.Object);
+
+        k.Quellen.Termin.Should().Be(BeschichtungTerminQuelle.View);
+        k.KategorieGesetzt.Should().BeTrue();
+        k.BeschichtungTage.Should().Be(7);
+        k.Abholtage.Should().BeEquivalentTo(DiDo, "Default Dienstag,Donnerstag");
+        logger.Verify(l => l.Log(LogLevel.Warning, It.IsAny<EventId>(), It.IsAny<It.IsAnyType>(), It.IsAny<Exception?>(),
+            It.IsAny<Func<It.IsAnyType, Exception?, string>>()), Times.Once);
     }
 }

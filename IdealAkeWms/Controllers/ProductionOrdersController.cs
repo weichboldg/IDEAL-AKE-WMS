@@ -3,6 +3,7 @@ using IdealAkeWms.Data.Repositories;
 using IdealAkeWms.Models;
 using IdealAkeWms.Models.ViewModels;
 using IdealAkeWms.Services;
+using IdealAkeWms.Services.Beschichtung;
 using PageSize = IdealAkeWms.Services.PageSize;
 
 using IdealAkeWms.Filters;
@@ -138,13 +139,14 @@ public class ProductionOrdersController : Controller
 
         var kommissionierTage = await _settingRepository.GetIntValueAsync("KommissionierTage", 4);
         var vorkommissionierTage = await _settingRepository.GetIntValueAsync("VorkommissionierTage", 1);
-        var beschichtungTage = await _settingRepository.GetIntValueAsync("BeschichtungTage", 10);
-        var beschichtungAbholtageSetting = await _settingRepository.GetValueAsync(AppSettingKeys.BeschichtungAbholtage) ?? "Dienstag,Donnerstag";
-        var pickupDays = _businessDayService.ParsePickupDays(beschichtungAbholtageSetting);
-        var holidays = await _holidayRepository.GetHolidayDatesAsync();
-        var lackierteilName = await _settingRepository.GetValueAsync(AppSettingKeys.LackierteilKategorieName);
-        var coatingFeatureActive = !string.IsNullOrWhiteSpace(lackierteilName);
-        ViewBag.LackierteilKategorieName = lackierteilName;
+
+        // IDEAL FA-Liste-Hierarchie: nur bei Master ProduktionsauftragHierarchisch = true.
+        var hierarchical = IsTrue(await _serviceSettingRepository.GetValueAsync(
+            IdealAkeWms.Services.HierarchischeStruktur.HierarchischeStrukturKeys.Master));
+        // Beschichtung (Spec 2026-11-16-beschichtungslogik-je-standort, E2): Quelle, Termin und Aktiv-Kennung nur aus dem Resolver.
+        var beschichtung = await BeschichtungResolver.LadenAsync(
+            _settingRepository, _holidayRepository, _businessDayService, hierarchical, _logger);
+        var holidays = beschichtung.Feiertage;
 
         // Matchcode (Task 2, Artikelstamm): kein DB-Feld auf ProductionOrder mehr — je Aufbau (flach
         // ODER hierarchisch, genau einer der beiden Zweige laeuft) per Batch-Lookup gegen Article
@@ -153,11 +155,11 @@ public class ProductionOrdersController : Controller
         var matchcodes = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
 
         // Gemeinsame Zeilen-Anreicherung (Termine, PrePicking-Override, Coating) — flach UND gruppiert.
-        // groupProductionDate/groupDeliveryDate/groupCoatingStart: K1-Gruppenwerte (IDEAL, Task 8).
+        // groupProductionDate/groupDeliveryDate/head: K1-Gruppenwerte (IDEAL, Task 8); head = der EINE Auftragskopf (null bei Kombigeraet).
         // Die flache Aufrufstelle (AKE) uebergibt bewusst nichts -> bit-identisches Verhalten.
         ProductionOrderListItem MapItem(LeitstandOrderRow o, bool hasCoatingParts, bool isCoatingDone,
             DateTime? groupProductionDate = null, DateTime? groupDeliveryDate = null,
-            DateTime? groupCoatingStart = null, bool hierarchical = false,
+            FaHierarchyOrderInfo? head = null, bool hierarchical = false,
             string? groupCustomer = null, int? groupPrio = null, string? groupAbNummer = null,
             string? groupMontageAbteilung = null, DateTime? groupKonstruktionsTermin = null)
         {
@@ -206,25 +208,16 @@ public class ProductionOrdersController : Controller
                     effectiveProductionDate.Value, kommissionierTage, holidays);
                 item.VorkommissionierTermin = _businessDayService.SubtractBusinessDays(
                     item.KommissionierTermin.Value, effectivePrePickingDays, holidays);
-                if (!coatingFeatureActive || item.HasCoatingParts)
-                {
-                    var rawBeschichtung = _businessDayService.SubtractBusinessDays(
-                        item.VorkommissionierTermin.Value, beschichtungTage, holidays);
-                    item.BeschichtungTermin = _businessDayService.FindPreviousPickupDay(rawBeschichtung, pickupDays);
-                }
             }
+
+            // Beschichtungstermin nur aus dem Resolver: Quelle View = Kopf-Starttermin der Sage-View 1:1 (leer bleibt
+            // leer, kein Ersatztermin aus der Kaskade, Fixrunde 1); Berechnet = Calculator ab dem VK-Termin
+            // (hierarchisch aus dem Kopf-FE_Termin, A5). Die flache Aufrufstelle uebergibt keinen Kopf.
+            item.BeschichtungTermin = BeschichtungResolver.Bestimmen(
+                beschichtung, hasCoatingParts, item.VorkommissionierTermin, head).Termin;
 
             if (hierarchical)
             {
-                // Fixrunde 1: NICHT an groupCoatingStart.HasValue haengen — das erschliesst den
-                // hierarchischen Fall aus dem Vorhandensein eines Kopf-Werts. FE_Termin und
-                // Start_Beschichtung sind UNABHAENGIGE Felder: FE_Termin gesetzt + Start_Beschichtung
-                // leer (in Sage noch nicht geplant) ist ein normaler Zwischenstand, in dem die
-                // Kaskade oben trotzdem einen Wert errechnet. Bei IDEAL kommt der Beschichtungstermin
-                // AUSSCHLIESSLICH aus dem Auftragskopf — deshalb wird hier bedingungslos ersetzt,
-                // auch wenn der Kopfwert leer ist (kein Raten statt Wahrheit). Nur an Zeilen mit Lack-Flag.
-                item.BeschichtungTermin = item.HasCoatingParts ? groupCoatingStart : null;
-
                 // K1 (Task 5): Kopfdaten je Zeile durchreichen — NICHT materialisieren, nur
                 // Anzeige-Modell. Bei Kombigeraeten (heads.Count > 1) sind die Gruppen-Locals im
                 // Aufrufer bereits NULL, also werden die Zeilenfelder hier automatisch leer statt
@@ -237,10 +230,6 @@ public class ProductionOrdersController : Controller
             }
             return item;
         }
-
-        // IDEAL FA-Liste-Hierarchie: nur bei Master ProduktionsauftragHierarchisch = true.
-        var hierarchical = IsTrue(await _serviceSettingRepository.GetValueAsync(
-            IdealAkeWms.Services.HierarchischeStruktur.HierarchischeStrukturKeys.Master));
 
         ProductionOrderListViewModel vm;
 
@@ -284,7 +273,7 @@ public class ProductionOrdersController : Controller
 
                 DateTime? groupProductionDate = null;
                 DateTime? groupDeliveryDate = null;
-                DateTime? groupCoatingStart = null;
+                FaHierarchyOrderInfo? groupHead = null;
                 string? groupCustomer = null;
                 int? groupPrio = null;
                 string? groupAbNummer = null;
@@ -304,7 +293,7 @@ public class ProductionOrdersController : Controller
 
                     groupProductionDate = h.FE_Termin;
                     groupDeliveryDate = h.Verladetermin_Vsl;
-                    groupCoatingStart = h.Start_Beschichtung;
+                    groupHead = h;
                     groupCustomer = h.Kunde;
                     groupPrio = h.Prio;
                     groupAbNummer = h.ABNr;
@@ -332,7 +321,7 @@ public class ProductionOrdersController : Controller
                 {
                     var ps = psDict.GetValueOrDefault(r.Id);
                     return MapItem(r, ps?.HasCoatingParts ?? false, ps?.IsCoatingDone ?? false,
-                        groupProductionDate, groupDeliveryDate, groupCoatingStart, hierarchical: true,
+                        groupProductionDate, groupDeliveryDate, groupHead, hierarchical: true,
                         groupCustomer, groupPrio, groupAbNummer, groupMontageAbteilung, groupKonstruktionsTermin);
                 }).ToList();
 
@@ -390,7 +379,8 @@ public class ProductionOrdersController : Controller
                 ShowDone = showDone,
                 KommissionierTage = kommissionierTage,
                 VorkommissionierTage = vorkommissionierTage,
-                BeschichtungTage = beschichtungTage,
+                BeschichtungTerminTitel = BeschichtungResolver.TerminTitel(beschichtung),
+                BeschichtungAktiv = BeschichtungResolver.Aktiv(beschichtung),
                 CanPick = await _currentUserService.CanPickAsync(),
                 HasVorbauAccess = await _currentUserService.HasVorbauAccessAsync(),
                 EnaioDmsLinks = groupDmsLinks,
@@ -457,7 +447,8 @@ public class ProductionOrdersController : Controller
             ShowDone = showDone,
             KommissionierTage = kommissionierTage,
             VorkommissionierTage = vorkommissionierTage,
-            BeschichtungTage = beschichtungTage,
+            BeschichtungTerminTitel = BeschichtungResolver.TerminTitel(beschichtung),
+            BeschichtungAktiv = BeschichtungResolver.Aktiv(beschichtung),
             CanPick = await _currentUserService.CanPickAsync(),
             HasVorbauAccess = await _currentUserService.HasVorbauAccessAsync(),
             EnaioDmsLinks = dmsLinks,

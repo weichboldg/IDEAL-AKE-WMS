@@ -9,7 +9,10 @@ public class ProductionOrderListViewModel
     public bool ShowDone { get; set; }
     public int KommissionierTage { get; set; }
     public int VorkommissionierTage { get; set; }
-    public int BeschichtungTage { get; set; }
+    /// <summary>Spaltenkopf-Tooltip „Beschicht.“ je Termin-Quelle (BeschichtungResolver.TerminTitel).</summary>
+    public string BeschichtungTerminTitel { get; set; } = string.Empty;
+    /// <summary>Aktiv-Kennung aus dem BeschichtungResolver: true = Termin/Haken nur an Zeilen mit Lack-Flag.</summary>
+    public bool BeschichtungAktiv { get; set; }
     public bool CanPick { get; set; }
 
     /// <summary>vorbau-Zugriff (read-only Stueckliste-Button in der FA-Liste, v1.25.0).</summary>
@@ -73,7 +76,8 @@ public class ProductionOrderRowContext
     public bool HasVorbauAccess { get; set; }
     public int VorkommissionierTage { get; set; }
     public Dictionary<string, List<Data.Repositories.EnaioDmsDocumentLink>> EnaioDmsLinks { get; set; } = new();
-    public string? LackierteilKategorieName { get; set; }
+    /// <summary>Aktiv-Kennung aus dem BeschichtungResolver (A6): false = Termin fuer alle Zeilen (heutiges Verhalten ohne Kategorie).</summary>
+    public bool BeschichtungAktiv { get; set; }
     /// <summary>true → order-number-Zelle zeigt SubOrderNumber, Elternspalte + SageMissingSince-Badge aktiv.</summary>
     public bool Hierarchical { get; set; }
 }

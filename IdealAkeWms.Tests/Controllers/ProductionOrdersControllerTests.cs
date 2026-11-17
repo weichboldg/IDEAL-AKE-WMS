@@ -704,4 +704,64 @@ public class ProductionOrdersControllerTests
         vm.Items.Should().HaveCount(1);
         vm.Pagination.TotalCount.Should().Be(50);
     }
+
+    // --- Spec 2026-11-16-beschichtungslogik-je-standort, E2: FA-Liste liest Termin, Tooltip und Aktiv-Kennung nur aus dem Resolver ---
+
+    [Fact]
+    public async Task Index_Hierarchical_Automatisch_ViewTooltip_UndAktiv_AK6_AK13()
+    {
+        SetupGrouped(new LeitstandOrderGroupedPage(
+            new List<LeitstandOrderGroup> { new("1000", new List<LeitstandOrderRow> { MakeRowH(1, "1000", "1001") }) },
+            TotalGroupCount: 1, TotalRowCount: 1));
+        SetupPickingStatuses(new Dictionary<int, ProductionOrderPickingStatus>());
+
+        var vm = (ProductionOrderListViewModel)((ViewResult)await _controller.Index(null, null, null, false, 1, null)).Model!;
+
+        vm.BeschichtungTerminTitel.Should().Contain("Sage-View").And.Contain("Start_Beschichtung");
+        vm.BeschichtungAktiv.Should().BeTrue("Quelle FaStruktur ist immer aktiv, unabhaengig von LackierteilKategorieName");
+    }
+
+    [Fact]
+    public async Task Index_Hierarchical_TerminQuelleBerechnet_AusKopfFeTermin_TooltipBerechnet_AK8()
+    {
+        _settingRepo.Setup(s => s.GetValueAsync(AppSettingKeys.BeschichtungTerminQuelle)).ReturnsAsync("Berechnet");
+        SetupGrouped(new LeitstandOrderGroupedPage(
+            new List<LeitstandOrderGroup> { new("1000", new List<LeitstandOrderRow> { MakeRowH(1, "1000", "1001"), MakeRowH(2, "1000", "1002") }) },
+            TotalGroupCount: 1, TotalRowCount: 2));
+        SetupPickingStatuses(new Dictionary<int, ProductionOrderPickingStatus>
+        {
+            { 1, MakePs(1, hasCoatingParts: true) },
+            { 2, MakePs(2, hasCoatingParts: false) },
+        });
+        _orderInfoRepo.Setup(r => r.GetByHauptFaKeysAsync(It.IsAny<IReadOnlyCollection<int>>()))
+            .ReturnsAsync(new List<FaHierarchyOrderInfo>
+                { MakeHead(1000, feTermin: new DateTime(2026, 8, 10), startBeschichtung: new DateTime(2026, 1, 1)) });
+
+        var vm = (ProductionOrderListViewModel)((ViewResult)await _controller.Index(null, null, null, false, 1, null)).Model!;
+
+        // Kalendertage: FE 10.08. - 4 Komm. - 1 VK = 05.08., - 10 Beschichtungstage = 26.07. (Start_Beschichtung ignoriert).
+        var items = vm.Groups.Single().Items;
+        items.Single(i => i.SubOrderNumber == "1001").BeschichtungTermin.Should().Be(new DateTime(2026, 7, 26));
+        items.Single(i => i.SubOrderNumber == "1002").BeschichtungTermin.Should().BeNull("FaStruktur ist aktiv: nur Zeilen mit Lack-Flag");
+        vm.BeschichtungTerminTitel.Should().StartWith("Berechnet");
+    }
+
+    [Fact]
+    public async Task Index_Flat_OhneKategorie_AktivFalse_TerminFuerAlle_AK5()
+    {
+        _serviceSettingRepo.Setup(s => s.GetValueAsync(It.IsAny<string>())).ReturnsAsync((string?)null);
+        var row = new LeitstandOrderRow(1, "FA-100", 1m, null, "ART-001", null, null,
+            new DateTime(2026, 8, 10), null, false, false, false, null);
+        _orderRepo.Setup(r => r.GetForLeitstandAsync(
+                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<bool>(),
+                It.IsAny<int>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>?>()))
+            .ReturnsAsync(new LeitstandOrderPage(new List<LeitstandOrderRow> { row }, 1));
+        SetupPickingStatuses(new Dictionary<int, ProductionOrderPickingStatus>());
+
+        var vm = (ProductionOrderListViewModel)((ViewResult)await _controller.Index(null, null, null, false, 1, null)).Model!;
+
+        vm.BeschichtungAktiv.Should().BeFalse();
+        vm.Items.Single().BeschichtungTermin.Should().Be(new DateTime(2026, 7, 26), "alte Inline-Formel: VK 05.08. - 10 Tage");
+        vm.BeschichtungTerminTitel.Should().Contain("10 Arbeitstage");
+    }
 }
