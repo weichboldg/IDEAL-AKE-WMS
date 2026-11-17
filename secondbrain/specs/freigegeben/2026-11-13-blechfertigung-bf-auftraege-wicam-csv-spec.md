@@ -551,3 +551,109 @@ Kein Epic. Schnittempfehlung siehe Hinweis im Lösungsentwurf.
 11. Storno-Regeln → **Gerald 2026-11-17 16:33 „der Rest passt“ (Empfehlung): ja.**
 12. Auswertung ohne eigene Positionsliste → **Gerald 2026-11-17 16:33 „der Rest passt“ (Empfehlung): ja.**
 13. Mail nur beim Abschicken → **Gerald 2026-11-17 16:33 „der Rest passt“ (Empfehlung): ja.**
+
+## QA-Nachweis (qa-agent, 2026-11-17)
+
+> [!warning] Ergebnis: **nicht Testbereit** – Status bleibt `InUmsetzung`
+> Build, Tests, Review und DEV-Deploy sind grün; der Review-Befund F1 ist behoben und auf DEV nachgeprüft. Offen bleibt
+> **B-1** (Fachentscheidung, kein Code-Fix durch QA): Die Freigabe ist mit echten Lagerplätzen praktisch immer gesperrt.
+> Publish nach `<Worktree>\publish\` wurde deshalb **nicht** erstellt (erst nach grünem Stand).
+
+**Geprüfter Stand:** Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Branch `feature/2026-08-07-ideal-teile-1-5`,
+Review-Bereich `eff0c1a4..9f2a0802`, dazu QA-Fix `c6c04f9f`. Version 1.99.35, SQL/158, TS-157, Standort IDEAL (Frontmatter `standort: IDEAL`).
+
+### 1. Build und Tests
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler, 29 Warnungen (vorbestehend, u. a. NU1903).
+- `dotnet test` vor dem Fix: IDEALAKEWMSService.Tests 714 bestanden / 0 übersprungen / 0 Fehler; IdealAkeWms.Tests 3208 / 1 / 0 (3209).
+- `dotnet test` nach dem Fix `c6c04f9f`: Service 714 / 0 / 0; Web **3216** / 1 / 0 (3217, +8 `BfAuftraegeMengeTests`).
+
+### 2. Code-Review (selbst, synchron)
+Geprüft: alle Dateien des Diffs, u. a. `BfAuftragWorkflow`, `BfAuftraegeController`, `BfAuftraegeApiController`, Views Index/Warenkorb/Details,
+Filter `RequireBlechfertigungAktiv`/`RequireSchachtlerAccess`/`RequireBfBestellenAccess`, `CurrentUserService` (CanSchachteln/CanBfBestellen),
+`BfAuftragRepository` (Lagerteile-SQL, MAX+1, serialisierbare Transaktion), `BfCsv`, `BfArtikelFelder`, Dienst `BfCsvService`,
+`BfAuftragEmailService`, Einhängung in `SageBookingWorker`/`SyncWorker`, `BlechteileFelderNachlese` + `SdataArtikelReader.BlechteileFelderLesenAsync`
+(nur GET), `SageImportService`-Hook, Settings-Kataloge, `SyncLogServices`, `_Layout`, `RoleOverview`, SQL/158 + FreshInstall, Manifest, `.gitattributes`.
+Fokusklassen: keine Razor-Werte in `<script>` (nur statische JSON-Konfig), kein `hidden` + `d-*`, Mengenregel serverseitig bei Hinzufügen/Ändern/
+Freigabe, Regel an einem Ort (`MengenFehler`, `FreigabeFehler`), kein stiller `?? 0`-Fallback (F1-Fix: nicht lesbar → 0 → sichtbare Fehlermeldung).
+
+| # | Befund | Behandlung |
+|---|---|---|
+| **F1** | `AddItem`/`UpdateItem`/`UpdatePosition` banden `decimal menge` mit Kultur de-DE; Details rendert `Menge.ToString(Invariant)` = „40.000“. Auf DEV belegt: unverändertes „Speichern“ machte aus **40 → 40000** (besteht die Mengenregel als Vielfaches!), Eingabe „1.5“ → **15**. | **Behoben** `c6c04f9f`: Menge als Text binden, `BfAuftraegeController.Menge` → `BeschichtungsauftraegeController.TryMenge` (Punkt/Komma, Invariant), Details rendert `0.###`; Test `BfAuftraegeMengeTests` (8 Fälle). Auf DEV nachgeprüft: 40 bleibt 40, 1.5 → 1.500. |
+| **B-1** | Spec (Abschnitte F3 und „Freigabe-Sperren“) verbietet `;` in **jedem** CSV-Feld, auch Hauptlagerplatz (= `ORDER_POSITION`). Lagerplatz-Codes aus Sage haben das Format `XX;n;n;n` (DEV IDEAL 228 von 230, DEV AKE 3285 von 3294; Artikel-Hauptlagerplatz z. B. `S-03;0;0;0`). Folge: Freigabe für praktisch jede Position mit Sage-Vorbelegung gesperrt („Pos 1 Hauptlagerplatz: Semikolon“, auf DEV belegt). | **Offen – Entscheidung Gerald** (mit P-1): Was erwartet WiCAM in `ORDER_POSITION`? Optionen: (a) nur Lagerkennung vor dem ersten `;` (`S-03`), (b) `;` ersetzen, (c) Feld in Anführungszeichen, falls WiCAM das liest. Danach kleiner Fix in `BfCsv`/`FreigabeFehler` + Test. |
+| H-1 | Abschicken mit veralteter RowVersion: `DbUpdateConcurrencyException` läuft in die Nummern-Wiederholung (5×) und endet mit „keine freie BF-Nummer“ statt „von anderem Benutzer geändert“. Selten (gleicher Besteller in zwei Tabs). | Hinweis, nicht behoben. |
+| H-2 | Zwei gleichzeitige erste `AddItem` könnten zwei Entwürfe anlegen; globaler Doppelklick-Schutz (v1.99.23) mindert. | Hinweis. |
+| H-3 | `Index` lädt alle Aufträge mit Positionen in den Speicher und filtert dort. Bei erwarteter Menge vertretbar. | Hinweis. |
+| H-4 | Mail-Dienst warnt bei Gruppe ohne aktive Empfänger jeden Takt – gleich wie `WarehouseRequisitionEmailService`. | Kein Befund (bestehendes Muster). |
+| H-5 | AK 9 „ohne Materialnummer → abgelehnt“ widerspricht Antwort 2; umgesetzt ist Antwort 2 (Hinweis, Position nicht übergeben; gesperrt nur, wenn keine Position übergeben wird). | Konform zur Freigabe; TS-157 beschreibt es. |
+
+### 3. Nachweisart je AK
+| AK | Nachweis | Ergebnis |
+|---|---|---|
+| 1 | DEV-Browser + `BfAuftraegeFilterTests` | OK (admin: kein Menü, Umleitung mit Hinweis) |
+| 2 | DEV (raw SQL, nicht InMemory) | OK: BG 50000263, FT 50000425/50000335 gefunden; ZK 50000153 und Nicht-Lager 50000169 nicht |
+| 3 | DEV | OK (Matchcode, Teileart, Material, Materialnummer, Lagerplatz, Menge = Bestellmenge 20) |
+| 4 | Unit `BfAuftragWorkflowTests` + DEV | OK (30 → „ganzes Vielfaches der Bestellmenge 20“, 40 ok, auch beim Schachtler) |
+| 5 | DEV | OK („–“, „EILT“ = Default `BfStatuswerte`) |
+| 6 | DEV + Unit | OK Sperre ohne Gruppe, `BF00000001…03`; **Gleichzeitigkeit/Unique-Index Manual-UAT offen** |
+| 7 | – | NICHT MÖGLICH (`Sync:BfAuftragEmailEnabled` auf DEV verboten) |
+| 8 | Unit Filter + DEV | OK: Rolle reporting → 302 auf Liste/Details, kein Menü; lagerbestellung → nur eigene, kein „Auswahl fertig melden“, keine Ändern/Freigeben-Knöpfe, fremder Auftrag 403; schachtler → alle Aufträge mit Aktionen. Direkt-POST als Besteller nicht im Browser ausgeführt (Filter-Unit-Test belegt das Attribut). |
+| 9 | Unit + DEV | Gemäß Antwort 2 (H-5); `;`-Sperre wirkt (siehe B-1) |
+| 10 | Unit + DEV | OK: Freigabe Di 17.11., Feiertag Mi 18.11. → Schachteln **19.11.2026**, FE **02.12.2026**; Bemerkung BG „EILT - LASERN - 17.11 - 1“, FT „17.11“ |
+| 11 | Unit `BfCsvServiceTests` + DEV | OK Datei, Kopf, A–H, CRLF, keine `.tmp`, Position ohne Materialnummer fehlt; **Byte-Gleichheit zu P-1 offen** (Vorlage ist Platzhalter) |
+| 12 | Unit + DEV | OK: vorhandene `BF00000002.csv` unverändert, CSV `Fehler` „Datei existiert bereits im Pool – nicht überschrieben.“; nach Löschen „CSV erneut schreiben“ → geschrieben |
+| 13 | Unit `Schreibfehler_WiederholungErstNachAbstand` | Netzwerkpfad ohne Recht: Manual-UAT offen |
+| 14 | DEV | Einzeln OK (Status Fertig, Audit-Felder, 0 `StockMovements`); **Mehrfachauswahl auf DEV nicht ausgeführt** |
+| 15 | DEV + Unit | OK: Besteller storniert eigenen „Bestellt“; Schachtler storniert „Freigegeben“ mit Pool-Hinweis |
+| 16 | DEV | Pagination, Filterkarte, Spaltenfilter, CSV-Export-Knopf sichtbar; Filter/Export nicht durchgeklickt |
+| 17 | – | NICHT MÖGLICH (braucht Artikel-Abgleich mit `Sync:ArticlesEnabled` + SData IDEAL) |
+| 18 | DEV AKE + Build/Tests | OK (AKE 8081: `/BfAuftraege` 302, kein Menülink) |
+
+### 4. Geänderte bestehende Tests
+`NachlaufManifestDriftTests` (+`SQL/158`), `AppSettingDefinitionsTests` (Anzahl 60 → 65), `ServiceSettingDefinitionsTests` (+12 InlineData),
+`ColumnFilterSyntaxTests` (Client-Modus-Liste + `BfAuftraege/Details`, passt zur Spec), `FakeCurrentUserService` (+2 Interface-Methoden):
+alle Katalog-/Typ-Erweiterungen, keine Kategorie „sonstige“.
+
+### 5. Checkliste / ADR 0020
+Migration + `SQL/158_AddBfAuftraege.sql` (Guards, eigene Batches, History-Insert getrennt) – Scratch-DB: 1. Lauf legt an, 2. Lauf No-op;
+DEV-DBs No-op. FreshInstall an beiden Stellen. AgentJobs nicht betroffen. Audit-Felder gesetzt (DEV: `ModifiedBy` „Gerald Weichbold“ bzw.
+`system:bf-csv`). Version 1.99.35 in beiden `AppVersion.cs`, beide Changelogs vorhanden, TS-157 in `docs/TESTSZENARIEN.md` und im Testindex.
+Rolle `schachtler` an drei Stellen + Manifest-Reparatur. ADR 0020: Empfängergruppe als Auswahl aus Stammdaten (auf DEV gesehen), Bereiche 0–30/0–60,
+FE ≥ Schachtel serverseitig, Warnhinweis bei `BlechfertigungAktiv`; Dienst-Keys im Katalog mit Choice/Muster/Bereich. `.gitattributes` betrifft nur
+`IDEALAKEWMSService.Tests/TestData/` (einzige CSV im Repo). Manifest-Einträge (Deploy-Abschnitt) vollständig vorhanden.
+
+### 6. DEV-Deploy und TS-157
+- Erhöhte Shell bestätigt. Vor jedem Deploy Zielordner geleert (Web 65, Dienst 72 Einträge; behalten: `App_Data`, `logs`, `appsettings.DEV.json*`,
+  `deploy-info.txt`) – **Q-3:** `dev-deploy.ps1` leert selbst nicht.
+- Deploy 1 (Stand `9f2a0802`) und Deploy 2 (Stand `c6c04f9f`) je AKE + IDEAL: Exit 0, „HTTP 200, Fusszeile v1.99.35“. Migration
+  `20261117154645_AddBfAuftraege` in beiden DEV-DBs, gefilterter Unique-Index `UX_BfAuftraege_Nummer` vorhanden.
+- Testdaten DEV IDEAL (Kennung `QA-BF157`): Rolle schachtler (Manifest-SQL), Gruppe „QA-BF157 Lagerteile“ + Empfänger `qa-bf157@example.invalid`,
+  6 Sage-Merkmal-Definitionen + Werte für Artikel 445/449/448/441/442, Feiertag 18.11.2026, `BlechfertigungAktiv`/`BfEmpfaengergruppeId`,
+  `BfCsvPfad = D:\Dev\wicam-pool\ideal-qa` (nur lokal), `BfCsvAktiv = true`. Rollenwechsel des eigenen DEV-Benutzers (admin → lagerbestellung →
+  reporting → schachtler → admin).
+- Schritte: Gate aus OK · Suche OK · Mengenregel OK · F1 FEHLER → behoben, nachgeprüft OK · Abschicken gesperrt/OK · Mail NICHT MÖGLICH ·
+  Schachtler Menge/Lagerplatz OK · Freigabe mit Sage-Lagerplatz **FEHLER (B-1)**, mit `QA-UEB-1` OK · Termine/Bemerkung OK · CSV + Protokoll
+  `BfAuftragCsv` („geschrieben=1, fehler=0“) OK · Kollision + erneut schreiben OK · Fertig OK · Storno beide Wege OK · Rollen OK · AKE OK ·
+  Einstellungsmaske OK · V-B NICHT MÖGLICH.
+- **Aufgeräumt und belegt:** BfAuftraege/Positionen, Merkmal-Werte/-Definitionen, Gruppe/Empfänger, Feiertag, beide AppSettings-Zeilen,
+  Rolle `schachtler` gelöscht (alle Zählungen 0); `BfCsvAktiv = false`, `BfCsvPfad` leer; `Sync:BfAuftragEmailEnabled`,
+  `Sync:BlechteileFelderNachlesen`, `SageLagerbuchungAktiv` unverändert false; Benutzer 8 wieder nur `admin`; Ordner `D:\Dev\wicam-pool\ideal-qa`
+  entfernt. Die SyncLogs-Einträge `BfAuftragCsv` bleiben als Protokoll stehen. Nichts an Sage geschrieben, keine Test-/Prod-Einstellung berührt.
+
+### 7. Publish
+Nicht erstellt (Stand nicht Testbereit, B-1 offen). Nach der B-1-Entscheidung und dem Fix: Zielordner leeren, beide `dotnet publish`-Befehle
+aus dem Deploy-Abschnitt, `SQL\` → `publish\SQL`, `scripts\deploy\` → `publish\deploy`, `publish-info.txt`.
+Deploy-Komponenten laut echtem Diff bestätigt: Web ja, Dienst ja, Migration SQL/158 ja (Reihenfolge: DB-Backup, Web-Update mit Migration, Dienst).
+Nach dem Merge nur neu publishen, wenn der Merge getestete Dateien mit parallelen main-Änderungen zusammenführt.
+
+### Manuelle Checkliste (offen für den Menschen)
+1. **B-1 entscheiden:** Format von `ORDER_POSITION` (Lagerplatz mit `;`) – zusammen mit P-1.
+2. **P-1:** echte Pool-Datei besorgen, `BfCsv_PlatzhalterBisP1.csv` ersetzen, Byte-Vergleich (AK 11).
+3. **P-7:** Schreibrecht des Dienstkontos auf den WiCAM-Pool; Pfad ohne Recht → Fehler + Wiederholung (AK 13).
+4. **View-Block 3** (Lagerartikel im WMS) bzw. V-B-Lauf mit `Sync:BlechteileFelderNachlesen` auf Test (AK 17).
+5. Fachbereich: Materialnummern in Sage bereinigen (P-3: 4301 GEB+F 1/3, FORMROHR, Jackodur).
+6. **Feiertage IDEAL** pflegen (P-5; Manifest `Pruefung/FeiertageIdeal`).
+7. Mail beim Abschicken mit `Sync:BfAuftragEmailEnabled` auf Test (AK 7).
+8. Zwei gleichzeitige Abschicken → zwei Nummern; Doppelklick Freigabe → eine Freigabe (AK 6, Unique-Index).
+9. Mehrfach-Fertigmeldung über die Listen-Checkboxen (AK 14); Liste filtern und exportieren (AK 16).
+10. Direkt-POST Freigeben als Besteller → 403 (AK 8, Browser).
+11. Gesamtlauf TS-157 auf dem Testsystem nach Deploy (DB-Backup, Web-Update mit Migration 158, Dienst).

@@ -22,7 +22,7 @@ Nummern beim Start geprüft: Version 1.99.34 → **1.99.35**; SQL letzte 157 (15
 
 | Spec | Typ | SQL | Version | Status | Commits | Blocker |
 |---|---|---|---|---|---|---|
-| [[2026-11-13-blechfertigung-bf-auftraege-wicam-csv-spec]] | Spec | 158 | 1.99.35 | InUmsetzung | `09063984`, `ea21bddd`, `37e83d85`, `89ce487a`, `9f2a0802` | P-1 (CSV-Muster), P-7 (Schreibrecht Pool); View-Block 3 (Gerald) Vorbedingung Warenkorb-Test |
+| [[2026-11-13-blechfertigung-bf-auftraege-wicam-csv-spec]] | Spec | 158 | 1.99.35 | InUmsetzung (QA: **B-1 offen**) | `09063984`, `ea21bddd`, `37e83d85`, `89ce487a`, `9f2a0802`, QA-Fix `c6c04f9f` | **B-1 Semikolon im Hauptlagerplatz (Entscheidung Gerald)**; P-1 (CSV-Muster), P-7 (Schreibrecht Pool); View-Block 3 (Gerald) Vorbedingung Warenkorb-Test |
 
 ## Protokoll
 
@@ -33,3 +33,8 @@ Nummern beim Start geprüft: Version 1.99.34 → **1.99.35**; SQL letzte 157 (15
   Vorlage) – Tests 3197 + 714 grün.
 - 2026-11-17: Commit D (Fertig einzeln/Liste, Storno, Version 1.99.35, Hilfe, Changelog, README, docs/anwender 14, docs/betrieb, TS-157)
   `9f2a0802` – Build 0 Fehler, Tests 3208 (1 übersprungen) + 714 grün. **feature-complete**; offen: qa-agent, P-1, P-7, View-Block 3 (Gerald).
+- 2026-11-17: QA **nicht Testbereit** (Web 3216/0/1, Dienst 714/0/0). QA-Fix `c6c04f9f` (F1: Menge wurde mit deutschem Zahlenformat gelesen,
+  40 → 40000; jetzt über `BeschichtungsauftraegeController.TryMenge`). **B-1 offen:** Sage-Lagerplätze haben die Form `S-03;0;0;0`
+  (IDEAL-DEV 228/230), die Zeichenprüfung sperrt `;` → Freigabe fast immer gesperrt. Optionen (a) Teil vor dem ersten `;`, (b) `;` ersetzen,
+  (c) Feld in Anführungszeichen (nur wenn WiCAM das liest) – Entscheidung Gerald, zusammen mit P-1. DEV AKE+IDEAL auf `c6c04f9f` (Zielordner
+  geleert), TS-157 überwiegend OK, Mail/V-B auf DEV nicht möglich; DEV-Testdaten und -Einstellungen zurückgesetzt. Publish nicht erstellt (erst nach B-1).
