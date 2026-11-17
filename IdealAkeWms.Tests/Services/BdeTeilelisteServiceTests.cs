@@ -170,7 +170,7 @@ public class BdeTeilelisteServiceTests
             new ProductionOrder { OrderNumber = "400", SubOrderNumber = "400", CreatedBy = "t", CreatedByWindows = "t" });
         await ctx.SaveChangesAsync();
         var svc = new BdeTeilelisteService(Mock.Of<IFaHierarchyNodeRepository>(), Mock.Of<IFaHierarchyOrderInfoRepository>(), ctx,
-            Mock.Of<IBdeBookingService>(), Mock.Of<ICurrentUserService>(), Mock.Of<IAppSettingRepository>());
+            Mock.Of<IBdeBookingService>(), Mock.Of<ICurrentUserService>(), Mock.Of<IAppSettingRepository>(), Mock.Of<IBdeShiftCalendarService>());
 
         var r = await svc.AuftragOffenAsync(new[] { "100", "200", "300", "400", "999" });
 

@@ -43,6 +43,7 @@ public static class ColumnFilterTypes
             ["ArticleAttributes/Index"] = L(("sort-order", N)),
             ["ArticleCategories/Index"] = L(("article-count", N)),
             ["BdeBookings/Index"] = L(("started-at", D), ("ended-at", D), ("good-qty", N), ("scrap-qty", N)),
+            ["BdeBookings/Teilmeldungen"] = L(("gemeldet-am", D), ("gut", N), ("ausschuss", N)), // v1.99.32
             ["BdeTeileliste/Index"] = L(("sollmenge", N), ("fe-termin", D)),                 // v1.99.32
             ["BdeTeileliste/Summiert"] = L(("sollmenge", N), ("anzahl", N), ("fe-termin", D)), // v1.99.32
             ["Beschichtungsauftraege/Details"] = L(("breite", N), ("hoehe", N), ("tiefe", N), ("menge", N)),

@@ -1,0 +1,145 @@
+@model List<IdealAkeWms.Models.BdeTeilMeldung>
+@inject IdealAkeWms.Services.ICurrentUserService CurrentUserService
+@using IdealAkeWms.Services
+@{
+    ViewData["Title"] = "BDE-Buchungen – Teilmeldungen";
+    var filter = ViewBag.Filter;
+    DateTime? from = (DateTime?)filter?.from;
+    DateTime? to = (DateTime?)filter?.to;
+    bool zurueckgenommene = (bool)(filter?.zurueckgenommene ?? false);
+    var canAdminBde = await CurrentUserService.CanManageBdeAdminAsync();
+}
+@* v1.99.32 (Spec 2026-11-13-bde-vereinfacht-teileliste-blechfertigung, F13/F15): Teilmeldungen der BDE-Teileliste, Storno nur BDE-Admin. *@
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+    <h2 class="mb-0">BDE-Buchungen – Teilmeldungen</h2>
+    <a asp-action="Index" class="btn btn-outline-secondary">Zu den BDE-Buchungen</a>
+</div>
+
+<form method="get" class="card filter-card mb-3">
+    <div class="card-body">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label" for="from">Gemeldet von</label>
+                <input type="date" id="from" name="from" class="form-control" value="@(from?.ToString("yyyy-MM-dd"))" />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label" for="to">Gemeldet bis</label>
+                <input type="date" id="to" name="to" class="form-control" value="@(to?.ToString("yyyy-MM-dd"))" />
+            </div>
+            <div class="col-md-3">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="zurueckgenommene" name="zurueckgenommene" value="true" checked="@zurueckgenommene" />
+                    <label class="form-check-label" for="zurueckgenommene">zurückgenommene zeigen</label>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-primary">Filtern</button>
+            </div>
+        </div>
+        <p class="small text-muted mb-0 mt-2">Werker nehmen eigene Meldungen am Terminal bis Schichtende zurück (ohne Schicht: bis Ende des Meldetags).
+            Danach storniert hier der BDE-Admin mit Grund; bei Baugruppen wird die Arbeitsgang-Buchung mitstorniert.</p>
+    </div>
+</form>
+
+<div class="d-flex justify-content-end mb-1" data-table-toolbar></div>
+<div class="table-responsive">
+    <table class="table table-sm table-striped align-middle mb-0 filterable-table" data-view-key="BdeTeilmeldungen" data-server-column-filter="true">
+        <thead>
+            <tr>
+                <th class="text-nowrap" data-filterable data-col-key="gemeldet-am" data-date-filter>Gemeldet am</th>
+                <th data-filterable data-col-key="werker">Werker</th>
+                <th data-filterable data-col-key="werkbank">Werkbank</th>
+                <th data-filterable data-col-key="kuerzel">Kürzel</th>
+                <th data-filterable data-col-key="hauptfa">Haupt-FA</th>
+                <th data-filterable data-col-key="subfa">Sub-FA</th>
+                <th data-filterable data-col-key="position">Position</th>
+                <th data-filterable data-col-key="matchcode">Matchcode</th>
+                <th class="text-end" data-filterable data-filter-type="number" data-col-key="gut">Gut</th>
+                <th class="text-end" data-filterable data-filter-type="number" data-col-key="ausschuss">Ausschuss</th>
+                <th data-filterable data-col-key="status">Status</th>
+                <th data-filterable data-col-key="grund">Grund</th>
+                <th data-col-key="aktion"><span class="visually-hidden">Aktion</span></th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (!Model.Any())
+            {
+                <tr><td colspan="13" class="text-center text-muted py-4">Keine Teilmeldungen im gewählten Zeitraum.</td></tr>
+            }
+            @foreach (var m in Model)
+            {
+                <tr>
+                    <td class="text-nowrap">@m.GemeldetAm.ToString("dd.MM.yyyy HH:mm")</td>
+                    <td>@m.BdeOperator?.DisplayName</td>
+                    <td>@m.ProductionWorkplace?.Name</td>
+                    <td>@m.Kuerzel</td>
+                    <td>@m.HauptFA</td>
+                    <td>@(m.SubFA != 0 ? m.SubFA : m.VaterFA)</td>
+                    <td>@m.Position</td>
+                    <td>@m.Matchcode @if (m.SubFA != 0) { <span class="badge text-bg-dark ms-1">Baugruppe</span> }</td>
+                    <td class="text-end">@VormontageService.FormatMenge(m.GoodQuantity)</td>
+                    <td class="text-end">@VormontageService.FormatMenge(m.ScrapQuantity)</td>
+                    <td>@(m.IsCancelled ? "zurückgenommen" : "offen")</td>
+                    <td>@m.CancellationReason</td>
+                    <td class="text-nowrap">
+                        @if (canAdminBde && !m.IsCancelled)
+                        {
+                            <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#storno-@m.Id">Stornieren</button>
+                            <div class="modal fade" id="storno-@m.Id" tabindex="-1" aria-labelledby="storno-titel-@m.Id" aria-hidden="true">
+                                <div class="modal-dialog">
+                                    <form method="post" asp-action="StornoTeilmeldung" asp-route-id="@m.Id" class="modal-content">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title" id="storno-titel-@m.Id">Teilmeldung @m.Matchcode stornieren</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <label for="reason-@m.Id" class="form-label">Stornogrund</label>
+                                            <textarea id="reason-@m.Id" name="reason" class="form-control" rows="3" maxlength="500" required></textarea>
+                                            @if (m.SubFA != 0)
+                                            {
+                                                <p class="small text-muted mt-2 mb-0">Baugruppe: die zugehörige Arbeitsgang-Buchung wird mitstorniert.</p>
+                                            }
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                                            <button type="submit" class="btn btn-danger">Stornieren</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+<partial name="_Pagination" model="(IdealAkeWms.Models.ViewModels.PaginationState)ViewBag.Pagination" />
+
+<script type="application/json" id="view-config">
+{ "viewKey": "BdeTeilmeldungen", "supportsReorder": true, "supportsSortDefault": false }
+</script>
+<script type="application/json" id="column-config">
+[
+    { "key": "gemeldet-am", "label": "Gemeldet am", "locked": true, "defaultWidth": null },
+    { "key": "werker", "label": "Werker", "locked": false, "defaultWidth": null },
+    { "key": "werkbank", "label": "Werkbank", "locked": false, "defaultWidth": null },
+    { "key": "kuerzel", "label": "Kürzel", "locked": false, "defaultWidth": null },
+    { "key": "hauptfa", "label": "Haupt-FA", "locked": false, "defaultWidth": null },
+    { "key": "subfa", "label": "Sub-FA", "locked": false, "defaultWidth": null },
+    { "key": "position", "label": "Position", "locked": false, "defaultWidth": null },
+    { "key": "matchcode", "label": "Matchcode", "locked": false, "defaultWidth": null },
+    { "key": "gut", "label": "Gut", "locked": false, "defaultWidth": null },
+    { "key": "ausschuss", "label": "Ausschuss", "locked": false, "defaultWidth": null },
+    { "key": "status", "label": "Status", "locked": false, "defaultWidth": null },
+    { "key": "grund", "label": "Grund", "locked": false, "defaultWidth": null },
+    { "key": "aktion", "label": "Aktion", "locked": true, "defaultWidth": null }
+]
+</script>
+
+@section Scripts {
+    <script src="~/js/column-preferences.js" asp-append-version="true"></script>
+    <script src="~/js/table-filter.js" asp-append-version="true"></script>
+}

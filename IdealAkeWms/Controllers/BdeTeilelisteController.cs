@@ -158,6 +158,22 @@ public class BdeTeilelisteController : Controller
         return LocalRedirect(zurueck);
     }
 
+    /// <summary>E4 (F13): Werker nimmt seine eigene Meldung bis zum Schichtende zurueck; danach nur der BDE-Admin.</summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Zuruecknehmen(int meldungId, int workplaceId, int operatorId, string? returnUrl)
+    {
+        var zurueck = Url.IsLocalUrl(returnUrl) ? returnUrl! : Url.Action(nameof(Index), new { workplaceId, operatorId })!;
+        if (await AktiverWerkerAsync(operatorId) == null)
+        {
+            TempData["WarningMessage"] = "Werker nicht angemeldet oder inaktiv – nichts geändert.";
+            return LocalRedirect(zurueck);
+        }
+        var (ok, text) = await _svc.ZuruecknehmenAsync(meldungId, operatorId, null);
+        TempData[ok ? "SuccessMessage" : "WarningMessage"] = text;
+        return LocalRedirect(zurueck);
+    }
+
     /// <summary>Formularzahl kulturunabhaengig (&lt;input type="number"&gt; sendet Punkt, Hand-Eingabe ggf. Komma). Leer = null.</summary>
     internal static bool TryMenge(string? text, out decimal? wert)
     {

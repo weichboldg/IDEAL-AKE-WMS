@@ -77,11 +77,12 @@ public class BdeTeilelisteService
     private readonly IBdeBookingService _booking;
     private readonly ICurrentUserService _userSvc;
     private readonly IAppSettingRepository _settings;
+    private readonly IBdeShiftCalendarService _schichten;
 
     public BdeTeilelisteService(IFaHierarchyNodeRepository nodes, IFaHierarchyOrderInfoRepository orderInfos, ApplicationDbContext ctx,
-        IBdeBookingService booking, ICurrentUserService userSvc, IAppSettingRepository settings)
+        IBdeBookingService booking, ICurrentUserService userSvc, IAppSettingRepository settings, IBdeShiftCalendarService schichten)
     {
-        _nodes = nodes; _orderInfos = orderInfos; _ctx = ctx; _booking = booking; _userSvc = userSvc; _settings = settings;
+        _nodes = nodes; _orderInfos = orderInfos; _ctx = ctx; _booking = booking; _userSvc = userSvc; _settings = settings; _schichten = schichten;
     }
 
     /// <summary>F2: ein Token (Leerzeichen-Trennung wie Dienst und FA-Baum) ist das Kuerzel, Gross/Klein egal.</summary>
@@ -381,6 +382,57 @@ public class BdeTeilelisteService
             var grund = r.Message ?? (r.CollidingBooking != null ? "läuft gerade bei einem anderen Werker" : r.Outcome.ToString());
             e.Hinweise.Add($"Arbeitsgang {kuerzel} an Sub-FA {subFa}: {grund} – nur die Teilmeldung gespeichert");
         }
+    }
+
+    // ---------------------------------------------------------------- Ruecknahme (E4)
+
+    /// <summary>F13: Frist der Werker-Ruecknahme = Schichtende der Meldung (<see cref="IBdeShiftCalendarService.GetShiftEndForBookingAsync"/>),
+    /// ohne Schicht (Schichtkalender aus, Feiertag, keine Schicht) Ende des Meldetags 23:59:59 (Freigabe-Antwort 3, P-TL5: IDEAL ohne Kalender).</summary>
+    public async Task<DateTime> RuecknahmeFristAsync(BdeTeilMeldung m) =>
+        await _schichten.GetShiftEndForBookingAsync(m.ProductionWorkplaceId, m.GemeldetAm) ?? m.GemeldetAm.Date.AddDays(1).AddSeconds(-1);
+
+    /// <summary>
+    /// F13: Teilmeldung zuruecknehmen. <paramref name="werkerId"/> gesetzt = Werker am Terminal (nur eigene, nur bis zur Frist);
+    /// null = BDE-Admin (Grund Pflicht, keine Frist). Die verknuepfte Baugruppen-AG-Buchung wird mitstorniert. Modified* aus dem
+    /// angemeldeten Web-Benutzer (Terminal bzw. Admin), Muster <c>BdeBookingsController.Cancel</c>.
+    /// </summary>
+    public async Task<(bool Ok, string Text)> ZuruecknehmenAsync(int meldungId, int? werkerId, string? grund)
+    {
+        var m = await _ctx.BdeTeilMeldungen.Include(x => x.BdeBooking).FirstOrDefaultAsync(x => x.Id == meldungId);
+        if (m == null) return (false, "Meldung nicht gefunden – nichts geändert.");
+        if (m.IsCancelled) return (false, $"Meldung {m.Matchcode} ist bereits zurückgenommen – nichts geändert.");
+        if (werkerId != null)
+        {
+            if (m.BdeOperatorId != werkerId) return (false, "Nur eigene Meldungen können zurückgenommen werden – nichts geändert.");
+            var frist = await RuecknahmeFristAsync(m);
+            if (DateTime.Now >= frist)
+                return (false, $"Frist abgelaufen ({frist:dd.MM. HH:mm}) – Rücknahme nur noch über den BDE-Admin (BDE-Buchungen › Teilmeldungen).");
+            grund = "vom Werker am Terminal zurückgenommen";
+        }
+        else if (string.IsNullOrWhiteSpace(grund))
+        {
+            return (false, "Bitte einen Grund angeben – nichts geändert.");
+        }
+
+        var now = DateTime.Now;
+        m.IsCancelled = true;
+        m.CancellationReason = grund!.Trim();
+        SetModified(m, now);
+        if (m.BdeBooking is { IsCancelled: false } b)
+        {
+            b.IsCancelled = true;
+            b.CancellationReason = "Teilmeldung zurückgenommen";
+            SetModified(b, now);
+        }
+        await _ctx.SaveChangesAsync();
+        return (true, $"Meldung {m.Matchcode} zurückgenommen" + (m.BdeBooking != null ? " (Arbeitsgang-Buchung storniert)." : "."));
+    }
+
+    private void SetModified(AuditableEntity e, DateTime now)
+    {
+        e.ModifiedAt = now;
+        e.ModifiedBy = _userSvc.GetDisplayName();
+        e.ModifiedByWindows = _userSvc.GetWindowsUserName();
     }
 
     private Task<BdeTeilMeldung?> VorhandeneMeldungAsync(TeilSchluessel s, string kuerzel) =>

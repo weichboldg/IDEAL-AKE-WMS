@@ -14,7 +14,7 @@ public class BdeTeilelisteMeldenTests
 {
     internal sealed record Umgebung(ApplicationDbContext Ctx, BdeTeilelisteService Svc, BdeBookingTestSeed.Ids Ids);
 
-    internal static async Task<Umgebung> AufbauAsync(bool option = true, bool nurFa = false)
+    internal static async Task<Umgebung> AufbauAsync(bool option = true, bool nurFa = false, DateTime? schichtende = null)
     {
         var ctx = TestDbContextFactory.Create();
         var ids = await BdeBookingTestSeed.SeedAsync(ctx);
@@ -34,7 +34,8 @@ public class BdeTeilelisteMeldenTests
         settings.Setup(s => s.GetValueAsync(AppSettingKeys.BdeNurFaMeldung)).ReturnsAsync(nurFa ? "true" : "false");
         var booking = new BdeBookingService(ctx, user.Object, settings.Object);
         var svc = new BdeTeilelisteService(Mock.Of<IFaHierarchyNodeRepository>(), Mock.Of<IFaHierarchyOrderInfoRepository>(), ctx,
-            booking, user.Object, settings.Object);
+            booking, user.Object, settings.Object,
+            Mock.Of<IBdeShiftCalendarService>(c => c.GetShiftEndForBookingAsync(It.IsAny<int>(), It.IsAny<DateTime>()) == Task.FromResult(schichtende)));
         return new Umgebung(ctx, svc, ids);
     }
 
@@ -222,5 +223,85 @@ public class BdeTeilelisteMeldenTests
         IdealAkeWms.Controllers.BdeTeilelisteController.TryMenge("", out var leer).Should().BeTrue();
         leer.Should().BeNull();
         IdealAkeWms.Controllers.BdeTeilelisteController.TryMenge("abc", out _).Should().BeFalse();
+    }
+
+    // ------------------------------------------------------------ Etappe 4: Ruecknahme (F13)
+
+    private static async Task<BdeTeilMeldung> GemeldetAsync(Umgebung u, TeilSchluessel k)
+    {
+        (await Melden(u, A(k, null, null))).Gemeldet.Should().Be(1);
+        return u.Ctx.BdeTeilMeldungen.Single(m => !m.IsCancelled && m.Position == k.Position && m.SubFA == k.SubFA);
+    }
+
+    [Fact]
+    public async Task Ruecknahme_EigeneVorFrist_ZeileWiederOffen()
+    {
+        var u = await AufbauAsync(schichtende: DateTime.Now.AddHours(1));
+        var m = await GemeldetAsync(u, Blech1);
+
+        var (ok, _) = await u.Svc.ZuruecknehmenAsync(m.Id, u.Ids.OperatorId, null);
+
+        ok.Should().BeTrue();
+        m.IsCancelled.Should().BeTrue();
+        m.CancellationReason.Should().Contain("Werker");
+        (m.ModifiedBy, m.ModifiedByWindows).Should().Be(("terminal", "AKE\\terminal"));
+        (await Melden(u, A(Blech1, null, null))).Gemeldet.Should().Be(1, "nach der Ruecknahme ist die Zeile wieder meldbar");
+    }
+
+    [Fact]
+    public async Task Ruecknahme_FremderWerker_Abgewiesen()
+    {
+        var u = await AufbauAsync();
+        var m = await GemeldetAsync(u, Blech1);
+
+        var (ok, text) = await u.Svc.ZuruecknehmenAsync(m.Id, u.Ids.OperatorId + 1000, null);
+
+        ok.Should().BeFalse();
+        text.Should().Contain("Nur eigene");
+        m.IsCancelled.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Ruecknahme_NachSchichtende_NurAdmin()
+    {
+        var u = await AufbauAsync(schichtende: DateTime.Now.AddMinutes(-1));
+        var m = await GemeldetAsync(u, Blech1);
+
+        var (ok, text) = await u.Svc.ZuruecknehmenAsync(m.Id, u.Ids.OperatorId, null);
+
+        ok.Should().BeFalse();
+        text.Should().Contain("BDE-Admin");
+        (await u.Svc.ZuruecknehmenAsync(m.Id, null, " ")).Ok.Should().BeFalse("Admin braucht einen Grund");
+        (await u.Svc.ZuruecknehmenAsync(m.Id, null, "Fehlbuchung")).Ok.Should().BeTrue();
+        m.CancellationReason.Should().Be("Fehlbuchung");
+        (await u.Svc.ZuruecknehmenAsync(m.Id, null, "nochmal")).Text.Should().Contain("bereits zurückgenommen");
+    }
+
+    [Fact]
+    public async Task Frist_OhneSchicht_EndeDesMeldetags()
+    {
+        var u = await AufbauAsync(schichtende: null);
+        var m = new BdeTeilMeldung { ProductionWorkplaceId = u.Ids.WorkplaceId, GemeldetAm = new DateTime(2026, 11, 17, 9, 30, 0) };
+
+        (await u.Svc.RuecknahmeFristAsync(m)).Should().Be(new DateTime(2026, 11, 17, 23, 59, 59));
+    }
+
+    [Fact]
+    public async Task Ruecknahme_Baugruppe_StorniertAgBuchung()
+    {
+        var u = await AufbauAsync();
+        var sub = new ProductionOrder { OrderNumber = "100", SubOrderNumber = "200", CreatedBy = "t", CreatedByWindows = "t" };
+        u.Ctx.ProductionOrders.Add(sub);
+        await u.Ctx.SaveChangesAsync();
+        u.Ctx.WorkOperations.Add(new WorkOperation { ProductionOrderId = sub.Id, OperationNumber = "KA", Name = "Kanten", ProductionWorkplaceId = u.Ids.WorkplaceId, CreatedBy = "t", CreatedByWindows = "t" });
+        await u.Ctx.SaveChangesAsync();
+        var m = await GemeldetAsync(u, Korpus);
+
+        (await u.Svc.ZuruecknehmenAsync(m.Id, u.Ids.OperatorId, null)).Ok.Should().BeTrue();
+
+        var b = u.Ctx.BdeBookings.Single();
+        b.IsCancelled.Should().BeTrue();
+        b.CancellationReason.Should().Be("Teilmeldung zurückgenommen");
+        b.ModifiedBy.Should().Be("terminal");
     }
 }

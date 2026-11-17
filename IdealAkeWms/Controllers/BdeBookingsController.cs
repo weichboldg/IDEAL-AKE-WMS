@@ -264,6 +264,60 @@ public class BdeBookingsController : Controller
         return RedirectToAction(nameof(Index));
     }
 
+    /// <summary>v1.99.32 (Spec 2026-11-13-bde-vereinfacht-teileliste-blechfertigung, F13/F15): Teilmeldungen der BDE-Teileliste.
+    /// Lesen ab Schichtleiter (Klasse), Storno nur BDE-Admin. Zeitraum in SQL, Spaltenfilter in C# auf der Zelle, dann Pagination.</summary>
+    public async Task<IActionResult> Teilmeldungen(DateTime? from = null, DateTime? to = null, bool zurueckgenommene = false,
+        int page = 1, int? pageSize = null)
+    {
+        if (page < 1) page = 1;
+        if (!from.HasValue && !to.HasValue) (from, to) = (DateTime.Today.AddDays(-7), DateTime.Today);
+        var userDefault = await _userSvc.GetDefaultPageSizeAsync();
+        var size = IdealAkeWms.Services.PageSize.Resolve(pageSize, userDefault);
+
+        var q = _ctx.BdeTeilMeldungen.AsNoTracking().Include(m => m.BdeOperator).Include(m => m.ProductionWorkplace).AsQueryable();
+        if (from.HasValue) q = q.Where(m => m.GemeldetAm >= from.Value.Date);
+        if (to.HasValue) q = q.Where(m => m.GemeldetAm < to.Value.Date.AddDays(1));
+        if (!zurueckgenommene) q = q.Where(m => !m.IsCancelled);
+        var alle = await q.OrderByDescending(m => m.GemeldetAm).ToListAsync();
+
+        var gefiltert = ColumnFilterHelper.Apply(alle, ColumnFilterHelper.ReadFromQuery(HttpContext?.Request), TeilmeldungSpalten,
+            ColumnFilterTypes.For("BdeBookings/Teilmeldungen")).ToList();
+        ViewBag.Filter = new { from, to, zurueckgenommene };
+        ViewBag.Pagination = new PaginationState
+        {
+            CurrentPage = page, PageSize = size, PageSizeRaw = IdealAkeWms.Services.PageSize.ResolveRaw(pageSize, userDefault), TotalCount = gefiltert.Count,
+        };
+        return View(gefiltert.Skip((page - 1) * size).Take(size).ToList());
+    }
+
+    /// <summary>Spaltenfilter-Getter = Zelltext der View (fallstricke §26).</summary>
+    internal static readonly IReadOnlyDictionary<string, Func<BdeTeilMeldung, string?>> TeilmeldungSpalten =
+        new Dictionary<string, Func<BdeTeilMeldung, string?>>
+        {
+            ["gemeldet-am"] = m => m.GemeldetAm.ToString("dd.MM.yyyy HH:mm"),
+            ["werker"] = m => m.BdeOperator?.DisplayName,
+            ["werkbank"] = m => m.ProductionWorkplace?.Name,
+            ["kuerzel"] = m => m.Kuerzel,
+            ["hauptfa"] = m => m.HauptFA.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ["subfa"] = m => (m.SubFA != 0 ? m.SubFA : m.VaterFA)?.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ["position"] = m => m.Position?.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ["matchcode"] = m => m.Matchcode,
+            ["gut"] = m => VormontageService.FormatMenge(m.GoodQuantity),
+            ["ausschuss"] = m => VormontageService.FormatMenge(m.ScrapQuantity),
+            ["status"] = m => m.IsCancelled ? "zurückgenommen" : "offen",
+            ["grund"] = m => m.CancellationReason,
+        };
+
+    [HttpPost]
+    [RequireBdeAdminAccess]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> StornoTeilmeldung(int id, string? reason, [FromServices] BdeTeilelisteService teileliste)
+    {
+        var (ok, text) = await teileliste.ZuruecknehmenAsync(id, null, reason);
+        TempData[ok ? "SuccessMessage" : "WarningMessage"] = text;
+        return RedirectToAction(nameof(Teilmeldungen));
+    }
+
     [HttpPost]
     [RequireBdeAdminAccess]
     [ValidateAntiForgeryToken]

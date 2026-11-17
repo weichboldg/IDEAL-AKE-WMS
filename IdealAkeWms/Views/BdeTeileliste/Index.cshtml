@@ -93,6 +93,17 @@
                                 <span class="text-success-emphasis fw-semibold">&#10003; gemeldet</span>
                                 <div class="small">von @z.Meldung.BdeOperator?.DisplayName, @z.Meldung.GemeldetAm.ToString("dd.MM. HH:mm"),
                                     Gut @VormontageService.FormatMenge(z.Meldung.GoodQuantity) / Ausschuss @VormontageService.FormatMenge(z.Meldung.ScrapQuantity)</div>
+                                @if (z.Meldung.BdeOperatorId == Model.Werker!.Id)
+                                {
+                                    <form method="post" asp-action="Zuruecknehmen" class="mt-1"
+                                          onsubmit="return confirm('Meldung zurücknehmen? Die Zeile ist danach wieder offen.');">
+                                        <input type="hidden" name="meldungId" value="@z.Meldung.Id" />
+                                        <input type="hidden" name="workplaceId" value="@Model.Werkbank.Id" />
+                                        <input type="hidden" name="operatorId" value="@Model.Werker.Id" />
+                                        <input type="hidden" name="returnUrl" value="@Model.ReturnUrl" />
+                                        <button type="submit" class="btn btn-outline-danger bde-touch">Zurücknehmen</button>
+                                    </form>
+                                }
                             }
                             else if (!z.Eindeutig)
                             {

@@ -474,6 +474,27 @@ public static class ColumnDefinitions
         ]
     };
 
+    /// <summary>v1.99.32 BdeBookings/Teilmeldungen.cshtml (BDE-Teileliste, Admin-Liste). Spalten identisch zum inline #column-config JSON der View.</summary>
+    public static readonly ViewConfig BdeTeilmeldungen = new("BdeTeilmeldungen", "BDE-Buchungen — Teilmeldungen", SupportsReorder: true, SupportsSortDefault: false)
+    {
+        Columns =
+        [
+            new ColumnDef("gemeldet-am", "Gemeldet am", Locked: true),
+            new ColumnDef("werker", "Werker", Locked: false),
+            new ColumnDef("werkbank", "Werkbank", Locked: false),
+            new ColumnDef("kuerzel", "Kürzel", Locked: false),
+            new ColumnDef("hauptfa", "Haupt-FA", Locked: false),
+            new ColumnDef("subfa", "Sub-FA", Locked: false),
+            new ColumnDef("position", "Position", Locked: false),
+            new ColumnDef("matchcode", "Matchcode", Locked: false),
+            new ColumnDef("gut", "Gut", Locked: false),
+            new ColumnDef("ausschuss", "Ausschuss", Locked: false),
+            new ColumnDef("status", "Status", Locked: false),
+            new ColumnDef("grund", "Grund", Locked: false),
+            new ColumnDef("aktion", "Aktion", Locked: true),
+        ]
+    };
+
     /// <summary>v1.99.32 BdeTeileliste/Summiert.cshtml. Spalten identisch zum inline #column-config JSON der View.</summary>
     public static readonly ViewConfig BdeTeilelisteSummiert = new("BdeTeilelisteSummiert", "BDE-Teileliste — Summiert", SupportsReorder: true, SupportsSortDefault: false)
     {
@@ -797,6 +818,7 @@ public static class ColumnDefinitions
         "FaHierarchyVormontageSummiert"  => FaHierarchyVormontageSummiert,
         "BdeTeileliste"  => BdeTeileliste,
         "BdeTeilelisteSummiert"  => BdeTeilelisteSummiert,
+        "BdeTeilmeldungen"  => BdeTeilmeldungen,
         "FaHierarchyStructure"           => FaHierarchyStructure,
         "Beschichtungsauftraege"         => Beschichtungsauftraege,
         "PurchaseProposals"              => PurchaseProposals,
