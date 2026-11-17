@@ -11,7 +11,7 @@ public sealed record AbgleichPlan<T>(List<T> Neu, List<(T Alt, T Neu)> Paare, Li
 
 /// <summary>
 /// v1.99.37 (Spec 2026-11-17-fa-struktur-abgleich-statt-full-replace, ADR 0032): reiner, DB-freier Planer des FA-Struktur-Abgleichs (Muster
-/// Materialisierung, ADR 0012). Schluessel folgen der Spalten-Kollation (Fallstrick 47): Text am Ende getrimmt, gross/klein egal, leer = null.
+/// Materialisierung, ADR 0012). Schluessel folgen der Spalten-Kollation (Fallstrick 48): Text am Ende getrimmt, gross/klein egal, leer = null.
 /// </summary>
 public static class FaStrukturAbgleich
 {
