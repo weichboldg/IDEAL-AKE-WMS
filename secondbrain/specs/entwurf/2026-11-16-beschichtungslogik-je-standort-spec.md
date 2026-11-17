@@ -1613,3 +1613,32 @@ diesem Lauf, nicht angefasst) – nicht verwenden.
 7. 145.13 IDEAL: neuen Auftrag anlegen, `PositionText` NULL.
 8. Testsystem-Lauf AKE und IDEAL mit dem Paket aus `publish\` (Update-Skript, Nachher-Pruefungen gruen), dann Merge.
 9. F3: `docs/betrieb/04-konfiguration.md:206` nachziehen.
+
+## Nachtrag 4 2026-11-17: Nachbesserung AKE flach (Freigabe Gerald 18:48)
+
+Quelle: [[2026-11-17-beschichtung-ake-nachbesserung]] (Analyse 4445 v1.99.34, Antworten Till über Gerald 16:35). Gerald 18:48: „alles freigeben“. Dieser Nachtrag ist Auftrag und geht dem Rumpf vor.
+1. **Kopfzeile je WA an der AKE:** statt „Keine Auftrags-Kopfdaten zu diesem HauptFA“ Kopfdaten aus dem WA: Kunde, Fertigungstermin, berechneter Beschichtungstermin. Die Meldung „Keine Auftrags-Kopfdaten“ nur noch an IDEAL (FAInfos).
+2. **Maße AKE aus dem Sage-Artikel in mm:** Breite = `Breite`×10, Höhe = `Hoehe`×10, Tiefe = `Laenge`×10 aus `ArticleSageDetails` (Sage in cm; Stichprobe 87070769: 2,41/69,32/83,82 cm = `USER_Tiefemm/Breitemm/Hoehemm` 24,1/693,2/838,2). Kein neuer Abgleich. Einheit cm im Lauf gegen die SData-Felder `USER_*mm` von mindestens drei Artikeln bestätigen; weicht es ab, anhalten und melden. Fläche in m² nicht jetzt.
+3. **Keine Positionsspalte** (Till: nicht notwendig). Nur QA-Befund F1: Auswahl „Positionen hinzufügen“ natürlich nach Ebenen sortieren.
+4. **Hinweis zum Stücklisten-Cache:** nur nicht kommissionierte WAs ohne Lackierteile mit Nummer nennen, kommissionierte nur als Anzahl.
+5. **Kommissionierte WAs** in der Vorschlagsliste standardmäßig ausblenden, Häkchen „auch kommissionierte zeigen“ (Till: passt).
+6. Text bei abgeschaltetem Modul: „Das Beschichtungsauftragsmodul ist deaktiviert“ (statt „IDEAL-Beschichtungsauftrag-Modul“), überall wo der Text vorkommt.
+7. QA-Befunde F2 (fehlende Tests AK 20/22/25/26) und F3 (`docs/betrieb/04-konfiguration.md:206`) beheben.
+Nicht Teil: Kistenzettel ([[2026-11-17-beschichtung-kistenzettel]], wartet auf Beispiel von Till). Prüfpunkt „Lackierteile in der AKE-Kommissionierliste?“ bleibt bei der Koordination (nur lesen).
+
+### Umsetzung Nachtrag 4 (Goal-Lauf 2026-11-17 abends, v1.99.36, Commit `8e0a346e`)
+
+Lauf-Notiz [[2026-11-17-goal-lauf-sammel-abend]]. Keine Migration.
+- **Einheit bestätigt** (Punkt 2, lesend SQL `ake_TEST2026.KHKArtikel`, Mandant 1): 87070769 (2,41/69,32/83,82 → 24,1/693,2/838,2), 00725401,
+  87010986, 87038500, 87048047 je `Laenge/Breite/Hoehe × 10 = USER_Tiefemm/Breitemm/Hoehemm`; gesamt 113.473 von 113.523 Artikeln mit beiden
+  Werten gleich. Keine Abweichung der Einheit → kein Anhalten. (Die SData-Felder sind dieselben `USER_`-Spalten; gelesen per SQL, nicht per SData.)
+- Punkt 1: `BeschichtungFlacheQuelle.KopfInfosAsync` → `FaHierarchyOrderInfo` mit `Id = 0`; `_BeschichtungKopf`/`_BeschichtungKopfDruck` zeigen
+  Kunde, Fertigung, Start Beschichtung. „Keine Auftrags-Kopfdaten“ bleibt für IDEAL.
+- Punkt 2: `Projektion` Maße × 10 aus `ArticleSageDetails` (Left Join in `GetFlacheLackierteileAsync`); ohne Zeile 0 + Logger-Warnung.
+- Punkt 3/F1: `GetHinzufuegbarePositionenAsync` sortiert `Position`, dann `NaturalPositionComparer` (beide Zweige). Keine Positionsspalte.
+- Punkt 4: `FlacheLackierteilDaten.OhneLackierteileKommissioniert`; `Sammelmeldung(nummern, anzahlKommissioniert)`.
+- Punkt 5: `LadenAsync(hauptFas, mitKommissionierten)` blendet `IsDonePicking` nur in der Gesamtliste aus; Query `kommissionierte=true`
+  (Partial `_KommissioniertSchalter`, nur bei flacher Quelle), in `ToggleSharedQueryKeys`, Druck/PDF übernehmen ihn.
+- Punkt 6: Text in `RequireFaHierarchyBeschichtungAktivAttribute`. Punkt 7: F2-Tests in `BeschichtungFlacheQuelleTests`
+  (AK 20 Quelltext-Wächter, AK 22 zwei Cache-Stände, AK 25 Snapshot/Kopie, AK 26 Summiert) + Maße/Kopf/Häkchen; F3 `docs/betrieb/04-konfiguration.md`.
+- TS-145.14–145.19. Build 0 Fehler, Tests 715 + 3229 grün. QA: siehe folgender QA-Nachweis.

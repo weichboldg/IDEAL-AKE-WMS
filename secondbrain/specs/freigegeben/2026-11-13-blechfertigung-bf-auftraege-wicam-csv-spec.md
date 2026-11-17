@@ -657,3 +657,17 @@ Nach dem Merge nur neu publishen, wenn der Merge getestete Dateien mit parallele
 9. Mehrfach-Fertigmeldung über die Listen-Checkboxen (AK 14); Liste filtern und exportieren (AK 16).
 10. Direkt-POST Freigeben als Besteller → 403 (AK 8, Browser).
 11. Gesamtlauf TS-157 auf dem Testsystem nach Deploy (DB-Backup, Web-Update mit Migration 158, Dienst).
+
+## Entscheidung B-1 (Gerald 2026-11-17 18:42)
+- Variante **(c)**: Felder mit dem Trennzeichen `;` (z. B. Hauptlagerplatz `S-03;0;0;0` in `ORDER_POSITION`) werden **vorerst** in doppelte Anführungszeichen gesetzt (wie Excel-CSV-Export, enthaltene `"` verdoppelt). Logik kann später umgebaut werden; Bestätigung mit P-1 (Pool-Datei).
+- Zusätzlich gewünscht: **WiCAM-Test** – Gerald 18:44: **nur Teil (a)**: Button „Test-CSV herunterladen“ am BF-Auftrag (gleicher Erzeuger wie der Dienst, kein Statuswechsel, nichts in den Pool). Kein Register „WiCAM-Test“ in den Service-Einstellungen; P-7 (Schreibrecht Dienstkonto) bleibt bei Gerald.
+
+## Umsetzung B-1 und Test-CSV (Goal-Lauf 2026-11-17 abends)
+
+Commit `0b31a17d` (v1.99.35, keine neue SQL), Lauf-Notiz [[2026-11-17-goal-lauf-sammel-abend]].
+- `IdealAkeWms/Services/BfCsv.cs`: `Feld` fasst `;`/`"` wie Excel ein — im Code markiert „VORLAEUFIG, WIE EXCEL, DURCH P-1 ZU BESTAETIGEN“;
+  `UnzulaessigesZeichen` sperrt `;` nicht mehr (weiter `"`, Zeilenumbruch, nicht Windows-1252). `KopfAsync` gemeinsam für Dienst und Web.
+- `BfAuftraegeController.TestCsv` (POST, `RequireSchachtlerAccess`): Download `<BF-Nummer>.csv`, kein Statuswechsel, nichts im Pool,
+  Aktivitäts-Protokoll `BfAuftragCsv` („Test-CSV … heruntergeladen durch …“, `heruntergeladen = 1`). Kein Register „WiCAM-Test“.
+- Tests: `BfAuftragWorkflowTests` (Semikolon sperrt nicht, `Feld`, `KopfAsync`), `BfCsvServiceTests.Inhalt_LagerplatzMitSemikolon_InAnfuehrungszeichen`,
+  `BfAuftraegeFilterTests` (TestCsv). TS-157.21–157.23. **P-1 bleibt offen** (WiCAM-Import einer Datei mit eingefasstem Feld).

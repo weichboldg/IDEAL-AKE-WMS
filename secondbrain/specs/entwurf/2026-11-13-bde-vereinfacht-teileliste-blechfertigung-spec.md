@@ -721,3 +721,16 @@ Nicht in diesem Lauf (Auftrag: Publish am Ende des Bündellaufs). Vor dem Testsy
 9. 152.9 in der Folgewoche: „aktuelle KW“ rückt mit.
 10. AKE-Sichtprüfung (Terminal, Werkbank-Maske) auf dem Testsystem.
 11. Folgeaufgabe Kontrast `.btn-success`/`.btn-secondary` (F2) anlegen.
+## Nachtrag 2026-11-17: Kontrast der Terminal-Knöpfe (Freigabe Gerald 18:48)
+
+QA-Befund F2: weißer Text auf `.btn-success` (#82BF6E, ca. 2,2:1) und `.btn-secondary` (#43A6E2, ca. 2,7:1) ist am Terminal schlecht lesbar.
+Auftrag: **nur in der BDE-Teileliste und am BDE-Terminal** (`bde.css`, Views `BdeTeileliste/*`, BDE-Terminal) dunkle Schrift auf diesen Knöpfen,
+sodass WCAG AA (4,5:1) erreicht wird; die globalen Markenfarben in `site.css` bleiben unverändert. Sichtprüfung auf DEV IDEAL mit Screenshot.
+Weitere Wünsche an die Maske sammelt die Koordination beim Termin 18.11. ([[2026-11-18-termin-0950-walter-fragen]]).
+
+### Umsetzung Nachtrag Kontrast (Goal-Lauf 2026-11-17 abends, v1.99.36, Commit `e40ecfcb`)
+
+`IdealAkeWms/wwwroot/css/bde.css`: `.bde-terminal .btn-success`/`.btn-secondary` (inkl. hover/focus/active/disabled) Schrift `#212529` —
+grün 7,1:1, blau 5,8:1, Hover 5,6:1/4,7:1. Die Modals (`meldenModal`, `group-finish-modal`, `close-others-modal`) liegen außerhalb des
+Wrappers und tragen jetzt die Klasse `bde-terminal`. `site.css` unverändert. TS-152.12; Sichtprüfung/Screenshot DEV IDEAL durch den qa-agent.
+Lauf-Notiz [[2026-11-17-goal-lauf-sammel-abend]].

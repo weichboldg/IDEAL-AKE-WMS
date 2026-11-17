@@ -41,3 +41,11 @@ Spec [[2026-11-13-blechfertigung-bf-auftraege-wicam-csv-spec]]. Nicht gemergt, q
 - Gering bei Default aus. **Vor `BfCsvAktiv` an:** P-1 (Musterdatei aus dem WiCAM-Pool) abgleichen, P-7 Schreibrecht Dienstkonto.
 - Warenkorb-Test braucht View-Block 3 (Lagerartikel in der Sage-View, Gerald).
 - Test: TS-157.
+
+## Nachtrag B-1 und Test-CSV (Commit `0b31a17d`, Goal-Lauf [[2026-11-17-goal-lauf-sammel-abend]])
+
+- B-1 Variante (c), **vorläufig, wie Excel, durch P-1 zu bestätigen:** `BfCsv.Feld` fasst Felder mit `;` oder `"` in doppelte
+  Anführungszeichen (enthaltene `"` verdoppelt); `;` sperrt die Freigabe nicht mehr (Sage-Lagerplatz `S-03;0;0;0`).
+- `BfCsv.KopfAsync` liest die CSV-Kopfwerte für Dienst und Web gemeinsam.
+- „Test-CSV herunterladen“ (schachtler/admin, POST `BfAuftraege/TestCsv`): derselbe Erzeuger, Download `<BF-Nummer>.csv`, kein Statuswechsel,
+  nichts im Pool, Eintrag im Aktivitäts-Protokoll `BfAuftragCsv`. Kein Register „WiCAM-Test“. TS-157.21–157.23.
