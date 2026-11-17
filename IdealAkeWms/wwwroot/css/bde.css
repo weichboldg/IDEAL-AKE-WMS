@@ -80,3 +80,17 @@
 /* v1.99.32 BDE-Teileliste: Bedienelemente mindestens 44px hoch (Touch am Terminal, WCAG 2.5.5). */
 .bde-touch { min-height: 44px; display: inline-flex; align-items: center; }
 .bde-teileliste .form-check-input { width: 1.6em; height: 1.6em; }
+
+/* v1.99.36 (Spec 2026-11-13-bde-vereinfacht-teileliste, Nachtrag Kontrast, QA-F2): weisse Schrift auf den Markenfarben erreicht am
+   Terminal nur 2,2:1 (gruen #82BF6E) bzw. 2,7:1 (blau #43A6E2). Nur hier (Wrapper .bde-terminal = BDE-Teileliste und BDE-Terminal)
+   dunkle Schrift #212529: gruen 7,1:1, blau 5,8:1, Hover 5,6:1 / 4,7:1 (WCAG AA). site.css bleibt unveraendert. */
+.bde-terminal .btn-success,
+.bde-terminal .btn-success:hover,
+.bde-terminal .btn-success:focus,
+.bde-terminal .btn-success:active,
+.bde-terminal .btn-success:disabled,
+.bde-terminal .btn-secondary,
+.bde-terminal .btn-secondary:hover,
+.bde-terminal .btn-secondary:focus,
+.bde-terminal .btn-secondary:active,
+.bde-terminal .btn-secondary:disabled { color: #212529; }
