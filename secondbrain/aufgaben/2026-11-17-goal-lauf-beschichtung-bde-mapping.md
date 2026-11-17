@@ -21,7 +21,7 @@ AppVersion zurückzudrehen.
 
 | Spec | Typ | SQL | Version | Status | Commits | Blocker |
 |---|---|---|---|---|---|---|
-| [[2026-11-16-beschichtungslogik-je-standort-spec]] E2/E4 | Epic | – | 1.99.25 | in Arbeit | | E5: H2/H3 (AKE) offen |
+| [[2026-11-16-beschichtungslogik-je-standort-spec]] E2/E4 | Epic | – | 1.99.25 (Auslieferung 1.99.32) | InUmsetzung – QA Teilumfang E2/E4 grün | `2336dced` E2, `b4972700` E4 | E5: H2 (P-A5/P-A3/P-A6) und H3 offen |
 | [[2026-11-13-bde-vereinfacht-teileliste-blechfertigung-spec]] | Spec | 154 | 1.99.32 | in Arbeit | | |
 | [[2026-11-16-arbeitsgang-mapping-sage-arbeitsgangnummer-spec]] | Spec | 153 | 1.99.27 | wartet | | |
 
