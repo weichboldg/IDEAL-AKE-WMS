@@ -9,6 +9,18 @@
 <div class="container-fluid bde-terminal">
     <partial name="_Kopf" model="Model" />
 
+    <form id="blockForm" method="post" asp-action="Melden" class="d-flex flex-wrap align-items-center gap-2 mb-2">
+        <input type="hidden" name="workplaceId" value="@Model.Werkbank.Id" />
+        <input type="hidden" name="operatorId" value="@Model.Werker!.Id" />
+        <input type="hidden" name="returnUrl" value="@Model.ReturnUrl" />
+        <div class="form-check bde-touch d-flex align-items-center gap-2 mb-0">
+            <input class="form-check-input" type="checkbox" id="alleAuswaehlen" />
+            <label class="form-check-label" for="alleAuswaehlen">alle auf dieser Seite</label>
+        </div>
+        <button type="submit" class="btn btn-primary btn-lg" id="blockMelden" disabled>Auswahl fertigmelden</button>
+        <span class="small text-muted">je Matchcode alle offenen Positionen mit voller Sollmenge</span>
+    </form>
+
     <div class="d-flex justify-content-end mb-1" data-table-toolbar></div>
     <div class="table-responsive">
         <table class="table table-sm table-striped align-middle mb-0 filterable-table bde-teileliste" data-view-key="BdeTeilelisteSummiert" data-server-column-filter="true">
@@ -32,7 +44,14 @@
                 @foreach (var a in Model.Aggregate)
                 {
                     <tr>
-                        <td></td>
+                        <td>
+                            @if (a.OffeneSchluessel.Count > 0)
+                            {
+                                <input class="form-check-input tl-auswahl" type="checkbox" form="blockForm" name="schluessel"
+                                       value="@string.Join("\n", a.OffeneSchluessel.Select(k => k.Text))" data-anzahl="@a.OffeneSchluessel.Count"
+                                       data-soll="@a.SummeSollmengeOffen.ToString(System.Globalization.CultureInfo.InvariantCulture)" aria-label="@a.Matchcode auswählen" />
+                            }
+                        </td>
                         <td>@a.Matchcode</td>
                         <td class="text-end">@VormontageService.FormatMenge(a.SummeSollmenge)</td>
                         <td class="text-end">@a.Anzahl</td>

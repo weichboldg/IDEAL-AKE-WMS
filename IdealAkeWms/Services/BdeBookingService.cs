@@ -266,68 +266,73 @@ public class BdeBookingService : IBdeBookingService
     /// nicht: die Buchung ist nie aktiv.
     /// </summary>
     public Task<BdeBookingResult> ReportCompletionAsync(int operatorId, int workOperationId, int workplaceId, int terminalId,
+        decimal? goodQty, decimal? scrapQty) =>
+        InTransactionAsync(() => ReportCompletionCoreAsync(operatorId, workOperationId, workplaceId, terminalId, goodQty, scrapQty));
+
+    /// <summary>v1.99.32 (ADR 0030): Rumpf von <see cref="ReportCompletionAsync"/> OHNE eigene Transaktion — der Aufrufer stellt sie
+    /// (die BDE-Teileliste meldet Teilmeldung und Baugruppen-Arbeitsgang in EINER Transaktion). Wirksam an Werkbaenken mit „nur
+    /// AG-Fertigmeldung“ oder BDE-Teileliste.</summary>
+    public async Task<BdeBookingResult> ReportCompletionCoreAsync(int operatorId, int workOperationId, int workplaceId, int terminalId,
         decimal? goodQty, decimal? scrapQty)
     {
-        return InTransactionAsync(async () =>
+        // v1.99.23 (BDE-1, ADR 0026): zwei gleichzeitige Fertigmeldungen desselben Arbeitsgangs – die zweite wartet hier, bis die erste
+        // committet, und sieht dann deren IsFinal-Buchung (Pruefung unten). Kein Index moeglich (IsFinal und Arbeitsgang in zwei Tabellen).
+        if (!await SperreArbeitsgangAsync(workOperationId))
+            return BdeBookingResult.Invalid("Arbeitsgang wird gerade an einem anderen Terminal gemeldet – bitte erneut versuchen.");
+
+        var gateError = await EnsureWorkplaceIsBdeActiveAsync(workplaceId);
+        if (gateError != null) return gateError;
+
+        var workplace = await _ctx.ProductionWorkplaces.FindAsync(workplaceId);
+        var nurFa = await ReadBoolSettingAsync(AppSettingKeys.BdeNurFaMeldung);
+        if (!WerkbankKuerzelFamilie.NurAgFertigmeldungWirksam(workplace!, nurFa) && !WerkbankKuerzelFamilie.TeilelisteWirksam(workplace!, nurFa))
+            return BdeBookingResult.Invalid("Diese Werkbank meldet nicht ohne Zeit fertig.");
+
+        var familyError = await EnsureWorkOperationInFamilyAsync(workOperationId, workplaceId);
+        if (familyError != null) return familyError;
+
+        var packedError = await EnsureOrderNotPackedAsync(workOperationId);
+        if (packedError != null) return packedError;
+
+        if (IstNegativ(goodQty, scrapQty)) return BdeBookingResult.Invalid(NegativeMengeMeldung);
+        if ((goodQty ?? 0) == 0 && (scrapQty ?? 0) == 0)
+            return BdeBookingResult.Invalid("Bitte eine Gut- oder Ausschussmenge angeben.");
+
+        if (await _ctx.BdeBookingQuantities.AnyAsync(q => q.IsFinal && !q.BdeBooking!.IsCancelled
+                && q.BdeBooking.WorkOperationId == workOperationId))
+            return BdeBookingResult.Invalid("Arbeitsgang ist bereits fertig gemeldet.");
+
+        var running = await _ctx.BdeBookings
+            .Include(b => b.BdeOperator).Include(b => b.ProductionWorkplace)
+            .Where(b => b.WorkOperationId == workOperationId && b.EndedAt == null && !b.IsCancelled)
+            .ToListAsync();
+        if (running.Any(b => b.BdeOperatorId == operatorId))
+            return BdeBookingResult.Invalid("Dieser Arbeitsgang läuft bei Ihnen — bitte dort beenden.");
+        // Antwort 7: dieselbe Regel wie beim Produktions-Start — Kollision nur ohne Mehrfachbuchung je Arbeitsgang.
+        if (running.Count > 0 && !await ReadBoolSettingAsync(AppSettingKeys.BdeMehrfachBuchungProArbeitsgang))
+            return BdeBookingResult.Collision(running[0]);
+
+        var now = DateTime.Now;
+        var booking = new BdeBooking
         {
-            // v1.99.23 (BDE-1, ADR 0026): zwei gleichzeitige Fertigmeldungen desselben Arbeitsgangs – die zweite wartet hier, bis die erste
-            // committet, und sieht dann deren IsFinal-Buchung (Pruefung unten). Kein Index moeglich (IsFinal und Arbeitsgang in zwei Tabellen).
-            if (!await SperreArbeitsgangAsync(workOperationId))
-                return BdeBookingResult.Invalid("Arbeitsgang wird gerade an einem anderen Terminal gemeldet – bitte erneut versuchen.");
-
-            var gateError = await EnsureWorkplaceIsBdeActiveAsync(workplaceId);
-            if (gateError != null) return gateError;
-
-            var workplace = await _ctx.ProductionWorkplaces.FindAsync(workplaceId);
-            if (!WerkbankKuerzelFamilie.NurAgFertigmeldungWirksam(workplace!, await ReadBoolSettingAsync(AppSettingKeys.BdeNurFaMeldung)))
-                return BdeBookingResult.Invalid("Diese Werkbank meldet nicht ohne Zeit fertig.");
-
-            var familyError = await EnsureWorkOperationInFamilyAsync(workOperationId, workplaceId);
-            if (familyError != null) return familyError;
-
-            var packedError = await EnsureOrderNotPackedAsync(workOperationId);
-            if (packedError != null) return packedError;
-
-            if (IstNegativ(goodQty, scrapQty)) return BdeBookingResult.Invalid(NegativeMengeMeldung);
-            if ((goodQty ?? 0) == 0 && (scrapQty ?? 0) == 0)
-                return BdeBookingResult.Invalid("Bitte eine Gut- oder Ausschussmenge angeben.");
-
-            if (await _ctx.BdeBookingQuantities.AnyAsync(q => q.IsFinal && !q.BdeBooking!.IsCancelled
-                    && q.BdeBooking.WorkOperationId == workOperationId))
-                return BdeBookingResult.Invalid("Arbeitsgang ist bereits fertig gemeldet.");
-
-            var running = await _ctx.BdeBookings
-                .Include(b => b.BdeOperator).Include(b => b.ProductionWorkplace)
-                .Where(b => b.WorkOperationId == workOperationId && b.EndedAt == null && !b.IsCancelled)
-                .ToListAsync();
-            if (running.Any(b => b.BdeOperatorId == operatorId))
-                return BdeBookingResult.Invalid("Dieser Arbeitsgang läuft bei Ihnen — bitte dort beenden.");
-            // Antwort 7: dieselbe Regel wie beim Produktions-Start — Kollision nur ohne Mehrfachbuchung je Arbeitsgang.
-            if (running.Count > 0 && !await ReadBoolSettingAsync(AppSettingKeys.BdeMehrfachBuchungProArbeitsgang))
-                return BdeBookingResult.Collision(running[0]);
-
-            var now = DateTime.Now;
-            var booking = new BdeBooking
-            {
-                BdeOperatorId = operatorId,
-                WorkOperationId = workOperationId,
-                ProductionWorkplaceId = workplaceId,
-                BdeTerminalId = terminalId,
-                BookingType = BdeBookingType.Production,
-                Status = BdeBookingStatus.Finished,
-                StartedAt = now,
-                EndedAt = now
-            };
-            SetAudit(booking);
-            _ctx.BdeBookings.Add(booking);
-            await _ctx.SaveChangesAsync();
-            var quantity = CreatePartialQuantity(booking, goodQty ?? 0, scrapQty ?? 0);
-            quantity.IsFinal = true;
-            quantity.ReportedAt = now;
-            _ctx.BdeBookingQuantities.Add(quantity);
-            await _ctx.SaveChangesAsync();
-            return BdeBookingResult.Success(booking);
-        });
+            BdeOperatorId = operatorId,
+            WorkOperationId = workOperationId,
+            ProductionWorkplaceId = workplaceId,
+            BdeTerminalId = terminalId,
+            BookingType = BdeBookingType.Production,
+            Status = BdeBookingStatus.Finished,
+            StartedAt = now,
+            EndedAt = now
+        };
+        SetAudit(booking);
+        _ctx.BdeBookings.Add(booking);
+        await _ctx.SaveChangesAsync();
+        var quantity = CreatePartialQuantity(booking, goodQty ?? 0, scrapQty ?? 0);
+        quantity.IsFinal = true;
+        quantity.ReportedAt = now;
+        _ctx.BdeBookingQuantities.Add(quantity);
+        await _ctx.SaveChangesAsync();
+        return BdeBookingResult.Success(booking);
     }
 
     public async Task<BdeBookingResult> FinishAsync(int bookingId, decimal? goodQty = null, decimal? scrapQty = null)
@@ -587,12 +592,16 @@ public class BdeBookingService : IBdeBookingService
 
     /// <summary>v1.99.23 (BDE-1): exklusive Anwendungssperre je Arbeitsgang bis zum Transaktionsende (sp_getapplock, 10 s). false =
     /// Zeitueberschreitung. InMemory (Tests): keine Sperre, true. Muss innerhalb von <see cref="InTransactionAsync"/> laufen.</summary>
-    private async Task<bool> SperreArbeitsgangAsync(int workOperationId)
+    private Task<bool> SperreArbeitsgangAsync(int workOperationId) => AnwendungssperreAsync(_ctx, $"BDE-Fertigmeldung:{workOperationId}");
+
+    /// <summary>Exklusive Anwendungssperre bis Transaktionsende (sp_getapplock, 10 s; Ressource max. 255 Zeichen). false = Zeitueberschreitung.
+    /// InMemory: true. v1.99.32: auch fuer die BDE-Teileliste.</summary>
+    internal static async Task<bool> AnwendungssperreAsync(ApplicationDbContext ctx, string ressource)
     {
-        if (_ctx.Database.ProviderName?.Contains("InMemory", StringComparison.OrdinalIgnoreCase) == true) return true;
+        if (ctx.Database.ProviderName?.Contains("InMemory", StringComparison.OrdinalIgnoreCase) == true) return true;
         var ergebnis = new Microsoft.Data.SqlClient.SqlParameter("@ergebnis", System.Data.SqlDbType.Int) { Direction = System.Data.ParameterDirection.Output };
-        var resource = new Microsoft.Data.SqlClient.SqlParameter("@resource", System.Data.SqlDbType.NVarChar, 255) { Value = $"BDE-Fertigmeldung:{workOperationId}" };
-        await _ctx.Database.ExecuteSqlRawAsync(
+        var resource = new Microsoft.Data.SqlClient.SqlParameter("@resource", System.Data.SqlDbType.NVarChar, 255) { Value = ressource };
+        await ctx.Database.ExecuteSqlRawAsync(
             "EXEC @ergebnis = sys.sp_getapplock @Resource = @resource, @LockMode = 'Exclusive', @LockOwner = 'Transaction', @LockTimeout = 10000",
             ergebnis, resource);
         return ergebnis.Value is int r && r >= 0;

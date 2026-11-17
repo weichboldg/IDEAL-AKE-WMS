@@ -13,6 +13,9 @@ public interface IBdeBookingService
     /// <summary>Fertigmeldung ohne Start/Stop an einer Werkbank „nur AG-Fertigmeldung" (v1.63.0).</summary>
     Task<BdeBookingResult> ReportCompletionAsync(int operatorId, int workOperationId, int workplaceId, int terminalId,
         decimal? goodQty, decimal? scrapQty);
+    /// <summary>v1.99.32: wie <see cref="ReportCompletionAsync"/>, aber ohne eigene Transaktion (Aufrufer stellt sie).</summary>
+    Task<BdeBookingResult> ReportCompletionCoreAsync(int operatorId, int workOperationId, int workplaceId, int terminalId,
+        decimal? goodQty, decimal? scrapQty);
     Task<BdeBookingResult> ReportPartialQuantityAsync(int bookingId, decimal goodQty, decimal scrapQty);
     Task<CloseOthersResult> CloseOtherBookingsOnWorkOperationAsync(int workOperationId, int exceptOperatorId);
     Task<GroupFinishResult> FinishGroupAsync(int operatorId, IReadOnlyList<GroupFinishEntry> entries);

@@ -74,10 +74,14 @@ public class BdeTeilelisteService
     private readonly IFaHierarchyNodeRepository _nodes;
     private readonly IFaHierarchyOrderInfoRepository _orderInfos;
     private readonly ApplicationDbContext _ctx;
+    private readonly IBdeBookingService _booking;
+    private readonly ICurrentUserService _userSvc;
+    private readonly IAppSettingRepository _settings;
 
-    public BdeTeilelisteService(IFaHierarchyNodeRepository nodes, IFaHierarchyOrderInfoRepository orderInfos, ApplicationDbContext ctx)
+    public BdeTeilelisteService(IFaHierarchyNodeRepository nodes, IFaHierarchyOrderInfoRepository orderInfos, ApplicationDbContext ctx,
+        IBdeBookingService booking, ICurrentUserService userSvc, IAppSettingRepository settings)
     {
-        _nodes = nodes; _orderInfos = orderInfos; _ctx = ctx;
+        _nodes = nodes; _orderInfos = orderInfos; _ctx = ctx; _booking = booking; _userSvc = userSvc; _settings = settings;
     }
 
     /// <summary>F2: ein Token (Leerzeichen-Trennung wie Dienst und FA-Baum) ist das Kuerzel, Gross/Klein egal.</summary>
@@ -215,5 +219,193 @@ public class BdeTeilelisteService
             })
             .OrderBy(a => a.Matchcode, StringComparer.OrdinalIgnoreCase);
         return ColumnFilterHelper.Apply(aggregate, colf, SpaltenSummiert, ColumnFilterTypes.For("BdeTeileliste/Summiert")).ToList();
+    }
+
+    // ---------------------------------------------------------------- Melden (E3)
+
+    /// <summary>Gut/Ausschuss null = volle Sollmenge, Ausschuss 0 (Block und Summiert, F9).</summary>
+    public sealed record MeldeAuftrag(TeilSchluessel Schluessel, decimal? Gut, decimal? Ausschuss);
+
+    /// <summary>Sammelmeldung (F9): nie still — jede nicht gemeldete Zeile mit Grund.</summary>
+    public sealed class MeldeErgebnis
+    {
+        public int Gemeldet { get; set; }
+        public List<string> BereitsGemeldet { get; } = new();
+        public List<string> Abgewiesen { get; } = new();
+        public List<string> Hinweise { get; } = new();
+        public bool AllesGut => BereitsGemeldet.Count == 0 && Abgewiesen.Count == 0 && Hinweise.Count == 0;
+
+        public string Text()
+        {
+            var teile = new List<string> { $"Gemeldet: {Gemeldet}." };
+            if (BereitsGemeldet.Count > 0) teile.Add($"Bereits gemeldet: {BereitsGemeldet.Count} – nichts geändert ({string.Join("; ", BereitsGemeldet)}).");
+            if (Abgewiesen.Count > 0) teile.Add($"Abgewiesen: {Abgewiesen.Count} ({string.Join("; ", Abgewiesen)}).");
+            if (Hinweise.Count > 0) teile.Add($"Hinweis: {string.Join("; ", Hinweise)}.");
+            return string.Join(" ", teile);
+        }
+    }
+
+    /// <summary>
+    /// F8–F11 (ADR 0026/0030): je Zeile eigene Transaktion mit Anwendungssperre auf den Schluessel, Pruefung gegen den AKTUELLEN Struktur-Stand
+    /// (nicht gegen die Seite), Teilmeldung speichern (gefilterter UNIQUE = letzte Wache), bei Baugruppe den eigenen Arbeitsgang
+    /// (Sub-FA, OperationNumber = Kuerzel) ueber den Kern von <see cref="IBdeBookingService.ReportCompletionAsync"/> fertig melden.
+    /// </summary>
+    public async Task<MeldeErgebnis> MeldenAsync(int operatorId, int workplaceId, int terminalId, IReadOnlyList<MeldeAuftrag> auftraege)
+    {
+        var ergebnis = new MeldeErgebnis();
+        var wp = await _ctx.ProductionWorkplaces.FindAsync(workplaceId);
+        var nurFa = (await _settings.GetValueAsync(AppSettingKeys.BdeNurFaMeldung))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
+        if (wp == null || !WerkbankKuerzelFamilie.TeilelisteWirksam(wp, nurFa))
+        {
+            ergebnis.Abgewiesen.Add("Werkbank meldet nicht über die BDE-Teileliste");
+            return ergebnis;
+        }
+        if (!await _ctx.BdeOperators.AnyAsync(o => o.Id == operatorId && o.IsActive))
+        {
+            ergebnis.Abgewiesen.Add("Werker nicht angemeldet oder inaktiv");
+            return ergebnis;
+        }
+        var kuerzel = WerkbankKuerzelFamilie.Kuerzel(wp)!;
+        foreach (var a in auftraege.DistinctBy(a => a.Schluessel))
+            await InTransaktionAsync(() => MeldeZeileAsync(a, kuerzel, operatorId, workplaceId, terminalId, ergebnis));
+        return ergebnis;
+    }
+
+    private async Task MeldeZeileAsync(MeldeAuftrag a, string kuerzel, int operatorId, int workplaceId, int terminalId, MeldeErgebnis e)
+    {
+        var s = a.Schluessel;
+        var bezeichnung = $"Haupt-FA {s.HauptFA} Pos. {s.Position?.ToString(Inv) ?? "–"}";
+        if (!await BdeBookingService.AnwendungssperreAsync(_ctx, Sperre(s, kuerzel)))
+        {
+            e.Abgewiesen.Add($"{bezeichnung}: wird gerade an einem anderen Terminal gemeldet – bitte erneut versuchen");
+            return;
+        }
+
+        var treffer = (await _ctx.FaHierarchyNodes.AsNoTracking()
+                .Where(n => n.HauptFA == s.HauptFA && n.SubFA == s.SubFA && n.VaterFA == s.VaterFA && n.Position == s.Position).ToListAsync())
+            .Where(n => TeilSchluessel.Von(n) == s).ToList();
+        if (treffer.Count == 0 || !Traegt(treffer[0], kuerzel))
+        {
+            e.Abgewiesen.Add($"{bezeichnung}: Zeile mit Kürzel {kuerzel} nicht mehr in der FA-Struktur");
+            return;
+        }
+        if (treffer.Count > 1)
+        {
+            e.Abgewiesen.Add($"{bezeichnung}: Strukturzeile nicht eindeutig – bitte AV");
+            return;
+        }
+        var node = treffer[0];
+        bezeichnung = $"{node.Matchcode} ({bezeichnung})";
+
+        var besitzer = Besitzer(node);
+        if (besitzer != null)
+        {
+            var auftraege = await _ctx.ProductionOrders.AsNoTracking()
+                .Where(o => o.SubOrderNumber == besitzer || (o.OrderNumber == besitzer && (o.SubOrderNumber == "" || o.SubOrderNumber == o.OrderNumber)))
+                .Select(o => new { o.OrderNumber, o.IsDone, o.IsCancelled, SageStatus = o.ExtraInfo != null ? o.ExtraInfo.SageStatus : null })
+                .ToListAsync();
+            if (auftraege.FirstOrDefault(o => FaZusatzinfoStatus.IstVerpacktOderAbgeholt(o.SageStatus)) is { } verpackt)
+            {
+                e.Abgewiesen.Add($"{bezeichnung}: FA {verpackt.OrderNumber} ist bereits {verpackt.SageStatus!.Trim()}");
+                return;
+            }
+            if (auftraege.Count > 0 && auftraege.All(o => o.IsDone || o.IsCancelled))
+            {
+                e.Abgewiesen.Add($"{bezeichnung}: Auftrag {besitzer} ist erledigt oder storniert");
+                return;
+            }
+        }
+
+        var gut = a.Gut ?? node.Sollmenge;
+        var ausschuss = a.Ausschuss ?? 0;
+        if (gut < 0 || ausschuss < 0)
+        {
+            e.Abgewiesen.Add($"{bezeichnung}: Mengen dürfen nicht negativ sein");
+            return;
+        }
+        if (gut + ausschuss == 0)
+        {
+            e.Abgewiesen.Add($"{bezeichnung}: bitte eine Gut- oder Ausschussmenge angeben");
+            return;
+        }
+
+        if (await VorhandeneMeldungAsync(s, kuerzel) is { } vorhanden)
+        {
+            e.BereitsGemeldet.Add(BereitsText(bezeichnung, vorhanden));
+            return;
+        }
+
+        var meldung = new BdeTeilMeldung
+        {
+            HauptFA = s.HauptFA, VaterFA = s.VaterFA, SubFA = s.SubFA, Position = s.Position, Artnr = s.Artnr, Matchcode = node.Matchcode,
+            Kuerzel = kuerzel, ProductionWorkplaceId = workplaceId, BdeOperatorId = operatorId, BdeTerminalId = terminalId,
+            GoodQuantity = gut, ScrapQuantity = ausschuss, SollmengeBeiMeldung = node.Sollmenge, GemeldetAm = DateTime.Now,
+            CreatedAt = DateTime.Now, CreatedBy = _userSvc.GetDisplayName(), CreatedByWindows = _userSvc.GetWindowsUserName(),
+        };
+        _ctx.BdeTeilMeldungen.Add(meldung);
+        try
+        {
+            await _ctx.SaveChangesAsync();
+        }
+        catch (DbUpdateException ex) when (Nummernkreis.IstSqlFehler(ex, 2601, 2627))
+        {
+            // DB-Gleichstand (ADR 0026): der gefilterte UNIQUE hat die zweite Meldung abgewiesen.
+            _ctx.Entry(meldung).State = EntityState.Detached;
+            var gewinner = await VorhandeneMeldungAsync(s, kuerzel);
+            e.BereitsGemeldet.Add(gewinner != null ? BereitsText(bezeichnung, gewinner) : $"{bezeichnung}: bereits gemeldet");
+            return;
+        }
+        e.Gemeldet++;
+
+        if (node.SubFA == 0) return; // Blechteil: nur Teilmeldung (F10)
+
+        // Baugruppe: eigener Arbeitsgang der Sub-FA mit OperationNumber = Kuerzel (F10). Vater-Sub-FA und Haupt-FA bleiben unberuehrt.
+        var subFa = node.SubFA.ToString(Inv);
+        // OperationNumber = Token aus Arbeitsschritte (Dienst), Gross/Klein wie dort egal.
+        var kuerzelGross = kuerzel.ToUpperInvariant();
+        var agId = await _ctx.WorkOperations.Where(w => w.OperationNumber.ToUpper() == kuerzelGross && w.ProductionOrder.SubOrderNumber == subFa)
+            .Select(w => (int?)w.Id).FirstOrDefaultAsync();
+        if (agId == null)
+        {
+            e.Hinweise.Add($"Arbeitsgang {kuerzel} an Sub-FA {subFa} nicht vorhanden – nur die Teilmeldung gespeichert");
+            return;
+        }
+        var r = await _booking.ReportCompletionCoreAsync(operatorId, agId.Value, workplaceId, terminalId, gut, ausschuss);
+        if (r.Outcome == BdeBookingOutcome.Success)
+        {
+            meldung.BdeBookingId = r.Booking!.Id;
+            await _ctx.SaveChangesAsync();
+        }
+        else
+        {
+            var grund = r.Message ?? (r.CollidingBooking != null ? "läuft gerade bei einem anderen Werker" : r.Outcome.ToString());
+            e.Hinweise.Add($"Arbeitsgang {kuerzel} an Sub-FA {subFa}: {grund} – nur die Teilmeldung gespeichert");
+        }
+    }
+
+    private Task<BdeTeilMeldung?> VorhandeneMeldungAsync(TeilSchluessel s, string kuerzel) =>
+        _ctx.BdeTeilMeldungen.AsNoTracking().Include(m => m.BdeOperator)
+            .Where(m => !m.IsCancelled && m.Kuerzel == kuerzel && m.HauptFA == s.HauptFA && m.VaterFA == s.VaterFA && m.SubFA == s.SubFA
+                && m.Position == s.Position && (s.Artnr == null ? m.Artnr == null || m.Artnr == "" : m.Artnr == s.Artnr))
+            .FirstOrDefaultAsync();
+
+    private static string BereitsText(string bezeichnung, BdeTeilMeldung m) =>
+        $"{bezeichnung}: bereits gemeldet von {m.BdeOperator?.DisplayName ?? "?"} um {m.GemeldetAm:HH:mm}";
+
+    /// <summary>sp_getapplock-Ressource (max. 255 Zeichen; Artnr bis 200) → Hash des Schluessels. Die eigentliche Wache ist der UNIQUE-Index.</summary>
+    internal static string Sperre(TeilSchluessel s, string kuerzel) =>
+        "BDE-Teilmeldung:" + Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+            System.Text.Encoding.UTF8.GetBytes(s.Text + "|" + kuerzel.ToUpperInvariant())));
+
+    private async Task InTransaktionAsync(Func<Task> aktion)
+    {
+        if (_ctx.Database.ProviderName?.Contains("InMemory", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            await aktion();
+            return;
+        }
+        await using var tx = await _ctx.Database.BeginTransactionAsync();
+        await aktion();
+        await tx.CommitAsync();
     }
 }

@@ -116,6 +116,59 @@ public class BdeTeilelisteController : Controller
         return View(vm.Summiert ? "Summiert" : "Index", vm);
     }
 
+    /// <summary>
+    /// E3 (F8–F11): Fertigmelden. Ein Schluessel mit Mengen = Einzelmeldung; sonst je Schluessel volle Sollmenge (Block, Summiert —
+    /// ein Summiert-Wert traegt mehrere Schluessel, getrennt durch Zeilenumbruch). Der Client sendet die Absicht (Schluessel), der Server
+    /// prueft gegen den aktuellen Stand (ADR 0026). Terminal = Terminal des Web-Benutzers, nie aus dem Formular.
+    /// </summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Melden(int workplaceId, int operatorId, string[]? schluessel, string? gut, string? ausschuss, string? returnUrl)
+    {
+        var terminal = await TerminalAsync();
+        if (terminal == null)
+        {
+            TempData["WarningMessage"] = "Für diesen Benutzer ist kein Terminal konfiguriert. Bitte an den BDE-Admin wenden.";
+            return RedirectToAction("Index", "Home");
+        }
+        var texte = (schluessel ?? Array.Empty<string>()).SelectMany(t => t.Split('\n', StringSplitOptions.RemoveEmptyEntries))
+            .Select(t => t.TrimEnd('\r')).Where(t => t.Length > 0).ToList(); // Formular-Versand macht aus LF ein CRLF; Artnr nicht trimmen
+        var keys = texte.Select(TeilSchluessel.Parse).ToList();
+        var zurueck = Url.IsLocalUrl(returnUrl) ? returnUrl! : Url.Action(nameof(Index), new { workplaceId, operatorId })!;
+        if (keys.Count == 0 || keys.Any(k => k == null))
+        {
+            TempData["WarningMessage"] = keys.Count == 0 ? "Keine Zeile ausgewählt – nichts gemeldet." : "Ungültige Zeilenauswahl – nichts gemeldet. Bitte Seite neu laden.";
+            return LocalRedirect(zurueck);
+        }
+
+        decimal? g = null, a = null;
+        if (keys.Count == 1 && (!string.IsNullOrWhiteSpace(gut) || !string.IsNullOrWhiteSpace(ausschuss)))
+        {
+            if (!TryMenge(gut, out g) || !TryMenge(ausschuss, out a))
+            {
+                TempData["WarningMessage"] = "Menge ist keine Zahl – nichts gemeldet.";
+                return LocalRedirect(zurueck);
+            }
+            g ??= 0; a ??= 0;
+        }
+
+        var ergebnis = await _svc.MeldenAsync(operatorId, workplaceId, terminal.Id,
+            keys.Select(k => new BdeTeilelisteService.MeldeAuftrag(k!, g, a)).ToList());
+        TempData[ergebnis.AllesGut ? "SuccessMessage" : "WarningMessage"] = ergebnis.Text();
+        return LocalRedirect(zurueck);
+    }
+
+    /// <summary>Formularzahl kulturunabhaengig (&lt;input type="number"&gt; sendet Punkt, Hand-Eingabe ggf. Komma). Leer = null.</summary>
+    internal static bool TryMenge(string? text, out decimal? wert)
+    {
+        wert = null;
+        if (string.IsNullOrWhiteSpace(text)) return true;
+        if (!decimal.TryParse(text.Trim().Replace(',', '.'), System.Globalization.NumberStyles.AllowLeadingSign | System.Globalization.NumberStyles.AllowDecimalPoint,
+                System.Globalization.CultureInfo.InvariantCulture, out var d)) return false;
+        wert = d;
+        return true;
+    }
+
     /// <summary>Wert eines &lt;input type="week"&gt; (YYYY-Www) fuer ein Datum.</summary>
     internal static string IsoWoche(DateTime d) => $"{System.Globalization.ISOWeek.GetYear(d):D4}-W{System.Globalization.ISOWeek.GetWeekOfYear(d):D2}";
 }

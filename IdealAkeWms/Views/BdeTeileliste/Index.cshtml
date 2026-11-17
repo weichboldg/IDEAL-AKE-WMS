@@ -9,6 +9,18 @@
 <div class="container-fluid bde-terminal">
     <partial name="_Kopf" model="Model" />
 
+    <form id="blockForm" method="post" asp-action="Melden" class="d-flex flex-wrap align-items-center gap-2 mb-2">
+        <input type="hidden" name="workplaceId" value="@Model.Werkbank.Id" />
+        <input type="hidden" name="operatorId" value="@Model.Werker!.Id" />
+        <input type="hidden" name="returnUrl" value="@Model.ReturnUrl" />
+        <div class="form-check bde-touch d-flex align-items-center gap-2 mb-0">
+            <input class="form-check-input" type="checkbox" id="alleAuswaehlen" />
+            <label class="form-check-label" for="alleAuswaehlen">alle auf dieser Seite</label>
+        </div>
+        <button type="submit" class="btn btn-primary btn-lg" id="blockMelden" disabled>Auswahl fertigmelden</button>
+        <span class="small text-muted">volle Sollmenge je Zeile, Ausschuss 0</span>
+    </form>
+
     <div class="d-flex justify-content-end mb-1" data-table-toolbar></div>
     <div class="table-responsive">
         <table class="table table-sm table-striped align-middle mb-0 filterable-table bde-teileliste" data-view-key="BdeTeileliste" data-server-column-filter="true">
@@ -46,7 +58,13 @@
                     var n = z.Node;
                     var k = Model.Kopf.GetValueOrDefault(n.HauptFA);
                     <tr>
-                        <td></td>
+                        <td>
+                            @if (z.Meldbar)
+                            {
+                                <input class="form-check-input tl-auswahl" type="checkbox" form="blockForm" name="schluessel" value="@z.Schluessel.Text"
+                                       data-soll="@n.Sollmenge.ToString(System.Globalization.CultureInfo.InvariantCulture)" aria-label="@n.Matchcode auswählen" />
+                            }
+                        </td>
                         <td>
                             @n.Matchcode
                             @if (z.IstBaugruppe)
@@ -90,6 +108,12 @@
                             }
                         </td>
                         <td class="text-nowrap">
+                            @if (z.Meldbar)
+                            {
+                                <button type="button" class="btn btn-success bde-touch me-1" data-bs-toggle="modal" data-bs-target="#meldenModal"
+                                        data-schluessel="@z.Schluessel.Text" data-matchcode="@n.Matchcode"
+                                        data-soll="@n.Sollmenge.ToString(System.Globalization.CultureInfo.InvariantCulture)">Fertig melden</button>
+                            }
                             @if (z.IstBaugruppe)
                             {
                                 <button type="button" class="btn btn-outline-secondary bde-touch" data-bs-toggle="collapse" data-bs-target="#kinder-@i"
@@ -124,6 +148,36 @@
     </div>
 
     <partial name="_Pagination" model="Model.Pagination" />
+</div>
+
+<div class="modal fade" id="meldenModal" tabindex="-1" aria-labelledby="meldenModalTitel" aria-hidden="true">
+    <div class="modal-dialog">
+        <form class="modal-content" method="post" asp-action="Melden">
+            <div class="modal-header">
+                <h5 class="modal-title" id="meldenModalTitel">Fertig melden: <span data-feld="matchcode"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+            </div>
+            <div class="modal-body bde-terminal">
+                <input type="hidden" name="workplaceId" value="@Model.Werkbank.Id" />
+                <input type="hidden" name="operatorId" value="@Model.Werker!.Id" />
+                <input type="hidden" name="returnUrl" value="@Model.ReturnUrl" />
+                <input type="hidden" name="schluessel" data-feld="schluessel" />
+                <div class="mb-3">
+                    <label for="meldenGut" class="form-label">Gut</label>
+                    <input type="number" id="meldenGut" name="gut" class="form-control form-control-lg" min="0" step="any" inputmode="decimal" required />
+                    <div class="form-text">vorbelegt mit der Sollmenge <span data-feld="soll"></span></div>
+                </div>
+                <div class="mb-1">
+                    <label for="meldenAusschuss" class="form-label">Ausschuss</label>
+                    <input type="number" id="meldenAusschuss" name="ausschuss" class="form-control form-control-lg" min="0" step="any" inputmode="decimal" />
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary btn-lg" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="submit" class="btn btn-success btn-lg">Fertig melden</button>
+            </div>
+        </form>
+    </div>
 </div>
 
 <script type="application/json" id="view-config">
