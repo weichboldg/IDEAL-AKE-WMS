@@ -4,7 +4,7 @@ title: Beschichtungslogik je Standort - Quelle fuer Kennzeichen und Termin, ein 
 slug: 2026-11-16-beschichtungslogik-je-standort-spec
 status: InUmsetzung
 created: 2026-11-16
-updated: 2026-11-16
+updated: 2026-11-17
 source_backlog: "[[2026-11-16-beschichtungslogik-je-standort]]"
 task: ""
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
@@ -545,10 +545,10 @@ Danach `secondbrain/tests/testszenarien-index.md` nachziehen.
 | # | Etappe | Inhalt | Abhaengig von | SQL | Status | Commit |
 |---|--------|--------|---------------|-----|--------|--------|
 | 1 | Katalog + Resolver | 2 Choice-Keys (Termin-Quelle ohne `SData`), Beschreibungsergaenzungen, Server-Validierung (A8, `View` an der AKE abgelehnt), `BeschichtungResolver` plus Matrix-Tests (View = `Start_Beschichtung` 1:1); noch kein Verbraucher umgestellt; kein SData-Code (Freigabe-Antwort 17) | Freigabe-Antworten 1, 2, 4, 15, 17 | – | erledigt (QA 2026-11-16 gruen) | c61b7a52 |
-| H1 | **Haltepunkt P-I1** (vor E2, Nachtrag 2 / S-1) | Gerald erhebt P-I1 (Schalterstand IDEAL) und traegt das Ergebnis im Abschnitt „Pruefabfragen“ ein. Grund fuer die Lage vor E2: E2 stellt die Aktiv-Kennung der Zeilen-Views (`_ProductionOrderRow.cshtml:16-20`, `_PickingLeitstandRow.cshtml:82-94`) auf den Resolver um. Das ist die Verhaltensaenderung aus Freigabe-Antwort 7. Liegt kein Ergebnis vor, vermerkt der Lauf **E2 und E4** als Blocker und macht mit E3, H2/H3 und E5 weiter. | Gerald; Freigabe-Antwort 7 | – | offen | |
-| 2 | Web-Verbraucher | FA-Liste (Inline-Formel weg), Leitstand, Arbeitsliste, Zeilen-Views (Aktiv-Kennung), Tooltips je `TerminQuelle` auf den Resolver; Waechter-Test AK 9; Verhalten mit Automatisch identisch | E1, **H1**; Freigabe-Antwort 7 | – | **Blocker** | H1 P-I1 (Gerald) nicht eingetragen (Lauf 2026-11-16) |
+| H1 | **Haltepunkt P-I1** (vor E2, Nachtrag 2 / S-1) | Gerald erhebt P-I1 (Schalterstand IDEAL) und traegt das Ergebnis im Abschnitt „Pruefabfragen“ ein. Grund fuer die Lage vor E2: E2 stellt die Aktiv-Kennung der Zeilen-Views (`_ProductionOrderRow.cshtml:16-20`, `_PickingLeitstandRow.cshtml:82-94`) auf den Resolver um. Das ist die Verhaltensaenderung aus Freigabe-Antwort 7. Liegt kein Ergebnis vor, vermerkt der Lauf **E2 und E4** als Blocker und macht mit E3, H2/H3 und E5 weiter. | Gerald; Freigabe-Antwort 7 | – | erledigt (P-I1 eingetragen 2026-11-17) | |
+| 2 | Web-Verbraucher | FA-Liste (Inline-Formel weg), Leitstand, Arbeitsliste, Zeilen-Views (Aktiv-Kennung), Tooltips je `TerminQuelle` auf den Resolver; Waechter-Test AK 9; Verhalten mit Automatisch identisch | E1, **H1**; Freigabe-Antwort 7 | – | erledigt (QA 2026-11-17 gruen, Teilumfang E2/E4) | 2336dced |
 | 3 | Dienst | Gates ueber `ResolveQuellen`, Hook-Gate, Audit `SetCoatingPartsAsync`, Protokoll-Meldungen | E1; Freigabe-Antwort 12 | – | erledigt (QA 2026-11-16 gruen) | 318abf1f |
-| 4 | IDEAL-Termin Leitstand/Arbeitsliste | Koepfe je Seite nachladen, Termin aus dem Resolver (View = `Start_Beschichtung` unveraendert); Basisdatum Berechnet = Kopf-`FE_Termin` | E2 (und damit H1); Freigabe-Antworten 3, 4, 5, 6 | – | **Blocker** | H1 P-I1 (Gerald) nicht eingetragen (Lauf 2026-11-16) |
+| 4 | IDEAL-Termin Leitstand/Arbeitsliste | Koepfe je Seite nachladen, Termin aus dem Resolver (View = `Start_Beschichtung` unveraendert); Basisdatum Berechnet = Kopf-`FE_Termin` | E2 (und damit H1); Freigabe-Antworten 3, 4, 5, 6 | – | erledigt (QA 2026-11-17 gruen, Teilumfang E2/E4) | b4972700 |
 | H2 | **Haltepunkt P-A5 (+ P-A3, P-A6 als Beleg)** | Gerald erhebt P-A5 (Datumsspalte in `vw_AKE_Kommissionierung_WAListe`?), P-A3 (WA-Nummern numerisch) und P-A6 (Lackierteil-Positionen ganzzahlig) und traegt die Ergebnisse im Abschnitt „Pruefabfragen“ ein. P-A5 aendert in dieser Version nichts am Bau (`View` an der AKE bleibt gesperrt). P-A3 und P-A6 muessen 0 Abweichungen zeigen, sonst E5 Blocker (P-A6: Rueckfrage 20). | Gerald; Freigabe-Antworten 9, 15; Nachtrag 2 | – | offen | |
 | H3 | **Haltepunkt Mengen-Pruefschritt** (Nachtrag 2 / B-1) | Gerald waehlt per Hilfsabfrage H3 einen WA mit Baugruppe und `Quantity > 1`. Er vergleicht in der Kommissionierliste die Mengen der Baugruppen-Zeilen mit Sage/OSEON und traegt WA, Zeilenzahl und Ergebnis im Abschnitt „Pruefabfragen“ ein (AK 21). Fehlt der Eintrag oder weicht die Menge ab, ist E5 Blocker. | Gerald; Freigabe-Antwort 18 | – | offen | |
 | 5 | Vorschlagsliste + Beschichtungsauftrag AKE | Gate-Metadaten (beide), **keine** Master-Bedingung an der Vorschlagsliste. Flache Positionsquelle (WA-Stueckliste als `FaHierarchyNode`-Projektion) fuer `BeschichtungsauftragService` (Liste/Summiert), `BeschichtungsauftragVergabeAnzeige` und die Workflow-Weiche: offen = `IsDone = 0 AND IsCancelled = 0` (A13), Menge ueber `BomQuantityResolver` (A12), Schluessel Artnr + Position (A14), Sammelmeldung plus Logger-Warnung (A15). AKE-Kopfvorbelegung (Start berechnet, Dienstleister/RAL/Retour leer). „(IDEAL)“ aus den Spaltenkatalog-Namen | E1, E3, H2, **H3**; Freigabe-Antworten 8, 9, 10, 11, 18 | – (keine Migration) | **Blocker** | H2 (P-A5, P-A3, P-A6) und H3 nicht eingetragen; Rueckfragen 19/20 offen (Lauf 2026-11-16) |
@@ -602,6 +602,7 @@ Kein Einmal- oder Daten-Skript, also auch keine Trockenlauf-Pflicht.
 - Gilt im Buendel: DEV AKE nie mit dem main-Stand deployen.
 
 ### Pruefabfragen (nur lesend, vom Menschen auszufuehren; Ergebnisse vor Schranke 1 hier eintragen)
+> **Ergebnisse 2026-11-17 (Koordination, IDEALSQL2, [[2026-11-17-pruefabfragen-gerald]]):** P-I1 PROD (`IDEAL_AKE_WMS`): FaHierarchyBeschichtungAktiv false, LackierteilKategorieName leer, ProduktionsauftragHierarchisch/ProductionOrders/BomCache/HierarchicalFa false, CoatingDetection false, Views FAListe/FAInfos, Quelle FaStruktur View. TEST (`IDEAL_AKE_WMS_TEST`): BeschichtungAktiv true, Hierarchisch/ProductionOrders/BomCache/HierarchicalFa true, CoatingDetection false, Kategorie leer. BeschichtungTage 10, Abholtage Di,Do (beide). AKE-Abfragen offen.
 
 **IDEAL – WMS-Datenbank**
 
@@ -1083,3 +1084,242 @@ Nach dem Merge nur dann neu aus `main` publizieren, wenn der Merge getestete Dat
 - **Q-5:** `ModifiedByWindows` = `IDEALAKEWMSService` wie die anderen Schreiber der Materialisierung.
 - **Q-6:** `AppVersion.Date` 2026-11-16.
 - Q-7..Q-9 Info, nicht geändert. Build 0 Fehler; Tests Web 2913/0/1, Dienst 631/0/0. Nicht erneut auf DEV deployt (Publish am Ende des Laufs).
+
+## QA-Nachweis Teilumfang E2/E4 (qa-agent, 2026-11-17)
+
+**Ergebnis: QA Teilumfang E2/E4: gruen.** Status bleibt `InUmsetzung`.
+
+Begruendung der Status-Entscheidung:
+
+- E5 ist weiter blockiert (H2: P-A5/P-A3/P-A6 der AKE offen; H3 offen; Rueckfragen 19/20).
+- Damit bleiben AK 14, 15, 15a-c, 16 und 20-22 offen. `Testbereit` wuerde Schranke 2 fuer das ganze Epic oeffnen.
+- Der gebaute Teil E1-E4 ist in sich lauffaehig. Er darf mit dem Buendel auf DEV und Test, braucht vor dem Publish aber den Versions-Bump (R-2).
+
+### Geprueft
+
+- Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Branch `feature/2026-08-07-ideal-teile-1-5`.
+- Commit-Bereich `d3a00101..b4972700` (22 Dateien, +465/-93):
+  - `2336dced` E2 Web-Verbraucher
+  - `b4972700` E4 IDEAL-Termin Leitstand/Arbeitsliste
+- HEAD `b4972700b3b742979af08ef38b1ac829069a4a37`. `AppVersion` 1.99.31 in Web und Dienst, unveraendert (R-2).
+- Vorbedingung H1: P-I1 steht im Abschnitt „Pruefabfragen“. PROD IDEAL hat den Master **aus**, TEST und DEV IDEAL haben ihn an.
+
+### 1. Build und Tests
+
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler, 28 Warnungen (alle Bestand: CS8601, NU190x, CS8321).
+- `dotnet test`:
+
+| Testprojekt | bestanden | uebersprungen | Fehler | gesamt |
+|---|---|---|---|---|
+| `IDEALAKEWMSService.Tests` | 682 | 0 | 0 | 682 |
+| `IdealAkeWms.Tests` | 3024 | 1 | 0 | 3025 |
+
+### 2. Code-Review (eigenstaendig, in diesem Lauf)
+
+**Geprueft:** der ganze Diff `d3a00101..b4972700` und der Code darum:
+
+- `ProductionOrdersController.MapItem`:
+  - `effectiveProductionDate` = Kopf-`FE_Termin`
+  - Kombigeraet-Zweig `:282-313`
+  - `groupHead` nur bei genau einem Kopf
+- `PickingLeitstandController.Index`:
+  - hierarchischer Zweig mit Memory-Filtern `:200-250`
+  - `coating-date` nach der Termin-Berechnung `:709`, `:751`
+- `FaWorklistController.Index`:
+  - Gate `FaCompletionAktiv`
+  - Bestand vor Filter und Pagination
+  - `coating-date` `:430`
+- `CoatingDateCalculator.Compute`: null-sicher bei fehlendem VK-Termin
+- `CachedSettingRepository`: 2 Minuten Cache
+- `FaHierarchyOrderInfoRepository.GetByHauptFaKeysAsync`: eine Abfrage
+- Manifest-Filter `Update-IdealAkeWms.ps1:268` (`Test-Neuer`)
+- Zeilen-Views, Spaltenkopf-Tooltips, Hilfe, Changelog, README, `docs/betrieb/04`
+
+**Hausregeln und bekannte Fehlerklassen:**
+
+- **Ausgabe im HTML:** Kein `<script>`-Einbetten; der Tooltip steht Razor-kodiert im `title`-Attribut. Kein `hidden` auf `d-*`, keine parallelen Arrays, keine neue Client-Validierung.
+- **Kein stiller Fallback:**
+  - Ein ungueltiger Quellwert wirkt wie Automatisch und wird je Request geloggt (`BeschichtungResolver.cs:76`).
+  - Kombigeraet und leerer `Start_Beschichtung` ergeben null, keinen Ersatztermin.
+- **Eine Regel an einer Stelle:**
+  - Termin, Aktiv-Kennung und Tooltip kommen nur aus `BeschichtungResolver`.
+  - `LadenAsync` ist die einzige Web-Stelle, die `LackierteilKategorieName`, `BeschichtungTage` und `BeschichtungAbholtage` liest. Der Waechter-Test sichert das ab.
+  - Leitstand und Arbeitsliste teilen sich den Kopf-Lookup `EindeutigeKoepfeAsync`.
+- **Gleiche Berechnet-Basis in drei Listen:** Die FA-Liste rechnet ueber `effectiveProductionDate`, Leitstand und Arbeitsliste ueber `head.FE_Termin`. Der VK-Termin ist ueberall derselbe; auf DEV gemessen identisch (143.2).
+- **Read/Edit-Split:** keine neue Action, kein neuer Filter, Rollen unveraendert.
+- **Listen-Muster:**
+  - Pagination, Spaltenfilter und Server-Mode unveraendert, kein neues Take/Cap.
+  - Der Kopf-Lookup laeuft je Seite. Bei Memory-Filtern laeuft er ueber die ungepaginierte Gruppenmenge, wie FA-Liste und Matchcode-Lookup.
+- **WCAG:** keine Farb- oder Layout-Aenderung. Rot-Markierung und Haken haengen weiter an `showBeschicht`.
+
+**Implementierer-Notizen, bewertet:**
+
+- *Kein AppVersion-Bump:* fuer den Code hingenommen, als Prozess-Befund R-2 festgehalten.
+- *Manifest-Info-Text geaendert statt neuem Eintrag:* Befund R-1.
+- *Leitstand und Arbeitsliste aendern nur den Beschichtungstermin:* korrekt.
+  - E4 verlangt nur den Termin aus dem Resolver. A5 legt nur die Basis des Berechnet-Termins fest.
+  - Die K-/VK-Spalten bleiben im hierarchischen Leitstand leer (DB-`ProductionDate` NULL), wie vorher (143.5).
+- *`BeschichtungTerminQuelleWaechterTests`:* traegt AK 9.
+  - Er sucht in `Controllers/*.cs` und `Views/*.cshtml`.
+  - Ausnahmen: `_BeschichtungKopf`, `_BeschichtungKopfDruck` und `Help/`. Sie zeigen Sage-Kopfdaten bzw. Hilfetext. `_BeschichtungKopfDruck` fehlt in der Ausnahme-Liste von AK 9, ist aber dieselbe Kopfdaten-Anzeige.
+  - Ein zweiter Test prueft, dass die Ausnahmen noch existieren.
+  - `Services/` wird nicht gescannt; AK 9 verlangt das nicht.
+
+| Nr | Schwere | Befund | Fundstelle | Behandlung |
+|---|---|---|---|---|
+| R-1 | Niedrig | **Der neue Verhaltenshinweis haengt am alten Manifest-Eintrag `v1.99.25-Beschichtungsquelle-Info`.** Der Text ist neu: IDEAL hierarchisch zeigt `Start_Beschichtung` in Leitstand und Arbeitsliste, Haken nur an gekennzeichneten Auftraegen. Das Update-Skript zeigt den Eintrag aber nur bei `Version > installiert` (`Test-Neuer`). Ein System, das schon auf 1.99.25 bis 1.99.31 steht, sieht den Hinweis beim Update auf 1.99.32 nicht. Es gibt keinen Beleg, dass ein Test- oder Prod-System schon ≥ 1.99.25 hat. Heute ist das daher ohne Wirkung. | `scripts/deploy/nachlauf.psd1:401-403`, `scripts/deploy/Update-IdealAkeWms.ps1:268` | offen. Beim Bump auf 1.99.32 einen eigenen Info-Eintrag anlegen (`v1.99.32-Beschichtungstermin-Listen`, Firma IDEAL bzw. beide, Nachher, anzeigen) oder bewusst hinnehmen, solange kein Zielsystem ≥ 1.99.25 hat. |
+| R-2 | Niedrig (Prozess) | **E2/E4 laufen ohne Versions-Bump mit der Fusszeile 1.99.31**, also mit demselben Wert wie der Stand `d3a00101`. Die Fusszeile aus `dev-deploy.ps1` belegt den neuen Stand daher nicht; Beleg sind der Zeitstempel der DLL und das gemessene Verhalten. Laut Laufnotiz [[2026-11-17-goal-lauf-beschichtung-bde-mapping]] kommt der Bump auf 1.99.32 mit BDE. Ein Publish mit 1.99.31 und E2/E4 waere ein zweites Paket mit derselben Version wie der Publish `d3a00101`; das Update-Skript koennte die beiden nicht unterscheiden. Der Anwender-Changelog fuehrt die Aenderung als „Nachtrag (naechste Version nach v1.99.31)“ im Block v1.99.25. | `IdealAkeWms/AppVersion.cs:5`, `IDEALAKEWMSService/AppVersion.cs:5`, `Views/Help/Changelog.cshtml:151-155` | offen, **Bedingung vor dem Publish:** AppVersion 1.99.32 in beiden Dateien. Im Changelog 1.99.32 die IDEAL-Listenaenderung nennen oder auf den Nachtrag verweisen. |
+| R-3 | Info | `LadenAsync` loggt die Quellen-Warnung bei **jedem** Seitenaufruf von FA-Liste, Leitstand und Arbeitsliste, solange ein Fremdwert in der DB steht. Das ist gewollt (ADR 0020 Punkt 2), kann das Web-Log aber fuellen. | `IdealAkeWms/Services/Beschichtung/BeschichtungResolver.cs:76` | hingenommen; `/Settings` und die Manifest-Pruefung melden den Wert ohnehin. |
+| R-4 | Info | Die Spalte „Beschicht.“ der Arbeitsliste hat keinen Quellen-Tooltip. Die Spec verlangt ihn nur fuer FA-Liste und Leitstand (Verbraucher-Tabelle, TS-142.3). Die Hilfe sagt allgemein: „der Tooltip der Spalte nennt die Quelle“. | `IdealAkeWms/Views/FaWorklist/Index.cshtml:111` | hingenommen (Spec-Umfang); optional nachziehen. |
+| R-5 | Info | `deploy-info.txt` ist in `D:\Dev\AKE\Web` (1.99.16) und `D:\Dev\IDEAL\Web` (1.98.1) veraltet. `dev-deploy.ps1` schreibt die Datei nicht. Betrifft nur die DEV-Umgebung, nicht den Zweig. | `D:\Dev\<Standort>\Web\deploy-info.txt` | gemeldet, nicht geaendert. |
+
+Keine Befunde der Schwere Mittel oder Hoch. Kein Anwendungscode geaendert.
+
+### 3. Nachweisart je AK (Teilumfang E2/E4)
+
+| AK | Nachweis | Art |
+|---|---|---|
+| 5 | `ProductionOrdersControllerTests.Index_Flat_OhneKategorie_AktivFalse_TerminFuerAlle_AK5`, Bestandstests Leitstand/Arbeitsliste; DEV AKE 141.1-141.5: Termin = Handrechnung der alten Formel in allen drei Listen | automatisiert + DEV |
+| 6 | `Index_Hierarchical_Automatisch_ViewTooltip_UndAktiv_AK6_AK13`, `BeschichtungResolverTests` (View datumsgleich, Tage 0/10, Kombigeraet, leer); DEV 142.1, 142.3-142.6 | automatisiert + DEV |
+| 7 | `PickingLeitstandControllerTests.Index_Hierarchical_*_AK7`, `FaWorklistControllerTests.Index_Hierarchical_*_AK7`; DEV 142.1, 143.2 (alle drei Listen gleich) | automatisiert + DEV |
+| 8 | `Index_Hierarchical_TerminQuelleBerechnet_AusKopfFeTermin_TooltipBerechnet_AK8`, dazu die Tests fuer Leitstand und Arbeitsliste; DEV 143.1-143.4 | automatisiert + DEV |
+| 9 | `BeschichtungTerminQuelleWaechterTests` (Quelltext-Waechter) | automatisiert |
+| 13 | `Index_Hierarchical_Automatisch_ViewTooltip_UndAktiv_AK6_AK13`, `BeschichtungResolverTests` (Aktiv je Quelle); DEV 142.2 | automatisiert + DEV |
+| 4 (Web-Teil) | `BeschichtungResolverTests.LadenAsync_FremdwertWirktWieAutomatisch_UndLoggtWarnung_AK4` (Mock-Logger) | automatisiert; auf DEV nicht erneut erzeugt |
+| 17 | alle Tests gruen | automatisiert |
+| 18 | Diff ohne Migration, ohne SQL-Skript | Diff |
+| 14-16, 20-22 | nicht gebaut (E5 blockiert) | – |
+
+Die echte Razor-Ausgabe (Tooltip, Aktiv-Kennung, leere Zelle) ist mit InMemory und Mock nicht beweisbar. Sie ist hier ueber das DEV-HTML belegt, abgerufen mit Windows-Anmeldung.
+
+### 4. Geaenderte Bestandstests
+
+| Test | Einordnung |
+|---|---|
+| `FaWorklistControllerTests.Build` | nur Typ (neuer Ctor-Parameter `IFaHierarchyOrderInfoRepository`) |
+| `PickingLeitstandControllerTests` (Feld, Ctor-Aufruf, Default-Setup `GetByHauptFaKeysAsync` → leer) | nur Typ bzw. Grund-Setup fuer die neue Abhaengigkeit; keine Erwartung geaendert |
+| `BeschichtungResolverTests`, `ProductionOrdersControllerTests` | nur neue Tests, keine Bestands-Erwartung geaendert |
+
+Kein Befund „sonstiges“.
+
+### 5. Checkliste CLAUDE.md und ADR 0020
+
+- **Migration, FreshInstall, AgentJobs:** nicht betroffen (AK 18).
+- **Audit:** kein neuer Schreibweg.
+- **Version:** **kein Bump** (R-2). Der Anwender-Changelog hat einen Nachtrag im Block v1.99.25. Den Brain-Changelog fuehrt die Koordination.
+- **`docs/TESTSZENARIEN.md`:** TS-141 bis 143 ausgeschrieben, mit automatisierten Belegen; Schlussvermerk aktualisiert. Den Testindex hat QA nachgezogen.
+- **README, `docs/betrieb/04-konfiguration.md`, Hilfe:** nachgezogen. Der Hinweis „noch ohne Wirkung“ ist weg; DEV `/Settings` zeigt ihn an beiden Standorten nicht mehr.
+- **ADR 0020:** keine neue Einstellung.
+  - Geaendert sind nur die Verwendungstexte der beiden Quellen-Keys; auf DEV sichtbar.
+  - Auswahlliste und Server-Validierung unveraendert (Regression 140.R).
+- **Manifest:**
+  - Text des vorhandenen Info-Eintrags angepasst (R-1).
+  - Kein SQL und kein Hand-Schritt neu. `NachlaufManifestDriftTests` gruen.
+
+### 6. DEV-Deploy und Testlauf
+
+**Standort:** `beide` laut Frontmatter.
+
+**Deploy:**
+
+- Ablauf: erhoehte Shell, `D:\Dev\scripts\dev-deploy.ps1 -Standort <AKE|IDEAL> -Quelle <worktree>`, Web und Dienst, nach gruenem Build und gruenen Tests.
+- AKE: „HTTP 200, Fusszeile v1.99.31“, „Fertig: AKE v1.99.31 auf http://localhost:8081/“, Exit 0.
+- IDEAL: „HTTP 200, Fusszeile v1.99.31“, „Fertig: IDEAL v1.99.31 auf http://localhost:8082/“, Exit 0.
+- **Fusszeile und Stand:**
+  - Fusszeile = `AppVersion` des Zweigs (1.99.31). Weil die Version gleich geblieben ist (R-2), belegt die Fusszeile allein den Stand nicht.
+  - Beleg: `IdealAkeWms.dll` in `D:\Dev\AKE\Web` und `D:\Dev\IDEAL\Web` traegt den Zeitstempel 2026-11-17 08:38:08. Das ist nach dem Commit `b4972700` (08:35:49).
+  - Das neue Verhalten ist gemessen (Tooltip-Text, IDEAL-Leitstand mit `Start_Beschichtung`).
+- **DEV-Absicherung nach dem Deploy (SQL):** an beiden DEV-DBs `false`:
+  - `Sync:BomCacheEnabled`, `Sync:CoatingDetectionEnabled`, `Sync:HierarchicalFaEnabled`, `Sync:ProductionOrdersEnabled`
+  - `SageLagerbuchungAktiv`, `ErrorNotification:Enabled`
+  - Master: AKE `false`, IDEAL `true`.
+- **Logs:** Dienst-Logs `service-20261117.log` AKE und IDEAL ohne ERR/FTL. Aktivitaets-Protokoll ab 08:30 ohne Warnung und ohne Fehler.
+
+**Methode:**
+
+- Seiten mit Windows-Anmeldung abgerufen (`Invoke-WebRequest -UseDefaultCredentials`). Zellen und `title` aus dem gerenderten HTML gelesen.
+- `/Settings` im Browser bedient (claude-in-chrome, eigener Tab).
+- Daten per `sqlcmd -S . -E -C`.
+- Erwartungswerte von Hand gerechnet, mit den DEV-Feiertagen 26.10. und 01.11.2026.
+
+**TS-141 (DEV AKE, Master aus, Kategorie „Lackierteile“):** Lackier-FA `2645001` (Id 3047, Fert. 03.11.2026), FA ohne Lack `2614027`.
+
+| Nr | gemacht | Ergebnis | Status |
+|---|---|---|---|
+| 141.1 | FA-Liste, Leitstand, Arbeitsliste (AG 1) fuer 2645001 | ueberall **08.10.2026**. Handrechnung der alten Formel: K 28.10., VK 27.10., minus 10 AT = 12.10., letzter Abholtag Do 08.10. Einen Wert von vor dem Update gab es nicht; die Rechnung der unveraenderten Formel ersetzt ihn. | OK |
+| 141.2 | Tooltip „Beschicht.“ in FA-Liste und Leitstand | „Berechnet: Kommissioniertermin - 10 Arbeitstage, auf den letzten Abholtag“ | OK |
+| 141.3 | `colf_coating-date=08.10.2026` in FA-Liste und Leitstand | 2 von 12 Eintraegen (2645001, 2630007), beide 08.10.2026 | OK |
+| 141.4 | FA ohne Lack 2614027 in der FA-Liste | Zelle „Beschicht.“ leer | OK |
+| 141.5 | `LackierteilKategorieName` per SQL leer, Cache-Ablauf abgewartet | 2614027 zeigt in FA-Liste und Leitstand 03.11.2026. FA ohne Lack 2614167 zeigt in der Arbeitsliste 13.10.2026; die Handrechnung stimmt. Danach auf „Lackierteile“ zurueckgesetzt (SQL belegt). | OK |
+
+**TS-142 (DEV IDEAL, Master an, Automatisch):**
+
+- HauptFA `1060414` mit einem Kopf (Id 14448, FE 14.07.2026, `Start_Beschichtung` 17.07.2026).
+- Sub-FA mit Kennzeichen `1067190`, ohne Kennzeichen `1067191`.
+- Die Arbeitsliste ist auf DEV IDEAL gesperrt (`FaCompletionAktiv=false`, keine `FaWorkSteps`). Fuer den Test wurde sie voruebergehend eingeschaltet, mit zwei `FaWorkSteps`-Testzeilen (`Source='QA-Test'`, AG 1, PO 286 und 275).
+
+| Nr | gemacht | Ergebnis | Status |
+|---|---|---|---|
+| 142.1 | 1067190 in FA-Liste, Leitstand, Arbeitsliste | ueberall **17.07.2026** = `Start_Beschichtung`. Vor E4 zeigte der hierarchische Leitstand keinen Termin. | OK |
+| 142.2 | 1067191 (ohne Kennzeichen, Kategorie leer) | kein Termin, kein Haken in allen drei Listen | OK |
+| 142.3 | Tooltip in FA-Liste und Leitstand | „Aus der Sage-View, Feld Start_Beschichtung, unverändert übernommen“ | OK |
+| 142.4 | `BeschichtungTage` in `/Settings` von 10 auf 3 gespeichert | alle drei Listen weiter 17.07.2026; danach in `/Settings` auf 10 zurueck | OK |
+| 142.5 | Testkopf `QA-KOMBI` fuer 1060414 per SQL angelegt (zweiter Kopf) | kein Termin in FA-Liste, Leitstand und Arbeitsliste, unter View und unter Berechnet. Testkopf danach geloescht. | OK |
+| 142.6 | `Start_Beschichtung` von Kopf 14448 per SQL NULL (`FE_Termin` bleibt) | kein Termin und kein Ersatztermin in allen drei Listen; danach auf 17.07.2026 zurueck | OK |
+| 142.7 | Leitstand `colf_coating-date=17.07.2026` bzw. `18.07.2026` | Gruppe 1060414 mit den 12 gekennzeichneten Sub-FA bzw. leer | OK |
+
+**TS-143 (DEV IDEAL, Berechnet):**
+
+| Nr | gemacht | Ergebnis | Status |
+|---|---|---|---|
+| 143.1 | `/Settings` „Quelle Beschichtungstermin“ = Berechnet gespeichert | „Einstellungen gespeichert.“; DB `Berechnet` | OK |
+| 143.2 | 1067190 in drei Listen (`BeschichtungTage` zu diesem Zeitpunkt 3) | ueberall **02.07.2026**, nicht 17.07. Handrechnung: FE 14.07., K 08.07., VK 07.07., minus 3 AT = Do 02.07. | OK |
+| 143.3 | Tooltip | „Berechnet: Kommissioniertermin - 3 Arbeitstage …“ bzw. „- 10 …“ | OK |
+| 143.4 | `BeschichtungTage` in `/Settings` von 3 auf 10 | ueberall **23.06.2026** (Handrechnung: minus 10 AT = Di 23.06.) | OK |
+| 143.5 | Leitstand K/VK von 1067190 | leer wie unter View, also unveraendert (DB-Datum NULL) | OK |
+| 143.6 | zurueck auf Automatisch | ueberall wieder 17.07.2026, Tooltip View | OK |
+
+**Regression TS-140 und TS-144:**
+
+| Nr | gemacht | Ergebnis | Status |
+|---|---|---|---|
+| 140.R | `/Settings` AKE und IDEAL gelesen | Kennzeichen-Quelle genau Automatisch/Artikelkategorie/FaStruktur, Termin-Quelle genau Automatisch/Berechnet/View, beide auf Automatisch. Neue Verwendungstexte sichtbar, „noch ohne Wirkung“ nicht mehr vorhanden. | OK |
+| 144.2R | Aktivitaets-Protokoll IDEAL nach dem Deploy | FaMaterialization 08:38:50: „Run erfolgreich beendet … lackflag_gesetzt=12“ | OK |
+| 144.3R | PO 286 per SQL auf `HasCoatingParts=0`, naechsten Materialisierungslauf abgewartet | Lauf 08:53:50 (SyncLogs 14298803, `lackflag_gesetzt=12`) setzt PO 286 wieder auf `HasCoatingParts=1`. Audit: `ModifiedAt` 2026-11-17 08:53:50, `ModifiedBy=FaMaterialization`, `ModifiedByWindows=IDEALAKEWMSService` (vorher `svc_idealakewms`). DEV-Endzustand damit wiederhergestellt. | OK |
+
+**DEV-Endstand (SQL belegt):**
+
+- AKE: `LackierteilKategorieName=Lackierteile`, beide Quellen Automatisch.
+- IDEAL: `BeschichtungTage=10`, `BeschichtungTerminQuelle=Automatisch`, `BeschichtungKennzeichenQuelle=Automatisch`, `FaCompletionAktiv=false`, `LackierteilKategorieName` leer.
+- `FaWorkSteps` wieder 0 Zeilen. Kopf 14448 hat wieder `Start_Beschichtung` 17.07.2026, der Testkopf `QA-KOMBI` ist geloescht.
+- Nichts an Sage, keine Mail, kein Test- oder Prod-System.
+
+### 7. Publish
+
+Nicht in diesem QA-Lauf. Laut Auftrag folgt der Publish am Ende des `/goal`-Laufs, nach dem Versions-Bump auf 1.99.32 (Bedingung R-2). Den Publish-Ordner `<worktree>\publish` hat QA nicht angefasst; dort liegt weiter der Stand `d3a00101` (1.99.31).
+
+### Deploy (aus dem echten Diff, Teilumfang E2/E4)
+
+- `deploy.web`: ja (`IdealAkeWms/`: drei Controller, Resolver, ViewModels, Views, Hilfe, Changelog, Katalogtexte).
+- `deploy.service`:
+  - im Diff `d3a00101..b4972700` **nein**, keine Datei unter `IDEALAKEWMSService/`
+  - fuer das Epic weiter ja (E3); Web und Dienst gehen ohnehin gemeinsam mit dem Buendel
+- `deploy.migration`: nein.
+- Manifest: nur der Text von `v1.99.25-Beschichtungsquelle-Info` geaendert (R-1). Keine SQL-Datei, kein neuer Hand-Schritt.
+- Wirkung je System:
+  - AKE und PROD IDEAL (Master aus laut P-I1): Verhalten unveraendert.
+  - TEST IDEAL (Master an): Leitstand und Arbeitsliste zeigen neu `Start_Beschichtung`. Haken und Termin stehen in allen drei Listen nur an Auftraegen mit Kennzeichen.
+- Ablauf beim Menschen: Publish aus dem Worktree (nach dem Bump) → Testsystem → Test → Merge.
+- Nach dem Merge nur dann neu aus `main` publizieren, wenn der Merge getestete Dateien mit parallelen main-Aenderungen zusammengefuehrt hat:
+  - `dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb`
+  - `dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService`
+
+### Manuelle Checkliste (offen fuer den Menschen, Teilumfang E2/E4)
+
+1. Vor dem Publish: AppVersion 1.99.32 in Web und Dienst pruefen (R-2). Ueber R-1 entscheiden: eigener Info-Eintrag 1.99.32 oder Hinnahme.
+2. Testsystem IDEAL (Master an) nach dem Deploy: TS-142.1 bis 142.3 mit einem echten HauptFA gegen `FaHierarchyOrderInfos`. Falls es ein echtes Kombigeraet gibt, auch 142.5.
+3. Testsystem IDEAL: TS-142.2 bestaetigen. An Sub-FA ohne Kennzeichen verschwindet der Haken; das ist die gewollte Aenderung aus Freigabe-Antwort 7. Bitte mit den Anwendern abstimmen.
+4. Testsystem AKE: TS-141.1 mit einem vor dem Update notierten Lackier-FA. DEV hatte keinen Vorher-Wert, dort ist nur die Handrechnung belegt.
+5. Optional TS-143 am Testsystem IDEAL, danach zurueck auf Automatisch.
+6. Weiter offen aus dem Teilumfang E1/E3/E6: Punkte 3 bis 6 der Checkliste vom 2026-11-16 (Lackierteil-Erkennung und Import-Hook mit echtem Dienst, Update-Skript-Pruefungen).
+7. H2 (P-A5/P-A3/P-A6 der AKE) und H3 erheben, damit E5 gebaut werden kann. Erst danach folgt der QA-Lauf fuer `Testbereit`.

@@ -29,3 +29,10 @@ Keine. Web und Dienst gemeinsam deployen.
   Lack-Kennzeichen. Manifest-Prüfung `Pruefung/LackierteilErkennungImportHook` (Nachher, anzeigen) meldet es; Testsystem AKE hatte den
   Schalter am 2026-10-20 an, Prod unbekannt.
 - `Pruefung/BeschichtungQuelleKombination` (Haltepunkt, anzeigen) meldet unpassende oder fremde Quellwerte.
+
+## Nachtrag 2026-11-17: E2/E4 gebaut (Auslieferung mit der nächsten Version, 1.99.32)
+
+Commits `2336dced` (E2 Web-Verbraucher), `b4972700` (E4 IDEAL-Termin Leitstand/Arbeitsliste). Alle drei Listen nehmen Termin, Tooltip und
+Aktiv-Kennung aus `BeschichtungResolver`; hierarchisch nur bei eindeutigem Kopf, Basis `FE_Termin` des Kopfs. Sichtbar nur auf TEST/DEV IDEAL
+(Master an, P-I1); PROD IDEAL und AKE unverändert. Keine Migration, nur Web. TS-141..143. E5 bleibt Blocker (H2/H3).
+

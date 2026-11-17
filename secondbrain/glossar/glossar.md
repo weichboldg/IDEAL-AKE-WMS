@@ -193,3 +193,7 @@ Kommissionierwagen, Sage-Wareneingangsbeleg (ELL), Rahmenabruf (EBZ), Kreditor/D
 | FA-Stückliste | Positionen eines konkreten Fertigungsauftrags (Belegpositionen). Im FA-Modus von „Stückliste live“, seit v1.99.26 auch für beendete Haupt-FAs. |
 | Hybrid (FA-Struktur) | Modus SData an der IDEAL: Knoten und Knotenfelder aus SData, FAInfos aus der View. Gebaut, bis P-FS3 gesperrt. |
 
+| Begriff | Bedeutung |
+|---|---|
+| Aktiv-Kennung (Beschichtung) | Ob die Liste „Lack“-Haken und Termin nur für beschichtete Zeilen zeigt: Kennzeichen-Quelle FaStruktur = immer aktiv; Artikelkategorie = aktiv, wenn `LackierteilKategorieName` gesetzt ist; nicht aktiv = Termin für alle Zeilen (heutiges PROD-IDEAL-/AKE-Verhalten ohne Kategorie). `BeschichtungResolver.Aktiv`. |
+

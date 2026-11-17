@@ -2012,3 +2012,14 @@ Code: `hardware-scanner.js` Block „Scannen ohne Feld“, CSS `.hw-scan-bereit`
   `PurchaseOrdersControllerTests.Einkauf_Attribute_UndReceiveBleibtGeschuetzt_F2_2_F2_4`.
 - **Einen Controller als Dienst eines anderen nutzen** (`AddScoped<PurchaseOrdersController>`): dessen Class-Filter laufen nicht; Zugriff prüfen
   allein die Attribute des aufrufenden Controllers. `ControllerContext` vor dem Aufruf setzen (sonst `HttpContext`/`Url` null).
+
+## 43. Beschichtungstermin nur über den Resolver (v1.99.25 E2/E4, Auslieferung mit v1.99.32, [[2026-11-16-beschichtungslogik-je-standort-spec]], ADR [[0028-beschichtungsquelle-je-achse-ueber-appsettings-mit-automatisch]])
+
+- **Termin, Tooltip und Aktiv-Kennung nur über `BeschichtungResolver`** (`LadenAsync` + `Bestimmen`). **Warum:** FA-Liste, Leitstand und
+  Abarbeitungsliste hatten je eine eigene Kopie der Formel und der Kategorie-Prüfung – der Termin konnte je Liste abweichen. Der Wächtertest
+  `BeschichtungTerminQuelleWaechterTests` verbietet direkte Zugriffe auf `LackierteilKategorieName`/`BeschichtungTage`/`BeschichtungAbholtage`/
+  `Start_Beschichtung` in Controllern und Views (Ausnahmen: Beschichtungsauftrag-Kopf, Hilfe).
+- **Hierarchisch nur mit eindeutigem Kopf** (`EindeutigeKoepfeAsync`): Ein Kombigerät hat mehrere Köpfe; einen davon still zu nehmen zeigte einen
+  falschen Termin – dann bleibt der Termin leer.
+- **P-I1:** PROD IDEAL hat den Master aus (wirkt wie AKE, unverändert); nur TEST/DEV IDEAL zeigen die Änderung.
+
