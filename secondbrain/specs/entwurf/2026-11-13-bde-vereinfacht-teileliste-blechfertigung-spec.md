@@ -734,3 +734,28 @@ Weitere Wünsche an die Maske sammelt die Koordination beim Termin 18.11. ([[202
 grün 7,1:1, blau 5,8:1, Hover 5,6:1/4,7:1. Die Modals (`meldenModal`, `group-finish-modal`, `close-others-modal`) liegen außerhalb des
 Wrappers und tragen jetzt die Klasse `bde-terminal`. `site.css` unverändert. TS-152.12; Sichtprüfung/Screenshot DEV IDEAL durch den qa-agent.
 Lauf-Notiz [[2026-11-17-goal-lauf-sammel-abend]].
+
+### QA-Nachweis Nachtrag Kontrast (qa-agent, 2026-11-17 abends)
+
+Geprüft: Commit `e40ecfcb` (Bereich `c6c04f9f..8e0a346e`, HEAD `8e0a346e`, v1.99.36). Status bleibt **Testbereit**.
+- **Build/Tests (ganzer Worktree):** Build 0 Fehler; Service 715/0/0, Web 3229 bestanden / 1 übersprungen / 0 Fehler.
+- **Review:** `bde.css` (+14 Zeilen, nur Selektoren unter `.bde-terminal`), Klasse `bde-terminal` an `meldenModal`, `group-finish-modal`, `close-others-modal`;
+  Wrapper `container-fluid bde-terminal` in `BdeTeileliste/Index`, `Summiert`, `Anmelden`, `BdeTerminal/Index`; `site.css` unverändert (`.btn-success`/`.btn-secondary`
+  `site.css:151-170`). **Keine Befunde.** Hinweis außerhalb des Auftrags: „Auswahl fertigmelden“ ist `btn-primary` (deaktiviert hell, aktiv dunkel mit weißer
+  Schrift) – nicht betroffen.
+- **Geänderte bestehende Tests:** keine. **Nachweisart:** Manual-UAT (CSS, Browser), auf DEV erbracht.
+- **DEV IDEAL (v1.99.36, Deploy Exit 0):** Werkbank 65 „Entgraten Fläche“ (Kürzel EG) temporär `BdeTeileliste = 1` (Ausgangswert 0, **danach zurückgesetzt**),
+  Werker Personalnr. 123, KW-Bereich 2025-W01 bis 2027-W52 (dadurch ist für Werker 123/Werkbank 65 dieser Filter gespeichert).
+
+| Schritt | Ergebnis | Status |
+|---|---|---|
+| Teileliste: „Filtern“ (blau) normal und Hover | dunkle Schrift | OK |
+| Teileliste: „Fertig melden“ je Zeile (grün) | dunkle Schrift | OK |
+| Modal „Fertig melden“ (geöffnet, mit Esc geschlossen, nichts gemeldet) | Knopf „Fertig melden“ dunkle Schrift | OK |
+| BDE-Terminal-Modals „Gruppe fertig“/„andere schließen“ | erfordern aktive Buchungen eines Werkers | NICHT MÖGLICH (gleicher Selektor, Klasse im Markup geprüft) |
+| Gegenprobe außerhalb BDE: `/BfAuftraege` „Auswahl fertig melden“ (grün) | weiße Schrift unverändert | OK |
+
+Screenshots: ![[ts-152-12-teileliste-filtern.png]] ![[ts-152-12-teileliste-fertig-melden.jpg]] ![[ts-152-12-modal-fertig-melden.png]] ![[ts-152-12-gegenprobe-bf-auftraege.jpg]]
+(Ordner `secondbrain/tests/2026-11-17-bde-kontrast-bilder/`).
+- **Deploy:** nur Web (`bde.css`, zwei Views), keine Migration. Publish nicht erstellt (Auftrag des Aufrufers).
+- **Offen für den Menschen:** BDE-Terminal-Modals am echten Terminal mit Buchungen ansehen (TS-152.12), Lesbarkeit bei Hallenlicht.

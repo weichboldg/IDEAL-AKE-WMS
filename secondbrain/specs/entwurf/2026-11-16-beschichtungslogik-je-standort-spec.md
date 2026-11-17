@@ -633,6 +633,7 @@ Danach `secondbrain/tests/testszenarien-index.md` nachziehen.
 | H3 | **Haltepunkt Mengen-Pruefschritt** (Nachtrag 2 / B-1) | Gerald waehlt per Hilfsabfrage H3 einen WA mit Baugruppe und `Quantity > 1`. Er vergleicht in der Kommissionierliste die Mengen der Baugruppen-Zeilen mit Sage/OSEON und traegt WA, Zeilenzahl und Ergebnis im Abschnitt „Pruefabfragen“ ein (AK 21). Fehlt der Eintrag oder weicht die Menge ab, ist E5 Blocker. | Gerald; Freigabe-Antwort 18 | – | **erledigt** (WA 2602036 / S0415949, 12 Baugruppen-Zeilen, Kommissionierliste = Sage, Bestaetigung Gerald 2026-11-17 12:49) | |
 | 5 | Vorschlagsliste + Beschichtungsauftrag AKE | Gate-Metadaten (beide), **keine** Master-Bedingung an der Vorschlagsliste. Flache Positionsquelle (WA-Stueckliste als `FaHierarchyNode`-Projektion) fuer `BeschichtungsauftragService` (Liste/Summiert), `BeschichtungsauftragVergabeAnzeige` und die Workflow-Weiche: offen = `IsDone = 0 AND IsCancelled = 0` (A13), Menge ueber `BomQuantityResolver` (A12), Schluessel Artnr + Position (A14), Sammelmeldung plus Logger-Warnung (A15). AKE-Kopfvorbelegung (Start berechnet, Dienstleister/RAL/Retour leer). „(IDEAL)“ aus den Spaltenkatalog-Namen. *Nachtrag 3:* Spalte `PositionText` (Model, Migration, SQL/157, FreshInstall an zwei Stellen, Manifest), `[NotMapped] FaHierarchyNode.PositionText`, Projektion `PositionText` statt `int(Position)`, `PositionsSchluessel` mit `Artnr`/`PositionText`, Textform fuenfteilig, Snapshot/Kopie/Summiere, natuerliche Sortierung mit `NaturalPositionComparer` (A16), Anzeige in Details/Reklamation, Manifest-Pruefung Altzeilen | E1, E3, H2 (erledigt), **H3**; Freigabe-Antworten 8, 9, 10, 11, 18, 19, 20 | **SQL/157** (beim Start geprueft: frei) | **erledigt** (Lauf 2026-11-17, [[2026-11-17-goal-lauf-beschichtung-e5]], v1.99.34; ~~H2/H3 offen (Lauf 2026-11-16)~~ H1–H3 erledigt) | eff0c1a4 |
 | 6 | Doku und Abschluss | TS-140..145 in `docs/TESTSZENARIEN.md`, Hilfe (`Help/Index.cshtml` Beschichtung, `:1265`), `RoleOverview.cshtml` (Vorschlagsliste auch AKE/WA-Stueckliste), Standort-Maske Hinweis-Link, Anwender-Changelog (IDEAL-Termin in Leitstand/Arbeitsliste, AKE-Beschichtung), `docs/betrieb/04-konfiguration.md`, `README.md` AppSettings, Manifest-Eintraege, Versions-Bump beide `AppVersion.cs` auf v1.99.25 (nach 1.99.24 Sicherheit; beim Start pruefen), Brain (ADR 0028, fallstricke, codebase, glossar, feature-map, changelog; Aufgabe Erkennungsfenster-Filter, Rueckfrage 13). Nachtrag 2: Hilfe nennt Sammelmeldung und Mengenregel. fallstricke bekommt „BomCache-Fenster ohne `IsDonePicking`, Erkennungsfenster mit“ samt Folge fuer das Kennzeichen (Rueckfrage 19, entschieden: hingenommen), mit Warum. *Nachtrag 3:* fallstricke „AKE-Stuecklisten-Positionen sind mehrstufiger Text (`51.5.2`), nie als `int` parsen; Reihenfolge nur ueber `NaturalPositionComparer`“ mit Beleg P-A6; `codebase/datenmodell.md` Spalte `PositionText` (SQL/157); TS-145 um die Faelle aus Nachtrag 3; Manifest `SQL/157` und `Pruefung/BeschichtungPositionOhneTextFlach`; Version = naechste nach 1.99.33 beim Start (voraussichtlich 1.99.34); kein neuer ADR | E1-E5 | – | ~~teilweise (Teil E1/E3, Version 1.99.25, Hilfe, Changelog, Manifest; Rest **Blocker** wie E2/E4/E5)~~ erledigt (QA 2026-11-17 E5: TS-145, Hilfe, Changelog, README, Manifest, v1.99.34; offen nur QA-E5 F3 `docs/betrieb/04-konfiguration.md:206`) | 4a635534, 3f247f11, eff0c1a4 |
+| N4 | Nachtrag 4 AKE flach (Freigabe Gerald 18:48) | WA-Kopf (Kunde/Fertigung/Start), Maße mm aus `ArticleSageDetails` ×10, kommissionierte ausgeblendet + Häkchen, Sammelmeldung, Sortierung „Positionen hinzufügen“, Modultext, F2-Tests, F3 Betriebsdoku | E5 | – | **erledigt** (QA 2026-11-17 abends grün, v1.99.36, DEV AKE TS-145.14–145.19) | 8e0a346e |
 
 ## Deploy
 
@@ -1642,3 +1643,74 @@ Lauf-Notiz [[2026-11-17-goal-lauf-sammel-abend]]. Keine Migration.
 - Punkt 6: Text in `RequireFaHierarchyBeschichtungAktivAttribute`. Punkt 7: F2-Tests in `BeschichtungFlacheQuelleTests`
   (AK 20 Quelltext-Wächter, AK 22 zwei Cache-Stände, AK 25 Snapshot/Kopie, AK 26 Summiert) + Maße/Kopf/Häkchen; F3 `docs/betrieb/04-konfiguration.md`.
 - TS-145.14–145.19. Build 0 Fehler, Tests 715 + 3229 grün. QA: siehe folgender QA-Nachweis.
+
+## QA-Nachweis Nachtrag 4 (qa-agent, 2026-11-17 abends)
+
+Geprüft: Commit `8e0a346e` (Bereich `c6c04f9f..8e0a346e`, Bündel-Worktree, HEAD `8e0a346e`, v1.99.36). Review synchron in diesem Lauf. Ergebnis:
+**Testbereit bleibt** (Etappen-Tabelle Zeile N4 erledigt); keine blockierenden Befunde.
+
+### 1. Build und Tests (ganzer Worktree)
+`dotnet build IdealAkeWms.slnx` 0 Fehler (29 Warnungen, vorbestehend). `dotnet test`: Service **715/0/0**, Web **3229 bestanden / 1 übersprungen / 0 Fehler**.
+
+### 2. Code-Review `8e0a346e`
+Gelesen: `BeschichtungFlacheQuelle` (Laden, `KopfInfosAsync`, `StartBeschichtung`, `Projektion`, `Sammelmeldung`), `BeschichtungsauftragRepository.GetFlacheLackierteileAsync`
+(Left Join `ArticleSageDetails`, `Include(PickingStatus)`), `BeschichtungsauftragService` (`LadenAsync`, `ToggleSharedQueryKeys`), Controller (alle 6 Aktionen mit `kommissionierte`),
+`BeschichtungsauftragWorkflow.GetHinzufuegbarePositionenAsync`, Views `_BeschichtungKopf`, `_BeschichtungKopfDruck`, `_KommissioniertSchalter`, Index/Summiert
+(Print-/PDF-URL aus `Request.QueryString`), Filter-Text, Tests, `docs/betrieb/04-konfiguration.md`.
+
+| # | Befund | Schwere | Fundstelle | Behandlung |
+|---|--------|---------|------------|------------|
+| B1 | Maße ohne `ArticleSageDetails`-Zeile werden als 0 angezeigt (`?? 0m`), gemeldet nur per Logger-Warnung, nicht in der Oberfläche; eine einzelne fehlende Dimension (z. B. nur `Laenge` NULL) zählt nicht als „ohne Maße“ | niedrig | `BeschichtungFlacheQuelle.cs` `Projektion` (`(z.BreiteCm ?? 0m) * 10m`) und Zählung `ohneMasse` | Hingenommen (Umsetzung so dokumentiert, vorher immer 0; DEV AKE 99.880 Sage-Detailzeilen). Empfehlung: bei Bedarf Hinweis in der Sammelmeldung – nicht mitgebaut. |
+| B2 | Bereits angelegte Auftragspositionen (vor v1.99.36) behalten Maße 0 (Snapshot), nur neue/hinzugefügte bekommen mm | Hinweis | DEV AKE `BA-2026-00001` Pos `51.6.3` | Erwartet (Snapshot-Regel AK 25); für die UAT notiert. |
+| B3 | Kandidaten-Sortierung ohne `ThenBy(SubFA)` (Details-Ansicht hat sie) | Hinweis | `BeschichtungsauftragWorkflow.cs` (zwei `OrderBy … NaturalPositionComparer`) | Hingenommen: `OrderBy` ist stabil, AKE flach hat SubFA immer 0. |
+| B4 | `BeschichtungFlacheQuelleTests.cs` hat jetzt ein BOM am Dateianfang | Hinweis | Zeile 1 | kosmetisch. |
+
+Pflicht-Fehlerklassen: kein `<script>`/`@Html.Raw` (Häkchen-Formular nur Razor-kodierte Hidden-Felder + `onchange="this.form.submit()"`), kein `hidden`+`d-*`,
+keine parallelen Arrays, Filter serverseitig (`LadenAsync`), Regel „kommissioniert ausblenden nur in der Gesamtliste, nie bei Anlage/Hinzufügen/Vergabe“ an einem Ort
+(`LadenAsync`). Audit: keine neuen Schreibwege. Beschichtungstermin im Kopf = derselbe Rechenweg wie `StartBeschichtungAsync` (gemeinsame `StartBeschichtung`).
+
+### 3. Nachweisart
+| Punkt | Nachweis |
+|---|---|
+| 1 Kopf je WA | automatisch `KopfInfos_AusDemWa` + DEV (Liste, Summiert, Druck) |
+| 2 Maße ×10 | automatisch `Laden_MasseAusSageArtikel_CmMalZehn` + DEV-Abgleich gegen `ArticleSageDetails`; Sage-Einheit selbst: Umsetzerlauf gegen `ake_TEST2026` (5 Artikel) |
+| 3/F1 Sortierung | DEV (Manual); kein eigener Unit-Test für die Kandidatenliste |
+| 4 Sammelmeldung | automatisch + DEV |
+| 5 Häkchen | automatisch (Service) + DEV (Query-Weitergabe) |
+| 6 Modultext | DEV |
+| 7 F2/F3 | Tests vorhanden (AK 20/22/25/26), Doku geändert |
+
+### 4. Geänderte bestehende Tests
+`BeschichtungFlacheQuelleTests`: zwei `Mock.Setup(q => q.LadenAsync(…))` auf die neue Signatur `(hauptFas, mitKommissionierten)` umgestellt – **nur Typänderung
+(Compile-Fix)**; BOM-Zeile kosmetisch. Alle anderen Änderungen sind neue Tests.
+
+### 5. Checkliste
+Keine Migration, keine neue Einstellung (Query-Parameter, kein Setting; ADR 0020 n/a), Version 1.99.36 beide `AppVersion.cs`, Anwender-Changelog + Hilfe,
+Brain-Changelog `2026-11-17-v1-99-36-beschichtung-ake-nachbesserung-bde-kontrast`, TS-145.14–145.19 + Testindex. Kein neuer Manifest-Schritt nötig.
+
+### 6. DEV AKE (v1.99.36, Deploy siehe BF-Spec-Nachweis, Exit 0)
+Gate `FaHierarchyBeschichtungAktiv` Ausgangswert `false`; für 145.14–145.18 temporär `true` (+ App-Pool-Recycle wegen Cache), **danach wieder `false`** und recycelt.
+Testdaten: im Entwurf `BA-2026-00001` (HauptFA 2625005) vier Positionen per SQL entfernt und über „Positionen hinzufügen“ wieder angelegt.
+
+| TS | Durchgeführt | Ergebnis | Status |
+|---|---|---|---|
+| 145.19 | Gate `false`, Vorschlagsliste aufgerufen | Weiterleitung Startseite, Warnung „Das Beschichtungsauftragsmodul ist deaktiviert.“ | OK |
+| 145.14 | Liste, Summiert, Druck | Kopf je WA z. B. „Kunde NORDCAP, Bremen (Lief.EU) · Fertigung 22.07.2026 · Start Beschichtung 30.06.2026“ (2625004); FA-Liste zeigt Beschicht. 30.06.2026 / Fert. 22.07.2026, ebenso 2645001 (08.10./03.11.) und 2627001 (09.06./01.07.); Druck mit Tabelle Kunde/Fertigungstermin/Start Beschichtung | OK |
+| 145.15 | Maße in Liste und Auftrag | 87013743 Sage 1,24/6,73/29,46 cm → 12,4/67,3/294,6; 87016706 3,64/38,67/7,93 → 36,4/386,7/79,3; nach „hinzufügen“ dieselben Werte in `BeschichtungsauftragPositionen`. **87070769** ist auf DEV in keiner offenen WA-Stückliste (Filter Artnr leer); `ArticleSageDetails` 69,32/83,82/2,41 → 693,2/838,2/24,1 passt rechnerisch | OK (87070769 in der Liste NICHT MÖGLICH – nicht in DEV-Daten) |
+| 145.16 | ohne/mit Häkchen, Umschalter, Druck, Spaltenfilter | ohne: genau die 5 WA mit `IsDonePicking = 0` (2625004, 2625005, 2627001, 2638001, 2645001 = SQL); mit: 16 Gruppen; Druck-, PDF-, Liste/Summiert-Links tragen `kommissionierte=true`; Spaltenfilter-Enter behält ihn | OK; Seite 2 NICHT MÖGLICH (16 Gruppen < 25 je Seite) |
+| 145.17 | Hinweis | „47 bereits kommissionierte WA ohne Lackierteile (nicht einzeln genannt).“ (keine nicht kommissionierten ohne Lackierteile auf DEV) | OK (Fall mit Nummern nur automatisch belegt) |
+| 145.18 | „Positionen hinzufügen“ in BA-2026-00001 | Reihenfolge 51.5.2, 51.5.3, 51.6.2, 51.20.20.4 (natürlich); keine neue Positionsspalte; „4 Position(en) hinzugefügt.“ | OK |
+
+Keine Sage-Schreibung, keine Test-/Prod-Einstellung berührt.
+
+### 7. Publish
+Nicht erstellt (Auftrag des Aufrufers: Publish macht Gerald).
+
+### Deploy (aus dem echten Diff `8e0a346e`)
+Web ja (Services, Repository, Controller, Views, Filtertext), Dienst nein (nur Versionsnummer), Migration nein. Mit dem Bündelstand ausliefern.
+
+### Manuelle Checkliste (offen)
+1. AKE-Test: 87070769 bzw. ein WA mit diesem Lackierteil gegen `KHKArtikel.USER_*mm` prüfen (TS-145.15).
+2. Sammelmeldung mit nicht kommissionierten WA ohne Lackierteile (Nummern) auf Test sehen (TS-145.17).
+3. Seitenwechsel mit Häkchen bei > 25 WA (TS-145.16).
+4. Altaufträge mit Maße 0 (B2) mit dem Fachbereich klären (Positionen neu hinzufügen oder belassen).

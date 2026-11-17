@@ -2,7 +2,7 @@
 type: spec
 title: Blechfertigung – BF-Aufträge (Warenkorb, Schachtler-Freigabe, WiCAM-CSV, Fertigmeldung Stufe 1)
 slug: 2026-11-13-blechfertigung-bf-auftraege-wicam-csv-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-11-17
 updated: 2026-11-17
 source_backlog: "[[2026-11-13-blechfertigung-bf-auftraege-wicam-csv]]"
@@ -671,3 +671,73 @@ Commit `0b31a17d` (v1.99.35, keine neue SQL), Lauf-Notiz [[2026-11-17-goal-lauf-
   Aktivitäts-Protokoll `BfAuftragCsv` („Test-CSV … heruntergeladen durch …“, `heruntergeladen = 1`). Kein Register „WiCAM-Test“.
 - Tests: `BfAuftragWorkflowTests` (Semikolon sperrt nicht, `Feld`, `KopfAsync`), `BfCsvServiceTests.Inhalt_LagerplatzMitSemikolon_InAnfuehrungszeichen`,
   `BfAuftraegeFilterTests` (TestCsv). TS-157.21–157.23. **P-1 bleibt offen** (WiCAM-Import einer Datei mit eingefasstem Feld).
+
+## QA-Nachweis B-1 + Test-CSV (qa-agent, 2026-11-17 abends)
+
+Geprüft: Commit `0b31a17d` (Bereich `c6c04f9f..8e0a346e`, Bündel-Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, HEAD `8e0a346e`,
+v1.99.36). Review synchron in diesem Lauf, nicht delegiert. Ergebnis: **Testbereit** (B-1 umgesetzt, nichts Blockierendes offen; P-1 bleibt Manual-UAT).
+
+### 1. Build und Tests (ganzer Worktree)
+- `dotnet build IdealAkeWms.slnx`: **0 Fehler**, 29 Warnungen (vorbestehend, u. a. CS8620 `BfAuftragWorkflowTests.cs:321`, NU1902/1903).
+- `dotnet test`: `IDEALAKEWMSService.Tests` **715 bestanden / 0 übersprungen / 0 Fehler**; `IdealAkeWms.Tests` **3229 bestanden / 1 übersprungen / 0 Fehler** (3230).
+
+### 2. Code-Review `0b31a17d`
+Gelesen: `BfCsv.cs` (ganz), `BfAuftraegeController.TestCsv` + Klassenfilter, `SageBookingWorker` (Kopf über `KopfAsync`), `Details.cshtml`, `BfAuftrag.Uebergeben`
+(`Models/BfAuftrag.cs:95`), `SyncLogServices.BfAuftragCsv`, Tests.
+
+| # | Befund | Schwere | Fundstelle | Behandlung |
+|---|--------|---------|------------|------------|
+| R1 | Test-CSV prüft `FreigabeFehler` nicht: ein Zeilenumbruch in Matchcode/Bemerkung würde im Download die Zeile brechen (die Freigabe lehnt ihn ab; `"` fasst `Feld` korrekt ein, nicht-1252 wird gemeldet) | niedrig | `BfAuftraegeController.cs` `TestCsv` | Hingenommen: nur Download, nichts im Pool; Freigabe bleibt die Sperre. |
+| R2 | Knopf/Aktion auch bei stornierten und fertigen Aufträgen (Bedingung nur `Nummer is not null`) | Hinweis | `Details.cshtml` (`Model.IstSchachtler && a.Nummer is not null`) | Hingenommen, harmlos (kein Statuswechsel). |
+| R3 | `KopfAsync` liest die Priorität jetzt per `int.TryParse(InvariantCulture)` statt `GetIntSafeAsync`; leer/ungültig = Default 1 | Hinweis | `BfCsv.cs` `KopfAsync` | Gleichwertig; durch `KopfAsync_LeerUndUngueltigGebenDefault` belegt. |
+
+Sicherheit Test-CSV: `[HttpPost]` + `[ValidateAntiForgeryToken]` + `[RequireSchachtlerAccess]` + Klasse `[RequireBfBestellenAccess]`/`[RequireBlechfertigungAktiv]`;
+Dateiname aus der serverseitigen BF-Nummer; kein Pfad, kein Pool-Zugriff, kein Statuswechsel; Audit im Aktivitäts-Protokoll. Pflicht-Fehlerklassen: kein
+`<script>`/`@Html.Raw`, kein `hidden`+`d-*`, kein stiller Fallback (Kopf-Defaults sind die dokumentierten Spec-Defaults), keine parallelen Arrays, Regel
+„`;` erlaubt, `"`/Umbruch/nicht-1252 gesperrt“ an einem Ort (`UnzulaessigesZeichen` + `Feld`), Dienst und Web teilen `Inhalt`/`KopfAsync`/`Kodierung`.
+
+### 3. Nachweisart
+| Punkt | Nachweis |
+|---|---|
+| `;` sperrt Freigabe nicht | automatisch (`FreigabeFehler_SemikolonImLagerplatzSperrtNicht`) + DEV (TS-157.21) |
+| Einfassung wie Excel | automatisch (`Feld_FasstSemikolonWieExcelEin`, `Inhalt_LagerplatzMitSemikolon_InAnfuehrungszeichen`) + DEV-Datei |
+| Test-CSV nur Schachtler | automatisch (`BfAuftraegeFilterTests` `TestCsv`) für den Filter; Besteller-Browserlauf Manual-UAT |
+| Test-CSV ohne Statuswechsel, Protokoll | DEV (Manual) |
+| WiCAM liest das eingefasste Feld | **Manual-UAT P-1** (nicht automatisierbar) |
+
+### 4. Geänderte bestehende Tests
+- `BfAuftragWorkflowTests` – `InlineData("Matchcode", "A;B", "Semikolon")` entfernt: **Verhalten absichtlich geändert** (Entscheidung B-1).
+- `BfAuftraegeFilterTests` – `InlineData("TestCsv", true)` ergänzt: Erweiterung.
+- `docs/TESTSZENARIEN.md` TS-157.9 auf `A"B` umgestellt: absichtlich (B-1). Keine Kategorie „sonstiges“.
+
+### 5. Checkliste / ADR 0020
+Keine Migration, keine neue/geänderte Einstellung (ADR 0020 n/a), Version 1.99.35 in beiden `AppVersion.cs` (danach 1.99.36), Anwender-Changelog,
+Brain-Changelog `2026-11-17-v1-99-35-blechfertigung-bf-auftraege`, TS-157.21–157.23 in `docs/TESTSZENARIEN.md` und im Testindex. Kein neuer
+Deploy-Schritt für `scripts/deploy/nachlauf.psd1` (Manifesttext `-BfCsv` nennt P-1 bereits).
+
+### 6. DEV-Deploy und TS
+Deploy `D:\Dev\scripts\dev-deploy.ps1 -Quelle <Worktree>` (elevated) nach grünem Build, Zielordner `D:\Dev\{AKE,IDEAL}\{Web,Service}` vorher geleert
+(erhalten: `App_Data`, `logs`, `appsettings.DEV.json*`): **AKE** Exit 0 „HTTP 200, Fusszeile v1.99.36“; **IDEAL** Exit 0 „HTTP 200, Fusszeile v1.99.36“.
+DEV-Absicherung lief je Standort. Testdaten DEV IDEAL: `BlechfertigungAktiv` (Ausgangswert: Zeile fehlte) temporär `true`, Auftrag `BF99990001`
+(Id 4, 2 Positionen, Pos 1 Lagerplatz `S-03;0;0;0`) und Entwurf Id 5 per SQL angelegt; **nach dem Test gelöscht, Gate-Zeile entfernt**. `BfCsvAktiv`
+blieb `false`, `BfCsvPfad` leer – nichts in einen Pool geschrieben, nichts an Sage.
+
+| TS | Durchgeführt | Ergebnis | Status |
+|---|---|---|---|
+| 157.21 | Auftrag mit `S-03;0;0;0` geöffnet und freigegeben | kein Sperrblock, Freigabe ok (Schachteln 18.11.2026, FE 01.12.2026, Bemerkung `17.11 - 1`); Datenzeile `ABDECKUNG QA;1.4301;2;17.11 - 1;"S-03;0;0;0";QA Tester;18.11.2026;2026-12-01` (8 Spalten) | OK (CSV aus Download; Dienst-Pooldatei NICHT MÖGLICH, `BfCsvAktiv` aus) |
+| 157.22 | Test-CSV im Status bestellt und freigegeben | `BF99990001.csv` 404 Byte, CRLF, keine Byte > 127; bestellt: Termine/Bemerkung leer + Hinweis am Knopf; Status/CSV-Spalte unverändert (1/0 bzw. 2/1, `CsvDatei` NULL); `SyncLogs` `BfAuftragCsv`: „Test-CSV BF99990001.csv heruntergeladen durch Gerald Weichbold (AKENB\gerald.weichbold) – kein Statuswechsel …“ + `heruntergeladen=1` (2 Läufe) | OK; „byte-gleich zur Pool-Datei“ NICHT MÖGLICH (kein Pool auf DEV) – Code-Weg identisch (`Inhalt`/`KopfAsync`/`Kodierung`) |
+| 157.23 | Entwurf ohne Nummer geöffnet | Warenkorb-Ansicht, kein Knopf | OK; Besteller ohne schachtler + Direkt-POST NICHT MÖGLICH (eine Windows-Identität mit admin) – Filter automatisch belegt |
+
+### 7. Publish
+**Nicht erstellt** – Auftrag des Aufrufers: „kein Publish (Publish Paket 1 mache ich danach selbst)“.
+
+### Deploy (aus dem echten Diff `0b31a17d`)
+Web ja (Controller, View, `BfCsv`), Dienst ja (`SageBookingWorker` nutzt `BfCsv.KopfAsync`), Migration nein. Zusammen mit dem Bündelstand v1.99.36
+ausliefern (Migration SQL/158 aus v1.99.35 bleibt: DB-Backup, Web-Update mit Migration, Dienst). Nach dem Merge nur neu publishen, wenn der Merge
+getestete Dateien mit parallelen main-Änderungen zusammenführt.
+
+### Manuelle Checkliste (offen, ergänzt die obige)
+1. **P-1:** echte Pool-Datei / WiCAM-Import einer Datei mit `"S-03;0;0;0"` – bestätigt die vorläufige Einfassung oder `BfCsv.Feld` wird umgebaut.
+2. Test-CSV auf dem Testsystem byte-gleich mit der Dienst-Datei desselben Auftrags vergleichen (mit `BfCsvAktiv` + Testpfad).
+3. Besteller ohne schachtler: kein Knopf, Direkt-POST `/BfAuftraege/TestCsv` → verweigert (TS-157.23).
+4. Punkte 2–11 der Checkliste oben (P-7, Mail, Doppelklick, Feiertage, Gesamtlauf TS-157 auf Test) bleiben offen.
