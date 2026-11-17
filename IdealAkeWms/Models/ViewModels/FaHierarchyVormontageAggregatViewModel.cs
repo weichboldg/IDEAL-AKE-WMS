@@ -30,6 +30,9 @@ public class FaHierarchyVormontageAggregatViewModel
     /// <summary>Anzahl der aggregierten Blattpositionen (informativ).</summary>
     public int PositionCount { get; init; }
 
+    /// <summary>v1.99.37 (ADR 0032): erste in Sage verschwundene Position der Summe — Badge-Quelle, null = alle aktiv.</summary>
+    public FaHierarchyNode? Verschwunden { get; init; }
+
     // v1.72.0: Anzeige der neuen Spalten: verschiedene Werte der beitragenden Positionen als Text (", "-getrennt, leer = null).
     // Gefuellt in VormontageService.AggregateSummiert; gefiltert wird je Position VOR dem Zusammenzaehlen, nicht auf diesen Texten.
     public string? Arbeitsbereiche { get; init; }

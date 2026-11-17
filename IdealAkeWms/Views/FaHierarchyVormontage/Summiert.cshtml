@@ -102,7 +102,7 @@ else
                 @foreach (var row in Model.Rows)
                 {
                     <tr>
-                        <td>@row.Matchcode</td>
+                        <td>@row.Matchcode <partial name="_FaStrukturBadge" model="row.Verschwunden" /></td>
                         <td>@row.Arbeitsbereiche</td>
                         <td>@row.Abteilungen</td>
                         <td class="text-end">@VormontageService.FormatMenge(row.SummeSollmenge)</td>

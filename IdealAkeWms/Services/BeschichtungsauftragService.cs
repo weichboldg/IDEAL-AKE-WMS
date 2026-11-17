@@ -230,6 +230,7 @@ public class BeschichtungsauftragService
                     Matchcode = first.Matchcode,
                     SummeSollmenge = g.Sum(n => n.Sollmenge),
                     PositionCount = g.Count(),
+                    Verschwunden = g.FirstOrDefault(n => n.VerschwundenSeit != null),
                     Breite = first.Breite,
                     Hoehe = first.Hoehe,
                     Tiefe = first.Tiefe,

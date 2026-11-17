@@ -107,6 +107,11 @@
                                     </form>
                                 }
                             }
+                            else if (z.Verschwunden)
+                            {
+                                <partial name="_FaStrukturBadge" model="n" />
+                                <div class="small">nicht meldbar</div>
+                            }
                             else if (!z.Eindeutig)
                             {
                                 <span class="text-danger-emphasis fw-semibold">&#9888; Strukturzeile nicht eindeutig – bitte AV</span>

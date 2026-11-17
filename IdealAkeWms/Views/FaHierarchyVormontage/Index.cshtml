@@ -107,6 +107,7 @@ else
                     <tr class="table-active">
                         <td colspan="@colCount">
                             <strong>HauptFA @group.HauptFA</strong>
+                            <partial name="_FaStrukturBadge" model="group.OrderInfos.FirstOrDefault()" />
                             @if (group.IsAmbiguous)
                             {
                                 <span class="badge bg-info text-dark ms-2" title="Mehrere Kopfzeilen (Kombigerät) — Positionen werden NICHT gesplittet">
@@ -141,7 +142,7 @@ else
                             <td>@pos.Arbeitsbereich</td>
                             <td>@kopf.Abteilung</td>
                             <td>@pos.HauptArtnr</td>
-                            <td>@pos.Artnr</td>
+                            <td>@pos.Artnr <partial name="_FaStrukturBadge" model="pos" /></td>
                             <td>@pos.Matchcode</td>
                             <td class="text-end">@pos.Sollmenge.ToString("N3", deCulture)</td>
                             <td class="text-end">@pos.Fertigungmenge.ToString("N3", deCulture)</td>

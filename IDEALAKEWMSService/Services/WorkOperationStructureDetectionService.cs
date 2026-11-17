@@ -69,7 +69,7 @@ public class WorkOperationStructureDetectionService : IWorkOperationStructureDet
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
             // 1) Vollstaendiger Struktur-Stand (Full-Refresh-Cache, analog FaMaterializationSyncService).
-            var nodes = await _db.FaHierarchyNodes.AsNoTracking().ToListAsync(ct);
+            var nodes = await _db.FaHierarchyNodes.AsNoTracking().Where(n => n.VerschwundenSeit == null).ToListAsync(ct); // v1.99.37: nur aktive
 
             // 2) DirectChildren-Lookup: VaterFA -> Kinder (eine Gruppierung, kein N+1).
             var childrenByParent = nodes

@@ -67,7 +67,8 @@ public class FaMaterializationSyncService : IFaMaterializationSyncService
             // Lack-Ableitung (K2) braucht die Blattebene, um "direktes Kind beschichtet" zu
             // erkennen. Materialisiert werden weiterhin nur Nicht-Blatt-Knoten, gefiltert erst
             // beim Aufbau von "source". Mapping int->string.
-            var nodes = await _ctx.FaHierarchyNodes.AsNoTracking()
+            // v1.99.37 (ADR 0032): nur aktive Knoten — verschwundene sollen weder Auftraege anlegen noch SageMissingSince verhindern.
+            var nodes = await _ctx.FaHierarchyNodes.AsNoTracking().Where(n => n.VerschwundenSeit == null)
                 .ToListAsync(ct);
 
             var coating = FaMaterializationCoating.Derive(nodes);

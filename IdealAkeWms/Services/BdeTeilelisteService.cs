@@ -42,7 +42,9 @@ public sealed class TeilelisteZeile
     public bool KeinWmsAuftrag { get; init; }
     public BdeTeilMeldung? Meldung { get; init; }
     public IReadOnlyList<FaHierarchyNode> Kinder { get; init; } = Array.Empty<FaHierarchyNode>();
-    public bool Meldbar => Meldung == null && Eindeutig;
+    /// <summary>v1.99.37 (ADR 0032, Rueckfrage 3): in Sage verschwundene Zeile → angezeigt mit Badge, nicht meldbar.</summary>
+    public bool Verschwunden => Node.VerschwundenSeit != null;
+    public bool Meldbar => Meldung == null && Eindeutig && !Verschwunden;
 }
 
 /// <summary>Sicht „Summiert“: je Matchcode, mit den beitragenden meldbaren Schluesseln (F7).</summary>
@@ -297,6 +299,11 @@ public class BdeTeilelisteService
         }
         var node = treffer[0];
         bezeichnung = $"{node.Matchcode} ({bezeichnung})";
+        if (node.VerschwundenSeit != null) // v1.99.37 (ADR 0032, Rueckfrage 3): verschwundene Zeilen sind sichtbar, aber nicht meldbar
+        {
+            e.Abgewiesen.Add($"{bezeichnung}: FA {FaStrukturGrund.Text(node.VerschwundenGrund) ?? "in Sage nicht gelesen"} – nicht meldbar");
+            return;
+        }
 
         var besitzer = Besitzer(node);
         if (besitzer != null)

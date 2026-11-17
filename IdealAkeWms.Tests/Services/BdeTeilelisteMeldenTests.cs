@@ -65,6 +65,30 @@ public class BdeTeilelisteMeldenTests
     }
 
     [Fact]
+    public async Task VerschwundeneZeile_Abgewiesen_KeineMeldung()
+    {
+        // v1.99.37 (ADR 0032, Rueckfrage 3): sichtbar mit Badge, aber nicht meldbar.
+        var u = await AufbauAsync();
+        var b1 = u.Ctx.FaHierarchyNodes.Single(n => n.Artnr == "B1");
+        b1.VerschwundenSeit = DateTime.Now;
+        b1.VerschwundenGrund = FaStrukturGrund.Beendet;
+        await u.Ctx.SaveChangesAsync();
+
+        var r = await Melden(u, A(Blech1, null, null));
+
+        r.Gemeldet.Should().Be(0);
+        r.Abgewiesen.Should().ContainSingle().Which.Should().EndWith("FA in Sage beendet – nicht meldbar");
+        u.Ctx.BdeTeilMeldungen.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void TeilelisteZeile_Verschwunden_NichtMeldbar()
+    {
+        var n = new FaHierarchyNode { HauptFA = 1, SubFA = 0, VerschwundenSeit = DateTime.Now, VerschwundenGrund = FaStrukturGrund.Unklar };
+        new TeilelisteZeile { Node = n, Schluessel = TeilSchluessel.Von(n) }.Meldbar.Should().BeFalse();
+    }
+
+    [Fact]
     public async Task Block_OhneMengen_VolleSollmenge()
     {
         var u = await AufbauAsync();

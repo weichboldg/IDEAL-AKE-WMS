@@ -1,0 +1,7 @@
+@model IdealAkeWms.Models.IFaStrukturZeile?
+@* v1.99.37 (ADR 0032): Kennzeichnung einer in Sage verschwundenen FA-Struktur-Zeile. Text traegt die Bedeutung, nie nur die Farbe
+   (gleiches Badge wie „Verwaist“, schwarz auf gelb ≥ 10:1). Eine Stelle fuer alle Ansichten. *@
+@if (Model?.VerschwundenSeit is DateTime seit)
+{
+    <span class="badge bg-warning text-dark fa-verschwunden" title="Seit @seit.ToString("dd.MM.yyyy HH:mm") nicht mehr aus Sage gelesen">@(IdealAkeWms.Models.FaStrukturGrund.Text(Model.VerschwundenGrund) ?? "in Sage nicht gelesen")</span>
+}

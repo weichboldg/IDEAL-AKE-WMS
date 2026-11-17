@@ -180,6 +180,7 @@ public class KommissionierListenService
                 Kommissionieren = g.Key.Ziel,
                 SummeSollmenge = g.Sum(n => n.Sollmenge),
                 PositionCount = g.Count(),
+                Verschwunden = g.FirstOrDefault(n => n.VerschwundenSeit != null),
                 // Artikeleigenschaften, je Summenschluessel konstant — Schluessel unveraendert.
                 Matchcode = g.First().Matchcode,
                 Hauptlagerplatz = g.First().Hauptlagerplatz,

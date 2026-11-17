@@ -69,6 +69,9 @@ public class FaHierarchyBeschichtungSummiertRowViewModel
     public string? Matchcode { get; init; }
     public decimal SummeSollmenge { get; init; }
     public int PositionCount { get; init; }
+
+    /// <summary>v1.99.37 (ADR 0032): erste in Sage verschwundene Position der Summe — Badge-Quelle, null = alle aktiv.</summary>
+    public FaHierarchyNode? Verschwunden { get; init; }
     public decimal Breite { get; init; }
     public decimal Hoehe { get; init; }
     public decimal Tiefe { get; init; }

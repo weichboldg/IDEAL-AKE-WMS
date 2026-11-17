@@ -339,6 +339,7 @@ public class VormontageService
                     SummeSollmenge = g.Sum(n => n.Sollmenge),
                     SummeFertigungmenge = g.Sum(n => n.Fertigungmenge),
                     PositionCount = g.Count(),
+                    Verschwunden = g.FirstOrDefault(n => n.VerschwundenSeit != null),
                     // Anzeige: verschiedene Werte der beitragenden Positionen (Text sortiert, HauptFA numerisch, Datum aufsteigend).
                     Arbeitsbereiche = FormatTexte(g.Select(n => n.Arbeitsbereich)),
                     Abteilungen = FormatTexte(hauptFas.Select(h => kopf.TryGetValue(h, out var k) ? k.Abteilung : null)),

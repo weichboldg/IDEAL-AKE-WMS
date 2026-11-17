@@ -153,6 +153,7 @@ else
                                         <path d="M9.828 3h3.982a2 2 0 0 1 1.992 2.181l-.637 7A2 2 0 0 1 13.174 14H2.825a2 2 0 0 1-1.991-1.819l-.637-7a2 2 0 0 1 .342-1.31L2.1 3a2 2 0 0 1 1.542-.819l4.83-.26a2 2 0 0 1 1.356.52z" />
                                     </svg>
                                     <span class="fw-bold">HauptFA @structure.HauptFA</span>
+                                    <partial name="_FaStrukturBadge" model="(IdealAkeWms.Models.IFaStrukturZeile?)structure.Roots.FirstOrDefault()?.Node ?? head" />
                                     @if (head != null && !string.IsNullOrEmpty(head.Kunde))
                                     {
                                         <span class="badge bg-primary" title="Kunde">@head.Kunde</span>

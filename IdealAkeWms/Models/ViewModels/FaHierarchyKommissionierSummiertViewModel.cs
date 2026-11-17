@@ -27,6 +27,9 @@ public class FaHierarchyKommissionierSummiertRowViewModel
     /// <summary>Anzahl der aggregierten Positionen (informativ).</summary>
     public int PositionCount { get; init; }
 
+    /// <summary>v1.99.37 (ADR 0032): erste in Sage verschwundene Position der Summe — Badge-Quelle, null = alle aktiv.</summary>
+    public FaHierarchyNode? Verschwunden { get; init; }
+
     /// <summary>Artikeleigenschaft (je Summenschluessel konstant, aus der ersten Position uebernommen).</summary>
     public string? Matchcode { get; init; }
 

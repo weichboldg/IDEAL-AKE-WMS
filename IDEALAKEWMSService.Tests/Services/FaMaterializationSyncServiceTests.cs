@@ -115,6 +115,21 @@ public class FaMaterializationSyncServiceTests
         (await ctx.ProductionOrderBdeStatuses.CountAsync(s => s.ProductionOrderId == order.Id)).Should().Be(1);
     }
 
+    /// <summary>v1.99.37 (ADR 0032): ein verschwundener Knoten legt keinen WMS-Auftrag an.</summary>
+    [Fact]
+    public async Task RunAsync_VerschwundenerKnoten_KeinAuftrag()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        ctx.FaHierarchyNodes.Add(new FaHierarchyNode { HauptFA = 1000, SubFA = 1001, Sollmenge = 1 });
+        ctx.FaHierarchyNodes.Add(new FaHierarchyNode { HauptFA = 1000, SubFA = 1002, VaterFA = 1001, Sollmenge = 1,
+            VerschwundenSeit = DateTime.Now, VerschwundenGrund = FaStrukturGrund.Beendet });
+        await ctx.SaveChangesAsync();
+
+        await Build(ctx).RunAsync(dryRun: false);
+
+        (await ctx.ProductionOrders.Select(o => o.SubOrderNumber).ToListAsync()).Should().Equal("1001");
+    }
+
     /// <summary>
     /// Der eigentliche gemeldete Fehler: ein bereits materialisierter Sub-FA OHNE Statuszeilen
     /// (Alt-Bestand vor diesem Fix) wird beim nächsten Lauf nachgezogen (Backfill, F6).

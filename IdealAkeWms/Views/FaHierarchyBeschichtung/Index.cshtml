@@ -86,6 +86,7 @@
                     <tr class="table-active">
                         <td colspan="@colCount">
                             <strong>HauptFA @group.HauptFA</strong>
+                            <partial name="_FaStrukturBadge" model="group.OrderInfos.FirstOrDefault()" />
                             @if (Model.PdfVerfuegbar)
                             {
                                 <a href="@(Url.Action("Pdf", new { hauptFa = group.HauptFA }) + pdfQuery)"
@@ -103,7 +104,7 @@
                         <tr>
                             <td>@pos.HauptFA</td>
                             <td>@pos.HauptArtnr</td>
-                            <td>@pos.Artnr</td>
+                            <td>@pos.Artnr <partial name="_FaStrukturBadge" model="pos" /></td>
                             <td>@pos.Matchcode</td>
                             <td class="text-end">@BeschichtungsauftragService.FormatMenge(pos.Sollmenge)</td>
                             <td>

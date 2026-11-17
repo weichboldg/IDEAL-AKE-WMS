@@ -104,7 +104,7 @@
                         <tr>
                             <td>@row.HauptFA</td>
                             <td>@row.HauptArtnr</td>
-                            <td>@row.Artnr</td>
+                            <td>@row.Artnr <partial name="_FaStrukturBadge" model="row.Verschwunden" /></td>
                             <td>
                                 @row.Matchcode
                                 @if (row.MasseUneinheitlich)

@@ -78,6 +78,23 @@ public class WorkOperationStructureDetectionServiceTests
         log.Runs.Single().FinalCounts!["neu"].Should().Be(1);
     }
 
+    // --- v1.99.37 (ADR 0032): verschwundene Knoten erzeugen keinen Arbeitsgang ---
+    [Fact]
+    public async Task Detect_VerschwundenerKnoten_Ignoriert()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        var n = Node(subFa: 10, vaterFa: null, arbeitsschritte: "KA");
+        n.VerschwundenSeit = DateTime.Now;
+        n.VerschwundenGrund = FaStrukturGrund.Unklar;
+        ctx.FaHierarchyNodes.Add(n);
+        ctx.ProductionWorkplaces.Add(Workplace("KA", "Kanterei W1", "2300"));
+        ctx.ProductionOrders.Add(Order("10"));
+        await ctx.SaveChangesAsync();
+
+        var (svc, _) = Build(ctx);
+        (await svc.DetectAsync(dryRun: false)).Inserted.Should().Be(0);
+    }
+
     // --- Audit ---
     [Fact]
     public async Task Detect_CreatedRow_CarriesServiceNameAudit()

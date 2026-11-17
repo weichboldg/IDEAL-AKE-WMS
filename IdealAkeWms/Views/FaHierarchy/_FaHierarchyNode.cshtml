@@ -89,6 +89,7 @@
             @Html.Raw(iconSvg)
         </svg>
         <span class="fa-node-artnr fw-semibold">@(string.IsNullOrEmpty(n.Artnr) ? "—" : n.Artnr)</span>
+        <partial name="_FaStrukturBadge" model="n" />
     </td>
     <td data-col-key="matchcode" class="fa-cell-matchcode text-muted small">@n.Matchcode</td>
     <td data-col-key="description">@vDescription</td>
