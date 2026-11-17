@@ -176,7 +176,7 @@ Laufen bei **jedem** Lauf (ohne Versionsfilter), lesend; Ergebnis 0 = in Ordnung
 |---|---|---|---|
 | Vorher | in der Vorprüfung; auf Prod Abbruch vor dem Stoppen, sonst Hinweis | `Pruefung/MailPickup`, `Pruefung/BenutzerOhneKennwort` (aktive Benutzer ohne Kennwort ausser admin, v1.99.28), `Pruefung/FreshInstallIndizes` (nur IDEAL-Prod: Indizes/FK aus der Erstinstallation vom 04.11. fehlen, v1.99.28; legt nichts an) | `scripts/deploy/nachlauf.psd1:158-161` |
 | Haltepunkt | nach dem Schema bei gestopptem Web und Dienst; Reparatur nur nach `j` | Kommissionierbereiche, RCSI, Rollen Beschichtungsauftrag, Rolle Einkauf, DUMMY-Artikel | `scripts/deploy/nachlauf.psd1:101-137` |
-| Nachher | nur lesend, Text = Hand-Schritt | Lieferverzug-Empfänger, Wareneingang-CSV, QR-Trennzeichen, Firmenanschrift, `Sync:ArticlesViewName`, SData-Kennwort in appsettings, SMTP-Benutzer (`Pruefung/SmtpBenutzer`), doppelte Prio | `scripts/deploy/nachlauf.psd1:138-169` |
+| Nachher | nur lesend, Text = Hand-Schritt | Lieferverzug-Empfänger, Wareneingang-CSV, QR-Trennzeichen, Firmenanschrift, `Sync:ArticlesViewName`, SData-Kennwort in appsettings, SMTP-Benutzer (`Pruefung/SmtpBenutzer`), doppelte Prio, nur AKE: `Sync:Quelle:Artikel` nicht auf `SData` (`Pruefung/ArtikelQuelleSData`, v1.99.39; sonst bleiben `ArticleSageDetails` leer, Hand-Schritt, keine automatische Umschaltung) | `scripts/deploy/nachlauf.psd1:138-169` |
 
 Besonderheit RCSI: Die Reparatur (`ALTER DATABASE … SET READ_COMMITTED_SNAPSHOT ON WITH ROLLBACK IMMEDIATE`) zeigt vorher alle anderen
 Sitzungen auf der DB, weil sie diese beendet. Ohne Recht `ALTER` die Frage mit `n` beantworten. (Quelle: `scripts/deploy/Update-IdealAkeWms.ps1:438-444`,
