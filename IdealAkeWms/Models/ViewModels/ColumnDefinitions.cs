@@ -750,6 +750,8 @@ public static class ColumnDefinitions
             new ColumnDef("liefertermin", "Liefertermin",     Locked: true),
             new ColumnDef("lieferant",    "Lieferant",        Locked: false),
             new ColumnDef("bestellung",   "Bestellung",       Locked: true),
+            new ColumnDef("ab-nummer",    "AB-Nummer",        Locked: false),   // v1.99.33 Teil B, sichtbar + ausblendbar (Antwort 5)
+            new ColumnDef("kommission",   "Kommission",       Locked: false),
             new ColumnDef("artikel",      "Artikel",          Locked: true),
             new ColumnDef("bezeichnung",  "Bezeichnung",      Locked: false),
             new ColumnDef("bestellt",     "bestellt",         Locked: false),

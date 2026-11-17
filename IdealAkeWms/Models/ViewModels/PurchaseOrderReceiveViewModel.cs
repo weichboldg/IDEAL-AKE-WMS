@@ -9,6 +9,9 @@ public class PurchaseOrderReceiveViewModel
     public string? LieferantText { get; set; }
     public bool LieferantGesperrt { get; set; }
     public DateTime? Liefertermin { get; set; }
+    /// <summary>v1.99.33 (Teil B, B5): Sage-Kopf USER_AB / USER_Kom aus dem Cache (erste Zeile der Bestellung), nur Anzeige im Kopf.</summary>
+    public string? AbNummer { get; set; }
+    public string? Kommission { get; set; }
     public List<PurchaseOrderReceiveRow> Zeilen { get; set; } = new();
     public List<StorageLocation> Lagerplaetze { get; set; } = new();
     /// <summary>v1.99.4 (F6): Lieferschein-Nr. des Lieferanten (Kopf, einmal je Absenden); bleibt bei Fehlern stehen.</summary>

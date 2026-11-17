@@ -49,6 +49,8 @@ public partial class PurchaseOrdersController : Controller
         ["liefertermin"] = r => LieferterminText(r.Line.Liefertermin),
         ["lieferant"] = r => r.LieferantText,
         ["bestellung"] = r => r.Line.Belegnummer,
+        ["ab-nummer"] = r => r.Line.AbNummer,     // v1.99.33 Teil B (Sage-Kopf USER_AB)
+        ["kommission"] = r => r.Line.Kommission,  // v1.99.33 Teil B (Sage-Kopf USER_Kom)
         ["artikel"] = r => r.Line.Artikelnummer,
         ["bezeichnung"] = r => r.Line.Bezeichnung1,
         ["bestellt"] = r => r.Line.MengeBestellt.ToString("0.###"),

@@ -2384,7 +2384,9 @@ BEGIN
         [Liefertermin]              DATE              NULL,
         [Chargenpflicht]            BIT               NOT NULL,
         [Nachweispflicht]           BIT               NOT NULL,
-        [SyncedAt]                  DATETIME2         NOT NULL
+        [SyncedAt]                  DATETIME2         NOT NULL,
+        [AbNummer]                  NVARCHAR(250)     NULL,   -- v1.99.33 / SQL/156 (Sage KHKEKBelege.USER_AB)
+        [Kommission]                NVARCHAR(200)     NULL    -- v1.99.33 / SQL/156 (Sage KHKEKBelege.USER_Kom)
     );
     CREATE UNIQUE INDEX [IX_SagePurchaseOrderLines_BelPosId] ON [dbo].[SagePurchaseOrderLines]([BelPosId]);
     CREATE INDEX [IX_SagePurchaseOrderLines_BelId] ON [dbo].[SagePurchaseOrderLines]([BelId]);
@@ -3363,6 +3365,10 @@ GO
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261117085624_AddOperationConfigSageArbeitsgangnummer')
    AND COL_LENGTH(N'dbo.OperationConfigs', N'SageArbeitsgangnummer') IS NOT NULL AND COL_LENGTH(N'dbo.OperationConfigs', N'SageArbeitsgangnummerManuell') IS NOT NULL -- sonst steht SQL/153 noch aus
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261117085624_AddOperationConfigSageArbeitsgangnummer', '10.0.2');
+GO
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261117102804_AddSagePurchaseOrderLineAbNummerKommission')
+   AND COL_LENGTH(N'dbo.SagePurchaseOrderLines', N'AbNummer') IS NOT NULL AND COL_LENGTH(N'dbo.SagePurchaseOrderLines', N'Kommission') IS NOT NULL -- sonst steht SQL/156 noch aus
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261117102804_AddSagePurchaseOrderLineAbNummerKommission', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';

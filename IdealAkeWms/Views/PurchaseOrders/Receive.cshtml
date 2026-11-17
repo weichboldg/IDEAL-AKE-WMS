@@ -55,6 +55,11 @@
                 </dd>
                 <dt class="col-sm-3 fw-normal text-muted">Lieferant</dt>
                 <dd class="col-sm-9">@Model.LieferantText</dd>
+                @* v1.99.33 (Teil B): Sage-Kopf, leer = „–“ (Feld bleibt sichtbar) *@
+                <dt class="col-sm-3 fw-normal text-muted">AB-Nummer</dt>
+                <dd class="col-sm-9">@(Model.AbNummer ?? "–")</dd>
+                <dt class="col-sm-3 fw-normal text-muted">Kommission</dt>
+                <dd class="col-sm-9">@(Model.Kommission ?? "–")</dd>
                 <dt class="col-sm-3 fw-normal text-muted">Liefertermin</dt>
                 <dd class="col-sm-9">@(Model.Liefertermin?.ToString("dd.MM.yyyy") ?? "ohne Termin")</dd>
             </dl>

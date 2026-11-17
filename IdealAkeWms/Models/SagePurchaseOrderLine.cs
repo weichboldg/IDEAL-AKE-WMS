@@ -57,4 +57,13 @@ public class SagePurchaseOrderLine
     public bool Chargenpflicht { get; set; }
     public bool Nachweispflicht { get; set; }
     public DateTime SyncedAt { get; set; }
+
+    /// <summary>v1.99.33 (Spec 2026-11-17-wareneingang-sammellieferschein-und-bestellkopf B2): Laengen laut SData-Schema
+    /// <c>EKBelegUserField</c> (USER_AB 250, USER_Kom 200; P-2a Sage-SQL bestaetigt). Laengere Werte schreibt der Abgleich nicht (nie kuerzen).</summary>
+    public const int AbNummerMaxLaenge = 250;
+    public const int KommissionMaxLaenge = 200;
+    /// <summary>v1.99.33: Sage-Kopf <c>KHKEKBelege.USER_AB</c> (RealTimeData <c>dtsEKBelegMst</c>), Kopfwert an jeder Position, nur Anzeige.</summary>
+    public string? AbNummer { get; set; }
+    /// <summary>v1.99.33: Sage-Kopf <c>KHKEKBelege.USER_Kom</c>, Kopfwert an jeder Position, nur Anzeige.</summary>
+    public string? Kommission { get; set; }
 }

@@ -95,7 +95,9 @@ public partial class PurchaseOrdersController
             ModelState.AddModelError(string.Empty, "Bitte die Lieferschein-Nummer des Lieferanten eingeben.");
 
         // v1.99.11 (Wareneingang-CSV F1): Barcode des Lieferschein-Aufklebers, nur bei eingeschaltetem Feld (sonst ignoriert). Getrimmt, keine
-        // Umformung (Aufkleber = Dateiname); im WMS nur an einem Absenden (ohne Gross/Klein, Windows-Dateinamen).
+        // Umformung (Aufkleber = Dateiname). v1.99.33 Sammellieferschein (A1): ein weiterer Einsatz nur bei gleichem Lieferanten und gleicher,
+        // nicht leerer Lieferschein-Nr. wie beim ERSTEN Wareneingang des Barcodes (ohne Gross/Klein); der Dienst nummeriert die CSV (_1, _2 …).
+        string? sammelHinweis = null;
         vm.Barcode = !vm.BarcodeAktiv || string.IsNullOrWhiteSpace(barcode) ? null : barcode.Trim();
         if (vm.Barcode != null)
         {
@@ -105,8 +107,14 @@ public partial class PurchaseOrdersController
             else if (!WareneingangCsv.IstGueltigerBarcode(vm.Barcode))
                 ModelState.AddModelError(string.Empty, WareneingangCsv.BarcodeFehlerText);
             else if (await _receipts.BarcodeVergebenAsync(vm.Barcode) is { } vergeben)
-                ModelState.AddModelError(string.Empty,
-                    $"Barcode {vm.Barcode} ist bereits dem Wareneingang zu Bestellung {vergeben.Belegnummer} vom {vergeben.CreatedAt:dd.MM.yyyy HH:mm} zugeordnet.");
+            {
+                var grund = SammellieferscheinGrund(vergeben, vm.Zeilen[0].Row.Line.LieferantKto, vm.Lieferschein);
+                if (grund == null)
+                    sammelHinweis = $" Sammellieferschein – Barcode {vm.Barcode} bereits bei Bestellung {vergeben.Belegnummer} verwendet; die CSV-Datei erhält eine laufende Nummer (_1, _2 …).";
+                else
+                    ModelState.AddModelError(string.Empty,
+                        $"Barcode {vm.Barcode} ist bereits dem Wareneingang zu Bestellung {vergeben.Belegnummer} vom {vergeben.CreatedAt:dd.MM.yyyy HH:mm} zugeordnet – {grund}");
+            }
         }
 
         if (buchen.Count == 0)
@@ -168,8 +176,21 @@ public partial class PurchaseOrdersController
             }
         }
 
-        TempData["SuccessMessage"] = $"{buchen.Count} Position(en) eingebucht (davon {teil} Teil-, {ueber} Überlieferung).";
+        TempData["SuccessMessage"] = $"{buchen.Count} Position(en) eingebucht (davon {teil} Teil-, {ueber} Überlieferung)." + sammelHinweis;
         return RedirectToAction(nameof(Receive), new { belId });
+    }
+
+    /// <summary>v1.99.33 (A1, Rueckfrage 3): null = Sammellieferschein erlaubt (gleicher Lieferant, gleiche nicht leere Lieferschein-Nr. wie
+    /// beim ersten Wareneingang des Barcodes, getrimmt, ohne Gross/Klein; ein leerer Wert gilt als ungleich), sonst der Grund der Ablehnung.</summary>
+    internal static string? SammellieferscheinGrund(PurchaseOrderReceipt erster, string? lieferantKto, string? lieferschein)
+    {
+        static bool Gleich(string? a, string? b) => !string.IsNullOrWhiteSpace(a) && !string.IsNullOrWhiteSpace(b)
+            && string.Equals(a.Trim(), b.Trim(), StringComparison.OrdinalIgnoreCase);
+        if (!Gleich(erster.LieferantKto, lieferantKto)) return "anderer Lieferant.";
+        if (string.IsNullOrWhiteSpace(erster.Lieferschein)) return "dort ohne Lieferschein-Nr., kein Sammellieferschein möglich.";
+        if (!Gleich(erster.Lieferschein, lieferschein))
+            return $"für einen Sammellieferschein bitte dieselbe Lieferschein-Nr. eingeben (dort: {erster.Lieferschein.Trim()}).";
+        return null;
     }
 
     internal const string SeiteVeraltetText = "Die Seite ist veraltet – bitte neu laden. Es wurde nichts gebucht.";
@@ -192,6 +213,7 @@ public partial class PurchaseOrdersController
             LieferantText = rows[0].LieferantText,
             LieferantGesperrt = rows.Any(r => r.Line.LieferantGesperrt),
             Liefertermin = rows.Min(r => r.Line.Liefertermin),
+            AbNummer = k.AbNummer, Kommission = k.Kommission,   // v1.99.33 Teil B: Kopfwert, an jeder Position gleich
             Lagerplaetze = await _locations.GetActiveOrderedExcludingPickingTransportAsync() ?? new(),
             // v1.99.15 (Teil 3, F4): alle Zeilen einer Maske haben dieselbe BelId, also dieselbe Belegart - Platzregel, Status beim Buchen
             // und Barcode-Sperre folgen daraus ohne weitere Aenderung.

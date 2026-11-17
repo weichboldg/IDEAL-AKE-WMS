@@ -318,6 +318,58 @@ public class PurchaseOrdersReceiveTests
         Fehler(ctrl).Should().ContainSingle(e => e.StartsWith("Barcode ake123 ist bereits dem Wareneingang zu Bestellung 2026-100 vom "));
     }
 
+    // ----- v1.99.33 (Spec 2026-11-17-wareneingang-sammellieferschein-und-bestellkopf A1, AK 1-4; B5 AK 13) -----
+
+    [Fact]
+    public async Task Sammellieferschein_GleicherLieferant_GleicheLsOhneGrossKlein_Gebucht_HinweisInErfolgsmeldung_AK1()
+    {
+        var (ctrl, db) = await BuildAsync(sageWe: true, barcode: true);
+        await Post(ctrl, 100, new List<PurchaseOrderReceiveInput> { E(1001, "1") }, "L1", "B");
+        await Post(ctrl, 200, new List<PurchaseOrderReceiveInput> { E(2001, "1") }, "l1", "b");
+        Fehler(ctrl).Should().BeEmpty();
+        db.PurchaseOrderReceipts.Select(r => r.Barcode).ToList().Should().Equal("B", "b");
+        ctrl.TempData["SuccessMessage"].Should().Be("1 Position(en) eingebucht (davon 0 Teil-, 0 Überlieferung)."
+            + " Sammellieferschein – Barcode b bereits bei Bestellung 2026-100 verwendet; die CSV-Datei erhält eine laufende Nummer (_1, _2 …).");
+    }
+
+    [Fact]
+    public async Task Sammellieferschein_AndererLieferant_Fehler_NichtsGebucht_AK2()
+    {
+        var (ctrl, db) = await BuildAsync(sageWe: true, barcode: true);
+        db.SagePurchaseOrderLines.Single(l => l.BelPosId == 3001).LieferantKto = "K2";
+        await db.SaveChangesAsync();
+        await Post(ctrl, 100, new List<PurchaseOrderReceiveInput> { E(1001, "1") }, "L1", "B");
+        await Post(ctrl, 300, new List<PurchaseOrderReceiveInput> { E(3001, "1") }, "L1", "B");
+        db.StockMovements.Should().HaveCount(1);
+        Fehler(ctrl).Should().ContainSingle(e => e.StartsWith("Barcode B ist bereits dem Wareneingang zu Bestellung 2026-100 vom ")
+            && e.EndsWith("zugeordnet – anderer Lieferant."));
+    }
+
+    [Theory]
+    [InlineData("L1", "L2", "für einen Sammellieferschein bitte dieselbe Lieferschein-Nr. eingeben (dort: L1).")]   // AK 3
+    [InlineData("L1", null, "für einen Sammellieferschein bitte dieselbe Lieferschein-Nr. eingeben (dort: L1).")]   // AK 4 (hier leer)
+    [InlineData(null, "L1", "dort ohne Lieferschein-Nr., kein Sammellieferschein möglich.")]                       // AK 4 (dort leer)
+    public async Task Sammellieferschein_LieferscheinUngleichOderLeer_Fehler_NichtsGebucht_AK3_AK4(string? ersterLs, string? zweiterLs, string ende)
+    {
+        var (ctrl, db) = await BuildAsync(sageWe: true, barcode: true);
+        await Post(ctrl, 100, new List<PurchaseOrderReceiveInput> { E(1001, "1") }, ersterLs, "B");
+        await Post(ctrl, 200, new List<PurchaseOrderReceiveInput> { E(2001, "1") }, zweiterLs, "B");
+        db.StockMovements.Should().HaveCount(1);
+        Fehler(ctrl).Should().ContainSingle(e => e.StartsWith("Barcode B ist bereits dem Wareneingang zu Bestellung 2026-100 vom ") && e.EndsWith(ende));
+    }
+
+    [Fact]
+    public async Task Kopf_AbNummerUndKommission_AusDemCache_LeerBleibtNull_AK13()
+    {
+        var (ctrl, db) = await BuildAsync();
+        foreach (var l in db.SagePurchaseOrderLines.Where(l => l.BelId == 100)) { l.AbNummer = "AB-4711"; l.Kommission = "K-12"; }
+        await db.SaveChangesAsync();
+        var vm = (PurchaseOrderReceiveViewModel)((ViewResult)await ctrl.Receive(100)).Model!;
+        (vm.AbNummer, vm.Kommission).Should().Be(("AB-4711", "K-12"));
+        var leer = (PurchaseOrderReceiveViewModel)((ViewResult)await ctrl.Receive(200)).Model!;
+        (leer.AbNummer, leer.Kommission).Should().Be(((string?)null, (string?)null));
+    }
+
     [Fact]
     public async Task Barcode_SageWeAus_Fehler_FeldGesperrt_Rueckfrage7()
     {

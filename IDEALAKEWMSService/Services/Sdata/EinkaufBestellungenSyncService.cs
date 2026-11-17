@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.Json;
 using IdealAkeWms.Data;
 using IdealAkeWms.Models;
 using IdealAkeWms.Services.SageSdata;
@@ -29,6 +30,9 @@ public sealed record SdataEinkaufPositionZeile(int? BelId, int? BelPosId, string
 /// </list>
 /// Kein View-Weg, keine Quellen-Weiche (SData-only wie <see cref="ArtikelLieferantSyncService"/>). Nie <c>EinkaufPositionenAllInfo</c>.
 /// Gate <c>Sync:EinkaufBestellungenEnabled</c>. Lesefehler: Lauf Fehler + throw (Mail ueber RunResilientAsync). Schreibt nie nach Sage.
+/// <para>v1.99.33 (Spec 2026-11-17-wareneingang-sammellieferschein-und-bestellkopf Teil B, Variante B): AB-Nummer/Kommission aus dem
+/// Sage-Kopf ueber RealTimeData <see cref="KopfQuelle"/> (nur GET, <c>where</c> nur auf <c>BelID</c> – ein where auf die USER-Aliasse bricht
+/// mit SQL-Fehler ab). Ein Fehler dort blockiert den Positions-Abgleich nicht: Werte vom letzten Lauf + Warnung.</para>
 /// </summary>
 public class EinkaufBestellungenSyncService
 {
@@ -42,6 +46,12 @@ public class EinkaufBestellungenSyncService
     public static readonly IReadOnlyList<string> Belegarten = [Bestellung, SagePurchaseOrderLine.KennzeichenRahmenabruf];
     public static string Where(string belegart) => $"Belegkennzeichen eq '{belegart}'";
     public const int Seitengroesse = 1000;
+
+    /// <summary>v1.99.33 Teil B: RealTimeData-Quelle der EK-Belegkoepfe; Benutzerfelder mit Tabellen-Praefix (fallstricke §41, P-1 2026-11-17).</summary>
+    public const string KopfQuelle = "dtsEKBelegMst.Sage.Wawi";
+    public const string FeldAbNummer = "KHKEKBelege_USER_AB";
+    public const string FeldKommission = "KHKEKBelege_USER_Kom";
+    public const string KopfSelect = "BelID," + FeldAbNummer + "," + FeldKommission;
 
     private readonly ApplicationDbContext _ctx;
     private readonly ISageSdataReadClient _client;
@@ -134,6 +144,8 @@ public class EinkaufBestellungenSyncService
                     .Select(l => new { l.Id, l.SageLagerplatzId }).ToListAsync(ct))
                 .GroupBy(l => l.SageLagerplatzId!.Value).ToDictionary(g => g.Key, g => g.First().Id);
 
+            var koepfe = await KoepfeAsync(ziel!, zeilen.Where(z => z.BelId != null).Select(z => z.BelId!.Value).Distinct().ToList(), bestand, run, ct);
+
             var neu = new List<SagePurchaseOrderLine>();
             var gesehen = new HashSet<int>();
             int ohneSchluessel = 0, doppelt = 0, belegartAus = 0, terminKaputt = 0, einheitAbweichend = 0, gesperrt = 0, mengeFehlt = 0;
@@ -186,6 +198,7 @@ public class EinkaufBestellungenSyncService
                     EinheitAbweichend = abweichend, SagePlatzId = platzId, SagePlatzKurzbezeichnung = Text(z.Kurzbezeichnung),
                     StorageLocationId = storageLocationId, Liefertermin = termin, Chargenpflicht = (z.Chargenpflicht ?? 0) != 0,
                     Nachweispflicht = (z.Nachweispflicht ?? 0) != 0, SyncedAt = now,
+                    AbNummer = koepfe.Werte.GetValueOrDefault(belId).Ab, Kommission = koepfe.Werte.GetValueOrDefault(belId).Kom,
                 });
             }
 
@@ -232,6 +245,10 @@ public class EinkaufBestellungenSyncService
                 ["lieferant_gesperrt"] = gesperrt,
                 ["menge_fehlt"] = mengeFehlt,
                 ["uebersprungen"] = uebersprungen,
+                ["ab_nummer"] = neu.Where(n => n.AbNummer != null).Select(n => n.BelId).Distinct().Count(),
+                ["kommission"] = neu.Where(n => n.Kommission != null).Select(n => n.BelId).Distinct().Count(),
+                ["kopf_ohne_treffer"] = koepfe.OhneTreffer,
+                ["kopf_zu_lang"] = koepfe.ZuLang,
             }, messageSuffix: dryRun ? "[DryRun]" : null, ct: ct);
             return new SyncResult(neu.Count, 0, uebersprungen);
         }
@@ -242,6 +259,60 @@ public class EinkaufBestellungenSyncService
             await run.FinishFailedAsync(ex.Message, ct: ct);
             throw;
         }
+    }
+
+    /// <summary>v1.99.33 Teil B (B4): Kopfwerte je BelID aus <see cref="KopfQuelle"/> in Bloecken zu 50. Melden statt still: Feld fehlt in jeder
+    /// Zeile (Name/Praefix falsch – RealTimeData liefert unbekannte select-Namen still nicht), BelID ohne Kopf, Wert zu lang (nicht schreiben,
+    /// nie kuerzen). Lesefehler: Werte je BelID aus dem bisherigen Cache + Warnung, der Positions-Abgleich laeuft weiter.</summary>
+    private async Task<(Dictionary<int, (string? Ab, string? Kom)> Werte, int OhneTreffer, int ZuLang)> KoepfeAsync(SdataLeseZiel ziel,
+        IReadOnlyList<int> belIds, IReadOnlyList<SagePurchaseOrderLine> bestand, ISyncRun run, CancellationToken ct)
+    {
+        var zeilen = new List<Dictionary<string, JsonElement>>();
+        try
+        {
+            foreach (var block in SageSdataQuellen.OrBloecke("BelID", belIds))
+            {
+                var r = await _client.GetAsync<Dictionary<string, JsonElement>>(ziel, KopfQuelle, block, KopfSelect, "BelID", ct);
+                if (!r.Call.Erfolgreich) throw new SdataLeseException(KopfQuelle, r.Call.Status, r.Call.Fehler ?? "unbekannter Fehler");
+                zeilen.AddRange(r.Zeilen.Select(z => new Dictionary<string, JsonElement>(z, StringComparer.OrdinalIgnoreCase)));
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning(ex, "Kopfdaten (AB-Nummer/Kommission) aus {Quelle} nicht lesbar.", KopfQuelle);
+            await run.LogWarningAsync(SdataSchluessel.Kappen($"Kopfdaten (AB-Nummer/Kommission) nicht lesbar: {ex.Message} – Werte vom letzten Lauf."), ct: ct);
+            var alt = bestand.GroupBy(b => b.BelId).ToDictionary(g => g.Key, g => (g.First().AbNummer, g.First().Kommission));
+            return (alt, 0, 0);
+        }
+        if (belIds.Count > 0) await run.LogInfoAsync($"Kopfdaten: Quelle SData (RealTimeData) {KopfQuelle}, {zeilen.Count} Zeile(n) zu {belIds.Count} Beleg(en).", ct: ct);
+
+        foreach (var (feld, name) in new[] { (FeldAbNummer, "AB-Nummer"), (FeldKommission, "Kommission") })
+            if (zeilen.Count > 0 && !zeilen.Any(z => z.ContainsKey(feld)))
+                await run.LogWarningAsync($"Sage liefert {feld} nicht (Feldname/Präfix prüfen) – {name} bleibt leer.", ct: ct);
+
+        var werte = new Dictionary<int, (string? Ab, string? Kom)>();
+        var zuLang = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
+        string? Wert(Dictionary<string, JsonElement> z, string feld, int max, int belId)
+        {
+            var t = z.TryGetValue(feld, out var w) ? SdataArtikelReader.AlsText(w) : null;
+            if (t is not { Length: > 0 } || t.Length <= max) return t;
+            zuLang.Add($"BelID {belId} {feld} ({t.Length} > {max})");
+            return null;
+        }
+        foreach (var z in zeilen)
+            if (z.TryGetValue("BelID", out var id) && int.TryParse(SdataArtikelReader.AlsText(id), NumberStyles.Integer, CultureInfo.InvariantCulture, out var belId)
+                && !werte.ContainsKey(belId))
+                werte[belId] = (Wert(z, FeldAbNummer, SagePurchaseOrderLine.AbNummerMaxLaenge, belId),
+                    Wert(z, FeldKommission, SagePurchaseOrderLine.KommissionMaxLaenge, belId));
+
+        var ohneTreffer = belIds.Count(b => !werte.ContainsKey(b));
+        if (ohneTreffer > 0)
+            await run.LogWarningAsync(SdataSchluessel.Kappen($"{ohneTreffer} Beleg(e) ohne Kopf in {KopfQuelle} – AB-Nummer/Kommission leer: " +
+                string.Join(", ", belIds.Where(b => !werte.ContainsKey(b)).Take(20))), ct: ct);
+        if (zuLang.Count > 0)
+            await run.LogWarningAsync(SdataSchluessel.Kappen($"{zuLang.Count} Kopfwert(e) länger als die WMS-Spalte – nicht übernommen (nie gekürzt): " +
+                string.Join(", ", zuLang.Take(20))), ct: ct);
+        return (werte, ohneTreffer, zuLang.Count);
     }
 
     private static string? Text(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();

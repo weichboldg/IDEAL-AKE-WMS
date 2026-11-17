@@ -4459,6 +4459,10 @@ namespace IdealAkeWms.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("AbNummer")
+                        .HasMaxLength(250)
+                        .HasColumnType("nvarchar(250)");
+
                     b.Property<int?>("ArticleId")
                         .HasColumnType("int");
 
@@ -4499,6 +4503,10 @@ namespace IdealAkeWms.Migrations
 
                     b.Property<bool>("EinheitAbweichend")
                         .HasColumnType("bit");
+
+                    b.Property<string>("Kommission")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
 
                     b.Property<string>("Lagermengeneinheit")
                         .HasMaxLength(5)

@@ -41,6 +41,8 @@ public static class WareneingangCsv
     public const string PfadMusterText = @"nur ein UNC-Pfad wie \\server\freigabe\ordner oder leer";
 
     // ---- Fehlertexte ohne automatische Wiederholung (Freigabe-Antwort 1a/1d) ----
+    /// <summary>Seit v1.99.33 entsteht dieser Fehler nicht mehr (der Dienst nimmt die naechste freie Nummer <c>Barcode_n.csv</c>); bleibt fuer
+    /// Altzeilen, die weiter nie automatisch wiederholt werden (Spec 2026-11-17 Rueckfrage 4, Pruefung/WareneingangCsvKollision).</summary>
     public const string KollisionText = "Datei existiert bereits – nicht überschrieben.";
     public const string UngueltigText = "Barcode ist als Dateiname ungültig – nicht geschrieben.";
     /// <summary>Diese Fehler wiederholt der Dienst nie automatisch, nur „CSV erneut schreiben“ von Hand.</summary>

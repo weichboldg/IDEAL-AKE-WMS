@@ -121,8 +121,11 @@ public sealed class WareneingangCsvServiceTests : IDisposable
         File.ReadAllText(Path.Combine(_dir, "BC9.csv")).Should().Contain(";QA-1;");
     }
 
+    /// <summary>v1.99.33 (Spec 2026-11-17-wareneingang-sammellieferschein-und-bestellkopf A2, AK 8) BEWUSST GEAENDERT: bis v1.99.32 erwartete
+    /// dieser Test bei vorhandener <c>BC1.csv</c> den Fehler <see cref="WareneingangCsv.KollisionText"/>. Jetzt nimmt der Dienst die naechste
+    /// freie Nummer; die fremde Datei bleibt unveraendert, kein Fehler.</summary>
     [Fact]
-    public async Task DateiExistiert_NieUeberschrieben_Fehler_Warnung_KeineAutoWiederholung_AK11()
+    public async Task DateiExistiert_NieUeberschrieben_NaechsteNummer_KeinFehler_AK8()
     {
         var db = Db();
         Receipt(db, Guid.NewGuid(), "BC1");
@@ -134,14 +137,89 @@ public sealed class WareneingangCsvServiceTests : IDisposable
 
         File.ReadAllText(ziel).Should().Be("fremd");
         var e = db.WareneingangCsvExporte.Single();
-        (e.Status, e.Fehler, e.Versuche).Should().Be((WareneingangCsvStatus.Fehler, WareneingangCsv.KollisionText, 1));
-        log.Runs.Single().Events.Should().Contain(x => x.Message.Contains("BC1") && x.Message.Contains(WareneingangCsv.KollisionText));
+        (e.Status, e.Fehler, e.Versuche, e.Datei).Should().Be((WareneingangCsvStatus.Geschrieben, (string?)null, 0, Path.Combine(_dir, "BC1_1.csv")));
+        File.ReadAllText(e.Datei!).Should().StartWith("BC1;", "Feld 1 = Barcode ohne Suffix");
+        log.Runs.Single().FinalCounts.Should().BeEquivalentTo(new Dictionary<string, int> { ["geschrieben"] = 1, ["fehler"] = 0 });
         Directory.GetFiles(_dir, "*.tmp").Should().BeEmpty();
+    }
 
-        e.ModifiedAt = DateTime.Now.AddHours(-1);   // Abstand laengst vorbei - trotzdem nie automatisch
+    [Fact]
+    public async Task Sammellieferschein_ZweiVorgaengeImTakt_GrossKlein_LaufendeNummer_InhaltBarcodeOhneSuffix_AK5_AK7()
+    {
+        var db = Db();
+        Receipt(db, Guid.NewGuid(), "B");
+        Receipt(db, Guid.NewGuid(), "b");
+
+        await Svc(db, new FakeSyncLogger()).RunOnceAsync(_dir, Wdh);
+
+        var e = db.WareneingangCsvExporte.OrderBy(x => x.Id).ToList();
+        e.Select(x => x.Datei).Should().Equal(Path.Combine(_dir, "B.csv"), Path.Combine(_dir, "b_1.csv"));
+        e.Should().OnlyContain(x => x.Status == WareneingangCsvStatus.Geschrieben);
+        // Inhalt unveraendert (TS-153-Format, 9 Felder): Feld 1 = Barcode der Zeile ohne Suffix
+        File.ReadAllText(e[0].Datei!).Should().StartWith("B;70001;").And.EndWith(";2026-11-12 10:05\r\n");
+        File.ReadAllText(e[1].Datei!).Should().StartWith("b;70001;").And.EndWith(";2026-11-12 10:05\r\n");
+    }
+
+    [Fact]
+    public async Task Sammellieferschein_NachAbholung_NummerAusDerDatenbank_NichtAusDemOrdner_AK6()
+    {
+        var db = Db();
+        Receipt(db, Guid.NewGuid(), "B");
+        await Svc(db, new FakeSyncLogger()).RunOnceAsync(_dir, Wdh);
+        File.Delete(Path.Combine(_dir, "B.csv"));   // enaio hat abgeholt
+
+        Receipt(db, Guid.NewGuid(), "B");
+        await Svc(db, new FakeSyncLogger()).RunOnceAsync(_dir, Wdh);
+
+        Directory.GetFiles(_dir).Select(f => Path.GetFileName(f)).Should().Equal("B_1.csv");
+    }
+
+    [Fact]
+    public async Task Sammellieferschein_FremderBarcodeMitSuffixNamen_Uebersprungen_AK9()
+    {
+        var db = Db();
+        Receipt(db, Guid.NewGuid(), "B_1");
+        Receipt(db, Guid.NewGuid(), "B");
+        await Svc(db, new FakeSyncLogger()).RunOnceAsync(_dir, Wdh);
+        File.Delete(Path.Combine(_dir, "B_1.csv"));   // auch nach Abholung belegt (DB)
+
+        Receipt(db, Guid.NewGuid(), "B");
+        await Svc(db, new FakeSyncLogger()).RunOnceAsync(_dir, Wdh);
+
+        db.WareneingangCsvExporte.OrderBy(x => x.Id).Select(x => x.Datei).ToList().Select(d => Path.GetFileName(d))
+            .Should().Equal("B_1.csv", "B.csv", "B_2.csv");
+    }
+
+    [Fact]
+    public async Task Altzeile_Kollision_NieAutomatisch_NachErneutSchreiben_NaechsteFreieNummer_AK10()
+    {
+        var db = Db();
+        Receipt(db, Guid.NewGuid(), "B");
+        await Svc(db, new FakeSyncLogger()).RunOnceAsync(_dir, Wdh);
+        var alt = Receipt(db, Guid.NewGuid(), "B");
+        db.WareneingangCsvExporte.Add(new WareneingangCsvExport
+        {
+            SageWeVorgang = alt.SageWeVorgang!.Value, Barcode = "B", Status = WareneingangCsvStatus.Fehler, Fehler = WareneingangCsv.KollisionText,
+            Versuche = 1, CreatedAt = DateTime.Now.AddHours(-2), CreatedBy = "x", CreatedByWindows = "x", ModifiedAt = DateTime.Now.AddHours(-1),
+        });
         db.SaveChanges();
+        var log = new FakeSyncLogger();
+
         await Svc(db, log).RunOnceAsync(_dir, Wdh);
-        log.Runs.Should().HaveCount(1);
+        log.Runs.Should().BeEmpty("Altzeile mit KollisionText wird nie automatisch wiederholt");
+
+        (await new IdealAkeWms.Data.Repositories.PurchaseOrderReceiptRepository(db).CsvErneutSchreibenAsync(alt.SageWeVorgang!.Value, "u", "w")).Should().Be(1);
+        await Svc(db, log).RunOnceAsync(_dir, Wdh);
+
+        db.WareneingangCsvExporte.Single(x => x.SageWeVorgang == alt.SageWeVorgang).Datei.Should().Be(Path.Combine(_dir, "B_1.csv"));
+    }
+
+    [Fact]
+    public void Dateiname_ErsteFreieNummerAbStart()
+    {
+        WareneingangCsvService.Dateiname("B", 0, _ => false).Should().Be("B.csv");
+        WareneingangCsvService.Dateiname("B", 0, n => n is "B.csv" or "B_1.csv").Should().Be("B_2.csv");
+        WareneingangCsvService.Dateiname("B", 2, _ => false).Should().Be("B_2.csv");
     }
 
     [Fact]

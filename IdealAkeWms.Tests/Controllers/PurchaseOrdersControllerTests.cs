@@ -162,6 +162,30 @@ public partial class PurchaseOrdersControllerTests
         Vm(await ctrl.Index(lieferant: "K9", ueberfaellige: false)).UeberfaelligAusgeblendet.Should().Be(0);
     }
 
+    /// <summary>v1.99.33 (Spec 2026-11-17-wareneingang-sammellieferschein-und-bestellkopf B5, AK 14/15): Spalten AB-Nummer/Kommission mit
+    /// Spaltenfilter (ColumnMap), im Katalog (sonst Prefs-API 400), sichtbar per Default und ausblendbar, in der View mit data-col-key.</summary>
+    [Fact]
+    public async Task AbNummerKommission_Spaltenfilter_Katalog_View_AK14_AK15()
+    {
+        var a = L(11, DateTime.Today.AddDays(1)); a.AbNummer = "AB-4711"; a.Kommission = "K-12";
+        var b = L(21, DateTime.Today.AddDays(1)); b.Kommission = "K-99";
+        var (ctrl, _, _) = Build(new List<SagePurchaseOrderLine> { a, b }, query: "?kw=1&colf_ab-nummer=4711");
+        Vm(await ctrl.Index()).Items.Select(i => i.Line.BelPosId).Should().Equal(11);
+        ctrl.ControllerContext.HttpContext.Request.QueryString = new QueryString("?kw=1&colf_kommission=K-99");
+        Vm(await ctrl.Index()).Items.Select(i => i.Line.BelPosId).Should().Equal(21);
+
+        foreach (var key in new[] { "ab-nummer", "kommission" })
+        {
+            var c = ColumnDefinitions.PurchaseOrders.Columns.Single(x => x.Key == key);
+            (c.Locked, c.DefaultHidden).Should().Be((false, false), "sichtbar und ausblendbar (Freigabe-Antwort 5)");
+        }
+        File.ReadAllText(ViewPfad("Index.cshtml")).Should().Contain("data-col-key=\"ab-nummer\">AB-Nummer</th>")
+            .And.Contain("data-col-key=\"kommission\">Kommission</th>").And.Contain("<td>@l.AbNummer</td>");
+        // Einbuchung: nur im Kopf, keine Spalten in der Positionstabelle (Freigabe-Antwort 5)
+        var receive = File.ReadAllText(ViewPfad("Receive.cshtml"));
+        receive.Should().Contain("@(Model.AbNummer ?? \"–\")").And.Contain("@(Model.Kommission ?? \"–\")").And.NotContain("data-col-key=\"ab-nummer\"");
+    }
+
     [Fact]
     public async Task Zelle_UndSpaltenfilter_MitKw_F3_1()
     {

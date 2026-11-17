@@ -65,7 +65,8 @@ public class PurchaseOrderReceipt : AuditableEntity
 
     // ---- v1.99.11 (Spec 2026-11-12-wareneingang-barcode-lieferschein-csv-export F1/F3a) ----
     /// <summary>Barcode des Lieferschein-Aufklebers, an jedem Receipt eines Absendens (wie <see cref="Lieferschein"/>); Dateiname der CSV
-    /// (<c>WareneingangCsv.IstGueltigerBarcode</c>). Im WMS nur an EINEM Absenden (ohne Gross/Klein).</summary>
+    /// (<c>WareneingangCsv.IstGueltigerBarcode</c>). Bis v1.99.32 nur an EINEM Absenden; seit v1.99.33 (Sammellieferschein) auch an weiteren
+    /// Absenden, wenn Lieferant und Lieferschein-Nr. dem ersten Absenden gleichen (ohne Gross/Klein) – die CSV heisst dann <c>Barcode_n.csv</c>.</summary>
     public string? Barcode { get; set; }
     /// <summary>Kreditorname beim Buchen (Snapshot aus dem Bestell-Cache, der nach der Uebergabe verschwindet) fuer die CSV.</summary>
     public string? LieferantName { get; set; }

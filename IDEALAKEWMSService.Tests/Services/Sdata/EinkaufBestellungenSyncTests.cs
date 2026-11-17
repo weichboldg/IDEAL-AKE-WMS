@@ -1,3 +1,4 @@
+using System.Text.Json;
 using FluentAssertions;
 using IdealAkeWms.Models;
 using IdealAkeWms.Services.SageSdata;
@@ -43,8 +44,18 @@ public class EinkaufBestellungenSyncTests
                 var a = Antwort(where, zeilen);
                 return new SdataSeiten<SdataEinkaufPositionZeile>(a, EinkaufBestellungenSyncService.Ressource, 1, a.Count, 1);
             });
+        Koepfe(client);   // v1.99.33 Teil B: Standard = Kopf-Lesen erfolgreich, ohne Zeilen
         return (new(ctx, client.Object, new ConfigurationBuilder().Build(), NullLogger<EinkaufBestellungenSyncService>.Instance, log), client);
     }
+
+    /// <summary>v1.99.33 Teil B: RealTimeData-Antwort fuer <see cref="EinkaufBestellungenSyncService.KopfQuelle"/> (Feldnamen wie P-1 am AKE-Test,
+    /// fallstricke §41). <paramref name="status"/> != 200 = Lesefehler.</summary>
+    private static void Koepfe(Mock<ISageSdataReadClient> client, int status = 200, params string[] json) =>
+        client.Setup(c => c.GetAsync<Dictionary<string, JsonElement>>(It.IsAny<SdataLeseZiel>(), EinkaufBestellungenSyncService.KopfQuelle,
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => new SdataErgebnis<Dictionary<string, JsonElement>>(
+                status == 200 ? json.Select(j => JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(j)!).ToList() : [],
+                new SdataCall(EinkaufBestellungenSyncService.KopfQuelle, "u", status, 1, json.Length, status == 200 ? null : $"HTTP {status} Internal Server Error", null)));
 
     private static async Task SeedStammAsync(IdealAkeWms.Data.ApplicationDbContext ctx)
     {
@@ -73,7 +84,9 @@ public class EinkaufBestellungenSyncTests
         foreach (var where in new[] { "Belegkennzeichen eq 'EBB'", "Belegkennzeichen eq 'EBZ'" })
             client.Verify(c => c.QueryAllAsync<SdataEinkaufPositionZeile>(It.IsAny<SdataLeseZiel>(), It.IsAny<string>(),
                 "EinkaufPositionenInfo", where, It.IsAny<string?>(), "BelPosId", It.IsAny<CancellationToken>(), It.IsAny<int>()), Times.Once);
-        client.Invocations.Should().HaveCount(2, "genau zwei Abfragen, kein or");
+        // v1.99.33 BEWUSST GEAENDERT: bis v1.99.32 HaveCount(2) ueber alle Aufrufe; seit Teil B kommt der Kopf-Lesevorgang (GetAsync,
+        // RealTimeData) hinzu - die Aussage „zwei Positions-Abfragen, kein or“ gilt weiter fuer QueryAllAsync.
+        client.Invocations.Count(i => i.Method.Name == nameof(ISageSdataReadClient.QueryAllAsync)).Should().Be(2, "genau zwei Abfragen, kein or");
         var zeilen = ctx.SagePurchaseOrderLines.OrderBy(z => z.BelPosId).ToList();
         zeilen.Select(z => z.BelPosId).Should().Equal(101, 102, 103);
         var abruf = zeilen[2];
@@ -276,6 +289,89 @@ public class EinkaufBestellungenSyncTests
             await regulaer;
         }
         (await svc3.TryRunExclusiveAsync(false, "x", ziel: Ziel)).Should().BeTrue("nach dem Ende ist die Sperre frei");
+    }
+
+    // ---- v1.99.33 Teil B (Spec 2026-11-17-wareneingang-sammellieferschein-und-bestellkopf, AK 16-18, 20) ----
+
+    [Fact]
+    public async Task Kopf_ZuordnungUeberBelId_WhereNurBelId_Counts_AK20()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        await SeedStammAsync(ctx);
+        var log = new FakeSyncLogger();
+        var (svc, client) = Svc(ctx, log, Pos(101, "00722001"), Pos(102, "00722001"), Pos(111, "00722001"), Pos(121, "00722001"));
+        Koepfe(client, 200,
+            """{"BelID":10,"KHKEKBelege_USER_AB":" AB-4711 ","KHKEKBelege_USER_Kom":"K-12"}""",
+            """{"BelID":11,"KHKEKBelege_USER_AB":"","KHKEKBelege_USER_Kom":null}""");
+
+        await svc.RunAsync(false, ziel: Ziel);
+
+        client.Verify(c => c.GetAsync<Dictionary<string, JsonElement>>(It.IsAny<SdataLeseZiel>(), "dtsEKBelegMst.Sage.Wawi",
+            "BelID eq 10 or BelID eq 11 or BelID eq 12", "BelID,KHKEKBelege_USER_AB,KHKEKBelege_USER_Kom", "BelID", It.IsAny<CancellationToken>()), Times.Once);
+        var z = ctx.SagePurchaseOrderLines.OrderBy(l => l.BelPosId).ToList();
+        z.Select(l => (l.AbNummer, l.Kommission)).Should().Equal(("AB-4711", "K-12"), ("AB-4711", "K-12"), (null, null), (null, null));
+        var c = log.Runs.Single().FinalCounts!;
+        (c["ab_nummer"], c["kommission"], c["kopf_ohne_treffer"], c["kopf_zu_lang"]).Should().Be((1, 1, 1, 0));
+        log.Runs.Single().Events.Should().NotContain(e => e.Message.Contains("liefert KHKEKBelege"))
+            .And.Contain(e => e.Level == "Warning" && e.Message.Contains("ohne Kopf") && e.Message.Contains("12"));
+    }
+
+    [Fact]
+    public async Task Kopf_FeldFehltInJederZeile_Warnung_WerteLeer_LaufErfolgreich_AK16()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        await SeedStammAsync(ctx);
+        var log = new FakeSyncLogger();
+        var (svc, client) = Svc(ctx, log, Pos(101, "00722001"));
+        Koepfe(client, 200, """{"BelID":10,"KHKEKBelege_USER_Kom":"K-12"}""");   // P-1b: falscher Name kommt still nicht
+
+        await svc.RunAsync(false, ziel: Ziel);
+
+        var l = ctx.SagePurchaseOrderLines.Single();
+        (l.AbNummer, l.Kommission).Should().Be(((string?)null, "K-12"));
+        log.Runs.Single().FinishedSuccess.Should().BeTrue();
+        log.Runs.Single().Events.Should().Contain(e => e.Level == "Warning" && e.Message.StartsWith("Sage liefert KHKEKBelege_USER_AB nicht"))
+            .And.NotContain(e => e.Message.Contains("KHKEKBelege_USER_Kom nicht"));
+    }
+
+    [Fact]
+    public async Task Kopf_Lesefehler_PositionenTrotzdem_WerteVomLetztenLauf_Warnung_AK17()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        await SeedStammAsync(ctx);
+        ctx.SagePurchaseOrderLines.Add(new SagePurchaseOrderLine { BelPosId = 101, BelId = 10, Belegkennzeichen = "EBB", Belegnummer = "2026-10",
+            Artikelnummer = "00722001", AbNummer = "ALT-AB", Kommission = "ALT-K" });
+        await ctx.SaveChangesAsync();
+        var log = new FakeSyncLogger();
+        var (svc, client) = Svc(ctx, log, Pos(101, "00722001"), Pos(102, "00722001"), Pos(111, "00722001"));
+        Koepfe(client, 500);
+
+        await svc.RunAsync(false, ziel: Ziel);
+
+        var z = ctx.SagePurchaseOrderLines.OrderBy(l => l.BelPosId).ToList();
+        z.Select(l => l.BelPosId).Should().Equal(101, 102, 111);
+        z.Select(l => l.AbNummer).Should().Equal("ALT-AB", "ALT-AB", null);
+        log.Runs.Single().FinishedSuccess.Should().BeTrue();
+        log.Runs.Single().Events.Should().Contain(e => e.Level == "Warning" && e.Message.Contains("Kopfdaten (AB-Nummer/Kommission) nicht lesbar")
+            && e.Message.Contains("Werte vom letzten Lauf"));
+    }
+
+    [Fact]
+    public async Task Kopf_WertZuLang_NichtGeschrieben_NieGekuerzt_Zaehlwert_AK18()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        await SeedStammAsync(ctx);
+        var log = new FakeSyncLogger();
+        var (svc, client) = Svc(ctx, log, Pos(101, "00722001"));
+        Koepfe(client, 200, $$"""{"BelID":10,"KHKEKBelege_USER_AB":"{{new string('A', 251)}}","KHKEKBelege_USER_Kom":"{{new string('K', 200)}}"}""");
+
+        await svc.RunAsync(false, ziel: Ziel);
+
+        var l = ctx.SagePurchaseOrderLines.Single();
+        l.AbNummer.Should().BeNull();
+        l.Kommission.Should().HaveLength(200, "genau die Spaltenlaenge passt");
+        log.Runs.Single().FinalCounts!["kopf_zu_lang"].Should().Be(1);
+        log.Runs.Single().Events.Should().Contain(e => e.Level == "Warning" && e.Message.Contains("länger als die WMS-Spalte") && e.Message.Contains("251 > 250"));
     }
 
     [Theory]

@@ -104,6 +104,8 @@ Eintraege = @(
    Datei='154_AddBdeTeileliste.sql'; MigrationId='20261117075856_AddBdeTeileliste'; Voraussetzung='additiv, Spalte mit Default + Tabelle mit gefiltertem UNIQUE'; Quelle='2026-11-17-v1-99-32-bde-teileliste-blechfertigung' }
 @{ Id='SQL/153'; Version='1.99.32'; Typ='Schema'; Firma='beide'; Phase='Schema'; Ausfuehrung='automatisch'; Braucht=@('SQL/96')
    Datei='153_AddOperationConfigSageArbeitsgangnummer.sql'; MigrationId='20261117085624_AddOperationConfigSageArbeitsgangnummer'; Voraussetzung='additiv, zwei Spalten NULL'; Quelle='2026-11-17-v1-99-27-arbeitsgang-mapping-sage-arbeitsgangnummer' }
+@{ Id='SQL/156'; Version='1.99.33'; Typ='Schema'; Firma='beide'; Phase='Schema'; Ausfuehrung='automatisch'
+   Datei='156_AddSagePurchaseOrderLineAbNummerKommission.sql'; MigrationId='20261117102804_AddSagePurchaseOrderLineAbNummerKommission'; Voraussetzung='additiv, zwei Spalten NULL (Werte fuellt der naechste Abgleich Offene Bestellungen)'; Quelle='2026-11-17-v1-99-33-wareneingang-sammellieferschein-bestellkopf' }
 
 # ---------------------------------------------------------------- Pruefungen (jeder Lauf; Reparatur nur nach Bestaetigung) -------
 # v1.99.28 (ADR 0027): admin zaehlt nicht - der Web-Start stellt admin ohne Kennwort auf das Standard-Erstkennwort mit Pflichtwechsel um.
@@ -164,6 +166,10 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
    Pruefung='SELECT CASE WHEN EXISTS (SELECT 1 FROM dbo.ServiceSettings WHERE [Key] = N''WareneingangCsvAktiv'' AND LOWER(LTRIM(RTRIM([Value]))) = N''true'') AND (NOT EXISTS (SELECT 1 FROM dbo.ServiceSettings WHERE [Key] = N''WareneingangCsvPfad'' AND LEN(LTRIM(RTRIM([Value]))) > 0) OR NOT EXISTS (SELECT 1 FROM dbo.ServiceSettings WHERE [Key] = N''SageWareneingangBelegAktiv'' AND LOWER(LTRIM(RTRIM([Value]))) = N''true'')) THEN 1 ELSE 0 END'
    Text='WareneingangCsvAktiv ist an, aber WareneingangCsvPfad leer oder SageWareneingangBelegAktiv aus: es wird keine CSV geschrieben (/ServiceSettings > Wareneingang-CSV).'
    Quelle='2026-11-12-v1-99-11-wareneingang-barcode-csv' }
+@{ Id='Pruefung/WareneingangCsvKollision'; Version='1.99.33'; Typ='Pruefung'; Firma='AKE'; Phase='Nachher'; Ausfuehrung='anzeigen'; Braucht=@('SQL/146')
+   Pruefung='SELECT COUNT(*) FROM dbo.WareneingangCsvExporte WHERE Status = 3 AND Fehler LIKE N''Datei existiert bereits%'''
+   Text='Altzeilen aus der Zeit vor v1.99.33 mit Fehler Datei existiert bereits (Sammellieferschein). Nur anzeigen, nie automatisch: in Wareneingang-CSV je Zeile CSV erneut schreiben (Datei erhaelt dann _1, _2 ...) oder so lassen.'
+   Quelle='2026-11-17-v1-99-33-wareneingang-sammellieferschein-bestellkopf' }
 @{ Id='Pruefung/QrTrennzeichenKomma'; Version='1.69.0'; Typ='Pruefung'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
    Pruefung='SELECT CASE WHEN EXISTS (SELECT 1 FROM dbo.AppSettings WHERE [Key] = N''QrTrennzeichen'' AND [Value] = N'','') THEN (SELECT COUNT(*) FROM dbo.StorageLocations WHERE Code LIKE N''%,%'') ELSE 0 END'
    Text='QrTrennzeichen = Komma, aber Lagerplatz-Codes enthalten ein Komma: Trennzeichen unter /Settings aendern oder Codes bereinigen.'
@@ -449,5 +455,8 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
 @{ Id='v1.99.27-ArbeitsgangNummerPruefen'; Version='1.99.32'; Typ='Info'; Firma='IDEAL'; Phase='Nachher'; Ausfuehrung='anzeigen'
    Text='Nach dem ersten Arbeitsgang-Abgleich /OperationConfigs ansehen: Spalte Sage-AG gegen die Sage-Liste pruefen, Pruefliste (Kuerzel ohne Sage-AG, Werkbaenke ohne Sage-Arbeitsplatz, Werkbank-Nummer gleich Sage-AG) an Produktion/AV geben. Nichts wird nach Sage geschrieben.'
    Quelle='2026-11-17-v1-99-27-arbeitsgang-mapping-sage-arbeitsgangnummer' }
+@{ Id='v1.99.33-WareneingangCsvSammellieferschein'; Version='1.99.33'; Typ='Info'; Firma='AKE'; Phase='Vorher'; Ausfuehrung='anzeigen'
+   Text='Sammellieferschein: die Wareneingang-CSV heisst ab v1.99.33 beim zweiten Einsatz eines Barcodes <Barcode>_1.csv, _2 ... Auf Prod erst deployen, wenn enaio (E-1) bestaetigt hat, dass der Import Dateien mit Suffix verarbeitet und Feld 1 (Barcode ohne Suffix) zum Ablegen nutzt.'
+   Quelle='2026-11-17-v1-99-33-wareneingang-sammellieferschein-bestellkopf' }
 )
 }

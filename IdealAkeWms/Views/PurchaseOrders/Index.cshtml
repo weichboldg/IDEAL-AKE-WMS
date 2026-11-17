@@ -120,6 +120,8 @@ else
                 <th data-filterable data-date-filter data-col-key="liefertermin">Liefertermin</th>
                 <th data-filterable data-col-key="lieferant">Lieferant</th>
                 <th data-filterable data-col-key="bestellung">Bestellung</th>
+                <th data-filterable data-col-key="ab-nummer">AB-Nummer</th>
+                <th data-filterable data-col-key="kommission">Kommission</th>
                 <th data-filterable data-col-key="artikel">Artikel</th>
                 <th data-filterable data-col-key="bezeichnung">Bezeichnung</th>
                 <th data-filterable data-filter-type="number" data-col-key="bestellt" class="text-end">bestellt</th>
@@ -141,6 +143,8 @@ else
                     <td class="text-nowrap">@IdealAkeWms.Controllers.PurchaseOrdersController.LieferterminText(l.Liefertermin)</td>
                     <td>@r.LieferantText</td>
                     <td>@l.Belegnummer</td>
+                    <td>@l.AbNummer</td>
+                    <td>@l.Kommission</td>
                     <td>@l.Artikelnummer</td>
                     <td>@l.Bezeichnung1</td>
                     <td class="text-end">@l.MengeBestellt.ToString("0.###")</td>
@@ -183,6 +187,8 @@ else
     { "key": "liefertermin", "label": "Liefertermin", "locked": true, "defaultWidth": null },
     { "key": "lieferant", "label": "Lieferant", "locked": false, "defaultWidth": null },
     { "key": "bestellung", "label": "Bestellung", "locked": true, "defaultWidth": null },
+    { "key": "ab-nummer", "label": "AB-Nummer", "locked": false, "defaultWidth": null },
+    { "key": "kommission", "label": "Kommission", "locked": false, "defaultWidth": null },
     { "key": "artikel", "label": "Artikel", "locked": true, "defaultWidth": null },
     { "key": "bezeichnung", "label": "Bezeichnung", "locked": false, "defaultWidth": null },
     { "key": "bestellt", "label": "bestellt", "locked": false, "defaultWidth": null },

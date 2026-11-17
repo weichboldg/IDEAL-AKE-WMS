@@ -1429,6 +1429,8 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.Lagermengeneinheit).HasMaxLength(5);
             entity.Property(e => e.SagePlatzKurzbezeichnung).HasMaxLength(50);
             entity.Property(e => e.Liefertermin).HasColumnType("date");
+            entity.Property(e => e.AbNummer).HasMaxLength(SagePurchaseOrderLine.AbNummerMaxLaenge);       // v1.99.33 (SQL/156)
+            entity.Property(e => e.Kommission).HasMaxLength(SagePurchaseOrderLine.KommissionMaxLaenge);
             entity.HasIndex(e => e.BelPosId).IsUnique().HasDatabaseName("IX_SagePurchaseOrderLines_BelPosId");
             entity.HasIndex(e => e.BelId).HasDatabaseName("IX_SagePurchaseOrderLines_BelId");
             entity.HasIndex(e => e.Belegnummer).HasDatabaseName("IX_SagePurchaseOrderLines_Belegnummer");

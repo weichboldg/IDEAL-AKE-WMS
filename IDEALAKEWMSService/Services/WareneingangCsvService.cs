@@ -13,8 +13,10 @@ public sealed record WareneingangCsvWiederholung(int MaxWiederholungen, int Abst
 /// <summary>
 /// v1.99.11 (Spec 2026-11-12-wareneingang-barcode-lieferschein-csv-export F2/F3): ein Lauf der Wareneingang-CSV im Takt des SageBookingWorker,
 /// nach dem Sage-WE-Schritt. Je Sage-WE-Vorgang mit Barcode, dessen Receipts alle „an Sage übergeben“ sind, eine Ausgangszeile; je Zeile
-/// <c>&lt;Barcode&gt;.tmp</c> schreiben und auf <c>&lt;Barcode&gt;.csv</c> umbenennen (nie ueberschreiben). Das Gate (Schalter, Sage-WE an, Pfad)
-/// prueft der Worker; hier nur „Pfad leer = nichts“. Voraussetzung: genau EINE Dienst-Instanz (wie SageBookingWorker).
+/// <c>&lt;Barcode&gt;.tmp</c> schreiben und auf <c>&lt;Barcode&gt;.csv</c> umbenennen (nie ueberschreiben). v1.99.33 (Sammellieferschein,
+/// Spec 2026-11-17-wareneingang-sammellieferschein-und-bestellkopf A2): weitere Vorgaenge desselben Barcodes heissen
+/// <c>&lt;Barcode&gt;_1.csv</c>, <c>_2</c> … – Nummer aus der Datenbank, belegte Namen (DB oder Ordner) werden uebersprungen. Das Gate
+/// (Schalter, Sage-WE an, Pfad) prueft der Worker; hier nur „Pfad leer = nichts“. Voraussetzung: genau EINE Dienst-Instanz (wie SageBookingWorker).
 /// </summary>
 public class WareneingangCsvService
 {
@@ -72,13 +74,17 @@ public class WareneingangCsvService
             foreach (var e in faellig)
             {
                 if (ct.IsCancellationRequested) break;
-                var text = erste.TryGetValue(e.SageWeVorgang, out var r) ? Schreiben(pfad, e, r) : "Wareneingang zum Vorgang nicht gefunden – nicht geschrieben.";
+                // ponytail: gelingt das Umbenennen, scheitert aber danach SaveChanges, bleibt die Zeile offen (seit v1.99.11). Liegt die Datei beim
+                // naechsten Takt noch im Ordner, bekommt der Vorgang zusaetzlich die naechste Nummer (Inhalt doppelt); hat enaio sie schon abgeholt,
+                // wird derselbe Name erneut geschrieben. Abhilfe erst bei Bedarf (Datei vor dem Umbenennen in der DB reservieren).
+                var (text, datei) = erste.TryGetValue(e.SageWeVorgang, out var r)
+                    ? await SchreibenAsync(pfad, e, r, ct) : ("Wareneingang zum Vorgang nicht gefunden – nicht geschrieben.", null);
                 var now = DateTime.Now;
                 if (text == null)
                 {
                     e.Status = WareneingangCsvStatus.Geschrieben;
                     e.Fehler = null;
-                    e.Datei = Kappen(Path.Combine(pfad, e.Barcode + ".csv"), 400);
+                    e.Datei = Kappen(datei, 400);
                     e.GeschriebenAm = now;
                     geschrieben++;
                 }
@@ -105,26 +111,50 @@ public class WareneingangCsvService
         }
     }
 
-    /// <summary>Eine Datei atomar schreiben: <c>.tmp</c> (ueberschreibt nur die eigene Leiche desselben Barcodes), dann Umbenennen ohne
-    /// Ueberschreiben auf derselben Freigabe. Liefert null bei Erfolg, sonst den Fehlertext.</summary>
-    private string? Schreiben(string pfad, WareneingangCsvExport e, PurchaseOrderReceipt r)
+    /// <summary>Eine Datei atomar schreiben: <c>.tmp</c> (ueberschreibt nur die eigene Leiche desselben Barcodes; die Zeilen laufen
+    /// nacheinander), dann Umbenennen ohne Ueberschreiben auf derselben Freigabe. Liefert (null, Pfad) bei Erfolg, sonst (Fehlertext, null).
+    /// Erscheint die Zieldatei zwischen Pruefung und Umbenennen, wirft <c>File.Move</c> – gezaehlt als Schreibfehler, automatisch wiederholt.</summary>
+    private async Task<(string? Fehler, string? Datei)> SchreibenAsync(string pfad, WareneingangCsvExport e, PurchaseOrderReceipt r, CancellationToken ct)
     {
-        if (!WareneingangCsv.IstGueltigerBarcode(e.Barcode)) return WareneingangCsv.UngueltigText;   // Altwert in der DB
-        var ziel = Path.Combine(pfad, e.Barcode + ".csv");
+        if (!WareneingangCsv.IstGueltigerBarcode(e.Barcode)) return (WareneingangCsv.UngueltigText, null);   // Altwert in der DB
+        var belegt = await BelegteDateienAsync(e, ct);
         var tmp = Path.Combine(pfad, e.Barcode + ".tmp");
         try
         {
-            if (File.Exists(ziel)) return WareneingangCsv.KollisionText;
+            var ziel = Path.Combine(pfad, Dateiname(e.Barcode, belegt.Start, n => belegt.Namen.Contains(n) || File.Exists(Path.Combine(pfad, n))));
             File.WriteAllText(tmp, CsvInhalt(r, e.Barcode), new UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
             File.Move(tmp, ziel, overwrite: false);
-            return null;
+            return (null, ziel);
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Wareneingang-CSV {Barcode} nicht geschrieben ({Pfad}).", e.Barcode, pfad);
             try { if (File.Exists(tmp)) File.Delete(tmp); }
             catch (Exception tex) { _logger.LogWarning(tex, "Wareneingang-CSV: {Tmp} nicht geloescht.", tmp); }   // best effort
-            return ex.Message;
+            return (ex.Message, null);
+        }
+    }
+
+    /// <summary>A2: Start-Nummer = Ausgangszeilen mit demselben Barcode (ohne Gross/Klein), die schon eine Datei geschrieben haben (<c>Datei</c>
+    /// wird nur bei Erfolg gesetzt, Fehler-Zeilen zaehlen also nicht); belegte Namen = Dateinamen ANDERER Zeilen (egal welcher Barcode, z. B.
+    /// Barcode <c>B_1</c> gegen die zweite Datei von <c>B</c>). Vorfilter in SQL (Kollation), der Rest in C#.</summary>
+    private async Task<(int Start, HashSet<string> Namen)> BelegteDateienAsync(WareneingangCsvExport e, CancellationToken ct)
+    {
+        var b = e.Barcode.ToUpper();
+        var andere = await _ctx.WareneingangCsvExporte.AsNoTracking()
+            .Where(x => x.Id != e.Id && x.Datei != null && x.Datei.ToUpper().Contains(b))
+            .Select(x => new { x.Barcode, x.Datei }).ToListAsync(ct);
+        return (andere.Count(x => string.Equals(x.Barcode, e.Barcode, StringComparison.OrdinalIgnoreCase)),
+            andere.Select(x => Path.GetFileName(x.Datei!)).ToHashSet(StringComparer.OrdinalIgnoreCase));
+    }
+
+    /// <summary>A2: <c>n == 0 ? Barcode.csv : Barcode_n.csv</c>, ab <paramref name="start"/> der erste nicht belegte Name. Barcode ohne Umformung.</summary>
+    public static string Dateiname(string barcode, int start, Func<string, bool> belegt)
+    {
+        for (var n = start; ; n++)
+        {
+            var name = n == 0 ? barcode + ".csv" : $"{barcode}_{n}.csv";
+            if (!belegt(name)) return name;
         }
     }
 
