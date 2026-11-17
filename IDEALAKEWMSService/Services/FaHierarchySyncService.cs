@@ -178,10 +178,11 @@ public class FaHierarchySyncService : IFaHierarchySyncService
             await _errorNotifier.NotifyAsync("FaHierarchy-Sync: Read ohne bisherige HauptFA", new InvalidOperationException(msg), ct);
         }
 
-        // FAs, deren Zustand der Lauf selbst kennt (gelesen), und die Sage-Einzelabfrage fuer den Rest (nur SELECT).
-        var gelesen = lesung.Knoten.SelectMany(n => new[] { n.HauptFA, FaStrukturAbgleich.Owner(n), n.SubFA })
-            .Concat(lesung.Infos.Select(i => i.HauptFA))
-            .Concat(lp?.SelectMany(p => new[] { p.BelID, p.StrukturID }) ?? Enumerable.Empty<int>())
+        // FAs, deren Stueckliste der Lauf gelesen hat (Owner einer gelesenen Zeile), und die Sage-Einzelabfrage fuer den Rest (nur SELECT).
+        // QA 2026-11-17: NICHT SubFA eines gelesenen FA-Knotens und NICHT HauptFA aus FAInfos — ein beendeter Sub-FA steht weiter in der
+        // Stueckliste des offenen Vaters, seine eigene Stueckliste fehlt aber; sie galt sonst als „Position entfernt“ und ging verloren (AK 4/5).
+        var gelesen = lesung.Knoten.Select(FaStrukturAbgleich.Owner)
+            .Concat(lp?.Select(p => p.BelID) ?? Enumerable.Empty<int>())
             .Where(id => id != 0).ToHashSet();
         var fehlend = pk.Fehlend.Select(n => new Fehlend(n, n.SubFA, FaStrukturAbgleich.Owner(n)))
             .Concat(pi.Fehlend.Select(i => new Fehlend(i, 0, i.HauptFA)))

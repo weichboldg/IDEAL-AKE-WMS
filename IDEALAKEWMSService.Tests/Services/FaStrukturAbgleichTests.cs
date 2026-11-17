@@ -239,6 +239,41 @@ public class FaStrukturAbgleichTests
     }
 
     [Fact]
+    public async Task SubFaBeendet_VaterListetIhnNoch_SeineStuecklisteBleibtBeendet()
+    {
+        // QA 2026-11-17: Der offene Vater 100 liefert den Knoten → 101 weiter, nur die Stueckliste von 101 fehlt (Sub-FA beendet).
+        var u = new Umgebung { Reader = { Lesung = () => Zwei() } };
+        await u.LaufAsync();
+        u.Reader.Status = new() { [101] = FaSageStatus.Beendet };
+
+        u.Reader.Lesung = () => Zwei(k => k.Where(x => x.VaterFA != 101).ToList());
+        var lauf = await u.LaufAsync();
+
+        lauf.FinalCounts!["entfernt_position"].Should().Be(0);
+        lauf.FinalCounts["verschwunden_beendet"].Should().Be(1);
+        u.Reader.Gefragt.Should().BeEquivalentTo(new[] { 101 });
+        await using var db = u.Db();
+        (await db.FaHierarchyNodes.SingleAsync(x => x.Artnr == "BLATT")).VerschwundenGrund.Should().Be(FaStrukturGrund.Beendet);
+    }
+
+    [Fact]
+    public async Task HauptFaNurNochInInfos_KnotenWerdenNichtAlsPositionEntfernt()
+    {
+        // QA 2026-11-17: FAInfos liefert 200 weiter, FAListe nicht mehr (beendet) → Knoten bleiben, Grund aus Sage.
+        var u = new Umgebung { Reader = { Lesung = () => Zwei() } };
+        await u.LaufAsync();
+        u.Reader.Status = new() { [200] = FaSageStatus.Beendet };
+
+        u.Reader.Lesung = () => Zwei(k => k.Where(x => x.HauptFA != 200).ToList());
+        var lauf = await u.LaufAsync();
+
+        lauf.FinalCounts!["entfernt_position"].Should().Be(0);
+        lauf.FinalCounts["verschwunden_beendet"].Should().Be(2);
+        await using var db = u.Db();
+        (await db.FaHierarchyNodes.CountAsync(x => x.HauptFA == 200 && x.VerschwundenGrund == FaStrukturGrund.Beendet)).Should().Be(2);
+    }
+
+    [Fact]
     public async Task OwnerInSageNichtGefunden_WirdEntfernt()
     {
         var u = new Umgebung { Reader = { Lesung = () => Zwei() } };
