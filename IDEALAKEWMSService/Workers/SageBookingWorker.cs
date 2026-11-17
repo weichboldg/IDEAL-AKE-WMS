@@ -72,7 +72,7 @@ public class SageBookingWorker : BackgroundService
                 // ausloesen; er landet im catch unten, der Takt wird wiederholt.
                 sageWeAn = await ServiceSettings.GetBoolAsync(_configuration, SageWareneingang.ToggleKey, false, stoppingToken);
                 if (sageWeAn)
-                    await ProcessSageWareneingangAsync(stoppingToken);
+                    _anstossBelege += await ProcessSageWareneingangAsync(stoppingToken);
                 else
                     await SageWareneingangAusAsync(stoppingToken);   // v1.99.7 Q-2: Liegengebliebenes auf „Klären“, nie nachschicken
             }
@@ -84,6 +84,21 @@ public class SageBookingWorker : BackgroundService
             {
                 _logger.LogError(ex, "Unerwarteter Fehler im SageBookingWorker.");
                 await NotifyErrorAsync("SageBookingWorker (unerwartet)", ex, stoppingToken);
+            }
+
+            // v1.99.31 (Spec 2026-11-16-offene-bestellungen-sofort-neu-lesen F1): nach einer Uebergabe die offenen Bestellungen neu lesen,
+            // entprellt. Eigenes try: ein Fehler hier haelt Lagerbuchung, Sage-WE und CSV nicht auf (F1.5).
+            try
+            {
+                await AnstossOffeneBestellungenAsync(stoppingToken);
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                break;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unerwarteter Fehler im Schritt Offene Bestellungen nach Sage-Wareneingang.");
             }
 
             // v1.99.11 (Wareneingang-CSV F3): eigener Schritt NACH dem Sage-WE-Schritt (im selben Takt uebergeben = sofort CSV), nur bei
@@ -108,7 +123,56 @@ public class SageBookingWorker : BackgroundService
         _logger.LogInformation("SageBookingWorker gestoppt.");
     }
 
-    private async Task ProcessSageWareneingangAsync(CancellationToken ct)
+    // v1.99.31 F1: offener Anstoss (Anzahl uebergebener Belege seit dem letzten Anstoss) und Zeitpunkt des letzten Anstosses (Lokalzeit, ADR 0025).
+    // Nur im Speicher: ein Dienst-Neustart verwirft beides, der regulaere Lauf startet beim Dienststart ohnehin.
+    private int _anstossBelege;
+    private DateTime? _letzterAnstoss;
+
+    internal const string NachWeMinutenKey = "Sync:EinkaufBestellungenNachWeMinuten";
+
+    /// <summary>v1.99.31 F1.2-F1.4: Entscheidung ohne Worker-Schleife (testbar). <c>Verwerfen</c> = Anstoss faellt weg (0 = aus bzw. Gate aus),
+    /// damit er nicht Stunden spaeter nach dem Einschalten laeuft.</summary>
+    internal static (bool Laufen, bool Verwerfen) AnstossEntscheidung(int offeneBelege, int minuten, bool gateAn, DateTime? letzter, DateTime jetzt)
+    {
+        if (offeneBelege <= 0) return (false, false);
+        if (minuten <= 0 || !gateAn) return (false, true);
+        return (letzter is null || jetzt - letzter.Value >= TimeSpan.FromMinutes(minuten), false);
+    }
+
+    private async Task AnstossOffeneBestellungenAsync(CancellationToken ct)
+    {
+        if (_anstossBelege <= 0) return;
+        var minuten = await ServiceSettings.GetIntSafeAsync(_configuration, NachWeMinutenKey, 2, ct);
+        var gateAn = await ServiceSettings.GetBoolSafeAsync(_configuration, "Sync:EinkaufBestellungenEnabled", false, ct);
+        var jetzt = DateTime.Now;
+        var (laufen, verwerfen) = AnstossEntscheidung(_anstossBelege, minuten, gateAn, _letzterAnstoss, jetzt);
+        if (verwerfen) { _anstossBelege = 0; return; }
+        if (!laufen) return;
+
+        var anlass = $"Sage-Wareneingang ({_anstossBelege} Beleg(e) übergeben)";
+        try
+        {
+            var dryRun = await ServiceSettings.GetBoolSafeAsync(_configuration, "WorkerSettings:SyncDryRun", false, ct);
+            using var scope = _scopeFactory.CreateScope();
+            var svc = scope.ServiceProvider.GetRequiredService<IDEALAKEWMSService.Services.Sdata.EinkaufBestellungenSyncService>();
+            if (!await svc.TryRunExclusiveAsync(dryRun, anlass, ct)) return;   // F1.7: Lauf aktiv - offen lassen, naechster Takt
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // F1.5: der Lauf hat „Run fehlgeschlagen“ unter Offene Bestellungen (Sage) geschrieben; hier nur die Warnung, keine Mail (Antwort 7),
+            // keine Wiederholung in Schleife - der regulaere Zyklus ist die Rueckfallebene.
+            _logger.LogWarning(ex, "Offene Bestellungen nach Sage-Wareneingang nicht neu gelesen.");
+            await using var run = await _syncLogger.BeginRunAsync(SyncLogServices.SageWareneingang, ct);
+            var text = $"Offene Bestellungen nach Sage-Wareneingang nicht neu gelesen: {ex.Message}. Der reguläre Abgleich holt das nach.";
+            if (text.Length > 900) text = text[..900];   // SyncLogs.Message nvarchar(1000)
+            await run.LogWarningAsync(text, ct: ct);
+            await run.FinishSuccessAsync(ct: ct);
+        }
+        _anstossBelege = 0;
+        _letzterAnstoss = jetzt;
+    }
+
+    private async Task<int> ProcessSageWareneingangAsync(CancellationToken ct)
     {
         using var scope = _scopeFactory.CreateScope();
         var service = scope.ServiceProvider.GetRequiredService<SageWareneingangService>();
@@ -131,10 +195,10 @@ public class SageBookingWorker : BackgroundService
                 await run.FinishFailedAsync(fehler, ct: ct);
                 _weZugangGemeldet = fehler;
             }
-            return;
+            return 0;
         }
         _weZugangGemeldet = null;
-        await service.RunOnceAsync(endpoint, stuckMinutes, batchSize, wiederholung, kuerzel, ct, zugang.Warnung);
+        return await service.RunOnceAsync(endpoint, stuckMinutes, batchSize, wiederholung, kuerzel, ct, zugang.Warnung);
     }
 
     private string? _weZugangGemeldet;

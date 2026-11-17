@@ -117,7 +117,11 @@ public static class ServiceSettingDefinitions
         ["Sync:ArtikelLieferantEnabled"] = ("Artikel-Lieferanten aus Sage", "Dienst: Lauf „Artikel-Lieferanten“", null, null),
         ["Sync:LetzteBestellungUhrzeitNacht"] = ("Letzte Bestellung – Uhrzeit nachts", LbVerwendung, null, null),
         ["Sync:LetzteBestellungUhrzeitMittag"] = ("Letzte Bestellung – Uhrzeit mittags", LbVerwendung, null, null),
-        ["Sync:EinkaufBestellungenEnabled"] = ("Offene Bestellungen aus Sage", "Dienst: Lauf „Offene Bestellungen (Sage)“; Lager → Offene Bestellungen, Wareneingang zu Bestellung", "AKE (IDEAL ohne SData-Endpunkt aus lassen)", null),
+        ["Sync:EinkaufBestellungenEnabled"] = ("Offene Bestellungen aus Sage", "Dienst: Lauf „Offene Bestellungen (Sage)“; Lager → Offene Bestellungen, Einkauf → Offene Bestellungen, Wareneingang zu Bestellung", "AKE (IDEAL ohne SData-Endpunkt aus lassen)", null),
+        // v1.99.31 (Spec 2026-11-16-offene-bestellungen-sofort-neu-lesen F1)
+        ["Sync:EinkaufBestellungenNachWeMinuten"] = ("Offene Bestellungen nach Sage-Wareneingang neu lesen: Mindestabstand",
+            "Dienst: Sage-Buchungs-Worker, Lauf „Sage-Wareneingang“ → Lauf „Offene Bestellungen (Sage)“", "AKE (IDEAL ohne Wirkung, solange Sage-Wareneingang dort aus ist)",
+            "Jeder Lauf liest alle offenen Bestellungen aus Sage; in der Zeit wartet die nächste Sage-Lagerbuchung. Schreibt nie nach Sage."),
         ["Sync:BomCacheEnabled"] = ("Stücklisten-Cache", "Dienst: Lauf „BOM-Cache“; Stückliste", "AKE", null),
         ["Sync:BomCacheWeeks"] = ("Stücklisten-Cache: Wochen voraus", "Dienst: Lauf „BOM-Cache“", "AKE", null),
         ["Sync:BomCacheMaxOrders"] = ("Stücklisten-Cache: max. Aufträge", "Dienst: Lauf „BOM-Cache“", "AKE", null),
@@ -175,6 +179,7 @@ public static class ServiceSettingDefinitions
         ["Sync:SageLagerbuchungIntervalSeconds"] = (5, null, "s"),
         ["Sync:SageWareneingangMaxWiederholungen"] = (0, 10, ""),
         ["Sync:SageWareneingangWiederholAbstandMinuten"] = (5, 1440, "min"),
+        ["Sync:EinkaufBestellungenNachWeMinuten"] = (0, 60, "min"),
         ["Sync:WareneingangCsvMaxWiederholungen"] = (0, 10, ""),
         ["Sync:WareneingangCsvWiederholAbstandMinuten"] = (5, 1440, "min"),
         ["Sync:BdeAutoPauseIntervalMinutes"] = (0, null, "min"),
@@ -282,6 +287,7 @@ public static class ServiceSettingDefinitions
         new("Sync:LetzteBestellungUhrzeitNacht", SettingType.Int, "3", "Sage-Abgleich (SData)", "Ab dieser Stunde liest der Dienst einmal die letzten Bestellungen (3 Jahre EBB/EBZ) aus Sage neu (Lauf 'Letzte Bestellung (Einkauf)', Gate Sync:ArtikelLieferantEnabled). Ein verpasster Termin wird nach dem Dienststart einmal nachgeholt. Der Lauf dauert einige Minuten, in der Zeit warten Offene Bestellungen und Lieferverzug. Beide Uhrzeiten gleich = ein Lauf pro Tag."),
         new("Sync:LetzteBestellungUhrzeitMittag", SettingType.Int, "12", "Sage-Abgleich (SData)", "Zweiter taeglicher Lauf 'Letzte Bestellung (Einkauf)' ab dieser Stunde (wie Uhrzeit nachts)."),
         new("Sync:EinkaufBestellungenEnabled", SettingType.Bool, "false", "Sage-Abgleich (SData)", "Offene Einkaufsbestellungen (normale Bestellungen EBB und Rahmenabrufe EBZ, Positionen) aus Sage (SData) in den Cache lesen; Zuordnung zu Artikel, Kreditor und Lagerplatz (braucht Kreditoren- und Lagerplatz-Abgleich). Liest nur, schreibt nie nach Sage."),
+        new("Sync:EinkaufBestellungenNachWeMinuten", SettingType.Int, "2", "Sage-Abgleich (SData)", "Offene Bestellungen nach Sage-Wareneingang (v1.99.31): Hat der Sage-Buchungs-Worker mindestens einen Wareneingang an Sage uebergeben, liest der Dienst die offenen Bestellungen sofort neu (Lauf 'Offene Bestellungen (Sage)' mit Info 'Anlass: Sage-Wareneingang'), danach hoechstens einmal je n Minuten (0 bis 60, 0 = aus). Gates wie der regulaere Lauf (Sync:EinkaufBestellungenEnabled, WorkerSettings:SyncDryRun). Jeder Lauf liest alle offenen Bestellungen; in der Zeit wartet die naechste Sage-Lagerbuchung."),
 
         // ----- BOM-Cache -----
         new("Sync:BomCacheEnabled",                  SettingType.Bool, "false", "BOM-Cache", "BOM-Cache-Sync aktiv (Top-N offene Auftraege werden gecacht)"),

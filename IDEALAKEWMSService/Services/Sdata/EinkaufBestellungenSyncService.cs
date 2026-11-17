@@ -59,9 +59,33 @@ public class EinkaufBestellungenSyncService
         _syncLogger = syncLogger;
     }
 
-    public async Task<SyncResult> RunAsync(bool dryRun, CancellationToken ct = default, SdataLeseZiel? ziel = null)
+    // v1.99.31 (Spec 2026-11-16-offene-bestellungen-sofort-neu-lesen F1.7): regulaerer Lauf (SyncWorker) und Anstoss nach Sage-Wareneingang
+    // (SageBookingWorker) nie gleichzeitig - der Vollersatz loescht und fuegt in einer Transaktion ein, ein zweiter Lauf scheitert am UNIQUE BelPosId.
+    // Statisch, weil der Service Scoped ist; beide Worker laufen im selben Prozess.
+    // ponytail: prozessweite Sperre; reicht, solange nur EIN Dienst je DB laeuft (Ist-Zustand). Mehrere Dienste je DB -> sp_getapplock.
+    private static readonly SemaphoreSlim Sperre = new(1, 1);
+
+    /// <summary>Regulaerer Lauf: wartet, bis ein laufender (angestossener) Lauf fertig ist.</summary>
+    public async Task<SyncResult> RunAsync(bool dryRun, CancellationToken ct = default, SdataLeseZiel? ziel = null, string? anlass = null)
+    {
+        await Sperre.WaitAsync(ct);
+        try { return await RunCoreAsync(dryRun, ct, ziel, anlass); }
+        finally { Sperre.Release(); }
+    }
+
+    /// <summary>v1.99.31 F1: Anstoss nach Sage-Wareneingang. Laeuft gerade ein Lauf, kommt sofort <c>false</c> zurueck (nichts gelesen,
+    /// der Aufrufer holt im naechsten Takt nach). Fehler werfen wie bei <see cref="RunAsync"/>.</summary>
+    public async Task<bool> TryRunExclusiveAsync(bool dryRun, string anlass, CancellationToken ct = default, SdataLeseZiel? ziel = null)
+    {
+        if (!await Sperre.WaitAsync(0, ct)) return false;
+        try { await RunCoreAsync(dryRun, ct, ziel, anlass); return true; }
+        finally { Sperre.Release(); }
+    }
+
+    private async Task<SyncResult> RunCoreAsync(bool dryRun, CancellationToken ct, SdataLeseZiel? ziel, string? anlass)
     {
         await using var run = await _syncLogger.BeginRunAsync(SyncLogServices.EinkaufBestellungen, ct);
+        if (anlass is not null) await run.LogInfoAsync($"Anlass: {anlass}", ct: ct);   // F1.6: erkennbar gegen den regulaeren Lauf
 
         var zeilen = new List<SdataEinkaufPositionZeile>();
         var jeArt = new Dictionary<string, int>();

@@ -136,8 +136,9 @@ public class SageWareneingangServiceTests
         Receipt(db, 1, Guid.NewGuid(), SageWareneingangStatus.Offen);
         Receipt(db, 1, Guid.NewGuid(), SageWareneingangStatus.Offen);
         var client = new FakeClient();
-        await Svc(db, client).RunOnceAsync(Endpoint, 10, 50, Wdh);
+        (await Svc(db, client).RunOnceAsync(Endpoint, 10, 50, Wdh)).Should().Be(2, "v1.99.31 F1.1: Rueckgabe = uebergebene Belege");
         client.Gesendet.Should().HaveCount(2);
+        (await Svc(db, client).RunOnceAsync(Endpoint, 10, 50, Wdh)).Should().Be(0, "nichts offen = kein Anstoss");
     }
 
     [Fact]

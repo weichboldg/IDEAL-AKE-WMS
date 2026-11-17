@@ -238,4 +238,57 @@ public class EinkaufBestellungenSyncTests
         SyncLogServices.All.Should().Contain(SyncLogServices.EinkaufBestellungen);
         SyncLogServices.DisplayNames[SyncLogServices.EinkaufBestellungen].Should().Be("Offene Bestellungen (Sage)");
     }
+
+    // ----- v1.99.31 (Spec 2026-11-16-offene-bestellungen-sofort-neu-lesen F1) -----
+
+    [Fact]
+    public async Task Anstoss_SchreibtAnlass_UndSperreBelegt_LiefertFalseOhneLauf_F1_6_F1_7()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        await SeedStammAsync(ctx);
+        var log = new FakeSyncLogger();
+        var (svc, _) = Svc(ctx, log, Pos(101, "00722001"));
+
+        (await svc.TryRunExclusiveAsync(false, "Sage-Wareneingang (1 Beleg(e) übergeben)", ziel: Ziel)).Should().BeTrue();
+        log.Runs.Single().Events.First().Should().Be(("Info", "Anlass: Sage-Wareneingang (1 Beleg(e) übergeben)", (string?)null));
+        log.Runs.Single().FinishedSuccess.Should().BeTrue();
+
+        // Ein Lauf haelt die Sperre (Client blockiert) -> der Anstoss liest nicht und meldet false; der regulaere Lauf wartet.
+        using var ctx2 = TestDbContextFactory.Create();
+        var halten = new TaskCompletionSource();
+        var blockClient = new Mock<ISageSdataReadClient>();
+        blockClient.Setup(c => c.QueryAllAsync<SdataEinkaufPositionZeile>(It.IsAny<SdataLeseZiel>(), It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string>(), It.IsAny<CancellationToken>(), It.IsAny<int>()))
+            .Returns(async () => { await halten.Task; return new SdataSeiten<SdataEinkaufPositionZeile>(new List<SdataEinkaufPositionZeile>(), EinkaufBestellungenSyncService.Ressource, 0, 0, 1); });
+        var regulaer = new EinkaufBestellungenSyncService(ctx2, blockClient.Object, new ConfigurationBuilder().Build(),
+            NullLogger<EinkaufBestellungenSyncService>.Instance, new FakeSyncLogger()).RunAsync(false, ziel: Ziel);
+        var log3 = new FakeSyncLogger();
+        var (svc3, client3) = Svc(ctx, log3, Pos(101, "00722001"));
+        try
+        {
+            (await svc3.TryRunExclusiveAsync(false, "x", ziel: Ziel)).Should().BeFalse();
+            log3.Runs.Should().BeEmpty();
+            client3.Invocations.Should().BeEmpty();
+        }
+        finally
+        {
+            halten.SetResult();
+            await regulaer;
+        }
+        (await svc3.TryRunExclusiveAsync(false, "x", ziel: Ziel)).Should().BeTrue("nach dem Ende ist die Sperre frei");
+    }
+
+    [Theory]
+    [InlineData(0, 2, true, null, 0, false, false)]      // nichts uebergeben
+    [InlineData(1, 2, true, null, 0, true, false)]       // erster Anstoss sofort
+    [InlineData(1, 2, true, -1, 0, false, false)]        // im Fenster (1 min nach dem letzten): offen lassen
+    [InlineData(2, 2, true, -2, 0, true, false)]         // Fenster abgelaufen
+    [InlineData(1, 0, true, null, 0, false, true)]       // 0 = aus: verwerfen
+    [InlineData(1, 2, false, null, 0, false, true)]      // Gate aus: verwerfen
+    public void AnstossEntscheidung_F1_2_bis_F1_4(int belege, int minuten, bool gate, int? letzterVorMin, int _, bool laufen, bool verwerfen)
+    {
+        var jetzt = new DateTime(2026, 11, 17, 10, 0, 0);
+        SageBookingWorker.AnstossEntscheidung(belege, minuten, gate, letzterVorMin is { } m ? jetzt.AddMinutes(m) : null, jetzt)
+            .Should().Be((laufen, verwerfen));
+    }
 }

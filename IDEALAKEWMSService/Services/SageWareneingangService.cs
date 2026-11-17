@@ -52,7 +52,9 @@ public class SageWareneingangService
     }
 
     /// <param name="kuerzel">v1.99.9: System-Kuerzel (<see cref="SageSystemKuerzel"/>, geprueft); wirkt nur auf Receipts, die noch nie gesendet wurden.</param>
-    public async Task RunOnceAsync(SageBookingEndpoint endpoint, int stuckMinutes, int batchSize, SageWeWiederholung wiederholung,
+    /// <returns>v1.99.31 (Spec 2026-11-16-offene-bestellungen-sofort-neu-lesen F1.1): Anzahl an Sage uebergebener Belege dieses Takts (gesendet
+    /// und bestaetigt oder in Sage gefunden); 0 ohne Arbeit. Wirft der Lauf, gibt es keine Rueckgabe - kein Anstoss.</returns>
+    public async Task<int> RunOnceAsync(SageBookingEndpoint endpoint, int stuckMinutes, int batchSize, SageWeWiederholung wiederholung,
         string? kuerzel = null, CancellationToken ct = default, string? zugangWarnung = null)
     {
         var jetzt0 = DateTime.Now;
@@ -70,7 +72,7 @@ public class SageWareneingangService
             .Where(r => r.SageWeStatus == SageWareneingangStatus.Fehler && r.SageWeVorgang != null && r.SageWeVersuche >= 1
                         && r.SageWeVersuche <= max && (r.ModifiedAt ?? r.CreatedAt) < abstand)
             .Select(r => r.SageWeVorgang!.Value).Distinct().Take(Math.Max(1, batchSize)).ToListAsync(ct);
-        if (haengend.Count == 0 && vorgaenge.Count == 0 && wiederholen.Count == 0) return;   // kein Protokoll-Eintrag je Takt ohne Arbeit
+        if (haengend.Count == 0 && vorgaenge.Count == 0 && wiederholen.Count == 0) return 0;   // kein Protokoll-Eintrag je Takt ohne Arbeit
 
         await using var run = await _syncLogger.BeginRunAsync(SyncLogServices.SageWareneingang, ct);
         int gesendet = 0, uebergeben = 0, fehler = 0, unklar = 0, gefunden = 0, klaeren = 0;
@@ -166,6 +168,7 @@ public class SageWareneingangService
             }
 
             await run.FinishSuccessAsync(Counts(gesendet, uebergeben, fehler, unklar, gefunden, klaeren), ct: ct);
+            return uebergeben;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
