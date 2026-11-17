@@ -1151,6 +1151,10 @@ public class ApplicationDbContext : DbContext
 
             entity.HasIndex(e => e.HauptFA).HasDatabaseName("IX_FaHierarchyNodes_HauptFA");
             entity.HasIndex(e => e.VaterFA).HasDatabaseName("IX_FaHierarchyNodes_VaterFA");
+            entity.Property(e => e.VerschwundenGrund).HasMaxLength(20);
+            // v1.99.37 (ADR 0032): fachlicher Schluessel des Abgleichs, ungefiltert (NULL = NULL wie im Abgleich, SQL/159).
+            entity.HasIndex(e => new { e.HauptFA, e.VaterFA, e.SubFA, e.Position, e.Artnr }).IsUnique().HasFilter(null)
+                .HasDatabaseName("UX_FaHierarchyNodes_Schluessel");
         });
 
         // FaHierarchyOrderInfo (IDEAL: PPS-/Auftragsdaten je HauptFA) — reine Cache-Tabelle.
@@ -1166,6 +1170,9 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.Montagestunden).HasColumnType("decimal(18,2)");
 
             entity.HasIndex(e => e.HauptFA).HasDatabaseName("IX_FaHierarchyOrderInfos_HauptFA");
+            entity.Property(e => e.VerschwundenGrund).HasMaxLength(20);
+            entity.HasIndex(e => new { e.HauptFA, e.ABNr, e.Pos }).IsUnique().HasFilter(null)
+                .HasDatabaseName("UX_FaHierarchyOrderInfos_Schluessel");
         });
 
         // ProductionOrderPosition (SData PpsFaBelegePositionenInfo, Spec 2026-11-06-sage-sdata-stammdaten-sync E4b) — Cache, KEIN AuditableEntity.
@@ -1184,6 +1191,7 @@ public class ApplicationDbContext : DbContext
             entity.HasIndex(e => e.BelPosID).IsUnique().HasDatabaseName("UQ_ProductionOrderPositions_BelPosID");
             entity.HasIndex(e => e.BelID).HasDatabaseName("IX_ProductionOrderPositions_BelID");
             entity.HasIndex(e => e.StrukturID).HasDatabaseName("IX_ProductionOrderPositions_StrukturID");
+            entity.Property(e => e.VerschwundenGrund).HasMaxLength(20);
         });
 
         // SageFaState (Lesemodell des Rueckmelde-Epics, angelegt in E4b laut G15) — Cache, KEIN AuditableEntity.

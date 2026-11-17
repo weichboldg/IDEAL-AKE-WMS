@@ -10,7 +10,7 @@ namespace IdealAkeWms.Models;
 /// kommt aus dem Aktivitaets-Protokoll (SyncLog) + <see cref="SyncedAt"/>, nicht aus Audit-Feldern.
 /// Werte sind roh/unnormalisiert uebernommen (Splits erst beim Konsum, analog BOM-Matching).
 /// </summary>
-public class FaHierarchyNode
+public class FaHierarchyNode : IFaStrukturZeile
 {
     public int Id { get; set; }
 
@@ -66,4 +66,10 @@ public class FaHierarchyNode
     /// <summary>Zeitpunkt des letzten Full-Refresh in Lokalzeit des Dienstrechners (<c>DateTime.Now</c> in
     /// SageFaStrukturReader/SdataFaStrukturReader, ADR 0025). Nicht analog <see cref="CachedBomHeader.CachedAt"/> – das ist bewusst UTC.</summary>
     public DateTime SyncedAt { get; set; }
+
+    // v1.99.37 Lebenslauf (ADR 0032, IFaStrukturZeile): der Abgleich setzt die Werte, SQL/159.
+    public DateTime ErstGesehen { get; set; }
+    public DateTime ZuletztGesehen { get; set; }
+    public DateTime? VerschwundenSeit { get; set; }
+    public string? VerschwundenGrund { get; set; }
 }

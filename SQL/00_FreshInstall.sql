@@ -1957,10 +1957,15 @@ BEGIN
         [Beschaffungsartikel] BIT               NOT NULL,
         [Beschichtet]         BIT               NOT NULL,
         [EKBedarf]            BIT               NOT NULL,
-        [SyncedAt]            DATETIME2         NOT NULL
+        [SyncedAt]            DATETIME2         NOT NULL,
+        [ErstGesehen]         DATETIME2         NOT NULL, -- v1.99.37 Lebenslauf (SQL/159, ADR 0032)
+        [ZuletztGesehen]      DATETIME2         NOT NULL,
+        [VerschwundenSeit]    DATETIME2         NULL,
+        [VerschwundenGrund]   NVARCHAR(20)      NULL
     );
     CREATE INDEX [IX_FaHierarchyNodes_HauptFA] ON [dbo].[FaHierarchyNodes]([HauptFA]);
     CREATE INDEX [IX_FaHierarchyNodes_VaterFA] ON [dbo].[FaHierarchyNodes]([VaterFA]);
+    CREATE UNIQUE INDEX [UX_FaHierarchyNodes_Schluessel] ON [dbo].[FaHierarchyNodes]([HauptFA],[VaterFA],[SubFA],[Position],[Artnr]);
     PRINT 'Tabelle FaHierarchyNodes erstellt.';
 END
 GO
@@ -1986,9 +1991,14 @@ BEGIN
         [Verladetermin_Vsl]  DATETIME2         NULL,
         [Montagestunden]     DECIMAL(18,2)     NULL,
         [Prio]               INT               NULL,
-        [SyncedAt]           DATETIME2         NOT NULL
+        [SyncedAt]           DATETIME2         NOT NULL,
+        [ErstGesehen]         DATETIME2         NOT NULL, -- v1.99.37 Lebenslauf (SQL/159, ADR 0032)
+        [ZuletztGesehen]      DATETIME2         NOT NULL,
+        [VerschwundenSeit]    DATETIME2         NULL,
+        [VerschwundenGrund]   NVARCHAR(20)      NULL
     );
     CREATE INDEX [IX_FaHierarchyOrderInfos_HauptFA] ON [dbo].[FaHierarchyOrderInfos]([HauptFA]);
+    CREATE UNIQUE INDEX [UX_FaHierarchyOrderInfos_Schluessel] ON [dbo].[FaHierarchyOrderInfos]([HauptFA],[ABNr],[Pos]);
     PRINT 'Tabelle FaHierarchyOrderInfos erstellt.';
 END
 GO
@@ -2020,7 +2030,11 @@ BEGIN
         [LagerplatzKurzbezeichnung] NVARCHAR(50)      NULL,
         [Schwund]                   DECIMAL(18,4)     NULL,
         [Bedarfstermin]             DATETIME2         NULL,
-        [SyncedAt]                  DATETIME2         NOT NULL
+        [SyncedAt]                  DATETIME2         NOT NULL,
+        [ErstGesehen]         DATETIME2         NOT NULL, -- v1.99.37 Lebenslauf (SQL/159, ADR 0032)
+        [ZuletztGesehen]      DATETIME2         NOT NULL,
+        [VerschwundenSeit]    DATETIME2         NULL,
+        [VerschwundenGrund]   NVARCHAR(20)      NULL
     );
     CREATE UNIQUE INDEX [UQ_ProductionOrderPositions_BelPosID] ON [dbo].[ProductionOrderPositions]([BelPosID]);
     CREATE INDEX [IX_ProductionOrderPositions_BelID] ON [dbo].[ProductionOrderPositions]([BelID]);
@@ -3457,6 +3471,10 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261117154645_AddBfAuftraege')
    AND OBJECT_ID(N'dbo.BfAuftraege', N'U') IS NOT NULL AND OBJECT_ID(N'dbo.BfAuftragPositionen', N'U') IS NOT NULL -- sonst steht SQL/158 noch aus
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261117154645_AddBfAuftraege', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261117183315_FaStrukturAbgleich')
+   AND COL_LENGTH(N'dbo.ProductionOrderPositions', N'ErstGesehen') IS NOT NULL
+   AND EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'UX_FaHierarchyOrderInfos_Schluessel') -- sonst steht SQL/159 noch aus
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261117183315_FaStrukturAbgleich', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';

@@ -9,7 +9,7 @@ namespace IdealAkeWms.Models;
 /// diese Tabelle behaelt bewusst ALLE Zeilen (kein Join in <see cref="FaHierarchyNode"/> hinein).
 /// NICHT <see cref="AuditableEntity"/> — reine Cache-Tabelle (Praezedenzfall <see cref="CachedBomHeader"/>).
 /// </summary>
-public class FaHierarchyOrderInfo
+public class FaHierarchyOrderInfo : IFaStrukturZeile
 {
     public int Id { get; set; }
 
@@ -40,4 +40,10 @@ public class FaHierarchyOrderInfo
 
     /// <summary>Zeitpunkt des letzten Full-Refresh (Lokalzeit).</summary>
     public DateTime SyncedAt { get; set; }
+
+    // v1.99.37 Lebenslauf (ADR 0032, IFaStrukturZeile): der Abgleich setzt die Werte, SQL/159.
+    public DateTime ErstGesehen { get; set; }
+    public DateTime ZuletztGesehen { get; set; }
+    public DateTime? VerschwundenSeit { get; set; }
+    public string? VerschwundenGrund { get; set; }
 }

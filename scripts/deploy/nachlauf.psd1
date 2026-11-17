@@ -110,9 +110,16 @@ Eintraege = @(
    Datei='157_AddBeschichtungsauftragPositionText.sql'; MigrationId='20261117141308_AddBeschichtungsauftragPositionText'; Voraussetzung='additiv, Spalte nvarchar(50) NULL, kein Backfill'; Quelle='2026-11-17-v1-99-34-beschichtung-ake-stueckliste' }
 @{ Id='SQL/158'; Version='1.99.35'; Typ='Schema'; Firma='beide'; Phase='Schema'; Ausfuehrung='automatisch'
    Datei='158_AddBfAuftraege.sql'; MigrationId='20261117154645_AddBfAuftraege'; Voraussetzung='additiv, zwei neue Tabellen BfAuftraege und BfAuftragPositionen (Blechfertigung), kein Backfill'; Quelle='2026-11-17-v1-99-35-blechfertigung-bf-auftraege' }
+@{ Id='SQL/159'; Version='1.99.37'; Typ='Schema'; Firma='beide'; Phase='Schema'; Ausfuehrung='automatisch'
+   Datei='159_FaStrukturAbgleich.sql'; MigrationId='20261117183315_FaStrukturAbgleich'; Voraussetzung='Dienst gestoppt; 4 Lebenslauf-Spalten je FaHierarchyNodes/FaHierarchyOrderInfos/ProductionOrderPositions (Startwert SyncedAt), leere Artnr/ABNr/Pos -> NULL, zwei UNIQUE-Indizes; bricht bei doppelten Schluesseln vor dem Index ab'; Quelle='2026-11-17-v1-99-37-fa-struktur-abgleich' }
 
 # ---------------------------------------------------------------- Pruefungen (jeder Lauf; Reparatur nur nach Bestaetigung) -------
 # v1.99.28 (ADR 0027): admin zaehlt nicht - der Web-Start stellt admin ohne Kennwort auf das Standard-Erstkennwort mit Pflichtwechsel um.
+# v1.99.37 (ADR 0032): SQL/159 legt UNIQUE-Indizes auf den fachlichen Schluessel; Dubletten im Bestand (P-AB1/P-AB2) vorher sichtbar machen.
+@{ Id='Pruefung/FaStrukturSchluesselDoppelt'; Version='1.99.37'; Typ='Pruefung'; Firma='beide'; Phase='Vorher'; Ausfuehrung='anzeigen'
+   Pruefung='SELECT CASE WHEN OBJECT_ID(N''dbo.FaHierarchyNodes'', N''U'') IS NULL THEN 0 ELSE (SELECT COUNT(*) FROM (SELECT 1 AS x FROM dbo.FaHierarchyNodes GROUP BY HauptFA, VaterFA, SubFA, Position, NULLIF(LTRIM(RTRIM(Artnr)), N'''') HAVING COUNT(*) > 1) d) + (SELECT COUNT(*) FROM (SELECT 1 AS x FROM dbo.FaHierarchyOrderInfos GROUP BY HauptFA, NULLIF(LTRIM(RTRIM(ABNr)), N''''), NULLIF(LTRIM(RTRIM(Pos)), N'''') HAVING COUNT(*) > 1) d) END'
+   Text='Doppelte FA-Struktur-Schluessel im WMS-Bestand: SQL/159 bricht vor dem UNIQUE-Index ab. Liste mit P-AB1/P-AB2 der Spec 2026-11-17-fa-struktur-abgleich-statt-full-replace an Gerald; nicht automatisch bereinigen (der naechste Lauf des alten Dienstes schreibt die Tabellen ohnehin neu).'
+   Quelle='2026-11-17-v1-99-37-fa-struktur-abgleich' }
 @{ Id='Pruefung/BenutzerOhneKennwort'; Version='1.99.28'; Typ='Pruefung'; Firma='beide'; Phase='Vorher'; Ausfuehrung='anzeigen'
    Pruefung='SELECT COUNT(*) FROM dbo.Users u WHERE u.IsActive = 1 AND u.Name <> N''admin'' AND (u.PasswordHash IS NULL OR u.PasswordHash = N'''') AND (u.WindowsUserName IS NULL OR NOT EXISTS (SELECT 1 FROM dbo.AppSettings WHERE [Key] = N''WindowsAuthAktiv'' AND LOWER([Value]) = N''true''))'
    Text='Aktive Benutzer ohne Kennwort, die sich ab v1.99.28 nicht mehr anmelden koennen (lokal, bzw. AD bei WindowsAuthAktiv aus): vorher unter /Users/Edit ein Erstkennwort setzen (ab v1.99.28 mit Pflichtwechsel bei der ersten Anmeldung) oder deaktivieren; Liste mit P-1 der Spec 2026-11-14-sicherheit-anmeldung-und-installer.'

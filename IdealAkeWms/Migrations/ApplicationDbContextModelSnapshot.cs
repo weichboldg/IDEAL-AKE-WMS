@@ -2461,6 +2461,9 @@ namespace IdealAkeWms.Migrations
                     b.Property<bool>("EKBedarf")
                         .HasColumnType("bit");
 
+                    b.Property<DateTime>("ErstGesehen")
+                        .HasColumnType("datetime2");
+
                     b.Property<decimal>("Fertigungmenge")
                         .HasColumnType("decimal(18,4)");
 
@@ -2515,6 +2518,16 @@ namespace IdealAkeWms.Migrations
                     b.Property<int?>("VaterFA")
                         .HasColumnType("int");
 
+                    b.Property<string>("VerschwundenGrund")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime?>("VerschwundenSeit")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("ZuletztGesehen")
+                        .HasColumnType("datetime2");
+
                     b.HasKey("Id");
 
                     b.HasIndex("HauptFA")
@@ -2522,6 +2535,10 @@ namespace IdealAkeWms.Migrations
 
                     b.HasIndex("VaterFA")
                         .HasDatabaseName("IX_FaHierarchyNodes_VaterFA");
+
+                    b.HasIndex("HauptFA", "VaterFA", "SubFA", "Position", "Artnr")
+                        .IsUnique()
+                        .HasDatabaseName("UX_FaHierarchyNodes_Schluessel");
 
                     b.ToTable("FaHierarchyNodes", "dbo");
                 });
@@ -2547,6 +2564,9 @@ namespace IdealAkeWms.Migrations
                     b.Property<string>("Dienstleister")
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime>("ErstGesehen")
+                        .HasColumnType("datetime2");
 
                     b.Property<DateTime?>("FE_Termin")
                         .HasColumnType("datetime2");
@@ -2594,10 +2614,24 @@ namespace IdealAkeWms.Migrations
                     b.Property<DateTime?>("Verladetermin_Vsl")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("VerschwundenGrund")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime?>("VerschwundenSeit")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("ZuletztGesehen")
+                        .HasColumnType("datetime2");
+
                     b.HasKey("Id");
 
                     b.HasIndex("HauptFA")
                         .HasDatabaseName("IX_FaHierarchyOrderInfos_HauptFA");
+
+                    b.HasIndex("HauptFA", "ABNr", "Pos")
+                        .IsUnique()
+                        .HasDatabaseName("UX_FaHierarchyOrderInfos_Schluessel");
 
                     b.ToTable("FaHierarchyOrderInfos", "dbo");
                 });
@@ -4000,6 +4034,9 @@ namespace IdealAkeWms.Migrations
                     b.Property<int>("BelPosID")
                         .HasColumnType("int");
 
+                    b.Property<DateTime>("ErstGesehen")
+                        .HasColumnType("datetime2");
+
                     b.Property<decimal?>("IstRuestzeit")
                         .HasColumnType("decimal(18,4)");
 
@@ -4049,6 +4086,16 @@ namespace IdealAkeWms.Migrations
                         .HasColumnType("int");
 
                     b.Property<DateTime>("SyncedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("VerschwundenGrund")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime?>("VerschwundenSeit")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("ZuletztGesehen")
                         .HasColumnType("datetime2");
 
                     b.HasKey("Id");

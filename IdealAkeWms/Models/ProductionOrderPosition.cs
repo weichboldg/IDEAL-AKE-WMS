@@ -10,7 +10,7 @@ namespace IdealAkeWms.Models;
 /// NICHT <see cref="AuditableEntity"/> — Cache, Full-Refresh je Lauf durch den <c>FaHierarchySyncService</c> (Praezedenz
 /// <see cref="FaHierarchyNode"/>); Nachvollziehbarkeit ueber <see cref="SyncedAt"/> + Aktivitaets-Protokoll.
 /// </summary>
-public class ProductionOrderPosition
+public class ProductionOrderPosition : IFaStrukturZeile
 {
     public int Id { get; set; }
 
@@ -57,4 +57,10 @@ public class ProductionOrderPosition
 
     /// <summary>Zeitpunkt des letzten Full-Refresh (Lokalzeit, wie <see cref="FaHierarchyNode.SyncedAt"/>).</summary>
     public DateTime SyncedAt { get; set; }
+
+    // v1.99.37 Lebenslauf (ADR 0032, IFaStrukturZeile): der Abgleich setzt die Werte, SQL/159.
+    public DateTime ErstGesehen { get; set; }
+    public DateTime ZuletztGesehen { get; set; }
+    public DateTime? VerschwundenSeit { get; set; }
+    public string? VerschwundenGrund { get; set; }
 }
