@@ -490,3 +490,15 @@ Quellen-Weiche je Abgleich: [[0019-quellen-weiche-view-sdata-je-abgleich]]. Ordn
 - **Key:** `Sync:FaStrukturAufbewahrungTage` (Kategorie FA-Hierarchie, Int, Default 90, 1–3650).
 - **Konsumenten:** `FaMaterializationSyncService` und `WorkOperationStructureDetectionService` lesen nur `VerschwundenSeit == null`;
   `BdeTeilelisteService` setzt `TeilelisteZeile.Verschwunden` (nicht meldbar, `MeldeZeileAsync` weist ab). Schild `Views/Shared/_FaStrukturBadge.cshtml`.
+
+## Sage-FA-Arbeitsgänge anlegen (v1.99.38, IDEAL, [[2026-11-17-arbeitsgaenge-aus-wms-in-sage-fa-anlegen-spec]])
+
+- **`SageFaArbeitsgaenge`** (Web, `IdealAkeWms/Services/SageFaArbeitsgaenge.cs`): Vorschau je FA × Kürzel (`BuildVorschau`), Statusregeln,
+  Queue-Status (`QueueStatus`, `IstEinreihbar`), Keys und Texte (`UnklarText`, `AusText`, `BearbeiterFehlt`).
+- **`SageFaArbeitsgangService`** (Dienst, Schritt `ProcessSageFaArbeitsgaengeAsync` im `SageBookingWorker` nach BF-CSV, eigener try):
+  hängende „Gesendet“ → Fehler unklar; je FA (höchstens 50 je Takt) Sage lesen über `ISageFaStandLookup`/`SdataFaStandLookup`, dann je AG
+  POST über `SageFaArbeitsgangClient` (`$service/FertigungsauftragService`, ServiceOption 4). Lauf `SyncLogServices.SageFaArbeitsgaenge`
+  „Sage-FA-Arbeitsgänge“, Counts „Angelegt“/„Übersprungen“/„Fehler“, Fehlermail über `ISyncErrorNotifier`.
+- **Keys** (Kategorie „Sage-FA-Arbeitsgänge (IDEAL)“): `SageFaArbeitsgaengeAnlegenAktiv` (Bool, aus), `Sync:SageFaArbeitsgaengeBearbeiter`
+  (leer = nichts senden), `Sync:SageFaArbeitsgaengeMaxWiederholungen` (3, 0–10), `Sync:SageFaArbeitsgaengeWiederholAbstandMinuten` (15, 5–1440);
+  Hänge-Grenze `Sync:SageLagerbuchungStuckMinutes` (geteilt).

@@ -20,8 +20,13 @@ Nummern beim Start geprüft (Worktree `1f0361dd`): Version **1.99.38**, SQL **16
 
 | Spec | Typ | SQL | Version | Status | Commits | Blocker |
 |---|---|---|---|---|---|---|
-| [[2026-11-17-arbeitsgaenge-aus-wms-in-sage-fa-anlegen-spec]] | Epic | 160 | 1.99.38 | InUmsetzung | – | E1b Schreibtest (Freigabe Gerald, Rückfrage 7) |
+| [[2026-11-17-arbeitsgaenge-aus-wms-in-sage-fa-anlegen-spec]] | Epic | 160 | 1.99.38 | InUmsetzung (feature-complete, qa-agent ausstehend) | `825b8f58` `52a44b71` `e5ce82da` | E1b Schreibtest (Freigabe Gerald, Rückfrage 7); Feldnamen P-1..P-4 |
 
 ## Protokoll
 
 - 2026-11-17: Lauf gestartet, Nummern geprüft, Spec auf InUmsetzung.
+- 2026-11-17: E0 Vorschau `825b8f58`; E1a Warteschlange + Dienst-Schritt (Fake-HTTP) `52a44b71`; Version 1.99.38, Hilfe/Changelog, README,
+  TS-159, docs/betrieb, Manifest `e5ce82da`. Build 0 Fehler; Web 3248/1 übersprungen, Service 766 grün. Nichts an Sage geschrieben, kein Schalter
+  an, kein Publish. Brain: Spec-Nachweis, [[2026-11-17-v1-99-38-arbeitsgaenge-in-sage-fa-anlegen]], Fallstrick 49, kein ADR 0033 (Muster Wareneingang).
+- **Nächste Schritte:** qa-agent (Publish Paket 3 nach `<Worktree>\publish\paket3-v1.99.38\`, TS-159 auf IDEAL-DEV mit leerem Bearbeiter);
+  P-1..P-5 per GET am IDEAL-Ziel; danach E1b Schreibtest nur nach Freigabe Gerald.

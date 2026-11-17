@@ -2095,3 +2095,12 @@ Code: `hardware-scanner.js` Block „Scannen ohne Feld“, CSS `.hw-scan-bereit`
   `VaterFA ?? HauptFA` gelesener Knoten bzw. `BelID` gelesener Positionen zählen. Warum: Ein beendeter Sub-FA steht weiter als Knoten in der
   Stückliste seines offenen Vaters (`SubFA`), und eine beendete Haupt-FA kann in FAInfos stehen, obwohl FAListe sie nicht mehr liefert. Zählt
   das als „gelesen“, gilt die fehlende eigene Stückliste als „Position in Sage entfernt“ und wird ohne Sage-Abfrage gelöscht.
+
+## 49. Sage-Schreibpayload ohne belegtes `$template`: Erfolg nur mit Handle, unklar nie automatisch (v1.99.38, [[2026-11-17-arbeitsgaenge-aus-wms-in-sage-fa-anlegen-spec]])
+
+- **Die Feldnamen für `FertigungsauftragService` ServiceOption 4 sind nur aus dem `$schema` von IDEAL Prod abgeleitet** und stehen als
+  Konstanten mit `TODO(P-1..P-4)` in `SageFaArbeitsgangClient`. Vor dem ersten Einschalten per GET `$template`/`$schema` am Ziel prüfen und den
+  Schreibtest an EINEM FA machen. Warum: Ein HTTP 200 allein beweist nicht, dass die Position angelegt wurde, wenn ein Feldname nicht passt.
+- **Darum gilt 2xx nur mit Handle in der Antwort als Erfolg; ohne Handle, bei Timeout oder hängendem „Gesendet“ = „Antwort unklar“** (Text-Präfix
+  `SageFaArbeitsgaenge.UnklarText`), nie automatisch wiederholt. Warum: Sage kann angelegt haben; eine Wiederholung ohne Prüfung legt die AG
+  doppelt an, und das WMS löscht in Sage nichts. Erneut einreihen nur nach Blick in Sage; der Dienst liest den FA vor jedem Senden ohnehin.

@@ -288,3 +288,10 @@ oben ist durch SQL/149 ueberholt (jetzt 45).
   leere Artnr/ABNr/Pos vorher → NULL. Migration `20261117183315_FaStrukturAbgleich`. Der Kommentar „Sync ersetzt die Cache-Zeilen je Lauf (neue
   Ids)“ oben bei `BeschichtungsauftragPosition` gilt seit v1.99.37 nicht mehr – die Ids bleiben stabil, der fehlende FK bleibt trotzdem richtig
   (Zeilen werden aufgeräumt).
+
+## SageFaArbeitsgangAnlagen (v1.99.38, SQL/160, [[2026-11-17-arbeitsgaenge-aus-wms-in-sage-fa-anlegen-spec]])
+
+- Warteschlange „AG in Sage-FA anlegen“, `AuditableEntity`: `BelId` (Sage-FA), `HauptFa`, `Kuerzel` (100), `SageArbeitsgangnummer` (31),
+  `Reihenfolge`, `Status` (`SageFaArbeitsgangStatus` Offen 1, Gesendet 2, Angelegt 3, InSageVorhanden 4, Fehler 5), `Versuche`, `Fehler` (1000),
+  `SageAm`. UNIQUE `UX_SageFaArbeitsgangAnlagen_BelId_Ag`, Index `IX_SageFaArbeitsgangAnlagen_Status`. Einreihen legt neu an oder setzt nur
+  Fehler-Zeilen wieder auf Offen (App-Guard, weil InMemory UNIQUE nicht prüft). Migration `20261117192807_AddSageFaArbeitsgangAnlagen`.

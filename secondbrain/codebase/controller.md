@@ -227,3 +227,10 @@ Beschichtungsauftrag-Muster); Zuweisung an den Einkauf ist Hand-Schritt unter `/
 - **Neue Rolle `schachtler`** „Schachtler (Blechfertigung)“ an den drei Pflichtstellen: `RoleKeys.Schachtler` + `RequireSchachtlerAccessAttribute`
   + `ICurrentUserService.CanSchachtelnAsync`, diese Datei, `Views/Users/RoleOverview.cshtml`. Kein Seed in `Program.cs`, Manifest-Reparatur
   `Pruefung/RolleSchachtler`.
+
+## Arbeitsgänge → Sage (v1.99.38, IDEAL, [[2026-11-17-arbeitsgaenge-aus-wms-in-sage-fa-anlegen-spec]])
+
+- `SageFaArbeitsgaengeController`: class-level `[RequireAdminAccess]`, Gate `ProduktionsauftragHierarchisch` (aus → Redirect mit Hinweis).
+  `Index` (GET, Vorschau, `pruefen=true` liest Sage per SData-GET, höchstens 500 FAs), `Anlegen` (POST, Antiforgery): Schalter
+  `SageFaArbeitsgaengeAnlegenAktiv` + Ziel-Stand (ADR 0026: übergebene Sage-AGs müssen Teilmenge der serverseitigen Vorschau sein) am
+  Schreibort, dann `ISageFaArbeitsgangAnlageRepository.EinreihenAsync`. Kein Sage-Aufruf beim Einreihen. Keine neue Rolle.

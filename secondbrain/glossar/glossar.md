@@ -214,3 +214,8 @@ Kommissionierwagen, Sage-Wareneingangsbeleg (ELL), Rahmenabruf (EBZ), Kreditor/D
 | BF-Auftrag | Bestellung von Blechteilen (Sage-Lagerartikel BG/FT) bei der eigenen Blechfertigung, Nummer `BF` + 8 Ziffern; Tabelle `BfAuftraege`. Nach Freigabe als CSV an WiCAM. v1.99.35 |
 | Schachtler | Rolle `schachtler` „Schachtler (Blechfertigung)“: prüft BF-Aufträge, gibt sie frei (Termine, CSV an WiCAM), meldet fertig, storniert. Schachteln = Teile auf Blechtafeln anordnen. v1.99.35 |
 | WiCAM-Pool | Netzordner, aus dem WiCAM PN Auftragsdateien importiert (`BfCsvPfad`). |
+
+| Begriff | Bedeutung |
+|---|---|
+| AG-Anlage (Sage-FA) | Ein Arbeitsgang (Sage-AG eines Kürzels), den der Dienst als AG-Position im Sage-Fertigungsauftrag anlegt; Tabelle `SageFaArbeitsgangAnlagen`, Schalter `SageFaArbeitsgaengeAnlegenAktiv`. v1.99.38 |
+| in Sage vorhanden (AG-Anlage) | Der Dienst fand die Sage-AG vor dem Senden schon am FA und hat nichts gesendet (`SageFaArbeitsgangStatus.InSageVorhanden` = 4). |

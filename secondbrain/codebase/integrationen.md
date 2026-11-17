@@ -256,3 +256,12 @@ Je freigegebenem BF-Auftrag `<BF-Nummer>.tmp` (Windows-1252 ohne BOM, CRLF, `Exc
 wiederholt. Dienstkonto braucht „Ändern“ (P-7). WiCAM legt daraus den Auftrag an; das WMS löscht in WiCAM nichts (Storno = Hinweis).
 **Layout Platzhalter bis P-1** (Musterdatei aus dem Pool); Testvorlage `IDEALAKEWMSService.Tests/TestData/BfCsv_PlatzhalterBisP1.csv`.
 Artikelfelder an IDEAL per SData-GET (`BlechteileFelderNachlese`, V-B). Kein Schreiben nach Sage.
+
+## Sage – Arbeitsgänge in FAs anlegen (v1.99.38, IDEAL, schreibt, Schalter aus, [[2026-11-17-arbeitsgaenge-aus-wms-in-sage-fa-anlegen-spec]])
+
+POST `{BaseUrl}/sdata/{App}/{Contract}/{Dataset}/$service/FertigungsauftragService`, ServiceOption 4 (AddOrChangePositionArbeitsgang), je AG
+ein Aufruf: FA-Handle = BelID, Position mit `PositionHandle 0`, `RessourceTyp 1`, `RessourceNummer` = Sage-AG, `Menge` = Fertigungsmenge,
+`Bearbeiter`. **Feldnamen aus `$schema` IDEAL Prod abgeleitet, am Ziel nicht belegt (P-1..P-4)** – Konstanten mit TODO in
+`IDEALAKEWMSService/Services/SageFaArbeitsgangClient.cs`. Erfolg nur ohne ErrorText **und** mit Handle in der Antwort; Timeout/ohne Handle =
+unklar (nie automatisch). Vorher Lesen des FA (Status, Menge, vorhandene AG-Positionen). Kein ServiceOption 5 (Einlasten). Das WMS löscht
+in Sage nichts. Schreibtest TS-159.x nur nach Freigabe Gerald.

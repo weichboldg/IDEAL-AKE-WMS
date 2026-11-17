@@ -337,8 +337,8 @@ Outline für `docs/TESTSZENARIEN.md`. Die TS-Nummer wird **beim Dev-Start gegen 
 
 | # | Etappe | Status | Commit |
 |---|---|---|---|
-| E0 | Vorschau ohne Schreiben. Hängt nur an P-5 (Feldnamen/Werte `RessourceTyp` IDEAL) und P-6 (Herkunft der Kürzel), beides lesend und ohne Blocker, weil der Code die Werte konfigurierbar bzw. wie geliefert nimmt. Rückfrage 2/3 hat einen Vorschlag als Default (Haupt + Unter-FA, keine Blätter), Build + Tests grün. | offen | |
-| E1a | Schalter, Client (Kopie Wareneingang), POST-Action mit Lookup, Protokoll, Banner. Unit-Tests mit gemocktem HTTP. **Hängt an P-1 bis P-4 und an den Rückfragen 1, 8, 9, 11, 12.** Ohne Antwort baut der /goal-Lauf um sie herum (Feldwerte als offene TODOs, Schalter aus) oder trägt sie als Blocker ein. | offen | |
+| E0 | Vorschau ohne Schreiben. Hängt nur an P-5 (Feldnamen/Werte `RessourceTyp` IDEAL) und P-6 (Herkunft der Kürzel), beides lesend und ohne Blocker, weil der Code die Werte konfigurierbar bzw. wie geliefert nimmt. Rückfrage 2/3 hat einen Vorschlag als Default (Haupt + Unter-FA, keine Blätter), Build + Tests grün. | erledigt | `825b8f58` |
+| E1a | Schalter, Client (Kopie Wareneingang), POST-Action mit Lookup, Protokoll, Banner. Unit-Tests mit gemocktem HTTP. **Hängt an P-1 bis P-4 und an den Rückfragen 1, 8, 9, 11, 12.** Ohne Antwort baut der /goal-Lauf um sie herum (Feldwerte als offene TODOs, Schalter aus) oder trägt sie als Blocker ein. | erledigt (Fake-HTTP, Feldnamen TODO P-1..P-4) | `52a44b71`, Doku `e5ce82da` |
 | E1b | **Schranke:** Schreibtest an genau EINEM FA am IDEAL-Test, **erst nach Freigabe durch Gerald** (TS-x.3). Kein Teil eines automatischen Laufs. | blockiert (Freigabe Gerald, Rückfrage 7) | |
 
 ## Prüfabfragen (nur lesen: SData GET/`$schema` oder SQL-SELECT, nichts schreiben)
@@ -387,6 +387,50 @@ Ziel ist IDEAL, Dataset laut Ideen-Notiz `IDEAL;1` (Prod) bzw. das Test-Dataset 
 Alle Aussagen in dieser Spec zu Pflichtfeldern, `RessourceTyp`-Werten, Userfeldern und Status-Werten der IDEAL sind bis zu P-1 bis
 P-7 **unverifiziert**.
 
+## Umsetzungsnachweis E0 + E1a (2026-11-17, Dev-Lauf, Status bleibt InUmsetzung)
+
+Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Branch `feature/2026-08-07-ideal-teile-1-5`, Basis `1f0361dd` (v1.99.37).
+Commits: `825b8f58` (E0 Vorschau), `52a44b71` (E1a Warteschlange + Dienst-Schritt), `e5ce82da` (Version 1.99.38, Hilfe/Changelog,
+README, TS-159, docs/betrieb, Nachlauf-Manifest). **Nichts an Sage geschrieben, kein Schalter eingeschaltet, kein Publish/Deploy.**
+
+**Build/Tests (Worktree, `e5ce82da`):**
+- `dotnet build IdealAkeWms.slnx` → 0 Fehler, 27 Warnungen (Bestand).
+- `dotnet test IdealAkeWms.Tests` → Bestanden, 3248 erfolgreich, 1 übersprungen, gesamt 3249.
+- `dotnet test IDEALAKEWMSService.Tests` → Bestanden, 766 erfolgreich, gesamt 766.
+- Neu: `SageFaArbeitsgaengeTests`, `SageFaArbeitsgaengeControllerTests` (6), `SageFaArbeitsgangServiceTests` (15, inkl. Client mit Fake-HTTP
+  und DI/`ISyncLogger` letzter Parameter); angepasst `NachlaufManifestDriftTests` (SQL/160 in der Deploy-Reihenfolge).
+
+**Was gebaut ist:**
+- E0: Seite *Stammdaten → Arbeitsgänge → Sage* (`SageFaArbeitsgaengeController`, nur Admin + `ProduktionsauftragHierarchisch`), je FA
+  (Haupt + Unter, keine Blätter) und Kürzel eine Zeile, doppelte Kürzel einmal, Sage-Stand nur auf Knopf (SData-GET), höchstens 500 FAs.
+- E1a: Tabelle `SageFaArbeitsgangAnlagen` (SQL/160, UNIQUE BelId+Sage-AG), Knopf „FA … anlegen“ je FA nur bei Schalter an und nach
+  „Sage-Stand prüfen“ (anlegbar) bzw. für Fehler-Zeilen; Schreibort prüft Schalter + Ziel-Stand (ADR 0026, Teilmenge der serverseitigen
+  Vorschau). Dienst-Schritt im `SageBookingWorker` (`SageFaArbeitsgangService`): liest den FA in Sage vor jedem Senden (vorhanden →
+  „in Sage vorhanden“, beendet/begonnen/ohne Menge → nicht senden), POST `$service/FertigungsauftragService` ServiceOption 4 je AG,
+  RessourceTyp 1, RessourceNummer = Sage-AG, Menge = Fertigungsmenge, Bearbeiter aus `Sync:SageFaArbeitsgaengeBearbeiter` (leer = nichts
+  senden, Fehler). Protokoll `SageFaArbeitsgaenge` mit „Angelegt“/„Übersprungen“/„Fehler“, Fehlermail. Kein ServiceOption 5.
+- ServiceSettings (Kategorie „Sage-FA-Arbeitsgänge (IDEAL)“): `SageFaArbeitsgaengeAnlegenAktiv` (aus), `Sync:SageFaArbeitsgaengeBearbeiter`
+  (leer), `Sync:SageFaArbeitsgaengeMaxWiederholungen` (3, 0–10), `Sync:SageFaArbeitsgaengeWiederholAbstandMinuten` (15, 5–1440).
+
+**Abweichungen vom Spec-Text (bewusst):**
+1. Ein SData-Aufruf **je AG** statt einer Liste je FA – das Ergebnis ist je AG eindeutig (Status je Zeile).
+2. Sage-Lesen im Dienst über ein kleines Interface `ISageFaStandLookup` (für Tests austauschbar), nutzt `SdataLeseZielLeser`.
+3. Knopf erst nach „Sage-Stand prüfen“ (sonst gibt es keinen „anlegbar“-Status); Fehler-Zeilen sind ohne Prüfung einreihbar.
+4. „Antwort unklar“ (Timeout, 2xx ohne Handle, hängendes „Gesendet“) wird über den Text-Präfix `SageFaArbeitsgaenge.UnklarText` markiert
+   und nie automatisch wiederholt – keine eigene Statusspalte.
+5. Fehlermail je Lauf mit Fehlern (Muster Wareneingang), nicht je Zeile.
+6. Hänge-Grenze nutzt den vorhandenen Key `Sync:SageLagerbuchungStuckMinutes` (kein neuer Key).
+7. Kein ADR 0033: Schreibweg ist das Wareneingang-Muster (Queue, Lookup vor Senden, unklar nie automatisch); die fachlichen Entscheidungen
+   stehen in den Freigabe-Antworten. Dauerwissen als Fallstrick 49.
+
+**Offen (TODO im Code `SageFaArbeitsgangClient`, vor E1b klären):** P-1 Name der Positionsliste/FA-Handle/`PositionHandle 0` und Antwortform
+(Erfolg = Handle in der Antwort), P-2 RessourceTyp 1 am IDEAL-Ziel, P-3 WMS-Kennung im Positions-Userfeld (nicht gebaut), P-4 gültiger
+Bearbeiter (ValidateMitarbeiter), P-5 Feldnamen/Werte beim Lesen (Ist-Menge/Status) am IDEAL-Ziel. E1b bleibt blockiert (Freigabe Gerald).
+
+**Für den qa-agent:** Payload-Feldnamen gegen `$template`/`$schema` lesen (nur GET), Auswerte-Regel „Erfolg nur mit Handle“, ADR-0026-Prüfung
+in `Anlegen`, JavaScript-Kodierung des Bestätigungstexts in der View, TS-159.1–159.16 auf IDEAL-DEV (Bearbeiter leer lassen, dann sendet der
+Dienst nachweislich nichts). TS-159.x nur nach Freigabe Gerald.
+
 ## Deploy (vorläufig, der QA-Lauf bestätigt am echten Diff)
 
 > [!warning] Etappe 1 schreibt echte Daten in Sage.
@@ -407,6 +451,12 @@ P-7 **unverifiziert**.
 | `sage-fa-ag-sdata-zugang` | `<Version>` | Pruefung | IDEAL | Nachher | anzeigen | Prüft per SELECT auf `ServiceSettings`, ob `SData:BaseUrl` gesetzt ist. Bei leer gibt es einen Hinweis „Vorschau zeigt Sage nicht lesbar“, keine Reparatur. |
 | `sage-fa-ag-info` | `<Version>` | Info | IDEAL | Nachher | anzeigen | „Neue Seite Arbeitsgänge → Sage (Admin). Vorschau ohne Schreiben. Die Anlage legt AG-Positionen in Sage an, `GeaendertAm` am FA bleibt unverändert.“ |
 | *(nur bei Tabelle)* `<Nr>_SageFaArbeitsgangAnlagen` | `<Version>` | Schema | IDEAL | Schema | automatisch | Neue Tabelle mit Sende-Status (Rückfrage 8 b/c), Deploy-Reihenfolge nach Nummer |
+
+**Stand nach Dev-Lauf (v1.99.38, `e5ce82da`):** Web **und Service** (Dienst-Warteschlange, Freigabe-Antwort 9). **Migration ja:**
+`SQL/160_AddSageFaArbeitsgangAnlagen.sql` (additiv, eine Tabelle, `MigrationId 20261117192807_AddSageFaArbeitsgangAnlagen`, beide Firmen,
+in `00_FreshInstall.sql` an beiden Stellen). Manifest-Einträge eingetragen: `SQL/160` (Schema), `Pruefung/sage-fa-ag-sdata-zugang`
+(Schalter an, aber Bearbeiter oder `SData:BaseUrl` leer), `v1.99.38-sage-fa-ag-schalter` (Einstellung, bleibt aus),
+`v1.99.38-sage-fa-ag-info` (Info). Kein Daten-Backfill, kein DB-Backup-Sonderfall. Schalter auf keinem System einschalten.
 
 **Publish-Befehle:** wie im Bündel üblich (Web-Publish aus dem Worktree auf das IDEAL-Test-System). Der QA-Lauf trägt die konkreten
 Befehle ein.
