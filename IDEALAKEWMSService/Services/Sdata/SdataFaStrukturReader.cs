@@ -241,7 +241,7 @@ public sealed class SdataFaStrukturReader : ISageFaStrukturReader
         n.Kommissionieren = F(os, "USER_OSKommissionieren");
         n.Arbeitsbereich = F(os, "USER_OSAbteilung"); // offen: Rueckfrage 3, Name allein ist kein Beleg
         n.Arbeitsschritte = F(os, "USER_OSArbeitsschritte");
-        n.Artikeltyp = F(os, "USER_OSArtikeltyp");
+        n.Artikeltyp = F(artikel, "USER_OSArtikeltyp"); // R4 (ADR 0032): fuer alle Knoten vom Artikel, am FA-Kopf leer
         n.Material = F(os, "USER_OSMaterial");
         n.VMBedarf = F(os, "USER_OSVMBedarf");
         n.Beschichtet = SageFaStrukturReader.SageBool(Wert(F(os, "USER_OSBeschichtet"))); // Blatt: keine Quelle (Rueckfrage 4)

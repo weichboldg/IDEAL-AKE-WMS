@@ -647,6 +647,22 @@ public class FaStrukturSdataTests
         (await w.FaStatusLesenAsync(new[] { 5 }))[5].Should().Be(FaSageStatus.Beendet);
     }
 
+    [Theory]
+    [InlineData(5)] // FA-Knoten
+    [InlineData(0)] // Blatt
+    public void FelderSetzen_Artikeltyp_ImmerVomArtikel(int subFa)
+    {
+        // R4 (v1.99.37, ADR 0032): am FA-Kopf ist USER_OSArtikeltyp leer, der Artikel traegt „BG“.
+        var n = new FaHierarchyNode { HauptFA = 1, SubFA = subFa };
+        SdataFaStrukturReader.FelderSetzen(n,
+            new Dictionary<string, string?> { ["USER_OSArtikeltyp"] = null, ["USER_OSMaterial"] = "FA-MAT" },
+            new Dictionary<string, string?> { ["USER_OSArtikeltyp"] = "BG", ["USER_OSMaterial"] = "ART-MAT" },
+            new Dictionary<int, string?>());
+
+        n.Artikeltyp.Should().Be("BG");
+        n.Material.Should().Be(subFa != 0 ? "FA-MAT" : "ART-MAT", "die uebrigen USER_OS-Felder bleiben bei ihrer Quelle");
+    }
+
     [Fact]
     public void Schluessel_FaUeberBelId_BlattUeberPlatzImVater()
     {
