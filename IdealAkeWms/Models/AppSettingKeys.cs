@@ -130,6 +130,14 @@ public static class AppSettingKeys
     public const string EinkaufAktiv = "EinkaufAktiv";
     public const string EinkaufOffeneBedarfe = "EinkaufOffeneBedarfe";
 
+    // v1.99.35 (Spec 2026-11-13-blechfertigung-bf-auftraege-wicam-csv): Gate BF-Auftraege (Default aus, nur exakt "true"), Empfaengergruppe
+    // der Bestell-Mail (leer = Abschicken gesperrt), Status-Etiketten (kommagetrennt) und Arbeitstage bis Schachtel-/FE-Termin. Kein Seed.
+    public const string BlechfertigungAktiv = "BlechfertigungAktiv";
+    public const string BfEmpfaengergruppeId = "BfEmpfaengergruppeId";
+    public const string BfStatuswerte = "BfStatuswerte";
+    public const string BfSchachtelterminArbeitstage = "BfSchachtelterminArbeitstage";
+    public const string BfFeTerminArbeitstage = "BfFeTerminArbeitstage";
+
     /// <summary>Feste Werte von <see cref="EinkaufOffeneBedarfe"/> (geschachtelt: keine eigenen Keys).</summary>
     public static class EinkaufBedarfWerte
     {

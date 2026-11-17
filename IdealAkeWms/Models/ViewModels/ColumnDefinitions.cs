@@ -597,6 +597,30 @@ public static class ColumnDefinitions
     };
 
     /// <summary>
+    /// BfAuftraege/Index.cshtml (v1.99.35, Spec 2026-11-13-blechfertigung-bf-auftraege-wicam-csv): Liste der BF-Auftraege, Server-Spaltenfilter,
+    /// Pagination. Spalten identisch zum inline #column-config JSON der View (Drift-Waechter ViewKeyDriftGuardTests).
+    /// </summary>
+    public static readonly ViewConfig BfAuftraege = new(
+        "BfAuftraege", "BF-Aufträge",
+        SupportsReorder: true, SupportsSortDefault: false)
+    {
+        Columns =
+        [
+            new ColumnDef("nummer",          "Nummer",          Locked: true),
+            new ColumnDef("status",          "Status",          Locked: false),
+            new ColumnDef("csv",             "CSV",             Locked: false),
+            new ColumnDef("besteller",       "Besteller",       Locked: false),
+            new ColumnDef("bestelltam",      "Bestellt am",     Locked: false),
+            new ColumnDef("positionen",      "Positionen",      Locked: false, DefaultWidth: 55),
+            new ColumnDef("freigegebenam",   "Freigegeben am",  Locked: false),
+            new ColumnDef("freigegebenvon",  "Freigegeben von", Locked: false),
+            new ColumnDef("schachteltermin", "Schachteltermin", Locked: false, DefaultWidth: 90),
+            new ColumnDef("fetermin",        "FE-Termin",       Locked: false, DefaultWidth: 90),
+            new ColumnDef("fertigam",        "Fertig am",       Locked: false),
+        ]
+    };
+
+    /// <summary>
     /// Positionstabelle in Beschichtungsauftraege/Details.cshtml (Teil 4): klein, unpaginiert, auf einen Auftrag
     /// vorgefiltert ⇒ Client-Spaltenfilter (ADR-0005-Ausnahme). Dieselben Keys bestimmen die Druckspalten des Auftrags
     /// (PrintVisibleColumns). artnr + matchcode Locked (matchcode traegt im Druck „Maße uneinheitlich").
@@ -825,6 +849,7 @@ public static class ColumnDefinitions
         "BdeTeilmeldungen"  => BdeTeilmeldungen,
         "FaHierarchyStructure"           => FaHierarchyStructure,
         "Beschichtungsauftraege"         => Beschichtungsauftraege,
+        "BfAuftraege"                    => BfAuftraege,
         "PurchaseProposals"              => PurchaseProposals,
         "BeschichtungsauftragPositionen" => BeschichtungsauftragPositionen,
         "OperationConfigs"               => OperationConfigs,

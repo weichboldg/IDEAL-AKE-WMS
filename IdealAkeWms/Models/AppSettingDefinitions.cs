@@ -24,6 +24,11 @@ public static class AppSettingDefinitions
     private const string GFirma = "Firma und Druck";
     private const string GLinks = "Links (Vault, enaio)";
     private const string GEinkauf = "Einkauf";
+    private const string GBlech = "Blechfertigung";
+    private const string Ideal = "IDEAL (AKE bleibt aus)";
+
+    /// <summary>Werte von <see cref="AppSettingKeys.BfStatuswerte"/>: kommagetrennt, je 1–30 Zeichen ohne ; " und Zeilenumbruch (WiCAM-CSV).</summary>
+    public const string BfStatuswerteMuster = @"^([^,;""\r\n]{1,30}(,[^,;""\r\n]{1,30})*)?$";
 
     private static readonly (string, string)[] Wochentage =
     {
@@ -176,6 +181,26 @@ public static class AppSettingDefinitions
             Anzeigename: "Einkauf – offene Bedarfe einrechnen", Verwendung: "Einkauf → Bestellvorschläge (Spalte „offene Bedarfe“) und Artikelinfo (Verfügbarer Bestand)", Standort: Beide,
             Werte: new[] { (AppSettingKeys.EinkaufBedarfWerte.Lagerbestellungen, "Lagerbestellungen"), (AppSettingKeys.EinkaufBedarfWerte.Bedarfsmeldungen, "Bedarfsmeldungen") },
             LeerErlaubt: true, AbhaengigVon: AppSettingKeys.EinkaufAktiv),
+
+        // ---- Blechfertigung (v1.99.35, Spec 2026-11-13-blechfertigung-bf-auftraege-wicam-csv) ----
+        B(AppSettingKeys.BlechfertigungAktiv, "false", GBlech, "Blechfertigung aktiv",
+            "An = Menü „Blechfertigung“ mit BF-Aufträgen (Warenkorb, Liste, Schachtler-Freigabe, Fertigmeldung) für Bestellrollen und schachtler; aus = Menü weg, jede BF-Seite leitet auf die Startseite um (auch für admin).",
+            "Menü Blechfertigung → BF-Aufträge", Ideal, seed: false,
+            warn: "Erst einschalten, wenn Empfängergruppe, Rolle schachtler, Feiertage und (für die CSV) der Dienst eingerichtet sind."),
+        M(AppSettingKeys.BfEmpfaengergruppeId, "", GBlech, "Empfängergruppe BF-Aufträge",
+            "Bestellempfänger-Gruppe, die beim Abschicken eines BF-Auftrags die Mail bekommt (Versand durch den Dienst). Leer = Abschicken gesperrt.",
+            "BF-Auftrag abschicken", Ideal, seed: false, SettingStammdaten.Bestellempfaengergruppe, leerErlaubt: true,
+            abhaengig: AppSettingKeys.BlechfertigungAktiv) with { Warnhinweis = "Sendet Mails an die Mitglieder der Gruppe (über den Dienst, Schalter Sync:BfAuftragEmailEnabled)." },
+        S(AppSettingKeys.BfStatuswerte, "EILT", GBlech, "BF-Aufträge: Status-Werte",
+            "Kommagetrennte Etiketten für die Status-Auswahl im Warenkorb (z. B. EILT); „kein Status“ ist immer wählbar. Je Wert 1–30 Zeichen, ohne ; \" und Zeilenumbruch.",
+            "Warenkorb (Status je Position), WiCAM-Bemerkung", Ideal, seed: false, abhaengig: AppSettingKeys.BlechfertigungAktiv,
+            warn: "Der Wert steht vorne in der WiCAM-Bemerkung (ORDER_REMARK).") with { Muster = (BfStatuswerteMuster, "kommagetrennt, je 1–30 Zeichen ohne ; \" und Zeilenumbruch") },
+        I(AppSettingKeys.BfSchachtelterminArbeitstage, "1", GBlech, "BF-Aufträge: Schachteltermin",
+            "Arbeitstage ab dem Freigabetag bis zum Schachteltermin (WiCAM ORDER_DATE); Wochenenden und Feiertage zählen nicht, der Freigabetag selbst nicht.",
+            "Freigabe der BF-Aufträge", Ideal, seed: false, "Arbeitstage", min: 0, max: 30) with { Warnhinweis = "Wirkt auf die Termine in WiCAM.", AbhaengigVon = AppSettingKeys.BlechfertigungAktiv },
+        I(AppSettingKeys.BfFeTerminArbeitstage, "10", GBlech, "BF-Aufträge: FE-Termin",
+            "Arbeitstage ab dem Freigabetag bis zum FE-Termin (WiCAM ORDER_REMARK_5); mindestens so viele wie für den Schachteltermin (wird beim Speichern geprüft).",
+            "Freigabe der BF-Aufträge", Ideal, seed: false, "Arbeitstage", min: 0, max: 60) with { Warnhinweis = "Wirkt auf die Termine in WiCAM.", AbhaengigVon = AppSettingKeys.BlechfertigungAktiv },
 
         // ---- Leitstand und FA-Vervollständigung ----
         B(AppSettingKeys.LeitstandAktiv, "false", GLeitstand, "Leitstand", "Kommissionier-Freigabe und Priorisierung über den Leitstand; die Freigabe legt die Kommissionieraufträge an. Aus: Auswahlliste – das Öffnen eines FA legt sie an.",

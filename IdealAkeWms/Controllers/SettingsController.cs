@@ -126,6 +126,12 @@ public class SettingsController : Controller
             && string.IsNullOrWhiteSpace(Gilt(AppSettingKeys.BdeDefaultArbeitsgang)))
             fehler.Add("„BDE: Default-Arbeitsgang“ ist Pflicht, solange „BDE: nur FA-Meldung“ an ist.");
 
+        // v1.99.35 (Spec 2026-11-13-blechfertigung-bf-auftraege-wicam-csv): FE-Termin nie vor dem Schachteltermin (fehlende Zeile = Default).
+        int Tage(string key) => int.TryParse(Gilt(key), out var t) ? t
+            : int.Parse(AppSettingDefinitions.All.First(d => d.Key == key).DefaultValue);
+        if (Tage(AppSettingKeys.BfFeTerminArbeitstage) < Tage(AppSettingKeys.BfSchachtelterminArbeitstage))
+            fehler.Add("„BF-Aufträge: FE-Termin“ muss mindestens so viele Arbeitstage haben wie „BF-Aufträge: Schachteltermin“.");
+
         // v1.99.25 (Spec 2026-11-16-beschichtungslogik-je-standort A8, AK 3/19): eine Beschichtungsquelle ohne Datenbasis im aktuellen
         // Auftragsmodell wird abgelehnt (dieselbe Regel, mit der der Leser sie wie „Automatisch“ behandelt). Erst wenn die Einzelwerte gueltig sind.
         if (fehler.Count == 0)

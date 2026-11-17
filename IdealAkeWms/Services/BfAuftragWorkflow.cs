@@ -1,0 +1,275 @@
+using System.Globalization;
+using IdealAkeWms.Data.Repositories;
+using IdealAkeWms.Models;
+using Microsoft.EntityFrameworkCore;
+
+namespace IdealAkeWms.Services;
+
+/// <summary>Ergebnis einer BF-Aktion: ein Text fuer TempData (Success bei <see cref="Ok"/>, sonst Warning), optional die Auftrags-Id.</summary>
+public sealed record BfErgebnis(bool Ok, string Text, int? AuftragId = null);
+
+/// <summary>
+/// Fachliche Regeln der BF-Auftraege (Spec 2026-11-13-blechfertigung-bf-auftraege-wicam-csv). Ein Aufruf je Request (nach einem
+/// gescheiterten Speichern verwirft der Workflow den Change-Tracker). Rollenpruefung macht der Controller per Filter; hier nur
+/// Eigentuemer (Besteller) und Ausgangsstatus (ADR 0026: der Server prueft am Schreibort).
+/// </summary>
+public class BfAuftragWorkflow
+{
+    public const int MaxNummerVersuche = 5;
+    public const string Praefix = "BF";
+    /// <summary>Default von <see cref="AppSettingKeys.BfStatuswerte"/>, wenn die Zeile fehlt.</summary>
+    public const string StatuswerteDefault = "EILT";
+
+    private readonly IBfAuftragRepository _repo;
+    private readonly IAppSettingRepository _settings;
+    private readonly IOrderRecipientRepository _groups;
+    private readonly IStorageLocationRepository _lagerplaetze;
+    private readonly ICurrentUserService _user;
+    private readonly TimeProvider _time;
+    private readonly ILogger<BfAuftragWorkflow> _logger;
+
+    public BfAuftragWorkflow(IBfAuftragRepository repo, IAppSettingRepository settings, IOrderRecipientRepository groups,
+        IStorageLocationRepository lagerplaetze, ICurrentUserService user, TimeProvider time, ILogger<BfAuftragWorkflow> logger)
+    {
+        _repo = repo;
+        _settings = settings;
+        _groups = groups;
+        _lagerplaetze = lagerplaetze;
+        _user = user;
+        _time = time;
+        _logger = logger;
+    }
+
+    private DateTime Jetzt => _time.GetLocalNow().DateTime;
+
+    // ===================== Regeln (statisch, testbar) =====================
+
+    public static string Nummer(int laufend) => $"{Praefix}{laufend:D8}";
+
+    /// <summary>Mengenregel: Menge &gt; 0; ist die Sage-Bestellmenge &gt; 0, nur ganzes Vielfaches. Null = ok.
+    /// Die Bestellmenge ist nur bei gleicher Basis-/Lagermengeneinheit gesetzt (V-B-Leser), sonst frei.</summary>
+    public static string? MengenFehler(decimal menge, decimal? bestellmenge)
+    {
+        if (menge <= 0) return "Menge muss größer als 0 sein.";
+        if (bestellmenge is > 0 && menge % bestellmenge.Value != 0)
+            return $"Menge muss ein ganzes Vielfaches der Bestellmenge {bestellmenge.Value.ToString("0.###", CultureInfo.GetCultureInfo("de-AT"))} sein.";
+        return null;
+    }
+
+    /// <summary>Werte der Einstellung <see cref="AppSettingKeys.BfStatuswerte"/> (Zeile fehlt = <see cref="StatuswerteDefault"/>, leer = keine).</summary>
+    public static List<string> Statuswerte(string? setting) =>
+        (setting ?? StatuswerteDefault).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Distinct().ToList();
+
+    public async Task<List<string>> GetStatuswerteAsync() => Statuswerte(await _settings.GetValueAsync(AppSettingKeys.BfStatuswerte));
+
+    public static bool IstEigentuemer(BfAuftrag a, int? userId) => a.BestellerUserId != null && a.BestellerUserId == userId;
+
+    // ===================== Warenkorb (Besteller, Entwurf) =====================
+
+    public async Task<BfErgebnis> HinzufuegenAsync(string articleNumber, decimal menge, string? status, string? hauptlagerplatz)
+    {
+        var userId = _user.GetCurrentAppUserId();
+        if (userId is null) return new(false, "Kein WMS-Benutzer angemeldet – Bestellen nicht möglich.");
+        var artikel = await _repo.GetArtikelAsync(articleNumber?.Trim() ?? "");
+        if (artikel is null) return new(false, $"Artikel {articleNumber} ist kein bestellbares Blechteil (Lagerartikel BG/FT).");
+        if (MengenFehler(menge, artikel.Bestellmenge) is { } mf) return new(false, $"{artikel.ArticleNumber}: {mf}");
+        var (stOk, st) = await StatusPruefenAsync(status);
+        if (!stOk) return new(false, st!);
+        var (lpOk, lp) = await LagerplatzPruefenAsync(hauptlagerplatz, artikel.Hauptlagerplatz);
+        if (!lpOk) return new(false, lp!);
+
+        var a = await _repo.GetEntwurfAsync(userId.Value);
+        var jetzt = Jetzt;
+        if (a is null)
+        {
+            a = new BfAuftrag { Status = BfAuftragStatus.Entwurf, BestellerUserId = userId, BestellerName = _user.GetDisplayName() };
+            Angelegt(a, jetzt);
+            _repo.Add(a);
+        }
+        var p = new BfAuftragPosition
+        {
+            Position = a.Positionen.Count == 0 ? 1 : a.Positionen.Max(x => x.Position) + 1,
+            ArticleNumber = artikel.ArticleNumber, Matchcode = artikel.Matchcode, Teileart = artikel.Teileart, Material = artikel.Material,
+            Materialnummer = artikel.Materialnummer, FertigungsInfoPN = artikel.FertigungsInfoPN, Hauptlagerplatz = lp,
+            Menge = menge, SageBestellmenge = artikel.Bestellmenge, Status = st,
+        };
+        Angelegt(p, jetzt);
+        a.Positionen.Add(p);
+        if (a.Id != 0) Geaendert(a, jetzt);
+        return await SpeichernAsync("Warenkorb", async () =>
+        {
+            await _repo.SaveChangesAsync();
+            var hinweis = string.IsNullOrWhiteSpace(p.Materialnummer) ? " Hinweis: keine Materialnummer – die Position wird nicht an WiCAM übergeben." : "";
+            return new BfErgebnis(true, $"{p.ArticleNumber} hinzugefügt.{hinweis}", a.Id);
+        });
+    }
+
+    /// <summary>Menge/Status/Lagerplatz einer Position: Besteller im Entwurf (eigener Auftrag), Schachtler im Status Bestellt (ohne Status).</summary>
+    public async Task<BfErgebnis> PositionAendernAsync(int auftragId, int positionId, decimal menge, string? status, string? hauptlagerplatz,
+        bool alsSchachtler, byte[]? rowVersion)
+    {
+        var a = await _repo.GetMitPositionenAsync(auftragId);
+        if (a is null) return new(false, "BF-Auftrag nicht gefunden.");
+        if (PruefeBearbeitung(a, alsSchachtler) is { } f) return new(false, f, a.Id);
+        var p = a.Positionen.FirstOrDefault(x => x.Id == positionId);
+        if (p is null) return new(false, "Position nicht gefunden.", a.Id);
+        if (MengenFehler(menge, p.SageBestellmenge) is { } mf) return new(false, $"Pos {p.Position}: {mf}", a.Id);
+        var (lpOk, lp) = await LagerplatzPruefenAsync(hauptlagerplatz, p.Hauptlagerplatz);
+        if (!lpOk) return new(false, lp!, a.Id);
+        if (!alsSchachtler)
+        {
+            var (stOk, st) = await StatusPruefenAsync(status, p.Status);
+            if (!stOk) return new(false, st!, a.Id);
+            p.Status = st;
+        }
+        p.Menge = menge;
+        p.Hauptlagerplatz = lp;
+        var jetzt = Jetzt;
+        Geaendert(p, jetzt);
+        Geaendert(a, jetzt);
+        return await MitRowVersionAsync(a, rowVersion, $"Pos {p.Position} gespeichert.");
+    }
+
+    public async Task<BfErgebnis> PositionEntfernenAsync(int auftragId, int positionId, byte[]? rowVersion)
+    {
+        var a = await _repo.GetMitPositionenAsync(auftragId);
+        if (a is null) return new(false, "BF-Auftrag nicht gefunden.");
+        if (PruefeBearbeitung(a, alsSchachtler: false) is { } f) return new(false, f, a.Id);
+        var p = a.Positionen.FirstOrDefault(x => x.Id == positionId);
+        if (p is null) return new(false, "Position nicht gefunden.", a.Id);
+        _repo.Remove(p);
+        a.Positionen.Remove(p);
+        Geaendert(a, Jetzt);
+        return await MitRowVersionAsync(a, rowVersion, $"{p.ArticleNumber} entfernt.");
+    }
+
+    /// <summary>F2: Entwurf → Bestellt mit Nummer <c>BF</c> + 8 Ziffern und Empfaengergruppe (leer = gesperrt). Mail schickt der Dienst.</summary>
+    public async Task<BfErgebnis> AbschickenAsync(int auftragId, byte[]? rowVersion)
+    {
+        var a0 = await _repo.GetMitPositionenAsync(auftragId);
+        if (a0 is null) return new(false, "BF-Auftrag nicht gefunden.");
+        if (PruefeBearbeitung(a0, alsSchachtler: false) is { } f) return new(false, f, a0.Id);
+        if (a0.Positionen.Count == 0) return new(false, "Bitte mindestens eine Position hinzufügen.", a0.Id);
+        var groupId = await _settings.GetIntValueAsync(AppSettingKeys.BfEmpfaengergruppeId, 0);
+        if (groupId <= 0 || await _groups.GetGroupByIdAsync(groupId) is null)
+            return new(false, "Abschicken gesperrt: keine gültige Empfängergruppe für BF-Aufträge eingestellt (Einstellungen > Blechfertigung).", a0.Id);
+
+        var (ok, ergebnis) = await Nummernkreis.MitVersuchenAsync(MaxNummerVersuche, () => _repo.InSerializableTransactionAsync(async () =>
+        {
+            // Jeder Versuch liest neu (der vorige hat den Change-Tracker verworfen).
+            var a = await _repo.GetMitPositionenAsync(auftragId)
+                    ?? throw new InvalidOperationException($"BF-Auftrag {auftragId} verschwunden.");
+            if (rowVersion is { Length: > 0 }) _repo.SetOriginalRowVersion(a, rowVersion);
+            if (a.Status != BfAuftragStatus.Entwurf) return new BfErgebnis(false, "Der Auftrag ist schon abgeschickt.", a.Id);
+            var jetzt = Jetzt;
+            a.Nummer = Nummer(await _repo.GetMaxLaufendeNummerAsync() + 1);
+            a.Status = BfAuftragStatus.Bestellt;
+            a.BestelltAm = jetzt;
+            a.BestellerName = _user.GetDisplayName();
+            a.OrderRecipientGroupId = groupId;
+            Geaendert(a, jetzt);
+            await _repo.SaveChangesAsync();
+            return new BfErgebnis(true, $"BF-Auftrag {a.Nummer} abgeschickt ({a.Positionen.Count} Position(en)). Die Mail an die Empfängergruppe sendet der Dienst.", a.Id);
+        }), _repo.VerwerfeAenderungen, _logger, "BF-Auftrag abschicken");
+        return ok ? ergebnis! : new(false, $"Konnte nach {MaxNummerVersuche} Versuchen keine freie BF-Nummer vergeben (gleichzeitiges Abschicken oder Datenbankfehler, Details im Log) – bitte erneut versuchen.", auftragId);
+    }
+
+    // ===================== Schachtler (Status Bestellt) =====================
+
+    /// <summary>Position streichen bzw. wieder aufnehmen (bleibt sichtbar, geht nicht in die CSV).</summary>
+    public async Task<BfErgebnis> StreichenAsync(int auftragId, int positionId, bool gestrichen, byte[]? rowVersion)
+    {
+        var a = await _repo.GetMitPositionenAsync(auftragId);
+        if (a is null) return new(false, "BF-Auftrag nicht gefunden.");
+        if (PruefeBearbeitung(a, alsSchachtler: true) is { } f) return new(false, f, a.Id);
+        var p = a.Positionen.FirstOrDefault(x => x.Id == positionId);
+        if (p is null) return new(false, "Position nicht gefunden.", a.Id);
+        p.Gestrichen = gestrichen;
+        var jetzt = Jetzt;
+        Geaendert(p, jetzt);
+        Geaendert(a, jetzt);
+        return await MitRowVersionAsync(a, rowVersion, $"Pos {p.Position} {(gestrichen ? "gestrichen" : "wieder aufgenommen")}.");
+    }
+
+    // ===================== Hilfen =====================
+
+    /// <summary>Besteller: nur eigener Entwurf. Schachtler: nur Status Bestellt (Pruefphase).</summary>
+    private string? PruefeBearbeitung(BfAuftrag a, bool alsSchachtler)
+    {
+        if (alsSchachtler)
+            return a.Status == BfAuftragStatus.Bestellt ? null : $"{Name(a)} ist {StatusText(a.Status)} – nur bestellte Aufträge sind änderbar.";
+        if (!IstEigentuemer(a, _user.GetCurrentAppUserId())) return "Nur der Besteller kann seinen Warenkorb ändern.";
+        return a.Status == BfAuftragStatus.Entwurf ? null : $"{Name(a)} ist schon abgeschickt.";
+    }
+
+    private async Task<(bool Ok, string? WertOderFehler)> StatusPruefenAsync(string? status, string? bisher = null)
+    {
+        if (string.IsNullOrWhiteSpace(status)) return (true, null);
+        var s = status.Trim();
+        if ((await GetStatuswerteAsync()).Contains(s) || s == bisher) return (true, s);
+        return (false, $"Status „{s}“ ist nicht in den Einstellungen (BF-Aufträge: Status-Werte).");
+    }
+
+    /// <summary>Leer = Vorbelegung behalten; sonst ein aktiver Lagerplatz oder der bisherige/Sage-Wert.</summary>
+    private async Task<(bool Ok, string? WertOderFehler)> LagerplatzPruefenAsync(string? eingabe, string? bisher)
+    {
+        if (string.IsNullOrWhiteSpace(eingabe)) return (true, bisher);
+        var lp = eingabe.Trim();
+        if (string.Equals(lp, bisher, StringComparison.OrdinalIgnoreCase)) return (true, bisher);
+        var platz = await _lagerplaetze.GetByCodeAsync(lp);
+        return platz is { IsActive: true } ? (true, platz.Code) : (false, $"Lagerplatz „{lp}“ ist kein aktiver Lagerplatz.");
+    }
+
+    private async Task<BfErgebnis> MitRowVersionAsync(BfAuftrag a, byte[]? rowVersion, string text) =>
+        await SpeichernAsync(Name(a), async () =>
+        {
+            if (rowVersion is { Length: > 0 }) _repo.SetOriginalRowVersion(a, rowVersion);
+            await _repo.SaveChangesAsync();
+            return new BfErgebnis(true, text, a.Id);
+        });
+
+    private async Task<BfErgebnis> SpeichernAsync(string was, Func<Task<BfErgebnis>> op)
+    {
+        try
+        {
+            return await op();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            _repo.VerwerfeAenderungen();
+            return new(false, $"{was} wurde inzwischen von jemand anderem geändert – bitte neu laden und erneut versuchen.");
+        }
+        catch (DbUpdateException ex)
+        {
+            _repo.VerwerfeAenderungen();
+            _logger.LogError(ex, "BF-Auftrag {Was}: Speichern fehlgeschlagen.", was);
+            return new(false, $"{was} konnte nicht gespeichert werden (Datenbankfehler, Details im Log) – bitte erneut versuchen.");
+        }
+    }
+
+    public static string Name(BfAuftrag a) => a.Nummer ?? "Warenkorb";
+
+    public static string StatusText(BfAuftragStatus s) => s switch
+    {
+        BfAuftragStatus.Entwurf => "Warenkorb",
+        BfAuftragStatus.Bestellt => "bestellt",
+        BfAuftragStatus.Freigegeben => "freigegeben",
+        BfAuftragStatus.Fertig => "fertig",
+        BfAuftragStatus.Storniert => "storniert",
+        _ => s.ToString(),
+    };
+
+    private void Angelegt(AuditableEntity e, DateTime jetzt)
+    {
+        e.CreatedAt = jetzt;
+        e.CreatedBy = _user.GetDisplayName();
+        e.CreatedByWindows = _user.GetWindowsUserName();
+    }
+
+    private void Geaendert(AuditableEntity e, DateTime jetzt)
+    {
+        e.ModifiedAt = jetzt;
+        e.ModifiedBy = _user.GetDisplayName();
+        e.ModifiedByWindows = _user.GetWindowsUserName();
+    }
+}

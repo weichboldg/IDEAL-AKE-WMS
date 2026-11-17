@@ -78,6 +78,8 @@ public class ApplicationDbContext : DbContext
     public DbSet<PickingOrder> PickingOrders => Set<PickingOrder>();
     public DbSet<PickingOrderLine> PickingOrderLines => Set<PickingOrderLine>();
     public DbSet<BeschichtungsauftragPosition> BeschichtungsauftragPositionen => Set<BeschichtungsauftragPosition>();
+    public DbSet<BfAuftrag> BfAuftraege => Set<BfAuftrag>(); // v1.99.35 Blechfertigung
+    public DbSet<BfAuftragPosition> BfAuftragPositionen => Set<BfAuftragPosition>();
     public DbSet<SyncLog> SyncLogs => Set<SyncLog>();
     public DbSet<DeployScriptRun> DeployScriptRuns => Set<DeployScriptRun>();
     public DbSet<WorkStep> WorkSteps => Set<WorkStep>();
@@ -1792,6 +1794,69 @@ public class ApplicationDbContext : DbContext
             entity.HasOne(e => e.Beschichtungsauftrag)
                 .WithMany(a => a.Positionen)
                 .HasForeignKey(e => e.BeschichtungsauftragId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // v1.99.35 BF-Auftrag (Spec 2026-11-13-blechfertigung-bf-auftraege-wicam-csv): Warenkorb → Freigabe → WiCAM-CSV.
+        modelBuilder.Entity<BfAuftrag>(entity =>
+        {
+            entity.ToTable("BfAuftraege");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Nummer).HasMaxLength(BfAuftrag.NummerLaenge);
+            entity.Property(e => e.Status).HasConversion<int>();
+            entity.Property(e => e.CsvStatus).HasConversion<int>();
+            entity.Property(e => e.BestellerName).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.FreigegebenVon).HasMaxLength(200);
+            entity.Property(e => e.Schachteltermin).HasColumnType("date");
+            entity.Property(e => e.FeTermin).HasColumnType("date");
+            entity.Property(e => e.CsvFehler).HasMaxLength(1000);
+            entity.Property(e => e.CsvDatei).HasMaxLength(400);
+            entity.Property(e => e.FertigVon).HasMaxLength(200);
+            entity.Property(e => e.StorniertVon).HasMaxLength(200);
+            entity.Property(e => e.StornoGrund).HasMaxLength(500);
+            entity.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.ModifiedBy).HasMaxLength(200);
+            entity.Property(e => e.ModifiedByWindows).HasMaxLength(200);
+            entity.Property(e => e.RowVersion).IsRowVersion();
+
+            // Nummernkreis: der gefilterte UNIQUE-Index entscheidet bei gleichzeitigem Abschicken (Entwurf ohne Nummer).
+            entity.HasIndex(e => e.Nummer).IsUnique().HasFilter("[Nummer] IS NOT NULL").HasDatabaseName("UX_BfAuftraege_Nummer");
+            entity.HasIndex(e => e.Status).HasDatabaseName("IX_BfAuftraege_Status");
+            entity.HasIndex(e => e.CsvStatus).HasDatabaseName("IX_BfAuftraege_CsvStatus");
+
+            entity.HasOne(e => e.OrderRecipientGroup)
+                .WithMany()
+                .HasForeignKey(e => e.OrderRecipientGroupId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<BfAuftragPosition>(entity =>
+        {
+            entity.ToTable("BfAuftragPositionen");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.ArticleNumber).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.Matchcode).HasMaxLength(200);
+            entity.Property(e => e.Teileart).HasMaxLength(50);
+            entity.Property(e => e.Material).HasMaxLength(200);
+            entity.Property(e => e.Materialnummer).HasMaxLength(50);
+            entity.Property(e => e.FertigungsInfoPN).HasMaxLength(200);
+            entity.Property(e => e.Hauptlagerplatz).HasMaxLength(100);
+            entity.Property(e => e.Menge).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.SageBestellmenge).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.Status).HasMaxLength(50);
+            entity.Property(e => e.Bemerkung).HasMaxLength(400);
+            entity.Property(e => e.SageFa).HasMaxLength(50);
+            entity.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.ModifiedBy).HasMaxLength(200);
+            entity.Property(e => e.ModifiedByWindows).HasMaxLength(200);
+
+            entity.HasIndex(e => new { e.BfAuftragId, e.Position }).IsUnique().HasDatabaseName("UX_BfAuftragPositionen_Auftrag_Position");
+
+            entity.HasOne(e => e.BfAuftrag)
+                .WithMany(a => a.Positionen)
+                .HasForeignKey(e => e.BfAuftragId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 

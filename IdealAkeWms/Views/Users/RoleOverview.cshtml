@@ -230,6 +230,19 @@
                 </td>
             </tr>
             <tr>
+                <td><code>schachtler</code></td>
+                <td>Schachtler (Blechfertigung)</td>
+                <td>v1.99.35: Hauptmenü „Blechfertigung“ – sieht alle BF-Aufträge, bearbeitet bestellte Aufträge, gibt sie frei, meldet sie fertig und storniert bis Fertig.</td>
+                <td>
+                    <ul class="mb-0 small">
+                        <li>Blechfertigung → BF-Aufträge (<code>/BfAuftraege</code>, Filter <code>RequireBfBestellenAccess</code>: Lager-Bestellrecht <em>oder</em> schachtler) – Besteller sehen nur eigene Aufträge</li>
+                        <li>Menge/Lagerplatz ändern, Position streichen, Freigabe, CSV erneut schreiben, Fertig melden, Storno (Action-Filter <code>RequireSchachtlerAccess</code>, admin eingeschlossen)</li>
+                        <li>Sichtbar nur wenn AppSetting <code>BlechfertigungAktiv</code> aktiv ist (Filter <code>RequireBlechfertigungAktiv</code>, Default aus – auch für admin)</li>
+                        <li>Anlage der Rolle über das Update-Skript (Prüfung <code>Pruefung/RolleSchachtler</code>), Zuweisen unter /Roles</li>
+                    </ul>
+                </td>
+            </tr>
+            <tr>
                 <td><code>bde_user</code></td>
                 <td>BDE-Benutzer</td>
                 <td>Terminal-Buchung.</td>

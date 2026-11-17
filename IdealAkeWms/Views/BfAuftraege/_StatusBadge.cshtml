@@ -1,0 +1,14 @@
+@model IdealAkeWms.Models.BfAuftragStatus
+@using IdealAkeWms.Models
+@* Status immer als Text im Badge (Farbe nie alleiniger Bedeutungstraeger). Weiss auf Bootstrap-Grundfarben >= 4,5:1. *@
+@{
+    var klasse = Model switch
+    {
+        BfAuftragStatus.Entwurf => "bg-secondary",
+        BfAuftragStatus.Bestellt => "bg-primary",
+        BfAuftragStatus.Freigegeben => "bg-info text-dark",
+        BfAuftragStatus.Fertig => "bg-success",
+        _ => "bg-dark",
+    };
+}
+<span class="badge @klasse">@IdealAkeWms.Models.ViewModels.BfAuftragListRow.StatusText(Model)</span>

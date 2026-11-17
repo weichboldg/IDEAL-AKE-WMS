@@ -108,6 +108,8 @@ Eintraege = @(
    Datei='156_AddSagePurchaseOrderLineAbNummerKommission.sql'; MigrationId='20261117102804_AddSagePurchaseOrderLineAbNummerKommission'; Voraussetzung='additiv, zwei Spalten NULL (Werte fuellt der naechste Abgleich Offene Bestellungen)'; Quelle='2026-11-17-v1-99-33-wareneingang-sammellieferschein-bestellkopf' }
 @{ Id='SQL/157'; Version='1.99.34'; Typ='Schema'; Firma='beide'; Phase='Schema'; Ausfuehrung='automatisch'; Braucht=@('SQL/94')
    Datei='157_AddBeschichtungsauftragPositionText.sql'; MigrationId='20261117141308_AddBeschichtungsauftragPositionText'; Voraussetzung='additiv, Spalte nvarchar(50) NULL, kein Backfill'; Quelle='2026-11-17-v1-99-34-beschichtung-ake-stueckliste' }
+@{ Id='SQL/158'; Version='1.99.35'; Typ='Schema'; Firma='beide'; Phase='Schema'; Ausfuehrung='automatisch'
+   Datei='158_AddBfAuftraege.sql'; MigrationId='20261117154645_AddBfAuftraege'; Voraussetzung='additiv, zwei neue Tabellen BfAuftraege und BfAuftragPositionen (Blechfertigung), kein Backfill'; Quelle='2026-11-17-v1-99-35-blechfertigung-bf-auftraege' }
 
 # ---------------------------------------------------------------- Pruefungen (jeder Lauf; Reparatur nur nach Bestaetigung) -------
 # v1.99.28 (ADR 0027): admin zaehlt nicht - der Web-Start stellt admin ohne Kennwort auf das Standard-Erstkennwort mit Pflichtwechsel um.
@@ -204,6 +206,26 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
    Pruefung='SELECT COUNT(*) FROM dbo.BeschichtungsauftragPositionen p WHERE p.PositionText IS NULL AND COALESCE((SELECT LOWER(LTRIM(RTRIM([Value]))) FROM dbo.ServiceSettings WHERE [Key]=N''ProduktionsauftragHierarchisch''), N''false'') <> N''true'''
    Text='Beschichtungsauftrag-Positionen ohne Positionstext an einem System mit flachem Auftragsmodell: die Vorschlagsliste erkennt sie nicht als vergeben. Positionen pruefen (nur moeglich, wenn vor v1.99.34 Auftraege ohne FA-Struktur angelegt wurden).'
    Quelle='2026-11-17-v1-99-34-beschichtung-ake-stueckliste' }
+@{ Id='Pruefung/RolleSchachtler'; Version='1.99.35'; Typ='Pruefung'; Firma='beide'; Phase='Haltepunkt'; Ausfuehrung='Reparatur'
+   Pruefung='SELECT COUNT(*) FROM (VALUES (N''schachtler'')) v(k) WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k)'
+   Reparatur='INSERT INTO dbo.Roles ([Key], [Name], [Description], [IsSystem], [SortOrder], [CreatedAt], [CreatedBy], [CreatedByWindows])
+SELECT v.k, v.n, v.d, 1, (SELECT ISNULL(MAX(SortOrder), 0) FROM dbo.Roles) + v.o, SYSDATETIME(), N''Update-Skript'', LEFT(SUSER_SNAME(), 200)
+FROM (VALUES (N''schachtler'', N''Schachtler (Blechfertigung)'', N''Blechfertigung - alle BF-Auftraege sehen, bearbeiten, freigeben, fertig melden, stornieren.'', 1)) v(k, n, d, o)
+WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
+   Text='Rolle schachtler fehlt (kein Seed). Zuweisen an die Schachtler bleibt Hand-Schritt unter /Roles.'
+   Quelle='2026-11-17-v1-99-35-blechfertigung-bf-auftraege' }
+@{ Id='Pruefung/BfEmpfaengergruppe'; Version='1.99.35'; Typ='Pruefung'; Firma='IDEAL'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Pruefung='SELECT CASE WHEN EXISTS (SELECT 1 FROM dbo.AppSettings WHERE [Key] = N''BlechfertigungAktiv'' AND LOWER([Value]) = N''true'') AND NOT EXISTS (SELECT 1 FROM dbo.AppSettings WHERE [Key] = N''BfEmpfaengergruppeId'' AND LEN(LTRIM(RTRIM(ISNULL([Value], N'''')))) > 0) THEN 1 ELSE 0 END'
+   Text='Blechfertigung an, aber keine Empfaengergruppe: Abschicken gesperrt. Gruppe mit bestellung.lagerteile@ideal-ake.at anlegen und unter /Settings > Blechfertigung waehlen.'
+   Quelle='2026-11-17-v1-99-35-blechfertigung-bf-auftraege' }
+@{ Id='Pruefung/BfCsvPfad'; Version='1.99.35'; Typ='Pruefung'; Firma='IDEAL'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Pruefung='SELECT CASE WHEN EXISTS (SELECT 1 FROM dbo.ServiceSettings WHERE [Key] = N''BfCsvAktiv'' AND LOWER(LTRIM(RTRIM([Value]))) = N''true'') AND NOT EXISTS (SELECT 1 FROM dbo.ServiceSettings WHERE [Key] = N''BfCsvPfad'' AND LEN(LTRIM(RTRIM([Value]))) > 0) THEN 1 ELSE 0 END'
+   Text='BfCsvAktiv an, aber BfCsvPfad leer: es wird keine CSV geschrieben.'
+   Quelle='2026-11-17-v1-99-35-blechfertigung-bf-auftraege' }
+@{ Id='Pruefung/FeiertageIdeal'; Version='1.99.35'; Typ='Pruefung'; Firma='IDEAL'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Pruefung='SELECT CASE WHEN EXISTS (SELECT 1 FROM dbo.Holidays WHERE [Date] >= CAST(GETDATE() AS date)) THEN 0 ELSE 1 END'
+   Text='Keine kuenftigen Feiertage: Schachtel- und FE-Termine der BF-Auftraege ignorieren Feiertage und Betriebsurlaub. Stammdaten > Feiertage pflegen (Excel-Blatt Feiertage_Tab4).'
+   Quelle='2026-11-17-v1-99-35-blechfertigung-bf-auftraege' }
 @{ Id='Pruefung/LackierteilErkennungImportHook'; Version='1.99.25'; Typ='Pruefung'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
    Pruefung='SELECT CASE WHEN COALESCE((SELECT LOWER(LTRIM(RTRIM([Value]))) FROM dbo.ServiceSettings WHERE [Key]=N''ProduktionsauftragHierarchisch''), N''false'') <> N''true'' AND COALESCE((SELECT LOWER(LTRIM(RTRIM([Value]))) FROM dbo.ServiceSettings WHERE [Key]=N''Sync:BomCacheEnabled''), N''false'') = N''true'' AND COALESCE((SELECT LOWER(LTRIM(RTRIM([Value]))) FROM dbo.ServiceSettings WHERE [Key]=N''Sync:CoatingDetectionEnabled''), N''false'') <> N''true'' THEN 1 ELSE 0 END'
    Text='Seit v1.99.25 setzt der Sage-Import das Lack-Kennzeichen neuer Auftraege nur mit Sync:CoatingDetectionEnabled. Hier ist BomCache an, Lackierteil-Erkennung aus: neue Auftraege bekommen KEIN Lack-Kennzeichen mehr. Unter /ServiceSettings einschalten, falls Lackierteile erkannt werden sollen.'
@@ -261,6 +283,9 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
    Quelle='2026-11-13-v1-99-14-sdata-teil-2-userfelder-stueckliste' }
 
 # ---------------------------------------------------------------- Vorher (Anzeige vor jeder Aenderung) -------------------------
+@{ Id='v1.99.35-BfPoolRecht'; Version='1.99.35'; Typ='Info'; Firma='IDEAL'; Phase='Vorher'; Ausfuehrung='anzeigen'
+   Text='Dienstkonto braucht Schreib- und Aenderungsrecht auf den WiCAM-Pool \\idealcam.ideal.ideal-ake.at\fertigung\u\pn\apools\ (P-7 der Spec 2026-11-13-blechfertigung-bf-auftraege-wicam-csv).'
+   Quelle='2026-11-17-v1-99-35-blechfertigung-bf-auftraege' }
 @{ Id='v0-Backup'; Version='0.0.0'; Typ='Info'; Firma='beide'; Phase='Vorher'; Ausfuehrung='anzeigen'
    Text='DB-Backup vor dem Deploy (Pflicht bei 90, 95, 109/110, 133/Altbestand, ADR 0004); das Skript bietet es in Schritt 2 an.'; Quelle='ADR 0004' }
 @{ Id='v1.99.0-PB1'; Version='1.99.0'; Typ='Info'; Firma='beide'; Phase='Vorher'; Ausfuehrung='anzeigen'
@@ -467,5 +492,14 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
 @{ Id='v1.99.34-Beschichtungsauftrag-AKE'; Version='1.99.34'; Typ='Einstellung'; Firma='AKE'; Phase='Nachher'; Ausfuehrung='anzeigen'
    Text='Optional: Beschichtungsauftrag aktiv (FaHierarchyBeschichtungAktiv) unter /Settings einschalten; dann erscheinen Vorschlagsliste (Lackierteile der WA-Stueckliste) und Auftraege im Menue Beschichtung. Rollen beschichtungsauftrag / beschichtungsauftrag_schreiben zuweisen (Anlage: Pruefung/RollenBeschichtungsauftrag). Dienstleister/RAL/Retour werden am Auftrag von Hand gepflegt.'
    Quelle='2026-11-17-v1-99-34-beschichtung-ake-stueckliste' }
+@{ Id='v1.99.35-BlechfertigungAktiv'; Version='1.99.35'; Typ='Einstellung'; Firma='IDEAL'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Text='Erst nach Einrichtung (Empfaengergruppe, Rolle schachtler, Pool-Pfad, Feiertage): /Settings > Blechfertigung > Blechfertigung aktiv = true. AKE bleibt aus.'
+   Quelle='2026-11-17-v1-99-35-blechfertigung-bf-auftraege' }
+@{ Id='v1.99.35-BfCsv'; Version='1.99.35'; Typ='Einstellung'; Firma='IDEAL'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Text='/ServiceSettings > Blechfertigung WiCAM: BfCsvPfad = \\idealcam.ideal.ideal-ake.at\fertigung\u\pn\apools\, BfCsvAktiv = true, Sync:BfAuftragEmailEnabled = true. Das CSV-Layout ist ein Platzhalter bis P-1 (Musterdatei aus WiCAM) - vor dem Einschalten mit der Musterdatei abgleichen.'
+   Quelle='2026-11-17-v1-99-35-blechfertigung-bf-auftraege' }
+@{ Id='v1.99.35-BlechteileFelder'; Version='1.99.35'; Typ='Einstellung'; Firma='IDEAL'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Text='/ServiceSettings: Sync:BlechteileFelderNachlesen = true (SData-Zugang IDEAL vorhanden); nach dem naechsten Artikel-Abgleich Merkmale IstLagerartikel pruefen.'
+   Quelle='2026-11-17-v1-99-35-blechfertigung-bf-auftraege' }
 )
 }

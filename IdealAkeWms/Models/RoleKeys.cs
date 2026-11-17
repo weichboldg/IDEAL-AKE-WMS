@@ -27,4 +27,7 @@ public static class RoleKeys
 
     /// <summary>v1.99.20 (Spec 2026-11-08-einkauf-bestellvorschlaege): Einkauf – Bestellvorschlaege (eine Rolle fuer Liste und spaeter Uebergabe).</summary>
     public const string Einkauf = "einkauf";
+    /// <summary>v1.99.35 (Spec 2026-11-13-blechfertigung-bf-auftraege-wicam-csv): Schachtler (Blechfertigung) – BF-Auftraege pruefen, freigeben
+    /// (= an WiCAM uebergeben), fertig melden, stornieren. Bestellen darf er auch.</summary>
+    public const string Schachtler = "schachtler";
 }

@@ -1,5 +1,6 @@
 using IDEALAKEWMSService.Common;
 using IDEALAKEWMSService.Services;
+using IdealAkeWms.Services;
 
 namespace IDEALAKEWMSService.Workers;
 
@@ -182,6 +183,20 @@ public class SyncWorker : BackgroundService
                     {
                         _logger.LogError(ex, "Fehler beim Versand der Lagerbestellungs-E-Mails.");
                         await NotifyErrorAsync("Lagerbestellungs-E-Mail-Versand", ex, stoppingToken);
+                    }
+                }
+                // --- BF-Auftraege (Blechfertigung) E-Mail-Versand (v1.99.35) ---
+                if (await ServiceSettings.GetBoolSafeAsync(_configuration, BfCsv.EmailEnabledKey, false, stoppingToken))
+                {
+                    try
+                    {
+                        var sent = await scope.ServiceProvider.GetRequiredService<BfAuftragEmailService>().SendPendingEmailsAsync(dryRun, stoppingToken);
+                        if (sent > 0) _logger.LogInformation("BF-Auftraege: {Count} Mail(s) versendet.", sent);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Fehler beim Versand der BF-Auftrags-Mails.");
+                        await NotifyErrorAsync("BF-Auftrags-Mail-Versand", ex, stoppingToken);
                     }
                 }
                 // ---------------------------------------------------------------

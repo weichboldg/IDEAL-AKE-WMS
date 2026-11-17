@@ -1477,6 +1477,231 @@ namespace IdealAkeWms.Migrations
                     b.ToTable("BeschichtungsauftragPositionen", "dbo");
                 });
 
+            modelBuilder.Entity("IdealAkeWms.Models.BfAuftrag", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("BestellerName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int?>("BestellerUserId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("BestelltAm")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("CreatedByWindows")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("CsvDatei")
+                        .HasMaxLength(400)
+                        .HasColumnType("nvarchar(400)");
+
+                    b.Property<string>("CsvFehler")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTime?>("CsvGeschriebenAm")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("CsvStatus")
+                        .HasColumnType("int");
+
+                    b.Property<int>("CsvVersuche")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("EmailSentAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("FeTermin")
+                        .HasColumnType("date");
+
+                    b.Property<DateTime?>("FertigAm")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("FertigVon")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime?>("FreigegebenAm")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("FreigegebenVon")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ModifiedByWindows")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Nummer")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<int?>("OrderRecipientGroupId")
+                        .HasColumnType("int");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<DateTime?>("Schachteltermin")
+                        .HasColumnType("date");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("StorniertAm")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("StorniertVon")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("StornoGrund")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CsvStatus")
+                        .HasDatabaseName("IX_BfAuftraege_CsvStatus");
+
+                    b.HasIndex("Nummer")
+                        .IsUnique()
+                        .HasDatabaseName("UX_BfAuftraege_Nummer")
+                        .HasFilter("[Nummer] IS NOT NULL");
+
+                    b.HasIndex("OrderRecipientGroupId");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("IX_BfAuftraege_Status");
+
+                    b.ToTable("BfAuftraege", "dbo");
+                });
+
+            modelBuilder.Entity("IdealAkeWms.Models.BfAuftragPosition", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ArticleNumber")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Bemerkung")
+                        .HasMaxLength(400)
+                        .HasColumnType("nvarchar(400)");
+
+                    b.Property<int>("BfAuftragId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("CreatedByWindows")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("FertigungsInfoPN")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<bool>("Gestrichen")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Hauptlagerplatz")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Matchcode")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Material")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Materialnummer")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<decimal>("Menge")
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ModifiedByWindows")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("int");
+
+                    b.Property<decimal?>("SageBestellmenge")
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<string>("SageFa")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Status")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Teileart")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BfAuftragId", "Position")
+                        .IsUnique()
+                        .HasDatabaseName("UX_BfAuftragPositionen_Auftrag_Position");
+
+                    b.ToTable("BfAuftragPositionen", "dbo");
+                });
+
             modelBuilder.Entity("IdealAkeWms.Models.CachedBomHeader", b =>
                 {
                     b.Property<int>("Id")
@@ -6052,6 +6277,27 @@ namespace IdealAkeWms.Migrations
                     b.Navigation("Beschichtungsauftrag");
                 });
 
+            modelBuilder.Entity("IdealAkeWms.Models.BfAuftrag", b =>
+                {
+                    b.HasOne("IdealAkeWms.Models.OrderRecipientGroup", "OrderRecipientGroup")
+                        .WithMany()
+                        .HasForeignKey("OrderRecipientGroupId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("OrderRecipientGroup");
+                });
+
+            modelBuilder.Entity("IdealAkeWms.Models.BfAuftragPosition", b =>
+                {
+                    b.HasOne("IdealAkeWms.Models.BfAuftrag", "BfAuftrag")
+                        .WithMany("Positionen")
+                        .HasForeignKey("BfAuftragId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("BfAuftrag");
+                });
+
             modelBuilder.Entity("IdealAkeWms.Models.CachedBomItem", b =>
                 {
                     b.HasOne("IdealAkeWms.Models.CachedBomHeader", "CachedBomHeader")
@@ -6613,6 +6859,11 @@ namespace IdealAkeWms.Migrations
                 {
                     b.Navigation("Folgeauftraege");
 
+                    b.Navigation("Positionen");
+                });
+
+            modelBuilder.Entity("IdealAkeWms.Models.BfAuftrag", b =>
+                {
                     b.Navigation("Positionen");
                 });
 

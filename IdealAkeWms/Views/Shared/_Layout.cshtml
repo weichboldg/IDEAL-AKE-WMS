@@ -85,6 +85,9 @@
                             // v1.99.20 Einkauf – Bestellvorschlaege: Gate EinkaufAktiv (nur exakt "true") UND Rolle einkauf/admin.
                             var showEinkauf = string.Equals(await AppSettings.GetValueAsync(IdealAkeWms.Models.AppSettingKeys.EinkaufAktiv), "true", StringComparison.OrdinalIgnoreCase)
                                 && await CurrentUserService.CanAccessEinkaufAsync();
+                            // v1.99.35 Blechfertigung (BF-Auftraege): Gate BlechfertigungAktiv (nur exakt "true") UND Bestellrolle oder schachtler.
+                            var showBlechfertigung = string.Equals(await AppSettings.GetValueAsync(IdealAkeWms.Models.AppSettingKeys.BlechfertigungAktiv), "true", StringComparison.OrdinalIgnoreCase)
+                                && await CurrentUserService.CanBfBestellenAsync();
                             var showFaList = canPick || canViewTracking || canManagePickingRelease || hasVorbauAccess;
                             // IDEAL Teil 2: FA-Struktur (read-only Baumanzeige). KEIN eigenes
                             // Feature-Toggle — gegatet exakt ueber den Class-Level-Zugriff des
@@ -284,6 +287,18 @@
                                     @* v1.99.31: nur lesend, Gate nur EinkaufAktiv (wie das Dropdown) *@
                                     <li><a class="dropdown-item" asp-controller="EinkaufPurchaseOrders" asp-action="Index">Offene Bestellungen</a></li>
                                     <li><a class="dropdown-item" asp-controller="EinkaufPurchaseOrders" asp-action="SageWareneingaenge">Sage-Wareneingänge (offen)</a></li>
+                                </ul>
+                            </li>
+                        }
+                        @if (showBlechfertigung)
+                        {
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle @(ViewContext.RouteData.Values["controller"]?.ToString() is "BfAuftraege" ? "active" : "")" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    Blechfertigung
+                                </a>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" asp-controller="BfAuftraege" asp-action="Warenkorb">BF-Warenkorb</a></li>
+                                    <li><a class="dropdown-item" asp-controller="BfAuftraege" asp-action="Index">BF-Aufträge</a></li>
                                 </ul>
                             </li>
                         }

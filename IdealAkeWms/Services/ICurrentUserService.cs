@@ -27,6 +27,10 @@ public interface ICurrentUserService
     Task<bool> CanOrderLagerAsync();
     /// <summary>Darf der User Glas-Bestellungen sehen/anlegen (Reiter Glas)?</summary>
     Task<bool> CanOrderGlasAsync();
+    /// <summary>v1.99.35: Schachtler-Aktionen der BF-Auftraege (admin, schachtler).</summary>
+    Task<bool> CanSchachtelnAsync();
+    /// <summary>v1.99.35: BF-Auftrag bestellen/lesen = Rollen der Lagerbestellung (<see cref="CanOrderLagerAsync"/>) ODER schachtler.</summary>
+    Task<bool> CanBfBestellenAsync();
     Task<bool> CanProcessLagerAsync();
     Task<bool> CanTransferStockAsync();
     Task<bool> CanManagePickingReleaseAsync();

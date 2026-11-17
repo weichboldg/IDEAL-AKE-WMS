@@ -1,0 +1,127 @@
+@model IdealAkeWms.Models.ViewModels.BfAuftragListViewModel
+@using IdealAkeWms.Models
+@using IdealAkeWms.Models.ViewModels
+@{
+    ViewData["Title"] = "BF-Aufträge";
+    const int colCount = 11;
+}
+
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+    <h2 class="page-header">BF-Aufträge</h2>
+    <div class="d-flex gap-2 mt-1">
+        <a asp-action="Warenkorb" class="btn btn-sm btn-primary">@(Model.HatWarenkorb ? "Zum Warenkorb" : "Neuer BF-Auftrag")</a>
+    </div>
+</div>
+
+@* Filterkarte (ADR 0005): Status, Zeitraum Bestelldatum, nur meine (Besteller sehen ohnehin nur eigene). *@
+<div class="card filter-card mb-3">
+    <div class="card-header">Filter</div>
+    <div class="card-body">
+        <form method="get" asp-action="Index" class="row g-3 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label" for="status">Status</label>
+                <select id="status" name="status" class="form-select">
+                    <option value="">Alle</option>
+                    @foreach (var s in Enum.GetValues<BfAuftragStatus>().Where(s => s != BfAuftragStatus.Entwurf))
+                    {
+                        <option value="@s" selected="@(Model.Status == s)">@BfAuftragListRow.StatusText(s)</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label" for="von">Bestellt ab</label>
+                <input type="date" id="von" name="von" class="form-control" value="@Model.Von?.ToString("yyyy-MM-dd")" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label" for="bis">Bestellt bis</label>
+                <input type="date" id="bis" name="bis" class="form-control" value="@Model.Bis?.ToString("yyyy-MM-dd")" />
+            </div>
+            @if (Model.IstSchachtler)
+            {
+                <div class="col-md-2">
+                    <div class="form-check mb-2">
+                        <input type="checkbox" class="form-check-input" id="nurMeine" name="nurMeine" value="true" checked="@Model.NurMeine" />
+                        <label class="form-check-label" for="nurMeine">Nur meine</label>
+                    </div>
+                </div>
+            }
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-primary">Filtern</button>
+                <a asp-action="Index" class="btn btn-outline-secondary">Zurücksetzen</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="d-flex justify-content-end mb-1" data-table-toolbar></div>
+<div class="table-responsive">
+    <table class="table table-sm table-striped table-hover mb-0 filterable-table" data-view-key="BfAuftraege" data-server-column-filter="true">
+        <thead>
+            <tr>
+                <th data-filterable data-col-key="nummer">Nummer</th>
+                <th data-filterable data-col-key="status">Status</th>
+                <th data-filterable data-col-key="csv">CSV</th>
+                <th data-filterable data-col-key="besteller">Besteller</th>
+                <th data-filterable data-date-filter data-col-key="bestelltam">Bestellt am</th>
+                <th class="text-end" data-filterable data-filter-type="number" data-col-key="positionen">Positionen</th>
+                <th data-filterable data-date-filter data-col-key="freigegebenam">Freigegeben am</th>
+                <th data-filterable data-col-key="freigegebenvon">Freigegeben von</th>
+                <th data-filterable data-date-filter data-col-key="schachteltermin">Schachteltermin</th>
+                <th data-filterable data-date-filter data-col-key="fetermin">FE-Termin</th>
+                <th data-filterable data-date-filter data-col-key="fertigam">Fertig am</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (!Model.Rows.Any())
+            {
+                <tr>
+                    <td colspan="@colCount" class="text-center text-muted py-4">
+                        Keine BF-Aufträge für diese Filterung. Neue Aufträge entstehen im Warenkorb über „Abschicken“.
+                    </td>
+                </tr>
+            }
+            @foreach (var r in Model.Rows)
+            {
+                <tr>
+                    <td><a asp-action="Details" asp-route-id="@r.Id" class="fw-semibold">@r.Nummer</a></td>
+                    <td><partial name="_StatusBadge" model="r.Status" /></td>
+                    <td title="@r.CsvFehler">@BfAuftragListRow.CsvText(r.CsvStatus)</td>
+                    <td>@r.Besteller</td>
+                    <td>@BfAuftragListRow.Zeitpunkt(r.BestelltAm)</td>
+                    <td class="text-end">@r.Positionen</td>
+                    <td>@BfAuftragListRow.Zeitpunkt(r.FreigegebenAm)</td>
+                    <td>@r.FreigegebenVon</td>
+                    <td>@BfAuftragListRow.Datum(r.Schachteltermin)</td>
+                    <td>@BfAuftragListRow.Datum(r.FeTermin)</td>
+                    <td>@BfAuftragListRow.Zeitpunkt(r.FertigAm)</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+<partial name="_Pagination" model="Model.Pagination" />
+
+<script type="application/json" id="view-config">
+{ "viewKey": "BfAuftraege", "supportsReorder": true, "supportsSortDefault": false }
+</script>
+<script type="application/json" id="column-config">
+[
+    { "key": "nummer", "label": "Nummer", "locked": true, "defaultWidth": null },
+    { "key": "status", "label": "Status", "locked": false, "defaultWidth": null },
+    { "key": "csv", "label": "CSV", "locked": false, "defaultWidth": null },
+    { "key": "besteller", "label": "Besteller", "locked": false, "defaultWidth": null },
+    { "key": "bestelltam", "label": "Bestellt am", "locked": false, "defaultWidth": null },
+    { "key": "positionen", "label": "Positionen", "locked": false, "defaultWidth": 55 },
+    { "key": "freigegebenam", "label": "Freigegeben am", "locked": false, "defaultWidth": null },
+    { "key": "freigegebenvon", "label": "Freigegeben von", "locked": false, "defaultWidth": null },
+    { "key": "schachteltermin", "label": "Schachteltermin", "locked": false, "defaultWidth": 90 },
+    { "key": "fetermin", "label": "FE-Termin", "locked": false, "defaultWidth": 90 },
+    { "key": "fertigam", "label": "Fertig am", "locked": false, "defaultWidth": null }
+]
+</script>
+
+@section Scripts {
+    <script src="~/js/column-preferences.js" asp-append-version="true"></script>
+    <script src="~/js/table-filter.js" asp-append-version="true"></script>
+}

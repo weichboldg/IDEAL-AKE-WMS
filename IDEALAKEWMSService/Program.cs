@@ -104,6 +104,7 @@ try
     builder.Services.AddScoped<IPartRequisitionEmailService, PartRequisitionEmailService>();
     builder.Services.AddScoped<IWarehouseRequisitionRepository, WarehouseRequisitionRepository>();
     builder.Services.AddScoped<IWarehouseRequisitionEmailService, WarehouseRequisitionEmailService>();
+    builder.Services.AddScoped<BfAuftragEmailService>(); // v1.99.35 Blechfertigung
     builder.Services.AddScoped<IBdeShiftCalendarService, BdeShiftCalendarService>();
     builder.Services.AddScoped<IBdeAutoPauseService, BdeAutoPauseService>();
     builder.Services.AddScoped<IActivityLogCleanupService, ActivityLogCleanupService>();

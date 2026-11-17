@@ -118,6 +118,12 @@ public class CurrentUserService : ICurrentUserService
         => await HasAnyRoleAsync(RoleKeys.Admin, RoleKeys.Picking, RoleKeys.Stock,
             RoleKeys.StockKeyUser, RoleKeys.Lagerbestellung);
 
+    public async Task<bool> CanSchachtelnAsync()
+        => await HasAnyRoleAsync(RoleKeys.Admin, RoleKeys.Schachtler);
+
+    public async Task<bool> CanBfBestellenAsync()
+        => await CanOrderLagerAsync() || await HasRoleAsync(RoleKeys.Schachtler);
+
     public async Task<bool> CanOrderGlasAsync()
         => await HasAnyRoleAsync(RoleKeys.Admin, RoleKeys.Picking, RoleKeys.Stock,
             RoleKeys.StockKeyUser, RoleKeys.Glasbestellung);
