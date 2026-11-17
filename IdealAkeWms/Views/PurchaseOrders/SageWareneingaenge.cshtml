@@ -142,7 +142,7 @@
                             <form asp-controller="PurchaseOrders" asp-action="CsvErneutSchreiben" asp-route-vorgang="@csvVorgang" method="post" class="mt-1">
                                 @Html.AntiForgeryToken()
                                 <button type="submit" class="btn btn-sm btn-outline-primary text-nowrap">CSV erneut schreiben</button>
-                                <div class="small text-body-secondary text-wrap" style="max-width: 16rem;">Vorher auf der Freigabe prüfen, ob @(r.Barcode).csv schon existiert bzw. verarbeitet wurde.</div>
+                                <div class="small text-body-secondary text-wrap" style="max-width: 16rem;">Vorher auf der Freigabe prüfen, ob @(r.Barcode).csv bzw. @(r.Barcode)_n.csv (Sammellieferschein) schon existiert bzw. verarbeitet wurde – der Dienst nimmt sonst die nächste freie Nummer.</div>
                             </form>
                         }
                     </td>
