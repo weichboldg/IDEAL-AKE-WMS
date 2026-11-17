@@ -69,7 +69,7 @@ public class BeschichtungsauftragWorkflowTests
             user.Setup(u => u.GetWindowsUserName()).Returns("DOM\\tester");
             user.Setup(u => u.GetCurrentAppUserId()).Returns(7);
             Wf = new BeschichtungsauftragWorkflow(Repo, new FaHierarchyNodeRepository(Db),
-                new FaHierarchyOrderInfoRepository(Db), user.Object, Time,
+                new FaHierarchyOrderInfoRepository(Db), IdealAkeWms.Tests.Helpers.FlacheQuelleTestHelper.Hierarchisch(), user.Object, Time,
                 Microsoft.Extensions.Logging.Abstractions.NullLogger<BeschichtungsauftragWorkflow>.Instance);
         }
 

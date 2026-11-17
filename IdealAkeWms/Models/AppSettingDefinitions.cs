@@ -93,6 +93,9 @@ public static class AppSettingDefinitions
                 ("Berechnet", "Berechnet (Kommissioniertermin minus Beschichtungstage, auf Abholtag)"),
                 ("View", "View (Sage-View Start_Beschichtung am Kopf, unverändert)"),
             }, Seed: true),
+        B(AppSettingKeys.FaHierarchyBeschichtungAktiv, "false", GTermine, "Beschichtungsauftrag aktiv",
+            "Schaltet das Beschichtungsauftrag-Modul (Vorschlagsliste und Aufträge) ein. IDEAL: Positionen aus der FA-Struktur; AKE: aus der WA-Stückliste (v1.99.34).",
+            "Menü, Beschichtung", Beide, seed: true),
 
         // ---- Lager und Buchungen ----
         I("WarningThresholdPercent", "150", GLager, "Bestand: Warnschwelle", "Bestand unter diesem Prozentsatz des Meldebestands wird gelb markiert.",
@@ -216,8 +219,6 @@ public static class AppSettingDefinitions
         // ---- IDEAL FA-Hierarchie ----
         B(AppSettingKeys.FaHierarchyKommissionierlistenAktiv, "false", GIdeal, "Kommissionierlisten", "Schaltet das Kommissionierlisten-Modul ein.",
             "Menü, Kommissionierlisten", "IDEAL", seed: true),
-        B(AppSettingKeys.FaHierarchyBeschichtungAktiv, "false", GIdeal, "Beschichtungsaufträge", "Schaltet das Beschichtungsauftrag-Modul ein.",
-            "Menü, Beschichtung", "IDEAL", seed: true),
         B(AppSettingKeys.FaHierarchyVormontageAktiv, "false", GIdeal, "Vormontage-Listen", "Schaltet die Vormontage-Listen (Einzelne Teile, Summiert) ein.",
             "Menü, Vormontage", "IDEAL", seed: true),
         I(AppSettingKeys.FaHierarchyMaxDepth, "500", GIdeal, "FA-Struktur: max. Tiefe", "Höchste Rekursionstiefe beim Aufbau der FA-Struktur (Reißleine).",

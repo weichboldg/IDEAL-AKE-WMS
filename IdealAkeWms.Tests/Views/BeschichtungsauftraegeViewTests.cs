@@ -118,10 +118,10 @@ public class BeschichtungsauftraegeViewTests
         foreach (var v in new[] { "Index.cshtml", "Summiert.cshtml" })
         {
             var html = View("FaHierarchyBeschichtung", v);
-            html.Should().Contain("ViewData[\"Title\"] = \"Vorschlagsliste Beschichtung (IDEAL)\";")
-                .And.Contain("<h2 class=\"page-header\">Vorschlagsliste Beschichtung (IDEAL)</h2>");
+            html.Should().Contain("ViewData[\"Title\"] = \"Vorschlagsliste Beschichtung\";")
+                .And.Contain("<h2 class=\"page-header\">Vorschlagsliste Beschichtung</h2>");
         }
-        View("FaHierarchyBeschichtung", "Print.cshtml").Should().Contain("<title>Beschichtungsauftrag (IDEAL)</title>");
+        View("FaHierarchyBeschichtung", "Print.cshtml").Should().Contain("<title>Beschichtungsauftrag</title>");
     }
 
     [Fact]
@@ -129,7 +129,7 @@ public class BeschichtungsauftraegeViewTests
     {
         var help = View("Help", "Index.cshtml");
         var fa = help.IndexOf("<strong>Fertigungsaufträge</strong>", StringComparison.Ordinal);
-        var karte = help.IndexOf("<strong>Beschichtung (IDEAL)</strong>", StringComparison.Ordinal);
+        var karte = help.IndexOf("<strong>Beschichtung</strong>", StringComparison.Ordinal);
         var naechste = help.IndexOf("card-header", fa + 1, StringComparison.Ordinal);
         fa.Should().BePositive();
         karte.Should().Be(help.IndexOf("<strong>", naechste, StringComparison.Ordinal), "die Karte folgt direkt auf „Fertigungsaufträge“");

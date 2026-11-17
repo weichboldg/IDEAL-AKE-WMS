@@ -158,7 +158,7 @@ public class FaHierarchyListBuilder
             .Select(g => new FaHierarchyListGroupViewModel
             {
                 HauptFA = g.Key,
-                Positions = g.OrderBy(n => n.Position).ToList(),
+                Positions = g.OrderBy(n => n.Position).ThenBy(n => n.PositionText, new NaturalPositionComparer()).ToList(), // v1.99.34: AKE-Text 5, 5.2, 5.10 (A16)
                 OrderInfos = infoLookup.TryGetValue(g.Key, out var oi)
                     ? oi
                     : new List<FaHierarchyOrderInfo>()
@@ -186,4 +186,8 @@ public class FaHierarchyListResult
 
     /// <summary>Anomalie-Banner-Daten (ueber die gesamte gefilterte Flag-Menge, nicht nur die Seite).</summary>
     public FaHierarchyAnomalyBannerViewModel Anomalies { get; init; } = new();
+
+    /// <summary>v1.99.34 (nur Beschichtung, flache Quelle): offene WA mit Beschichtungskennzeichen ohne Lackierteil-Zeile im
+    /// Stuecklisten-Cache — Sammelmeldung (A15). Leer an der IDEAL und in allen anderen Listen.</summary>
+    public List<string> OhneLackierteile { get; set; } = new();
 }

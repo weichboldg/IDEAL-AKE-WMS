@@ -26,6 +26,9 @@ public class FaHierarchyBeschichtungListViewModel
 
     /// <summary>Schreibrecht (Rolle beschichtungsauftrag_schreiben): nur dann erscheint „Aus Vorschlagsliste erstellen".</summary>
     public bool DarfSchreiben { get; init; }
+
+    /// <summary>v1.99.34: Text der Sammelmeldung (WA ohne Lackierteil-Zeile, nur AKE); null = keine.</summary>
+    public string? Sammelmeldung { get; init; }
 }
 
 /// <summary>
@@ -77,6 +80,9 @@ public class FaHierarchyBeschichtungSummiertResult
     public List<FaHierarchyBeschichtungSummiertRowViewModel> Rows { get; init; } = new();
     public int TotalRowCount { get; init; }
     public int TotalGroupCount { get; init; }
+
+    /// <summary>v1.99.34: Sammelmeldung-Daten (flache Quelle), siehe <see cref="Services.FaHierarchyListResult.OhneLackierteile"/>.</summary>
+    public List<string> OhneLackierteile { get; set; } = new();
     public IReadOnlyDictionary<int, List<FaHierarchyOrderInfo>> OrderInfos { get; init; } =
         new Dictionary<int, List<FaHierarchyOrderInfo>>();
 }
@@ -96,6 +102,9 @@ public class FaHierarchyBeschichtungSummiertViewModel
 
     /// <summary>Schreibrecht (Rolle beschichtungsauftrag_schreiben): nur dann erscheint „Aus Vorschlagsliste erstellen".</summary>
     public bool DarfSchreiben { get; init; }
+
+    /// <summary>v1.99.34: Text der Sammelmeldung (WA ohne Lackierteil-Zeile, nur AKE); null = keine.</summary>
+    public string? Sammelmeldung { get; init; }
 }
 
 /// <summary>Druck-ViewModel der Summiert-Ansicht: ganze gefilterte Menge, ein Ausdruck je HauptFA.</summary>

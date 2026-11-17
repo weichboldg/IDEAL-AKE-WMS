@@ -106,6 +106,8 @@ Eintraege = @(
    Datei='153_AddOperationConfigSageArbeitsgangnummer.sql'; MigrationId='20261117085624_AddOperationConfigSageArbeitsgangnummer'; Voraussetzung='additiv, zwei Spalten NULL'; Quelle='2026-11-17-v1-99-27-arbeitsgang-mapping-sage-arbeitsgangnummer' }
 @{ Id='SQL/156'; Version='1.99.33'; Typ='Schema'; Firma='beide'; Phase='Schema'; Ausfuehrung='automatisch'
    Datei='156_AddSagePurchaseOrderLineAbNummerKommission.sql'; MigrationId='20261117102804_AddSagePurchaseOrderLineAbNummerKommission'; Voraussetzung='additiv, zwei Spalten NULL (Werte fuellt der naechste Abgleich Offene Bestellungen)'; Quelle='2026-11-17-v1-99-33-wareneingang-sammellieferschein-bestellkopf' }
+@{ Id='SQL/157'; Version='1.99.34'; Typ='Schema'; Firma='beide'; Phase='Schema'; Ausfuehrung='automatisch'; Braucht=@('SQL/94')
+   Datei='157_AddBeschichtungsauftragPositionText.sql'; MigrationId='20261117141308_AddBeschichtungsauftragPositionText'; Voraussetzung='additiv, Spalte nvarchar(50) NULL, kein Backfill'; Quelle='2026-11-17-v1-99-34-beschichtung-ake-stueckliste' }
 
 # ---------------------------------------------------------------- Pruefungen (jeder Lauf; Reparatur nur nach Bestaetigung) -------
 # v1.99.28 (ADR 0027): admin zaehlt nicht - der Web-Start stellt admin ohne Kennwort auf das Standard-Erstkennwort mit Pflichtwechsel um.
@@ -198,6 +200,10 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
    Pruefung='SELECT COUNT(*) FROM dbo.AppSettings a CROSS JOIN (SELECT COALESCE((SELECT LOWER(LTRIM(RTRIM([Value]))) FROM dbo.ServiceSettings WHERE [Key]=N''ProduktionsauftragHierarchisch''), N''false'') m) s WHERE (a.[Key]=N''BeschichtungKennzeichenQuelle'' AND ((a.[Value]=N''Artikelkategorie'' AND s.m=N''true'') OR (a.[Value]=N''FaStruktur'' AND s.m<>N''true''))) OR (a.[Key]=N''BeschichtungTerminQuelle'' AND a.[Value]=N''View'' AND s.m<>N''true'') OR (a.[Key]=N''BeschichtungKennzeichenQuelle'' AND ISNULL(a.[Value],N'''') NOT IN (N'''',N''Automatisch'',N''Artikelkategorie'',N''FaStruktur'')) OR (a.[Key]=N''BeschichtungTerminQuelle'' AND ISNULL(a.[Value],N'''') NOT IN (N'''',N''Automatisch'',N''Berechnet'',N''View''))'
    Text='Beschichtungsquelle passt nicht zum Auftragsmodell oder ist kein gueltiger Wert, wirkt wie Automatisch; unter /Settings korrigieren.'
    Quelle='2026-11-16-v1-99-25-beschichtungslogik-je-standort' }
+@{ Id='Pruefung/BeschichtungPositionOhneTextFlach'; Version='1.99.34'; Typ='Pruefung'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'; Braucht=@('SQL/157')
+   Pruefung='SELECT COUNT(*) FROM dbo.BeschichtungsauftragPositionen p WHERE p.PositionText IS NULL AND COALESCE((SELECT LOWER(LTRIM(RTRIM([Value]))) FROM dbo.ServiceSettings WHERE [Key]=N''ProduktionsauftragHierarchisch''), N''false'') <> N''true'''
+   Text='Beschichtungsauftrag-Positionen ohne Positionstext an einem System mit flachem Auftragsmodell: die Vorschlagsliste erkennt sie nicht als vergeben. Positionen pruefen (nur moeglich, wenn vor v1.99.34 Auftraege ohne FA-Struktur angelegt wurden).'
+   Quelle='2026-11-17-v1-99-34-beschichtung-ake-stueckliste' }
 @{ Id='Pruefung/LackierteilErkennungImportHook'; Version='1.99.25'; Typ='Pruefung'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
    Pruefung='SELECT CASE WHEN COALESCE((SELECT LOWER(LTRIM(RTRIM([Value]))) FROM dbo.ServiceSettings WHERE [Key]=N''ProduktionsauftragHierarchisch''), N''false'') <> N''true'' AND COALESCE((SELECT LOWER(LTRIM(RTRIM([Value]))) FROM dbo.ServiceSettings WHERE [Key]=N''Sync:BomCacheEnabled''), N''false'') = N''true'' AND COALESCE((SELECT LOWER(LTRIM(RTRIM([Value]))) FROM dbo.ServiceSettings WHERE [Key]=N''Sync:CoatingDetectionEnabled''), N''false'') <> N''true'' THEN 1 ELSE 0 END'
    Text='Seit v1.99.25 setzt der Sage-Import das Lack-Kennzeichen neuer Auftraege nur mit Sync:CoatingDetectionEnabled. Hier ist BomCache an, Lackierteil-Erkennung aus: neue Auftraege bekommen KEIN Lack-Kennzeichen mehr. Unter /ServiceSettings einschalten, falls Lackierteile erkannt werden sollen.'
@@ -458,5 +464,8 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
 @{ Id='v1.99.33-WareneingangCsvSammellieferschein'; Version='1.99.33'; Typ='Info'; Firma='AKE'; Phase='Vorher'; Ausfuehrung='anzeigen'
    Text='Sammellieferschein: die Wareneingang-CSV heisst ab v1.99.33 beim zweiten Einsatz eines Barcodes <Barcode>_1.csv, _2 ... Auf Prod erst deployen, wenn enaio (E-1) bestaetigt hat, dass der Import Dateien mit Suffix verarbeitet und Feld 1 (Barcode ohne Suffix) zum Ablegen nutzt.'
    Quelle='2026-11-17-v1-99-33-wareneingang-sammellieferschein-bestellkopf' }
+@{ Id='v1.99.34-Beschichtungsauftrag-AKE'; Version='1.99.34'; Typ='Einstellung'; Firma='AKE'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Text='Optional: Beschichtungsauftrag aktiv (FaHierarchyBeschichtungAktiv) unter /Settings einschalten; dann erscheinen Vorschlagsliste (Lackierteile der WA-Stueckliste) und Auftraege im Menue Beschichtung. Rollen beschichtungsauftrag / beschichtungsauftrag_schreiben zuweisen (Anlage: Pruefung/RollenBeschichtungsauftrag). Dienstleister/RAL/Retour werden am Auftrag von Hand gepflegt.'
+   Quelle='2026-11-17-v1-99-34-beschichtung-ake-stueckliste' }
 )
 }

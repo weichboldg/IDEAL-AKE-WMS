@@ -47,7 +47,7 @@ public class FaHierarchyBeschichtungControllerTests
             var infoRepo = new Mock<IFaHierarchyOrderInfoRepository>();
             infoRepo.Setup(r => r.GetAllAsync()).ReturnsAsync(new List<FaHierarchyOrderInfo>());
             var service = new BeschichtungsauftragService(nodeRepo.Object, infoRepo.Object,
-                new FaHierarchyListBuilder(NullLogger<FaHierarchyListBuilder>.Instance),
+                new FaHierarchyListBuilder(NullLogger<FaHierarchyListBuilder>.Instance), IdealAkeWms.Tests.Helpers.FlacheQuelleTestHelper.Hierarchisch(),
                 NullLogger<BeschichtungsauftragService>.Instance);
 
             User.Setup(x => x.GetDefaultPageSizeAsync()).ReturnsAsync((int?)null);
@@ -59,7 +59,7 @@ public class FaHierarchyBeschichtungControllerTests
             Vergaben.Setup(r => r.GetVergabenAsync(It.IsAny<IReadOnlyCollection<int>>())).ReturnsAsync(new List<Vergabe>());
             Controller = new FaHierarchyBeschichtungController(
                 service, barcode.Object, User.Object, ViewRenderer.Object, PdfRenderService.Object,
-                pdfStatus, ViewPrefs.Object, new BeschichtungsauftragVergabeAnzeige(Vergaben.Object, nodeRepo.Object));
+                pdfStatus, ViewPrefs.Object, new BeschichtungsauftragVergabeAnzeige(Vergaben.Object, nodeRepo.Object, IdealAkeWms.Tests.Helpers.FlacheQuelleTestHelper.Hierarchisch()));
 
             var httpContext = new DefaultHttpContext();
             if (!string.IsNullOrEmpty(queryString))

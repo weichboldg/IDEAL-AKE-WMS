@@ -31,11 +31,11 @@
                 </tr>
             </thead>
             <tbody>
-                @foreach (var p in u.Positionen.OrderBy(p => p.Position ?? int.MaxValue).ThenBy(p => p.SubFA))
+                @foreach (var p in u.Positionen.OrderBy(p => p.Position ?? int.MaxValue).ThenBy(p => p.PositionText, new NaturalPositionComparer()).ThenBy(p => p.SubFA))
                 {
                     <tr>
                         <td><input type="checkbox" class="form-check-input" id="p-@p.Id" name="positionIds" value="@p.Id" /></td>
-                        <td><label for="p-@p.Id" class="mb-0">@(p.VaterFA?.ToString() ?? "—") / @p.SubFA / @(p.Position?.ToString() ?? "—")</label></td>
+                        <td><label for="p-@p.Id" class="mb-0">@(p.VaterFA?.ToString() ?? "—") / @p.SubFA / @(p.PositionText is { Length: > 0 } ? p.PositionText : p.Position?.ToString() ?? "—")</label></td>
                         <td>@p.HauptArtnr</td>
                         <td>@p.Artnr</td>
                         <td>@p.Matchcode</td>

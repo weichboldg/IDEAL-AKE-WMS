@@ -27,11 +27,14 @@ public class BeschichtungsauftragVergabeAnzeige
 {
     private readonly IBeschichtungsauftragRepository _repo;
     private readonly IFaHierarchyNodeRepository _nodes;
+    private readonly Beschichtung.BeschichtungFlacheQuelle _flach;
 
-    public BeschichtungsauftragVergabeAnzeige(IBeschichtungsauftragRepository repo, IFaHierarchyNodeRepository nodes)
+    public BeschichtungsauftragVergabeAnzeige(IBeschichtungsauftragRepository repo, IFaHierarchyNodeRepository nodes,
+        Beschichtung.BeschichtungFlacheQuelle flach)
     {
         _repo = repo;
         _nodes = nodes;
+        _flach = flach;
     }
 
     public async Task<IReadOnlyDictionary<int, BeschichtungsauftragVergabeInfo>> ErmittelnAsync(IReadOnlyCollection<int> hauptFas)
@@ -40,7 +43,8 @@ public class BeschichtungsauftragVergabeAnzeige
         if (set.Count == 0) return new Dictionary<int, BeschichtungsauftragVergabeInfo>();
 
         var vergaben = (await _repo.GetVergabenAsync(set)).ToLookup(v => v.HauptFA);
-        var knoten = (await _nodes.GetAllAsync()).Where(n => n.Beschichtet && set.Contains(n.HauptFA)).ToLookup(n => n.HauptFA);
+        var quelle = await _flach.IstFlachAsync() ? (await _flach.LadenAsync(set)).Knoten : await _nodes.GetAllAsync();
+        var knoten = quelle.Where(n => n.Beschichtet && set.Contains(n.HauptFA)).ToLookup(n => n.HauptFA);
 
         return set.ToDictionary(h => h, h =>
         {

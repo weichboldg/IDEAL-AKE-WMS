@@ -1455,6 +1455,10 @@ namespace IdealAkeWms.Migrations
                     b.Property<int?>("Position")
                         .HasColumnType("int");
 
+                    b.Property<string>("PositionText")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
                     b.Property<int>("SubFA")
                         .HasColumnType("int");
 

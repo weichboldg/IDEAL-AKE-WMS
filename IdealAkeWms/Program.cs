@@ -122,6 +122,7 @@ builder.Services.AddScoped<IDebitorRepository, DebitorRepository>();
 // IDEAL Teil 3: gemeinsamer Listen-/Druck-Baustein (Teil 4/5 erweitern ihn) + Teil-3-Service.
 builder.Services.AddScoped<FaHierarchyListBuilder>();
 builder.Services.AddScoped<KommissionierListenService>();
+builder.Services.AddScoped<IdealAkeWms.Services.Beschichtung.BeschichtungFlacheQuelle>(); // v1.99.34 AKE-Positionsquelle
 builder.Services.AddScoped<BeschichtungsauftragService>();
 builder.Services.AddScoped<BriefkopfVorlageService>();
 // Beschichtungsauftrag als gespeichertes Objekt (Teil 3, v1.50.0): Repository + Workflow; Zeit ueber TimeProvider (Nummernkreis je Jahr).

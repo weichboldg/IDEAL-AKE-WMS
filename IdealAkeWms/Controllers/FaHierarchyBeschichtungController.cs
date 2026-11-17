@@ -75,6 +75,7 @@ public class FaHierarchyBeschichtungController : Controller
             Groups = result.Groups,
             PdfVerfuegbar = _pdfRenderStatus.IsAvailable,
             Vergaben = await _vergaben.ErmittelnAsync(result.Groups.Select(g => g.HauptFA).ToList()),
+            Sammelmeldung = Services.Beschichtung.BeschichtungFlacheQuelle.Sammelmeldung(result.OhneLackierteile),
             DarfSchreiben = await _currentUserService.HasBeschichtungsauftragWriteAccessAsync(),
             Pagination = new PaginationState
             {
@@ -166,6 +167,7 @@ public class FaHierarchyBeschichtungController : Controller
             OrderInfos = result.OrderInfos,
             PdfVerfuegbar = _pdfRenderStatus.IsAvailable,
             Vergaben = await _vergaben.ErmittelnAsync(result.Rows.Select(r => r.HauptFA).Distinct().ToList()),
+            Sammelmeldung = Services.Beschichtung.BeschichtungFlacheQuelle.Sammelmeldung(result.OhneLackierteile),
             DarfSchreiben = await _currentUserService.HasBeschichtungsauftragWriteAccessAsync(),
             Pagination = new PaginationState
             {

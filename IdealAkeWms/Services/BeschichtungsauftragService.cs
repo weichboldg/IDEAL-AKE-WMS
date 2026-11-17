@@ -39,18 +39,33 @@ public class BeschichtungsauftragService
     private readonly IFaHierarchyNodeRepository _nodes;
     private readonly IFaHierarchyOrderInfoRepository _orderInfos;
     private readonly FaHierarchyListBuilder _builder;
+    private readonly Beschichtung.BeschichtungFlacheQuelle _flach;
     private readonly ILogger<BeschichtungsauftragService> _logger;
 
     public BeschichtungsauftragService(
         IFaHierarchyNodeRepository nodes,
         IFaHierarchyOrderInfoRepository orderInfos,
         FaHierarchyListBuilder builder,
+        Beschichtung.BeschichtungFlacheQuelle flach,
         ILogger<BeschichtungsauftragService> logger)
     {
         _nodes = nodes;
         _orderInfos = orderInfos;
         _builder = builder;
+        _flach = flach;
         _logger = logger;
+    }
+
+    /// <summary>v1.99.34: Positionen + Kopfzeilen je Quelle. Flach (AKE): WA-Stueckliste, keine Kopfzeilen (die PPS-View gibt es
+    /// dort nicht), dazu die WA ohne Lackierteil-Zeile fuer die Sammelmeldung. Sonst FA-Struktur wie bisher.</summary>
+    private async Task<(List<FaHierarchyNode> Knoten, List<FaHierarchyOrderInfo> Infos, List<string> OhneLackierteile)> LadenAsync()
+    {
+        if (await _flach.IstFlachAsync())
+        {
+            var f = await _flach.LadenAsync();
+            return (f.Knoten, new List<FaHierarchyOrderInfo>(), f.OhneLackierteile);
+        }
+        return (await _nodes.GetAllAsync(), await _orderInfos.GetAllAsync(), new List<string>());
     }
 
     /// <summary>Klartext-Name des Flags fuer Log-Meldungen.</summary>
@@ -63,6 +78,7 @@ public class BeschichtungsauftragService
 
     /// <summary>Mass-Format (bis 3 Nachkommastellen ohne Nullen, de-DE) fuer Breite/Hoehe/Tiefe.</summary>
     public static string FormatMass(decimal value) => value.ToString("0.###", De);
+
 
     /// <summary>
     /// Server-Side-Spaltenfilter-Map (Col-Key -&gt; gerenderter Zelltext). Die Getter MUESSEN exakt
@@ -97,8 +113,7 @@ public class BeschichtungsauftragService
         int pageSize,
         bool paginate)
     {
-        var allNodes = await _nodes.GetAllAsync();
-        var allInfos = await _orderInfos.GetAllAsync();
+        var (allNodes, allInfos, ohne) = await LadenAsync();
 
         var result = _builder.Build(
             allNodes, allInfos, FlagPredicate, FlagName,
@@ -107,6 +122,7 @@ public class BeschichtungsauftragService
             columnTypes: ColumnFilterTypes.For("FaHierarchyBeschichtung/Index"));
 
         LogAmbiguities(result.Groups);
+        result.OhneLackierteile = ohne;
         return result;
     }
 
@@ -158,9 +174,9 @@ public class BeschichtungsauftragService
     public async Task<FaHierarchyBeschichtungSummiertResult> BuildSummiertAsync(
         IReadOnlyDictionary<string, string>? columnFilters, int page, int pageSize, bool paginate)
     {
-        var allNodes = await _nodes.GetAllAsync();
-        var allInfos = await _orderInfos.GetAllAsync();
+        var (allNodes, allInfos, ohne) = await LadenAsync();
         var result = AggregateSummiert(allNodes, allInfos, columnFilters, page, pageSize, paginate);
+        result.OhneLackierteile = ohne;
 
         foreach (var row in result.Rows.Where(r => r.MasseUneinheitlich))
             _logger.LogWarning(
@@ -197,7 +213,7 @@ public class BeschichtungsauftragService
             .GroupBy(n => (n.HauptFA, Artnr: (n.Artnr ?? string.Empty).Trim()))
             .Select(g =>
             {
-                var first = g.OrderBy(n => n.Position ?? int.MaxValue).ThenBy(n => n.SubFA).First();
+                var first = g.OrderBy(n => n.Position ?? int.MaxValue).ThenBy(n => n.PositionText, new NaturalPositionComparer()).ThenBy(n => n.SubFA).First();
                 return new FaHierarchyBeschichtungSummiertRowViewModel
                 {
                     HauptFA = g.Key.HauptFA,

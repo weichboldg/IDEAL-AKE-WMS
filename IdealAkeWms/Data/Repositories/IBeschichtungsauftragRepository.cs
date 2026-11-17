@@ -6,13 +6,32 @@ using IdealAkeWms.Models;
 namespace IdealAkeWms.Data.Repositories;
 
 /// <summary>Herkunftsschluessel einer Position innerhalb eines HauptFA (die Struktur-Felder von <see cref="FaHierarchyNode"/>;
-/// der HauptFA steht am Auftrag). Bewusst ohne Knoten-Id — die wechselt mit jedem Sync.</summary>
-public readonly record struct PositionsSchluessel(int? VaterFA, int SubFA, int? Position)
+/// der HauptFA steht am Auftrag). Bewusst ohne Knoten-Id — die wechselt mit jedem Sync.
+/// <para>v1.99.34 (Spec 2026-11-16-beschichtungslogik-je-standort, Freigabe-Antwort 20): flache Quelle (AKE) = <see cref="Artnr"/> +
+/// <see cref="PositionText"/> (Stuecklisten-Position als Text, <c>5.2</c> ≠ <c>5.20</c>), normalisiert wie
+/// <see cref="Services.PickingOrderRestmengen.Schluessel"/>. Ohne Positionstext (IDEAL, Altzeilen) bleiben beide null.</para></summary>
+public readonly record struct PositionsSchluessel(int? VaterFA, int SubFA, int? Position, string? Artnr = null, string? PositionText = null)
 {
-    public static PositionsSchluessel Von(FaHierarchyNode n) => new(n.VaterFA, n.SubFA, n.Position);
-    public static PositionsSchluessel Von(BeschichtungsauftragPosition p) => new(p.VaterFA, p.SubFA, p.Position);
-    public override string ToString() => $"Vater {VaterFA?.ToString() ?? "—"} / SubFA {SubFA} / Pos {Position?.ToString() ?? "—"}";
+    public static PositionsSchluessel Von(FaHierarchyNode n) => Bilden(n.VaterFA, n.SubFA, n.Position, n.Artnr, n.PositionText);
+    public static PositionsSchluessel Von(BeschichtungsauftragPosition p) => Bilden(p.VaterFA, p.SubFA, p.Position, p.Artnr, p.PositionText);
+
+    public static PositionsSchluessel Bilden(int? vaterFa, int subFa, int? position, string? artnr, string? positionText)
+    {
+        if (positionText is null) return new(vaterFa, subFa, position);
+        var (a, t) = Services.PickingOrderRestmengen.Schluessel(artnr ?? "", positionText);
+        return new(vaterFa, subFa, position, a, t);
+    }
+
+    public override string ToString() => PositionText is not null
+        ? $"Artnr {Artnr} / Pos {(PositionText.Length == 0 ? "—" : PositionText)}"
+        : $"Vater {VaterFA?.ToString() ?? "—"} / SubFA {SubFA} / Pos {Position?.ToString() ?? "—"}";
 }
+
+/// <summary>v1.99.34: eine Lackierteil-Zeile der flachen Quelle — offener WA (Haupt-FA) und seine Stuecklisten-Cache-Zeile.</summary>
+public sealed record FlacheLackierteilZeile(ProductionOrder Auftrag, string Source, CachedBomItem Item);
+
+/// <summary>v1.99.34: flache Quelle samt offener WA mit Beschichtungskennzeichen OHNE Lackierteil-Zeile im Cache (Sammelmeldung A15).</summary>
+public sealed record FlacheLackierteilDaten(List<FlacheLackierteilZeile> Zeilen, List<string> OhneLackierteile);
 
 /// <summary>Eine Position steckt in einem sperrenden Auftrag (Status ≠ Storniert).</summary>
 public sealed record Vergabe(PositionsSchluessel Schluessel, int AuftragId, string Nummer, int HauptFA);
@@ -28,6 +47,12 @@ public interface IBeschichtungsauftragRepository
 
     /// <summary>Hoechste vergebene laufende Nummer des Jahres (0 = noch keine).</summary>
     Task<int> GetMaxLaufendeNummerAsync(int jahr);
+
+    /// <summary>v1.99.34 (Spec 2026-11-16-beschichtungslogik-je-standort E5): flache Positionsquelle der AKE. Offene WA
+    /// (<c>IsDone = 0 AND IsCancelled = 0</c>, Haupt-FA, <c>PickingStatus.HasCoatingParts = 1</c>; <c>IsDonePicking</c> bewusst
+    /// nicht gefiltert, A13) und ihre Stuecklisten-Cache-Zeilen der Kategorie <paramref name="lackierteilKategorie"/> — dieselbe
+    /// Kette wie die Lackierteil-Erkennung des Dienstes. <paramref name="orderNumbers"/> null = alle offenen WA.</summary>
+    Task<FlacheLackierteilDaten> GetFlacheLackierteileAsync(string? lackierteilKategorie, IReadOnlyCollection<string>? orderNumbers = null);
 
     /// <summary>Alle Positionen des HauptFA in Auftraegen mit Status ≠ Storniert — inkl. Reklamationen
     /// (Spec Anforderung 6, Herleitung 2026-10-12) — mit Auftragsnummer. Eine Abfrage, kein N+1.</summary>

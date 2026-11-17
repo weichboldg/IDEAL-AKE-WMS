@@ -165,7 +165,7 @@ public class BeschichtungsauftragServiceTests
 
         var recording = new RecordingLogger<BeschichtungsauftragService>();
         var service = new BeschichtungsauftragService(
-            nodeRepo.Object, infoRepo.Object, NewBuilder(), recording);
+            nodeRepo.Object, infoRepo.Object, NewBuilder(), IdealAkeWms.Tests.Helpers.FlacheQuelleTestHelper.Hierarchisch(), recording);
 
         var result = await service.BuildAsync(null, 1, 100, paginate: true);
 
@@ -190,7 +190,7 @@ public class BeschichtungsauftragServiceTests
 
         var recording = new RecordingLogger<BeschichtungsauftragService>();
         var service = new BeschichtungsauftragService(
-            nodeRepo.Object, infoRepo.Object, NewBuilder(), recording);
+            nodeRepo.Object, infoRepo.Object, NewBuilder(), IdealAkeWms.Tests.Helpers.FlacheQuelleTestHelper.Hierarchisch(), recording);
 
         await service.BuildAsync(null, 1, 100, paginate: true);
 
@@ -372,7 +372,7 @@ public class BeschichtungsauftragServiceTests
         var infoRepo = new Mock<IFaHierarchyOrderInfoRepository>();
         infoRepo.Setup(r => r.GetAllAsync()).ReturnsAsync(infos);
         var recording = new RecordingLogger<BeschichtungsauftragService>();
-        var service = new BeschichtungsauftragService(nodeRepo.Object, infoRepo.Object, NewBuilder(), recording);
+        var service = new BeschichtungsauftragService(nodeRepo.Object, infoRepo.Object, NewBuilder(), IdealAkeWms.Tests.Helpers.FlacheQuelleTestHelper.Hierarchisch(), recording);
 
         await service.BuildSummiertAsync(null, 1, 100, paginate: true);
 

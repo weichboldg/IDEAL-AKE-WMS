@@ -2,7 +2,7 @@
 @using System.Globalization
 @using IdealAkeWms.Services
 @{
-    ViewData["Title"] = "Vorschlagsliste Beschichtung (IDEAL)";
+    ViewData["Title"] = "Vorschlagsliste Beschichtung";
     var deCulture = CultureInfo.GetCultureInfo("de-DE");
     // Print-URL: exakt dieselben Query-Parameter (colf_*) wie die Bildschirmliste.
     var printUrl = Url.Action("Print") + Context.Request.QueryString.ToString();
@@ -12,7 +12,7 @@
 }
 
 <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
-    <h2 class="page-header">Vorschlagsliste Beschichtung (IDEAL)</h2>
+    <h2 class="page-header">Vorschlagsliste Beschichtung</h2>
     <div class="d-flex gap-2 mt-1">
         <a href="@printUrl" target="_blank" class="btn btn-sm btn-outline-secondary" title="Aktuell gefilterte Liste drucken (ein Ausdruck je HauptFA)">
             Drucken
@@ -22,6 +22,12 @@
 
 @* Ansicht-Umschaltung (Liste = Einzelpositionen / Summiert = Standard seit v1.48.0). Der Umschalter
    nimmt die gemeinsamen Spaltenfilter mit (BeschichtungsauftragService.BuildToggleQuery). *@
+@if (Model.Sammelmeldung is { } sammel)
+{
+    @* v1.99.34 (A15, AK 15b): nur an der AKE (flache Quelle) — WA mit Kennzeichen, aber ohne Lackierteil-Zeile im Cache. *@
+    <div class="alert alert-warning" role="alert"><strong>Hinweis:</strong> @sammel</div>
+}
+
 <ul class="nav nav-pills mb-3">
     <li class="nav-item">
         <a class="nav-link active" href="@(Url.Action("Index") + BeschichtungsauftragService.BuildToggleQuery(Context.Request))">Liste</a>

@@ -31,6 +31,13 @@ public class BeschichtungsauftragDiResolutionTests
         services.AddScoped<IFaHierarchyNodeRepository, CachedFaHierarchyNodeRepository>();
         services.AddScoped<IFaHierarchyOrderInfoRepository, FaHierarchyOrderInfoRepository>();
         services.AddScoped<IBeschichtungsauftragRepository, BeschichtungsauftragRepository>();
+        // v1.99.34: flache Positionsquelle (AKE) samt ihren Abhaengigkeiten
+        services.AddScoped(_ => new Mock<IArticleRepository>().Object);
+        services.AddScoped(_ => new Mock<IAppSettingRepository>().Object);
+        services.AddScoped(_ => new Mock<IServiceSettingRepository>().Object);
+        services.AddScoped(_ => new Mock<IHolidayRepository>().Object);
+        services.AddScoped(_ => new Mock<IBusinessDayService>().Object);
+        services.AddScoped<IdealAkeWms.Services.Beschichtung.BeschichtungFlacheQuelle>();
         services.AddScoped<BeschichtungsauftragWorkflow>();
         services.AddScoped<BeschichtungsauftragVergabeAnzeige>();
         services.AddSingleton(TimeProvider.System);

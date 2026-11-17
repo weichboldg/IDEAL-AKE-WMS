@@ -12574,6 +12574,38 @@ Automatisch belegt: `HierarchicalModeGateTests` (Gate + Warnung), `SageImportHoo
 
 ---
 
+## TS-145 — Vorschlagsliste und Beschichtungsauftrag an der AKE (v1.99.34)
+
+Spec `2026-11-16-beschichtungslogik-je-standort-spec`, Etappe 5 + Nachtrag 2/3. Standort: AKE (Gegenprobe IDEAL). **Migration SQL/157**
+(`BeschichtungsauftragPositionen.PositionText` nvarchar(50) NULL, additiv). Web.
+
+**Vorbedingungen:** P-A3 (WA-Nummern numerisch) und P-A6 (mehrstufige Positionen, 0 Doppelungen) erhoben; H3 eingetragen; SQL/157 eingespielt;
+`FaHierarchyBeschichtungAktiv` = true, `LackierteilKategorieName` gesetzt; Rollen `beschichtungsauftrag` / `beschichtungsauftrag_schreiben`
+zugewiesen; Lackier-WA mit `HasCoatingParts = 1` und Stücklisten-Cache. Testartikel mit tiefen Positionen: **S1402262** (z. B.
+`10.140.40.10.10`); für die Positionsfälle einen WA per P-A9 wählen. Nichts an Sage schreiben.
+
+| Nr | Szenario | Erwartet |
+|---|---|---|
+| 145.1 | Vorschlagsliste (Summiert und Liste) | WA mit seinen Lackierteilen, HauptFA = WA-Nummer, Maße 0, Kopfzeile „Keine Auftrags-Kopfdaten zu diesem HauptFA.“; Spaltenfilter und Paging funktionieren; Titel ohne „(IDEAL)“ |
+| 145.2 | „Aus Vorschlagsliste erstellen“ an einem WA mit S1402262 | Entwurf mit allen Lackierteil-Positionen; Spalte „Vater / SubFA / Pos“ zeigt `— / 0 / 10.140.40.10.10`; per SQL `PositionText` gefüllt, `Position` NULL; Start = berechneter Beschichtungstermin, Dienstleister/RAL/Retour leer und speicherbar |
+| 145.3 | Mengen-Prüfschritt (H3): WA aus der Hilfsabfrage H3 (`Quantity > 1`, Zeilen mit `Baugruppe`) | Vorschlagsliste und angelegter Auftrag zeigen für dieselben Zeilen dieselben Mengen wie die Kommissionierliste |
+| 145.4 | Reihenfolge in Details und Reklamationsauswahl | `5.2` vor `5.10`, `51.5` vor `51.5.2` vor `51.5.10`; Position mit Buchstaben hinter den numerischen derselben Ebene (sonst „nicht herstellbar“) |
+| 145.5 | Vergabe-Anzeige und zweite Anlage | Übernommene Zeilen tragen „in BA-…“; zweite Anlage desselben WA: Fehler, alle Positionen schon vergeben |
+| 145.6 | Positionen hinzufügen: eine Position entfernen, über „Positionen hinzufügen“ wieder wählen | Kommt mit demselben Positionstext zurück (fünfteiliger Schlüssel im Formular) |
+| 145.7 | Negativ Sammelmeldung: Lackier-WA mit Kennzeichen ohne Lackierteil-Zeile im Cache (per P-A7 suchen) | Fehlt in der Liste; gelber Hinweis „{N} WA mit Beschichtungskennzeichen ohne Lackierteile im Stücklisten-Cache – nicht in der Vorschlagsliste: …“ mit Nummer; Log-Warnung. Kein solcher WA → „nicht herstellbar“ |
+| 145.8 | Negativ storniert / erledigt | WA mit `IsCancelled = 1` bzw. `IsDone = 1` weder in der Liste noch in der Sammelmeldung |
+| 145.9 | Negativ ohne Rolle bzw. Gate aus | Kein Menü; Direktaufruf Redirect plus Warnung; ohne Schreibrolle kein Erstellen-Knopf |
+| 145.10 | Schema: `SELECT COL_LENGTH('dbo.BeschichtungsauftragPositionen','PositionText')`; Skript 157 zweimal | 100; MigrationId in der History; zweiter Lauf ohne Änderung und Fehler; Bestandszeilen `PositionText IS NULL` |
+| 145.11 | Update-Skript: `Pruefung/BeschichtungPositionOhneTextFlach` | AKE und IDEAL „OK“. Nur DEV: Testposition ohne `PositionText` an AKE-Testauftrag → „Abweichung 1“, Vergabe-Anzeige zeigt sie nicht als vergeben; danach löschen |
+| 145.12 | Grenzfall Stücklistenänderung (S-4) nach Anlage + BomCache-Lauf | Vergebene Zeile bleibt vergeben, neue Zeile frei; nicht herstellbar → notieren |
+| 145.13 | IDEAL-Gegenprobe | Vorschlagsliste mit Kopfdaten aus FAInfos, keine Sammelmeldung; neuer Auftrag `PositionText` NULL, Anzeige `Vater / SubFA / Pos` und Reihenfolge wie vorher |
+
+Automatisch belegt: `BeschichtungFlacheQuelleTests` (Offen-Filter, Kategorie, Menge 2,5 × 4, Trim/leer, Sammelmeldung, Schlüssel 5.2 ≠ 5.20,
+Altzeile, natürliche Sortierung, Fünf-Teile-Rundlauf, Anlage flach, SQL/157-Drift), `NachlaufManifestDriftTests` (SQL/157),
+`BeschichtungsauftragDiResolutionTests`. Nicht automatisch: SQL-Kollation der Joins, echter Cache-Inhalt.
+
+---
+
 ## TS-146 — orderBy bei RealTimeData (v1.99.26)
 
 Spec `2026-11-16-fa-struktur-ideal-ueber-sdata-spec`, Etappe 1. Standort: beide. **Keine Migration.** Web.

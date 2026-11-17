@@ -116,8 +116,8 @@ public class TableToolbarHostTests
     public void Vorschlagsliste_AnzeigenameWieSeitentitel()
     {
         // D: DisplayName erscheint in Benutzer → Ansichts-Einstellungen; ViewKey bleibt (gespeicherte Einstellungen).
-        ColumnDefinitions.GetByViewKey("FaHierarchyBeschichtung")!.DisplayName.Should().Be("Vorschlagsliste Beschichtung (IDEAL)");
-        ColumnDefinitions.GetByViewKey("FaHierarchyBeschichtungSummiert")!.DisplayName.Should().Be("Vorschlagsliste Beschichtung — Summiert (IDEAL)");
+        ColumnDefinitions.GetByViewKey("FaHierarchyBeschichtung")!.DisplayName.Should().Be("Vorschlagsliste Beschichtung");
+        ColumnDefinitions.GetByViewKey("FaHierarchyBeschichtungSummiert")!.DisplayName.Should().Be("Vorschlagsliste Beschichtung — Summiert");
     }
 }
 

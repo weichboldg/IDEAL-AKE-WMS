@@ -32,8 +32,8 @@ public class BeschichtungsauftragVergabeAnzeigeTests
         user.Setup(u => u.GetDisplayName()).Returns("Tester");
         user.Setup(u => u.GetWindowsUserName()).Returns(@"DOM\tester");
         _wf = new BeschichtungsauftragWorkflow(repo, new FaHierarchyNodeRepository(_db), new FaHierarchyOrderInfoRepository(_db),
-            user.Object, TimeProvider.System, NullLogger<BeschichtungsauftragWorkflow>.Instance);
-        _anzeige = new BeschichtungsauftragVergabeAnzeige(repo, new FaHierarchyNodeRepository(_db));
+            IdealAkeWms.Tests.Helpers.FlacheQuelleTestHelper.Hierarchisch(), user.Object, TimeProvider.System, NullLogger<BeschichtungsauftragWorkflow>.Instance);
+        _anzeige = new BeschichtungsauftragVergabeAnzeige(repo, new FaHierarchyNodeRepository(_db), IdealAkeWms.Tests.Helpers.FlacheQuelleTestHelper.Hierarchisch());
 
         foreach (var h in new[] { 1, 2 })
         {

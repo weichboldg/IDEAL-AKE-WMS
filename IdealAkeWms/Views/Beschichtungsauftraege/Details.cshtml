@@ -227,10 +227,10 @@
             {
                 <tr><td colspan="@(bearbeitbar ? 9 : 8)" class="text-center text-muted py-3">Keine Positionen — unten hinzufügen oder den Auftrag stornieren.</td></tr>
             }
-            @foreach (var p in a.Positionen.OrderBy(p => p.Position ?? int.MaxValue).ThenBy(p => p.SubFA))
+            @foreach (var p in a.Positionen.OrderBy(p => p.Position ?? int.MaxValue).ThenBy(p => p.PositionText, new NaturalPositionComparer()).ThenBy(p => p.SubFA))
             {
                 <tr>
-                    <td>@(p.VaterFA?.ToString() ?? "—") / @p.SubFA / @(p.Position?.ToString() ?? "—")</td>
+                    <td>@(p.VaterFA?.ToString() ?? "—") / @p.SubFA / @(p.PositionText is { Length: > 0 } ? p.PositionText : p.Position?.ToString() ?? "—")</td>
                     <td>@p.HauptArtnr</td>
                     <td>@p.Artnr</td>
                     <td>@p.Matchcode</td>
@@ -244,7 +244,7 @@
                             <span class="visually-hidden">@Menge(p.Menge)</span>
                             <input name="mengen[@p.Id]" form="entwurf-form" value="@Menge(p.Menge)" inputmode="decimal"
                                    class="form-control form-control-sm text-end ms-auto" style="max-width: 7rem;"
-                                   aria-label="Menge @p.Artnr Position @p.Position" />
+                                   aria-label="Menge @p.Artnr Position @(p.PositionText is { Length: > 0 } ? p.PositionText : p.Position?.ToString())" />
                         }
                         else
                         {
@@ -315,7 +315,7 @@
                                     <tr>
                                         <td><input type="checkbox" class="form-check-input" id="@id" name="schluessel"
                                                    value="@BeschichtungsauftraegeController.SchluesselText(k.Schluessel)" /></td>
-                                        <td><label for="@id" class="mb-0">@(k.Schluessel.VaterFA?.ToString() ?? "—") / @k.Schluessel.SubFA / @(k.Schluessel.Position?.ToString() ?? "—")</label></td>
+                                        <td><label for="@id" class="mb-0">@(k.Schluessel.VaterFA?.ToString() ?? "—") / @k.Schluessel.SubFA / @(k.Schluessel.PositionText is { Length: > 0 } ? k.Schluessel.PositionText : k.Schluessel.Position?.ToString() ?? "—")</label></td>
                                         <td>@k.Artnr</td>
                                         <td>@k.Matchcode</td>
                                         <td class="text-end">@BeschichtungsauftragService.FormatMass(k.Breite)</td>

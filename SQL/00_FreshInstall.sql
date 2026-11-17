@@ -2824,6 +2824,7 @@ BEGIN
         [VaterFA]                INT            NULL,
         [SubFA]                  INT            NOT NULL,
         [Position]               INT            NULL,
+        [PositionText]           NVARCHAR(50)   NULL,   -- v1.99.34 / SQL/157 (flache Quelle, Stuecklisten-Position als Text)
         [HauptArtnr]             NVARCHAR(200)  NULL,
         [Artnr]                  NVARCHAR(200)  NULL,
         [Matchcode]              NVARCHAR(200)  NULL,
@@ -2843,6 +2844,12 @@ BEGIN
     );
     PRINT 'Tabelle BeschichtungsauftragPositionen angelegt.';
 END
+GO
+
+-- v1.99.34 (SQL/157): Bestandstabelle ohne PositionText nachziehen.
+IF OBJECT_ID(N'dbo.BeschichtungsauftragPositionen', N'U') IS NOT NULL
+   AND COL_LENGTH(N'dbo.BeschichtungsauftragPositionen', N'PositionText') IS NULL
+    ALTER TABLE [dbo].[BeschichtungsauftragPositionen] ADD [PositionText] NVARCHAR(50) NULL;
 GO
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Beschichtungsauftraege_HauptFA' AND object_id = OBJECT_ID(N'dbo.Beschichtungsauftraege'))
@@ -3369,6 +3376,9 @@ GO
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261117102804_AddSagePurchaseOrderLineAbNummerKommission')
    AND COL_LENGTH(N'dbo.SagePurchaseOrderLines', N'AbNummer') IS NOT NULL AND COL_LENGTH(N'dbo.SagePurchaseOrderLines', N'Kommission') IS NOT NULL -- sonst steht SQL/156 noch aus
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261117102804_AddSagePurchaseOrderLineAbNummerKommission', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261117141308_AddBeschichtungsauftragPositionText')
+   AND COL_LENGTH(N'dbo.BeschichtungsauftragPositionen', N'PositionText') IS NOT NULL -- sonst steht SQL/157 noch aus
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261117141308_AddBeschichtungsauftragPositionText', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';

@@ -319,17 +319,24 @@ public class BeschichtungsauftraegeController : Controller
     internal static bool TryMenge(string? text, out decimal menge) =>
         decimal.TryParse((text ?? string.Empty).Trim().Replace(',', '.'), NumberStyles.Number, CultureInfo.InvariantCulture, out menge);
 
-    /// <summary>„VaterFA|SubFA|Position", leere Teile = null (VaterFA/Position sind im Cache nullable).</summary>
-    public static string SchluesselText(PositionsSchluessel k) =>
-        $"{k.VaterFA?.ToString(CultureInfo.InvariantCulture)}|{k.SubFA.ToString(CultureInfo.InvariantCulture)}|{k.Position?.ToString(CultureInfo.InvariantCulture)}";
+    /// <summary>„VaterFA|SubFA|Position", leere Teile = null (VaterFA/Position sind im Cache nullable). v1.99.34: flache Quelle
+    /// (AKE) fuenfteilig „VaterFA|SubFA|Position|Artnr|PositionText", Teile 4 und 5 URL-kodiert (ein „|" im Positionstext
+    /// zerlegt den Schluessel nicht); fuenf Teile = Positionstext gesetzt, auch leer.</summary>
+    public static string SchluesselText(PositionsSchluessel k)
+    {
+        var basis = $"{k.VaterFA?.ToString(CultureInfo.InvariantCulture)}|{k.SubFA.ToString(CultureInfo.InvariantCulture)}|{k.Position?.ToString(CultureInfo.InvariantCulture)}";
+        return k.PositionText is null ? basis : $"{basis}|{Uri.EscapeDataString(k.Artnr ?? "")}|{Uri.EscapeDataString(k.PositionText)}";
+    }
 
     internal static bool TrySchluessel(string? text, out PositionsSchluessel key)
     {
         key = default;
         var teile = (text ?? string.Empty).Split('|');
-        if (teile.Length != 3 || !int.TryParse(teile[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var subFa)) return false;
+        if (teile.Length is not (3 or 5) || !int.TryParse(teile[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var subFa)) return false;
         if (!TryOptional(teile[0], out var vater) || !TryOptional(teile[2], out var pos)) return false;
-        key = new PositionsSchluessel(vater, subFa, pos);
+        key = teile.Length == 3
+            ? new PositionsSchluessel(vater, subFa, pos)
+            : PositionsSchluessel.Bilden(vater, subFa, pos, Uri.UnescapeDataString(teile[3]), Uri.UnescapeDataString(teile[4]));
         return true;
 
         static bool TryOptional(string s, out int? wert)

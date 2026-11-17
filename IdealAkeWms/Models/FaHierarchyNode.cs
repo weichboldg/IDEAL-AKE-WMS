@@ -27,6 +27,11 @@ public class FaHierarchyNode
     /// <summary>Position innerhalb der Vater-Stueckliste. NULL bei der Wurzel.</summary>
     public int? Position { get; set; }
 
+    /// <summary>v1.99.34: nur im Speicher fuer die flache Beschichtungs-Positionsquelle (Stuecklisten-Position als Text);
+    /// an der IDEAL immer null. Kein Schema (Spec 2026-11-16-beschichtungslogik-je-standort, Nachtrag 3).</summary>
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public string? PositionText { get; set; }
+
     public string? HauptArtnr { get; set; }
     public string? Artnr { get; set; }
     public string? Matchcode { get; set; }

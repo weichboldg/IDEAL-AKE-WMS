@@ -31,21 +31,24 @@ public class BomCacheRepository : IBomCacheRepository
 
         var items = header.Items
             .OrderBy(i => i.SortOrder)
-            .Select(i => new BomItem
-            {
-                Position = i.Position ?? string.Empty,
-                Baugruppe = i.Baugruppe ?? string.Empty,
-                Ressourcenummer = i.Ressourcenummer ?? string.Empty,
-                Bezeichnung1 = i.Bezeichnung1 ?? string.Empty,
-                Bezeichnung2 = i.Bezeichnung2 ?? string.Empty,
-                Menge = i.Menge,
-                Beschaffungsartikel = i.Beschaffungsartikel ?? string.Empty,
-                Artikelgruppe = i.Artikelgruppe ?? string.Empty
-            })
+            .Select(ToBomItem)
             .ToList();
 
         return new BomQueryResult(items, header.Source);
     }
+
+    /// <summary>Cache-Zeile → <see cref="BomItem"/> (auch fuer die flache Beschichtungs-Positionsquelle, v1.99.34).</summary>
+    public static BomItem ToBomItem(CachedBomItem i) => new()
+    {
+        Position = i.Position ?? string.Empty,
+        Baugruppe = i.Baugruppe ?? string.Empty,
+        Ressourcenummer = i.Ressourcenummer ?? string.Empty,
+        Bezeichnung1 = i.Bezeichnung1 ?? string.Empty,
+        Bezeichnung2 = i.Bezeichnung2 ?? string.Empty,
+        Menge = i.Menge,
+        Beschaffungsartikel = i.Beschaffungsartikel ?? string.Empty,
+        Artikelgruppe = i.Artikelgruppe ?? string.Empty
+    };
 
     public async Task<HashSet<string>> GetArticleNumbersWithCoatingPartsAsync(
         string lackierteilCategoryName,

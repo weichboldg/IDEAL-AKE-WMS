@@ -1772,6 +1772,7 @@ public class ApplicationDbContext : DbContext
         {
             entity.ToTable("BeschichtungsauftragPositionen");
             entity.HasKey(e => e.Id);
+            entity.Property(e => e.PositionText).HasMaxLength(50);
             entity.Property(e => e.HauptArtnr).HasMaxLength(200);
             entity.Property(e => e.Artnr).HasMaxLength(200);
             entity.Property(e => e.Matchcode).HasMaxLength(200);

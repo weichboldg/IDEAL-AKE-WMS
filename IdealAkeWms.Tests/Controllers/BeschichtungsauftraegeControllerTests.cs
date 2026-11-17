@@ -64,7 +64,7 @@ public class BeschichtungsauftraegeControllerTests
     {
         var repo = new BeschichtungsauftragRepository(_db);
         var wf = new BeschichtungsauftragWorkflow(repo, new FaHierarchyNodeRepository(_db), new FaHierarchyOrderInfoRepository(_db),
-            _user.Object, TimeProvider.System, NullLogger<BeschichtungsauftragWorkflow>.Instance);
+            IdealAkeWms.Tests.Helpers.FlacheQuelleTestHelper.Hierarchisch(), _user.Object, TimeProvider.System, NullLogger<BeschichtungsauftragWorkflow>.Instance);
         var users = new Mock<IUserRepository>();
         users.Setup(u => u.GetAllWithRolesAsync()).ReturnsAsync(new List<User> { new() { Id = 7, Name = "Tester" } });
         var barcode = new Mock<IBarcodeService>();

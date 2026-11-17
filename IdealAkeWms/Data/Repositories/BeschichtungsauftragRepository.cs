@@ -37,11 +37,43 @@ public class BeschichtungsauftragRepository : IBeschichtungsauftragRepository
         var rows = await _db.BeschichtungsauftragPositionen
             .AsNoTracking()
             .Where(p => hauptFas.Contains(p.HauptFA) && p.Beschichtungsauftrag.Status != BeschichtungsauftragStatus.Storniert)
-            .Select(p => new { p.HauptFA, p.VaterFA, p.SubFA, p.Position, p.BeschichtungsauftragId, p.Beschichtungsauftrag.Nummer })
+            .Select(p => new { p.HauptFA, p.VaterFA, p.SubFA, p.Position, p.Artnr, p.PositionText, p.BeschichtungsauftragId, p.Beschichtungsauftrag.Nummer })
             .ToListAsync();
-        return rows.Select(r => new Vergabe(new PositionsSchluessel(r.VaterFA, r.SubFA, r.Position), r.BeschichtungsauftragId, r.Nummer, r.HauptFA))
+        return rows.Select(r => new Vergabe(PositionsSchluessel.Bilden(r.VaterFA, r.SubFA, r.Position, r.Artnr, r.PositionText),
+                r.BeschichtungsauftragId, r.Nummer, r.HauptFA))
             .ToList();
     }
+
+    public async Task<FlacheLackierteilDaten> GetFlacheLackierteileAsync(string? lackierteilKategorie, IReadOnlyCollection<string>? orderNumbers = null)
+    {
+        var q = _db.ProductionOrders.AsNoTracking()
+            .Include(o => o.ProductionWorkplace)
+            .Where(ProductionOrder.IsHauptFa)
+            .Where(o => !o.IsDone && !o.IsCancelled && o.PickingStatus != null && o.PickingStatus.HasCoatingParts);
+        if (orderNumbers != null) q = q.Where(o => orderNumbers.Contains(o.OrderNumber));
+        var orders = await q.OrderBy(o => o.OrderNumber).ToListAsync();
+
+        var artikel = orders.Select(o => o.ArticleNumber).Where(a => !string.IsNullOrWhiteSpace(a)).Distinct().ToList();
+        var items = string.IsNullOrWhiteSpace(lackierteilKategorie) || artikel.Count == 0
+            ? new List<FlachRoh>()
+            : await (
+                from h in _db.CachedBomHeaders
+                join i in _db.CachedBomItems on h.Id equals i.CachedBomHeaderId
+                join a in _db.Articles on i.Ressourcenummer equals a.ArticleNumber
+                join c in _db.ArticleCategories on a.ArticleCategoryId equals c.Id
+                where artikel.Contains(h.Artikelnummer) && c.Name == lackierteilKategorie
+                orderby i.SortOrder
+                select new FlachRoh(h.Artikelnummer, h.Source, i)
+            ).AsNoTracking().ToListAsync();
+        // SQL Server vergleicht ohne Gross/Klein — die Zuordnung im Speicher ebenso.
+        var jeArtikel = items.ToLookup(x => x.Artikelnummer, StringComparer.OrdinalIgnoreCase);
+
+        var zeilen = orders.SelectMany(o => jeArtikel[o.ArticleNumber ?? ""].Select(x => new FlacheLackierteilZeile(o, x.Source, x.Item))).ToList();
+        var ohne = orders.Where(o => !jeArtikel[o.ArticleNumber ?? ""].Any()).Select(o => o.OrderNumber).Distinct().ToList();
+        return new FlacheLackierteilDaten(zeilen, ohne);
+    }
+
+    private sealed record FlachRoh(string Artikelnummer, string Source, CachedBomItem Item);
 
     public Task<Beschichtungsauftrag?> GetDetailAsync(int id) =>
         _db.Beschichtungsauftraege

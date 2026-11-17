@@ -1254,16 +1254,34 @@
         </div>
 
         <div class="card mb-3">
-            <div class="card-header"><strong>Beschichtung (IDEAL)</strong></div>
+            <div class="card-header"><strong>Beschichtung</strong></div>
             <div class="card-body">
                 <p>
                     Beschichtete Teile eines Fertigungsauftrags an den Dienstleister geben: aus der <strong>Vorschlagsliste</strong>
                     wird ein gespeicherter <strong>Beschichtungsauftrag</strong> mit Nummer <code>BA-Jahr-laufende Nummer</code>,
                     der gedruckt mitgeht. Menü <em>Beschichtung</em> mit den Einträgen <em>Vorschlagsliste</em> und
                     <em>Aufträge</em>. Sichtbar mit der Rolle &bdquo;Beschichtungsauftrag (IDEAL)&ldquo; (lesen, drucken) oder
-                    &bdquo;Beschichtungsaufträge (Schreibrecht)&ldquo; (zusätzlich anlegen und bearbeiten) &mdash; nur am
-                    Standort IDEAL eingeschaltet.
+                    &bdquo;Beschichtungsaufträge (Schreibrecht)&ldquo; (zusätzlich anlegen und bearbeiten) &mdash; an beiden
+                    Standorten möglich, eingeschaltet über die Einstellung &bdquo;Beschichtungsauftrag aktiv&ldquo;.
                 </p>
+
+                <h6 class="mt-3">AKE: Positionen aus der Stückliste (seit v1.99.34)</h6>
+                <ul>
+                    <li>An der AKE (flaches Auftragsmodell) kommen die Positionen aus der <strong>Stückliste des WA</strong>
+                        (Stücklisten-Cache): alle Zeilen der Artikelkategorie aus der Einstellung <em>Lackierteil-Kategorie</em>,
+                        für jeden offenen WA (nicht erledigt, nicht storniert) mit Beschichtungskennzeichen. HauptFA ist die
+                        WA-Nummer.</li>
+                    <li><strong>Menge</strong> = Stücklistenmenge &times; WA-Menge (dieselbe Regel wie die Kommissionierliste).
+                        Maße gibt es an der AKE nicht, sie stehen auf 0.</li>
+                    <li><strong>Position</strong> ist die Stücklisten-Position als Text, z.&nbsp;B. <code>10.140.40.10.10</code>; sortiert
+                        wird natürlich (5, 5.2, 5.10, 51). Eine Position ist über Artikelnummer + Position eindeutig &mdash;
+                        <code>5.2</code> und <code>5.20</code> sind verschiedene Positionen.</li>
+                    <li><strong>Auftragskopf:</strong> Start ist der berechnete Beschichtungstermin des WA; Dienstleister, RAL und
+                        Retour bleiben leer und werden im Entwurf eingetragen.</li>
+                    <li><strong>Sammelmeldung:</strong> Hat ein offener WA das Beschichtungskennzeichen, aber keine
+                        Lackierteil-Zeile im Stücklisten-Cache, steht er im gelben Hinweis über der Liste und fehlt in der
+                        Vorschlagsliste &mdash; Stückliste bzw. Kategorie des Artikels prüfen.</li>
+                </ul>
 
                 <h6 class="mt-3">Kurzanleitung</h6>
                 <ol>

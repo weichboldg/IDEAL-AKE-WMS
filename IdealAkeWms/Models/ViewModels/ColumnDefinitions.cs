@@ -376,7 +376,7 @@ public static class ColumnDefinitions
     /// Spalten identisch zum inline #column-config JSON der View.
     /// </summary>
     public static readonly ViewConfig FaHierarchyBeschichtung = new(
-        "FaHierarchyBeschichtung", "Vorschlagsliste Beschichtung (IDEAL)",
+        "FaHierarchyBeschichtung", "Vorschlagsliste Beschichtung",
         SupportsReorder: true, SupportsSortDefault: false)
     {
         Columns =
@@ -401,7 +401,7 @@ public static class ColumnDefinitions
     /// Spalten identisch zum inline #column-config JSON der View (Drift-Waechter KommissionierSpaltenKonsistenzTests).
     /// </summary>
     public static readonly ViewConfig FaHierarchyBeschichtungSummiert = new(
-        "FaHierarchyBeschichtungSummiert", "Vorschlagsliste Beschichtung — Summiert (IDEAL)",
+        "FaHierarchyBeschichtungSummiert", "Vorschlagsliste Beschichtung — Summiert",
         SupportsReorder: true, SupportsSortDefault: false)
     {
         Columns =
@@ -576,7 +576,7 @@ public static class ColumnDefinitions
     /// #column-config JSON der View (Drift-Waechter BeschichtungsauftraegeViewTests).
     /// </summary>
     public static readonly ViewConfig Beschichtungsauftraege = new(
-        "Beschichtungsauftraege", "Beschichtungsaufträge (IDEAL)",
+        "Beschichtungsauftraege", "Beschichtungsaufträge",
         SupportsReorder: true, SupportsSortDefault: false)
     {
         Columns =
@@ -602,7 +602,7 @@ public static class ColumnDefinitions
     /// (PrintVisibleColumns). artnr + matchcode Locked (matchcode traegt im Druck „Maße uneinheitlich").
     /// </summary>
     public static readonly ViewConfig BeschichtungsauftragPositionen = new(
-        "BeschichtungsauftragPositionen", "Beschichtungsauftrag — Positionen (IDEAL)",
+        "BeschichtungsauftragPositionen", "Beschichtungsauftrag — Positionen",
         SupportsReorder: true, SupportsSortDefault: false)
     {
         Columns =

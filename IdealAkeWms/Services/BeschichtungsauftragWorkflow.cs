@@ -60,6 +60,7 @@ public class BeschichtungsauftragWorkflow
     private readonly IBeschichtungsauftragRepository _repo;
     private readonly FaHierarchyNodeRepository _nodes;
     private readonly IFaHierarchyOrderInfoRepository _infos;
+    private readonly Beschichtung.BeschichtungFlacheQuelle _flach;
     private readonly ICurrentUserService _user;
     private readonly TimeProvider _time;
     private readonly ILogger<BeschichtungsauftragWorkflow> _logger;
@@ -68,6 +69,7 @@ public class BeschichtungsauftragWorkflow
         IBeschichtungsauftragRepository repo,
         FaHierarchyNodeRepository nodes,
         IFaHierarchyOrderInfoRepository infos,
+        Beschichtung.BeschichtungFlacheQuelle flach,
         ICurrentUserService user,
         TimeProvider time,
         ILogger<BeschichtungsauftragWorkflow> logger)
@@ -75,12 +77,18 @@ public class BeschichtungsauftragWorkflow
         _repo = repo;
         _nodes = nodes;
         _infos = infos;
+        _flach = flach;
         _user = user;
         _time = time;
         _logger = logger;
     }
 
     private DateTime Jetzt => _time.GetLocalNow().DateTime;
+
+    /// <summary>v1.99.34: Positionen eines HauptFA je Quelle — flach (AKE) aus der WA-Stueckliste, sonst die ungecachten Knoten.</summary>
+    private async Task<List<FaHierarchyNode>> KnotenAsync(int hauptFa) => await _flach.IstFlachAsync()
+        ? (await _flach.LadenAsync(new[] { hauptFa })).Knoten
+        : await _nodes.GetByHauptFaAsync(hauptFa);
 
     // ===================== Anlegen (Anforderungen 2, 4, 6, 7, 8) =====================
 
@@ -89,10 +97,14 @@ public class BeschichtungsauftragWorkflow
         MitNummernVersuchenAsync(serializable: true, async () =>
         {
             var r = new BeschichtungsauftragErgebnis();
-            var beschichtet = (await _nodes.GetByHauptFaAsync(hauptFa)).Where(n => n.Beschichtet).ToList();
+            var flach = await _flach.IstFlachAsync();
+            var flachePositionen = flach ? await _flach.LadenAsync(new[] { hauptFa }) : null;
+            var beschichtet = (flachePositionen?.Knoten ?? await _nodes.GetByHauptFaAsync(hauptFa)).Where(n => n.Beschichtet).ToList();
             if (beschichtet.Count == 0)
             {
-                r.Fehler.Add($"Für HauptFA {hauptFa} gibt es im Sage-Cache keine beschichteten Positionen — kein Auftrag angelegt.");
+                r.Fehler.Add(flach
+                    ? $"Für WA {hauptFa} gibt es keine offenen Lackierteil-Positionen in der Stückliste — kein Auftrag angelegt."
+                    : $"Für HauptFA {hauptFa} gibt es im Sage-Cache keine beschichteten Positionen — kein Auftrag angelegt.");
                 return r;
             }
             MeldeDoppelteSchluessel(beschichtet, r);
@@ -112,7 +124,12 @@ public class BeschichtungsauftragWorkflow
 
             var auftrag = new Beschichtungsauftrag { HauptFA = hauptFa, Status = BeschichtungsauftragStatus.Entwurf };
             Erstellt(auftrag);
-            KopfVorbelegen(auftrag, await _infos.GetByHauptFaAsync(hauptFa), r);
+            if (flachePositionen is not null)
+                // AKE (Freigabe-Antwort 11): keine PPS-View; Start = berechneter Termin, Dienstleister/RAL/Retour bleiben leer.
+                auftrag.StartBeschichtung = flachePositionen.Auftraege.Count == 1
+                    ? await _flach.StartBeschichtungAsync(flachePositionen.Auftraege[0]) : null;
+            else
+                KopfVorbelegen(auftrag, await _infos.GetByHauptFaAsync(hauptFa), r);
             foreach (var n in frei) auftrag.Positionen.Add(Snapshot(n));
             await NummerVergebenUndSpeichernAsync(auftrag);
             r.Auftrag = auftrag;
@@ -218,7 +235,7 @@ public class BeschichtungsauftragWorkflow
         }
 
         var vergaben = VergabenJeSchluessel(await _repo.GetVergabenAsync(a.HauptFA));
-        return (await _nodes.GetByHauptFaAsync(a.HauptFA))
+        return (await KnotenAsync(a.HauptFA))
             .Where(n => n.Beschichtet && !vergaben.ContainsKey(PositionsSchluessel.Von(n)))
             .DistinctBy(PositionsSchluessel.Von)
             .Select(n => new PositionsKandidat(PositionsSchluessel.Von(n), n.HauptArtnr, n.Artnr, n.Matchcode, n.Sollmenge, n.Breite, n.Hoehe, n.Tiefe))
@@ -259,7 +276,7 @@ public class BeschichtungsauftragWorkflow
         // die SQL-Server-Transaktion beendet — ein Commit danach wuerde selbst werfen (QA I-1).
         return await MitFehlerbehandlungAsync(a.Nummer, () => _repo.InSerializableTransactionAsync(async () =>
         {
-            var knoten = (await _nodes.GetByHauptFaAsync(a.HauptFA)).GroupBy(PositionsSchluessel.Von).ToDictionary(g => g.Key, g => g.First());
+            var knoten = (await KnotenAsync(a.HauptFA)).GroupBy(PositionsSchluessel.Von).ToDictionary(g => g.Key, g => g.First());
             var vergaben = VergabenJeSchluessel(await _repo.GetVergabenAsync(a.HauptFA));
             foreach (var k in keys.Where(k => !eigene.Contains(k)))
             {
@@ -441,7 +458,7 @@ public class BeschichtungsauftragWorkflow
     {
         var p = new BeschichtungsauftragPosition
         {
-            HauptFA = n.HauptFA, VaterFA = n.VaterFA, SubFA = n.SubFA, Position = n.Position,
+            HauptFA = n.HauptFA, VaterFA = n.VaterFA, SubFA = n.SubFA, Position = n.Position, PositionText = n.PositionText,
             HauptArtnr = n.HauptArtnr, Artnr = n.Artnr, Matchcode = n.Matchcode,
             Menge = n.Sollmenge, Breite = n.Breite, Hoehe = n.Hoehe, Tiefe = n.Tiefe,
         };
@@ -453,7 +470,7 @@ public class BeschichtungsauftragWorkflow
     {
         var p = new BeschichtungsauftragPosition
         {
-            HauptFA = u.HauptFA, VaterFA = u.VaterFA, SubFA = u.SubFA, Position = u.Position,
+            HauptFA = u.HauptFA, VaterFA = u.VaterFA, SubFA = u.SubFA, Position = u.Position, PositionText = u.PositionText,
             HauptArtnr = u.HauptArtnr, Artnr = u.Artnr, Matchcode = u.Matchcode,
             Menge = u.Menge, Breite = u.Breite, Hoehe = u.Hoehe, Tiefe = u.Tiefe,
         };
