@@ -73,6 +73,10 @@ public class FaStrukturQuelleSwitch : SageQuelleWeiche, ISageFaStrukturReader
     public IReadOnlyList<SdataHinweis> SdataHinweise =>
         GenutzteQuelle is SageQuelle.SData or SageQuelle.Vergleich && _sdata is SdataFaStrukturReader r ? r.Hinweise : Array.Empty<SdataHinweis>();
 
+    /// <summary>v1.99.37 (ADR 0032): Sage-Zustand der verschwundenen FAs immer per SQL (nur SELECT), unabhaengig von der Quelle der Struktur.</summary>
+    public Task<IReadOnlyDictionary<int, FaSageStatus>> FaStatusLesenAsync(IReadOnlyCollection<int> belIds, CancellationToken ct = default) =>
+        _view.FaStatusLesenAsync(belIds, ct);
+
     public async Task<FaStrukturLesung> LesenAsync(CancellationToken ct = default)
     {
         // Der View-Knoten-Select nimmt nur Strukturen mit FAInfos-Zeile (EXISTS, FaHierarchySql.BuildNodeSelectSql); dieselbe Grenze

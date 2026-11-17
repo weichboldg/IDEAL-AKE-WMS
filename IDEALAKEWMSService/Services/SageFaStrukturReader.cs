@@ -69,6 +69,36 @@ public sealed class SageFaStrukturReader : ISageFaStrukturReader
         return new FaStrukturLesung(nodes, infos, listeCount, infosCount);
     }
 
+    /// <summary>
+    /// v1.99.37 (Spec 2026-11-17-fa-struktur-abgleich-statt-full-replace, Anforderung 3): Zustand der verschwundenen FAs aus
+    /// <c>dbo.KHKPpsFaBelege</c> (nur SELECT, Bloecke zu 1000). Nicht im Ergebnis = in Sage nicht gefunden. Liefert eine BelID mehrere
+    /// Zeilen mit verschiedenem Zustand, gilt sie als offen (nichts entfernen auf unklarer Grundlage).
+    /// ponytail: ohne Mandant-Filter bis P-AB4 (BelID mandantuebergreifend eindeutig?) geklaert ist — bei Mehrdeutigkeit greift „offen“.
+    /// </summary>
+    public async Task<IReadOnlyDictionary<int, FaSageStatus>> FaStatusLesenAsync(IReadOnlyCollection<int> belIds, CancellationToken ct = default)
+    {
+        var ergebnis = new Dictionary<int, FaSageStatus>();
+        if (belIds.Count == 0) return ergebnis;
+        var sageConnStr = _config.GetConnectionString("SageConnection")
+            ?? throw new InvalidOperationException("SageConnection nicht konfiguriert.");
+        await using var conn = new SqlConnection(sageConnStr);
+        await conn.OpenAsync(ct);
+        foreach (var block in belIds.Chunk(1000))
+        {
+            // Nur int-Werte, daher als Literalliste (kein SQL-Injection-Pfad; 1000 Parameter waeren dem Treiber zu viel).
+            var sql = $"SELECT BelID, IstBeendet, Aktiv FROM dbo.KHKPpsFaBelege WHERE BelID IN ({string.Join(",", block)})";
+            await using var cmd = new SqlCommand(sql, conn) { CommandTimeout = 120 };
+            await using var r = await cmd.ExecuteReaderAsync(ct);
+            while (await r.ReadAsync(ct))
+            {
+                var id = Int32(r, 0);
+                var s = Bool(r, 1) ? FaSageStatus.Beendet : !Bool(r, 2) ? FaSageStatus.Inaktiv : FaSageStatus.Offen;
+                ergebnis[id] = ergebnis.TryGetValue(id, out var vorher) && vorher != s ? FaSageStatus.Offen : s;
+            }
+        }
+        return ergebnis;
+    }
+
     private static async Task<long> ScalarCountAsync(SqlConnection conn, string sql, CancellationToken ct)
     {
         await using var cmd = new SqlCommand(sql, conn) { CommandTimeout = 120 };

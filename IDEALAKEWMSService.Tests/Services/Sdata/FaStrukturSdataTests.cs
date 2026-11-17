@@ -484,12 +484,15 @@ public class FaStrukturSdataTests
         public FaStrukturLesung Lesung { get; set; } = new(new(), new(), 0, 0);
         public Exception? ThrowOnRead { get; set; }
         public int Aufrufe { get; private set; }
+        public Dictionary<int, FaSageStatus> Status { get; set; } = new();
         public Task<FaStrukturLesung> LesenAsync(CancellationToken ct = default)
         {
             Aufrufe++;
             if (ThrowOnRead is not null) throw ThrowOnRead;
             return Task.FromResult(Lesung);
         }
+        public Task<IReadOnlyDictionary<int, FaSageStatus>> FaStatusLesenAsync(IReadOnlyCollection<int> belIds, CancellationToken ct = default) =>
+            Task.FromResult<IReadOnlyDictionary<int, FaSageStatus>>(Status);
     }
 
     private sealed class TestSwitch : FaStrukturQuelleSwitch
@@ -628,6 +631,20 @@ public class FaStrukturSdataTests
         sdata.ThrowOnRead = new SdataLeseException("PpsFaBelegePositionenInfo", 500, "Ungültiger Spaltenname 'Status'");
 
         (await w.LesenAsync()).Positionen.Should().BeNull("ein gescheiterter SData-Read darf die Positionen nie leeren");
+    }
+
+    [Theory]
+    [InlineData("View")]
+    [InlineData("SData")]
+    [InlineData("Vergleich")]
+    public async Task Weiche_FaStatus_ImmerUeberDenSqlReader(string schalter)
+    {
+        // v1.99.37 (ADR 0032): der Sage-Zustand verschwundener FAs kommt unabhaengig von der Struktur-Quelle per SQL.
+        var (w, view, sdata, _, _) = Weiche(schalter);
+        view.Status = new() { [5] = FaSageStatus.Beendet };
+        sdata.Status = new() { [5] = FaSageStatus.Offen };
+
+        (await w.FaStatusLesenAsync(new[] { 5 }))[5].Should().Be(FaSageStatus.Beendet);
     }
 
     [Fact]
