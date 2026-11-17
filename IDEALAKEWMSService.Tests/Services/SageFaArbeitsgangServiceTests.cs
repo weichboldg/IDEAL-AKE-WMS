@@ -36,11 +36,12 @@ public class SageFaArbeitsgangServiceTests
     {
         public Dictionary<int, SageFaArbeitsgaenge.FaStand> Stand { get; } = new();
         public bool Wirft { get; set; }
+        public int? WirftAbAufruf { get; set; }
         public int Aufrufe { get; private set; }
         public Task<IReadOnlyDictionary<int, SageFaArbeitsgaenge.FaStand>> LesenAsync(IReadOnlyCollection<int> belIds, CancellationToken ct)
         {
             Aufrufe++;
-            if (Wirft) throw new IdealAkeWms.Services.SageSdata.SdataLeseException("PpsFaBelegeInfo", 503, "Sage nicht erreichbar");
+            if (Wirft || Aufrufe >= WirftAbAufruf) throw new IdealAkeWms.Services.SageSdata.SdataLeseException("PpsFaBelegeInfo", 503, "Sage nicht erreichbar");
             return Task.FromResult<IReadOnlyDictionary<int, SageFaArbeitsgaenge.FaStand>>(Stand);
         }
     }
@@ -50,6 +51,15 @@ public class SageFaArbeitsgangServiceTests
     private readonly FakeLookup _lookup = new();
     private readonly FakeSyncLogger _log = new();
     private readonly Mock<ISyncErrorNotifier> _mail = new();
+
+    // Standard: Sage nimmt an und die AG steht beim Nachlesen am FA (QA F3)
+    public SageFaArbeitsgangServiceTests() => _client.Antwort = Anlegen;
+
+    private SageFaArbeitsgangSendResult Anlegen(SageFaArbeitsgangRequest r)
+    {
+        ((HashSet<string>)_lookup.Stand[r.BelId].AgNummern).Add(r.SageArbeitsgangnummer);
+        return new(true, false, "{}", null);
+    }
 
     private SageFaArbeitsgangService Svc() =>
         new(_db, _client, _lookup, _mail.Object, NullLogger<SageFaArbeitsgangService>.Instance, _log);
@@ -163,7 +173,7 @@ public class SageFaArbeitsgangServiceTests
 
         a.ModifiedAt = DateTime.Now.AddMinutes(-20);
         _db.SaveChanges();
-        _client.Antwort = _ => new(true, false, "{}", null);
+        _client.Antwort = Anlegen;
         await Svc().RunOnceAsync(Endpoint, "BEA", 10, Wdh);
         _client.Gesendet.Should().HaveCount(2);
         a.Status.Should().Be(SageFaArbeitsgangStatus.Angelegt);
@@ -195,6 +205,46 @@ public class SageFaArbeitsgangServiceTests
         _db.SaveChanges();
         await Svc().RunOnceAsync(Endpoint, "BEA", 10, Wdh);
         _client.Gesendet.Should().HaveCount(1);                      // weder a noch h erneut gesendet
+    }
+
+    [Fact]
+    public async Task Nachlesen_AgGefunden_Angelegt_NachlesenPerGet()
+    {
+        Zeile(10, "180", 1);
+        _lookup.Stand[10] = Offen();
+        (await Svc().RunOnceAsync(Endpoint, "BEA", 10, Wdh)).Should().Be(1);
+        _lookup.Aufrufe.Should().Be(2);                              // vor dem Senden + Nachlesen
+        _db.SageFaArbeitsgangAnlagen.Single().Status.Should().Be(SageFaArbeitsgangStatus.Angelegt);
+    }
+
+    [Fact]
+    public async Task Nachlesen_KeinFund_TrotzErfolgsantwort_FehlerMitText()
+    {
+        var a = Zeile(10, "180", 1);
+        _lookup.Stand[10] = Offen();
+        _client.Antwort = _ => new(true, false, "{\"Handle\":10}", null);   // 2xx ohne ErrorText, AG aber nicht angelegt
+        (await Svc().RunOnceAsync(Endpoint, "BEA", 10, Wdh)).Should().Be(0);
+        a.Status.Should().Be(SageFaArbeitsgangStatus.Fehler);
+        a.Fehler.Should().Contain("steht beim Nachlesen nicht am FA").And.NotStartWith(SageFaArbeitsgaenge.UnklarText);
+        _log.Runs.Single().FinalCounts!["Fehler"].Should().Be(1);
+        _mail.Verify(m => m.NotifyAsync("Sage-FA-Arbeitsgänge", It.IsAny<Exception>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Nachlesen_Lesefehler_Unklar_NieAutomatischWiederholt()
+    {
+        var a = Zeile(10, "180", 1);
+        _lookup.Stand[10] = Offen();
+        _lookup.WirftAbAufruf = 2;                                   // Pruefung vor dem Senden ok, Nachlesen wirft
+        await Svc().RunOnceAsync(Endpoint, "BEA", 10, Wdh);
+        a.Status.Should().Be(SageFaArbeitsgangStatus.Fehler);
+        a.Fehler.Should().StartWith(SageFaArbeitsgaenge.UnklarText).And.Contain("Nachlesen nach dem Senden fehlgeschlagen");
+
+        _lookup.WirftAbAufruf = null;
+        a.ModifiedAt = DateTime.Now.AddHours(-1);
+        _db.SaveChanges();
+        await Svc().RunOnceAsync(Endpoint, "BEA", 10, Wdh);
+        _client.Gesendet.Should().HaveCount(1);
     }
 
     [Fact]
@@ -276,12 +326,13 @@ public class SageFaArbeitsgangServiceTests
     }
 
     [Fact]
-    public void Auswerten_OhneHandle_Unklar_MitErrorText_Fehler_XmlUndJson()
+    public void Auswerten_OhneErrorText_VorlaeufigErfolg_MitErrorText_Fehler_XmlUndJson()
     {
-        SageFaArbeitsgangClient.Auswerten("{\"ResultNumber\":200}").Should().Match<SageFaArbeitsgangSendResult>(r => !r.Success && r.Unklar);
+        // QA F3: ohne ErrorText nur vorlaeufig erfolgreich — angelegt entscheidet erst das Nachlesen im Service
+        SageFaArbeitsgangClient.Auswerten("{\"ResultNumber\":200}").Should().Match<SageFaArbeitsgangSendResult>(r => r.Success && !r.Unklar);
         SageFaArbeitsgangClient.Auswerten("<a><response><Handle>5</Handle><ErrorText></ErrorText></response></a>").Success.Should().BeTrue();
         SageFaArbeitsgangClient.Auswerten("{\"response\":{\"Handle\":5,\"ErrorText\":\"kaputt\"}}")
             .Should().Match<SageFaArbeitsgangSendResult>(r => !r.Success && !r.Unklar && r.Error == "kaputt");
-        SageFaArbeitsgangClient.Auswerten("kein json").Should().Match<SageFaArbeitsgangSendResult>(r => !r.Success && r.Unklar);
+        SageFaArbeitsgangClient.Auswerten("kein json").Should().Match<SageFaArbeitsgangSendResult>(r => r.Success && !r.Unklar);
     }
 }

@@ -9,7 +9,7 @@ namespace IDEALAKEWMSService.Services;
 /// <summary>Eine AG-Position fuer FertigungsauftragService ServiceOption 4 (je AG ein Aufruf, damit das Ergebnis je AG eindeutig ist).</summary>
 public sealed record SageFaArbeitsgangRequest(int BelId, string SageArbeitsgangnummer, decimal Menge, string Bearbeiter);
 
-/// <summary>Ergebnis eines Sende-Versuchs. <see cref="Unklar"/> = Zeitueberschreitung/Antwort ohne Handle: nie automatisch wiederholen.</summary>
+/// <summary>Ergebnis eines Sende-Versuchs. <see cref="Unklar"/> = Zeitueberschreitung/Nachlesen fehlgeschlagen: nie automatisch wiederholen.</summary>
 public sealed record SageFaArbeitsgangSendResult(bool Success, bool Unklar, string? ResponseRaw, string? Error);
 
 /// <summary>v1.99.38 (Spec 2026-11-17-arbeitsgaenge-aus-wms-in-sage-fa-anlegen E1a): POST {BaseUrl}/sdata/{App}/{Contract}/{Dataset}/$service/FertigungsauftragService
@@ -108,14 +108,13 @@ public class SageFaArbeitsgangClient : ISageFaArbeitsgangClient
         }
     }
 
-    /// <summary>HTTP 2xx: Erfolg nur ohne ErrorText UND mit einem Handle in der Antwort (TODO(P-1): Antwortform belegen); sonst unklar.</summary>
+    /// <summary>HTTP 2xx: mit ErrorText = Fehler; sonst nur „vorläufig erfolgreich“ — angelegt erst, wenn
+    /// <see cref="SageFaArbeitsgangService"/> die AG danach in Sage nachliest (QA F3, v1.99.39; der Handle der Antwort beweist nichts,
+    /// weil der Request ihn selbst mitschickt).</summary>
     public static SageFaArbeitsgangSendResult Auswerten(string? body)
     {
         var fehler = Feld(body, "ErrorText");
-        if (!string.IsNullOrWhiteSpace(fehler)) return new(false, false, Cap(body), fehler);
-        return string.IsNullOrWhiteSpace(Feld(body, "Handle"))
-            ? new(false, true, Cap(body), "Antwort von Sage ohne Handle.")
-            : new(true, false, Cap(body), null);
+        return string.IsNullOrWhiteSpace(fehler) ? new(true, false, Cap(body), null) : new(false, false, Cap(body), fehler);
     }
 
     /// <summary>Erstes Vorkommen eines Feldes in XML (SData-Atom, LocalName) oder JSON (beliebige Tiefe); null wenn nicht lesbar/leer.</summary>

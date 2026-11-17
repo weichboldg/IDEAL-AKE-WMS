@@ -156,6 +156,8 @@ public class SageFaArbeitsgangService
 
                 var r = await _client.SendAsync(
                     new SageFaArbeitsgangRequest(a.BelId, a.SageArbeitsgangnummer.Trim(), st!.Fertigungsmenge!.Value, bearbeiter!.Trim()), endpoint, ct);
+                // QA F3 (v1.99.39): 2xx ohne ErrorText reicht nicht (der Request schickt den Handle selbst mit) -> in Sage nachlesen
+                if (r.Success && await NachlesenAsync(a, ct) is { } nachlese) r = nachlese;
                 if (r.Success)
                 {
                     Setze(a, SageFaArbeitsgangStatus.Angelegt, null);
@@ -188,6 +190,24 @@ public class SageFaArbeitsgangService
             await run.LogErrorAsync(Kappen(ex.Message, 900)!, ct: ct);
             await run.FinishFailedAsync(Kappen(ex.Message, 900)!, counts: Counts(angelegt, uebersprungen, fehler), ct: ct);
             throw;
+        }
+    }
+
+    /// <summary>Nach einer 2xx-Antwort: AG am FA nachlesen (nur GET; AG-Nummer = RessourceNummer der AG-Position, P-5).
+    /// null = gefunden; sonst Fehler mit Text bzw. „unklar“ bei Lesefehler (nie automatisch wiederholt).</summary>
+    private async Task<SageFaArbeitsgangSendResult?> NachlesenAsync(SageFaArbeitsgangAnlage a, CancellationToken ct)
+    {
+        try
+        {
+            var st = (await _lookup.LesenAsync(new[] { a.BelId }, ct)).GetValueOrDefault(a.BelId);
+            return st is { Gefunden: true } && st.AgNummern.Contains(a.SageArbeitsgangnummer.Trim())
+                ? null
+                : new(false, false, null, "Sage meldet Erfolg, aber der Arbeitsgang steht beim Nachlesen nicht am FA – nicht angelegt.");
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning(ex, "Sage-FA-AG: Nachlesen nach dem Senden fehlgeschlagen (FA {BelId}).", a.BelId);
+            return new(false, true, null, $"Nachlesen nach dem Senden fehlgeschlagen: {ex.GetBaseException().Message}");
         }
     }
 
