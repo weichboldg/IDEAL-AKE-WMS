@@ -208,8 +208,7 @@ public class OperationConfigsController : Controller
     internal static Pruefliste BuildPruefliste(IEnumerable<string?> arbeitsschritte, IReadOnlyList<OperationConfig> configs,
         IReadOnlyList<ProductionWorkplace> werkbaenke, IReadOnlySet<string> ausschluss)
     {
-        var byName = new Dictionary<string, OperationConfig>(StringComparer.OrdinalIgnoreCase);
-        foreach (var c in configs.OrderBy(c => c.Id)) byName.TryAdd(c.OperationName.Trim(), c); // kleinste Id gewinnt (wie Offsets)
+        var byName = SageFaArbeitsgaenge.KuerzelLookup(configs); // kleinste Id gewinnt (wie Offsets); dieselbe Regel nutzt die Sage-AG-Vorschau
 
         var ohneAg = arbeitsschritte
             .SelectMany(a => FaArbeitsschrittSymbole.Tokenize(a).Distinct(StringComparer.OrdinalIgnoreCase))

@@ -1,0 +1,142 @@
+@model IdealAkeWms.Models.ViewModels.SageFaArbeitsgaengeViewModel
+@using IdealAkeWms.Services
+@{
+    ViewData["Title"] = "Arbeitsgänge → Sage";
+    // „Sage-Stand prüfen“ behält alle Filter (auch Spaltenfilter cf_*) und setzt pruefen=true; der CSV-Export traegt den Parameter mit.
+    var query = Context.Request.Query.Where(q => q.Key is not ("pruefen" or "page"))
+        .SelectMany(q => q.Value.Select(v => $"{Uri.EscapeDataString(q.Key)}={Uri.EscapeDataString(v ?? "")}"));
+    var pruefenUrl = Url.Action("Index") + "?" + string.Join("&", query.Append("pruefen=true"));
+
+    string BadgeKlasse(string status) => status switch
+    {
+        SageFaArbeitsgaenge.Anlegbar => "text-bg-success",
+        SageFaArbeitsgaenge.InSageVorhanden => "text-bg-secondary",
+        SageFaArbeitsgaenge.NichtGeprueft => "bg-light text-dark border",
+        _ => "text-bg-warning",
+    };
+}
+
+<h2 class="page-header">Arbeitsgänge → Sage</h2>
+<p class="text-muted mb-3">
+    Je Fertigungsauftrag die Arbeitsgang-Kürzel aus der FA-Struktur mit ihrer Sage-Arbeitsgangnummer aus
+    <a asp-controller="OperationConfigs" asp-action="Index">Arbeitsgänge</a>. Ohne „Sage-Stand prüfen“ wird Sage nicht gelesen.
+    Diese Seite schreibt nichts nach Sage.
+</p>
+
+<div class="card filter-card mb-3">
+    <div class="card-header">Filter</div>
+    <div class="card-body">
+        <form method="get" asp-action="Index">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label" for="hauptFa">Haupt-FA</label>
+                    <input type="number" id="hauptFa" name="hauptFa" value="@Model.HauptFa" class="form-control" min="1" placeholder="z. B. 1059463" />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" for="fa">FA (Haupt- oder Unter-FA)</label>
+                    <input type="number" id="fa" name="fa" value="@Model.Fa" class="form-control" min="1" />
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <div class="form-check mb-2">
+                        <input type="checkbox" name="nurAnlegbar" value="true" class="form-check-input" id="nurAnlegbar" @(Model.NurAnlegbar ? "checked" : "") />
+                        <label class="form-check-label" for="nurAnlegbar">Nur anlegbare</label>
+                    </div>
+                </div>
+                <div class="col-md-3 d-flex align-items-end gap-2">
+                    @if (Model.Pruefen) { <input type="hidden" name="pruefen" value="true" /> }
+                    <button type="submit" class="btn btn-secondary">Filtern</button>
+                    <a asp-action="Index" class="btn btn-outline-secondary" data-clear-table-filters="SageFaArbeitsgaenge">Zurücksetzen</a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="d-flex flex-wrap align-items-center gap-3 mb-3">
+    <a href="@pruefenUrl" class="btn btn-primary">Sage-Stand prüfen</a>
+    <span class="small text-muted">
+        @if (Model.Pruefen && Model.SageBanner == null) { <text>Sage-Stand eben gelesen. </text> }
+        Liest Kopf und Arbeitsgang-Positionen der FAs in der Auswahl aus Sage (höchstens @SageFaArbeitsgaenge.MaxFasJePruefung FAs).
+    </span>
+</div>
+
+@if (Model.SageBanner != null)
+{
+    <div class="alert alert-warning" role="alert"><strong>Sage-Stand:</strong> @Model.SageBanner</div>
+}
+@if (Model.Blaetter > 0 || Model.NurInSage > 0)
+{
+    <div class="alert alert-info py-2" role="status">
+        @if (Model.Blaetter > 0)
+        {
+            <div>@Model.Blaetter Blatt-Position(en) mit Kürzeln haben keinen eigenen FA und werden nicht angelegt.</div>
+        }
+        @if (Model.NurInSage > 0)
+        {
+            <div>@Model.NurInSage Arbeitsgang-Position(en) stehen nur in Sage (ohne Kürzel im WMS). Das WMS löscht sie nicht.</div>
+        }
+    </div>
+}
+
+<div class="d-flex justify-content-end mb-1" data-table-toolbar></div>
+<div class="table-responsive">
+    <table class="table table-striped table-sm mb-0 filterable-table" data-server-column-filter="true" data-view-key="SageFaArbeitsgaenge">
+        <thead>
+            <tr>
+                <th data-filterable data-col-key="hauptfa">Haupt-FA</th>
+                <th data-filterable data-col-key="fa">FA</th>
+                <th data-filterable data-col-key="ebene">Ebene</th>
+                <th data-filterable data-col-key="artnr">Artikelnummer</th>
+                <th data-filterable data-col-key="matchcode">Matchcode</th>
+                <th data-filterable data-col-key="kuerzel">Kürzel</th>
+                <th data-filterable data-col-key="pos" title="Position des Kürzels im Feld Arbeitsschritte">Pos.</th>
+                <th data-filterable data-col-key="sageag">Sage-AG</th>
+                <th data-filterable data-col-key="status">Status</th>
+                <th data-filterable data-col-key="aginsage" title="Arbeitsgang-Positionen, die in Sage am FA stehen">AG in Sage</th>
+                <th data-filterable data-col-key="hinweis">Hinweis</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var z in Model.Zeilen)
+            {
+                <tr>
+                    <td>@z.HauptFa</td>
+                    <td>@z.BelId</td>
+                    <td>@z.Ebene</td>
+                    <td>@z.Artnr</td>
+                    <td>@z.Matchcode</td>
+                    <td><strong>@z.Kuerzel</strong></td>
+                    <td>@z.Reihenfolge</td>
+                    <td>@z.SageAg</td>
+                    <td><span class="badge @BadgeKlasse(z.Status)">@z.Status</span></td>
+                    <td>@z.AgInSage</td>
+                    <td class="small">@z.Hinweis</td>
+                </tr>
+            }
+            @if (!Model.Zeilen.Any())
+            {
+                <tr><td colspan="11" class="text-center text-muted py-3">Keine Kürzel für diese Filterung. Haupt-FA prüfen oder Filter zurücksetzen.</td></tr>
+            }
+        </tbody>
+    </table>
+</div>
+<partial name="_Pagination" model="Model.Pagination" />
+
+<div class="card mt-4">
+    <div class="card-header">Status</div>
+    <div class="card-body small">
+        <dl class="mb-0">
+            <dt>nicht geprüft</dt><dd>Sage wurde noch nicht gelesen – „Sage-Stand prüfen“ klicken.</dd>
+            <dt>anlegbar</dt><dd>Sage-AG gepflegt, FA offen und nicht begonnen, die AG fehlt am FA in Sage.</dd>
+            <dt>Kürzel ohne Sage-AG</dt><dd>Kein Eintrag oder keine Sage-Arbeitsgangnummer unter Arbeitsgänge – dort pflegen.</dd>
+            <dt>in Sage schon vorhanden</dt><dd>Am FA steht schon eine Arbeitsgang-Position mit dieser Nummer; sie wird nicht noch einmal angelegt.</dd>
+            <dt>FA beendet/gesperrt</dt><dd>Der FA ist in Sage beendet, gesperrt, inaktiv oder nicht in der Liste offener FAs; er wird nie beschrieben.</dd>
+            <dt>FA begonnen</dt><dd>Am FA ist schon gefertigt bzw. zurückgemeldet; gesperrt.</dd>
+            <dt class="mb-0">Sage nicht lesbar</dt><dd class="mb-0">Sage antwortete nicht oder SData ist nicht eingerichtet (siehe Hinweis oben).</dd>
+        </dl>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/table-filter.js" asp-append-version="true"></script>
+}

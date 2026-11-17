@@ -1,5 +1,6 @@
 @inject IdealAkeWms.Services.ICurrentUserService CurrentUserService
 @inject IdealAkeWms.Data.Repositories.IAppSettingRepository AppSettings
+@inject IdealAkeWms.Data.Repositories.IServiceSettingRepository ServiceSettings
 @inject IdealAkeWms.Data.Repositories.IProductionOrderPickingStatusRepository PickingStatusRepository
 <!DOCTYPE html>
 <html lang="de">
@@ -384,6 +385,11 @@
                                         <li><a class="dropdown-item" asp-controller="Roles" asp-action="Index">Rollen</a></li>
                                         @* Arbeitsgang-Stammdaten (v1.54.0): Admin, unabhaengig von BdeAktiv — das BDE-Menue fehlt bei BDE aus. *@
                                         <li><a class="dropdown-item" asp-controller="OperationConfigs" asp-action="Index">Arbeitsgänge</a></li>
+                                        @* v1.99.38: Arbeitsgaenge in Sage-FAs anlegen - nur mit hierarchischen Produktionsauftraegen (IDEAL); Abfrage nur fuer Admins *@
+                                        @if (string.Equals(await ServiceSettings.GetValueAsync(IdealAkeWms.Services.HierarchischeStruktur.HierarchischeStrukturKeys.Master), "true", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            <li><a class="dropdown-item" asp-controller="SageFaArbeitsgaenge" asp-action="Index">Arbeitsgänge → Sage</a></li>
+                                        }
                                         <li><hr class="dropdown-divider" style="border-color: rgba(255,255,255,0.2);" /></li>
                                         <li><a class="dropdown-item" asp-controller="Settings" asp-action="Index">Einstellungen</a></li>
                                         <li><a class="dropdown-item" asp-controller="ServiceSettings" asp-action="Index">Service-Einstellungen</a></li>
