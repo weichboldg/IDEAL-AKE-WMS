@@ -357,6 +357,15 @@ Quellen-Weiche je Abgleich: [[0019-quellen-weiche-view-sdata-je-abgleich]]. Ordn
   `PurchaseOrderReceipts.SageWeKennung` / `SageBookingQueueItems.SageKennung` (SQL/144); Regel `SageWareneingang.Kennung` /
   `SageBookingCorrelation.Kennung`. DEV-Absicherung setzt `DEV`. [[2026-11-12-v1-99-9-sage-system-kuerzel]]
 
+- **v1.99.31 Anstoß „Offene Bestellungen“ nach Übergabe** ([[2026-11-16-offene-bestellungen-sofort-neu-lesen-einkauf-kw-filter-spec]]):
+  `RunOnceAsync` gibt die Zahl übergebener Belege zurück (0 ohne Arbeit); der `SageBookingWorker` summiert sie und ruft nach dem
+  Sage-WE-Schritt `AnstossOffeneBestellungenAsync` → `EinkaufBestellungenSyncService.TryRunExclusiveAsync(dryRun, anlass)`. Entscheidung
+  `SageBookingWorker.AnstossEntscheidung(offen, minuten, gateAn, letzter, jetzt)`: 0 Belege nichts; `minuten <= 0` oder Gate aus verwirft; sonst
+  sofort bzw. nach Ablauf des Fensters. Key **`Sync:EinkaufBestellungenNachWeMinuten`** (Int, Default 2, 0–60, Kategorie „Sage-Abgleich
+  (SData)“, Standort AKE). Gates `Sync:EinkaufBestellungenEnabled` + `WorkerSettings:SyncDryRun`. **Sperre:** `static SemaphoreSlim` in
+  `EinkaufBestellungenSyncService` – `RunAsync` wartet, `TryRunExclusiveAsync` liefert false (Anstoß bleibt offen). Info-Zeile „Anlass: …“ im
+  Lauf „Offene Bestellungen (Sage)“; Fehler → Warnungslauf unter `SageWareneingang`, Reset, der reguläre Lauf holt nach.
+
 ## Lieferverzug-Mails (v1.99.10, [[2026-11-12-offene-bestellungen-mahnmail-lieferverzug-spec]])
 
 - Lauf im `SyncWorker` direkt nach „Offene Bestellungen (Sage)“, Gate `Lieferverzug:MailAktiv` (Default aus), `RunResilientAsync("Lieferverzug-Mails")`.

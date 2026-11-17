@@ -1996,3 +1996,19 @@ Code: `hardware-scanner.js` Block „Scannen ohne Feld“, CSS `.hw-scan-bereit`
 - **RealTimeData-Feldnamen tragen das Tabellen-Präfix.** In `dtsFaBelegsuche` heißen die Kopf-Benutzerfelder `KHKPpsFaBelege_USER_OS*`.
   **Warum gefährlich:** mit den Namen ohne Präfix im `select` antwortet Sage 200 und lässt die Felder still weg – kein Fehler, nur leere Werte
   (QA IDEAL 2026-11-16, R1). Testantworten immer mit den echten Feldnamen aus der Feldliste bauen.
+
+## 42. Offene Bestellungen: KW-Filter, Cache-Vollersatz, View aus zweitem Controller (v1.99.31, [[2026-11-16-offene-bestellungen-sofort-neu-lesen-einkauf-kw-filter-spec]])
+
+- **Der KW-Klick im Kalender filtert per Text-Enthält – die Zelle muss „KWnn“ enthalten.** **Warum:** `table-filter.js` schreibt `KWnn` ins
+  Feld; in einer Datumsspalte ist das kein Datum, sondern ein `Contains`-Teil auf dem gerenderten Text (`ColumnMap`). Ohne KW im Zelltext findet
+  er nichts. Grenze: jahreslos und Teilstring – `KW4` trifft auch KW40–49 (im Test mit KW4/KW47 nachgestellt). Die Vorbelegung nutzt deshalb
+  einen echten Datumsbereich `Mo...So`, der jahresgenau ist.
+- **Cache-Vollersatz nie parallel.** **Warum:** `EinkaufBestellungenSyncService` ersetzt `SagePurchaseOrderLines` je Lauf komplett; regulärer
+  Lauf und Anstoß nach Sage-WE kommen aus zwei Workern. Eine prozessweite `static SemaphoreSlim` serialisiert (regulär wartet, Anstoß
+  überspringt und bleibt offen). Gilt nur innerhalb eines Dienst-Prozesses – zwei Dienst-Instanzen auf derselben DB wären nicht geschützt.
+- **Eine View aus einem zweiten Controller rendern:** Tag-Helper ohne `asp-controller` nehmen den **aufrufenden** Controller. Formulare und
+  Links auf Aktionen des Original-Controllers (Receive, SageWe-Aktionen) brauchen `asp-controller="PurchaseOrders"`, sonst zeigen sie auf
+  `/EinkaufPurchaseOrders/Receive` (404). Filter-Formular und Pagination bleiben dagegen beim Aufrufer. Wächter:
+  `PurchaseOrdersControllerTests.Einkauf_Attribute_UndReceiveBleibtGeschuetzt_F2_2_F2_4`.
+- **Einen Controller als Dienst eines anderen nutzen** (`AddScoped<PurchaseOrdersController>`): dessen Class-Filter laufen nicht; Zugriff prüfen
+  allein die Attribute des aufrufenden Controllers. `ControllerContext` vor dem Aufruf setzen (sonst `HttpContext`/`Url` null).

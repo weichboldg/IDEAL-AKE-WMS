@@ -594,6 +594,13 @@ Kein Epic, entfällt.
 
 **Provisorisch, der QA-Lauf bestätigt gegen den echten Diff.**
 
+> **Abgleich mit dem Diff (Umsetzung 2026-11-17, `8b7d8252`..`9c623d4c`):** Web + Dienst ja, Migration nein – bestätigt. Manifest-Einträge
+> `v1.99.31-NachWeMinuten`, `v1.99.31-VorschauWochen`, `v1.99.31-EinkaufAnsichten` und die Rollenbeschreibung in `Pruefung/RolleEinkauf`
+> wie unten eingetragen (ASCII, `NachlaufManifestDriftTests` grün), `Quelle='2026-11-17-v1-99-31-offene-bestellungen-sofort-neu-lesen'`.
+> Zusätzlich im Diff: `IdealAkeWms/Program.cs` (`AddScoped<PurchaseOrdersController>`), `RequireEinkaufAktivAttribute` (Text „Einkauf ist
+> deaktiviert …“), `docs/anwender/08-bestellvorschlaege.md` + TS-136.1 (Text nachgezogen). **Abweichung:** Anlass-Zeile „n Beleg(e)
+> übergeben“ statt „Position(en)“ (der Zähler `uebergeben` zählt Vorgänge). Screenshot `06-01` nicht erneuert (veraltet: Feld „Wochen“).
+
 - **Web-App:** ja (Controller, View, Layout, RoleOverview, AppSetting-Katalog, Hilfe, Changelog).
 - **Service:** ja (`SageBookingWorker`, `SageWareneingangService`, `EinkaufBestellungenSyncService`, ServiceSetting-Katalog liegt im Web-Projekt und
   wird vom Dienst mitgenutzt).

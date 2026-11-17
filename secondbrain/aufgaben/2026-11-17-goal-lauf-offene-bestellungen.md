@@ -22,10 +22,15 @@ reserviert Mapping); TS-155; keine SQL.
 
 | Spec | Typ | SQL | Version | Status | Commits | Blocker |
 |---|---|---|---|---|---|---|
-| [[2026-11-16-offene-bestellungen-sofort-neu-lesen-einkauf-kw-filter-spec]] | Spec | – | 1.99.31 | InUmsetzung (Rumpf nachgezogen) | – | Rückfragen 9–11 nicht blockierend |
+| [[2026-11-16-offene-bestellungen-sofort-neu-lesen-einkauf-kw-filter-spec]] | Spec | – | 1.99.31 | InUmsetzung, feature-complete (QA steht aus) | `8b7d8252`, `2f84a012`, `9c623d4c` | Rückfragen 9–11 nicht blockierend |
 | [[2026-11-16-bestellvorschlaege-nachbesserung-spec]] (Q2 = b) | Nachbesserung | – | 1.99.30 | **Testbereit** (qa-agent) | `5b123c11` | Q2-B1 als Backlog [[2026-11-17-artikelinfo-bestand-teiltextsuche-bug]] |
 
 ## Protokoll
 
 - 2026-11-17: Lauf gestartet; Q2-Fix und Rumpf-Nachzug parallel (Brain bzw. Worktree, keine Überschneidung).
 - 2026-11-17: Q2 = b umgesetzt (`5b123c11`), QA Testbereit (00730607: Liste = Artikelinfo 45171), DEV AKE+IDEAL aus Scratch-Worktree `qa-5b123c11` (Aufräumen nach Freigabe). Zusatzfund Q2-B1/B2 als Backlog.
+- 2026-11-17: Offene Bestellungen umgesetzt: `8b7d8252` (Dienst F1: Anstoß, Sperre, Rückgabe Belegzahl), `2f84a012` (Web F2/F2a/F3/F4),
+  `9c623d4c` (wip feature-complete: v1.99.31, Doku, TS-155, Manifest). Build 0 Fehler; Tests Web 3013 grün (1 übersprungen), Dienst 682 grün.
+  Abweichung: Anlass zählt Belege statt Positionen. Brain: [[2026-11-17-v1-99-31-offene-bestellungen-sofort-neu-lesen]], feature-map,
+  testszenarien-index (155), services.md, controller.md, fallstricke §42, Spec-Deploy-Abschnitt gegen den Diff geprüft. Nächster Schritt:
+  qa-agent (nicht in diesem Lauf).

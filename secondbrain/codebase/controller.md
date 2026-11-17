@@ -79,8 +79,8 @@ Rollen-Bedeutungen: [[glossar]].
 | `[RequireBeschichtungsauftragWriteAccess]` | admin, **`beschichtungsauftrag_schreiben`** *(neue Rolle, v1.51.0)* | BeschichtungsauftraegeController — action-level an jeder schreibenden Action (Create, Bearbeiten, PositionenHinzufuegen, Bemerkung, Status, Reklamation GET+POST). Read/Edit-Split (ADR 0006); Waechter `BeschichtungsauftraegeControllerTests.JedeSchreibendeAction_HatSchreibfilter_UndPostsAntiforgery`. |
 | `[RequireFaHierarchyKommissionierlistenAktiv]` | *(kein Rollen-Filter — AppSetting-Gate)* | FaHierarchyKommissionierListenController (class-level), **kumulativ** zu `[RequireLagerProcessingAccess]`. Toggle `FaHierarchyKommissionierlistenAktiv` (Default false): MVC → Redirect Home + WarningMessage. Invert-default-Attribut-Muster (v1.31.0). |
 | `[RequireFaHierarchyBeschichtungAktiv]` | *(kein Rollen-Filter — AppSetting-Gate)* | FaHierarchyBeschichtungController, BeschichtungsauftraegeController (class-level), **kumulativ** zu `[RequireBeschichtungsauftragAccess]`. Toggle `FaHierarchyBeschichtungAktiv` (Default false). |
-| `[RequireEinkaufAccess]` | admin, **`einkauf`** *(neue Rolle, v1.99.20)* | PurchaseProposalsController (class-level, nur Lesen – keine POST-Action, Wächter-Test). Kumulativ dazu `[RequireEinkaufAktiv]`. |
-| `[RequireEinkaufAktiv]` | *(kein Rollen-Filter — AppSetting-Gate)* | PurchaseProposalsController (class-level), kumulativ zu `[RequireEinkaufAccess]`. Toggle `EinkaufAktiv` (Default false, nur exakt "true" schaltet frei; sonst Startseite mit Warnung). |
+| `[RequireEinkaufAccess]` | admin, **`einkauf`** *(neue Rolle, v1.99.20)* | PurchaseProposalsController, seit v1.99.31 auch EinkaufPurchaseOrdersController (class-level, nur Lesen – keine POST-Action, Wächter-Test). Kumulativ dazu `[RequireEinkaufAktiv]`. |
+| `[RequireEinkaufAktiv]` | *(kein Rollen-Filter — AppSetting-Gate)* | PurchaseProposalsController, EinkaufPurchaseOrdersController (class-level), kumulativ zu `[RequireEinkaufAccess]`. Toggle `EinkaufAktiv` (Default false, nur exakt "true" schaltet frei; sonst Startseite mit Warnung, seit v1.99.31 „Einkauf ist deaktiviert (Einstellung „Einkauf aktiv“).“). |
 | `[RequireFaHierarchyVormontageAktiv]` | *(kein Rollen-Filter — AppSetting-Gate)* | FaHierarchyVormontageController (class-level), **kumulativ** zu `[RequireVorbauAccess]`. Toggle `FaHierarchyVormontageAktiv` (Default false). |
 | *(kein Filter)* | jeder eingeloggte User | UserViewPreferencesApiController (Login-Check, kein Rollen-Filter) |
 
@@ -196,3 +196,10 @@ Beschichtungsauftrag-Muster); Zuweisung an den Einkauf ist Hand-Schritt unter `/
   CSV erneut schreiben). Filter siehe die Abschnitte Wareneingang oben.
 - `PurchaseProposalsController` (`/PurchaseProposals`, v1.99.20/21) – `[RequireEinkaufAccess]` + `[RequireEinkaufAktiv]` (siehe oben), nur Lesen +
   CSV; Rechenstelle `PurchaseProposalCalculator`.
+- `EinkaufPurchaseOrdersController` (`/EinkaufPurchaseOrders`, `/EinkaufPurchaseOrders/SageWareneingaenge`, v1.99.31,
+  [[2026-11-16-offene-bestellungen-sofort-neu-lesen-einkauf-kw-filter-spec]] F2.6) – `[RequireEinkaufAccess]` + `[RequireEinkaufAktiv]`, **kein**
+  Lager-Recht, kein `WareneingangBestellungAktiv`. Bekommt den `PurchaseOrdersController` per DI (`AddScoped<PurchaseOrdersController>`), setzt
+  dessen `ControllerContext` und ruft `ListeAsync(einkauf: true, …)` bzw. `SageWeListeAsync(nurOffene: true, …)` – dessen Class-Filter greifen
+  dabei NICHT; Schreibwege (Receive, SageWe-Aktionen) bleiben am `PurchaseOrdersController` hinter `RequireStockAccess` /
+  `RequireStockKeyUserAccess` + `RequireWareneingangBestellungAktiv`. Knöpfe in der Einkauf-Ansicht nur mit dem passenden Recht **und** dem
+  Gate (`CanReceive`, `CanErneutSenden`). Rolle `einkauf`: Attribut unverändert, diese Datei und `RoleOverview.cshtml` nachgezogen.
