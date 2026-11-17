@@ -30,7 +30,10 @@ kein neuer ADR. Testfall tiefe Positionen: Artikel S1402262 (`10.140.40.10.10`).
 
 ## Ergebnis
 
-(folgt)
+- 2026-11-17 QA (qa-agent): Build 0 Fehler, Tests 702 + 3131 (1 übersprungen) grün; DEV AKE + IDEAL v1.99.34 deployt (Zielordner
+  vorher geleert), TS-145 auf DEV gelaufen, DEV-Gate AKE danach wieder aus; Publish `<Worktree>\publish\` v1.99.34 (`eff0c1a4`).
+  Spec **Testbereit**. Befunde niedrig: F1 Auswahl „Positionen hinzufügen“ nicht natürlich sortiert, F2 Testlücken AK 20/22/25/26,
+  F3 `docs/betrieb/04-konfiguration.md:206`. Details: Spec [[2026-11-16-beschichtungslogik-je-standort-spec]], „QA-Nachweis E5“.
 
 ## Fragen
 

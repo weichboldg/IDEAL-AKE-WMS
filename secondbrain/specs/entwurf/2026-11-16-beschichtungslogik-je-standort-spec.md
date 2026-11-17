@@ -2,7 +2,7 @@
 type: spec
 title: Beschichtungslogik je Standort - Quelle fuer Kennzeichen und Termin, ein Resolver, Beschichtungsauftrag auch an der AKE
 slug: 2026-11-16-beschichtungslogik-je-standort-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-11-16
 updated: 2026-11-17
 source_backlog: "[[2026-11-16-beschichtungslogik-je-standort]]"
@@ -632,11 +632,11 @@ Danach `secondbrain/tests/testszenarien-index.md` nachziehen.
 | H2 | **Haltepunkt P-A5 (+ P-A3, P-A6 als Beleg)** | Gerald erhebt P-A5 (Datumsspalte in `vw_AKE_Kommissionierung_WAListe`?), P-A3 (WA-Nummern numerisch) und P-A6 (Lackierteil-Positionen ganzzahlig) und traegt die Ergebnisse im Abschnitt „Pruefabfragen“ ein. P-A5 aendert in dieser Version nichts am Bau (`View` an der AKE bleibt gesperrt). P-A3 und P-A6 muessen 0 Abweichungen zeigen, sonst E5 Blocker (P-A6: Rueckfrage 20). *Nachtrag 3:* P-A6 > 0 ist durch Freigabe-Antwort 20 aufgeloest (Spalte `PositionText` in E5). | Gerald; Freigabe-Antworten 9, 15, 20; Nachtrag 2/3 | – | **erledigt** (erhoben 2026-11-17: P-A3 0 nicht numerisch, P-A5 keine Datumsspalte, P-A6 3.812/4.444 nicht ganzzahlig, 0 Doppelungen) | |
 | H3 | **Haltepunkt Mengen-Pruefschritt** (Nachtrag 2 / B-1) | Gerald waehlt per Hilfsabfrage H3 einen WA mit Baugruppe und `Quantity > 1`. Er vergleicht in der Kommissionierliste die Mengen der Baugruppen-Zeilen mit Sage/OSEON und traegt WA, Zeilenzahl und Ergebnis im Abschnitt „Pruefabfragen“ ein (AK 21). Fehlt der Eintrag oder weicht die Menge ab, ist E5 Blocker. | Gerald; Freigabe-Antwort 18 | – | **erledigt** (WA 2602036 / S0415949, 12 Baugruppen-Zeilen, Kommissionierliste = Sage, Bestaetigung Gerald 2026-11-17 12:49) | |
 | 5 | Vorschlagsliste + Beschichtungsauftrag AKE | Gate-Metadaten (beide), **keine** Master-Bedingung an der Vorschlagsliste. Flache Positionsquelle (WA-Stueckliste als `FaHierarchyNode`-Projektion) fuer `BeschichtungsauftragService` (Liste/Summiert), `BeschichtungsauftragVergabeAnzeige` und die Workflow-Weiche: offen = `IsDone = 0 AND IsCancelled = 0` (A13), Menge ueber `BomQuantityResolver` (A12), Schluessel Artnr + Position (A14), Sammelmeldung plus Logger-Warnung (A15). AKE-Kopfvorbelegung (Start berechnet, Dienstleister/RAL/Retour leer). „(IDEAL)“ aus den Spaltenkatalog-Namen. *Nachtrag 3:* Spalte `PositionText` (Model, Migration, SQL/157, FreshInstall an zwei Stellen, Manifest), `[NotMapped] FaHierarchyNode.PositionText`, Projektion `PositionText` statt `int(Position)`, `PositionsSchluessel` mit `Artnr`/`PositionText`, Textform fuenfteilig, Snapshot/Kopie/Summiere, natuerliche Sortierung mit `NaturalPositionComparer` (A16), Anzeige in Details/Reklamation, Manifest-Pruefung Altzeilen | E1, E3, H2 (erledigt), **H3**; Freigabe-Antworten 8, 9, 10, 11, 18, 19, 20 | **SQL/157** (beim Start geprueft: frei) | **erledigt** (Lauf 2026-11-17, [[2026-11-17-goal-lauf-beschichtung-e5]], v1.99.34; ~~H2/H3 offen (Lauf 2026-11-16)~~ H1–H3 erledigt) | eff0c1a4 |
-| 6 | Doku und Abschluss | TS-140..145 in `docs/TESTSZENARIEN.md`, Hilfe (`Help/Index.cshtml` Beschichtung, `:1265`), `RoleOverview.cshtml` (Vorschlagsliste auch AKE/WA-Stueckliste), Standort-Maske Hinweis-Link, Anwender-Changelog (IDEAL-Termin in Leitstand/Arbeitsliste, AKE-Beschichtung), `docs/betrieb/04-konfiguration.md`, `README.md` AppSettings, Manifest-Eintraege, Versions-Bump beide `AppVersion.cs` auf v1.99.25 (nach 1.99.24 Sicherheit; beim Start pruefen), Brain (ADR 0028, fallstricke, codebase, glossar, feature-map, changelog; Aufgabe Erkennungsfenster-Filter, Rueckfrage 13). Nachtrag 2: Hilfe nennt Sammelmeldung und Mengenregel. fallstricke bekommt „BomCache-Fenster ohne `IsDonePicking`, Erkennungsfenster mit“ samt Folge fuer das Kennzeichen (Rueckfrage 19, entschieden: hingenommen), mit Warum. *Nachtrag 3:* fallstricke „AKE-Stuecklisten-Positionen sind mehrstufiger Text (`51.5.2`), nie als `int` parsen; Reihenfolge nur ueber `NaturalPositionComparer`“ mit Beleg P-A6; `codebase/datenmodell.md` Spalte `PositionText` (SQL/157); TS-145 um die Faelle aus Nachtrag 3; Manifest `SQL/157` und `Pruefung/BeschichtungPositionOhneTextFlach`; Version = naechste nach 1.99.33 beim Start (voraussichtlich 1.99.34); kein neuer ADR | E1-E5 | – | teilweise (Teil E1/E3, Version 1.99.25, Hilfe, Changelog, Manifest; Rest **Blocker** wie E2/E4/E5) | 4a635534, 3f247f11 |
+| 6 | Doku und Abschluss | TS-140..145 in `docs/TESTSZENARIEN.md`, Hilfe (`Help/Index.cshtml` Beschichtung, `:1265`), `RoleOverview.cshtml` (Vorschlagsliste auch AKE/WA-Stueckliste), Standort-Maske Hinweis-Link, Anwender-Changelog (IDEAL-Termin in Leitstand/Arbeitsliste, AKE-Beschichtung), `docs/betrieb/04-konfiguration.md`, `README.md` AppSettings, Manifest-Eintraege, Versions-Bump beide `AppVersion.cs` auf v1.99.25 (nach 1.99.24 Sicherheit; beim Start pruefen), Brain (ADR 0028, fallstricke, codebase, glossar, feature-map, changelog; Aufgabe Erkennungsfenster-Filter, Rueckfrage 13). Nachtrag 2: Hilfe nennt Sammelmeldung und Mengenregel. fallstricke bekommt „BomCache-Fenster ohne `IsDonePicking`, Erkennungsfenster mit“ samt Folge fuer das Kennzeichen (Rueckfrage 19, entschieden: hingenommen), mit Warum. *Nachtrag 3:* fallstricke „AKE-Stuecklisten-Positionen sind mehrstufiger Text (`51.5.2`), nie als `int` parsen; Reihenfolge nur ueber `NaturalPositionComparer`“ mit Beleg P-A6; `codebase/datenmodell.md` Spalte `PositionText` (SQL/157); TS-145 um die Faelle aus Nachtrag 3; Manifest `SQL/157` und `Pruefung/BeschichtungPositionOhneTextFlach`; Version = naechste nach 1.99.33 beim Start (voraussichtlich 1.99.34); kein neuer ADR | E1-E5 | – | ~~teilweise (Teil E1/E3, Version 1.99.25, Hilfe, Changelog, Manifest; Rest **Blocker** wie E2/E4/E5)~~ erledigt (QA 2026-11-17 E5: TS-145, Hilfe, Changelog, README, Manifest, v1.99.34; offen nur QA-E5 F3 `docs/betrieb/04-konfiguration.md:206`) | 4a635534, 3f247f11, eff0c1a4 |
 
 ## Deploy
 
-*Vorlaeufig, der QA-Lauf bestaetigt gegen den echten Diff.*
+*Vorlaeufig, der QA-Lauf bestaetigt gegen den echten Diff.* **Endgueltig fuer E5:** siehe „QA-Nachweis E5 (qa-agent, 2026-11-17)“, Abschnitt Deploy.
 
 - **Web-App:** ja (Settings-Katalog, Resolver, Controller, Views, Vorschlagsliste, Beschichtungsauftrag)
 - **Service:** ja (Gates, Hook, Audit). Web und Dienst gemeinsam deployen, weil beide den Katalog teilen.
@@ -1479,3 +1479,137 @@ Grundlage ist Geralds Auftrag vom 2026-11-17: „P-A6 an AKE-Test (`IDEAL_AKE_WM
 - Die bisherige Textform zerlegt den Schluessel an `|` und erwartet genau drei Teile (`BeschichtungsauftraegeController.cs:329-330`). Ein freier Text als Teil haette einen Trenner im Inhalt nicht ueberlebt; deshalb sind Teil 4 und 5 kodiert (Standardbibliothek `Uri.EscapeDataString`), statt eine Pruefabfrage nach `|` in Sage-Daten zu verlangen.
 
 **Offene Rueckfragen nach Nachtrag 3:** keine. Offen ist nur der Haltepunkt **H3** (Mengenvergleich durch Gerald). P-A8 und P-A9 sind Belege bzw. TS-Vorbereitung und blockieren nichts; zeigt P-A8 an einem System mit Master aus Positionen, wird daraus eine neue Rueckfrage (Umgang mit Altzeilen ohne `PositionText`).
+
+## QA-Nachweis E5 + Nachtrag 2/3 (qa-agent, 2026-11-17)
+
+Gepruefter Stand: Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Branch `feature/2026-08-07-ideal-teile-1-5`, Code-Commit
+`eff0c1a4` (Diff gegen `ed919976`, 48 Dateien), Version 1.99.34, Migration `20261117141308_AddBeschichtungsauftragPositionText` / SQL/157,
+TS-145.1–145.13. Brain-Commit `a1066832`, Lauf-Notiz [[2026-11-17-goal-lauf-beschichtung-e5]]. Mit E5 sind alle Etappen E1–E6 gebaut
+und geprueft (E1/E3/E6-Teil QA 2026-11-16, E2/E4 QA 2026-11-17 vormittags, E5 hier) → Spec `Testbereit`.
+
+### 1. Build und Tests
+
+- `dotnet build IdealAkeWms.slnx`: **0 Fehler**, 28 Warnungen (Bestand, u. a. CS8601 in Tests, NU1902/1903 Pakete).
+- `dotnet test`: **IDEALAKEWMSService.Tests 702 bestanden / 0 uebersprungen / 0 Fehler**; **IdealAkeWms.Tests 3131 bestanden / 1 uebersprungen / 0 Fehler** (3132 gesamt).
+
+### 2. Code-Review (eigenstaendig, in diesem Lauf)
+
+Geprueft: `BeschichtungFlacheQuelle.cs` komplett, `BeschichtungsauftragRepository.GetFlacheLackierteileAsync`/`GetVergabenAsync`,
+`PositionsSchluessel` (`Bilden`, `Von`, `ToString`), `SchluesselText`/`TrySchluessel`, Weichen in `BeschichtungsauftragService`
+(`LadenAsync`, `AggregateSummiert`), `BeschichtungsauftragVergabeAnzeige`, `BeschichtungsauftragWorkflow` (Anlegen, Kandidaten,
+Hinzufuegen, `Snapshot`, `Kopie`), `FaHierarchyListBuilder` (Sortierung; Anomalie nur bei `SubFA != 0`, flach also nie), Views
+Details/Reklamation/Index/Summiert (Sammelmeldung, Anzeige, Sortierung), `NaturalPositionComparer` (null/leer, Ordinal-Fallback),
+Migration + Snapshot, SQL/157, FreshInstall (2 Stellen), Manifest (SQL/157, `Pruefung/BeschichtungPositionOhneTextFlach`,
+`v1.99.34-Beschichtungsauftrag-AKE`), `AppSettingDefinitions` (Gate jetzt Gruppe Termine, Standort Beide), Hilfe, README, Tests.
+
+Fehlerklassen bewusst geprueft: kein Wert in `<script>` eingebettet; kein `hidden` + `d-*`; der Rueckfall `Position ?? ""` ist
+Spec-Vorgabe (nie null, leer = eigener Schluessel), kein `?? 0`; keine Parallel-Arrays (Mengen ueber `mengen[Id]`, Schluessel als Text je
+Checkbox); Schluessel-Pruefung serverseitig (`TrySchluessel`, 3 oder 5 Teile); Normalisierung an genau einer Stelle (`Bilden` →
+`PickingOrderRestmengen.Schluessel`), von Knoten-, Positions- und Vergabeseite (`GetVergabenAsync`) gleich benutzt; Sortierung nur in C#.
+`ProductionOrder.IsHauptFa` (`SubOrderNumber = '' OR = OrderNumber`): DEV AKE hat 0 Zeilen mit `SubOrderNumber IS NULL`, alle 63 offenen
+gekennzeichneten WA sind Haupt-FA. Fuehrende Nullen/Leerzeichen in `OrderNumber` (int-Rundreise im Workflow): DEV AKE 0; P-A3 belegt numerisch.
+
+| Nr | Schwere | Fundstelle | Befund | Umgang |
+|---|---|---|---|---|
+| F1 | niedrig | `IdealAkeWms/Services/BeschichtungsauftragWorkflow.cs:238-242` (Kandidaten aus `KnotenAsync`, Reihenfolge = `CachedBomItem.SortOrder` aus `GetFlacheLackierteileAsync`, `orderby i.SortOrder`); Anzeige `Views/Beschichtungsauftraege/Details.cshtml:312` | Die Auswahl „Positionen hinzufuegen“ im Auftrag-Detail ist an der AKE **nicht natuerlich sortiert**. DEV AKE BA-2026-00001: `51.20.20.4` steht vor `51.5.3` (SortOrder 67 < 80). AK 26 („Auftrag-Details“; „kein Code ausser `NaturalPositionComparer` legt eine Reihenfolge fuer Text-Positionen fest“) ist an dieser einen Stelle verfehlt; A16 zaehlt die Stelle nicht auf. Funktion korrekt (Schluessel, Hinzufuegen). | offen, nicht blockierend. Vorschlag eine Zeile: Kandidaten `.OrderBy(k => k.Schluessel.Position ?? int.MaxValue).ThenBy(k => k.Schluessel.PositionText, new NaturalPositionComparer())`. Der Mensch entscheidet, ob vor dem Merge. |
+| F2 | niedrig | `IdealAkeWms.Tests/Services/BeschichtungFlacheQuelleTests.cs` | Automatischer Nachweis fehlt fuer AK 20 (Waechter „nur `BomQuantityResolver` multipliziert Menge × Quantity“), AK 22 (zwei Cache-Staende, nur SortOrder verschoben), AK 25 (`Kopie`/Reklamation und `Snapshot`/Hinzufuegen uebernehmen `PositionText`; getestet ist nur die Anlage), AK 26 (Summiert nimmt die natuerlich erste Position). Strukturell sind AK 22/25 durch den Code gedeckt (Schluessel ohne SortOrder; `Snapshot`/`Kopie` kopieren 1:1). | Hinzufuegen auf DEV belegt (145.6); Rest Manual-UAT bzw. Folgetest; nicht blockierend. |
+| F3 | niedrig (Doku) | `docs/betrieb/04-konfiguration.md:206` | `FaHierarchyBeschichtungAktiv` steht weiter unter „IDEAL-Module“ mit alter Fundstelle `AppSettingDefinitions.cs:191-195`; E6 nennt die Datei ausdruecklich. README und Hilfe sind nachgezogen. | offen, Doku-Nachtrag. |
+| F4 | Hinweis | diese Spec, Abschnitt Pruefabfragen, Satz „Der Pruefschritt H3 … bleibt offen“ | Veraltet; das Ergebnis H3 steht im selben Abschnitt (WA 2602036, 12 Baugruppen-Zeilen, „passt“ 12:49) und in der Etappen-Tabelle. AK 21 ist erfuellt. | nur notiert. |
+| F5 | Hinweis | `IdealAkeWms.Tests/Services/BeschichtungFlacheQuelleTests.cs:187` | `@"DOM	ester"` enthaelt ein echtes Tabulatorzeichen (vermutlich verrutschtes `\t`); folgenlos. | nur notiert. |
+| F6 | Hinweis | `IdealAkeWms/Services/Beschichtung/BeschichtungFlacheQuelle.cs:431-440` | WA mit nicht numerischer Nummer werden nur geloggt, nicht in der Sammelmeldung gezeigt. P-A3 = 0, derzeit ohne Wirkung. | nur notiert. |
+| F7 | Hinweis | `IdealAkeWms/Services/BeschichtungsauftragWorkflow.cs:97-100` | Die flache Abfrage (ProductionOrders/CachedBom/Articles/ArticleCategories) laeuft bei „Aus Vorschlagsliste erstellen“ in der serialisierbaren Transaktion → kurzzeitige Range-Locks auf diesen Tabellen (an der IDEAL dasselbe Muster mit FaHierarchyNodes). Kurzer Lauf, im Test unauffaellig. | nur notiert. |
+
+### 3. Nachweisart je AK (E5)
+
+| AK | Nachweis | Art |
+|---|---|---|
+| 14 | `Anlegen_Flach_PositionenMitText_StartBerechnet_KopfSonstLeer_…`, `Anlegen_Flach_WaOhneLackierteile_EigenerFehlertext`; DEV AKE 145.2: BA-2026-00001 fuer WA 2625005, 5 Lackierteil-Positionen, Masse 0, Dienstleister/RAL/Retour NULL, Start 30.06.2026 = FA-Liste „Beschicht.“ 30.06.2026 | automatisiert + DEV |
+| 15 | DEV AKE 145.1: Summiert und Liste erreichbar, HauptFA = WA-Nummer, Kopfzeile „Keine Auftrags-Kopfdaten zu diesem HauptFA.“, Titel ohne „(IDEAL)“, Spaltenfilter `colf_hauptfa` | DEV (Manual-UAT) |
+| 15a | Gate aus → Direktaufruf `/FaHierarchyBeschichtung/Summiert` leitet aufs Dashboard um (DEV AKE); vergebene Positionen „in BA-2026-00001“, kein Erstellen-Knopf bei 0 freien; ohne Rolle nicht geprueft (Testbenutzer admin) | DEV teilweise |
+| 15b | `Laden_WaOhneLackierteil_KommtInDieSammelmeldung_…`, `Sammelmeldung_LeerIstNull_UndHoechstens20Nummern`; DEV AKE: Hinweis „47 WA …“ an Index und Summiert, SQL-Gegenrechnung 47; Log `[15:37:18 WRN] Vorschlagsliste Beschichtung: 47 WA …` in `D:\Dev\AKE\Web\logs`; DEV IDEAL: kein Hinweis | automatisiert + DEV |
+| 15c | `Laden_NurOffeneWaMitKennzeichen_…` (erledigt/storniert/ohne Kennzeichen/Sub-FA ausgeschlossen); DEV AKE: stornierter WA 2627157 mit Lackierteilen nicht in der Liste; IsDonePicking=1-Fall nur InMemory | automatisiert + DEV |
+| 16 | Bestandstests Teil 3/4/Ausbau gruen (nur Ctor-/Titel-Anpassungen); DEV IDEAL 145.13: Summiert mit FAInfos-Kopf, keine Sammelmeldung, BA-2026-00004 Anzeige `Vater / SubFA / Pos` und Reihenfolge wie bisher | automatisiert + DEV |
+| 20 | Menge 2,5 × 4 = 10 an Baugruppen-Zeile im Test; DEV: 87016706 Menge 2 × WA-Menge 1 = 2; Waechter per Quelltext-Suche fehlt (F2) | automatisiert teilweise |
+| 21 | Eintrag H3 im Abschnitt Pruefabfragen (WA 2602036) | Beleg |
+| 22 | Schluesseltest 5.2 ≠ 5.20, Artnr-Normalisierung; Zwei-Cache-Stand-Test fehlt (F2); 145.12 auf DEV nicht moeglich | teilweise / Manual-UAT |
+| 24 | DEV AKE + IDEAL nach Deploy: `COL_LENGTH = 100`, MigrationId in der History; SQL/157 zweiter Lauf auf AKE_WMS_DEV: „existiert bereits“, Exit 0; `Sql157_Migration_FreshInstall_Manifest_Konsistent` (FreshInstall nicht real eingespielt) | DEV + Drift-Test |
+| 25 | Anlage: `PositionText` gefuellt, `Position` NULL, `Artnr` = Ressourcenummer (Test + DEV SQL); Hinzufuegen (`Snapshot`) DEV 145.6; `Kopie` (Reklamation) nicht geprueft | teilweise |
+| 26 | Comparer-Test bis 5 Ebenen; DEV: Details und Vorschlagsliste `51.5.2, 51.5.3, 51.6.2, 51.6.3, 51.20.20.4`; Hinzufuegen-Auswahl nicht natuerlich (F1); Reklamationsauswahl nicht geprueft | teilweise |
+| 27 | `SchluesselText_FuenfteiligerRundlauf` (inkl. Trenner, Leerzeichen, leer), `SchluesselText_VierOderSechsTeile_Ungueltig`; DEV Hinzufuegen mit fuenfteiligem Schluessel | automatisiert + DEV |
+| 28 | DEV: Pruefabfrage `Pruefung/BeschichtungPositionOhneTextFlach` AKE 0, IDEAL 0; Testzeile ohne Text an BA-2026-00001 → 1, geloescht → 0 | DEV |
+
+Nicht InMemory-beweisbar und daher Manual-UAT: SQL-Kollation der Kategorie-/Artikel-Joins, echter Cache-Inhalt, Model-Binding der Formulare.
+
+### 4. Geaenderte Bestandstests
+
+| Test | Art |
+|---|---|
+| `BeschichtungsauftraegeControllerTests`, `FaHierarchyBeschichtungControllerTests`, `BeschichtungsauftragServiceTests` (3 Stellen), `BeschichtungsauftragVergabeAnzeigeTests`, `BeschichtungsauftragWorkflowTests` | Typ-Anpassung (neuer Ctor-Parameter `BeschichtungFlacheQuelle`, immer hierarchisch ueber `FlacheQuelleTestHelper`) |
+| `BeschichtungsauftraegeViewTests` (Titel, Hilfekarte), `TableToolbarHostTests.Vorschlagsliste_AnzeigenameWieSeitentitel` | Verhalten bewusst geaendert: „(IDEAL)“ entfernt (Loesungsentwurf Spaltenkataloge, AK 15) |
+| `NachlaufManifestDriftTests` | Liste um `SQL/157` ergaenzt (AK 18/24) |
+| `BeschichtungsauftragDiResolutionTests` | additiv: neue Registrierung `BeschichtungFlacheQuelle` |
+
+Kein Fall „sonstiges“.
+
+### 5. Checkliste CLAUDE.md und ADR 0020
+
+- Migration + `SQL/157` mit `COL_LENGTH`-Guard, DDL eigener Batch, History separat: ja. FreshInstall Schema **und** MigrationId: ja. `SQL/AgentJobs`: nicht betroffen.
+- Audit: `PositionText` nur bei der Anlage (`Erstellt`), kein neuer Update-Pfad.
+- Version 1.99.34 in beiden `AppVersion.cs`, Anwender-Changelog, Brain-Changelog `2026-11-17-v1-99-34-beschichtung-ake-stueckliste`: ja.
+- `docs/TESTSZENARIEN.md` TS-145 + Zeile 145 in `testszenarien-index.md`: ja. README AppSettings + Hilfe: ja. `docs/betrieb/04-konfiguration.md`: nein (F3).
+- Neue Rolle/Filter: keine (RoleOverview nur Text).
+- ADR 0020 `FaHierarchyBeschichtungAktiv`: Bool-Schalter, Anzeigename „Beschichtungsauftrag aktiv“, Wirkung, Verwendung „Menü, Beschichtung“, Default false, Standort Beide; keine Aussenwirkung → kein Warnhinweis noetig. Kein Befund.
+- Manifest: `SQL/157` (Braucht SQL/94), `Pruefung/BeschichtungPositionOhneTextFlach`, `v1.99.34-Beschichtungsauftrag-AKE` (Einstellung + Rollen als manueller Schritt) vorhanden.
+
+### 6. DEV-Deploy und Testlauf
+
+Standort laut Frontmatter `beide`. Zielordner vorher geleert (Web und Service je Standort; erhalten blieben nur `appsettings.DEV.json*`,
+`logs`, `App_Data`, `deploy-info.txt`), dann `D:\Dev\scripts\dev-deploy.ps1 -Standort <AKE|IDEAL> -Quelle <Worktree>` in erhoehter Shell:
+AKE „HTTP 200, Fusszeile v1.99.34 … Fertig: AKE v1.99.34“, Exit 0; IDEAL ebenso, Exit 0. Migration per EF beim ersten Aufruf auf beiden DBs.
+DEV-Einstellung: `FaHierarchyBeschichtungAktiv` auf AKE_WMS_DEV fuer den Test auf `true`, danach wieder `false` (Ausgangsstand);
+IDEAL war bereits `true`. Testbenutzer Windows, Rolle admin. S1402262 existiert auf DEV AKE nicht (kein WA, kein Cache) → Ersatz WA 2625005
+(S0311556, Positionen bis vier Ebenen, z. B. `51.20.20.4`).
+
+| TS | Durchgefuehrt | Ergebnis | Status |
+|---|---|---|---|
+| 145.1 | Summiert + Liste, Filter HauptFA 2625005 | 5 Lackierteile, Masse 0, Kopfzeilen-Hinweis, Titel ohne „(IDEAL)“, Hinweis 47 WA | OK |
+| 145.2 | „Aus Vorschlagsliste erstellen“ 2625005 | BA-2026-00001, `— / 0 / 51.5.2` …; SQL `PositionText` gefuellt, `Position` NULL; Start 30.06.2026 = FA-Liste; Dienstleister/RAL/Retour leer | OK (Speichern der Kopffelder nicht ausgefuehrt) |
+| 145.3 | Menge | 87016706: 2 × 1 = 2 wie Cache; Vergleich mit der Kommissionierliste an einem WA mit Quantity > 1 nicht gemacht | NICHT MOEGLICH in diesem Lauf (H3 an TESTIDEAL belegt; Mensch) |
+| 145.4 | Reihenfolge Details | `51.5.2, 51.5.3, 51.6.2, 51.6.3, 51.20.20.4` | OK; Reklamationsauswahl NICHT MOEGLICH (Auftrag im Entwurf) |
+| 145.5 | Vergabe + zweite Anlage | Liste „in BA-2026-00001“ je Zeile, kein Erstellen-Knopf mehr | OK |
+| 145.6 | 2 Positionen entfernt, ueber „Positionen hinzufuegen“ zurueck | gleiche Texte zurueck (SQL Id 6/7); Auswahlliste nicht natuerlich sortiert (F1) | OK mit F1 |
+| 145.7 | Sammelmeldung | 47, SQL-Gegenrechnung 47, Log-Warnung | OK |
+| 145.8 | storniert | WA 2627157 (IsCancelled, Lackierteile im Cache) nicht in der Liste | OK |
+| 145.9 | Gate aus | Direktaufruf → Dashboard | OK; ohne Rolle NICHT MOEGLICH (Testbenutzer admin) |
+| 145.10 | Schema + 157 zweimal | 100, History 1, zweiter Lauf „existiert bereits“ | OK |
+| 145.11 | Pruefung Altzeilen | AKE 0, IDEAL 0; Testzeile → 1; geloescht → 0 | OK |
+| 145.12 | Stuecklistenaenderung | braucht BomCache-Lauf (Syncs auf DEV aus) | NICHT MOEGLICH |
+| 145.13 | IDEAL-Gegenprobe | Kopf aus FAInfos, keine Sammelmeldung, BA-2026-00004 Anzeige/Reihenfolge wie bisher | OK; neue IDEAL-Anlage NICHT MOEGLICH (alle Positionen des einzigen DEV-HauptFA vergeben) |
+
+Testdaten auf AKE_WMS_DEV: BA-2026-00001 (Entwurf, WA 2625005) bleibt stehen.
+
+### 7. Publish
+
+`<Worktree>\publish\IDEALAKEWMSWeb` und `\IDEALAKEWMSWebService` vorher geleert und neu veroeffentlicht, `SQL\` → `publish\SQL`,
+`scripts\deploy\` → `publish\deploy`, `publish-info.txt`: Version 1.99.34, Commit `eff0c1a485b3900a6787b3805ed498a47c57413c`, Branch
+`feature/2026-08-07-ideal-teile-1-5`, Komponenten beide. Hinweis: im Ordner liegt noch ein aelteres `publish\publish.zip` (nicht aus
+diesem Lauf, nicht angefasst) – nicht verwenden.
+
+### Deploy (aus dem echten Diff, E5)
+
+- **Web:** ja (`IdealAkeWms/`: Quelle, Repository, Workflow, Views, Settings-Katalog). **Service:** nur Versionsnummer (`IDEALAKEWMSService/AppVersion.cs`); trotzdem mitdeployen, damit Web und Dienst einen Stand haben. **Migration:** ja, `SQL/157` (additiv, nicht destruktiv).
+- Paket: `C:\git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish`, v1.99.34; auf dem Server `deploy\Update-IdealAkeWms.ps1`.
+- Reihenfolge: DB-Backup (Standard des Update-Skripts) → SQL/157 (bzw. EF-Migrate beim Start) → Web → Dienst → Nachher-Pruefungen (`Pruefung/BeschichtungPositionOhneTextFlach` = 0) → AKE optional `FaHierarchyBeschichtungAktiv` + Rollen (Manifest `v1.99.34-Beschichtungsauftrag-AKE`).
+- Nach dem Merge nur dann aus `main` neu veroeffentlichen, wenn der Merge getestete Dateien mit parallelen main-Aenderungen zusammengefuehrt hat.
+
+### Manuelle Checkliste (offen fuer den Menschen)
+
+1. F1 entscheiden: natuerliche Sortierung der Auswahl „Positionen hinzufuegen“ vor dem Merge nachziehen oder als Folgearbeit.
+2. 145.2 an einem WA mit S1402262 auf dem Testsystem (`10.140.40.10.10` sichtbar; Kopffelder Dienstleister/RAL/Retour speichern).
+3. 145.3 Mengenvergleich Vorschlagsliste/Auftrag ↔ Kommissionierliste an einem WA mit Quantity > 1 und Baugruppen-Zeilen.
+4. 145.4 Reklamationsauswahl-Reihenfolge (Auftrag auf Erledigt, Reklamation anlegen; `Kopie` uebernimmt `PositionText`).
+5. 145.9 mit einem Benutzer ohne Rolle bzw. nur mit Leserolle (kein Menue, kein Erstellen-Knopf).
+6. 145.12 Stuecklistenaenderung + BomCache-Lauf (vergebene Zeile bleibt vergeben, neue Zeile frei).
+7. 145.13 IDEAL: neuen Auftrag anlegen, `PositionText` NULL.
+8. Testsystem-Lauf AKE und IDEAL mit dem Paket aus `publish\` (Update-Skript, Nachher-Pruefungen gruen), dann Merge.
+9. F3: `docs/betrieb/04-konfiguration.md:206` nachziehen.
