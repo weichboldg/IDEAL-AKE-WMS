@@ -2,9 +2,9 @@
 type: spec
 title: Bestellvorschläge – Nachbesserung (Laufzeit, FA-Bedarfe, Mengenregel, Einheiten, Dringlichkeit, Rahmenverträge)
 slug: 2026-11-16-bestellvorschlaege-nachbesserung-spec
-status: Testbereit
+status: InUmsetzung
 created: 2026-11-16
-updated: 2026-11-16
+updated: 2026-11-17
 source_backlog: "[[2026-11-13-bestellvorschlaege-nachbesserung]]"
 weitere_backlog: "[[2026-11-14-review-befunde-bestellvorschlaege]]"
 bezug:
@@ -859,7 +859,7 @@ Befunde:
 | # | Schwere | Befund | Behandlung |
 |---|---|---|---|
 | Q1 | Niedrig | Die zwei Info-Einträge im Manifest `scripts/deploy/nachlauf.psd1` fehlten (Spec-Deploy-Abschnitt). | **Behoben** in `54f04740` (Ids auf 1.99.30, ASCII, 131 Einträge parsebar, Deploy-/Nachlauf-Tests 19/19 grün). |
-| Q2 | Mittel | **Kommissionierwagen:** Die Liste zählt Bestand ohne Kommissionierwagen (`StockMovementRepository.cs:400-435`, `!IsPickingTransport`). Kommissionieren ist auf AKE eine Umbuchung in den Wagen (DEV: 126 Umbuchungen mit FA-Bezug in einen Wagen, 498 Stk; Ausbuchung aus dem Wagen 7×/36). Der FA-Rest zieht nur Ausbuchungen ab. Eine Menge, die im Wagen liegt, fehlt deshalb im Listen-Bestand **und** steckt noch im FA-Rest. Sie wird also doppelt gezählt. Die Artikelinfo rechnet den Wagen in den Gesamtbestand ein. Beide zeigen dieselben **Bedarfe** (AK 7 erfüllt), aber der „verfügbare Bestand“ weicht um den Wagenbestand ab. Beispiel 00730607: Artikelinfo 45171, Liste 45143, Differenz 28 = Wagen 2 (4) + WAGEN N3 (24). Der Infotext „kommissionierte Mengen sind schon ausgebucht“ stimmt für den AKE-Ablauf nur, nachdem aus dem Wagen ausgebucht wurde. Die Wirkung ist konservativ: die Liste schlägt eher zu viel vor. | **Offen, nicht gefixt:** Das ist eine fachliche Entscheidung und gehört zu P-N8 („bis P-N8 nur Ausbuchung“). Gerald entscheidet: (a) Umbuchung in einen Kommissionierwagen mit FA-Bezug mindert den Rest, oder (b) der Listen-Bestand zählt den Wagen mit, wie die Artikelinfo. Steht in der Checkliste. |
+| Q2 | Mittel | **Kommissionierwagen:** Die Liste zählt Bestand ohne Kommissionierwagen (`StockMovementRepository.cs:400-435`, `!IsPickingTransport`). Kommissionieren ist auf AKE eine Umbuchung in den Wagen (DEV: 126 Umbuchungen mit FA-Bezug in einen Wagen, 498 Stk; Ausbuchung aus dem Wagen 7×/36). Der FA-Rest zieht nur Ausbuchungen ab. Eine Menge, die im Wagen liegt, fehlt deshalb im Listen-Bestand **und** steckt noch im FA-Rest. Sie wird also doppelt gezählt. Die Artikelinfo rechnet den Wagen in den Gesamtbestand ein. Beide zeigen dieselben **Bedarfe** (AK 7 erfüllt), aber der „verfügbare Bestand“ weicht um den Wagenbestand ab. Beispiel 00730607: Artikelinfo 45171, Liste 45143, Differenz 28 = Wagen 2 (4) + WAGEN N3 (24). Der Infotext „kommissionierte Mengen sind schon ausgebucht“ stimmt für den AKE-Ablauf nur, nachdem aus dem Wagen ausgebucht wurde. Die Wirkung ist konservativ: die Liste schlägt eher zu viel vor. | **Behoben in 5b123c11 (Variante b, Gerald 2026-11-17):** `GetStockByArticleNumbersAsync(…, mitKommissionierwagen: true)` nur im `PurchaseProposalsController`; übrige Aufrufer unverändert ohne Wagen. Test `GetStockByArticleNumbersAsync_MitKommissionierwagen_GleichArtikelinfo_Q2`, TS-154.4f. ~~Offen, nicht gefixt:~~ Das ist eine fachliche Entscheidung und gehört zu P-N8 („bis P-N8 nur Ausbuchung“). Gerald entscheidet: (a) Umbuchung in einen Kommissionierwagen mit FA-Bezug mindert den Rest, oder (b) der Listen-Bestand zählt den Wagen mit, wie die Artikelinfo. Steht in der Checkliste. |
 | Q3 | Niedrig, vorbestehend | `BasisNichtLager` liefert `null`, wenn SageDetail fehlt oder eine Einheit leer ist. Dann wird L ohne Einheitenprüfung verwendet. Die Zeile zeigt aber sichtbar „Sage-Zusatzfelder fehlen“. AKE DEV: 5 von 2814 Meldebestand-Artikeln ohne Detail, 0 mit leerer Einheit. | Nicht gefixt (sichtbar gemeldet, kein stiller Fallback). Nach P-N1/P-N7 mit der Umrechnung schärfen. |
 | Q4 | Hinweis | `MindestmengeVergleichbar` verlangt Faktor == 1. Bei leerem Faktor ist das strenger als die Spec („leer oder 1“). | Kein Fehler: es wird nie geraten, die Zeile bekommt den Hinweis „MBM nicht umrechenbar“. |
 | Q5 | Hinweis | AppSetting-Änderungen (z. B. `EinkaufOffeneBedarfe`) wirken erst nach Ablauf des Caches bzw. nach einem App-Pool-Recycle. | Vorbestehendes Cache-Verhalten, kein Befund dieser Spec. |
@@ -972,7 +972,7 @@ Grundlage für Q2.
 
 ## Manuelle Test-Checkliste (Mensch, offen)
 
-1. **Q2 entscheiden** (P-N8): Soll eine Umbuchung in einen Kommissionierwagen mit FA-Bezug den FA-Rest mindern, oder soll die Liste den
+1. ~~**Q2 entscheiden**~~ (entschieden: Variante b, behoben in 5b123c11; prüfen mit TS-154.4f) (P-N8): Soll eine Umbuchung in einen Kommissionierwagen mit FA-Bezug den FA-Rest mindern, oder soll die Liste den
    Wagenbestand wie die Artikelinfo mitzählen? Bis dahin schlägt die Liste bei Ware im Wagen eher zu viel vor.
 2. Testsystem: Dienst mit `Sync:ArtikelLieferantEnabled=true`. Lauf „Letzte Bestellung (Einkauf)“ im Aktivitätsprotokoll zu 3/12 Uhr. Neustart
    nach dem Lauf → kein zweiter Lauf. Neustart nach einem verpassten Termin → genau ein Lauf (TS-154.1/154.2).
@@ -984,3 +984,8 @@ Grundlage für Q2.
 7. Benutzer ohne Stammdaten-Lesezugriff: Artikelnummer ohne Link. Fremde Rolle: /PurchaseProposals verweigert (AK 20, 20c).
 8. Abgleich mit Till an seinen Artikeln (TS-154.6). Prüfabfragen P-N1–P-N9 offen, E7-Umrechnung und E8 Rahmenverträge hängen daran.
 9. Lager/Produktion über die geänderte Artikelinfo-Zahl informieren (Info-Eintrag im Manifest).
+
+## Entscheidung Q2 (Gerald 2026-11-17 06:41 „passt“, Empfehlung Koordination)
+Variante **b**: Die Liste zählt den Bestand im Kommissionierwagen wie die Artikelinfo (gleiche Regel, gleiche Zahl). Nachbesserung im nächsten Dev-Lauf.
+
+**Umgesetzt 2026-11-17 in 5b123c11:** Überladung `IStockMovementRepository.GetStockByArticleNumbersAsync(articleNumbers, mitKommissionierwagen)`; nur die Bestellvorschläge rufen mit `true`. Unverändert ohne Wagen: Kommissionierung (`PickingController` 3×, `PickingApiController`), Fehlteile Lager (`MissingPartsLagerController`), Stückliste (`ReadOnlyBomBuilder`), Meldebestand-Mail (`StockCheckService`, Dienst). Folge: Liste und Meldebestand-Mail zeigen bei Wagenbestand nun verschiedene Bestände (Hilfe nennt das). Build grün, Web 2998 + 1 übersprungen, Service 675. Status zurück auf InUmsetzung bis zur erneuten QA.

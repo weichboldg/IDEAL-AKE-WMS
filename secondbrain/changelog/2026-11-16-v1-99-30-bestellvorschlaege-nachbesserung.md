@@ -26,6 +26,7 @@ Grundspec [[2026-11-08-einkauf-bestellvorschlaege-spec]]. Nicht gemergt. Spec na
 - **E7 Ersatzlösung Einheiten:** offene Position mit Basis = Lager zählt trotz `EinheitAbweichend`; letzte Bestellmenge und Sage-Bestellmenge nur
   bei Basis = Lager und `UmrechnungsFaktorLME` leer/1 (BV-1). Nie Faktor 1 geraten.
 - **E8 übersprungen** (Blocker P-N6/P-N9, Rahmenverträge), SQL/156 unverbraucht.
+- **Q2 (Variante b, Gerald 2026-11-17, 5b123c11):** *Bestand WMS* der Liste zählt Kommissionierwagen mit, wie die Artikelinfo (Überladung `GetStockByArticleNumbersAsync(…, mitKommissionierwagen: true)` nur für die Bestellvorschläge; Kommissionierung, Fehlteile, Stückliste, Meldebestand-Mail unverändert ohne Wagen). TS-154.4f.
 
 ## Migration / SQL
 
