@@ -205,7 +205,8 @@ builder.Services.AddScoped<IdealAkeWms.Services.Oseon.IOseonGroupViewModelBuilde
                           IdealAkeWms.Services.Oseon.OseonGroupViewModelBuilder>();
 
 // MVC
-builder.Services.AddControllersWithViews();
+// v1.99.39: Seite hinter der letzten -> letzte Seite (gilt fuer alle Listen mit PaginationState)
+builder.Services.AddControllersWithViews(o => o.Filters.Add<IdealAkeWms.Filters.PaginationSeiteKlemmenFilter>());
 
 var app = builder.Build();
 
