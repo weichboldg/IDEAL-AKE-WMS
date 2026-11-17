@@ -15,6 +15,7 @@ public class ProductionWorkplaceRepository : Repository<ProductionWorkplace>, IP
         nameof(ProductionWorkplace.Name), nameof(ProductionWorkplace.Hall), nameof(ProductionWorkplace.OverridePrePickingDays),
         nameof(ProductionWorkplace.BdeAktiv), nameof(ProductionWorkplace.BdeDefaultArbeitsgang),
         nameof(ProductionWorkplace.BdeUseCustomShiftPlan), nameof(ProductionWorkplace.BdeNurAgFertigmeldung),
+        nameof(ProductionWorkplace.BdeTeileliste),
         nameof(ProductionWorkplace.ModifiedAt), nameof(ProductionWorkplace.ModifiedBy), nameof(ProductionWorkplace.ModifiedByWindows),
     };
 

@@ -17,7 +17,7 @@ namespace IdealAkeWms.Tests.Controllers;
 
 public class ProductionWorkplacesControllerTests
 {
-    private static ProductionWorkplacesController CreateController(ApplicationDbContext ctx)
+    internal static ProductionWorkplacesController CreateController(ApplicationDbContext ctx, bool master = false)
     {
         var repo = new ProductionWorkplaceRepository(ctx);
 
@@ -34,7 +34,10 @@ public class ProductionWorkplacesControllerTests
         var appSettings = new Mock<IAppSettingRepository>();
         appSettings.Setup(a => a.GetValueAsync(It.IsAny<string>())).ReturnsAsync((string?)null);
 
-        var controller = new ProductionWorkplacesController(repo, userRepo.Object, workStepRepo, userSvc.Object, appSettings.Object, ctx);
+        var serviceSettings = new Mock<IServiceSettingRepository>();
+        serviceSettings.Setup(s => s.GetValueAsync("ProduktionsauftragHierarchisch")).ReturnsAsync(master ? "true" : "false");
+
+        var controller = new ProductionWorkplacesController(repo, userRepo.Object, workStepRepo, userSvc.Object, appSettings.Object, serviceSettings.Object, ctx);
         controller.TempData = new TempDataDictionary(new DefaultHttpContext(), Mock.Of<ITempDataProvider>());
         return controller;
     }

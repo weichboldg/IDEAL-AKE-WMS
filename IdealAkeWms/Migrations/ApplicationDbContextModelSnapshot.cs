@@ -1123,6 +1123,117 @@ namespace IdealAkeWms.Migrations
                     b.ToTable("BdeShifts", "dbo");
                 });
 
+            modelBuilder.Entity("IdealAkeWms.Models.BdeTeilMeldung", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Artnr")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int?>("BdeBookingId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("BdeOperatorId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("BdeTerminalId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CancellationReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("CreatedByWindows")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime>("GemeldetAm")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal>("GoodQuantity")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<int>("HauptFA")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsCancelled")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Kuerzel")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Matchcode")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ModifiedByWindows")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int?>("Position")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ProductionWorkplaceId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("ScrapQuantity")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal>("SollmengeBeiMeldung")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<int>("SubFA")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("VaterFA")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BdeBookingId");
+
+                    b.HasIndex("BdeTerminalId");
+
+                    b.HasIndex("BdeOperatorId", "GemeldetAm")
+                        .HasDatabaseName("IX_BdeTeilMeldungen_Operator_GemeldetAm");
+
+                    b.HasIndex("ProductionWorkplaceId", "GemeldetAm")
+                        .HasDatabaseName("IX_BdeTeilMeldungen_Workplace_GemeldetAm");
+
+                    b.HasIndex("HauptFA", "VaterFA", "SubFA", "Position", "Artnr", "Kuerzel")
+                        .IsUnique()
+                        .HasDatabaseName("UX_BdeTeilMeldungen_Schluessel")
+                        .HasFilter("[IsCancelled] = 0");
+
+                    b.ToTable("BdeTeilMeldungen", "dbo");
+                });
+
             modelBuilder.Entity("IdealAkeWms.Models.BdeTerminal", b =>
                 {
                     b.Property<int>("Id")
@@ -3740,6 +3851,9 @@ namespace IdealAkeWms.Migrations
                     b.Property<bool>("BdeNurAgFertigmeldung")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("BdeTeileliste")
+                        .HasColumnType("bit");
+
                     b.Property<bool>("BdeUseCustomShiftPlan")
                         .HasColumnType("bit");
 
@@ -5840,6 +5954,40 @@ namespace IdealAkeWms.Migrations
                         .WithMany()
                         .HasForeignKey("ProductionWorkplaceId")
                         .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("ProductionWorkplace");
+                });
+
+            modelBuilder.Entity("IdealAkeWms.Models.BdeTeilMeldung", b =>
+                {
+                    b.HasOne("IdealAkeWms.Models.BdeBooking", "BdeBooking")
+                        .WithMany()
+                        .HasForeignKey("BdeBookingId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("IdealAkeWms.Models.BdeOperator", "BdeOperator")
+                        .WithMany()
+                        .HasForeignKey("BdeOperatorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("IdealAkeWms.Models.BdeTerminal", "BdeTerminal")
+                        .WithMany()
+                        .HasForeignKey("BdeTerminalId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("IdealAkeWms.Models.ProductionWorkplace", "ProductionWorkplace")
+                        .WithMany()
+                        .HasForeignKey("ProductionWorkplaceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("BdeBooking");
+
+                    b.Navigation("BdeOperator");
+
+                    b.Navigation("BdeTerminal");
 
                     b.Navigation("ProductionWorkplace");
                 });

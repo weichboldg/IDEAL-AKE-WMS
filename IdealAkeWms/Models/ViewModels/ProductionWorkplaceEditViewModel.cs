@@ -45,6 +45,10 @@ public class ProductionWorkplaceEditViewModel
     [Display(Name = "Nur AG-Fertigmeldung (ohne Start/Stop)")]
     public bool BdeNurAgFertigmeldung { get; set; }
 
+    /// <summary>v1.99.32: Werkbank-Option BDE-Teileliste; nur bei Master an sichtbar und speicherbar (Server prueft).</summary>
+    [Display(Name = "BDE-Teileliste (vereinfacht)")]
+    public bool BdeTeileliste { get; set; }
+
     /// <summary>Nur Anzeige: seit wann die Sage-Nummer nicht mehr in der Quelle steht (v1.63.0).</summary>
     [ValidateNever]
     public DateTime? SageMissingSince { get; set; }

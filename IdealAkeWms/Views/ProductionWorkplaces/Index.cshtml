@@ -66,6 +66,10 @@
                         {
                             <span class="badge bg-light text-dark border ms-1">nur Fertigmeldung</span>
                         }
+                        @if (wp.BdeTeileliste)
+                        {
+                            <span class="badge bg-light text-dark border ms-1">Teileliste</span>
+                        }
                     </td>
                     <td>
                         @if (wp.ProductionWorkplaceUsers.Any())

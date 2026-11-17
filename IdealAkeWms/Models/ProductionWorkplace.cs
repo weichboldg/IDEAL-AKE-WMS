@@ -52,6 +52,11 @@ public class ProductionWorkplace : AuditableEntity
     [Display(Name = "Nur AG-Fertigmeldung (ohne Start/Stop)")]
     public bool BdeNurAgFertigmeldung { get; set; }
 
+    /// <summary>IDEAL: Terminal zeigt die BDE-Teileliste nach Matchcode (Fertigmeldung je Strukturzeile, ohne Zeit) statt der
+    /// Haupt-FA-Gruppen. Wirksam nur ueber <c>WerkbankKuerzelFamilie.TeilelisteWirksam</c>. (v1.99.32, ADR 0030)</summary>
+    [Display(Name = "BDE-Teileliste (vereinfacht)")]
+    public bool BdeTeileliste { get; set; }
+
     // v1.73.0 (Spec 2026-11-06-sage-sdata-stammdaten-sync E6a, F8): nur der SData-Weg (PpsArbeitsplaetzeInfo) liefert diese Felder.
     // Der ProductionWorkplaceSyncService schreibt sie nur, wenn die Quelle sie liefert (nicht null) — ein View-Lauf laesst sie unveraendert.
 

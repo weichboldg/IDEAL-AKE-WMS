@@ -358,6 +358,7 @@ BEGIN
         [ArbeitsschrittCode]     NVARCHAR(20)      NULL,
         [SageMissingSince]       DATETIME2         NULL,
         [BdeNurAgFertigmeldung]  BIT               NOT NULL CONSTRAINT [DF_ProductionWorkplaces_BdeNurAgFertigmeldung] DEFAULT (0),
+        [BdeTeileliste]          BIT               NOT NULL CONSTRAINT [DF_ProductionWorkplaces_BdeTeileliste] DEFAULT (0),  -- v1.99.32 / SQL/154
         [SageBdeTerminalId]      NVARCHAR(20)      NULL,  -- v1.73.0 / SQL/102 (SData PpsArbeitsplaetzeInfo)
         [SageKostenstelle]       NVARCHAR(20)      NULL,  -- v1.73.0 / SQL/102
         [SageSchichtplannummer]  NVARCHAR(31)      NULL,  -- v1.73.0 / SQL/102
@@ -2624,6 +2625,56 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_BdeBookingQuantities_B
     CREATE INDEX [IX_BdeBookingQuantities_BdeOperatorId] ON [dbo].[BdeBookingQuantities]([BdeOperatorId]);
 GO
 
+-- BdeTeilMeldungen (v1.99.32 / SQL/154, ADR 0030): Fertigmeldung je Strukturzeile der BDE-Teileliste, fachlicher Schluessel +
+-- gefilterter UNIQUE (Doppel-Schutz). Objektnamen wie die EF-Migration 20261117075856_AddBdeTeileliste.
+IF OBJECT_ID(N'dbo.BdeTeilMeldungen', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[BdeTeilMeldungen] (
+        [Id]                    INT IDENTITY(1,1) NOT NULL CONSTRAINT [PK_BdeTeilMeldungen] PRIMARY KEY,
+        [HauptFA]               INT               NOT NULL,
+        [VaterFA]               INT               NULL,
+        [SubFA]                 INT               NOT NULL,
+        [Position]              INT               NULL,
+        [Artnr]                 NVARCHAR(200)     NULL,
+        [Matchcode]             NVARCHAR(200)     NULL,
+        [Kuerzel]               NVARCHAR(20)      NOT NULL,
+        [ProductionWorkplaceId] INT               NOT NULL CONSTRAINT [FK_BdeTeilMeldungen_ProductionWorkplaces_ProductionWorkplaceId] REFERENCES [dbo].[ProductionWorkplaces]([Id]),
+        [BdeOperatorId]         INT               NOT NULL CONSTRAINT [FK_BdeTeilMeldungen_BdeOperators_BdeOperatorId] REFERENCES [dbo].[BdeOperators]([Id]),
+        [BdeTerminalId]         INT               NOT NULL CONSTRAINT [FK_BdeTeilMeldungen_BdeTerminals_BdeTerminalId] REFERENCES [dbo].[BdeTerminals]([Id]),
+        [GoodQuantity]          DECIMAL(18,4)     NOT NULL,
+        [ScrapQuantity]         DECIMAL(18,4)     NOT NULL,
+        [SollmengeBeiMeldung]   DECIMAL(18,4)     NOT NULL,
+        [GemeldetAm]            DATETIME2         NOT NULL,
+        [BdeBookingId]          INT               NULL CONSTRAINT [FK_BdeTeilMeldungen_BdeBookings_BdeBookingId] REFERENCES [dbo].[BdeBookings]([Id]),
+        [IsCancelled]           BIT               NOT NULL,
+        [CancellationReason]    NVARCHAR(500)     NULL,
+        [CreatedAt]             DATETIME2         NOT NULL,
+        [CreatedBy]             NVARCHAR(200)     NOT NULL,
+        [CreatedByWindows]      NVARCHAR(200)     NOT NULL,
+        [ModifiedAt]            DATETIME2         NULL,
+        [ModifiedBy]            NVARCHAR(200)     NULL,
+        [ModifiedByWindows]     NVARCHAR(200)     NULL
+    );
+    PRINT 'Tabelle BdeTeilMeldungen erstellt.';
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_BdeTeilMeldungen_Schluessel' AND object_id = OBJECT_ID(N'dbo.BdeTeilMeldungen'))
+    CREATE UNIQUE INDEX [UX_BdeTeilMeldungen_Schluessel] ON [dbo].[BdeTeilMeldungen]([HauptFA],[VaterFA],[SubFA],[Position],[Artnr],[Kuerzel]) WHERE [IsCancelled] = 0;
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_BdeTeilMeldungen_Workplace_GemeldetAm' AND object_id = OBJECT_ID(N'dbo.BdeTeilMeldungen'))
+    CREATE INDEX [IX_BdeTeilMeldungen_Workplace_GemeldetAm] ON [dbo].[BdeTeilMeldungen]([ProductionWorkplaceId],[GemeldetAm]);
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_BdeTeilMeldungen_Operator_GemeldetAm' AND object_id = OBJECT_ID(N'dbo.BdeTeilMeldungen'))
+    CREATE INDEX [IX_BdeTeilMeldungen_Operator_GemeldetAm] ON [dbo].[BdeTeilMeldungen]([BdeOperatorId],[GemeldetAm]);
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_BdeTeilMeldungen_BdeTerminalId' AND object_id = OBJECT_ID(N'dbo.BdeTeilMeldungen'))
+    CREATE INDEX [IX_BdeTeilMeldungen_BdeTerminalId] ON [dbo].[BdeTeilMeldungen]([BdeTerminalId]);
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_BdeTeilMeldungen_BdeBookingId' AND object_id = OBJECT_ID(N'dbo.BdeTeilMeldungen'))
+    CREATE INDEX [IX_BdeTeilMeldungen_BdeBookingId] ON [dbo].[BdeTeilMeldungen]([BdeBookingId]);
+GO
+
 -- BdeShifts (Phase 2.3 - Schichtkalender)
 IF OBJECT_ID(N'dbo.BdeShifts', N'U') IS NULL
 BEGIN
@@ -3302,6 +3353,10 @@ GO
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261116190709_AddArticleLastOrderUnassigned')
    AND OBJECT_ID(N'dbo.ArticleLastOrdersUnassigned', N'U') IS NOT NULL
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261116190709_AddArticleLastOrderUnassigned', '10.0.2');
+GO
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261117075856_AddBdeTeileliste')
+   AND COL_LENGTH(N'dbo.ProductionWorkplaces', N'BdeTeileliste') IS NOT NULL AND OBJECT_ID(N'dbo.BdeTeilMeldungen', N'U') IS NOT NULL -- sonst steht SQL/154 noch aus
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261117075856_AddBdeTeileliste', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';

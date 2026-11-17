@@ -45,4 +45,13 @@ public static class WerkbankKuerzelFamilie
     /// <summary>Werkbank-Option „nur AG-Fertigmeldung" wirksam (FA-c2): globales <c>BdeNurFaMeldung</c> gewinnt.</summary>
     public static bool NurAgFertigmeldungWirksam(ProductionWorkplace w, bool nurFaGlobal) =>
         w.BdeAktiv && w.BdeNurAgFertigmeldung && !nurFaGlobal;
+
+    /// <summary>v1.99.32 (Spec 2026-11-13-bde-vereinfacht-teileliste-blechfertigung F1, ADR 0030): Werkbank-Option „BDE-Teileliste“
+    /// wirksam = BDE aktiv, Option an, globales <c>BdeNurFaMeldung</c> aus und ein Kuerzel gesetzt (es entscheidet allein
+    /// <c>ArbeitsschrittCode</c>, nie eine Code-Konstante).</summary>
+    public static bool TeilelisteWirksam(ProductionWorkplace w, bool nurFaGlobal) =>
+        w.BdeAktiv && w.BdeTeileliste && !nurFaGlobal && Code(w) != null;
+
+    /// <summary>Kuerzel der Werkbank (getrimmt) oder null — dieselbe Normalisierung wie die Familien-Pruefung.</summary>
+    public static string? Kuerzel(ProductionWorkplace w) => Code(w);
 }

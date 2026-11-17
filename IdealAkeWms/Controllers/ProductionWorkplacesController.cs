@@ -17,6 +17,7 @@ public class ProductionWorkplacesController : Controller
     private readonly IWorkStepRepository _workStepRepository;
     private readonly ICurrentUserService _currentUserService;
     private readonly IAppSettingRepository _appSettings;
+    private readonly IServiceSettingRepository _serviceSettings;
     private readonly ApplicationDbContext _ctx;
 
     public ProductionWorkplacesController(
@@ -25,6 +26,7 @@ public class ProductionWorkplacesController : Controller
         IWorkStepRepository workStepRepository,
         ICurrentUserService currentUserService,
         IAppSettingRepository appSettings,
+        IServiceSettingRepository serviceSettings,
         ApplicationDbContext ctx)
     {
         _repository = repository;
@@ -32,6 +34,7 @@ public class ProductionWorkplacesController : Controller
         _workStepRepository = workStepRepository;
         _currentUserService = currentUserService;
         _appSettings = appSettings;
+        _serviceSettings = serviceSettings;
         _ctx = ctx;
     }
 
@@ -47,7 +50,8 @@ public class ProductionWorkplacesController : Controller
         ["sage-nr"] = wp => wp.SageArbeitsplatznummer,
         ["arbeitsschritt"] = wp => wp.ArbeitsschrittCode,
         ["hall"] = wp => wp.Hall,
-        ["bde"] = wp => (wp.BdeAktiv ? "Aktiv" : "Inaktiv") + (wp.BdeNurAgFertigmeldung ? " nur Fertigmeldung" : ""),
+        ["bde"] = wp => (wp.BdeAktiv ? "Aktiv" : "Inaktiv") + (wp.BdeNurAgFertigmeldung ? " nur Fertigmeldung" : "")
+                     + (wp.BdeTeileliste ? " Teileliste" : ""),
         ["sage-missing"] = wp => wp.SageMissingSince?.ToString("dd.MM.yyyy"),
         ["users"] = wp => wp.ProductionWorkplaceUsers.Any()
             ? $"{wp.ProductionWorkplaceUsers.Count} {string.Join(", ", wp.ProductionWorkplaceUsers.Select(wu => wu.User.Name))}"
@@ -97,6 +101,7 @@ public class ProductionWorkplacesController : Controller
     [RequireMasterDataAccess]
     public async Task<IActionResult> Create(ProductionWorkplaceEditViewModel vm, int[]? workStepIds = null)
     {
+        await ValidateTeilelisteAsync(vm, vm.BdeAktiv, NormalizeCode(vm.ArbeitsschrittCode));
         if (!ModelState.IsValid)
         {
             vm.AvailableUsers = await _userRepository.GetActiveUsersAsync();
@@ -118,6 +123,7 @@ public class ProductionWorkplacesController : Controller
             // Create setzt nie eine Sage-Nummer -> Kuerzel immer pflegbar (FA-a8)
             ArbeitsschrittCode = NormalizeCode(vm.ArbeitsschrittCode),
             BdeNurAgFertigmeldung = vm.BdeNurAgFertigmeldung,
+            BdeTeileliste = vm.BdeTeileliste,
             CreatedAt = DateTime.Now,
             CreatedBy = _currentUserService.GetDisplayName(),
             CreatedByWindows = _currentUserService.GetWindowsUserName()
@@ -166,6 +172,7 @@ public class ProductionWorkplacesController : Controller
             SageArbeitsplatznummer = workplace.SageArbeitsplatznummer,
             ArbeitsschrittCode = workplace.ArbeitsschrittCode,
             BdeNurAgFertigmeldung = workplace.BdeNurAgFertigmeldung,
+            BdeTeileliste = workplace.BdeTeileliste,
             SageMissingSince = workplace.SageMissingSince,
             CustomShifts = await _ctx.BdeShifts
                 .Where(s => s.ProductionWorkplaceId == workplace.Id)
@@ -189,6 +196,13 @@ public class ProductionWorkplacesController : Controller
         if (id != vm.Id)
             return NotFound();
 
+        var existing = await _repository.GetByIdAsync(id);
+        if (existing == null)
+            return NotFound();
+
+        // Kuerzel wie beim Speichern: Sage-Werkbank behaelt den gespeicherten Wert (FA-a8).
+        await ValidateTeilelisteAsync(vm, vm.BdeAktiv,
+            existing.SageArbeitsplatznummer == null ? NormalizeCode(vm.ArbeitsschrittCode) : existing.ArbeitsschrittCode);
         if (!ModelState.IsValid)
         {
             vm.AvailableUsers = await _userRepository.GetActiveUsersAsync();
@@ -197,10 +211,6 @@ public class ProductionWorkplacesController : Controller
             await SetFormViewBagAsync();
             return View(vm);
         }
-
-        var existing = await _repository.GetByIdAsync(id);
-        if (existing == null)
-            return NotFound();
 
         existing.Name = vm.Name;
         existing.Hall = vm.Hall;
@@ -211,6 +221,7 @@ public class ProductionWorkplacesController : Controller
             : vm.BdeDefaultArbeitsgang.Trim();
         existing.BdeUseCustomShiftPlan = vm.BdeUseCustomShiftPlan;
         existing.BdeNurAgFertigmeldung = vm.BdeNurAgFertigmeldung;
+        existing.BdeTeileliste = vm.BdeTeileliste;
         // FA-a8: Kuerzel nur an Werkbaenken OHNE Sage-Nummer — entschieden am gespeicherten Wert, nie am Formular
         // (die Sage-Nummer kommt als readonly-Input zurueck und ist manipulierbar). Repository schuetzt zusaetzlich.
         if (existing.SageArbeitsplatznummer == null)
@@ -237,11 +248,32 @@ public class ProductionWorkplacesController : Controller
 
     private static string? NormalizeCode(string? code) => string.IsNullOrWhiteSpace(code) ? null : code.Trim();
 
+    private async Task<bool> IsHierarchicalMasterAsync()
+    {
+        var v = await _serviceSettings.GetValueAsync(IdealAkeWms.Services.HierarchischeStruktur.HierarchischeStrukturKeys.Master);
+        return v != null && (v.Equals("true", StringComparison.OrdinalIgnoreCase) || v == "1" || v.Equals("on", StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>v1.99.32 (Spec 2026-11-13 BDE-Teileliste, AK 2): Option an nur bei Master an, BDE aktiv und gesetztem Kuerzel —
+    /// sonst ModelState-Fehler, nichts gespeichert (auch ein manipulierter POST an AKE ohne Feld).</summary>
+    private async Task ValidateTeilelisteAsync(ProductionWorkplaceEditViewModel vm, bool bdeAktiv, string? code)
+    {
+        if (!vm.BdeTeileliste) return;
+        if (!await IsHierarchicalMasterAsync())
+            ModelState.AddModelError(string.Empty, "Die BDE-Teileliste gibt es nur bei hierarchischen ProduktionsauftrÃ¤gen (IDEAL).");
+        else if (!bdeAktiv)
+            ModelState.AddModelError(nameof(vm.BdeTeileliste), "Die BDE-Teileliste braucht â€žBDE aktivâ€œ.");
+        else if (code == null)
+            ModelState.AddModelError(nameof(vm.BdeTeileliste), "Die BDE-Teileliste braucht ein Arbeitsschritt-KÃ¼rzel an der Werkbank.");
+    }
+
     private async Task SetFormViewBagAsync()
     {
         ViewBag.GlobalDefaultArbeitsgang = await _appSettings.GetValueAsync(AppSettingKeys.BdeDefaultArbeitsgang) ?? "(nicht gesetzt)";
         // FA-c8: Hinweis, dass die Werkbank-Option bei globalem NurFA ohne Wirkung ist
         ViewBag.NurFaGlobal = (await _appSettings.GetValueAsync(AppSettingKeys.BdeNurFaMeldung))
             ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
+        // v1.99.32: Option BDE-Teileliste nur bei Master an sichtbar (IDEAL)
+        ViewBag.Hierarchisch = await IsHierarchicalMasterAsync();
     }
 }

@@ -1,0 +1,27 @@
+@model ProductionWorkplaceEditViewModel
+@* v1.99.32 (Spec 2026-11-13-bde-vereinfacht-teileliste-blechfertigung, ADR 0030): Werkbank-Option "BDE-Teileliste (vereinfacht)".
+   Nur bei Master ProduktionsauftragHierarchisch an (IDEAL); der Server prueft beim Speichern Master, BDE aktiv und Kuerzel. *@
+@if (ViewBag.Hierarchisch is true)
+{
+    <div class="form-check form-switch mb-3">
+        <input asp-for="BdeTeileliste" class="form-check-input" role="switch" />
+        <label asp-for="BdeTeileliste" class="form-check-label"></label>
+        <div class="form-text">
+            Das Terminal dieser Werkbank zeigt statt der Haupt-FA-Gruppen eine Liste der Teile und Baugruppen nach Matchcode, deren
+            Arbeitsschritte das Kürzel der Werkbank enthalten. Gemeldet wird nur „fertig“ (ohne Zeit), einzeln oder als Block.
+            Voraussetzung: „BDE aktiv“ und ein Arbeitsschritt-Kürzel. Standard: aus.
+        </div>
+        <div class="alert alert-warning small mt-2 mb-0" role="note">
+            <strong>Achtung:</strong> Ändert die Arbeitsgang-Erkennung: Für das Kürzel dieser Werkbank entstehen keine Arbeitsgänge mehr
+            an der Baugruppe aus Blechteilen. Ausschalten legt sie beim nächsten Lauf wieder an.
+        </div>
+        @if (ViewBag.NurFaGlobal is true)
+        {
+            <div class="alert alert-warning small mt-2 mb-0" role="alert">
+                Die Einstellung <code>BdeNurFaMeldung</code> (Einstellungen › BDE) ist eingeschaltet. Solange sie gilt, hat
+                diese Option keine Wirkung.
+            </div>
+        }
+        <span asp-validation-for="BdeTeileliste" class="text-danger d-block"></span>
+    </div>
+}

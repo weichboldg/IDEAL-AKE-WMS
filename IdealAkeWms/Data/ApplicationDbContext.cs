@@ -48,6 +48,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<BdeActivity> BdeActivities => Set<BdeActivity>();
     public DbSet<BdeBooking> BdeBookings => Set<BdeBooking>();
     public DbSet<BdeBookingQuantity> BdeBookingQuantities => Set<BdeBookingQuantity>();
+    public DbSet<BdeTeilMeldung> BdeTeilMeldungen => Set<BdeTeilMeldung>(); // v1.99.32 BDE-Teileliste
     public DbSet<BdeOperator> BdeOperators => Set<BdeOperator>();
     public DbSet<SagePpsMitarbeiter> SagePpsMitarbeiter => Set<SagePpsMitarbeiter>();
     public DbSet<Stillstandsgrund> Stillstandsgruende => Set<Stillstandsgrund>();
@@ -1545,6 +1546,29 @@ public class ApplicationDbContext : DbContext
 
             entity.ToTable(t => t.HasCheckConstraint("CK_BdeBookings_StatusEnded",
                 "([Status] = 1 AND [EndedAt] IS NULL) OR ([Status] IN (2,3,4,5) AND [EndedAt] IS NOT NULL)"));
+        });
+
+        // BDE: Teilmeldungen (v1.99.32, ADR 0030) — fachlicher Schluessel statt Node-Id, gefilterter UNIQUE = Doppel-Schutz.
+        modelBuilder.Entity<BdeTeilMeldung>(entity =>
+        {
+            entity.ToTable("BdeTeilMeldungen");
+            entity.HasOne(e => e.ProductionWorkplace).WithMany().HasForeignKey(e => e.ProductionWorkplaceId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.BdeOperator).WithMany().HasForeignKey(e => e.BdeOperatorId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.BdeTerminal).WithMany().HasForeignKey(e => e.BdeTerminalId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.BdeBooking).WithMany().HasForeignKey(e => e.BdeBookingId).OnDelete(DeleteBehavior.Restrict);
+            entity.Property(e => e.GoodQuantity).HasPrecision(18, 4);
+            entity.Property(e => e.ScrapQuantity).HasPrecision(18, 4);
+            entity.Property(e => e.SollmengeBeiMeldung).HasPrecision(18, 4);
+            entity.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.ModifiedBy).HasMaxLength(200);
+            entity.Property(e => e.ModifiedByWindows).HasMaxLength(200);
+            entity.HasIndex(e => new { e.HauptFA, e.VaterFA, e.SubFA, e.Position, e.Artnr, e.Kuerzel })
+                .IsUnique()
+                .HasFilter("[IsCancelled] = 0")
+                .HasDatabaseName("UX_BdeTeilMeldungen_Schluessel");
+            entity.HasIndex(e => new { e.ProductionWorkplaceId, e.GemeldetAm }).HasDatabaseName("IX_BdeTeilMeldungen_Workplace_GemeldetAm");
+            entity.HasIndex(e => new { e.BdeOperatorId, e.GemeldetAm }).HasDatabaseName("IX_BdeTeilMeldungen_Operator_GemeldetAm");
         });
 
         // BDE: Shifts
