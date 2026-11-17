@@ -1,6 +1,6 @@
 ---
 type: aufgabe
-status: offen
+status: erledigt
 created: 2026-11-17
 quelle: Gerald, Chat 2026-11-17 (/goal)
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
@@ -35,3 +35,16 @@ Nummern beim Start geprüft (Worktree `1f0361dd`): Version **1.99.38**, SQL **16
   geleert), TS-159 lesend durch, Schalter aus, DEV-Testdaten zurückgesetzt. P-5 gelesen: AG-Nummer steht an AG-Positionen in
   `RessourceNummer`. **Offen vor E1b:** F3 Erfolgsregel an die angelegte Position binden, P-1/P-2/P-4. **Kein Publish** (Auftrag Gerald,
   abweichend von der Planung oben „Paket 3"). Nachweis und Checkliste in der Spec.
+- 2026-11-17: **Publish Paket 3** nach `<Worktree>\publish\paket3-v1.99.38\` (Ordner vorher geleert): Web + Dienst (DLLs tragen 1.99.38),
+  `SQL/` inkl. 160, `deploy/` (Skripte + Manifest), `publish-info.txt` (Commit `ab75c336`). Paket 1 und 2 unverändert.
+
+## Abschluss (2026-11-17)
+
+E0 + E1a **Testbereit**, v1.99.38, SQL/160, TS-159. Worktree-HEAD `ab75c336`. DEV AKE (:8081) und IDEAL (:8082) auf 1.99.38, Schalter aus,
+Bearbeiter leer. Publish Paket 3 liegt bereit. Nichts an Sage geschrieben, kein Schalter eingeschaltet, keine Einstellungen auf Test/Prod,
+kein Merge, kein Push.
+
+Offen für Gerald: F3 (Erfolgsregel an angelegte Position binden bzw. Nachlesen nach Senden) und P-1/P-2/P-4 per `$template` vor E1b;
+E1b Schreibtest an genau einem FA am `IDEAL_TEST_2026_03_05;1` erst nach Freigabe (dort laut Rückfrage 7 noch Probleme); TS-159.9–12/.16
+(Schalter an) und Manual-UAT laut Spec-Checkliste; Hinweis: bereits eingereihte Zeilen würden nach dem Einschalten gesendet; Zusatzfund
+Pagination „Eintraege 26–8 von 8“ (außerhalb dieses Zweigs).
