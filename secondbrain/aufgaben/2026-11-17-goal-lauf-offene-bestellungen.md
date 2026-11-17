@@ -23,8 +23,9 @@ reserviert Mapping); TS-155; keine SQL.
 | Spec | Typ | SQL | Version | Status | Commits | Blocker |
 |---|---|---|---|---|---|---|
 | [[2026-11-16-offene-bestellungen-sofort-neu-lesen-einkauf-kw-filter-spec]] | Spec | – | 1.99.31 | InUmsetzung (Rumpf nachgezogen) | – | Rückfragen 9–11 nicht blockierend |
-| [[2026-11-16-bestellvorschlaege-nachbesserung-spec]] (Q2 = b) | Nachbesserung | – | 1.99.30 | InUmsetzung | – | – |
+| [[2026-11-16-bestellvorschlaege-nachbesserung-spec]] (Q2 = b) | Nachbesserung | – | 1.99.30 | **Testbereit** (qa-agent) | `5b123c11` | Q2-B1 als Backlog [[2026-11-17-artikelinfo-bestand-teiltextsuche-bug]] |
 
 ## Protokoll
 
 - 2026-11-17: Lauf gestartet; Q2-Fix und Rumpf-Nachzug parallel (Brain bzw. Worktree, keine Überschneidung).
+- 2026-11-17: Q2 = b umgesetzt (`5b123c11`), QA Testbereit (00730607: Liste = Artikelinfo 45171), DEV AKE+IDEAL aus Scratch-Worktree `qa-5b123c11` (Aufräumen nach Freigabe). Zusatzfund Q2-B1/B2 als Backlog.

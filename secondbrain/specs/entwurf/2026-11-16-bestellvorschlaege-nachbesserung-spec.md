@@ -2,7 +2,7 @@
 type: spec
 title: Bestellvorschläge – Nachbesserung (Laufzeit, FA-Bedarfe, Mengenregel, Einheiten, Dringlichkeit, Rahmenverträge)
 slug: 2026-11-16-bestellvorschlaege-nachbesserung-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-11-16
 updated: 2026-11-17
 source_backlog: "[[2026-11-13-bestellvorschlaege-nachbesserung]]"
@@ -989,3 +989,74 @@ Grundlage für Q2.
 Variante **b**: Die Liste zählt den Bestand im Kommissionierwagen wie die Artikelinfo (gleiche Regel, gleiche Zahl). Nachbesserung im nächsten Dev-Lauf.
 
 **Umgesetzt 2026-11-17 in 5b123c11:** Überladung `IStockMovementRepository.GetStockByArticleNumbersAsync(articleNumbers, mitKommissionierwagen)`; nur die Bestellvorschläge rufen mit `true`. Unverändert ohne Wagen: Kommissionierung (`PickingController` 3×, `PickingApiController`), Fehlteile Lager (`MissingPartsLagerController`), Stückliste (`ReadOnlyBomBuilder`), Meldebestand-Mail (`StockCheckService`, Dienst). Folge: Liste und Meldebestand-Mail zeigen bei Wagenbestand nun verschiedene Bestände (Hilfe nennt das). Build grün, Web 2998 + 1 übersprungen, Service 675. Status zurück auf InUmsetzung bis zur erneuten QA.
+
+## QA-Nachweis Q2 (qa-agent, 2026-11-17, Commit `5b123c11`, Diff `54f04740..5b123c11`)
+
+**Ergebnis: Testbereit.** Keine blockierenden Befunde.
+
+### 1. Build und Tests (Worktree, HEAD `5b123c11`, sauber)
+
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler, 28 Warnungen (bekannt).
+- `IdealAkeWms.Tests`: 2998 bestanden, 1 übersprungen, 0 Fehler.
+- `IDEALAKEWMSService.Tests`: 675 bestanden, 0 Fehler.
+
+### 2. Code-Review (selbst, in diesem Lauf)
+
+Geprüft: die 9 Dateien des Diffs; alle Aufrufer von `GetStockByArticleNumbersAsync` (Grep über Web und Dienst); `GetCurrentStockAsync` (StockMovementRepository.cs:16–172) als Vergleichsregel; `ArticlesController.Info` (:242) und `ArticleInfoViewModel.TotalStock`.
+
+- Die Überladung ist korrekt. Die Ein-Argument-Variante delegiert mit `false`, SQL und Rechnung bleiben gleich. Mit `true` entfällt der Wagen-Ausschluss auf beiden Seiten (Ziel und Quelle). Damit gilt dieselbe Vorzeichenregel wie in `GetCurrentStockAsync`: Einbuchung/SageEinbuchung/Umbuchung-Ziel +, Ausbuchung/SageAusbuchung −, Umbuchung-Quelle −.
+- `true` steht nur in `PurchaseProposalsController.cs:94`. Die anderen Aufrufer sind unverändert (Ein-Argument-Form): `PickingController` (:296, :525, :622), `PickingApiController:38`, `MissingPartsLagerController:54`, `ReadOnlyBomBuilder:81` und `StockCheckService:43` (Meldebestand-Mail, Dienst). Es gibt keinen Caching-Decorator für `IStockMovementRepository`, eine Anpassung war daher nicht nötig.
+- Hilfe (`Help/Index.cshtml`), Anwender-Changelog, `docs/anwender/08-bestellvorschlaege.md` und TS-154.4f beschreiben das neue Verhalten richtig. Die Abweichung zur Meldebestand-Mail ist genannt.
+- Prüfung der Fehlerklassen: kein `<script>`-Embedding, kein `hidden`/`d-*`, kein stiller Fallback, keine Array-Bindung, keine reine Client-Validierung. Regel an mehreren Orten: Die Liste bekommt keine Kopie der Regel, sondern öffnet über den Schalter die vorhandene Abfrage. `GetCurrentStockAsync` und `GetStockByArticleNumbersAsync` bleiben aber zwei getrennte Implementierungen derselben Bestandsregel (Altbestand, nicht aus diesem Commit). Der Gleichheitstest sichert sie für den Wagenfall ab.
+
+**Befunde:**
+
+| Nr | Befund | Behandlung |
+|---|---|---|
+| Q2-B1 | **Zusatzfund bestätigt, Altbestand, nicht aus 5b123c11.** Die Artikelinfo ruft `GetCurrentStockAsync(filterArticle: article.ArticleNumber)` (ArticlesController.cs:242). Der Filter arbeitet mit `Contains` auf Nummer, Bezeichnung und Matchcode (StockMovementRepository.cs:29–32 und 90–93). `ArticleInfoViewModel.TotalStock` (:14) summiert alle Trefferzeilen, ohne Prüfung auf `ArticleId`. Gemessen auf AKE_WMS_DEV: 4 Artikel mit Meldebestand werden durch fremde Artikel gestört, deren **Matchcode** die Artikelnummer enthält (5 Paare): EK007964←EK008429, EK000214←EK005215, EK002995←EK008535+EK009966, EK000420←EK013503. Im Browser bei EK002995: Artikelinfo *Gesamtbestand* **40**, Liste *Bestand WMS* **12**, Sage 12. Die Lagerplatz-Tabelle zeigt `LL;1;25;0` dreimal (12/24/4). Damit sind auch „Verfügbarer Bestand“ und Meldebestand-Hinweis der Artikelinfo falsch. Dasselbe Muster (Lagerplatz-Text der Fremdartikel) steckt in `WarehousePickingController:120/367` und `WarehouseRequisitionsApiController:324`. | Nicht behoben (Auftrag). Folge-Aufgabe empfohlen: in der Artikelinfo nach `ArticleId == article.Id` filtern bzw. eine exakte Filterung über `GetStockByArticleNumbersAsync(…, true)` und dieselben Geschwister mitziehen. Die Liste ist hier die richtige Zahl. |
+| Q2-B2 | Klein, Altbestand (Artikelinfo `Info.cshtml`, Hinweistext unter „Bedarfe“): „kommissionierte Mengen sind schon ausgebucht und zählen nicht mehr“. An der AKE wird in den Wagen umgebucht, nicht ausgebucht. Diese Mengen zählen weiter als FA-Bedarf **und** (seit Q2 in beiden Ansichten) als Bestand. Der Satz passt daher nur für ausgebuchte Mengen. | Nicht behoben. Mit B1 bei der nächsten Artikelinfo-Änderung den Text an die Regel aus `08-bestellvorschlaege.md` angleichen. |
+| Q2-H1 | Hinweis, kein Befund: Liste und Meldebestand-Mail zählen bei Wagenbestand jetzt bewusst verschieden. So entschieden in Q2, dokumentiert in der Hilfe. | – |
+
+### 3. Beweisart
+
+- **Wagenbestand Liste = Artikelinfo:** automatisch belegt durch `StockMovementRepositoryAggregationTests.GetStockByArticleNumbersAsync_MitKommissionierwagen_GleichArtikelinfo_Q2`. Der Test läuft auf EF InMemory; das reale SQL ist zusätzlich auf DEV gemessen (siehe 6).
+- **Andere Aufrufer ohne Wagen:** automatisch belegt durch die Ein-Argument-Variante im selben Test (72) und `..._KommissionierwagenZaehltNicht_V193`.
+
+### 4. Geänderte bestehende Tests
+
+`PurchaseProposalsControllerTests.cs:56`: Das Mock-Setup ist auf die Überladung mit `true` umgestellt. Das ist eine bewusst geänderte Aufrufform (Q2 Variante b), keine Assertion wurde geändert, kein Befund.
+
+### 5. Checkliste
+
+- Keine Migration, kein SQL, keine Einstellung (ADR 0020 nicht betroffen).
+- Version bleibt 1.99.30 (dasselbe Release), Anwender-Changelog ist ergänzt.
+- TS-154.4f steht in `docs/TESTSZENARIEN.md` und fällt unter TS-154 im Testindex.
+- Kein neuer Deploy-Schritt für `nachlauf.psd1`.
+
+### 6. DEV-Deploy und TS-154.4f
+
+**Quelle:** Der Spec-Worktree war sauber. Weil parallel ein anderer Agent arbeitet, wurde trotzdem aus einem eigenen, losgelösten Scratch-Worktree auf `5b123c11` deployt (`…\scratchpad\qa-5b123c11`).
+
+- `dev-deploy.ps1` (elevated) AKE: Exit 0, „Fertig: AKE v1.99.30“.
+- `dev-deploy.ps1` (elevated) IDEAL: Exit 0, „Fertig: IDEAL v1.99.30“.
+- Alle vier DLLs (Web und Dienst je Standort) tragen `+5b123c11049a39fb…`.
+
+**154.4f auf AKE-DEV, 00730607:**
+
+| Schritt | Ergebnis | Status |
+|---|---|---|
+| Datenlage (sqlcmd) | Wagen 28 (Wagen 2: 4, WAGEN N3: 24), ohne Wagen 45368, gesamt 45396 | – |
+| Liste vs. Artikelinfo vorher | Liste: *Bestand WMS* 45396, FA-Bedarf 225, *verfügbar* **45171**. Artikelinfo: *Gesamtbestand* 45396, angerechnet 225, *Verfügbarer Bestand* **45171**. Gleich; früher 45143 vs. 45171, Differenz 28 = Wagen | OK |
+| Vom Wagen ausbuchen | Testbewegung per SQL: Ausbuchung 4 aus „Wagen 2“ mit FA 2627001 (Id 19559, `CreatedBy='qa-agent'`, ohne Sage-Queue). Danach Liste: Bestand 45392, FA-Bedarf 221, verfügbar 45171. Artikelinfo: Gesamtbestand 45392, FA-Rest 221, verfügbar 45171. Bestand und Rest sinken gemeinsam, beide gleich. Testbewegung danach gelöscht (Zählung `qa-agent` = 0) | OK (Ausbuchung per SQL statt Oberfläche) |
+| Kommissionierung/Fehlteile ohne Wagen | Belegt durch Review (Aufrufer unverändert) und Unit-Test (72 ohne Wagen); in der Oberfläche nicht geklickt | OK (Review/Test) |
+| IDEAL | IDEAL_WMS_DEV hat keinen Wagenbestand (0 Paare Artikel/Wagen). `/PurchaseProposals` leitet ohne `EinkaufAktiv` auf das Dashboard um, die Einstellung wurde nicht gesetzt | NICHT MÖGLICH (keine Daten), Deploy OK |
+
+### 7. Publish
+
+Laut Auftrag nicht in diesem Lauf; der Publish folgt am Ende des Bündel-Laufs. Der vorhandene `publish\` steht noch auf `54f04740` und darf nicht verwendet werden.
+
+### Manuelle Test-Checkliste Q2 (Mensch, zusätzlich zur Liste oben)
+
+1. Testsystem AKE: Artikel mit echtem Wagenbestand. *Bestand WMS* in der Liste = *Gesamtbestand* in der Artikelinfo. Nach der Ausbuchung vom Wagen in der Oberfläche sinken beide gemeinsam (TS-154.4f).
+2. Testsystem: Die Kommissionier-Stückliste zeigt bei Wagenbestand weiterhin nur Lagerplätze ohne Wagen.
+3. Entscheiden, ob Q2-B1 (Artikelinfo summiert Fremdartikel über den Matchcode-Treffer, z. B. EK002995 40 statt 12) als eigener Bug aufgenommen wird.
