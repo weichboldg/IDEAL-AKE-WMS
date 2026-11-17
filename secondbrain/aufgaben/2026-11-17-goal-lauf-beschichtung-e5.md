@@ -1,6 +1,6 @@
 ---
 type: aufgabe
-status: in-arbeit
+status: erledigt
 created: 2026-11-17
 quelle: Gerald, Chat 2026-11-17 (/goal)
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
@@ -38,3 +38,9 @@ kein neuer ADR. Testfall tiefe Positionen: Artikel S1402262 (`10.140.40.10.10`).
 ## Fragen
 
 (keine)
+
+## Abschluss
+
+- QA (qa-agent) 2026-11-17: Testbereit, Brain-Commit `27f2346c`; Befunde F1–F3 niedrig (Hinzufügen-Auswahl nicht natürlich sortiert, fehlende Tests AK 20/22/25/26, `docs/betrieb/04-konfiguration.md:206`), offen für Gerald.
+- Publish `<Worktree>\publish\` v1.99.34 (`eff0c1a4`), `publish.zip` neu erzeugt (alter Stand 12:50 ersetzt).
+- Kein Merge, kein Push, nichts an Sage.
