@@ -2,14 +2,14 @@
 type: spec
 title: Wareneingang – Sammellieferschein (Barcode mehrfach, CSV mit laufender Nummer) und Bestellkopf mit AB-Nummer und Kommission
 slug: 2026-11-17-wareneingang-sammellieferschein-und-bestellkopf-spec
-status: Entwurf
+status: InUmsetzung
 created: 2026-11-17
 updated: 2026-11-17
 source_backlog: "[[2026-11-17-wareneingang-sammellieferschein-csv-nummerierung]]"
 source_backlog_2: "[[2026-11-17-wareneingang-bestellkopf-ab-nummer-kommission]]"
-task: ""
-worktree: ""
-branch: ""
+task: "[[2026-11-17-goal-lauf-wareneingang-sammellieferschein]]"
+worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
+branch: "feature/2026-08-07-ideal-teile-1-5"
 standort: AKE
 affected_code:
   - IdealAkeWms/Controllers/PurchaseOrdersController.Receive.cs
@@ -54,9 +54,9 @@ deploy:
   web: true
   service: true
   migration: true
-freigabe_entscheidung: ""
-freigabe_von: ""
-freigabe_am: ""
+freigabe_entscheidung: "Teil A bauen, Prod erst nach enaio-Bestätigung; Teil B Variante B RealTimeData dtsEKBelegMst; Spalten in Offene Bestellungen, bei Einbuchung nur Kopf; Rest Empfehlung"
+freigabe_von: "Gerald Weichbold"
+freigabe_am: "2026-11-17"
 ---
 
 # Wareneingang – Sammellieferschein und Bestellkopf mit AB-Nummer und Kommission
@@ -507,6 +507,18 @@ FROM dbo.SagePurchaseOrderLines;
 Bis P-2 vorliegt, sind Spaltenlänge (B2) und Format (B3) **ungeprüft**; bis P-1a/P-1c vorliegen, sind die Feldnamen der gewählten Variante
 **ungeprüft** (P-1 vom 17.11. belegt nur die Namen am Testbeleg 2027-168975 mit leeren Werten).
 
+## Freigabe-Nachtrag (Gerald 2026-11-17 11:23 – geht dem Rumpf vor)
+
+- **Teil B Datenweg = Variante B:** Der Dienst liest die Kopffelder über `RealTimeData/{Dataset}/dtsEKBelegMst.Sage.Wawi`
+  (`KHKEKBelege_USER_AB`, `KHKEKBelege_USER_Kom`; Auswahl der Belege nur über normale Felder wie `BelID`/`Belegkennzeichen`, **kein** `where`
+  auf die USER-Aliasse – SQL-Fehler „Ungültiger Spaltenname“, Befund in [[2026-11-17-wareneingang-bestellkopf-ab-nummer-kommission]]).
+  Teil B wird **jetzt mitgebaut**; Stellen im Rumpf „Teil B erst nach DPS-Antwort“ / „B nur mit DPS-Freigabe“ sind damit überholt.
+  Variante A (DPS-Properties) bleibt späterer Umstieg.
+- **Anzeige:** AB-Nummer und Kommission als Spalten in Lager → Offene Bestellungen und Einkauf → Offene Bestellungen (sichtbar, ausblendbar).
+  In „Wareneingang zu Bestellung“ (Einbuchung) **nur im Kopf**, keine zusätzlichen Spalten in der Positionstabelle.
+- **Teil A:** bauen und auf DEV testen; auf Prod erst nach Bestätigung durch den enaio-Betreuer (E-1).
+- Antworten 3, 4, 6, 7 wie empfohlen.
+
 ## Offene Rueckfragen
 
 1. **enaio verarbeitet `<Barcode>_n.csv`?** Nimmt enaio `<Barcode>_1.csv` als weitere Bestellung zum selben Dokument, und liest es den Barcode aus
@@ -543,10 +555,10 @@ Bis P-2 vorliegt, sind Spaltenlänge (B2) und Format (B3) **ungeprüft**; bis P-
   Bei Varianten-Specs zusaetzlich freigabe_entscheidung im Frontmatter setzen.
 -->
 
-1. enaio verarbeitet `<Barcode>_n.csv` (E-1), Barcode aus Spalte 1? →
-2. Datenweg Teil B: Variante A (DPS BelegProperty1/2) oder B (RealTimeData im Dienst, DPS-Freigabe)? →
-3. Sammellieferschein nur mit nicht leerer, gleicher Lieferschein-Nr.? →
-4. Altzeilen „Datei existiert bereits“: nur anzeigen + von Hand erneut schreiben, oder automatisch umstellen? →
-5. Spalten AB-Nummer/Kommission standardmäßig sichtbar oder ausgeblendet? →
-6. Standort Teil B nur AKE (P-2 trotzdem auch an IDEAL)? →
-7. Hinweis nach dem Buchen (Erfolgsmeldung) oder schon beim Scannen? →
+1. enaio verarbeitet `<Barcode>_n.csv` (E-1), Barcode aus Spalte 1? → **Gerald 2026-11-17 11:23 „freigegeben“ (Empfehlung): Teil A bauen und auf DEV testen; Prod erst nach Bestätigung durch den enaio-Betreuer.**
+2. Datenweg Teil B: Variante A (DPS BelegProperty1/2) oder B (RealTimeData im Dienst, DPS-Freigabe)? → **Gerald 2026-11-17 11:23: Variante B – „wir greifen vorerst die RealTimeData ab“ (`dtsEKBelegMst.Sage.Wawi`, Felder `KHKEKBelege_USER_AB`/`KHKEKBelege_USER_Kom`, kein `where` auf USER-Aliasse). Teil B wird mitgebaut, nicht auf DPS gewartet. Umstieg auf Variante A später möglich.**
+3. Sammellieferschein nur mit nicht leerer, gleicher Lieferschein-Nr.? → **Gerald 2026-11-17 11:23 (Empfehlung): ja.**
+4. Altzeilen „Datei existiert bereits“: nur anzeigen + von Hand erneut schreiben, oder automatisch umstellen? → **Gerald 2026-11-17 11:23 (Empfehlung): nur anzeigen (Pruefung/WareneingangCsvKollision) + von Hand erneut schreiben.**
+5. Spalten AB-Nummer/Kommission standardmäßig sichtbar oder ausgeblendet? → **Gerald 2026-11-17 11:23: in der Tabelle der offenen Bestellungen (Lager und Einkauf) als Spalten, sichtbar und ausblendbar; bei der Einbuchung (Wareneingang zu Bestellung) nur im Kopf anzeigen, keine Spalten in der Positionstabelle.**
+6. Standort Teil B nur AKE (P-2 trotzdem auch an IDEAL)? → **Gerald 2026-11-17 11:23 (Empfehlung): ja.**
+7. Hinweis nach dem Buchen (Erfolgsmeldung) oder schon beim Scannen? → **Gerald 2026-11-17 11:23 (Empfehlung): nach dem Buchen in der Erfolgsmeldung.**
