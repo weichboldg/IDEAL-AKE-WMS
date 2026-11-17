@@ -144,6 +144,18 @@ public class BfAuftraegeController : Controller
     public async Task<IActionResult> StreichePosition(int id, int positionId, bool gestrichen, string? rowVersion) =>
         Weiter(await _workflow.StreichenAsync(id, positionId, gestrichen, Rv(rowVersion)), id);
 
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [RequireSchachtlerAccess]
+    public async Task<IActionResult> Freigeben(int id, string? rowVersion) =>
+        Weiter(await _workflow.FreigebenAsync(id, Rv(rowVersion)), id);
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [RequireSchachtlerAccess]
+    public async Task<IActionResult> CsvErneutSchreiben(int id, string? rowVersion) =>
+        Weiter(await _workflow.CsvErneutSchreibenAsync(id, Rv(rowVersion)), id);
+
     // ===================== Hilfen =====================
 
     private static byte[]? Rv(string? b64)

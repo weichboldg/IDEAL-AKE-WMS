@@ -24,6 +24,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- v1.99.35: Byte-Vorlage der WiCAM-CSV (Platzhalter bis P-1, Spec 2026-11-13-blechfertigung-bf-auftraege-wicam-csv) -->
+    <None Include="TestData\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\IDEALAKEWMSService\IDEALAKEWMSService.csproj">
       <ExcludeAssets>contentFiles</ExcludeAssets>
     </ProjectReference>

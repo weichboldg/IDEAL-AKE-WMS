@@ -25,17 +25,22 @@ public class BfAuftragWorkflow
     private readonly IOrderRecipientRepository _groups;
     private readonly IStorageLocationRepository _lagerplaetze;
     private readonly ICurrentUserService _user;
+    private readonly IHolidayRepository _holidays;
+    private readonly IBusinessDayService _arbeitstage;
     private readonly TimeProvider _time;
     private readonly ILogger<BfAuftragWorkflow> _logger;
 
     public BfAuftragWorkflow(IBfAuftragRepository repo, IAppSettingRepository settings, IOrderRecipientRepository groups,
-        IStorageLocationRepository lagerplaetze, ICurrentUserService user, TimeProvider time, ILogger<BfAuftragWorkflow> logger)
+        IStorageLocationRepository lagerplaetze, ICurrentUserService user, IHolidayRepository holidays, IBusinessDayService arbeitstage,
+        TimeProvider time, ILogger<BfAuftragWorkflow> logger)
     {
         _repo = repo;
         _settings = settings;
         _groups = groups;
         _lagerplaetze = lagerplaetze;
         _user = user;
+        _holidays = holidays;
+        _arbeitstage = arbeitstage;
         _time = time;
         _logger = logger;
     }
@@ -189,6 +194,80 @@ public class BfAuftragWorkflow
         Geaendert(p, jetzt);
         Geaendert(a, jetzt);
         return await MitRowVersionAsync(a, rowVersion, $"Pos {p.Position} {(gestrichen ? "gestrichen" : "wieder aufgenommen")}.");
+    }
+
+    /// <summary>F3 Freigabe (je Auftrag, Freigabe-Antwort 5): prueft jede nicht gestrichene Position (Mengenregel; bei Uebergabe Matchcode,
+    /// Hauptlagerplatz, verbotene Zeichen), berechnet die Termine ab dem Freigabetag (Antwort 3, Arbeitstage ohne Feiertage), schreibt die
+    /// Bemerkung fest und setzt CSV „offen“. Positionen ohne Materialnummer werden nicht uebergeben – nur Hinweis (Antwort 2); gesperrt nur,
+    /// wenn keine Position uebergeben wuerde.</summary>
+    public async Task<BfErgebnis> FreigebenAsync(int auftragId, byte[]? rowVersion)
+    {
+        var a = await _repo.GetMitPositionenAsync(auftragId);
+        if (a is null) return new(false, "BF-Auftrag nicht gefunden.");
+        if (PruefeBearbeitung(a, alsSchachtler: true) is { } f) return new(false, f, a.Id);
+
+        var fehler = FreigabeFehler(a);
+        if (fehler.Count > 0) return new(false, $"Freigabe von {Name(a)} abgelehnt: {string.Join("; ", fehler)}", a.Id);
+
+        var jetzt = Jetzt;
+        var bezug = jetzt.Date;
+        var feiertage = await _holidays.GetHolidayDatesAsync();
+        var schachtelTage = await _settings.GetIntValueAsync(AppSettingKeys.BfSchachtelterminArbeitstage, 1);
+        var feTage = Math.Max(schachtelTage, await _settings.GetIntValueAsync(AppSettingKeys.BfFeTerminArbeitstage, 10));
+        a.Schachteltermin = _arbeitstage.AddBusinessDays(bezug, schachtelTage, feiertage);
+        a.FeTermin = _arbeitstage.AddBusinessDays(bezug, feTage, feiertage);
+        foreach (var p in a.Positionen.Where(p => !p.Gestrichen))
+        {
+            p.Bemerkung = BfCsv.Bemerkung(p.Status, p.FertigungsInfoPN, bezug, p.Teileart, p.Position);
+            Geaendert(p, jetzt);
+        }
+        a.Status = BfAuftragStatus.Freigegeben;
+        a.FreigegebenAm = jetzt;
+        a.FreigegebenVon = _user.GetDisplayName();
+        a.CsvStatus = BfCsvStatus.Offen;
+        a.CsvVersuche = 0;
+        a.CsvFehler = null;
+        Geaendert(a, jetzt);
+
+        var ohne = a.Positionen.Where(p => !p.Gestrichen && !p.Uebergeben).OrderBy(p => p.Position).Select(p => p.Position).ToList();
+        var hinweis = ohne.Count == 0 ? "" : $" Nicht an WiCAM übergeben (keine Materialnummer): Pos {string.Join(", ", ohne)}.";
+        return await MitRowVersionAsync(a, rowVersion,
+            $"{Name(a)} freigegeben: Schachteltermin {a.Schachteltermin:dd.MM.yyyy}, FE-Termin {a.FeTermin:dd.MM.yyyy}. Die CSV schreibt der Dienst.{hinweis}");
+    }
+
+    /// <summary>Sperren der Freigabe je Position und Feld (Melden statt still ersetzen). Leer = Freigabe moeglich.</summary>
+    public static List<string> FreigabeFehler(BfAuftrag a)
+    {
+        var fehler = new List<string>();
+        foreach (var p in a.Positionen.Where(p => !p.Gestrichen).OrderBy(p => p.Position))
+        {
+            if (MengenFehler(p.Menge, p.SageBestellmenge) is { } mf) fehler.Add($"Pos {p.Position}: {mf}");
+            if (!p.Uebergeben) continue;
+            if (BfCsv.MatchcodeBereinigen(p.Matchcode).Length == 0) fehler.Add($"Pos {p.Position}: Matchcode fehlt");
+            if (string.IsNullOrWhiteSpace(p.Hauptlagerplatz)) fehler.Add($"Pos {p.Position}: Hauptlagerplatz fehlt");
+            foreach (var (feld, wert) in new[] { ("Matchcode", p.Matchcode), ("Materialnummer", p.Materialnummer), ("Status", p.Status),
+                         ("FertigungsInfoPN", p.FertigungsInfoPN), ("Hauptlagerplatz", p.Hauptlagerplatz) })
+                if (BfCsv.UnzulaessigesZeichen(wert) is { } z) fehler.Add($"Pos {p.Position} {feld}: {z}");
+        }
+        if (BfCsv.UnzulaessigesZeichen(a.BestellerName) is { } bz) fehler.Add($"Besteller: {bz}");
+        if (!a.Positionen.Any(p => p.Uebergeben))
+            fehler.Add("keine Position wird an WiCAM übergeben (alle gestrichen oder ohne Materialnummer)");
+        return fehler;
+    }
+
+    /// <summary>F4: CSV erneut schreiben nach einem Fehler (z. B. Namenskollision, nachdem die Datei in WiCAM geloescht wurde) – nur Status Freigegeben.</summary>
+    public async Task<BfErgebnis> CsvErneutSchreibenAsync(int auftragId, byte[]? rowVersion)
+    {
+        var a = await _repo.GetMitPositionenAsync(auftragId);
+        if (a is null) return new(false, "BF-Auftrag nicht gefunden.");
+        if (a.Status != BfAuftragStatus.Freigegeben) return new(false, $"{Name(a)} ist {StatusText(a.Status)} – CSV nur bei freigegebenen Aufträgen.", a.Id);
+        // Nur nach Fehler: eine geschriebene Datei hat WiCAM ggf. schon als Auftrag angelegt – erneut schreiben gaebe einen doppelten Auftrag.
+        if (a.CsvStatus != BfCsvStatus.Fehler) return new(false, $"Die CSV von {Name(a)} ist „{IdealAkeWms.Models.ViewModels.BfAuftragListRow.CsvText(a.CsvStatus)}“ – erneut schreiben nur nach einem Fehler.", a.Id);
+        a.CsvStatus = BfCsvStatus.Offen;
+        a.CsvVersuche = 0;
+        a.CsvFehler = null;
+        Geaendert(a, Jetzt);
+        return await MitRowVersionAsync(a, rowVersion, $"CSV von {Name(a)} wird neu geschrieben (nächster Dienst-Takt).");
     }
 
     // ===================== Hilfen =====================

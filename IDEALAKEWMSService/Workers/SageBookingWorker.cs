@@ -117,6 +117,22 @@ public class SageBookingWorker : BackgroundService
                 await NotifyErrorAsync("SageBookingWorker (Wareneingang-CSV)", ex, stoppingToken);
             }
 
+            // v1.99.35 (Blechfertigung F4): WiCAM-CSV der freigegebenen BF-Auftraege. Eigener Schritt ohne Sage-Bezug (nicht an den
+            // Sage-Wareneingang gebunden); eigenes try wie oben.
+            try
+            {
+                await ProcessBfCsvAsync(stoppingToken);
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                break;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unerwarteter Fehler im Schritt BF-CSV.");
+                await NotifyErrorAsync("SageBookingWorker (BF-CSV Blechfertigung)", ex, stoppingToken);
+            }
+
             await Task.Delay(TimeSpan.FromSeconds(intervalSeconds), stoppingToken);
         }
 
@@ -215,6 +231,25 @@ public class SageBookingWorker : BackgroundService
             await ServiceSettings.GetIntSafeAsync(_configuration, WareneingangCsv.WiederholAbstandKey, 15, ct));
         using var scope = _scopeFactory.CreateScope();
         await scope.ServiceProvider.GetRequiredService<WareneingangCsvService>().RunOnceAsync(pfad, wiederholung, ct);
+    }
+
+    private async Task ProcessBfCsvAsync(CancellationToken ct)
+    {
+        if (!await ServiceSettings.GetBoolSafeAsync(_configuration, BfCsv.AktivKey, false, ct)) return;
+        var pfad = await ServiceSettings.GetValueSafeAsync(_configuration, BfCsv.PfadKey, ct);
+        if (string.IsNullOrWhiteSpace(pfad)) return;   // Manifest-Pruefung BfCsvPfad
+        async Task<string> S(string key, string fallback) =>
+            await ServiceSettings.GetValueSafeAsync(_configuration, key, ct) is { Length: > 0 } v ? v.Trim() : fallback;
+        var d = new BfCsvKopf();
+        var kopf = new BfCsvKopf(await S(BfCsv.CreateNewOrderKey, d.CreateNewOrder),
+            await ServiceSettings.GetIntSafeAsync(_configuration, BfCsv.OrderPriorityKey, d.Priority, ct),
+            await S(BfCsv.OrderReleaseKey, d.Release), await S(BfCsv.Remark1Key, d.Remark1), await S(BfCsv.Remark2Key, d.Remark2),
+            await S(BfCsv.Remark3Key, d.Remark3));
+        var wiederholung = new BfCsvWiederholung(
+            await ServiceSettings.GetIntSafeAsync(_configuration, BfCsv.MaxWiederholungenKey, 3, ct),
+            await ServiceSettings.GetIntSafeAsync(_configuration, BfCsv.WiederholAbstandKey, 15, ct));
+        using var scope = _scopeFactory.CreateScope();
+        await scope.ServiceProvider.GetRequiredService<BfCsvService>().RunOnceAsync(pfad, kopf, wiederholung, ct);
     }
 
     private async Task SageWareneingangAusAsync(CancellationToken ct)

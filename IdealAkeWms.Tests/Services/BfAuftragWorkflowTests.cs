@@ -33,6 +33,7 @@ public class BfAuftragWorkflowTests
         public Mock<IOrderRecipientRepository> Groups { get; } = new();
         public Mock<IStorageLocationRepository> Lp { get; } = new();
         public Mock<ICurrentUserService> User { get; } = new();
+        public System.Collections.Generic.HashSet<DateTime> Feiertage { get; } = new();
         public BfAuftragRepository Repo { get; }
         public BfAuftragWorkflow Wf { get; }
 
@@ -45,7 +46,11 @@ public class BfAuftragWorkflowTests
             User.Setup(u => u.GetCurrentAppUserId()).Returns(userId);
             User.Setup(u => u.GetDisplayName()).Returns("Tester");
             User.Setup(u => u.GetWindowsUserName()).Returns("DOM\\tester");
-            Wf = new BfAuftragWorkflow(Repo, Settings.Object, Groups.Object, Lp.Object, User.Object,
+            var holidays = new Mock<IHolidayRepository>();
+            holidays.Setup(h => h.GetHolidayDatesAsync()).ReturnsAsync(() => Feiertage);
+            Settings.Setup(s => s.GetIntValueAsync(AppSettingKeys.BfSchachtelterminArbeitstage, 1)).ReturnsAsync(1);
+            Settings.Setup(s => s.GetIntValueAsync(AppSettingKeys.BfFeTerminArbeitstage, 10)).ReturnsAsync(10);
+            Wf = new BfAuftragWorkflow(Repo, Settings.Object, Groups.Object, Lp.Object, User.Object, holidays.Object, new BusinessDayService(),
                 new FixedTime(new DateTimeOffset(2026, 11, 17, 9, 0, 0, TimeSpan.Zero)), NullLogger<BfAuftragWorkflow>.Instance);
         }
 
@@ -188,5 +193,132 @@ public class BfAuftragWorkflowTests
         (await fx.Wf.PositionEntfernenAsync(id, posId, null)).Ok.Should().BeFalse("abgeschickt");
         (await fx.Wf.StreichenAsync(id, posId, true, null)).Ok.Should().BeTrue();
         fx.Db.BfAuftragPositionen.Single().Uebergeben.Should().BeFalse();
+    }
+
+    // ===================== Freigabe (Schritt C) =====================
+
+    private static async Task<int> BestelltAsync(Fx fx, params (string Nr, string? MatNr)[] artikel)
+    {
+        foreach (var (nr, mat) in artikel)
+        {
+            fx.Artikel(nr, materialnummer: mat);
+            (await fx.Wf.HinzufuegenAsync(nr, 1, nr == artikel[0].Nr ? "EILT" : null, null)).Ok.Should().BeTrue();
+        }
+        var id = fx.Db.BfAuftraege.Single().Id;
+        (await fx.Wf.AbschickenAsync(id, null)).Ok.Should().BeTrue();
+        return id;
+    }
+
+    [Fact]
+    public async Task Freigabe_TermineMitFeiertag_BemerkungUndCsvOffen()
+    {
+        var fx = new Fx();   // Freigabetag Di 17.11.2026
+        fx.Feiertage.Add(new DateTime(2026, 11, 18));
+        var id = await BestelltAsync(fx, ("BG1", "M-1"));
+
+        var e = await fx.Wf.FreigebenAsync(id, null);
+
+        e.Ok.Should().BeTrue(e.Text);
+        var a = fx.Db.BfAuftraege.Single();
+        a.Schachteltermin.Should().Be(new DateTime(2026, 11, 19), "1 Arbeitstag, Mi 18.11. ist Feiertag");
+        a.FeTermin.Should().Be(new DateTime(2026, 12, 2), "10 Arbeitstage ohne Wochenenden und Feiertag");
+        (a.Status, a.CsvStatus, a.FreigegebenVon).Should().Be((BfAuftragStatus.Freigegeben, BfCsvStatus.Offen, "Tester"));
+        fx.Db.BfAuftragPositionen.Single().Bemerkung.Should().Be("EILT - 17.11 - 1", "Status vorne, Bezugstag, Position bei BG");
+    }
+
+    [Fact]
+    public async Task Freigabe_OhneMaterialnummer_NurHinweis_AlleOhne_Gesperrt()
+    {
+        var fx = new Fx();
+        var id = await BestelltAsync(fx, ("BG1", "M-1"), ("BG2", null));
+
+        var e = await fx.Wf.FreigebenAsync(id, null);
+        e.Ok.Should().BeTrue();
+        e.Text.Should().Contain("keine Materialnummer").And.Contain("Pos 2");
+
+        var fx2 = new Fx();
+        var id2 = await BestelltAsync(fx2, ("BG3", null));
+        var e2 = await fx2.Wf.FreigebenAsync(id2, null);
+        e2.Ok.Should().BeFalse();
+        e2.Text.Should().Contain("keine Position wird an WiCAM übergeben");
+        fx2.Db.BfAuftraege.Single().Status.Should().Be(BfAuftragStatus.Bestellt);
+    }
+
+    [Theory]
+    [InlineData("Matchcode", "A;B", "Semikolon")]
+    [InlineData("Matchcode", "A\"B", "Anführungszeichen")]
+    [InlineData("FertigungsInfoPN", "A\nB", "Zeilenumbruch")]
+    [InlineData("Materialnummer", "Ł1", "nicht Windows-1252")]
+    [InlineData("Hauptlagerplatz", " ", "Hauptlagerplatz fehlt")]
+    [InlineData("Matchcode", "\t ", "Matchcode fehlt")]
+    public void FreigabeFehler_MeldetPositionUndFeld(string feld, string wert, string erwartet)
+    {
+        var p = new BfAuftragPosition { Position = 3, Matchcode = "MC", Materialnummer = "M", Hauptlagerplatz = "L", Menge = 1 };
+        typeof(BfAuftragPosition).GetProperty(feld)!.SetValue(p, wert);
+        var a = new BfAuftrag { BestellerName = "Tester", Positionen = { p } };
+
+        var fehler = BfAuftragWorkflow.FreigabeFehler(a);
+
+        fehler.Should().ContainSingle(f => f.Contains("Pos 3") && f.Contains(erwartet));
+    }
+
+    [Fact]
+    public void FreigabeFehler_MengenregelUndGestricheneZaehltNicht()
+    {
+        var a = new BfAuftrag
+        {
+            BestellerName = "Tester",
+            Positionen =
+            {
+                new BfAuftragPosition { Position = 1, Matchcode = "MC", Materialnummer = "M", Hauptlagerplatz = "L", Menge = 7, SageBestellmenge = 5 },
+                new BfAuftragPosition { Position = 2, Matchcode = "A;B", Materialnummer = "M", Hauptlagerplatz = "L", Menge = 1, Gestrichen = true },
+            },
+        };
+        BfAuftragWorkflow.FreigabeFehler(a).Should().ContainSingle("gestrichene Pos 2 mit ; sperrt nicht")
+            .Which.Should().StartWith("Pos 1").And.Contain("Vielfaches");
+    }
+
+    [Fact]
+    public async Task CsvErneutSchreiben_NurNachFehler()
+    {
+        var fx = new Fx();
+        var id = await BestelltAsync(fx, ("BG1", "M-1"));
+        (await fx.Wf.FreigebenAsync(id, null)).Ok.Should().BeTrue();
+
+        (await fx.Wf.CsvErneutSchreibenAsync(id, null)).Ok.Should().BeFalse("CSV ist noch offen");
+        var a = fx.Db.BfAuftraege.Single();
+        a.CsvStatus = BfCsvStatus.Fehler; a.CsvVersuche = 4; a.CsvFehler = BfCsv.KollisionText;
+        fx.Db.SaveChanges();
+
+        (await fx.Wf.CsvErneutSchreibenAsync(id, null)).Ok.Should().BeTrue();
+        (a.CsvStatus, a.CsvVersuche, a.CsvFehler).Should().Be((BfCsvStatus.Offen, 0, (string?)null));
+    }
+
+    // ===================== BfCsv-Regeln =====================
+
+    [Theory]
+    [InlineData("  blech  winkel\t 4301 ", "BLECH WINKEL 4301")]
+    [InlineData("a\u0001b", "AB")]
+    [InlineData(null, "")]
+    public void Matchcode_WieExcelTrimCleanUpper(string? roh, string erwartet) => BfCsv.MatchcodeBereinigen(roh).Should().Be(erwartet);
+
+    [Theory]
+    [InlineData("EILT", "Laser", "BG", 4, "EILT - Laser - 17.11 - 4")]
+    [InlineData(null, null, "FT", 4, "17.11")]
+    [InlineData(null, "Laser", "bg", 2, "Laser - 17.11 - 2")]
+    public void Bemerkung_StatusVorne_PositionNurBeiBg(string? status, string? info, string teileart, int pos, string erwartet) =>
+        BfCsv.Bemerkung(status, info, new DateTime(2026, 11, 17), teileart, pos).Should().Be(erwartet);
+
+    [Theory]
+    [InlineData(10, "10")]
+    [InlineData(2.5, "2,5")]
+    [InlineData(0.125, "0,125")]
+    public void Menge_GanzzahligSonstDezimalkomma(decimal m, string erwartet) => BfCsv.Menge(m).Should().Be(erwartet);
+
+    [Fact]
+    public void Kodierung_Cp1252_OhneStillesErsetzen()
+    {
+        BfCsv.Kodierung().GetBytes("Ä€").Should().Equal(new byte[] { 0xC4, 0x80 });
+        FluentActions.Invoking(() => BfCsv.Kodierung().GetBytes("Ł")).Should().Throw<System.Text.EncoderFallbackException>();
     }
 }

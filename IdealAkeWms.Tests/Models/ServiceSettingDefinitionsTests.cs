@@ -159,6 +159,16 @@ public class ServiceSettingDefinitionsTests
     [InlineData("Sync:WareneingangCsvWiederholAbstandMinuten")] // v1.99.11
     [InlineData("Sync:BlechteileFelderNachlesen")] // v1.99.35
     [InlineData("Sync:BfAuftragEmailEnabled")] // v1.99.35
+    [InlineData("BfCsvAktiv")] // v1.99.35
+    [InlineData("BfCsvPfad")] // v1.99.35
+    [InlineData("Sync:BfCsvMaxWiederholungen")] // v1.99.35
+    [InlineData("Sync:BfCsvWiederholAbstandMinuten")] // v1.99.35
+    [InlineData("BfCsvCreateNewOrder")] // v1.99.35
+    [InlineData("BfCsvOrderPriority")] // v1.99.35
+    [InlineData("BfCsvOrderRelease")] // v1.99.35
+    [InlineData("BfCsvRemark1")] // v1.99.35
+    [InlineData("BfCsvRemark2")] // v1.99.35
+    [InlineData("BfCsvRemark3")] // v1.99.35
     public void All_ContainsDocumentedServiceReadKey(string key)
     {
         ServiceSettingDefinitions.All.Select(d => d.Key).Should().Contain(key);
