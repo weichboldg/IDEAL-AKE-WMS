@@ -140,4 +140,16 @@ public sealed class BfCsvServiceTests : IDisposable
         a.CsvFehler.Should().Contain("Windows-1252");
         Directory.GetFiles(_dir).Should().BeEmpty();
     }
+
+    /// <summary>Entscheidung B-1 Variante c (vorlaeufig, wie Excel, durch P-1 zu bestaetigen): Lagerplatz mit <c>;</c> eingefasst, die Zeile hat
+    /// weiter genau 8 Spalten (Semikolon-Zaehlung ausserhalb der Anfuehrungszeichen).</summary>
+    [Fact]
+    public void Inhalt_LagerplatzMitSemikolon_InAnfuehrungszeichen()
+    {
+        var a = VorlageAuftrag();
+        a.Positionen.Single(p => p.Position == 2).Hauptlagerplatz = "S-03;0;0;0";
+        var zeile = BfCsv.Inhalt(a, new BfCsvKopf()).Split("\r\n").Single(z => z.StartsWith("ABDECKUNG"));
+        zeile.Should().Be("ABDECKUNG Ä;1.4301;2,5;17.11;\"S-03;0;0;0\";Jörg Müller;18.11.2026;2026-12-01");
+        System.Text.RegularExpressions.Regex.Replace(zeile, "\"[^\"]*\"", "x").Count(c => c == ';').Should().Be(7);
+    }
 }

@@ -238,13 +238,7 @@ public class SageBookingWorker : BackgroundService
         if (!await ServiceSettings.GetBoolSafeAsync(_configuration, BfCsv.AktivKey, false, ct)) return;
         var pfad = await ServiceSettings.GetValueSafeAsync(_configuration, BfCsv.PfadKey, ct);
         if (string.IsNullOrWhiteSpace(pfad)) return;   // Manifest-Pruefung BfCsvPfad
-        async Task<string> S(string key, string fallback) =>
-            await ServiceSettings.GetValueSafeAsync(_configuration, key, ct) is { Length: > 0 } v ? v.Trim() : fallback;
-        var d = new BfCsvKopf();
-        var kopf = new BfCsvKopf(await S(BfCsv.CreateNewOrderKey, d.CreateNewOrder),
-            await ServiceSettings.GetIntSafeAsync(_configuration, BfCsv.OrderPriorityKey, d.Priority, ct),
-            await S(BfCsv.OrderReleaseKey, d.Release), await S(BfCsv.Remark1Key, d.Remark1), await S(BfCsv.Remark2Key, d.Remark2),
-            await S(BfCsv.Remark3Key, d.Remark3));
+        var kopf = await BfCsv.KopfAsync(key => ServiceSettings.GetValueSafeAsync(_configuration, key, ct));
         var wiederholung = new BfCsvWiederholung(
             await ServiceSettings.GetIntSafeAsync(_configuration, BfCsv.MaxWiederholungenKey, 3, ct),
             await ServiceSettings.GetIntSafeAsync(_configuration, BfCsv.WiederholAbstandKey, 15, ct));

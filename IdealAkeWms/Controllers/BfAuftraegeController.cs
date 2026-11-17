@@ -3,6 +3,7 @@ using IdealAkeWms.Filters;
 using IdealAkeWms.Models;
 using IdealAkeWms.Models.ViewModels;
 using IdealAkeWms.Services;
+using IdealAkeWms.Services.SyncLogger;
 using Microsoft.AspNetCore.Mvc;
 using PageSize = IdealAkeWms.Services.PageSize;
 
@@ -24,10 +25,15 @@ public class BfAuftraegeController : Controller
     private readonly IOrderRecipientRepository _groups;
     private readonly IStorageLocationRepository _lagerplaetze;
     private readonly ICurrentUserService _user;
+    private readonly IServiceSettingRepository _serviceSettings;
+    private readonly ISyncLogger _syncLogger;
 
     public BfAuftraegeController(IBfAuftragRepository repo, BfAuftragWorkflow workflow, IAppSettingRepository settings,
-        IOrderRecipientRepository groups, IStorageLocationRepository lagerplaetze, ICurrentUserService user)
+        IOrderRecipientRepository groups, IStorageLocationRepository lagerplaetze, ICurrentUserService user,
+        IServiceSettingRepository serviceSettings, ISyncLogger syncLogger)
     {
+        _serviceSettings = serviceSettings;
+        _syncLogger = syncLogger;
         _repo = repo;
         _workflow = workflow;
         _settings = settings;
@@ -155,6 +161,37 @@ public class BfAuftraegeController : Controller
     [RequireSchachtlerAccess]
     public async Task<IActionResult> CsvErneutSchreiben(int id, string? rowVersion) =>
         Weiter(await _workflow.CsvErneutSchreibenAsync(id, Rv(rowVersion)), id);
+
+    /// <summary>Test-CSV herunterladen (Entscheidung B-1, Gerald 2026-11-17 18:44): derselbe Erzeuger wie der Dienst
+    /// (<see cref="BfCsv.Inhalt"/>, <see cref="BfCsv.KopfAsync"/>, <see cref="BfCsv.Kodierung"/>), aber KEIN Statuswechsel und nichts in den
+    /// Pool. Audit-Eintrag im Aktivitaets-Protokoll (<c>BfAuftragCsv</c>). Vor der Freigabe sind Termine und Bemerkung noch leer.</summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [RequireSchachtlerAccess]
+    public async Task<IActionResult> TestCsv(int id)
+    {
+        var a = await _repo.GetMitPositionenAsync(id);
+        if (a is null) { TempData["WarningMessage"] = "BF-Auftrag nicht gefunden."; return RedirectToAction(nameof(Index)); }
+        if (a.Nummer is null)
+        {
+            TempData["WarningMessage"] = "Test-CSV erst nach dem Abschicken (der Entwurf hat noch keine BF-Nummer).";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+        byte[] bytes;
+        try { bytes = BfCsv.Kodierung().GetBytes(BfCsv.Inhalt(a, await BfCsv.KopfAsync(_serviceSettings.GetValueAsync))); }
+        catch (System.Text.EncoderFallbackException ex)
+        {
+            TempData["WarningMessage"] = $"Test-CSV von {a.Nummer} nicht erzeugt: Zeichen nicht in Windows-1252 ({ex.Message}).";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+        await using (var run = await _syncLogger.BeginRunAsync(SyncLogServices.BfAuftragCsv))
+        {
+            await run.LogInfoAsync($"Test-CSV {a.Nummer}.csv heruntergeladen durch {_user.GetDisplayName()} ({_user.GetWindowsUserName()}) – " +
+                                   "kein Statuswechsel, nicht in den WiCAM-Pool geschrieben.", reference: a.Nummer);
+            await run.FinishSuccessAsync(new Dictionary<string, int> { ["heruntergeladen"] = 1 });
+        }
+        return File(bytes, "text/csv; charset=windows-1252", a.Nummer + ".csv");
+    }
 
     [HttpPost]
     [ValidateAntiForgeryToken]

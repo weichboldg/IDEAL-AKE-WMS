@@ -2175,7 +2175,10 @@
                     <li><strong>WiCAM-CSV:</strong> der Dienst schreibt <code>&lt;BF-Nummer&gt;.csv</code> (erst <code>.tmp</code>, dann umbenannt,
                         nie überschrieben). Schreibfehler werden 3&times; im Abstand von 15 min wiederholt; &bdquo;Datei existiert bereits&ldquo; nie
                         automatisch &ndash; in WiCAM klären, dann <strong>CSV erneut schreiben</strong> (nur nach Fehler). Protokoll
-                        &bdquo;Blechfertigung: WiCAM-CSV&ldquo;. Format bis zur Musterdatei aus WiCAM ein Platzhalter.</li>
+                        &bdquo;Blechfertigung: WiCAM-CSV&ldquo;. Format bis zur Musterdatei aus WiCAM ein Platzhalter. Felder mit Semikolon
+                        (Lagerplatz <code>S-03;0;0;0</code>) stehen wie im Excel-CSV in Anführungszeichen (vorläufig).</li>
+                    <li><strong>Test-CSV herunterladen</strong> (Schachtler, ab BF-Nummer): dieselbe Datei wie für den Pool als Download &ndash; kein
+                        Statuswechsel, nichts im Pool, Eintrag im Aktivitäts-Protokoll. Vor der Freigabe sind Termine und Bemerkung leer.</li>
                     <li><strong>Fertig melden</strong> (freigegeben, CSV geschrieben): im Auftrag oder per Häkchen in der Liste &ndash; nur Status,
                         keine Lagerbuchung. <strong>Storno</strong> mit optionalem Grund: Besteller bis zur Freigabe, Schachtler bis Fertig; nach der
                         Freigabe Hinweis, den Auftrag in WiCAM zu löschen. Ein stornierter Auftrag wird nie als CSV geschrieben.</li>

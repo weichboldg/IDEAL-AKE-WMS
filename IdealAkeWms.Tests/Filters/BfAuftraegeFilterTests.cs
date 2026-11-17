@@ -91,6 +91,7 @@ public class BfAuftraegeFilterTests
     [InlineData("StreichePosition", true)]
     [InlineData("Freigeben", true)]
     [InlineData("CsvErneutSchreiben", true)]
+    [InlineData("TestCsv", true)]
     [InlineData("FertigMelden", true)]
     [InlineData("FertigMeldenListe", true)]
     [InlineData("Stornieren", false)]

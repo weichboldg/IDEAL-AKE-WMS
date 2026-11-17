@@ -245,7 +245,6 @@ public class BfAuftragWorkflowTests
     }
 
     [Theory]
-    [InlineData("Matchcode", "A;B", "Semikolon")]
     [InlineData("Matchcode", "A\"B", "Anführungszeichen")]
     [InlineData("FertigungsInfoPN", "A\nB", "Zeilenumbruch")]
     [InlineData("Materialnummer", "Ł1", "nicht Windows-1252")]
@@ -260,6 +259,34 @@ public class BfAuftragWorkflowTests
         var fehler = BfAuftragWorkflow.FreigabeFehler(a);
 
         fehler.Should().ContainSingle(f => f.Contains("Pos 3") && f.Contains(erwartet));
+    }
+
+    /// <summary>Entscheidung B-1 (Variante c): <c>;</c> sperrt nicht mehr – Sage-Lagerplaetze haben das Format <c>XX;n;n;n</c>.</summary>
+    [Fact]
+    public void FreigabeFehler_SemikolonImLagerplatzSperrtNicht()
+    {
+        var a = new BfAuftrag
+        {
+            BestellerName = "Tester",
+            Positionen = { new BfAuftragPosition { Position = 1, Matchcode = "A;B", Materialnummer = "M", Hauptlagerplatz = "S-03;0;0;0", Menge = 1 } },
+        };
+        BfAuftragWorkflow.FreigabeFehler(a).Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData("S-03;0;0;0", "\"S-03;0;0;0\"")]
+    [InlineData("a\"b;c", "\"a\"\"b;c\"")]
+    [InlineData("L-2", "L-2")]
+    [InlineData(null, "")]
+    public void Feld_FasstSemikolonWieExcelEin(string? wert, string erwartet) => BfCsv.Feld(wert).Should().Be(erwartet);
+
+    [Fact]
+    public async Task KopfAsync_LeerUndUngueltigGebenDefault()
+    {
+        var werte = new Dictionary<string, string?> { [BfCsv.OrderPriorityKey] = "x", [BfCsv.Remark1Key] = " R1 ", [BfCsv.CreateNewOrderKey] = "  " };
+        var k = await BfCsv.KopfAsync(key => Task.FromResult(werte.GetValueOrDefault(key)));
+        k.Should().Be(new BfCsvKopf(Remark1: "R1"));
+        (await BfCsv.KopfAsync(key => Task.FromResult<string?>(key == BfCsv.OrderPriorityKey ? "3" : null))).Priority.Should().Be(3);
     }
 
     [Fact]

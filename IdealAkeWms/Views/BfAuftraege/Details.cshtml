@@ -270,6 +270,15 @@ else
         <span class="text-muted ms-2">Berechnet Schachtel- und FE-Termin ab heute und übergibt den Auftrag als CSV an WiCAM.</span>
     </div>
 }
+@if (Model.IstSchachtler && a.Nummer is not null)
+{
+    <form method="post" asp-action="TestCsv" class="mt-3">
+        <input type="hidden" name="id" value="@a.Id" />
+        <button type="submit" class="btn btn-outline-secondary">Test-CSV herunterladen</button>
+        <span class="text-muted ms-2">Dieselbe Datei, die der Dienst in den WiCAM-Pool schreibt – nur als Download, ohne Statuswechsel.
+            @if (a.Status != BfAuftragStatus.Freigegeben && a.Status != BfAuftragStatus.Fertig) { <text>Termine und Bemerkung entstehen erst bei der Freigabe.</text> }</span>
+    </form>
+}
 @if (Model.IstSchachtler && a.Status == BfAuftragStatus.Freigegeben && a.CsvStatus == BfCsvStatus.Fehler)
 {
     <form method="post" asp-action="CsvErneutSchreiben" class="mt-3">

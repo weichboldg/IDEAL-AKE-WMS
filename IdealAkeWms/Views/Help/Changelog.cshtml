@@ -25,6 +25,10 @@
                     <li>Nach der Freigabe schreibt der Dienst die Datei <code>&lt;BF-Nummer&gt;.csv</code> in den WiCAM-Pool (Windows-1252, nie
                         überschrieben). Spalte <strong>CSV</strong> zeigt offen/geschrieben/Fehler; nach einem Fehler gibt es
                         <strong>CSV erneut schreiben</strong>. Das Dateiformat ist bis zur Musterdatei aus WiCAM ein Platzhalter.</li>
+                    <li>Felder mit Semikolon (z.&nbsp;B. Lagerplatz <code>S-03;0;0;0</code>) stehen wie im Excel-CSV in Anführungszeichen und sperren
+                        die Freigabe nicht mehr (vorläufig, bis die Musterdatei aus WiCAM es bestätigt).</li>
+                    <li>Schachtler: <strong>Test-CSV herunterladen</strong> im BF-Auftrag &ndash; dieselbe Datei wie für den WiCAM-Pool, nur als
+                        Download, ohne Statuswechsel; der Download steht im Aktivitäts-Protokoll.</li>
                     <li><strong>Fertig melden</strong> einzeln oder per Auswahl in der Liste (nur Status, keine Einbuchung).
                         <strong>Stornieren</strong>: Besteller bis zur Freigabe, Schachtler bis Fertig (Hinweis, wenn die CSV schon im Pool liegt).</li>
                     <li>Es wird nichts an Sage geschrieben.</li>

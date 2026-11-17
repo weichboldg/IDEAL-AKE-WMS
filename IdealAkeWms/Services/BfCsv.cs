@@ -66,12 +66,12 @@ public static class BfCsv
         return sb.ToString();
     }
 
-    /// <summary>Melden statt still ersetzen: Beschreibung des ersten unzulaessigen Zeichens (<c>;</c>, <c>"</c>, Zeilenumbruch,
-    /// nicht in Windows-1252), sonst null.</summary>
+    /// <summary>Melden statt still ersetzen: Beschreibung des ersten unzulaessigen Zeichens (<c>"</c>, Zeilenumbruch, nicht in
+    /// Windows-1252), sonst null. <c>;</c> ist erlaubt und wird per <see cref="Feld"/> eingefasst (Entscheidung B-1, Lagerplatz
+    /// <c>S-03;0;0;0</c>; vorlaeufig, wie Excel, durch P-1 zu bestaetigen).</summary>
     public static string? UnzulaessigesZeichen(string? wert)
     {
         if (string.IsNullOrEmpty(wert)) return null;
-        if (wert.Contains(';')) return "Semikolon";
         if (wert.Contains('"')) return "Anführungszeichen";
         if (wert.IndexOfAny(new[] { '\r', '\n' }) >= 0) return "Zeilenumbruch";
         var enc = Kodierung();
@@ -83,11 +83,27 @@ public static class BfCsv
         return null;
     }
 
+    /// <summary>VORLAEUFIG, WIE EXCEL, DURCH P-1 ZU BESTAETIGEN (Entscheidung B-1 Variante c, Gerald 2026-11-17): ein Feld mit <c>;</c> oder
+    /// <c>"</c> kommt in doppelte Anfuehrungszeichen, enthaltene <c>"</c> werden verdoppelt – wie der CSV-Export von Excel. Zeigt die
+    /// echte Pool-Datei (P-1) ein anderes Format, nur hier umbauen.</summary>
+    public static string Feld(string? wert) =>
+        wert is not null && wert.IndexOfAny(new[] { ';', '"' }) >= 0 ? "\"" + wert.Replace("\"", "\"\"") + "\"" : wert ?? "";
+
+    /// <summary>Kopfwerte aus den ServiceSettings (leer bzw. nicht lesbar = Default), gemeinsam fuer Dienst und Test-CSV-Download.</summary>
+    public static async Task<BfCsvKopf> KopfAsync(Func<string, Task<string?>> lesen)
+    {
+        var d = new BfCsvKopf();
+        async Task<string> S(string key, string fallback) => await lesen(key) is { } v && v.Trim().Length > 0 ? v.Trim() : fallback;
+        var prio = int.TryParse(await lesen(OrderPriorityKey), NumberStyles.Integer, CultureInfo.InvariantCulture, out var p) ? p : d.Priority;
+        return new BfCsvKopf(await S(CreateNewOrderKey, d.CreateNewOrder), prio, await S(OrderReleaseKey, d.Release),
+            await S(Remark1Key, d.Remark1), await S(Remark2Key, d.Remark2), await S(Remark3Key, d.Remark3));
+    }
+
     /// <summary>Menge ganzzahlig ohne Nachkommastellen, sonst mit Dezimalkomma (de-AT).</summary>
     public static string Menge(decimal m) =>
         m == decimal.Truncate(m) ? decimal.Truncate(m).ToString("0", CultureInfo.InvariantCulture) : m.ToString("0.######", CultureInfo.GetCultureInfo("de-AT"));
 
-    /// <summary>Dateiinhalt (CRLF, ohne Anfuehrungszeichen – verbotene Zeichen sperrt die Freigabe). Nur uebergebene Positionen
+    /// <summary>Dateiinhalt (CRLF; Felder mit <c>;</c> per <see cref="Feld"/> eingefasst, vorlaeufig bis P-1). Nur uebergebene Positionen
     /// (<see cref="BfAuftragPosition.Uebergeben"/>), aufsteigend nach Position. PLATZHALTER BIS P-1.</summary>
     public static string Inhalt(BfAuftrag a, BfCsvKopf kopf)
     {
@@ -106,8 +122,8 @@ public static class BfCsv
         var schachtel = a.Schachteltermin?.ToString("dd.MM.yyyy", CultureInfo.InvariantCulture) ?? "";
         var fe = a.FeTermin?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) ?? "";
         foreach (var p in a.Positionen.Where(p => p.Uebergeben).OrderBy(p => p.Position))
-            Z(string.Join(';', MatchcodeBereinigen(p.Matchcode), p.Materialnummer!.Trim(), Menge(p.Menge), p.Bemerkung ?? "",
-                p.Hauptlagerplatz ?? "", a.BestellerName, schachtel, fe));
+            Z(string.Join(';', Feld(MatchcodeBereinigen(p.Matchcode)), Feld(p.Materialnummer!.Trim()), Menge(p.Menge), Feld(p.Bemerkung),
+                Feld(p.Hauptlagerplatz), Feld(a.BestellerName), schachtel, fe));
         return sb.ToString();
     }
 }
