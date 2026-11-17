@@ -18,7 +18,7 @@ SData-Schnittstelle (Lagerbuchungen, Wareneingangsbelege), nie per SQL. (Quelle:
 |---|---|---|---|---|
 | Sage – SQL-Views/Tabellen | lesen | Dienst (Web nur Stückliste AKE) | SQL, Windows-Anmeldung | `Sync:*Enabled` je Abgleich |
 | Sage – SData | lesen | Dienst (Abgleiche), Web (Register Sage-Test) | HTTPS, Basic-Auth | `Sync:Quelle:*`, SData-Abgleiche `Sync:*Enabled` |
-| Sage – SData | **schreiben** | nur Dienst | HTTPS POST | `SageLagerbuchungAktiv`, `SageWareneingangBelegAktiv` |
+| Sage – SData | **schreiben** | nur Dienst | HTTPS POST | `SageLagerbuchungAktiv`, `SageWareneingangBelegAktiv`, `SageFaArbeitsgaengeAnlegenAktiv` (IDEAL, seit v1.99.38) |
 | OSEON / TRUMPF (AKE) | lesen | Dienst (Abgleich), Web (Stücklisten-Fallback) | SQL + gespeicherte Prozedur | `Sync:OseonTrackingEnabled`, `Sync:OseonArticleCategoryEnabled` |
 | enaio – Datenbank | lesen | Dienst | SQL-View | `Sync:EnaioDmsEnabled` |
 | enaio / Vault – Links | (nur Verweis) | Browser des Anwenders | HTTP-Link | `EnaioLinksAktiv`, `VaultLinksAktiv` |

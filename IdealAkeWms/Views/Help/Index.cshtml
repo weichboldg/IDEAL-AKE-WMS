@@ -1032,6 +1032,35 @@
                         </ul>
                     </dd>
 
+                    <dt>Arbeitsgänge &rarr; Sage (IDEAL, seit v1.99.38)</dt>
+                    <dd>
+                        Legt die Arbeitsgang-Kürzel der FA-Struktur als Arbeitsgang-Positionen in Sage-Fertigungsaufträgen an.
+                        Ort: <em>Stammdaten &rarr; Arbeitsgänge &rarr; Sage</em> &mdash; nur Admin, nur mit hierarchischen
+                        Produktionsaufträgen (IDEAL).
+                        <ul class="mt-1 mb-1">
+                            <li><strong>Vorschau:</strong> je FA (Haupt- und Unter-FA) und Kürzel eine Zeile mit der Sage-Arbeitsgangnummer
+                                aus <em>Arbeitsgänge</em> (Handwert vor Sage-Wert). Blätter ohne eigenen FA werden nur gezählt. Ein Kürzel,
+                                das mehrfach im Feld steht, wird einmal angelegt (Hinweis in der Zeile).</li>
+                            <li><strong>Sage-Stand prüfen:</strong> liest Kopf und Arbeitsgang-Positionen der FAs in der Auswahl aus Sage
+                                (nur lesen, höchstens 500 FAs). Erst danach heißt eine Zeile <em>anlegbar</em>. Arbeitsgänge, die nur in Sage
+                                stehen, werden gezählt und nie gelöscht.</li>
+                            <li><strong>In Sage anlegen:</strong> nur bei eingeschalteter Service-Einstellung
+                                <em>Arbeitsgänge in Sage-Fertigungsaufträgen anlegen</em> (Standard aus). Der Knopf je FA reiht die anlegbaren
+                                Arbeitsgänge nach einer Rückfrage ein; der Dienst liest den FA unmittelbar vor dem Senden noch einmal in Sage.
+                                Steht der Arbeitsgang schon dort, heißt die Zeile <em>in Sage schon vorhanden</em>; beendete, gesperrte und
+                                begonnene FAs werden nie beschrieben.</li>
+                            <li><strong>Status:</strong> <em>eingereiht</em> &rarr; <em>gesendet</em> &rarr; <em>angelegt</em> bzw.
+                                <em>Fehler</em> mit Grund im Hinweis. Ein Fehler wird bis zu <code>Sync:SageFaArbeitsgaengeMaxWiederholungen</code>-mal
+                                automatisch wiederholt (Abstand <code>Sync:SageFaArbeitsgaengeWiederholAbstandMinuten</code>). Eine unklare
+                                Antwort (&bdquo;Antwort unklar &ndash; bitte in Sage prüfen&ldquo;) wird nie automatisch wiederholt: in Sage
+                                nachsehen, dann erneut einreihen. Fehler schickt der Dienst als Fehlermail.</li>
+                            <li><strong>Sage-Bearbeiter:</strong> <code>Sync:SageFaArbeitsgaengeBearbeiter</code> muss gesetzt sein, sonst sendet der
+                                Dienst nichts (rotes Banner auf der Seite).</li>
+                            <li><strong>Protokoll:</strong> Aktivitäts-Protokoll &bdquo;Sage-FA-Arbeitsgänge&ldquo; mit den Zählern Angelegt,
+                                Übersprungen, Fehler.</li>
+                        </ul>
+                    </dd>
+
                     <dt>Matchcode am Artikel (seit v1.40.0)</dt>
                     <dd>
                         Jeder Artikel hat jetzt einen <strong>Matchcode</strong> (Kurzbezeichnung

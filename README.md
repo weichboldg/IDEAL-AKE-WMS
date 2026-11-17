@@ -131,6 +131,8 @@ powershell -ExecutionPolicy Bypass -File C:\<FIRMA>\deploy\v1.98.0\deploy\Update
   - `SageWareneingangBelegAktiv` (Wareneingangsbelege in Sage) – nur AKE, erst nach dokumentiertem Schreibtest und Abnahme TS-116.14; vorher
     die Wareneingangs-Zielplätze mit „Sage-Buchung erlaubt“ versehen, sonst ist kein Wareneingang buchbar;
   - `WareneingangCsvAktiv` (Dateien auf dem enaio-Netzlaufwerk) – erst nach Recht „Ändern“ für das Dienstkonto (P-C1/P-C2);
+  - `SageFaArbeitsgaengeAnlegenAktiv` (Arbeitsgänge in Sage-FAs anlegen, v1.99.38) – nur IDEAL, erst nach dem Schreibtest an EINEM FA am
+    IDEAL-Test (TS-159.x, Freigabe Gerald) und gesetztem `Sync:SageFaArbeitsgaengeBearbeiter`;
   - `Lieferverzug:KreditorAktiv` bleibt aus bzw. `Lieferverzug:Testbetrieb` bleibt **an** (sonst externe Mails an Lieferanten) – Testbetrieb
     erst nach P-L1, Relay P-M4 und Freigabe Einkauf abschalten; für die erste Welle `Lieferverzug:KreditorMaxJeLauf` einmalig 100, danach zurück auf 30;
   - auf Testsystemen vorher `Sync:SageSystemKuerzel` setzen (`DEV`, `AT`, `ATI`, `IT`), in Produktion leer lassen;
@@ -751,6 +753,15 @@ C:\Services\IDEALAKEWMSService\
 > die gemeinsam in eine Sage-Testdatenbank schreiben (DEV, AT = AKE-Test, ATI = AKE Test-IDEAL, IT = IDEAL-Test). Die verwendete Kennung wird
 > beim Senden gespeichert (`PurchaseOrderReceipts.SageWeKennung`, `SageBookingQueueItems.SageKennung`, SQL/144); die Suche vor dem erneuten
 > Senden nutzt sie. Ein ungültiger Wert (von Hand in der DB) stoppt das Senden mit Fehler im Dienst-Log/Fehlermail.
+> **Arbeitsgänge → Sage (v1.99.38, Kategorie „Sage-FA-Arbeitsgänge (IDEAL)“, nur IDEAL):** `SageFaArbeitsgaengeAnlegenAktiv` (Default
+> `false`) – Seite *Stammdaten → Arbeitsgänge → Sage* (Admin) reiht je FA die Arbeitsgänge ein, der Sage-Buchungs-Worker legt sie per
+> `$service/FertigungsauftragService` (ServiceOption 4, je Arbeitsgang ein Aufruf, Menge = Fertigungsmenge, kein Einlasten) an. Vor jedem
+> Senden liest er den FA in Sage (`PpsFaBelegeInfo`/`PpsFaBelegePositionenInfo`): Arbeitsgang schon da = „in Sage vorhanden“, FA fehlt/
+> beendet/begonnen = Fehler ohne Senden. `Sync:SageFaArbeitsgaengeBearbeiter` (Default leer = nichts senden),
+> `Sync:SageFaArbeitsgaengeMaxWiederholungen` (Standard 3, 0–10), `Sync:SageFaArbeitsgaengeWiederholAbstandMinuten` (Standard 15, 5–1440);
+> hängend nach `Sync:SageLagerbuchungStuckMinutes` bzw. Zeitüberschreitung = „Antwort unklar“, nie automatisch wiederholt. Warteschlange
+> `dbo.SageFaArbeitsgangAnlagen` (SQL/160), Protokoll „Sage-FA-Arbeitsgänge“, Fehlermail. Feldnamen des Requests sind bis zum Schreibtest
+> unbelegt (Spec P-1..P-4).
 > **Wareneingang-CSV (v1.99.11, Kategorie „Wareneingang-CSV“, nur AKE):** `WareneingangCsvAktiv` (Default `false`) – für jeden an Sage
 > übergebenen Wareneingang mit Barcode schreibt der Sage-Buchungs-Worker nach dem Sage-WE-Schritt `<Barcode>.tmp` und benennt sie auf
 > `<Barcode>.csv` um (UTF-8 mit BOM, `;`, seit v1.99.29 **ohne Kopfzeile** – eine Zeile mit 9 Feldern nach Position: Barcode,

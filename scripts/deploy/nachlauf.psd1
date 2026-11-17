@@ -112,6 +112,8 @@ Eintraege = @(
    Datei='158_AddBfAuftraege.sql'; MigrationId='20261117154645_AddBfAuftraege'; Voraussetzung='additiv, zwei neue Tabellen BfAuftraege und BfAuftragPositionen (Blechfertigung), kein Backfill'; Quelle='2026-11-17-v1-99-35-blechfertigung-bf-auftraege' }
 @{ Id='SQL/159'; Version='1.99.37'; Typ='Schema'; Firma='beide'; Phase='Schema'; Ausfuehrung='automatisch'
    Datei='159_FaStrukturAbgleich.sql'; MigrationId='20261117183315_FaStrukturAbgleich'; Voraussetzung='Dienst gestoppt; 4 Lebenslauf-Spalten je FaHierarchyNodes/FaHierarchyOrderInfos/ProductionOrderPositions (Startwert SyncedAt), leere Artnr/ABNr/Pos -> NULL, zwei UNIQUE-Indizes; bricht bei doppelten Schluesseln vor dem Index ab'; Quelle='2026-11-17-v1-99-37-fa-struktur-abgleich' }
+@{ Id='SQL/160'; Version='1.99.38'; Typ='Schema'; Firma='beide'; Phase='Schema'; Ausfuehrung='automatisch'
+   Datei='160_AddSageFaArbeitsgangAnlagen.sql'; MigrationId='20261117192807_AddSageFaArbeitsgangAnlagen'; Voraussetzung='additiv, eine neue Tabelle SageFaArbeitsgangAnlagen (Warteschlange AG-Anlage in Sage-FAs), kein Backfill'; Quelle='2026-11-17-v1-99-38-arbeitsgaenge-in-sage-fa-anlegen' }
 
 # ---------------------------------------------------------------- Pruefungen (jeder Lauf; Reparatur nur nach Bestaetigung) -------
 # v1.99.28 (ADR 0027): admin zaehlt nicht - der Web-Start stellt admin ohne Kennwort auf das Standard-Erstkennwort mit Pflichtwechsel um.
@@ -169,6 +171,10 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
    Datei='86_SeedDummyArticle.sql'
    Text='DUMMY-Artikel fehlt (Seed nur in SQL/86): ohne ihn lehnt die Lagerbestellung unbekannte EK-Nummern ab. Reparatur spielt SQL/86 erneut ein (idempotent).'
    Quelle='2026-08-06-v1-30-0-wms-bugs-teil-4-5-7-8; 2026-11-11-v1-99-0-update-skript-prueft-und-fuehrt-aus' }
+@{ Id='Pruefung/sage-fa-ag-sdata-zugang'; Version='1.99.38'; Typ='Pruefung'; Firma='IDEAL'; Phase='Nachher'; Ausfuehrung='anzeigen'; Braucht=@('SQL/160')
+   Pruefung='SELECT CASE WHEN EXISTS (SELECT 1 FROM dbo.ServiceSettings WHERE [Key] = N''SageFaArbeitsgaengeAnlegenAktiv'' AND LOWER(LTRIM(RTRIM([Value]))) = N''true'') AND (NOT EXISTS (SELECT 1 FROM dbo.ServiceSettings WHERE [Key] = N''Sync:SageFaArbeitsgaengeBearbeiter'' AND LEN(LTRIM(RTRIM([Value]))) > 0) OR NOT EXISTS (SELECT 1 FROM dbo.ServiceSettings WHERE [Key] = N''SData:BaseUrl'' AND LEN(LTRIM(RTRIM([Value]))) > 0)) THEN 1 ELSE 0 END'
+   Text='Arbeitsgaenge in Sage anlegen ist an, aber Sync:SageFaArbeitsgaengeBearbeiter oder SData:BaseUrl leer: der Dienst sendet nichts und setzt eingereihte Arbeitsgaenge auf Fehler (/ServiceSettings > Sage-FA-Arbeitsgaenge (IDEAL) bzw. SData).'
+   Quelle='2026-11-17-v1-99-38-arbeitsgaenge-in-sage-fa-anlegen' }
 @{ Id='Pruefung/LieferverzugEmpfaenger'; Version='1.99.10'; Typ='Pruefung'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'; Braucht=@('SQL/145')
    Pruefung='SELECT CASE WHEN EXISTS (SELECT 1 FROM dbo.ServiceSettings WHERE [Key] = N''Lieferverzug:MailAktiv'' AND LOWER(LTRIM(RTRIM([Value]))) = N''true'') AND NOT EXISTS (SELECT 1 FROM dbo.ServiceSettings WHERE [Key] = N''Lieferverzug:EinkaufEmpfaenger'' AND LEN(LTRIM(RTRIM([Value]))) > 0) THEN 1 ELSE 0 END'
    Text='Lieferverzug-Mails sind an, aber ohne Einkauf-Empfaenger: es geht keine Mail raus (auch keine Testbetrieb-Mail). /ServiceSettings > Lieferverzug-Mail > Einkauf: Empfaenger eintragen.'
@@ -514,5 +520,11 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
 @{ Id='v1.99.37-FaStrukturBeendetSichtbar'; Version='1.99.37'; Typ='Info'; Firma='IDEAL'; Phase='Nachher'; Ausfuehrung='anzeigen'
    Text='Ab v1.99.37 bleiben in Sage beendete FAs in FA-Struktur, Kommissionierliste, Vormontage, Beschichtung und BDE-Teileliste sichtbar (gelbes Schild "in Sage beendet/inaktiv/ungeklaert"); in der BDE-Teileliste nicht meldbar. Nach dem ersten Lauf das Aktivitaetsprotokoll FA-Hierarchie auf verschwunden_unklar und sage_abfrage_fehler pruefen. Die Sage-Abfrage filtert noch nicht nach Mandant (P-AB4).'
    Quelle='2026-11-17-v1-99-37-fa-struktur-abgleich' }
+@{ Id='v1.99.38-sage-fa-ag-schalter'; Version='1.99.38'; Typ='Einstellung'; Firma='IDEAL'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Text='SageFaArbeitsgaengeAnlegenAktiv bleibt AUS (schreibt in Sage-FAs). Einschalten erst nach dem Schreibtest an EINEM FA am IDEAL-Test (TS-159.x, Freigabe Gerald, Spec P-1..P-5) und mit gesetztem Sync:SageFaArbeitsgaengeBearbeiter. AKE: aus lassen.'
+   Quelle='2026-11-17-v1-99-38-arbeitsgaenge-in-sage-fa-anlegen' }
+@{ Id='v1.99.38-sage-fa-ag-info'; Version='1.99.38'; Typ='Info'; Firma='IDEAL'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Text='Neue Admin-Seite Stammdaten > Arbeitsgaenge > Sage: Vorschau je FA und Kuerzel, Sage-Stand nur auf Knopf (nur lesen). Ohne Schalter wird nichts eingereiht und nichts gesendet. Protokoll Sage-FA-Arbeitsgaenge.'
+   Quelle='2026-11-17-v1-99-38-arbeitsgaenge-in-sage-fa-anlegen' }
 )
 }
