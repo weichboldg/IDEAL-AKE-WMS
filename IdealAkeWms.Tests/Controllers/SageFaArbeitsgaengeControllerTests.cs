@@ -113,6 +113,31 @@ public class SageFaArbeitsgaengeControllerTests
     }
 
     [Fact]
+    public async Task Index_FaFilter_Pruefen_LiestAuchDieUnterFas()   // QA F1: Unter-FA stand ohne Lesefehler auf „Sage nicht lesbar“
+    {
+        Schalter(false);
+        _db.FaHierarchyNodes.Add(new FaHierarchyNode { HauptFA = 100, VaterFA = 100, SubFA = 101, Arbeitsschritte = "PU", Artnr = "A2" });
+        _db.SaveChanges();
+        _svc.Setup(s => s.GetValueAsync("SData:BaseUrl")).ReturnsAsync("https://x");
+        _svc.Setup(s => s.GetValueAsync("SData:Dataset")).ReturnsAsync("IDEAL;1");
+        _svc.Setup(s => s.GetValueAsync("SData:Username")).ReturnsAsync("u");
+        var wheres = new List<string?>();
+        _sage.Setup(s => s.QueryAllAsync<SageFaArbeitsgaenge.KopfZeile>(It.IsAny<SdataLeseZiel>(), It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string>(), It.IsAny<CancellationToken>(), It.IsAny<int>()))
+            .Callback((SdataLeseZiel _, string _, string _, string? w, string? _, string _, CancellationToken _, int _) => wheres.Add(w))
+            .ReturnsAsync(new SdataSeiten<SageFaArbeitsgaenge.KopfZeile>(Array.Empty<SageFaArbeitsgaenge.KopfZeile>(), "k", 1, 0, 0));
+        _sage.Setup(s => s.QueryAllAsync<SageFaArbeitsgaenge.PositionZeile>(It.IsAny<SdataLeseZiel>(), It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string>(), It.IsAny<CancellationToken>(), It.IsAny<int>()))
+            .ReturnsAsync(new SdataSeiten<SageFaArbeitsgaenge.PositionZeile>(Array.Empty<SageFaArbeitsgaenge.PositionZeile>(), "p", 1, 0, 0));
+
+        var vm = (IdealAkeWms.Models.ViewModels.SageFaArbeitsgaengeViewModel)((ViewResult)await Controller().Index(null, 100, pruefen: true)).Model!;
+
+        wheres.Should().ContainSingle().Which.Should().Contain("101");
+        vm.SageBanner.Should().BeNull();
+        vm.Zeilen.Where(z => z.BelId == 101).Should().NotBeEmpty().And.OnlyContain(z => z.Status == SageFaArbeitsgaenge.FaBeendet);
+    }
+
+    [Fact]
     public async Task Index_QueueStatus_UndKnopfNurBeiSchalterAn()
     {
         Schalter(true);

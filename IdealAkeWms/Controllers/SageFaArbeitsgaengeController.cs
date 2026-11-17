@@ -84,7 +84,8 @@ public class SageFaArbeitsgaengeController : Controller
         var sageFehler = false;
         if (pruefen)
         {
-            var ids = knoten.Where(n => n.SubFA != 0 && (fa == null || n.SubFA == fa)).Select(n => n.SubFA).Distinct().ToList();
+            // QA F1: alle FAs der angezeigten Knoten (beim FA-Filter auch die Unter-FAs), sonst stuenden diese ohne Lesefehler auf „Sage nicht lesbar“
+            var ids = knoten.Where(n => n.SubFA != 0).Select(n => n.SubFA).Distinct().ToList();
             if (ids.Count > SageFaArbeitsgaenge.MaxFasJePruefung)
             {
                 vm.SageBanner = $"{ids.Count} FAs in der Auswahl – geprüft werden höchstens {SageFaArbeitsgaenge.MaxFasJePruefung}. Bitte nach Haupt-FA filtern.";

@@ -30,7 +30,8 @@ public class SageFaArbeitsgangClient : ISageFaArbeitsgangClient
     public const string FeldServiceOption = "ServiceOption";
     public const int ServiceOptionAgAnlegen = 4;                                   // kein 5 (Einlasten), Freigabe-Antwort 6
     public const string FeldFaHandle = "Handle";                                   // TODO(P-1): FA-Handle am Kopf = BelID?
-    public const string FeldPositionen = "FaBelegArbeitsgangPositionen";           // TODO(P-1): Name der Positionsliste im Request
+    // QA F2: Name laut $schema AKE-Test (Lesetest L7: PositionenMaterial[] / PositionenArbeitsgang[]); TODO(P-1): am IDEAL-Ziel bestaetigen
+    public const string FeldPositionen = "PositionenArbeitsgang";
     public const string FeldPosHandle = "Handle";                                  // TODO(P-1): FA-Handle auch je Position?
     public const string FeldPositionHandle = "PositionHandle";
     public const int PositionHandleNeu = 0;                                        // TODO(P-1): 0 = neue Position?
