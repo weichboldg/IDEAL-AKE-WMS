@@ -1,6 +1,6 @@
 ---
 type: aufgabe
-status: offen
+status: erledigt
 created: 2026-11-17
 quelle: Gerald, Chat 2026-11-17 (/goal)
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
@@ -89,3 +89,15 @@ DEV-Testdaten: keine angelegt/geändert (nur gelesen). Nichts an Sage, kein Scha
 **Offen für den Menschen:** (1) Entscheidung N1; (2) TS-159.x6/x7 am IDEAL-Ziel mit E1b; (3) TS-160 kurz am Test-System; (4) AKE-Prod-Update:
 `Pruefung/ArtikelQuelleSData` beachten, `Sync:Quelle:Artikel` von Hand; (5) Publish Paket 4.
 
+- 2026-11-17: **Publish Paket 4** nach `<Worktree>\publish\paket4-v1.99.39\` (Ordner vorher geleert): Web + Dienst (DLLs tragen 1.99.39),
+  `SQL/`, `deploy/`, `publish-info.txt` (Commit `2ae5d1da`). Paket 1–3 unverändert.
+
+## Abschluss (2026-11-17)
+
+Alle drei Punkte umgesetzt und QA-geprüft, v1.99.39, keine SQL. Worktree-HEAD `2ae5d1da`. DEV AKE (:8081) und IDEAL (:8082) auf 1.99.39.
+Paket 4 liegt bereit. Nichts an Sage, kein Schalter eingeschaltet, keine Einstellungen auf Test/Prod, kein Merge, kein Push.
+
+Offen für Gerald: **N1** (kein Fund nach 2xx → Fehler → automatische Wiederholung, Dubletten-Risiko, falls der Leser die angelegte AG nicht
+erkennt; Vorschlag: „kein Fund“ als unklar behandeln oder `Sync:SageFaArbeitsgaengeMaxWiederholungen` = 0 bis TS-159.x6/x7 grün) – vor dem
+Einschalten entscheiden; TS-159.x6/x7 mit E1b am IDEAL-Ziel; beim AKE-Prod-Update `Sync:Quelle:Artikel` von Hand auf SData
+(Prüfung `Pruefung/ArtikelQuelleSData` zeigt es an); TS-160 kurz am Testsystem.
