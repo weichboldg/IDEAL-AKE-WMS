@@ -9,6 +9,29 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.99.31</strong> <span class="text-white-50 ms-2">17.11.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>Offene Bestellungen: sofort aktuell, KW-Filter, &bdquo;Überfällige anzeigen&ldquo;, Ansicht im Einkauf</h6>
+                <ul>
+                    <li>Nach jeder Übergabe eines <strong>Sage-Wareneingangs</strong> liest der Dienst die offenen Bestellungen sofort neu &ndash; die
+                        gelieferte Position verschwindet nach kurzer Zeit aus der Liste. Mehrere Übergaben hintereinander lösen höchstens alle 2 Minuten
+                        einen Lauf aus (Einstellung &bdquo;Offene Bestellungen nach Sage-Wareneingang neu lesen: Mindestabstand&ldquo;, 0 = aus).</li>
+                    <li>Das Feld <em>Wochen</em> entfällt. Stattdessen ist der <strong>Spaltenfilter Liefertermin</strong> vorbelegt: Montag der aktuellen
+                        KW bis Sonntag der nächsten KW (Einstellung <code>OffeneBestellungenVorschauWochen</code>, jetzt &bdquo;Wochen ab aktueller
+                        KW&ldquo;). Der Filter ist sichtbar und lässt sich leeren oder per Kalender auf eine andere KW setzen.</li>
+                    <li>Die Spalte Liefertermin zeigt die <strong>KW</strong> (z. B. &bdquo;18.11.2026 KW47&ldquo;).</li>
+                    <li>Neue Checkbox <strong>&bdquo;Überfällige anzeigen&ldquo;</strong>: im Lager standardmäßig aus, im Einkauf an; wird je Benutzer
+                        gemerkt. Ausgeblendete überfällige Positionen werden über der Tabelle gezählt. Positionen ohne Liefertermin sind immer sichtbar.</li>
+                    <li>Neu im Menü <strong>Einkauf</strong>: <em>Offene Bestellungen</em> und <em>Sage-Wareneingänge (offen)</em> (nur noch nicht an Sage
+                        übergebene) &ndash; nur lesend, mit der Rolle Einkauf, ohne Lager-Recht. Buchen und Aktionen an Sage-Wareneingängen bleiben beim Lager
+                        bzw. Lager-Keyuser.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.99.30</strong> <span class="text-white-50 ms-2">16.11.2026</span>
             </div>
             <div class="card-body">

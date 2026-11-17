@@ -13,18 +13,24 @@ Die Liste enthält zwei Arten von Sage-Belegen:
 - **Bestellungen** (in Sage „EBB“) – normale Bestellungen beim Lieferanten.
 - **Rahmenabrufe** (in Sage „EBZ“) – Abrufe aus einer Rahmenbestellung; je Abruf eine Zeile. In der Spalte **Hinweis** steht „Rahmenabruf“.
 
-Die Daten liest der WMS-Dienst regelmäßig aus Sage. Wie aktuell sie sind, steht oben bei **Stand**.
+Die Daten liest der WMS-Dienst regelmäßig aus Sage. Wie aktuell sie sind, steht oben bei **Stand**. Seit Version 1.99.31 liest der Dienst
+die Liste zusätzlich **sofort nach jedem an Sage übergebenen Wareneingang** neu (höchstens alle 2 Minuten); eine gelieferte Position
+verschwindet damit nach kurzer Zeit.
+
+Seit Version 1.99.31 gibt es dieselbe Liste auch unter **Einkauf → Offene Bestellungen** – nur lesend, für die Rolle **Einkauf**, ohne
+Lager-Recht. Dort ist „Überfällige anzeigen“ standardmäßig an.
 
 ## Wer darf
 
 | Aufgabe | Rolle (wie unter *Stammdaten → Rollen*) |
 |---|---|
 | Offene Bestellungen ansehen, filtern, CSV | **Lagerbestand-Ansicht**, **Lager**, **Lager Keyuser** oder **Kommissionierer** |
+| Einkauf → Offene Bestellungen ansehen (seit 1.99.31) | **Einkauf** (Einstellung „Einkauf aktiv“ muss an sein) |
 | Knopf **Wareneingang** (buchen) | **Lager**, **Lager Keyuser** oder **Kommissionierer** |
 | alles | **Administrator** |
 
-**Einstellungen** (pflegt die WMS-Betreuung): **Wareneingang zu Sage-Bestellungen** muss an sein; **Vorschau Wochen** legt fest, wie weit die
-Liste standardmäßig in die Zukunft schaut (Standard 2 Wochen, erlaubt 1 bis 26). Ohne den Dienst-Abgleich „Offene Bestellungen (Sage)“
+**Einstellungen** (pflegt die WMS-Betreuung): **Wareneingang zu Sage-Bestellungen** muss an sein; **Vorbelegung Liefertermin (Wochen ab aktueller
+KW)** legt fest, welche Wochen der Spaltenfilter Liefertermin beim Öffnen zeigt (Standard 2 = aktuelle und nächste KW, erlaubt 1 bis 26). Ohne den Dienst-Abgleich „Offene Bestellungen (Sage)“
 steht oben „Noch keine offenen Bestellungen gelesen.“
 
 ## Schritt für Schritt
@@ -35,10 +41,13 @@ Menü **Lager → Offene Bestellungen**.
 
 ![Offene Bestellungen: Stand, Filterkarte, Legende „rot hinterlegt = überfällig“ und Hinweis auf ausgeblendete Abrufe](bilder/06-01-offene-bestellungen-filter.jpg)
 
-- **Stand:** Zeitpunkt des letzten Abgleichs. Darunter, bis zu welchem Liefertermin die Liste reicht. **Überfällige** Positionen und solche
-  **ohne Termin** sind immer dabei.
+- **Stand:** Zeitpunkt des letzten Abgleichs. Positionen **ohne Termin** sind immer dabei.
+- **Zeitraum:** Der Spaltenfilter **Liefertermin** ist beim Öffnen vorbelegt, z. B. am 17.11.2026 mit `16.11.2026...29.11.2026` (Montag
+  der aktuellen KW bis Sonntag der nächsten KW). Filter leeren = alle Termine; im Kalender eine andere KW anklicken = diese KW. Die Spalte
+  zeigt Datum und KW, z. B. „18.11.2026 KW47“. (Das Feld „Wochen“ gibt es seit 1.99.31 nicht mehr.)
 - **Filterkarte:**
-  - **Wochen** – Vorschau ändern (1–26), gilt nur für diesen Aufruf.
+  - **Überfällige anzeigen** – überfällige Positionen (Liefertermin vor heute) zeigen, unabhängig vom Zeitraum. Im Lager standardmäßig aus,
+    im Einkauf an; wird für den eigenen Benutzer gemerkt. Ausgeblendete werden über der Tabelle gezählt.
   - **Lieferant**, **Bestellung**, **Artikel**, **Ziel-Lagerplatz** – eingrenzen.
   - **nur überfällig** – nur Positionen mit Liefertermin vor heute.
   - **auch im WMS vollständig erfasste Abrufe** – siehe Schritt 3.
@@ -100,13 +109,13 @@ Ein Rahmenabruf verhält sich in der Liste und im Wareneingang wie eine Bestellu
 
 **Allgemein:**
 
-- Die Vorschau-Wochen in der Filterkarte ändern nur die eigene Ansicht. Den Standard ändert die WMS-Betreuung.
+- Den Spaltenfilter Liefertermin ändert jeder für sich. Die Vorbelegung (Anzahl Wochen) ändert die WMS-Betreuung.
 - Der Knopf **Wareneingang** fehlt bei Benutzern mit „Lagerbestand-Ansicht“ – die Rolle darf nur lesen.
 
 ## Häufige Fragen
 
 **Warum steht eine Bestellung von 2019 in der Liste?**
-Überfällige Positionen sind immer dabei, solange sie in Sage offen sind. Bitte dem Einkauf melden – er prüft in Sage, ob geliefert,
+Überfällige Positionen stehen in der Liste, solange sie in Sage offen sind (mit „Überfällige anzeigen“). Bitte dem Einkauf melden – er prüft in Sage, ob geliefert,
 storniert oder der Termin anzupassen ist.
 
 **Was heißt „im WMS erfasst“?**
@@ -116,4 +125,4 @@ Diese Menge ist im WMS schon eingebucht, steht in Sage aber noch als offen. Der 
 Er ist vermutlich vollständig erfasst und ausgeblendet. Haken **auch im WMS vollständig erfasste Abrufe** setzen und **Filtern**.
 
 **Wie finde ich nur Rahmenabrufe?**
-Im Spaltenfilter **Hinweis** `Rahmenabruf` eingeben (ggf. Wochen auf 26 stellen).
+Im Spaltenfilter **Hinweis** `Rahmenabruf` eingeben (ggf. den Spaltenfilter Liefertermin leeren).

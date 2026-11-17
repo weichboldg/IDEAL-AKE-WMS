@@ -19,6 +19,7 @@ Die Bestellungen kommen aus Sage (Abgleich durch den WMS-Dienst). Die Liste dazu
 | Offene Bestellungen ansehen, Liste „Sage-Wareneingänge“ ansehen | **Lagerbestand-Ansicht**, **Lager**, **Lager Keyuser**, **Kommissionierer** |
 | Wareneingang zu Bestellung einbuchen | **Lager**, **Lager Keyuser** oder **Kommissionierer** |
 | In „Sage-Wareneingänge“: Erneut senden, Als übergeben markieren, CSV erneut schreiben | **Lager Keyuser** |
+| Einkauf → Offene Bestellungen und Einkauf → Sage-Wareneingänge (offen) ansehen (seit 1.99.31) | **Einkauf** |
 | alles | **Administrator** |
 
 **Einstellungen** (pflegt die WMS-Betreuung): **Wareneingang zu Sage-Bestellungen** muss an sein, sonst fehlen die Menüpunkte. Weitere
@@ -121,6 +122,10 @@ CSV-Stand.
   prüft in Sage und klickt **Als übergeben markieren** (Beleg existiert, Sage-Belegnummer eintragen, höchstens 45 Zeichen) oder **Erneut senden**
   (Beleg fehlt).
 - **CSV:** wartet / offen / geschrieben / Fehler. Bei Fehler oder „Datei existiert bereits“ auf der Freigabe nachsehen und **CSV erneut schreiben**.
+
+**Einkauf → Sage-Wareneingänge (offen)** (seit Version 1.99.31): dieselbe Liste für den Einkauf, aber nur Wareneingänge, die noch **nicht**
+an Sage übergeben sind (Status offen, gesendet, Fehler, Klären, nur in Sage). Nur lesend; die Knöpfe Erneut senden / Als übergeben markieren
+sieht nur, wer zusätzlich Lager Keyuser ist. Nach jeder Übergabe an Sage liest der Dienst die offenen Bestellungen sofort neu.
 
 **Was in der CSV-Datei steht (seit Version 1.99.29):** eine einzige Zeile ohne Überschriften, die enaio nach der Reihenfolge der Felder
 einliest – Barcode, Kreditornummer, Kreditorname, Bestellnummer, Lieferschein, Sage-Belegnummer, **Erfasser**, Datum, übergeben am.

@@ -125,9 +125,9 @@ public static class AppSettingDefinitions
             Werte: new[] { ("Wareneingang", "Wareneingang"), ("Sammel-Wareneingang", "Sammel-Wareneingang"), ("Warenausgang", "Warenausgang"), ("Umbuchung", "Umbuchung") },
             LeerErlaubt: true,
             Warnhinweis: "Mit „Umbuchung“ trägt jede Umbuchung einen FA – solche Umbuchungen werden nie an Sage gemeldet, auch wenn „WMS-Umbuchungen an Sage“ an ist."),
-        I(AppSettingKeys.OffeneBestellungenVorschauWochen, "2", GLager, "Offene Bestellungen: Vorschau (Wochen)",
-            "Standard-Horizont der Vorschau: Positionen mit Liefertermin bis heute + X Wochen; überfällige und solche ohne Termin sind immer dabei. Je Aufruf in der Filterkarte änderbar.",
-            "Lager → Offene Bestellungen (Filter „Wochen“ vorbelegt)", Beide, seed: false, "Wochen", min: 1, max: 26),
+        I(AppSettingKeys.OffeneBestellungenVorschauWochen, "2", GLager, "Offene Bestellungen: Vorbelegung Liefertermin (Wochen ab aktueller KW)",
+            "Belegt beim ersten Aufruf den Spaltenfilter Liefertermin mit dem Datumsbereich Montag der aktuellen KW bis Sonntag der N-ten KW vor (2 = aktuelle + nächste KW, 1 = nur aktuelle KW). Überfällige folgen der Checkbox „Überfällige anzeigen“, Positionen ohne Termin sind immer sichtbar. Andere Zeiträume über den Spaltenfilter.",
+            "Lager → Offene Bestellungen und Einkauf → Offene Bestellungen (Spaltenfilter Liefertermin vorbelegt)", Beide, seed: false, "Wochen", min: 1, max: 26),
 
         // ---- QR-Code und Scanner ----
         B(AppSettingKeys.QrMitFaNummer, "false", GQr, "QR-Code mit FA-Nummer",

@@ -124,7 +124,7 @@ Meldebestand, verschwindet der Vorschlag aus „nur Vorschläge“.
 ## Unterschiede AKE und IDEAL
 
 Nur **AKE**. Bei IDEAL bleibt „Einkauf – Bestellvorschläge“ ausgeschaltet, bis dort die SData-Schnittstelle läuft; der Menüpunkt fehlt und ein
-direkter Aufruf meldet „Einkauf – Bestellvorschläge ist deaktiviert …“.
+direkter Aufruf meldet „Einkauf ist deaktiviert (Einstellung „Einkauf aktiv“).“ (bis 1.99.30 „Einkauf – Bestellvorschläge ist deaktiviert …“).
 
 ## Hinweise und Stolperfallen
 

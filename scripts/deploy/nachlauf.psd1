@@ -143,7 +143,7 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
    Pruefung='SELECT COUNT(*) FROM (VALUES (N''einkauf'')) v(k) WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k)'
    Reparatur='INSERT INTO dbo.Roles ([Key], [Name], [Description], [IsSystem], [SortOrder], [CreatedAt], [CreatedBy], [CreatedByWindows])
 SELECT v.k, v.n, v.d, 1, (SELECT ISNULL(MAX(SortOrder), 0) FROM dbo.Roles) + v.o, SYSDATETIME(), N''Update-Skript'', LEFT(SUSER_SNAME(), 200)
-FROM (VALUES (N''einkauf'', N''Einkauf'', N''Einkauf - Bestellvorschlaege (Liste lesen).'', 1)) v(k, n, d, o)
+FROM (VALUES (N''einkauf'', N''Einkauf'', N''Einkauf - Bestellvorschlaege, Offene Bestellungen, offene Sage-Wareneingaenge (lesen).'', 1)) v(k, n, d, o)
 WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
    Text='Rolle einkauf fehlt (kein Seed). Zuweisen an den Einkauf bleibt Hand-Schritt unter /Roles.'
    Quelle='2026-11-13-v1-99-20-einkauf-bestellvorschlaege' }
@@ -419,5 +419,14 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
 @{ Id='v1.99.30-ArtikelinfoBedarfe'; Version='1.99.30'; Typ='Info'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
    Text='Artikelinfo: Verfuegbarer Bestand rechnet jetzt wie die Bestellvorschlaege (FA-Rest, Lagerbestellungen/Bedarfsmeldungen nur einmal). Lager/Produktion informieren; Zahlen koennen von der Vorversion abweichen.'
    Quelle='2026-11-16-v1-99-30-bestellvorschlaege-nachbesserung' }
+@{ Id='v1.99.31-NachWeMinuten'; Version='1.99.31'; Typ='Einstellung'; Firma='AKE'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Text='Neu: Sync:EinkaufBestellungenNachWeMinuten (/ServiceSettings, Default 2, 0 = aus). Nach einer Sage-Wareneingang-Uebergabe liest der Dienst die offenen Bestellungen sofort neu, danach hoechstens alle n Minuten. Wirkt nur mit SageWareneingangBelegAktiv und Sync:EinkaufBestellungenEnabled. Laufzeit im Aktivitaets-Protokoll beobachten (P-1); wer den Anstoss nicht will, vor dem Dienststart auf 0 setzen.'
+   Quelle='2026-11-17-v1-99-31-offene-bestellungen-sofort-neu-lesen' }
+@{ Id='v1.99.31-VorschauWochen'; Version='1.99.31'; Typ='Einstellung'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Text='OffeneBestellungenVorschauWochen (/Settings) bleibt, belegt jetzt den Spaltenfilter Liefertermin vor: Montag der aktuellen KW bis Sonntag der N-ten KW (2 = aktuelle + naechste KW). Das Feld Wochen in der Filterkarte entfaellt. Ein gespeicherter Wert gilt weiter.'
+   Quelle='2026-11-17-v1-99-31-offene-bestellungen-sofort-neu-lesen' }
+@{ Id='v1.99.31-EinkaufAnsichten'; Version='1.99.31'; Typ='Info'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Text='Rolle einkauf sieht jetzt Einkauf > Offene Bestellungen und Einkauf > Sage-Wareneingaenge (offen), beide nur lesen (Gate EinkaufAktiv). Wareneingang buchen nur mit Lager-Recht, Aktionen an Sage-Wareneingaengen nur mit Lager-Keyuser-Recht. Keine Rollenzuweisung noetig.'
+   Quelle='2026-11-17-v1-99-31-offene-bestellungen-sofort-neu-lesen' }
 )
 }

@@ -75,9 +75,14 @@
                         und der Dienst-Abgleich <code>Sync:EinkaufBestellungenEnabled</code> (liest die offenen Positionen normaler Sage-Bestellungen und Rahmenabrufe,
                         braucht Kreditoren- und Lagerplatz-Abgleich).
                         <ol class="mb-1">
-                            <li><em>Lager &rarr; Offene Bestellungen</em>: Positionen mit Liefertermin bis heute + X Wochen (Einstellung
-                                <code>OffeneBestellungenVorschauWochen</code>, Standard 2, in der Filterkarte je Aufruf änderbar); überfällige und solche
-                                ohne Termin sind immer dabei und in der Spalte &bdquo;Hinweis&ldquo; benannt. &bdquo;Stand&ldquo; = letzter Abgleich.</li>
+                            <li><em>Lager &rarr; Offene Bestellungen</em> (seit v1.99.31 auch <em>Einkauf &rarr; Offene Bestellungen</em>, nur lesend, Rolle
+                                Einkauf): Der Spaltenfilter <em>Liefertermin</em> ist beim ersten Aufruf mit Montag der aktuellen KW bis Sonntag der N-ten KW
+                                vorbelegt (Einstellung <code>OffeneBestellungenVorschauWochen</code>, Standard 2 = aktuelle + nächste KW); leeren zeigt alle
+                                Termine, der Kalender wählt eine andere KW. Die Zelle zeigt Datum und KW. Positionen ohne Termin sind immer dabei.
+                                Überfällige zeigt die Checkbox <em>&bdquo;Überfällige anzeigen&ldquo;</em> (Lager standardmäßig aus, Einkauf an, je Benutzer
+                                gemerkt; ausgeblendete werden über der Tabelle gezählt); sie stehen in der Spalte &bdquo;Hinweis&ldquo;.
+                                &bdquo;Stand&ldquo; = letzter Abgleich; nach jedem übergebenen Sage-Wareneingang liest der Dienst die Liste sofort neu
+                                (höchstens alle <code>Sync:EinkaufBestellungenNachWeMinuten</code> Minuten, Standard 2).</li>
                             <li>Knopf <em>Wareneingang</em> an der Zeile oder <em>Lager &rarr; Wareneingang zu Bestellung</em>: Bestellnummer
                                 (z. B. <code>2027-168975</code>) eingeben oder mit dem Handscanner scannen.</li>
                             <li>Je Position Ziel-Lagerplatz prüfen (vorbelegt mit dem Sage-Platz) und Ist-Menge eingeben (Komma oder Punkt); leer = nicht buchen.
@@ -108,7 +113,9 @@
                         der Zeile ein Hinweis und nichts wird gebucht. Positionen mit Charge/Seriennummer bucht der Einkauf in Sage.
                         Je Position gibt es ein Feld <em>Positionsmemo</em> (seit v1.99.6, höchstens 200 Zeichen): Der Text steht als Notiz an der
                         Einbuchung und im Sage-Wareneingang im Positions-Memo vor der WMS-Kennung.
-                        Den Stand zeigt <em>Lager &rarr; Sage-Wareneingänge</em> (bis v1.99.6 &bdquo;Wareneingänge an Sage&ldquo;).
+                        Den Stand zeigt <em>Lager &rarr; Sage-Wareneingänge</em> (bis v1.99.6 &bdquo;Wareneingänge an Sage&ldquo;). Seit v1.99.31 sieht der
+                        Einkauf unter <em>Einkauf &rarr; Sage-Wareneingänge (offen)</em> nur die noch nicht an Sage übergebenen (nur lesend; Aktionen nur mit
+                        Lager-Keyuser-Recht).
                         <strong>Seit v1.99.7</strong> wiederholt der Dienst einen Fehler selbst (Anzahl und Abstand in den Service-Einstellungen) und sucht
                         vor jedem Versuch den Beleg in Sage über die Memo-Kennung <code>WE#&hellip;#</code>: gefunden = <em>an Sage übergeben</em>, ohne
                         zweiten Beleg. Findet er einen Beleg derselben Bestellung ohne Kennung (gleicher Tag oder später, gleiche Lieferschein-Nr.), steht der
