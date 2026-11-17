@@ -22,7 +22,7 @@ reserviert Mapping); TS-155; keine SQL.
 
 | Spec | Typ | SQL | Version | Status | Commits | Blocker |
 |---|---|---|---|---|---|---|
-| [[2026-11-16-offene-bestellungen-sofort-neu-lesen-einkauf-kw-filter-spec]] | Spec | – | 1.99.31 | Rumpf-Nachzug läuft | – | – |
+| [[2026-11-16-offene-bestellungen-sofort-neu-lesen-einkauf-kw-filter-spec]] | Spec | – | 1.99.31 | InUmsetzung (Rumpf nachgezogen) | – | Rückfragen 9–11 nicht blockierend |
 | [[2026-11-16-bestellvorschlaege-nachbesserung-spec]] (Q2 = b) | Nachbesserung | – | 1.99.30 | InUmsetzung | – | – |
 
 ## Protokoll

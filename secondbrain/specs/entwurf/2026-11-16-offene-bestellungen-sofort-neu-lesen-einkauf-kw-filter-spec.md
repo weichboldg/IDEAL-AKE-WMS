@@ -2,13 +2,13 @@
 type: spec
 title: Offene Bestellungen – sofort neu lesen nach Sage-WE, Ansicht im Einkauf, KW-Filter Liefertermin, Checkbox „Überfällige anzeigen“
 slug: 2026-11-16-offene-bestellungen-sofort-neu-lesen-einkauf-kw-filter-spec
-status: Freigegeben
+status: InUmsetzung
 created: 2026-11-16
 updated: 2026-11-17
 source_backlog: "[[2026-11-16-offene-bestellungen-delta-nach-sage-we]]"
-task: ""
-worktree: ""
-branch: ""
+task: "[[2026-11-17-goal-lauf-offene-bestellungen]]"
+worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
+branch: "feature/2026-08-07-ideal-teile-1-5"
 standort: beide
 version_vorschlag: 1.99.31
 testszenario: TS-155
