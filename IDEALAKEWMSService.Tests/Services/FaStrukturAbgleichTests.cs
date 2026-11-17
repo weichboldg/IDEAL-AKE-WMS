@@ -4,6 +4,7 @@ using IdealAkeWms.Models;
 using IdealAkeWms.Tests.Helpers;
 using IDEALAKEWMSService.Services;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
@@ -114,7 +115,7 @@ public class FaStrukturAbgleichTests
         public async Task<FakeSyncRun> LaufAsync(bool dryRun = false)
         {
             await using var db = Db();
-            await new FaHierarchySyncService(db, Reader, Notifier.Object, NullLogger<FaHierarchySyncService>.Instance, Logger).RunAsync(dryRun);
+            await new FaHierarchySyncService(db, Reader, Notifier.Object, NullLogger<FaHierarchySyncService>.Instance, new ConfigurationBuilder().Build(), Logger).RunAsync(dryRun);
             return Logger.Runs.Last();
         }
     }
@@ -387,6 +388,77 @@ public class FaStrukturAbgleichTests
         u.Notifier.Verify(n => n.NotifyAsync("FaHierarchy-Sync: FA-Positionen nicht abgeglichen", It.IsAny<Exception>(), It.IsAny<CancellationToken>()), Times.Once);
         await using var db2 = u.Db();
         (await db2.FaHierarchyNodes.SingleAsync(x => x.Artnr == "B2")).Bezeichnung1.Should().Be("neu");
+    }
+
+    // ----- E5: Aufraeumen (ohne DB-Setting greift der Default 90 Tage) -----
+
+    private static async Task<Umgebung> HauptFa200VerschwundenAsync()
+    {
+        var u = new Umgebung { Reader = { Lesung = () => Zwei() } };
+        await u.LaufAsync();
+        u.Reader.Lesung = () => Zwei(k => k.Where(x => x.HauptFA != 200).ToList(), i => i.Where(x => x.HauptFA != 200).ToList());
+        await u.LaufAsync();
+        return u;
+    }
+
+    private static async Task AuftragAsync(Umgebung u, bool done, bool cancelled = false)
+    {
+        await using var db = u.Db();
+        db.ProductionOrders.Add(new ProductionOrder { OrderNumber = "200", SubOrderNumber = "200", IsDone = done, IsCancelled = cancelled });
+        await db.SaveChangesAsync();
+    }
+
+    [Fact]
+    public async Task Aufraeumen_AlleAuftraegeErledigt_StrukturEntfernt()
+    {
+        var u = await HauptFa200VerschwundenAsync();
+        await AuftragAsync(u, done: true);
+        await AuftragAsync(u, done: false, cancelled: true);
+
+        (await u.LaufAsync()).FinalCounts!["aufgeraeumt"].Should().Be(1);
+        await using var db = u.Db();
+        (await db.FaHierarchyNodes.AnyAsync(x => x.HauptFA == 200)).Should().BeFalse();
+        (await db.FaHierarchyOrderInfos.AnyAsync(x => x.HauptFA == 200)).Should().BeFalse();
+        (await db.FaHierarchyNodes.CountAsync()).Should().Be(3, "HauptFA 100 bleibt");
+    }
+
+    [Fact]
+    public async Task Aufraeumen_OffenerAuftrag_Bleibt_KeinAuftrag_Bleibt()
+    {
+        var u = await HauptFa200VerschwundenAsync();
+        (await u.LaufAsync()).FinalCounts!["aufgeraeumt"].Should().Be(0, "ein leeres „alle“ zaehlt nicht");
+
+        await AuftragAsync(u, done: true);
+        await AuftragAsync(u, done: false);
+        (await u.LaufAsync()).FinalCounts!["aufgeraeumt"].Should().Be(0);
+        await using var db = u.Db();
+        (await db.FaHierarchyNodes.CountAsync(x => x.HauptFA == 200)).Should().Be(2);
+    }
+
+    [Fact]
+    public async Task Aufraeumen_AelterAlsAufbewahrung_Entfernt_AuchMitOffenemAuftrag()
+    {
+        var u = await HauptFa200VerschwundenAsync();
+        await AuftragAsync(u, done: false);
+        await using (var db = u.Db())
+        {
+            foreach (var z in await db.FaHierarchyNodes.Where(x => x.HauptFA == 200).ToListAsync()) z.VerschwundenSeit = DateTime.Now.AddDays(-91);
+            foreach (var z in await db.FaHierarchyOrderInfos.Where(x => x.HauptFA == 200).ToListAsync()) z.VerschwundenSeit = DateTime.Now.AddDays(-91);
+            await db.SaveChangesAsync();
+        }
+
+        (await u.LaufAsync()).FinalCounts!["aufgeraeumt"].Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Aufraeumen_TeilweiseVerschwunden_Bleibt()
+    {
+        var u = new Umgebung { Reader = { Lesung = () => Zwei() } };
+        await u.LaufAsync();
+        await AuftragAsync(u, done: true);
+        // Blatt B2 verschwindet, Wurzel 200 bleibt gelesen → Position entfernt, Struktur aktiv, nichts aufgeraeumt.
+        u.Reader.Lesung = () => Zwei(k => k.Where(x => x.Artnr != "B2").ToList());
+        (await u.LaufAsync()).FinalCounts!["aufgeraeumt"].Should().Be(0);
     }
 
     [Fact]

@@ -3,7 +3,9 @@ using IdealAkeWms.Models;
 using IdealAkeWms.Services.SyncLogger;
 using IDEALAKEWMSService.Common;
 using IDEALAKEWMSService.Services.Sdata;
+using System.Globalization;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace IDEALAKEWMSService.Services;
@@ -24,11 +26,13 @@ namespace IDEALAKEWMSService.Services;
 public class FaHierarchySyncService : IFaHierarchySyncService
 {
     private const string SyncStep = "FaHierarchy-Sync";
+    internal const string AufbewahrungKey = "Sync:FaStrukturAufbewahrungTage";
 
     private readonly ApplicationDbContext _ctx;
     private readonly ISageFaStrukturReader _reader;
     private readonly ISyncErrorNotifier _errorNotifier;
     private readonly ILogger<FaHierarchySyncService> _logger;
+    private readonly IConfiguration _config;
     private readonly ISyncLogger _syncLogger;
 
     public FaHierarchySyncService(
@@ -36,12 +40,14 @@ public class FaHierarchySyncService : IFaHierarchySyncService
         ISageFaStrukturReader reader,
         ISyncErrorNotifier errorNotifier,
         ILogger<FaHierarchySyncService> logger,
+        IConfiguration config,
         ISyncLogger syncLogger) // ISyncLogger als LETZTER Ctor-Parameter (ADR 0010)
     {
         _ctx = ctx;
         _reader = reader;
         _errorNotifier = errorNotifier;
         _logger = logger;
+        _config = config;
         _syncLogger = syncLogger;
     }
 
@@ -243,6 +249,10 @@ public class FaHierarchySyncService : IFaHierarchySyncService
             await _errorNotifier.NotifyAsync("FaHierarchy-Sync: ungeklärt verschwundene Zeilen", new InvalidOperationException(msg), ct);
         }
 
+        // Aufraeumen (Anforderung 5) – nie nach einem defekten Read oder einem Sage-Lesefehler.
+        if (entscheiden)
+            c["aufgeraeumt"] = await AufraeumenAsync(knoten, infos, positionen, entfernt, jetzt, dryRun, ct);
+
         if (dryRun) _ctx.ChangeTracker.Clear();
         return new Ergebnis(c, entfKnoten, entfInfos);
     }
@@ -277,6 +287,48 @@ public class FaHierarchySyncService : IFaHierarchySyncService
             await run.LogErrorAsync(Kurz($"ProductionOrderPositions nicht abgeglichen (alter Stand bleibt): {ex.Message}"), ct: ct);
             await _errorNotifier.NotifyAsync("FaHierarchy-Sync: FA-Positionen nicht abgeglichen", ex, ct);
         }
+    }
+
+    /// <summary>
+    /// Anforderung 5: eine Haupt-FA-Struktur, deren Zeilen in allen drei Tabellen verschwunden sind, wird entfernt, wenn alle ihre WMS-Auftraege
+    /// (<c>OrderNumber = HauptFA</c>) erledigt oder storniert sind — ein leeres „alle“ zaehlt nicht — oder ihr juengstes Verschwinden aelter als
+    /// <c>Sync:FaStrukturAufbewahrungTage</c> ist. Eigene Transaktion. Liefert die Zahl der entfernten Strukturen.
+    /// </summary>
+    private async Task<int> AufraeumenAsync(List<FaHierarchyNode> knoten, List<FaHierarchyOrderInfo> infos, List<ProductionOrderPosition>? positionen,
+        HashSet<object> entfernt, DateTime jetzt, bool dryRun, CancellationToken ct)
+    {
+        var je = knoten.Where(n => !entfernt.Contains(n)).Select(n => (n.HauptFA, Z: (IFaStrukturZeile)n))
+            .Concat(infos.Where(i => !entfernt.Contains(i)).Select(i => (i.HauptFA, Z: (IFaStrukturZeile)i)))
+            .GroupBy(t => t.HauptFA)
+            .Where(g => g.All(t => !Aktiv(t.Z)))
+            .ToDictionary(g => g.Key, g => g.Select(t => t.Z).ToList());
+        if (je.Count == 0) return 0;
+
+        var ids = je.Keys.ToList();
+        var pos = positionen?.Where(p => !entfernt.Contains(p) && je.ContainsKey(p.StrukturID)).ToList()
+                  ?? await _ctx.ProductionOrderPositions.Where(p => ids.Contains(p.StrukturID)).ToListAsync(ct);
+        foreach (var p in pos) je[p.StrukturID].Add(p);
+
+        var nummern = ids.Select(i => i.ToString(CultureInfo.InvariantCulture)).ToList();
+        var auftraege = (await _ctx.ProductionOrders.AsNoTracking().Where(o => nummern.Contains(o.OrderNumber))
+                .Select(o => new { o.OrderNumber, Fertig = o.IsDone || o.IsCancelled }).ToListAsync(ct))
+            .ToLookup(o => o.OrderNumber, o => o.Fertig);
+        var frist = Math.Clamp(await ServiceSettings.GetIntSafeAsync(_config, AufbewahrungKey, 90, ct), 1, 3650);
+        var grenze = jetzt.AddDays(-frist);
+
+        var weg = je.Where(kv =>
+        {
+            if (kv.Value.Any(Aktiv)) return false;
+            var a = auftraege[kv.Key.ToString(CultureInfo.InvariantCulture)].ToList();
+            return (a.Count > 0 && a.All(f => f)) || kv.Value.Max(z => z.VerschwundenSeit!.Value) < grenze;
+        }).ToList();
+        if (weg.Count == 0 || dryRun) return weg.Count;
+
+        await using var tx = _ctx.Database.IsRelational() ? await _ctx.Database.BeginTransactionAsync(ct) : null;
+        foreach (var z in weg.SelectMany(kv => kv.Value)) _ctx.Remove(z);
+        await _ctx.SaveChangesAsync(ct);
+        if (tx is not null) await tx.CommitAsync(ct);
+        return weg.Count;
     }
 
     private static bool Aktiv(IFaStrukturZeile z) => z.VerschwundenSeit is null;

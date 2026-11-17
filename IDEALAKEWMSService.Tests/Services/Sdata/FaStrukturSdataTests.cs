@@ -662,7 +662,7 @@ public class FaStrukturSdataTests
         var logger = new FakeSyncLogger();
         var notifier = new Mock<ISyncErrorNotifier>();
         return (new FaHierarchySyncService(TestDbContextFactory.Create(), reader, notifier.Object,
-            NullLogger<FaHierarchySyncService>.Instance, logger), logger, notifier);
+            NullLogger<FaHierarchySyncService>.Instance, new ConfigurationBuilder().Build(), logger), logger, notifier);
     }
 
     [Fact]
