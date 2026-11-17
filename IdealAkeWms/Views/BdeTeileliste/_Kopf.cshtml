@@ -60,10 +60,18 @@
             <div class="col-auto">
                 <button type="submit" class="btn btn-secondary btn-lg">Filtern</button>
             </div>
+            <div class="col-auto">
+                <button type="submit" form="filterReset" class="btn btn-outline-secondary btn-lg">Filter zurücksetzen</button>
+            </div>
+        </form>
+        <form id="filterReset" method="post" asp-action="FilterZuruecksetzen" class="d-none">
+            <input type="hidden" name="workplaceId" value="@Model.Werkbank.Id" />
+            <input type="hidden" name="operatorId" value="@Model.Werker.Id" />
         </form>
         <p class="mb-0 mt-2 small text-muted">
             Zeilen = Teile und Baugruppen der FA-Struktur, deren Arbeitsschritte <strong>@Model.Kuerzel</strong> enthalten. Die Kalenderwoche filtert auf
             den Fertigstellungstermin (FE-Termin) des Hauptauftrags. Erledigte oder stornierte Aufträge sind ausgeblendet.
+            Filter werden je Werker und Werkbank gespeichert; die Spaltenauswahl (Zahnrad) gilt für den Terminal-Benutzer.
         </p>
     </div>
 </div>
@@ -72,6 +80,6 @@
 {
     <div class="alert alert-warning" role="alert">
         <strong>Hinweis:</strong> @Model.Waisen Meldung(en) ohne passende Strukturzeile – Sage hat Position oder Artikel geändert.
-        Prüfung durch den BDE-Admin unter BDE-Buchungen › Teilmeldungen.
+        Prüfung durch den BDE-Admin unter <a asp-controller="BdeBookings" asp-action="Teilmeldungen" class="alert-link">BDE-Buchungen › Teilmeldungen</a>.
     </div>
 }

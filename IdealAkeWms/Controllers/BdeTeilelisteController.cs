@@ -25,12 +25,42 @@ public class BdeTeilelisteController : Controller
     private readonly IAppSettingRepository _settings;
     private readonly IFaHierarchyOrderInfoRepository _orderInfos;
     private readonly ICurrentUserService _userSvc;
+    private readonly IUserViewPreferenceRepository _prefs;
 
     public BdeTeilelisteController(BdeTeilelisteService svc, IBdeTerminalRepository terminals, IProductionWorkplaceRepository workplaces,
-        IBdeOperatorRepository operators, IAppSettingRepository settings, IFaHierarchyOrderInfoRepository orderInfos, ICurrentUserService userSvc)
+        IBdeOperatorRepository operators, IAppSettingRepository settings, IFaHierarchyOrderInfoRepository orderInfos, ICurrentUserService userSvc,
+        IUserViewPreferenceRepository prefs)
     {
         _svc = svc; _terminals = terminals; _workplaces = workplaces; _operators = operators; _settings = settings;
-        _orderInfos = orderInfos; _userSvc = userSvc;
+        _orderInfos = orderInfos; _userSvc = userSvc; _prefs = prefs;
+    }
+
+    /// <summary>E5 (Freigabe-Antwort 4): Filter je Terminal-Web-Benutzer, Werkbank und Werker - ohne Migration in UserViewPreference.</summary>
+    internal static string FilterSchluessel(int workplaceId, int operatorId) => $"BdeTL:W{workplaceId}:O{operatorId}";
+
+    /// <summary>Gespeicherter Filter: Wochen relativ zur aktuellen KW, damit "diese + naechste Woche" auch naechste Woche noch stimmt.</summary>
+    internal sealed record GespeicherterFilter(string? Sicht, int? KwVonOffset, int? KwBisOffset, bool GemeldeteZeigen, int? PageSize,
+        Dictionary<string, string>? Colf);
+
+    internal static int? WochenOffset(string? kw, DateTime heute) =>
+        IsoWeekRange.Parse(kw) is { } p
+            ? (int)((System.Globalization.ISOWeek.ToDateTime(p.Year, p.Week, DayOfWeek.Monday) - System.Globalization.ISOWeek.ToDateTime(
+                System.Globalization.ISOWeek.GetYear(heute), System.Globalization.ISOWeek.GetWeekOfYear(heute), DayOfWeek.Monday)).TotalDays / 7)
+            : null;
+
+    /// <summary>Gespeicherten Filter als Query-Werte fuer den Redirect (leere Woche bleibt als leerer Wert erhalten = bewusst kein KW-Filter).</summary>
+    internal static Microsoft.AspNetCore.Routing.RouteValueDictionary AlsQuery(int workplaceId, int operatorId, GespeicherterFilter f, DateTime heute)
+    {
+        var rv = new Microsoft.AspNetCore.Routing.RouteValueDictionary
+        {
+            ["workplaceId"] = workplaceId, ["operatorId"] = operatorId, ["sicht"] = f.Sicht ?? "einzeln",
+            ["kwVon"] = f.KwVonOffset is int v ? IsoWoche(heute.AddDays(7 * v)) : "",
+            ["kwBis"] = f.KwBisOffset is int b ? IsoWoche(heute.AddDays(7 * b)) : "",
+        };
+        if (f.GemeldeteZeigen) rv["gemeldete"] = true;
+        if (f.PageSize is int ps) rv["pageSize"] = ps;
+        foreach (var (k, wert) in f.Colf ?? new()) rv["colf_" + k] = wert;
+        return rv;
     }
 
     private async Task<bool> NurFaAsync() =>
@@ -75,9 +105,24 @@ public class BdeTeilelisteController : Controller
         vm.Werker = await AktiverWerkerAsync(operatorId);
         if (vm.Werker == null) return View("Anmelden", vm);
 
-        // Antwort 7: ohne Angaben die Vorgabe aktuelle KW bis +1
-        if (!Request.Query.Any(q => q.Key is "sicht" or "kwVon" or "kwBis" or "gemeldete" or "pageSize" || q.Key.StartsWith("colf_", StringComparison.Ordinal)))
+        // E5: ohne Filter-Angaben den gespeicherten Filter laden (Redirect, damit Spaltenfilter wie gewohnt aus der Query kommen),
+        // sonst Antwort 7: Vorgabe aktuelle KW bis +1. Jeder Filter-Aufruf speichert.
+        var uid = _userSvc.GetCurrentAppUserId();
+        var prefKey = FilterSchluessel(workplaceId, vm.Werker.Id);
+        var colf = ColumnFilterHelper.ReadFromQuery(Request);
+        if (!Request.Query.Any(q => q.Key is "sicht" or "kwVon" or "kwBis" or "gemeldete" or "pageSize" or "page" || q.Key.StartsWith("colf_", StringComparison.Ordinal)))
+        {
+            if (uid is int u && await _prefs.GetByUserAndViewAsync(u, prefKey) is { } pref
+                && TryLesen(pref.SettingsJson) is { } gespeichert)
+                return RedirectToAction(nameof(Index), AlsQuery(workplaceId, vm.Werker.Id, gespeichert, DateTime.Today));
             (kwVon, kwBis) = (IsoWoche(DateTime.Today), IsoWoche(DateTime.Today.AddDays(7)));
+        }
+        else if (uid is int u)
+        {
+            var f = new GespeicherterFilter(sicht, WochenOffset(kwVon, DateTime.Today), WochenOffset(kwBis, DateTime.Today), gemeldete, pageSize,
+                colf.Count > 0 ? colf : null);
+            await _prefs.SaveAsync(u, prefKey, System.Text.Json.JsonSerializer.Serialize(f), _userSvc.GetDisplayName(), _userSvc.GetWindowsUserName());
+        }
 
         vm.Summiert = string.Equals(sicht, "summiert", StringComparison.OrdinalIgnoreCase);
         vm.KwVon = kwVon; vm.KwBis = kwBis; vm.GemeldeteZeigen = gemeldete;
@@ -86,7 +131,6 @@ public class BdeTeilelisteController : Controller
         if (page < 1) page = 1;
         var userDefault = await _userSvc.GetDefaultPageSizeAsync();
         var size = PageSize.Resolve(pageSize, userDefault);
-        var colf = ColumnFilterHelper.ReadFromQuery(Request);
         var kw = IsoWeekRange.Resolve(kwVon, kwBis);
         var infos = await _orderInfos.GetAllAsync();
         vm.Kopf = VormontageService.BuildKopfLookup(infos);
@@ -156,6 +200,21 @@ public class BdeTeilelisteController : Controller
             keys.Select(k => new BdeTeilelisteService.MeldeAuftrag(k!, g, a)).ToList());
         TempData[ergebnis.AllesGut ? "SuccessMessage" : "WarningMessage"] = ergebnis.Text();
         return LocalRedirect(zurueck);
+    }
+
+    internal static GespeicherterFilter? TryLesen(string json)
+    {
+        try { return System.Text.Json.JsonSerializer.Deserialize<GespeicherterFilter>(json); }
+        catch (System.Text.Json.JsonException) { return null; } // kaputter Eintrag = Vorgabe; der naechste Filter-Aufruf ueberschreibt ihn
+    }
+
+    /// <summary>E5: "Filter zuruecksetzen" = gespeicherten Filter loeschen, zurueck auf die Vorgabe (aktuelle KW bis +1).</summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> FilterZuruecksetzen(int workplaceId, int operatorId)
+    {
+        if (_userSvc.GetCurrentAppUserId() is int u) await _prefs.DeleteByUserAndViewAsync(u, FilterSchluessel(workplaceId, operatorId));
+        return RedirectToAction(nameof(Index), new { workplaceId, operatorId });
     }
 
     /// <summary>E4 (F13): Werker nimmt seine eigene Meldung bis zum Schichtende zurueck; danach nur der BDE-Admin.</summary>

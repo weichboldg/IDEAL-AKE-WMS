@@ -208,4 +208,40 @@ public class BdeTeilelisteServiceTests
         else
             r.Should().BeOfType<ViewResult>();
     }
+
+    // ------------------------------------------------------------ Etappe 5: Filter speichern
+
+    [Fact]
+    public void Filter_WocheRelativ_RoundtripUeberJson()
+    {
+        var montag = new DateTime(2026, 11, 16); // KW 47
+        var f = new BdeTeilelisteController.GespeicherterFilter("summiert",
+            BdeTeilelisteController.WochenOffset("2026-W47", montag), BdeTeilelisteController.WochenOffset("2026-W48", montag), true, 50,
+            new Dictionary<string, string> { ["matchcode"] = "Blech*" });
+        (f.KwVonOffset, f.KwBisOffset).Should().Be((0, 1));
+
+        var gelesen = BdeTeilelisteController.TryLesen(System.Text.Json.JsonSerializer.Serialize(f))!;
+        var q = BdeTeilelisteController.AlsQuery(3, 7, gelesen, new DateTime(2026, 11, 25)); // eine Woche spaeter, KW 48
+
+        q["kwVon"].Should().Be("2026-W48");
+        q["kwBis"].Should().Be("2026-W49");
+        q["sicht"].Should().Be("summiert");
+        q["gemeldete"].Should().Be(true);
+        q["pageSize"].Should().Be(50);
+        q["colf_matchcode"].Should().Be("Blech*");
+        BdeTeilelisteController.FilterSchluessel(3, 7).Should().Be("BdeTL:W3:O7");
+    }
+
+    [Fact]
+    public void Filter_LeereWoche_BleibtLeer_JahreswechselStimmt_KaputtesJsonIstNull()
+    {
+        var f = new BdeTeilelisteController.GespeicherterFilter(null, null, null, false, null, null);
+        var q = BdeTeilelisteController.AlsQuery(1, 2, f, DateTime.Today);
+        (q["kwVon"], q["kwBis"]).Should().Be(("", ""));
+        q.ContainsKey("gemeldete").Should().BeFalse();
+
+        BdeTeilelisteController.WochenOffset("2027-W01", new DateTime(2026, 12, 23)).Should().Be(2); // 2026 hat 53 KW
+        BdeTeilelisteController.WochenOffset("unsinn", DateTime.Today).Should().BeNull();
+        BdeTeilelisteController.TryLesen("{kaputt").Should().BeNull();
+    }
 }
