@@ -1182,6 +1182,28 @@
                         </ul>
                     </dd>
 
+                    <dt>IDEAL: In Sage verschwundene FAs (seit v1.99.37)</dt>
+                    <dd>
+                        Der Dienst gleicht die FA-Struktur bei jedem Lauf mit Sage ab. Liefert Sage eine Zeile nicht mehr, fragt er
+                        Sage nach dem Grund und handelt danach:
+                        <ul class="mt-1 mb-1">
+                            <li><strong>FA in Sage beendet oder inaktiv:</strong> die Zeilen bleiben und tragen ein gelbes Schild
+                                &bdquo;in Sage beendet&ldquo; bzw. &bdquo;in Sage inaktiv&ldquo; (FA-Struktur, Kommissionierliste,
+                                Vormontage, Beschichtung, BDE-Teileliste). Der Mauszeiger zeigt, seit wann.</li>
+                            <li><strong>Grund nicht feststellbar:</strong> Schild &bdquo;in Sage ungeklärt&ldquo;; der Dienst schickt
+                                eine Fehlermail. Kommt die Zeile im naechsten Lauf wieder, verschwindet das Schild.</li>
+                            <li><strong>Position aus der Stueckliste geloescht</strong> oder <strong>FA in Sage geloescht</strong>:
+                                die Zeile wird entfernt.</li>
+                            <li><strong>BDE-Teileliste:</strong> Zeilen mit Schild sind sichtbar, aber nicht meldbar
+                                (&bdquo;FA in Sage beendet &ndash; nicht meldbar&ldquo;).</li>
+                            <li><strong>Aufraeumen:</strong> Eine vollstaendig verschwundene Struktur wird entfernt, sobald alle ihre
+                                WMS-Auftraege erledigt oder storniert sind, spaetestens nach
+                                <em>/ServiceSettings &rarr; FA-Hierarchie &rarr; Aufbewahrung verschwundener Strukturen</em>
+                                (Standard 90 Tage).</li>
+                            <li>Neue Arbeitsgaenge und WMS-Auftraege entstehen nur aus aktiven Zeilen.</li>
+                        </ul>
+                    </dd>
+
                     <dt>IDEAL: Arbeitsgaenge einer FA-Struktur ansehen (seit v1.45.0)</dt>
                     <dd>
                         In der <em>FA-Struktur (IDEAL)</em> traegt die Kopfzeile einer Struktur den Knopf

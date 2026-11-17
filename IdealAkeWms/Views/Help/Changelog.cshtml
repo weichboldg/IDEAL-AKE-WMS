@@ -9,6 +9,26 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.99.37</strong> <span class="text-white-50 ms-2">17.11.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>FA-Struktur (IDEAL): Abgleich statt Neuaufbau</h6>
+                <ul>
+                    <li>Der Dienst gleicht die FA-Struktur mit Sage ab, statt sie bei jedem Lauf neu aufzubauen. Unveränderte Zeilen bleiben unverändert.</li>
+                    <li>Eine FA, die Sage nicht mehr liefert, verschwindet nicht mehr sofort. Sie bleibt sichtbar und trägt ein gelbes Schild mit Text:
+                        <strong>„in Sage beendet“</strong>, <strong>„in Sage inaktiv“</strong> oder <strong>„in Sage ungeklärt“</strong>.
+                        Zu sehen in FA-Struktur, Kommissionierliste, Vormontage, Beschichtung und BDE-Teileliste.</li>
+                    <li>Aus der Stückliste gelöschte Positionen und FAs, die Sage gar nicht mehr kennt, werden entfernt.</li>
+                    <li>BDE-Teileliste: Zeilen mit diesem Schild lassen sich <strong>nicht melden</strong>.</li>
+                    <li>Aufräumen: Eine ganz verschwundene Struktur wird entfernt, sobald alle ihre WMS-Aufträge erledigt oder storniert sind,
+                        spätestens nach der Aufbewahrungsfrist (<em>/ServiceSettings → FA-Hierarchie</em>, Standard 90 Tage).</li>
+                    <li>Artikeltyp der Baugruppen kommt aus dem Artikel (SData-Vergleich).</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.99.36</strong> <span class="text-white-50 ms-2">17.11.2026</span>
             </div>
             <div class="card-body">

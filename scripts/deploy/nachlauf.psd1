@@ -508,5 +508,11 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
 @{ Id='v1.99.35-BlechteileFelder'; Version='1.99.35'; Typ='Einstellung'; Firma='IDEAL'; Phase='Nachher'; Ausfuehrung='anzeigen'
    Text='/ServiceSettings: Sync:BlechteileFelderNachlesen = true (SData-Zugang IDEAL vorhanden); nach dem naechsten Artikel-Abgleich Merkmale IstLagerartikel pruefen.'
    Quelle='2026-11-17-v1-99-35-blechfertigung-bf-auftraege' }
+@{ Id='v1.99.37-FaStrukturAufbewahrungTage'; Version='1.99.37'; Typ='Einstellung'; Firma='IDEAL'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Text='Optional: /ServiceSettings > FA-Hierarchie > Sync:FaStrukturAufbewahrungTage (Default 90, 1-3650). So lange bleibt eine vollstaendig in Sage verschwundene Struktur mit offenem WMS-Auftrag sichtbar; erledigte/stornierte werden sofort aufgeraeumt.'
+   Quelle='2026-11-17-v1-99-37-fa-struktur-abgleich' }
+@{ Id='v1.99.37-FaStrukturBeendetSichtbar'; Version='1.99.37'; Typ='Info'; Firma='IDEAL'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Text='Ab v1.99.37 bleiben in Sage beendete FAs in FA-Struktur, Kommissionierliste, Vormontage, Beschichtung und BDE-Teileliste sichtbar (gelbes Schild "in Sage beendet/inaktiv/ungeklaert"); in der BDE-Teileliste nicht meldbar. Nach dem ersten Lauf das Aktivitaetsprotokoll FA-Hierarchie auf verschwunden_unklar und sage_abfrage_fehler pruefen. Die Sage-Abfrage filtert noch nicht nach Mandant (P-AB4).'
+   Quelle='2026-11-17-v1-99-37-fa-struktur-abgleich' }
 )
 }
