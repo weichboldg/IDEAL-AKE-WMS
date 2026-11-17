@@ -2,7 +2,7 @@
 type: spec
 title: "Arbeitsgänge aus dem WMS in Sage-Fertigungsaufträgen anlegen (IDEAL) – Vorschau + Anlage"
 slug: 2026-11-17-arbeitsgaenge-aus-wms-in-sage-fa-anlegen-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-11-17
 updated: 2026-11-17
 source_backlog: "[[2026-10-30-fa-rueckmeldung-an-sage]]"
@@ -521,3 +521,141 @@ Befehle ein.
 
 ## Entscheidung Gerald 2026-11-17 19:52 (Umfang)
 Beide Etappen werden gebaut: E0 Vorschau und E1 Anlage; E1 hinter neuem Schalter, **Default aus**. Schreibtest an genau einem FA erst nach Freigabe Gerald.
+
+## Deploy (final, QA 2026-11-17 am echten Diff `1f0361dd..ab75c336`)
+
+- **Web:** ja (`IdealAkeWms/`: Controller, View, `SageFaArbeitsgaenge`, Repository, Menü, Hilfe, Settings-Katalog).
+- **Service:** ja (`IDEALAKEWMSService/`: `SageFaArbeitsgangService`, `SageFaArbeitsgangClient`, Schritt im `SageBookingWorker`).
+- **Migration:** ja, `20261117192807_AddSageFaArbeitsgangAnlagen` = `SQL/160_AddSageFaArbeitsgangAnlagen.sql` (additiv, eine Tabelle,
+  idempotent, in `00_FreshInstall.sql` an beiden Stellen, im Manifest). Kein Daten-Skript, kein DB-Backup-Sonderfall.
+- Reihenfolge: Dienst stoppen → Web + Dienst kopieren → SQL/160 (bzw. Migration beim ersten Request) → Dienst starten. Der Schalter
+  `SageFaArbeitsgaengeAnlegenAktiv` bleibt auf **jedem** System AUS (Manifest `v1.99.38-sage-fa-ag-schalter`).
+- **Publish:** vom QA-Lauf **nicht** erstellt (Auftrag Gerald 2026-11-17: kein Publish, macht Gerald später). Gerald publiziert aus dem
+  Worktree beide Komponenten:
+  `dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb` und
+  `dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService`, dann `SQL\` nach `publish\SQL\`,
+  `scripts\deploy\` nach `publish\deploy\`, `publish-info.txt` (Version 1.99.38, Commit HEAD).
+- Nach dem Merge nur dann neu aus `main` publizieren, wenn der Merge getestete Dateien mit parallelen main-Änderungen kombiniert hat.
+
+## QA-Nachweis E0 + E1a (qa-agent, 2026-11-17)
+
+Umfang: E0 + E1a, Commit-Bereich `1f0361dd..e5ce82da` + QA-Fix `ab75c336`. E1b (Schreibtest) ist nicht Teil dieses Laufs und bleibt blockiert.
+Grenzen eingehalten: nichts an Sage geschrieben (nur GET), Schalter auf keinem System an, keine Einstellung auf Test/Prod, kein Publish.
+
+### 1. Build und Tests (Worktree, HEAD `ab75c336`)
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler, 29 Warnungen (vorbestehend).
+- `IdealAkeWms.Tests`: 3249 bestanden, 1 übersprungen (`ProductionOrderEagerCreateAgentJobTests`, vorbestehend), 0 Fehler, gesamt 3250.
+- `IDEALAKEWMSService.Tests`: 766 bestanden, 0 übersprungen, 0 Fehler.
+- Vor dem QA-Fix: Web 3248/1/0, Service 766/0/0.
+
+### 2. Code-Review (selbst, in diesem Lauf)
+Geprüft: Controller (Index, Anlegen, ADR-0026-Prüfung), `SageFaArbeitsgaenge` (Lesen/Auswerten/Vorschau/QueueStatus), View (Confirm-Text,
+`hidden`/`d-*`, Knopf-Sperre), Repository (`EinreihenAsync`, App-Guard zum UNIQUE-Index), Modell + Migration + SQL/160 + FreshInstall,
+`SageFaArbeitsgangService`, `SageFaArbeitsgangClient` (Payload, Auswertung), `SageBookingWorker` (übrige Schritte unverändert, neuer
+Schritt im eigenen try, früher Ausstieg bei Schalter aus), `ServiceSettingDefinitions`, `SyncLogServices`, Manifest, Tests.
+
+| # | Schwere | Befund | Behandlung |
+|---|---|---|---|
+| F1 | Mittel | FA-Filter + „Sage-Stand prüfen": Gelesen wurde nur der gefilterte FA. Seine Unter-FAs (Knotenfilter `VaterFA == fa`) standen ohne Lesefehler und ohne Banner auf „Sage nicht lesbar". | **Behoben** `ab75c336` (alle SubFAs der angezeigten Knoten lesen) + Test `Index_FaFilter_Pruefen_LiestAuchDieUnterFas` (ohne Fix rot). |
+| F2 | Mittel | Der Name der Positionsliste `FaBelegArbeitsgangPositionen` widerspricht dem `$schema` (Lesetest L7: `PositionenArbeitsgang[]`). | **Behoben** `ab75c336`: `PositionenArbeitsgang`. Die Bestätigung am IDEAL-Ziel bleibt P-1. |
+| F3 | Mittel (blockiert nur E1b/Einschalten) | Die Erfolgsregel „Handle in der Antwort" ist schwach. Der Request schickt selbst `Handle` = BelID, und die Antwort trägt laut L7 den FA-Handle. Eine 2xx-Antwort ohne ErrorText, die die AG nicht anlegt, gälte deshalb als „angelegt". Weil der Queue-Status in der Vorschau vor dem Live-Stand gewinnt, würde das nie korrigiert. | **Offen**, bewusst nicht spekulativ umgebaut. Vor E1b die Regel an das Positionsergebnis binden (neue `BelPosID`/`PositionHandle` der AG bzw. Nachlesen der AG am FA), mit der echten Antwort aus dem Schreibtest. |
+| H1 | Niedrig | Das oberste `Handle`-Feld im Request steht evtl. nicht im Schema. `RessourceTyp` wird als Zahl 1 gesendet, gelesen kommt der Text `AG`. | P-1/P-2, vor E1b per `$template` prüfen. |
+| H2 | Niedrig | Bei Schalter aus bleiben schon eingereihte Zeilen `Offen`. Nach dem Einschalten würden sie gesendet (mit Lookup). | Hinweis für das Einschalten, kein Fix. |
+| H3 | Niedrig | Das DEV-Sicherheits-SQL (`dev-deploy.ps1`) setzt den neuen Schalter nicht explizit aus (Default false, in beiden DEV-DBs `false` geprüft). | Hinweis. Das Skript liegt außerhalb des Repos. |
+| H4 | Niedrig | TS-159.9–159.11 verlangen den Schalter auf DEV. Das widerspricht der Grenze Gerald; die Schritte bleiben für E1b. | Hinweis. |
+| H5 | Niedrig, Zusatzfund (nicht dieser Zweig) | Eine Seite jenseits des Endes (`page=2`, 8 Treffer) zeigt „Eintraege 26–8 von 8" – gemeinsames `_Pagination`/`PageSize`-Verhalten. | Nur gemeldet. |
+
+Abweichungen des Umsetzers bewertet, alle akzeptiert:
+- Ein SData-Aufruf je AG: liefert ein eindeutiges Ergebnis je AG.
+- `ISageFaStandLookup` im Dienst: der Lookup läuft vor jedem Senden, durch Tests belegt.
+- Knopf erst nach „Sage-Stand prüfen": sonst „nicht geprüft" = nicht anlegbar, konsistent mit AC2.
+- „unklar" als Text-Präfix ohne eigene Spalte: wird nie automatisch wiederholt (Test `Unklar_UndHaengend_NieAutomatischWiederholt`).
+- Eine Fehler-Mail je Lauf.
+- Hänge-Grenze über `Sync:SageLagerbuchungStuckMinutes`: wiederverwendet, kein neuer Key.
+- Kein ADR 0033, nur Fallstrick 49: Muster Wareneingang, akzeptabel.
+- TODOs P-1..P-5 im Client: Schalter aus, E1b blockiert.
+
+Spezialprüfungen:
+- Confirm-Text per `JavaScriptEncoder.Default.Encode` im `onsubmit` (Anführungszeichen/`<>&` als `\uXXXX`): sicher.
+- Kein `hidden` zusammen mit `d-*`.
+- Keine stillen `?? 0`-Fallbacks im Schreibpfad: eine fehlende Menge ergibt einen Fehler und zählt als „übersprungen".
+- Der Server prüft Schalter und Ziel-Stand am Schreibort (ADR 0026), und der Dienst liest Sage unmittelbar vor jedem Senden.
+- Keine Regel, die in mehreren Sprachen umgesetzt ist (Status nur in C#).
+
+**P-5 am IDEAL-Test gelesen (GET, `PpsFaBelegePositionenInfo` BelID 1069418):**
+- Die AG-Position Pos. 7 hat `RessourceTyp = "AG"`, `RessourceNummer = "401"` (Montage), `ArbeitsgangNummer` leer, `RessourceTypAg = 1` und `RessourceNummerAg = "3001"` (Arbeitsplatz).
+- Die Sage-AG-Nummer steht an AG-Positionen also in `RessourceNummer`. Der Vergleich im Code (Filter `RessourceTyp` „AG", Treffer auf `ArbeitsgangNummer` **oder** `RessourceNummer`) passt dazu.
+- `PpsFaBelegeInfo` liefert `IstBegonnen`/`IstBeendet`/`IstGesperrt`/`Aktiv`/`Fertigungmenge` so, wie der Code sie liest.
+
+### 3. Nachweisart je AC
+| AC | Nachweis |
+|---|---|
+| 1 | Test `Ak1_SiebenZeilen_…` + DEV IDEAL (mit gesetzten Test-Nummern) OK |
+| 2 | Test (Strict-Mock ohne Sage) + DEV-Log: ohne „prüfen" keine SData-Zeile |
+| 3 | „anlegbar": DEV OK (1065153 u. a.). „in Sage schon vorhanden": nur Test `MitSageStand_Status_JeRegel…`, **Manual-UAT** (kein DEV-FA hatte passende AG-Positionen) |
+| 4 | Test + DEV OK (1059463 „FA beendet/gesperrt") |
+| 5 | Test `Blaetter_Gezaehlt_Verschwundene_Weg…` |
+| 6 | Spaltenfilter-Map + Pagination: DEV OK (82 Zeilen, Seitenwechsel). Filter je Spalte **Manual-UAT** |
+| 7 | CSV: **Manual-UAT** (Download nicht ausgelöst) |
+| 8 | Test `SageFehler_KeineZeileAnlegbar` + Banner-Zweige im Controller. Banner auf DEV **nicht geprüft** (dafür hätte die SData-Einstellung geändert werden müssen), Manual-UAT |
+| 9 | DEV OK (manuelle Nummern in `/OperationConfigs` → Vorschau, nach App-Pool-Recycle) |
+| 10 | Test `SchalterAus_NichtsEingereiht_Warnung` + DEV: kein Knopf, grauer Hinweis „ausgeschaltet" |
+| 11–14 | Nur Unit-Tests mit Fake-Client (`Senden_InReihenfolge…`, `AgSchonInSage_KeinPost…`, `GesperrterFa_KeinPost…`, `SageFehler_Fehler…`): **Manual-UAT/E1b**, nicht als grün gezählt |
+| 15 | Test (Counts, Logname, DI). Echter Protokolleintrag **Manual-UAT/E1b** |
+| 16 | Test `NurAdmin` (Attribut). Zugriff mit Nicht-Admin **Manual-UAT** |
+| 17 | Drift-Guard grün + DEV `/ServiceSettings`: Anzeigename, Verwendung (Web/Dienst), Wirkung und Warnhinweis sichtbar |
+
+### 4. Geänderte bestehende Tests
+- `NachlaufManifestDriftTests.cs`: `"SQL/160"` in der erwarteten Liste ergänzt. Listen-Ergänzung, gewollt (neue Migration). Sonst nur neue Testdateien.
+
+### 5. Checkliste / ADR 0020
+- Migration + `SQL/160` mit `OBJECT_ID`-Guard und separatem History-Batch ✔
+- `00_FreshInstall.sql` an beiden Stellen ✔
+- Audit (`AuditableEntity`, `ModifiedAt/By/ByWindows` beim Wieder-Einreihen und im Dienst) ✔
+- Version 1.99.38 in beiden `AppVersion.cs`, Anwender- + Brain-Changelog ✔
+- TS-159 in `docs/TESTSZENARIEN.md` + Index Zeile 159 ✔
+- Manifest `nachlauf.psd1` (SQL/160, Prüfung, Schalter, Info) ✔
+- AgentJobs nicht betroffen ✔
+
+ADR 0020:
+- 4 Keys im Katalog mit Anzeigename, Wirkung, Verwendung, Default und Standort.
+- Der Schalter ist eine Checkbox mit Warnhinweis.
+- Die Zahlen haben die Bereiche 0–10 / 5–1440 und werden serverseitig geprüft.
+- Der Bearbeiter ist Freitext. Im WMS gibt es keinen Stammdatenverweis dafür, die Gültigkeit prüft Sage (P-4). Akzeptiert.
+
+### 6. DEV-Deploy und Testlauf
+- Die Zielordner wurden vor jedem Deploy geleert; behalten wurden nur `appsettings.DEV.json*`, `App_Data` und `logs`.
+- `dev-deploy.ps1 -Standort AKE|IDEAL -Quelle <Worktree>` lief zweimal (vor und nach dem QA-Fix), Exit 0, Footer **v1.99.38** auf :8081 und :8082.
+- Migration `20261117192807` ist in beiden DEV-DBs eingetragen, Tabelle + `PK`/`IX_Status`/`UX_BelId_Ag` sind vorhanden.
+- Schalter `false`, Bearbeiter leer (beide DEV-DBs, nach dem Test erneut geprüft).
+
+| Schritt | Ergebnis |
+|---|---|
+| 159.1 Vorschau Haupt-FA 1059463 | OK – 7 Zeilen, ISO/MK „Kürzel ohne Sage-AG", 82 Zeilen gesamt, Pagination |
+| 159.2 doppelte Kürzel | nur Test (kein DEV-FA mit Dublette gefunden) |
+| 159.3 Blätter | OK – Hinweis „149 Blatt-Position(en)…" |
+| 159.4/159.5 Sage-Stand prüfen | OK – nur GET (Web-Log: „Sage-Stand fuer 68 FA(s) lesen", <1 s). 1059463 beendet; 1065153/55/66 u. a. „anlegbar". Der FA-Filter 1059463 zeigt auch die Unter-FAs korrekt (F1-Fix) |
+| 159.6 Banner Sage nicht lesbar | NICHT GEPRÜFT (bräuchte eine Änderung an `SData:BaseUrl`) |
+| 159.7 >500 FAs | NICHT MÖGLICH (DEV IDEAL hat zu wenige FAs) |
+| 159.8 Schalter aus | OK – kein Knopf, grauer Hinweis. Direkter POST nur per Test |
+| 159.9–159.12, 159.16 Schalter an / Senden | NICHT MÖGLICH (Grenze Gerald: Schalter auf keinem System an, nichts an Sage schreiben) |
+| 159.13 AKE | OK – :8081/SageFaArbeitsgaenge leitet mit Hinweis „nur mit hierarchischen Produktionsaufträgen (IDEAL)" aufs Dashboard |
+| 159.14 ServiceSettings | OK – 4 Einträge mit Texten. Dienst-Log und `SyncLogs` ohne Eintrag `SageFaArbeitsgaenge` (Schalter aus) |
+| 159.15 SQL/160 erneut | OK – Exit 0, keine Ausgabe, eine History-Zeile |
+| 159.x1–x5 | E1b, nicht Teil dieses Laufs |
+
+DEV-Testdaten zurückgesetzt: `OperationConfigs.SageArbeitsgangnummerManuell` für die Ids 28/29/30/33/35 wieder `NULL`, App-Pool `IDEAL_WMS_DEV`
+recycelt. `SageFaArbeitsgangAnlagen` ist in beiden DEV-DBs leer.
+
+### 7. Publish
+Nicht durchgeführt (Auftrag Gerald), siehe Deploy-Abschnitt.
+
+### Manuelle Checkliste für Gerald (offen)
+1. Publish aus dem Worktree (beide Komponenten), dann Deploy auf das IDEAL-Testsystem inkl. SQL/160. Der Schalter bleibt aus.
+2. TS-159.1–159.5 auf dem Testsystem mit echten Sage-Nummern in `/OperationConfigs` durchgehen. Einen FA mit vorhandener AG-Position suchen und prüfen, dass er „in Sage schon vorhanden" zeigt (AC3).
+3. TS-159.6 Banner (SData leer/unerreichbar), CSV-Export (AC7) und Spaltenfilter je Spalte (AC6) prüfen.
+4. Zugriff mit einem Nicht-Admin auf Vorschau und POST prüfen (AC16).
+5. Vor E1b: P-1/P-2/P-4 per GET `$template`/`$schema` FertigungsauftragService am IDEAL-Ziel klären (Feldnamen `Handle`, `PositionenArbeitsgang`, `RessourceTyp` Zahl/Text, Bearbeiter).
+6. Vor E1b: **F3** lösen, also die Erfolgsregel an die angelegte Position binden (bzw. nach dem Senden nachlesen).
+7. E1b nur nach Freigabe: Schreibtest an genau einem FA am IDEAL-Test (TS-159.9–159.12, 159.16, 159.x).
+8. Danach Merge (Schranke 2).

@@ -20,7 +20,7 @@ Nummern beim Start geprüft (Worktree `1f0361dd`): Version **1.99.38**, SQL **16
 
 | Spec | Typ | SQL | Version | Status | Commits | Blocker |
 |---|---|---|---|---|---|---|
-| [[2026-11-17-arbeitsgaenge-aus-wms-in-sage-fa-anlegen-spec]] | Epic | 160 | 1.99.38 | InUmsetzung (feature-complete, qa-agent ausstehend) | `825b8f58` `52a44b71` `e5ce82da` | E1b Schreibtest (Freigabe Gerald, Rückfrage 7); Feldnamen P-1..P-4 |
+| [[2026-11-17-arbeitsgaenge-aus-wms-in-sage-fa-anlegen-spec]] | Epic | 160 | 1.99.38 | **Testbereit** (QA 2026-11-17) | `825b8f58` `52a44b71` `e5ce82da` + QA-Fix `ab75c336` | E1b Schreibtest (Freigabe Gerald, Rückfrage 7); Feldnamen P-1..P-4 |
 
 ## Protokoll
 
@@ -30,3 +30,8 @@ Nummern beim Start geprüft (Worktree `1f0361dd`): Version **1.99.38**, SQL **16
   an, kein Publish. Brain: Spec-Nachweis, [[2026-11-17-v1-99-38-arbeitsgaenge-in-sage-fa-anlegen]], Fallstrick 49, kein ADR 0033 (Muster Wareneingang).
 - **Nächste Schritte:** qa-agent (Publish Paket 3 nach `<Worktree>\publish\paket3-v1.99.38\`, TS-159 auf IDEAL-DEV mit leerem Bearbeiter);
   P-1..P-5 per GET am IDEAL-Ziel; danach E1b Schreibtest nur nach Freigabe Gerald.
+- 2026-11-17 qa-agent: **Testbereit** (E0 + E1a). QA-Fix `ab75c336` (F1 Unter-FAs beim FA-Filter mitlesen, F2 Positionsliste
+  `PositionenArbeitsgang`). Build 0 Fehler; Web 3249/1 übersprungen, Service 766 grün. DEV AKE + IDEAL v1.99.38 deployt (Ordner vorher
+  geleert), TS-159 lesend durch, Schalter aus, DEV-Testdaten zurückgesetzt. P-5 gelesen: AG-Nummer steht an AG-Positionen in
+  `RessourceNummer`. **Offen vor E1b:** F3 Erfolgsregel an die angelegte Position binden, P-1/P-2/P-4. **Kein Publish** (Auftrag Gerald,
+  abweichend von der Planung oben „Paket 3"). Nachweis und Checkliste in der Spec.
