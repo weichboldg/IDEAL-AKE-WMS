@@ -1,0 +1,30 @@
+@model IdealAkeWms.Models.ViewModels.BdeTeilelisteViewModel
+@{
+    ViewData["Title"] = "BDE-Teileliste – Anmelden";
+}
+<link rel="stylesheet" href="~/css/bde.css" asp-append-version="true" />
+
+<div class="container-fluid bde-terminal">
+    <h2>BDE-Teileliste <span class="badge bg-secondary align-middle">@Model.Werkbank.Name · Kürzel @Model.Kuerzel</span></h2>
+    <div class="card mt-3" style="max-width: 40rem;">
+        <div class="card-header">Werker anmelden</div>
+        <div class="card-body">
+            <form method="get" asp-action="Index">
+                <input type="hidden" name="workplaceId" value="@Model.Werkbank.Id" />
+                <label for="personalnummer" class="form-label">Personalnummer</label>
+                <div class="input-group">
+                    @* data-hw-scan-ziel (v1.66.0): Hardware-Scan landet ohne Fokus hier, Enter sendet das Formular. *@
+                    <input type="text" id="personalnummer" name="personalnummer" class="form-control form-control-lg" autocomplete="off"
+                           placeholder="Personalnummer scannen…" autofocus required data-hw-scan-ziel
+                           aria-describedby="@(Model.AnmeldeFehler != null ? "anmeldeFehler" : null)" />
+                    <button type="submit" class="btn btn-primary btn-lg">Anmelden</button>
+                </div>
+                @if (Model.AnmeldeFehler != null)
+                {
+                    <div id="anmeldeFehler" class="text-danger mt-2" role="alert">@Model.AnmeldeFehler</div>
+                }
+            </form>
+            <p class="small text-muted mt-3 mb-0">Ohne angemeldeten Werker wird keine Liste angezeigt. Filter werden je Werker und Werkbank gespeichert.</p>
+        </div>
+    </div>
+</div>

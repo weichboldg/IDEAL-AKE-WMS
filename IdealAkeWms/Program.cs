@@ -133,6 +133,7 @@ builder.Services.AddScoped<BeschichtungsauftragWorkflow>();
 builder.Services.AddScoped<BeschichtungsauftragVergabeAnzeige>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<VormontageService>();
+builder.Services.AddScoped<BdeTeilelisteService>(); // v1.99.32
 builder.Services.AddSingleton<IBarcodeService, BarcodeService>();
 builder.Services.AddScoped<IWorkOperationRepository, WorkOperationRepository>();
 builder.Services.AddScoped<IOseonProductionOrderRepository, OseonProductionOrderRepository>();

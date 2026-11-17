@@ -1,0 +1,160 @@
+@model IdealAkeWms.Models.ViewModels.BdeTeilelisteViewModel
+@using IdealAkeWms.Services
+@{
+    ViewData["Title"] = "BDE-Teileliste";
+    const int colCount = 19;
+}
+<link rel="stylesheet" href="~/css/bde.css" asp-append-version="true" />
+
+<div class="container-fluid bde-terminal">
+    <partial name="_Kopf" model="Model" />
+
+    <div class="d-flex justify-content-end mb-1" data-table-toolbar></div>
+    <div class="table-responsive">
+        <table class="table table-sm table-striped align-middle mb-0 filterable-table bde-teileliste" data-view-key="BdeTeileliste" data-server-column-filter="true">
+            <thead>
+                <tr>
+                    <th data-col-key="auswahl"><span class="visually-hidden">Auswahl</span></th>
+                    <th data-filterable data-col-key="matchcode">Matchcode</th>
+                    <th class="text-end" data-filterable data-filter-type="number" data-col-key="sollmenge">Menge</th>
+                    <th data-filterable data-col-key="hauptfa">Hauptauftrag</th>
+                    <th data-filterable data-col-key="montage-abteilung">Abteilung</th>
+                    <th class="text-nowrap" data-filterable data-col-key="fe-termin" data-date-filter>FE-Termin</th>
+                    <th data-filterable data-col-key="material">Material</th>
+                    <th data-filterable data-col-key="artnr">Artikelnummer</th>
+                    <th data-filterable data-col-key="subfa">Sub-FA</th>
+                    <th data-filterable data-col-key="vaterfa">Vater-Sub-FA</th>
+                    <th data-filterable data-col-key="position">Position</th>
+                    <th data-filterable data-col-key="arbeitsschritte">Arbeitsschritte</th>
+                    <th data-filterable data-col-key="arbeitsbereich">Arbeitsbereich</th>
+                    <th data-filterable data-col-key="kunde">Kunde</th>
+                    <th data-filterable data-col-key="bemerkungpn">Bemerkung PN</th>
+                    <th data-filterable data-col-key="fertigungsinfopn">Fertigungsinfo PN</th>
+                    <th data-filterable data-col-key="bezeichnung">Bezeichnung</th>
+                    <th data-col-key="status">Status</th>
+                    <th data-col-key="aktion"><span class="visually-hidden">Aktion</span></th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (!Model.Zeilen.Any())
+                {
+                    <tr><td colspan="@colCount" class="text-center text-muted py-4">Keine offenen Teile mit Kürzel @Model.Kuerzel im gewählten Zeitraum.</td></tr>
+                }
+                @for (var i = 0; i < Model.Zeilen.Count; i++)
+                {
+                    var z = Model.Zeilen[i];
+                    var n = z.Node;
+                    var k = Model.Kopf.GetValueOrDefault(n.HauptFA);
+                    <tr>
+                        <td></td>
+                        <td>
+                            @n.Matchcode
+                            @if (z.IstBaugruppe)
+                            {
+                                <span class="badge text-bg-dark ms-1">Baugruppe</span>
+                            }
+                        </td>
+                        <td class="text-end">@VormontageService.FormatMenge(n.Sollmenge)</td>
+                        <td>@n.HauptFA</td>
+                        <td>@k?.Abteilung</td>
+                        <td>@k?.FeTermin</td>
+                        <td>@n.Material</td>
+                        <td>@n.Artnr</td>
+                        <td>@(n.SubFA == 0 ? null : n.SubFA)</td>
+                        <td>@n.VaterFA</td>
+                        <td>@n.Position</td>
+                        <td>@n.Arbeitsschritte</td>
+                        <td>@n.Arbeitsbereich</td>
+                        <td>@k?.Kunde</td>
+                        <td>@n.BemerkungPN</td>
+                        <td>@n.FertigungsInfoPN</td>
+                        <td>@n.Bezeichnung1</td>
+                        <td>
+                            @if (z.Meldung != null)
+                            {
+                                <span class="text-success-emphasis fw-semibold">&#10003; gemeldet</span>
+                                <div class="small">von @z.Meldung.BdeOperator?.DisplayName, @z.Meldung.GemeldetAm.ToString("dd.MM. HH:mm"),
+                                    Gut @VormontageService.FormatMenge(z.Meldung.GoodQuantity) / Ausschuss @VormontageService.FormatMenge(z.Meldung.ScrapQuantity)</div>
+                            }
+                            else if (!z.Eindeutig)
+                            {
+                                <span class="text-danger-emphasis fw-semibold">&#9888; Strukturzeile nicht eindeutig – bitte AV</span>
+                            }
+                            else
+                            {
+                                <span>offen</span>
+                            }
+                            @if (z.KeinWmsAuftrag)
+                            {
+                                <div class="small text-muted">kein WMS-Auftrag</div>
+                            }
+                        </td>
+                        <td class="text-nowrap">
+                            @if (z.IstBaugruppe)
+                            {
+                                <button type="button" class="btn btn-outline-secondary bde-touch" data-bs-toggle="collapse" data-bs-target="#kinder-@i"
+                                        aria-expanded="false" aria-controls="kinder-@i">Teile (@z.Kinder.Count)</button>
+                            }
+                        </td>
+                    </tr>
+                    @if (z.IstBaugruppe)
+                    {
+                        <tr class="collapse" id="kinder-@i">
+                            <td colspan="@colCount" class="bg-body-tertiary">
+                                <div class="small fw-semibold mb-1">Teile der Baugruppe @n.Matchcode (Sub-FA @n.SubFA) – nur Anzeige</div>
+                                @if (!z.Kinder.Any())
+                                {
+                                    <div class="small text-muted">keine Teile in der Struktur</div>
+                                }
+                                else
+                                {
+                                    <ul class="list-unstyled mb-0 small">
+                                        @foreach (var kind in z.Kinder)
+                                        {
+                                            <li>Pos. @kind.Position · <strong>@kind.Matchcode</strong> · Menge @VormontageService.FormatMenge(kind.Sollmenge) · Arbeitsschritte @(kind.Arbeitsschritte ?? "–")</li>
+                                        }
+                                    </ul>
+                                }
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <partial name="_Pagination" model="Model.Pagination" />
+</div>
+
+<script type="application/json" id="view-config">
+{ "viewKey": "BdeTeileliste", "supportsReorder": true, "supportsSortDefault": false }
+</script>
+<script type="application/json" id="column-config">
+[
+    { "key": "auswahl", "label": "Auswahl", "locked": true, "defaultWidth": null },
+    { "key": "matchcode", "label": "Matchcode", "locked": true, "defaultWidth": null },
+    { "key": "sollmenge", "label": "Menge", "locked": false, "defaultWidth": null },
+    { "key": "hauptfa", "label": "Hauptauftrag", "locked": false, "defaultWidth": null },
+    { "key": "montage-abteilung", "label": "Abteilung", "locked": false, "defaultWidth": null },
+    { "key": "fe-termin", "label": "FE-Termin", "locked": false, "defaultWidth": null },
+    { "key": "material", "label": "Material", "locked": false, "defaultWidth": null },
+    { "key": "artnr", "label": "Artikelnummer", "locked": false, "defaultWidth": null, "defaultHidden": true },
+    { "key": "subfa", "label": "Sub-FA", "locked": false, "defaultWidth": null, "defaultHidden": true },
+    { "key": "vaterfa", "label": "Vater-Sub-FA", "locked": false, "defaultWidth": null, "defaultHidden": true },
+    { "key": "position", "label": "Position", "locked": false, "defaultWidth": null, "defaultHidden": true },
+    { "key": "arbeitsschritte", "label": "Arbeitsschritte", "locked": false, "defaultWidth": null, "defaultHidden": true },
+    { "key": "arbeitsbereich", "label": "Arbeitsbereich", "locked": false, "defaultWidth": null, "defaultHidden": true },
+    { "key": "kunde", "label": "Kunde", "locked": false, "defaultWidth": null, "defaultHidden": true },
+    { "key": "bemerkungpn", "label": "Bemerkung PN", "locked": false, "defaultWidth": null, "defaultHidden": true },
+    { "key": "fertigungsinfopn", "label": "Fertigungsinfo PN", "locked": false, "defaultWidth": null, "defaultHidden": true },
+    { "key": "bezeichnung", "label": "Bezeichnung", "locked": false, "defaultWidth": null, "defaultHidden": true },
+    { "key": "status", "label": "Status", "locked": true, "defaultWidth": null },
+    { "key": "aktion", "label": "Aktion", "locked": true, "defaultWidth": null }
+]
+</script>
+
+@section Scripts {
+    <script src="~/js/column-preferences.js" asp-append-version="true"></script>
+    <script src="~/js/table-filter.js" asp-append-version="true"></script>
+    <script src="~/js/bde-teileliste.js" asp-append-version="true"></script>
+}

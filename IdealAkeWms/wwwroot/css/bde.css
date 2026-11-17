@@ -76,3 +76,7 @@
 #toastContainer .toast { min-width: 250px; font-size: 1.1rem; }
 #todayHistory .table { font-size: 0.9rem; }
 #todayHistory .badge { font-size: 0.8rem; }
+
+/* v1.99.32 BDE-Teileliste: Bedienelemente mindestens 44px hoch (Touch am Terminal, WCAG 2.5.5). */
+.bde-touch { min-height: 44px; display: inline-flex; align-items: center; }
+.bde-teileliste .form-check-input { width: 1.6em; height: 1.6em; }

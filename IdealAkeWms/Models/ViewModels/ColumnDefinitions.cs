@@ -447,6 +447,49 @@ public static class ColumnDefinitions
         ]
     };
 
+    /// <summary>v1.99.32 BdeTeileliste/Index.cshtml (Sicht „Einzeln“). Spalten identisch zum inline #column-config JSON der View.</summary>
+    public static readonly ViewConfig BdeTeileliste = new("BdeTeileliste", "BDE-Teileliste — Einzeln", SupportsReorder: true, SupportsSortDefault: false)
+    {
+        Columns =
+        [
+            new ColumnDef("auswahl", "Auswahl", Locked: true),
+            new ColumnDef("matchcode", "Matchcode", Locked: true),
+            new ColumnDef("sollmenge", "Menge", Locked: false),
+            new ColumnDef("hauptfa", "Hauptauftrag", Locked: false),
+            new ColumnDef("montage-abteilung", "Abteilung", Locked: false),
+            new ColumnDef("fe-termin", "FE-Termin", Locked: false),
+            new ColumnDef("material", "Material", Locked: false),
+            new ColumnDef("artnr", "Artikelnummer", Locked: false, DefaultHidden: true),
+            new ColumnDef("subfa", "Sub-FA", Locked: false, DefaultHidden: true),
+            new ColumnDef("vaterfa", "Vater-Sub-FA", Locked: false, DefaultHidden: true),
+            new ColumnDef("position", "Position", Locked: false, DefaultHidden: true),
+            new ColumnDef("arbeitsschritte", "Arbeitsschritte", Locked: false, DefaultHidden: true),
+            new ColumnDef("arbeitsbereich", "Arbeitsbereich", Locked: false, DefaultHidden: true),
+            new ColumnDef("kunde", "Kunde", Locked: false, DefaultHidden: true),
+            new ColumnDef("bemerkungpn", "Bemerkung PN", Locked: false, DefaultHidden: true),
+            new ColumnDef("fertigungsinfopn", "Fertigungsinfo PN", Locked: false, DefaultHidden: true),
+            new ColumnDef("bezeichnung", "Bezeichnung", Locked: false, DefaultHidden: true),
+            new ColumnDef("status", "Status", Locked: true),
+            new ColumnDef("aktion", "Aktion", Locked: true),
+        ]
+    };
+
+    /// <summary>v1.99.32 BdeTeileliste/Summiert.cshtml. Spalten identisch zum inline #column-config JSON der View.</summary>
+    public static readonly ViewConfig BdeTeilelisteSummiert = new("BdeTeilelisteSummiert", "BDE-Teileliste — Summiert", SupportsReorder: true, SupportsSortDefault: false)
+    {
+        Columns =
+        [
+            new ColumnDef("auswahl", "Auswahl", Locked: true),
+            new ColumnDef("matchcode", "Matchcode", Locked: true),
+            new ColumnDef("sollmenge", "Summe Menge", Locked: false),
+            new ColumnDef("anzahl", "Positionen", Locked: false),
+            new ColumnDef("hauptfa", "Hauptaufträge", Locked: false),
+            new ColumnDef("montage-abteilung", "Abteilung", Locked: false),
+            new ColumnDef("fe-termin", "FE-Termine", Locked: false),
+            new ColumnDef("status", "Offen", Locked: true),
+        ]
+    };
+
     /// <summary>
     /// FaHierarchyVormontage/Summiert.cshtml columns (IDEAL Teil 5, Sicht 2 "Summiert").
     /// Flache, nicht gruppierte Tabelle (ein &lt;tbody&gt;) -> SupportsSortDefault: true
@@ -752,6 +795,8 @@ public static class ColumnDefinitions
         "FaHierarchyBeschichtungSummiert" => FaHierarchyBeschichtungSummiert,
         "FaHierarchyVormontageEinzeln"   => FaHierarchyVormontageEinzeln,
         "FaHierarchyVormontageSummiert"  => FaHierarchyVormontageSummiert,
+        "BdeTeileliste"  => BdeTeileliste,
+        "BdeTeilelisteSummiert"  => BdeTeilelisteSummiert,
         "FaHierarchyStructure"           => FaHierarchyStructure,
         "Beschichtungsauftraege"         => Beschichtungsauftraege,
         "PurchaseProposals"              => PurchaseProposals,

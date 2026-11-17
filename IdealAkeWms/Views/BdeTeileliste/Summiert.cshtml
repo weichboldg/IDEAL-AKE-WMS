@@ -1,0 +1,72 @@
+@model IdealAkeWms.Models.ViewModels.BdeTeilelisteViewModel
+@using IdealAkeWms.Services
+@{
+    ViewData["Title"] = "BDE-Teileliste – Summiert";
+    const int colCount = 8;
+}
+<link rel="stylesheet" href="~/css/bde.css" asp-append-version="true" />
+
+<div class="container-fluid bde-terminal">
+    <partial name="_Kopf" model="Model" />
+
+    <div class="d-flex justify-content-end mb-1" data-table-toolbar></div>
+    <div class="table-responsive">
+        <table class="table table-sm table-striped align-middle mb-0 filterable-table bde-teileliste" data-view-key="BdeTeilelisteSummiert" data-server-column-filter="true">
+            <thead>
+                <tr>
+                    <th data-col-key="auswahl"><span class="visually-hidden">Auswahl</span></th>
+                    <th data-filterable data-col-key="matchcode">Matchcode</th>
+                    <th class="text-end" data-filterable data-filter-type="number" data-col-key="sollmenge">Summe Menge</th>
+                    <th class="text-end" data-filterable data-filter-type="number" data-col-key="anzahl">Positionen</th>
+                    <th data-filterable data-col-key="hauptfa">Hauptaufträge</th>
+                    <th data-filterable data-col-key="montage-abteilung">Abteilung</th>
+                    <th class="text-nowrap" data-filterable data-col-key="fe-termin" data-date-filter>FE-Termine</th>
+                    <th data-col-key="status">Offen</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (!Model.Aggregate.Any())
+                {
+                    <tr><td colspan="@colCount" class="text-center text-muted py-4">Keine offenen Teile mit Kürzel @Model.Kuerzel im gewählten Zeitraum.</td></tr>
+                }
+                @foreach (var a in Model.Aggregate)
+                {
+                    <tr>
+                        <td></td>
+                        <td>@a.Matchcode</td>
+                        <td class="text-end">@VormontageService.FormatMenge(a.SummeSollmenge)</td>
+                        <td class="text-end">@a.Anzahl</td>
+                        <td>@a.HauptFas</td>
+                        <td>@a.Abteilungen</td>
+                        <td>@a.FeTermine</td>
+                        <td>@a.OffeneSchluessel.Count offen</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <partial name="_Pagination" model="Model.Pagination" />
+</div>
+
+<script type="application/json" id="view-config">
+{ "viewKey": "BdeTeilelisteSummiert", "supportsReorder": true, "supportsSortDefault": false }
+</script>
+<script type="application/json" id="column-config">
+[
+    { "key": "auswahl", "label": "Auswahl", "locked": true, "defaultWidth": null },
+    { "key": "matchcode", "label": "Matchcode", "locked": true, "defaultWidth": null },
+    { "key": "sollmenge", "label": "Summe Menge", "locked": false, "defaultWidth": null },
+    { "key": "anzahl", "label": "Positionen", "locked": false, "defaultWidth": null },
+    { "key": "hauptfa", "label": "Hauptaufträge", "locked": false, "defaultWidth": null },
+    { "key": "montage-abteilung", "label": "Abteilung", "locked": false, "defaultWidth": null },
+    { "key": "fe-termin", "label": "FE-Termine", "locked": false, "defaultWidth": null },
+    { "key": "status", "label": "Offen", "locked": true, "defaultWidth": null }
+]
+</script>
+
+@section Scripts {
+    <script src="~/js/column-preferences.js" asp-append-version="true"></script>
+    <script src="~/js/table-filter.js" asp-append-version="true"></script>
+    <script src="~/js/bde-teileliste.js" asp-append-version="true"></script>
+}

@@ -1,0 +1,77 @@
+@model IdealAkeWms.Models.ViewModels.BdeTeilelisteViewModel
+@* v1.99.32 BDE-Teileliste: Kopf (Werkbank, Werker), Sicht-Reiter, Filterkarte, Hinweise. Gemeinsam fuer Einzeln und Summiert. *@
+@{
+    var sicht = Model.Summiert ? "summiert" : "einzeln";
+}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+    <h2 class="mb-0">
+        BDE-Teileliste <span class="badge bg-secondary align-middle">Kürzel @Model.Kuerzel</span>
+    </h2>
+    <div class="d-flex align-items-center gap-2">
+        <label for="teilelisteWerkbank" class="form-label mb-0">Werkbank</label>
+        <select id="teilelisteWerkbank" class="form-select form-select-lg w-auto" data-ziel="@Url.Action("Index", "BdeTerminal")">
+            @foreach (var wp in Model.Werkbaenke)
+            {
+                <option value="@wp.Id" selected="@(wp.Id == Model.Werkbank.Id)">@wp.Name</option>
+            }
+        </select>
+    </div>
+</div>
+
+<div class="bde-operator-badge mb-3">
+    <span class="fw-bold">@Model.Werker!.DisplayName</span>
+    <span class="ms-2 small">Personalnr. @Model.Werker.PersonnelNumber</span>
+    <a class="btn btn-outline-secondary ms-auto bde-touch" asp-action="Index" asp-route-workplaceId="@Model.Werkbank.Id">Werker wechseln</a>
+</div>
+
+<ul class="nav nav-pills mb-3">
+    <li class="nav-item">
+        <a class="nav-link bde-touch @(Model.Summiert ? "" : "active")" asp-action="Index" asp-route-workplaceId="@Model.Werkbank.Id"
+           asp-route-operatorId="@Model.Werker.Id" asp-route-sicht="einzeln" asp-route-kwVon="@Model.KwVon" asp-route-kwBis="@Model.KwBis"
+           asp-route-gemeldete="@Model.GemeldeteZeigen">Einzeln</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link bde-touch @(Model.Summiert ? "active" : "")" asp-action="Index" asp-route-workplaceId="@Model.Werkbank.Id"
+           asp-route-operatorId="@Model.Werker.Id" asp-route-sicht="summiert" asp-route-kwVon="@Model.KwVon" asp-route-kwBis="@Model.KwBis"
+           asp-route-gemeldete="@Model.GemeldeteZeigen">Summiert</a>
+    </li>
+</ul>
+
+<div class="card filter-card mb-3">
+    <div class="card-body py-2">
+        <form method="get" asp-action="Index" class="row g-2 align-items-end">
+            <input type="hidden" name="workplaceId" value="@Model.Werkbank.Id" />
+            <input type="hidden" name="operatorId" value="@Model.Werker.Id" />
+            <input type="hidden" name="sicht" value="@sicht" />
+            <div class="col-sm-4 col-md-3">
+                <label for="kwVon" class="form-label mb-0">Kalenderwoche von</label>
+                <input type="week" id="kwVon" name="kwVon" value="@Model.KwVon" class="form-control form-control-lg" />
+            </div>
+            <div class="col-sm-4 col-md-3">
+                <label for="kwBis" class="form-label mb-0">Kalenderwoche bis</label>
+                <input type="week" id="kwBis" name="kwBis" value="@Model.KwBis" class="form-control form-control-lg" />
+            </div>
+            <div class="col-auto">
+                <div class="form-check form-switch bde-touch d-flex align-items-center gap-2">
+                    <input class="form-check-input" type="checkbox" role="switch" id="gemeldete" name="gemeldete" value="true" checked="@Model.GemeldeteZeigen" />
+                    <label class="form-check-label" for="gemeldete">gemeldete zeigen</label>
+                </div>
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-secondary btn-lg">Filtern</button>
+            </div>
+        </form>
+        <p class="mb-0 mt-2 small text-muted">
+            Zeilen = Teile und Baugruppen der FA-Struktur, deren Arbeitsschritte <strong>@Model.Kuerzel</strong> enthalten. Die Kalenderwoche filtert auf
+            den Fertigstellungstermin (FE-Termin) des Hauptauftrags. Erledigte oder stornierte Aufträge sind ausgeblendet.
+        </p>
+    </div>
+</div>
+
+@if (Model.Waisen > 0)
+{
+    <div class="alert alert-warning" role="alert">
+        <strong>Hinweis:</strong> @Model.Waisen Meldung(en) ohne passende Strukturzeile – Sage hat Position oder Artikel geändert.
+        Prüfung durch den BDE-Admin unter BDE-Buchungen › Teilmeldungen.
+    </div>
+}
