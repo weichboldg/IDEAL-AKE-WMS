@@ -179,3 +179,8 @@ Die Zaehlwerte oben (SQL-Nummernkreis „bis 81“, Anzahl Filter/ViewModels/Tes
 | Update-Skript (v1.98.0 ff.) | – | – | `scripts/deploy/Update-IdealAkeWms.ps1`, `Install-IdealAkeWms.ps1`, `IdealAkeWms.Deploy.psm1`, Manifest `nachlauf.psd1`, Ziele `ziele.psd1`; Tabelle `DeployScriptRuns` (SQL/142) – [[0022-update-je-zielsystem-per-skript-mit-nachlauf-manifest]], [[0023-daten-und-einmal-skripte-fuehrt-das-update-skript-mit-bestaetigung-aus]] |
 
 - **Beschichtungsquelle (v1.99.25):** `IdealAkeWms/Services/Beschichtung/BeschichtungResolver.cs` – reine Auflösung `ResolveQuellen` (Web + Dienst) und `Bestimmen` (Beschichtet, Termin, TerminQuelle, Aktiv); seit E2/E4 auch `LadenAsync`, `Aktiv`, `TerminTitel`, `EindeutigeKoepfeAsync` – einzige Quelle für FA-Liste, Leitstand und Abarbeitungsliste (`PickingLeitstandController`/`FaWorklistController` brauchen dafür `IFaHierarchyOrderInfoRepository`); Prüfung der Kombination in `SettingsController` (A8). [[2026-11-16-beschichtungslogik-je-standort-spec]]
+
+- **Blechfertigung – BF-Aufträge (v1.99.35, IDEAL, [[2026-11-13-blechfertigung-bf-auftraege-wicam-csv-spec]]):** Web `BfAuftraegeController`, `Api/BfAuftraegeApiController` (`GET api/bf-auftraege/artikel`),
+  `Services/BfAuftragWorkflow.cs` (Warenkorb, Abschicken, Freigabe, Fertig, Storno), `Services/BfCsv.cs` (CSV-Inhalt, Windows-1252),
+  `Services/BfArtikelFelder.cs` (Merkmal-Namen), Views `Views/BfAuftraege/`; Dienst `BfCsvService` (im `SageBookingWorker`),
+  `BfAuftragEmailService` (im `SyncWorker`), `Sdata/BlechteileFelderNachlese.cs` (Artikel-Abgleich, V-B). Tabellen `BfAuftraege`, `BfAuftragPositionen`.

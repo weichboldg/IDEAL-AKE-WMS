@@ -268,3 +268,13 @@ oben ist durch SQL/149 ueberholt (jetzt 45).
 
 - `OperationConfigs.SageArbeitsgangnummer` / `SageArbeitsgangnummerManuell` nvarchar(31) NULL; berechnet (`[NotMapped]`)
   `WirksameSageArbeitsgangnummer` und `SageArbeitsgangnummerWeichtAb`. Migration `20261117085624_AddOperationConfigSageArbeitsgangnummer`. ADR [[0031-sage-arbeitsgangnummer-an-operationconfig-sagewert-plus-handwert]].
+
+## BF-Aufträge (v1.99.35, SQL/158, [[2026-11-13-blechfertigung-bf-auftraege-wicam-csv-spec]])
+
+- `BfAuftraege` (`AuditableEntity`, RowVersion): Nummer (`BF` + 8 Ziffern, gefilterter UNIQUE), Status (Entwurf/Bestellt/Freigegeben/Fertig/Storniert), Besteller, Empfängergruppe (FK NO ACTION),
+  `BestelltAm`, `EmailSentAt`, Freigegeben/Fertig/Storniert am+von, `StornoGrund` (≤ 500), `Schachteltermin`, `FeTermin`, `CsvStatus`
+  (Keine/Offen/Geschrieben/Fehler), `CsvFehler`, `CsvVersuche`, `CsvDatei`, `CsvGeschriebenAm`. Warenkorb = Status Entwurf ohne Nummer.
+- `BfAuftragPositionen` (FK CASCADE, UNIQUE Auftrag+Position): Position, ArticleNumber, Matchcode, Teileart, Material,
+  Materialnummer, `FertigungsInfoPN`, Hauptlagerplatz, Menge, `SageBestellmenge` (Schnappschuss), Status, Bemerkung (bei Freigabe
+  festgeschrieben), `Gestrichen`, `SageFa` (Stufe 2, leer); berechnet `Uebergeben` = nicht gestrichen und Materialnummer vorhanden.
+- Artikelmerkmale der Blechteile ohne Schema-Änderung (vorhandene Merkmal-Tabellen, `BfArtikelFelder`). Migration `20261117154645_AddBfAuftraege`.

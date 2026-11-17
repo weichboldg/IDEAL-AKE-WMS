@@ -471,6 +471,14 @@ Kein Epic. Schnittempfehlung siehe Hinweis im Lösungsentwurf.
 
 **Vorläufig – der qa-agent bestätigt gegen den echten Diff.**
 
+> **Abgleich mit dem echten Diff (Dev-Lauf 2026-11-17, Commits `09063984` … `9f2a0802`, Version 1.99.35):** Web ja, Dienst ja, Migration
+> **SQL/158** `158_AddBfAuftraege.sql` / `20261117154645_AddBfAuftraege` (nicht destruktiv, FreshInstall an beiden Stellen, AgentJobs nicht
+> betroffen). Manifest-Einträge wie unten mit `<v>` = 1.99.35 und `156` → `158` eingetragen: `SQL/158`, `Pruefung/RolleSchachtler`,
+> `Pruefung/BfEmpfaengergruppe`, `Pruefung/BfCsvPfad`, `Pruefung/FeiertageIdeal`, `v1.99.35-BfPoolRecht`, `-BlechfertigungAktiv`, `-BfCsv`,
+> `-BlechteileFelder`. **P-1-Platzhalter:** das CSV-Layout (`IdealAkeWms/Services/BfCsv.cs`, Testvorlage
+> `IDEALAKEWMSService.Tests/TestData/BfCsv_PlatzhalterBisP1.csv`) folgt der Vorlage im Lösungsentwurf; vor `BfCsvAktiv = true` mit der
+> Musterdatei aus dem WiCAM-Pool abgleichen und die Testvorlage ersetzen (der `-BfCsv`-Manifesttext sagt das). Der qa-agent bestätigt.
+
 - **Web-App:** ja (Controller, Views, Rolle, AppSettings, Migration).
 - **Service:** ja (`BfCsvService`, `BfAuftragEmailService`, Worker-Schritte, bei V-B Artikel-Abgleich).
 - **Migration:** ja, `SQL/<nnn>_AddBfAuftraege.sql` (voraussichtlich 156), nicht destruktiv.

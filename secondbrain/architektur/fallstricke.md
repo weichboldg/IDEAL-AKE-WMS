@@ -2074,3 +2074,11 @@ Code: `hardware-scanner.js` Block „Scannen ohne Feld“, CSS `.hw-scan-bereit`
   `!IsDone && !IsCancelled` (A13).
 - **InMemory vergleicht Artikelnummern mit Groß/Klein**, SQL Server nicht. Die Zuordnung im Speicher ist deshalb `OrdinalIgnoreCase`; der
   Unit-Test kann die SQL-Kollation nicht belegen (TS-145).
+
+## 47. Byte-genaue Dateiausgabe: Kodierung und Git-Zeilenenden (v1.99.35, [[2026-11-13-blechfertigung-bf-auftraege-wicam-csv-spec]])
+
+- **Windows-1252 immer mit `EncoderFallback.ExceptionFallback`** (`BfCsv.Kodierung()`), nie `Encoding.GetEncoding(1252)` pur. Warum: der
+  Standard-Fallback ersetzt nicht darstellbare Zeichen still durch `?` – WiCAM bekäme einen falschen Matchcode ohne jede Meldung. Die Freigabe
+  prüft vorher, der Dienst meldet den Rest als CSV-Fehler (Haus-Regel „melden statt still behandeln“).
+- **Byte-Vorlagen für Tests als `binary` in `.gitattributes`** (`IDEALAKEWMSService.Tests/TestData/.gitattributes`: `*.csv binary`). Warum: mit
+  `core.autocrlf` legte Git die CRLF-Vorlage mit LF ab; der Byte-Vergleich hätte auf einem frischen Checkout anders ausgesehen als lokal.

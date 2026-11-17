@@ -216,3 +216,14 @@ Beschichtungsauftrag-Muster); Zuweisung an den Einkauf ist Hand-Schritt unter `/
 
 - `OperationConfigsController` braucht zusätzlich `IFaHierarchyNodeRepository` und `IProductionWorkplaceRepository`; Spalte/Filter `sageag`
   (wirksamer Wert), Handwert per `Update`, `BuildPruefliste` (a/b/b2/c, nur mit `ProduktionsauftragHierarchisch`). Zugriff unverändert.
+
+## BF-Aufträge (v1.99.35, [[2026-11-13-blechfertigung-bf-auftraege-wicam-csv-spec]])
+
+- `BfAuftraegeController`: class-level `[RequireBlechfertigungAktiv]` (Gate, auch für admin) + Lesen/Bestellen über `CanBfBestellenAsync`
+  (Rollen von `CanOrderLagerAsync` oder `schachtler`); Besteller sehen nur eigene Aufträge. Action-level `[RequireSchachtlerAccess]` (admin,
+  **`schachtler`**) an `UpdatePosition`, `StreichePosition`, `Freigeben`, `CsvErneutSchreiben`, `FertigMelden`, `FertigMeldenListe`.
+  `Stornieren` ohne Filter – Regel im Workflow (Besteller eigener Auftrag bis Freigabe, Schachtler bis Fertig). Reflexions-Wächter
+  `BfAuftraegeFilterTests`.
+- **Neue Rolle `schachtler`** „Schachtler (Blechfertigung)“ an den drei Pflichtstellen: `RoleKeys.Schachtler` + `RequireSchachtlerAccessAttribute`
+  + `ICurrentUserService.CanSchachtelnAsync`, diese Datei, `Views/Users/RoleOverview.cshtml`. Kein Seed in `Program.cs`, Manifest-Reparatur
+  `Pruefung/RolleSchachtler`.

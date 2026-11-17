@@ -466,3 +466,14 @@ Quellen-Weiche je Abgleich: [[0019-quellen-weiche-view-sdata-je-abgleich]]. Ordn
 - Schreibt `SageArbeitsgangnummer` nur aus der View-Quelle (Tabelle/SData: keine Nummer); Handwert nie. Neue Counts `nummer_gesetzt`,
   `nummer_mehrdeutig`, `abweichung_hand`, `ohne_kuerzel`. Beschreibungen `Sync:ProductionWorkplaceSyncViewName` (liefert Arbeitsgänge) und
   `Sync:OperationConfigSyncEnabled` korrigiert.
+
+## Blechfertigung (v1.99.35, [[2026-11-13-blechfertigung-bf-auftraege-wicam-csv-spec]])
+
+- **`BfCsvService`** (Dienst, Schritt im `SageBookingWorker`, eigener try, nicht an `SageWeAn` gebunden): schreibt je `Freigegeben` + CSV offen
+  bzw. fälliger Wiederholung `<Nummer>.tmp` → `<Nummer>.csv` (`overwrite:false`), höchstens 10 je Takt. Lauf `SyncLogServices.BfAuftragCsv`
+  „Blechfertigung: WiCAM-CSV“, Counts `geschrieben`, `fehler` (Kollision zählt als Fehler).
+- **`BfAuftragEmailService`** (Dienst, `SyncWorker`): Mail je abgeschicktem Auftrag an `BfEmpfaengergruppeId`; Lauf `BfAuftragEmail` „Blechfertigung: Mail“.
+- **Keys** (Kategorie „Blechfertigung WiCAM“, `ServiceSettingDefinitions.All`): `BfCsvAktiv`, `BfCsvPfad` (UNC), `Sync:BfCsvMaxWiederholungen` (3),
+  `Sync:BfCsvWiederholAbstandMinuten` (15), `BfCsvCreateNewOrder`, `BfCsvOrderPriority`, `BfCsvOrderRelease`, `BfCsvRemark1..3`,
+  `Sync:BfAuftragEmailEnabled`; dazu `Sync:BlechteileFelderNachlesen` (Artikel-Abgleich, V-B). AppSettings: `BlechfertigungAktiv`,
+  `BfEmpfaengergruppeId`, `BfStatuswerte`, `BfSchachtelterminArbeitstage`, `BfFeTerminArbeitstage`.

@@ -248,3 +248,11 @@ Je Sage-WE-Vorgang mit Barcode, dessen Receipts alle `Uebergeben` sind: `<Barcod
 `<Barcode>.csv`, nie ueberschreiben; Status in `WareneingangCsvExporte`, Lauf „Wareneingang-CSV“. Zugriff mit dem Dienstkonto (LocalSystem =
 Computerkonto `DOMAENE\SERVER$`), braucht „Aendern“ auf Freigabe und NTFS (Hand-Schritt P-C1/P-C2). Leser: eigener enaio-Import (Freigabe-Antwort 2),
 raeumt die Dateien selbst auf. QA 2026-11-12 auf DEV gegen `\localhost\D$\Dev\csv-ausgang\ake` belegt (Schreiben, Kollision, Netzfehler, Wiederholung).
+
+## WiCAM-Auftragspool – BF-Aufträge (v1.99.35, IDEAL, [[2026-11-13-blechfertigung-bf-auftraege-wicam-csv-spec]])
+
+Je freigegebenem BF-Auftrag `<BF-Nummer>.tmp` (Windows-1252 ohne BOM, CRLF, `ExceptionFallback`) → `File.Move(..., overwrite: false)` auf
+`<BF-Nummer>.csv` in `BfCsvPfad` (geplant `\\idealcam.ideal.ideal-ake.at\fertigung\u\pn\apools\`). Datei vorhanden = Fehler, nie automatisch
+wiederholt. Dienstkonto braucht „Ändern“ (P-7). WiCAM legt daraus den Auftrag an; das WMS löscht in WiCAM nichts (Storno = Hinweis).
+**Layout Platzhalter bis P-1** (Musterdatei aus dem Pool); Testvorlage `IDEALAKEWMSService.Tests/TestData/BfCsv_PlatzhalterBisP1.csv`.
+Artikelfelder an IDEAL per SData-GET (`BlechteileFelderNachlese`, V-B). Kein Schreiben nach Sage.

@@ -22,8 +22,14 @@ Nummern beim Start geprüft: Version 1.99.34 → **1.99.35**; SQL letzte 157 (15
 
 | Spec | Typ | SQL | Version | Status | Commits | Blocker |
 |---|---|---|---|---|---|---|
-| [[2026-11-13-blechfertigung-bf-auftraege-wicam-csv-spec]] | Spec | 158 | 1.99.35 | InUmsetzung | – | P-1 (CSV-Muster), P-7 (Schreibrecht Pool); View-Block 3 (Gerald) Vorbedingung Warenkorb-Test |
+| [[2026-11-13-blechfertigung-bf-auftraege-wicam-csv-spec]] | Spec | 158 | 1.99.35 | InUmsetzung | `09063984`, `ea21bddd`, `37e83d85`, `89ce487a`, `9f2a0802` | P-1 (CSV-Muster), P-7 (Schreibrecht Pool); View-Block 3 (Gerald) Vorbedingung Warenkorb-Test |
 
 ## Protokoll
 
 - 2026-11-17: Lauf gestartet, Spec auf InUmsetzung, Umsetzung im Worktree beauftragt.
+- 2026-11-17: Commit A (V-B Datenquelle) `09063984` – Build grün, Tests 3132+706 grün.
+- 2026-11-17: Commit B (Modell, Migration SQL/158, Web Warenkorb/Liste/Details/Freigabe, Rolle, Mail) `ea21bddd`.
+- 2026-11-17: Commit C (CSV-Dienst `BfCsvService`, 9 ServiceSettings, Byte-Vorlage) `37e83d85` + `89ce487a` (`.gitattributes` binary für die
+  Vorlage) – Tests 3197 + 714 grün.
+- 2026-11-17: Commit D (Fertig einzeln/Liste, Storno, Version 1.99.35, Hilfe, Changelog, README, docs/anwender 14, docs/betrieb, TS-157)
+  `9f2a0802` – Build 0 Fehler, Tests 3208 (1 übersprungen) + 714 grün. **feature-complete**; offen: qa-agent, P-1, P-7, View-Block 3 (Gerald).
