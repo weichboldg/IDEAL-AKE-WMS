@@ -203,3 +203,8 @@ Kommissionierwagen, Sage-Wareneingangsbeleg (ELL), Rahmenabruf (EBZ), Kreditor/D
 | Teilmeldung | Gemeldete Menge je fachlichem Schlüssel (HauptFA, VaterFA, SubFA, Position, Artnr, Kürzel) in `BdeTeilMeldungen`; geht nicht an Sage. |
 | Waise (Teilmeldung) | Teilmeldung, deren Schlüssel nach einem Struktur-Sync nicht mehr in der Struktur vorkommt – Hinweis mit Link, keine Löschung. |
 | Rücknahmefrist | Bis wann ein Werker die eigene Teilmeldung zurücknehmen darf: Schichtende, ohne Schichtkalender Ende des Meldetags. |
+
+| Begriff | Bedeutung |
+|---|---|
+| Sage-Arbeitsgangnummer (Sage-AG) | `KHKPpsArbeitsgaenge.Arbeitsgangnummer` (varchar 31) je Kürzel, in `OperationConfigs.SageArbeitsgangnummer`; **kein** Sage-Arbeitsplatz. v1.99.27 |
+| Handwert (Sage-AG) | `OperationConfigs.SageArbeitsgangnummerManuell` – in `/OperationConfigs` gepflegt, hat Vorrang vor dem Sage-Wert; der Sync fasst ihn nie an. |

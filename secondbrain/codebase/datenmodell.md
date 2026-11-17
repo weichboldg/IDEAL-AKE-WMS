@@ -257,3 +257,8 @@ oben ist durch SQL/149 ueberholt (jetzt 45).
 - `ProductionWorkplaces.BdeTeileliste` bit NOT NULL Default 0 – Werkbank-Option.
 - `BdeTeilMeldungen` – Teilmeldung je fachlichem Schlüssel (HauptFA, VaterFA, SubFA, Position, Artnr, Kürzel), FKs ProductionWorkplaces,
   BdeOperators, BdeTerminals, BdeBookings (nullable); gefilterter UNIQUE `UX_BdeTeilMeldungen_Schluessel WHERE IsCancelled=0`. ADR [[0030-teilmeldung-mit-fachlichem-schluessel-neben-workoperation]].
+
+## Sage-Arbeitsgangnummer (v1.99.27, SQL/153)
+
+- `OperationConfigs.SageArbeitsgangnummer` / `SageArbeitsgangnummerManuell` nvarchar(31) NULL; berechnet (`[NotMapped]`)
+  `WirksameSageArbeitsgangnummer` und `SageArbeitsgangnummerWeichtAb`. Migration `20261117085624_AddOperationConfigSageArbeitsgangnummer`. ADR [[0031-sage-arbeitsgangnummer-an-operationconfig-sagewert-plus-handwert]].

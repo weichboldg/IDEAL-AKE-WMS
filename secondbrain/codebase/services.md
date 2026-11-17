@@ -458,3 +458,9 @@ Quellen-Weiche je Abgleich: [[0019-quellen-weiche-view-sdata-je-abgleich]]. Ordn
   `BdeTL:W{wp}:O{op}`); `BeschichtungResolver.BeschichtetPosition` für die Spalte „Beschichtet“.
 - Dienst: `WorkOperationStructureDetectionService` überspringt Blatt-Kürzel von Teileliste-Werkbänken, Count `teileliste_blatt_uebersprungen`.
   Kein neuer ServiceSetting-Key.
+
+## OperationConfigSync: Sage-Arbeitsgangnummer (v1.99.27)
+
+- Schreibt `SageArbeitsgangnummer` nur aus der View-Quelle (Tabelle/SData: keine Nummer); Handwert nie. Neue Counts `nummer_gesetzt`,
+  `nummer_mehrdeutig`, `abweichung_hand`, `ohne_kuerzel`. Beschreibungen `Sync:ProductionWorkplaceSyncViewName` (liefert Arbeitsgänge) und
+  `Sync:OperationConfigSyncEnabled` korrigiert.

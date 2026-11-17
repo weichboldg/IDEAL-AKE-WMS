@@ -2035,3 +2035,13 @@ Code: `hardware-scanner.js` Block „Scannen ohne Feld“, CSS `.hw-scan-bereit`
   `ProductionWorkplaces.BdeTeileliste` steuert das Überspringen.
 - **Kürzel nur an Leerzeichen trennen** – im Dienst wie im Einmal-Skript (`STRING_SPLIT(...,' ')`). Warum: Eine abweichende Trennung liefert
   andere Treffer als die Erkennung.
+
+## 45. Arbeitsgangnummer ist kein Arbeitsplatz (v1.99.27/1.99.32, [[2026-11-16-arbeitsgang-mapping-sage-arbeitsgangnummer-spec]], ADR [[0031-sage-arbeitsgangnummer-an-operationconfig-sagewert-plus-handwert]])
+
+- **`vw_IDEAL_AKE_WMS_Arbeitsgaenge` liefert Arbeitsgangnummern** (P-AG1/P-AG3). Warum: Der alte Einstellungstext sagte „Arbeitsplätze“, und
+  auf IDEAL TEST legte die Werkbank-Anlage 26 Werkbänke mit Arbeitsgangnummern als `SageArbeitsplatznummer` an – eine spätere Rückmeldung
+  an Sage hätte den falschen Arbeitsplatz gebucht.
+- **Spalte 0 von `SageArbeitsplatzDto` je Quelle verschieden:** View = Arbeitsgang, Tabelle/SData = Arbeitsplatz. Warum: Das DTO ist geteilt –
+  Nummern nur aus der View übernehmen (Guard im `OperationConfigSyncService`).
+- **Sage-Wert nicht in `EditableProperties`.** Warum: Ein Web-Speichern darf den Sync-Stand nicht überschreiben (Muster wie `Source`/
+  `SageMissingSince`); der Handwert gehört nur dem Web, der Sage-Wert nur dem Sync.

@@ -211,3 +211,8 @@ Beschichtungsauftrag-Muster); Zuweisung an den Einkauf ist Hand-Schritt unter `/
 | `BdeTeilelisteController` | BDE-Terminal (wie `BdeTerminalController`) | Teileliste lesen, Summiert, Melden (POST/PRG), Zurücknehmen, Filter speichern/zurücksetzen |
 | `BdeBookingsController.Teilmeldungen` / `TeilmeldungSpalten` | Lesen ab BDE-Schichtleiter | Admin-Liste der Teilmeldungen (Spaltenfilter, Pagination) |
 | `BdeBookingsController.StornoTeilmeldung` | `[RequireBdeAdminAccess]` | Storno mit Pflichtgrund |
+
+## Arbeitsgang-Stammdaten: Sage-AG (v1.99.27)
+
+- `OperationConfigsController` braucht zusätzlich `IFaHierarchyNodeRepository` und `IProductionWorkplaceRepository`; Spalte/Filter `sageag`
+  (wirksamer Wert), Handwert per `Update`, `BuildPruefliste` (a/b/b2/c, nur mit `ProduktionsauftragHierarchisch`). Zugriff unverändert.
