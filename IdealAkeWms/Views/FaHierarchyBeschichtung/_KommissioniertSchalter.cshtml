@@ -1,0 +1,15 @@
+@model bool
+@* v1.99.36 (Nachtrag 4 Punkt 5, nur AKE flach): kommissionierte WA sind standardmaessig ausgeblendet. GET-Formular, das alle
+   uebrigen Query-Parameter (Spaltenfilter, Seitengroesse) mitnimmt und auf Seite 1 springt. Geteilt von Index und Summiert. *@
+<form method="get" class="form-check mt-2 mb-0">
+    @foreach (var kv in Context.Request.Query.Where(q => q.Key != "kommissionierte" && q.Key != "page"))
+    {
+        foreach (var v in kv.Value)
+        {
+            <input type="hidden" name="@kv.Key" value="@v" />
+        }
+    }
+    <input class="form-check-input" type="checkbox" id="kommissionierte" name="kommissionierte" value="true"
+           @(Model ? "checked" : null) onchange="this.form.submit()" />
+    <label class="form-check-label" for="kommissionierte">auch kommissionierte zeigen</label>
+</form>

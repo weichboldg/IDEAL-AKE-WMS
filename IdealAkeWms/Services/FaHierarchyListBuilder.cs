@@ -190,4 +190,8 @@ public class FaHierarchyListResult
     /// <summary>v1.99.34 (nur Beschichtung, flache Quelle): offene WA mit Beschichtungskennzeichen ohne Lackierteil-Zeile im
     /// Stuecklisten-Cache — Sammelmeldung (A15). Leer an der IDEAL und in allen anderen Listen.</summary>
     public List<string> OhneLackierteile { get; set; } = new();
+
+    /// <summary>v1.99.36 (Nachtrag 4): Anzahl kommissionierter WA ohne Lackierteile (nur gezaehlt) und ob die flache Quelle (AKE) galt.</summary>
+    public int OhneLackierteileKommissioniert { get; set; }
+    public bool Flach { get; set; }
 }

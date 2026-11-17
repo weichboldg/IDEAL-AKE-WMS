@@ -45,6 +45,10 @@
             Zeigt alle beschichteten Positionen (<code>Beschichtet == true</code>) über alle
             Struktur-Ebenen, gruppiert nach HauptFA. Verfeinerung über die Spaltenfilter je Spalte.
         </p>
+        @if (Model.Flach)
+        {
+            <partial name="_KommissioniertSchalter" model="Model.MitKommissionierten" />
+        }
     </div>
 </div>
 

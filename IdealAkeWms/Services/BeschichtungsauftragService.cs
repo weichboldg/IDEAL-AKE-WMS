@@ -56,17 +56,20 @@ public class BeschichtungsauftragService
         _logger = logger;
     }
 
-    /// <summary>v1.99.34: Positionen + Kopfzeilen je Quelle. Flach (AKE): WA-Stueckliste, keine Kopfzeilen (die PPS-View gibt es
-    /// dort nicht), dazu die WA ohne Lackierteil-Zeile fuer die Sammelmeldung. Sonst FA-Struktur wie bisher.</summary>
-    private async Task<(List<FaHierarchyNode> Knoten, List<FaHierarchyOrderInfo> Infos, List<string> OhneLackierteile)> LadenAsync()
+    /// <summary>v1.99.34: Positionen + Kopfzeilen je Quelle. Flach (AKE): WA-Stueckliste, dazu die WA ohne Lackierteil-Zeile fuer die
+    /// Sammelmeldung; seit v1.99.36 (Nachtrag 4) mit Kopfzeile je WA (<see cref="Beschichtung.BeschichtungFlacheQuelle.KopfInfosAsync"/>)
+    /// und ohne kommissionierte WA ausser <paramref name="mitKommissionierten"/>. Sonst FA-Struktur wie bisher.</summary>
+    private async Task<FlachGeladen> LadenAsync(bool mitKommissionierten)
     {
         if (await _flach.IstFlachAsync())
         {
-            var f = await _flach.LadenAsync();
-            return (f.Knoten, new List<FaHierarchyOrderInfo>(), f.OhneLackierteile);
+            var f = await _flach.LadenAsync(null, mitKommissionierten);
+            return new(f.Knoten, await _flach.KopfInfosAsync(f.Auftraege), f.OhneLackierteile, f.OhneLackierteileKommissioniert, true);
         }
-        return (await _nodes.GetAllAsync(), await _orderInfos.GetAllAsync(), new List<string>());
+        return new(await _nodes.GetAllAsync(), await _orderInfos.GetAllAsync(), new List<string>(), 0, false);
     }
+
+    private sealed record FlachGeladen(List<FaHierarchyNode> Knoten, List<FaHierarchyOrderInfo> Infos, List<string> Ohne, int OhneKommissioniert, bool Flach);
 
     /// <summary>Klartext-Name des Flags fuer Log-Meldungen.</summary>
     public const string FlagName = "Beschichtet";
@@ -111,9 +114,10 @@ public class BeschichtungsauftragService
         IReadOnlyDictionary<string, string>? columnFilters,
         int page,
         int pageSize,
-        bool paginate)
+        bool paginate,
+        bool mitKommissionierten = false)
     {
-        var (allNodes, allInfos, ohne) = await LadenAsync();
+        var (allNodes, allInfos, ohne, ohneKomm, flach) = await LadenAsync(mitKommissionierten);
 
         var result = _builder.Build(
             allNodes, allInfos, FlagPredicate, FlagName,
@@ -123,6 +127,8 @@ public class BeschichtungsauftragService
 
         LogAmbiguities(result.Groups);
         result.OhneLackierteile = ohne;
+        result.OhneLackierteileKommissioniert = ohneKomm;
+        result.Flach = flach;
         return result;
     }
 
@@ -172,11 +178,13 @@ public class BeschichtungsauftragService
     /// (Hausregel "melden statt still behandeln").
     /// </summary>
     public async Task<FaHierarchyBeschichtungSummiertResult> BuildSummiertAsync(
-        IReadOnlyDictionary<string, string>? columnFilters, int page, int pageSize, bool paginate)
+        IReadOnlyDictionary<string, string>? columnFilters, int page, int pageSize, bool paginate, bool mitKommissionierten = false)
     {
-        var (allNodes, allInfos, ohne) = await LadenAsync();
+        var (allNodes, allInfos, ohne, ohneKomm, flach) = await LadenAsync(mitKommissionierten);
         var result = AggregateSummiert(allNodes, allInfos, columnFilters, page, pageSize, paginate);
         result.OhneLackierteile = ohne;
+        result.OhneLackierteileKommissioniert = ohneKomm;
+        result.Flach = flach;
 
         foreach (var row in result.Rows.Where(r => r.MasseUneinheitlich))
             _logger.LogWarning(
@@ -262,7 +270,7 @@ public class BeschichtungsauftragService
     /// <c>colf_positionen</c>/<c>colf_beschichtet</c> (nur in einer Sicht).</summary>
     public static readonly string[] ToggleSharedQueryKeys =
     [
-        "colf_hauptfa", "colf_hauptartnr", "colf_artnr", "colf_matchcode", "colf_breite", "colf_hoehe", "colf_tiefe",
+        "colf_hauptfa", "colf_hauptartnr", "colf_artnr", "colf_matchcode", "colf_breite", "colf_hoehe", "colf_tiefe", "kommissionierte",
     ];
 
     /// <summary>Query fuer den Umschalter Liste/Summiert (<see cref="ToggleSharedQueryKeys"/>).</summary>

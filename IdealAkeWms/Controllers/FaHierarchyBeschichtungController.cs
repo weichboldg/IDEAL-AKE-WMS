@@ -59,7 +59,7 @@ public class FaHierarchyBeschichtungController : Controller
     }
 
     /// <summary>Bildschirmliste: gruppiert nach HauptFA, Gruppen-Paging, Server-Spaltenfilter.</summary>
-    public async Task<IActionResult> Index(int page = 1, int? pageSize = null)
+    public async Task<IActionResult> Index(int page = 1, int? pageSize = null, bool kommissionierte = false)
     {
         if (page < 1) page = 1;
 
@@ -68,14 +68,16 @@ public class FaHierarchyBeschichtungController : Controller
         var rawPageSize = PageSize.ResolveRaw(pageSize, userDefaultPageSize);
 
         var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
-        var result = await _service.BuildAsync(columnFilters, page, effectivePageSize, paginate: true);
+        var result = await _service.BuildAsync(columnFilters, page, effectivePageSize, paginate: true, kommissionierte);
 
         var vm = new FaHierarchyBeschichtungListViewModel
         {
             Groups = result.Groups,
             PdfVerfuegbar = _pdfRenderStatus.IsAvailable,
             Vergaben = await _vergaben.ErmittelnAsync(result.Groups.Select(g => g.HauptFA).ToList()),
-            Sammelmeldung = Services.Beschichtung.BeschichtungFlacheQuelle.Sammelmeldung(result.OhneLackierteile),
+            Sammelmeldung = Services.Beschichtung.BeschichtungFlacheQuelle.Sammelmeldung(result.OhneLackierteile, result.OhneLackierteileKommissioniert),
+            Flach = result.Flach,
+            MitKommissionierten = kommissionierte,
             DarfSchreiben = await _currentUserService.HasBeschichtungsauftragWriteAccessAsync(),
             Pagination = new PaginationState
             {
@@ -93,11 +95,11 @@ public class FaHierarchyBeschichtungController : Controller
     /// gefilterte Menge ohne Paging — ein Ausdruck je HauptFA-Gruppe (Seitenumbruch), Barcode =
     /// HauptFA. Razor-View direkt an den Browser (<c>return View</c>), gedruckt ueber den
     /// Browser-Druckdialog; kein PrintService.</summary>
-    public async Task<IActionResult> Print()
+    public async Task<IActionResult> Print(bool kommissionierte = false)
     {
         var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
         // paginate:false + int.MaxValue => ganze gefilterte Menge; Barcode je Gruppe vorberechnen.
-        var result = await _service.BuildAsync(columnFilters, 1, int.MaxValue, paginate: false);
+        var result = await _service.BuildAsync(columnFilters, 1, int.MaxValue, paginate: false, kommissionierte);
 
         var barcodes = result.Groups.ToDictionary(
             g => g.HauptFA,
@@ -118,10 +120,10 @@ public class FaHierarchyBeschichtungController : Controller
     /// eine Gruppe reduziert. <c>hauptFa</c> als Routen-Segment (Freigabe-Antwort 7). Fehler werden
     /// als <c>WarningMessage</c> mit Rueckfallweg gemeldet.</summary>
     [HttpGet("FaHierarchyBeschichtung/Pdf/{hauptFa:int}")]
-    public async Task<IActionResult> Pdf(int hauptFa)
+    public async Task<IActionResult> Pdf(int hauptFa, bool kommissionierte = false)
     {
         var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
-        var result = await _service.BuildAsync(columnFilters, 1, int.MaxValue, paginate: false);
+        var result = await _service.BuildAsync(columnFilters, 1, int.MaxValue, paginate: false, kommissionierte);
         var group = result.Groups.FirstOrDefault(g => g.HauptFA == hauptFa);
         if (group is null) return NotFound();
 
@@ -150,7 +152,7 @@ public class FaHierarchyBeschichtungController : Controller
 
     /// <summary>Summiert-Ansicht: je HauptFA + Artnr summierte Sollmenge, Gruppen-Paging (Seiteneinheit = HauptFA),
     /// Server-Spaltenfilter auf der Aggregat-Projektion.</summary>
-    public async Task<IActionResult> Summiert(int page = 1, int? pageSize = null)
+    public async Task<IActionResult> Summiert(int page = 1, int? pageSize = null, bool kommissionierte = false)
     {
         if (page < 1) page = 1;
 
@@ -159,7 +161,7 @@ public class FaHierarchyBeschichtungController : Controller
         var rawPageSize = PageSize.ResolveRaw(pageSize, userDefaultPageSize);
 
         var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
-        var result = await _service.BuildSummiertAsync(columnFilters, page, effectivePageSize, paginate: true);
+        var result = await _service.BuildSummiertAsync(columnFilters, page, effectivePageSize, paginate: true, kommissionierte);
 
         var vm = new FaHierarchyBeschichtungSummiertViewModel
         {
@@ -167,7 +169,9 @@ public class FaHierarchyBeschichtungController : Controller
             OrderInfos = result.OrderInfos,
             PdfVerfuegbar = _pdfRenderStatus.IsAvailable,
             Vergaben = await _vergaben.ErmittelnAsync(result.Rows.Select(r => r.HauptFA).Distinct().ToList()),
-            Sammelmeldung = Services.Beschichtung.BeschichtungFlacheQuelle.Sammelmeldung(result.OhneLackierteile),
+            Sammelmeldung = Services.Beschichtung.BeschichtungFlacheQuelle.Sammelmeldung(result.OhneLackierteile, result.OhneLackierteileKommissioniert),
+            Flach = result.Flach,
+            MitKommissionierten = kommissionierte,
             DarfSchreiben = await _currentUserService.HasBeschichtungsauftragWriteAccessAsync(),
             Pagination = new PaginationState
             {
@@ -183,10 +187,10 @@ public class FaHierarchyBeschichtungController : Controller
 
     /// <summary>Bildschirmdruck der Summiert-Ansicht: ganze gefilterte Menge ohne Paging, ein Ausdruck je HauptFA,
     /// Barcode = HauptFA, nur sichtbare Spalten (<see cref="PrintVisibleColumns"/>).</summary>
-    public async Task<IActionResult> PrintSummiert(string? visibleColumns)
+    public async Task<IActionResult> PrintSummiert(string? visibleColumns, bool kommissionierte = false)
     {
         var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
-        var result = await _service.BuildSummiertAsync(columnFilters, 1, int.MaxValue, paginate: false);
+        var result = await _service.BuildSummiertAsync(columnFilters, 1, int.MaxValue, paginate: false, kommissionierte);
 
         var barcodes = result.Rows.Select(r => r.HauptFA).Distinct()
             .ToDictionary(h => h, h => _barcode.EncodeCode128Base64(h.ToString(CultureInfo.InvariantCulture)));
@@ -205,10 +209,10 @@ public class FaHierarchyBeschichtungController : Controller
     /// <summary>PDF fuer GENAU EINE HauptFA-Gruppe der Summiert-Ansicht (dieselbe <c>PrintSummiert.cshtml</c>,
     /// dieselben Filter). Fehler: <c>WarningMessage</c> und Rueckweg auf <see cref="Summiert"/>.</summary>
     [HttpGet("FaHierarchyBeschichtung/PdfSummiert/{hauptFa:int}")]
-    public async Task<IActionResult> PdfSummiert(int hauptFa, string? visibleColumns)
+    public async Task<IActionResult> PdfSummiert(int hauptFa, string? visibleColumns, bool kommissionierte = false)
     {
         var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
-        var result = await _service.BuildSummiertAsync(columnFilters, 1, int.MaxValue, paginate: false);
+        var result = await _service.BuildSummiertAsync(columnFilters, 1, int.MaxValue, paginate: false, kommissionierte);
         var rows = result.Rows.Where(r => r.HauptFA == hauptFa).ToList();
         if (rows.Count == 0) return NotFound();
 

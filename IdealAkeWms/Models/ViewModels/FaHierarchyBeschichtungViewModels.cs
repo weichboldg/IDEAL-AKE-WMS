@@ -29,6 +29,10 @@ public class FaHierarchyBeschichtungListViewModel
 
     /// <summary>v1.99.34: Text der Sammelmeldung (WA ohne Lackierteil-Zeile, nur AKE); null = keine.</summary>
     public string? Sammelmeldung { get; init; }
+
+    /// <summary>v1.99.36 (Nachtrag 4 Punkt 5): flache Quelle (AKE) — Haekchen „auch kommissionierte zeigen“ und dessen Stand.</summary>
+    public bool Flach { get; init; }
+    public bool MitKommissionierten { get; init; }
 }
 
 /// <summary>
@@ -83,6 +87,8 @@ public class FaHierarchyBeschichtungSummiertResult
 
     /// <summary>v1.99.34: Sammelmeldung-Daten (flache Quelle), siehe <see cref="Services.FaHierarchyListResult.OhneLackierteile"/>.</summary>
     public List<string> OhneLackierteile { get; set; } = new();
+    public int OhneLackierteileKommissioniert { get; set; }
+    public bool Flach { get; set; }
     public IReadOnlyDictionary<int, List<FaHierarchyOrderInfo>> OrderInfos { get; init; } =
         new Dictionary<int, List<FaHierarchyOrderInfo>>();
 }
@@ -105,6 +111,10 @@ public class FaHierarchyBeschichtungSummiertViewModel
 
     /// <summary>v1.99.34: Text der Sammelmeldung (WA ohne Lackierteil-Zeile, nur AKE); null = keine.</summary>
     public string? Sammelmeldung { get; init; }
+
+    /// <summary>v1.99.36 (Nachtrag 4 Punkt 5): flache Quelle (AKE) — Haekchen „auch kommissionierte zeigen“ und dessen Stand.</summary>
+    public bool Flach { get; init; }
+    public bool MitKommissionierten { get; init; }
 }
 
 /// <summary>Druck-ViewModel der Summiert-Ansicht: ganze gefilterte Menge, ein Ausdruck je HauptFA.</summary>

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -12,6 +12,7 @@ using IdealAkeWms.Models;
 using IdealAkeWms.Services;
 using IdealAkeWms.Services.Beschichtung;
 using IdealAkeWms.Tests.Helpers;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Xunit;
@@ -56,6 +57,29 @@ public class BeschichtungFlacheQuelleTests
             }
         }
         _db.CachedBomHeaders.Add(h);
+    }
+
+    private void Kommissioniert(ProductionOrder o) => o.PickingStatus!.IsDonePicking = true;
+
+    private void SageMasse(string artikel, decimal? breite, decimal? hoehe, decimal? laenge)
+    {
+        var a = _db.Articles.Local.Single(x => x.ArticleNumber == artikel);
+        _db.ArticleSageDetails.Add(new ArticleSageDetail { Article = a, Breite = breite, Hoehe = hoehe, Laenge = laenge });
+    }
+
+    private BeschichtungsauftragWorkflow Workflow(BeschichtungFlacheQuelle echt)
+    {
+        var flach = new Mock<BeschichtungFlacheQuelle>(null!, null!, null!, null!, null!, null!, null!) { CallBase = false };
+        flach.Setup(q => q.IstFlachAsync()).ReturnsAsync(true);
+        flach.Setup(q => q.LadenAsync(It.IsAny<IReadOnlyCollection<int>?>(), It.IsAny<bool>()))
+            .Returns<IReadOnlyCollection<int>?, bool>((h, m) => echt.LadenAsync(h, m));
+        flach.Setup(q => q.StartBeschichtungAsync(It.IsAny<ProductionOrder>())).ReturnsAsync((DateTime?)null);
+        var user = new Mock<ICurrentUserService>();
+        user.Setup(u => u.GetDisplayName()).Returns("Tester");
+        user.Setup(u => u.GetWindowsUserName()).Returns(@"DOM	ester");
+        return new BeschichtungsauftragWorkflow(new BeschichtungsauftragRepository(_db), new FaHierarchyNodeRepository(_db),
+            new FaHierarchyOrderInfoRepository(_db), flach.Object, user.Object, TimeProvider.System,
+            NullLogger<BeschichtungsauftragWorkflow>.Instance);
     }
 
     private BeschichtungFlacheQuelle Quelle(string? master = "false")
@@ -122,6 +146,157 @@ public class BeschichtungFlacheQuelleTests
             .Be("1 WA mit Beschichtungskennzeichen ohne Lackierteile im Stücklisten-Cache – nicht in der Vorschlagsliste: 2001");
     }
 
+    /// <summary>Nachtrag 4 Punkt 2: Masse aus dem Sage-Artikel in cm × 10 = mm (Laenge = Tiefe); ohne Sage-Zeile 0.</summary>
+    [Fact]
+    public async Task Laden_MasseAusSageArtikel_CmMalZehn()
+    {
+        Wa("5001", "W-1");
+        Stueckliste("W-1", ("10", "L-1", 1m, null, Kategorie), ("20", "L-2", 1m, null, Kategorie));
+        SageMasse("L-1", breite: 69.32m, hoehe: 83.82m, laenge: 2.41m); // Stichprobe 87070769
+        await _db.SaveChangesAsync();
+
+        var f = await Quelle().LadenAsync();
+
+        var l1 = f.Knoten.Single(n => n.Artnr == "L-1");
+        (l1.Breite, l1.Hoehe, l1.Tiefe).Should().Be((693.2m, 838.2m, 24.1m));
+        var l2 = f.Knoten.Single(n => n.Artnr == "L-2");
+        (l2.Breite, l2.Hoehe, l2.Tiefe).Should().Be((0m, 0m, 0m), "keine ArticleSageDetails-Zeile");
+    }
+
+    /// <summary>Nachtrag 4 Punkte 4 und 5: kommissionierte WA fehlen in der Gesamtliste (Haekchen holt sie), in der Anlage
+    /// (hauptFas) zaehlen sie; die Sammelmeldung nennt nur nicht kommissionierte WA mit Nummer.</summary>
+    [Fact]
+    public async Task Laden_KommissionierteAusgeblendet_HaekchenUndAnlageZeigen_SammelmeldungNurAnzahl()
+    {
+        Wa("6001", "W-1");
+        Kommissioniert(Wa("6002", "W-1"));
+        Wa("6003", "A-OHNE");
+        Kommissioniert(Wa("6004", "A-OHNE"));
+        Kommissioniert(Wa("6005", "A-OHNE"));
+        Stueckliste("W-1", ("10", "L-1", 1m, null, Kategorie));
+        Stueckliste("A-OHNE", ("10", "K-9", 1m, null, "Kaufteil"));
+        await _db.SaveChangesAsync();
+
+        var standard = await Quelle().LadenAsync();
+        standard.Knoten.Select(n => n.HauptFA).Should().Equal(6001);
+        standard.Auftraege.Select(o => o.OrderNumber).Should().Equal("6001");
+        standard.OhneLackierteile.Should().Equal("6003");
+        standard.OhneLackierteileKommissioniert.Should().Be(2);
+        BeschichtungFlacheQuelle.Sammelmeldung(standard.OhneLackierteile, standard.OhneLackierteileKommissioniert).Should().Be(
+            "1 WA mit Beschichtungskennzeichen ohne Lackierteile im Stücklisten-Cache – nicht in der Vorschlagsliste: 6003. " +
+            "Dazu 2 bereits kommissionierte WA ohne Lackierteile (nicht einzeln genannt).");
+
+        (await Quelle().LadenAsync(null, mitKommissionierten: true)).Knoten.Select(n => n.HauptFA).Should().BeEquivalentTo(new[] { 6001, 6002 });
+        (await Quelle().LadenAsync(new[] { 6002 })).Knoten.Should().ContainSingle("Anlage/Hinzufuegen: der WA zaehlt auch kommissioniert");
+        BeschichtungFlacheQuelle.Sammelmeldung(Array.Empty<string>(), 3).Should()
+            .Be("3 bereits kommissionierte WA ohne Lackierteile (nicht einzeln genannt).");
+    }
+
+    /// <summary>Nachtrag 4 Punkt 1: Kopfzeile aus dem WA (Id 0, Kunde, Fertigungstermin, berechneter Beschichtungstermin).</summary>
+    [Fact]
+    public async Task KopfInfos_AusDemWa()
+    {
+        var o = Wa("7001", "W-1");
+        o.Customer = "Kunde A";
+        var settings = new Mock<IAppSettingRepository>();
+        settings.Setup(s => s.GetIntValueAsync(It.IsAny<string>(), It.IsAny<int>())).Returns<string, int>((_, d) => Task.FromResult(d));
+        settings.Setup(s => s.GetValueAsync(AppSettingKeys.BeschichtungAbholtage)).ReturnsAsync("Dienstag,Donnerstag");
+        settings.Setup(s => s.GetValueAsync(AppSettingKeys.LackierteilKategorieName)).ReturnsAsync(Kategorie);
+        var holidays = new Mock<IHolidayRepository>();
+        holidays.Setup(h => h.GetHolidayDatesAsync()).ReturnsAsync(new HashSet<DateTime>());
+        var q = new BeschichtungFlacheQuelle(new BeschichtungsauftragRepository(_db), new Mock<IArticleRepository>().Object, settings.Object,
+            new Mock<IServiceSettingRepository>().Object, holidays.Object, new BusinessDayService(), NullLogger<BeschichtungFlacheQuelle>.Instance);
+
+        var info = (await q.KopfInfosAsync(new[] { o })).Should().ContainSingle().Subject;
+
+        info.Id.Should().Be(0);
+        info.HauptFA.Should().Be(7001);
+        info.Kunde.Should().Be("Kunde A");
+        info.FE_Termin.Should().Be(new DateTime(2026, 12, 10));
+        info.Start_Beschichtung.Should().Be(await q.StartBeschichtungAsync(o)).And.NotBeNull().And.BeBefore(new DateTime(2026, 12, 10));
+    }
+
+    /// <summary>QA-F2 AK 20: nur <see cref="BomQuantityResolver"/> multipliziert Stuecklistenmenge × WA-Menge (Quelltext-Waechter).</summary>
+    [Fact]
+    public void Waechter_MengeNurUeberBomQuantityResolver()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir != null && !File.Exists(Path.Combine(dir.FullName, "SQL", "00_FreshInstall.sql"))) dir = dir.Parent;
+        var quelle = File.ReadAllText(Path.Combine(dir!.FullName, "IdealAkeWms", "Services", "Beschichtung", "BeschichtungFlacheQuelle.cs"));
+        Regex.IsMatch(quelle, @"\.Quantity\b").Should().BeFalse("die WA-Menge darf nur BomQuantityResolver.Resolve verrechnen");
+        quelle.Should().Contain("BomQuantityResolver.Resolve(");
+    }
+
+    /// <summary>QA-F2 AK 22: zwei Cache-Staende, nur SortOrder verschoben — die Positionsschluessel bleiben dieselben.</summary>
+    [Fact]
+    public async Task ZweiCacheStaende_NurSortOrderVerschoben_SchluesselGleich()
+    {
+        Wa("8001", "W-1");
+        Stueckliste("W-1", ("5.2", "L-1", 1m, null, Kategorie), ("5.10", "L-1", 1m, null, Kategorie), ("6", "L-2", 1m, null, Kategorie));
+        await _db.SaveChangesAsync();
+        var vorher = (await Quelle().LadenAsync()).Knoten.Select(PositionsSchluessel.Von).ToHashSet();
+
+        var items = _db.CachedBomItems.ToList();
+        foreach (var i in items) i.SortOrder = 100 - i.SortOrder;
+        await _db.SaveChangesAsync();
+        var nachher = (await Quelle().LadenAsync()).Knoten.Select(PositionsSchluessel.Von).ToHashSet();
+
+        nachher.Should().BeEquivalentTo(vorher).And.HaveCount(3);
+    }
+
+    /// <summary>QA-F1 + F2 AK 25: „Positionen hinzufuegen“ natuerlich sortiert; Snapshot (Hinzufuegen) und Kopie (Reklamation)
+    /// uebernehmen PositionText.</summary>
+    [Fact]
+    public async Task Hinzufuegen_NatuerlichSortiert_SnapshotUndKopieBehaltenPositionText()
+    {
+        Wa("9001", "W-1");
+        Stueckliste("W-1", ("1", "L-1", 1m, null, Kategorie));
+        await _db.SaveChangesAsync();
+        var wf = Workflow(Quelle());
+        var angelegt = await wf.AnlegenAsync(9001);
+        angelegt.Fehler.Should().BeEmpty();
+        var a = angelegt.Auftrag!;
+
+        // neue Stuecklistenzeilen nach der Anlage: sind frei und kommen in die Auswahl
+        var h = _db.CachedBomHeaders.Single();
+        h.Items.Add(new CachedBomItem { Position = "51.10", Ressourcenummer = "L-1", Menge = 1m, SortOrder = 1 });
+        h.Items.Add(new CachedBomItem { Position = "51.9", Ressourcenummer = "L-1", Menge = 1m, SortOrder = 2 });
+        h.Items.Add(new CachedBomItem { Position = "5", Ressourcenummer = "L-1", Menge = 1m, SortOrder = 3 });
+        await _db.SaveChangesAsync();
+
+        var kandidaten = await wf.GetHinzufuegbarePositionenAsync(a.Id);
+        kandidaten.Select(k => k.Schluessel.PositionText).Should().Equal("5", "51.9", "51.10");
+
+        var r = await wf.PositionenHinzufuegenAsync(a.Id, kandidaten.Select(k => k.Schluessel).ToList(), a.RowVersion);
+        r.Fehler.Should().BeEmpty();
+        r.Auftrag!.Positionen.Select(p => p.PositionText).Should().BeEquivalentTo("1", "5", "51.9", "51.10");
+
+        var gespeichert = await _db.Beschichtungsauftraege.Include(x => x.Positionen).SingleAsync(x => x.Id == a.Id);
+        gespeichert.Status = BeschichtungsauftragStatus.Erledigt;
+        await _db.SaveChangesAsync();
+        var pos = gespeichert.Positionen.Where(p => p.PositionText is "51.9" or "51.10").Select(p => p.Id).ToList();
+        var rekl = await wf.ReklamationAnlegenAsync(a.Id, pos);
+        rekl.Fehler.Should().BeEmpty();
+        rekl.Auftrag!.Positionen.Select(p => p.PositionText).Should().BeEquivalentTo("51.9", "51.10");
+    }
+
+    /// <summary>QA-F2 AK 26: Summiert nimmt Masse und Eigenschaften der natuerlich ersten Position (5.2 vor 5.10).</summary>
+    [Fact]
+    public void Summiert_NimmtNatuerlichErstePosition()
+    {
+        var knoten = new List<FaHierarchyNode>
+        {
+            new() { HauptFA = 1, Artnr = "L-1", PositionText = "5.10", Beschichtet = true, Sollmenge = 1m, Breite = 10m },
+            new() { HauptFA = 1, Artnr = "L-1", PositionText = "5.2", Beschichtet = true, Sollmenge = 2m, Breite = 20m },
+        };
+
+        var row = BeschichtungsauftragService.AggregateSummiert(knoten, null, null, 1, 10, paginate: false).Rows.Single();
+
+        row.Breite.Should().Be(20m);
+        row.SummeSollmenge.Should().Be(3m);
+        row.MasseUneinheitlich.Should().BeTrue();
+    }
+
     [Fact]
     public void Sammelmeldung_LeerIstNull_UndHoechstens20Nummern()
     {
@@ -180,7 +355,8 @@ public class BeschichtungFlacheQuelleTests
         var echt = Quelle();
         var flach = new Mock<BeschichtungFlacheQuelle>(null!, null!, null!, null!, null!, null!, null!) { CallBase = false };
         flach.Setup(q => q.IstFlachAsync()).ReturnsAsync(true);
-        flach.Setup(q => q.LadenAsync(It.IsAny<IReadOnlyCollection<int>?>())).Returns<IReadOnlyCollection<int>?>(h => echt.LadenAsync(h));
+        flach.Setup(q => q.LadenAsync(It.IsAny<IReadOnlyCollection<int>?>(), It.IsAny<bool>()))
+            .Returns<IReadOnlyCollection<int>?, bool>((h, m) => echt.LadenAsync(h, m));
         flach.Setup(q => q.StartBeschichtungAsync(It.IsAny<ProductionOrder>())).ReturnsAsync(new DateTime(2026, 12, 1));
         var user = new Mock<ICurrentUserService>();
         user.Setup(u => u.GetDisplayName()).Returns("Tester");
@@ -210,7 +386,7 @@ public class BeschichtungFlacheQuelleTests
     {
         var flach = new Mock<BeschichtungFlacheQuelle>(null!, null!, null!, null!, null!, null!, null!);
         flach.Setup(q => q.IstFlachAsync()).ReturnsAsync(true);
-        flach.Setup(q => q.LadenAsync(It.IsAny<IReadOnlyCollection<int>?>()))
+        flach.Setup(q => q.LadenAsync(It.IsAny<IReadOnlyCollection<int>?>(), It.IsAny<bool>()))
             .ReturnsAsync(new FlachePositionen(new List<FaHierarchyNode>(), new List<string>(), new List<ProductionOrder>()));
         var wf = new BeschichtungsauftragWorkflow(new BeschichtungsauftragRepository(_db), new FaHierarchyNodeRepository(_db),
             new FaHierarchyOrderInfoRepository(_db), flach.Object, new Mock<ICurrentUserService>().Object,

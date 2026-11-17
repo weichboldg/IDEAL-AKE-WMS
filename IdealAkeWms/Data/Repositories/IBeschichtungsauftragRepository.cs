@@ -27,11 +27,14 @@ public readonly record struct PositionsSchluessel(int? VaterFA, int SubFA, int? 
         : $"Vater {VaterFA?.ToString() ?? "—"} / SubFA {SubFA} / Pos {Position?.ToString() ?? "—"}";
 }
 
-/// <summary>v1.99.34: eine Lackierteil-Zeile der flachen Quelle — offener WA (Haupt-FA) und seine Stuecklisten-Cache-Zeile.</summary>
-public sealed record FlacheLackierteilZeile(ProductionOrder Auftrag, string Source, CachedBomItem Item);
+/// <summary>v1.99.34: eine Lackierteil-Zeile der flachen Quelle — offener WA (Haupt-FA) und seine Stuecklisten-Cache-Zeile.
+/// v1.99.36 (Nachtrag 4): Masse des Lackierteils aus <see cref="ArticleSageDetail"/> in Sage-Einheit cm (null = keine Sage-Zeile).</summary>
+public sealed record FlacheLackierteilZeile(ProductionOrder Auftrag, string Source, CachedBomItem Item,
+    decimal? BreiteCm = null, decimal? HoeheCm = null, decimal? LaengeCm = null);
 
-/// <summary>v1.99.34: flache Quelle samt offener WA mit Beschichtungskennzeichen OHNE Lackierteil-Zeile im Cache (Sammelmeldung A15).</summary>
-public sealed record FlacheLackierteilDaten(List<FlacheLackierteilZeile> Zeilen, List<string> OhneLackierteile);
+/// <summary>v1.99.34: flache Quelle samt offener WA mit Beschichtungskennzeichen OHNE Lackierteil-Zeile im Cache (Sammelmeldung A15).
+/// v1.99.36 (Nachtrag 4): <see cref="OhneLackierteile"/> nur nicht kommissionierte WA, kommissionierte nur als Anzahl.</summary>
+public sealed record FlacheLackierteilDaten(List<FlacheLackierteilZeile> Zeilen, List<string> OhneLackierteile, int OhneLackierteileKommissioniert = 0);
 
 /// <summary>Eine Position steckt in einem sperrenden Auftrag (Status ≠ Storniert).</summary>
 public sealed record Vergabe(PositionsSchluessel Schluessel, int AuftragId, string Nummer, int HauptFA);

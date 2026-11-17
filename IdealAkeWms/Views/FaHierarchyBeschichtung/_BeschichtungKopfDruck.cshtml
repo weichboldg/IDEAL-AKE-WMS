@@ -10,7 +10,30 @@
         Vor dem Transport von Hand prüfen, welcher Dienstleister/RAL gilt.
     </div>
 }
-@if (Model.Any())
+@if (Model.Any() && Model.All(i => i.Id == 0))
+{
+    @* v1.99.36 (Nachtrag 4 Punkt 1): Kopf aus dem WA (AKE flach). *@
+    <table class="head-table">
+        <thead>
+            <tr>
+                <th>Kunde</th>
+                <th>Fertigungstermin</th>
+                <th>Start Beschichtung</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var info in Model)
+            {
+                <tr>
+                    <td>@info.Kunde</td>
+                    <td>@(info.FE_Termin?.ToString("dd.MM.yyyy") ?? "—")</td>
+                    <td>@(info.Start_Beschichtung?.ToString("dd.MM.yyyy") ?? "—")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+else if (Model.Any())
 {
     <table class="head-table">
         <thead>

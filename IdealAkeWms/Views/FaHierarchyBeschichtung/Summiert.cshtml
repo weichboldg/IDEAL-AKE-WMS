@@ -45,6 +45,10 @@
             der ersten Position; weichen sie innerhalb einer Zeile ab, steht dort „Maße uneinheitlich".
             Verfeinerung über die Spaltenfilter je Spalte.
         </p>
+        @if (Model.Flach)
+        {
+            <partial name="_KommissioniertSchalter" model="Model.MitKommissionierten" />
+        }
     </div>
 </div>
 

@@ -48,6 +48,7 @@ public class BeschichtungsauftragRepository : IBeschichtungsauftragRepository
     {
         var q = _db.ProductionOrders.AsNoTracking()
             .Include(o => o.ProductionWorkplace)
+            .Include(o => o.PickingStatus)
             .Where(ProductionOrder.IsHauptFa)
             .Where(o => !o.IsDone && !o.IsCancelled && o.PickingStatus != null && o.PickingStatus.HasCoatingParts);
         if (orderNumbers != null) q = q.Where(o => orderNumbers.Contains(o.OrderNumber));
@@ -61,19 +62,23 @@ public class BeschichtungsauftragRepository : IBeschichtungsauftragRepository
                 join i in _db.CachedBomItems on h.Id equals i.CachedBomHeaderId
                 join a in _db.Articles on i.Ressourcenummer equals a.ArticleNumber
                 join c in _db.ArticleCategories on a.ArticleCategoryId equals c.Id
+                join d in _db.ArticleSageDetails on a.Id equals d.ArticleId into dj
+                from d in dj.DefaultIfEmpty()
                 where artikel.Contains(h.Artikelnummer) && c.Name == lackierteilKategorie
                 orderby i.SortOrder
-                select new FlachRoh(h.Artikelnummer, h.Source, i)
+                select new FlachRoh(h.Artikelnummer, h.Source, i, d == null ? null : d.Breite, d == null ? null : d.Hoehe, d == null ? null : d.Laenge)
             ).AsNoTracking().ToListAsync();
         // SQL Server vergleicht ohne Gross/Klein — die Zuordnung im Speicher ebenso.
         var jeArtikel = items.ToLookup(x => x.Artikelnummer, StringComparer.OrdinalIgnoreCase);
 
-        var zeilen = orders.SelectMany(o => jeArtikel[o.ArticleNumber ?? ""].Select(x => new FlacheLackierteilZeile(o, x.Source, x.Item))).ToList();
-        var ohne = orders.Where(o => !jeArtikel[o.ArticleNumber ?? ""].Any()).Select(o => o.OrderNumber).Distinct().ToList();
-        return new FlacheLackierteilDaten(zeilen, ohne);
+        var zeilen = orders.SelectMany(o => jeArtikel[o.ArticleNumber ?? ""]
+            .Select(x => new FlacheLackierteilZeile(o, x.Source, x.Item, x.Breite, x.Hoehe, x.Laenge))).ToList();
+        var ohne = orders.Where(o => !jeArtikel[o.ArticleNumber ?? ""].Any()).ToLookup(o => o.PickingStatus?.IsDonePicking == true);
+        return new FlacheLackierteilDaten(zeilen, ohne[false].Select(o => o.OrderNumber).Distinct().ToList(),
+            ohne[true].Select(o => o.OrderNumber).Distinct().Count());
     }
 
-    private sealed record FlachRoh(string Artikelnummer, string Source, CachedBomItem Item);
+    private sealed record FlachRoh(string Artikelnummer, string Source, CachedBomItem Item, decimal? Breite, decimal? Hoehe, decimal? Laenge);
 
     public Task<Beschichtungsauftrag?> GetDetailAsync(int id) =>
         _db.Beschichtungsauftraege

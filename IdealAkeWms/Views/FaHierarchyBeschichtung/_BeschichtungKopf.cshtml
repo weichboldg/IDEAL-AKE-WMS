@@ -12,6 +12,16 @@
     <span class="text-muted small ms-2">
         @foreach (var info in Model)
         {
+            @* v1.99.36 (Nachtrag 4 Punkt 1): Id 0 = Kopf aus dem WA (AKE flach), keine FAInfos-Zeile. *@
+            if (info.Id == 0)
+            {
+                <span class="me-3">
+                    Kunde @(string.IsNullOrWhiteSpace(info.Kunde) ? "—" : info.Kunde)
+                    · Fertigung @(info.FE_Termin?.ToString("dd.MM.yyyy") ?? "—")
+                    · Start Beschichtung @(info.Start_Beschichtung?.ToString("dd.MM.yyyy") ?? "—")
+                </span>
+                continue;
+            }
             <span class="me-3">
                 @(!string.IsNullOrWhiteSpace(info.Dienstleister) ? info.Dienstleister : "— Dienstleister?")
                 @if (!string.IsNullOrWhiteSpace(info.RAL)) { <text> · RAL @info.RAL</text> }

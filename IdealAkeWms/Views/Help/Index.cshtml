@@ -1272,15 +1272,20 @@
                         für jeden offenen WA (nicht erledigt, nicht storniert) mit Beschichtungskennzeichen. HauptFA ist die
                         WA-Nummer.</li>
                     <li><strong>Menge</strong> = Stücklistenmenge &times; WA-Menge (dieselbe Regel wie die Kommissionierliste).
-                        Maße gibt es an der AKE nicht, sie stehen auf 0.</li>
+                        <strong>Maße</strong> (seit v1.99.36) aus dem Sage-Artikel des Lackierteils in <strong>mm</strong>: Breite, Höhe
+                        und Tiefe (= Sage-Länge); fehlen die Sage-Daten des Artikels, steht 0.</li>
                     <li><strong>Position</strong> ist die Stücklisten-Position als Text, z.&nbsp;B. <code>10.140.40.10.10</code>; sortiert
                         wird natürlich (5, 5.2, 5.10, 51). Eine Position ist über Artikelnummer + Position eindeutig &mdash;
                         <code>5.2</code> und <code>5.20</code> sind verschiedene Positionen.</li>
+                    <li><strong>Kopfzeile je WA</strong> (seit v1.99.36): Kunde, Fertigungstermin und berechneter Beschichtungstermin.</li>
                     <li><strong>Auftragskopf:</strong> Start ist der berechnete Beschichtungstermin des WA; Dienstleister, RAL und
                         Retour bleiben leer und werden im Entwurf eingetragen.</li>
+                    <li><strong>Kommissionierte WA</strong> (seit v1.99.36) sind ausgeblendet; das Häkchen <em>auch kommissionierte zeigen</em>
+                        über der Liste holt sie zurück. Ein Auftrag lässt sich für jeden offenen WA anlegen.</li>
                     <li><strong>Sammelmeldung:</strong> Hat ein offener WA das Beschichtungskennzeichen, aber keine
                         Lackierteil-Zeile im Stücklisten-Cache, steht er im gelben Hinweis über der Liste und fehlt in der
-                        Vorschlagsliste &mdash; Stückliste bzw. Kategorie des Artikels prüfen.</li>
+                        Vorschlagsliste &mdash; Stückliste bzw. Kategorie des Artikels prüfen. Nicht kommissionierte WA stehen dort mit
+                        Nummer, bereits kommissionierte nur als Anzahl.</li>
                 </ul>
 
                 <h6 class="mt-3">Kurzanleitung</h6>

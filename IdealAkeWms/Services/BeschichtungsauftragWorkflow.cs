@@ -229,6 +229,7 @@ public class BeschichtungsauftragWorkflow
             var u = await _repo.GetMitPositionenAsync(uid);
             return (u?.Positionen ?? new List<BeschichtungsauftragPosition>())
                 .Where(p => !eigene.Contains(PositionsSchluessel.Von(p)))
+                .OrderBy(p => p.Position ?? int.MaxValue).ThenBy(p => p.PositionText, new NaturalPositionComparer())
                 .DistinctBy(PositionsSchluessel.Von)
                 .Select(p => new PositionsKandidat(PositionsSchluessel.Von(p), p.HauptArtnr, p.Artnr, p.Matchcode, p.Menge, p.Breite, p.Hoehe, p.Tiefe))
                 .ToList();
@@ -237,6 +238,8 @@ public class BeschichtungsauftragWorkflow
         var vergaben = VergabenJeSchluessel(await _repo.GetVergabenAsync(a.HauptFA));
         return (await KnotenAsync(a.HauptFA))
             .Where(n => n.Beschichtet && !vergaben.ContainsKey(PositionsSchluessel.Von(n)))
+            // v1.99.36 (Nachtrag 4 Punkt 3, QA-F1): Auswahl natuerlich nach Ebenen (51.5.2 vor 51.10)
+            .OrderBy(n => n.Position ?? int.MaxValue).ThenBy(n => n.PositionText, new NaturalPositionComparer())
             .DistinctBy(PositionsSchluessel.Von)
             .Select(n => new PositionsKandidat(PositionsSchluessel.Von(n), n.HauptArtnr, n.Artnr, n.Matchcode, n.Sollmenge, n.Breite, n.Hoehe, n.Tiefe))
             .ToList();

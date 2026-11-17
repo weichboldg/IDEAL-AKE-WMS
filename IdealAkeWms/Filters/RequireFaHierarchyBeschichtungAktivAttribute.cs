@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc.Filters;
 namespace IdealAkeWms.Filters;
 
 /// <summary>
-/// Feature-Gate fuer das IDEAL-Beschichtungsauftrag-Modul (Teil 4): sperrt den kompletten
+/// Feature-Gate fuer das Beschichtungsauftragsmodul (Teil 4): sperrt den kompletten
 /// <see cref="Controllers.FaHierarchyBeschichtungController"/>, solange AppSetting
 /// <see cref="AppSettingKeys.FaHierarchyBeschichtungAktiv"/> nicht <c>"true"</c> ist.
 ///
@@ -51,7 +51,7 @@ public class RequireFaHierarchyBeschichtungAktivFilter : IAsyncActionFilter
 
         if (context.Controller is Controller mvc)
         {
-            mvc.TempData["WarningMessage"] = "Das IDEAL-Beschichtungsauftrag-Modul ist deaktiviert.";
+            mvc.TempData["WarningMessage"] = "Das Beschichtungsauftragsmodul ist deaktiviert.";
             context.Result = new RedirectToActionResult("Index", "Home", null);
         }
         else
