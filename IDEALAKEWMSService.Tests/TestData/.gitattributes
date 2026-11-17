@@ -1,0 +1,2 @@
+# Byte-Vorlagen (Windows-1252, CRLF): nie Zeilenenden umwandeln
+*.csv binary
