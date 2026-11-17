@@ -66,6 +66,7 @@ Menü **Lager → Offene Bestellungen**.
 | Liefertermin | Termin aus Sage („ohne Termin“ = keiner gepflegt) |
 | Lieferant | Name und Kreditor-Nummer |
 | Bestellung, Artikel, Bezeichnung | aus der Sage-Bestellung |
+| AB-Nummer, Kommission | seit 1.99.33 aus dem **Kopf** der Sage-Bestellung (gleicher Wert an allen Positionen einer Bestellung); leer = in Sage nicht gepflegt. Über das Zahnrad ausblendbar, mit Spaltenfilter |
 | bestellt / geliefert (Sage) / offen (Sage) | Mengen laut Sage in der **Basiseinheit**; bei Rahmenabrufen steht bei „geliefert (Sage)“ ein „–“ |
 | im WMS erfasst | was schon über *Wareneingang zu Bestellung* gebucht, aber in Sage noch nicht enthalten ist |
 | Ziel-Lagerplatz | Sage-Platz der Position; „(nicht im WMS)“, wenn es den Platz im WMS nicht gibt |
@@ -106,6 +107,8 @@ Ein Rahmenabruf verhält sich in der Liste und im Wareneingang wie eine Bestellu
   Rahmen in Sage endet. Abruf-Lieferungen daher immer über *Wareneingang zu Bestellung* buchen. Der Einkauf erkennt solche Fälle auch in der
   Lieferverzug-Sammelliste unter „Zu klären“ ([Anleitung 07](07-lieferverzug-mail.md)).
 - **Nicht tagesaktuell:** Eine eben in Sage angelegte oder geänderte Bestellung erscheint erst nach dem nächsten Abgleich (Uhrzeit „Stand“).
+  Das gilt auch für AB-Nummer und Kommission. Kann der Abgleich sie nicht lesen, bleiben die Werte vom letzten Lauf stehen (Warnung im
+  Aktivitäts-Protokoll für die WMS-Betreuung).
 - **„Einheit abweichend“:** Bestell- und Lagereinheit passen nicht zusammen. Die Position ist im Wareneingang gesperrt, bis der Einkauf sie in
   Sage klärt.
 

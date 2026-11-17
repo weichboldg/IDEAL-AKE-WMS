@@ -44,7 +44,8 @@ die Bestellung in Sage schon erledigt, noch nicht abgeglichen oder die Nummer fa
 
 ![Kopf mit Bestellung, Lieferant, Liefertermin; Lieferschein-Nr.; erste Position mit Hinweis „Offener Bedarf“](bilder/05-02-maske-kopf-hinweis-bedarf.jpg)
 
-- **Kopf:** Bestellnummer (bei Abrufen mit Kennzeichen **Rahmenabruf**), Lieferant, Liefertermin.
+- **Kopf:** Bestellnummer (bei Abrufen mit Kennzeichen **Rahmenabruf**), Lieferant, **AB-Nummer** und **Kommission** (seit 1.99.33, aus dem
+  Sage-Bestellkopf; „–“ = in Sage leer), Liefertermin.
 - **Lieferschein-Nr. (Lieferant):** Nummer vom Lieferschein, höchstens 20 Zeichen. Gilt für alle Positionen dieser Buchung. Pflicht nur, wenn
   die Einstellung das verlangt (dann mit `*`).
 - **Barcode (Lieferschein):** nur sichtbar, wenn eingeschaltet. Bei ausgeschaltetem Sage-Wareneingang **grau** mit dem Text „Sage-Wareneingang
@@ -107,8 +108,13 @@ Lagerbuchung an Sage). Die Bestellposition in Sage schließt der Einkauf von Han
 - Als Ziel sind nur Plätze erlaubt, die es in Sage gibt und bei denen „Sage-Buchung erlaubt“ an ist.
 - Positionen mit Charge/Seriennummer bucht der Einkauf in Sage.
 - **Barcode (Lieferschein):** Den Aufkleber auf dem Lieferschein scannen (Handscanner, Kamera-Knopf oder Tastatur; nur Buchstaben, Ziffern, `-`
-  und `_`, höchstens 50 Zeichen). Derselbe Barcode darf nur an **einem** Wareneingang hängen. Nach der Übergabe an Sage schreibt der Dienst
-  eine **CSV-Datei** mit diesem Namen auf eine Netzfreigabe (Übergabe an die Belegablage).
+  und `_`, höchstens 50 Zeichen). Derselbe Barcode darf nur an **einem** Wareneingang hängen – außer beim **Sammellieferschein**. Nach der
+  Übergabe an Sage schreibt der Dienst eine **CSV-Datei** mit diesem Namen auf eine Netzfreigabe (Übergabe an die Belegablage).
+- **Sammellieferschein (seit 1.99.33):** Ein Lieferschein gilt für mehrere Bestellungen desselben Lieferanten. Dann bei jeder Bestellung
+  **denselben Barcode** und **dieselbe Lieferschein-Nr.** eingeben (Groß/klein egal). Die Erfolgsmeldung sagt „Sammellieferschein – Barcode …
+  bereits bei Bestellung … verwendet“. Die CSV-Dateien heißen dann `<Barcode>.csv`, `<Barcode>_1.csv`, `<Barcode>_2.csv` … Abgewiesen wird
+  der Barcode bei anderem Lieferanten („anderer Lieferant.“), bei anderer Lieferschein-Nr. („… bitte dieselbe Lieferschein-Nr. eingeben (dort: …)“)
+  und wenn beim ersten Wareneingang keine Lieferschein-Nr. stand.
 - **Rahmenabrufe** gehen nie als Sage-Wareneingang, sondern wie bisher als Lagerbuchung; das Barcode-Feld ist dort gesperrt.
 
 **Liste Lager → Sage-Wareneingänge:** zeigt jeden Wareneingang, der an Sage gehen soll, mit Status, Lieferschein, Barcode, Positionsmemo und
@@ -121,7 +127,8 @@ CSV-Stand.
   oder der Sage-Wareneingang wurde ausgeschaltet, während Einträge offen waren. Der Dienst sendet dann **nicht** von selbst. Lager Keyuser
   prüft in Sage und klickt **Als übergeben markieren** (Beleg existiert, Sage-Belegnummer eintragen, höchstens 45 Zeichen) oder **Erneut senden**
   (Beleg fehlt).
-- **CSV:** wartet / offen / geschrieben / Fehler. Bei Fehler oder „Datei existiert bereits“ auf der Freigabe nachsehen und **CSV erneut schreiben**.
+- **CSV:** wartet / offen / geschrieben / Fehler. Bei Fehler auf der Freigabe nachsehen und **CSV erneut schreiben**. „Datei existiert bereits“
+  gibt es seit 1.99.33 nicht mehr neu; an älteren Zeilen legt **CSV erneut schreiben** die Datei als `_1`, `_2` … ab.
 
 **Einkauf → Sage-Wareneingänge (offen)** (seit Version 1.99.31): dieselbe Liste für den Einkauf, aber nur Wareneingänge, die noch **nicht**
 an Sage übergeben sind (Status offen, gesendet, Fehler, Klären, nur in Sage). Nur lesend; die Knöpfe Erneut senden / Als übergeben markieren
@@ -159,6 +166,7 @@ WMS-Betreuung melden.
   einmal passiert.
 - **Barcode zweimal gleichzeitig.** Buchen zwei Personen auf **zwei verschiedenen Seiten** im selben Moment mit demselben Barcode, nimmt das WMS
   beide an (nur bei eingeschaltetem Sage-Wareneingang relevant). Doppelt abgeschickt von **derselben** Seite geht seit Version 1.99.23 nicht mehr.
+  Seit 1.99.33 geht dabei keine CSV-Datei verloren: die zweite heißt `<Barcode>_1.csv`.
 
 **Allgemein:**
 

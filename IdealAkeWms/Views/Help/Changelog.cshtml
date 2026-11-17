@@ -9,6 +9,31 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.99.33</strong> <span class="text-white-50 ms-2">17.11.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>Wareneingang: Sammellieferschein (AKE)</h6>
+                <ul>
+                    <li>Ein Lieferschein über mehrere Bestellungen desselben Lieferanten bekommt <strong>einen</strong> Barcode-Aufkleber:
+                        Der zweite Wareneingang darf denselben Barcode verwenden, wenn der Lieferant gleich ist und dieselbe Lieferschein-Nr.
+                        eingegeben wird (Groß/klein egal). Die Erfolgsmeldung sagt dann &bdquo;Sammellieferschein &ndash; Barcode &hellip; bereits bei
+                        Bestellung &hellip; verwendet&ldquo;.</li>
+                    <li>Bei anderem Lieferanten, anderer oder fehlender Lieferschein-Nr. wird wie bisher abgewiesen &ndash; die Meldung nennt den Grund.</li>
+                    <li>Die CSV-Datei für enaio heißt beim zweiten und jedem weiteren Einsatz <code>&lt;Barcode&gt;_1.csv</code>, <code>_2</code> &hellip;;
+                        eine vorhandene Datei wird nie überschrieben. Der Inhalt bleibt gleich (Feld 1 = Barcode ohne Nummer).</li>
+                </ul>
+                <h6>Offene Bestellungen: AB-Nummer und Kommission</h6>
+                <ul>
+                    <li>Lager &gt; Offene Bestellungen und Einkauf &gt; Offene Bestellungen zeigen die Spalten <strong>AB-Nummer</strong> und
+                        <strong>Kommission</strong> aus dem Sage-Bestellkopf (mit Spaltenfilter, über die Spaltenauswahl ausblendbar).</li>
+                    <li>&bdquo;Wareneingang zu Bestellung&ldquo; zeigt beide Werte im Kopf. Gelesen werden sie beim Abgleich &bdquo;Offene Bestellungen&ldquo;;
+                        nichts wird nach Sage geschrieben. Kann Sage die Werte nicht liefern, meldet das Aktivitäts-Protokoll eine Warnung.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.99.32</strong> <span class="text-white-50 ms-2">17.11.2026</span>
             </div>
             <div class="card-body">

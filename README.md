@@ -749,6 +749,10 @@ C:\Services\IDEALAKEWMSService\
 > `SageWareneingangBelegAktiv` = an und gesetztem `WareneingangCsvPfad` (Default leer; nur UNC-Pfad wie `\\server\freigabe\ordner` oder
 > leer, Server prüft die Form, nicht die Erreichbarkeit). Wiederholung nach Schreibfehler: `Sync:WareneingangCsvMaxWiederholungen`
 > (Standard 3, 0–10) und `Sync:WareneingangCsvWiederholAbstandMinuten` (Standard 15, 5–1440); „Datei existiert bereits“ nie automatisch.
+> **Sammellieferschein (v1.99.33):** derselbe Barcode an mehreren Wareneingängen (gleicher Lieferant, gleiche nicht leere Lieferschein-Nr.)
+> ergibt `<Barcode>.csv`, `<Barcode>_1.csv`, `_2` … (nächste freie Nummer; Startwert aus der DB, belegt = andere Exportzeile oder Datei im
+> Ordner; Feld 1 = Barcode ohne Nummer). „Datei existiert bereits“ entsteht seither nicht mehr – Altzeilen zeigt `Pruefung/WareneingangCsvKollision`.
+> Prod erst nach Bestätigung durch enaio (E-1), dass der Import Dateien mit Suffix verarbeitet.
 > **Dienstkonto:** braucht auf Freigabe und NTFS „Ändern“ (bei `LocalSystem` das Computerkonto `DOMÄNE\SERVER$`). Lauf „Wareneingang-CSV“ im
 > Aktivitäts-Protokoll, Stand in „Lager → Sage-Wareneingänge“ (Spalte CSV).
 > `SData:BaseUrl` (Host+Port ohne Pfad, z.B. `https://sagetest01.ake.at:5493`), `SData:Application`

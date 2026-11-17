@@ -11721,7 +11721,7 @@ dafür `SageWareneingangBelegAktiv` an und den Sage-Wareneingang über einen Sta
 | 129.2 | Schalter an, `SageWareneingangBelegAktiv` aus; Bestellung öffnen | Feld „Barcode (Lieferschein)“ neben „Lieferschein-Nr. (Lieferant)“, **gesperrt**, darunter „Sage-Wareneingang ist aus – für diese Buchung entsteht keine CSV-Datei.“; kein Kamera-Knopf; Buchen ohne Barcode geht |
 | 129.3 | Sage-WE an; `AKE1235564654` eingeben, zwei Positionen buchen | Gebucht; SQL: beide Receipts `Barcode = 'AKE1235564654'`, `LieferantName` = Kreditorname der Bestellung (AK 2) |
 | 129.4 | Negativ: `AB;12`, `AB 12`, `Ä12`, 51 Zeichen, `CON` | Je „Barcode: nur Buchstaben, Ziffern, - und _, höchstens 50 Zeichen (wird als Dateiname verwendet).“, nichts gebucht, Eingaben (Mengen, Barcode) bleiben stehen (AK 3) |
-| 129.5 | Negativ: `ake1235564654` (Kleinbuchstaben) bei einer weiteren Lieferung | „Barcode ake1235564654 ist bereits dem Wareneingang zu Bestellung <Nr> vom <Datum> zugeordnet.“, nichts gebucht (AK 4) |
+| 129.5 | Negativ: `ake1235564654` (Kleinbuchstaben) bei einer weiteren Lieferung | „Barcode ake1235564654 ist bereits dem Wareneingang zu Bestellung <Nr> vom <Datum> zugeordnet.“, nichts gebucht (AK 4). **Ab v1.99.33:** gleicher Lieferant und gleiche, nicht leere Lieferschein-Nr. = Sammellieferschein, erlaubt – siehe TS-156; die Meldung endet dann mit dem Grund |
 | 129.6 | Netum mit angetipptem Barcode-Feld: `ABC;123` und `4006381333931` scannen | Wert steht unverändert im Feld, keine EAN- oder Matchcode-Meldung, auch mit `QrErstesFeld = Matchcode` (AK 5) |
 | 129.7 | Ohne angetipptes Feld nach dem Öffnen einer Bestellung scannen | Scan landet im Barcode-Feld, „✓ Gescannt: <Wert>“ (Rückfrage 9) |
 | 129.8 | Kamera-Knopf am Barcode-Feld (Handy) | Fenstertitel „Barcode scannen“; Code wird roh übernommen (AK 6) |
@@ -11730,7 +11730,7 @@ dafür `SageWareneingangBelegAktiv` an und den Sage-Wareneingang über einen Sta
 | 129.11 | Pfad = Test-Freigabe; Vorgang aus 129.3 per SQL bzw. „Als übergeben markieren“ (Belegnummer `QA-1`) übergeben, einen Takt warten | Genau eine Datei `AKE1235564654.csv`, keine `.tmp`; Inhalt: UTF-8 mit BOM, Kopfzeile `Barcode;Kreditornummer;Kreditorname;Bestellnummer;Lieferschein;SageBelegnummer;Erfasser;Datum;UebergebenAm` (**ab v1.99.29 ohne Kopfzeile, Erfasser siehe TS-153**), eine Datenzeile mit `QA-1`, Datum `yyyy-MM-dd HH:mm`; Liste Spalte CSV „geschrieben <Datum>“; Aktivitäts-Protokoll „Wareneingang-CSV“ `geschrieben=1`; `WareneingangCsvExporte` Status 2, `Datei`, `GeschriebenAm` (AK 7, 8) |
 | 129.12 | Nächster Takt ohne neue Übergabe | Kein weiterer Protokoll-Eintrag „Wareneingang-CSV“ |
 | 129.13 | Sage-WE aus, CSV an; neuen Vorgang mit Barcode übergeben (SQL) | Keine Datei, keine Ausgangszeile, kein Protokoll-Eintrag; Liste und `/ServiceSettings`: „⚠ Sage-Wareneingang deaktiviert – CSV-Übergabe wartet (n Wareneingänge mit Barcode).“, Spalte CSV gleicher Text. Sage-WE wieder an → nächster Takt schreibt (AK 9, 10) |
-| 129.14 | Kollision: `<Barcode>.csv` vorher von Hand auf der Freigabe anlegen, Vorgang übergeben | Datei unverändert; Spalte CSV „Fehler: Datei existiert bereits – nicht überschrieben.“, Protokoll-Warnung mit Barcode; auch nach 15 min keine automatische Wiederholung. Datei entfernen, „CSV erneut schreiben“ (Hinweis „Vorher auf der Freigabe prüfen …“ sichtbar) → nächster Takt „geschrieben“ (AK 11, 13) |
+| 129.14 | Kollision: `<Barcode>.csv` vorher von Hand auf der Freigabe anlegen, Vorgang übergeben | Datei unverändert; Spalte CSV „Fehler: Datei existiert bereits – nicht überschrieben.“, Protokoll-Warnung mit Barcode; auch nach 15 min keine automatische Wiederholung. Datei entfernen, „CSV erneut schreiben“ (Hinweis „Vorher auf der Freigabe prüfen …“ sichtbar) → nächster Takt „geschrieben“ (AK 11, 13). **Ab v1.99.33 überholt:** eine vorhandene Datei führt zur nächsten freien Nummer `<Barcode>_1.csv`, kein Fehler – siehe TS-156.8; der Fehlertext steht nur noch an Altzeilen (TS-156.9) |
 | 129.15 | Netzfehler: Pfad auf eine nicht vorhandene Freigabe, Vorgang übergeben | Spalte CSV „Fehler: <Text>“, `Versuche = 1`; Takt läuft weiter (eine Lagerbuchung im selben Takt erscheint in der Sage-Queue). Nach ≥ 15 min automatisch erneut, höchstens 3-mal (`Versuche` bis 4); Recht entziehen → „Zugriff verweigert“; keine `.tmp`-Reste (AK 12) |
 | 129.16 | Spaltenfilter „CSV“ = `wartet` bzw. `geschrieben`, Spalte „Barcode“; CSV-Export der Liste | Filter wirkt über alle Seiten (Server-Mode); der Export enthält beide Spalten (AK 15) |
 | 129.17 | Rolle: Benutzer ohne `stock_keyuser`/`admin`/`picking` | Kein Knopf „CSV erneut schreiben“; direkter POST `/PurchaseOrders/CsvErneutSchreiben?vorgang=<guid>` → Zugriff verweigert (AK 13) |
@@ -12856,6 +12856,47 @@ Redirect/Merker, Sichtbarkeit F4.2, KW in der Zelle, Präferenz je Ansicht, CanR
 `RequireStockAccess`, Umleitungstext), `SageWareneingaengeListeTests.Einkauf_NurOffene_*`, `ServiceSettingDefinitionsTests`,
 `NachlaufManifestDriftTests`. **Manual-UAT:** echte Sage-Übergabe und SData-Lauf (155.1–155.4), Nebenläufigkeit beider Worker,
 Kalender-Klick, AccessDenied über die echte Filter-Pipeline.
+
+## TS-156 — Wareneingang: Sammellieferschein und Bestellkopf mit AB-Nummer und Kommission (v1.99.33)
+
+Spec `2026-11-17-wareneingang-sammellieferschein-und-bestellkopf-spec`. Standort: **AKE-DEV** (Sage-WE, Barcode und CSV nur AKE), 156.16 auf
+**IDEAL-DEV**. **Migration SQL/156** (zwei Spalten `AbNummer` NVARCHAR(250), `Kommission` NVARCHAR(200) in `dbo.SagePurchaseOrderLines`,
+additiv). Web + Dienst. Keine neue Einstellung. Kein Schreiben nach Sage: AB-Nummer/Kommission liest der Dienst per GET aus
+`RealTimeData/{Dataset}/dtsEKBelegMst.Sage.Wawi` (Auswahl nur über `BelID`).
+
+**Vorbedingungen:** Stand v1.99.33 für Web und Dienst, SQL/156 gelaufen. `WareneingangBestellungAktiv`, `WareneingangBarcodeAktiv`,
+`SageWareneingangBelegAktiv` und `WareneingangCsvAktiv` an, `WareneingangCsvPfad` = Test-Freigabe. Übergabe an Sage per **Als übergeben
+markieren** bzw. SQL (kein Sage-Schreiben im Test). Zwei offene Bestellungen X, Y desselben Lieferanten K, eine Bestellung Z von Lieferant K2.
+SQL-Eingriffe nur auf DEV, Ausgangswerte notieren und zurücksetzen. Für 156.11: eine Bestellung mit gepflegter AB-Nummer/Kommission in
+Sage-Test (Prüfabfrage P-2c der Spec).
+
+| # | Schritte | Erwartet |
+|---|---|---|
+| 156.1 | X buchen: LS `L1`, Barcode `B` | gebucht wie bisher |
+| 156.2 | Y buchen: LS `l1`, Barcode `b` | gebucht; Erfolgsmeldung endet mit „Sammellieferschein – Barcode b bereits bei Bestellung X verwendet; die CSV-Datei erhält eine laufende Nummer (_1, _2 …).“ (AK 1) |
+| 156.3 | Negativ: Z (Lieferant K2), LS `L1`, Barcode `B` | nichts gebucht, „Barcode B ist bereits dem Wareneingang zu Bestellung X vom <Datum> zugeordnet – anderer Lieferant.“ (AK 2) |
+| 156.4 | Negativ: weitere Bestellung von K, LS `L2`, Barcode `B` | nichts gebucht, „… – für einen Sammellieferschein bitte dieselbe Lieferschein-Nr. eingeben (dort: L1).“ (AK 3) |
+| 156.5 | Negativ: (a) weitere Bestellung von K, LS leer, Barcode `B`; (b) neuer Barcode `D` an einer Bestellung von K ohne LS buchen (gelingt), dann eine weitere Bestellung von K mit LS `L1`, Barcode `D` | (a) nichts gebucht, „… (dort: L1).“; (b) zweite Buchung nichts gebucht, „… – dort ohne Lieferschein-Nr., kein Sammellieferschein möglich.“ (AK 4) |
+| 156.6 | X und Y übergeben, ein Takt abwarten | Dateien `B.csv` und `b_1.csv`, Feld 1 = `B` bzw. `b`; `SELECT Barcode, Datei FROM dbo.WareneingangCsvExporte` zeigt beide Pfade; Spalte CSV „geschrieben“ (AK 5, 7) |
+| 156.7 | `B.csv` aus dem Ordner entfernen (enaio simuliert), dritte Bestellung von K mit `L1`/`B` buchen und übergeben | `B_2.csv`, nicht `B.csv` (AK 6) |
+| 156.8 | Negativ: vor der Übergabe einer weiteren Bestellung von K (`L1`/`B`) die Datei `B_3.csv` von Hand anlegen | `B_4.csv`; `B_3.csv` unverändert; Spalte CSV „geschrieben“, kein Fehler, keine Warnung „existiert bereits“ (AK 8) |
+| 156.9 | Altzeile: `UPDATE dbo.WareneingangCsvExporte SET Status = 3, Fehler = N'Datei existiert bereits – nicht überschrieben.', Datei = NULL WHERE Id = <Zeile aus 156.8>` | Prüfung `Pruefung/WareneingangCsvKollision` (Update-Skript, Phase Nachher) zählt 1; auch nach 15 min kein Versuch; „CSV erneut schreiben“ → nächster Takt schreibt die nächste freie Nummer (AK 10) |
+| 156.10 | Bestand: Bestellung mit neuem Barcode `C` | `C.csv`, Format wie TS-153 (BOM, CRLF, 9 Felder, Erfasser) (AK 12) |
+| 156.11 | Teil B: Bestellung mit AB-Nummer/Kommission in Sage-Test nach einem Abgleich „Offene Bestellungen (Sage)“ in *Wareneingang zu Bestellung* öffnen; danach eine Bestellung ohne Werte | Kopf zeigt „AB-Nummer“ und „Kommission“ unter „Lieferant“; ohne Werte „–“; keine neuen Spalten in der Positionstabelle (AK 13) |
+| 156.12 | Lager → Offene Bestellungen und Einkauf → Offene Bestellungen; Spaltenfilter AB-Nummer mit einem Teil der Nummer; Zahnrad: AB-Nummer ausblenden, neu laden | Spalten nach „Bestellung“ sichtbar, jede Position des Belegs mit demselben Wert; Filter trifft nur diese Zeilen; ausgeblendet bleibt nach Neuladen ausgeblendet (AK 14, 15) |
+| 156.13 | Aktivitäts-Protokoll „Offene Bestellungen (Sage)“ | Counts `ab_nummer`, `kommission`, `kopf_ohne_treffer`, `kopf_zu_lang`; Info-Zeile zum Kopf-Lesen; keine Warnung „liefert … nicht“ (AK 20) |
+| 156.14 | Negativ (nur DEV, Wegwerf-Sonde wie TS-153): Kopf-Lesen scheitern lassen (z. B. `SData:BaseUrl` kurz auf falschen Port, danach zurück) | Positionen trotzdem aktualisiert, AB-Nummer/Kommission vom letzten Lauf, Warnung „Kopfdaten (AB-Nummer/Kommission) nicht lesbar …“ (AK 17); Feld fehlt bzw. zu lang ist per Unit-Test belegt (AK 16, 18) |
+| 156.15 | enaio-CSV aus 156.6 öffnen | 9 Felder, keine AB-Nummer/Kommission (AK 19) |
+| 156.16 | IDEAL-DEV nach Deploy: `SELECT COL_LENGTH('dbo.SagePurchaseOrderLines','AbNummer'), COL_LENGTH('dbo.SagePurchaseOrderLines','Kommission')` | 500 und 400; keine sichtbare Änderung außer zwei leeren Spalten bzw. „–“ (AK 22) |
+
+**Abweichungen zur Spec:** Spaltenlängen 250/200 aus dem SData-Schema `EKBelegUserField` (Prüfabfrage P-2a auf der Sage-DB steht aus).
+Prod-Deploy erst nach Bestätigung durch enaio (E-1), dass der Import Dateien mit Suffix `_n` verarbeitet (Manifest-Info
+`v1.99.33-WareneingangCsvSammellieferschein`, Phase Vorher).
+
+Automatisch belegt: `WareneingangCsvServiceTests` (AK 5–10, `Dateiname`), `PurchaseOrdersReceiveTests` (AK 1–4, 13),
+`EinkaufBestellungenSyncTests` (AK 16–18, 20, Auswahl nur über `BelID`), `PurchaseOrdersControllerTests` (AK 14/15),
+`ViewKeyDriftGuardTests`, `NachlaufManifestDriftTests`. **Manual-UAT:** echte Freigabe mit enaio-Abholung, Sage-Test-Kopfwerte (P-2c),
+Zahnrad-Persistenz im Browser.
 
 ---
 

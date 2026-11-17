@@ -82,7 +82,11 @@
                                 Überfällige zeigt die Checkbox <em>&bdquo;Überfällige anzeigen&ldquo;</em> (Lager standardmäßig aus, Einkauf an, je Benutzer
                                 gemerkt; ausgeblendete werden über der Tabelle gezählt); sie stehen in der Spalte &bdquo;Hinweis&ldquo;.
                                 &bdquo;Stand&ldquo; = letzter Abgleich; nach jedem übergebenen Sage-Wareneingang liest der Dienst die Liste sofort neu
-                                (höchstens alle <code>Sync:EinkaufBestellungenNachWeMinuten</code> Minuten, Standard 2).</li>
+                                (höchstens alle <code>Sync:EinkaufBestellungenNachWeMinuten</code> Minuten, Standard 2).
+                                <strong>Seit v1.99.33</strong> zeigen die Spalten <em>AB-Nummer</em> und <em>Kommission</em> die Werte aus dem Sage-Bestellkopf
+                                (Belegkopf-Felder USER_AB und USER_Kom, gelesen beim Abgleich, mit Spaltenfilter, über die Spaltenauswahl ausblendbar);
+                                &bdquo;Wareneingang zu Bestellung&ldquo; zeigt sie im Kopf. Liefert Sage sie nicht, bleiben sie leer und das
+                                Aktivitäts-Protokoll warnt.</li>
                             <li>Knopf <em>Wareneingang</em> an der Zeile oder <em>Lager &rarr; Wareneingang zu Bestellung</em>: Bestellnummer
                                 (z. B. <code>2027-168975</code>) eingeben oder mit dem Handscanner scannen.</li>
                             <li>Je Position Ziel-Lagerplatz prüfen (vorbelegt mit dem Sage-Platz) und Ist-Menge eingeben (Komma oder Punkt); leer = nicht buchen.
@@ -128,16 +132,21 @@
                         <strong>Seit v1.99.11</strong> gibt es (Einstellung <code>WareneingangBarcodeAktiv</code>) neben der Lieferschein-Nr. das Feld
                         <em>&bdquo;Barcode (Lieferschein)&ldquo;</em> für den Aufkleber auf dem Lieferschein: Handscanner (auch ohne angetipptes Feld), Kamera-Knopf
                         oder Tastatur; der Wert wird unverändert übernommen (nur Buchstaben, Ziffern, - und _, höchstens 50 Zeichen, z. B. <code>AKE1235564654</code>)
-                        und darf nur an einem Wareneingang hängen. Ist der Sage-Wareneingang aus, ist das Feld gesperrt. Nach der Übergabe an Sage (auch nach
+                        und darf nur an einem Wareneingang hängen &ndash; außer beim <strong>Sammellieferschein (seit v1.99.33):</strong> derselbe
+                        Lieferant und dieselbe, nicht leere Lieferschein-Nr. (Groß/klein egal) erlauben den Barcode an einer weiteren Bestellung; die
+                        Erfolgsmeldung nennt die erste Bestellung. Ist der Sage-Wareneingang aus, ist das Feld gesperrt. Nach der Übergabe an Sage (auch nach
                         <em>Als übergeben markieren</em>) schreibt der Dienst die Datei <code>&lt;Barcode&gt;.csv</code> auf die Netzfreigabe aus den
-                        Service-Einstellungen &bdquo;Wareneingang-CSV&ldquo;; eine vorhandene Datei wird nie überschrieben.
+                        Service-Einstellungen &bdquo;Wareneingang-CSV&ldquo;; eine vorhandene Datei wird nie überschrieben. Seit v1.99.33 heißt die Datei
+                        jedes weiteren Wareneingangs mit demselben Barcode <code>&lt;Barcode&gt;_1.csv</code>, <code>_2</code> &hellip; (nächste freie Nummer,
+                        Feld 1 bleibt der Barcode ohne Nummer).
                         <strong>Format (seit v1.99.29 ohne Kopfzeile):</strong> UTF-8, genau eine Zeile mit 9 durch Strichpunkt getrennten Feldern.
                         enaio ordnet nach der Position zu: 1&nbsp;Barcode, 2&nbsp;Kreditornummer, 3&nbsp;Kreditorname, 4&nbsp;Bestellnummer,
                         5&nbsp;Lieferschein, 6&nbsp;Sage-Belegnummer, 7&nbsp;Erfasser (Windows-Kontoname ohne Domäne, sonst WMS-Benutzername),
                         8&nbsp;Datum der Erfassung, 9&nbsp;übergeben am (Datum jeweils <code>JJJJ-MM-TT hh:mm</code>). Ein Feld mit Strichpunkt oder
                         Anführungszeichen steht in Anführungszeichen. Den Stand zeigt die Spalte &bdquo;CSV&ldquo;
                         der Sage-Wareneingänge (wartet / offen / geschrieben / Fehler). Netzfehler wiederholt der Dienst selbst (Standard 3-mal, frühestens nach
-                        15 Minuten); danach und bei &bdquo;Datei existiert bereits&ldquo; auf der Freigabe nachsehen und <em>CSV erneut schreiben</em>.
+                        15 Minuten); danach auf der Freigabe nachsehen und <em>CSV erneut schreiben</em>. &bdquo;Datei existiert bereits&ldquo; steht nur noch an
+                        Zeilen von vor v1.99.33; <em>CSV erneut schreiben</em> legt sie als <code>_1</code>, <code>_2</code> &hellip; ab.
                         <br />
                         <strong>Rahmenabrufe (seit v1.99.15):</strong> Neben normalen Bestellungen (EBB) stehen auch Rahmenabrufe (EBZ) in beiden Masken &ndash;
                         in der Spalte &bdquo;Hinweis&ldquo; als &bdquo;Rahmenabruf&ldquo; (über den Spaltenfilter auffindbar), im Kopf der Wareneingangsmaske als

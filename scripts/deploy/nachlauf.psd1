@@ -168,7 +168,7 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
    Quelle='2026-11-12-v1-99-11-wareneingang-barcode-csv' }
 @{ Id='Pruefung/WareneingangCsvKollision'; Version='1.99.33'; Typ='Pruefung'; Firma='AKE'; Phase='Nachher'; Ausfuehrung='anzeigen'; Braucht=@('SQL/146')
    Pruefung='SELECT COUNT(*) FROM dbo.WareneingangCsvExporte WHERE Status = 3 AND Fehler LIKE N''Datei existiert bereits%'''
-   Text='Altzeilen aus der Zeit vor v1.99.33 mit Fehler Datei existiert bereits (Sammellieferschein). Nur anzeigen, nie automatisch: in Wareneingang-CSV je Zeile CSV erneut schreiben (Datei erhaelt dann _1, _2 ...) oder so lassen.'
+   Text='Altzeilen aus der Zeit vor v1.99.33 mit Fehler Datei existiert bereits (Sammellieferschein). Nur anzeigen, nie automatisch: je Zeile auf der Freigabe pruefen, dann in Lager > Sage-Wareneingaenge CSV erneut schreiben (Datei erhaelt dann _1, _2 ...).'
    Quelle='2026-11-17-v1-99-33-wareneingang-sammellieferschein-bestellkopf' }
 @{ Id='Pruefung/QrTrennzeichenKomma'; Version='1.69.0'; Typ='Pruefung'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
    Pruefung='SELECT CASE WHEN EXISTS (SELECT 1 FROM dbo.AppSettings WHERE [Key] = N''QrTrennzeichen'' AND [Value] = N'','') THEN (SELECT COUNT(*) FROM dbo.StorageLocations WHERE Code LIKE N''%,%'') ELSE 0 END'
