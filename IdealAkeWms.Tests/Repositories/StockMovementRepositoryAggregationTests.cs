@@ -222,6 +222,31 @@ public class StockMovementRepositoryAggregationTests
         r["A-001"].Select(p => p.Code).Should().NotContain(ctx.StorageLocations.Find(3)!.Code);
     }
 
+    // v1.99.30 Q2 Variante b (Spec 2026-11-16-bestellvorschlaege-nachbesserung): die Bestellvorschlaege zaehlen den Wagenbestand wie die
+    // Artikelinfo (GetCurrentStockAsync); der Standardaufruf (Kommissionierung, Fehlteile, Meldebestand-Mail) bleibt ohne Wagen.
+    [Fact]
+    public async Task GetStockByArticleNumbersAsync_MitKommissionierwagen_GleichArtikelinfo_Q2()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        SeedArticleAndLocation(ctx, articleId: 1, locationId: 1);
+        SeedArticleAndLocation(ctx, articleId: 1, locationId: 3);
+        await ctx.SaveChangesAsync();
+        ctx.StorageLocations.Find(3)!.IsPickingTransport = true;
+        var aufWagen = NewMovement(articleId: 1, locationId: 3, qty: 28m, MovementType.Umbuchung);
+        aufWagen.SourceStorageLocationId = 1;
+        ctx.StockMovements.AddRange(NewMovement(articleId: 1, locationId: 1, qty: 100m, MovementType.Einbuchung), aufWagen);
+        await ctx.SaveChangesAsync();
+        var repo = new StockMovementRepository(ctx);
+
+        var liste = (await repo.GetStockByArticleNumbersAsync(new List<string> { "A-001" }, mitKommissionierwagen: true))["A-001"];
+        var artikelinfo = await repo.GetCurrentStockAsync(filterArticle: "A-001");
+
+        liste.Sum(p => p.Quantity).Should().Be(100m);
+        liste.Sum(p => p.Quantity).Should().Be(artikelinfo.Sum(s => s.CurrentQuantity));
+        liste.Select(p => p.Code).Should().Contain(ctx.StorageLocations.Find(3)!.Code);
+        (await repo.GetStockByArticleNumbersAsync(new List<string> { "A-001" }))["A-001"].Sum(p => p.Quantity).Should().Be(72m);
+    }
+
     private static void SeedArticleAndLocation(IdealAkeWms.Data.ApplicationDbContext ctx, int articleId, int locationId)
     {
         if (ctx.Articles.Find(articleId) == null)

@@ -42,6 +42,10 @@ public interface IStockMovementRepository : IRepository<StockMovement>
 
     Task<Dictionary<string, List<StockLocationInfo>>> GetStockByArticleNumbersAsync(List<string> articleNumbers);
 
+    /// <summary>Wie <see cref="GetStockByArticleNumbersAsync(List{string})"/>; <paramref name="mitKommissionierwagen"/> = true zaehlt Kommissionierwagen
+    /// auf beiden Seiten mit (Bestand wie die Artikelinfo, v1.99.30 Q2 Variante b – nur die Bestellvorschlaege).</summary>
+    Task<Dictionary<string, List<StockLocationInfo>>> GetStockByArticleNumbersAsync(List<string> articleNumbers, bool mitKommissionierwagen);
+
     Task<decimal> GetCurrentStockAtLocationAsync(int articleId, int storageLocationId);
 
     Task<List<string>> GetProductionOrdersAtLocationAsync(int storageLocationId);

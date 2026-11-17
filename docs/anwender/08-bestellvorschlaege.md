@@ -27,7 +27,7 @@ abgezogen werden (Standard beide). Bedarfe der Fertigungsaufträge zählen immer
 
 | Begriff | Bedeutung |
 |---|---|
-| Bestand WMS | Bestand auf allen Lagerplätzen außer Kommissionierwagen (auch inaktive und nicht buchbare Plätze) |
+| Bestand WMS | Bestand auf allen Lagerplätzen einschließlich Kommissionierwagen (auch inaktive und nicht buchbare Plätze) – derselbe Bestand wie in der Artikelinfo. Kommissionierte, noch nicht ausgebuchte Mengen zählen mit, solange sie auch noch als FA-Bedarf zählen |
 | offen bestellt | Rest aller offenen Sage-Bestellungen und Rahmenabrufe des Artikels, abzüglich der im WMS schon eingebuchten Mengen – wie in *Offene Bestellungen* |
 | FA-Bedarf (seit 1.99.30) | offene Fertigungsaufträge, deren Stückliste den Artikel enthält – nur der **noch nicht ausgebuchte Rest** (Soll − Ausbuchungen zum FA) |
 | offene Bedarfe | abgeschickte Lagerbestellungen (teilgeliefert: nur der Rest der Fehlteile) und offene Bedarfsmeldungen |

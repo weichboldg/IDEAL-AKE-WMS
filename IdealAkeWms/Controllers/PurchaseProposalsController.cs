@@ -91,7 +91,7 @@ public class PurchaseProposalsController : Controller
         var letzteGelesen = await _repo.HatLetzteBestellungenAsync();
         var bestand = artikel.Count == 0
             ? new Dictionary<string, List<StockLocationInfo>>()
-            : await _stock.GetStockByArticleNumbersAsync(artikel.Select(a => a.ArticleNumber).Distinct().ToList());
+            : await _stock.GetStockByArticleNumbersAsync(artikel.Select(a => a.ArticleNumber).Distinct().ToList(), mitKommissionierwagen: true);   // Q2 Variante b: wie Artikelinfo
 
         // v1.99.30 F4/Antwort 7: FA-Bedarfe + Lagerbestellungen + Bedarfsmeldungen aus DEMSELBEN Service wie die Artikelinfo (Einstellung
         // EinkaufOffeneBedarfe wertet der Service aus). ponytail: ein Aufruf fuer alle Meldebestand-Artikel; die BOM-Abfrage nimmt die Liste
@@ -188,7 +188,7 @@ public class PurchaseProposalsController : Controller
         !l.EinheitAbweichend || (!string.IsNullOrWhiteSpace(l.MengeBasiseinheit) && !string.IsNullOrWhiteSpace(l.Lagermengeneinheit)
             && string.Equals(l.MengeBasiseinheit.Trim(), l.Lagermengeneinheit.Trim(), StringComparison.OrdinalIgnoreCase));
 
-    /// <summary>Datensammlung → Zeilen: Bestand je Artikel (Summe der Plaetze, ohne Bewegung 0, Regel der Meldebestand-Mail), Bedarfe aus dem
+    /// <summary>Datensammlung → Zeilen: Bestand je Artikel (Summe der Plaetze, ohne Bewegung 0, Kommissionierwagen eingeschlossen wie in der Artikelinfo – Q2 Variante b), Bedarfe aus dem
     /// <see cref="IPlannedConsumptionService"/> (v1.99.30: FA-Rest, Bedarfsmeldungen, Lagerbestellungen; abgezogen wird die angerechnete Summe
     /// ohne Doppelzaehlung, dieselbe wie in der Artikelinfo), offene Bestellungen (E2: Rest je Position,
     /// <c>EinheitAbweichend</c> nicht gerechnet, gezaehlt; <paramref name="bestellungen"/> null = Cache leer), Lieferant, WBZ, Rechner.

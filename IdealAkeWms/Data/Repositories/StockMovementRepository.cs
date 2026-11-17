@@ -392,17 +392,21 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
         return (items, totalCount);
     }
 
-    public async Task<Dictionary<string, List<StockLocationInfo>>> GetStockByArticleNumbersAsync(List<string> articleNumbers)
+    public Task<Dictionary<string, List<StockLocationInfo>>> GetStockByArticleNumbersAsync(List<string> articleNumbers)
+        => GetStockByArticleNumbersAsync(articleNumbers, mitKommissionierwagen: false);
+
+    public async Task<Dictionary<string, List<StockLocationInfo>>> GetStockByArticleNumbersAsync(List<string> articleNumbers, bool mitKommissionierwagen)
     {
         if (!articleNumbers.Any())
             return new Dictionary<string, List<StockLocationInfo>>();
 
-        // Query 1: Destination stock (Einbuchung + Umbuchung-Ziel) — ohne Kommissionierwagen
+        // Query 1: Destination stock (Einbuchung + Umbuchung-Ziel) — ohne Kommissionierwagen, ausser mitKommissionierwagen
+        // (Bestellvorschlaege, Q2 Variante b: Wagenbestand zaehlt wie in der Artikelinfo, GetCurrentStockAsync).
         var destItems = await _dbSet
             .Include(sm => sm.Article)
             .Include(sm => sm.StorageLocation)
             .Where(sm => articleNumbers.Contains(sm.Article.ArticleNumber)
-                      && !sm.StorageLocation.IsPickingTransport)
+                      && (mitKommissionierwagen || !sm.StorageLocation.IsPickingTransport))
             .GroupBy(sm => new
             {
                 sm.Article.ArticleNumber,
@@ -425,14 +429,14 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
             })
             .ToListAsync();
 
-        // Query 2: Source subtraction (Umbuchung-Quelle) — ohne Kommissionierwagen
+        // Query 2: Source subtraction (Umbuchung-Quelle) — ohne Kommissionierwagen, ausser mitKommissionierwagen
         var srcItems = await _dbSet
             .Include(sm => sm.Article)
             .Include(sm => sm.SourceStorageLocation)
             .Where(sm => sm.MovementType == MovementType.Umbuchung
                       && sm.SourceStorageLocationId != null
                       && articleNumbers.Contains(sm.Article.ArticleNumber)
-                      && !sm.SourceStorageLocation!.IsPickingTransport)
+                      && (mitKommissionierwagen || !sm.SourceStorageLocation!.IsPickingTransport))
             .GroupBy(sm => new
             {
                 sm.Article.ArticleNumber,

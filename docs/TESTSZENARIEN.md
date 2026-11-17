@@ -12659,6 +12659,7 @@ EK007623, dazu EK015744 und EK023626. SQL-Eingriffe nur auf DEV, Ausgangswerte n
 | 154.4c | Den FA teilweise kommissionieren (Ausbuchung mit FA) | Nur der Rest zählt; Artikelinfo FA-Tabelle Spalte *Rest* („von Soll“), nie negativ |
 | 154.4d | Negativ: Einbuchung mit FA-Nummer zum selben Artikel | Rest unverändert |
 | 154.4e | Negativ: `EinkaufOffeneBedarfe` leer speichern | Lagerbestellungen/Bedarfsmeldungen zählen weder in Liste noch Artikelinfo (Artikelinfo: „nicht gezählt (Einstellung)“); FA-Bedarf zählt weiter. Danach Ausgangswert zurück |
+| 154.4f | Artikel mit Bestand auf einem Kommissionierwagen (an der AKE in den Wagen umbuchen, noch nicht ausgebucht; Beispiel 00730607): Liste (Umfang „alle“) *Bestand WMS* und Artikelinfo *Gesamtbestand* vergleichen; dann vom Wagen ausbuchen | Liste = Artikelinfo (Wagenbestand zählt in beiden mit, Q2 Variante b); nach der Ausbuchung sinken Bestand und FA-Rest gemeinsam, beide wieder gleich. Kommissionierung/Fehlteile zeigen den Wagen weiterhin nicht als Lagerbestand |
 | 154.5 | EK023973 (Bedarfe im April) | „nachbestellen“, nicht „kritisch“; Spalte *nächster Bedarf* zeigt das April-Datum, Datumsfilter `<` vor diesem Datum blendet ihn aus |
 | 154.5a | Lagerbestellung über den Bestand hinaus für einen Artikel mit WBZ anlegen | „kritisch“ (Lagerbestellung = sofort) |
 | 154.5b | Artikel mit offener Bestellung: Liefertermin nach heute + WBZ und Bedarf heute über Bestand; dann Liefertermin innerhalb (in DEV per Cache-Position nachstellen, sonst Unit-Test `PurchaseProposalsNachbesserungE5Tests`) | Erst „kritisch“, dann nicht „kritisch“ |
@@ -12682,6 +12683,7 @@ Lagerbestellungen, Bedarfsmeldungen und Teilkommissionierung gleiches Ergebnis w
 
 Automatisch belegt: `PlannedConsumptionServiceTests` (7a flach/hierarchisch, AK 9, AK 10, Einheit, Einstellung, Einbuchung mindert nicht),
 `PurchaseProposalsNachbesserungE4Tests` (Liste = Artikelinfo flach/hierarchisch, Matchcode-Filter, Link-Recht),
+`StockMovementRepositoryAggregationTests.GetStockByArticleNumbersAsync_MitKommissionierwagen_GleichArtikelinfo_Q2` (154.4f),
 `PurchaseProposalsNachbesserungE5Tests` (AK 11, 11a, 12), `PurchaseProposalCalculatorTests.Mengenregel_A_*` (AK 13),
 `PurchaseProposalsNachbesserungE7Tests` (AK 14–17 Ersatzform), `PurchaseProposalsNachbesserungE2Tests`, `KontokorrentArtikelLieferantTests` (E1, letzte Bestellung),
 `NachlaufManifestDriftTests`.

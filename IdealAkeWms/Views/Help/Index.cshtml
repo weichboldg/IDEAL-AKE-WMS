@@ -215,8 +215,8 @@
                         <strong>Rechnung:</strong> <em>verfügbar</em> = Bestand WMS + offen bestellt &minus; offene Bedarfe. Vorschlag, wenn verfügbar
                         &le; Meldebestand.
                         <ul class="mb-1">
-                            <li><em>Bestand WMS</em>: alle Lagerplätze außer Kommissionierwagen, auch inaktive und nicht buchbare &ndash; derselbe Wert wie in der
-                                Meldebestand-Mail.</li>
+                            <li><em>Bestand WMS</em>: alle Lagerplätze einschließlich Kommissionierwagen, auch inaktive und nicht buchbare &ndash; derselbe Wert wie in der
+                                Artikelinfo (seit 1.99.30; die Meldebestand-Mail zählt Kommissionierwagen weiterhin nicht).</li>
                             <li><em>offen bestellt</em>: Rest aller offenen Sage-Bestellungen und Rahmenabrufe des Artikels, abzüglich der im WMS schon erfassten
                                 Wareneingänge (dieselbe Rechnung wie <em>Offene Bestellungen</em>). Weicht nur die Bestelleinheit ab (Basis = Lager), zählt die Position; Positionen mit Basis &ne; Lager zählen nicht (Banner und Hinweis in der Zeile).
                                 Sind die offenen Bestellungen nicht gelesen, steht &bdquo;&ndash;&ldquo; und gerechnet wird ohne sie.</li>

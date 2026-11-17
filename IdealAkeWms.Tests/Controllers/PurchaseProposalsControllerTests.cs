@@ -53,7 +53,7 @@ public partial class PurchaseProposalsControllerTests
         repo.Setup(r => r.GetOffeneLagerbestellungenAsync()).ReturnsAsync(lager ?? new List<OffenerBedarf>());
         repo.Setup(r => r.GetOffeneBedarfsmeldungenAsync()).ReturnsAsync(meldungen ?? new List<OffenerBedarf>());
         var stock = new Mock<IStockMovementRepository>();
-        stock.Setup(s => s.GetStockByArticleNumbersAsync(It.IsAny<List<string>>())).ReturnsAsync(bestand ?? new Dictionary<string, List<StockLocationInfo>>());
+        stock.Setup(s => s.GetStockByArticleNumbersAsync(It.IsAny<List<string>>(), true)).ReturnsAsync(bestand ?? new Dictionary<string, List<StockLocationInfo>>());
         var settings = new Mock<IAppSettingRepository>();
         settings.Setup(s => s.GetValueAsync(AppSettingKeys.EinkaufOffeneBedarfe)).ReturnsAsync(bedarfeEinstellung);
         // v1.99.30 E4: echter PlannedConsumptionService (dieselbe Regel wie die Artikelinfo); ohne bom/orders keine FA-Bedarfe.
