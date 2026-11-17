@@ -87,6 +87,10 @@ public static class ServiceSettingDefinitions
             "Dienst: Lauf „Wareneingang-CSV“ (Wiederholen nach Schreibfehler); Liste „Sage-Wareneingänge“", "AKE (IDEAL ohne Wirkung)", null),
         ["Sync:WareneingangCsvWiederholAbstandMinuten"] = ("Wareneingang-CSV: Abstand der Wiederholungen",
             "Dienst: Lauf „Wareneingang-CSV“", "AKE (IDEAL ohne Wirkung)", null),
+        // v1.99.35 Blechfertigung (Spec 2026-11-13-blechfertigung-bf-auftraege-wicam-csv)
+        [BfArtikelFelder.NachlesenKey] = ("Blechfertigung: Blechteile-Felder aus Sage nachlesen",
+            "Dienst: Lauf „Artikel-Sync“ (Info-Zeile „Blechteile-Felder“); Web: Warenkorb der BF-Aufträge (Artikelsuche, Vorbelegung)", "IDEAL",
+            "Liest aus Sage (nur lesend, SData) und schreibt die Felder als Artikel-Merkmale (IstLagerartikel, Artikeltyp, Material, MaterialnummerPN, FertigungsInfoPN, Arbeitsschritte, Abteilung, Bestellmenge). Braucht den SData-Zugang. Aus, sobald die Artikel an IDEAL über SData kommen (P-R1)."),
         ["SData:BaseUrl"] = ("SData: Adresse", "Sage-Buchung, Sage-Abgleich, Register Sage-Test", null, null),
         ["SData:Application"] = ("SData: Application", "Sage-Buchung, Sage-Abgleich, Register Sage-Test", null, null),
         ["SData:ServiceContract"] = ("SData: ServiceContract", "Sage-Buchung", null, null),
@@ -279,6 +283,7 @@ public static class ServiceSettingDefinitions
         new("Sync:Quelle:Arbeitsplaetze", SettingType.String, "View", "Sage-Abgleich (SData)", "Quelle der Werkbank-Anlage und des Arbeitsgang-Abgleichs: View (Default, bisheriger SQL-Weg) | SData | Vergleich (liest beide, schreibt nur aus der View, Abweichungen im Protokoll \"Sage-Quellenvergleich\"). Unbekannter Wert = View + Warnung. Exakte Schreibweise. SData liefert zusaetzlich BDE-Terminal, Kostenstelle, Schichtplan, aber (bis Pruefabfrage P-A1) KEIN Arbeitsschritt-Kuerzel: dann keine Werkbank-Neuanlage/kein Kuerzel-Abgleich, der Arbeitsgang-Abgleich setzt mit Warnung aus."),
         new("Sync:Quelle:LagerbuchungLookup", SettingType.String, "View", "Sage-Abgleich (SData)", "Quelle des Lagerbuchungs-Lookups (Memo-Suche): View (Default, bisheriger SQL-Weg) | SData | Vergleich (liest beide, schreibt nur aus der View, Abweichungen im Protokoll \"Sage-Quellenvergleich\"). Unbekannter Wert = View + Warnung. Exakte Schreibweise."),
         new("Sync:ArtikelBenutzerfelder", SettingType.String, "USER_Maschine,USER_Ausfuehrung,USER_VaultID,USER_MasterartikelNr,USER_TypenschildArtikel,USER_Artikeltyp,USER_Produktfamilie,USER_IstIDEAL,USER_DruckFertigungsauftrag,USER_AUSCAD,USER_DPSBestand,USER_Kaeltemittel,USER_Ventil,USER_PfadGlaszeichnung,USER_PfadSchaltplan", "Sage-Abgleich (SData)", "Sage-Artikel-Benutzerfelder (kommagetrennt), die der Artikel-Abgleich ueber SData als Text-Merkmal uebernimmt. Erweiterbar ohne Code; unbekannter Feldname = Warnung."),
+        new(BfArtikelFelder.NachlesenKey, SettingType.Bool, "false", BfKategorie, "An: Der Artikel-Abgleich liest, solange die Artikel ueber die View kommen, die Blechteile-Felder aller Sage-Lagerartikel (USER_OSIstLagerartikel <> 0) samt Bestellmenge per SData nach und schreibt sie als Merkmale; Artikel, die kein Lagerartikel mehr sind, verlieren die Merkmale. Ein SData-Fehler ist nur eine Warnung, der Artikel-Abgleich bleibt gueltig. Aus: Merkmale bleiben unveraendert (v1.99.35)."),
         new("Sync:PpsMitarbeiterEnabled", SettingType.Bool, "false", "Sage-Abgleich (SData)", "PPS-Mitarbeiter aus Sage (SData) lesen; Zuordnung zu BDE-Mitarbeitern nur manuell."),
         new("Sync:StillstandsgruendeEnabled", SettingType.Bool, "false", "Sage-Abgleich (SData)", "Stillstandsbegruendungen aus Sage (SData) lesen."),
         new("Sync:KreditorenEnabled", SettingType.Bool, "false", "Sage-Abgleich (SData)", "Lieferanten aus Sage (SData, Kontokorrent + Adressen/Ansprechpartner) in die Kreditoren lesen. Sage ist fuehrend: ueberschreibt Name, Matchcode, Adresse, Kontakt und aktiv/inaktiv im WMS; Kurzname, Beschichter, Bemerkung bleiben. Liest nur, schreibt nie nach Sage."),
@@ -351,6 +356,7 @@ public static class ServiceSettingDefinitions
     private const string LvKategorie = "Lieferverzug-Mail";
     private const string SDataZugangVerwendung = "Dienst: Sage-Buchungs-Worker (Lagerbuchung, Sage-Wareneingang), alle SData-Abgleiche; Web: Register Sage-Test, FA-Struktur live";
     private const string WeCsvKategorie = "Wareneingang-CSV";
+    private const string BfKategorie = "Blechfertigung WiCAM";
 
     /// <summary>Findet eine Definition per Key (case-sensitiv, wie DB-Key).</summary>
     public static bool TryGet(string key, [NotNullWhen(true)] out SettingDefinition? def)

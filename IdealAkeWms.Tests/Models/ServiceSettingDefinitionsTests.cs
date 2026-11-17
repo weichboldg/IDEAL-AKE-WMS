@@ -157,6 +157,7 @@ public class ServiceSettingDefinitionsTests
     [InlineData("WareneingangCsvPfad")] // v1.99.11
     [InlineData("Sync:WareneingangCsvMaxWiederholungen")] // v1.99.11
     [InlineData("Sync:WareneingangCsvWiederholAbstandMinuten")] // v1.99.11
+    [InlineData("Sync:BlechteileFelderNachlesen")] // v1.99.35
     public void All_ContainsDocumentedServiceReadKey(string key)
     {
         ServiceSettingDefinitions.All.Select(d => d.Key).Should().Contain(key);

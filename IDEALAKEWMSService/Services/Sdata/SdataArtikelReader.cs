@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using IdealAkeWms.Models;
+using IdealAkeWms.Services;
 using IdealAkeWms.Services.SageSdata;
 using IDEALAKEWMSService.Common;
 
@@ -292,6 +293,61 @@ public sealed class SdataArtikelReader : ISageArtikelReader
         Hauptlieferant = v?.Hauptlieferant, LetzterLieferant = v?.LetzterLieferant, Wiederbeschaffungszeit = v?.Wiederbeschaffungszeit,
         UserLagerplatzId = v?.USER_LagerplatzID, UserMindestbestand = R3(v?.USER_Mindestbestand),
     };
+
+    // ----- Blechteile-Felder (Spec 2026-11-13-blechfertigung-bf-auftraege-wicam-csv, V-B) -----
+
+    /// <summary>Numerischer Filter; NICHT "ne ''" (Textfeld-Falle, s. WhereRessourcen). L10: 1.263 Zeilen an IDEAL.</summary>
+    public const string WhereLagerartikel = BfArtikelFelder.IstLagerartikel + " ne 0";
+
+    /// <summary>
+    /// V-B: liest die Blechteile-Felder (<see cref="BfArtikelFelder.SageFelder"/>) aller Lagerartikel und die Bestellmenge der Grundvariante
+    /// (kleinste AuspraegungID wie <see cref="Abbilden"/>). Nur GET. Bestellmenge 0/leer oder Basis- ≠ Lagermengeneinheit → kein Wert (Menge frei,
+    /// Freigabe-Antwort 10). <c>null</c> = 0 Zeilen: die Quelle kann nicht leer sein, also nichts schreiben (sonst verloeren alle Artikel ihre
+    /// Merkmale) — mit Warnung in <paramref name="hinweise"/>. Lesefehler werfen (der Aufrufer faengt sie).
+    /// </summary>
+    public async Task<List<SageArtikelDto>?> BlechteileFelderLesenAsync(SdataLeseZiel ziel, List<SdataHinweis> hinweise, CancellationToken ct)
+    {
+        var r = await _client.QueryAllAsync<Dictionary<string, JsonElement>>(ziel, SageSdataReadClient.VertragResources, RessourceArtikel,
+            WhereLagerartikel, "Artikelnummer,Basismengeneinheit,Lagermengeneinheit," + string.Join(",", BfArtikelFelder.SageFelder), "Artikelnummer", ct);
+        hinweise.Add(new(r.Zusammenfassung));
+        if (r.Zeilen.Count == 0)
+        {
+            hinweise.Add(new($"Blechteile-Felder: 0 Zeilen ({WhereLagerartikel}) – Quelle kann nicht leer sein, nichts geschrieben. Filter/Feld prüfen.", Warnung: true));
+            return null;
+        }
+
+        var werteJe = new Dictionary<string, Dictionary<string, string?>>(StringComparer.OrdinalIgnoreCase);
+        var einheitAbweichend = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var roh in r.Zeilen)
+        {
+            var zeile = new Dictionary<string, JsonElement>(roh, StringComparer.OrdinalIgnoreCase);
+            var nr = AlsText(zeile.GetValueOrDefault("Artikelnummer"));
+            if (nr is null)
+                throw new SdataLeseException(RessourceArtikel, 0, "Blechteile-Felder: Zeile ohne Artikelnummer – Feldnamen prüfen (P-S1).");
+            var werte = BfArtikelFelder.SageFelder.ToDictionary(f => f, f => AlsText(zeile.GetValueOrDefault(f)), StringComparer.OrdinalIgnoreCase);
+            if (!werteJe.TryAdd(Schluessel(nr), werte)) continue;
+            if (!string.Equals(AlsText(zeile.GetValueOrDefault("Basismengeneinheit")), AlsText(zeile.GetValueOrDefault("Lagermengeneinheit")),
+                    StringComparison.OrdinalIgnoreCase))
+                einheitAbweichend.Add(Schluessel(nr));
+        }
+
+        var varianten = await InBloeckenAsync<SdataArtikelVarianteZeile>(_client, ziel, RessourceVarianten, "Artikelnummer,AuspraegungID,Bestellmenge",
+            "Artikelnummer,AuspraegungID", werteJe.Keys.ToList(), hinweise, ct);
+        var mengeJe = varianten.Where(v => !string.IsNullOrWhiteSpace(v.Artikelnummer))
+            .GroupBy(v => Schluessel(v.Artikelnummer), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.OrderBy(v => v.AuspraegungID ?? int.MaxValue).First().Bestellmenge, StringComparer.OrdinalIgnoreCase);
+
+        var result = new List<SageArtikelDto>();
+        foreach (var (nr, werte) in werteJe)
+        {
+            var menge = einheitAbweichend.Contains(nr) ? null : R3(mengeJe.GetValueOrDefault(nr));
+            werte[BfArtikelFelder.Bestellmenge] = menge is > 0m ? menge.Value.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture) : null;
+            result.Add(new SageArtikelDto(nr, null, null, null, null, null, null) { Benutzerfelder = werte });
+        }
+        if (einheitAbweichend.Count > 0)
+            hinweise.Add(new($"Blechteile-Felder: {einheitAbweichend.Count} Artikel mit Basis- ≠ Lagermengeneinheit – Bestellmenge nicht übernommen (Menge frei)."));
+        return result;
+    }
 
     /// <summary>Artikelnummern blockweise per <c>Artikelnummer in ('…',…)</c> lesen; eine Hinweis-Zeile fuer alle Bloecke.</summary>
     private static async Task<List<T>> InBloeckenAsync<T>(ISageSdataReadClient client, SdataLeseZiel ziel, string ressource, string select,

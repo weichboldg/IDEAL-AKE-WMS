@@ -570,6 +570,11 @@ public class SageImportService : ISageImportService
                 await run.LogInfoAsync($"Sage-Benutzerfelder (Merkmale): {bf.DefinitionenNeu} Merkmal(e) angelegt, {bf.Neu} Wert(e) neu, "
                     + $"{bf.Aktualisiert} aktualisiert, {bf.Entfernt} entfernt" + (bf.OhneArtikel > 0 ? $", {bf.OhneArtikel} ohne WMS-Artikel." : "."), ct: ct);
             }
+            // V-B (Spec 2026-11-13-blechfertigung): View-Weg (P-R1) → Blechteile-Felder per SData nachlesen; Schalter + eigenes try darin.
+            else if (_artikelReader is ArtikelQuelleSwitch { GenutzteQuelle: not SageQuelle.SData, SdataReader: { } sdataReader })
+            {
+                await BlechteileFelderNachlese.LaufAsync(sdataReader, _ctx, _configuration, run, ct);
+            }
 
             await run.FinishSuccessAsync(new Dictionary<string, int>
             {

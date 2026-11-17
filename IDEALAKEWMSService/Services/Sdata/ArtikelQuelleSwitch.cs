@@ -56,6 +56,9 @@ public class ArtikelQuelleSwitch : SageQuelleWeiche, ISageArtikelReader
     public IReadOnlyList<SdataHinweis> SdataHinweise =>
         GenutzteQuelle is SageQuelle.SData or SageQuelle.Vergleich && _sdata is SdataArtikelReader r ? r.Hinweise : Array.Empty<SdataHinweis>();
 
+    /// <summary>SData-Leser fuer den V-B-Nachlese-Schritt (Blechteile-Felder) im View-Modus.</summary>
+    public SdataArtikelReader? SdataReader => _sdata as SdataArtikelReader;
+
     public Task<SageArtikelLesung> GetAllAsync(CancellationToken ct = default) =>
         LeseAsync<SageArtikelLesung, SageArtikelDto>(_view.GetAllAsync, _sdata.GetAllAsync, l => l.Artikel, d => d.ArticleNumber?.TrimEnd(),
             VergleichsFelder, ct);
