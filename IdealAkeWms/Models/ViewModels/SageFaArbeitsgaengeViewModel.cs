@@ -17,4 +17,12 @@ public class SageFaArbeitsgaengeViewModel
     /// <summary>Sage nicht lesbar bzw. Auswahl zu gross — sichtbares Banner.</summary>
     public string? SageBanner { get; set; }
     public PaginationState Pagination { get; set; } = new();
+    /// <summary>Schalter SageFaArbeitsgaengeAnlegenAktiv: nur dann Knoepfe.</summary>
+    public bool SchalterAn { get; set; }
+    /// <summary>Schalter an, aber kein Sage-Bearbeiter: der Dienst sendet nichts — Banner.</summary>
+    public bool BearbeiterFehlt { get; set; }
+    /// <summary>FAs der Seite mit einreihbaren Zeilen (anlegbar oder Fehler) samt Sage-AGs fuer den Bestaetigungsdialog.</summary>
+    public List<SageFaEinreihbar> Einreihbar { get; set; } = new();
 }
+
+public sealed record SageFaEinreihbar(int BelId, string? Artnr, string? Matchcode, IReadOnlyList<string> SageAgs);

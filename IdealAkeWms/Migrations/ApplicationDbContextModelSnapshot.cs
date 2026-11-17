@@ -4614,6 +4614,82 @@ namespace IdealAkeWms.Migrations
                     b.ToTable("SageBookingQueueItems", "dbo");
                 });
 
+            modelBuilder.Entity("IdealAkeWms.Models.SageFaArbeitsgangAnlage", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BelId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("CreatedByWindows")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Fehler")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<int>("HauptFa")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Kuerzel")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ModifiedByWindows")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("Reihenfolge")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("SageAm")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("SageArbeitsgangnummer")
+                        .IsRequired()
+                        .HasMaxLength(31)
+                        .HasColumnType("nvarchar(31)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Versuche")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("IX_SageFaArbeitsgangAnlagen_Status");
+
+                    b.HasIndex("BelId", "SageArbeitsgangnummer")
+                        .IsUnique()
+                        .HasDatabaseName("UX_SageFaArbeitsgangAnlagen_BelId_Ag");
+
+                    b.ToTable("SageFaArbeitsgangAnlagen", "dbo");
+                });
+
             modelBuilder.Entity("IdealAkeWms.Models.SageFaState", b =>
                 {
                     b.Property<int>("Id")

@@ -28,6 +28,14 @@ public static class SageFaArbeitsgaenge
     public const string FaBeendet = "FA beendet/gesperrt";
     public const string FaBegonnen = "FA begonnen";
     public const string SageNichtLesbar = "Sage nicht lesbar";
+    // Status der Warteschlange (E1a) — gewinnen in der Vorschau vor dem Live-Stand
+    public const string Eingereiht = "eingereiht";
+    public const string Gesendet = "gesendet";
+    public const string Angelegt = "angelegt";
+    public const string QueueFehler = "Fehler";
+    public const string BearbeiterFehlt = "Sage-Bearbeiter für AG-Anlage fehlt (Service-Einstellungen) – nichts gesendet.";
+    public const string UnklarText = "Antwort unklar – bitte in Sage prüfen, ob der Arbeitsgang am FA steht; danach erneut einreihen.";
+    public const string AusText = "Arbeitsgänge in Sage anlegen ist ausgeschaltet – nichts eingereiht.";
 
     /// <summary>Last-Grenze der Pruefung: mehr FAs = enger filtern (Haupt-FA). ponytail: feste Grenze, Einstellung erst bei Bedarf.</summary>
     public const int MaxFasJePruefung = 500;
@@ -106,6 +114,32 @@ public static class SageFaArbeitsgaenge
             return new FaStand(true, beendet, begonnen, menge, ag);
         });
     }
+
+    /// <summary>Warteschlangen-Zeilen als Vorschau-Status je (BelID, Sage-AG).</summary>
+    public static Dictionary<(int BelId, string SageAg), (string Status, string? Hinweis)> QueueStatus(IEnumerable<SageFaArbeitsgangAnlage> anlagen) =>
+        anlagen.GroupBy(a => (a.BelId, a.SageArbeitsgangnummer.Trim()))
+            .ToDictionary(g => g.Key, g =>
+            {
+                var a = g.OrderByDescending(x => x.Id).First();
+                return a.Status switch
+                {
+                    SageFaArbeitsgangStatus.Offen => (Eingereiht, (string?)$"eingereiht von {a.ModifiedBy ?? a.CreatedBy}"),
+                    SageFaArbeitsgangStatus.Gesendet => (Gesendet, null),
+                    SageFaArbeitsgangStatus.Angelegt => (Angelegt, a.SageAm is { } t ? $"am {t:dd.MM.yyyy HH:mm}" : null),
+                    SageFaArbeitsgangStatus.InSageVorhanden => (InSageVorhanden, "vom Dienst vor dem Senden gefunden"),
+                    _ => (QueueFehler, a.Fehler),
+                };
+            }, new BelIdAgComparer());
+
+    private sealed class BelIdAgComparer : IEqualityComparer<(int BelId, string SageAg)>
+    {
+        public bool Equals((int BelId, string SageAg) x, (int BelId, string SageAg) y) =>
+            x.BelId == y.BelId && string.Equals(x.SageAg, y.SageAg, StringComparison.OrdinalIgnoreCase);
+        public int GetHashCode((int BelId, string SageAg) o) => HashCode.Combine(o.BelId, StringComparer.OrdinalIgnoreCase.GetHashCode(o.SageAg));
+    }
+
+    /// <summary>Zeile darf (erneut) eingereiht werden: anlegbar nach Pruefung, oder Fehler in der Warteschlange.</summary>
+    public static bool IstEinreihbar(Zeile z) => z.Status is Anlegbar or QueueFehler;
 
     // ------------------------------------------------------------------ Vorschau (reine Funktion) -------------------------------------
 

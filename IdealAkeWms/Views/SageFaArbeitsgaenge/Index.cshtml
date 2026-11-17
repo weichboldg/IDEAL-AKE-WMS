@@ -10,7 +10,9 @@
     string BadgeKlasse(string status) => status switch
     {
         SageFaArbeitsgaenge.Anlegbar => "text-bg-success",
-        SageFaArbeitsgaenge.InSageVorhanden => "text-bg-secondary",
+        SageFaArbeitsgaenge.InSageVorhanden or SageFaArbeitsgaenge.Angelegt => "text-bg-secondary",
+        SageFaArbeitsgaenge.Eingereiht or SageFaArbeitsgaenge.Gesendet => "text-bg-info",
+        SageFaArbeitsgaenge.QueueFehler => "text-bg-danger",
         SageFaArbeitsgaenge.NichtGeprueft => "bg-light text-dark border",
         _ => "text-bg-warning",
     };
@@ -20,7 +22,7 @@
 <p class="text-muted mb-3">
     Je Fertigungsauftrag die Arbeitsgang-Kürzel aus der FA-Struktur mit ihrer Sage-Arbeitsgangnummer aus
     <a asp-controller="OperationConfigs" asp-action="Index">Arbeitsgänge</a>. Ohne „Sage-Stand prüfen“ wird Sage nicht gelesen.
-    Diese Seite schreibt nichts nach Sage.
+    Die Seite selbst schreibt nichts nach Sage: „In Sage anlegen“ reiht nur ein, der Dienst prüft den FA in Sage und legt danach an.
 </p>
 
 <div class="card filter-card mb-3">
@@ -78,6 +80,53 @@
     </div>
 }
 
+@if (!Model.SchalterAn)
+{
+    <div class="alert alert-secondary py-2" role="status">
+        Anlegen in Sage ist ausgeschaltet (Service-Einstellung „Arbeitsgänge in Sage-Fertigungsaufträgen anlegen“). Die Liste ist nur Vorschau.
+    </div>
+}
+else
+{
+    @if (Model.BearbeiterFehlt)
+    {
+        <div class="alert alert-danger" role="alert">
+            <strong>Sage-Bearbeiter fehlt:</strong> In den Service-Einstellungen ist kein „Sage-Bearbeiter für AG-Anlage“ eingetragen.
+            Der Dienst sendet nichts und setzt eingereihte Arbeitsgänge auf Fehler.
+        </div>
+    }
+    @if (!Model.Einreihbar.Any() && !Model.Pruefen)
+    {
+        <p class="small text-muted">Zum Anlegen zuerst „Sage-Stand prüfen“: nur anlegbare Zeilen bekommen einen Knopf.</p>
+    }
+    @if (Model.Einreihbar.Any())
+    {
+        <div class="card mb-3 border-primary">
+            <div class="card-header">In Sage anlegen (FAs dieser Seite)</div>
+            <div class="card-body py-2">
+                <p class="small text-muted mb-2">Der Dienst liest jeden FA unmittelbar vor dem Senden noch einmal in Sage.</p>
+                <div class="d-flex flex-wrap gap-2">
+                    @foreach (var f in Model.Einreihbar)
+                    {
+                        var ags = string.Join(", ", f.SageAgs);
+                        var frage = $"FA {f.BelId} ({f.Artnr} {f.Matchcode}): Arbeitsgänge {ags} in Sage anlegen?\n\nDas schreibt in Sage. Angelegte Positionen löscht das WMS nicht.";
+                        <form method="post" asp-action="Anlegen" class="d-inline"
+                              onsubmit="if (!confirm('@Html.Raw(System.Text.Encodings.Web.JavaScriptEncoder.Default.Encode(frage))')) return false; this.querySelector('button').disabled = true; return true;">
+                            <input type="hidden" name="belId" value="@f.BelId" />
+                            <input type="hidden" name="zurueck" value="@(Context.Request.Path + Context.Request.QueryString)" />
+                            @foreach (var ag in f.SageAgs)
+                            {
+                                <input type="hidden" name="erwarteteAgNummern" value="@ag" />
+                            }
+                            <button type="submit" class="btn btn-sm btn-outline-primary">FA @f.BelId: @ags anlegen</button>
+                        </form>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+}
+
 <div class="d-flex justify-content-end mb-1" data-table-toolbar></div>
 <div class="table-responsive">
     <table class="table table-striped table-sm mb-0 filterable-table" data-server-column-filter="true" data-view-key="SageFaArbeitsgaenge">
@@ -132,6 +181,9 @@
             <dt>in Sage schon vorhanden</dt><dd>Am FA steht schon eine Arbeitsgang-Position mit dieser Nummer; sie wird nicht noch einmal angelegt.</dd>
             <dt>FA beendet/gesperrt</dt><dd>Der FA ist in Sage beendet, gesperrt, inaktiv oder nicht in der Liste offener FAs; er wird nie beschrieben.</dd>
             <dt>FA begonnen</dt><dd>Am FA ist schon gefertigt bzw. zurückgemeldet; gesperrt.</dd>
+            <dt>eingereiht / gesendet</dt><dd>Wartet auf den Dienst bzw. ist unterwegs nach Sage.</dd>
+            <dt>angelegt</dt><dd>Der Dienst hat die Arbeitsgang-Position im Sage-FA angelegt.</dd>
+            <dt>Fehler</dt><dd>Nicht angelegt; Grund im Hinweis. Erneut über „In Sage anlegen“ einreihen.</dd>
             <dt class="mb-0">Sage nicht lesbar</dt><dd class="mb-0">Sage antwortete nicht oder SData ist nicht eingerichtet (siehe Hinweis oben).</dd>
         </dl>
     </div>

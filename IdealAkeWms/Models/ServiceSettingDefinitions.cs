@@ -71,6 +71,18 @@ public static class ServiceSettingDefinitions
         ["SageWareneingangBelegAktiv"] = ("Wareneingänge als Sage-Wareneingangsbeleg buchen",
             "Lager → Wareneingang zu Bestellung (Status und Platzregel beim Buchen); Dienst: Sage-Buchungs-Worker, Lauf „Sage-Wareneingang“; Liste „Sage-Wareneingänge“",
             "AKE (IDEAL aus, kein SData-Endpunkt)", "Schreibt Wareneingangsbelege nach Sage: Bestellung wird beliefert, Bestand in Sage gebucht. Nur nach erfolgreichem Schreibtest am AKE-Test einschalten. Der Einkauf darf diese Positionen danach nicht mehr von Hand schließen. Wareneingänge auf Plätze ohne Sage-Buchung sind gesperrt."),
+        [SageFaArbeitsgaenge.ToggleKey] = ("Arbeitsgänge in Sage-Fertigungsaufträgen anlegen",
+            "Web: Stammdaten → Arbeitsgänge → Sage (Knopf „In Sage anlegen“, Einreihen); Dienst: Sage-Buchungs-Worker, Lauf „Sage-FA-Arbeitsgänge“",
+            "IDEAL (AKE aus lassen, dort ohne Wirkung)",
+            "Schreibt Arbeitsgang-Positionen in Sage-Fertigungsaufträge. Einlastung und Kosten in Sage können sich ändern, und angelegte Positionen löscht das WMS nicht. Nur nach erfolgreichem Schreibtest an einem FA am IDEAL-Test einschalten."),
+        [SageFaArbeitsgaenge.BearbeiterKey] = ("Sage-Bearbeiter für AG-Anlage",
+            "Dienst: Lauf „Sage-FA-Arbeitsgänge“ (Feld Bearbeiter je AG-Position)", "IDEAL",
+            "Steht als Bearbeiter an jeder angelegten Arbeitsgang-Position in Sage. Leer = es wird nichts gesendet (Fehler in der Liste)."),
+        [SageFaArbeitsgaenge.MaxWiederholungenKey] = ("Sage-FA-Arbeitsgänge: automatische Wiederholungen",
+            "Dienst: Lauf „Sage-FA-Arbeitsgänge“ (Wiederholen nach Fehler); Liste „Arbeitsgänge → Sage“", "IDEAL",
+            "Wiederholt das Anlegen in Sage. Vor jedem Versuch liest der Dienst den FA in Sage; 0 = nur „Erneut einreihen“ von Hand."),
+        [SageFaArbeitsgaenge.WiederholAbstandKey] = ("Sage-FA-Arbeitsgänge: Abstand der Wiederholungen",
+            "Dienst: Lauf „Sage-FA-Arbeitsgänge“", "IDEAL", null),
         ["Sync:SageWareneingangMaxWiederholungen"] = ("Sage-Wareneingang: automatische Wiederholungen",
             "Dienst: Sage-Buchungs-Worker, Lauf „Sage-Wareneingang“ (Wiederholen nach Fehler); Liste „Sage-Wareneingänge“",
             "AKE (IDEAL ohne Wirkung, Sage-Wareneingang aus)", "Wiederholt das Anlegen von Wareneingangsbelegen in Sage. Vor jedem Versuch sucht der Dienst den Beleg in Sage; 0 = nur „Erneut senden“ von Hand."),
@@ -199,6 +211,8 @@ public static class ServiceSettingDefinitions
     private static readonly Dictionary<string, (int? Min, int? Max, string Einheit)> IntMeta = new()
     {
         ["Sync:SageLagerbuchungIntervalSeconds"] = (5, null, "s"),
+        [SageFaArbeitsgaenge.MaxWiederholungenKey] = (0, 10, ""),
+        [SageFaArbeitsgaenge.WiederholAbstandKey] = (5, 1440, "min"),
         ["Sync:SageWareneingangMaxWiederholungen"] = (0, 10, ""),
         ["Sync:SageWareneingangWiederholAbstandMinuten"] = (5, 1440, "min"),
         ["Sync:EinkaufBestellungenNachWeMinuten"] = (0, 60, "min"),
@@ -270,6 +284,12 @@ public static class ServiceSettingDefinitions
         // ----- Sage-Lagerbuchung (ausgehend: WMS -> Sage via SData) -----
         new("SageLagerbuchungAktiv",                 SettingType.Bool, "false", "Sage-Lagerbuchung", "Globaler Schalter: manuelle Ein-/Ausbuchungen an Sage melden (kumulativ zum Lagerplatz-Flag 'Sage-Buchung erlaubt')"),
         new("SageWareneingangBelegAktiv",            SettingType.Bool, "false", "Sage-Lagerbuchung", "Wareneingaenge zu Sage-Bestellungen werden beim Buchen fuer Sage vorgemerkt und vom Dienst als EIN Sage-Wareneingangsbeleg (ELL, Beleguebernahme aus der Bestellung, platzgenau, mit Lieferschein-Nr.) je WE-Buchung angelegt - NICHT zusaetzlich als Lagerbuchung-Zugang. Ziel nur Sage-Plaetze mit 'Sage-Buchung erlaubt'. Aus = Verhalten wie Teil 1 (Lagerbuchungs-Queue). Umschalten wirkt nur auf neue Buchungen. Unabhaengig von SageLagerbuchungAktiv (v1.99.4)."),
+        // v1.99.38 (Spec 2026-11-17-arbeitsgaenge-aus-wms-in-sage-fa-anlegen): AG-Anlage in Sage-FAs, Warteschlange + Dienst, Default aus.
+        new(SageFaArbeitsgaenge.ToggleKey, SettingType.Bool, "false", SageFaAgKategorie, "An: Auf der Seite 'Arbeitsgaenge -> Sage' erscheint je FA mit anlegbaren Zeilen der Knopf 'In Sage anlegen' (reiht ein), und der Dienst legt die eingereihten Arbeitsgaenge als AG-Positionen im Sage-FA an (ServiceOption 4, Menge = Fertigungsmenge, ohne Einlasten). Vorher liest er den FA in Sage: beendet/begonnen/AG schon da = nicht senden. Aus: kein Knopf, Einreihen abgewiesen, der Dienst sendet nichts (v1.99.38)."),
+        new(SageFaArbeitsgaenge.BearbeiterKey, SettingType.String, "", SageFaAgKategorie, "Bearbeiter-Kuerzel, das an jeder angelegten AG-Position in Sage steht. Leer = der Dienst sendet nichts und setzt die Eintraege auf Fehler 'Sage-Bearbeiter fehlt' (v1.99.38).",
+            AbhaengigVon: SageFaArbeitsgaenge.ToggleKey),
+        new(SageFaArbeitsgaenge.MaxWiederholungenKey, SettingType.Int, "3", SageFaAgKategorie, "So oft wiederholt der Dienst eine AG-Anlage mit Status 'Fehler' automatisch (0 = nie, nur 'Erneut einreihen'). Vor JEDEM Versuch liest er den FA in Sage; die AG schon da = 'in Sage vorhanden' ohne Senden. Eine unklare Antwort (Zeitueberschreitung, 'Gesendet' haengt) wird nie automatisch wiederholt (v1.99.38)."),
+        new(SageFaArbeitsgaenge.WiederholAbstandKey, SettingType.Int, "15", SageFaAgKategorie, "Mindestabstand in Minuten zwischen einem Fehler und der automatischen Wiederholung (5 bis 1440, v1.99.38)."),
         new("Sync:SageWareneingangMaxWiederholungen", SettingType.Int, "3", "Sage-Lagerbuchung", "Sage-Wareneingang (v1.99.7): so oft wiederholt der Dienst einen Wareneingang mit Status 'Fehler' automatisch (0 = nie, nur 'Erneut senden'). Vor JEDEM Versuch sucht er den Beleg in Sage ueber die Memo-Kennung WE#<Id>#: gefunden = an Sage uebergeben ohne Senden; moeglicher Beleg ohne Kennung (Bestellung + Datum + Lieferschein) = 'Klaeren', kein Senden. Danach bleibt 'Fehler'."),
         new("Sync:SageWareneingangWiederholAbstandMinuten", SettingType.Int, "15", "Sage-Lagerbuchung", "Sage-Wareneingang (v1.99.7): Mindestabstand in Minuten zwischen einem Fehler und der automatischen Wiederholung (5 bis 1440)."),
         new("Sync:SageSystemKuerzel", SettingType.String, "", "Sage-Lagerbuchung", "System-Kuerzel in den Memo-Kennungen an Sage (v1.99.9): leer = WE#<Id># bzw. SM#<Id># (Produktion), sonst WE#<Kuerzel>#<Id># bzw. SM#<Kuerzel>#<Id>#. Damit findet die Suche vor dem erneuten Senden keine Belege anderer WMS-Datenbanken in derselben Sage-Testdatenbank. Gilt nur fuer neue Sendungen.",
@@ -392,6 +412,7 @@ public static class ServiceSettingDefinitions
     private const string SDataZugangVerwendung = "Dienst: Sage-Buchungs-Worker (Lagerbuchung, Sage-Wareneingang), alle SData-Abgleiche; Web: Register Sage-Test, FA-Struktur live";
     private const string WeCsvKategorie = "Wareneingang-CSV";
     private const string BfKategorie = "Blechfertigung WiCAM";
+    private const string SageFaAgKategorie = "Sage-FA-Arbeitsgänge (IDEAL)";
 
     /// <summary>Findet eine Definition per Key (case-sensitiv, wie DB-Key).</summary>
     public static bool TryGet(string key, [NotNullWhen(true)] out SettingDefinition? def)

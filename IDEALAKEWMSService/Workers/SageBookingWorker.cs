@@ -133,6 +133,22 @@ public class SageBookingWorker : BackgroundService
                 await NotifyErrorAsync("SageBookingWorker (BF-CSV Blechfertigung)", ex, stoppingToken);
             }
 
+            // v1.99.38 (Spec 2026-11-17-arbeitsgaenge-aus-wms-in-sage-fa-anlegen E1a): AG-Positionen in Sage-FAs anlegen, NUR bei
+            // SageFaArbeitsgaengeAnlegenAktiv (Default aus). Eigenes try: haelt Lagerbuchung/Wareneingang nicht auf und umgekehrt.
+            try
+            {
+                await ProcessSageFaArbeitsgaengeAsync(stoppingToken);
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                break;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unerwarteter Fehler im Schritt Sage-FA-Arbeitsgänge.");
+                await NotifyErrorAsync("SageBookingWorker (Sage-FA-Arbeitsgänge)", ex, stoppingToken);
+            }
+
             await Task.Delay(TimeSpan.FromSeconds(intervalSeconds), stoppingToken);
         }
 
@@ -245,6 +261,35 @@ public class SageBookingWorker : BackgroundService
         using var scope = _scopeFactory.CreateScope();
         await scope.ServiceProvider.GetRequiredService<BfCsvService>().RunOnceAsync(pfad, kopf, wiederholung, ct);
     }
+
+    private async Task ProcessSageFaArbeitsgaengeAsync(CancellationToken ct)
+    {
+        // Nicht die Safe-Variante: ein DB-Lesefehler landet im catch des Takts statt still als „aus“ zu gelten.
+        if (!await ServiceSettings.GetBoolAsync(_configuration, SageFaArbeitsgaenge.ToggleKey, false, ct)) return;
+        var (endpoint, zugang) = await BuildEndpointAsync(ct);
+        if (zugang.Fehler is { } fehler)
+        {
+            if (_agZugangGemeldet != fehler)
+            {
+                await using var run = await _syncLogger.BeginRunAsync(SyncLogServices.SageFaArbeitsgaenge, ct);
+                await run.LogErrorAsync(fehler, ct: ct);
+                await run.FinishFailedAsync(fehler, ct: ct);
+                _agZugangGemeldet = fehler;
+            }
+            return;
+        }
+        _agZugangGemeldet = null;
+        var wiederholung = new SageFaAgWiederholung(
+            await ServiceSettings.GetIntSafeAsync(_configuration, SageFaArbeitsgaenge.MaxWiederholungenKey, 3, ct),
+            await ServiceSettings.GetIntSafeAsync(_configuration, SageFaArbeitsgaenge.WiederholAbstandKey, 15, ct));
+        var stuckMinutes = await ServiceSettings.GetIntSafeAsync(_configuration, "Sync:SageLagerbuchungStuckMinutes", 10, ct);
+        var bearbeiter = await ServiceSettings.GetValueAsync(_configuration, SageFaArbeitsgaenge.BearbeiterKey, ct);
+        using var scope = _scopeFactory.CreateScope();
+        await scope.ServiceProvider.GetRequiredService<SageFaArbeitsgangService>()
+            .RunOnceAsync(endpoint, bearbeiter, stuckMinutes, wiederholung, ct, zugang.Warnung);
+    }
+
+    private string? _agZugangGemeldet;
 
     private async Task SageWareneingangAusAsync(CancellationToken ct)
     {

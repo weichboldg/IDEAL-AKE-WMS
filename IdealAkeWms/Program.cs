@@ -133,6 +133,7 @@ builder.Services.AddScoped<PickingOrderWorkflow>();
 builder.Services.AddScoped<BeschichtungsauftragWorkflow>();
 // v1.99.35 BF-Auftraege (Blechfertigung, Spec 2026-11-13-blechfertigung-bf-auftraege-wicam-csv)
 builder.Services.AddScoped<IBfAuftragRepository, BfAuftragRepository>();
+builder.Services.AddScoped<ISageFaArbeitsgangAnlageRepository, SageFaArbeitsgangAnlageRepository>(); // v1.99.38 AG-Anlage in Sage-FAs
 builder.Services.AddScoped<BfAuftragWorkflow>();
 builder.Services.AddScoped<BeschichtungsauftragVergabeAnzeige>();
 builder.Services.AddSingleton(TimeProvider.System);

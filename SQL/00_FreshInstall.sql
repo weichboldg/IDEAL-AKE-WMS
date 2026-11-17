@@ -2941,6 +2941,33 @@ BEGIN
 END
 GO
 
+-- SageFaArbeitsgangAnlagen (v1.99.38 / SQL/160, Warteschlange der AG-Anlage in Sage-FAs; Dienst sendet nur bei SageFaArbeitsgaengeAnlegenAktiv)
+IF OBJECT_ID(N'dbo.SageFaArbeitsgangAnlagen', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[SageFaArbeitsgangAnlagen] (
+        [Id]                    INT IDENTITY(1,1) NOT NULL CONSTRAINT [PK_SageFaArbeitsgangAnlagen] PRIMARY KEY,
+        [BelId]                 INT            NOT NULL,
+        [HauptFa]               INT            NOT NULL,
+        [Kuerzel]               NVARCHAR(100)  NOT NULL,
+        [SageArbeitsgangnummer] NVARCHAR(31)   NOT NULL,
+        [Reihenfolge]           INT            NOT NULL,
+        [Status]                INT            NOT NULL,  -- 1 Offen, 2 Gesendet, 3 Angelegt, 4 InSageVorhanden, 5 Fehler
+        [Versuche]              INT            NOT NULL,
+        [Fehler]                NVARCHAR(1000) NULL,
+        [SageAm]                DATETIME2      NULL,
+        [CreatedAt]             DATETIME2      NOT NULL,
+        [CreatedBy]             NVARCHAR(200)  NOT NULL,
+        [CreatedByWindows]      NVARCHAR(200)  NOT NULL,
+        [ModifiedAt]            DATETIME2      NULL,
+        [ModifiedBy]            NVARCHAR(200)  NULL,
+        [ModifiedByWindows]     NVARCHAR(200)  NULL
+    );
+    CREATE INDEX [IX_SageFaArbeitsgangAnlagen_Status] ON [dbo].[SageFaArbeitsgangAnlagen]([Status]);
+    CREATE UNIQUE INDEX [UX_SageFaArbeitsgangAnlagen_BelId_Ag] ON [dbo].[SageFaArbeitsgangAnlagen]([BelId], [SageArbeitsgangnummer]);
+    PRINT 'Tabelle SageFaArbeitsgangAnlagen angelegt.';
+END
+GO
+
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Beschichtungsauftraege_HauptFA' AND object_id = OBJECT_ID(N'dbo.Beschichtungsauftraege'))
     CREATE INDEX [IX_Beschichtungsauftraege_HauptFA] ON [dbo].[Beschichtungsauftraege] ([HauptFA]);
 GO
@@ -3475,6 +3502,9 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
    AND COL_LENGTH(N'dbo.ProductionOrderPositions', N'ErstGesehen') IS NOT NULL
    AND EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'UX_FaHierarchyOrderInfos_Schluessel') -- sonst steht SQL/159 noch aus
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261117183315_FaStrukturAbgleich', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261117192807_AddSageFaArbeitsgangAnlagen')
+   AND OBJECT_ID(N'dbo.SageFaArbeitsgangAnlagen', N'U') IS NOT NULL -- sonst steht SQL/160 noch aus
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261117192807_AddSageFaArbeitsgangAnlagen', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';

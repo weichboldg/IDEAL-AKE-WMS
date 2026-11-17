@@ -158,6 +158,14 @@ try
     builder.Services.AddScoped<WareneingangCsvService>();   // v1.99.11 Wareneingang-CSV (Schritt im SageBookingWorker)
     // v1.99.7 E5: Sage-Pruefung vor jedem erneuten Senden (EinkaufBelegeInfo, nur GET).
     builder.Services.AddScoped<IDEALAKEWMSService.Services.Sdata.ISageWareneingangLookup, IDEALAKEWMSService.Services.Sdata.SdataWareneingangLookupReader>();
+    // v1.99.38 (Spec 2026-11-17-arbeitsgaenge-aus-wms-in-sage-fa-anlegen E1a): AG-Anlage in Sage-FAs (FertigungsauftragService), Schritt im SageBookingWorker.
+    builder.Services.AddHttpClient<ISageFaArbeitsgangClient, SageFaArbeitsgangClient>(client =>
+    {
+        client.Timeout = TimeSpan.FromSeconds(60);
+    })
+    .ConfigurePrimaryHttpMessageHandler(SageSchreibHandler);
+    builder.Services.AddScoped<ISageFaStandLookup, SdataFaStandLookup>();
+    builder.Services.AddScoped<SageFaArbeitsgangService>();
 
     // Sage-SData-Lese-Client (Stammdaten-Abgleich, v1.73.0): Paging ueber CommonWawiServicesResources, TLS-Schalter je Anfrage.
     IDEALAKEWMSService.Services.Sdata.SdataRegistrierung.AddSageSdataReadClient(builder.Services);

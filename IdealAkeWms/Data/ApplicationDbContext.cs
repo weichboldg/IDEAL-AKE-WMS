@@ -80,6 +80,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<BeschichtungsauftragPosition> BeschichtungsauftragPositionen => Set<BeschichtungsauftragPosition>();
     public DbSet<BfAuftrag> BfAuftraege => Set<BfAuftrag>(); // v1.99.35 Blechfertigung
     public DbSet<BfAuftragPosition> BfAuftragPositionen => Set<BfAuftragPosition>();
+    public DbSet<SageFaArbeitsgangAnlage> SageFaArbeitsgangAnlagen => Set<SageFaArbeitsgangAnlage>(); // v1.99.38 AG-Anlage in Sage-FAs
     public DbSet<SyncLog> SyncLogs => Set<SyncLog>();
     public DbSet<DeployScriptRun> DeployScriptRuns => Set<DeployScriptRun>();
     public DbSet<WorkStep> WorkSteps => Set<WorkStep>();
@@ -1866,6 +1867,24 @@ public class ApplicationDbContext : DbContext
                 .WithMany(a => a.Positionen)
                 .HasForeignKey(e => e.BfAuftragId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // v1.99.38 (Spec 2026-11-17-arbeitsgaenge-aus-wms-in-sage-fa-anlegen E1a): Warteschlange der AG-Anlagen, Dienst sendet.
+        modelBuilder.Entity<SageFaArbeitsgangAnlage>(entity =>
+        {
+            entity.ToTable("SageFaArbeitsgangAnlagen");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Kuerzel).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.SageArbeitsgangnummer).HasMaxLength(SageFaArbeitsgangAnlage.SageArbeitsgangnummerMaxLaenge).IsRequired();
+            entity.Property(e => e.Status).HasConversion<int>();
+            entity.Property(e => e.Fehler).HasMaxLength(SageFaArbeitsgangAnlage.FehlerMaxLaenge);
+            entity.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.ModifiedBy).HasMaxLength(200);
+            entity.Property(e => e.ModifiedByWindows).HasMaxLength(200);
+            // eine Zeile je FA und Sage-AG: doppeltes Einreihen (zwei Benutzer) scheitert hier, die App prueft vorher (InMemory kennt kein UNIQUE)
+            entity.HasIndex(e => new { e.BelId, e.SageArbeitsgangnummer }).IsUnique().HasDatabaseName("UX_SageFaArbeitsgangAnlagen_BelId_Ag");
+            entity.HasIndex(e => e.Status).HasDatabaseName("IX_SageFaArbeitsgangAnlagen_Status");
         });
 
         // SyncLog

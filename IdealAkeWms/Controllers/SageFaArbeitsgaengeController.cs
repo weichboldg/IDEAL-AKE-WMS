@@ -25,12 +25,14 @@ public class SageFaArbeitsgaengeController : Controller
     private readonly IConfiguration _configuration;
     private readonly IDataProtectionProvider _schutz;
     private readonly ICurrentUserService _currentUser;
+    private readonly ISageFaArbeitsgangAnlageRepository _queue;
     private readonly ILogger<SageFaArbeitsgaengeController> _logger;
 
     public SageFaArbeitsgaengeController(IFaHierarchyNodeRepository nodes, IOperationConfigRepository configs, IServiceSettingRepository serviceSettings,
         ISageSdataReadClient sage, IConfiguration configuration, IDataProtectionProvider schutz, ICurrentUserService currentUser,
-        ILogger<SageFaArbeitsgaengeController> logger)
+        ISageFaArbeitsgangAnlageRepository queue, ILogger<SageFaArbeitsgaengeController> logger)
     {
+        _queue = queue;
         _nodes = nodes;
         _configs = configs;
         _serviceSettings = serviceSettings;
@@ -62,9 +64,9 @@ public class SageFaArbeitsgaengeController : Controller
     public async Task<IActionResult> Index(int? hauptFa, int? fa, bool nurAnlegbar = false, bool pruefen = false, int page = 1, int? pageSize = null,
         CancellationToken ct = default)
     {
-        if (!string.Equals(await _serviceSettings.GetValueAsync(HierarchischeStrukturKeys.Master), "true", StringComparison.OrdinalIgnoreCase))
+        if (!await IstAnAsync(HierarchischeStrukturKeys.Master))
         {
-            TempData["WarningMessage"] = "„Arbeitsgänge → Sage“ gibt es nur mit hierarchischen Produktionsaufträgen (IDEAL).";
+            TempData["WarningMessage"] = NurHierarchisch;
             return RedirectToAction("Index", "Home");
         }
         if (page < 1) page = 1;
@@ -113,7 +115,11 @@ public class SageFaArbeitsgaengeController : Controller
             }
         }
 
-        var ergebnis = SageFaArbeitsgaenge.BuildVorschau(knoten, configs, stand, sageFehler);
+        var faIds = knoten.Where(n => n.SubFA != 0).Select(n => n.SubFA).Distinct().ToList();
+        var queue = SageFaArbeitsgaenge.QueueStatus(await _queue.GetByBelIdsAsync(faIds));
+        vm.SchalterAn = await IstAnAsync(SageFaArbeitsgaenge.ToggleKey);
+        vm.BearbeiterFehlt = vm.SchalterAn && string.IsNullOrWhiteSpace(await _serviceSettings.GetValueAsync(SageFaArbeitsgaenge.BearbeiterKey));
+        var ergebnis = SageFaArbeitsgaenge.BuildVorschau(knoten, configs, stand, sageFehler, queue);
         var gefiltert = ColumnFilterHelper.Apply(ergebnis.Zeilen, columnFilters, ColumnMap)
             .Where(z => !nurAnlegbar || z.IstAnlegbar).ToList();
         vm.Blaetter = ergebnis.Blaetter;
@@ -126,6 +132,60 @@ public class SageFaArbeitsgaengeController : Controller
             PageSizeRaw = PageSize.ResolveRaw(pageSize, userDefault),
             TotalCount = gefiltert.Count,
         };
+        // Knopf je FA der Seite mit einreihbaren Zeilen (alle Zeilen des FA, nicht nur die der Seite)
+        var seitenFas = vm.Zeilen.Select(z => z.BelId).ToHashSet();
+        vm.Einreihbar = ergebnis.Zeilen.Where(z => seitenFas.Contains(z.BelId) && SageFaArbeitsgaenge.IstEinreihbar(z))
+            .GroupBy(z => z.BelId).Select(g => new SageFaEinreihbar(g.Key, g.First().Artnr, g.First().Matchcode,
+                g.DistinctBy(z => z.SageAg, StringComparer.OrdinalIgnoreCase).Select(z => z.SageAg!).ToList()))
+            .ToList();
         return View(vm);
     }
+
+    public const string NurHierarchisch = "„Arbeitsgänge → Sage“ gibt es nur mit hierarchischen Produktionsaufträgen (IDEAL).";
+    public const string StandGeaendert = "Stand hat sich geändert – Vorschau neu laden und erneut prüfen. Nichts eingereiht.";
+
+    /// <summary>E1a: reiht die bestaetigten AGs eines FA fuer den Dienst ein (Freigabe-Antwort 9). Schalter und Ziel-Stand prueft der Server
+    /// am Schreibort erneut (ADR 0026): jede erwartete Sage-AG muss zum FA gehoeren (Kuerzel im Feld, wirksame Sage-AG), sonst nichts. Sage
+    /// liest erst der Dienst unmittelbar vor dem Senden (Duplikat-, Beendet- und Begonnen-Schutz).</summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Anlegen(int belId, string[]? erwarteteAgNummern, string? zurueck)
+    {
+        IActionResult Zurueck() => Url.IsLocalUrl(zurueck) ? Redirect(zurueck!) : RedirectToAction(nameof(Index), new { fa = belId });
+        if (!await IstAnAsync(HierarchischeStrukturKeys.Master))
+        {
+            TempData["WarningMessage"] = NurHierarchisch;
+            return RedirectToAction("Index", "Home");
+        }
+        if (!await IstAnAsync(SageFaArbeitsgaenge.ToggleKey))
+        {
+            TempData["WarningMessage"] = SageFaArbeitsgaenge.AusText;
+            return Zurueck();
+        }
+        var erwartet = (erwarteteAgNummern ?? Array.Empty<string>()).Select(a => a?.Trim()).Where(a => !string.IsNullOrEmpty(a))
+            .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var zeilen = SageFaArbeitsgaenge.BuildVorschau((await _nodes.GetAllAsync()).Where(n => n.SubFA == belId), await _configs.GetAllAsync(), null)
+            .Zeilen.Where(z => z.BelId == belId && z.SageAg != null).ToList();
+        if (belId <= 0 || erwartet.Count == 0 || erwartet.Any(a => !zeilen.Any(z => string.Equals(z.SageAg, a, StringComparison.OrdinalIgnoreCase))))
+        {
+            TempData["WarningMessage"] = StandGeaendert;
+            return Zurueck();
+        }
+        var neu = erwartet.Select(a => zeilen.First(z => string.Equals(z.SageAg, a, StringComparison.OrdinalIgnoreCase)))
+            .Select(z => new IdealAkeWms.Models.SageFaArbeitsgangAnlage
+            {
+                BelId = belId, HauptFa = z.HauptFa, Kuerzel = z.Kuerzel, SageArbeitsgangnummer = z.SageAg!, Reihenfolge = z.Reihenfolge,
+            }).ToList();
+        var anzahl = await _queue.EinreihenAsync(neu, _currentUser.GetDisplayName(), _currentUser.GetWindowsUserName());
+        _logger.LogInformation("Sage-AG-Anlage: FA {BelId}, {Anzahl} von {Erwartet} AG(s) eingereiht ({Ags}) durch {Benutzer}.",
+            belId, anzahl, erwartet.Count, string.Join(",", erwartet), _currentUser.GetDisplayName());
+        if (anzahl > 0)
+            TempData["SuccessMessage"] = $"FA {belId}: {anzahl} Arbeitsgang/Arbeitsgänge eingereiht. Der Dienst prüft Sage und legt sie an; Status hier nach „Sage-Stand prüfen“ bzw. neu laden.";
+        else
+            TempData["WarningMessage"] = $"FA {belId}: nichts eingereiht – die Arbeitsgänge sind schon eingereiht, gesendet oder angelegt.";
+        return Zurueck();
+    }
+
+    private async Task<bool> IstAnAsync(string key) =>
+        string.Equals((await _serviceSettings.GetValueAsync(key))?.Trim(), "true", StringComparison.OrdinalIgnoreCase);
 }
