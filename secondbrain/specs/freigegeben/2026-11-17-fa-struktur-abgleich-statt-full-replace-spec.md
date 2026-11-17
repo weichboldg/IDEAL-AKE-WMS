@@ -2,7 +2,7 @@
 type: spec
 title: FA-Struktur mit Abgleich und Lebenslauf statt Full-Replace
 slug: 2026-11-17-fa-struktur-abgleich-statt-full-replace-spec
-status: Entwurf
+status: InUmsetzung
 created: 2026-11-17
 updated: 2026-11-17
 source_backlog: "[[2026-11-17-fa-struktur-abgleich-statt-full-replace]]"
@@ -53,12 +53,18 @@ deploy:
   web: true
   service: true
   migration: true
-freigabe_entscheidung: ""
-freigabe_von: ""
-freigabe_am: ""
+freigabe_entscheidung: "Rückfragen 1-4 wie Empfehlung (Gerald 2026-11-17 18:42)"
+freigabe_von: "Gerald Weichbold"
+freigabe_am: "2026-11-17"
 ---
 
 # FA-Struktur mit Abgleich und Lebenslauf statt Full-Replace
+
+> [!warning] Nummern 2026-11-17 18:50 (Koordination)
+> SQL/158, TS-157 und v1.99.35 sind durch die BF-Spec belegt ([[2026-11-17-goal-lauf-bf-auftraege]]). Vorschlag: **SQL/159**, **TS-158**,
+> Version **nächste freie nach dem BF-/Beschichtungs-Teil des Sammel-Goals**, ADR/Fallstrick nächste freie. Beim Dev-Start gegen Worktree prüfen;
+> alle Stellen im Rumpf mit 158/157 gelten entsprechend verschoben.
+
 
 Löst R2 und R4 aus [[2026-11-16-fa-struktur-ideal-ueber-sdata-spec]]. Entscheidungen (a) bis (f) von Gerald vom 2026-11-17 im Backlog
 [[2026-11-17-fa-struktur-abgleich-statt-full-replace]] sind verbindlich und werden hier nicht neu verhandelt.
@@ -525,7 +531,14 @@ SELECT
 
 ### Befund E0
 
-(vom Dev-Lauf bzw. Gerald auszufüllen)
+Dev-Lauf 2026-11-17 (Goal Sammel-Abend), **teilweise, Rest offen für die Koordination**:
+- Sage-Test (`IDEALSQL2\SAGE100TEST`) vom Arbeitsplatz nicht erreichbar („Error Locating Server/Instance“) → **P-AB3, P-AB4, P-AB5,
+  P-AB6, P-AB8 offen**. Gebaut wie in der Spec vorgesehen: `SELECT BelID, IstBeendet, Aktiv FROM dbo.KHKPpsFaBelege` **ohne
+  Mandant-Filter** (Blocker vor Prod bis P-AB4), OrderInfos-Schlüssel `(HauptFA, ABNr, Pos)`, View-Weg des Artikeltyps unverändert.
+- P-AB1/P-AB2: `IDEAL_AKE_WMS_Test` (AKESQL20) hat keine Tabelle `FaHierarchyNodes`; `IDEAL_AKE_WMS_TESTIDEAL` hat die Tabellen mit
+  0 Zeilen → keine Dubletten, aber **nicht aussagekräftig** (die 755 Knoten liegen auf dem IDEAL-Server). SQL/159 prüft vor dem Index
+  selbst und bricht mit `Pruefung/FaStrukturSchluesselDoppelt` ab.
+- Nummern gegen den Worktree: SQL/159, TS-158, v1.99.37, ADR 0032, **Fallstrick 48** (47 ist durch die BF-Spec belegt).
 
 ## Deploy
 
@@ -567,7 +580,7 @@ SELECT
   als seinen Auftrag. Antworte je Frage in **fett** hinter dem Pfeil.
 -->
 
-1. Gelöscht/storniert in Sage IDEAL (physisch entfernt? Aktiv = 0?) →
-2. Default Aufbewahrungsfrist (Vorschlag 90 Tage) →
-3. Arbeitslisten: anzeigen mit Badge oder ausblenden mit Schalter; Teileliste meldbar ja/nein →
-4. Mandant der Einzelabfrage (nur falls P-AB4 mehrere zeigt) →
+1. Gelöscht/storniert in Sage IDEAL (physisch entfernt? Aktiv = 0?) → **Gerald 2026-11-17 18:42 „Rest passt“ (Empfehlung): wie Spec-Vorschlag bis zur Klärung – nicht gefundene FAs entfernen, `Aktiv = 0` mit Grund `inaktiv` behalten; Sage-Verhalten beim Löschen prüft die Koordination auf IDEALSQL2.**
+2. Default Aufbewahrungsfrist (Vorschlag 90 Tage) → **Gerald 2026-11-17 18:42 „Rest passt“: 90 Tage.**
+3. Arbeitslisten: anzeigen mit Badge oder ausblenden mit Schalter; Teileliste meldbar ja/nein → **Gerald 2026-11-17 18:42 „Rest passt“ (Empfehlung): anzeigen mit Badge, in der BDE-Teileliste nicht meldbar.**
+4. Mandant der Einzelabfrage (nur falls P-AB4 mehrere zeigt) → **Gerald 2026-11-17 18:42 „Rest passt“ (Empfehlung): bestehender `Sync:ProductionWorkplaceSyncMandant` (Beschreibung erweitern), kein eigener Key.**
