@@ -23,6 +23,10 @@ kein neuer ADR. Testfall tiefe Positionen: Artikel S1402262 (`10.140.40.10.10`).
 ## Protokoll
 
 - 2026-11-17: Vorprüfung, Schema (Model, Migration, SQL/157, FreshInstall ×2).
+- 2026-11-17: Flache Quelle (`BeschichtungFlacheQuelle`, `GetFlacheLackierteileAsync`), Service/Vergabe-Anzeige/Workflow-Weiche, Schlüssel
+  fünfteilig, Sortierung, Sammelmeldung, Views ohne „(IDEAL)“, Gate-Metadaten, Manifest, Tests (`BeschichtungFlacheQuelleTests`), Doku,
+  TS-145, Version 1.99.34. Build 0 Fehler, Tests 3131 + 702 grün. Commit `eff0c1a4`.
+- Abweichung: Positionsanzeige inline in den Views (Spec Z. 427), Format `— / 0 / 51.5.2`.
 
 ## Ergebnis
 

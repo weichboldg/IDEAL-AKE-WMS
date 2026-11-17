@@ -2060,3 +2060,17 @@ Code: `hardware-scanner.js` Block „Scannen ohne Feld“, CSS `.hw-scan-bereit`
   Nummern nur aus der View übernehmen (Guard im `OperationConfigSyncService`).
 - **Sage-Wert nicht in `EditableProperties`.** Warum: Ein Web-Speichern darf den Sync-Stand nicht überschreiben (Muster wie `Source`/
   `SageMissingSince`); der Handwert gehört nur dem Web, der Sage-Wert nur dem Sync.
+
+## 46. AKE-Stücklisten-Positionen sind Text (v1.99.34, [[2026-11-16-beschichtungslogik-je-standort-spec]] Nachtrag 3)
+
+- **Position nie als `int` parsen.** Die AKE-Stückliste führt mehrstufige Positionen (`51.5.2`, `10.140.40.10.10` an S1402262, bis 5 Ebenen /
+  15 Zeichen laut P-A9). Warum: P-A6 (2026-11-17) widerlegte „Lackierteil-Positionen ganzzahlig“; ein `int.TryParse` hätte Zeilen still
+  verloren oder zusammengelegt. Deshalb `BeschichtungsauftragPosition.PositionText` (SQL/157), `Position` bleibt an der AKE NULL.
+- **Reihenfolge nur über `NaturalPositionComparer`.** Warum: alphabetisch steht `5.10` vor `5.2`; die Kommissionierung sortiert schon so.
+- **Schlüssel = Artnr + PositionText, normiert wie `PickingOrderRestmengen.Schluessel`** (Artnr trim+upper, Position trim, nie
+  Zahl-Normierung). Warum: `5.2` und `5.20` sind verschiedene Zeilen. Altzeilen ohne Text gelten an der AKE nicht als vergeben – die
+  Manifest-Prüfung `Pruefung/BeschichtungPositionOhneTextFlach` meldet sie.
+- **Flache Quelle filtert nicht nach `IsDonePicking`.** Warum: Beschichtung läuft oft nach der Kommissionierung; offen heißt nur
+  `!IsDone && !IsCancelled` (A13).
+- **InMemory vergleicht Artikelnummern mit Groß/Klein**, SQL Server nicht. Die Zuordnung im Speicher ist deshalb `OrdinalIgnoreCase`; der
+  Unit-Test kann die SQL-Kollation nicht belegen (TS-145).

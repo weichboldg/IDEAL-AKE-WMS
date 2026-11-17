@@ -167,6 +167,8 @@ konsolidiertes `../../SQL/00_FreshInstall.sql`. Der Workflow ist verbindlich —
 - Schreibweg nur über `Services/BeschichtungsauftragWorkflow.cs` (Regeln) und `IBeschichtungsauftragRepository`
   (`GetVergabenAsync` = Positionen in Aufträgen mit Status ≠ Storniert, eine Abfrage). Spec
   [[2026-10-06-beschichtungsauftrag-ausbau-teil-3-spec]].
+  - **`PositionText`** (v1.99.34, SQL/157, nvarchar(50) NULL): Stücklisten-Position als Text, nur aus der flachen Quelle (AKE, WA-Stückliste);
+    dann Schlüssel Artnr + PositionText statt VaterFA/SubFA/Position. IDEAL-Zeilen bleiben NULL. Siehe fallstricke §46.
 
 ## Sage-SData-Stammdaten (v1.73.0, SQL/98–107)
 
