@@ -2,7 +2,7 @@
 type: spec
 title: Wareneingang – Sammellieferschein (Barcode mehrfach, CSV mit laufender Nummer) und Bestellkopf mit AB-Nummer und Kommission
 slug: 2026-11-17-wareneingang-sammellieferschein-und-bestellkopf-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-11-17
 updated: 2026-11-17
 source_backlog: "[[2026-11-17-wareneingang-sammellieferschein-csv-nummerierung]]"
@@ -384,7 +384,16 @@ Entfällt (`epic: false`). Teil A und Teil B sind getrennte Commits im selben La
 
 ## Deploy
 
-*Vorläufig (Spec-Agent). Der QA-Lauf bestätigt gegen den echten Diff.*
+**Final (QA-Lauf 2026-11-17, gegen den echten Diff `5960b6a5..ed919976`):** Web **ja** (`IdealAkeWms/` Controller, Views, Modell,
+ViewModel, Hilfe, Changelog), Dienst **ja** (`IDEALAKEWMSService/Services/WareneingangCsvService.cs`, `Sdata/EinkaufBestellungenSyncService.cs`),
+Migration **ja** (`20261117102804_AddSagePurchaseOrderLineAbNummerKommission` = `SQL/156`, additiv, kein Backup-Sonderfall). Kein Daten-/Einmal-Skript,
+keine Einstellung. **Paket:** `C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish` (IDEALAKEWMSWeb + IDEALAKEWMSWebService,
+`SQL\`, `deploy\`, `publish-info.txt` Version 1.99.33, Commit `ed919976bbc1b24809b56e880b3fbe52f954f9b9`); die alte `publish\publish.zip` (10:19)
+ist veraltet – nicht verwenden. Reihenfolge (Update-Skript-Standard): Backup → SQL/156 (Schema) → Web → Dienst; Info `v1.99.33-WareneingangCsvSammellieferschein`
+steht in Phase **Vorher** (AKE-Prod erst nach E-1), `Pruefung/WareneingangCsvKollision` in Phase Nachher. Nach dem Merge nur dann neu aus `main`
+publishen, wenn der Merge getestete Dateien mit parallelen main-Änderungen zusammengeführt hat.
+
+*Ursprünglich vorläufig (Spec-Agent):*
 
 - **Web-App:** ja (Maske, Liste, Spaltenkatalog, Hilfe, Changelog, Version).
 - **Service:** ja (`WareneingangCsvService`, `EinkaufBestellungenSyncService`).
@@ -571,3 +580,112 @@ Bis P-2 vorliegt, sind Spaltenlänge (B2) und Format (B3) **ungeprüft**; bis P-
 5. Spalten AB-Nummer/Kommission standardmäßig sichtbar oder ausgeblendet? → **Gerald 2026-11-17 11:23: in der Tabelle der offenen Bestellungen (Lager und Einkauf) als Spalten, sichtbar und ausblendbar; bei der Einbuchung (Wareneingang zu Bestellung) nur im Kopf anzeigen, keine Spalten in der Positionstabelle.**
 6. Standort Teil B nur AKE (P-2 trotzdem auch an IDEAL)? → **Gerald 2026-11-17 11:23 (Empfehlung): ja.**
 7. Hinweis nach dem Buchen (Erfolgsmeldung) oder schon beim Scannen? → **Gerald 2026-11-17 11:23 (Empfehlung): nach dem Buchen in der Erfolgsmeldung.**
+
+## QA-Nachweis (qa-agent, 2026-11-17)
+
+Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Branch `feature/2026-08-07-ideal-teile-1-5`. Geprüfter Bereich `5960b6a5..19ce63ef`
+(`32338503`, `19ce63ef`) plus QA-Fix `ed919976` (HEAD). Version **1.99.33**, SQL/156, TS-156.
+
+### 1. Build und Tests
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler (28 vorbestehende Warnungen, keine in geänderten Dateien).
+- `dotnet test` (vor und nach dem QA-Fix gleich): **IdealAkeWms.Tests 3117 bestanden / 1 übersprungen / 0 Fehler (3118)**;
+  **IDEALAKEWMSService.Tests 702 bestanden / 0 / 0 (702)**. `NachlaufManifestDriftTests`, `FreshInstallIndexSpaltenTests` darin grün (AK 21).
+
+### 2. Code-Review (selbst, in diesem Lauf)
+Geprüft: kompletter Diff (Receive-Regel, `SammellieferscheinGrund`, `WareneingangCsvService.SchreibenAsync/BelegteDateienAsync/Dateiname`,
+`EinkaufBestellungenSyncService.KoepfeAsync`, Modell/DbContext, Migration, SQL/156, FreshInstall beide Stellen, Manifest, Views Index/Receive,
+ColumnMap/ColumnDefinitions, Tests, Doku/Hilfe/README/Changelog) sowie Umgebung: `BarcodeVergebenAsync` (erster Wareneingang, `ToUpper`),
+`BuildReceiveAsync` (Zeilen nie leer), Schleife `RunOnceAsync` (Speichern je Zeile → A3 trägt), `SageSdataReadClient.GetAsync` (immer
+RealTimeData, `orderBy` Pflicht), `SageWareneingaenge.cshtml`. Defektklassen: kein Wert in `<script>` (Spaltenkatalog statisch), kein `hidden`+`d-*`,
+kein stilles `?? 0` (Kopfwerte `null` → „–“ sichtbar; fehlendes Feld/Lesefehler/zu lang/ohne Treffer werden gemeldet), keine Parallel-Arrays,
+Regel serverseitig im Controller, Groß/Klein-Regel SQL `ToUpper` + C# `OrdinalIgnoreCase` gleichsinnig.
+
+| # | Befund | Behandlung |
+|---|---|---|
+| F1 | `Views/PurchaseOrders/SageWareneingaenge.cshtml:145`: Hinweis am Knopf „CSV erneut schreiben“ nannte nur `<Barcode>.csv` – seit v1.99.33 kann es `<Barcode>_n.csv` sein. | **Behoben** `ed919976` (Text nennt `_n.csv` und „nächste freie Nummer“). Build + alle Tests danach grün. |
+| H1 | Kopf-Lesen über RealTimeData läuft im Dienst ohne eigenen Schalter (anders als `FaStrukturQuelleSwitch.RealTimeDataErlaubt`). Entscheidung Variante B (Gerald 11:23, „kein neuer Schalter“). Untersagt DPS RealTimeData im Dienst, braucht es eine Code-Änderung. | Hinweis, kein Defekt. |
+| H2 | AK 11 (Erneut schreiben nach Pfadfehler) hat keinen eigenen Unit-Test; abgedeckt über die Regel „`Datei` nur bei Erfolg“ (Start-Zählung) und den AK-10-Test. | Hinweis, akzeptiert. |
+| H3 | Ist der **erste** Wareneingang eines Barcodes nur chargen-/nachweispflichtig (`NurInSage`, keine Ausgangszeile), sagt die Erfolgsmeldung des zweiten „_1, _2 …“, die Datei heißt aber `<Barcode>.csv` (Start = 0). Kosmetisch. | Hinweis, nicht geändert. |
+
+### 3. Nachweisart je AK
+| AK | Nachweis |
+|---|---|
+| 1–4 Sammellieferschein-Regel | automatisiert (`PurchaseOrdersReceiveTests` AK1, AK2, AK3/AK4-Theory; Bestandstest `Barcode_Duplikat_…_AK4` Z. 318 unverändert grün). Echte Formular-Bindung/Maske: **Manual-UAT** (auf DEV nicht möglich, s. 6c) |
+| 5–10, 12 Dateinamen | automatisiert (`WareneingangCsvServiceTests`) **und** DEV (echter SQL Server, echte Dateien, Sonde) |
+| 11 erneut schreiben nach Pfadfehler | Logik (H2) + AK-10-Test; Manual-UAT |
+| 13 Kopf Maske | automatisiert (AK13) + DEV-Browser |
+| 14 Listen/Filter | automatisiert (`PurchaseOrdersControllerTests` AK14/15) + DEV-Browser (Lager + Einkauf); Zahnrad-Persistenz **Manual-UAT** |
+| 15 Default sichtbar | automatisiert (Katalog `DefaultHidden=false`) + DEV-Browser |
+| 16 Feld fehlt | automatisiert (AK16) + DEV-Live-Probe P-1b |
+| 17 Lesefehler | automatisiert (AK17); auf DEV nicht ausgelöst |
+| 18 zu lang | automatisiert (AK18) |
+| 19 nicht in enaio-CSV | DEV (Dateien 9 Felder) + Diff (`CsvInhalt` unverändert) |
+| 20 Counts | automatisiert (AK20) + DEV-Live-Lauf |
+| 21 Build/Tests | grün |
+| 22 IDEAL | DEV IDEAL (Schema, Browser) |
+
+### 4. Geänderte Bestandstests
+- `WareneingangCsvServiceTests.DateiExistiert_NieUeberschrieben_Fehler_Warnung_KeineAutoWiederholung_AK11` → `…_NaechsteNummer_KeinFehler_AK8`:
+  **Verhalten absichtlich geändert (AK 8)**; „nie automatisch“ für Altzeilen wandert in den neuen AK-10-Test.
+- `EinkaufBestellungenSyncTests` (Lauf mit zwei Abfragen): `Invocations.HaveCount(2)` → nur `QueryAllAsync` zählen: **Verhalten absichtlich
+  geändert (Teil B, zusätzlicher GET)**; Aussage „zwei Positions-Abfragen, kein or“ bleibt. Standard-Setup `Koepfe(client)` ergänzt.
+- `NachlaufManifestDriftTests.SchemaReihenfolge` + `"SQL/156"`: Pflichtnachzug für das neue Schema-Skript.
+- Kein „Sonstiges“.
+
+### 5. Checkliste
+Migration + `SQL/156` (Guard „falsche DB“, `COL_LENGTH` je Spalte im eigenen Batch, History separat, `SET NOEXEC OFF`) ✓; FreshInstall Schema +
+MigrationId (mit Spalten-Bedingung) ✓; AgentJobs nicht betroffen ✓; Audit: `WareneingangCsvExporte` wie bisher, Cache ohne Audit (Vollersatz) ✓;
+Version 1.99.33 in beiden `AppVersion.cs` + Anwender-Changelog ✓; README, Hilfe, Anwenderdoku 05/06 ✓; TS-156 in `docs/TESTSZENARIEN.md` + Hinweise
+TS-129.5/129.14 ✓; [[testszenarien-index]] Zeile 156 ✓; Manifest `SQL/156`, `Pruefung/WareneingangCsvKollision`, `v1.99.33-WareneingangCsvSammellieferschein`
+(ASCII, Phase Vorher) ✓. **5a ADR 0020:** keine neue oder geänderte Einstellung.
+
+### 6. DEV
+- a. `standort: AKE`; IDEAL zusätzlich deployt (Auftrag, AK 22).
+- b. Zielordner `D:\Dev\{AKE,IDEAL}\{Web,Service}` vor **beiden** Deploys geleert (Befund Q-3; behalten nur `appsettings.DEV.json*`, `logs`,
+  `App_Data`, `deploy-info.txt`). `dev-deploy.ps1 -Quelle <Worktree>` (elevated) zweimal – Stand `19ce63ef`, dann final **`ed919976`**: AKE und IDEAL
+  je Exit 0, HTTP 200, **Fußzeile v1.99.33**, DEV-Absicherung gelaufen, Dienste Running. EF-Migrate legte die Spalten an; `SQL/156` danach von Hand
+  auf beiden DEV-DBs: „existiert bereits“ (idempotent), `COL_LENGTH` 500/400, MigrationId eingetragen.
+- c. TS-156:
+
+| Nr | Erledigt | Ergebnis | Status |
+|---|---|---|---|
+| 156.1–156.5 | – | Buchen mit Barcode verlangt `SageWareneingangBelegAktiv = an`; das Einschalten auf DEV wurde verweigert (Sage-WE-Übergabe bleibt aus). Regel per Unit-Test belegt. | NICHT MÖGLICH |
+| 156.6 | Receipts X (`QA157B`, 2027-168561) und Y (`qa157b`, 2027-168594, beide K31705) per SQL als übergeben angelegt; CSV-Lauf per Sonde (`WareneingangCsvService.RunOnceAsync` gegen `AKE_WMS_DEV`, Ordner `D:\Dev\csv-ausgang\ake-qa157`) | `QA157B.csv`, `qa157b_1.csv`; Feld 1 `QA157B` bzw. `qa157b`; `Datei` je Zeile = tatsächlicher Pfad; BOM, CRLF | OK |
+| 156.7 | `QA157B.csv` gelöscht, dritter Vorgang (2027-168779) | `QA157B_2.csv`, nicht `QA157B.csv` | OK |
+| 156.8 | `QA157B_3.csv` mit Inhalt „fremd“ angelegt, vierter Vorgang (2027-168731) | `QA157B_4.csv`; `_3` unverändert; Status 2, Versuche 0, Protokoll `geschrieben=1, fehler=0` | OK |
+| 156.9 | Zeile 7 per SQL auf Status 3, KollisionText, `Datei = NULL`, `ModifiedAt` −1 h, Datei entfernt; Sonde | kein Versuch, kein Protokoll-Eintrag; Browser Lager → Sage-Wareneingänge „CSV erneut schreiben“ → Status 1 (ModifiedBy Gerald Weichbold); Sonde → `QA157B_4.csv`, Status 2 | OK |
+| 156.10 | Vorgang mit neuem Barcode `QA157C` (2027-168647, K30072) | `QA157C.csv`, 9 Felder, BOM, CRLF, Erfasser `gerald.weichbold` | OK |
+| 156.11 | Abgleich einmal echt per Sonde (nur GET, Cache 1167 → 1160 Zeilen wie ein regulärer Lauf); Browser *Wareneingang zu Bestellung* | 2027-168647: AB-Nummer `499366`, Kommission „–“; 2027-168594: AB „–“, Kommission „Pos. 7 für Hausdamen“; Positionstabelle ohne neue Spalten | OK |
+| 156.12 | Lager → Offene Bestellungen `colf_ab-nummer=49936` (Überfällige an); Einkauf → Offene Bestellungen `colf_kommission=Hausdamen` | 23 Zeilen = SQL `AbNummer LIKE '%49936%'` 23, je Beleg derselbe Wert; Einkauf 2 Zeilen (2027-168594); Spalten nach „Bestellung“ sichtbar. Zahnrad nicht geklickt | OK (Zahnrad offen) |
+| 156.13 | Sonde `RunAsync(dryRun:true)` gegen AKE-Test-SData (vorhandene DEV-Konfiguration), danach echter Lauf | „Kopfdaten: Quelle SData (RealTimeData) dtsEKBelegMst.Sage.Wawi, 445 Zeile(n) zu 445 Beleg(en)“; Counts `ab_nummer=139, kommission=166, kopf_ohne_treffer=0, kopf_zu_lang=0`; keine Warnung „liefert … nicht“; DryRun ließ den Cache unverändert (Prüfsumme gleich) | OK |
+| P-1a/P-1b live | Sonde GET `dtsEKBelegMst.Sage.Wawi`, BelIDs 361915, 361998, 362183, 362351, 362493 | Mit Präfix: HTTP 200, 5 Zeilen, **Schlüssel immer vorhanden**, leer = `null` (362183 `KHKEKBelege_USER_AB="499366"`, `…_USER_Kom=null`; 361998 Kom „Pos. 7 für Hausdamen“) → „Feld fehlt“ und „leer“ unterscheidbar. Ohne Präfix (`USER_AB,USER_Kom`): HTTP 200, nur `BelID` – still weggelassen (fallstricke §41, AK 16). Max. Länge live 43 / 99 | OK |
+| 156.14 | – | Lesefehler hieße `SData:BaseUrl` auf DEV ändern; per Unit-Test AK17 belegt | NICHT MÖGLICH (bewusst) |
+| 156.15 | Dateien aus 156.6–156.10 | je 9 Felder, keine AB/Kommission | OK |
+| 156.16 | IDEAL-DEV | `COL_LENGTH` 500/400, MigrationId da; `localhost:8082/PurchaseOrders` zeigt Spalten AB-Nummer/Kommission (leer, Abgleich dort aus) | OK |
+
+**DEV-Aufräumen:** 5 Test-Receipts (`CreatedBy = QA-157`), 5 Ausgangszeilen (Id 4–8), 6 Bewegungen (Menge 0, Note `QA-157`; eine aus einem
+abgebrochenen ersten Insert) gelöscht, Ordner `D:\Dev\csv-ausgang\ake-qa157` entfernt; danach 17 Receipts (max Id 20), Ausgangszeile 3 unverändert,
+0 `QA-157`-Bewegungen. **Keine Einstellung geändert** (geprüft: `SageWareneingangBelegAktiv`, `WareneingangCsvAktiv`, `Sync:EinkaufBestellungenEnabled`,
+`SageLagerbuchungAktiv` = false). Bleibend: Cache `SagePurchaseOrderLines` auf AKE-DEV durch den einen echten Abgleich auf Sage-Test-Stand
+(reiner Spiegel, gewollt); Protokoll-Einträge der Sonden in `SyncLogs`. Sonde (Wegwerf):
+`C:\Users\GERALD~1.WEI\AppData\Local\Temp\claude\8eae370df6a92eae\ec0f5dc9-6d40-450e-bc07-1e14a1b12b59\scratchpad\qa157sonde\`.
+
+### 7. Publish
+`<Worktree>\publish\IDEALAKEWMSWeb` und `\IDEALAKEWMSWebService` vorher geleert und neu publiziert (Exit 0, `IdealAkeWms.dll` ProductVersion
+`1.0.0+ed919976…`), `publish\SQL` (mit `156_…sql`) und `publish\deploy` (Manifest mit `SQL/156`) neu; `publish\publish-info.txt`: Version 1.99.33,
+Commit `ed919976bbc1b24809b56e880b3fbe52f954f9b9`, Branch `feature/2026-08-07-ideal-teile-1-5`, Erstellt 2026-11-17 11:57, Komponenten
+IDEALAKEWMSWeb + IDEALAKEWMSWebService. `publish\publish.zip` (10:19) ist alt – nicht verwenden.
+
+**Ergebnis: Testbereit.**
+
+## Manuelle Testcheckliste (Mensch, offen)
+
+1. **E-1 enaio** (vor Prod AKE): `B.csv` + `B_1.csv` mit gleichem Barcode in Spalte 1 → gleiches Dokument, zweite Bestellung ergänzt; liest enaio Spalte 1 oder den Dateinamen?
+2. TS-156.1–156.5 auf dem Testsystem mit Sage-WE an: zwei Bestellungen desselben Lieferanten mit `L1`/`B` und `l1`/`b` → Erfolgsmeldung „Sammellieferschein …“; Negativ anderer Lieferant, `L2`, LS leer (beide Richtungen).
+3. TS-156.6–156.10 über den echten Dienst-Takt auf der Test-Freigabe (UNC, Dienstkonto): `_1`, nach Abholung `_2`, fremde Datei → nächste Nummer.
+4. TS-156.9: Update-Skript-Prüfung `Pruefung/WareneingangCsvKollision` zählt die Altzeile; „CSV erneut schreiben“ → nächste freie Nummer.
+5. TS-156.12 Zahnrad: AB-Nummer ausblenden, neu laden → bleibt ausgeblendet (Lager und Einkauf gemeinsam).
+6. TS-156.14 Lesefehler Kopf (optional, Testsystem): Warnung „Kopfdaten … nicht lesbar – Werte vom letzten Lauf“, Positionen aktualisiert.
+7. Prüfabfragen P-3 (Altzeilen „Datei existiert bereits“) und P-4 (Barcodes an mehreren Vorgängen) auf Prod vor dem Deploy.
+8. DPS: RealTimeData-Lesen `dtsEKBelegMst` im Dienst ist auf Prod ab v1.99.33 aktiv, sobald `Sync:EinkaufBestellungenEnabled` läuft (H1) – bei Bedarf abstimmen.
+9. Testsystem-Durchlauf komplett, danach Merge (Schranke 2).
