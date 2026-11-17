@@ -165,7 +165,7 @@ else
                                     <input type="hidden" name="id" value="@a.Id" /><input type="hidden" name="positionId" value="@p.Id" />
                                     <input type="hidden" name="rowVersion" value="@Model.RowVersion" />
                                 </form>
-                                <input form="@fid" type="number" name="menge" value="@p.Menge.ToString(CultureInfo.InvariantCulture)" min="0.001" step="any"
+                                <input form="@fid" type="number" name="menge" value="@p.Menge.ToString("0.###", CultureInfo.InvariantCulture)" min="0.001" step="any"
                                        class="form-control form-control-sm text-end" style="width:7rem" aria-label="Menge Position @p.Position" required />
                             </td>
                         }

@@ -112,13 +112,13 @@ public class BfAuftraegeController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> AddItem(string articleNumber, decimal menge, string? status, string? hauptlagerplatz) =>
-        Weiter(await _workflow.HinzufuegenAsync(articleNumber, menge, status, hauptlagerplatz));
+    public async Task<IActionResult> AddItem(string articleNumber, string? menge, string? status, string? hauptlagerplatz) =>
+        Weiter(await _workflow.HinzufuegenAsync(articleNumber, Menge(menge), status, hauptlagerplatz));
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> UpdateItem(int id, int positionId, decimal menge, string? status, string? hauptlagerplatz, string? rowVersion) =>
-        Weiter(await _workflow.PositionAendernAsync(id, positionId, menge, status, hauptlagerplatz, alsSchachtler: false, Rv(rowVersion)), id);
+    public async Task<IActionResult> UpdateItem(int id, int positionId, string? menge, string? status, string? hauptlagerplatz, string? rowVersion) =>
+        Weiter(await _workflow.PositionAendernAsync(id, positionId, Menge(menge), status, hauptlagerplatz, alsSchachtler: false, Rv(rowVersion)), id);
 
     [HttpPost]
     [ValidateAntiForgeryToken]
@@ -135,8 +135,8 @@ public class BfAuftraegeController : Controller
     [HttpPost]
     [ValidateAntiForgeryToken]
     [RequireSchachtlerAccess]
-    public async Task<IActionResult> UpdatePosition(int id, int positionId, decimal menge, string? hauptlagerplatz, string? rowVersion) =>
-        Weiter(await _workflow.PositionAendernAsync(id, positionId, menge, null, hauptlagerplatz, alsSchachtler: true, Rv(rowVersion)), id);
+    public async Task<IActionResult> UpdatePosition(int id, int positionId, string? menge, string? hauptlagerplatz, string? rowVersion) =>
+        Weiter(await _workflow.PositionAendernAsync(id, positionId, Menge(menge), null, hauptlagerplatz, alsSchachtler: true, Rv(rowVersion)), id);
 
     [HttpPost]
     [ValidateAntiForgeryToken]
@@ -180,6 +180,10 @@ public class BfAuftraegeController : Controller
         Weiter(await _workflow.StornierenAsync(id, grund, await _user.CanSchachtelnAsync(), Rv(rowVersion)), id);
 
     // ===================== Hilfen =====================
+
+    // Menge als Text binden und kulturunabhaengig lesen: der Default-Binder (de-DE) macht aus "40.000" 40000 und aus "1.5" 15
+    // (fallstricke "Decimal/Culture-Bug in Form-Inputs"). Nicht lesbar = 0 -> Mengenregel meldet "Menge muss groesser als 0 sein".
+    internal static decimal Menge(string? text) => BeschichtungsauftraegeController.TryMenge(text, out var m) ? m : 0;
 
     private static byte[]? Rv(string? b64)
     {
