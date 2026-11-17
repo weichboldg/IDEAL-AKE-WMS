@@ -477,3 +477,16 @@ Quellen-Weiche je Abgleich: [[0019-quellen-weiche-view-sdata-je-abgleich]]. Ordn
   `Sync:BfCsvWiederholAbstandMinuten` (15), `BfCsvCreateNewOrder`, `BfCsvOrderPriority`, `BfCsvOrderRelease`, `BfCsvRemark1..3`,
   `Sync:BfAuftragEmailEnabled`; dazu `Sync:BlechteileFelderNachlesen` (Artikel-Abgleich, V-B). AppSettings: `BlechfertigungAktiv`,
   `BfEmpfaengergruppeId`, `BfStatuswerte`, `BfSchachtelterminArbeitstage`, `BfFeTerminArbeitstage`.
+
+## FA-Hierarchie-Abgleich (v1.99.37, [[2026-11-17-fa-struktur-abgleich-statt-full-replace-spec]], ADR [[0032-fa-struktur-abgleich-mit-lebenslauf-statt-full-replace]])
+
+- **`FaHierarchySyncService`** gleicht ab statt zu ersetzen; Planer `FaStrukturAbgleich` (rein). Sage-Zustand verschwundener FAs über
+  `ISageFaStrukturReader.FaStatusLesenAsync` (immer SQL `KHKPpsFaBelege`, auch bei Quelle SData; ohne Mandant-Filter bis P-AB4).
+  Positionen über `PositionenAbgleichenAsync` (statt `PositionenErsetzenAsync`), danach `AufraeumenAsync`. `IConfiguration` vor `ISyncLogger` im Ctor.
+- **Counts:** `neu`, `geaendert`, `wieder_da`, `verschwunden_beendet`/`_inaktiv`/`_unklar`, `entfernt_position`, `entfernt_in_sage`,
+  `schluessel_doppelt`, `verschwunden_gesperrt`, `sage_abfrage_fehler`, `positionen_neu`, `positionen_entfernt`, `aufgeraeumt`.
+- **Fehlermails** („FaHierarchy-Sync: …“): leerer View-Read, doppelte Schlüssel, Read ohne bisherige HauptFA, Sage-Abfrage fehlgeschlagen,
+  ungeklärt verschwundene Zeilen, FA-Positionen nicht abgeglichen.
+- **Key:** `Sync:FaStrukturAufbewahrungTage` (Kategorie FA-Hierarchie, Int, Default 90, 1–3650).
+- **Konsumenten:** `FaMaterializationSyncService` und `WorkOperationStructureDetectionService` lesen nur `VerschwundenSeit == null`;
+  `BdeTeilelisteService` setzt `TeilelisteZeile.Verschwunden` (nicht meldbar, `MeldeZeileAsync` weist ab). Schild `Views/Shared/_FaStrukturBadge.cshtml`.

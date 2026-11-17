@@ -456,15 +456,15 @@ Ein Worktree, ein Merge am Ende. Je Etappe ein Commit, Build und Tests grün. De
 
 | # | Etappe | Status | Commit |
 |---|--------|--------|--------|
-| 0 | Vorarbeit: P-AB6/P-AB8 (View-Definitionen) und P-AB1/P-AB2 (WMS TEST) lesen, Befund in die Spec (Hauptcheckout). Kein Code-Commit. **Hängt an Gerald (Sage-Zugang).** Fehlt der Befund, laufen E1–E8 trotzdem, Schlüssel der OrderInfos dann `(HauptFA, ABNr, Pos)` | offen | – |
-| 1 | Modell (4 Felder × 3 Tabellen, Unique-Indizes), Migration, SQL/158, FreshInstall 2×, `Sync:FaStrukturAufbewahrungTage` in Definitions + Meta + IntMeta | offen | |
-| 2 | `FaStrukturAbgleich` (rein) + Knoten/Infos-Abgleich im Sync, Guard „alles verschwunden“, Dubletten-Wächter. Verschwundene ohne Sage-Abfrage vorläufig `unklar`, nichts entfernt außer `entfernt_position` | offen | |
-| 3 | `FaStatusLesenAsync` (SQL, Blöcke) + Klassifizierung + Entfernen bei „nicht gefunden“. `Aktiv = 0` → `inaktiv` behalten bis Rückfrage 1. **Spaltennamen/Mandant gemäß P-AB3/P-AB4 – ohne Befund mit `BelID, IstBeendet, Aktiv` ohne Mandant-Filter bauen und als Blocker vermerken** | offen | |
-| 4 | `ProductionOrderPositions` mit derselben Logik (ersetzt `PositionenErsetzenAsync`), Counts `positionen_*` | offen | |
-| 5 | Aufräumregel + Setting-Nutzung | offen | |
-| 6 | R4: `FelderSetzen` Artikeltyp vom Artikel (+ Test) | offen | |
-| 7 | Konsumenten: Materialisierung/Erkennung nur aktiv; Badges in FA-Struktur, Kommissionierliste, Vormontage, Beschichtung, BDE-Teileliste; Melde-Abweisung. **Arbeitslisten-Verhalten gemäß Rückfrage 3 – ohne Antwort: anzeigen mit Badge** | offen | |
-| 8 | TS-157 + Index, Hilfeseite, Changelog (Anwender + Brain), Version beide `AppVersion.cs` (nächste freie, heute v1.99.35), README Settings, Manifest, ADR 0032, Fallstrick 47, codebase/datenmodell + services, feature-map | offen | |
+| 0 | Vorarbeit: P-AB6/P-AB8 (View-Definitionen) und P-AB1/P-AB2 (WMS TEST) lesen, Befund in die Spec (Hauptcheckout). Kein Code-Commit. **Hängt an Gerald (Sage-Zugang).** Fehlt der Befund, laufen E1–E8 trotzdem, Schlüssel der OrderInfos dann `(HauptFA, ABNr, Pos)` | teilweise (Sage-Test nicht erreichbar, Befund E0; P-AB3–6/8 offen für die Koordination) | – |
+| 1 | Modell (4 Felder × 3 Tabellen, Unique-Indizes), Migration, SQL/158, FreshInstall 2×, `Sync:FaStrukturAufbewahrungTage` in Definitions + Meta + IntMeta | erledigt (SQL/159) | `7a1f7301` |
+| 2 | `FaStrukturAbgleich` (rein) + Knoten/Infos-Abgleich im Sync, Guard „alles verschwunden“, Dubletten-Wächter. Verschwundene ohne Sage-Abfrage vorläufig `unklar`, nichts entfernt außer `entfernt_position` | erledigt | `94e327e7` |
+| 3 | `FaStatusLesenAsync` (SQL, Blöcke) + Klassifizierung + Entfernen bei „nicht gefunden“. `Aktiv = 0` → `inaktiv` behalten bis Rückfrage 1. **Spaltennamen/Mandant gemäß P-AB3/P-AB4 – ohne Befund mit `BelID, IstBeendet, Aktiv` ohne Mandant-Filter bauen und als Blocker vermerken** | erledigt (ohne Mandant-Filter, Blocker P-AB4) | `026d0d32` |
+| 4 | `ProductionOrderPositions` mit derselben Logik (ersetzt `PositionenErsetzenAsync`), Counts `positionen_*` | erledigt | `354344d8` |
+| 5 | Aufräumregel + Setting-Nutzung | erledigt | `8ea8e98d` |
+| 6 | R4: `FelderSetzen` Artikeltyp vom Artikel (+ Test) | erledigt | `2abad047`, `b1f83b1a` |
+| 7 | Konsumenten: Materialisierung/Erkennung nur aktiv; Badges in FA-Struktur, Kommissionierliste, Vormontage, Beschichtung, BDE-Teileliste; Melde-Abweisung. **Arbeitslisten-Verhalten gemäß Rückfrage 3 – ohne Antwort: anzeigen mit Badge** | erledigt (Badge laut Freigabe-Antwort 3; Druckansichten ohne Schild) | `0963a0a5` |
+| 8 | TS-157 + Index, Hilfeseite, Changelog (Anwender + Brain), Version beide `AppVersion.cs` (nächste freie, heute v1.99.35), README Settings, Manifest, ADR 0032, Fallstrick 47, codebase/datenmodell + services, feature-map | erledigt (TS-158, v1.99.37, ADR 0032, Fallstrick 48) | `7fa7603d`, `96049d0d` |
 
 ## Prüfabfragen (für den Menschen, nur SELECT)
 

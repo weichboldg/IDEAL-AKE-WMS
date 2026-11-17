@@ -278,3 +278,13 @@ oben ist durch SQL/149 ueberholt (jetzt 45).
   Materialnummer, `FertigungsInfoPN`, Hauptlagerplatz, Menge, `SageBestellmenge` (Schnappschuss), Status, Bemerkung (bei Freigabe
   festgeschrieben), `Gestrichen`, `SageFa` (Stufe 2, leer); berechnet `Uebergeben` = nicht gestrichen und Materialnummer vorhanden.
 - Artikelmerkmale der Blechteile ohne Schema-Änderung (vorhandene Merkmal-Tabellen, `BfArtikelFelder`). Migration `20261117154645_AddBfAuftraege`.
+
+## FA-Struktur-Lebenslauf (v1.99.37, SQL/159, [[2026-11-17-fa-struktur-abgleich-statt-full-replace-spec]])
+
+- `FaHierarchyNodes`, `FaHierarchyOrderInfos`, `ProductionOrderPositions` je vier Spalten (Interface `IFaStrukturZeile`,
+  `Models/FaStrukturLebenslauf.cs`): `ErstGesehen`, `ZuletztGesehen` (NOT NULL, Startwert `SyncedAt`), `VerschwundenSeit`, `VerschwundenGrund`
+  (`FaStrukturGrund.Beendet/Inaktiv/Unklar`, Text für das Schild über `FaStrukturGrund.Text`).
+- UNIQUE `UX_FaHierarchyNodes_Schluessel (HauptFA, VaterFA, SubFA, Position, Artnr)`, `UX_FaHierarchyOrderInfos_Schluessel (HauptFA, ABNr, Pos)`;
+  leere Artnr/ABNr/Pos vorher → NULL. Migration `20261117183315_FaStrukturAbgleich`. Der Kommentar „Sync ersetzt die Cache-Zeilen je Lauf (neue
+  Ids)“ oben bei `BeschichtungsauftragPosition` gilt seit v1.99.37 nicht mehr – die Ids bleiben stabil, der fehlende FK bleibt trotzdem richtig
+  (Zeilen werden aufgeräumt).

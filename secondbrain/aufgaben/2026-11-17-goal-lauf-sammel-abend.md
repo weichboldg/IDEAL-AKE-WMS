@@ -16,7 +16,7 @@ kein Merge, kein Push.
 | 1 | [[2026-11-13-blechfertigung-bf-auftraege-wicam-csv-spec]] B-1 (c) + Test-CSV | 1.99.35 | 158 (unverändert) | `0b31a17d` | Testbereit (`f0d949c6`) | Paket 1 |
 | 2a | [[2026-11-16-beschichtungslogik-je-standort-spec]] Nachtrag 4 | 1.99.36 | – | `8e0a346e` | Testbereit (`f0d949c6`) | Paket 1 |
 | 2b | [[2026-11-13-bde-vereinfacht-teileliste-blechfertigung-spec]] Nachtrag Kontrast | 1.99.36 | – | `e40ecfcb` | Testbereit (`f0d949c6`) | Paket 1 |
-| 3 | [[2026-11-17-fa-struktur-abgleich-statt-full-replace-spec]] E1–E8 | nächste | 159 | – | offen | Paket 2 |
+| 3 | [[2026-11-17-fa-struktur-abgleich-statt-full-replace-spec]] E1–E8 | 1.99.37 | 159 | `7a1f7301` `94e327e7` `026d0d32` `354344d8` `8ea8e98d` `2abad047`+`b1f83b1a` `0963a0a5` `7fa7603d`+`96049d0d` | offen | Paket 2 |
 
 ## Protokoll
 
@@ -39,3 +39,8 @@ kein Merge, kein Push.
   Terminal-Modals am echten Terminal, Umgang Altaufträge mit Maß 0.
 - **Paket 1** gebaut: `<Worktree>\publish\paket1-v1.99.36\` (Ordner vorher geleert) aus `8e0a346e` – IDEALAKEWMSWeb (65 Dateien),
   IDEALAKEWMSWebService (72), SQL (133 Skripte inkl. 158), deploy, `publish-info.txt` mit Commit und Specs. Bleibt unverändert liegen.
+- Teil 3 (Epic FA-Struktur-Abgleich): E0 teilweise (Sage-Test nicht erreichbar, WMS-TEST ohne Bestand; Befund E0 in der Spec). E1 Modell +
+  SQL/159 + Setting, E2 Planer/Abgleich/Wächter, E3 `FaStatusLesenAsync` (KHKPpsFaBelege, **ohne Mandant-Filter – Blocker P-AB4**), E4
+  Positionen, E5 Aufräumen, E6 R4 (Projektionstest in `b1f83b1a` nachgezogen: E6-Commit war mit rotem Test durchgerutscht, weil das
+  grep auf „Fehler!“ die Kette nicht stoppte), E7 Konsumenten + Schild, E8 Doku/Version/TS-158/Manifest. Build 0 Fehler, Tests 749 + 3231
+  (1 übersprungen) grün. **Offen für die Koordination:** P-AB1/2 auf dem IDEAL-Server, P-AB3/4/5/6/8, Druckansichten ohne Schild.

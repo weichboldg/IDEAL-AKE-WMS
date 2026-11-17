@@ -2082,3 +2082,12 @@ Code: `hardware-scanner.js` Block „Scannen ohne Feld“, CSS `.hw-scan-bereit`
   prüft vorher, der Dienst meldet den Rest als CSV-Fehler (Haus-Regel „melden statt still behandeln“).
 - **Byte-Vorlagen für Tests als `binary` in `.gitattributes`** (`IDEALAKEWMSService.Tests/TestData/.gitattributes`: `*.csv binary`). Warum: mit
   `core.autocrlf` legte Git die CRLF-Vorlage mit LF ab; der Byte-Vergleich hätte auf einem frischen Checkout anders ausgesehen als lokal.
+
+## 48. FA-Struktur-Schlüssel: C#-Vergleich folgt der Spalten-Kollation; verschwundene Zeilen bleiben stehen (v1.99.37, [[2026-11-17-fa-struktur-abgleich-statt-full-replace-spec]])
+
+- **Schlüssel immer über `FaStrukturAbgleich.Norm` vergleichen** (nachlaufende Leerzeichen weg, Groß/Klein egal, leer = `null`). Warum: SQL
+  Server vergleicht `nvarchar` mit der CI-Kollation und ignoriert nachlaufende Leerzeichen. Ein Ordinal-Vergleich in C# hält `"BG "` und `"bg"`
+  für zwei Zeilen; der UNIQUE-Index lehnt die zweite dann beim Speichern ab und der ganze Lauf scheitert.
+- **Seit v1.99.37 löscht der Lauf nicht mehr alles:** `FaHierarchyNodes`/`FaHierarchyOrderInfos`/`ProductionOrderPositions` enthalten in Sage
+  beendete oder ungeklärte Zeilen. Wer neu liest (Einmal-Skripte, Berichte, neue Konsumenten), filtert `VerschwundenSeit IS NULL`, wenn er nur
+  aktive Struktur will. Warum: sonst entstehen aus beendeten FAs neue Arbeitsgänge oder WMS-Aufträge (ADR 0032).
