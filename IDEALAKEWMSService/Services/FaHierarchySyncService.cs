@@ -9,9 +9,9 @@ using Microsoft.Extensions.Logging;
 namespace IDEALAKEWMSService.Services;
 
 /// <summary>
-/// Full-Refresh-Import der IDEAL-FA-Hierarchie aus den Sage-Views in die lokalen Cache-Tabellen.
-/// Primaerweg (RCSI AN, Standard-Scope Teil 1): DELETE FROM beider Zieltabellen + Neubefuellung in
-/// EINER Transaktion — kein Staging, kein sp_rename, kein GRANT ALTER.
+/// Import der IDEAL-FA-Hierarchie aus den Sage-Views/SData in die lokalen Tabellen. Seit v1.99.37 (ADR 0032) ein Abgleich mit Lebenslauf
+/// statt DELETE + Neubefuellung: neue Zeilen anlegen, vorhandene uebernehmen (Id bleibt), fehlende nach Sage-Zustand gekennzeichnet behalten
+/// oder entfernen. Knoten + OrderInfos weiter in EINER Transaktion.
 ///
 /// Absicherung: View-Namen aus ServiceSettings, Whitelist + QUOTENAME (FaHierarchySql). Empty-Guard
 /// auf den ungefilterten Roh-Zeilenzahlen BEIDER Views VOR jeder Mutation. Fehlermail
@@ -45,6 +45,19 @@ public class FaHierarchySyncService : IFaHierarchySyncService
         _syncLogger = syncLogger;
     }
 
+    private static readonly string[] CountKeys =
+    {
+        "neu", "geaendert", "wieder_da", "verschwunden_beendet", "verschwunden_inaktiv", "verschwunden_unklar", "entfernt_position",
+        "entfernt_in_sage", "aufgeraeumt", "schluessel_doppelt", "verschwunden_gesperrt", "sage_abfrage_fehler", "hauptfa_mehrdeutig",
+    };
+
+    /// <summary>Lebenslauf-Felder: aendern sie sich allein, gilt die Zeile nicht als geaendert.</summary>
+    private static readonly HashSet<string> LebenslaufFelder = new()
+    {
+        nameof(IFaStrukturZeile.ErstGesehen), nameof(IFaStrukturZeile.ZuletztGesehen), nameof(IFaStrukturZeile.VerschwundenSeit),
+        nameof(IFaStrukturZeile.VerschwundenGrund), nameof(IFaStrukturZeile.SyncedAt),
+    };
+
     public async Task<FaHierarchySyncResult> RunAsync(bool dryRun, CancellationToken ct = default)
     {
         await using var run = await _syncLogger.BeginRunAsync(SyncLogServices.FaHierarchy, ct);
@@ -59,70 +72,22 @@ public class FaHierarchySyncService : IFaHierarchySyncService
             if (lesung.ListeAnzahl == 0 || lesung.InfosAnzahl == 0)
             {
                 var msg = $"Leerer View-Read (FAListe={lesung.ListeAnzahl}, FAInfos={lesung.InfosAnzahl}) — " +
-                          "kein Replace, bestehende Zieltabellen bleiben unangetastet.";
+                          "kein Abgleich, bestehende Zieltabellen bleiben unangetastet.";
                 _logger.LogWarning("FaHierarchy-Sync: {Msg}", msg);
                 await run.LogWarningAsync(msg, ct: ct);
                 await _errorNotifier.NotifyAsync(
                     "FaHierarchy-Sync: leerer View-Read",
                     new InvalidOperationException($"FaHierarchy-Sync uebersprungen: {msg}"),
                     ct);
-                await run.FinishSuccessAsync(new Dictionary<string, int>
-                {
-                    ["neu"] = 0,
-                    ["geloescht"] = 0,
-                }, messageSuffix: "[uebersprungen: leerer View-Read]", ct: ct);
+                await run.FinishSuccessAsync(CountKeys.ToDictionary(k => k, _ => 0), messageSuffix: "[uebersprungen: leerer View-Read]", ct: ct);
                 return new FaHierarchySyncResult(0, 0, 0, 0, Skipped: true, dryRun);
             }
 
-            var nodes = lesung.Knoten;
-            var infos = lesung.Infos;
-
-            if (dryRun)
-            {
-                _logger.LogInformation(
-                    "FaHierarchy-Sync [DryRun]: wuerde {Nodes} Knoten + {Infos} OrderInfos ersetzen.",
-                    nodes.Count, infos.Count);
-                if (lesung.Positionen is { } p)
-                    await run.LogInfoAsync($"[DryRun] ProductionOrderPositions: würde {p.Count} Positionen aus SData ersetzen.", ct: ct);
-                await run.FinishSuccessAsync(new Dictionary<string, int>
-                {
-                    ["neu"] = nodes.Count + infos.Count,
-                    ["geloescht"] = 0,
-                }, messageSuffix: "[DryRun]", ct: ct);
-                return new FaHierarchySyncResult(nodes.Count, infos.Count, 0, 0, Skipped: false, DryRun: true);
-            }
-
-            // 4) Full-Refresh: beide Zieltabellen in EINER Transaktion ersetzen (RCSI-Primaerweg).
-            //    Nie steht FaHierarchyNode (neu) neben altem FaHierarchyOrderInfo oder umgekehrt.
-            await using var tx = await _ctx.Database.BeginTransactionAsync(ct);
-
-            var deletedNodes = await _ctx.Database.ExecuteSqlRawAsync("DELETE FROM dbo.FaHierarchyNodes", ct);
-            var deletedInfos = await _ctx.Database.ExecuteSqlRawAsync("DELETE FROM dbo.FaHierarchyOrderInfos", ct);
-
-            await _ctx.FaHierarchyNodes.AddRangeAsync(nodes, ct);
-            await _ctx.FaHierarchyOrderInfos.AddRangeAsync(infos, ct);
-            await _ctx.SaveChangesAsync(ct);
-
-            await tx.CommitAsync(ct);
-
-            _logger.LogInformation(
-                "FaHierarchy-Sync: {Nodes} Knoten + {Infos} OrderInfos neu ({DelN}/{DelI} geloescht).",
-                nodes.Count, infos.Count, deletedNodes, deletedInfos);
-
-            var ambiguousCount = await LogAmbiguousHauptFasAsync(run, infos, ct);
-
-            var counts = new Dictionary<string, int>
-            {
-                ["neu"] = nodes.Count + infos.Count,
-                ["geloescht"] = deletedNodes + deletedInfos,
-                ["hauptfa_mehrdeutig"] = ambiguousCount,
-            };
-            // E4b: nur wenn SData gelesen wurde (Vergleich/SData) — im View-Betrieb Count-Keys und Tabelle unveraendert.
-            if (lesung.Positionen is { } positionen)
-                counts["positionen"] = await PositionenErsetzenAsync(run, positionen, ct);
-            await run.FinishSuccessAsync(counts, ct: ct);
-
-            return new FaHierarchySyncResult(nodes.Count, infos.Count, deletedNodes, deletedInfos, Skipped: false, DryRun: false);
+            var a = await AbgleichenAsync(run, lesung, dryRun, ct);
+            var ambiguousCount = await LogAmbiguousHauptFasAsync(run, lesung.Infos, ct);
+            a.Counts["hauptfa_mehrdeutig"] = ambiguousCount;
+            await run.FinishSuccessAsync(a.Counts, messageSuffix: dryRun ? "[DryRun]" : null, ct: ct);
+            return new FaHierarchySyncResult(lesung.Knoten.Count, lesung.Infos.Count, a.EntfernteKnoten, a.EntfernteInfos, Skipped: false, dryRun);
         }
         catch (FaHierarchyViewNameException ex)
         {
@@ -180,6 +145,182 @@ public class FaHierarchySyncService : IFaHierarchySyncService
             await _errorNotifier.NotifyAsync("FaHierarchy-Sync: FA-Positionen nicht ersetzt", ex, ct);
             return 0;
         }
+    }
+
+    private sealed record Ergebnis(Dictionary<string, int> Counts, int EntfernteKnoten, int EntfernteInfos);
+
+    private sealed record Fehlend(IFaStrukturZeile Zeile, int SubFA, int Owner);
+
+    /// <summary>
+    /// v1.99.37 (Spec 2026-11-17-fa-struktur-abgleich-statt-full-replace, ADR 0032): Abgleich statt DELETE + Insert. Neu anlegen, Vorhandenes
+    /// uebernehmen, Fehlendes nach Sage-Zustand behalten (gekennzeichnet) oder entfernen, danach aufraeumen. DryRun rechnet alles, schreibt nichts.
+    /// </summary>
+    private async Task<Ergebnis> AbgleichenAsync(ISyncRun run, FaStrukturLesung lesung, bool dryRun, CancellationToken ct)
+    {
+        var jetzt = DateTime.Now; // Lokalzeit wie SyncedAt (ADR 0025)
+        var c = CountKeys.ToDictionary(k => k, _ => 0);
+        var entfernt = new HashSet<object>(ReferenceEqualityComparer.Instance);
+        foreach (var n in lesung.Knoten) n.Artnr = FaStrukturAbgleich.LeerAlsNull(n.Artnr);
+        foreach (var i in lesung.Infos) { i.ABNr = FaStrukturAbgleich.LeerAlsNull(i.ABNr); i.Pos = FaStrukturAbgleich.LeerAlsNull(i.Pos); }
+
+        // Bestand getrackt (einige tausend Zeilen; ExecuteUpdate bewusst nicht, InMemory testet es nicht).
+        var knoten = await _ctx.FaHierarchyNodes.ToListAsync(ct);
+        var infos = await _ctx.FaHierarchyOrderInfos.ToListAsync(ct);
+
+        // Dubletten-Waechter: eine HauptFA mit doppeltem Schluessel im Read bleibt in diesem Lauf in allen Tabellen unberuehrt.
+        var (gesperrt, doppelt) = FaStrukturAbgleich.Doppelt(lesung.Knoten, FaStrukturAbgleich.Schluessel, n => n.HauptFA);
+        var (gesperrtI, doppeltI) = FaStrukturAbgleich.Doppelt(lesung.Infos, FaStrukturAbgleich.Schluessel, i => i.HauptFA);
+        gesperrt.UnionWith(gesperrtI);
+        doppelt.AddRange(doppeltI);
+        var pk = FaStrukturAbgleich.Planen(knoten, lesung.Knoten, FaStrukturAbgleich.Schluessel, n => n.HauptFA, gesperrt);
+        var pi = FaStrukturAbgleich.Planen(infos, lesung.Infos, FaStrukturAbgleich.Schluessel, i => i.HauptFA, gesperrt);
+
+        c["schluessel_doppelt"] = gesperrt.Count;
+        if (gesperrt.Count > 0)
+        {
+            var msg = $"Doppelte FA-Struktur-Schlüssel im Read – {gesperrt.Count} HauptFA in diesem Lauf nicht abgeglichen " +
+                      $"({string.Join(", ", gesperrt.Order().Take(20))}); Schlüssel: {string.Join("; ", doppelt.Take(20))}.";
+            await run.LogWarningAsync(Kurz(msg), ct: ct);
+            await _errorNotifier.NotifyAsync("FaHierarchy-Sync: doppelte Schlüssel", new InvalidOperationException(msg), ct);
+        }
+
+        // Guard „alles verschwunden“ (Anforderung 4): keine einzige bisher aktive HauptFA im Read = defekter Read.
+        var gelesenHaupt = lesung.Knoten.Select(n => n.HauptFA).Concat(lesung.Infos.Select(i => i.HauptFA)).ToHashSet();
+        var aktivHaupt = knoten.Where(Aktiv).Select(n => n.HauptFA).Concat(infos.Where(Aktiv).Select(i => i.HauptFA)).ToHashSet();
+        var sperre = aktivHaupt.Count > 0 && !aktivHaupt.Overlaps(gelesenHaupt);
+        if (sperre)
+        {
+            c["verschwunden_gesperrt"] = 1;
+            var msg = $"Keine der {aktivHaupt.Count} bisher aktiven HauptFA im Read – Read gilt als defekt; neue und geänderte Zeilen übernommen, " +
+                      "nichts als verschwunden markiert oder entfernt.";
+            await run.LogWarningAsync(msg, ct: ct);
+            await _errorNotifier.NotifyAsync("FaHierarchy-Sync: Read ohne bisherige HauptFA", new InvalidOperationException(msg), ct);
+        }
+
+        // FAs, deren Zustand der Lauf selbst kennt (gelesen), und die Sage-Einzelabfrage fuer den Rest (nur SELECT).
+        var gelesen = lesung.Knoten.SelectMany(n => new[] { n.HauptFA, FaStrukturAbgleich.Owner(n), n.SubFA })
+            .Concat(lesung.Infos.Select(i => i.HauptFA))
+            .Where(id => id != 0).ToHashSet();
+        var fehlend = pk.Fehlend.Select(n => new Fehlend(n, n.SubFA, FaStrukturAbgleich.Owner(n)))
+            .Concat(pi.Fehlend.Select(i => new Fehlend(i, 0, i.HauptFA)))
+            .ToList();
+        IReadOnlyDictionary<int, FaSageStatus> status = new Dictionary<int, FaSageStatus>();
+        var sageFehler = false;
+        if (!sperre)
+        {
+            var frage = fehlend.Where(f => !gelesen.Contains(f.Owner)).Select(f => f.Owner)
+                .Concat(fehlend.Where(f => f.SubFA != 0).Select(f => f.SubFA)).ToHashSet();
+            if (frage.Count > 0)
+            {
+                try
+                {
+                    status = await _reader.FaStatusLesenAsync(frage, ct);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    sageFehler = true;
+                    c["sage_abfrage_fehler"] = 1;
+                    _logger.LogError(ex, "FaHierarchy-Sync: Sage-Einzelabfrage fehlgeschlagen.");
+                    await run.LogWarningAsync(Kurz($"Sage-Abfrage der verschwundenen FAs fehlgeschlagen – nichts markiert oder entfernt: {ex.Message}"), ct: ct);
+                    await _errorNotifier.NotifyAsync("FaHierarchy-Sync: Sage-Abfrage fehlgeschlagen", ex, ct);
+                }
+            }
+        }
+        var entscheiden = !sperre && !sageFehler;
+
+        // Knoten + OrderInfos in EINER Transaktion (wie bisher): anlegen, uebernehmen, markieren, entfernen.
+        int entfKnoten = 0, entfInfos = 0;
+        await using (var tx = !dryRun && _ctx.Database.IsRelational() ? await _ctx.Database.BeginTransactionAsync(ct) : null)
+        {
+            c["neu"] = Anlegen(_ctx.FaHierarchyNodes, pk.Neu, jetzt) + Anlegen(_ctx.FaHierarchyOrderInfos, pi.Neu, jetzt);
+            Uebernehmen(pk.Paare, jetzt, c);
+            Uebernehmen(pi.Paare, jetzt, c);
+            if (entscheiden)
+                foreach (var f in fehlend)
+                    if (!Entscheiden(f, gelesen, status, jetzt, c, entfernt))
+                    {
+                        if (f.Zeile is FaHierarchyNode) entfKnoten++; else entfInfos++;
+                    }
+            if (!dryRun)
+            {
+                await _ctx.SaveChangesAsync(ct);
+                if (tx is not null) await tx.CommitAsync(ct);
+            }
+        }
+
+        // Positionen (nur aus SData): bis E4 unveraendert Full-Replace in eigener Transaktion; im View-Betrieb (null) unberuehrt.
+        if (lesung.Positionen is { } gelesenePositionen && !dryRun)
+            c["positionen_neu"] = await PositionenErsetzenAsync(run, gelesenePositionen, ct);
+
+        if (c["verschwunden_unklar"] > 0)
+        {
+            var msg = $"{c["verschwunden_unklar"]} Zeilen fehlen im Read, ihr FA ist in Sage aber offen und aktiv – als „ungeklärt“ behalten.";
+            await run.LogWarningAsync(msg, ct: ct);
+            await _errorNotifier.NotifyAsync("FaHierarchy-Sync: ungeklärt verschwundene Zeilen", new InvalidOperationException(msg), ct);
+        }
+
+        if (dryRun) _ctx.ChangeTracker.Clear();
+        return new Ergebnis(c, entfKnoten, entfInfos);
+    }
+
+    private static bool Aktiv(IFaStrukturZeile z) => z.VerschwundenSeit is null;
+
+    private static string Kurz(string s) => s.Length <= 600 ? s : s[..600]; // SyncLogs.Message = 1000
+
+    private static int Anlegen<T>(DbSet<T> set, List<T> neue, DateTime jetzt) where T : class, IFaStrukturZeile
+    {
+        foreach (var n in neue)
+        {
+            n.ErstGesehen = n.ZuletztGesehen = n.SyncedAt = jetzt;
+            n.VerschwundenSeit = null;
+            n.VerschwundenGrund = null;
+        }
+        set.AddRange(neue);
+        return neue.Count;
+    }
+
+    /// <summary>Werte des Reads auf die Bestandszeile (<c>SetValues</c>); „geaendert“ = EF meldet eine geaenderte Eigenschaft ausser dem Lebenslauf.</summary>
+    private void Uebernehmen<T>(List<(T Alt, T Neu)> paare, DateTime jetzt, Dictionary<string, int> c) where T : class, IFaStrukturZeile
+    {
+        foreach (var (alt, neu) in paare)
+        {
+            var e = _ctx.Entry(alt);
+            var werte = _ctx.Entry(neu).CurrentValues.Clone();
+            foreach (var p in e.Metadata.FindPrimaryKey()!.Properties) werte[p] = e.CurrentValues[p];
+            werte[nameof(IFaStrukturZeile.ErstGesehen)] = alt.ErstGesehen;
+            werte[nameof(IFaStrukturZeile.SyncedAt)] = alt.SyncedAt;
+            werte[nameof(IFaStrukturZeile.ZuletztGesehen)] = jetzt;
+            werte[nameof(IFaStrukturZeile.VerschwundenSeit)] = null;
+            werte[nameof(IFaStrukturZeile.VerschwundenGrund)] = null;
+            var wiederDa = alt.VerschwundenSeit is not null;
+            e.CurrentValues.SetValues(werte);
+            if (e.Properties.Any(p => p.IsModified && !LebenslaufFelder.Contains(p.Metadata.Name)))
+            {
+                alt.SyncedAt = jetzt;
+                c["geaendert"]++;
+            }
+            if (wiederDa) c["wieder_da"]++;
+        }
+    }
+
+    /// <summary>Anforderung 3 fuer eine fehlende Zeile; false = entfernt. Der erste <c>VerschwundenSeit</c> bleibt, der Grund folgt Sage.</summary>
+    private bool Entscheiden(Fehlend f, IReadOnlySet<int> gelesen, IReadOnlyDictionary<int, FaSageStatus> status, DateTime jetzt,
+        Dictionary<string, int> c, HashSet<object> entfernt)
+    {
+        var z = f.Zeile;
+        var grund = FaStrukturAbgleich.Entscheiden(f.SubFA, f.Owner, gelesen, status);
+        if (grund is null)
+        {
+            _ctx.Remove(z);
+            entfernt.Add(z);
+            if (z is not ProductionOrderPosition) c[gelesen.Contains(f.Owner) ? "entfernt_position" : "entfernt_in_sage"]++;
+            return false;
+        }
+        if (z.VerschwundenGrund == grund) return true;
+        z.VerschwundenSeit ??= jetzt;
+        z.VerschwundenGrund = grund;
+        c["verschwunden_" + grund]++;
+        return true;
     }
 
     /// <summary>Info-Zeile „Quelle: View|SData|Vergleich“ (F1) + Hinweise des SData-Readers, nur wenn der Reader die Quellen-Weiche ist.</summary>

@@ -20,4 +20,11 @@ public sealed record FaStrukturLesung(List<FaHierarchyNode> Knoten, List<FaHiera
 public interface ISageFaStrukturReader
 {
     Task<FaStrukturLesung> LesenAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// v1.99.37 (ADR 0032): Zustand der FAs, deren Zeilen im Read fehlen (nur SELECT). Nicht im Ergebnis = in Sage nicht gefunden.
+    /// Default: alle offen — der Abgleich behaelt verschwundene Zeilen dann „ungeklaert“ und entfernt nichts.
+    /// </summary>
+    Task<IReadOnlyDictionary<int, FaSageStatus>> FaStatusLesenAsync(IReadOnlyCollection<int> belIds, CancellationToken ct = default) =>
+        Task.FromResult<IReadOnlyDictionary<int, FaSageStatus>>(belIds.Distinct().ToDictionary(id => id, _ => FaSageStatus.Offen));
 }

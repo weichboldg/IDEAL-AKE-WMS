@@ -697,9 +697,10 @@ public class FaStrukturSdataTests
 
         await s.RunAsync(dryRun: true);
 
+        // v1.99.37 (ADR 0032): Abgleich-Counts, „geloescht“ entfaellt.
         var lauf = logger.Runs.Single();
-        lauf.FinalCounts!.Keys.Should().BeEquivalentTo("neu", "geloescht");
-        lauf.Events.Should().Contain(e => e.Level == "Info" && e.Message.Contains("würde 1 Positionen"));
+        lauf.FinalCounts!.Keys.Should().Contain(new[] { "neu", "geaendert", "verschwunden_unklar", "schluessel_doppelt" }).And.NotContain("geloescht");
+        lauf.FinalMessageSuffix.Should().Be("[DryRun]");
     }
 
     [Fact]
