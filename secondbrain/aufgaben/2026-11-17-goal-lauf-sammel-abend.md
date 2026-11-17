@@ -13,9 +13,9 @@ kein Merge, kein Push.
 
 | Teil | Spec | Version | SQL | Commits | QA | Publish |
 |---|---|---|---|---|---|---|
-| 1 | [[2026-11-13-blechfertigung-bf-auftraege-wicam-csv-spec]] B-1 (c) + Test-CSV | 1.99.35 | 158 (unverändert) | `0b31a17d` | offen | Paket 1 |
-| 2a | [[2026-11-16-beschichtungslogik-je-standort-spec]] Nachtrag 4 | 1.99.36 | – | `8e0a346e` | offen | Paket 1 |
-| 2b | [[2026-11-13-bde-vereinfacht-teileliste-blechfertigung-spec]] Nachtrag Kontrast | 1.99.36 | – | `e40ecfcb` | offen | Paket 1 |
+| 1 | [[2026-11-13-blechfertigung-bf-auftraege-wicam-csv-spec]] B-1 (c) + Test-CSV | 1.99.35 | 158 (unverändert) | `0b31a17d` | Testbereit (`f0d949c6`) | Paket 1 |
+| 2a | [[2026-11-16-beschichtungslogik-je-standort-spec]] Nachtrag 4 | 1.99.36 | – | `8e0a346e` | Testbereit (`f0d949c6`) | Paket 1 |
+| 2b | [[2026-11-13-bde-vereinfacht-teileliste-blechfertigung-spec]] Nachtrag Kontrast | 1.99.36 | – | `e40ecfcb` | Testbereit (`f0d949c6`) | Paket 1 |
 | 3 | [[2026-11-17-fa-struktur-abgleich-statt-full-replace-spec]] E1–E8 | nächste | 159 | – | offen | Paket 2 |
 
 ## Protokoll
@@ -32,3 +32,10 @@ kein Merge, kein Push.
 - Teil 2b: `bde.css` dunkle Schrift (#212529) auf `.btn-success`/`.btn-secondary` nur unter `.bde-terminal`; die Modals der Teileliste und
   des Terminals liegen außerhalb des Wrappers und bekommen die Klasse mit. TS-152.12. Commit `e40ecfcb`.
 - Version 1.99.36 (beide `AppVersion.cs`), Anwender-Changelog, Hilfe. Build 0 Fehler, Tests 715 + 3229 (1 übersprungen) grün.
+- QA Teil 1+2 (qa-agent, Brain `f0d949c6`): Build 0 Fehler, Tests 715 + 3229 (1 übersprungen). DEV AKE + IDEAL (Zielordner geleert)
+  v1.99.36, HTTP 200. TS-157.21–23, TS-145.14–19 (Regression AKE flach, 4445-relevant), TS-152.12 OK. Befunde nicht blockierend
+  (R1 Test-CSV ohne Freigabeprüfung, B1 Maße 0 ohne `ArticleSageDetails`, B2 Altpositionen behalten 0). Offen für Gerald: P-1
+  (WiCAM-Import mit eingefasstem Feld), Byte-Vergleich Test-CSV/Pool auf Test, Einkäufer-/Direkt-POST-Prüfung, 87070769 auf AKE-Test,
+  Terminal-Modals am echten Terminal, Umgang Altaufträge mit Maß 0.
+- **Paket 1** gebaut: `<Worktree>\publish\paket1-v1.99.36\` (Ordner vorher geleert) aus `8e0a346e` – IDEALAKEWMSWeb (65 Dateien),
+  IDEALAKEWMSWebService (72), SQL (133 Skripte inkl. 158), deploy, `publish-info.txt` mit Commit und Specs. Bleibt unverändert liegen.
