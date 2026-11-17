@@ -2,13 +2,13 @@
 type: spec
 title: Blechfertigung – BF-Aufträge (Warenkorb, Schachtler-Freigabe, WiCAM-CSV, Fertigmeldung Stufe 1)
 slug: 2026-11-13-blechfertigung-bf-auftraege-wicam-csv-spec
-status: Entwurf
+status: InUmsetzung
 created: 2026-11-17
 updated: 2026-11-17
 source_backlog: "[[2026-11-13-blechfertigung-bf-auftraege-wicam-csv]]"
-task: ""
-worktree: ""
-branch: ""
+task: "[[2026-11-17-goal-lauf-bf-auftraege]]"
+worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
+branch: "feature/2026-08-07-ideal-teile-1-5"
 standort: IDEAL
 affected_code:
   - IdealAkeWms/Models/BfAuftrag.cs (neu)
@@ -64,9 +64,9 @@ deploy:
   web: true
   service: true
   migration: true
-freigabe_entscheidung: ""
-freigabe_von: ""
-freigabe_am: ""
+freigabe_entscheidung: "Antworten 1-13 wie Empfehlung (Gerald 2026-11-17 16:33/16:34); V-B; Materialnummer Sage-Feld, fehlt -> Hinweis, keine Übergabe; Lagerartikel per View-Block 3 (Gerald, vorübergehend)"
+freigabe_von: "Gerald Weichbold"
+freigabe_am: "2026-11-17"
 ---
 
 > [!info] Nummern nicht festgelegt
@@ -364,6 +364,25 @@ vorgefiltert auf den Auftrag → Client-Mode erlaubt) ebenfalls exportierbar.
 
 ## Prüfabfragen (Mensch, vor Freigabe bzw. vor Dev-Start)
 
+> **Ergebnisse 2026-11-17 16:30 (Koordination, SSMS IDEALSQL2\SAGE100TEST, Sage `IDEAL`, WMS `IDEAL_AKE_WMS` (Prod) / `IDEAL_AKE_WMS_TEST`, nur SELECT):**
+> - **P-2 Lagerartikel im WMS:** Sage `USER_OSIstLagerartikel <> 0`: BG 274, FT 988, ohne Typ 1. Davon im WMS **PROD nur BG 79 / FT 159** (1 BG ohne Lagerplatz), **TEST BG 133 / FT 634**.
+>   Ursache: `vw_IDEAL_AKE_WMS_Artikel` (`Sync:ArticlesViewName` PROD und TEST) liefert nur Block 1 = Artikel aus der FAListe (offene FAs) und Block 2 = aktive
+>   Bestellartikel (`IstBestellartikel = -1`), **nicht** die Lagerartikel. → Der Warenkorb fände die meisten Lagerteile nicht. Abhilfe ohne Code: Block 3 in der View
+>   (`USER_OSIstLagerartikel <> 0`, aktiv, ohne 00-Nummern) – View ist unsere (Gerald 16.11.); oder Variante V-B (SData-Nachlese) muss diese Menge selbst lesen.
+> - **Gerald 2026-11-17 16:33 zu P-2:** Die Artikel kommen über die FAs Schritt für Schritt ins WMS; **vorübergehend ist die Erweiterung der View um die Lagerartikel (Block 3) notwendig** – Gerald passt `vw_IDEAL_AKE_WMS_Artikel` an (zuerst Test). Kein Bauauftrag für den Dev-Lauf, aber Vorbedingung für den Warenkorb-Test.
+> - **P-3 Materialnummer:** `USER_OSMaterialnummerPN` **nicht durchgängig gepflegt**: 4301 BLANK→3 (568), 4301 GEB+F→1 (339) **und →3 (2)**, 4509 G400→9 (69), 4016 BLANK→5 (22),
+>   LEXAN-PLEXI→6, 4301 POL+F→10, PVC→19, FORMROHR→20 (2) **und leer (11)**, 4310 FEDERSTAHL→18, Jackodur 40→80 (1) **und leer (66)**; ohne Nummer: Jackodur 20 (96), Jackodur 30 (18),
+>   „-“ (47), leer (14). → Rückfrage 2: Sage-Feld nur mit Bereinigung (Widersprüche 4301 GEB+F, FORMROHR, Jackodur) – oder WMS-Tabelle mit Seed. Ob Jackodur/„-“ überhaupt
+>   WiCAM-Teile sind, klärt der Fachbereich.
+> - **P-4 Bestellmenge/Einheiten (Lagerartikel, Grundvariante):** 1.263 Artikel, **0** mit Basis ≠ Lager, **0** mit nicht ganzzahliger Bestellmenge, **45** mit Bestellmenge 0/leer
+>   (→ Menge frei). Rückfrage 10 damit gegenstandslos.
+> - **P-5 Feiertage:** PROD 2026: 25, 2027: 17, 2028: 15; TEST je 15. → PROD enthält offenbar schon Betriebsurlaub/Zwickeltage für 2026 (25), 2027/2028 noch nicht;
+>   Abgleich mit dem Excel-Blatt `Feiertage_Tab4` durch den Fachbereich.
+> - **P-6 Matchcode:** Lagerartikel in Sage: 0 mit `;`, 0 mit `"`, 0 nicht ANSI, max. Länge 49 → CSV ohne Maskierung möglich. (Im ganzen WMS-Artikelstamm PROD 779 Treffer,
+>   z. B. 00393375 „1-Leiter-Federleiste; RM 5 …“ – keine Lagerteile.)
+> - **P-1, P-7** offen (Gerald: Pool-Datei als Bytes, Schreibrecht Dienstkonto).
+
+
 Sage-Spaltennamen in SQL sind aus den SData-Feldnamen abgeleitet und **unbelegt** – schlägt eine Abfrage fehl, Spaltennamen in SSMS nachsehen.
 
 - **P-1 Muster-CSV (Rückfrage 8):** eine heute vom Makro erzeugte Datei aus dem Pool als Bytes ansehen:
@@ -511,16 +530,16 @@ Kein Epic. Schnittempfehlung siehe Hinweis im Lösungsentwurf.
   als seinen Auftrag. Antworte je Frage in **fett** hinter dem Pfeil.
 -->
 
-1. Datenquelle (V-A / V-B / V-C) →
-2. Materialnummer aus USER_OSMaterialnummerPN →
-3. Bezugstag Abschicken oder Freigabe →
-4. Status vorne in der Bemerkung →
-5. Freigabe/Fertig je Auftrag →
-6. Bestellrollen →
-7. Rolle schachtler (Key/Name) →
-8. CSV-Aufbau aus P-1 →
-9. Trenner/Kodierung/Datumsformat fest →
-10. Mengenregel bei abweichender Einheit →
-11. Storno-Regeln →
-12. Auswertung ohne eigene Positionsliste →
-13. Mail nur beim Abschicken →
+1. Datenquelle (V-A / V-B / V-C) → **Gerald 2026-11-17 16:33 „der Rest passt“ (Empfehlung): V-B** (schmaler SData-Nachlese-Schritt, Merkmale + Bestellmenge). Vorbedingung: Lagerartikel per View-Block 3 im WMS (Gerald, vorübergehend, siehe Prüfabfragen P-2).
+2. Materialnummer aus USER_OSMaterialnummerPN → **Gerald 2026-11-17 16:33 „der Rest passt“ (Empfehlung): Sage-Feld.** P-3 zeigt Lücken und Widersprüche (4301 GEB+F 1/3, FORMROHR 20/leer, Jackodur ohne Nummer) → Bereinigung in Sage durch den Fachbereich vor Echtbetrieb; fehlt die Nummer, Hinweis im Warenkorb und keine Übergabe dieser Position (bestätigt mit der Freigabe 2026-11-17 16:34).
+3. Bezugstag Abschicken oder Freigabe → **Gerald 2026-11-17 16:33 „der Rest passt“ (Empfehlung): Freigabetag.**
+4. Status vorne in der Bemerkung → **Gerald 2026-11-17 16:33 „der Rest passt“ (Empfehlung): ja, „EILT - “ vorne.**
+5. Freigabe/Fertig je Auftrag → **Gerald 2026-11-17 16:33 „der Rest passt“ (Empfehlung): je Auftrag.**
+6. Bestellrollen → **Gerald 2026-11-17 16:33 „der Rest passt“ (Empfehlung): CanOrderLagerAsync-Rollen + schachtler, keine neue Bestellrolle.**
+7. Rolle schachtler (Key/Name) → **Gerald 2026-11-17 16:33 „der Rest passt“ (Empfehlung): Key `schachtler`, „Schachtler (Blechfertigung)“; Personen bestätigt Andi.**
+8. CSV-Aufbau aus P-1 → **Gerald 2026-11-17 16:33 „der Rest passt“ (Empfehlung): ja, exakt aus P-1 (Pool-Datei als Testvorlage); bis dahin Vorlage aus dem Lösungsentwurf vorläufig.**
+9. Trenner/Kodierung/Datumsformat fest → **Gerald 2026-11-17 16:33 „der Rest passt“ (Empfehlung): fest.**
+10. Mengenregel bei abweichender Einheit → **Gerald 2026-11-17 16:33 „der Rest passt“: gegenstandslos – P-4: 0 Lagerartikel mit Basis ≠ Lager; Default (Vielfaches nur bei gleicher Einheit) bleibt als Absicherung.**
+11. Storno-Regeln → **Gerald 2026-11-17 16:33 „der Rest passt“ (Empfehlung): ja.**
+12. Auswertung ohne eigene Positionsliste → **Gerald 2026-11-17 16:33 „der Rest passt“ (Empfehlung): ja.**
+13. Mail nur beim Abschicken → **Gerald 2026-11-17 16:33 „der Rest passt“ (Empfehlung): ja.**
