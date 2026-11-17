@@ -2104,3 +2104,17 @@ Code: `hardware-scanner.js` Block „Scannen ohne Feld“, CSS `.hw-scan-bereit`
 - **Darum gilt 2xx nur mit Handle in der Antwort als Erfolg; ohne Handle, bei Timeout oder hängendem „Gesendet“ = „Antwort unklar“** (Text-Präfix
   `SageFaArbeitsgaenge.UnklarText`), nie automatisch wiederholt. Warum: Sage kann angelegt haben; eine Wiederholung ohne Prüfung legt die AG
   doppelt an, und das WMS löscht in Sage nichts. Erneut einreihen nur nach Blick in Sage; der Dienst liest den FA vor jedem Senden ohnehin.
+- **Nachtrag v1.99.39 (QA F3, [[2026-11-17-v1-99-39-nachbesserung-abend]]):** Die Handle-Regel ist ersetzt. Der Request schickt `Handle` = BelID
+  selbst mit, ein Handle in der Antwort beweist also nichts. Jetzt gilt: 2xx ohne `ErrorText` = vorläufig, **angelegt erst nach Nachlesen**
+  der AG am FA (GET, AG-Nummer = `RessourceNummer` der AG-Position); kein Fund = Fehler mit Text, Lesefehler = unklar. Warum: Nur der Sage-Stand
+  nach dem Schreiben belegt das Ergebnis; ein falscher Erfolg würde nie korrigiert, weil der Queue-Status in der Vorschau vor dem Live-Stand gewinnt.
+
+## 50. Seite hinter der letzten: Controller rechnen Skip/Take vor der Trefferzahl (v1.99.39, [[2026-11-17-v1-99-39-nachbesserung-abend]])
+
+- **Alle Listen-Controller rechnen `Skip((page-1)*size)` aus dem URL-Wert, bevor die Trefferzahl bekannt ist** (Repository liefert Items und
+  Count in einem Aufruf); `PaginationState.FirstItemNumber` rechnet ungeklemmt. Folge: `page=2` bei 8 Treffern = leere Tabelle mit
+  „Eintraege 26–8 von 8“. Behoben **zentral** mit dem globalen Result-Filter `Filters/PaginationSeiteKlemmenFilter` (nur GET): findet den
+  `PaginationState` im Model (Property) oder im ViewBag und leitet auf die letzte Seite um (0 Treffer: 1), übrige Query-Parameter bleiben.
+  Warum Redirect statt Klemmen im `PaginationState`: Klemmen nur der Anzeige ergäbe „1–8 von 8“ über einer leeren Tabelle; Klemmen vor der
+  Abfrage hieße 40 Controller anfassen. **Neue Liste:** Seitenparameter muss `page` heißen und der State im Model (Property) oder im ViewBag
+  stehen, sonst greift der Filter nicht.
