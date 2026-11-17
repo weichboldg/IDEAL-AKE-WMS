@@ -197,3 +197,9 @@ Kommissionierwagen, Sage-Wareneingangsbeleg (ELL), Rahmenabruf (EBZ), Kreditor/D
 |---|---|
 | Aktiv-Kennung (Beschichtung) | Ob die Liste „Lack“-Haken und Termin nur für beschichtete Zeilen zeigt: Kennzeichen-Quelle FaStruktur = immer aktiv; Artikelkategorie = aktiv, wenn `LackierteilKategorieName` gesetzt ist; nicht aktiv = Termin für alle Zeilen (heutiges PROD-IDEAL-/AKE-Verhalten ohne Kategorie). `BeschichtungResolver.Aktiv`. |
 
+| Begriff | Bedeutung |
+|---|---|
+| Teileliste (BDE) | Terminal-Ansicht der Blechfertigung (IDEAL): Teile und Baugruppen einer Werkbank aus der FA-Struktur, je Kürzel; Melden statt AG-Fertigmeldung. Option `ProductionWorkplaces.BdeTeileliste`. v1.99.32 |
+| Teilmeldung | Gemeldete Menge je fachlichem Schlüssel (HauptFA, VaterFA, SubFA, Position, Artnr, Kürzel) in `BdeTeilMeldungen`; geht nicht an Sage. |
+| Waise (Teilmeldung) | Teilmeldung, deren Schlüssel nach einem Struktur-Sync nicht mehr in der Struktur vorkommt – Hinweis mit Link, keine Löschung. |
+| Rücknahmefrist | Bis wann ein Werker die eigene Teilmeldung zurücknehmen darf: Schichtende, ohne Schichtkalender Ende des Meldetags. |

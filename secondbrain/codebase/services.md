@@ -451,3 +451,10 @@ Quellen-Weiche je Abgleich: [[0019-quellen-weiche-view-sdata-je-abgleich]]. Ordn
   (Altersgrenze `Lieferverzug:MaxAlterTage`), Count `zu_klaeren`.
 - **Offene Bestellungen (Sage):** `IDEALAKEWMSService/Services/Sdata/EinkaufBestellungenSyncService.cs` (EBB + seit v1.99.15 EBZ); Belegnummer
   seit v1.99.22 bis 45 Zeichen (SQL/149).
+
+## BDE-Teileliste (v1.99.32)
+
+- Web: `IdealAkeWms/Services/BdeTeilelisteService.cs` (Lesen, Melden mit applock, Rücknahme, Filter je Werker als `UserViewPreference`
+  `BdeTL:W{wp}:O{op}`); `BeschichtungResolver.BeschichtetPosition` für die Spalte „Beschichtet“.
+- Dienst: `WorkOperationStructureDetectionService` überspringt Blatt-Kürzel von Teileliste-Werkbänken, Count `teileliste_blatt_uebersprungen`.
+  Kein neuer ServiceSetting-Key.

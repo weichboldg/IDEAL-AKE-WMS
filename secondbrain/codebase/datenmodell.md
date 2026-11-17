@@ -251,3 +251,9 @@ oben ist durch SQL/149 ueberholt (jetzt 45).
   `PurchaseOrderReminders.Belegnummer`, `PurchaseOrderReceipts.Belegnummer` 20 → 45, `PurchaseOrderReceipts.SageWeBelegnummer` 30 → 45; Index
   `IX_SagePurchaseOrderLines_Belegnummer` drop/recreate. Konstante `SagePurchaseOrderLine.BelegnummerMaxLaenge = 45` (auch fuer „Klären → als
   übergeben markieren“ und die Kuerzung im `SageWareneingangService`).
+
+## BDE-Teileliste (v1.99.32, SQL/154)
+
+- `ProductionWorkplaces.BdeTeileliste` bit NOT NULL Default 0 – Werkbank-Option.
+- `BdeTeilMeldungen` – Teilmeldung je fachlichem Schlüssel (HauptFA, VaterFA, SubFA, Position, Artnr, Kürzel), FKs ProductionWorkplaces,
+  BdeOperators, BdeTerminals, BdeBookings (nullable); gefilterter UNIQUE `UX_BdeTeilMeldungen_Schluessel WHERE IsCancelled=0`. ADR [[0030-teilmeldung-mit-fachlichem-schluessel-neben-workoperation]].

@@ -203,3 +203,11 @@ Beschichtungsauftrag-Muster); Zuweisung an den Einkauf ist Hand-Schritt unter `/
   dabei NICHT; Schreibwege (Receive, SageWe-Aktionen) bleiben am `PurchaseOrdersController` hinter `RequireStockAccess` /
   `RequireStockKeyUserAccess` + `RequireWareneingangBestellungAktiv`. Knöpfe in der Einkauf-Ansicht nur mit dem passenden Recht **und** dem
   Gate (`CanReceive`, `CanErneutSenden`). Rolle `einkauf`: Attribut unverändert, diese Datei und `RoleOverview.cshtml` nachgezogen.
+
+## BDE-Teileliste (v1.99.32, [[2026-11-13-bde-vereinfacht-teileliste-blechfertigung-spec]])
+
+| Controller / Aktion | Zugriff | Zweck |
+|---|---|---|
+| `BdeTeilelisteController` | BDE-Terminal (wie `BdeTerminalController`) | Teileliste lesen, Summiert, Melden (POST/PRG), Zurücknehmen, Filter speichern/zurücksetzen |
+| `BdeBookingsController.Teilmeldungen` / `TeilmeldungSpalten` | Lesen ab BDE-Schichtleiter | Admin-Liste der Teilmeldungen (Spaltenfilter, Pagination) |
+| `BdeBookingsController.StornoTeilmeldung` | `[RequireBdeAdminAccess]` | Storno mit Pflichtgrund |

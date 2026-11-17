@@ -2023,3 +2023,15 @@ Code: `hardware-scanner.js` Block „Scannen ohne Feld“, CSS `.hw-scan-bereit`
   falschen Termin – dann bleibt der Termin leer.
 - **P-I1:** PROD IDEAL hat den Master aus (wirkt wie AKE, unverändert); nur TEST/DEV IDEAL zeigen die Änderung.
 
+## 44. BDE-Teileliste: Schlüssel, Doppelschutz, Erkennung (v1.99.32, [[2026-11-13-bde-vereinfacht-teileliste-blechfertigung-spec]], ADR [[0030-teilmeldung-mit-fachlichem-schluessel-neben-workoperation]])
+
+- **Node-Id ist kein Schlüssel.** Warum: Der Struktur-Sync erneuert `FaHierarchyNode`-Ids – Meldungen hängen am fachlichen Schlüssel
+  (HauptFA, VaterFA, SubFA, Position, Artnr, Kürzel).
+- **EXISTS nicht im Aggregat** (SQL Server Meldung 130, so in der P-TL3-Abfrage der Spec passiert). Warum: SQL Server lehnt Unterabfragen
+  in Aggregaten ab – Gebucht-Kennzeichen erst je Kandidat in eine Temp-Tabelle rechnen, dann `SUM(CASE …)` (so im Einmal-Skript
+  `SQL/Einmalig/2026-11-17_v1.99.32_RemoveParentWorkOperationsFromLeafTokensTeileliste.sql`).
+- **Doppelschutz nicht InMemory-testbar.** Warum: Gefilterter UNIQUE und `sp_getapplock` greifen nur auf SQL Server – N1 bleibt Manual-UAT.
+- **Erkennung liest nur die Werkbank-Option.** Warum: `BdeNurFaMeldung` ist eine Web-AppSetting, der Dienst kennt sie nicht; nur
+  `ProductionWorkplaces.BdeTeileliste` steuert das Überspringen.
+- **Kürzel nur an Leerzeichen trennen** – im Dienst wie im Einmal-Skript (`STRING_SPLIT(...,' ')`). Warum: Eine abweichende Trennung liefert
+  andere Treffer als die Erkennung.
