@@ -1365,6 +1365,8 @@ BEGIN
         [ModifiedByWindows]        NVARCHAR(200)  NULL,
         [Source]                   NVARCHAR(20)   NOT NULL CONSTRAINT [DF_OperationConfigs_Source] DEFAULT N'Manual',
         [SageMissingSince]         DATETIME2      NULL,
+        [SageArbeitsgangnummer]        NVARCHAR(31) NULL, -- SQL/153: Sage-Wert (nur Arbeitsgang-Abgleich)
+        [SageArbeitsgangnummerManuell] NVARCHAR(31) NULL, -- SQL/153: Handwert (nur /OperationConfigs)
         CONSTRAINT [PK_OperationConfigs] PRIMARY KEY CLUSTERED ([Id])
     );
     PRINT 'Tabelle [OperationConfigs] erstellt.';
@@ -3357,6 +3359,10 @@ GO
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261117075856_AddBdeTeileliste')
    AND COL_LENGTH(N'dbo.ProductionWorkplaces', N'BdeTeileliste') IS NOT NULL AND OBJECT_ID(N'dbo.BdeTeilMeldungen', N'U') IS NOT NULL -- sonst steht SQL/154 noch aus
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261117075856_AddBdeTeileliste', '10.0.2');
+GO
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261117085624_AddOperationConfigSageArbeitsgangnummer')
+   AND COL_LENGTH(N'dbo.OperationConfigs', N'SageArbeitsgangnummer') IS NOT NULL AND COL_LENGTH(N'dbo.OperationConfigs', N'SageArbeitsgangnummerManuell') IS NOT NULL -- sonst steht SQL/153 noch aus
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261117085624_AddOperationConfigSageArbeitsgangnummer', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';

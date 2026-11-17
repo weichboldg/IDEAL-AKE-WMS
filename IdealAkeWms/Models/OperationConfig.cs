@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace IdealAkeWms.Models;
 
@@ -46,6 +47,28 @@ public class OperationConfig : AuditableEntity
     /// NULL, sobald es wieder auftaucht. Nie fuer <see cref="OperationConfigSource.ExternalSystem"/>.
     /// </summary>
     public DateTime? SageMissingSince { get; set; }
+
+    /// <summary>
+    /// Sage-Arbeitsgangnummer (Sage-Wert, z. B. "140"): schreibt NUR der Arbeitsgang-Abgleich aus der View-Spalte
+    /// <c>Arbeitsgangnummer</c> (= <c>KHKPpsArbeitsgaenge.Arbeitsgangnummer</c>, P-AG1), nie der Reiter. Text, nie int.Parse ("0140" ≠ "140").
+    /// Spec 2026-11-16-arbeitsgang-mapping-sage-arbeitsgangnummer, FA-1/FA-2.
+    /// </summary>
+    [StringLength(31)]
+    public string? SageArbeitsgangnummer { get; set; }
+
+    /// <summary>Handwert der Sage-Arbeitsgangnummer: schreibt NUR <c>/OperationConfigs</c>, nie der Abgleich (FA-3). Hat Vorrang.</summary>
+    [StringLength(31)]
+    public string? SageArbeitsgangnummerManuell { get; set; }
+
+    /// <summary>Wirksame Sage-Arbeitsgangnummer: Handwert vor Sage-Wert (Variante A).</summary>
+    [NotMapped]
+    public string? WirksameSageArbeitsgangnummer => SageArbeitsgangnummerManuell ?? SageArbeitsgangnummer;
+
+    /// <summary>Handwert und Sage-Wert gesetzt und verschieden (Ordinal nach Trim, FA-4).</summary>
+    [NotMapped]
+    public bool SageArbeitsgangnummerWeichtAb =>
+        SageArbeitsgangnummerManuell != null && SageArbeitsgangnummer != null
+        && !string.Equals(SageArbeitsgangnummerManuell.Trim(), SageArbeitsgangnummer.Trim(), StringComparison.Ordinal);
 }
 
 /// <summary>Werte fuer <see cref="OperationConfig.Source"/> (DB-Klartext, UI uebersetzt im Controller).</summary>

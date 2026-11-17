@@ -633,6 +633,7 @@ public static class ColumnDefinitions
             new ColumnDef("offset",   "Offset (AT) zum Bezugstermin", Locked: false, DefaultWidth: 150),
             new ColumnDef("relevant", "Fremdsystem-relevant",         Locked: false, DefaultWidth: 130),
             new ColumnDef("source",   "Quelle",                       Locked: false, DefaultWidth: 110),
+            new ColumnDef("sageag",   "Sage-AG",                      Locked: false, DefaultWidth: 150),
             new ColumnDef("actions",  "",                             Locked: true,  DefaultWidth: 100),
         ]
     };

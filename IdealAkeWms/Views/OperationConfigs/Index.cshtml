@@ -31,6 +31,15 @@
     </div>
 }
 
+@if (Model.Abweichungen.Any())
+{
+    <div class="alert alert-warning" role="alert">
+        <strong>Abweichung Sage ↔ Hand:</strong>
+        @string.Join(", ", Model.Abweichungen.Select(c => $"{c.OperationName}: Sage {c.SageArbeitsgangnummer} / Hand {c.SageArbeitsgangnummerManuell}"))
+        — der Handwert gilt. Bitte prüfen und den Handwert löschen, wenn die Sage-Nummer stimmt.
+    </div>
+}
+
 @* Offene Arbeit oberhalb der Tabelle (nicht zwischen Toolbar-Host und .table-responsive, fallstricke §19); einfache Liste,
    keine zweite filterbare Tabelle (fallstricke §22). *@
 <div class="card mb-3">
@@ -69,6 +78,7 @@
                         <th data-filterable data-col-key="offset" style="width: 150px;" title="Offset (Arbeitstage) zum Bezugstermin">Offset (AT) zum Bezugstermin</th>
                         <th data-filterable data-col-key="relevant" style="width: 130px;">Fremdsystem-relevant</th>
                         <th data-filterable data-col-key="source" style="width: 110px;">Quelle</th>
+                        <th data-filterable data-col-key="sageag" style="width: 150px;" title="Sage-Arbeitsgangnummer (Handwert vor Sage-Wert)">Sage-AG</th>
                         <th data-col-key="actions" style="width: 100px;"></th>
                     </tr>
                 </thead>
@@ -103,6 +113,23 @@
                             </td>
                             <td>@OperationConfigsController.FormatSource(c.Source)</td>
                             <td>
+                                @* Wirksamer Wert + Text-Abzeichen (Farbe nie allein); das Feld wird IMMER gepostet, leer = Handwert loeschen. *@
+                                <div class="small mb-1">
+                                    <strong>@c.WirksameSageArbeitsgangnummer</strong>
+                                    @if (c.SageArbeitsgangnummerManuell != null)
+                                    {
+                                        <span class="badge text-bg-secondary ms-1" title="Handwert – hat Vorrang vor dem Sage-Wert">Hand</span>
+                                    }
+                                    @if (c.SageArbeitsgangnummerWeichtAb)
+                                    {
+                                        <span class="badge text-bg-warning ms-1" title="Sage-Wert weicht vom Handwert ab">Sage: @c.SageArbeitsgangnummer</span>
+                                    }
+                                </div>
+                                <input type="text" name="sageArbeitsgangnummerManuell" value="@c.SageArbeitsgangnummerManuell" form="form-update-@c.Id"
+                                       maxlength="@OperationConfigsController.SageArbeitsgangnummerMaxLength" class="form-control form-control-sm"
+                                       placeholder="Hand" aria-label="Sage-AG (Hand) @c.OperationName" />
+                            </td>
+                            <td>
                                 <div class="d-flex gap-1">
                                     <button type="submit" form="form-update-@c.Id" class="btn btn-sm btn-outline-primary" title="Speichern" aria-label="@c.OperationName speichern">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
@@ -125,12 +152,76 @@
                     }
                     @if (!Model.Configs.Any())
                     {
-                        <tr><td colspan="6" class="text-center text-muted py-3">Keine Arbeitsgänge für diese Filterung. Rechts einen anlegen.</td></tr>
+                        <tr><td colspan="7" class="text-center text-muted py-3">Keine Arbeitsgänge für diese Filterung. Rechts einen anlegen.</td></tr>
                     }
                 </tbody>
             </table>
         </div>
         <partial name="_Pagination" model="Model.Pagination" />
+
+        @if (Model.Pruefliste is { } p)
+        {
+            @* Pruefliste Sage-Zuordnung (nur ProduktionsauftragHierarchisch an): schlichte Listen, keine zweite filterbare Tabelle
+               (fallstricke §22); leere Karten entfallen. Reine Anzeige, nichts wird nach Sage geschrieben. *@
+            <h3 class="h5 mt-4">Prüfliste Sage-Zuordnung</h3>
+            @if (p.KuerzelOhneSageAg.Any())
+            {
+                <div class="card mb-3">
+                    <div class="card-header">Kürzel aus der FA-Struktur ohne Sage-Arbeitsgang (@p.KuerzelOhneSageAgGesamt)</div>
+                    <div class="card-body py-2">
+                        <ul class="list-inline mb-0">
+                            @foreach (var k in p.KuerzelOhneSageAg)
+                            {
+                                <li class="list-inline-item mb-1">
+                                    <span class="badge bg-light text-dark border fs-6 fw-semibold">@k.Kuerzel</span>
+                                    <span class="small text-muted me-2">@k.Grund, @k.Knoten Knoten</span>
+                                </li>
+                            }
+                        </ul>
+                        @if (p.KuerzelOhneSageAgGesamt > p.KuerzelOhneSageAg.Count)
+                        {
+                            <p class="small text-muted mb-0 mt-1">… und @(p.KuerzelOhneSageAgGesamt - p.KuerzelOhneSageAg.Count) weitere (gezeigt: die @p.KuerzelOhneSageAg.Count häufigsten).</p>
+                        }
+                    </div>
+                </div>
+            }
+            @if (p.WerkbaenkeOhneArbeitsplatz.Any())
+            {
+                <div class="card mb-3">
+                    <div class="card-header">Werkbänke ohne Sage-Arbeitsplatz (@p.WerkbaenkeOhneArbeitsplatz.Count)</div>
+                    <div class="card-body py-2">
+                        <ul class="mb-0 ps-3">
+                            @foreach (var w in p.WerkbaenkeOhneArbeitsplatz)
+                            {
+                                <li>@w.Name — Kürzel @(string.IsNullOrWhiteSpace(w.ArbeitsschrittCode) ? "–" : w.ArbeitsschrittCode), BDE aktiv: @(w.BdeAktiv ? "ja" : "nein")</li>
+                            }
+                        </ul>
+                    </div>
+                </div>
+            }
+            @if (p.WerkbankNummerGleichAg.Any())
+            {
+                <div class="card mb-3">
+                    <div class="card-header">Werkbank-Nummer gleicht einer Sage-Arbeitsgangnummer (@p.WerkbankNummerGleichAg.Count)</div>
+                    <div class="card-body py-2">
+                        <p class="small mb-2">Nummer ist vermutlich eine Arbeitsgangnummer, kein Sage-Arbeitsplatz – vor einer Rückmeldung an Sage klären.</p>
+                        <ul class="mb-0 ps-3">
+                            @foreach (var x in p.WerkbankNummerGleichAg)
+                            {
+                                <li>@x.Werkbank.Name — Nummer <strong>@x.Werkbank.SageArbeitsplatznummer</strong> = Sage-AG von @x.Arbeitsgaenge</li>
+                            }
+                        </ul>
+                    </div>
+                </div>
+            }
+            <div class="card mb-3">
+                <div class="card-header">Sage-Arbeitsgänge ohne Kürzel</div>
+                <div class="card-body py-2 small">
+                    Stehen je Lauf als Info-Zeile „Sage-Arbeitsgänge ohne Kürzel: …“ im
+                    <a asp-controller="SyncLog" asp-action="Index" asp-route-service="OperationConfigSync">Aktivitäts-Protokoll des Arbeitsgang-Abgleichs</a>.
+                </div>
+            </div>
+        }
     </div>
 
 <script type="application/json" id="view-config">
@@ -143,6 +234,7 @@
     { "key": "offset", "label": "Offset (AT) zum Bezugstermin", "locked": false, "defaultWidth": 150 },
     { "key": "relevant", "label": "Fremdsystem-relevant", "locked": false, "defaultWidth": 130 },
     { "key": "source", "label": "Quelle", "locked": false, "defaultWidth": 110 },
+    { "key": "sageag", "label": "Sage-AG", "locked": false, "defaultWidth": 150 },
     { "key": "actions", "label": "", "locked": true, "defaultWidth": 100 }
 ]
 </script>
@@ -219,6 +311,13 @@
                         <strong>Sage</strong> = vom Arbeitsgang-Abgleich aus der Sage-View angelegt; <strong>Manuell</strong> = hier angelegt
                         (wechselt auf Sage, sobald das Kürzel in der Sage-View steht); <strong>Fremdsystem</strong> = OSEON-Kürzel und
                         Altbestand. Die Quelle setzt das System, sie ist nicht änderbar.
+                    </dd>
+                    <dt>Sage-AG</dt>
+                    <dd>
+                        Sage-Arbeitsgangnummer des Kürzels (z.&nbsp;B. EG = 140), Grundlage einer späteren Rückmeldung an Sage. Der
+                        Arbeitsgang-Abgleich füllt sie aus der Sage-View (nur Quelle View). Ein Handwert im Feld darunter hat Vorrang
+                        (<strong>Hand</strong>); weicht Sage davon ab, steht zusätzlich <strong>Sage: …</strong> da. Feld leeren = wieder der Sage-Wert.
+                        Es wird nichts nach Sage geschrieben.
                     </dd>
                     <dt>nicht in Sage</dt>
                     <dd class="mb-0">Nur bei eingeschaltetem Arbeitsgang-Abgleich und Quelle Sage oder Manuell: das Kürzel steht nicht

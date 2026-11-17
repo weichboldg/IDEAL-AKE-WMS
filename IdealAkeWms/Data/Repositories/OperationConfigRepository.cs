@@ -106,12 +106,13 @@ public class OperationConfigRepository : IOperationConfigRepository
     private static readonly string[] EditableProperties =
     {
         nameof(OperationConfig.DisplayName), nameof(OperationConfig.DueDateOffsetDays), nameof(OperationConfig.IsExternalSystemRelevant),
+        nameof(OperationConfig.SageArbeitsgangnummerManuell), // Handwert; der Sage-Wert SageArbeitsgangnummer gehoert dem Abgleich (FA-3)
         nameof(OperationConfig.ModifiedAt), nameof(OperationConfig.ModifiedBy), nameof(OperationConfig.ModifiedByWindows),
     };
 
     /// <summary>
     /// Schreibt nur die Pflegefelder (kein <c>Update(config)</c>, das alle Spalten mit dem Ladestand zurueckschreibt): Source,
-    /// SageMissingSince, OperationName und Created* gehoeren dem Arbeitsgang-Abgleich bzw. der Anlage (Spec 2026-10-16, AK 28).
+    /// SageMissingSince, SageArbeitsgangnummer, OperationName und Created* gehoeren dem Arbeitsgang-Abgleich bzw. der Anlage (Spec 2026-10-16, AK 28).
     /// </summary>
     public async Task UpdateAsync(OperationConfig config)
     {

@@ -1008,6 +1008,13 @@
                                 deren Kuerzel nicht in der View steht, tragen das Kennzeichen und stehen im gelben Hinweis oben. Reiner
                                 Hinweis &mdash; der Eintrag bleibt, bitte pruefen und ggf. von Hand loeschen. <em>Fremdsystem</em>-Eintraege
                                 werden nie gekennzeichnet.</li>
+                            <li><strong>Sage-AG (seit v1.99.27):</strong> Der Abgleich traegt je Kuerzel die Sage-Arbeitsgangnummer aus der
+                                View ein (z.&nbsp;B. EG = 140; nur Quelle View, nicht bei <code>KHKPpsArbeitsplaetze</code> oder SData).
+                                Ein Handwert im Feld &bdquo;Hand&ldquo; hat Vorrang und wird nie ueberschrieben; weicht Sage davon ab,
+                                zeigt die Liste &bdquo;Sage: &hellip;&ldquo; und ein Banner. Feld leeren = wieder der Sage-Wert. Mit
+                                <code>ProduktionsauftragHierarchisch</code> (IDEAL) folgt unter der Tabelle eine Pruefliste: Kuerzel aus
+                                der FA-Struktur ohne Sage-Arbeitsgang, Werkbaenke ohne Sage-Arbeitsplatz und Werkbaenke, deren Nummer
+                                einer Sage-Arbeitsgangnummer gleicht. Es wird nichts nach Sage geschrieben.</li>
                             <li><strong>Verzoegerung:</strong> Die Tabelle zeigt neue Zeilen und Kennzeichen bis zu 10 Minuten spaeter
                                 (Zwischenspeicher); &bdquo;Nicht konfigurierte Kürzel&ldquo; ist sofort aktuell.</li>
                             <li><strong>Betriebshinweis:</strong> Alte Eintraege erst <strong>nach</strong> dem ersten Abgleich-Lauf

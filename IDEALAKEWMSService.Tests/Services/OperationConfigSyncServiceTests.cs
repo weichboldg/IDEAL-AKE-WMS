@@ -31,7 +31,8 @@ public class OperationConfigSyncServiceTests
         return (svc, log, reader);
     }
 
-    private static SageArbeitsplatzDto Row(string? ag, string? bezeichnung = null, string nummer = "1") => new(nummer, bezeichnung, ag);
+    // Default ohne Nummer: aeltere Tests pruefen "keine Aenderung" und kennen die Sage-Arbeitsgangnummer (v1.99.27) nicht.
+    private static SageArbeitsplatzDto Row(string? ag, string? bezeichnung = null, string? nummer = null) => new(nummer, bezeichnung, ag);
 
     private static OperationConfig Existing(string name, string source, DateTime? missing = null, int offset = 0, string? display = null) => new()
     {
@@ -398,5 +399,126 @@ public class OperationConfigSyncServiceTests
         counts["nicht_in_sage"].Should().Be(1);
         counts["quelle_sage"].Should().Be(1);
         log.Runs.Single().FinalMessageSuffix.Should().Be("[DryRun]");
+    }
+
+    // ----- Sage-Arbeitsgangnummer (Spec 2026-11-16-arbeitsgang-mapping-sage-arbeitsgangnummer, v1.99.27) -----
+
+    private static readonly HashSet<string> KeinAusschluss = new(StringComparer.OrdinalIgnoreCase);
+
+    private static ExistingOperationConfig Ex(int id, string name, string? sage = null, string? hand = null) =>
+        new(id, name, OperationConfigSource.Sage, null, sage, hand);
+
+    [Fact]
+    public void Plan_Nummer_Eine_Keine_Mehrere_ZuLang_Unveraendert()
+    {
+        var plan = OperationConfigSyncService.Plan(
+            new[] { Row("EG", nummer: " 140 "), Row("KA"), Row("SL", nummer: "161"), Row("SL", nummer: "162"),
+                    Row("LG", nummer: new string('9', 32)), Row("PU", nummer: "180") },
+            new[] { Ex(1, "EG"), Ex(2, "KA", sage: "150"), Ex(3, "SL", sage: "161"), Ex(4, "LG", sage: "1"), Ex(5, "PU", sage: "180") },
+            KeinAusschluss);
+
+        plan.NummerSetzen.Should().BeEquivalentTo(new[] { (1, (string?)"140"), (2, (string?)null) }); // KA: leer spiegeln (Rueckfrage 6)
+        plan.NummerMehrdeutig.Should().Be(1);
+        plan.Warnings.Should().Contain("Kürzel SL: mehrere Sage-Arbeitsgangnummern (161 / 162) – Nummer nicht geändert.");
+        plan.Warnings.Should().Contain("Kürzel LG: Sage-Arbeitsgangnummer länger als 31 Zeichen – Nummer nicht geändert.");
+    }
+
+    [Fact]
+    public void Plan_Neuanlage_MitNummer_Ausschluss_Ohne_LeeresAg_OhneKuerzel()
+    {
+        var plan = OperationConfigSyncService.Plan(
+            new[] { Row("EG", "Entgraten", "140"), Row("STO", nummer: "999"), Row(null, "Schachteln", "110") },
+            Array.Empty<ExistingOperationConfig>(), new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "STO" });
+
+        plan.New.Should().ContainSingle().Which.Should().Be(("EG", (string?)"Entgraten", (string?)"140"));
+        plan.OhneKuerzel.Should().Equal("110 Schachteln");
+        plan.Uebersprungen.Should().Be(2);
+    }
+
+    [Fact]
+    public void Plan_TabelleOderSData_KeineNummer()
+    {
+        var plan = OperationConfigSyncService.Plan(new[] { Row("EG", nummer: "3001"), Row(null, "X", "2000") },
+            new[] { Ex(1, "EG") }, KeinAusschluss, nummerLesen: false);
+
+        plan.NummerSetzen.Should().BeEmpty();
+        plan.OhneKuerzel.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Plan_AbweichungHand_ZaehltNachDemLauf()
+    {
+        var plan = OperationConfigSyncService.Plan(new[] { Row("EG", nummer: "140"), Row("KA", nummer: "150") },
+            new[] { Ex(1, "EG", hand: "141"), Ex(2, "KA", sage: "150", hand: "150") }, KeinAusschluss);
+        plan.AbweichungHand.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Run_Nummer_Gesetzt_HandwertBleibt_ZweiterLaufSchreibtNichts()
+    {
+        var eg = Existing("EG", OperationConfigSource.Sage);
+        eg.SageArbeitsgangnummerManuell = "141";
+        using var ctx = await Seed(eg, Existing("KA", OperationConfigSource.Sage));
+        var (svc, log, _) = Build(ctx, true, Row("EG", "Entgraten", "140"), Row("KA", "Kanten", "150"), Row(null, "Schachteln", "110"));
+
+        await svc.RunAsync(false, Defaults, default);
+
+        var e = await ctx.OperationConfigs.SingleAsync(c => c.OperationName == "EG");
+        (e.SageArbeitsgangnummer, e.SageArbeitsgangnummerManuell, e.ModifiedBy).Should().Be(("140", "141", "OperationConfigSync"));
+        (await ctx.OperationConfigs.SingleAsync(c => c.OperationName == "KA")).SageArbeitsgangnummer.Should().Be("150");
+        var run = log.Runs.Single();
+        run.FinalCounts!["nummer_gesetzt"].Should().Be(2);
+        run.FinalCounts!["abweichung_hand"].Should().Be(1);
+        run.FinalCounts!["ohne_kuerzel"].Should().Be(1);
+        run.Events.Should().Contain(x => x.Level == "Warning"
+            && x.Message == "Sage-Arbeitsgangnummer geändert, Handwert weicht ab: EG Sage (leer) → 140 / Hand 141");
+        run.Events.Should().Contain(x => x.Message == "Sage-Arbeitsgänge ohne Kürzel: 110 Schachteln");
+        var geaendert = e.ModifiedAt;
+
+        await svc.RunAsync(false, Defaults, default);
+
+        (await ctx.OperationConfigs.SingleAsync(c => c.OperationName == "EG")).ModifiedAt.Should().Be(geaendert);
+        log.Runs[1].FinalCounts!["nummer_gesetzt"].Should().Be(0);
+        log.Runs[1].FinalCounts!["abweichung_hand"].Should().Be(1);
+        log.Runs[1].Events.Should().NotContain(x => x.Message.StartsWith("Sage-Arbeitsgangnummer geändert"), "keine Dauerwarnung (FA-4)");
+    }
+
+    [Fact]
+    public async Task Run_NeuesKuerzel_BekommtNummer_HandwertNull()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        var (svc, _, _) = Build(ctx, true, Row("EG", "Entgraten", "140"));
+
+        await svc.RunAsync(false, Defaults, default);
+
+        var c = await ctx.OperationConfigs.SingleAsync();
+        (c.SageArbeitsgangnummer, c.SageArbeitsgangnummerManuell).Should().Be(("140", (string?)null));
+    }
+
+    [Fact]
+    public async Task Run_QuelleTabelleKHKPpsArbeitsplaetze_SchreibtKeineNummer()
+    {
+        using var ctx = await Seed(Existing("EG", OperationConfigSource.Sage));
+        var (svc, log, _) = Build(ctx, true, Row("EG", "Entgraten", "3001"));
+
+        await svc.RunAsync(false, Defaults with { ViewName = "KHKPpsArbeitsplaetze" }, default);
+
+        (await ctx.OperationConfigs.SingleAsync()).SageArbeitsgangnummer.Should().BeNull("Spalte 0 der Tabelle ist die Arbeitsplatznummer");
+        log.Runs.Single().FinalCounts!["nummer_gesetzt"].Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Run_KuerzelNichtGeliefert_KeineNummer()
+    {
+        using var ctx = await Seed(Existing("EG", OperationConfigSource.Sage));
+        var reader = new Mock<ISageArbeitsplatzReader>();
+        reader.Setup(r => r.GetActiveAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+              .ReturnsAsync(new SageArbeitsplatzReadResult(true, new List<SageArbeitsplatzDto> { Row("EG", nummer: "140") }, ArbeitsschrittGeliefert: false));
+        var svc = new OperationConfigSyncService(ctx, new ConfigurationBuilder().Build(), reader.Object,
+            NullLogger<OperationConfigSyncService>.Instance, new FakeSyncLogger());
+
+        await svc.RunAsync(false, Defaults, default);
+
+        (await ctx.OperationConfigs.SingleAsync()).SageArbeitsgangnummer.Should().BeNull();
     }
 }

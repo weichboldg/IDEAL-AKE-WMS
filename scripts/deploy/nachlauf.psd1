@@ -102,6 +102,8 @@ Eintraege = @(
    Datei='155_AddArticleLastOrderUnassigned.sql'; MigrationId='20261116190709_AddArticleLastOrderUnassigned'; Voraussetzung='additiv, neue Tabelle'; Quelle='2026-11-16-v1-99-30-bestellvorschlaege-nachbesserung' }
 @{ Id='SQL/154'; Version='1.99.32'; Typ='Schema'; Firma='beide'; Phase='Schema'; Ausfuehrung='automatisch'
    Datei='154_AddBdeTeileliste.sql'; MigrationId='20261117075856_AddBdeTeileliste'; Voraussetzung='additiv, Spalte mit Default + Tabelle mit gefiltertem UNIQUE'; Quelle='2026-11-17-v1-99-32-bde-teileliste-blechfertigung' }
+@{ Id='SQL/153'; Version='1.99.32'; Typ='Schema'; Firma='beide'; Phase='Schema'; Ausfuehrung='automatisch'; Braucht=@('SQL/96')
+   Datei='153_AddOperationConfigSageArbeitsgangnummer.sql'; MigrationId='20261117085624_AddOperationConfigSageArbeitsgangnummer'; Voraussetzung='additiv, zwei Spalten NULL'; Quelle='2026-11-17-v1-99-27-arbeitsgang-mapping-sage-arbeitsgangnummer' }
 
 # ---------------------------------------------------------------- Pruefungen (jeder Lauf; Reparatur nur nach Bestaetigung) -------
 # v1.99.28 (ADR 0027): admin zaehlt nicht - der Web-Start stellt admin ohne Kennwort auf das Standard-Erstkennwort mit Pflichtwechsel um.
@@ -444,5 +446,8 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
 @{ Id='v1.99.32-TeilelisteInfo'; Version='1.99.32'; Typ='Info'; Firma='IDEAL'; Phase='Nachher'; Ausfuehrung='anzeigen'
    Text='Werker an Teileliste-Werkbaenken melden per Personalnummer Teile einzeln, als Block oder summiert; nichts geht an Sage. Ruecknahme bis Schichtende (IDEAL ohne Schichtkalender: Ende des Meldetags), danach BDE-Admin unter BDE-Buchungen > Teilmeldungen. Erkennungslauf im Aktivitaets-Protokoll pruefen (Zaehler teileliste_blatt_uebersprungen).'
    Quelle='2026-11-17-v1-99-32-bde-teileliste-blechfertigung' }
+@{ Id='v1.99.27-ArbeitsgangNummerPruefen'; Version='1.99.32'; Typ='Info'; Firma='IDEAL'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Text='Nach dem ersten Arbeitsgang-Abgleich /OperationConfigs ansehen: Spalte Sage-AG gegen die Sage-Liste pruefen, Pruefliste (Kuerzel ohne Sage-AG, Werkbaenke ohne Sage-Arbeitsplatz, Werkbank-Nummer gleich Sage-AG) an Produktion/AV geben. Nichts wird nach Sage geschrieben.'
+   Quelle='2026-11-17-v1-99-27-arbeitsgang-mapping-sage-arbeitsgangnummer' }
 )
 }

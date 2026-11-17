@@ -372,4 +372,33 @@ public class OperationConfigRepositoryTests
         dict.ContainsKey("BG").Should().BeTrue();
         dict.ContainsKey("bg").Should().BeFalse("die OSEON-Teileverfolgung vergleicht bewusst case-sensitiv (unveraendert)");
     }
+
+    [Fact]
+    public async Task UpdateAsync_SchreibtHandwert_NieDenSageWert()
+    {
+        // Spec 2026-11-16 AK 11: der Sage-Wert gehoert dem Arbeitsgang-Abgleich.
+        using var factory = new TestApplicationDbContextFactory();
+        await using (var seed = factory.CreateDbContext())
+        {
+            seed.OperationConfigs.Add(new OperationConfig
+            {
+                OperationName = "EG", SageArbeitsgangnummer = "140", CreatedAt = DateTime.Now, CreatedBy = "x", CreatedByWindows = "x"
+            });
+            await seed.SaveChangesAsync();
+        }
+
+        await using (var web = factory.CreateDbContext())
+        {
+            var repo = new OperationConfigRepository(web);
+            var config = (await repo.GetByNameAsync("EG"))!;
+            config.SageArbeitsgangnummer = "999";
+            config.SageArbeitsgangnummerManuell = "141";
+            await repo.UpdateAsync(config);
+        }
+
+        await using var check = factory.CreateDbContext();
+        var row = check.OperationConfigs.Single();
+        row.SageArbeitsgangnummer.Should().Be("140");
+        row.SageArbeitsgangnummerManuell.Should().Be("141");
+    }
 }

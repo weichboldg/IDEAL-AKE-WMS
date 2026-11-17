@@ -37,7 +37,8 @@ public class OperationConfigsControllerTests
 
     private OperationConfigsController Ctrl(string? query = null)
     {
-        var c = new OperationConfigsController(new OperationConfigRepository(_db), _user.Object, _settings.Object);
+        var c = new OperationConfigsController(new OperationConfigRepository(_db), _user.Object, _settings.Object,
+            new FaHierarchyNodeRepository(_db), new ProductionWorkplaceRepository(_db));
         var http = new DefaultHttpContext();
         if (query != null) http.Request.QueryString = new QueryString(query);
         c.ControllerContext = new ControllerContext { HttpContext = http };
@@ -295,5 +296,118 @@ public class OperationConfigsControllerTests
             .Where(f => File.ReadAllText(f) is var t && (t.Contains("OSEON-relevant") || t.Contains("OSEON-Relevanz")))
             .Select(Path.GetFileName).ToList();
         treffer.Should().BeEmpty("Spalte/Schalter heissen jetzt „Fremdsystem-relevant“");
+    }
+
+    // ===== Arbeitsgang-Mapping: Sage-Arbeitsgangnummer (Spec 2026-11-16, v1.99.27) =====
+
+    private int SeedNummer(string name, string? sage, string? hand)
+    {
+        var c = new OperationConfig
+        {
+            OperationName = name, SageArbeitsgangnummer = sage, SageArbeitsgangnummerManuell = hand,
+            CreatedAt = DateTime.Now, CreatedBy = "x", CreatedByWindows = "x"
+        };
+        _db.OperationConfigs.Add(c);
+        _db.SaveChanges();
+        return c.Id;
+    }
+
+    [Fact]
+    public async Task Update_Handwert_GetrimmtGespeichert_LeerLoescht_SageWertUnberuehrt()
+    {
+        var id = SeedNummer("EG", "140", null);
+
+        await Ctrl().Update(id, null, 0, true, " 141 ");
+        _db.ChangeTracker.Clear();
+        var c = _db.OperationConfigs.Single();
+        (c.SageArbeitsgangnummerManuell, c.SageArbeitsgangnummer, c.WirksameSageArbeitsgangnummer).Should().Be(("141", "140", "141"));
+        c.SageArbeitsgangnummerWeichtAb.Should().BeTrue();
+        c.ModifiedBy.Should().Be("Admin");
+
+        await Ctrl().Update(id, null, 0, true, "  ");
+        _db.ChangeTracker.Clear();
+        c = _db.OperationConfigs.Single();
+        c.SageArbeitsgangnummerManuell.Should().BeNull();
+        c.WirksameSageArbeitsgangnummer.Should().Be("140");
+    }
+
+    [Fact]
+    public async Task Update_Handwert32Zeichen_Warnung_NichtsGespeichert()
+    {
+        var id = SeedNummer("EG", "140", null);
+        var c = Ctrl();
+
+        await c.Update(id, "Neu", 5, false, new string('1', 32));
+
+        c.TempData["WarningMessage"].Should().Be("Sage-AG (Hand) höchstens 31 Zeichen – nichts gespeichert.");
+        _db.ChangeTracker.Clear();
+        var row = _db.OperationConfigs.Single();
+        (row.SageArbeitsgangnummerManuell, row.DisplayName, row.DueDateOffsetDays, row.ModifiedAt).Should().Be(((string?)null, (string?)null, 0, (DateTime?)null));
+    }
+
+    [Fact]
+    public async Task Index_Abweichung_Spaltenfilter_WirksamerWert_PrueflisteNurBeiMaster()
+    {
+        SeedNummer("EG", "140", "141");
+        SeedNummer("EK", "142", null);
+        SeedNummer("KA", "150", "150");
+
+        var vm = (OperationConfigIndexViewModel)((ViewResult)await Ctrl().Index()).Model!;
+        vm.Abweichungen.Select(c => c.OperationName).Should().Equal("EG");
+        vm.Pruefliste.Should().BeNull("Master ProduktionsauftragHierarchisch nicht gesetzt (AKE)");
+
+        var gefiltert = (OperationConfigIndexViewModel)((ViewResult)await Ctrl("?colf_sageag=14").Index()).Model!;
+        gefiltert.Configs.Select(c => c.OperationName).Should().BeEquivalentTo("EG", "EK");
+
+        _settings.Setup(s => s.GetValueAsync("ProduktionsauftragHierarchisch")).ReturnsAsync("true");
+        var ideal = (OperationConfigIndexViewModel)((ViewResult)await Ctrl().Index()).Model!;
+        ideal.Pruefliste.Should().NotBeNull();
+    }
+
+    private static ProductionWorkplace Werkbank(int id, string name, string? nummer, string? code, bool bde = false) => new()
+    {
+        Id = id, Name = name, SageArbeitsplatznummer = nummer, ArbeitsschrittCode = code, BdeAktiv = bde,
+        CreatedAt = DateTime.Now, CreatedBy = "x", CreatedByWindows = "x",
+    };
+
+    [Fact]
+    public void Pruefliste_Tokenize_Ausschluss_OhneEintragUndOhneNummer_B_B2()
+    {
+        var configs = new List<OperationConfig>
+        {
+            new() { Id = 1, OperationName = "PU", SageArbeitsgangnummer = "180" },
+            new() { Id = 2, OperationName = "VL", SageArbeitsgangnummerManuell = "260" },
+            new() { Id = 3, OperationName = "MK" },                      // ohne Sage-AG
+            new() { Id = 4, OperationName = "PL", SageArbeitsgangnummer = "320" },
+        };
+        var werkbaenke = new List<ProductionWorkplace>
+        {
+            Werkbank(1, "Probelauf", "320", "PL", bde: true),             // (b2): 320 = Sage-AG von PL
+            Werkbank(2, "Punkten Ladenbau", "2550", "PL"),                // echter Arbeitsplatz
+            Werkbank(3, "as", null, null),                                // (b)
+        };
+        var ausschluss = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "STO" };
+
+        var p = OperationConfigsController.BuildPruefliste(
+            new[] { "PU ISO VL MK", "  iso  STO", null }, configs, werkbaenke, ausschluss);
+
+        p.KuerzelOhneSageAg.Should().BeEquivalentTo(new[]
+        {
+            new KuerzelOhneSageAg("PU ISO VL MK".Split(' ')[1], "nicht in Arbeitsgang-Stammdaten", 2),
+            new KuerzelOhneSageAg("MK", "ohne Sage-AG", 1),
+        }, o => o.WithStrictOrdering());
+        p.KuerzelOhneSageAgGesamt.Should().Be(2);
+        p.WerkbaenkeOhneArbeitsplatz.Select(w => w.Name).Should().Equal("as");
+        p.WerkbankNummerGleichAg.Should().ContainSingle().Which.Should().Match<WerkbankNummerGleichAg>(x => x.Werkbank.Name == "Probelauf" && x.Arbeitsgaenge == "PL");
+    }
+
+    [Fact]
+    public void Pruefliste_KappungSichtbar()
+    {
+        var tokens = string.Join(' ', Enumerable.Range(1, OperationConfigsController.PrueflisteMax + 3).Select(i => "K" + i));
+        var p = OperationConfigsController.BuildPruefliste(new[] { tokens }, new List<OperationConfig>(), new List<ProductionWorkplace>(),
+            new HashSet<string>());
+        p.KuerzelOhneSageAg.Should().HaveCount(OperationConfigsController.PrueflisteMax);
+        p.KuerzelOhneSageAgGesamt.Should().Be(OperationConfigsController.PrueflisteMax + 3);
     }
 }

@@ -1013,7 +1013,7 @@ vollständiger Katalog". Wichtige Gruppen:
 | Worker | `WorkerSettings:SyncIntervalMinutes`, `WorkerSettings:SyncDryRun`, `Sync:BdeAutoPauseIntervalMinutes` |
 | Bereinigung | `Cleanup:AktivitaetsprotokollAufbewahrungTage` (Default 180, `0` = nie löschen) |
 | Sage-Quellen (seit v1.60.0) | `Sync:FaHierarchyListeViewName`/`…InfosViewName` (Default `[vw_IDEAL_AKE_WMS_FAListe]`/`…FAInfos]`), `Sync:ProductionWorkplaceSyncViewName` (Default `KHKPpsArbeitsplaetze`), `Sync:ArticlesViewName` (Default leer = bisheriger Select) |
-| Arbeitsgang-Abgleich (seit v1.61.0) | `Sync:OperationConfigSyncEnabled` (Default `false`), `Sync:OperationConfigSyncViewName` (Default `[vw_IDEAL_AKE_WMS_Arbeitsgaenge]`, Spalten `Arbeitsgangnummer, Bezeichnung, AG`), `Sync:OperationConfigSyncFremdsystemRelevant` (Default `false`) — legt fehlende Arbeitsgang-Kürzel aus der Sage-View an (nie überschreiben/löschen) und kennzeichnet Einträge „nicht in Sage“; standortneutral, Ausschlussliste wie Werkbank-Anlage |
+| Arbeitsgang-Abgleich (seit v1.61.0) | `Sync:OperationConfigSyncEnabled` (Default `false`), `Sync:OperationConfigSyncViewName` (Default `[vw_IDEAL_AKE_WMS_Arbeitsgaenge]`, Spalten `Arbeitsgangnummer, Bezeichnung, AG`), `Sync:OperationConfigSyncFremdsystemRelevant` (Default `false`) — legt fehlende Arbeitsgang-Kürzel aus der Sage-View an (nie überschreiben/löschen) und kennzeichnet Einträge „nicht in Sage“; standortneutral, Ausschlussliste wie Werkbank-Anlage. Seit v1.99.27 (ausgeliefert mit v1.99.32) füllt er außerdem die **Sage-Arbeitsgangnummer** je Kürzel aus der View-Spalte `Arbeitsgangnummer` (nur Quelle View, nicht bei `KHKPpsArbeitsplaetze` oder SData); ein Handwert in `/OperationConfigs` hat Vorrang und wird nie überschrieben. Nichts wird nach Sage geschrieben |
 | enaio-Sync-Quelle (seit v1.67.0) | `Sync:EnaioDmsViewName` (Default `[enaio].[dbo].[vw_IDEAL-AKE_Fertigungsauftraege]`, bis zu drei Teile `[Datenbank].[Schema].[Name]`, Spalten `id, angelegt, Typ, WaNummer, WaNummerTrimmed`). Gepflegt in den Standorteinstellungen „enaio (Dokumente)“; leer = Default; ungültiger Name: kein SQL, Lauf fehlgeschlagen + Fehlermail. Wirksam ab dem nächsten Lauf. Der Schalter `Sync:EnaioDmsEnabled` bleibt hier. |
 
 ### IDEAL: Sage-Quellen auf die WMS-Views umstellen (seit v1.60.0)
@@ -1038,8 +1038,9 @@ Reihenfolge (zuerst IDEAL-Test, dann live; Prüfabfragen P1–P7 stehen in der S
    `SELECT CAST(Arbeitsplatznummer AS varchar(31)), Bezeichnung1, USER_ArbeitsSchritt FROM KHKPpsArbeitsplaetze WHERE Mandant = <M> AND Aktiv = -1`
    `EXCEPT SELECT CAST(Arbeitsgangnummer AS varchar(31)), Bezeichnung, AG FROM vw_IDEAL_AKE_WMS_Arbeitsgaenge` (und umgekehrt;
    beide Seiten als Text, sonst fällt `0000` gegen `0` nicht auf).
-   Dann `Sync:ProductionWorkplaceSyncViewName = [vw_IDEAL_AKE_WMS_Arbeitsgaenge]` (die View liefert trotz ihres Namens
-   **Arbeitsplätze**; Spalten `Arbeitsgangnummer` → Nummer, `Bezeichnung` → Name, `AG` → Kürzel; sie hat **keinen**
+   Dann `Sync:ProductionWorkplaceSyncViewName = [vw_IDEAL_AKE_WMS_Arbeitsgaenge]` (**Achtung, Stand 2026-11-17:** die View liefert
+   **Arbeitsgang**nummern aus `KHKPpsArbeitsgaenge`, keine Sage-Arbeitsplätze – Prüfabfragen P-AG1/P-AG3; so angelegte Werkbänke tragen
+   keine echte Arbeitsplatznummer, siehe Prüfliste in `/OperationConfigs`; Spalten `Arbeitsgangnummer` → Nummer, `Bezeichnung` → Name, `AG` → Kürzel; sie hat **keinen**
    Mandant/Aktiv-Filter — Quelle ≠ `KHKPpsArbeitsplaetze` ⇒ der Sync liest ungefiltert die View). Erster Lauf: `neu = 0`,
    `abweichung = 0`.
 5. Artikel: P6 „vorher“, dann `Sync:ArticlesViewName = [vw_IDEAL_AKE_WMS_Artikel]`, einen erfolgreichen

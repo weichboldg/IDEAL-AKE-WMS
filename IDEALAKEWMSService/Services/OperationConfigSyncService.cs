@@ -13,12 +13,17 @@ namespace IDEALAKEWMSService.Services;
 internal sealed record OperationConfigSyncSettings(string? ViewName, string? Ausschlussliste, bool FremdsystemRelevant, int Mandant);
 
 /// <summary>Bestandszeile, wie <see cref="OperationConfigSyncService.Plan"/> sie sieht.</summary>
-internal sealed record ExistingOperationConfig(int Id, string OperationName, string Source, DateTime? SageMissingSince);
+internal sealed record ExistingOperationConfig(int Id, string OperationName, string Source, DateTime? SageMissingSince,
+    string? SageArbeitsgangnummer = null, string? SageArbeitsgangnummerManuell = null);
 
 /// <summary>Reine Entscheidung eines Laufs (keine DB, keine Zeit).</summary>
 internal sealed class OperationConfigSyncPlan
 {
-    public List<(string OperationName, string? DisplayName)> New { get; } = new();
+    public List<(string OperationName, string? DisplayName, string? Nummer)> New { get; } = new();
+    public List<(int Id, string? Nummer)> NummerSetzen { get; } = new(); // Sage-Arbeitsgangnummer aendern (auch auf NULL spiegeln)
+    public List<string> OhneKuerzel { get; } = new();  // View-Zeilen mit leerem AG: "Nummer Bezeichnung" (Pruefliste c)
+    public int NummerMehrdeutig { get; set; }
+    public int AbweichungHand { get; set; }          // nach dem Lauf: Handwert und Sage-Wert gesetzt und verschieden (FA-4)
     public List<int> Mark { get; } = new();          // neu nicht in Sage
     public List<int> Unmark { get; } = new();        // wieder in Sage (mit Meldung)
     public List<int> Clear { get; } = new();         // Fremdsystem/Ausschluss: Kennzeichnung still entfernen
@@ -148,24 +153,30 @@ public class OperationConfigSyncService : IOperationConfigSyncService
 
         try
         {
+            // Sage-Arbeitsgangnummer nur aus der Arbeitsgang-View (Spalte Arbeitsgangnummer = KHKPpsArbeitsgaenge, P-AG1). Die Tabelle
+            // KHKPpsArbeitsplaetze und SData (PpsArbeitsplaetzeInfo) liefern in Spalte 0 die ARBEITSPLATZnummer -> dann nichts aendern.
+            var nummerLesen = !SageArbeitsplatzSql.IsTable(quotedSource)
+                && _reader is not SageQuelleWeiche { GenutzteQuelle: SageQuelle.SData };
             var plan = Plan(rows,
-                configs.Select(c => new ExistingOperationConfig(c.Id, c.OperationName, c.Source, c.SageMissingSince)).ToList(),
-                ausschluss);
+                configs.Select(c => new ExistingOperationConfig(c.Id, c.OperationName, c.Source, c.SageMissingSince,
+                    c.SageArbeitsgangnummer, c.SageArbeitsgangnummerManuell)).ToList(),
+                ausschluss, nummerLesen);
             foreach (var w in plan.Warnings) await Detail(true, w);
 
-            int neu = 0, fehler = 0, quelleSage = 0, wiederInSage = 0;
+            int neu = 0, fehler = 0, quelleSage = 0, wiederInSage = 0, nummerGesetzt = 0;
             var nichtInSage = plan.NichtInSage;
             var angelegt = new List<string>();
             var neuNichtInSage = new List<string>();
             var wieder = new List<string>();
             var gewechselt = new List<string>();
+            var nummern = new List<string>();
             var byId = configs.ToDictionary(c => c.Id);
             var now = DateTime.Now;
 
-            foreach (var (name, display) in plan.New)
+            foreach (var (name, display, nummer) in plan.New)
             {
                 ct.ThrowIfCancellationRequested();
-                if (dryRun) { neu++; angelegt.Add(Label(name, display)); continue; }
+                if (dryRun) { neu++; angelegt.Add(Label(name, display, nummer)); continue; }
                 var entity = new OperationConfig
                 {
                     OperationName = name,
@@ -174,13 +185,14 @@ public class OperationConfigSyncService : IOperationConfigSyncService
                     IsExternalSystemRelevant = settings.FremdsystemRelevant, // immer explizit: Model-Default ist true
                     Source = OperationConfigSource.Sage,
                     SageMissingSince = null,
+                    SageArbeitsgangnummer = nummer, // Handwert bleibt NULL (FA-3)
                     CreatedAt = now, CreatedBy = ServiceUser, CreatedByWindows = ServiceUser,
                 };
                 _ctx.OperationConfigs.Add(entity);
                 if (await TrySaveAsync(entity, $"Anlage von Kürzel {name} fehlgeschlagen", name))
                 {
                     neu++;
-                    angelegt.Add(Label(name, display));
+                    angelegt.Add(Label(name, display, nummer));
                 }
                 else fehler++;
             }
@@ -199,6 +211,19 @@ public class OperationConfigSyncService : IOperationConfigSyncService
             {
                 if (await Change(id, e => e.Source = OperationConfigSource.Sage)) { quelleSage++; gewechselt.Add(byId[id].OperationName); }
                 else fehler++;
+            }
+            // Sage-Wert der Arbeitsgangnummer (FA-2); der Handwert wird nie angefasst (FA-3). Abgehaengte (geloeschte) Eintraege nicht.
+            foreach (var (id, nummer) in plan.NummerSetzen.Where(x => _ctx.Entry(byId[x.Id]).State != EntityState.Detached))
+            {
+                var e = byId[id];
+                var alt = e.SageArbeitsgangnummer;
+                if (!await Change(id, x => x.SageArbeitsgangnummer = nummer)) { fehler++; continue; }
+                nummerGesetzt++;
+                nummern.Add($"{e.OperationName} {nummer ?? "(leer)"}");
+                var hand = e.SageArbeitsgangnummerManuell;
+                if (hand != null && nummer != null && !string.Equals(hand.Trim(), nummer, StringComparison.Ordinal))
+                    await Detail(true, $"Sage-Arbeitsgangnummer geändert, Handwert weicht ab: {e.OperationName} Sage {alt ?? "(leer)"} → {nummer} / Hand {hand}",
+                        e.OperationName);
             }
             foreach (var id in plan.Mark)
             {
@@ -219,6 +244,8 @@ public class OperationConfigSyncService : IOperationConfigSyncService
             if (gewechselt.Count > 0) await Detail(false, "Quelle Manuell → Sage: " + string.Join(", ", gewechselt));
             if (neuNichtInSage.Count > 0) await Detail(true, "neu nicht in Sage: " + string.Join(", ", neuNichtInSage));
             if (wieder.Count > 0) await Detail(false, "wieder in Sage: " + string.Join(", ", wieder));
+            if (nummern.Count > 0) await Detail(false, "Sage-Arbeitsgangnummer gesetzt: " + string.Join(", ", nummern));
+            if (plan.OhneKuerzel.Count > 0) await Detail(false, "Sage-Arbeitsgänge ohne Kürzel: " + string.Join(", ", plan.OhneKuerzel));
 
             _logger.LogInformation(
                 "Arbeitsgang-Abgleich: {Neu} neu, {Vorh} vorhanden, {Nicht} nicht in Sage, {Err} Fehler{Dry}.",
@@ -233,10 +260,14 @@ public class OperationConfigSyncService : IOperationConfigSyncService
                 ["nicht_in_sage"] = nichtInSage,
                 ["wieder_in_sage"] = wiederInSage,
                 ["quelle_sage"] = quelleSage,
+                ["nummer_gesetzt"] = nummerGesetzt,
+                ["nummer_mehrdeutig"] = plan.NummerMehrdeutig,
+                ["abweichung_hand"] = plan.AbweichungHand,
+                ["ohne_kuerzel"] = plan.OhneKuerzel.Count,
                 ["fehler"] = fehler,
             }, messageSuffix: dryRun ? "[DryRun]" : null, ct: ct);
 
-            return new SyncResult(neu, quelleSage + plan.Mark.Count + plan.Unmark.Count, fehler);
+            return new SyncResult(neu, quelleSage + plan.Mark.Count + plan.Unmark.Count + nummerGesetzt, fehler);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -275,14 +306,21 @@ public class OperationConfigSyncService : IOperationConfigSyncService
     /// Manual -> Sage und die Kennzeichnung. Keine DB, keine Zeit.
     /// </summary>
     internal static OperationConfigSyncPlan Plan(
-        IReadOnlyList<SageArbeitsplatzDto> rows, IReadOnlyList<ExistingOperationConfig> existing, IReadOnlySet<string> ausschluss)
+        IReadOnlyList<SageArbeitsplatzDto> rows, IReadOnlyList<ExistingOperationConfig> existing, IReadOnlySet<string> ausschluss,
+        bool nummerLesen = true)
     {
         var plan = new OperationConfigSyncPlan();
         var groups = new Dictionary<string, List<SageArbeitsplatzDto>>(StringComparer.OrdinalIgnoreCase);
         foreach (var row in rows)
         {
             var ag = (row.Arbeitsschritt ?? string.Empty).Trim();
-            if (ag.Length == 0) { plan.Uebersprungen++; continue; }
+            if (ag.Length == 0)
+            {
+                plan.Uebersprungen++;
+                var ohne = $"{row.Arbeitsplatznummer?.Trim()} {row.Bezeichnung1?.Trim()}".Trim();
+                if (nummerLesen && ohne.Length > 0) plan.OhneKuerzel.Add(ohne); // Pruefliste (c), nur Info
+                continue;
+            }
             (groups.TryGetValue(ag, out var l) ? l : groups[ag] = new List<SageArbeitsplatzDto>()).Add(row);
         }
 
@@ -306,10 +344,14 @@ public class OperationConfigSyncService : IOperationConfigSyncService
                 continue;
             }
 
+            var (nummerSetzen, nummer) = nummerLesen ? Nummer(name, group, plan) : (false, null);
+
             if (byName.TryGetValue(name, out var found))
             {
                 plan.Vorhanden++;
                 if (found.Source == OperationConfigSource.Manual) plan.SourceToSage.Add(found.Id);
+                if (nummerSetzen && !string.Equals(found.SageArbeitsgangnummer, nummer, StringComparison.Ordinal))
+                    plan.NummerSetzen.Add((found.Id, nummer));
                 continue;
             }
 
@@ -324,7 +366,7 @@ public class OperationConfigSyncService : IOperationConfigSyncService
                 plan.NameMehrdeutig++;
                 plan.Warnings.Add($"Kürzel {name}: mehrere Bezeichnungen ({string.Join(" / ", names)}) — Anzeigename leer gelassen.");
             }
-            plan.New.Add((name, display));
+            plan.New.Add((name, display, nummerSetzen ? nummer : null));
         }
 
         foreach (var e in existing)
@@ -342,14 +384,49 @@ public class OperationConfigSyncService : IOperationConfigSyncService
             }
             else if (e.SageMissingSince != null) plan.Unmark.Add(e.Id);
         }
+
+        // Abweichung Sage <-> Hand nach dem Lauf (Zaehler je Lauf, FA-4)
+        var neueNummer = plan.NummerSetzen.ToDictionary(x => x.Id, x => x.Nummer);
+        plan.AbweichungHand = existing.Count(e =>
+        {
+            var sage = neueNummer.TryGetValue(e.Id, out var n) ? n : e.SageArbeitsgangnummer;
+            return e.SageArbeitsgangnummerManuell != null && sage != null
+                && !string.Equals(e.SageArbeitsgangnummerManuell.Trim(), sage.Trim(), StringComparison.Ordinal);
+        });
         return plan;
     }
 
-    private static string Label(string name, string? display) => display == null ? name : $"{name} ({display})";
+    /// <summary>Sage-Arbeitsgangnummer einer Kuerzel-Gruppe (FA-2): genau eine Nummer -> diese, keine -> NULL (spiegeln, Rueckfrage 6),
+    /// mehrere oder laenger als 31 -> nicht aendern, mit Warnung.</summary>
+    private static (bool Setzen, string? Nummer) Nummer(string name, List<SageArbeitsplatzDto> group, OperationConfigSyncPlan plan)
+    {
+        var nummern = group.Select(r => (r.Arbeitsplatznummer ?? string.Empty).Trim()).Where(n => n.Length > 0)
+            .Distinct(StringComparer.Ordinal).OrderBy(n => n, StringComparer.Ordinal).ToList();
+        if (nummern.Count == 0) return (true, null);
+        if (nummern.Count > 1)
+        {
+            plan.NummerMehrdeutig++;
+            plan.Warnings.Add($"Kürzel {name}: mehrere Sage-Arbeitsgangnummern ({string.Join(" / ", nummern)}) – Nummer nicht geändert.");
+            return (false, null);
+        }
+        if (nummern[0].Length > 31)
+        {
+            plan.Warnings.Add($"Kürzel {name}: Sage-Arbeitsgangnummer länger als 31 Zeichen – Nummer nicht geändert.");
+            return (false, null);
+        }
+        return (true, nummern[0]);
+    }
+
+    private static string Label(string name, string? display, string? nummer = null)
+    {
+        var info = string.Join(", ", new[] { display, nummer == null ? null : "Sage-AG " + nummer }.Where(x => x != null));
+        return info.Length == 0 ? name : $"{name} ({info})";
+    }
 
     private static Dictionary<string, int> EmptyCounts() => new()
     {
         ["neu"] = 0, ["vorhanden"] = 0, ["uebersprungen"] = 0, ["name_mehrdeutig"] = 0,
-        ["nicht_in_sage"] = 0, ["wieder_in_sage"] = 0, ["quelle_sage"] = 0, ["fehler"] = 0,
+        ["nicht_in_sage"] = 0, ["wieder_in_sage"] = 0, ["quelle_sage"] = 0, ["nummer_gesetzt"] = 0, ["nummer_mehrdeutig"] = 0,
+        ["abweichung_hand"] = 0, ["ohne_kuerzel"] = 0, ["fehler"] = 0,
     };
 }

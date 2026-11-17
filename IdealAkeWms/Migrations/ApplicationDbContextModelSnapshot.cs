@@ -2611,6 +2611,14 @@ namespace IdealAkeWms.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<string>("SageArbeitsgangnummer")
+                        .HasMaxLength(31)
+                        .HasColumnType("nvarchar(31)");
+
+                    b.Property<string>("SageArbeitsgangnummerManuell")
+                        .HasMaxLength(31)
+                        .HasColumnType("nvarchar(31)");
+
                     b.Property<DateTime?>("SageMissingSince")
                         .HasColumnType("datetime2");
 
