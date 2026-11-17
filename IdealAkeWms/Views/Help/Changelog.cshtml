@@ -9,6 +9,39 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.99.32</strong> <span class="text-white-50 ms-2">17.11.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>BDE-Teileliste für die Blechfertigung (IDEAL)</h6>
+                <ul>
+                    <li>Neue Werkbank-Option <strong>&bdquo;BDE-Teileliste&ldquo;</strong> (Stammdaten &gt; Werkbänke, nur mit BDE aktiv und Kürzel).
+                        Das Terminal einer solchen Werkbank zeigt statt der Arbeitsgänge eine <strong>Teileliste</strong>: alle Teile und Baugruppen
+                        der FA-Struktur, deren Arbeitsschritte das Kürzel der Werkbank enthalten.</li>
+                    <li>Der Werker meldet sich per Personalnummer an und meldet Teile <strong>einzeln</strong> (Gut/Ausschuss), als <strong>Block</strong>
+                        (angehakte Zeilen der Seite, volle Sollmenge) oder in der Sicht <strong>Summiert</strong> (je Matchcode). Doppelte Meldungen
+                        werden abgewiesen (&bdquo;bereits gemeldet von &hellip;&ldquo;), jede nicht gemeldete Zeile wird mit Grund genannt.</li>
+                    <li>Eine <strong>Baugruppe</strong> melden erledigt zusätzlich ihren Arbeitsgang mit diesem Kürzel. Blechteile werden nur als
+                        Teilmeldung gespeichert; Haupt-FA und übergeordnete Baugruppe bleiben unberührt. Nichts wird an Sage gemeldet.</li>
+                    <li>Eigene Meldungen nimmt der Werker bis Schichtende zurück (ohne Schichtkalender: bis Ende des Meldetags), danach der BDE-Admin
+                        unter <em>BDE-Buchungen &gt; Teilmeldungen</em> mit Grund.</li>
+                    <li>Woche, Sicht, Spaltenfilter und Seitengröße werden je Werker und Werkbank gemerkt (Woche relativ zur aktuellen KW);
+                        &bdquo;Filter zurücksetzen&ldquo; stellt die Vorgabe (aktuelle KW bis nächste KW) her.</li>
+                    <li>Die Arbeitsgang-Erkennung legt für Kürzel solcher Werkbänke keinen Arbeitsgang mehr an der übergeordneten Baugruppe an, wenn
+                        das Kürzel nur an Blechteilen steht. Bestehende, ungebuchte Arbeitsgänge dieser Art entfernt ein einmaliges Skript beim Update.</li>
+                </ul>
+                <h6>Beschichtung: Termin und Haken aus der Beschichtungsquelle</h6>
+                <ul>
+                    <li>FA-Liste, Kommissionier-Leitstand und Werkbank-Arbeitsliste lesen <strong>Beschichtungstermin, Tooltip und Lack-Haken</strong>
+                        jetzt aus der eingestellten Beschichtungsquelle (Nachtrag zu v1.99.25). Sichtbar wird das nur an Standorten mit hierarchischen
+                        Aufträgen (<code>ProduktionsauftragHierarchisch</code> an, IDEAL): dort zeigen auch Leitstand und Arbeitsliste
+                        &bdquo;Start Beschichtung&ldquo; aus der Sage-View, Haken und Termin nur an Aufträgen mit Beschichtungs-Kennzeichen.
+                        An der AKE ändert sich nichts.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.99.31</strong> <span class="text-white-50 ms-2">17.11.2026</span>
             </div>
             <div class="card-body">
@@ -148,7 +181,7 @@
                     <li>Die Lackierteil-Erkennung direkt nach dem Sage-Import läuft nur noch, wenn sie in den Service-Einstellungen eingeschaltet ist
                         (<code>Sync:CoatingDetectionEnabled</code>), wie der regelmäßige Lauf.</li>
                     <li>Änderungen am Lack-Kennzeichen durch die FA-Materialisierung stehen jetzt mit Benutzer im Änderungsnachweis.</li>
-                    <li><strong>Nachtrag (nächste Version nach v1.99.31):</strong> FA-Liste, Kommissionier-Leitstand und Werkbank-Arbeitsliste lesen den
+                    <li><strong>Nachtrag (v1.99.32):</strong> FA-Liste, Kommissionier-Leitstand und Werkbank-Arbeitsliste lesen den
                         Beschichtungstermin jetzt aus der eingestellten Quelle; der Tooltip der Spalte nennt sie. An Standorten mit
                         hierarchischen Aufträgen (IDEAL) zeigen <strong>auch Leitstand und Arbeitsliste</strong> den Termin
                         &bdquo;Start Beschichtung&ldquo; aus der Sage-View, unverändert, und Haken und Termin stehen nur noch an

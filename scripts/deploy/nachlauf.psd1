@@ -435,5 +435,14 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
 @{ Id='v1.99.31-EinkaufAnsichten'; Version='1.99.31'; Typ='Info'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
    Text='Rolle einkauf sieht jetzt Einkauf > Offene Bestellungen und Einkauf > Sage-Wareneingaenge (offen), beide nur lesen (Gate EinkaufAktiv). Wareneingang buchen nur mit Lager-Recht, Aktionen an Sage-Wareneingaengen nur mit Lager-Keyuser-Recht. Keine Rollenzuweisung noetig.'
    Quelle='2026-11-17-v1-99-31-offene-bestellungen-sofort-neu-lesen' }
+@{ Id='v1.99.32-BeschichtungListen'; Version='1.99.32'; Typ='Info'; Firma='IDEAL'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Text='FA-Liste, Kommissionier-Leitstand und Werkbank-Arbeitsliste nehmen Beschichtungstermin, Tooltip und Lack-Haken jetzt aus der Beschichtungsquelle (Nachtrag v1.99.25). Sichtbar nur mit ProduktionsauftragHierarchisch an: Leitstand und Arbeitsliste zeigen Start Beschichtung aus der Sage-View, Haken und Termin nur an Auftraegen mit Kennzeichen. Fertigung/AV informieren; AKE unveraendert.'
+   Quelle='2026-11-17-v1-99-32-bde-teileliste-blechfertigung' }
+@{ Id='v1.99.32-TeilelisteOption'; Version='1.99.32'; Typ='Einstellung'; Firma='IDEAL'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Text='Neu: Werkbank-Option BDE-Teileliste (Stammdaten > Werkbaenke, Default aus, nur mit BDE aktiv und Kuerzel; wirkungslos bei BdeNurFaMeldung). An den Start-Werkbaenken der Blechfertigung setzen (mit Fertigung abstimmen). Danach das Einmal-Skript RemoveParentWorkOperationsFromLeafTokensTeileliste erneut anstossen, falls sein Trockenlauf vorher TREFFER 0 lieferte.'
+   Quelle='2026-11-17-v1-99-32-bde-teileliste-blechfertigung' }
+@{ Id='v1.99.32-TeilelisteInfo'; Version='1.99.32'; Typ='Info'; Firma='IDEAL'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Text='Werker an Teileliste-Werkbaenken melden per Personalnummer Teile einzeln, als Block oder summiert; nichts geht an Sage. Ruecknahme bis Schichtende (IDEAL ohne Schichtkalender: Ende des Meldetags), danach BDE-Admin unter BDE-Buchungen > Teilmeldungen. Erkennungslauf im Aktivitaets-Protokoll pruefen (Zaehler teileliste_blatt_uebersprungen).'
+   Quelle='2026-11-17-v1-99-32-bde-teileliste-blechfertigung' }
 )
 }

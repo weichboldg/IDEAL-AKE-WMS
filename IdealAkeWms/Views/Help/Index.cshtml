@@ -1753,6 +1753,30 @@
                         &bdquo;nicht nötig&ldquo; (gedämpfter Text, seit v1.79.0; vorher leer).</dd>
                 </dl>
 
+                <h6 class="mt-3">BDE-Teileliste f&uuml;r die Blechfertigung (seit v1.99.32, IDEAL)</h6>
+                <ul>
+                    <li><strong>Einschalten:</strong> <em>Stammdaten &rarr; Werkbaenke &rarr; Bearbeiten</em>, Option &bdquo;BDE-Teileliste&ldquo;.
+                        Wirkt nur mit <em>BDE aktiv</em> und Arbeitsschritt-Kuerzel; ist &bdquo;Nur FA-Meldung&ldquo; (<code>BdeNurFaMeldung</code>) an,
+                        bleibt das Terminal wie bisher.</li>
+                    <li><strong>Zeilen:</strong> alle Teile (Blatt) und Baugruppen der FA-Struktur, deren Arbeitsschritte das Kuerzel enthalten.
+                        Baugruppen tragen die Kennzeichnung &bdquo;Baugruppe&ldquo; und klappen ihre Teile auf (nur zur Ansicht). Zeilen, deren Auftrag
+                        erledigt oder storniert ist, fehlen; Zeilen ohne WMS-Auftrag sind meldbar (&bdquo;kein WMS-Auftrag&ldquo;).
+                        Die Kalenderwoche filtert auf den FE-Termin des Hauptauftrags (Vorgabe: aktuelle bis naechste KW).
+                        Spalte <em>Beschichtet</em> = Kennzeichen der Position aus der FA-Struktur (&bdquo;&ndash;&ldquo;, wenn die Beschichtungsquelle keins je Position kennt).</li>
+                    <li><strong>Melden:</strong> einzeln (Gut vorbelegt mit der Sollmenge, Ausschuss optional), als Block (angehakte Zeilen der Seite,
+                        volle Sollmenge, Rueckfrage nennt Anzahl und Summe) oder in <em>Summiert</em> (je Matchcode alle offenen Positionen).
+                        Eine Baugruppe erledigt dabei ihren eigenen Arbeitsgang mit dem Kuerzel; Blechteile sind reine Teilmeldungen. Es wird nichts
+                        an Sage gemeldet.</li>
+                    <li><strong>Zuruecknehmen:</strong> eigene Meldung bis Schichtende (&bdquo;gemeldete zeigen&ldquo;, Knopf &bdquo;Zurücknehmen&ldquo;;
+                        ohne Schichtkalender bis Ende des Meldetags). Danach storniert der BDE-Admin unter <em>BDE-Buchungen &rarr; Teilmeldungen</em>
+                        (Grund Pflicht); Schichtleiter sehen die Liste ohne Storno.</li>
+                    <li><strong>Filter</strong> (Sicht, Woche relativ, Spaltenfilter, &bdquo;gemeldete zeigen&ldquo;, Seitengroesse) gelten je Werker
+                        und Werkbank am selben Terminal-Benutzer; die Spaltenauswahl (Zahnrad) gilt fuer den Terminal-Benutzer, nicht je Werker.</li>
+                    <li><strong>Arbeitsgang-Erkennung:</strong> fuer Kuerzel einer Werkbank mit Option entsteht kein Arbeitsgang mehr an der
+                        Baugruppe, wenn das Kuerzel nur an ihren Blechteilen steht (Zaehler <code>teileliste_blatt_uebersprungen</code> im
+                        Aktivitaets-Protokoll). Der Dienst liest dafuer nur die Werkbank-Option, nicht <code>BdeNurFaMeldung</code>.</li>
+                </ul>
+
                 <h6 class="mt-3">Werkbank fuer BDE konfigurieren</h6>
                 <ol>
                     <li>Menue <strong>Stammdaten &rarr; Werkbaenke</strong> oeffnen.</li>
