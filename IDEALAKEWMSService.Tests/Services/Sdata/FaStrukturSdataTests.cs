@@ -257,14 +257,14 @@ public class FaStrukturSdataTests
         var fa = new Dictionary<int, Dictionary<string, string?>>
         {
             [901] = D(("USER_OSBemerkungPN", "Bem"), ("USER_OSFertigungsInfoPN", "FInfo"), ("USER_OSKommissionieren", "Ja"),
-                ("USER_OSAbteilung", "Montage"), ("USER_OSArbeitsschritte", "SG"), ("USER_OSArtikeltyp", "BG"), ("USER_OSMaterial", "1.4301"),
+                ("USER_OSAbteilung", "Montage"), ("USER_OSArbeitsschritte", "SG"), ("USER_OSArtikeltyp", "KOPF"), ("USER_OSMaterial", "1.4301"),
                 ("USER_OSVMBedarf", "VM"), ("USER_OSBeschichtet", "-1"), ("USER_OSBreite", "100.5"), ("USER_OSHoehe", "200"),
                 ("USER_OSTiefe", "300"), ("USER_OSEKBedarf", "Ja")),
         };
         var artikel = new Dictionary<string, Dictionary<string, string?>>(StringComparer.OrdinalIgnoreCase)
         {
             ["BG"] = D(("Matchcode", "MC-BG"), ("Bezeichnung1", "Baugruppe"), ("Bezeichnung2", "Z2"), ("Artikelgruppe", "100"),
-                ("IstBestellartikel", "0"), ("PlatzID", "11")),
+                ("IstBestellartikel", "0"), ("PlatzID", "11"), ("USER_OSArtikeltyp", "BG")), // R4: Artikeltyp vom Artikel, nicht vom FA-Kopf
             ["BLATT"] = D(("Matchcode", "MC-B"), ("Bezeichnung1", "Blech"), ("Bezeichnung2", "Z2b"), ("Artikelgruppe", "200"),
                 ("IstBestellartikel", "-1"), ("PlatzID", "11"), ("USER_OSBemerkungPN", "BemA"), ("USER_OSFertigungsInfoPN", "FA"),
                 ("USER_OSKommissionieren", "Nein"), ("USER_OSAbteilung", "Laser"), ("USER_OSArbeitsschritte", "LA"),
