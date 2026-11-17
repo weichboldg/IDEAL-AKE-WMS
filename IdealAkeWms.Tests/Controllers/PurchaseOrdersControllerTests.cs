@@ -216,6 +216,10 @@ public partial class PurchaseOrdersControllerTests
         typeof(EinkaufPurchaseOrdersController).GetCustomAttributes(false).Select(a => a.GetType())
             .Should().Contain(new[] { typeof(RequireEinkaufAccessAttribute), typeof(RequireEinkaufAktivAttribute) })
             .And.NotContain(typeof(RequireStockReadAccessAttribute)).And.NotContain(typeof(RequireWareneingangBestellungAktivAttribute));
+        // QA v1.99.31: Einkauf-Ansichten nur lesend - keine schreibende Action (Waechter; Aktionen bleiben im PurchaseOrdersController)
+        typeof(EinkaufPurchaseOrdersController).GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.DeclaredOnly)
+            .Where(m => m.GetCustomAttributes(true).Any(a => a is Microsoft.AspNetCore.Mvc.Routing.IActionHttpMethodProvider p && p.HttpMethods.Any(h => h != "GET")))
+            .Should().BeEmpty();
         foreach (var m in typeof(PurchaseOrdersController).GetMethods().Where(m => m.Name == "Receive"))
             m.GetCustomAttributes(typeof(RequireStockAccessAttribute), false).Should().NotBeEmpty($"{m} bucht nur mit Lager-Recht");
         // Formulare/Links der gemeinsamen Views zielen ausdruecklich auf PurchaseOrders (sonst /EinkaufPurchaseOrders/Receive)
