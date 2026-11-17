@@ -113,40 +113,6 @@ public class FaHierarchySyncService : IFaHierarchySyncService
         }
     }
 
-    /// <summary>
-    /// E4b (Spec 2026-11-06-sage-sdata-stammdaten-sync F6): Full-Refresh von <c>ProductionOrderPositions</c> in einer EIGENEN Transaktion
-    /// NACH dem Struktur-Commit — ein Fehler hier rollt die (im Vergleich aus der View geschriebene) Struktur nicht zurueck. Leere Liste:
-    /// nichts ersetzen + Warnung (nie leeren). Fehler: Protokoll-Fehler + Mail, der Lauf endet trotzdem erfolgreich (Struktur ist geschrieben).
-    /// Gibt die Zahl der geschriebenen Positionen zurueck (0 bei Warnung/Fehler).
-    /// </summary>
-    internal async Task<int> PositionenErsetzenAsync(ISyncRun run, List<ProductionOrderPosition> positionen, CancellationToken ct)
-    {
-        if (positionen.Count == 0)
-        {
-            await run.LogWarningAsync("ProductionOrderPositions: SData liefert keine Positionen – Tabelle bleibt unverändert.", ct: ct);
-            return 0;
-        }
-        try
-        {
-            await using var tx = await _ctx.Database.BeginTransactionAsync(ct);
-            var geloescht = await _ctx.Database.ExecuteSqlRawAsync("DELETE FROM dbo.ProductionOrderPositions", ct);
-            await _ctx.ProductionOrderPositions.AddRangeAsync(positionen, ct);
-            await _ctx.SaveChangesAsync(ct);
-            await tx.CommitAsync(ct);
-            await run.LogInfoAsync($"ProductionOrderPositions: {positionen.Count} Positionen aus SData ersetzt ({geloescht} gelöscht).", ct: ct);
-            return positionen.Count;
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            _ctx.ChangeTracker.Clear();
-            _logger.LogError(ex, "FaHierarchy-Sync: ProductionOrderPositions nicht ersetzt.");
-            var msg = $"ProductionOrderPositions nicht ersetzt (alter Stand bleibt): {ex.Message}";
-            await run.LogErrorAsync(msg.Length <= 600 ? msg : msg[..600], ct: ct); // SyncLogs.Message = 1000
-            await _errorNotifier.NotifyAsync("FaHierarchy-Sync: FA-Positionen nicht ersetzt", ex, ct);
-            return 0;
-        }
-    }
-
     private sealed record Ergebnis(Dictionary<string, int> Counts, int EntfernteKnoten, int EntfernteInfos);
 
     private sealed record Fehlend(IFaStrukturZeile Zeile, int SubFA, int Owner);
@@ -166,14 +132,23 @@ public class FaHierarchySyncService : IFaHierarchySyncService
         // Bestand getrackt (einige tausend Zeilen; ExecuteUpdate bewusst nicht, InMemory testet es nicht).
         var knoten = await _ctx.FaHierarchyNodes.ToListAsync(ct);
         var infos = await _ctx.FaHierarchyOrderInfos.ToListAsync(ct);
+        var lp = lesung.Positionen is { Count: > 0 } x ? x : null;
+        var positionen = lp is null ? null : await _ctx.ProductionOrderPositions.ToListAsync(ct);
 
         // Dubletten-Waechter: eine HauptFA mit doppeltem Schluessel im Read bleibt in diesem Lauf in allen Tabellen unberuehrt.
         var (gesperrt, doppelt) = FaStrukturAbgleich.Doppelt(lesung.Knoten, FaStrukturAbgleich.Schluessel, n => n.HauptFA);
         var (gesperrtI, doppeltI) = FaStrukturAbgleich.Doppelt(lesung.Infos, FaStrukturAbgleich.Schluessel, i => i.HauptFA);
         gesperrt.UnionWith(gesperrtI);
         doppelt.AddRange(doppeltI);
+        if (lp is not null)
+        {
+            var (gesperrtP, doppeltP) = FaStrukturAbgleich.Doppelt(lp, p => p.BelPosID, p => p.StrukturID);
+            gesperrt.UnionWith(gesperrtP);
+            doppelt.AddRange(doppeltP.Select(d => "BelPosID " + d));
+        }
         var pk = FaStrukturAbgleich.Planen(knoten, lesung.Knoten, FaStrukturAbgleich.Schluessel, n => n.HauptFA, gesperrt);
         var pi = FaStrukturAbgleich.Planen(infos, lesung.Infos, FaStrukturAbgleich.Schluessel, i => i.HauptFA, gesperrt);
+        var pp = lp is null ? null : FaStrukturAbgleich.Planen(positionen!, lp, p => p.BelPosID, p => p.StrukturID, gesperrt);
 
         c["schluessel_doppelt"] = gesperrt.Count;
         if (gesperrt.Count > 0)
@@ -200,9 +175,11 @@ public class FaHierarchySyncService : IFaHierarchySyncService
         // FAs, deren Zustand der Lauf selbst kennt (gelesen), und die Sage-Einzelabfrage fuer den Rest (nur SELECT).
         var gelesen = lesung.Knoten.SelectMany(n => new[] { n.HauptFA, FaStrukturAbgleich.Owner(n), n.SubFA })
             .Concat(lesung.Infos.Select(i => i.HauptFA))
+            .Concat(lp?.SelectMany(p => new[] { p.BelID, p.StrukturID }) ?? Enumerable.Empty<int>())
             .Where(id => id != 0).ToHashSet();
         var fehlend = pk.Fehlend.Select(n => new Fehlend(n, n.SubFA, FaStrukturAbgleich.Owner(n)))
             .Concat(pi.Fehlend.Select(i => new Fehlend(i, 0, i.HauptFA)))
+            .Concat(pp?.Fehlend.Select(p => new Fehlend(p, 0, p.BelID)) ?? Enumerable.Empty<Fehlend>())
             .ToList();
         IReadOnlyDictionary<int, FaSageStatus> status = new Dictionary<int, FaSageStatus>();
         var sageFehler = false;
@@ -236,7 +213,7 @@ public class FaHierarchySyncService : IFaHierarchySyncService
             Uebernehmen(pk.Paare, jetzt, c);
             Uebernehmen(pi.Paare, jetzt, c);
             if (entscheiden)
-                foreach (var f in fehlend)
+                foreach (var f in fehlend.Where(f => f.Zeile is not ProductionOrderPosition))
                     if (!Entscheiden(f, gelesen, status, jetzt, c, entfernt))
                     {
                         if (f.Zeile is FaHierarchyNode) entfKnoten++; else entfInfos++;
@@ -248,9 +225,16 @@ public class FaHierarchySyncService : IFaHierarchySyncService
             }
         }
 
-        // Positionen (nur aus SData): bis E4 unveraendert Full-Replace in eigener Transaktion; im View-Betrieb (null) unberuehrt.
-        if (lesung.Positionen is { } gelesenePositionen && !dryRun)
-            c["positionen_neu"] = await PositionenErsetzenAsync(run, gelesenePositionen, ct);
+        // Positionen (nur aus SData, E4): dieselbe Logik in eigener Transaktion; im View-Betrieb (null) unberuehrt.
+        if (lesung.Positionen is not null)
+        {
+            c["positionen_neu"] = 0;
+            c["positionen_entfernt"] = 0;
+            if (pp is null)
+                await run.LogWarningAsync("ProductionOrderPositions: SData liefert keine Positionen – Tabelle bleibt unverändert.", ct: ct);
+            else
+                await PositionenAbgleichenAsync(run, pp, entscheiden ? fehlend : new(), gelesen, status, jetzt, dryRun, c, entfernt, ct);
+        }
 
         if (c["verschwunden_unklar"] > 0)
         {
@@ -261,6 +245,38 @@ public class FaHierarchySyncService : IFaHierarchySyncService
 
         if (dryRun) _ctx.ChangeTracker.Clear();
         return new Ergebnis(c, entfKnoten, entfInfos);
+    }
+
+    /// <summary>E4: <c>ProductionOrderPositions</c> mit derselben Logik (ersetzt das fruehere Full-Replace). Fehlertoleranz wie bisher: ein Fehler
+    /// laesst den Lauf erfolgreich, mit Protokoll-Fehler und Mail; der alte Stand bleibt.</summary>
+    private async Task PositionenAbgleichenAsync(ISyncRun run, AbgleichPlan<ProductionOrderPosition> plan, List<Fehlend> fehlend,
+        IReadOnlySet<int> gelesen, IReadOnlyDictionary<int, FaSageStatus> status, DateTime jetzt, bool dryRun, Dictionary<string, int> c,
+        HashSet<object> entfernt, CancellationToken ct)
+    {
+        var entfernteVorher = new HashSet<object>(entfernt, ReferenceEqualityComparer.Instance);
+        try
+        {
+            await using var tx = !dryRun && _ctx.Database.IsRelational() ? await _ctx.Database.BeginTransactionAsync(ct) : null;
+            var neu = Anlegen(_ctx.ProductionOrderPositions, plan.Neu, jetzt);
+            Uebernehmen(plan.Paare, jetzt, c);
+            var weg = fehlend.Where(f => f.Zeile is ProductionOrderPosition).Count(f => !Entscheiden(f, gelesen, status, jetzt, c, entfernt));
+            if (!dryRun)
+            {
+                await _ctx.SaveChangesAsync(ct);
+                if (tx is not null) await tx.CommitAsync(ct);
+            }
+            c["positionen_neu"] = neu;
+            c["positionen_entfernt"] = weg;
+            await run.LogInfoAsync($"{(dryRun ? "[DryRun] " : "")}ProductionOrderPositions: {neu} neu, {weg} entfernt, {plan.Paare.Count} abgeglichen.", ct: ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _ctx.ChangeTracker.Clear();
+            entfernt.IntersectWith(entfernteVorher);
+            _logger.LogError(ex, "FaHierarchy-Sync: ProductionOrderPositions nicht abgeglichen.");
+            await run.LogErrorAsync(Kurz($"ProductionOrderPositions nicht abgeglichen (alter Stand bleibt): {ex.Message}"), ct: ct);
+            await _errorNotifier.NotifyAsync("FaHierarchy-Sync: FA-Positionen nicht abgeglichen", ex, ct);
+        }
     }
 
     private static bool Aktiv(IFaStrukturZeile z) => z.VerschwundenSeit is null;

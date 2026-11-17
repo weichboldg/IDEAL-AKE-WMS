@@ -721,31 +721,6 @@ public class FaStrukturSdataTests
     }
 
     [Fact]
-    public async Task PositionenErsetzen_LeereListe_ErsetztNicht_Warnung_KeineMail()
-    {
-        var (s, logger, notifier) = Abgleich(new FakeReader());
-        var run = (FakeSyncRun)await logger.BeginRunAsync(SyncLogServices.FaHierarchy);
-
-        (await s.PositionenErsetzenAsync(run, new(), CancellationToken.None)).Should().Be(0);
-
-        run.Events.Should().ContainSingle(e => e.Level == "Warning" && e.Message.Contains("keine Positionen"));
-        notifier.VerifyNoOtherCalls();
-    }
-
-    [Fact]
-    public async Task PositionenErsetzen_SchreibFehler_FehlerImProtokoll_Mail_KeinThrow()
-    {
-        // InMemory kennt keine Transaktion/kein Raw-SQL -> derselbe Pfad wie ein Fehler am SQL Server (z. B. UNIQUE BelPosID).
-        var (s, logger, notifier) = Abgleich(new FakeReader());
-        var run = (FakeSyncRun)await logger.BeginRunAsync(SyncLogServices.FaHierarchy);
-
-        (await s.PositionenErsetzenAsync(run, SdataPositionen, CancellationToken.None)).Should().Be(0);
-
-        run.Events.Should().ContainSingle(e => e.Level == "Error" && e.Message.StartsWith("ProductionOrderPositions nicht ersetzt"));
-        notifier.Verify(n => n.NotifyAsync("FaHierarchy-Sync: FA-Positionen nicht ersetzt", It.IsAny<Exception>(), It.IsAny<CancellationToken>()), Times.Once);
-    }
-
-    [Fact]
     public async Task Abgleich_LeseFehler_FinishFailed_Rethrow()
     {
         var (s, logger, _) = Abgleich(new FakeReader { ThrowOnRead = new InvalidOperationException("View fehlt") });

@@ -311,6 +311,84 @@ public class FaStrukturAbgleichTests
         (await db.FaHierarchyNodes.AllAsync(x => x.VerschwundenSeit == null)).Should().BeTrue();
     }
 
+    // ----- E4: ProductionOrderPositions (nur wenn SData gelesen wurde) -----
+
+    private static ProductionOrderPosition P(int belPosId, int belId, int struktur = 100, decimal menge = 1m) =>
+        new() { BelPosID = belPosId, BelID = belId, StrukturID = struktur, Menge = menge };
+
+    private static FaStrukturLesung MitPositionen(params ProductionOrderPosition[] p) => Zwei() with { Positionen = p.ToList() };
+
+    [Fact]
+    public async Task Positionen_Abgleich_NeuGeaendertEntfernt_IdStabil()
+    {
+        var u = new Umgebung { Reader = { Lesung = () => MitPositionen(P(1, 101), P(2, 101), P(3, 100)) } };
+        (await u.LaufAsync()).FinalCounts!["positionen_neu"].Should().Be(3);
+        int id1;
+        await using (var db = u.Db()) id1 = (await db.ProductionOrderPositions.SingleAsync(x => x.BelPosID == 1)).Id;
+
+        u.Reader.Lesung = () => MitPositionen(P(1, 101, menge: 5m), P(3, 100), P(4, 100));
+        var lauf = await u.LaufAsync();
+
+        lauf.FinalCounts!["positionen_neu"].Should().Be(1);
+        lauf.FinalCounts["positionen_entfernt"].Should().Be(1, "BelPosID 2: Beleg 101 gelesen → in Sage entfernt");
+        lauf.FinalCounts["geaendert"].Should().Be(1);
+        await using var db2 = u.Db();
+        var p1 = await db2.ProductionOrderPositions.SingleAsync(x => x.BelPosID == 1);
+        (p1.Id, p1.Menge).Should().Be((id1, 5m));
+        (await db2.ProductionOrderPositions.AnyAsync(x => x.BelPosID == 2)).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Positionen_LeereListe_TabelleUnveraendert_Warnung_KeineMail()
+    {
+        var u = new Umgebung { Reader = { Lesung = () => MitPositionen(P(1, 101)) } };
+        await u.LaufAsync();
+
+        u.Reader.Lesung = () => MitPositionen();
+        var lauf = await u.LaufAsync();
+
+        lauf.Events.Should().ContainSingle(e => e.Level == "Warning" && e.Message.Contains("keine Positionen"));
+        u.Notifier.VerifyNoOtherCalls();
+        await using var db = u.Db();
+        (await db.ProductionOrderPositions.CountAsync()).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Positionen_ViewBetrieb_Null_Unberuehrt_OhneCountKeys()
+    {
+        var u = new Umgebung { Reader = { Lesung = () => MitPositionen(P(1, 101)) } };
+        await u.LaufAsync();
+
+        u.Reader.Lesung = () => Zwei();
+        var lauf = await u.LaufAsync();
+
+        lauf.FinalCounts!.Keys.Should().NotContain("positionen_neu");
+        await using var db = u.Db();
+        (await db.ProductionOrderPositions.CountAsync()).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Positionen_SchreibFehler_FehlerImProtokoll_Mail_StrukturGeschrieben_LaufErfolgreich()
+    {
+        var u = new Umgebung { Reader = { Lesung = () => MitPositionen(P(1, 101)) } };
+        await u.LaufAsync();
+        int id;
+        await using (var db = u.Db()) id = (await db.ProductionOrderPositions.SingleAsync()).Id;
+
+        // Neue Position mit belegter Id: der Tracker wirft beim Anlegen (am SQL Server waere es z. B. ein UNIQUE-Verstoss).
+        u.Reader.Lesung = () => Zwei(k => { k.Single(x => x.Artnr == "B2").Bezeichnung1 = "neu"; return k; }) with
+        {
+            Positionen = new() { P(1, 101), new ProductionOrderPosition { Id = id, BelPosID = 9, BelID = 101, StrukturID = 100 } },
+        };
+        var lauf = await u.LaufAsync();
+
+        lauf.FinishedSuccess.Should().BeTrue();
+        lauf.Events.Should().ContainSingle(e => e.Level == "Error" && e.Message.StartsWith("ProductionOrderPositions nicht abgeglichen"));
+        u.Notifier.Verify(n => n.NotifyAsync("FaHierarchy-Sync: FA-Positionen nicht abgeglichen", It.IsAny<Exception>(), It.IsAny<CancellationToken>()), Times.Once);
+        await using var db2 = u.Db();
+        (await db2.FaHierarchyNodes.SingleAsync(x => x.Artnr == "B2")).Bezeichnung1.Should().Be("neu");
+    }
+
     [Fact]
     public async Task DryRun_RechnetWieEchterLauf_SchreibtNichts()
     {
