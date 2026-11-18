@@ -341,6 +341,7 @@ public static class ColumnDefinitions
             new ColumnDef("hauptlagerplatz","Hauptlagerplatz", Locked: false),
             new ColumnDef("kommissionieren","Kommissionieren", Locked: false),
             new ColumnDef("arbeitsbereich", "Arbeitsbereich",  Locked: false),
+            new ColumnDef("montage-abteilung", "Abteilung",    Locked: false), // v1.99.43 A3
             new ColumnDef("artikeltyp",     "Artikeltyp",      Locked: false, DefaultHidden: true),
             new ColumnDef("beschichtet",    "Beschichtet",     Locked: false, DefaultHidden: true),
             new ColumnDef("material",       "Material",        Locked: false, DefaultHidden: true),
@@ -364,6 +365,7 @@ public static class ColumnDefinitions
             new ColumnDef("artnr",          "Artnr.",          Locked: false),
             new ColumnDef("matchcode",      "Matchcode",       Locked: true),
             new ColumnDef("kommissionieren","Kommissionieren", Locked: false),
+            new ColumnDef("montage-abteilung", "Abteilung",    Locked: false), // v1.99.43 A3
             new ColumnDef("hauptlagerplatz","Hauptlagerplatz", Locked: false),
             new ColumnDef("sollmenge",      "Summe Sollmenge", Locked: false, DefaultWidth: 55),
         ]

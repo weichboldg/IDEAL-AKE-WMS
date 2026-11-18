@@ -35,6 +35,9 @@ public class FaHierarchyKommissionierSummiertRowViewModel
 
     /// <summary>Artikeleigenschaft (je Summenschluessel konstant, aus der ersten Position uebernommen).</summary>
     public string? Hauptlagerplatz { get; init; }
+
+    /// <summary>v1.99.43 (A3): Montage-Abteilung(en) des HauptFA, kommagetrennt (<see cref="Services.VormontageService.FormatTexte"/>).</summary>
+    public string? Abteilung { get; init; }
 }
 
 /// <summary>

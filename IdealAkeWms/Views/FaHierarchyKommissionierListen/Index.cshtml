@@ -8,7 +8,7 @@
     var printUrl = Url.Action("Print") + Model.ZielQuery; // v1.99.43: traegt die wirksamen Ziele (auch aus Gedaechtnis/Einstellung)
     // PDF je Gruppe: dieselben Query-Parameter wie der Bildschirmdruck (target + colf_*); hauptFa ist Routen-Segment.
     var pdfQuery = Model.ZielQuery;
-    const int colCount = 11; // Anzahl der Positionsspalten (colspan der Gruppen-Kopfzeile)
+    const int colCount = 12; // Anzahl der Positionsspalten (colspan der Gruppen-Kopfzeile)
 }
 
 <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
@@ -76,6 +76,7 @@
                 <th data-filterable data-col-key="hauptlagerplatz">Hauptlagerplatz</th>
                 <th data-filterable data-col-key="kommissionieren">Kommissionieren</th>
                 <th data-filterable data-col-key="arbeitsbereich">Arbeitsbereich</th>
+                <th data-filterable data-col-key="montage-abteilung">Abteilung</th>
                 <th data-filterable data-col-key="artikeltyp">Artikeltyp</th>
                 <th data-filterable data-col-key="beschichtet">Beschichtet</th>
                 <th data-filterable data-col-key="material">Material</th>
@@ -95,6 +96,7 @@
                client-seitige Sort aus table-filter.js kann Zeilen nie ueber Gruppengrenzen mischen. *@
             @foreach (var group in Model.Groups)
             {
+                var abteilung = VormontageService.FormatTexte(group.OrderInfos.Select(i => i.MontageAbteilung)); // v1.99.43 A3, wie ColumnMap
                 <tbody class="fa-komm-group">
                     <tr class="table-active">
                         <td colspan="@colCount">
@@ -146,6 +148,7 @@
                             <td>@pos.Hauptlagerplatz</td>
                             <td>@pos.Kommissionieren</td>
                             <td>@pos.Arbeitsbereich</td>
+                            <td>@abteilung</td>
                             <td>@pos.Artikeltyp</td>
                             <td>@(pos.Beschichtet ? "Ja" : "Nein")</td>
                             <td>@pos.Material</td>
@@ -172,6 +175,7 @@
     { "key": "hauptlagerplatz", "label": "Hauptlagerplatz", "locked": false, "defaultWidth": null },
     { "key": "kommissionieren", "label": "Kommissionieren", "locked": false, "defaultWidth": null },
     { "key": "arbeitsbereich", "label": "Arbeitsbereich", "locked": false, "defaultWidth": null },
+    { "key": "montage-abteilung", "label": "Abteilung", "locked": false, "defaultWidth": null },
     { "key": "artikeltyp", "label": "Artikeltyp", "locked": false, "defaultWidth": null, "defaultHidden": true },
     { "key": "beschichtet", "label": "Beschichtet", "locked": false, "defaultWidth": null, "defaultHidden": true },
     { "key": "material", "label": "Material", "locked": false, "defaultWidth": null, "defaultHidden": true }

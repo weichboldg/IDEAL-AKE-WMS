@@ -4,7 +4,7 @@
 @{
     ViewData["Title"] = "Kommissionierlisten — Summiert (IDEAL)";
     var deCulture = CultureInfo.GetCultureInfo("de-DE");
-    const int colCount = 6; // HauptFA + Artnr + Matchcode + Ziel + Hauptlagerplatz + Summe Sollmenge
+    const int colCount = 7; // HauptFA + Artnr + Matchcode + Ziel + Abteilung + Hauptlagerplatz + Summe Sollmenge
     // Print-URL: exakt dieselben Query-Parameter (target/KW/colf_*) wie die Bildschirmansicht.
     var printUrl = Url.Action("PrintSummiert") + Model.ZielQuery; // v1.99.43: traegt die wirksamen Ziele
     // PDF je Gruppe: dieselben Query-Parameter wie der Bildschirmdruck; hauptFa ist Routen-Segment.
@@ -78,6 +78,7 @@
                 <th data-filterable data-col-key="artnr">Artnr.</th>
                 <th data-filterable data-col-key="matchcode">Matchcode</th>
                 <th data-filterable data-col-key="kommissionieren">Kommissionieren</th>
+                <th data-filterable data-col-key="montage-abteilung">Abteilung</th>
                 <th data-filterable data-col-key="hauptlagerplatz">Hauptlagerplatz</th>
                 <th class="text-end" data-filterable data-filter-type="number" data-col-key="sollmenge">Summe Sollmenge</th>
             </tr>
@@ -117,6 +118,7 @@
                             <td>@row.Artnr <partial name="_FaStrukturBadge" model="row.Verschwunden" /></td>
                             <td>@row.Matchcode</td>
                             <td>@row.Kommissionieren</td>
+                            <td>@row.Abteilung</td>
                             <td>@row.Hauptlagerplatz</td>
                             <td class="text-end">@row.SummeSollmenge.ToString("N3", deCulture)</td>
                         </tr>
@@ -138,6 +140,7 @@
     { "key": "artnr", "label": "Artnr.", "locked": false, "defaultWidth": null },
     { "key": "matchcode", "label": "Matchcode", "locked": true, "defaultWidth": null },
     { "key": "kommissionieren", "label": "Kommissionieren", "locked": false, "defaultWidth": null },
+    { "key": "montage-abteilung", "label": "Abteilung", "locked": false, "defaultWidth": null },
     { "key": "hauptlagerplatz", "label": "Hauptlagerplatz", "locked": false, "defaultWidth": null },
     { "key": "sollmenge", "label": "Summe Sollmenge", "locked": false, "defaultWidth": 55 }
 ]

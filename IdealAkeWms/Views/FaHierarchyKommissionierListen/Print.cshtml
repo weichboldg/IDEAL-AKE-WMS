@@ -112,12 +112,14 @@
                             @if (ShowCol("hauptlagerplatz")) { <th>Hauptlagerplatz</th> }
                             @if (ShowCol("kommissionieren")) { <th>Kommissionieren</th> }
                             @if (ShowCol("arbeitsbereich")) { <th>Arbeitsbereich</th> }
+                            @if (ShowCol("montage-abteilung")) { <th>Abteilung</th> }
                             @if (ShowCol("artikeltyp")) { <th>Artikeltyp</th> }
                             @if (ShowCol("beschichtet")) { <th>Beschichtet</th> }
                             @if (ShowCol("material")) { <th>Material</th> }
                         </tr>
                     </thead>
                     <tbody>
+                        @{ var abteilung = IdealAkeWms.Services.VormontageService.FormatTexte(group.OrderInfos.Select(i => i.MontageAbteilung)); }
                         @foreach (var pos in group.Positions)
                         {
                             <tr>
@@ -128,6 +130,7 @@
                                 @if (ShowCol("hauptlagerplatz")) { <td>@pos.Hauptlagerplatz</td> }
                                 @if (ShowCol("kommissionieren")) { <td>@pos.Kommissionieren</td> }
                                 @if (ShowCol("arbeitsbereich")) { <td>@pos.Arbeitsbereich</td> }
+                                @if (ShowCol("montage-abteilung")) { <td>@abteilung</td> }
                                 @if (ShowCol("artikeltyp")) { <td>@pos.Artikeltyp</td> }
                                 @if (ShowCol("beschichtet")) { <td>@(pos.Beschichtet ? "Ja" : "Nein")</td> }
                                 @if (ShowCol("material")) { <td>@pos.Material</td> }

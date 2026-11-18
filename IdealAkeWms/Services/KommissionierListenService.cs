@@ -46,12 +46,24 @@ public class KommissionierListenService
     /// <summary>Klartext-Name des Flags fuer Anomalie-Log/Banner.</summary>
     public const string FlagName = "Kommissionieren";
 
+    /// <summary>Spaltenschluessel-Liste der Liste (Drift-Waechter); die Werte der Kopf-Spalten liefert erst
+    /// <see cref="BuildColumnMap"/> mit den Daten der Anfrage.</summary>
+    public static readonly IReadOnlyDictionary<string, Func<FaHierarchyNode, string?>> ColumnMap =
+        BuildColumnMap(new Dictionary<int, string?>());
+
+    /// <summary>v1.99.43 (A3): Montage-Abteilung(en) je HauptFA aus den Kopfzeilen — alle verschiedenen, kommagetrennt
+    /// (<see cref="VormontageService.FormatTexte"/>), bewusst NICHT <see cref="VormontageService.FormatAbteilung"/> („Kombigerät“).</summary>
+    public static IReadOnlyDictionary<int, string?> AbteilungJeHauptFa(IEnumerable<FaHierarchyOrderInfo>? infos) =>
+        (infos ?? Enumerable.Empty<FaHierarchyOrderInfo>()).GroupBy(i => i.HauptFA)
+            .ToDictionary(g => g.Key, g => VormontageService.FormatTexte(g.Select(i => i.MontageAbteilung)));
+
     /// <summary>
     /// Server-Side-Spaltenfilter-Map (Col-Key -&gt; gerenderter Zelltext). Die Getter MUESSEN exakt
     /// das liefern, was die View in der Zelle rendert. <c>SubFA</c> wird nicht als Spalte gerendert
     /// (kein Filter); <c>HauptArtnr</c> ist gemaess Anhang-Spaltenliste als Positionsspalte enthalten.
+    /// v1.99.43: je Anfrage gebaut, weil „Abteilung“ aus den Kopfzeilen kommt (Filter wirkt vor dem Paging).
     /// </summary>
-    public static readonly IReadOnlyDictionary<string, Func<FaHierarchyNode, string?>> ColumnMap =
+    public static IReadOnlyDictionary<string, Func<FaHierarchyNode, string?>> BuildColumnMap(IReadOnlyDictionary<int, string?> abteilung) =>
         new Dictionary<string, Func<FaHierarchyNode, string?>>
         {
             ["hauptfa"] = n => n.HauptFA.ToString(CultureInfo.InvariantCulture),
@@ -65,6 +77,7 @@ public class KommissionierListenService
             ["artikeltyp"] = n => n.Artikeltyp,
             ["beschichtet"] = n => n.Beschichtet ? "Ja" : "Nein",
             ["material"] = n => n.Material,
+            ["montage-abteilung"] = n => abteilung.GetValueOrDefault(n.HauptFA),
         };
 
     /// <summary>
@@ -81,6 +94,7 @@ public class KommissionierListenService
             ["sollmenge"] = a => a.SummeSollmenge.ToString("N3", CultureInfo.GetCultureInfo("de-DE")),
             ["matchcode"] = a => a.Matchcode,
             ["hauptlagerplatz"] = a => a.Hauptlagerplatz,
+            ["montage-abteilung"] = a => a.Abteilung,
         };
 
     /// <summary>
@@ -105,7 +119,7 @@ public class KommissionierListenService
 
         return _builder.Build(
             allNodes, allInfos, predicate, FlagName,
-            columnFilters, ColumnMap, page, pageSize, paginate,
+            columnFilters, BuildColumnMap(AbteilungJeHauptFa(allInfos)), page, pageSize, paginate,
             leafOnly: false, anomalyOnNonLeaf: false,
             columnTypes: ColumnFilterTypes.For("FaHierarchyKommissionierListen/Index"));
     }
@@ -164,6 +178,7 @@ public class KommissionierListenService
             : IsoWeekRange.HauptFasInRange(
                 allInfos ?? Enumerable.Empty<FaHierarchyOrderInfo>(), o => o.KO_Termin, kwRange.Value);
 
+        var abteilung = AbteilungJeHauptFa(allInfos);
         var predicate = BuildFlagPredicate(ziele);
         var relevant = allNodes.Where(n => (includedHauptFas is null || includedHauptFas.Contains(n.HauptFA)) && predicate(n));
 
@@ -184,6 +199,7 @@ public class KommissionierListenService
                 // Artikeleigenschaften, je Summenschluessel konstant — Schluessel unveraendert.
                 Matchcode = g.First().Matchcode,
                 Hauptlagerplatz = g.First().Hauptlagerplatz,
+                Abteilung = abteilung.GetValueOrDefault(g.Key.HauptFA),
             })
             .OrderBy(a => a.HauptFA)
             .ThenBy(a => a.Artnr, StringComparer.OrdinalIgnoreCase)

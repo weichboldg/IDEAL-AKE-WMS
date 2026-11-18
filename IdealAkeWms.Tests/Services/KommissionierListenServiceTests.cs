@@ -303,4 +303,46 @@ public class KommissionierListenServiceTests
         var parsedBack = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(specialQuery);
         parsedBack["target"].ToString().Should().Be("A B&C");
     }
+
+    // ----- v1.99.43 A3: Spalte Abteilung (kommagetrennt, kein „Kombigerät“) -----
+
+    private static FaHierarchyOrderInfo Abt(int hauptFa, string? abt) => new() { HauptFA = hauptFa, MontageAbteilung = abt };
+
+    [Fact]
+    public void AbteilungJeHauptFa_AlleVerschiedenen_Sortiert_KeinKombigeraet()
+    {
+        var map = KommissionierListenService.AbteilungJeHauptFa(new[] { Abt(1, "WKS"), Abt(1, " FKV "), Abt(1, "WKS"), Abt(2, null), Abt(3, "MON") });
+        map[1].Should().Be("FKV, WKS");
+        map[2].Should().BeNull("0 Werte = leere Zelle");
+        map[3].Should().Be("MON");
+        map.Values.Should().NotContain(VormontageService.KombigeraetHinweis);
+    }
+
+    [Fact]
+    public async Task Liste_FilterAbteilung_FindetAuchMehrfachAbteilung_VorDemPaging()
+    {
+        var nodes = new[] { Node(1, 0, "K-01", artnr: "A", position: 1), Node(2, 0, "K-01", artnr: "B", position: 1),
+                            Node(3, 0, "K-01", artnr: "C", position: 1) };
+        var infos = new[] { Abt(1, "MON"), Abt(2, "FKV"), Abt(2, "WKS"), Abt(3, "WKS") };
+        var filter = new Dictionary<string, string> { ["montage-abteilung"] = "WKS" };
+
+        var r = await NewService(nodes, infos).BuildAsync(null, filter, 1, 1, paginate: true);
+
+        r.TotalGroupCount.Should().Be(2, "HauptFA 2 (FKV, WKS) und 3 (WKS)");
+        r.Groups.Single().HauptFA.Should().Be(2);
+    }
+
+    [Fact]
+    public void Summiert_ZeileTraegtAbteilung_UndFilterGreift()
+    {
+        var nodes = new[] { Node(1, 0, "K-01", artnr: "A", sollmenge: 1m), Node(2, 0, "K-01", artnr: "B", sollmenge: 1m) };
+        var infos = new[] { Abt(1, "WKS"), Abt(1, "FKV"), Abt(2, "MON") };
+
+        var alle = KommissionierListenService.AggregateSummiert(nodes, infos, null, null, null, 1, 100, paginate: true);
+        alle.Rows.Select(r => (r.HauptFA, r.Abteilung)).Should().Equal((1, "FKV, WKS"), (2, "MON"));
+
+        var gefiltert = KommissionierListenService.AggregateSummiert(nodes, infos, null, null,
+            new Dictionary<string, string> { ["montage-abteilung"] = "WKS" }, 1, 100, paginate: true);
+        gefiltert.Rows.Select(r => r.HauptFA).Should().Equal(1);
+    }
 }

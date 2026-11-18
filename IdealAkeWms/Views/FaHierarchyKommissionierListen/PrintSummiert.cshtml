@@ -74,6 +74,7 @@
                             @if (ShowCol("artnr")) { <th>Artnr.</th> }
                             @if (ShowCol("matchcode")) { <th>Matchcode</th> }
                             @if (ShowCol("kommissionieren")) { <th>Kommissionieren</th> }
+                            @if (ShowCol("montage-abteilung")) { <th>Abteilung</th> }
                             @if (ShowCol("hauptlagerplatz")) { <th>Hauptlagerplatz</th> }
                             @if (ShowCol("sollmenge")) { <th class="text-end">Summe Sollmenge</th> }
                         </tr>
@@ -85,6 +86,7 @@
                                 @if (ShowCol("artnr")) { <td>@row.Artnr</td> }
                                 @if (ShowCol("matchcode")) { <td>@row.Matchcode</td> }
                                 @if (ShowCol("kommissionieren")) { <td>@row.Kommissionieren</td> }
+                                @if (ShowCol("montage-abteilung")) { <td>@row.Abteilung</td> }
                                 @if (ShowCol("hauptlagerplatz")) { <td>@row.Hauptlagerplatz</td> }
                                 @if (ShowCol("sollmenge")) { <td class="text-end">@row.SummeSollmenge.ToString("N3", deCulture)</td> }
                             </tr>
