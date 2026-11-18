@@ -1,6 +1,6 @@
 # AGENTS.md – Leitfaden für KI-Assistenten im Betrieb von IdealAkeWms
 
-**Stand:** v1.99.23, 2026-11-14 · **Zielgruppe:** KI-Assistenten (z. B. Claude, Copilot), die Administratoren bei Diagnose und Betrieb
+**Stand:** v1.99.43, 2026-11-19 · **Zielgruppe:** KI-Assistenten (z. B. Claude, Copilot), die Administratoren bei Diagnose und Betrieb
 unterstützen · **Zweck:** Regeln, die vor jeder Antwort und jeder Aktion gelten. Für Entwicklungsarbeit gilt stattdessen `CLAUDE.md` im
 Repository-Wurzelverzeichnis.
 
@@ -29,10 +29,14 @@ Repository-Wurzelverzeichnis.
 
 - Sage ist das führende ERP. Das WMS schreibt **nur** über den Windows-Dienst an Sage: Lagerbuchungen
   (`IDEALAKEWMSService/Services/SageLagerbuchungClient.cs:45`, HTTP POST) und Sage-Wareneingangsbelege
-  (`IDEALAKEWMSService/Services/SageWareneingangClient.cs:47`, HTTP POST), jeweils hinter Schaltern
-  (`SageLagerbuchungAktiv`, `SageWareneingangBelegAktiv`, Quelle: `IdealAkeWms/Models/ServiceSettingDefinitions.cs:233-234`).
+  (`IDEALAKEWMSService/Services/SageWareneingangClient.cs:47`, HTTP POST) und seit v1.99.38 (IDEAL) Arbeitsgänge in Sage-Fertigungsaufträgen
+  (`IDEALAKEWMSService/Services/SageFaArbeitsgangClient.cs:15-25`, HTTP POST `FertigungsauftragService`, Warteschlange
+  `SageFaArbeitsgangAnlagen`), jeweils hinter Schaltern (`SageLagerbuchungAktiv`, `SageWareneingangBelegAktiv`,
+  `SageFaArbeitsgaengeAnlegenAktiv`, Quelle: `IdealAkeWms/Models/ServiceSettingDefinitions.cs:297-298,300`).
 - Ein KI-Assistent löst **keine** Sage-Buchung aus, schaltet diese Schalter nicht ein, setzt keine Warteschlangen-Einträge zurück
-  („Erneut senden“, „Requeue“) und ruft keine SData-Endpunkte mit `POST`/`PUT`/`DELETE` auf. Gleiches gilt für direkte SQL-Zugriffe
+  („Erneut senden“, „Requeue“, „Erneut einreihen“), reiht keine Arbeitsgänge für Sage ein und bestätigt nicht „In Sage vorhanden“ (das
+  setzt einen Eintrag ohne Sage-Prüfung auf erledigt – nur ein Mensch nach eigenem Blick in Sage), und ruft keine SData-Endpunkte mit
+  `POST`/`PUT`/`DELETE` auf. Gleiches gilt für direkte SQL-Zugriffe
   auf Sage-Datenbanken: nur `SELECT`, und nur wenn ausdrücklich verlangt.
 - Was nur in Sage steht, wird nicht angenommen, sondern als Prüfabfrage bzw. Prüffrage für den Menschen formuliert.
   (Quelle: `CLAUDE.md` Abschnitt „Belegen statt deuten“)
