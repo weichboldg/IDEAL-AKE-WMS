@@ -468,17 +468,29 @@ public class BeschichtungsauftraegeControllerTests
     }
 
     [Fact]
-    public async Task Print_Uebergeben_SummiertJeArtnr_MasseUneinheitlich_BarcodeNummer()
+    public async Task Print_Uebergeben_JePosition_Reihenfolge_BarcodeNummer()
     {
         var a = await Status(await Anlegen(), BeschichtungsauftragStatus.Uebergeben);
 
         var vm = (BeschichtungsauftragPrintViewModel)((ViewResult)await Ctrl().Print(a.Id, null)).Model!;
 
         vm.Barcode.Should().Be("bc:" + a.Nummer);
-        vm.Rows.Should().HaveCount(2);
-        var a1 = vm.Rows.Single(r => r.Artnr == "A1");
-        (a1.SummeSollmenge, a1.PositionCount, a1.MasseUneinheitlich).Should().Be((4m, 2, true));
-        vm.ShowCol("positionen").Should().BeTrue("Spalten, die die Detail-Tabelle nicht kennt, werden immer gedruckt");
+        vm.Positionen.Select(p => p.Position).Should().Equal(1, 2, 3);   // v1.99.41 A11 a/b: je Position, Detail-Reihenfolge
+    }
+
+    [Fact]
+    public void Druck_Sortiert_FreiePositionenZuletzt()
+    {
+        var sortiert = BeschichtungsauftraegeDruck.Sortiert(new[]
+        {
+            new BeschichtungsauftragPosition { OhneFa = true, Artnr = "F" },
+            new BeschichtungsauftragPosition { Position = 2, Artnr = "B" },
+            new BeschichtungsauftragPosition { Position = null, PositionText = "51.10", Artnr = "D" },
+            new BeschichtungsauftragPosition { Position = null, PositionText = "51.9", Artnr = "C" },
+            new BeschichtungsauftragPosition { Position = 1, Artnr = "A" },
+        });
+
+        sortiert.Select(p => p.Artnr).Should().Equal("A", "B", "C", "D", "F");
     }
 
     [Fact]

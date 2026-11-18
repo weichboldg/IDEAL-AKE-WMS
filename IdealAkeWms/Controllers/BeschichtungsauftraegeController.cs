@@ -316,7 +316,7 @@ public class BeschichtungsauftraegeController : Controller
         return (new BeschichtungsauftragPrintViewModel
         {
             Auftrag = a,
-            Rows = BeschichtungsauftraegeDruck.Summiere(a),
+            Positionen = BeschichtungsauftraegeDruck.Sortiert(a.Positionen),
             Barcode = _barcode.EncodeCode128Base64(a.Nummer),
             VisibleColumns = await PrintVisibleColumns.ResolveAsync(visibleColumns,
                 ColumnDefinitions.BeschichtungsauftragPositionen.ViewKey, ColumnDefinitions.BeschichtungsauftragPositionen.Columns,

@@ -120,7 +120,8 @@ public sealed class BeschichtungsauftragReklamationViewModel
 public sealed class BeschichtungsauftragPrintViewModel
 {
     public Beschichtungsauftrag Auftrag { get; init; } = new();
-    public List<FaHierarchyBeschichtungSummiertRowViewModel> Rows { get; init; } = new();
+    /// <summary>v1.99.41 A11: je Position in Druckreihenfolge (<see cref="BeschichtungsauftraegeDruck.Sortiert"/>); Pos. = Index + 1.</summary>
+    public List<BeschichtungsauftragPosition> Positionen { get; init; } = new();
     public string Barcode { get; init; } = string.Empty;
     public IReadOnlyList<string> VisibleColumns { get; init; } = new List<string>();
 
@@ -136,15 +137,9 @@ public static class BeschichtungsauftraegeDruck
     public static bool IstDruckbar(BeschichtungsauftragStatus s) =>
         s is BeschichtungsauftragStatus.Uebergeben or BeschichtungsauftragStatus.Versendet or BeschichtungsauftragStatus.Erledigt;
 
-    /// <summary>Gespeicherte Positionen → Knoten-Form fuer <see cref="BeschichtungsauftragService.AggregateSummiert"/>
-    /// (Summe der Auftragsmenge statt Sollmenge; Masse-Invariante wie Teil 1).</summary>
-    public static List<FaHierarchyBeschichtungSummiertRowViewModel> Summiere(Beschichtungsauftrag a) =>
-        BeschichtungsauftragService.AggregateSummiert(
-            a.Positionen.Select(p => new FaHierarchyNode
-            {
-                HauptFA = a.HauptFA, VaterFA = p.VaterFA, SubFA = p.SubFA, Position = p.Position, Beschichtet = true,
-                HauptArtnr = p.HauptArtnr, Artnr = p.Artnr, Matchcode = p.Matchcode, Sollmenge = p.Menge,
-                Breite = p.Breite, Hoehe = p.Hoehe, Tiefe = p.Tiefe,
-            }),
-            null, null, 1, int.MaxValue, paginate: false).Rows;
+    /// <summary>Reihenfolge von Detail und Druck (v1.99.41 A11 b, Rueckfrage 11 hebt Teil-4-Antwort 6 „summiert“ fuer den
+    /// Auftragsdruck auf): Position, PositionText natuerlich, SubFA; Positionen ohne FA zuletzt.</summary>
+    public static List<BeschichtungsauftragPosition> Sortiert(IEnumerable<BeschichtungsauftragPosition> positionen) =>
+        positionen.OrderBy(p => p.OhneFa).ThenBy(p => p.Position ?? int.MaxValue)
+            .ThenBy(p => p.PositionText, new NaturalPositionComparer()).ThenBy(p => p.SubFA).ToList();
 }

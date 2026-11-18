@@ -26,11 +26,11 @@
     <div class="d-flex flex-wrap gap-2 mt-1">
         @if (Model.Druckbar)
         {
-            <a asp-action="Print" asp-route-id="@a.Id" target="_blank" class="btn btn-sm btn-outline-secondary"
+            <a asp-action="Print" asp-route-id="@a.Id" target="_blank" class="btn btn-sm btn-outline-secondary" data-bemerkung-pruefen
                data-print-link="BeschichtungsauftragPositionen" title="Aussendokument mit Briefkopf drucken">Drucken</a>
             @if (Model.PdfVerfuegbar)
             {
-                <a href="@Url.Action("Pdf", new { id = a.Id })" class="btn btn-sm btn-outline-secondary"
+                <a href="@Url.Action("Pdf", new { id = a.Id })" class="btn btn-sm btn-outline-secondary" data-bemerkung-pruefen
                    data-print-link="BeschichtungsauftragPositionen" title="Aussendokument als PDF herunterladen">PDF</a>
             }
         }
@@ -107,12 +107,12 @@
                 <input type="hidden" name="rowVersion" value="@Model.RowVersion" />
                 @if (ziel == BeschichtungsauftragStatus.Storniert)
                 {
-                    <button type="submit" class="btn btn-sm btn-outline-danger"
+                    <button type="submit" class="btn btn-sm btn-outline-danger" data-bemerkung-pruefen
                             onclick="return confirm('@a.Nummer stornieren? Die Positionen werden wieder frei.');">Stornieren</button>
                 }
                 else
                 {
-                    <button type="submit" class="btn btn-sm btn-primary">Auf „@BeschichtungsauftragWorkflow.Anzeige(ziel)“ setzen</button>
+                    <button type="submit" class="btn btn-sm btn-primary" data-bemerkung-pruefen>Auf „@BeschichtungsauftragWorkflow.Anzeige(ziel)“ setzen</button>
                 }
             </form>
         }
@@ -221,7 +221,10 @@
                     <form method="post" asp-action="Bemerkung" asp-route-id="@a.Id">
                         <input type="hidden" name="rowVersion" value="@Model.RowVersion" />
                         <label class="visually-hidden" for="bemerkung">Bemerkung</label>
-                        <textarea id="bemerkung" name="bemerkung" class="form-control mb-2" rows="4" maxlength="1000">@a.Bemerkung</textarea>
+                        <textarea id="bemerkung" name="bemerkung" class="form-control mb-2" rows="4" maxlength="1000"
+                                  aria-describedby="bemerkung-ungespeichert">@a.Bemerkung</textarea>
+                        @* A12: sichtbar, sobald der Text vom gespeicherten Stand abweicht (beschichtung-bemerkung.js) *@
+                        <div id="bemerkung-ungespeichert" class="form-text text-danger-emphasis fw-semibold mb-2" hidden>⚠ nicht gespeichert</div>
                         <button type="submit" class="btn btn-sm btn-outline-primary">Bemerkung speichern</button>
                     </form>
                 }
@@ -258,7 +261,7 @@
             {
                 <tr><td colspan="@(bearbeitbar ? 10 : 9)" class="text-center text-muted py-3">Keine Positionen — unten hinzufügen oder den Auftrag stornieren.</td></tr>
             }
-            @foreach (var p in a.Positionen.OrderBy(p => p.Position ?? int.MaxValue).ThenBy(p => p.PositionText, new NaturalPositionComparer()).ThenBy(p => p.SubFA))
+            @foreach (var p in BeschichtungsauftraegeDruck.Sortiert(a.Positionen))
             {
                 <tr>
                     <td>
@@ -320,7 +323,7 @@
 @if (bearbeitbar)
 {
     <div class="d-flex justify-content-end mt-2 mb-4">
-        <button type="submit" form="entwurf-form" class="btn btn-primary">Speichern</button>
+        <button type="submit" form="entwurf-form" class="btn btn-primary" data-bemerkung-pruefen>Speichern</button>
     </div>
 
     @* Positionsauswahl (Anforderung 4a): Erst-Entwurf = freie HauptFA-Positionen, Reklamations-Entwurf = noch nicht
@@ -417,6 +420,7 @@
     <script src="~/js/column-preferences.js" asp-append-version="true"></script>
     <script src="~/js/table-filter.js" asp-append-version="true"></script>
     <script src="~/js/print-visible-columns.js" asp-append-version="true"></script>
+    <script src="~/js/beschichtung-bemerkung.js" asp-append-version="true"></script>
     @if (bearbeitbar && !Model.IstReklamation)
     {
         <partial name="_Select2ArticlePartial" />

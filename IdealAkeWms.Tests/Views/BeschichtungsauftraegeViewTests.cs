@@ -47,9 +47,12 @@ public class BeschichtungsauftraegeViewTests
         KommissionierSpaltenKonsistenzTests.ExtractColumnConfigKeys(html).Should().Equal(definition);
         ColumnDefinitions.GetByViewKey("BeschichtungsauftragPositionen").Should().BeSameAs(ColumnDefinitions.BeschichtungsauftragPositionen);
 
-        // Druck: summiert, daher ohne Herkunftsspalte, dafuer „Positionen" (immer gedruckt, siehe ShowCol).
-        KommissionierSpaltenKonsistenzTests.ExtractShowColKeys(View("Beschichtungsauftraege", "Print.cshtml"))
-            .Should().BeEquivalentTo(definition.Where(k => k is not ("herkunft" or "verpackt")).Append("positionen"));
+        // Druck (v1.99.41 A11): je Position mit laufender Nr. statt Herkunft; „Pos.“ und „Verpackt“ immer (ohne ShowCol).
+        var druck = View("Beschichtungsauftraege", "Print.cshtml");
+        KommissionierSpaltenKonsistenzTests.ExtractShowColKeys(druck)
+            .Should().BeEquivalentTo(definition.Where(k => k is not ("herkunft" or "verpackt")));
+        druck.Should().NotContain("ShowCol(\"positionen\")");
+        druck.IndexOf("<th>Verpackt</th>", StringComparison.Ordinal).Should().BeGreaterThan(druck.IndexOf("<th class=\"text-end\">Menge</th>", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -76,6 +79,22 @@ public class BeschichtungsauftraegeViewTests
 
         var ohne = PrintBriefkopfModel.FuerAuftrag("BA-2026-00001", 4711, null);
         (ohne.Empfaenger, ohne.EmpfaengerIstWarnung).Should().Be((PrintBriefkopfModel.EmpfaengerFehltAmAuftrag, true));
+        mit.AnschriftHinweis.Should().Be(PrintBriefkopfModel.AnschriftFehlt, "ohne Kreditor keine Anschrift — Hinweis am Bildschirm");
+    }
+
+    /// <summary>v1.99.41 A11 g (AK 16, 17): Brief-Anschrift aus dem Kreditor; Land nur wenn gefuellt; unvollstaendig = Hinweis.</summary>
+    [Fact]
+    public void Briefkopf_FuerAuftrag_MitKreditor_BriefAnschrift()
+    {
+        var k = new IdealAkeWms.Models.Creditor { Name = "Lackier GmbH", Street = "Hauptstr. 1", PostalCode = "4020", City = "Linz", Country = " " };
+
+        var m = PrintBriefkopfModel.FuerAuftrag("BA-2026-00001", 4711, "Alt-Text", k);
+
+        (m.Empfaenger, m.AnschriftHinweis).Should().Be(("Lackier GmbH", (string?)null));
+        m.Anschrift.Should().Equal("Lackier GmbH", "Hauptstr. 1", "4020 Linz");
+        PrintBriefkopfModel.FuerAuftrag("X", 1, null, new IdealAkeWms.Models.Creditor { Name = "Ohne Ort", Country = "AT" })
+            .Should().Match<PrintBriefkopfModel>(b => b.AnschriftHinweis == PrintBriefkopfModel.AnschriftUnvollstaendig
+                                                      && b.Anschrift.SequenceEqual(new[] { "Ohne Ort", "AT" }));
     }
     // ===== Menü „Beschichtung“ + Hilfe (Spec 2026-10-13-menue-beschichtung-und-hilfe-kurzanleitungen, v1.56.0) =====
     // Grenze: Der Wächter beweist die Markup-Struktur, nicht die Sichtbarkeit je Rolle zur Laufzeit — die decken

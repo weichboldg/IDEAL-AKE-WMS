@@ -25,10 +25,24 @@
         </div>
     }
     <table class="briefkopf-meta">
-        <tr><th>Empfänger</th><td class="@empfaengerKlasse">@Model.Empfaenger</td></tr>
+        <tr>
+            <th>Empfänger</th>
+            <td class="@empfaengerKlasse">
+                @Model.Empfaenger
+                @* v1.99.41 A11 g: Brief-Anschrift aus dem Kreditor (erste Zeile = Name steht schon oben) *@
+                @foreach (var zeile in Model.Anschrift.Skip(1))
+                {
+                    <div class="empfaenger-anschrift">@zeile</div>
+                }
+            </td>
+        </tr>
         <tr><th>Dokument</th><td>@Model.Dokument — HauptFA @Model.HauptFA</td></tr>
         <tr><th>Datum</th><td>@DateTime.Now.ToString("dd.MM.yyyy")</td></tr>
     </table>
+    @if (Model.AnschriftHinweis != null)
+    {
+        <div class="briefkopf-hinweis"><strong>Anschrift:</strong> @Model.AnschriftHinweis</div>
+    }
     @foreach (var hinweis in vorlage.Hinweise)
     {
         <div class="briefkopf-hinweis"><strong>Briefkopf:</strong> @hinweis</div>

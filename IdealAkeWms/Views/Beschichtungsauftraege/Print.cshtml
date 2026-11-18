@@ -28,7 +28,8 @@
         table.positions th, table.positions td { border: 1px solid #888; padding: 4px 6px; text-align: left; }
         table.positions th { background: #f0f0f0; }
         .text-end { text-align: right; }
-        .masse-warn { display: inline-block; margin-left: 4px; padding: 0 4px; border: 1px solid #7a5900; color: #7a5900; background: #fff8e1; font-weight: bold; }
+        .ohne-fa { display: inline-block; margin-left: 4px; padding: 0 4px; border: 1px solid #555; font-size: 9px; }
+        .haken { white-space: nowrap; }
         .bemerkung { margin-top: 8px; white-space: pre-line; }
         @@media print { .screen-controls { display: none; } body { padding: 0; } }
     </style>
@@ -41,11 +42,12 @@
     </div>
 
     <div class="fa-group">
-        <partial name="_PrintBriefkopf" model="PrintBriefkopfModel.FuerAuftrag(a.Nummer, a.HauptFA, a.Dienstleister)" />
+        <partial name="_PrintBriefkopf" model="PrintBriefkopfModel.FuerAuftrag(a.Nummer, a.HauptFA, a.Dienstleister, a.Creditor)" />
         <div class="group-head">
-            <h1>Beschichtungsauftrag @a.Nummer — HauptFA @a.HauptFA</h1>
+            <h1>Beschichtungsauftrag @a.Nummer</h1>
             <div class="barcode"><img src="data:image/png;base64,@Model.Barcode" alt="@a.Nummer" /></div>
             <table class="head-table">
+                <tr><th>HauptFA</th><td>@a.HauptFA</td></tr>
                 <tr><th>RAL</th><td>@a.Ral</td></tr>
                 <tr><th>Start Beschichtung</th><td>@a.StartBeschichtung?.ToString("dd.MM.yyyy")</td></tr>
                 <tr><th>Retour</th><td>@a.BeschichtenRetour?.ToString("dd.MM.yyyy")</td></tr>
@@ -60,38 +62,41 @@
             }
         </div>
 
-        @* Summiert je Artnr (Antwort 6): Summe der Auftragsmengen, Maße der ersten Position, Abweichung markiert. *@
+        @* v1.99.41 A11: je Position (Rueckfrage 11), Spalte 1 laufende Nummer, Menge 0.###, Haken-Spalte zuletzt. *@
         <table class="positions">
             <thead>
                 <tr>
+                    <th class="text-end">Pos.</th>
                     @if (Model.ShowCol("hauptartnr")) { <th>Haupt-Artnr.</th> }
                     @if (Model.ShowCol("artnr")) { <th>Artnr.</th> }
                     @if (Model.ShowCol("matchcode")) { <th>Matchcode</th> }
                     @if (Model.ShowCol("breite")) { <th class="text-end">Breite</th> }
                     @if (Model.ShowCol("hoehe")) { <th class="text-end">Höhe</th> }
                     @if (Model.ShowCol("tiefe")) { <th class="text-end">Tiefe</th> }
-                    @if (Model.ShowCol("positionen")) { <th class="text-end">Positionen</th> }
                     @if (Model.ShowCol("menge")) { <th class="text-end">Menge</th> }
+                    <th>Verpackt</th>
                 </tr>
             </thead>
             <tbody>
-                @foreach (var row in Model.Rows)
+                @for (var i = 0; i < Model.Positionen.Count; i++)
                 {
+                    var p = Model.Positionen[i];
                     <tr>
-                        @if (Model.ShowCol("hauptartnr")) { <td>@row.HauptArtnr</td> }
-                        @if (Model.ShowCol("artnr")) { <td>@row.Artnr</td> }
-                        @if (Model.ShowCol("matchcode"))
+                        <td class="text-end">@(i + 1)</td>
+                        @if (Model.ShowCol("hauptartnr")) { <td>@p.HauptArtnr</td> }
+                        @if (Model.ShowCol("artnr"))
                         {
                             <td>
-                                @row.Matchcode
-                                @if (row.MasseUneinheitlich) { <span class="masse-warn">Maße uneinheitlich</span> }
+                                @p.Artnr
+                                @if (p.OhneFa) { <span class="ohne-fa">ohne FA</span> }
                             </td>
                         }
-                        @if (Model.ShowCol("breite")) { <td class="text-end">@BeschichtungsauftragService.FormatMass(row.Breite)</td> }
-                        @if (Model.ShowCol("hoehe")) { <td class="text-end">@BeschichtungsauftragService.FormatMass(row.Hoehe)</td> }
-                        @if (Model.ShowCol("tiefe")) { <td class="text-end">@BeschichtungsauftragService.FormatMass(row.Tiefe)</td> }
-                        @if (Model.ShowCol("positionen")) { <td class="text-end">@row.PositionCount</td> }
-                        @if (Model.ShowCol("menge")) { <td class="text-end">@BeschichtungsauftragService.FormatMenge(row.SummeSollmenge)</td> }
+                        @if (Model.ShowCol("matchcode")) { <td>@p.Matchcode</td> }
+                        @if (Model.ShowCol("breite")) { <td class="text-end">@BeschichtungsauftragService.FormatMass(p.Breite)</td> }
+                        @if (Model.ShowCol("hoehe")) { <td class="text-end">@BeschichtungsauftragService.FormatMass(p.Hoehe)</td> }
+                        @if (Model.ShowCol("tiefe")) { <td class="text-end">@BeschichtungsauftragService.FormatMass(p.Tiefe)</td> }
+                        @if (Model.ShowCol("menge")) { <td class="text-end">@BeschichtungsauftragService.FormatMass(p.Menge)</td> }
+                        <td class="haken">@(p.Verpackt ? "☑ verpackt" : "☐ offen")</td>
                     </tr>
                 }
             </tbody>
