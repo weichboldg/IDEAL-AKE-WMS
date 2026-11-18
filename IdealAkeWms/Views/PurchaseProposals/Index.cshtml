@@ -1,8 +1,12 @@
 @model IdealAkeWms.Models.ViewModels.PurchaseProposalListViewModel
 @using IdealAkeWms.Services
 @using IdealAkeWms.Models.ViewModels
+@using IdealAkeWms.Services.SageSdata
+@inject IdealAkeWms.Data.Repositories.IServiceSettingRepository ServiceSettings
 @{
     ViewData["Title"] = "Bestellvorschläge";
+    // v1.99.40 (ADR 0033): Sage-Benutzerfeld Mindestbestand leer gesetzt → Zelle sagt das, statt leer zu bleiben
+    var mindestbestandKonfiguriert = (await SageUserfelder.AusAsync(ServiceSettings)).Feld(SageUserfelder.Artikel, "USER_Mindestbestand") is not null;
     // v1.99.30 F11: Ruecksprung aus der Artikelinfo auf genau diese Liste (Filterkarte, Spaltenfilter, Seite, Seitengroesse stehen in der Query).
     var returnUrl = $"{Context.Request.Path}{Context.Request.QueryString}";
 }
@@ -176,7 +180,7 @@ else
                 <th data-filterable data-date-filter data-col-key="wunschtermin">Wunschtermin</th>
                 <th data-filterable data-col-key="letzter-lieferant">letzter Lieferant</th>
                 <th data-filterable data-col-key="abc">ABC</th>
-                <th data-filterable data-filter-type="number" data-col-key="user-mindestbestand" class="text-end">USER_Mindestbestand</th>
+                <th data-filterable data-filter-type="number" data-col-key="user-mindestbestand" class="text-end">Mindestbestand (Sage)</th>
                 <th data-filterable data-col-key="hinweis">Hinweis</th>
             </tr>
         </thead>
@@ -232,7 +236,7 @@ else
                     <td>@(r.Wunschtermin?.ToString("dd.MM.yyyy"))</td>
                     <td>@r.Sage?.LetzterLieferant</td>
                     <td>@r.Sage?.ABCKlasse</td>
-                    <td class="text-end">@(r.Sage?.UserMindestbestand?.ToString("0.###"))</td>
+                    <td class="text-end">@if (mindestbestandKonfiguriert) { @(r.Sage?.UserMindestbestand?.ToString("0.###")) } else { <span class="text-muted fst-italic">@SageUserfelder.NichtKonfiguriert</span> }</td>
                     <td>@r.Hinweis</td>
                 </tr>
             }
@@ -277,7 +281,7 @@ else
     { "key": "wunschtermin", "label": "Wunschtermin", "locked": false, "defaultWidth": null },
     { "key": "letzter-lieferant", "label": "letzter Lieferant", "locked": false, "defaultWidth": null },
     { "key": "abc", "label": "ABC", "locked": false, "defaultWidth": null },
-    { "key": "user-mindestbestand", "label": "USER_Mindestbestand", "locked": false, "defaultWidth": null },
+    { "key": "user-mindestbestand", "label": "Mindestbestand (Sage)", "locked": false, "defaultWidth": null },
     { "key": "hinweis", "label": "Hinweis", "locked": false, "defaultWidth": null }
 ]
 </script>

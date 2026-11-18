@@ -22,7 +22,10 @@ public sealed class SdataLeseException : Exception
     public string Diagnose { get; }
 
     public SdataLeseException(string ressource, int status, string diagnose, Exception? inner = null)
-        : base(Kappe($"SData {ressource}: {(status == 0 ? "" : $"HTTP {status} – ")}{diagnose}", MaxMeldung), inner)
+        : base(Kappe(status == 404
+            // v1.99.40 (Spec 2026-11-18-sage-userfelder-als-einstellung R5): fehlende Resource verstaendlich (IDEAL: ArtikelLieferantInfo)
+            ? $"Resource „{ressource}“ am Sage-Server nicht vorhanden (HTTP 404) – Abgleich in den Service-Einstellungen ausschalten. Sage: {diagnose}"
+            : $"SData {ressource}: {(status == 0 ? "" : $"HTTP {status} – ")}{diagnose}", MaxMeldung), inner)
     {
         Ressource = ressource;
         Status = status;

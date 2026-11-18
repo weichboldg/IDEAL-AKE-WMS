@@ -75,4 +75,25 @@ public static class ServiceSettings
         catch (OperationCanceledException) { throw; }
         catch { return null; }
     }
+
+    /// <summary>
+    /// v1.99.40 (ADR 0033): alle Sage-Benutzerfeld-Einstellungen in EINER Abfrage. Wie die *Safe-Varianten: DB nicht lesbar (auch Tests
+    /// ohne DB) = Defaults, also der AKE-Stand.
+    /// </summary>
+    public static async Task<IdealAkeWms.Services.SageSdata.SageUserfelder> UserfelderSafeAsync(IConfiguration config, CancellationToken ct = default)
+    {
+        var werte = new System.Collections.Generic.Dictionary<string, string>(StringComparer.Ordinal);
+        try
+        {
+            await using var conn = new SqlConnection(ConnectionStrings.Wms(config));
+            await conn.OpenAsync(ct);
+            await using var cmd = new SqlCommand("SELECT [Key], [Value] FROM [dbo].[ServiceSettings] WHERE [Key] LIKE @p", conn);
+            cmd.Parameters.AddWithValue("@p", IdealAkeWms.Services.SageSdata.SageUserfelder.Praefix + "%");
+            await using var r = await cmd.ExecuteReaderAsync(ct);
+            while (await r.ReadAsync(ct)) werte[r.GetString(0)] = r.IsDBNull(1) ? "" : r.GetString(1);
+        }
+        catch (OperationCanceledException) { throw; }
+        catch { werte.Clear(); }
+        return IdealAkeWms.Services.SageSdata.SageUserfelder.Aus(k => werte.TryGetValue(k, out var v) ? v : null);
+    }
 }

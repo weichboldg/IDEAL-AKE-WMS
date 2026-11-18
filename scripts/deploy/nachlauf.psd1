@@ -530,5 +530,11 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
 @{ Id='v1.99.38-sage-fa-ag-info'; Version='1.99.38'; Typ='Info'; Firma='IDEAL'; Phase='Nachher'; Ausfuehrung='anzeigen'
    Text='Neue Admin-Seite Stammdaten > Arbeitsgaenge > Sage: Vorschau je FA und Kuerzel, Sage-Stand nur auf Knopf (nur lesen). Ohne Schalter wird nichts eingereiht und nichts gesendet. Protokoll Sage-FA-Arbeitsgaenge.'
    Quelle='2026-11-17-v1-99-38-arbeitsgaenge-in-sage-fa-anlegen' }
+@{ Id='v1.99.40-Userfeld-EKMindestbestellwert-IDEAL'; Version='1.99.40'; Typ='Einstellung'; Firma='IDEAL'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Text='/ServiceSettings > Sage-Benutzerfelder: Kreditoren > Mindestbestellwert (Sync:Userfeld:Kreditoren:USER_EKMindestbestellwert) LEER setzen - das Feld gibt es in Sage IDEAL nicht (sonst bricht der Kreditoren-Abgleich mit Ungueltiger Spaltenname ab). Ebenso Artikel > Lagerplatz-ID und Mindestbestand leer setzen, falls Sage IDEAL sie nicht kennt (Meldung im Aktivitaets-Protokoll nennt die Einstellung). ArtikelLieferantInfo fehlt am IDEAL-Server: Abgleich Artikel-Lieferanten aus lassen.'
+   Quelle='2026-11-18-v1-99-40-sage-userfelder-als-einstellung' }
+@{ Id='v1.99.40-Userfelder-Info'; Version='1.99.40'; Typ='Info'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Text='Neu: 27 Service-Einstellungen Sage-Benutzerfelder (Kategorien Sage-Benutzerfelder: ...). Ohne Eintrag gilt der bisherige Feldname - AKE liest unveraendert, nichts einzustellen. Leer = Feld wird nicht gelesen, Anzeige nicht konfiguriert. HTTP 404 einer SData-Resource: eine Meldung, naechster Versuch nach 24 h.'
+   Quelle='2026-11-18-v1-99-40-sage-userfelder-als-einstellung' }
 )
 }

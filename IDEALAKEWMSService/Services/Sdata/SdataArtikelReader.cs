@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using IdealAkeWms.Models;
@@ -22,7 +23,11 @@ public sealed record SdataArtikelZeile(
 public sealed record SdataArtikelVarianteZeile(
     string? Artikelnummer, int? AuspraegungID, string? EANNummer, string? ABCKlasse, decimal? Lagerbestand, decimal? LagerbestandOhneDispo,
     decimal? LagerbestandVerfuegbar, decimal? Gewicht, decimal? MittlererEK, decimal? Bestellmenge, decimal? Meldebestand, int? Bestellzeitpunkt,
-    string? Hauptlieferant, string? LetzterLieferant, int? Wiederbeschaffungszeit, int? USER_LagerplatzID, decimal? USER_Mindestbestand);
+    string? Hauptlieferant, string? LetzterLieferant, int? Wiederbeschaffungszeit, int? USER_LagerplatzID, decimal? USER_Mindestbestand)
+{
+    /// <summary>v1.99.40: Benutzerfelder unter abweichendem Namen (Einstellung <c>Sync:Userfeld:Artikel:*</c>).</summary>
+    [System.Text.Json.Serialization.JsonExtensionData] public Dictionary<string, JsonElement>? Weitere { get; init; }
+}
 
 /// <summary>Zeile aus <c>PpsRessourcenPositionenInfo</c> (nur die Ressourcenummer).</summary>
 public sealed record SdataRessourceZeile(string? Ressourcenummer);
@@ -56,7 +61,16 @@ public sealed class SdataArtikelReader : ISageArtikelReader
     // AuspraegungID nur fuer die stabile Sortierung; Feldname aus dem Schema (sage-sdata-artikel-felder), nicht in der P-S1-Typliste.
     public const string SelectVarianten = "Artikelnummer,AuspraegungID,EANNummer,ABCKlasse,Lagerbestand,LagerbestandOhneDispo,LagerbestandVerfuegbar,"
         + "Gewicht,MittlererEK,Bestellmenge,Meldebestand,Bestellzeitpunkt,Hauptlieferant,LetzterLieferant,Wiederbeschaffungszeit,"
-        + "USER_LagerplatzID,USER_Mindestbestand";
+        + FeldLagerplatzId + "," + FeldMindestbestand; // AKE-Default (SelectVariantenFuer)
+    public const string FeldLagerplatzId = "USER_LagerplatzID";
+    public const string FeldMindestbestand = "USER_Mindestbestand";
+    private const string SelectVariantenBasis = "Artikelnummer,AuspraegungID,EANNummer,ABCKlasse,Lagerbestand,LagerbestandOhneDispo,LagerbestandVerfuegbar,"
+        + "Gewicht,MittlererEK,Bestellmenge,Meldebestand,Bestellzeitpunkt,Hauptlieferant,LetzterLieferant,Wiederbeschaffungszeit";
+
+    /// <summary>v1.99.40 (ADR 0033): Varianten-Select mit den konfigurierten Benutzerfeldern (nicht konfiguriert = weggelassen).</summary>
+    public static string SelectVariantenFuer(SageUserfelder f) => string.Join(",",
+        new[] { SelectVariantenBasis, f.Feld(SageUserfelder.Artikel, FeldLagerplatzId), f.Feld(SageUserfelder.Artikel, FeldMindestbestand) }
+            .Where(s => s is not null));
     public const string SelectPlaetze = "PlatzID,Kurzbezeichnung";
 
     // TODO(P-R1): AKE-Filter angenommen (s. Klassen-Doku). Schreibweise -1 wie in der Sage-Tabelle (SData setzt where in SQL um,
@@ -83,6 +97,9 @@ public sealed class SdataArtikelReader : ISageArtikelReader
 
     /// <summary>Hinweise des letzten Aufrufs (Ressourcen/Zeilen/Dauer je Abfrage).</summary>
     public IReadOnlyList<SdataHinweis> Hinweise { get; private set; } = Array.Empty<SdataHinweis>();
+
+    /// <summary>Benutzerfeld-Einstellungen des letzten Lesens (fuer die Meldung „Ungueltiger Spaltenname“ beim Aufrufer).</summary>
+    public SageUserfelder? Userfelder { get; private set; }
 
     public async Task<SageArtikelLesung> GetAllAsync(CancellationToken ct = default)
     {
@@ -186,10 +203,13 @@ public sealed class SdataArtikelReader : ISageArtikelReader
     };
 
     public async Task<List<SageArtikelDto>> LesenAsync(SdataLeseZiel ziel, CancellationToken ct,
-        (List<string> Gueltig, List<string> Ungueltig) benutzerfelder = default)
+        (List<string> Gueltig, List<string> Ungueltig) benutzerfelder = default, SageUserfelder? userfelder = null)
     {
         var hinweise = new List<SdataHinweis>();
         Hinweise = hinweise;
+        userfelder ??= await ServiceSettings.UserfelderSafeAsync(_configuration, ct);
+        Userfelder = userfelder;
+        foreach (var h in userfelder.Hinweise) hinweise.Add(new(h, Warnung: true));
 
         var bestell = await _client.QueryAllAsync<SdataArtikelZeile>(ziel, SageSdataReadClient.VertragResources, RessourceArtikel,
             WhereBestellartikel, SelectArtikel, "Artikelnummer", ct);
@@ -211,13 +231,13 @@ public sealed class SdataArtikelReader : ISageArtikelReader
         artikel.AddRange(await InBloeckenAsync<SdataArtikelZeile>(_client, ziel, RessourceArtikel, SelectArtikel, "Artikelnummer", nurRessource, hinweise, ct));
 
         var nummern = artikel.Select(a => a.Artikelnummer).Where(n => !string.IsNullOrWhiteSpace(n)).Select(n => n!).ToList();
-        var varianten = await InBloeckenAsync<SdataArtikelVarianteZeile>(_client, ziel, RessourceVarianten, SelectVarianten, "Artikelnummer,AuspraegungID",
+        var varianten = await InBloeckenAsync<SdataArtikelVarianteZeile>(_client, ziel, RessourceVarianten, SelectVariantenFuer(userfelder), "Artikelnummer,AuspraegungID",
             nummern, hinweise, ct);
         var plaetze = await _client.QueryAllAsync<SdataLagerplatzZeile>(ziel, SageSdataReadClient.VertragResources,
             SdataLagerplatzReader.RessourceLagerplaetze, null, SelectPlaetze, "PlatzID", ct);
         hinweise.Add(new(plaetze.Zusammenfassung));
 
-        var result = Abbilden(artikel, nurRessource, varianten, plaetze.Zeilen);
+        var result = Abbilden(artikel, nurRessource, varianten, plaetze.Zeilen, userfelder);
 
         // E3b: Benutzerfelder nur fuer Artikel mit Stamm (Ressourcenummern ohne Artikelstamm haben keine). Fehlt eine Nummer in der
         // Antwort, bleibt ihr Benutzerfelder null (= Merkmale unberuehrt).
@@ -236,8 +256,11 @@ public sealed class SdataArtikelReader : ISageArtikelReader
     /// Nummer (LEFT JOIN). Meldebestand 0 = kein Meldebestand, Hauptlagerplatz = Kurzbezeichnung der PlatzID (getrimmt, leer = null).
     /// </summary>
     internal static List<SageArtikelDto> Abbilden(IReadOnlyList<SdataArtikelZeile> artikel, IReadOnlyList<string> ressourcenummern,
-        IReadOnlyList<SdataArtikelVarianteZeile> varianten, IReadOnlyList<SdataLagerplatzZeile> plaetze)
+        IReadOnlyList<SdataArtikelVarianteZeile> varianten, IReadOnlyList<SdataLagerplatzZeile> plaetze, SageUserfelder? userfelder = null)
     {
+        userfelder ??= SageUserfelder.Standard;
+        var lp = userfelder.Feld(SageUserfelder.Artikel, FeldLagerplatzId);
+        var mb = userfelder.Feld(SageUserfelder.Artikel, FeldMindestbestand);
         // Pflichtfelder: unlesbare Zeile = Feldname/Schema passt nicht -> werfen statt still weglassen.
         var kaputt = artikel.Count(a => string.IsNullOrWhiteSpace(a.Artikelnummer));
         if (kaputt > 0)
@@ -263,7 +286,12 @@ public sealed class SdataArtikelReader : ISageArtikelReader
                 a.Artikelnummer!, a.Bezeichnung1, a.Lagermengeneinheit, a.Artikelgruppe,
                 v?.Meldebestand is { } m && m != 0m ? m : null, // wie SageImportHelpers.ParseReorderLevel
                 SageImportHelpers.NormalizeLocationCode(platz), a.Matchcode,
-                Details(a, v)));
+                Details(a, v) with
+                {
+                    UserLagerplatzId = int.TryParse(SageUserfelder.Text(lp, FeldLagerplatzId, v?.USER_LagerplatzID, v?.Weitere), NumberStyles.Integer,
+                        CultureInfo.InvariantCulture, out var lpId) ? lpId : null,
+                    UserMindestbestand = R3(SageUserfelder.Dezimal(SageUserfelder.Text(mb, FeldMindestbestand, v?.USER_Mindestbestand, v?.Weitere))),
+                }));
         }
         foreach (var n in ressourcenummern)
             if (gesehen.Add(Schluessel(n)))
@@ -291,13 +319,13 @@ public sealed class SdataArtikelReader : ISageArtikelReader
         LagerbestandVerfuegbar = R3(v?.LagerbestandVerfuegbar), LagerbestandOhneDispo = R3(v?.LagerbestandOhneDispo),
         Bestellmenge = R3(v?.Bestellmenge), MittlererEK = Runde(v?.MittlererEK, 4), Bestellzeitpunkt = v?.Bestellzeitpunkt,
         Hauptlieferant = v?.Hauptlieferant, LetzterLieferant = v?.LetzterLieferant, Wiederbeschaffungszeit = v?.Wiederbeschaffungszeit,
-        UserLagerplatzId = v?.USER_LagerplatzID, UserMindestbestand = R3(v?.USER_Mindestbestand),
     };
 
     // ----- Blechteile-Felder (Spec 2026-11-13-blechfertigung-bf-auftraege-wicam-csv, V-B) -----
 
     /// <summary>Numerischer Filter; NICHT "ne ''" (Textfeld-Falle, s. WhereRessourcen). L10: 1.263 Zeilen an IDEAL.</summary>
-    public const string WhereLagerartikel = BfArtikelFelder.IstLagerartikel + " ne 0";
+    public const string WhereLagerartikel = BfArtikelFelder.IstLagerartikel + " ne 0"; // AKE-Default
+    public static string WhereLagerartikelFuer(string feld) => feld + " ne 0";
 
     /// <summary>
     /// V-B: liest die Blechteile-Felder (<see cref="BfArtikelFelder.SageFelder"/>) aller Lagerartikel und die Bestellmenge der Grundvariante
@@ -305,14 +333,30 @@ public sealed class SdataArtikelReader : ISageArtikelReader
     /// Freigabe-Antwort 10). <c>null</c> = 0 Zeilen: die Quelle kann nicht leer sein, also nichts schreiben (sonst verloeren alle Artikel ihre
     /// Merkmale) — mit Warnung in <paramref name="hinweise"/>. Lesefehler werfen (der Aufrufer faengt sie).
     /// </summary>
-    public async Task<List<SageArtikelDto>?> BlechteileFelderLesenAsync(SdataLeseZiel ziel, List<SdataHinweis> hinweise, CancellationToken ct)
+    public async Task<List<SageArtikelDto>?> BlechteileFelderLesenAsync(SdataLeseZiel ziel, List<SdataHinweis> hinweise, CancellationToken ct,
+        SageUserfelder? userfelder = null)
     {
+        // v1.99.40 (ADR 0033): Sage-Namen aus Sync:Userfeld:Blechfertigung:*; Merkmale bleiben unter dem logischen Namen (Spec R3).
+        userfelder ??= await ServiceSettings.UserfelderSafeAsync(_configuration, ct);
+        Userfelder = userfelder;
+        foreach (var h in userfelder.Hinweise) hinweise.Add(new(h, Warnung: true));
+        var ist = userfelder.Feld(SageUserfelder.Blechfertigung, BfArtikelFelder.IstLagerartikel);
+        if (ist is null)
+        {
+            hinweise.Add(new("Blechteile-Felder: „Blechfertigung: Ist Lagerartikel“ nicht konfiguriert (Service-Einstellungen) – nichts gelesen, Merkmale unverändert.",
+                Warnung: true));
+            return null;
+        }
+        var konfiguriert = userfelder.Konfiguriert(SageUserfelder.Blechfertigung, BfArtikelFelder.SageFelder);
+        foreach (var logisch in BfArtikelFelder.SageFelder.Where(f => konfiguriert.All(k => k.Logisch != f)))
+            hinweise.Add(new($"Blechteile-Feld „{logisch}“ nicht konfiguriert – nicht gelesen, Merkmal unverändert."));
+        var where = WhereLagerartikelFuer(ist);
         var r = await _client.QueryAllAsync<Dictionary<string, JsonElement>>(ziel, SageSdataReadClient.VertragResources, RessourceArtikel,
-            WhereLagerartikel, "Artikelnummer,Basismengeneinheit,Lagermengeneinheit," + string.Join(",", BfArtikelFelder.SageFelder), "Artikelnummer", ct);
+            where, "Artikelnummer,Basismengeneinheit,Lagermengeneinheit," + string.Join(",", konfiguriert.Select(k => k.Feld)), "Artikelnummer", ct);
         hinweise.Add(new(r.Zusammenfassung));
         if (r.Zeilen.Count == 0)
         {
-            hinweise.Add(new($"Blechteile-Felder: 0 Zeilen ({WhereLagerartikel}) – Quelle kann nicht leer sein, nichts geschrieben. Filter/Feld prüfen.", Warnung: true));
+            hinweise.Add(new($"Blechteile-Felder: 0 Zeilen ({where}) – Quelle kann nicht leer sein, nichts geschrieben. Filter/Feld prüfen.", Warnung: true));
             return null;
         }
 
@@ -324,7 +368,7 @@ public sealed class SdataArtikelReader : ISageArtikelReader
             var nr = AlsText(zeile.GetValueOrDefault("Artikelnummer"));
             if (nr is null)
                 throw new SdataLeseException(RessourceArtikel, 0, "Blechteile-Felder: Zeile ohne Artikelnummer – Feldnamen prüfen (P-S1).");
-            var werte = BfArtikelFelder.SageFelder.ToDictionary(f => f, f => AlsText(zeile.GetValueOrDefault(f)), StringComparer.OrdinalIgnoreCase);
+            var werte = konfiguriert.ToDictionary(k => k.Logisch, k => AlsText(zeile.GetValueOrDefault(k.Feld)), StringComparer.OrdinalIgnoreCase);
             if (!werteJe.TryAdd(Schluessel(nr), werte)) continue;
             if (!string.Equals(AlsText(zeile.GetValueOrDefault("Basismengeneinheit")), AlsText(zeile.GetValueOrDefault("Lagermengeneinheit")),
                     StringComparison.OrdinalIgnoreCase))

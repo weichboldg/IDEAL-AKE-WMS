@@ -1,4 +1,5 @@
 @model IdealAkeWms.Models.ViewModels.ArtikelSageKartenViewModel
+@inject IdealAkeWms.Data.Repositories.IServiceSettingRepository ServiceSettings
 @*
     v1.85.0 (Spec 2026-11-08-artikeldetails-lieferanten-anzeigen, Nachbesserung 1/4/5): EIN Partial fuer Artikelinfo und „Artikel bearbeiten“ –
     Karte „Sage-Zusatzfelder“ (inkl. Mengeneinheiten) und Karte „Lieferanten“, nur lesend. Vorher (v1.80.0) Markup direkt in Articles/Info.cshtml.
@@ -9,6 +10,10 @@
     string T(string? v) => string.IsNullOrWhiteSpace(v) ? "—" : v;
     string Z(decimal? v) => v?.ToString("0.###") ?? "—";
     string J(bool? v) => v is null ? "—" : v.Value ? "Ja" : "Nein";
+    // v1.99.40 (ADR 0033): Sage-Benutzerfeld leer gesetzt → „nicht konfiguriert“ statt „—“
+    var userfelder = await IdealAkeWms.Services.SageSdata.SageUserfelder.AusAsync(ServiceSettings);
+    string U(string feld, string wert) => userfelder.Feld(IdealAkeWms.Services.SageSdata.SageUserfelder.Artikel, feld) is null
+        ? IdealAkeWms.Services.SageSdata.SageUserfelder.NichtKonfiguriert : wert;
     // v1.85.0 Nachbesserung 5: „1 <Einheit> = <Faktor> <Basiseinheit>“ – Umrechnung zur Basiseinheit, ohne Faktor nur die Einheit.
     string E(string? einheit, decimal? faktor, int? dezimal) => string.IsNullOrWhiteSpace(einheit) ? "—"
         : (faktor is { } f && sd.Basismengeneinheit is { } b && !string.Equals(einheit, b, StringComparison.OrdinalIgnoreCase)
@@ -28,11 +33,11 @@
             ("Verkaufseinheit", E(sd.Verkaufsmengeneinheit, sd.UmrechnungsfaktorVK, sd.DezimalstellenVK)),
             ("Verpackungseinheit VK", E(sd.VerpackungseinheitVK, sd.UmrechnungsfaktorVPVK, null)) }),
         ("Lager", new[] { ("Lagerführung", J(sd.Lagerfuehrung)), ("Hauptlagerplatz (Sage-ID)", sd.SagePlatzId?.ToString() ?? "—"),
-            ("Lagerplatz-ID (Benutzerfeld)", sd.UserLagerplatzId?.ToString() ?? "—"), ("Entnahmeverfahren", T(sd.Entnahmeverfahren)),
+            ("Lagerplatz-ID (Benutzerfeld)", U("USER_LagerplatzID", sd.UserLagerplatzId?.ToString() ?? "—")), ("Entnahmeverfahren", T(sd.Entnahmeverfahren)),
             ("Inventurmethode", sd.Inventurmethode?.ToString() ?? "—"),
             ("Chargenpflicht", sd.Chargenpflicht?.ToString() ?? "—"), ("Nachweispflicht", sd.Nachweispflicht?.ToString() ?? "—") }),
         ("Bestand und Dispo (Sage)", new[] { ("Lagerbestand", Z(sd.Lagerbestand)), ("Verfügbar", Z(sd.LagerbestandVerfuegbar)),
-            ("Bestand ohne Dispo", Z(sd.LagerbestandOhneDispo)), ("Mindestbestand", Z(sd.UserMindestbestand)),
+            ("Bestand ohne Dispo", Z(sd.LagerbestandOhneDispo)), ("Mindestbestand", U("USER_Mindestbestand", Z(sd.UserMindestbestand))),
             ("Bestellmenge", Z(sd.Bestellmenge)), ("Bestellzeitpunkt", sd.Bestellzeitpunkt?.ToString() ?? "—"),
             ("Wiederbeschaffungszeit", sd.Wiederbeschaffungszeit?.ToString() ?? "—"), ("ABC-Klasse", T(sd.ABCKlasse)),
             ("Mittlerer EK", sd.MittlererEK?.ToString("0.####") ?? "—") }),

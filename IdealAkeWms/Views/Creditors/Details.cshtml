@@ -2,6 +2,7 @@
 @using IdealAkeWms.Controllers
 @inject IdealAkeWms.Services.ICurrentUserService _user
 @inject IdealAkeWms.Data.Repositories.ISyncLogRepository _syncLogs
+@inject IdealAkeWms.Data.Repositories.IServiceSettingRepository ServiceSettings
 @{
     ViewData["Title"] = "Kreditor " + (Model.ShortName ?? Model.Name);
     var canEdit = await _user.HasMasterDataAccessAsync();
@@ -100,7 +101,17 @@
                     <dt class="col-sm-5">Sage-Gruppe</dt><dd class="col-sm-7">@Text(Model.SageGruppe)</dd>
                     <dt class="col-sm-5">UID-Nummer</dt><dd class="col-sm-7">@Text(Model.SageEUUStID)</dd>
                     <dt class="col-sm-5">Zahlungskondition</dt><dd class="col-sm-7">@Text(Model.SageZahlungskondition)</dd>
-                    <dt class="col-sm-5">EK-Mindestbestellwert</dt><dd class="col-sm-7">@(Model.SageEKMindestbestellwert?.ToString("N2") ?? "—")</dd>
+                    <dt class="col-sm-5">EK-Mindestbestellwert</dt>
+                    <dd class="col-sm-7">
+                        @if ((await IdealAkeWms.Services.SageSdata.SageUserfelder.AusAsync(ServiceSettings)).Feld(IdealAkeWms.Services.SageSdata.SageUserfelder.Kreditoren, "USER_EKMindestbestellwert") is null)
+                        {
+                            <span class="text-muted fst-italic">@IdealAkeWms.Services.SageSdata.SageUserfelder.NichtKonfiguriert</span>
+                        }
+                        else
+                        {
+                            @(Model.SageEKMindestbestellwert?.ToString("N2") ?? "—")
+                        }
+                    </dd>
                 </dl>
                 <p class="small text-muted mt-2 mb-0">
                     @if (Model.Source == StorageLocationSource.Sage)

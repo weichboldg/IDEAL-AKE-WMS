@@ -86,7 +86,8 @@
                                 <strong>Seit v1.99.33</strong> zeigen die Spalten <em>AB-Nummer</em> und <em>Kommission</em> die Werte aus dem Sage-Bestellkopf
                                 (Belegkopf-Felder USER_AB und USER_Kom, gelesen beim Abgleich, mit Spaltenfilter, über die Spaltenauswahl ausblendbar);
                                 &bdquo;Wareneingang zu Bestellung&ldquo; zeigt sie im Kopf. Liefert Sage sie nicht, bleiben sie leer und das
-                                Aktivitäts-Protokoll warnt.</li>
+                                Aktivitäts-Protokoll warnt. <strong>Seit v1.99.40</strong> kommen die Sage-Feldnamen aus den Service-Einstellungen
+                                (Kategorie &bdquo;Sage-Benutzerfelder: Offene Bestellungen&ldquo;); leer gesetzt = nicht gelesen.</li>
                             <li>Knopf <em>Wareneingang</em> an der Zeile oder <em>Lager &rarr; Wareneingang zu Bestellung</em>: Bestellnummer
                                 (z. B. <code>2027-168975</code>) eingeben oder mit dem Handscanner scannen.</li>
                             <li>Je Position Ziel-Lagerplatz prüfen (vorbelegt mit dem Sage-Platz) und Ist-Menge eingeben (Komma oder Punkt); leer = nicht buchen.
@@ -271,7 +272,8 @@
                                 Danach wird auf die <em>Mindestbestellmenge</em> des Hauptlieferanten aufgerundet &ndash; nur, wenn deren Einheit leer oder
                                 gleich der Artikel-Einheit ist und der Umrechnungsfaktor 1 beträgt; sonst steht ein Hinweis da und es wird nicht gerundet.</li>
                             <li><em>Sage verfügbar</em> ist eine Vergleichsspalte (Stand: letzter Artikel-Abgleich, im Tooltip); sie fließt nicht in die Rechnung ein.
-                                <em>USER_Mindestbestand</em> wird nur angezeigt.</li>
+                                <em>Mindestbestand (Sage)</em> wird nur angezeigt; ist das Sage-Benutzerfeld in den Service-Einstellungen leer gesetzt,
+                                steht dort &bdquo;nicht konfiguriert&ldquo;.</li>
                             <li><em>Lieferant</em> = Hauptlieferant aus Sage. Fehlt der Kreditor im WMS, steht die Sage-Kontonummer mit Hinweis
                                 &bdquo;Kreditor fehlt im WMS&ldquo;. <em>WBZ</em> = Wiederbeschaffungszeit des Lieferanten (sonst des Artikels) in Tagen,
                                 <em>Wunschtermin</em> = heute + WBZ.</li>

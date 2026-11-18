@@ -9,6 +9,25 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.99.40</strong> <span class="text-white-50 ms-2">18.11.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>Sage-Benutzerfelder als Einstellung</h6>
+                <ul>
+                    <li>Welche Sage-Benutzerfelder (USER_…) das WMS liest, steht jetzt in den <em>Service-Einstellungen</em>, Kategorien
+                        &bdquo;Sage-Benutzerfelder: …&ldquo; (Kreditoren, Debitoren, Artikel, Offene Bestellungen, Arbeitsplätze, Blechfertigung,
+                        FA-Struktur). Voreingestellt sind die bisherigen Namen &ndash; an AKE ändert sich nichts.</li>
+                    <li>Leer gesetzt = das Feld wird nicht gelesen; die Anzeige zeigt &bdquo;nicht konfiguriert&ldquo;, BF-Aufträge zeigen einen Hinweis.
+                        Kennt Sage ein eingetragenes Feld nicht, nennt die Fehlermeldung die Einstellung, die zu prüfen ist.</li>
+                    <li>Fehlt eine Sage-Resource am Server (HTTP 404), meldet der Dienst das einmal mit dem Hinweis, den Abgleich auszuschalten,
+                        und versucht es erst nach 24 Stunden wieder.</li>
+                    <li>Bestellvorschläge: Spalte heißt jetzt &bdquo;Mindestbestand (Sage)&ldquo;.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.99.39</strong> <span class="text-white-50 ms-2">17.11.2026</span>
             </div>
             <div class="card-body">

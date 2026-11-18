@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.Json;
 using IdealAkeWms.Models;
 using IdealAkeWms.Services.SageSdata;
+using IDEALAKEWMSService.Common;
 
 namespace IDEALAKEWMSService.Services.Sdata;
 
@@ -92,7 +93,14 @@ public sealed class SdataFaStrukturReader : ISageFaStrukturReader
         // E3 (F3): Haupt-FAs, die PpsFaBelegeInfo nicht liefert (beendet, 1059463), ueber dtsFaBelegsuche nachlesen - nur fuer die
         // Struktur (Wurzel + Wurzel-Positionen), nicht fuer ProductionOrderPositions (Schreibverhalten unveraendert).
         // E4: im selben Aufruf die USER_OS*-Felder aller FAs der Struktur (FA-Knoten).
-        var (wurzeln, faFelder) = await FaKoepfeLesenAsync(ziel, menge, hinweise, ct);
+        // v1.99.40 (ADR 0033): Sage-Namen der USER_OS*-Felder aus Sync:Userfeld:FaStruktur:*; intern gilt der logische Name (= Default).
+        var userfelder = await ServiceSettings.UserfelderSafeAsync(_configuration, ct);
+        foreach (var h in userfelder.Hinweise) hinweise.Add(new(h, Warnung: true));
+        var nichtKonfiguriert = FelderFa.Where(f => userfelder.Feld(SageUserfelder.FaStruktur, f) is null).ToList();
+        if (nichtKonfiguriert.Count > 0)
+            hinweise.Add(new($"FA-Struktur: {nichtKonfiguriert.Count} Sage-Benutzerfeld(er) nicht konfiguriert – nicht gelesen, bleiben leer: "
+                + string.Join(", ", nichtKonfiguriert) + "."));
+        var (wurzeln, faFelder) = await FaKoepfeLesenAsync(ziel, menge, hinweise, ct, userfelder);
         var struktur = menge.Concat(wurzeln).ToList();
 
         var positionen = new List<SdataFaPositionZeile>();
@@ -108,8 +116,18 @@ public sealed class SdataFaStrukturReader : ISageFaStrukturReader
             .Select(p => p.RessourceNummer).Concat(struktur.Select(k => k.Artikelnummer))
             .Where(n => !string.IsNullOrWhiteSpace(n)).Select(n => SdataArtikelReader.Schluessel(n))
             .Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.OrdinalIgnoreCase).ToList();
-        var artikelFelder = await SdataArtikelReader.BenutzerfelderLesenAsync(_client, ziel, FelderArtikel.ToList(), artnr, hinweise, ct,
-            "Feldzuordnung FA-Struktur prüfen (Spec 2026-11-16-fa-struktur-ideal-ueber-sdata, P-FS5).");
+        var userArtikel = userfelder.Konfiguriert(SageUserfelder.FaStruktur, FelderArtikel.Where(f => f.StartsWith("USER_", StringComparison.Ordinal)));
+        var artikelGelesen = await SdataArtikelReader.BenutzerfelderLesenAsync(_client, ziel,
+            FelderArtikel.Where(f => !f.StartsWith("USER_", StringComparison.Ordinal)).Concat(userArtikel.Select(u => u.Feld)).ToList(), artnr, hinweise, ct,
+            "Feldzuordnung FA-Struktur prüfen (Sage-Benutzerfelder: FA-Struktur in den Service-Einstellungen; Spec 2026-11-16-fa-struktur-ideal-ueber-sdata, P-FS5).");
+        // Sage-Name → logischer Name (FelderSetzen kennt nur die logischen)
+        var artikelFelder = artikelGelesen.ToDictionary(kv => kv.Key, kv =>
+        {
+            var d = new Dictionary<string, string?>(kv.Value, StringComparer.OrdinalIgnoreCase);
+            foreach (var (logisch, feld) in userArtikel)
+                if (!string.Equals(logisch, feld, StringComparison.OrdinalIgnoreCase)) { d[logisch] = d.GetValueOrDefault(feld); d.Remove(feld); }
+            return d;
+        }, StringComparer.OrdinalIgnoreCase);
 
         var plaetze = new List<SdataLagerplatzZeile>();
         if (positionen.Any(p => p.PlatzID > 0) || artikelFelder.Values.Any(f => Zahl(f.GetValueOrDefault("PlatzID")) > 0))
@@ -167,7 +185,7 @@ public sealed class SdataFaStrukturReader : ISageFaStrukturReader
     /// FA-Felder. HTTP-/Lesefehler werfen (Vertrag des Readers).
     /// </summary>
     private async Task<(List<SdataFaKopfZeile> Wurzeln, Dictionary<int, Dictionary<string, string?>> Felder)> FaKoepfeLesenAsync(
-        SdataLeseZiel ziel, IReadOnlyList<SdataFaKopfZeile> menge, List<SdataHinweis> hinweise, CancellationToken ct)
+        SdataLeseZiel ziel, IReadOnlyList<SdataFaKopfZeile> menge, List<SdataHinweis> hinweise, CancellationToken ct, SageUserfelder userfelder)
     {
         var fehlend = FehlendeWurzeln(menge);
         var ids = menge.Where(k => k.BelID is not null).Select(k => k.BelID!.Value).Concat(fehlend).Distinct().Order().ToList();
@@ -178,11 +196,13 @@ public sealed class SdataFaStrukturReader : ISageFaStrukturReader
                 + $"FA-Felder leer, {fehlend.Count} Haupt-FA(s) nicht in {RessourceKoepfe} nicht nachgelesen."));
             return (new(), new());
         }
-        var zeilen = await BelegsucheAsync(ziel, ids, SelectBelegsucheKopf + "," + string.Join(",", FelderFa.Select(f => PraefixBelegsuche + f)), hinweise, ct);
+        var fa = userfelder.Konfiguriert(SageUserfelder.FaStruktur, FelderFa);
+        var zeilen = await BelegsucheAsync(ziel, ids, string.Join(",", fa.Select(k => PraefixBelegsuche + k.Feld).Prepend(SelectBelegsucheKopf)), hinweise, ct,
+            userfelder);
         var felder = new Dictionary<int, Dictionary<string, string?>>();
         foreach (var z in zeilen)
             if (Zahl(z, "BelID") is { } belId)
-                felder.TryAdd(belId, FelderFa.ToDictionary(f => f, f => Text(z, PraefixBelegsuche + f), StringComparer.OrdinalIgnoreCase));
+                felder.TryAdd(belId, fa.ToDictionary(k => k.Logisch, k => Text(z, PraefixBelegsuche + k.Feld), StringComparer.OrdinalIgnoreCase));
         var wurzeln = zeilen.Select(z => new SdataFaKopfZeile(Zahl(z, "BelID"), Zahl(z, "StrukturID"), Text(z, "Artikelnummer"), null, null))
             .Where(k => k.BelID is not null && k.BelID == k.StrukturID && fehlend.Contains(k.BelID.Value))
             .DistinctBy(k => k.BelID).ToList();
@@ -194,7 +214,7 @@ public sealed class SdataFaStrukturReader : ISageFaStrukturReader
 
     /// <summary>Zeilen aus <c>dtsFaBelegsuche</c> je BelID-Block (Felder ohne Gross/Klein). Wirft bei HTTP-/Verbindungsfehler.</summary>
     private async Task<List<Dictionary<string, JsonElement>>> BelegsucheAsync(SdataLeseZiel ziel, IReadOnlyList<int> ids, string select,
-        List<SdataHinweis> hinweise, CancellationToken ct)
+        List<SdataHinweis> hinweise, CancellationToken ct, SageUserfelder? userfelder = null)
     {
         var zeilen = new List<Dictionary<string, JsonElement>>();
         var bloecke = SageSdataQuellen.OrBloecke("BelID", ids);
@@ -203,7 +223,8 @@ public sealed class SdataFaStrukturReader : ISageFaStrukturReader
         {
             var r = await _client.GetAsync<Dictionary<string, JsonElement>>(ziel, SageSdataQuellen.FaBelegsuche, block, select, "BelID", ct);
             if (!r.Call.Erfolgreich)
-                throw new SdataLeseException(SageSdataQuellen.FaBelegsuche, r.Call.Status, r.Call.Fehler ?? "unbekannter Fehler");
+                throw new SdataLeseException(SageSdataQuellen.FaBelegsuche, r.Call.Status,
+                    userfelder?.Erklaeren(r.Call.Fehler ?? "unbekannter Fehler") ?? r.Call.Fehler ?? "unbekannter Fehler");
             zeilen.AddRange(r.Zeilen.Select(z => new Dictionary<string, JsonElement>(z, StringComparer.OrdinalIgnoreCase)));
             ms += r.Call.DauerMs;
         }

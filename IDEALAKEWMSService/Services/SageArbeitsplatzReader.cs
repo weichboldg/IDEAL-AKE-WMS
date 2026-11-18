@@ -1,3 +1,5 @@
+using IdealAkeWms.Services.SageSdata;
+using IDEALAKEWMSService.Common;
 using Microsoft.Data.SqlClient;
 
 namespace IDEALAKEWMSService.Services;
@@ -21,7 +23,10 @@ public class SageArbeitsplatzReader : ISageArbeitsplatzReader
         // Baustein a: Arbeitsplaetze. Arbeitsplatznummer bewusst typunabhaengig gelesen (GetValue().ToString(),
         // nie int.Parse — 0000 != 0); getrimmt wird im ProductionWorkplaceSyncService.
         var isTable = SageArbeitsplatzSql.IsTable(quotedSource);
-        var sql = SageArbeitsplatzSql.Build(quotedSource);
+        // v1.99.40 (ADR 0033): Spalte des Arbeitsschritt-Kuerzels aus Sync:Userfeld:Arbeitsplaetze:USER_ArbeitsSchritt (geprueft USER_…).
+        var felder = await ServiceSettings.UserfelderSafeAsync(_configuration, ct);
+        var feld = felder.Feld(SageUserfelder.Arbeitsplaetze, SageArbeitsplatzSql.FeldArbeitsSchritt);
+        var sql = SageArbeitsplatzSql.Build(quotedSource, feld);
 
         var result = new List<SageArbeitsplatzDto>();
 
@@ -36,7 +41,13 @@ public class SageArbeitsplatzReader : ISageArbeitsplatzReader
         await using var cmd = new SqlCommand(sql, conn) { CommandTimeout = 60 };
         if (isTable)
             cmd.Parameters.AddWithValue("@mandant", mandant);
-        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        SqlDataReader reader;
+        try { reader = await cmd.ExecuteReaderAsync(ct); }
+        catch (SqlException ex) when (isTable)
+        {
+            throw new InvalidOperationException(felder.Erklaeren(ex.Message), ex); // R4: „Ungueltiger Spaltenname“ → Einstellung
+        }
+        await using var _ = reader;
 
         while (await reader.ReadAsync(ct))
         {
@@ -51,7 +62,8 @@ public class SageArbeitsplatzReader : ISageArbeitsplatzReader
                 ? "Sage liefert {Count} aktive Arbeitsplaetze aus {Source} (Mandant {Mandant})."
                 : "Sage liefert {Count} Arbeitsplaetze aus der View {Source} (Mandant-Einstellung {Mandant} wirkt hier nicht).",
             result.Count, quotedSource, mandant);
-        return new SageArbeitsplatzReadResult(true, result);
+        // Nicht konfiguriert = die Quelle liefert kein Kuerzel (bestehender Pfad „Quelle liefert kein Arbeitsschritt-Kuerzel“).
+        return new SageArbeitsplatzReadResult(true, result, ArbeitsschrittGeliefert: !isTable || feld is not null);
     }
 }
 
@@ -87,7 +99,14 @@ public static class SageArbeitsplatzSql
         return string.Equals(last, TableName, StringComparison.OrdinalIgnoreCase);
     }
 
-    public static string Build(string quotedSource) => IsTable(quotedSource) ? TableSql : $"""
+    public const string FeldArbeitsSchritt = "USER_ArbeitsSchritt";
+
+    /// <summary>v1.99.40: Tabellen-Select mit der konfigurierten Spalte; Default = <see cref="TableSql"/> zeichengleich, nicht konfiguriert = NULL.
+    /// <paramref name="feld"/> ist durch <see cref="SageUserfelder"/> auf <c>USER_[A-Za-z0-9_]</c> geprueft (kein SQL-Einschleusen).</summary>
+    public static string TableSqlFuer(string? feld) =>
+        TableSql.Replace(FeldArbeitsSchritt, feld ?? "CAST(NULL AS nvarchar(50)) AS " + FeldArbeitsSchritt, StringComparison.Ordinal);
+
+    public static string Build(string quotedSource, string? feld = FeldArbeitsSchritt) => IsTable(quotedSource) ? TableSqlFuer(feld) : $"""
         SELECT Arbeitsgangnummer, Bezeichnung, AG
         FROM {quotedSource}
         """;

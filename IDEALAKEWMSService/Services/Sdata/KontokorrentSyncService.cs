@@ -2,6 +2,7 @@ using IdealAkeWms.Data;
 using IdealAkeWms.Models;
 using IdealAkeWms.Services.SageSdata;
 using IdealAkeWms.Services.SyncLogger;
+using IDEALAKEWMSService.Common;
 using Microsoft.EntityFrameworkCore;
 
 namespace IDEALAKEWMSService.Services.Sdata;
@@ -9,12 +10,20 @@ namespace IDEALAKEWMSService.Services.Sdata;
 /// <summary>Zeile aus <c>Kontokorrent</c> (Namen exakt wie in der SData-Antwort, Typen P-S1). Je Lauf werden nur die Felder der
 /// jeweiligen Tabelle abgefragt (<see cref="KontokorrentSyncService.SelectKreditoren"/> / <see cref="KontokorrentSyncService.SelectDebitoren"/>).</summary>
 public sealed record SdataKontoZeile(string? Kto, string? Matchcode, string? EUUStID, string? Zahlungskond, string? Gruppe, bool? Aktiv,
-    string? Vertreter = null, decimal? USER_EKMindestbestellwert = null, int? Adresse = null);
+    string? Vertreter = null, decimal? USER_EKMindestbestellwert = null, int? Adresse = null)
+{
+    /// <summary>v1.99.40: Benutzerfeld unter abweichendem Namen (Einstellung <c>Sync:Userfeld:Kreditoren:*</c>).</summary>
+    [System.Text.Json.Serialization.JsonExtensionData] public Dictionary<string, System.Text.Json.JsonElement>? Weitere { get; init; }
+}
 
 /// <summary>Zeile aus <c>Adressen</c> (= Sage-Tabelle KHKAdressen; Spaltennamen und Laengen am AKE-Test belegt, Spec P-K1-Nachtrag).
 /// Liefer* ist die Hausadresse (2.204 von 2.287 Kreditoren gefuellt), Post* ist das Postfach (6) und wird nicht gelesen.</summary>
 public sealed record SdataAdresseZeile(int? Adresse, string? Name1, string? Name2, string? LieferStrasse, string? LieferPLZ, string? LieferOrt,
-    string? LieferLand, string? Telefon, string? EMail, string? USER_KundenNameFA = null);
+    string? LieferLand, string? Telefon, string? EMail, string? USER_KundenNameFA = null)
+{
+    /// <summary>v1.99.40: Benutzerfeld unter abweichendem Namen (Einstellung <c>Sync:Userfeld:Debitoren:*</c>).</summary>
+    [System.Text.Json.Serialization.JsonExtensionData] public Dictionary<string, System.Text.Json.JsonElement>? Weitere { get; init; }
+}
 
 /// <summary>Zeile aus <c>Ansprechpartner</c> (= KHKAnsprechpartner, n je Adresse, am AKE-Test bis 99).</summary>
 public sealed record SdataAnsprechpartnerZeile(int? Nummer, int? Adresse, string? Vorname, string? Nachname, string? Ansprechpartner);
@@ -46,7 +55,12 @@ public class KontokorrentSyncService
     public const string WhereDebitoren = "KtoArt eq 'D'";  // P-K1: D = 534 Kunden
     // Felder aus dem P-S1-Schema von Kontokorrent; Adresse = Verweis auf Adressen.Adresse (KHKKontokorrent.Adresse, P-K1-Nachtrag).
     private const string SelectBasis = "Kto,Matchcode,EUUStID,Zahlungskond,Gruppe,Aktiv,Adresse";
-    public const string SelectKreditoren = SelectBasis + ",USER_EKMindestbestellwert";
+    /// <summary>AKE-Default; das Benutzerfeld kommt seit v1.99.40 aus der Einstellung (<see cref="SelectMit"/>).</summary>
+    public const string SelectKreditoren = SelectBasis + "," + FeldMindestbestellwert;
+    public const string FeldMindestbestellwert = "USER_EKMindestbestellwert";
+    public const string FeldKundenNameFa = "USER_KundenNameFA";
+    /// <summary>Select + Benutzerfeld; nicht konfiguriert (null) = ohne.</summary>
+    public static string SelectMit(string basis, string? feld) => feld is null ? basis : basis + "," + feld;
     public const string SelectDebitoren = SelectBasis + ",Vertreter";
     // Name/Adresse/Kontakt: Feldnamen = Spalten von KHKAdressen/KHKAnsprechpartner (am AKE-Test per SQL belegt; die SData-Namen von
     // Kontokorrent sind 1:1 die Spaltennamen). TODO(P-K1-Nachtrag): $schema beider Ressourcen bestaetigen. Nicht lesbar →
@@ -54,7 +68,7 @@ public class KontokorrentSyncService
     public const string RessourceAdressen = "Adressen";
     public const string RessourceAnsprechpartner = "Ansprechpartner";
     public const string SelectAdressen = "Adresse,Name1,Name2,LieferStrasse,LieferPLZ,LieferOrt,LieferLand,Telefon,EMail";
-    public const string SelectAdressenDebitoren = SelectAdressen + ",USER_KundenNameFA";
+    public const string SelectAdressenDebitoren = SelectAdressen + "," + FeldKundenNameFa; // AKE-Default
     public const string SelectAnsprechpartner = "Nummer,Adresse,Vorname,Nachname,Ansprechpartner";
 
     private readonly ApplicationDbContext _ctx;
@@ -73,26 +87,44 @@ public class KontokorrentSyncService
         _syncLogger = syncLogger;
     }
 
-    public Task<SyncResult> RunKreditorenAsync(bool dryRun, CancellationToken ct = default, SdataLeseZiel? ziel = null) =>
-        AbgleichAsync(_ctx.Creditors, SyncLogServices.Kreditoren, "Kreditoren", WhereKreditoren, SelectKreditoren, SelectAdressen, (c, z, _) =>
-        {
-            // TODO(P-S1): Nachkommastellen unbelegt, Spalte decimal(18,2) laut Spec F10.
-            var wert = z.USER_EKMindestbestellwert is { } w ? Math.Round(w, 2) : (decimal?)null;
-            if (wert == null || wert == c.SageEKMindestbestellwert) return false;
-            c.SageEKMindestbestellwert = wert;
-            return true;
-        }, dryRun, ziel, ct);
+    public async Task<SyncResult> RunKreditorenAsync(bool dryRun, CancellationToken ct = default, SdataLeseZiel? ziel = null)
+    {
+        // v1.99.40 (ADR 0033): Feldname aus Sync:Userfeld:Kreditoren:USER_EKMindestbestellwert; leer = nicht lesen (IDEAL hat das Feld nicht).
+        var felder = await ServiceSettings.UserfelderSafeAsync(_config, ct);
+        var feld = felder.Feld(SageUserfelder.Kreditoren, FeldMindestbestellwert);
+        return await AbgleichAsync(_ctx.Creditors, SyncLogServices.Kreditoren, "Kreditoren", WhereKreditoren, SelectMit(SelectBasis, feld), SelectAdressen,
+            (c, z, _) =>
+            {
+                // TODO(P-S1): Nachkommastellen unbelegt, Spalte decimal(18,2) laut Spec F10.
+                var wert = SageUserfelder.Dezimal(SageUserfelder.Text(feld, FeldMindestbestellwert, z.USER_EKMindestbestellwert, z.Weitere)) is { } w
+                    ? Math.Round(w, 2) : (decimal?)null;
+                if (wert == null || wert == c.SageEKMindestbestellwert) return false;
+                c.SageEKMindestbestellwert = wert;
+                return true;
+            }, dryRun, ziel, felder, feld is null ? "Mindestbestellwert" : null, ct);
+    }
 
-    public Task<SyncResult> RunDebitorenAsync(bool dryRun, CancellationToken ct = default, SdataLeseZiel? ziel = null) =>
-        AbgleichAsync(_ctx.Debitors, SyncLogServices.Debitoren, "Debitoren", WhereDebitoren, SelectDebitoren, SelectAdressenDebitoren, (d, z, a) =>
-            Setzen(Text(z.Vertreter), d.SageVertreter, v => d.SageVertreter = v)
-            | Setzen(Text(a?.USER_KundenNameFA), d.SageKundenNameFA, v => d.SageKundenNameFA = v), dryRun, ziel, ct);
+    public async Task<SyncResult> RunDebitorenAsync(bool dryRun, CancellationToken ct = default, SdataLeseZiel? ziel = null)
+    {
+        var felder = await ServiceSettings.UserfelderSafeAsync(_config, ct);
+        var feld = felder.Feld(SageUserfelder.Debitoren, FeldKundenNameFa);
+        return await AbgleichAsync(_ctx.Debitors, SyncLogServices.Debitoren, "Debitoren", WhereDebitoren, SelectDebitoren, SelectMit(SelectAdressen, feld),
+            (d, z, a) =>
+                Setzen(Text(z.Vertreter), d.SageVertreter, v => d.SageVertreter = v)
+                | Setzen(a is null ? null : SageUserfelder.Text(feld, FeldKundenNameFa, a.USER_KundenNameFA, a.Weitere), d.SageKundenNameFA,
+                    v => d.SageKundenNameFA = v),
+            dryRun, ziel, felder, feld is null ? "Kundenname FA" : null, ct);
+    }
 
     private async Task<SyncResult> AbgleichAsync<T>(DbSet<T> set, string lauf, string bezeichnung, string where, string select,
-        string selectAdressen, Func<T, SdataKontoZeile, SdataAdresseZeile?, bool> zusatz, bool dryRun, SdataLeseZiel? ziel, CancellationToken ct)
+        string selectAdressen, Func<T, SdataKontoZeile, SdataAdresseZeile?, bool> zusatz, bool dryRun, SdataLeseZiel? ziel,
+        SageUserfelder felder, string? nichtKonfiguriert, CancellationToken ct)
         where T : AuditableEntity, ISageKonto, new()
     {
         await using var run = await _syncLogger.BeginRunAsync(lauf, ct);
+        foreach (var h in felder.Hinweise) await run.LogWarningAsync(h, ct: ct);
+        if (nichtKonfiguriert is not null)
+            await run.LogInfoAsync($"Sage-Benutzerfeld „{nichtKonfiguriert}“ nicht konfiguriert (Service-Einstellungen, Sage-Benutzerfelder) – nicht gelesen.", ct: ct);
 
         IReadOnlyList<SdataKontoZeile> zeilen;
         try
@@ -106,13 +138,14 @@ public class KontokorrentSyncService
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger.LogError(ex, "{Bereich} aus Sage (SData) nicht lesbar.", bezeichnung);
-            await run.LogErrorAsync($"Sage (SData) nicht lesbar: {ex.Message}", ct: ct);
-            await run.FinishFailedAsync($"Sage (SData) nicht lesbar: {ex.Message}", ct: ct);
+            var meldung = felder.Erklaeren(ex.Message); // R4: „Ungueltiger Spaltenname“ → Einstellungsname
+            await run.LogErrorAsync($"Sage (SData) nicht lesbar: {meldung}", ct: ct);
+            await run.FinishFailedAsync($"Sage (SData) nicht lesbar: {meldung}", ct: ct);
             throw;
         }
 
         // Adressen + Ansprechpartner (P-K1-Nachtrag): je eigener Lesevorgang; ein Fehler hier stoppt den Konto-Abgleich nicht.
-        var adressen = await NachlesenAsync<SdataAdresseZeile>(run, ziel, RessourceAdressen, selectAdressen, "Adresse", ct);
+        var adressen = await NachlesenAsync<SdataAdresseZeile>(run, ziel, RessourceAdressen, selectAdressen, "Adresse", ct, felder);
         var adresseById = adressen?.Where(a => a.Adresse != null).GroupBy(a => a.Adresse!.Value).ToDictionary(g => g.Key, g => g.First());
         var partner = await NachlesenAsync<SdataAnsprechpartnerZeile>(run, ziel, RessourceAnsprechpartner, SelectAnsprechpartner, "Nummer", ct);
         var partnerById = partner?.Where(p => p.Adresse != null).GroupBy(p => p.Adresse!.Value)
@@ -307,7 +340,7 @@ public class KontokorrentSyncService
     }
 
     private async Task<IReadOnlyList<TZeile>?> NachlesenAsync<TZeile>(ISyncRun run, SdataLeseZiel ziel, string ressource, string select,
-        string orderBy, CancellationToken ct)
+        string orderBy, CancellationToken ct, SageUserfelder? felder = null)
     {
         try
         {
@@ -318,7 +351,7 @@ public class KontokorrentSyncService
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger.LogWarning(ex, "{Ressource} aus Sage (SData) nicht lesbar.", ressource);
-            await run.LogWarningAsync($"{ressource} aus Sage (SData) nicht lesbar — Name, Adresse und Kontakt bleiben unveraendert: {ex.Message}", ct: ct);
+            await run.LogWarningAsync($"{ressource} aus Sage (SData) nicht lesbar — Name, Adresse und Kontakt bleiben unveraendert: {felder?.Erklaeren(ex.Message) ?? ex.Message}", ct: ct);
             return null;
         }
     }

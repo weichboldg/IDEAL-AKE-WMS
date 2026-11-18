@@ -2,6 +2,8 @@
 @using System.Globalization
 @using IdealAkeWms.Models
 @using IdealAkeWms.Models.ViewModels
+@using IdealAkeWms.Services.SageSdata
+@inject IdealAkeWms.Data.Repositories.IServiceSettingRepository ServiceSettings
 @{
     var a = Model.Auftrag;
     ViewData["Title"] = Model.IstWarenkorb ? "BF-Warenkorb" : $"BF-Auftrag {a.Nummer}";
@@ -9,6 +11,10 @@
     string M(decimal? m) => m?.ToString("0.###", de) ?? "";
     var bearbeitbar = Model.BestellerBearbeitet || Model.SchachtlerBearbeitet;
     var positionen = a.Positionen.OrderBy(p => p.Position).ToList();
+    // v1.99.40 (ADR 0033): nicht konfigurierte Sage-Benutzerfelder der Blechfertigung nennen statt leerer Suche/Spalten
+    var userfelder = await SageUserfelder.AusAsync(ServiceSettings);
+    var bfNichtKonfiguriert = SageUserfelder.Katalog.Where(u => u.Abgleich == SageUserfelder.Blechfertigung
+        && userfelder.Feld(u.Abgleich, u.Default) is null).Select(u => u.Anzeigename).ToList();
 }
 
 <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
@@ -20,6 +26,15 @@
         <a asp-action="Index" class="btn btn-sm btn-outline-secondary">Zur Liste</a>
     </div>
 </div>
+
+@if (bfNichtKonfiguriert.Count > 0)
+{
+    <div class="alert alert-warning" role="alert">
+        Sage-Benutzerfelder nicht konfiguriert: @string.Join(", ", bfNichtKonfiguriert). Diese Werte werden nicht aus Sage gelesen;
+        ohne „Ist Lagerartikel“ und „Artikeltyp“ findet die Artikelsuche nichts. Eintragen unter Service-Einstellungen, Kategorie
+        „@SageUserfelder.Kategorie(SageUserfelder.Blechfertigung)“.
+    </div>
+}
 
 @if (!Model.IstWarenkorb)
 {

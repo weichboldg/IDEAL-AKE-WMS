@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using IdealAkeWms.Services;
+using IdealAkeWms.Services.SageSdata;
 
 namespace IdealAkeWms.Models;
 
@@ -17,7 +18,7 @@ public static class ServiceSettingDefinitions
     /// <summary>Katalog mit Metadaten (v1.77.0, Spec 2026-11-07-einstellungen-auswahlfelder-und-beschreibung E3, ADR 0020): Basisliste unten,
     /// ergaenzt um Anzeigename, Verwendung, Standort, Warnhinweis (<see cref="Meta"/>), Bool-Lesart „leer = Default“
     /// (<c>ServiceSettings.GetBoolAsync</c>) und die Quellenschalter als Auswahl.</summary>
-    public static IReadOnlyList<SettingDefinition> All => _all ??= Basis().Select(Ergaenzen).ToList();
+    public static IReadOnlyList<SettingDefinition> All => _all ??= Basis().Concat(Userfelder()).Select(Ergaenzen).ToList();
     private static IReadOnlyList<SettingDefinition>? _all;
 
     /// <summary>Erlaubte Werte der Quellenschalter <c>Sync:Quelle:*</c> — exakt wie <c>SageQuelle</c> im Dienst (ordinal, ohne Trim).</summary>
@@ -236,13 +237,24 @@ public static class ServiceSettingDefinitions
 
     private static SettingDefinition Ergaenzen(SettingDefinition d)
     {
-        var m = Meta.TryGetValue(d.Key, out var x) ? x : (Name: d.Key, Verwendung: "Dienst", Standort: (string?)null, Warn: (string?)null);
+        var u = SageUserfelder.Katalog.FirstOrDefault(k => k.Key == d.Key);
+        var m = Meta.TryGetValue(d.Key, out var x) ? x
+            : u is not null ? (Name: u.Anzeigename, Verwendung: "Dienst: " + u.Wirkung, Standort: u.Standort, Warn: (string?)UserfeldWarnung)
+            : (Name: d.Key, Verwendung: "Dienst", Standort: (string?)null, Warn: (string?)null);
         d = d with { Anzeigename = m.Name, Verwendung = m.Verwendung, Standort = m.Standort ?? "beide", Warnhinweis = m.Warn };
         if (d.Type == SettingType.Bool) d = d with { BoolLesart = SettingBoolLesart.LeerIstDefault };
         if (d.Type == SettingType.Int && IntMeta.TryGetValue(d.Key, out var i)) d = d with { Min = i.Min, Max = i.Max, Einheit = i.Einheit };
         if (d.Key.StartsWith("Sync:Quelle:", StringComparison.Ordinal)) d = d with { Type = SettingType.Choice, Werte = QuellenWerte };
         return d;
     }
+
+    private const string UserfeldWarnung = "Name muss in Sage existieren: ein falscher Name lässt den Lauf mit „Sage kennt das Feld nicht“ scheitern. Leer = Feld wird nicht gelesen, die Anzeige zeigt „nicht konfiguriert“.";
+
+    /// <summary>v1.99.40 (ADR 0033): je Sage-Benutzerfeld eine Einstellung, Default = heutiger Name, leer erlaubt.</summary>
+    private static IEnumerable<SettingDefinition> Userfelder() => SageUserfelder.Katalog.Select(u =>
+        new SettingDefinition(u.Key, SettingType.String, u.Default, SageUserfelder.Kategorie(u.Abgleich),
+            $"Sage-Feldname (ohne Tabellen-Praefix). Default {u.Default}. Leer = nicht lesen, Anzeige „nicht konfiguriert“. {u.Wirkung}",
+            Muster: (SageUserfelder.Muster, SageUserfelder.MusterText)));
 
     private static List<SettingDefinition> Basis() => new()
     {

@@ -626,13 +626,47 @@ public class SyncWorker : BackgroundService
         }
     }
 
+    /// <summary>
+    /// v1.99.40 (Spec 2026-11-18-sage-userfelder-als-einstellung R5): Schritte, deren SData-Resource am Sage-Server fehlt (HTTP 404), bis zu
+    /// diesem Zeitpunkt nicht wiederholen — eine Mail statt eines Fehlers in jedem Lauf.
+    /// ponytail: im Speicher, Neustart des Dienstes setzt zurueck; 24 h, damit eine spaeter freigeschaltete Resource ohne Neustart wieder laeuft.
+    /// </summary>
+    private readonly Dictionary<string, DateTime> _resourceFehltBis = new(StringComparer.Ordinal);
+    internal static readonly TimeSpan ResourceFehltPause = TimeSpan.FromHours(24);
+
     private async Task RunResilientAsync(string stepName, Func<Task> step, CancellationToken ct)
     {
-        try { await step(); }
+        if (_resourceFehltBis.TryGetValue(stepName, out var bis) && DateTime.Now < bis)
+        {
+            _logger.LogInformation("{Step} übersprungen: SData-Resource fehlt am Sage-Server (gemeldet), nächster Versuch ab {Bis}.", stepName, bis);
+            return;
+        }
+        try
+        {
+            await step();
+            _resourceFehltBis.Remove(stepName);
+        }
         catch (Exception ex) when (!ct.IsCancellationRequested)
         {
+            if (ResourceFehlt(ex) is { } fehlt)
+            {
+                _resourceFehltBis[stepName] = DateTime.Now + ResourceFehltPause;
+                var meldung = $"Resource „{fehlt.Ressource}“ am Sage-Server nicht vorhanden – Abgleich „{stepName}“ in den Service-Einstellungen ausschalten. "
+                    + $"Nächster Versuch frühestens in {ResourceFehltPause.TotalHours:0} h.";
+                _logger.LogError(ex, "{Meldung}", meldung);
+                await NotifyErrorAsync(stepName, new InvalidOperationException(meldung, ex), ct);
+                return;
+            }
             _logger.LogError(ex, "{Step} ist fehlgeschlagen — fahre mit weiteren Syncs fort.", stepName);
             await NotifyErrorAsync(stepName, ex, ct);
         }
+    }
+
+    /// <summary>HTTP 404 einer SData-Resource irgendwo in der Kette (die Dienste werfen sie weiter oder verpacken sie).</summary>
+    internal static IdealAkeWms.Services.SageSdata.SdataLeseException? ResourceFehlt(Exception? ex)
+    {
+        for (; ex is not null; ex = ex.InnerException)
+            if (ex is IdealAkeWms.Services.SageSdata.SdataLeseException { Status: 404 } s) return s;
+        return null;
     }
 }

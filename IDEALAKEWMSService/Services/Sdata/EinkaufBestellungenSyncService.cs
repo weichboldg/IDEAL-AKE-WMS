@@ -4,6 +4,7 @@ using IdealAkeWms.Data;
 using IdealAkeWms.Models;
 using IdealAkeWms.Services.SageSdata;
 using IdealAkeWms.Services.SyncLogger;
+using IDEALAKEWMSService.Common;
 using Microsoft.EntityFrameworkCore;
 
 namespace IDEALAKEWMSService.Services.Sdata;
@@ -51,7 +52,9 @@ public class EinkaufBestellungenSyncService
     public const string KopfQuelle = "dtsEKBelegMst.Sage.Wawi";
     public const string FeldAbNummer = "KHKEKBelege_USER_AB";
     public const string FeldKommission = "KHKEKBelege_USER_Kom";
-    public const string KopfSelect = "BelID," + FeldAbNummer + "," + FeldKommission;
+    public const string KopfSelect = "BelID," + FeldAbNummer + "," + FeldKommission; // AKE-Default
+    /// <summary>v1.99.40 (ADR 0033): Praefix bleibt Code, der Feldname kommt aus Sync:Userfeld:Bestellungen:USER_AB / USER_Kom.</summary>
+    public const string PraefixKopf = "KHKEKBelege_";
 
     private readonly ApplicationDbContext _ctx;
     private readonly ISageSdataReadClient _client;
@@ -268,11 +271,19 @@ public class EinkaufBestellungenSyncService
         IReadOnlyList<int> belIds, IReadOnlyList<SagePurchaseOrderLine> bestand, ISyncRun run, CancellationToken ct)
     {
         var zeilen = new List<Dictionary<string, JsonElement>>();
+        var felder = await ServiceSettings.UserfelderSafeAsync(_config, ct);
+        foreach (var h in felder.Hinweise) await run.LogWarningAsync(h, ct: ct);
+        string? Kopffeld(string standard) => felder.Feld(SageUserfelder.Bestellungen, standard) is { } n ? PraefixKopf + n : null;
+        var feldAb = Kopffeld("USER_AB");
+        var feldKom = Kopffeld("USER_Kom");
+        foreach (var (f, name) in new[] { (feldAb, "AB-Nummer"), (feldKom, "Kommission") })
+            if (f is null) await run.LogInfoAsync($"Sage-Benutzerfeld „{name}“ nicht konfiguriert (Service-Einstellungen) – nicht gelesen, bleibt leer.", ct: ct);
+        var kopfSelect = string.Join(",", new[] { "BelID", feldAb, feldKom }.Where(s => s is not null));
         try
         {
             foreach (var block in SageSdataQuellen.OrBloecke("BelID", belIds))
             {
-                var r = await _client.GetAsync<Dictionary<string, JsonElement>>(ziel, KopfQuelle, block, KopfSelect, "BelID", ct);
+                var r = await _client.GetAsync<Dictionary<string, JsonElement>>(ziel, KopfQuelle, block, kopfSelect, "BelID", ct);
                 if (!r.Call.Erfolgreich) throw new SdataLeseException(KopfQuelle, r.Call.Status, r.Call.Fehler ?? "unbekannter Fehler");
                 zeilen.AddRange(r.Zeilen.Select(z => new Dictionary<string, JsonElement>(z, StringComparer.OrdinalIgnoreCase)));
             }
@@ -280,21 +291,21 @@ public class EinkaufBestellungenSyncService
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger.LogWarning(ex, "Kopfdaten (AB-Nummer/Kommission) aus {Quelle} nicht lesbar.", KopfQuelle);
-            await run.LogWarningAsync(SdataSchluessel.Kappen($"Kopfdaten (AB-Nummer/Kommission) nicht lesbar: {ex.Message} – Werte vom letzten Lauf."), ct: ct);
+            await run.LogWarningAsync(SdataSchluessel.Kappen($"Kopfdaten (AB-Nummer/Kommission) nicht lesbar: {felder.Erklaeren(ex.Message)} – Werte vom letzten Lauf."), ct: ct);
             var alt = bestand.GroupBy(b => b.BelId).ToDictionary(g => g.Key, g => (g.First().AbNummer, g.First().Kommission));
             return (alt, 0, 0);
         }
         if (belIds.Count > 0) await run.LogInfoAsync($"Kopfdaten: Quelle SData (RealTimeData) {KopfQuelle}, {zeilen.Count} Zeile(n) zu {belIds.Count} Beleg(en).", ct: ct);
 
-        foreach (var (feld, name) in new[] { (FeldAbNummer, "AB-Nummer"), (FeldKommission, "Kommission") })
-            if (zeilen.Count > 0 && !zeilen.Any(z => z.ContainsKey(feld)))
+        foreach (var (feld, name) in new[] { (feldAb, "AB-Nummer"), (feldKom, "Kommission") })
+            if (feld is not null && zeilen.Count > 0 && !zeilen.Any(z => z.ContainsKey(feld)))
                 await run.LogWarningAsync($"Sage liefert {feld} nicht (Feldname/Präfix prüfen) – {name} bleibt leer.", ct: ct);
 
         var werte = new Dictionary<int, (string? Ab, string? Kom)>();
         var zuLang = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
-        string? Wert(Dictionary<string, JsonElement> z, string feld, int max, int belId)
+        string? Wert(Dictionary<string, JsonElement> z, string? feld, int max, int belId)
         {
-            var t = z.TryGetValue(feld, out var w) ? SdataArtikelReader.AlsText(w) : null;
+            var t = feld is not null && z.TryGetValue(feld, out var w) ? SdataArtikelReader.AlsText(w) : null;
             if (t is not { Length: > 0 } || t.Length <= max) return t;
             zuLang.Add($"BelID {belId} {feld} ({t.Length} > {max})");
             return null;
@@ -302,8 +313,8 @@ public class EinkaufBestellungenSyncService
         foreach (var z in zeilen)
             if (z.TryGetValue("BelID", out var id) && int.TryParse(SdataArtikelReader.AlsText(id), NumberStyles.Integer, CultureInfo.InvariantCulture, out var belId)
                 && !werte.ContainsKey(belId))
-                werte[belId] = (Wert(z, FeldAbNummer, SagePurchaseOrderLine.AbNummerMaxLaenge, belId),
-                    Wert(z, FeldKommission, SagePurchaseOrderLine.KommissionMaxLaenge, belId));
+                werte[belId] = (Wert(z, feldAb, SagePurchaseOrderLine.AbNummerMaxLaenge, belId),
+                    Wert(z, feldKom, SagePurchaseOrderLine.KommissionMaxLaenge, belId));
 
         var ohneTreffer = belIds.Count(b => !werte.ContainsKey(b));
         if (ohneTreffer > 0)

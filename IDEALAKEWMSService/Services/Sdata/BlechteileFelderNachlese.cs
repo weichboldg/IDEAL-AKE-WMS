@@ -45,7 +45,7 @@ public static class BlechteileFelderNachlese
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             ctx.ChangeTracker.Clear(); // halb geschriebene Merkmale verwerfen; der View-Abgleich ist schon gespeichert
-            await run.LogWarningAsync($"Blechteile-Felder (SData-Nachlese) fehlgeschlagen: {ex.Message} – Artikel-Abgleich (View) bleibt gültig, Merkmale unverändert.", ct: ct);
+            await run.LogWarningAsync($"Blechteile-Felder (SData-Nachlese) fehlgeschlagen: {reader.Userfelder?.Erklaeren(ex.Message) ?? ex.Message} – Artikel-Abgleich (View) bleibt gültig, Merkmale unverändert.", ct: ct);
         }
     }
 

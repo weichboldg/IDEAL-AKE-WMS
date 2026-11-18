@@ -823,7 +823,7 @@ public static class ColumnDefinitions
             new ColumnDef("wunschtermin",        "Wunschtermin",         Locked: false),
             new ColumnDef("letzter-lieferant",   "letzter Lieferant",    Locked: false),
             new ColumnDef("abc",                 "ABC",                  Locked: false),
-            new ColumnDef("user-mindestbestand", "USER_Mindestbestand",  Locked: false),
+            new ColumnDef("user-mindestbestand", "Mindestbestand (Sage)", Locked: false),
             new ColumnDef("hinweis",             "Hinweis",              Locked: false),
         ]
     };

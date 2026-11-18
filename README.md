@@ -560,6 +560,20 @@ in den Service-Einstellungen“).
 - Fehlen Adresse oder Dataset, zeigt das Register „Sage-SData nicht konfiguriert“ und setzt keinen Aufruf ab. Eine `SData:BaseUrl` mit
   `benutzer:passwort@` wird abgelehnt – Zugangsdaten gehören nie in die URL.
 
+## Sage-Benutzerfelder (Service-Einstellungen, seit v1.99.40)
+
+Jedes Sage-Benutzerfeld (`USER_…`), das Web oder Dienst lesen, steht in `/ServiceSettings` unter den Kategorien
+„Sage-Benutzerfelder: Kreditoren / Debitoren / Artikel / Offene Bestellungen / Arbeitsplätze / Blechfertigung / FA-Struktur“
+(Key `Sync:Userfeld:<Abgleich>:<Standardname>`, Katalog `SageUserfelder.Katalog`, ADR 0033).
+
+- **Ohne Eintrag** gilt der bisherige Feldname – AKE liest unverändert.
+- **Leer** = das Feld wird nicht angefragt; Anzeigen zeigen „nicht konfiguriert“, BF-Aufträge einen Hinweis-Kasten.
+- **Erlaubt:** `USER_` + Buchstaben, Ziffern, `_` (ohne Tabellen-Präfix wie `KHKEKBelege_`); der Server prüft beim Speichern.
+- Kennt Sage ein eingetragenes Feld nicht („Ungültiger Spaltenname“), nennt die Meldung im Aktivitäts-Protokoll die Einstellung.
+- **IDEAL:** `Sync:Userfeld:Kreditoren:USER_EKMindestbestellwert` leer setzen (Feld gibt es dort nicht; Manifest-Hinweis).
+- Fehlt eine SData-Resource am Server (HTTP 404, z. B. `ArtikelLieferantInfo` bei IDEAL), meldet der Dienst das einmal und versucht
+  den Schritt erst nach 24 Stunden wieder (Neustart setzt zurück); den Abgleich in den Service-Einstellungen ausschalten.
+
 ## PDF-Erzeugung (appsettings.json)
 
 PDF-Download je HauptFA-Gruppe in „Kommissionierlisten (IDEAL)" und „Beschichtungsauftrag (IDEAL)"
