@@ -729,3 +729,112 @@ Laut Auftrag **nicht** angelegt (`publish\paket6-*` macht der Folgelauf).
 9. 162.20 Terminal-Ansicht, Zoom 200 %, nur Tastatur.
 10. P-2 (Sage-Anschrift der Beschichter) und P-4 (Mengengerüst Altbestand) vor dem Deploy.
 11. Gesamter TS-162 auf dem Testsystem nach Publish (Folgelauf) – vorher Beschichter in `/Creditors` kennzeichnen.
+
+## Befund Testsystem IDEAL :88 (Koordination 2026-11-18 15:05)
+- **Lücke:** Bestehende Aufträge haben nach SQL/161 `CreditorId = NULL`; die Vorbelegung (Kurzname) greift nur bei Neuanlage, der Kopf ist ab Übergeben gesperrt
+  (Antwort 10) → Altaufträge bekommen **nie** eine Brief-Anschrift. Am :88 von Hand per UPDATE nachgetragen (BA-2 „GoodLack“ ohne Treffer).
+- **Nachbesserung (nächster Lauf):** (a) Einmal-Skript mit Trockenlauf im Manifest: CreditorId für Altaufträge nach der Kurzname-Regel nachtragen;
+  (b) Kreditor auch in Übergeben wählbar, solange keiner gesetzt ist; (c) prüfen, ob im Entwurf Drucken/PDF fehlen soll.
+
+## Nachtrag v1.99.42 (Goal-Lauf [[2026-11-18-goal-lauf-nachbesserungen-v1-99-42]], Befund 15:05 + Backlog 15:14)
+
+- **Kreditor nachtragen:** in *Übergeben* wählbar, solange `CreditorId` leer (Auswahl „Lackierer (Kreditor) nachtragen“, gespeichert mit
+  „Speichern“; danach fest). Server prüft: schon gesetzt → abgelehnt, kein aktiver Beschichter → abgelehnt. Kopf (RAL, Termine) bleibt fest.
+- **Einmal-Skript** `SQL/Einmalig/2026-11-18_v1.99.42_BeschichtungsauftragKreditorNachtragen.sql`: Altaufträge ohne Kreditor, nicht storniert,
+  Dienstleister = Kurzname genau eines aktiven Beschichters (Regel wie `KreditorVorbelegen`); `@Trockenlauf=1` im Manifest, Melde-Liste für
+  „kein Beschichter“/„mehrdeutig“; Scharflauf nur nach Freigabe + DB-Backup.
+- **Druck:** Barcode 10 mm rechts neben dem Titel, nur waagrechte Linien, „Seite x von y“ unten rechts in Druck und PDF unabhängig vom
+  Fußbereich der Vorlage (`_PrintBriefkopfFuss.cshtml`). Nachweis-Screenshot im QA-Abschnitt.
+- Commit `9d0a55e3`, TS-163.7–163.10. Status unverändert bis zum QA-Lauf.
+
+## QA-Nachweis v1.99.42 (qa-agent, 2026-11-18)
+
+Gemeinsamer Lauf über die Nachbesserungen v1.99.42 (Changelog [[2026-11-18-v1-99-42-nachbesserungen]]), Diff `9b6b3e0d..0af91b73` (7 Commits)
+im Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, plus QA-Fix `b5463336`. Selbst in diesem Lauf geprüft, nicht delegiert.
+Derselbe Block steht in allen vier betroffenen Specs (BF-CSV, Beschichtungsauftrag-Ausbau, Sage-Userfelder, Sage-AG-Anlage).
+
+**1. Build und Tests** (Stand `b5463336`): `dotnet build IdealAkeWms.slnx` 0 Fehler, 30 Warnungen (neu: CS8604 `BfCsv.cs:124`, siehe H2).
+`dotnet test`: IdealAkeWms.Tests **3291 bestanden / 1 übersprungen / 0 Fehler** (vor dem QA-Fix 3288/1/0); IDEALAKEWMSService.Tests **790/0/0**.
+
+**2. Review** (Diff samt Umfeld gelesen: `BfCsv`, `BfAuftragWorkflow.FreigabeFehler/FreigebenAsync`, `BfAuftragRepository`, `UsersController.KuerzelPruefenAsync`,
+`BeschichtungsauftragWorkflow.BearbeitenAsync`, `Print.cshtml`, `_PrintBriefkopfFuss.cshtml`, `SageUserfelder.Erklaeren` mit allen Aufrufern,
+`SageFaArbeitsgangService` Kandidaten/Nachlesen, `SageFaArbeitsgangAnlageRepository.UnklarBestaetigenAsync`, View `SageFaArbeitsgaenge/Index`,
+SQL/162, SQL/163, Einmal-Skript, FreshInstall, Manifest, beide Migrationen):
+
+| Nr | Schwere | Befund | Fundstelle | Behandlung |
+|---|---|---|---|---|
+| F1 | mittel | `IstUnklar` prüfte `StartsWith(UnklarText)`, und genau dieser Text wurde in v1.99.42 geändert. Unklar-Zeilen, die v1.99.38–1.99.41 mit dem alten Text gespeichert haben, wären nach dem Update **automatisch erneut gesendet** worden (Dublette in Sage) und hätten keinen Bestätigen-Knopf bekommen | `IdealAkeWms/Services/SageFaArbeitsgaenge.cs:37-41` (vorher), `Views/SageFaArbeitsgaenge/Index.cshtml:164` | **behoben** `b5463336`: gemeinsamer Anfang `UnklarAnfang = "Antwort unklar"` für Dienst-Regel, Repository und View; Test `SageFaArbeitsgaengeControllerTests.IstUnklar_ErkenntAltenUndNeuenText` (alter Text, neuer Text, echter Fehler). Auf DEV IDEAL nachgeprüft (163.12) |
+| H1 | Hinweis | EF-Migration `20261118145602_AddBfPositionArbeitsschritte` legt nur die Spalte an; den Nachtrag der Arbeitsschritte macht allein `SQL/163` | Migration, `SQL/163_AddBfPositionArbeitsschritte.sql` | angenommen: Update-Skript führt SQL/163 in der Schema-Phase aus; das UPDATE läuft auch nach EF-Migrate (auf DEV belegt: 2 Positionen nachgetragen, getrimmt). Kein Fix |
+| H2 | Hinweis | neue Warnung CS8604 `Z("", "ORDER_NUMBER", a.Nummer)` mit `string?` | `IdealAkeWms/Services/BfCsv.cs:124` | kosmetisch (freigegebene Aufträge haben immer eine Nummer). Offen |
+| H3 | Hinweis | Test-CSV vor der Freigabe hat `ORDER_REMARK_4` leer: Kürzel wird erst bei der Freigabe festgeschrieben (wie Termine/Bemerkung) | `BfAuftragWorkflow` Freigabe, `BfAuftraegeController` Test-CSV | gewollt (Snapshot der Freigabe). Kein Fix |
+| H4 | Hinweis | `[RegularExpression]` für das Kürzel läuft vor dem Trimmen: „ WAK“ mit Leerzeichen wird abgelehnt statt getrimmt | `UserEditViewModel` Kuerzel | harmlos (klare Meldung). Kein Fix |
+| H5 | Hinweis | Einmal-Skript zeigt in der Zählung `NULL` statt `0`, wenn kein Altauftrag passt (DEV AKE) | `SQL/Einmalig/2026-11-18_v1.99.42_BeschichtungsauftragKreditorNachtragen.sql` Zählblock | kosmetisch; maßgeblich `TREFFER: 0` stimmt. Kein Fix |
+
+Ohne Befund geprüft: keine Werte in `<script>`-Blöcken, kein `hidden` neben `d-*`, kein neues `?? 0`, keine Parallel-Arrays; Kürzel-Eindeutigkeit serverseitig
+(`KuerzelPruefenAsync` + gefilterter UNIQUE-Index `UQ_Users_Kuerzel`); Kürzel-, Semikolon- und Ganzzahl-Sperre serverseitig in **einer** Funktion `FreigabeFehler`
+(Anzeige und Freigabe); Kreditor-Nachtrag serverseitig (schon gesetzt / kein aktiver Beschichter → abgelehnt); Einmal-Skript-Regel = `KreditorVorbelegen`
+(zwei Orte, gleiche Regel, im Skript-Kopf benannt); `Bestaetigen` nur Admin (Class-Level `RequireAdminAccess`), schreibt nichts an Sage.
+Audit: Users (Edit), BF-Freigabe, Beschichtungsauftrag (`Geaendert`), Sage-AG-Bestätigen, Einmal-Skript – auf DEV in der DB gesehen.
+Migrations-Disziplin: SQL/162 + SQL/163 mit `COL_LENGTH`/`sys.indexes`-Guards, DDL je Batch, History separat; FreshInstall an **beiden** Stellen (Spalten
+`Users.Kuerzel`, `BfAuftraege.BestellerKuerzel`, `BfAuftragPositionen.Arbeitsschritte`, Index, beide `MigrationId`); AgentJobs nicht betroffen; nicht daten-destruktiv.
+Manifest `nachlauf.psd1`: SQL/162, SQL/163, Einmal-Skript (Trockenlauf, `Braucht` SQL/161), BfCsv-Text nachgezogen; `NachlaufManifestDriftTests` grün.
+Version 1.99.42 in beiden `AppVersion.cs`, Anwender-Changelog, TS-163 in `docs/TESTSZENARIEN.md` + Index-Zeile 163. ADR 0020: keine neue/geänderte Einstellung.
+
+**3. Nachweisart:** automatisch belegt: CSV-Aufbau/Kodierung (`BfCsvServiceTests`), Freigabe-Sperren (`BfAuftragWorkflowTests`), Kürzel-Prüfung (`UsersControllerTests`),
+Kreditor-Nachtrag (`BeschichtungsauftragWorkflowTests`), Userfeld-Meldung (`SageUserfelderTests`), Unklar-Regel (`SageFaArbeitsgangServiceTests`, `SageFaArbeitsgaengeControllerTests`).
+Manual-UAT (nicht als grün gezählt): UNIQUE-Index, SQL/162/163, Einmal-Skript, echtes Model-Binding der Formulare, Druck/PDF-Seitenzähler, WiCAM-Import, echtes SData.
+Die Manual-UAT-Teile sind unten auf DEV abgearbeitet, soweit möglich.
+
+**4. Geänderte bestehende Tests** – alle *Verhalten durch die Nachbesserung gewollt geändert*, kein „Fixture bis grün“:
+`BfCsvServiceTests` (Vorlage → echte `BF00000002.csv`; Semikolon-Test → `Lagerplatz_KommaStattSemikolon`; Kodierungs-Test von BestellerName auf Arbeitsschritte,
+weil der Name nicht mehr in die CSV geht) – P-1 (2); `BfAuftragWorkflowTests` (Fixture-Benutzer mit Kürzel, Materialnummer „M-1“ → „11“ wegen Ganzzahl-Sperre,
+Semikolon-Test umbenannt/angepasst, Test für entfernte `Feld()` gelöscht) – P-1 (2) + Kürzel; `SageFaArbeitsgangServiceTests.Nachlesen_KeinFund_…` (Fehler → unklar) – N1;
+`NachlaufManifestDriftTests` (SQL/162, SQL/163 ergänzt) – Liste.
+
+**6. DEV-Deploy** (erhöhte Shell; Zielordner `D:\Dev\{AKE,IDEAL}\{Web,Service}` vorher geleert, erhalten `appsettings.DEV.json*`, `logs`, `App_Data`):
+`dev-deploy.ps1 -Quelle <Worktree>` je Standort zweimal (Stand `0af91b73`, dann `b5463336`): **AKE** Exit 0 „HTTP 200, Fusszeile v1.99.42“,
+**IDEAL** Exit 0 „HTTP 200, Fusszeile v1.99.42“; DEV-Absicherung lief je Standort. Beide Migrationen in beiden DEV-DBs; danach `SQL/162` und `SQL/163`
+per `sqlcmd` je DB: Exit 0, idempotent (Spaltenbreiten 20/20/400 Byte, `UQ_Users_Kuerzel` gefiltert `[Kuerzel] IS NOT NULL`).
+
+TS-163 auf DEV IDEAL (Testdaten Kennung `QA-163`; `BfCsvPfad = D:\Dev\wicam-pool\ideal-qa`, `BfCsvAktiv = true` nur für den Test):
+
+| TS | Durchgeführt | Ergebnis | Status |
+|---|---|---|---|
+| 163.1 | `BF99990163` freigegeben, Dienst schrieb `BF99990163.csv` (792 Byte, `CsvStatus` 2) | 15 Zeilen, nur CRLF, jede Zeile 12 `;`, keine `"`, nur ASCII; Zeilen 1–13 byte-gleich zur Vorlage `BF00000002.csv` bis auf die Auftragsnummer; Position ohne Materialnummer fehlt | OK (Byte-Aufbau); WiCAM-Import **NICHT MÖGLICH** (kein Pool, Manual-UAT) |
+| 163.2 | Datenzeilen geprüft | `G-KT-I-BLENDE-SW-80-510-V01;3;2;EILT - 18.11 - 1;K-02,0,0,0;K-02;WAK;19.11.2026;2026-12-02;ST EG KA;;;` und `G-TK-I-BLENDE-SW-80-710-V01;1;5;18.11;H4-02,0,0,0;H4-02;WAK;19.11.2026;2026-12-02;LA KA;;;` (Arbeitsschritte aus SQL/163-Nachtrag, getrimmt) | OK |
+| 163.3 | `BF99990164` geöffnet | Block nennt „Pos 1 Matchcode: Semikolon“, „Pos 2: Materialnummer „1,5“ ist nicht ganzzahlig“ und das fehlende Kürzel | OK |
+| 163.4 | Testuser Kürzel `wak` gespeichert, Liste `?colf_kuerzel=wak` | DB `WAK`, Audit gesetzt; Spalte „Kürzel“, Filter liefert genau Testuser | OK |
+| 163.5 | zweiter Benutzer `WAK`, dann `A B`, dann `zu-lang-12345` | „Kürzel WAK ist schon an Testuser vergeben.“; Formatmeldung „nur Buchstaben und Ziffern, höchstens 10 Zeichen“; `maxlength=10` kappt; nichts gespeichert | OK |
+| 163.6 | Freigeben ohne Kürzel; Kürzel nachgetragen; erneut freigeben | erst „Freigabe von BF99990163 abgelehnt: Besteller Testuser hat kein Kürzel …“, Status bleibt, nichts geändert; dann freigegeben ohne Neuabschicken, Details „Testuser (WAK)“, `BestellerKuerzel` WAK | OK |
+| 163.7 | `BA-2026-00006` (Übergeben) per SQL auf `CreditorId NULL`, Dienstleister `qa-lack1 `; Auswahl „Lackierer (Kreditor) nachtragen“ → QA-LACK1, Speichern | `CreditorId` 2289, Dienstleister „QA Lackiererei Voll GmbH“, RAL/Termine/Positionen unverändert, Audit gesetzt; Auswahl danach weg | OK |
+| 163.8 | – | Direkt-POST ohne Entwicklertools nicht ausführbar; Leser ohne Schreibrecht nicht prüfbar (nur eine Admin-Identität) | NICHT MÖGLICH – Server-Regel automatisch belegt (`Kreditor_InUebergeben_NurNachtragen_SolangeLeer`) |
+| 163.9 | Einmal-Skript **nur Trockenlauf** auf DEV IDEAL und AKE | IDEAL: `BA-2026-00006 → 2289 QA Lackiererei Voll GmbH`, `TREFFER: 1`, nichts geändert; stornierte Aufträge mit passendem Kurznamen nicht dabei. AKE: `TREFFER: 0`. Nach 163.7 zweiter Trockenlauf IDEAL `TREFFER: 0` | OK; Scharflauf bewusst nicht |
+| 163.10 | `BA-2026-00007` mit 36 Positionen (32 temporär kopiert): PDF-Knopf `/Beschichtungsauftraege/Pdf/7` und Druck über Chrome-Druckmodul (`--print-to-pdf` der Druckansicht) | Barcode klein rechts neben dem Titel, nur waagrechte Linien, Tabellenkopf auf Seite 2 wiederholt, „Seite 1 von 2“ / „Seite 2 von 2“ in **Druck und PDF**; DEV ohne Briefkopf-Vorlage → Zählung auch ohne Fußbereich; einseitig „Seite 1 von 1“ | OK |
+| 163.11 | – | braucht Abgleich gegen SData (`Sync:*Enabled` auf DEV verboten) | NICHT MÖGLICH – automatisch belegt (`SageUserfelderTests.Erklaeren_LangeSqlDiagnose_HinweisVorn_AusDiagnose_NieDoppelt`) |
+| 163.12 | Warteschlange FA 1060414 per SQL: `PU/180` Fehler mit **altem** Unklar-Text, `IS/200` mit neuem, `VL/190` „HTTP 400“; Seite `?fa=1060414`; Knopf bei PU | Knopf an beiden Unklar-Zeilen, keiner bei HTTP 400; Klick → „FA 1060414: Arbeitsgang 180 als „in Sage vorhanden“ bestätigt“, DB Status 4 (InSageVorhanden), Audit gesetzt. Schalter blieb aus, nichts an Sage | OK (Umlaute der per sqlcmd eingefügten Testtexte verstümmelt – Testdaten-Artefakt, nicht App) |
+
+Nachweise 163.10 im Hauptcheckout `secondbrain/tests/2026-11-18-qa-v1-99-42-druck-pdf/`: `ts-163-10-druck-chrome-ba-2026-00007-2-seiten.pdf` (Druck),
+`ts-163-10-pdf-wms-ba-2026-00007-2-seiten.pdf` (PDF-Knopf), `ts-163-10-pdf-wms-ba-2026-00007-1-seite.pdf`, `ts-163-10-druckansicht-bildschirm-ba-2026-00007.png`
+(Bildschirmansicht). Bildschirmfotos aus dem Browser-Tab scheiterten am Renderer-Timeout der Erweiterung; Druck und PDF liegen daher als gerenderte PDF-Dateien vor.
+
+**Aufgeräumt (DEV IDEAL, per Abfrage belegt):** BF-Aufträge/-Positionen 0, Merkmal-Definition/-Werte `QA-163` gelöscht, `BfCsvAktiv = false`, `BfCsvPfad` leer,
+Ordner `ideal-qa` entfernt, Testuser-Kürzel NULL, `BA-2026-00006` zurück auf `CreditorId 2290` / „QA Lackierer ohne Anschrift“, temporäre Positionen an
+`BA-2026-00007` gelöscht, `OperationConfigs` PU/IS/VL `SageArbeitsgangnummerManuell` NULL, Sage-AG-Warteschlange leer. `SageLagerbuchungAktiv`,
+`SageFaArbeitsgaengeAnlegenAktiv`, alle `Sync:*Enabled` unverändert aus. SyncLogs bleiben. Nichts an Sage geschrieben, kein Test-/Produktivsystem berührt.
+
+**7. Publish:** in diesem Lauf nicht erstellt – der Aufrufer macht Paket 7 selbst (`publish\` nicht angefasst).
+
+**Deploy (aus dem echten Diff):** Web ja, Dienst ja (`SageFaArbeitsgangService`, Sdata-Abgleiche mit `Erklaeren(ex)`, `BfCsvService` über `BfCsv`),
+Migration **ja** (SQL/162, SQL/163; additiv, SQL/163 mit Daten-Nachtrag). Reihenfolge: DB-Backup → SQL/162, SQL/163 (Update-Skript Schema-Phase) → Web → Dienst →
+Einmal-Skript Kreditor im Trockenlauf, Scharflauf nur nach Freigabe der Liste + Backup. Vor `BfCsvAktiv`: Kürzel aller BF-Besteller pflegen.
+Nach dem Merge nur neu publishen, wenn der Merge getestete Dateien mit parallelen main-Änderungen zusammenführt.
+
+**Manuelle Checkliste (offen, für den Menschen):**
+1. 163.1 WiCAM-Import einer vom Dienst geschriebenen Datei am echten Pool (Testsystem IDEAL), Vergleich mit `BF00000002.csv`.
+2. 163.8 Direkt-POST mit zweitem Kreditor bzw. Nicht-Beschichter; Leser ohne Schreibrecht sieht keine Auswahl.
+3. 163.9 Scharflauf des Einmal-Skripts auf dem Testsystem (nach Backup, über das Update-Skript), danach Trockenlauf `TREFFER: 0`.
+4. 163.10 Druck in Edge am Drucker-Dialog sichtbar prüfen (hier über das Chrome-Druckmodul belegt).
+5. 163.11 falsche Userfeld-Einstellung gegen echtes SData (Testsystem) je Abgleich, danach zurücksetzen.
+6. 163.12 Sage-AG unklar im echten Ablauf; E1b (Schreibtest am IDEAL-Ziel) bleibt offen.
+7. Kürzel für alle BF-Besteller vor Go-live pflegen.
+8. Testsystem-Durchlauf TS-163 komplett mit dem Publish-Paket, danach Merge (Schranke 2).

@@ -4,7 +4,7 @@ title: Blechfertigung – BF-Aufträge (Warenkorb, Schachtler-Freigabe, WiCAM-CS
 slug: 2026-11-13-blechfertigung-bf-auftraege-wicam-csv-spec
 status: Testbereit
 created: 2026-11-17
-updated: 2026-11-17
+updated: 2026-11-18
 source_backlog: "[[2026-11-13-blechfertigung-bf-auftraege-wicam-csv]]"
 task: "[[2026-11-17-goal-lauf-bf-auftraege]]"
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
@@ -129,7 +129,8 @@ Das Feld „Sage-FA“ bleibt für Stufe 2 leer vorgesehen, damit Stufe 2 nichts
 Nummer `BF00000001` ff. aus eigener Folge; Status `Bestellt`; Mail an die Gruppe (Dienst).
 
 **F3 Prüfen/Freigeben (Schachtler).** Im Status `Bestellt`: Menge (Mengenregel bleibt), Hauptlagerplatz ändern, Position streichen.
-„Freigeben“ prüft serverseitig: jede Position hat Materialnummer, Matchcode, Hauptlagerplatz; kein Textfeld enthält `;`, `"`,
+„Freigeben“ prüft serverseitig: jede Position hat Materialnummer (ganzzahlig, seit v1.99.42), Matchcode, Hauptlagerplatz; der Besteller hat ein
+Kürzel (seit v1.99.42); kein Textfeld enthält `;` (Ausnahme Lagerplatz, dort `;`→`,`), `"`,
 Zeilenumbruch oder ein Zeichen außerhalb Windows-1252 (Melden statt still ersetzen). Dann berechnet der Server Schachteltermin und FE-Termin,
 schreibt sie samt Bemerkung je Position fest, Status `Freigegeben`, CSV-Status `Offen`.
 
@@ -242,24 +243,24 @@ Speicher wie `ArticlesApiController.Search` (`:34-41` sucht `limit*5` und filter
 - **Gleichzeitigkeit:** `RowVersion`; jede Aktion sendet die Absicht (Status-Übergang), der Server prüft den Ausgangsstatus (ADR 0026).
 
 ### CSV-Aufbau (Dienst, `BfCsvService`)
-Vorläufige Vorlage nach Backlog-Analyse und Auftrag; **die exakte Zeichenfolge wird aus einer echten Pool-Datei übernommen (P-1, Rückfrage 8)**
-und als Unit-Test-Vergleich festgeschrieben. Unbelegt bis P-1: Spalte der Kopfschlüssel (Backlog-Tabelle sagt „Schlüssel (B)“, Auftrag sagt
-`CREATE_NEW_ORDER;YES`), Leerzeilen 10 und 12, deutsche Überschrift Zeile 13, Trenner am Zeilenende.
+**Seit v1.99.42 exakt wie die WiCAM-Datei `BF00000002.csv`** (Befund P-1 (2), Walter 2026-11-18 15:28 „Zielform“); Byte-Vergleichstest gegen
+`IDEALAKEWMSService.Tests/TestData/BF00000002.csv`. Jede Zeile hat **13 Felder** (12 `;`, auch Leerzeilen), Zeilenende CRLF, kein BOM.
 
 ```
-PART_START
-CREATE_NEW_ORDER;{BfCsvCreateNewOrder}
-ORDER_NUMBER;{Nummer}
-ORDER_REMARK_3;{BfCsvRemark3}          (Default *HEADER_LINE_19)
-ORDER_REMARK_1;{BfCsvRemark1}          (Default *HEADER_LINE_17)
-ORDER_REMARK_2;{BfCsvRemark2}          (Default *HEADER_LINE_18)
-ORDER_PRIORITY;{BfCsvOrderPriority}    (Default 1)
-ORDER_RELEASE;{BfCsvOrderRelease}      (Default YES)
-PART_END
-ORDER_NC_FILE;ORDER_MATERIAL_NO;ORDER_AMOUNT;ORDER_REMARK;ORDER_POSITION;ORDER_REMARK_4;ORDER_DATE;ORDER_REMARK_5
-{Matchcode};{Materialnummer};{Menge};{Bemerkung};{Hauptlagerplatz};{Besteller};{Schachteltermin:dd.MM.yyyy};{FeTermin:yyyy-MM-dd}
+Z1   PART_START;;;…
+Z2-8 ;CREATE_NEW_ORDER;{BfCsvCreateNewOrder};…      Schlüssel in B, Wert in C:
+     ;ORDER_NUMBER;{Nummer}  ;ORDER_REMARK_3;{BfCsvRemark3}  ;ORDER_REMARK_1;{BfCsvRemark1}
+     ;ORDER_REMARK_2;{BfCsvRemark2}  ;ORDER_PRIORITY;{BfCsvOrderPriority}  ;ORDER_RELEASE;{BfCsvOrderRelease}
+Z9   PART_END;;;…
+Z10  (leer, 12 ;)
+Z11  ORDER_NC_FILE;ORDER_MATERIAL_NO;ORDER_AMOUNT;ORDER_REMARK;ORDER_POSITION;ORDER_REMARK_2;ORDER_REMARK_4;ORDER_DATE;ORDER_REMARK_5;ORDER_REMARK_1;;;
+Z12  (leer)
+Z13  Matchcode;Mat.Nr.;Menge;Bemerkung;Lagerplatz;Hauptlagerplatz;Besteller;Schachteltermin;FE-Termin;Arbeitsschritte;;;
+Z14+ {Matchcode};{Mat.-Nr. ganzzahlig};{Menge};{Bemerkung};{Lagerplatz ;→,};{Teil vor dem ersten Trenner};{Besteller-Kürzel};{Schachteltermin dd.MM.yyyy};{FE-Termin yyyy-MM-dd};{Arbeitsschritte};;;
 ```
-- Nur Spalten A–H, eine Zeile je nicht gestrichener Position, keine Leerzeilen-Auffüllung.
+- Eine Zeile je übergebener Position (nicht gestrichen, mit Materialnummer), keine Auffüllzeilen, keine Anführungszeichen.
+- Lagerplatz = voller Sage-Lagerplatz (`K-02;0;0;0` → `K-02,0,0,0`), Hauptlagerplatz = `K-02`; Besteller = `Users.Kuerzel` (Snapshot
+  `BfAuftraege.BestellerKuerzel`); Arbeitsschritte = `USER_OSArbeitsschritte` (Snapshot `BfAuftragPositionen.Arbeitsschritte`, Userfeld-Einstellung).
 - Menge: ganzzahlig ohne Nachkommastellen, sonst Dezimalkomma (`de-AT`).
 - Kodierung `Encoding.GetEncoding(1252)` mit `EncoderFallback.ExceptionFallback` (nie still `?`); dafür einmal
   `Encoding.RegisterProvider(CodePagesEncodingProvider.Instance)` im Dienst-Start (im Code bisher nicht verwendet, Suche ohne Treffer; der
@@ -741,3 +742,145 @@ getestete Dateien mit parallelen main-Änderungen zusammenführt.
 2. Test-CSV auf dem Testsystem byte-gleich mit der Dienst-Datei desselben Auftrags vergleichen (mit `BfCsvAktiv` + Testpfad).
 3. Besteller ohne schachtler: kein Knopf, Direkt-POST `/BfAuftraege/TestCsv` → verweigert (TS-157.23).
 4. Punkte 2–11 der Checkliste oben (P-7, Mail, Doppelklick, Feiertage, Gesamtlauf TS-157 auf Test) bleiben offen.
+
+## Befund P-1 (Koordination 2026-11-18 09:55) – Pool-Datei `1068259-MC.CSV` von Gerald
+Datei aus dem A-Pool (10.587 Bytes), **nicht** aus der BF-Lagerbestellung, sondern aus der Stücklisten-Kommissionierung (FA 1068259, Kunde „MC“,
+`Kom-Ablageort …\04_Stücklisten-Kommisionierung`). Belegt:
+- **Kodierung Windows-1252** (ä = 0xE4, ü = 0xFC), kein BOM; **Zeilenende CRLF**; **jede Zeile 28 Felder** (27 `;`), auch Leerzeilen;
+  Datei auf **200 Zeilen aufgefüllt** (`;;;…;` bis Zeile 200).
+- **Kopf PART_START … PART_END in Zeilen 1–15, Schlüssel in Spalte B, Wert in Spalte C** (Spalte A leer; `PART_START`/`PART_END` in Spalte A).
+  Kopfschlüssel hier: CREATE_NEW_ORDER YES, ORDER_NUMBER (= FA-Nr.), **ORDER_POSITION (= Kunden-Kürzel „MC“)**, ORDER_DATE `TT.MM.JJJJ`,
+  ORDER_REMARK_5 `JJJJ-MM-TT`, ORDER_REMARK_2 (Abteilung K-02), ORDER_REMARK_4 (Bearbeiter-Kürzel), ORDER_REMARK_3/1/8 `*HEADER_LINE_19/17/26`,
+  ORDER_PRIORITY 1, ORDER_REMARK_7 (Partie GN), **ORDER_RELEASE NO**.
+- Zeile 16 leer, **Zeile 17 Positions-Kopf** `ORDER_NC_FILE;ORDER_NC_ARCHIV;ORDER_MATERIAL_NO;ORDER_THICKNESS;ORDER_AMOUNT;ORDER_REMARK_2;ORDER_REMARK_8;NESTING_ROTATION;ORDER_REMARK`,
+  Zeilen 18–19 Excel-Hilfstexte (deutsche Überschriften), **Positionen ab Zeile 20** (Artikel, Archiv leer, Material-Nr., Dicke, Menge, Lagerplatz-Kürzel
+  wie `S-01`/`H2-02`, …) plus Hilfsspalten rechts.
+- **Excel fasst ein Feld mit `;` in `"…"` ein und verdoppelt enthaltene `"`** (Zeile 2, Formeltext) → stützt B-1 Variante (c).
+- **Sicherheitsbefund:** In den Excel-Hilfsspalten (Zeilen 6/7, Spalte AA/AB) stehen **Benutzername und Kennwort der WiCAM-Datenbank im Klartext**; sie
+  landen in jeder Pool-Datei. Das WMS schreibt keine Hilfsspalten. Empfehlung: aus der Excel-Vorlage entfernen, Kennwort ändern. Datei deshalb
+  **nicht** unverändert als Testvorlage ins Repo (nur bereinigt).
+- **Abweichung zur Vorlage im Lösungsentwurf** (Schlüssel in A, Kopf ohne POSITION/DATE/REMARK_5/REMARK_4, Positionen A–H mit anderen Spalten):
+  erheblich. **Offen:** Ist die Datei der BF-Lagerbestellung (BF*.csv) gleich aufgebaut? → eine echte `BF*.csv` beschaffen (P-1 bleibt offen), dann
+  Vorlage im Code angleichen (Dev-Lauf).
+
+## Befund P-1 (2) – echte BF-Dateien (Gerald 2026-11-18 15:14): BF00000001.csv (Excel-Makro, Pool) und BF00000002.csv, Makro `VL_KO-014_ALOOP-Auftragspool-Lagerteile-füllen-WMS.xlsm`
+Byte-genau ausgewertet (Koordination 15:20):
+- **BF00000001.csv** (Excel `SaveAs xlCSV, Local:=True`, VBA `ErstelleCSV`, Dateiname = Zelle C3 + „.csv“ nach `N:\u\pn\apools\`): Windows-1252, CRLF, kein BOM,
+  **25 Felder je Zeile**, **94 Zeilen** (Tabellenbereich bis Zeile 94 aufgefüllt), Hilfsspalten J–Y (Ablagepfade, Import-Tabelle).
+- **BF00000002.csv**: gleicher Aufbau, aber **13 Felder**, **16 Zeilen**, ohne Hilfstexte (vermutlich bereinigte Fassung – Herkunft offen).
+- **Aufbau (beide):** Z1 `PART_START` (Spalte A); Z2–8 **Schlüssel in Spalte B, Wert in Spalte C**: CREATE_NEW_ORDER YES, ORDER_NUMBER `BF0000000x`,
+  ORDER_REMARK_3/1/2 `*HEADER_LINE_19/17/18`, ORDER_PRIORITY 1, **ORDER_RELEASE YES**; Z9 `PART_END`; Z10 leer;
+  **Z11** `ORDER_NC_FILE;ORDER_MATERIAL_NO;ORDER_AMOUNT;ORDER_REMARK;ORDER_POSITION;ORDER_REMARK_2;ORDER_REMARK_4;ORDER_DATE;ORDER_REMARK_5;ORDER_REMARK_1`
+  (**10 Spalten**); Z12 leer (bzw. Hilfstext rechts); **Z13 deutsche Überschrift** `Matchcode;Mat.Nr.;Menge;Bemerkung;Lagerplatz;Hauptlagerplatz;Besteller;Schachteltermin;FE-Termin;Arbeitsschritte`;
+  **ab Z14 Positionen**.
+- **Positionswerte:** Matchcode GROSS (TRIM/CLEAN/UPPER); Mat.Nr. **ganzzahlig** („1“, „3“); Menge ganzzahlig; Bemerkung `[Status - ]TT.MM[ - Pos bei BG]`
+  („18.11 - 1“, „EILT - 18.11“, „18.11“); **ORDER_POSITION = voller Lagerplatz mit Kommas** („K-02,0,0,0“, „H4-02,0,0,0“ – kein `;`, keine Anführungszeichen);
+  **ORDER_REMARK_2 = Hauptlagerplatz** („K-02“); **ORDER_REMARK_4 = Besteller-Kürzel** („WAK“, „MAW“); ORDER_DATE = Bestelldatum + 1 Arbeitstag `TT.MM.JJJJ`;
+  ORDER_REMARK_5 = Bestelldatum + 10 Arbeitstage `JJJJ-MM-TT`; **ORDER_REMARK_1 = Arbeitsschritte** („S-01“, „ST EG KA“).
+- **Abweichungen WMS v1.99.36ff (`IdealAkeWms/Services/BfCsv.cs:110-131`):** Schlüssel in Spalte A statt B; Z10/Z12/Z13 fehlen; nur 8 Positionsspalten
+  (es fehlen ORDER_REMARK_2 Hauptlagerplatz und ORDER_REMARK_1 Arbeitsschritte, Reihenfolge anders); ORDER_POSITION = Hauptlagerplatz statt voller
+  Lagerplatz; Lagerplatz-`;` in Anführungszeichen statt **Komma**; Besteller = Name statt Kürzel; keine feste Feldanzahl.
+- **Folge:** B-1 Variante (c) wird durch **„`;` → `,`“** ersetzt (so steht es in der echten Datei). Antwort 4 der Walter-Mail („Arbeitsschritte nicht in die CSV“)
+  ist überholt – die WMS-Excel schreibt sie je Position (Spalte J). Offen: Feldanzahl (13 wie BF00000002 genügt?), Besteller-Kürzel-Quelle.
+- **Gerald 2026-11-18 15:20:** Besteller-Kürzel ist ein Personenkürzel (z. B. **WAK = Walter Kronberger**); **wird im WMS je Benutzer definiert** (neues Feld, kein Sage-Wert). CSV-Spalte ORDER_REMARK_4 = dieses Kürzel; fehlt es → Hinweis bei der Freigabe.
+- **Walter (über Gerald 2026-11-18 15:28):** **BF00000002 ist die Zielform**; Lagerplatz **`;` → `,`** bestätigt. Neue Logik von Benjamin (BG bestellen, FT-Einzelteile an WiCAM,
+  BF-Auftrag wie FA anzeigen) → eigener Backlog [[2026-11-18-bf-auftrag-baugruppen-aufloesen-und-als-fa-zeigen]].
+
+## Nachtrag v1.99.42 (Goal-Lauf [[2026-11-18-goal-lauf-nachbesserungen-v1-99-42]])
+
+Umgesetzt nach Befund P-1 (2) + Walter 15:28 und Gerald 15:20 (Kürzel je WMS-Benutzer): Rumpf „CSV-Aufbau“ und F3 oben nachgezogen.
+B-1 Variante (c) (Anführungszeichen) ist durch „`;` → `,`“ ersetzt; `;` sperrt außerhalb des Lagerplatzes wieder. Commits `1a972e72`
+(Kürzel, SQL/162), `9fd5181d` (CSV, SQL/163, Testvorlage `BF00000002.csv`, Platzhalter-Vorlage entfernt). TS-157.9/.11/.21 angepasst, neu TS-163.1–163.6.
+Offen bleibt nur der echte WiCAM-Import (Manual-UAT 163.1). Status unverändert bis zum QA-Lauf.
+
+## QA-Nachweis v1.99.42 (qa-agent, 2026-11-18)
+
+Gemeinsamer Lauf über die Nachbesserungen v1.99.42 (Changelog [[2026-11-18-v1-99-42-nachbesserungen]]), Diff `9b6b3e0d..0af91b73` (7 Commits)
+im Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, plus QA-Fix `b5463336`. Selbst in diesem Lauf geprüft, nicht delegiert.
+Derselbe Block steht in allen vier betroffenen Specs (BF-CSV, Beschichtungsauftrag-Ausbau, Sage-Userfelder, Sage-AG-Anlage).
+
+**1. Build und Tests** (Stand `b5463336`): `dotnet build IdealAkeWms.slnx` 0 Fehler, 30 Warnungen (neu: CS8604 `BfCsv.cs:124`, siehe H2).
+`dotnet test`: IdealAkeWms.Tests **3291 bestanden / 1 übersprungen / 0 Fehler** (vor dem QA-Fix 3288/1/0); IDEALAKEWMSService.Tests **790/0/0**.
+
+**2. Review** (Diff samt Umfeld gelesen: `BfCsv`, `BfAuftragWorkflow.FreigabeFehler/FreigebenAsync`, `BfAuftragRepository`, `UsersController.KuerzelPruefenAsync`,
+`BeschichtungsauftragWorkflow.BearbeitenAsync`, `Print.cshtml`, `_PrintBriefkopfFuss.cshtml`, `SageUserfelder.Erklaeren` mit allen Aufrufern,
+`SageFaArbeitsgangService` Kandidaten/Nachlesen, `SageFaArbeitsgangAnlageRepository.UnklarBestaetigenAsync`, View `SageFaArbeitsgaenge/Index`,
+SQL/162, SQL/163, Einmal-Skript, FreshInstall, Manifest, beide Migrationen):
+
+| Nr | Schwere | Befund | Fundstelle | Behandlung |
+|---|---|---|---|---|
+| F1 | mittel | `IstUnklar` prüfte `StartsWith(UnklarText)`, und genau dieser Text wurde in v1.99.42 geändert. Unklar-Zeilen, die v1.99.38–1.99.41 mit dem alten Text gespeichert haben, wären nach dem Update **automatisch erneut gesendet** worden (Dublette in Sage) und hätten keinen Bestätigen-Knopf bekommen | `IdealAkeWms/Services/SageFaArbeitsgaenge.cs:37-41` (vorher), `Views/SageFaArbeitsgaenge/Index.cshtml:164` | **behoben** `b5463336`: gemeinsamer Anfang `UnklarAnfang = "Antwort unklar"` für Dienst-Regel, Repository und View; Test `SageFaArbeitsgaengeControllerTests.IstUnklar_ErkenntAltenUndNeuenText` (alter Text, neuer Text, echter Fehler). Auf DEV IDEAL nachgeprüft (163.12) |
+| H1 | Hinweis | EF-Migration `20261118145602_AddBfPositionArbeitsschritte` legt nur die Spalte an; den Nachtrag der Arbeitsschritte macht allein `SQL/163` | Migration, `SQL/163_AddBfPositionArbeitsschritte.sql` | angenommen: Update-Skript führt SQL/163 in der Schema-Phase aus; das UPDATE läuft auch nach EF-Migrate (auf DEV belegt: 2 Positionen nachgetragen, getrimmt). Kein Fix |
+| H2 | Hinweis | neue Warnung CS8604 `Z("", "ORDER_NUMBER", a.Nummer)` mit `string?` | `IdealAkeWms/Services/BfCsv.cs:124` | kosmetisch (freigegebene Aufträge haben immer eine Nummer). Offen |
+| H3 | Hinweis | Test-CSV vor der Freigabe hat `ORDER_REMARK_4` leer: Kürzel wird erst bei der Freigabe festgeschrieben (wie Termine/Bemerkung) | `BfAuftragWorkflow` Freigabe, `BfAuftraegeController` Test-CSV | gewollt (Snapshot der Freigabe). Kein Fix |
+| H4 | Hinweis | `[RegularExpression]` für das Kürzel läuft vor dem Trimmen: „ WAK“ mit Leerzeichen wird abgelehnt statt getrimmt | `UserEditViewModel` Kuerzel | harmlos (klare Meldung). Kein Fix |
+| H5 | Hinweis | Einmal-Skript zeigt in der Zählung `NULL` statt `0`, wenn kein Altauftrag passt (DEV AKE) | `SQL/Einmalig/2026-11-18_v1.99.42_BeschichtungsauftragKreditorNachtragen.sql` Zählblock | kosmetisch; maßgeblich `TREFFER: 0` stimmt. Kein Fix |
+
+Ohne Befund geprüft: keine Werte in `<script>`-Blöcken, kein `hidden` neben `d-*`, kein neues `?? 0`, keine Parallel-Arrays; Kürzel-Eindeutigkeit serverseitig
+(`KuerzelPruefenAsync` + gefilterter UNIQUE-Index `UQ_Users_Kuerzel`); Kürzel-, Semikolon- und Ganzzahl-Sperre serverseitig in **einer** Funktion `FreigabeFehler`
+(Anzeige und Freigabe); Kreditor-Nachtrag serverseitig (schon gesetzt / kein aktiver Beschichter → abgelehnt); Einmal-Skript-Regel = `KreditorVorbelegen`
+(zwei Orte, gleiche Regel, im Skript-Kopf benannt); `Bestaetigen` nur Admin (Class-Level `RequireAdminAccess`), schreibt nichts an Sage.
+Audit: Users (Edit), BF-Freigabe, Beschichtungsauftrag (`Geaendert`), Sage-AG-Bestätigen, Einmal-Skript – auf DEV in der DB gesehen.
+Migrations-Disziplin: SQL/162 + SQL/163 mit `COL_LENGTH`/`sys.indexes`-Guards, DDL je Batch, History separat; FreshInstall an **beiden** Stellen (Spalten
+`Users.Kuerzel`, `BfAuftraege.BestellerKuerzel`, `BfAuftragPositionen.Arbeitsschritte`, Index, beide `MigrationId`); AgentJobs nicht betroffen; nicht daten-destruktiv.
+Manifest `nachlauf.psd1`: SQL/162, SQL/163, Einmal-Skript (Trockenlauf, `Braucht` SQL/161), BfCsv-Text nachgezogen; `NachlaufManifestDriftTests` grün.
+Version 1.99.42 in beiden `AppVersion.cs`, Anwender-Changelog, TS-163 in `docs/TESTSZENARIEN.md` + Index-Zeile 163. ADR 0020: keine neue/geänderte Einstellung.
+
+**3. Nachweisart:** automatisch belegt: CSV-Aufbau/Kodierung (`BfCsvServiceTests`), Freigabe-Sperren (`BfAuftragWorkflowTests`), Kürzel-Prüfung (`UsersControllerTests`),
+Kreditor-Nachtrag (`BeschichtungsauftragWorkflowTests`), Userfeld-Meldung (`SageUserfelderTests`), Unklar-Regel (`SageFaArbeitsgangServiceTests`, `SageFaArbeitsgaengeControllerTests`).
+Manual-UAT (nicht als grün gezählt): UNIQUE-Index, SQL/162/163, Einmal-Skript, echtes Model-Binding der Formulare, Druck/PDF-Seitenzähler, WiCAM-Import, echtes SData.
+Die Manual-UAT-Teile sind unten auf DEV abgearbeitet, soweit möglich.
+
+**4. Geänderte bestehende Tests** – alle *Verhalten durch die Nachbesserung gewollt geändert*, kein „Fixture bis grün“:
+`BfCsvServiceTests` (Vorlage → echte `BF00000002.csv`; Semikolon-Test → `Lagerplatz_KommaStattSemikolon`; Kodierungs-Test von BestellerName auf Arbeitsschritte,
+weil der Name nicht mehr in die CSV geht) – P-1 (2); `BfAuftragWorkflowTests` (Fixture-Benutzer mit Kürzel, Materialnummer „M-1“ → „11“ wegen Ganzzahl-Sperre,
+Semikolon-Test umbenannt/angepasst, Test für entfernte `Feld()` gelöscht) – P-1 (2) + Kürzel; `SageFaArbeitsgangServiceTests.Nachlesen_KeinFund_…` (Fehler → unklar) – N1;
+`NachlaufManifestDriftTests` (SQL/162, SQL/163 ergänzt) – Liste.
+
+**6. DEV-Deploy** (erhöhte Shell; Zielordner `D:\Dev\{AKE,IDEAL}\{Web,Service}` vorher geleert, erhalten `appsettings.DEV.json*`, `logs`, `App_Data`):
+`dev-deploy.ps1 -Quelle <Worktree>` je Standort zweimal (Stand `0af91b73`, dann `b5463336`): **AKE** Exit 0 „HTTP 200, Fusszeile v1.99.42“,
+**IDEAL** Exit 0 „HTTP 200, Fusszeile v1.99.42“; DEV-Absicherung lief je Standort. Beide Migrationen in beiden DEV-DBs; danach `SQL/162` und `SQL/163`
+per `sqlcmd` je DB: Exit 0, idempotent (Spaltenbreiten 20/20/400 Byte, `UQ_Users_Kuerzel` gefiltert `[Kuerzel] IS NOT NULL`).
+
+TS-163 auf DEV IDEAL (Testdaten Kennung `QA-163`; `BfCsvPfad = D:\Dev\wicam-pool\ideal-qa`, `BfCsvAktiv = true` nur für den Test):
+
+| TS | Durchgeführt | Ergebnis | Status |
+|---|---|---|---|
+| 163.1 | `BF99990163` freigegeben, Dienst schrieb `BF99990163.csv` (792 Byte, `CsvStatus` 2) | 15 Zeilen, nur CRLF, jede Zeile 12 `;`, keine `"`, nur ASCII; Zeilen 1–13 byte-gleich zur Vorlage `BF00000002.csv` bis auf die Auftragsnummer; Position ohne Materialnummer fehlt | OK (Byte-Aufbau); WiCAM-Import **NICHT MÖGLICH** (kein Pool, Manual-UAT) |
+| 163.2 | Datenzeilen geprüft | `G-KT-I-BLENDE-SW-80-510-V01;3;2;EILT - 18.11 - 1;K-02,0,0,0;K-02;WAK;19.11.2026;2026-12-02;ST EG KA;;;` und `G-TK-I-BLENDE-SW-80-710-V01;1;5;18.11;H4-02,0,0,0;H4-02;WAK;19.11.2026;2026-12-02;LA KA;;;` (Arbeitsschritte aus SQL/163-Nachtrag, getrimmt) | OK |
+| 163.3 | `BF99990164` geöffnet | Block nennt „Pos 1 Matchcode: Semikolon“, „Pos 2: Materialnummer „1,5“ ist nicht ganzzahlig“ und das fehlende Kürzel | OK |
+| 163.4 | Testuser Kürzel `wak` gespeichert, Liste `?colf_kuerzel=wak` | DB `WAK`, Audit gesetzt; Spalte „Kürzel“, Filter liefert genau Testuser | OK |
+| 163.5 | zweiter Benutzer `WAK`, dann `A B`, dann `zu-lang-12345` | „Kürzel WAK ist schon an Testuser vergeben.“; Formatmeldung „nur Buchstaben und Ziffern, höchstens 10 Zeichen“; `maxlength=10` kappt; nichts gespeichert | OK |
+| 163.6 | Freigeben ohne Kürzel; Kürzel nachgetragen; erneut freigeben | erst „Freigabe von BF99990163 abgelehnt: Besteller Testuser hat kein Kürzel …“, Status bleibt, nichts geändert; dann freigegeben ohne Neuabschicken, Details „Testuser (WAK)“, `BestellerKuerzel` WAK | OK |
+| 163.7 | `BA-2026-00006` (Übergeben) per SQL auf `CreditorId NULL`, Dienstleister `qa-lack1 `; Auswahl „Lackierer (Kreditor) nachtragen“ → QA-LACK1, Speichern | `CreditorId` 2289, Dienstleister „QA Lackiererei Voll GmbH“, RAL/Termine/Positionen unverändert, Audit gesetzt; Auswahl danach weg | OK |
+| 163.8 | – | Direkt-POST ohne Entwicklertools nicht ausführbar; Leser ohne Schreibrecht nicht prüfbar (nur eine Admin-Identität) | NICHT MÖGLICH – Server-Regel automatisch belegt (`Kreditor_InUebergeben_NurNachtragen_SolangeLeer`) |
+| 163.9 | Einmal-Skript **nur Trockenlauf** auf DEV IDEAL und AKE | IDEAL: `BA-2026-00006 → 2289 QA Lackiererei Voll GmbH`, `TREFFER: 1`, nichts geändert; stornierte Aufträge mit passendem Kurznamen nicht dabei. AKE: `TREFFER: 0`. Nach 163.7 zweiter Trockenlauf IDEAL `TREFFER: 0` | OK; Scharflauf bewusst nicht |
+| 163.10 | `BA-2026-00007` mit 36 Positionen (32 temporär kopiert): PDF-Knopf `/Beschichtungsauftraege/Pdf/7` und Druck über Chrome-Druckmodul (`--print-to-pdf` der Druckansicht) | Barcode klein rechts neben dem Titel, nur waagrechte Linien, Tabellenkopf auf Seite 2 wiederholt, „Seite 1 von 2“ / „Seite 2 von 2“ in **Druck und PDF**; DEV ohne Briefkopf-Vorlage → Zählung auch ohne Fußbereich; einseitig „Seite 1 von 1“ | OK |
+| 163.11 | – | braucht Abgleich gegen SData (`Sync:*Enabled` auf DEV verboten) | NICHT MÖGLICH – automatisch belegt (`SageUserfelderTests.Erklaeren_LangeSqlDiagnose_HinweisVorn_AusDiagnose_NieDoppelt`) |
+| 163.12 | Warteschlange FA 1060414 per SQL: `PU/180` Fehler mit **altem** Unklar-Text, `IS/200` mit neuem, `VL/190` „HTTP 400“; Seite `?fa=1060414`; Knopf bei PU | Knopf an beiden Unklar-Zeilen, keiner bei HTTP 400; Klick → „FA 1060414: Arbeitsgang 180 als „in Sage vorhanden“ bestätigt“, DB Status 4 (InSageVorhanden), Audit gesetzt. Schalter blieb aus, nichts an Sage | OK (Umlaute der per sqlcmd eingefügten Testtexte verstümmelt – Testdaten-Artefakt, nicht App) |
+
+Nachweise 163.10 im Hauptcheckout `secondbrain/tests/2026-11-18-qa-v1-99-42-druck-pdf/`: `ts-163-10-druck-chrome-ba-2026-00007-2-seiten.pdf` (Druck),
+`ts-163-10-pdf-wms-ba-2026-00007-2-seiten.pdf` (PDF-Knopf), `ts-163-10-pdf-wms-ba-2026-00007-1-seite.pdf`, `ts-163-10-druckansicht-bildschirm-ba-2026-00007.png`
+(Bildschirmansicht). Bildschirmfotos aus dem Browser-Tab scheiterten am Renderer-Timeout der Erweiterung; Druck und PDF liegen daher als gerenderte PDF-Dateien vor.
+
+**Aufgeräumt (DEV IDEAL, per Abfrage belegt):** BF-Aufträge/-Positionen 0, Merkmal-Definition/-Werte `QA-163` gelöscht, `BfCsvAktiv = false`, `BfCsvPfad` leer,
+Ordner `ideal-qa` entfernt, Testuser-Kürzel NULL, `BA-2026-00006` zurück auf `CreditorId 2290` / „QA Lackierer ohne Anschrift“, temporäre Positionen an
+`BA-2026-00007` gelöscht, `OperationConfigs` PU/IS/VL `SageArbeitsgangnummerManuell` NULL, Sage-AG-Warteschlange leer. `SageLagerbuchungAktiv`,
+`SageFaArbeitsgaengeAnlegenAktiv`, alle `Sync:*Enabled` unverändert aus. SyncLogs bleiben. Nichts an Sage geschrieben, kein Test-/Produktivsystem berührt.
+
+**7. Publish:** in diesem Lauf nicht erstellt – der Aufrufer macht Paket 7 selbst (`publish\` nicht angefasst).
+
+**Deploy (aus dem echten Diff):** Web ja, Dienst ja (`SageFaArbeitsgangService`, Sdata-Abgleiche mit `Erklaeren(ex)`, `BfCsvService` über `BfCsv`),
+Migration **ja** (SQL/162, SQL/163; additiv, SQL/163 mit Daten-Nachtrag). Reihenfolge: DB-Backup → SQL/162, SQL/163 (Update-Skript Schema-Phase) → Web → Dienst →
+Einmal-Skript Kreditor im Trockenlauf, Scharflauf nur nach Freigabe der Liste + Backup. Vor `BfCsvAktiv`: Kürzel aller BF-Besteller pflegen.
+Nach dem Merge nur neu publishen, wenn der Merge getestete Dateien mit parallelen main-Änderungen zusammenführt.
+
+**Manuelle Checkliste (offen, für den Menschen):**
+1. 163.1 WiCAM-Import einer vom Dienst geschriebenen Datei am echten Pool (Testsystem IDEAL), Vergleich mit `BF00000002.csv`.
+2. 163.8 Direkt-POST mit zweitem Kreditor bzw. Nicht-Beschichter; Leser ohne Schreibrecht sieht keine Auswahl.
+3. 163.9 Scharflauf des Einmal-Skripts auf dem Testsystem (nach Backup, über das Update-Skript), danach Trockenlauf `TREFFER: 0`.
+4. 163.10 Druck in Edge am Drucker-Dialog sichtbar prüfen (hier über das Chrome-Druckmodul belegt).
+5. 163.11 falsche Userfeld-Einstellung gegen echtes SData (Testsystem) je Abgleich, danach zurücksetzen.
+6. 163.12 Sage-AG unklar im echten Ablauf; E1b (Schreibtest am IDEAL-Ziel) bleibt offen.
+7. Kürzel für alle BF-Besteller vor Go-live pflegen.
+8. Testsystem-Durchlauf TS-163 komplett mit dem Publish-Paket, danach Merge (Schranke 2).

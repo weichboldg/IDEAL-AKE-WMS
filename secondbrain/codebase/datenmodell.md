@@ -283,6 +283,9 @@ oben ist durch SQL/149 ueberholt (jetzt 45).
   Materialnummer, `FertigungsInfoPN`, Hauptlagerplatz, Menge, `SageBestellmenge` (Schnappschuss), Status, Bemerkung (bei Freigabe
   festgeschrieben), `Gestrichen`, `SageFa` (Stufe 2, leer); berechnet `Uebergeben` = nicht gestrichen und Materialnummer vorhanden.
 - Artikelmerkmale der Blechteile ohne Schema-Änderung (vorhandene Merkmal-Tabellen, `BfArtikelFelder`). Migration `20261117154645_AddBfAuftraege`.
+- **v1.99.42** ([[2026-11-18-v1-99-42-nachbesserungen]]): `Users.Kuerzel` (nvarchar 10, groß, gefilterter UNIQUE `UQ_Users_Kuerzel`) und `BfAuftraege.BestellerKuerzel`
+  (Snapshot bei Freigabe → CSV ORDER_REMARK_4), SQL/162; `BfAuftragPositionen.Arbeitsschritte` (≤ 200, Snapshot aus `USER_OSArbeitsschritte`
+  → ORDER_REMARK_1, Nachtrag aus dem Merkmal), SQL/163. `Hauptlagerplatz` hält den **vollen** Sage-Lagerplatz (`K-02;0;0;0`).
 
 ## FA-Struktur-Lebenslauf (v1.99.37, SQL/159, [[2026-11-17-fa-struktur-abgleich-statt-full-replace-spec]])
 

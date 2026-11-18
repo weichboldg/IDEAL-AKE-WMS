@@ -2144,3 +2144,12 @@ Code: `hardware-scanner.js` Block „Scannen ohne Feld“, CSS `.hw-scan-bereit`
   wird: `schluessel` (Liste), `artnr` (Summiert, Server löst zu den **jetzt** freien Positionen auf), `freiArtikelId`/`freiMenge`.
   Ist ein Teil ungültig, wird **nichts** angelegt (keine Nummer verbraucht); nie still den gültigen Rest anlegen.
 - **Test:** `BeschichtungsauftragWorkflowTests.FreiePosition_GleicherArtikelInZweiAuftraegen…`, `BeschichtungsauftraegeControllerTests.Create_TeilweiseUngueltig_GanzAbgelehnt_NenntVergabe`.
+
+## 53. Erklärende Hinweise vor die Fremdmeldung, nie dahinter (v1.99.42, [[2026-11-18-v1-99-42-nachbesserungen]])
+
+- **Problem:** `SageUserfelder.Erklaeren` hängte „Einstellung … prüfen“ an die SData-Meldung an. `SdataLeseException.Message` ist auf 600 Zeichen
+  gekappt, die SQL-Fehlermeldung von Sage („Ungültiger Spaltenname …“ samt Abfragetext) ist länger – der Hinweis fiel im Aktivitäts-Protokoll
+  weg, nur bei kurzen Meldungen (Kreditoren) sah man ihn. Befund 13:25 am Testsystem IDEAL :88.
+- **Regel:** Der eigene Hinweis steht **vorn**; erklärt wird aus der ungekappten `Diagnose` (`Erklaeren(Exception)`), und eine schon erklärte
+  Meldung wird nicht doppelt erklärt. Wer eine Meldung kappt oder kürzt, setzt das Wichtige an den Anfang.
+- **Test:** `SageUserfelderTests.Erklaeren_LangeSqlDiagnose_HinweisVorn_AusDiagnose_NieDoppelt`.
