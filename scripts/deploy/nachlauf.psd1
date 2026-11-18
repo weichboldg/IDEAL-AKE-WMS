@@ -533,7 +533,7 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
    Text='Erst nach Einrichtung (Empfaengergruppe, Rolle schachtler, Pool-Pfad, Feiertage): /Settings > Blechfertigung > Blechfertigung aktiv = true. AKE bleibt aus.'
    Quelle='2026-11-17-v1-99-35-blechfertigung-bf-auftraege' }
 @{ Id='v1.99.35-BfCsv'; Version='1.99.35'; Typ='Einstellung'; Firma='IDEAL'; Phase='Nachher'; Ausfuehrung='anzeigen'
-   Text='/ServiceSettings > Blechfertigung WiCAM: BfCsvPfad = \\idealcam.ideal.ideal-ake.at\fertigung\u\pn\apools\, BfCsvAktiv = true, Sync:BfAuftragEmailEnabled = true. Das CSV-Layout ist ein Platzhalter bis P-1 (Musterdatei aus WiCAM) - vor dem Einschalten mit der Musterdatei abgleichen.'
+   Text='/ServiceSettings > Blechfertigung WiCAM: BfCsvPfad = \\idealcam.ideal.ideal-ake.at\fertigung\u\pn\apools\, BfCsvAktiv = true, Sync:BfAuftragEmailEnabled = true. Das CSV-Layout folgt seit v1.99.42 der WiCAM-Datei BF00000002. Vor dem Einschalten bei allen Bestellern ein Kuerzel unter Stammdaten > Benutzer pflegen (sonst ist die Freigabe gesperrt).'
    Quelle='2026-11-17-v1-99-35-blechfertigung-bf-auftraege' }
 @{ Id='v1.99.35-BlechteileFelder'; Version='1.99.35'; Typ='Einstellung'; Firma='IDEAL'; Phase='Nachher'; Ausfuehrung='anzeigen'
    Text='/ServiceSettings: Sync:BlechteileFelderNachlesen = true (SData-Zugang IDEAL vorhanden); nach dem naechsten Artikel-Abgleich Merkmale IstLagerartikel pruefen.'
