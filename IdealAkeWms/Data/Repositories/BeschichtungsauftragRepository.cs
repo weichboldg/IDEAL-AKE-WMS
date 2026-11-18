@@ -36,7 +36,7 @@ public class BeschichtungsauftragRepository : IBeschichtungsauftragRepository
         if (hauptFas.Count == 0) return new List<Vergabe>();
         var rows = await _db.BeschichtungsauftragPositionen
             .AsNoTracking()
-            .Where(p => hauptFas.Contains(p.HauptFA) && p.Beschichtungsauftrag.Status != BeschichtungsauftragStatus.Storniert)
+            .Where(p => hauptFas.Contains(p.HauptFA) && !p.OhneFa && p.Beschichtungsauftrag.Status != BeschichtungsauftragStatus.Storniert)
             .Select(p => new { p.HauptFA, p.VaterFA, p.SubFA, p.Position, p.Artnr, p.PositionText, p.BeschichtungsauftragId, p.Beschichtungsauftrag.Nummer })
             .ToListAsync();
         return rows.Select(r => new Vergabe(PositionsSchluessel.Bilden(r.VaterFA, r.SubFA, r.Position, r.Artnr, r.PositionText),

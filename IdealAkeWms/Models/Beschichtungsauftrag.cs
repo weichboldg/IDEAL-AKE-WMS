@@ -24,6 +24,11 @@ public class Beschichtungsauftrag : AuditableEntity
     [StringLength(200)]
     public string? Dienstleister { get; set; }
 
+    /// <summary>v1.99.41 (Spec 2026-11-18-beschichtungsauftrag-ausbau, A9): Lackierer aus den Kreditoren (aktiv, IsCoater).
+    /// Gesetzt = Anschrift im Druck live aus dem Kreditor, <see cref="Dienstleister"/> = Kreditor-Name. Null = Freitext-Rueckfall.</summary>
+    public int? CreditorId { get; set; }
+    public Creditor? Creditor { get; set; }
+
     [StringLength(200)]
     public string? Ral { get; set; }
 
@@ -42,6 +47,9 @@ public class Beschichtungsauftrag : AuditableEntity
 
     public DateTime? UebergebenAt { get; set; }
     public int? UebergebenByUserId { get; set; }
+    /// <summary>v1.99.41 (A5): Zeitpunkt/Benutzer des Schritts Versendet.</summary>
+    public DateTime? VersendetAt { get; set; }
+    public int? VersendetByUserId { get; set; }
     public DateTime? ErledigtAt { get; set; }
     public int? ErledigtByUserId { get; set; }
     public DateTime? StorniertAt { get; set; }

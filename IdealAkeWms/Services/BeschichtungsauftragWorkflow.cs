@@ -53,7 +53,8 @@ public class BeschichtungsauftragWorkflow
         new HashSet<(BeschichtungsauftragStatus, BeschichtungsauftragStatus)>
         {
             (BeschichtungsauftragStatus.Entwurf, BeschichtungsauftragStatus.Uebergeben),
-            (BeschichtungsauftragStatus.Uebergeben, BeschichtungsauftragStatus.Erledigt),
+            (BeschichtungsauftragStatus.Uebergeben, BeschichtungsauftragStatus.Versendet),
+            (BeschichtungsauftragStatus.Versendet, BeschichtungsauftragStatus.Erledigt),
             (BeschichtungsauftragStatus.Entwurf, BeschichtungsauftragStatus.Storniert),
         };
 
@@ -130,7 +131,8 @@ public class BeschichtungsauftragWorkflow
                     ? await _flach.StartBeschichtungAsync(flachePositionen.Auftraege[0]) : null;
             else
                 KopfVorbelegen(auftrag, await _infos.GetByHauptFaAsync(hauptFa), r);
-            foreach (var n in frei) auftrag.Positionen.Add(Snapshot(n));
+            // A3: was aus der Vorschlagsauswahl kommt, ist verpackt (Haken = Auswahl); spaeter hinzugefuegte Positionen nicht.
+            foreach (var n in frei) { var p = Snapshot(n); p.Verpackt = true; auftrag.Positionen.Add(p); }
             await NummerVergebenUndSpeichernAsync(auftrag);
             r.Auftrag = auftrag;
             return r;
@@ -323,9 +325,19 @@ public class BeschichtungsauftragWorkflow
         if (a is null) return r;
         if (!ErlaubteUebergaenge.Contains((a.Status, ziel)))
             return Fehler($"Statuswechsel {Anzeige(a.Status)} → {Anzeige(ziel)} ist nicht erlaubt ({a.Nummer}). Erlaubt: " +
-                          "Entwurf → Übergeben → Erledigt sowie Entwurf → Storniert.");
+                          "Entwurf → Übergeben → Versendet → Erledigt sowie Entwurf → Storniert.");
         if (ziel == BeschichtungsauftragStatus.Uebergeben && string.IsNullOrWhiteSpace(a.Dienstleister))
             return Fehler("Dienstleister fehlt — vor dem Uebergeben am Auftrag eintragen.");
+        if (ziel == BeschichtungsauftragStatus.Versendet)
+        {
+            // A6: Versendet nur mit mindestens einer Position und allen Haken „verpackt“ — fehlende werden genannt, nie still uebergangen.
+            if (a.Positionen.Count == 0)
+                return Fehler($"{a.Nummer} hat keine Positionen — Versendet nicht möglich.");
+            var offen = a.Positionen.Where(p => !p.Verpackt).ToList();
+            if (offen.Count > 0)
+                return Fehler($"Versendet nur, wenn alle Positionen verpackt sind — nicht verpackt ({offen.Count}): " +
+                              string.Join(", ", offen.Select(PositionBezeichnung)) + ". Bitte anhaken oder entfernen.");
+        }
 
         var jetzt = Jetzt;
         var userId = _user.GetCurrentAppUserId();
@@ -333,6 +345,7 @@ public class BeschichtungsauftragWorkflow
         switch (ziel)
         {
             case BeschichtungsauftragStatus.Uebergeben: a.UebergebenAt = jetzt; a.UebergebenByUserId = userId; break;
+            case BeschichtungsauftragStatus.Versendet: a.VersendetAt = jetzt; a.VersendetByUserId = userId; break;
             case BeschichtungsauftragStatus.Erledigt: a.ErledigtAt = jetzt; a.ErledigtByUserId = userId; break;
             case BeschichtungsauftragStatus.Storniert: a.StorniertAt = jetzt; a.StorniertByUserId = userId; break;
         }
@@ -341,6 +354,11 @@ public class BeschichtungsauftragWorkflow
     }
 
     // ===================== Bausteine =====================
+
+    /// <summary>Kurzbezeichnung einer Position fuer Meldungen: Artnr, sonst Matchcode; freie Positionen mit „(ohne FA)“.</summary>
+    internal static string PositionBezeichnung(BeschichtungsauftragPosition p) =>
+        (string.IsNullOrWhiteSpace(p.Artnr) ? p.Matchcode ?? $"#{p.Id}" : p.Artnr) +
+        (p.OhneFa ? " (ohne FA)" : p.Position is int pos ? $" (Pos. {pos})" : string.IsNullOrWhiteSpace(p.PositionText) ? "" : $" (Pos. {p.PositionText})");
 
     private async Task<Beschichtungsauftrag?> LadenAsync(int id, BeschichtungsauftragErgebnis r)
     {
@@ -476,6 +494,7 @@ public class BeschichtungsauftragWorkflow
             HauptFA = u.HauptFA, VaterFA = u.VaterFA, SubFA = u.SubFA, Position = u.Position, PositionText = u.PositionText,
             HauptArtnr = u.HauptArtnr, Artnr = u.Artnr, Matchcode = u.Matchcode,
             Menge = u.Menge, Breite = u.Breite, Hoehe = u.Hoehe, Tiefe = u.Tiefe,
+            OhneFa = u.OhneFa,   // A7; Verpackt bewusst false — die Reklamationsteile werden neu verpackt
         };
         Erstellt(p);
         return p;

@@ -33,4 +33,12 @@ public class BeschichtungsauftragPosition : AuditableEntity
     public decimal Breite { get; set; }
     public decimal Hoehe { get; set; }
     public decimal Tiefe { get; set; }
+
+    /// <summary>v1.99.41 (Spec 2026-11-18-beschichtungsauftrag-ausbau, A1/A8): Haken „verpackt“. Anlage aus der Vorschlagsauswahl
+    /// = true, hinzugefuegte und Reklamations-Positionen = false. Versendet nur, wenn alle Positionen verpackt sind (A6).</summary>
+    public bool Verpackt { get; set; }
+
+    /// <summary>v1.99.41 (A7): freie Position ohne FA-Bezug (Artikel aus dem Stamm). Zaehlt nie als Vergabe
+    /// (<c>GetVergabenAsync</c>), darf mehrfach vorkommen; ihr Schluessel (VaterFA null, SubFA 0, Position null) ist bedeutungslos.</summary>
+    public bool OhneFa { get; set; }
 }

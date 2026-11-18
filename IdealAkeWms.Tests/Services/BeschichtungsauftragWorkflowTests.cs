@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -116,8 +116,19 @@ public class BeschichtungsauftragWorkflowTests
             return r.Auftrag!;
         }
 
+        /// <summary>Statuswechsel; Erledigt aus Uebergeben geht seit v1.99.41 ueber Versendet (alle Haken gesetzt).</summary>
         public async Task Status(Beschichtungsauftrag a, BeschichtungsauftragStatus ziel)
-            => (await Wf.StatusWechselnAsync(a.Id, ziel, a.RowVersion)).Fehler.Should().BeEmpty();
+        {
+            if (ziel == BeschichtungsauftragStatus.Erledigt && a.Status == BeschichtungsauftragStatus.Uebergeben)
+                await Versenden(a);
+            (await Wf.StatusWechselnAsync(a.Id, ziel, a.RowVersion)).Fehler.Should().BeEmpty();
+        }
+
+        public async Task Versenden(Beschichtungsauftrag a)
+        {
+            foreach (var p in a.Positionen) p.Verpackt = true;
+            (await Wf.StatusWechselnAsync(a.Id, BeschichtungsauftragStatus.Versendet, a.RowVersion)).Fehler.Should().BeEmpty();
+        }
 
         public async Task<Beschichtungsauftrag> Erledigt(int hauptFa = HauptFa)
         {
@@ -292,6 +303,7 @@ public class BeschichtungsauftragWorkflowTests
 
         await fx.Status(a, BeschichtungsauftragStatus.Erledigt);
         (a.Status, a.ErledigtByUserId).Should().Be((BeschichtungsauftragStatus.Erledigt, (int?)7));
+        (a.VersendetAt, a.VersendetByUserId).Should().Be(((DateTime?)new DateTime(2026, 10, 12, 9, 0, 0), (int?)7));
 
         var b = await fx.Anlegen(2);
         await fx.Status(b, BeschichtungsauftragStatus.Storniert);
@@ -305,6 +317,12 @@ public class BeschichtungsauftragWorkflowTests
     [InlineData(BeschichtungsauftragStatus.Erledigt, BeschichtungsauftragStatus.Entwurf)]
     [InlineData(BeschichtungsauftragStatus.Erledigt, BeschichtungsauftragStatus.Uebergeben)]
     [InlineData(BeschichtungsauftragStatus.Erledigt, BeschichtungsauftragStatus.Storniert)]
+    [InlineData(BeschichtungsauftragStatus.Erledigt, BeschichtungsauftragStatus.Versendet)]
+    [InlineData(BeschichtungsauftragStatus.Uebergeben, BeschichtungsauftragStatus.Erledigt)]
+    [InlineData(BeschichtungsauftragStatus.Entwurf, BeschichtungsauftragStatus.Versendet)]
+    [InlineData(BeschichtungsauftragStatus.Versendet, BeschichtungsauftragStatus.Uebergeben)]
+    [InlineData(BeschichtungsauftragStatus.Versendet, BeschichtungsauftragStatus.Storniert)]
+    [InlineData(BeschichtungsauftragStatus.Versendet, BeschichtungsauftragStatus.Entwurf)]
     [InlineData(BeschichtungsauftragStatus.Storniert, BeschichtungsauftragStatus.Entwurf)]
     [InlineData(BeschichtungsauftragStatus.Entwurf, BeschichtungsauftragStatus.Entwurf)]
     public async Task Status_VerboteneUebergaenge_Abgelehnt_NichtsGeaendert(BeschichtungsauftragStatus von, BeschichtungsauftragStatus nach)
@@ -313,7 +331,9 @@ public class BeschichtungsauftragWorkflowTests
         fx.Standard();
         var a = await fx.Anlegen();
         if (von == BeschichtungsauftragStatus.Storniert) await fx.Status(a, von);
-        if (von is BeschichtungsauftragStatus.Uebergeben or BeschichtungsauftragStatus.Erledigt) await fx.Status(a, BeschichtungsauftragStatus.Uebergeben);
+        if (von is BeschichtungsauftragStatus.Uebergeben or BeschichtungsauftragStatus.Versendet or BeschichtungsauftragStatus.Erledigt)
+            await fx.Status(a, BeschichtungsauftragStatus.Uebergeben);
+        if (von == BeschichtungsauftragStatus.Versendet) await fx.Versenden(a);
         if (von == BeschichtungsauftragStatus.Erledigt) await fx.Status(a, BeschichtungsauftragStatus.Erledigt);
         var modifiedVorher = a.ModifiedAt;
         fx.Time.Now = fx.Time.Now.AddHours(1);
@@ -346,6 +366,47 @@ public class BeschichtungsauftragWorkflowTests
         (await fx.Wf.EntwurfBearbeitenAsync(a.Id, Kopf(a) with { Dienstleister = "Huber" }, new Dictionary<int, decimal>(), Array.Empty<int>(), a.RowVersion))
             .Fehler.Should().BeEmpty();
         (await fx.Wf.StatusWechselnAsync(a.Id, BeschichtungsauftragStatus.Uebergeben, a.RowVersion)).Fehler.Should().BeEmpty();
+    }
+
+    // ===== Versendet (v1.99.41, Spec 2026-11-18-beschichtungsauftrag-ausbau A5/A6) =====
+
+    [Fact]
+    public async Task Anlegen_PositionenAusVorschlag_SindVerpackt()
+    {
+        var fx = new Fx();
+        fx.Standard();
+        var a = await fx.Anlegen();
+        a.Positionen.Should().OnlyContain(p => p.Verpackt && !p.OhneFa);
+    }
+
+    [Fact]
+    public async Task Versendet_NichtAlleVerpackt_Abgelehnt_NenntPositionen_NichtsGeaendert()
+    {
+        var fx = new Fx();
+        fx.Standard();
+        var a = await fx.Anlegen();
+        await fx.Status(a, BeschichtungsauftragStatus.Uebergeben);
+        var offen = a.Positionen.Single(p => p.Position == 2);
+        offen.Verpackt = false;
+
+        var r = await fx.Wf.StatusWechselnAsync(a.Id, BeschichtungsauftragStatus.Versendet, a.RowVersion);
+
+        r.Erfolg.Should().BeFalse();
+        r.Fehler.Single().Should().Contain("A2 (Pos. 2)").And.Contain("anhaken oder entfernen");
+        (a.Status, a.VersendetAt).Should().Be((BeschichtungsauftragStatus.Uebergeben, (DateTime?)null));
+    }
+
+    [Fact]
+    public async Task Versendet_AlleVerpackt_SetztZeitpunktUndBenutzer_BleibtVergeben()
+    {
+        var fx = new Fx();
+        fx.Standard();
+        var a = await fx.Anlegen();
+        await fx.Status(a, BeschichtungsauftragStatus.Uebergeben);
+        await fx.Versenden(a);
+
+        (a.Status, a.VersendetByUserId).Should().Be((BeschichtungsauftragStatus.Versendet, (int?)7));
+        (await fx.Wf.AnlegenAsync(HauptFa)).Fehler.Single().Should().Contain(a.Nummer, "Versendet sperrt die Positionen wie Uebergeben");
     }
 
     // ===== Doppelvergabe (AK 6, 6a, 6b) =====
@@ -747,7 +808,7 @@ public class BeschichtungsauftragWorkflowTests
     [Fact]
     public void Enum_KeinFreigegeben_Wert20Frei()
     {
-        Enum.GetValues<BeschichtungsauftragStatus>().Select(v => (byte)v).Should().Equal(10, 30, 40, 90);
+        Enum.GetValues<BeschichtungsauftragStatus>().Select(v => (byte)v).Should().Equal(10, 30, 35, 40, 90);
         Enum.GetNames<BeschichtungsauftragStatus>().Should().NotContain(n => n.StartsWith("Freigegeben"));
     }
 

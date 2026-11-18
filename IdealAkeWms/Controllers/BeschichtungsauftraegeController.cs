@@ -107,7 +107,7 @@ public class BeschichtungsauftraegeController : Controller
             ? await _workflow.GetHinzufuegbarePositionenAsync(id)
             : new List<PositionsKandidat>();
 
-        var benutzerIds = new[] { a.UebergebenByUserId, a.ErledigtByUserId, a.StorniertByUserId }.Where(i => i.HasValue).ToList();
+        var benutzerIds = new[] { a.UebergebenByUserId, a.VersendetByUserId, a.ErledigtByUserId, a.StorniertByUserId }.Where(i => i.HasValue).ToList();
         var benutzer = benutzerIds.Count == 0
             ? new Dictionary<int, string>()
             : (await _users.GetAllWithRolesAsync()).ToDictionary(u => u.Id, u => u.Name);

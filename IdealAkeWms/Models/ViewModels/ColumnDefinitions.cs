@@ -588,6 +588,7 @@ public static class ColumnDefinitions
             new ColumnDef("ral",           "RAL",               Locked: false),
             new ColumnDef("start",         "Start",             Locked: false, DefaultWidth: 90),
             new ColumnDef("retour",        "Retour",            Locked: false, DefaultWidth: 90),
+            new ColumnDef("versendetam",   "Versendet am",      Locked: false),
             new ColumnDef("positionen",    "Positionen",        Locked: false, DefaultWidth: 55),
             new ColumnDef("ursprung",      "Ursprungsauftrag",  Locked: false),
             new ColumnDef("reklamiert",    "Reklamiert",        Locked: false),

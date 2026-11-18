@@ -47,7 +47,7 @@ public static class ColumnFilterTypes
             ["BdeTeileliste/Index"] = L(("sollmenge", N), ("fe-termin", D)),                 // v1.99.32
             ["BdeTeileliste/Summiert"] = L(("sollmenge", N), ("anzahl", N), ("fe-termin", D)), // v1.99.32
             ["Beschichtungsauftraege/Details"] = L(("breite", N), ("hoehe", N), ("tiefe", N), ("menge", N)),
-            ["Beschichtungsauftraege/Index"] = L(("start", D), ("retour", D), ("positionen", N), ("angelegtam", D)),
+            ["Beschichtungsauftraege/Index"] = L(("start", D), ("retour", D), ("versendetam", D), ("positionen", N), ("angelegtam", D)),
             ["BfAuftraege/Details"] = L(("menge", N), ("bestellmenge", N)),
             ["BfAuftraege/Index"] = L(("bestelltam", D), ("positionen", N), ("freigegebenam", D), ("schachteltermin", D), ("fetermin", D), ("fertigam", D)),
             ["FaAttributes/Index"] = L(("sort-order", N)),

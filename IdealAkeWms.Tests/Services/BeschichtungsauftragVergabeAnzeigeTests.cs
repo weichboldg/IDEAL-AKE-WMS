@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -108,6 +108,7 @@ public class BeschichtungsauftragVergabeAnzeigeTests
     {
         var a = await Anlegen(1);
         (await _wf.StatusWechselnAsync(a.Id, BeschichtungsauftragStatus.Uebergeben, a.RowVersion)).Fehler.Should().BeEmpty();
+        (await _wf.StatusWechselnAsync(a.Id, BeschichtungsauftragStatus.Versendet, a.RowVersion)).Fehler.Should().BeEmpty();
         (await _wf.StatusWechselnAsync(a.Id, BeschichtungsauftragStatus.Erledigt, a.RowVersion)).Fehler.Should().BeEmpty();
         var pos1 = a.Positionen.First(p => p.Position == 1).Id;
         var rekl = (await _wf.ReklamationAnlegenAsync(a.Id, new[] { pos1 })).Auftrag!;

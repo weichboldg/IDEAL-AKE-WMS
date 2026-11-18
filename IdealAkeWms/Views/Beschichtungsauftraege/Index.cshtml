@@ -4,7 +4,7 @@
 @using IdealAkeWms.Services
 @{
     ViewData["Title"] = "Beschichtungsaufträge";
-    const int colCount = 12;
+    const int colCount = 13;
 }
 
 <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
@@ -51,6 +51,7 @@
                 <th data-filterable data-col-key="ral">RAL</th>
                 <th data-filterable data-date-filter data-col-key="start">Start</th>
                 <th data-filterable data-date-filter data-col-key="retour">Retour</th>
+                <th data-filterable data-date-filter data-col-key="versendetam">Versendet am</th>
                 <th class="text-end" data-filterable data-filter-type="number" data-col-key="positionen">Positionen</th>
                 <th data-filterable data-col-key="ursprung">Ursprungsauftrag</th>
                 <th data-filterable data-col-key="reklamiert">Reklamiert</th>
@@ -77,6 +78,7 @@
                     <td>@r.Ral</td>
                     <td>@BeschichtungsauftragListRow.Datum(r.StartBeschichtung)</td>
                     <td>@BeschichtungsauftragListRow.Datum(r.BeschichtenRetour)</td>
+                    <td>@(r.VersendetAt is DateTime v ? BeschichtungsauftragListRow.Zeitpunkt(v) : "")</td>
                     <td class="text-end">@r.PositionCount</td>
                     <td>@if (r.UrsprungId is int uid) { <a asp-action="Details" asp-route-id="@uid">@r.UrsprungNummer</a> }</td>
                     <td>
@@ -107,6 +109,7 @@
     { "key": "ral", "label": "RAL", "locked": false, "defaultWidth": null },
     { "key": "start", "label": "Start", "locked": false, "defaultWidth": 90 },
     { "key": "retour", "label": "Retour", "locked": false, "defaultWidth": 90 },
+    { "key": "versendetam", "label": "Versendet am", "locked": false, "defaultWidth": null },
     { "key": "positionen", "label": "Positionen", "locked": false, "defaultWidth": 55 },
     { "key": "ursprung", "label": "Ursprungsauftrag", "locked": false, "defaultWidth": null },
     { "key": "reklamiert", "label": "Reklamiert", "locked": false, "defaultWidth": null },

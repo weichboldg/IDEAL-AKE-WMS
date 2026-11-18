@@ -72,6 +72,7 @@
         {
             ("Entwurf angelegt", a.CreatedAt, a.CreatedBy),
             ("Übergeben", a.UebergebenAt, Model.BenutzerName(a.UebergebenByUserId)),
+            ("Versendet", a.VersendetAt, Model.BenutzerName(a.VersendetByUserId)),
             ("Erledigt", a.ErledigtAt, Model.BenutzerName(a.ErledigtByUserId)),
         };
     }

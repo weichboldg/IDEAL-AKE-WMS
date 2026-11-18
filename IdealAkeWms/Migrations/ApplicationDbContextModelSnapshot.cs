@@ -1310,6 +1310,9 @@ namespace IdealAkeWms.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
+                    b.Property<int?>("CreditorId")
+                        .HasColumnType("int");
+
                     b.Property<string>("Dienstleister")
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
@@ -1376,7 +1379,15 @@ namespace IdealAkeWms.Migrations
                     b.Property<int?>("UrsprungsauftragId")
                         .HasColumnType("int");
 
+                    b.Property<DateTime?>("VersendetAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("VersendetByUserId")
+                        .HasColumnType("int");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("CreditorId");
 
                     b.HasIndex("HauptFA");
 
@@ -1452,6 +1463,9 @@ namespace IdealAkeWms.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
+                    b.Property<bool>("OhneFa")
+                        .HasColumnType("bit");
+
                     b.Property<int?>("Position")
                         .HasColumnType("int");
 
@@ -1467,6 +1481,9 @@ namespace IdealAkeWms.Migrations
 
                     b.Property<int?>("VaterFA")
                         .HasColumnType("int");
+
+                    b.Property<bool>("Verpackt")
+                        .HasColumnType("bit");
 
                     b.HasKey("Id");
 
@@ -6381,10 +6398,17 @@ namespace IdealAkeWms.Migrations
 
             modelBuilder.Entity("IdealAkeWms.Models.Beschichtungsauftrag", b =>
                 {
+                    b.HasOne("IdealAkeWms.Models.Creditor", "Creditor")
+                        .WithMany()
+                        .HasForeignKey("CreditorId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("IdealAkeWms.Models.Beschichtungsauftrag", "Ursprungsauftrag")
                         .WithMany("Folgeauftraege")
                         .HasForeignKey("UrsprungsauftragId")
                         .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Creditor");
 
                     b.Navigation("Ursprungsauftrag");
                 });

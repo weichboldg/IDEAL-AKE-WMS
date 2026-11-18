@@ -114,6 +114,8 @@ Eintraege = @(
    Datei='159_FaStrukturAbgleich.sql'; MigrationId='20261117183315_FaStrukturAbgleich'; Voraussetzung='Dienst gestoppt; 4 Lebenslauf-Spalten je FaHierarchyNodes/FaHierarchyOrderInfos/ProductionOrderPositions (Startwert SyncedAt), leere Artnr/ABNr/Pos -> NULL, zwei UNIQUE-Indizes; bricht bei doppelten Schluesseln vor dem Index ab'; Quelle='2026-11-17-v1-99-37-fa-struktur-abgleich' }
 @{ Id='SQL/160'; Version='1.99.38'; Typ='Schema'; Firma='beide'; Phase='Schema'; Ausfuehrung='automatisch'
    Datei='160_AddSageFaArbeitsgangAnlagen.sql'; MigrationId='20261117192807_AddSageFaArbeitsgangAnlagen'; Voraussetzung='additiv, eine neue Tabelle SageFaArbeitsgangAnlagen (Warteschlange AG-Anlage in Sage-FAs), kein Backfill'; Quelle='2026-11-17-v1-99-38-arbeitsgaenge-in-sage-fa-anlegen' }
+@{ Id='SQL/161'; Version='1.99.41'; Typ='Schema'; Firma='beide'; Phase='Schema'; Ausfuehrung='automatisch'
+   Datei='161_AddBeschichtungsauftragVersandUndVerpackt.sql'; MigrationId='20261118120203_AddBeschichtungsauftragVersandUndVerpackt'; Voraussetzung='additiv: CreditorId (FK Creditors, Index), VersendetAt/-ByUserId, Verpackt/OhneFa je Position (Default 0), kein Backfill'; Quelle='2026-11-18-v1-99-41-beschichtungsauftrag-ausbau' }
 
 # ---------------------------------------------------------------- Pruefungen (jeder Lauf; Reparatur nur nach Bestaetigung) -------
 # v1.99.28 (ADR 0027): admin zaehlt nicht - der Web-Start stellt admin ohne Kennwort auf das Standard-Erstkennwort mit Pflichtwechsel um.
@@ -122,6 +124,15 @@ Eintraege = @(
    Pruefung='SELECT CASE WHEN OBJECT_ID(N''dbo.FaHierarchyNodes'', N''U'') IS NULL THEN 0 ELSE (SELECT COUNT(*) FROM (SELECT 1 AS x FROM dbo.FaHierarchyNodes GROUP BY HauptFA, VaterFA, SubFA, Position, NULLIF(LTRIM(RTRIM(Artnr)), N'''') HAVING COUNT(*) > 1) d) + (SELECT COUNT(*) FROM (SELECT 1 AS x FROM dbo.FaHierarchyOrderInfos GROUP BY HauptFA, NULLIF(LTRIM(RTRIM(ABNr)), N''''), NULLIF(LTRIM(RTRIM(Pos)), N'''') HAVING COUNT(*) > 1) d) END'
    Text='Doppelte FA-Struktur-Schluessel im WMS-Bestand: SQL/159 bricht vor dem UNIQUE-Index ab. Liste mit P-AB1/P-AB2 der Spec 2026-11-17-fa-struktur-abgleich-statt-full-replace an Gerald; nicht automatisch bereinigen (der naechste Lauf des alten Dienstes schreibt die Tabellen ohnehin neu).'
    Quelle='2026-11-17-v1-99-37-fa-struktur-abgleich' }
+# v1.99.41: Lackierer-Auswahl am Beschichtungsauftrag braucht aktive Beschichter-Kreditoren; Uebergeben -> Erledigt geht nur noch ueber Versendet.
+@{ Id='Pruefung/BeschichterKreditoren'; Version='1.99.41'; Typ='Pruefung'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Pruefung='SELECT CASE WHEN OBJECT_ID(N''dbo.Creditors'', N''U'') IS NULL THEN 0 WHEN EXISTS (SELECT 1 FROM dbo.Creditors WHERE IsCoater = 1 AND IsActive = 1) THEN 0 ELSE 1 END'
+   Text='Kein aktiver Kreditor mit "Beschichter": die Lackierer-Auswahl am Beschichtungsauftrag ist leer, gedruckt wird nur der Dienstleister-Text ohne Anschrift. In /Creditors Beschichter kennzeichnen (P-2 der Spec 2026-11-18-beschichtungsauftrag-ausbau-checkboxen-versand-druck).'
+   Quelle='2026-11-18-v1-99-41-beschichtungsauftrag-ausbau' }
+@{ Id='Pruefung/BeschichtungsauftragUebergebenOffen'; Version='1.99.41'; Typ='Pruefung'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Pruefung='SELECT CASE WHEN OBJECT_ID(N''dbo.Beschichtungsauftraege'', N''U'') IS NULL THEN 0 ELSE (SELECT COUNT(*) FROM dbo.Beschichtungsauftraege WHERE Status = 30) END'
+   Text='Beschichtungsauftraege im Status Uebergeben: ab dieser Version fuehrt der Weg ueber "Versendet" (alle Positionen verpackt), Uebergeben -> Erledigt direkt geht nicht mehr. Fachbereich informieren (P-4, Rueckfrage 15).'
+   Quelle='2026-11-18-v1-99-41-beschichtungsauftrag-ausbau' }
 @{ Id='Pruefung/BenutzerOhneKennwort'; Version='1.99.28'; Typ='Pruefung'; Firma='beide'; Phase='Vorher'; Ausfuehrung='anzeigen'
    Pruefung='SELECT COUNT(*) FROM dbo.Users u WHERE u.IsActive = 1 AND u.Name <> N''admin'' AND (u.PasswordHash IS NULL OR u.PasswordHash = N'''') AND (u.WindowsUserName IS NULL OR NOT EXISTS (SELECT 1 FROM dbo.AppSettings WHERE [Key] = N''WindowsAuthAktiv'' AND LOWER([Value]) = N''true''))'
    Text='Aktive Benutzer ohne Kennwort, die sich ab v1.99.28 nicht mehr anmelden koennen (lokal, bzw. AD bei WindowsAuthAktiv aus): vorher unter /Users/Edit ein Erstkennwort setzen (ab v1.99.28 mit Pflichtwechsel bei der ersten Anmeldung) oder deaktivieren; Liste mit P-1 der Spec 2026-11-14-sicherheit-anmeldung-und-installer.'
@@ -536,5 +547,8 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
 @{ Id='v1.99.40-Userfelder-Info'; Version='1.99.40'; Typ='Info'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
    Text='Neu: 27 Service-Einstellungen Sage-Benutzerfelder (Kategorien Sage-Benutzerfelder: ...). Ohne Eintrag gilt der bisherige Feldname - AKE liest unveraendert, nichts einzustellen. Leer = Feld wird nicht gelesen, Anzeige nicht konfiguriert. HTTP 404 einer SData-Resource: eine Meldung, naechster Versuch nach 24 h.'
    Quelle='2026-11-18-v1-99-40-sage-userfelder-als-einstellung' }
+@{ Id='v1.99.41-BeschichtungVersendetInfo'; Version='1.99.41'; Typ='Info'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Text='Beschichtungsauftrag: Positionen werden im Vorschlag angehakt (nur angehakte kommen in den Auftrag), neuer Status Versendet, Lackierer aus den Kreditoren. Hilfeseite Beschichtung.'
+   Quelle='2026-11-18-v1-99-41-beschichtungsauftrag-ausbau' }
 )
 }

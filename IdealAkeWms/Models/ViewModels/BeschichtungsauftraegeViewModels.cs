@@ -23,6 +23,7 @@ public sealed class BeschichtungsauftragListRow
     public int? UrsprungId { get; init; }
     public string? UrsprungNummer { get; init; }
     public IReadOnlyList<(int Id, string Nummer)> Folgeauftraege { get; init; } = new List<(int, string)>();
+    public DateTime? VersendetAt { get; init; }
     public DateTime CreatedAt { get; init; }
     public string CreatedBy { get; init; } = string.Empty;
 
@@ -36,7 +37,7 @@ public sealed class BeschichtungsauftragListRow
         StartBeschichtung = a.StartBeschichtung, BeschichtenRetour = a.BeschichtenRetour, PositionCount = a.Positionen.Count,
         UrsprungId = a.UrsprungsauftragId, UrsprungNummer = a.Ursprungsauftrag?.Nummer,
         Folgeauftraege = a.Folgeauftraege.OrderBy(f => f.Nummer).Select(f => (f.Id, f.Nummer)).ToList(),
-        CreatedAt = a.CreatedAt, CreatedBy = a.CreatedBy,
+        VersendetAt = a.VersendetAt, CreatedAt = a.CreatedAt, CreatedBy = a.CreatedBy,
     };
 
     /// <summary>Server-Spaltenfilter (ADR 0005): Col-Key → gerenderter Zelltext; Datumsspalten nach der Projektion.</summary>
@@ -50,6 +51,7 @@ public sealed class BeschichtungsauftragListRow
             ["ral"] = r => r.Ral,
             ["start"] = r => Datum(r.StartBeschichtung),
             ["retour"] = r => Datum(r.BeschichtenRetour),
+            ["versendetam"] = r => r.VersendetAt is DateTime v ? Zeitpunkt(v) : null,
             ["positionen"] = r => r.PositionCount.ToString(CultureInfo.InvariantCulture),
             ["ursprung"] = r => r.UrsprungNummer,
             ["reklamiert"] = r => r.ReklamiertText,
@@ -122,7 +124,7 @@ public sealed class BeschichtungsauftragPrintViewModel
 public static class BeschichtungsauftraegeDruck
 {
     public static bool IstDruckbar(BeschichtungsauftragStatus s) =>
-        s is BeschichtungsauftragStatus.Uebergeben or BeschichtungsauftragStatus.Erledigt;
+        s is BeschichtungsauftragStatus.Uebergeben or BeschichtungsauftragStatus.Versendet or BeschichtungsauftragStatus.Erledigt;
 
     /// <summary>Gespeicherte Positionen → Knoten-Form fuer <see cref="BeschichtungsauftragService.AggregateSummiert"/>
     /// (Summe der Auftragsmenge statt Sollmenge; Masse-Invariante wie Teil 1).</summary>

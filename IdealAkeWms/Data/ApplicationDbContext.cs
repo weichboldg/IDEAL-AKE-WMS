@@ -1777,6 +1777,9 @@ public class ApplicationDbContext : DbContext
                 .WithMany(e => e.Folgeauftraege)
                 .HasForeignKey(e => e.UrsprungsauftragId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            // v1.99.41 (A9): Lackierer-Kreditor; Kreditoren werden nie geloescht, nur deaktiviert.
+            entity.HasOne(e => e.Creditor).WithMany().HasForeignKey(e => e.CreditorId).OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<BeschichtungsauftragPosition>(entity =>

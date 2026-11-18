@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -337,7 +337,7 @@ public class BeschichtungsauftraegeControllerTests
     [Fact]
     public async Task Reklamation_Erledigt_LegtFolgeauftragAn_UndLeereAuswahlAbgelehnt()
     {
-        var a = await Status(await Status(await Anlegen(), BeschichtungsauftragStatus.Uebergeben), BeschichtungsauftragStatus.Erledigt);
+        var a = await Status(await Status(await Status(await Anlegen(), BeschichtungsauftragStatus.Uebergeben), BeschichtungsauftragStatus.Versendet), BeschichtungsauftragStatus.Erledigt);
 
         var vm = (BeschichtungsauftragReklamationViewModel)((ViewResult)await Ctrl().Reklamation(a.Id)).Model!;
         vm.Ursprung.Positionen.Should().HaveCount(3);

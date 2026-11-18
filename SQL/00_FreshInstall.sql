@@ -2803,6 +2803,7 @@ BEGIN
         [HauptFA]            INT            NOT NULL,
         [Status]             TINYINT        NOT NULL,
         [Dienstleister]      NVARCHAR(200)  NULL,
+        [CreditorId]         INT            NULL,   -- v1.99.41 / SQL/161 (Lackierer aus den Kreditoren)
         [Ral]                NVARCHAR(200)  NULL,
         [StartBeschichtung]  DATETIME2      NULL,
         [BeschichtenRetour]  DATETIME2      NULL,
@@ -2810,6 +2811,8 @@ BEGIN
         [UrsprungsauftragId] INT            NULL,
         [UebergebenAt]       DATETIME2      NULL,
         [UebergebenByUserId] INT            NULL,
+        [VersendetAt]        DATETIME2      NULL,   -- v1.99.41 / SQL/161 (Status Versendet = 35)
+        [VersendetByUserId]  INT            NULL,
         [ErledigtAt]         DATETIME2      NULL,
         [ErledigtByUserId]   INT            NULL,
         [StorniertAt]        DATETIME2      NULL,
@@ -2846,6 +2849,8 @@ BEGIN
         [Breite]                 DECIMAL(18,4)  NOT NULL,
         [Hoehe]                  DECIMAL(18,4)  NOT NULL,
         [Tiefe]                  DECIMAL(18,4)  NOT NULL,
+        [Verpackt]               BIT            NOT NULL CONSTRAINT [DF_BeschichtungsauftragPositionen_Verpackt] DEFAULT 0,  -- v1.99.41 / SQL/161
+        [OhneFa]                 BIT            NOT NULL CONSTRAINT [DF_BeschichtungsauftragPositionen_OhneFa] DEFAULT 0,    -- v1.99.41 / SQL/161
         [CreatedAt]              DATETIME2      NOT NULL,
         [CreatedBy]              NVARCHAR(200)  NOT NULL,
         [CreatedByWindows]       NVARCHAR(200)  NOT NULL,
@@ -2864,6 +2869,16 @@ GO
 IF OBJECT_ID(N'dbo.BeschichtungsauftragPositionen', N'U') IS NOT NULL
    AND COL_LENGTH(N'dbo.BeschichtungsauftragPositionen', N'PositionText') IS NULL
     ALTER TABLE [dbo].[BeschichtungsauftragPositionen] ADD [PositionText] NVARCHAR(50) NULL;
+GO
+
+-- v1.99.41 (SQL/161, Beschichtungsauftrag-Ausbau): Kreditor-FK + Index (Creditors entsteht weiter oben, Abschnitt Kreditoren).
+IF OBJECT_ID(N'dbo.Creditors', N'U') IS NOT NULL
+   AND NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = N'FK_Beschichtungsauftraege_Creditors_CreditorId')
+    ALTER TABLE [dbo].[Beschichtungsauftraege] ADD CONSTRAINT [FK_Beschichtungsauftraege_Creditors_CreditorId]
+        FOREIGN KEY ([CreditorId]) REFERENCES [dbo].[Creditors] ([Id]);
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_Beschichtungsauftraege_CreditorId' AND object_id = OBJECT_ID(N'dbo.Beschichtungsauftraege'))
+    CREATE INDEX [IX_Beschichtungsauftraege_CreditorId] ON [dbo].[Beschichtungsauftraege] ([CreditorId]);
 GO
 
 -- BfAuftraege + BfAuftragPositionen (v1.99.35 / SQL/158, Blechfertigung: Warenkorb -> Freigabe -> WiCAM-CSV)
@@ -3505,6 +3520,9 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261117192807_AddSageFaArbeitsgangAnlagen')
    AND OBJECT_ID(N'dbo.SageFaArbeitsgangAnlagen', N'U') IS NOT NULL -- sonst steht SQL/160 noch aus
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261117192807_AddSageFaArbeitsgangAnlagen', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261118120203_AddBeschichtungsauftragVersandUndVerpackt')
+   AND COL_LENGTH(N'dbo.BeschichtungsauftragPositionen', N'OhneFa') IS NOT NULL -- sonst steht SQL/161 noch aus
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261118120203_AddBeschichtungsauftragVersandUndVerpackt', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';
