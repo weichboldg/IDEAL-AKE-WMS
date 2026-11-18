@@ -2,14 +2,14 @@
 type: spec
 title: "Beschichtungsauftrag: Verpackt-Haken im Vorschlag und am Auftrag, freie Positionen, Status Versendet, Kreditor-Anschrift, Druck überarbeitet"
 slug: 2026-11-18-beschichtungsauftrag-ausbau-checkboxen-versand-druck-spec
-status: Entwurf
+status: InUmsetzung
 created: 2026-11-18
 updated: 2026-11-18
 source_backlog: "[[2026-11-18-beschichtungsauftrag-ausbau-checkboxen-versand-druck]]"
-task: ""
+task: "[[2026-11-18-goal-lauf-beschichtungsauftrag-ausbau]]"
 jira: ""
-worktree: ""
-branch: ""
+worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
+branch: "feature/2026-08-07-ideal-teile-1-5"
 standort: beide
 affected_code:
   - IdealAkeWms/Models/BeschichtungsauftragStatus.cs (neuer Wert Versendet = 35)
@@ -73,9 +73,9 @@ deploy:
   web: true
   service: false
   migration: true
-freigabe_entscheidung: ""
-freigabe_von: ""
-freigabe_am: ""
+freigabe_entscheidung: "R1–R5 wie Backlog-Antworten 11:48; Rückfragen 6–17 wie Empfehlung (12:55)"
+freigabe_von: "Gerald Weichbold"
+freigabe_am: "2026-11-18"
 ---
 
 ## Ziel / Nutzen (das Warum)
@@ -575,20 +575,20 @@ steht je Frage als Zitat; sie ist **nicht** in den Freigabe-Block eingetragen. �
   Bei Varianten-Specs zusaetzlich freigabe_entscheidung im Frontmatter setzen.
 -->
 
-1. (R1) Bedeutung des Hakens →
-2. (R2) Statusfolge, Übergeben → Erledigt entfällt →
-3. (R3) Freie Positionen über Artikelsuche →
-4. (R4) Lackierer aus Kreditoren mit IsCoater →
-5. (R5) AKE und IDEAL →
-6. Versendet nur mit allen Haken →
-7. Haken auch in Summiert →
-8. Haken im Vorschlag nicht speichern →
-9. Freie Positionen im Vorschlag: Eingabe, verpackt, Maße →
-10. In Übergeben nur Positionen änderbar →
-11. Druck je Position statt summiert →
-12. Positionsnummer = laufende Nummer →
-13. Menge im Druck `0.###`, nur Druck/PDF →
-14. Anschrift live aus Kreditor; Sage-Lieferanschrift (P-2) →
-15. Altaufträge ohne Datenskript →
-16. Bemerkung: P-1 + Rückfrage bei ungespeicherter Bemerkung →
-17. Kreditor-Vorbelegung IDEAL über Kurzname →
+1. (R1) Bedeutung des Hakens → **Gerald 2026-11-18 11:48 (Backlog-Antwort) – wie Backlog/Empfehlung.**
+2. (R2) Statusfolge, Übergeben → Erledigt entfällt → **Gerald 2026-11-18 11:48 (Backlog-Antwort) – wie Backlog/Empfehlung.**
+3. (R3) Freie Positionen über Artikelsuche → **Gerald 2026-11-18 11:48 (Backlog-Antwort) – wie Backlog/Empfehlung.**
+4. (R4) Lackierer aus Kreditoren mit IsCoater → **Gerald 2026-11-18 11:48 (Backlog-Antwort) – wie Backlog/Empfehlung.**
+5. (R5) AKE und IDEAL → **Gerald 2026-11-18 11:48 (Backlog-Antwort) – wie Backlog/Empfehlung.**
+6. Versendet nur mit allen Haken → **Gerald 2026-11-18 12:55 „können wir starten“ – wie Empfehlung.**
+7. Haken auch in Summiert → **Gerald 2026-11-18 12:55 „können wir starten“ – wie Empfehlung.**
+8. Haken im Vorschlag nicht speichern → **Gerald 2026-11-18 12:55 „können wir starten“ – wie Empfehlung.**
+9. Freie Positionen im Vorschlag: Eingabe, verpackt, Maße → **Gerald 2026-11-18 12:55 „können wir starten“ – wie Empfehlung.**
+10. In Übergeben nur Positionen änderbar → **Gerald 2026-11-18 12:55 „können wir starten“ – wie Empfehlung.**
+11. Druck je Position statt summiert → **Gerald 2026-11-18 12:55 „können wir starten“ – wie Empfehlung.**
+12. Positionsnummer = laufende Nummer → **Gerald 2026-11-18 12:55 „können wir starten“ – wie Empfehlung.**
+13. Menge im Druck `0.###`, nur Druck/PDF → **Gerald 2026-11-18 12:55 „können wir starten“ – wie Empfehlung.**
+14. Anschrift live aus Kreditor; Sage-Lieferanschrift (P-2) → **Gerald 2026-11-18 12:55 „können wir starten“ – wie Empfehlung.**
+15. Altaufträge ohne Datenskript → **Gerald 2026-11-18 12:55 „können wir starten“ – wie Empfehlung.**
+16. Bemerkung: P-1 + Rückfrage bei ungespeicherter Bemerkung → **Gerald 2026-11-18 12:55 „können wir starten“ – wie Empfehlung.**
+17. Kreditor-Vorbelegung IDEAL über Kurzname → **Gerald 2026-11-18 12:55 „können wir starten“ – wie Empfehlung.**
