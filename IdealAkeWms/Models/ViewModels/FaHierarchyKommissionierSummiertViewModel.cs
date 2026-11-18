@@ -70,8 +70,11 @@ public class FaHierarchyKommissionierSummiertViewModel
     /// <summary>Vorkommende Kommissionier-Ziele fuer das Filter-Dropdown.</summary>
     public IReadOnlyList<string> AvailableTargets { get; init; } = new List<string>();
 
-    /// <summary>Aktuell gewaehltes Ziel (oder null = alle).</summary>
-    public string? SelectedTarget { get; init; }
+    /// <summary>v1.99.43 (A1): wirksame Ziele (<c>["*"]</c> = alle) aus Query, Gedaechtnis oder Einstellung.</summary>
+    public IReadOnlyList<string> SelectedTargets { get; init; } = new List<string> { Services.KommissionierListenService.AlleZiele };
+
+    /// <summary>v1.99.43 (A1): aktuelle Query mit den wirksamen Zielen — fuer Druck- und PDF-Links (die lesen nur die Query).</summary>
+    public string ZielQuery { get; init; } = "";
 
     /// <summary>KW-von-Eingabe (Format <c>YYYY-Www</c>, HTML <c>&lt;input type="week"&gt;</c>).</summary>
     public string? KwVon { get; init; }

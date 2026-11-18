@@ -244,6 +244,10 @@ public static class AppSettingDefinitions
         // ---- IDEAL FA-Hierarchie ----
         B(AppSettingKeys.FaHierarchyKommissionierlistenAktiv, "false", GIdeal, "Kommissionierlisten", "Schaltet das Kommissionierlisten-Modul ein.",
             "Menü, Kommissionierlisten", "IDEAL", seed: true),
+        new(AppSettingKeys.FaHierarchyKommissionierlisteVorfilterZiele, SettingType.MultiChoice, "K-01,K-02", GIdeal,
+            "Vorauswahl der Kommissionierziele, solange ein Benutzer keinen eigenen Zielfilter gemerkt oder ihn mit „Ziele auf Standard“ zurückgesetzt hat. Leer = alle Ziele.",
+            Anzeigename: "Kommissionierliste: Standard-Ziele", Verwendung: "Kommissionierliste Liste und Summiert", Standort: "IDEAL",
+            Stammdaten: SettingStammdaten.Kommissionierziel, LeerErlaubt: true, Seed: true),
         B(AppSettingKeys.FaHierarchyVormontageAktiv, "false", GIdeal, "Vormontage-Listen", "Schaltet die Vormontage-Listen (Einzelne Teile, Summiert) ein.",
             "Menü, Vormontage", "IDEAL", seed: true),
         I(AppSettingKeys.FaHierarchyMaxDepth, "500", GIdeal, "FA-Struktur: max. Tiefe", "Höchste Rekursionstiefe beim Aufbau der FA-Struktur (Reißleine).",

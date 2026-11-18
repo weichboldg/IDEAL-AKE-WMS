@@ -78,10 +78,20 @@
         case SettingType.MultiChoice:
             var gewaehlt = Model.Wirksam.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            // v1.99.43: ohne feste Werte aus den Stammdaten; gewaehlte Werte, die dort fehlen, bleiben sichtbar (nicht still verworfen).
+            var auswahl = (d.Werte ?? Model.Optionen.ToArray()).ToList();
+            var fehlend = d.Werte == null
+                ? gewaehlt.Where(g => !auswahl.Any(w => string.Equals(w.Wert, g, StringComparison.OrdinalIgnoreCase))).OrderBy(g => g).ToList()
+                : new List<string>();
+            auswahl.AddRange(fehlend.Select(f => (f, f + " (nicht vorhanden)")));
             <input type="hidden" name="settings[@d.Key]" value="@Model.Wirksam" class="multi-hidden" />
             <div role="group" aria-labelledby="@(id)_gruppe" aria-describedby="@hilfeId" class="d-flex flex-wrap gap-3" id="@id">
                 <span id="@(id)_gruppe" class="visually-hidden">@Model.Anzeigename</span>
-                @foreach (var w in d.Werte!)
+                @if (auswahl.Count == 0)
+                {
+                    <span class="text-muted small">Keine Auswahlwerte vorhanden.</span>
+                }
+                @foreach (var w in auswahl)
                 {
                     var cbId = id + "_" + w.Wert;
                     <div class="form-check">

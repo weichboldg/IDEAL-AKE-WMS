@@ -1,0 +1,30 @@
+@model (IReadOnlyList<string> Verfuegbar, IReadOnlyList<string> Gewaehlt)
+@using IdealAkeWms.Services
+@{
+    // v1.99.43 (Spec 2026-11-18-ideal-kommissionierliste-filter-spalten-leitstand A1): Mehrfachauswahl der Ziele, gemeinsam fuer Liste und Summiert.
+    var alle = !KommissionierListenService.SchraenktEin(Model.Gewaehlt);
+    var fehlend = alle ? new List<string>()
+        : Model.Gewaehlt.Where(g => !Model.Verfuegbar.Contains(g, StringComparer.OrdinalIgnoreCase)).ToList();
+    var i = 0;
+}
+<fieldset class="col-12">
+    <legend class="form-label mb-1 small">Kommissionier-Ziele</legend>
+    @* Leeres Feld: „nichts angehakt“ kommt als Auswahl (= alle Ziele) an, nicht als „kein Filter“ (sonst griffe das Gedaechtnis). *@
+    <input type="hidden" name="target" value="" />
+    <div class="d-flex flex-wrap gap-3" aria-describedby="zieleHinweis">
+        <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="target" value="@KommissionierListenService.AlleZiele" id="ziel_alle" checked="@alle" />
+            <label class="form-check-label" for="ziel_alle">— alle Ziele —</label>
+        </div>
+        @foreach (var z in Model.Verfuegbar.Concat(fehlend))
+        {
+            var cbId = "ziel_" + i++;
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="target" value="@z" id="@cbId"
+                       checked="@(!alle && Model.Gewaehlt.Contains(z, StringComparer.OrdinalIgnoreCase))" />
+                <label class="form-check-label" for="@cbId">@z@(fehlend.Contains(z) ? " (nicht vorhanden)" : "")</label>
+            </div>
+        }
+    </div>
+    <div id="zieleHinweis" class="form-text">Keine Auswahl oder „alle Ziele“ = alle. Die Auswahl wird gemerkt, bis „Ziele auf Standard“.</div>
+</fieldset>

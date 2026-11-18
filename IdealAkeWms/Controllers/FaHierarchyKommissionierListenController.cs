@@ -2,9 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using IdealAkeWms.Data.Repositories;
 using IdealAkeWms.Filters;
+using IdealAkeWms.Models;
 using IdealAkeWms.Models.ViewModels;
 using IdealAkeWms.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -38,6 +41,12 @@ public class FaHierarchyKommissionierListenController : Controller
     private readonly IPdfRenderService _pdfRenderService;
     private readonly PdfRenderStatus _pdfRenderStatus;
     private readonly IUserViewPreferenceRepository _viewPrefs;
+    private readonly IAppSettingRepository _settings;
+
+    /// <summary>v1.99.43 (A1): ein Zielfilter-Gedaechtnis fuer Liste und Summiert (ViewKey &lt;= 50 Zeichen).</summary>
+    internal const string ZieleViewKey = "FaHierarchyKommissionier.Ziele";
+
+    private sealed record ZieleGedaechtnis([property: JsonPropertyName("ziele")] List<string> Ziele);
 
     public FaHierarchyKommissionierListenController(
         KommissionierListenService service,
@@ -46,7 +55,8 @@ public class FaHierarchyKommissionierListenController : Controller
         IRazorViewRenderer viewRenderer,
         IPdfRenderService pdfRenderService,
         PdfRenderStatus pdfRenderStatus,
-        IUserViewPreferenceRepository viewPrefs)
+        IUserViewPreferenceRepository viewPrefs,
+        IAppSettingRepository settings)
     {
         _service = service;
         _barcode = barcode;
@@ -55,6 +65,52 @@ public class FaHierarchyKommissionierListenController : Controller
         _pdfRenderService = pdfRenderService;
         _pdfRenderStatus = pdfRenderStatus;
         _viewPrefs = viewPrefs;
+        _settings = settings;
+    }
+
+    /// <summary>v1.99.43 (A1): wirksame Ziele fuer Index/Summiert. 1. Query mit <c>target</c> → gilt und wird gemerkt;
+    /// 2. sonst gemerkter Wert → Umleitung mit diesen Zielen (URL teilbar, Druck-Link traegt sie; Muster BdeTeiliste);
+    /// 3. sonst Einstellung <see cref="AppSettingKeys.FaHierarchyKommissionierlisteVorfilterZiele"/> (leer = alle).</summary>
+    private async Task<(IActionResult? Umleitung, List<string> Ziele)> ZieleAufloesenAsync(string[]? target, string action)
+    {
+        var uid = _currentUserService.GetCurrentAppUserId();
+        if (target is { Length: > 0 } || HttpContext?.Request.Query.ContainsKey("target") == true)
+        {
+            var ziele = KommissionierListenService.ZieleNormalisieren(target);
+            if (uid is int u)
+                await _viewPrefs.SaveAsync(u, ZieleViewKey, JsonSerializer.Serialize(new ZieleGedaechtnis(ziele)),
+                    _currentUserService.GetDisplayName(), _currentUserService.GetWindowsUserName());
+            return (null, ziele);
+        }
+        if (uid is int v && await _viewPrefs.GetByUserAndViewAsync(v, ZieleViewKey) is { } pref && ZieleLesen(pref.SettingsJson) is { } gemerkt)
+            return (Redirect(Url.Action(action) + KommissionierListenService.QueryMitZielen(HttpContext?.Request, gemerkt)), gemerkt);
+        AppSettingDefinitions.TryGet(AppSettingKeys.FaHierarchyKommissionierlisteVorfilterZiele, out var def);
+        var standard = await _settings.GetValueAsync(AppSettingKeys.FaHierarchyKommissionierlisteVorfilterZiele) ?? def!.DefaultValue;
+        return (null, KommissionierListenService.ZieleNormalisieren(standard.Split(',')));
+    }
+
+    /// <summary>Gemerkte Ziele lesen; kaputter oder leerer Eintrag = keiner (der naechste Filter-Aufruf ueberschreibt ihn).</summary>
+    internal static List<string>? ZieleLesen(string json)
+    {
+        try
+        {
+            var z = JsonSerializer.Deserialize<ZieleGedaechtnis>(json)?.Ziele;
+            return z is { Count: > 0 } ? KommissionierListenService.ZieleNormalisieren(z) : null;
+        }
+        catch (JsonException) { return null; }
+    }
+
+    /// <summary>Anzeige der Ziele im Druckkopf: null = alle.</summary>
+    private static string? ZieleText(IReadOnlyCollection<string> ziele) =>
+        KommissionierListenService.SchraenktEin(ziele) ? string.Join(", ", ziele) : null;
+
+    /// <summary>v1.99.43 (A1): „Ziele auf Standard“ — gemerkten Zielfilter loeschen, zurueck auf die Einstellung.</summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ZieleZuruecksetzen(string? ansicht)
+    {
+        if (_currentUserService.GetCurrentAppUserId() is int u) await _viewPrefs.DeleteByUserAndViewAsync(u, ZieleViewKey);
+        return RedirectToAction(ansicht == nameof(Summiert) ? nameof(Summiert) : nameof(Index));
     }
 
     /// <summary>
@@ -71,8 +127,10 @@ public class FaHierarchyKommissionierListenController : Controller
 
     /// <summary>Bildschirmliste: gruppiert nach HauptFA, Gruppen-Paging, Server-Spaltenfilter,
     /// Ziel-Dropdown. (Nachtrag 2026-08-13: kein Blattfilter/Anomalie-Banner mehr.)</summary>
-    public async Task<IActionResult> Index(string? target, int page = 1, int? pageSize = null)
+    public async Task<IActionResult> Index(string[]? target, int page = 1, int? pageSize = null)
     {
+        var (umleitung, ziele) = await ZieleAufloesenAsync(target, nameof(Index));
+        if (umleitung != null) return umleitung;
         if (page < 1) page = 1;
 
         var userDefaultPageSize = await _currentUserService.GetDefaultPageSizeAsync();
@@ -80,14 +138,15 @@ public class FaHierarchyKommissionierListenController : Controller
         var rawPageSize = PageSize.ResolveRaw(pageSize, userDefaultPageSize);
 
         var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
-        var result = await _service.BuildAsync(target, columnFilters, page, effectivePageSize, paginate: true);
+        var result = await _service.BuildAsync(ziele, columnFilters, page, effectivePageSize, paginate: true);
         var targets = await _service.GetTargetValuesAsync();
 
         var vm = new FaHierarchyKommissionierListViewModel
         {
             Groups = result.Groups,
             AvailableTargets = targets,
-            SelectedTarget = target,
+            SelectedTargets = ziele,
+            ZielQuery = KommissionierListenService.QueryMitZielen(HttpContext?.Request, ziele),
             PdfVerfuegbar = _pdfRenderStatus.IsAvailable,
             Pagination = new PaginationState
             {
@@ -107,8 +166,10 @@ public class FaHierarchyKommissionierListenController : Controller
     /// werden alle HauptFA einbezogen (KW optional, Antwort 4). Gruppen-Paging wie <see cref="Index"/>
     /// (Seiteneinheit = HauptFA). Zugriff/Toggle identisch zu <see cref="Index"/>.</summary>
     public async Task<IActionResult> Summiert(
-        string? target, string? kwVon, string? kwBis, int page = 1, int? pageSize = null)
+        string[]? target, string? kwVon, string? kwBis, int page = 1, int? pageSize = null)
     {
+        var (umleitung, ziele) = await ZieleAufloesenAsync(target, nameof(Summiert));
+        if (umleitung != null) return umleitung;
         if (page < 1) page = 1;
 
         var userDefaultPageSize = await _currentUserService.GetDefaultPageSizeAsync();
@@ -118,14 +179,15 @@ public class FaHierarchyKommissionierListenController : Controller
         var kwRange = IsoWeekRange.Resolve(kwVon, kwBis);
         var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
         var result = await _service.BuildSummiertAsync(
-            target, kwRange, columnFilters, page, effectivePageSize, paginate: true);
+            ziele, kwRange, columnFilters, page, effectivePageSize, paginate: true);
         var targets = await _service.GetTargetValuesAsync();
 
         var vm = new FaHierarchyKommissionierSummiertViewModel
         {
             Rows = result.Rows,
             AvailableTargets = targets,
-            SelectedTarget = target,
+            SelectedTargets = ziele,
+            ZielQuery = KommissionierListenService.QueryMitZielen(HttpContext?.Request, ziele),
             KwVon = kwVon,
             KwBis = kwBis,
             HasKwFilter = kwRange is not null,
@@ -146,11 +208,12 @@ public class FaHierarchyKommissionierListenController : Controller
     /// GESAMTE gefilterte Menge ohne Paging — ein Ausdruck je HauptFA-Gruppe (Seitenumbruch),
     /// Barcode = HauptFA. Bewusst ohne <c>id</c>-Parameter (anders als
     /// <c>WarehousePickingController.Print(int id)</c>, dessen Einzel-id-Muster hier nicht passt).</summary>
-    public async Task<IActionResult> Print(string? target, string? visibleColumns)
+    public async Task<IActionResult> Print(string[]? target, string? visibleColumns)
     {
+        var ziele = KommissionierListenService.ZieleNormalisieren(target); // Druck liest nur die Query, kein Gedaechtnis (A1)
         var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
         // paginate:false + int.MaxValue => ganze gefilterte Menge; Barcode je Gruppe vorberechnen.
-        var result = await _service.BuildAsync(target, columnFilters, 1, int.MaxValue, paginate: false);
+        var result = await _service.BuildAsync(ziele, columnFilters, 1, int.MaxValue, paginate: false);
 
         var barcodes = result.Groups.ToDictionary(
             g => g.HauptFA,
@@ -160,8 +223,8 @@ public class FaHierarchyKommissionierListenController : Controller
         {
             Groups = result.Groups,
             Barcodes = barcodes,
-            SelectedTarget = target,
-            IsFiltered = ColumnFilterHelper.HasAny(columnFilters, ColumnFilterTypes.For("FaHierarchyKommissionierListen/Index")) || !string.IsNullOrEmpty(target),
+            SelectedTarget = ZieleText(ziele),
+            IsFiltered = ColumnFilterHelper.HasAny(columnFilters, ColumnFilterTypes.For("FaHierarchyKommissionierListen/Index")) || KommissionierListenService.SchraenktEin(ziele),
             VisibleColumns = await ResolveVisibleColumnsAsync(
                 visibleColumns, "FaHierarchyKommissionierListen", ColumnDefinitions.FaHierarchyKommissionierListen.Columns)
         };
@@ -174,10 +237,11 @@ public class FaHierarchyKommissionierListenController : Controller
     /// Bildschirmdruck, aber auf eine Gruppe reduziert. <c>hauptFa</c> als Routen-Segment
     /// (Freigabe-Antwort 7). Fehler werden als <c>WarningMessage</c> mit Rueckfallweg gemeldet.</summary>
     [HttpGet("FaHierarchyKommissionierListen/Pdf/{hauptFa:int}")]
-    public async Task<IActionResult> Pdf(int hauptFa, string? target, string? visibleColumns)
+    public async Task<IActionResult> Pdf(int hauptFa, string[]? target, string? visibleColumns)
     {
+        var ziele = KommissionierListenService.ZieleNormalisieren(target);
         var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
-        var result = await _service.BuildAsync(target, columnFilters, 1, int.MaxValue, paginate: false);
+        var result = await _service.BuildAsync(ziele, columnFilters, 1, int.MaxValue, paginate: false);
         var group = result.Groups.FirstOrDefault(g => g.HauptFA == hauptFa);
         if (group is null) return NotFound();
 
@@ -185,8 +249,8 @@ public class FaHierarchyKommissionierListenController : Controller
         {
             Groups = new List<FaHierarchyListGroupViewModel> { group },
             Barcodes = new Dictionary<int, string> { [hauptFa] = _barcode.EncodeCode128Base64(hauptFa.ToString(CultureInfo.InvariantCulture)) },
-            SelectedTarget = target,
-            IsFiltered = ColumnFilterHelper.HasAny(columnFilters, ColumnFilterTypes.For("FaHierarchyKommissionierListen/Index")) || !string.IsNullOrEmpty(target),
+            SelectedTarget = ZieleText(ziele),
+            IsFiltered = ColumnFilterHelper.HasAny(columnFilters, ColumnFilterTypes.For("FaHierarchyKommissionierListen/Index")) || KommissionierListenService.SchraenktEin(ziele),
             VisibleColumns = await ResolveVisibleColumnsAsync(
                 visibleColumns, "FaHierarchyKommissionierListen", ColumnDefinitions.FaHierarchyKommissionierListen.Columns)
         };
@@ -207,11 +271,12 @@ public class FaHierarchyKommissionierListenController : Controller
     /// <summary>Bildschirmdruck der Summiert-Ansicht: dieselben Query-Parameter (<c>target</c>, KW,
     /// <c>colf_*</c>), aber die GESAMTE gefilterte Menge ohne Paging — ein Ausdruck je HauptFA-Gruppe,
     /// Barcode = HauptFA. Analog <see cref="Print"/>, aber auf Aggregatzeilen statt Rohpositionen.</summary>
-    public async Task<IActionResult> PrintSummiert(string? target, string? kwVon, string? kwBis, string? visibleColumns)
+    public async Task<IActionResult> PrintSummiert(string[]? target, string? kwVon, string? kwBis, string? visibleColumns)
     {
+        var ziele = KommissionierListenService.ZieleNormalisieren(target);
         var kwRange = IsoWeekRange.Resolve(kwVon, kwBis);
         var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
-        var result = await _service.BuildSummiertAsync(target, kwRange, columnFilters, 1, int.MaxValue, paginate: false);
+        var result = await _service.BuildSummiertAsync(ziele, kwRange, columnFilters, 1, int.MaxValue, paginate: false);
 
         var barcodes = result.Rows.Select(r => r.HauptFA).Distinct()
             .ToDictionary(h => h, h => _barcode.EncodeCode128Base64(h.ToString(CultureInfo.InvariantCulture)));
@@ -220,8 +285,8 @@ public class FaHierarchyKommissionierListenController : Controller
         {
             Rows = result.Rows,
             Barcodes = barcodes,
-            SelectedTarget = target,
-            IsFiltered = ColumnFilterHelper.HasAny(columnFilters, ColumnFilterTypes.For("FaHierarchyKommissionierListen/Summiert")) || !string.IsNullOrEmpty(target),
+            SelectedTarget = ZieleText(ziele),
+            IsFiltered = ColumnFilterHelper.HasAny(columnFilters, ColumnFilterTypes.For("FaHierarchyKommissionierListen/Summiert")) || KommissionierListenService.SchraenktEin(ziele),
             VisibleColumns = await ResolveVisibleColumnsAsync(visibleColumns, "FaHierarchyKommissionierSummiert",
                 ColumnDefinitions.FaHierarchyKommissionierSummiert.Columns)
         };
@@ -232,11 +297,12 @@ public class FaHierarchyKommissionierListenController : Controller
     /// Fehlerpfad fuehrt auf <see cref="Summiert"/> zurueck (SOLLTE-6) — nicht auf <see cref="Index"/>
     /// wie beim Vorbild, weil das fachlich der falsche Rueckfallort waere.</summary>
     [HttpGet("FaHierarchyKommissionierListen/PdfSummiert/{hauptFa:int}")]
-    public async Task<IActionResult> PdfSummiert(int hauptFa, string? target, string? kwVon, string? kwBis, string? visibleColumns)
+    public async Task<IActionResult> PdfSummiert(int hauptFa, string[]? target, string? kwVon, string? kwBis, string? visibleColumns)
     {
+        var ziele = KommissionierListenService.ZieleNormalisieren(target);
         var kwRange = IsoWeekRange.Resolve(kwVon, kwBis);
         var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
-        var result = await _service.BuildSummiertAsync(target, kwRange, columnFilters, 1, int.MaxValue, paginate: false);
+        var result = await _service.BuildSummiertAsync(ziele, kwRange, columnFilters, 1, int.MaxValue, paginate: false);
         var rows = result.Rows.Where(r => r.HauptFA == hauptFa).ToList();
         if (rows.Count == 0) return NotFound();
 
@@ -244,8 +310,8 @@ public class FaHierarchyKommissionierListenController : Controller
         {
             Rows = rows,
             Barcodes = new Dictionary<int, string> { [hauptFa] = _barcode.EncodeCode128Base64(hauptFa.ToString(CultureInfo.InvariantCulture)) },
-            SelectedTarget = target,
-            IsFiltered = ColumnFilterHelper.HasAny(columnFilters, ColumnFilterTypes.For("FaHierarchyKommissionierListen/Summiert")) || !string.IsNullOrEmpty(target),
+            SelectedTarget = ZieleText(ziele),
+            IsFiltered = ColumnFilterHelper.HasAny(columnFilters, ColumnFilterTypes.For("FaHierarchyKommissionierListen/Summiert")) || KommissionierListenService.SchraenktEin(ziele),
             VisibleColumns = await ResolveVisibleColumnsAsync(visibleColumns, "FaHierarchyKommissionierSummiert",
                 ColumnDefinitions.FaHierarchyKommissionierSummiert.Columns)
         };
@@ -259,7 +325,8 @@ public class FaHierarchyKommissionierListenController : Controller
         catch (PdfRenderException ex)
         {
             TempData["WarningMessage"] = ex.UserMessage;
-            return RedirectToAction(nameof(Summiert), new { target, kwVon, kwBis });
+            // v1.99.43: zurueck mit der Query der Anfrage (mehrwertiges target bleibt erhalten)
+            return Redirect(Url.Action(nameof(Summiert)) + (HttpContext?.Request.QueryString.ToString() ?? ""));
         }
     }
 }

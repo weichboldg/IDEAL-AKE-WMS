@@ -66,6 +66,10 @@ public static class AppSettingKeys
     // fehlend/nicht "true" => inaktiv. Kein Seed; RequireFaHierarchyKommissionierlistenAktivAttribute.
     public const string FaHierarchyKommissionierlistenAktiv = "FaHierarchyKommissionierlistenAktiv";
 
+    // v1.99.43 (Spec 2026-11-18-ideal-kommissionierliste-filter-spalten-leitstand A1): Standard-Ziele der Kommissionierliste,
+    // kommagetrennt aus den Kommissionierzielen; leer = alle Ziele. Gilt, solange der Benutzer keinen eigenen Zielfilter gemerkt hat.
+    public const string FaHierarchyKommissionierlisteVorfilterZiele = "FaHierarchyKommissionierlisteVorfilterZiele";
+
     // IDEAL FA-Hierarchie (Teil 4 — Beschichtungsauftrag)
     // Feature-Toggle fuer das Beschichtungsauftrag-Modul. INVERTIERTE Default-aus-Semantik
     // (wie FaHierarchyKommissionierlistenAktiv, im Unterschied zu LagerbestellungAktiv):

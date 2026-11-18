@@ -67,7 +67,7 @@ public sealed class SettingItem
             standard = d.DefaultValue;
         }
         // Stammdaten-Existenz nur, wo die Auswahl vollstaendig ist (nicht bei Lagerplatz-Vorschlaegen ohne Liste).
-        var schluessel = d.Type == SettingType.MasterData && optionen.Count > 0 ? optionen.Select(o => o.Wert).ToList() : null;
+        var schluessel = d.Stammdaten != SettingStammdaten.Keine && optionen.Count > 0 ? optionen.Select(o => o.Wert).ToList() : null;
         // v1.79.0 F2: Ohne Zeile wirkt der Default - bei vollstaendiger Stammdaten-Auswahl wird er mitgeprueft (z. B. NegativeBuchungLagerplatz
         // = NAN, Platz umbenannt). Choice/Bool ohne Zeile bleiben ungeprueft (Schreibweisen-Pruefung haengt an roh).
         var pruefWert = roh ?? (schluessel != null ? d.DefaultValue : null);

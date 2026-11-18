@@ -26,7 +26,10 @@ public enum SettingStammdaten
     /// <summary>Name einer Artikelkategorie (<c>ArticleCategories.Name</c>).</summary>
     Artikelkategorie,
     /// <summary>Id einer Bestellempfaenger-Gruppe (<c>OrderRecipientGroups.Id</c>).</summary>
-    Bestellempfaengergruppe
+    Bestellempfaengergruppe,
+    /// <summary>v1.99.43: Kommissionierziel der FA-Struktur (distinct <c>FaHierarchyNodes.Kommissionieren</c>, getrimmt) — bei MultiChoice
+    /// ohne <c>Werte</c> die Auswahlliste.</summary>
+    Kommissionierziel
 }
 
 /// <summary>v1.99.10: String-Einstellung mit Mail-Adressen — der Server prueft jede Adresse beim Speichern (ADR 0020 Punkt 2).</summary>

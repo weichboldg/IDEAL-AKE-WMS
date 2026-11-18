@@ -123,6 +123,9 @@ public class SettingValidatorTests
                     if (d.DefaultValue.Length > 0 || !d.LeerErlaubt)
                         SettingValidator.Validate(d, d.DefaultValue).Gueltig.Should().BeTrue($"{d.Key}: Default parsebar und in Min/Max");
                     break;
+                case SettingType.MultiChoice when d.Werte == null:
+                    d.Stammdaten.Should().NotBe(SettingStammdaten.Keine, $"{d.Key}: MultiChoice ohne Werte braucht Stammdaten (v1.99.43)");
+                    break;
                 case SettingType.Choice:
                 case SettingType.MultiChoice:
                     d.Werte.Should().NotBeNullOrEmpty(d.Key);
@@ -199,5 +202,19 @@ public class SettingValidatorTests
         p.Gueltig.Should().Be(gueltig, p.Fehler);
         if (gueltig) p.Kanonisch.Should().Be(kanonisch);
         else p.Fehler.Should().NotBeNullOrEmpty();
+    }
+
+    [Fact]
+    public void MultiChoice_AusStammdaten_Kommissionierziele_v1_99_43()
+    {
+        var d = App(AppSettingKeys.FaHierarchyKommissionierlisteVorfilterZiele);
+        var ziele = new[] { "K-01", "K-02", "K-03" };
+        SettingValidator.Validate(d, " k-02 , K-01", ziele).Kanonisch.Should().Be("K-01,K-02", "Schreibweise und Reihenfolge der Stammdaten");
+        SettingValidator.Validate(d, "K-01,X-99", ziele).Gueltig.Should().BeFalse("ein Ziel, das es nicht gibt, wird abgewiesen");
+        SettingValidator.Validate(d, "", ziele).Kanonisch.Should().Be("", "leer = alle Ziele");
+        SettingValidator.Validate(d, "K-01", Array.Empty<string>()).Gueltig.Should().BeFalse("leere Stammdaten: nicht leerer Wert abgewiesen");
+        SettingValidator.Validate(d, "K-01,K-02", null).Gueltig.Should().BeTrue("Stammdaten nicht geladen = ungeprueft wie MasterData");
+        IdealAkeWms.Models.ViewModels.SettingItem.Aus(d, "K-01,X-99", new[] { ("K-01", "K-01") }).Ungueltig.Should().BeTrue("gespeicherter fehlender Wert erscheint als ungueltig");
+        IdealAkeWms.Models.ViewModels.SettingItem.Aus(d, null, Array.Empty<(string, string)>()).Ungueltig.Should().BeFalse("Default bei leerer Liste ungeprueft");
     }
 }

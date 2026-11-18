@@ -387,6 +387,9 @@ try
         [IdealAkeWms.Models.SettingStammdaten.Artikelkategorie] = pdb.ArticleCategories.Select(c => c.Name).ToList(),
         [IdealAkeWms.Models.SettingStammdaten.Bestellempfaengergruppe] = pdb.OrderRecipientGroups.Select(g => g.Id.ToString()).ToList(),
         [IdealAkeWms.Models.SettingStammdaten.Lagerplatz] = pdb.StorageLocations.Select(l => l.Code).ToList(),
+        [IdealAkeWms.Models.SettingStammdaten.Kommissionierziel] = pdb.FaHierarchyNodes.Where(n => n.Kommissionieren != null)
+            .Select(n => n.Kommissionieren!).Distinct().AsEnumerable().Select(k => k.Trim()).Where(k => k.Length > 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
     };
     var befunde = IdealAkeWms.Services.Settings.Einstellungspruefung.Befunde(
         pdb.AppSettings.Select(s => new { s.Key, s.Value }).AsEnumerable().Select(s => (s.Key, (string?)s.Value)).ToList(),

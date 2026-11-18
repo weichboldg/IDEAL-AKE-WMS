@@ -6,9 +6,9 @@
     var deCulture = CultureInfo.GetCultureInfo("de-DE");
     const int colCount = 6; // HauptFA + Artnr + Matchcode + Ziel + Hauptlagerplatz + Summe Sollmenge
     // Print-URL: exakt dieselben Query-Parameter (target/KW/colf_*) wie die Bildschirmansicht.
-    var printUrl = Url.Action("PrintSummiert") + Context.Request.QueryString.ToString();
+    var printUrl = Url.Action("PrintSummiert") + Model.ZielQuery; // v1.99.43: traegt die wirksamen Ziele
     // PDF je Gruppe: dieselben Query-Parameter wie der Bildschirmdruck; hauptFa ist Routen-Segment.
-    var pdfQuery = Context.Request.QueryString.ToString();
+    var pdfQuery = Model.ZielQuery;
 }
 
 <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
@@ -44,25 +44,21 @@
                 <label for="kwBis" class="form-label mb-0 small">Kalenderwoche bis</label>
                 <input type="week" id="kwBis" name="kwBis" value="@Model.KwBis" class="form-control form-control-sm" />
             </div>
-            <div class="col-md-3">
-                <label for="target" class="form-label mb-0 small">Kommissionier-Ziel</label>
-                <select id="target" name="target" class="form-select form-select-sm">
-                    <option value="">— alle Ziele —</option>
-                    @foreach (var t in Model.AvailableTargets)
-                    {
-                        <option value="@t" selected="@(string.Equals(t, Model.SelectedTarget, StringComparison.OrdinalIgnoreCase))">@t</option>
-                    }
-                </select>
-            </div>
+            <partial name="_KommissionierZiele" model="(Model.AvailableTargets, Model.SelectedTargets)" />
             <div class="col-auto">
-                <button type="submit" class="btn btn-sm btn-secondary">Filtern</button>
+                <button type="submit" class="btn btn-sm btn-secondary">Anwenden</button>
             </div>
-            @if (Model.HasKwFilter || !string.IsNullOrEmpty(Model.SelectedTarget))
+            @if (Model.HasKwFilter || Context.Request.Query.Keys.Any(k => k.StartsWith("colf_", StringComparison.Ordinal)))
             {
                 <div class="col-auto">
                     <a asp-action="Summiert" class="btn btn-sm btn-outline-secondary" data-clear-table-filters="FaHierarchyKommissionierSummiert">Zurücksetzen</a>
                 </div>
             }
+        </form>
+        @* v1.99.43 (A1): gemerkte Ziele loeschen, zurueck auf die Einstellung „Kommissionierliste: Standard-Ziele“. *@
+        <form method="post" asp-action="ZieleZuruecksetzen" class="mt-2">
+            <input type="hidden" name="ansicht" value="Summiert" />
+            <button type="submit" class="btn btn-sm btn-outline-secondary">Ziele auf Standard</button>
         </form>
         <p class="mb-0 mt-2 small text-muted">
             Je <strong>HauptFA</strong> nach <strong>Artikelnummer</strong> und

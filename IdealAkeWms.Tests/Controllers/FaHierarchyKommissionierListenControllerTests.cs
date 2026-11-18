@@ -53,6 +53,7 @@ public class FaHierarchyKommissionierListenControllerTests
         public Mock<ICurrentUserService> User { get; } = new();
         public Mock<IRazorViewRenderer> ViewRenderer { get; } = new();
         public Mock<IPdfRenderService> PdfRenderService { get; } = new();
+        public Mock<IAppSettingRepository> Settings { get; } = new();
         public FaHierarchyKommissionierListenController Controller { get; }
 
         public Fixture(IEnumerable<FaHierarchyNode> nodes, IEnumerable<FaHierarchyOrderInfo>? infos = null,
@@ -67,6 +68,8 @@ public class FaHierarchyKommissionierListenControllerTests
 
             User.Setup(x => x.GetDefaultPageSizeAsync()).ReturnsAsync((int?)null);
             User.Setup(x => x.GetCurrentAppUserId()).Returns((int?)null);
+            // v1.99.43: Einstellung „Standard-Ziele“ leer = alle Ziele (die aelteren Tests filtern nicht nach Ziel)
+            Settings.Setup(s => s.GetValueAsync(It.IsAny<string>())).ReturnsAsync("");
 
             var barcode = new Mock<IBarcodeService>();
             barcode.Setup(b => b.EncodeCode128Base64(It.IsAny<string>())).Returns("barcode");
@@ -75,7 +78,7 @@ public class FaHierarchyKommissionierListenControllerTests
 
             Controller = new FaHierarchyKommissionierListenController(
                 service, barcode.Object, User.Object, ViewRenderer.Object, PdfRenderService.Object,
-                pdfStatus, ViewPrefs.Object);
+                pdfStatus, ViewPrefs.Object, Settings.Object);
 
             var httpContext = new DefaultHttpContext();
             if (!string.IsNullOrEmpty(queryString))
@@ -243,7 +246,8 @@ public class FaHierarchyKommissionierListenControllerTests
     public async Task PdfSummiert_RenderFails_RedirectsToSummiertWithParams()
     {
         var nodes = new List<FaHierarchyNode> { Node(100, 0, "LAGER", artnr: "A1", sollmenge: 1m) };
-        var fx = new Fixture(nodes);
+        const string query = "?target=LAGER&target=WERK&kwVon=kein-gueltiges-format&kwBis=auch-nicht";
+        var fx = new Fixture(nodes, queryString: query);
         fx.ViewRenderer.Setup(v => v.RenderToStringAsync(
                 It.IsAny<ControllerContext>(), It.IsAny<string>(), It.IsAny<object>()))
             .ReturnsAsync("<html></html>");
@@ -253,18 +257,103 @@ public class FaHierarchyKommissionierListenControllerTests
         // kwVon/kwBis bewusst KEIN gueltiges YYYY-Www-Format (IsoWeekRange.Parse -> null, keine
         // KW-Einschraenkung) -- der Test prueft nur den Rueckweg, nicht die KW-Aufloesung; die Fixture
         // fuehrt keine FaHierarchyOrderInfo, ein gueltiger KW-Filter wuerde HauptFA 100 vorher ausschliessen.
-        var result = await fx.Controller.PdfSummiert(100, "LAGER", "kein-gueltiges-format", "auch-nicht", null);
+        var result = await fx.Controller.PdfSummiert(100, new[] { "LAGER", "WERK" }, "kein-gueltiges-format", "auch-nicht", null);
 
-        var redirect = result.Should().BeOfType<RedirectToActionResult>().Subject;
-        redirect.ActionName.Should().Be(nameof(FaHierarchyKommissionierListenController.Summiert));
-        redirect.RouteValues.Should().ContainKey("target").WhoseValue.Should().Be("LAGER");
-        redirect.RouteValues.Should().ContainKey("kwVon").WhoseValue.Should().Be("kein-gueltiges-format");
-        redirect.RouteValues.Should().ContainKey("kwBis").WhoseValue.Should().Be("auch-nicht");
+        // v1.99.43: Rueckweg mit der Query der Anfrage (mehrwertiges target bleibt erhalten); Url.Action ist gemockt (null).
+        result.Should().BeOfType<RedirectResult>().Which.Url.Should().Be(query);
         fx.Controller.TempData["WarningMessage"].Should().Be(PdfRenderException.FailedMessage);
 
         // View-Name-Pin: ein Tippfehler hier wuerde beim echten Rendern eine InvalidOperationException
         // werfen, die PdfRenderException-Fallback faengt nur Fehler des Edge-Renderers ab.
         fx.ViewRenderer.Verify(v => v.RenderToStringAsync(
             It.IsAny<ControllerContext>(), "PrintSummiert", It.IsAny<object>()), Times.Once);
+    }
+
+    // ----- v1.99.43 A1: Zielfilter mehrwertig + Gedaechtnis + Einstellung -----
+
+    private static List<FaHierarchyNode> ZielKnoten() => new()
+    {
+        Node(100, 0, "K-01", artnr: "A1", position: 1), Node(200, 0, "K-02", artnr: "A2", position: 1),
+        Node(300, 0, "K-03", artnr: "A3", position: 1),
+    };
+
+    [Fact]
+    public async Task Index_MitTargetInQuery_FiltertUndMerkt()
+    {
+        var fx = new Fixture(ZielKnoten(), queryString: "?target=&target=K-01&target=K-03");
+        fx.User.Setup(x => x.GetCurrentAppUserId()).Returns(7);
+        fx.User.Setup(x => x.GetDisplayName()).Returns("T");
+        fx.User.Setup(x => x.GetWindowsUserName()).Returns("W");
+
+        var vm = (FaHierarchyKommissionierListViewModel)((ViewResult)await fx.Controller.Index(new[] { "", "K-01", "K-03" })).Model!;
+
+        vm.Groups.Select(g => g.HauptFA).Should().Equal(100, 300);
+        vm.SelectedTargets.Should().Equal("K-01", "K-03");
+        vm.ZielQuery.Should().Be("?target=K-01&target=K-03");
+        fx.ViewPrefs.Verify(p => p.SaveAsync(7, FaHierarchyKommissionierListenController.ZieleViewKey,
+            """{"ziele":["K-01","K-03"]}""", "T", "W"), Times.Once);
+    }
+
+    [Fact]
+    public async Task Index_NurLeeresTarget_IstAlleZiele_UndWirdGemerkt()
+    {
+        var fx = new Fixture(ZielKnoten(), queryString: "?target=");
+        fx.User.Setup(x => x.GetCurrentAppUserId()).Returns(7);
+
+        var vm = (FaHierarchyKommissionierListViewModel)((ViewResult)await fx.Controller.Index(new[] { "" })).Model!;
+
+        vm.Groups.Should().HaveCount(3);
+        fx.ViewPrefs.Verify(p => p.SaveAsync(7, FaHierarchyKommissionierListenController.ZieleViewKey,
+            """{"ziele":["*"]}""", It.IsAny<string>(), It.IsAny<string>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Summiert_OhneTarget_GemerkteZiele_LeitenUmMitZielenUndRestQuery()
+    {
+        var fx = new Fixture(ZielKnoten(), queryString: "?kwVon=2026-W47");
+        fx.User.Setup(x => x.GetCurrentAppUserId()).Returns(7);
+        fx.ViewPrefs.Setup(v => v.GetByUserAndViewAsync(7, FaHierarchyKommissionierListenController.ZieleViewKey))
+            .ReturnsAsync(Pref(FaHierarchyKommissionierListenController.ZieleViewKey, """{"ziele":["K-02"]}"""));
+
+        var result = await fx.Controller.Summiert(null, "2026-W47", null);
+
+        result.Should().BeOfType<RedirectResult>().Which.Url.Should().Be("?target=K-02&kwVon=2026-W47");
+    }
+
+    [Theory]
+    [InlineData("K-03", new[] { 300 })]
+    [InlineData("", new[] { 100, 200, 300 })]
+    [InlineData(null, new[] { 100, 200 })] // keine Zeile = Default K-01,K-02
+    public async Task Index_OhneTargetOhneGedaechtnis_NimmtEinstellung(string? wert, int[] erwartet)
+    {
+        var fx = new Fixture(ZielKnoten());
+        fx.Settings.Setup(s => s.GetValueAsync(AppSettingKeys.FaHierarchyKommissionierlisteVorfilterZiele)).ReturnsAsync(wert);
+
+        var vm = (FaHierarchyKommissionierListViewModel)((ViewResult)await fx.Controller.Index(null)).Model!;
+
+        vm.Groups.Select(g => g.HauptFA).Should().Equal(erwartet);
+        fx.ViewPrefs.Verify(p => p.SaveAsync(It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()),
+            Times.Never, "die Einstellung wird nicht als Benutzerwert gemerkt");
+    }
+
+    [Fact]
+    public async Task ZieleZuruecksetzen_LoeschtGedaechtnis()
+    {
+        var fx = new Fixture(ZielKnoten());
+        fx.User.Setup(x => x.GetCurrentAppUserId()).Returns(7);
+
+        var r = await fx.Controller.ZieleZuruecksetzen("Summiert");
+
+        fx.ViewPrefs.Verify(p => p.DeleteByUserAndViewAsync(7, FaHierarchyKommissionierListenController.ZieleViewKey), Times.Once);
+        r.Should().BeOfType<RedirectToActionResult>().Which.ActionName.Should().Be("Summiert");
+        FaHierarchyKommissionierListenController.ZieleViewKey.Length.Should().BeLessThanOrEqualTo(50);
+    }
+
+    [Fact]
+    public void BuildToggleQuery_TraegtMehrwertigesTarget()
+    {
+        var ctx = new DefaultHttpContext();
+        ctx.Request.QueryString = new QueryString("?target=K-01&target=K-02&colf_artnr=x&page=3");
+        KommissionierListenService.BuildToggleQuery(ctx.Request).Should().Be("?target=K-01&target=K-02&colf_artnr=x");
     }
 }

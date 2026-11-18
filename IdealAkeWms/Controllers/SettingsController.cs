@@ -22,6 +22,7 @@ public class SettingsController : Controller
     private readonly IStorageLocationRepository _storageLocations;
     private readonly IOperationConfigRepository _operations;
     private readonly IServiceSettingRepository _serviceSettings;
+    private readonly IPickingAreaRepository? _pickingAreas;
 
     public SettingsController(
         IAppSettingRepository settingRepository,
@@ -32,7 +33,8 @@ public class SettingsController : Controller
         IOrderRecipientRepository recipients,
         IStorageLocationRepository storageLocations,
         IOperationConfigRepository operations,
-        IServiceSettingRepository serviceSettings)
+        IServiceSettingRepository serviceSettings,
+        IPickingAreaRepository? pickingAreas = null)
     {
         _settingRepository = settingRepository;
         _holidayRepository = holidayRepository;
@@ -43,6 +45,7 @@ public class SettingsController : Controller
         _storageLocations = storageLocations;
         _operations = operations;
         _serviceSettings = serviceSettings;
+        _pickingAreas = pickingAreas;
     }
 
     public async Task<IActionResult> Index() => View(await BuildViewModelAsync(null));
@@ -81,12 +84,15 @@ public class SettingsController : Controller
         {
             [AppSettingKeys.BdeDefaultArbeitsgang] = arbeitsgaenge,
         };
-        foreach (var d in AppSettingDefinitions.All.Where(d => d.Type == SettingType.MasterData))
+        foreach (var d in AppSettingDefinitions.All.Where(d => d.Stammdaten != SettingStammdaten.Keine))
             result[d.Key] = d.Stammdaten switch
             {
                 SettingStammdaten.Artikelkategorie => kategorien,
                 SettingStammdaten.Bestellempfaengergruppe => gruppen,
                 SettingStammdaten.Lagerplatz => plaetze,
+                // v1.99.43: Kommissionierziele der FA-Struktur (MultiChoice ohne feste Werte)
+                SettingStammdaten.Kommissionierziel => _pickingAreas == null ? Array.Empty<(string, string)>()
+                    : (await _pickingAreas.GetKommissionierzieleAsync()).Select(z => (z, z)).ToList(),
                 _ => Array.Empty<(string, string)>(),
             };
         return result;
@@ -110,7 +116,7 @@ public class SettingsController : Controller
             // ein fehlender Ausweich-Lagerplatz darf nicht jedes Speichern sperren).
             if (bestand.TryGetValue(key, out var vorher) ? string.Equals(vorher, roh, StringComparison.Ordinal) : SettingItem.EntsprichtDefault(def, roh))
                 continue;
-            var stamm = def.Type == SettingType.MasterData && optionen.TryGetValue(key, out var o) ? o.Select(x => x.Wert).ToList() : null;
+            var stamm = def.Stammdaten != SettingStammdaten.Keine && optionen.TryGetValue(key, out var o) ? o.Select(x => x.Wert).ToList() : null;
             var pruefung = SettingValidator.Validate(def, roh, stamm);
             if (!pruefung.Gueltig) { fehler.Add(pruefung.Fehler!); continue; }
             var wert = def.Type == SettingType.String ? roh ?? "" : pruefung.Kanonisch!;

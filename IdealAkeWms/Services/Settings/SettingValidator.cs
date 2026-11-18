@@ -50,8 +50,10 @@ public static class SettingValidator
 
             case SettingType.MultiChoice:
             {
-                var werte = (d.Werte ?? Array.Empty<(string Wert, string Text)>()).Select(w => w.Wert).ToList();
                 var teile = t.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                // v1.99.43: ohne feste Werte aus den Stammdaten; ohne beides (Stammdaten nicht geladen) ungeprueft wie MasterData.
+                var werte = d.Werte?.Select(w => w.Wert).ToList() ?? stammdaten?.ToList();
+                if (werte == null) return SettingPruefung.Ok(string.Join(",", teile));
                 if (teile.Length == 0)
                     return d.LeerErlaubt ? SettingPruefung.Ok("") : Fehler(name, roh, "mindestens ein Wert aus " + Liste(werte));
                 if (teile.Any(p => !werte.Contains(p, StringComparer.OrdinalIgnoreCase))) return Fehler(name, roh, Liste(werte));

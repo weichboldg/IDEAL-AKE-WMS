@@ -5,9 +5,9 @@
     ViewData["Title"] = "Kommissionierlisten (IDEAL)";
     var deCulture = CultureInfo.GetCultureInfo("de-DE");
     // Print-URL: exakt dieselben Query-Parameter (target + colf_*) wie die Bildschirmliste.
-    var printUrl = Url.Action("Print") + Context.Request.QueryString.ToString();
+    var printUrl = Url.Action("Print") + Model.ZielQuery; // v1.99.43: traegt die wirksamen Ziele (auch aus Gedaechtnis/Einstellung)
     // PDF je Gruppe: dieselben Query-Parameter wie der Bildschirmdruck (target + colf_*); hauptFa ist Routen-Segment.
-    var pdfQuery = Context.Request.QueryString.ToString();
+    var pdfQuery = Model.ZielQuery;
     const int colCount = 11; // Anzahl der Positionsspalten (colspan der Gruppen-Kopfzeile)
 }
 
@@ -45,25 +45,21 @@
             {
                 <input type="hidden" name="kwBis" value="@Context.Request.Query["kwBis"]" />
             }
-            <div class="col-md-4">
-                <label class="form-label mb-0 small">Kommissionier-Ziel</label>
-                <select name="target" class="form-select form-select-sm" onchange="this.form.submit()">
-                    <option value="">— alle Ziele —</option>
-                    @foreach (var t in Model.AvailableTargets)
-                    {
-                        <option value="@t" selected="@(string.Equals(t, Model.SelectedTarget, StringComparison.OrdinalIgnoreCase))">@t</option>
-                    }
-                </select>
-            </div>
+            <partial name="_KommissionierZiele" model="(Model.AvailableTargets, Model.SelectedTargets)" />
             <div class="col-auto">
-                <button type="submit" class="btn btn-sm btn-secondary">Filtern</button>
+                <button type="submit" class="btn btn-sm btn-secondary">Anwenden</button>
             </div>
-            @if (!string.IsNullOrEmpty(Model.SelectedTarget))
+            @if (Context.Request.Query.Keys.Any(k => k.StartsWith("colf_", StringComparison.Ordinal)))
             {
                 <div class="col-auto">
                     <a asp-action="Index" class="btn btn-sm btn-outline-secondary" data-clear-table-filters="FaHierarchyKommissionierListen">Zurücksetzen</a>
                 </div>
             }
+        </form>
+        @* v1.99.43 (A1): gemerkte Ziele loeschen, zurueck auf die Einstellung „Kommissionierliste: Standard-Ziele“. *@
+        <form method="post" asp-action="ZieleZuruecksetzen" class="mt-2">
+            <input type="hidden" name="ansicht" value="Index" />
+            <button type="submit" class="btn btn-sm btn-outline-secondary">Ziele auf Standard</button>
         </form>
     </div>
 </div>

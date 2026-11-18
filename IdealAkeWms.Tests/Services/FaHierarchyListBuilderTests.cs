@@ -192,7 +192,7 @@ public class FaHierarchyListBuilderTests
             Node(100, subFa: 4, komm: "WERK",  artnr: "ANOM-WERK",  position: 4), // Anomalie, Ziel WERK
         };
 
-        var predicate = KommissionierListenService.BuildFlagPredicate("LAGER");
+        var predicate = KommissionierListenService.BuildFlagPredicate(new[] { "LAGER" });
         var result = NewBuilder().Build(nodes, new List<FaHierarchyOrderInfo>(),
             predicate, "Kommissionieren", null, null, 1, 100, true);
 
@@ -200,5 +200,18 @@ public class FaHierarchyListBuilderTests
         result.Groups.Single().Positions.Select(p => p.Artnr).Should().BeEquivalentTo(new[] { "L1" });
         // Anomalie nur fuer das gewaehlte Ziel LAGER (WERK-Anomalie faellt nicht ins Banner).
         result.Anomalies.PositionCount.Should().Be(1);
+    }
+
+    [Fact]
+    public void TargetPredicate_Mehrwertig_UndAlle_v1_99_43()
+    {
+        var n = new[] { Node(1, 0, komm: "K-01", artnr: "a", position: 1), Node(1, 0, komm: " k-02 ", artnr: "b", position: 2),
+                        Node(1, 0, komm: "K-03", artnr: "c", position: 3) };
+        n.Where(KommissionierListenService.BuildFlagPredicate(new[] { "K-01", "K-02" })).Select(x => x.Artnr).Should().Equal("a", "b");
+        n.Where(KommissionierListenService.BuildFlagPredicate(new[] { KommissionierListenService.AlleZiele })).Should().HaveCount(3);
+        n.Where(KommissionierListenService.BuildFlagPredicate(null)).Should().HaveCount(3);
+        KommissionierListenService.ZieleNormalisieren(new[] { "", " K-01 ", "k-01" }).Should().Equal("K-01");
+        KommissionierListenService.ZieleNormalisieren(new[] { "" }).Should().Equal(KommissionierListenService.AlleZiele);
+        KommissionierListenService.ZieleNormalisieren(new[] { "K-01", "*" }).Should().Equal(KommissionierListenService.AlleZiele);
     }
 }

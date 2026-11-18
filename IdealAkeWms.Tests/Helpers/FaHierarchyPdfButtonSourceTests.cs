@@ -19,7 +19,8 @@ public class FaHierarchyPdfButtonSourceTests
         var anchors = Regex.Matches(src, "<a [^>]*Url\\.Action\\(\"Pdf\"[^>]*>", RegexOptions.Singleline).Select(m => m.Value).ToList();
         anchors.Should().HaveCount(1, "genau ein PDF-Knopf je Gruppen-Kopfzeile");
         anchors[0].Should().NotContain("target=", "direkter Download, kein neuer Tab — nicht vom Drucken-Link erben (AK 16)");
-        src.Should().Contain("pdfQuery = Context.Request.QueryString.ToString()", "target/colf_* muessen mit ins PDF (Klarstellung zu Antwort 7)");
+        // v1.99.43: Kommissionierliste nimmt die Query mit den wirksamen Zielen (Model.ZielQuery), sonst die Anfrage-Query.
+        src.Should().MatchRegex(@"pdfQuery = (Context\.Request\.QueryString\.ToString\(\)|Model\.ZielQuery)", "target/colf_* muessen mit ins PDF (Klarstellung zu Antwort 7)");
         anchors[0].Should().Contain("+ pdfQuery", "der Query-String haengt am PDF-Link");
         src.Should().Contain("@if (Model.PdfVerfuegbar)", "ohne Edge erscheint der Knopf gar nicht (AK 13)");
         src.Should().MatchRegex(">\\s*PDF\\s*</a>", "Icon UND Text — der Text ist Pflicht");

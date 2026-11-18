@@ -93,7 +93,7 @@ public class KommissionierListenService
     /// <c>SubFA</c>. Kein Blattfilter, kein Anomalie-Banner mehr.</para>
     /// </summary>
     public async Task<FaHierarchyListResult> BuildAsync(
-        string? targetValue,
+        IReadOnlyCollection<string>? ziele,
         IReadOnlyDictionary<string, string>? columnFilters,
         int page,
         int pageSize,
@@ -101,7 +101,7 @@ public class KommissionierListenService
     {
         var allNodes = await _nodes.GetAllAsync();
         var allInfos = await _orderInfos.GetAllAsync();
-        var predicate = BuildFlagPredicate(targetValue);
+        var predicate = BuildFlagPredicate(ziele);
 
         return _builder.Build(
             allNodes, allInfos, predicate, FlagName,
@@ -115,7 +115,7 @@ public class KommissionierListenService
     /// delegiert an die reine, DB-freie <see cref="AggregateSummiert"/>.
     /// </summary>
     public async Task<FaHierarchyKommissionierSummiertResult> BuildSummiertAsync(
-        string? targetValue,
+        IReadOnlyCollection<string>? ziele,
         (DateTime StartInclusive, DateTime EndExclusive)? kwRange,
         IReadOnlyDictionary<string, string>? columnFilters,
         int page,
@@ -124,7 +124,7 @@ public class KommissionierListenService
     {
         var allNodes = await _nodes.GetAllAsync();
         var allInfos = await _orderInfos.GetAllAsync();
-        return AggregateSummiert(allNodes, allInfos, targetValue, kwRange, columnFilters, page, pageSize, paginate);
+        return AggregateSummiert(allNodes, allInfos, ziele, kwRange, columnFilters, page, pageSize, paginate);
     }
 
     /// <summary>
@@ -148,7 +148,7 @@ public class KommissionierListenService
     public static FaHierarchyKommissionierSummiertResult AggregateSummiert(
         IEnumerable<FaHierarchyNode> allNodes,
         IEnumerable<FaHierarchyOrderInfo> allInfos,
-        string? targetValue,
+        IReadOnlyCollection<string>? ziele,
         (DateTime StartInclusive, DateTime EndExclusive)? kwRange,
         IReadOnlyDictionary<string, string>? columnFilters,
         int page,
@@ -164,7 +164,7 @@ public class KommissionierListenService
             : IsoWeekRange.HauptFasInRange(
                 allInfos ?? Enumerable.Empty<FaHierarchyOrderInfo>(), o => o.KO_Termin, kwRange.Value);
 
-        var predicate = BuildFlagPredicate(targetValue);
+        var predicate = BuildFlagPredicate(ziele);
         var relevant = allNodes.Where(n => (includedHauptFas is null || includedHauptFas.Contains(n.HauptFA)) && predicate(n));
 
         // (4) Aggregation je (HauptFA, Artnr, Ziel); Summe nur Sollmenge.
@@ -233,10 +233,35 @@ public class KommissionierListenService
         if (request == null) return string.Empty;
         var qb = new QueryBuilder();
         foreach (var key in keys)
-        {
-            var value = request.Query[key].ToString();
-            if (!string.IsNullOrEmpty(value)) qb.Add(key, value);
-        }
+            foreach (var value in request.Query[key]) // v1.99.43: wiederholter Key (target=K-01&target=K-02) bleibt mehrwertig
+                if (!string.IsNullOrEmpty(value)) qb.Add(key, value);
+        return qb.ToQueryString().ToString();
+    }
+
+    /// <summary>„Alle Ziele“ in Query und Gedaechtnis (A1); in der UI „— alle Ziele —“.</summary>
+    public const string AlleZiele = "*";
+
+    /// <summary>v1.99.43 (A1): Zielmenge normalisieren — getrimmt, ohne Leere, distinct; leer oder mit „*“ = alle (<c>["*"]</c>).</summary>
+    public static List<string> ZieleNormalisieren(IEnumerable<string?>? werte)
+    {
+        var ziele = (werte ?? Enumerable.Empty<string?>()).Select(w => w?.Trim() ?? "").Where(w => w.Length > 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        return ziele.Count == 0 || ziele.Contains(AlleZiele) ? new List<string> { AlleZiele } : ziele;
+    }
+
+    /// <summary>true, wenn die Menge wirklich einschraenkt (nicht leer, nicht „alle“).</summary>
+    public static bool SchraenktEin(IReadOnlyCollection<string>? ziele) =>
+        ziele is { Count: > 0 } && !ziele.Contains(AlleZiele);
+
+    /// <summary>v1.99.43 (A1): aktuelle Query mit ersetztem <c>target</c> (je Ziel ein Eintrag) — fuer Druck/PDF-Links, damit sie die
+    /// wirksamen Ziele tragen, auch wenn sie aus Gedaechtnis oder Einstellung kommen (Druck/PDF lesen nur die Query).</summary>
+    public static string QueryMitZielen(HttpRequest? request, IEnumerable<string> ziele)
+    {
+        var qb = new QueryBuilder();
+        foreach (var z in ziele) qb.Add("target", z);
+        if (request != null)
+            foreach (var (key, values) in request.Query.Where(q => q.Key != "target"))
+                foreach (var v in values) qb.Add(key, v ?? "");
         return qb.ToQueryString().ToString();
     }
 
@@ -261,17 +286,16 @@ public class KommissionierListenService
     }
 
     /// <summary>
-    /// Flag-Praedikat: gesetztes <c>Kommissionieren</c>, optional auf einen konkreten Ziel-Wert
-    /// eingeschraenkt. Wird im Baustein sowohl auf Blaetter als auch auf Anomalie-Zeilen angewandt,
+    /// Flag-Praedikat: gesetztes <c>Kommissionieren</c>, optional auf eine Zielmenge eingeschraenkt (v1.99.43, A1: mehrwertig;
+    /// null, leer oder „*“ = alle). Wird im Baustein sowohl auf Blaetter als auch auf Anomalie-Zeilen angewandt,
     /// damit eine Ziel-Einschraenkung in Liste und Banner konsistent wirkt.
     /// </summary>
-    public static Func<FaHierarchyNode, bool> BuildFlagPredicate(string? targetValue)
+    public static Func<FaHierarchyNode, bool> BuildFlagPredicate(IReadOnlyCollection<string>? ziele)
     {
-        if (string.IsNullOrWhiteSpace(targetValue))
+        if (!SchraenktEin(ziele))
             return n => KommissionierRelevanzFilter.IsRelevant(n.Kommissionieren);
 
-        var target = targetValue.Trim();
-        return n => KommissionierRelevanzFilter.IsRelevant(n.Kommissionieren)
-                    && string.Equals(n.Kommissionieren!.Trim(), target, StringComparison.OrdinalIgnoreCase);
+        var menge = ziele!.Select(z => z.Trim()).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return n => KommissionierRelevanzFilter.IsRelevant(n.Kommissionieren) && menge.Contains(n.Kommissionieren!.Trim());
     }
 }
