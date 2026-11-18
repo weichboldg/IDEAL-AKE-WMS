@@ -1,6 +1,6 @@
 # 03 – Installation, Update und Rückfall
 
-**Stand:** v1.99.29, 2026-11-16 · **Zielgruppe:** IT-Administratoren, die installieren oder aktualisieren · **Zweck:** Schritt für Schritt
+**Stand:** v1.99.43, 2026-11-19 · **Zielgruppe:** IT-Administratoren, die installieren oder aktualisieren · **Zweck:** Schritt für Schritt
 durch Erstinstallation und Update mit dem Update-Skript, und ehrlich, was beim Zurückgehen möglich ist und was nicht.
 
 Übersicht: [00-index.md](00-index.md). Zielsysteme: [02-systeme-umgebungen.md](02-systeme-umgebungen.md). Sicherung:
@@ -40,7 +40,14 @@ Ein Paket ist der Ordner `publish\` aus dem Build: (Quelle: `README.md:71-72`, `
 
 Das Skript prüft vor allem anderen: `publish-info.txt` vorhanden mit Version und Commit, gleiche Version/Commit in den Unterordnern,
 `IdealAkeWms.dll` und `IDEALAKEWMSService.exe` vorhanden, `SQL\` vorhanden. (Quelle: `scripts/deploy/Update-IdealAkeWms.ps1:102-120`)
-Aktuelles Paket: Version 1.99.23, Commit `08672fcc…`. (Quelle: `publish/publish-info.txt`)
+Die Pakete des Bündels liegen inzwischen je in einem eigenen Ordner `publish\paket<N>-v<Version>\` (dazu eine gleichnamige ZIP-Datei) mit
+denselben Teilen wie oben. Das Skript nimmt als Quelle den Elternordner seines `deploy\` (Parameter `-Quelle`, Standard) und darunter `SQL\`
+(`-SqlOrdner`) – also genau diesen Paketordner, wenn `deploy\Update-IdealAkeWms.ps1` aus ihm heraus gestartet wird.
+(Quelle: `scripts/deploy/Update-IdealAkeWms.ps1:89-91`, [[2026-11-18-goal-lauf-kommissionierliste-v1-99-43]] „Paket 8“)
+`publish-info.txt` enthält zusätzlich `Paket:`, `Specs:`, `Inhalt:`, `SQL neu ggue. Paket <N-1>:`, `Dienst:`, `QA:`, `Offen:`, `Erstellt:` und
+`Komponenten:` – vor dem Update besonders „SQL neu“ und „Offen“ lesen.
+Aktuelles Paket: `publish\paket8-v1.99.43\`, Version 1.99.43, Commit `3a6372a5…`, erstellt 2026-11-18 17:48; gegenüber Paket 7 **kein** neues
+SQL, Dienst nur mit neuer Versionsnummer. (Quelle: `publish/paket8-v1.99.43/publish-info.txt`)
 
 > Altes `publish\deploy.zip` vom 13.11. 08:15 nicht verwenden. (Quelle: [[2026-11-12-deploy-fahrplan-buendel-v1-99]] „Einmal je Server vorab“)
 > **zu prüfen:** ob das heute im Paket liegende `deploy.zip` aktuell ist; das Skript braucht es nicht.
@@ -168,19 +175,42 @@ Das Skript **liest Sage nie** (Prüfabfragen auf Sage bleiben Hand-Schritte). (Q
 | **6 Starten** | **Web zuerst**: App-Pool starten, Startseite abrufen (bis 300 s), Fußzeilen-Version = Paket-Version, DLL-Hash = Paket; Fotos-Verschiebung im Log abgleichen. **Dann Dienst**: starten, 30 s warten, muss laufen, DLL-Hash prüfen | ggf. „Zeigt die URL im Browser v…?“ | bei Fehler: App-Pool wieder gestoppt, Dienst nicht gestartet | `:855-888` |
 | **7 Nachlauf-Liste** | Daten-Einträge der Phase „Nachher“ (z. B. SQL/110 mit Trockenlauf), Hand-Schritte (Einstellungen, Leitstand, Info), Stand aller Prüfungen, gesammelte Warnungen | je Eintrag | nichts | `:891`, `:895-926` |
 
+### 5.2a Schema-Skripte SQL/153–163 (v1.99.30 bis v1.99.43)
+
+Das Skript spielt sie in Schritt 4 in **Manifest-Reihenfolge** ein, nicht nach Dateinummer: 155 → 154 → 153 → 156 … 163 (SQL/153 braucht
+SQL/96). Alle für **beide** Firmen; auf AKE bleiben die IDEAL-Tabellen leer. Das Backup aus Schritt 2 deckt auch die Skripte ab, die Daten
+anpassen. (Quelle: `scripts/deploy/nachlauf.psd1:101-122`)
+
+| Skript | Version | Inhalt | Ändert vorhandene Daten? | Hinweis | Quelle |
+|---|---|---|---|---|---|
+| SQL/155 | 1.99.30 | neue Tabelle `ArticleLastOrdersUnassigned` (letzte Bestellungen ohne Artikel-Lieferant-Zeile) | nein | – | `SQL/155_AddArticleLastOrderUnassigned.sql:25` |
+| SQL/154 | 1.99.32 | Spalte `ProductionWorkplaces.BdeTeileliste` (mit Default) + Tabelle `BdeTeilMeldungen` (UNIQUE-Schlüssel) | nein | Voraussetzung des Einmal-Skripts v1.99.32 (unten) | `SQL/154_AddBdeTeileliste.sql:27,37,70` |
+| SQL/153 | 1.99.32 (Inhalt aus der reservierten v1.99.27) | `OperationConfigs.SageArbeitsgangnummer` + `SageArbeitsgangnummerManuell`, beide NULL | nein | Hand-Schritt `v1.99.27-ArbeitsgangNummerPruefen` | `SQL/153_AddOperationConfigSageArbeitsgangnummer.sql:21,28`, `nachlauf.psd1:537` |
+| SQL/156 | 1.99.33 | `SagePurchaseOrderLines.AbNummer` / `Kommission`, NULL | nein | Werte erst nach dem nächsten Abgleich „Offene Bestellungen“ | `SQL/156_AddSagePurchaseOrderLineAbNummerKommission.sql:26,35` |
+| SQL/157 | 1.99.34 | `BeschichtungsauftragPositionen.PositionText` nvarchar(50) NULL | nein | braucht SQL/94 | `SQL/157_AddBeschichtungsauftragPositionText.sql:23` |
+| SQL/158 | 1.99.35 | neue Tabellen `BfAuftraege`, `BfAuftragPositionen` (Blechfertigung) | nein | – | `SQL/158_AddBfAuftraege.sql:23,65` |
+| SQL/159 | 1.99.37 | FA-Struktur-Abgleich: je `FaHierarchyNodes`, `FaHierarchyOrderInfos`, `ProductionOrderPositions` die Spalten `ErstGesehen`, `ZuletztGesehen` (Startwert `SyncedAt`, danach NOT NULL), `VerschwundenSeit`, `VerschwundenGrund`; UNIQUE-Indizes auf den fachlichen Schlüssel | **ja**: füllt die neuen Spalten, setzt leere `Artnr`/`ABNr`/`Pos` auf NULL | **Dienst muss gestoppt sein** (alter Dienst-Code kennt die NOT-NULL-Spalten nicht). Bricht vor dem Index ab, wenn doppelte Schlüssel existieren → vorher `Pruefung/FaStrukturSchluesselDoppelt` | `SQL/159_FaStrukturAbgleich.sql:1-14,29-44,64-96` |
+| SQL/160 | 1.99.38 | neue Tabelle `SageFaArbeitsgangAnlagen` (Warteschlange der Arbeitsgang-Anlage in Sage-FAs) | nein | – | `SQL/160_AddSageFaArbeitsgangAnlagen.sql:24,43` |
+| SQL/161 | 1.99.41 | `Beschichtungsauftraege.CreditorId` (FK, Index), `VersendetAt`, `VersendetByUserId`; je Position `Verpackt`, `OhneFa` (Default 0) | nein (kein Nachtrag; Kreditor über das Einmal-Skript v1.99.42) | – | `SQL/161_AddBeschichtungsauftragVersandUndVerpackt.sql:25-69` |
+| SQL/162 | 1.99.42 | `Users.Kuerzel` (gefiltert UNIQUE), `BfAuftraege.BestellerKuerzel` | nein | danach Kürzel der BF-Besteller in `/Users` pflegen, sonst ist die BF-Freigabe gesperrt | `SQL/162_AddUserKuerzelUndBfBestellerKuerzel.sql:23,30,37`, `nachlauf.psd1:120` |
+| SQL/163 | 1.99.42 | `BfAuftragPositionen.Arbeitsschritte` nvarchar(200) NULL | **ja**: trägt bei vorhandenen Positionen leere Felder aus dem Artikel-Merkmal `USER_OSArbeitsschritte` nach | – | `SQL/163_AddBfPositionArbeitsschritte.sql:4,22,27` |
+
+v1.99.36, v1.99.39, v1.99.40 und v1.99.43 bringen kein SQL. (Quelle: Changelogs [[2026-11-17-v1-99-36-beschichtung-ake-nachbesserung-bde-kontrast]],
+[[2026-11-17-v1-99-39-nachbesserung-abend]], [[2026-11-18-v1-99-40-sage-userfelder-als-einstellung]], `publish/paket8-v1.99.43/publish-info.txt`)
+
 ### 5.3 Prüfungen (Manifest-Typ „Pruefung“)
 
 Laufen bei **jedem** Lauf (ohne Versionsfilter), lesend; Ergebnis 0 = in Ordnung. (Quelle: `scripts/deploy/nachlauf.psd1:12-17`)
 
 | Phase | Verhalten | Beispiele | Beleg |
 |---|---|---|---|
-| Vorher | in der Vorprüfung; auf Prod Abbruch vor dem Stoppen, sonst Hinweis | `Pruefung/MailPickup`, `Pruefung/BenutzerOhneKennwort` (aktive Benutzer ohne Kennwort ausser admin, v1.99.28), `Pruefung/FreshInstallIndizes` (nur IDEAL-Prod: Indizes/FK aus der Erstinstallation vom 04.11. fehlen, v1.99.28; legt nichts an) | `scripts/deploy/nachlauf.psd1:158-161` |
-| Haltepunkt | nach dem Schema bei gestopptem Web und Dienst; Reparatur nur nach `j` | Kommissionierbereiche, RCSI, Rollen Beschichtungsauftrag, Rolle Einkauf, DUMMY-Artikel | `scripts/deploy/nachlauf.psd1:101-137` |
-| Nachher | nur lesend, Text = Hand-Schritt | Lieferverzug-Empfänger, Wareneingang-CSV, QR-Trennzeichen, Firmenanschrift, `Sync:ArticlesViewName`, SData-Kennwort in appsettings, SMTP-Benutzer (`Pruefung/SmtpBenutzer`), doppelte Prio, nur AKE: `Sync:Quelle:Artikel` nicht auf `SData` (`Pruefung/ArtikelQuelleSData`, v1.99.39; sonst bleiben `ArticleSageDetails` leer, Hand-Schritt, keine automatische Umschaltung) | `scripts/deploy/nachlauf.psd1:138-169,178-181` |
+| Vorher | in der Vorprüfung; auf Prod Abbruch vor dem Stoppen, sonst Hinweis | `Pruefung/MailPickup`, `Pruefung/BenutzerOhneKennwort` (aktive Benutzer ohne Kennwort ausser admin, v1.99.28), `Pruefung/FreshInstallIndizes` (nur IDEAL-Prod: Indizes/FK aus der Erstinstallation vom 04.11. fehlen, v1.99.28; legt nichts an), `Pruefung/FaStrukturSchluesselDoppelt` (beide, v1.99.37: doppelte FA-Struktur-Schlüssel – sonst bricht SQL/159 ab; Liste an die Entwicklung, nicht automatisch bereinigen) | `scripts/deploy/nachlauf.psd1:127-130,154-161,235-238` |
+| Haltepunkt | nach dem Schema bei gestopptem Web und Dienst; Reparatur nur nach `j` | Kommissionierbereiche, RCSI, Rollen Beschichtungsauftrag, Rolle Einkauf, DUMMY-Artikel, Rolle `schachtler` (`Pruefung/RolleSchachtler`, v1.99.35; Zuweisen bleibt Hand-Schritt) | `scripts/deploy/nachlauf.psd1:166-201,255-262` |
+| Nachher | nur lesend, Text = Hand-Schritt | Lieferverzug-Empfänger, Wareneingang-CSV, QR-Trennzeichen, Firmenanschrift, `Sync:ArticlesViewName`, SData-Kennwort in appsettings, SMTP-Benutzer (`Pruefung/SmtpBenutzer`), doppelte Prio, nur AKE: `Sync:Quelle:Artikel` nicht auf `SData` (`Pruefung/ArtikelQuelleSData`, v1.99.39; sonst bleiben `ArticleSageDetails` leer, Hand-Schritt, keine automatische Umschaltung), nur AKE: `Pruefung/WareneingangCsvKollision` (v1.99.33). Seit v1.99.34: `Pruefung/BeschichtungPositionOhneTextFlach`; v1.99.41: `Pruefung/BeschichterKreditoren` (kein aktiver Beschichter-Kreditor), `Pruefung/BeschichtungsauftragUebergebenOffen` (Aufträge im Status Übergeben – Weg führt jetzt über „Versendet“). Nur IDEAL: `Pruefung/BfEmpfaengergruppe`, `Pruefung/BfCsvPfad`, `Pruefung/FeiertageIdeal` (v1.99.35), `Pruefung/sage-fa-ag-sdata-zugang` (v1.99.38: Schalter an, aber Bearbeiter oder `SData:BaseUrl` leer), `Pruefung/KommissionierlisteNichtFreigegeben`, `Pruefung/KommissionierlisteLeitstandAus`, `Pruefung/KommissionierlisteVorfilterZiele` (v1.99.43, bewusst „Nachher“, damit Prod nicht vor dem Stoppen abbricht) | `scripts/deploy/nachlauf.psd1:132-153,203-254,263-274` |
 
 Besonderheit RCSI: Die Reparatur (`ALTER DATABASE … SET READ_COMMITTED_SNAPSHOT ON WITH ROLLBACK IMMEDIATE`) zeigt vorher alle anderen
 Sitzungen auf der DB, weil sie diese beendet. Ohne Recht `ALTER` die Frage mit `n` beantworten. (Quelle: `scripts/deploy/Update-IdealAkeWms.ps1:438-444`,
-`scripts/deploy/nachlauf.psd1:110-114`, `:221`) Reparaturen bekommen keinen Marker – sie werden jedes Mal neu bewertet.
+`scripts/deploy/nachlauf.psd1:175-179`) Reparaturen bekommen keinen Marker – sie werden jedes Mal neu bewertet.
 (Quelle: [[0023-daten-und-einmal-skripte-fuehrt-das-update-skript-mit-bestaetigung-aus]] Entscheidung)
 
 ### 5.4 Daten- und Einmal-Skripte: Trockenlauf, `SCHARF`, `uebernehmen`
@@ -207,6 +237,13 @@ Abgelehnt werden Dateien mit `sqlcmd`-Direktiven oder `ROLLBACK`. (Quelle: `scri
 
 **Weg C – anzeigen:** Hand-Schritt; das Skript fragt danach „Wurde … schon ausgeführt?“ und vermerkt `VonHand`.
 (Quelle: `scripts/deploy/Update-IdealAkeWms.ps1:547-551`)
+
+**Einmal-Skripte seit v1.99.29** (beide Weg A, Phase „Nachher“; Datei unter `SQL\Einmalig\`):
+
+| Eintrag | Firma | Wirkung | Voraussetzung | Quelle |
+|---|---|---|---|---|
+| `Einmalig/2026-11-17_v1.99.32_RemoveParentWorkOperationsFromLeafTokensTeileliste` | IDEAL | **löscht Daten**: Arbeitsgänge des Vaters an Blatt-Teilen der BDE-Teileliste; Trockenlauf zählt je Kürzel und listet gebuchte Arbeitsgänge (die bleiben stehen – Meldeliste an den Fachbereich). `TREFFER: 0`, solange die Option BDE-Teileliste nirgends gesetzt ist – dann nach dem Setzen erneut anstoßen | SQL/154, Web und Dienst ≥ 1.99.32, **DB-Backup aus diesem Lauf** | `scripts/deploy/nachlauf.psd1:287-291` |
+| `Einmalig/2026-11-18_v1.99.42_BeschichtungsauftragKreditorNachtragen` | beide | **ändert Daten**: trägt den Beschichter-Kreditor in vorhandenen Beschichtungsaufträgen nach; Meldeliste „ohne/mehrdeutiger Beschichter“ → Kreditor im Auftrag von Hand wählen | SQL/161, Web ≥ 1.99.41, Beschichter-Kreditoren gekennzeichnet (`Pruefung/BeschichterKreditoren`), **DB-Backup aus diesem Lauf** | `scripts/deploy/nachlauf.psd1:292-296` |
 
 **Marker `dbo.DeployScriptRuns`** (ab SQL/142): Ein Eintrag mit Marker wird **nie wieder** angeboten. Gespeichert werden u. a. Manifest-Id,
 Datei, SHA-256, Modus (`Scharf`, `Transaktion`, `Entfaellt`, `Spur`, `VonHand`), Treffer, Ausgabe, Paket-Version/Commit, Zeit, ausführendes
@@ -270,6 +307,7 @@ und die Web-App migriert beim Start nur vorwärts. (Quelle: `scripts/deploy/Upda
 | Neue Version macht Probleme, Schema eingespielt | **nicht** durch Zurückkopieren alter Dateien allein | DB-Backup von vor dem Update **und** alte Programmdateien zurück; beides zusammen. **zu prüfen:** ob ältere Binärdateien gegen ein neueres Schema überhaupt laufen – im Code nicht abgesichert | siehe unten |
 | Fachliche Funktion abschalten statt Rückfall | ja | Schalter unter `/Settings` bzw. `/ServiceSettings` aus; Sage-Quellen zurück auf `View` | `README.md:768`, `README.md:1031-1032` |
 | IDEAL: hierarchische FA-Struktur zurück | **nicht über die Anwendung** | nur bewusste Datenbereinigung laut Runbook, DB-Backup zwingend | [[0012-fa-hierarchie-einweg-migrationstor]] Punkt 2, `docs/RUNBOOK-FA-HIERARCHIE-RUECKBAU.md`, `README.md:443` |
+| Rücksprung des Dienstes auf eine Version < v1.99.37 nach SQL/159 | **nein** ohne DB-Restore | der alte Dienst kennt die NOT-NULL-Spalten `ErstGesehen`/`ZuletztGesehen` nicht (laut Skriptkopf); also DB-Backup von vor dem Update **und** alte Programmdateien zusammen zurück | `SQL/159_FaStrukturAbgleich.sql:12` |
 | Rücksprung auf eine Version < v1.96.0 | eingeschränkt | Kommissionierfotos werden dann nicht mehr angezeigt (liegen seit v1.96.0 in `App_Data`) | [[2026-11-11-v1-96-0-vorwaerts-merge-main-hotfixes]] „Deploy-Risiken“ |
 
 Wichtig für einen echten Rückfall:
@@ -307,8 +345,8 @@ Datenbank: **zu prüfen** – kein dokumentierter Ablauf.
 - [ ] `sqlcmd`, SQL-Rechte, Backup-Ordner geprüft (einmal je Server)
 - [ ] Prod: kein `PickupDirectory`
 - [ ] Programmordner gesichert (falls Rückfall gewünscht)
-- [ ] `-NurPruefen` gelesen
+- [ ] `-NurPruefen` gelesen (ab v1.99.37: `Pruefung/FaStrukturSchluesselDoppelt` = 0, sonst bricht SQL/159 ab)
 - [ ] Volllauf im Wartungsfenster, Backup angelegt
 - [ ] Fußzeile = neue Version, Dienst läuft
-- [ ] Nachlauf-Liste abgearbeitet, Sage-/Mail-Schalter bewusst entschieden
+- [ ] Nachlauf-Liste abgearbeitet, Sage-/Mail-/Datei-Schalter bewusst entschieden (neu: `SageFaArbeitsgaengeAnlegenAktiv`, `BfCsvAktiv`, `Sync:BfAuftragEmailEnabled`; IDEAL: Sage-Benutzerfelder, Kommissionierliste/Leitstand)
 - [ ] Protokoll `C:\<FIRMA>\deploy-logs\…` abgelegt
