@@ -76,7 +76,7 @@ SELECT HAS_PERMS_BY_NAME(N'<WMS-DB>', 'DATABASE', 'ALTER') AS AlterDb;
 - **Zweck:** SQL-Version, Standard-Sicherungsordner vorhanden, Recht `ALTER` des **ausführenden** Kontos (für die RCSI-Reparatur).
 - **Erwartet:** Version ≥ 2017 (14.x); Backup-Ordner `file_exists`/`file_is_a_directory` = 1, sonst `-BackupPfad` angeben; `AlterDb = 1` für das
   Update-Konto (beim lesenden Konto ist 0 normal).
-- **Quelle:** `scripts/deploy/nachlauf.psd1:220-222`; [[2026-11-12-deploy-fahrplan-buendel-v1-99]] (SQL ≥ 2017, Backup-Ordner);
+- **Quelle:** `scripts/deploy/nachlauf.psd1:342-344`; [[2026-11-12-deploy-fahrplan-buendel-v1-99]] (SQL ≥ 2017, Backup-Ordner);
   [[2026-11-11-buendel-deploy-update-skript]] (OS-Fehler 3).
 
 ### A-1.5 Anmeldeverfahren der eigenen Verbindung
@@ -173,7 +173,7 @@ ORDER BY [Timestamp] DESC;
 
 - **Zweck:** Ungültige gespeicherte Einstellungswerte nach einem Neustart/Update.
 - **Erwartet:** keine Befunde; sonst die genannte Maske einmal speichern.
-- **Quelle:** `IdealAkeWms/Program.cs:381-398`; `scripts/deploy/nachlauf.psd1:282-285`.
+- **Quelle:** `IdealAkeWms/Program.cs:381-398`; `scripts/deploy/nachlauf.psd1:407-408`.
 
 ### A-2.5 Einstellungen ansehen (ohne Geheimnisse)
 
@@ -267,7 +267,7 @@ ORDER BY SageWeStatus;
 
 - **Zweck:** Überblick wie auf `/PurchaseOrders/SageWareneingaenge`.
 - **Erwartet:** `Fehler` und `Klaeren` = 0 bzw. in Bearbeitung; `Gesendet` nur kurzzeitig.
-- **Quelle:** wie oben; Bedeutung `scripts/deploy/nachlauf.psd1:319-324`.
+- **Quelle:** wie oben; Bedeutung `scripts/deploy/nachlauf.psd1:432-434,444-449`.
 
 ### A-4.2 Fehler und Klären mit Details
 
@@ -391,7 +391,7 @@ ORDER BY o.ProductionOrderId, o.Nummer;
 ```
 
 - **Erwartet:** nach dem Update mit Altbestand `Spur > 0`; die zweite Liste wird leer, sobald im Leitstand „Altbestand geprüft“ je FA bestätigt ist.
-- **Quelle:** `scripts/deploy/nachlauf.psd1:172-177,292-293`; Rücksetzen des Kennzeichens `IdealAkeWms/Services/PickingOrderWorkflow.cs:282-291`;
+- **Quelle:** `scripts/deploy/nachlauf.psd1:281-285,417-418`; Rücksetzen des Kennzeichens `IdealAkeWms/Services/PickingOrderWorkflow.cs:282-291`;
   Spalten `SQL/00_FreshInstall.sql:2836-2861`.
 
 ### A-6.3 Freigegebener HauptFA ohne Kommissionierauftrag
@@ -412,7 +412,7 @@ ORDER BY ps.ReleasedAt;
 - **Zweck:** FAs, die durch den Deadlock-Fehler vor v1.99.23 (N-2) oder einen Stücklisten-Lesefehler (N-3) ohne Auftrag freigegeben sind.
 - **Erwartet:** leer. Treffer: im Leitstand „Fehlende Kommissionieraufträge … erzeugen“.
 - **Quelle:** abgeleitet aus `docs/TESTSZENARIEN.md` TS-138.3 („kein freigegebener Test-FA ohne Kommissionierauftrag“); HauptFA-Bedingung aus
-  `scripts/deploy/nachlauf.psd1:167`; Status `IdealAkeWms/Models/PickingOrder.cs:10-17`; [[01-kommissionierung]] N-2/N-3.
+  `scripts/deploy/nachlauf.psd1:243-246`; Status `IdealAkeWms/Models/PickingOrder.cs:10-17`; [[01-kommissionierung]] N-2/N-3.
   **zu prüfen:** ob ein freigegebener FA ohne kommissionierbare Positionen legitim keinen Auftrag hat.
 
 ### A-6.4 Doppelte Kommissionier-Prio
