@@ -24,6 +24,15 @@ public class BeschichtungsauftraegeViewTests
 
     private static string View(params string[] p) => File.ReadAllText(Path.Combine(new[] { ViewsRoot }.Concat(p).ToArray()));
 
+    /// <summary>QA v1.99.41: freiArtikelId/freiMenge werden paarweise gebunden (TryFreiePositionen). Jede Artikel-Auswahl muss
+    /// eine leere Option tragen, sonst sendet eine Zeile ohne Artikel nichts und die Mengen rutschen auf den naechsten Artikel.</summary>
+    [Fact]
+    public void FreiePositionen_ArtikelAuswahl_SendetJedeZeile()
+    {
+        var js = File.ReadAllText(Path.Combine(ViewsRoot, "..", "wwwroot", "js", "beschichtung-frei.js"));
+        js.Should().MatchRegex(@"name: 'freiArtikelId'[^;]*\.append\('<option value=""""></option>'\)");
+    }
+
     [Fact]
     public void Liste_VierQuellen_Gleich()
     {

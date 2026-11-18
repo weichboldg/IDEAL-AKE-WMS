@@ -9,7 +9,10 @@
         nr++;
         var artId = 'frei-art-' + nr, mengeId = 'frei-menge-' + nr;
         var $tr = $('<tr>');
-        var $sel = $('<select class="form-select form-select-sm">').attr({ id: artId, name: 'freiArtikelId', form: formId });
+        // QA (Paar-Bindung): leere Option, damit JEDE Zeile einen Wert sendet - ein <select> ohne gewaehlte Option sendet
+        // nichts, dann rutschen freiArtikelId und freiMenge im Controller gegeneinander (Artikel bekaeme fremde Menge).
+        var $sel = $('<select class="form-select form-select-sm">').attr({ id: artId, name: 'freiArtikelId', form: formId })
+            .append('<option value=""></option>');
         var $menge = $('<input class="form-control form-control-sm text-end" inputmode="decimal" placeholder="Menge">')
             .attr({ id: mengeId, name: 'freiMenge', form: formId });
         var $weg = $('<button type="button" class="btn btn-sm btn-outline-danger">Entfernen</button>');
