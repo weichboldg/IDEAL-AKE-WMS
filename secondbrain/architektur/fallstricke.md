@@ -2118,3 +2118,16 @@ Code: `hardware-scanner.js` Block „Scannen ohne Feld“, CSS `.hw-scan-bereit`
   Warum Redirect statt Klemmen im `PaginationState`: Klemmen nur der Anzeige ergäbe „1–8 von 8“ über einer leeren Tabelle; Klemmen vor der
   Abfrage hieße 40 Controller anfassen. **Neue Liste:** Seitenparameter muss `page` heißen und der State im Model (Property) oder im ViewBag
   stehen, sonst greift der Filter nicht.
+
+## 51. Sage-Benutzerfelder nie als String-Literal in eine Abfrage (v1.99.40, [[2026-11-18-v1-99-40-sage-userfelder-als-einstellung]])
+
+- **Problem:** USER_-Felder legt jeder Sage-Mandant selbst an; AKE und IDEAL unterscheiden sich. Fehlt einem Mandanten ein fest eingebautes Feld,
+  bricht der **ganze** Abgleich ab (HTTP 500 „Ungültiger Spaltenname“), nicht nur das eine Feld. So geschah es am IDEAL-Test mit
+  `USER_EKMindestbestellwert` (Kreditoren).
+- **Regel:** Ein neues Feld wird ein Eintrag in `SageUserfelder.Katalog` (Default = Name bei AKE).
+  - Im Code nur über `Feld()`/`Konfiguriert()` abfragen.
+  - Intern den logischen Namen behalten.
+  - Werte bei abweichendem Namen über `[JsonExtensionData] Weitere` + `SageUserfelder.Text` lesen.
+
+  Siehe ADR [[0033-sage-benutzerfelder-als-einstellung]].
+- **Test:** `SageUserfelderTests.Default_selects_unveraendert_wie_v1_99_39` hält die AKE-Abfragen zeichengleich. Wer sie absichtlich ändert, zieht den Test mit.

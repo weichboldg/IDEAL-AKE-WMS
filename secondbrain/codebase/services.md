@@ -502,3 +502,17 @@ Quellen-Weiche je Abgleich: [[0019-quellen-weiche-view-sdata-je-abgleich]]. Ordn
 - **Keys** (Kategorie „Sage-FA-Arbeitsgänge (IDEAL)“): `SageFaArbeitsgaengeAnlegenAktiv` (Bool, aus), `Sync:SageFaArbeitsgaengeBearbeiter`
   (leer = nichts senden), `Sync:SageFaArbeitsgaengeMaxWiederholungen` (3, 0–10), `Sync:SageFaArbeitsgaengeWiederholAbstandMinuten` (15, 5–1440);
   Hänge-Grenze `Sync:SageLagerbuchungStuckMinutes` (geteilt).
+
+## Sage-Benutzerfelder (v1.99.40, [[2026-11-18-sage-userfelder-als-einstellung-spec]], ADR [[0033-sage-benutzerfelder-als-einstellung]])
+
+- **Keys und Katalog:** `Sync:Userfeld:<Abgleich>:<Standardname>` (27 Keys), Katalog `IdealAkeWms/Services/SageSdata/SageUserfelder.cs`, Kategorien „Sage-Benutzerfelder: …“.
+- **Laden:**
+  - Dienst: `ServiceSettings.UserfelderSafeAsync` (eine Abfrage `LIKE 'Sync:Userfeld:%'`; bei Fehler gelten die Defaults).
+  - Web: `SageUserfelder.AusAsync`.
+- **Verwender:**
+  - `KontokorrentSyncService` (Kreditoren/Debitoren)
+  - `SdataArtikelReader` (Varianten + Blechteile-Nachlese)
+  - `EinkaufBestellungenSyncService` (Kopf, Präfix `KHKEKBelege_`)
+  - `SageArbeitsplatzReader` (Tabellen-SQL)
+  - `SdataFaStrukturReader` (Präfix `KHKPpsFaBelege_` + Artikel)
+- **404-Behandlung:** `SyncWorker.RunResilientAsync` erkennt HTTP 404 (`SdataLeseException.Status`) irgendwo in der Ausnahme-Kette, meldet es und überspringt den Schritt 24 h (`ResourceFehltPause`).
