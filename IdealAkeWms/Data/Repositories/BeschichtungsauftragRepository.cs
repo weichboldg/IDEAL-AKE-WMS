@@ -92,6 +92,7 @@ public class BeschichtungsauftragRepository : IBeschichtungsauftragRepository
             .Include(a => a.Positionen)
             .Include(a => a.Ursprungsauftrag)
             .Include(a => a.Folgeauftraege)
+            .Include(a => a.Creditor)
             .AsSplitQuery()
             .FirstOrDefaultAsync(a => a.Id == id);
 

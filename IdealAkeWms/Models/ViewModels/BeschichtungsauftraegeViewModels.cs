@@ -85,6 +85,16 @@ public sealed class BeschichtungsauftragDetailViewModel
     /// noch nicht enthaltene Ursprungspositionen). Leer ausserhalb des Entwurfs.</summary>
     public List<PositionsKandidat> Kandidaten { get; init; } = new();
 
+    /// <summary>v1.99.41 A9: Lackierer-Auswahl (aktive Kreditoren mit IsCoater); leer ausserhalb Entwurf/ohne Schreibrecht.</summary>
+    public List<Creditor> Beschichter { get; init; } = new();
+
+    /// <summary>Link „Beschichter pflegen“ nur mit Stammdaten-Schreibrecht.</summary>
+    public bool DarfStammdaten { get; init; }
+
+    /// <summary>Anzeige je Beschichter „Kurzname — Name, Ort“ (A9).</summary>
+    public static string BeschichterText(Creditor c) =>
+        $"{c.ShortName} — {c.Name}" + (string.IsNullOrWhiteSpace(c.City) ? "" : $", {c.City}");
+
     /// <summary>User-Id → Name fuer die Statushistorie.</summary>
     public IReadOnlyDictionary<int, string> Benutzer { get; init; } = new Dictionary<int, string>();
 

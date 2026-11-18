@@ -120,6 +120,10 @@ public class BeschichtungsauftraegeController : Controller
             SageDienstleisterAbweichend = await SageDienstleisterAbweichendAsync(a),
             Kandidaten = kandidaten,
             Benutzer = benutzer,
+            // A9: Auswahl nur, wo der Kopf bearbeitbar ist (Entwurf + Schreibrecht)
+            Beschichter = darfSchreiben && a.Status == BeschichtungsauftragStatus.Entwurf
+                ? await _repo.GetBeschichterAsync() : new List<Creditor>(),
+            DarfStammdaten = await _currentUser.HasMasterDataAccessAsync(),
         });
     }
 
@@ -130,7 +134,9 @@ public class BeschichtungsauftraegeController : Controller
             .Select(i => i.Dienstleister?.Trim()).Where(d => !string.IsNullOrEmpty(d)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         if (sage.Count == 0) return null;
         var text = string.Join(" / ", sage);
-        return string.Equals(text, a.Dienstleister?.Trim(), StringComparison.OrdinalIgnoreCase) ? null : text;
+        // A10: mit Kreditor steht dessen Name am Auftrag — gleich ist auch Sage-Text = Kurzname des Kreditors
+        return string.Equals(text, a.Dienstleister?.Trim(), StringComparison.OrdinalIgnoreCase)
+               || string.Equals(text, a.Creditor?.ShortName?.Trim(), StringComparison.OrdinalIgnoreCase) ? null : text;
     }
 
     // ===================== Schreiben (je Request EIN Workflow-Aufruf) =====================
@@ -178,7 +184,7 @@ public class BeschichtungsauftraegeController : Controller
     public async Task<IActionResult> Bearbeiten(int id, string? dienstleister, string? ral, DateTime? startBeschichtung,
         DateTime? beschichtenRetour, Dictionary<int, string>? mengen, int[]? entfernen, string? rowVersion,
         bool nurPositionen = false, bool hakenGesendet = false, int[]? verpackt = null, string[]? schluessel = null,
-        string?[]? freiArtikelId = null, string?[]? freiMenge = null)
+        string?[]? freiArtikelId = null, string?[]? freiMenge = null, int? creditorId = null)
     {
         if (!ModelState.IsValid)
             return Warnung(id, "Eingabe nicht gespeichert: ungültiger Wert in " +
@@ -201,7 +207,7 @@ public class BeschichtungsauftraegeController : Controller
         }
         if (!TryFreiePositionen(freiArtikelId, freiMenge, out var frei, out var fehler)) return Warnung(id, "Eingabe nicht gespeichert: " + fehler);
 
-        var kopf = nurPositionen ? null : new KopfDaten(Leer(dienstleister), Leer(ral), startBeschichtung, beschichtenRetour);
+        var kopf = nurPositionen ? null : new KopfDaten(Leer(dienstleister), Leer(ral), startBeschichtung, beschichtenRetour, creditorId);
         var r = await _workflow.BearbeitenAsync(id, kopf, mengenWerte, entfernen ?? Array.Empty<int>(), rv,
             hakenGesendet ? verpackt ?? Array.Empty<int>() : null, keys, frei);
         var neu = keys.Distinct().Count() + frei.Count;

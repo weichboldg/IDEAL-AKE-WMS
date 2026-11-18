@@ -528,6 +528,69 @@ public class BeschichtungsauftragWorkflowTests
         rek.Auftrag.Positionen.Single(p => p.OhneFa).Artnr.Should().Be("F-1");
     }
 
+    // ===== Lackierer aus Kreditoren (v1.99.41 A9, A10; AK 14, 15) =====
+
+    private static Creditor Kreditor(Fx fx, string kurz, string name, bool coater = true, bool aktiv = true)
+    {
+        var c = new Creditor { ShortName = kurz, Name = name, IsCoater = coater, IsActive = aktiv, City = "Linz" };
+        fx.Db.Creditors.Add(c);
+        fx.Db.SaveChanges();
+        return c;
+    }
+
+    [Fact]
+    public async Task Kreditor_Beschichter_SetztIdUndName_NichtBeschichterOderInaktiv_Abgelehnt()
+    {
+        var fx = new Fx();
+        fx.Standard();
+        var ok = Kreditor(fx, "LACK", "Lackier GmbH");
+        var kein = Kreditor(fx, "HOLZ", "Holz AG", coater: false);
+        var alt = Kreditor(fx, "ALT", "Alt KG", aktiv: false);
+        var a = await fx.Anlegen();
+
+        foreach (var falsch in new[] { kein.Id, alt.Id, 99999 })
+        {
+            var r = await fx.Wf.BearbeitenAsync(a.Id, Kopf(a) with { CreditorId = falsch }, KeineMengen, Array.Empty<int>(), a.RowVersion);
+            r.Fehler.Single().Should().Contain("kein aktiver Beschichter");
+        }
+        a.CreditorId.Should().BeNull();
+
+        (await fx.Wf.BearbeitenAsync(a.Id, Kopf(a) with { CreditorId = ok.Id, Dienstleister = "ignoriert" }, KeineMengen,
+            Array.Empty<int>(), a.RowVersion)).Fehler.Should().BeEmpty();
+        (a.CreditorId, a.Dienstleister).Should().Be(((int?)ok.Id, "Lackier GmbH"));
+
+        (await fx.Wf.BearbeitenAsync(a.Id, Kopf(a) with { CreditorId = null, Dienstleister = "Freitext" }, KeineMengen,
+            Array.Empty<int>(), a.RowVersion)).Fehler.Should().BeEmpty();
+        (a.CreditorId, a.Dienstleister).Should().Be(((int?)null, "Freitext"), "ohne Kreditor gilt der Freitext (Rueckfall)");
+    }
+
+    [Theory]
+    [InlineData(1, true)]
+    [InlineData(0, false)]
+    [InlineData(2, false)]
+    public async Task Anlage_KreditorVorbelegung_NurBeiGenauEinemBeschichter(int treffer, bool vorbelegt)
+    {
+        var fx = new Fx();
+        fx.Standard();
+        for (var i = 0; i < treffer; i++) Kreditor(fx, i == 0 ? " huber gmbh " : "HUBER GMBH", "Huber Beschichtung " + i);
+        Kreditor(fx, "Huber GmbH", "Kein Beschichter", coater: false);
+
+        var r = await fx.Wf.AnlegenAsync(HauptFa);
+
+        r.Fehler.Should().BeEmpty();
+        var a = r.Auftrag!;
+        if (vorbelegt)
+        {
+            (a.CreditorId is not null, a.Dienstleister).Should().Be((true, "Huber Beschichtung 0"));
+            r.Hinweise.Should().NotContain(h => h.Contains("Kreditor"));
+        }
+        else
+        {
+            (a.CreditorId, a.Dienstleister).Should().Be(((int?)null, "Huber GmbH"));
+            r.Hinweise.Should().ContainSingle(h => h.Contains("Huber GmbH") && h.Contains("Kreditor wählen"));
+        }
+    }
+
     // ===== Doppelvergabe (AK 6, 6a, 6b) =====
 
     [Theory]

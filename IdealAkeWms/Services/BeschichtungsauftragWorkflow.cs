@@ -21,7 +21,10 @@ public sealed class BeschichtungsauftragErgebnis
 }
 
 /// <summary>Aenderbare Kopffelder im Entwurf (Teil-4-Antworten 4, 7).</summary>
-public sealed record KopfDaten(string? Dienstleister, string? Ral, DateTime? StartBeschichtung, DateTime? BeschichtenRetour);
+/// <remarks>v1.99.41 A9: <c>CreditorId</c> = Lackierer aus den Kreditoren (aktiv + IsCoater, Server prueft); gesetzt =&gt;
+/// <c>Dienstleister</c> = Kreditor-Name, sonst gilt der Freitext (Rueckfall).</remarks>
+public sealed record KopfDaten(string? Dienstleister, string? Ral, DateTime? StartBeschichtung, DateTime? BeschichtenRetour,
+    int? CreditorId = null);
 
 /// <summary>v1.99.41 (A1-A4): Auswahl aus der Vorschlagsliste — angehakte Positionen (Liste), Artnr (Summiert) und freie Positionen.</summary>
 public sealed record VorschlagAuswahl(IReadOnlyCollection<PositionsSchluessel> Schluessel, IReadOnlyCollection<string> ArtnrSummiert,
@@ -127,7 +130,10 @@ public class BeschichtungsauftragWorkflow
                 auftrag.StartBeschichtung = flachePositionen.Auftraege.Count == 1
                     ? await _flach.StartBeschichtungAsync(flachePositionen.Auftraege[0]) : null;
             else
+            {
                 KopfVorbelegen(auftrag, await _infos.GetByHauptFaAsync(hauptFa), r);
+                KreditorVorbelegen(auftrag, await _repo.GetBeschichterAsync(), r);
+            }
             // A3: was aus der Vorschlagsauswahl kommt, ist verpackt (Haken = Auswahl); spaeter hinzugefuegte Positionen nicht.
             foreach (var p in positionen) { p.Verpackt = true; auftrag.Positionen.Add(p); }
             await NummerVergebenUndSpeichernAsync(auftrag);
@@ -209,6 +215,7 @@ public class BeschichtungsauftragWorkflow
                 UrsprungsauftragId = ursprung.Id,
                 // Kopf 1:1 vom Ursprung, nicht aus der PPS-View (Antwort 13); Bemerkung bewusst nicht.
                 Dienstleister = ursprung.Dienstleister,
+                CreditorId = ursprung.CreditorId,
                 Ral = ursprung.Ral,
                 StartBeschichtung = ursprung.StartBeschichtung,
                 BeschichtenRetour = ursprung.BeschichtenRetour,
@@ -255,6 +262,13 @@ public class BeschichtungsauftragWorkflow
             foreach (var (feld, wert) in new[] { ("Dienstleister", kopf.Dienstleister), ("RAL", kopf.Ral) })
                 if (wert?.Trim().Length > MaxKopfTextLaenge)
                     r.Fehler.Add($"{feld} höchstens {MaxKopfTextLaenge} Zeichen.");
+        Creditor? kreditor = null;
+        if (kopf?.CreditorId is int cid)
+        {
+            kreditor = (await _repo.GetBeschichterAsync()).FirstOrDefault(c => c.Id == cid);
+            if (kreditor is null)
+                r.Fehler.Add($"Kreditor {cid} ist kein aktiver Beschichter — Lackierer aus der Liste wählen oder in den Kreditoren „Beschichter“ setzen.");
+        }
         var neueFreie = await FreiePositionenAsync(a.HauptFA, frei ?? Array.Empty<FreiePosition>(), r);
         if (!r.Erfolg) return r;
 
@@ -264,7 +278,8 @@ public class BeschichtungsauftragWorkflow
             var jetzt = Jetzt;
             if (kopf is not null)
             {
-                a.Dienstleister = Leer(kopf.Dienstleister);
+                a.CreditorId = kreditor?.Id;
+                a.Dienstleister = kreditor is not null ? Leer(kreditor.Name) ?? kreditor.ShortName : Leer(kopf.Dienstleister);
                 a.Ral = Leer(kopf.Ral);
                 a.StartBeschichtung = kopf.StartBeschichtung;
                 a.BeschichtenRetour = kopf.BeschichtenRetour;
@@ -595,6 +610,25 @@ public class BeschichtungsauftragWorkflow
         a.BeschichtenRetour = Einheitlich("Retour", i => i.Beschichten_Retour, v => v?.ToString("dd.MM.yyyy") ?? "(leer)");
         if (abweichend.Count > 0)
             r.Hinweise.Add($"Kopf aus Sage mehrdeutig ({infos.Count} Kopfzeilen, Kombigerät) — abweichende Felder bleiben leer: {string.Join("; ", abweichend)}");
+    }
+
+    /// <summary>v1.99.41 A10 (Rueckfrage 17): Sage-Dienstleistertext = Kurzname GENAU eines aktiven Beschichter-Kreditors
+    /// (Vergleich wie <see cref="CreditorAssignment"/>: getrimmt, ohne Gross/Klein) =&gt; CreditorId + Name. Sonst nur der Text mit
+    /// Hinweis — nie still raten.</summary>
+    internal static void KreditorVorbelegen(Beschichtungsauftrag a, IReadOnlyCollection<Creditor> beschichter, BeschichtungsauftragErgebnis r)
+    {
+        var text = a.Dienstleister?.Trim();
+        if (string.IsNullOrEmpty(text)) return;
+        var treffer = beschichter.Where(c => string.Equals(c.ShortName?.Trim(), text, StringComparison.OrdinalIgnoreCase)).ToList();
+        if (treffer.Count == 1)
+        {
+            a.CreditorId = treffer[0].Id;
+            a.Dienstleister = Leer(treffer[0].Name) ?? text;
+            return;
+        }
+        r.Hinweise.Add(treffer.Count == 0
+            ? $"Kein Beschichter-Kreditor zu „{text}“ — Kreditor wählen oder Kurzname pflegen."
+            : $"Mehrere Beschichter-Kreditoren mit Kurzname „{text}“ — Kreditor wählen.");
     }
 
     private static void MeldeDoppelteSchluessel(IEnumerable<FaHierarchyNode> knoten, BeschichtungsauftragErgebnis r)
