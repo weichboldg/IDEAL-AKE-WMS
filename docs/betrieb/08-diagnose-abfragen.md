@@ -1,6 +1,6 @@
 # 08 – Diagnose-Abfragen (nur lesend)
 
-**Stand:** v1.99.29, 2026-11-16 · **Zielgruppe:** IT-Administratoren (ohne Entwicklerwissen)
+**Stand:** v1.99.43, 2026-11-19 · **Zielgruppe:** IT-Administratoren (ohne Entwicklerwissen)
 
 Sammlung **lesender** SQL-Abfragen für die WMS-Datenbank, gruppiert nach Thema. Jede Abfrage hat Zweck, erwartetes Ergebnis und Quelle.
 Die Abfragen stammen aus dem Update-Manifest (`scripts/deploy/nachlauf.psd1`), aus `docs/TESTSZENARIEN.md` und aus den Testberichten;
@@ -108,7 +108,7 @@ FROM sys.databases d WHERE d.name = DB_NAME();
 
 - **Zweck:** Der FA-Struktur-Import (IDEAL) braucht RCSI an.
 - **Erwartet:** `Abweichung = 0`; mit FA-Struktur-Import `is_read_committed_snapshot_on = 1`.
-- **Quelle:** `scripts/deploy/nachlauf.psd1:110-114`.
+- **Quelle:** `scripts/deploy/nachlauf.psd1:175-179`.
 
 ---
 
@@ -194,7 +194,7 @@ SELECT
 
 - **Zweck:** Stand der Dienst-Einstellungen; zwei Manifest-Prüfungen.
 - **Erwartet:** `LieferverzugOhneEmpfaenger = 0`; `ArticlesViewNameLeer_nurIDEAL = 0` auf IDEAL (bei AKE ist leer richtig).
-- **Quelle:** Tabelle `SQL/00_FreshInstall.sql:1097-1102`; Prüfungen `scripts/deploy/nachlauf.psd1:138-141,154-157`; Geheimnis-Key
+- **Quelle:** Tabelle `SQL/00_FreshInstall.sql:1097-1102`; Prüfungen `scripts/deploy/nachlauf.psd1:211-214,231-234`; Geheimnis-Key
   `README.md:518-540`; abweichende Groß-/Kleinschreibung des Geheim-Keys als Befund: [[2026-11-14-review-befunde-sdata]] SD-3
   (deshalb `LOWER`).
 
@@ -304,7 +304,7 @@ SELECT CASE WHEN EXISTS (SELECT 1 FROM dbo.ServiceSettings WHERE [Key] = N'Waren
 
 - **Zweck:** Wurden die CSV-Dateien geschrieben? Fehlertexte (z. B. „Der Netzwerkname wurde nicht gefunden.“).
 - **Erwartet:** keine Zeilen mit Status 3; `Abweichung = 0`.
-- **Quelle:** Tabelle `SQL/00_FreshInstall.sql:2432-2447`; Prüfung `scripts/deploy/nachlauf.psd1:142-145`; Fehlertexte [[teil-1]] BS16.
+- **Quelle:** Tabelle `SQL/00_FreshInstall.sql:2432-2447`; Prüfung `scripts/deploy/nachlauf.psd1:215-218`; Fehlertexte [[teil-1]] BS16.
 
 ---
 
@@ -374,7 +374,7 @@ SELECT CASE WHEN EXISTS (SELECT 1 FROM dbo.PickingAreas) THEN 0 ELSE 1 END AS Ke
 ```
 
 - **Erwartet:** mindestens ein Bereich (Seed: Lager, Glas, Vorkommissionierung), genau ein aktiver Standard; beide Prüfwerte 0.
-- **Quelle:** `scripts/deploy/nachlauf.psd1:101-109`; Tabelle `SQL/00_FreshInstall.sql:2794-2801`; Seed [[2026-11-11-buendel-deploy-update-skript]] 16:24/16:41.
+- **Quelle:** `scripts/deploy/nachlauf.psd1:166-174`; Tabelle `SQL/00_FreshInstall.sql:2794-2801`; Seed [[2026-11-11-buendel-deploy-update-skript]] 16:24/16:41.
 
 ### A-6.2 Altbestand-Überführung
 
@@ -445,7 +445,7 @@ ORDER BY o.PickingPriority;
 ```
 
 - **Erwartet:** nur Altbestand von vor v1.99.17 oder bewusst gleiche Prio (erlaubt). Korrektur im Leitstand.
-- **Quelle:** Prüfabfragen 1 und 3 aus [[2026-11-13-doppelte-kommissionier-prio-nach-ruecknahme-spec]]; Manifest `scripts/deploy/nachlauf.psd1:166-169`;
+- **Quelle:** Prüfabfragen 1 und 3 aus [[2026-11-13-doppelte-kommissionier-prio-nach-ruecknahme-spec]]; Manifest `scripts/deploy/nachlauf.psd1:243-246`;
   Spalten `SQL/00_FreshInstall.sql:428-435`.
 
 ---
@@ -463,7 +463,7 @@ LEFT JOIN dbo.Roles r ON r.[Key] = v.k;
 ```
 
 - **Erwartet:** alle `vorhanden` (das Update-Skript legt fehlende nach Bestätigung an; Zuweisen ist Hand-Schritt unter `/Roles`).
-- **Quelle:** `scripts/deploy/nachlauf.psd1:115-132`.
+- **Quelle:** `scripts/deploy/nachlauf.psd1:180-197`.
 
 ### A-7.2 Benutzer je Rolle
 
@@ -506,11 +506,11 @@ SELECT CASE WHEN EXISTS (SELECT 1 FROM dbo.AppSettings WHERE [Key] = N'QrTrennze
 ```
 
 - **Erwartet:** beide 0. `DummyFehlt = 1` → Lagerbestellung lehnt unbekannte EK-Nummern ab; `KommaKonflikte > 0` → QR-Trennzeichen ändern.
-- **Quelle:** `scripts/deploy/nachlauf.psd1:133-137,146-149`.
+- **Quelle:** `scripts/deploy/nachlauf.psd1:198-202,223-226`.
 
 ---
 
-### A-7.4 Anmeldestand je Benutzer: ohne Kennwort, offenes Erstkennwort (ab v1.99.28)
+### A-7.5 Anmeldestand je Benutzer: ohne Kennwort, offenes Erstkennwort (ab v1.99.28)
 
 ```sql
 SELECT u.[Name],
@@ -529,6 +529,131 @@ ORDER BY u.[Name];
   sollte seit der Nachbesserung B-2 (v1.99.29) nicht mehr neu entstehen; Altfälle stammen aus v1.99.28 und sind wirkungslos (Login meldet Regel R).
 - **Quelle:** `IdealAkeWms/Controllers/UsersController.cs:80-84` (gleiche Regeln wie der Hinweis in `/Users`), Prüfung
   `Pruefung/BenutzerOhneKennwort` in `scripts/deploy/nachlauf.psd1`; Anwender-Anleitung `docs/anwender/13-anmeldung-und-benutzer.md`.
+
+---
+
+## 8. Neu seit v1.99.30: Sage-Arbeitsgänge, Blechfertigung, FA-Struktur, Benutzerfelder (IDEAL)
+
+Alle Abfragen nur lesend gegen die **WMS**-Datenbank; nichts davon fragt Sage ab.
+
+### A-8.1 Arbeitsgang-Anlage in Sage-FAs: Stand der Warteschlange (ab v1.99.38)
+
+```sql
+SELECT [Status],
+       CASE [Status] WHEN 1 THEN N'Offen' WHEN 2 THEN N'Gesendet' WHEN 3 THEN N'Angelegt'
+                     WHEN 4 THEN N'In Sage vorhanden' WHEN 5 THEN N'Fehler' END AS StatusText,
+       COUNT(*) AS Anzahl
+FROM dbo.SageFaArbeitsgangAnlagen
+GROUP BY [Status];
+
+SELECT TOP 50 Id, HauptFa, BelId, Kuerzel, SageArbeitsgangnummer, [Status], Versuche, Fehler, ModifiedAt
+FROM dbo.SageFaArbeitsgangAnlagen
+WHERE [Status] IN (2, 5)
+ORDER BY ModifiedAt DESC;
+```
+
+- **Zweck:** Wie viele Arbeitsgänge warten, hängen oder sind gescheitert; Fehlertext je Eintrag.
+- **Erwartet:** Solange `SageFaArbeitsgaengeAnlegenAktiv` aus ist, höchstens `Offen`. Fehler mit Text „Antwort unklar …“ werden **nie**
+  automatisch wiederholt: in Sage prüfen, dann in der Oberfläche „In Sage vorhanden – bestätigen“ oder erneut einreihen (nicht per SQL).
+- **Quelle:** Tabelle `SQL/160_AddSageFaArbeitsgangAnlagen.sql:24-43`, `SQL/00_FreshInstall.sql:2969`; Status
+  `IdealAkeWms/Models/SageFaArbeitsgangAnlage.cs:4-13`; Texte `IdealAkeWms/Services/SageFaArbeitsgaenge.cs:16-45`.
+
+### A-8.2 BF-Aufträge: WiCAM-CSV-Status und Fehler (ab v1.99.35)
+
+```sql
+SELECT [Status], CsvStatus,
+       CASE CsvStatus WHEN 0 THEN N'Keine' WHEN 1 THEN N'Offen' WHEN 2 THEN N'Geschrieben' WHEN 3 THEN N'Fehler' END AS CsvText,
+       COUNT(*) AS Anzahl
+FROM dbo.BfAuftraege
+GROUP BY [Status], CsvStatus;
+
+SELECT TOP 50 Id, Nummer, [Status], BestellerKuerzel, CsvVersuche, CsvFehler, CsvDatei, CsvGeschriebenAm, ModifiedAt
+FROM dbo.BfAuftraege
+WHERE CsvStatus = 3
+ORDER BY ModifiedAt DESC;
+
+-- Freigegebene/offene Aufträge mit Positionen ohne Arbeitsschritte (SQL/163 trägt nur nach, was das Artikel-Merkmal hergibt)
+SELECT a.Nummer, p.Position, p.ArticleNumber, p.Matchcode
+FROM dbo.BfAuftraege a
+JOIN dbo.BfAuftragPositionen p ON p.BfAuftragId = a.Id
+WHERE a.[Status] IN (1, 2) AND p.Gestrichen = 0 AND LTRIM(RTRIM(ISNULL(p.Arbeitsschritte, N''))) = N''
+ORDER BY a.Nummer, p.Position;
+```
+
+- **Zweck:** Wurden die Pool-Dateien geschrieben? Fehlertext (Recht, Netz, „Datei existiert bereits im Pool – nicht überschrieben.“).
+- **Erwartet:** keine Zeilen mit `CsvStatus = 3`. Status: 0 Entwurf, 1 Bestellt, 2 Freigegeben, 3 Fertig, 4 Storniert. Leere Arbeitsschritte sind
+  erlaubt (leere Spalte in der CSV), aber für WiCAM ggf. nachzupflegen.
+- **Quelle:** `SQL/158_AddBfAuftraege.sql:23-90`, `SQL/163_AddBfPositionArbeitsschritte.sql:22-27`, `SQL/00_FreshInstall.sql:2892,2935`;
+  Status `IdealAkeWms/Models/BfAuftrag.cs:4-19`; Prüfungen `scripts/deploy/nachlauf.psd1:263-270`.
+
+### A-8.3 BF-Besteller ohne Kürzel (ab v1.99.42)
+
+```sql
+SELECT DISTINCT u.Id, u.[Name], u.Kuerzel
+FROM dbo.BfAuftraege a
+JOIN dbo.Users u ON u.Id = a.BestellerUserId
+WHERE a.[Status] IN (0, 1) AND LTRIM(RTRIM(ISNULL(u.Kuerzel, N''))) = N''
+ORDER BY u.[Name];
+```
+
+- **Zweck:** Wessen offene BF-Aufträge sich nicht freigeben lassen, weil das Besteller-Kürzel (Spalte Besteller in der WiCAM-CSV) fehlt.
+- **Erwartet:** keine Zeilen; sonst Kürzel in `/Users` pflegen (eindeutig, höchstens 10 Zeichen).
+- **Quelle:** `SQL/162_AddUserKuerzelUndBfBestellerKuerzel.sql:23-37`; Manifest `scripts/deploy/nachlauf.psd1:119-120`.
+
+### A-8.4 HauptFA mit Kommissionier-Positionen ohne Leitstand-Freigabe (ab v1.99.43)
+
+```sql
+SELECT n.HauptFA, COUNT(*) AS Positionen
+FROM dbo.FaHierarchyNodes n
+WHERE n.VerschwundenSeit IS NULL
+  AND LTRIM(RTRIM(ISNULL(n.Kommissionieren, N''))) <> N''
+  AND NOT EXISTS (SELECT 1 FROM dbo.ProductionOrders po
+                  JOIN dbo.ProductionOrderPickingStatus ps ON ps.ProductionOrderId = po.Id
+                  WHERE po.OrderNumber = CAST(n.HauptFA AS nvarchar(50))
+                    AND (po.SubOrderNumber = N'' OR po.SubOrderNumber = po.OrderNumber)
+                    AND ps.IsReleasedForPicking = 1)
+GROUP BY n.HauptFA
+ORDER BY n.HauptFA;
+```
+
+- **Zweck:** Welche HauptFA fehlen in der Kommissionierliste, weil der Leitstand sie noch nicht freigegeben hat (gilt nur, wenn
+  `FaHierarchyKommissionierlisteNurFreigegebene` an ist).
+- **Erwartet:** nur HauptFA, die bewusst noch nicht freigegeben sind. Ist zusätzlich `LeitstandAktiv` aus, bleibt die Liste ganz leer
+  (`Pruefung/KommissionierlisteLeitstandAus`).
+- **Quelle:** aufgeschlüsselte Form von `Pruefung/KommissionierlisteNichtFreigegeben`, `scripts/deploy/nachlauf.psd1:142-149`.
+
+### A-8.5 Verschwundene FA-Strukturen (ab v1.99.37)
+
+```sql
+SELECT HauptFA, VerschwundenGrund, COUNT(*) AS Zeilen, MIN(VerschwundenSeit) AS SeitFrühestens
+FROM dbo.FaHierarchyNodes
+WHERE VerschwundenSeit IS NOT NULL
+GROUP BY HauptFA, VerschwundenGrund
+ORDER BY MIN(VerschwundenSeit);
+```
+
+- **Zweck:** Zeilen, die Sage nicht mehr liefert und die das WMS gekennzeichnet behält (`beendet`, `inaktiv`, `unklar`).
+- **Erwartet:** `unklar` nur vorübergehend (Mail „ungeklärt verschwundene Zeilen“ prüfen); ältere Zeilen als `Sync:FaStrukturAufbewahrungTage`
+  dürfen nicht stehen bleiben, wenn deren WMS-Aufträge erledigt sind.
+- **Quelle:** Spalten `SQL/159_FaStrukturAbgleich.sql:29-38`; Gründe `IdealAkeWms/Models/FaStrukturLebenslauf.cs:26-30`;
+  [[0032-fa-struktur-abgleich-mit-lebenslauf-statt-full-replace]].
+
+### A-8.6 Sage-Benutzerfelder: welche sind abweichend oder leer eingestellt? (ab v1.99.40)
+
+```sql
+SELECT [Category], [Key], [Value],
+       CASE WHEN LTRIM(RTRIM(ISNULL([Value], N''))) = N'' THEN N'leer = nicht gelesen'
+            WHEN [Value] <> SUBSTRING([Key], LEN([Key]) - CHARINDEX(N':', REVERSE([Key])) + 2, 200) THEN N'abweichend'
+            ELSE N'Standard' END AS Bewertung
+FROM dbo.ServiceSettings
+WHERE [Key] LIKE N'Sync:Userfeld:%'
+ORDER BY [Category], [Key];
+```
+
+- **Zweck:** Stand der 27 Feldnamen; der Standard ist der letzte Teil des Keys.
+- **Erwartet:** AKE alles `Standard`. IDEAL: `Sync:Userfeld:Kreditoren:USER_EKMindestbestellwert` `leer` (Manifest
+  `v1.99.40-Userfeld-EKMindestbestellwert-IDEAL`). Fehlt eine Zeile, gilt der Standard.
+- **Quelle:** `IdealAkeWms/Services/SageSdata/SageUserfelder.cs:19,41-69`; [04 § 5.6](04-konfiguration.md).
 
 ## Verwandte Kapitel
 
