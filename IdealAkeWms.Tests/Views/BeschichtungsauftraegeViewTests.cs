@@ -49,7 +49,7 @@ public class BeschichtungsauftraegeViewTests
 
         // Druck: summiert, daher ohne Herkunftsspalte, dafuer „Positionen" (immer gedruckt, siehe ShowCol).
         KommissionierSpaltenKonsistenzTests.ExtractShowColKeys(View("Beschichtungsauftraege", "Print.cshtml"))
-            .Should().BeEquivalentTo(definition.Where(k => k != "herkunft").Append("positionen"));
+            .Should().BeEquivalentTo(definition.Where(k => k is not ("herkunft" or "verpackt")).Append("positionen"));
     }
 
     [Fact]

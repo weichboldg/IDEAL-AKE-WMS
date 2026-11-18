@@ -641,6 +641,7 @@ public static class ColumnDefinitions
             new ColumnDef("hoehe",      "Höhe",                 Locked: false, DefaultWidth: 55),
             new ColumnDef("tiefe",      "Tiefe",                Locked: false, DefaultWidth: 55),
             new ColumnDef("menge",      "Menge",                Locked: false, DefaultWidth: 70),
+            new ColumnDef("verpackt",   "Verpackt",             Locked: false, DefaultWidth: 70),
         ]
     };
 

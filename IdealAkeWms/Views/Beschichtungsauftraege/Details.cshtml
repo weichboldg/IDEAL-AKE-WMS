@@ -8,9 +8,11 @@
     var a = Model.Auftrag;
     ViewData["Title"] = $"Beschichtungsauftrag {a.Nummer}";
     var de = CultureInfo.GetCultureInfo("de-DE");
-    // Entwurf + Schreibrecht: Kopf und Positionen editierbar (Antwort 7); alle Eingaben gehoeren ueber form="entwurf-form"
-    // zu EINEM Formular, obwohl sie in Kopf-Karte und Tabelle stehen (keine verschachtelten Formulare).
-    var bearbeitbar = Model.IstEntwurf && Model.DarfSchreiben;
+    // v1.99.41 A8: Positionen (Haken, Menge, Entfernen, Hinzufuegen) in Entwurf und Uebergeben, Kopf nur im Entwurf
+    // (Rueckfrage 10). Alle Eingaben gehoeren ueber form="entwurf-form" zu EINEM Formular mit EINEM Knopf „Speichern“,
+    // obwohl sie in Kopf-Karte und Tabellen stehen (keine verschachtelten Formulare).
+    var bearbeitbar = Model.DarfSchreiben && BeschichtungsauftragWorkflow.PositionenAenderbar(a.Status);
+    var kopfBearbeitbar = bearbeitbar && Model.IstEntwurf;
     string Menge(decimal m) => m.ToString("0.###", de);
     string Zeit(DateTime? d) => d?.ToString("dd.MM.yyyy HH:mm", de) ?? "";
     var ursprungNummer = a.Ursprungsauftrag?.Nummer;
@@ -126,6 +128,8 @@
 {
     <form id="entwurf-form" method="post" asp-action="Bearbeiten" asp-route-id="@a.Id">
         <input type="hidden" name="rowVersion" value="@Model.RowVersion" />
+        <input type="hidden" name="hakenGesendet" value="true" />
+        @if (!kopfBearbeitbar) { <input type="hidden" name="nurPositionen" value="true" /> }
     </form>
 }
 
@@ -134,7 +138,7 @@
         <div class="card h-100">
             <div class="card-header">Kopf · HauptFA @a.HauptFA</div>
             <div class="card-body">
-                @if (bearbeitbar)
+                @if (kopfBearbeitbar)
                 {
                     <div class="row g-3">
                         <div class="col-md-6">
@@ -220,18 +224,29 @@
                 <th class="text-end" data-filterable data-filter-type="number" data-col-key="hoehe">Höhe</th>
                 <th class="text-end" data-filterable data-filter-type="number" data-col-key="tiefe">Tiefe</th>
                 <th class="text-end" data-filterable data-filter-type="number" data-col-key="menge">Menge</th>
+                <th class="text-center" data-filterable data-col-key="verpackt">Verpackt</th>
                 @if (bearbeitbar) { <th class="text-center" data-csv-export="false">Entfernen</th> }
             </tr>
         </thead>
         <tbody>
             @if (!a.Positionen.Any())
             {
-                <tr><td colspan="@(bearbeitbar ? 9 : 8)" class="text-center text-muted py-3">Keine Positionen — unten hinzufügen oder den Auftrag stornieren.</td></tr>
+                <tr><td colspan="@(bearbeitbar ? 10 : 9)" class="text-center text-muted py-3">Keine Positionen — unten hinzufügen oder den Auftrag stornieren.</td></tr>
             }
             @foreach (var p in a.Positionen.OrderBy(p => p.Position ?? int.MaxValue).ThenBy(p => p.PositionText, new NaturalPositionComparer()).ThenBy(p => p.SubFA))
             {
                 <tr>
-                    <td>@(p.VaterFA?.ToString() ?? "—") / @p.SubFA / @(p.PositionText is { Length: > 0 } ? p.PositionText : p.Position?.ToString() ?? "—")</td>
+                    <td>
+                        @if (p.OhneFa)
+                        {
+                            @* A7: freie Position — Text-Badge statt Herkunft (kein FA-Bezug) *@
+                            <span class="badge bg-secondary">ohne FA</span>
+                        }
+                        else
+                        {
+                            @(p.VaterFA?.ToString() ?? "—")<text> / </text>@p.SubFA<text> / </text>@(p.PositionText is { Length: > 0 } ? p.PositionText : p.Position?.ToString() ?? "—")
+                        }
+                    </td>
                     <td>@p.HauptArtnr</td>
                     <td>@p.Artnr</td>
                     <td>@p.Matchcode</td>
@@ -252,6 +267,18 @@
                             @BeschichtungsauftragService.FormatMenge(p.Menge)
                         }
                     </td>
+                    <td class="text-center">
+                        @if (bearbeitbar)
+                        {
+                            <span class="visually-hidden">@(p.Verpackt ? "verpackt" : "offen")</span>
+                            <input type="checkbox" class="form-check-input" name="verpackt" value="@p.Id" form="entwurf-form" checked="@p.Verpackt"
+                                   aria-label="Position @BeschichtungsauftragWorkflow.PositionBezeichnung(p) verpackt" />
+                        }
+                        else
+                        {
+                            @(p.Verpackt ? "☑ verpackt" : "☐ offen")
+                        }
+                    </td>
                     @if (bearbeitbar)
                     {
                         <td class="text-center">
@@ -268,11 +295,12 @@
 @if (bearbeitbar)
 {
     <div class="d-flex justify-content-end mt-2 mb-4">
-        <button type="submit" form="entwurf-form" class="btn btn-primary">Entwurf speichern</button>
+        <button type="submit" form="entwurf-form" class="btn btn-primary">Speichern</button>
     </div>
 
     @* Positionsauswahl (Anforderung 4a): Erst-Entwurf = freie HauptFA-Positionen, Reklamations-Entwurf = noch nicht
-       enthaltene Ursprungspositionen. Nichts vorausgewaehlt; Wert = Herkunftsschluessel, nie die Knoten-Id. *@
+       enthaltene Ursprungspositionen. Nichts vorausgewaehlt; Wert = Herkunftsschluessel, nie die Knoten-Id.
+       v1.99.41 A8: Teil des EINEN Formulars (form="entwurf-form"), gespeichert mit „Speichern“; neue Positionen sind offen. *@
     <div class="card mb-4">
         <div class="card-header">
             @if (Model.IstReklamation)
@@ -293,8 +321,6 @@
             }
             else
             {
-                <form method="post" asp-action="PositionenHinzufuegen" asp-route-id="@a.Id">
-                    <input type="hidden" name="rowVersion" value="@Model.RowVersion" />
                     <div class="table-responsive">
                         <table class="table table-sm mb-2">
                             <thead>
@@ -314,7 +340,7 @@
                                 {
                                     var id = "k-" + BeschichtungsauftraegeController.SchluesselText(k.Schluessel).Replace('|', '-');
                                     <tr>
-                                        <td><input type="checkbox" class="form-check-input" id="@id" name="schluessel"
+                                        <td><input type="checkbox" class="form-check-input" id="@id" name="schluessel" form="entwurf-form"
                                                    value="@BeschichtungsauftraegeController.SchluesselText(k.Schluessel)" /></td>
                                         <td><label for="@id" class="mb-0">@(k.Schluessel.VaterFA?.ToString() ?? "—") / @k.Schluessel.SubFA / @(k.Schluessel.PositionText is { Length: > 0 } ? k.Schluessel.PositionText : k.Schluessel.Position?.ToString() ?? "—")</label></td>
                                         <td>@k.Artnr</td>
@@ -328,11 +354,21 @@
                             </tbody>
                         </table>
                     </div>
-                    <button type="submit" class="btn btn-sm btn-outline-primary">Ausgewählte hinzufügen</button>
-                </form>
             }
         </div>
     </div>
+
+    @if (!Model.IstReklamation)
+    {
+        @* A4/A7: freie Positionen ohne FA — Artikel aus dem Stamm + Menge, beliebig viele Zeilen; nie Vergabe. *@
+        <div class="card mb-4">
+            <div class="card-header">Positionen ohne FA</div>
+            <div class="card-body">
+                <partial name="_BeschichtungFreiePositionen" model="@("entwurf-form")" />
+                <p class="form-text mb-0">Gespeichert mit „Speichern“. Maße kommen aus dem Artikelstamm; fehlen sie, steht 0 (mit Hinweis).</p>
+            </div>
+        </div>
+    }
 }
 
 <script type="application/json" id="view-config">
@@ -347,7 +383,8 @@
     { "key": "breite", "label": "Breite", "locked": false, "defaultWidth": 55 },
     { "key": "hoehe", "label": "Höhe", "locked": false, "defaultWidth": 55 },
     { "key": "tiefe", "label": "Tiefe", "locked": false, "defaultWidth": 55 },
-    { "key": "menge", "label": "Menge", "locked": false, "defaultWidth": 70 }
+    { "key": "menge", "label": "Menge", "locked": false, "defaultWidth": 70 },
+    { "key": "verpackt", "label": "Verpackt", "locked": false, "defaultWidth": 70 }
 ]
 </script>
 
@@ -355,4 +392,9 @@
     <script src="~/js/column-preferences.js" asp-append-version="true"></script>
     <script src="~/js/table-filter.js" asp-append-version="true"></script>
     <script src="~/js/print-visible-columns.js" asp-append-version="true"></script>
+    @if (bearbeitbar && !Model.IstReklamation)
+    {
+        <partial name="_Select2ArticlePartial" />
+        <script src="~/js/beschichtung-frei.js" asp-append-version="true"></script>
+    }
 }

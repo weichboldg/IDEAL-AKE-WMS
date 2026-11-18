@@ -219,7 +219,7 @@ public class BeschichtungsauftragWorkflowTests
         fx.Standard();
         var a = await fx.Anlegen();
         var entfernt = a.Positionen.Single(p => p.Position == 2);
-        (await fx.Wf.EntwurfBearbeitenAsync(a.Id, Kopf(a), new Dictionary<int, decimal>(), new[] { entfernt.Id }, a.RowVersion))
+        (await fx.Wf.BearbeitenAsync(a.Id, Kopf(a), new Dictionary<int, decimal>(), new[] { entfernt.Id }, a.RowVersion))
             .Fehler.Should().BeEmpty();
 
         var r = await fx.Wf.AnlegenAsync(HauptFa);
@@ -363,7 +363,7 @@ public class BeschichtungsauftragWorkflowTests
         r.Fehler.Single().Should().StartWith("Dienstleister fehlt");
         (a.Status, a.UebergebenAt, a.ModifiedAt).Should().Be((BeschichtungsauftragStatus.Entwurf, (DateTime?)null, (DateTime?)null));
 
-        (await fx.Wf.EntwurfBearbeitenAsync(a.Id, Kopf(a) with { Dienstleister = "Huber" }, new Dictionary<int, decimal>(), Array.Empty<int>(), a.RowVersion))
+        (await fx.Wf.BearbeitenAsync(a.Id, Kopf(a) with { Dienstleister = "Huber" }, new Dictionary<int, decimal>(), Array.Empty<int>(), a.RowVersion))
             .Fehler.Should().BeEmpty();
         (await fx.Wf.StatusWechselnAsync(a.Id, BeschichtungsauftragStatus.Uebergeben, a.RowVersion)).Fehler.Should().BeEmpty();
     }
@@ -409,6 +409,125 @@ public class BeschichtungsauftragWorkflowTests
         (await fx.Wf.AnlegenAsync(HauptFa)).Fehler.Single().Should().Contain(a.Nummer, "Versendet sperrt die Positionen wie Uebergeben");
     }
 
+    // ===== Bearbeiten bis vor Versendet, freie Positionen (v1.99.41 A7, A8; AK 6-9, 11, 20) =====
+
+    private static int Artikel(Fx fx, string nr, string? matchcode = null)
+    {
+        var a = new Article { ArticleNumber = nr, Matchcode = matchcode };
+        fx.Db.Articles.Add(a);
+        fx.Db.SaveChanges();
+        return a.Id;
+    }
+
+    private static readonly Dictionary<int, decimal> KeineMengen = new();
+
+    [Fact]
+    public async Task Bearbeiten_InUebergeben_HakenMengeEntfernenKandidatUndFrei_AuditGesetzt_EntferntWiederFrei()
+    {
+        var fx = new Fx();
+        fx.Standard();
+        var a = await fx.Anlegen();
+        await fx.Status(a, BeschichtungsauftragStatus.Uebergeben);
+        var neu = PositionsSchluessel.Von(fx.Node(100, 0, 5, artnr: "A5"));
+        var art = Artikel(fx, "F-1", "Blech frei");
+        var p1 = a.Positionen.Single(p => p.Position == 1);
+        var p2 = a.Positionen.Single(p => p.Position == 2);
+        var p3 = a.Positionen.Single(p => p.Position == 3);
+        fx.Time.Now = fx.Time.Now.AddHours(1);
+
+        var r = await fx.Wf.BearbeitenAsync(a.Id, null, new Dictionary<int, decimal> { [p1.Id] = 7m }, new[] { p3.Id }, a.RowVersion,
+            verpacktIds: new[] { p1.Id }, hinzu: new[] { neu }, frei: new[] { new FreiePosition(art, 3m) });
+
+        r.Fehler.Should().BeEmpty();
+        (p1.Menge, p1.Verpackt, p1.ModifiedAt).Should().Be((7m, true, (DateTime?)new DateTime(2026, 10, 12, 10, 0, 0)));
+        (p2.Verpackt, p2.ModifiedBy).Should().Be((false, "Tester"), "Haken geloest");
+        a.Positionen.Should().NotContain(p3);
+        var kandidat = a.Positionen.Single(p => p.Position == 5);
+        (kandidat.Verpackt, kandidat.OhneFa, kandidat.CreatedBy).Should().Be((false, false, "Tester"));
+        var frei = a.Positionen.Single(p => p.OhneFa);
+        (frei.Artnr, frei.Matchcode, frei.Menge, frei.VaterFA, frei.SubFA, frei.Position, frei.HauptArtnr, frei.Verpackt)
+            .Should().Be(("F-1", "Blech frei", 3m, (int?)null, 0, (int?)null, (string?)null, false));
+        (frei.Breite, frei.Hoehe, frei.Tiefe).Should().Be((0m, 0m, 0m), "IDEAL: Masse erst nach P-3");
+        r.Hinweise.Should().ContainSingle(h => h.Contains("P-3") && h.Contains("F-1"));
+        (a.Status, a.ModifiedAt).Should().Be((BeschichtungsauftragStatus.Uebergeben, (DateTime?)new DateTime(2026, 10, 12, 10, 0, 0)));
+
+        var vergaben = await fx.Repo.GetVergabenAsync(HauptFa);
+        vergaben.Should().NotContain(v => v.Schluessel == PositionsSchluessel.Von(p3), "entfernte Position ist sofort frei");
+        vergaben.Should().HaveCount(3, "Pos 1, 2, 5 — die freie Position zaehlt nie als Vergabe");
+    }
+
+    [Fact]
+    public async Task Bearbeiten_AbVersendet_Abgelehnt_BemerkungBleibtAenderbar()
+    {
+        var fx = new Fx();
+        fx.Standard();
+        var a = await fx.Anlegen();
+        await fx.Status(a, BeschichtungsauftragStatus.Uebergeben);
+        await fx.Versenden(a);
+        var p1 = a.Positionen.Single(p => p.Position == 1);
+
+        var r = await fx.Wf.BearbeitenAsync(a.Id, null, KeineMengen, Array.Empty<int>(), a.RowVersion, verpacktIds: Array.Empty<int>());
+
+        r.Fehler.Single().Should().Contain("nur in Entwurf und Übergeben");
+        p1.Verpackt.Should().BeTrue();
+        (await fx.Wf.BemerkungAendernAsync(a.Id, "unterwegs", a.RowVersion)).Fehler.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public async Task FreiePosition_MengeNichtPositiv_OderArtikelUnbekannt_GanzAbgelehnt(int menge)
+    {
+        var fx = new Fx();
+        fx.Standard();
+        var a = await fx.Anlegen();
+        var art = Artikel(fx, "F-1");
+
+        var r = await fx.Wf.BearbeitenAsync(a.Id, null, KeineMengen, Array.Empty<int>(), a.RowVersion,
+            frei: new[] { new FreiePosition(art, menge), new FreiePosition(99999, 1m) });
+
+        r.Fehler.Should().Contain(f => f.Contains("Menge muss größer 0")).And.Contain(f => f.Contains("99999 nicht gefunden"));
+        a.Positionen.Should().HaveCount(3);
+    }
+
+    [Fact]
+    public async Task FreiePosition_GleicherArtikelInZweiAuftraegenUndDoppelt_KeineDoppelvergabe()
+    {
+        var fx = new Fx();
+        fx.Standard();
+        fx.Standard(2);
+        var art = Artikel(fx, "F-1");
+        var a = await fx.Anlegen();
+        var b = await fx.Anlegen(2);
+
+        (await fx.Wf.BearbeitenAsync(a.Id, null, KeineMengen, Array.Empty<int>(), a.RowVersion,
+            frei: new[] { new FreiePosition(art, 1m), new FreiePosition(art, 2m) })).Fehler.Should().BeEmpty();
+        (await fx.Wf.BearbeitenAsync(b.Id, null, KeineMengen, Array.Empty<int>(), b.RowVersion,
+            frei: new[] { new FreiePosition(art, 1m) })).Fehler.Should().BeEmpty();
+
+        a.Positionen.Count(p => p.OhneFa).Should().Be(2);
+        (await fx.Wf.GetHinzufuegbarePositionenAsync(a.Id)).Should().BeEmpty("die freie Position verdeckt keinen FA-Schluessel");
+    }
+
+    [Fact]
+    public async Task Reklamation_KopiertFreiePosition_OhneFa_AlleOffen()
+    {
+        var fx = new Fx();
+        fx.Standard();
+        var art = Artikel(fx, "F-1");
+        var a = await fx.Anlegen();
+        (await fx.Wf.BearbeitenAsync(a.Id, null, KeineMengen, Array.Empty<int>(), a.RowVersion,
+            frei: new[] { new FreiePosition(art, 2m) })).Fehler.Should().BeEmpty();
+        await fx.Status(a, BeschichtungsauftragStatus.Uebergeben);
+        await fx.Status(a, BeschichtungsauftragStatus.Erledigt);
+
+        var rek = await fx.Wf.ReklamationAnlegenAsync(a.Id, a.Positionen.Select(p => p.Id).ToList());
+
+        rek.Fehler.Should().BeEmpty();
+        rek.Auftrag!.Positionen.Should().HaveCount(4).And.OnlyContain(p => !p.Verpackt);
+        rek.Auftrag.Positionen.Single(p => p.OhneFa).Artnr.Should().Be("F-1");
+    }
+
     // ===== Doppelvergabe (AK 6, 6a, 6b) =====
 
     [Theory]
@@ -436,7 +555,7 @@ public class BeschichtungsauftragWorkflowTests
         fx.Standard();
         var a = await fx.Anlegen();                                   // Pos 1,2,3
         var pos2 = a.Positionen.Single(p => p.Position == 2);
-        (await fx.Wf.EntwurfBearbeitenAsync(a.Id, Kopf(a), new Dictionary<int, decimal>(), new[] { pos2.Id }, a.RowVersion))
+        (await fx.Wf.BearbeitenAsync(a.Id, Kopf(a), new Dictionary<int, decimal>(), new[] { pos2.Id }, a.RowVersion))
             .Fehler.Should().BeEmpty();
 
         var b = await fx.Anlegen();                                   // entfernte Pos 2 ist frei (AK 6b)
@@ -464,7 +583,7 @@ public class BeschichtungsauftragWorkflowTests
         var a = await fx.Anlegen();
         var p1 = a.Positionen.Single(p => p.Position == 1);
 
-        var r = await fx.Wf.EntwurfBearbeitenAsync(a.Id, new KopfDaten("Maier KG", "RAL 7016", null, new DateTime(2026, 12, 1)),
+        var r = await fx.Wf.BearbeitenAsync(a.Id, new KopfDaten("Maier KG", "RAL 7016", null, new DateTime(2026, 12, 1)),
             new Dictionary<int, decimal> { [p1.Id] = 5m }, Array.Empty<int>(), a.RowVersion);
 
         r.Fehler.Should().BeEmpty();
@@ -474,7 +593,7 @@ public class BeschichtungsauftragWorkflowTests
         a.ModifiedBy.Should().Be("Tester");
 
         await fx.Status(a, BeschichtungsauftragStatus.Uebergeben);
-        (await fx.Wf.EntwurfBearbeitenAsync(a.Id, Kopf(a) with { Ral = "anders" }, new Dictionary<int, decimal>(), Array.Empty<int>(), a.RowVersion))
+        (await fx.Wf.BearbeitenAsync(a.Id, Kopf(a) with { Ral = "anders" }, new Dictionary<int, decimal>(), Array.Empty<int>(), a.RowVersion))
             .Fehler.Single().Should().Contain("nur im Entwurf");
         a.Ral.Should().Be("RAL 7016");
         (await fx.Wf.BemerkungAendernAsync(a.Id, "Lieferschein liegt bei", a.RowVersion)).Fehler.Should().BeEmpty();
@@ -502,7 +621,7 @@ public class BeschichtungsauftragWorkflowTests
         var a = await fx.Anlegen();
         var p1 = a.Positionen.Single(p => p.Position == 1);
 
-        var r = await fx.Wf.EntwurfBearbeitenAsync(a.Id, Kopf(a), new Dictionary<int, decimal> { [p1.Id] = menge }, Array.Empty<int>(), a.RowVersion);
+        var r = await fx.Wf.BearbeitenAsync(a.Id, Kopf(a), new Dictionary<int, decimal> { [p1.Id] = menge }, Array.Empty<int>(), a.RowVersion);
 
         r.Fehler.Single().Should().Contain("größer 0");
         p1.Menge.Should().Be(2m);
@@ -515,7 +634,7 @@ public class BeschichtungsauftragWorkflowTests
         fx.Standard();
         var a = await fx.Anlegen();
 
-        var r = await fx.Wf.EntwurfBearbeitenAsync(a.Id, Kopf(a), new Dictionary<int, decimal> { [999] = 1m }, new[] { 998 }, a.RowVersion);
+        var r = await fx.Wf.BearbeitenAsync(a.Id, Kopf(a), new Dictionary<int, decimal> { [999] = 1m }, new[] { 998 }, a.RowVersion);
 
         r.Fehler.Should().HaveCount(2).And.OnlyContain(f => f.Contains("gehört nicht zu"));
         a.Positionen.Should().HaveCount(3);
@@ -542,7 +661,7 @@ public class BeschichtungsauftragWorkflowTests
         {
             await fx.Wf.StatusWechselnAsync(123, BeschichtungsauftragStatus.Uebergeben, rv),
             await fx.Wf.BemerkungAendernAsync(123, "x", rv),
-            await fx.Wf.EntwurfBearbeitenAsync(123, new KopfDaten(null, null, null, null), new Dictionary<int, decimal>(), Array.Empty<int>(), rv),
+            await fx.Wf.BearbeitenAsync(123, new KopfDaten(null, null, null, null), new Dictionary<int, decimal>(), Array.Empty<int>(), rv),
             await fx.Wf.PositionenHinzufuegenAsync(123, new[] { new PositionsSchluessel(1, 0, 1) }, rv),
             await fx.Wf.ReklamationAnlegenAsync(123, new[] { 1 }),
         })
@@ -601,7 +720,8 @@ public class BeschichtungsauftragWorkflowTests
         await Abgelehnt(new[] { neu }, b.Nummer);                             // vergeben, mit Auftragsnummer
 
         await fx.Status(a, BeschichtungsauftragStatus.Uebergeben);
-        await Abgelehnt(new[] { neu }, "nur im Entwurf");
+        await fx.Versenden(a);
+        await Abgelehnt(new[] { neu }, "nur in Entwurf und Übergeben");
     }
 
     // ===== Reklamation (AK 8c, 8d, 8e, 8g, 8h) =====
@@ -632,7 +752,7 @@ public class BeschichtungsauftragWorkflowTests
         (await fx.Db.Beschichtungsauftraege.Include(a => a.Folgeauftraege).SingleAsync(a => a.Id == u.Id))
             .Folgeauftraege.Select(f => f.Id).Should().Equal(rek.Id);
 
-        (await fx.Wf.EntwurfBearbeitenAsync(rek.Id, Kopf(rek) with { Dienstleister = "Neu" }, new Dictionary<int, decimal>(), Array.Empty<int>(), rek.RowVersion))
+        (await fx.Wf.BearbeitenAsync(rek.Id, Kopf(rek) with { Dienstleister = "Neu" }, new Dictionary<int, decimal>(), Array.Empty<int>(), rek.RowVersion))
             .Fehler.Should().BeEmpty();
     }
 

@@ -31,6 +31,12 @@ public class BeschichtungsauftragRepository : IBeschichtungsauftragRepository
 
     public Task<List<Vergabe>> GetVergabenAsync(int hauptFa) => GetVergabenAsync(new[] { hauptFa });
 
+    public Task<List<Article>> GetArtikelMitMassenAsync(IReadOnlyCollection<int> articleIds) =>
+        _db.Articles.AsNoTracking().Include(a => a.SageDetail).Where(a => articleIds.Contains(a.Id)).ToListAsync();
+
+    public Task<List<Creditor>> GetBeschichterAsync() =>
+        _db.Creditors.AsNoTracking().Where(c => c.IsActive && c.IsCoater).OrderBy(c => c.ShortName).ToListAsync();
+
     public async Task<List<Vergabe>> GetVergabenAsync(IReadOnlyCollection<int> hauptFas)
     {
         if (hauptFas.Count == 0) return new List<Vergabe>();

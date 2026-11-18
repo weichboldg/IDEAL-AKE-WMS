@@ -65,6 +65,12 @@ public interface IBeschichtungsauftragRepository
     /// Vorschlagsliste je Seite, Teil 4).</summary>
     Task<List<Vergabe>> GetVergabenAsync(IReadOnlyCollection<int> hauptFas);
 
+    /// <summary>v1.99.41 (A7): Artikel fuer freie Positionen, mit Sage-Massen (<see cref="Article.SageDetail"/>), ungetrackt.</summary>
+    Task<List<Article>> GetArtikelMitMassenAsync(IReadOnlyCollection<int> articleIds);
+
+    /// <summary>v1.99.41 (A9/A10): Lackierer-Auswahl = aktive Kreditoren mit IsCoater, nach Kurzname.</summary>
+    Task<List<Creditor>> GetBeschichterAsync();
+
     /// <summary>Alle Auftraege ohne Positionen-Tracking (Liste, Teil 4) — inkl. Positionen fuer die Anzahl und
     /// Ursprung/Folgeauftraege fuer die Verweise.</summary>
     Task<List<Beschichtungsauftrag>> GetAlleAsync();

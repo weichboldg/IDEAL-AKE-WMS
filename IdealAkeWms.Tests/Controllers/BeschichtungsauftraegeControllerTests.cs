@@ -233,9 +233,9 @@ public class BeschichtungsauftraegeControllerTests
         const string pos3 = "100|0|3";
 
         var c1 = Ctrl();
-        await c1.PositionenHinzufuegen(a.Id, new[] { pos3 }, Rv(a));
+        await c1.Bearbeiten(a.Id, null, null, null, null, null, null, Rv(a), nurPositionen: true, schluessel: new[] { pos3 });
         var c2 = Ctrl();
-        await c2.PositionenHinzufuegen(b.Id, new[] { pos3 }, Rv(b));
+        await c2.Bearbeiten(b.Id, null, null, null, null, null, null, Rv(b), nurPositionen: true, schluessel: new[] { pos3 });
 
         c1.TempData["SuccessMessage"].Should().NotBeNull(Warnung(c1));
         Warnung(c2).Should().Contain("vergeben");
@@ -253,20 +253,46 @@ public class BeschichtungsauftraegeControllerTests
         var a = await Anlegen();
         var c = Ctrl();
 
-        await c.PositionenHinzufuegen(a.Id, new[] { schluessel }, Rv(a));
+        await c.Bearbeiten(a.Id, null, null, null, null, null, null, Rv(a), nurPositionen: true, schluessel: new[] { schluessel });
 
         Warnung(c).Should().Contain("ungültiger Positionsschlüssel");
     }
 
+    /// <summary>v1.99.41 A4/A7: freie Zeilen paarweise; leere Zeile uebersprungen, halbe Zeile = Fehler (nie still verworfen).</summary>
+    [Theory]
+    [InlineData(new[] { "5", "" }, new[] { "3", "" }, null)]
+    [InlineData(new[] { "" }, new[] { "3" }, "kein Artikel")]
+    [InlineData(new[] { "5" }, new[] { "abc" }, "keine Zahl")]
+    [InlineData(new[] { "5" }, new[] { "" }, "keine Zahl")]
+    public void FreiePositionen_Formularzeilen(string[] artikel, string[] mengen, string? fehlerText)
+    {
+        var ok = BeschichtungsauftraegeController.TryFreiePositionen(artikel, mengen, out var frei, out var fehler);
+
+        ok.Should().Be(fehlerText is null);
+        if (fehlerText is null) frei.Should().Equal(new FreiePosition(5, 3m));
+        else fehler.Should().Contain(fehlerText);
+    }
+
     [Fact]
-    public async Task PositionenHinzufuegen_LeereAuswahl_Warnung()
+    public async Task Bearbeiten_Uebergeben_HakenUndFreiePosition_KopfUnveraendert()
     {
         var a = await Anlegen();
+        await Ctrl().Status(a.Id, BeschichtungsauftragStatus.Uebergeben, Rv(a));
+        a = Laden(a.Id);
+        var art = new Article { ArticleNumber = "F-9" };
+        _db.Articles.Add(art);
+        _db.SaveChanges();
+        var p1 = a.Positionen.First();
         var c = Ctrl();
 
-        await c.PositionenHinzufuegen(a.Id, null, Rv(a));
+        await c.Bearbeiten(a.Id, "ignoriert", null, null, null, null, null, Rv(a), nurPositionen: true, hakenGesendet: true,
+            verpackt: new[] { p1.Id }, freiArtikelId: new[] { art.Id.ToString() }, freiMenge: new[] { "2,5" });
 
-        Warnung(c).Should().Contain("keine Positionen ausgewählt");
+        c.TempData["SuccessMessage"].Should().NotBeNull(Warnung(c));
+        var nach = Laden(a.Id);
+        nach.Dienstleister.Should().Be(a.Dienstleister);
+        nach.Positionen.Single(p => p.Id == p1.Id).Verpackt.Should().BeTrue();
+        nach.Positionen.Single(p => p.OhneFa).Menge.Should().Be(2.5m);
     }
 
     [Fact]
@@ -452,7 +478,7 @@ public class BeschichtungsauftraegeControllerTests
         var actions = t.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly).ToList();
         var posts = actions.Where(m => m.GetCustomAttribute<HttpPostAttribute>() != null).ToList();
         posts.Select(m => m.Name).Should().BeEquivalentTo(new[]
-            { "Create", "Bearbeiten", "PositionenHinzufuegen", "Bemerkung", "Status", "Reklamation" });
+            { "Create", "Bearbeiten", "Bemerkung", "Status", "Reklamation" });
         foreach (var m in posts)
         {
             m.GetCustomAttribute<RequireBeschichtungsauftragWriteAccessAttribute>().Should().NotBeNull(m.Name);

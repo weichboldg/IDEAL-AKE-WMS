@@ -1,0 +1,15 @@
+@model string
+@* v1.99.41 A4/A7: Zeilen „Position ohne FA“ (Artikelsuche + Menge) fuer das Formular mit der Id = Model. Zeilen fuegt
+   wwwroot/js/beschichtung-frei.js hinzu (Select2-Artikelsuche wie _Select2ArticlePartial); leere Zeilen ignoriert der Server,
+   halbe Zeilen lehnt er mit Meldung ab. Benoetigt _Select2ArticlePartial + beschichtung-frei.js in der Seite. *@
+<table class="table table-sm mb-2 d-none" data-frei-tabelle="@Model">
+    <thead>
+        <tr>
+            <th>Artikel</th>
+            <th class="text-end" style="width: 9rem;">Menge</th>
+            <th><span class="visually-hidden">Zeile entfernen</span></th>
+        </tr>
+    </thead>
+    <tbody></tbody>
+</table>
+<button type="button" class="btn btn-sm btn-outline-secondary" data-frei-add="@Model">+ Position ohne FA</button>

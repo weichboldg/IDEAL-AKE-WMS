@@ -81,7 +81,7 @@ public class BeschichtungsauftragVergabeAnzeigeTests
     {
         var a = await Anlegen(1);
         var entfernt = a.Positionen.First(p => p.Position == 2).Id;
-        (await _wf.EntwurfBearbeitenAsync(a.Id, new KopfDaten("Huber", null, null, null),
+        (await _wf.BearbeitenAsync(a.Id, new KopfDaten("Huber", null, null, null),
             new Dictionary<int, decimal>(), new[] { entfernt }, a.RowVersion)).Fehler.Should().BeEmpty();
 
         var info = (await _anzeige.ErmittelnAsync(new[] { 1 }))[1];

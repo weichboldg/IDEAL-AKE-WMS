@@ -23,6 +23,9 @@ public sealed class BeschichtungsauftragErgebnis
 /// <summary>Aenderbare Kopffelder im Entwurf (Teil-4-Antworten 4, 7).</summary>
 public sealed record KopfDaten(string? Dienstleister, string? Ral, DateTime? StartBeschichtung, DateTime? BeschichtenRetour);
 
+/// <summary>v1.99.41 (A4/A7): freie Position ohne FA — Artikel-Id aus der Artikelsuche und Menge (&gt; 0).</summary>
+public sealed record FreiePosition(int ArticleId, decimal Menge);
+
 /// <summary>Eine Position, die einem Entwurf hinzugefuegt werden darf (fuer die Auswahl in Teil 4) — dieselbe Regel wie
 /// <see cref="BeschichtungsauftragWorkflow.PositionenHinzufuegenAsync"/>.</summary>
 public sealed record PositionsKandidat(PositionsSchluessel Schluessel, string? HauptArtnr, string? Artnr, string? Matchcode,
@@ -175,62 +178,115 @@ public class BeschichtungsauftragWorkflow
         });
     }
 
-    // ===================== Entwurf bearbeiten (Anforderung 10) =====================
+    // ===================== Bearbeiten bis vor Versendet (Anforderung 10; v1.99.41 A7, A8) =====================
 
-    public async Task<BeschichtungsauftragErgebnis> EntwurfBearbeitenAsync(int id, KopfDaten kopf,
-        IReadOnlyDictionary<int, decimal> mengen, IReadOnlyCollection<int> entfernteIds, byte[] rowVersion)
+    /// <summary>Status, in denen Positionen (Haken, Menge, Entfernen, Hinzufuegen) aenderbar sind (A8).</summary>
+    public static bool PositionenAenderbar(BeschichtungsauftragStatus s) =>
+        s is BeschichtungsauftragStatus.Entwurf or BeschichtungsauftragStatus.Uebergeben;
+
+    /// <summary>
+    /// Ein Speichern am Auftrag (A8): Kopf (nur Entwurf, Rueckfrage 10 — <paramref name="kopf"/> null = unveraendert), Mengen,
+    /// Entfernen, Haken (<paramref name="verpacktIds"/> = angehakte Ids; null = Haken unveraendert), Kandidaten
+    /// (<paramref name="hinzu"/>) und freie Positionen (<paramref name="frei"/>). Alles oder nichts: ein Fehler lehnt die ganze
+    /// Aenderung ab. Hinzufuegen prueft die Vergabe in der Serializable-Transaktion (wie die Anlage).
+    /// </summary>
+    public async Task<BeschichtungsauftragErgebnis> BearbeitenAsync(int id, KopfDaten? kopf,
+        IReadOnlyDictionary<int, decimal> mengen, IReadOnlyCollection<int> entfernteIds, byte[] rowVersion,
+        IReadOnlyCollection<int>? verpacktIds = null, IReadOnlyCollection<PositionsSchluessel>? hinzu = null,
+        IReadOnlyCollection<FreiePosition>? frei = null)
     {
         var r = new BeschichtungsauftragErgebnis();
         var a = await LadenAsync(id, r);
         if (a is null) return r;
-        if (a.Status != BeschichtungsauftragStatus.Entwurf)
-            return Fehler($"Kopf und Positionen sind nur im Entwurf änderbar — {a.Nummer} steht auf {Anzeige(a.Status)}; " +
+        if (!PositionenAenderbar(a.Status))
+            return Fehler($"Positionen sind nur in Entwurf und Übergeben änderbar — {a.Nummer} steht auf {Anzeige(a.Status)}; " +
                           "möglich ist nur noch Statuswechsel und Bemerkung.");
+        if (kopf is not null && a.Status != BeschichtungsauftragStatus.Entwurf)
+            return Fehler($"Der Kopf (Dienstleister, RAL, Termine) ist nur im Entwurf änderbar — {a.Nummer} steht auf {Anzeige(a.Status)}.");
 
-        foreach (var pid in mengen.Keys.Concat(entfernteIds).Distinct().Where(pid => a.Positionen.All(p => p.Id != pid)))
+        foreach (var pid in mengen.Keys.Concat(entfernteIds).Concat(verpacktIds ?? Array.Empty<int>()).Distinct()
+                     .Where(pid => a.Positionen.All(p => p.Id != pid)))
             r.Fehler.Add($"Position {pid} gehört nicht zu {a.Nummer}.");
         foreach (var (pid, menge) in mengen.Where(m => m.Value <= 0))
             r.Fehler.Add($"Menge muss größer 0 sein (Position {pid}: {menge}) — zum Weglassen die Position entfernen.");
-        foreach (var (feld, wert) in new[] { ("Dienstleister", kopf.Dienstleister), ("RAL", kopf.Ral) })
-            if (wert?.Trim().Length > MaxKopfTextLaenge)
-                r.Fehler.Add($"{feld} höchstens {MaxKopfTextLaenge} Zeichen.");
+        if (kopf is not null)
+            foreach (var (feld, wert) in new[] { ("Dienstleister", kopf.Dienstleister), ("RAL", kopf.Ral) })
+                if (wert?.Trim().Length > MaxKopfTextLaenge)
+                    r.Fehler.Add($"{feld} höchstens {MaxKopfTextLaenge} Zeichen.");
+        var neueFreie = await FreiePositionenAsync(a.HauptFA, frei ?? Array.Empty<FreiePosition>(), r);
         if (!r.Erfolg) return r;
 
-        var jetzt = Jetzt;
-        a.Dienstleister = Leer(kopf.Dienstleister);
-        a.Ral = Leer(kopf.Ral);
-        a.StartBeschichtung = kopf.StartBeschichtung;
-        a.BeschichtenRetour = kopf.BeschichtenRetour;
-        foreach (var p in a.Positionen.Where(p => mengen.TryGetValue(p.Id, out var m) && m != p.Menge))
+        var keys = (hinzu ?? Array.Empty<PositionsSchluessel>()).Distinct().ToList();
+        void Anwenden(IReadOnlyList<BeschichtungsauftragPosition> neuAusSchluessel)
         {
-            p.Menge = mengen[p.Id];
-            Geaendert(p, jetzt);
+            var jetzt = Jetzt;
+            if (kopf is not null)
+            {
+                a.Dienstleister = Leer(kopf.Dienstleister);
+                a.Ral = Leer(kopf.Ral);
+                a.StartBeschichtung = kopf.StartBeschichtung;
+                a.BeschichtenRetour = kopf.BeschichtenRetour;
+            }
+            foreach (var p in a.Positionen)
+            {
+                var geaendert = false;
+                if (mengen.TryGetValue(p.Id, out var m) && m != p.Menge) { p.Menge = m; geaendert = true; }
+                if (verpacktIds is not null && verpacktIds.Contains(p.Id) != p.Verpackt) { p.Verpackt = !p.Verpackt; geaendert = true; }
+                if (geaendert) Geaendert(p, jetzt);
+            }
+            foreach (var p in a.Positionen.Where(p => entfernteIds.Contains(p.Id)).ToList())
+            {
+                a.Positionen.Remove(p);
+                _repo.Remove(p);   // geloescht = sofort frei (Anforderung 6)
+            }
+            foreach (var p in neuAusSchluessel.Concat(neueFreie)) a.Positionen.Add(p);   // neu = offen (Verpackt false)
+            Geaendert(a, jetzt);
         }
-        foreach (var p in a.Positionen.Where(p => entfernteIds.Contains(p.Id)).ToList())
+        // Hinweise (z. B. Masse 0) ueberleben das Speichern
+        BeschichtungsauftragErgebnis MitHinweisen(BeschichtungsauftragErgebnis e)
         {
-            a.Positionen.Remove(p);
-            _repo.Remove(p);   // geloescht = sofort frei (Anforderung 6)
+            if (!ReferenceEquals(e, r)) e.Hinweise.InsertRange(0, r.Hinweise);
+            return e;
         }
-        Geaendert(a, jetzt);
-        return await SpeichernAsync(a, rowVersion);
+
+        if (keys.Count == 0)
+        {
+            Anwenden(Array.Empty<BeschichtungsauftragPosition>());
+            return MitHinweisen(await SpeichernAsync(a, rowVersion));
+        }
+        if (a.UrsprungsauftragId is int)
+        {
+            var kopien = await ReklamationsKopienAsync(a, keys, r);
+            if (!r.Erfolg) return r;
+            Anwenden(kopien);
+            return MitHinweisen(await SpeichernAsync(a, rowVersion));
+        }
+        // Fehlerbehandlung AUSSERHALB der Transaktion: scheitert ein Lesen oder Speichern darin (z. B. Deadlock-Opfer), ist
+        // die SQL-Server-Transaktion beendet — ein Commit danach wuerde selbst werfen (QA I-1).
+        return MitHinweisen(await MitFehlerbehandlungAsync(a.Nummer, () => _repo.InSerializableTransactionAsync(async () =>
+        {
+            var knoten = await FreieKnotenPruefenAsync(a.HauptFA, keys, EigeneSchluessel(a), r);
+            if (!r.Erfolg) return r;
+            Anwenden(keys.Select(k => Snapshot(knoten[k])).ToList());
+            await SpeichernRohAsync(a, rowVersion);
+            return new BeschichtungsauftragErgebnis { Auftrag = a };
+        })));
     }
 
-    // ===================== Positionen hinzufuegen (Anforderung 10a, Antworten 12a, 14) =====================
-
-    /// <summary>Kandidaten fuer das Hinzufuegen in einen Entwurf — Erst-Entwurf: freie beschichtete Positionen des HauptFA aus
-    /// dem aktuellen Cache; Reklamations-Entwurf: Positionen des direkten Ursprungs, die noch nicht enthalten sind.
-    /// Kein Entwurf oder nicht gefunden: leer.</summary>
+    /// <summary>Kandidaten fuer das Hinzufuegen (Entwurf und Uebergeben) — Erstauftrag: freie beschichtete Positionen des
+    /// HauptFA aus dem aktuellen Cache; Reklamation: Positionen des direkten Ursprungs, die noch nicht enthalten sind.
+    /// Sonst oder nicht gefunden: leer.</summary>
     public async Task<List<PositionsKandidat>> GetHinzufuegbarePositionenAsync(int id)
     {
         var a = await _repo.GetMitPositionenAsync(id);
-        if (a is null || a.Status != BeschichtungsauftragStatus.Entwurf) return new();
-        var eigene = a.Positionen.Select(PositionsSchluessel.Von).ToHashSet();
+        if (a is null || !PositionenAenderbar(a.Status)) return new();
+        var eigene = EigeneSchluessel(a);
 
         if (a.UrsprungsauftragId is int uid)
         {
             var u = await _repo.GetMitPositionenAsync(uid);
             return (u?.Positionen ?? new List<BeschichtungsauftragPosition>())
-                .Where(p => !eigene.Contains(PositionsSchluessel.Von(p)))
+                .Where(p => !p.OhneFa && !eigene.Contains(PositionsSchluessel.Von(p)))
                 .OrderBy(p => p.Position ?? int.MaxValue).ThenBy(p => p.PositionText, new NaturalPositionComparer())
                 .DistinctBy(PositionsSchluessel.Von)
                 .Select(p => new PositionsKandidat(PositionsSchluessel.Von(p), p.HauptArtnr, p.Artnr, p.Matchcode, p.Menge, p.Breite, p.Hoehe, p.Tiefe))
@@ -247,58 +303,95 @@ public class BeschichtungsauftragWorkflow
             .ToList();
     }
 
-    /// <summary>Fuegt einem Entwurf Positionen hinzu (Herkunftsschluessel; der HauptFA kommt aus dem Auftrag). Eine teilweise
-    /// gueltige Auswahl wird ganz abgelehnt.</summary>
-    public async Task<BeschichtungsauftragErgebnis> PositionenHinzufuegenAsync(int id, IReadOnlyCollection<PositionsSchluessel> schluessel, byte[] rowVersion)
+    /// <summary>Fuegt Positionen hinzu (Herkunftsschluessel; HauptFA aus dem Auftrag). Teilweise gueltige Auswahl = ganz abgelehnt.</summary>
+    public Task<BeschichtungsauftragErgebnis> PositionenHinzufuegenAsync(int id, IReadOnlyCollection<PositionsSchluessel> schluessel, byte[] rowVersion) =>
+        schluessel.Count == 0
+            ? Task.FromResult(Fehler("Positionen hinzufügen: keine Positionen ausgewählt."))
+            : BearbeitenAsync(id, null, new Dictionary<int, decimal>(), Array.Empty<int>(), rowVersion, hinzu: schluessel);
+
+    /// <summary>Schluessel der FA-Positionen eines Auftrags — freie Positionen haben keinen bedeutsamen Schluessel (A7).</summary>
+    private static HashSet<PositionsSchluessel> EigeneSchluessel(Beschichtungsauftrag a) =>
+        a.Positionen.Where(p => !p.OhneFa).Select(PositionsSchluessel.Von).ToHashSet();
+
+    /// <summary>Gemeinsame Pruefung fuer Anlage (A3) und Hinzufuegen: je Schluessel im Cache, beschichtet, nicht vergeben, nicht
+    /// schon im Auftrag. Fehler in <paramref name="r"/>; Rueckgabe = Knoten je Schluessel. Nur in der Serializable-Transaktion aufrufen.</summary>
+    private async Task<Dictionary<PositionsSchluessel, FaHierarchyNode>> FreieKnotenPruefenAsync(int hauptFa,
+        IReadOnlyCollection<PositionsSchluessel> keys, IReadOnlySet<PositionsSchluessel> eigene, BeschichtungsauftragErgebnis r)
     {
-        var r = new BeschichtungsauftragErgebnis();
-        var a = await LadenAsync(id, r);
-        if (a is null) return r;
-        if (a.Status != BeschichtungsauftragStatus.Entwurf)
-            return Fehler($"Positionen hinzufügen nur im Entwurf — {a.Nummer} steht auf {Anzeige(a.Status)}.");
-        var keys = schluessel.Distinct().ToList();
-        if (keys.Count == 0) return Fehler("Positionen hinzufügen: keine Positionen ausgewählt.");
-        var eigene = a.Positionen.Select(PositionsSchluessel.Von).ToHashSet();
-        foreach (var k in keys.Where(eigene.Contains))
-            r.Fehler.Add($"Position {k} steht bereits in diesem Auftrag ({a.Nummer}).");
-
-        if (a.UrsprungsauftragId is int uid)
+        var knoten = (await KnotenAsync(hauptFa)).GroupBy(PositionsSchluessel.Von).ToDictionary(g => g.Key, g => g.First());
+        var vergaben = VergabenJeSchluessel(await _repo.GetVergabenAsync(hauptFa));
+        foreach (var k in keys)
         {
-            // Reklamations-Entwurf: nur Ursprungspositionen, Kopie aus dem Ursprung, keine Vergabe-Pruefung (Antworten 14, 15).
-            var u = await _repo.GetMitPositionenAsync(uid);
-            var ausUrsprung = (u?.Positionen ?? new List<BeschichtungsauftragPosition>())
-                .GroupBy(PositionsSchluessel.Von).ToDictionary(g => g.Key, g => g.First());
-            foreach (var k in keys.Where(k => !eigene.Contains(k) && !ausUrsprung.ContainsKey(k)))
-                r.Fehler.Add($"Im Reklamationsauftrag nur Positionen des Ursprungs {u?.Nummer} — Position {k} über einen neuen Auftrag vergeben.");
-            if (!r.Erfolg) return r;
-
-            foreach (var k in keys) a.Positionen.Add(Kopie(ausUrsprung[k]));
-            Geaendert(a, Jetzt);
-            return await SpeichernAsync(a, rowVersion);
+            if (eigene.Contains(k))
+                r.Fehler.Add($"Position {k} steht bereits in diesem Auftrag.");
+            else if (!knoten.TryGetValue(k, out var n))
+                r.Fehler.Add($"Position {k} ist nicht im Cache von HauptFA {hauptFa} (nicht mehr vorhanden oder anderer HauptFA).");
+            else if (!n.Beschichtet)
+                r.Fehler.Add($"Position {k} ist nicht beschichtet.");
+            else if (vergaben.TryGetValue(k, out var nummern))
+                r.Fehler.Add($"Position {k} ist bereits vergeben in {string.Join(", ", nummern)}.");
         }
+        return knoten;
+    }
 
-        // Fehlerbehandlung AUSSERHALB der Transaktion: scheitert ein Lesen oder Speichern darin (z. B. Deadlock-Opfer), ist
-        // die SQL-Server-Transaktion beendet — ein Commit danach wuerde selbst werfen (QA I-1).
-        return await MitFehlerbehandlungAsync(a.Nummer, () => _repo.InSerializableTransactionAsync(async () =>
+    /// <summary>Reklamations-Entwurf: nur Ursprungspositionen, Kopie aus dem Ursprung, keine Vergabe-Pruefung (Antworten 14, 15).</summary>
+    private async Task<List<BeschichtungsauftragPosition>> ReklamationsKopienAsync(Beschichtungsauftrag a,
+        IReadOnlyCollection<PositionsSchluessel> keys, BeschichtungsauftragErgebnis r)
+    {
+        var u = await _repo.GetMitPositionenAsync(a.UrsprungsauftragId!.Value);
+        var ausUrsprung = (u?.Positionen ?? new List<BeschichtungsauftragPosition>()).Where(p => !p.OhneFa)
+            .GroupBy(PositionsSchluessel.Von).ToDictionary(g => g.Key, g => g.First());
+        var eigene = EigeneSchluessel(a);
+        foreach (var k in keys)
         {
-            var knoten = (await KnotenAsync(a.HauptFA)).GroupBy(PositionsSchluessel.Von).ToDictionary(g => g.Key, g => g.First());
-            var vergaben = VergabenJeSchluessel(await _repo.GetVergabenAsync(a.HauptFA));
-            foreach (var k in keys.Where(k => !eigene.Contains(k)))
-            {
-                if (!knoten.TryGetValue(k, out var n))
-                    r.Fehler.Add($"Position {k} ist nicht im Cache von HauptFA {a.HauptFA} (nicht mehr vorhanden oder anderer HauptFA).");
-                else if (!n.Beschichtet)
-                    r.Fehler.Add($"Position {k} ist nicht beschichtet.");
-                else if (vergaben.TryGetValue(k, out var nummern))
-                    r.Fehler.Add($"Position {k} ist bereits vergeben in {string.Join(", ", nummern)}.");
-            }
-            if (!r.Erfolg) return r;
+            if (eigene.Contains(k)) r.Fehler.Add($"Position {k} steht bereits in diesem Auftrag ({a.Nummer}).");
+            else if (!ausUrsprung.ContainsKey(k))
+                r.Fehler.Add($"Im Reklamationsauftrag nur Positionen des Ursprungs {u?.Nummer} — Position {k} über einen neuen Auftrag vergeben.");
+        }
+        return r.Erfolg ? keys.Select(k => Kopie(ausUrsprung[k])).ToList() : new();
+    }
 
-            foreach (var k in keys) a.Positionen.Add(Snapshot(knoten[k]));
-            Geaendert(a, Jetzt);
-            await SpeichernRohAsync(a, rowVersion);
-            return new BeschichtungsauftragErgebnis { Auftrag = a };
-        }));
+    /// <summary>
+    /// Freie Positionen ohne FA (A7): Artikel aus dem Stamm, Menge &gt; 0, nie Vergabe. Masse (Rueckfrage 9): flache Quelle (AKE) =
+    /// <see cref="ArticleSageDetail"/> cm × 10 wie <see cref="Beschichtung.BeschichtungFlacheQuelle"/>-Projektion; sonst (IDEAL, bis P-3
+    /// bestaetigt) 0 mit Hinweis und Log-Warnung. Fehlende Masse = 0 mit Hinweis — nie still.
+    /// </summary>
+    private async Task<List<BeschichtungsauftragPosition>> FreiePositionenAsync(int hauptFa, IReadOnlyCollection<FreiePosition> frei,
+        BeschichtungsauftragErgebnis r)
+    {
+        if (frei.Count == 0) return new();
+        foreach (var f in frei.Where(f => f.Menge <= 0))
+            r.Fehler.Add($"Position ohne FA: Menge muss größer 0 sein (Artikel {f.ArticleId}: {f.Menge}).");
+        var artikel = (await _repo.GetArtikelMitMassenAsync(frei.Select(f => f.ArticleId).Distinct().ToList())).ToDictionary(x => x.Id);
+        foreach (var f in frei.Where(f => !artikel.ContainsKey(f.ArticleId)))
+            r.Fehler.Add($"Position ohne FA: Artikel {f.ArticleId} nicht gefunden.");
+        if (!r.Erfolg) return new();
+
+        var flach = await _flach.IstFlachAsync();
+        var ohneMasse = new List<string>();
+        var liste = frei.Select(f =>
+        {
+            var x = artikel[f.ArticleId];
+            var d = flach ? x.SageDetail : null;
+            if (d?.Breite is null && d?.Hoehe is null && d?.Laenge is null) ohneMasse.Add(x.ArticleNumber);
+            var p = new BeschichtungsauftragPosition
+            {
+                HauptFA = hauptFa, VaterFA = null, SubFA = 0, Position = null, PositionText = null, HauptArtnr = null,
+                Artnr = x.ArticleNumber, Matchcode = x.Matchcode, Menge = f.Menge, OhneFa = true,
+                Breite = (d?.Breite ?? 0m) * 10m, Hoehe = (d?.Hoehe ?? 0m) * 10m, Tiefe = (d?.Laenge ?? 0m) * 10m,
+            };
+            Erstellt(p);
+            return p;
+        }).ToList();
+        if (ohneMasse.Count > 0)
+        {
+            var text = flach
+                ? $"Maße 0 bei Positionen ohne FA (Artikel ohne Sage-Maße): {string.Join(", ", ohneMasse.Distinct())}."
+                : $"Maße 0 bei Positionen ohne FA (IDEAL: Maße aus dem Artikelstamm erst nach Prüfschritt P-3): {string.Join(", ", ohneMasse.Distinct())}.";
+            r.Hinweise.Add(text);
+            _logger.LogWarning("Beschichtungsauftrag HauptFA {HauptFa}: {Text}", hauptFa, text);
+        }
+        return liste;
     }
 
     // ===================== Bemerkung, Status (Anforderungen 5, 10) =====================

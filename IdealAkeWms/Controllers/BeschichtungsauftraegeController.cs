@@ -103,7 +103,7 @@ public class BeschichtungsauftraegeController : Controller
         if (a is null) return NotFound();
 
         var darfSchreiben = await _currentUser.HasBeschichtungsauftragWriteAccessAsync();
-        var kandidaten = darfSchreiben && a.Status == BeschichtungsauftragStatus.Entwurf
+        var kandidaten = darfSchreiben && BeschichtungsauftragWorkflow.PositionenAenderbar(a.Status)
             ? await _workflow.GetHinzufuegbarePositionenAsync(id)
             : new List<PositionsKandidat>();
 
@@ -154,13 +154,17 @@ public class BeschichtungsauftraegeController : Controller
         return RedirectToAction(nameof(Details), new { id = r.Auftrag.Id });
     }
 
-    /// <summary>Kopf + Positionsmengen + Entfernen im Entwurf (Antwort 7). Mengen kommen als Text (Punkt oder Komma) und
-    /// werden kulturunabhaengig gelesen — die Anwendung hat keine feste Request-Kultur.</summary>
+    /// <summary>EIN Speichern am Auftrag (v1.99.41 A8): Kopf (nur Entwurf; <paramref name="nurPositionen"/> = Uebergeben, Kopf
+    /// unveraendert), Mengen, Entfernen, Haken Verpackt (<paramref name="hakenGesendet"/>: ungehakte Checkboxen senden nichts),
+    /// Kandidaten (<paramref name="schluessel"/>) und freie Positionen (<paramref name="freiArtikelId"/> + <paramref name="freiMenge"/>
+    /// paarweise). Mengen kommen als Text (Punkt oder Komma) und werden kulturunabhaengig gelesen.</summary>
     [HttpPost]
     [ValidateAntiForgeryToken]
     [RequireBeschichtungsauftragWriteAccess]
     public async Task<IActionResult> Bearbeiten(int id, string? dienstleister, string? ral, DateTime? startBeschichtung,
-        DateTime? beschichtenRetour, Dictionary<int, string>? mengen, int[]? entfernen, string? rowVersion)
+        DateTime? beschichtenRetour, Dictionary<int, string>? mengen, int[]? entfernen, string? rowVersion,
+        bool nurPositionen = false, bool hakenGesendet = false, int[]? verpackt = null, string[]? schluessel = null,
+        string?[]? freiArtikelId = null, string?[]? freiMenge = null)
     {
         if (!ModelState.IsValid)
             return Warnung(id, "Eingabe nicht gespeichert: ungültiger Wert in " +
@@ -175,26 +179,41 @@ public class BeschichtungsauftraegeController : Controller
             mengenWerte[posId] = m;
         }
 
-        var r = await _workflow.EntwurfBearbeitenAsync(id, new KopfDaten(Leer(dienstleister), Leer(ral), startBeschichtung, beschichtenRetour),
-            mengenWerte, entfernen ?? Array.Empty<int>(), rv);
-        return Ergebnis(id, r, "Entwurf gespeichert.");
-    }
-
-    /// <summary>Positionsauswahl im Entwurf (Anforderung 4a); Schluessel = Herkunftsschluessel „VaterFA|SubFA|Position".</summary>
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    [RequireBeschichtungsauftragWriteAccess]
-    public async Task<IActionResult> PositionenHinzufuegen(int id, string[]? schluessel, string? rowVersion)
-    {
-        if (!TryRowVersion(rowVersion, out var rv)) return VeralteterStand(id);
         var keys = new List<PositionsSchluessel>();
         foreach (var s in schluessel ?? Array.Empty<string>())
         {
-            if (!TrySchluessel(s, out var k)) return Warnung(id, $"Positionen nicht hinzugefügt: ungültiger Positionsschlüssel „{s}“.");
+            if (!TrySchluessel(s, out var k)) return Warnung(id, $"Eingabe nicht gespeichert: ungültiger Positionsschlüssel „{s}“.");
             keys.Add(k);
         }
-        var r = await _workflow.PositionenHinzufuegenAsync(id, keys, rv);
-        return Ergebnis(id, r, $"{keys.Distinct().Count()} Position(en) hinzugefügt.");
+        if (!TryFreiePositionen(freiArtikelId, freiMenge, out var frei, out var fehler)) return Warnung(id, "Eingabe nicht gespeichert: " + fehler);
+
+        var kopf = nurPositionen ? null : new KopfDaten(Leer(dienstleister), Leer(ral), startBeschichtung, beschichtenRetour);
+        var r = await _workflow.BearbeitenAsync(id, kopf, mengenWerte, entfernen ?? Array.Empty<int>(), rv,
+            hakenGesendet ? verpackt ?? Array.Empty<int>() : null, keys, frei);
+        var neu = keys.Distinct().Count() + frei.Count;
+        return Ergebnis(id, r, neu > 0 ? $"Gespeichert, {neu} Position(en) hinzugefügt." : "Gespeichert.");
+    }
+
+    /// <summary>Freie Positionen aus dem Formular (A4/A7): Zeilen paarweise; ganz leere Zeilen (kein Artikel, keine Menge) werden
+    /// uebersprungen, Artikel ohne Menge oder Menge ohne Artikel sind ein Fehler — nie still verworfen.</summary>
+    internal static bool TryFreiePositionen(string?[]? artikelIds, string?[]? mengen, out List<FreiePosition> frei, out string fehler)
+    {
+        frei = new();
+        fehler = string.Empty;
+        var a = artikelIds ?? Array.Empty<string?>();
+        var m = mengen ?? Array.Empty<string?>();
+        for (var i = 0; i < Math.Max(a.Length, m.Length); i++)
+        {
+            var art = i < a.Length ? a[i]?.Trim() : null;
+            var men = i < m.Length ? m[i]?.Trim() : null;
+            if (string.IsNullOrEmpty(art) && string.IsNullOrEmpty(men)) continue;
+            if (!int.TryParse(art, NumberStyles.Integer, CultureInfo.InvariantCulture, out var artikelId))
+            { fehler = $"Position ohne FA {i + 1}: kein Artikel ausgewählt."; return false; }
+            if (!TryMenge(men, out var menge))
+            { fehler = $"Position ohne FA {i + 1}: Menge „{men}“ ist keine Zahl."; return false; }
+            frei.Add(new FreiePosition(artikelId, menge));
+        }
+        return true;
     }
 
     [HttpPost]

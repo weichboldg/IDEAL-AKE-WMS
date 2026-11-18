@@ -280,6 +280,30 @@ public class BeschichtungFlacheQuelleTests
         rekl.Auftrag!.Positionen.Select(p => p.PositionText).Should().BeEquivalentTo("51.9", "51.10");
     }
 
+    /// <summary>v1.99.41 (Rueckfrage 9): freie Position an der AKE (flache Quelle) — Masse aus ArticleSageDetails cm × 10; Artikel ohne
+    /// Masse = 0 mit Hinweis.</summary>
+    [Fact]
+    public async Task FreiePosition_Flach_MasseAusSageDetailsMal10_OhneMasseHinweis()
+    {
+        Wa("9001", "W-1");
+        Stueckliste("W-1", ("1", "L-1", 1m, null, Kategorie), ("2", "F-1", 1m, null, "Sonstiges"), ("3", "F-2", 1m, null, "Sonstiges"));
+        SageMasse("F-1", 12.5m, 3m, 40m);
+        await _db.SaveChangesAsync();
+        var wf = Workflow(Quelle());
+        var a = (await wf.AnlegenAsync(9001)).Auftrag!;
+        var f1 = _db.Articles.Single(x => x.ArticleNumber == "F-1").Id;
+        var f2 = _db.Articles.Single(x => x.ArticleNumber == "F-2").Id;
+
+        var r = await wf.BearbeitenAsync(a.Id, null, new Dictionary<int, decimal>(), Array.Empty<int>(), a.RowVersion,
+            frei: new[] { new FreiePosition(f1, 1m), new FreiePosition(f2, 2m) });
+
+        r.Fehler.Should().BeEmpty();
+        var p1 = a.Positionen.Single(p => p.Artnr == "F-1");
+        (p1.OhneFa, p1.Breite, p1.Hoehe, p1.Tiefe).Should().Be((true, 125m, 30m, 400m));
+        a.Positionen.Single(p => p.Artnr == "F-2").Breite.Should().Be(0m);
+        r.Hinweise.Should().ContainSingle(h => h.Contains("ohne Sage-Maße") && h.Contains("F-2") && !h.Contains("F-1"));
+    }
+
     /// <summary>QA-F2 AK 26: Summiert nimmt Masse und Eigenschaften der natuerlich ersten Position (5.2 vor 5.10).</summary>
     [Fact]
     public void Summiert_NimmtNatuerlichErstePosition()
