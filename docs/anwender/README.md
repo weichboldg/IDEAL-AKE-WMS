@@ -10,7 +10,7 @@ Jede Anleitung folgt demselben Aufbau:
 5. **Häufige Fragen**.
 
 **Standorte:** Das WMS läuft bei **AKE** und bei **IDEAL**. Wo sich die Standorte unterscheiden, steht das in einem eigenen Abschnitt.
-Die Bilder stammen meist aus dem AKE-Testsystem; Namen von Mitarbeitern sind durch „Mitarbeiter A, B, C“ ersetzt. Zahlen,
+Die Bilder stammen aus den Testsystemen AKE und IDEAL (je Kapitel angegeben); Namen von Mitarbeitern sind durch „Mitarbeiter A, B, C“ ersetzt. Zahlen,
 Aufträge und Artikel in den Bildern sind Testdaten.
 
 **Hilfeseite:** Im WMS unten rechts auf **Hilfe** klicken. Dort stehen alle Funktionen in Kurzform, auch die technischen Einstellungen.
@@ -37,23 +37,36 @@ FA-Nummer und einem Bildschirmfoto.
 | 12 | Register Sage-Test (Verbindungstest, Feldliste, Stückliste live mit Ressourcenliste und beendeten Haupt-FAs, FA-Struktur live) | Administration | [12-register-sage-test.md](12-register-sage-test.md) |
 | 13 | Anmeldung und Benutzer (Windows vs. Formular, Erstkennwort mit Pflichtwechsel, Gerätekonten, AD-Benutzer) | alle; Administration | [13-anmeldung-und-benutzer.md](13-anmeldung-und-benutzer.md) |
 | 14 | Blechfertigung – BF-Aufträge (Warenkorb, Schachtler-Freigabe, WiCAM-CSV, Fertig, Storno; IDEAL) | Produktion, Schachtler | [14-blechfertigung-bf-auftraege.md](14-blechfertigung-bf-auftraege.md) |
+| 15 | Beschichtung (Vorschlagsliste mit „Verpackt“, Beschichtungsauftrag, Status, Lackierer aus Kreditoren, Druck/PDF, Reklamation) | Produktion, Versand, Leitstand | [15-beschichtung-beschichtungsauftrag.md](15-beschichtung-beschichtungsauftrag.md) |
+| 16 | IDEAL-Kommissionierliste (Ziele, Summiert, Abteilung, Lagerplätze, nur nach Leitstand-Freigabe, Druck/PDF; IDEAL) | Lager | [16-ideal-kommissionierliste.md](16-ideal-kommissionierliste.md) |
+| 17 | BDE-Teileliste an der Werkbank (nur „fertig“ melden, einzeln oder als Block, Rücknahme, Teilmeldungen; IDEAL) | Produktion, BDE-Schichtleiter | [17-bde-teileliste-werkbank.md](17-bde-teileliste-werkbank.md) |
 
 ## Stand und was noch folgt
 
-Stand der Anleitungen: alle Version **1.99.29** (16.11.2026). Seit Version 1.99.22 neu bzw. ergänzt:
+Stand der Anleitungen: Version **1.99.43** (18.11.2026) für die Kapitel 01, 11 und 13–17; die übrigen Kapitel Version **1.99.29**. Seit Version 1.99.22 neu bzw. ergänzt:
 
 | Version | Änderung | Anleitung |
 |---|---|---|
 | 1.99.23 | Schutz gegen Doppel-Absenden (Freigabe, Abschluss, Wareneingang, Fertigmeldung; Knopf kurz gesperrt), alle Positionen im Kommissionierauftrag sichtbar, CSV-Mengen ohne Tausendertrenner | [01](01-kommissionierung.md), [05](05-wareneingang-zu-bestellung.md), [10](10-bestaende-spaltenfilter.md), [11](11-bde-terminal.md) |
 | 1.99.24 | nicht vergeben | – |
-| 1.99.25 | Beschichtung: Quelle für Kennzeichen und Termin einstellbar (Einstellungen, ohne sichtbare Änderung im Alltag) | folgt (siehe unten) |
+| 1.99.25 | Beschichtung: Quelle für Kennzeichen und Termin einstellbar (Einstellungen, ohne sichtbare Änderung im Alltag) | [15](15-beschichtung-beschichtungsauftrag.md) |
 | 1.99.26 | Sage-Test → Stückliste live: „Ressourcenliste (Vorlage)“, FA-Struktur auch für beendete Haupt-FAs | [12](12-register-sage-test.md) |
 | 1.99.27 | reserviert, nicht ausgeliefert | – |
 | 1.99.28 | Anmeldung nur mit Kennwort, Erstkennwort mit Pflichtwechsel | [13](13-anmeldung-und-benutzer.md) |
 | 1.99.29 | Wareneingang-CSV an enaio: Erfasser = Windows-Anmeldename; Erstkennwort-Haken nur mit Kennwort | [05](05-wareneingang-zu-bestellung.md), [13](13-anmeldung-und-benutzer.md) |
+| 1.99.32 | BDE-Teileliste an der Werkbank (IDEAL) | [11](11-bde-terminal.md), [17](17-bde-teileliste-werkbank.md) |
+| 1.99.34 | Beschichtung bei AKE aus der WA-Stückliste | [15](15-beschichtung-beschichtungsauftrag.md) |
+| 1.99.35 | BF-Aufträge (Blechfertigung, IDEAL) | [14](14-blechfertigung-bf-auftraege.md) |
+| 1.99.36 | BDE-Terminal: dunkle Schrift auf grünen und grauen Knöpfen; Beschichtung AKE: Maße, kommissionierte WA ausgeblendet | [11](11-bde-terminal.md), [15](15-beschichtung-beschichtungsauftrag.md), [17](17-bde-teileliste-werkbank.md) |
+| 1.99.37 | Kennzeichen „in Sage beendet/inaktiv/ungeklärt“ in Kommissionierliste, Beschichtung, BDE-Teileliste | [15](15-beschichtung-beschichtungsauftrag.md), [16](16-ideal-kommissionierliste.md), [17](17-bde-teileliste-werkbank.md) |
+| 1.99.41 | Beschichtungsauftrag: Haken „Verpackt“, Position ohne FA, Status Versendet, Lackierer aus Kreditoren, Druck je Position | [15](15-beschichtung-beschichtungsauftrag.md) |
+| 1.99.42 | Benutzer-Kürzel; BF-CSV genau nach WiCAM-Vorlage, Test-CSV; Beschichtung: Lackierer nachtragen, Druck mit Seitenzahl | [13](13-anmeldung-und-benutzer.md), [14](14-blechfertigung-bf-auftraege.md), [15](15-beschichtung-beschichtungsauftrag.md) |
+| 1.99.43 | IDEAL-Kommissionierliste: Ziele gemerkt, Summiert als Standard, Abteilung und Lagerplätze, nur nach Leitstand-Freigabe | [01](01-kommissionierung.md), [16](16-ideal-kommissionierliste.md) |
 
-**Beschichtung (Anwenderteil) folgt** nach den Ausbaustufen E2/E4/E5 der Beschichtungslogik. Bis dahin beschreibt die Hilfeseite im WMS
-die Beschichtungs-Einstellungen; für Administratoren steht das Wichtigste im Betriebshandbuch
-([docs/betrieb/04-konfiguration.md](../betrieb/04-konfiguration.md)).
+Änderungen aus 1.99.30, 1.99.31, 1.99.33 und 1.99.38–1.99.40 (Bestellvorschläge, offene Bestellungen, Wareneingang
+Sammellieferschein, Arbeitsgänge in Sage, Sage-Benutzerfelder) sind in den betroffenen Kapiteln noch nicht nachgezogen.
+
+**Beschichtung:** Die Anleitung für den Alltag steht in [Kapitel 15](15-beschichtung-beschichtungsauftrag.md). Die
+Beschichtungs-Einstellungen für Administratoren stehen im Betriebshandbuch ([docs/betrieb/04-konfiguration.md](../betrieb/04-konfiguration.md)).
 
 **Betriebshandbuch für Administratoren:** [docs/betrieb/00-index.md](../betrieb/00-index.md).
