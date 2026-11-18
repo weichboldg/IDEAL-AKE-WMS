@@ -2253,16 +2253,22 @@
                         Menge muss ein ganzes Vielfaches der Sage-Bestellmenge sein, wenn die Einheit gleich ist (0/leer = frei). Status aus
                         <em>BF-Aufträge: Status-Werte</em> (Vorgabe <code>EILT</code>). Ohne Materialnummer PN: Hinweis, Position geht nicht an WiCAM.
                         <strong>Abschicken</strong> vergibt <code>BF</code> + 8 Ziffern und löst die Mail an die Gruppe aus (nur dann).</li>
-                    <li><strong>Freigabe</strong> (Status bestellt): gesperrt bei Mengenregel-Verstoß, fehlendem Matchcode/Hauptlagerplatz, Zeichen
-                        <code>;</code>, <code>"</code>, Zeilenumbruch oder nicht Windows-1252 &ndash; die Liste über dem Knopf nennt Position und Feld.
+                    <li><strong>Freigabe</strong> (Status bestellt): gesperrt bei Mengenregel-Verstoß, fehlendem Matchcode/Hauptlagerplatz, nicht
+                        ganzzahliger Materialnummer, Zeichen <code>;</code> (außer im Lagerplatz), <code>"</code>, Zeilenumbruch oder nicht Windows-1252
+                        &ndash; die Liste über dem Knopf nennt Position und Feld. Seit v1.99.42 auch gesperrt, solange der Besteller kein
+                        <strong>Kürzel</strong> hat (Stammdaten &rsaquo; Benutzer, z.&nbsp;B. <code>WAK</code>); das Kürzel wird mit der Freigabe festgeschrieben.
                         Gestrichene Positionen zählen nicht. Termine ab dem Freigabetag: Schachteltermin +<em>BF-Aufträge: Schachteltermin</em>
                         (1), FE-Termin +<em>BF-Aufträge: FE-Termin</em> (10) Arbeitstage ohne Wochenende und Feiertage. Bemerkung
                         <code>[Status - ][Fertigungsinfo PN - ]TT.MM[ - Position bei BG]</code>.</li>
                     <li><strong>WiCAM-CSV:</strong> der Dienst schreibt <code>&lt;BF-Nummer&gt;.csv</code> (erst <code>.tmp</code>, dann umbenannt,
                         nie überschrieben). Schreibfehler werden 3&times; im Abstand von 15 min wiederholt; &bdquo;Datei existiert bereits&ldquo; nie
                         automatisch &ndash; in WiCAM klären, dann <strong>CSV erneut schreiben</strong> (nur nach Fehler). Protokoll
-                        &bdquo;Blechfertigung: WiCAM-CSV&ldquo;. Format bis zur Musterdatei aus WiCAM ein Platzhalter. Felder mit Semikolon
-                        (Lagerplatz <code>S-03;0;0;0</code>) stehen wie im Excel-CSV in Anführungszeichen (vorläufig).</li>
+                        &bdquo;Blechfertigung: WiCAM-CSV&ldquo;. <strong>Aufbau seit v1.99.42 wie die WiCAM-Datei <code>BF00000002.csv</code>:</strong>
+                        Windows-1252, CRLF, jede Zeile 13 Felder; Kopf <code>PART_START</code> &hellip; <code>PART_END</code> (Schlüssel in Spalte B, Wert in C),
+                        Spaltenzeile <code>ORDER_NC_FILE;ORDER_MATERIAL_NO;ORDER_AMOUNT;ORDER_REMARK;ORDER_POSITION;ORDER_REMARK_2;ORDER_REMARK_4;ORDER_DATE;ORDER_REMARK_5;ORDER_REMARK_1</code>,
+                        deutsche Überschrift, dann je Position: Matchcode, Materialnummer (ganzzahlig), Menge, Bemerkung, Lagerplatz mit Kommas
+                        (<code>K-02;0;0;0</code> &rarr; <code>K-02,0,0,0</code>), Hauptlagerplatz (<code>K-02</code>), Besteller-Kürzel, Schachteltermin,
+                        FE-Termin, Arbeitsschritte des Artikels (Sage <code>USER_OSArbeitsschritte</code>). Keine Anführungszeichen, keine Füllzeilen.</li>
                     <li><strong>Test-CSV herunterladen</strong> (Schachtler, ab BF-Nummer): dieselbe Datei wie für den Pool als Download &ndash; kein
                         Statuswechsel, nichts im Pool, Eintrag im Aktivitäts-Protokoll. Vor der Freigabe sind Termine und Bemerkung leer.</li>
                     <li><strong>Fertig melden</strong> (freigegeben, CSV geschrieben): im Auftrag oder per Häkchen in der Liste &ndash; nur Status,

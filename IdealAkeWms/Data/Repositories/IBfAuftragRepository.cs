@@ -5,7 +5,7 @@ namespace IdealAkeWms.Data.Repositories;
 /// <summary>Artikel fuer den BF-Warenkorb (Spec 2026-11-13-blechfertigung-bf-auftraege-wicam-csv F1): Felder aus den Sage-Merkmalen
 /// (<see cref="Services.BfArtikelFelder"/>), Bestellmenge aus <c>SageDetail</c> vor dem Merkmal.</summary>
 public sealed record BfArtikel(string ArticleNumber, string? Description, string? Matchcode, string? Teileart, string? Material,
-    string? Materialnummer, string? FertigungsInfoPN, string? Hauptlagerplatz, decimal? Bestellmenge);
+    string? Materialnummer, string? FertigungsInfoPN, string? Hauptlagerplatz, decimal? Bestellmenge, string? Arbeitsschritte = null);
 
 /// <summary>Datenzugriff fuer BF-Auftraege (ADR 0001). Regeln im <c>BfAuftragWorkflow</c>; hier nur Laden, Suchen, Speichern.</summary>
 public interface IBfAuftragRepository

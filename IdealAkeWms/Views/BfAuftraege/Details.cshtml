@@ -39,7 +39,7 @@
 @if (!Model.IstWarenkorb)
 {
     <dl class="row mb-3">
-        <dt class="col-sm-2">Besteller</dt><dd class="col-sm-4">@a.BestellerName</dd>
+        <dt class="col-sm-2">Besteller</dt><dd class="col-sm-4">@a.BestellerName@(string.IsNullOrEmpty(a.BestellerKuerzel) ? "" : $" ({a.BestellerKuerzel})")</dd>
         <dt class="col-sm-2">Bestellt am</dt><dd class="col-sm-4">@BfAuftragListRow.Zeitpunkt(a.BestelltAm)</dd>
         <dt class="col-sm-2">Empfängergruppe</dt><dd class="col-sm-4">@(a.OrderRecipientGroup?.Name ?? "–")</dd>
         <dt class="col-sm-2">Mail</dt><dd class="col-sm-4">@(a.EmailSentAt is null ? "noch nicht versendet" : BfAuftragListRow.Zeitpunkt(a.EmailSentAt))</dd>

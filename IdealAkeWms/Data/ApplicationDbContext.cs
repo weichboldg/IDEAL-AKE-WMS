@@ -1859,6 +1859,7 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.Material).HasMaxLength(200);
             entity.Property(e => e.Materialnummer).HasMaxLength(50);
             entity.Property(e => e.FertigungsInfoPN).HasMaxLength(200);
+            entity.Property(e => e.Arbeitsschritte).HasMaxLength(200);
             entity.Property(e => e.Hauptlagerplatz).HasMaxLength(100);
             entity.Property(e => e.Menge).HasColumnType("decimal(18,3)");
             entity.Property(e => e.SageBestellmenge).HasColumnType("decimal(18,3)");

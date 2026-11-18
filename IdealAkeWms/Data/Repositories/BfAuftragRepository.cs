@@ -86,7 +86,8 @@ public class BfAuftragRepository : IBfAuftragRepository
             var menge = r.Bestellmenge
                         ?? (decimal.TryParse(F(BfArtikelFelder.Bestellmenge), NumberStyles.Number, CultureInfo.InvariantCulture, out var m) ? m : null);
             return new BfArtikel(r.ArticleNumber, r.Description, r.Matchcode, F(BfArtikelFelder.Artikeltyp), F(BfArtikelFelder.Material),
-                F(BfArtikelFelder.Materialnummer), F(BfArtikelFelder.FertigungsInfoPN), r.Lagerplatz ?? r.SagePrimaryStorageLocation, menge);
+                F(BfArtikelFelder.Materialnummer), F(BfArtikelFelder.FertigungsInfoPN), r.Lagerplatz ?? r.SagePrimaryStorageLocation, menge,
+                F(BfArtikelFelder.Arbeitsschritte));
         }).ToList();
     }
 

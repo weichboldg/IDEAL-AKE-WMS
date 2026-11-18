@@ -81,7 +81,10 @@ public class BfAuftragPosition : AuditableEntity
     /// <summary>Sage <c>USER_OSMaterialnummerPN</c>; leer = Position wird nicht an WiCAM uebergeben (Freigabe-Antwort 2).</summary>
     public string? Materialnummer { get; set; }
     public string? FertigungsInfoPN { get; set; }
+    /// <summary>Voller Sage-Lagerplatz (z. B. <c>K-02;0;0;0</c>); CSV: ORDER_POSITION mit Kommas, ORDER_REMARK_2 = Teil vor dem ersten Trenner.</summary>
     public string? Hauptlagerplatz { get; set; }
+    /// <summary>v1.99.42: Sage <c>USER_OSArbeitsschritte</c> (Merkmal, Userfeld-Einstellung Blechfertigung) als Snapshot → ORDER_REMARK_1.</summary>
+    public string? Arbeitsschritte { get; set; }
     public decimal Menge { get; set; }
     /// <summary>Snapshot der Sage-Bestellmenge fuer die Mengenregel; null/0 = Menge frei.</summary>
     public decimal? SageBestellmenge { get; set; }

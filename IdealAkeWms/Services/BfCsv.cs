@@ -12,8 +12,8 @@ public sealed record BfCsvKopf(string CreateNewOrder = "YES", int Priority = 1, 
 /// <summary>
 /// v1.99.35 (Spec 2026-11-13-blechfertigung-bf-auftraege-wicam-csv): gemeinsame Keys und Regeln der BF-Auftraege fuer Web (Freigabe)
 /// und Dienst (CSV, Mail), Muster <see cref="WareneingangCsv"/>. Trenner, Kodierung und Datumsformate sind fest (Freigabe-Antwort 9).
-/// <para>Das Layout ist ein PLATZHALTER BIS P-1 (Freigabe-Antwort 8): sobald die Musterdatei aus dem WiCAM-Pool vorliegt, wird
-/// <see cref="Inhalt"/> und die Testvorlage <c>IDEALAKEWMSService.Tests/TestData/BfCsv_PlatzhalterBisP1.csv</c> daran angeglichen.</para>
+/// <para>v1.99.42: Aufbau exakt nach der echten WiCAM-Datei <c>BF00000002.csv</c> (Befund P-1 (2), Walter 2026-11-18 „Zielform“),
+/// Testvorlage <c>IDEALAKEWMSService.Tests/TestData/BF00000002.csv</c> (Byte-Vergleich).</para>
 /// </summary>
 public static class BfCsv
 {
@@ -66,12 +66,13 @@ public static class BfCsv
         return sb.ToString();
     }
 
-    /// <summary>Melden statt still ersetzen: Beschreibung des ersten unzulaessigen Zeichens (<c>"</c>, Zeilenumbruch, nicht in
-    /// Windows-1252), sonst null. <c>;</c> ist erlaubt und wird per <see cref="Feld"/> eingefasst (Entscheidung B-1, Lagerplatz
-    /// <c>S-03;0;0;0</c>; vorlaeufig, wie Excel, durch P-1 zu bestaetigen).</summary>
+    /// <summary>Melden statt still ersetzen: Beschreibung des ersten unzulaessigen Zeichens (<c>;</c>, <c>"</c>, Zeilenumbruch, nicht in
+    /// Windows-1252), sonst null. Seit v1.99.42 wieder ohne <c>;</c> - die Vorlage fasst nichts ein; der Lagerplatz geht vorher durch
+    /// <see cref="Lagerplatz"/>.</summary>
     public static string? UnzulaessigesZeichen(string? wert)
     {
         if (string.IsNullOrEmpty(wert)) return null;
+        if (wert.Contains(';')) return "Semikolon";
         if (wert.Contains('"')) return "Anführungszeichen";
         if (wert.IndexOfAny(new[] { '\r', '\n' }) >= 0) return "Zeilenumbruch";
         var enc = Kodierung();
@@ -83,11 +84,16 @@ public static class BfCsv
         return null;
     }
 
-    /// <summary>VORLAEUFIG, WIE EXCEL, DURCH P-1 ZU BESTAETIGEN (Entscheidung B-1 Variante c, Gerald 2026-11-17): ein Feld mit <c>;</c> oder
-    /// <c>"</c> kommt in doppelte Anfuehrungszeichen, enthaltene <c>"</c> werden verdoppelt – wie der CSV-Export von Excel. Zeigt die
-    /// echte Pool-Datei (P-1) ein anderes Format, nur hier umbauen.</summary>
-    public static string Feld(string? wert) =>
-        wert is not null && wert.IndexOfAny(new[] { ';', '"' }) >= 0 ? "\"" + wert.Replace("\"", "\"\"") + "\"" : wert ?? "";
+    /// <summary>ORDER_POSITION: voller Sage-Lagerplatz, <c>;</c> → <c>,</c> (<c>K-02;0;0;0</c> → <c>K-02,0,0,0</c>, Walter 2026-11-18).</summary>
+    public static string Lagerplatz(string? lp) => (lp ?? "").Trim().Replace(';', ',');
+
+    /// <summary>ORDER_REMARK_2: Hauptlagerplatz = Teil vor dem ersten Trenner (<c>K-02;0;0;0</c> → <c>K-02</c>).</summary>
+    public static string Hauptlagerplatz(string? lp) => Lagerplatz(lp).Split(',')[0].Trim();
+
+    /// <summary>ORDER_MATERIAL_NO ganzzahlig (<c>1</c>, auch aus <c>1.000</c>/<c>1,0</c>); nicht ganzzahlig/leer = null (Freigabe-Sperre).</summary>
+    public static string? MaterialNr(string? s) =>
+        decimal.TryParse((s ?? "").Trim().Replace(',', '.'), NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var d)
+        && d == decimal.Truncate(d) ? d.ToString("0", CultureInfo.InvariantCulture) : null;
 
     /// <summary>Kopfwerte aus den ServiceSettings (leer bzw. nicht lesbar = Default), gemeinsam fuer Dienst und Test-CSV-Download.</summary>
     public static async Task<BfCsvKopf> KopfAsync(Func<string, Task<string?>> lesen)
@@ -103,27 +109,35 @@ public static class BfCsv
     public static string Menge(decimal m) =>
         m == decimal.Truncate(m) ? decimal.Truncate(m).ToString("0", CultureInfo.InvariantCulture) : m.ToString("0.######", CultureInfo.GetCultureInfo("de-AT"));
 
-    /// <summary>Dateiinhalt (CRLF; Felder mit <c>;</c> per <see cref="Feld"/> eingefasst, vorlaeufig bis P-1). Nur uebergebene Positionen
-    /// (<see cref="BfAuftragPosition.Uebergeben"/>), aufsteigend nach Position. PLATZHALTER BIS P-1.</summary>
+    /// <summary>Feste Feldanzahl je Zeile wie <c>BF00000002.csv</c> (12 <c>;</c>, auch Leerzeilen).</summary>
+    public const int Spalten = 13;
+
+    /// <summary>Dateiinhalt exakt wie <c>BF00000002.csv</c>: CRLF, jede Zeile <see cref="Spalten"/> Felder; Kopf Schluessel in Spalte B/Wert C,
+    /// PART_START/PART_END in A; Z10 leer, Z11 die 10 ORDER_*-Spalten, Z12 leer, Z13 deutsche Ueberschrift, ab Z14 die uebergebenen
+    /// Positionen (<see cref="BfAuftragPosition.Uebergeben"/>) aufsteigend; keine Auffuellzeilen, keine Anfuehrungszeichen.</summary>
     public static string Inhalt(BfAuftrag a, BfCsvKopf kopf)
     {
         var sb = new StringBuilder();
-        void Z(string zeile) => sb.Append(zeile).Append("\r\n");
+        void Z(params string[] f) => sb.Append(string.Join(';', f.Concat(Enumerable.Repeat("", Spalten - f.Length)))).Append("\r\n");
         Z("PART_START");
-        Z($"CREATE_NEW_ORDER;{kopf.CreateNewOrder}");
-        Z($"ORDER_NUMBER;{a.Nummer}");
-        Z($"ORDER_REMARK_3;{kopf.Remark3}");
-        Z($"ORDER_REMARK_1;{kopf.Remark1}");
-        Z($"ORDER_REMARK_2;{kopf.Remark2}");
-        Z($"ORDER_PRIORITY;{kopf.Priority.ToString(CultureInfo.InvariantCulture)}");
-        Z($"ORDER_RELEASE;{kopf.Release}");
+        Z("", "CREATE_NEW_ORDER", kopf.CreateNewOrder);
+        Z("", "ORDER_NUMBER", a.Nummer);
+        Z("", "ORDER_REMARK_3", kopf.Remark3);
+        Z("", "ORDER_REMARK_1", kopf.Remark1);
+        Z("", "ORDER_REMARK_2", kopf.Remark2);
+        Z("", "ORDER_PRIORITY", kopf.Priority.ToString(CultureInfo.InvariantCulture));
+        Z("", "ORDER_RELEASE", kopf.Release);
         Z("PART_END");
-        Z("ORDER_NC_FILE;ORDER_MATERIAL_NO;ORDER_AMOUNT;ORDER_REMARK;ORDER_POSITION;ORDER_REMARK_4;ORDER_DATE;ORDER_REMARK_5");
+        Z();
+        Z("ORDER_NC_FILE", "ORDER_MATERIAL_NO", "ORDER_AMOUNT", "ORDER_REMARK", "ORDER_POSITION", "ORDER_REMARK_2", "ORDER_REMARK_4",
+            "ORDER_DATE", "ORDER_REMARK_5", "ORDER_REMARK_1");
+        Z();
+        Z("Matchcode", "Mat.Nr.", "Menge", "Bemerkung", "Lagerplatz", "Hauptlagerplatz", "Besteller", "Schachteltermin", "FE-Termin", "Arbeitsschritte");
         var schachtel = a.Schachteltermin?.ToString("dd.MM.yyyy", CultureInfo.InvariantCulture) ?? "";
         var fe = a.FeTermin?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) ?? "";
         foreach (var p in a.Positionen.Where(p => p.Uebergeben).OrderBy(p => p.Position))
-            Z(string.Join(';', Feld(MatchcodeBereinigen(p.Matchcode)), Feld(p.Materialnummer!.Trim()), Menge(p.Menge), Feld(p.Bemerkung),
-                Feld(p.Hauptlagerplatz), Feld(a.BestellerName), schachtel, fe));
+            Z(MatchcodeBereinigen(p.Matchcode), MaterialNr(p.Materialnummer) ?? p.Materialnummer!.Trim(), Menge(p.Menge), p.Bemerkung ?? "",
+                Lagerplatz(p.Hauptlagerplatz), Hauptlagerplatz(p.Hauptlagerplatz), a.BestellerKuerzel ?? "", schachtel, fe, p.Arbeitsschritte?.Trim() ?? "");
         return sb.ToString();
     }
 }

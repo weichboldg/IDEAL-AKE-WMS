@@ -66,7 +66,7 @@ public class BfAuftragWorkflowTests
             return d;
         }
 
-        public void Artikel(string nr, string? ist = "1", string? typ = "BG", string? materialnummer = "M-1", string? bestellmenge = null)
+        public void Artikel(string nr, string? ist = "1", string? typ = "BG", string? materialnummer = "11", string? bestellmenge = null)
         {
             var a = new Article { ArticleNumber = nr, Description = "Teil " + nr, Matchcode = "MC " + nr, SagePrimaryStorageLocation = "L-1" };
             void W(string f, string? v) { if (v is not null) a.AttributeValues.Add(new ArticleAttributeValue { ArticleAttributeDefinition = Def(f), TextValue = v }); }
@@ -114,7 +114,7 @@ public class BfAuftragWorkflowTests
         var treffer = await fx.Repo.SucheArtikelAsync(null, 50);
 
         treffer.Select(t => t.ArticleNumber).Should().BeEquivalentTo("BG1", "FT1");
-        treffer.Single(t => t.ArticleNumber == "BG1").Should().Match<BfArtikel>(t => t.Materialnummer == "M-1" && t.Hauptlagerplatz == "L-1" && t.Teileart == "BG");
+        treffer.Single(t => t.ArticleNumber == "BG1").Should().Match<BfArtikel>(t => t.Materialnummer == "11" && t.Hauptlagerplatz == "L-1" && t.Teileart == "BG");
     }
 
     [Fact]
@@ -217,7 +217,7 @@ public class BfAuftragWorkflowTests
     {
         var fx = new Fx();   // Freigabetag Di 17.11.2026
         fx.Feiertage.Add(new DateTime(2026, 11, 18));
-        var id = await BestelltAsync(fx, ("BG1", "M-1"));
+        var id = await BestelltAsync(fx, ("BG1", "11"));
 
         var e = await fx.Wf.FreigebenAsync(id, null);
 
@@ -233,7 +233,7 @@ public class BfAuftragWorkflowTests
     public async Task Freigabe_OhneMaterialnummer_NurHinweis_AlleOhne_Gesperrt()
     {
         var fx = new Fx();
-        var id = await BestelltAsync(fx, ("BG1", "M-1"), ("BG2", null));
+        var id = await BestelltAsync(fx, ("BG1", "11"), ("BG2", null));
 
         var e = await fx.Wf.FreigebenAsync(id, null);
         e.Ok.Should().BeTrue();
@@ -255,7 +255,7 @@ public class BfAuftragWorkflowTests
     [InlineData("Matchcode", "\t ", "Matchcode fehlt")]
     public void FreigabeFehler_MeldetPositionUndFeld(string feld, string wert, string erwartet)
     {
-        var p = new BfAuftragPosition { Position = 3, Matchcode = "MC", Materialnummer = "M", Hauptlagerplatz = "L", Menge = 1 };
+        var p = new BfAuftragPosition { Position = 3, Matchcode = "MC", Materialnummer = "1", Hauptlagerplatz = "L", Menge = 1 };
         typeof(BfAuftragPosition).GetProperty(feld)!.SetValue(p, wert);
         var a = new BfAuftrag { BestellerName = "Tester", BestellerKuerzel = "TST", Positionen = { p } };
 
@@ -264,24 +264,21 @@ public class BfAuftragWorkflowTests
         fehler.Should().ContainSingle(f => f.Contains("Pos 3") && f.Contains(erwartet));
     }
 
-    /// <summary>Entscheidung B-1 (Variante c): <c>;</c> sperrt nicht mehr – Sage-Lagerplaetze haben das Format <c>XX;n;n;n</c>.</summary>
+    /// <summary>v1.99.42 (P-1 (2), ersetzt B-1 Variante c): <c>;</c> nur im Lagerplatz erlaubt (wird zu <c>,</c>), in allen anderen Feldern Sperre;
+    /// Materialnummer muss ganzzahlig sein.</summary>
     [Fact]
-    public void FreigabeFehler_SemikolonImLagerplatzSperrtNicht()
+    public void FreigabeFehler_SemikolonNurImLagerplatz_MaterialnummerGanzzahlig()
     {
-        var a = new BfAuftrag
-        {
-            BestellerName = "Tester", BestellerKuerzel = "TST",
-            Positionen = { new BfAuftragPosition { Position = 1, Matchcode = "A;B", Materialnummer = "M", Hauptlagerplatz = "S-03;0;0;0", Menge = 1 } },
-        };
-        BfAuftragWorkflow.FreigabeFehler(a).Should().BeEmpty();
+        BfAuftrag A(BfAuftragPosition p) => new() { BestellerName = "Tester", BestellerKuerzel = "TST", Positionen = { p } };
+        BfAuftragWorkflow.FreigabeFehler(A(new BfAuftragPosition { Position = 1, Matchcode = "MC", Materialnummer = "1", Hauptlagerplatz = "S-03;0;0;0", Menge = 1 }))
+            .Should().BeEmpty();
+        BfAuftragWorkflow.FreigabeFehler(A(new BfAuftragPosition { Position = 1, Matchcode = "A;B", Materialnummer = "1", Hauptlagerplatz = "L", Menge = 1 }))
+            .Should().ContainSingle(f => f.Contains("Pos 1 Matchcode") && f.Contains("Semikolon"));
+        BfAuftragWorkflow.FreigabeFehler(A(new BfAuftragPosition { Position = 1, Matchcode = "MC", Materialnummer = "1", Hauptlagerplatz = "L", Menge = 1, Arbeitsschritte = "S;01" }))
+            .Should().ContainSingle(f => f.Contains("Arbeitsschritte"));
+        BfAuftragWorkflow.FreigabeFehler(A(new BfAuftragPosition { Position = 1, Matchcode = "MC", Materialnummer = "1.5", Hauptlagerplatz = "L", Menge = 1 }))
+            .Should().ContainSingle(f => f.Contains("nicht ganzzahlig"));
     }
-
-    [Theory]
-    [InlineData("S-03;0;0;0", "\"S-03;0;0;0\"")]
-    [InlineData("a\"b;c", "\"a\"\"b;c\"")]
-    [InlineData("L-2", "L-2")]
-    [InlineData(null, "")]
-    public void Feld_FasstSemikolonWieExcelEin(string? wert, string erwartet) => BfCsv.Feld(wert).Should().Be(erwartet);
 
     [Fact]
     public async Task KopfAsync_LeerUndUngueltigGebenDefault()
@@ -304,7 +301,7 @@ public class BfAuftragWorkflowTests
         BfAuftragWorkflow.FreigabeFehler(a).Should().ContainSingle(f => f.Contains("kein Kürzel") && f.Contains("Stammdaten › Benutzer"));
 
         var fx = new Fx();
-        var id = await BestelltAsync(fx, ("BG1", "M-1"));
+        var id = await BestelltAsync(fx, ("BG1", "11"));
         fx.Db.Users.Single().Kuerzel = null;
         fx.Db.SaveChanges();
         var r = await fx.Wf.FreigebenAsync(id, null);
@@ -324,8 +321,8 @@ public class BfAuftragWorkflowTests
             BestellerName = "Tester", BestellerKuerzel = "TST",
             Positionen =
             {
-                new BfAuftragPosition { Position = 1, Matchcode = "MC", Materialnummer = "M", Hauptlagerplatz = "L", Menge = 7, SageBestellmenge = 5 },
-                new BfAuftragPosition { Position = 2, Matchcode = "A;B", Materialnummer = "M", Hauptlagerplatz = "L", Menge = 1, Gestrichen = true },
+                new BfAuftragPosition { Position = 1, Matchcode = "MC", Materialnummer = "1", Hauptlagerplatz = "L", Menge = 7, SageBestellmenge = 5 },
+                new BfAuftragPosition { Position = 2, Matchcode = "A;B", Materialnummer = "1", Hauptlagerplatz = "L", Menge = 1, Gestrichen = true },
             },
         };
         BfAuftragWorkflow.FreigabeFehler(a).Should().ContainSingle("gestrichene Pos 2 mit ; sperrt nicht")
@@ -336,7 +333,7 @@ public class BfAuftragWorkflowTests
     public async Task CsvErneutSchreiben_NurNachFehler()
     {
         var fx = new Fx();
-        var id = await BestelltAsync(fx, ("BG1", "M-1"));
+        var id = await BestelltAsync(fx, ("BG1", "11"));
         (await fx.Wf.FreigebenAsync(id, null)).Ok.Should().BeTrue();
 
         (await fx.Wf.CsvErneutSchreibenAsync(id, null)).Ok.Should().BeFalse("CSV ist noch offen");
@@ -354,7 +351,7 @@ public class BfAuftragWorkflowTests
     public async Task FertigMelden_NurFreigegebenMitGeschriebenerCsv_RestGemeldet()
     {
         var fx = new Fx();
-        var id = await BestelltAsync(fx, ("BG1", "M-1"));
+        var id = await BestelltAsync(fx, ("BG1", "11"));
         (await fx.Wf.FreigebenAsync(id, null)).Ok.Should().BeTrue();
 
         var e = await fx.Wf.FertigMeldenAsync(new[] { id });
@@ -377,7 +374,7 @@ public class BfAuftragWorkflowTests
     public async Task Storno_BestellerBisFreigabe_SchachtlerBisFertig_MitPoolHinweis()
     {
         var fx = new Fx();
-        var id = await BestelltAsync(fx, ("BG1", "M-1"));
+        var id = await BestelltAsync(fx, ("BG1", "11"));
         (await fx.Wf.FreigebenAsync(id, null)).Ok.Should().BeTrue();
         var a = fx.Db.BfAuftraege.Single();
         a.CsvStatus = BfCsvStatus.Geschrieben; a.CsvDatei = @"C:\pool\BF00000001.csv";
@@ -397,7 +394,7 @@ public class BfAuftragWorkflowTests
     public async Task Storno_BestellerBestellt_Ok_FremderNicht_WarenkorbNicht()
     {
         var fx = new Fx();
-        var id = await BestelltAsync(fx, ("BG1", "M-1"));
+        var id = await BestelltAsync(fx, ("BG1", "11"));
         fx.User.Setup(u => u.GetCurrentAppUserId()).Returns(99);
         (await fx.Wf.StornierenAsync(id, null, alsSchachtler: false, null)).Ok.Should().BeFalse("fremder Auftrag");
         fx.User.Setup(u => u.GetCurrentAppUserId()).Returns(7);

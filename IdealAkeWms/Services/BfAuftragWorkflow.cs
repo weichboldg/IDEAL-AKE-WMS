@@ -96,6 +96,7 @@ public class BfAuftragWorkflow
             Position = a.Positionen.Count == 0 ? 1 : a.Positionen.Max(x => x.Position) + 1,
             ArticleNumber = artikel.ArticleNumber, Matchcode = artikel.Matchcode, Teileart = artikel.Teileart, Material = artikel.Material,
             Materialnummer = artikel.Materialnummer, FertigungsInfoPN = artikel.FertigungsInfoPN, Hauptlagerplatz = lp,
+            Arbeitsschritte = artikel.Arbeitsschritte,
             Menge = menge, SageBestellmenge = artikel.Bestellmenge, Status = st,
         };
         Angelegt(p, jetzt);
@@ -247,8 +248,11 @@ public class BfAuftragWorkflow
             if (!p.Uebergeben) continue;
             if (BfCsv.MatchcodeBereinigen(p.Matchcode).Length == 0) fehler.Add($"Pos {p.Position}: Matchcode fehlt");
             if (string.IsNullOrWhiteSpace(p.Hauptlagerplatz)) fehler.Add($"Pos {p.Position}: Hauptlagerplatz fehlt");
+            if (BfCsv.MaterialNr(p.Materialnummer) is null) fehler.Add($"Pos {p.Position}: Materialnummer „{p.Materialnummer}“ ist nicht ganzzahlig");
+            // v1.99.42 (P-1 (2)): ; nur im Lagerplatz erlaubt (wird zu ,), sonst wieder Sperre - die Vorlage BF00000002 kennt keine Einfassung.
             foreach (var (feld, wert) in new[] { ("Matchcode", p.Matchcode), ("Materialnummer", p.Materialnummer), ("Status", p.Status),
-                         ("FertigungsInfoPN", p.FertigungsInfoPN), ("Hauptlagerplatz", p.Hauptlagerplatz) })
+                         ("FertigungsInfoPN", p.FertigungsInfoPN), ("Arbeitsschritte", p.Arbeitsschritte),
+                         ("Hauptlagerplatz", BfCsv.Lagerplatz(p.Hauptlagerplatz)) })
                 if (BfCsv.UnzulaessigesZeichen(wert) is { } z) fehler.Add($"Pos {p.Position} {feld}: {z}");
         }
         if (string.IsNullOrWhiteSpace(a.BestellerKuerzel))

@@ -2944,6 +2944,7 @@ BEGIN
         [Materialnummer]    NVARCHAR(50)   NULL,
         [FertigungsInfoPN]  NVARCHAR(200)  NULL,
         [Hauptlagerplatz]   NVARCHAR(100)  NULL,
+        [Arbeitsschritte]   NVARCHAR(200)  NULL,   -- v1.99.42 / SQL/163 (ORDER_REMARK_1)
         [Menge]             DECIMAL(18,3)  NOT NULL,
         [SageBestellmenge]  DECIMAL(18,3)  NULL,
         [Status]            NVARCHAR(50)   NULL,
@@ -3532,6 +3533,9 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261118144836_AddUserKuerzelUndBfBestellerKuerzel')
    AND COL_LENGTH(N'dbo.BfAuftraege', N'BestellerKuerzel') IS NOT NULL -- sonst steht SQL/162 noch aus
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261118144836_AddUserKuerzelUndBfBestellerKuerzel', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261118145602_AddBfPositionArbeitsschritte')
+   AND COL_LENGTH(N'dbo.BfAuftragPositionen', N'Arbeitsschritte') IS NOT NULL -- sonst steht SQL/163 noch aus
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261118145602_AddBfPositionArbeitsschritte', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';
