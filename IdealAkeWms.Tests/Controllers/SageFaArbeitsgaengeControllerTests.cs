@@ -113,6 +113,28 @@ public class SageFaArbeitsgaengeControllerTests
     }
 
     [Fact]
+    public async Task Bestaetigen_NurUnklar_SetztInSageVorhanden_MitAudit_AuchSchalterAus()   // v1.99.42 N1
+    {
+        Schalter(false);
+        _db.SageFaArbeitsgangAnlagen.AddRange(
+            new SageFaArbeitsgangAnlage { BelId = 100, HauptFa = 100, Kuerzel = "PU", SageArbeitsgangnummer = "180", Reihenfolge = 1,
+                Status = SageFaArbeitsgangStatus.Fehler, Versuche = 1, Fehler = SageFaArbeitsgaenge.UnklarText + " (x)", CreatedBy = "t", CreatedByWindows = "t" },
+            new SageFaArbeitsgangAnlage { BelId = 100, HauptFa = 100, Kuerzel = "MK", SageArbeitsgangnummer = "190", Reihenfolge = 2,
+                Status = SageFaArbeitsgangStatus.Fehler, Versuche = 1, Fehler = "HTTP 400", CreatedBy = "t", CreatedByWindows = "t" });
+        _db.SaveChanges();
+
+        await Controller().Bestaetigen(100, "190", null);
+        var c = Controller();
+        await c.Bestaetigen(100, " 180 ", null);
+
+        var unklar = _db.SageFaArbeitsgangAnlagen.Single(a => a.SageArbeitsgangnummer == "180");
+        (unklar.Status, unklar.Fehler, unklar.ModifiedBy).Should().Be((SageFaArbeitsgangStatus.InSageVorhanden, (string?)null, "Test User"));
+        _db.SageFaArbeitsgangAnlagen.Single(a => a.SageArbeitsgangnummer == "190").Status.Should().Be(SageFaArbeitsgangStatus.Fehler,
+            "ein echter Fehler wird nicht bestaetigt, nur erneut eingereiht");
+        c.TempData["SuccessMessage"].Should().NotBeNull();
+    }
+
+    [Fact]
     public async Task Index_FaFilter_Pruefen_LiestAuchDieUnterFas()   // QA F1: Unter-FA stand ohne Lesefehler auf „Sage nicht lesbar“
     {
         Schalter(false);

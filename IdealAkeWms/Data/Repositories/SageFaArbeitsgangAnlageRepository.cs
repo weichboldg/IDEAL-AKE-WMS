@@ -11,6 +11,9 @@ public interface ISageFaArbeitsgangAnlageRepository
     /// <summary>Reiht je (BelId, Sage-AG) ein: neue Zeile, oder eine Fehler-Zeile wieder auf Offen. Laufende bzw. erledigte Zeilen
     /// (Offen, Gesendet, Angelegt, in Sage vorhanden) bleiben unberuehrt. Liefert die Anzahl eingereihter Zeilen.</summary>
     Task<int> EinreihenAsync(IReadOnlyList<SageFaArbeitsgangAnlage> neu, string benutzer, string benutzerWindows);
+
+    /// <summary>v1.99.42 (N1): unklare Zeile nach Pruefung in Sage von Hand als „in Sage vorhanden“ bestaetigen. false = keine unklare Zeile.</summary>
+    Task<bool> UnklarBestaetigenAsync(int belId, string sageAg, string benutzer, string benutzerWindows);
 }
 
 public class SageFaArbeitsgangAnlageRepository : ISageFaArbeitsgangAnlageRepository
@@ -55,5 +58,20 @@ public class SageFaArbeitsgangAnlageRepository : ISageFaArbeitsgangAnlageReposit
         }
         await _db.SaveChangesAsync();
         return anzahl;
+    }
+
+    public async Task<bool> UnklarBestaetigenAsync(int belId, string sageAg, string benutzer, string benutzerWindows)
+    {
+        var ag = sageAg.Trim();
+        var a = (await _db.SageFaArbeitsgangAnlagen.Where(x => x.BelId == belId).ToListAsync())
+            .FirstOrDefault(x => string.Equals(x.SageArbeitsgangnummer.Trim(), ag, StringComparison.OrdinalIgnoreCase));
+        if (a is null || !IdealAkeWms.Services.SageFaArbeitsgaenge.IstUnklar(a)) return false;
+        a.Status = SageFaArbeitsgangStatus.InSageVorhanden;
+        a.Fehler = null;
+        a.ModifiedAt = DateTime.Now;
+        a.ModifiedBy = benutzer;
+        a.ModifiedByWindows = benutzerWindows;
+        await _db.SaveChangesAsync();
+        return true;
     }
 }

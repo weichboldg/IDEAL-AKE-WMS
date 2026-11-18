@@ -34,7 +34,11 @@ public static class SageFaArbeitsgaenge
     public const string Angelegt = "angelegt";
     public const string QueueFehler = "Fehler";
     public const string BearbeiterFehlt = "Sage-Bearbeiter für AG-Anlage fehlt (Service-Einstellungen) – nichts gesendet.";
-    public const string UnklarText = "Antwort unklar – bitte in Sage prüfen, ob der Arbeitsgang am FA steht; danach erneut einreihen.";
+    public const string UnklarText = "Antwort unklar – bitte in Sage prüfen, ob der Arbeitsgang am FA steht: ja → „In Sage vorhanden“ bestätigen, nein → erneut einreihen.";
+
+    /// <summary>v1.99.42 (N1): Fehler-Zeile mit unklarer Antwort - nie automatisch wiederholt, nur sie bekommt „In Sage vorhanden“ bestätigen.</summary>
+    public static bool IstUnklar(SageFaArbeitsgangAnlage a) =>
+        a.Status == SageFaArbeitsgangStatus.Fehler && a.Fehler?.StartsWith(UnklarText, StringComparison.Ordinal) == true;
     public const string AusText = "Arbeitsgänge in Sage anlegen ist ausgeschaltet – nichts eingereiht.";
 
     /// <summary>Last-Grenze der Pruefung: mehr FAs = enger filtern (Haupt-FA). ponytail: feste Grenze, Einstellung erst bei Bedarf.</summary>

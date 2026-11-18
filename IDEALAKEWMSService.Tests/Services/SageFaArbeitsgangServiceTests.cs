@@ -218,16 +218,21 @@ public class SageFaArbeitsgangServiceTests
     }
 
     [Fact]
-    public async Task Nachlesen_KeinFund_TrotzErfolgsantwort_FehlerMitText()
+    public async Task Nachlesen_KeinFund_TrotzErfolgsantwort_Unklar_NieAutomatischWiederholt()   // v1.99.42 N1
     {
         var a = Zeile(10, "180", 1);
         _lookup.Stand[10] = Offen();
         _client.Antwort = _ => new(true, false, "{\"Handle\":10}", null);   // 2xx ohne ErrorText, AG aber nicht angelegt
         (await Svc().RunOnceAsync(Endpoint, "BEA", 10, Wdh)).Should().Be(0);
         a.Status.Should().Be(SageFaArbeitsgangStatus.Fehler);
-        a.Fehler.Should().Contain("steht beim Nachlesen nicht am FA").And.NotStartWith(SageFaArbeitsgaenge.UnklarText);
+        a.Fehler.Should().StartWith(SageFaArbeitsgaenge.UnklarText).And.Contain("steht beim Nachlesen nicht am FA");
         _log.Runs.Single().FinalCounts!["Fehler"].Should().Be(1);
         _mail.Verify(m => m.NotifyAsync("Sage-FA-Arbeitsgänge", It.IsAny<Exception>(), It.IsAny<CancellationToken>()), Times.Once);
+
+        a.ModifiedAt = DateTime.Now.AddHours(-1);
+        _db.SaveChanges();
+        await Svc().RunOnceAsync(Endpoint, "BEA", 10, Wdh);
+        _client.Gesendet.Should().HaveCount(1, "kein zweiter POST - lieber einmal zu wenig als doppelt");
     }
 
     [Fact]

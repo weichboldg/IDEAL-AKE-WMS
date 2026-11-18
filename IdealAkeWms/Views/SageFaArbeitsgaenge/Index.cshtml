@@ -159,7 +159,19 @@ else
                     <td>@z.SageAg</td>
                     <td><span class="badge @BadgeKlasse(z.Status)">@z.Status</span></td>
                     <td>@z.AgInSage</td>
-                    <td class="small">@z.Hinweis</td>
+                    <td class="small">
+                        @z.Hinweis
+                        @if (z.Status == SageFaArbeitsgaenge.QueueFehler && z.SageAg != null && z.Hinweis?.Contains(SageFaArbeitsgaenge.UnklarText) == true)
+                        {
+                            @* v1.99.42 (N1): unklare Antwort - nach Pruefung in Sage von Hand bestaetigen (schreibt nichts an Sage) *@
+                            <form method="post" asp-action="Bestaetigen" class="mt-1">
+                                <input type="hidden" name="belId" value="@z.BelId" />
+                                <input type="hidden" name="sageAg" value="@z.SageAg" />
+                                <input type="hidden" name="zurueck" value="@(Context.Request.Path + Context.Request.QueryString)" />
+                                <button type="submit" class="btn btn-sm btn-outline-secondary">In Sage vorhanden – bestätigen</button>
+                            </form>
+                        }
+                    </td>
                 </tr>
             }
             @if (!Model.Zeilen.Any())
@@ -183,7 +195,8 @@ else
             <dt>FA begonnen</dt><dd>Am FA ist schon gefertigt bzw. zurückgemeldet; gesperrt.</dd>
             <dt>eingereiht / gesendet</dt><dd>Wartet auf den Dienst bzw. ist unterwegs nach Sage.</dd>
             <dt>angelegt</dt><dd>Der Dienst hat die Arbeitsgang-Position im Sage-FA angelegt.</dd>
-            <dt>Fehler</dt><dd>Nicht angelegt; Grund im Hinweis. Erneut über „In Sage anlegen“ einreihen.</dd>
+            <dt>Fehler</dt><dd>Nicht angelegt; Grund im Hinweis. Erneut über „In Sage anlegen“ einreihen. Bei „Antwort unklar“ wiederholt der Dienst nie
+                von selbst: in Sage prüfen, steht der Arbeitsgang am FA → „In Sage vorhanden – bestätigen“, sonst erneut einreihen.</dd>
             <dt class="mb-0">Sage nicht lesbar</dt><dd class="mb-0">Sage antwortete nicht oder SData ist nicht eingerichtet (siehe Hinweis oben).</dd>
         </dl>
     </div>

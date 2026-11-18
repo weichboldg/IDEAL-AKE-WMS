@@ -187,6 +187,25 @@ public class SageFaArbeitsgaengeController : Controller
         return Zurueck();
     }
 
+    /// <summary>v1.99.42 (N1): unklare Antwort nach Pruefung in Sage von Hand bestaetigen (nur Warteschlange, schreibt nichts an Sage;
+    /// daher auch bei ausgeschaltetem Schalter). „Nicht in Sage“ = erneut einreihen ueber „anlegen“.</summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Bestaetigen(int belId, string? sageAg, string? zurueck)
+    {
+        var ok = !string.IsNullOrWhiteSpace(sageAg)
+                 && await _queue.UnklarBestaetigenAsync(belId, sageAg, _currentUser.GetDisplayName(), _currentUser.GetWindowsUserName());
+        if (ok)
+        {
+            _logger.LogInformation("Sage-AG-Anlage: FA {BelId}, AG {Ag} von Hand als in Sage vorhanden bestaetigt durch {Benutzer}.",
+                belId, sageAg, _currentUser.GetDisplayName());
+            TempData["SuccessMessage"] = $"FA {belId}: Arbeitsgang {sageAg} als „in Sage vorhanden“ bestätigt.";
+        }
+        else
+            TempData["WarningMessage"] = $"FA {belId}: Arbeitsgang {sageAg} hat keine unklare Antwort – nichts bestätigt.";
+        return Url.IsLocalUrl(zurueck) ? Redirect(zurueck!) : RedirectToAction(nameof(Index), new { fa = belId });
+    }
+
     private async Task<bool> IstAnAsync(string key) =>
         string.Equals((await _serviceSettings.GetValueAsync(key))?.Trim(), "true", StringComparison.OrdinalIgnoreCase);
 }

@@ -75,7 +75,7 @@ public class SageFaArbeitsgangService
             .Where(a => a.Status == SageFaArbeitsgangStatus.Offen
                         || (a.Status == SageFaArbeitsgangStatus.Fehler && a.Versuche >= 1 && a.Versuche <= max && (a.ModifiedAt ?? a.CreatedAt) < abstand))
             .ToListAsync(ct))
-            .Where(a => a.Status == SageFaArbeitsgangStatus.Offen || a.Fehler?.StartsWith(SageFaArbeitsgaenge.UnklarText) != true)
+            .Where(a => a.Status == SageFaArbeitsgangStatus.Offen || !SageFaArbeitsgaenge.IstUnklar(a))
             .ToList();
         var faIds = kandidaten.Select(a => a.BelId).Distinct().Order().Take(MaxFasJeLauf).ToHashSet();
         var anlagen = kandidaten.Where(a => faIds.Contains(a.BelId)).OrderBy(a => a.BelId).ThenBy(a => a.Reihenfolge).ThenBy(a => a.Id).ToList();
@@ -194,7 +194,8 @@ public class SageFaArbeitsgangService
     }
 
     /// <summary>Nach einer 2xx-Antwort: AG am FA nachlesen (nur GET; AG-Nummer = RessourceNummer der AG-Position, P-5).
-    /// null = gefunden; sonst Fehler mit Text bzw. „unklar“ bei Lesefehler (nie automatisch wiederholt).</summary>
+    /// null = gefunden; sonst „unklar“ (nie automatisch wiederholt). v1.99.42 (N1): auch „kein Fund“ ist unklar - hat Sage die AG doch
+    /// angelegt, in einem Feld, das der Leser nicht erkennt (P-5), saehe auch die Pruefung vor dem Wiederholen sie nicht → Dubletten.</summary>
     private async Task<SageFaArbeitsgangSendResult?> NachlesenAsync(SageFaArbeitsgangAnlage a, CancellationToken ct)
     {
         try
@@ -202,7 +203,7 @@ public class SageFaArbeitsgangService
             var st = (await _lookup.LesenAsync(new[] { a.BelId }, ct)).GetValueOrDefault(a.BelId);
             return st is { Gefunden: true } && st.AgNummern.Contains(a.SageArbeitsgangnummer.Trim())
                 ? null
-                : new(false, false, null, "Sage meldet Erfolg, aber der Arbeitsgang steht beim Nachlesen nicht am FA – nicht angelegt.");
+                : new(false, true, null, "Sage meldet Erfolg, aber der Arbeitsgang steht beim Nachlesen nicht am FA.");
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
