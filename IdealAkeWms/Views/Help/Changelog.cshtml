@@ -9,6 +9,29 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.99.42</strong> <span class="text-white-50 ms-2">18.11.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>Nachbesserungen: WiCAM-CSV, Kürzel, Beschichtungsauftrag, Sage-Meldungen</h6>
+                <ul>
+                    <li>BF-Aufträge: die WiCAM-CSV ist jetzt genau wie die echte WiCAM-Datei aufgebaut (Kopf, Spaltenzeile, deutsche Überschrift,
+                        Positionen). Lagerplatz mit Kommas statt Semikolons, Hauptlagerplatz, Besteller-Kürzel und Arbeitsschritte des Artikels
+                        stehen in eigenen Spalten. Die Materialnummer muss ganzzahlig sein.</li>
+                    <li>Neues Feld <strong>Kürzel</strong> am Benutzer (<em>Stammdaten &rarr; Benutzer</em>, z.&nbsp;B. WAK, eindeutig, höchstens 10 Zeichen).
+                        Ohne Kürzel des Bestellers lässt sich ein BF-Auftrag nicht freigeben.</li>
+                    <li>Beschichtungsauftrag: Lackierer (Kreditor) auch in <em>Übergeben</em> nachtragbar, solange keiner gesetzt ist. Druck und PDF
+                        ruhiger, Barcode klein rechts oben, unten rechts &bdquo;Seite x von y&ldquo;.</li>
+                    <li>Kennt Sage ein eingestelltes Benutzerfeld nicht, nennt das Aktivitäts-Protokoll jetzt bei jedem Abgleich die Einstellung,
+                        die zu ändern ist.</li>
+                    <li>Arbeitsgänge &rarr; Sage (IDEAL, Schalter weiter aus): meldet Sage Erfolg, steht der Arbeitsgang aber nicht am FA, heißt es
+                        &bdquo;Antwort unklar&ldquo; &ndash; keine automatische Wiederholung. Nach Prüfung in Sage &bdquo;In Sage vorhanden &ndash;
+                        bestätigen&ldquo; oder erneut einreihen.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.99.41</strong> <span class="text-white-50 ms-2">18.11.2026</span>
             </div>
             <div class="card-body">

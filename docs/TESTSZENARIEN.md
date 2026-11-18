@@ -12964,9 +12964,9 @@ ein Artikel ohne Materialnummer PN.
 | 157.6 | A: **Abschicken** | Meldung mit `BF` + 8 Ziffern; Status *bestellt*; nach einem Dienst-Takt genau eine `.eml` im Pickup-Ordner an die Gruppe; Protokoll „Blechfertigung: Mail“ `gesendet = 1` (AK 6, 7) |
 | 157.7 | Negativ: A sendet per Browser-Konsole/Postman ein POST auf `/BfAuftraege/Freigeben` mit gültigem Token | Zugriff verweigert (Filter), Auftrag unverändert (AK 8) |
 | 157.8 | S: Auftrag öffnen; Hauptlagerplatz einer Position ändern; eine Position **Streichen** | gespeichert; gestrichene Zeile bleibt sichtbar, Knopf „Wiederherstellen“ |
-| 157.9 | S: Matchcode einer Position per SQL auf `A"B` setzen (nur DEV, Ausgangswert notieren), Auftrag neu laden | Block „Freigabe noch nicht möglich: Pos n Matchcode: Anführungszeichen“; **Freigeben** lehnt mit derselben Begründung ab (AK 9); Wert zurücksetzen. Ein `;` (z. B. Sage-Lagerplatz `S-03;0;0;0`) sperrt seit der Entscheidung B-1 **nicht** mehr |
+| 157.9 | S: Matchcode einer Position per SQL auf `A"B` setzen (nur DEV, Ausgangswert notieren), Auftrag neu laden | Block „Freigabe noch nicht möglich: Pos n Matchcode: Anführungszeichen“; **Freigeben** lehnt mit derselben Begründung ab (AK 9); Wert zurücksetzen. **Seit v1.99.42:** `;` sperrt wieder (Matchcode, Materialnummer, Fertigungsinfo, Arbeitsschritte) – nur im Lagerplatz erlaubt, dort wird er zu `,` (siehe 157.21, TS-163) |
 | 157.10 | S: **Freigeben** | Meldung mit Schachteltermin und FE-Termin; der Feiertag ist übersprungen (z. B. Freigabe Fr, Mo Feiertag → Schachteltermin Di), FE = +10 Arbeitstage; Hinweis „Nicht an WiCAM übergeben (keine Materialnummer): Pos n“; Bemerkung je Position z. B. `EILT - … - 17.11 - 1` (BG mit Position, FT ohne) (AK 10) |
-| 157.11 | Nach einem Takt des Sage-Buchungs-Workers den Testordner prüfen | `<Nummer>.csv`, keine `.tmp`; in Notepad++ Kodierung **ANSI/Windows-1252**, CRLF; Kopf `PART_START` … `PART_END` + Spaltenzeile; Datenzeilen nur für übergebene Positionen (ohne gestrichene, ohne Materialnummer), Matchcode bereinigt und groß, Datum `dd.MM.yyyy` bzw. `yyyy-MM-dd`; Spalte CSV „geschrieben“; Protokoll „Blechfertigung: WiCAM-CSV“ `geschrieben = 1` (AK 11). **Platzhalter bis P-1:** Byte-Vergleich mit der Musterdatei aus dem WiCAM-Pool, sobald sie vorliegt |
+| 157.11 | Nach einem Takt des Sage-Buchungs-Workers den Testordner prüfen | `<Nummer>.csv`, keine `.tmp`; in Notepad++ Kodierung **ANSI/Windows-1252**, CRLF; Kopf `PART_START` … `PART_END` + Spaltenzeile; Datenzeilen nur für übergebene Positionen (ohne gestrichene, ohne Materialnummer), Matchcode bereinigt und groß, Datum `dd.MM.yyyy` bzw. `yyyy-MM-dd`; Spalte CSV „geschrieben“; Protokoll „Blechfertigung: WiCAM-CSV“ `geschrieben = 1` (AK 11). **Seit v1.99.42** Aufbau exakt wie `BF00000002.csv` (Prüfung TS-163.1) |
 | 157.12 | Negativ: zweiten Auftrag freigeben, vorher `<Nummer>.csv` von Hand im Testordner anlegen | Datei unverändert; CSV „Fehler“, Text „Datei existiert bereits im Pool – nicht überschrieben.“; auch nach 15 min kein neuer Versuch; Datei löschen, **CSV erneut schreiben** → nächster Takt „geschrieben“ (AK 12) |
 | 157.13 | Negativ: „CSV erneut schreiben“ per POST bei CSV „geschrieben“ | abgelehnt „… erneut schreiben nur nach einem Fehler.“ (kein doppelter WiCAM-Auftrag) |
 | 157.14 | Negativ: `BfCsvPfad` auf einen nicht vorhandenen Ordner, dritten Auftrag freigeben | CSV „Fehler“ mit Systemtext, Versuche 1; nach 15 min neuer Versuch bis 3; Protokoll zählt `fehler` (AK 13); Pfad zurück → geschrieben |
@@ -12976,7 +12976,7 @@ ein Artikel ohne Materialnummer PN.
 | 157.18 | S: freigegebenen Auftrag mit geschriebener CSV stornieren | *storniert*, Meldung „Die CSV liegt bereits im Pool (<Nummer>.csv) – den Auftrag in WiCAM löschen.“; ein stornierter Auftrag wird nie geschrieben (AK 15) |
 | 157.19 | Liste: Filterkarte (Status, Zeitraum), Spaltenfilter auf Nummer und Schachteltermin, Seitengröße, CSV-Export; im Auftrag CSV-Export der Positionen | Filter wirken serverseitig vor dem Paging; Export enthält die gefilterten Zeilen (AK 16) |
 | 157.20 | AKE-DEV nach Deploy | kein Menü „Blechfertigung“, sonst unverändert (AK 18) |
-| 157.21 | B-1: Position mit Sage-Hauptlagerplatz `S-03;0;0;0` freigeben, CSV nach dem Takt in Notepad++ öffnen | Freigabe ohne Sperre; Datenzeile hat Spalte E `"S-03;0;0;0"` in doppelten Anführungszeichen, Zeile weiter 8 Spalten (wie Excel-CSV). **Vorläufig, durch P-1 zu bestätigen** (WiCAM-Import der Datei) |
+| 157.21 | Position mit Sage-Hauptlagerplatz `S-03;0;0;0` freigeben, CSV nach dem Takt in Notepad++ öffnen | **Seit v1.99.42 (ersetzt B-1 Variante c):** Freigabe ohne Sperre; Spalte E (ORDER_POSITION) `S-03,0,0,0` ohne Anführungszeichen, Spalte F (ORDER_REMARK_2) `S-03`; jede Zeile 13 Felder |
 | 157.22 | S: im bestellten und im freigegebenen Auftrag **Test-CSV herunterladen** | Download `<BF-Nummer>.csv`, Inhalt byte-gleich zur Pool-Datei desselben Auftrags (Windows-1252, CRLF); vor der Freigabe Termine und Bemerkung leer (Hinweis am Knopf); Status und CSV-Spalte unverändert, keine Datei im Pool; Protokoll „Blechfertigung: WiCAM-CSV“ mit „Test-CSV … heruntergeladen durch …“, `heruntergeladen = 1` |
 | 157.23 | Negativ: Besteller (ohne schachtler) sieht keinen Knopf; POST auf `/BfAuftraege/TestCsv` | kein Knopf; Zugriff verweigert (Filter); im Entwurf (ohne Nummer) auch für S kein Knopf, POST → Hinweis „erst nach dem Abschicken“ |
 
@@ -13172,6 +13172,39 @@ Bearbeiten in Übergeben / Ablehnung ab Versendet, freie Positionen, Kreditor-Pr
 (Anlage nur mit Auswahl, Summiert-Artnr, teilweise ungültig = ganz abgelehnt, Druck je Position, Sortierung), `BeschichtungsauftragVergabeAnzeigeTests`
 („n von m frei“), `BeschichtungsauftraegeViewTests` (Druckspalten, Brief-Anschrift). **Manual-UAT:** Browser-Bedienung, Druck/PDF (162.14–162.16),
 IDEAL-Vorbelegung gegen echte Sage-Dienstleister (162.13). Prüfabfragen P-2 (Anschrift Sage) und P-3 (Maße IDEAL) aus der Spec.
+
+## TS-163 — Nachbesserungen v1.99.42: WiCAM-CSV nach Vorlage, Benutzer-Kürzel, Beschichtungsauftrag, Userfeld-Meldung, Sage-AG unklar
+
+Specs 2026-11-13-blechfertigung-bf-auftraege-wicam-csv (P-1 (2)), 2026-11-18-beschichtungsauftrag-ausbau-checkboxen-versand-druck (Befund 15:05),
+2026-11-18-sage-userfelder-als-einstellung (Befund 13:25), 2026-11-17-arbeitsgaenge-aus-wms-in-sage-fa-anlegen (N1). Migrationen SQL/162
+(Users.Kuerzel + UQ_Users_Kuerzel, BfAuftraege.BestellerKuerzel), SQL/163 (BfAuftragPositionen.Arbeitsschritte, Nachtrag aus dem Merkmal),
+Einmal-Skript Kreditor nachtragen. Standort: DEV **AKE und IDEAL** (BF und Sage-AG nur IDEAL). **Nichts an Sage schreiben;**
+`SageFaArbeitsgaengeAnlegenAktiv` bleibt **aus**.
+
+**Vorbedingungen:** IDEAL mit Blechfertigung aktiv, CSV-Testordner; Besteller-Benutzer B, Schachtler S; Artikel mit Merkmal
+`USER_OSArbeitsschritte`, ganzzahliger Materialnummer und Sage-Lagerplatz mit `;`; ein Beschichtungsauftrag in *Übergeben* ohne Kreditor.
+
+| Nr | Schritt | Erwartet |
+|---|---|---|
+| 163.1 | BF-Auftrag mit 2 Positionen freigeben, CSV nach dem Takt in Notepad++ und neben `secondbrain/tests/wicam-vorlagen/BF00000002.csv` öffnen | Windows-1252, CRLF, jede Zeile 13 Felder (12 `;`); Z1 `PART_START` in A, Kopfschlüssel in B / Wert in C, Z9 `PART_END`, Z10 leer, Z11 die 10 ORDER_*-Spalten in Vorlagenreihenfolge, Z12 leer, Z13 deutsche Überschrift, ab Z14 die Positionen, keine Auffüllzeilen, keine Anführungszeichen |
+| 163.2 | Datenzeile prüfen | A Matchcode, B Mat.-Nr. ganzzahlig, E voller Lagerplatz mit `,`, F Hauptlagerplatz (Teil vor dem ersten Trenner), G Besteller-Kürzel, H Schachteltermin `dd.MM.yyyy`, I FE-Termin `yyyy-MM-dd`, J Arbeitsschritte des Artikels |
+| 163.3 | Negativ: Position mit Materialnummer `1,5` bzw. Matchcode mit `;` | Freigabe gesperrt: „nicht ganzzahlig“ bzw. „Semikolon“ |
+| 163.4 | *Stammdaten → Benutzer*: B bearbeiten, Kürzel `wak` speichern; Liste, Spaltenfilter „Kürzel“ | gespeichert als `WAK`, Spalte und Filter funktionieren |
+| 163.5 | Negativ: zweiter Benutzer mit `WAK`; Kürzel `zu-lang-12345`, `A B` | abgelehnt: „Kürzel WAK ist schon an … vergeben.“ bzw. Formatmeldung; nichts gespeichert |
+| 163.6 | Negativ: B ohne Kürzel, S öffnet dessen bestellten BF-Auftrag | Block „Besteller … hat kein Kürzel – unter Stammdaten › Benutzer eintragen“, **Freigeben** abgelehnt; nach Nachtrag des Kürzels (ohne Neuabschicken) gelingt die Freigabe, Details zeigen „Name (KÜRZEL)“ |
+| 163.7 | Beschichtungsauftrag in *Übergeben* ohne Kreditor öffnen (S mit Schreibrecht) | unter Dienstleister „Lackierer (Kreditor) nachtragen“; wählen + „Speichern“ → Kreditor und Name gesetzt, Auswahl verschwindet, RAL/Termine unverändert |
+| 163.8 | Negativ: denselben POST mit anderem Kreditor wiederholen (Entwicklertools); Nicht-Beschichter wählen | „hat schon einen Kreditor“ bzw. „kein aktiver Beschichter“; nichts geändert. Leser ohne Schreibrecht sieht keine Auswahl |
+| 163.9 | Einmal-Skript `SQL/Einmalig/2026-11-18_v1.99.42_BeschichtungsauftragKreditorNachtragen.sql` auf DEV im Trockenlauf | Zählung (Nachtragen / KeinBeschichter / Mehrdeutig), Listen, `TREFFER: n`, nichts geändert; nach Scharflauf (nur DEV, nach Backup) zweiter Trockenlauf `TREFFER: 0`; stornierte Aufträge nie dabei |
+| 163.10 | Druck und PDF eines Auftrags mit ≥ 2 Seiten (viele Positionen), Edge | Barcode klein (≈ 10 mm) rechts oben neben dem Titel, nur waagrechte Linien, Tabellenkopf auf jeder Seite, unten rechts „Seite 1 von 2“ / „Seite 2 von 2“ in Druckvorschau **und** PDF – auch ohne Fußbereich in der Briefkopf-Vorlage |
+| 163.11 | Service-Einstellung `Sync:Userfeld:Kreditoren:USER_EKMindestbestellwert` auf DEV auf einen falschen Namen (z. B. `USER_GIBTSNICHT`) setzen, Kreditoren-Abgleich laufen lassen, danach zurücksetzen | Aktivitäts-Protokoll: Meldung **beginnt** mit „Sage kennt das Feld „USER_GIBTSNICHT“ nicht – Einstellung „Kreditoren: Mindestbestellwert“ (Sync:Userfeld:Kreditoren:USER_EKMindestbestellwert) …“, je Lauf einmal; gleiches Verhalten bei Debitoren, Artikel, Bestellungen, Arbeitsplätze, Blechfertigung, FA-Struktur |
+| 163.12 | Arbeitsgänge → Sage (Admin, Schalter aus): auf DEV eine Warteschlangen-Zeile per SQL auf Fehler mit Text „Antwort unklar – …“ setzen, Seite laden | Zeile „Fehler“, Hinweis mit unklarem Text und Knopf „In Sage vorhanden – bestätigen“; Klick → Status „in Sage schon vorhanden“, Audit gesetzt; echte Fehlerzeile ohne Knopf |
+
+Automatisch belegt: `BfCsvServiceTests` (Byte-Vergleich mit `BF00000002.csv`, Lagerplatz, Mat.-Nr., Cp1252), `BfAuftragWorkflowTests`
+(Kürzel-Sperre, `;` nur im Lagerplatz), `UsersControllerTests` (Kürzel groß + eindeutig), `BeschichtungsauftragWorkflowTests.Kreditor_InUebergeben_NurNachtragen_SolangeLeer`,
+`NachlaufManifestDriftTests` (Einmal-Skript mit Trockenlauf), `SageUserfelderTests.Erklaeren_LangeSqlDiagnose_HinweisVorn_AusDiagnose_NieDoppelt`,
+`SageFaArbeitsgangServiceTests.Nachlesen_KeinFund_TrotzErfolgsantwort_Unklar_NieAutomatischWiederholt`,
+`SageFaArbeitsgaengeControllerTests.Bestaetigen_NurUnklar_SetztInSageVorhanden_MitAudit_AuchSchalterAus`. **Manual-UAT:** 163.1 WiCAM-Import am
+Pool, 163.10 Druck/PDF, 163.11 gegen echtes SData.
 
 ---
 

@@ -1054,8 +1054,10 @@
                             <li><strong>Status:</strong> <em>eingereiht</em> &rarr; <em>gesendet</em> &rarr; <em>angelegt</em> bzw.
                                 <em>Fehler</em> mit Grund im Hinweis. Ein Fehler wird bis zu <code>Sync:SageFaArbeitsgaengeMaxWiederholungen</code>-mal
                                 automatisch wiederholt (Abstand <code>Sync:SageFaArbeitsgaengeWiederholAbstandMinuten</code>). Eine unklare
-                                Antwort (&bdquo;Antwort unklar &ndash; bitte in Sage prüfen&ldquo;) wird nie automatisch wiederholt: in Sage
-                                nachsehen, dann erneut einreihen. Fehler schickt der Dienst als Fehlermail.</li>
+                                Antwort (&bdquo;Antwort unklar &ndash; bitte in Sage prüfen&ldquo;) wird nie automatisch wiederholt. Seit v1.99.42 gilt
+                                das auch, wenn Sage Erfolg meldet, der Arbeitsgang beim Nachlesen aber nicht am FA steht. In Sage nachsehen: steht er
+                                dort &rarr; Knopf <em>&bdquo;In Sage vorhanden &ndash; bestätigen&ldquo;</em> in der Zeile, sonst erneut einreihen.
+                                Fehler schickt der Dienst als Fehlermail.</li>
                             <li><strong>Sage-Bearbeiter:</strong> <code>Sync:SageFaArbeitsgaengeBearbeiter</code> muss gesetzt sein, sonst sendet der
                                 Dienst nichts (rotes Banner auf der Seite).</li>
                             <li><strong>Protokoll:</strong> Aktivitäts-Protokoll &bdquo;Sage-FA-Arbeitsgänge&ldquo; mit den Zählern Angelegt,
@@ -1396,7 +1398,8 @@
                         ist der Lackierer vorbelegt, wenn der Sage-Dienstleister genau dem Kurznamen eines aktiven Beschichters
                         entspricht; sonst steht ein Hinweis. Weicht der Dienstleister von Sage ab, steht der Sage-Wert darunter.</li>
                     <li><strong>Übergeben:</strong> nur mit Dienstleister. Kopf (Lackierer, RAL, Termine) ist fest; Positionen (Haken, Menge,
-                        Entfernen, Hinzufügen) lassen sich noch ändern.</li>
+                        Entfernen, Hinzufügen) lassen sich noch ändern. Seit v1.99.42: hat der Auftrag noch keinen Kreditor (ältere Aufträge),
+                        steht unter Dienstleister &bdquo;Lackierer (Kreditor) nachtragen&ldquo; &ndash; einmal wählen und speichern, dann ist er fest.</li>
                     <li><strong>Versendet:</strong> nur wenn alle Positionen verpackt sind &mdash; sonst nennt die Meldung die offenen
                         Positionen. Ab hier sind nur noch Status und Bemerkung änderbar.</li>
                     <li><strong>Storno:</strong> nur im Entwurf (mit Rückfrage); die Positionen sind danach in der Vorschlagsliste
@@ -1421,7 +1424,9 @@
                         PLZ Ort, Land; zum Druckzeitpunkt gelesen), ohne Kreditor der Dienstleister-Text; Dokument und Datum; Barcode =
                         Auftragsnummer; HauptFA in der Kopftabelle. Seit v1.99.41 <strong>eine Zeile je Position</strong>: Spalte 1
                         &bdquo;Pos.&ldquo; = laufende Nummer, Menge &bdquo;5&ldquo; statt &bdquo;5,000&ldquo; (Bruchteile bleiben sichtbar),
-                        letzte Spalte &bdquo;Verpackt&ldquo; &#9745;/&#9744;. Eine per Zahnrad ausgeblendete Spalte fehlt auch im Druck.</li>
+                        letzte Spalte &bdquo;Verpackt&ldquo; &#9745;/&#9744;. Eine per Zahnrad ausgeblendete Spalte fehlt auch im Druck.
+                        Seit v1.99.42 steht der Barcode klein rechts neben dem Titel, die Tabellen haben nur waagrechte Linien, und unten
+                        rechts steht immer &bdquo;Seite x von y&ldquo; (auch ohne Fußzeile in der Vorlage).</li>
                     <li><strong>Bemerkung:</strong> Sie hat ihren eigenen Knopf &bdquo;Bemerkung speichern&ldquo;. Ist sie geändert, aber nicht
                         gespeichert, steht &bdquo;nicht gespeichert&ldquo; am Feld, und Drucken, PDF, Speichern und Statusknöpfe fragen nach.</li>
                     <li><strong>Vorschlagsliste:</strong> ein Ausdruck je HauptFA mit Barcode und Briefkopf (Empfänger = Dienstleister aus Sage), nur die am Bildschirm
@@ -2717,6 +2722,8 @@
                                 anlegen.</li>
                         </ol>
                         Der neue Benutzer erscheint in der Liste mit Typ <em>&bdquo;AD&ldquo;</em>.
+                        <strong>Kürzel</strong> (seit v1.99.42): Personenkürzel wie WAK, eindeutig, höchstens 10 Buchstaben/Ziffern, wird groß
+                        gespeichert. Es geht als Besteller in die WiCAM-CSV der BF-Aufträge; ohne Kürzel des Bestellers ist die Freigabe gesperrt.
                         Die im Active Directory hinterlegte <strong>E-Mail-Adresse wird automatisch
                         uebernommen</strong> (seit v1.25.0; danach im Benutzerstamm aenderbar).
                         Ist das AD nicht erreichbar oder die Gruppe leer, erscheint ein Hinweis &mdash;
