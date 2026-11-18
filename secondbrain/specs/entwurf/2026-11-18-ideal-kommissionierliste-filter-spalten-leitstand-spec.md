@@ -2,7 +2,7 @@
 type: spec
 title: "IDEAL-Kommissionierliste: Vorfilter Ziele (Einstellung, je Benutzer gemerkt), Spalten Abteilung + Lagerplätze, sichtbar erst nach Leitstand-Freigabe"
 slug: 2026-11-18-ideal-kommissionierliste-filter-spalten-leitstand-spec
-status: Entwurf
+status: Testbereit
 created: 2026-11-18
 updated: 2026-11-18
 source_backlog: "[[2026-11-18-ideal-kommissionierliste-filter-spalten-leitstand]]"
@@ -38,11 +38,11 @@ etappen:
   - "E4 Leitstand-Gate + Banner + Manifest + Version/TS/Hilfe/Changelog"
 deploy:
   web: true
-  service: false
+  service: true
   migration: false
-freigabe_entscheidung: ""
-freigabe_von: ""
-freigabe_am: ""
+freigabe_entscheidung: "R1–R5 wie Backlog-Antworten 15:52; Rückfragen 1–5 wie Freigabe-Antworten 17:03 (4: Abteilungen kommagetrennt, kein Kombigerät-Text); freigegeben 17:07"
+freigabe_von: "Gerald Weichbold"
+freigabe_am: "2026-11-18"
 ---
 
 # IDEAL-Kommissionierliste: Vorfilter Ziele, Spalten Abteilung + Lagerplätze, Leitstand-Gate
@@ -123,12 +123,12 @@ Nur der Fehlerweg von `Pdf()` leitet auf `Index` um (`FaHierarchyKommissionierLi
   (`Models/FaHierarchyOrderInfo.cs:21`), geschrieben aus Sage-View-Spalte `i.[Abteilung] AS
   [MontageAbteilung]` (`IDEALAKEWMSService/Services/FaHierarchySql.cs:158`, gelesen
   `SageFaStrukturReader.cs:175/189`).
-- Wiederverwendung `VormontageService.FormatAbteilung` (105-110: trimmt, verwirft Leeres, distinct;
-  0 → leer, 1 → Wert, mehrere → „Kombigerät“) und `BuildKopfLookup` (136-139). Die
-  Kombigerät-Darstellung entscheidet Rückfrage 4; empfohlen: `FormatAbteilung` liefert bei
-  mehreren Werten „Kombigerät (WKS, FKV)“ — betrifft dann auch Vormontage/BDE-Teileliste
-  (`BdeTeilelisteService.cs:203/216`), daher ggf. ein optionaler Parameter statt Änderung des
-  Standardverhaltens.
+- Mehrere Kopfzeilen je HauptFA (Freigabe-Antwort 4, Gerald 2026-11-18 17:03): **kein
+  „Kombigerät“-Text** in dieser Liste. Wert = alle verschiedenen Abteilungen, getrimmt, sortiert,
+  mit „, “ getrennt („FKV, WKS“), über `VormontageService.FormatTexte` (112-118) auf
+  `MontageAbteilung`; 0 Werte → leer. Der Spaltenfilter „WKS“ findet damit auch solche HauptFA.
+  `FormatAbteilung`/`KombigeraetHinweis` (101-110) und damit Vormontage/BDE-Teileliste bleiben
+  **unverändert**; `BuildKopfLookup` (136-139) nur für die Gruppierung der OrderInfos nutzen.
 - Spaltenschlüssel `montage-abteilung` (wie Vormontage, `VormontageService.cs:149`), Anzeige
   „Abteilung“. Der Gruppenkopf (Index `:118-128`, Print `:71-93`) bleibt unverändert.
 - Spalte in Liste (`ColumnMap`), Summiert (Zeilen-VM + `SummiertColumnMap`; Wert ist je HauptFA
@@ -188,6 +188,8 @@ Nur der Fehlerweg von `Pdf()` leitet auf `Index` um (`FaHierarchyKommissionierLi
   `IsHauptFa`-Ausdruck wiederverwenden); der Service parst auf `int` und nimmt sie ins Prädikat vor
   allen Spaltenfiltern auf. Mehrere HauptFA-Zeilen mit gleicher `OrderNumber`: freigegeben, sobald
   eine freigegeben ist.
+- Erledigte HauptFA (`IsDonePicking`/`IsDone`/`IsCancelled`) werden **nicht** zusätzlich
+  ausgeblendet (Freigabe-Antwort 1: vorerst nicht).
 - `Pdf(hauptFa)`/`PdfSummiert` für einen nicht freigegebenen HauptFA → `WarningMessage`
   „HauptFA … ist im Leitstand nicht zur Kommissionierung freigegeben.“ statt leerem PDF.
 - Banner (melden statt still) bei aktivem Gate oberhalb der Tabelle:
@@ -289,7 +291,7 @@ nicht betroffen.
 6. Einstellung in `/Settings` zeigt die Ziele als Checkboxen aus den Stammdaten; ein per URL/Formular
    untergeschobener unbekannter Wert wird beim Speichern abgewiesen, nichts wird gespeichert.
 7. Spalte „Abteilung“ zeigt in Liste, Summiert, Druck und PDF die Montage-Abteilung des HauptFA
-   (z. B. WKS); Kombigerät gemäß Rückfrage 4; Spaltenfilter „WKS“ wirkt serverseitig vor dem Paging.
+   (z. B. WKS); bei mehreren Kopfzeilen alle Abteilungen „FKV, WKS“, kein Text „Kombigerät“; Spaltenfilter „WKS“ wirkt serverseitig vor dem Paging.
 8. Spalte „Lagerplätze“ zeigt alle Plätze mit Bestand > 0 inkl. Menge, Hauptplatz zuerst; Plätze mit
    0 oder negativem Bestand und Kommissionierwagen fehlen; ohne Bestand „—“.
 9. Spaltenfilter „K-02“ auf Lagerplätze liefert nur Positionen mit Bestand auf einem Platz, dessen
@@ -308,19 +310,19 @@ nicht betroffen.
 
 ## Test-Szenarien
 
-Neues Kapitel **TS-163** (vorläufig; Dev-Lauf prüft nächste freie Nummer) in `docs/TESTSZENARIEN.md`
+Neues Kapitel **TS-164** (TS-163 ist durch v1.99.42 belegt; Dev-Lauf prüft erneut) in `docs/TESTSZENARIEN.md`
 + `secondbrain/tests/testszenarien-index.md`. Standort IDEAL-DEV.
 - **Vorbedingungen:** Modul Kommissionierlisten an, `LeitstandAktiv` an, Knoten mit Zielen K-01,
   K-02 und mindestens einem weiteren Ziel; zwei Benutzer mit Lagerrecht, einer mit Leitstandrecht;
   ein Artikel mit Bestand auf zwei Plätzen, einer mit Bestand nur auf einem Kommissionierwagen; ein
   Kombigerät-HauptFA.
-- **TS-163.1** Vorfilter/Gedächtnis/Zurücksetzen/alle Ziele (AK 1-5), zweiter Benutzer.
-- **TS-163.2** Einstellung pflegen, Fehleingabe per Entwicklertools (AK 6).
-- **TS-163.3** Abteilung inkl. Kombigerät und Filter (AK 7), Druck + PDF.
-- **TS-163.4** Lagerplätze, Filter, Wagen-/Nullbestand, Druck ungepaged (AK 8-10).
-- **TS-163.5** Gate: Freigabe/Rücknahme im Leitstand, Banner, PDF-Direktaufruf, Schalter aus
+- **TS-164.1** Vorfilter/Gedächtnis/Zurücksetzen/alle Ziele (AK 1-5), zweiter Benutzer.
+- **TS-164.2** Einstellung pflegen, Fehleingabe per Entwicklertools (AK 6).
+- **TS-164.3** Abteilung inkl. Kombigerät und Filter (AK 7), Druck + PDF.
+- **TS-164.4** Lagerplätze, Filter, Wagen-/Nullbestand, Druck ungepaged (AK 8-10).
+- **TS-164.5** Gate: Freigabe/Rücknahme im Leitstand, Banner, PDF-Direktaufruf, Schalter aus
   (AK 11-14); Negativ: `LeitstandAktiv` aus (AK 12).
-- **TS-163.6** AKE-Regression (AK 15) und Menü öffnet Summiert.
+- **TS-164.6** AKE-Regression (AK 15) und Menü öffnet Summiert.
 
 ## Etappen
 
@@ -328,23 +330,26 @@ Epic im bestehenden Bündel-Worktree, **ein** Merge. Begründung: vier unabhäng
 die dieselben Dateien (Views, ColumnDefinitions, Service) berühren — getrennte Merges würden nur
 Konflikte erzeugen; Etappen halten jeden Dev-Lauf im Turn-Limit. Keine Etappe hat eine Migration,
 keine wartet auf eine Sage-Prüfabfrage. Rückfragen 4/5 betreffen nur Formatdetails in E2/E3; ohne
-Antwort baut der Lauf die Empfehlung und vermerkt das. Zweig während der Arbeit mit
+Antwort baut der Lauf die Empfehlung und vermerkt das. Rückfragen 1–5 sind beantwortet (2026-11-18 17:03). Zweig während der Arbeit mit
 `scripts/sync-worktree.ps1` aktuell halten.
 
 | # | Etappe | Status | Commit |
 |---|---|---|---|
-| E1 | Stammdaten-MultiChoice (Validator, Feld, Prüfung) + Einstellung Vorfilter + Mehrfach-Ziel + Gedächtnis + „Ziele auf Standard“ (AK 1-6) | offen | |
-| E2 | Spalte Abteilung an allen vier Stellen beider Ansichten + Druck (AK 7) | offen | |
-| E3 | Spalte Lagerplätze, Batch-Laden, Filter, Druck (AK 8-10) | offen | |
-| E4 | Gate + Repository-Methode + Banner + PDF-Warnung (AK 11-15), Manifest, Hilfe, README, Version 1.99.43 (vorläufig, 1.99.42 ist durch BF-Nachbesserung reserviert), Anwender- und Brain-Changelog, TS-163 | offen | |
+| E1 | Stammdaten-MultiChoice (Validator, Feld, Prüfung) + Einstellung Vorfilter + Mehrfach-Ziel + Gedächtnis + „Ziele auf Standard“ (AK 1-6) | erledigt | 77c7c57e |
+| E2 | Spalte Abteilung an allen vier Stellen beider Ansichten + Druck (AK 7) | erledigt | cbd32566 |
+| E3 | Spalte Lagerplätze, Batch-Laden, Filter, Druck (AK 8-10) | erledigt | 7d544402 |
+| E4 | Gate + Repository-Methode + Banner + PDF-Warnung (AK 11-15), Manifest, Hilfe, README, Version 1.99.43 (vorläufig, 1.99.42 ist durch BF-Nachbesserung reserviert), Anwender- und Brain-Changelog, TS-164 | erledigt | 6c9d4a5e |
 
 ## Deploy
 
-*Vorläufig — der QA-Lauf bestätigt gegen den echten Diff.*
+*Final (QA 2026-11-18 gegen den echten Diff `b5463336..3a6372a5`).*
 
-- **Web-App:** ja (Controller, Service, Views, Einstellungen).
-- **Service:** nein.
-- **Migration:** nein.
+- **Web-App:** ja (Controller, Service, Views, Einstellungen, Seed zweier AppSettings beim Start).
+- **Service:** nur Versionsnummer (`IDEALAKEWMSService/AppVersion.cs` 1.99.43), keine Logik — mit dem Bündel ausrollen, damit beide Komponenten dieselbe Version tragen.
+- **Migration:** nein (SQL/164 bleibt frei). Kein Daten-/Einmal-Skript.
+- **Paket:** Publish nach `<worktree>\publish` macht der Aufrufer (Paket 8); QA hat `publish\` bewusst nicht angefasst.
+- **Abweichung Manifest (geprüft, richtig):** `Pruefung/KommissionierlisteNichtFreigegeben` steht in Phase **Nachher**, nicht Vorher wie unten — eine Vorher-Prüfung > 0 bricht auf Prod vor dem Stoppen ab (`Update-IdealAkeWms.ps1:701`), und offene, nicht freigegebene HauptFA sind an der IDEAL der Normalzustand. Die Prüfung wird trotzdem schon vor dem Update angezeigt (alle Prüfungen werden gelistet) und liefert 0 bei Schalter aus. Auf DEV mit `-NurPruefen` belegt.
+- Nach dem Merge nur dann aus `main` neu publishen, wenn der Merge getestete Dateien mit parallelen main-Änderungen zusammengeführt hat.
 
 **Manifest-Einträge (`scripts/deploy/nachlauf.psd1`, ADR 0022/0023):**
 
@@ -425,8 +430,80 @@ Spaltennamen der Statustabelle belegt: `SQL/00_FreshInstall.sql:431-436` (`Id`, 
 
 ## Freigabe-Antworten (Mensch fuellt aus — Schranke 1)
 
-1. Gate blendet zusätzlich erledigte HauptFA aus? →
-2. Deploy-Übergang: vorab freigeben oder Schalter vorübergehend aus? →
-3. LeitstandAktiv aus bei Gate an: Banner + Prüfung genügt? →
-4. Abteilung Kombigerät: „Kombigerät“ oder „Kombigerät (WKS, FKV)“? →
-5. Lagerplätze: Wagen ausschließen, Format ohne nachlaufende Nullen? →
+1. Gate blendet zusätzlich erledigte HauptFA aus? → **vorerst nicht** (Gerald 2026-11-18 17:03) — nur Freigabe-Flag; Ausblenden erledigter als späterer Backlog-Punkt.
+2. Deploy-Übergang: vorab freigeben oder Schalter vorübergehend aus? → **ja, wie Empfehlung**: Schalter an ausliefern, Prüfung + Q-B zeigen die Menge, Gerald entscheidet am Test.
+3. LeitstandAktiv aus bei Gate an: Banner + Prüfung genügt? → **ja; Leitstand an IDEAL wird aktiviert** („können wir aktivieren“). Gate wirksam, Warnbanner + Manifest-Prüfung bleiben als Absicherung, keine automatische Kopplung.
+4. Abteilung Kombigerät: „Kombigerät“ oder „Kombigerät (WKS, FKV)“? → **keines von beiden** (Gerald: „Kombi ist noch nicht wirklich in unseren Specs“). Umsetzung: alle Abteilungen kommagetrennt („FKV, WKS“) ohne Kombigerät-Text, Vormontage/BDE unverändert — in A3 und AK 7 nachgezogen.
+5. Lagerplätze: Wagen ausschließen, Format ohne nachlaufende Nullen? → **Wagen nicht anzeigen** („nein“ auf „Wagen-Bestand mitzeigen“); Format wie Empfehlung „K-02 (12)“, „(2,5)“.
+
+## QA-Nachweis (qa-agent, 2026-11-18)
+
+Protokoll mit allen Schritten: [[2026-11-18-qa-v1-99-43-kommissionierliste-testprotokoll]].
+
+**1. Build und Tests** (Worktree, HEAD `6c9d4a5e`): `dotnet build IdealAkeWms.slnx` 0 Fehler (30 vorbestehende Warnungen).
+`dotnet test`: IdealAkeWms.Tests 3318 bestanden / 1 übersprungen / 0 Fehler; IDEALAKEWMSService.Tests 790 / 0 / 0.
+QA-Commit `3a6372a5` ändert nur `docs/TESTSZENARIEN.md`.
+
+**2. Code-Review** (`git diff b5463336..6c9d4a5e`, selbst gelesen: Controller, `KommissionierListenService`, Repository-Methode,
+Settings-Pfad `SettingValidator`/`SettingItem`/`Einstellungspruefung`/`SettingsController`/`Program.cs`, `_SettingField`,
+vier Kommissionier-Views + zwei neue Partials, `nachlauf.psd1`, Tests). Geprüfte Defektklassen: kein Wert in `<script>` (nur
+statisches `#column-config`), kein `hidden` + `d-*`, Mehrfach-`target` über alle Wege (Pagination/Spaltenfilter-JS nutzen
+`URLSearchParams.set/delete` nur für `page`/`colf_*` → wiederholte Keys bleiben; Umschalter `BuildToggleQuery`; Druck/PDF über
+`ZielQuery`), Validierung serverseitig (`SaveSettings` prüft gegen Stammdaten, DEV belegt), Gate vor allen Spaltenfiltern,
+POST mit Antiforgery, Weiterleitungen nur lokal (`Url.Action`).
+
+| # | Befund | Schwere | Umgang |
+|---|---|---|---|
+| F1 | `docs/TESTSZENARIEN.md` TS-164.1 erwartete „URL trägt `target=K-01&target=K-02`“; der Code leitet beim Einstellungswert nicht um (gewollte Abweichung 1) | niedrig (Doku) | behoben `3a6372a5` |
+| H1 | Gate-Regel an zwei Orten: C# parst `OrderNumber` per `int.TryParse` (`KommissionierListenService.FreigegebeneParsen`), die Manifest-Prüfung vergleicht `po.OrderNumber = CAST(n.HauptFA AS nvarchar)` und zählt nur `VerschwundenSeit IS NULL`, der Banner zählt alle Knoten. Bei OrderNumbers mit führenden Nullen/Leerzeichen oder verschwundenen Knoten weichen Banner-Zahl und Prüfzahl ab | Hinweis | nicht geändert — die Prüfung ist nur Anzeige; bei Abweichung Q-B ansehen |
+| H2 | `Pdf()`-Fehlerweg (`PdfRenderException`, Controller ~Z. 298-301) leitet weiter ohne Query auf `Index` (vorbestehend), `PdfSummiert` jetzt mit Query | Hinweis | unverändert, kein Regress (Index stellt die gemerkten Ziele wieder her) |
+| H3 | `SettingsController` nimmt `IPickingAreaRepository? pickingAreas = null` als optionalen Ctor-Parameter (Testkompatibilität); in DI registriert (`Program.cs:130`), auf DEV belegt (Häkchenliste erscheint) | Hinweis | belassen |
+| H4 | `FaHierarchyPdfButtonSourceTests` akzeptiert jetzt beide Formen (`Context.Request.QueryString` oder `Model.ZielQuery`) für alle geprüften Views | Hinweis | belassen, Absicht A1 |
+
+Abweichungen des Umsetzers bewertet: (1) Einstellungswert nicht als Benutzerauswahl speichern — entspricht A1 Schritt 3 (nur Schritt 1
+speichert), sonst würde eine spätere Änderung der Einstellung Benutzer ohne eigene Wahl nicht erreichen: **richtig**. (2) Prüfung in
+Phase Nachher — siehe Deploy: **richtig**.
+
+**3. Beweisart je AK**
+
+| AK | Beweis |
+|---|---|
+| 1, 2, 4, 5 | Controller-Tests (Query/Gedächtnis/Einstellung/Zurücksetzen) + DEV 164.1/1a/1b/1d; „anderer Benutzer“ nur Unit-Test (DEV: ein Konto) |
+| 3 | `BuildToggleQuery`-Test + DEV (Umschalt-Link mit `target=XYZ&target=KOM&colf_…`) |
+| 6 | `SettingValidatorTests` + DEV 164.2/2a (echtes Model-Binding, Ablehnung) — Häkchen-JS Manual-UAT |
+| 7 | Service-Tests + DEV 164.3/3a/3b; Vormontage-Regression DEV 164.3c |
+| 8 | Format-Tests + DEV 164.4; Wagen-Ausschluss Manual-UAT (kein Wagen auf DEV) |
+| 9 | Service-Test „Filter vor Paging“ + DEV 164.4a (eine Seite); Mehrseiten-Blättern Manual-UAT |
+| 10 | Unit-Test „ein Aufruf je Seite“ (Mock); echte SQL-Anzahl Manual-UAT (Profiler) |
+| 11, 14 | Controller-Tests + DEV 164.5/5a/5b/5c mit echtem `ToggleRelease` |
+| 12, 13 | Controller-Tests + DEV 164.5d/5e |
+| 15 | DEV AKE 164.6 |
+| 16 | Build/Tests grün, Drift-Wächter `KommissionierSpaltenKonsistenzTests` grün |
+
+**4. Geänderte bestehende Tests:** Konstruktor-Ergänzungen in `KommissionierListenServiceTests`/`FaHierarchyKommissionierListenControllerTests`
+und `BuildFlagPredicate(new[]{…})` in `FaHierarchyListBuilderTests` = Typ-Änderung. `PdfSummiert_RenderFails_RedirectsToSummiertWithParams`
+(jetzt `RedirectResult` mit Query, mehrwertiges `target`) = Verhalten gewollt (A1). `UserViewPreferencesApiControllerTests` 6→8 Spalten = AK 7/8.
+`AppSettingDefinitionsTests` Seed 38→40 / Katalog 65→67 = neue Einstellungen. `FaHierarchyPdfButtonSourceTests` = A1 (H4). Keine Kategorie „sonstiges“.
+
+**5. Checkliste:** keine Migration/kein SQL (korrekt, SQL/164 frei); beide `AppVersion.cs` 1.99.43; `Views/Help/Changelog.cshtml` + Hilfe
++ README ergänzt; Brain-Changelog [[2026-11-18-v1-99-43-kommissionierliste-filter-spalten-leitstand]] vorhanden; TS-164 in
+`docs/TESTSZENARIEN.md` und im Testindex. Keine neue Rolle. Audit: nur `UserViewPreferenceRepository.SaveAsync` mit `ICurrentUserService`-Werten.
+**5a ADR 0020:** beide Einstellungen mit Anzeigename, Wirkung, Verwendung, Default, Standort; Standard-Ziele als Auswahl aus Stammdaten mit
+Serverprüfung (DEV belegt), Schalter als Bool mit Warntext. Kein Befund. Manifest: drei Prüfungen + Einstellung + Info vorhanden.
+
+**6. DEV:** IDEAL und AKE aus dem Worktree deployt (`dev-deploy.ps1`, Exit 0, Fußzeile v1.99.43 = AppVersion). TS-164 auf DEV IDEAL: alle
+ausführbaren Schritte OK, NICHT MÖGLICH: 164.1c (zweiter Benutzer), Wagen-Teil von 164.4. Testdaten: `FaHierarchyOrderInfos` Id 14456
+(Kombigerät-Zeile 1059463/FKV) bleibt; Freigabe 1060414 einmal gesetzt und zurückgenommen (legte laut Spec einen Kommissionierauftrag an).
+
+**7. Publish:** nicht durch QA (Vorgabe des Aufrufers: Paket 8 baut er selbst, `publish\` unberührt).
+
+### Manuelle Prüfliste (offen für Gerald)
+
+1. 164.1c mit einem zweiten Benutzer: eigene Ziele merken, anderer Benutzer sieht weiter die Einstellung.
+2. 164.4 mit einem Artikel, der nur im Kommissionierwagen liegt → „—“.
+3. 164.4a Spaltenfilter Lagerplätze mit mehr als einer Seite blättern (Testsystem mit vielen HauptFA).
+4. 164.4c Abfragezahl je Seite im SQL-Profiler (zwei Statements der Bestandsabfrage).
+5. 164.3b Spalten über das Zahnrad aus-/einblenden und drucken (Browser).
+6. Häkchen in `/Settings` per Maus setzen/abhaken und speichern (JS `multi-hidden`).
+7. Testsystem IDEAL: vor dem Update Q-B der Spec ausführen und entscheiden — vorab im Leitstand freigeben oder Schalter vorübergehend aus.
+8. Testsystem-Durchlauf TS-164 komplett, dann Merge (Schranke 2).
