@@ -291,7 +291,7 @@ public class EinkaufBestellungenSyncService
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger.LogWarning(ex, "Kopfdaten (AB-Nummer/Kommission) aus {Quelle} nicht lesbar.", KopfQuelle);
-            await run.LogWarningAsync(SdataSchluessel.Kappen($"Kopfdaten (AB-Nummer/Kommission) nicht lesbar: {felder.Erklaeren(ex.Message)} – Werte vom letzten Lauf."), ct: ct);
+            await run.LogWarningAsync(SdataSchluessel.Kappen($"Kopfdaten (AB-Nummer/Kommission) nicht lesbar: {felder.Erklaeren(ex)} – Werte vom letzten Lauf."), ct: ct);
             var alt = bestand.GroupBy(b => b.BelId).ToDictionary(g => g.Key, g => (g.First().AbNummer, g.First().Kommission));
             return (alt, 0, 0);
         }

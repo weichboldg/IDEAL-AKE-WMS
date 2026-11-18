@@ -138,17 +138,28 @@ public sealed class SageUserfelder
     public List<(string Logisch, string Feld)> Konfiguriert(string abgleich, IEnumerable<string> standards) =>
         standards.Select(s => (s, Feld(abgleich, s))).Where(x => x.Item2 is not null).Select(x => (x.s, x.Item2!)).ToList();
 
+    private const string HinweisAnfang = "Sage kennt das Feld „";
+
     /// <summary>
-    /// Ergaenzt eine Sage-Fehlermeldung „Ungueltiger Spaltenname“ um die Einstellung, aus der der Name stammt (R4). Sonst unveraendert.
+    /// Stellt einer Sage-Fehlermeldung „Ungueltiger Spaltenname“ die Einstellung voran, aus der der Name stammt (R4). Sonst unveraendert.
+    /// v1.99.42 (Befund 13:25): VORAN statt hinten an - die Meldung wird gekappt (SdataLeseException.Message 600, SyncLogs 1000), bei HTTP 500
+    /// steht davor das erzeugte SQL, angehaengt fiel der Hinweis weg. <paramref name="weitere"/> = ungekappte Diagnose; schon erklaerte
+    /// Meldungen bleiben, wie sie sind (einmal je Lauf, nie doppelt).
     /// </summary>
-    public string Erklaeren(string meldung)
+    public string Erklaeren(string meldung, string? weitere = null)
     {
-        if (meldung.IndexOf("Spaltenname", StringComparison.OrdinalIgnoreCase) < 0
-            && meldung.IndexOf("column name", StringComparison.OrdinalIgnoreCase) < 0)
+        if (meldung.Contains(HinweisAnfang, StringComparison.Ordinal)) return meldung;
+        var text = meldung + " " + weitere;
+        if (text.IndexOf("Spaltenname", StringComparison.OrdinalIgnoreCase) < 0
+            && text.IndexOf("column name", StringComparison.OrdinalIgnoreCase) < 0)
             return meldung;
-        var treffer = Katalog.Where(d => _feld[d.Key] is { } n && Regex.IsMatch(meldung, $@"(?<![A-Za-z0-9]){Regex.Escape(n)}(?![A-Za-z0-9_])", RegexOptions.IgnoreCase))
-            .Select(d => $"Sage kennt das Feld „{_feld[d.Key]}“ nicht – Einstellung „{d.Anzeigename}“ ({d.Key}) prüfen oder leer setzen")
+        var treffer = Katalog.Where(d => _feld[d.Key] is { } n && Regex.IsMatch(text, $@"(?<![A-Za-z0-9]){Regex.Escape(n)}(?![A-Za-z0-9_])", RegexOptions.IgnoreCase))
+            .Select(d => $"{HinweisAnfang}{_feld[d.Key]}“ nicht – Einstellung „{d.Anzeigename}“ ({d.Key}) prüfen oder leer setzen")
             .Distinct().ToList();
-        return treffer.Count == 0 ? meldung : meldung + " → " + string.Join("; ", treffer) + ".";
+        return treffer.Count == 0 ? meldung : string.Join("; ", treffer) + ". Sage: " + meldung;
     }
+
+    /// <summary>Wie <see cref="Erklaeren(string, string?)"/> mit der ungekappten SData-Diagnose bzw. der inneren Ausnahme.</summary>
+    public string Erklaeren(Exception ex) =>
+        Erklaeren(ex.Message, (ex as SdataLeseException)?.Diagnose ?? ex.InnerException?.Message);
 }

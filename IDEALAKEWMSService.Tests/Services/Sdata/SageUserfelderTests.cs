@@ -133,6 +133,23 @@ public class SageUserfelderTests
         f.Erklaeren("HTTP 401 – nicht angemeldet").Should().Be("HTTP 401 – nicht angemeldet");
     }
 
+    /// <summary>v1.99.42 (Befund 13:25): bei HTTP 500 steht vorn das SQL, die Message ist gekappt — der Hinweis muss trotzdem
+    /// sichtbar sein (voran, aus der ungekappten Diagnose) und darf beim zweiten Erklaeren nicht doppelt kommen.</summary>
+    [Fact]
+    public void Erklaeren_LangeSqlDiagnose_HinweisVorn_AusDiagnose_NieDoppelt()
+    {
+        var f = SageUserfelder.Standard;
+        var diagnose = "SELECT " + new string('x', 900) + " FROM KHKKontokorrent – Ungültiger Spaltenname 'USER_EKMindestbestellwert'.";
+        var ex = new SdataLeseException("Kontokorrent", 500, diagnose);
+        ex.Message.Should().NotContain("USER_EKMindestbestellwert", "Vorbedingung: der Name liegt hinter der Kappung");
+
+        var m = f.Erklaeren(ex);
+        m.Should().StartWith("Sage kennt das Feld „USER_EKMindestbestellwert“ nicht – Einstellung „Kreditoren: Mindestbestellwert“ (Sync:Userfeld:Kreditoren:USER_EKMindestbestellwert)");
+        f.Erklaeren(m).Should().Be(m, "schon erklaert");
+        new SdataLeseException("Kontokorrent", 500, f.Erklaeren(diagnose)).Message.Should().Contain("Sync:Userfeld:Kreditoren:USER_EKMindestbestellwert",
+            "auch der neu geworfene Fehler behaelt den Hinweis trotz Kappung");
+    }
+
     // ----- R5: HTTP 404 = Resource fehlt -----
 
     [Fact]

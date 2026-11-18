@@ -138,7 +138,7 @@ public class KontokorrentSyncService
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger.LogError(ex, "{Bereich} aus Sage (SData) nicht lesbar.", bezeichnung);
-            var meldung = felder.Erklaeren(ex.Message); // R4: „Ungueltiger Spaltenname“ → Einstellungsname
+            var meldung = felder.Erklaeren(ex); // R4: „Ungueltiger Spaltenname“ → Einstellungsname
             await run.LogErrorAsync($"Sage (SData) nicht lesbar: {meldung}", ct: ct);
             await run.FinishFailedAsync($"Sage (SData) nicht lesbar: {meldung}", ct: ct);
             throw;
@@ -351,7 +351,7 @@ public class KontokorrentSyncService
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger.LogWarning(ex, "{Ressource} aus Sage (SData) nicht lesbar.", ressource);
-            await run.LogWarningAsync($"{ressource} aus Sage (SData) nicht lesbar — Name, Adresse und Kontakt bleiben unveraendert: {felder?.Erklaeren(ex.Message) ?? ex.Message}", ct: ct);
+            await run.LogWarningAsync($"{ressource} aus Sage (SData) nicht lesbar — Name, Adresse und Kontakt bleiben unveraendert: {felder?.Erklaeren(ex) ?? ex.Message}", ct: ct);
             return null;
         }
     }
