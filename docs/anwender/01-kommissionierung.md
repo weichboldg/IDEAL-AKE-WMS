@@ -1,6 +1,6 @@
 # 01 – Kommissionierung
 
-Stand: Version 1.99.29 · Standorte AKE und IDEAL · Bilder aus dem AKE-Testsystem (IDEAL-Bild extra gekennzeichnet)
+Stand: Version 1.99.43 · Standorte AKE und IDEAL · Bilder aus dem AKE-Testsystem (IDEAL-Bild extra gekennzeichnet)
 
 ## Zweck
 
@@ -223,7 +223,7 @@ Im Leitstand beim FA auf den **grünen Haken** klicken (oder mehrere markieren u
 | Aufbau | Jeder FA ist für sich (flach). | FAs sind hierarchisch: ein **HauptFA** mit vielen Sub-FAs. |
 | Freigabe, Priorität, Sammelauswahl | an jedem FA | **nur am HauptFA**; Sub-FA-Zeilen haben keine Knöpfe. Ein Sub-FA in der Sammelauswahl wird übersprungen und gemeldet („Übersprungen (Sub-FA …)“). |
 | Kommissionierauftrag | enthält die Stückliste des FA | enthält die **komplette Struktur** des HauptFA |
-| Kommissionierlisten | – | zusätzlich Menü **Kommissionierlisten** (summiert nach Kommissionierziel), siehe Hilfeseite |
+| Kommissionierlisten | – | zusätzlich Menü **Kommissionierung → Kommissionierlisten** (summiert nach Kommissionier-Ziel, mit Abteilung und Lagerplätzen). Seit Version 1.99.43 stehen dort **nur im Leitstand freigegebene** HauptFAs – wer dort etwas vermisst, prüft zuerst die Freigabe (Schritt 1). Anleitung: [Kapitel 16](16-ideal-kommissionierliste.md) |
 
 ![IDEAL-Testsystem: HauptFA mit Sub-FAs, nur die HauptFA-Zeile hat „Freigeben“](bilder/01-18-ideal-nur-hauptfa.jpg)
 
@@ -251,6 +251,8 @@ Im Leitstand beim FA auf den **grünen Haken** klicken (oder mehrere markieren u
 
 **Allgemein:**
 
+- **IDEAL – Freigabe auch für die Kommissionierliste:** Seit Version 1.99.43 erscheint ein HauptFA in den **Kommissionierlisten** erst nach der
+  Freigabe im Leitstand. Wird die Freigabe zurückgenommen, verschwindet er dort wieder (siehe [Kapitel 16](16-ideal-kommissionierliste.md)).
 - Erst **„Gepickte Artikel umbuchen“** bucht. Häkchen und Ist-Mengen allein speichern nichts – vor dem Verlassen der Seite umbuchen.
 - Kommissionierwagen erscheinen nicht in der Bestandsspalte der Stückliste und nicht als Quell-Lagerplatz.
 - Ein Wagen, der wieder leer sein soll, wird über **Lager → Lagerplatz umbuchen** (z. B. Wagen → Lager) oder **Lager → Lagerplatz

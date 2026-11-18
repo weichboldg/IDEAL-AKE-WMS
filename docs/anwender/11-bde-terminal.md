@@ -1,6 +1,6 @@
 # 11 – BDE-Terminal
 
-Stand: Version 1.99.29 · Standorte AKE und IDEAL · Bilder aus dem IDEAL-Testsystem
+Stand: Version 1.99.43 · Standorte AKE und IDEAL · Bilder aus dem IDEAL-Testsystem
 
 ## Zweck
 
@@ -109,6 +109,12 @@ Auswahl nur den Knopf **Fertig melden**:
 Gespeichert werden Werker, Werkbank, Zeitpunkt und Menge, aber keine Arbeitszeit. Rüsten und Produktion starten sind hier gesperrt („An dieser
 Werkbank wird nur fertig gemeldet.“). Ein zweites Melden lehnt das WMS ab: „Arbeitsgang ist bereits fertig gemeldet.“
 
+### 6. Werkbank mit BDE-Teileliste (IDEAL, seit Version 1.99.32)
+
+Ist an der Werkbank der Schalter **BDE-Teileliste (vereinfacht)** an (z. B. *Kanten*), öffnet **BDE → Terminal** statt der Auftragsliste
+die **BDE-Teileliste**: Teile und Baugruppen nach Matchcode, nur „fertig“ melden, einzeln oder als Block. Anleitung:
+[Kapitel 17](17-bde-teileliste-werkbank.md).
+
 ## Unterschiede AKE und IDEAL
 
 | | AKE | IDEAL |
@@ -117,6 +123,7 @@ Werkbank wird nur fertig gemeldet.“). Ein zweites Melden lehnt das WMS ab: „
 | Scan des Haupt-FA | – | klappt die Gruppe auf |
 | Fertigungstermin | Termin des Auftrags | FE-Termin der Struktur |
 | Werkbänke mit Kürzel (z. B. EG) | keine | mehrere Werkbänke mit demselben Kürzel sehen und buchen dieselben Arbeitsgänge |
+| BDE-Teileliste (vereinfachte Fertigmeldung) | – | je Werkbank einschaltbar, siehe [Kapitel 17](17-bde-teileliste-werkbank.md) |
 
 ## Hinweise und Stolperfallen
 
@@ -136,6 +143,8 @@ Werkbank wird nur fertig gemeldet.“). Ein zweites Melden lehnt das WMS ab: „
 - „Dieser Arbeitsgang gehört nicht zu dieser Werkbank.“: An der richtigen Werkbank fortsetzen bzw. starten.
 - „Werkbank ist nicht für BDE aktiviert“: Die WMS-Betreuung schaltet die Werkbank unter *Stammdaten → Werkbänke* auf „BDE aktiv“.
 - Mengen dürfen nicht negativ sein; Gut- oder Ausschussmenge muss angegeben werden.
+- **Lesbarkeit:** Seit Version 1.99.36 haben grüne und graue Knöpfe am Terminal (und in seinen Fenstern) dunkle Schrift – besser lesbar bei
+  schlechtem Licht.
 - Ist der Schichtkalender eingeschaltet, pausiert das WMS laufende Buchungen am Schichtende selbst („auto-pausiert“); am nächsten Tag
   **Fortsetzen**.
 
