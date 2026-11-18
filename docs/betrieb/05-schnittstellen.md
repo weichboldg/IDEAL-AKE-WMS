@@ -1,6 +1,6 @@
 # 05 – Schnittstellen zu Fremdsystemen
 
-**Stand:** v1.99.29, 2026-11-16 · **Zielgruppe:** IT-Administratoren (ohne Entwicklerwissen) · **Zweck:** Je Fremdsystem: in welche Richtung
+**Stand:** v1.99.43, 2026-11-19 · **Zielgruppe:** IT-Administratoren (ohne Entwicklerwissen) · **Zweck:** Je Fremdsystem: in welche Richtung
 Daten fließen, welcher Teil (Web oder Dienst) zugreift, welches Konto welche Rechte braucht, wie man die Schnittstelle schaltet und was bei
 einem Ausfall passiert.
 
@@ -47,9 +47,10 @@ Der Fehler steht im Aktivitäts-Protokoll (`/SyncLog`) und – wenn `ErrorNotifi
 | | Dienst, Sicherungsnetz der Lagerbuchung: liest `KHKLagerplatzbuchungen` (Memo-Kennung), Quelle umschaltbar auf SData | `IDEALAKEWMSService/Services/SageBuchungLookupReader.cs:12-15`, [[services]] „Sage-SData-Abgleich“ |
 | Server | AKE: `AKESQL20.ake.at`, Datenbank `ake`. IDEAL: eigener Sage-SQL-Server, Name je Installation → [02-systeme-umgebungen.md](02-systeme-umgebungen.md) | `IDEALAKEWMSService/appsettings.json:4`, `scripts/deploy/Install-IdealAkeWms.ps1:355` |
 | Konto / Rechte | Windows-Anmeldung (`Trusted_Connection`) mit dem **Dienstkonto**; Leserecht auf die genutzten Views/KHK-Tabellen, IDEAL zusätzlich Leserecht in `PPSImport`. AKE-Web: App-Pool-Konto braucht Leserecht auf die Stücklisten-View in `ake` | `scripts/deploy/Install-IdealAkeWms.ps1:483-486`; Web-Bedarf abgeleitet aus `BomRepository.cs:44` (**zu prüfen** am AKE-Server, welche Rechte heute vergeben sind) |
-| Schalter | `Sync:ProductionOrdersEnabled`, `Sync:ArticlesEnabled` (beide Standard **an**), `Sync:LagerplaetzeEnabled`, `Sync:LagerbestandEnabled`, `Sync:FaZusatzinfoEnabled`, `Sync:HierarchicalFaEnabled`, `Sync:ProductionWorkplaceSyncEnabled`, `Sync:OperationConfigSyncEnabled`, `Sync:BomCacheEnabled` | `IdealAkeWms/Models/ServiceSettingDefinitions.cs:199-298` |
+| Schalter | `Sync:ProductionOrdersEnabled`, `Sync:ArticlesEnabled` (beide Standard **an**), `Sync:LagerplaetzeEnabled`, `Sync:LagerbestandEnabled`, `Sync:FaZusatzinfoEnabled`, `Sync:HierarchicalFaEnabled`, `Sync:ProductionWorkplaceSyncEnabled`, `Sync:OperationConfigSyncEnabled`, `Sync:BomCacheEnabled` | `IdealAkeWms/Models/ServiceSettingDefinitions.cs:259-381` |
 | View-Namen | IDEAL je Einstellung (`Sync:ArticlesViewName`, `Sync:FaHierarchy*ViewName`, `Sync:ProductionWorkplaceSyncViewName`, `Sync:OperationConfigSyncViewName`) | [[integrationen]] Zeile „IDEAL ab v1.60.0“ |
 | Bei Ausfall | Lesefehler = Lauf mit Fehler + Fehlermail; andere Blöcke laufen weiter. Fehlt eine View: FA-Struktur = Fehler + Mail, sonst Warnung und Überspringen. Leere Antworten lösen keine Löschungen aus (Leer-Schutz, Obergrenzen für Storno/Nullsetzen) | [[integrationen]] Zeile „IDEAL ab v1.60.0“, [[services]] „Sync-Bloecke“ (Caps), [[fallstricke]] §5 |
+| FA-Struktur IDEAL: Abgleich statt Komplett-Ersetzen (seit v1.99.37) | Lauf „FA-Hierarchie“ gleicht je fachlichem Schlüssel ab (Ids bleiben stehen). Zeilen, die Sage nicht mehr liefert: der Dienst fragt den Zustand der betroffenen FAs in `KHKPpsFaBelege` ab (nur lesend) – beendet/inaktiv = bleibt gekennzeichnet, nicht entscheidbar = bleibt + Mail „ungeklärt verschwundene Zeilen“, in Sage nicht gefunden oder Position entfernt = wird entfernt. Schutz: leerer Read, kein einziger bisher aktiver HauptFA im Read, doppelte Schlüssel oder Fehler der Sage-Abfrage → **nichts** wird entfernt, Fehlermail. Ganz verschwundene Strukturen räumt der Dienst nach `Sync:FaStrukturAufbewahrungTage` bzw. nach Erledigt/Storno der WMS-Aufträge ab. Offen vor IDEAL-Prod: P-AB4 (Mandantenfilter der Zustandsabfrage) | `IDEALAKEWMSService/Services/FaStrukturAbgleich.cs:6-7,66-77`, `IDEALAKEWMSService/Services/FaHierarchySyncService.cs:77-84,165,168-178,209,250,296`, [[0032-fa-struktur-abgleich-mit-lebenslauf-statt-full-replace]], [[2026-11-17-v1-99-37-fa-struktur-abgleich]] |
 | Prüffrage Sage | Welche SQL-Rechte hat das Dienstkonto in der Sage-Datenbank tatsächlich (nur `db_datareader` bzw. Einzel-`SELECT`)? In SSMS als Dienstkonto prüfen: `SELECT * FROM fn_my_permissions(NULL, 'DATABASE');` | – |
 
 Hinweis: Die Skripte in `SQL/AgentJobs/` sind kein aktiver Importweg mehr (01 archiviert, 02 nur Notfall). (Quelle: [[integrationen]] „Fallen dieser Integration“)
@@ -67,8 +68,9 @@ Hinweis: Die Skripte in `SQL/AgentJobs/` sind kein aktiver Importweg mehr (01 ar
 | Konto / Rechte | SData-Servicebenutzer, HTTP Basic. Benutzer/Kennwort in `/ServiceSettings` (`SData:Username`, `SData:Password`, verschlüsselt). Der Benutzer hat am AKE-Test keinen Zugriff auf den Vertrag `MasterData` (403) | `IdealAkeWms/Services/SageSdata/SageSdataReadClient.cs:96,245`, [[0024-sdata-kennwort-verschluesselt-in-den-service-einstellungen]], [[sage-sdata-uebersicht]] Zeile 94 |
 | Netzwerk | Dienst- und Web-Server brauchen HTTPS-Zugang zum SData-Port. Zeitlimit Web 20 s | `IdealAkeWms/Program.cs:167` |
 | FA-Struktur IDEAL (v1.99.26) | Dienst, nur `Sync:Quelle:FaStruktur = Vergleich`: `PpsFaBelegeInfo` + `PpsFaBelegePositionenInfo` (Kanten), RealTimeData `dtsFaBelegsuche.Sage.PPS` (beendete Haupt-FAs + `USER_OS*` am FA-Kopf; lesend, nur im Vergleich bis DPS-Freigabe), `Artikel` (Stamm- und Blattfelder), `LagerplaetzeInfo`. Jede Abfrage mit `where` sendet `orderBy` (sonst HTTP 500 an der IDEAL). Web (Sage-Test > Stückliste live) liest `dtsFaBelegsuche` für beendete Haupt-FAs | `IDEALAKEWMSService/Services/Sdata/SdataFaStrukturReader.cs`, `FaStrukturQuelleSwitch.cs`, `IdealAkeWms/Services/SageSdata/SageSdataReadClient.cs` (`BuildUrl`) |
-| Schalter | `Sync:Quelle:*` (`View`/`SData`/`Vergleich`), `Sync:PpsMitarbeiterEnabled`, `Sync:StillstandsgruendeEnabled`, `Sync:KreditorenEnabled`, `Sync:DebitorenEnabled`, `Sync:ArtikelLieferantEnabled`, `Sync:EinkaufBestellungenEnabled`; TLS-Prüfung `SageLagerbuchungSslZertifikatPruefen` | `ServiceSettingDefinitions.cs:260-276` |
+| Schalter | `Sync:Quelle:*` (`View`/`SData`/`Vergleich`), `Sync:PpsMitarbeiterEnabled`, `Sync:StillstandsgruendeEnabled`, `Sync:KreditorenEnabled`, `Sync:DebitorenEnabled`, `Sync:ArtikelLieferantEnabled`, `Sync:EinkaufBestellungenEnabled`; TLS-Prüfung `SageLagerbuchungSslZertifikatPruefen` | `ServiceSettingDefinitions.cs:330-361` |
 | Anstoß nach Sage-Wareneingang (seit v1.99.31) | Hat der `SageBookingWorker` Wareneingänge an Sage übergeben, liest er danach einmal die offenen Bestellungen (nur lesend, dieselbe Abfrage wie der reguläre Lauf; höchstens alle `Sync:EinkaufBestellungenNachWeMinuten` Minuten, Default 2). Läuft der reguläre Lauf gerade, bleibt der Anstoß offen (eine Sperre, nie zwei Komplett-Ersetzungen parallel). Lesefehler: Warnungslauf „Sage-Wareneingang“, der reguläre Lauf holt es nach | `IDEALAKEWMSService/Workers/SageBookingWorker.cs:93,142`, `IDEALAKEWMSService/Services/Sdata/EinkaufBestellungenSyncService.cs` (`TryRunExclusiveAsync`) |
+| AB-Nummer / Kommission der offenen Bestellungen (seit v1.99.33) | Lauf „Offene Bestellungen“ liest zusätzlich den Bestellkopf über RealTimeData `dtsEKBelegMst.Sage.Wawi` (nur GET, Filter nur auf `BelID`, Blöcke zu 50) die Benutzerfelder `USER_AB` und `USER_Kom` (Namen einstellbar, [04 § 5.6](04-konfiguration.md)); gespeichert je Position in `SagePurchaseOrderLines.AbNummer`/`Kommission` (SQL/156), nur Anzeige, nicht in der Wareneingangs-CSV. Zu lange Werte werden nie gekürzt, sondern gezählt (`kopf_zu_lang`); ist der Kopf nicht lesbar: Warnung im Log, die Positionen werden trotzdem übernommen | `IDEALAKEWMSService/Services/Sdata/EinkaufBestellungenSyncService.cs:35,52,150,251-254,267-293`, `IdealAkeWms/Models/SagePurchaseOrderLine.cs:65` |
 | Bei Ausfall | Lesefehler: Lauf mit Fehler + Fehlermail. Leere Antwort ändert nichts (Leer-Schutz). Kennwort nicht entschlüsselbar: **kein** Aufruf an Sage, Meldung „SData-Kennwort nicht entschlüsselbar – in den Service-Einstellungen neu eingeben“ | `README.md:805,812`, [[0024-sdata-kennwort-verschluesselt-in-den-service-einstellungen]] „Entscheidung“ |
 
 ---
@@ -82,21 +84,35 @@ Hinweis: Die Skripte in `SQL/AgentJobs/` sind kein aktiver Importweg mehr (01 ar
 | Zweck | Manuelle Ein-/Ausbuchungen (optional Umbuchungen) an Sage melden | Wareneingang zu einer Sage-Bestellung als Sage-Beleg anlegen (Bestellung → Lieferschein) | [[integrationen]] „Sage-Lagerbuchung“, „Sage-Wareneingangsbeleg“ |
 | Ablauf | Web legt beim Buchen einen Eintrag in `SageBookingQueueItems` an; der Dienst (`SageBookingWorker`) sendet | Web merkt beim Buchen vor; der Dienst sendet im selben Takt | [[integrationen]], [[services]] „Sage-Wareneingang“ |
 | Endpunkt | `POST …/$service/LagerbuchungService` | `POST …/$service/StandardBelegService` | [[integrationen]] Zeilen 198 und 233 |
-| Konto | derselbe SData-Servicebenutzer wie beim Lesen | dito | `ServiceSettingDefinitions.cs:95-98` |
+| Konto | derselbe SData-Servicebenutzer wie beim Lesen | dito | `ServiceSettingDefinitions.cs:125-133` |
 | Schalter | `SageLagerbuchungAktiv` **und** Lagerplatz-Kennzeichen „Sage-Buchung erlaubt“; Umbuchungen zusätzlich `SageLagerbuchungUmbuchungAktiv` | `SageWareneingangBelegAktiv` (unabhängig vom Lagerbuchungs-Schalter) | `IDEALAKEWMSService/Workers/SageBookingWorker.cs:67-75`, [[integrationen]] „Enqueue“ |
 | Takt | alle 20 s (`Sync:SageLagerbuchungIntervalSeconds`, mindestens 5 s) | dito | `SageBookingWorker.cs:60-62` |
 | Schutz vor Doppelbuchung | Kennung `SM#…#` im Sage-Memo; vor jedem erneuten Senden Suche in Sage. Gilt nur bei **genau einem** laufenden Dienst je WMS-Datenbank | Kennung `WE#…#`; vor erneutem Senden Suche in Sage | [[fallstricke]] §8 „Idempotenz nur bei genau EINER Worker-Instanz“, §31 |
-| Bei Ausfall | Einträge bleiben offen bzw. „Fehler“; automatische Wiederholung bis `Sync:SageLagerbuchungMaxRetries` (5); „Gesendet“ ohne Antwort gilt nach 10 min als hängend und wird über die Suche geklärt; schlägt die Suche fehl, wird **nicht** neu gesendet. Ab 50 Fehlern je Lauf Fehlermail | Fehler bleibt stehen; Wiederholung nur nach `Sync:SageWareneingangMaxWiederholungen` mit vorheriger Suche; hängend → „Ergebnis unklar“ (von Hand klären). Bei ausgeschaltetem Schalter gehen Liegengebliebene auf „Klären“, nie automatisch nachsenden | `ServiceSettingDefinitions.cs:255-259`, `README.md:813-815`, [[services]] „Sage-Wareneingang“, [[fallstricke]] §31 |
+| Bei Ausfall | Einträge bleiben offen bzw. „Fehler“; automatische Wiederholung bis `Sync:SageLagerbuchungMaxRetries` (5); „Gesendet“ ohne Antwort gilt nach 10 min als hängend und wird über die Suche geklärt; schlägt die Suche fehl, wird **nicht** neu gesendet. Ab 50 Fehlern je Lauf Fehlermail | Fehler bleibt stehen; Wiederholung nur nach `Sync:SageWareneingangMaxWiederholungen` mit vorheriger Suche; hängend → „Ergebnis unklar“ (von Hand klären). Bei ausgeschaltetem Schalter gehen Liegengebliebene auf „Klären“, nie automatisch nachsenden | `ServiceSettingDefinitions.cs:303-305,325-327`, `README.md:813-815`, [[services]] „Sage-Wareneingang“, [[fallstricke]] §31 |
 | Testsysteme | `Sync:SageSystemKuerzel` setzen, wenn mehrere WMS in dieselbe Sage-Test-DB schreiben; Produktion leer | dito | [[fallstricke]] §31 „Memo-Kennungen …“ |
 
 **Prüffragen Sage (für den Menschen):**
 - Ist der `LagerbuchungService` am **produktiven** AKE-Sage inzwischen lizenziert? Stand 2026-11-03: nur am Testsystem, in Produktion nicht
   lizenziert. (Quelle: [[sage-sdata-uebersicht]] Zeile 67)
 - IDEAL: Gibt es einen SData-Endpunkt und eine Lizenz? Bis dahin alle Sage-Schreibschalter an IDEAL aus.
-  (Quelle: `ServiceSettingDefinitions.cs:69-71`, `secondbrain/aufgaben/2026-11-12-deploy-fahrplan-buendel-v1-99.md:91`)
+  (Quelle: `ServiceSettingDefinitions.cs:70-72`, `secondbrain/aufgaben/2026-11-12-deploy-fahrplan-buendel-v1-99.md:91`)
 
 Vor dem Einschalten von `SageWareneingangBelegAktiv` an einem AKE-System: Wareneingangs-Zielplätze im WMS buchbar und „Sage-Buchung erlaubt“;
 auf AKE Test-IDEAL war das bei keinem Platz gesetzt. (Quelle: `secondbrain/aufgaben/2026-11-12-deploy-fahrplan-buendel-v1-99.md:58-60`)
+
+### 4a. Sage – Arbeitsgänge in Fertigungsaufträgen anlegen (IDEAL, seit v1.99.38)
+
+Dritter Schreibweg an Sage, eigener Schalter. Bis zum Schreibtest TS-159.x (Feldnamen P-1..P-4 unbelegt) bleibt er **aus**.
+
+| Punkt | Inhalt | Quelle |
+|---|---|---|
+| Zweck | Fehlende Arbeitsgänge (Sage-Arbeitsgangnummer aus den Arbeitsgang-Stammdaten) an einem Sage-FA anlegen | [[2026-11-17-v1-99-38-arbeitsgaenge-in-sage-fa-anlegen]] |
+| Ablauf | Web: Stammdaten → Arbeitsgänge → Sage, Knopf reiht je FA und Arbeitsgang einen Eintrag in `SageFaArbeitsgangAnlagen` ein (SQL/160). Dienst (`SageBookingWorker`) liest **vor jedem Senden** den FA in Sage (nur GET): Arbeitsgang schon da = „In Sage vorhanden“ ohne Senden; FA fehlt/beendet/begonnen = Fehler ohne Senden; Lesefehler = nichts senden | `IDEALAKEWMSService/Services/SageFaArbeitsgangService.cs:37-41`, `IdealAkeWms/Controllers/SageFaArbeitsgaengeController.cs` |
+| Endpunkt | `POST …/$service/FertigungsauftragService`, `ServiceOption` 4 (Arbeitsgang-Position anlegen/ändern), je Arbeitsgang ein Aufruf; Menge = Fertigungsmenge, `Bearbeiter` = Einstellung; **kein** Einlasten (Option 5) | `IDEALAKEWMSService/Services/SageFaArbeitsgangClient.cs:9,15-16,25-42` |
+| Konto | derselbe SData-Servicebenutzer; zusätzlich `Sync:SageFaArbeitsgaengeBearbeiter` (leer = nichts gesendet, Meldung „Sage-Bearbeiter für AG-Anlage fehlt“) | `IdealAkeWms/Services/SageFaArbeitsgaenge.cs:16-45`, [04 § 5.4](04-konfiguration.md) |
+| Erfolg | Eine 2xx-Antwort allein genügt nicht (seit v1.99.39): der Dienst liest den FA nach; „Angelegt“ erst, wenn die Sage-Arbeitsgangnummer an einer AG-Position (`RessourceNummer`) steht. Kein Treffer bzw. Lesefehler beim Nachlesen = „Antwort unklar“ | `SageFaArbeitsgangService.cs:196`, [[2026-11-17-v1-99-39-nachbesserung-abend]] |
+| Bei Ausfall | Fehler: automatische Wiederholung bis `Sync:SageFaArbeitsgaengeMaxWiederholungen` (3) im Abstand `…WiederholAbstandMinuten` (15). „Antwort unklar“ wird **nie** automatisch wiederholt (seit v1.99.42): in Sage prüfen, dann „In Sage vorhanden – bestätigen“ (nur Admin, schreibt nichts an Sage, geht auch bei ausgeschaltetem Schalter) oder erneut einreihen. Protokoll „Sage-FA-Arbeitsgänge“, Fehlermail | `IdealAkeWms/Services/SageFaArbeitsgaenge.cs:16-45`, [[2026-11-18-v1-99-42-nachbesserungen]], [[fallstricke]] §49 |
+| Update-Skript | `Pruefung/sage-fa-ag-sdata-zugang` (IDEAL): Schalter an, aber Bearbeiter oder `SData:BaseUrl` leer | `scripts/deploy/nachlauf.psd1:203-206` |
 
 ---
 
@@ -109,7 +125,7 @@ auf AKE Test-IDEAL war das bei keinem Platz gesetzt. (Quelle: `secondbrain/aufga
 | Server | `aketrumpf01.ake.at\TRUMPFSQL2`, Datenbank `T1000_V01_V001` | `IdealAkeWms/appsettings.json:4`, `IDEALAKEWMSService/appsettings.json:5` |
 | Konto / Rechte | Windows-Anmeldung. Dienstkonto: Leserecht auf die genutzten Tabellen; App-Pool-Konto: Ausführen der Prozedur. **Zu prüfen** am OSEON-Server, welche Rechte vergeben sind | Bedarf abgeleitet aus den Fundstellen oben |
 | Schreiben | Keiner. Der frühere Schalter `OseonRueckmeldungAktiv` wurde in v1.79.0 entfernt (kein Leser) | `IdealAkeWms/Models/AppSettingDefinitions.cs:182` |
-| Schalter | `Sync:OseonTrackingEnabled`, `Sync:OseonArticleCategoryEnabled` (Standard aus); Modul `TeileverfolgungAktiv` | `ServiceSettingDefinitions.cs:202-203`, [[integrationen]] „Fallen“ |
+| Schalter | `Sync:OseonTrackingEnabled`, `Sync:OseonArticleCategoryEnabled` (Standard aus); Modul `TeileverfolgungAktiv` | `ServiceSettingDefinitions.cs:265-266`, [[integrationen]] „Fallen“ |
 | IDEAL | `OseonConnection` bleibt leer, der Key muss aber vorhanden sein | `scripts/deploy/Install-IdealAkeWms.ps1:263` |
 | Bei Ausfall | Abgleich: Fehler im Lauf, andere Blöcke laufen weiter. Stückliste: liefert Sage nichts und ist OSEON nicht erreichbar, fängt die Web-App den Verbindungsfehler nicht ab – Folge vermutlich Fehlerseite (**zu prüfen**) | `IdealAkeWms/Data/Repositories/BomRepository.cs:53-59,62-67` |
 
@@ -121,9 +137,9 @@ auf AKE Test-IDEAL war das bei keinem Platz gesetzt. (Quelle: `secondbrain/aufga
 |---|---|---|---|---|
 | Richtung / Zweck | enaio → WMS: Werkstattaufträge/Zeichnungen je FA (`EnaioDmsDocuments`, voller Abgleich ohne Delta) | Symbol an der FA-Nummer öffnet den enaio-Viewer | Link an der Artikelnummer öffnet die Vault-Suche | [[integrationen]] „enaio“, `README.md:504-507` |
 | Teil | Dienst | Browser des Anwenders | Browser des Anwenders | – |
-| Endpunkt | View `[enaio].[dbo].[vw_IDEAL-AKE_Fertigungsauftraege]` (Einstellung `Sync:EnaioDmsViewName`) über `EnaioDmsConnection` (`AKESQL20.ake.at`, DB `enaio`) | Vorlage `EnaioLinkVorlage` (Standard `http://akeosapp.ake.at/oscontentviewer/viewer/{ObjektId}/…`) | Vorlage `VaultLinkVorlage` (Standard `http://akevault24.ake.at/AutodeskTC/…`) | `ServiceSettingDefinitions.cs:205`, `IDEALAKEWMSService/appsettings.json:6`, `AppSettingDefinitions.cs:215,220` |
+| Endpunkt | View `[enaio].[dbo].[vw_IDEAL-AKE_Fertigungsauftraege]` (Einstellung `Sync:EnaioDmsViewName`) über `EnaioDmsConnection` (`AKESQL20.ake.at`, DB `enaio`) | Vorlage `EnaioLinkVorlage` (Standard `http://akeosapp.ake.at/oscontentviewer/viewer/{ObjektId}/…`) | Vorlage `VaultLinkVorlage` (Standard `http://akevault24.ake.at/AutodeskTC/…`) | `ServiceSettingDefinitions.cs:268`, `IDEALAKEWMSService/appsettings.json:6`, `AppSettingDefinitions.cs:215,220` |
 | Konto / Rechte | Dienstkonto: Leserecht auf die View | Anwender braucht Zugang zum enaio-Viewer (Server greift nicht zu) | Anwender braucht Zugang zum Vault | – |
-| Schalter | `Sync:EnaioDmsEnabled` (aus) | `EnaioLinksAktiv` (an) – unabhängig vom Abgleich | `VaultLinksAktiv` (an); IDEAL ohne Vault ausschalten | `ServiceSettingDefinitions.cs:204`, `README.md:504-507` |
+| Schalter | `Sync:EnaioDmsEnabled` (aus) | `EnaioLinksAktiv` (an) – unabhängig vom Abgleich | `VaultLinksAktiv` (an); IDEAL ohne Vault ausschalten | `ServiceSettingDefinitions.cs:267`, `README.md:504-507` |
 | Bei Ausfall | Lauf mit Fehler; vorhandene Verknüpfungen bleiben | Link führt im Browser ins Leere; WMS unberührt | dito | [[fallstricke]] §5 |
 
 IDEAL: `EnaioDmsConnection` leer, enaio-Abgleich aus. (Quelle: `scripts/deploy/Install-IdealAkeWms.ps1:264,357`)
@@ -138,11 +154,11 @@ IDEAL: `EnaioDmsConnection` leer, enaio-Abgleich aus. (Quelle: `scripts/deploy/I
 | Teil | nur **Dienst** (`MailService`) | `IDEALAKEWMSService/Program.cs:100` |
 | Endpunkt | `MailSettings:SmtpHost`/`SmtpPort` (Standard 25) in der Dienst-`appsettings.json`; Absender `MailSettings:FromAddress` | `IDEALAKEWMSService/appsettings.json:8-16`, `IDEALAKEWMSService/Services/MailService.cs:32,39-40,70` |
 | Verschlüsselung | `SmtpUseSsl = true` → TLS ab Verbindungsbeginn; sonst **ohne** Verschlüsselung (kein STARTTLS) | `IDEALAKEWMSService/Services/MailService.cs:78-79` |
-| Konto | optional SMTP-Benutzer (`SmtpUsername`/`SmtpPassword`, Datei) – meist anonymes Relay. Für Lieferanten-Mails muss das Relay **externe Empfänger** und den Absender `Lieferverzug:KreditorAbsender` zulassen (IT klären) | `MailService.cs:72-82`, `ServiceSettingDefinitions.cs:154` |
+| Konto | optional SMTP-Benutzer (`SmtpUsername`/`SmtpPassword`, Datei) – meist anonymes Relay. Für Lieferanten-Mails muss das Relay **externe Empfänger** und den Absender `Lieferverzug:KreditorAbsender` zulassen (IT klären) | `MailService.cs:72-82`, `ServiceSettingDefinitions.cs:196` |
 | Pickup-Ordner | `MailSettings:PickupDirectory` (nur DEV/QA): Mails als `.eml` ablegen statt senden; Dienstkonto braucht Schreibrecht auf den Ordner (legt ihn selbst an) | `MailService.cs:30-67` |
 | Schalter | siehe [04-konfiguration.md](04-konfiguration.md) §5.3 | – |
 | Bei Ausfall | `SmtpHost` leer → Mail übersprungen, Warnung im Log. Relay nicht erreichbar → Fehler im Log (`logs/notifications/`), der aufrufende Lauf meldet „nicht gesendet“; die Fehlermail selbst wirft nie | `MailService.cs:33-37,90-94`, `IDEALAKEWMSService/Services/LieferverzugMailService.cs:136,164`, [[services]] „Reader / Zulieferer“ |
-| Achtung Produktion | Ist `PickupDirectory` gesetzt, geht **nichts** raus, das Protokoll zeigt trotzdem „gesendet“. Das Update-Skript prüft das (`Pruefung/MailPickup`) | [[fallstricke]] §5 „Mails pruefen ohne Versand“, `scripts/deploy/nachlauf.psd1:158-161` |
+| Achtung Produktion | Ist `PickupDirectory` gesetzt, geht **nichts** raus, das Protokoll zeigt trotzdem „gesendet“. Das Update-Skript prüft das (`Pruefung/MailPickup`) | [[fallstricke]] §5 „Mails pruefen ohne Versand“, `scripts/deploy/nachlauf.psd1:235-238` |
 
 ---
 
@@ -152,9 +168,9 @@ IDEAL: `EnaioDmsConnection` leer, enaio-Abgleich aus. (Quelle: `scripts/deploy/I
 |---|---|---|
 | Richtung / Zweck | WMS → Netzfreigabe: je an Sage übergebenem Wareneingang mit Barcode eine Datei `<Barcode>.csv`; ein eigener enaio-Import liest und räumt die Dateien selbst auf | [[integrationen]] „Wareneingang-CSV“ |
 | Teil | **Dienst**, Schritt im `SageBookingWorker` nach dem Sage-Wareneingang | `IDEALAKEWMSService/Workers/SageBookingWorker.cs:89-93` |
-| Endpunkt | `WareneingangCsvPfad`, nur UNC `\\server\freigabe[\ordner]`; der Server prüft nur die Form, nicht die Erreichbarkeit | `ServiceSettingDefinitions.cs:243`, [[integrationen]] „Wareneingang-CSV“ |
+| Endpunkt | `WareneingangCsvPfad`, nur UNC `\\server\freigabe[\ordner]`; der Server prüft nur die Form, nicht die Erreichbarkeit | `ServiceSettingDefinitions.cs:313-314`, [[integrationen]] „Wareneingang-CSV“ |
 | Konto / Rechte | Dienstkonto. Läuft es als `LocalSystem`, greift es als **Computerkonto `DOMÄNE\SERVER$`** zu. Recht „Ändern“ auf Freigabe **und** NTFS (anlegen, schreiben, umbenennen, eigene `.tmp` löschen) | [[fallstricke]] §32 „Dienstkonto LocalSystem …“, `scripts/deploy/nachlauf.psd1:334-337` |
-| Schreibweise | erst `<Barcode>.tmp`, dann Umbenennen auf `.csv` (nie überschreiben); höchstens 10 Dateien je Takt | [[services]] „Wareneingang-CSV“ |
+| Schreibweise | erst `<Barcode>.tmp`, dann Umbenennen auf `.csv` (nie überschreiben); höchstens 10 Dateien je Takt. Seit v1.99.33 (Sammellieferschein, mehrere Wareneingänge mit demselben Barcode): erste Datei `<Barcode>.csv`, weitere `<Barcode>_1.csv`, `_2` …; belegte Namen (Datenbank oder Ordner) werden übersprungen. Das Update-Skript prüft Kollisionen (`Pruefung/WareneingangCsvKollision`, AKE). Prod erst nach Bestätigung des enaio-Imports (E-1) | `IDEALAKEWMSService/Services/WareneingangCsvService.cs:16-18`, `scripts/deploy/nachlauf.psd1:219-222`, [[2026-11-17-v1-99-33-wareneingang-sammellieferschein-bestellkopf]] | [[services]] „Wareneingang-CSV“ |
 | Schalter | `WareneingangCsvAktiv` **und** `SageWareneingangBelegAktiv` **und** Pfad gesetzt | [[services]] „Wareneingang-CSV“ |
 | Bei Ausfall | Schreibfehler (Netz, Recht) → Wiederholung bis `Sync:WareneingangCsvMaxWiederholungen` (3) im Abstand `…WiederholAbstandMinuten` (15); Namenskollision oder ungültiger Barcode nie automatisch; Status je Vorgang in „Sage-Wareneingänge“ (Spalte CSV); Fehler stören die Sage-Buchungen nicht | [[services]] „Wareneingang-CSV“, `SageBookingWorker.cs:87-103` |
 | Prüffrage | Freigabe und Format (unten) mit dem Betreiber des enaio-Imports **vor dem Einschalten** abgestimmt? (Hand-Schritte P-C1/P-C2). Seit v1.99.29 ohne Kopfzeile: ein Import, der eine Kopfzeile überspringt, verliert sonst die einzige Datenzeile | `secondbrain/aufgaben/2026-11-12-deploy-fahrplan-buendel-v1-99.md:97` |
@@ -181,20 +197,24 @@ dieses alte Format. Mails, Druck und Sage-Belege sind von der Änderung nicht be
 |---|---|---|
 | Richtung / Zweck | WMS → WiCAM: je freigegebenem BF-Auftrag eine Datei `<BF-Nummer>.csv` (z. B. `BF00000042.csv`); WiCAM legt daraus einen Auftrag an. Kein Sage-Bezug | Spec `2026-11-13-blechfertigung-bf-auftraege-wicam-csv` F4 |
 | Teil | **Dienst**, eigener Schritt im `SageBookingWorker` (nicht an den Sage-Wareneingang gebunden) | `IDEALAKEWMSService/Workers/SageBookingWorker.cs:120-134,236-255`, `IDEALAKEWMSService/Services/BfCsvService.cs` |
-| Endpunkt | `BfCsvPfad`, nur UNC; geplant `\\idealcam.ideal.ideal-ake.at\fertigung\u\pn\apools\` | `ServiceSettingDefinitions.cs:307` |
+| Endpunkt | `BfCsvPfad`, nur UNC; geplant `\\idealcam.ideal.ideal-ake.at\fertigung\u\pn\apools\` | `ServiceSettingDefinitions.cs:343-344` |
 | Konto / Rechte | Dienstkonto (bei `LocalSystem` das Computerkonto `DOMÄNE\SERVER$`): „Ändern“ auf Freigabe und NTFS | `scripts/deploy/nachlauf.psd1` (`v1.99.35-BfPoolRecht`) |
 | Schreibweise | erst `<BF-Nummer>.tmp`, dann Umbenennen auf `.csv`, nie überschreiben; höchstens 10 Dateien je Takt | `BfCsvService.cs:91-110` |
 | Schalter | `BfCsvAktiv` **und** Pfad gesetzt; die Web-Oberfläche braucht `BlechfertigungAktiv` | – |
 | Bei Ausfall | Schreibfehler → Wiederholung bis `Sync:BfCsvMaxWiederholungen` (3) im Abstand `Sync:BfCsvWiederholAbstandMinuten` (15); Datei existiert schon = Fehler **ohne** automatische Wiederholung („CSV erneut schreiben“ nach Klärung in WiCAM); Status je Auftrag in der Spalte CSV der BF-Aufträge, Protokoll „Blechfertigung: WiCAM-CSV“ | `BfCsvService.cs:32-87` |
 
-**Dateiformat (Platzhalter bis P-1 – vor dem Einschalten mit der Musterdatei aus dem Pool abgleichen):**
+**Dateiformat (seit v1.99.42 exakt nach der echten WiCAM-Datei `BF00000002.csv`; vorher Platzhalter):**
 
 | Merkmal | Wert | Quelle |
 |---|---|---|
-| Kodierung | **Windows-1252** ohne BOM, CRLF; ein nicht darstellbares Zeichen wird gemeldet, nie still ersetzt | `IdealAkeWms/Services/BfCsv.cs:48-52` |
-| Kopf | `PART_START`, `CREATE_NEW_ORDER;YES`, `ORDER_NUMBER;<BF-Nummer>`, `ORDER_REMARK_3/1/2`, `ORDER_PRIORITY`, `ORDER_RELEASE`, `PART_END`, dann die Spaltenzeile | `BfCsv.cs:92-105` |
-| Datenzeilen (je übergebener Position, nach Position) | Matchcode (TRIM/CLEAN/UPPER) · Materialnummer (`USER_OSMaterialnummerPN`) · Menge (ganzzahlig bzw. Dezimalkomma) · Bemerkung · Hauptlagerplatz · Besteller · Schachteltermin `dd.MM.yyyy` · FE-Termin `yyyy-MM-dd` | `BfCsv.cs:106-111` |
-| Trenner | `;`, keine Anführungszeichen; `;`, `"` und Zeilenumbruch sperren die Freigabe | `IdealAkeWms/Services/BfAuftragWorkflow.cs:239-257` |
+| Kodierung | **Windows-1252** ohne BOM, CRLF; ein nicht darstellbares Zeichen wird gemeldet, nie still ersetzt | `IdealAkeWms/Services/BfCsv.cs:48-52,72-78` |
+| Spalten | jede Zeile genau 13 Felder (12 `;`), leere Felder aufgefüllt; keine Anführungszeichen | `BfCsv.cs:113-121` |
+| Zeilen 1–9 (Kopf) | Spalte A `PART_START`; danach Schlüssel in Spalte B, Wert in C: `CREATE_NEW_ORDER`, `ORDER_NUMBER` (BF-Nummer), `ORDER_REMARK_3`, `ORDER_REMARK_1`, `ORDER_REMARK_2`, `ORDER_PRIORITY`, `ORDER_RELEASE`; Spalte A `PART_END`. Werte aus den Einstellungen `BfCsv*` ([04 § 5.4](04-konfiguration.md)) | `BfCsv.cs:115-130` |
+| Zeile 10 / 12 | leer | `BfCsv.cs:115-117` |
+| Zeile 11 | `ORDER_NC_FILE`, `ORDER_MATERIAL_NO`, `ORDER_AMOUNT`, `ORDER_REMARK`, `ORDER_POSITION`, `ORDER_REMARK_2`, `ORDER_REMARK_4`, `ORDER_DATE`, `ORDER_REMARK_5`, `ORDER_REMARK_1` | `BfCsv.cs:132` |
+| Zeile 13 | deutsche Überschrift: Matchcode, Mat.Nr., Menge, Bemerkung, Lagerplatz, Hauptlagerplatz, Besteller, Schachteltermin, FE-Termin, Arbeitsschritte | `BfCsv.cs:115-117` |
+| ab Zeile 14 (je übergebener Position, aufsteigend) | Matchcode (TRIM/CLEAN/UPPER) · Materialnummer (nur ganzzahlig, sonst ist die Freigabe gesperrt) · Menge (ganzzahlig bzw. Dezimalkomma) · Bemerkung `[Status - ][FertigungsInfoPN - ]dd.MM[ - Position bei BG]` · Lagerplatz (voll, `;` → `,`) · Hauptlagerplatz (Teil vor dem ersten Trenner) · Besteller-**Kürzel** (Benutzerverwaltung, SQL/162) · Schachteltermin `dd.MM.yyyy` · FE-Termin `yyyy-MM-dd` · Arbeitsschritte (SQL/163). Keine Füllzeilen | `BfCsv.cs:59-64,88-91,136-140` |
+| Trenner | `;`; `;`, `"` und Zeilenumbruch in einem Wert sperren die Freigabe | `BfCsv.cs:72`, `IdealAkeWms/Services/BfAuftragWorkflow.cs:239-257` |
 | Nicht übergeben | gestrichene Positionen und Positionen ohne Materialnummer (Hinweis bei Freigabe) | `BfAuftragWorkflow.cs:203-236` |
 
 ---
