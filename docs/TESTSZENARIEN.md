@@ -13220,7 +13220,7 @@ Leitstand-Benutzer L.
 
 | Nr | Schritt | Erwartet |
 |---|---|---|
-| 164.1 | A öffnet *Kommissionierlisten* zum ersten Mal (keine gemerkten Ziele) | Summiert; Ziele K-01 und K-02 angehakt (Einstellung), nur deren Positionen; URL trägt `target=K-01&target=K-02` |
+| 164.1 | A öffnet *Kommissionierlisten* zum ersten Mal (keine gemerkten Ziele) | Summiert; Ziele K-01 und K-02 angehakt (Einstellung), nur deren Positionen; Drucken-/PDF-Link tragen `target=K-01&target=K-02` (die Adresszeile bleibt ohne `target`, die Einstellung wird nicht als Benutzerauswahl gemerkt) |
 | 164.1a | A hakt LAGER zusätzlich an, „Anwenden“; Wechsel auf „Liste“, Abmelden, Anmelden, wieder öffnen | in beiden Ansichten K-01, K-02, LAGER angehakt und gefiltert (je Benutzer gemerkt, beide Ansichten gemeinsam) |
 | 164.1b | A entfernt alle Häkchen, „Anwenden“; danach „— alle Ziele —“ anhaken, „Anwenden“ | beide Male alle Ziele sichtbar; gemerkt als „alle“ |
 | 164.1c | B öffnet die Liste | B sieht die Einstellung (K-01, K-02), nicht A's Auswahl |
