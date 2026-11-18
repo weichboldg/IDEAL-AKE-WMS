@@ -196,6 +196,19 @@
                             {
                                 <div class="small text-muted">Kreditor @kred.ShortName</div>
                             }
+                            else if (bearbeitbar && Model.Beschichter.Count > 0)
+                            {
+                                @* v1.99.42: Kreditor in Uebergeben nachtragen, solange keiner gesetzt ist (Altauftraege) - gespeichert mit „Speichern“ *@
+                                <label class="form-label small mt-2 mb-1" for="creditorId">Lackierer (Kreditor) nachtragen</label>
+                                <select id="creditorId" name="creditorId" form="entwurf-form" class="form-select form-select-sm" aria-describedby="creditorNachtragHilfe">
+                                    <option value="">— keiner —</option>
+                                    @foreach (var k in Model.Beschichter)
+                                    {
+                                        <option value="@k.Id">@BeschichtungsauftragDetailViewModel.BeschichterText(k)</option>
+                                    }
+                                </select>
+                                <div id="creditorNachtragHilfe" class="form-text">Für Anschrift auf Druck und PDF. Danach nicht mehr änderbar.</div>
+                            }
                             @if (Model.SageDienstleisterAbweichend != null)
                             {
                                 <div class="small text-muted">Sage (PPS-View): @Model.SageDienstleisterAbweichend</div>

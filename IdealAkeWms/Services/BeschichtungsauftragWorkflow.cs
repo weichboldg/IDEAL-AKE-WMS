@@ -242,7 +242,7 @@ public class BeschichtungsauftragWorkflow
     public async Task<BeschichtungsauftragErgebnis> BearbeitenAsync(int id, KopfDaten? kopf,
         IReadOnlyDictionary<int, decimal> mengen, IReadOnlyCollection<int> entfernteIds, byte[] rowVersion,
         IReadOnlyCollection<int>? verpacktIds = null, IReadOnlyCollection<PositionsSchluessel>? hinzu = null,
-        IReadOnlyCollection<FreiePosition>? frei = null)
+        IReadOnlyCollection<FreiePosition>? frei = null, int? kreditorNachtragen = null)
     {
         var r = new BeschichtungsauftragErgebnis();
         var a = await LadenAsync(id, r);
@@ -263,6 +263,14 @@ public class BeschichtungsauftragWorkflow
                 if (wert?.Trim().Length > MaxKopfTextLaenge)
                     r.Fehler.Add($"{feld} höchstens {MaxKopfTextLaenge} Zeichen.");
         Creditor? kreditor = null;
+        // v1.99.42 (Befund 15:05 b): in Uebergeben ist der Kopf fest, der Lackierer aber nachtragbar, solange keiner gesetzt ist (Altauftraege).
+        if (kopf is null && kreditorNachtragen is int nid)
+        {
+            if (a.CreditorId is not null)
+                r.Fehler.Add($"{a.Nummer} hat schon einen Kreditor — nachtragen geht nur, solange keiner gesetzt ist.");
+            else if ((kreditor = (await _repo.GetBeschichterAsync()).FirstOrDefault(c => c.Id == nid)) is null)
+                r.Fehler.Add($"Kreditor {nid} ist kein aktiver Beschichter — Lackierer aus der Liste wählen oder in den Kreditoren „Beschichter“ setzen.");
+        }
         if (kopf?.CreditorId is int cid)
         {
             kreditor = (await _repo.GetBeschichterAsync()).FirstOrDefault(c => c.Id == cid);
@@ -283,6 +291,11 @@ public class BeschichtungsauftragWorkflow
                 a.Ral = Leer(kopf.Ral);
                 a.StartBeschichtung = kopf.StartBeschichtung;
                 a.BeschichtenRetour = kopf.BeschichtenRetour;
+            }
+            else if (kreditor is not null)
+            {
+                a.CreditorId = kreditor.Id;
+                a.Dienstleister = Leer(kreditor.Name) ?? kreditor.ShortName;
             }
             foreach (var p in a.Positionen)
             {

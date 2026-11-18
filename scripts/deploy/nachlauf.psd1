@@ -275,6 +275,11 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
    Voraussetzung='Dienst und Web >= 1.99.32 laufen, Option BDE-Teileliste an den Start-Werkbaenken gesetzt, DB-Backup'
    Text='Trockenlauf automatisch (Zaehlung je Kuerzel und Meldeliste gebuchter Arbeitsgaenge ins Protokoll). TREFFER 0 -> entfaellt (z. B. Option noch nirgends an: dann nach dem Setzen erneut anstossen). Sonst Zaehlung freigeben, SCHARF eintippen (Backup aus diesem Lauf Pflicht); zweiter Trockenlauf muss 0 liefern. Gebuchte Arbeitsgaenge bleiben stehen - Meldeliste an den Fachbereich.'
    Quelle='2026-11-17-v1-99-32-bde-teileliste-blechfertigung' }
+@{ Id='Einmalig/2026-11-18_v1.99.42_BeschichtungsauftragKreditorNachtragen'; Version='1.99.42'; Typ='Einmalig'; Firma='beide'; Phase='Nachher'; Ausfuehrung='Trockenlauf'
+   Datei='Einmalig\2026-11-18_v1.99.42_BeschichtungsauftragKreditorNachtragen.sql'; Braucht=@('SQL/161')
+   Voraussetzung='Web >= 1.99.41, Beschichter-Kreditoren gekennzeichnet (Pruefung BeschichterKreditoren), DB-Backup'
+   Text='Trockenlauf automatisch (Zaehlung, Liste Auftrag -> Kreditor und Meldeliste ohne/mehrdeutigen Beschichter ins Protokoll). TREFFER 0 -> entfaellt. Sonst Zaehlung freigeben, SCHARF eintippen (Backup aus diesem Lauf Pflicht); zweiter Trockenlauf muss 0 liefern. Meldeliste: Kreditor im Auftrag waehlen (auch in Uebergeben moeglich).'
+   Quelle='2026-11-18-v1-99-42-nachbesserungen' }
 @{ Id='SQL/108'; Version='1.79.0'; Typ='Daten'; Firma='beide'; Phase='VorStart'; Ausfuehrung='Transaktion'
    Datei='108_RemoveAppSettingsRueckmeldungOhneLeser.sql'
    Pruefabfrage='SELECT [Key],[Value] FROM [dbo].[AppSettings] WHERE [Key] IN (N''OseonRueckmeldungAktiv'', N''SageRueckmeldungAktiv'', N''StammdatenADGruppe'')'

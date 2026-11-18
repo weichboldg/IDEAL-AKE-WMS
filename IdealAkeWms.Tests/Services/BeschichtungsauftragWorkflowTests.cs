@@ -538,6 +538,33 @@ public class BeschichtungsauftragWorkflowTests
         return c;
     }
 
+    /// <summary>v1.99.42 (Befund 15:05 b): in Uebergeben Kreditor nachtragbar, solange keiner gesetzt ist; danach abgelehnt; Kopf bleibt fest.</summary>
+    [Fact]
+    public async Task Kreditor_InUebergeben_NurNachtragen_SolangeLeer()
+    {
+        var fx = new Fx();
+        fx.Standard();
+        var ok = Kreditor(fx, "LACK", "Lackier GmbH");
+        var zweiter = Kreditor(fx, "BUNT", "Bunt KG");
+        var kein = Kreditor(fx, "HOLZ", "Holz AG", coater: false);
+        var a = await fx.Anlegen();
+        await fx.Status(a, BeschichtungsauftragStatus.Uebergeben);
+        a.CreditorId.Should().BeNull();
+        var ral = a.Ral;
+
+        (await fx.Wf.BearbeitenAsync(a.Id, null, KeineMengen, Array.Empty<int>(), a.RowVersion, kreditorNachtragen: kein.Id))
+            .Fehler.Single().Should().Contain("kein aktiver Beschichter");
+        a.CreditorId.Should().BeNull();
+
+        (await fx.Wf.BearbeitenAsync(a.Id, null, KeineMengen, Array.Empty<int>(), a.RowVersion, kreditorNachtragen: ok.Id))
+            .Fehler.Should().BeEmpty();
+        (a.CreditorId, a.Dienstleister, a.Ral, a.Status).Should().Be(((int?)ok.Id, "Lackier GmbH", ral, BeschichtungsauftragStatus.Uebergeben));
+
+        (await fx.Wf.BearbeitenAsync(a.Id, null, KeineMengen, Array.Empty<int>(), a.RowVersion, kreditorNachtragen: zweiter.Id))
+            .Fehler.Single().Should().Contain("schon einen Kreditor");
+        a.CreditorId.Should().Be(ok.Id);
+    }
+
     [Fact]
     public async Task Kreditor_Beschichter_SetztIdUndName_NichtBeschichterOderInaktiv_Abgelehnt()
     {

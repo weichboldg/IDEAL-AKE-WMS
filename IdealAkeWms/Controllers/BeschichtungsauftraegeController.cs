@@ -120,8 +120,9 @@ public class BeschichtungsauftraegeController : Controller
             SageDienstleisterAbweichend = await SageDienstleisterAbweichendAsync(a),
             Kandidaten = kandidaten,
             Benutzer = benutzer,
-            // A9: Auswahl nur, wo der Kopf bearbeitbar ist (Entwurf + Schreibrecht)
-            Beschichter = darfSchreiben && a.Status == BeschichtungsauftragStatus.Entwurf
+            // A9: Auswahl im Entwurf; v1.99.42: auch in Uebergeben, solange kein Kreditor gesetzt ist (Nachtrag Altauftraege)
+            Beschichter = darfSchreiben && (a.Status == BeschichtungsauftragStatus.Entwurf
+                                            || (a.Status == BeschichtungsauftragStatus.Uebergeben && a.CreditorId is null))
                 ? await _repo.GetBeschichterAsync() : new List<Creditor>(),
             DarfStammdaten = await _currentUser.HasMasterDataAccessAsync(),
         });
@@ -209,7 +210,7 @@ public class BeschichtungsauftraegeController : Controller
 
         var kopf = nurPositionen ? null : new KopfDaten(Leer(dienstleister), Leer(ral), startBeschichtung, beschichtenRetour, creditorId);
         var r = await _workflow.BearbeitenAsync(id, kopf, mengenWerte, entfernen ?? Array.Empty<int>(), rv,
-            hakenGesendet ? verpackt ?? Array.Empty<int>() : null, keys, frei);
+            hakenGesendet ? verpackt ?? Array.Empty<int>() : null, keys, frei, kreditorNachtragen: nurPositionen ? creditorId : null);
         var neu = keys.Distinct().Count() + frei.Count;
         return Ergebnis(id, r, neu > 0 ? $"Gespeichert, {neu} Position(en) hinzugefügt." : "Gespeichert.");
     }
