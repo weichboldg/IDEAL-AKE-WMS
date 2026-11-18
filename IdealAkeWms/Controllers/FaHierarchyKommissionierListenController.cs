@@ -148,6 +148,7 @@ public class FaHierarchyKommissionierListenController : Controller
             SelectedTargets = ziele,
             ZielQuery = KommissionierListenService.QueryMitZielen(HttpContext?.Request, ziele),
             PdfVerfuegbar = _pdfRenderStatus.IsAvailable,
+            Lagerplaetze = result.Lagerplaetze,
             Pagination = new PaginationState
             {
                 CurrentPage = page,
@@ -223,6 +224,7 @@ public class FaHierarchyKommissionierListenController : Controller
         {
             Groups = result.Groups,
             Barcodes = barcodes,
+            Lagerplaetze = result.Lagerplaetze,
             SelectedTarget = ZieleText(ziele),
             IsFiltered = ColumnFilterHelper.HasAny(columnFilters, ColumnFilterTypes.For("FaHierarchyKommissionierListen/Index")) || KommissionierListenService.SchraenktEin(ziele),
             VisibleColumns = await ResolveVisibleColumnsAsync(
@@ -248,6 +250,7 @@ public class FaHierarchyKommissionierListenController : Controller
         var vm = new FaHierarchyKommissionierPrintViewModel
         {
             Groups = new List<FaHierarchyListGroupViewModel> { group },
+            Lagerplaetze = result.Lagerplaetze,
             Barcodes = new Dictionary<int, string> { [hauptFa] = _barcode.EncodeCode128Base64(hauptFa.ToString(CultureInfo.InvariantCulture)) },
             SelectedTarget = ZieleText(ziele),
             IsFiltered = ColumnFilterHelper.HasAny(columnFilters, ColumnFilterTypes.For("FaHierarchyKommissionierListen/Index")) || KommissionierListenService.SchraenktEin(ziele),

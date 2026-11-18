@@ -339,6 +339,7 @@ public static class ColumnDefinitions
             new ColumnDef("matchcode",      "Matchcode",       Locked: true),
             new ColumnDef("sollmenge",      "Sollmenge",       Locked: false, DefaultWidth: 55),
             new ColumnDef("hauptlagerplatz","Hauptlagerplatz", Locked: false),
+            new ColumnDef("lagerplaetze",   "Lagerplätze",     Locked: false), // v1.99.43 A4
             new ColumnDef("kommissionieren","Kommissionieren", Locked: false),
             new ColumnDef("arbeitsbereich", "Arbeitsbereich",  Locked: false),
             new ColumnDef("montage-abteilung", "Abteilung",    Locked: false), // v1.99.43 A3
@@ -367,6 +368,7 @@ public static class ColumnDefinitions
             new ColumnDef("kommissionieren","Kommissionieren", Locked: false),
             new ColumnDef("montage-abteilung", "Abteilung",    Locked: false), // v1.99.43 A3
             new ColumnDef("hauptlagerplatz","Hauptlagerplatz", Locked: false),
+            new ColumnDef("lagerplaetze",   "Lagerplätze",     Locked: false), // v1.99.43 A4
             new ColumnDef("sollmenge",      "Summe Sollmenge", Locked: false, DefaultWidth: 55),
         ]
     };

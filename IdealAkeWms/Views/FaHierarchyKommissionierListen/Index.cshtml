@@ -8,7 +8,7 @@
     var printUrl = Url.Action("Print") + Model.ZielQuery; // v1.99.43: traegt die wirksamen Ziele (auch aus Gedaechtnis/Einstellung)
     // PDF je Gruppe: dieselben Query-Parameter wie der Bildschirmdruck (target + colf_*); hauptFa ist Routen-Segment.
     var pdfQuery = Model.ZielQuery;
-    const int colCount = 12; // Anzahl der Positionsspalten (colspan der Gruppen-Kopfzeile)
+    const int colCount = 13; // Anzahl der Positionsspalten (colspan der Gruppen-Kopfzeile)
 }
 
 <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
@@ -74,6 +74,7 @@
                 <th data-filterable data-col-key="matchcode">Matchcode</th>
                 <th class="text-end" data-filterable data-filter-type="number" data-col-key="sollmenge">Sollmenge</th>
                 <th data-filterable data-col-key="hauptlagerplatz">Hauptlagerplatz</th>
+                <th data-filterable data-col-key="lagerplaetze" title="Lagerplätze mit WMS-Bestand (ohne Kommissionierwagen)">Lagerplätze</th>
                 <th data-filterable data-col-key="kommissionieren">Kommissionieren</th>
                 <th data-filterable data-col-key="arbeitsbereich">Arbeitsbereich</th>
                 <th data-filterable data-col-key="montage-abteilung">Abteilung</th>
@@ -146,6 +147,7 @@
                             <td>@pos.Matchcode</td>
                             <td class="text-end">@pos.Sollmenge.ToString("N3", deCulture)</td>
                             <td>@pos.Hauptlagerplatz</td>
+                            <td>@KommissionierListenService.LagerplatzText(Model.Lagerplaetze, pos.Artnr)</td>
                             <td>@pos.Kommissionieren</td>
                             <td>@pos.Arbeitsbereich</td>
                             <td>@abteilung</td>
@@ -173,6 +175,7 @@
     { "key": "matchcode", "label": "Matchcode", "locked": true, "defaultWidth": null },
     { "key": "sollmenge", "label": "Sollmenge", "locked": false, "defaultWidth": 55 },
     { "key": "hauptlagerplatz", "label": "Hauptlagerplatz", "locked": false, "defaultWidth": null },
+    { "key": "lagerplaetze", "label": "Lagerplätze", "locked": false, "defaultWidth": null },
     { "key": "kommissionieren", "label": "Kommissionieren", "locked": false, "defaultWidth": null },
     { "key": "arbeitsbereich", "label": "Arbeitsbereich", "locked": false, "defaultWidth": null },
     { "key": "montage-abteilung", "label": "Abteilung", "locked": false, "defaultWidth": null },

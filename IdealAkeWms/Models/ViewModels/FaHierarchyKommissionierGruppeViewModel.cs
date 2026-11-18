@@ -29,6 +29,9 @@ public class FaHierarchyKommissionierListViewModel
     /// <summary>Edge beim Start gefunden (<see cref="Services.PdfRenderStatus"/>): nur dann erscheint der
     /// PDF-Knopf an der Gruppen-Kopfzeile (Freigabe-Antwort 2).</summary>
     public bool PdfVerfuegbar { get; init; }
+
+    /// <summary>v1.99.43 (A4): Artnr → Lagerplatz-Text der Seite (eine Batch-Abfrage).</summary>
+    public IReadOnlyDictionary<string, string> Lagerplaetze { get; init; } = new Dictionary<string, string>();
 }
 
 /// <summary>
@@ -42,6 +45,9 @@ public class FaHierarchyKommissionierPrintViewModel
 
     /// <summary>HauptFA -&gt; Barcode-PNG als Base64 (Code 128).</summary>
     public IReadOnlyDictionary<int, string> Barcodes { get; init; } = new Dictionary<int, string>();
+
+    /// <summary>v1.99.43 (A4): Artnr → Lagerplatz-Text der ganzen Druckmenge.</summary>
+    public IReadOnlyDictionary<string, string> Lagerplaetze { get; init; } = new Dictionary<string, string>();
 
     public string? SelectedTarget { get; init; }
 

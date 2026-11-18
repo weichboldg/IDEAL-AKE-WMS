@@ -38,6 +38,9 @@ public class FaHierarchyKommissionierSummiertRowViewModel
 
     /// <summary>v1.99.43 (A3): Montage-Abteilung(en) des HauptFA, kommagetrennt (<see cref="Services.VormontageService.FormatTexte"/>).</summary>
     public string? Abteilung { get; init; }
+
+    /// <summary>v1.99.43 (A4): Lagerplaetze mit WMS-Bestand &gt; 0 („K-02 (12), H4-05 (3)“, „—“); gesetzt nach dem Batch-Laden.</summary>
+    public string? Lagerplaetze { get; set; }
 }
 
 /// <summary>

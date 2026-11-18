@@ -165,14 +165,14 @@ public class UserViewPreferencesApiControllerTests
     }
 
     [Fact]
-    public void GetByViewKey_FaHierarchyKommissionierSummiert_HasSevenColumns()
+    public void GetByViewKey_FaHierarchyKommissionierSummiert_HasEightColumns()
     {
         var config = ColumnDefinitions.GetByViewKey("FaHierarchyKommissionierSummiert");
 
         config.Should().NotBeNull();
-        config!.Columns.Should().HaveCount(7); // v1.99.43: + montage-abteilung
+        config!.Columns.Should().HaveCount(8); // v1.99.43: + montage-abteilung, lagerplaetze
         config.Columns.Select(c => c.Key).Should().ContainInOrder(
-            "hauptfa", "artnr", "matchcode", "kommissionieren", "montage-abteilung", "hauptlagerplatz", "sollmenge");
+            "hauptfa", "artnr", "matchcode", "kommissionieren", "montage-abteilung", "hauptlagerplatz", "lagerplaetze", "sollmenge");
         config.Columns.Single(c => c.Key == "hauptfa").Locked.Should().BeTrue();
         config.Columns.Single(c => c.Key == "matchcode").Locked.Should().BeTrue();
         config.SupportsSortDefault.Should().BeFalse();

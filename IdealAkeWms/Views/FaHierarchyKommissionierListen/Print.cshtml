@@ -110,6 +110,7 @@
                             @if (ShowCol("matchcode")) { <th>Matchcode</th> }
                             @if (ShowCol("sollmenge")) { <th class="text-end">Sollmenge</th> }
                             @if (ShowCol("hauptlagerplatz")) { <th>Hauptlagerplatz</th> }
+                            @if (ShowCol("lagerplaetze")) { <th>Lagerplätze</th> }
                             @if (ShowCol("kommissionieren")) { <th>Kommissionieren</th> }
                             @if (ShowCol("arbeitsbereich")) { <th>Arbeitsbereich</th> }
                             @if (ShowCol("montage-abteilung")) { <th>Abteilung</th> }
@@ -128,6 +129,7 @@
                                 @if (ShowCol("matchcode")) { <td>@pos.Matchcode</td> }
                                 @if (ShowCol("sollmenge")) { <td class="text-end">@pos.Sollmenge.ToString("N3", deCulture)</td> }
                                 @if (ShowCol("hauptlagerplatz")) { <td>@pos.Hauptlagerplatz</td> }
+                                @if (ShowCol("lagerplaetze")) { <td>@IdealAkeWms.Services.KommissionierListenService.LagerplatzText(Model.Lagerplaetze, pos.Artnr)</td> }
                                 @if (ShowCol("kommissionieren")) { <td>@pos.Kommissionieren</td> }
                                 @if (ShowCol("arbeitsbereich")) { <td>@pos.Arbeitsbereich</td> }
                                 @if (ShowCol("montage-abteilung")) { <td>@abteilung</td> }

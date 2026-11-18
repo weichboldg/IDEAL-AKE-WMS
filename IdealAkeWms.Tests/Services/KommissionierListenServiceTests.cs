@@ -43,16 +43,26 @@ public class KommissionierListenServiceTests
     private static FaHierarchyOrderInfo Info(int hauptFa, DateTime? koTermin = null) =>
         new FaHierarchyOrderInfo { HauptFA = hauptFa, KO_Termin = koTermin };
 
+    /// <summary>v1.99.43 (A4): Bestand-Mock; ohne Angabe kein Bestand.</summary>
+    internal static IStockMovementRepository StockMock(Dictionary<string, List<IdealAkeWms.Models.ViewModels.StockLocationInfo>>? bestand = null, List<List<string>>? aufrufe = null)
+    {
+        var m = new Mock<IStockMovementRepository>();
+        m.Setup(r => r.GetStockByArticleNumbersAsync(It.IsAny<List<string>>()))
+            .ReturnsAsync((List<string> a) => { aufrufe?.Add(a); return (bestand ?? new()).Where(x => a.Contains(x.Key)).ToDictionary(x => x.Key, x => x.Value); });
+        return m.Object;
+    }
+
     private static KommissionierListenService NewService(
         IEnumerable<FaHierarchyNode> nodes,
-        IEnumerable<FaHierarchyOrderInfo>? infos = null)
+        IEnumerable<FaHierarchyOrderInfo>? infos = null,
+        IStockMovementRepository? stock = null)
     {
         var nodeRepo = new Mock<IFaHierarchyNodeRepository>();
         nodeRepo.Setup(r => r.GetAllAsync()).ReturnsAsync(nodes.ToList());
         var infoRepo = new Mock<IFaHierarchyOrderInfoRepository>();
         infoRepo.Setup(r => r.GetAllAsync())
             .ReturnsAsync((infos ?? Enumerable.Empty<FaHierarchyOrderInfo>()).ToList());
-        return new KommissionierListenService(nodeRepo.Object, infoRepo.Object, NewBuilder());
+        return new KommissionierListenService(nodeRepo.Object, infoRepo.Object, NewBuilder(), stock ?? StockMock());
     }
 
     private static List<FaHierarchyOrderInfo> EmptyInfos() => new();
@@ -344,5 +354,62 @@ public class KommissionierListenServiceTests
         var gefiltert = KommissionierListenService.AggregateSummiert(nodes, infos, null, null,
             new Dictionary<string, string> { ["montage-abteilung"] = "WKS" }, 1, 100, paginate: true);
         gefiltert.Rows.Select(r => r.HauptFA).Should().Equal(1);
+    }
+
+    // ----- v1.99.43 A4: Spalte Lagerplätze -----
+
+    private static IdealAkeWms.Models.ViewModels.StockLocationInfo Ort(string code, decimal menge) => new() { Code = code, Quantity = menge };
+
+    [Fact]
+    public void FormatLagerplaetze_NurPositive_OhneNachkommaNullen_LeerStrich()
+    {
+        KommissionierListenService.FormatLagerplaetze(new[] { Ort("K-02", 12m), Ort("H4-05", 2.500m), Ort("X", 0m), Ort("Y", -3m) })
+            .Should().Be("K-02 (12), H4-05 (2,5)");
+        KommissionierListenService.FormatLagerplaetze(new[] { Ort("X", 0m) }).Should().Be("—");
+        KommissionierListenService.FormatLagerplaetze(null).Should().Be("—");
+    }
+
+    [Fact]
+    public async Task Liste_EineBatchAbfrage_NurArtikelDerSeite()
+    {
+        var nodes = new[] { Node(1, 0, "K-01", artnr: "A", position: 1), Node(1, 0, "K-01", artnr: "B", position: 2),
+                            Node(2, 0, "K-01", artnr: "C", position: 1) };
+        var aufrufe = new List<List<string>>();
+        var stock = StockMock(new() { ["A"] = new() { Ort("K-02", 12m) } }, aufrufe);
+
+        var r = await NewService(nodes, null, stock).BuildAsync(null, null, 1, 1, paginate: true);
+
+        aufrufe.Should().ContainSingle().Which.Should().BeEquivalentTo(new[] { "A", "B" }, "Seite 1 = HauptFA 1");
+        r.Lagerplaetze["A"].Should().Be("K-02 (12)");
+        r.Lagerplaetze["B"].Should().Be("—");
+    }
+
+    [Fact]
+    public async Task Liste_FilterLagerplatz_WirktVorDemPaging()
+    {
+        var nodes = new[] { Node(1, 0, "K-01", artnr: "A", position: 1), Node(2, 0, "K-01", artnr: "B", position: 1),
+                            Node(3, 0, "K-01", artnr: "C", position: 1) };
+        var aufrufe = new List<List<string>>();
+        var stock = StockMock(new() { ["B"] = new() { Ort("H4-05", 3m) }, ["C"] = new() { Ort("H4-05", 1m) } }, aufrufe);
+
+        var r = await NewService(nodes, null, stock).BuildAsync(null, new Dictionary<string, string> { ["lagerplaetze"] = "H4-05" }, 1, 1, paginate: true);
+
+        r.TotalGroupCount.Should().Be(2);
+        r.Groups.Single().HauptFA.Should().Be(2);
+        aufrufe.Should().ContainSingle("eine Abfrage fuer die Restmenge");
+    }
+
+    [Fact]
+    public async Task Summiert_LagerplaetzeGesetzt_UndFilterGreift()
+    {
+        var nodes = new[] { Node(1, 0, "K-01", artnr: "A", sollmenge: 1m), Node(2, 0, "K-01", artnr: "B", sollmenge: 1m) };
+        var stock = StockMock(new() { ["A"] = new() { Ort("K-02", 12m) } });
+        var svc = NewService(nodes, null, stock);
+
+        var alle = await svc.BuildSummiertAsync(null, null, null, 1, 100, paginate: true);
+        alle.Rows.Select(r => r.Lagerplaetze).Should().Equal("K-02 (12)", "—");
+
+        var gef = await svc.BuildSummiertAsync(null, null, new Dictionary<string, string> { ["lagerplaetze"] = "K-02" }, 1, 100, paginate: true);
+        gef.Rows.Select(r => r.Artnr).Should().Equal("A");
     }
 }

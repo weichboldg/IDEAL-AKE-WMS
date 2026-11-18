@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -64,7 +64,7 @@ public class FaHierarchyKommissionierListenControllerTests
             var infoRepo = new Mock<IFaHierarchyOrderInfoRepository>();
             infoRepo.Setup(r => r.GetAllAsync())
                 .ReturnsAsync((infos ?? Enumerable.Empty<FaHierarchyOrderInfo>()).ToList());
-            var service = new KommissionierListenService(nodeRepo.Object, infoRepo.Object, NewBuilder());
+            var service = new KommissionierListenService(nodeRepo.Object, infoRepo.Object, NewBuilder(), IdealAkeWms.Tests.Services.KommissionierListenServiceTests.StockMock());
 
             User.Setup(x => x.GetDefaultPageSizeAsync()).ReturnsAsync((int?)null);
             User.Setup(x => x.GetCurrentAppUserId()).Returns((int?)null);

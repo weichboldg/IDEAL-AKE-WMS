@@ -32,16 +32,54 @@ public class KommissionierListenService
     private readonly IFaHierarchyNodeRepository _nodes;
     private readonly IFaHierarchyOrderInfoRepository _orderInfos;
     private readonly FaHierarchyListBuilder _builder;
+    private readonly IStockMovementRepository _stock;
 
     public KommissionierListenService(
         IFaHierarchyNodeRepository nodes,
         IFaHierarchyOrderInfoRepository orderInfos,
-        FaHierarchyListBuilder builder)
+        FaHierarchyListBuilder builder,
+        IStockMovementRepository stock)
     {
         _nodes = nodes;
         _orderInfos = orderInfos;
         _builder = builder;
+        _stock = stock;
     }
+
+    /// <summary>v1.99.43 (A4): Spaltenschluessel „Lagerplätze“ und Text ohne Bestand.</summary>
+    public const string LagerplaetzeKey = "lagerplaetze";
+    public const string KeinLagerplatz = "—";
+    private static readonly CultureInfo De = CultureInfo.GetCultureInfo("de-DE");
+
+    /// <summary>v1.99.43 (A4, rein): Plaetze mit Menge &gt; 0 in Repository-Reihenfolge (Hauptplatz, Menge absteigend, Code),
+    /// „K-02 (12), H4-05 (2,5)“ ohne Nachkomma-Nullen; keiner → „—“.</summary>
+    public static string FormatLagerplaetze(IEnumerable<StockLocationInfo>? orte)
+    {
+        var teile = (orte ?? Enumerable.Empty<StockLocationInfo>()).Where(o => o.Quantity > 0)
+            .Select(o => $"{o.Code} ({o.Quantity.ToString("0.###", De)})").ToList();
+        return teile.Count == 0 ? KeinLagerplatz : string.Join(", ", teile);
+    }
+
+    /// <summary>Zelltext einer Position aus dem Lookup (fehlt der Artikel → „—“).</summary>
+    public static string LagerplatzText(IReadOnlyDictionary<string, string>? lookup, string? artnr) =>
+        lookup?.GetValueOrDefault((artnr ?? "").Trim()) ?? KeinLagerplatz;
+
+    /// <summary>v1.99.43 (A4): EINE Batch-Abfrage fuer alle Artikel (<see cref="IStockMovementRepository.GetStockByArticleNumbersAsync(List{string})"/>,
+    /// ohne Kommissionierwagen) → Artnr → Zelltext.</summary>
+    public async Task<IReadOnlyDictionary<string, string>> LagerplaetzeAsync(IEnumerable<string?> artnrs)
+    {
+        var liste = artnrs.Select(a => (a ?? "").Trim()).Where(a => a.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        if (liste.Count == 0) return new Dictionary<string, string>();
+        var roh = new Dictionary<string, List<StockLocationInfo>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (artnr, orte) in await _stock.GetStockByArticleNumbersAsync(liste)) roh.TryAdd(artnr.Trim(), orte);
+        return liste.ToDictionary(a => a, a => FormatLagerplaetze(roh.GetValueOrDefault(a)), StringComparer.OrdinalIgnoreCase);
+    }
+
+    /// <summary>Gesetzter Lagerplatz-Spaltenfilter → Filter ohne ihn (fuer die Kandidatenmenge), sonst null.</summary>
+    private static Dictionary<string, string>? OhneLagerplatzFilter(IReadOnlyDictionary<string, string>? columnFilters) =>
+        columnFilters != null && columnFilters.TryGetValue(LagerplaetzeKey, out var f) && !string.IsNullOrWhiteSpace(f)
+            ? columnFilters.Where(x => x.Key != LagerplaetzeKey).ToDictionary(x => x.Key, x => x.Value)
+            : null;
 
     /// <summary>Klartext-Name des Flags fuer Anomalie-Log/Banner.</summary>
     public const string FlagName = "Kommissionieren";
@@ -49,7 +87,7 @@ public class KommissionierListenService
     /// <summary>Spaltenschluessel-Liste der Liste (Drift-Waechter); die Werte der Kopf-Spalten liefert erst
     /// <see cref="BuildColumnMap"/> mit den Daten der Anfrage.</summary>
     public static readonly IReadOnlyDictionary<string, Func<FaHierarchyNode, string?>> ColumnMap =
-        BuildColumnMap(new Dictionary<int, string?>());
+        BuildColumnMap(new Dictionary<int, string?>(), null);
 
     /// <summary>v1.99.43 (A3): Montage-Abteilung(en) je HauptFA aus den Kopfzeilen — alle verschiedenen, kommagetrennt
     /// (<see cref="VormontageService.FormatTexte"/>), bewusst NICHT <see cref="VormontageService.FormatAbteilung"/> („Kombigerät“).</summary>
@@ -63,7 +101,8 @@ public class KommissionierListenService
     /// (kein Filter); <c>HauptArtnr</c> ist gemaess Anhang-Spaltenliste als Positionsspalte enthalten.
     /// v1.99.43: je Anfrage gebaut, weil „Abteilung“ aus den Kopfzeilen kommt (Filter wirkt vor dem Paging).
     /// </summary>
-    public static IReadOnlyDictionary<string, Func<FaHierarchyNode, string?>> BuildColumnMap(IReadOnlyDictionary<int, string?> abteilung) =>
+    public static IReadOnlyDictionary<string, Func<FaHierarchyNode, string?>> BuildColumnMap(
+        IReadOnlyDictionary<int, string?> abteilung, IReadOnlyDictionary<string, string>? lagerplaetze) =>
         new Dictionary<string, Func<FaHierarchyNode, string?>>
         {
             ["hauptfa"] = n => n.HauptFA.ToString(CultureInfo.InvariantCulture),
@@ -78,6 +117,7 @@ public class KommissionierListenService
             ["beschichtet"] = n => n.Beschichtet ? "Ja" : "Nein",
             ["material"] = n => n.Material,
             ["montage-abteilung"] = n => abteilung.GetValueOrDefault(n.HauptFA),
+            [LagerplaetzeKey] = n => LagerplatzText(lagerplaetze, n.Artnr),
         };
 
     /// <summary>
@@ -95,6 +135,7 @@ public class KommissionierListenService
             ["matchcode"] = a => a.Matchcode,
             ["hauptlagerplatz"] = a => a.Hauptlagerplatz,
             ["montage-abteilung"] = a => a.Abteilung,
+            [LagerplaetzeKey] = a => a.Lagerplaetze ?? KeinLagerplatz,
         };
 
     /// <summary>
@@ -116,12 +157,22 @@ public class KommissionierListenService
         var allNodes = await _nodes.GetAllAsync();
         var allInfos = await _orderInfos.GetAllAsync();
         var predicate = BuildFlagPredicate(ziele);
+        var abteilung = AbteilungJeHauptFa(allInfos);
+        FaHierarchyListResult Bauen(IReadOnlyDictionary<string, string>? filter, IReadOnlyDictionary<string, string>? lager, bool seiten) =>
+            _builder.Build(
+                allNodes, allInfos, predicate, FlagName,
+                filter, BuildColumnMap(abteilung, lager), page, pageSize, seiten,
+                leafOnly: false, anomalyOnNonLeaf: false,
+                columnTypes: ColumnFilterTypes.For("FaHierarchyKommissionierListen/Index"));
 
-        return _builder.Build(
-            allNodes, allInfos, predicate, FlagName,
-            columnFilters, BuildColumnMap(AbteilungJeHauptFa(allInfos)), page, pageSize, paginate,
-            leafOnly: false, anomalyOnNonLeaf: false,
-            columnTypes: ColumnFilterTypes.For("FaHierarchyKommissionierListen/Index"));
+        // v1.99.43 (A4): mit Lagerplatz-Filter erst die Restmenge der uebrigen Filter laden (eine Abfrage), dann filtern und pagen;
+        // ohne ihn nur die Artikel der gelieferten Gruppen (Seite bzw. ganze Druckmenge).
+        IReadOnlyDictionary<string, string>? lager = null;
+        if (OhneLagerplatzFilter(columnFilters) is { } ohne)
+            lager = await LagerplaetzeAsync(Bauen(ohne, null, false).Groups.SelectMany(g => g.Positions).Select(p => p.Artnr));
+        var result = Bauen(columnFilters, lager, paginate);
+        result.Lagerplaetze = lager ?? await LagerplaetzeAsync(result.Groups.SelectMany(g => g.Positions).Select(p => p.Artnr));
+        return result;
     }
 
     /// <summary>
@@ -138,7 +189,14 @@ public class KommissionierListenService
     {
         var allNodes = await _nodes.GetAllAsync();
         var allInfos = await _orderInfos.GetAllAsync();
-        return AggregateSummiert(allNodes, allInfos, ziele, kwRange, columnFilters, page, pageSize, paginate);
+        // v1.99.43 (A4): wie BuildAsync — mit Lagerplatz-Filter Restmenge laden, sonst nur die gelieferten Zeilen.
+        IReadOnlyDictionary<string, string>? lager = null;
+        if (OhneLagerplatzFilter(columnFilters) is { } ohne)
+            lager = await LagerplaetzeAsync(AggregateSummiert(allNodes, allInfos, ziele, kwRange, ohne, 1, int.MaxValue, false).Rows.Select(r => r.Artnr));
+        var result = AggregateSummiert(allNodes, allInfos, ziele, kwRange, columnFilters, page, pageSize, paginate, lager);
+        lager ??= await LagerplaetzeAsync(result.Rows.Select(r => r.Artnr));
+        foreach (var r in result.Rows) r.Lagerplaetze = LagerplatzText(lager, r.Artnr);
+        return result;
     }
 
     /// <summary>
@@ -167,7 +225,8 @@ public class KommissionierListenService
         IReadOnlyDictionary<string, string>? columnFilters,
         int page,
         int pageSize,
-        bool paginate)
+        bool paginate,
+        IReadOnlyDictionary<string, string>? lagerplaetze = null)
     {
         ArgumentNullException.ThrowIfNull(allNodes);
 
@@ -200,6 +259,7 @@ public class KommissionierListenService
                 Matchcode = g.First().Matchcode,
                 Hauptlagerplatz = g.First().Hauptlagerplatz,
                 Abteilung = abteilung.GetValueOrDefault(g.Key.HauptFA),
+                Lagerplaetze = lagerplaetze == null ? null : LagerplatzText(lagerplaetze, g.Key.Artnr),
             })
             .OrderBy(a => a.HauptFA)
             .ThenBy(a => a.Artnr, StringComparer.OrdinalIgnoreCase)
@@ -236,6 +296,7 @@ public class KommissionierListenService
     [
         "target", "kwVon", "kwBis",
         "colf_hauptfa", "colf_artnr", "colf_matchcode", "colf_kommissionieren", "colf_hauptlagerplatz",
+        "colf_montage-abteilung", "colf_lagerplaetze", // v1.99.43: in beiden Ansichten gleiche Bedeutung
     ];
 
     /// <summary>Baut die Query fuer den Umschalter Liste&lt;-&gt;Summiert aus den geteilten Keys
