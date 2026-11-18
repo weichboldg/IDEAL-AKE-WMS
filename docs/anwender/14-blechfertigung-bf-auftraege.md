@@ -13,16 +13,24 @@ In dieser ersten Stufe schreibt das WMS **nichts an Sage** und bucht **nichts ei
 | Was | Rolle (*Stammdaten → Rollen*) | Einstellung |
 |---|---|---|
 | Warenkorb füllen, abschicken, eigenen Auftrag bis zur Freigabe stornieren | Lagerbestellung (wer Lagerbestellungen anlegen darf) **oder** `schachtler` | *Blechfertigung aktiv* an |
-| Alle Aufträge sehen, Menge und Lagerplatz ändern, Positionen streichen, freigeben, fertig melden, bis zur Fertigmeldung stornieren, „CSV erneut schreiben“ | `schachtler` „Schachtler (Blechfertigung)“ | wie oben |
+| Alle Aufträge sehen, Menge und Lagerplatz ändern, Positionen streichen, freigeben, fertig melden, bis zur Fertigmeldung stornieren, „CSV erneut schreiben“, „Test-CSV herunterladen“ | `schachtler` „Schachtler (Blechfertigung)“ | wie oben |
 
 Ohne *Blechfertigung aktiv* fehlt das Menü, auch für Administratoren. Abschicken geht erst, wenn unter *Einstellungen → Blechfertigung* eine
-**Empfängergruppe BF-Aufträge** gewählt ist.
+**Empfängergruppe BF-Aufträge** gewählt ist. Sonst steht im Warenkorb „Abschicken gesperrt: keine gültige Empfängergruppe für BF-Aufträge
+eingestellt (Einstellungen > Blechfertigung).“ Die gewählte Gruppe steht im Auftrag unter **Empfängergruppe**.
+
+**Kürzel des Bestellers:** Jeder Besteller braucht unter *Stammdaten → Benutzer* ein **Kürzel** (z. B. *WAK*), siehe
+[Kapitel 13](13-anmeldung-und-benutzer.md). Ohne Kürzel kann der Schachtler den Auftrag nicht freigeben. Im Auftrag steht der Besteller als
+„Name (Kürzel)“.
 
 ## Schritt für Schritt
 
 ### 1. Bestellen (Besteller)
 
 1. Menü **Blechfertigung → BF-Warenkorb**.
+
+   ![BF-Warenkorb, noch leer](bilder/14-01-warenkorb.jpg)
+
 2. Im Suchfeld **Artikelnummer, Matchcode oder Bezeichnung** einen Begriff eingeben, **Suchen**. Gefunden werden nur Sage-Lagerartikel mit
    Artikeltyp **BG** (Baugruppe) oder **FT** (Fertigteil).
 3. In der Trefferzeile **Menge** eingeben, wenn nötig einen **Status** (z. B. *EILT*) und einen anderen **Hauptlagerplatz** wählen,
@@ -39,7 +47,13 @@ Ohne *Blechfertigung aktiv* fehlt das Menü, auch für Administratoren. Abschick
 1. Menü **Blechfertigung → BF-Aufträge**, Status *bestellt* filtern, Auftrag öffnen.
 2. Menge oder Hauptlagerplatz ändern bzw. Positionen **Streichen** (gestrichene bleiben sichtbar, gehen aber nicht an WiCAM).
 3. Steht über dem Knopf **Freigabe noch nicht möglich**, nennt die Liste Position und Grund, z. B. „Pos 3: Menge muss ein ganzes Vielfaches
-   der Bestellmenge 5 sein“ oder „Pos 2 Matchcode: Semikolon“. Erst korrigieren (bzw. in Sage pflegen), dann freigeben.
+   der Bestellmenge 5 sein“. Erst korrigieren (bzw. in Sage pflegen), dann freigeben. Weitere Sperren seit Version 1.99.42:
+   - „Pos 3: Materialnummer „…“ ist nicht ganzzahlig“ – die Materialnummer in Sage muss eine ganze Zahl sein.
+   - „Besteller … hat kein Kürzel – unter Stammdaten › Benutzer eintragen (geht als ORDER_REMARK_4 in die CSV)“ – Kürzel nachtragen
+     lassen, dann noch einmal **Freigeben**. Das Kürzel wird bei der Freigabe aktuell gelesen und festgeschrieben.
+   - „keine Position wird an WiCAM übergeben (alle gestrichen oder ohne Materialnummer)“.
+   - Unerlaubte Zeichen, z. B. „Pos 2 Matchcode: …“: Semikolon `;`, Anführungszeichen `"`, Zeilenumbruch oder ein Zeichen, das es in
+     der WiCAM-Datei (Windows-1252) nicht gibt. Ausnahme: Im **Lagerplatz** ist `;` erlaubt, es wird in der Datei zu `,`.
 4. **Freigeben**. Das WMS rechnet ab heute:
    - **Schachteltermin** = heute + 1 Arbeitstag,
    - **FE-Termin** = heute + 10 Arbeitstage,
@@ -51,6 +65,14 @@ Ohne *Blechfertigung aktiv* fehlt das Menü, auch für Administratoren. Abschick
 
 Der Dienst schreibt die Datei **BF00000042.csv** innerhalb weniger Minuten in den WiCAM-Pool. In der Liste zeigt die Spalte **CSV**:
 *offen*, *geschrieben* oder *Fehler* (Mauszeiger auf die Zelle zeigt den Fehlertext).
+
+Aufbau der Datei (seit Version 1.99.42 genau nach der WiCAM-Vorlage *BF00000002.csv*): oben Kopfzeilen, in Zeile 13 deutsche
+Spaltenüberschriften (Matchcode, Mat.Nr., Menge, Bemerkung, Lagerplatz, Hauptlagerplatz, Besteller, Schachteltermin, FE-Termin,
+Arbeitsschritte), ab Zeile 14 eine Zeile je Position. *Lagerplatz* ist der volle Sage-Lagerplatz (`K-02;0;0;0` wird `K-02,0,0,0`),
+*Hauptlagerplatz* der Teil davor (`K-02`), *Besteller* das Kürzel.
+
+**Test-CSV herunterladen** (nur Schachtler, sobald der Auftrag eine BF-Nummer hat): lädt dieselbe Datei herunter, die der Dienst in den
+Pool schreibt – ohne Statuswechsel und ohne Datei im Pool. Vor der Freigabe fehlen darin noch Termine und Bemerkung.
 
 Bei **„Datei existiert bereits im Pool – nicht überschrieben.“** wiederholt das WMS nicht von selbst. In WiCAM prüfen, ob der Auftrag
 schon angelegt ist; wenn nicht, die Datei im Pool löschen und im Auftrag **CSV erneut schreiben** drücken.
@@ -74,9 +96,11 @@ Den Warenkorb storniert man nicht – Positionen einfach entfernen.
 
 ## Hinweise und Stolperfallen
 
-- **Platzhalter-Format:** Das Dateiformat entspricht der Vorlage aus der Spezifikation. Vor dem ersten echten Einsatz wird es mit einer
-  Musterdatei aus dem WiCAM-Pool abgeglichen.
-- Zeichen wie `;` oder `"` in Matchcode, Lagerplatz oder Fertigungsinfo sperren die Freigabe, weil WiCAM die Datei sonst falsch liest.
+- **Dateiformat:** Seit Version 1.99.42 entspricht die Datei der Musterdatei *BF00000002.csv* aus dem WiCAM-Pool (vorher Platzhalter-Format).
+- Zeichen wie `;` oder `"` in Matchcode, Materialnummer, Status, Fertigungsinfo oder Arbeitsschritten sperren die Freigabe, weil WiCAM die
+  Datei sonst falsch liest. Im Lagerplatz ist `;` erlaubt (wird zu `,`).
+- Steht im Auftrag gelb „Sage-Benutzerfelder nicht konfiguriert: …“, fehlt eine Einstellung beim Administrator (*Service-Einstellungen*,
+  Kategorie „Sage-Benutzerfelder: Blechfertigung“). Ohne „Ist Lagerartikel“ und „Artikeltyp“ findet die Artikelsuche nichts.
 - Der Bezugstag der Termine ist der **Freigabetag**, nicht der Bestelltag.
 - Feiertage kommen aus *Stammdaten → Feiertage*. Fehlen sie für das Jahr, rechnen die Termine nur ohne Wochenenden.
 
@@ -86,4 +110,11 @@ Den Warenkorb storniert man nicht – Positionen einfach entfernen.
 
 **Warum bekommt der Besteller keine Mail bei Freigabe?** Gewollt: Mail gibt es nur beim Abschicken an die Empfängergruppe.
 
+**Der Besteller hat jetzt ein Kürzel – muss er neu bestellen?** Nein. Der Schachtler drückt einfach noch einmal **Freigeben**; das
+Kürzel wird dabei frisch gelesen.
+
 **Kann ich eine Liste exportieren?** Ja, über das Zahnrad bzw. den CSV-Knopf über der Tabelle (Liste und Positionen im Auftrag).
+
+## Unterschiede AKE und IDEAL
+
+BF-Aufträge gibt es nur bei **IDEAL** (Einstellung *Blechfertigung aktiv*). Bei AKE ist das Menü **Blechfertigung** ausgeblendet.
