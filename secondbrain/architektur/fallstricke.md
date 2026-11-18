@@ -2131,3 +2131,16 @@ Code: `hardware-scanner.js` Block „Scannen ohne Feld“, CSS `.hw-scan-bereit`
 
   Siehe ADR [[0033-sage-benutzerfelder-als-einstellung]].
 - **Test:** `SageUserfelderTests.Default_selects_unveraendert_wie_v1_99_39` hält die AKE-Abfragen zeichengleich. Wer sie absichtlich ändert, zieht den Test mit.
+
+## 52. Positionen ohne FA nie in die Vergaben; der Vorschlags-Haken ist kein Zustand (v1.99.41, [[2026-11-18-v1-99-41-beschichtungsauftrag-ausbau]])
+
+- **Problem 1:** Eine Position ohne FA (`OhneFa = 1`) hat keinen Herkunftsschlüssel aus der Struktur (HauptFA/VaterFA/SubFA/Position bleiben
+  leer bzw. 0). Liefe sie durch `GetVergabenAsync`/`VergabenJeSchluessel`, kollidierten alle freien Positionen eines HauptFA miteinander:
+  derselbe Artikel ließe sich kein zweites Mal vergeben, und die Vorschlagsliste zählte falsch.
+- **Regel:** Jede Abfrage über Vergaben filtert `!OhneFa` (Repository `GetVergabenAsync`, Workflow `EigeneSchluessel`,
+  `GetHinzufuegbarePositionenAsync`). Wer eine neue Vergabe-Abfrage schreibt, nimmt den Filter mit.
+  Folge (gemeldet, nicht gebaut): Ein Auftrag **nur** aus Positionen ohne FA steht nicht im Gruppenkopf der Vorschlagsliste.
+- **Problem 2:** Der Haken in der Vorschlagsliste ist eine Auswahl, kein gespeicherter Zustand (Rückfrage 8). Der Server wertet nur, was gepostet
+  wird: `schluessel` (Liste), `artnr` (Summiert, Server löst zu den **jetzt** freien Positionen auf), `freiArtikelId`/`freiMenge`.
+  Ist ein Teil ungültig, wird **nichts** angelegt (keine Nummer verbraucht); nie still den gültigen Rest anlegen.
+- **Test:** `BeschichtungsauftragWorkflowTests.FreiePosition_GleicherArtikelInZweiAuftraegen…`, `BeschichtungsauftraegeControllerTests.Create_TeilweiseUngueltig_GanzAbgelehnt_NenntVergabe`.

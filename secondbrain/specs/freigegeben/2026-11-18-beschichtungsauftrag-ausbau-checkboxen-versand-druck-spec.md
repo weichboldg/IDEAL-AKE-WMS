@@ -2,7 +2,7 @@
 type: spec
 title: "Beschichtungsauftrag: Verpackt-Haken im Vorschlag und am Auftrag, freie Positionen, Status Versendet, Kreditor-Anschrift, Druck überarbeitet"
 slug: 2026-11-18-beschichtungsauftrag-ausbau-checkboxen-versand-druck-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-11-18
 updated: 2026-11-18
 source_backlog: "[[2026-11-18-beschichtungsauftrag-ausbau-checkboxen-versand-druck]]"
@@ -477,20 +477,28 @@ markiert; die Etappe baut dann den Rückfall und hält den Prüfschritt als Bloc
 
 | # | Etappe | Status | Commit |
 |---|--------|--------|--------|
-| 1 | E1 Schema + Status Versendet: Model, Migration, SQL (Nummer beim Start), FreshInstall ×2, Übergänge, `IstDruckbar`, Badge, Statusverlauf, Listen-Spalte „Versendet am“, Tests (AK 10, 12, 13, 18) | offen | |
-| 2 | E2 Auftrag bis vor Versendet: Haken, Menge/Entfernen/Hinzufügen in Übergeben, freie Positionen am Auftrag, `GetVergabenAsync` ohne OhneFa, Versendet-Regel, Reklamation-Kopie (AK 7-11, 20, 21). Maße IDEAL hängen an **P-3** (Rückfall 0 + Warnung) | offen | |
-| 3 | E3 Vorschlagsliste: Haken hinten Liste + Summiert, Anlage nur Auswahl, freie Positionen im Gruppenkopf (AK 1-6, 22) | offen | |
-| 4 | E4 Lackierer aus Kreditoren: `CreditorId`-Auswahl, Server-Validierung, IDEAL-Vorbelegung, Anschrift im Briefkopf (AK 14, 15, 17). Anschrift-Inhalt hängt an **P-2** (Bau unabhängig) | offen | |
-| 5 | E5 Druck/PDF: je Position, Pos.-Nr., Menge, HauptFA im Kopf, Verpackt-Spalte, Bemerkung-Absicherung; **P-1** am Anfang der Etappe (AK 16, 19) | offen | |
-| 6 | E6 Doku: TESTSZENARIEN + Index, Hilfe/Kurzanleitung, Anwender- und Brain-Changelog, Version beide `AppVersion.cs`, Manifest, feature-map, codebase-Karte (Status-Automat), ggf. fallstricke (freie Positionen nie in Vergaben) | offen | |
+| 1 | E1 Schema + Status Versendet: Model, Migration, SQL (Nummer beim Start), FreshInstall ×2, Übergänge, `IstDruckbar`, Badge, Statusverlauf, Listen-Spalte „Versendet am“, Tests (AK 10, 12, 13, 18) | erledigt | 5c042c3d |
+| 2 | E2 Auftrag bis vor Versendet: Haken, Menge/Entfernen/Hinzufügen in Übergeben, freie Positionen am Auftrag, `GetVergabenAsync` ohne OhneFa, Versendet-Regel, Reklamation-Kopie (AK 7-11, 20, 21). Maße IDEAL hängen an **P-3** (Rückfall 0 + Warnung) | erledigt | b525cfba |
+| 3 | E3 Vorschlagsliste: Haken hinten Liste + Summiert, Anlage nur Auswahl, freie Positionen im Gruppenkopf (AK 1-6, 22) | erledigt | 4b2b490c |
+| 4 | E4 Lackierer aus Kreditoren: `CreditorId`-Auswahl, Server-Validierung, IDEAL-Vorbelegung, Anschrift im Briefkopf (AK 14, 15, 17). Anschrift-Inhalt hängt an **P-2** (Bau unabhängig) | erledigt | 5ff2c7a8 |
+| 5 | E5 Druck/PDF: je Position, Pos.-Nr., Menge, HauptFA im Kopf, Verpackt-Spalte, Bemerkung-Absicherung; **P-1** am Anfang der Etappe (AK 16, 19) | erledigt | b1ce8608 |
+| 6 | E6 Doku: TESTSZENARIEN + Index, Hilfe/Kurzanleitung, Anwender- und Brain-Changelog, Version beide `AppVersion.cs`, Manifest, feature-map, codebase-Karte (Status-Automat), ggf. fallstricke (freie Positionen nie in Vergaben) | erledigt | cf11a777 |
 
 ## Deploy
 
-*Vorläufig – der QA-Lauf bestätigt gegen den echten Diff.*
+*Vom QA-Lauf 2026-11-18 gegen den echten Diff `c39126c3..9b6b3e0d` bestätigt.*
 
-- **Web-App:** ja (Controller, Workflow, Repository, Views, Migration im Web-Projekt).
-- **Service:** nein (kein Dienstcode betroffen; nur Versionsnummer, falls der Bündelstand ohnehin beide ausliefert).
-- **Migration:** ja, additiv (fünf Spalten, ein FK, ein Index). Reihenfolge: Schema vor Web-Start (Phase Schema).
+- **Web-App:** ja (Controller, Workflow, Repository, Views, JS, Migration im Web-Projekt).
+- **Service:** nur Versionsnummer (`IDEALAKEWMSService/AppVersion.cs` 1.99.41, sonst kein Dienstcode). Wird mit dem
+  Bündelstand ohnehin ausgeliefert.
+- **Migration:** ja, additiv: `20261118120203_AddBeschichtungsauftragVersandUndVerpackt` = `SQL/161_AddBeschichtungsauftragVersandUndVerpackt.sql`
+  (fünf Spalten, ein FK, ein Index; FreshInstall an beiden Stellen). Kein Daten-/Einmal-Skript. Reihenfolge:
+  DB-Backup → SQL/161 (Phase Schema, Update-Skript automatisch) → Web → Dienst → Nachher-Prüfungen aus dem Manifest
+  ansehen (Beschichter-Kreditoren, offene Übergeben-Aufträge, Info).
+- **Manifest:** die vier Einträge unten stehen in `scripts/deploy/nachlauf.psd1` (geprüft).
+- **Publish:** im QA-Lauf bewusst **nicht** angelegt (Auftrag: `publish\paket6-*` macht der Folgelauf). Ablauf des
+  Menschen: Publish aus dem Worktree → Testsystem → Test → Merge. Nach dem Merge nur dann aus `main` neu publishen, wenn
+  der Merge getestete Dateien mit parallelen main-Änderungen zusammengeführt hat.
 - **Manifest-Einträge** (`scripts/deploy/nachlauf.psd1`, ADR 0022/0023):
   - `Id='SQL/<NNN>'; Version='<v>'; Typ='Schema'; Firma='beide'; Phase='Schema'; Ausfuehrung='automatisch';
     Datei='<NNN>_<Name>.sql'; MigrationId='<ts>_<Name>'; Voraussetzung='additiv'; Quelle='<brain-changelog>'`
@@ -592,3 +600,132 @@ steht je Frage als Zitat; sie ist **nicht** in den Freigabe-Block eingetragen. �
 15. Altaufträge ohne Datenskript → **Gerald 2026-11-18 12:55 „können wir starten“ – wie Empfehlung.**
 16. Bemerkung: P-1 + Rückfrage bei ungespeicherter Bemerkung → **Gerald 2026-11-18 12:55 „können wir starten“ – wie Empfehlung.**
 17. Kreditor-Vorbelegung IDEAL über Kurzname → **Gerald 2026-11-18 12:55 „können wir starten“ – wie Empfehlung.**
+
+## QA-Nachweis (qa-agent, 2026-11-18)
+
+Geprüfter Bereich: `c39126c3..cf11a777` (E1 5c042c3d, E2 b525cfba, E3 4b2b490c, E4 5ff2c7a8, E5 b1ce8608, E6 cf11a777)
+plus QA-Fix `9b6b3e0d`. Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Version 1.99.41.
+
+### 1. Build und Tests
+
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler, 29 Warnungen (Bestand).
+- `dotnet test` vor dem QA-Fix: IdealAkeWms.Tests 3286 bestanden / 1 übersprungen / 0 Fehler (3287);
+  IDEALAKEWMSService.Tests 779 / 0 / 0.
+- `dotnet test` nach dem QA-Fix (HEAD 9b6b3e0d): **IdealAkeWms.Tests 3287 bestanden / 1 übersprungen / 0 Fehler (3288)**;
+  **IDEALAKEWMSService.Tests 779 / 0 / 0**.
+
+### 2. Code-Review (selbst, in diesem Lauf)
+
+Gelesen: Workflow (Übergänge, AnlegenAsync/AuswahlAsync, BearbeitenAsync, FreiePositionenAsync, StatusWechselnAsync,
+KreditorVorbelegen, Kopie), Controller (Create, Bearbeiten, TryFreiePositionen, Print/Pdf, Filter/Antiforgery),
+Repository (GetVergabenAsync `!OhneFa`, GetBeschichterAsync, GetArtikelMitMassenAsync, GetDetailAsync), Views Details/Index/
+Print/_PrintBriefkopf/FaHierarchyBeschichtung Index+Summiert/_VorschlagAuftraege/_BeschichtungFreiePositionen,
+`beschichtung-frei.js`, `beschichtung-bemerkung.js`, PrintBriefkopfModel, SQL/161, FreshInstall, Migration, Manifest.
+Gezielt geprüfte Fehlerklassen: kein `@Html.Raw` in `<script>`; `#bemerkung-ungespeichert` mit `hidden` ohne `d-*`;
+keine stillen `?? 0` (Maße IDEAL = 0 nur mit sichtbarem Hinweis + Log-Warnung, A7/P-3); Server erzwingt Menge > 0,
+Kreditor-Prüfung, A6, Übergänge; Regel „freie Position nie Vergabe“ nur an einer Stelle (`GetVergabenAsync`).
+
+| # | Schwere | Befund | Fundstelle | Behandlung |
+|---|---|---|---|---|
+| F1 | mittel | Parallel-Array-Bindung: der `<select name="freiArtikelId">` der Zeile „Position ohne FA“ hatte keine Option; eine Zeile ohne Artikel (oder per allowClear geleert) sendete nichts, `freiMenge` aber jede Zeile. `TryFreiePositionen` paart per Index → Zeile 1 (kein Artikel, Menge 5) + Zeile 2 (Artikel X, Menge leer) wurde still als „X mit 5“ angenommen | `IdealAkeWms/wwwroot/js/beschichtung-frei.js:14` (vorher), Controller `TryFreiePositionen` | **behoben** in 9b6b3e0d (leere Option, jede Zeile sendet), Guard-Test `BeschichtungsauftraegeViewTests.FreiePositionen_ArtikelAuswahl_SendetJedeZeile`; auf DEV IDEAL nachgeprüft (leere Zeile 1 + Zeile 2 mit „abc“ → Meldung nennt korrekt „Position ohne FA 2“) |
+| H1 | niedrig | Druck zeigt die Spalte „Verpackt“ immer, unabhängig von der Spaltenauswahl (`ShowCol("verpackt")` wird nicht gefragt) | `Views/Beschichtungsauftraege/Print.cshtml` | gemeldet, nicht gebaut (AK 16 verlangt die Spalte) |
+| H2 | niedrig | Reklamations-Auswahlseite zeigt eine freie Position als „— / 0 / —“ statt „ohne FA“ (im neuen Auftrag korrekt „ohne FA“) | `Views/Beschichtungsauftraege/Reklamation.cshtml` | gemeldet, kosmetisch |
+| H3 | niedrig | `BearbeitenAsync` nimmt freie Positionen auch in einem Reklamations-Entwurf per direktem POST an; die UI bietet es dort nicht an | `Services/BeschichtungsauftragWorkflow.cs` BearbeitenAsync | gemeldet; fachlich unschädlich |
+| H4 | niedrig | `AnlegenAsync(null)` („alle freien“) wird nur noch von Tests benutzt | Workflow AnlegenAsync | gemeldet (toter Pfad) |
+| H5 | niedrig | Wird ein Kreditor inaktiv, fällt `CreditorId` beim nächsten Kopf-Speichern im Entwurf auf Freitext zurück – mit sichtbarer Warnung | Workflow BearbeitenAsync | akzeptiert (meldet statt still) |
+| H6 | niedrig | EF-Migration legt Default-Constraints mit generierten Namen an, SQL/161 mit benannten `DF_…` – Namen driften zwischen migrierten und per Skript angelegten DBs | Migration vs. `SQL/161_…sql` | gemeldet; betrifft nur spätere DROP-Skripte |
+| H7 | niedrig | Menge `0.###` rundet die 4. Nachkommastelle (Spalte decimal(18,4)) | Print.cshtml FormatMass | wie Rückfrage 13 entschieden |
+| bekannt | – | Ein Auftrag nur aus Positionen ohne FA erscheint nicht im Gruppenkopf „Aufträge:“ der Vorschlagsliste | Vorschlag `_VorschlagAuftraege` | laut Auftrag gemeldet, nicht gebaut |
+
+Rechte: alle Schreib-Actions `[RequireBeschichtungsauftragWriteAccess]` + `[ValidateAntiForgeryToken]`, Klasse
+`[RequireBeschichtungsauftragAccess]` + `[RequireFaHierarchyBeschichtungAktiv]`. Audit: Erstellt/Geaendert an Kopf und
+Position (auf DEV belegt, s. u.).
+
+### 3. Beweisart je Akzeptanzkriterium
+
+| AK | Beweis |
+|---|---|
+| 1, 2 | Unit (`BeschichtungsauftragVergabeAnzeigeTests`, Controller-Tests) + DEV-Browser (IDEAL Liste/Summiert, „n von m frei“) |
+| 3, 4, 5 | Unit (Controller/Workflow: Auswahl, leer, teilweise ungültig) + DEV (3, 4); 5 Zwei-Tab-Lauf **Manual-UAT** (InMemory beweist Serializable nicht) |
+| 6, 7 | Unit (Workflow freie Positionen, GetVergaben ohne OhneFa) + DEV IDEAL/AKE |
+| 8, 9 | Unit (BearbeitenAsync in Übergeben) + DEV IDEAL (Audit, Freigabe der entfernten Position) |
+| 10, 11, 12 | Unit (Übergänge, A6, Ablehnung ab Versendet, Übergeben→Erledigt) + DEV (10, UI-Teil von 11/12); direkter POST **Manual-UAT** |
+| 13 | Unit (Listenfilter) + DEV Spalte „Versendet am“; Filter/Paging im Browser **Manual-UAT** |
+| 14 | Unit (Kreditor-Prüfung) + DEV (Auswahl nur aktive Beschichter); manipulierter POST **Manual-UAT** |
+| 15 | Unit (Vorbelegung) + DEV IDEAL positiv (GL); Gegenprobe ohne/mehrere Treffer **Manual-UAT** |
+| 16, 17, 18, 19 | View-Tests + DEV Chrome (Druck + PDF); Edge **Manual-UAT**; Rückfrage-Dialog (confirm) **Manual-UAT** |
+| 20 | Unit (Kopie) + DEV IDEAL |
+| 21 | Filter-Attribute (Code) – Benutzer L **Manual-UAT** |
+| 22 | DEV AKE (Schalter) |
+| 23 | Build/Tests grün (oben) |
+
+### 4. Geänderte bestehende Tests
+
+Alle eingeordnet, keine Kategorie „sonstige“: Create-Aufrufe mit Auswahl `Alle` (A3); `PositionenHinzufuegen` →
+`Bearbeiten(nurPositionen, schluessel)` (A8), `PositionenHinzufuegen_LeereAuswahl_Warnung` entfernt (A8, ein Formular);
+Status-Helfer über Versenden (A5/A6); Theorie verbotener Übergänge erweitert (A5); Enum-Test 10,30,35,40,90 (A5);
+„nur im Entwurf“ → „nur in Entwurf und Übergeben“ (A8); Druck-Test summiert → je Position (A11, Rückfrage 11);
+View-Tests ShowCol-Schlüssel (A11c); Umbenennung `EntwurfBearbeitenAsync` → `BearbeitenAsync` und BOM in Testdateien
+(nur Typ/Format).
+
+### 5. Checkliste CLAUDE.md / ADR 0020
+
+Migration + idempotentes SQL/161 (COL_LENGTH-/sys-Guards, DDL in eigenen Batches, History-Insert separat): ja.
+FreshInstall beide Stellen: ja. AgentJobs: nicht betroffen. Audit-Felder: ja. Version beide `AppVersion.cs` 1.99.41 +
+Anwender-Changelog: ja. TS-162 in `docs/TESTSZENARIEN.md` und im Testindex: ja. Manifest `nachlauf.psd1` (SQL/161,
+zwei Prüfungen, Info): ja. Neue/geänderte Einstellungen: keine (ADR 0020 entfällt).
+
+### 6. DEV-Deploy und Testlauf
+
+- Dienste/Sites gestoppt, `D:\Dev\{AKE,IDEAL}\{Web,Service}` geleert (je Standort Web 65 / Service 72 Einträge;
+  behalten: `appsettings.DEV.json*`, `logs`, `App_Data`).
+- `dev-deploy.ps1 -Standort AKE|IDEAL -Quelle <worktree>`: beide Exit 0, HTTP 200, Fußzeile **v1.99.41**,
+  DEV-Sicherheits-SQL angewendet, Dienst gestartet. Migration `20261118120203_…` in `__EFMigrationsHistory` von
+  AKE_WMS_DEV und IDEAL_WMS_DEV. Der Deploy enthielt den QA-Fix (damals uncommitted, identisch mit 9b6b3e0d).
+- `FaHierarchyBeschichtungAktiv` war auf beiden DEV-DBs bereits `true` – nichts geändert, nichts zurückzusetzen.
+- Testdaten: Kreditoren QA-LACK1 (aktiv, Beschichter, volle Anschrift), QA-LACK2 (aktiv, Beschichter, ohne Anschrift),
+  QA-LACK3 (inaktiv), QA-LACK4 (kein Beschichter) in beiden DEV-DBs. IDEAL: BA-2026-00001..00004 per SQL storniert,
+  um HauptFA 1060414 frei zu bekommen; neu BA-2026-00006/00007/00008. AKE: neu BA-2026-00002.
+
+| Schritt | Ergebnis | Bewertung |
+|---|---|---|
+| 162.1 | IDEAL Liste: 2 Positionen angehakt → BA-2026-00006 mit 2 Positionen, Verpackt=1, OhneFa=0 | OK |
+| 162.2 | IDEAL Summiert: Zeile 50000295 (3 Positionen) angehakt → alle 3 im Auftrag BA-2026-00007; Zeile danach „vollständig vergeben“; Teilvergabe 50002326 zeigt „2 von 3 frei“ | OK |
+| 162.3 | nichts angehakt → „Keine Position angehakt — nichts angelegt.“, nächste Nummer unverändert | OK |
+| 162.4 | Zwei-Tab-Lauf nicht durchgeführt (Unit-Test deckt die Ablehnung) | NICHT MOEGLICH (Zeit; Mensch) |
+| 162.5 | „abc“ → „Menge „abc“ ist keine Zahl“, 0 → „Menge muss größer 0 sein“, leere Menge mit Artikel → abgelehnt, nichts angelegt; 3 → Position „ohne FA“ Menge 3. IDEAL: Maße 0 + Hinweis „Maße 0 bei Positionen ohne FA (IDEAL …)“; AKE: Maße 12,4/67,3/294,6 wie die FA-Positionen derselben Artnr. -1 nicht einzeln getippt (gleiche Serverregel wie 0) | OK |
+| 162.6 | zweiter Auftrag (BA-2026-00006) mit demselben freien Artikel 50000005 → gespeichert, keine Doppelvergabe-Meldung | OK |
+| 162.7 | BA-2026-00006 in Übergeben: Haken gelöst, Menge 1,5, Position 50002326 entfernt, freie Position hinzugefügt, gespeichert; Kopf ohne Eingabefelder; Audit `ModifiedAt/By/ByWindows` an Kopf und Position gesetzt; 50002326 im Vorschlag wieder „3 frei“. Kandidat hinzufügen nicht einzeln geklickt | OK |
+| 162.8 | Versendet mit offener freier Position → „Versendet nur, wenn alle Positionen verpackt sind — nicht verpackt (1): 50000005 (ohne FA)…“; nach Haken + Speichern gelingt es, Statusverlauf „Versendet 18.11.2026 13:43 · Gerald Weichbold“, `VersendetAt/ByUserId` gesetzt | OK |
+| 162.9 | UI: Versendet zeigt keine Eingabefelder für Positionen. Direkter POST nicht abgesetzt | UI OK / POST NICHT MOEGLICH (Unit-Test deckt) |
+| 162.10 | kein Knopf Übergeben→Erledigt (nur „Auf Versendet setzen“). Manipulierter POST nicht abgesetzt | UI OK / POST NICHT MOEGLICH (Unit-Test deckt) |
+| 162.11 | Liste zeigt Spalte „Versendet am“ (BA-2026-00007: 18.11.2026 13:43). Filter/Paging nicht durchgespielt | teilweise; Rest Mensch |
+| 162.12 | Auswahl zeigt nur GL, QA-LACK1, QA-LACK2 (nicht QA-LACK3 inaktiv, nicht QA-LACK4); QA-LACK1 gewählt → Dienstleister „QA Lackiererei Voll GmbH“, CreditorId gesetzt. POST mit inaktivem/Nicht-Beschichter nicht abgesetzt | OK / POST NICHT MOEGLICH (Unit-Test deckt) |
+| 162.13 | IDEAL: HauptFA 1060414 mit Sage-Dienstleister „GL“ → Kreditor GL vorbelegt. Gegenprobe ohne/mehrere Treffer nicht durchgeführt | positiv OK, Gegenprobe Mensch |
+| 162.14 / P-1 | Chrome: Druck BA-2026-00007 – Brief-Anschrift Name/Straße/PLZ Ort/Land, HauptFA in der Kopftabelle, Pos. 1..4, Menge „1“/„3“, Verpackt ☑, „ohne FA“ markiert, **Bemerkung 2 Zeilen sichtbar**. PDF (`/Pdf/7`, 71 976 Bytes) im Chrome-PDF-Viewer: gleicher Inhalt, **Bemerkung 2 Zeilen sichtbar**, Briefkopf-Hinweis nicht im PDF. Edge nicht geprüft | Chrome OK; Edge NICHT MOEGLICH (nur Chrome-Automation) |
+| 162.15 | BA-2026-00006 mit QA-LACK2 (ohne Anschrift): Empfänger = Name, gelber Hinweis „Anschrift des Kreditors unvollständig …“ am Bildschirm | OK (Ausdruck ohne Hinweis: im PDF von 00007 belegt) |
+| 162.16 | Bemerkung getippt → „⚠ nicht gespeichert“ erscheint am Feld. Rückfrage-Dialog nicht ausgelöst (Automationsgrenze) | Anzeige OK / confirm NICHT MOEGLICH |
+| 162.17 | Reklamation aus BA-2026-00007 (Erledigt) mit freier Position + einer FA-Position → BA-2026-00008, „ohne FA“ übernommen, beide „offen“ (Verpackt=0), Kreditor QA-LACK1 übernommen | OK |
+| 162.18 | Benutzer L nicht verfügbar (Windows-Anmeldung = Admin) | NICHT MOEGLICH |
+| 162.19 | AKE: Haken gesetzt, „auch kommissionierte zeigen“ umgeschaltet → Seite neu, Haken weg | OK |
+| 162.20 | Tastatur-/Zoom-Prüfung nicht durchgeführt; Zustand ist als Text sichtbar („vergeben“, „verpackt“, „offen“) | teilweise; Rest Mensch |
+
+Dienst: keine Dienständerung außer Version; kein Sage-Schreibweg berührt, `SageFaArbeitsgaengeAnlegenAktiv` aus.
+
+### 7. Publish
+
+Laut Auftrag **nicht** angelegt (`publish\paket6-*` macht der Folgelauf).
+
+### Manuelle Testcheckliste für den Menschen
+
+1. 162.4 Zwei Tabs, gleiche Position, nacheinander erstellen → zweiter abgelehnt mit Nummer des ersten.
+2. 162.5 Menge -1 einmal tippen (Erwartung wie 0).
+3. 162.9 / 162.10 / 162.12 direkte POSTs per Entwicklertools (Versendet bearbeiten, Übergeben→Erledigt, inaktiver bzw. Nicht-Beschichter-Kreditor) → abgelehnt.
+4. 162.11 Statusfilter „Versendet“, Spaltenfilter `status` und „Versendet am“, Seitenwechsel.
+5. 162.13 IDEAL Gegenprobe: Sage-Dienstleister ohne passenden bzw. mit zwei passenden Beschichtern → nur Text + Hinweis.
+6. 162.14 / P-1 in **Edge** (Druck + PDF) mit gespeicherter zweizeiliger Bemerkung.
+7. 162.16 Rückfrage „Bemerkung ist nicht gespeichert — trotzdem fortfahren?“ bei Drucken/PDF/Statusknopf/Speichern; Abbrechen lässt den Text stehen.
+8. 162.18 mit einem Benutzer nur `beschichtungsauftrag` (Lesen): keine Checkboxen/Statusknöpfe, POST verweigert.
+9. 162.20 Terminal-Ansicht, Zoom 200 %, nur Tastatur.
+10. P-2 (Sage-Anschrift der Beschichter) und P-4 (Mengengerüst Altbestand) vor dem Deploy.
+11. Gesamter TS-162 auf dem Testsystem nach Publish (Folgelauf) – vorher Beschichter in `/Creditors` kennzeichnen.

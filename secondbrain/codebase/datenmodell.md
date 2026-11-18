@@ -154,6 +154,11 @@ konsolidiertes `../../SQL/00_FreshInstall.sql`. Der Workflow ist verbindlich —
 
 ## Beschichtungsauftrag als gespeichertes Objekt (IDEAL, v1.50.0, Bündel)
 
+> **Ergänzung v1.99.41** (Migration 161 `20261118120203_AddBeschichtungsauftragVersandUndVerpackt`, [[2026-11-18-v1-99-41-beschichtungsauftrag-ausbau]]): Status **Versendet = 35**
+> (Entwurf → Übergeben → Versendet → Erledigt; Übergeben → Erledigt entfällt) mit `VersendetAt`/`VersendetByUserId`; `CreditorId`
+> (FK `Creditors`, nullable, Index) = Lackierer, `Dienstleister` bleibt als Text (Kreditor-Name bzw. Freitext). Je Position `Verpackt`
+> und `OhneFa` (bit, Default 0); `OhneFa`-Positionen zählen nie als Vergabe (Fallstrick 52).
+
 - **`Beschichtungsauftrag`** (neu, `AuditableEntity`, Migration 94 `20261012073551_AddBeschichtungsauftrag`, Tabelle
   `Beschichtungsauftraege`): `Nummer` `BA-JJJJ-NNNNN` (UNIQUE) + `Jahr`/`LaufendeNummer` (UNIQUE), genau **ein** `HauptFA`
   (Index, nicht unique), `Status` (`BeschichtungsauftragStatus` byte: Entwurf=10, Uebergeben=30, Erledigt=40,
