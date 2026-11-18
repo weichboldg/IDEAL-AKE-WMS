@@ -120,6 +120,20 @@ public class BeschichtungsauftragVergabeAnzeigeTests
         info.FreiePositionen.Should().Be(0);
     }
 
+    /// <summary>v1.99.41 A2 (AK 2): Summiert „n von m frei“ — freie Positionen je Artnr; ganz vergeben = 0.</summary>
+    [Fact]
+    public async Task FreiJeArtnr_ZaehltNurFreie()
+    {
+        _db.FaHierarchyNodes.Add(new FaHierarchyNode { HauptFA = 1, VaterFA = 10, SubFA = 0, Position = 4, Beschichtet = true, Sollmenge = 1m, Artnr = "A1", HauptArtnr = "H", Matchcode = "MC" });
+        _db.SaveChanges();
+        (await _wf.AnlegenAsync(1, new VorschlagAuswahl(new[] { new PositionsSchluessel(10, 0, 1), new PositionsSchluessel(10, 0, 2) },
+            Array.Empty<string>(), Array.Empty<FreiePosition>()))).Fehler.Should().BeEmpty();
+
+        var info = (await _anzeige.ErmittelnAsync(new[] { 1 }))[1];
+
+        (info.FreiVon("A1"), info.FreiVon("A2"), info.FreiVon("A3"), info.FreiVon("X")).Should().Be((1, 0, 1, 0));
+    }
+
     [Fact]
     public async Task LeereMenge_LeeresErgebnis()
         => (await _anzeige.ErmittelnAsync(Array.Empty<int>())).Should().BeEmpty();

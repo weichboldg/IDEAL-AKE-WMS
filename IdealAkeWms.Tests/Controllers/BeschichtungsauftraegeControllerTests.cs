@@ -88,10 +88,13 @@ public class BeschichtungsauftraegeControllerTests
         return _db.Beschichtungsauftraege.AsNoTracking().Include(a => a.Positionen).Single(a => a.Id == id);
     }
 
+    /// <summary>Alle drei Positionen angehakt (v1.99.41 A3: Anlage nur mit Auswahl).</summary>
+    private static readonly string[] Alle = { "100|0|1", "100|0|2", "100|0|3" };
+
     private async Task<Beschichtungsauftrag> Anlegen()
     {
         var c = Ctrl();
-        var r = (RedirectToActionResult)await c.Create(HauptFa, null);
+        var r = (RedirectToActionResult)await c.Create(HauptFa, null, Alle);
         r.ActionName.Should().Be("Details", c.TempData["WarningMessage"]?.ToString());
         return Laden((int)r.RouteValues!["id"]!);
     }
@@ -112,7 +115,7 @@ public class BeschichtungsauftraegeControllerTests
     public async Task Create_Erfolg_RedirectDetail_MitNummer()
     {
         var c = Ctrl();
-        var r = (RedirectToActionResult)await c.Create(HauptFa, null);
+        var r = (RedirectToActionResult)await c.Create(HauptFa, null, Alle);
 
         r.ActionName.Should().Be("Details");
         var a = Laden((int)r.RouteValues!["id"]!);
@@ -128,11 +131,77 @@ public class BeschichtungsauftraegeControllerTests
         await Anlegen();
         var c = Ctrl();
 
-        var r = (RedirectToActionResult)await c.Create(HauptFa, zurueck);
+        var r = (RedirectToActionResult)await c.Create(HauptFa, zurueck, Alle);
 
         (r.ControllerName, r.ActionName).Should().Be(("FaHierarchyBeschichtung", ziel));
         Warnung(c).Should().Contain("bereits vergeben");
         _db.Beschichtungsauftraege.Count().Should().Be(1);
+    }
+
+    // ===================== Anlage nur mit Auswahl (v1.99.41 A1-A4, AK 1-6) =====================
+
+    [Fact]
+    public async Task Create_NichtsAngehakt_Warnung_KeinAuftrag()
+    {
+        var c = Ctrl();
+
+        var r = (RedirectToActionResult)await c.Create(HauptFa, "Index", null, new[] { " " }, new[] { "" }, new[] { "" });
+
+        (r.ControllerName, r.ActionName).Should().Be(("FaHierarchyBeschichtung", "Index"));
+        Warnung(c).Should().Be("Keine Position angehakt — nichts angelegt.");
+        _db.Beschichtungsauftraege.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Create_ZweiVonDrei_GenauDieseVerpackt_RestBleibtFrei()
+    {
+        var r = (RedirectToActionResult)await Ctrl().Create(HauptFa, null, new[] { "100|0|1", "100|0|3" });
+
+        var a = Laden((int)r.RouteValues!["id"]!);
+        a.Positionen.Select(p => (p.Position, p.Verpackt)).Should().BeEquivalentTo(new[] { ((int?)1, true), ((int?)3, true) });
+        var b = Laden((int)((RedirectToActionResult)await Ctrl().Create(HauptFa, null, new[] { "100|0|2" })).RouteValues!["id"]!);
+        b.Positionen.Single().Position.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task Create_SummiertArtnr_NimmtAlleFreienDieserArtnr_TeilweiseVergeben()
+    {
+        await Ctrl().Create(HauptFa, null, new[] { "100|0|1" });            // A1 Pos 1 vergeben, Pos 3 (auch A1) frei
+
+        var r = (RedirectToActionResult)await Ctrl().Create(HauptFa, null, null, new[] { "A1" });
+
+        Laden((int)r.RouteValues!["id"]!).Positionen.Select(p => p.Position).Should().Equal(3);
+        var c = Ctrl();
+        await c.Create(HauptFa, null, null, new[] { "A1" });
+        Warnung(c).Should().Contain("Artnr A1: keine freie Position mehr");
+    }
+
+    [Fact]
+    public async Task Create_TeilweiseUngueltig_GanzAbgelehnt_NenntVergabe()
+    {
+        var erster = await Anlegen();
+        var c = Ctrl();
+
+        await c.Create(HauptFa, null, new[] { "100|0|2", "100|0|9" });
+
+        Warnung(c).Should().Contain(erster.Nummer).And.Contain("nicht im Cache");
+        _db.Beschichtungsauftraege.Count().Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Create_NurFreiePosition_OhneFa_Menge3()
+    {
+        var art = new Article { ArticleNumber = "F-1", Matchcode = "Muster" };
+        _db.Articles.Add(art);
+        _db.SaveChanges();
+
+        var r = (RedirectToActionResult)await Ctrl().Create(HauptFa, null, null, null, new[] { art.Id.ToString() }, new[] { "3" });
+
+        var p = Laden((int)r.RouteValues!["id"]!).Positionen.Single();
+        (p.OhneFa, p.Artnr, p.Matchcode, p.Menge, p.Verpackt).Should().Be((true, "F-1", "Muster", 3m, true));
+        var c = Ctrl();
+        await c.Create(HauptFa, null, null, null, new[] { art.Id.ToString() }, new[] { "0" });
+        Warnung(c).Should().Contain("Menge muss größer 0");
     }
 
     // ===================== Bearbeiten (Antwort 7, Review-Fokus 1) =====================
@@ -226,7 +295,7 @@ public class BeschichtungsauftraegeControllerTests
         var c = Ctrl();
         await c.Bearbeiten(a.Id, "Huber GmbH", null, null, null, null,
             a.Positionen.Where(p => p.Position != 1).Select(p => p.Id).ToArray(), Rv(a));
-        var b = await Anlegen();
+        var b = Laden((int)((RedirectToActionResult)await Ctrl().Create(HauptFa, null, new[] { "100|0|2", "100|0|3" })).RouteValues!["id"]!);
         await Ctrl().Bearbeiten(b.Id, "Huber GmbH", null, null, null, null, b.Positionen.Where(p => p.Position == 3).Select(p => p.Id).ToArray(), Rv(b));
         a = Laden(a.Id);
         b = Laden(b.Id);

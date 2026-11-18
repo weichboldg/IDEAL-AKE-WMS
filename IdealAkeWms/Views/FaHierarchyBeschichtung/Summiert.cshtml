@@ -3,7 +3,8 @@
 @using IdealAkeWms.Services
 @{
     ViewData["Title"] = "Vorschlagsliste Beschichtung";
-    const int colCount = 9; // HauptFA, Haupt-Artnr., Artnr., Matchcode, Breite, Höhe, Tiefe, Positionen, Summe Sollmenge
+    // HauptFA, Haupt-Artnr., Artnr., Matchcode, Breite, Höhe, Tiefe, Positionen, Summe Sollmenge; v1.99.41 A2: + Haken mit Schreibrecht
+    var colCount = Model.DarfSchreiben ? 10 : 9;
     // Print-URL: exakt dieselben Query-Parameter (colf_*) wie die Bildschirmansicht.
     var printUrl = Url.Action("PrintSummiert") + Context.Request.QueryString.ToString();
     // PDF je Gruppe: dieselben Query-Parameter wie der Bildschirmdruck; hauptFa ist Routen-Segment.
@@ -67,6 +68,11 @@
                 <th class="text-end" data-filterable data-filter-type="number" data-col-key="tiefe">Tiefe</th>
                 <th class="text-end" data-filterable data-filter-type="number" data-col-key="positionen">Positionen</th>
                 <th class="text-end" data-filterable data-filter-type="number" data-col-key="sollmenge">Summe Sollmenge</th>
+                @if (Model.DarfSchreiben)
+                {
+                    @* A2: keine konfigurierbare Spalte (kein data-col-key), nicht im CSV; immer zuletzt *@
+                    <th class="text-center" data-csv-export="false">Verpackt</th>
+                }
             </tr>
         </thead>
         @if (!Model.Rows.Any())
@@ -117,6 +123,28 @@
                             <td class="text-end">@BeschichtungsauftragService.FormatMass(row.Tiefe)</td>
                             <td class="text-end">@row.PositionCount</td>
                             <td class="text-end">@BeschichtungsauftragService.FormatMenge(row.SummeSollmenge)</td>
+                            @if (Model.DarfSchreiben)
+                            {
+                                var info = Model.Vergaben.GetValueOrDefault(group.Key) ?? BeschichtungsauftragVergabeInfo.Leer;
+                                var frei = info.FreiVon(row.Artnr);
+                                <td class="text-center">
+                                    @if (frei == 0)
+                                    {
+                                        <input type="checkbox" class="form-check-input" disabled aria-label="Artnr @row.Artnr bereits vollständig vergeben" />
+                                        <span class="small d-block">vergeben</span>
+                                    }
+                                    else
+                                    {
+                                        @* Ein Haken = alle freien Positionen dieser Artnr im HauptFA (Server loest auf) *@
+                                        <input type="checkbox" class="form-check-input" name="artnr" form="besch-create-@group.Key" value="@row.Artnr"
+                                               aria-label="Artnr @row.Artnr für den Auftrag anhaken (@frei frei)" />
+                                        @if (frei < row.PositionCount)
+                                        {
+                                            <span class="small d-block">@frei von @row.PositionCount frei</span>
+                                        }
+                                    }
+                                </td>
+                            }
                         </tr>
                     }
                 </tbody>
@@ -148,4 +176,9 @@
     <script src="~/js/column-preferences.js" asp-append-version="true"></script>
     <script src="~/js/table-filter.js" asp-append-version="true"></script>
     <script src="~/js/print-visible-columns.js" asp-append-version="true"></script>
+    @if (Model.DarfSchreiben)
+    {
+        <partial name="_Select2ArticlePartial" />
+        <script src="~/js/beschichtung-frei.js" asp-append-version="true"></script>
+    }
 }

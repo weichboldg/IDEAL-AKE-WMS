@@ -23,6 +23,13 @@ public sealed class BeschichtungsauftragErgebnis
 /// <summary>Aenderbare Kopffelder im Entwurf (Teil-4-Antworten 4, 7).</summary>
 public sealed record KopfDaten(string? Dienstleister, string? Ral, DateTime? StartBeschichtung, DateTime? BeschichtenRetour);
 
+/// <summary>v1.99.41 (A1-A4): Auswahl aus der Vorschlagsliste — angehakte Positionen (Liste), Artnr (Summiert) und freie Positionen.</summary>
+public sealed record VorschlagAuswahl(IReadOnlyCollection<PositionsSchluessel> Schluessel, IReadOnlyCollection<string> ArtnrSummiert,
+    IReadOnlyCollection<FreiePosition> Frei)
+{
+    public bool IstLeer => Schluessel.Count == 0 && ArtnrSummiert.Count == 0 && Frei.Count == 0;
+}
+
 /// <summary>v1.99.41 (A4/A7): freie Position ohne FA — Artikel-Id aus der Artikelsuche und Menge (&gt; 0).</summary>
 public sealed record FreiePosition(int ArticleId, decimal Menge);
 
@@ -96,35 +103,22 @@ public class BeschichtungsauftragWorkflow
 
     // ===================== Anlegen (Anforderungen 2, 4, 6, 7, 8) =====================
 
-    /// <summary>Legt einen Erstauftrag fuer den HauptFA aus allen aktuell beschichteten FREIEN Positionen an.</summary>
-    public Task<BeschichtungsauftragErgebnis> AnlegenAsync(int hauptFa) =>
-        MitNummernVersuchenAsync(serializable: true, async () =>
+    /// <summary>Legt einen Erstauftrag fuer den HauptFA an. <paramref name="auswahl"/> null = alle aktuell beschichteten FREIEN
+    /// Positionen; sonst (v1.99.41 A3) genau die angehakten Positionen, Summiert-Artnr (= ihre freien Positionen) und freien
+    /// Positionen ohne FA. Teilweise ungueltige Auswahl = nichts angelegt (keine Nummer verbraucht).</summary>
+    public Task<BeschichtungsauftragErgebnis> AnlegenAsync(int hauptFa, VorschlagAuswahl? auswahl = null) =>
+        auswahl is { IstLeer: true }
+            ? Task.FromResult(Fehler("Keine Position angehakt — nichts angelegt."))
+            : MitNummernVersuchenAsync(serializable: true, async () =>
         {
             var r = new BeschichtungsauftragErgebnis();
             var flach = await _flach.IstFlachAsync();
             var flachePositionen = flach ? await _flach.LadenAsync(new[] { hauptFa }) : null;
             var beschichtet = (flachePositionen?.Knoten ?? await _nodes.GetByHauptFaAsync(hauptFa)).Where(n => n.Beschichtet).ToList();
-            if (beschichtet.Count == 0)
-            {
-                r.Fehler.Add(flach
-                    ? $"Für WA {hauptFa} gibt es keine offenen Lackierteil-Positionen in der Stückliste — kein Auftrag angelegt."
-                    : $"Für HauptFA {hauptFa} gibt es im Sage-Cache keine beschichteten Positionen — kein Auftrag angelegt.");
-                return r;
-            }
-            MeldeDoppelteSchluessel(beschichtet, r);
-
-            var vergaben = VergabenJeSchluessel(await _repo.GetVergabenAsync(hauptFa));
-            var vergeben = beschichtet.Where(n => vergaben.ContainsKey(PositionsSchluessel.Von(n))).ToList();
-            var frei = beschichtet.Except(vergeben).ToList();
-            if (frei.Count == 0)
-            {
-                r.Fehler.Add($"Alle {beschichtet.Count} beschichteten Positionen von HauptFA {hauptFa} sind bereits vergeben — kein " +
-                             $"neuer Auftrag: {Liste(vergeben, vergaben)}");
-                return r;
-            }
-            if (vergeben.Count > 0)
-                r.Hinweise.Add($"{vergeben.Count} Positionen bereits in {string.Join(", ", vergeben.SelectMany(n => vergaben[PositionsSchluessel.Von(n)]).Distinct())} " +
-                               $"vergeben, nicht übernommen: {Liste(vergeben, vergaben)}");
+            var positionen = auswahl is null
+                ? AlleFreien(hauptFa, beschichtet, flach, VergabenJeSchluessel(await _repo.GetVergabenAsync(hauptFa)), r)
+                : await AuswahlAsync(hauptFa, beschichtet, auswahl, r);
+            if (!r.Erfolg) return r;
 
             var auftrag = new Beschichtungsauftrag { HauptFA = hauptFa, Status = BeschichtungsauftragStatus.Entwurf };
             Erstellt(auftrag);
@@ -135,11 +129,59 @@ public class BeschichtungsauftragWorkflow
             else
                 KopfVorbelegen(auftrag, await _infos.GetByHauptFaAsync(hauptFa), r);
             // A3: was aus der Vorschlagsauswahl kommt, ist verpackt (Haken = Auswahl); spaeter hinzugefuegte Positionen nicht.
-            foreach (var n in frei) { var p = Snapshot(n); p.Verpackt = true; auftrag.Positionen.Add(p); }
+            foreach (var p in positionen) { p.Verpackt = true; auftrag.Positionen.Add(p); }
             await NummerVergebenUndSpeichernAsync(auftrag);
             r.Auftrag = auftrag;
             return r;
         });
+
+    /// <summary>Teil 3/4: alle freien beschichteten Positionen; bereits vergebene als Hinweis.</summary>
+    private List<BeschichtungsauftragPosition> AlleFreien(int hauptFa, List<FaHierarchyNode> beschichtet, bool flach,
+        Dictionary<PositionsSchluessel, List<string>> vergaben, BeschichtungsauftragErgebnis r)
+    {
+        if (beschichtet.Count == 0)
+        {
+            r.Fehler.Add(flach
+                ? $"Für WA {hauptFa} gibt es keine offenen Lackierteil-Positionen in der Stückliste — kein Auftrag angelegt."
+                : $"Für HauptFA {hauptFa} gibt es im Sage-Cache keine beschichteten Positionen — kein Auftrag angelegt.");
+            return new();
+        }
+        MeldeDoppelteSchluessel(beschichtet, r);
+
+        var vergeben = beschichtet.Where(n => vergaben.ContainsKey(PositionsSchluessel.Von(n))).ToList();
+        var frei = beschichtet.Except(vergeben).ToList();
+        if (frei.Count == 0)
+        {
+            r.Fehler.Add($"Alle {beschichtet.Count} beschichteten Positionen von HauptFA {hauptFa} sind bereits vergeben — kein " +
+                         $"neuer Auftrag: {Liste(vergeben, vergaben)}");
+            return new();
+        }
+        if (vergeben.Count > 0)
+            r.Hinweise.Add($"{vergeben.Count} Positionen bereits in {string.Join(", ", vergeben.SelectMany(n => vergaben[PositionsSchluessel.Von(n)]).Distinct())} " +
+                           $"vergeben, nicht übernommen: {Liste(vergeben, vergaben)}");
+        return frei.Select(Snapshot).ToList();
+    }
+
+    /// <summary>v1.99.41 A2/A3: angehakte Schluessel + Summiert-Artnr (= alle ihre freien Positionen; keine mehr frei = Fehler) +
+    /// freie Positionen ohne FA. Pruefung je Schluessel wie beim Hinzufuegen (<see cref="FreieKnotenPruefenAsync"/>).</summary>
+    private async Task<List<BeschichtungsauftragPosition>> AuswahlAsync(int hauptFa, List<FaHierarchyNode> beschichtet,
+        VorschlagAuswahl auswahl, BeschichtungsauftragErgebnis r)
+    {
+        var keys = auswahl.Schluessel.ToHashSet();
+        if (auswahl.ArtnrSummiert.Count > 0)
+        {
+            var vergaben = VergabenJeSchluessel(await _repo.GetVergabenAsync(hauptFa));
+            foreach (var artnr in auswahl.ArtnrSummiert.Distinct())
+            {
+                var frei = beschichtet.Where(n => n.Artnr == artnr).Select(PositionsSchluessel.Von).Where(k => !vergaben.ContainsKey(k)).ToList();
+                if (frei.Count == 0) r.Fehler.Add($"Artnr {artnr}: keine freie Position mehr in HauptFA {hauptFa} (inzwischen vergeben oder nicht mehr im Cache).");
+                keys.UnionWith(frei);
+            }
+        }
+        var knoten = keys.Count == 0 ? new() : await FreieKnotenPruefenAsync(hauptFa, keys, new HashSet<PositionsSchluessel>(), r);
+        var freie = await FreiePositionenAsync(hauptFa, auswahl.Frei, r);
+        return r.Erfolg ? keys.Select(k => Snapshot(knoten[k])).Concat(freie).ToList() : new();
+    }
 
     // ===================== Reklamation (Anforderung 11, Antworten 11, 13, 15) =====================
 

@@ -10,10 +10,14 @@ namespace IdealAkeWms.Services;
 public sealed record BeschichtungsauftragVergabeInfo(
     IReadOnlyList<(int Id, string Nummer)> Auftraege,
     int FreiePositionen,
-    IReadOnlyDictionary<PositionsSchluessel, IReadOnlyList<string>> NummernJePosition)
+    IReadOnlyDictionary<PositionsSchluessel, IReadOnlyList<string>> NummernJePosition,
+    IReadOnlyDictionary<string, int> FreiJeArtnr)
 {
     public static readonly BeschichtungsauftragVergabeInfo Leer =
-        new(new List<(int, string)>(), 0, new Dictionary<PositionsSchluessel, IReadOnlyList<string>>());
+        new(new List<(int, string)>(), 0, new Dictionary<PositionsSchluessel, IReadOnlyList<string>>(), new Dictionary<string, int>());
+
+    /// <summary>v1.99.41 A2: freie Positionen dieser Artnr im HauptFA (Summiert „n von m frei“); 0 = ganz vergeben.</summary>
+    public int FreiVon(string artnr) => FreiJeArtnr.GetValueOrDefault(artnr);
 }
 
 /// <summary>
@@ -51,8 +55,10 @@ public class BeschichtungsauftragVergabeAnzeige
             var jePosition = vergaben[h].GroupBy(v => v.Schluessel)
                 .ToDictionary(g => g.Key, g => (IReadOnlyList<string>)g.Select(v => v.Nummer).Distinct().OrderBy(n => n).ToList());
             var auftraege = vergaben[h].Select(v => (v.AuftragId, v.Nummer)).Distinct().OrderBy(a => a.Nummer).ToList();
-            var frei = knoten[h].Count(n => !jePosition.ContainsKey(PositionsSchluessel.Von(n)));
-            return new BeschichtungsauftragVergabeInfo(auftraege, frei, jePosition);
+            var freieKnoten = knoten[h].Where(n => !jePosition.ContainsKey(PositionsSchluessel.Von(n))).ToList();
+            // gleiche Artnr-Gleichheit wie der Workflow beim Aufloesen der Summiert-Zeile (AuswahlAsync: n.Artnr == artnr)
+            var jeArtnr = freieKnoten.Where(n => n.Artnr != null).GroupBy(n => n.Artnr!).ToDictionary(g => g.Key, g => g.Count());
+            return new BeschichtungsauftragVergabeInfo(auftraege, freieKnoten.Count, jePosition, jeArtnr);
         });
     }
 }

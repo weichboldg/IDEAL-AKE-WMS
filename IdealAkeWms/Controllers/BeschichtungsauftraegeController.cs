@@ -135,20 +135,34 @@ public class BeschichtungsauftraegeController : Controller
 
     // ===================== Schreiben (je Request EIN Workflow-Aufruf) =====================
 
-    /// <summary>„Aus Vorschlagsliste erstellen": alle freien beschichteten Positionen des HauptFA (Anforderung 2).</summary>
+    /// <summary>„Aus Vorschlagsliste erstellen" (v1.99.41 A1-A4): nur die angehakten Positionen (<paramref name="schluessel"/>,
+    /// Ansicht Liste), Summiert-Zeilen (<paramref name="artnr"/> = alle freien Positionen dieser Artnr) und freie Positionen
+    /// ohne FA. Nichts angehakt = Warnung, kein Auftrag.</summary>
     [HttpPost]
     [ValidateAntiForgeryToken]
     [RequireBeschichtungsauftragWriteAccess]
-    public async Task<IActionResult> Create(int hauptFa, string? zurueck)
+    public async Task<IActionResult> Create(int hauptFa, string? zurueck, string[]? schluessel = null, string[]? artnr = null,
+        string?[]? freiArtikelId = null, string?[]? freiMenge = null)
     {
-        var r = await _workflow.AnlegenAsync(hauptFa);
-        if (!r.Erfolg)
+        IActionResult Zurueck(string text)
         {
-            TempData["WarningMessage"] = string.Join(" ", r.Fehler);
+            TempData["WarningMessage"] = text;
             return zurueck == "Index"
                 ? RedirectToAction("Index", "FaHierarchyBeschichtung")
                 : RedirectToAction("Summiert", "FaHierarchyBeschichtung");
         }
+
+        var keys = new List<PositionsSchluessel>();
+        foreach (var s in schluessel ?? Array.Empty<string>())
+        {
+            if (!TrySchluessel(s, out var k)) return Zurueck($"Nichts angelegt: ungültiger Positionsschlüssel „{s}“.");
+            keys.Add(k);
+        }
+        if (!TryFreiePositionen(freiArtikelId, freiMenge, out var frei, out var fehler)) return Zurueck("Nichts angelegt: " + fehler);
+        var artnrListe = (artnr ?? Array.Empty<string>()).Where(a => !string.IsNullOrWhiteSpace(a)).ToList();
+
+        var r = await _workflow.AnlegenAsync(hauptFa, new VorschlagAuswahl(keys, artnrListe, frei));
+        if (!r.Erfolg) return Zurueck(string.Join(" ", r.Fehler));
         TempData["SuccessMessage"] = $"Beschichtungsauftrag {r.Auftrag!.Nummer} für HauptFA {hauptFa} angelegt ({r.Auftrag.Positionen.Count} Positionen).";
         if (r.Hinweise.Count > 0) TempData["WarningMessage"] = string.Join(" ", r.Hinweise);
         return RedirectToAction(nameof(Details), new { id = r.Auftrag.Id });

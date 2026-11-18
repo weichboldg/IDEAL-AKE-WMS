@@ -8,7 +8,8 @@
     var printUrl = Url.Action("Print") + Context.Request.QueryString.ToString();
     // PDF je Gruppe: dieselben Query-Parameter wie der Bildschirmdruck (colf_*); hauptFa ist Routen-Segment.
     var pdfQuery = Context.Request.QueryString.ToString();
-    const int colCount = 9; // Anzahl der Positionsspalten (colspan der Gruppen-Kopfzeile)
+    // Anzahl der Positionsspalten (colspan der Gruppen-Kopfzeile); v1.99.41 A1: + Haken-Spalte „Verpackt“ mit Schreibrecht
+    var colCount = Model.DarfSchreiben ? 10 : 9;
 }
 
 <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
@@ -65,6 +66,11 @@
                 <th class="text-end" data-filterable data-filter-type="number" data-col-key="breite">Breite</th>
                 <th class="text-end" data-filterable data-filter-type="number" data-col-key="hoehe">Höhe</th>
                 <th class="text-end" data-filterable data-filter-type="number" data-col-key="tiefe">Tiefe</th>
+                @if (Model.DarfSchreiben)
+                {
+                    @* A1: keine konfigurierbare Spalte (kein data-col-key), nicht im CSV; immer zuletzt *@
+                    <th class="text-center" data-csv-export="false">Verpackt</th>
+                }
             </tr>
         </thead>
         @if (!Model.Groups.Any())
@@ -101,6 +107,7 @@
                     </tr>
                     @foreach (var pos in group.Positions)
                     {
+                        var schluessel = IdealAkeWms.Data.Repositories.PositionsSchluessel.Von(pos);
                         <tr>
                             <td>@pos.HauptFA</td>
                             <td>@pos.HauptArtnr</td>
@@ -109,7 +116,7 @@
                             <td class="text-end">@BeschichtungsauftragService.FormatMenge(pos.Sollmenge)</td>
                             <td>
                                 @(pos.Beschichtet ? "Ja" : "Nein")
-                                @if (vergabe.NummernJePosition.TryGetValue(IdealAkeWms.Data.Repositories.PositionsSchluessel.Von(pos), out var nummern))
+                                @if (vergabe.NummernJePosition.TryGetValue(schluessel, out var nummern))
                                 {
                                     <span class="badge bg-light text-dark border ms-1" title="Position steckt in diesem Beschichtungsauftrag">in @string.Join(", ", nummern)</span>
                                 }
@@ -117,6 +124,22 @@
                             <td class="text-end">@BeschichtungsauftragService.FormatMass(pos.Breite)</td>
                             <td class="text-end">@BeschichtungsauftragService.FormatMass(pos.Hoehe)</td>
                             <td class="text-end">@BeschichtungsauftragService.FormatMass(pos.Tiefe)</td>
+                            @if (Model.DarfSchreiben)
+                            {
+                                <td class="text-center">
+                                    @if (vergabe.NummernJePosition.TryGetValue(schluessel, out var inAuftrag))
+                                    {
+                                        <input type="checkbox" class="form-check-input" disabled aria-label="Position @pos.Artnr bereits vergeben in @string.Join(", ", inAuftrag)" />
+                                        <span class="small d-block">vergeben</span>
+                                    }
+                                    else
+                                    {
+                                        <input type="checkbox" class="form-check-input" name="schluessel" form="besch-create-@group.HauptFA"
+                                               value="@IdealAkeWms.Controllers.BeschichtungsauftraegeController.SchluesselText(schluessel)"
+                                               aria-label="Position @pos.Artnr @(pos.PositionText ?? pos.Position?.ToString()) für den Auftrag anhaken" />
+                                    }
+                                </td>
+                            }
                         </tr>
                     }
                 </tbody>
@@ -147,4 +170,9 @@
 @section Scripts {
     <script src="~/js/column-preferences.js" asp-append-version="true"></script>
     <script src="~/js/table-filter.js" asp-append-version="true"></script>
+    @if (Model.DarfSchreiben)
+    {
+        <partial name="_Select2ArticlePartial" />
+        <script src="~/js/beschichtung-frei.js" asp-append-version="true"></script>
+    }
 }
