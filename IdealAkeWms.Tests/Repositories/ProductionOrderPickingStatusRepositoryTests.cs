@@ -420,4 +420,23 @@ public class ProductionOrderPickingStatusRepositoryTests
         prios.Should().OnlyHaveUniqueItems();
     }
 
+    [Fact]
+    public async Task GetReleasedHauptFaOrderNumbersAsync_NurFreigegebeneHauptFa_Distinct()
+    {
+        // v1.99.43 (A5): Gate der IDEAL-Kommissionierliste — Sub-FA und nicht freigegebene fallen heraus,
+        // erledigte zaehlen bewusst mit (Freigabe-Antwort 1).
+        using var context = TestDbContextFactory.Create();
+        TestDataHelper.CreateOrderWithStatuses(context, "100", releaseForPicking: true);
+        TestDataHelper.CreateOrderWithStatuses(context, "200", releaseForPicking: false);
+        TestDataHelper.CreateOrderWithStatuses(context, "300", releaseForPicking: true, isDone: true);
+        var sub = TestDataHelper.CreateOrderWithStatuses(context, "400", releaseForPicking: true);
+        sub.Order.SubOrderNumber = "401"; // Sub-FA
+        context.ProductionOrders.Add(new ProductionOrder { OrderNumber = "500", Quantity = 1m, CreatedAt = DateTime.UtcNow, CreatedBy = "t", CreatedByWindows = "t" }); // ohne Statuszeile
+        await context.SaveChangesAsync();
+
+        var result = await new ProductionOrderPickingStatusRepository(context).GetReleasedHauptFaOrderNumbersAsync();
+
+        result.Should().BeEquivalentTo(new[] { "100", "300" });
+    }
+
 }

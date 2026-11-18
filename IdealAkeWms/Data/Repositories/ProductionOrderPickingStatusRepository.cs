@@ -223,6 +223,12 @@ public class ProductionOrderPickingStatusRepository : IProductionOrderPickingSta
             .CountAsync(p => p.PickingStatus != null && p.PickingStatus.IsReleasedForPicking
                              && !p.IsDone && !p.IsCancelled && !p.PickingStatus.IsDonePicking);
 
+    public Task<List<string>> GetReleasedHauptFaOrderNumbersAsync()
+        => _context.ProductionOrders.AsNoTracking()
+            .Where(ProductionOrder.IsHauptFa)
+            .Where(p => p.PickingStatus != null && p.PickingStatus.IsReleasedForPicking)
+            .Select(p => p.OrderNumber).Distinct().ToListAsync();
+
     public async Task<int> GetMaxPickingPriorityAsync(int? excludeProductionOrderId = null)
     {
         // Bewusst OHNE IsReleasedForPicking: eine zurueckgenommene, noch offene HauptFA behaelt ihre Prio

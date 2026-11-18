@@ -137,6 +137,20 @@ Eintraege = @(
    Pruefung='SELECT CASE WHEN OBJECT_ID(N''dbo.Beschichtungsauftraege'', N''U'') IS NULL THEN 0 ELSE (SELECT COUNT(*) FROM dbo.Beschichtungsauftraege WHERE Status = 30) END'
    Text='Beschichtungsauftraege im Status Uebergeben: ab dieser Version fuehrt der Weg ueber "Versendet" (alle Positionen verpackt), Uebergeben -> Erledigt direkt geht nicht mehr. Fachbereich informieren (P-4, Rueckfrage 15).'
    Quelle='2026-11-18-v1-99-41-beschichtungsauftrag-ausbau' }
+# v1.99.43: Leitstand-Gate der IDEAL-Kommissionierliste (Schalter FaHierarchyKommissionierlisteNurFreigegebene, Seed an).
+# Bewusst Phase Nachher statt Vorher (Abweichung von der Spec): Pruefungen laufen bei jedem Update, eine Vorher-Pruefung > 0 bricht Prod vor dem Stoppen ab.
+@{ Id='Pruefung/KommissionierlisteNichtFreigegeben'; Version='1.99.43'; Typ='Pruefung'; Firma='IDEAL'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Pruefung='SELECT CASE WHEN OBJECT_ID(N''dbo.FaHierarchyNodes'', N''U'') IS NULL THEN 0 WHEN EXISTS (SELECT 1 FROM dbo.AppSettings WHERE [Key] = N''FaHierarchyKommissionierlisteNurFreigegebene'' AND LOWER([Value]) = N''false'') THEN 0 ELSE (SELECT COUNT(DISTINCT n.HauptFA) FROM dbo.FaHierarchyNodes n WHERE n.VerschwundenSeit IS NULL AND LTRIM(RTRIM(ISNULL(n.Kommissionieren, N''''))) <> N'''' AND NOT EXISTS (SELECT 1 FROM dbo.ProductionOrders po JOIN dbo.ProductionOrderPickingStatus ps ON ps.ProductionOrderId = po.Id WHERE po.OrderNumber = CAST(n.HauptFA AS nvarchar(50)) AND (po.SubOrderNumber = N'''' OR po.SubOrderNumber = po.OrderNumber) AND ps.IsReleasedForPicking = 1)) END'
+   Text='HauptFA mit Kommissionier-Positionen ohne Leitstand-Freigabe: sie fehlen in der Kommissionierliste, bis der Leitstand sie freigibt (oder Schalter Kommissionierliste nur nach Leitstand-Freigabe aus). Aufschluesselung mit Q-B der Spec 2026-11-18-ideal-kommissionierliste-filter-spalten-leitstand.'
+   Quelle='2026-11-18-v1-99-43-kommissionierliste-filter-spalten-leitstand' }
+@{ Id='Pruefung/KommissionierlisteLeitstandAus'; Version='1.99.43'; Typ='Pruefung'; Firma='IDEAL'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Pruefung='SELECT CASE WHEN EXISTS (SELECT 1 FROM dbo.AppSettings WHERE [Key] = N''LeitstandAktiv'' AND LOWER([Value]) = N''true'') THEN 0 WHEN EXISTS (SELECT 1 FROM dbo.AppSettings WHERE [Key] = N''FaHierarchyKommissionierlisteNurFreigegebene'' AND LOWER([Value]) = N''false'') THEN 0 ELSE 1 END'
+   Text='Gate an, Leitstand aus: Kommissionierliste bleibt leer. LeitstandAktiv einschalten oder Schalter Kommissionierliste nur nach Leitstand-Freigabe aus.'
+   Quelle='2026-11-18-v1-99-43-kommissionierliste-filter-spalten-leitstand' }
+@{ Id='Pruefung/KommissionierlisteVorfilterZiele'; Version='1.99.43'; Typ='Pruefung'; Firma='IDEAL'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Pruefung='SELECT CASE WHEN OBJECT_ID(N''dbo.FaHierarchyNodes'', N''U'') IS NULL THEN 0 WHEN EXISTS (SELECT 1 FROM dbo.FaHierarchyNodes WHERE VerschwundenSeit IS NULL AND LTRIM(RTRIM(Kommissionieren)) IN (N''K-01'', N''K-02'')) THEN 0 ELSE 1 END'
+   Text='Standard-Ziele K-01/K-02 kommen in der FA-Struktur nicht vor - Einstellung Kommissionierliste: Standard-Ziele unter /Settings pruefen (Q-C der Spec).'
+   Quelle='2026-11-18-v1-99-43-kommissionierliste-filter-spalten-leitstand' }
 @{ Id='Pruefung/BenutzerOhneKennwort'; Version='1.99.28'; Typ='Pruefung'; Firma='beide'; Phase='Vorher'; Ausfuehrung='anzeigen'
    Pruefung='SELECT COUNT(*) FROM dbo.Users u WHERE u.IsActive = 1 AND u.Name <> N''admin'' AND (u.PasswordHash IS NULL OR u.PasswordHash = N'''') AND (u.WindowsUserName IS NULL OR NOT EXISTS (SELECT 1 FROM dbo.AppSettings WHERE [Key] = N''WindowsAuthAktiv'' AND LOWER([Value]) = N''true''))'
    Text='Aktive Benutzer ohne Kennwort, die sich ab v1.99.28 nicht mehr anmelden koennen (lokal, bzw. AD bei WindowsAuthAktiv aus): vorher unter /Users/Edit ein Erstkennwort setzen (ab v1.99.28 mit Pflichtwechsel bei der ersten Anmeldung) oder deaktivieren; Liste mit P-1 der Spec 2026-11-14-sicherheit-anmeldung-und-installer.'
@@ -559,5 +573,11 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
 @{ Id='v1.99.41-BeschichtungVersendetInfo'; Version='1.99.41'; Typ='Info'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
    Text='Beschichtungsauftrag: Positionen werden im Vorschlag angehakt (nur angehakte kommen in den Auftrag), neuer Status Versendet, Lackierer aus den Kreditoren. Hilfeseite Beschichtung.'
    Quelle='2026-11-18-v1-99-41-beschichtungsauftrag-ausbau' }
+@{ Id='v1.99.43-IDEAL-Kommissionierliste-Schalter'; Version='1.99.43'; Typ='Einstellung'; Firma='IDEAL'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Text='Kommissionierliste nur nach Leitstand-Freigabe ist an (Seed). Je nach Pruefung oben: Auftraege im Leitstand freigeben oder Schalter unter /Settings voruebergehend aus. Standard-Ziele (K-01,K-02) unter /Settings pruefen.'
+   Quelle='2026-11-18-v1-99-43-kommissionierliste-filter-spalten-leitstand' }
+@{ Id='v1.99.43-IDEAL-Kommissionierliste-Info'; Version='1.99.43'; Typ='Info'; Firma='IDEAL'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Text='Kommissionierer informieren: Ziele sind mehrfach waehlbar und werden je Benutzer gemerkt (Knopf Ziele auf Standard), Summiert zeigt nur die gewaehlten Ziele, neue Spalten Abteilung und Lagerplaetze.'
+   Quelle='2026-11-18-v1-99-43-kommissionierliste-filter-spalten-leitstand' }
 )
 }

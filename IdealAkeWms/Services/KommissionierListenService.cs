@@ -152,11 +152,12 @@ public class KommissionierListenService
         IReadOnlyDictionary<string, string>? columnFilters,
         int page,
         int pageSize,
-        bool paginate)
+        bool paginate,
+        IReadOnlySet<int>? freigegeben = null)
     {
         var allNodes = await _nodes.GetAllAsync();
         var allInfos = await _orderInfos.GetAllAsync();
-        var predicate = BuildFlagPredicate(ziele);
+        var predicate = MitGate(BuildFlagPredicate(ziele), freigegeben);
         var abteilung = AbteilungJeHauptFa(allInfos);
         FaHierarchyListResult Bauen(IReadOnlyDictionary<string, string>? filter, IReadOnlyDictionary<string, string>? lager, bool seiten) =>
             _builder.Build(
@@ -172,6 +173,7 @@ public class KommissionierListenService
             lager = await LagerplaetzeAsync(Bauen(ohne, null, false).Groups.SelectMany(g => g.Positions).Select(p => p.Artnr));
         var result = Bauen(columnFilters, lager, paginate);
         result.Lagerplaetze = lager ?? await LagerplaetzeAsync(result.Groups.SelectMany(g => g.Positions).Select(p => p.Artnr));
+        result.NichtFreigegeben = NichtFreigegebenZaehlen(allNodes, ziele, freigegeben);
         return result;
     }
 
@@ -185,17 +187,21 @@ public class KommissionierListenService
         IReadOnlyDictionary<string, string>? columnFilters,
         int page,
         int pageSize,
-        bool paginate)
+        bool paginate,
+        IReadOnlySet<int>? freigegeben = null)
     {
         var allNodes = await _nodes.GetAllAsync();
         var allInfos = await _orderInfos.GetAllAsync();
+        // v1.99.43 (A5): Gate vor allen Spaltenfiltern — nicht freigegebene HauptFA fallen schon bei den Knoten heraus.
+        IEnumerable<FaHierarchyNode> knoten = freigegeben == null ? allNodes : allNodes.Where(n => freigegeben.Contains(n.HauptFA));
         // v1.99.43 (A4): wie BuildAsync — mit Lagerplatz-Filter Restmenge laden, sonst nur die gelieferten Zeilen.
         IReadOnlyDictionary<string, string>? lager = null;
         if (OhneLagerplatzFilter(columnFilters) is { } ohne)
-            lager = await LagerplaetzeAsync(AggregateSummiert(allNodes, allInfos, ziele, kwRange, ohne, 1, int.MaxValue, false).Rows.Select(r => r.Artnr));
-        var result = AggregateSummiert(allNodes, allInfos, ziele, kwRange, columnFilters, page, pageSize, paginate, lager);
+            lager = await LagerplaetzeAsync(AggregateSummiert(knoten, allInfos, ziele, kwRange, ohne, 1, int.MaxValue, false).Rows.Select(r => r.Artnr));
+        var result = AggregateSummiert(knoten, allInfos, ziele, kwRange, columnFilters, page, pageSize, paginate, lager);
         lager ??= await LagerplaetzeAsync(result.Rows.Select(r => r.Artnr));
         foreach (var r in result.Rows) r.Lagerplaetze = LagerplatzText(lager, r.Artnr);
+        result.NichtFreigegeben = NichtFreigegebenZaehlen(allNodes, ziele, freigegeben);
         return result;
     }
 
@@ -367,6 +373,23 @@ public class KommissionierListenService
     /// null, leer oder „*“ = alle). Wird im Baustein sowohl auf Blaetter als auch auf Anomalie-Zeilen angewandt,
     /// damit eine Ziel-Einschraenkung in Liste und Banner konsistent wirkt.
     /// </summary>
+    /// <summary>v1.99.43 (A5): Leitstand-Gate ins Praedikat (null = Schalter aus).</summary>
+    public static Func<FaHierarchyNode, bool> MitGate(Func<FaHierarchyNode, bool> praedikat, IReadOnlySet<int>? freigegeben) =>
+        freigegeben == null ? praedikat : n => freigegeben.Contains(n.HauptFA) && praedikat(n);
+
+    /// <summary>v1.99.43 (A5): distinct HauptFA mit Kommissionier-Positionen der Ziele, die das Gate ausblendet (Banner-Zahl).</summary>
+    public static int NichtFreigegebenZaehlen(IEnumerable<FaHierarchyNode> allNodes, IReadOnlyCollection<string>? ziele, IReadOnlySet<int>? freigegeben)
+    {
+        if (freigegeben == null) return 0;
+        var p = BuildFlagPredicate(ziele);
+        return allNodes.Where(p).Select(n => n.HauptFA).Distinct().Count(h => !freigegeben.Contains(h));
+    }
+
+    /// <summary>v1.99.43 (A5): OrderNumbers → HauptFA-Zahlen (nicht numerische Nummern fallen heraus).</summary>
+    public static IReadOnlySet<int> FreigegebeneParsen(IEnumerable<string?> orderNumbers) =>
+        orderNumbers.Select(o => int.TryParse(o?.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var h) ? (int?)h : null)
+            .Where(h => h.HasValue).Select(h => h!.Value).ToHashSet();
+
     public static Func<FaHierarchyNode, bool> BuildFlagPredicate(IReadOnlyCollection<string>? ziele)
     {
         if (!SchraenktEin(ziele))

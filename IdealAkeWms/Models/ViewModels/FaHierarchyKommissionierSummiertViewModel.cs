@@ -58,7 +58,13 @@ public class FaHierarchyKommissionierSummiertResult
 
     /// <summary>Anzahl aller HauptFA-Gruppen NACH Spaltenfilter (Seiteneinheit), VOR dem Paging.</summary>
     public int TotalGroupCount { get; init; }
+
+    /// <summary>v1.99.43 (A5): wie <see cref="Services.FaHierarchyListResult.NichtFreigegeben"/>.</summary>
+    public int NichtFreigegeben { get; set; }
 }
+
+/// <summary>v1.99.43 (A5): Banner-Daten des Leitstand-Gates; null = Schalter aus (kein Banner).</summary>
+public sealed record KommissionierGateHinweis(int NichtFreigegeben, bool LeitstandAus);
 
 /// <summary>
 /// Bildschirm-ViewModel der IDEAL-Kommissionier-<b>Summiert-Ansicht</b> (Teil 3, Nachtrag
@@ -69,6 +75,9 @@ public class FaHierarchyKommissionierSummiertResult
 public class FaHierarchyKommissionierSummiertViewModel
 {
     public List<FaHierarchyKommissionierSummiertRowViewModel> Rows { get; init; } = new();
+
+    /// <summary>v1.99.43 (A5): Gate-Banner; null = Schalter aus.</summary>
+    public KommissionierGateHinweis? Gate { get; init; }
 
     /// <summary>Paging-State (Gruppen-Paging: Seiteneinheit = HauptFA-Gruppe; <c>TotalCount</c> zaehlt Gruppen).</summary>
     public PaginationState Pagination { get; init; } = new();

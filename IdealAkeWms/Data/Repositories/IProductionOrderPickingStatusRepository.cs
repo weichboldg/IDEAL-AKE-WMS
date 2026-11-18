@@ -29,6 +29,10 @@ public interface IProductionOrderPickingStatusRepository
     Task<List<ProductionOrder>> GetReleasedForPickingByPickerAsync(int pickerId);
     Task<int> GetReleasedForPickingCountAsync();
 
+    /// <summary>v1.99.43 (A5): OrderNumbers aller HauptFA (<see cref="ProductionOrder.IsHauptFa"/>) mit <c>IsReleasedForPicking</c>,
+    /// distinct, EINE Abfrage — Gate der IDEAL-Kommissionierliste. Bewusst ohne IsDone/IsCancelled/IsDonePicking (Freigabe-Antwort 1).</summary>
+    Task<List<string>> GetReleasedHauptFaOrderNumbersAsync();
+
     /// <summary>
     /// Returns the current MAX(PickingPriority) over all open (not done, not cancelled) HauptFAs with a priority,
     /// released or revoked (a revoked order keeps its priority), or 0 if none exist. Optionally excludes one ProductionOrderId from the calculation.

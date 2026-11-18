@@ -54,6 +54,7 @@ public class FaHierarchyKommissionierListenControllerTests
         public Mock<IRazorViewRenderer> ViewRenderer { get; } = new();
         public Mock<IPdfRenderService> PdfRenderService { get; } = new();
         public Mock<IAppSettingRepository> Settings { get; } = new();
+        public Mock<IProductionOrderPickingStatusRepository> PickingStatus { get; } = new();
         public FaHierarchyKommissionierListenController Controller { get; }
 
         public Fixture(IEnumerable<FaHierarchyNode> nodes, IEnumerable<FaHierarchyOrderInfo>? infos = null,
@@ -78,7 +79,7 @@ public class FaHierarchyKommissionierListenControllerTests
 
             Controller = new FaHierarchyKommissionierListenController(
                 service, barcode.Object, User.Object, ViewRenderer.Object, PdfRenderService.Object,
-                pdfStatus, ViewPrefs.Object, Settings.Object);
+                pdfStatus, ViewPrefs.Object, Settings.Object, PickingStatus.Object);
 
             var httpContext = new DefaultHttpContext();
             if (!string.IsNullOrEmpty(queryString))
@@ -355,5 +356,79 @@ public class FaHierarchyKommissionierListenControllerTests
         var ctx = new DefaultHttpContext();
         ctx.Request.QueryString = new QueryString("?target=K-01&target=K-02&colf_artnr=x&page=3");
         KommissionierListenService.BuildToggleQuery(ctx.Request).Should().Be("?target=K-01&target=K-02&colf_artnr=x");
+    }
+
+    // ----- v1.99.43 A5: Leitstand-Gate -----
+
+    private static Fixture GateFixture(string schalter, string leitstand, params string[] freigegeben)
+    {
+        var f = new Fixture(new[] { Node(1, 0, "K-01", artnr: "A"), Node(2, 0, "K-01", artnr: "B") });
+        f.Settings.Setup(s => s.GetValueAsync(AppSettingKeys.FaHierarchyKommissionierlisteNurFreigegebene)).ReturnsAsync(schalter);
+        f.Settings.Setup(s => s.GetValueAsync(AppSettingKeys.LeitstandAktiv)).ReturnsAsync(leitstand);
+        f.PickingStatus.Setup(p => p.GetReleasedHauptFaOrderNumbersAsync()).ReturnsAsync(freigegeben.ToList());
+        var url = new Mock<IUrlHelper>();
+        url.Setup(u => u.Action(It.IsAny<Microsoft.AspNetCore.Mvc.Routing.UrlActionContext>())).Returns("/FaHierarchyKommissionierListen");
+        f.Controller.Url = url.Object;
+        return f;
+    }
+
+    [Fact]
+    public async Task Gate_An_ListeNurFreigegebene_BannerMitZahl()
+    {
+        var f = GateFixture("true", "true", "1");
+        var vm = (FaHierarchyKommissionierListViewModel)((ViewResult)await f.Controller.Index(new[] { "" })).Model!;
+        vm.Groups.Select(g => g.HauptFA).Should().Equal(1);
+        vm.Gate.Should().Be(new KommissionierGateHinweis(1, false));
+    }
+
+    [Fact]
+    public async Task Gate_An_LeitstandAus_Warnung()
+    {
+        var f = GateFixture("true", "false");
+        var vm = (FaHierarchyKommissionierSummiertViewModel)((ViewResult)await f.Controller.Summiert(new[] { "" }, null, null)).Model!;
+        vm.Rows.Should().BeEmpty();
+        vm.Gate!.LeitstandAus.Should().BeTrue();
+        vm.Gate.NichtFreigegeben.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task Gate_Aus_KeinBanner_AlleSichtbar()
+    {
+        var f = GateFixture("false", "false");
+        var vm = (FaHierarchyKommissionierListViewModel)((ViewResult)await f.Controller.Index(new[] { "" })).Model!;
+        vm.Groups.Should().HaveCount(2);
+        vm.Gate.Should().BeNull();
+        f.PickingStatus.Verify(p => p.GetReleasedHauptFaOrderNumbersAsync(), Times.Never);
+    }
+
+    [Fact]
+    public async Task Gate_FehlendeEinstellung_DefaultAn()
+    {
+        var f = GateFixture(null!, "true", "2");
+        var vm = (FaHierarchyKommissionierListViewModel)((ViewResult)await f.Controller.Index(new[] { "" })).Model!;
+        vm.Groups.Select(g => g.HauptFA).Should().Equal(2);
+    }
+
+    [Fact]
+    public async Task Gate_Pdf_NichtFreigegeben_WarnungStattPdf()
+    {
+        var f = GateFixture("true", "true", "1");
+        var r = await f.Controller.Pdf(2, null, null);
+        r.Should().BeOfType<RedirectResult>();
+        f.Controller.TempData["WarningMessage"].Should().Be("HauptFA 2 ist im Leitstand nicht zur Kommissionierung freigegeben.");
+        f.PdfRenderService.Verify(p => p.RenderHtmlToPdfAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+
+        var rs = await f.Controller.PdfSummiert(2, null, null, null, null);
+        rs.Should().BeOfType<RedirectResult>();
+    }
+
+    [Fact]
+    public async Task Gate_Print_NurFreigegebene()
+    {
+        var f = GateFixture("true", "true", "2");
+        var vm = (FaHierarchyKommissionierPrintViewModel)((ViewResult)await f.Controller.Print(null, null)).Model!;
+        vm.Groups.Select(g => g.HauptFA).Should().Equal(2);
+        var vs = (FaHierarchyKommissionierSummiertPrintViewModel)((ViewResult)await f.Controller.PrintSummiert(null, null, null, null)).Model!;
+        vs.Rows.Select(x => x.HauptFA).Should().Equal(2);
     }
 }

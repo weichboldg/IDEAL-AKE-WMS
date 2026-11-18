@@ -194,6 +194,9 @@ public class FaHierarchyListResult
     /// <summary>v1.99.43 (nur Kommissionierliste, A4): Artnr → Lagerplatz-Text („K-02 (12), H4-05 (3)“ bzw. „—“) fuer die gelieferten Gruppen.</summary>
     public IReadOnlyDictionary<string, string> Lagerplaetze { get; set; } = new Dictionary<string, string>();
 
+    /// <summary>v1.99.43 (nur Kommissionierliste, A5): HauptFA, die bei gleichen Zielen nur wegen des Leitstand-Gates fehlen (0 ohne Gate).</summary>
+    public int NichtFreigegeben { get; set; }
+
     /// <summary>v1.99.36 (Nachtrag 4): Anzahl kommissionierter WA ohne Lackierteile (nur gezaehlt) und ob die flache Quelle (AKE) galt.</summary>
     public int OhneLackierteileKommissioniert { get; set; }
     public bool Flach { get; set; }

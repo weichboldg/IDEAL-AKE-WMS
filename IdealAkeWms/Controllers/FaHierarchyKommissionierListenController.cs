@@ -42,6 +42,7 @@ public class FaHierarchyKommissionierListenController : Controller
     private readonly PdfRenderStatus _pdfRenderStatus;
     private readonly IUserViewPreferenceRepository _viewPrefs;
     private readonly IAppSettingRepository _settings;
+    private readonly IProductionOrderPickingStatusRepository _pickingStatus;
 
     /// <summary>v1.99.43 (A1): ein Zielfilter-Gedaechtnis fuer Liste und Summiert (ViewKey &lt;= 50 Zeichen).</summary>
     internal const string ZieleViewKey = "FaHierarchyKommissionier.Ziele";
@@ -56,7 +57,8 @@ public class FaHierarchyKommissionierListenController : Controller
         IPdfRenderService pdfRenderService,
         PdfRenderStatus pdfRenderStatus,
         IUserViewPreferenceRepository viewPrefs,
-        IAppSettingRepository settings)
+        IAppSettingRepository settings,
+        IProductionOrderPickingStatusRepository pickingStatus)
     {
         _service = service;
         _barcode = barcode;
@@ -66,6 +68,29 @@ public class FaHierarchyKommissionierListenController : Controller
         _pdfRenderStatus = pdfRenderStatus;
         _viewPrefs = viewPrefs;
         _settings = settings;
+        _pickingStatus = pickingStatus;
+    }
+
+    /// <summary>v1.99.43 (A5): Schalter „nur nach Leitstand-Freigabe“ (fehlt die Zeile: Default an) → Menge freigegebener HauptFA,
+    /// sonst null (kein Gate).</summary>
+    private async Task<IReadOnlySet<int>?> FreigegebeneAsync()
+    {
+        AppSettingDefinitions.TryGet(AppSettingKeys.FaHierarchyKommissionierlisteNurFreigegebene, out var def);
+        var wert = await _settings.GetValueAsync(AppSettingKeys.FaHierarchyKommissionierlisteNurFreigegebene) ?? def?.DefaultValue;
+        if (!string.Equals(wert?.Trim(), "true", StringComparison.OrdinalIgnoreCase)) return null;
+        return KommissionierListenService.FreigegebeneParsen(await _pickingStatus.GetReleasedHauptFaOrderNumbersAsync());
+    }
+
+    private async Task<KommissionierGateHinweis?> GateHinweisAsync(IReadOnlySet<int>? freigegeben, int nichtFreigegeben) =>
+        freigegeben == null ? null : new KommissionierGateHinweis(nichtFreigegeben,
+            !string.Equals((await _settings.GetValueAsync(AppSettingKeys.LeitstandAktiv))?.Trim(), "true", StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>v1.99.43 (A5): PDF-Direktaufruf eines nicht freigegebenen HauptFA → Warnung statt leerem PDF.</summary>
+    private IActionResult? NichtFreigegebenWarnung(int hauptFa, IReadOnlySet<int>? freigegeben, string zurueck)
+    {
+        if (freigegeben == null || freigegeben.Contains(hauptFa)) return null;
+        TempData["WarningMessage"] = $"HauptFA {hauptFa} ist im Leitstand nicht zur Kommissionierung freigegeben.";
+        return Redirect(Url.Action(zurueck) + (HttpContext?.Request.QueryString.ToString() ?? ""));
     }
 
     /// <summary>v1.99.43 (A1): wirksame Ziele fuer Index/Summiert. 1. Query mit <c>target</c> → gilt und wird gemerkt;
@@ -138,12 +163,14 @@ public class FaHierarchyKommissionierListenController : Controller
         var rawPageSize = PageSize.ResolveRaw(pageSize, userDefaultPageSize);
 
         var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
-        var result = await _service.BuildAsync(ziele, columnFilters, page, effectivePageSize, paginate: true);
+        var freigegeben = await FreigegebeneAsync();
+        var result = await _service.BuildAsync(ziele, columnFilters, page, effectivePageSize, paginate: true, freigegeben);
         var targets = await _service.GetTargetValuesAsync();
 
         var vm = new FaHierarchyKommissionierListViewModel
         {
             Groups = result.Groups,
+            Gate = await GateHinweisAsync(freigegeben, result.NichtFreigegeben),
             AvailableTargets = targets,
             SelectedTargets = ziele,
             ZielQuery = KommissionierListenService.QueryMitZielen(HttpContext?.Request, ziele),
@@ -179,13 +206,15 @@ public class FaHierarchyKommissionierListenController : Controller
 
         var kwRange = IsoWeekRange.Resolve(kwVon, kwBis);
         var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
+        var freigegeben = await FreigegebeneAsync();
         var result = await _service.BuildSummiertAsync(
-            ziele, kwRange, columnFilters, page, effectivePageSize, paginate: true);
+            ziele, kwRange, columnFilters, page, effectivePageSize, paginate: true, freigegeben);
         var targets = await _service.GetTargetValuesAsync();
 
         var vm = new FaHierarchyKommissionierSummiertViewModel
         {
             Rows = result.Rows,
+            Gate = await GateHinweisAsync(freigegeben, result.NichtFreigegeben),
             AvailableTargets = targets,
             SelectedTargets = ziele,
             ZielQuery = KommissionierListenService.QueryMitZielen(HttpContext?.Request, ziele),
@@ -214,7 +243,7 @@ public class FaHierarchyKommissionierListenController : Controller
         var ziele = KommissionierListenService.ZieleNormalisieren(target); // Druck liest nur die Query, kein Gedaechtnis (A1)
         var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
         // paginate:false + int.MaxValue => ganze gefilterte Menge; Barcode je Gruppe vorberechnen.
-        var result = await _service.BuildAsync(ziele, columnFilters, 1, int.MaxValue, paginate: false);
+        var result = await _service.BuildAsync(ziele, columnFilters, 1, int.MaxValue, paginate: false, await FreigegebeneAsync());
 
         var barcodes = result.Groups.ToDictionary(
             g => g.HauptFA,
@@ -243,7 +272,9 @@ public class FaHierarchyKommissionierListenController : Controller
     {
         var ziele = KommissionierListenService.ZieleNormalisieren(target);
         var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
-        var result = await _service.BuildAsync(ziele, columnFilters, 1, int.MaxValue, paginate: false);
+        var freigegeben = await FreigegebeneAsync();
+        if (NichtFreigegebenWarnung(hauptFa, freigegeben, nameof(Index)) is { } warnung) return warnung;
+        var result = await _service.BuildAsync(ziele, columnFilters, 1, int.MaxValue, paginate: false, freigegeben);
         var group = result.Groups.FirstOrDefault(g => g.HauptFA == hauptFa);
         if (group is null) return NotFound();
 
@@ -279,7 +310,7 @@ public class FaHierarchyKommissionierListenController : Controller
         var ziele = KommissionierListenService.ZieleNormalisieren(target);
         var kwRange = IsoWeekRange.Resolve(kwVon, kwBis);
         var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
-        var result = await _service.BuildSummiertAsync(ziele, kwRange, columnFilters, 1, int.MaxValue, paginate: false);
+        var result = await _service.BuildSummiertAsync(ziele, kwRange, columnFilters, 1, int.MaxValue, paginate: false, await FreigegebeneAsync());
 
         var barcodes = result.Rows.Select(r => r.HauptFA).Distinct()
             .ToDictionary(h => h, h => _barcode.EncodeCode128Base64(h.ToString(CultureInfo.InvariantCulture)));
@@ -305,7 +336,9 @@ public class FaHierarchyKommissionierListenController : Controller
         var ziele = KommissionierListenService.ZieleNormalisieren(target);
         var kwRange = IsoWeekRange.Resolve(kwVon, kwBis);
         var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
-        var result = await _service.BuildSummiertAsync(ziele, kwRange, columnFilters, 1, int.MaxValue, paginate: false);
+        var freigegeben = await FreigegebeneAsync();
+        if (NichtFreigegebenWarnung(hauptFa, freigegeben, nameof(Summiert)) is { } warnung) return warnung;
+        var result = await _service.BuildSummiertAsync(ziele, kwRange, columnFilters, 1, int.MaxValue, paginate: false, freigegeben);
         var rows = result.Rows.Where(r => r.HauptFA == hauptFa).ToList();
         if (rows.Count == 0) return NotFound();
 

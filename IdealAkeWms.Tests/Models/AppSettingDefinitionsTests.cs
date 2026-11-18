@@ -29,13 +29,13 @@ public class AppSettingDefinitionsTests
         // v1.99.25 (Spec 2026-11-16-beschichtungslogik-je-standort): neue Keys mit Seed
         ("BeschichtungKennzeichenQuelle", "Automatisch"), ("BeschichtungTerminQuelle", "Automatisch"),
         // v1.99.43 (Spec 2026-11-18-ideal-kommissionierliste-filter-spalten-leitstand)
-        ("FaHierarchyKommissionierlisteVorfilterZiele", "K-01,K-02"),
+        ("FaHierarchyKommissionierlisteVorfilterZiele", "K-01,K-02"), ("FaHierarchyKommissionierlisteNurFreigegebene", "true"),
     };
 
     [Fact]
     public void Seed_GleichDerFrueherenListe_AK2()
     {
-        FruehererSeed.Should().HaveCount(39);
+        FruehererSeed.Should().HaveCount(40);
         AppSettingDefinitions.SeedEintraege.Select(e => (e.Key, e.Value)).Should().BeEquivalentTo(FruehererSeed);
     }
 
@@ -43,7 +43,7 @@ public class AppSettingDefinitionsTests
     public void Katalog_EnthaeltJedenKeyGenauEinmal_MitPflichtangaben_AK1()
     {
         var all = AppSettingDefinitions.All;
-        all.Should().HaveCount(66);  // v1.99.43: +1 FaHierarchyKommissionierlisteVorfilterZiele; v1.99.35: +5 Blechfertigung (BlechfertigungAktiv, BfEmpfaengergruppeId, BfStatuswerte, BfSchachtelterminArbeitstage, BfFeTerminArbeitstage); v1.99.25: +2 BeschichtungKennzeichenQuelle, BeschichtungTerminQuelle; v1.99.20: +2 EinkaufAktiv, EinkaufOffeneBedarfe; v1.99.14: -1 SageSdataFaAnsichtAktiv (Gate entfaellt); v1.99.11: +1 WareneingangBarcodeAktiv; v1.79.0 F5: zwei Rueckmelde-Schalter entfernt; v1.84.0: +2 Wareneingang aus Sage-Bestellungen; v1.87.0: +1 FaPflichtBuchungsarten; v1.99.4: +1 WareneingangLieferscheinPflicht
+        all.Should().HaveCount(67);  // v1.99.43: +2 FaHierarchyKommissionierlisteVorfilterZiele, FaHierarchyKommissionierlisteNurFreigegebene; v1.99.35: +5 Blechfertigung (BlechfertigungAktiv, BfEmpfaengergruppeId, BfStatuswerte, BfSchachtelterminArbeitstage, BfFeTerminArbeitstage); v1.99.25: +2 BeschichtungKennzeichenQuelle, BeschichtungTerminQuelle; v1.99.20: +2 EinkaufAktiv, EinkaufOffeneBedarfe; v1.99.14: -1 SageSdataFaAnsichtAktiv (Gate entfaellt); v1.99.11: +1 WareneingangBarcodeAktiv; v1.79.0 F5: zwei Rueckmelde-Schalter entfernt; v1.84.0: +2 Wareneingang aus Sage-Bestellungen; v1.87.0: +1 FaPflichtBuchungsarten; v1.99.4: +1 WareneingangLieferscheinPflicht
         all.Select(d => d.Key).Should().OnlyHaveUniqueItems();
         all.Should().OnlyContain(d => !string.IsNullOrWhiteSpace(d.Anzeigename) && !string.IsNullOrWhiteSpace(d.Description)
             && !string.IsNullOrWhiteSpace(d.Verwendung) && !string.IsNullOrWhiteSpace(d.Standort) && !string.IsNullOrWhiteSpace(d.Category));

@@ -1,0 +1,22 @@
+@model IdealAkeWms.Models.ViewModels.KommissionierGateHinweis?
+@* v1.99.43 (A5): Leitstand-Gate melden statt still — nur bei aktivem Schalter. Text traegt die Bedeutung, Farbe nur zusaetzlich. *@
+@if (Model is { } g)
+{
+    if (g.LeitstandAus)
+    {
+        <div class="alert alert-warning py-2 mb-2" role="alert">
+            <strong>Achtung:</strong> Leitstand ist ausgeschaltet – Freigaben sind nicht möglich, die Liste bleibt leer.
+        </div>
+    }
+    <div class="alert alert-info py-2 mb-2" role="status">
+        <strong>Nur im Leitstand freigegebene Aufträge.</strong>
+        @if (g.NichtFreigegeben > 0)
+        {
+            <text>@g.NichtFreigegeben HauptFA mit Kommissionier-Positionen (aktuelle Ziele) @(g.NichtFreigegeben == 1 ? "ist" : "sind") noch nicht freigegeben.</text>
+        }
+        else
+        {
+            <text>Alle HauptFA mit Kommissionier-Positionen (aktuelle Ziele) sind freigegeben.</text>
+        }
+    </div>
+}

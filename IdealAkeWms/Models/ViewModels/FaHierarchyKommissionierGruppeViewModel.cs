@@ -14,6 +14,9 @@ public class FaHierarchyKommissionierListViewModel
 {
     public List<FaHierarchyListGroupViewModel> Groups { get; init; } = new();
 
+    /// <summary>v1.99.43 (A5): Gate-Banner; null = Schalter aus.</summary>
+    public KommissionierGateHinweis? Gate { get; init; }
+
     /// <summary>Paging-State (Seiteneinheit = Gruppe/HauptFA; <c>TotalCount</c> zaehlt Gruppen).</summary>
     public PaginationState Pagination { get; init; } = new();
 

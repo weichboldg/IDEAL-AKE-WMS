@@ -69,6 +69,7 @@ public static class AppSettingKeys
     // v1.99.43 (Spec 2026-11-18-ideal-kommissionierliste-filter-spalten-leitstand A1): Standard-Ziele der Kommissionierliste,
     // kommagetrennt aus den Kommissionierzielen; leer = alle Ziele. Gilt, solange der Benutzer keinen eigenen Zielfilter gemerkt hat.
     public const string FaHierarchyKommissionierlisteVorfilterZiele = "FaHierarchyKommissionierlisteVorfilterZiele";
+    public const string FaHierarchyKommissionierlisteNurFreigegebene = "FaHierarchyKommissionierlisteNurFreigegebene";
 
     // IDEAL FA-Hierarchie (Teil 4 — Beschichtungsauftrag)
     // Feature-Toggle fuer das Beschichtungsauftrag-Modul. INVERTIERTE Default-aus-Semantik

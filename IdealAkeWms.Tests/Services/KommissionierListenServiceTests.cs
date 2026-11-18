@@ -412,4 +412,41 @@ public class KommissionierListenServiceTests
         var gef = await svc.BuildSummiertAsync(null, null, new Dictionary<string, string> { ["lagerplaetze"] = "K-02" }, 1, 100, paginate: true);
         gef.Rows.Select(r => r.Artnr).Should().Equal("A");
     }
+
+    // ----- v1.99.43 A5: Leitstand-Gate -----
+
+    [Fact]
+    public async Task Gate_BlendetNichtFreigegebeneAus_UndZaehltSie()
+    {
+        var nodes = new[] { Node(1, 0, "K-01", artnr: "A", position: 1), Node(2, 0, "K-01", artnr: "B", position: 1),
+                            Node(3, 0, "K-02", artnr: "C", position: 1), Node(4, 0, null, artnr: "D", position: 1) };
+        var svc = NewService(nodes);
+
+        var ohne = await svc.BuildAsync(null, null, 1, 100, paginate: true);
+        ohne.TotalGroupCount.Should().Be(3);
+        ohne.NichtFreigegeben.Should().Be(0, "Schalter aus = kein Banner");
+
+        var mit = await svc.BuildAsync(null, null, 1, 100, paginate: true, new HashSet<int> { 1 });
+        mit.Groups.Select(g => g.HauptFA).Should().Equal(1);
+        mit.NichtFreigegeben.Should().Be(2, "HauptFA 2 und 3; 4 hat kein Ziel");
+
+        var nurK01 = await svc.BuildAsync(new[] { "K-01" }, null, 1, 100, paginate: true, new HashSet<int> { 1 });
+        nurK01.NichtFreigegeben.Should().Be(1, "bei gleichen Zielen: nur HauptFA 2");
+    }
+
+    [Fact]
+    public async Task Gate_Summiert_LeereFreigabe_LeereListe()
+    {
+        var nodes = new[] { Node(1, 0, "K-01", artnr: "A", sollmenge: 1m) };
+        var r = await NewService(nodes).BuildSummiertAsync(null, null, null, 1, 100, paginate: true, new HashSet<int>());
+        r.Rows.Should().BeEmpty();
+        r.NichtFreigegeben.Should().Be(1);
+    }
+
+    [Fact]
+    public void FreigegebeneParsen_NurNumerische()
+    {
+        KommissionierListenService.FreigegebeneParsen(new[] { "100", " 200 ", "WA-1", null, "100" })
+            .Should().BeEquivalentTo(new[] { 100, 200 });
+    }
 }
