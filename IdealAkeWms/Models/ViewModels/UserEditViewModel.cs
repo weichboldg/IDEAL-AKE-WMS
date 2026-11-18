@@ -20,6 +20,11 @@ public class UserEditViewModel
     [Display(Name = "Personalnummer")]
     public string? PersonalNumber { get; set; }
 
+    [StringLength(User.KuerzelMaxLaenge)]
+    [RegularExpression(User.KuerzelMuster, ErrorMessage = "Kürzel: nur Buchstaben und Ziffern, höchstens 10 Zeichen.")]
+    [Display(Name = "Kürzel")]
+    public string? Kuerzel { get; set; }
+
     [Display(Name = "Aktiv")]
     public bool IsActive { get; set; } = true;
 

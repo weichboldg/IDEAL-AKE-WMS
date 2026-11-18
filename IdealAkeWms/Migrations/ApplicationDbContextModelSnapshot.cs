@@ -1502,6 +1502,10 @@ namespace IdealAkeWms.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("BestellerKuerzel")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
                     b.Property<string>("BestellerName")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -5506,6 +5510,10 @@ namespace IdealAkeWms.Migrations
                     b.Property<bool>("IsPicker")
                         .HasColumnType("bit");
 
+                    b.Property<string>("Kuerzel")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
                     b.Property<DateTime?>("ModifiedAt")
                         .HasColumnType("datetime2");
 
@@ -5546,6 +5554,11 @@ namespace IdealAkeWms.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("DefaultWorkStepId");
+
+                    b.HasIndex("Kuerzel")
+                        .IsUnique()
+                        .HasDatabaseName("UQ_Users_Kuerzel")
+                        .HasFilter("[Kuerzel] IS NOT NULL");
 
                     b.HasIndex("WindowsUserName")
                         .IsUnique()

@@ -40,6 +40,9 @@ public class BfAuftragWorkflowTests
         public Fx(int gruppe = 3, int userId = 7)
         {
             Repo = new BfAuftragRepository(Db);
+            // v1.99.42: Besteller mit Kuerzel (Freigabe liest es frisch vom Benutzer)
+            Db.Users.Add(new User { Id = userId, Name = "Tester", Kuerzel = "TST", CreatedBy = "t", CreatedByWindows = "t" });
+            Db.SaveChanges();
             Settings.Setup(s => s.GetValueAsync(AppSettingKeys.BfStatuswerte)).ReturnsAsync("EILT,Muster");
             Settings.Setup(s => s.GetIntValueAsync(AppSettingKeys.BfEmpfaengergruppeId, 0)).ReturnsAsync(gruppe);
             Groups.Setup(g => g.GetGroupByIdAsync(3)).ReturnsAsync(new OrderRecipientGroup { Id = 3, Name = "Blech" });
@@ -254,7 +257,7 @@ public class BfAuftragWorkflowTests
     {
         var p = new BfAuftragPosition { Position = 3, Matchcode = "MC", Materialnummer = "M", Hauptlagerplatz = "L", Menge = 1 };
         typeof(BfAuftragPosition).GetProperty(feld)!.SetValue(p, wert);
-        var a = new BfAuftrag { BestellerName = "Tester", Positionen = { p } };
+        var a = new BfAuftrag { BestellerName = "Tester", BestellerKuerzel = "TST", Positionen = { p } };
 
         var fehler = BfAuftragWorkflow.FreigabeFehler(a);
 
@@ -267,7 +270,7 @@ public class BfAuftragWorkflowTests
     {
         var a = new BfAuftrag
         {
-            BestellerName = "Tester",
+            BestellerName = "Tester", BestellerKuerzel = "TST",
             Positionen = { new BfAuftragPosition { Position = 1, Matchcode = "A;B", Materialnummer = "M", Hauptlagerplatz = "S-03;0;0;0", Menge = 1 } },
         };
         BfAuftragWorkflow.FreigabeFehler(a).Should().BeEmpty();
@@ -289,12 +292,36 @@ public class BfAuftragWorkflowTests
         (await BfCsv.KopfAsync(key => Task.FromResult<string?>(key == BfCsv.OrderPriorityKey ? "3" : null))).Priority.Should().Be(3);
     }
 
+    /// <summary>v1.99.42: ohne Besteller-Kuerzel (ORDER_REMARK_4) keine Freigabe; die Meldung sagt, wo es gepflegt wird.</summary>
+    [Fact]
+    public async Task Freigabe_OhneKuerzel_Gesperrt_MitKuerzel_Festgeschrieben()
+    {
+        var a = new BfAuftrag
+        {
+            BestellerName = "Tester", BestellerKuerzel = null,
+            Positionen = { new BfAuftragPosition { Position = 1, Matchcode = "MC", Materialnummer = "1", Hauptlagerplatz = "L", Menge = 1 } },
+        };
+        BfAuftragWorkflow.FreigabeFehler(a).Should().ContainSingle(f => f.Contains("kein Kürzel") && f.Contains("Stammdaten › Benutzer"));
+
+        var fx = new Fx();
+        var id = await BestelltAsync(fx, ("BG1", "M-1"));
+        fx.Db.Users.Single().Kuerzel = null;
+        fx.Db.SaveChanges();
+        var r = await fx.Wf.FreigebenAsync(id, null);
+        r.Ok.Should().BeFalse();
+        r.Text.Should().Contain("kein Kürzel");
+        fx.Db.Users.Single().Kuerzel = "WAK";
+        fx.Db.SaveChanges();
+        (await fx.Wf.FreigebenAsync(id, null)).Ok.Should().BeTrue();
+        fx.Db.BfAuftraege.Single().BestellerKuerzel.Should().Be("WAK");
+    }
+
     [Fact]
     public void FreigabeFehler_MengenregelUndGestricheneZaehltNicht()
     {
         var a = new BfAuftrag
         {
-            BestellerName = "Tester",
+            BestellerName = "Tester", BestellerKuerzel = "TST",
             Positionen =
             {
                 new BfAuftragPosition { Position = 1, Matchcode = "MC", Materialnummer = "M", Hauptlagerplatz = "L", Menge = 7, SageBestellmenge = 5 },

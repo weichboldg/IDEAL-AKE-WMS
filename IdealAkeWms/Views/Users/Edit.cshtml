@@ -36,6 +36,13 @@
                         <span asp-validation-for="PersonalNumber" class="text-danger"></span>
                     </div>
 
+                    <div class="mb-3">
+                        <label asp-for="Kuerzel" class="form-label"></label>
+                        <input asp-for="Kuerzel" class="form-control text-uppercase" maxlength="10" aria-describedby="kuerzelHilfe" />
+                        <div id="kuerzelHilfe" class="form-text">Personenkürzel, z. B. WAK. Eindeutig, höchstens 10 Buchstaben/Ziffern. Geht als Besteller in die WiCAM-CSV der BF-Aufträge.</div>
+                        <span asp-validation-for="Kuerzel" class="text-danger"></span>
+                    </div>
+
                     <div class="mb-3 form-check">
                         <input asp-for="IsActive" class="form-check-input" />
                         <label asp-for="IsActive" class="form-check-label"></label>

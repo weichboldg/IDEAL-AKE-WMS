@@ -61,6 +61,7 @@ public class UsersController : Controller
         ["name"] = u => u.Name,
         ["auth-type"] = u => u.WindowsUserName != null ? "AD" : "Lokal",
         ["personal-number"] = u => u.PersonalNumber,
+        ["kuerzel"] = u => u.Kuerzel,
         ["roles"] = u => string.Join(", ", u.UserRoles.OrderBy(ur => ur.Role.SortOrder).Select(ur => ur.Role.Name)),
         ["email"] = u => u.Email,
         ["status"] = u => u.IsActive ? "Aktiv" : "Inaktiv",
@@ -99,6 +100,18 @@ public class UsersController : Controller
         return View(ordered.Skip((page - 1) * effectivePageSize).Take(effectivePageSize).ToList());
     }
 
+    /// <summary>v1.99.42: Kuerzel normalisieren (getrimmt, gross, leer = null) und Eindeutigkeit pruefen (der gefilterte UNIQUE-Index
+    /// UQ_Users_Kuerzel ist die letzte Sperre; EF InMemory kennt ihn nicht).</summary>
+    private async Task KuerzelPruefenAsync(UserEditViewModel vm)
+    {
+        vm.Kuerzel = string.IsNullOrWhiteSpace(vm.Kuerzel) ? null : vm.Kuerzel.Trim().ToUpperInvariant();
+        if (vm.Kuerzel is null) return;
+        var andere = (await _userRepository.GetAllWithRolesAsync())
+            .FirstOrDefault(u => u.Id != vm.Id && string.Equals(u.Kuerzel, vm.Kuerzel, StringComparison.OrdinalIgnoreCase));
+        if (andere is not null)
+            ModelState.AddModelError(nameof(vm.Kuerzel), $"Kürzel {vm.Kuerzel} ist schon an {andere.Name} vergeben.");
+    }
+
     public async Task<IActionResult> Create()
     {
         var vm = new UserEditViewModel { IsActive = true };
@@ -110,6 +123,7 @@ public class UsersController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(UserEditViewModel vm, string? newPassword)
     {
+        await KuerzelPruefenAsync(vm);
         if (!ModelState.IsValid)
         {
             await PopulateRolesAsync(vm, vm.SelectedRoleIds);
@@ -121,6 +135,7 @@ public class UsersController : Controller
         {
             Name = vm.Name,
             PersonalNumber = vm.PersonalNumber,
+            Kuerzel = vm.Kuerzel,
             IsActive = vm.IsActive,
             Email = vm.Email,
             NotifyOnReorderLevel = vm.NotifyOnReorderLevel,
@@ -250,6 +265,7 @@ public class UsersController : Controller
             Name = user.Name,
             WindowsUserName = user.WindowsUserName,
             PersonalNumber = user.PersonalNumber,
+            Kuerzel = user.Kuerzel,
             IsActive = user.IsActive,
             Email = user.Email,
             NotifyOnReorderLevel = user.NotifyOnReorderLevel,
@@ -283,6 +299,7 @@ public class UsersController : Controller
         if (id != vm.Id)
             return NotFound();
 
+        await KuerzelPruefenAsync(vm);
         if (!ModelState.IsValid)
         {
             await PopulateRolesAsync(vm, vm.SelectedRoleIds);
@@ -295,6 +312,7 @@ public class UsersController : Controller
 
         existing.Name = vm.Name;
         existing.PersonalNumber = vm.PersonalNumber;
+        existing.Kuerzel = vm.Kuerzel;
         existing.IsActive = vm.IsActive;
         existing.Email = vm.Email;
         existing.NotifyOnReorderLevel = vm.NotifyOnReorderLevel;

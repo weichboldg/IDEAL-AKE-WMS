@@ -13,6 +13,13 @@ public class User : AuditableEntity
     [Display(Name = "Personalnummer")]
     public string? PersonalNumber { get; set; }
 
+    /// <summary>v1.99.42: Personenkuerzel (z. B. WAK), eindeutig, hoechstens 10 Zeichen, gross. Geht als Besteller-Kuerzel in die
+    /// WiCAM-CSV (<c>ORDER_REMARK_4</c>); fehlt es beim Besteller, ist die BF-Freigabe gesperrt.</summary>
+    public string? Kuerzel { get; set; }
+    public const int KuerzelMaxLaenge = 10;
+    /// <summary>Buchstaben (inkl. Umlaute) und Ziffern; gespeichert wird gross.</summary>
+    public const string KuerzelMuster = "^[A-Za-zÄÖÜäöü0-9]{1,10}$";
+
     [Display(Name = "Aktiv")]
     public bool IsActive { get; set; } = true;
 

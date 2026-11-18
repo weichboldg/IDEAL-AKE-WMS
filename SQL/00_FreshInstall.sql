@@ -25,6 +25,7 @@ BEGIN
         [Id]                        INT IDENTITY(1,1) NOT NULL,
         [Name]                      NVARCHAR(200)     NOT NULL,
         [PersonalNumber]            NVARCHAR(50)      NULL,
+        [Kuerzel]                   NVARCHAR(10)      NULL,   -- v1.99.42 / SQL/162 (Besteller-Kuerzel BF-CSV)
         [PasswordHash]              NVARCHAR(500)     NULL,
         [MussKennwortAendern]       BIT               NOT NULL CONSTRAINT [DF_Users_MussKennwortAendern] DEFAULT 0,
         [WindowsUserName]           NVARCHAR(200)     NULL,
@@ -568,6 +569,10 @@ GO
 -- =============================================
 -- 8c4. Windows-Auth (v1.23.0): Users.WindowsUserName gefilterter Unique-Index (Migration 73)
 -- =============================================
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'UQ_Users_Kuerzel' AND object_id = OBJECT_ID('dbo.Users'))
+    CREATE UNIQUE INDEX [UQ_Users_Kuerzel] ON [dbo].[Users] ([Kuerzel]) WHERE [Kuerzel] IS NOT NULL; -- v1.99.42 / SQL/162
+GO
+
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'UQ_Users_WindowsUserName' AND object_id = OBJECT_ID('dbo.Users'))
 BEGIN
     CREATE UNIQUE INDEX [UQ_Users_WindowsUserName]
@@ -2890,6 +2895,7 @@ BEGIN
         [Status]                INT            NOT NULL,  -- 0 Entwurf, 1 Bestellt, 2 Freigegeben, 3 Fertig, 4 Storniert
         [BestellerUserId]       INT            NULL,
         [BestellerName]         NVARCHAR(200)  NOT NULL,
+        [BestellerKuerzel]      NVARCHAR(10)   NULL,      -- v1.99.42 / SQL/162 (bei der Freigabe festgeschrieben)
         [BestelltAm]            DATETIME2      NULL,
         [OrderRecipientGroupId] INT            NULL CONSTRAINT [FK_BfAuftraege_OrderRecipientGroups_OrderRecipientGroupId]
                                                REFERENCES [dbo].[OrderRecipientGroups]([Id]),
@@ -3523,6 +3529,9 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261118120203_AddBeschichtungsauftragVersandUndVerpackt')
    AND COL_LENGTH(N'dbo.BeschichtungsauftragPositionen', N'OhneFa') IS NOT NULL -- sonst steht SQL/161 noch aus
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261118120203_AddBeschichtungsauftragVersandUndVerpackt', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261118144836_AddUserKuerzelUndBfBestellerKuerzel')
+   AND COL_LENGTH(N'dbo.BfAuftraege', N'BestellerKuerzel') IS NOT NULL -- sonst steht SQL/162 noch aus
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261118144836_AddUserKuerzelUndBfBestellerKuerzel', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';

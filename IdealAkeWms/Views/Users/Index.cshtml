@@ -55,6 +55,7 @@
                 <th data-filterable data-col-key="name">Name</th>
                 <th data-filterable data-col-key="auth-type">Typ</th>
                 <th data-filterable data-col-key="personal-number">Personalnummer</th>
+                <th data-filterable data-col-key="kuerzel">Kürzel</th>
                 <th data-filterable data-col-key="roles">Rollen</th>
                 <th data-filterable data-col-key="email">E-Mail</th>
                 <th data-filterable data-col-key="status">Status</th>
@@ -69,6 +70,7 @@
                     <td>@user.Name</td>
                     <td>@(user.WindowsUserName != null ? "AD" : "Lokal")</td>
                     <td>@user.PersonalNumber</td>
+                    <td>@user.Kuerzel</td>
                     <td>
                         @foreach (var ur in user.UserRoles.OrderBy(ur => ur.Role.SortOrder))
                         {

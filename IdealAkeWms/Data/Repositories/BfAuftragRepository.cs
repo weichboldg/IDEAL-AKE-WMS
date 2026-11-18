@@ -90,6 +90,10 @@ public class BfAuftragRepository : IBfAuftragRepository
         }).ToList();
     }
 
+    public async Task<string?> GetBenutzerKuerzelAsync(int? userId) => userId is int id
+        ? await _db.Users.AsNoTracking().Where(u => u.Id == id).Select(u => u.Kuerzel).FirstOrDefaultAsync()
+        : null;
+
     public void Add(BfAuftrag auftrag) => _db.BfAuftraege.Add(auftrag);
     public void Remove(BfAuftragPosition position) => _db.BfAuftragPositionen.Remove(position);
     public void VerwerfeAenderungen() => _db.ChangeTracker.Clear();

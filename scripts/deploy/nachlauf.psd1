@@ -116,6 +116,8 @@ Eintraege = @(
    Datei='160_AddSageFaArbeitsgangAnlagen.sql'; MigrationId='20261117192807_AddSageFaArbeitsgangAnlagen'; Voraussetzung='additiv, eine neue Tabelle SageFaArbeitsgangAnlagen (Warteschlange AG-Anlage in Sage-FAs), kein Backfill'; Quelle='2026-11-17-v1-99-38-arbeitsgaenge-in-sage-fa-anlegen' }
 @{ Id='SQL/161'; Version='1.99.41'; Typ='Schema'; Firma='beide'; Phase='Schema'; Ausfuehrung='automatisch'
    Datei='161_AddBeschichtungsauftragVersandUndVerpackt.sql'; MigrationId='20261118120203_AddBeschichtungsauftragVersandUndVerpackt'; Voraussetzung='additiv: CreditorId (FK Creditors, Index), VersendetAt/-ByUserId, Verpackt/OhneFa je Position (Default 0), kein Backfill'; Quelle='2026-11-18-v1-99-41-beschichtungsauftrag-ausbau' }
+@{ Id='SQL/162'; Version='1.99.42'; Typ='Schema'; Firma='beide'; Phase='Schema'; Ausfuehrung='automatisch'
+   Datei='162_AddUserKuerzelUndBfBestellerKuerzel.sql'; MigrationId='20261118144836_AddUserKuerzelUndBfBestellerKuerzel'; Voraussetzung='additiv: Users.Kuerzel (gefiltert UNIQUE), BfAuftraege.BestellerKuerzel; danach Kuerzel der BF-Besteller pflegen, sonst ist die Freigabe gesperrt'; Quelle='2026-11-18-v1-99-42-nachbesserungen' }
 
 # ---------------------------------------------------------------- Pruefungen (jeder Lauf; Reparatur nur nach Bestaetigung) -------
 # v1.99.28 (ADR 0027): admin zaehlt nicht - der Web-Start stellt admin ohne Kennwort auf das Standard-Erstkennwort mit Pflichtwechsel um.

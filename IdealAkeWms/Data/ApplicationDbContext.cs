@@ -104,6 +104,11 @@ public class ApplicationDbContext : DbContext
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Name).HasMaxLength(200).IsRequired();
             entity.Property(e => e.PersonalNumber).HasMaxLength(50);
+            entity.Property(e => e.Kuerzel).HasMaxLength(User.KuerzelMaxLaenge);
+            entity.HasIndex(e => e.Kuerzel)
+                .IsUnique()
+                .HasFilter("[Kuerzel] IS NOT NULL")
+                .HasDatabaseName("UQ_Users_Kuerzel");
             entity.Property(e => e.PasswordHash).HasMaxLength(500);
             entity.Property(e => e.WindowsUserName).HasMaxLength(200);
             entity.HasIndex(e => e.WindowsUserName)
@@ -1818,6 +1823,7 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.Status).HasConversion<int>();
             entity.Property(e => e.CsvStatus).HasConversion<int>();
             entity.Property(e => e.BestellerName).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.BestellerKuerzel).HasMaxLength(User.KuerzelMaxLaenge);
             entity.Property(e => e.FreigegebenVon).HasMaxLength(200);
             entity.Property(e => e.Schachteltermin).HasColumnType("date");
             entity.Property(e => e.FeTermin).HasColumnType("date");

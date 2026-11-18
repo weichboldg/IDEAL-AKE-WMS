@@ -28,6 +28,9 @@ public interface IBfAuftragRepository
     /// <summary>Ein Artikel nur, wenn er den Warenkorb-Filter erfuellt.</summary>
     Task<BfArtikel?> GetArtikelAsync(string articleNumber);
 
+    /// <summary>v1.99.42: aktuelles Kuerzel des Bestellers (null = kein Benutzer/kein Kuerzel).</summary>
+    Task<string?> GetBenutzerKuerzelAsync(int? userId);
+
     void Add(BfAuftrag auftrag);
     void Remove(BfAuftragPosition position);
     void VerwerfeAenderungen();

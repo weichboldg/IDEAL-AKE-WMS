@@ -206,6 +206,8 @@ public class BfAuftragWorkflow
         if (a is null) return new(false, "BF-Auftrag nicht gefunden.");
         if (PruefeBearbeitung(a, alsSchachtler: true) is { } f) return new(false, f, a.Id);
 
+        // v1.99.42: Kuerzel immer frisch vom Benutzer (nachgepflegt nach dem Abschicken), mit der Freigabe festgeschrieben.
+        a.BestellerKuerzel = await _repo.GetBenutzerKuerzelAsync(a.BestellerUserId);
         var fehler = FreigabeFehler(a);
         if (fehler.Count > 0) return new(false, $"Freigabe von {Name(a)} abgelehnt: {string.Join("; ", fehler)}", a.Id);
 
@@ -249,7 +251,8 @@ public class BfAuftragWorkflow
                          ("FertigungsInfoPN", p.FertigungsInfoPN), ("Hauptlagerplatz", p.Hauptlagerplatz) })
                 if (BfCsv.UnzulaessigesZeichen(wert) is { } z) fehler.Add($"Pos {p.Position} {feld}: {z}");
         }
-        if (BfCsv.UnzulaessigesZeichen(a.BestellerName) is { } bz) fehler.Add($"Besteller: {bz}");
+        if (string.IsNullOrWhiteSpace(a.BestellerKuerzel))
+            fehler.Add($"Besteller {a.BestellerName} hat kein Kürzel – unter Stammdaten › Benutzer eintragen (geht als ORDER_REMARK_4 in die CSV)");
         if (!a.Positionen.Any(p => p.Uebergeben))
             fehler.Add("keine Position wird an WiCAM übergeben (alle gestrichen oder ohne Materialnummer)");
         return fehler;

@@ -104,6 +104,8 @@ public class BfAuftraegeController : Controller
                 gesperrt = "Abschicken gesperrt: keine gültige Empfängergruppe für BF-Aufträge eingestellt (Einstellungen > Blechfertigung).";
         }
         var bearbeitbar = (a.Status == BfAuftragStatus.Entwurf && eigentuemer) || (a.Status == BfAuftragStatus.Bestellt && schachtler);
+        // v1.99.42: Freigabe-Sperren zeigen das aktuelle Kuerzel (ungetrackt, nichts gespeichert)
+        if (a.Status == BfAuftragStatus.Bestellt) a.BestellerKuerzel = await _repo.GetBenutzerKuerzelAsync(a.BestellerUserId);
         return new BfAuftragDetailViewModel
         {
             Suche = q,

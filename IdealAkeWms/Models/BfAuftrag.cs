@@ -34,6 +34,8 @@ public class BfAuftrag : AuditableEntity
     public int? BestellerUserId { get; set; }
     /// <summary>Snapshot fuer <c>ORDER_REMARK_4</c> und Anzeige.</summary>
     public string BestellerName { get; set; } = string.Empty;
+    /// <summary>v1.99.42: Kuerzel des Bestellers (<see cref="User.Kuerzel"/>), bei der Freigabe festgeschrieben → <c>ORDER_REMARK_4</c>.</summary>
+    public string? BestellerKuerzel { get; set; }
     public DateTime? BestelltAm { get; set; }
 
     public int? OrderRecipientGroupId { get; set; }

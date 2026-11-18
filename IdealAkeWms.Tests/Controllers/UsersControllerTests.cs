@@ -17,6 +17,7 @@ public class UsersControllerTests
     {
         userRepo ??= new Mock<IUserRepository>();
         var roleRepo = new Mock<IRoleRepository>();
+        roleRepo.Setup(x => x.GetAllOrderedAsync()).ReturnsAsync(new List<Role>());
         var currentUser = new Mock<ICurrentUserService>();
         currentUser.Setup(x => x.GetDefaultPageSizeAsync()).ReturnsAsync((int?)null);
         var passwordService = new Mock<IPasswordService>();
@@ -115,6 +116,35 @@ public class UsersControllerTests
 
         saved.Should().NotBeNull();
         saved!.DefaultWorkStepId.Should().Be(10);
+    }
+
+    /// <summary>v1.99.42: Kuerzel wird gross gespeichert; ein schon vergebenes Kuerzel (ohne Gross/Klein) lehnt die Maske mit Namen ab.</summary>
+    [Theory]
+    [InlineData(" wak ", null, "WAK")]
+    [InlineData("maw", "MAW", null)]
+    public async Task Edit_Post_Kuerzel_GrossUndEindeutig(string eingabe, string? vergebenAnOtto, string? gespeichert)
+    {
+        var existing = new User { Id = 5, Name = "Dora", IsActive = true, CreatedBy = "t", CreatedByWindows = "t" };
+        var otto = new User { Id = 6, Name = "Otto", Kuerzel = vergebenAnOtto, CreatedBy = "t", CreatedByWindows = "t" };
+        var userRepo = new Mock<IUserRepository>();
+        userRepo.Setup(r => r.GetByIdAsync(5)).ReturnsAsync(existing);
+        userRepo.Setup(r => r.GetAllWithRolesAsync()).ReturnsAsync(new List<User> { existing, otto });
+        User? saved = null;
+        userRepo.Setup(r => r.UpdateAsync(It.IsAny<User>())).Callback<User>(u => saved = u).Returns(Task.CompletedTask);
+        var ctrl = BuildController(userRepo);
+        var httpCtx = new Microsoft.AspNetCore.Http.DefaultHttpContext();
+        ctrl.ControllerContext = new ControllerContext { HttpContext = httpCtx };
+        ctrl.TempData = new Microsoft.AspNetCore.Mvc.ViewFeatures.TempDataDictionary(
+            httpCtx, Mock.Of<Microsoft.AspNetCore.Mvc.ViewFeatures.ITempDataProvider>());
+
+        await ctrl.Edit(5, new IdealAkeWms.Models.ViewModels.UserEditViewModel { Id = 5, Name = "Dora", IsActive = true, Kuerzel = eingabe }, null);
+
+        saved?.Kuerzel.Should().Be(gespeichert);
+        if (gespeichert is null)
+        {
+            saved.Should().BeNull();
+            ctrl.ModelState["Kuerzel"]!.Errors.Should().ContainSingle(e => e.ErrorMessage.Contains("MAW") && e.ErrorMessage.Contains("Otto"));
+        }
     }
 
     [Fact]
