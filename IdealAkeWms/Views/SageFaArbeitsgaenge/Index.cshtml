@@ -161,7 +161,7 @@ else
                     <td>@z.AgInSage</td>
                     <td class="small">
                         @z.Hinweis
-                        @if (z.Status == SageFaArbeitsgaenge.QueueFehler && z.SageAg != null && z.Hinweis?.Contains(SageFaArbeitsgaenge.UnklarText) == true)
+                        @if (z.Status == SageFaArbeitsgaenge.QueueFehler && z.SageAg != null && z.Hinweis?.Contains(SageFaArbeitsgaenge.UnklarAnfang) == true)
                         {
                             @* v1.99.42 (N1): unklare Antwort - nach Pruefung in Sage von Hand bestaetigen (schreibt nichts an Sage) *@
                             <form method="post" asp-action="Bestaetigen" class="mt-1">

@@ -34,11 +34,14 @@ public static class SageFaArbeitsgaenge
     public const string Angelegt = "angelegt";
     public const string QueueFehler = "Fehler";
     public const string BearbeiterFehlt = "Sage-Bearbeiter für AG-Anlage fehlt (Service-Einstellungen) – nichts gesendet.";
-    public const string UnklarText = "Antwort unklar – bitte in Sage prüfen, ob der Arbeitsgang am FA steht: ja → „In Sage vorhanden“ bestätigen, nein → erneut einreihen.";
+    public const string UnklarText = UnklarAnfang + " – bitte in Sage prüfen, ob der Arbeitsgang am FA steht: ja → „In Sage vorhanden“ bestätigen, nein → erneut einreihen.";
+    /// <summary>QA v1.99.42: gemeinsamer Anfang alter (bis v1.99.41) und neuer Unklar-Texte - gespeicherte Zeilen mit dem alten Text
+    /// duerfen nach dem Update nicht automatisch wiederholt werden (Dubletten in Sage).</summary>
+    public const string UnklarAnfang = "Antwort unklar";
 
     /// <summary>v1.99.42 (N1): Fehler-Zeile mit unklarer Antwort - nie automatisch wiederholt, nur sie bekommt „In Sage vorhanden“ bestätigen.</summary>
-    public static bool IstUnklar(SageFaArbeitsgangAnlage a) =>
-        a.Status == SageFaArbeitsgangStatus.Fehler && a.Fehler?.StartsWith(UnklarText, StringComparison.Ordinal) == true;
+    public static bool IstUnklar(SageFaArbeitsgangAnlage a) => a.Status == SageFaArbeitsgangStatus.Fehler && IstUnklarText(a.Fehler);
+    public static bool IstUnklarText(string? text) => text?.StartsWith(UnklarAnfang, StringComparison.Ordinal) == true;
     public const string AusText = "Arbeitsgänge in Sage anlegen ist ausgeschaltet – nichts eingereiht.";
 
     /// <summary>Last-Grenze der Pruefung: mehr FAs = enger filtern (Haupt-FA). ponytail: feste Grenze, Einstellung erst bei Bedarf.</summary>

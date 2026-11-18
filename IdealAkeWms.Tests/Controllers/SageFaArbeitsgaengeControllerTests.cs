@@ -134,6 +134,14 @@ public class SageFaArbeitsgaengeControllerTests
         c.TempData["SuccessMessage"].Should().NotBeNull();
     }
 
+    [Theory]   // QA v1.99.42: Zeilen mit dem Unklar-Text bis v1.99.41 bleiben nach dem Update unklar (sonst automatische Wiederholung = Dublette)
+    [InlineData("Antwort unklar – bitte in Sage prüfen, ob der Arbeitsgang am FA steht; danach erneut einreihen. (HTTP 201)", true)]
+    [InlineData(SageFaArbeitsgaenge.UnklarText, true)]
+    [InlineData("HTTP 400", false)]
+    public void IstUnklar_ErkenntAltenUndNeuenText(string fehler, bool erwartet) =>
+        SageFaArbeitsgaenge.IstUnklar(new SageFaArbeitsgangAnlage { Status = SageFaArbeitsgangStatus.Fehler, Fehler = fehler, SageArbeitsgangnummer = "1",
+            Kuerzel = "PU", CreatedBy = "t", CreatedByWindows = "t" }).Should().Be(erwartet);
+
     [Fact]
     public async Task Index_FaFilter_Pruefen_LiestAuchDieUnterFas()   // QA F1: Unter-FA stand ohne Lesefehler auf „Sage nicht lesbar“
     {
