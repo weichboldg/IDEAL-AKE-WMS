@@ -1,6 +1,6 @@
 # 13 – Anmeldung und Benutzer (Erstkennwort mit Pflichtwechsel)
 
-Stand: Version 1.99.29 · Standorte AKE und IDEAL · Bilder aus den Testsystemen AKE und IDEAL
+Stand: Version 1.99.43 · Standorte AKE und IDEAL · Bilder aus den Testsystemen AKE und IDEAL
 
 ## Zweck
 
@@ -120,10 +120,23 @@ AD-Benutzer (*Benutzer → AD-Benutzer anlegen*) werden **ohne** Kennwort angele
 Normalfall. Ein Erstkennwort braucht ein AD-Benutzer nur, wenn er auch an einem Gerät ohne Windows-Anmeldung arbeitet (Handgerät,
 Terminal) – dann wie in Abschnitt 5 vergeben. Die Windows-Anmeldung bleibt davon unberührt.
 
+### 8. Kürzel (seit Version 1.99.42)
+
+Beim Anlegen und Bearbeiten eines Benutzers gibt es das Feld **Kürzel**, z. B. *WAK*. Die Benutzerliste zeigt es in der Spalte **Kürzel**.
+
+![Feld „Kürzel“ beim Anlegen eines Benutzers](bilder/13-05-kuerzel-feld.jpg)
+
+- Höchstens **10 Buchstaben oder Ziffern**, keine Leer- oder Sonderzeichen. Sonst: „Kürzel: nur Buchstaben und Ziffern, höchstens 10 Zeichen.“
+- **Eindeutig:** Ist das Kürzel schon vergeben, meldet das WMS „Kürzel … ist schon an … vergeben.“
+- Das Feld ist freiwillig. Gebraucht wird es für die **BF-Aufträge** (Blechfertigung): Das Kürzel des Bestellers geht in die WiCAM-Datei.
+  Ohne Kürzel kann der Schachtler einen BF-Auftrag nicht freigeben, siehe [Kapitel 14](14-blechfertigung-bf-auftraege.md).
+
 ## Unterschiede AKE und IDEAL
 
 Keine. Ablauf, Meldungen und Hinweise sind an beiden Standorten gleich. Ob der Knopf **Mit Windows anmelden** erscheint, hängt nur an der
 Einstellung **Windows-Anmeldung aktiv** des jeweiligen Systems.
+
+Das Feld **Kürzel** gibt es an beiden Standorten. Gebraucht wird es derzeit nur bei IDEAL (BF-Aufträge).
 
 ## Hinweise und Stolperfallen
 
@@ -150,3 +163,7 @@ Der Administrator vergibt ein neues Erstkennwort (Abschnitt 5). Am PC geht weite
 
 **Muss ich als Büro-Benutzer jetzt ein Kennwort haben?**
 Nein. Mit Windows anmelden funktioniert wie bisher.
+
+**Ein Besteller kann seinen BF-Auftrag nicht freigeben lassen – „hat kein Kürzel“.**
+Der Administrator trägt unter *Stammdaten → Benutzer → Bearbeiten* das **Kürzel** ein. Danach kann der Schachtler freigeben; neu bestellen ist
+nicht nötig.
