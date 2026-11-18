@@ -109,6 +109,28 @@ public class ArtikelSdataTests
             .ThrowAsync<SdataLeseException>().WithMessage("*0 Zeilen*Filter prüfen*");
     }
 
+    [Fact]
+    public async Task LesenAsync_VariantenUngueltigerSpaltenname_NenntDieEinstellung()
+    {
+        // QA v1.99.40 (Spec 2026-11-18-sage-userfelder-als-einstellung R4): Varianten-Select mit USER_Mindestbestand → HTTP 500
+        var client = new Mock<ISageSdataReadClient>();
+        static SdataSeiten<T> S<T>(string r, params T[] z) => new(z, r, 1, z.Length, 1);
+        client.Setup(c => c.QueryAllAsync<SdataArtikelZeile>(Ziel, SageSdataReadClient.VertragResources, "Artikel",
+                It.IsAny<string?>(), It.IsAny<string?>(), "Artikelnummer", It.IsAny<CancellationToken>(), It.IsAny<int>()))
+            .ReturnsAsync(S("Artikel", Artikel("B-1")));
+        client.Setup(c => c.QueryAllAsync<SdataRessourceZeile>(Ziel, SageSdataReadClient.VertragResources, "PpsRessourcenPositionenInfo",
+                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string>(), It.IsAny<CancellationToken>(), It.IsAny<int>()))
+            .ReturnsAsync(S("PpsRessourcenPositionenInfo", new SdataRessourceZeile("B-1")));
+        client.Setup(c => c.QueryAllAsync<SdataArtikelVarianteZeile>(Ziel, SageSdataReadClient.VertragResources, "ArtikelVariantenExtended",
+                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string>(), It.IsAny<CancellationToken>(), It.IsAny<int>()))
+            .ThrowsAsync(new SdataLeseException("ArtikelVariantenExtended", 500, "Ungültiger Spaltenname 'USER_Mindestbestand'."));
+        var reader = new SdataArtikelReader(client.Object, new ConfigurationBuilder().Build(), NullLogger<SdataArtikelReader>.Instance);
+
+        var ex = await ((Func<Task>)(() => reader.LesenAsync(Ziel, CancellationToken.None))).Should().ThrowAsync<SdataLeseException>();
+        ex.Which.Status.Should().Be(500);
+        ex.Which.Message.Should().Contain("„Artikel: Mindestbestand“ (Sync:Userfeld:Artikel:USER_Mindestbestand)").And.NotContain("Lagerplatz-ID");
+    }
+
     // ----- Weiche -----
 
     private sealed class FakeArtikelReader : ISageArtikelReader

@@ -231,8 +231,17 @@ public sealed class SdataArtikelReader : ISageArtikelReader
         artikel.AddRange(await InBloeckenAsync<SdataArtikelZeile>(_client, ziel, RessourceArtikel, SelectArtikel, "Artikelnummer", nurRessource, hinweise, ct));
 
         var nummern = artikel.Select(a => a.Artikelnummer).Where(n => !string.IsNullOrWhiteSpace(n)).Select(n => n!).ToList();
-        var varianten = await InBloeckenAsync<SdataArtikelVarianteZeile>(_client, ziel, RessourceVarianten, SelectVariantenFuer(userfelder), "Artikelnummer,AuspraegungID",
-            nummern, hinweise, ct);
+        List<SdataArtikelVarianteZeile> varianten;
+        try
+        {
+            varianten = await InBloeckenAsync<SdataArtikelVarianteZeile>(_client, ziel, RessourceVarianten, SelectVariantenFuer(userfelder),
+                "Artikelnummer,AuspraegungID", nummern, hinweise, ct);
+        }
+        catch (SdataLeseException ex) when (ex.Status == 500)
+        {
+            // R4 (QA v1.99.40): „Ungueltiger Spaltenname“ nennt die Einstellung Artikel: Lagerplatz-ID / Mindestbestand (der Aufrufer loggt ex.Message).
+            throw new SdataLeseException(ex.Ressource, ex.Status, userfelder.Erklaeren(ex.Diagnose), ex);
+        }
         var plaetze = await _client.QueryAllAsync<SdataLagerplatzZeile>(ziel, SageSdataReadClient.VertragResources,
             SdataLagerplatzReader.RessourceLagerplaetze, null, SelectPlaetze, "PlatzID", ct);
         hinweise.Add(new(plaetze.Zusammenfassung));
