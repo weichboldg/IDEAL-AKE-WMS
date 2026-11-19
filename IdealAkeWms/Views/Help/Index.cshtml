@@ -2281,6 +2281,9 @@
                     <li><strong>Wer:</strong> Bestellen = Rolle Lagerbestellung oder <code>schachtler</code>; Besteller sehen nur eigene Aufträge.
                         Freigeben, Menge/Lagerplatz ändern, Streichen, Fertig melden, &bdquo;CSV erneut schreiben&ldquo; nur mit <code>schachtler</code>.</li>
                     <li><strong>Warenkorb:</strong> Suche nach Artikelnummer, Matchcode oder Bezeichnung &ndash; nur Sage-Lagerartikel mit Artikeltyp BG/FT.
+                        Seit v1.99.45 schlägt das Suchfeld ab 2 Zeichen passende Artikel vor (gleicher Filter); einen Vorschlag wählen oder einen Barcode
+                        scannen startet die Suche sofort. Danach hat &bdquo;Hinzufügen&ldquo; der passenden Zeile den Fokus &ndash; Enter fügt mit der
+                        vorbelegten Menge hinzu.
                         Menge muss ein ganzes Vielfaches der Sage-Bestellmenge sein, wenn die Einheit gleich ist (0/leer = frei). Status aus
                         <em>BF-Aufträge: Status-Werte</em> (Vorgabe <code>EILT</code>). Ohne Materialnummer PN: Hinweis, Position geht nicht an WiCAM.
                         <strong>Abschicken</strong> vergibt <code>BF</code> + 8 Ziffern und löst die Mail an die Gruppe aus (nur dann).</li>

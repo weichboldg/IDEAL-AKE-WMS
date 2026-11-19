@@ -118,6 +118,49 @@ public class BfAuftragWorkflowTests
     }
 
     [Fact]
+    public async Task Artikelsuche_MitSuchbegriff_NurLagerartikelBgFt()
+    {
+        var fx = new Fx();
+        fx.Artikel("BG1");
+        fx.Artikel("FT1", typ: "FT");
+        fx.Artikel("ZK1", typ: "ZK");
+        fx.Artikel("NL1", ist: "0");
+        fx.Artikel("OHNE", ist: null);
+
+        (await fx.Repo.SucheArtikelAsync("Teil", 50)).Select(t => t.ArticleNumber).Should().BeEquivalentTo("BG1", "FT1");
+        (await fx.Repo.SucheArtikelAsync("MC ZK1", 50)).Should().BeEmpty();
+    }
+
+    /// <summary>v1.99.45: Type-ahead-Endpunkt liefert dieselben Artikel wie die Server-Suche (ein Filter, SucheArtikelAsync).</summary>
+    [Fact]
+    public async Task ApiArtikel_LiefertDieselbenArtikelWieDieServerSuche()
+    {
+        var fx = new Fx();
+        fx.Artikel("BG1");
+        fx.Artikel("FT1", typ: "FT");
+        fx.Artikel("ZK1", typ: "ZK");
+        fx.Artikel("NL1", ist: "0");
+
+        var ok = (await new IdealAkeWms.Controllers.Api.BfAuftraegeApiController(fx.Repo).Artikel("Teil", 20))
+            .Should().BeOfType<Microsoft.AspNetCore.Mvc.OkObjectResult>().Subject;
+        var api = ((System.Collections.IEnumerable)ok.Value!).Cast<object>()
+            .Select(o => (string)o.GetType().GetProperty("ArticleNumber")!.GetValue(o)!).ToList();
+
+        api.Should().BeEquivalentTo((await fx.Repo.SucheArtikelAsync("Teil", 20)).Select(t => t.ArticleNumber));
+        api.Should().BeEquivalentTo("BG1", "FT1");
+    }
+
+    /// <summary>v1.99.45: Wächter – Endpunkt und Warenkorb-Seite tragen dieselben Zugriffsfilter auf Klassenebene.</summary>
+    [Theory]
+    [InlineData(typeof(IdealAkeWms.Filters.RequireBfBestellenAccessAttribute))]
+    [InlineData(typeof(IdealAkeWms.Filters.RequireBlechfertigungAktivAttribute))]
+    public void ApiArtikel_GleicheZugriffsfilterWieDieSeite(Type filter)
+    {
+        typeof(IdealAkeWms.Controllers.Api.BfAuftraegeApiController).IsDefined(filter, false).Should().BeTrue();
+        typeof(IdealAkeWms.Controllers.BfAuftraegeController).IsDefined(filter, false).Should().BeTrue();
+    }
+
+    [Fact]
     public async Task Hinzufuegen_OhneMaterialnummer_NurHinweis()
     {
         var fx = new Fx();

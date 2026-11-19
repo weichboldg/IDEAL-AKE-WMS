@@ -60,14 +60,17 @@
 
 @if (Model.BestellerBearbeitet)
 {
-    @* Artikelsuche: nur Sage-Lagerartikel mit Artikeltyp BG/FT (Server-Suche, kein eigenes JS). *@
+    @* Artikelsuche: nur Sage-Lagerartikel mit Artikeltyp BG/FT. Server-Suche; Vorschläge beim Tippen über api/bf-auftraege/artikel
+       (bf-artikelsuche.js) – dieselbe Repository-Methode SucheArtikelAsync, also derselbe Filter (v1.99.45). *@
     <div class="card filter-card mb-3">
         <div class="card-header">Artikel hinzufügen</div>
         <div class="card-body">
             <form method="get" asp-action="Warenkorb" class="row g-2 align-items-end">
                 <div class="col-md-6">
                     <label class="form-label" for="q">Artikelnummer, Matchcode oder Bezeichnung</label>
-                    <input type="search" id="q" name="q" value="@Model.Suche" class="form-control" autocomplete="off" data-hw-scan-ziel />
+                    <input type="search" id="q" name="q" value="@Model.Suche" class="form-control" autocomplete="off" data-hw-scan-ziel
+                           list="bfArtikelVorschlaege" />
+                    <datalist id="bfArtikelVorschlaege"></datalist>
                 </div>
                 <div class="col-md-3">
                     <button type="submit" class="btn btn-primary">Suchen</button>
@@ -87,6 +90,11 @@
                                 <tr><th>Artikel</th><th>Matchcode</th><th>Teileart</th><th>Material</th><th class="text-end">Bestellmenge</th><th>Menge</th><th>Status</th><th>Lagerplatz</th><th></th></tr>
                             </thead>
                             <tbody>
+                                @{
+                                    // Fokus nach der Suche (v1.99.45): exakter Artikelnummer-Treffer, sonst der einzige Treffer – Enter fügt hinzu.
+                                    var fokusNr = Model.Treffer.FirstOrDefault(x => string.Equals(x.ArticleNumber, Model.Suche?.Trim(), StringComparison.OrdinalIgnoreCase))?.ArticleNumber
+                                        ?? (Model.Treffer.Count == 1 ? Model.Treffer[0].ArticleNumber : null);
+                                }
                                 @foreach (var t in Model.Treffer)
                                 {
                                     var fid = "add-" + t.ArticleNumber.GetHashCode().ToString("x");
@@ -119,7 +127,7 @@
                                                 @foreach (var l in Model.Lagerplaetze.Where(l => l != t.Hauptlagerplatz)) { <option>@l</option> }
                                             </select>
                                         </td>
-                                        <td><button form="@fid" type="submit" class="btn btn-sm btn-success">Hinzufügen</button></td>
+                                        <td><button form="@fid" type="submit" class="btn btn-sm btn-success" autofocus="@(t.ArticleNumber == fokusNr)">Hinzufügen</button></td>
                                     </tr>
                                 }
                             </tbody>
@@ -344,4 +352,8 @@ else
 @section Scripts {
     <script src="~/js/column-preferences.js" asp-append-version="true"></script>
     <script src="~/js/table-filter.js" asp-append-version="true"></script>
+    @if (Model.BestellerBearbeitet)
+    {
+        <script src="~/js/bf-artikelsuche.js" asp-append-version="true"></script>
+    }
 }
