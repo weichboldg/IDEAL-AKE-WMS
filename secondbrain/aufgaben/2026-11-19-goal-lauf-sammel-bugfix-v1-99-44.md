@@ -1,6 +1,6 @@
 ---
 type: aufgabe
-status: offen
+status: erledigt
 created: 2026-11-19
 quelle: Gerald, Chat 2026-11-19 (/goal Sammel-Bugfix v1.99.44)
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
@@ -100,3 +100,15 @@ Nach dem Merge nur dann neu aus main veröffentlichen, wenn der Merge getestete 
 3. 166.3/166.4a über `Update-IdealAkeWms.ps1 -NurPruefen` bzw. den Haltepunkt am Testsystem (QA hat dieselbe Manifest-SQL per sqlcmd belegt).
 4. 166.1 Sichtprüfung am echten Terminal/Handy (QA-Fotos s. o.).
 5. Testsystem-Lauf mit Paket 9, dann Merge-Entscheid (Schranke 2).
+
+- 2026-11-19: **Publish Paket 9** nach `<Worktree>\publish\paket9-v1.99.44\` + `paket9-v1.99.44.zip` (Commit `f1747e10`): Web + Dienst (DLLs tragen 1.99.44), `SQL/`, `deploy/`, `publish-info.txt`. Paket 8 unverändert.
+- 2026-11-19: **Confluence** (AKEDOKUMEN, Versionskommentar „Übernahme aus docs/ Stand v1.99.44 (f1747e10)“): aktualisiert README 680853506,
+  Anleitung 01/11/13, Betrieb 00/03/04/05/08, AGENTS; neu angelegt Anleitung 14 (688095234), 15 (688128030), 16 (688128001), 17 (688160769);
+  17 Bilder auf 680853506 hochgeladen. Nicht übernommen: Anleitung 05/06/08 (nicht im Auftrag). Quellfehler: `docs/betrieb/05` Tabelle
+  Wareneingang-CSV Zeile „Schreibweise“ hat eine Zelle zu viel.
+
+## Abschluss (2026-11-19)
+
+Alle vier Punkte **Testbereit** (QA 2026-11-19), v1.99.44, keine SQL, TS-166. Worktree-HEAD `f1747e10`. DEV AKE + IDEAL auf 1.99.44,
+Rollen per Manifest-Reparatur auf beiden DEV-DBs angelegt. Paket 9 + ZIP liegen bereit, Confluence nachgezogen. Nichts an Sage, keine
+Einstellungen auf :88/4445/Prod, `SageFaArbeitsgaengeAnlegenAktiv` aus, kein Merge, kein Push.
