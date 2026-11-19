@@ -127,6 +127,19 @@ TESTBEREIT → **Schranke 2 (Mensch: manueller Test, dann Merge)** → GEMERGED.
 Befehl `/goal-run`) in einem Buendel-Worktree; Schranke 1 bleibt, ausser der Auftrag nennt eine
 Ausnahme ausdruecklich.
 
+**Definition of Done eines vollstaendigen Laufs** (`/goal-run`, `/dev` mit DEV-Deploy; Entscheid
+Gerald 2026-11-19):
+1. **Doku nachziehen:** `docs/anwender/` + `docs/betrieb/` — Stand-Version in `README.md` bzw.
+   `00-index.md`, betroffene Kapitel, Fotos per Playwright gegen DEV (nur ansehen, nichts buchen).
+   Ohne Doku-Nachzug ist der Lauf nicht fertig.
+2. **Confluence derzeit nicht** (Token-Verbrauch): in der Lauf-Notiz nur die geaenderten Kapitel
+   auflisten („fuer spaetere Confluence-Uebernahme“).
+3. **Paket auf die Shares** (nach bestandener QA und Publish): `publish\paket<N>-v<Version>.zip`
+   nach `\\AKENET01.ake.at\Installsourcen` und `\\IDEALWEB01.ideal.ideal-ake.at\InstallSourcen`
+   kopieren, danach Groesse + SHA-256 an beiden Zielen gegen das Original pruefen und in der
+   Lauf-Notiz festhalten. Auf den Shares nie loeschen oder ueberschreiben — existiert der Name
+   schon: abbrechen und melden. Kopieren scheitert (Rechte/Netz): melden, nicht umgehen.
+
 ## Harte Regeln
 
 **Isolation per Worktree.** Groessere Aenderungen (Multi-Task-Rollouts, Phasen-Refactors, neue
@@ -257,3 +270,5 @@ Danach `secondbrain/tests/testszenarien-index.md` nachziehen.
 - [ ] Neue Rolle/neuer Filter? Dann **drei** Stellen: Attribut,
       `secondbrain/codebase/controller.md`, `Views/Users/RoleOverview.cshtml`.
 - [ ] Unabhaengiges Code-Review (`qa-agent`) mit festgehaltenen Befunden in der Spec?
+- [ ] Vollstaendiger Lauf: Definition of Done erfuellt (`docs/anwender`+`docs/betrieb` mit Fotos,
+      Kapitelliste fuer Confluence in der Lauf-Notiz, Paket-ZIP auf beiden Shares mit SHA-256)?

@@ -52,6 +52,13 @@ Dann:
 5. NUR bei Erfolg: status: Testbereit + manuelle Test-Checkliste ans Spec-Ende.
    Code im Worktree committen; die secondbrain/-Aenderungen SEPARAT im Hauptcheckout committen
    ("brain: <slug> testbereit") - zwei Commits in zwei Baeumen, das ist beabsichtigt.
+6. Bei Lauf mit DEV-Deploy: **Definition of Done** aus CLAUDE.md erfuellen - Doku `docs/anwender` +
+   `docs/betrieb` (Stand, Kapitel, Playwright-Fotos gegen DEV) nachziehen; Confluence derzeit nicht,
+   nur geaenderte Kapitel in der Aufgaben-Notiz auflisten; nach Publish das Paket-ZIP auf
+   \\AKENET01.ake.at\Installsourcen und \\IDEALWEB01.ideal.ideal-ake.at\InstallSourcen kopieren,
+   Groesse + SHA-256 an beiden Zielen pruefen und festhalten (gleicher Name existiert -> abbrechen
+   und melden; nie loeschen/ueberschreiben; Kopierfehler melden, nicht umgehen).
+   Ohne Doku-Nachzug ist der Lauf nicht fertig.
 
 Wenn die Aufgabe zu gross fuers Turn-Limit ist: Stand als "wip: <slug>" committen und in die
 Spec schreiben, wo du stehst - NICHT unvollstaendig auf Testbereit setzen. (Zu gross generell?
