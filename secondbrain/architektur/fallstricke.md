@@ -2169,3 +2169,22 @@ Code: `hardware-scanner.js` Block „Scannen ohne Feld“, CSS `.hw-scan-bereit`
   aus – auf DEV fehlen die Rollen, die Seiten sind dort nur für Admins erreichbar.
 - **Regel:** Eine neue Rolle bekommt eine Manifest-Prüfung mit Reparatur (Muster `Pruefung/RolleSchachtler`) **und** den Rollen-Dreiklang
   (Attribut, [[controller]], `RoleOverview.cshtml`). Auf DEV nach dem Deploy die Reparatur einmal laufen lassen.
+
+## 56. `GetCurrentStockAsync(articleNumber)` sucht per Teiltext (v1.99.45, [[2026-11-19-v1-99-45-sammellauf]])
+
+- **Problem:** Der Parameter ist ein Suchbegriff (Contains über Nummer), kein Schlüssel. Die Artikelinfo zeigte so Bestände von Artikeln mit
+  ähnlicher Nummer mit; der Lagerplatz-Text der Lagerbestellung ebenso.
+- **Regel:** Für **einen** Artikel das Ergebnis nach `ArticleId` filtern oder `GetStockByArticleNumbersAsync` (exakt) nehmen. Die Teiltextsuche
+  bleibt für Bestandslisten mit Suchfeld (Grund: dort ist sie gewollt).
+
+## 57. Update-Skript: Ergebnis und Exit-Code sind zwei Angaben (v1.99.45, [[2026-11-19-v1-99-45-sammellauf]])
+
+- **Problem:** Ein mit Fehler beendeter Trockenlauf hieß „ohne Zeile TREFFER (Exit 1)“ – man las daraus „nichts gefunden“.
+- **Regel:** Neue Meldungen nach `<Fall>: [<Vorgang> ]<Ergebnis>[ -> <Folge>][. <Handlung>]`; Exit-Code nur ≠ 0, immer als eigenes
+  „mit Fehler beendet (Exit n)“. Muster in `docs/betrieb/03-installation-update-rollback.md` Abschnitt 5; Wächter `NachlaufManifestDriftTests`.
+
+## 58. Neuer Menüpunkt = Katalogeintrag + Regel + Layout-Link (v1.99.45, [[0034-navigation-menue-und-kacheln-aus-einer-quelle]])
+
+- **Problem:** Menü und Startseite hatten getrennte Bedingungen und liefen auseinander (Kachel auf 403, fehlende Kacheln).
+- **Regel:** `NavZiel` in `NavZiele` (mit Kategorie, wenn es eine Kachel sein soll), Fall im `switch` von `NavigationSicht` (gleiche Rolle wie
+  der Filter der Action), Link im Layout in eigenem `@if (nav.Zeigt(NavZiele.X))`. Keine Rechte/Schalter mehr direkt im Layout oder in Home.

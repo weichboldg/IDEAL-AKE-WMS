@@ -1,6 +1,6 @@
 ---
 typ: backlog
-status: in-spec
+status: erledigt
 created: 2026-11-13
 herkunft: "QA-Hinweis H-1 zu [[2026-11-13-updater-zweiter-trockenlauf-altbestand-spec]] (v1.99.16); Gerald 2026-11-13 16:27: Folgeaufgabe"
 standort: beide

@@ -1,7 +1,7 @@
 ---
 type: bug
 title: BF-Warenkorb – Artikelsuche ohne Vorschläge beim Tippen (Type-ahead)
-status: offen
+status: behoben (wartet Manual-UAT)
 severity: niedrig
 created: 2026-11-19
 standort: IDEAL

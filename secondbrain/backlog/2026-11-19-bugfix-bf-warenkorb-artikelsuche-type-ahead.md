@@ -1,6 +1,6 @@
 ---
 typ: backlog
-status: in-spec
+status: erledigt
 created: 2026-11-19
 herkunft: "Gerald 2026-11-19 20:10: Blechfertigung – im Warenkorb gibt es bei der Artikelsuche keine Type-ahead-Suche"
 standort: IDEAL

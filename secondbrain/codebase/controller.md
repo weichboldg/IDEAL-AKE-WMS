@@ -26,7 +26,7 @@ Listen-Views folgen zusaetzlich verbindlich dem Pattern aus
 |---|---|---|
 | Anmeldung | `AccountController` (Login, Logout, WindowsLogin, Profile) | `Views/Account/` |
 | Anmeldung (v1.99.28) | `AccountController.Login`: Regel R (nur mit gespeichertem Kennwort, Ausnahme `IsDevelopment()` mit Hinweis), Regel P (Schritt „Neues Kennwort festlegen“ bei `MussKennwortAendern`, zustandslos, `StartSession`); `UsersController` Create/Edit: Erstkennwort eingeben/erzeugen (`ApplyPassword`, Banner einmal), Index-Hinweis ohne Kennwort/offene Erstkennwörter – ADR [[0027-formular-anmeldung-nur-mit-kennwort-erstkennwort-mit-pflichtwechsel]] | `Views/Account/Login.cshtml`, `Views/Users/Create|Edit|Index.cshtml` |
-| Start / Hilfe | `HomeController` (Dashboard-Kacheln), `HelpController` (inkl. Changelog) | `Views/Home/`, `Views/Help/` |
+| Start / Hilfe | `HomeController` (Dashboard-Kacheln; seit v1.99.45 ohne eigene Rechte – Kacheln und Menü aus `Services/Navigation/NavigationKatalog.cs`, ADR [[0034-navigation-menue-und-kacheln-aus-einer-quelle]]), `HelpController` (inkl. Changelog) | `Views/Home/`, `Views/Help/` |
 | Lager | `StockOverviewController`, `StockMovementsController`, `StockApiController` | `Views/StockOverview/`, `Views/StockMovements/` |
 | Lager (Bestellungen) | `PurchaseOrdersController` (v1.84.0: Index = Vorschau, Receive GET/POST = Wareneingang; Gate `[RequireWareneingangBestellungAktiv]` → 404) | `Views/PurchaseOrders/` |
 | Fertigungsauftraege | `ProductionOrdersController` (slim FA-Liste), `ProductionOrdersApiController` | `Views/ProductionOrders/` |

@@ -1,6 +1,6 @@
 ---
 typ: backlog
-status: in-spec
+status: erledigt
 created: 2026-11-19
 herkunft: "Gerald 2026-11-19 19:44: Dashboard aktualisieren, passende Kacheln für die neuen Features in passenden Kategorien, Kacheln nach Berechtigung"
 standort: beide
