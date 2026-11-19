@@ -1,6 +1,6 @@
 ---
 typ: backlog
-status: offen
+status: in-spec
 created: 2026-11-17
 herkunft: "QA-Befund Q2-B1 zu [[2026-11-16-bestellvorschlaege-nachbesserung-spec]] (qa-agent 2026-11-17)"
 standort: beide
