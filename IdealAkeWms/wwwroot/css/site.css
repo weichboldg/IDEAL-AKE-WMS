@@ -365,6 +365,15 @@ body {
     font-size: 1rem;
 }
 
+/* v1.99.45: Tastaturfokus auf der ganzen Kachel sichtbar (WCAG 2.4.7) */
+.dashboard-link:focus-visible {
+    outline: none;
+}
+.dashboard-link:focus-visible .dashboard-card {
+    outline: 3px solid var(--ake-primary);
+    outline-offset: 2px;
+}
+
 .dashboard-card .card-text {
     font-size: 2rem;
     font-weight: 700;

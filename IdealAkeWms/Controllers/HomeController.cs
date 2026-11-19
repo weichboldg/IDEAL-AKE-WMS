@@ -1,47 +1,13 @@
 using System.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using IdealAkeWms.Models;
-using IdealAkeWms.Services;
-using IdealAkeWms.Data.Repositories;
 
 namespace IdealAkeWms.Controllers;
 
 public class HomeController : Controller
 {
-    private readonly ICurrentUserService _currentUserService;
-    private readonly IAppSettingRepository _appSettings;
-
-    public HomeController(ICurrentUserService currentUserService, IAppSettingRepository appSettings)
-    {
-        _currentUserService = currentUserService;
-        _appSettings = appSettings;
-    }
-
-    public async Task<IActionResult> Index()
-    {
-        ViewBag.DisplayName = _currentUserService.GetDisplayName();
-        ViewBag.CanPick = await _currentUserService.CanPickAsync();
-        ViewBag.CanViewTracking = await _currentUserService.CanViewTrackingAsync();
-        ViewBag.CanManagePickingRelease = await _currentUserService.CanManagePickingReleaseAsync();
-        ViewBag.HasMasterDataAccess = await _currentUserService.HasMasterDataAccessAsync();
-        ViewBag.HasMasterDataReadAccess = await _currentUserService.HasMasterDataReadAccessAsync();
-        var teileverfolgungAktiv = (await _appSettings.GetValueAsync(AppSettingKeys.TeileverfolgungAktiv))
-            ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
-        ViewBag.TeileverfolgungAktiv = teileverfolgungAktiv;
-
-        var leitstandAktiv = (await _appSettings.GetValueAsync(AppSettingKeys.LeitstandAktiv))
-            ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
-        ViewBag.LeitstandAktiv = leitstandAktiv;
-
-        var bdeAktiv = (await _appSettings.GetValueAsync(AppSettingKeys.BdeAktiv))
-            ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
-        ViewBag.BdeAktiv = bdeAktiv;
-        ViewBag.CanUseBde = await _currentUserService.CanUseBdeAsync();
-        ViewBag.CanManageBdeShiftlead = await _currentUserService.CanManageBdeShiftleadAsync();
-        ViewBag.CanReportOperations = await _currentUserService.CanReportOperationsAsync();
-
-        return View();
-    }
+    // v1.99.45 (ADR 0034): Kacheln rendert die View aus NavigationSicht, keine Rechte mehr im Controller.
+    public IActionResult Index() => View();
 
     [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
     public IActionResult Error()

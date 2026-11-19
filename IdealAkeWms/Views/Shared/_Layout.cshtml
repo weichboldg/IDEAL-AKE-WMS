@@ -1,6 +1,6 @@
-@inject IdealAkeWms.Services.ICurrentUserService CurrentUserService
 @inject IdealAkeWms.Data.Repositories.IAppSettingRepository AppSettings
-@inject IdealAkeWms.Data.Repositories.IServiceSettingRepository ServiceSettings
+@inject IdealAkeWms.Services.Navigation.NavigationSicht Navigation
+@using IdealAkeWms.Services.Navigation
 @inject IdealAkeWms.Data.Repositories.IProductionOrderPickingStatusRepository PickingStatusRepository
 <!DOCTYPE html>
 <html lang="de">
@@ -47,153 +47,127 @@
                 <div class="collapse navbar-collapse" id="navbarNav">
                     <ul class="navbar-nav me-auto flex-wrap">@* v1.94.0: Menuepunkte brechen um statt die Seite quer scrollen zu lassen *@
                         @{
-                            var canAccessStock = await CurrentUserService.CanAccessStockAsync();
-                            var canAccessStockRead = await CurrentUserService.CanAccessStockReadAsync();
-                            var canProcessLager = await CurrentUserService.CanProcessLagerAsync();
-                            var canPick = await CurrentUserService.CanPickAsync();
-                            var canAccessLagerbestellung = await CurrentUserService.CanAccessLagerbestellungAsync();
-                            var canAccessGlasbestellung = await CurrentUserService.CanAccessGlasbestellungAsync();
-                            var canViewTracking = await CurrentUserService.CanViewTrackingAsync();
-                            var teileverfolgungAktiv = (await AppSettings.GetValueAsync("TeileverfolgungAktiv"))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
-                            var bestellungenAktiv = (await AppSettings.GetValueAsync("BestellungenAktiv"))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
-                            var lagerbestellungAktivRaw = await AppSettings.GetValueAsync(IdealAkeWms.Models.AppSettingKeys.LagerbestellungAktiv);
-                            var lagerbestellungAktiv = !string.Equals(lagerbestellungAktivRaw, "false", StringComparison.OrdinalIgnoreCase);
-                            var canManagePickingRelease = await CurrentUserService.CanManagePickingReleaseAsync();
-                            var leitstandAktiv = (await AppSettings.GetValueAsync("LeitstandAktiv"))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
-                            var releasedPickingCount = leitstandAktiv && canPick ? await PickingStatusRepository.GetReleasedForPickingCountAsync() : 0;
-                            var bdeAktiv = (await AppSettings.GetValueAsync("BdeAktiv"))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
-                            var canUseBde = await CurrentUserService.CanUseBdeAsync();
-                            var canManageBdeShiftlead = await CurrentUserService.CanManageBdeShiftleadAsync();
-                            var canFaCompletion = await CurrentUserService.CanFaCompletionAsync();
-                            var faCompletionAktiv = (await AppSettings.GetValueAsync(IdealAkeWms.Models.AppSettingKeys.FaCompletionAktiv))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
-                            var hasVorbauAccess = await CurrentUserService.HasVorbauAccessAsync();
-                            // IDEAL Teil 3: Kommissionierlisten — Feature-Toggle mit invertierter
-                            // Default-aus-Semantik (nur exakt "true" aktiviert).
-                            var faKommListenAktiv = string.Equals(
-                                await AppSettings.GetValueAsync(IdealAkeWms.Models.AppSettingKeys.FaHierarchyKommissionierlistenAktiv),
-                                "true", StringComparison.OrdinalIgnoreCase);
-                            // IDEAL Teil 4: Beschichtungsauftrag — Feature-Toggle mit invertierter
-                            // Default-aus-Semantik (nur exakt "true" aktiviert).
-                            var faBeschichtungAktiv = string.Equals(
-                                await AppSettings.GetValueAsync(IdealAkeWms.Models.AppSettingKeys.FaHierarchyBeschichtungAktiv),
-                                "true", StringComparison.OrdinalIgnoreCase);
-                            var hasBeschichtungsauftragAccess = await CurrentUserService.HasBeschichtungsauftragAccessAsync();
-                            // IDEAL Teil 5: Vormontage-Listen — Feature-Toggle mit invertierter
-                            // Default-aus-Semantik (nur exakt "true" aktiviert).
-                            var faVormontageAktiv = string.Equals(
-                                await AppSettings.GetValueAsync(IdealAkeWms.Models.AppSettingKeys.FaHierarchyVormontageAktiv),
-                                "true", StringComparison.OrdinalIgnoreCase);
-                            // v1.99.20 Einkauf – Bestellvorschlaege: Gate EinkaufAktiv (nur exakt "true") UND Rolle einkauf/admin.
-                            var showEinkauf = string.Equals(await AppSettings.GetValueAsync(IdealAkeWms.Models.AppSettingKeys.EinkaufAktiv), "true", StringComparison.OrdinalIgnoreCase)
-                                && await CurrentUserService.CanAccessEinkaufAsync();
-                            // v1.99.35 Blechfertigung (BF-Auftraege): Gate BlechfertigungAktiv (nur exakt "true") UND Bestellrolle oder schachtler.
-                            var showBlechfertigung = string.Equals(await AppSettings.GetValueAsync(IdealAkeWms.Models.AppSettingKeys.BlechfertigungAktiv), "true", StringComparison.OrdinalIgnoreCase)
-                                && await CurrentUserService.CanBfBestellenAsync();
-                            var showFaList = canPick || canViewTracking || canManagePickingRelease || hasVorbauAccess;
-                            // IDEAL Teil 2: FA-Struktur (read-only Baumanzeige). KEIN eigenes
-                            // Feature-Toggle — gegatet exakt ueber den Class-Level-Zugriff des
-                            // FaHierarchyControllers (RequirePickingOrTrackingOrLeitstandAccess),
-                            // der identisch zu showFaList ist.
-                            var showFaHierarchy = canPick || canViewTracking || canManagePickingRelease || hasVorbauAccess;
-                            var showFaCompletion = faCompletionAktiv && canFaCompletion;
-                            var showFaWorklist = faCompletionAktiv && hasVorbauAccess;
+                            // v1.99.45 (ADR 0034): Sichtbarkeit jedes Menuepunkts kommt aus EINER Quelle (NavigationSicht), dieselbe wie die Startseite.
+                            var nav = await Navigation.GetAsync();
+                            var releasedPickingCount = nav.LeitstandAktiv && nav.Zeigt(NavZiele.Kommissionierung) ? await PickingStatusRepository.GetReleasedForPickingCountAsync() : 0;
+                            var divider = "border-color: rgba(255,255,255,0.2);";
                         }
-                        @if (canAccessStock || canPick || canAccessStockRead)
+                        @if (nav.ZeigtEines(NavZiele.Einbuchung, NavZiele.Bestaende, NavZiele.LagerplatzAusbuchen))
                         {
                             <li class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                     Lager
                                 </a>
                                 <ul class="dropdown-menu">
-                                    @if (canAccessStock || canPick)
+                                    @if (nav.Zeigt(NavZiele.Einbuchung))
                                     {
                                         <li><a class="dropdown-item" asp-controller="StockMovements" asp-action="Inbound">Einbuchung</a></li>
-                                        <li><a class="dropdown-item" asp-controller="StockMovements" asp-action="InboundBulk">Mehrfach-Einbuchung</a></li>
-                                        <li><a class="dropdown-item" asp-controller="StockMovements" asp-action="Outbound">Ausbuchung</a></li>
-                                        <li><a class="dropdown-item" asp-controller="StockMovements" asp-action="Transfer">Umbuchung</a></li>
-                                        <li><hr class="dropdown-divider" style="border-color: rgba(255,255,255,0.2);" /></li>
+                                        @if (nav.Zeigt(NavZiele.MehrfachEinbuchung))
+                                        {
+                                            <li><a class="dropdown-item" asp-controller="StockMovements" asp-action="InboundBulk">Mehrfach-Einbuchung</a></li>
+                                        }
+                                        @if (nav.Zeigt(NavZiele.Ausbuchung))
+                                        {
+                                            <li><a class="dropdown-item" asp-controller="StockMovements" asp-action="Outbound">Ausbuchung</a></li>
+                                        }
+                                        @if (nav.Zeigt(NavZiele.Umbuchung))
+                                        {
+                                            <li><a class="dropdown-item" asp-controller="StockMovements" asp-action="Transfer">Umbuchung</a></li>
+                                        }
+                                        <li><hr class="dropdown-divider" style="@divider" /></li>
                                     }
-                                    <li><a class="dropdown-item" asp-controller="StockOverview" asp-action="Index">Bestände</a></li>
-                                    <li><a class="dropdown-item" asp-controller="StockMovements" asp-action="Index">Bewegungshistorie</a></li>
-                                    @{ var wareneingangBestellung = string.Equals(await AppSettings.GetValueAsync(IdealAkeWms.Models.AppSettingKeys.WareneingangBestellungAktiv), "true", StringComparison.OrdinalIgnoreCase); }
-                                    @if (wareneingangBestellung)
+                                    @if (nav.Zeigt(NavZiele.Bestaende))
+                                    {
+                                        <li><a class="dropdown-item" asp-controller="StockOverview" asp-action="Index">Bestände</a></li>
+                                        @if (nav.Zeigt(NavZiele.Bewegungshistorie))
+                                        {
+                                            <li><a class="dropdown-item" asp-controller="StockMovements" asp-action="Index">Bewegungshistorie</a></li>
+                                        }
+                                    }
+                                    @if (nav.Zeigt(NavZiele.OffeneBestellungenLager))
                                     {
                                         @* v1.84.0: Wareneingang aus Sage-Bestellungen (Feature-Gate WareneingangBestellungAktiv, Lesen stock_read). *@
-                                        <li><hr class="dropdown-divider" style="border-color: rgba(255,255,255,0.2);" /></li>
+                                        <li><hr class="dropdown-divider" style="@divider" /></li>
                                         <li><a class="dropdown-item" asp-controller="PurchaseOrders" asp-action="Index">Offene Bestellungen</a></li>
-                                        @if (canAccessStock)
+                                        @if (nav.Zeigt(NavZiele.WareneingangZuBestellung))
                                         {
                                             <li><a class="dropdown-item" asp-controller="PurchaseOrders" asp-action="Receive">Wareneingang zu Bestellung</a></li>
                                         }
                                     }
                                     @* v1.99.7: beide Sage-Protokolle in einem eigenen Block, Sichtbarkeit je Eintrag wie bisher *@
-                                    <li><hr class="dropdown-divider" style="border-color: rgba(255,255,255,0.2);" /></li>
-                                    <li><a class="dropdown-item" asp-controller="SageBookingQueue" asp-action="Index">Sage-Lagerbuchungen</a></li>
-                                    @if (wareneingangBestellung)
+                                    @if (nav.Zeigt(NavZiele.SageLagerbuchungen))
+                                    {
+                                        <li><hr class="dropdown-divider" style="@divider" /></li>
+                                        <li><a class="dropdown-item" asp-controller="SageBookingQueue" asp-action="Index">Sage-Lagerbuchungen</a></li>
+                                    }
+                                    @if (nav.Zeigt(NavZiele.SageWareneingaengeLager))
                                     {
                                         <li><a class="dropdown-item" asp-controller="PurchaseOrders" asp-action="SageWareneingaenge">Sage-Wareneingänge</a></li>
                                     }
-                                    @if (await CurrentUserService.CanTransferStockAsync())
+                                    @if (nav.Zeigt(NavZiele.LagerplatzAusbuchen))
                                     {
-                                        <li><hr class="dropdown-divider" style="border-color: rgba(255,255,255,0.2);" /></li>
+                                        <li><hr class="dropdown-divider" style="@divider" /></li>
                                         <li><a class="dropdown-item" asp-controller="StockMovements" asp-action="OutboundAll">Lagerplatz ausbuchen</a></li>
-                                        <li><a class="dropdown-item" asp-controller="StockMovements" asp-action="LocationTransfer">Lagerplatz umbuchen</a></li>
+                                        @if (nav.Zeigt(NavZiele.LagerplatzUmbuchen))
+                                        {
+                                            <li><a class="dropdown-item" asp-controller="StockMovements" asp-action="LocationTransfer">Lagerplatz umbuchen</a></li>
+                                        }
                                     }
                                 </ul>
                             </li>
                         }
-                        @* IDEAL Teil 2: FA-Struktur (read-only Baumanzeige) — kein Feature-Toggle,
-                           nur der Zugriffs-Check des Controllers (identisch zu FA-Liste). *@
-                        @if (showFaHierarchy)
+                        @* IDEAL Teil 2: FA-Struktur (read-only Baumanzeige) — kein Feature-Toggle, Regel wie FA-Liste. *@
+                        @if (nav.Zeigt(NavZiele.FaStruktur))
                         {
                             <li class="nav-item">
                                 <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "FaHierarchy" ? "active" : "")"
                                    asp-controller="FaHierarchy" asp-action="Index">FA-Struktur</a>
                             </li>
                         }
-                        @* IDEAL Teil 4 + Ausbau Teil 4: Beschichtung — nur mit Lese- oder Schreibrolle
-                           (RequireBeschichtungsauftragAccess) UND aktivem Feature-Toggle. Seit v1.56.0 EIN Dropdown:
-                           beide Eintraege haben dieselbe Bedingung, Lese- und Schreibrolle sehen dieselben Eintraege. *@
-                        @if (hasBeschichtungsauftragAccess && faBeschichtungAktiv)
+                        @* IDEAL Teil 4 + Ausbau Teil 4: Beschichtung — EIN Dropdown, beide Eintraege mit derselben Regel (v1.56.0). *@
+                        @if (nav.ZeigtEines(NavZiele.BeschichtungVorschlagsliste, NavZiele.Beschichtungsauftraege))
                         {
                             <li class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle @((ViewContext.RouteData.Values["controller"]?.ToString() is "FaHierarchyBeschichtung" or "Beschichtungsauftraege") ? "active" : "")" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                     Beschichtung
                                 </a>
                                 <ul class="dropdown-menu">
-                                    <li><a class="dropdown-item" asp-controller="FaHierarchyBeschichtung" asp-action="Summiert">Vorschlagsliste</a></li>
-                                    <li><a class="dropdown-item" asp-controller="Beschichtungsauftraege" asp-action="Index">Aufträge</a></li>
+                                    @if (nav.Zeigt(NavZiele.BeschichtungVorschlagsliste))
+                                    {
+                                        <li><a class="dropdown-item" asp-controller="FaHierarchyBeschichtung" asp-action="Summiert">Vorschlagsliste</a></li>
+                                    }
+                                    @if (nav.Zeigt(NavZiele.Beschichtungsauftraege))
+                                    {
+                                        <li><a class="dropdown-item" asp-controller="Beschichtungsauftraege" asp-action="Index">Aufträge</a></li>
+                                    }
                                 </ul>
                             </li>
                         }
-                        @* IDEAL Teil 5: Vormontage-Listen — nur mit Vorbau-Zugriff
-                           (RequireVorbauAccess, wie FA-Abarbeitungsliste) UND aktivem Feature-Toggle. *@
-                        @if (hasVorbauAccess && faVormontageAktiv)
+                        @* IDEAL Teil 5: Vormontage-Listen *@
+                        @if (nav.Zeigt(NavZiele.Vormontage))
                         {
                             <li class="nav-item">
                                 <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "FaHierarchyVormontage" ? "active" : "")"
                                    asp-controller="FaHierarchyVormontage" asp-action="Index">Vormontage</a>
                             </li>
                         }
-                        @* Fertigungsauftraege — Dropdown (v1.22.0): FA-Liste (Picker/Tracker/Leitstand),
-                           FA-Vervollstaendigen (FaCompletionAktiv + fa_completion),
-                           FA-Abarbeitungsliste (FaCompletionAktiv + vorbau) *@
-                        @if (showFaList || showFaCompletion || showFaWorklist)
+                        @* Fertigungsauftraege — Dropdown (v1.22.0) *@
+                        @if (nav.ZeigtEines(NavZiele.FaListe, NavZiele.FaVervollstaendigen, NavZiele.FaAbarbeitungsliste))
                         {
                             <li class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle @((ViewContext.RouteData.Values["controller"]?.ToString() is "ProductionOrders" or "FaCompletion" or "FaWorklist") ? "active" : "")" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                     Fertigungsaufträge
                                 </a>
                                 <ul class="dropdown-menu">
-                                    @if (showFaList)
+                                    @if (nav.Zeigt(NavZiele.FaListe))
                                     {
                                         <li><a class="dropdown-item" asp-controller="ProductionOrders" asp-action="Index">FA-Liste</a></li>
                                     }
-                                    @if (showFaCompletion)
+                                    @if (nav.Zeigt(NavZiele.FaVervollstaendigen))
                                     {
                                         <li><a class="dropdown-item" asp-controller="FaCompletion" asp-action="Index">FA-Vervollständigen</a></li>
                                     }
-                                    @if (showFaWorklist)
+                                    @if (nav.Zeigt(NavZiele.FaAbarbeitungsliste))
                                     {
                                         <li><a class="dropdown-item" asp-controller="FaWorklist" asp-action="Index">FA-Abarbeitungsliste</a></li>
                                     }
@@ -202,7 +176,7 @@
                         }
 
                         @* Leitstand — eigenes Hauptmenu (Freigabe + Priorisierung) *@
-                        @if (leitstandAktiv && (canPick || canManagePickingRelease))
+                        @if (nav.Zeigt(NavZiele.LeitstandKommissionierung))
                         {
                             <li class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle @(ViewContext.RouteData.Values["controller"]?.ToString() == "PickingLeitstand" ? "active" : "")" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -217,12 +191,12 @@
                            (Picking-Workflow + IDEAL-Kommissionierlisten, Teil 3). Steht nur einer
                            zur Verfuegung, bleibt es der bisherige einfache Nav-Link: ein
                            Ein-Eintrag-Dropdown waere fuer AKE ein zusaetzlicher Klick. *@
-                        @if (canPick && canProcessLager && faKommListenAktiv)
+                        @if (nav.Zeigt(NavZiele.Kommissionierung) && nav.Zeigt(NavZiele.Kommissionierlisten))
                         {
                             <li class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle @((ViewContext.RouteData.Values["controller"]?.ToString() is "Picking" or "FaHierarchyKommissionierListen") ? "active" : "")" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                     Kommissionierung
-                                    @if (leitstandAktiv && releasedPickingCount > 0)
+                                    @if (releasedPickingCount > 0)
                                     {
                                         <span class="badge rounded-pill" style="background-color: var(--ake-orange); font-size: 0.7em;">@releasedPickingCount</span>
                                     }
@@ -233,51 +207,58 @@
                                 </ul>
                             </li>
                         }
-                        else if (canPick)
+                        else if (nav.Zeigt(NavZiele.Kommissionierung))
                         {
                             <li class="nav-item">
                                 <a class="nav-link" asp-controller="Picking" asp-action="Index">
                                     Kommissionierung
-                                    @if (leitstandAktiv && releasedPickingCount > 0)
+                                    @if (releasedPickingCount > 0)
                                     {
                                         <span class="badge rounded-pill" style="background-color: var(--ake-orange); font-size: 0.7em;">@releasedPickingCount</span>
                                     }
                                 </a>
                             </li>
                         }
-                        else if (canProcessLager && faKommListenAktiv)
+                        else if (nav.Zeigt(NavZiele.Kommissionierlisten))
                         {
                             <li class="nav-item">
                                 <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "FaHierarchyKommissionierListen" ? "active" : "")"
                                    asp-controller="FaHierarchyKommissionierListen" asp-action="Summiert">Kommissionierlisten</a>
                             </li>
                         }
-                        @if ((bestellungenAktiv || lagerbestellungAktiv) && (canPick || canAccessStock || canAccessLagerbestellung || canAccessGlasbestellung))
+                        @* v1.99.45: Dropdown nur, wenn mindestens ein Eintrag sichtbar ist (vorher leer moeglich) *@
+                        @if (nav.ZeigtEines(NavZiele.Bedarfsmeldungen, NavZiele.Lagerbestellungen, NavZiele.LagerEingehendeListen))
                         {
                             <li class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle @((ViewContext.RouteData.Values["controller"]?.ToString() is "PartRequisitions" or "WarehouseRequisitions" or "WarehousePicking" or "MissingParts" or "MissingPartsLager") ? "active" : "")" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                     Bestellungen
                                 </a>
                                 <ul class="dropdown-menu">
-                                    @if (bestellungenAktiv && (canPick || canAccessStock))
+                                    @if (nav.Zeigt(NavZiele.Bedarfsmeldungen))
                                     {
                                         <li><a class="dropdown-item" asp-controller="PartRequisitions" asp-action="Index">Bedarfsmeldungen</a></li>
                                     }
-                                    @if (lagerbestellungAktiv)
+                                    @if (nav.Zeigt(NavZiele.Lagerbestellungen))
                                     {
                                         <li><a class="dropdown-item" asp-controller="WarehouseRequisitions" asp-action="Index">Lagerbestellungen</a></li>
-                                        <li><a class="dropdown-item" asp-controller="MissingParts" asp-action="Index">Meine Fehlteile</a></li>
-                                        @if (canProcessLager)
+                                        @if (nav.Zeigt(NavZiele.MeineFehlteile))
                                         {
-                                            <li><hr class="dropdown-divider" style="border-color: rgba(255,255,255,0.2);" /></li>
-                                            <li><a class="dropdown-item" asp-controller="WarehousePicking" asp-action="Index">Lager: Eingehende Listen</a></li>
+                                            <li><a class="dropdown-item" asp-controller="MissingParts" asp-action="Index">Meine Fehlteile</a></li>
+                                        }
+                                    }
+                                    @if (nav.Zeigt(NavZiele.LagerEingehendeListen))
+                                    {
+                                        <li><hr class="dropdown-divider" style="@divider" /></li>
+                                        <li><a class="dropdown-item" asp-controller="WarehousePicking" asp-action="Index">Lager: Eingehende Listen</a></li>
+                                        @if (nav.Zeigt(NavZiele.LagerFehlteile))
+                                        {
                                             <li><a class="dropdown-item" asp-controller="MissingPartsLager" asp-action="Index">Lager: Fehlteile</a></li>
                                         }
                                     }
                                 </ul>
                             </li>
                         }
-                        @if (showEinkauf)
+                        @if (nav.Zeigt(NavZiele.Bestellvorschlaege))
                         {
                             <li class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle @(ViewContext.RouteData.Values["controller"]?.ToString() is "PurchaseProposals" or "EinkaufPurchaseOrders" ? "active" : "")" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -286,12 +267,18 @@
                                 <ul class="dropdown-menu">
                                     <li><a class="dropdown-item" asp-controller="PurchaseProposals" asp-action="Index">Bestellvorschläge</a></li>
                                     @* v1.99.31: nur lesend, Gate nur EinkaufAktiv (wie das Dropdown) *@
-                                    <li><a class="dropdown-item" asp-controller="EinkaufPurchaseOrders" asp-action="Index">Offene Bestellungen</a></li>
-                                    <li><a class="dropdown-item" asp-controller="EinkaufPurchaseOrders" asp-action="SageWareneingaenge">Sage-Wareneingänge (offen)</a></li>
+                                    @if (nav.Zeigt(NavZiele.OffeneBestellungenEinkauf))
+                                    {
+                                        <li><a class="dropdown-item" asp-controller="EinkaufPurchaseOrders" asp-action="Index">Offene Bestellungen</a></li>
+                                    }
+                                    @if (nav.Zeigt(NavZiele.SageWareneingaengeEinkauf))
+                                    {
+                                        <li><a class="dropdown-item" asp-controller="EinkaufPurchaseOrders" asp-action="SageWareneingaenge">Sage-Wareneingänge (offen)</a></li>
+                                    }
                                 </ul>
                             </li>
                         }
-                        @if (showBlechfertigung)
+                        @if (nav.Zeigt(NavZiele.BfWarenkorb))
                         {
                             <li class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle @(ViewContext.RouteData.Values["controller"]?.ToString() is "BfAuftraege" ? "active" : "")" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -299,23 +286,29 @@
                                 </a>
                                 <ul class="dropdown-menu">
                                     <li><a class="dropdown-item" asp-controller="BfAuftraege" asp-action="Warenkorb">BF-Warenkorb</a></li>
-                                    <li><a class="dropdown-item" asp-controller="BfAuftraege" asp-action="Index">BF-Aufträge</a></li>
+                                    @if (nav.Zeigt(NavZiele.BfAuftraege))
+                                    {
+                                        <li><a class="dropdown-item" asp-controller="BfAuftraege" asp-action="Index">BF-Aufträge</a></li>
+                                    }
                                 </ul>
                             </li>
                         }
-                        @if (teileverfolgungAktiv && canViewTracking)
+                        @if (nav.Zeigt(NavZiele.TeileverfolgungOseon))
                         {
                             <li class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                     Teileverfolgung
                                 </a>
                                 <ul class="dropdown-menu">
-                                    <li><a class="dropdown-item" asp-controller="Tracking" asp-action="Index">Rückmeldungen</a></li>
+                                    @if (nav.Zeigt(NavZiele.TeileverfolgungRueckmeldungen))
+                                    {
+                                        <li><a class="dropdown-item" asp-controller="Tracking" asp-action="Index">Rückmeldungen</a></li>
+                                    }
                                     <li><a class="dropdown-item" asp-controller="Tracking" asp-action="OseonIndex">OSEON Aufträge</a></li>
                                 </ul>
                             </li>
                         }
-                        @if (bdeAktiv && canUseBde)
+                        @if (nav.Zeigt(NavZiele.BdeTerminal))
                         {
                             <li class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -323,22 +316,29 @@
                                 </a>
                                 <ul class="dropdown-menu">
                                     <li><a class="dropdown-item" asp-controller="BdeTerminal" asp-action="Index">Terminal</a></li>
-                                    @if (canManageBdeShiftlead)
+                                    @if (nav.Zeigt(NavZiele.BdeCockpit))
                                     {
-                                        <li><hr class="dropdown-divider" style="border-color: rgba(255,255,255,0.2);" /></li>
+                                        <li><hr class="dropdown-divider" style="@divider" /></li>
                                         <li><a class="dropdown-item" asp-controller="BdeCockpit" asp-action="Index">Cockpit</a></li>
-                                        <li><a class="dropdown-item" asp-controller="BdeBookings" asp-action="Index">Buchungen</a></li>
-                                        <li><a class="dropdown-item" asp-controller="BdeMasterData" asp-action="Index">Stammdaten</a></li>
+                                        @if (nav.Zeigt(NavZiele.BdeBuchungen))
+                                        {
+                                            <li><a class="dropdown-item" asp-controller="BdeBookings" asp-action="Index">Buchungen</a></li>
+                                        }
+                                        @if (nav.Zeigt(NavZiele.BdeStammdaten))
+                                        {
+                                            <li><a class="dropdown-item" asp-controller="BdeMasterData" asp-action="Index">Stammdaten</a></li>
+                                        }
                                     }
-                                    @if (await CurrentUserService.IsAdminAsync())
+                                    @if (nav.Zeigt(NavZiele.BdeSchichtkalender))
                                     {
-                                        <li><hr class="dropdown-divider" style="border-color: rgba(255,255,255,0.2);" /></li>
+                                        <li><hr class="dropdown-divider" style="@divider" /></li>
                                         <li><a class="dropdown-item" asp-controller="BdeShiftCalendar" asp-action="Index">Schichtkalender</a></li>
                                     }
                                 </ul>
                             </li>
                         }
-                        @if (await CurrentUserService.CanReportOperationsAsync())
+                        @* v1.99.45 Freigabe-Antwort 5: nur bei aktivem OSEON-Modul (TeileverfolgungAktiv) *@
+                        @if (nav.Zeigt(NavZiele.OseonAgUebersicht))
                         {
                             <li class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -349,11 +349,7 @@
                                 </ul>
                             </li>
                         }
-                        @{
-                            var isAdmin = await CurrentUserService.IsAdminAsync();
-                            var hasMasterDataRead = await CurrentUserService.HasMasterDataReadAccessAsync();
-                        }
-                        @if (hasMasterDataRead)
+                        @if (nav.Zeigt(NavZiele.Artikel))
                         {
                             <li class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -362,45 +358,97 @@
                                 <ul class="dropdown-menu">
                                     @* masterdata_read + masterdata sichtbar *@
                                     <li><a class="dropdown-item" asp-controller="Articles" asp-action="Index">Artikel</a></li>
-                                    <li><a class="dropdown-item" asp-controller="StorageLocations" asp-action="Index">Lagerplätze</a></li>
-                                    <li><a class="dropdown-item" asp-controller="ProductionWorkplaces" asp-action="Index">Werkbänke</a></li>
-                                    <li><a class="dropdown-item" asp-controller="ArticleCategories" asp-action="Index">Artikelkategorien</a></li>
-                                    <li><a class="dropdown-item" asp-controller="ArticleAttributes" asp-action="Index">Artikelmerkmale</a></li>
-                                    <li><a class="dropdown-item" asp-controller="WorkSteps" asp-action="Index">FA-Vorbau-AG</a></li>
-                                    <li><a class="dropdown-item" asp-controller="PickingAreas" asp-action="Index">Kommissionierbereiche</a></li>
-                                    <li><a class="dropdown-item" asp-controller="FaAttributes" asp-action="Index">FA-Merkmale</a></li>
-                                    <li><a class="dropdown-item" asp-controller="Creditors" asp-action="Index">Kreditoren</a></li>
-                                    <li><a class="dropdown-item" asp-controller="Debitors" asp-action="Index">Debitoren</a></li>
-                                    @* v1.99.44: Empfaengergruppen nutzen Bedarfsmeldungen (BestellungenAktiv), Lager-/Glasbestellung (LagerbestellungAktiv)
-                                       und BF-Auftraege (BlechfertigungAktiv); die Artikelgruppen-Zuordnung nur die Bedarfsmeldungen. *@
-                                    @if (bestellungenAktiv || lagerbestellungAktiv
-                                         || string.Equals(await AppSettings.GetValueAsync(IdealAkeWms.Models.AppSettingKeys.BlechfertigungAktiv), "true", StringComparison.OrdinalIgnoreCase))
+                                    @* v1.99.45: Artikelinfo auch im Menue (Freigabe-Antwort 3) *@
+                                    @if (nav.Zeigt(NavZiele.Artikelinfo))
+                                    {
+                                        <li><a class="dropdown-item" asp-controller="Articles" asp-action="Info">Artikelinfo</a></li>
+                                    }
+                                    @if (nav.Zeigt(NavZiele.Lagerplaetze))
+                                    {
+                                        <li><a class="dropdown-item" asp-controller="StorageLocations" asp-action="Index">Lagerplätze</a></li>
+                                    }
+                                    @if (nav.Zeigt(NavZiele.Werkbaenke))
+                                    {
+                                        <li><a class="dropdown-item" asp-controller="ProductionWorkplaces" asp-action="Index">Werkbänke</a></li>
+                                    }
+                                    @if (nav.Zeigt(NavZiele.Artikelkategorien))
+                                    {
+                                        <li><a class="dropdown-item" asp-controller="ArticleCategories" asp-action="Index">Artikelkategorien</a></li>
+                                    }
+                                    @if (nav.Zeigt(NavZiele.Artikelmerkmale))
+                                    {
+                                        <li><a class="dropdown-item" asp-controller="ArticleAttributes" asp-action="Index">Artikelmerkmale</a></li>
+                                    }
+                                    @if (nav.Zeigt(NavZiele.FaVorbauAg))
+                                    {
+                                        <li><a class="dropdown-item" asp-controller="WorkSteps" asp-action="Index">FA-Vorbau-AG</a></li>
+                                    }
+                                    @if (nav.Zeigt(NavZiele.Kommissionierbereiche))
+                                    {
+                                        <li><a class="dropdown-item" asp-controller="PickingAreas" asp-action="Index">Kommissionierbereiche</a></li>
+                                    }
+                                    @if (nav.Zeigt(NavZiele.FaMerkmale))
+                                    {
+                                        <li><a class="dropdown-item" asp-controller="FaAttributes" asp-action="Index">FA-Merkmale</a></li>
+                                    }
+                                    @if (nav.Zeigt(NavZiele.Kreditoren))
+                                    {
+                                        <li><a class="dropdown-item" asp-controller="Creditors" asp-action="Index">Kreditoren</a></li>
+                                    }
+                                    @if (nav.Zeigt(NavZiele.Debitoren))
+                                    {
+                                        <li><a class="dropdown-item" asp-controller="Debitors" asp-action="Index">Debitoren</a></li>
+                                    }
+                                    @* v1.99.44: Empfaengergruppen nutzen Bedarfsmeldungen, Lager-/Glasbestellung und BF-Auftraege;
+                                       die Artikelgruppen-Zuordnung nur die Bedarfsmeldungen (Regel in NavigationSicht). *@
+                                    @if (nav.Zeigt(NavZiele.Empfaenger))
                                     {
                                         <li><a class="dropdown-item" asp-controller="OrderRecipients" asp-action="Index">Empfänger</a></li>
                                     }
-                                    @if (bestellungenAktiv)
+                                    @if (nav.Zeigt(NavZiele.ArtikelgruppenZuordnung))
                                     {
                                         <li><a class="dropdown-item" asp-controller="OrderRecipients" asp-action="ArticleGroupMappings">Artikelgruppen-Zuordnung</a></li>
                                     }
                                     @* Admin-only Sub-Bloecke *@
-                                    @if (isAdmin)
+                                    @if (nav.Zeigt(NavZiele.Benutzer))
                                     {
-                                        <li><hr class="dropdown-divider" style="border-color: rgba(255,255,255,0.2);" /></li>
+                                        <li><hr class="dropdown-divider" style="@divider" /></li>
                                         <li><a class="dropdown-item" asp-controller="Users" asp-action="Index">Benutzer</a></li>
-                                        <li><a class="dropdown-item" asp-controller="Workstations" asp-action="Index">Arbeitsplätze</a></li>
-                                        <li><a class="dropdown-item" asp-controller="Roles" asp-action="Index">Rollen</a></li>
+                                        @if (nav.Zeigt(NavZiele.Arbeitsplaetze))
+                                        {
+                                            <li><a class="dropdown-item" asp-controller="Workstations" asp-action="Index">Arbeitsplätze</a></li>
+                                        }
+                                        @if (nav.Zeigt(NavZiele.Rollen))
+                                        {
+                                            <li><a class="dropdown-item" asp-controller="Roles" asp-action="Index">Rollen</a></li>
+                                        }
                                         @* Arbeitsgang-Stammdaten (v1.54.0): Admin, unabhaengig von BdeAktiv — das BDE-Menue fehlt bei BDE aus. *@
-                                        <li><a class="dropdown-item" asp-controller="OperationConfigs" asp-action="Index">Arbeitsgänge</a></li>
-                                        @* v1.99.38: Arbeitsgaenge in Sage-FAs anlegen - nur mit hierarchischen Produktionsauftraegen (IDEAL); Abfrage nur fuer Admins *@
-                                        @if (string.Equals(await ServiceSettings.GetValueAsync(IdealAkeWms.Services.HierarchischeStruktur.HierarchischeStrukturKeys.Master), "true", StringComparison.OrdinalIgnoreCase))
+                                        @if (nav.Zeigt(NavZiele.Arbeitsgaenge))
+                                        {
+                                            <li><a class="dropdown-item" asp-controller="OperationConfigs" asp-action="Index">Arbeitsgänge</a></li>
+                                        }
+                                        @* v1.99.38: Arbeitsgaenge in Sage-FAs anlegen - nur mit hierarchischen Produktionsauftraegen (IDEAL) *@
+                                        @if (nav.Zeigt(NavZiele.ArbeitsgaengeSage))
                                         {
                                             <li><a class="dropdown-item" asp-controller="SageFaArbeitsgaenge" asp-action="Index">Arbeitsgänge → Sage</a></li>
                                         }
-                                        <li><hr class="dropdown-divider" style="border-color: rgba(255,255,255,0.2);" /></li>
-                                        <li><a class="dropdown-item" asp-controller="Settings" asp-action="Index">Einstellungen</a></li>
-                                        <li><a class="dropdown-item" asp-controller="ServiceSettings" asp-action="Index">Service-Einstellungen</a></li>
-                                        <li><a class="dropdown-item" asp-controller="StandortEinstellungen" asp-action="Index">Standorteinstellungen</a></li>
-                                        <li><a class="dropdown-item" asp-controller="SyncLog" asp-action="Index">Aktivitaets-Protokoll</a></li>
+                                        <li><hr class="dropdown-divider" style="@divider" /></li>
+                                        @if (nav.Zeigt(NavZiele.Einstellungen))
+                                        {
+                                            <li><a class="dropdown-item" asp-controller="Settings" asp-action="Index">Einstellungen</a></li>
+                                        }
+                                        @if (nav.Zeigt(NavZiele.ServiceEinstellungen))
+                                        {
+                                            <li><a class="dropdown-item" asp-controller="ServiceSettings" asp-action="Index">Service-Einstellungen</a></li>
+                                        }
+                                        @if (nav.Zeigt(NavZiele.Standorteinstellungen))
+                                        {
+                                            <li><a class="dropdown-item" asp-controller="StandortEinstellungen" asp-action="Index">Standorteinstellungen</a></li>
+                                        }
+                                        @if (nav.Zeigt(NavZiele.AktivitaetsProtokoll))
+                                        {
+                                            <li><a class="dropdown-item" asp-controller="SyncLog" asp-action="Index">Aktivitaets-Protokoll</a></li>
+                                        }
                                     }
                                 </ul>
                             </li>

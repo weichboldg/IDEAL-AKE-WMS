@@ -1,281 +1,34 @@
+@inject IdealAkeWms.Services.Navigation.NavigationSicht Navigation
 @{
     ViewData["Title"] = "Dashboard";
-    bool canPick = ViewBag.CanPick ?? false;
-    bool canViewTracking = ViewBag.CanViewTracking ?? false;
-    bool canManagePickingRelease = ViewBag.CanManagePickingRelease ?? false;
-    bool teileverfolgungAktiv = ViewBag.TeileverfolgungAktiv ?? false;
-    bool leitstandAktiv = ViewBag.LeitstandAktiv ?? false;
-    bool hasMasterDataAccess = ViewBag.HasMasterDataAccess ?? false;
-    bool hasMasterDataReadAccess = ViewBag.HasMasterDataReadAccess ?? false;
-    bool bdeAktiv = ViewBag.BdeAktiv ?? false;
-    bool canUseBde = ViewBag.CanUseBde ?? false;
-    bool canManageBdeShiftlead = ViewBag.CanManageBdeShiftlead ?? false;
-    bool canReportOperations = ViewBag.CanReportOperations ?? false;
+    // v1.99.45 (ADR 0034): Kacheln kommen aus derselben Quelle wie das Menue — kein eigenes Recht, kein eigener Schalter hier.
+    var kacheln = (await Navigation.GetAsync()).Kacheln;
 }
 
 <h2 class="page-header">Dashboard</h2>
 
-@if (canPick)
+@if (kacheln.Count == 0)
 {
-    <h6 class="text-muted mb-2 mt-2">Lager</h6>
-    <div class="row g-4 mb-4">
-        <div class="col-md-6 col-lg-3">
-            <a asp-controller="StockMovements" asp-action="Inbound" class="text-decoration-none">
-                <div class="card dashboard-card h-100" style="border-left-color: var(--ake-green);">
-                    <div class="card-body text-center">
-                        <h5 class="card-title">Einbuchung</h5>
-                        <p class="card-text mb-0" style="color: var(--ake-green); font-size: 2rem;">+</p>
-                        <small class="text-muted">Ware einbuchen</small>
-                    </div>
-                </div>
-            </a>
-        </div>
-        <div class="col-md-6 col-lg-3">
-            <a asp-controller="StockMovements" asp-action="Outbound" class="text-decoration-none">
-                <div class="card dashboard-card h-100" style="border-left-color: var(--ake-orange);">
-                    <div class="card-body text-center">
-                        <h5 class="card-title">Ausbuchung</h5>
-                        <p class="card-text mb-0" style="color: var(--ake-orange); font-size: 2rem;">-</p>
-                        <small class="text-muted">Ware ausbuchen</small>
-                    </div>
-                </div>
-            </a>
-        </div>
-        <div class="col-md-6 col-lg-3">
-            <a asp-controller="StockOverview" asp-action="Index" class="text-decoration-none">
-                <div class="card dashboard-card h-100">
-                    <div class="card-body text-center">
-                        <h5 class="card-title">Bestände</h5>
-                        <p class="card-text mb-0" style="font-size: 2rem;">&#128230;</p>
-                        <small class="text-muted">Aktuelle Bestände anzeigen</small>
-                    </div>
-                </div>
-            </a>
-        </div>
-        <div class="col-md-6 col-lg-3">
-            <a asp-controller="StockMovements" asp-action="Index" class="text-decoration-none">
-                <div class="card dashboard-card h-100">
-                    <div class="card-body text-center">
-                        <h5 class="card-title">Bewegungen</h5>
-                        <p class="card-text mb-0" style="font-size: 2rem;">&#128203;</p>
-                        <small class="text-muted">Bewegungshistorie</small>
-                    </div>
-                </div>
-            </a>
-        </div>
-    </div>
-
-    <h6 class="text-muted mb-2 mt-3">Fertigung & Kommissionierung</h6>
-    <div class="row g-4 mb-4">
-        <div class="col-md-6 col-lg-3">
-            <a asp-controller="Picking" asp-action="Index" class="text-decoration-none">
-                <div class="card dashboard-card h-100" style="border-left-color: var(--ake-secondary);">
-                    <div class="card-body text-center">
-                        <h5 class="card-title">Kommissionierung</h5>
-                        <p class="card-text mb-0" style="color: var(--ake-secondary); font-size: 2rem;">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" viewBox="0 0 16 16">
-                                <path d="M14.5 3a.5.5 0 0 1 .5.5v9a.5.5 0 0 1-.5.5h-13a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5zm-13-1A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h13a1.5 1.5 0 0 0 1.5-1.5v-9A1.5 1.5 0 0 0 14.5 2z"/>
-                                <path d="M7 5.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5m-1.496-.854a.5.5 0 0 1 0 .708l-1.5 1.5a.5.5 0 0 1-.708 0l-.5-.5a.5.5 0 1 1 .708-.708l.146.147 1.146-1.147a.5.5 0 0 1 .708 0M7 9.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5m-1.496-.854a.5.5 0 0 1 0 .708l-1.5 1.5a.5.5 0 0 1-.708 0l-.5-.5a.5.5 0 0 1 .708-.708l.146.147 1.146-1.147a.5.5 0 0 1 .708 0"/>
-                            </svg>
-                        </p>
-                        <small class="text-muted">Stückliste kommissionieren</small>
-                    </div>
-                </div>
-            </a>
-        </div>
-        <div class="col-md-6 col-lg-3">
-            <a asp-controller="ProductionOrders" asp-action="Index" class="text-decoration-none">
-                <div class="card dashboard-card h-100">
-                    <div class="card-body text-center">
-                        <h5 class="card-title">Fertigungsaufträge</h5>
-                        <p class="card-text mb-0" style="font-size: 2rem;">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" viewBox="0 0 16 16">
-                                <path d="M5 10.5a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1h-2a.5.5 0 0 1-.5-.5m0-2a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5m0-2a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5m0-2a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5"/>
-                                <path d="M3 0h10a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2v-1h1v1a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v1H1V2a2 2 0 0 1 2-2"/>
-                                <path d="M1 5v-.5a.5.5 0 0 1 1 0V5h.5a.5.5 0 0 1 0 1h-2a.5.5 0 0 1 0-1zm0 3v-.5a.5.5 0 0 1 1 0V8h.5a.5.5 0 0 1 0 1h-2a.5.5 0 0 1 0-1zm0 3v-.5a.5.5 0 0 1 1 0v.5h.5a.5.5 0 0 1 0 1h-2a.5.5 0 0 1 0-1z"/>
-                            </svg>
-                        </p>
-                        <small class="text-muted">Fertigungsaufträge verwalten</small>
-                    </div>
-                </div>
-            </a>
-        </div>
-        @await Html.PartialAsync("_ArtikelinfoTile")
-    </div>
+    <div class="alert alert-info" role="status">Für Ihren Benutzer sind keine Funktionen freigeschaltet. Bitte wenden Sie sich an den Administrator.</div>
 }
-
-@if (!canPick && hasMasterDataReadAccess)
+@foreach (var (kategorie, ziele) in kacheln)
 {
-    <h6 class="text-muted mb-2 mt-2">Artikel</h6>
-    <div class="row g-4 mb-4">
-        @await Html.PartialAsync("_ArtikelinfoTile")
-    </div>
-}
-
-@if (leitstandAktiv && (canPick || canManagePickingRelease))
-{
-    <h6 class="text-muted mb-2 mt-3">Leitstand</h6>
-    <div class="row g-4 mb-4">
-        <div class="col-md-6 col-lg-3">
-            <a asp-controller="PickingLeitstand" asp-action="Index" class="text-decoration-none">
-                <div class="card dashboard-card h-100" style="border-left-color: var(--ake-primary);">
-                    <div class="card-body text-center">
-                        <h5 class="card-title">Kommissionierung</h5>
-                        <p class="card-text mb-0" style="color: var(--ake-primary); font-size: 2rem;">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" viewBox="0 0 16 16">
-                                <path d="M2 2a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1zm7 0a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1zm-7 7a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-3a1 1 0 0 0-1-1zm7 0a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-3a1 1 0 0 0-1-1z"/>
-                            </svg>
-                        </p>
-                        <small class="text-muted">Freigabe, Priorisierung &amp; Picker-Zuweisung</small>
-                    </div>
-                </div>
-            </a>
-        </div>
-    </div>
-}
-
-@if (teileverfolgungAktiv && canViewTracking)
-{
-    <h6 class="text-muted mb-2 mt-3">Teileverfolgung</h6>
-    <div class="row g-4 mb-4">
-        <div class="col-md-6 col-lg-3">
-            <a asp-controller="Tracking" asp-action="OseonIndex" class="text-decoration-none">
-                <div class="card dashboard-card h-100" style="border-left-color: var(--ake-primary);">
-                    <div class="card-body text-center">
-                        <h5 class="card-title">Teileverfolgung OSEON</h5>
-                        <p class="card-text mb-0" style="color: var(--ake-primary); font-size: 2rem;">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" viewBox="0 0 16 16">
-                                <path d="M8 16s6-5.686 6-10A6 6 0 0 0 2 6c0 4.314 6 10 6 10m0-7a3 3 0 1 1 0-6 3 3 0 0 1 0 6"/>
-                            </svg>
-                        </p>
-                        <small class="text-muted">OSEON-Aufträge mit Ampel und Pagination</small>
-                    </div>
-                </div>
-            </a>
-        </div>
-    </div>
-}
-
-@if (bdeAktiv && canUseBde)
-{
-    <h6 class="text-muted mb-2 mt-3">BDE</h6>
-    <div class="row g-4 mb-4">
-        <div class="col-md-6 col-lg-3">
-            <a asp-controller="BdeTerminal" asp-action="Index" class="text-decoration-none">
-                <div class="card dashboard-card h-100" style="border-left-color: var(--ake-primary);">
-                    <div class="card-body text-center">
-                        <h5 class="card-title">Terminal</h5>
-                        <p class="card-text mb-0" style="color: var(--ake-primary); font-size: 2rem;">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" viewBox="0 0 16 16">
-                                <path d="M0 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2zm6.5 7a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1zm-3.354-3.354a.5.5 0 0 0 0 .708l1.5 1.5a.5.5 0 1 0 .708-.708L4.207 8l1.147-1.146a.5.5 0 1 0-.708-.708z"/>
-                            </svg>
-                        </p>
-                        <small class="text-muted">Buchungen scannen + erfassen</small>
-                    </div>
-                </div>
-            </a>
-        </div>
-        @if (canManageBdeShiftlead)
-        {
-            <div class="col-md-6 col-lg-3">
-                <a asp-controller="BdeCockpit" asp-action="Index" class="text-decoration-none">
-                    <div class="card dashboard-card h-100" style="border-left-color: var(--ake-secondary);">
-                        <div class="card-body text-center">
-                            <h5 class="card-title">Cockpit</h5>
-                            <p class="card-text mb-0" style="color: var(--ake-secondary); font-size: 2rem;">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" viewBox="0 0 16 16">
-                                    <path d="M0 1.5A.5.5 0 0 1 .5 1H2a.5.5 0 0 1 .485.379L2.89 3H14.5a.5.5 0 0 1 .491.592l-1.5 8A.5.5 0 0 1 13 12H4a.5.5 0 0 1-.491-.408L2.01 3.607 1.61 2H.5a.5.5 0 0 1-.5-.5M6 14a2 2 0 1 1-4 0 2 2 0 0 1 4 0m7 0a2 2 0 1 1-4 0 2 2 0 0 1 4 0"/>
-                                </svg>
-                            </p>
-                            <small class="text-muted">Live-Übersicht aller Werkbänke</small>
+    <section class="mb-4" aria-label="@kategorie">
+        <h3 class="h6 text-muted mb-2 mt-2">@kategorie</h3>
+        <div class="row g-4">
+            @foreach (var z in ziele)
+            {
+                <div class="col-md-6 col-lg-3">
+                    <a href="@Url.Action(z.Action, z.Controller)" class="text-decoration-none d-block h-100 dashboard-link">
+                        <div class="card dashboard-card h-100">
+                            <div class="card-body text-center">
+                                <h4 class="h5 card-title mb-1">@z.Titel</h4>
+                                <small class="text-muted">@z.Beschreibung</small>
+                            </div>
                         </div>
-                    </div>
-                </a>
-            </div>
-            <div class="col-md-6 col-lg-3">
-                <a asp-controller="BdeBookings" asp-action="Index" class="text-decoration-none">
-                    <div class="card dashboard-card h-100" style="border-left-color: var(--ake-secondary);">
-                        <div class="card-body text-center">
-                            <h5 class="card-title">Buchungen</h5>
-                            <p class="card-text mb-0" style="color: var(--ake-secondary); font-size: 2rem;">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" viewBox="0 0 16 16">
-                                    <path d="M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2M9.5 3A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5z"/>
-                                </svg>
-                            </p>
-                            <small class="text-muted">Buchungsübersicht mit Filter</small>
-                        </div>
-                    </div>
-                </a>
-            </div>
-        }
-    </div>
+                    </a>
+                </div>
+            }
+        </div>
+    </section>
 }
-
-@if (canReportOperations)
-{
-    <h6 class="text-muted mb-2 mt-3">Reporting</h6>
-    <div class="row g-4 mb-4">
-        <div class="col-md-6 col-lg-3">
-            <a asp-controller="OseonReporting" asp-action="OperationsOverview" class="text-decoration-none">
-                <div class="card dashboard-card h-100" style="border-left-color: var(--ake-orange);">
-                    <div class="card-body text-center">
-                        <h5 class="card-title">OSEON AG-Übersicht</h5>
-                        <p class="card-text mb-0" style="color: var(--ake-orange); font-size: 2rem;">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" viewBox="0 0 16 16">
-                                <path d="M4 11H2v3h2zm5-4H7v7h2zm5-5v12h-2V2zm-2-1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1zM6 7a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1zm-5 4a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1z"/>
-                            </svg>
-                        </p>
-                        <small class="text-muted">KPI + Filter über Gesamtbestand</small>
-                    </div>
-                </div>
-            </a>
-        </div>
-    </div>
-}
-
-<h6 class="text-muted mb-2 mt-3">Stammdaten</h6>
-<div class="row g-4">
-    <div class="col-md-6 col-lg-3">
-        <a asp-controller="Articles" asp-action="Index" class="text-decoration-none">
-            <div class="card dashboard-card h-100">
-                <div class="card-body text-center">
-                    <h5 class="card-title">Artikel</h5>
-                    <small class="text-muted">Artikelstammdaten</small>
-                </div>
-            </div>
-        </a>
-    </div>
-    <div class="col-md-6 col-lg-3">
-        <a asp-controller="StorageLocations" asp-action="Index" class="text-decoration-none">
-            <div class="card dashboard-card h-100">
-                <div class="card-body text-center">
-                    <h5 class="card-title">Lagerplätze</h5>
-                    <small class="text-muted">Lagerplatzverwaltung</small>
-                </div>
-            </div>
-        </a>
-    </div>
-    @if (hasMasterDataAccess)
-    {
-        <div class="col-md-6 col-lg-3">
-            <a asp-controller="Users" asp-action="Index" class="text-decoration-none">
-                <div class="card dashboard-card h-100">
-                    <div class="card-body text-center">
-                        <h5 class="card-title">Benutzer</h5>
-                        <small class="text-muted">Benutzerverwaltung</small>
-                    </div>
-                </div>
-            </a>
-        </div>
-        <div class="col-md-6 col-lg-3">
-            <a asp-controller="Workstations" asp-action="Index" class="text-decoration-none">
-                <div class="card dashboard-card h-100">
-                    <div class="card-body text-center">
-                        <h5 class="card-title">Arbeitsplätze</h5>
-                        <small class="text-muted">Arbeitsplatzverwaltung</small>
-                    </div>
-                </div>
-            </a>
-        </div>
-    }
-</div>

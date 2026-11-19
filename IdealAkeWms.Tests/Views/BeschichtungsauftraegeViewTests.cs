@@ -109,7 +109,7 @@ public class BeschichtungsauftraegeViewTests
     // Grenze: Der Wächter beweist die Markup-Struktur, nicht die Sichtbarkeit je Rolle zur Laufzeit — die decken
     // CurrentUserServiceRoleTests (Rollenlogik) und Manual-UAT TS-89 ab.
 
-    private const string Bedingung = "@if (hasBeschichtungsauftragAccess && faBeschichtungAktiv)";
+    private const string Bedingung = "@if (nav.ZeigtEines(NavZiele.BeschichtungVorschlagsliste, NavZiele.Beschichtungsauftraege))";
 
     [Fact]
     public void Navigation_EinDropdownBeschichtung_ZweiEintraege_ActiveFuerBeideController()

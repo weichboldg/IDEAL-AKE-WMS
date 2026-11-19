@@ -168,6 +168,7 @@ builder.Services.AddMemoryCache();
 // Services
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
+builder.Services.AddScoped<IdealAkeWms.Services.Navigation.NavigationSicht>(); // v1.99.45 Menue + Startseite aus einer Quelle (ADR 0034)
 builder.Services.AddScoped<IActiveDirectoryService, ActiveDirectoryService>();
 builder.Services.AddScoped<IPasswordService, PasswordService>();
 builder.Services.AddScoped<IBusinessDayService, BusinessDayService>();
