@@ -46,8 +46,8 @@ Grenzen: nichts an Sage, keine Einstellungen auf :88/4445/Prod, `SageFaArbeitsga
   `publish-info.txt`). ZIP 236859820 Byte, SHA-256 `3E853578F17CD958ACABEBD5B28FE320FC6A22249A496013DF914913E9941AE9`.
   Hinweis: der qa-agent hat zusätzlich lose Ordner direkt unter `publish\` (IDEALAKEWMSWeb, …WebService, SQL, deploy, publish-info.txt)
   erzeugt – nicht angefasst (Auftrag: andere Dateien in publish\ nicht anfassen).
-  - `\AKENET01.ake.at\Installsourcen\paket10-v1.99.45.zip`: 236859820 Byte, SHA-256 gleich – OK.
-  - `\IDEALWEB01.ideal.ideal-ake.at\InstallSourcen\paket10-v1.99.45.zip`: 236859820 Byte, SHA-256 gleich – OK.
+  - `\\AKENET01.ake.at\Installsourcen\paket10-v1.99.45.zip`: 236859820 Byte, SHA-256 gleich – OK.
+  - `\\IDEALWEB01.ideal.ideal-ake.at\InstallSourcen\paket10-v1.99.45.zip`: 236859820 Byte, SHA-256 gleich – OK.
 - 2026-11-19: Lauf abgeschlossen – alle vier Specs Testbereit, wartet Schranke 2 (Manual-UAT + Merge). Kein Merge, kein Push, nichts an Sage.
 
 ## Kapitel für spätere Confluence-Übernahme
