@@ -123,8 +123,7 @@ Eintraege = @(
 
 # ---------------------------------------------------------------- Pruefungen (jeder Lauf; Reparatur nur nach Bestaetigung) -------
 # v1.99.28 (ADR 0027): admin zaehlt nicht - der Web-Start stellt admin ohne Kennwort auf das Standard-Erstkennwort mit Pflichtwechsel um.
-# v1.99.37 (ADR 0032): SQL/159 legt UNIQUE-Indizes auf den fachlichen Schluessel; Dubletten im Bestand (P-AB1/P-AB2) vorher sichtbar machen.
-# v1.99.44 (Review S-2): nur RTRIM wie UNIQUE-Index (Rohwert; SQL Server ignoriert Schlussleerzeichen) und Abgleich (TrimEnd) - fuehrende Leerzeichen sind keine Dublette.
+# v1.99.37 (ADR 0032): SQL/159 legt UNIQUE-Indizes auf den fachlichen Schluessel; Dubletten im Bestand (P-AB1/P-AB2) vorher sichtbar machen. v1.99.44 (S-2): nur RTRIM wie Index/Abgleich.
 @{ Id='Pruefung/FaStrukturSchluesselDoppelt'; Version='1.99.37'; Typ='Pruefung'; Firma='beide'; Phase='Vorher'; Ausfuehrung='anzeigen'
    Pruefung='SELECT CASE WHEN OBJECT_ID(N''dbo.FaHierarchyNodes'', N''U'') IS NULL THEN 0 ELSE (SELECT COUNT(*) FROM (SELECT 1 AS x FROM dbo.FaHierarchyNodes GROUP BY HauptFA, VaterFA, SubFA, Position, NULLIF(RTRIM(Artnr), N'''') HAVING COUNT(*) > 1) d) + (SELECT COUNT(*) FROM (SELECT 1 AS x FROM dbo.FaHierarchyOrderInfos GROUP BY HauptFA, NULLIF(RTRIM(ABNr), N''''), NULLIF(RTRIM(Pos), N'''') HAVING COUNT(*) > 1) d) END'
    Text='Doppelte FA-Struktur-Schluessel im WMS-Bestand: SQL/159 bricht vor dem UNIQUE-Index ab. Liste mit P-AB1/P-AB2 der Spec 2026-11-17-fa-struktur-abgleich-statt-full-replace an Gerald; nicht automatisch bereinigen (der naechste Lauf des alten Dienstes schreibt die Tabellen ohnehin neu).'

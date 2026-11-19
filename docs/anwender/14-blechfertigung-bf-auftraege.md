@@ -17,7 +17,8 @@ In dieser ersten Stufe schreibt das WMS **nichts an Sage** und bucht **nichts ei
 
 Ohne *Blechfertigung aktiv* fehlt das Menü, auch für Administratoren. Abschicken geht erst, wenn unter *Einstellungen → Blechfertigung* eine
 **Empfängergruppe BF-Aufträge** gewählt ist. Sonst steht im Warenkorb „Abschicken gesperrt: keine gültige Empfängergruppe für BF-Aufträge
-eingestellt (Einstellungen > Blechfertigung).“ Die gewählte Gruppe steht im Auftrag unter **Empfängergruppe**.
+eingestellt (Einstellungen > Blechfertigung).“ Die gewählte Gruppe steht im Auftrag unter **Empfängergruppe**. Die Gruppen und ihre
+E-Mail-Adressen pflegt man unter *Stammdaten → Empfänger* (seit Version 1.99.44 auch sichtbar, wenn die Bedarfsmeldungen aus sind).
 
 **Kürzel des Bestellers:** Jeder Besteller braucht unter *Stammdaten → Benutzer* ein **Kürzel** (z. B. *WAK*), siehe
 [Kapitel 13](13-anmeldung-und-benutzer.md). Ohne Kürzel kann der Schachtler den Auftrag nicht freigeben. Im Auftrag steht der Besteller als

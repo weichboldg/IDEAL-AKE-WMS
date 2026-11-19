@@ -1,6 +1,6 @@
 # 00 – Betriebshandbuch IdealAkeWms: Übersicht
 
-**Stand:** v1.99.43, 2026-11-19 (Bündel `feature/2026-08-07-ideal-teile-1-5`, Code `3a6372a5`, Paket 8; Quelle: `IdealAkeWms/AppVersion.cs:5`, `publish/paket8-v1.99.43/publish-info.txt`; erstellt mit v1.99.23, zuletzt Kapitel 03, 04, 05, 08 und AGENTS.md nachgezogen – siehe „Änderungen seit v1.99.23“) ·
+**Stand:** v1.99.44, 2026-11-19 (Bündel `feature/2026-08-07-ideal-teile-1-5`, Sammel-Bugfix nach Paket 8; Quelle: `IdealAkeWms/AppVersion.cs:5`; erstellt mit v1.99.23, zuletzt Kapitel 03, 04, 05, 08 und AGENTS.md nachgezogen – siehe „Änderungen seit v1.99.23“) ·
 **Zielgruppe:** Administratoren und IT-Kollegen ohne Entwicklerwissen · **Zweck:** Betrieb, Update, Überwachung und Fehlersuche des
 Warehouse-, Produktions- und Betriebsdatensystems der Standorte AKE und IDEAL – mit Fundstelle zu jeder Aussage.
 
@@ -82,6 +82,7 @@ Warehouse-, Produktions- und Betriebsdatensystems der Standorte AKE und IDEAL �
 | 1.99.41 | Beschichtungsauftrag: Kreditor, Versendet, Verpackt/ohne FA (`SQL/161`); Prüfungen `BeschichterKreditoren`, `BeschichtungsauftragUebergebenOffen` | [03 5.2a/5.3](03-installation-update-rollback.md) |
 | 1.99.42 | WiCAM-CSV exakt nach `BF00000002.csv`, Benutzer-Kürzel (`SQL/162`), Arbeitsschritte je BF-Position (`SQL/163`, **ändert Daten**); Einmal-Skript Beschichter-Kreditor nachtragen; „Antwort unklar“ nie automatisch wiederholen | [03 5.2a/5.4](03-installation-update-rollback.md), [05 Abschnitt 4a und 8a](05-schnittstellen.md), [08 A-8.2/A-8.3](08-diagnose-abfragen.md) |
 | 1.99.43 | Kommissionierliste IDEAL: nur nach Leitstand-Freigabe, Standard-Ziele K-01/K-02 (zwei neue AppSettings, 3 Prüfungen); kein SQL, Dienst nur Versionsnummer (Paket 8) | [03 Abschnitt 4](03-installation-update-rollback.md), [04 5.5](04-konfiguration.md), [08 A-8.4](08-diagnose-abfragen.md) |
+| 1.99.44 | Sammel-Bugfix: `Pruefung/FaStrukturSchluesselDoppelt` nur mit `RTRIM` (führende Leerzeichen keine Dublette mehr); Reparatur-Name der Rolle „Beschichtungsauftrag“ ohne „(IDEAL)“; Menü „Empfänger“ auch bei Lager-/Glasbestellung und Blechfertigung; kein SQL, keine neue Einstellung | [03 5.3](03-installation-update-rollback.md), [04 5.5](04-konfiguration.md) |
 
 Anwender-Sicht: `docs/anwender/` – neu Kapitel 13 „Anmeldung und Benutzer“.
 

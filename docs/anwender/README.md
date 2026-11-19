@@ -43,7 +43,7 @@ FA-Nummer und einem Bildschirmfoto.
 
 ## Stand und was noch folgt
 
-Stand der Anleitungen: Version **1.99.43** (18.11.2026) für die Kapitel 01, 11 und 13–17; die übrigen Kapitel Version **1.99.29**. Seit Version 1.99.22 neu bzw. ergänzt:
+Stand der Anleitungen: Version **1.99.44** (19.11.2026) für die Kapitel 14 und 16, Version **1.99.43** für die Kapitel 01, 11, 13, 15 und 17; die übrigen Kapitel Version **1.99.29**. Seit Version 1.99.22 neu bzw. ergänzt:
 
 | Version | Änderung | Anleitung |
 |---|---|---|
@@ -62,6 +62,7 @@ Stand der Anleitungen: Version **1.99.43** (18.11.2026) für die Kapitel 01, 11 
 | 1.99.41 | Beschichtungsauftrag: Haken „Verpackt“, Position ohne FA, Status Versendet, Lackierer aus Kreditoren, Druck je Position | [15](15-beschichtung-beschichtungsauftrag.md) |
 | 1.99.42 | Benutzer-Kürzel; BF-CSV genau nach WiCAM-Vorlage, Test-CSV; Beschichtung: Lackierer nachtragen, Druck mit Seitenzahl | [13](13-anmeldung-und-benutzer.md), [14](14-blechfertigung-bf-auftraege.md), [15](15-beschichtung-beschichtungsauftrag.md) |
 | 1.99.43 | IDEAL-Kommissionierliste: Ziele gemerkt, Summiert als Standard, Abteilung und Lagerplätze, nur nach Leitstand-Freigabe | [01](01-kommissionierung.md), [16](16-ideal-kommissionierliste.md) |
+| 1.99.44 | Kommissionierliste: Ziel-Kästchen wieder nebeneinander; Menü *Stammdaten → Empfänger* auch bei Lager-/Glasbestellung und Blechfertigung | [14](14-blechfertigung-bf-auftraege.md), [16](16-ideal-kommissionierliste.md) |
 
 Änderungen aus 1.99.30, 1.99.31, 1.99.33 und 1.99.38–1.99.40 (Bestellvorschläge, offene Bestellungen, Wareneingang
 Sammellieferschein, Arbeitsgänge in Sage, Sage-Benutzerfelder) sind in den betroffenen Kapiteln noch nicht nachgezogen.

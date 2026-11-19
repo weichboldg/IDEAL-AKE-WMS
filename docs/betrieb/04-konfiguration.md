@@ -1,6 +1,6 @@
 # 04 – Konfiguration
 
-**Stand:** v1.99.43, 2026-11-19 (Einstellungen bis v1.99.43 nachgezogen; Zeilenangaben auf den Katalog-Stand v1.99.43 umgestellt) · **Zielgruppe:** IT-Administratoren (ohne Entwicklerwissen) · **Zweck:** Wo welche Einstellung liegt,
+**Stand:** v1.99.44, 2026-11-19 (Einstellungen bis v1.99.44 nachgezogen; Zeilenangaben auf den Katalog-Stand v1.99.43 umgestellt) · **Zielgruppe:** IT-Administratoren (ohne Entwicklerwissen) · **Zweck:** Wo welche Einstellung liegt,
 wer sie liest und wann eine Änderung wirkt – und welche Schalter nach außen wirken (Sage, Mails, Dateien).
 
 Übersicht aller Kapitel: [00-index.md](00-index.md). Fremdsysteme hinter den Schaltern: [05-schnittstellen.md](05-schnittstellen.md).
@@ -211,7 +211,7 @@ die View `[vw_IDEAL_AKE_WMS_Arbeitsgaenge]` liefert Arbeits**gang**nummern, kein
 |---|---|---|---|---|
 | `WindowsAuthAktiv` | automatische Anmeldung mit dem Windows-Konto | aus | erst einschalten, wenn AD-Benutzer angelegt sind | `AppSettingDefinitions.cs:261-262`, `scripts/deploy/Install-IdealAkeWms.ps1:492` |
 | `WindowsAuthBerechtigungsgruppe` | AD-Gruppe für „AD-Benutzer anlegen“ | leer | – | `AppSettingDefinitions.cs:263-264` |
-| `LeitstandAktiv`, `BdeAktiv`, `TeileverfolgungAktiv`, `FaCompletionAktiv`, `BestellungenAktiv` | Module ein | aus | zusätzlich Rolle nötig | `AppSettingDefinitions.cs:206,214,234,210,158` |
+| `LeitstandAktiv`, `BdeAktiv`, `TeileverfolgungAktiv`, `FaCompletionAktiv`, `BestellungenAktiv` | Module ein | aus | zusätzlich Rolle nötig. Menü *Stammdaten → Empfänger* (Empfängergruppen) erscheint seit v1.99.44, wenn `BestellungenAktiv`, `LagerbestellungAktiv` (nicht „false“) **oder** `BlechfertigungAktiv` an ist; *Artikelgruppen-Zuordnung* nur mit `BestellungenAktiv` (`Views/Shared/_Layout.cshtml:374-384`) | `AppSettingDefinitions.cs:206,214,234,210,158` |
 | `LagerbestellungAktiv` | Modul Lagerbestellungen | **an** | nur `false` sperrt | `AppSettingDefinitions.cs:160`, [[fallstricke]] §7 „Feature-Toggle mit Default true …“ |
 | `WareneingangBestellungAktiv` | Menü „Offene Bestellungen“ / „Wareneingang zu Bestellung“ | aus | braucht `Sync:EinkaufBestellungenEnabled` | `AppSettingDefinitions.cs:119`, `README.md:508` |
 | `EinkaufAktiv` | Einkauf → Bestellvorschläge, seit v1.99.31 auch Einkauf → Offene Bestellungen und Sage-Wareneingänge (offen) | aus | erst nach den SData-Abgleichen | `AppSettingDefinitions.cs:176-178`, `README.md:511` |

@@ -1,6 +1,6 @@
 # 16 IDEAL-Kommissionierliste (Kommissionierlisten nach Ziel)
 
-Stand: Version 1.99.43 · nur Standort IDEAL · Bilder aus dem IDEAL-Testsystem
+Stand: Version 1.99.44 · nur Standort IDEAL · Bilder aus dem IDEAL-Testsystem
 
 ## Zweck
 
@@ -85,8 +85,6 @@ Material. Bei einem Kombigerät mit mehreren Abteilungen steht an der Gruppe „
 - **Lagerplätze** zeigen den Bestand, den das **WMS** kennt – nicht den Sage-Bestand. Kommissionierwagen sind bewusst nicht dabei.
 - **„in Sage beendet“ / „inaktiv“ / „ungeklärt“** an einer Zeile (seit Version 1.99.37): Die Position ist in Sage nicht mehr aktiv. Bitte
   mit der Arbeitsvorbereitung klären, bevor man sie kommissioniert.
-- **Bekannter Darstellungsfehler (Version 1.99.43):** Die Kästchen der Kommissionier-Ziele stehen in der Filterkarte ganz rechts
-  untereinander in einer schmalen Spalte statt nebeneinander unter der Überschrift. Bedienen lassen sie sich trotzdem normal.
 
 ## Häufige Fragen
 
