@@ -2153,3 +2153,19 @@ Code: `hardware-scanner.js` Block „Scannen ohne Feld“, CSS `.hw-scan-bereit`
 - **Regel:** Der eigene Hinweis steht **vorn**; erklärt wird aus der ungekappten `Diagnose` (`Erklaeren(Exception)`), und eine schon erklärte
   Meldung wird nicht doppelt erklärt. Wer eine Meldung kappt oder kürzt, setzt das Wichtige an den Anfang.
 - **Test:** `SageUserfelderTests.Erklaeren_LangeSqlDiagnose_HinweisVorn_AusDiagnose_NieDoppelt`.
+
+## 54. In einem Bootstrap-`fieldset` steht direkt nach der `<legend>` der sichtbare Inhalt, kein verstecktes Feld (v1.99.44, [[2026-11-19-v1-99-44-sammel-bugfix]])
+
+- **Problem:** Bootstrap-Reboot setzt `legend { float:left; width:100% }` und hebt das Fließen nur mit `legend + * { clear:left }` auf. Ein
+  `<input type="hidden">` direkt nach der legend schluckt diese Regel; der Container fließt neben die 100-%-Legende und wird auf eine schmale
+  Spalte gequetscht (Kommissionier-Ziele v1.99.43, Text „K-“/„01“ umgebrochen).
+- **Regel:** Versteckte Felder hinter den Inhalt oder ans Ende des fieldset; vor die legend geht nicht (sie muss erstes Kind sein).
+- **Test:** `KommissionierSpaltenKonsistenzTests.KommissionierZiele_NachLegendFolgtDerContainer`.
+
+## 55. Rollen seit v1.51.0 kommen nur über das Update-Skript in die Datenbank (v1.99.44, [[2026-11-19-v1-99-44-sammel-bugfix]])
+
+- **Problem:** `beschichtungsauftrag`, `beschichtungsauftrag_schreiben`, `einkauf`, `schachtler` haben weder Seed (`Program.cs:237-251`) noch
+  SQL-Skript, sondern nur eine Haltepunkt-Prüfung mit Reparatur in `scripts/deploy/nachlauf.psd1`. `dev-deploy.ps1` führt das Manifest nicht
+  aus – auf DEV fehlen die Rollen, die Seiten sind dort nur für Admins erreichbar.
+- **Regel:** Eine neue Rolle bekommt eine Manifest-Prüfung mit Reparatur (Muster `Pruefung/RolleSchachtler`) **und** den Rollen-Dreiklang
+  (Attribut, [[controller]], `RoleOverview.cshtml`). Auf DEV nach dem Deploy die Reparatur einmal laufen lassen.
