@@ -133,4 +133,14 @@ public class KommissionierSpaltenKonsistenzTests
 
     internal static List<string> ExtractShowColKeys(string html) =>
         ShowColRegex.Matches(html).Select(m => m.Groups[1].Value).Distinct().ToList();
+
+    /// <summary>v1.99.44: Bootstrap-Reboot hebt das Fliessen der legend nur mit „legend + * { clear:left }“ auf. Direkt nach der
+    /// legend muss daher der Kaestchen-Container stehen, kein verstecktes Feld (sonst schmale Spalte rechts).</summary>
+    [Fact]
+    public void KommissionierZiele_NachLegendFolgtDerContainer()
+    {
+        var html = File.ReadAllText(Path.Combine(ViewsRoot, "FaHierarchyKommissionierListen", "_KommissionierZiele.cshtml"));
+        Regex.IsMatch(html, @"</legend>\s*<div class=""d-flex flex-wrap").Should().BeTrue();
+        html.Should().Contain("<input type=\"hidden\" name=\"target\" value=\"\" />", "das leere Feld bleibt (Auswahl = alle Ziele)");
+    }
 }
