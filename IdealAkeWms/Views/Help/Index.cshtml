@@ -465,11 +465,28 @@
         </div>
 
         <div class="card mb-3">
+            <div class="card-header"><strong>Startseite und Menue</strong></div>
+            <div class="card-body">
+                <p>
+                    Seit v1.99.45 zeigt die Startseite die Kacheln nach Bereichen: Lager, Bestellungen, Kommissionierung, Produktion/BDE,
+                    Blechfertigung, Beschichtung, Einkauf/Wareneingang, Stammdaten, Administration. Startseite und Menue kommen aus
+                    <strong>einer</strong> Quelle: Sie sehen genau die Kacheln, deren Seite Sie auch oeffnen duerfen und deren Modul unter
+                    <em>Einstellungen</em> eingeschaltet ist. Ein Bereich ohne Kachel und ein Menue ohne Eintrag erscheinen nicht.
+                    Protokoll- und Pflegeseiten (z.&nbsp;B. Sage-Lagerbuchungen, Kategorien, Service-Einstellungen) stehen nur im Menue.
+                </p>
+                <p class="small text-muted mb-0">
+                    Fehlt eine Kachel, fehlt Ihnen die Rolle oder das Modul ist aus &ndash; der Administrator sieht beides unter
+                    <em>Benutzer</em> bzw. <em>Einstellungen</em>. Ohne jede Kachel zeigt die Startseite einen Hinweis.
+                </p>
+            </div>
+        </div>
+
+        <div class="card mb-3">
             <div class="card-header"><strong>Artikelinfo</strong></div>
             <div class="card-body">
                 <p>
-                    Schnellzugriff auf Artikeldetails und Lagerbestand — erreichbar ueber die Dashboard-Karte
-                    <em>&bdquo;Artikelinfo&ldquo;</em>, direkt ueber <code>/Articles/Info</code> und (seit v1.80.0) ueber die Artikelnummer
+                    Schnellzugriff auf Artikeldetails und Lagerbestand — erreichbar ueber die Startseiten-Kachel und das Menue
+                    <em>Stammdaten &rarr; &bdquo;Artikelinfo&ldquo;</em> (beide seit v1.99.45 nur mit Stammdaten-Lesen), direkt ueber <code>/Articles/Info</code> und (seit v1.80.0) ueber die Artikelnummer
                     in der Artikelliste bzw. den Knopf <em>&bdquo;Artikelinfo&ldquo;</em> auf &bdquo;Artikel bearbeiten&ldquo;.
                 </p>
                 <dl>
@@ -1713,7 +1730,7 @@
                 <p class="small text-muted mb-2">
                     <strong>Seit v1.14.0:</strong> &bdquo;Leitstand&ldquo; ist ein eigenes Hauptmenue mit der Unterposition
                     &bdquo;Kommissionierung&ldquo;. &bdquo;Kommissionierung&ldquo; im Hauptmenue ist der Picker-Worklist-Link
-                    (mit Badge fuer freigegebene Eintraege). Das Dashboard hat eine eigene Sektion fuer den Leitstand.
+                    (mit Badge fuer freigegebene Eintraege). Auf der Startseite steht die Kachel &bdquo;Leitstand Kommissionierung&ldquo; im Bereich Kommissionierung (seit v1.99.45).
                 </p>
                 <dl>
                     <dt>Freigabe</dt>

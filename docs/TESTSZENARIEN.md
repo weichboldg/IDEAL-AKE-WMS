@@ -11608,13 +11608,13 @@ Negativfälle: 126.3, 126.4, 126.6, 126.8, 126.11–126.17.
 
 | Nr | Szenario | Erwartet |
 |---|---|---|
-| 126.21 | IDEAL-System ohne die Rollen `beschichtungsauftrag`/`_schreiben`, `-NurPruefen` | `Pruefung/RollenBeschichtungsauftrag` wird geprüft (Firma beide): „Abweichung 2 – wird in 4a … repariert“ |
+| 126.21 | IDEAL-System ohne die Rollen `beschichtungsauftrag`/`_schreiben`, `-NurPruefen` | `Pruefung/RollenBeschichtungsauftrag` wird geprüft (Firma beide): „[Pruefung/RollenBeschichtungsauftrag] Abweichung 2 -> Reparatur in 4a nach Bestaetigung“ (v1.99.45, TS-167) |
 | 126.22 | System mit installierter Version ≥ 1.87.0, `-NurPruefen` | `SQL/108`, `SQL/110`: „nicht fällig (eingeführt mit v…, installiert v…)“ statt „offen“; Plan und Nachlauf-Liste ohne die beiden |
 | 126.23 | Fluss A mit Treffer > 0, ohne Backup: Backup-Angebot j, Ordner leer | „Backup übersprungen“, Meldung „Ohne Backup aus diesem Lauf bleibt SCHARF gesperrt“, Lauf geht weiter (Nachher: Eintrag offen) |
 | 126.24 | Fluss B, Schritt 2 nur „liegt vor“, Backup-Angebot n | „bleibt uebernehmen gesperrt“, nichts ausgeführt, kein Marker, Lauf geht weiter |
 | 126.25 | Schritt 2: Backup j, ungültiger Ordner, dann leer | Frage nach Ordner wiederholt; leer → „Backup übersprungen“, dann „Liegt ein aktuelles Backup vor?“ (n → Abbruch vor dem Stoppen wie bisher) |
-| 126.26 | v1.99.2: Haltepunkt-Trockenlauf mit Treffern (AKE-DEV, Altbestand), `-NurPruefen` und Volllauf mit Backup n | Vorprüfung: „Trockenlauf in der Vorpruefung (lesend)“, „TREFFER: n – Backup in Schritt 2 Pflicht“, Plan „Backup PFLICHT“; Schritt 2 n → „ABBRUCH: Backup ist Pflicht … Nichts gestoppt, Web und Dienst laufen weiter“ |
-| 126.27 | v1.99.2: Trockenlauf 0 Treffer (IDEAL), Volllauf | Vorprüfung „TREFFER: 0 – entfaellt, kein Halt“, Plan ohne Haltepunkt; 4a „entfaellt (TREFFER: 0 in der Vorpruefung)“, j → Marker `Entfaellt` |
+| 126.26 | v1.99.2: Haltepunkt-Trockenlauf mit Treffern (AKE-DEV, Altbestand), `-NurPruefen` und Volllauf mit Backup n | Vorprüfung: „Trockenlauf in der Vorpruefung (lesend)“, „Trockenlauf (Vorpruefung) TREFFER: n -> Backup in Schritt 2 Pflicht, Haltepunkt in 4a“ (v1.99.45), Plan „Backup PFLICHT“; Schritt 2 n → „ABBRUCH: Backup ist Pflicht … Nichts gestoppt, Web und Dienst laufen weiter“ |
+| 126.27 | v1.99.2: Trockenlauf 0 Treffer (IDEAL), Volllauf | Vorprüfung „Trockenlauf (Vorpruefung) TREFFER: 0 -> entfaellt, kein Halt“, Plan ohne Haltepunkt; 4a „OK … Trockenlauf (Vorpruefung) TREFFER: 0 -> entfaellt, kein Halt“ (v1.99.45), j → Marker `Entfaellt` |
 
 **Prüfung Mail-Ablageordner v1.99.12** (Freigabe-Nachtrag 2026-11-12 17:04). **Vorbedingungen:** DEV-Dienst mit
 `MailSettings:PickupDirectory` in `appsettings.DEV.json` (AKE-DEV: `D:\Dev\mail-pickup\ake`); Paketkopie mit eigener `ziele.psd1` (eine
@@ -11622,8 +11622,8 @@ DEV-Zeile auf `D:\Dev\<F>\Web`/`Service`, keine echte Ziel-Zeile), danach entfer
 
 | Nr | Szenario | Erwartet |
 |---|---|---|
-| 126.28 | DEV-Zeile mit `Prod=$false`, `-NurPruefen` | Ermittlung „Mail           SMTP smtp.ake.at \| Ordner D:\Dev\mail-pickup\ake“; Vorprüfung „[Pruefung/MailPickup] Abweichung 1 – Hinweis: Mails gehen nur in D:\Dev\mail-pickup\ake (…\appsettings.DEV.json) …“; kein Abbruch, Nachlauf-Block „Prüfungen“ zeigt die Zeile erneut (gelb); Exit 0 |
-| 126.29 | dieselbe Zeile mit `Prod=$true`, `-NurPruefen` und Volllauf (Eingabe `AKE-PROD`, DB-Frage j) | Vorprüfung „PROD, Abbruch vor dem Stoppen: …“, nach dem Plan „ABBRUCH: Produktivsystem …: [Pruefung/MailPickup] Mails gehen nur in … Wert von Hand entfernen … Nichts gestoppt, Web und Dienst laufen weiter.“; Zustand live App-Pool/Site Started, Dienst Running, letzter Schritt „1. Vorpruefung“; keine Backup-Frage; Exit 1 |
+| 126.28 | DEV-Zeile mit `Prod=$false`, `-NurPruefen` | Ermittlung „Mail           SMTP smtp.ake.at \| Ordner D:\Dev\mail-pickup\ake“; Vorprüfung „[Pruefung/MailPickup] Abweichung 1 -> Hinweis. Mails gehen nur in D:\Dev\mail-pickup\ake (…\appsettings.DEV.json) …“; kein Abbruch, Nachlauf-Block „Prüfungen“ zeigt die Zeile erneut (gelb); Exit 0 |
+| 126.29 | dieselbe Zeile mit `Prod=$true`, `-NurPruefen` und Volllauf (Eingabe `AKE-PROD`, DB-Frage j) | Vorprüfung „-> PROD: Abbruch vor dem Stoppen. …“, nach dem Plan „ABBRUCH: Produktivsystem …: [Pruefung/MailPickup] Abweichung 1: Mails gehen nur in … Wert von Hand entfernen … Nichts gestoppt, Web und Dienst laufen weiter.“; Zustand live App-Pool/Site Started, Dienst Running, letzter Schritt „1. Vorpruefung“; keine Backup-Frage; Exit 1 |
 | 126.30 | Negativ: Wert leer, nur Leerzeichen oder Schlüssel fehlt (Prod- oder Test-Zeile) | „[Pruefung/MailPickup] OK“, Ermittlung „Ordner -“, kein Abbruch |
 | 126.31 | **Mensch (Gerald):** je Prod-System `-NurPruefen` mit dem Paket v1.99.12 | „Mail: SMTP <Host> \| Ordner -“ und „[Pruefung/MailPickup] OK“; sonst Wert aus der genannten Datei entfernen, dann erneut |
 
@@ -12076,7 +12076,7 @@ Ergänzt TS-126 (dort 126.7: zweiter Trockenlauf nur mit synthetischem Skript **
 
 | Nr | Szenario | Erwartet |
 |---|---|---|
-| 133.7 | Synthetisches Skript **ohne** Trockenlauf-Zweig in der Sperre (Stand vor dem Fix), sonst wie 133.3 | Warnung „zweiter Trockenlauf ohne Zeile TREFFER (Exit 1). Scharflauf ist uebernommen (Marker Scharf); Ausgabe im Log-Ordner pruefen.“, **kein** leerer Wert; Marker `Scharf` steht |
+| 133.7 | Synthetisches Skript **ohne** Trockenlauf-Zweig in der Sperre (Stand vor dem Fix), sonst wie 133.3 | Warnung „zweiter Trockenlauf keine Zeile TREFFER, mit Fehler beendet (Exit 1) -> Scharflauf ist uebernommen (Marker Scharf). Ausgabe … pruefen.“ (v1.99.45, TS-167.2), **kein** leerer Wert; Marker `Scharf` steht |
 | 133.8 | Synthetisches Skript, das nach dem Scharflauf noch Treffer meldet | Warnung „TREFFER: 1 (erwartet 0)“ wie bisher |
 | 133.9 | **Nur Gerald:** echtes Altbestand-Skript, `@Trockenlauf = 0` von Hand in SSMS auf einer DEV-Kopie mit Spur-Zeile | `RAISERROR` „NICHT ERNEUT AUSFUEHREN“, nichts angelegt. Agenten führen das nicht aus (ADR 0023) und belegen AK 2 durch den Diff: `RAISERROR`-Zweig unverändert |
 | 133.10 | Kopie ohne Spalte `PickingOrders.AltbestandPruefen` (Wegwerf-Kopie) | Trockenlauf Exit ≠ 0 mit „SQL/141 fehlt“, kein `TREFFER: 0` |
@@ -13277,11 +13277,133 @@ Benutzer mit Stammdaten-Lesen (ohne Admin) und ein Admin.
 | 166.4a | Update-Skript gegen IDEAL-DEV, Haltepunkt-Prüfungen `RollenBeschichtungsauftrag`, `RolleSchachtler`, `RolleEinkauf` reparieren lassen | alle vier Rollen vorhanden, Name „Beschichtungsauftrag“ (ohne „(IDEAL)“), Anleger „Update-Skript“; erneuter Lauf zählt 0 |
 | 166.4b | *Rollen* und *Rollenübersicht*, Hilfe → Beschichtung | Name überall „Beschichtungsauftrag“ |
 
-Automatisch belegt: `KommissionierSpaltenKonsistenzTests.KommissionierZiele_NachLegendFolgtDerContainer`, `OrderRecipientsMenuTests`,
-`NachlaufManifestDriftTests`. **Manual-UAT:** 166.1 (Foto 1440/390 px), 166.2 Laufzeit-Sichtbarkeit, 166.3a, 166.4a.
+Automatisch belegt: `KommissionierSpaltenKonsistenzTests.KommissionierZiele_NachLegendFolgtDerContainer`, 
+`NachlaufManifestDriftTests`; seit v1.99.45 deckt `NavigationSichtTests` (T1) die Menüregel für Empfänger/Artikelgruppen ab (`OrderRecipientsMenuTests` entfällt). **Manual-UAT:** 166.1 (Foto 1440/390 px), 166.2 Laufzeit-Sichtbarkeit, 166.3a, 166.4a.
+
+---
+
+## TS-167 — Update-Skript: Prüf-, Warn- und Fehlertexte nach Muster (v1.99.45)
+
+Keine Migration. Standort: nur DEV (Agent, wie TS-133). Muster: `<Fall>: [<Vorgang> ]<Ergebnis>[ -> <Folge>][. <Handlung>]`; Ergebnis
+eines Trockenlaufs über `Format-Ergebnis` („TREFFER: n“ bzw. „keine Zeile TREFFER“, bei Exit ≠ 0 zusätzlich „, mit Fehler beendet (Exit n)“).
+
+**Vorbedingungen:** DB-Kopie der DEV, Paketkopie mit synthetischen Fluss-A-Einträgen (Phase Nachher bzw. Haltepunkt, Firma passend), die in
+eine Probe-Tabelle `dbo.TS167_Probe` schreiben, und eine synthetische Prüfung `Pruefung/TS167` (lesend, liefert 1, Reparatur über
+Transaktion). Keine echten Daten- oder Einmal-Skripte scharf ausführen (ADR 0023). Danach alles entfernen (Probe-Tabelle, Marker-Zeilen,
+Paketkopie, Lauf-Backup).
+
+| Nr | Szenario | Erwartet |
+|---|---|---|
+| 167.1 | `Test/TrefferDannFehler`: Trockenlauf `TREFFER: n`; der zweite Trockenlauf gibt `TREFFER: 0` aus und wirft danach `RAISERROR(…, 16, 1)`. `SCHARF` | Marker `Scharf`. Warnung „zweiter Trockenlauf TREFFER: 0, mit Fehler beendet (Exit 1) -> Scharflauf ist uebernommen (Marker Scharf). Ausgabe …_trockenlauf.txt pruefen.“, **kein** „ohne Zeile TREFFER“; auch in der Sammelliste |
+| 167.2 | `Test/SperreAlt` wie TS-133.7 | „zweiter Trockenlauf keine Zeile TREFFER, mit Fehler beendet (Exit 1) -> Scharflauf ist uebernommen …“ |
+| 167.3 | `Test/OhneZeile`: zweiter Trockenlauf Exit 0 ohne Zeile | „zweiter Trockenlauf keine Zeile TREFFER -> …“, **kein** „Exit 0“ |
+| 167.4 | `Test/Rest` wie TS-133.8 | „zweiter Trockenlauf TREFFER: 1 (erwartet 0) -> Scharflauf ist uebernommen …“ |
+| 167.5 | `Test/Sperre` wie TS-133.3 | „OK … zweiter Trockenlauf TREFFER: 0“, keine Warnung |
+| 167.6 | Haltepunkt-Eintrag, Trockenlauf Exit 0 ohne Zeile, `-NurPruefen` | Vorprüfung „Trockenlauf (Vorpruefung) keine Zeile TREFFER -> nicht bestimmbar, Backup Pflicht, Trockenlauf erneut in 4a. Ausgabe … pruefen.“; Plan „Backup PFLICHT (…)“ wie bisher |
+| 167.7 | Haltepunkt-Eintrag mit 0 Treffern, Volllauf | Vorprüfung „Trockenlauf (Vorpruefung) TREFFER: 0 -> entfaellt, kein Halt“; 4a „OK … Trockenlauf (Vorpruefung) TREFFER: 0 -> entfaellt, kein Halt“ |
+| 167.8 | `Pruefung/TS167` (Abweichung 1), `-NurPruefen` | Liste „[Pruefung/TS167] Abweichung 1 -> Reparatur in 4a nach Bestaetigung“ |
+| 167.9 | dieselbe Prüfung, Volllauf, Reparatur `n` | „!!  Pruefung/TS167: Abweichung 1 -> Reparatur abgelehnt, Abweichung bleibt.“; kein „Pruefung Pruefung/“ |
+| 167.10 | dieselbe Prüfung, Reparatur `j` | „OK  Pruefung/TS167: repariert (vorher Abweichung 1, jetzt OK)“ |
+| 167.11 | Schema-Skript einer Paketkopie, das mit `RAISERROR(…, 16, 1)` endet | „ABBRUCH: SQL/…: Schema-Skript mit Fehler beendet (Exit 1) -> Abbruch, Web und Dienst bleiben gestoppt. …“; Zustand wie bisher |
+| 167.12 | `dotnet test` | Wächter `NachlaufManifestDriftTests.DeploySkripte_PruefTexte_FolgenDemMuster` grün, Rotprobe (Text v1.99.44) eingebaut; übrige Drift-Tests grün |
+| 167.13 | Negativ: 167.1, aber mit `TREFFER: 3` vor dem Fehler | „TREFFER: 3, mit Fehler beendet (Exit 1)“, **nicht** „(erwartet 0)“ |
+| 167.14 | Negativ: erster Trockenlauf mit Exit 1 (Nachher-Eintrag) | „<Id>: Trockenlauf … mit Fehler beendet (Exit 1) -> kein Scharflauf. Ausgabe … pruefen.“, Eintrag bleibt offen, kein Scharflauf |
+| 167.15 | Negativ: wie 167.14 als Haltepunkt | „ABBRUCH: Haltepunkt <Id>: Trockenlauf … -> kein Scharflauf. … Web und Dienst bleiben gestoppt.“ |
+| 167.16 | Negativ: Gruppe D unverändert, `-System Gibtsnicht` | „ABBRUCH: System 'Gibtsnicht' gibt es fuer … nicht in ziele.psd1 …“ wie bisher |
+
+Nachgezogen: 126.21, 126.26–126.29, 133.7 (neue Wortlaute). **Mensch:** beim nächsten regulären Update `-NurPruefen` die Prüfungsliste
+einmal lesen.
+
+---
+
+## TS-168 — Artikelinfo und Lagerbestellung: Bestand nur des gesuchten Artikels (v1.99.45)
+
+Keine Migration. Standort: DEV **AKE** (Datenlage) und DEV **IDEAL** (Regression). **Nichts an Sage.**
+
+**Prüfabfrage A** (vor dem Test, je DEV-Standort, nur lesend) — Artikel, deren Artikelinfo vor v1.99.45 durch Fremdartikel gestört war:
+
+```sql
+SELECT a.ArticleNumber, b.ArticleNumber AS Fremdartikel
+FROM Articles a
+JOIN Articles b ON b.Id <> a.Id
+ AND (b.ArticleNumber LIKE '%' + a.ArticleNumber + '%' OR b.Description LIKE '%' + a.ArticleNumber + '%'
+   OR b.Matchcode LIKE '%' + a.ArticleNumber + '%')
+WHERE EXISTS (SELECT 1 FROM StockMovements sm WHERE sm.ArticleId = b.Id)
+  AND EXISTS (SELECT 1 FROM StockMovements sm WHERE sm.ArticleId = a.Id)
+ORDER BY a.ArticleNumber;
+```
+
+| Nr | Schritt | Erwartet |
+|---|---|---|
+| 168.1 | AKE: Artikelinfo EK002995 (Paar aus Prüfabfrage A) | Gesamtbestand = *Bestand WMS* in den Bestellvorschlägen; `LL;1;25;0` einmal; Verfügbar = Gesamt − Angerechnet; Abzeichen „Unterschritten“ passend |
+| 168.2 | EK007964, EK000214, EK000420 | keine Lagerplätze fremder Artikel |
+| 168.3 | Regression: Artikel ohne Treffer in A; Artikel mit Wagenbestand | Werte wie vor dem Deploy; Wagen in der Tabelle und im Gesamtbestand |
+| 168.4 | Lagerbestellung mit Position EK002995 anlegen und absenden; Details und Druck | nur eigene Lagerplätze; zuerst der Hauptlagerplatz, dann nach Code; Kommissionierwagen nicht im Lagerplatz-Text |
+| 168.5 | dieselbe Position im Entwurf | Zelle „Bestand“ wie 168.4 |
+| 168.6 | Negativ: Position mit `ek002995` (klein); `api/warehouserequisitions/stock?articleNumber=` im Browser | Lagerplatz-Text korrekt; `{"locations":""}` |
+| 168.7 | `/StockOverview` Filter „EK0029“ | weiterhin mehrere Artikel (Suche unverändert) |
+| 168.8 | Artikelinfo auf AKE und IDEAL | neuer Hinweistext unter „Bedarfe“ |
+
+Automatisch belegt: `ArticlesControllerTests` (Info nur `ArticleId == article.Id`), `LagerplatzTextExaktTests`, `WarehousePickingControllerTests`.
+
+---
+
+## TS-169 — BF-Warenkorb: Artikelsuche mit Vorschlägen, Scanner, Enter (v1.99.45)
+
+Keine Migration. Standort **IDEAL-DEV**. Querverweis: TS-157.
+
+**Vorbedingungen:** `BlechfertigungAktiv = true`, Sage-Benutzerfelder der Blechfertigung konfiguriert. Benutzer A mit Lager-Bestellrecht
+(kein `schachtler`), Benutzer B ohne BF-Recht. Hardware-Scanner mit Enter-Suffix aktiv. Testartikel: **X** Lagerartikel Typ BG, **Y** Typ ZK,
+**Z** Typ BG ohne „Ist Lagerartikel“ (Felder laut `IdealAkeWms/Services/BfArtikelFelder.cs`).
+
+| Nr | Schritt | Erwartet |
+|---|---|---|
+| 169.1 | A: *Blechfertigung → BF-Warenkorb*, 1 Zeichen tippen, dann 2 Zeichen der Nummer von X | 1 Zeichen: keine Liste; 2 Zeichen: Liste mit X (Nummer + Matchcode · Bezeichnung) |
+| 169.2 | Teil der Bezeichnung von X tippen | X in der Liste |
+| 169.3 | X wählen, dann Enter | Trefferzeile X, „Hinzufügen“ hat den sichtbaren Fokus; Enter → Erfolgsmeldung, Position X mit vorbelegter Menge |
+| 169.4 | Nummer von X klein tippen, Enter | wie 169.3 |
+| 169.5 | Begriff mit mehreren Treffern; Menge in einer Zeile ändern, Enter im Mengenfeld | mehrere Zeilen, kein Knopf fokussiert; Position mit dieser Menge |
+| 169.6 | ohne Fokus Barcode von X scannen; danach (Fokus auf „Hinzufügen“) erneut scannen | Code im Suchfeld, Suche startet allein; zweiter Scan landet im Suchfeld, nicht im Mengenfeld |
+| 169.7 | JavaScript aus, Suchfeld + „Suchen“ | X gefunden, „Hinzufügen“ fokussiert |
+| 169.8 | Negativ: Y tippen; Enter | kein Vorschlag; „Kein Lagerartikel (Artikeltyp BG oder FT) …“ |
+| 169.9 | Negativ: Z tippen | kein Vorschlag, Server-Suche ohne Treffer |
+| 169.10 | Negativ: als B `/api/bf-auftraege/artikel?q=<X>`; als admin `BlechfertigungAktiv` aus | 403; danach 404 und Menü weg; Schalter wieder an |
+| 169.11 | Negativ: DevTools offline, tippen | keine Liste, keine Fehlermeldung; online „Suchen“ funktioniert |
+| 169.12 | Regression: Schachtler öffnet bestellten Auftrag | keine Suchkarte, kein Skript-Fehler in der Konsole |
+
+Automatisch belegt: `BfAuftragWorkflowTests.Artikelsuche_MitSuchbegriff_NurLagerartikelBgFt`,
+`ApiArtikel_LiefertDieselbenArtikelWieDieServerSuche`, `ApiArtikel_GleicheZugriffsfilterWieDieSeite`.
+
+---
+
+## TS-170 — Startseite: Kacheln nach Kategorie und Berechtigung, Menü aus derselben Quelle (v1.99.45)
+
+Keine Migration. Standort: DEV **AKE** und DEV **IDEAL**. Querverweis: TS-21.2 (Leitstand), Artikelinfo-Szenarien.
+
+**Vorbedingungen:** Prüfabfragen A und B aus der Spec je DEV-DB ausgeführt (Schalter `dbo.AppSettings`, Master
+`ProduktionsauftragHierarchisch`, Rollenbelegung), Ergebnis notiert. Testbenutzer mit je genau einer Rolle: admin, picking, stock, stock_read,
+masterdata, masterdata_read, lagerbestellung, einkauf, schachtler, beschichtungsauftrag, vorbau, bde_user, bde_shiftlead, reporting, sowie
+ein Benutzer ohne Rolle.
+
+| Nr | Schritt | Erwartet |
+|---|---|---|
+| 170.1 | admin, Schalter wie vorgefunden: Startseite | nur Kategorien mit Kacheln in der Reihenfolge Lager, Bestellungen, Kommissionierung, Produktion/BDE, Blechfertigung, Beschichtung, Einkauf/Wareneingang, Stammdaten, Administration; jede Kachel öffnet ihre Seite und steht auch im Menü |
+| 170.2 | je Einzelrollen-Benutzer Startseite und Menü vergleichen | Kacheln = Menüeinträge mit Kategorie; kein Klick auf „Zugriff verweigert“. picking: Lager (ohne Artikelinfo), Kommissionierung, FA-Liste/FA-Struktur; stock_read: Bestände, Bewegungshistorie (+ Offene Bestellungen bei Wareneingang an); masterdata: Stammdaten-Kacheln + Artikelinfo, **keine** Administration |
+| 170.3 | Negativ Modul aus: je Schalter unter `/Settings` umschalten (BdeAktiv, LeitstandAktiv, BestellungenAktiv, LagerbestellungAktiv=false, EinkaufAktiv, BlechfertigungAktiv, FaHierarchy*Aktiv, WareneingangBestellungAktiv, FaCompletionAktiv, TeileverfolgungAktiv), Startseite neu laden | Kachel(n) **und** Menüeintrag des Moduls weg; leere Kategorie samt Überschrift weg; Schalter danach zurück |
+| 170.3a | TeileverfolgungAktiv aus, Benutzer reporting | Menü „Reporting“ und Kachel „OSEON AG-Übersicht“ weg (Freigabe-Antwort 5); an → beide da |
+| 170.4 | Negativ Rolle fehlt: einkauf entziehen, neu anmelden | Kategorie „Einkauf/Wareneingang“ (sofern kein Lager-Recht mit Wareneingang) und Menü „Einkauf“ weg |
+| 170.5 | BestellungenAktiv=true, LagerbestellungAktiv=false, Benutzer nur lagerbestellung | weder Kategorie noch Dropdown „Bestellungen“ (vorher leeres Dropdown) |
+| 170.6 | Benutzer ohne Rolle | Startseite nur Hinweis „Für Ihren Benutzer sind keine Funktionen freigeschaltet. Bitte wenden Sie sich an den Administrator.“; Menü ohne Fachpunkte |
+| 170.7 | Negativ: als picking ohne masterdata_read `/Articles/Info` direkt | weiterhin „Zugriff verweigert“, Kachel fehlt |
+| 170.8 | IDEAL-DEV als admin; AKE-DEV als admin | Blechfertigung, Kommissionierlisten, Vormontage, „Arbeitsgänge → Sage“ nur, wenn A sie als an zeigt; OSEON-Kacheln nur bei TeileverfolgungAktiv |
+| 170.9 | Barrierefreiheit 1440 px und 390 px: Tab durch die Kacheln, Kontrast messen | Fokusring sichtbar, Text ≥ 4,5:1, eine Spalte bei 390 px, kein Querscrollen |
+| 170.10 | Regression Menü: Kommissionierung-Badge (Leitstand an, freigegebener Auftrag); Kommissionierung als Dropdown (picking + stock + Kommissionierlisten an) bzw. als Link (nur picking); *Stammdaten → Artikelinfo* | wie vor dem Update; Artikelinfo neu nach „Artikel“ |
+
+Automatisch belegt: `NavigationSichtTests` (T1 Regeln je Rolle × Schalter, T2 Filter-Kongruenz: kein sichtbares Ziel scheitert am Filter,
+T3 jeder Menülink hängt an seinem `NavZiele.<Key>`, T4 Startseite ohne eigene Rechte), `BeschichtungsauftraegeViewTests`.
 
 ---
 
 *Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) + Teil 6 (Standorteinstellungen, v1.34.0) + BOM-Guard hierarchisch (2026-08-18, abgelöst) + FA-Liste-Hierarchie (v1.35.0) + BOM-Bridge (v1.36.0) + Materialisierung fachliche Felder K1/K2 (v1.37.0) + Skopierung der Tabellen-Selektoren (TS-72) + FA-Liste ausgebaut: Matchcode, Kopfdaten je Zeile, HauptFA-Zeile, Freigabe-Kaskade (v1.38.0, TS-73) + PDF-Erzeugung für FaHierarchy-Druckdokumente (v1.39.0, TS-74) + Matchcode im Artikelstamm (v1.40.0, TS-75) + FA-Arbeitsgang-Erkennung aus der Struktur (v1.41.0, TS-76, ersetzt durch TS-77) + Arbeitsgänge (WorkOperation) aus der Struktur + Werkbank-Anlage aus Sage (v1.44.0, TS-77) + Arbeitsgänge je (Sub-)FA im FA-Struktur-Modal (v1.45.0, TS-78) + Kommissionierung nur am HauptFA
-(v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80) + Beschichtungsauftrag Summiert als Standard (v1.48.0, TS-81) + Briefkopf Beschichtungsauftrag (v1.49.0, TS-82) + Beschichtungsauftrag als eigenes Objekt (v1.50.0, TS-83) + Beschichtungsaufträge bedienen (v1.51.0, TS-84) + Arbeitsgänge als Symbole im FA-Baum (v1.52.0, TS-85) + CSV-Export für alle Tabellen (v1.53.0, TS-86) + Arbeitsgang-Stammdaten (v1.54.0, TS-87) + Status je Arbeitsgang-Kürzel im FA-Baum (v1.55.0, TS-88) + Menü Beschichtung + Kurzanleitungen (v1.56.0, TS-89) + BDE-Terminal mit Arbeitsgang-Status (v1.57.0, TS-90) + Spaltenfilter-Suchsyntax Etappe A + B (v1.58.0/v1.58.1, TS-91.A/B) + Fußzeile nach Word-Vorlage (v1.59.0, TS-92) + Sage-Quellen auf WMS-Views (v1.60.0–v1.60.2, TS-93) + Arbeitsgang-Abgleich aus der Sage-View (v1.61.0, TS-94) + Stückliste Matchcode und Lagerplatz-Limit (v1.62.0, TS-95) + BDE Stufe 1: Werkbänke, AG-Fertigmeldung (v1.63.0, TS-96) + BDE-Terminal Liste nach Haupt-FA, Scan ohne AG (v1.64.0, TS-97) + Spaltenauswahl/Zahnrad zentraler Toolbar-Host (v1.65.0, TS-98) + Hardware-Barcodescanner (v1.66.0–v1.66.2, TS-99) + Vault- und enaio-Links konfigurierbar (v1.67.0, TS-100) + QR erstes Feld Matchcode / Trennzeichen (v1.68.0/v1.69.0, TS-101) + Aktivitäts-Protokoll Spaltenfilter/Namen (v1.70.0, TS-102) + FA-Struktur live aus Sage (v1.71.0, TS-103) + Lagerplatz-Etikett 93 × 55 mm und Vormontage-Felder (v1.72.0, TS-104/TS-105) + Sage-Abgleich über SData (v1.73.0, TS-106) + Fehlteile „Nur meine Werkbänke“ Trefferzahl (v1.75.0, TS-108) + Bestandsübersicht QR-FA nur mit `QrMitFaNummer` (v1.76.0, TS-101.22–101.25) + Einstellungen Auswahlfelder und Beschreibung (v1.77.0, TS-109) + EAN-Scan Einkaufsartikel (v1.78.0, TS-110) + Bereinigungen nach dem Bündel 2026-11-07 (v1.79.0, TS-111) + Artikelinfo Lieferanten (v1.80.0, TS-112) + Fehlteile-Karte je Bestelltyp (v1.81.0, TS-113) + Wareneingang zu Sage-Bestellung (v1.84.0, TS-116) + Artikel Lieferanten/Mengeneinheiten (v1.85.0, TS-112.12–112.16) + Offene Bestellungen Nachbesserung (v1.86.0, TS-116.8/116.9) + Lager-Tools FA-Verknüpfung (v1.87.0, TS-115) + Kommissionieraufträge (v1.88.0, TS-120) + Kommissionieraufträge Nachbesserung (v1.89.0, TS-120.1/120.9/120.13/120.14) + Lager-Tools FA-Karte je Pflicht (v1.90.0, TS-115.3) + Offene Bestellungen Legende (v1.91.0, TS-116.8) + OSEON-Relevanzfilter/BDE-Checkboxen (v1.92.0, TS-121) + Meldebestand-Mail Bestandsregel (v1.93.0, TS-122) + Menüleiste Umbruch/Kontrast (v1.94.0, TS-123) + Nachbesserung Vorab-Abnahme (v1.95.0, TS-115.13/115.14/116.10/120.15) + Übernahme AKE-Hotfixes v1.30.2–1.30.4 (v1.96.0, TS-107, TS-124) + Auftrag drucken in Sortierreihenfolge (v1.97.0, TS-120.16) + Matchcode in der Kommissionier-Auftragsliste (v1.99.8, TS-120.17) + Update-Skript je Zielsystem (v1.98.0, TS-125) + Update-Skript Url-Vorrang und Dienst-Stopp-Limit (v1.98.1, TS-125.17/125.18) + Update-Skript prüft und führt aus, mit Bestätigung (v1.99.0–v1.99.2, TS-126) + Update-Skript Prüfung Mail-Ablageordner (v1.99.12, TS-126.28–126.31) + Vormontage Spalte Abteilung (v1.99.3, TS-127) + Wareneingang Sage-Wareneingangsbeleg und Lieferschein (v1.99.4–v1.99.6, TS-116.11–116.19) + Sage-Wareneingang automatisch wiederholen mit Sage-Prüfung, Klären (v1.99.7, TS-116.20–116.24) + System-Kürzel in den Sage-Kennungen WE#/SM# (v1.99.9, TS-116.25–116.30) + Lieferverzug-Mails (v1.99.10, TS-128) + Wareneingang Barcode und CSV-Übergabe (v1.99.11, TS-129) + Bugfixes AKE-Regression: Filter in Anführungszeichen, Bedarfsmeldung Ortszeit, Auftragsdruck Lagerplatz, Wagen-Modal (v1.99.13, TS-130) + Register Sage-Test und SData-Zugangsdaten (v1.99.14, TS-131) + Rahmenabrufe in Offene Bestellungen und Wareneingang (v1.99.15, TS-132) + Update-Skript zweiter Trockenlauf mit Wiederholungssperre, Eingabe-Abbruch, DEV-Ziele (v1.99.16, TS-133) + Kommissionier-Prio nach Freigabe zurücknehmen ohne Doppelte (v1.99.17, TS-134) + Zeitstempel in Ortszeit (v1.99.18, TS-135) + Lieferverzug-Mail Nachbesserung: Kreditor-Schwelle, Altersgrenze, Rahmenabrufe, Lieferanten-Artikelnummer (v1.99.19, TS-128.16–128.26) + Einkauf: Bestellvorschläge (v1.99.20, TS-136) + letzte Bestellmenge (v1.99.21, TS-136.6–136.6g, 136.18–136.20) + Belegnummer 45, Wareneingang Überlieferung-Spalte und Hinweis offene Bedarfe (v1.99.22, TS-137) + Doppel-Absenden-Schutz, unsichtbare Unterpositionen, CSV ohne Tausendertrenner, feste Kultur de-DE (v1.99.23, TS-138) + Beschichtungsquelle Einstellungen und Dienst (v1.99.25, TS-140, TS-144) + Beschichtungstermin aus der Quelle in allen drei Listen (v1.99.32, TS-141–143) + FA-Struktur IDEAL über SData, Stückliste live (v1.99.26, TS-146–150) + Wareneingang-CSV ohne Kopfzeile, Erfasser Windows-Kontoname (v1.99.29, TS-153) + Bestellvorschläge Nachbesserung (v1.99.30, TS-154) + Offene Bestellungen sofort neu lesen, Einkauf-Ansichten, Datumsvorbelegung, Überfällige (v1.99.31, TS-155) + BDE-Teileliste Blechfertigung (v1.99.32, TS-152) + Arbeitsgang-Mapping Sage-Arbeitsgangnummer (v1.99.27 mit v1.99.32, TS-151) + Blechfertigung BF-Aufträge (v1.99.35, TS-157) + Arbeitsgänge → Sage Vorschau und Einreihen (v1.99.38, TS-159) + Nachbesserung Abend: Nachlesen nach dem Senden, Seite hinter der letzten (v1.99.39, TS-159 Nachtrag, TS-160) + Sage-Benutzerfelder als Einstellung (v1.99.40, TS-161) + Beschichtungsauftrag Haken/Versendet/Lackierer/Druck je Position (v1.99.41, TS-162) + Nachbesserungen v1.99.42 (TS-163) + IDEAL-Kommissionierliste Ziele, Abteilung, Lagerplätze, Leitstand-Gate (v1.99.43, TS-164) + Sammel-Bugfix Ziel-Kästchen, Menü Empfänger, Prüfung FA-Struktur-Schlüssel, Rollen (v1.99.44, TS-166)*
+(v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80) + Beschichtungsauftrag Summiert als Standard (v1.48.0, TS-81) + Briefkopf Beschichtungsauftrag (v1.49.0, TS-82) + Beschichtungsauftrag als eigenes Objekt (v1.50.0, TS-83) + Beschichtungsaufträge bedienen (v1.51.0, TS-84) + Arbeitsgänge als Symbole im FA-Baum (v1.52.0, TS-85) + CSV-Export für alle Tabellen (v1.53.0, TS-86) + Arbeitsgang-Stammdaten (v1.54.0, TS-87) + Status je Arbeitsgang-Kürzel im FA-Baum (v1.55.0, TS-88) + Menü Beschichtung + Kurzanleitungen (v1.56.0, TS-89) + BDE-Terminal mit Arbeitsgang-Status (v1.57.0, TS-90) + Spaltenfilter-Suchsyntax Etappe A + B (v1.58.0/v1.58.1, TS-91.A/B) + Fußzeile nach Word-Vorlage (v1.59.0, TS-92) + Sage-Quellen auf WMS-Views (v1.60.0–v1.60.2, TS-93) + Arbeitsgang-Abgleich aus der Sage-View (v1.61.0, TS-94) + Stückliste Matchcode und Lagerplatz-Limit (v1.62.0, TS-95) + BDE Stufe 1: Werkbänke, AG-Fertigmeldung (v1.63.0, TS-96) + BDE-Terminal Liste nach Haupt-FA, Scan ohne AG (v1.64.0, TS-97) + Spaltenauswahl/Zahnrad zentraler Toolbar-Host (v1.65.0, TS-98) + Hardware-Barcodescanner (v1.66.0–v1.66.2, TS-99) + Vault- und enaio-Links konfigurierbar (v1.67.0, TS-100) + QR erstes Feld Matchcode / Trennzeichen (v1.68.0/v1.69.0, TS-101) + Aktivitäts-Protokoll Spaltenfilter/Namen (v1.70.0, TS-102) + FA-Struktur live aus Sage (v1.71.0, TS-103) + Lagerplatz-Etikett 93 × 55 mm und Vormontage-Felder (v1.72.0, TS-104/TS-105) + Sage-Abgleich über SData (v1.73.0, TS-106) + Fehlteile „Nur meine Werkbänke“ Trefferzahl (v1.75.0, TS-108) + Bestandsübersicht QR-FA nur mit `QrMitFaNummer` (v1.76.0, TS-101.22–101.25) + Einstellungen Auswahlfelder und Beschreibung (v1.77.0, TS-109) + EAN-Scan Einkaufsartikel (v1.78.0, TS-110) + Bereinigungen nach dem Bündel 2026-11-07 (v1.79.0, TS-111) + Artikelinfo Lieferanten (v1.80.0, TS-112) + Fehlteile-Karte je Bestelltyp (v1.81.0, TS-113) + Wareneingang zu Sage-Bestellung (v1.84.0, TS-116) + Artikel Lieferanten/Mengeneinheiten (v1.85.0, TS-112.12–112.16) + Offene Bestellungen Nachbesserung (v1.86.0, TS-116.8/116.9) + Lager-Tools FA-Verknüpfung (v1.87.0, TS-115) + Kommissionieraufträge (v1.88.0, TS-120) + Kommissionieraufträge Nachbesserung (v1.89.0, TS-120.1/120.9/120.13/120.14) + Lager-Tools FA-Karte je Pflicht (v1.90.0, TS-115.3) + Offene Bestellungen Legende (v1.91.0, TS-116.8) + OSEON-Relevanzfilter/BDE-Checkboxen (v1.92.0, TS-121) + Meldebestand-Mail Bestandsregel (v1.93.0, TS-122) + Menüleiste Umbruch/Kontrast (v1.94.0, TS-123) + Nachbesserung Vorab-Abnahme (v1.95.0, TS-115.13/115.14/116.10/120.15) + Übernahme AKE-Hotfixes v1.30.2–1.30.4 (v1.96.0, TS-107, TS-124) + Auftrag drucken in Sortierreihenfolge (v1.97.0, TS-120.16) + Matchcode in der Kommissionier-Auftragsliste (v1.99.8, TS-120.17) + Update-Skript je Zielsystem (v1.98.0, TS-125) + Update-Skript Url-Vorrang und Dienst-Stopp-Limit (v1.98.1, TS-125.17/125.18) + Update-Skript prüft und führt aus, mit Bestätigung (v1.99.0–v1.99.2, TS-126) + Update-Skript Prüfung Mail-Ablageordner (v1.99.12, TS-126.28–126.31) + Vormontage Spalte Abteilung (v1.99.3, TS-127) + Wareneingang Sage-Wareneingangsbeleg und Lieferschein (v1.99.4–v1.99.6, TS-116.11–116.19) + Sage-Wareneingang automatisch wiederholen mit Sage-Prüfung, Klären (v1.99.7, TS-116.20–116.24) + System-Kürzel in den Sage-Kennungen WE#/SM# (v1.99.9, TS-116.25–116.30) + Lieferverzug-Mails (v1.99.10, TS-128) + Wareneingang Barcode und CSV-Übergabe (v1.99.11, TS-129) + Bugfixes AKE-Regression: Filter in Anführungszeichen, Bedarfsmeldung Ortszeit, Auftragsdruck Lagerplatz, Wagen-Modal (v1.99.13, TS-130) + Register Sage-Test und SData-Zugangsdaten (v1.99.14, TS-131) + Rahmenabrufe in Offene Bestellungen und Wareneingang (v1.99.15, TS-132) + Update-Skript zweiter Trockenlauf mit Wiederholungssperre, Eingabe-Abbruch, DEV-Ziele (v1.99.16, TS-133) + Kommissionier-Prio nach Freigabe zurücknehmen ohne Doppelte (v1.99.17, TS-134) + Zeitstempel in Ortszeit (v1.99.18, TS-135) + Lieferverzug-Mail Nachbesserung: Kreditor-Schwelle, Altersgrenze, Rahmenabrufe, Lieferanten-Artikelnummer (v1.99.19, TS-128.16–128.26) + Einkauf: Bestellvorschläge (v1.99.20, TS-136) + letzte Bestellmenge (v1.99.21, TS-136.6–136.6g, 136.18–136.20) + Belegnummer 45, Wareneingang Überlieferung-Spalte und Hinweis offene Bedarfe (v1.99.22, TS-137) + Doppel-Absenden-Schutz, unsichtbare Unterpositionen, CSV ohne Tausendertrenner, feste Kultur de-DE (v1.99.23, TS-138) + Beschichtungsquelle Einstellungen und Dienst (v1.99.25, TS-140, TS-144) + Beschichtungstermin aus der Quelle in allen drei Listen (v1.99.32, TS-141–143) + FA-Struktur IDEAL über SData, Stückliste live (v1.99.26, TS-146–150) + Wareneingang-CSV ohne Kopfzeile, Erfasser Windows-Kontoname (v1.99.29, TS-153) + Bestellvorschläge Nachbesserung (v1.99.30, TS-154) + Offene Bestellungen sofort neu lesen, Einkauf-Ansichten, Datumsvorbelegung, Überfällige (v1.99.31, TS-155) + BDE-Teileliste Blechfertigung (v1.99.32, TS-152) + Arbeitsgang-Mapping Sage-Arbeitsgangnummer (v1.99.27 mit v1.99.32, TS-151) + Blechfertigung BF-Aufträge (v1.99.35, TS-157) + Arbeitsgänge → Sage Vorschau und Einreihen (v1.99.38, TS-159) + Nachbesserung Abend: Nachlesen nach dem Senden, Seite hinter der letzten (v1.99.39, TS-159 Nachtrag, TS-160) + Sage-Benutzerfelder als Einstellung (v1.99.40, TS-161) + Beschichtungsauftrag Haken/Versendet/Lackierer/Druck je Position (v1.99.41, TS-162) + Nachbesserungen v1.99.42 (TS-163) + IDEAL-Kommissionierliste Ziele, Abteilung, Lagerplätze, Leitstand-Gate (v1.99.43, TS-164) + Sammel-Bugfix Ziel-Kästchen, Menü Empfänger, Prüfung FA-Struktur-Schlüssel, Rollen (v1.99.44, TS-166) + Update-Skript Meldungen nach Muster, Artikelinfo-Bestand exakt, BF-Warenkorb-Vorschläge, Startseite nach Kategorie und Berechtigung (v1.99.45, TS-167–170)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*
