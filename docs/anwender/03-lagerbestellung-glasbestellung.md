@@ -56,7 +56,8 @@ Menü **Bestellungen → Lagerbestellungen**. Oben die Reiter **Lager** und **Gl
 
 - Die Spalte **Lagerplatz** zeigt, wo der Artikel liegt und wie viel (z. B. `LL;1;10;0 (8,000)`), „—“ = kein Bestand gebucht.
   Seit 1.99.45 nur der Bestand **genau dieses** Artikels (vorher kamen Artikel mit ähnlicher Nummer dazu), der Hauptlagerplatz zuerst,
-  Kommissionierwagen werden hier nicht mitgezählt. Dieselbe Regel gilt in der *Artikelinfo*.
+  Kommissionierwagen stehen hier nicht mehr in der Lagerplatz-Angabe. Die *Artikelinfo* zeigt ebenfalls nur den gesuchten Artikel
+  (Kommissionierwagen zählen dort weiterhin mit).
 - **Artikel nicht gefunden?** Dann bietet die Suche eine **DUMMY-Position** an: eigene Bezeichnung eingeben (Pflicht), Menge,
   **DUMMY-Position anlegen**.
 - Ein Glas-Artikel lässt sich nicht in eine Lager-Liste aufnehmen und umgekehrt („Artikelgruppe … gehoert zur Glas-Bestellung.“).
