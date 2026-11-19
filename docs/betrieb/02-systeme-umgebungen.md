@@ -12,7 +12,7 @@ Detail: [09-sicherheit-konten-rechte.md](09-sicherheit-konten-rechte.md).
 
 Die Zielsysteme stehen in **`scripts/deploy/ziele.psd1`** (eine Zeile je System: Firma, System, Prod ja/nein, Web-Pfad, Dienst-Pfad, URL).
 Alles Weitere – IIS-Site, App-Pool, Dienstname, Dienstkonto, Datenbank – ermittelt das Update-Skript bei jedem Lauf **selbst** und zeigt
-es vor jeder Änderung an. (Quelle: `scripts/deploy/ziele.psd1:1-16`, `scripts/deploy/Update-IdealAkeWms.ps1:163-226`, `:648-662`)
+es vor jeder Änderung an. (Quelle: `scripts/deploy/ziele.psd1:1-16`, `scripts/deploy/Update-IdealAkeWms.ps1:163-226`, `:651-665`)
 
 So ermittelt das Skript (nur lesend):
 
@@ -27,7 +27,7 @@ So ermittelt das Skript (nur lesend):
 
 **Empfehlung zum Nachschlagen der Live-Werte:** `Update-IdealAkeWms.ps1 -Firma <AKE|IDEAL> -System <Name> -NurPruefen` am Zielserver. Das
 stoppt nichts und schreibt nichts, gibt aber Site, Pool, Dienst, Konto, Umgebung, DB, URL und Mail-Ziel aus.
-(Quelle: `scripts/deploy/Update-IdealAkeWms.ps1:740-747`, `README.md:73`)
+(Quelle: `scripts/deploy/Update-IdealAkeWms.ps1:746-753`, `README.md:73`)
 
 ---
 
@@ -162,7 +162,7 @@ Regeln für DEV: nie an Sage buchen, keine echten Mails (Sage-Buchung, Syncs, Ma
 | `Branding\` | Web-Ordner | Briefkopf-Vorlage + Schriften (nicht im Paket) | `README.md:575-583` |
 
 Kennwörter (SQL, SMTP, SData) stehen nur in diesen Dateien bzw. verschlüsselt in der DB – hier nie Werte notieren, nur `<Kennwort>`.
-Das Update-Skript überschreibt keine dieser Dateien. (Quelle: `scripts/deploy/Update-IdealAkeWms.ps1:632-639`, `README.md:518-540`)
+Das Update-Skript überschreibt keine dieser Dateien. (Quelle: `scripts/deploy/Update-IdealAkeWms.ps1:635-642`, `README.md:518-540`)
 Einzelheiten: [04-konfiguration.md](04-konfiguration.md), [09-sicherheit-konten-rechte.md](09-sicherheit-konten-rechte.md).
 
 ## 5. Deploy-Reihenfolge der Systeme (Bündel v1.99.x)

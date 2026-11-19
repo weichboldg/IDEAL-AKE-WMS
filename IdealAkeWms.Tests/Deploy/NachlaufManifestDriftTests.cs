@@ -243,6 +243,25 @@ public class NachlaufManifestDriftTests
 
     private static List<string> VariableMitFragezeichen(string text) => Regex.Matches(text, @"\$[A-Za-z_]\w*\?").Select(m => m.Value).ToList();
 
+    /// <summary>v1.99.45: Meldungen im Update-Skript nach Muster (Fall, Ergebnis, Exit-Code nur getrennt als "mit Fehler beendet (Exit n)", Folge, Handlung).</summary>
+    [Fact]
+    public void DeploySkripte_PruefTexte_FolgenDemMuster()
+    {
+        PruefTextFehler(File.ReadAllText(Path.Combine(Root, "scripts", "deploy", "Update-IdealAkeWms.ps1"))).Should().BeEmpty();
+        PruefTextFehler("function Format-Ergebnis($t) { 'keine Zeile TREFFER' }\n"
+            + "Write-Warnung \"$($m.Id): zweiter Trockenlauf ohne Zeile TREFFER (Exit $($t2.Exit)). Scharflauf ist uebernommen (Marker Scharf); Ausgabe im Log-Ordner pruefen.\"")
+            .Should().NotBeEmpty("Rotprobe: Text v1.99.44");
+    }
+
+    internal static List<string> PruefTextFehler(string text)
+    {
+        var f = Regex.Matches(text, @"Exit \$").Where(m => !text[..m.Index].EndsWith("mit Fehler beendet (")).Select(m => $"Exit-Code ohne 'mit Fehler beendet (' an {m.Index}").ToList();
+        if (Regex.Matches(text, "keine Zeile TREFFER").Count != 1) f.Add("'keine Zeile TREFFER' nicht genau einmal (nur Format-Ergebnis)");
+        if (text.Contains("ohne Zeile TREFFER")) f.Add("'ohne Zeile TREFFER'");
+        if (text.Contains("\"Pruefung $($m.Id)")) f.Add("doppeltes 'Pruefung'");
+        return f;
+    }
+
     [Fact]
     public void Manifest_IdsEindeutig_FelderGueltig()
     {

@@ -356,11 +356,13 @@ function Test-SqlFuerTransaktion([string]$text) {
 }
 function Split-SqlBatches([string]$text) { return @([regex]::Split($text, '(?im)^\s*GO\s*$') | Where-Object { $_.Trim() }) }
 function Get-Treffer([string]$text) { $x = [regex]::Match($text, '(?m)^\s*TREFFER: (\d+)\s*$'); if ($x.Success) { return [int]$x.Groups[1].Value } else { return $null } }
+# v1.99.45: einzige Stelle, die TREFFER und Exit-Code in Text fasst (Muster: Ergebnis, Exit nur bei <> 0 und getrennt)
+function Format-Ergebnis($t) { return "$(if ($null -eq $t.Treffer) { 'keine Zeile TREFFER' } else { "TREFFER: $($t.Treffer)" })$(if ($t.Exit -ne 0) { ", mit Fehler beendet (Exit $($t.Exit))" })" }
 
 # $marker: $null (Reparatur) oder @{ M = Eintrag; Mode = ...; Hits = ...; Sha = ... }; $abschluss: Commit (sofort) | Frage (uebernehmen/verwerfen)
 function Invoke-SqlTransaktion($e, [string]$name, [string]$text, $marker, [string]$abschluss) {
     $grund = Test-SqlFuerTransaktion $text
-    if ($grund) { Write-Warnung "${name}: abgelehnt - $grund. Nichts ausgefuehrt."; return [pscustomobject]@{ Uebernommen = $false; Text = '' } }
+    if ($grund) { Write-Warnung "${name}: abgelehnt ($grund) -> nichts ausgefuehrt."; return [pscustomobject]@{ Uebernommen = $false; Text = '' } }
     $batches = @(Split-SqlBatches $text)   # @(): ein einzelner Batch kaeme sonst als String zurueck (StrictMode: kein .Count)
     $ausgabe = New-Object System.Collections.Generic.List[string]
     $cn = New-Object System.Data.SqlClient.SqlConnection $e.Db.Cs
@@ -401,7 +403,7 @@ function Invoke-SqlTransaktion($e, [string]$name, [string]$text, $marker, [strin
     } catch {
         $msg = $_.Exception.GetBaseException().Message
         if ($tx -and -not $uebernommen) { try { $tx.Rollback() } catch { } }   # XACT_ABORT/Fehler: Server hat ggf. schon zurueckgerollt
-        Write-Warnung "${name}: Fehler in Batch $nr - zurueckgerollt, kein Marker, DB unveraendert: $msg"
+        Write-Warnung "${name}: Fehler in Batch $nr ($msg) -> zurueckgerollt, kein Marker, DB unveraendert."
         return [pscustomobject]@{ Uebernommen = $false; Text = ($ausgabe -join "`n"); Fehler = $msg }
     } finally { $cn.Dispose() }
     if ($uebernommen) { Write-Ok "${name}: uebernommen (Commit)$(if ($marker) { ", Marker $($marker.Mode)" })" } else { Write-Warnung "${name}: verworfen (Rollback), kein Marker." }
@@ -428,10 +430,10 @@ function Assert-Gestoppt($e, [string]$was) {
 }
 function Invoke-Pruefung($e, $m, $history) {
     $st = Get-PruefStand $e $m $history
-    if ($st -isnot [int]) { Write-Warnung "Pruefung $($m.Id): $st"; return }
-    if ($st -eq 0) { Write-Ok "Pruefung $($m.Id): OK"; return }
-    Write-Host "  Pruefung $($m.Id): Abweichung $st - $(Format-Text $m.Text $e)" -ForegroundColor Yellow
-    if ($m.Ausfuehrung -ne 'Reparatur') { Write-Warnung "Pruefung $($m.Id): Abweichung $st, von Hand: $(Format-Text $m.Text $e)"; return }
+    if ($st -isnot [int]) { Write-Warnung "$($m.Id): nicht auswertbar ($st) -> keine Reparatur. Abfrage von Hand pruefen."; return }
+    if ($st -eq 0) { Write-Ok "$($m.Id): OK"; return }
+    Write-Host "  $($m.Id): Abweichung $st -> Reparatur nach Bestaetigung. $(Format-Text $m.Text $e)" -ForegroundColor Yellow
+    if ($m.Ausfuehrung -ne 'Reparatur') { Write-Warnung "$($m.Id): Abweichung $st -> keine automatische Reparatur. Von Hand: $(Format-Text $m.Text $e)"; return }
     if ($m['Datei']) { Write-Host "  Reparatur: sqlcmd -i $(Join-Path $SqlOrdner $m.Datei) (idempotent)" }
     else { Write-Host "  Reparatur ($(if ($m['OhneTransaktion']) { 'ohne Transaktion' } else { 'in einer Transaktion' })):"; $m.Reparatur -split "`r?`n" | ForEach-Object { Write-Host "      $_" } }
     $frage = 'Reparatur ausfuehren?'
@@ -442,24 +444,24 @@ function Invoke-Pruefung($e, $m, $history) {
         $sitz.Rows | ForEach-Object { Write-Host "      $($_.session_id)  $($_.login_name)  $($_.host_name)  $($_.program_name)" }
         $frage = "Reparatur ausfuehren? WITH ROLLBACK IMMEDIATE beendet die $($sitz.Rows.Count) Sitzung(en) oben (offene Transaktionen werden zurueckgerollt)"
     }
-    if (-not (Read-Ja $frage)) { Write-Warnung "Pruefung $($m.Id): Reparatur abgelehnt, Abweichung $st bleibt."; return }
+    if (-not (Read-Ja $frage)) { Write-Warnung "$($m.Id): Abweichung $st -> Reparatur abgelehnt, Abweichung bleibt."; return }
     Assert-Gestoppt $e "Reparatur $($m.Id)"
     if ($m['Datei']) {
         $r = Invoke-SqlDatei $e (Join-Path $SqlOrdner $m.Datei) $null
-        if ($r.Exit -ne 0) { Stop-Mit "Reparatur $($m.Id) fehlgeschlagen (Exit $($r.Exit)). Web und Dienst bleiben gestoppt." }
+        if ($r.Exit -ne 0) { Stop-Mit "$($m.Id): Reparatur mit Fehler beendet (Exit $($r.Exit)) -> Abbruch, Web und Dienst bleiben gestoppt. Ausgabe oben pruefen." }
     } elseif ($m['OhneTransaktion']) {
         # ALTER DATABASE lehnt SQL Server in einer Benutzertransaktion ab
         $cn = New-Object System.Data.SqlClient.SqlConnection $e.Db.Cs
         try { $cn.Open(); $cmd = $cn.CreateCommand(); $cmd.CommandTimeout = 0; $cmd.CommandText = $m.Reparatur; [void]$cmd.ExecuteNonQuery() }
-        catch { Stop-Mit "Reparatur $($m.Id) fehlgeschlagen: $($_.Exception.GetBaseException().Message). Web und Dienst bleiben gestoppt." }
+        catch { Stop-Mit "$($m.Id): Reparatur fehlgeschlagen ($($_.Exception.GetBaseException().Message)) -> Abbruch, Web und Dienst bleiben gestoppt." }
         finally { $cn.Dispose(); [System.Data.SqlClient.SqlConnection]::ClearAllPools() }
     } else {
         $r = Invoke-SqlTransaktion $e "Reparatur $($m.Id)" $m.Reparatur $null 'Commit'
-        if (-not $r.Uebernommen) { Stop-Mit "Reparatur $($m.Id) fehlgeschlagen. Web und Dienst bleiben gestoppt." }
+        if (-not $r.Uebernommen) { Stop-Mit "$($m.Id): Reparatur zurueckgerollt (Meldung siehe Warnung davor) -> Abbruch, Web und Dienst bleiben gestoppt." }
     }
     $nach = Get-PruefStand $e $m $history
-    if (-not ($nach -is [int] -and $nach -eq 0)) { Stop-Mit "Pruefung $($m.Id) nach der Reparatur: $(Format-Pruefstand $nach). Web und Dienst bleiben gestoppt." }
-    Write-Ok "Pruefung $($m.Id): repariert (vorher $st, jetzt 0)"
+    if (-not ($nach -is [int] -and $nach -eq 0)) { Stop-Mit "$($m.Id): nach der Reparatur $(Format-Pruefstand $nach) -> Abbruch, Web und Dienst bleiben gestoppt." }
+    Write-Ok "$($m.Id): repariert (vorher Abweichung $st, jetzt OK)"
 }
 
 # ================================================================================================ v1.99.0: Backup (Bugfix 3)
@@ -555,7 +557,7 @@ function Invoke-Trockenlauf($e, $m, [string]$datei) {
     $aus = Join-Path $LogPfad ('{0:yyyy-MM-dd_HHmmss}_{1}_{2}_trockenlauf.txt' -f (Get-Date), $e.Name, ($m.Id -replace '[^A-Za-z0-9.-]', '_'))
     Write-Host '  Trockenlauf (Datei unveraendert, @Trockenlauf = 1):'
     $r = Invoke-SqlDatei $e $datei $aus
-    return [pscustomobject]@{ Exit = $r.Exit; Treffer = (Get-Treffer $r.Text) }
+    return [pscustomobject]@{ Exit = $r.Exit; Treffer = (Get-Treffer $r.Text); Ausgabe = $aus }
 }
 # Fluss A: Trockenlauf automatisch; 0 -> entfaellt; > 0 -> Backup aus diesem Lauf + SCHARF -> Scharflauf mit Marker in EINER Transaktion
 function Invoke-FlussA($e, $m, [bool]$halt) {
@@ -564,13 +566,13 @@ function Invoke-FlussA($e, $m, [bool]$halt) {
     if (-not (Test-Path $datei)) { & $nein "$datei fehlt."; return }
     if (-not (Test-Trockenlauf $datei)) { & $nein "Datei enthaelt nicht woertlich 'DECLARE @Trockenlauf BIT = 1;' -> nur Anzeige."; return }
     $t = Invoke-Trockenlauf $e $m $datei
-    if ($t.Exit -ne 0 -or $null -eq $t.Treffer) { & $nein "Trockenlauf Exit $($t.Exit)$(if ($null -eq $t.Treffer) { ', keine Zeile TREFFER' }) -> kein Scharflauf."; return }
+    if ($t.Exit -ne 0 -or $null -eq $t.Treffer) { & $nein "Trockenlauf $(Format-Ergebnis $t) -> kein Scharflauf. Ausgabe $($t.Ausgabe) pruefen."; return }
     if ($t.Treffer -eq 0) {
-        Write-Ok "$($m.Id): entfaellt (TREFFER: 0)"
+        Write-Ok "$($m.Id): Trockenlauf TREFFER: 0 -> entfaellt"
         if (Read-Ja "$($m.Id) als 'entfaellt' vermerken?") { Write-Marker $e $m 'Entfaellt' 0 $null }
         return
     }
-    Write-Host "  TREFFER: $($t.Treffer)" -ForegroundColor Yellow
+    Write-Host "  $($m.Id): Trockenlauf TREFFER: $($t.Treffer) -> Scharflauf nach Backup und SCHARF moeglich" -ForegroundColor Yellow
     if (-not (Test-BackupFuerLauf $e 'SCHARF')) { & $nein 'kein Backup aus diesem Lauf -> kein Scharflauf.'; return }
     $a = Read-Eingabe "  ?   $($m.Id): $($t.Treffer) Treffer. Zum Ausfuehren SCHARF eintippen (anderes = nicht ausfuehren)"
     if ($a -cne 'SCHARF') { & $nein 'nicht SCHARF bestaetigt.'; return }
@@ -584,8 +586,9 @@ function Invoke-FlussA($e, $m, [bool]$halt) {
     if (-not $r.Uebernommen) { & $nein 'Scharflauf fehlgeschlagen (zurueckgerollt).'; return }
     $t2 = Invoke-Trockenlauf $e $m $datei
     # v1.99.16: fehlende Zeile TREFFER bzw. Exit <> 0 ehrlich melden (vorher "TREFFER:  (erwartet 0)" mit leerem Wert)
-    if ($null -eq $t2.Treffer -or $t2.Exit -ne 0) { Write-Warnung "$($m.Id): zweiter Trockenlauf ohne Zeile TREFFER (Exit $($t2.Exit)). Scharflauf ist uebernommen (Marker Scharf); Ausgabe im Log-Ordner pruefen." }
-    elseif ($t2.Treffer -ne 0) { Write-Warnung "$($m.Id): zweiter Trockenlauf TREFFER: $($t2.Treffer) (erwartet 0)." }
+    # v1.99.45: Ergebnis und Exit-Code getrennt (Format-Ergebnis); Zeile da + Exit <> 0 hatte vorher denselben Text wie eine fehlende Zeile (H-1)
+    if ($null -eq $t2.Treffer -or $t2.Exit -ne 0) { Write-Warnung "$($m.Id): zweiter Trockenlauf $(Format-Ergebnis $t2) -> Scharflauf ist uebernommen (Marker Scharf). Ausgabe $($t2.Ausgabe) pruefen." }
+    elseif ($t2.Treffer -ne 0) { Write-Warnung "$($m.Id): zweiter Trockenlauf TREFFER: $($t2.Treffer) (erwartet 0) -> Scharflauf ist uebernommen (Marker Scharf). Ausgabe $($t2.Ausgabe) pruefen." }
     else { Write-Ok "$($m.Id): zweiter Trockenlauf TREFFER: 0" }
 }
 # Fluss B: ohne Trockenlauf-Schalter; ganze Datei in EINER Transaktion, Ausgabe zeigen, dann uebernehmen/verwerfen
@@ -635,7 +638,7 @@ function Invoke-Robocopy([string]$von, [string]$nach) {
            '/XD', (Join-Path $von 'Branding'), (Join-Path $von 'App_Data'), (Join-Path $von 'wwwroot\Fotos'), (Join-Path $von 'logs'))
     Write-Host "  >   robocopy $($a -join ' ')"
     & robocopy @a | ForEach-Object { if ($_.Trim()) { Write-Host "      $_" } }
-    if ($LASTEXITCODE -ge 8) { Stop-Mit "robocopy $von -> $nach mit Exit $LASTEXITCODE." }
+    if ($LASTEXITCODE -ge 8) { Stop-Mit "robocopy $von -> ${nach}: mit Fehler beendet (Exit $LASTEXITCODE) -> Abbruch, Web und Dienst bleiben gestoppt. Ausgabe oben pruefen." }
 }
 
 # ================================================================================================ Ablauf je System
@@ -698,8 +701,8 @@ function Invoke-System($e) {
     foreach ($m in $pruefungen) {
         $st = Get-PruefStand $e $m $history; $pruefStand[$m.Id] = $st
         # v1.99.12 (Freigabe-Nachtrag 17:04): Phase Vorher mit Abweichung auf einem Prod-System -> Abbruch vor dem Stoppen, keine Reparatur
-        if ($m.Phase -eq 'Vorher' -and $st -is [int] -and $st -gt 0 -and $e.Ziel.Prod) { $sperre += "[$($m.Id)] $(Format-PruefText $e $m)" }
-        $hinweis = if ($st -isnot [int] -or $st -eq 0) { '' } elseif ($m.Phase -eq 'Vorher') { " - $(if ($e.Ziel.Prod) { 'PROD, Abbruch vor dem Stoppen: ' } else { 'Hinweis: ' })$(Format-PruefText $e $m)" } elseif ($m.Ausfuehrung -eq 'Reparatur') { if ($m.Phase -eq 'Haltepunkt') { ' - wird in 4a nach Bestaetigung repariert' } else { '' } } else { " - von Hand: $(Format-PruefText $e $m)" }
+        if ($m.Phase -eq 'Vorher' -and $st -is [int] -and $st -gt 0 -and $e.Ziel.Prod) { $sperre += "[$($m.Id)] Abweichung ${st}: $(Format-PruefText $e $m)" }
+        $hinweis = if ($st -isnot [int] -or $st -eq 0) { '' } elseif ($m.Phase -eq 'Vorher') { " -> $(if ($e.Ziel.Prod) { 'PROD: Abbruch vor dem Stoppen. ' } else { 'Hinweis. ' })$(Format-PruefText $e $m)" } elseif ($m.Ausfuehrung -eq 'Reparatur') { if ($m.Phase -eq 'Haltepunkt') { ' -> Reparatur in 4a nach Bestaetigung' } else { '' } } else { " -> von Hand: $(Format-PruefText $e $m)" }
         Write-Host "    [$($m.Id)] $(Format-Pruefstand $st)$hinweis"
     }
     if (-not (Test-MarkerTabelle $e)) { Write-Host '  Marker-Tabelle fehlt (kommt mit SQL/142) - Daten-/Einmal-Eintraege ohne Marker-Stand.' }
@@ -718,11 +721,14 @@ function Invoke-System($e) {
     foreach ($m in @($halte | Where-Object { $_.Ausfuehrung -eq 'Trockenlauf' })) {
         $datei = Join-Path $SqlOrdner $m.Datei
         if (Get-BrauchtFehlend $m $history) { Write-Host "  $($m.Id): Trockenlauf erst nach dem Schema (4a)"; $script:VorTrocken[$m.Id] = $null; continue }
-        if (-not (Test-Path $datei) -or -not (Test-Trockenlauf $datei)) { $script:VorTrocken[$m.Id] = $null; continue }
+        if (-not (Test-Path $datei) -or -not (Test-Trockenlauf $datei)) {
+            Write-Host "  $($m.Id): Trockenlauf (Vorpruefung) nicht moeglich (Datei fehlt oder ohne 'DECLARE @Trockenlauf BIT = 1;') -> Backup Pflicht, Grund meldet 4a."
+            $script:VorTrocken[$m.Id] = $null; continue
+        }
         Write-Host "  $($m.Id): Trockenlauf in der Vorpruefung (lesend)"
         $t = Invoke-Trockenlauf $e $m $datei
         $script:VorTrocken[$m.Id] = if ($t.Exit -eq 0) { $t.Treffer } else { $null }
-        Write-Host "  -> $($m.Id): $(if ($script:VorTrocken[$m.Id] -eq 0) { 'TREFFER: 0 - entfaellt, kein Halt' } elseif ($null -ne $script:VorTrocken[$m.Id]) { "TREFFER: $($t.Treffer) - Backup in Schritt 2 Pflicht, Haltepunkt in 4a" } else { "nicht bestimmbar (Exit $($t.Exit)) - Backup Pflicht, Trockenlauf erneut in 4a" })"
+        Write-Host "  $($m.Id): Trockenlauf (Vorpruefung) $(if ($script:VorTrocken[$m.Id] -eq 0) { 'TREFFER: 0 -> entfaellt, kein Halt' } elseif ($null -ne $script:VorTrocken[$m.Id]) { "TREFFER: $($t.Treffer) -> Backup in Schritt 2 Pflicht, Haltepunkt in 4a" } else { "$(Format-Ergebnis $t) -> nicht bestimmbar, Backup Pflicht, Trockenlauf erneut in 4a. Ausgabe $($t.Ausgabe) pruefen." })"
     }
     $halte = @($halte | Where-Object { -not ($script:VorTrocken.ContainsKey($_.Id) -and $script:VorTrocken[$_.Id] -eq 0) })
     $backupPflicht = @($script:VorTrocken.Keys | Where-Object { $script:VorTrocken[$_] -ne 0 })
@@ -798,7 +804,8 @@ function Invoke-System($e) {
         }
         if (-not (Read-Ja "$($m.Id) ausfuehren?")) { Stop-Mit "$($m.Id) abgelehnt: Ohne alle Schema-Skripte wuerde der Web-Start db.Database.Migrate() ausloesen (Program.cs) und EF die Migration ohne Vorbedingungen einspielen. Web und Dienst bleiben gestoppt." }
         $r = Invoke-SqlDatei $e $datei $null
-        if ($r.Exit -ne 0 -or ($m.Id -eq 'SQL/95' -and $r.Text -match 'ABBRUCH')) { Stop-Mit "$($m.Id) fehlgeschlagen (Exit $($r.Exit)). Web und Dienst bleiben gestoppt." }
+        if ($r.Exit -ne 0) { Stop-Mit "$($m.Id): Schema-Skript mit Fehler beendet (Exit $($r.Exit)) -> Abbruch, Web und Dienst bleiben gestoppt. Ausgabe oben bzw. im Protokoll pruefen." }
+        if ($m.Id -eq 'SQL/95' -and $r.Text -match 'ABBRUCH') { Stop-Mit "SQL/95: Schema-Skript meldet ABBRUCH in der Ausgabe -> Abbruch, Web und Dienst bleiben gestoppt. Ausgabe oben bzw. im Protokoll pruefen." }
         $history = Get-History $e
         if ($history -notcontains $m.MigrationId) { Stop-Mit "$($m.MigrationId) fehlt nach $($m.Id) in der History." }
         Write-Ok "$($m.Id) -> $($m.MigrationId)"
@@ -813,7 +820,7 @@ function Invoke-System($e) {
     foreach ($m in @($manifest | Where-Object { $_.Typ -in 'Daten', 'Einmalig' -and $_.Phase -eq 'Haltepunkt' -and (Test-PasstFirma $_ $e) -and (Test-Faellig $_ $installiert) })) {
         Write-Host ''; Write-Host "  Haltepunkt $($m.Id)" -ForegroundColor White
         if ($script:VorTrocken.ContainsKey($m.Id) -and $script:VorTrocken[$m.Id] -eq 0) {
-            Write-Ok "$($m.Id): entfaellt (TREFFER: 0 in der Vorpruefung), kein Halt"
+            Write-Ok "$($m.Id): Trockenlauf (Vorpruefung) TREFFER: 0 -> entfaellt, kein Halt"
             if (-not (Get-Marker $e $m) -and (Read-Ja "$($m.Id) als 'entfaellt' vermerken?")) { Write-Marker $e $m 'Entfaellt' 0 'TREFFER 0 in der Vorpruefung' }
             continue
         }
@@ -918,7 +925,7 @@ function Show-Nachlauf($e, $installiert, [bool]$ausfuehren) {
         $history = @(); try { $history = Get-History $e } catch { }
         foreach ($m in $pr) {
             $st = Get-PruefStand $e $m $history
-            Write-Host "    [$($m.Id)] $(Format-Pruefstand $st)$(if ($st -isnot [int] -or $st -ne 0) { " - $(Format-PruefText $e $m)" })" -ForegroundColor $(if ($st -is [int] -and $st -eq 0) { 'Gray' } else { 'Yellow' })
+            Write-Host "    [$($m.Id)] $(Format-Pruefstand $st)$(if ($st -isnot [int] -or $st -ne 0) { " -> $(Format-PruefText $e $m)" })" -ForegroundColor $(if ($st -is [int] -and $st -eq 0) { 'Gray' } else { 'Yellow' })
         }
     }
     $w = @(Get-Warnungen)

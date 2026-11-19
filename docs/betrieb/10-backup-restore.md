@@ -14,12 +14,12 @@ Update-Skript selbst sichert und wie eine Wiederherstellung abläuft, ohne dabei
 |---|---|---|---|---|---|
 | 1 | **WMS-Datenbank** | SQL-Server des Systems (z. B. `AKESQL20.ake.at` / `IDEAL_AKE_WMS`) | alle Bewegungen, Bestände, FA-Status, Benutzer/Rollen, **AppSettings** und **ServiceSettings** (inkl. verschlüsseltem SData-Kennwort), Aktivitäts-Protokoll, Deploy-Marker | nein | `IdealAkeWms/appsettings.json:3`, `README.md:525-527`, `scripts/deploy/Update-IdealAkeWms.ps1:325-333` |
 | 2 | **Kommissionierfotos** | `<Web-Ordner>\App_Data\Fotos\Kommissionierung` (bis v1.30.3/v1.95: `<Web>\wwwroot\Fotos\Kommissionierung`, wird beim Start verschoben) | Fotos liegen **nur** als Dateien vor (Name beginnt mit der FA-Nummer), nicht in der DB | nein, wird nie überschrieben | `IdealAkeWms/Services/PhotoStorage.cs:10-15`, `IdealAkeWms/Program.cs:415-419`, `IdealAkeWms/Controllers/Api/PhotoController.cs:35-38` |
-| 3 | **Konfigurationsdateien** | Web-Ordner: `appsettings.json`, `appsettings.Production.json`, `web.config`; Dienst-Ordner: `appsettings.json` (+ ggf. `appsettings.<Umgebung>.json`) | Verbindungen, Mail, SData-Rückfall-Zugang, Umgebung, stdout-Log; **enthalten Kennwörter** | nein, werden nie überschrieben | `scripts/deploy/Update-IdealAkeWms.ps1:632-635`, `scripts/deploy/Install-IdealAkeWms.ps1:275-278`, `:352-372` |
+| 3 | **Konfigurationsdateien** | Web-Ordner: `appsettings.json`, `appsettings.Production.json`, `web.config`; Dienst-Ordner: `appsettings.json` (+ ggf. `appsettings.<Umgebung>.json`) | Verbindungen, Mail, SData-Rückfall-Zugang, Umgebung, stdout-Log; **enthalten Kennwörter** | nein, werden nie überschrieben | `scripts/deploy/Update-IdealAkeWms.ps1:635-638`, `scripts/deploy/Install-IdealAkeWms.ps1:275-278`, `:352-372` |
 | 4 | **DataProtection-Schlüssel** | `DataProtection:KeysPath` der Web-App, sonst `%ProgramData%\IdealAkeWms\DataProtection-Keys` (DEV: `D:\Dev\<FIRMA>\keys`) | ohne sie ist das in der DB gespeicherte SData-Kennwort nicht mehr entschlüsselbar (kein Sage-Aufruf mehr, Kennwort neu eingeben); angemeldete Sitzungen/Formulare werden ungültig | nein | `IdealAkeWms/Services/SageSdata/SdataZugangsdaten.cs:116-122`, `IdealAkeWms/Program.cs:36-46`, `README.md:525-534`, [[2026-10-29-dev-umgebung-lokal]] „Angelegte Objekte“ |
-| 5 | **Branding** | `<Web-Ordner>\Branding\` (`briefkopf.html`, Logo, lizenzierte Schriften `NimbusSanNov-*.otf`) | Briefkopf der IDEAL-Druckdokumente; Schriften liegen nicht im Repo | nein, wird nie überschrieben | `README.md:575-583`, `scripts/deploy/Update-IdealAkeWms.ps1:635` |
+| 5 | **Branding** | `<Web-Ordner>\Branding\` (`briefkopf.html`, Logo, lizenzierte Schriften `NimbusSanNov-*.otf`) | Briefkopf der IDEAL-Druckdokumente; Schriften liegen nicht im Repo | nein, wird nie überschrieben | `README.md:575-583`, `scripts/deploy/Update-IdealAkeWms.ps1:638` |
 | 6 | **Dienst-Umgebung** | Registry `HKLM\SYSTEM\CurrentControlSet\Services\<Dienst>`, Wert `Environment` (z. B. `DOTNET_ENVIRONMENT=DEV`) | bestimmt, welche `appsettings.<Umgebung>.json` der Dienst liest | nein | `scripts/deploy/Update-IdealAkeWms.ps1:194-198` |
 | 7 | **IIS-Konfiguration** | App-Pool (Identität, AlwaysRunning, Idle 0, `loadUserProfile`), Site, Bindungen, Zertifikat | Neuaufbau nötig, wenn der Server verloren geht | nein | `scripts/deploy/Install-IdealAkeWms.ps1:300-337` |
-| 8 | **Programmdateien** (optional) | Web- und Dienst-Ordner bzw. das vorherige Paket `C:\<FIRMA>\deploy\v<alt>\` | nur für einen Rückfall auf die alte Version nötig | – | `scripts/deploy/Update-IdealAkeWms.ps1:632-639` (kopiert ohne eigene Sicherung) |
+| 8 | **Programmdateien** (optional) | Web- und Dienst-Ordner bzw. das vorherige Paket `C:\<FIRMA>\deploy\v<alt>\` | nur für einen Rückfall auf die alte Version nötig | – | `scripts/deploy/Update-IdealAkeWms.ps1:635-642` (kopiert ohne eigene Sicherung) |
 | 9 | Logs (optional, Nachweis) | `<Web>\logs\` (`idealakewms-*.log`, `stdout_*`), `<Dienst>\logs\` (`service-*.log`, `sync\`, `notifications\`), `C:\<FIRMA>\deploy-logs\` | Fehlersuche, Deploy-Nachweis; die App hält selbst 30 Tagesdateien | – | `IdealAkeWms/appsettings.json:23-25`, `IdealAkeWms/web.config:13-14`, `IDEALAKEWMSService/appsettings.json:64-108`, `scripts/deploy/Update-IdealAkeWms.ps1:94` |
 
 Hinweise:
@@ -39,17 +39,17 @@ Hinweise:
 
 | Gesichert | Wie | Beleg |
 |---|---|---|
-| **DB-Backup** (Schritt 2, nach Bestätigung) | `BACKUP DATABASE [<DB>] TO DISK = N'<Ordner>\<DB>_<yyyyMMdd_HHmmss>_vor_v<Version>.bak' WITH COPY_ONLY, CHECKSUM`; Ordner liegt **auf dem SQL-Server** (Instanz-Standard oder `-BackupPfad`), vorher per `sys.dm_os_file_exists` geprüft | `scripts/deploy/Update-IdealAkeWms.ps1:466-511` |
-| Backup-Pflicht | Pflicht, wenn ein Haltepunkt-Trockenlauf Treffer hat (sonst Abbruch vor dem Stoppen); ohne Backup muss bestätigt werden, dass eines vorliegt; `SCHARF` und `uebernehmen` nur mit Backup **aus demselben Lauf** | `scripts/deploy/Update-IdealAkeWms.ps1:750-761`, `:512-520` |
+| **DB-Backup** (Schritt 2, nach Bestätigung) | `BACKUP DATABASE [<DB>] TO DISK = N'<Ordner>\<DB>_<yyyyMMdd_HHmmss>_vor_v<Version>.bak' WITH COPY_ONLY, CHECKSUM`; Ordner liegt **auf dem SQL-Server** (Instanz-Standard oder `-BackupPfad`), vorher per `sys.dm_os_file_exists` geprüft | `scripts/deploy/Update-IdealAkeWms.ps1:468-513` |
+| Backup-Pflicht | Pflicht, wenn ein Haltepunkt-Trockenlauf Treffer hat (sonst Abbruch vor dem Stoppen); ohne Backup muss bestätigt werden, dass eines vorliegt; `SCHARF` und `uebernehmen` nur mit Backup **aus demselben Lauf** | `scripts/deploy/Update-IdealAkeWms.ps1:756-767`, `:514-522` |
 | ACL vor Rechteänderung | `icacls … /save` nach `C:\<FIRMA>\deploy-logs\acl_<Zeit>_<Eintrag>.txt` | `scripts/deploy/IdealAkeWms.Deploy.psm1:180-183` |
-| Lauf-Nachweis | Transcript, Trockenlauf-Ausgaben, Marker in `dbo.DeployScriptRuns` (mit Ausgabe und Datei-Hash) | `scripts/deploy/Update-IdealAkeWms.ps1:936-937`, `:555`, `:334-340` |
+| Lauf-Nachweis | Transcript, Trockenlauf-Ausgaben, Marker in `dbo.DeployScriptRuns` (mit Ausgabe und Datei-Hash) | `scripts/deploy/Update-IdealAkeWms.ps1:943-944`, `:557`, `:334-340` |
 
 **Nicht** gesichert, aber geschützt: Konfigurationsdateien, `Branding\`, `App_Data\`, `wwwroot\Fotos\` und `logs\` werden beim Kopieren
 ausgelassen; das Skript vergleicht Hashes/Dateilisten vorher und nachher und bricht bei einer Änderung ab. Fotos werden vor dem Kopieren
 gezählt und nach dem Start mit der Log-Zeile „Kommissionierfotos verschoben: n, uebersprungen: m“ abgeglichen.
-(Quelle: `scripts/deploy/Update-IdealAkeWms.ps1:619-639`, `:826-839`, `:870-878`)
+(Quelle: `scripts/deploy/Update-IdealAkeWms.ps1:622-642`, `:833-846`, `:877-885`)
 
-**Nicht** gesichert: Programmdateien (werden überschrieben) und DataProtection-Schlüssel. (Quelle: `scripts/deploy/Update-IdealAkeWms.ps1:632-639`)
+**Nicht** gesichert: Programmdateien (werden überschrieben) und DataProtection-Schlüssel. (Quelle: `scripts/deploy/Update-IdealAkeWms.ps1:635-642`)
 
 ---
 
@@ -65,7 +65,7 @@ lassen.
 
 ### 3.2 Datenbank auf demselben System wiederherstellen
 
-1. **Dienst stoppen, dann App-Pool stoppen** (keine Schreibzugriffe, kein `Migrate()`). (Quelle: Reihenfolge wie `scripts/deploy/Update-IdealAkeWms.ps1:764-780`)
+1. **Dienst stoppen, dann App-Pool stoppen** (keine Schreibzugriffe, kein `Migrate()`). (Quelle: Reihenfolge wie `scripts/deploy/Update-IdealAkeWms.ps1:770-786`)
 2. Passendes Backup wählen (z. B. `<DB>_<Zeit>_vor_v<Version>.bak` aus dem Update-Lauf). Restore mit den Mitteln des SQL-Betriebs
    (SSMS bzw. `RESTORE DATABASE … FROM DISK = … WITH REPLACE`). **zu prüfen:** Standort-Verfahren (Logsicherungen, Zeitpunkt-Restore).
 3. Kontrolle nach dem Restore (nur lesend):
@@ -77,13 +77,13 @@ lassen.
    - Backup stammt aus **derselben** Version wie die Programmdateien → weiter mit Schritt 5.
    - Backup ist **älter** (z. B. „vor_v1.99.23“) und die neuen Programmdateien sind installiert → entweder alte Programmdateien
      zurückkopieren, oder das Update-Skript für dieses System erneut ausführen (spielt die Schema-Skripte in richtiger Reihenfolge ein).
-     Web **nicht** vorher starten. (Quelle: `scripts/deploy/Update-IdealAkeWms.ps1:782-808`)
+     Web **nicht** vorher starten. (Quelle: `scripts/deploy/Update-IdealAkeWms.ps1:788-815`)
 5. App-Pool starten, dann Dienst starten. Fußzeile, `/SyncLog`, `logs\` prüfen ([06-logs-ueberwachung.md](06-logs-ueberwachung.md)).
 6. **Sage abgleichen:** Lagerbuchungen und Wareneingangsbelege, die nach dem Backup an Sage gingen, sind in Sage, aber nicht mehr im
    WMS. **zu prüfen** im Einzelfall mit dem Fachbereich (Liste „Sage-Lagerbuchungen“ / „Sage-Wareneingänge“, Sage-Belege mit Memo
    `SM#…#`/`WE#…#`). (Quelle: `README.md:726-729`, [[integrationen]] „Idempotenz“)
 7. Deploy-Marker: Ein Restore auf einen Stand vor einem Daten-/Einmal-Lauf entfernt dessen Marker; der nächste Update-Lauf bietet ihn
-   erneut an. Vor `SCHARF`/`uebernehmen` die Zählung lesen. (Quelle: `scripts/deploy/Update-IdealAkeWms.ps1:325-333`, `:534-544`)
+   erneut an. Vor `SCHARF`/`uebernehmen` die Zählung lesen. (Quelle: `scripts/deploy/Update-IdealAkeWms.ps1:325-333`, `:536-546`)
 
 ### 3.3 Datenbank auf ein anderes System kopieren (z. B. Prod-Kopie für Test)
 

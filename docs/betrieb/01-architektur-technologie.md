@@ -26,7 +26,7 @@ womit es gebaut ist und welche Daten wohin fließen – als Landkarte für Insta
 Wichtig für den Betrieb:
 - Die Web-App spielt beim Start fehlende Datenbank-Migrationen **selbst** ein (`db.Database.Migrate()`). Deshalb laufen Updates über das
   Update-Skript, das vorher alle Schema-Skripte einspielt (Kapitel [03-installation-update-rollback.md](03-installation-update-rollback.md)).
-  (Quelle: `IdealAkeWms/Program.cs:206`, `scripts/deploy/Update-IdealAkeWms.ps1:799`)
+  (Quelle: `IdealAkeWms/Program.cs:206`, `scripts/deploy/Update-IdealAkeWms.ps1:805`)
 - Der Dienst referenziert das Web-Projekt (gemeinsame Datenzugriffs-Klassen); beide sind ein Paket mit einer Version.
   (Quelle: [[fallstricke]] §5 „Service referenziert das Web-Projekt“, `IdealAkeWms/AppVersion.cs:5`, `IDEALAKEWMSService/AppVersion.cs:5`)
 - Fachliche Schalter liegen in der DB: `AppSettings` (Maske `/Settings`) und `ServiceSettings` (Maske `/ServiceSettings`). In den

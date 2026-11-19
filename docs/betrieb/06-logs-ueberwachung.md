@@ -23,7 +23,7 @@ Quellenangaben: Pfade relativ zum Repository (Worktree), Brain-Notizen als `[[Na
 | Aktivitäts-Protokoll in der App (`/SyncLog`, Tabelle `dbo.SyncLogs`) | jeder Lauf des Dienstes mit Ergebnis-Zählern | Admins in der App, ohne Server-Zugriff | (Quelle: [[0010-aktivitaets-protokoll-mit-isolierten-dbcontexts]]) |
 | Seite „Sage-Lagerbuchungen“ (`/SageBookingQueue`) | Warteschlange der Buchungen WMS → Sage | Lager-Keyuser, Admins | `IdealAkeWms/Controllers/SageBookingQueueController.cs:10-16` |
 | Seite „Sage-Wareneingänge“ (`/PurchaseOrders/SageWareneingaenge`) | Wareneingänge, die an Sage übergeben werden, inkl. CSV-Stand | Lager, Einkauf, Admins | `IdealAkeWms/Controllers/PurchaseOrdersController.SageWe.cs:8-14,54` |
-| Update-Protokolle `C:\<Firma>\deploy-logs\` | Mitschrift jedes Laufs des Update-Skripts, Trockenlauf-Ausgaben | IT | `scripts/deploy/Update-IdealAkeWms.ps1:94,555` |
+| Update-Protokolle `C:\<Firma>\deploy-logs\` | Mitschrift jedes Laufs des Update-Skripts, Trockenlauf-Ausgaben | IT | `scripts/deploy/Update-IdealAkeWms.ps1:94,557` |
 | Fehlermail an Empfänger aus `ErrorNotification:Recipients` | Sync-Fehler des Dienstes mit Fehlertext | IT (wenn eingetragen) | `IDEALAKEWMSService/Services/SyncErrorNotifier.cs:32-45` |
 
 `<Web>` und `<Dienst>` sind die Programmordner je System, z. B. `C:\inetpub\wwwroot\IDEALAKEWMS` und `C:\AKE\IdealAkeWmsService`

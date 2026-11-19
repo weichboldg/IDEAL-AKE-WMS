@@ -11,14 +11,14 @@ durch Erstinstallation und Update mit dem Update-Skript, und ehrlich, was beim Z
 ## 1. Grundregeln
 
 1. **Reihenfolge je System: Datenbank (Schema) → Web → Dienst.** Das Update-Skript hält das selbst ein; bei Handarbeit nicht abweichen.
-   (Quelle: `README.md:111-112`, `scripts/deploy/Update-IdealAkeWms.ps1:782-808`, `:855-888`)
+   (Quelle: `README.md:111-112`, `scripts/deploy/Update-IdealAkeWms.ps1:788-815`, `:862-895`)
 2. **Erst Test-, dann Produktivsysteme.** Bei mehreren gewählten Systemen nimmt das Skript Nicht-Prod zuerst und Prod zuletzt; vor jedem
-   Prod-System muss `AKE-PROD` bzw. `IDEAL-PROD` eingetippt werden. (Quelle: `scripts/deploy/Update-IdealAkeWms.ps1:86-87`, `:932-935`)
+   Prod-System muss `AKE-PROD` bzw. `IDEAL-PROD` eingetippt werden. (Quelle: `scripts/deploy/Update-IdealAkeWms.ps1:86-87`, `:939-942`)
 3. **Vor jedem Update ein DB-Backup** (Pflicht bei daten-konvertierenden Skripten und vor jedem Daten-/Einmal-Lauf). (Quelle:
    `scripts/deploy/nachlauf.psd1:218-219`, [[0004-migrations-und-sql-disziplin]])
 4. **Web-App nie mit fehlenden Schema-Skripten starten.** Beim Start spielt sie fehlende Migrationen selbst ein (`Migrate()`) – ohne die
    Vorbedingungen der SQL-Skripte (Backups, Seeds, Sonderregeln). (Quelle: `IdealAkeWms/Program.cs:206`,
-   `scripts/deploy/Update-IdealAkeWms.ps1:317`, `:799`, [[fallstricke]] §30 „Ein Seed, der nur im SQL-Skript steht, fehlt nach Migrate()“)
+   `scripts/deploy/Update-IdealAkeWms.ps1:317`, `:805`, [[fallstricke]] §30 „Ein Seed, der nur im SQL-Skript steht, fehlt nach Migrate()“)
 5. **Nur von Hand, als Administrator, in Windows PowerShell 5.1.** Es gibt keinen unbeaufsichtigten Modus und keinen Schalter, der
    Bestätigungen überspringt. (Quelle: `scripts/deploy/Update-IdealAkeWms.ps1:7`, `:14`, `scripts/deploy/IdealAkeWms.Deploy.psm1:19`)
 6. **Sage-schreibende und außenwirksame Schalter bleiben nach dem Deploy aus**, bis sie je System freigegeben sind. Das Skript schaltet
@@ -64,8 +64,8 @@ Ablage auf dem Zielserver: z. B. `C:\<FIRMA>\deploy\v<Version>\`. (Quelle: `READ
 | 2 | SQL-Version ≥ 2017 (für die Backup-Ordner-Prüfung) und Recht `ALTER` auf die Ziel-DB | Abfrage „P-B1“ in SSMS als ausführendes Konto (steht in der Vorher-Liste des Skripts) | `scripts/deploy/nachlauf.psd1:220-222`, [[2026-11-12-deploy-fahrplan-buendel-v1-99]] |
 | 3 | Rechte des ausführenden Kontos | `db_owner`, `BACKUP DATABASE`, Lesen `msdb.sysjobs` (Rechte-Abfrage der Spec) | [[2026-11-11-buendel-deploy-update-skript]] „Vorher“ |
 | 4 | Kerberos/NTLM | Ist das ausführende Konto in „Protected Users“, braucht die SQL-Instanz SPNs (sonst Fehler 18452 „nicht vertrauenswürdige Domäne“) | [[2026-11-11-buendel-deploy-update-skript]] „Befund erster -NurPruefen“ |
-| 5 | Backup-Ordner auf dem **SQL-Server** mit Schreibrecht des SQL-Instanzkontos | Standard ist der Instanz-Backup-Pfad; sonst `-BackupPfad` | `scripts/deploy/Update-IdealAkeWms.ps1:471-474`, [[2026-11-12-deploy-fahrplan-buendel-v1-99]] |
-| 6 | Prod: keine Mail-Ablage | `MailSettings:PickupDirectory` (Datei) bzw. Umgebungsvariable `MailSettings__PickupDirectory` am Prod-Dienst darf nicht gesetzt sein – das Skript bricht auf Prod sonst vor dem Stoppen ab | `scripts/deploy/nachlauf.psd1:158-161`, `scripts/deploy/Update-IdealAkeWms.ps1:700-701`, `:738`, [[2026-11-12-deploy-fahrplan-buendel-v1-99]] |
+| 5 | Backup-Ordner auf dem **SQL-Server** mit Schreibrecht des SQL-Instanzkontos | Standard ist der Instanz-Backup-Pfad; sonst `-BackupPfad` | `scripts/deploy/Update-IdealAkeWms.ps1:473-476`, [[2026-11-12-deploy-fahrplan-buendel-v1-99]] |
+| 6 | Prod: keine Mail-Ablage | `MailSettings:PickupDirectory` (Datei) bzw. Umgebungsvariable `MailSettings__PickupDirectory` am Prod-Dienst darf nicht gesetzt sein – das Skript bricht auf Prod sonst vor dem Stoppen ab | `scripts/deploy/nachlauf.psd1:158-161`, `scripts/deploy/Update-IdealAkeWms.ps1:703-704`, `:744`, [[2026-11-12-deploy-fahrplan-buendel-v1-99]] |
 | 7 | Microsoft Edge auf dem Web-Server (PDF) | Skript prüft in Schritt 5a, warnt nur | `scripts/deploy/IdealAkeWms.Deploy.psm1:209-213` |
 
 ---
@@ -148,9 +148,9 @@ powershell -ExecutionPolicy Bypass -File C:\<FIRMA>\deploy\v<Version>\deploy\Upd
 | Parameter | Wirkung | Beleg |
 |---|---|---|
 | `-Firma`, `-System` | ohne Angabe fragt das Skript; mehrere Systeme mit Komma; leere Eingabe = Abbruch ohne Änderung | `scripts/deploy/Update-IdealAkeWms.ps1:56-82` |
-| `-Komponente Web\|Dienst\|Beide` | was getauscht wird (Default `Beide`); Schema, Ordner/Rechte und Nachlauf laufen immer | `README.md:81`, `scripts/deploy/Update-IdealAkeWms.ps1:645` |
-| `-NurPruefen` | Plan, Ordner/Rechte-Bericht und Nachlauf-Liste, **nichts** gestoppt, nichts geschrieben | `scripts/deploy/Update-IdealAkeWms.ps1:740-747` |
-| `-BackupPfad` | Backup-Ordner auf dem SQL-Server statt Instanz-Standard | `scripts/deploy/Update-IdealAkeWms.ps1:471-474` |
+| `-Komponente Web\|Dienst\|Beide` | was getauscht wird (Default `Beide`); Schema, Ordner/Rechte und Nachlauf laufen immer | `README.md:81`, `scripts/deploy/Update-IdealAkeWms.ps1:648` |
+| `-NurPruefen` | Plan, Ordner/Rechte-Bericht und Nachlauf-Liste, **nichts** gestoppt, nichts geschrieben | `scripts/deploy/Update-IdealAkeWms.ps1:746-753` |
+| `-BackupPfad` | Backup-Ordner auf dem SQL-Server statt Instanz-Standard | `scripts/deploy/Update-IdealAkeWms.ps1:473-476` |
 | `-SiteUrl` | Startseite für die Versionsprüfung, Vorrang vor `ziele.psd1` | `scripts/deploy/Update-IdealAkeWms.ps1:204-206` |
 | `-WebPfad`, `-DienstPfad` | abweichende Ordner (nur bei **einem** System) | `scripts/deploy/Update-IdealAkeWms.ps1:83-85` |
 | `-Quelle`, `-SqlOrdner`, `-LogPfad` | Paket-, SQL- und Protokollordner; Protokoll-Standard `C:\<FIRMA>\deploy-logs` | `scripts/deploy/Update-IdealAkeWms.ps1:89-94` |
@@ -209,7 +209,7 @@ Laufen bei **jedem** Lauf (ohne Versionsfilter), lesend; Ergebnis 0 = in Ordnung
 | Nachher | nur lesend, Text = Hand-Schritt | Lieferverzug-Empfänger, Wareneingang-CSV, QR-Trennzeichen, Firmenanschrift, `Sync:ArticlesViewName`, SData-Kennwort in appsettings, SMTP-Benutzer (`Pruefung/SmtpBenutzer`), doppelte Prio, nur AKE: `Sync:Quelle:Artikel` nicht auf `SData` (`Pruefung/ArtikelQuelleSData`, v1.99.39; sonst bleiben `ArticleSageDetails` leer, Hand-Schritt, keine automatische Umschaltung), nur AKE: `Pruefung/WareneingangCsvKollision` (v1.99.33). Seit v1.99.34: `Pruefung/BeschichtungPositionOhneTextFlach`; v1.99.41: `Pruefung/BeschichterKreditoren` (kein aktiver Beschichter-Kreditor), `Pruefung/BeschichtungsauftragUebergebenOffen` (Aufträge im Status Übergeben – Weg führt jetzt über „Versendet“). Nur IDEAL: `Pruefung/BfEmpfaengergruppe`, `Pruefung/BfCsvPfad`, `Pruefung/FeiertageIdeal` (v1.99.35), `Pruefung/sage-fa-ag-sdata-zugang` (v1.99.38: Schalter an, aber Bearbeiter oder `SData:BaseUrl` leer), `Pruefung/KommissionierlisteNichtFreigegeben`, `Pruefung/KommissionierlisteLeitstandAus`, `Pruefung/KommissionierlisteVorfilterZiele` (v1.99.43, bewusst „Nachher“, damit Prod nicht vor dem Stoppen abbricht) | `scripts/deploy/nachlauf.psd1:132-153,203-254,263-274` |
 
 Besonderheit RCSI: Die Reparatur (`ALTER DATABASE … SET READ_COMMITTED_SNAPSHOT ON WITH ROLLBACK IMMEDIATE`) zeigt vorher alle anderen
-Sitzungen auf der DB, weil sie diese beendet. Ohne Recht `ALTER` die Frage mit `n` beantworten. (Quelle: `scripts/deploy/Update-IdealAkeWms.ps1:438-444`,
+Sitzungen auf der DB, weil sie diese beendet. Ohne Recht `ALTER` die Frage mit `n` beantworten. (Quelle: `scripts/deploy/Update-IdealAkeWms.ps1:440-446`,
 `scripts/deploy/nachlauf.psd1:175-179`) Reparaturen bekommen keinen Marker – sie werden jedes Mal neu bewertet.
 (Quelle: [[0023-daten-und-einmal-skripte-fuehrt-das-update-skript-mit-bestaetigung-aus]] Entscheidung)
 
@@ -226,17 +226,26 @@ Daten-/Einmal-Skripte führt das Skript **nur nach Eingabe am Zielserver** aus (
    Marker, sofort übernommen.
 5. Zweiter Trockenlauf muss `TREFFER: 0` zeigen.
 Bei einem Haltepunkt-Eintrag beendet jedes Nein den Lauf; Web und Dienst bleiben gestoppt.
-(Quelle: `scripts/deploy/Update-IdealAkeWms.ps1:554-590`, `:294-297`)
+(Quelle: `scripts/deploy/Update-IdealAkeWms.ps1:556-593`, `:294-297`)
+
+**Meldungen lesen (seit v1.99.45).** Alle Meldungen mit Ergebnis oder Exit-Code folgen einem Muster:
+`<Fall>: [<Vorgang> ]<Ergebnis>[ -> <Folge>][. <Handlung>]`. Beispiel: `SQL/141: zweiter Trockenlauf TREFFER: 0, mit Fehler beendet (Exit 1)
+-> Scharflauf ist uebernommen (Marker Scharf). Ausgabe …_trockenlauf.txt pruefen.` Das Ergebnis heißt bei Trockenläufen `TREFFER: n` oder
+`keine Zeile TREFFER`, bei Prüfungen `OK`, `Abweichung n` oder `nicht auswertbar (…)`. Ein Exit-Code steht nur, wenn er ungleich 0 ist, und
+immer getrennt als `mit Fehler beendet (Exit n)`. `keine Zeile TREFFER` sagt also nichts über den Exit-Code. Hinter `->` steht, was das Skript
+daraus macht, danach, was am Server zu tun ist. Ein Drift-Test hält das Muster.
+(Quelle: `scripts/deploy/Update-IdealAkeWms.ps1:360` (`Format-Ergebnis`), `IdealAkeWms.Tests/Deploy/NachlaufManifestDriftTests.cs`
+`DeploySkripte_PruefTexte_FolgenDemMuster`)
 
 **Weg B – Transaktion** (ohne Schalter):
 1. Prüfabfrage anzeigen; Frage `j` = ausführen / `n` = später / `e` = lief schon, nur vermerken.
 2. Bei `j`: Web und Dienst müssen gestoppt sein, Backup aus diesem Lauf nötig.
 3. Ganze Datei in **einer** Transaktion (Aufteilung an `GO`), Ausgabe zeigen; die Transaktion hält Sperren, bis Sie entscheiden.
 4. `uebernehmen` = Commit + Marker; `verwerfen` oder leer = Rollback, Eintrag bleibt offen.
-Abgelehnt werden Dateien mit `sqlcmd`-Direktiven oder `ROLLBACK`. (Quelle: `scripts/deploy/Update-IdealAkeWms.ps1:592-608`, `:352-409`)
+Abgelehnt werden Dateien mit `sqlcmd`-Direktiven oder `ROLLBACK`. (Quelle: `scripts/deploy/Update-IdealAkeWms.ps1:595-611`, `:352-411`)
 
 **Weg C – anzeigen:** Hand-Schritt; das Skript fragt danach „Wurde … schon ausgeführt?“ und vermerkt `VonHand`.
-(Quelle: `scripts/deploy/Update-IdealAkeWms.ps1:547-551`)
+(Quelle: `scripts/deploy/Update-IdealAkeWms.ps1:549-553`)
 
 **Einmal-Skripte seit v1.99.29** (beide Weg A, Phase „Nachher“; Datei unter `SQL\Einmalig\`):
 
@@ -248,17 +257,17 @@ Abgelehnt werden Dateien mit `sqlcmd`-Direktiven oder `ROLLBACK`. (Quelle: `scri
 **Marker `dbo.DeployScriptRuns`** (ab SQL/142): Ein Eintrag mit Marker wird **nie wieder** angeboten. Gespeichert werden u. a. Manifest-Id,
 Datei, SHA-256, Modus (`Scharf`, `Transaktion`, `Entfaellt`, `Spur`, `VonHand`), Treffer, Ausgabe, Paket-Version/Commit, Zeit, ausführendes
 Konto. Alte Läufe ohne Marker erkennt das Skript über „Spur“-Abfragen und bietet an, sie zu vermerken. Soll ein Skript bewusst ein zweites
-Mal laufen, braucht es einen neuen Manifest-Eintrag. (Quelle: `scripts/deploy/Update-IdealAkeWms.ps1:325-347`, `:534-544`,
+Mal laufen, braucht es einen neuen Manifest-Eintrag. (Quelle: `scripts/deploy/Update-IdealAkeWms.ps1:325-347`, `:536-546`,
 `scripts/deploy/nachlauf.psd1:19-20`) Abfragen dazu: [08-diagnose-abfragen.md](08-diagnose-abfragen.md).
 
 ### 5.5 Protokolle eines Laufs
 
 | Datei | Ort | Beleg |
 |---|---|---|
-| Gesamtprotokoll (Transcript) `<yyyy-MM-dd_HHmm>_<FIRMA>-<System>_v<Version>.log` | `C:\<FIRMA>\deploy-logs` | `scripts/deploy/Update-IdealAkeWms.ps1:94`, `:936-937` |
-| Trockenlauf-Ausgaben `…_trockenlauf.txt` | gleicher Ordner | `scripts/deploy/Update-IdealAkeWms.ps1:555` |
+| Gesamtprotokoll (Transcript) `<yyyy-MM-dd_HHmm>_<FIRMA>-<System>_v<Version>.log` | `C:\<FIRMA>\deploy-logs` | `scripts/deploy/Update-IdealAkeWms.ps1:94`, `:943-944` |
+| Trockenlauf-Ausgaben `…_trockenlauf.txt` | gleicher Ordner | `scripts/deploy/Update-IdealAkeWms.ps1:557` |
 | ACL-Sicherung vor Rechteänderung `acl_<Zeit>_<Eintrag>.txt` | gleicher Ordner | `scripts/deploy/IdealAkeWms.Deploy.psm1:180-183` |
-| `deploy-info.txt` (Kopie von `publish-info.txt`) | Web- und Dienst-Ordner | `scripts/deploy/Update-IdealAkeWms.ps1:836-837` |
+| `deploy-info.txt` (Kopie von `publish-info.txt`) | Web- und Dienst-Ordner | `scripts/deploy/Update-IdealAkeWms.ps1:843-844` |
 
 ### 5.6 Schritt für Schritt: ein System aktualisieren
 
@@ -287,7 +296,7 @@ Weg weiter. (Quelle: `scripts/deploy/Update-IdealAkeWms.ps1:303-323`)
 | danach | Web und Dienst laufen | offene Nachlauf-Einträge: Skript neu starten; Marker verhindern Doppelläufe |
 
 (Quelle: `scripts/deploy/Update-IdealAkeWms.ps1:315-321`) Bei mehreren Systemen werden nach einem Fehler die folgenden nicht angefasst.
-(Quelle: `scripts/deploy/Update-IdealAkeWms.ps1:945-949`) Häufige Ursachen: [07-troubleshooting.md](07-troubleshooting.md).
+(Quelle: `scripts/deploy/Update-IdealAkeWms.ps1:952-956`) Häufige Ursachen: [07-troubleshooting.md](07-troubleshooting.md).
 
 ---
 
@@ -302,8 +311,8 @@ und die Web-App migriert beim Start nur vorwärts. (Quelle: `scripts/deploy/Upda
 |---|---|---|---|
 | Abbruch **vor** Schritt 3 | ja, nichts zu tun | Ursache beheben, neu starten | `scripts/deploy/Update-IdealAkeWms.ps1:316` |
 | Abbruch **während** Schema/Kopieren | vorwärts | Skript erneut laufen lassen (idempotente Skripte, Marker) | `scripts/deploy/Update-IdealAkeWms.ps1:317-318`, [[0004-migrations-und-sql-disziplin]] Konsequenzen |
-| Daten-Lauf in Weg B nicht gewollt | ja, **vor** `uebernehmen` | `verwerfen` (Rollback) | `scripts/deploy/Update-IdealAkeWms.ps1:395-397` |
-| Daten-Lauf nach `SCHARF`/`uebernehmen` rückgängig | nur über DB-Restore | Backup aus diesem Lauf zurückspielen | `scripts/deploy/Update-IdealAkeWms.ps1:512-520`, [10-backup-restore.md](10-backup-restore.md) |
+| Daten-Lauf in Weg B nicht gewollt | ja, **vor** `uebernehmen` | `verwerfen` (Rollback) | `scripts/deploy/Update-IdealAkeWms.ps1:397-399` |
+| Daten-Lauf nach `SCHARF`/`uebernehmen` rückgängig | nur über DB-Restore | Backup aus diesem Lauf zurückspielen | `scripts/deploy/Update-IdealAkeWms.ps1:514-522`, [10-backup-restore.md](10-backup-restore.md) |
 | Neue Version macht Probleme, Schema eingespielt | **nicht** durch Zurückkopieren alter Dateien allein | DB-Backup von vor dem Update **und** alte Programmdateien zurück; beides zusammen. **zu prüfen:** ob ältere Binärdateien gegen ein neueres Schema überhaupt laufen – im Code nicht abgesichert | siehe unten |
 | Fachliche Funktion abschalten statt Rückfall | ja | Schalter unter `/Settings` bzw. `/ServiceSettings` aus; Sage-Quellen zurück auf `View` | `README.md:768`, `README.md:1031-1032` |
 | IDEAL: hierarchische FA-Struktur zurück | **nicht über die Anwendung** | nur bewusste Datenbereinigung laut Runbook, DB-Backup zwingend | [[0012-fa-hierarchie-einweg-migrationstor]] Punkt 2, `docs/RUNBOOK-FA-HIERARCHIE-RUECKBAU.md`, `README.md:443` |
@@ -312,7 +321,7 @@ und die Web-App migriert beim Start nur vorwärts. (Quelle: `scripts/deploy/Upda
 
 Wichtig für einen echten Rückfall:
 - **Das Update-Skript sichert die Programmdateien nicht.** Es kopiert ohne Löschen über die alten Dateien und legt nur ein DB-Backup an.
-  (Quelle: `scripts/deploy/Update-IdealAkeWms.ps1:632-639`, `:499-511`) Wer zurückfallen können will, sichert Web- und Dienst-Ordner vor dem
+  (Quelle: `scripts/deploy/Update-IdealAkeWms.ps1:635-642`, `:501-513`) Wer zurückfallen können will, sichert Web- und Dienst-Ordner vor dem
   Update selbst ([10-backup-restore.md](10-backup-restore.md)). Alternativ liegt das vorherige Paket noch unter `C:\<FIRMA>\deploy\v<alt>\`.
 - **Nie nur die DB zurückspielen und die neue Web-App starten:** Die neue Web-App spielt dann alle Migrationen per `Migrate()` erneut ein –
   ohne Sonderregeln, Seeds und Prüfungen. Nach einem DB-Restore entweder die alten Programmdateien wiederherstellen oder das Update-Skript
@@ -321,7 +330,7 @@ Wichtig für einen echten Rückfall:
   bleibt in Sage. **zu prüfen** je Fall: nach einem WMS-Restore fehlen diese Vorgänge im WMS, die Doppelbuchungs-Sperre arbeitet über die
   Sage-Memo-Kennung. (Quelle: `README.md:726-729`, [[integrationen]] „Idempotenz“)
 - Ein Restore entfernt auch Marker aus `dbo.DeployScriptRuns`; der nächste Lauf bietet die Einträge erneut an (Spur-Abfragen erkennen
-  bereits gelaufene Daten). (Quelle: `scripts/deploy/Update-IdealAkeWms.ps1:325-333`, `:539-544`)
+  bereits gelaufene Daten). (Quelle: `scripts/deploy/Update-IdealAkeWms.ps1:325-333`, `:541-546`)
 
 ---
 

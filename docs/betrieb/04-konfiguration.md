@@ -35,7 +35,7 @@ Ausnahme seit v1.99.14: Benutzer und Kennwort der Sage-Schnittstelle (SData) lie
 - **Dienst:** `appsettings.json` im Dienst-Ordner; die Umgebung kommt aus der Dienst-Registry (`DOTNET_ENVIRONMENT`), falls gesetzt.
   (Quelle: [[fallstricke]] §30 „DB-Ermittlung braucht die Umgebung …“)
 - Das Update-Skript überschreibt `appsettings*.json` und `web.config` **nie**; Änderungen an diesen Dateien bleiben über Updates erhalten.
-  (Quelle: `README.md:900-901`, `scripts/deploy/Update-IdealAkeWms.ps1:838-839`)
+  (Quelle: `README.md:900-901`, `scripts/deploy/Update-IdealAkeWms.ps1:845-846`)
 
 ### 2.2 Inhalt – Web-App
 
