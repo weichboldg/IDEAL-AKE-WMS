@@ -2,14 +2,14 @@
 type: spec
 title: "Update-Skript: Pruef-, Warn- und Fehlertexte in einem Stil (Fall, Ergebnis TREFFER / keine Zeile TREFFER, Exit ungleich 0 getrennt, Handlung)"
 slug: 2026-11-19-updater-warntext-treffer-exitcode-spec
-status: Entwurf
+status: InUmsetzung
 created: 2026-11-19
 updated: 2026-11-19
 source_backlog: "[[2026-11-13-updater-warntext-treffer-exitcode]]"
 task: ""
 jira: ""
-worktree: ""
-branch: ""
+worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
+branch: "feature/2026-08-07-ideal-teile-1-5"
 standort: beide
 affected_code:
   - "scripts/deploy/Update-IdealAkeWms.ps1:358 (neue Hilfsfunktion Format-Ergebnis neben Get-Treffer) und :554-559 (Invoke-Trockenlauf liefert zusaetzlich den Pfad der Ausgabedatei)"
@@ -31,9 +31,9 @@ deploy:
   web: true
   service: true
   migration: false
-freigabe_entscheidung: ""
-freigabe_von: ""
-freigabe_am: ""
+freigabe_entscheidung: "1 ja + alle Prüftexte (20:10), 2–3 wie Empfehlung (20:40); freigegeben 20:38"
+freigabe_von: "Gerald Weichbold"
+freigabe_am: "2026-11-19"
 ---
 
 ## Ziel / Nutzen (das Warum)
@@ -411,5 +411,5 @@ setzt das um. Text unten als Audit-Spur unverändert.*
 -->
 
 1. Vorprüfung `:725` im selben Zug angleichen („, keine Zeile TREFFER“)? → **ja, und darüber hinaus alle Prüf-/Warntexte im Update-Skript auf denselben Stil durchgehen** (Gerald 2026-11-19 20:10). Umfang wächst → Rumpf durch den spec-agent erweitern (Bestandsaufnahme aller Prüftexte mit Zeilen, einheitliches Muster, Tests).
-2. Umfangsgrenze: Gruppe D und `IdealAkeWms.Deploy.psm1` bleiben wörtlich? →
-3. Zeile nach Muster für den stillen Fall der Vorprüfung `:721` (Datei fehlt / ohne Literal)? →
+2. Umfangsgrenze: Gruppe D und `IdealAkeWms.Deploy.psm1` bleiben wörtlich? → **ja, Gruppe D und IdealAkeWms.Deploy.psm1 bleiben wörtlich** (Gerald 2026-11-19 20:40)
+3. Zeile nach Muster für den stillen Fall der Vorprüfung `:721` (Datei fehlt / ohne Literal)? → **ja, Zeile nach Muster für den stillen Fall :721** (Gerald 2026-11-19 20:40)

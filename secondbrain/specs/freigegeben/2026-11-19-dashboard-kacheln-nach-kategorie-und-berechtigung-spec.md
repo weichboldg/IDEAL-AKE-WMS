@@ -2,14 +2,14 @@
 type: spec
 title: "Dashboard: Kacheln für alle Funktionen nach Kategorie, Sichtbarkeit aus EINER Quelle mit dem Menü"
 slug: 2026-11-19-dashboard-kacheln-nach-kategorie-und-berechtigung-spec
-status: Entwurf
+status: InUmsetzung
 created: 2026-11-19
 updated: 2026-11-19
 source_backlog: "[[2026-11-19-dashboard-kacheln-neue-features-nach-berechtigung]]"
 task: ""
 jira: ""
-worktree: ""
-branch: ""
+worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
+branch: "feature/2026-08-07-ideal-teile-1-5"
 standort: beide
 version_vorschlag: "1.99.47 (1.99.45 Updater-Spec, 1.99.46 Bugfix BF-Warenkorb-Artikelsuche; Dev-Lauf prüft erneut)"
 testszenario_vorschlag: "TS-170 (TS-165 BDE mobil, TS-167 Updater, TS-168 Artikelinfo, TS-169 BF-Warenkorb; Dev-Lauf prüft erneut)"
@@ -38,9 +38,9 @@ deploy:
   web: true
   service: false
   migration: false
-freigabe_entscheidung: ""
-freigabe_von: ""
-freigabe_am: ""
+freigabe_entscheidung: "1–4 wie Empfehlung, 5 abweichend: OSEON AG-Übersicht nur bei aktivem OSEON-Modul (20:40); freigegeben 20:38"
+freigabe_von: "Gerald Weichbold"
+freigabe_am: "2026-11-19"
 ---
 
 ## Ziel / Nutzen (das Warum)
@@ -409,8 +409,10 @@ Kein Epic.
   als seinen Auftrag. Antworte je Frage in **fett** hinter dem Pfeil.
 -->
 
-1. Kategorien und Reihenfolge inkl. „Bestellungen“ →
-2. Kachel-Auswahl laut Tabelle F6, Protokolle/Detailpflege nur im Menü →
-3. Artikelinfo filterkonform (masterdata_read) + Menüeintrag Stammdaten →
-4. Kacheltitel = Menütitel →
-5. OSEON AG-Übersicht ohne Modulschalter unverändert →
+1. Kategorien und Reihenfolge inkl. „Bestellungen“ → **ja, Kategorien und Reihenfolge wie vorgeschlagen (inkl. Bestellungen)** (Gerald 2026-11-19 20:40)
+2. Kachel-Auswahl laut Tabelle F6, Protokolle/Detailpflege nur im Menü → **ja, Protokoll-/Detailpflege nur im Menü** (Gerald 2026-11-19 20:40)
+3. Artikelinfo filterkonform (masterdata_read) + Menüeintrag Stammdaten → **ja, Artikelinfo filterkonform (masterdata_read) + Menüeintrag Stammdaten** (Gerald 2026-11-19 20:40)
+4. Kacheltitel = Menütitel → **ja, Kacheltitel = Menütitel** (Gerald 2026-11-19 20:40)
+5. OSEON AG-Übersicht ohne Modulschalter unverändert → **abweichend: OSEON AG-Übersicht nur zeigen, wenn das OSEON-Modul aktiv ist (Schalter wie Teileverfolgung OSEON); sonst ausblenden – im Menü gleich** (Gerald 2026-11-19 20:40)
+
+> [!important] Nachzug Gerald 2026-11-19 20:40: Antwort 5 weicht von der Empfehlung ab – OSEON AG-Übersicht (Kachel und Menü) zusätzlich an den OSEON-Modulschalter binden; der Dev-Lauf belegt, welcher Schalter (z. B. `TeileverfolgungAktiv`/`Sync:OseonTrackingEnabled`) das Modul an AKE/IDEAL kennzeichnet.

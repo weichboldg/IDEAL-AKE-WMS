@@ -2,15 +2,15 @@
 type: spec
 title: BF-Warenkorb – Artikelsuche mit Vorschlägen beim Tippen (Type-ahead)
 slug: 2026-11-19-bf-warenkorb-artikelsuche-type-ahead-bug-spec
-status: Entwurf
+status: InUmsetzung
 created: 2026-11-19
 updated: 2026-11-19
 source_backlog: "[[2026-11-19-bugfix-bf-warenkorb-artikelsuche-type-ahead]]"
 bug: "[[2026-11-19-bf-warenkorb-artikelsuche-type-ahead-bug]]"
 task: ""
 jira: ""
-worktree: ""
-branch: ""
+worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
+branch: "feature/2026-08-07-ideal-teile-1-5"
 standort: IDEAL
 version_vorschlag: "1.99.46 (1.99.45 von [[2026-11-19-updater-warntext-treffer-exitcode-spec]] vorgeschlagen; Dev-Lauf prüft erneut)"
 testszenario_vorschlag: "TS-169 (TS-165 BDE mobil, TS-167 Updater, TS-168 Artikelinfo reserviert; Dev-Lauf prüft erneut)"
@@ -38,9 +38,9 @@ deploy:
   web: true
   service: false
   migration: false
-freigabe_entscheidung: ""
-freigabe_von: ""
-freigabe_am: ""
+freigabe_entscheidung: "Rückfragen 1–3 wie Empfehlung (Gerald 2026-11-19 20:40); freigegeben 20:38"
+freigabe_von: "Gerald Weichbold"
+freigabe_am: "2026-11-19"
 ---
 
 ## Ziel / Nutzen (das Warum)
@@ -293,6 +293,6 @@ Entfällt (kein Epic).
   als seinen Auftrag. Antworte je Frage in **fett** hinter dem Pfeil.
 -->
 
-1. Scan ins Suchfeld startet die Suche sofort (Empfehlung ja) →
-2. Fokus nach der Suche auf „Hinzufügen“ statt auf „Menge“ (Empfehlung Knopf) →
-3. Ausweichweg eigene Liste ohne neue Freigabe, falls die native Liste nicht nach Bezeichnung zeigt (Empfehlung ja) →
+1. Scan ins Suchfeld startet die Suche sofort (Empfehlung ja) → **ja** (Gerald 2026-11-19 20:40)
+2. Fokus nach der Suche auf „Hinzufügen“ statt auf „Menge“ (Empfehlung Knopf) → **ja, Fokus auf „Hinzufügen“** (Gerald 2026-11-19 20:40)
+3. Ausweichweg eigene Liste ohne neue Freigabe, falls die native Liste nicht nach Bezeichnung zeigt (Empfehlung ja) → **ja, Ausweichweg eigene Liste ohne neue Freigabe erlaubt** (Gerald 2026-11-19 20:40)

@@ -2,14 +2,14 @@
 type: spec
 title: "Artikelinfo und Lager-/Glasbestellung: Bestand nur des gesuchten Artikels (statt Teiltext-Treffer)"
 slug: 2026-11-19-artikelinfo-bestand-exakt-bug-spec
-status: Entwurf
+status: InUmsetzung
 created: 2026-11-19
 updated: 2026-11-19
 source_backlog: "[[2026-11-17-artikelinfo-bestand-teiltextsuche-bug]]"
 task: ""
 jira: ""
-worktree: ""
-branch: ""
+worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
+branch: "feature/2026-08-07-ideal-teile-1-5"
 standort: beide
 typ: bug
 version_vorschlag: "nächste freie Patch-Version (aktuell 1.99.44)"
@@ -33,9 +33,9 @@ deploy:
   web: true
   service: false
   migration: false
-freigabe_entscheidung: ""
-freigabe_von: ""
-freigabe_am: ""
+freigabe_entscheidung: "Rückfragen 1–3 Gerald 2026-11-19 20:10 (1 Reihenfolge wie bisher nach Code, 2 Kommissionierwagen im Lagerplatz-Text ausblenden, 3 F4 übernehmen); freigegeben 20:13"
+freigabe_von: "Gerald Weichbold"
+freigabe_am: "2026-11-19"
 ---
 
 # Artikelinfo und Lager-/Glasbestellung: Bestand nur des gesuchten Artikels
@@ -92,10 +92,10 @@ Kommissionieren in den Wagen **umgebucht**. Diese Mengen zählen weiter als Best
   Bestand **des Positionsartikels**. Das Format bleibt `Code (Menge:N3)`, kommagetrennt. Groß/Klein und nachlaufende Leerzeichen in
   der Positions-Artikelnummer spielen keine Rolle (die Position speichert die Eingabe `body.ArticleNumber`,
   `WarehouseRequisitionsApiController.cs:98`; gefunden wurde der Artikel per SQL-Gleichheit, `ArticleRepository.cs:77`).
-- **F3 Reihenfolge im Lagerplatz-Text:** laut Rückfrage 1. Empfehlung: Hauptlagerplatz zuerst, dann Menge absteigend, dann Code. So
+- **F3 Reihenfolge im Lagerplatz-Text:** **Entscheidung Gerald 2026-11-19 20:10: Hauptlagerplatz, dann Code (bisherige Reihenfolge).** Ursprünglich laut Rückfrage 1. Empfehlung: Hauptlagerplatz zuerst, dann Menge absteigend, dann Code. So
   liefert es `GetStockByArticleNumbersAsync` schon (`StockMovementRepository.cs:482-488`), ohne zusätzlichen Code. Bisher galt
   Hauptlagerplatz, dann Code (`StockMovementRepository.cs:188-192`).
-- **F3a Kommissionierwagen im Lagerplatz-Text:** laut Rückfrage 2. Empfehlung: wie heute mit anzeigen (`mitKommissionierwagen: true`),
+- **F3a Kommissionierwagen im Lagerplatz-Text:** **Entscheidung Gerald 2026-11-19 20:10: ausblenden** (`mitKommissionierwagen: false` nur für den Lagerplatz-Text; Gesamtbestand unverändert mit Wagen). Ursprünglich laut Rückfrage 2. Empfehlung: wie heute mit anzeigen (`mitKommissionierwagen: true`),
   denn der Bugfix soll nur die fremden Artikel entfernen.
 - **F4 Hinweistext (Q2-B2)**, Vorschlag (Rückfrage 3), gilt für beide Standorte:
   „Bedarfsmeldung und Lagerbestellung werden nicht zusätzlich zum FA-Bedarf gezählt (je Auftrag bzw. Artikel gilt der größere Wert).
@@ -287,6 +287,6 @@ Entfällt (kein Epic).
   als seinen Auftrag. Antworte je Frage in **fett** hinter dem Pfeil.
 -->
 
-1. (Fachbereich: Lager) Reihenfolge Lagerplatz-Text: neu (Hauptlagerplatz, Menge absteigend) oder bisherige (Hauptlagerplatz, Code)? →
-2. (Fachbereich: Lager) Kommissionierwagen im Lagerplatz-Text: wie heute anzeigen oder ausblenden? →
-3. Hinweistext „Bedarfe“ (Q2-B2): Vorschlag F4 übernehmen? →
+1. (Fachbereich: Lager) Reihenfolge Lagerplatz-Text: neu (Hauptlagerplatz, Menge absteigend) oder bisherige (Hauptlagerplatz, Code)? → **wie bisher: Hauptlagerplatz, dann Lagerplatz-Code** (Gerald 2026-11-19 20:10, abweichend von der Empfehlung)
+2. (Fachbereich: Lager) Kommissionierwagen im Lagerplatz-Text: wie heute anzeigen oder ausblenden? → **ausblenden** (wie Kommissionier-Stückliste; Gerald 2026-11-19 20:10, abweichend von der Empfehlung). Gesamtbestand und FA-Bedarf zählen Wagen weiter (F1/F4 unverändert).
+3. Hinweistext „Bedarfe“ (Q2-B2): Vorschlag F4 übernehmen? → **ja, F4 übernehmen** (Gerald 2026-11-19 20:10)
