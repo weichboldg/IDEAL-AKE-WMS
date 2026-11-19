@@ -432,8 +432,9 @@ function Invoke-Pruefung($e, $m, $history) {
     $st = Get-PruefStand $e $m $history
     if ($st -isnot [int]) { Write-Warnung "$($m.Id): nicht auswertbar ($st) -> keine Reparatur. Abfrage von Hand pruefen."; return }
     if ($st -eq 0) { Write-Ok "$($m.Id): OK"; return }
-    Write-Host "  $($m.Id): Abweichung $st -> Reparatur nach Bestaetigung. $(Format-Text $m.Text $e)" -ForegroundColor Yellow
+    # QA v1.99.45: erst die Anzeige-Pruefungen abzweigen, sonst stuende vor "keine automatische Reparatur" noch "Reparatur nach Bestaetigung"
     if ($m.Ausfuehrung -ne 'Reparatur') { Write-Warnung "$($m.Id): Abweichung $st -> keine automatische Reparatur. Von Hand: $(Format-Text $m.Text $e)"; return }
+    Write-Host "  $($m.Id): Abweichung $st -> Reparatur nach Bestaetigung. $(Format-Text $m.Text $e)" -ForegroundColor Yellow
     if ($m['Datei']) { Write-Host "  Reparatur: sqlcmd -i $(Join-Path $SqlOrdner $m.Datei) (idempotent)" }
     else { Write-Host "  Reparatur ($(if ($m['OhneTransaktion']) { 'ohne Transaktion' } else { 'in einer Transaktion' })):"; $m.Reparatur -split "`r?`n" | ForEach-Object { Write-Host "      $_" } }
     $frage = 'Reparatur ausfuehren?'

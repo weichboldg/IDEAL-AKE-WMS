@@ -585,5 +585,8 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
 @{ Id='v1.99.45-ArtikelinfoBestandExakt'; Version='1.99.45'; Typ='Info'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
    Text='Artikelinfo und Lagerbestellung zeigen den Bestand nur noch des gesuchten Artikels (vorher kamen Artikel mit aehnlicher Nummer dazu). Lagerplatz-Text: Hauptlagerplatz zuerst, ohne Kommissionierwagen.'
    Quelle='2026-11-19-v1-99-45-sammellauf' }
+@{ Id='v1.99.45-BfWarenkorbVorschlaege'; Version='1.99.45'; Typ='Info'; Firma='IDEAL'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Text='BF-Warenkorb: Artikelsuche schlaegt beim Tippen vor (ab 2 Zeichen, nur Lagerartikel BG/FT). Scan ins Suchfeld sucht sofort, danach fuegt Enter den Artikel hinzu. Besteller informieren.'
+   Quelle='2026-11-19-v1-99-45-sammellauf' }
 )
 }
