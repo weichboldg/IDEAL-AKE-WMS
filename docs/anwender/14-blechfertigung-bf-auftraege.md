@@ -34,6 +34,8 @@ E-Mail-Adressen pflegt man unter *Stammdaten → Empfänger* (seit Version 1.99.
 
 2. Im Suchfeld **Artikelnummer, Matchcode oder Bezeichnung** einen Begriff eingeben, **Suchen**. Gefunden werden nur Sage-Lagerartikel mit
    Artikeltyp **BG** (Baugruppe) oder **FT** (Fertigteil).
+   Seit 1.99.45 schlägt das Feld ab 2 Zeichen beim Tippen passende Artikel vor (dieselben wie die Suche); einen Vorschlag wählen und
+   **Suchen**. Scanner und **Enter** funktionieren wie bisher.
 3. In der Trefferzeile **Menge** eingeben, wenn nötig einen **Status** (z. B. *EILT*) und einen anderen **Hauptlagerplatz** wählen,
    **Hinzufügen**.
    - Hat der Artikel in Sage eine **Bestellmenge** und dieselbe Einheit, muss die Menge ein ganzes Vielfaches davon sein

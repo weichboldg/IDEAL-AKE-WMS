@@ -40,10 +40,11 @@ FA-Nummer und einem Bildschirmfoto.
 | 15 | Beschichtung (Vorschlagsliste mit „Verpackt“, Beschichtungsauftrag, Status, Lackierer aus Kreditoren, Druck/PDF, Reklamation) | Produktion, Versand, Leitstand | [15-beschichtung-beschichtungsauftrag.md](15-beschichtung-beschichtungsauftrag.md) |
 | 16 | IDEAL-Kommissionierliste (Ziele, Summiert, Abteilung, Lagerplätze, nur nach Leitstand-Freigabe, Druck/PDF; IDEAL) | Lager | [16-ideal-kommissionierliste.md](16-ideal-kommissionierliste.md) |
 | 17 | BDE-Teileliste an der Werkbank (nur „fertig“ melden, einzeln oder als Block, Rücknahme, Teilmeldungen; IDEAL) | Produktion, BDE-Schichtleiter | [17-bde-teileliste-werkbank.md](17-bde-teileliste-werkbank.md) |
+| 18 | Startseite und Menü (Kacheln nach Bereichen, gleich wie das Menü, Artikelinfo im Menü) | alle | [18-startseite-und-menue.md](18-startseite-und-menue.md) |
 
 ## Stand und was noch folgt
 
-Stand der Anleitungen: Version **1.99.44** (19.11.2026) für die Kapitel 14 und 16, Version **1.99.43** für die Kapitel 01, 11, 13, 15 und 17; die übrigen Kapitel Version **1.99.29**. Seit Version 1.99.22 neu bzw. ergänzt:
+Stand der Anleitungen: Version **1.99.45** (19.11.2026) für die Kapitel 03, 14 und 18, Version **1.99.44** für Kapitel 16, Version **1.99.43** für die Kapitel 01, 11, 13, 15 und 17; die übrigen Kapitel Version **1.99.29**. Seit Version 1.99.22 neu bzw. ergänzt:
 
 | Version | Änderung | Anleitung |
 |---|---|---|
@@ -63,6 +64,7 @@ Stand der Anleitungen: Version **1.99.44** (19.11.2026) für die Kapitel 14 und 
 | 1.99.42 | Benutzer-Kürzel; BF-CSV genau nach WiCAM-Vorlage, Test-CSV; Beschichtung: Lackierer nachtragen, Druck mit Seitenzahl | [13](13-anmeldung-und-benutzer.md), [14](14-blechfertigung-bf-auftraege.md), [15](15-beschichtung-beschichtungsauftrag.md) |
 | 1.99.43 | IDEAL-Kommissionierliste: Ziele gemerkt, Summiert als Standard, Abteilung und Lagerplätze, nur nach Leitstand-Freigabe | [01](01-kommissionierung.md), [16](16-ideal-kommissionierliste.md) |
 | 1.99.44 | Kommissionierliste: Ziel-Kästchen wieder nebeneinander; Menü *Stammdaten → Empfänger* auch bei Lager-/Glasbestellung und Blechfertigung | [14](14-blechfertigung-bf-auftraege.md), [16](16-ideal-kommissionierliste.md) |
+| 1.99.45 | Startseite nach Bereichen und Berechtigung (wie das Menü), *Stammdaten → Artikelinfo* im Menü; Artikelinfo/Lagerbestellung: Bestand nur des gesuchten Artikels, Hauptlagerplatz zuerst, ohne Kommissionierwagen; BF-Warenkorb: Vorschläge beim Tippen | [03](03-lagerbestellung-glasbestellung.md), [14](14-blechfertigung-bf-auftraege.md), [18](18-startseite-und-menue.md) |
 
 Änderungen aus 1.99.30, 1.99.31, 1.99.33 und 1.99.38–1.99.40 (Bestellvorschläge, offene Bestellungen, Wareneingang
 Sammellieferschein, Arbeitsgänge in Sage, Sage-Benutzerfelder) sind in den betroffenen Kapiteln noch nicht nachgezogen.
