@@ -2,7 +2,7 @@
 type: spec
 title: "Update-Skript: Pruef-, Warn- und Fehlertexte in einem Stil (Fall, Ergebnis TREFFER / keine Zeile TREFFER, Exit ungleich 0 getrennt, Handlung)"
 slug: 2026-11-19-updater-warntext-treffer-exitcode-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-11-19
 updated: 2026-11-19
 source_backlog: "[[2026-11-13-updater-warntext-treffer-exitcode]]"
@@ -382,6 +382,15 @@ gehört als kurzer Nachtrag zu ADR [[0023-daten-und-einmal-skripte-fuehrt-das-up
 `fallstricke.md` (§30 Update-Skript) mit Warum (H-1: ein Text für zwei Fälle schickte den Menschen zur falschen Ursache) und Verweis auf den
 Wächter.
 
+**Final (QA 2026-11-19, aus dem echten Diff `f1747e10..f3cdd143`):**
+- web: **ja** (Änderungen unter `IdealAkeWms/`).
+- service: **ja, nur Versionsnummer** (`IDEALAKEWMSService/AppVersion.cs` → 1.99.45, damit Web und Dienst denselben Stand melden; keine Dienst-Logik geändert).
+- migration: **nein** (keine Datei unter `*/Migrations/`, kein neues `SQL/`-Skript, kein Einmal-Skript).
+- Paket fertig publiziert: `C:\git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish` (IDEALAKEWMSWeb + IDEALAKEWMSWebService + SQL + deploy), `publish-info.txt` Version 1.99.45, Commit `f3cdd14397d69935c974a25eaaeb045c9d10cacb`.
+- Ablauf Mensch: Paket aufs Testsystem → `deploy\Update-IdealAkeWms.ps1` → testen → mergen. Nach dem Merge nur dann aus main neu publizieren, wenn der Merge getestete Dateien mit parallelen main-Änderungen zusammengeführt hat.
+- Reihenfolge: kein Schema, kein Daten-Skript → kein zusätzlicher Backup-/Skript-Schritt aus diesem Paket; Web und Dienst wie üblich über das Update-Skript.
+- Manifest (`scripts/deploy/nachlauf.psd1`): kein Eintrag nötig (Skript-Texte); das neue Skript wirkt ab dem ersten Lauf mit diesem Paket (`publish\deploy\Update-IdealAkeWms.ps1`).
+
 ## Offene Rueckfragen
 
 *Rückfrage 1 ist beantwortet (Freigabe-Antwort 1, Gerald 2026-11-19 20:10: ja, und alle Prüf-/Warntexte auf denselben Stil); der Rumpf
@@ -413,3 +422,55 @@ setzt das um. Text unten als Audit-Spur unverändert.*
 1. Vorprüfung `:725` im selben Zug angleichen („, keine Zeile TREFFER“)? → **ja, und darüber hinaus alle Prüf-/Warntexte im Update-Skript auf denselben Stil durchgehen** (Gerald 2026-11-19 20:10). Umfang wächst → Rumpf durch den spec-agent erweitern (Bestandsaufnahme aller Prüftexte mit Zeilen, einheitliches Muster, Tests).
 2. Umfangsgrenze: Gruppe D und `IdealAkeWms.Deploy.psm1` bleiben wörtlich? → **ja, Gruppe D und IdealAkeWms.Deploy.psm1 bleiben wörtlich** (Gerald 2026-11-19 20:40)
 3. Zeile nach Muster für den stillen Fall der Vorprüfung `:721` (Datei fehlt / ohne Literal)? → **ja, Zeile nach Muster für den stillen Fall :721** (Gerald 2026-11-19 20:40)
+
+## QA-Nachweis (qa-agent, 2026-11-19, Sammellauf v1.99.45)
+
+Unabhängiger Lauf, synchron, nicht delegiert. Worktree `C:\git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5`, Branch `feature/2026-08-07-ideal-teile-1-5`.
+Geprüfter Commit-Bereich `f1747e10..HEAD` (a1ba945d Spec 1, 980beee9 Spec 2, b524d262 Spec 3, 0df40eeb Spec 4, defa0c05 Release, 947bb014 Doku) plus QA-Fix **f3cdd143**.
+
+### 1. Build und Tests (selbst ausgeführt, nach dem QA-Fix wiederholt)
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler, 30 Warnungen (Bestand, u. a. CS8321 FaWorklist, CS8620 BfAuftragWorkflowTests:388).
+- `dotnet test`: IdealAkeWms.Tests **3390 bestanden / 1 übersprungen / 0 Fehler** (3391); IDEALAKEWMSService.Tests **790 / 0 / 0**.
+
+### 2. Review (eigener Lauf, Diff samt Umfeld gelesen)
+Befunde des Sammellaufs – alle **nicht blockierend**, alle in **f3cdd143** behoben, danach Build und Tests erneut grün, DEV neu deployt:
+- **F1 (Spec BF-Warenkorb):** Manifest-Info-Eintrag fehlte, obwohl die Spec genau einen verlangt → `v1.99.45-BfWarenkorbVorschlaege` (Info, IDEAL, Nachher) ergänzt.
+- **F2 (Spec Artikelinfo / Release):** Anwender-Changelog legte nahe, Kommissionierwagen zählten in der Artikelinfo nicht mehr – falsch, dort zählen sie weiter (Rückfrage 2 betrifft nur den Lagerplatz-Text der Lager-/Glasbestellung) → Satz korrigiert.
+- **F3 (Spec Updater):** `Invoke-Pruefung` gab bei reinen Anzeige-Prüfungen erst die gelbe Zeile „Reparatur nach Bestaetigung“ und danach die Warnung „nur Anzeige“ aus – widersprüchlich → Anzeige-Prüfung kehrt jetzt vor der gelben Zeile zurück (Ergebnis/Exit unverändert, Parse-Check 0 Fehler).
+
+Beobachtungen ohne Befund: Dashboard ohne SVG-Symbole (bewusste Vereinfachung); Kongruenztest T2 prüft Einzelrollen (Regeln monoton, ausreichend); Abschnitt nutzt `aria-label` statt `aria-labelledby` (geringfügig); `limit` von `api/bf-auftraege/artikel` ohne Obergrenze (Bestand vor diesem Diff); `StockLocationInfo.LagerplatzText` sortiert `ThenBy(Code)` kulturabhängig (geringfügig).
+
+Gezielt geprüfte Fehlerklassen: kein `@Html.Raw` in `<script>` (bf-artikelsuche.js baut Optionen per `createElement`); kein `hidden` neben `d-*`; keine stillen Ersatzwerte (leere Artikelnummer → leerer Text ohne Repository-Aufruf); keine Parallel-Array-Bindung; keine reine Browser-Validierung (Suche bleibt serverseitig `SucheArtikelAsync`); Sichtbarkeitsregel je Menüziel an EINER Stelle (`NavigationSicht`, ADR 0034). Menü-zu-Filter-Kongruenz: alte Menübedingungen aus `_Layout.cshtml` gegen die Regeln in `NavigationKatalog.cs` einzeln verglichen – gleichwertig, einzige Neuerung „Artikelinfo“ unter Stammdaten.
+
+### 5. CLAUDE.md-Checkliste
+Migration/SQL/FreshInstall/AgentJobs: entfällt (kein Schema). Audit-Felder: entfällt (keine Entität geändert). Version 1.99.45 in beiden `AppVersion.cs` + `Views/Help/Changelog.cshtml`: ja. `docs/TESTSZENARIEN.md` TS-167…170 im Worktree, Testindex im Hauptcheckout Zeilen 167–170: ja. Hilfeseite, Anwender-/Betriebsdoku (Kapitel 18 mit Fotos): ja. 5a Einstellungen (ADR 0020): keine neue oder geänderte Einstellung.
+
+### 6. DEV-Deploy
+Nach dem QA-Fix aus dem Worktree, erhöhte Shell, Web und Dienst je Standort: `dev-deploy.ps1 -Standort AKE` Exit 0, „HTTP 200, Fusszeile v1.99.45“; `-Standort IDEAL` Exit 0, Fusszeile v1.99.45. DEV-Schalter nur gelesen, nichts umgestellt, nichts an Sage geschrieben.
+
+### 7. Publish
+`C:\git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish\IDEALAKEWMSWeb` und `\IDEALAKEWMSWebService` vorher geleert, beide `dotnet publish -c Release` Exit 0; `SQL\` → `publish\SQL`, `scripts\deploy\` → `publish\deploy`; `publish-info.txt`: Version 1.99.45, Commit `f3cdd14397d69935c974a25eaaeb045c9d10cacb`, Branch feature/2026-08-07-ideal-teile-1-5, Spec 2026-11-19-v1-99-45-sammellauf, Erstellt 2026-11-19 21:19, Komponenten IDEALAKEWMSWeb + IDEALAKEWMSWebService.
+
+### 3. Nachweisart je AK
+| AK | Nachweis |
+|---|---|
+| 1–8, 15 | Auto-Wächter `NachlaufManifestDriftTests.DeploySkripte_PruefTexte_FolgenDemMuster` (mit Rotprobe) + Review jeder geänderten Meldung gegen die Spalte „Neu“; echte Laufausgabe Manual-UAT |
+| 1 (Gruppe D, psm1 byte-gleich) | Diff-Beleg: `IdealAkeWms.Deploy.psm1` nicht im Diff |
+| 9 | Review: außer Strings nur `Format-Ergebnis`, `Ausgabe = $aus` und Aufrufe – plus QA-Fix F3 (frühere Rückkehr der Anzeige-Prüfung vor der gelben Zeile; nur Ausgabe, Ergebnis/Exit unverändert) |
+| 10 | Review: neue A/B/C-Meldungen laufen über `Write-Warnung` → Sammelliste |
+| 11 | Auto grün, übrige Drift-Tests grün |
+| 12, 13 | Diff-Beleg (Betrieb 03/07, TESTSZENARIEN TS-167 + 126.21/26/27/28/29, 133.7) |
+| 14 | grün; Version 1.99.45 beidseitig |
+
+### 4. Geänderte bestehende Tests
+Keine geändert; neuer Wächter in `NachlaufManifestDriftTests`.
+
+### 6c. DEV-Schritte TS-167
+Das Update-Skript zielt auf Testsystem/Prod; DEV wird über `dev-deploy.ps1` aktualisiert. TS-167 = **NICHT MÖGLICH auf DEV**, bleibt für den Testsystem-Lauf. Parse-Check des Skripts nach dem Fix: 0 Fehler.
+
+### Manuelle Checkliste (offen für den Menschen)
+1. Testsystem-Lauf mit `publish\deploy\Update-IdealAkeWms.ps1`: Meldungen von Vorprüfung, Trockenläufen und Prüfungen nach Muster (TS-167).
+2. Mit Daten-Skript mit Trockenlauf im Paket: Texte des zweiten Trockenlaufs (TREFFER / keine Zeile / Exit).
+3. Anzeige-Prüfung: nur Warnung „nur Anzeige“, keine gelbe „Reparatur nach Bestaetigung“-Zeile (F3).
+4. Sammelliste „Warnungen:“ am Ende enthält jede Warnung.
+5. Danach Merge.

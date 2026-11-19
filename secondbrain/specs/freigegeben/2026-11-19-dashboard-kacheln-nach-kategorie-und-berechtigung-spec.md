@@ -2,7 +2,7 @@
 type: spec
 title: "Dashboard: Kacheln für alle Funktionen nach Kategorie, Sichtbarkeit aus EINER Quelle mit dem Menü"
 slug: 2026-11-19-dashboard-kacheln-nach-kategorie-und-berechtigung-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-11-19
 updated: 2026-11-19
 source_backlog: "[[2026-11-19-dashboard-kacheln-neue-features-nach-berechtigung]]"
@@ -36,7 +36,7 @@ epic: false
 etappen: []
 deploy:
   web: true
-  service: false
+  service: true
   migration: false
 freigabe_entscheidung: "1–4 wie Empfehlung, 5 abweichend: OSEON AG-Übersicht nur bei aktivem OSEON-Modul (20:40); freigegeben 20:38"
 freigabe_von: "Gerald Weichbold"
@@ -380,6 +380,15 @@ Kein Epic.
   Navigationskatalog“ (nächste freie Nummer, letzte ist 0033). [[fallstricke]]: Ein neuer Menüpunkt entsteht nur über `NavZiele` und
   die Regel im `switch`, die Wächter T2/T3 schlagen sonst fehl. README (AppSettings) bleibt unverändert.
 
+**Final (QA 2026-11-19, aus dem echten Diff `f1747e10..f3cdd143`):**
+- web: **ja** (Änderungen unter `IdealAkeWms/`).
+- service: **ja, nur Versionsnummer** (`IDEALAKEWMSService/AppVersion.cs` → 1.99.45, damit Web und Dienst denselben Stand melden; keine Dienst-Logik geändert).
+- migration: **nein** (keine Datei unter `*/Migrations/`, kein neues `SQL/`-Skript, kein Einmal-Skript).
+- Paket fertig publiziert: `C:\git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish` (IDEALAKEWMSWeb + IDEALAKEWMSWebService + SQL + deploy), `publish-info.txt` Version 1.99.45, Commit `f3cdd14397d69935c974a25eaaeb045c9d10cacb`.
+- Ablauf Mensch: Paket aufs Testsystem → `deploy\Update-IdealAkeWms.ps1` → testen → mergen. Nach dem Merge nur dann aus main neu publizieren, wenn der Merge getestete Dateien mit parallelen main-Änderungen zusammengeführt hat.
+- Reihenfolge: kein Schema, kein Daten-Skript → kein zusätzlicher Backup-/Skript-Schritt aus diesem Paket; Web und Dienst wie üblich über das Update-Skript.
+- Manifest (`scripts/deploy/nachlauf.psd1`): `v1.99.45-StartseiteKacheln` (Info, beide) vorhanden.
+
 ## Offene Rueckfragen
 
 1. Kategorien und Reihenfolge: Lager · Bestellungen · Kommissionierung · Produktion/BDE · Blechfertigung · Beschichtung ·
@@ -416,3 +425,70 @@ Kein Epic.
 5. OSEON AG-Übersicht ohne Modulschalter unverändert → **abweichend: OSEON AG-Übersicht nur zeigen, wenn das OSEON-Modul aktiv ist (Schalter wie Teileverfolgung OSEON); sonst ausblenden – im Menü gleich** (Gerald 2026-11-19 20:40)
 
 > [!important] Nachzug Gerald 2026-11-19 20:40: Antwort 5 weicht von der Empfehlung ab – OSEON AG-Übersicht (Kachel und Menü) zusätzlich an den OSEON-Modulschalter binden; der Dev-Lauf belegt, welcher Schalter (z. B. `TeileverfolgungAktiv`/`Sync:OseonTrackingEnabled`) das Modul an AKE/IDEAL kennzeichnet.
+
+## QA-Nachweis (qa-agent, 2026-11-19, Sammellauf v1.99.45)
+
+Unabhängiger Lauf, synchron, nicht delegiert. Worktree `C:\git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5`, Branch `feature/2026-08-07-ideal-teile-1-5`.
+Geprüfter Commit-Bereich `f1747e10..HEAD` (a1ba945d Spec 1, 980beee9 Spec 2, b524d262 Spec 3, 0df40eeb Spec 4, defa0c05 Release, 947bb014 Doku) plus QA-Fix **f3cdd143**.
+
+### 1. Build und Tests (selbst ausgeführt, nach dem QA-Fix wiederholt)
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler, 30 Warnungen (Bestand, u. a. CS8321 FaWorklist, CS8620 BfAuftragWorkflowTests:388).
+- `dotnet test`: IdealAkeWms.Tests **3390 bestanden / 1 übersprungen / 0 Fehler** (3391); IDEALAKEWMSService.Tests **790 / 0 / 0**.
+
+### 2. Review (eigener Lauf, Diff samt Umfeld gelesen)
+Befunde des Sammellaufs – alle **nicht blockierend**, alle in **f3cdd143** behoben, danach Build und Tests erneut grün, DEV neu deployt:
+- **F1 (Spec BF-Warenkorb):** Manifest-Info-Eintrag fehlte, obwohl die Spec genau einen verlangt → `v1.99.45-BfWarenkorbVorschlaege` (Info, IDEAL, Nachher) ergänzt.
+- **F2 (Spec Artikelinfo / Release):** Anwender-Changelog legte nahe, Kommissionierwagen zählten in der Artikelinfo nicht mehr – falsch, dort zählen sie weiter (Rückfrage 2 betrifft nur den Lagerplatz-Text der Lager-/Glasbestellung) → Satz korrigiert.
+- **F3 (Spec Updater):** `Invoke-Pruefung` gab bei reinen Anzeige-Prüfungen erst die gelbe Zeile „Reparatur nach Bestaetigung“ und danach die Warnung „nur Anzeige“ aus – widersprüchlich → Anzeige-Prüfung kehrt jetzt vor der gelben Zeile zurück (Ergebnis/Exit unverändert, Parse-Check 0 Fehler).
+
+Beobachtungen ohne Befund: Dashboard ohne SVG-Symbole (bewusste Vereinfachung); Kongruenztest T2 prüft Einzelrollen (Regeln monoton, ausreichend); Abschnitt nutzt `aria-label` statt `aria-labelledby` (geringfügig); `limit` von `api/bf-auftraege/artikel` ohne Obergrenze (Bestand vor diesem Diff); `StockLocationInfo.LagerplatzText` sortiert `ThenBy(Code)` kulturabhängig (geringfügig).
+
+Gezielt geprüfte Fehlerklassen: kein `@Html.Raw` in `<script>` (bf-artikelsuche.js baut Optionen per `createElement`); kein `hidden` neben `d-*`; keine stillen Ersatzwerte (leere Artikelnummer → leerer Text ohne Repository-Aufruf); keine Parallel-Array-Bindung; keine reine Browser-Validierung (Suche bleibt serverseitig `SucheArtikelAsync`); Sichtbarkeitsregel je Menüziel an EINER Stelle (`NavigationSicht`, ADR 0034). Menü-zu-Filter-Kongruenz: alte Menübedingungen aus `_Layout.cshtml` gegen die Regeln in `NavigationKatalog.cs` einzeln verglichen – gleichwertig, einzige Neuerung „Artikelinfo“ unter Stammdaten.
+
+### 5. CLAUDE.md-Checkliste
+Migration/SQL/FreshInstall/AgentJobs: entfällt (kein Schema). Audit-Felder: entfällt (keine Entität geändert). Version 1.99.45 in beiden `AppVersion.cs` + `Views/Help/Changelog.cshtml`: ja. `docs/TESTSZENARIEN.md` TS-167…170 im Worktree, Testindex im Hauptcheckout Zeilen 167–170: ja. Hilfeseite, Anwender-/Betriebsdoku (Kapitel 18 mit Fotos): ja. 5a Einstellungen (ADR 0020): keine neue oder geänderte Einstellung.
+
+### 6. DEV-Deploy
+Nach dem QA-Fix aus dem Worktree, erhöhte Shell, Web und Dienst je Standort: `dev-deploy.ps1 -Standort AKE` Exit 0, „HTTP 200, Fusszeile v1.99.45“; `-Standort IDEAL` Exit 0, Fusszeile v1.99.45. DEV-Schalter nur gelesen, nichts umgestellt, nichts an Sage geschrieben.
+
+### 7. Publish
+`C:\git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish\IDEALAKEWMSWeb` und `\IDEALAKEWMSWebService` vorher geleert, beide `dotnet publish -c Release` Exit 0; `SQL\` → `publish\SQL`, `scripts\deploy\` → `publish\deploy`; `publish-info.txt`: Version 1.99.45, Commit `f3cdd14397d69935c974a25eaaeb045c9d10cacb`, Branch feature/2026-08-07-ideal-teile-1-5, Spec 2026-11-19-v1-99-45-sammellauf, Erstellt 2026-11-19 21:19, Komponenten IDEALAKEWMSWeb + IDEALAKEWMSWebService.
+
+### 3. Nachweisart je AK
+| AK | Nachweis |
+|---|---|
+| 1 | Auto T3 `Layout_JederMenuelinkHaengtAnSeinemNavZiel_OhneEigeneRechteabfrage` |
+| 2 | Auto T4 `Startseite_OhneViewBagUndOhneHartcodierteLinks` |
+| 3, 7 (Kategorie) | Auto T1 `Kacheln_SindImmerAuchImMenue_UndKeineKategorieLeer` |
+| 4 | Auto T2 `SichtbaresZiel_LaesstJedenFilterDurch` (Einzelrollen); Klickprobe Manual-UAT |
+| 5 | Auto T1 (OSEON, ArbeitsgaengeSage, Empfänger) + DEV: OSEON AG-Übersicht auf AKE (Teileverfolgung an) da, auf IDEAL (aus) nicht |
+| 6, 9, 10 | Auto T1 `OhneRolle_KeineKachel`, `Artikelinfo_FolgtStammdatenLesen_NichtKommissionierung`; mit echten Benutzern Manual-UAT |
+| 7 (Dropdown leer) | Code-Review; DEV-Fall nicht herstellbar ohne Schalter-/Rollenänderung → Manual-UAT |
+| 8 | DEV AKE + IDEAL (Admin): Lager · Bestellungen · Kommissionierung · Produktion/BDE · Blechfertigung (nur IDEAL) · Beschichtung · Einkauf/Wareneingang · Stammdaten · Administration; Titel = Menütitel |
+| 11 | Review alt gegen neu gleichwertig; DEV: „Artikelinfo“ im Dropdown Stammdaten |
+| 12 | Kontrast aus Bootstrap 5.3.3/site.css berechnet: Kategorie-Überschrift `text-muted` rgba(33,37,41,.75) auf #F5F5F5 **6,47:1**, Beschreibung auf Weiß **6,78:1**, Titel #053153 **≥ 12:1**, Fokusring 3 px #053153 (≥ 3:1). Sicht Fokusring/390 px Manual-UAT (Doku-Fotos 18-04/18-05 aus dem Dev-Lauf vorhanden). Symbole entfallen |
+| 13 | Auto T1 `GetAsync_RechnetNurEinmalJeRequest` |
+| 14 | grün (s. 1) |
+
+### 4. Geänderte bestehende Tests
+- `BeschichtungsauftraegeViewTests`: Bedingungs-Konstante jetzt `nav.ZeigtEines(...)` – **Verhalten absichtlich geändert (AK 1)**.
+- `OrderRecipientsMenuTests.cs` gelöscht, ersetzt durch `NavigationSichtTests.Empfaenger_UndArtikelgruppen_FolgenDenNutzernDerEmpfaengergruppen` – **von der Spec vorgesehen** (affected_code „wird Regeltest im Katalog“).
+Kein Fall „Sonstiges“.
+
+### 6c. DEV-Schritte TS-170 (Admin, nur Ansicht)
+| Schritt | Ergebnis | Status |
+|---|---|---|
+| Startseite AKE | Kategorien in Reihenfolge, OSEON AG-Übersicht und Bedarfsmeldungen da, keine Blechfertigung | OK |
+| Startseite IDEAL | Blechfertigung (BF-Warenkorb, BF-Aufträge), Kommissionierlisten, Vormontage, Arbeitsgänge → Sage da; OSEON, Bedarfsmeldungen, Bestellvorschläge nicht | OK |
+| Menü Stammdaten → Artikelinfo | vorhanden | OK |
+| Rollen einzeln (stock, stock_read, masterdata, Picker) | braucht andere Benutzer | NICHT MÖGLICH (Mensch) |
+| Schalter einzeln aus | Schalter auf DEV nicht umgestellt | NICHT MÖGLICH (Mensch) |
+| Fokusring / 390 px Sicht | Screenshot-Werkzeug Timeout | NICHT MÖGLICH (Mensch) |
+
+### Manuelle Checkliste (offen für den Menschen)
+1. TS-170.2: Benutzer nur stock, nur stock_read, nur masterdata, Picker ohne masterdata_read – Kacheln und Menü wie AK 9.
+2. TS-170.3: je Modulschalter aus → Kachel und Menüeintrag weg; Fall „Bestellungen-Dropdown leer“.
+3. Benutzer ohne Rolle → Hinweis F5.
+4. Tab durch die Kacheln → Fokusring sichtbar; Handy 390 px eine Spalte, kein Querscrollen.
+5. Stichprobe: kein Kachel-/Menüklick führt auf „Zugriff verweigert“/„deaktiviert“.
+6. Testsystem-Lauf, dann Merge.

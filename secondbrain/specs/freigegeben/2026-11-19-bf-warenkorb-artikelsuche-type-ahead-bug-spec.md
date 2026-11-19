@@ -2,7 +2,7 @@
 type: spec
 title: BF-Warenkorb – Artikelsuche mit Vorschlägen beim Tippen (Type-ahead)
 slug: 2026-11-19-bf-warenkorb-artikelsuche-type-ahead-bug-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-11-19
 updated: 2026-11-19
 source_backlog: "[[2026-11-19-bugfix-bf-warenkorb-artikelsuche-type-ahead]]"
@@ -36,7 +36,7 @@ epic: false
 etappen: []
 deploy:
   web: true
-  service: false
+  service: true
   migration: false
 freigabe_entscheidung: "Rückfragen 1–3 wie Empfehlung (Gerald 2026-11-19 20:40); freigegeben 20:38"
 freigabe_von: "Gerald Weichbold"
@@ -265,6 +265,15 @@ Entfällt (kein Epic).
   Vorschlag wählen oder scannen → Enter) + Zeile v1.99.46 in `docs/anwender/README.md` (Versionstabelle ab Z. 59). Dazu Brain-Changelog,
   [[feature-map]] und Bug-Datensatz auf `behoben`.
 
+**Final (QA 2026-11-19, aus dem echten Diff `f1747e10..f3cdd143`):**
+- web: **ja** (Änderungen unter `IdealAkeWms/`).
+- service: **ja, nur Versionsnummer** (`IDEALAKEWMSService/AppVersion.cs` → 1.99.45, damit Web und Dienst denselben Stand melden; keine Dienst-Logik geändert).
+- migration: **nein** (keine Datei unter `*/Migrations/`, kein neues `SQL/`-Skript, kein Einmal-Skript).
+- Paket fertig publiziert: `C:\git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish` (IDEALAKEWMSWeb + IDEALAKEWMSWebService + SQL + deploy), `publish-info.txt` Version 1.99.45, Commit `f3cdd14397d69935c974a25eaaeb045c9d10cacb`.
+- Ablauf Mensch: Paket aufs Testsystem → `deploy\Update-IdealAkeWms.ps1` → testen → mergen. Nach dem Merge nur dann aus main neu publizieren, wenn der Merge getestete Dateien mit parallelen main-Änderungen zusammengeführt hat.
+- Reihenfolge: kein Schema, kein Daten-Skript → kein zusätzlicher Backup-/Skript-Schritt aus diesem Paket; Web und Dienst wie üblich über das Update-Skript.
+- Manifest (`scripts/deploy/nachlauf.psd1`): `v1.99.45-BfWarenkorbVorschlaege` (Info, IDEAL) – im QA-Fix f3cdd143 ergänzt (F1).
+
 ## Offene Rueckfragen
 1. **Scan startet die Suche sofort?** Das synthetische Enter des Hardware-Scanners löst heute keinen Submit aus (`hardware-scanner.js:244-245`).
    Ein Scan füllt also nur das Feld. Mit F5 sucht ein Scan sofort. Empfehlung: **ja**, sonst muss nach jedem Scan noch Enter gedrückt
@@ -296,3 +305,65 @@ Entfällt (kein Epic).
 1. Scan ins Suchfeld startet die Suche sofort (Empfehlung ja) → **ja** (Gerald 2026-11-19 20:40)
 2. Fokus nach der Suche auf „Hinzufügen“ statt auf „Menge“ (Empfehlung Knopf) → **ja, Fokus auf „Hinzufügen“** (Gerald 2026-11-19 20:40)
 3. Ausweichweg eigene Liste ohne neue Freigabe, falls die native Liste nicht nach Bezeichnung zeigt (Empfehlung ja) → **ja, Ausweichweg eigene Liste ohne neue Freigabe erlaubt** (Gerald 2026-11-19 20:40)
+
+## QA-Nachweis (qa-agent, 2026-11-19, Sammellauf v1.99.45)
+
+Unabhängiger Lauf, synchron, nicht delegiert. Worktree `C:\git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5`, Branch `feature/2026-08-07-ideal-teile-1-5`.
+Geprüfter Commit-Bereich `f1747e10..HEAD` (a1ba945d Spec 1, 980beee9 Spec 2, b524d262 Spec 3, 0df40eeb Spec 4, defa0c05 Release, 947bb014 Doku) plus QA-Fix **f3cdd143**.
+
+### 1. Build und Tests (selbst ausgeführt, nach dem QA-Fix wiederholt)
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler, 30 Warnungen (Bestand, u. a. CS8321 FaWorklist, CS8620 BfAuftragWorkflowTests:388).
+- `dotnet test`: IdealAkeWms.Tests **3390 bestanden / 1 übersprungen / 0 Fehler** (3391); IDEALAKEWMSService.Tests **790 / 0 / 0**.
+
+### 2. Review (eigener Lauf, Diff samt Umfeld gelesen)
+Befunde des Sammellaufs – alle **nicht blockierend**, alle in **f3cdd143** behoben, danach Build und Tests erneut grün, DEV neu deployt:
+- **F1 (Spec BF-Warenkorb):** Manifest-Info-Eintrag fehlte, obwohl die Spec genau einen verlangt → `v1.99.45-BfWarenkorbVorschlaege` (Info, IDEAL, Nachher) ergänzt.
+- **F2 (Spec Artikelinfo / Release):** Anwender-Changelog legte nahe, Kommissionierwagen zählten in der Artikelinfo nicht mehr – falsch, dort zählen sie weiter (Rückfrage 2 betrifft nur den Lagerplatz-Text der Lager-/Glasbestellung) → Satz korrigiert.
+- **F3 (Spec Updater):** `Invoke-Pruefung` gab bei reinen Anzeige-Prüfungen erst die gelbe Zeile „Reparatur nach Bestaetigung“ und danach die Warnung „nur Anzeige“ aus – widersprüchlich → Anzeige-Prüfung kehrt jetzt vor der gelben Zeile zurück (Ergebnis/Exit unverändert, Parse-Check 0 Fehler).
+
+Beobachtungen ohne Befund: Dashboard ohne SVG-Symbole (bewusste Vereinfachung); Kongruenztest T2 prüft Einzelrollen (Regeln monoton, ausreichend); Abschnitt nutzt `aria-label` statt `aria-labelledby` (geringfügig); `limit` von `api/bf-auftraege/artikel` ohne Obergrenze (Bestand vor diesem Diff); `StockLocationInfo.LagerplatzText` sortiert `ThenBy(Code)` kulturabhängig (geringfügig).
+
+Gezielt geprüfte Fehlerklassen: kein `@Html.Raw` in `<script>` (bf-artikelsuche.js baut Optionen per `createElement`); kein `hidden` neben `d-*`; keine stillen Ersatzwerte (leere Artikelnummer → leerer Text ohne Repository-Aufruf); keine Parallel-Array-Bindung; keine reine Browser-Validierung (Suche bleibt serverseitig `SucheArtikelAsync`); Sichtbarkeitsregel je Menüziel an EINER Stelle (`NavigationSicht`, ADR 0034). Menü-zu-Filter-Kongruenz: alte Menübedingungen aus `_Layout.cshtml` gegen die Regeln in `NavigationKatalog.cs` einzeln verglichen – gleichwertig, einzige Neuerung „Artikelinfo“ unter Stammdaten.
+
+### 5. CLAUDE.md-Checkliste
+Migration/SQL/FreshInstall/AgentJobs: entfällt (kein Schema). Audit-Felder: entfällt (keine Entität geändert). Version 1.99.45 in beiden `AppVersion.cs` + `Views/Help/Changelog.cshtml`: ja. `docs/TESTSZENARIEN.md` TS-167…170 im Worktree, Testindex im Hauptcheckout Zeilen 167–170: ja. Hilfeseite, Anwender-/Betriebsdoku (Kapitel 18 mit Fotos): ja. 5a Einstellungen (ADR 0020): keine neue oder geänderte Einstellung.
+
+### 6. DEV-Deploy
+Nach dem QA-Fix aus dem Worktree, erhöhte Shell, Web und Dienst je Standort: `dev-deploy.ps1 -Standort AKE` Exit 0, „HTTP 200, Fusszeile v1.99.45“; `-Standort IDEAL` Exit 0, Fusszeile v1.99.45. DEV-Schalter nur gelesen, nichts umgestellt, nichts an Sage geschrieben.
+
+### 7. Publish
+`C:\git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish\IDEALAKEWMSWeb` und `\IDEALAKEWMSWebService` vorher geleert, beide `dotnet publish -c Release` Exit 0; `SQL\` → `publish\SQL`, `scripts\deploy\` → `publish\deploy`; `publish-info.txt`: Version 1.99.45, Commit `f3cdd14397d69935c974a25eaaeb045c9d10cacb`, Branch feature/2026-08-07-ideal-teile-1-5, Spec 2026-11-19-v1-99-45-sammellauf, Erstellt 2026-11-19 21:19, Komponenten IDEALAKEWMSWeb + IDEALAKEWMSWebService.
+
+### 3. Nachweisart je AK
+| AK | Nachweis |
+|---|---|
+| 1 | DEV IDEAL: Tippen „blec“ → ein `GET /api/bf-auftraege/artikel?limit=20&q=blec` 200 nach Entprellen; 1-Zeichen-Grenze und Listenanzeige Manual-UAT (Browser-JS) |
+| 2 | Auto `ApiArtikel_LiefertDieselbenArtikelWieDieServerSuche`, `Artikelsuche_MitSuchbegriff_NurLagerartikelBgFt` |
+| 3 | Manual-UAT (native `<datalist>` je Browser, Rückfrage 3) |
+| 4, 5, 6 | Manual-UAT (`requestSubmit`, server-gerendertes `autofocus`; Code geprüft: exakter Treffer case-insensitiv/getrimmt, sonst Einzeltreffer) |
+| 7, 8 | Manual-UAT (Hardware-Scanner, synthetisches Enter `!isTrusted`) |
+| 9 | Manual-UAT (ohne JS; Formular unverändert GET) |
+| 10 | Auto `ApiArtikel_GleicheZugriffsfilterWieDieSeite` (gleiche Filter-Attribute); echte 403/404 Manual-UAT |
+| 11 | Diff-Beleg: `ArticlesApiController`, `_Select2ArticlePartial.cshtml`, `BfAuftragRepository` nicht im Diff |
+| 12 | grün (s. 1) |
+
+### 4. Geänderte bestehende Tests
+Keine bestehenden Tests geändert; nur neue Tests in `BfAuftragWorkflowTests`.
+
+### 6c. DEV-Schritte TS-169 (IDEAL, nur Ansicht/Suche, nichts hinzugefügt)
+| Schritt | Ergebnis | Status |
+|---|---|---|
+| Warenkorb öffnen | GET legt keinen Entwurf an (`BfAuftraegeController.Warenkorb`), Suchfeld da | OK |
+| Tippen ≥ 2 Zeichen | Fetch `api/bf-auftraege/artikel?limit=20&q=blec` → 200 | OK |
+| Vorschläge sichtbar mit Matchcode/Bezeichnung | Datalist-Optionen im Barrierebaum nicht auslesbar, Screenshot-Timeout | NICHT MÖGLICH (Mensch) |
+| Hinzufügen per Enter, Fokus | würde Position anlegen | NICHT MÖGLICH (bewusst nicht ausgelöst) |
+| Scanner-Schritte | keine Hardware | NICHT MÖGLICH |
+
+### Manuelle Checkliste (offen für den Menschen)
+1. IDEAL BF-Warenkorb am Terminal-Browser: 1 Zeichen → keine Liste, 2 Zeichen → Liste mit Matchcode und Bezeichnung (Rückfrage 3).
+2. Begriff nur aus der Bezeichnung → Vorschläge erscheinen.
+3. Vorschlag wählen → Trefferzeile; exakte Artikelnummer (andere Schreibweise) → Fokus auf „Hinzufügen“, Enter legt Position an.
+4. Mehrere Treffer ohne exakten → kein Knopf fokussiert.
+5. Hardware-Scan ohne Fokus und mit Fokus auf „Hinzufügen“ → Code im Suchfeld, Suche startet.
+6. Ohne BF-Recht → 403; `BlechfertigungAktiv` ≠ true → 404.
+7. Testsystem-Lauf, dann Merge.

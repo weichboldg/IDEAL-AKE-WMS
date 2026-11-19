@@ -1,6 +1,6 @@
 ---
 type: aufgabe
-status: in-arbeit
+status: erledigt
 created: 2026-11-19
 quelle: Gerald, Chat 2026-11-19 (/goal Sammellauf v1.99.45)
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
@@ -19,10 +19,10 @@ Grenzen: nichts an Sage, keine Einstellungen auf :88/4445/Prod, `SageFaArbeitsga
 
 | Spec | Typ | SQL | Version | Status | Commits | Blocker |
 |---|---|---|---|---|---|---|
-| [[2026-11-19-artikelinfo-bestand-exakt-bug-spec]] | Bug | – | 1.99.45 | InUmsetzung | `a1ba945d` | |
-| [[2026-11-19-bf-warenkorb-artikelsuche-type-ahead-bug-spec]] | Bug | – | 1.99.45 | InUmsetzung | `980beee9` | |
-| [[2026-11-19-updater-warntext-treffer-exitcode-spec]] | Spec | – | 1.99.45 | InUmsetzung | `b524d262` | |
-| [[2026-11-19-dashboard-kacheln-nach-kategorie-und-berechtigung-spec]] | Spec | – | 1.99.45 | InUmsetzung | `0df40eeb` | |
+| [[2026-11-19-artikelinfo-bestand-exakt-bug-spec]] | Bug | – | 1.99.45 | Testbereit | `a1ba945d` | |
+| [[2026-11-19-bf-warenkorb-artikelsuche-type-ahead-bug-spec]] | Bug | – | 1.99.45 | Testbereit | `980beee9` | |
+| [[2026-11-19-updater-warntext-treffer-exitcode-spec]] | Spec | – | 1.99.45 | Testbereit | `b524d262` | |
+| [[2026-11-19-dashboard-kacheln-nach-kategorie-und-berechtigung-spec]] | Spec | – | 1.99.45 | Testbereit | `0df40eeb` | |
 
 ## Protokoll
 
@@ -37,6 +37,18 @@ Grenzen: nichts an Sage, keine Einstellungen auf :88/4445/Prod, `SageFaArbeitsga
 - 2026-11-19: Doku `947bb014` – neu `docs/anwender/18-startseite-und-menue.md` mit 5 Fotos (Playwright gegen DEV, nur angesehen; 390 px ohne
   Querscrollen), Kapitel 03 (Lagerplatz-Text), 14 (Vorschläge), README; `docs/betrieb` 00-index (Stand v1.99.45) und 04 5.5.
   Brain: Changelog [[2026-11-19-v1-99-45-sammellauf]], ADR 0034, [[fallstricke]] §56–58, feature-map, Testindex, Backlogs erledigt.
+- 2026-11-19 qa-agent (synchron): alle vier Specs **Testbereit**, keine blockierenden Befunde; QA-Fix `f3cdd143` (F1 Manifest-Info
+  `v1.99.45-BfWarenkorbVorschlaege`, F2 Changelog-Text: Kommissionierwagen nur aus dem Lagerplatz-Text der Lager-/Glasbestellung, F3
+  `Invoke-Pruefung` ohne widersprüchliche Reparaturzeile bei Nur-Anzeige). Tests 790 + 3390/1 skip, DEV AKE+IDEAL neu deployt.
+  Doku-Nachzug zu F2: `c39a9423`. Offen für Manual-UAT: TS-170 mit anderen Benutzern/abgeschalteten Modulen, TS-169
+  Vorschlagsliste + Scanner, TS-167 Update-Skript-Lauf auf Test.
+- 2026-11-19: **Paket 10** `publish\paket10-v1.99.45\` + ZIP aus `c39a9423` (beide DLLs 1.99.45; Web, Dienst, `SQL/`, `deploy/`,
+  `publish-info.txt`). ZIP 236859820 Byte, SHA-256 `3E853578F17CD958ACABEBD5B28FE320FC6A22249A496013DF914913E9941AE9`.
+  Hinweis: der qa-agent hat zusätzlich lose Ordner direkt unter `publish\` (IDEALAKEWMSWeb, …WebService, SQL, deploy, publish-info.txt)
+  erzeugt – nicht angefasst (Auftrag: andere Dateien in publish\ nicht anfassen).
+  - `\AKENET01.ake.at\Installsourcen\paket10-v1.99.45.zip`: 236859820 Byte, SHA-256 gleich – OK.
+  - `\IDEALWEB01.ideal.ideal-ake.at\InstallSourcen\paket10-v1.99.45.zip`: 236859820 Byte, SHA-256 gleich – OK.
+- 2026-11-19: Lauf abgeschlossen – alle vier Specs Testbereit, wartet Schranke 2 (Manual-UAT + Merge). Kein Merge, kein Push, nichts an Sage.
 
 ## Kapitel für spätere Confluence-Übernahme
 

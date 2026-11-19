@@ -2,7 +2,7 @@
 type: spec
 title: "Artikelinfo und Lager-/Glasbestellung: Bestand nur des gesuchten Artikels (statt Teiltext-Treffer)"
 slug: 2026-11-19-artikelinfo-bestand-exakt-bug-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-11-19
 updated: 2026-11-19
 source_backlog: "[[2026-11-17-artikelinfo-bestand-teiltextsuche-bug]]"
@@ -31,7 +31,7 @@ epic: false
 etappen: []
 deploy:
   web: true
-  service: false
+  service: true
   migration: false
 freigabe_entscheidung: "Rückfragen 1–3 Gerald 2026-11-19 20:10 (1 Reihenfolge wie bisher nach Code, 2 Kommissionierwagen im Lagerplatz-Text ausblenden, 3 F4 übernehmen); freigegeben 20:13"
 freigabe_von: "Gerald Weichbold"
@@ -267,6 +267,15 @@ Entfällt (kein Epic).
 - Version: nächste freie Patch-Version (aktuell 1.99.44), in **beiden** `AppVersion.cs`; Anwender-Changelog (sichtbare Änderung
   „Gesamtbestand in der Artikelinfo korrigiert“), Brain-Changelog, Fallstrick, Testindex.
 
+**Final (QA 2026-11-19, aus dem echten Diff `f1747e10..f3cdd143`):**
+- web: **ja** (Änderungen unter `IdealAkeWms/`).
+- service: **ja, nur Versionsnummer** (`IDEALAKEWMSService/AppVersion.cs` → 1.99.45, damit Web und Dienst denselben Stand melden; keine Dienst-Logik geändert).
+- migration: **nein** (keine Datei unter `*/Migrations/`, kein neues `SQL/`-Skript, kein Einmal-Skript).
+- Paket fertig publiziert: `C:\git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish` (IDEALAKEWMSWeb + IDEALAKEWMSWebService + SQL + deploy), `publish-info.txt` Version 1.99.45, Commit `f3cdd14397d69935c974a25eaaeb045c9d10cacb`.
+- Ablauf Mensch: Paket aufs Testsystem → `deploy\Update-IdealAkeWms.ps1` → testen → mergen. Nach dem Merge nur dann aus main neu publizieren, wenn der Merge getestete Dateien mit parallelen main-Änderungen zusammengeführt hat.
+- Reihenfolge: kein Schema, kein Daten-Skript → kein zusätzlicher Backup-/Skript-Schritt aus diesem Paket; Web und Dienst wie üblich über das Update-Skript.
+- Manifest (`scripts/deploy/nachlauf.psd1`): `v1.99.45-ArtikelinfoBestandExakt` (Info, beide) vorhanden.
+
 ## Offene Rueckfragen
 
 1. (Fachbereich: Lager) Reihenfolge im Lagerplatz-Text der Lager-/Glasbestellung: neu Hauptlagerplatz, dann Menge absteigend (wie
@@ -290,3 +299,68 @@ Entfällt (kein Epic).
 1. (Fachbereich: Lager) Reihenfolge Lagerplatz-Text: neu (Hauptlagerplatz, Menge absteigend) oder bisherige (Hauptlagerplatz, Code)? → **wie bisher: Hauptlagerplatz, dann Lagerplatz-Code** (Gerald 2026-11-19 20:10, abweichend von der Empfehlung)
 2. (Fachbereich: Lager) Kommissionierwagen im Lagerplatz-Text: wie heute anzeigen oder ausblenden? → **ausblenden** (wie Kommissionier-Stückliste; Gerald 2026-11-19 20:10, abweichend von der Empfehlung). Gesamtbestand und FA-Bedarf zählen Wagen weiter (F1/F4 unverändert).
 3. Hinweistext „Bedarfe“ (Q2-B2): Vorschlag F4 übernehmen? → **ja, F4 übernehmen** (Gerald 2026-11-19 20:10)
+
+## QA-Nachweis (qa-agent, 2026-11-19, Sammellauf v1.99.45)
+
+Unabhängiger Lauf, synchron, nicht delegiert. Worktree `C:\git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5`, Branch `feature/2026-08-07-ideal-teile-1-5`.
+Geprüfter Commit-Bereich `f1747e10..HEAD` (a1ba945d Spec 1, 980beee9 Spec 2, b524d262 Spec 3, 0df40eeb Spec 4, defa0c05 Release, 947bb014 Doku) plus QA-Fix **f3cdd143**.
+
+### 1. Build und Tests (selbst ausgeführt, nach dem QA-Fix wiederholt)
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler, 30 Warnungen (Bestand, u. a. CS8321 FaWorklist, CS8620 BfAuftragWorkflowTests:388).
+- `dotnet test`: IdealAkeWms.Tests **3390 bestanden / 1 übersprungen / 0 Fehler** (3391); IDEALAKEWMSService.Tests **790 / 0 / 0**.
+
+### 2. Review (eigener Lauf, Diff samt Umfeld gelesen)
+Befunde des Sammellaufs – alle **nicht blockierend**, alle in **f3cdd143** behoben, danach Build und Tests erneut grün, DEV neu deployt:
+- **F1 (Spec BF-Warenkorb):** Manifest-Info-Eintrag fehlte, obwohl die Spec genau einen verlangt → `v1.99.45-BfWarenkorbVorschlaege` (Info, IDEAL, Nachher) ergänzt.
+- **F2 (Spec Artikelinfo / Release):** Anwender-Changelog legte nahe, Kommissionierwagen zählten in der Artikelinfo nicht mehr – falsch, dort zählen sie weiter (Rückfrage 2 betrifft nur den Lagerplatz-Text der Lager-/Glasbestellung) → Satz korrigiert.
+- **F3 (Spec Updater):** `Invoke-Pruefung` gab bei reinen Anzeige-Prüfungen erst die gelbe Zeile „Reparatur nach Bestaetigung“ und danach die Warnung „nur Anzeige“ aus – widersprüchlich → Anzeige-Prüfung kehrt jetzt vor der gelben Zeile zurück (Ergebnis/Exit unverändert, Parse-Check 0 Fehler).
+
+Beobachtungen ohne Befund: Dashboard ohne SVG-Symbole (bewusste Vereinfachung); Kongruenztest T2 prüft Einzelrollen (Regeln monoton, ausreichend); Abschnitt nutzt `aria-label` statt `aria-labelledby` (geringfügig); `limit` von `api/bf-auftraege/artikel` ohne Obergrenze (Bestand vor diesem Diff); `StockLocationInfo.LagerplatzText` sortiert `ThenBy(Code)` kulturabhängig (geringfügig).
+
+Gezielt geprüfte Fehlerklassen: kein `@Html.Raw` in `<script>` (bf-artikelsuche.js baut Optionen per `createElement`); kein `hidden` neben `d-*`; keine stillen Ersatzwerte (leere Artikelnummer → leerer Text ohne Repository-Aufruf); keine Parallel-Array-Bindung; keine reine Browser-Validierung (Suche bleibt serverseitig `SucheArtikelAsync`); Sichtbarkeitsregel je Menüziel an EINER Stelle (`NavigationSicht`, ADR 0034). Menü-zu-Filter-Kongruenz: alte Menübedingungen aus `_Layout.cshtml` gegen die Regeln in `NavigationKatalog.cs` einzeln verglichen – gleichwertig, einzige Neuerung „Artikelinfo“ unter Stammdaten.
+
+### 5. CLAUDE.md-Checkliste
+Migration/SQL/FreshInstall/AgentJobs: entfällt (kein Schema). Audit-Felder: entfällt (keine Entität geändert). Version 1.99.45 in beiden `AppVersion.cs` + `Views/Help/Changelog.cshtml`: ja. `docs/TESTSZENARIEN.md` TS-167…170 im Worktree, Testindex im Hauptcheckout Zeilen 167–170: ja. Hilfeseite, Anwender-/Betriebsdoku (Kapitel 18 mit Fotos): ja. 5a Einstellungen (ADR 0020): keine neue oder geänderte Einstellung.
+
+### 6. DEV-Deploy
+Nach dem QA-Fix aus dem Worktree, erhöhte Shell, Web und Dienst je Standort: `dev-deploy.ps1 -Standort AKE` Exit 0, „HTTP 200, Fusszeile v1.99.45“; `-Standort IDEAL` Exit 0, Fusszeile v1.99.45. DEV-Schalter nur gelesen, nichts umgestellt, nichts an Sage geschrieben.
+
+### 7. Publish
+`C:\git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish\IDEALAKEWMSWeb` und `\IDEALAKEWMSWebService` vorher geleert, beide `dotnet publish -c Release` Exit 0; `SQL\` → `publish\SQL`, `scripts\deploy\` → `publish\deploy`; `publish-info.txt`: Version 1.99.45, Commit `f3cdd14397d69935c974a25eaaeb045c9d10cacb`, Branch feature/2026-08-07-ideal-teile-1-5, Spec 2026-11-19-v1-99-45-sammellauf, Erstellt 2026-11-19 21:19, Komponenten IDEALAKEWMSWeb + IDEALAKEWMSWebService.
+
+### 3. Nachweisart je AK
+| AK | Nachweis |
+|---|---|
+| 1 | Auto `ArticlesControllerTests.Info_ZaehltNurZeilenDesGefundenenArtikels_NichtTeiltextTreffer` + DEV AKE: EK002995 Gesamt 12, `LL;1;25;0` einmal |
+| 2 | DEV AKE: EK007964 = 3 (eine Zeile); SQL-Eigenbestand EK000214 = 4, EK000420 = 2097, EK002995 = 12, EK007964 = 3. EK000214/EK000420 in der Maske: Manual-UAT |
+| 3 | DEV AKE: EK002995 Verfügbar 12, Meldebestand 2, kein „Unterschritten“ – OK; Grenzfall mit Abzeichen Manual-UAT |
+| 4, 5 | Auto (Filter nur auf ArticleId); Wagen-Fall in der Maske Manual-UAT |
+| 6, 7 Details/Druck, 8 | Auto `LagerplatzTextExaktTests.LagerplatzText_NurPositiv_HauptlagerplatzDannCode`, `WarehousePickingControllerTests` (`mitKommissionierwagen:false`, Rückfrage 2 = ausblenden); Darstellung Manual-UAT |
+| 7 Entwurf-API | DEV AKE: `api/warehouserequisitions/stock?articleNumber=ek002995` → `LL;1;25;0 (12,000)` |
+| 9 | Auto `Stock_SchluesselInAndererSchreibweise_TextTrotzdemGefuellt_OhneWagen` + DEV Kleinschreibung OK; SQL-Kollation selbst ist nicht InMemory-beweisbar (DEV-Aufruf deckt sie ab) |
+| 10 | Auto `Stock_LeereArtikelnummer_LeererText_KeinRepositoryAufruf` + DEV: leer → `{"locations":""}` |
+| 11 | DEV AKE: `/StockOverview?filterArticle=EK0029` 24 Zeilen inkl. EK008535/EK009966 |
+| 12 | DEV AKE: F4-Wortlaut; IDEAL gleicher View (Ansicht Manual-UAT) |
+| 13 | grün (s. 1) |
+
+### 4. Geänderte bestehende Tests
+- `ArticlesControllerTests`, Hilfsmethode `Stock(...)`: neuer Parameter `articleId = 1` – Fixture-Erweiterung, **von AK 1 verlangt** (Zeilen brauchen eine ArticleId, damit der Filter greift).
+- `WarehousePickingControllerTests`: Mocks auf `GetStockByArticleNumbersAsync(..., false)` – **Verhalten absichtlich geändert (AK 6–8)**.
+Kein Fall „Sonstiges“.
+
+### 6c. DEV-Schritte TS-168
+| Schritt | Ergebnis | Status |
+|---|---|---|
+| 168.1 Artikelinfo EK002995 (AKE) | Gesamt 12, `LL;1;25;0` einmal, Verfügbar 12, kein „Unterschritten“ | OK |
+| 168.2 EK007964 | 3, eine Zeile | OK |
+| 168.3–168.5 Lager-/Glasbestellung Details/Druck/Entwurf | keine passende Bestellung; Anlegen hieße Formular absenden | NICHT MÖGLICH (Mensch) |
+| 168.6 `api/warehouserequisitions/stock` | Kleinschreibung → gefüllt; leer → leer | OK |
+| 168.7 StockOverview Teiltext | 24 Treffer inkl. Fremdartikel | OK |
+| 168.8 Hinweistext | F4-Wortlaut auf AKE | OK |
+
+### Manuelle Checkliste (offen für den Menschen)
+1. TS-168.3/168.4: Lager-/Glasbestellung mit EK002995 o. Ä. – Details und Druck zeigen nur Plätze dieses Artikels, Hauptlagerplatz zuerst, dann Code, **ohne Wagen**.
+2. TS-168.5: Entwurf bearbeiten, Zelle „Bestand“ füllt sich nach Artikelwahl.
+3. Artikel mit Kommissionierwagen-Bestand: Artikelinfo zählt den Wagen weiter mit.
+4. Artikelinfo auf IDEAL ansehen (Hinweistext F4).
+5. Testsystem-Lauf mit dem Paket (beide Standorte), dann Merge.
