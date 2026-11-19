@@ -371,9 +371,15 @@
                                     <li><a class="dropdown-item" asp-controller="FaAttributes" asp-action="Index">FA-Merkmale</a></li>
                                     <li><a class="dropdown-item" asp-controller="Creditors" asp-action="Index">Kreditoren</a></li>
                                     <li><a class="dropdown-item" asp-controller="Debitors" asp-action="Index">Debitoren</a></li>
-                                    @if (bestellungenAktiv)
+                                    @* v1.99.44: Empfaengergruppen nutzen Bedarfsmeldungen (BestellungenAktiv), Lager-/Glasbestellung (LagerbestellungAktiv)
+                                       und BF-Auftraege (BlechfertigungAktiv); die Artikelgruppen-Zuordnung nur die Bedarfsmeldungen. *@
+                                    @if (bestellungenAktiv || lagerbestellungAktiv
+                                         || string.Equals(await AppSettings.GetValueAsync(IdealAkeWms.Models.AppSettingKeys.BlechfertigungAktiv), "true", StringComparison.OrdinalIgnoreCase))
                                     {
                                         <li><a class="dropdown-item" asp-controller="OrderRecipients" asp-action="Index">Empfänger</a></li>
+                                    }
+                                    @if (bestellungenAktiv)
+                                    {
                                         <li><a class="dropdown-item" asp-controller="OrderRecipients" asp-action="ArticleGroupMappings">Artikelgruppen-Zuordnung</a></li>
                                     }
                                     @* Admin-only Sub-Bloecke *@
