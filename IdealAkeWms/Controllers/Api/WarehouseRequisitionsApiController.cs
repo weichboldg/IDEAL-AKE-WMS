@@ -1,6 +1,7 @@
 using IdealAkeWms.Data.Repositories;
 using IdealAkeWms.Filters;
 using IdealAkeWms.Models;
+using IdealAkeWms.Models.ViewModels;
 using IdealAkeWms.Services;
 using Microsoft.AspNetCore.Mvc;
 
@@ -319,10 +320,11 @@ public class WarehouseRequisitionsApiController : ControllerBase
     }
 
     [HttpGet("stock")]
-    public async Task<IActionResult> Stock([FromQuery] string articleNumber)
+    public async Task<IActionResult> Stock([FromQuery] string? articleNumber)
     {
-        var stock = await _stock.GetCurrentStockAsync(filterArticle: articleNumber);
-        var locationStr = string.Join(", ", stock.Where(s => s.CurrentQuantity > 0).Select(s => $"{s.StorageLocationCode} ({s.CurrentQuantity:N3})"));
-        return Ok(new { locations = locationStr });
+        // Nur der Positionsartikel (SQL-Gleichheit, ohne Kommissionierwagen, v1.99.45); leer = leer (früher: gesamter Bestand).
+        if (string.IsNullOrWhiteSpace(articleNumber)) return Ok(new { locations = "" });
+        var dict = await _stock.GetStockByArticleNumbersAsync(new List<string> { articleNumber.Trim() }, mitKommissionierwagen: false);
+        return Ok(new { locations = StockLocationInfo.LagerplatzText(dict.Values.SelectMany(x => x)) });
     }
 }

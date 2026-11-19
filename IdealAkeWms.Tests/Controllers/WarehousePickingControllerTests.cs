@@ -31,8 +31,8 @@ public class WarehousePickingControllerTests
         var repo = new WarehouseRequisitionRepository(ctx);
         var workplaces = new ProductionWorkplaceRepository(ctx);
         var stock = new Mock<IStockMovementRepository>();
-        stock.Setup(s => s.GetCurrentStockAsync(It.IsAny<string>(), null, null, null))
-             .ReturnsAsync(new List<StockOverviewItem>());
+        stock.Setup(s => s.GetStockByArticleNumbersAsync(It.IsAny<List<string>>(), false))
+             .ReturnsAsync(new Dictionary<string, List<StockLocationInfo>>());
 
         var viewPrefs = new Mock<IUserViewPreferenceRepository>();
         viewPrefs.Setup(p => p.GetByUserAndViewAsync(It.IsAny<int>(), It.IsAny<string>()))
@@ -120,8 +120,8 @@ public class WarehousePickingControllerTests
 
         var workplaces = new ProductionWorkplaceRepository(ctx);
         var stock = new Mock<IStockMovementRepository>();
-        stock.Setup(s => s.GetCurrentStockAsync(It.IsAny<string>(), null, null, null))
-             .ReturnsAsync(new List<StockOverviewItem>());
+        stock.Setup(s => s.GetStockByArticleNumbersAsync(It.IsAny<List<string>>(), false))
+             .ReturnsAsync(new Dictionary<string, List<StockLocationInfo>>());
 
         var viewPrefs = new Mock<IUserViewPreferenceRepository>();
         viewPrefs.Setup(p => p.GetByUserAndViewAsync(It.IsAny<int>(), It.IsAny<string>()))
@@ -161,8 +161,8 @@ public class WarehousePickingControllerTests
         var repo = new Mock<IWarehouseRequisitionRepository>();
         var workplaces = new ProductionWorkplaceRepository(ctx);
         var stock = new Mock<IStockMovementRepository>();
-        stock.Setup(s => s.GetCurrentStockAsync(It.IsAny<string>(), null, null, null))
-             .ReturnsAsync(new List<StockOverviewItem>());
+        stock.Setup(s => s.GetStockByArticleNumbersAsync(It.IsAny<List<string>>(), false))
+             .ReturnsAsync(new Dictionary<string, List<StockLocationInfo>>());
 
         var viewPrefs = new Mock<IUserViewPreferenceRepository>();
         viewPrefs.Setup(p => p.GetByUserAndViewAsync(It.IsAny<int>(), It.IsAny<string>()))

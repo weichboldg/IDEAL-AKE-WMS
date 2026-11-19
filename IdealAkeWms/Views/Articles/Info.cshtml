@@ -163,8 +163,9 @@
                                 </tbody>
                             </table>
                             <div class="form-text mt-0">
-                                Bedarfsmeldung und Lagerbestellung werden nicht zusätzlich zum FA-Bedarf gezählt (je Auftrag bzw. Artikel gilt der größere Wert);
-                                kommissionierte Mengen sind schon ausgebucht und zählen nicht mehr.
+                                Bedarfsmeldung und Lagerbestellung werden nicht zusätzlich zum FA-Bedarf gezählt (je Auftrag bzw. Artikel gilt der größere Wert).
+                                Ware im Kommissionierwagen zählt im Gesamtbestand und im FA-Bedarf, bis sie zum Fertigungsauftrag ausgebucht ist; erst die
+                                Ausbuchung senkt beide.
                             </div>
                             @if (Model.Bedarf.EinheitAbweichend > 0)
                             {

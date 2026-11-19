@@ -67,11 +67,32 @@ public class ArticlesControllerTests
     internal static Dictionary<string, Dictionary<string, decimal>> BomOf(string comp, Dictionary<string, decimal> jeGeraet) =>
         new(StringComparer.OrdinalIgnoreCase) { [comp] = jeGeraet };
 
-    private static StockOverviewItem Stock(decimal qty) => new StockOverviewItem
+    private static StockOverviewItem Stock(decimal qty, int articleId = 1, string code = "L1") => new StockOverviewItem
     {
-        StorageLocationCode = "L1",
+        ArticleId = articleId,
+        StorageLocationCode = code,
         CurrentQuantity = qty
     };
+
+    [Fact]
+    public async Task Info_ZaehltNurZeilenDesGefundenenArtikels_NichtTeiltextTreffer()
+    {
+        // v1.99.45: GetCurrentStockAsync(filterArticle) ist eine Teiltextsuche (auch Matchcode/Bezeichnung) – Fremdartikel fliegen raus.
+        var (ctrl, article, stock, _, _, bom, orders) = Build();
+        article.Setup(a => a.GetByArticleNumberAsync("EK002995"))
+            .ReturnsAsync(new Article { Id = 1, ArticleNumber = "EK002995", Unit = "Stk", ReorderLevel = 20m });
+        stock.Setup(s => s.GetCurrentStockAsync("EK002995", null, null, null))
+            .ReturnsAsync(new List<StockOverviewItem> { Stock(12m, 1, "LL;1;25;0"), Stock(24m, 2, "LL;1;25;0"), Stock(4m, 3, "LL;1;25;0") });
+        bom.Setup(b => b.GetComponentMengePerDeviceAsync(It.IsAny<IReadOnlyCollection<string>>()))
+            .ReturnsAsync(new Dictionary<string, Dictionary<string, decimal>>(StringComparer.OrdinalIgnoreCase));
+        orders.Setup(o => o.GetByArticleNumbersAsync(It.IsAny<List<string>>())).ReturnsAsync(new List<ProductionOrder>());
+
+        var vm = (await ctrl.Info("EK002995")).Should().BeOfType<ViewResult>().Subject.Model
+            .Should().BeOfType<ArticleInfoViewModel>().Subject;
+
+        vm.TotalStock.Should().Be(12m);
+        vm.StockByLocation.Should().ContainSingle(s => s.StorageLocationCode == "LL;1;25;0");
+    }
 
     private static ProductionOrder Order(int id, string articleNumber, decimal quantity,
         bool isDone = false, bool isDonePicking = false, bool isCancelled = false) => new ProductionOrder

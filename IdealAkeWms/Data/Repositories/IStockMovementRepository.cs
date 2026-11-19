@@ -5,6 +5,9 @@ namespace IdealAkeWms.Data.Repositories;
 
 public interface IStockMovementRepository : IRepository<StockMovement>
 {
+    /// <summary>Bestand je Artikel und Lagerplatz. <paramref name="filterArticle"/> = Teiltextsuche über Artikelnummer, Bezeichnung und
+    /// Matchcode (Suchmasken wie /StockOverview). Für den Bestand eines bestimmten Artikels NICHT verwenden, sondern das Ergebnis nach
+    /// <c>ArticleId</c> filtern bzw. <see cref="GetStockByArticleNumbersAsync(List{string}, bool)"/> nehmen (v1.99.45).</summary>
     Task<List<StockOverviewItem>> GetCurrentStockAsync(
         string? filterArticle = null,
         int? filterStorageLocationId = null,

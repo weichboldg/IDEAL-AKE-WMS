@@ -109,6 +109,15 @@ public class WarehousePickingController : Controller
         return View(vm);
     }
 
+    /// <summary>Lagerplatz-Text nur des Positionsartikels (SQL-Gleichheit statt Teiltext; ohne Kommissionierwagen, v1.99.45). Es wird genau
+    /// eine Nummer abgefragt, daher gehören alle Einträge zu ihr – kein Nachschlagen per Schlüssel (DB-Schreibweise kann abweichen).</summary>
+    private async Task<string> LagerplatzTextAsync(string? articleNumber)
+    {
+        if (string.IsNullOrWhiteSpace(articleNumber)) return "";
+        var dict = await _stock.GetStockByArticleNumbersAsync(new List<string> { articleNumber.Trim() }, mitKommissionierwagen: false);
+        return StockLocationInfo.LagerplatzText(dict.Values.SelectMany(x => x));
+    }
+
     public async Task<IActionResult> Details(int id)
     {
         var r = await _repo.GetByIdAsync(id);
@@ -117,9 +126,7 @@ public class WarehousePickingController : Controller
         var detailItems = new List<WarehouseRequisitionDetailItemViewModel>();
         foreach (var i in r.Items.OrderBy(x => x.Position))
         {
-            var stock = await _stock.GetCurrentStockAsync(filterArticle: i.ArticleNumber);
-            var locationStr = string.Join(", ", stock.Where(s => s.CurrentQuantity > 0)
-                .Select(s => $"{s.StorageLocationCode} ({s.CurrentQuantity:N3})"));
+            var locationStr = await LagerplatzTextAsync(i.ArticleNumber);
             detailItems.Add(new WarehouseRequisitionDetailItemViewModel(
                 i.Id, i.Position, i.ArticleNumber, i.ArticleDescription, i.Unit,
                 i.QuantityRequested, i.QuantityPicked, locationStr, i.Note, i.ShortageStatus, i.NoteEinkauf));
@@ -364,9 +371,7 @@ public class WarehousePickingController : Controller
         var detailItems = new List<WarehouseRequisitionDetailItemViewModel>();
         foreach (var i in r.Items.OrderBy(x => x.Position))
         {
-            var stock = await _stock.GetCurrentStockAsync(filterArticle: i.ArticleNumber);
-            var locationStr = string.Join(", ", stock.Where(s => s.CurrentQuantity > 0)
-                .Select(s => $"{s.StorageLocationCode} ({s.CurrentQuantity:N3})"));
+            var locationStr = await LagerplatzTextAsync(i.ArticleNumber);
             detailItems.Add(new WarehouseRequisitionDetailItemViewModel(
                 i.Id, i.Position, i.ArticleNumber, i.ArticleDescription, i.Unit,
                 i.QuantityRequested, i.QuantityPicked, locationStr, i.Note, i.ShortageStatus, i.NoteEinkauf));

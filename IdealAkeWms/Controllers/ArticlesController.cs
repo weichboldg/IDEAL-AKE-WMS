@@ -239,8 +239,9 @@ public class ArticlesController : Controller
             return View((ArticleInfoViewModel?)null);
         }
 
-        var stock = await _stockMovementRepository.GetCurrentStockAsync(
-            filterArticle: article.ArticleNumber);
+        // filterArticle ist eine Teiltextsuche (auch Bezeichnung/Matchcode) – nur Zeilen des gefundenen Artikels zählen (v1.99.45).
+        var stock = (await _stockMovementRepository.GetCurrentStockAsync(
+            filterArticle: article.ArticleNumber)).Where(s => s.ArticleId == article.Id).ToList();
 
         // Load category
         string? categoryName = null;

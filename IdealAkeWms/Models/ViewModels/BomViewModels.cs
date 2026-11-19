@@ -32,6 +32,13 @@ public class StockLocationInfo
     public decimal Quantity { get; set; }
     public int StorageLocationId { get; set; }
     public bool IsPrimaryStorageLocation { get; set; }
+
+    /// <summary>Lagerplatz-Text der Lager-/Glasbestellung „Code (Menge), …“: nur positive Mengen, Hauptlagerplatz zuerst, dann Code
+    /// (v1.99.45, Entscheidung Gerald 2026-11-19).</summary>
+    public static string LagerplatzText(IEnumerable<StockLocationInfo> plaetze) => string.Join(", ", plaetze
+        .Where(p => p.Quantity > 0)
+        .OrderBy(p => p.IsPrimaryStorageLocation ? 0 : 1).ThenBy(p => p.Code)
+        .Select(p => $"{p.Code} ({p.Quantity:N3})"));
 }
 
 public class BomItemViewModel
