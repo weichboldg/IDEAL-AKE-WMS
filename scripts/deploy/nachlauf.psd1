@@ -182,7 +182,7 @@ Eintraege = @(
    Pruefung='SELECT COUNT(*) FROM (VALUES (N''beschichtungsauftrag''), (N''beschichtungsauftrag_schreiben'')) v(k) WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k)'
    Reparatur='INSERT INTO dbo.Roles ([Key], [Name], [Description], [IsSystem], [SortOrder], [CreatedAt], [CreatedBy], [CreatedByWindows])
 SELECT v.k, v.n, v.d, 1, (SELECT ISNULL(MAX(SortOrder), 0) FROM dbo.Roles) + v.o, SYSDATETIME(), N''Update-Skript'', LEFT(SUSER_SNAME(), 200)
-FROM (VALUES (N''beschichtungsauftrag'', N''Beschichtungsauftrag (IDEAL)'', N''Beschichtungsauftrag-Liste und Bildschirmdruck (Lesen).'', 1),
+FROM (VALUES (N''beschichtungsauftrag'', N''Beschichtungsauftrag'', N''Beschichtungsauftrag-Liste und Bildschirmdruck (Lesen).'', 1),
              (N''beschichtungsauftrag_schreiben'', N''Beschichtungsauftr'' + NCHAR(228) + N''ge (Schreibrecht)'',
               N''Gespeicherte Beschichtungsauftraege anlegen und bearbeiten; schliesst Lesen ein.'', 2)) v(k, n, d, o)
 WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
