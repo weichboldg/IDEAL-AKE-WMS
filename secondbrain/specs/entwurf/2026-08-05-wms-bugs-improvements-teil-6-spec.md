@@ -681,3 +681,132 @@ die Kern-Entscheidung (Variante A vs. B) getroffen ist. Danach normale /review-R
 > [!important] Wiederaufnahme Gerald 2026-11-19 20:10: Kern-Entscheidungen 1–3 beantwortet (oben). Spec stammt aus v1.2x – Zeilenangaben und Code-Stand sind veraltet; vor Freigabe Überarbeitung durch den spec-agent gegen den Bündel-Stand v1.99.44.
 
 > [!important] Gerald 2026-11-19 20:40: Antworten 5 und 6 erweitern den Umfang (Dialog je gemischter Zeile; Haupt-FA→Sub-FA an IDEAL). Rumpf, AK und TS durch den spec-agent nachziehen, dann Freigabe.
+
+## Kritische Pruefung (2026-11-20)
+
+Geprüft gegen den Rumpf nach Rework Runde 2 und den Code im Bündel-Worktree `2026-08-07-ideal-teile-1-5`
+(HEAD `c39a9423`, v1.99.45). Zeilenangaben beziehen sich auf diesen Stand.
+
+### 1. Antworten vollständig
+- Runde 1 (1–3) und Runde 2 (4–6) sind beantwortet, mit Text und Datum.
+- **Runde 3 (7, 8) ist leer** (nur Pfeile) → BLOCKER B-1, B-2.
+- Unter Antwort 3 steht noch „klären wir später - bitte im backlog belassen.“ (Vertagung 2026-08-05). Das ist durch die
+  Wiederaufnahme 2026-11-19 überholt, aber nicht so gekennzeichnet (H-1).
+
+### 2. Antworten widerspruchsfrei / 2b. Aussagen belegt
+
+**Antwort 6 („über ProductionOrderId/Hierarchie“) gegen den Textweg der Spec:** Das ist fachlich gleichwertig, der Textweg trifft sogar etwas mehr.
+
+Belegt über alle Schreibwege von `StockMovement.ProductionOrderId`:
+- `StockMovementsController.cs:152, :264, :371, :464, :542`: immer aus `FindForBookingAsync` **desselben** Texts
+  (`ProductionOrderRepository.cs:224-238`: zuerst `SubOrderNumber == t`, sonst Haupt-FA, Liste → null).
+- `PickingTransferService.cs:217`: FK = FA der Zeile, Text = `auftrag.ProductionOrder?.OrderNumber` (`:75`) bzw. die
+  zusammengeführte Liste „A;B“ (`:101-102`).
+- `LagerbestandSyncService.cs:179, :247` und `PurchaseOrdersController.Receive.cs:140` setzen weder Text noch FK.
+
+Folge: Jede Bewegung mit FK trägt die Nummer dieses FA (bzw. dessen `OrderNumber`) auch im Text. Der Textweg trifft also alles,
+was der FK-Weg trifft, und zusätzlich die Listen-Bewegungen mit FK `null`.
+
+Die Hierarchie ist ebenfalls belegt:
+- `FaMaterializationSyncService.cs:151-153` setzt `OrderNumber = n.HauptFA` für **jede** Ebene, die Updates (`:163-181`) ändern
+  `OrderNumber` nie.
+- `SubOrderNumber` ist eindeutig (`ProductionOrder.cs:15-22`), `IsHauptFa`/`IsSubFa` stehen in `:29-35`.
+
+→ Die Abweichung vom Wortlaut ist begründet und richtig. Sie steht aber nur im Ist-Zustand, nicht als Bestätigungsfrage (S-1).
+
+**Standort-Erkennung belegt:**
+- Key `ProduktionsauftragHierarchisch` (`HierarchischeStrukturKeys.cs:10`), `FaBuchungsText.IstHierarchisch` (`FaBuchungsText.cs:51`).
+- Muster in `StockApiController.cs:81-82`, Anzeigeformat in `:49`.
+- `IServiceSettingRepository` ist registriert (`Program.cs:90`) und wird von vielen Controllern gleich gelesen
+  (z. B. `ProductionOrdersController.cs:145`, `TrackingController.cs:68`).
+- Der Ctor `StockMovementsController.cs:22-30` hat ihn heute nicht (bestätigt).
+
+**Riss im Rumpf:** Anforderung 1 sagt „alle FA-Nummern … einzeln“. Lösungsentwurf 6, AK 18 und TS-173.10 zeigen an IDEAL
+dagegen „S1 (Haupt-FA H)“. Das Format fehlt in der Anforderung (S-2).
+
+### BLOCKER
+
+- **B-1 Rückfrage 7 unbeantwortet.** Davon hängen AK 19 und TS-173.11 ab.
+  *Frage an Gerald:* Soll eine eingegebene **Sub**-FA nur ihre eigene Nummer treffen (Vorschlag der Spec, kein Zusatzcode)?
+  Oder auch alle darunter hängenden Sub-FA über `ParentSubOrderNumber` (rekursiv, neue Abfrage)?
+- **B-2 Rückfrage 8 unbeantwortet.** Die Lücke ist größer als nur die Stückzahl, siehe S-3.
+  *Frage an Gerald:* Reicht der Abgleich der gemischten **Zeilen**? Oder sollen auch geänderte Stückzahlen und neu
+  hinzugekommene treffende Zeilen die Buchung stoppen?
+- **B-3 Bestand ohne FA in einer FA-Zeile wird still ausgebucht (Widerspruch zu Antwort 4 und 5).** Die Regel „gehört zu FA“
+  (Anforderung 2/3, `StockMovementRepository.cs:527-533`) wertet **irgendeine** Bewegung mit FA-Text am Paar. Bewegungen ohne Text
+  sieht sie nicht, und Ausbuchungen mit FA-Text zählen mit. Eine Zeile ist damit „treffend, nicht gemischt“, obwohl ihr Bestand
+  ganz oder teilweise keinem FA gehört.
+
+  Realistischer Fall:
+  1. Regal L, Artikel Y, 100 Stk aus dem Wareneingang, ohne FA (`PurchaseOrdersController.Receive.cs:140-151` setzt keinen Text).
+  2. Einzel-Ausbuchung von 5 Stk mit FA 111 (`StockMovementsController.cs:365-372`, `StorageLocationId` = L).
+  3. Die FA-Spalte zeigt bei Y „111“.
+  4. „Lagerplatz ausbuchen“ mit Filter 111 bucht die restlichen 95 Stk **ohne Rückfrage** aus, samt Sage-Meldung.
+
+  Dasselbe passiert bei Altbewegungen: Das Paar war einmal mit FA bebucht, ging auf 0 und wurde ohne FA neu befüllt. AK 3 deckt
+  nur „Paar ganz ohne Bestand“ ab. Teil 1 war eine Anzeige, hier wird gebucht. Die Spec wechselt selbst aus genau diesem Grund
+  von Teilstring auf exakte Nummer.
+
+  *Frage an Gerald:* Wie soll eine Zeile behandelt werden, die neben FA-Bewegungen auch Zugänge **ohne** FA hat, oder deren
+  FA nur aus einer Ausbuchung stammt?
+  - (a) Sie gilt als gemischt („enthält auch Bestand ohne FA“) und wird im Dialog abgefragt. Das ist am nächsten an Antwort 5,
+    braucht aber eine Zusatzabfrage.
+  - (b) Nur Zugänge auf den Platz zählen, Ausbuchungstexte nicht. Das schließt nur den Fall aus Schritt 2.
+  - (c) Bewusst hinnehmen und in Abgrenzung und Hilfe dokumentieren.
+
+### SOLLTE
+
+- **S-1** Den Textweg statt der FK (siehe 2b) in Runde 3 als Ein-Zeilen-Bestätigung zu Antwort 6 aufnehmen, oder als Satz in
+  Umfang Punkt 6.
+- **S-2** Anforderung 1 um das IDEAL-Anzeigeformat „Sub (Haupt-FA H)“ ergänzen. Der Vergleich bleibt auf der reinen Nummer.
+- **S-3 Die Serverprüfung deckt nur die gemischten Zeilen ab** (Anforderung 11, `SetEquals` auf `gemischtGezeigt`).
+  - Ungesehen ausgebucht wird eine Zeile, die zwischen Seite und POST **neu** treffend und nicht gemischt wird: eine neue
+    Einbuchung mit 111, oder eine bisher nicht treffende Zeile bekommt 111.
+  - Unentdeckt bleibt auch eine gemischte Zeile, deren Fremd-FA wechselt (222 → 222, 333).
+  - Beides widerspricht „kein stilles Ausbuchen“.
+  - Vorschlag: zusätzlich `treffendGezeigt` (IDs aus „Wird ausgebucht“) senden und ebenfalls per `SetEquals` prüfen. Zusammen
+    mit B-2 entscheiden.
+- **S-4 Doppel-POST.**
+  - Knopf „Jetzt ausbuchen“ nach dem Klick `disabled` setzen und als AK aufnehmen.
+  - Ein zweiter POST, der danach verarbeitet wird, ist harmlos, warnt aber irreführend „Kein Artikel gehört zu FA …“.
+  - Zwei gleichzeitige POSTs buchen doppelt (negativer Bestand, doppelte Sage-Meldung). Das ist heute schon so und kein
+    neuer Fehler.
+- **S-5 TS-2.4 ändert sich inhaltlich, ein „Verweis“ reicht nicht** (`docs/TESTSZENARIEN.md:272-289`: Wagen,
+  „Alle Artikel ausbuchen“, `confirm()`, alles ausgebucht). Mit Antwort 4 gilt dort:
+  - Das Feld ist vorbelegt, der Knopf heißt „N von N Artikeln ausbuchen (FA …)“.
+  - Statt `confirm()` öffnet das Modal.
+  - Artikel ohne FA bleiben stehen.
+
+  Schritte und Erwartung von TS-2.4 explizit anpassen und in `affected_code` nennen. 115.12 (`:11352`) und 130.5.6 (`:11810`)
+  bleiben gültig.
+- **S-6** AK 18 „`ProductionOrderId` der Haupt-FA“ nur „falls im WMS eindeutig“ (wie AK 4, `ProductionOrderRepository.cs:229-237`),
+  sonst scheitert die QA auf DEV IDEAL an einer fehlenden Haupt-FA-Zeile.
+- **S-7** `LagerbuchungFaVerknuepfungTests.cs:109` / `:115-119` buchen nur noch, wenn der Mock der neuen Methode für Artikel 9 die
+  passende Nummer liefert. Im Controller den Null-Fall abfangen (`?? new()`), weil der lose Moq-Default kein brauchbarer Leerwert ist.
+
+### HINWEIS
+
+- **H-1** „klären wir später – bitte im backlog belassen.“ unter Runde 1 als überholt kennzeichnen.
+- **H-2 „Bit-gleich“:** Heute läuft `Distinct()` in SQL (`StockMovementRepository.cs:527-533`; SQL Server ohne Rücksicht auf
+  Groß-/Kleinschreibung und Leerzeichen am Ende), danach ordinal in C#. Je Artikel gruppiert kann eine abweichende Schreibweise
+  derselben Nummer zweimal erscheinen. Bei numerischen FA ist das folgenlos, der InMemory-Test (`:20-35` der Testklasse) kann es
+  nicht zeigen.
+- **H-3** Die Regel steht doppelt (C# + JS). Bei einer Abweichung verweigert der Server mit einer irreführenden „hat sich
+  geändert“-Meldung. Nachweis nur per Manual-UAT 173.4/173.10.
+- **H-4** `AddAsync` läuft je Zeile. Ein Abbruch mittendrin hinterlässt eine Teilbuchung (wie heute, `StockMovementsController.cs:534-553`).
+- **H-5** TS-173.8 „Danach Feld leeren“: Der Redirect nach dem Erfolg (mit Lagerplatz, ohne `productionOrder`) baut die
+  Vorbelegung aus den Restartikeln neu. Bei Artikeln nur ohne FA ist das Feld schon leer.
+- **H-6** Der Wagen-Konflikt (`PickingTransferService.cs:82-103`) und der Mock `PickingTransferServiceAggregationTests.cs:150-151`
+  bleiben unberührt, solange die Interface-Methode erhalten bleibt.
+- **H-7 Nummern frei:**
+  - Version: Worktree auf 1.99.45 (`IdealAkeWms/AppVersion.cs:5`). „1.99.46“ steht sonst nur in der in v1.99.45 aufgegangenen
+    Spec `2026-11-19-bf-warenkorb-artikelsuche-type-ahead-bug-spec`.
+  - Testszenario: `docs/TESTSZENARIEN.md` endet bei TS-170 (`:13379`), TS-171/172 sind reserviert, TS-174 belegt die
+    Dashboard-Spec. **TS-173 ist frei.**
+- **H-8 Größe:** etwa 12 Dateien in 4 Schichten plus Tests und Doku. In einem Dev-Lauf machbar, wenn B-3 nicht zu (a) mit neuer
+  Abfrage führt.
+- **H-9 Deploy** ist plausibel: nur Web, keine Migration, Info-Eintrag im Manifest. Den Info-Text nach der Entscheidung zu B-3 ergänzen.
+
+### Empfehlung
+
+**NACHBESSERUNG NOETIG: Rückfragen 7/8 offen; B-3 (Bestand ohne FA in einer FA-Zeile wird still ausgebucht) braucht eine Entscheidung; S-3/S-5 vor Freigabe in den Rumpf.**
