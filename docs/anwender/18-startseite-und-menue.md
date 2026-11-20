@@ -1,6 +1,6 @@
 # 18 Startseite und Menü
 
-Stand: Version **1.99.46** (20.11.2026). Bilder: Testsysteme AKE (18-01) und IDEAL (18-02 bis 18-05).
+Stand: Version **1.99.46** (20.11.2026). Bilder: 18-01 (AKE), 18-02 und 18-05 (IDEAL) aus den DEV-Systemen mit 1.99.46; 18-03 und 18-04 Testsysteme mit 1.99.45 (ohne Symbole, Inhalt sonst gleich).
 
 ## Zweck
 
