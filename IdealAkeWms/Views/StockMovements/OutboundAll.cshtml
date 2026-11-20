@@ -1,6 +1,8 @@
 @model OutboundAllViewModel
+@using System.Globalization
 @{
     ViewData["Title"] = "Lagerplatz ausbuchen";
+    var bleibtText = Model.IsPickingTransport ? "bleibt am Wagen" : "bleibt am Platz";
 }
 
 <h2 class="page-header" style="border-bottom-color: var(--ake-orange);">Lagerplatz ausbuchen</h2>
@@ -48,7 +50,7 @@
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16" class="me-2 flex-shrink-0">
                 <path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16m.93-9.412-1 4.705c-.07.34.029.533.304.533.194 0 .487-.07.686-.246l-.088.416c-.287.346-.92.598-1.465.598-.703 0-1.002-.422-.808-1.319l.738-3.468c.064-.293.006-.399-.287-.399l-.244-.002.016-.088zM8 5.5a1 1 0 1 1 0-2 1 1 0 0 1 0 2"/>
             </svg>
-            <span><strong>Kommissionierwagen</strong> — FA-Nummer wurde automatisch ermittelt.</span>
+            <span><strong>Kommissionierwagen</strong> — FA-Nummern des Wagens sind vorbelegt; ausgebucht werden nur deren Artikel. Feld leeren = alles ausbuchen.</span>
         </div>
     }
     <div class="card">
@@ -63,23 +65,38 @@
                             <th>Artikelnummer</th>
                             <th>Bezeichnung</th>
                             <th>Einheit</th>
+                            <th>Fertigungsauftrag</th>
                             <th class="text-end">Bestand</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach (var item in Model.Items)
                         {
-                            <tr>
+                            // v1.99.47 (Teil 6): FA je Zeile; an IDEAL Sub-FA mit Haupt-FA (Format wie StockApiController).
+                            var paar = Model.FaJeArtikel.GetValueOrDefault(item.ArticleId);
+                            var nummern = paar?.Nummern ?? new List<string>();
+                            var faJson = new
+                            {
+                                nummern = nummern.Select(n => new { nr = n, haupt = Model.HauptJeSub.GetValueOrDefault(n), zugang = paar!.ZugangNummern.Contains(n) }),
+                                ohneFa = paar?.ZugangOhneFa ?? false
+                            };
+                            <tr data-article-id="@item.ArticleId" data-artikel="@item.ArticleNumber" data-bezeichnung="@item.ArticleDescription"
+                                data-menge="@item.CurrentQuantity.ToString(CultureInfo.InvariantCulture)" data-menge-anzeige="@item.CurrentQuantity.ToString("N3")"
+                                data-fa="@Json.Serialize(faJson)">
                                 <td><strong>@item.ArticleNumber</strong></td>
                                 <td>@item.ArticleDescription</td>
                                 <td>@item.Unit</td>
+                                <td>
+                                    @string.Join(", ", nummern.Select(n => Model.HauptJeSub.TryGetValue(n, out var h) ? $"{n} (Haupt-FA {h})" : n))
+                                    <span class="badge text-bg-secondary ms-1 d-none js-bleibt">@bleibtText</span>
+                                </td>
                                 <td class="text-end">@item.CurrentQuantity.ToString("N3")</td>
                             </tr>
                         }
                     </tbody>
                     <tfoot>
                         <tr class="table-dark">
-                            <td colspan="3"><strong>Gesamt</strong></td>
+                            <td colspan="4"><strong>Gesamt</strong></td>
                             <td class="text-end"><strong>@Model.Items.Sum(i => i.CurrentQuantity).ToString("N3")</strong></td>
                         </tr>
                     </tfoot>
@@ -92,15 +109,48 @@
                 <div class="row g-3 align-items-end">
                     <div class="col-md-6">
                         <label class="form-label">Fertigungsauftrag (optional)</label>
-                        <input type="text" name="productionOrder" class="form-control" value="@Model.ProductionOrder" placeholder="FA-Nummer" />
+                        <input type="text" name="productionOrder" id="outboundAllFa" class="form-control" value="@Model.ProductionOrder" placeholder="FA-Nummer" aria-describedby="outboundAllHinweis" />
+                        <div class="form-text">Mit FA-Nummer werden nur deren Artikel ausgebucht (mehrere mit ; trennen). Leer = alle Artikel.</div>
                     </div>
                     <div class="col-md-6">
                         <button type="button" class="btn btn-danger btn-lg w-100" id="btnOutboundAll">
                             Alle @Model.Items.Count Artikel ausbuchen
                         </button>
+                        <div id="outboundAllHinweis" class="form-text text-danger fw-semibold d-none" role="status">Kein Artikel gehört zu diesem FA.</div>
                     </div>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <div class="modal fade" id="outboundAllModal" tabindex="-1" aria-labelledby="outboundAllModalTitel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="outboundAllModalTitel">Lagerplatz @Model.StorageLocationCode ausbuchen – FA <span id="modalFa"></span></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+                </div>
+                <div class="modal-body">
+                    <section id="blockAus" class="mb-4">
+                        <h6>Wird ausgebucht</h6>
+                        <ul class="list-group" id="listeAus"></ul>
+                    </section>
+                    <section id="blockFrage" class="mb-4">
+                        <h6>Bitte entscheiden</h6>
+                        <p class="small text-body-secondary mb-2">Diese Zeilen gehören nicht nur zum eingegebenen FA. Ausgebucht wird immer der ganze Bestand der Zeile.</p>
+                        <ul class="list-group" id="listeFrage"></ul>
+                    </section>
+                    <section id="blockBleibt">
+                        <h6>@(Model.IsPickingTransport ? "Bleibt am Wagen" : "Bleibt am Platz")</h6>
+                        <ul class="list-group" id="listeBleibt"></ul>
+                    </section>
+                </div>
+                <div class="modal-footer">
+                    <span id="modalOffen" class="me-auto fw-semibold" role="status"></span>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="button" class="btn btn-danger" id="btnJetztAus">Jetzt ausbuchen</button>
+                </div>
+            </div>
         </div>
     </div>
 }
@@ -115,10 +165,174 @@ else if (Model.StorageLocationId.HasValue)
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <script src="~/js/barcode-scanner.js" asp-append-version="true"></script>
     <script>
-        document.getElementById('btnOutboundAll')?.addEventListener('click', function () {
-            if (confirm('Wirklich alle @Model.Items.Count Artikel vom Lagerplatz @Model.StorageLocationCode komplett ausbuchen?')) {
-                document.getElementById('outboundAllForm').submit();
+        // v1.99.47 (Teil 6): FA-Feld filtert. Regel wie FaBuchungsText.PruefeZeile (Server entscheidet neu, die Seite ist Vorschau).
+        (function () {
+            var form = document.getElementById('outboundAllForm');
+            if (!form) return;
+            var feld = document.getElementById('outboundAllFa');
+            var knopf = document.getElementById('btnOutboundAll');
+            var hinweis = document.getElementById('outboundAllHinweis');
+            var modalEl = document.getElementById('outboundAllModal');
+            var jetzt = document.getElementById('btnJetztAus');
+            var offenEl = document.getElementById('modalOffen');
+            var zeilen = Array.from(document.querySelectorAll('tr[data-article-id]'));
+            var gesamt = zeilen.length;
+            var sendet = false;
+
+            function filterMenge() {
+                var m = new Set();
+                (feld.value || '').split(/[;,]/).forEach(function (t) { t = t.trim().toLowerCase(); if (t) m.add(t); });
+                return m;
             }
-        });
+
+            // → { trifft, fremd[], ohneFa, nurAusAusbuchung[] }
+            function pruefe(tr, filter) {
+                var fa = JSON.parse(tr.dataset.fa);
+                var gedeckt = function (n) { return filter.has(n.nr.toLowerCase()) || (!!n.haupt && filter.has(n.haupt.toLowerCase())); };
+                var treffer = fa.nummern.filter(gedeckt);
+                if (treffer.length === 0) return { trifft: false };
+                return {
+                    trifft: true,
+                    treffer: treffer.map(function (n) { return n.nr; }),
+                    fremd: fa.nummern.filter(function (n) { return !gedeckt(n); }).map(function (n) { return n.nr; }),
+                    ohneFa: fa.ohneFa,
+                    nurAusAusbuchung: !treffer.some(function (n) { return n.zugang; })
+                };
+            }
+            function gemischt(p) { return p.trifft && (p.fremd.length > 0 || p.ohneFa || p.nurAusAusbuchung); }
+
+            function aktualisieren() {
+                if (sendet) return;
+                var filter = filterMenge();
+                var m = 0;
+                zeilen.forEach(function (tr) {
+                    var p = filter.size ? pruefe(tr, filter) : { trifft: false };
+                    if (p.trifft) m++;
+                    tr.classList.toggle('table-warning', filter.size > 0 && p.trifft);
+                    tr.querySelector('.js-bleibt').classList.toggle('d-none', !(filter.size > 0 && !p.trifft));
+                });
+                if (filter.size === 0) {
+                    knopf.textContent = 'Alle ' + gesamt + ' Artikel ausbuchen';
+                    knopf.disabled = false;
+                } else {
+                    knopf.textContent = m + ' von ' + gesamt + ' Artikeln ausbuchen (FA ' + feld.value.trim() + ')';
+                    knopf.disabled = m === 0;
+                }
+                hinweis.classList.toggle('d-none', !(filter.size > 0 && m === 0));
+            }
+
+            function li(tr, extra) {
+                var el = document.createElement('li');
+                el.className = 'list-group-item';
+                var kopf = document.createElement('div');
+                var nr = document.createElement('strong');
+                nr.textContent = tr.dataset.artikel;
+                kopf.appendChild(nr);
+                kopf.appendChild(document.createTextNode(' ' + (tr.dataset.bezeichnung || '') + ' – Bestand ' + tr.dataset.mengeAnzeige));
+                el.appendChild(kopf);
+                if (extra) extra(el);
+                return el;
+            }
+
+            function offeneZeilen() {
+                return Array.from(document.querySelectorAll('#listeFrage [data-frage]'))
+                    .filter(function (el) { return !el.querySelector('input:checked'); }).length;
+            }
+            function auswahlSumme() {
+                return document.querySelectorAll('#listeAus li').length
+                    + document.querySelectorAll('#listeFrage input[value="ja"]:checked').length;
+            }
+            function jetztPruefen() {
+                var offen = offeneZeilen();
+                offenEl.textContent = offen > 0 ? 'Noch ' + offen + (offen === 1 ? ' Zeile' : ' Zeilen') + ' offen'
+                    : (auswahlSumme() === 0 ? 'Keine Zeile zum Ausbuchen gewählt' : '');
+                jetzt.disabled = sendet || offen > 0 || auswahlSumme() === 0;
+            }
+
+            function modalOeffnen() {
+                var filter = filterMenge();
+                var aus = document.getElementById('listeAus'), frage = document.getElementById('listeFrage'), bleibt = document.getElementById('listeBleibt');
+                [aus, frage, bleibt].forEach(function (l) { l.replaceChildren(); });
+                document.getElementById('modalFa').textContent = feld.value.trim();
+                zeilen.forEach(function (tr) {
+                    var p = pruefe(tr, filter);
+                    if (!p.trifft) { bleibt.appendChild(li(tr)); return; }
+                    if (!gemischt(p)) { aus.appendChild(li(tr)); return; }
+                    var id = tr.dataset.articleId;
+                    frage.appendChild(li(tr, function (el) {
+                        el.dataset.frage = id;
+                        var gruende = document.createElement('ul');
+                        gruende.className = 'small mb-2 mt-1';
+                        var g = ['getroffen: FA ' + p.treffer.join(', ')];
+                        if (p.fremd.length) g.push('enthält auch FA ' + p.fremd.join(', '));
+                        if (p.ohneFa) g.push('enthält auch Bestand ohne FA');
+                        if (p.nurAusAusbuchung) g.push('FA ' + p.treffer.join(', ') + ' nur aus Ausbuchung');
+                        g.forEach(function (t) { var x = document.createElement('li'); x.textContent = t; gruende.appendChild(x); });
+                        el.appendChild(gruende);
+                        [['ja', 'Ausbuchen'], ['nein', 'Nicht ausbuchen']].forEach(function (o) {
+                            var w = document.createElement('div');
+                            w.className = 'form-check form-check-inline';
+                            var r = document.createElement('input');
+                            r.type = 'radio'; r.className = 'form-check-input'; r.name = 'wahl-' + id; r.value = o[0]; r.id = 'wahl-' + id + '-' + o[0];
+                            r.addEventListener('change', jetztPruefen);
+                            var l = document.createElement('label');
+                            l.className = 'form-check-label'; l.htmlFor = r.id; l.textContent = o[1];
+                            w.appendChild(r); w.appendChild(l); el.appendChild(w);
+                        });
+                    }));
+                });
+                [['blockAus', aus], ['blockFrage', frage], ['blockBleibt', bleibt]].forEach(function (b) {
+                    document.getElementById(b[0]).classList.toggle('d-none', b[1].children.length === 0);
+                });
+                jetztPruefen();
+                bootstrap.Modal.getOrCreateInstance(modalEl).show();
+            }
+
+            function hidden(name, value) {
+                var i = document.createElement('input');
+                i.type = 'hidden'; i.name = name; i.value = value; i.className = 'js-auswahl';
+                form.appendChild(i);
+            }
+            function zeileVon(id) { return zeilen.find(function (tr) { return tr.dataset.articleId === id; }); }
+
+            jetzt.addEventListener('click', function () {
+                if (jetzt.disabled) return;
+                sendet = true;
+                jetzt.disabled = true;
+                jetzt.textContent = 'Wird ausgebucht …';
+                form.querySelectorAll('.js-auswahl').forEach(function (x) { x.remove(); });
+                // Reihenfolge der Bloecke = Reihenfolge der Tabelle; IDs aus den Listen-Eintraegen.
+                var filter = filterMenge();
+                zeilen.forEach(function (tr) {
+                    var p = pruefe(tr, filter), id = tr.dataset.articleId;
+                    if (!p.trifft) return;
+                    if (!gemischt(p)) hidden('treffendGezeigt', id);
+                    else {
+                        hidden('gemischtGezeigt', id);
+                        var ja = document.getElementById('wahl-' + id + '-ja');
+                        if (ja && ja.checked) hidden('gemischtAusbuchen', id);
+                    }
+                    hidden('stueckGezeigt[' + id + ']', zeileVon(id).dataset.menge);
+                });
+                form.submit();
+            });
+
+            // Knopf und Enter (implizites Absenden) laufen ueber denselben Weg; form.submit() loest kein submit-Ereignis aus.
+            function ausloesen() {
+                if (knopf.disabled || sendet) return;
+                if (filterMenge().size > 0) { modalOeffnen(); return; }
+                if (confirm('Wirklich alle ' + gesamt + ' Artikel vom Lagerplatz @Model.StorageLocationCode komplett ausbuchen?')) {
+                    sendet = true;
+                    knopf.disabled = true;
+                    knopf.textContent = 'Wird ausgebucht …';
+                    form.querySelectorAll('.js-auswahl').forEach(function (x) { x.remove(); });
+                    form.submit();
+                }
+            }
+            knopf.addEventListener('click', ausloesen);
+            form.addEventListener('submit', function (e) { e.preventDefault(); ausloesen(); });
+            feld.addEventListener('input', aktualisieren);
+            aktualisieren();
+        })();
     </script>
 }

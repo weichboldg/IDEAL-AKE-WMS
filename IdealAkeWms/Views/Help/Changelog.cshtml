@@ -9,6 +9,24 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.99.47</strong> <span class="text-white-50 ms-2">20.11.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>Lagerplatz ausbuchen: FA-Nummer filtert</h6>
+                <ul>
+                    <li>Die Tabelle zeigt je Artikel den Fertigungsauftrag. Steht im Feld eine FA-Nummer, werden nur die Artikel dieses
+                        FA ausgebucht; die übrigen sind mit „bleibt am Platz“ bzw. „bleibt am Wagen“ markiert. Feld leer = alles wie bisher.</li>
+                    <li>Am Kommissionierwagen sind die FA des Wagens vorbelegt: Artikel ohne FA bleiben am Wagen.</li>
+                    <li>Artikel, die nicht nur zu diesem FA gehören (weitere FA, Bestand ohne FA, z.&nbsp;B. aus dem Wareneingang),
+                        fragt ein Dialog einzeln ab: „Ausbuchen“ oder „Nicht ausbuchen“.</li>
+                    <li>Hat sich der Bestand zwischen Anzeige und Bestätigen geändert, wird nichts gebucht und die Seite neu geladen.</li>
+                    <li>IDEAL: Eine Haupt-FA schließt ihre Sub-FA ein, eine Sub-FA nur sich selbst.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.99.46</strong> <span class="text-white-50 ms-2">20.11.2026</span>
             </div>
             <div class="card-body">

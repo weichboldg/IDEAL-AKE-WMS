@@ -269,21 +269,27 @@ Dokument aktualisiert werden (siehe CLAUDE.md → "Testszenarien-Pflicht").
 
 ---
 
-### TS-2.4 — Lagerplatz ausbuchen (en bloc)
+### TS-2.4 — Lagerplatz ausbuchen (Kommissionierwagen, ab v1.99.47 mit FA-Filter)
 
 **Vorbedingungen:**
 - Benutzer hat Rolle `stock_keyuser` oder `admin`.
-- Lagerplatz `WAGEN-01` hat mehrere Artikel mit Bestand.
+- Wagen `WAGEN-01` mit Artikeln aus der Kommissionierung für FA A (mit FA-Text) und einem Artikel ohne FA. Den Artikel ohne FA so auf
+  den Wagen bringen: auf einem **leeren** Hilfsplatz X (eigens angelegter Testplatz) genau diesen einen Artikel ohne FA einbuchen, dann
+  **Lager → Lagerplatz umbuchen**, Quelle X, Ziel `WAGEN-01` (nur dort stehen Wagen als Ziel; „Umbuchen“ bietet keine Wagen an).
 
 **Schritte:**
-1. Menue "Lager → Lagerplatz ausbuchen" oeffnen.
-2. Lagerplatz `WAGEN-01` auswaehlen.
-3. Auf "Alle Artikel ausbuchen" klicken.
-4. Bestaetigung im Bestaetigungs-Dialog anklicken.
+1. `/StockMovements/OutboundAll?storageLocationId=<Id WAGEN-01>` öffnen (oder über den Konflikt-Dialog der Kommissionierung);
+   Wagen stehen nicht in der Platzauswahl.
+2. Feld „Fertigungsauftrag“ ist mit „A“ vorbelegt; Knopf „1 von 2 Artikeln ausbuchen (FA A)“, Artikel ohne FA trägt „bleibt am Wagen“.
+3. Knopf klicken → Modal: Artikel von A unter „Wird ausgebucht“, Artikel ohne FA unter „Bleibt am Wagen“.
+4. „Jetzt ausbuchen“.
+5. Meldung prüfen.
+6. Seite zeigt den Wagen mit dem Restartikel (Feld leer, weil der Rest keinen FA trägt).
+7. „Alle 1 Artikel ausbuchen“ → `confirm()` bestätigen.
 
 **Erwartetes Verhalten:**
-- Alle Artikel des Lagerplatzes `WAGEN-01` werden ausgebucht (Bestand = 0).
-- Erfolgs-Toast erscheint.
+- Nach 4 nur die Artikel von A ausgebucht (Text „A“), Erfolgsmeldung nennt den Restartikel mit „bleibt am Wagen“.
+- Nach 7 ist der Wagen leer (Bestand 0), Ausbuchung ohne FA-Text.
 
 **Negativfall:**
 - Benutzer mit Rolle `stock` (kein `stock_keyuser`) versucht, die Seite aufzurufen: Zugriff verweigert.
@@ -13402,6 +13408,102 @@ ein Benutzer ohne Rolle.
 Automatisch belegt: `NavigationSichtTests` (T1 Regeln je Rolle × Schalter, T2 Filter-Kongruenz: kein sichtbares Ziel scheitert am Filter,
 T3 jeder Menülink hängt an seinem `NavZiele.<Key>`, T4 Startseite ohne eigene Rechte), `BeschichtungsauftraegeViewTests`.
 
+## TS-173 — Lagerplatz ausbuchen mit FA-Filter (v1.99.47)
+
+FA-Feld auf „Lagerplatz ausbuchen“ filtert: nur Artikel des FA werden ausgebucht, der Rest „bleibt am Platz/Wagen“; gemischte Zeilen
+(weitere FA, Zugang ohne FA, FA nur aus Ausbuchung) fragt ein Dialog einzeln ab; der Server prüft gezeigte Zeilen und Stückzahl neu.
+Spec `2026-08-05-wms-bugs-improvements-teil-6-spec`. Standort: **AKE und IDEAL** (IDEAL-Einschluss hängt am Master, 173.10–173.13).
+
+- **Vorbedingungen:** Rolle `stock_keyuser`. Platz L: A eingebucht 5 mit FA `1234567`; B 3 ohne FA;
+  C 2 mit FA `111` + 1 mit FA `222`; D 4 mit FA `333` eingebucht, danach ohne FA 4 ausgebucht;
+  N 2 mit FA `111` (für 173.5). Für 173.8 ein Wagen W mit Artikeln von FA A und B (Kommissionierung)
+  plus ein Artikel ohne FA: auf einen **leeren** Hilfsplatz X (eigens angelegter Testplatz) genau diesen einen Artikel ohne FA einbuchen, dann
+  **„Lagerplatz umbuchen“** Quelle X → Ziel W (nur dort ist ein Wagen als Ziel wählbar; „Umbuchen“ bietet
+  keine Wagen an, R2-S2). Für 173.10–173.12 auf **DEV IDEAL** eine Struktur H mit
+  Sub-FA S1 und darunter S2 (Abfrage: `SELECT OrderNumber, SubOrderNumber, ParentSubOrderNumber FROM
+  dbo.ProductionOrders WHERE OrderNumber = '<H>'`) und Platz M mit E (eingebucht mit FA-Text S1),
+  F (S2), G (H), K (S1 + FA einer anderen Struktur X) – alle Zugänge mit FA-Text. Für 173.15 Platz P:
+  Y 100 per Wareneingang bzw. Einbuchung ohne FA, danach Einzel-Ausbuchung 5 mit FA `111`; Z 10 mit FA
+  `111` + 5 ohne FA eingebucht. Alle Zugänge auf L mit FA-Text (außer B), damit dort nur G1 wirkt.
+  Sage-Lagerbuchung auf DEV aus oder L/M/P ohne `SageBuchungErlaubt`, außer bei 173.9.
+- **Schritte / erwartet (DEV AKE und DEV IDEAL, sofern nicht anders genannt):**
+  - 173.1 `/StockMovements/OutboundAll`, Platz L laden → Spalte „Fertigungsauftrag": A `1234567`, B leer,
+    C `111, 222`, N `111`; D fehlt.
+  - 173.2 Feld `1234567` tippen → Knopf „1 von 4 Artikeln ausbuchen (FA 1234567)", A markiert, B/C/N
+    tragen „bleibt am Platz“; Dialog ohne Block „Bitte entscheiden“; bestätigen → nur A weg, Meldung nennt
+    3 verbleibende mit Artikelnummern, Seite zeigt L.
+  - 173.3 Feld `123` → Knopf deaktiviert, Hinweis „Kein Artikel gehört zu diesem FA"; per manipuliertem
+    POST trotzdem senden → Warnung, nichts gebucht, Feld zeigt `123`.
+  - 173.4 Feld `111` → Knopf „2 von 3“; Dialog: N unter „Wird ausgebucht“, C unter „Bitte entscheiden“
+    mit „enthält auch FA 222“, nichts vorausgewählt, „Jetzt ausbuchen“ gesperrt („Noch 1 Zeile offen“).
+    „Abbrechen“ → nichts gebucht, Seite unverändert (Bewegungshistorie prüfen). Erneut öffnen, Escape →
+    dito.
+  - 173.5 Feld `111`, C „Nicht ausbuchen“ → nur N ausgebucht, Meldung nennt C „bleibt am Platz“.
+    Danach Feld `111` erneut: C ist jetzt einzige treffende Zeile; „Nicht ausbuchen“ → „Jetzt
+    ausbuchen“ gesperrt; „Ausbuchen“ → C komplett (3) ausgebucht.
+  - 173.6 Feld `333` → kein Treffer (D ohne Restbestand).
+  - 173.7 **Serverprüfung (negativ):** **Vorbedingung – L neu befüllen** (173.5 hat C und N ausgebucht,
+    R2-S3): Ausgangslage 173.4 herstellen = C 2 Stk mit FA `111` + 1 Stk mit FA `222` (Bestand 3), N 2 Stk
+    mit FA `111` einbuchen; Spalte prüfen (C `111, 222`, N `111`). Dann: Dialog für C offen lassen, in
+    zweitem Tab C komplett ausbuchen (Feld leer wäre alles – stattdessen Einzel-Ausbuchung), im ersten Tab
+    „Ausbuchen“ + bestätigen → Warnung „hat sich geändert … Nichts ausgebucht.“. Zusätzlich per
+    Browser-Werkzeug ein `gemischtAusbuchen` mit fremder Artikel-ID einschleusen → dieselbe Warnung,
+    nichts gebucht.
+    Weitere Negativfälle (vor **jedem** Fall die Ausgangslage 173.4 wiederherstellen – C auf 3 nachbuchen
+    wie oben, Bestand von R aus 7a per Einzel-Ausbuchung auf 0 –, dann Seite mit Feld `111` öffnen, Dialog
+    offen lassen, im zweiten Tab ändern, im ersten Tab bestätigen → Warnung „hat sich geändert … Nichts
+    ausgebucht.“, Seite neu geladen, Bewegungshistorie ohne neue Ausbuchung). Reihenfolge 7a, 7c, 7b
+    einhalten: Bewegungen sind unveränderlich, die Einbuchung mit FA `444` aus 7b bleibt an N auf L hängen,
+    solange N dort Bestand hat – N ist danach dauerhaft gemischt.
+    - 173.7a **neu treffende Zeile:** Artikel R mit FA `111` auf L einbuchen;
+    - 173.7c **geänderte Stückzahl:** 1 Stk von C einzeln ausbuchen (ohne FA); zusätzlich per
+      Browser-Werkzeug `stueckGezeigt[<N>]` auf einen anderen Wert setzen → dieselbe Warnung.
+    - 173.7b **zusätzlicher fremder FA** (zuletzt): bei N eine Einbuchung mit FA `444` (N wird gemischt);
+    - Danach Seite neu laden, unverändert bestätigen → Buchung läuft (Positivkontrolle; N und C stehen jetzt
+      beide unter „Bitte entscheiden“).
+  - 173.8 **Wagen** (Antwort 4): Aufruf über den Konflikt-Dialog der Kommissionierung → Feld vorbelegt
+    „A; B“, Knopf „2 von 3“, Artikel ohne FA trägt „bleibt am Wagen“, Dialog listet ihn unter „Bleibt am
+    Wagen“; bestätigen → Artikel bleibt auf W, Meldung „… bleibt am Wagen“. Danach Feld leeren →
+    „Alle 1 Artikel ausbuchen“ mit `confirm()` wie TS-2.4.
+  - 173.9 **Sage** (nur wenn auf DEV aktiv): je ausgebuchter Zeile ein Queue-Eintrag; für „Nicht
+    ausbuchen“, nicht treffende Zeilen, Abbruch und Warnfälle keiner.
+  - 173.10 **IDEAL Haupt-FA:** Platz M, Feld `H` → E, F, G unter „Wird ausgebucht“, K unter „Bitte
+    entscheiden“ („enthält auch FA X“); Spalte zeigt bei E „S1 (Haupt-FA H)“. „Ausbuchen“ für K →
+    E, F, G, K weg; Bewegungshistorie: Text `H`, verknüpft mit der Haupt-FA, falls
+    `FindForBookingAsync("H")` eindeutig ist (wie AK 18), sonst ohne Verknüpfung (R2-S5).
+  - 173.11 **IDEAL Sub-FA eingegeben (Antwort 7):** neu befüllen, Feld `S1` → genau E und K treffen
+    (K unter „Bitte entscheiden“ wegen X); F (`S2`, Kind von S1) trägt „bleibt am Platz“ – keine
+    Nachfahren; G (`H`) trägt ebenfalls „bleibt am Platz“ – keine Haupt-FA. Knopf „2 von 4“.
+  - 173.12 **IDEAL ohne Sub-FA-Satz (negativ):** Bewegung mit FA-Text `S9`, für den kein FA existiert →
+    Feld `H` trifft diese Zeile nicht.
+  - 173.13 **AKE (negativ):** auf DEV AKE (Master aus) Feld mit der Haupt-FA-Nummer eines Testsatzes,
+    dessen Bewegung eine andere Nummer trägt → kein Treffer; Verhalten = reiner Textvergleich.
+  - 173.14 **Regression:** **Vorbedingung – L neu befüllen** (R2-S3): nach 173.7 stehen auf L je nach
+    Positivkontrolle nur noch Reste (B, ggf. C/N/R); A 5 mit FA `1234567` und C wie in 173.7 nachbuchen, damit
+    mindestens drei Zeilen mit und ohne FA da sind (B bleibt ohne FA). Tabelle notieren (n Zeilen). Feld
+    leer → Knopf „Alle n Artikel ausbuchen“, `confirm()` mit „OK“ → alle n Zeilen ausgebucht, Ausbuchungen
+    ohne FA-Text, L leer; Verhalten wie TS-2.4 Schritt 7.
+  - 173.15 **Bestand ohne FA (B-3 (a)):** Platz P, Spalte Y „111“ (Bestand 95), Z „111“. Feld `111` →
+    beide unter „Bitte entscheiden“; Y mit „enthält auch Bestand ohne FA“ und „FA 111 nur aus
+    Ausbuchung“, Z nur mit „enthält auch Bestand ohne FA“; nichts vorausgewählt. Y „Nicht ausbuchen“,
+    Z „Ausbuchen“ → Z (15) ausgebucht, Y bleibt mit 95, Meldung „bleibt am Platz“ nennt Y. Feld `111`
+    erneut, Y „Ausbuchen“ → 95 ausgebucht.
+  - 173.16 **Doppel-Absenden (S-4):** Feld `1234567` (neu befüllt), Dialog, „Jetzt ausbuchen“ schnell
+    doppelt klicken → Knopf sofort deaktiviert, genau ein POST (Browser-Netzwerk-Tab), genau eine
+    Ausbuchung. Dasselbe mit leerem Feld nach „OK“ im `confirm()`.
+    **Enter (R2-S1, AK 27):** L neu befüllen (A 5 mit FA `1234567`, B 3 ohne FA). Feld `1234567` tippen und
+    Enter drücken → Modal öffnet sich, **kein** POST im Netzwerk-Tab, keine Warnung „hat sich geändert“.
+    Modal schließen, Feld `123` + Enter → nichts (Knopf deaktiviert), kein POST. Feld leeren + Enter →
+    `confirm()` erscheint; „Abbrechen“ → kein POST, Seite unverändert. Erneut Enter, „OK“ → genau ein POST,
+    alles ausgebucht.
+- **Negativfälle:** 173.3, 173.4 (Abbruch), 173.6, 173.7 inkl. 7a–7c, 173.11 (F/G), 173.12, 173.13,
+  173.16; Rolle `stock` ohne `stock_keyuser` → Zugriff verweigert (wie TS-2.4).
+- **Automatisch:** `StockMovementRepositoryProductionOrderTests.GetProductionOrdersByArticle_SpalteZugangUndOhneFa` (+ bestehender
+  Zerlegungstest), `FaBuchungsTextPruefeZeileTests` (exakt, case, Haupt→Sub jede Ebene, Sub nur selbst, AKE, G1/G2/G3, `null`),
+  `LagerplatzAusbuchenFaFilterTests` (AK 4–8, 11, 12, 14 a–g, 16, 18, 20, 24, S-7), `LagerbuchungFaVerknuepfungTests` (Ctor + Filter-Aufrufe).
+
+---
+
 ## TS-174 — Startseite: Kacheln wieder mit Symbolen (v1.99.46)
 
 Bugfix zu TS-170: Seit v1.99.45 fehlten die Symbole auf den Kacheln. Jede Kachel bekommt ihr Symbol aus `NavZiel.SymbolPfad`
@@ -13427,5 +13529,5 @@ Prüfabfrage A aus TS-170 je DB ausgeführt (Schalterlage notiert).
 ---
 
 *Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) + Teil 6 (Standorteinstellungen, v1.34.0) + BOM-Guard hierarchisch (2026-08-18, abgelöst) + FA-Liste-Hierarchie (v1.35.0) + BOM-Bridge (v1.36.0) + Materialisierung fachliche Felder K1/K2 (v1.37.0) + Skopierung der Tabellen-Selektoren (TS-72) + FA-Liste ausgebaut: Matchcode, Kopfdaten je Zeile, HauptFA-Zeile, Freigabe-Kaskade (v1.38.0, TS-73) + PDF-Erzeugung für FaHierarchy-Druckdokumente (v1.39.0, TS-74) + Matchcode im Artikelstamm (v1.40.0, TS-75) + FA-Arbeitsgang-Erkennung aus der Struktur (v1.41.0, TS-76, ersetzt durch TS-77) + Arbeitsgänge (WorkOperation) aus der Struktur + Werkbank-Anlage aus Sage (v1.44.0, TS-77) + Arbeitsgänge je (Sub-)FA im FA-Struktur-Modal (v1.45.0, TS-78) + Kommissionierung nur am HauptFA
-(v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80) + Beschichtungsauftrag Summiert als Standard (v1.48.0, TS-81) + Briefkopf Beschichtungsauftrag (v1.49.0, TS-82) + Beschichtungsauftrag als eigenes Objekt (v1.50.0, TS-83) + Beschichtungsaufträge bedienen (v1.51.0, TS-84) + Arbeitsgänge als Symbole im FA-Baum (v1.52.0, TS-85) + CSV-Export für alle Tabellen (v1.53.0, TS-86) + Arbeitsgang-Stammdaten (v1.54.0, TS-87) + Status je Arbeitsgang-Kürzel im FA-Baum (v1.55.0, TS-88) + Menü Beschichtung + Kurzanleitungen (v1.56.0, TS-89) + BDE-Terminal mit Arbeitsgang-Status (v1.57.0, TS-90) + Spaltenfilter-Suchsyntax Etappe A + B (v1.58.0/v1.58.1, TS-91.A/B) + Fußzeile nach Word-Vorlage (v1.59.0, TS-92) + Sage-Quellen auf WMS-Views (v1.60.0–v1.60.2, TS-93) + Arbeitsgang-Abgleich aus der Sage-View (v1.61.0, TS-94) + Stückliste Matchcode und Lagerplatz-Limit (v1.62.0, TS-95) + BDE Stufe 1: Werkbänke, AG-Fertigmeldung (v1.63.0, TS-96) + BDE-Terminal Liste nach Haupt-FA, Scan ohne AG (v1.64.0, TS-97) + Spaltenauswahl/Zahnrad zentraler Toolbar-Host (v1.65.0, TS-98) + Hardware-Barcodescanner (v1.66.0–v1.66.2, TS-99) + Vault- und enaio-Links konfigurierbar (v1.67.0, TS-100) + QR erstes Feld Matchcode / Trennzeichen (v1.68.0/v1.69.0, TS-101) + Aktivitäts-Protokoll Spaltenfilter/Namen (v1.70.0, TS-102) + FA-Struktur live aus Sage (v1.71.0, TS-103) + Lagerplatz-Etikett 93 × 55 mm und Vormontage-Felder (v1.72.0, TS-104/TS-105) + Sage-Abgleich über SData (v1.73.0, TS-106) + Fehlteile „Nur meine Werkbänke“ Trefferzahl (v1.75.0, TS-108) + Bestandsübersicht QR-FA nur mit `QrMitFaNummer` (v1.76.0, TS-101.22–101.25) + Einstellungen Auswahlfelder und Beschreibung (v1.77.0, TS-109) + EAN-Scan Einkaufsartikel (v1.78.0, TS-110) + Bereinigungen nach dem Bündel 2026-11-07 (v1.79.0, TS-111) + Artikelinfo Lieferanten (v1.80.0, TS-112) + Fehlteile-Karte je Bestelltyp (v1.81.0, TS-113) + Wareneingang zu Sage-Bestellung (v1.84.0, TS-116) + Artikel Lieferanten/Mengeneinheiten (v1.85.0, TS-112.12–112.16) + Offene Bestellungen Nachbesserung (v1.86.0, TS-116.8/116.9) + Lager-Tools FA-Verknüpfung (v1.87.0, TS-115) + Kommissionieraufträge (v1.88.0, TS-120) + Kommissionieraufträge Nachbesserung (v1.89.0, TS-120.1/120.9/120.13/120.14) + Lager-Tools FA-Karte je Pflicht (v1.90.0, TS-115.3) + Offene Bestellungen Legende (v1.91.0, TS-116.8) + OSEON-Relevanzfilter/BDE-Checkboxen (v1.92.0, TS-121) + Meldebestand-Mail Bestandsregel (v1.93.0, TS-122) + Menüleiste Umbruch/Kontrast (v1.94.0, TS-123) + Nachbesserung Vorab-Abnahme (v1.95.0, TS-115.13/115.14/116.10/120.15) + Übernahme AKE-Hotfixes v1.30.2–1.30.4 (v1.96.0, TS-107, TS-124) + Auftrag drucken in Sortierreihenfolge (v1.97.0, TS-120.16) + Matchcode in der Kommissionier-Auftragsliste (v1.99.8, TS-120.17) + Update-Skript je Zielsystem (v1.98.0, TS-125) + Update-Skript Url-Vorrang und Dienst-Stopp-Limit (v1.98.1, TS-125.17/125.18) + Update-Skript prüft und führt aus, mit Bestätigung (v1.99.0–v1.99.2, TS-126) + Update-Skript Prüfung Mail-Ablageordner (v1.99.12, TS-126.28–126.31) + Vormontage Spalte Abteilung (v1.99.3, TS-127) + Wareneingang Sage-Wareneingangsbeleg und Lieferschein (v1.99.4–v1.99.6, TS-116.11–116.19) + Sage-Wareneingang automatisch wiederholen mit Sage-Prüfung, Klären (v1.99.7, TS-116.20–116.24) + System-Kürzel in den Sage-Kennungen WE#/SM# (v1.99.9, TS-116.25–116.30) + Lieferverzug-Mails (v1.99.10, TS-128) + Wareneingang Barcode und CSV-Übergabe (v1.99.11, TS-129) + Bugfixes AKE-Regression: Filter in Anführungszeichen, Bedarfsmeldung Ortszeit, Auftragsdruck Lagerplatz, Wagen-Modal (v1.99.13, TS-130) + Register Sage-Test und SData-Zugangsdaten (v1.99.14, TS-131) + Rahmenabrufe in Offene Bestellungen und Wareneingang (v1.99.15, TS-132) + Update-Skript zweiter Trockenlauf mit Wiederholungssperre, Eingabe-Abbruch, DEV-Ziele (v1.99.16, TS-133) + Kommissionier-Prio nach Freigabe zurücknehmen ohne Doppelte (v1.99.17, TS-134) + Zeitstempel in Ortszeit (v1.99.18, TS-135) + Lieferverzug-Mail Nachbesserung: Kreditor-Schwelle, Altersgrenze, Rahmenabrufe, Lieferanten-Artikelnummer (v1.99.19, TS-128.16–128.26) + Einkauf: Bestellvorschläge (v1.99.20, TS-136) + letzte Bestellmenge (v1.99.21, TS-136.6–136.6g, 136.18–136.20) + Belegnummer 45, Wareneingang Überlieferung-Spalte und Hinweis offene Bedarfe (v1.99.22, TS-137) + Doppel-Absenden-Schutz, unsichtbare Unterpositionen, CSV ohne Tausendertrenner, feste Kultur de-DE (v1.99.23, TS-138) + Beschichtungsquelle Einstellungen und Dienst (v1.99.25, TS-140, TS-144) + Beschichtungstermin aus der Quelle in allen drei Listen (v1.99.32, TS-141–143) + FA-Struktur IDEAL über SData, Stückliste live (v1.99.26, TS-146–150) + Wareneingang-CSV ohne Kopfzeile, Erfasser Windows-Kontoname (v1.99.29, TS-153) + Bestellvorschläge Nachbesserung (v1.99.30, TS-154) + Offene Bestellungen sofort neu lesen, Einkauf-Ansichten, Datumsvorbelegung, Überfällige (v1.99.31, TS-155) + BDE-Teileliste Blechfertigung (v1.99.32, TS-152) + Arbeitsgang-Mapping Sage-Arbeitsgangnummer (v1.99.27 mit v1.99.32, TS-151) + Blechfertigung BF-Aufträge (v1.99.35, TS-157) + Arbeitsgänge → Sage Vorschau und Einreihen (v1.99.38, TS-159) + Nachbesserung Abend: Nachlesen nach dem Senden, Seite hinter der letzten (v1.99.39, TS-159 Nachtrag, TS-160) + Sage-Benutzerfelder als Einstellung (v1.99.40, TS-161) + Beschichtungsauftrag Haken/Versendet/Lackierer/Druck je Position (v1.99.41, TS-162) + Nachbesserungen v1.99.42 (TS-163) + IDEAL-Kommissionierliste Ziele, Abteilung, Lagerplätze, Leitstand-Gate (v1.99.43, TS-164) + Sammel-Bugfix Ziel-Kästchen, Menü Empfänger, Prüfung FA-Struktur-Schlüssel, Rollen (v1.99.44, TS-166) + Update-Skript Meldungen nach Muster, Artikelinfo-Bestand exakt, BF-Warenkorb-Vorschläge, Startseite nach Kategorie und Berechtigung (v1.99.45, TS-167–170) + Startseite: Kacheln wieder mit Symbolen (v1.99.46, TS-174)*
+(v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80) + Beschichtungsauftrag Summiert als Standard (v1.48.0, TS-81) + Briefkopf Beschichtungsauftrag (v1.49.0, TS-82) + Beschichtungsauftrag als eigenes Objekt (v1.50.0, TS-83) + Beschichtungsaufträge bedienen (v1.51.0, TS-84) + Arbeitsgänge als Symbole im FA-Baum (v1.52.0, TS-85) + CSV-Export für alle Tabellen (v1.53.0, TS-86) + Arbeitsgang-Stammdaten (v1.54.0, TS-87) + Status je Arbeitsgang-Kürzel im FA-Baum (v1.55.0, TS-88) + Menü Beschichtung + Kurzanleitungen (v1.56.0, TS-89) + BDE-Terminal mit Arbeitsgang-Status (v1.57.0, TS-90) + Spaltenfilter-Suchsyntax Etappe A + B (v1.58.0/v1.58.1, TS-91.A/B) + Fußzeile nach Word-Vorlage (v1.59.0, TS-92) + Sage-Quellen auf WMS-Views (v1.60.0–v1.60.2, TS-93) + Arbeitsgang-Abgleich aus der Sage-View (v1.61.0, TS-94) + Stückliste Matchcode und Lagerplatz-Limit (v1.62.0, TS-95) + BDE Stufe 1: Werkbänke, AG-Fertigmeldung (v1.63.0, TS-96) + BDE-Terminal Liste nach Haupt-FA, Scan ohne AG (v1.64.0, TS-97) + Spaltenauswahl/Zahnrad zentraler Toolbar-Host (v1.65.0, TS-98) + Hardware-Barcodescanner (v1.66.0–v1.66.2, TS-99) + Vault- und enaio-Links konfigurierbar (v1.67.0, TS-100) + QR erstes Feld Matchcode / Trennzeichen (v1.68.0/v1.69.0, TS-101) + Aktivitäts-Protokoll Spaltenfilter/Namen (v1.70.0, TS-102) + FA-Struktur live aus Sage (v1.71.0, TS-103) + Lagerplatz-Etikett 93 × 55 mm und Vormontage-Felder (v1.72.0, TS-104/TS-105) + Sage-Abgleich über SData (v1.73.0, TS-106) + Fehlteile „Nur meine Werkbänke“ Trefferzahl (v1.75.0, TS-108) + Bestandsübersicht QR-FA nur mit `QrMitFaNummer` (v1.76.0, TS-101.22–101.25) + Einstellungen Auswahlfelder und Beschreibung (v1.77.0, TS-109) + EAN-Scan Einkaufsartikel (v1.78.0, TS-110) + Bereinigungen nach dem Bündel 2026-11-07 (v1.79.0, TS-111) + Artikelinfo Lieferanten (v1.80.0, TS-112) + Fehlteile-Karte je Bestelltyp (v1.81.0, TS-113) + Wareneingang zu Sage-Bestellung (v1.84.0, TS-116) + Artikel Lieferanten/Mengeneinheiten (v1.85.0, TS-112.12–112.16) + Offene Bestellungen Nachbesserung (v1.86.0, TS-116.8/116.9) + Lager-Tools FA-Verknüpfung (v1.87.0, TS-115) + Kommissionieraufträge (v1.88.0, TS-120) + Kommissionieraufträge Nachbesserung (v1.89.0, TS-120.1/120.9/120.13/120.14) + Lager-Tools FA-Karte je Pflicht (v1.90.0, TS-115.3) + Offene Bestellungen Legende (v1.91.0, TS-116.8) + OSEON-Relevanzfilter/BDE-Checkboxen (v1.92.0, TS-121) + Meldebestand-Mail Bestandsregel (v1.93.0, TS-122) + Menüleiste Umbruch/Kontrast (v1.94.0, TS-123) + Nachbesserung Vorab-Abnahme (v1.95.0, TS-115.13/115.14/116.10/120.15) + Übernahme AKE-Hotfixes v1.30.2–1.30.4 (v1.96.0, TS-107, TS-124) + Auftrag drucken in Sortierreihenfolge (v1.97.0, TS-120.16) + Matchcode in der Kommissionier-Auftragsliste (v1.99.8, TS-120.17) + Update-Skript je Zielsystem (v1.98.0, TS-125) + Update-Skript Url-Vorrang und Dienst-Stopp-Limit (v1.98.1, TS-125.17/125.18) + Update-Skript prüft und führt aus, mit Bestätigung (v1.99.0–v1.99.2, TS-126) + Update-Skript Prüfung Mail-Ablageordner (v1.99.12, TS-126.28–126.31) + Vormontage Spalte Abteilung (v1.99.3, TS-127) + Wareneingang Sage-Wareneingangsbeleg und Lieferschein (v1.99.4–v1.99.6, TS-116.11–116.19) + Sage-Wareneingang automatisch wiederholen mit Sage-Prüfung, Klären (v1.99.7, TS-116.20–116.24) + System-Kürzel in den Sage-Kennungen WE#/SM# (v1.99.9, TS-116.25–116.30) + Lieferverzug-Mails (v1.99.10, TS-128) + Wareneingang Barcode und CSV-Übergabe (v1.99.11, TS-129) + Bugfixes AKE-Regression: Filter in Anführungszeichen, Bedarfsmeldung Ortszeit, Auftragsdruck Lagerplatz, Wagen-Modal (v1.99.13, TS-130) + Register Sage-Test und SData-Zugangsdaten (v1.99.14, TS-131) + Rahmenabrufe in Offene Bestellungen und Wareneingang (v1.99.15, TS-132) + Update-Skript zweiter Trockenlauf mit Wiederholungssperre, Eingabe-Abbruch, DEV-Ziele (v1.99.16, TS-133) + Kommissionier-Prio nach Freigabe zurücknehmen ohne Doppelte (v1.99.17, TS-134) + Zeitstempel in Ortszeit (v1.99.18, TS-135) + Lieferverzug-Mail Nachbesserung: Kreditor-Schwelle, Altersgrenze, Rahmenabrufe, Lieferanten-Artikelnummer (v1.99.19, TS-128.16–128.26) + Einkauf: Bestellvorschläge (v1.99.20, TS-136) + letzte Bestellmenge (v1.99.21, TS-136.6–136.6g, 136.18–136.20) + Belegnummer 45, Wareneingang Überlieferung-Spalte und Hinweis offene Bedarfe (v1.99.22, TS-137) + Doppel-Absenden-Schutz, unsichtbare Unterpositionen, CSV ohne Tausendertrenner, feste Kultur de-DE (v1.99.23, TS-138) + Beschichtungsquelle Einstellungen und Dienst (v1.99.25, TS-140, TS-144) + Beschichtungstermin aus der Quelle in allen drei Listen (v1.99.32, TS-141–143) + FA-Struktur IDEAL über SData, Stückliste live (v1.99.26, TS-146–150) + Wareneingang-CSV ohne Kopfzeile, Erfasser Windows-Kontoname (v1.99.29, TS-153) + Bestellvorschläge Nachbesserung (v1.99.30, TS-154) + Offene Bestellungen sofort neu lesen, Einkauf-Ansichten, Datumsvorbelegung, Überfällige (v1.99.31, TS-155) + BDE-Teileliste Blechfertigung (v1.99.32, TS-152) + Arbeitsgang-Mapping Sage-Arbeitsgangnummer (v1.99.27 mit v1.99.32, TS-151) + Blechfertigung BF-Aufträge (v1.99.35, TS-157) + Arbeitsgänge → Sage Vorschau und Einreihen (v1.99.38, TS-159) + Nachbesserung Abend: Nachlesen nach dem Senden, Seite hinter der letzten (v1.99.39, TS-159 Nachtrag, TS-160) + Sage-Benutzerfelder als Einstellung (v1.99.40, TS-161) + Beschichtungsauftrag Haken/Versendet/Lackierer/Druck je Position (v1.99.41, TS-162) + Nachbesserungen v1.99.42 (TS-163) + IDEAL-Kommissionierliste Ziele, Abteilung, Lagerplätze, Leitstand-Gate (v1.99.43, TS-164) + Sammel-Bugfix Ziel-Kästchen, Menü Empfänger, Prüfung FA-Struktur-Schlüssel, Rollen (v1.99.44, TS-166) + Update-Skript Meldungen nach Muster, Artikelinfo-Bestand exakt, BF-Warenkorb-Vorschläge, Startseite nach Kategorie und Berechtigung (v1.99.45, TS-167–170) + Startseite: Kacheln wieder mit Symbolen (v1.99.46, TS-174) + Lagerplatz ausbuchen mit FA-Filter (v1.99.47, TS-173)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*

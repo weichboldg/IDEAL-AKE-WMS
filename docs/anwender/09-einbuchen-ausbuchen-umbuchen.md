@@ -1,6 +1,6 @@
 # 09 – Einbuchen, Ausbuchen, Umbuchen
 
-Stand: Version 1.99.29 · Standorte AKE und IDEAL · Bilder aus dem AKE-Testsystem
+Stand: Version 1.99.47 · Standorte AKE und IDEAL · Bilder aus dem AKE-Testsystem
 
 ## Zweck
 
@@ -110,15 +110,27 @@ Reicht der Bestand am Quell-Platz nicht: „Nicht genügend Bestand am Quell-Lag
 
 ### 5. Lagerplatz ausbuchen
 
-Menü **Lager → Lagerplatz ausbuchen**: bucht **alle** Artikel eines Platzes auf einmal aus.
+Menü **Lager → Lagerplatz ausbuchen**: bucht den Bestand eines Platzes auf einmal aus – **alle** Artikel bei leerem Feld
+**Fertigungsauftrag**, sonst **nur die Artikel dieses FA** (ab 1.99.47).
 
-![Lagerplatz ausbuchen: Bestand eines Kommissionierwagens, FA-Feld vorbelegt, roter Knopf „Alle … Artikel ausbuchen“ (Tabelle gekürzt)](bilder/09-05-lagerplatz-ausbuchen-wagen.jpg)
+![Lagerplatz ausbuchen: Kommissionierwagen mit Spalte Fertigungsauftrag, FA-Feld vorbelegt, Knopf „N von M Artikeln ausbuchen (FA …)“](bilder/09-05-lagerplatz-ausbuchen-wagen.jpg)
 
-1. **Lagerplatz** wählen oder scannen, **Laden**. Die Tabelle zeigt jeden Artikel mit Bestand und unten die Summe.
-2. Bei einem **Kommissionierwagen** füllt das WMS das Feld **Fertigungsauftrag (optional)** selbst mit den FAs, die auf dem Wagen gebucht sind
-   (blauer Hinweis „Kommissionierwagen — FA-Nummer wurde automatisch ermittelt.“). Den Text bei Bedarf anpassen.
-3. Roter Knopf **Alle … Artikel ausbuchen** und die Rückfrage „Wirklich alle … Artikel vom Lagerplatz … komplett ausbuchen?“ mit **OK**
-   bestätigen. Meldung „… Artikel erfolgreich ausgebucht.“
+1. **Lagerplatz** wählen oder scannen, **Laden**. Die Tabelle zeigt jeden Artikel mit Fertigungsauftrag, Bestand und unten die Summe.
+   An IDEAL steht bei einer Sub-FA die Haupt-FA dabei („S1 (Haupt-FA H)“).
+2. Bei einem **Kommissionierwagen** füllt das WMS das Feld **Fertigungsauftrag (optional)** selbst mit den FAs des Wagens. Die Vorbelegung
+   wirkt als Filter: Artikel ohne FA tragen „bleibt am Wagen“ und bleiben auf dem Wagen. **Feld leeren = alles ausbuchen.**
+3. **Feld leer:** roter Knopf **Alle … Artikel ausbuchen**, Rückfrage „Wirklich alle … Artikel … komplett ausbuchen?“ mit **OK** bestätigen.
+   Meldung „… Artikel erfolgreich ausgebucht.“
+4. **FA im Feld** (mehrere mit `;` trennen): Zeilen des FA sind gelb hinterlegt, die übrigen tragen „bleibt am Platz“ bzw. „bleibt am Wagen“.
+   Der Knopf heißt **M von N Artikeln ausbuchen (FA …)**; gehört kein Artikel dazu, ist er gesperrt („Kein Artikel gehört zu diesem FA.“).
+   An IDEAL schließt eine Haupt-FA ihre Sub-FA ein; eine Sub-FA nur sich selbst.
+5. Der Knopf (oder Enter im Feld) öffnet einen Dialog: **Wird ausgebucht**, **Bitte entscheiden**, **Bleibt am Platz/Wagen**.
+   Zeilen, an denen ein Zugang ohne FA liegt (z. B. aus dem Wareneingang), werden einzeln abgefragt – ebenso Zeilen mit weiteren FA
+   oder einem FA nur aus einer Ausbuchung. Je Zeile **Ausbuchen** oder **Nicht ausbuchen** wählen (ausgebucht wird immer der ganze
+   Bestand der Zeile); **Jetzt ausbuchen** ist gesperrt, solange Zeilen offen sind. **Abbrechen** bucht nichts.
+6. Meldung „… Artikel zu FA … ausgebucht.“ mit den verbleibenden Artikeln („bleibt am Platz/Wagen“); die Seite zeigt den Rest.
+   Hat sich der Bestand zwischen Anzeige und Bestätigen geändert, kommt „Bestand oder FA-Zuordnung … hat sich geändert … Nichts
+   ausgebucht.“ – Auswahl erneut prüfen.
 
 ### 6. Lagerplatz umbuchen
 

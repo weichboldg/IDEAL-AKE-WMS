@@ -1,6 +1,6 @@
 # 01 – Kommissionierung
 
-Stand: Version 1.99.43 · Standorte AKE und IDEAL · Bilder aus dem AKE-Testsystem (IDEAL-Bild extra gekennzeichnet)
+Stand: Version 1.99.47 · Standorte AKE und IDEAL · Bilder aus dem AKE-Testsystem (IDEAL-Bild extra gekennzeichnet)
 
 ## Zweck
 
@@ -149,8 +149,9 @@ Liegen auf dem Wagen schon Teile eines **anderen** FA, fragt das WMS nach:
 ![Fenster „Kommissionierwagen belegt“](bilder/01-11-wagen-belegt.jpg)
 
 - **Abbrechen** – nichts wird gebucht, anderen Wagen wählen.
-- **Lagerplatz ausbuchen** – öffnet die Ausbuchung des ganzen Wagens (für einen Wagen, der eigentlich leer sein sollte; nur für
-  Lager-Keyuser und Administratoren).
+- **Lagerplatz ausbuchen** – öffnet die Ausbuchung des Wagens (für einen Wagen, der eigentlich leer sein sollte; nur für
+  Lager-Keyuser und Administratoren). Ausgebucht werden nur die Artikel der vorbelegten FA; Artikel ohne FA bleiben am Wagen.
+  Feld leeren = alles ausbuchen (siehe [Anleitung 09, Abschnitt 5](09-einbuchen-ausbuchen-umbuchen.md)).
 - **Trotzdem buchen** – bucht zusätzlich auf den Wagen; die FA-Nummern am Wagen werden zusammengeführt.
 
 ### 7. Auftrag abschließen: Vollständig, Teilweise oder weiter

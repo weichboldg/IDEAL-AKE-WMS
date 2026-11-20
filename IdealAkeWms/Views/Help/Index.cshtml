@@ -48,7 +48,11 @@
                     <dd>Artikel von einem Quell-Lagerplatz auf einen Ziel-Lagerplatz umbuchen.</dd>
 
                     <dt>Lagerplatz ausbuchen</dt>
-                    <dd>Alle Artikel eines Lagerplatzes auf einmal ausbuchen. Praktisch fuer Kommissionierwagen-Rueckgabe.
+                    <dd>Den Bestand eines Lagerplatzes auf einmal ausbuchen. Feld &bdquo;Fertigungsauftrag&ldquo; leer = alle Artikel.
+                        Mit FA-Nummer (mehrere mit ; trennen) werden nur die Artikel dieses FA ausgebucht; die übrigen sind mit
+                        &bdquo;bleibt am Platz&ldquo; bzw. &bdquo;bleibt am Wagen&ldquo; markiert. Am Kommissionierwagen sind die FA des Wagens vorbelegt.
+                        Zeilen, an denen ein Zugang ohne FA liegt (z.&nbsp;B. aus dem Wareneingang), werden einzeln abgefragt &ndash; ebenso Zeilen mit weiteren FA.
+                        Ändert sich der Bestand bis zum Bestätigen, wird nichts gebucht. IDEAL: eine Haupt-FA schließt ihre Sub-FA ein.
                         <br /><small class="text-muted">Nur fuer Lager-Keyuser und Administratoren verfuegbar.</small></dd>
 
                     <dt>Lagerplatz umbuchen</dt>
