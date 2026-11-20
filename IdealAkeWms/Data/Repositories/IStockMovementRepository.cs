@@ -53,6 +53,10 @@ public interface IStockMovementRepository : IRepository<StockMovement>
 
     Task<List<string>> GetProductionOrdersAtLocationAsync(int storageLocationId);
 
+    /// <summary>v1.99.47 (Teil 6): FA-Eigenschaften je Artikel mit Bestand &gt; 0 am Platz – alle Nummern (Spalte), Nummern aus Zugaengen,
+    /// Zugang ohne FA-Text. Artikel ohne jede Bewegung mit FA-Text fehlen oder haben leere <c>Nummern</c>.</summary>
+    Task<Dictionary<int, FaAmPaar>> GetProductionOrdersByArticleAtLocationAsync(int storageLocationId);
+
     /// <summary>
     /// Liefert den aggregierten WMS-Bestand pro (ArticleId, StorageLocationId).
     /// Wird vom LagerbestandSyncService genutzt, um effizient gegen Sage-Bestand zu vergleichen.
@@ -67,3 +71,7 @@ public interface IStockMovementRepository : IRepository<StockMovement>
     /// </summary>
     Task<Dictionary<(int ProductionOrderId, string ArticleNumber), decimal>> GetAusbuchungenJeFaAsync(IReadOnlyCollection<int> productionOrderIds);
 }
+
+/// <summary>v1.99.47: FA-Bezug eines Paars (Artikel, Lagerplatz). <c>Nummern</c> distinct, ordinal sortiert (= Spalteninhalt);
+/// <c>ZugangNummern</c> mit OrdinalIgnoreCase; <c>ZugangOhneFa</c> = ein Zugang (Ein-/Sage-Ein-/Umbuchung) ohne FA-Text.</summary>
+public sealed record FaAmPaar(List<string> Nummern, HashSet<string> ZugangNummern, bool ZugangOhneFa);

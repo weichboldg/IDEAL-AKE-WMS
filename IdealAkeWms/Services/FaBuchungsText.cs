@@ -47,6 +47,29 @@ public static class FaBuchungsText
         (einstellung ?? "").Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
             .Contains(buchungsart, StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>v1.99.47: FA-Text in Einzelnummern zerlegen (Trennzeichen <c>;</c> und <c>,</c>, getrimmt, leere weg) – EIN Ort fuer
+    /// Repository (Spalte, Wagen-Vorbelegung), Controller (Filterfeld) und Tests.</summary>
+    public static IEnumerable<string> Nummern(string? text) =>
+        (text ?? "").Split([';', ','], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+    /// <summary>v1.99.47 (Teil 6, Anforderung 4): trifft die Artikelzeile den Filter, und warum ist sie ggf. „gemischt“?
+    /// Nummer abgedeckt ⇔ im Filter oder (nur IDEAL) ihre Haupt-FA laut <paramref name="hauptJeSub"/> im Filter. G1 = <c>Fremd</c>
+    /// (nicht abgedeckte Nummern), G2 = <c>OhneFa</c> (Zugang ohne FA-Text am Paar), G3 = <c>NurAusAusbuchung</c> (keine abgedeckte
+    /// Nummer stammt aus einem Zugang). <paramref name="filter"/> und <paramref name="hauptJeSub"/> mit OrdinalIgnoreCase anlegen.</summary>
+    public static (bool Trifft, List<string> Fremd, bool OhneFa, bool NurAusAusbuchung) PruefeZeile(
+        FaAmPaar? paar, IReadOnlyDictionary<string, string> hauptJeSub, IReadOnlySet<string> filter)
+    {
+        if (paar == null) return (false, new(), false, false);
+        bool Abgedeckt(string nr) => filter.Contains(nr) || (hauptJeSub.TryGetValue(nr, out var h) && filter.Contains(h));
+        var abgedeckt = paar.Nummern.Where(Abgedeckt).ToList();
+        if (abgedeckt.Count == 0) return (false, new(), false, false);
+        return (true, paar.Nummern.Where(n => !Abgedeckt(n)).ToList(), paar.ZugangOhneFa, !abgedeckt.Any(paar.ZugangNummern.Contains));
+    }
+
+    /// <summary>Gemischt ⇔ trifft und mindestens ein Grund G1–G3 (Anforderung 4).</summary>
+    public static bool IstGemischt((bool Trifft, List<string> Fremd, bool OhneFa, bool NurAusAusbuchung) p) =>
+        p.Trifft && (p.Fremd.Count > 0 || p.OhneFa || p.NurAusAusbuchung);
+
     /// <summary>Master <c>ProduktionsauftragHierarchisch</c> an? (Link-Ziel FA-Struktur statt FA-Liste)</summary>
     public static bool IstHierarchisch(string? masterWert) => string.Equals(masterWert?.Trim(), "true", StringComparison.OrdinalIgnoreCase);
 

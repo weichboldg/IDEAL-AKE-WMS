@@ -34,6 +34,42 @@ public class StockMovementRepositoryProductionOrderTests
         result.Should().Equal("A", "B", "C", "D");
     }
 
+    // v1.99.47 (Teil 6, AK 1–3, 24): FA-Bezug je Artikel am Platz – Spalte, Zugangs-Nummern, Zugang ohne FA.
+    [Fact]
+    public async Task GetProductionOrdersByArticle_SpalteZugangUndOhneFa()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        foreach (var a in new[] { 1, 2, 3, 4, 5, 6 }) SeedArticleAndLocation(ctx, a, 1);
+        SeedArticleAndLocation(ctx, 1, 2);
+        ctx.StockMovements.AddRange(
+            NewMovementWithOrder(1, 1, 5m, MovementType.Einbuchung, "1234567"),            // A: nur Zugang mit FA
+            NewMovement(2, 1, 5m, MovementType.Einbuchung),                                 // B: ohne FA
+            NewMovementWithOrder(3, 1, 1m, MovementType.Einbuchung, "222"),                 // C: 111, 222 (+ Liste)
+            NewMovementWithOrder(3, 1, 1m, MovementType.SageEinbuchung, "111;222"),
+            NewMovementWithOrder(4, 1, 2m, MovementType.Einbuchung, "333"),                 // D: kein Restbestand
+            NewMovement(4, 1, 2m, MovementType.Ausbuchung),
+            NewMovementWithOrder(5, 1, 100m, MovementType.Einbuchung, ""),                  // Y: WE ohne FA (leerer Text)
+            NewMovementWithOrder(5, 1, 5m, MovementType.Ausbuchung, "111"),                 //    dann Ausbuchung mit FA
+            NewMovementWithOrder(6, 1, 3m, MovementType.Umbuchung, "777"));                 // Umbuchung-Ziel = Zugang
+        var quelle = NewMovementWithOrder(1, 2, 1m, MovementType.Umbuchung, "888");        // Ziel Platz 2, Quelle Platz 1
+        quelle.SourceStorageLocationId = 1;
+        ctx.StockMovements.Add(quelle);
+        await ctx.SaveChangesAsync();
+
+        var r = await new StockMovementRepository(ctx).GetProductionOrdersByArticleAtLocationAsync(1);
+
+        r.Keys.Should().BeEquivalentTo([1, 2, 3, 5, 6]);
+        r[1].Nummern.Should().Equal("1234567");                // Umbuchungs-Quelle 888 nicht gelesen
+        (r[1].ZugangOhneFa, r[1].ZugangNummern.Contains("1234567")).Should().Be((false, true));
+        r[2].Nummern.Should().BeEmpty();
+        r[2].ZugangOhneFa.Should().BeTrue();
+        r[3].Nummern.Should().Equal("111", "222");
+        r[5].Nummern.Should().Equal("111");
+        (r[5].ZugangOhneFa, r[5].ZugangNummern.Count).Should().Be((true, 0));
+        r[6].ZugangNummern.Should().Contain("777");
+        (await new StockMovementRepository(ctx).GetProductionOrdersAtLocationAsync(1)).Should().Equal("111", "1234567", "222", "777");
+    }
+
     // --- true-Pfad (Default) ---------------------------------------------------------------
 
     [Fact] // AK1: getaggt eingebucht, ungetaggt komplett ausgebucht -> keine Zeile mehr

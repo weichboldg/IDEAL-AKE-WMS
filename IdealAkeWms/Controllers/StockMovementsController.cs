@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.AspNetCore.Mvc;
 using IdealAkeWms.Data.Repositories;
 using IdealAkeWms.Models;
@@ -18,6 +19,7 @@ public class StockMovementsController : Controller
     private readonly IAppSettingRepository _settingRepository;
     private readonly IPartRequisitionRepository _partRequisitionRepository;
     private readonly IProductionOrderRepository _productionOrderRepository;
+    private readonly IServiceSettingRepository _serviceSettings;
 
     public StockMovementsController(
         IStockMovementRepository stockMovementRepository,
@@ -27,9 +29,11 @@ public class StockMovementsController : Controller
         ICurrentUserService currentUserService,
         IAppSettingRepository settingRepository,
         IPartRequisitionRepository partRequisitionRepository,
-        IProductionOrderRepository productionOrderRepository)
+        IProductionOrderRepository productionOrderRepository,
+        IServiceSettingRepository serviceSettings)
     {
         _productionOrderRepository = productionOrderRepository;
+        _serviceSettings = serviceSettings;
         _stockMovementRepository = stockMovementRepository;
         _articleRepository = articleRepository;
         _storageLocationRepository = storageLocationRepository;
@@ -480,12 +484,13 @@ public class StockMovementsController : Controller
     }
 
     [RequireStockKeyUserAccess]
-    public async Task<IActionResult> OutboundAll(int? storageLocationId)
+    public async Task<IActionResult> OutboundAll(int? storageLocationId, string? productionOrder = null)
     {
         var vm = new OutboundAllViewModel
         {
             StorageLocations = await _storageLocationRepository.GetActiveOrderedExcludingPickingTransportAsync(),
-            StorageLocationId = storageLocationId
+            StorageLocationId = storageLocationId,
+            ProductionOrder = productionOrder
         };
 
         if (storageLocationId.HasValue)
@@ -497,11 +502,13 @@ public class StockMovementsController : Controller
             var allStock = await _stockMovementRepository.GetCurrentStockAsync(
                 filterStorageLocationId: storageLocationId.Value);
             vm.Items = allStock.Where(s => s.CurrentQuantity > 0).ToList();
+            (vm.FaJeArtikel, vm.HauptJeSub) = await LadeFaAsync(storageLocationId.Value);
 
-            // Bei Kommissionierwagen: neueste FA-Nummer automatisch ermitteln
+            // Kommissionierwagen: alle FA des Wagens vorbelegen – wirkt seit v1.99.47 als Filter (Teil 6, Antwort 4).
+            // Eine uebergebene Eingabe (Redirect nach Warnung) bleibt stehen.
             if (vm.IsPickingTransport && string.IsNullOrEmpty(vm.ProductionOrder))
             {
-                var waNumbers = await _stockMovementRepository.GetProductionOrdersAtLocationAsync(storageLocationId.Value);
+                var waNumbers = vm.FaJeArtikel.Values.SelectMany(p => p.Nummern).Distinct().Order(StringComparer.Ordinal).ToList();
                 if (waNumbers.Count > 0)
                     vm.ProductionOrder = string.Join("; ", waNumbers);
             }
@@ -510,19 +517,84 @@ public class StockMovementsController : Controller
         return View(vm);
     }
 
+    /// <summary>v1.99.47 (Teil 6): FA je Artikel am Platz und – nur IDEAL – Sub-FA → Haupt-FA. Ein Ort fuer GET und POST.</summary>
+    private async Task<(Dictionary<int, FaAmPaar> FaJeArtikel, Dictionary<string, string> HauptJeSub)> LadeFaAsync(int platz)
+    {
+        // S-7: ein loser Mock liefert fuer Task<Dictionary<…>> null.
+        var faJeArtikel = await _stockMovementRepository.GetProductionOrdersByArticleAtLocationAsync(platz) ?? new();
+        var hauptJeSub = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (FaBuchungsText.IstHierarchisch(await _serviceSettings.GetValueAsync(Services.HierarchischeStruktur.HierarchischeStrukturKeys.Master)))
+        {
+            var nummern = faJeArtikel.Values.SelectMany(p => p.Nummern).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            if (nummern.Count > 0)
+                foreach (var o in await _productionOrderRepository.GetBySubOrderNumbersAsync(nummern) ?? new())
+                    if (o.IsSubFa) hauptJeSub[o.SubOrderNumber] = o.OrderNumber;
+        }
+        return (faJeArtikel, hauptJeSub);
+    }
+
     [RequireStockKeyUserAccess]
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> OutboundAllConfirm(int storageLocationId, string? productionOrder)
+    public async Task<IActionResult> OutboundAllConfirm(int storageLocationId, string? productionOrder,
+        int[]? treffendGezeigt = null, int[]? gemischtGezeigt = null, int[]? gemischtAusbuchen = null,
+        Dictionary<int, string>? stueckGezeigt = null)
     {
         var allStock = await _stockMovementRepository.GetCurrentStockAsync(
             filterStorageLocationId: storageLocationId);
-        var itemsToOutbound = allStock.Where(s => s.CurrentQuantity > 0).ToList();
+        var mitBestand = allStock.Where(s => s.CurrentQuantity > 0).ToList();
 
-        if (!itemsToOutbound.Any())
+        if (!mitBestand.Any())
         {
             TempData["WarningMessage"] = "Keine Artikel mit positivem Bestand auf diesem Lagerplatz.";
             return RedirectToAction(nameof(OutboundAll), new { storageLocationId });
+        }
+
+        var filter = FaBuchungsText.Nummern(productionOrder).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var itemsToOutbound = mitBestand;
+        var verbleibend = new List<StockOverviewItem>();
+        var istWagen = false;
+
+        // v1.99.47 (Teil 6): FA-Feld mit Wert filtert; leer = wie bisher alles.
+        if (filter.Count > 0)
+        {
+            var location = await _storageLocationRepository.GetByIdAsync(storageLocationId);
+            var platzCode = location?.Code ?? storageLocationId.ToString();
+            istWagen = location?.IsPickingTransport ?? false;
+            IActionResult Zurueck(string warnung)
+            {
+                TempData["WarningMessage"] = warnung;
+                return RedirectToAction(nameof(OutboundAll), new { storageLocationId, productionOrder });
+            }
+
+            var (faJeArtikel, hauptJeSub) = await LadeFaAsync(storageLocationId);
+            var treffendNeu = new HashSet<int>();
+            var gemischtNeu = new HashSet<int>();
+            foreach (var item in mitBestand)
+            {
+                var p = FaBuchungsText.PruefeZeile(faJeArtikel.GetValueOrDefault(item.ArticleId), hauptJeSub, filter);
+                if (FaBuchungsText.IstGemischt(p)) gemischtNeu.Add(item.ArticleId);
+                else if (p.Trifft) treffendNeu.Add(item.ArticleId);
+            }
+
+            if (treffendNeu.Count == 0 && gemischtNeu.Count == 0)
+                return Zurueck($"Kein Artikel auf {platzCode} gehört zu FA {productionOrder!.Trim()} – nichts ausgebucht.");
+
+            // Anforderung 11 (Antwort 8): gezeigte Zeilen und Stueckzahl gegen den neu ermittelten Stand; jede Abweichung → nichts buchen.
+            var bestand = mitBestand.ToDictionary(i => i.ArticleId, i => i.CurrentQuantity);
+            bool StueckPasst(int id) => stueckGezeigt != null && stueckGezeigt.TryGetValue(id, out var t)
+                && decimal.TryParse(t, NumberStyles.Number, CultureInfo.InvariantCulture, out var m) && m == bestand[id];
+            var ausbuchen = gemischtAusbuchen ?? [];
+            if (!treffendNeu.SetEquals(treffendGezeigt ?? []) || !gemischtNeu.SetEquals(gemischtGezeigt ?? [])
+                || !ausbuchen.All(gemischtNeu.Contains) || !treffendNeu.Concat(gemischtNeu).All(StueckPasst))
+                return Zurueck($"Bestand oder FA-Zuordnung auf {platzCode} hat sich geändert – bitte Auswahl erneut prüfen. Nichts ausgebucht.");
+
+            var auswahl = treffendNeu.Concat(ausbuchen).ToHashSet();
+            if (auswahl.Count == 0)
+                return Zurueck("Nichts ausgebucht – alle gemischten Zeilen mit „Nicht ausbuchen“ beantwortet.");
+
+            itemsToOutbound = mitBestand.Where(i => auswahl.Contains(i.ArticleId)).ToList();
+            verbleibend = mitBestand.Where(i => !auswahl.Contains(i.ArticleId)).ToList();
         }
 
         var appUserId = _currentUserService.GetCurrentAppUserId();
@@ -552,8 +624,18 @@ public class StockMovementsController : Controller
             count++;
         }
 
-        TempData["SuccessMessage"] = $"{count} Artikel erfolgreich ausgebucht.";
-        return RedirectToAction(nameof(OutboundAll));
+        if (filter.Count == 0)
+        {
+            TempData["SuccessMessage"] = $"{count} Artikel erfolgreich ausgebucht.";
+            return RedirectToAction(nameof(OutboundAll));
+        }
+
+        var meldung = $"{count} Artikel zu FA {productionOrder!.Trim()} ausgebucht.";
+        if (verbleibend.Count > 0)
+            meldung += $" {verbleibend.Count} Artikel {(istWagen ? "bleibt am Wagen" : "bleibt am Platz")}: "
+                + string.Join(", ", verbleibend.Select(i => i.ArticleNumber)) + ".";
+        TempData["SuccessMessage"] = meldung;
+        return RedirectToAction(nameof(OutboundAll), new { storageLocationId });
     }
 
     // ========== Lagerplatz-Umbuchung ==========

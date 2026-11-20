@@ -511,10 +511,18 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
         return destSum - srcSum;
     }
 
-    public async Task<List<string>> GetProductionOrdersAtLocationAsync(int storageLocationId)
+    // v1.99.13: Texte aus „Trotzdem buchen“ („A;B“) in Einzelnummern zerlegt, jede einmal — fuer Konfliktpruefung, Modal, Zusammenfuehren.
+    // v1.99.47: aus der Methode je Artikel abgeleitet (eine Regel an einem Ort), Ergebnis unveraendert.
+    public async Task<List<string>> GetProductionOrdersAtLocationAsync(int storageLocationId) =>
+        (await GetProductionOrdersByArticleAtLocationAsync(storageLocationId)).Values
+            .SelectMany(p => p.Nummern)
+            .Distinct()
+            .Order(StringComparer.Ordinal)
+            .ToList();
+
+    public async Task<Dictionary<int, FaAmPaar>> GetProductionOrdersByArticleAtLocationAsync(int storageLocationId)
     {
-        // Distinct ProductionOrder-Werte von Umbuchungen auf diesen Lagerplatz
-        // (nur für Artikel die dort aktuell positiven Bestand haben)
+        // Nur Artikel mit echtem Restbestand am Platz (Teil 1 / Antwort 3).
         var currentStock = await GetCurrentStockAsync(filterStorageLocationId: storageLocationId);
         var articleIdsWithStock = currentStock
             .Where(s => s.CurrentQuantity > 0)
@@ -522,24 +530,29 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
             .ToHashSet();
 
         if (articleIdsWithStock.Count == 0)
-            return new List<string>();
+            return new Dictionary<int, FaAmPaar>();
 
-        var orders = await _dbSet
-            .Where(sm => sm.StorageLocationId == storageLocationId
-                      && sm.ProductionOrder != null
-                      && articleIdsWithStock.Contains(sm.ArticleId))
-            .Select(sm => sm.ProductionOrder!)
+        // Ohne „ProductionOrder != null“: G2 braucht die Zugaenge ohne Text. Distinct in SQL = ein Satz je Artikel/Art/Text.
+        // Umbuchungs-Quelle (SourceStorageLocationId) wird bewusst nicht gelesen – wie bisher.
+        var saetze = await _dbSet.AsNoTracking()
+            .Where(sm => sm.StorageLocationId == storageLocationId && articleIdsWithStock.Contains(sm.ArticleId))
+            .Select(sm => new { sm.ArticleId, sm.MovementType, sm.ProductionOrder })
             .Distinct()
             .ToListAsync();
 
-        // v1.99.13: Texte aus „Trotzdem buchen“ („A;B“) in Einzelnummern zerlegen, jede einmal — wirkt fuer Konfliktpruefung, Modal,
-        // Zusammenfuehren und „Lagerplatz ausbuchen“; Altbestand mit Wiederholungen wird beim Lesen normalisiert.
-        return orders
-            .SelectMany(o => o.Split([';', ','], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-            .Distinct()
-            .Order(StringComparer.Ordinal)
-            .ToList();
+        return saetze.GroupBy(x => x.ArticleId).ToDictionary(g => g.Key, g =>
+        {
+            var zugang = g.Where(x => IstZugang(x.MovementType)).ToList();
+            return new FaAmPaar(
+                g.SelectMany(x => FaBuchungsText.Nummern(x.ProductionOrder)).Distinct().Order(StringComparer.Ordinal).ToList(),
+                zugang.SelectMany(x => FaBuchungsText.Nummern(x.ProductionOrder)).ToHashSet(StringComparer.OrdinalIgnoreCase),
+                zugang.Any(x => !FaBuchungsText.Nummern(x.ProductionOrder).Any()));
+        });
     }
+
+    /// <summary>Gleiche Vorzeichen wie die Bestandsberechnung: Ein-, Sage-Ein- und Umbuchung (Zielseite) sind Zugaenge.</summary>
+    private static bool IstZugang(MovementType t) =>
+        t is MovementType.Einbuchung or MovementType.SageEinbuchung or MovementType.Umbuchung;
 
     public async Task<Dictionary<(int ArticleId, int StorageLocationId), decimal>> GetCurrentStockByArticleAndLocationAsync()
     {

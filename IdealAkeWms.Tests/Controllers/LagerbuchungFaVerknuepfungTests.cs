@@ -68,6 +68,8 @@ public class LagerbuchungFaVerknuepfungTests
     private readonly List<StockMovement> _gebucht = new();
     private readonly Mock<IAppSettingRepository> _settings = new();
     private string? _pflicht;
+    // v1.99.47: FA-Bezug am Platz fuer „Lagerplatz ausbuchen“ mit Filter (Teil 6).
+    private Dictionary<int, FaAmPaar> _faAmPlatz = new() { [9] = new(["1065141"], new(["1065141"], StringComparer.OrdinalIgnoreCase), false) };
 
     private StockMovementsController Ctrl()
     {
@@ -75,6 +77,7 @@ public class LagerbuchungFaVerknuepfungTests
         _stock.Setup(r => r.GetCurrentStockAtLocationAsync(It.IsAny<int>(), It.IsAny<int>())).ReturnsAsync(100m);
         _stock.Setup(r => r.GetCurrentStockAsync(It.IsAny<string?>(), It.IsAny<int?>(), It.IsAny<decimal?>(), It.IsAny<decimal?>()))
             .ReturnsAsync(new List<StockOverviewItem> { new() { ArticleId = 9, CurrentQuantity = 3m } });
+        _stock.Setup(r => r.GetProductionOrdersByArticleAtLocationAsync(It.IsAny<int>())).ReturnsAsync(() => _faAmPlatz);
         _po.Setup(r => r.FindForBookingAsync("1065141")).ReturnsAsync(new FaAufloesung(FaAufloesungStatus.Gefunden, Po(42, "1065141", "1065141")));
         _po.Setup(r => r.FindForBookingAsync("9999999")).ReturnsAsync(new FaAufloesung(FaAufloesungStatus.Unbekannt, null));
         _po.Setup(r => r.FindForBookingAsync(null)).ReturnsAsync(new FaAufloesung(FaAufloesungStatus.Leer, null));
@@ -87,7 +90,8 @@ public class LagerbuchungFaVerknuepfungTests
         var settings = _settings;
         settings.Setup(r => r.GetValueAsync(AppSettingKeys.FaPflichtBuchungsarten)).ReturnsAsync(() => _pflicht);
         var ctrl = new StockMovementsController(_stock.Object, Mock.Of<IArticleRepository>(), Mock.Of<IStorageLocationRepository>(),
-            Mock.Of<IUserRepository>(), user.Object, settings.Object, Mock.Of<IPartRequisitionRepository>(), _po.Object);
+            Mock.Of<IUserRepository>(), user.Object, settings.Object, Mock.Of<IPartRequisitionRepository>(), _po.Object,
+            Mock.Of<IServiceSettingRepository>());
         var http = new DefaultHttpContext();
         ctrl.ControllerContext = new ControllerContext { HttpContext = http };
         ctrl.TempData = new TempDataDictionary(http, Mock.Of<ITempDataProvider>());
@@ -106,7 +110,7 @@ public class LagerbuchungFaVerknuepfungTests
         });
         await c.Outbound(new StockMovementCreateViewModel { ArticleId = 9, Quantity = 1, StorageLocationId = 2, ProductionOrder = "1065141" });
         await c.Transfer(new StockTransferViewModel { ArticleId = 9, Quantity = 1, SourceStorageLocationId = 2, StorageLocationId = 3, ProductionOrder = "1065141" });
-        await c.OutboundAllConfirm(2, "1065141");
+        await c.OutboundAllConfirm(2, "1065141", treffendGezeigt: [9], stueckGezeigt: new() { [9] = "3" });
 
         _gebucht.Should().HaveCount(6).And.OnlyContain(m => m.ProductionOrderId == 42 && m.ProductionOrder == "1065141");
     }
@@ -114,7 +118,8 @@ public class LagerbuchungFaVerknuepfungTests
     [Fact]
     public async Task LagerplatzAusbuchen_WagenListe_NichtVerknuepft_Antwort5()
     {
-        await Ctrl().OutboundAllConfirm(2, "A; B");
+        _faAmPlatz = new() { [9] = new(["A", "B"], new(["A", "B"], StringComparer.OrdinalIgnoreCase), false) };
+        await Ctrl().OutboundAllConfirm(2, "A; B", treffendGezeigt: [9], stueckGezeigt: new() { [9] = "3" });
         _gebucht.Should().ContainSingle().Which.Should().Match<StockMovement>(m => m.ProductionOrderId == null && m.ProductionOrder == "A; B");
     }
 
