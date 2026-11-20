@@ -27,18 +27,13 @@ affected_code:
   - IdealAkeWms.Tests/Services/ (neue Unit-Tests FaBuchungsText.PruefeZeile)
   - IdealAkeWms.Tests/Controllers/StockMovementsControllerBulkInboundTests.cs (nur Ctor-Parameter IServiceSettingRepository)
   - IdealAkeWms/AppVersion.cs + IDEALAKEWMSService/AppVersion.cs + Views/Help/Changelog.cshtml
-  - docs/TESTSZENARIEN.md (TS-173 neu; TS-2.4 inhaltlich neu gefasst, Wagen mit Vorbelegung/Modal)
+  - docs/TESTSZENARIEN.md (TS-173 neu; TS-2.4 inhaltlich neu gefasst, Wagen mit Vorbelegung/Modal, Wagen-Vorbedingung ueber Lagerplatz umbuchen)
   - secondbrain/tests/testszenarien-index.md
-open_questions:
-  - "ENTSCHIEDEN (Gerald 2026-11-19): Variante A – das FA-Feld filtert; nur Artikel, die laut Bewegungen zu diesem FA gehoeren, werden ausgebucht."
-  - "ENTSCHIEDEN (Gerald 2026-11-19): alle FA kommagetrennt in der FA-Spalte."
-  - "ENTSCHIEDEN (Gerald 2026-11-19): wie Teil 1 – echter Bestand als Grundlage, FA nur aus Bewegungen mit Restbestand."
-  - "ENTSCHIEDEN (Gerald 2026-11-19 20:40): Wagen-Vorbelegung bleibt und filtert; Artikel ohne FA-Vermerk werden sichtbar als 'bleibt am Wagen' gemeldet."
-  - "ENTSCHIEDEN (Gerald 2026-11-19 20:40): je gemischter Zeile im Bestaetigungsdialog Ja/Nein nachfragen – kein stilles Ausbuchen, kein stilles Auslassen."
-  - "ENTSCHIEDEN (Gerald 2026-11-19 20:40): an IDEAL schliesst eine eingegebene Haupt-FA die Sub-FA ihrer Struktur ein; AKE unveraendert Textvergleich."
-  - "ENTSCHIEDEN (Gerald 2026-11-20 12:50): eingegebene Sub-FA trifft nur ihre eigene Nummer (keine Nachfahren); Haupt-FA schliesst alle Sub-FA ein."
-  - "ENTSCHIEDEN (Gerald 2026-11-20 12:50): Server prueft treffendGezeigt + gemischtGezeigt per SetEquals und die Stueckzahl je Zeile; jede Abweichung -> nichts buchen, Warnung, Seite neu laden (deckt S-3). Dazu B-3 (a): Zugang ohne FA-Text oder FA nur aus Ausbuchung -> Zeile gemischt."
-  - "Antwort 6 nennt 'ueber ProductionOrderId/Hierarchie'. Umgesetzt wird der Textweg: FA-Text der Bewegung -> SubOrderNumber -> OrderNumber (jede Bewegung mit FK traegt dieselbe Nummer im Text, der Textweg trifft zusaetzlich Listen-Bewegungen mit FK null). Bestaetigt?"
+  - IdealAkeWms/Views/Help/Index.cshtml:50-52 (Eintrag Lagerplatz ausbuchen - heute "Alle Artikel eines Lagerplatzes auf einmal ausbuchen"; neu FA-Filter, bleibt am Wagen/Platz, Abfrage gemischter Zeilen inkl. Zugang ohne FA)
+  - docs/anwender/09-einbuchen-ausbuchen-umbuchen.md:111-121 (Abschnitt 5 - Satz :113 "bucht alle Artikel", Foto :115 mit Knopf "Alle ... Artikel ausbuchen" neu aufnehmen, Schritte :118-121 confirm -> Modal); :162-167 nur pruefen (Wagen weiter nicht in der Auswahl, Stand-Datum :162)
+  - docs/anwender/01-kommissionierung.md:152 ("oeffnet die Ausbuchung des ganzen Wagens" -> nur Artikel der vorbelegten FA, Rest bleibt am Wagen, Feld leeren = alles)
+  - scripts/deploy/nachlauf.psd1 (neuer Info-Eintrag im Nachher-Block nach :588-590, vor der schliessenden Klammer :591)
+open_questions: []
 epic: false
 etappen: []
 deploy:
@@ -72,6 +67,15 @@ freigabe_am: ""
 > Bestätigung Textweg). TS-173 und Version 1.99.46 bleiben. Antwort-, Prüf- und Nachtragsabschnitte
 > unverändert; einzige Ausnahme ist die vom Menschen beauftragte Überholt-Markierung (H-1) unter Runde 1.
 
+> [!info] Überarbeitung 2026-11-20 abends (spec-agent, Rework Runde 4)
+> „Freigabe-Antworten Runde 4“ (Antwort 9 = Textweg, R2-S6) und die Befunde R2-B1, R2-S1 bis R2-S5 der
+> „Kritischen Pruefung (2026-11-20, Runde 2)“ eingearbeitet: Begründung Textweg in Ist-Zustand „Hierarchie“
+> und Lösungsentwurf 8, Enter im FA-Feld (Anforderung 10, Lösungsentwurf 6, AK 27, TS-173.16), Wagen-
+> Vorbedingung über „Lagerplatz umbuchen“ (Anforderung 12, AK 16, TS-173, TS-2.4), Neubefüllung von L in
+> TS-173.7/173.14, Einschränkung „falls eindeutig“ in TS-173.10, Hilfe/Anwenderdoku/Manifest in
+> `affected_code` und Lösungsentwurf 9, AK 28. `open_questions` leer (alle entschieden). Antwort-, Prüf- und
+> Nachtragsabschnitte unverändert.
+
 ## Ziel / Nutzen (das Warum)
 
 Auf der Seite „Lagerplatz ausbuchen" (`/StockMovements/OutboundAll`) soll der Lagermitarbeiter
@@ -101,10 +105,15 @@ der gesamte Bestand des Lagerplatzes (Beleg unten, Ist-Zustand).
    `ProduktionsauftragHierarchisch`. AKE unverändert reiner Textvergleich. Der Einschluss läuft über den
    **FA-Text** der Bewegung → `SubOrderNumber` → `OrderNumber`, nicht über `StockMovement.ProductionOrderId`
    (Abweichung vom Wortlaut „über ProductionOrderId“ in Antwort 6, begründet im Ist-Zustand
-   „Hierarchie“ und in der Kritischen Prüfung 2026-11-20 Abschnitt 2b; Bestätigung offen als Rückfrage 9).
+   „Hierarchie“ und in der Kritischen Prüfung 2026-11-20 Abschnitt 2b; **bestätigt durch Antwort 9**,
+   Gerald 2026-11-20 13:40).
 7. Bestand ohne FA in einer FA-Zeile (B-3 (a)): Eine treffende Zeile gilt auch dann als gemischt und wird
    im Dialog abgefragt, wenn am Paar ein Zugang **ohne** FA-Text liegt oder die getroffene FA nur aus
-   Ausbuchungen stammt.
+   Ausbuchungen stammt. Gilt auf jedem Lagerplatz, keine Einschränkung auf Wagen (R2-S6).
+8. Enter im FA-Feld läuft denselben Weg wie der Knopf (R2-S1): Vorschau, Modal bzw. `confirm()` – nie ein
+   direktes Absenden.
+9. Hilfe (`Views/Help/Index.cshtml`), Anwenderdoku (`docs/anwender/09-…`, `docs/anwender/01-…`) und
+   Manifest-Info nachziehen, inkl. des sachlichen Satzes aus R2-S6 (Lösungsentwurf 9).
 
 **Out-of-Scope**
 - Leeres FA-Feld: Verhalten bleibt wie heute (gesamter Lagerplatz-Bestand, heutiger `confirm()`-Dialog).
@@ -187,6 +196,13 @@ der gesamte Bestand des Lagerplatzes (Beleg unten, Ist-Zustand).
     „OK“ im `confirm()` auf „Alle N Artikel ausbuchen“ – wird der Knopf sofort `disabled` und zeigt
     „Wird ausgebucht …“; ein zweiter Klick sendet nichts. (Zwei echt gleichzeitige POSTs aus zwei Tabs
     bleiben wie heute möglich, Kritische Prüfung S-4; nicht Teil dieser Spec.)
+    **Enter im FA-Feld (R2-S1):** Das Formular `outboundAllForm` (`OutboundAll.cshtml:90-103`) hat genau ein
+    Textfeld (`productionOrder`, `:95`) und keinen Submit-Knopf (`type="button"`, `:98`); Enter schickt es
+    heute nach HTML-Regel (implizites Absenden) direkt ab, am Klick-Handler `:118-122` vorbei – mit leerem
+    Feld ohne `confirm()`, mit Wert ohne `treffendGezeigt`/`stueckGezeigt` (Serverprüfung schlägt an).
+    Künftig fängt ein `submit`-Listener am Formular jedes Absenden mit `preventDefault()` ab und löst
+    denselben Weg wie der Knopfklick aus: leeres Feld → `confirm()`, Wert → Modal, Knopf deaktiviert (M = 0
+    oder schon „Wird ausgebucht …“) → nichts. Enter sendet nie direkt.
 11. **Serverprüfung beim Absenden (Antwort 8, deckt S-3):** Mitgesendet werden Artikel-IDs und
     Stückzahlen, nie die zu buchende Menge selbst:
     - `treffendGezeigt` = IDs der Zeilen unter „Wird ausgebucht“ (treffend, nicht gemischt);
@@ -216,9 +232,12 @@ der gesamte Bestand des Lagerplatzes (Beleg unten, Ist-Zustand).
     Filter; Artikel ohne FA-Vermerk treffen nicht und werden nach 9/10/7 als „bleibt am Wagen“ gezeigt
     und gemeldet. Weil die Vorbelegung alle Wagen-FA enthält, entsteht dort ohne Änderung des Felds kein
     Grund G1. G2/G3 sind am Wagen möglich – z. B. ein Artikel, der per Kommissionierung mit FA und
-    zusätzlich per manueller Umbuchung ohne FA-Text auf den Wagen kam (`StockMovementsController.cs:463`
-    mit leerem Feld, `:618-631`, `PickingTransferService.cs:75,216` ohne FA am Auftrag) – und werden
-    dann abgefragt.
+    zusätzlich per **„Lagerplatz umbuchen“** ohne FA-Text auf den Wagen kam – und werden dann abgefragt.
+    Realer Weg für Bestand ohne FA auf einem Wagen ist nur „Lagerplatz umbuchen“
+    (`StockMovementsController.cs:618-631`, setzt nie `ProductionOrder`): nur dort steht ein Wagen als Ziel
+    zur Wahl (`:564` → `GetAllOrderedAsync`, `StorageLocationRepository.cs:29-33`, ohne Wagen-Filter).
+    „Umbuchen“ und „Einbuchen“ bieten Wagen nicht an (Umbuchen `:394`, `:413`, `:436`, Einbuchen `:114` →
+    `GetActiveOrderedExcludingPickingTransportAsync`, `StorageLocationRepository.cs:43-49`).
 13. **Standort (Antwort 6):** IDEAL-Einschluss nur bei Master `ProduktionsauftragHierarchisch` = true;
     an AKE (Master false/leer) gilt ausschließlich der Textvergleich aus 4.
 
@@ -237,6 +256,11 @@ der gesamte Bestand des Lagerplatzes (Beleg unten, Ist-Zustand).
 > ohne Stückzahlvergleich.
 > 12. „Weil die Vorbelegung alle Wagen-FA enthält, gibt es dort ohne Änderung des Felds keine gemischten
 > Zeilen.“ – gilt seit B-3 (a) nur noch für G1.
+
+> [!note]- Anforderung 12 vom 2026-11-20 (Runde 3) – **überholt** durch R2-S2, nur Audit
+> „… per manueller Umbuchung ohne FA-Text auf den Wagen kam (`StockMovementsController.cs:463` mit leerem
+> Feld, `:618-631`, `PickingTransferService.cs:75,216` ohne FA am Auftrag)“ – der Weg `:463` (Umbuchen)
+> erreicht keinen Wagen, weil „Umbuchen“ Wagen nicht zur Wahl stellt; realer Weg nur `:618-631`.
 
 ## Ist-Zustand (Code-Referenzen, Bündel-Stand v1.99.44)
 
@@ -315,8 +339,16 @@ Ausbuchungen gehen je nach Schalter + Lagerplatz-Flag `SageBuchungErlaubt` an Sa
   Bewegung mit FK trägt dieselbe Nummer (bzw. deren `OrderNumber`) auch im Text
   (`StockMovementsController.cs:151/152, :263/264, :370/371, :463/464, :541/542` aus `FindForBookingAsync`
   desselben Texts; `PickingTransferService.cs:75,216-217`); der Textweg trifft also alles, was der FK-Weg
-  trifft, und zusätzlich Listen-Bewegungen mit FK `null`. Ein-Zeilen-Bestätigung durch den Menschen:
-  Rückfrage 9 (S-1).
+  trifft, und zusätzlich Listen-Bewegungen mit FK `null`. **Bestätigt durch Antwort 9** (Gerald
+  2026-11-20 13:40). Zwei Sätze tragen die Begründung (R2-B1):
+  1. Bei Kommissionier-Bewegungen fallen Text (`auftrag.ProductionOrder?.OrderNumber`,
+     `PickingTransferService.cs:75`) und FK (`zeile.ProductionOrderId`, `:217`; Zeilen-FK = FA des Auftrags,
+     `PickingOrderWorkflow.cs:124,129`) nur deshalb auf dieselbe Nummer, weil die Kommissionierung **nur am
+     HauptFA** erlaubt ist (`PickingOrderWorkflow.cs:61`, laut Kommentar `:63` der einzige Erzeugungsweg;
+     interaktiv zusätzlich `PickingController.cs:227`); für einen HauptFA ist `OrderNumber` die eigene Nummer.
+  2. Mehrtreffer des Textwegs (Listen-Texte wie „A;B“ aus „Trotzdem buchen“, `PickingTransferService.cs:101-102`,
+     Text = Wagenliste, FK = ein Herkunfts-FA) werden **nie still** aufgelöst: eine solche Zeile ist entweder
+     voll abgedeckt (alle ihre Nummern sind gefiltert) oder G1-gemischt und wird im Dialog abgefragt.
 - Wiederverwendbar: `GetBySubOrderNumbersAsync(IReadOnlyCollection<string>)`
   (`ProductionOrderRepository.cs:271-282`, ein Read für alle Nummern; heutiger Aufrufer
   `PlannedConsumptionService.cs:106`).
@@ -357,6 +389,12 @@ Zugänge ohne Text nicht; die Art wird nicht gelesen.
 **Wagen-Einstieg:** Wagen stehen nicht in der Platzauswahl, kommen aber über den Konflikt-Dialog
 der Kommissionierung auf die Seite (`Views/Picking/Bom.cshtml:1655-1660`, `conflictLocationId` aus
 `:1627`).
+
+**Wagen befüllen (R2-S2, belegt 2026-11-20):** Über die Oberfläche kommt Bestand nur auf zwei Wegen auf
+einen Wagen: Kommissionierung (`PickingTransferService.cs:210-218`, mit FA-Text) und „Lagerplatz umbuchen“
+(`StockMovementsController.cs:618-631`, ohne FA-Text; Wagen als Ziel wählbar, weil `LocationTransfer` alle
+Plätze lädt, `:564` → `StorageLocationRepository.cs:29-33`). „Einbuchen“ (`:114`) und „Umbuchen“ (`:394`,
+`:413`, `:436`) laden nur `GetActiveOrderedExcludingPickingTransportAsync` (`StorageLocationRepository.cs:43-49`).
 
 **Rechte:** `RequireStockKeyUserAccess` → `CanTransferStockAsync` = admin, stock_keyuser, picking
 (`CurrentUserService.cs:134-135`).
@@ -465,7 +503,10 @@ geliefert und die alte Methode daraus abgeleitet – eine Regel an einem Ort.
    für beide Mengen `name="stueckGezeigt[<articleId>]" value="<data-menge>"`. Vorher angelegte hidden
    inputs werden entfernt (erneutes Öffnen nach Abbrechen erzeugt keine Dubletten). Die Radios selbst
    liegen außerhalb des Formulars. Abbrechen schließt nur das Modal. Leeres Feld: nach „OK“ im `confirm()`
-   ebenfalls `disabled` vor `submit()`. `frontend-design`-Skill im Dev-Lauf aufrufen; Optionsfelder mit
+   ebenfalls `disabled` vor `submit()`. **Enter (R2-S1):** `submit`-Listener am Formular `outboundAllForm`
+   mit `preventDefault()`, der dieselbe Funktion wie der Klick-Handler aufruft (bei deaktiviertem Knopf
+   nichts tun). Das Absenden nach Bestätigung bleibt `form.submit()`, das nach HTML-Standard kein
+   `submit`-Ereignis auslöst – der Listener fängt also nur das implizite Absenden per Enter. `frontend-design`-Skill im Dev-Lauf aufrufen; Optionsfelder mit
    `<label>`, per Tastatur bedienbar, Kontrast AA.
 7. **`OutboundAllConfirm` (POST)** – Signatur `OutboundAllConfirm(int storageLocationId, string?
    productionOrder, int[]? treffendGezeigt = null, int[]? gemischtGezeigt = null, int[]? gemischtAusbuchen =
@@ -497,10 +538,28 @@ geliefert und die alte Methode daraus abgeleitet – eine Regel an einem Ort.
      ?.IsPickingTransport` (wie GET `:493-495`, `null` → „Platz“). Redirect mit `storageLocationId`.
 8. **IDEAL-Einschluss (Antwort 6)** steckt vollständig in `HauptJeSub` (Punkt 4) + `PruefeZeile`
    (Punkt 1); keine zweite Regel, keine Änderung an `FindForBookingAsync`, `GetStockByProductionOrderAsync`
-   oder am Wagen-Konflikt. Bewusst Textweg statt `ProductionOrderId` (Umfang 6, Ist-Zustand „Hierarchie“,
-   Rückfrage 9): gleiche Treffer wie der FK-Weg plus Listen-Bewegungen; eine Abfrage weniger, weil der
-   Bewegungstext ohnehin gelesen wird. `HauptJeSub` wird nur aus `IsSubFa`-Sätzen gebaut; eine eingegebene
+   oder am Wagen-Konflikt. Textweg statt `ProductionOrderId`, **bestätigt durch Antwort 9** (Umfang 6,
+   Ist-Zustand „Hierarchie“): gleiche Treffer wie der FK-Weg plus Listen-Bewegungen; eine Abfrage weniger,
+   weil der Bewegungstext ohnehin gelesen wird. Die Gleichheit von Text und FK bei Kommissionier-Bewegungen
+   folgt daraus, dass nur am HauptFA kommissioniert wird (`PickingOrderWorkflow.cs:61`). Mehrtreffer des
+   Textwegs (Listen-Texte) werden nie still aufgelöst – die Zeile ist voll abgedeckt oder G1-gemischt und
+   wird abgefragt. `HauptJeSub` wird nur aus `IsSubFa`-Sätzen gebaut; eine eingegebene
    Sub-FA hat dort keinen Eintrag als Haupt-FA und deckt deshalb nur sich selbst ab (Antwort 7).
+9. **Hilfe, Anwenderdoku, Manifest (R2-S4, R2-S6)** – heute beschreiben alle drei Stellen „alles ausbuchen“:
+   - `Views/Help/Index.cshtml:50-52` („Alle Artikel eines Lagerplatzes auf einmal ausbuchen“): FA-Feld als
+     Filter, Rest „bleibt am Wagen/Platz“, Feld leer = alles, gemischte Zeilen werden einzeln abgefragt.
+   - `docs/anwender/09-einbuchen-ausbuchen-umbuchen.md` Abschnitt 5: Satz `:113` („bucht **alle** Artikel eines
+     Platzes auf einmal aus“), Foto `:115` (Knopf „Alle … Artikel ausbuchen“ am Wagen) per Playwright gegen DEV
+     neu aufnehmen (Knopf „N von M Artikeln ausbuchen (FA …)“, FA-Spalte), Schritte `:118-121` (`confirm()` →
+     Modal, Vorbelegung filtert). `:162-167` („Kommissionierwagen fehlen in der Auswahl“) bleibt inhaltlich
+     gültig (Out-of-Scope), nur Stand-Datum `:162` prüfen.
+   - `docs/anwender/01-kommissionierung.md:152` („öffnet die Ausbuchung des ganzen Wagens“): ausgebucht werden
+     nur die Artikel der vorbelegten FA, Artikel ohne FA bleiben am Wagen, Feld leeren = alles.
+   - In Hilfe und `docs/anwender/09` steht sachlich (R2-S6, Antwort Gerald 2026-11-20 13:40): **„Zeilen, an
+     denen ein Zugang ohne FA liegt (z. B. aus dem Wareneingang), werden einzeln abgefragt.“** Keine
+     Einschränkung des Filters auf Wagen, keine Wertung.
+   - `scripts/deploy/nachlauf.psd1`: Info-Eintrag laut Abschnitt Deploy, im Nachher-Block hinter dem
+     letzten Eintrag `:588-590`.
 
 > [!note]- Lösungsentwurf-Punkte 1, 2, 6, 7 vom 2026-11-20 (Runde 2) – **überholt** durch Runde 3, nur Audit
 > 1. `PruefeZeile(IEnumerable<string> zeilenNummern, …)` → `(Trifft, Fremd)`, gemischt ⇔ `Trifft && Fremd.Count > 0`.
@@ -608,8 +667,9 @@ begründete Ausnahme. Die neue Spalte bringt keine Spaltenfilter-/Pagination-Pfl
     Bestand von 2,5 wird als `2.5` gesendet und auf DEV (de-DE) korrekt als gleich erkannt.
 15. **Wagen-Konflikt unverändert:** `GetProductionOrdersAtLocationAsync` liefert für denselben Platz
     dasselbe wie vorher (bestehender Test grün); Konflikt-Dialog der Kommissionierung unverändert.
-16. **Wagen-Vorbelegung (Antwort 4):** Wagen mit Artikeln von FA A und B plus einem Artikel ohne FA →
-    Feld vorbelegt „A; B", Knopf zeigt „2 von 3", die Zeile ohne FA trägt „bleibt am Wagen“, der Dialog
+16. **Wagen-Vorbelegung (Antwort 4):** Wagen mit Artikeln von FA A und B (Kommissionierung) plus einem
+    Artikel ohne FA, der per „Lagerplatz umbuchen“ von einem Hilfsplatz X (genau dieser eine Artikel, ohne FA)
+    auf den Wagen kam (`StockMovementsController.cs:618-631`, R2-S2) → Feld vorbelegt „A; B", Knopf zeigt „2 von 3", die Zeile ohne FA trägt „bleibt am Wagen“, der Dialog
     listet sie unter „Bleibt am Wagen“ und hat keinen Block „Bitte entscheiden“; nach Bestätigen bleibt
     der Artikel auf dem Wagen und die Erfolgsmeldung nennt ihn mit „bleibt am Wagen“.
 17. **Wagen, Feld geleert:** Vorbelegung gelöscht → Knopf „Alle 3 Artikel ausbuchen“, `confirm()` wie
@@ -656,7 +716,17 @@ begründete Ausnahme. Die neue Spalte bringt keine Spaltenfilter-/Pagination-Pfl
     und je Zeile genau eine Ausbuchung.
 26. **TS-2.4 neu gefasst (S-5):** `docs/TESTSZENARIEN.md` TS-2.4 beschreibt den Wagen mit vorbelegtem Feld,
     Knopf „N von M Artikeln ausbuchen (FA …)“, Modal statt `confirm()` und „bleibt am Wagen“ für Artikel ohne
-    FA, plus den Weg „Feld leeren = alles wie bisher“ (Wortlaut im Abschnitt Test-Szenarien).
+    FA, plus den Weg „Feld leeren = alles wie bisher“ (Wortlaut im Abschnitt Test-Szenarien); die
+    Vorbedingung „Artikel ohne FA auf dem Wagen“ entsteht über „Lagerplatz umbuchen“ (R2-S2).
+27. **Enter im FA-Feld (R2-S1):** FA-Feld mit Wert, Enter → Modal öffnet sich (bzw. bei M = 0 nichts),
+    **kein** POST (Netzwerk-Tab), keine Warnung „hat sich geändert“. FA-Feld leer, Enter → `confirm()`
+    erscheint; „Abbrechen“ → kein POST, „OK“ → genau ein POST wie über den Knopf. Nach „Jetzt ausbuchen“
+    (Knopf gesperrt) erzeugt ein weiteres Enter keinen zweiten POST.
+28. **Hilfe und Doku (R2-S4, R2-S6):** `Views/Help/Index.cshtml` (Eintrag „Lagerplatz ausbuchen“),
+    `docs/anwender/09-einbuchen-ausbuchen-umbuchen.md` Abschnitt 5 (Text + neues Foto) und
+    `docs/anwender/01-kommissionierung.md:152` beschreiben FA-Filter, „bleibt am Wagen/Platz“ und „Feld leer =
+    alles“; Hilfe und `docs/anwender/09` enthalten den Satz, dass Zeilen mit einem Zugang ohne FA einzeln
+    abgefragt werden. Keine dieser Stellen sagt mehr „alle Artikel“ für den Weg mit FA-Eintrag.
 
 > [!note]- AK 9–15 vom 2026-11-19 – **überholt** durch Antworten 4–6, nur Audit
 > 10 „Bestätigungsdialog listet bei Filter die Artikelnummern“; **11 „Gemischte Zeile (vorbehaltlich
@@ -681,7 +751,9 @@ die Seite hat keinen eigenen Standortschalter, der IDEAL-Einschluss hängt am Ma
 - **Vorbedingungen:** Rolle `stock_keyuser`. Platz L: A eingebucht 5 mit FA `1234567`; B 3 ohne FA;
   C 2 mit FA `111` + 1 mit FA `222`; D 4 mit FA `333` eingebucht, danach ohne FA 4 ausgebucht;
   N 2 mit FA `111` (für 173.5). Für 173.8 ein Wagen W mit Artikeln von FA A und B (Kommissionierung)
-  plus ein Artikel ohne FA (manuelle Umbuchung). Für 173.10–173.12 auf **DEV IDEAL** eine Struktur H mit
+  plus ein Artikel ohne FA: auf einen Hilfsplatz X genau diesen einen Artikel ohne FA einbuchen, dann
+  **„Lagerplatz umbuchen“** Quelle X → Ziel W (nur dort ist ein Wagen als Ziel wählbar; „Umbuchen“ bietet
+  keine Wagen an, R2-S2). Für 173.10–173.12 auf **DEV IDEAL** eine Struktur H mit
   Sub-FA S1 und darunter S2 (Abfrage: `SELECT OrderNumber, SubOrderNumber, ParentSubOrderNumber FROM
   dbo.ProductionOrders WHERE OrderNumber = '<H>'`) und Platz M mit E (eingebucht mit FA-Text S1),
   F (S2), G (H), K (S1 + FA einer anderen Struktur X) – alle Zugänge mit FA-Text. Für 173.15 Platz P:
@@ -704,18 +776,25 @@ die Seite hat keinen eigenen Standortschalter, der IDEAL-Einschluss hängt am Ma
     Danach Feld `111` erneut: C ist jetzt einzige treffende Zeile; „Nicht ausbuchen“ → „Jetzt
     ausbuchen“ gesperrt; „Ausbuchen“ → C komplett (3) ausgebucht.
   - 173.6 Feld `333` → kein Treffer (D ohne Restbestand).
-  - 173.7 **Serverprüfung (negativ):** Dialog für C offen lassen, in zweitem Tab C komplett ausbuchen
-    (Feld leer wäre alles – stattdessen Einzel-Ausbuchung), im ersten Tab „Ausbuchen“ + bestätigen →
-    Warnung „hat sich geändert … Nichts ausgebucht.“. Zusätzlich per Browser-Werkzeug ein
-    `gemischtAusbuchen` mit fremder Artikel-ID einschleusen → dieselbe Warnung, nichts gebucht.
-    Weitere Negativfälle (jeweils Seite mit Feld `111` öffnen, Dialog offen lassen, im zweiten Tab
-    ändern, im ersten Tab bestätigen → Warnung „hat sich geändert … Nichts ausgebucht.“, Seite neu
-    geladen, Bewegungshistorie ohne neue Ausbuchung):
+  - 173.7 **Serverprüfung (negativ):** **Vorbedingung – L neu befüllen** (173.5 hat C und N ausgebucht,
+    R2-S3): Ausgangslage 173.4 herstellen = C 2 Stk mit FA `111` + 1 Stk mit FA `222` (Bestand 3), N 2 Stk
+    mit FA `111` einbuchen; Spalte prüfen (C `111, 222`, N `111`). Dann: Dialog für C offen lassen, in
+    zweitem Tab C komplett ausbuchen (Feld leer wäre alles – stattdessen Einzel-Ausbuchung), im ersten Tab
+    „Ausbuchen“ + bestätigen → Warnung „hat sich geändert … Nichts ausgebucht.“. Zusätzlich per
+    Browser-Werkzeug ein `gemischtAusbuchen` mit fremder Artikel-ID einschleusen → dieselbe Warnung,
+    nichts gebucht.
+    Weitere Negativfälle (vor **jedem** Fall die Ausgangslage 173.4 wiederherstellen – C auf 3 nachbuchen
+    wie oben, Bestand von R aus 7a per Einzel-Ausbuchung auf 0 –, dann Seite mit Feld `111` öffnen, Dialog
+    offen lassen, im zweiten Tab ändern, im ersten Tab bestätigen → Warnung „hat sich geändert … Nichts
+    ausgebucht.“, Seite neu geladen, Bewegungshistorie ohne neue Ausbuchung). Reihenfolge 7a, 7c, 7b
+    einhalten: Bewegungen sind unveränderlich, die Einbuchung mit FA `444` aus 7b bleibt an N auf L hängen,
+    solange N dort Bestand hat – N ist danach dauerhaft gemischt.
     - 173.7a **neu treffende Zeile:** Artikel R mit FA `111` auf L einbuchen;
-    - 173.7b **zusätzlicher fremder FA:** bei N eine Einbuchung mit FA `444` (N wird gemischt);
     - 173.7c **geänderte Stückzahl:** 1 Stk von C einzeln ausbuchen (ohne FA); zusätzlich per
       Browser-Werkzeug `stueckGezeigt[<N>]` auf einen anderen Wert setzen → dieselbe Warnung.
-    - Danach Seite neu laden, unverändert bestätigen → Buchung läuft (Positivkontrolle).
+    - 173.7b **zusätzlicher fremder FA** (zuletzt): bei N eine Einbuchung mit FA `444` (N wird gemischt);
+    - Danach Seite neu laden, unverändert bestätigen → Buchung läuft (Positivkontrolle; N und C stehen jetzt
+      beide unter „Bitte entscheiden“).
   - 173.8 **Wagen** (Antwort 4): Aufruf über den Konflikt-Dialog der Kommissionierung → Feld vorbelegt
     „A; B“, Knopf „2 von 3“, Artikel ohne FA trägt „bleibt am Wagen“, Dialog listet ihn unter „Bleibt am
     Wagen“; bestätigen → Artikel bleibt auf W, Meldung „… bleibt am Wagen“. Danach Feld leeren →
@@ -724,7 +803,8 @@ die Seite hat keinen eigenen Standortschalter, der IDEAL-Einschluss hängt am Ma
     ausbuchen“, nicht treffende Zeilen, Abbruch und Warnfälle keiner.
   - 173.10 **IDEAL Haupt-FA:** Platz M, Feld `H` → E, F, G unter „Wird ausgebucht“, K unter „Bitte
     entscheiden“ („enthält auch FA X“); Spalte zeigt bei E „S1 (Haupt-FA H)“. „Ausbuchen“ für K →
-    E, F, G, K weg; Bewegungshistorie: Text `H`, verknüpft mit der Haupt-FA.
+    E, F, G, K weg; Bewegungshistorie: Text `H`, verknüpft mit der Haupt-FA, falls
+    `FindForBookingAsync("H")` eindeutig ist (wie AK 18), sonst ohne Verknüpfung (R2-S5).
   - 173.11 **IDEAL Sub-FA eingegeben (Antwort 7):** neu befüllen, Feld `S1` → genau E und K treffen
     (K unter „Bitte entscheiden“ wegen X); F (`S2`, Kind von S1) trägt „bleibt am Platz“ – keine
     Nachfahren; G (`H`) trägt ebenfalls „bleibt am Platz“ – keine Haupt-FA. Knopf „2 von 4“.
@@ -732,7 +812,11 @@ die Seite hat keinen eigenen Standortschalter, der IDEAL-Einschluss hängt am Ma
     Feld `H` trifft diese Zeile nicht.
   - 173.13 **AKE (negativ):** auf DEV AKE (Master aus) Feld mit der Haupt-FA-Nummer eines Testsatzes,
     dessen Bewegung eine andere Nummer trägt → kein Treffer; Verhalten = reiner Textvergleich.
-  - 173.14 **Regression:** Feld leer → alle restlichen Artikel ausgebucht, Verhalten wie TS-2.4 Schritt 7.
+  - 173.14 **Regression:** **Vorbedingung – L neu befüllen** (R2-S3): nach 173.7 stehen auf L je nach
+    Positivkontrolle nur noch Reste (B, ggf. C/N/R); A 5 mit FA `1234567` und C wie in 173.7 nachbuchen, damit
+    mindestens drei Zeilen mit und ohne FA da sind (B bleibt ohne FA). Tabelle notieren (n Zeilen). Feld
+    leer → Knopf „Alle n Artikel ausbuchen“, `confirm()` mit „OK“ → alle n Zeilen ausgebucht, Ausbuchungen
+    ohne FA-Text, L leer; Verhalten wie TS-2.4 Schritt 7.
   - 173.15 **Bestand ohne FA (B-3 (a)):** Platz P, Spalte Y „111“ (Bestand 95), Z „111“. Feld `111` →
     beide unter „Bitte entscheiden“; Y mit „enthält auch Bestand ohne FA“ und „FA 111 nur aus
     Ausbuchung“, Z nur mit „enthält auch Bestand ohne FA“; nichts vorausgewählt. Y „Nicht ausbuchen“,
@@ -741,6 +825,11 @@ die Seite hat keinen eigenen Standortschalter, der IDEAL-Einschluss hängt am Ma
   - 173.16 **Doppel-Absenden (S-4):** Feld `1234567` (neu befüllt), Dialog, „Jetzt ausbuchen“ schnell
     doppelt klicken → Knopf sofort deaktiviert, genau ein POST (Browser-Netzwerk-Tab), genau eine
     Ausbuchung. Dasselbe mit leerem Feld nach „OK“ im `confirm()`.
+    **Enter (R2-S1, AK 27):** L neu befüllen (A 5 mit FA `1234567`, B 3 ohne FA). Feld `1234567` tippen und
+    Enter drücken → Modal öffnet sich, **kein** POST im Netzwerk-Tab, keine Warnung „hat sich geändert“.
+    Modal schließen, Feld `123` + Enter → nichts (Knopf deaktiviert), kein POST. Feld leeren + Enter →
+    `confirm()` erscheint; „Abbrechen“ → kein POST, Seite unverändert. Erneut Enter, „OK“ → genau ein POST,
+    alles ausgebucht.
 - **Negativfälle:** 173.3, 173.4 (Abbruch), 173.6, 173.7 inkl. 7a–7c, 173.11 (F/G), 173.12, 173.13,
   173.16; Rolle `stock` ohne `stock_keyuser` → Zugriff verweigert (wie TS-2.4).
 - **TS-2.4 neu (S-5)** – ersetzt in `docs/TESTSZENARIEN.md:272-289` Vorbedingungen, Schritte und
@@ -748,8 +837,10 @@ die Seite hat keinen eigenen Standortschalter, der IDEAL-Einschluss hängt am Ma
   schon heute nicht ausführbar, weil Wagen nicht in der Platzauswahl stehen
   (`StorageLocationRepository.cs:43-49`), deshalb Aufruf über Konflikt-Dialog oder URL:
   - *Vorbedingungen:* Rolle `stock_keyuser` oder `admin`. Wagen `WAGEN-01` mit Artikeln aus der
-    Kommissionierung für FA A (mit FA-Text) und einem Artikel ohne FA (manuelle Umbuchung mit leerem
-    FA-Feld).
+    Kommissionierung für FA A (mit FA-Text) und einem Artikel ohne FA. Den Artikel ohne FA so auf den Wagen
+    bringen (R2-S2): auf einem Hilfsplatz X genau diesen einen Artikel ohne FA einbuchen, dann **Lager →
+    Lagerplatz umbuchen**, Quelle X, Ziel `WAGEN-01` (nur dort stehen Wagen als Ziel; „Umbuchen“ bietet keine
+    Wagen an).
   - *Schritte:* 1. `/StockMovements/OutboundAll?storageLocationId=<Id WAGEN-01>` öffnen (oder über den
     Konflikt-Dialog der Kommissionierung). 2. Feld „Fertigungsauftrag“ ist mit „A“ vorbelegt; Knopf
     „1 von 2 Artikeln ausbuchen (FA A)“, Artikel ohne FA trägt „bleibt am Wagen“. 3. Knopf klicken →
@@ -787,6 +878,10 @@ Der Prüfabschnitt unten bleibt unverändert. Stand der Merkposten:
   durch „Freigabe-Antworten Runde 3“ entschieden und eingearbeitet (Anforderungen 3, 4, 11; AK 14, 19, 24),
   S-1 als Rückfrage 9, S-2 bis S-7 im Rumpf (Anforderung 1, 10, 11; AK 18, 25, 26; Lösungsentwurf 4, 7),
   H-1 markiert. Eine erneute Prüfung des überarbeiteten Rumpfs ist Sache des Menschen.
+  *Nachtrag 2026-11-20 abends (Runde 4):* Kritische Prüfung Runde 2 eingearbeitet – R2-B1 durch Antwort 9
+  (Ist-Zustand „Hierarchie“, LE 8), R2-S1 (Anf. 10, LE 6, AK 27, TS-173.16), R2-S2 (Anf. 12, AK 16, AK 26,
+  TS-173 Vorbedingungen, TS-2.4), R2-S3 (TS-173.7, 173.14), R2-S4 (`affected_code`, LE 9, AK 28, Deploy),
+  R2-S5 (TS-173.10), R2-S6 durch die Antwort in Runde 4 (Umfang 7, LE 9, AK 28).
 
 ## Deploy
 
@@ -811,7 +906,11 @@ Der Prüfabschnitt unten bleibt unverändert. Stand der Merkposten:
   aus einer Ausbuchung) werden im Dialog einzeln abgefragt; aendert sich der Bestand zwischen Anzeige und
   Bestaetigen, wird nichts gebucht und die Seite neu geladen. IDEAL: Haupt-FA schliesst ihre Sub-FA ein,
   eine Sub-FA nur sich selbst.'; Quelle='<Brain-Changelog-Slug v1.99.46>' }` (Schreibweise
-  wie `nachlauf.psd1:337-339`; Version im Dev-Lauf an die endgültige Nummer anpassen).
+  wie `nachlauf.psd1:337-339`; einfügen im Nachher-Block hinter dem letzten Eintrag `:588-590`, vor der
+  schließenden Klammer `:591`; Version im Dev-Lauf an die endgültige Nummer anpassen).
+- **Doku/Hilfe (Definition of Done):** `Views/Help/Index.cshtml:50-52`, `docs/anwender/09-einbuchen-ausbuchen-umbuchen.md`
+  Abschnitt 5 inkl. neuem Foto `bilder/09-05-lagerplatz-ausbuchen-wagen.jpg` (heute `:115`),
+  `docs/anwender/01-kommissionierung.md:152` (Lösungsentwurf 9, AK 28).
 - **Publish-Befehle:**
 
 ```
@@ -873,6 +972,11 @@ dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWM
    sollen ausschließlich über `ProductionOrderId` verknüpfte Bewegungen den Haupt-FA-Einschluss auslösen
    (Listen-Bewegungen träfen dann nur per exaktem Text)?
 
+> [!note] Stand 2026-11-20 abends: Rückfrage 9 ist durch „Freigabe-Antworten Runde 4“ **entschieden**
+> (ja, Textweg). Damit sind alle Rückfragen 1–9 entschieden; `open_questions` ist leer. Die Begründung aus
+> R2-B1 (Kommissionierung nur am HauptFA, `PickingOrderWorkflow.cs:61`; Mehrtreffer nie still) steht im
+> Ist-Zustand „Hierarchie“ und in Lösungsentwurf 8.
+
 ## Freigabe-Antworten (Mensch füllt aus — Schranke 1)
 
 1. → **A: das FA-Feld filtert** – nur Artikel, die laut Bewegungen zu diesem FA gehören, werden ausgebucht (Gerald 2026-11-19 20:10)
@@ -895,7 +999,8 @@ B-3 (Kritische Prüfung 2026-11-20) → **(a) Zeile mit Bestand ohne FA (Zugang 
 
 ## Freigabe-Antworten Runde 4 (Rückfrage 9, Mensch füllt aus — Schranke 1)
 
-9. →
+9. → **ja, Textweg** (FA-Text → SubOrderNumber → OrderNumber) wie in LE 8 (Gerald 2026-11-20 13:40)
+R2-S6 (Regale, Kritische Prüfung Runde 2) → **„Normal ist in den Regalen entweder FA korrekt oder keine FA“** – keine Einschränkung des Filters auf Wagen, Regel B-3 (a) bleibt; Doku/Hilfe sachlich: Zeilen mit Zugang ohne FA werden abgefragt (Gerald 2026-11-20 13:40)
 
 ## Kritische Pruefung (2026-08-05)
 
