@@ -6,29 +6,33 @@
 #   powershell -ExecutionPolicy Bypass -File <dieses Skript> -Variante B      # Enums als Zahl 4/2
 #   powershell -ExecutionPolicy Bypass -File <dieses Skript> -Variante C -Rumpf <json-datei>
 #   powershell -ExecutionPolicy Bypass -File <dieses Skript> -Variante Lesen  # nur GET: Positionen von FA 1065144
+#   AKE-Test (Freigabe Gerald 2026-11-20, nur FA 835):  ... -System AKE -Variante Lesen   bzw.   -System AKE -Variante A -Ag <Nr>
 param(
     [Parameter(Mandatory)][ValidateSet('A', 'B', 'C', 'Lesen')][string]$Variante,
-    [string]$Rumpf
+    [string]$Rumpf,
+    [ValidateSet('IDEAL', 'AKE')][string]$System = 'IDEAL',
+    [string]$Ag = '162'
 )
 $ErrorActionPreference = 'Stop'
-$basis  = 'https://idealsage100tes.ideal.ideal-ake.at:5493/sdata/ol'
-$post   = "$basis/CommonWawiServices/IDEAL;1/`$service/FertigungsauftragService"
-$lesen  = "$basis/CommonWawiServicesResources/IDEAL;1/PpsFaBelegePositionenInfo?where=BelID%20eq%201065144&orderBy=BelPosID&count=200&format=json"
-$sperre = Join-Path $PSScriptRoot '2026-11-20-sage-ag-anlage-handtest-ERFOLG.txt'
+if ($System -eq 'AKE') { $basis = 'https://sagetest01.ake.at:5493/sdata/ol'; $ds = 'ake_TEST2026;1'; $fa = 835; $bearb = '' }
+else { $basis = 'https://idealsage100tes.ideal.ideal-ake.at:5493/sdata/ol'; $ds = 'IDEAL;1'; $fa = 1065144; $bearb = 'M00153'; $Ag = '162' }
+$post   = "$basis/CommonWawiServices/$ds/`$service/FertigungsauftragService"
+$lesen  = "$basis/CommonWawiServicesResources/$ds/PpsFaBelegePositionenInfo?where=BelID%20eq%20$fa&orderBy=BelPosID&count=200&format=json"
+$sperre = Join-Path $PSScriptRoot ("2026-11-20-sage-ag-anlage-handtest-ERFOLG" + $(if ($System -eq 'AKE') { '-AKE' } else { '' }) + '.txt')
 $log    = Join-Path $PSScriptRoot '2026-11-20-sage-ag-anlage-handtest-protokoll.txt'
 
 $body = switch ($Variante) {
-    'A' { '{"ServiceOption":"AddOrChangePositionArbeitsgang","PositionenArbeitsgang":[{"Handle":1065144,"PositionHandle":0,"RessourceTyp":"Arbeitsgang","RessourceNummer":"162","Menge":1,"Bearbeiter":"M00153"}]}' }
-    'B' { '{"ServiceOption":4,"PositionenArbeitsgang":[{"Handle":1065144,"PositionHandle":0,"RessourceTyp":2,"RessourceNummer":"162","Menge":1,"Bearbeiter":"M00153"}]}' }
+    'A' { '{"ServiceOption":"AddOrChangePositionArbeitsgang","PositionenArbeitsgang":[{"Handle":' + $fa + ',"PositionHandle":0,"RessourceTyp":"Arbeitsgang","RessourceNummer":"' + $Ag + '","Menge":1,"Bearbeiter":"' + $bearb + '"}]}' }
+    'B' { '{"ServiceOption":4,"PositionenArbeitsgang":[{"Handle":' + $fa + ',"PositionHandle":0,"RessourceTyp":2,"RessourceNummer":"' + $Ag + '","Menge":1,"Bearbeiter":"' + $bearb + '"}]}' }
     'C' { if (-not $Rumpf) { throw 'Variante C braucht -Rumpf <json-datei>.' }; [IO.File]::ReadAllText((Resolve-Path $Rumpf)) }
     default { $null }
 }
 if ($body) {
     if (Test-Path $sperre) { throw "Gesperrt: ein POST war bereits erfolgreich ($sperre). Keine weiteren Schreibaufrufe." }
-    if ($body -notmatch '1065144' -or $body -notmatch '"162"') { throw 'Rumpf betrifft nicht FA 1065144 / AG 162 - abgebrochen.' }
+    if ($body -notmatch "`"Handle`":$fa," -or $body -notmatch "`"$Ag`"") { throw "Rumpf betrifft nicht FA $fa / AG $Ag - abgebrochen." }
 }
 
-$cred = Get-Credential -UserName 'sage' -Message 'SData-Zugang Sage IDEAL (Prod) - wird nicht gespeichert'
+$cred = Get-Credential -UserName 'sage' -Message "SData-Zugang Sage $System ($ds) - wird nicht gespeichert"
 $auth = 'Basic ' + [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes(('{0}:{1}' -f $cred.UserName, $cred.GetNetworkCredential().Password)))
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 [Net.ServicePointManager]::ServerCertificateValidationCallback = { $true }
@@ -60,7 +64,7 @@ try {
         $r = Senden 'GET' $lesen $null
     }
     Write-Host "HTTP $($r.Code)"; Write-Host $r.Text
-    Add-Content -Path $log -Encoding UTF8 -Value "`r`n=== $zeit Variante $Variante`r`nRumpf: $body`r`nHTTP $($r.Code)`r`n$($r.Text)"
+    Add-Content -Path $log -Encoding UTF8 -Value "`r`n=== $zeit $System Variante $Variante`r`nRumpf: $body`r`nHTTP $($r.Code)`r`n$($r.Text)"
 } finally {
     [Net.ServicePointManager]::ServerCertificateValidationCallback = $null
 }

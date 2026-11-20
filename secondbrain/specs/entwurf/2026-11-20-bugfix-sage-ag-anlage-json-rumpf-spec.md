@@ -531,5 +531,21 @@ antwortet. `SageFaArbeitsgaengeAnlegenAktiv` bleibt aus.
 > 2. Ist der FertigungsauftragService am Mandanten IDEAL vollständig installiert bzw. lizenziert?
 > 3. Gibt es einen Beispiel-Request für ServiceOption 4, der bei euch funktioniert?
 
-Optional ließe sich das Problem ohne Prod-Schreiben eingrenzen: derselbe Rumpf **am AKE-Test** (`ake_TEST2026;1`, ein Test-FA mit Sage-AG) zeigt, ob
-der Service generell oder nur der IDEAL-Build scheitert. Dafür braucht es eine eigene Freigabe Geralds, an IDEAL-Prod wird dabei nichts gesendet.
+### Gegenprobe am AKE-Test (Freigabe Gerald 2026-11-20, nur FA 835)
+
+Ziel war die Vermutung „bei IDEAL fehlt etwas in der DPS-Installation“. Dasselbe Skript wurde mit `-System AKE` aufgerufen
+(`https://sagetest01.ake.at:5493`, `ake_TEST2026;1`). An IDEAL-Prod wurde dabei nichts gesendet.
+
+| # | Aufruf | HTTP | Ergebnis |
+|---|---|---|---|
+| L | GET `PpsFaBelegePositionenInfo?where=BelID eq 835` (11:36) | 200 | 11 Positionen: 10 × `MA`, Pos. 11 (BelPosID 10656) `AG` **999** „TESTFertigung“, Arbeitsplatz 9999 |
+| A | `{"ServiceOption":"AddOrChangePositionArbeitsgang","PositionenArbeitsgang":[{"Handle":835,"PositionHandle":0,"RessourceTyp":"Arbeitsgang","RessourceNummer":"999","Menge":1,"Bearbeiter":""}]}` (11:37:03) | 500 | `ResultNumber 500`, `ResultText` nil, `NullReferenceException … bei DPSBS.OL.SData.CommonWawiService.ServiceHandler.DPSbsSDataServiceHandler.Execute()`, ohne Zeilenangabe |
+
+`Bearbeiter` war leer, weil der AKE-Test keine PPS-Mitarbeiter hat. Eine fachliche Prüfung hätte deshalb `ValidateMitarbeiter` gemeldet (§11).
+Stattdessen kommt dieselbe NRE in derselben Methode wie bei IDEAL, also **vor** jeder fachlichen Prüfung. Angelegt wurde nichts; die Sperrdatei
+blieb aus.
+
+**Schluss (belegt):** Der Fehler hängt weder am Rumpf noch an der IDEAL-Installation. Er tritt auf zwei Servern mit zwei DPS-Builds gleich auf.
+Entweder hat `DPSbsSDataServiceHandler.Execute()` für ServiceOption 4 einen Fehler, oder der Aufruf braucht etwas, das weder `$template` noch
+`$schema` zeigt. Rückfrage 2 an DPS (Installation bei IDEAL) ist damit nachrangig. Die Frage an DPS lautet jetzt: „Auch am Mandanten
+`ake_TEST2026;1` (FA 835, AG 999) dieselbe NRE in `Execute()`; was fehlt im Request?“ Weitere Sage-Schreibaufrufe bringen ohne DPS-Antwort nichts.
