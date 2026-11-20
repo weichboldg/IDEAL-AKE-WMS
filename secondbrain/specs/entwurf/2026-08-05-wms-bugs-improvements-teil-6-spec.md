@@ -1279,3 +1279,49 @@ Geprüft gegen den Rumpf nach Rework Runde 3 und den Code im Bündel-Worktree `2
 ### Empfehlung
 
 **NACHBESSERUNG NOETIG: Rückfrage 9 offen (R2-B1); Enter-Umgehung (R2-S1), nicht herstellbare Wagen-Vorbedingung (R2-S2) und TS-Reihenfolge (R2-S3) vor Freigabe in Rumpf/AK/TS.**
+
+## Kritische Pruefung (2026-11-20, Runde 3 – nur Runde-2-Befunde)
+
+Kurzprüfung nach Rework Runde 4 (Commit `2b587be5`). Geprüft wurde nur, ob R2-B1 und R2-S1 bis R2-S6 in Rumpf, `affected_code`,
+AK und TS angekommen sind. Code-Stichproben im Bündel-Worktree `2026-08-07-ideal-teile-1-5`.
+
+| Befund | Stand | Fundstelle |
+|---|---|---|
+| R2-B1 | erledigt | Antwort 9 (Runde 4); `open_questions: []`; Ist-Zustand „Hierarchie“ und LE 8 mit beiden Sätzen (`PickingOrderWorkflow.cs:61`, „nie still“) |
+| R2-S1 | erledigt | Anf. 10 (Absatz Enter), LE 6, AK 27, TS-173.16 (Enter-Schritt) |
+| R2-S2 | erledigt | Anf. 12 (Weg `:618-631`, `:463` als überholt markiert), AK 16/26, TS-173-Vorbedingung, TS-2.4 neu |
+| R2-S3 | erledigt | TS-173.7 (L neu befüllen, Reihenfolge 7a → 7c → 7b), TS-173.14 (Tabelle notieren, n Zeilen) |
+| R2-S4 | erledigt | `affected_code` (Hilfe `:50-52`, docs 09 `:111-121`, docs 01 `:152`, Manifest nach `:588-590`), LE 9, AK 28 |
+| R2-S5 | erledigt | TS-173.10 „falls `FindForBookingAsync("H")` eindeutig, sonst ohne Verknüpfung“ |
+| R2-S6 | erledigt | Umfang 7, LE 9 und AK 28 mit Geralds Satz; keine Einschränkung auf Wagen. Der Manifest-Text nennt „ohne FA … einzeln abgefragt“ bereits |
+
+### BLOCKER
+
+Keine.
+
+### SOLLTE
+
+- **R3-S1 Hilfsplatz X muss leer sein.** „Lagerplatz umbuchen“ bucht **den ganzen Bestand** der Quelle um: `LocationTransferConfirm` liest
+  `GetCurrentStockAsync(filterStorageLocationId: source)` und bucht jede Zeile mit positivem Bestand (`StockMovementsController.cs:603-633`).
+  Der Wortlaut „auf einen Hilfsplatz X genau diesen einen Artikel ohne FA einbuchen“ (TS-173-Vorbedingung, TS-2.4 neu) lässt offen, ob X vorher
+  leer ist. Liegt dort schon etwas, landet es auf dem Wagen, und „2 von 3“ bzw. „1 von 2“ stimmt nicht mehr.
+  *Vorschlag:* In beiden Vorbedingungen „einen **leeren** Hilfsplatz X“ schreiben, z. B. einen eigens angelegten Testplatz. Eine Wortänderung,
+  kein Rückfragebedarf.
+
+### HINWEIS
+
+- **R3-H1 Enter-Listener verträgt sich mit dem globalen Doppel-Absenden-Schutz.** `site.js:219-231` (ADR 0026) hängt am `document` und bricht
+  bei `e.defaultPrevented` ab. Der Formular-Listener aus LE 6 läuft vorher (Bubble-Reihenfolge Formular → Dokument), `preventDefault()`
+  schaltet den globalen Schutz für dieses Absenden also ab. Das bestätigende `form.submit()` (`OutboundAll.cshtml:120`) löst kein
+  Ereignis aus, der Kommentar `site.js:163` sagt dasselbe. Der Knopf ist `type="button"` und fällt nicht unter `knoepfeVon` (`:170`). Die eigene
+  Sperre aus Anf. 10 bleibt also nötig, eine doppelte Sperre entsteht nicht. Der Dev-Lauf soll keinen zweiten Schutz bauen.
+- **R3-H2 Abweichungen des Reworks sind vertretbar.**
+  - TS-173.14 nennt „n Zeilen“ statt fester Artikel. Das ist richtig, weil der Rest nach 173.7 von der Positivkontrolle abhängt.
+  - Die Reihenfolge 7a → 7c → 7b kommt daher, dass Bewegungen unveränderlich sind (siehe 2b Runde 2). N bleibt nach 7b dauerhaft gemischt.
+  - `docs/anwender/09:162-167` bleibt inhaltlich gültig (Wagen weiter nicht in der Platzauswahl, Out-of-Scope).
+- **R3-H3** Dass `form.submit()` kein submit-Ereignis auslöst, ist Browserverhalten und im Repo nur per Kommentar belegt. Den Nachweis liefern
+  AK 27 und TS-173.16 im Manual-UAT. Das genügt.
+
+### Empfehlung
+
+**BEREIT ZUR FREIGABE** (R3-S1 als Wortänderung in der Vorbedingung, im Dev-Lauf mitnehmen oder vorher kurz nachziehen).
