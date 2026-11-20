@@ -541,8 +541,11 @@ Ziel war die Vermutung „bei IDEAL fehlt etwas in der DPS-Installation“. Dass
 | L | GET `PpsFaBelegePositionenInfo?where=BelID eq 835` (11:36) | 200 | 11 Positionen: 10 × `MA`, Pos. 11 (BelPosID 10656) `AG` **999** „TESTFertigung“, Arbeitsplatz 9999 |
 | A | `{"ServiceOption":"AddOrChangePositionArbeitsgang","PositionenArbeitsgang":[{"Handle":835,"PositionHandle":0,"RessourceTyp":"Arbeitsgang","RessourceNummer":"999","Menge":1,"Bearbeiter":""}]}` (11:37:03) | 500 | `ResultNumber 500`, `ResultText` nil, `NullReferenceException … bei DPSBS.OL.SData.CommonWawiService.ServiceHandler.DPSbsSDataServiceHandler.Execute()`, ohne Zeilenangabe |
 
-`Bearbeiter` war leer, weil der AKE-Test keine PPS-Mitarbeiter hat. Eine fachliche Prüfung hätte deshalb `ValidateMitarbeiter` gemeldet (§11).
-Stattdessen kommt dieselbe NRE in derselben Methode wie bei IDEAL, also **vor** jeder fachlichen Prüfung. Angelegt wurde nichts; die Sperrdatei
+| A2 | wie A, `"Bearbeiter":"M00000"` (Sage-Mitarbeiter „Test, WMS“ laut Gerald) (11:43:08; ein Versuch davor: HTTP 401, Kennwort-Tippfehler, nicht beim Dienst angekommen) | 500 | identisch zu A |
+
+Mit leerem `Bearbeiter` hätte eine fachliche Prüfung `ValidateMitarbeiter` gemeldet (§11). Mit dem gültigen Mitarbeiter `M00000` hätte sie
+greifen oder anlegen müssen. Beide Male kommt stattdessen dieselbe NRE in derselben Methode wie bei IDEAL, also **vor** jeder fachlichen Prüfung.
+Der Mitarbeiter ist damit als Ursache ausgeschlossen. Angelegt wurde nichts; die Sperrdatei
 blieb aus.
 
 **Schluss (belegt):** Der Fehler hängt weder am Rumpf noch an der IDEAL-Installation. Er tritt auf zwei Servern mit zwei DPS-Builds gleich auf.

@@ -11,10 +11,11 @@ param(
     [Parameter(Mandatory)][ValidateSet('A', 'B', 'C', 'Lesen')][string]$Variante,
     [string]$Rumpf,
     [ValidateSet('IDEAL', 'AKE')][string]$System = 'IDEAL',
-    [string]$Ag = '162'
+    [string]$Ag = '162',
+    [string]$Bearbeiter = ''
 )
 $ErrorActionPreference = 'Stop'
-if ($System -eq 'AKE') { $basis = 'https://sagetest01.ake.at:5493/sdata/ol'; $ds = 'ake_TEST2026;1'; $fa = 835; $bearb = '' }
+if ($System -eq 'AKE') { $basis = 'https://sagetest01.ake.at:5493/sdata/ol'; $ds = 'ake_TEST2026;1'; $fa = 835; $bearb = $Bearbeiter }
 else { $basis = 'https://idealsage100tes.ideal.ideal-ake.at:5493/sdata/ol'; $ds = 'IDEAL;1'; $fa = 1065144; $bearb = 'M00153'; $Ag = '162' }
 $post   = "$basis/CommonWawiServices/$ds/`$service/FertigungsauftragService"
 $lesen  = "$basis/CommonWawiServicesResources/$ds/PpsFaBelegePositionenInfo?where=BelID%20eq%20$fa&orderBy=BelPosID&count=200&format=json"
