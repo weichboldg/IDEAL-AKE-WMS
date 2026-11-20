@@ -2188,3 +2188,11 @@ Code: `hardware-scanner.js` Block „Scannen ohne Feld“, CSS `.hw-scan-bereit`
 - **Problem:** Menü und Startseite hatten getrennte Bedingungen und liefen auseinander (Kachel auf 403, fehlende Kacheln).
 - **Regel:** `NavZiel` in `NavZiele` (mit Kategorie, wenn es eine Kachel sein soll), Fall im `switch` von `NavigationSicht` (gleiche Rolle wie
   der Filter der Action), Link im Layout in eigenem `@if (nav.Zeigt(NavZiele.X))`. Keine Rechte/Schalter mehr direkt im Layout oder in Home.
+- **Nachtrag v1.99.46:** Kachel-`NavZiel` braucht zusätzlich `SymbolPfad` (d-String eines 16×16-SVG, nur `nonzero`-Pfade ohne `fill-rule`,
+  Konstante `Sym…` im selben File; Wächter `JedeKachel_HatEinSymbol`). **Warum:** v1.99.45 hat die Symbole weggelassen, obwohl die Spec sie
+  vorsah, und kein Test fing es – QA las es als „bewusste Vereinfachung“ ([[2026-11-20-dashboard-kacheln-symbole-fehlen-bug]]).
+- **Nachtrag QA v1.99.46:** Ein Pfad, der „im Projekt steht“, ist nicht automatisch heil. `file-earmark-pdf`
+  (`FaHierarchyKommissionierListen/Summiert.cshtml:112`) und `gear` (`Settings/Index.cshtml:14-15`) sind unvollständige Bootstrap-Pfade und
+  rendern schon an der Quelle als volle Fläche (bei 14–16 px fällt es kaum auf, bei 32 px schon). **Warum:** Der Wächter prüft nur die Zeichen
+  des Pfads, nicht das Bild. Neue Kachel-Symbole deshalb einmal groß rendern (Headless-Edge-Screenshot einer statischen Seite genügt), bevor sie
+  in den Katalog kommen.

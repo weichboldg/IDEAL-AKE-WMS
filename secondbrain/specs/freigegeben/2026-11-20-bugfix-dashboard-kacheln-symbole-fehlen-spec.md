@@ -2,11 +2,13 @@
 type: spec
 title: "Bugfix: Dashboard-Kacheln wieder mit Symbolen (SymbolPfad im NavigationKatalog)"
 slug: 2026-11-20-bugfix-dashboard-kacheln-symbole-fehlen-spec
-status: Entwurf
+status: Testbereit
 created: 2026-11-20
 updated: 2026-11-20
+version: "1.99.46 (Gerald 2026-11-20: Dashboard vor Teil 6 gebaut, Teil 6 folgt als 1.99.47)"
+testszenario: "TS-174"
 source_backlog: "[[2026-11-20-bugfix-dashboard-kacheln-symbole-fehlen]]"
-task: ""
+task: "[[2026-11-20-dev-dashboard-kacheln-symbole]]"
 jira: ""
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
 branch: "feature/2026-08-07-ideal-teile-1-5"
@@ -30,9 +32,9 @@ deploy:
   web: true
   service: true
   migration: false
-freigabe_entscheidung: ""
-freigabe_von: ""
-freigabe_am: ""
+freigabe_entscheidung: "Freigegeben – Antworten 1 und 2 (Tabelle, drei Grundformen); im Dev-Lauf gemeinsam mit Teil 6"
+freigabe_von: "Gerald Weichbold"
+freigabe_am: "2026-11-20 13:40"
 ---
 
 ## Ziel / Nutzen (das Warum)
@@ -293,11 +295,16 @@ Kein Epic.
 
 ## Deploy
 
-*Vorläufig, der QA-Lauf bestätigt gegen den echten Diff.*
+*Endfassung QA 2026-11-20 aus dem echten Diff `c39a9423..2af81077` (13 Dateien).*
 
-- **Web-App:** ja (Katalog, Startseite).
-- **Service:** ja, **nur Versionsnummer** (`IDEALAKEWMSService/AppVersion.cs` → 1.99.49, damit Web und Dienst denselben Stand melden; keine Dienst-Logik).
-- **Migration:** nein.
+- **Web-App:** ja (`IdealAkeWms/`: `NavigationKatalog.cs`, `Views/Home/Index.cshtml`, `Views/Help/Changelog.cshtml`, `AppVersion.cs`).
+- **Service:** ja, **nur Versionsnummer** (`IDEALAKEWMSService/AppVersion.cs` → 1.99.46; keine Dienst-Logik). Mitliefern, damit Web und Dienst
+  denselben Stand melden.
+- **Migration:** nein (keine Datei unter `*/Migrations/`, kein `SQL/`).
+- **Paket (fertig):** `C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish\` – `IDEALAKEWMSWeb` + `IDEALAKEWMSWebService`,
+  `SQL\`, `deploy\`, `publish-info.txt` (Version 1.99.46, Commit `2af81077`). Ablauf Mensch: Paket aufs Testsystem → `deploy\Update-IdealAkeWms.ps1`
+  → TS-174 → Merge. Reihenfolge: kein Backup-/DB-Schritt nötig, Web und Dienst tauschen.
+- **Nach dem Merge:** nur dann neu aus `main` publishen, wenn der Merge die getesteten Dateien mit parallelen `main`-Änderungen zusammengeführt hat.
 - **Manifest-Einträge** (`scripts/deploy/nachlauf.psd1`): keine. Kein SQL, kein Einmal-Skript, keine Einstellung, kein Leitstand-Schritt.
   Die Rückkehr der Symbole braucht keine Anwender-Info im Update-Lauf, der Anwender-Changelog genügt.
 - **Publish-Befehle:**
@@ -328,5 +335,125 @@ Kein Epic.
   als seinen Auftrag. Antworte je Frage in **fett** hinter dem Pfeil.
 -->
 
-1. Symbolzuordnung laut Tabelle „Symbol je Kachel“ übernehmen →
-2. Selbstgezeichnete Grundformen Plus/Minus/Doppelpfeil zulassen →
+1. Symbolzuordnung laut Tabelle „Symbol je Kachel“ übernehmen → **ja, Tabelle wie vorgeschlagen** (Gerald 2026-11-20 12:50)
+2. Selbstgezeichnete Grundformen Plus/Minus/Doppelpfeil zulassen → **ja, drei selbstgezeichnete Grundformen** (Gerald 2026-11-20 12:50)
+
+## Umsetzung (Dev-Lauf 2026-11-20)
+
+- **Version 1.99.46** statt Vorschlag 1.99.49 (Gerald 2026-11-20: Dashboard vor Teil 6 bauen; Teil 6 folgt als 1.99.47). Alle Nennungen
+  „1.99.49“ im Rumpf (TS-174-Titel, Deploy, Changelog) gelten als 1.99.46. TS-174 wie vorgeschlagen.
+- Bündel-Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Commit `6e91fef2` (wip feature-complete).
+- **Alter Stand bestätigt:** `git show f1747e10:IdealAkeWms/Views/Home/Index.cshtml` bzw. `_ArtikelinfoTile.cshtml` – die Zeilen :77/:78,
+  :93-95, :126, :148, :170, :187, :202, :225 und `_ArtikelinfoTile.cshtml:8/:9` enthalten genau die in der Tabelle genannten Pfade; sie sind
+  wörtlich übernommen. Keine gewählte Fundstelle trägt `fill-rule`.
+- `NavigationKatalog.cs`: Record um `SymbolPfad` (7. Parameter, Default null), 30 `private const string Sym…`, 46 Kachel-Felder mit
+  angehängtem Argument; Key/Titel/Controller/Action/Kategorie/Beschreibung/`Alle`/`Kategorien` unverändert.
+- `Home/Index.cshtml`: `<div class="card-text mb-1"><svg … width="32" height="32" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true"
+  focusable="false"><path d="@z.SymbolPfad" /></svg></div>` vor dem Titel; kein neues CSS (Regel `.dashboard-card .card-text`).
+- Tests: neu `JedeKachel_HatEinSymbol`; T4 prüft `z.SymbolPfad`, `aria-hidden="true"`, `focusable="false"`, kein `Html.Raw`.
+- Skill `frontend-design` aufgerufen; Hausregel Konsistenz vor Eigenständigkeit – keine neue Klasse, keine Bibliothek.
+
+**Beweis (Worktree, 2026-11-20):**
+```
+dotnet build IdealAkeWms.slnx            -> 0 Fehler
+dotnet test (Filter NavigationSicht|BeschichtungsauftraegeView) -> Bestanden! Fehler: 0, erfolgreich: 74
+dotnet test IdealAkeWms.slnx --no-build  -> IDEALAKEWMSService.Tests: Fehler 0, erfolgreich 790
+                                            IdealAkeWms.Tests:        Fehler 0, erfolgreich 3391, übersprungen 1, gesamt 3392
+```
+
+## QA-Nachweis (qa-agent, 2026-11-20)
+
+Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Zweig `feature/2026-08-07-ideal-teile-1-5`. Geprüft: `c39a9423..6e91fef2`, danach
+QA-Fix `2f3e98cc` und Doku-Fotos `2af81077`. Ergebnis: **Testbereit**.
+
+### 1. Build und Tests (selbst ausgeführt)
+```
+dotnet build IdealAkeWms.slnx            -> 0 Fehler (28-30 Warnungen, alle aus dem Bestand)
+dotnet test IdealAkeWms.slnx --no-build  -> IDEALAKEWMSService.Tests: bestanden 790, übersprungen 0, Fehler 0
+                                            IdealAkeWms.Tests:        bestanden 3391, übersprungen 1, Fehler 0 (gesamt 3392)
+```
+Zweimal gelaufen (auf `6e91fef2` und nach dem QA-Fix `2f3e98cc`), beide Male dasselbe Ergebnis.
+
+### 2. Code-Review (selbst, synchron)
+Geprüft: Record, 30 Konstanten und 46 Kachel-Felder in `NavigationKatalog.cs`, `Home/Index.cshtml`, die zwei Teständerungen, Changelog, Doku.
+- **Pfade wörtlich:** Jeder Teilpfad jeder `Sym…`-Konstante (getrennt an ` M`) per Skript gegen alle `d="…"` unter `Views/` plus
+  `git show f1747e10:…/Home/Index.cshtml` und `_ArtikelinfoTile.cshtml` abgeglichen. Alle Teilpfade sind wörtlich vorhanden, außer den drei
+  freigegebenen Eigenzeichnungen Plus/Minus/Doppelpfeil.
+- **F5/AK 7 mechanisch:** Die `new("…")`-Zeilen von alt und neu sind identisch, wenn man `, SymXxx)` am Zeilenende abschneidet. 62 Ziele, 46 mit Symbol.
+  `_Layout.cshtml`, `NavigationSicht.cs` und `site.css` sind nicht im Diff.
+- **Fehlerklassen:** Es wird kein Wert in `<script>` eingebettet. Kein `hidden` neben `d-*`. Keine stillen Ersatzwerte (bei `null` lässt Razor das
+  `d`-Attribut weg, Menü-only-Ziele rendern keine Kachel, und der Wächter verlangt den Pfad). Kein `Html.Raw`, der Pfad wird kodiert ausgegeben. Keine
+  Parallel-Arrays, keine Browser-Validierung. Die Regel steht an genau einer Stelle (Katalog).
+- **Befund Q1 (mittel, behoben `2f3e98cc`):** `SymFilePdf` (Kommissionierlisten, Beschichtung-Vorschlagsliste) und `SymGear` (Einstellungen)
+  rendern als **volle Fläche**: ein Blatt ohne PDF-Zeichen bzw. ein Zahnrad ohne Ring. TS-174.1 verlangt „ohne gefüllte Löcher“. Ursache ist nicht
+  das Verketten. Schon die Quellen `FaHierarchyKommissionierListen/Summiert.cshtml:112` und `Settings/Index.cshtml:14-15` sind unvollständige
+  Bootstrap-Pfade und rendern dort mit getrennten `<path>` genauso (Headless-Render belegt). Behebung nach der Ausweichregel des Lösungsentwurfs
+  (Punkt 2): **Kommissionierlisten und Vorschlagsliste → `SymFile`** (file-earmark, alter Pfad der Kachel „Buchungen“; die Kategorien sind
+  verschieden, also keine Wiederholung innerhalb einer Kategorie), **Einstellungen → `SymPencil`** (in der Administration sonst unbenutzt).
+  Beide Konstanten sind entfernt. **Abweichung von der freigegebenen Tabelle in drei Zeilen. Gerald bitte bei TS-174.1 mit ansehen.** Wer ein
+  echtes Zahnrad will, braucht einen vollständigen gear-Pfad (Folgearbeit, nicht gebaut).
+- **Befund Q2 (gering, behoben `2af81077`):** AK 10 „Fotos zeigen die Kacheln mit Symbol“ war offen: Der Dev-Commit enthielt keine neuen Bilder.
+  18-01 (AKE), 18-02 (IDEAL) und 18-05 (390 px) sind gegen DEV neu aufgenommen (2-fach, gleiche Maße wie bisher), dazu die Stand-Zeile im
+  Kapitel. 18-03 (Menü) und 18-04 (Fokusring-Ausschnitt) sind alt geblieben, ihr Inhalt ist sonst gleich.
+- **Beobachtung (kein Befund):** `SymFileText` (Bewegungshistorie, Aktivitäts-Protokoll) ist laut Pfad eher „file-earmark-image“ als „-text“.
+  Die Tabelle nennt den Namen nur als Lesehilfe, maßgeblich ist die Fundstelle `_VaultLink.cshtml:27-28`, und die stimmt. Die Q1-Quell-Knöpfe
+  selbst (14/16 px, Bestand) sind nicht angefasst.
+- Bug-Record [[2026-11-20-dashboard-kacheln-symbole-fehlen-bug]] steht noch auf `offen`. Den Wechsel auf `behoben` habe ich bewusst dem Merge überlassen.
+
+### 3. Nachweisart je AK
+| AK | Nachweis |
+|---|---|
+| 1 | Auto `JedeKachel_HatEinSymbol` (grün) |
+| 2 | DEV, Screenshots AKE + IDEAL 1440 px: alle 41 bzw. 39 Kacheln mit dunkelblauem 32-px-Symbol über dem Titel; HTML-Prüfung je Kachel genau 1 `<svg width="32">` |
+| 3 | Auto T4 (`aria-hidden="true"`, `focusable="false"` in der View) + DEV-HTML je Kachel; Vorlesen selbst = Manual-UAT |
+| 4 | Pfadvergleich gegen `f1747e10` (Skript, s. o.), alle 9 wörtlich; Sicht DEV OK |
+| 5 | Tabelle eingehalten **außer Q1** (3 Zeilen, Ausweichregel); Sicht DEV OK |
+| 6 | Code-Review: Pfade nur in `NavigationKatalog.cs`, View ohne Pfad/Key-Abfrage; DEV-HTML vor `<main>` 0 `<svg>` (beide Standorte) |
+| 7 | Mechanischer Diff-Vergleich (s. o.) + bestehende `NavigationSichtTests` unverändert grün; DEV admin-Kachellisten = TS-170-Protokoll der v1.99.45-QA (AKE ohne Blechfertigung, mit OSEON/Bedarfsmeldungen; IDEAL mit Blechfertigung/Kommissionierlisten/Vormontage/Arbeitsgänge → Sage, ohne OSEON/Bedarfsmeldungen/Bestellvorschläge). Andere Rollen = Manual-UAT |
+| 8 | Auto T4 (`NotContain("Html.Raw")`) |
+| 9 | DEV 390 px (chrome-headless-shell, 2-fach): eine Spalte, Toggler sichtbar, Symbol ganz, kein Querscrollen. Fokusring = Manual-UAT |
+| 10 | Doku-Text geändert (Dev), Fotos neu (QA, Q2) |
+| 11 | grün, s. 1 |
+
+### 4. Geänderte bestehende Tests
+`NavigationSichtTests.Startseite_OhneViewBagUndOhneHartcodierteLinks` (T4) bekommt **zusätzliche** Prüfungen (`z.SymbolPfad`, `aria-hidden`,
+`focusable`, kein `Html.Raw`). Keine bestehende Prüfung ist gelockert, das Verhalten ist absichtlich erweitert (AK 3, 8). `JedeKachel_HatEinSymbol` ist neu.
+Kein Fall „Sonstiges“.
+
+### 5. CLAUDE.md-Checkliste / 5a
+Migration, SQL, FreshInstall, AgentJobs und Audit: entfallen (keine Entität, kein Schema). Version 1.99.46 steht in beiden `AppVersion.cs`
+(`Date` bleibt 2026-11-19, wird nirgends gelesen). Anwender-Changelog ja. `docs/TESTSZENARIEN.md` TS-174 ja, Testindex Z. 157 ja.
+Brain-Changelog, feature-map und [[fallstricke]] §58 sind nachgezogen (QA: zweiter Nachtrag „Projektpfad nicht automatisch heil“). Doku
+anwender/betrieb Stand 1.99.46. 5a: keine Einstellung. `nachlauf.psd1`: keine Einträge nötig, keine vorhanden.
+
+### 6. DEV-Deploy und Testlauf (standort: beide)
+Erhöhte Shell, `D:\Dev\scripts\dev-deploy.ps1 -Quelle <Worktree>`, Web und Dienst. Erster Lauf auf `6e91fef2`, zweiter nach dem QA-Fix `2f3e98cc`:
+AKE Exit 0 „HTTP 200, Fusszeile v1.99.46“ → http://localhost:8081/ · IDEAL Exit 0 „HTTP 200, Fusszeile v1.99.46“ → http://localhost:8082/.
+Keine Einstellung geändert, nichts an Sage. Die Chrome-Erweiterung war nicht verbunden. Deshalb lief die Anmeldung als Windows-Benutzer (admin) per
+`Invoke-WebRequest -UseDefaultCredentials` (HTML-Prüfung), und die Screenshots kamen aus Edge headless bzw. Playwright-`chrome-headless-shell`.
+
+| Schritt | Ergebnis | Status |
+|---|---|---|
+| 174.1 AKE + IDEAL 1440 px | 41/39 Kacheln, je genau ein Symbol, dunkelblau, kein Rest-Text. Erster Lauf: 3 Kacheln voll gefüllt (Q1) → nach dem Fix alle sauber | OK (nach Fix) |
+| 174.2 alte Symbole | Pfade wörtlich wie `f1747e10`, Sicht AKE (inkl. OSEON) | OK |
+| 174.3 Bestandsvergleich admin | Kategorien, Kacheln, Reihenfolge und Titel = TS-170-Protokoll; Menü ohne Änderung im Diff | OK (admin) |
+| 174.3 picking / stock_read | braucht andere Benutzer | NICHT MOEGLICH (Mensch) |
+| 174.4 Screenreader | `aria-hidden`/`focusable` im DOM belegt; Vorlesen und Fokusring nicht automatisierbar | NICHT MOEGLICH (Mensch) |
+| 174.5 390 px | eine Spalte, kein Querscrollen, Symbol ganz (Foto 18-05) | OK |
+| 174.6 Modul aus | Schalter auf DEV nicht umgestellt; Regel unverändert, durch T1-Matrix belegt | NICHT MOEGLICH (Mensch) |
+| 174.7 Benutzer ohne Rolle | braucht anderen Benutzer; Auto `OhneRolle_KeineKachel` grün | NICHT MOEGLICH (Mensch) |
+| 174.8 Kontrast | #053153 auf Weiß berechnet **13,4:1** (≥ 3:1); Graustufen = Manual-UAT | OK (berechnet) |
+
+### 7. Publish
+`publish\IDEALAKEWMSWeb` und `publish\IDEALAKEWMSWebService` vorher geleert, beide `dotnet publish -c Release` Exit 0 (aus `2f3e98cc`; `2af81077`
+ändert nur Doku). `SQL\` → `publish\SQL`, `scripts\deploy\` → `publish\deploy`. `publish-info.txt`: Version 1.99.46, Commit
+`2af8107713283772c408c78e5e94f61099e4b74d`, Branch feature/2026-08-07-ideal-teile-1-5, Spec dieser Slug, Komponenten IDEALAKEWMSWeb + IDEALAKEWMSWebService.
+
+### Manuelle Test-Checkliste (offen für den Menschen)
+1. TS-174.1 Sichtprüfung, **besonders die drei Ersatzsymbole aus Q1**: Kommissionierlisten/Vorschlagsliste = leeres Blatt, Einstellungen = Stift. Passt das, oder soll ein anderes Symbol her?
+2. TS-174.3 mit einem Benutzer nur `picking` und einem nur `stock_read`: Kachelliste gegen das TS-170-Protokoll.
+3. TS-174.4 NVDA/Edge-Vorlesen über drei Kacheln: kein „Grafik“; Fokusring sichtbar.
+4. TS-174.6 einen Modulschalter (z. B. `BlechfertigungAktiv` auf IDEAL-DEV) aus- und wieder einschalten: keine verwaiste Karte.
+5. TS-174.7 Benutzer ohne Rolle: nur der Hinweis, kein Symbol.
+6. TS-174.8 Graustufen-Ansicht: Kacheln am Titel erkennbar.
+7. Testsystem-Lauf mit dem Paket `publish\` (v1.99.46), danach Merge. Danach den Bug-Record auf `behoben` setzen.
