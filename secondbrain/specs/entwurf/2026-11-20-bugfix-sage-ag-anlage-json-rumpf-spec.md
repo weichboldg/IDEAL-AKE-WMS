@@ -431,7 +431,105 @@ Kein Epic. Die Reihenfolge ist fest, und jede Schranke ist ein Mensch-Schritt:
 
 ## Freigabe-Antworten (Mensch fuellt aus — Schranke 1)
 
-1. Wiederholtest-Modus (`MaxWiederholungen = 0` für den Test, danach 3) →
-2. Bearbeiter-Wert, falls `WMS` laut PT-4 ungültig →
-3. Freigabe-Umfang (zweiter Versuch am selben Tag ja/nein) →
-4. Rückbau der Test-AG 162 an FA 1065144 (stehen lassen / Gerald baut zurück) →
+1. Wiederholtest-Modus (`MaxWiederholungen = 0` für den Test, danach 3) → **ja, `MaxWiederholungen = 0` für den Test, danach wieder 3** (Gerald 2026-11-20 09:30)
+2. Bearbeiter-Wert, falls `WMS` laut PT-4 ungültig → **technischer Sage-Mitarbeiter „WMS“ – Gerald legt ihn in Sage an, falls PT-4 ihn als ungültig zeigt** (Gerald 2026-11-20 09:30)
+3. Freigabe-Umfang (zweiter Versuch am selben Tag ja/nein) → **je Versuch neu fragen (jeder Schreibversuch gegen Prod mit Geralds Okay)** (Gerald 2026-11-20 09:30)
+4. Rückbau der Test-AG 162 an FA 1065144 (stehen lassen / Gerald baut zurück) → **stehen lassen (Test-FA)** (Gerald 2026-11-20 09:30)
+
+## Ergebnis Prüfschritte (Koordination 2026-11-20 09:35, :88 → Prod `IDEAL;1`, nur GET über `ServiceSettings/TestSageConnection`)
+**PT-1 `$template`** (`$service/FertigungsauftragService/$template`, HTTP 200, 3 856 Byte, vollständig): unter `<request>` nur `ServiceOption`
+(Wert `NotSpecified`), `PositionenMaterial/FaBelegMaterialPosition`, `PositionenArbeitsgang/FaBelegArbeitsgangPosition`; die Positionen
+enthalten im Template nur die Listen `FaBelegPositionUserfields`, `GenericUserfields`, `BacklogPrimaryKeys` (Skalare im Template nicht
+vorbelegt). `$service/…/$schema` → HTTP 401; Schema daher über Dataset-`$schema` (HTTP 200).
+**PT-2 Felder laut `$schema`** (Anzeige am WMS bei 50 013 Byte abgeschnitten, die betroffenen Typen sind vollständig enthalten):
+- `FertigungsauftragServiceRequestSample--type`: `ServiceOption` (Typ `ExtFertigungsauftragServiceOption--enum`, optional), `FaBelegNeu`
+  (`FaBelegNeu--type`, optional, nillable), `PositionenMaterial` (`FaBelegMaterialPosition--list`), `PositionenArbeitsgang`
+  (`FaBelegArbeitsgangPosition--list`). **Kein Feld `Handle` auf Request-Ebene** → der WMS-Rumpf (`SageFaArbeitsgangClient.cs:60`,
+  `[FeldFaHandle] = r.BelId` oben) sendet ein Element, das der Typ nicht kennt – stärkster Kandidat für „Ungültige Elementdefinition“.
+- `FaBelegArbeitsgangPosition--type`: `Bearbeiter` (string, nillable), **`Handle` (integer)**, **`PositionHandle` (integer)**,
+  **`RessourceTyp` (`ExtFaBelegPositionRessourceTyp--enum`)**, **`RessourceNummer` (string)**, **`Menge` (decimal)**, dazu die drei Listen.
+  → Feldnamen der Position stimmen mit dem WMS überein; `RessourceNummer` ist **string** (WMS sendet Text – ok).
+**PT-3 Enum-Werte** (Koordination 10:45, direkter GET `…/CommonWawiServices/IDEAL;1/$schema` im Browser, 418 878 Zeichen, ungekappt):
+- `ExtFertigungsauftragServiceOption--enum`: 0 NotSpecified · 1 NeuerFertigungsauftrag · 2 Fertigungsauftragsaenderung ·
+  3 AddOrChangePositionMaterial · **4 AddOrChangePositionArbeitsgang** · 5 FertigungsauftragEinlasten → WMS sendet 4 = **richtig**.
+- `ExtFaBelegPositionRessourceTyp--enum`: 0 NotSpecified · **1 Material** · **2 Arbeitsgang** · 3 Fremdfertigung · 4 Werkzeug ·
+  5 Arbeitsplatz · 6 Verschnitt → **WMS sendet 1 = Material – FALSCH, richtig ist 2 (Arbeitsgang).** Die Konstante
+  `RessourceTypArbeitsgang = 1` (`SageFaArbeitsgangClient.cs:39`) und Freigabe-Antwort 1 der Bezugs-Spec („DefaultRessourceTyp 1“) sind zu
+  korrigieren. (Beim Lesen meldet Sage den Typ als Text „AG“ – das ist die Lese-Darstellung, nicht der Enum-Name.)
+- Form: Werte sind Zahlen mit Bezeichnung; ob der JSON-Leser Zahl oder Bezeichnung erwartet, bleibt offen – das Template zeigt die
+  Bezeichnung (`NotSpecified`). Empfehlung: Bezeichnung senden (`AddOrChangePositionArbeitsgang`, `Arbeitsgang`), Unit-Test darauf.
+**PT-4 Bearbeiter** (Gerald 2026-11-20 11:11, Screenshot Sage 100 → Mitarbeiter, Mandant IDEAL Kältetechnik): Mitarbeiter **`M00153`**,
+Matchcode „TEST, WMS“, Vorname WMS, Nachname TEST, aktiv, ohne Benutzer/Gruppe – neu angelegt. **Welchen Wert Sage im Feld `Bearbeiter`
+prüft (Mitarbeiternummer `M00153` oder Kürzel/Matchcode), ist nicht belegt.** Empfehlung: `Sync:SageFaArbeitsgaengeBearbeiter` = `M00153`
+(Nummer ist der Schlüssel des Mitarbeiterstamms); der Wiederholtest zeigt es – lehnt Sage ab, steht der Grund in `ErrorText` der Antwort.
+**PT-5** siehe Spec – offen.
+Folgerung für den Rumpf: oberstes `Handle` **entfernen**; `ServiceOption` = `AddOrChangePositionArbeitsgang`, `RessourceTyp` = **`Arbeitsgang` (2, nicht 1!)** als Enum-Bezeichnung; Positionen unter
+`PositionenArbeitsgang` mit `Handle` = BelID, `PositionHandle` = 0, `RessourceNummer`, `Menge`, `Bearbeiter`.
+
+## Handtest Claude Code 2026-11-20 (Gerald sendet, Skript von Claude Code; nur FA 1065144 / Sage-AG 162)
+
+Freigabe Gerald: höchstens drei POSTs gegen Prod `IDEAL;1`, nur FA 1065144 / AG 162. Gesendet mit
+[[2026-11-20-sage-ag-anlage-handtest-body.ps1]]: `HttpWebRequest`, Basic-Auth, `application/json; charset=utf-8`, kein Accept-Header,
+also wie `SageFaArbeitsgangClient.cs:84-89`. Der Fehler-Body wird vollständig gelesen. Kennwort über `Get-Credential`, nicht gespeichert.
+Die volle Antwort steht in `secondbrain/tests/2026-11-20-sage-ag-anlage-handtest-protokoll.txt`. Bearbeiter `M00153` (PT-4), Menge 1, wie im Handtest Geralds.
+
+### Vergleich mit dem funktionierenden Weg (Auftrag 1)
+
+| Punkt | Lagerbuchung / Wareneingang (am AKE-Test erfolgreich) | AG-Anlage | Beleg |
+|---|---|---|---|
+| Header, Content-Type, Auth | Basic, `StringContent(json, UTF8, "application/json")`, kein Accept | gleich | `SageLagerbuchungClient.cs:45-51`, `SageFaArbeitsgangClient.cs:84-89`, `Program.cs:145-166` |
+| Hülle | flach, keine `request`-Hülle | flach | `SageLagerbuchungPayload.cs:10-15`, Wareneingang-Request in [[2026-11-08-wareneingang-teil-2-sage-we-beleg-rahmenabrufe-spec]] Z. 693-696 |
+| Leere Listen | immer mitgesendet (`JsonIgnoreCondition.Never`, `Seriennummern`/`Chargen`) | fehlen | `SageLagerbuchungClient.cs:14-17`, `SageLagerbuchungPayload.cs:27-28` |
+| Enum-Form | Text (Lagerbuchung) und Zahl (Wareneingang), beide eingelesen | Zahl | `SageLagerbuchungPayloadBuilder.cs:41`, Spec Wareneingang Z. 695 |
+| Antwortformat | Atom-XML trotz JSON-Request, bei HTTP 200 | Atom-XML | Spec Wareneingang Z. 697 |
+| Ziel | **nur AKE-Test** `ake_TEST2026;1` (DPS 9.0.156.0, [[sdata-befund-ake-test-2026-10-30]] §10, §14) | **IDEAL;1**, DPS-Build-Pfad `commonwawiservice-9010` | Stacktrace unten |
+
+Wichtig: Gegen `IDEAL;1` ist bisher **kein** SData-POST erfolgreich gelaufen. Die belegten Schreibwege stammen alle vom AKE-Test.
+
+### Versuche
+
+| # | Rumpf | HTTP | Antwort (gekürzt) |
+|---|---|---|---|
+| A | `{"ServiceOption":"AddOrChangePositionArbeitsgang","PositionenArbeitsgang":[{"Handle":1065144,"PositionHandle":0,"RessourceTyp":"Arbeitsgang","RessourceNummer":"162","Menge":1,"Bearbeiter":"M00153"}]}` | 500 | `ResultNumber 500`, `ErrorText`: `System.NullReferenceException … bei DPSBS.OL.SData.CommonWawiService.ServiceHandler.DPSbsSDataServiceHandler.Execute() in C:\Solutions\dpsbs-ol-sdata-commonwawiservice-9010\…\DPSbsSDataServiceHandler.cs:Zeile 187` (11:25:50) |
+| C | wie A, dazu `"PositionenMaterial":[]` und je Position `"FaBelegPositionUserfields":[],"GenericUserfields":[],"BacklogPrimaryKeys":[]` (Template-Struktur, Muster Lagerbuchung) | 500 | identisch, Zeile 187 (11:29:00) |
+| B | wie A, Enums als Zahl: `"ServiceOption":4`, `"RessourceTyp":2` | 500 | identisch, Zeile 187 (11:32:01) |
+
+Reihenfolge A → C → B, abgestimmt mit Gerald: Nach A sprach der Befund zuerst für fehlende Listen. Kein POST lieferte 2xx, angelegt wurde laut Antwort nichts.
+Lesend nachgeprüft (Auftrag 3): **steht aus**, `-Variante Lesen` (GET `PpsFaBelegePositionenInfo?where=BelID eq 1065144&orderBy=BelPosID`).
+
+### Ursache (Stand)
+
+- **Rumpf-Fix E1b wirkt.** Ohne oberstes `Handle` kommt keine `SDataSerializationException` „Ungültige Elementdefinition“ mehr. Der JSON-Leser
+  akzeptiert alle drei Rümpfe, Enum als Text **und** als Zahl.
+- **Der neue Fehler hängt nicht vom Rumpf ab.** Drei verschiedene Rümpfe liefern denselben Fehler an derselben Stelle: NRE in der generischen
+  DPS-Dispatch-Methode `DPSbsSDataServiceHandler.Execute()` Z. 187. Der Stacktrace hat nur diesen einen Rahmen, also keinen Code des
+  FertigungsauftragService darunter.
+- Fachliche Ablehnungen sehen anders aus: Am AKE-Test kam eine `ArgumentException: ValidateMitarbeiter` mit `ResultText` (§11). Hier ist
+  `ResultText` nil.
+- **Schluss (gefolgert, nicht belegt):** Der Fehler liegt in der DPS-Installation bzw. im Build 9010 am IDEAL-Server, oder der Dienst erwartet etwas
+  außerhalb des Rumpfs. Aus dem WMS ist das nicht weiter eingrenzbar, ohne weiter in Prod zu schreiben.
+
+### Soll-Rumpf für den Dev-Lauf
+
+Variante A gilt als Soll: Enums als Bezeichnung wie das `$template`, kein oberstes `Handle`, Positionsfelder wie PT-2, `RessourceTyp` = `Arbeitsgang`.
+Die leeren Listen (Variante C) bringen nachweislich nichts und werden **nicht** gesendet (YAGNI).
+
+```json
+{"ServiceOption":"AddOrChangePositionArbeitsgang","PositionenArbeitsgang":[{"Handle":<BelID>,"PositionHandle":0,"RessourceTyp":"Arbeitsgang","RessourceNummer":"<Sage-AG>","Menge":<Fertigungsmenge>,"Bearbeiter":"<Sync:SageFaArbeitsgaengeBearbeiter>"}]}
+```
+
+Der Rumpf ist **nicht** durch ein HTTP 2xx belegt. Der Dev-Lauf kann den Rumpf-Fix bauen und testen, der Wiederholtest E1b bleibt aber blockiert, bis DPS
+antwortet. `SageFaArbeitsgaengeAnlegenAktiv` bleibt aus.
+
+### Rückfrage an DPS (Gerald)
+
+> `POST …/sdata/ol/CommonWawiServices/IDEAL;1/$service/FertigungsauftragService` (JSON, ServiceOption 4 `AddOrChangePositionArbeitsgang`, eine
+> Position `PositionenArbeitsgang` mit Handle = BelID 1065144, RessourceTyp 2, RessourceNummer "162", Menge 1, Bearbeiter "M00153") antwortet
+> am 2026-11-20 um 11:25, 11:29 und 11:32 mit `ResultNumber 500` / `NullReferenceException` in `DPSbsSDataServiceHandler.Execute()`
+> (`dpsbs-ol-sdata-commonwawiservice-9010`, Zeile 187). Das passiert unabhängig davon, ob die Enums als Text oder Zahl gesendet werden und ob leere Listen dabei sind.
+> 1. Was ist an Zeile 187 null?
+> 2. Ist der FertigungsauftragService am Mandanten IDEAL vollständig installiert bzw. lizenziert?
+> 3. Gibt es einen Beispiel-Request für ServiceOption 4, der bei euch funktioniert?
+
+Optional ließe sich das Problem ohne Prod-Schreiben eingrenzen: derselbe Rumpf **am AKE-Test** (`ake_TEST2026;1`, ein Test-FA mit Sage-AG) zeigt, ob
+der Service generell oder nur der IDEAL-Build scheitert. Dafür braucht es eine eigene Freigabe Geralds, an IDEAL-Prod wird dabei nichts gesendet.
