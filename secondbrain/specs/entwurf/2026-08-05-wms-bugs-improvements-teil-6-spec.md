@@ -4,7 +4,7 @@ title: "Lagerplatz ausbuchen: FA-Spalte in der Bestandstabelle + FA-Feld als ech
 slug: 2026-08-05-wms-bugs-improvements-teil-6-spec
 status: Entwurf
 created: 2026-08-05
-updated: 2026-11-19
+updated: 2026-11-20
 source_backlog: "[[2026-08-05-WmsBugs&Improvements]]"
 depends_on: "[[2026-08-05-wms-bugs-improvements-teil-1-spec]]"
 task: ""
@@ -12,27 +12,31 @@ jira: ""
 worktree: ""
 branch: ""
 standort: beide
-version_vorschlag: "1.99.46 (Vorschlag; 1.99.45 ist fuer die Updater-Spec vorgeschlagen – bei Umsetzung naechste freie Nummer nehmen)"
-testszenario: "TS-169"
+version_vorschlag: "1.99.46 (2026-11-20 geprueft: Worktree steht auf 1.99.45, IdealAkeWms/AppVersion.cs:5; 1.99.46 kommt in keiner .cs/.cshtml/.psd1/.md des Worktrees vor; BF-Warenkorb und Dashboard sind in v1.99.45 aufgegangen; 1.99.47 Sage-AG-Bugfix, 1.99.48 BDE-Liste vorgeschlagen. Dev-Lauf prueft erneut)"
+testszenario: "TS-173 (TS-169 ist seit v1.99.45 durch BF-Warenkorb belegt, docs/TESTSZENARIEN.md:13351; TS-171 BDE-Liste, TS-172 Sage-AG-Bugfix reserviert. Dev-Lauf prueft erneut)"
 affected_code:
-  - IdealAkeWms/Services/FaBuchungsText.cs (neuer Helfer Nummern)
+  - IdealAkeWms/Services/FaBuchungsText.cs (neue Helfer Nummern + PruefeZeile)
   - IdealAkeWms/Data/Repositories/IStockMovementRepository.cs
   - IdealAkeWms/Data/Repositories/StockMovementRepository.cs (GetProductionOrdersAtLocationAsync, neue Methode je Artikel)
-  - IdealAkeWms/Controllers/StockMovementsController.cs (OutboundAll, OutboundAllConfirm)
+  - IdealAkeWms/Data/Repositories/ProductionOrderRepository.cs (nur Wiederverwendung GetBySubOrderNumbersAsync :271-282, keine Aenderung)
+  - IdealAkeWms/Controllers/StockMovementsController.cs (Ctor + IServiceSettingRepository, OutboundAll mit optionalem productionOrder, OutboundAllConfirm mit Ja/Nein-Auswahl)
   - IdealAkeWms/Models/ViewModels/OutboundAllViewModel.cs
-  - IdealAkeWms/Views/StockMovements/OutboundAll.cshtml (Spalte, Inline-JS Knopf/Bestaetigung)
+  - IdealAkeWms/Views/StockMovements/OutboundAll.cshtml (Spalte, Hinweis bleibt am Wagen/Platz, Bootstrap-Modal mit Ja/Nein je gemischter Zeile, Inline-JS)
   - IdealAkeWms.Tests/Repositories/StockMovementRepositoryProductionOrderTests.cs
-  - IdealAkeWms.Tests/Controllers/LagerbuchungFaVerknuepfungTests.cs (Mocks fuer OutboundAllConfirm anpassen)
+  - IdealAkeWms.Tests/Controllers/LagerbuchungFaVerknuepfungTests.cs (Ctor + Mocks fuer OutboundAllConfirm anpassen)
+  - IdealAkeWms.Tests/Controllers/StockMovementsControllerBulkInboundTests.cs (nur Ctor-Parameter IServiceSettingRepository)
   - IdealAkeWms/AppVersion.cs + IDEALAKEWMSService/AppVersion.cs + Views/Help/Changelog.cshtml
-  - docs/TESTSZENARIEN.md (TS-169, Verweis in TS-2.4)
+  - docs/TESTSZENARIEN.md (TS-173, Verweis in TS-2.4)
   - secondbrain/tests/testszenarien-index.md
 open_questions:
   - "ENTSCHIEDEN (Gerald 2026-11-19): Variante A – das FA-Feld filtert; nur Artikel, die laut Bewegungen zu diesem FA gehoeren, werden ausgebucht."
   - "ENTSCHIEDEN (Gerald 2026-11-19): alle FA kommagetrennt in der FA-Spalte."
   - "ENTSCHIEDEN (Gerald 2026-11-19): wie Teil 1 – echter Bestand als Grundlage, FA nur aus Bewegungen mit Restbestand."
-  - "Kommissionierwagen: Das FA-Feld wird dort heute automatisch mit allen FA des Wagens vorbelegt (StockMovementsController.cs:501-507). Mit Antwort 1 wirkt diese Vorbelegung als Filter – Artikel OHNE FA-Text bleiben dann auf dem Wagen (heute: alles wird ausgebucht, TS-2.4). (a) so lassen, Restartikel sichtbar melden (Empfehlung), (b) auf Wagen nicht mehr vorbelegen (leer = alles, Ausbuchung ohne FA-Text), (c) unveraenderte Vorbelegung gilt als 'kein Filter'?"
-  - "Gemischte Zeile: Ein Artikel am Platz traegt FA X und Y (Spalte 'X, Y'), gefiltert wird nach X. Bestand ist nicht FA-genau (Antwort 3), also wird der GANZE Platz-Bestand dieses Artikels ausgebucht – inkl. des Anteils von Y, mit Sage-Meldung. (a) ganze Zeile ausbuchen und im Bestaetigungsdialog benennen (Empfehlung), (b) gemischte Zeilen beim Filter auslassen und melden?"
-  - "IDEAL Haupt-/Sub-FA: Der Filter vergleicht den FA-TEXT der Bewegungen (wie Teil 1). Wer auf IDEAL die Haupt-FA eingibt, trifft Bewegungen, die mit der Sub-FA-Nummer (BelID) getaggt sind, NICHT. Reicht der reine Textvergleich (Empfehlung), oder sollen auf IDEAL zusaetzlich die ueber ProductionOrderId verknuepften Sub-FA einer eingegebenen Haupt-FA mitzaehlen?"
+  - "ENTSCHIEDEN (Gerald 2026-11-19 20:40): Wagen-Vorbelegung bleibt und filtert; Artikel ohne FA-Vermerk werden sichtbar als 'bleibt am Wagen' gemeldet."
+  - "ENTSCHIEDEN (Gerald 2026-11-19 20:40): je gemischter Zeile im Bestaetigungsdialog Ja/Nein nachfragen – kein stilles Ausbuchen, kein stilles Auslassen."
+  - "ENTSCHIEDEN (Gerald 2026-11-19 20:40): an IDEAL schliesst eine eingegebene Haupt-FA die Sub-FA ihrer Struktur ein; AKE unveraendert Textvergleich."
+  - "Mehrstufige IDEAL-Struktur: Antwort 6 nennt nur die Haupt-FA. Umgesetzt wird: Haupt-FA schliesst ALLE Sub-FA ihrer Struktur ein (gleiche OrderNumber, jede Ebene). Wer eine Sub-FA der mittleren Ebene eingibt, trifft nur diese Nummer, nicht die darunter haengenden Sub-FA (ParentSubOrderNumber). Passt das, oder soll auch eine eingegebene Sub-FA ihre Nachfahren einschliessen?"
+  - "Pruefung beim Bestaetigen (Antwort 5, 'gegen die neu ermittelte Menge'): Umgesetzt wird, dass der Server die Menge der gemischten ZEILEN neu ermittelt und bei Abweichung zur angezeigten Menge nichts bucht; die gebuchte STUECKZAHL ist wie heute der Platz-Bestand beim Absenden. Reicht das, oder soll zusaetzlich eine geaenderte Stueckzahl einer gemischten Zeile die Buchung stoppen?"
 epic: false
 etappen: []
 deploy:
@@ -49,6 +53,13 @@ freigabe_am: ""
 > Freigabe-Antworten 1–3 eingearbeitet. Der Ist-Zustand und der Lösungsentwurf von 2026-08-05 sind
 > unten als **überholt** aufbewahrt. Neue Rückfragen 4–6 (Wagen-Vorbelegung, gemischte Zeile,
 > IDEAL Haupt/Sub-FA). Antwort-, Prüf- und Nachtragsabschnitte unverändert.
+
+> [!info] Überarbeitung 2026-11-20 (spec-agent, Rework Runde 2)
+> Antworten 4–6 („Freigabe-Antworten Runde 2“) in Umfang, Anforderungen, Ist-Zustand (Hierarchie
+> belegt), Lösungsentwurf, AK und Testszenario eingearbeitet. Testszenario-Nummer **TS-169 → TS-173**
+> (TS-169 ist seit v1.99.45 durch den BF-Warenkorb belegt). Version 1.99.46 geprüft und frei. Durch die
+> Antworten überholte Stellen (Empfehlung (a) zu Rückfrage 5, „vorbehaltlich“-Formulierungen) sind als
+> **überholt** markiert. Neue Rückfragen 7–8. Antwort-, Prüf- und Nachtragsabschnitte unverändert.
 
 ## Ziel / Nutzen (das Warum)
 
@@ -68,13 +79,22 @@ der gesamte Bestand des Lagerplatzes (Beleg unten, Ist-Zustand).
    Artikel ausgebucht, deren FA-Spalte eine der eingegebenen Nummern enthält.
 3. Knopftext und Bestätigungsdialog zeigen, wie viele bzw. welche Artikel tatsächlich ausgebucht
    werden. Kein stiller Fallback auf „alles ausbuchen", wenn der Filter nichts trifft.
+4. Kommissionierwagen (Antwort 4): Vorbelegung des FA-Felds bleibt und filtert; Artikel ohne
+   FA-Vermerk werden vor und nach dem Buchen sichtbar als „bleibt am Wagen“ gemeldet.
+5. Gemischte Zeilen (Antwort 5): Bestätigungsdialog als Bootstrap-Modal mit Ja/Nein je gemischter
+   Zeile; der Server prüft die Auswahl gegen die neu ermittelten gemischten Zeilen; Sage-Meldung nur
+   für tatsächlich ausgebuchte Zeilen.
+6. IDEAL (Antwort 6): eine eingegebene Haupt-FA schließt die Sub-FA ihrer Struktur ein (Standort =
+   Master `ProduktionsauftragHierarchisch`). AKE unverändert reiner Textvergleich.
 
 **Out-of-Scope**
-- Leeres FA-Feld: Verhalten bleibt wie heute (gesamter Lagerplatz-Bestand).
+- Leeres FA-Feld: Verhalten bleibt wie heute (gesamter Lagerplatz-Bestand, heutiger `confirm()`-Dialog).
 - `LocationTransfer`/`LocationTransferConfirm` (Lagerplatz umbuchen) – das Backlog nennt nur
   „Lagerplatz ausbuchen".
 - FA-genaue Mengen (Bestand ist nach der Buchung nicht FA-attributiert, Teil-1-Spec S1/AK7). Eine
-  ausgebuchte Zeile umfasst immer den echten Platz-Bestand des Artikels (siehe Rückfrage 5).
+  ausgebuchte Zeile umfasst immer den echten Platz-Bestand des Artikels; gemischte Zeilen werden
+  deshalb erfragt (Antwort 5), nicht aufgeteilt.
+- Einschluss der Nachfahren einer eingegebenen **Sub**-FA (nur Haupt-FA laut Antwort 6, Rückfrage 7).
 - Auswahl einzelner Zeilen per Checkbox (Variante B, verworfen durch Antwort 1).
 - Änderung an `GetStockByProductionOrderAsync` (Teil 1) und am Sage-Enqueue.
 
@@ -90,24 +110,64 @@ der gesamte Bestand des Lagerplatzes (Beleg unten, Ist-Zustand).
 3. Bewegungsarten: alle zählen (auch eine Ausbuchung mit FA-Text), wie in der bestehenden Regel
    (`StockMovementRepository.cs:527-533`) und in der Teil-1-Kandidatensuche (`:198-202`).
 4. FA-Feld mit Wert: Das Feld wird in Einzelnummern zerlegt (Trennzeichen `;` und `,`, getrimmt).
-   Ausgebucht werden genau die Zeilen, deren FA-Nummern mindestens eine davon **exakt** enthalten
-   (Groß-/Kleinschreibung egal). Kein Teilstring-Treffer: „123" trifft „1234567" nicht.
-5. Menge je ausgebuchter Zeile = echter Platz-Bestand des Artikels (wie heute).
+   Je FA-Nummer einer Zeile gilt: sie ist **abgedeckt**, wenn sie **exakt** einer eingegebenen Nummer
+   entspricht (Groß-/Kleinschreibung egal; kein Teilstring: „123" trifft „1234567" nicht) **oder – nur
+   an IDEAL –** sie die Sub-FA-Nummer eines FA ist, dessen Haupt-FA-Nummer eingegeben wurde
+   (Antwort 6, Regel siehe Ist-Zustand „Hierarchie“). Eine Zeile **trifft**, wenn mindestens eine
+   ihrer Nummern abgedeckt ist; sie ist **gemischt**, wenn sie trifft und zusätzlich mindestens eine
+   nicht abgedeckte Nummer trägt.
+5. Menge je ausgebuchter Zeile = echter Platz-Bestand des Artikels beim Absenden (wie heute).
 6. Trifft der Filter keine Zeile: nichts buchen, Warnung „Kein Artikel auf <Platz> gehört zu FA
-   <Eingabe> – nichts ausgebucht.", zurück auf die Seite mit demselben Lagerplatz.
-7. Gefilterte Ausbuchung erfolgreich: Erfolgsmeldung nennt Anzahl und FA; verbleiben Artikel am
-   Platz, nennt die Meldung deren Anzahl. Rückkehr auf die Seite **mit** demselben Lagerplatz, damit
-   der Rest sichtbar ist. Ungefilterte Ausbuchung: Rückkehr wie heute ohne Lagerplatz.
+   <Eingabe> – nichts ausgebucht.", zurück auf die Seite mit demselben Lagerplatz und derselben Eingabe.
+7. Gefilterte Ausbuchung erfolgreich: Erfolgsmeldung nennt Anzahl und FA; verbleiben Artikel, nennt
+   die Meldung deren Anzahl und Artikelnummern mit dem Zusatz „bleibt am Wagen“ (Kommissionierwagen)
+   bzw. „bleibt am Platz“ (sonst) – dazu zählen auch gemischte Zeilen mit „Nein“. Rückkehr auf die
+   Seite **mit** demselben Lagerplatz, damit der Rest sichtbar ist. Ungefilterte Ausbuchung: Rückkehr
+   wie heute ohne Lagerplatz.
 8. FA-Text und FA-Verknüpfung der neuen Ausbuchungen bleiben wie heute: Text = Feldinhalt,
-   `ProductionOrderId` nur bei eindeutiger Auflösung (Liste → null, v1.87.0 Antwort 5).
+   `ProductionOrderId` nur bei eindeutiger Auflösung (Liste → null, v1.87.0 Antwort 5; an IDEAL wird
+   eine eingegebene Haupt-FA über `FindForBookingAsync` mit der Haupt-FA verknüpft, auch wenn die
+   Zeile über eine Sub-FA getroffen wurde).
 9. Die Seite zeigt vor dem Absenden, was passiert: Knopf „Alle N Artikel ausbuchen" bei leerem Feld,
-   „M von N Artikeln ausbuchen (FA …)" bei Wert, deaktiviert mit Hinweistext bei M = 0. Der
-   Bestätigungsdialog nennt bei Filter die Artikelnummern der M Zeilen. Der Server entscheidet
-   selbst neu (Seite und POST können auseinanderliegen); die Seite ist nur Vorschau.
+   „M von N Artikeln ausbuchen (FA …)" bei Wert (M = treffende Zeilen inkl. gemischter), deaktiviert mit
+   Hinweistext bei M = 0. Nicht treffende Zeilen tragen bei Wert sichtbar den Text „bleibt am Wagen“
+   bzw. „bleibt am Platz“. Der Server entscheidet selbst neu (Seite und POST können auseinanderliegen);
+   die Seite ist nur Vorschau.
+10. **Gemischte Zeilen (Antwort 5):** Bei Wert im Feld öffnet der Knopf einen Bestätigungsdialog
+    (Bootstrap-Modal) mit drei Blöcken: „Wird ausgebucht“ (treffende, nicht gemischte Zeilen:
+    Artikelnummer, Bezeichnung, Bestand), „Bitte entscheiden“ (je gemischter Zeile Artikelnummer,
+    Bestand, getroffene FA, „enthält auch FA …“ und zwei Optionsfelder **Ausbuchen** / **Nicht
+    ausbuchen**, keines vorausgewählt) und „Bleibt am Wagen“/„Bleibt am Platz“. „Jetzt ausbuchen“ ist
+    gesperrt, solange eine gemischte Zeile unbeantwortet ist (Hinweis „Noch n Zeilen offen“) oder die
+    Summe der auszubuchenden Zeilen 0 ist. „Abbrechen“/Schließen/Escape: kein POST, nichts gebucht,
+    Feld und Seite bleiben unverändert.
+11. **Serverprüfung der Auswahl:** Mitgesendet werden nur Artikel-IDs – `gemischtGezeigt` (alle im
+    Dialog gezeigten gemischten Zeilen) und `gemischtAusbuchen` (davon die mit „Ausbuchen“). Der
+    Server ermittelt Bestand, FA je Zeile und gemischte Zeilen neu. Bucht **nichts** und warnt „Bestand
+    oder FA-Zuordnung auf <Platz> hat sich geändert – bitte Auswahl erneut prüfen. Nichts ausgebucht.“,
+    wenn die neu ermittelte Menge gemischter Zeilen ≠ `gemischtGezeigt` ist oder `gemischtAusbuchen`
+    eine ID außerhalb von `gemischtGezeigt` enthält (auch: POST ohne Auswahl, obwohl es gemischte
+    Zeilen gibt). Sonst bucht er treffende nicht gemischte Zeilen plus gemischte mit „Ausbuchen“;
+    ergibt das 0 Zeilen: nichts buchen, Warnung „Nichts ausgebucht – alle gemischten Zeilen mit
+    ‚Nicht ausbuchen‘ beantwortet.“ Rückkehr in beiden Warnfällen mit Lagerplatz und Eingabe.
+    Stückzahl kommt nie aus dem Client (Rückfrage 8).
+12. **Kommissionierwagen (Antwort 4):** Die Vorbelegung bleibt (alle FA des Wagens) und wirkt als
+    Filter; Artikel ohne FA-Vermerk treffen nicht und werden nach 9/10/7 als „bleibt am Wagen“ gezeigt
+    und gemeldet. Weil die Vorbelegung alle Wagen-FA enthält, gibt es dort ohne Änderung des Felds keine
+    gemischten Zeilen.
+13. **Standort (Antwort 6):** IDEAL-Einschluss nur bei Master `ProduktionsauftragHierarchisch` = true;
+    an AKE (Master false/leer) gilt ausschließlich der Textvergleich aus 4.
+
+> [!note]- Anforderungen 4, 6, 7, 9 vom 2026-11-19 – **überholt** durch Antworten 4–6, nur Audit
+> 4. „Ausgebucht werden genau die Zeilen, deren FA-Nummern mindestens eine davon **exakt** enthalten“ –
+> ohne IDEAL-Einschluss und ohne Begriff „gemischt“. 6. Rückkehr nur „mit demselben Lagerplatz“.
+> 7. Meldung nannte nur die Anzahl verbleibender Artikel. 9. „Der Bestätigungsdialog nennt bei Filter
+> die Artikelnummern der M Zeilen“ (einfacher `confirm()`, keine Ja/Nein-Wahl).
 
 ## Ist-Zustand (Code-Referenzen, Bündel-Stand v1.99.44)
 
-Belegt im Worktree `C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5`.
+Belegt im Worktree `C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5`. Am 2026-11-20
+gegen v1.99.45 nachgeprüft: Controller `:482-557`, View, `StockMovementRepository.cs:514-542` unverändert.
 
 **Controller** `IdealAkeWms/Controllers/StockMovementsController.cs` (keine Klassen-Filter, `:11`):
 - `OutboundAll(int? storageLocationId)` `:482-511`, `[RequireStockKeyUserAccess]` `:482`. Platzliste
@@ -158,6 +218,35 @@ Ausbuchungen gehen je nach Schalter + Lagerplatz-Flag `SageBuchungErlaubt` an Sa
   (`StockMovementsController.cs:504`) und Wagen-Konfliktprüfung (`PickingTransferService.cs:82-103`).
   Test: `StockMovementRepositoryProductionOrderTests.cs:20-35`.
 
+**Hierarchie Haupt-/Sub-FA (für Antwort 6, belegt 2026-11-20):**
+- Es gibt **keine** Spalte `ParentProductionOrderId` und kein gespeichertes `IsHauptFa`-Feld. Die
+  Beziehung steckt in drei Textspalten von `ProductionOrder` (`Models/ProductionOrder.cs`):
+  `OrderNumber` = Sage StrukturID/Haupt-FA, nach der Inversion **nicht** eindeutig (`:14-17`);
+  `SubOrderNumber` = Sage BelID, eindeutig (`:19-22`, Index `ApplicationDbContext.cs:503`);
+  `ParentSubOrderNumber` = echter Elternzeiger VaterFA, nötig für mehrstufige Strukturen (`:42-47`).
+  `IsHauptFa` ist eine Expression `SubOrderNumber == "" || SubOrderNumber == OrderNumber` (`:29-30`),
+  `IsSubFa` daraus kompiliert (`:35`).
+- **Schreibweg** (der eine, der Sub-FA anlegt): `IDEALAKEWMSService/Services/FaMaterializationSyncService.cs:149-161`
+  setzt je Knoten `OrderNumber = n.HauptFA`, `SubOrderNumber = n.SubFA`, `ParentSubOrderNumber = n.VaterFA` –
+  **jede** Ebene einer Struktur trägt also dieselbe `OrderNumber`; Updates (`:172-182`) ändern `OrderNumber`
+  nicht. Blätter (`SubFA = 0`) werden nicht materialisiert (`:134-140`). Dieselbe Lesart nutzt
+  `IProductionOrderRepository.CountByOrderNumberAsync` („alle materialisierten Nachfahren-Sub-FAs einer
+  Gruppe“, `IProductionOrderRepository.cs:57-62`). AKE (flach): `SubOrderNumber = OrderNumber`
+  (Backfill, `ProductionOrder.cs:16-17`; `SageProductionOrderSql.cs:5`).
+- `StockMovement.ProductionOrderId` verknüpft eine Bewegung mit **einem** FA (bei Text = Sub-FA mit der
+  Sub-FA, bei Haupt-FA-Text mit der Haupt-FA, `ProductionOrderRepository.cs:224-238`); aus ihr allein
+  folgt keine Hierarchie, und Altbewegungen mit Liste/unbekanntem Text haben `null`. Deshalb läuft der
+  Einschluss über den **Text** der Bewegung → `SubOrderNumber` → `OrderNumber`, nicht über die FK.
+- Wiederverwendbar: `GetBySubOrderNumbersAsync(IReadOnlyCollection<string>)`
+  (`ProductionOrderRepository.cs:271-282`, ein Read für alle Nummern; heutiger Aufrufer
+  `PlannedConsumptionService.cs:106`).
+- **Standort-Ermittlung:** ServiceSetting `ProduktionsauftragHierarchisch`
+  (`HierarchischeStrukturKeys.Master`, `Services/HierarchischeStruktur/HierarchischeStrukturKeys.cs:10`),
+  gelesen über `IServiceSettingRepository.GetValueAsync` und ausgewertet mit
+  `FaBuchungsText.IstHierarchisch` (`Services/FaBuchungsText.cs:51`) – Muster `StockApiController.cs:81-82`.
+  `StockMovementsController` hat heute **kein** `IServiceSettingRepository` (Ctor `:22-30`, nur
+  `IAppSettingRepository`). Anzeige „Sub-FA (Haupt-FA …)“ gibt es schon: `StockApiController.cs:49`.
+
 **Trennzeichen-Konvention** `;`/`,`: `ProductionOrderRepository.cs:228` (Liste erkennen),
 `StockMovementRepository.cs:538` (zerlegen). Wagen-Bewegungen tragen zusammengesetzte Texte wie
 „A;B" (`PickingTransferService.cs:101-102`, Bewegung `:210-218`).
@@ -171,7 +260,9 @@ der Kommissionierung auf die Seite (`Views/Picking/Bom.cshtml:1655-1660`, `confl
 
 **Bestehende Tests/Szenarien, die den Pfad berühren:**
 `LagerbuchungFaVerknuepfungTests.cs:109` (`OutboundAllConfirm(2, "1065141")`, Mock `GetCurrentStockAsync`
-→ Artikel 9, `:76-77`) und `:115-119` (`"A; B"` → nicht verknüpft). `docs/TESTSZENARIEN.md` TS-2.4
+→ Artikel 9, `:76-77`) und `:115-119` (`"A; B"` → nicht verknüpft); beide Testklassen bauen den
+Controller mit 8 Ctor-Argumenten (`LagerbuchungFaVerknuepfungTests.cs:89-90`,
+`StockMovementsControllerBulkInboundTests.cs:42-44`). `docs/TESTSZENARIEN.md` TS-2.4
 (`:272-289`, Wagen „Alle Artikel ausbuchen"), Zeile 115.12 (`:11352`), 130.5.6 (`:11810`, Wagen-Vorbelegung).
 
 ### Was seit v1.2x schon umgesetzt ist (ehrlich)
@@ -204,9 +295,15 @@ der Kommissionierung auf die Seite (`Views/Picking/Bom.cshtml:1655-1660`, `confl
 Kein neues Muster, keine Schemaänderung. Die vorhandene lagerplatzweite Regel wird **je Artikel**
 geliefert und die alte Methode daraus abgeleitet – eine Regel an einem Ort.
 
-1. **Zerlegen an einem Ort** – `FaBuchungsText` (`Services/FaBuchungsText.cs`, schon die FA-Text-Hilfe):
-   `public static IEnumerable<string> Nummern(string? text)` = Split an `;`/`,`, `TrimEntries |
-   RemoveEmptyEntries`. `StockMovementRepository.cs:538` nutzt ihn statt des eigenen Splits.
+1. **Zerlegen und Prüfen an einem Ort** – `FaBuchungsText` (`Services/FaBuchungsText.cs`, schon die FA-Text-Hilfe):
+   - `public static IEnumerable<string> Nummern(string? text)` = Split an `;`/`,`, `TrimEntries |
+     RemoveEmptyEntries`. `StockMovementRepository.cs:538` nutzt ihn statt des eigenen Splits.
+   - `public static (bool Trifft, List<string> Fremd) PruefeZeile(IEnumerable<string> zeilenNummern,
+     IReadOnlyDictionary<string, string> hauptJeSub, IReadOnlySet<string> filter)` – reine Funktion nach
+     Anforderung 4: Nummer abgedeckt ⇔ `filter.Contains(nr)` oder (`hauptJeSub.TryGetValue(nr, out h)` und
+     `filter.Contains(h)`); `Trifft` = eine abgedeckt, `Fremd` = nicht abgedeckte; gemischt ⇔ `Trifft &&
+     Fremd.Count > 0`. An AKE ist `hauptJeSub` leer → reiner Textvergleich (Antwort 6). Controller-GET,
+     -POST und die Tests nutzen nur diese Funktion; das JS bildet dieselbe Regel nach (Punkt 6).
 2. **Repository** – neue Methode in `IStockMovementRepository` + `StockMovementRepository`:
    `Task<Dictionary<int, List<string>>> GetProductionOrdersByArticleAtLocationAsync(int storageLocationId)`
    – Schlüssel `ArticleId`, Wert distinct, ordinal sortiert. Inhalt = heutiger Rumpf `:518-541`, nur
@@ -214,27 +311,65 @@ geliefert und die alte Methode daraus abgeleitet – eine Regel an einem Ort.
    **nicht** im Dictionary (Aufrufer behandelt fehlend = leer).
    `GetProductionOrdersAtLocationAsync` wird zu: Vereinigung aller Werte, distinct, ordinal sortiert –
    Ergebnis bit-gleich (bestehender Test `:20-35` bleibt grün; Wagen-Konflikt unverändert).
-3. **ViewModel** – `OutboundAllViewModel` bekommt `Dictionary<int, List<string>> FaJeArtikel` (leer
-   initialisiert). `StockOverviewItem` bleibt unberührt.
-4. **`OutboundAll` (GET)** – nach `:499` einmal `FaJeArtikel` laden. Die Wagen-Vorbelegung `:501-507`
-   bildet ihren Text aus `FaJeArtikel.Values` (gleiches Ergebnis, ein Aufruf weniger). Verhalten der
-   Vorbelegung bleibt bis zur Antwort auf Rückfrage 4 wie heute.
-5. **`OutboundAllConfirm` (POST)** – `var filter = FaBuchungsText.Nummern(productionOrder).ToHashSet(StringComparer.OrdinalIgnoreCase)`.
-   - `filter` leer → Pfad wie heute, unverändert.
-   - sonst `FaJeArtikel` laden, `itemsToOutbound` auf Zeilen mit `FaJeArtikel[ArticleId].Overlaps(filter)`
-     einschränken; keine Zeile → Warnung (Anforderung 6), Redirect mit `storageLocationId`, nichts buchen.
-   - Buchungsschleife `:534-553` unverändert (Menge, Text, FK, Audit, `AddAsync` → Sage-Enqueue
-     über den Decorator, kein Bypass). Erfolgsmeldung + Redirect nach Anforderung 7.
-6. **View** – `<th>Fertigungsauftrag</th>` vor „Bestand", Zelle `string.Join(", ", liste)`,
-   Zeile `data-fa="@string.Join(";", liste)"`, Fußzeile `colspan="4"`. Inline-Skript (`:117-123`)
-   ergänzen: bei `input` im FA-Feld Nummern wie in C# zerlegen (`/[;,]/`, trim, case-insensitiv),
-   passende Zeilen zählen, Knopftext/`disabled`/Hinweis setzen (Anforderung 9), Bestätigungstext mit
-   Artikelnummern. Passende Zeilen zusätzlich mit `table-warning` markieren – nicht alleiniger
-   Bedeutungsträger, Zahl und Dialog nennen es auch. `frontend-design`-Skill im Dev-Lauf aufrufen.
-7. **Gemischte Zeilen** (Rückfrage 5, Empfehlung a): ganze Zeile ausbuchen; der Dialog nennt Zeilen,
-   deren FA-Liste weitere Nummern außer den gefilterten enthält („enthält auch FA …").
+3. **ViewModel** – `OutboundAllViewModel` bekommt `Dictionary<int, List<string>> FaJeArtikel` und
+   `Dictionary<string, string> HauptJeSub` (beide leer initialisiert). `StockOverviewItem` bleibt unberührt.
+4. **Controller-Ctor** – zusätzlicher Parameter `IServiceSettingRepository serviceSettings` (DI ist
+   registriert, viele Controller nutzen ihn). Private Hilfe im Controller (ein Ort für GET und POST):
+   `LadeFaAsync(int platz)` → `FaJeArtikel` aus Punkt 2; wenn `FaBuchungsText.IstHierarchisch(await
+   _serviceSettings.GetValueAsync(HierarchischeStrukturKeys.Master))`: alle Nummern sammeln,
+   `_productionOrderRepository.GetBySubOrderNumbersAsync(...)` einmal aufrufen und
+   `HauptJeSub[SubOrderNumber] = OrderNumber` nur für Sub-FA (`IsSubFa`, Vergleich `OrdinalIgnoreCase`)
+   befüllen; sonst `HauptJeSub` leer (AKE).
+5. **`OutboundAll` (GET)** – neuer optionaler Parameter `string? productionOrder` (nur für die Rückkehr
+   aus Warnfällen) → `vm.ProductionOrder`. Nach `:499` einmal `LadeFaAsync`. Die Wagen-Vorbelegung
+   `:501-507` bleibt (Antwort 4) und bildet ihren Text aus `FaJeArtikel.Values` (gleiches Ergebnis wie
+   heute, ein Aufruf weniger); der vorhandene Guard `string.IsNullOrEmpty(vm.ProductionOrder)` (`:502`)
+   lässt eine zurückgegebene Eingabe stehen.
+6. **View** – `<th>Fertigungsauftrag</th>` vor „Bestand", Zelle je Nummer `nr` bzw. an IDEAL bei Sub-FA
+   `nr (Haupt-FA h)` (Formulierung wie `StockApiController.cs:49`), mit „, " getrennt; Zeile
+   `data-article-id`, `data-fa='@Json.Serialize(...)'` als Liste `{nr, haupt}` (haupt = null an AKE).
+   Fußzeile `colspan="4"`. Neben der FA-Zelle ein Text-Badge (z. B. `badge text-bg-secondary`) „bleibt am
+   Wagen“/„bleibt am Platz“ für nicht treffende Zeilen, nur bei Wert im Feld. Inline-Skript (`:117-123`)
+   ergänzen: Regel aus Punkt 1 in JS (Zerlegung `/[;,]/`, trim, `toLowerCase`), bei `input` Knopftext,
+   `disabled`, Hinweis, Badges und `table-warning` für treffende Zeilen setzen (Farbe nie allein –
+   Badge und Zahl tragen die Bedeutung). Leeres Feld → heutiger `confirm()` unverändert. Wert im Feld →
+   Bootstrap-Modal nach Anforderung 10, gerendert im View (kein neues Partial, keine neue Bibliothek):
+   je gemischter Zeile zwei Radios `name="wahl-<articleId>"` ohne Vorauswahl; „Jetzt ausbuchen“ schreibt
+   vor `submit()` je gezeigter gemischter Zeile ein `<input type="hidden" name="gemischtGezeigt"
+   value="<articleId>">` und für „Ausbuchen“ zusätzlich `name="gemischtAusbuchen"` ins Formular. Die
+   Radios selbst liegen außerhalb des Formulars. Abbrechen schließt nur das Modal. `frontend-design`-Skill
+   im Dev-Lauf aufrufen; Optionsfelder mit `<label>`, per Tastatur bedienbar, Kontrast AA.
+7. **`OutboundAllConfirm` (POST)** – Signatur `OutboundAllConfirm(int storageLocationId, string?
+   productionOrder, int[]? gemischtGezeigt = null, int[]? gemischtAusbuchen = null)` (optionale Parameter,
+   bestehende Testaufrufe `OutboundAllConfirm(2, "…")` kompilieren weiter).
+   `var filter = FaBuchungsText.Nummern(productionOrder).ToHashSet(StringComparer.OrdinalIgnoreCase)`.
+   - `filter` leer → Pfad wie heute, unverändert (Auswahl-Parameter werden ignoriert).
+   - sonst `LadeFaAsync`, je Zeile `PruefeZeile`; `treffend` = Trifft, `gemischt` = Trifft && Fremd.
+   - keine treffende Zeile → Warnung (Anforderung 6), Redirect `OutboundAll` mit `storageLocationId` und
+     `productionOrder`, nichts buchen.
+   - Auswahlprüfung nach Anforderung 11 (Mengenvergleich als `HashSet<int>.SetEquals`); bei Abweichung
+     Warnung, Redirect wie oben, nichts buchen.
+   - `itemsToOutbound` = treffend ohne gemischt ∪ gemischt ∩ `gemischtAusbuchen`; leer → Warnung
+     „alle mit Nicht ausbuchen“, Redirect wie oben.
+   - Buchungsschleife `:534-553` unverändert (Menge = Server-Bestand, Text, FK, Audit, `AddAsync` →
+     Sage-Enqueue über den Decorator, kein Bypass) – nur für `itemsToOutbound`, also keine Sage-Meldung
+     für „Nicht ausbuchen“ und nicht treffende Zeilen.
+   - Erfolgsmeldung nach Anforderung 7; „Wagen“ über `_storageLocationRepository.GetByIdAsync(...)
+     ?.IsPickingTransport` (wie GET `:493-495`, `null` → „Platz“). Redirect mit `storageLocationId`.
+8. **IDEAL-Einschluss (Antwort 6)** steckt vollständig in `HauptJeSub` (Punkt 4) + `PruefeZeile`
+   (Punkt 1); keine zweite Regel, keine Änderung an `FindForBookingAsync`, `GetStockByProductionOrderAsync`
+   oder am Wagen-Konflikt.
 
-Ponytail: keine neue Klasse, kein Service; zweimal `GetCurrentStockAsync` pro Seitenaufruf
+> [!note]- Lösungsentwurf-Punkte 3–7 vom 2026-11-19 – **überholt** durch Antworten 4–6, nur Audit
+> 4. „Verhalten der Vorbelegung bleibt bis zur Antwort auf Rückfrage 4 wie heute“ – jetzt entschieden (bleibt, filtert).
+> 5. POST schränkte über `FaJeArtikel[ArticleId].Overlaps(filter)` ein, Redirect nur mit `storageLocationId`.
+> 6. View mit `data-fa="a;b"` und einfachem Bestätigungstext.
+> 7. **Gemischte Zeilen (Rückfrage 5, Empfehlung a): ganze Zeile ausbuchen; der Dialog nennt Zeilen,
+> deren FA-Liste weitere Nummern außer den gefilterten enthält („enthält auch FA …“).** – überholt durch
+> Antwort 5 (Ja/Nein je gemischter Zeile).
+
+Ponytail: keine neue Klasse, kein Service, kein neues Partial, keine neue Repository-Methode für die
+Hierarchie (`GetBySubOrderNumbersAsync` wiederverwendet); zweimal `GetCurrentStockAsync` pro Aufruf
 (Controller + Repository) wird in Kauf genommen – lagerplatzgefiltert und klein. Erst zusammenlegen,
 wenn es messbar stört.
 
@@ -252,7 +387,8 @@ Keine. Reine Lese-/Filterlogik auf `StockMovement`; keine Migration, kein `SQL/X
 
 ## Einstellungen
 
-keine
+keine (keine neue oder geänderte Einstellung; der vorhandene Master `ProduktionsauftragHierarchisch`
+wird nur gelesen).
 
 ## Audit-Feld-Auswirkungen
 
@@ -288,55 +424,119 @@ begründete Ausnahme. Die neue Spalte bringt keine Spaltenfilter-/Pagination-Pfl
 6. **Liste im Feld:** FA-Feld `111; 1234567` → A und C ausgebucht, B bleibt; Ausbuchungen ohne
    Verknüpfung (Liste, wie v1.87.0).
 7. **Kein Treffer:** FA-Feld `999` → nichts gebucht, Warnmeldung nach Anforderung 6, Seite zeigt
-   weiter Platz L; der Knopf war schon vor dem Absenden deaktiviert mit Hinweis.
+   weiter Platz L mit `999` im Feld; der Knopf war schon vor dem Absenden deaktiviert mit Hinweis.
 8. **Leer = wie heute (Regression):** FA-Feld leer → alle Artikel mit Bestand > 0 ausgebucht,
    Meldung und Redirect wie bisher.
-9. **Rückmeldung:** nach gefilterter Ausbuchung nennt die Erfolgsmeldung Anzahl, FA und Anzahl
-   verbleibender Artikel; die Seite zeigt Platz L mit dem Rest.
+9. **Rückmeldung:** nach gefilterter Ausbuchung nennt die Erfolgsmeldung Anzahl, FA sowie Anzahl und
+   Artikelnummern der verbleibenden Artikel mit „bleibt am Platz“; die Seite zeigt Platz L mit dem Rest.
 10. **Vorschau:** Knopftext „Alle N Artikel ausbuchen" (leer) bzw. „M von N Artikeln ausbuchen (FA …)";
-    Bestätigungsdialog listet bei Filter die Artikelnummern.
-11. **Gemischte Zeile** (vorbehaltlich Rückfrage 5, Empfehlung a): FA-Feld `111` → C wird mit
-    vollem Platz-Bestand ausgebucht; der Dialog nennt „C enthält auch FA 222".
-12. **Wagen-Konflikt unverändert:** `GetProductionOrdersAtLocationAsync` liefert für denselben Platz
+    nicht treffende Zeilen tragen bei Wert den Text „bleibt am Platz“ (Wagen: „bleibt am Wagen“).
+11. **Gemischte Zeile – Ja (Antwort 5):** FA-Feld `111` → Dialog zeigt C unter „Bitte entscheiden“ mit
+    „enthält auch FA 222“, keine Option vorausgewählt, „Jetzt ausbuchen“ gesperrt mit „Noch 1 Zeile
+    offen“; „Ausbuchen“ wählen, bestätigen → C mit vollem Platz-Bestand ausgebucht.
+12. **Gemischte Zeile – Nein:** wie 11, aber „Nicht ausbuchen“ und eine weitere treffende Zeile
+    vorhanden → nur die andere Zeile ausgebucht, C bleibt, Erfolgsmeldung nennt C als „bleibt am Platz“.
+    Ist C die einzige treffende Zeile, ist „Jetzt ausbuchen“ nach „Nicht ausbuchen“ gesperrt; per
+    manipuliertem POST → Warnung „alle gemischten Zeilen mit ‚Nicht ausbuchen‘“, nichts gebucht.
+13. **Abbruch:** Dialog mit „Abbrechen“, Schließen-Kreuz oder Escape verlassen → kein POST, keine
+    Bewegung, kein Queue-Eintrag; Feld und Seite unverändert.
+14. **Serverprüfung (Antwort 5):** (a) POST mit Filter `111`, aber ohne `gemischtGezeigt` → Warnung
+    „hat sich geändert“, nichts gebucht. (b) `gemischtAusbuchen` enthält eine ID, die nicht in
+    `gemischtGezeigt` steht → dito. (c) Zwischen Seitenaufruf und POST bucht ein anderer Nutzer C
+    vollständig aus, oder eine andere Zeile mit FA `444` bekommt eine Bewegung mit FA `111` und wird
+    dadurch gemischt → dito (Menge gemischter Zeilen ≠ gezeigt). (d) Gebuchte Stückzahl ist immer der Server-Bestand beim Absenden, nie ein Wert
+    aus dem Formular.
+15. **Wagen-Konflikt unverändert:** `GetProductionOrdersAtLocationAsync` liefert für denselben Platz
     dasselbe wie vorher (bestehender Test grün); Konflikt-Dialog der Kommissionierung unverändert.
-13. **Wagen-Vorbelegung** (vorbehaltlich Rückfrage 4, Empfehlung a): Wagen mit Artikeln von FA A und
-    B plus einem Artikel ohne FA → Feld vorbelegt „A; B", Knopf zeigt „2 von 3", nach Bestätigen
-    bleibt der Artikel ohne FA auf dem Wagen und die Erfolgsmeldung nennt ihn als verbleibend.
-14. **Sage:** Je ausgebuchter Zeile genau eine Ausbuchung über `AddAsync`; nicht ausgebuchte Zeilen
-    erzeugen keinen Queue-Eintrag (Regel des Decorators unverändert).
-15. **Tests:** Repository-Tests für `GetProductionOrdersByArticleAtLocationAsync` (AK 1–3),
-    Controller-Tests für AK 4–8 und 11; `LagerbuchungFaVerknuepfungTests` angepasst (Mock der neuen
-    Methode, sonst bucht `OutboundAllConfirm(2, "1065141")` nichts mehr) und grün.
+16. **Wagen-Vorbelegung (Antwort 4):** Wagen mit Artikeln von FA A und B plus einem Artikel ohne FA →
+    Feld vorbelegt „A; B", Knopf zeigt „2 von 3", die Zeile ohne FA trägt „bleibt am Wagen“, der Dialog
+    listet sie unter „Bleibt am Wagen“ und hat keinen Block „Bitte entscheiden“; nach Bestätigen bleibt
+    der Artikel auf dem Wagen und die Erfolgsmeldung nennt ihn mit „bleibt am Wagen“.
+17. **Wagen, Feld geleert:** Vorbelegung gelöscht → Knopf „Alle 3 Artikel ausbuchen“, `confirm()` wie
+    heute, alles ausgebucht ohne FA-Text (TS-2.4 unverändert für diesen Weg).
+18. **IDEAL Haupt-FA (Antwort 6):** Master `ProduktionsauftragHierarchisch` = true; FA H (Haupt) mit
+    Sub-FA S1 (Ebene 1) und S2 (Ebene 2, Vater S1), alle `OrderNumber` = H. Platz L: Artikel E mit
+    Bewegung FA-Text `S1`, F mit `S2`, G mit `H`, K mit `S1` und `X` (fremde Struktur). Spalte zeigt E
+    „S1 (Haupt-FA H)“. FA-Feld `H` → E, F, G treffen ohne Rückfrage; K steht unter „Bitte entscheiden“
+    mit „enthält auch FA X“. Ausbuchungen tragen Text `H` und `ProductionOrderId` der Haupt-FA.
+19. **IDEAL Sub-FA eingegeben:** FA-Feld `S1` → nur E und K treffen (Text), F (S2) nicht – vorbehaltlich
+    Rückfrage 7.
+20. **AKE unverändert (Antwort 6, negativ):** Master false/leer; Platz mit Bewegung FA-Text `S1`, und in
+    den `ProductionOrders` existiert (Testdaten) ein Satz `OrderNumber = H`, `SubOrderNumber = S1`. FA-Feld
+    `H` → kein Treffer, Warnung nach Anforderung 6; `GetBySubOrderNumbersAsync` wird nicht aufgerufen.
+21. **IDEAL ohne Sub-FA-Satz (negativ):** Bewegungstext `S9`, zu dem kein `ProductionOrder` existiert →
+    `H` trifft die Zeile nicht; Spalte zeigt nur „S9“.
+22. **Sage:** Je ausgebuchter Zeile genau eine Ausbuchung über `AddAsync`; nicht ausgebuchte Zeilen
+    (nicht treffend, „Nicht ausbuchen“, Abbruch, Warnfälle) erzeugen keinen Queue-Eintrag (Regel des
+    Decorators unverändert).
+23. **Tests:** Repository-Tests für `GetProductionOrdersByArticleAtLocationAsync` (AK 1–3); Unit-Tests
+    `FaBuchungsText.PruefeZeile` (exakt, case, Haupt→Sub, AKE leeres Mapping, gemischt, AK 18–21);
+    Controller-Tests für AK 4–8, 11, 12, 14, 16, 18, 20; `LagerbuchungFaVerknuepfungTests` und
+    `StockMovementsControllerBulkInboundTests` an den neuen Ctor angepasst (Mock `IServiceSettingRepository`,
+    Mock der neuen Repository-Methode, sonst bucht `OutboundAllConfirm(2, "1065141")` nichts mehr) und grün.
+
+> [!note]- AK 9–15 vom 2026-11-19 – **überholt** durch Antworten 4–6, nur Audit
+> 10 „Bestätigungsdialog listet bei Filter die Artikelnummern“; **11 „Gemischte Zeile (vorbehaltlich
+> Rückfrage 5, Empfehlung a): FA-Feld `111` → C wird mit vollem Platz-Bestand ausgebucht; der Dialog nennt
+> ‚C enthält auch FA 222‘“**; 13 „Wagen-Vorbelegung (vorbehaltlich Rückfrage 4, Empfehlung a)“; 12/14/15
+> inhaltlich übernommen als 15/22/23.
 
 ## Test-Szenarien
 
-Neues Szenario **TS-169** in `docs/TESTSZENARIEN.md` (Lagerplatz ausbuchen mit FA), Verweis aus
-TS-2.4; danach `secondbrain/tests/testszenarien-index.md` nachziehen. Standort: AKE und IDEAL (die
-Seite hat keinen Standortschalter, `StockMovementsController.cs:482-557`).
+Neues Szenario **TS-173** in `docs/TESTSZENARIEN.md` (Lagerplatz ausbuchen mit FA), Verweis aus
+TS-2.4; danach `secondbrain/tests/testszenarien-index.md` nachziehen. Die frühere Nummer TS-169 ist
+**überholt** (seit v1.99.45 BF-Warenkorb, `docs/TESTSZENARIEN.md:13351`). Standort: **AKE und IDEAL** –
+die Seite hat keinen eigenen Standortschalter, der IDEAL-Einschluss hängt am Master (173.10–173.13).
 
 - **Vorbedingungen:** Rolle `stock_keyuser`. Platz L: A eingebucht 5 mit FA `1234567`; B 3 ohne FA;
-  C 2 mit FA `111` + 1 mit FA `222`; D 4 mit FA `333` eingebucht, danach ohne FA 4 ausgebucht.
-  Für 169.8 ein Wagen W mit Artikeln von FA A und B (Kommissionierung) plus ein Artikel ohne FA
-  (manuelle Umbuchung). Sage-Lagerbuchung auf DEV aus oder L ohne `SageBuchungErlaubt`, außer bei 169.9.
-- **Schritte / erwartet:**
-  - 169.1 `/StockMovements/OutboundAll`, Platz L laden → Spalte „Fertigungsauftrag": A `1234567`, B leer,
-    C `111, 222`; D fehlt.
-  - 169.2 Feld `1234567` tippen → Knopf „1 von 3 Artikeln ausbuchen (FA 1234567)", Zeile A markiert;
-    bestätigen → nur A weg, Meldung nennt 2 verbleibende, Seite zeigt L mit B, C.
-  - 169.3 Feld `123` → Knopf deaktiviert, Hinweis „Kein Artikel gehört zu diesem FA"; per manipuliertem
-    POST trotzdem senden → Warnung, nichts gebucht.
-  - 169.4 Feld `111` → Dialog nennt C „enthält auch FA 222"; bestätigen → C komplett (3) ausgebucht.
-  - 169.5 Feld `333` → kein Treffer (D ohne Restbestand).
-  - 169.6 Bewegungshistorie: Ausbuchungen aus 169.2/169.4 tragen den FA-Text; 169.2 verknüpft, falls
-    der FA im WMS existiert.
-  - 169.7 **Regression:** Feld leer → alle restlichen Artikel ausgebucht, Verhalten wie TS-2.4.
-  - 169.8 **Wagen** (nach Antwort 4): Aufruf über den Konflikt-Dialog der Kommissionierung → Feld
-    vorbelegt; Verhalten laut Entscheidung prüfen (Empfehlung a: Artikel ohne FA bleibt, wird gemeldet).
-  - 169.9 **Sage** (nur wenn auf DEV aktiv): je ausgebuchter Zeile ein Queue-Eintrag, für nicht
-    ausgebuchte keiner.
-- **Negativfälle:** 169.3, 169.5; Rolle `stock` ohne `stock_keyuser` → Zugriff verweigert (wie TS-2.4).
+  C 2 mit FA `111` + 1 mit FA `222`; D 4 mit FA `333` eingebucht, danach ohne FA 4 ausgebucht;
+  N 2 mit FA `111` (für 173.5). Für 173.8 ein Wagen W mit Artikeln von FA A und B (Kommissionierung)
+  plus ein Artikel ohne FA (manuelle Umbuchung). Für 173.10–173.12 auf **DEV IDEAL** eine Struktur H mit
+  Sub-FA S1 und darunter S2 (Abfrage: `SELECT OrderNumber, SubOrderNumber, ParentSubOrderNumber FROM
+  dbo.ProductionOrders WHERE OrderNumber = '<H>'`) und Platz M mit E (FA-Text S1), F (S2), G (H),
+  K (S1 + FA einer anderen Struktur X). Sage-Lagerbuchung auf DEV aus oder L/M ohne
+  `SageBuchungErlaubt`, außer bei 173.9.
+- **Schritte / erwartet (DEV AKE und DEV IDEAL, sofern nicht anders genannt):**
+  - 173.1 `/StockMovements/OutboundAll`, Platz L laden → Spalte „Fertigungsauftrag": A `1234567`, B leer,
+    C `111, 222`, N `111`; D fehlt.
+  - 173.2 Feld `1234567` tippen → Knopf „1 von 4 Artikeln ausbuchen (FA 1234567)", A markiert, B/C/N
+    tragen „bleibt am Platz“; Dialog ohne Block „Bitte entscheiden“; bestätigen → nur A weg, Meldung nennt
+    3 verbleibende mit Artikelnummern, Seite zeigt L.
+  - 173.3 Feld `123` → Knopf deaktiviert, Hinweis „Kein Artikel gehört zu diesem FA"; per manipuliertem
+    POST trotzdem senden → Warnung, nichts gebucht, Feld zeigt `123`.
+  - 173.4 Feld `111` → Knopf „2 von 3“; Dialog: N unter „Wird ausgebucht“, C unter „Bitte entscheiden“
+    mit „enthält auch FA 222“, nichts vorausgewählt, „Jetzt ausbuchen“ gesperrt („Noch 1 Zeile offen“).
+    „Abbrechen“ → nichts gebucht, Seite unverändert (Bewegungshistorie prüfen). Erneut öffnen, Escape →
+    dito.
+  - 173.5 Feld `111`, C „Nicht ausbuchen“ → nur N ausgebucht, Meldung nennt C „bleibt am Platz“.
+    Danach Feld `111` erneut: C ist jetzt einzige treffende Zeile; „Nicht ausbuchen“ → „Jetzt
+    ausbuchen“ gesperrt; „Ausbuchen“ → C komplett (3) ausgebucht.
+  - 173.6 Feld `333` → kein Treffer (D ohne Restbestand).
+  - 173.7 **Serverprüfung (negativ):** Dialog für C offen lassen, in zweitem Tab C komplett ausbuchen
+    (Feld leer wäre alles – stattdessen Einzel-Ausbuchung), im ersten Tab „Ausbuchen“ + bestätigen →
+    Warnung „hat sich geändert … Nichts ausgebucht.“. Zusätzlich per Browser-Werkzeug ein
+    `gemischtAusbuchen` mit fremder Artikel-ID einschleusen → dieselbe Warnung, nichts gebucht.
+  - 173.8 **Wagen** (Antwort 4): Aufruf über den Konflikt-Dialog der Kommissionierung → Feld vorbelegt
+    „A; B“, Knopf „2 von 3“, Artikel ohne FA trägt „bleibt am Wagen“, Dialog listet ihn unter „Bleibt am
+    Wagen“; bestätigen → Artikel bleibt auf W, Meldung „… bleibt am Wagen“. Danach Feld leeren →
+    „Alle 1 Artikel ausbuchen“ mit `confirm()` wie TS-2.4.
+  - 173.9 **Sage** (nur wenn auf DEV aktiv): je ausgebuchter Zeile ein Queue-Eintrag; für „Nicht
+    ausbuchen“, nicht treffende Zeilen, Abbruch und Warnfälle keiner.
+  - 173.10 **IDEAL Haupt-FA:** Platz M, Feld `H` → E, F, G unter „Wird ausgebucht“, K unter „Bitte
+    entscheiden“ („enthält auch FA X“); Spalte zeigt bei E „S1 (Haupt-FA H)“. „Ausbuchen“ für K →
+    E, F, G, K weg; Bewegungshistorie: Text `H`, verknüpft mit der Haupt-FA.
+  - 173.11 **IDEAL Sub-FA eingegeben:** neu befüllen, Feld `S1` → nur E und K treffen, F nicht
+    (Rückfrage 7 – Ergebnis gegen die Antwort prüfen).
+  - 173.12 **IDEAL ohne Sub-FA-Satz (negativ):** Bewegung mit FA-Text `S9`, für den kein FA existiert →
+    Feld `H` trifft diese Zeile nicht.
+  - 173.13 **AKE (negativ):** auf DEV AKE (Master aus) Feld mit der Haupt-FA-Nummer eines Testsatzes,
+    dessen Bewegung eine andere Nummer trägt → kein Treffer; Verhalten = reiner Textvergleich.
+  - 173.14 **Regression:** Feld leer → alle restlichen Artikel ausgebucht, Verhalten wie TS-2.4.
+- **Negativfälle:** 173.3, 173.4 (Abbruch), 173.6, 173.7, 173.12, 173.13; Rolle `stock` ohne
+  `stock_keyuser` → Zugriff verweigert (wie TS-2.4).
 - **Automatisch:** `StockMovementRepositoryProductionOrderTests` (neue Fälle je Artikel + bestehender
-  Zerlegungstest), Controller-Tests zu OutboundAllConfirm.
+  Zerlegungstest), Unit-Tests `FaBuchungsText.PruefeZeile`, Controller-Tests zu `OutboundAllConfirm`
+  (AK 23).
 
 ## Etappen (nur bei epic: true)
 
@@ -356,19 +556,32 @@ Der Prüfabschnitt unten bleibt unverändert. Stand der Merkposten:
   Abweichung bewusst: exakte Einzelnummer statt Teilstring, weil hier gebucht wird (siehe Entwurf).
 - **Sage-Enqueue:** weiter gültig und eingehalten – Buchung bleibt über `AddAsync` des Decorators
   (AK 14). Neu sichtbar dadurch: gemischte Zeilen melden auch fremde FA-Anteile an Sage → Rückfrage 5.
+  *Nachtrag 2026-11-20:* durch Antwort 5 gelöst – gemischte Zeilen gehen nur nach „Ausbuchen“ an Sage
+  (heute AK 22); die AK-Nummer 14 oben bezieht sich auf die alte Zählung.
 - **Empfehlung „normale /review-Runde nachholen":** steht noch aus (vor Schranke 1).
 
 ## Deploy
 
 **Vorläufig – der QA-Lauf bestätigt gegen den echten Diff.**
 
-- **Version:** Vorschlag 1.99.46 (1.99.45 ist für die Updater-Spec vorgeschlagen); bei Umsetzung die
-  nächste freie Nummer, beide `AppVersion.cs` + Anwender-Changelog + Brain-Changelog.
+- **Version:** Vorschlag 1.99.46 – am 2026-11-20 geprüft: Worktree auf 1.99.45
+  (`IdealAkeWms/AppVersion.cs:5`), „1.99.46“ kommt im Worktree nirgends vor; die Specs, die 1.99.45–1.99.47
+  vorgeschlagen hatten (Updater, BF-Warenkorb, Dashboard), sind im Sammellauf v1.99.45 aufgegangen;
+  1.99.47 (Sage-AG-Bugfix) und 1.99.48 (BDE-Liste) zählen 1.99.46 bereits dieser Spec zu. Dev-Lauf prüft
+  erneut; beide `AppVersion.cs` + Anwender-Changelog + Brain-Changelog.
+- **Testszenario:** TS-173 (siehe Test-Szenarien).
 - **Web-App:** ja (Controller, Repository, ViewModel, View).
 - **Service:** nein (nur Versionsnummer, falls im Bündel üblich mitgezogen).
 - **Migration:** nein.
-- **Manifest-Einträge** (`scripts/deploy/nachlauf.psd1`): keine – kein SQL, keine Einstellung,
-  kein Leitstand-Schritt, keine Ordner/Rechte.
+- **Manifest-Einträge** (`scripts/deploy/nachlauf.psd1`): kein SQL, keine Einstellung, kein
+  Leitstand-Schritt, keine Ordner/Rechte. Weil sich das Verhalten am Kommissionierwagen sichtbar ändert
+  (Artikel ohne FA bleiben am Wagen), ein Info-Eintrag:
+  `@{ Id='v1.99.46-LagerplatzAusbuchenFaFilter'; Version='1.99.46'; Typ='Info'; Firma='beide';
+  Phase='Nachher'; Ausfuehrung='anzeigen'; Text='Lagermitarbeiter informieren: Lagerplatz ausbuchen
+  bucht bei FA-Eintrag nur noch Artikel dieses FA aus; am Kommissionierwagen bleiben Artikel ohne
+  FA-Vermerk am Wagen (Feld leeren = alles). Gemischte Artikel werden im Dialog einzeln abgefragt.
+  IDEAL: Haupt-FA schliesst ihre Sub-FA ein.'; Quelle='<Brain-Changelog-Slug v1.99.46>' }` (Schreibweise
+  wie `nachlauf.psd1:337-339`; Version im Dev-Lauf an die endgültige Nummer anpassen).
 - **Publish-Befehle:**
 
 ```
@@ -381,6 +594,12 @@ dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWM
 2. **ENTSCHIEDEN (Antwort 2):** alle FA kommagetrennt in der FA-Spalte.
 3. **ENTSCHIEDEN (Antwort 3):** wie Teil 1 – echter Bestand als Grundlage, FA nur aus Bewegungen
    mit Restbestand.
+
+> [!note] Stand 2026-11-20: Rückfragen 4–6 sind durch „Freigabe-Antworten Runde 2“ **entschieden**
+> (4: Vorbelegung bleibt und filtert, „bleibt am Wagen“ melden; 5: Ja/Nein je gemischter Zeile;
+> 6: IDEAL Haupt-FA schließt Sub-FA ein, AKE Textvergleich). Die Fragetexte unten bleiben als Audit;
+> die darin genannten Empfehlungen sind, wo abweichend entschieden (5 und 6), **überholt**.
+
 4. **Kommissionierwagen-Vorbelegung:** Auf einem Wagen ist das FA-Feld heute automatisch mit allen
    FA des Wagens vorbelegt (`StockMovementsController.cs:501-507`). Mit Antwort 1 wirkt das als
    Filter: Artikel **ohne** FA-Text bleiben auf dem Wagen, heute wird alles ausgebucht (TS-2.4).
@@ -398,6 +617,17 @@ dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWM
    (Auflösung beider Formen nur in `FindForBookingAsync`, Test `LagerbuchungFaVerknuepfungTests.cs:29-47`).
    Reicht der Textvergleich (**Empfehlung**, ein Ort, wie Teil 1), oder sollen auf IDEAL zusätzlich die
    über `ProductionOrderId` verknüpften Sub-FA einer eingegebenen Haupt-FA mitzählen?
+7. **Mehrstufige IDEAL-Struktur:** Antwort 6 nennt nur die Haupt-FA. Umgesetzt wird: eine eingegebene
+   Haupt-FA schließt **alle** Sub-FA ihrer Struktur ein (gleiche `OrderNumber`, jede Ebene,
+   `FaMaterializationSyncService.cs:151`). Eine eingegebene Sub-FA der mittleren Ebene trifft nur ihre
+   eigene Nummer, nicht die darunter hängenden Sub-FA (`ParentSubOrderNumber`, AK 19 / TS-173.11).
+   Passt das, oder soll auch eine eingegebene Sub-FA ihre Nachfahren einschließen (dann rekursiv über
+   `ParentSubOrderNumber`, mehr Code)?
+8. **„Gegen die neu ermittelte Menge“ (Antwort 5):** Umgesetzt wird: der Server ermittelt die
+   **Menge der gemischten Zeilen** neu und bucht bei Abweichung zur angezeigten nichts (Anforderung 11);
+   die gebuchte **Stückzahl** ist wie heute der Platz-Bestand beim Absenden. Reicht das, oder soll
+   zusätzlich eine zwischenzeitlich geänderte Stückzahl einer gemischten Zeile die Buchung stoppen
+   (angezeigte Stückzahl würde mitgesendet und verglichen)?
 
 ## Freigabe-Antworten (Mensch füllt aus — Schranke 1)
 
@@ -409,9 +639,14 @@ klären wir später - bitte im backlog belassen.
 
 ## Freigabe-Antworten Runde 2 (Rückfragen 4–6, Mensch füllt aus — Schranke 1)
 
-4. →
-5. →
-6. →
+4. → **(a) Vorbelegung bleibt und filtert, Artikel ohne FA-Vermerk sichtbar als „bleibt am Wagen“ melden** (Gerald 2026-11-19 20:40)
+5. → **abweichend: je gemischter Zeile im Bestätigungsdialog nachfragen (ausbuchen ja/nein), kein stilles Ausbuchen und kein stilles Auslassen** (Gerald 2026-11-19 20:40)
+6. → **abweichend: an IDEAL schließt eine eingegebene Haupt-FA die verknüpften Sub-FA ein (über ProductionOrderId/Hierarchie), AKE unverändert Textvergleich** (Gerald 2026-11-19 20:40)
+
+## Freigabe-Antworten Runde 3 (Rückfragen 7–8, Mensch füllt aus — Schranke 1)
+
+7. →
+8. →
 
 ## Kritische Pruefung (2026-08-05)
 
@@ -444,3 +679,5 @@ nur ein Merkzettel):
 die Kern-Entscheidung (Variante A vs. B) getroffen ist. Danach normale /review-Runde nachholen.**
 
 > [!important] Wiederaufnahme Gerald 2026-11-19 20:10: Kern-Entscheidungen 1–3 beantwortet (oben). Spec stammt aus v1.2x – Zeilenangaben und Code-Stand sind veraltet; vor Freigabe Überarbeitung durch den spec-agent gegen den Bündel-Stand v1.99.44.
+
+> [!important] Gerald 2026-11-19 20:40: Antworten 5 und 6 erweitern den Umfang (Dialog je gemischter Zeile; Haupt-FA→Sub-FA an IDEAL). Rumpf, AK und TS durch den spec-agent nachziehen, dann Freigabe.
