@@ -1059,3 +1059,118 @@ dagegen „S1 (Haupt-FA H)“. Das Format fehlt in der Anforderung (S-2).
 ### Empfehlung
 
 **NACHBESSERUNG NOETIG: Rückfragen 7/8 offen; B-3 (Bestand ohne FA in einer FA-Zeile wird still ausgebucht) braucht eine Entscheidung; S-3/S-5 vor Freigabe in den Rumpf.**
+
+## Kritische Pruefung (2026-11-20, Runde 2)
+
+Geprüft gegen den Rumpf nach Rework Runde 3 und den Code im Bündel-Worktree `2026-08-07-ideal-teile-1-5`
+(HEAD `c39a9423`, v1.99.45). Zeilenangaben beziehen sich auf diesen Stand. Befund-Kürzel dieser Runde: **R2-…**.
+
+### 0. Abgleich der Befunde vom 2026-11-20 (Runde 1)
+
+| Befund | Stand | Fundstelle in der Spec |
+|---|---|---|
+| B-1 (Rückfrage 7) | erledigt | Antwort 7; Umfang 6, Out-of-Scope „Nachfahren einer Sub-FA“, Anf. 4, LE 8, AK 19, TS-173.11 |
+| B-2 (Rückfrage 8) | erledigt | Antwort 8; Anf. 11, LE 6/7, AK 14 (a)–(g), TS-173.7a–c |
+| B-3 (Bestand ohne FA) | erledigt | Antwort B-3 (a); Umfang 7, Anf. 3/4 (G1–G3), LE 1/2, AK 24, TS-173.15, Out-of-Scope „zeitliche Zuordnung“; Praktikabilität siehe R2-S6 |
+| S-1 (Textweg bestätigen) | **offen** | als Rückfrage 9 gestellt, Runde 4 leer (R2-B1) |
+| S-2 (IDEAL-Anzeigeformat) | erledigt | Anf. 1 |
+| S-3 (`treffendGezeigt`) | erledigt | Anf. 11, LE 7, AK 14 (c)/(d) |
+| S-4 (Doppel-POST) | **teilweise** | Knopf-Sperre in Anf. 10, LE 6, AK 25, TS-173.16; die Enter-Taste umgeht Dialog und Sperre (R2-S1) |
+| S-5 (TS-2.4 neu) | **teilweise** | AK 26 und Wortlaut TS-2.4 vorhanden; die Vorbedingung ist über die Oberfläche nicht herstellbar (R2-S2) |
+| S-6 (FK nur falls eindeutig) | **teilweise** | AK 18 ja; TS-173.10 (Zeile „Bewegungshistorie: Text `H`, verknüpft mit der Haupt-FA“) noch ohne Einschränkung (R2-S5) |
+| S-7 (`?? new()`) | erledigt | LE 4, AK 23 |
+| H-1 | erledigt | Kennzeichnung unter Freigabe-Antworten Runde 1 |
+| H-9 (Manifest-Text) | erledigt | Deploy, Info-Eintrag nennt gemischte Zeilen und Serverprüfung |
+
+### 1. Antworten vollständig
+- Runden 1–3 sind beantwortet, mit Text und Datum.
+- **Rückfrage 9 ist leer** (Runde 4: nur Pfeil) → R2-B1. Rumpf, LE 8 und `open_questions` setzen den Textweg bereits um.
+- Die Antworten widersprechen sich nicht. Antwort B-3 (a) und Antwort 4 passen zusammen: Am Wagen sind G2/G3 selten (siehe 2b), auf Regalen häufig (R2-S6).
+
+### 2b. Aussagen belegt (Stichproben am Code)
+
+**G1–G3, Zugang/Abgang:** Die Spec ist korrekt belegt.
+- Vorzeichen: `StockMovementRepository.cs:65-72` und `:497-503`, je `Einbuchung`/`SageEinbuchung`/`Umbuchung` + und `Ausbuchung`/`SageAusbuchung` −. Die Umbuchungs-Quelle zählt nur über `SourceStorageLocationId` (`:81-85`, `:505-509`).
+- `StorageLocationId` ist bei einer `Umbuchung` immer das Ziel. Quelle = Ziel ist ausgeschlossen: `Transfer` mit Fehler (`StockMovementsController.cs:406-409`), `LocationTransferConfirm` mit Abbruch (`:589-593`). Beim Negativ-Ersatz wird nur die Quelle getauscht (`:446-452`), das Ziel bleibt.
+- Schreibwege: Die Suche nach `new StockMovement` außerhalb der Tests liefert genau die 9 Stellen der Tabelle im Ist-Zustand (Controller `:146, :258, :365, :457, :536, :618`; `PurchaseOrdersController.Receive.cs:140`; `PickingTransferService.cs:210`; `LagerbestandSyncService.cs:179, :247`).
+- Es gibt kein raw-SQL-`INSERT` auf `StockMovements`. Einziges `UPDATE` ist der Backfill `SQL/110_BackfillStockMovementProductionOrderId.sql:77-81`, und der setzt nur die FK. Bewegungen sind damit unveränderlich, ihr FA-Text ändert sich nach dem Schreiben nie. Das trägt die Serverprüfung.
+
+**Kommissionier-Transfer, Begründung zu Rückfrage 9:** Text `auftrag.ProductionOrder?.OrderNumber` (`PickingTransferService.cs:75`), FK `zeile.ProductionOrderId` (`:217`). Die Zeilen-FK ist der FA des Auftrags (`PickingOrderWorkflow.cs:124,129`).
+- Text und FK fallen nur deshalb auf dieselbe Nummer, weil die Kommissionierung **nur am HauptFA** erlaubt ist (`PickingOrderWorkflow.cs:61`, `PickingController.cs:227`). Für einen Haupt-FA gilt `OrderNumber` = eigene Nummer.
+- Diese Fundstelle fehlt in der Begründung von Rückfrage 9 und im Ist-Zustand „Hierarchie“. Ohne sie ist „jede Bewegung mit FK trägt dieselbe Nummer im Text“ für die Kommissionierung nicht belegt. Bei einem Auftrag an einer Sub-FA S1 hieße der Text H und die FK S1, und der Filter `S1` träfe nur über die FK.
+
+**„Trotzdem buchen“** (`PickingTransferService.cs:101-102`): Text = Wagenliste „A;B“, FK = der eine Herkunfts-FA. Hier ist die FK **genauer** als der Text.
+- Filter `A` trifft auch Artikel, die für B kommissioniert wurden. Wegen der fremden Nummer B sind sie aber immer G1-gemischt und werden abgefragt.
+- Allgemein: Ein Mehrtreffer des Textwegs ist entweder voll abgedeckt (alle Nummern gefiltert) oder G1-gemischt. Er wird also **nie still** ausgebucht. Das gehört als Satz in Rückfrage 9 (R2-B1).
+
+**Model-Binding** (Anf. 11, LE 7):
+- `int[]` aus wiederholten Namen und `Dictionary<int,string>` aus `stueckGezeigt[9]=…` bindet ASP.NET Core MVC von Haus aus (Dictionary-Binder, Form `prefix[key]` für einfache Werte).
+- Der Wert als `string` ist richtig. Die App setzt `de-DE` fest (`Program.cs:14-16`), und der Kommentar `:11-13` sagt ausdrücklich „Model-Binding liest Dezimalzahlen überall deutsch“. Ein `decimal`-Binding läse „2.5“ als 25.
+- `ToString(InvariantCulture)` kann „2.500“ liefern. `decimal.Parse` ergibt 2.500m, und das ist `==` 2.5m: Dezimalgleichheit ignoriert die Skala. AK 14 (g) ist damit erfüllbar.
+- Ein ungültiger Schlüssel (`stueckGezeigt[abc]`) erzeugt nur einen ModelState-Fehler, die Aktion läuft weiter. Der Eintrag fehlt dann und zählt als Abweichung. Das ist richtig so.
+
+**Performance der neuen Abfrage:**
+- Prädikat `StorageLocationId = @p AND ArticleId IN (…)`. Der vorhandene Index `IX_StockMovements_ArticleId_StorageLocationId (ArticleId, StorageLocationId) INCLUDE (Quantity, MovementType)` (`SQL/38_StockMovementPerformanceIndexes.sql:7-9`) erlaubt einen Seek je Artikel. `ProductionOrder` steht nicht im INCLUDE, also gibt es einen Key-Lookup je Bewegung des Paares.
+- Das ist dasselbe Zugriffsmuster wie die heutige Abfrage `:527-533`. Neu entfällt nur der Filter `ProductionOrder != null`, dadurch kommen bei Regalen mit langer Wareneingangs-Historie mehr Zeilen in den Lookup.
+- Für **einen** Lagerplatz ist das unkritisch: einige tausend Lookups, `Distinct` verkleinert nur das Ergebnis, nicht den Lesevorgang. Kein neuer Index nötig. Je GET/POST laufen zweimal `GetCurrentStockAsync`, einmal die neue Abfrage und an IDEAL einmal `GetBySubOrderNumbersAsync` – vertretbar.
+
+### BLOCKER
+
+- **R2-B1 Rückfrage 9 unbeantwortet.** Die Umsetzung ist auf den Textweg festgelegt (Umfang 6, LE 8), die Bestätigung des Menschen fehlt.
+  *Frage an Gerald:* Textweg bestätigt (ja/nein)?
+  *Ergänzung zur Entscheidungsgrundlage, bitte in Rückfrage 9 aufnehmen:*
+  1. Die Gleichheit von FK und Text bei Kommissionier-Bewegungen hängt an der Regel „Kommissionierung nur am HauptFA“ (`PickingOrderWorkflow.cs:61`).
+  2. Die zusätzlichen Treffer des Textwegs (Listen-Texte) sind nie still, sondern voll abgedeckt oder G1-gemischt (siehe 2b).
+
+  Mit diesen zwei Sätzen ist „ja“ die risikoarme Antwort.
+
+### SOLLTE
+
+- **R2-S1 Enter im FA-Feld umgeht Dialog und Knopf-Sperre.** Das Formular `OutboundAll.cshtml:90-103` hat genau ein Textfeld (`productionOrder`) und keinen Submit-Knopf (`type="button"`, `:98`). Enter im Feld schickt das Formular nach HTML-Regel (implizites Absenden) direkt ab, ohne den Klick-Handler `:118-122`.
+  - **Mit Wert:** Der POST kommt ohne `treffendGezeigt`/`stueckGezeigt` an. Die Prüfung schlägt an mit „Bestand oder FA-Zuordnung … hat sich geändert“. Das ist sicher (nichts gebucht), aber irreführend. Wer eine FA tippt und Enter drückt, um die Vorschau zu sehen, ist der Normalfall.
+  - **Mit leerem Feld:** Der gesamte Platz wird **ohne** `confirm()` und ohne Sperre ausgebucht. Das ist schon heute so, widerspricht aber Anf. 10/AK 25 („nach ‚OK‘ im `confirm()`“).
+  - Der Hardware-Scanner verschluckt Enter nur bei erkannten Präfix-Scans (`hardware-scanner.js:413`), manuelles Tippen nicht.
+  - *Vorschlag:* Am Formular ein `submit`-Listener mit `preventDefault()`, der denselben Weg wie der Knopfklick auslöst. `form.submit()` aus dem Skript löst kein `submit`-Ereignis aus, der JS-Weg bleibt also unberührt. Dazu ein AK „Enter im FA-Feld öffnet Dialog bzw. `confirm()`, sendet nie direkt“ und ein Schritt in TS-173.16.
+- **R2-S2 Wagen-Vorbedingung „Artikel ohne FA per manueller Umbuchung“ ist über die Oberfläche nicht herstellbar.** Betroffen sind Anf. 12, AK 16, TS-173 Vorbedingungen/173.8 und TS-2.4 neu.
+  - „Umbuchen“ bietet Wagen weder als Quelle noch als Ziel an: GET `StockMovementsController.cs:394`, POST `:413, :436` → `GetActiveOrderedExcludingPickingTransportAsync` (`StorageLocationRepository.cs:43-49`), `Transfer.cshtml:63-64`. Einbuchen genauso (`:114`).
+  - Nur „Lagerplatz umbuchen“ listet Wagen als Ziel (`:564-568` `GetAllOrderedAsync`, `LocationTransfer.cshtml:88-90`) und schreibt dabei nie einen FA-Text (`:618-631`).
+  - Das ist derselbe Fehlertyp, den die Spec am alten TS-2.4 („`WAGEN-01` auswählen“) selbst korrigiert.
+  - *Vorschlag:* Vorbedingung „Hilfsplatz X mit genau einem Artikel ohne FA per ‚Lagerplatz umbuchen‘ auf den Wagen umbuchen“. In Anf. 12 als realen Weg `:618-631` nennen, `:463` streichen (dorthin führt kein UI-Weg auf einen Wagen).
+- **R2-S3 Reihenfolge TS-173:** 173.5 bucht N und danach C aus. 173.7 und 7a–7c setzen aber die „Ausgangslage 173.4“ voraus (AK 14: N treffend mit 2, C gemischt mit 3), ohne Neubefüllung. Wer TS-173 der Reihe nach abarbeitet, findet in 173.7 weder C noch N.
+  *Vorschlag:* Am Anfang von 173.7 „L neu befüllen: C 2× FA 111 + 1× FA 222, N 2× FA 111“, ebenso vor 173.14 den Rest klarstellen.
+- **R2-S4 `affected_code` deckt Doku und Hilfe nicht ab, die nach der Umsetzung falsch wären:**
+  - `Views/Help/Index.cshtml:50` (Eintrag „Lagerplatz ausbuchen“);
+  - `docs/anwender/09-einbuchen-ausbuchen-umbuchen.md:113` („bucht **alle** Artikel eines Platzes auf einmal aus“) mit Foto `:115` (Knopf „Alle … Artikel ausbuchen“ am Wagen) und `:164`;
+  - `docs/anwender/01-kommissionierung.md:152` („Ausbuchung des ganzen Wagens“);
+  - `scripts/deploy/nachlauf.psd1` (Info-Eintrag laut Deploy).
+
+  Alle vier gehören in `affected_code`, damit der Dev-Lauf die Definition of Done (Doku + Fotos) und die Hilfe-Regel nicht übersieht.
+- **R2-S5 TS-173.10:** „Bewegungshistorie: Text `H`, verknüpft mit der Haupt-FA“ → „verknüpft mit der Haupt-FA, falls `FindForBookingAsync("H")` eindeutig (wie AK 18), sonst ohne Verknüpfung“. S-6 ist sonst nur halb nachgezogen.
+- **R2-S6 Praktikabilität von G2 auf Regalen – in Hilfe und Doku offen sagen.** Zugänge auf normalen Plätzen kommen überwiegend aus dem Wareneingang (`PurchaseOrdersController.Receive.cs:140-151`) und aus Sage-Korrekturen (`LagerbestandSyncService.cs:179-192`), beide **nie** mit FA-Text. Ohne Zeitgrenze (Out-of-Scope) ist deshalb praktisch **jede** FA-Zeile auf einem Regal dauerhaft gemischt.
+  - Der Filter wird dort zur Ja/Nein-Liste je Zeile, nahe an der verworfenen Variante B. Der Knopf zeigt etwa „5 von 5“, obwohl alle 5 einzeln zu entscheiden sind.
+  - Am Wagen gilt das nicht: Zugänge kommen dort nur aus der Kommissionierung mit FA-Text (`PickingTransferService.cs:75`, Aufträge immer mit FA, `PickingOrder.cs:43-44`) oder aus „Lagerplatz umbuchen“.
+  - Das entspricht Antwort B-3 (a) („lieber einmal mehr fragen“) und ist kein Fehler. Es sollte aber im Hilfetext, in `docs/anwender/09` und im Manifest-Text stehen: „Auf Regalen mit Wareneingang wird jede Zeile einzeln abgefragt; der Filter ist für Kommissionierwagen gedacht.“ Ein Satz, kein Code.
+
+### HINWEIS
+
+- **R2-H1 Bekannte Grenze (Anf. 11, letzter Satz) ist vertretbar.** Sie betrifft nur Zeilen, die **schon** gemischt sind und über die der Mensch ohnehin Ja/Nein entscheidet. Es ändert sich höchstens der angezeigte Grund.
+  - Eine nicht gemischte Zeile, die gemischt wird, fängt `SetEquals` immer ab.
+  - Bewegungen sind unveränderlich (2b), eine Textänderung ohne neue Bewegung gibt es nicht.
+  - Ein Fingerabdruck der Gründe je gemischter Zeile würde die Lücke schließen, kostet aber JS und Server-Code für einen Fall ohne Schaden – nicht bauen.
+- **R2-H2 Prüfung und Buchung sind nicht atomar.** Zwischen der Serverprüfung und der `AddAsync`-Schleife (`:534-553`) kann eine fremde Buchung landen. Das ist dieselbe Klasse wie Runde 1 S-4 (zwei Tabs) und H-4 und ist ausdrücklich ausgeklammert.
+- **R2-H3 Formular-Grenzen:** `FormOptions.ValueCountLimit` und `MvcOptions.MaxModelBindingCollectionSize` stehen auf dem Standard 1024 (in `Program.cs` nicht gesetzt). Das reicht für etwa 500 treffende Zeilen je Platz – für einen Lagerplatz unrealistisch, kein Handlungsbedarf.
+- **R2-H4 Manual-UAT kann die Bedingungen von AK 14 nicht trennen.** 173.7b (Einbuchung FA 444) ändert auch die Stückzahl, die Warnung kommt also schon über den Mengenvergleich. Der reine `SetEquals`-Pfad (d) ist nur im Controller-Test mit Mock nachweisbar. AK 23 sieht diese Tests vor, das reicht.
+- **R2-H5 Regression geprüft:**
+  - `LagerbuchungFaVerknuepfungTests`: Ctor `:89-90` und die Aufrufe `:109`/`:117` sind wie in LE 7 beschrieben anpassbar. `Mock.Of<IServiceSettingRepository>` liefert `null`, also den AKE-Weg. Ein lockerer `IStorageLocationRepository`-Mock liefert `null` → „Platz“. Die Assertion `HaveCount(6)` (`:111`) bleibt erfüllbar.
+  - `StockMovementsControllerBulkInboundTests.cs:42-44`: nur der Ctor ändert sich.
+  - Wagen-Konflikt: `PickingTransferServiceAggregationTests` mockt die Interface-Methode, ist also unberührt.
+  - Die abgeleitete `GetProductionOrdersAtLocationAsync` liefert dasselbe Ergebnis. Ausnahme ist die Groß-/Kleinschreibvariante derselben Nummer (Runde 1 H-2), bei numerischen FA folgenlos.
+  - `docs/TESTSZENARIEN.md:11352` (115.12) und `:11810` (130.5.6) bleiben gültig.
+- **R2-H6 Größe:** etwa 19 Dateien. Code: FaBuchungsText, Interface, Repository, Controller, ViewModel, View mit Modal und JS. Tests: 4 Dateien. Dazu 2× AppVersion, Changelog, TESTSZENARIEN, Testindex, Hilfe, 2× docs/anwender, Manifest. Das sind 4 Schichten.
+  - Für einen Dev-Lauf an der Obergrenze, aber zusammenhängend. Ein Split hilft nicht: Die Serverprüfung braucht die hidden inputs aus der View.
+  - Das Risiko liegt in der doppelten Regel C#/JS (Runde 1 H-3), nicht in der Dateizahl.
+- **R2-H7 Nummern weiter frei und konsistent:** v1.99.46/TS-173 (diese Spec), 1.99.47/TS-172 (Sage-AG), 1.99.48/TS-171 (BDE-Liste), 1.99.49/TS-174 (Dashboard-Symbole) – laut `version_vorschlag`/`testszenario_vorschlag` der drei Entwürfe vom 2026-11-20. Worktree `AppVersion.cs:5` = 1.99.45.
+
+### Empfehlung
+
+**NACHBESSERUNG NOETIG: Rückfrage 9 offen (R2-B1); Enter-Umgehung (R2-S1), nicht herstellbare Wagen-Vorbedingung (R2-S2) und TS-Reihenfolge (R2-S3) vor Freigabe in Rumpf/AK/TS.**
