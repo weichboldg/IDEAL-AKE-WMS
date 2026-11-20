@@ -21,6 +21,8 @@ public static class NavZiele
         [KatLager, KatBestellungen, KatKommissionierung, KatProduktionBde, KatBlechfertigung, KatBeschichtung, KatEinkauf, KatStammdaten, KatAdministration];
 
     // v1.99.46: Kachel-Symbole (Pfade aus den alten Startseiten-SVGs bzw. aus Inline-SVGs im Projekt; Plus/Minus/Doppelpfeil selbst gezeichnet).
+    // QA 2026-11-20: file-earmark-pdf (Summiert.cshtml:112) und gear (Settings/Index.cshtml:14-15) zeichnen schon an der Quelle als volle Flaeche
+    // (unvollstaendige Pfade) -> nicht verwenden; Kommissionierlisten/Vorschlagsliste = SymFile, Einstellungen = SymPencil.
     private const string SymPlus = "M7 2h2v5h5v2H9v5H7V9H2V7h5z";
     private const string SymMinus = "M2 7h12v2H2z";
     private const string SymDoppelpfeil = "M1 3h10V1l4 3-4 3V5H1zm14 8H5V9l-4 3 4 3v-2h10z";
@@ -33,7 +35,6 @@ public static class NavZiele
     private const string SymCart2 = "M0 2.5A.5.5 0 0 1 .5 2H2a.5.5 0 0 1 .485.379L2.89 4H14.5a.5.5 0 0 1 .485.621l-1.5 6A.5.5 0 0 1 13 11H4a.5.5 0 0 1-.485-.379L1.61 3H.5a.5.5 0 0 1-.5-.5M5.5 13a1 1 0 1 0 0 2 1 1 0 0 0 0-2m7 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2";
     private const string SymWarnung = "M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5m.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2";
     private const string SymCardChecklist = "M14.5 3a.5.5 0 0 1 .5.5v9a.5.5 0 0 1-.5.5h-13a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5zm-13-1A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h13a1.5 1.5 0 0 0 1.5-1.5v-9A1.5 1.5 0 0 0 14.5 2z M7 5.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5m-1.496-.854a.5.5 0 0 1 0 .708l-1.5 1.5a.5.5 0 0 1-.708 0l-.5-.5a.5.5 0 1 1 .708-.708l.146.147 1.146-1.147a.5.5 0 0 1 .708 0M7 9.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5m-1.496-.854a.5.5 0 0 1 0 .708l-1.5 1.5a.5.5 0 0 1-.708 0l-.5-.5a.5.5 0 0 1 .708-.708l.146.147 1.146-1.147a.5.5 0 0 1 .708 0";
-    private const string SymFilePdf = "M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5zM9.5 3A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5z M4.603 12.087a.8.8 0 0 1-.438-.42c-.195-.388-.13-.776.08-1.102.198-.307.526-.568.897-.787a7.7 7.7 0 0 1 1.482-.645 20 20 0 0 0 1.062-2.227 7.3 7.3 0 0 1-.43-1.295c-.086-.4-.119-.796-.046-1.136.075-.354.274-.672.65-.823.192-.077.4-.12.602-.077a.7.7 0 0 1 .477.365c.088.164.12.356.127.538.007.187-.012.395-.047.614-.084.51-.27 1.134-.52 1.794a11 11 0 0 0 .98 1.686 5.8 5.8 0 0 1 1.334.05c.364.065.734.195.96.465.12.144.193.32.2.518.007.192-.047.382-.138.563a1.04 1.04 0 0 1-.354.416.86.86 0 0 1-.51.138c-.331-.014-.654-.196-.933-.417a5.7 5.7 0 0 1-.911-.95 11.6 11.6 0 0 0-1.997.406 11.3 11.3 0 0 1-1.021 1.51c-.29.35-.608.655-.926.787a.8.8 0 0 1-.58.029";
     private const string SymGrid = "M2 2a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1zm7 0a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1zm-7 7a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-3a1 1 0 0 0-1-1zm7 0a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-3a1 1 0 0 0-1-1z";
     private const string SymJournalText = "M5 10.5a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1h-2a.5.5 0 0 1-.5-.5m0-2a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5m0-2a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5m0-2a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5 M3 0h10a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2v-1h1v1a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v1H1V2a2 2 0 0 1 2-2 M1 5v-.5a.5.5 0 0 1 1 0V5h.5a.5.5 0 0 1 0 1h-2a.5.5 0 0 1 0-1zm0 3v-.5a.5.5 0 0 1 1 0V8h.5a.5.5 0 0 1 0 1h-2a.5.5 0 0 1 0-1zm0 3v-.5a.5.5 0 0 1 1 0v.5h.5a.5.5 0 0 1 0 1h-2a.5.5 0 0 1 0-1z";
     private const string SymFolder = "M9.828 3h3.982a2 2 0 0 1 1.992 2.181l-.637 7A2 2 0 0 1 13.174 14H2.825a2 2 0 0 1-1.991-1.819l-.637-7a2 2 0 0 1 .342-1.31L2.1 3a2 2 0 0 1 1.542-.819l4.83-.26a2 2 0 0 1 1.356.52z";
@@ -50,7 +51,6 @@ public static class NavZiele
     private const string SymPrinter = "M2.5 8a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1 M5 1a2 2 0 0 0-2 2v2H2a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h1v1a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-1h1a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-1V3a2 2 0 0 0-2-2zM4 3a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2H4zm1 10a1 1 0 0 1-1-1v-2h8v2a1 1 0 0 1-1 1z";
     private const string SymStopwatch = "M6 .5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1H9v1.07a7.001 7.001 0 0 1 3.274 12.474l.601.602a.5.5 0 0 1-.707.708l-.746-.746A6.97 6.97 0 0 1 8 16a6.97 6.97 0 0 1-3.422-.892l-.746.746a.5.5 0 0 1-.707-.708l.602-.602A7.001 7.001 0 0 1 7 2.07V1h-.5A.5.5 0 0 1 6 .5M8 3a6 6 0 1 0 .001 12A6 6 0 0 0 8 3m0 3a.75.75 0 0 1 .75.75v2.5h1.5a.75.75 0 0 1 0 1.5h-2.25A.75.75 0 0 1 7.25 10V6.75A.75.75 0 0 1 8 6";
     private const string SymLink = "M4.715 6.542 3.343 7.914a3 3 0 1 0 4.243 4.243l1.828-1.829A3 3 0 0 0 8.586 5.5L8 6.086a1 1 0 0 0-.154.199 2 2 0 0 1 .861 3.337L6.88 11.45a2 2 0 1 1-2.83-2.83l.793-.792a4 4 0 0 1-.128-1.287z M6.586 4.672A3 3 0 0 0 7.414 9.5l.775-.776a2 2 0 0 1-.896-3.346L9.12 3.55a2 2 0 1 1 2.83 2.83l-.793.792c.112.42.155.855.128 1.287l1.372-1.372a3 3 0 1 0-4.243-4.243z";
-    private const string SymGear = "M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492M5.754 8a2.246 2.246 0 1 1 4.492 0 2.246 2.246 0 0 1-4.492 0 M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52z";
 
     // ---- Lager
     public static readonly NavZiel Einbuchung = new("Einbuchung", "Einbuchung", "StockMovements", "Inbound", KatLager, "Ware auf einen Lagerplatz einbuchen", SymPlus);
@@ -76,7 +76,7 @@ public static class NavZiele
 
     // ---- Kommissionierung
     public static readonly NavZiel Kommissionierung = new("Kommissionierung", "Kommissionierung", "Picking", "Index", KatKommissionierung, "Fertigungsaufträge kommissionieren", SymCardChecklist);
-    public static readonly NavZiel Kommissionierlisten = new("Kommissionierlisten", "Kommissionierlisten", "FaHierarchyKommissionierListen", "Summiert", KatKommissionierung, "Material je Haupt-FA summiert", SymFilePdf);
+    public static readonly NavZiel Kommissionierlisten = new("Kommissionierlisten", "Kommissionierlisten", "FaHierarchyKommissionierListen", "Summiert", KatKommissionierung, "Material je Haupt-FA summiert", SymFile);
     public static readonly NavZiel LeitstandKommissionierung = new("LeitstandKommissionierung", "Leitstand Kommissionierung", "PickingLeitstand", "Index", KatKommissionierung, "Aufträge freigeben und priorisieren", SymGrid);
 
     // ---- Produktion/BDE
@@ -99,7 +99,7 @@ public static class NavZiele
     public static readonly NavZiel BfAuftraege = new("BfAuftraege", "BF-Aufträge", "BfAuftraege", "Index", KatBlechfertigung, "Bestellte Blechteile verfolgen", SymJournalText);
 
     // ---- Beschichtung
-    public static readonly NavZiel BeschichtungVorschlagsliste = new("BeschichtungVorschlagsliste", "Vorschlagsliste", "FaHierarchyBeschichtung", "Summiert", KatBeschichtung, "Zu beschichtende Teile summiert", SymFilePdf);
+    public static readonly NavZiel BeschichtungVorschlagsliste = new("BeschichtungVorschlagsliste", "Vorschlagsliste", "FaHierarchyBeschichtung", "Summiert", KatBeschichtung, "Zu beschichtende Teile summiert", SymFile);
     public static readonly NavZiel Beschichtungsauftraege = new("Beschichtungsauftraege", "Aufträge", "Beschichtungsauftraege", "Index", KatBeschichtung, "Beschichtungsaufträge an den Beschichter", SymJournalText);
 
     // ---- Einkauf/Wareneingang
@@ -127,7 +127,7 @@ public static class NavZiele
     public static readonly NavZiel Rollen = new("Rollen", "Rollen", "Roles", "Index", KatAdministration, "Rollen und ihre Bedeutung", SymCheckSquare);
     public static readonly NavZiel Arbeitsgaenge = new("Arbeitsgaenge", "Arbeitsgänge", "OperationConfigs", "Index", KatAdministration, "Arbeitsgang-Stammdaten", SymStopwatch);
     public static readonly NavZiel ArbeitsgaengeSage = new("ArbeitsgaengeSage", "Arbeitsgänge → Sage", "SageFaArbeitsgaenge", "Index", KatAdministration, "Arbeitsgänge in Sage-FAs anlegen", SymLink);
-    public static readonly NavZiel Einstellungen = new("Einstellungen", "Einstellungen", "Settings", "Index", KatAdministration, "Module und fachliche Einstellungen", SymGear);
+    public static readonly NavZiel Einstellungen = new("Einstellungen", "Einstellungen", "Settings", "Index", KatAdministration, "Module und fachliche Einstellungen", SymPencil);
     public static readonly NavZiel ServiceEinstellungen = new("ServiceEinstellungen", "Service-Einstellungen", "ServiceSettings", "Index");
     public static readonly NavZiel Standorteinstellungen = new("Standorteinstellungen", "Standorteinstellungen", "StandortEinstellungen", "Index", KatAdministration, "Einstellungen je Standort", SymGeoAlt);
     public static readonly NavZiel AktivitaetsProtokoll = new("AktivitaetsProtokoll", "Aktivitäts-Protokoll", "SyncLog", "Index", KatAdministration, "Läufe der Hintergrunddienste", SymFileText);
