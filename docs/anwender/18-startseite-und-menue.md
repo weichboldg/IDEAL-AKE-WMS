@@ -1,6 +1,6 @@
 # 18 Startseite und Menü
 
-Stand: Version **1.99.45** (19.11.2026). Bilder: Testsysteme AKE (18-01) und IDEAL (18-02 bis 18-05).
+Stand: Version **1.99.46** (20.11.2026). Bilder: Testsysteme AKE (18-01) und IDEAL (18-02 bis 18-05).
 
 ## Zweck
 
@@ -29,7 +29,7 @@ Ein Bereich ohne sichtbare Kachel erscheint nicht. Hat man gar keine Funktion, s
 
    ![Startseite IDEAL mit Bereich Blechfertigung](bilder/18-02-startseite-ideal.jpg)
 
-3. Kachel anklicken – die Funktion öffnet sich. Unter dem Namen steht in einem Satz, wofür sie da ist.
+3. Kachel anklicken – die Funktion öffnet sich. Über dem Namen steht ein Symbol, unter dem Namen in einem Satz, wofür sie da ist.
 4. Dieselben Funktionen findet man im **Menü**. Neu im Menü: *Stammdaten → Artikelinfo* (QR-Code scannen, Details und Bestand).
 
    ![Menü Stammdaten mit Eintrag Artikelinfo](bilder/18-03-menue-stammdaten-artikelinfo.jpg)
@@ -45,7 +45,8 @@ Ein Bereich ohne sichtbare Kachel erscheint nicht. Hat man gar keine Funktion, s
 
 ## Hinweise und Stolperfallen
 
-- Die Kacheln haben **keine Symbole** mehr, nur Name und Kurzbeschreibung.
+- Jede Kachel hat wieder ein **Symbol** (seit 1.99.46). Die bekannten Symbole sind wie früher, Einbuchung zeigt ein Plus, Ausbuchung ein
+  Minus, Umbuchung einen Doppelpfeil. Das Symbol ist nur Erkennungshilfe – maßgeblich ist der Name der Kachel.
 - Manche Seiten gibt es **nur im Menü**, nicht als Kachel (z. B. Kreditoren, Debitoren, Empfänger, Service-Einstellungen,
   Sage-Lagerbuchungen). Sie sind seltener gebraucht.
 - **OSEON AG-Übersicht** erscheint nur, wenn das OSEON-Modul (Teileverfolgung) eingeschaltet ist.

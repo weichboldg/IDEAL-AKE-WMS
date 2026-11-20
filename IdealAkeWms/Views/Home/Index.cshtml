@@ -1,7 +1,7 @@
 @inject IdealAkeWms.Services.Navigation.NavigationSicht Navigation
 @{
     ViewData["Title"] = "Dashboard";
-    // v1.99.45 (ADR 0034): Kacheln kommen aus derselben Quelle wie das Menue — kein eigenes Recht, kein eigener Schalter hier.
+    // v1.99.45 (ADR 0034): Kacheln (ab v1.99.46 auch ihr Symbol, NavZiel.SymbolPfad) kommen aus derselben Quelle wie das Menue — kein eigenes Recht, kein eigener Schalter hier.
     var kacheln = (await Navigation.GetAsync()).Kacheln;
 }
 
@@ -22,6 +22,9 @@
                     <a href="@Url.Action(z.Action, z.Controller)" class="text-decoration-none d-block h-100 dashboard-link">
                         <div class="card dashboard-card h-100">
                             <div class="card-body text-center">
+                                <div class="card-text mb-1">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="@z.SymbolPfad" /></svg>
+                                </div>
                                 <h4 class="h5 card-title mb-1">@z.Titel</h4>
                                 <small class="text-muted">@z.Beschreibung</small>
                             </div>

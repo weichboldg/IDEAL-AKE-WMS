@@ -1,6 +1,6 @@
 # 00 – Betriebshandbuch IdealAkeWms: Übersicht
 
-**Stand:** v1.99.45, 2026-11-19 (Bündel `feature/2026-08-07-ideal-teile-1-5`, Sammellauf Paket 10; Quelle: `IdealAkeWms/AppVersion.cs:5`; erstellt mit v1.99.23, zuletzt Kapitel 03, 04, 05, 08 und AGENTS.md nachgezogen – siehe „Änderungen seit v1.99.23“) ·
+**Stand:** v1.99.46, 2026-11-20 (Bündel `feature/2026-08-07-ideal-teile-1-5`, Paket 11; Quelle: `IdealAkeWms/AppVersion.cs:5`; erstellt mit v1.99.23, zuletzt Kapitel 03, 04, 05, 08 und AGENTS.md nachgezogen – siehe „Änderungen seit v1.99.23“) ·
 **Zielgruppe:** Administratoren und IT-Kollegen ohne Entwicklerwissen · **Zweck:** Betrieb, Update, Überwachung und Fehlersuche des
 Warehouse-, Produktions- und Betriebsdatensystems der Standorte AKE und IDEAL – mit Fundstelle zu jeder Aussage.
 
@@ -84,6 +84,7 @@ Warehouse-, Produktions- und Betriebsdatensystems der Standorte AKE und IDEAL �
 | 1.99.43 | Kommissionierliste IDEAL: nur nach Leitstand-Freigabe, Standard-Ziele K-01/K-02 (zwei neue AppSettings, 3 Prüfungen); kein SQL, Dienst nur Versionsnummer (Paket 8) | [03 Abschnitt 4](03-installation-update-rollback.md), [04 5.5](04-konfiguration.md), [08 A-8.4](08-diagnose-abfragen.md) |
 | 1.99.44 | Sammel-Bugfix: `Pruefung/FaStrukturSchluesselDoppelt` nur mit `RTRIM` (führende Leerzeichen keine Dublette mehr); Reparatur-Name der Rolle „Beschichtungsauftrag“ ohne „(IDEAL)“; Menü „Empfänger“ auch bei Lager-/Glasbestellung und Blechfertigung; kein SQL, keine neue Einstellung | [03 5.3](03-installation-update-rollback.md), [04 5.5](04-konfiguration.md) |
 | 1.99.45 | Sammellauf: Startseite und Menü aus einer Quelle (`Services/Navigation/NavigationKatalog.cs`, ADR 0034), OSEON AG-Übersicht nur mit `TeileverfolgungAktiv`; Artikelinfo-Bestand exakt; Update-Skript: alle Prüf-/Warntexte nach einem Muster, Exit-Code getrennt vom Ergebnis; zwei Info-Einträge in `nachlauf.psd1`; kein SQL, keine neue Einstellung | [03 Abschnitt 5](03-installation-update-rollback.md), [04 5.5](04-konfiguration.md), [07](07-troubleshooting.md) |
+| 1.99.46 | Startseite: Kacheln wieder mit Symbolen (`NavZiel.SymbolPfad` in `NavigationKatalog.cs`); Web + Dienst nur Versionsnummer; kein SQL, keine Einstellung, keine Manifest-Einträge | – |
 
 Anwender-Sicht: `docs/anwender/` – neu Kapitel 13 „Anmeldung und Benutzer“.
 

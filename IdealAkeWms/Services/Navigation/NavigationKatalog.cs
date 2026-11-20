@@ -4,8 +4,10 @@ using IdealAkeWms.Services.HierarchischeStruktur;
 
 namespace IdealAkeWms.Services.Navigation;
 
-/// <summary>v1.99.45 (ADR 0034): ein Menueziel. <see cref="Kategorie"/> null = nur im Menue, keine Kachel auf der Startseite.</summary>
-public sealed record NavZiel(string Key, string Titel, string Controller, string Action, string? Kategorie = null, string? Beschreibung = null);
+/// <summary>v1.99.45 (ADR 0034): ein Menueziel. <see cref="Kategorie"/> null = nur im Menue, keine Kachel auf der Startseite.
+/// v1.99.46: <see cref="SymbolPfad"/> = d-Attribut eines 16x16-Inline-SVG (viewBox 0 0 16 16, nur nonzero-Pfade), Pflicht bei Kachel (Waechter JedeKachel_HatEinSymbol).</summary>
+public sealed record NavZiel(string Key, string Titel, string Controller, string Action, string? Kategorie = null, string? Beschreibung = null,
+    string? SymbolPfad = null);
 
 /// <summary>Katalog aller Menueziele. Reihenfolge von <see cref="Alle"/> = Kachelreihenfolge; <see cref="Kategorien"/> = Reihenfolge der
 /// Startseiten-Abschnitte. Ein neuer Menuepunkt entsteht NUR hier plus eine Regel in <see cref="NavigationSicht"/> (Waechter-Tests).</summary>
@@ -18,65 +20,97 @@ public static class NavZiele
     public static readonly IReadOnlyList<string> Kategorien =
         [KatLager, KatBestellungen, KatKommissionierung, KatProduktionBde, KatBlechfertigung, KatBeschichtung, KatEinkauf, KatStammdaten, KatAdministration];
 
+    // v1.99.46: Kachel-Symbole (Pfade aus den alten Startseiten-SVGs bzw. aus Inline-SVGs im Projekt; Plus/Minus/Doppelpfeil selbst gezeichnet).
+    private const string SymPlus = "M7 2h2v5h5v2H9v5H7V9H2V7h5z";
+    private const string SymMinus = "M2 7h12v2H2z";
+    private const string SymDoppelpfeil = "M1 3h10V1l4 3-4 3V5H1zm14 8H5V9l-4 3 4 3v-2h10z";
+    private const string SymCollection = "M2.5 3.5a.5.5 0 0 1 0-1h11a.5.5 0 0 1 0 1zm2-2a.5.5 0 0 1 0-1h7a.5.5 0 0 1 0 1zM0 13a1.5 1.5 0 0 0 1.5 1.5h13A1.5 1.5 0 0 0 16 13V6a1.5 1.5 0 0 0-1.5-1.5h-13A1.5 1.5 0 0 0 0 6zm1.5.5A.5.5 0 0 1 1 13V6a.5.5 0 0 1 .5-.5h13a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-.5.5z";
+    private const string SymBox = "M8.186 1.113a.5.5 0 0 0-.372 0L1.846 3.5l2.404.961L10.404 2zm3.564 1.426L5.596 5 8 5.961 14.154 3.5zm3.25 1.7-6.5 2.6v7.922l6.5-2.6V4.24zM7.5 14.762V6.838L1 4.239v7.923zM7.443.184a1.5 1.5 0 0 1 1.114 0l7.129 2.852A.5.5 0 0 1 16 3.5v8.662a1 1 0 0 1-.629.928l-7.185 2.874a.5.5 0 0 1-.372 0L.63 13.09a1 1 0 0 1-.63-.928V3.5a.5.5 0 0 1 .314-.464z";
+    private const string SymFileText = "M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5zm-3 0A1.5 1.5 0 0 1 9.5 3V1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4.5z M4.5 12.5A.5.5 0 0 1 5 12h3a.5.5 0 0 1 0 1H5a.5.5 0 0 1-.5-.5m0-2A.5.5 0 0 1 5 10h6a.5.5 0 0 1 0 1H5a.5.5 0 0 1-.5-.5m1.639-3.708 1.33.886 1.854-1.855a.25.25 0 0 1 .289-.047l1.888.974V7.5a.5.5 0 0 1-.5.5H5a.5.5 0 0 1-.5-.5V7s1.54-1.274 1.639-1.208M6.25 6a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5";
+    private const string SymUpcScan = "M1.5 1a.5.5 0 0 0-.5.5v3a.5.5 0 0 1-1 0v-3A1.5 1.5 0 0 1 1.5 0h3a.5.5 0 0 1 0 1zM11 .5a.5.5 0 0 1 .5-.5h3A1.5 1.5 0 0 1 16 1.5v3a.5.5 0 0 1-1 0v-3a.5.5 0 0 0-.5-.5h-3a.5.5 0 0 1-.5-.5M.5 11a.5.5 0 0 1 .5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 1 0 1h-3A1.5 1.5 0 0 1 0 14.5v-3a.5.5 0 0 1 .5-.5m15 0a.5.5 0 0 1 .5.5v3a1.5 1.5 0 0 1-1.5 1.5h-3a.5.5 0 0 1 0-1h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 1 .5-.5 M3 4.5a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0zm2 0a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0zm2 0a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0zm2 0a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5zm3 0a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0z";
+    private const string SymTrash = "M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z";
+    private const string SymEnvelopeCheck = "M2 2a2 2 0 0 0-2 2v8.01A2 2 0 0 0 2 14h5.5a.5.5 0 0 0 0-1H2a1 1 0 0 1-.966-.741l5.64-3.471L8 9.583l7-4.2V8.5a.5.5 0 0 0 1 0V4a2 2 0 0 0-2-2zm3.708 6.208L1 11.105V5.383zM1 4.217V4a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v.217l-7 4.2z M16 12.5a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0m-1.993-1.679a.5.5 0 0 0-.686.172l-1.17 1.95-.547-.547a.5.5 0 0 0-.708.708l.774.773a.75.75 0 0 0 1.174-.144l1.335-2.226a.5.5 0 0 0-.172-.686";
+    private const string SymCart2 = "M0 2.5A.5.5 0 0 1 .5 2H2a.5.5 0 0 1 .485.379L2.89 4H14.5a.5.5 0 0 1 .485.621l-1.5 6A.5.5 0 0 1 13 11H4a.5.5 0 0 1-.485-.379L1.61 3H.5a.5.5 0 0 1-.5-.5M5.5 13a1 1 0 1 0 0 2 1 1 0 0 0 0-2m7 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2";
+    private const string SymWarnung = "M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5m.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2";
+    private const string SymCardChecklist = "M14.5 3a.5.5 0 0 1 .5.5v9a.5.5 0 0 1-.5.5h-13a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5zm-13-1A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h13a1.5 1.5 0 0 0 1.5-1.5v-9A1.5 1.5 0 0 0 14.5 2z M7 5.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5m-1.496-.854a.5.5 0 0 1 0 .708l-1.5 1.5a.5.5 0 0 1-.708 0l-.5-.5a.5.5 0 1 1 .708-.708l.146.147 1.146-1.147a.5.5 0 0 1 .708 0M7 9.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5m-1.496-.854a.5.5 0 0 1 0 .708l-1.5 1.5a.5.5 0 0 1-.708 0l-.5-.5a.5.5 0 0 1 .708-.708l.146.147 1.146-1.147a.5.5 0 0 1 .708 0";
+    private const string SymFilePdf = "M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5zM9.5 3A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5z M4.603 12.087a.8.8 0 0 1-.438-.42c-.195-.388-.13-.776.08-1.102.198-.307.526-.568.897-.787a7.7 7.7 0 0 1 1.482-.645 20 20 0 0 0 1.062-2.227 7.3 7.3 0 0 1-.43-1.295c-.086-.4-.119-.796-.046-1.136.075-.354.274-.672.65-.823.192-.077.4-.12.602-.077a.7.7 0 0 1 .477.365c.088.164.12.356.127.538.007.187-.012.395-.047.614-.084.51-.27 1.134-.52 1.794a11 11 0 0 0 .98 1.686 5.8 5.8 0 0 1 1.334.05c.364.065.734.195.96.465.12.144.193.32.2.518.007.192-.047.382-.138.563a1.04 1.04 0 0 1-.354.416.86.86 0 0 1-.51.138c-.331-.014-.654-.196-.933-.417a5.7 5.7 0 0 1-.911-.95 11.6 11.6 0 0 0-1.997.406 11.3 11.3 0 0 1-1.021 1.51c-.29.35-.608.655-.926.787a.8.8 0 0 1-.58.029";
+    private const string SymGrid = "M2 2a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1zm7 0a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1zm-7 7a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-3a1 1 0 0 0-1-1zm7 0a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-3a1 1 0 0 0-1-1z";
+    private const string SymJournalText = "M5 10.5a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1h-2a.5.5 0 0 1-.5-.5m0-2a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5m0-2a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5m0-2a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5 M3 0h10a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2v-1h1v1a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v1H1V2a2 2 0 0 1 2-2 M1 5v-.5a.5.5 0 0 1 1 0V5h.5a.5.5 0 0 1 0 1h-2a.5.5 0 0 1 0-1zm0 3v-.5a.5.5 0 0 1 1 0V8h.5a.5.5 0 0 1 0 1h-2a.5.5 0 0 1 0-1zm0 3v-.5a.5.5 0 0 1 1 0v.5h.5a.5.5 0 0 1 0 1h-2a.5.5 0 0 1 0-1z";
+    private const string SymFolder = "M9.828 3h3.982a2 2 0 0 1 1.992 2.181l-.637 7A2 2 0 0 1 13.174 14H2.825a2 2 0 0 1-1.991-1.819l-.637-7a2 2 0 0 1 .342-1.31L2.1 3a2 2 0 0 1 1.542-.819l4.83-.26a2 2 0 0 1 1.356.52z";
+    private const string SymPencil = "M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325";
+    private const string SymCheckSquare = "M10.97 4.97a.75.75 0 0 1 1.07 1.05l-3.99 4.99a.75.75 0 0 1-1.08.02L4.324 8.384a.75.75 0 1 1 1.06-1.06l2.094 2.093 3.473-4.425z M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2z";
+    private const string SymTerminal = "M0 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2zm6.5 7a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1zm-3.354-3.354a.5.5 0 0 0 0 .708l1.5 1.5a.5.5 0 1 0 .708-.708L4.207 8l1.147-1.146a.5.5 0 1 0-.708-.708z";
+    private const string SymCartFill = "M0 1.5A.5.5 0 0 1 .5 1H2a.5.5 0 0 1 .485.379L2.89 3H14.5a.5.5 0 0 1 .491.592l-1.5 8A.5.5 0 0 1 13 12H4a.5.5 0 0 1-.491-.408L2.01 3.607 1.61 2H.5a.5.5 0 0 1-.5-.5M6 14a2 2 0 1 1-4 0 2 2 0 0 1 4 0m7 0a2 2 0 1 1-4 0 2 2 0 0 1 4 0";
+    private const string SymFile = "M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2M9.5 3A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5z";
+    private const string SymGeoAlt = "M8 16s6-5.686 6-10A6 6 0 0 0 2 6c0 4.314 6 10 6 10m0-7a3 3 0 1 1 0-6 3 3 0 0 1 0 6";
+    private const string SymBarChart = "M4 11H2v3h2zm5-4H7v7h2zm5-5v12h-2V2zm-2-1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1zM6 7a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1zm-5 4a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1z";
+    private const string SymCart = "M0 1.5A.5.5 0 0 1 .5 1H2a.5.5 0 0 1 .485.379L2.89 3H14.5a.5.5 0 0 1 .491.592l-1.5 8A.5.5 0 0 1 13 12H4a.5.5 0 0 1-.491-.408L2.01 3.607 1.61 2H.5a.5.5 0 0 1-.5-.5M3.102 4l1.313 7h8.17l1.313-7zM5 12a2 2 0 1 0 0 4 2 2 0 0 0 0-4m7 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4m-7 1a1 1 0 1 1 0 2 1 1 0 0 1 0-2m7 0a1 1 0 1 1 0 2 1 1 0 0 1 0-2";
+    private const string SymSearch = "M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.099zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0";
+    private const string SymLock = "M8 1a2 2 0 0 1 2 2v4H6V3a2 2 0 0 1 2-2m3 6V3a3 3 0 0 0-6 0v4a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2";
+    private const string SymPrinter = "M2.5 8a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1 M5 1a2 2 0 0 0-2 2v2H2a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h1v1a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-1h1a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-1V3a2 2 0 0 0-2-2zM4 3a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2H4zm1 10a1 1 0 0 1-1-1v-2h8v2a1 1 0 0 1-1 1z";
+    private const string SymStopwatch = "M6 .5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1H9v1.07a7.001 7.001 0 0 1 3.274 12.474l.601.602a.5.5 0 0 1-.707.708l-.746-.746A6.97 6.97 0 0 1 8 16a6.97 6.97 0 0 1-3.422-.892l-.746.746a.5.5 0 0 1-.707-.708l.602-.602A7.001 7.001 0 0 1 7 2.07V1h-.5A.5.5 0 0 1 6 .5M8 3a6 6 0 1 0 .001 12A6 6 0 0 0 8 3m0 3a.75.75 0 0 1 .75.75v2.5h1.5a.75.75 0 0 1 0 1.5h-2.25A.75.75 0 0 1 7.25 10V6.75A.75.75 0 0 1 8 6";
+    private const string SymLink = "M4.715 6.542 3.343 7.914a3 3 0 1 0 4.243 4.243l1.828-1.829A3 3 0 0 0 8.586 5.5L8 6.086a1 1 0 0 0-.154.199 2 2 0 0 1 .861 3.337L6.88 11.45a2 2 0 1 1-2.83-2.83l.793-.792a4 4 0 0 1-.128-1.287z M6.586 4.672A3 3 0 0 0 7.414 9.5l.775-.776a2 2 0 0 1-.896-3.346L9.12 3.55a2 2 0 1 1 2.83 2.83l-.793.792c.112.42.155.855.128 1.287l1.372-1.372a3 3 0 1 0-4.243-4.243z";
+    private const string SymGear = "M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492M5.754 8a2.246 2.246 0 1 1 4.492 0 2.246 2.246 0 0 1-4.492 0 M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52z";
+
     // ---- Lager
-    public static readonly NavZiel Einbuchung = new("Einbuchung", "Einbuchung", "StockMovements", "Inbound", KatLager, "Ware auf einen Lagerplatz einbuchen");
-    public static readonly NavZiel MehrfachEinbuchung = new("MehrfachEinbuchung", "Mehrfach-Einbuchung", "StockMovements", "InboundBulk", KatLager, "Mehrere Artikel in einem Zug einbuchen");
-    public static readonly NavZiel Ausbuchung = new("Ausbuchung", "Ausbuchung", "StockMovements", "Outbound", KatLager, "Ware von einem Lagerplatz ausbuchen");
-    public static readonly NavZiel Umbuchung = new("Umbuchung", "Umbuchung", "StockMovements", "Transfer", KatLager, "Ware auf einen anderen Lagerplatz umbuchen");
-    public static readonly NavZiel Bestaende = new("Bestaende", "Bestände", "StockOverview", "Index", KatLager, "Aktuelle Bestände je Artikel und Lagerplatz");
-    public static readonly NavZiel Bewegungshistorie = new("Bewegungshistorie", "Bewegungshistorie", "StockMovements", "Index", KatLager, "Alle Lagerbewegungen");
-    public static readonly NavZiel Artikelinfo = new("Artikelinfo", "Artikelinfo", "Articles", "Info", KatLager, "QR-Code scannen: Details und Bestand");
-    public static readonly NavZiel LagerplatzAusbuchen = new("LagerplatzAusbuchen", "Lagerplatz ausbuchen", "StockMovements", "OutboundAll", KatLager, "Einen ganzen Lagerplatz leeren");
-    public static readonly NavZiel LagerplatzUmbuchen = new("LagerplatzUmbuchen", "Lagerplatz umbuchen", "StockMovements", "LocationTransfer", KatLager, "Einen ganzen Lagerplatz umziehen");
+    public static readonly NavZiel Einbuchung = new("Einbuchung", "Einbuchung", "StockMovements", "Inbound", KatLager, "Ware auf einen Lagerplatz einbuchen", SymPlus);
+    public static readonly NavZiel MehrfachEinbuchung = new("MehrfachEinbuchung", "Mehrfach-Einbuchung", "StockMovements", "InboundBulk", KatLager, "Mehrere Artikel in einem Zug einbuchen", SymCollection);
+    public static readonly NavZiel Ausbuchung = new("Ausbuchung", "Ausbuchung", "StockMovements", "Outbound", KatLager, "Ware von einem Lagerplatz ausbuchen", SymMinus);
+    public static readonly NavZiel Umbuchung = new("Umbuchung", "Umbuchung", "StockMovements", "Transfer", KatLager, "Ware auf einen anderen Lagerplatz umbuchen", SymDoppelpfeil);
+    public static readonly NavZiel Bestaende = new("Bestaende", "Bestände", "StockOverview", "Index", KatLager, "Aktuelle Bestände je Artikel und Lagerplatz", SymBox);
+    public static readonly NavZiel Bewegungshistorie = new("Bewegungshistorie", "Bewegungshistorie", "StockMovements", "Index", KatLager, "Alle Lagerbewegungen", SymFileText);
+    public static readonly NavZiel Artikelinfo = new("Artikelinfo", "Artikelinfo", "Articles", "Info", KatLager, "QR-Code scannen: Details und Bestand", SymUpcScan);
+    public static readonly NavZiel LagerplatzAusbuchen = new("LagerplatzAusbuchen", "Lagerplatz ausbuchen", "StockMovements", "OutboundAll", KatLager, "Einen ganzen Lagerplatz leeren", SymTrash);
+    public static readonly NavZiel LagerplatzUmbuchen = new("LagerplatzUmbuchen", "Lagerplatz umbuchen", "StockMovements", "LocationTransfer", KatLager, "Einen ganzen Lagerplatz umziehen", SymDoppelpfeil);
     public static readonly NavZiel SageLagerbuchungen = new("SageLagerbuchungen", "Sage-Lagerbuchungen", "SageBookingQueue", "Index");
-    public static readonly NavZiel OffeneBestellungenLager = new("OffeneBestellungenLager", "Offene Bestellungen", "PurchaseOrders", "Index", KatEinkauf, "Offene Sage-Bestellungen für den Wareneingang");
-    public static readonly NavZiel WareneingangZuBestellung = new("WareneingangZuBestellung", "Wareneingang zu Bestellung", "PurchaseOrders", "Receive", KatEinkauf, "Gelieferte Ware zur Bestellung buchen");
+    public static readonly NavZiel OffeneBestellungenLager = new("OffeneBestellungenLager", "Offene Bestellungen", "PurchaseOrders", "Index", KatEinkauf, "Offene Sage-Bestellungen für den Wareneingang", SymCart2);
+    public static readonly NavZiel WareneingangZuBestellung = new("WareneingangZuBestellung", "Wareneingang zu Bestellung", "PurchaseOrders", "Receive", KatEinkauf, "Gelieferte Ware zur Bestellung buchen", SymCheckSquare);
     public static readonly NavZiel SageWareneingaengeLager = new("SageWareneingaengeLager", "Sage-Wareneingänge", "PurchaseOrders", "SageWareneingaenge");
 
     // ---- Bestellungen
-    public static readonly NavZiel Bedarfsmeldungen = new("Bedarfsmeldungen", "Bedarfsmeldungen", "PartRequisitions", "Index", KatBestellungen, "Bedarf an die Empfänger melden");
-    public static readonly NavZiel Lagerbestellungen = new("Lagerbestellungen", "Lagerbestellungen", "WarehouseRequisitions", "Index", KatBestellungen, "Ware beim Lager bestellen");
-    public static readonly NavZiel MeineFehlteile = new("MeineFehlteile", "Meine Fehlteile", "MissingParts", "Index", KatBestellungen, "Offene Fehlteile eigener Bestellungen");
-    public static readonly NavZiel LagerEingehendeListen = new("LagerEingehendeListen", "Lager: Eingehende Listen", "WarehousePicking", "Index", KatBestellungen, "Bestellungen an das Lager bearbeiten");
-    public static readonly NavZiel LagerFehlteile = new("LagerFehlteile", "Lager: Fehlteile", "MissingPartsLager", "Index", KatBestellungen, "Fehlteile aller Bestellungen nachliefern");
+    public static readonly NavZiel Bedarfsmeldungen = new("Bedarfsmeldungen", "Bedarfsmeldungen", "PartRequisitions", "Index", KatBestellungen, "Bedarf an die Empfänger melden", SymEnvelopeCheck);
+    public static readonly NavZiel Lagerbestellungen = new("Lagerbestellungen", "Lagerbestellungen", "WarehouseRequisitions", "Index", KatBestellungen, "Ware beim Lager bestellen", SymCart2);
+    public static readonly NavZiel MeineFehlteile = new("MeineFehlteile", "Meine Fehlteile", "MissingParts", "Index", KatBestellungen, "Offene Fehlteile eigener Bestellungen", SymWarnung);
+    public static readonly NavZiel LagerEingehendeListen = new("LagerEingehendeListen", "Lager: Eingehende Listen", "WarehousePicking", "Index", KatBestellungen, "Bestellungen an das Lager bearbeiten", SymCollection);
+    public static readonly NavZiel LagerFehlteile = new("LagerFehlteile", "Lager: Fehlteile", "MissingPartsLager", "Index", KatBestellungen, "Fehlteile aller Bestellungen nachliefern", SymWarnung);
 
     // ---- Kommissionierung
-    public static readonly NavZiel Kommissionierung = new("Kommissionierung", "Kommissionierung", "Picking", "Index", KatKommissionierung, "Fertigungsaufträge kommissionieren");
-    public static readonly NavZiel Kommissionierlisten = new("Kommissionierlisten", "Kommissionierlisten", "FaHierarchyKommissionierListen", "Summiert", KatKommissionierung, "Material je Haupt-FA summiert");
-    public static readonly NavZiel LeitstandKommissionierung = new("LeitstandKommissionierung", "Leitstand Kommissionierung", "PickingLeitstand", "Index", KatKommissionierung, "Aufträge freigeben und priorisieren");
+    public static readonly NavZiel Kommissionierung = new("Kommissionierung", "Kommissionierung", "Picking", "Index", KatKommissionierung, "Fertigungsaufträge kommissionieren", SymCardChecklist);
+    public static readonly NavZiel Kommissionierlisten = new("Kommissionierlisten", "Kommissionierlisten", "FaHierarchyKommissionierListen", "Summiert", KatKommissionierung, "Material je Haupt-FA summiert", SymFilePdf);
+    public static readonly NavZiel LeitstandKommissionierung = new("LeitstandKommissionierung", "Leitstand Kommissionierung", "PickingLeitstand", "Index", KatKommissionierung, "Aufträge freigeben und priorisieren", SymGrid);
 
     // ---- Produktion/BDE
-    public static readonly NavZiel FaListe = new("FaListe", "FA-Liste", "ProductionOrders", "Index", KatProduktionBde, "Fertigungsaufträge mit Terminen");
-    public static readonly NavZiel FaStruktur = new("FaStruktur", "FA-Struktur", "FaHierarchy", "Index", KatProduktionBde, "Haupt- und Unter-FAs als Baum");
-    public static readonly NavZiel FaVervollstaendigen = new("FaVervollstaendigen", "FA-Vervollständigen", "FaCompletion", "Index", KatProduktionBde, "Fehlende FA-Angaben ergänzen");
-    public static readonly NavZiel FaAbarbeitungsliste = new("FaAbarbeitungsliste", "FA-Abarbeitungsliste", "FaWorklist", "Index", KatProduktionBde, "Arbeitsschritte je Werkbank abarbeiten");
-    public static readonly NavZiel Vormontage = new("Vormontage", "Vormontage", "FaHierarchyVormontage", "Index", KatProduktionBde, "Vormontage-Listen je Abteilung");
-    public static readonly NavZiel BdeTerminal = new("BdeTerminal", "Terminal", "BdeTerminal", "Index", KatProduktionBde, "BDE: Arbeitsgänge buchen");
-    public static readonly NavZiel BdeCockpit = new("BdeCockpit", "Cockpit", "BdeCockpit", "Index", KatProduktionBde, "BDE: laufende Arbeit im Überblick");
-    public static readonly NavZiel BdeBuchungen = new("BdeBuchungen", "Buchungen", "BdeBookings", "Index", KatProduktionBde, "BDE: Buchungen prüfen und korrigieren");
+    public static readonly NavZiel FaListe = new("FaListe", "FA-Liste", "ProductionOrders", "Index", KatProduktionBde, "Fertigungsaufträge mit Terminen", SymJournalText);
+    public static readonly NavZiel FaStruktur = new("FaStruktur", "FA-Struktur", "FaHierarchy", "Index", KatProduktionBde, "Haupt- und Unter-FAs als Baum", SymFolder);
+    public static readonly NavZiel FaVervollstaendigen = new("FaVervollstaendigen", "FA-Vervollständigen", "FaCompletion", "Index", KatProduktionBde, "Fehlende FA-Angaben ergänzen", SymPencil);
+    public static readonly NavZiel FaAbarbeitungsliste = new("FaAbarbeitungsliste", "FA-Abarbeitungsliste", "FaWorklist", "Index", KatProduktionBde, "Arbeitsschritte je Werkbank abarbeiten", SymCheckSquare);
+    public static readonly NavZiel Vormontage = new("Vormontage", "Vormontage", "FaHierarchyVormontage", "Index", KatProduktionBde, "Vormontage-Listen je Abteilung", SymBox);
+    public static readonly NavZiel BdeTerminal = new("BdeTerminal", "Terminal", "BdeTerminal", "Index", KatProduktionBde, "BDE: Arbeitsgänge buchen", SymTerminal);
+    public static readonly NavZiel BdeCockpit = new("BdeCockpit", "Cockpit", "BdeCockpit", "Index", KatProduktionBde, "BDE: laufende Arbeit im Überblick", SymCartFill);
+    public static readonly NavZiel BdeBuchungen = new("BdeBuchungen", "Buchungen", "BdeBookings", "Index", KatProduktionBde, "BDE: Buchungen prüfen und korrigieren", SymFile);
     public static readonly NavZiel BdeStammdaten = new("BdeStammdaten", "Stammdaten", "BdeMasterData", "Index");
     public static readonly NavZiel BdeSchichtkalender = new("BdeSchichtkalender", "Schichtkalender", "BdeShiftCalendar", "Index");
     public static readonly NavZiel TeileverfolgungRueckmeldungen = new("TeileverfolgungRueckmeldungen", "Rückmeldungen", "Tracking", "Index");
-    public static readonly NavZiel TeileverfolgungOseon = new("TeileverfolgungOseon", "OSEON Aufträge", "Tracking", "OseonIndex", KatProduktionBde, "Teileverfolgung: OSEON-Aufträge");
-    public static readonly NavZiel OseonAgUebersicht = new("OseonAgUebersicht", "OSEON AG-Übersicht", "OseonReporting", "OperationsOverview", KatProduktionBde, "Reporting: Arbeitsgänge je Zeitraum");
+    public static readonly NavZiel TeileverfolgungOseon = new("TeileverfolgungOseon", "OSEON Aufträge", "Tracking", "OseonIndex", KatProduktionBde, "Teileverfolgung: OSEON-Aufträge", SymGeoAlt);
+    public static readonly NavZiel OseonAgUebersicht = new("OseonAgUebersicht", "OSEON AG-Übersicht", "OseonReporting", "OperationsOverview", KatProduktionBde, "Reporting: Arbeitsgänge je Zeitraum", SymBarChart);
 
     // ---- Blechfertigung
-    public static readonly NavZiel BfWarenkorb = new("BfWarenkorb", "BF-Warenkorb", "BfAuftraege", "Warenkorb", KatBlechfertigung, "Blechteile bestellen");
-    public static readonly NavZiel BfAuftraege = new("BfAuftraege", "BF-Aufträge", "BfAuftraege", "Index", KatBlechfertigung, "Bestellte Blechteile verfolgen");
+    public static readonly NavZiel BfWarenkorb = new("BfWarenkorb", "BF-Warenkorb", "BfAuftraege", "Warenkorb", KatBlechfertigung, "Blechteile bestellen", SymCart);
+    public static readonly NavZiel BfAuftraege = new("BfAuftraege", "BF-Aufträge", "BfAuftraege", "Index", KatBlechfertigung, "Bestellte Blechteile verfolgen", SymJournalText);
 
     // ---- Beschichtung
-    public static readonly NavZiel BeschichtungVorschlagsliste = new("BeschichtungVorschlagsliste", "Vorschlagsliste", "FaHierarchyBeschichtung", "Summiert", KatBeschichtung, "Zu beschichtende Teile summiert");
-    public static readonly NavZiel Beschichtungsauftraege = new("Beschichtungsauftraege", "Aufträge", "Beschichtungsauftraege", "Index", KatBeschichtung, "Beschichtungsaufträge an den Beschichter");
+    public static readonly NavZiel BeschichtungVorschlagsliste = new("BeschichtungVorschlagsliste", "Vorschlagsliste", "FaHierarchyBeschichtung", "Summiert", KatBeschichtung, "Zu beschichtende Teile summiert", SymFilePdf);
+    public static readonly NavZiel Beschichtungsauftraege = new("Beschichtungsauftraege", "Aufträge", "Beschichtungsauftraege", "Index", KatBeschichtung, "Beschichtungsaufträge an den Beschichter", SymJournalText);
 
     // ---- Einkauf/Wareneingang
-    public static readonly NavZiel Bestellvorschlaege = new("Bestellvorschlaege", "Bestellvorschläge", "PurchaseProposals", "Index", KatEinkauf, "Bestellvorschläge prüfen und bestellen");
-    public static readonly NavZiel OffeneBestellungenEinkauf = new("OffeneBestellungenEinkauf", "Offene Bestellungen (Einkauf)", "EinkaufPurchaseOrders", "Index", KatEinkauf, "Offene Sage-Bestellungen des Einkaufs");
+    public static readonly NavZiel Bestellvorschlaege = new("Bestellvorschlaege", "Bestellvorschläge", "PurchaseProposals", "Index", KatEinkauf, "Bestellvorschläge prüfen und bestellen", SymCart);
+    public static readonly NavZiel OffeneBestellungenEinkauf = new("OffeneBestellungenEinkauf", "Offene Bestellungen (Einkauf)", "EinkaufPurchaseOrders", "Index", KatEinkauf, "Offene Sage-Bestellungen des Einkaufs", SymCart2);
     public static readonly NavZiel SageWareneingaengeEinkauf = new("SageWareneingaengeEinkauf", "Sage-Wareneingänge (offen)", "EinkaufPurchaseOrders", "SageWareneingaenge");
 
     // ---- Stammdaten
-    public static readonly NavZiel Artikel = new("Artikel", "Artikel", "Articles", "Index", KatStammdaten, "Artikelstamm aus Sage");
-    public static readonly NavZiel Lagerplaetze = new("Lagerplaetze", "Lagerplätze", "StorageLocations", "Index", KatStammdaten, "Lagerplätze pflegen");
-    public static readonly NavZiel Werkbaenke = new("Werkbaenke", "Werkbänke", "ProductionWorkplaces", "Index", KatStammdaten, "Werkbänke der Fertigung");
+    public static readonly NavZiel Artikel = new("Artikel", "Artikel", "Articles", "Index", KatStammdaten, "Artikelstamm aus Sage", SymSearch);
+    public static readonly NavZiel Lagerplaetze = new("Lagerplaetze", "Lagerplätze", "StorageLocations", "Index", KatStammdaten, "Lagerplätze pflegen", SymGeoAlt);
+    public static readonly NavZiel Werkbaenke = new("Werkbaenke", "Werkbänke", "ProductionWorkplaces", "Index", KatStammdaten, "Werkbänke der Fertigung", SymGrid);
     public static readonly NavZiel Artikelkategorien = new("Artikelkategorien", "Artikelkategorien", "ArticleCategories", "Index");
     public static readonly NavZiel Artikelmerkmale = new("Artikelmerkmale", "Artikelmerkmale", "ArticleAttributes", "Index");
     public static readonly NavZiel FaVorbauAg = new("FaVorbauAg", "FA-Vorbau-AG", "WorkSteps", "Index");
@@ -88,15 +122,15 @@ public static class NavZiele
     public static readonly NavZiel ArtikelgruppenZuordnung = new("ArtikelgruppenZuordnung", "Artikelgruppen-Zuordnung", "OrderRecipients", "ArticleGroupMappings");
 
     // ---- Administration (im Menue unter Stammdaten)
-    public static readonly NavZiel Benutzer = new("Benutzer", "Benutzer", "Users", "Index", KatAdministration, "Benutzer und Rollen zuweisen");
-    public static readonly NavZiel Arbeitsplaetze = new("Arbeitsplaetze", "Arbeitsplätze", "Workstations", "Index", KatAdministration, "Rechner und Drucker zuordnen");
-    public static readonly NavZiel Rollen = new("Rollen", "Rollen", "Roles", "Index", KatAdministration, "Rollen und ihre Bedeutung");
-    public static readonly NavZiel Arbeitsgaenge = new("Arbeitsgaenge", "Arbeitsgänge", "OperationConfigs", "Index", KatAdministration, "Arbeitsgang-Stammdaten");
-    public static readonly NavZiel ArbeitsgaengeSage = new("ArbeitsgaengeSage", "Arbeitsgänge → Sage", "SageFaArbeitsgaenge", "Index", KatAdministration, "Arbeitsgänge in Sage-FAs anlegen");
-    public static readonly NavZiel Einstellungen = new("Einstellungen", "Einstellungen", "Settings", "Index", KatAdministration, "Module und fachliche Einstellungen");
+    public static readonly NavZiel Benutzer = new("Benutzer", "Benutzer", "Users", "Index", KatAdministration, "Benutzer und Rollen zuweisen", SymLock);
+    public static readonly NavZiel Arbeitsplaetze = new("Arbeitsplaetze", "Arbeitsplätze", "Workstations", "Index", KatAdministration, "Rechner und Drucker zuordnen", SymPrinter);
+    public static readonly NavZiel Rollen = new("Rollen", "Rollen", "Roles", "Index", KatAdministration, "Rollen und ihre Bedeutung", SymCheckSquare);
+    public static readonly NavZiel Arbeitsgaenge = new("Arbeitsgaenge", "Arbeitsgänge", "OperationConfigs", "Index", KatAdministration, "Arbeitsgang-Stammdaten", SymStopwatch);
+    public static readonly NavZiel ArbeitsgaengeSage = new("ArbeitsgaengeSage", "Arbeitsgänge → Sage", "SageFaArbeitsgaenge", "Index", KatAdministration, "Arbeitsgänge in Sage-FAs anlegen", SymLink);
+    public static readonly NavZiel Einstellungen = new("Einstellungen", "Einstellungen", "Settings", "Index", KatAdministration, "Module und fachliche Einstellungen", SymGear);
     public static readonly NavZiel ServiceEinstellungen = new("ServiceEinstellungen", "Service-Einstellungen", "ServiceSettings", "Index");
-    public static readonly NavZiel Standorteinstellungen = new("Standorteinstellungen", "Standorteinstellungen", "StandortEinstellungen", "Index", KatAdministration, "Einstellungen je Standort");
-    public static readonly NavZiel AktivitaetsProtokoll = new("AktivitaetsProtokoll", "Aktivitäts-Protokoll", "SyncLog", "Index", KatAdministration, "Läufe der Hintergrunddienste");
+    public static readonly NavZiel Standorteinstellungen = new("Standorteinstellungen", "Standorteinstellungen", "StandortEinstellungen", "Index", KatAdministration, "Einstellungen je Standort", SymGeoAlt);
+    public static readonly NavZiel AktivitaetsProtokoll = new("AktivitaetsProtokoll", "Aktivitäts-Protokoll", "SyncLog", "Index", KatAdministration, "Läufe der Hintergrunddienste", SymFileText);
 
     /// <summary>Alle Ziele in Kachelreihenfolge (innerhalb der Kategorie).</summary>
     public static readonly IReadOnlyList<NavZiel> Alle =

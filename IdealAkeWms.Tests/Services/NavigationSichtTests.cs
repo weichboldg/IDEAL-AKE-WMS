@@ -81,6 +81,16 @@ public class NavigationSichtTests
         NavZiele.Alle.Where(z => z.Kategorie != null).Should().OnlyContain(z => NavZiele.Kategorien.Contains(z.Kategorie!) && z.Beschreibung != null);
     }
 
+    // v1.99.46: jede Kachel hat ein Symbol (nur Pfadzeichen, kein Markup) — faellt, sobald jemand eine Kachel ohne Symbol anlegt.
+    [Fact]
+    public void JedeKachel_HatEinSymbol()
+    {
+        var ohne = NavZiele.Alle.Where(z => z.Kategorie != null
+            && (string.IsNullOrWhiteSpace(z.SymbolPfad) || !System.Text.RegularExpressions.Regex.IsMatch(z.SymbolPfad, "^M[0-9A-Za-z .,-]+$")))
+            .Select(z => z.Key).ToList();
+        ohne.Should().BeEmpty("jede Kachel braucht einen gueltigen SymbolPfad");
+    }
+
     [Theory]
     [MemberData(nameof(RollenDaten))]
     public async Task Kacheln_SindImmerAuchImMenue_UndKeineKategorieLeer(string? rolle)
@@ -241,6 +251,8 @@ public class NavigationSichtTests
     public void Startseite_OhneViewBagUndOhneHartcodierteLinks()
     {
         Datei("Views", "Home", "Index.cshtml").Should().NotContain("ViewBag.").And.NotContain("asp-controller=");
+        Datei("Views", "Home", "Index.cshtml").Should().Contain("z.SymbolPfad").And.Contain("aria-hidden=\"true\"").And.Contain("focusable=\"false\"")
+            .And.NotContain("Html.Raw");
         Datei("Controllers", "HomeController.cs").Should().NotContain("ViewBag");
     }
 }
