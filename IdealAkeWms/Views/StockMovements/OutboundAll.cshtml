@@ -73,6 +73,7 @@
                         @foreach (var item in Model.Items)
                         {
                             // v1.99.47 (Teil 6): FA je Zeile; an IDEAL Sub-FA mit Haupt-FA (Format wie StockApiController).
+                            // data-fa als string ausgeben (.ToString()), damit Razor die JSON-Anfuehrungszeichen im Attribut kodiert.
                             var paar = Model.FaJeArtikel.GetValueOrDefault(item.ArticleId);
                             var nummern = paar?.Nummern ?? new List<string>();
                             var faJson = new
@@ -82,7 +83,7 @@
                             };
                             <tr data-article-id="@item.ArticleId" data-artikel="@item.ArticleNumber" data-bezeichnung="@item.ArticleDescription"
                                 data-menge="@item.CurrentQuantity.ToString(CultureInfo.InvariantCulture)" data-menge-anzeige="@item.CurrentQuantity.ToString("N3")"
-                                data-fa="@Json.Serialize(faJson)">
+                                data-fa="@Json.Serialize(faJson).ToString()">
                                 <td><strong>@item.ArticleNumber</strong></td>
                                 <td>@item.ArticleDescription</td>
                                 <td>@item.Unit</td>
@@ -321,7 +322,7 @@ else if (Model.StorageLocationId.HasValue)
             function ausloesen() {
                 if (knopf.disabled || sendet) return;
                 if (filterMenge().size > 0) { modalOeffnen(); return; }
-                if (confirm('Wirklich alle ' + gesamt + ' Artikel vom Lagerplatz @Model.StorageLocationCode komplett ausbuchen?')) {
+                if (confirm('Wirklich alle ' + gesamt + ' Artikel vom Lagerplatz ' + @Json.Serialize(Model.StorageLocationCode) + ' komplett ausbuchen?')) {
                     sendet = true;
                     knopf.disabled = true;
                     knopf.textContent = 'Wird ausgebucht …';
