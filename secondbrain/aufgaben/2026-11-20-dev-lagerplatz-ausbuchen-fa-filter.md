@@ -15,11 +15,10 @@ Bündel-Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Zweig `feature/
 - [x] QA (qa-agent) DEV AKE + IDEAL: **Testbereit** 2026-11-22. QA-Fix `0b6fff36`: Q-1 BLOCKER `data-fa` als rohes JSON im Attribut
       (Modal öffnete nie) → `.ToString()`, Wächter `JsonImAttributWaechterTests`, [[fallstricke]] §59; Q-2 Platzcode im `confirm()` per
       `Json.Serialize`; Foto 09-05 neu. Erster QA-Lauf 2026-11-20 am Wochenlimit abgebrochen, am 2026-11-22 fortgesetzt.
-- [ ] Paket-ZIP `paket12-v1.99.47.zip`, 236 905 105 Byte, SHA-256 `AE32A1F3F4AFE427FA867605802A2844878EDF5A8196E40EC6A7CA3EA15BF605` (Publish-Commit `0b6fff36`)
+- [x] Paket-ZIP `paket12-v1.99.47.zip`, 236 905 105 Byte, SHA-256 `AE32A1F3F4AFE427FA867605802A2844878EDF5A8196E40EC6A7CA3EA15BF605` (Publish-Commit `0b6fff36`)
   - `\\AKENET01.ake.at\Installsourcen`: Größe + SHA-256 gleich ✔
-  - `\\IDEALWEB01.ideal.ideal-ake.at\InstallSourcen`: kopiert, Größe gleich (236 905 105 Byte, 22.11.2026 06:13) – **SHA-256-Abgleich offen**:
-    Hintergrundlauf vom System wegen Speichermangel beendet, bevor der Hash gerechnet war. Nicht neu gestartet.
-  - lokales `publish\` noch **nicht** geleert (erst nach Hash-Prüfung IDEALWEB01)
+  - `\\IDEALWEB01.ideal.ideal-ake.at\InstallSourcen`: Größe + SHA-256 gleich ✔ (Hash nachgeprüft 2026-11-22 nach Freigabe Gerald; erster Lauf war wegen Speichermangel abgebrochen)
+  - lokales `publish\` geleert 2026-11-22
 - [x] Brain: Changelog [[2026-11-20-v1-99-47-lagerplatz-ausbuchen-fa-filter]], feature-map, fallstricke §59, Testindex
 
 ## Manual-UAT (aus QA)

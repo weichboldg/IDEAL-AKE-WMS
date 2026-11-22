@@ -13,7 +13,7 @@ jira: ""
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
 branch: "feature/2026-08-07-ideal-teile-1-5"
 standort: IDEAL
-version_vorschlag: "1.99.47 (Worktree 1.99.45 laut IdealAkeWms/AppVersion.cs:5; 1.99.46 Vorschlag Teil 6, 1.99.48 Vorschlag BDE-Liste Isolierungsfräse; 1.99.47 ist nach dem Sammellauf v1.99.45 frei. Dev-Lauf prüft erneut)"
+version_vorschlag: "1.99.48 (Gerald 2026-11-22; 1.99.46 Dashboard-Symbole, 1.99.47 Teil 6 Lagerplatz ausbuchen, 1.99.49 BDE-Liste Isolierungsfräse; Dev-Lauf prüft erneut)"
 testszenario_vorschlag: "TS-172 (docs/TESTSZENARIEN.md im Worktree endet bei TS-170; TS-165 BDE mobil, TS-169 Teil 6/BF-Warenkorb, TS-171 BDE-Liste reserviert. Dev-Lauf prüft erneut)"
 sql_vorschlag: "keine"
 affected_code:
@@ -352,7 +352,7 @@ Nicht betroffen (keine neue oder geänderte Tabellenansicht).
 
 ## Test-Szenarien
 
-Neues Kapitel **TS-172 „Sage-AG-Anlage: Rumpf nach `$template`, Rumpf im Protokoll, Wiederholtest E1b (v1.99.47)“** in
+Neues Kapitel **TS-172 „Sage-AG-Anlage: Rumpf nach `$template`, Rumpf im Protokoll, Wiederholtest E1b (v1.99.48)“** in
 `docs/TESTSZENARIEN.md`, danach Zeile 172 in `secondbrain/tests/testszenarien-index.md`. Querverweis aus TS-159.x (Schreibtest) auf TS-172.4.
 
 - **TS-172.1 Automatisch (Dev-Lauf):** `SageFaArbeitsgangRumpfTests` und der angepasste Payload-Test sind grün, der Protokoll-Test auch
@@ -365,7 +365,7 @@ Neues Kapitel **TS-172 „Sage-AG-Anlage: Rumpf nach `$template`, Rumpf im Proto
   - Mit `Fehler` = „Antwort unklar …“ oder `MaxWiederholungen = 0` kein Treffer.
   - Zeile wieder löschen.
 - **TS-172.4 Wiederholtest E1b an :88 – erst nach Freigabe Gerald:**
-  - Vorbedingung: PT-1 bis PT-5 eingetragen; Publish v1.99.47 auf :88; `Sync:SageFaArbeitsgaengeBearbeiter` gültig laut PT-4;
+  - Vorbedingung: PT-1 bis PT-5 eingetragen; Publish v1.99.48 auf :88; `Sync:SageFaArbeitsgaengeBearbeiter` gültig laut PT-4;
     `MaxWiederholungen` laut Rückfrage 1; PT-5 zeigt außer 1065144/162 keine Zeile mit Status 1/5.
   - Schritte: Schalter an → Seite, FA-Filter 1065144, „Sage-Stand prüfen“ → „FA … anlegen“ (Dialog nennt nur 162) → bestätigen →
     Dienst-Takt abwarten → Aktivitäts-Protokoll `SageFaArbeitsgaenge` öffnen → „Sage-Stand prüfen“ → Schalter **aus**.
@@ -402,8 +402,8 @@ Kein Epic. Die Reihenfolge ist fest, und jede Schranke ist ein Mensch-Schritt:
 
 | Id | Version | Typ | Firma | Phase | Ausführung | Text |
 |---|---|---|---|---|---|---|
-| `v1.99.47-sage-fa-ag-wiederholtest` | 1.99.47 | Einstellung | IDEAL | Nachher | anzeigen | „SageFaArbeitsgaengeAnlegenAktiv bleibt AUS. Fuer den Wiederholtest an FA 1065144 (nur nach Freigabe Gerald): Sync:SageFaArbeitsgaengeMaxWiederholungen = 0, Schalter an, FA anlegen, Schalter aus, danach Wiederholungen wieder 3. AKE: nichts.“ |
-| `Pruefung/sage-fa-ag-auto-wiederholung` | 1.99.47 | Pruefung | IDEAL | Nachher | anzeigen | Prüfung (`Braucht=@('SQL/160')`): `SELECT CASE WHEN EXISTS (SELECT 1 FROM dbo.SageFaArbeitsgangAnlagen a WHERE a.Status = 1 OR (a.Status = 5 AND a.Versuche >= 1 AND (a.Fehler IS NULL OR a.Fehler NOT LIKE N'Antwort unklar%') AND a.Versuche <= ISNULL((SELECT TRY_CAST([Value] AS int) FROM dbo.ServiceSettings WHERE [Key] = N'Sync:SageFaArbeitsgaengeMaxWiederholungen'), 3))) THEN 1 ELSE 0 END`; Text „Sage-AG-Warteschlange hat offene oder automatisch wiederholbare Zeilen: beim Einschalten von SageFaArbeitsgaengeAnlegenAktiv sendet der Dienst sie an Sage. Vorher unter Stammdaten > Arbeitsgaenge > Sage pruefen.“ (Regel = `SageFaArbeitsgangService.cs:74-79`, `SageFaArbeitsgaenge.UnklarAnfang` `:40`) |
+| `v1.99.48-sage-fa-ag-wiederholtest` | 1.99.48 | Einstellung | IDEAL | Nachher | anzeigen | „SageFaArbeitsgaengeAnlegenAktiv bleibt AUS. Fuer den Wiederholtest an FA 1065144 (nur nach Freigabe Gerald): Sync:SageFaArbeitsgaengeMaxWiederholungen = 0, Schalter an, FA anlegen, Schalter aus, danach Wiederholungen wieder 3. AKE: nichts.“ |
+| `Pruefung/sage-fa-ag-auto-wiederholung` | 1.99.48 | Pruefung | IDEAL | Nachher | anzeigen | Prüfung (`Braucht=@('SQL/160')`): `SELECT CASE WHEN EXISTS (SELECT 1 FROM dbo.SageFaArbeitsgangAnlagen a WHERE a.Status = 1 OR (a.Status = 5 AND a.Versuche >= 1 AND (a.Fehler IS NULL OR a.Fehler NOT LIKE N'Antwort unklar%') AND a.Versuche <= ISNULL((SELECT TRY_CAST([Value] AS int) FROM dbo.ServiceSettings WHERE [Key] = N'Sync:SageFaArbeitsgaengeMaxWiederholungen'), 3))) THEN 1 ELSE 0 END`; Text „Sage-AG-Warteschlange hat offene oder automatisch wiederholbare Zeilen: beim Einschalten von SageFaArbeitsgaengeAnlegenAktiv sendet der Dienst sie an Sage. Vorher unter Stammdaten > Arbeitsgaenge > Sage pruefen.“ (Regel = `SageFaArbeitsgangService.cs:74-79`, `SageFaArbeitsgaenge.UnklarAnfang` `:40`) |
 
   Keine Daten-/Einmal-Skripte, also kein Trockenlauf (ADR 0023 nicht berührt).
 - **Publish-Befehle** (im Worktree):
