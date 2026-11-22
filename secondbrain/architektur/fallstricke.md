@@ -2196,3 +2196,13 @@ Code: `hardware-scanner.js` Block „Scannen ohne Feld“, CSS `.hw-scan-bereit`
   rendern schon an der Quelle als volle Fläche (bei 14–16 px fällt es kaum auf, bei 32 px schon). **Warum:** Der Wächter prüft nur die Zeichen
   des Pfads, nicht das Bild. Neue Kachel-Symbole deshalb einmal groß rendern (Headless-Edge-Screenshot einer statischen Seite genügt), bevor sie
   in den Katalog kommen.
+
+## 59. `@Json.Serialize` in einem doppelt gequoteten HTML-Attribut (v1.99.47, [[2026-08-05-wms-bugs-improvements-teil-6-spec]])
+
+- **Problem:** `data-x="@Json.Serialize(obj)"` liefert `IHtmlContent`; Razor schreibt es **roh** ins Attribut. Das erste `"` des JSON beendet
+  das Attribut, `JSON.parse(el.dataset.x)` wirft. In v1.99.47 war dadurch „Lagerplatz ausbuchen“ mit FA komplett tot (Knopf, Modal, Wagen).
+- **Regel:** Im Attribut `@Json.Serialize(obj).ToString()` (ein `string` – Razor kodiert `"` zu `&quot;`, der Browser dekodiert zurück).
+  Im `<script>`-Block dagegen `@Json.Serialize(wert)` ohne Anführungszeichen drumherum, nie Razor-Text in einem JS-String.
+  Wächter `JsonImAttributWaechterTests`.
+- **Warum:** Kein Controller-/InMemory-Test rendert die View; der Fehler ist nur im Browser sichtbar. Gefunden erst im QA-Lauf auf DEV
+  (Konsole: `SyntaxError … in JSON at position 1`).

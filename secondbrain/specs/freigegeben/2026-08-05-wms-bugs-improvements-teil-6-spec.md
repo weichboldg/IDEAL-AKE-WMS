@@ -2,17 +2,18 @@
 type: spec
 title: "Lagerplatz ausbuchen: FA-Spalte in der Bestandstabelle + FA-Feld als echter Filter"
 slug: 2026-08-05-wms-bugs-improvements-teil-6-spec
-status: Entwurf
+status: Testbereit
 created: 2026-08-05
-updated: 2026-11-20
+updated: 2026-11-22
 source_backlog: "[[2026-08-05-WmsBugs&Improvements]]"
 depends_on: "[[2026-08-05-wms-bugs-improvements-teil-1-spec]]"
-task: ""
+task: "[[2026-11-20-dev-lagerplatz-ausbuchen-fa-filter]]"
 jira: ""
-worktree: ""
-branch: ""
+worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
+branch: "feature/2026-08-07-ideal-teile-1-5"
 standort: beide
 version_vorschlag: "1.99.46 (2026-11-20 geprueft: Worktree steht auf 1.99.45, IdealAkeWms/AppVersion.cs:5; 1.99.46 kommt in keiner .cs/.cshtml/.psd1/.md des Worktrees vor; BF-Warenkorb und Dashboard sind in v1.99.45 aufgegangen; 1.99.47 Sage-AG-Bugfix, 1.99.48 BDE-Liste vorgeschlagen. Dev-Lauf prueft erneut)"
+version: "1.99.47 (Gerald 2026-11-20; 1.99.46 = Dashboard-Symbole)"
 testszenario: "TS-173 (TS-169 ist seit v1.99.45 durch BF-Warenkorb belegt, docs/TESTSZENARIEN.md:13351; TS-171 BDE-Liste, TS-172 Sage-AG-Bugfix reserviert. Dev-Lauf prueft erneut)"
 affected_code:
   - IdealAkeWms/Services/FaBuchungsText.cs (neue Helfer Nummern + PruefeZeile inkl. Herkunft Zugang/Ausbuchung)
@@ -40,9 +41,10 @@ deploy:
   web: true
   service: false
   migration: false
-freigabe_entscheidung: ""
-freigabe_von: ""
-freigabe_am: ""
+qa_commit: "0b6fff36"
+freigabe_entscheidung: "Freigegeben – Antworten Runden 1–4 (inkl. B-3, R2-S6); Version 1.99.47"
+freigabe_von: "Gerald Weichbold"
+freigabe_am: "2026-11-20 16:41"
 ---
 
 > [!info] Überarbeitung 2026-11-19 (spec-agent, Rework)
@@ -668,7 +670,7 @@ begründete Ausnahme. Die neue Spalte bringt keine Spaltenfilter-/Pagination-Pfl
 15. **Wagen-Konflikt unverändert:** `GetProductionOrdersAtLocationAsync` liefert für denselben Platz
     dasselbe wie vorher (bestehender Test grün); Konflikt-Dialog der Kommissionierung unverändert.
 16. **Wagen-Vorbelegung (Antwort 4):** Wagen mit Artikeln von FA A und B (Kommissionierung) plus einem
-    Artikel ohne FA, der per „Lagerplatz umbuchen“ von einem Hilfsplatz X (genau dieser eine Artikel, ohne FA)
+    Artikel ohne FA, der per „Lagerplatz umbuchen“ von einem **leeren** Hilfsplatz X (genau dieser eine Artikel, ohne FA)
     auf den Wagen kam (`StockMovementsController.cs:618-631`, R2-S2) → Feld vorbelegt „A; B", Knopf zeigt „2 von 3", die Zeile ohne FA trägt „bleibt am Wagen“, der Dialog
     listet sie unter „Bleibt am Wagen“ und hat keinen Block „Bitte entscheiden“; nach Bestätigen bleibt
     der Artikel auf dem Wagen und die Erfolgsmeldung nennt ihn mit „bleibt am Wagen“.
@@ -751,7 +753,7 @@ die Seite hat keinen eigenen Standortschalter, der IDEAL-Einschluss hängt am Ma
 - **Vorbedingungen:** Rolle `stock_keyuser`. Platz L: A eingebucht 5 mit FA `1234567`; B 3 ohne FA;
   C 2 mit FA `111` + 1 mit FA `222`; D 4 mit FA `333` eingebucht, danach ohne FA 4 ausgebucht;
   N 2 mit FA `111` (für 173.5). Für 173.8 ein Wagen W mit Artikeln von FA A und B (Kommissionierung)
-  plus ein Artikel ohne FA: auf einen Hilfsplatz X genau diesen einen Artikel ohne FA einbuchen, dann
+  plus ein Artikel ohne FA: auf einen **leeren** Hilfsplatz X (eigens angelegter Testplatz) genau diesen einen Artikel ohne FA einbuchen, dann
   **„Lagerplatz umbuchen“** Quelle X → Ziel W (nur dort ist ein Wagen als Ziel wählbar; „Umbuchen“ bietet
   keine Wagen an, R2-S2). Für 173.10–173.12 auf **DEV IDEAL** eine Struktur H mit
   Sub-FA S1 und darunter S2 (Abfrage: `SELECT OrderNumber, SubOrderNumber, ParentSubOrderNumber FROM
@@ -838,7 +840,7 @@ die Seite hat keinen eigenen Standortschalter, der IDEAL-Einschluss hängt am Ma
   (`StorageLocationRepository.cs:43-49`), deshalb Aufruf über Konflikt-Dialog oder URL:
   - *Vorbedingungen:* Rolle `stock_keyuser` oder `admin`. Wagen `WAGEN-01` mit Artikeln aus der
     Kommissionierung für FA A (mit FA-Text) und einem Artikel ohne FA. Den Artikel ohne FA so auf den Wagen
-    bringen (R2-S2): auf einem Hilfsplatz X genau diesen einen Artikel ohne FA einbuchen, dann **Lager →
+    bringen (R2-S2): auf einem **leeren** Hilfsplatz X (eigens angelegter Testplatz) genau diesen einen Artikel ohne FA einbuchen, dann **Lager →
     Lagerplatz umbuchen**, Quelle X, Ziel `WAGEN-01` (nur dort stehen Wagen als Ziel; „Umbuchen“ bietet keine
     Wagen an).
   - *Schritte:* 1. `/StockMovements/OutboundAll?storageLocationId=<Id WAGEN-01>` öffnen (oder über den
@@ -885,37 +887,28 @@ Der Prüfabschnitt unten bleibt unverändert. Stand der Merkposten:
 
 ## Deploy
 
-**Vorläufig – der QA-Lauf bestätigt gegen den echten Diff.**
+**Final (QA-Lauf 2026-11-22, aus dem echten Diff `2af81077..0b6fff36`).**
 
-- **Version:** Vorschlag 1.99.46 – am 2026-11-20 geprüft: Worktree auf 1.99.45
-  (`IdealAkeWms/AppVersion.cs:5`), „1.99.46“ kommt im Worktree nirgends vor; die Specs, die 1.99.45–1.99.47
-  vorgeschlagen hatten (Updater, BF-Warenkorb, Dashboard), sind im Sammellauf v1.99.45 aufgegangen;
-  1.99.47 (Sage-AG-Bugfix) und 1.99.48 (BDE-Liste) zählen 1.99.46 bereits dieser Spec zu. Dev-Lauf prüft
-  erneut; beide `AppVersion.cs` + Anwender-Changelog + Brain-Changelog.
-- **Testszenario:** TS-173 (siehe Test-Szenarien).
-- **Web-App:** ja (Controller, Repository, ViewModel, View).
-- **Service:** nein (nur Versionsnummer, falls im Bündel üblich mitgezogen).
-- **Migration:** nein.
-- **Manifest-Einträge** (`scripts/deploy/nachlauf.psd1`): kein SQL, keine Einstellung, kein
-  Leitstand-Schritt, keine Ordner/Rechte. Weil sich das Verhalten am Kommissionierwagen sichtbar ändert
-  (Artikel ohne FA bleiben am Wagen), ein Info-Eintrag:
-  `@{ Id='v1.99.46-LagerplatzAusbuchenFaFilter'; Version='1.99.46'; Typ='Info'; Firma='beide';
-  Phase='Nachher'; Ausfuehrung='anzeigen'; Text='Lagermitarbeiter informieren: Lagerplatz ausbuchen
-  bucht bei FA-Eintrag nur noch Artikel dieses FA aus; am Kommissionierwagen bleiben Artikel ohne
-  FA-Vermerk am Wagen (Feld leeren = alles). Gemischte Artikel (weitere FA, Bestand ohne FA oder FA nur
-  aus einer Ausbuchung) werden im Dialog einzeln abgefragt; aendert sich der Bestand zwischen Anzeige und
-  Bestaetigen, wird nichts gebucht und die Seite neu geladen. IDEAL: Haupt-FA schliesst ihre Sub-FA ein,
-  eine Sub-FA nur sich selbst.'; Quelle='<Brain-Changelog-Slug v1.99.46>' }` (Schreibweise
-  wie `nachlauf.psd1:337-339`; einfügen im Nachher-Block hinter dem letzten Eintrag `:588-590`, vor der
-  schließenden Klammer `:591`; Version im Dev-Lauf an die endgültige Nummer anpassen).
-- **Doku/Hilfe (Definition of Done):** `Views/Help/Index.cshtml:50-52`, `docs/anwender/09-einbuchen-ausbuchen-umbuchen.md`
-  Abschnitt 5 inkl. neuem Foto `bilder/09-05-lagerplatz-ausbuchen-wagen.jpg` (heute `:115`),
-  `docs/anwender/01-kommissionierung.md:152` (Lösungsentwurf 9, AK 28).
-- **Publish-Befehle:**
+- **Version:** **1.99.47** (beide `AppVersion.cs`, Anwender-Changelog `Views/Help/Changelog.cshtml`); Brain-Changelog
+  [[2026-11-20-v1-99-47-lagerplatz-ausbuchen-fa-filter]] (Quelle im Manifest).
+- **Testszenario:** TS-173 + TS-2.4 neu (`docs/TESTSZENARIEN.md`), Index nachgezogen.
+- **Web-App:** **ja** – `IdealAkeWms/` (Controller, Repository, ViewModel, View, `FaBuchungsText`, Hilfe).
+- **Service:** **nein** fachlich – im Diff nur `IDEALAKEWMSService/AppVersion.cs`; im Bündel trotzdem mit ausrollen (eine Version).
+- **Migration:** **nein** (keine Datei unter `*/Migrations/`, kein `SQL/`).
+- **Manifest** `scripts/deploy/nachlauf.psd1`: Info-Eintrag `v1.99.47-LagerplatzAusbuchenFaFilter` (Firma beide, Nachher, anzeigen),
+  Quelle `2026-11-20-v1-99-47-lagerplatz-ausbuchen-fa-filter` – wie umgesetzt. Kein SQL, keine Einstellung, kein Leitstand-Schritt.
+- **Publish erledigt (QA):** `C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish\` – `IDEALAKEWMSWeb` +
+  `IDEALAKEWMSWebService` + `SQL\` + `deploy\`, `publish-info.txt` Version 1.99.47, Commit `0b6fff36166cac44175dbeb83a0e711fb9fe2c03`.
+  Ablauf Mensch: publish → Testsystem (`deploy\Update-IdealAkeWms.ps1`) → testen → Merge. Nach dem Merge nur dann erneut aus `main`
+  publishen, wenn der Merge getestete Dateien mit parallelen main-Änderungen zusammengeführt hat.
 
 ```
 dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb
+dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService
 ```
+
+> [!note]- Deploy-Abschnitt vom Spec-Agent (vorläufig, 1.99.46) – **überholt** durch den QA-Lauf, nur Audit
+> Version-Vorschlag 1.99.46, Manifest-Id `v1.99.46-…`, nur Web-Publish. Endgültig: 1.99.47, Id `v1.99.47-LagerplatzAusbuchenFaFilter`.
 
 ## Offene Rückfragen
 
@@ -1325,3 +1318,150 @@ Keine.
 ### Empfehlung
 
 **BEREIT ZUR FREIGABE** (R3-S1 als Wortänderung in der Vorbedingung, im Dev-Lauf mitnehmen oder vorher kurz nachziehen).
+
+## Umsetzung (Dev-Lauf 2026-11-20)
+
+Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Zweig `feature/2026-08-07-ideal-teile-1-5`, Version **1.99.47** (1.99.46 = Dashboard-Symbole),
+TS-173 + TS-2.4 neu. Commits `29577a3a` (Repository, Regel, Controller + Tests), `d28a6488` (View/JS, Version, Hilfe, Doku, Manifest, TS).
+Umgesetzt nach Rumpf + Antworten Runden 1–4; R3-H1: kein zweiter Doppel-Absenden-Schutz – der Formular-Listener ruft `preventDefault()`,
+der globale `site.js`-Schutz (`document`-Listener) ignoriert Ereignisse mit `defaultPrevented`; bestätigt wird über `form.submit()` (kein
+`submit`-Ereignis).
+
+Abweichungen/Details:
+- `FaBuchungsText.IstGemischt(...)` als zweite kleine Hilfe neben `PruefeZeile` (eine Regel fuer Controller und Tests).
+- Erfolgsmeldung: „N Artikel zu FA <Eingabe> ausgebucht. M Artikel bleibt am Platz|Wagen: <Nr>, <Nr>.“ (Wortlaut „bleibt am …“ laut Anforderung 7).
+- Kommissionierwagen-Hinweis (blaue Box) neu formuliert: „FA-Nummern des Wagens sind vorbelegt; ausgebucht werden nur deren Artikel. Feld leeren = alles ausbuchen.“
+- Docs: Stand 1.99.47 in Kapitel 01 und 09, README Anwender, Betrieb 00-index. Foto 09-05 wird im QA-Lauf gegen DEV neu aufgenommen.
+
+### Beweis Build/Test (Worktree, 2026-11-20)
+
+```
+dotnet build IdealAkeWms.slnx   →  0 Fehler
+dotnet test IdealAkeWms.slnx
+Bestanden!   : Fehler:     0, erfolgreich:  3428, übersprungen:     1, gesamt:  3429 - IdealAkeWms.Tests.dll
+Bestanden!   : Fehler:     0, erfolgreich:   790, übersprungen:     0, gesamt:   790 - IDEALAKEWMSService.Tests.dll
+```
+Neu: `LagerplatzAusbuchenFaFilterTests` (24 Fälle), `FaBuchungsTextPruefeZeileTests` (12), `StockMovementRepositoryProductionOrderTests.GetProductionOrdersByArticle_SpalteZugangUndOhneFa`;
+angepasst: `LagerbuchungFaVerknuepfungTests` (Ctor, Mock neue Methode, Aufrufe mit `treffendGezeigt`/`stueckGezeigt`), `StockMovementsControllerBulkInboundTests` (Ctor).
+
+## QA-Nachweis (qa-agent, 2026-11-20/22)
+
+Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, geprüfter Bereich `2af81077..0b6fff36` (Umsetzung `29577a3a`, `d28a6488`,
+QA-Fix `0b6fff36`). Standort laut Frontmatter: **beide**.
+
+### 1. Build und Tests (eigener Lauf, nach QA-Fix)
+
+```
+dotnet build IdealAkeWms.slnx  ->  0 Fehler, 28 Warnungen (vorbestehend)
+dotnet test
+Bestanden!   : Fehler: 0, erfolgreich: 3429, übersprungen: 1, gesamt: 3430 - IdealAkeWms.Tests.dll
+Bestanden!   : Fehler: 0, erfolgreich:  790, übersprungen: 0, gesamt:  790 - IDEALAKEWMSService.Tests.dll
+```
+Vor dem Fix: 3428/1 und 790 (identisch mit dem Dev-Lauf); +1 = neuer Wächter `JsonImAttributWaechterTests`.
+
+### 2. Code-Review (selbst, synchron)
+
+Geprüft: `StockMovementsController.OutboundAll/OutboundAllConfirm/LadeFaAsync`, `StockMovementRepository.GetProductionOrdersByArticleAtLocationAsync`
+und die abgeleitete `GetProductionOrdersAtLocationAsync`, `FaBuchungsText.Nummern/PruefeZeile/IstGemischt`, `FaAmPaar`, `OutboundAllViewModel`,
+`OutboundAll.cshtml` (Inline-JS), `wwwroot/js/site.js:219-235` (globaler Doppel-Absenden-Schutz), Tests, Hilfe, Doku, Manifest.
+
+| # | Befund | Fundstelle | Behandlung |
+|---|---|---|---|
+| Q-1 | **BLOCKER (behoben):** `data-fa="@Json.Serialize(faJson)"` – `IHtmlContent` wird roh ins doppelt gequotete Attribut geschrieben, das erste JSON-`"` beendet das Attribut; `JSON.parse` warf (DEV-Konsole: `SyntaxError: Expected property name … position 1`). Folge: mit Wert im FA-Feld kein Knopftext, kein Modal, keine Buchung; am Wagen (vorbelegt) war ohne Feld-Leeren nichts ausbuchbar. | `IdealAkeWms/Views/StockMovements/OutboundAll.cshtml:86` (vorher :85) | `.ToString()` → Razor kodiert. Wächter `IdealAkeWms.Tests/Helpers/JsonImAttributWaechterTests.cs` (gegen den alten Stand rot nachgewiesen, nach Fix grün). [[fallstricke]] §59. Commit `0b6fff36`. |
+| Q-2 | Klein (behoben): Platzcode als Razor-Text im JS-String des `confirm()` (Defektklasse „Werte in `<script>` JSON-kodieren“; vorbestehend, Zeile aber neu geschrieben). | `OutboundAll.cshtml:325` | `@Json.Serialize(Model.StorageLocationCode)`. Commit `0b6fff36`. |
+| H-1 | Hinweis: Meldung „2 Artikel bleibt am Platz“ (Singular fest, Wortlaut nach Anforderung 7). | `StockMovementsController.cs` (Erfolgsmeldung OutboundAllConfirm) | festgehalten, nicht geändert. |
+| H-2 | Hinweis: `AppVersion.Date` steht in beiden Projekten weiter auf `2026-11-19` (schon bei 1.99.46). | `IdealAkeWms/AppVersion.cs:6`, `IDEALAKEWMSService/AppVersion.cs:6` | festgehalten (Bündel-Konvention). |
+
+Ohne Befund geprüft: Serverprüfung `treffendGezeigt`/`gemischtGezeigt` per `SetEquals`, `gemischtAusbuchen` ⊆ neu gemischt, Stückzahl je Zeile aus
+beiden Mengen mit `decimal.TryParse(…, InvariantCulture)` und exaktem Vergleich, fehlende Parameter = leere Menge, Buchungsmenge = Server-Bestand
+(AK 11/14). G2/G3: `IstZugang` = Einbuchung/SageEinbuchung/Umbuchung (Vorzeichen wie Bestandsrechnung), `ZugangOhneFa` über `Nummern(...).Any()`
+(null/leer/nur Trennzeichen), G3 = keine abgedeckte Nummer in `ZugangNummern` (OrdinalIgnoreCase). Enter: Form-Listener `preventDefault()`, `site.js`
+ignoriert `defaultPrevented`, Bestätigung über `form.submit()` (kein Ereignis) – R3-H1 eingehalten (AK 25/27). Wagen-Vorbelegung aus `FaJeArtikel`
+(gleiches Ergebnis wie vorher), übergebene Eingabe bleibt stehen (AK 16). IDEAL `HauptJeSub` nur bei Master an, nur `IsSubFa`, ein Read (AK 18–20).
+S-7: `?? new()` an Repository- und Hierarchie-Read. Leeres Feld: Pfad, Meldung, Redirect unverändert (AK 8). `GetProductionOrdersAtLocationAsync`
+Ergebnis gleich, bestehender Test grün (AK 15). Kein `hidden` + `d-*`, keine stillen `?? 0`-Fallbacks, Server erzwingt alle Regeln (JS nur Vorschau).
+Regel in C# plus JS-Nachbildung: bewusst (LE 1/6), der Server entscheidet neu.
+
+### 3. Beweisart je AK
+
+| AK | Beweis |
+|---|---|
+| 1–3 | automatisch (`StockMovementRepositoryProductionOrderTests.GetProductionOrdersByArticle_SpalteZugangUndOhneFa`) + DEV AKE 173.1 |
+| 4–6, 8, 11, 12, 14 (a)–(g), 16, 18, 20, 24 | automatisch (`LagerplatzAusbuchenFaFilterTests`, `FaBuchungsTextPruefeZeileTests`); 4, 11, 12, 14e, 16, 18, 24 zusätzlich auf DEV |
+| 7, 9, 10 | Controller-Teil automatisch; Knopf/Badges/Hinweis = Browser → DEV geprüft (Manual) |
+| 13, 25, 27 | Browser-JS → DEV mit Wert im Feld geprüft; Weg mit leerem Feld (`confirm()`) Manual-UAT |
+| 15 | automatisch (bestehender Test grün) |
+| 17, 26 | Manual-UAT (`confirm()`) |
+| 19, 21 | automatisch + DEV IDEAL |
+| 22 | DEV: 0 Queue-Einträge (keine Sage-Lagerbuchung auf DEV); Queue je Zeile = Manual-UAT Testsystem |
+| 23 | automatisch (Testliste vorhanden) |
+| 28 | Review (Hilfe, docs/anwender 01 + 09, Foto neu) |
+
+Echtes ASP.NET-Binding von `int[]` und `Dictionary<int,string>` (`stueckGezeigt[<id>]`) ist nicht InMemory-testbar → auf DEV durch die erfolgreichen
+gefilterten Buchungen (173.2, 173.5, 173.8, 173.10, 173.15) und die Abweisung 173.7c belegt.
+
+### 4. Geänderte bestehende Tests
+
+- `LagerbuchungFaVerknuepfungTests` – Ctor um `IServiceSettingRepository` (Compile-Fix); Mock der neuen Repository-Methode und Aufrufe mit
+  `treffendGezeigt`/`stueckGezeigt` = **Verhalten bewusst durch die Spec geändert** (Anforderung 11, LE 7, AK 23); Assertions unverändert.
+- `StockMovementsControllerBulkInboundTests` – nur Ctor-Parameter (Compile-Fix).
+- `StockMovementRepositoryProductionOrderTests` – nur ein neuer Test, bestehende unverändert.
+Kein Fall „sonstiges“.
+
+### 5. Checkliste CLAUDE.md / ADR 0020
+
+Keine Migration, kein SQL, keine FreshInstall-Änderung, keine Update-Pfade (nur `Created*` wie bisher), keine neue/geänderte Einstellung (ADR 0020
+entfällt; Master nur gelesen). Version 1.99.47 in beiden `AppVersion.cs`, Anwender-Changelog vorhanden, Brain-Changelog
+[[2026-11-20-v1-99-47-lagerplatz-ausbuchen-fa-filter]] im QA-Lauf angelegt (fehlte, das Manifest verwies schon darauf). TS-173 + TS-2.4 in
+`docs/TESTSZENARIEN.md`, Index-Zeile 173 vorhanden. Manifest-Info vorhanden (einziger Deploy-Schritt).
+
+### 6. DEV-Deploy und Testlauf
+
+Deploy elevated mit `D:\Dev\scripts\dev-deploy.ps1 -Quelle <Worktree>`: AKE und IDEAL je zweimal (vor und nach QA-Fix), jeweils Exit 0,
+„HTTP 200, Fusszeile v1.99.47“, DEV-Absicherung gelaufen, Dienst gestartet. `SageLagerbuchungAktiv` = false auf beiden DEV-DBs; Testplätze ohne
+`SageBuchungErlaubt`; `SageBookingQueueItems` der letzten 2 h: 0 (AKE und IDEAL).
+Testdaten: DEV AKE `QA173-L` (3297), `QA173-P` (3298), `QA173-X` (3299), Wagen `QA173-W` (3300); DEV IDEAL `QA173-M` (231) mit Struktur
+H `1043153` / S1 `1043154` / S2 `1043155`, X `1060414`, S9 `9999991` (kein FA-Satz).
+
+| Schritt | Ergebnis | Status |
+|---|---|---|
+| 173.1 Spalte (AKE) | A `1234567`, B leer, C `111, 222`, N `111`, D fehlt | OK |
+| 173.1 vor Fix | Eingabe `111` → Knopf blieb „Alle 4“, Konsole `SyntaxError … JSON` (Q-1) | FEHLER → behoben, nachgetestet OK |
+| 173.2 `1234567` + Enter | Knopf „1 von 4 Artikeln ausbuchen (FA 1234567)“, A gelb, B/C/N „bleibt am Platz“; Enter öffnet das Modal ohne Seitenwechsel, kein Block „Bitte entscheiden“; Doppelklick „Jetzt ausbuchen“ → genau 1 POST (Netzwerk), 1 Ausbuchung 5 Stk, Text `1234567`, FK null (FA nicht im DEV-WMS); Meldung nennt 3 verbleibende mit Nummern, Seite zeigt L | OK |
+| 173.3 `123` + Enter | Knopf „0 von 3“ deaktiviert, Hinweis „Kein Artikel gehört zu diesem FA.“, Enter ohne Wirkung; manipulierter POST per Unit-Test `KeinTreffer_Warnung_AK7` | OK |
+| 173.4 `111` | Knopf „2 von 3“; Modal: N unter „Wird ausgebucht“, C unter „Bitte entscheiden“ mit „getroffen: FA 111“ und „enthält auch FA 222“, nichts vorgewählt, „Noch 1 Zeile offen“, Jetzt gesperrt; Escape schließt, erneutes Öffnen ohne Auswahl | OK |
+| 173.5 C „Nicht ausbuchen“ | nur N ausgebucht; „1 Artikel zu FA 111 ausgebucht. 2 Artikel bleibt am Platz: 00193009, 00193050.“ | OK |
+| 173.7c Serverprüfung | Modal offen, C „Ausbuchen“, parallel 1 Stk C per SQL ausgebucht, dann bestätigt → „Bestand oder FA-Zuordnung auf QA173-L hat sich geändert – bitte Auswahl erneut prüfen. Nichts ausgebucht.“, Feld `111` steht, keine neue Ausbuchung | OK |
+| 173.7a/b, fremde ID | per Unit-Tests `Serverpruefung_b/c/d` | automatisch |
+| 173.8 Wagen | Hinweisbox, Feld vorbelegt `900001; 900002`, Knopf „2 von 3“, Artikel ohne FA „bleibt am Wagen“; Modal „Bleibt am Wagen“, kein „Bitte entscheiden“; Buchung → „2 Artikel zu FA 900001; 900002 ausgebucht. 1 Artikel bleibt am Wagen: 00290360.“; danach Feld leer, Knopf „Alle 1 Artikel ausbuchen“ | OK |
+| 173.8 Feld leer → `confirm()` | – | NICHT MÖGLICH (Agent löst keine Browser-Dialoge aus) |
+| 173.9 Sage | DEV ohne Sage-Lagerbuchung; Queue 0 | NICHT MÖGLICH (Schalter darf auf DEV nicht an) |
+| 173.10 IDEAL `H` | Spalte „1043154 (Haupt-FA 1043153)“, Knopf „4 von 5“; E/F/G „Wird ausgebucht“, K „Bitte entscheiden“ mit „enthält auch FA 1060414“, S9-Zeile „Bleibt am Platz“; K „Ausbuchen“ → 4 Ausbuchungen Text `1043153`, `ProductionOrderId` 27 (= Haupt-FA) | OK |
+| 173.11 IDEAL `S1` | genau E und K treffen („2 von 5“, 5. Zeile = S9-Testzeile), F (S2) und G (H) „bleibt am Platz“ | OK |
+| 173.12 IDEAL S9 | Zeile `9999991` von `H` nicht getroffen | OK |
+| 173.13 AKE negativ | Master false belegt; DEV AKE hat keine Sub-FA-Sätze → Fall per Unit-Test `Ake_HauptFaTrifftSubNicht_KeinHierarchieRead_AK20` | teilweise (automatisch) |
+| 173.14 Regression leeres Feld | Controller-Pfad per `FeldLeer_WieBisher_AK8` | NICHT MÖGLICH im Browser (`confirm()`) |
+| 173.15 Platz P | Y „enthält auch Bestand ohne FA“ + „FA 111 nur aus Ausbuchung“, Z nur „enthält auch Bestand ohne FA“, nichts vorgewählt; Y Nein / Z Ja → Z (15) aus, Y bleibt 95, Meldung nennt Y | OK |
+| 173.16 Doppelklick/Enter mit Wert | siehe 173.2 (1 POST) und 173.3 | OK |
+| 173.16 Enter/OK bei leerem Feld | – | NICHT MÖGLICH (`confirm()`) |
+
+### 7. Publish
+
+`publish\IDEALAKEWMSWeb` + `publish\IDEALAKEWMSWebService` (Release, Ordner vorher geleert, beide Exit 0), `publish\SQL`, `publish\deploy`,
+`publish\publish-info.txt`: Version 1.99.47, Commit `0b6fff36166cac44175dbeb83a0e711fb9fe2c03`, Erstellt 2026-11-22 06:09.
+Doku-Foto `docs/anwender/bilder/09-05-lagerplatz-ausbuchen-wagen.jpg` neu gegen DEV AKE (Wagen `QA173-W`, Spalte FA, Feld vorbelegt, Knopf
+„2 von 3 Artikeln ausbuchen (FA 900001; 900002)“), mit claude-in-chrome statt Playwright aufgenommen, vor der Buchung (nur angesehen).
+
+### Manuelle Test-Checkliste (Mensch, Schranke 2)
+
+1. Testsystem: `publish\` per `deploy\Update-IdealAkeWms.ps1` einspielen; Footer v1.99.47; Manifest-Info wird angezeigt.
+2. TS-173.8 zweiter Teil / AK 17 / TS-2.4 Schritt 7: Wagen, Feld leeren → „Alle N Artikel ausbuchen“ → `confirm()` OK → alles aus, ohne FA-Text.
+3. TS-173.14: Regression leeres Feld auf normalem Platz (`confirm()` Abbrechen = nichts, OK = alles).
+4. TS-173.16 / AK 25/27 leeres Feld: Enter → `confirm()`; Abbrechen kein POST; OK genau ein POST; danach weiteres Enter kein zweiter POST.
+5. TS-173.9 / AK 22 mit Sage-Lagerbuchung (Platz mit `SageBuchungErlaubt`): je ausgebuchter Zeile genau ein Queue-Eintrag, keiner für
+   „Nicht ausbuchen“, nicht treffende Zeilen, Abbruch und Warnfälle.
+6. TS-173.7 im Zwei-Tab-Ablauf (7a neu treffende Zeile, 7b fremder FA 444) und manipuliertes `gemischtAusbuchen`/`stueckGezeigt` per Browser-Werkzeug.
+7. TS-173.13 auf AKE mit echtem Datensatz (Haupt-FA-Nummer eingeben, Bewegung trägt andere Nummer → kein Treffer).
+8. IDEAL: TS-173.10–173.12 mit echter Struktur; Wagen über den Konflikt-Dialog der Kommissionierung öffnen (TS-2.4 Schritt 1).
+9. Lagermitarbeiter über die Verhaltensänderung am Wagen informieren (Manifest-Info).
+10. DEV-Testdaten `QA173-*` (AKE 3297–3300, IDEAL 231) nach Bedarf entfernen – der Agent löscht nichts.
