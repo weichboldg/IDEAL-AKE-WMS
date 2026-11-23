@@ -345,10 +345,13 @@ public class WarehousePickingController : Controller
                         : $"Pos {item.Position}: Platz {l?.Code ?? "#" + platzId} ist als Entnahme-Platz nicht wählbar");
                     continue;
                 }
-                var bestand = await AusbuchungBestandsregel.PruefeAsync(_stock, _settings, _locations, articleId.Value, platz.Id, delta);
+                // QA v1.99.53: derselbe Artikel kann in mehreren Positionen vom selben Platz kommen – die schon geplanten Mengen zaehlen mit,
+                // sonst bestuende jede Zeile die Pruefung einzeln und zusammen ginge der Platz ohne NegativeBuchungErlaubt ins Minus.
+                var geplant = plan.Where(b => b.ArticleId == articleId.Value && b.PlatzId == platz.Id).Sum(b => b.Menge);
+                var bestand = await AusbuchungBestandsregel.PruefeAsync(_stock, _settings, _locations, articleId.Value, platz.Id, delta + geplant);
                 if (bestand.Abgewiesen)
                 {
-                    fehler.Add($"Pos {item.Position}: nicht genug Bestand auf {platz.Code}, verfügbar {bestand.Verfuegbar:N3}");
+                    fehler.Add($"Pos {item.Position}: nicht genug Bestand auf {platz.Code}, verfügbar {bestand.Verfuegbar - geplant:N3}");
                     continue;
                 }
                 if (bestand.Warnung != null) warnungen.Add($"Pos {item.Position}: {bestand.Warnung}");

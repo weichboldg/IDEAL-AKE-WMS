@@ -275,6 +275,20 @@ public class WarehousePickingVerbrauchsbuchungTests
         c.TempData["SuccessMessage"]!.ToString().Should().Contain("von NAN");
     }
 
+    // QA v1.99.53: zwei Positionen desselben Artikels vom selben Platz - Bestand zaehlt gemeinsam (einzeln je 4 <= 6, zusammen 8 > 6).
+    [Fact]
+    public async Task GleicherArtikelInZweiPositionen_BestandZaehltGemeinsam()
+    {
+        var (c, db) = Build();
+        Bestand(db, 1, WmsPlatz, 6);
+        var (r, ids) = Liste(db, "ART-1", "ART-1");
+
+        await Close(c, r, ids, new int?[] { 4, 4 }, new int?[] { WmsPlatz, WmsPlatz }, new[] { 0, 0 });
+
+        Ausbuchungen(db).Should().BeEmpty("alles oder nichts");
+        c.TempData["WarningMessage"]!.ToString().Should().Contain("Pos 2: nicht genug Bestand auf A-01, verfügbar 2", "geplante Menge der Pos 1 zaehlt ab");
+    }
+
     [Fact]
     public async Task PlatzArrayFehltOderFalscheLaenge_NichtsGebucht()
     {
