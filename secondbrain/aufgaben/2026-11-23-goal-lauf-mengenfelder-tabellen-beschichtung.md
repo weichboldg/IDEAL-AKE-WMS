@@ -132,3 +132,40 @@ DEV-Rest: keine Bewegung gebucht (Fehlerzeile). IDEAL 8082: Deploy + Fußzeile g
 
 - Anwender: 01 Kommissionierung, 03 Lager-/Glasbestellung, 10 Bestände und Spaltenfilter, 15 Beschichtungsauftrag, 05 Wareneingang zu Bestellung (v1.99.59), README (Stand/Tabelle)
 - Betrieb: 00-index (Stand)
+
+## QA v1.99.59 Anmeldemaske (qa-agent)
+
+Auf Zuruf Gerald, keine eigene Spec. Geprüft: Commit `b5354e51` (Diff gegen `c9624562`) im Worktree `C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5`.
+Geändert: `IdealAkeWms/Views/Account/Login.cshtml` (+1 Zeile), `Views/Help/Changelog.cshtml`, `docs/TESTSZENARIEN.md` (TS-184.5 neu, 184.4 präzisiert), `docs/anwender/13` + `README.md`.
+
+**1 Build + Tests (2026-11-23):** `dotnet build IdealAkeWms.slnx` 0 Fehler (30 Warnungen, Bestand). `dotnet test`:
+IdealAkeWms.Tests 3480 bestanden / 1 übersprungen / 0 Fehler (3481); IDEALAKEWMSService.Tests 790 / 0 / 0.
+
+**6b DEV-Deploy** (`dev-deploy.ps1 -Quelle <Worktree> -OhneDienst`, Dienst bewusst nicht mit, nur View geändert):
+AKE Exit 0, „HTTP 200, Fusszeile v1.99.59“, DEV-Absicherung gelaufen. IDEAL Exit 0, „HTTP 200, Fusszeile v1.99.59“, DEV-Absicherung gelaufen. Footer = AppVersion 1.99.59 (Web + Service).
+
+**2 Review:**
+- Platzierung: Zeile 139 steht nach dem schließenden `}` des `if (Model.KennwortFestlegen) … else`, innerhalb `.login-body` → in beiden Zweigen sichtbar. Kein Script-Block, kein `@Html.Raw`, Razor-Encoding des Konstanten-Strings.
+- Kontrast: Bootstrap 5.3.3, `.text-muted` = `--bs-secondary-color` rgba(33,37,41,.75) auf Weiß ≈ #595C5F → **6,7:1** (AA erfüllt, auch für `small`).
+- Anonym erreichbar / Preisgabe: Die Seite zeigt nur die Produktversion (Konstante `AppVersion.Version`), keine Standort-, Server-, DB- oder Benutzerangaben. Neu ist, dass die Version **ohne Anmeldung** lesbar ist (Fußzeile nur nach Anmeldung). Bewertung: geringes Fingerprinting-Risiko, Anwendung nur im Intranet, Version ist ohnehin Teil der Paketnamen/Shares – **akzeptiert, kein Befund**; wer das nicht will, entscheidet Gerald.
+- **Q-1 (Brain, niedrig, nicht behoben):** Testindex Zeile 184 nennt „TS-184.1 – 184.4“, nicht 184.5; Brain-Changelog `[[2026-11-23-v1-99-59-wareneingang-hover-hellblau]]` erwähnt die Anmeldemaske nicht. Nachziehen (Auftrag erlaubte hier nur diese Notiz).
+- **Q-2 (Doku, niedrig):** `docs/anwender/README.md` Stand-Satz führt Kapitel 13 jetzt bei 1.99.59 **und** noch bei 1.99.43 (gleiches Muster wie 01/15 bei 1.99.58/1.99.43 – wohl Text vs. Fotos, aber ungesagt). Optional „(Fotos)“ ergänzen.
+- Sonst keine Befunde: keine Migration, keine Einstellung (ADR 0020 n/a), keine SQL, keine geänderten Tests.
+
+**3 Nachweisart:** TS-184.5 = Manual-UAT (Razor-View, kein Test); hier im Browser auf DEV erbracht (Login-Zweig). Kennwort-ändern-Zweig nur per Code-Lesung belegt.
+
+**4 Geänderte Bestandstests:** keine.
+
+**6c TS-184.5 auf DEV** (eigener Tab, nicht angemeldet, nichts abgeschickt):
+| Nr | Ergebnis | Status |
+|---|---|---|
+| 184.5 AKE | http://localhost:8081/Account/Login: unten in der weißen Karte grau „IDEAL-AKE WMS v1.99.59“ unter „Mit Windows anmelden“ (`C:\Users\GERALD~1.WEI\AppData\Local\Temp\claude-chrome-screenshots-ZoOUCf\screenshot-1795458990226-10.jpg`) | OK |
+| 184.5 IDEAL | http://localhost:8082/Account/Login: gleiche Zeile v1.99.59 (`…\screenshot-1795458995919-11.jpg`; Felder vom Browser-Autofill vorbelegt, nicht abgeschickt) | OK |
+| 184.5 Kennwort-ändern-Ansicht | nur nach Anmeldung mit vom Admin vergebenem Kennwort erreichbar – nicht ausgeführt (keine echten Kennwörter) | NICHT MOEGLICH |
+
+**7 Publish:** nicht ausgeführt (neues Paket nur auf Anforderung, wie oben).
+
+**Manuell offen (Mensch):**
+1. TS-184.5 Kennwort-ändern-Ansicht: Benutzer mit Admin-Kennwort anmelden → Versionszeile unten sichtbar.
+2. Q-1/Q-2 nachziehen (Testindex 184.5, Brain-Changelog, README-Stand-Satz).
+3. Entscheiden, ob Version anonym sichtbar sein darf (QA: vertretbar).
