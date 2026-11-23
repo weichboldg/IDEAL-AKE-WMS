@@ -264,4 +264,24 @@ public class NavigationSichtTests
             .And.NotContain("Html.Raw");
         Datei("Controllers", "HomeController.cs").Should().NotContain("ViewBag");
     }
+
+    // v1.99.51: Stern-Formular nie im Kachel-Link (ungueltiges HTML, Tastatur/Screenreader brechen) - faellt, sobald jemand <a> wieder um die Karte legt.
+    [Fact]
+    public void Startseite_KeinFormularOderKnopfInnerhalbEinesLinks()
+    {
+        var view = Datei("Views", "Home", "Index.cshtml");
+        Regex.IsMatch(view, @"<a\s(?:(?!</a>).)*<(button|form)\b", RegexOptions.Singleline).Should().BeFalse("kein <button>/<form> innerhalb eines <a>");
+        view.Should().Contain("stretched-link").And.Contain("nav.Favoriten(", "Favoriten nur ueber NavigationSicht");
+    }
+
+    // v1.99.51: Favoriten-Auswertung
+    [Fact]
+    public void Favoriten_KatalogreihenfolgeNurSichtbareKacheln_RestMitTitelOderKey()
+    {
+        var nav = new NavigationErgebnis(new HashSet<string> { "Einbuchung", "FaListe", "Einstellungen", "SageLagerbuchungen" }, false);
+        var (sichtbar, nicht) = nav.Favoriten(["Einstellungen", "FaListe", "Benutzer", "Quatsch", "SageLagerbuchungen", "Einbuchung", "FaListe", "Benutzer"]);
+        sichtbar.Select(z => z.Key).Should().Equal("Einbuchung", "FaListe", "Einstellungen");
+        nicht.Should().Equal("Benutzer", "Quatsch (nicht mehr vorhandene Funktion)", "Sage-Lagerbuchungen");
+        nav.Favoriten([]).Sichtbar.Should().BeEmpty();
+    }
 }

@@ -365,13 +365,49 @@ body {
     font-size: 1rem;
 }
 
-/* v1.99.45: Tastaturfokus auf der ganzen Kachel sichtbar (WCAG 2.4.7) */
+/* v1.99.45: Tastaturfokus auf der ganzen Kachel sichtbar (WCAG 2.4.7).
+   v1.99.51: Link ist stretched-link im Titel (Stern = Geschwister-Formular, nie im <a>) -> Ring auf der Link-Flaeche ::after = ganze Karte. */
+.dashboard-link {
+    color: inherit;
+    text-decoration: none;
+}
 .dashboard-link:focus-visible {
     outline: none;
 }
-.dashboard-link:focus-visible .dashboard-card {
+.dashboard-link:focus-visible::after {
     outline: 3px solid var(--ake-primary);
     outline-offset: 2px;
+    border-radius: inherit;
+}
+
+/* v1.99.51: Favoriten-Stern oben rechts ueber dem stretched-link (z-index > 1), Trefferflaeche 44 px, Farbe primary (>= 12:1) */
+.dashboard-stern {
+    position: absolute;
+    top: 0;
+    right: 0;
+    z-index: 2;
+}
+.dashboard-stern-btn {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ake-primary);
+}
+.dashboard-stern-btn:hover,
+.dashboard-stern-btn:focus-visible {
+    color: var(--ake-primary);
+    background-color: rgba(5, 49, 83, 0.08);
+}
+.dashboard-stern-btn:focus-visible {
+    outline: 3px solid var(--ake-primary);
+    outline-offset: -3px;
+    box-shadow: none;
+}
+.dashboard-reiter {
+    color: var(--ake-primary);
 }
 
 .dashboard-card .card-text {

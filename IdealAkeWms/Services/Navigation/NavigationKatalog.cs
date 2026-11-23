@@ -187,6 +187,16 @@ public sealed class NavigationErgebnis(IReadOnlySet<string> sichtbar, bool leits
     public IReadOnlyList<(string Kategorie, IReadOnlyList<NavZiel> Kacheln)> Kacheln => NavZiele.Kategorien
         .Select(k => (k, (IReadOnlyList<NavZiel>)NavZiele.Alle.Where(z => z.Kategorie == k && Zeigt(z)).ToList()))
         .Where(x => x.Item2.Count > 0).ToList();
+
+    /// <summary>v1.99.51: gespeicherte Favoriten-Keys auswerten. Sichtbar = Kacheln in Katalogreihenfolge, die auch im Reiter „Alle“ stuenden
+    /// (nie mehr als die Startseite). NichtVerfuegbar = uebrige Keys als Anzeigetext (Titel bzw. Key + Hinweis), doppelte einmal.</summary>
+    public (IReadOnlyList<NavZiel> Sichtbar, IReadOnlyList<string> NichtVerfuegbar) Favoriten(IReadOnlyCollection<string> keys)
+    {
+        var sichtbar = NavZiele.Alle.Where(z => z.Kategorie != null && keys.Contains(z.Key) && Zeigt(z)).ToList();
+        var nicht = keys.Distinct().Where(k => !sichtbar.Any(z => z.Key == k))
+            .Select(k => NavZiele.Alle.FirstOrDefault(z => z.Key == k)?.Titel ?? $"{k} (nicht mehr vorhandene Funktion)").ToList();
+        return (sichtbar, nicht);
+    }
 }
 
 /// <summary>v1.99.45 (ADR 0034): EINE Sichtbarkeitsregel je Menueziel fuer Menue (_Layout) und Startseite (Home/Index).

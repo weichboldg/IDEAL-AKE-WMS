@@ -1,8 +1,59 @@
-@inject IdealAkeWms.Services.Navigation.NavigationSicht Navigation
+@model StartseiteViewModel
+@using IdealAkeWms.Services.Navigation
+@inject NavigationSicht Navigation
 @{
     ViewData["Title"] = "Dashboard";
     // v1.99.45 (ADR 0034): Kacheln (ab v1.99.46 auch ihr Symbol, NavZiel.SymbolPfad) kommen aus derselben Quelle wie das Menue — kein eigenes Recht, kein eigener Schalter hier.
-    var kacheln = (await Navigation.GetAsync()).Kacheln;
+    // v1.99.51: Favoriten nur ueber nav.Favoriten (dieselbe Sichtbarkeit). Stern = eigenes Formular NEBEN dem Link (stretched-link), nie im <a>.
+    var nav = await Navigation.GetAsync();
+    var kacheln = nav.Kacheln;
+    var favoriten = Model.Favoriten;
+    var fav = nav.Favoriten(favoriten ?? []);
+    var favKeys = fav.Sichtbar.Select(z => z.Key).ToHashSet();
+    var mitReitern = favoriten != null && kacheln.Count > 0;
+    var favAktiv = mitReitern && (Model.Reiter == "favoriten" || (Model.Reiter != "alle" && fav.Sichtbar.Count > 0));
+    const string SternLeer = "M2.866 14.85c-.078.444.36.791.746.593l4.39-2.256 4.389 2.256c.386.198.824-.149.746-.592l-.83-4.73 3.522-3.356c.33-.314.16-.888-.282-.95l-4.898-.696L8.465.792a.513.513 0 0 0-.927 0L5.354 5.12l-4.898.696c-.441.062-.612.636-.283.95l3.523 3.356-.83 4.73zm4.905-2.767-3.686 1.894.694-3.957a.56.56 0 0 0-.163-.505L1.71 6.745l4.052-.576a.53.53 0 0 0 .393-.288L8 2.223l1.847 3.658a.53.53 0 0 0 .393.288l4.052.575-2.906 2.77a.56.56 0 0 0-.163.506l.694 3.957-3.686-1.894a.5.5 0 0 0-.461 0z";
+    const string SternVoll = "M3.612 15.443c-.386.198-.824-.149-.746-.592l.83-4.73L.173 6.765c-.329-.314-.158-.888.283-.95l4.898-.696L7.538.792c.197-.39.73-.39.927 0l2.184 4.327 4.898.696c.441.062.612.636.282.95l-3.522 3.356.83 4.73c.078.443-.36.79-.746.592L8 13.187l-4.389 2.256z";
+
+    async Task Kachel(NavZiel z, string reiter)
+    {
+        var istFav = favKeys.Contains(z.Key);
+        <div class="col-md-6 col-lg-3">
+            <div class="card dashboard-card h-100 position-relative">
+                <div class="card-body text-center">
+                    <div class="card-text mb-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="@z.SymbolPfad" /></svg>
+                    </div>
+                    <h4 class="h5 card-title mb-1"><a href="@Url.Action(z.Action, z.Controller)" class="stretched-link dashboard-link">@z.Titel</a></h4>
+                    <small class="text-muted">@z.Beschreibung</small>
+                </div>
+                @if (favoriten != null)
+                {
+                    <form asp-action="FavoritUmschalten" method="post" class="dashboard-stern">
+                        <input type="hidden" name="key" value="@z.Key" />
+                        <input type="hidden" name="reiter" value="@reiter" />
+                        <button type="submit" class="btn btn-link dashboard-stern-btn" aria-pressed="@(istFav ? "true" : "false")"
+                                aria-label="@(istFav ? "Aus Favoriten entfernen" : "Zu Favoriten hinzufügen"): @z.Titel">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="@(istFav ? SternVoll : SternLeer)" /></svg>
+                        </button>
+                    </form>
+                }
+            </div>
+        </div>
+    }
+
+    async Task Alle()
+    {
+        foreach (var (kategorie, ziele) in kacheln)
+        {
+            <section class="mb-4" aria-label="@kategorie">
+                <h3 class="h6 text-muted mb-2 mt-2">@kategorie</h3>
+                <div class="row g-4">
+                    @foreach (var z in ziele) { await Kachel(z, "alle"); }
+                </div>
+            </section>
+        }
+    }
 }
 
 <h2 class="page-header">Dashboard</h2>
@@ -11,27 +62,46 @@
 {
     <div class="alert alert-info" role="status">Für Ihren Benutzer sind keine Funktionen freigeschaltet. Bitte wenden Sie sich an den Administrator.</div>
 }
-@foreach (var (kategorie, ziele) in kacheln)
+else if (!mitReitern)
 {
-    <section class="mb-4" aria-label="@kategorie">
-        <h3 class="h6 text-muted mb-2 mt-2">@kategorie</h3>
-        <div class="row g-4">
-            @foreach (var z in ziele)
+    await Alle();
+}
+else
+{
+    <ul class="nav nav-tabs mb-3" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link dashboard-reiter @(favAktiv ? "active" : "")" id="reiter-favoriten" data-bs-toggle="tab" data-bs-target="#panel-favoriten"
+                    type="button" role="tab" aria-controls="panel-favoriten" aria-selected="@(favAktiv ? "true" : "false")">Favoriten (@fav.Sichtbar.Count)</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link dashboard-reiter @(favAktiv ? "" : "active")" id="reiter-alle" data-bs-toggle="tab" data-bs-target="#panel-alle"
+                    type="button" role="tab" aria-controls="panel-alle" aria-selected="@(favAktiv ? "false" : "true")">Alle</button>
+        </li>
+    </ul>
+    <div class="tab-content">
+        <div class="tab-pane fade @(favAktiv ? "show active" : "")" id="panel-favoriten" role="tabpanel" aria-labelledby="reiter-favoriten" tabindex="0">
+            @if (fav.NichtVerfuegbar.Count > 0)
             {
-                <div class="col-md-6 col-lg-3">
-                    <a href="@Url.Action(z.Action, z.Controller)" class="text-decoration-none d-block h-100 dashboard-link">
-                        <div class="card dashboard-card h-100">
-                            <div class="card-body text-center">
-                                <div class="card-text mb-1">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="@z.SymbolPfad" /></svg>
-                                </div>
-                                <h4 class="h5 card-title mb-1">@z.Titel</h4>
-                                <small class="text-muted">@z.Beschreibung</small>
-                            </div>
-                        </div>
-                    </a>
+                <div class="alert alert-warning d-flex flex-wrap align-items-center gap-2" role="status">
+                    <span class="me-auto">Nicht verfügbar (Recht oder Modul fehlt): @string.Join(", ", fav.NichtVerfuegbar)</span>
+                    <form asp-action="FavoritenBereinigen" method="post">
+                        <button type="submit" class="btn btn-sm btn-outline-dark">Nicht verfügbare entfernen</button>
+                    </form>
+                </div>
+            }
+            @if (fav.Sichtbar.Count == 0)
+            {
+                <div class="alert alert-info" role="status">Noch keine Favoriten. Markieren Sie im Reiter „Alle“ eine Kachel mit dem Stern.</div>
+            }
+            else
+            {
+                <div class="row g-4 mb-4">
+                    @foreach (var z in fav.Sichtbar) { await Kachel(z, "favoriten"); }
                 </div>
             }
         </div>
-    </section>
+        <div class="tab-pane fade @(favAktiv ? "" : "show active")" id="panel-alle" role="tabpanel" aria-labelledby="reiter-alle" tabindex="0">
+            @{ await Alle(); }
+        </div>
+    </div>
 }
