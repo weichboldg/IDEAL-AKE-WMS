@@ -1,6 +1,6 @@
 # 05 – Wareneingang zu Bestellung
 
-Stand: Version 1.99.59 · Standort AKE (IDEAL siehe unten) · Bilder aus dem AKE-Testsystem; 05-06 bis 05-08 aus dem DEV-System AKE mit 1.99.53
+Stand: Version 1.99.59 · Standort AKE (IDEAL siehe unten) · Bilder aus dem AKE-Testsystem; 05-06 aus dem DEV-System AKE mit 1.99.59, 05-07 und 05-08 mit 1.99.53
 
 ## Zweck
 
@@ -85,7 +85,7 @@ markiert – so sieht man auch in der breiten Tabelle, zu welcher Position Menge
 Seit 1.99.59 ist die Zeile, in der Sie tippen, **sehr hellblau** (statt grau, Balken bleibt), die Zeile unter dem Mauszeiger **hellblau**;
 rot markierte Fehlerzeilen bleiben rot.
 
-![Positionstabelle mit Streifen; Position 2 hat den Fokus (grau, dunkelblauer Balken links); Zahnrad rechts über der Tabelle](bilder/05-06-positionen-fokus-zeile.jpg)
+![Positionstabelle: Position 1 hat den Fokus (sehr hellblau, dunkelblauer Balken links, Link „Nr. 41“ dunkelblau), Position 2 unter dem Mauszeiger (hellblau); Zahnrad rechts über der Tabelle](bilder/05-06-positionen-fokus-zeile.jpg)
 
 **Spalten anpassen (Zahnrad rechts über der Tabelle, seit 1.99.52):** **bestellt**, **offen (Sage)**, **im WMS erfasst** und **Positionsmemo**
 lassen sich ausblenden, die Breite jeder Spalte lässt sich am rechten Rand der Überschrift ziehen. Das gilt für Sie auf jeder Bestellung, bis
