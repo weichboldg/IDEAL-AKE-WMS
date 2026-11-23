@@ -116,14 +116,6 @@
                                 </ul>
                             </li>
                         }
-                        @* IDEAL Teil 2: FA-Struktur (read-only Baumanzeige) — kein Feature-Toggle, Regel wie FA-Liste. *@
-                        @if (nav.Zeigt(NavZiele.FaStruktur))
-                        {
-                            <li class="nav-item">
-                                <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "FaHierarchy" ? "active" : "")"
-                                   asp-controller="FaHierarchy" asp-action="Index">FA-Struktur</a>
-                            </li>
-                        }
                         @* IDEAL Teil 4 + Ausbau Teil 4: Beschichtung — EIN Dropdown, beide Eintraege mit derselben Regel (v1.56.0). *@
                         @if (nav.ZeigtEines(NavZiele.BeschichtungVorschlagsliste, NavZiele.Beschichtungsauftraege))
                         {
@@ -152,16 +144,21 @@
                             </li>
                         }
                         @* Fertigungsauftraege — Dropdown (v1.22.0) *@
-                        @if (nav.ZeigtEines(NavZiele.FaListe, NavZiele.FaVervollstaendigen, NavZiele.FaAbarbeitungsliste))
+                        @if (nav.ZeigtEines(NavZiele.FaListe, NavZiele.FaStruktur, NavZiele.FaVervollstaendigen, NavZiele.FaAbarbeitungsliste))
                         {
                             <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle @((ViewContext.RouteData.Values["controller"]?.ToString() is "ProductionOrders" or "FaCompletion" or "FaWorklist") ? "active" : "")" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <a class="nav-link dropdown-toggle @((ViewContext.RouteData.Values["controller"]?.ToString() is "ProductionOrders" or "FaHierarchy" or "FaCompletion" or "FaWorklist") ? "active" : "")" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                     Fertigungsaufträge
                                 </a>
                                 <ul class="dropdown-menu">
                                     @if (nav.Zeigt(NavZiele.FaListe))
                                     {
                                         <li><a class="dropdown-item" asp-controller="ProductionOrders" asp-action="Index">FA-Liste</a></li>
+                                    }
+                                    @* v1.99.60: FA-Struktur aus dem Hauptmenue hierher verschoben (Gerald 2026-11-23), Regel wie FA-Liste. *@
+                                    @if (nav.Zeigt(NavZiele.FaStruktur))
+                                    {
+                                        <li><a class="dropdown-item" asp-controller="FaHierarchy" asp-action="Index">FA-Struktur</a></li>
                                     }
                                     @if (nav.Zeigt(NavZiele.FaVervollstaendigen))
                                     {
