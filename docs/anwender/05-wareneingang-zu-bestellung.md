@@ -1,6 +1,6 @@
 # 05 – Wareneingang zu Bestellung
 
-Stand: Version 1.99.53 · Standort AKE (IDEAL siehe unten) · Bilder aus dem AKE-Testsystem; 05-06 bis 05-08 aus dem DEV-System AKE mit 1.99.53
+Stand: Version 1.99.59 · Standort AKE (IDEAL siehe unten) · Bilder aus dem AKE-Testsystem; 05-06 bis 05-08 aus dem DEV-System AKE mit 1.99.53
 
 ## Zweck
 
@@ -82,6 +82,7 @@ Die Tabelle ist breit – nach rechts scrollen bis **Ist-Menge**, **Überlieferu
 
 Seit 1.99.52 sind die Zeilen abwechselnd hinterlegt. Die Zeile, in der Sie gerade tippen, ist **grau mit einem dunkelblauen Balken links**
 markiert – so sieht man auch in der breiten Tabelle, zu welcher Position Menge und Platz gehören. Mit **Tab** springt man zum nächsten Feld.
+Seit 1.99.59 wird die Zeile unter dem Mauszeiger **hellblau** hinterlegt; rot markierte Fehlerzeilen bleiben rot.
 
 ![Positionstabelle mit Streifen; Position 2 hat den Fokus (grau, dunkelblauer Balken links); Zahnrad rechts über der Tabelle](bilder/05-06-positionen-fokus-zeile.jpg)
 
