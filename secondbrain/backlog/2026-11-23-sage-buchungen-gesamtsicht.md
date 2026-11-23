@@ -1,7 +1,8 @@
 ---
 type: backlog
 typ: feature
-status: offen
+status: in-spec
+spec: "[[2026-11-23-sage-buchungen-gesamtsicht-spec]]"
 created: 2026-11-23
 quelle: Gerald, Chat 2026-11-23 („können wir jede Sage-Buchung in der Maske Sage-Buchung anzeigen? Nicht nur die von Wareneingang?“)
 modul: Sage-Übergabe / Monitoring
