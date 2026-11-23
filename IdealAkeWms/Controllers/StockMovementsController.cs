@@ -331,38 +331,24 @@ public class StockMovementsController : Controller
             return View(vm);
         }
 
-        // Bestandsprüfung: genug Bestand am Lagerplatz?
-        var currentStock = await _stockMovementRepository.GetCurrentStockAtLocationAsync(
-            vm.ArticleId, vm.StorageLocationId);
-        var storageLocationId = vm.StorageLocationId;
-        string? warningMessage = null;
-
-        if (currentStock < vm.Quantity)
+        // Bestandsprüfung: genug Bestand am Lagerplatz? (EINE Regel mit der Lagerbestellung, v1.99.53)
+        var bestand = await AusbuchungBestandsregel.PruefeAsync(_stockMovementRepository, _settingRepository, _storageLocationRepository,
+            vm.ArticleId, vm.StorageLocationId, vm.Quantity);
+        if (bestand.Abgewiesen)
         {
-            var negativErlaubt = (await _settingRepository.GetValueAsync(AppSettingKeys.NegativeBuchungErlaubt))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
-            if (!negativErlaubt)
+            ModelState.AddModelError("", $"Nicht genügend Bestand. Verfügbar: {bestand.Verfuegbar:N3}");
+            vm.StorageLocations = await _storageLocationRepository.GetActiveOrderedExcludingPickingTransportAsync();
+            vm.Users = await _userRepository.GetActiveUsersAsync();
+            if (vm.ArticleId > 0)
             {
-                ModelState.AddModelError("", $"Nicht genügend Bestand. Verfügbar: {currentStock:N3}");
-                vm.StorageLocations = await _storageLocationRepository.GetActiveOrderedExcludingPickingTransportAsync();
-                vm.Users = await _userRepository.GetActiveUsersAsync();
-                if (vm.ArticleId > 0)
-                {
-                    var art = await _articleRepository.GetByIdAsync(vm.ArticleId);
-                    if (art != null)
-                        vm.ArticleDisplay = art.ArticleNumber + (art.Description != null ? " - " + art.Description : "");
-                }
-                return View(vm);
+                var art = await _articleRepository.GetByIdAsync(vm.ArticleId);
+                if (art != null)
+                    vm.ArticleDisplay = art.ArticleNumber + (art.Description != null ? " - " + art.Description : "");
             }
-
-            // Negative Buchung erlaubt: vom Default-Lagerplatz buchen
-            var negativLagerplatzCode = await _settingRepository.GetValueAsync(AppSettingKeys.NegativeBuchungLagerplatz) ?? "NAN";
-            var negativLagerplatz = await _storageLocationRepository.GetByCodeAsync(negativLagerplatzCode);
-            if (negativLagerplatz != null)
-            {
-                storageLocationId = negativLagerplatz.Id;
-                warningMessage = $"Lagerstand nicht verfügbar (Bestand: {currentStock:N3}), buche vom Lagerplatz {negativLagerplatzCode} ab.";
-            }
+            return View(vm);
         }
+        var storageLocationId = bestand.StorageLocationId;
+        var warningMessage = bestand.Warnung;
 
         var appUserId = _currentUserService.GetCurrentAppUserId();
 

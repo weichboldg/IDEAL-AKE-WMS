@@ -2312,6 +2312,31 @@
                         und ist nach Abschluss read-only sichtbar.</li>
                 </ul>
 
+                <h6 class="mt-3">Lieferung ausbuchen (seit v1.99.53, Schalter)</h6>
+                <p>Mit der Einstellung <em>Lagerbestellung: Lieferung ausbuchen</em> (<code>LagerbestellungVerbrauchsbuchungAktiv</code>,
+                    Default <strong>aus</strong>) bucht das Abschliessen die gelieferte Menge vom Lager aus &ndash; fuer Lager- und Glasbestellungen.</p>
+                <ul>
+                    <li><strong>&bdquo;Entnahme aus&ldquo;:</strong> Jede Position hat in der Spalte Lagerplatz eine Auswahl. Vorgeschlagen wird wie in der
+                        Kommissionierung der Hauptlagerplatz mit Bestand, sonst der Platz mit dem meisten Bestand, ohne Bestand der Platz <code>NAN</code>
+                        (sofern waehlbar). Der Hinweis unter der Auswahl sagt, woher der Vorschlag kommt. Die Auswahl wird nicht gespeichert.</li>
+                    <li><strong>Waehlbar</strong> sind buchbare Plaetze ohne Kommissionierwagen. Sage-Plaetze nur, wenn die Entnahme an Sage geht
+                        (Sage-Lagerbuchung im Dienst an, am Platz &bdquo;Sage-Buchung erlaubt&ldquo; und Sage-Referenz) &ndash; sonst wuerde der
+                        Lagerbestand-Abgleich die Entnahme zurueckbuchen.</li>
+                    <li><strong>Gebucht wird</strong> beim Abschliessen (auch &bdquo;Drucken &amp; Abschliessen&ldquo;) die Ist-Menge als Ausbuchung, Notiz
+                        <code>Lagerbestellung #&lt;Nr&gt; Pos &lt;n&gt; &ndash; &lt;Werkbank&gt;</code>. Wird eine teilgelieferte Liste erneut
+                        abgeschlossen, wird nur die <strong>Differenz</strong> zum bereits Ausgebuchten gebucht (&bdquo;davon ausgebucht&ldquo; unter dem
+                        Lagerplatz). Eine kleinere Ist-Menge als bereits ausgebucht wird abgewiesen &ndash; Korrektur ueber Wareneingang/Umbuchung.</li>
+                    <li><strong>Bestand:</strong> Reicht er am Platz nicht, wird abgewiesen; mit <code>NegativeBuchungErlaubt</code> wird wie im
+                        Warenausgang vom Ausweichplatz (<code>NegativeBuchungLagerplatz</code>, Standard NAN) gebucht, mit gelbem Hinweis.</li>
+                    <li><strong>Alles oder nichts:</strong> Hat eine Position einen Fehler (kein Platz, Platz nicht waehlbar, zu wenig Bestand, Ist zu
+                        klein), wird nichts abgeschlossen und nichts gebucht; ein Hinweis nennt alle Positionen. Die Eingaben bleiben gespeichert.</li>
+                    <li><strong>Nicht gebucht</strong> werden DUMMY-Positionen und Artikel, die es im WMS nicht gibt (&bdquo;wird nicht gebucht (kein
+                        Lagerartikel)&ldquo;); die Erfolgsmeldung zaehlt sie auf.</li>
+                    <li>Abschliessen geht nur fuer abgeschickte oder teilgelieferte Listen (sonst &bdquo;Liste #&hellip; ist erledigt &ndash; nichts gebucht.&ldquo;).
+                        Der Zwischenstand (Autosave) bucht nie.</li>
+                    <li><strong>Wichtig:</strong> Ab dem Einschalttag diese Lieferungen in Sage nicht mehr von Hand ausbuchen &ndash; sonst doppelte Entnahme.</li>
+                </ul>
+
                 <h6 class="mt-3">Storno</h6>
                 <p>Erfasser oder Lager koennen eine Liste stornieren. Wenn die Liste vorher abgeschickt war, wird eine [STORNO]-E-Mail an den Empfaenger versendet.</p>
 
@@ -2326,6 +2351,8 @@
                         Master-Schalter fuer das gesamte Modul (Lagerbestellungen, Glas, Fehlteile,
                         Lager-Worklists, Stuecklisten-Button). Nur der Wert <code>false</code> sperrt.</li>
                     <li><code>DefaultLagerbestellempfaengerId</code> (Einstellungen) — ID der Empfaenger-Gruppe.</li>
+                    <li><code>LagerbestellungVerbrauchsbuchungAktiv</code> (Einstellungen, Default <strong>aus</strong>) — Lieferung beim Abschliessen
+                        ausbuchen (siehe oben).</li>
                     <li><code>Sync:WarehouseRequisitionEmailEnabled</code> (Service-Einstellungen) — aktiviert den Mail-Versand.</li>
                 </ul>
             </div>

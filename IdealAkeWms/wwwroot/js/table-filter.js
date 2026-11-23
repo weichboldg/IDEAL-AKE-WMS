@@ -15,6 +15,13 @@
         return !!_table && _table.dataset.serverColumnFilter === 'true';
     }
 
+    // v1.99.53: Zelle mit Bedienelement (z. B. Select „Entnahme aus“ der Lagerbestellung) gibt ihren Filter-/Sortiertext per
+    // data-filter-text an – sonst zaehlten alle Option-Texte des Selects mit.
+    function cellText(cell) {
+        var t = cell.getAttribute('data-filter-text');
+        return t !== null ? t : cell.textContent;
+    }
+
     // ----- Filter-Persistenz (sessionStorage, gegated durch data-view-key) -----
     function getViewKey() {
         return _table && _table.getAttribute('data-view-key');
@@ -321,7 +328,7 @@
             for (var i = 0; i < resolvedFilters.length; i++) {
                 var cell = cells[resolvedFilters[i].index];
                 if (cell) {
-                    if (!window.ColumnFilterSyntax.matches(cell.textContent, resolvedFilters[i].parsed, resolvedFilters[i].type)) {
+                    if (!window.ColumnFilterSyntax.matches(cellText(cell), resolvedFilters[i].parsed, resolvedFilters[i].type)) {
                         visible = false;
                         break;
                     }
@@ -383,7 +390,7 @@
             var cellB = b.querySelectorAll(':scope > td')[colIndex];
             if (!cellA || !cellB) return 0;
 
-            return compareValues(cellA.textContent.trim(), cellB.textContent.trim(), dir);
+            return compareValues(cellText(cellA).trim(), cellText(cellB).trim(), dir);
         }
 
         // Innerhalb JEDES <tbody> der Tabelle separat sortieren: gruppierte Listen

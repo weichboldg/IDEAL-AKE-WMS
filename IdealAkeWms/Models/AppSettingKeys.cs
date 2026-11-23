@@ -20,6 +20,8 @@ public static class AppSettingKeys
     public const string KommissionierungMitZuweisung = "KommissionierungMitZuweisung";
     public const string BestellungenAktiv = "BestellungenAktiv";
     public const string LagerbestellungAktiv = "LagerbestellungAktiv";
+    /// <summary>v1.99.53: Lieferung einer Lager-/Glasbestellung beim Abschliessen ausbuchen (Entnahme-Platz je Position). Nur "true" schaltet ein; kein Seed.</summary>
+    public const string LagerbestellungVerbrauchsbuchungAktiv = "LagerbestellungVerbrauchsbuchungAktiv";
     public const string DefaultLagerbestellempfaengerId = "DefaultLagerbestellempfaengerId";
     public const string DefaultGlasbestellempfaengerId = "DefaultGlasbestellempfaengerId";
     public const string GlasArtikelgruppen = "GlasArtikelgruppen";

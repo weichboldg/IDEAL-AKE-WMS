@@ -1,6 +1,6 @@
 # 03 – Lagerbestellung und Glasbestellung
 
-Stand: Version 1.99.29 · Standorte AKE und IDEAL · Bilder aus dem AKE-Testsystem
+Stand: Version 1.99.53 (Text; Bilder aus dem AKE-Testsystem, Stand 1.99.29 – Bild zu „Entnahme aus“ folgt) · Standorte AKE und IDEAL
 
 ## Zweck
 
@@ -119,6 +119,40 @@ Ergebnis des Abschlusses:
 - Mindestens ein „Fehlteil“ (kommt noch) → Status **Teilgeliefert**. Die Liste bleibt in „Eingehende Listen“ und kann später erneut
   abgeschlossen werden, wenn der Rest geliefert ist.
 
+Abschließen geht nur bei **abgeschickten** oder **teilgelieferten** Listen. Bei einer erledigten oder stornierten Liste erscheint
+„Liste #… ist erledigt – nichts gebucht.“ (bzw. „storniert“).
+
+### 5a. Lieferung ausbuchen (seit 1.99.53, nur wenn eingeschaltet)
+
+Ist die Einstellung **Lagerbestellung: Lieferung ausbuchen** an (WMS-Betreuung, Standard aus), bucht das Abschließen die gelieferte
+Menge im WMS vom Lager aus. Oben in der Liste steht dann der blaue Hinweis „Lieferung wird ausgebucht.“
+
+- In der Spalte **Lagerplatz** hat jede Position die Auswahl **Entnahme aus**. Vorgeschlagen ist der Platz, den auch die Kommissionierung
+  nimmt: der Hauptlagerplatz, wenn dort Bestand liegt, sonst der Platz mit dem meisten Bestand; ohne Bestand `NAN`. Der Hinweis darunter
+  sagt, woher der Vorschlag kommt. Einen anderen Platz wählen geht jederzeit; gespeichert wird die Auswahl nicht.
+- **Ausgebucht wird die Ist-Menge.** Wird eine teilgelieferte Liste später erneut abgeschlossen, bucht das WMS nur, was seitdem
+  dazugekommen ist. Unter dem Lagerplatz steht „bereits ausgebucht: …“.
+- **DUMMY-Positionen** und Artikel, die es im WMS nicht gibt, haben keine Auswahl („wird nicht gebucht (kein Lagerartikel)“). Die
+  Erfolgsmeldung zählt sie auf.
+- Die Erfolgsmeldung nennt je Position Menge und Platz, z. B. „Pos 1 5 Stk von A-01“.
+
+**Alles oder nichts:** Passt bei einer Position etwas nicht, wird **nichts** abgeschlossen und **nichts** gebucht. Der gelbe Hinweis nennt
+alle Positionen auf einmal, die Eingaben bleiben erhalten:
+
+| Hinweis | Was tun |
+|---|---|
+| „Pos 2: kein Entnahme-Platz gewählt“ | Platz in „Entnahme aus“ wählen |
+| „Pos 2: nicht genug Bestand auf A-01, verfügbar …“ | anderen Platz wählen oder Bestand klären |
+| „Pos 2: Ist 2 kleiner als bereits ausgebucht 3 …“ | Ist-Menge nicht senken; Korrektur über Wareneingang/Umbuchung |
+| „Pos 2: HR 1 ist ein Sage-Platz ohne Sage-Buchung …“ | einen WMS-Platz wählen (die WMS-Betreuung kann die Sage-Buchung am Platz einschalten) |
+| „Die Entnahme-Plätze fehlen oder passen nicht …“ | Liste neu laden (Seite war vor dem Einschalten geöffnet) |
+
+Ist „Minus-Buchung erlaubt“ eingeschaltet, wird bei zu wenig Bestand wie im Warenausgang vom Ausweichplatz (Standard `NAN`) gebucht; ein
+gelber Hinweis sagt das.
+
+**Wichtig ab dem Einschalttag:** Diese Lieferungen in Sage **nicht mehr von Hand** ausbuchen – das WMS übergibt die Entnahme (bei Sage-Plätzen
+mit Sage-Buchung) selbst. Sonst wird doppelt entnommen.
+
 ### 6. Fehlteile verfolgen
 
 - **Bestellungen → Meine Fehlteile** (Werkbank-Sicht): Reiter Lager/Glas, darunter **Offene Fehlteile** und **Wird nicht nachgeliefert**.
@@ -167,7 +201,8 @@ Die Masken sind an beiden Standorten gleich. Welche Artikelgruppen als Glas gelt
 
 - Erst **Abschicken** schickt die Liste an das Lager. Ein Entwurf bleibt liegen – auch der, in den die Stückliste Positionen legt.
 - Ein Artikel kann in einer Liste nur einmal stehen; die Menge in der Zeile ändern.
-- Das Abschließen einer Lagerbestellung bucht **keinen** Bestand im WMS um. Es hält fest, was geliefert wurde.
+- Das Abschließen einer Lagerbestellung bucht nur dann Bestand aus, wenn „Lagerbestellung: Lieferung ausbuchen“ eingeschaltet ist
+  (Schritt 5a). Sonst hält es nur fest, was geliefert wurde.
 - Abgeschickte Listen zählen in den Bestellvorschlägen des Einkaufs als „offene Bedarfe“ (teilgeliefert nur der Rest der Fehlteile).
 
 ## Häufige Fragen

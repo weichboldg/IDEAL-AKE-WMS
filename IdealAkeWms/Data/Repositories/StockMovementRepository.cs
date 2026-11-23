@@ -601,6 +601,17 @@ public class StockMovementRepository : Repository<StockMovement>, IStockMovement
             .ToDictionary(g => g.Key, g => g.Sum(r => r.Menge));
     }
 
+    public async Task<Dictionary<int, decimal>> GetAusgebuchtJeLagerbestellPositionAsync(IReadOnlyCollection<int> itemIds)
+    {
+        if (itemIds.Count == 0) return new();
+        var ids = itemIds.Distinct().ToList();
+        return await _dbSet.AsNoTracking()
+            .Where(sm => sm.MovementType == MovementType.Ausbuchung && sm.WarehouseRequisitionItemId != null && ids.Contains(sm.WarehouseRequisitionItemId.Value))
+            .GroupBy(sm => sm.WarehouseRequisitionItemId!.Value)
+            .Select(g => new { g.Key, Menge = g.Sum(sm => sm.Quantity) })
+            .ToDictionaryAsync(x => x.Key, x => x.Menge);
+    }
+
     /// <summary>Maps Bewegungshistorie Column-Keys auf StockMovement-Properties.</summary>
     /// <remarks>
     /// internal statt private (Task 6, Matchcode): direkt gegen einen nie verbundenen SqlServer-

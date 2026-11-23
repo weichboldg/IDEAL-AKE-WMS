@@ -449,6 +449,14 @@ public class ApplicationDbContext : DbContext
             // Performance: FA-filter in Bestandsuebersicht and Bewegungshistorie
             entity.HasIndex(e => e.ProductionOrder)
                 .HasDatabaseName("IX_StockMovements_ProductionOrder");
+
+            // v1.99.53: Lieferung einer Lagerbestellposition; NO ACTION – Positionen werden nur im Entwurf geloescht, dort wird nie gebucht.
+            entity.HasOne(e => e.WarehouseRequisitionItem)
+                .WithMany()
+                .HasForeignKey(e => e.WarehouseRequisitionItemId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .IsRequired(false);
+            entity.HasIndex(e => e.WarehouseRequisitionItemId);
         });
 
         // SageBookingQueueItem (ausgehende Sage-Lagerbuchungen)

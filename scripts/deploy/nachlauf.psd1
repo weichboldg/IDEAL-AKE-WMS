@@ -120,6 +120,8 @@ Eintraege = @(
    Datei='162_AddUserKuerzelUndBfBestellerKuerzel.sql'; MigrationId='20261118144836_AddUserKuerzelUndBfBestellerKuerzel'; Voraussetzung='additiv: Users.Kuerzel (gefiltert UNIQUE), BfAuftraege.BestellerKuerzel; danach Kuerzel der BF-Besteller pflegen, sonst ist die Freigabe gesperrt'; Quelle='2026-11-18-v1-99-42-nachbesserungen' }
 @{ Id='SQL/163'; Version='1.99.42'; Typ='Schema'; Firma='beide'; Phase='Schema'; Ausfuehrung='automatisch'
    Datei='163_AddBfPositionArbeitsschritte.sql'; MigrationId='20261118145602_AddBfPositionArbeitsschritte'; Voraussetzung='additiv: BfAuftragPositionen.Arbeitsschritte, Nachtrag nur leerer Felder aus dem Artikel-Merkmal USER_OSArbeitsschritte'; Quelle='2026-11-18-v1-99-42-nachbesserungen' }
+@{ Id='SQL/166'; Version='1.99.53'; Typ='Schema'; Firma='beide'; Phase='Schema'; Ausfuehrung='automatisch'
+   Datei='166_AddStockMovementWarehouseRequisitionItem.sql'; MigrationId='20261123124036_AddStockMovementWarehouseRequisitionItem'; Voraussetzung='additiv: StockMovements.WarehouseRequisitionItemId (NULL, FK NO ACTION, Index), kein Backfill'; Quelle='2026-11-23-v1-99-53-lagerbestellung-verbrauchsbuchung' }
 
 # ---------------------------------------------------------------- Pruefungen (jeder Lauf; Reparatur nur nach Bestaetigung) -------
 # v1.99.28 (ADR 0027): admin zaehlt nicht - der Web-Start stellt admin ohne Kennwort auf das Standard-Erstkennwort mit Pflichtwechsel um.
@@ -594,5 +596,11 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
 @{ Id='v1.99.51-StartseiteFavoriten'; Version='1.99.51'; Typ='Info'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
    Text='Startseite: neuer Reiter "Favoriten". Jeder Benutzer markiert Kacheln mit dem Stern; gespeichert je Benutzer in der DB (gleich an PC und Terminal). Admin "Ansichten zuruecksetzen" loescht auch die Favoriten.'
    Quelle='2026-11-23-dashboard-favoriten-reiter' }
+@{ Id='Einstellung/LagerbestellungVerbrauchsbuchungAktiv'; Version='1.99.53'; Typ='Einstellung'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Text='"Lagerbestellung: Lieferung ausbuchen" ist nach dem Update aus (Default). Einschalten unter /Settings entscheidet Gerald nach dem Deploy, je Installation. Am Einschalttag endet die Handbuchung dieser Lieferungen in Sage (sonst doppelte Entnahme).'
+   Quelle='2026-11-23-v1-99-53-lagerbestellung-verbrauchsbuchung' }
+@{ Id='Info/Lagerbestellung-Entnahmeplatz'; Version='1.99.53'; Typ='Info'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Text='Nur bei eingeschaltetem Schalter: Lager waehlt je Position "Entnahme aus" (Vorschlag wie Kommissionierung: Hauptlagerplatz mit Bestand, sonst Platz mit dem meisten Bestand); Abschliessen bucht die Ist-Menge als Entnahme aus. Ab dem Einschalttag diese Lieferungen in Sage NICHT mehr von Hand ausbuchen - das WMS uebergibt die Entnahme (sonst doppelte Entnahme).'
+   Quelle='2026-11-23-v1-99-53-lagerbestellung-verbrauchsbuchung' }
 )
 }

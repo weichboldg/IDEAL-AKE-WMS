@@ -44,7 +44,7 @@ FA-Nummer und einem Bildschirmfoto.
 
 ## Stand und was noch folgt
 
-Stand der Anleitungen: Version **1.99.47** (20.11.2026) für die Kapitel 01 und 09, Version **1.99.50** (23.11.2026) für Kapitel 18, Version **1.99.52** (23.11.2026) für Kapitel 05 (Text; Fotos folgen), Version **1.99.45** (19.11.2026) für die Kapitel 03 und 14, Version **1.99.44** für Kapitel 16, Version **1.99.43** für die Kapitel 01, 11, 13, 15 und 17; die übrigen Kapitel Version **1.99.29**. Seit Version 1.99.22 neu bzw. ergänzt:
+Stand der Anleitungen: Version **1.99.47** (20.11.2026) für die Kapitel 01 und 09, Version **1.99.50** (23.11.2026) für Kapitel 18, Version **1.99.52** (23.11.2026) für Kapitel 05 (Text; Fotos folgen), Version **1.99.53** (23.11.2026) für Kapitel 03 (Text; Foto zu „Entnahme aus“ folgt), Version **1.99.45** (19.11.2026) für Kapitel 14, Version **1.99.44** für Kapitel 16, Version **1.99.43** für die Kapitel 01, 11, 13, 15 und 17; die übrigen Kapitel Version **1.99.29**. Seit Version 1.99.22 neu bzw. ergänzt:
 
 | Version | Änderung | Anleitung |
 |---|---|---|
@@ -69,6 +69,7 @@ Stand der Anleitungen: Version **1.99.47** (20.11.2026) für die Kapitel 01 und 
 | 1.99.47 | Lagerplatz ausbuchen: FA-Nummer filtert, Rest bleibt am Platz/Wagen, gemischte Zeilen werden abgefragt | [09](09-einbuchen-ausbuchen-umbuchen.md), [01](01-kommissionierung.md) |
 | 1.99.50 | Startseite: jedes Symbol nur einmal, Symbolfamilien Rahmen/Blatt/Tropfen | [18](18-startseite-und-menue.md) |
 | 1.99.52 | Wareneingang zu Bestellung: Bestellnummer ohne Jahr, Fokus-Zeile, Zahnrad (Spalten), Hauptlagerplatz als Ziel-Vorschlag | [05](05-wareneingang-zu-bestellung.md) |
+| 1.99.53 | Lager-/Glasbestellung: Lieferung beim Abschließen ausbuchen („Entnahme aus“, Schalter, Standard aus) | [03](03-lagerbestellung-glasbestellung.md) |
 
 Änderungen aus 1.99.30, 1.99.31, 1.99.33 und 1.99.38–1.99.40 (Bestellvorschläge, offene Bestellungen, Wareneingang
 Sammellieferschein, Arbeitsgänge in Sage, Sage-Benutzerfelder) sind in den betroffenen Kapiteln noch nicht nachgezogen.

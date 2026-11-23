@@ -396,10 +396,10 @@ public class PickingControllerTests
         StockLocationInfo L(int id, decimal menge, bool haupt = false) => new() { StorageLocationId = id, Quantity = menge, IsPrimaryStorageLocation = haupt };
         var buchbar = new HashSet<int> { 1, 2, 3 };
 
-        PickingController.QuellVorschlag(new[] { L(1, 5), L(2, 1, haupt: true) }, buchbar, 99).Should().Be(2, "Hauptlagerplatz gewinnt");
-        PickingController.QuellVorschlag(new[] { L(1, 5), L(3, 8), L(4, 50, haupt: true) }, buchbar, 99)
+        QuellLagerplatzVorschlag.Waehle(new[] { L(1, 5), L(2, 1, haupt: true) }, buchbar, 99).Should().Be(2, "Hauptlagerplatz gewinnt");
+        QuellLagerplatzVorschlag.Waehle(new[] { L(1, 5), L(3, 8), L(4, 50, haupt: true) }, buchbar, 99)
             .Should().Be(3, "nicht buchbarer Hauptlagerplatz zaehlt nicht, sonst hoechste Menge");
-        PickingController.QuellVorschlag(new[] { L(2, 0, haupt: true), L(4, 7) }, buchbar, 99).Should().Be(99, "ohne buchbaren Bestand NAN");
-        PickingController.QuellVorschlag(Array.Empty<StockLocationInfo>(), buchbar, null).Should().BeNull("ohne NAN-Platz nichts");
+        QuellLagerplatzVorschlag.Waehle(new[] { L(2, 0, haupt: true), L(4, 7) }, buchbar, 99).Should().Be(99, "ohne buchbaren Bestand NAN");
+        QuellLagerplatzVorschlag.Waehle(Array.Empty<StockLocationInfo>(), buchbar, null).Should().BeNull("ohne NAN-Platz nichts");
     }
 }

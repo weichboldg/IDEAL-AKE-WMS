@@ -5,6 +5,8 @@
     ViewData["Title"] = $"{typeLabel} #{Model.Id}";
     bool isEditable = Model.Status == WarehouseRequisitionStatus.Submitted
                    || Model.Status == WarehouseRequisitionStatus.PartiallyDelivered;
+    // v1.99.53: Entnahme-Platz je Position (Schalter LagerbestellungVerbrauchsbuchungAktiv)
+    bool mitEntnahme = Model.VerbrauchsbuchungAktiv && isEditable;
 }
 
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 page-header">
@@ -36,6 +38,14 @@
         }
     </div>
 </div>
+
+@if (mitEntnahme)
+{
+    <div class="alert alert-info py-2">
+        <strong>Lieferung wird ausgebucht.</strong> Beim Abschließen wird die Ist-Menge je Position vom Platz unter „Entnahme aus“ ausgebucht
+        (bei erneutem Abschließen nur die Differenz zum bereits Ausgebuchten).
+    </div>
+}
 
 @if (Model.Status == WarehouseRequisitionStatus.PartiallyDelivered)
 {
@@ -96,7 +106,37 @@
                         }
                     </td>
                     <td>@i.Unit</td>
-                    <td><small>@i.StorageLocations</small></td>
+                    @if (mitEntnahme)
+                    {
+                        <td data-filter-text="@i.StorageLocations" data-csv-value="@i.StorageLocations" style="min-width:12rem;">
+                            @if (i.IstLagerartikel)
+                            {
+                                <label class="form-label small mb-0" for="sl_@(i.Id)">Entnahme aus</label>
+                                <select name="storageLocationIds" id="sl_@(i.Id)" class="form-select form-select-sm entnahme-select"
+                                        aria-describedby="slh_@(i.Id)">
+                                    <option value="">— wählen —</option>
+                                    @foreach (var p in Model.EntnahmePlaetze)
+                                    {
+                                        <option value="@p.Id" selected="@(p.Id == i.EntnahmeVorschlagId)">@p.Code</option>
+                                    }
+                                </select>
+                                <div class="small text-body-secondary" id="slh_@(i.Id)">@i.EntnahmeHinweis@(i.BereitsAusgebucht > 0 ? $"; bereits ausgebucht: {i.BereitsAusgebucht:0.###}" : "")</div>
+                            }
+                            else
+                            {
+                                <input type="hidden" name="storageLocationIds" value="" />
+                                <div class="small text-body-secondary">wird nicht gebucht (kein Lagerartikel)</div>
+                            }
+                            <small>@i.StorageLocations</small>
+                        </td>
+                    }
+                    else
+                    {
+                        <td><small>@i.StorageLocations</small>@if (i.BereitsAusgebucht > 0)
+                            {
+                                <div class="small text-body-secondary">davon ausgebucht: @i.BereitsAusgebucht.ToString("0.###")</div>
+                            }</td>
+                    }
                     <td>
                         @if (isEditable)
                         {

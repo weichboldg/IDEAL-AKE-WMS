@@ -508,6 +508,7 @@ Bei Änderungen der Tabellenstruktur müssen diese Scripts angepasst werden.
 | `GlasArtikelgruppen` | (leer) | Artikelgruppen-Codes für Glas-Bestellungen, kommasepariert (v1.25.0) |
 | `GemeinsameArtikelgruppen` | `EUZ` | Artikelgruppen, die in Lager- UND Glas-Bestellungen verfügbar sind (v1.25.0) |
 | `LagerbestellungAktiv` | `true` | Master-Schalter Lagerbestellungs-Modul — nur `false` sperrt (v1.25.0) |
+| `LagerbestellungVerbrauchsbuchungAktiv` | `false` | „Lagerbestellung: Lieferung ausbuchen“ — Abschließen einer Lager-/Glasbestellung bucht die Ist-Menge (erneut: nur die Differenz) vom gewählten Platz „Entnahme aus“ aus; alles oder nichts. Am Einschalttag Handbuchung in Sage beenden (v1.99.53) |
 | `WindowsAuthAktiv` | `false` | Master-Schalter Windows-SSO Auto-Login (v1.23.0) |
 | `WindowsAuthBerechtigungsgruppe` | (leer) | AD-Gruppe (SAM) für den AD-Benutzer-Picker (v1.23.0) |
 | `FaHierarchyMaxTiefe` | `500` | IDEAL FA-Baumanzeige: Tiefen-Cap (Reissleine) je Struktur (Teil 2) |

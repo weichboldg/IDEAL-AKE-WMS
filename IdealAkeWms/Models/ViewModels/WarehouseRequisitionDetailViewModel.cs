@@ -13,7 +13,12 @@ public record WarehouseRequisitionDetailItemViewModel(
     string StorageLocations,
     string? Note = null,
     ShortageStatus ShortageStatus = ShortageStatus.None,
-    string? NoteEinkauf = null);
+    string? NoteEinkauf = null,
+    // v1.99.53 Verbrauchsbuchung (nur bei Schalter LagerbestellungVerbrauchsbuchungAktiv gefuellt):
+    bool IstLagerartikel = true,
+    int? EntnahmeVorschlagId = null,
+    string? EntnahmeHinweis = null,
+    decimal BereitsAusgebucht = 0);
 
 public class WarehouseRequisitionDetailViewModel
 {
@@ -29,4 +34,10 @@ public class WarehouseRequisitionDetailViewModel
     public WarehouseRequisitionType Type { get; set; }
     public byte[] RowVersion { get; set; } = Array.Empty<byte>();
     public List<WarehouseRequisitionDetailItemViewModel> Items { get; set; } = new();
+
+    /// <summary>v1.99.53: Schalter <c>LagerbestellungVerbrauchsbuchungAktiv</c>; aus = Seite wie bisher.</summary>
+    public bool VerbrauchsbuchungAktiv { get; set; }
+
+    /// <summary>v1.99.53: waehlbare Entnahme-Plaetze (buchbar, ohne Sage-Plaetze ohne Sage-Uebergabe); nur im Bearbeitungsmodus gefuellt.</summary>
+    public List<StorageLocation> EntnahmePlaetze { get; set; } = new();
 }

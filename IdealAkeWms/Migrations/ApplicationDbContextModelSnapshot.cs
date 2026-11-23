@@ -5165,6 +5165,9 @@ namespace IdealAkeWms.Migrations
                     b.Property<int?>("UserId")
                         .HasColumnType("int");
 
+                    b.Property<int?>("WarehouseRequisitionItemId")
+                        .HasColumnType("int");
+
                     b.Property<string>("WindowsUser")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -5186,6 +5189,8 @@ namespace IdealAkeWms.Migrations
                     b.HasIndex("Timestamp");
 
                     b.HasIndex("UserId");
+
+                    b.HasIndex("WarehouseRequisitionItemId");
 
                     b.HasIndex("ArticleId", "StorageLocationId")
                         .HasDatabaseName("IX_StockMovements_ArticleId_StorageLocationId");
@@ -6856,6 +6861,11 @@ namespace IdealAkeWms.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.SetNull);
 
+                    b.HasOne("IdealAkeWms.Models.WarehouseRequisitionItem", "WarehouseRequisitionItem")
+                        .WithMany()
+                        .HasForeignKey("WarehouseRequisitionItemId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
                     b.Navigation("Article");
 
                     b.Navigation("LinkedProductionOrder");
@@ -6865,6 +6875,8 @@ namespace IdealAkeWms.Migrations
                     b.Navigation("StorageLocation");
 
                     b.Navigation("User");
+
+                    b.Navigation("WarehouseRequisitionItem");
                 });
 
             modelBuilder.Entity("IdealAkeWms.Models.StorageLocation", b =>

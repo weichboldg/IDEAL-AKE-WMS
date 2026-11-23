@@ -302,6 +302,7 @@ BEGIN
         [ModifiedByWindows]       NVARCHAR(200)     NULL,
         [Note]                    NVARCHAR(500)     NULL,
         [ProductionOrderId]       INT               NULL,  -- v1.87.0 verknuepfter FA (FK im Index-Block, ProductionOrders folgt erst)
+        [WarehouseRequisitionItemId] INT            NULL,  -- v1.99.53 Lieferung einer Lagerbestellposition (FK nach WarehouseRequisitionItems)
         CONSTRAINT [PK_StockMovements] PRIMARY KEY CLUSTERED ([Id]),
         CONSTRAINT [FK_StockMovements_Article] FOREIGN KEY ([ArticleId]) REFERENCES [dbo].[Articles]([Id]),
         CONSTRAINT [FK_StockMovements_StorageLocation] FOREIGN KEY ([StorageLocationId]) REFERENCES [dbo].[StorageLocations]([Id]),
@@ -1886,6 +1887,14 @@ BEGIN
 
     PRINT 'Tabelle WarehouseRequisitionItems erstellt.';
 END
+GO
+
+-- v1.99.53 (SQL/166): StockMovements.WarehouseRequisitionItemId -> WarehouseRequisitionItems (NO ACTION) + Index.
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_StockMovements_WarehouseRequisitionItemId')
+    CREATE NONCLUSTERED INDEX [IX_StockMovements_WarehouseRequisitionItemId] ON [dbo].[StockMovements]([WarehouseRequisitionItemId]);
+IF OBJECT_ID(N'[dbo].[FK_StockMovements_WarehouseRequisitionItems_WarehouseRequisitionItemId]', N'F') IS NULL
+    ALTER TABLE [dbo].[StockMovements] ADD CONSTRAINT [FK_StockMovements_WarehouseRequisitionItems_WarehouseRequisitionItemId]
+        FOREIGN KEY ([WarehouseRequisitionItemId]) REFERENCES [dbo].[WarehouseRequisitionItems]([Id]);
 GO
 
 -- =============================================
@@ -3536,6 +3545,9 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261118145602_AddBfPositionArbeitsschritte')
    AND COL_LENGTH(N'dbo.BfAuftragPositionen', N'Arbeitsschritte') IS NOT NULL -- sonst steht SQL/163 noch aus
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261118145602_AddBfPositionArbeitsschritte', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261123124036_AddStockMovementWarehouseRequisitionItem')
+   AND COL_LENGTH(N'dbo.StockMovements', N'WarehouseRequisitionItemId') IS NOT NULL -- sonst steht SQL/166 noch aus
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261123124036_AddStockMovementWarehouseRequisitionItem', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';

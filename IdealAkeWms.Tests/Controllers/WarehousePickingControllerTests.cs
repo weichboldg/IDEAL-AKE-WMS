@@ -38,7 +38,7 @@ public class WarehousePickingControllerTests
         viewPrefs.Setup(p => p.GetByUserAndViewAsync(It.IsAny<int>(), It.IsAny<string>()))
                  .ReturnsAsync((UserViewPreference?)null); // Default: keine Prefs
 
-        var ctrl = new WarehousePickingController(repo, workplaces, stock.Object, current.Object, viewPrefs.Object);
+        var ctrl = new WarehousePickingController(repo, workplaces, stock.Object, current.Object, viewPrefs.Object, new ArticleRepository(ctx), new StorageLocationRepository(ctx), new AppSettingRepository(ctx), new ServiceSettingRepository(ctx), ctx);
         ctrl.TempData = new Microsoft.AspNetCore.Mvc.ViewFeatures.TempDataDictionary(
             new Microsoft.AspNetCore.Http.DefaultHttpContext(),
             Mock.Of<Microsoft.AspNetCore.Mvc.ViewFeatures.ITempDataProvider>());
@@ -111,6 +111,9 @@ public class WarehousePickingControllerTests
         current.Setup(s => s.GetWindowsUserName()).Returns("DOMAIN\\stocker");
 
         var repo = new Mock<IWarehouseRequisitionRepository>();
+        // v1.99.53 Status-Guard (F4): Close liest den Kopf; Default = abgeschickte Liste ohne Positionen.
+        repo.Setup(r => r.GetByIdAsync(It.IsAny<int>(), It.IsAny<bool>()))
+            .ReturnsAsync((int id, bool _) => new WarehouseRequisition { Id = id, Status = WarehouseRequisitionStatus.Submitted, CreatedBy = "x", CreatedByWindows = "x" });
         repo.Setup(r => r.CloseAsync(It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<int, decimal?>>(),
                 It.IsAny<IReadOnlyDictionary<int, string?>>(),
                 It.IsAny<IReadOnlyDictionary<int, string?>>(),
@@ -127,7 +130,7 @@ public class WarehousePickingControllerTests
         viewPrefs.Setup(p => p.GetByUserAndViewAsync(It.IsAny<int>(), It.IsAny<string>()))
                  .ReturnsAsync((UserViewPreference?)null);
 
-        var ctrl = new WarehousePickingController(repo.Object, workplaces, stock.Object, current.Object, viewPrefs.Object);
+        var ctrl = new WarehousePickingController(repo.Object, workplaces, stock.Object, current.Object, viewPrefs.Object, new ArticleRepository(ctx), new StorageLocationRepository(ctx), new AppSettingRepository(ctx), new ServiceSettingRepository(ctx), ctx);
         ctrl.TempData = new Microsoft.AspNetCore.Mvc.ViewFeatures.TempDataDictionary(
             new Microsoft.AspNetCore.Http.DefaultHttpContext(),
             Mock.Of<Microsoft.AspNetCore.Mvc.ViewFeatures.ITempDataProvider>());
@@ -159,6 +162,9 @@ public class WarehousePickingControllerTests
         current.Setup(s => s.GetDefaultPageSizeAsync()).ReturnsAsync((int?)null);
 
         var repo = new Mock<IWarehouseRequisitionRepository>();
+        // v1.99.53 Status-Guard (F4): Close liest den Kopf; Default = abgeschickte Liste ohne Positionen.
+        repo.Setup(r => r.GetByIdAsync(It.IsAny<int>(), It.IsAny<bool>()))
+            .ReturnsAsync((int id, bool _) => new WarehouseRequisition { Id = id, Status = WarehouseRequisitionStatus.Submitted, CreatedBy = "x", CreatedByWindows = "x" });
         var workplaces = new ProductionWorkplaceRepository(ctx);
         var stock = new Mock<IStockMovementRepository>();
         stock.Setup(s => s.GetStockByArticleNumbersAsync(It.IsAny<List<string>>(), false))
@@ -168,7 +174,7 @@ public class WarehousePickingControllerTests
         viewPrefs.Setup(p => p.GetByUserAndViewAsync(It.IsAny<int>(), It.IsAny<string>()))
                  .ReturnsAsync((UserViewPreference?)null);
 
-        var ctrl = new WarehousePickingController(repo.Object, workplaces, stock.Object, current.Object, viewPrefs.Object);
+        var ctrl = new WarehousePickingController(repo.Object, workplaces, stock.Object, current.Object, viewPrefs.Object, new ArticleRepository(ctx), new StorageLocationRepository(ctx), new AppSettingRepository(ctx), new ServiceSettingRepository(ctx), ctx);
         var httpCtx = new Microsoft.AspNetCore.Http.DefaultHttpContext();
         ctrl.ControllerContext = new Microsoft.AspNetCore.Mvc.ControllerContext
         {

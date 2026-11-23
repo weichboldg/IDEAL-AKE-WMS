@@ -70,6 +70,10 @@ public interface IStockMovementRepository : IRepository<StockMovement>
     /// <c>ProductionOrderId</c>; welche weiteren Arten zaehlen, klaert P-N8 – bis dahin nicht annehmen. Artikelnummer getrimmt, gross.
     /// </summary>
     Task<Dictionary<(int ProductionOrderId, string ArticleNumber), decimal>> GetAusbuchungenJeFaAsync(IReadOnlyCollection<int> productionOrderIds);
+
+    /// <summary>v1.99.53: Summe der <see cref="Models.MovementType.Ausbuchung"/>en je Lagerbestellposition (<c>WarehouseRequisitionItemId</c>)
+    /// = schon ausgebucht. Positionen ohne Buchung fehlen im Ergebnis.</summary>
+    Task<Dictionary<int, decimal>> GetAusgebuchtJeLagerbestellPositionAsync(IReadOnlyCollection<int> itemIds);
 }
 
 /// <summary>v1.99.47: FA-Bezug eines Paars (Artikel, Lagerplatz). <c>Nummern</c> distinct, ordinal sortiert (= Spalteninhalt);

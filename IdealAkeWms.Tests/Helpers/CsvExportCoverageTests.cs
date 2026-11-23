@@ -111,7 +111,7 @@ public class CsvExportCoverageTests
     {
         var tf = Js("table-filter.js");
         tf.Should().Contain("window.tableFilterCompareValues = compareValues;");
-        tf.Should().Contain("return compareValues(cellA.textContent.trim(), cellB.textContent.trim(), dir);");
+        tf.Should().Contain("return compareValues(cellText(cellA).trim(), cellText(cellB).trim(), dir);"); // v1.99.53: data-filter-text vor textContent
         Regex.Matches(tf, @"localeCompare\(").Count.Should().Be(1, "der Vergleich steht genau einmal (keine Kopie)");
         Js("csv-export.js").Should().Contain("root.tableFilterCompareValues(").And.NotContain("localeCompare(");
     }

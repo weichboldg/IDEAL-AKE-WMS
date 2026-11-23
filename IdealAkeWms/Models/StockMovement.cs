@@ -57,4 +57,11 @@ public class StockMovement : AuditableEntity
 
     /// <summary>v1.84.0: Wareneingang zu einer Sage-Bestellposition (nur bei Einbuchung ueber „Wareneingang zu Bestellung“), sonst null.</summary>
     public PurchaseOrderReceipt? PurchaseOrderReceipt { get; set; }
+
+    /// <summary>v1.99.53 (Spec 2026-11-23-lagerbestellung-verbrauchsbuchung-bei-lieferung): Lieferung einer Lager-/Glasbestellungsposition
+    /// (Ausbuchung beim Abschliessen), sonst null. Summe je Position = schon ausgebucht (Schutz gegen Doppelbuchung).</summary>
+    [Display(Name = "Lagerbestellposition")]
+    public int? WarehouseRequisitionItemId { get; set; }
+
+    public WarehouseRequisitionItem? WarehouseRequisitionItem { get; set; }
 }

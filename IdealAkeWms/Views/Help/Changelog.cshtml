@@ -9,6 +9,25 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.99.53</strong> <span class="text-white-50 ms-2">23.11.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>Lagerbestellung: Lieferung wird ausgebucht (Schalter, Default aus)</h6>
+                <ul>
+                    <li>Neue Einstellung <em>Lagerbestellung: Lieferung ausbuchen</em>. Eingeschaltet bucht das Abschließen einer Lager- oder
+                        Glasbestellung die Ist-Menge je Position vom Lager aus; bei erneutem Abschließen einer teilgelieferten Liste nur die Differenz.</li>
+                    <li>Je Position wählt das Lager unter <strong>„Entnahme aus“</strong> den Platz. Vorgeschlagen wird wie in der Kommissionierung der
+                        Hauptlagerplatz mit Bestand, sonst der Platz mit dem meisten Bestand.</li>
+                    <li>Sage-Plätze ohne Sage-Buchung sind nicht wählbar (der Lagerbestand-Abgleich würde die Entnahme zurückbuchen).</li>
+                    <li>Alles oder nichts: Ein Fehler in einer Position (kein Platz, zu wenig Bestand, Ist kleiner als bereits ausgebucht) bucht nichts;
+                        ein Hinweis nennt alle betroffenen Positionen. DUMMY-Positionen werden nie gebucht.</li>
+                    <li>Abschließen geht nur noch für abgeschickte oder teilgelieferte Listen.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.99.52</strong> <span class="text-white-50 ms-2">23.11.2026</span>
             </div>
             <div class="card-body">
