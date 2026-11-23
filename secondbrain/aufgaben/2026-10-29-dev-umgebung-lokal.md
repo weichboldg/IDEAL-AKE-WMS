@@ -250,3 +250,19 @@ Testeintrag. `dev-absicherung-ake.sql` ist unverändert (BaseUrl dort weiter lee
   Stand danach: AKE `SData:BaseUrl` leer, IDEAL `https://sagetest01.ake.at:5493/`.
 - qa-agent: Hinweis in 6b ergänzt, `PowerShell` in `tools:`. `SData:BaseUrl` aus „Hard limits on DEV“ gestrichen (Gerald 2026-11-02).
 - `SData:Dataset = ake_TEST2026;1` in `IDEAL_WMS_DEV` bleibt vorerst so (Gerald 2026-11-02).
+
+### Nachtrag 2026-11-23 (8081/8082 nach Neustart 500.30)
+
+- Befund: Beide Sites lieferten **HTTP 500.30**. Rechner-Neustart 07:42:06; wegen `AlwaysRunning` + Preload startete das Web um 07:42:31, bevor
+  der lokale SQL Server (`MSSQLSERVER`) annahm → `SqlException` Fehler 40 in `db.Database.Migrate()` (`Program.cs:220`), Prozess beendet,
+  ANCM bleibt bei 500.30. Beleg: `D:\Dev\{AKE,IDEAL}\Web\logs\stdout_20261123064223_*.log`.
+- Behoben durch Recycle beider App-Pools (`appcmd recycle apppool`): 8081 und 8082 HTTP 200, Fußzeile v1.99.47. Dienste stehen wie vorgesehen
+  (Starttyp manuell) auf „Beendet“.
+- Tritt nach jedem Neustart wieder auf, solange IIS vor SQL hochkommt. Dauerhafte Abhilfe (nicht umgesetzt, Gerald entscheidet): `W3SVC`
+  von `MSSQLSERVER` abhängig machen (`sc.exe config W3SVC depend= WAS/HTTP/MSSQLSERVER`) oder nach dem Hochfahren die Pools recyceln.
+
+### Nachtrag 2026-11-23 abends (HTTP 400 bei POST nach Wechsel 8081 ↔ 8082)
+- QA-Lauf v1.99.58, TS-183.2: `POST /Picking/AuftragUmbuchen` auf 8081 → 400. Log: „Error unprotecting the session cookie … key
+  {2d88eb0d…} was not found“ – der Schlüssel liegt in `D:\Dev\IDEAL\keys`, d. h. Session-/Antiforgery-Cookie stammten von 8082
+  (gleiche Cookie-Namen, Cookies kennen keine Ports). Kein Code-Befund.
+- Abhilfe beim Testen: je Standort eigenes Browserprofil bzw. Fenster, oder nach dem Wechsel die Seite neu laden, bevor man absendet.

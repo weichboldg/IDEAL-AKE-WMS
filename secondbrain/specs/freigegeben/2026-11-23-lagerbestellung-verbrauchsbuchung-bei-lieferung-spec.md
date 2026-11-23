@@ -642,3 +642,22 @@ Testbestand per SQL (Notiz „QA TS-178 Testbestand“):
    - Bestellvorschläge: Der Bedarf aus Lagerbestellungen bleibt unverändert (AK 19).
    - Ein Benutzer nur mit `lagerbestellung`/`picking` erreicht die Detailseite nicht (AK 21).
 8. Vor dem produktiven Einschalten: Die Handbuchung in Sage endet, und der Lager-Hinweis aus dem Manifest ist kommuniziert.
+
+## Nachbesserung 2026-11-23 abends: Laufzeit der Detailseite (Commit `b7e2d5a4`)
+
+**Befund (Gerald):** Nach dem Einschalten von `SageLagerbuchungAktiv` war die Lagerbestellungs-Detailseite extrem langsam.
+**Ursache:** `Views/WarehousePicking/Details.cshtml` gab jeder Zeile ein `<select>` mit **allen** wählbaren Entnahme-Plätzen. Mit
+Schalter an sind das alle Sage-Plätze mit „Sage-Buchung erlaubt“ (AKE bis ~3300), also Positionen × Plätze Optionen (mehrere MB HTML).
+**Fix:** Je Zeile nur wählbare Plätze mit Bestand dieses Artikels plus NAN (`WarehousePickingController.EntnahmeOptionen`). Ein Platz
+ohne Bestand wurde beim Abschließen ohnehin abgewiesen bzw. vom Ausweichplatz gebucht (`AusbuchungBestandsregel`). Bleibt nichts
+übrig (kein Bestand, NAN nicht wählbar), volle Liste wie bisher. `WarehouseRequisitionDetailViewModel.EntnahmePlaetze` entfällt.
+Build grün, Tests 3474/790 grün (neuer Test `EntnahmeOptionen_NurPlaetzeMitBestandPlusNan_SonstVolleListe`), TS-178.12.
+**Nicht gemacht:** Bestands-/Artikelabfrage je Position bleibt (4 Abfragen/Position, `ponytail:`-Kommentar im Controller); erst bündeln,
+wenn messbar. Kein QA-Lauf und kein DEV-Deploy dieser Nachbesserung – auf DEV ist `SageLagerbuchungAktiv` aus, der Fall dort nicht nachstellbar.
+Hinweistext „Kein Bestand – Vorschlag NAN“ bei Bestand auf ausgeschlossenen Sage-Plätzen: siehe [[2026-11-23-mengenfelder-tabellen-beschichtung-kommissionierung-teil-4-spec]].
+
+**QA-Nachweis zur Nachbesserung (qa-agent, 2026-11-23 abends, im Lauf `1cfb92d7..b79a4b1a`):** Status bleibt Testbereit.
+- Build 0 Fehler; Tests Web 3480/1 übersprungen/0, Service 790/0/0; neuer Test `EntnahmeOptionen_NurPlaetzeMitBestandPlusNan_SonstVolleListe` grün. Geänderter bestehender Test: Z. 227 `vm.EntnahmePlaetze` → `vm.Items[0].EntnahmeOptionen` (Ortswechsel durch die Nachbesserung, Aussage gleich).
+- **Review:** `EntnahmeOptionen` schneidet die wählbaren Plätze (`plaetze`, schon ohne Sage-Plätze ohne Sage-Buchung) mit Plätzen mit Bestand > 0 und NAN; Sage-Plätze ohne Freigabe kommen also nie hinein. Serverprüfung beim Abschließen unverändert (`EntnahmeErlaubt` + `AusbuchungBestandsregel`), Auswahl ist nur Komfort. Vorschlags-Platz ist stets in den Optionen (Waehle liefert Platz mit Bestand oder NAN). Hinweis: Rückfall „volle Liste“ nur, wenn weder Bestand noch NAN wählbar – dort bleibt die alte Laufzeit (selten, bewusst). Keine Befunde.
+- **DEV AKE (v1.99.58, `SageLagerbuchungAktiv` aus, `LagerbestellungVerbrauchsbuchungAktiv` temporär an und danach wieder entfernt), Lagerbestellung #41:** Positionen ohne wählbaren Bestand zeigen nur „— wählen —“ + NAN; Testposition mit Bestand auf WMS-Platz QA173-P zeigt NAN + QA173-P (vorher: alle wählbaren Plätze je Zeile). TS-178.12 Teil „Auswahl“: OK.
+- **NICHT MOEGLICH auf DEV:** Laufzeit mit `SageLagerbuchungAktiv` an (DEV-Grenze). **Manuell offen:** TS-178.12 auf dem Testsystem (Schalter dort an): Seite lädt zügig, keine Tausende Optionen je Zeile.
