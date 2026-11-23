@@ -1,6 +1,6 @@
 # 13 – Anmeldung und Benutzer (Erstkennwort mit Pflichtwechsel)
 
-Stand: Version 1.99.43 · Standorte AKE und IDEAL · Bilder aus den Testsystemen AKE und IDEAL
+Stand: Version 1.99.59 · Standorte AKE und IDEAL · Bilder aus den Testsystemen AKE und IDEAL
 
 ## Zweck
 
@@ -30,6 +30,8 @@ Einstellungen*).
 ### 1. Anmelden
 
 ![Anmeldeseite: Benutzer, Passwort, Anmelden, darunter „oder – Mit Windows anmelden“](bilder/13-01-anmeldeseite.jpg)
+
+Seit 1.99.59 steht unten auf der Anmeldeseite die **Versionsnummer** des WMS (dieselbe wie in der Fußzeile nach der Anmeldung).
 
 - **Am Büro-PC:** **Mit Windows anmelden** klicken (oder die Seite meldet automatisch an). Kein Kennwort nötig.
 - **Am Handgerät / Terminal:** Benutzername und Passwort eingeben, **Anmelden**.
