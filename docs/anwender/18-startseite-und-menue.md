@@ -1,6 +1,6 @@
 # 18 Startseite und Menü
 
-Stand: Version **1.99.51** (23.11.2026), Bilder noch 1.99.46 (Neuaufnahme 18-01/18-02/18-05 sowie neue Bilder zu Favoriten ausstehend). Bilder: 18-01 (AKE), 18-02 und 18-05 (IDEAL) aus den DEV-Systemen mit 1.99.46; 18-03 und 18-04 Testsysteme mit 1.99.45 (ohne Symbole, Inhalt sonst gleich).
+Stand: Version **1.99.53** (23.11.2026). Bilder: 18-01, 18-06 und 18-07 (AKE), 18-02 und 18-05 (IDEAL) aus den DEV-Systemen mit 1.99.53; 18-03 und 18-04 Testsysteme mit 1.99.45 (ohne Symbole, Inhalt sonst gleich).
 
 ## Zweck
 
@@ -48,8 +48,14 @@ Ein Bereich ohne sichtbare Kachel erscheint nicht. Hat man gar keine Funktion, s
 7. Jede Kachel hat oben rechts einen **Stern**. Ein Klick auf den leeren Stern macht die Kachel zum **Favoriten** – oben erscheint
    z. B. „„Einbuchung“ zu den Favoriten hinzugefügt.“ und der Stern ist voll. Ein Klick auf den vollen Stern nimmt sie wieder heraus.
    Mit der Tastatur: Tabulator springt je Kachel erst auf den Namen, dann auf den Stern; **Enter** schaltet um.
+
+   ![Reiter „Alle“: Meldung „„Umbuchung“ zu den Favoriten hinzugefügt.“, volle Sterne bei Einbuchung, Ausbuchung, Umbuchung](bilder/18-07-stern-hinzugefuegt.jpg)
+
 8. Über den Kacheln stehen zwei **Reiter**: **Favoriten** zeigt nur die markierten Kacheln, in der festen Kachelreihenfolge und ohne
    Bereichs-Überschriften. **Alle** zeigt die Startseite wie bisher nach Bereichen.
+
+   ![Reiter „Favoriten (3)“ mit Einbuchung, Ausbuchung und Umbuchung](bilder/18-06-reiter-favoriten.jpg)
+
 9. Hat man mindestens einen Favoriten, öffnet die Startseite mit dem Reiter **Favoriten**, sonst mit **Alle**. Nach einem Stern-Klick bleibt
    man im Reiter, in dem man geklickt hat.
 10. Die Favoriten sind **je Benutzer in der Datenbank** gespeichert – am Terminal und am PC sieht man dieselben.

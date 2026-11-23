@@ -1,6 +1,6 @@
 # 05 – Wareneingang zu Bestellung
 
-Stand: Version 1.99.52 · Standort AKE (IDEAL siehe unten) · Bilder aus dem AKE-Testsystem
+Stand: Version 1.99.53 · Standort AKE (IDEAL siehe unten) · Bilder aus dem AKE-Testsystem; 05-06 bis 05-08 aus dem DEV-System AKE mit 1.99.53
 
 ## Zweck
 
@@ -65,6 +65,10 @@ die Bestellung in Sage schon erledigt, noch nicht abgeglichen oder die Nummer fa
   - „Hauptlagerplatz … hat keine Sage-Buchung – bitte Sage-Platz wählen“ (nur bei eingeschaltetem Sage-Wareneingang),
   - „Kein Sage-Platz an der Position – bitte Ziel wählen“ (Artikel ohne Hauptlagerplatz).
 
+![Position ohne buchbaren Platz: „Sage-Platz … ist im WMS nicht buchbar“ und „Hauptlagerplatz … ist im WMS nicht buchbar – bitte Ziel wählen“](bilder/05-08-hauptlagerplatz-hinweis.jpg)
+
+Im Bild der Fall ohne Vorschlag. Ist der Hauptlagerplatz buchbar, ist er vorbelegt und darunter steht „Vorschlag: Hauptlagerplatz des Artikels“.
+
 **Hinweis „Offener Bedarf zu diesem Artikel“** (gelber Rand links): Es gibt zu diesem Artikel
 
 - eine abgeschickte oder teilgelieferte **Lagerbestellung** einer Werkbank (Nr., Werkbank, Besteller, Menge) und/oder
@@ -79,10 +83,14 @@ Die Tabelle ist breit – nach rechts scrollen bis **Ist-Menge**, **Überlieferu
 Seit 1.99.52 sind die Zeilen abwechselnd hinterlegt. Die Zeile, in der Sie gerade tippen, ist **grau mit einem dunkelblauen Balken links**
 markiert – so sieht man auch in der breiten Tabelle, zu welcher Position Menge und Platz gehören. Mit **Tab** springt man zum nächsten Feld.
 
+![Positionstabelle mit Streifen; Position 2 hat den Fokus (grau, dunkelblauer Balken links); Zahnrad rechts über der Tabelle](bilder/05-06-positionen-fokus-zeile.jpg)
+
 **Spalten anpassen (Zahnrad rechts über der Tabelle, seit 1.99.52):** **bestellt**, **offen (Sage)**, **im WMS erfasst** und **Positionsmemo**
 lassen sich ausblenden, die Breite jeder Spalte lässt sich am rechten Rand der Überschrift ziehen. Das gilt für Sie auf jeder Bestellung, bis
 Sie im Zahnrad **Zurücksetzen** wählen. Pos., Artikel, Rest, Einheit, Ziel-Lagerplatz, Ist-Menge, Überlieferung und Status sind gesperrt – sie
 werden zum Buchen gebraucht. Ein schon eingetragenes Memo wird auch bei ausgeblendeter Spalte mitgebucht.
+
+![Zahnrad geöffnet: „Spalten konfigurieren“ mit Pflichtspalten (grau) und ausblendbaren Spalten](bilder/05-07-spalten-zahnrad.jpg)
 
 ![Ist-Menge 3 = Teillieferung mit Positionsmemo; Ist-Menge 13 bei Rest 12 = Überlieferung](bilder/05-03-ist-menge-ueberlieferung-memo.jpg)
 

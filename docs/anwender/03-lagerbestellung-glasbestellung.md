@@ -1,6 +1,6 @@
 # 03 – Lagerbestellung und Glasbestellung
 
-Stand: Version 1.99.53 (Text; Bilder aus dem AKE-Testsystem, Stand 1.99.29 – Bild zu „Entnahme aus“ folgt) · Standorte AKE und IDEAL
+Stand: Version 1.99.53 (Bilder aus dem AKE-Testsystem, Stand 1.99.29 – Foto zu „Entnahme aus“ folgt nach Einschalten des Schalters) · Standorte AKE und IDEAL
 
 ## Zweck
 
@@ -126,6 +126,8 @@ Abschließen geht nur bei **abgeschickten** oder **teilgelieferten** Listen. Bei
 
 Ist die Einstellung **Lagerbestellung: Lieferung ausbuchen** an (WMS-Betreuung, Standard aus), bucht das Abschließen die gelieferte
 Menge im WMS vom Lager aus. Oben in der Liste steht dann der blaue Hinweis „Lieferung wird ausgebucht.“
+
+*Foto folgt nach Einschalten – auf dem Test- und DEV-System ist der Schalter aus, ohne ihn erscheint die Auswahl „Entnahme aus“ nicht.*
 
 - In der Spalte **Lagerplatz** hat jede Position die Auswahl **Entnahme aus**. Vorgeschlagen ist der Platz, den auch die Kommissionierung
   nimmt: der Hauptlagerplatz, wenn dort Bestand liegt, sonst der Platz mit dem meisten Bestand; ohne Bestand `NAN`. Der Hinweis darunter

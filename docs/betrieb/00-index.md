@@ -1,6 +1,6 @@
 # 00 – Betriebshandbuch IdealAkeWms: Übersicht
 
-**Stand:** v1.99.47, 2026-11-20 (Bündel `feature/2026-08-07-ideal-teile-1-5`, Paket 12; Quelle: `IdealAkeWms/AppVersion.cs:5`; erstellt mit v1.99.23, zuletzt Kapitel 03, 04, 05, 08 und AGENTS.md nachgezogen – siehe „Änderungen seit v1.99.23“) ·
+**Stand:** v1.99.53, 2026-11-23 (Bündel `feature/2026-08-07-ideal-teile-1-5`, Paket 13; Quelle: `IdealAkeWms/AppVersion.cs:5`; erstellt mit v1.99.23, zuletzt Kapitel 03 und 04 nachgezogen – siehe „Änderungen seit v1.99.23“) ·
 **Zielgruppe:** Administratoren und IT-Kollegen ohne Entwicklerwissen · **Zweck:** Betrieb, Update, Überwachung und Fehlersuche des
 Warehouse-, Produktions- und Betriebsdatensystems der Standorte AKE und IDEAL – mit Fundstelle zu jeder Aussage.
 
@@ -86,6 +86,11 @@ Warehouse-, Produktions- und Betriebsdatensystems der Standorte AKE und IDEAL �
 | 1.99.45 | Sammellauf: Startseite und Menü aus einer Quelle (`Services/Navigation/NavigationKatalog.cs`, ADR 0034), OSEON AG-Übersicht nur mit `TeileverfolgungAktiv`; Artikelinfo-Bestand exakt; Update-Skript: alle Prüf-/Warntexte nach einem Muster, Exit-Code getrennt vom Ergebnis; zwei Info-Einträge in `nachlauf.psd1`; kein SQL, keine neue Einstellung | [03 Abschnitt 5](03-installation-update-rollback.md), [04 5.5](04-konfiguration.md), [07](07-troubleshooting.md) |
 | 1.99.46 | Startseite: Kacheln wieder mit Symbolen (`NavZiel.SymbolPfad` in `NavigationKatalog.cs`); Web + Dienst nur Versionsnummer; kein SQL, keine Einstellung, keine Manifest-Einträge | – |
 | 1.99.47 | Lagerplatz ausbuchen mit FA-Filter (Spalte FA, Serverprüfung, gemischte Zeilen, IDEAL Haupt-FA ⊇ Sub-FA); Web + Dienst nur Versionsnummer; kein SQL, keine Einstellung; Manifest: Info `v1.99.47-LagerplatzAusbuchenFaFilter` | – |
+| 1.99.48/49 | reserviert, nicht ausgeliefert | – |
+| 1.99.50 | Startseite: jedes Kachel-Symbol nur einmal (Symbolfamilien Rahmen/Blatt/Tropfen); kein SQL, keine Einstellung | – |
+| 1.99.51 | Startseite: Reiter „Favoriten“, je Benutzer in der DB (Ansichts-Einstellung `Startseite.Favoriten`, `HomeController.cs:19`; „Ansichten zurücksetzen“ in `/Users` löscht sie mit); kein SQL, keine Einstellung; Manifest: Info `v1.99.51-StartseiteFavoriten` | – |
+| 1.99.52 | Wareneingang zu Bestellung: Bestellnummer ohne Jahr, Fokus-Zeile, Zahnrad (Spalten, Ansicht `PurchaseOrderReceive`), Hauptlagerplatz als Ziel-Vorschlag mit Hinweistext; kein SQL, keine Einstellung | – |
+| 1.99.53 | Lager-/Glasbestellung: Lieferung beim Abschließen ausbuchen. `SQL/166` (additiv: `StockMovements.WarehouseRequisitionItemId` NULL, FK, Index; keine Datenänderung); neue AppSetting `LagerbestellungVerbrauchsbuchungAktiv` (Standard **aus**). **Warnung:** Am Einschalttag endet die Handbuchung dieser Lieferungen in Sage – sonst doppelte Entnahme. Manifest: `Einstellung/LagerbestellungVerbrauchsbuchungAktiv`, `Info/Lagerbestellung-Entnahmeplatz`. SQL/164 und 165 sind reserviert, nicht vorhanden | [03 5.2a](03-installation-update-rollback.md), [04 5.5](04-konfiguration.md) |
 
 Anwender-Sicht: `docs/anwender/` – neu Kapitel 13 „Anmeldung und Benutzer“.
 
