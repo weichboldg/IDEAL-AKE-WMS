@@ -423,8 +423,9 @@ else if (Model.BackController == "Picking")
                 // Spaltenzahl: 13 Basis (inkl. pick-control, matchcode, source-location); ReadOnly -2;
                 // Bestellen-Spalte +1; Lagerbestellung-Spalte +1.
                 // BOM-Bridge: hierarchisch +3 (Komm.-Ziel, Hauptlagerplatz, Sage-Pos.),
-                // bei voller Struktur nochmals +2 (Ebene, Vater-Sub-FA).
+                // bei voller Struktur nochmals +2 (Ebene, Vater-Sub-FA). Auftragsseite +1 (Menge IST, v1.99.58).
                 var emptyColspan = (Model.ReadOnly ? 11 : 13)
+                    + (Model.Auftrag != null ? 1 : 0)
                     + (ViewBag.BestellungenAktiv == true && !Model.ReadOnly ? 1 : 0)
                     + (ViewBag.LagerbestellungAktiv == true && ViewBag.CanOrderWarehouse == true ? 1 : 0)
                     + (Model.Hierarchical ? 3 : 0)
