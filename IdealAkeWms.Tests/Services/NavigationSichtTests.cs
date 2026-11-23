@@ -152,6 +152,17 @@ public class NavigationSichtTests
     public async Task ArbeitsgaengeSage_NurAdminMitMaster(string rolle, bool master, bool sichtbar)
         => (await Bau(rolle, new(), master).Sicht.GetAsync()).Zeigt(NavZiele.ArbeitsgaengeSage).Should().Be(sichtbar);
 
+    // v1.99.61: FA-Struktur nur bei hierarchischer Struktur; FA-Liste davon unabhaengig.
+    [Theory]
+    [InlineData(true, true)]
+    [InlineData(false, false)]
+    public async Task FaStruktur_NurBeiHierarchischerStruktur(bool master, bool sichtbar)
+    {
+        var nav = await Bau(RoleKeys.Admin, new(), master).Sicht.GetAsync();
+        nav.Zeigt(NavZiele.FaStruktur).Should().Be(sichtbar);
+        nav.Zeigt(NavZiele.FaListe).Should().BeTrue();
+    }
+
     [Fact]
     public async Task Artikelinfo_FolgtStammdatenLesen_NichtKommissionierung()
     {

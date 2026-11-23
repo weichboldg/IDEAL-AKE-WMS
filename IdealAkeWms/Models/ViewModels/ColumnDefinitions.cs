@@ -560,7 +560,7 @@ public static class ColumnDefinitions
     /// data-col-key-Werten der &lt;th&gt;.
     /// </summary>
     public static readonly ViewConfig FaHierarchyStructure = new(
-        "FaHierarchyStructure", "FA-Struktur (IDEAL)",
+        "FaHierarchyStructure", "FA-Struktur",
         SupportsReorder: true, SupportsSortDefault: false)
     {
         Columns =

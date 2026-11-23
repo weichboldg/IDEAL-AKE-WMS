@@ -245,7 +245,8 @@ public sealed class NavigationSicht(ICurrentUserService user, IAppSettingReposit
         var blechAn = await An(AppSettingKeys.BlechfertigungAktiv);
         var blech = blechAn && await user.CanBfBestellenAsync();
         // Master nur fuer Admins lesen (wie vorher im Menue)
-        var master = admin && string.Equals(await serviceSettings.GetValueAsync(HierarchischeStrukturKeys.Master), "true", StringComparison.OrdinalIgnoreCase);
+        var hierarchisch = string.Equals(await serviceSettings.GetValueAsync(HierarchischeStrukturKeys.Master), "true", StringComparison.OrdinalIgnoreCase);
+        var master = admin && hierarchisch;
         var lagerbestellungSicht = lagerbestellung && (stock || lagerOderGlas);
 
         bool Regel(string key) => key switch
@@ -262,7 +263,9 @@ public sealed class NavigationSicht(ICurrentUserService user, IAppSettingReposit
             "Kommissionierung" => pick,
             "Kommissionierlisten" => kommListen && processLager,
             "LeitstandKommissionierung" => leitstand && (pick || release),
-            "FaListe" or "FaStruktur" => faLesen,
+            "FaListe" => faLesen,
+            // v1.99.61 (Gerald 2026-11-23): FA-Struktur nur bei hierarchischer Struktur (Master ProduktionsauftragHierarchisch), sonst leere Seite
+            "FaStruktur" => faLesen && hierarchisch,
             "FaVervollstaendigen" => faCompletion && completion,
             "FaAbarbeitungsliste" => faCompletion && vorbau,
             "Vormontage" => vormontage && vorbau,
