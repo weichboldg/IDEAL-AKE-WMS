@@ -187,6 +187,10 @@ else if (Model.BackController == "Picking")
                 <th data-filterable data-col-key="description2">Bezeichnung 2</th>
                 <th data-filterable data-col-key="matchcode">Matchcode</th>
                 <th class="text-end" data-filterable data-filter-type="number" data-col-key="quantity">Menge</th>
+                @if (Model.Auftrag != null)
+                {
+                    <th class="text-end" data-col-key="ist-menge">Menge IST</th>
+                }
                 <th data-filterable data-col-key="procurement">Beschaffung</th>
                 <th data-filterable data-col-key="article-group">Artikelgruppe</th>
                 <th data-filterable data-col-key="category">Kategorie</th>
@@ -277,20 +281,24 @@ else if (Model.BackController == "Picking")
                     <td>@item.Bezeichnung1</td>
                     <td>@item.Bezeichnung2</td>
                     <td>@item.Matchcode</td>
-                    <td class="text-end">
-                        @item.Menge.ToString("N3")
-                        @if (Model.Auftrag != null && !Model.ReadOnly && item.PickingItemId.HasValue && !item.IsTransferred)
-                        {
-                            @* v1.88.0: Ist-Menge (Default Soll, > 0 und ≤ Soll – der Server prueft); Text wegen fehlender fester Request-Kultur *@
-                            <input type="text" inputmode="decimal" class="form-control form-control-sm text-end ist-menge mt-1"
-                                   value="@item.Menge.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture)"
-                                   aria-label="Ist-Menge @item.Ressourcenummer" style="min-width: 80px;" />
-                        }
-                        else if (item.IstMenge.HasValue && item.IstMenge != item.Menge)
-                        {
-                            <div class="small">Ist @item.IstMenge.Value.ToString("N3")</div>
-                        }
-                    </td>
+                    <td class="text-end">@item.Menge.ToString("N3")</td>
+                    @* v1.99.58 (Spec 2026-11-23 Teil 5): Ist-Menge als eigene Spalte „Menge IST“, nur auf der Auftragsseite. *@
+                    @if (Model.Auftrag != null)
+                    {
+                        <td class="text-end" data-csv-value="@(item.IstMenge?.ToString("N3"))">
+                            @if (!Model.ReadOnly && item.PickingItemId.HasValue && !item.IsTransferred)
+                            {
+                                @* v1.88.0: Ist-Menge (Default Soll, > 0 und ≤ Soll – der Server prueft); Text wegen fehlender fester Request-Kultur *@
+                                <input type="text" inputmode="decimal" class="form-control form-control-sm text-end ist-menge"
+                                       value="@item.Menge.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture)"
+                                       aria-label="Ist-Menge @item.Ressourcenummer" style="min-width: 80px;" />
+                            }
+                            else if (item.IstMenge.HasValue)
+                            {
+                                @item.IstMenge.Value.ToString("N3")
+                            }
+                        </td>
+                    }
                     <td>@item.Beschaffungsartikel</td>
                     <td>@item.Artikelgruppe</td>
                     <td>@(item.KategorieName ?? "")</td>
@@ -733,6 +741,7 @@ else if (Model.BackController == "Picking")
     { "key": "description2", "label": "Bezeichnung 2", "locked": false, "defaultWidth": null },
     { "key": "matchcode", "label": "Matchcode", "locked": false, "defaultWidth": null },
     { "key": "quantity", "label": "Menge", "locked": false, "defaultWidth": null },
+    @if (Model.Auftrag != null) { <text>{ "key": "ist-menge", "label": "Menge IST", "locked": false, "defaultWidth": 100 },</text> }
     { "key": "procurement", "label": "Beschaffung", "locked": false, "defaultWidth": null },
     { "key": "article-group", "label": "Artikelgruppe", "locked": false, "defaultWidth": null },
     { "key": "category", "label": "Kategorie", "locked": false, "defaultWidth": null },

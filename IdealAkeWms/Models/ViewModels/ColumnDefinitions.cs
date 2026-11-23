@@ -235,6 +235,7 @@ public static class ColumnDefinitions
     ///   - "ebene", "vater-sub-fa" : only when Model.Hierarchical &amp;&amp; Model.FullStructure
     /// The first unnamed column (width 40px) contains the pick-checkbox/expand control.
     ///   - "warehouse-order" : only when Lagerbestellung aktiv und berechtigt
+    ///   - "ist-menge" : only on the picking order page (Model.Auftrag != null), v1.99.58
     /// "storage-location" ist seit v1.62.0 filterbar (Volltext aller Plaetze); "source-location" nicht.
     /// </summary>
     public static readonly ViewConfig Bom = new("Bom", "Stueckliste (BOM)", SupportsReorder: true, SupportsSortDefault: false)
@@ -250,6 +251,8 @@ public static class ColumnDefinitions
             new ColumnDef("description2",     "Bezeichnung 2",  Locked: false),
             new ColumnDef("matchcode",        "Matchcode",      Locked: false),
             new ColumnDef("quantity",         "Menge",          Locked: false),
+            // v1.99.58: nur auf der Auftragsseite (Model.Auftrag != null) – Eingabe Ist-Menge
+            new ColumnDef("ist-menge",        "Menge IST",      Locked: false, DefaultWidth: 100),
             new ColumnDef("procurement",      "Beschaffung",    Locked: false),
             new ColumnDef("article-group",    "Artikelgruppe",  Locked: false),
             new ColumnDef("category",         "Kategorie",      Locked: false),

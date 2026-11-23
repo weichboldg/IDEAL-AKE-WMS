@@ -41,6 +41,18 @@ public class ViewKeyDriftGuardTests
         bool.Parse(reorder.Groups[1].Value).Should().Be(cfg!.SupportsReorder, $"{view}: #view-config.supportsReorder = ColumnDefinitions.{key}.SupportsReorder");
     }
 
+    /// <summary>v1.99.58 (TS-183): Spalte „Menge IST“ der Auftragsseite an allen drei Stellen, gleich bedingt (nur mit Auftrag),
+    /// Eingabefeld .ist-menge (liest das Absenden) nur noch in dieser Spalte.</summary>
+    [Fact]
+    public void Stueckliste_SpalteMengeIst_DreiQuellen_NurMitAuftrag()
+    {
+        var html = File.ReadAllText(Path.Combine(ViewsDir().FullName, "Picking", "Bom.cshtml"));
+        ColumnDefinitions.Bom.Columns.Select(c => c.Key).Should().ContainInOrder("quantity", "ist-menge", "procurement");
+        Regex.IsMatch(html, @"@if \(Model\.Auftrag != null\)\s*\{\s*<th class=""text-end"" data-col-key=""ist-menge"">Menge IST</th>").Should().BeTrue();
+        Regex.IsMatch(html, @"@if \(Model\.Auftrag != null\) \{ <text>\{ ""key"": ""ist-menge"", ""label"": ""Menge IST""").Should().BeTrue();
+        Regex.Matches(html, @"class=""form-control form-control-sm text-end ist-menge""").Count.Should().Be(1);
+    }
+
     [Fact]
     public void OffeneBestellungen_DreiQuellenGleich_UndToolbarHost()
     {
