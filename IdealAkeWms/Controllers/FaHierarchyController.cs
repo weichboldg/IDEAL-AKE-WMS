@@ -17,11 +17,12 @@ namespace IdealAkeWms.Controllers;
 /// IDEAL Teil 2 — rekursive FA-Struktur-/Baumanzeige (read-only) auf den in Teil 1 importierten
 /// <see cref="FaHierarchyNode"/>/<see cref="FaHierarchyOrderInfo"/>-Tabellen.
 /// Beruehrt <b>weder</b> <c>ProductionOrders</c> <b>noch</b> den Master
-/// <c>ProduktionsauftragHierarchisch</c> — unabhaengig von Teil 7, vor Teil 7 lieferbar.
+/// <c>ProduktionsauftragHierarchisch</c> beim Lesen; seit v1.99.61 aber nur bei Master = true erreichbar (Gate).
 /// Zugriff: derselbe Class-Level-Read-Filter wie <see cref="ProductionOrdersController"/>
 /// (ADR 0006, B-2). Reine Read-View ⇒ kein Edit-Split.
 /// </summary>
 [RequirePickingOrTrackingOrLeitstandAccess]
+[RequireHierarchischeStrukturAktiv] // v1.99.61: nur bei Master ProduktionsauftragHierarchisch (wie Menue/Kachel)
 public class FaHierarchyController : Controller
 {
     private readonly IFaHierarchyNodeRepository _nodeRepository;

@@ -245,7 +245,7 @@ public sealed class NavigationSicht(ICurrentUserService user, IAppSettingReposit
         var blechAn = await An(AppSettingKeys.BlechfertigungAktiv);
         var blech = blechAn && await user.CanBfBestellenAsync();
         // Master nur fuer Admins lesen (wie vorher im Menue)
-        var hierarchisch = string.Equals(await serviceSettings.GetValueAsync(HierarchischeStrukturKeys.Master), "true", StringComparison.OrdinalIgnoreCase);
+        var hierarchisch = string.Equals((await serviceSettings.GetValueAsync(HierarchischeStrukturKeys.Master))?.Trim(), "true", StringComparison.OrdinalIgnoreCase);
         var master = admin && hierarchisch;
         var lagerbestellungSicht = lagerbestellung && (stock || lagerOderGlas);
 

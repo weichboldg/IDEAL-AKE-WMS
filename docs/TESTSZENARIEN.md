@@ -13769,9 +13769,10 @@ Wunsch Gerald 2026-11-23. **Standort:** DEV IDEAL (`ProduktionsauftragHierarchis
 | 186.1 | IDEAL: Menü „Fertigungsaufträge“ → „FA-Struktur“ | Seitentitel und Überschrift „FA-Struktur“ (ohne „(IDEAL)“); Baum wie bisher. |
 | 186.2 | IDEAL: Startseite | Kachel „FA-Struktur“ vorhanden. |
 | 186.3 | AKE (Schalter aus): Menü „Fertigungsaufträge“ | Kein Eintrag „FA-Struktur“; FA-Liste usw. unverändert. Startseite ohne Kachel „FA-Struktur“. |
+| 186.5 | AKE (Schalter aus): `/FaHierarchy` direkt aufrufen | Weiterleitung auf die Startseite mit gelbem Hinweis „Die FA-Struktur ist nur bei hierarchischer Struktur … verfügbar.“; keine leere Seite. |
 | 186.4 | Negativ: IDEAL – in `/ServiceSettings` „ProduktionsauftragHierarchisch“ NICHT umschalten (Prod-Wirkung) – stattdessen Unit-Test | `NavigationSichtTests.FaStruktur_NurBeiHierarchischerStruktur` grün. |
 
-**Automatisch:** `NavigationSichtTests.FaStruktur_NurBeiHierarchischerStruktur`.
+**Automatisch:** `NavigationSichtTests.FaStruktur_NurBeiHierarchischerStruktur`, `RequireHierarchischeStrukturAktivFilterTests`.
 
 ---
 
