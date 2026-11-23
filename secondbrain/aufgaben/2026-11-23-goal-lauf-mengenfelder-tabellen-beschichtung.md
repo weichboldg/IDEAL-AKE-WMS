@@ -315,3 +315,39 @@ DEV-Werte (sqlcmd): AKE_WMS_DEV `ProduktionsauftragHierarchisch`=false, `Sync:Hi
 2. B-1 entscheiden: Controller-Gate für `/FaHierarchy` bei Schalter aus nachziehen (ADR 0011) oder als bewusste Lücke festhalten.
 3. B-2: TS-185 und TS-186 in `secondbrain/tests/testszenarien-index.md` aufnehmen.
 4. TS-186.1–186.3 auf dem Testsystem (IDEAL mit Master an, AKE mit Master aus).
+
+## QA v1.99.61 Controller-Gate (qa-agent)
+
+Nach-QA zu B-1/H-2 aus [[#QA v1.99.61 FA-Struktur Titel/Gate (qa-agent)]]. Entscheid Gerald: Schalter bleibt der Master `ProduktionsauftragHierarchisch` („Nur Master“), Controller sperren. Geprueft: Commit `cf3968bd` (Diff gegen `22c118ff`), Worktree `C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5`, HEAD `cf3968bdee4ee4763bc345de68f2dcdd515ee2e8`, AppVersion Web + Service 1.99.61.
+
+**1. Build und Tests** (2026-11-23)
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler, 30 Warnungen (bekannte NU190x/Analyzer).
+- `dotnet test IdealAkeWms.slnx --no-build`: IdealAkeWms.Tests 3488 bestanden / 1 uebersprungen (`ProductionOrderEagerCreateAgentJobTests`, wie bisher) / 0 Fehler (3489); IDEALAKEWMSService.Tests 790 / 0 / 0.
+
+**2. DEV-Deploy** (elevated, `-OhneDienst` laut Auftrag)
+- AKE: `dev-deploy.ps1 -Standort AKE -Quelle <Worktree> -OhneDienst` → „HTTP 200, Fusszeile v1.99.61“, „Fertig: AKE v1.99.61 auf http://localhost:8081/“, Exit 0.
+- IDEAL: dito → „Fertig: IDEAL v1.99.61 auf http://localhost:8082/“, Exit 0.
+- Master auf DEV (sqlcmd `ServiceSettings`): AKE_WMS_DEV `false`, IDEAL_WMS_DEV `true` – nicht veraendert.
+
+**3. Review** (selbst, in diesem Lauf; gelesen: Diff, `FaHierarchyController`, `RequireFaHierarchyVormontageAktivAttribute`, `NavigationKatalog`, `Program.cs` DI, alle Verweise auf den FaHierarchy-Controller)
+- Filter-Muster: 1:1 wie `RequireFaHierarchyVormontageAktiv` (TypeFilterAttribute + IAsyncActionFilter, MVC → Home + `WarningMessage`, sonst 404). Unterschied nur: liest `IServiceSettingRepository` statt `IAppSettingRepository` und trimmt – gewollt (H-2). OK.
+- DI: `IServiceSettingRepository` ist scoped registriert (`Program.cs:90`, Guarded-Decorator); TypeFilter loest pro Request aus dem Request-Scope auf. OK.
+- Wirkung auf `WorkOperations` (Modal-Endpunkt, `FaHierarchyController.cs:185`): Class-Level-Filter greift auch hier; bei Master aus kommt ein Redirect auf Home statt JSON/Partial. Unkritisch, weil das Modal nur auf der gesperrten Index-Seite existiert. Auf DEV belegt (s. 4.).
+- Aufrufer von aussen: `_Layout.cshtml:161` (Menue, `nav.Zeigt(FaStruktur)`), Kachel (NavigationKatalog), `StockApiController.FaLinkAsync:81` und `_FaLink.cshtml:14` (beide nur bei `FaBuchungsText.IstHierarchisch` = Trim + "true", gleiche Regel wie der Filter), `Views/FaHierarchy/Index.cshtml:275` (eigene Seite). Kein Aufrufer verlinkt bei Master aus auf FaHierarchy. OK.
+- Tests: Theorie true/" TRUE "/false/null (MVC), API → 404, Attribut-Praesenz am Controller. Neue Testdatei, kein bestehender Test geaendert.
+- **H-3 (Hinweis, vorbestehend, nicht umgebaut):** Die Master-Regel ist weiter mehrfach implementiert: `IsTrue` in ProductionOrders/Tracking/FaCompletion/FaWorklist/PickingLeitstand/BdeTerminal/ProductionWorkplaces/BdeTeileliste akzeptiert auch `"1"`/`"on"` (ohne Trim), `OperationConfigsController.cs:84` vergleicht ohne Trim, Gate/Navigation/`FaBuchungsText.IstHierarchisch` nur Trim + "true". Bei Master = `"1"` zeigte die FA-Liste hierarchisch, die FA-Struktur waere gesperrt. Praktisch nur relevant, wenn der Wert je anders als `true`/`false` geschrieben wird. Empfehlung: Folgeaufgabe „eine Master-Regel“ (alle auf `FaBuchungsText.IstHierarchisch`).
+- **H-4 (kosmetisch):** In `docs/TESTSZENARIEN.md:13772` steht Zeile 186.5 vor 186.4.
+- Keine Blocker-Befunde. B-1 und H-2 der Vor-QA sind behoben.
+
+**4. Browser (claude-in-chrome, eigener Tab, nacheinander)**
+| Schritt | Ergebnis | Status |
+|---|---|---|
+| TS-186.5 AKE 8081: `/FaHierarchy` direkt | Weiterleitung auf `/` (Dashboard), gelber Hinweis „Die FA-Struktur ist nur bei hierarchischer Struktur (Einstellung „ProduktionsauftragHierarchisch“) verfügbar.“ | OK |
+| AKE: `/FaHierarchy/WorkOperations?hauptFa=1` direkt | ebenfalls Weiterleitung auf Dashboard | OK |
+| AKE: Menue Fertigungsauftraege | FA-Liste/FA-Vervollstaendigen/FA-Abarbeitungsliste, kein Eintrag FA-Struktur | OK |
+| Gegenprobe IDEAL 8082: `/FaHierarchy` | Seite „FA-Struktur“ oeffnet mit Strukturen | OK |
+| IDEAL: Arbeitsgaenge-Modal der ersten Struktur (FA 1059463) | Modal laedt: 67 Sub-FAs, Arbeitsgaenge mit Kuerzel/Werkbank/Sage-Nr. | OK |
+
+**5. Nicht gemacht (laut Auftrag):** kein Status, kein Publish/Paket, Shares unberuehrt, keine Settings auf DEV umgeschaltet, kein Merge/Push.
+
+**Offen fuer den Menschen:** TS-186.5 und Gegenprobe auf dem Testsystem; Entscheid zu H-3 (Folgeaufgabe Master-Regel vereinheitlichen).
