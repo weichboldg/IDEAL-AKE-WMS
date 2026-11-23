@@ -267,3 +267,51 @@ IDEAL „HTTP 200, Fusszeile v1.99.60 … Fertig: IDEAL v1.99.60 auf http://loca
 1. TS-185.5 mit einem Benutzer ohne FA-Leserecht im Browser.
 2. B-1: TS-185 in `secondbrain/tests/testszenarien-index.md` aufnehmen.
 3. TS-185.1–185.4 auf dem Testsystem.
+
+## QA v1.99.61 FA-Struktur Titel/Gate (qa-agent)
+
+Auftrag: Wunsch Gerald 2026-11-23 auf Zuruf („Fa-Struktur (ideal) nur auf fa-struktur. Aber wenn das Feature deaktiviert ist, soll es auch nicht angezeigt werden.“), keine eigene Spec. Commit `22c118ff` (Diff gegen `bcb7a357`):
+`NavigationKatalog.cs` (Variable `hierarchisch` aus `ProduktionsauftragHierarchisch`, `"FaStruktur" => faLesen && hierarchisch`), `Views/FaHierarchy/Index.cshtml` + `ColumnDefinitions.cs:563` + `Help/Index.cshtml` „FA-Struktur“ ohne „(IDEAL)“, Test `NavigationSichtTests.FaStruktur_NurBeiHierarchischerStruktur`, beide `AppVersion.cs` 1.99.61, Anwender-Changelog, TS-186. Kein Publish/Paket (Auftrag).
+
+**1 Build + Tests** (Worktree, HEAD `22c118ff`): `dotnet build IdealAkeWms.slnx` 0 Fehler (30 Warnungen, bekannt).
+`dotnet test`: IdealAkeWms.Tests 3482 bestanden / 1 übersprungen / 0 Fehler (3483); IDEALAKEWMSService.Tests 790 / 0 / 0. Gezielt `NavigationSichtTests`: 66/66 grün.
+
+**6a/b DEV-Deploy** (Shell elevated: True; `dev-deploy.ps1 -Standort <X> -Quelle <Bündel-Worktree> -OhneDienst`, Dienste nicht gestartet):
+IDEAL „HTTP 200, Fusszeile v1.99.61 … Fertig: IDEAL v1.99.61 auf http://localhost:8082/“, Exit 0; AKE „HTTP 200, Fusszeile v1.99.61 … Fertig: AKE v1.99.61 auf http://localhost:8081/“, Exit 0.
+DEV-Werte (sqlcmd): AKE_WMS_DEV `ProduktionsauftragHierarchisch`=false, `Sync:HierarchicalFaEnabled`=false, FaHierarchyNodes 0; IDEAL_WMS_DEV Master=true, `Sync:HierarchicalFaEnabled`=false, FaHierarchyNodes 755, FaHierarchyOrderInfos 5. Nichts umgeschaltet.
+
+**2 Review** (`bcb7a357..22c118ff`):
+- **Richtiger Schalter?** Die Seite liest `FaHierarchyNodes`/`FaHierarchyOrderInfos` (`FaHierarchyController.cs:85-86`). Gefüllt werden sie vom Dienst `FaHierarchySyncService`, gegatet durch `Sync:HierarchicalFaEnabled` (`IDEALAKEWMSService/Workers/SyncWorker.cs:352`, Katalog `ServiceSettingDefinitions.cs:282` „FA-Struktur-Import (IDEAL)“, Standortmaske `StandortSettingsCatalog.cs:65`). Der Controller-Kommentar sagt ausdrücklich, er berühre den Master `ProduktionsauftragHierarchisch` nicht (`FaHierarchyController.cs:17-21`). Der Master ist dagegen der Schalter, den die FA-Links schon heute für „Ziel FA-Struktur“ nutzen (`Views/Shared/_FaLink.cshtml:14`, `StockApiController.cs:80-86`, gelesen in `StockMovements/Index.cshtml:9`, `StockOverview/Index.cshtml:82`).
+  → **H-1 (Rückfrage, kein Defekt):** Menü/Kachel folgen jetzt dem Master, die Daten dem Import-Schalter. Fall „Import an, Master aus“ (IDEAL vor der Umstellung Teil 7) blendet eine gefüllte FA-Struktur aus; Fall „Master an, Import aus“ (DEV IDEAL heute) zeigt sie mit Altdaten. Für Gerald: Ist „Feature“ = Master (konsistent mit den FA-Links, so umgesetzt) oder = `Sync:HierarchicalFaEnabled` bzw. beides? Die Umsetzung ist mit dem Master in sich stimmig; die Wahl bleibt fachlich zu bestätigen.
+- **B-1 (Befund, niedrig): Direktaufruf bei Schalter aus erreichbar.** `FaHierarchyController` hat nur `[RequirePickingOrTrackingOrLeitstandAccess]` (`FaHierarchyController.cs:24`), kein Gate auf den Master. Browser: `http://localhost:8081/FaHierarchy` auf AKE (Master=false) öffnet „FA-Struktur“ mit „Keine Strukturen gefunden“ (Screenshot unten). ADR 0011 (Zeile 44-46) verlangt den Schalter an drei Stellen inkl. Controller-Zugriff, kumulativ zum Rechtefilter. Nicht umgebaut (Auftrag); Folge wäre ein Gate (z.B. Redirect auf FA-Liste bei Master≠true). Wirkung gering (leere Seite, keine Schreibaktion).
+- **Andere Links auf FA-Struktur:** einzige Url-Erzeuger `_FaLink.cshtml:14` und `StockApiController.cs:84` – beide nur bei Master=true auf FaHierarchy, sonst FA-Liste → kein Link ins Leere bei Schalter aus. `FaHierarchy/Index.cshtml:275` (WorkOperations) nur innerhalb der Seite. In `wwwroot/js` keine Links auf `/FaHierarchy`. Beschichtung/Kommissionierlisten/Vormontage verlinken eigene Controller (`FaHierarchyBeschichtung` usw.).
+- **Wirkzeit nach Umschalten:** `NavigationSicht` ist scoped (`Program.cs:171`) und cacht nur je Request (`_ergebnis`); `IServiceSettingRepository` = `GuardedServiceSettingRepository` → `ServiceSettingRepository` ohne Cache-Decorator (`Program.cs:89-92`) → wirkt ab dem nächsten Seitenaufruf.
+- **H-2 (Hinweis, Mehrfachregel):** Die Master-Auswertung existiert mehrfach; `NavigationKatalog.cs:248` vergleicht ohne `Trim()`, `FaBuchungsText.IstHierarchisch` (`FaBuchungsText.cs:74`) mit `Trim()`. Der einzige UI-Schreibweg schreibt exakt „true“/„false“ (`HierarchieUmstellungController.cs:87`) → praktisch ohne Wirkung; sauberer wäre `FaBuchungsText.IstHierarchisch(...)` auch im Katalog. Nicht angefasst.
+- `hierarchisch` wird jetzt für alle Rollen gelesen (vorher nur über `master = admin && …`); Regel `faLesen && hierarchisch` rollenunabhängig – korrekt. Test deckt Admin ab, FA-Liste bleibt unabhängig.
+- QA-Defektklassen (Script-Einbettung, `hidden`+`d-*`, stille Fallbacks, Arrays, nur-Client-Validierung) nicht berührt; Mehrfachregel s. H-2.
+- **B-2 (Befund, Doku):** `secondbrain/tests/testszenarien-index.md` hat weder TS-185 noch TS-186. Nicht nachgezogen (Auftrag: nur diese Notiz stagen) → Hauptagent.
+
+**3 Nachweisart:** 186.4 (Regel Master an/aus, FA-Liste unabhängig) automatisch per `NavigationSichtTests.FaStruktur_NurBeiHierarchischerStruktur`. 186.1–186.3 (Titel, Menü, Kachel je Standort) Browser.
+
+**4 Geänderte Bestandstests:** keine (nur neuer Test).
+
+**5 Checkliste:** Version beide AppVersion.cs + Anwender-Changelog ✓, TS-186 in TESTSZENARIEN ✓, Testindex ✗ (B-2), keine Migration/SQL. ADR 0020: keine neue/geänderte Einstellung (Master nur gelesen) → n/a. Kein Nachlauf-Schritt.
+
+**6c TS-186 im Browser** (eigener Tab, Admin-Benutzer, nichts gebucht, nichts umgeschaltet; IDEAL dann AKE):
+| Nr | Standort | Ergebnis | Screenshot | Status |
+|---|---|---|---|---|
+| 186.1 | IDEAL 8082 | Tab-Titel „FA-Struktur - IDEAL-AKE WMS“, Überschrift „FA-Struktur“, Baum mit Strukturen; Dropdown „Fertigungsaufträge“: FA-Liste, FA-Struktur | `C:\Users\GERALD~1.WEI\AppData\Local\Temp\claude-chrome-screenshots-ZoOUCf\screenshot-1795461405839-21.jpg`, `…\screenshot-1795461414466-22.png` | OK |
+| 186.2 | IDEAL 8082 | Kachel „FA-Struktur“ im Bereich Produktion/BDE nach FA-Liste | `…\screenshot-1795461423083-23.jpg` | OK |
+| 186.3 | AKE 8081 | Dropdown: FA-Liste, FA-Vervollständigen, FA-Abarbeitungsliste – kein „FA-Struktur“; Startseite (auch Reiter „Alle“, Accessibility-Baum) ohne FA-Struktur-Kachel/-Link | `…\screenshot-1795461433340-24.png` | OK |
+| 186.3 neg. | AKE 8081 | Direktaufruf `/FaHierarchy` öffnet weiterhin „FA-Struktur“, „Keine Strukturen gefunden“ | `…\screenshot-1795461438724-25.jpg` | Befund B-1 |
+| 186.4 | – | Unit-Test grün (s. 1) | – | OK |
+
+**7 Publish:** laut Auftrag nicht ausgeführt. Deploy-Umfang: nur Web (NavigationKatalog, Views, ColumnDefinitions); Dienst nur Versionsnummer; keine Migration.
+
+**Bewertung:** Build/Tests grün, DEV beide Standorte v1.99.61, TS-186.1–186.4 OK. Offen: H-1 (Schalterwahl fachlich bestätigen), B-1 (Controller-Gate fehlt, ADR 0011), B-2 (Testindex).
+
+**Manuell offen (Mensch):**
+1. H-1 entscheiden: Master `ProduktionsauftragHierarchisch` oder `Sync:HierarchicalFaEnabled` als „Feature“ für Menü/Kachel.
+2. B-1 entscheiden: Controller-Gate für `/FaHierarchy` bei Schalter aus nachziehen (ADR 0011) oder als bewusste Lücke festhalten.
+3. B-2: TS-185 und TS-186 in `secondbrain/tests/testszenarien-index.md` aufnehmen.
+4. TS-186.1–186.3 auf dem Testsystem (IDEAL mit Master an, AKE mit Master aus).
