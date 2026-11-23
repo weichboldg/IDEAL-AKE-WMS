@@ -33,7 +33,12 @@ public class ViewKeyDriftGuardTests
         key.Should().NotBeEmpty($"{view}: viewKey in #view-config");
         // Nur die Registrierung allgemein: einige Listen haben bedingte (Razor) bzw. zusaetzliche Spalten im #column-config – deren Abgleich
         // pruefen die view-eigenen Waechter (z. B. CreditorsViewTests, KommissionierSpaltenKonsistenzTests).
-        ColumnDefinitions.GetByViewKey(key).Should().NotBeNull($"{view}: viewKey „{key}“ muss in ColumnDefinitions.GetByViewKey stehen");
+        var cfg = ColumnDefinitions.GetByViewKey(key);
+        cfg.Should().NotBeNull($"{view}: viewKey „{key}“ muss in ColumnDefinitions.GetByViewKey stehen");
+        // v1.99.55: wirksam ist nur #view-config (column-preferences.js) – der Katalog muss gleich sein, sonst luegt C#.
+        var reorder = Regex.Match(html, @"id=""view-config"">[^<]*""supportsReorder"":\s*(true|false)");
+        reorder.Success.Should().BeTrue($"{view}: supportsReorder in #view-config");
+        bool.Parse(reorder.Groups[1].Value).Should().Be(cfg!.SupportsReorder, $"{view}: #view-config.supportsReorder = ColumnDefinitions.{key}.SupportsReorder");
     }
 
     [Fact]
@@ -60,7 +65,7 @@ public class ViewKeyDriftGuardTests
         ColumnDefinitions.GetByViewKey("PurchaseOrderReceive").Should().BeSameAs(cfg);
         cfg.Columns.Where(c => c.Locked).Select(c => c.Key).Should()
             .Equal("pos", "artikel", "rest", "einheit", "lagerplatz", "menge", "ueberlieferung", "status");
-        (cfg.SupportsReorder, cfg.SupportsSortDefault).Should().Be((false, false));
+        (cfg.SupportsReorder, cfg.SupportsSortDefault).Should().Be((true, false));
         html.Should().Contain("data-table-toolbar").And.Contain("column-preferences.js").And.NotContain("filterable-table")
             .And.Contain("class=\"table table-sm table-striped table-hover align-middle we-positionen\" data-view-key=\"PurchaseOrderReceive\"");
 

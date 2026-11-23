@@ -676,7 +676,7 @@ public static class ColumnDefinitions
     /// </summary>
     public static readonly ViewConfig Articles = new(
         "Articles", "Artikel",
-        SupportsReorder: false, SupportsSortDefault: false)
+        SupportsReorder: true, SupportsSortDefault: false)
     {
         Columns =
         [
@@ -699,7 +699,7 @@ public static class ColumnDefinitions
     /// </summary>
     public static readonly ViewConfig StorageLocations = new(
         "StorageLocations", "Lagerplätze",
-        SupportsReorder: false, SupportsSortDefault: false)
+        SupportsReorder: true, SupportsSortDefault: false)
     {
         Columns =
         [
@@ -724,7 +724,7 @@ public static class ColumnDefinitions
     /// </summary>
     public static readonly ViewConfig Creditors = new(
         "Creditors", "Kreditoren",
-        SupportsReorder: false, SupportsSortDefault: false)
+        SupportsReorder: true, SupportsSortDefault: false)
     {
         Columns =
         [
@@ -749,7 +749,7 @@ public static class ColumnDefinitions
     /// </summary>
     public static readonly ViewConfig Debitors = new(
         "Debitors", "Debitoren",
-        SupportsReorder: false, SupportsSortDefault: false)
+        SupportsReorder: true, SupportsSortDefault: false)
     {
         Columns =
         [
@@ -774,7 +774,7 @@ public static class ColumnDefinitions
     /// </summary>
     public static readonly ViewConfig PurchaseOrders = new(
         "PurchaseOrders", "Offene Bestellungen",
-        SupportsReorder: false, SupportsSortDefault: false)
+        SupportsReorder: true, SupportsSortDefault: false)
     {
         Columns =
         [
@@ -799,11 +799,11 @@ public static class ColumnDefinitions
     /// <summary>
     /// PurchaseOrders/Receive.cshtml — Positionstabelle „Wareneingang zu Bestellung“ (v1.99.52, Spec 2026-11-23 F2b): nur ein-/ausblenden und
     /// Breite. Gesperrt sind alle Spalten, die zum Buchen oder Melden noetig sind (Pflichteingaben, Rest/Einheit, Status mit Fehlertext);
-    /// ausblendbar nur bestellt, offen (Sage), im WMS erfasst, Positionsmemo. Kein Umsortieren (Formular-Zellen).
+    /// ausblendbar nur bestellt, offen (Sage), im WMS erfasst, Positionsmemo. Umsortieren seit v1.99.55 an (Eingaben wandern mit der Zelle, der Server ordnet ueber BelPosId zu).
     /// </summary>
     public static readonly ViewConfig PurchaseOrderReceive = new(
         "PurchaseOrderReceive", "Wareneingang zu Bestellung – Positionen",
-        SupportsReorder: false, SupportsSortDefault: false)
+        SupportsReorder: true, SupportsSortDefault: false)
     {
         Columns =
         [
@@ -825,7 +825,7 @@ public static class ColumnDefinitions
     /// <summary>PurchaseProposals/Index.cshtml — Einkauf → Bestellvorschläge (v1.99.20, Spec 2026-11-08-einkauf-bestellvorschlaege F8).</summary>
     public static readonly ViewConfig PurchaseProposals = new(
         "PurchaseProposals", "Bestellvorschläge",
-        SupportsReorder: false, SupportsSortDefault: false)
+        SupportsReorder: true, SupportsSortDefault: false)
     {
         Columns =
         [
