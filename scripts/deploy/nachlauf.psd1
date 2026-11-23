@@ -591,5 +591,8 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
 @{ Id='v1.99.47-LagerplatzAusbuchenFaFilter'; Version='1.99.47'; Typ='Info'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
    Text='Lagermitarbeiter informieren: Lagerplatz ausbuchen bucht bei FA-Eintrag nur noch Artikel dieses FA aus; am Kommissionierwagen bleiben Artikel ohne FA-Vermerk am Wagen (Feld leeren = alles). Gemischte Artikel (weitere FA, Bestand ohne FA oder FA nur aus einer Ausbuchung) werden im Dialog einzeln abgefragt; aendert sich der Bestand zwischen Anzeige und Bestaetigen, wird nichts gebucht und die Seite neu geladen. IDEAL: Haupt-FA schliesst ihre Sub-FA ein, eine Sub-FA nur sich selbst.'
    Quelle='2026-11-20-v1-99-47-lagerplatz-ausbuchen-fa-filter' }
+@{ Id='v1.99.51-StartseiteFavoriten'; Version='1.99.51'; Typ='Info'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Text='Startseite: neuer Reiter "Favoriten". Jeder Benutzer markiert Kacheln mit dem Stern; gespeichert je Benutzer in der DB (gleich an PC und Terminal). Admin "Ansichten zuruecksetzen" loescht auch die Favoriten.'
+   Quelle='2026-11-23-dashboard-favoriten-reiter' }
 )
 }

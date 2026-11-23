@@ -1,6 +1,6 @@
 # 18 Startseite und Menü
 
-Stand: Version **1.99.50** (23.11.2026), Bilder noch 1.99.46 (Neuaufnahme 18-01/18-02/18-05 ausstehend). Bilder: 18-01 (AKE), 18-02 und 18-05 (IDEAL) aus den DEV-Systemen mit 1.99.46; 18-03 und 18-04 Testsysteme mit 1.99.45 (ohne Symbole, Inhalt sonst gleich).
+Stand: Version **1.99.51** (23.11.2026), Bilder noch 1.99.46 (Neuaufnahme 18-01/18-02/18-05 sowie neue Bilder zu Favoriten ausstehend). Bilder: 18-01 (AKE), 18-02 und 18-05 (IDEAL) aus den DEV-Systemen mit 1.99.46; 18-03 und 18-04 Testsysteme mit 1.99.45 (ohne Symbole, Inhalt sonst gleich).
 
 ## Zweck
 
@@ -43,6 +43,17 @@ Ein Bereich ohne sichtbare Kachel erscheint nicht. Hat man gar keine Funktion, s
 
    ![Startseite auf Handy-Breite](bilder/18-05-startseite-handy.jpg)
 
+### Favoriten (seit 1.99.51)
+
+7. Jede Kachel hat oben rechts einen **Stern**. Ein Klick auf den leeren Stern macht die Kachel zum **Favoriten** – oben erscheint
+   z. B. „„Einbuchung“ zu den Favoriten hinzugefügt.“ und der Stern ist voll. Ein Klick auf den vollen Stern nimmt sie wieder heraus.
+   Mit der Tastatur: Tabulator springt je Kachel erst auf den Namen, dann auf den Stern; **Enter** schaltet um.
+8. Über den Kacheln stehen zwei **Reiter**: **Favoriten** zeigt nur die markierten Kacheln, in der festen Kachelreihenfolge und ohne
+   Bereichs-Überschriften. **Alle** zeigt die Startseite wie bisher nach Bereichen.
+9. Hat man mindestens einen Favoriten, öffnet die Startseite mit dem Reiter **Favoriten**, sonst mit **Alle**. Nach einem Stern-Klick bleibt
+   man im Reiter, in dem man geklickt hat.
+10. Die Favoriten sind **je Benutzer in der Datenbank** gespeichert – am Terminal und am PC sieht man dieselben.
+
 ## Hinweise und Stolperfallen
 
 - Jede Kachel hat wieder ein **Symbol** (seit 1.99.46). Die bekannten Symbole sind wie früher, Einbuchung zeigt ein Plus, Ausbuchung ein
@@ -53,6 +64,12 @@ Ein Bereich ohne sichtbare Kachel erscheint nicht. Hat man gar keine Funktion, s
   Sage-Lagerbuchungen). Sie sind seltener gebraucht.
 - **OSEON AG-Übersicht** erscheint nur, wenn das OSEON-Modul (Teileverfolgung) eingeschaltet ist.
 - Ein Menü ohne sichtbaren Eintrag (z. B. „Bestellungen“ ohne passende Rolle) erscheint nicht mehr leer.
+- **Favoriten zeigen nie mehr als „Alle“.** Fehlt das Recht oder ist das Modul aus, wird der Favorit ausgeblendet, aber **nicht gelöscht**.
+  Im Reiter Favoriten steht dann gelb „Nicht verfügbar (Recht oder Modul fehlt): …“ mit dem Knopf **Nicht verfügbare entfernen**.
+  Kommt das Recht zurück, ist der Favorit ohne Zutun wieder da.
+- Noch keine Favoriten: Der Reiter zeigt „Noch keine Favoriten. Markieren Sie im Reiter „Alle“ eine Kachel mit dem Stern.“
+- Favoriten gibt es nur für Kacheln, nicht für reine Menüpunkte, und **nicht im Menü** – das Logo führt zur Startseite mit den Favoriten.
+- Die Reihenfolge der Favoriten lässt sich nicht ändern.
 
 ## Häufige Fragen
 
@@ -63,3 +80,7 @@ nötig ist.
 **Früher hatte ich die Kachel „Artikelinfo“ und jetzt nicht mehr.**
 Die Artikelinfo braucht die Rolle **Stammdaten lesen**. Ohne sie führte die Kachel früher auf „Zugriff verweigert“; jetzt wird sie gar
 nicht erst angezeigt.
+
+**Meine Favoriten sind weg.**
+Entweder wurde die Rolle entzogen bzw. das Modul ausgeschaltet (dann steht der gelbe Hinweis im Reiter Favoriten), oder die Administration
+hat in *Benutzer bearbeiten* die Ansichten zurückgesetzt – das löscht auch die Favoriten (Eintrag „Startseite.Favoriten“).
