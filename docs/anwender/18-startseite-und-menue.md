@@ -1,6 +1,6 @@
 # 18 Startseite und Menü
 
-Stand: Version **1.99.46** (20.11.2026). Bilder: 18-01 (AKE), 18-02 und 18-05 (IDEAL) aus den DEV-Systemen mit 1.99.46; 18-03 und 18-04 Testsysteme mit 1.99.45 (ohne Symbole, Inhalt sonst gleich).
+Stand: Version **1.99.50** (23.11.2026), Bilder noch 1.99.46 (Neuaufnahme 18-01/18-02/18-05 ausstehend). Bilder: 18-01 (AKE), 18-02 und 18-05 (IDEAL) aus den DEV-Systemen mit 1.99.46; 18-03 und 18-04 Testsysteme mit 1.99.45 (ohne Symbole, Inhalt sonst gleich).
 
 ## Zweck
 
@@ -46,7 +46,9 @@ Ein Bereich ohne sichtbare Kachel erscheint nicht. Hat man gar keine Funktion, s
 ## Hinweise und Stolperfallen
 
 - Jede Kachel hat wieder ein **Symbol** (seit 1.99.46). Die bekannten Symbole sind wie früher, Einbuchung zeigt ein Plus, Ausbuchung ein
-  Minus, Umbuchung einen Doppelpfeil. Das Symbol ist nur Erkennungshilfe – maßgeblich ist der Name der Kachel.
+  Minus, Umbuchung einen Doppelpfeil. Ein hohler Rahmen steht für einen ganzen Lagerplatz (mit Minus = Lagerplatz
+  ausbuchen, Pfeil = umbuchen, „!“ = Lager: Fehlteile). Ein Blatt mit Inhalt ist eine Liste, ein Tropfen steht für
+  Beschichtung. Jedes Symbol gibt es nur einmal (seit 1.99.50). Das Symbol ist nur Erkennungshilfe – maßgeblich ist der Name der Kachel.
 - Manche Seiten gibt es **nur im Menü**, nicht als Kachel (z. B. Kreditoren, Debitoren, Empfänger, Service-Einstellungen,
   Sage-Lagerbuchungen). Sie sind seltener gebraucht.
 - **OSEON AG-Übersicht** erscheint nur, wenn das OSEON-Modul (Teileverfolgung) eingeschaltet ist.

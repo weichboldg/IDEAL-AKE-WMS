@@ -91,6 +91,15 @@ public class NavigationSichtTests
         ohne.Should().BeEmpty("jede Kachel braucht einen gueltigen SymbolPfad");
     }
 
+    // v1.99.50: kein Symbol doppelt — faellt, sobald zwei Kacheln denselben SymbolPfad bekommen.
+    [Fact]
+    public void KachelSymbole_SindEindeutig()
+    {
+        var doppelt = NavZiele.Alle.Where(z => z.Kategorie != null).GroupBy(z => z.SymbolPfad)
+            .Where(g => g.Count() > 1).Select(g => string.Join("/", g.Select(z => z.Key))).ToList();
+        doppelt.Should().BeEmpty("jede Kachel braucht ein eigenes Symbol");
+    }
+
     [Theory]
     [MemberData(nameof(RollenDaten))]
     public async Task Kacheln_SindImmerAuchImMenue_UndKeineKategorieLeer(string? rolle)
