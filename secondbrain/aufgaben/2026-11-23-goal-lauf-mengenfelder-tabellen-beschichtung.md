@@ -54,9 +54,24 @@ Grenzen: nichts an Sage schreiben, keine Einstellungen auf Prod, kein Merge, kei
   **Fotos ausstehend:** Chrome-Tab hing an einem Browser-Dialog aus dem QA-Lauf; Foto 01-09 zeigt noch die Ist-Menge unter Soll (Vermerk im Kapitel).
 - 2026-11-23: Paket `publish\paket14-v1.99.58.zip` (Publish-Commit `b79a4b1a`, Doku-Commit danach ändert keine Binärdateien),
   237 041 687 Bytes, SHA-256 `986B3A57D9E205FF52BCA5B606E2895EF326B8A8D4019ACA21D53CB25F5E5DE8`.
-  - `\AKENET01.ake.at\Installsourcen`: Größe + SHA-256 gleich ✔
-  - `\IDEALWEB01.ideal.ideal-ake.at\InstallSourcen`: Größe + SHA-256 gleich ✔
+  - `\\AKENET01.ake.at\Installsourcen`: Größe + SHA-256 gleich ✔
+  - `\\IDEALWEB01.ideal.ideal-ake.at\InstallSourcen`: Größe + SHA-256 gleich ✔
 
+- 2026-11-23 abends: **Nachtest im Browser (Chrome neu gestartet), DEV AKE 8081, nur 8081 offen (keine Cookie-Kollision):**
+  - TS-183.2 ✔ Auftrag 47 (KO-2026-00014, FA 2607170): Pos. 00725315 Ist 1,5 → Wagen 2, `PickingOrderLines` 2184 IstMenge 1.500, Bewegung 19595;
+    nach Neuladen Zelle „Menge IST“ 1,500 ohne Eingabe. (Auftrag 49 lehnt ab: „Artikel He266522 ist im WMS unbekannt“ – Testdaten, kein Befund.)
+  - TS-183.3 ✔ Ist 0 / 4 (Soll 2) / „abc“ → jeweils Meldung, keine Bewegung.
+  - TS-183.4 ✔ Spalte aus-/einblenden bleibt nach Neuladen; „Menge IST“ vor „Menge“ gezogen → Buchung Pos. 00725321 Ist 1 (Zeile 2206, Bewegung 19596).
+  - TS-183.5 ✔ FA-Stückliste ohne Auftrag (`/Picking/Bom/143`): keine Spalte, kein `#column-config`-Eintrag, keine `.ist-menge`; CSV-Wert `data-csv-value` 1,500/1,000.
+  - TS-181 ✔ BA-2026-00001 (Entwurf, ohne Dienstleister): Menge 1→2, „Auf Übergeben setzen“ → „Gespeichert.“ + Warnung „Dienstleister fehlt“, Status bleibt Entwurf,
+    DB Menge 2.0000 mit `ModifiedAt/By`; danach über „Speichern“ auf 1 zurückgesetzt.
+  - TS-182 ✔ (Zweig „Kein Bestand – Vorschlag NAN“, Lagerbestellung #70 bei Schalter an). Zweig „nur nicht wählbare Plätze“ nur per Unit-Test/QA belegt (Testdaten fehlen).
+    Schalter auf DEV AKE nur kurz an, danach Zeile wieder entfernt (Ausgangszustand: Zeile fehlte).
+    Beobachtung: Ein SQL-Insert in `AppSettings` greift erst nach bis zu 2 min bzw. nach Speichern in /Settings (`CachedSettingRepository`, null wird mitgecacht) – erwartetes Verhalten, kein Befund.
+  - DEV-Rest: Auftrag 47 jetzt In Arbeit, Pos. 00725315 (1,5) und 00725321 (1) auf Wagen 2; Spalten-Präferenz Stückliste zurückgesetzt;
+    Spaltenfilter „Bezeichnung 1 = Verdampfer“ ist **Standard-Vorbelegung** der Stückliste (bomDefaultFilterConfig), kein QA-Rest.
+  - Nicht im Browser nachgetestet: TS-179.2/179.4/179.5 (Schritt/Dialoge/Ganzzahl), TS-180.1–180.4 (weitere Listen, WE-Buchung nach Umsortieren), TS-182.3 (manipulierter POST), IDEAL 8082 → UAT.
+- 2026-11-23 abends: Fotos `36a6f518` (Worktree): 01-09 neu (Spalte „Menge IST“, Vermerk entfernt), 10-06 Spalten verschieben, 15-07 Entwurf mit Statusknöpfen. Paket 14 unverändert gültig (nur Doku).
 ## Geänderte Kapitel (für spätere Confluence-Übernahme)
 
 - Anwender: 01 Kommissionierung, 03 Lager-/Glasbestellung, 10 Bestände und Spaltenfilter, 15 Beschichtungsauftrag, README (Stand/Tabelle)
