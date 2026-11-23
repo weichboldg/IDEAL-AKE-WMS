@@ -72,7 +72,19 @@ Grenzen: nichts an Sage schreiben, keine Einstellungen auf Prod, kein Merge, kei
     Spaltenfilter „Bezeichnung 1 = Verdampfer“ ist **Standard-Vorbelegung** der Stückliste (bomDefaultFilterConfig), kein QA-Rest.
   - Nicht im Browser nachgetestet: TS-179.2/179.4/179.5 (Schritt/Dialoge/Ganzzahl), TS-180.1–180.4 (weitere Listen, WE-Buchung nach Umsortieren), TS-182.3 (manipulierter POST), IDEAL 8082 → UAT.
 - 2026-11-23 abends: Fotos `36a6f518` (Worktree): 01-09 neu (Spalte „Menge IST“, Vermerk entfernt), 10-06 Spalten verschieben, 15-07 Entwurf mit Statusknöpfen. Paket 14 unverändert gültig (nur Doku).
+- 2026-11-23 spät: **Testprotokoll abgearbeitet (Auftrag Gerald) + v1.99.59 Hover hellblau** (`b139ff5b`, TS-184), DEV AKE + IDEAL auf v1.99.59.
+  - Deploy-Panne: `dev-deploy.ps1 -Standort AKE` ohne `-Quelle` veröffentlicht **main** → HTTP 500, Site gestoppt; sofort mit `-Quelle <Bündel-Worktree>` neu, beide 200.
+    Merke: bei AKE immer `-Quelle` angeben (Skript-Default AKE = main). Dienste AKE/IDEAL DEV stehen (Starttyp manuell, nicht gestartet).
+  - Tests: 3480 Web + 790 Service grün.
+  - TS-184.1 ✔ Hover #A1D9F7 (BelID 363221) · 184.2 ✔ Fokus-Balken bleibt (Fokus-Zeile selbst grau → Rückfrage) · 184.3 ✔ `table-danger` bleibt rot („abc“ → „Nichts gebucht“, keine Bewegung) · 184.4 ✔ Offene Bestellungen weiter `rgba(0,0,0,.075)`.
+  - TS-180.1 ✔ `#view-config.supportsReorder` true in Artikel, Lagerplätze, Kreditoren, Debitoren, Offene Bestellungen, Bestellvorschläge, WE; Griffe im Zahnrad (Artikel 29).
+  - TS-180.2 ✔ BelID 363197, Ist-Menge vor Artikel: EK019894 2 → `1;1;1`, EK023404 1 → `asdfasdf`, EK023400 1 → `QA173-L` (Bewegungen 19597–19599, Sage-Schalter DEV alle aus, Dienst steht). Präferenz danach gelöscht.
+  - TS-180.3 ✔ Artikel (Matchcode nach vorn, Filter Matchcode, CSV-Kopf in neuer Reihenfolge) und Offene Bestellungen (Artikel nach vorn, Filter EK02: 25 Zeilen, CSV 224 Zeilen alle EK02). Präferenzen gelöscht.
+  - TS-180.4 ✔ OSEON Zahnrad ohne Griffe; Einbuchung Mehrfach ohne Zahnrad.
+  - TS-179.1/179.2 ✔ 2,5 + Pfeil → 3,5; `step` im Fokus `any`, danach `0.001`; `1,0005` → stepMismatch (Browser weist ab). 179.4 ✔ Stückliste Dialog Lagerbestellung: Pfeil 1 → 2, Mausrad ohne Wirkung, Fokus weg. 179.5 ✔ Lagerbestellung #70 Ganzzahlfeld Pfeil ±1 (`step=1`), keine Konsolenfehler (Lagerbestellung, Startseite, Stückliste).
+  - Nicht live: TS-179.4 BDE-Terminal-Gruppenmeldung, TS-182.3 manipulierter POST (Unit-Test `PlatzAusserhalbDerListe_UndSagePlatzOhneSageBuchung_WerdenAbgewiesen_AK4`). IDEAL 8082 nur lesend (v1.99.59, Seiten 200, Hover-Regel, Reorder Artikel).
+  - v1.99.59 ohne `qa-agent`-Lauf (CSS-Zweizeiler auf Zuruf); Paket 14 enthält v1.99.59 **nicht** – neues Paket erst auf Anforderung.
 ## Geänderte Kapitel (für spätere Confluence-Übernahme)
 
-- Anwender: 01 Kommissionierung, 03 Lager-/Glasbestellung, 10 Bestände und Spaltenfilter, 15 Beschichtungsauftrag, README (Stand/Tabelle)
+- Anwender: 01 Kommissionierung, 03 Lager-/Glasbestellung, 10 Bestände und Spaltenfilter, 15 Beschichtungsauftrag, 05 Wareneingang zu Bestellung (v1.99.59), README (Stand/Tabelle)
 - Betrieb: 00-index (Stand)
