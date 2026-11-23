@@ -1516,8 +1516,11 @@ th:hover .col-resize-handle {
     box-shadow: inset 4px 0 0 var(--bs-primary-text-emphasis),
                 inset 0 0 0 9999px var(--bs-table-bg-state, var(--bs-table-bg-type, var(--bs-table-accent-bg)));
 }
-/* v1.99.59: Hover der WE-Positionen in CI-Hellblau statt Bootstrap-Grau (Grau war am Terminal kaum sichtbar); table-danger behaelt eigene Farbe. */
+/* v1.99.59: WE-Positionen in CI-Blau statt Bootstrap-Grau (Grau war am Terminal kaum sichtbar): Hover hellblau, Fokus-Zeile
+   (focus-within nutzt --bs-table-active-bg) noch heller, damit beide unterscheidbar sind. table-danger setzt beide Variablen selbst und bleibt rot. */
 .table.we-positionen {
     --bs-table-hover-bg: var(--ake-light-blue);
     --bs-table-hover-color: var(--bs-body-color);
+    --bs-table-active-bg: var(--ake-very-light-blue);
+    --bs-table-active-color: var(--bs-body-color);
 }

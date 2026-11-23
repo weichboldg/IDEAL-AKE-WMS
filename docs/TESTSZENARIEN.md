@@ -13728,7 +13728,7 @@ Nur Web. Querverweis: TS-120 (Kommissionieraufträge). Am AKE-Test (:4444) erst 
 
 **Automatisch:** `ViewKeyDriftGuardTests.Stueckliste_SpalteMengeIst_DreiQuellen_NurMitAuftrag` (th, `#column-config`, Katalog, ein Eingabefeld; AK 4).
 
-## TS-184 — Wareneingang zu Bestellung: Hover hellblau (v1.99.59)
+## TS-184 — Wareneingang zu Bestellung: Hover und Fokus-Zeile hellblau (v1.99.59)
 
 Rückmeldung Gerald 2026-11-23 zu TS-177 (graue Hover-Farbe kaum sichtbar). **Standort:** DEV AKE und DEV IDEAL. Nur Web (CSS).
 **Vorbedingungen:** Rolle Wareneingang; eine Bestellung mit ≥ 3 offenen Positionen, davon möglichst eine rot markiert (Überlieferung).
@@ -13736,11 +13736,11 @@ Rückmeldung Gerald 2026-11-23 zu TS-177 (graue Hover-Farbe kaum sichtbar). **St
 | Nr | Schritte | Erwartung |
 |---|---|---|
 | 184.1 | `/PurchaseOrders/Receive/<Id>` öffnen, Maus über eine normale Zeile führen | Zeile CI-Hellblau (#A1D9F7) hinterlegt, Text gut lesbar; gestreifte Zeilen ohne Maus unverändert. |
-| 184.2 | In ein Mengenfeld klicken (aktive Zeile, TS-177) | Aktive Zeile weiter mit blauem Balken links erkennbar. |
+| 184.2 | In ein Mengenfeld klicken (aktive Zeile, TS-177); Maus auf eine andere Zeile | Aktive Zeile sehr hellblau (#D9F4FF) mit dunkelblauem Balken links; Hover-Zeile kräftiger hellblau – beide unterscheidbar. In einer rot markierten Zeile tippen: Zeile bleibt rot. |
 | 184.3 | Negativ: Maus über eine rot markierte Zeile (`table-danger`) | Zeile bleibt rot (keine Hellblau-Überdeckung). |
 | 184.4 | Negativ: andere Tabellen (z. B. Offene Bestellungen) | Hover dort unverändert (grau) – Änderung gilt nur in der WE-Positionstabelle. |
 
-**Automatisch:** `ViewKeyDriftGuardTests.WareneingangPositionen_DreiQuellenGleich_Gesperrt_FokusZeile` (dritte `.we-positionen`-Regel setzt `--bs-table-hover-bg: var(--ake-light-blue)`).
+**Automatisch:** `ViewKeyDriftGuardTests.WareneingangPositionen_DreiQuellenGleich_Gesperrt_FokusZeile` (dritte `.we-positionen`-Regel setzt `--bs-table-hover-bg: var(--ake-light-blue)` und `--bs-table-active-bg: var(--ake-very-light-blue)`).
 
 ---
 

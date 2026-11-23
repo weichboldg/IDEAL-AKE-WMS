@@ -80,9 +80,10 @@ Das ist nur ein Hinweis: Beim Einbuchen wird nichts erfüllt oder abgeschlossen.
 
 Die Tabelle ist breit – nach rechts scrollen bis **Ist-Menge**, **Überlieferung**, **Positionsmemo** und **Status**.
 
-Seit 1.99.52 sind die Zeilen abwechselnd hinterlegt. Die Zeile, in der Sie gerade tippen, ist **grau mit einem dunkelblauen Balken links**
+Seit 1.99.52 sind die Zeilen abwechselnd hinterlegt. Die Zeile, in der Sie gerade tippen, ist **mit einem dunkelblauen Balken links**
 markiert – so sieht man auch in der breiten Tabelle, zu welcher Position Menge und Platz gehören. Mit **Tab** springt man zum nächsten Feld.
-Seit 1.99.59 wird die Zeile unter dem Mauszeiger **hellblau** hinterlegt; rot markierte Fehlerzeilen bleiben rot.
+Seit 1.99.59 ist die Zeile, in der Sie tippen, **sehr hellblau** (statt grau, Balken bleibt), die Zeile unter dem Mauszeiger **hellblau**;
+rot markierte Fehlerzeilen bleiben rot.
 
 ![Positionstabelle mit Streifen; Position 2 hat den Fokus (grau, dunkelblauer Balken links); Zahnrad rechts über der Tabelle](bilder/05-06-positionen-fokus-zeile.jpg)
 

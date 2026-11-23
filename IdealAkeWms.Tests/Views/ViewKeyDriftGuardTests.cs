@@ -87,6 +87,7 @@ public class ViewKeyDriftGuardTests
         regeln.Should().OnlyContain(r => !r.Contains("background"));
         regeln[0].Should().Contain("--bs-table-bg-state: var(--bs-table-active-bg)");
         regeln[1].Should().Contain("inset 4px 0 0").And.Contain("var(--bs-table-bg-state, var(--bs-table-bg-type");
-        regeln[2].Should().Contain("--bs-table-hover-bg: var(--ake-light-blue)"); // v1.99.59: Hover CI-Hellblau
+        regeln[2].Should().Contain("--bs-table-hover-bg: var(--ake-light-blue)") // v1.99.59: Hover CI-Hellblau, Fokus-Zeile heller
+            .And.Contain("--bs-table-active-bg: var(--ake-very-light-blue)");
     }
 }
