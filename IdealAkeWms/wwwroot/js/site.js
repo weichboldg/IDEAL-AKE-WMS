@@ -248,3 +248,33 @@ window.tableToolbarHost = function (table) {
         return function () { clearTimeout(timer); freigeben(liste); };
     };
 })();
+
+// v1.99.54: Mengenfelder – Pfeil/Spinner zaehlen ±1 ab dem aktuellen Wert statt um den step (aus 1 wurde 1,001).
+// Waehrend der Bedienung step="any" (Browser-Standardschritt 1, ohne Raster), beim Verlassen das Original zurueck –
+// die Absende-Pruefung (z. B. hoechstens 3 Nachkommastellen) bleibt. Delegiert am document: gilt auch fuer per JS erzeugte Felder.
+// Mausrad im fokussierten Zahlenfeld aendert nie den Wert: Feld verliert den Fokus, die Seite scrollt.
+(function () {
+    function dezimalFeld(el) {
+        if (!(el instanceof HTMLInputElement) || el.type !== 'number' || el.hasAttribute('data-step-orig')) return false;
+        var s = el.getAttribute('step');
+        return s !== null && s !== 'any' && parseFloat(s) < 1;
+    }
+    function aufAny(e) {
+        var el = e.target;
+        if (!dezimalFeld(el)) return;
+        el.setAttribute('data-step-orig', el.getAttribute('step'));
+        el.setAttribute('step', 'any');
+    }
+    document.addEventListener('pointerdown', aufAny, true);
+    document.addEventListener('focusin', aufAny, true);
+    document.addEventListener('focusout', function (e) {
+        var el = e.target;
+        if (!(el instanceof HTMLInputElement) || !el.hasAttribute('data-step-orig')) return;
+        el.setAttribute('step', el.getAttribute('data-step-orig'));
+        el.removeAttribute('data-step-orig');
+    }, true);
+    document.addEventListener('wheel', function (e) {
+        var el = e.target;
+        if (el instanceof HTMLInputElement && el.type === 'number' && el === document.activeElement) el.blur();
+    }, { passive: true, capture: true });
+})();
