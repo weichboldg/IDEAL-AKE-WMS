@@ -2,7 +2,7 @@
 type: spec
 title: Alle Tabellen – Streifen, Hover und Fokus-Zeile in CI-Blau
 slug: 2026-11-23-tabellen-streifen-hover-ci-hellblau-spec
-status: Entwurf
+status: Freigegeben
 created: 2026-11-23
 updated: 2026-11-23
 source_backlog: "[[2026-11-23-tabellen-streifen-hover-ci-hellblau]]"
@@ -40,8 +40,8 @@ deploy:
   service: false
   migration: false
 freigabe_entscheidung: "A"
-freigabe_von: ""
-freigabe_am: ""
+freigabe_von: "Gerald"
+freigabe_am: 2026-11-23
 ---
 
 ## Ziel / Nutzen (das Warum)
