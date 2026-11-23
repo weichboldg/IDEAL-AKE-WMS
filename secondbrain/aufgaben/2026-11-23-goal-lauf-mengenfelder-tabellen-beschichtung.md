@@ -218,3 +218,52 @@ Deploy-Umfang: nur Web nötig (CSS + Changelog-View), keine Migration, kein Nach
 **Manuell offen (Mensch):**
 1. TS-184.6 an einer `table-danger`-Zeile mit offenem Bedarf (z. B. „abc“ als Ist-Menge) – Link dunkelblau lesbar.
 2. TS-184.6 auf IDEAL 8082 bzw. Testsystem, am Fertigungsterminal ansehen.
+
+## QA v1.99.60 Menü FA-Struktur (qa-agent)
+
+Auftrag: Wunsch Gerald 2026-11-23 auf Zuruf, keine eigene Spec. Commit `bcb7a357` (Diff gegen `f08f9c7c`):
+`Views/Shared/_Layout.cshtml` (eigenständiger Punkt „FA-Struktur“ entfernt, als Dropdown-Eintrag unter „Fertigungsaufträge“ nach „FA-Liste“; `ZeigtEines` um `NavZiele.FaStruktur`, Aktiv-Markierung um Controller `FaHierarchy`),
+beide `AppVersion.cs` 1.99.60, `Views/Help/Changelog.cshtml`, `docs/TESTSZENARIEN.md` (TS-185). Kein Publish/Paket (Auftrag).
+
+**1 Build + Tests** (Worktree, HEAD `bcb7a357`): `dotnet build IdealAkeWms.slnx` 0 Fehler (30 Warnungen, bekannt).
+`dotnet test`: IdealAkeWms.Tests 3480 bestanden / 1 übersprungen / 0 Fehler; IDEALAKEWMSService.Tests 790 / 0 / 0.
+
+**6a/b DEV-Deploy** (`dev-deploy.ps1 -Quelle <Bündel-Worktree> -OhneDienst`, Dienste nicht gestartet):
+IDEAL „HTTP 200, Fusszeile v1.99.60 … Fertig: IDEAL v1.99.60 auf http://localhost:8082/“, Exit 0; AKE „Fertig: AKE v1.99.60 auf http://localhost:8081/“, Exit 0.
+
+**2 Review** (`f08f9c7c..bcb7a357`):
+- Rechte-Regel unverändert: `NavigationKatalog.cs:265` `"FaListe" or "FaStruktur" => faLesen` (`CanViewProductionOrdersAsync`), kein Standort-/Toggle-Anteil.
+  Controller-Filter identisch: `FaHierarchyController.cs:24` und `ProductionOrdersController.cs:13` je `[RequirePickingOrTrackingOrLeitstandAccess]`.
+  → Ein Benutzer, der FA-Struktur, aber nicht FA-Liste sieht, ist nicht möglich (eine Regel für beide). Die Erweiterung von `ZeigtEines` um FaStruktur ist daher fachlich redundant, aber konsistent mit dem Wächter (jeder Link hängt an seinem NavZiel).
+- Wächter `NavigationSichtTests.Layout_JederMenuelinkHaengtAnSeinemNavZiel_OhneEigeneRechteabfrage` grün; neuer Link steht in `@if (nav.Zeigt(NavZiele.FaStruktur))`.
+- Standort: FA-Struktur war und ist auch auf AKE sichtbar (Regel ohne Standort). Auf DEV AKE zeigt die Seite „FA-Struktur (IDEAL)“ mit „Keine Strukturen gefunden“ – Altbestand, nicht durch diesen Commit; nur Hinweis (H-1), kein Befund.
+- Aktiv-Markierung: `FaHierarchy` in die `is`-Liste des Dropdown-Toggles aufgenommen; der alte Einzellink samt eigener Aktiv-Logik ist vollständig entfernt (im Browser nur ein FA-Struktur-Menülink gefunden).
+- Startseiten-Kachel unverändert (NavigationKatalog nicht im Diff).
+- Hilfe/Doku mit Menüweg: `docs/anwender/18-startseite-und-menue.md`, `Views/Help/Index.cshtml`, `README.md` nennen keinen Menüweg zur FA-Struktur (grep) → nichts nachzuziehen. Fotos `docs/anwender/bilder/18-0x` können die alte Menüleiste zeigen – kosmetisch (H-2).
+- Klassen aus der QA-Liste (Script-Einbettung, `hidden`+`d-*`, stille Fallbacks, Arrays, nur-Client-Validierung, Mehrfachregel) nicht berührt.
+- **Befund B-1:** `secondbrain/tests/testszenarien-index.md` hat keine Zeile für TS-185 (letzte ist 184). Nicht nachgezogen, weil der Auftrag nur diese Notiz zu stagen erlaubt → Hauptagent.
+
+**3 Nachweisart:** Link-an-NavZiel per Wächter-Test (statisch); Reihenfolge/Aktiv-Markierung/Sichtbarkeit nur Browser (unten). 185.5 per Code-Beleg.
+
+**4 Geänderte Bestandstests:** keine.
+
+**5 Checkliste:** Version beide AppVersion.cs + Anwender-Changelog ✓, TS-185 in TESTSZENARIEN ✓, Testindex ✗ (B-1), keine Migration/SQL/Einstellung (ADR 0020 n/a), kein Nachlauf-Schritt.
+
+**6c TS-185 im Browser** (eigener Tab, Admin-Benutzer, nichts gebucht):
+| Nr | Standort | Ergebnis | Screenshot | Status |
+|---|---|---|---|---|
+| 185.1 | IDEAL 8082 | Leiste: Lager, Beschichtung, Vormontage, Fertigungsaufträge, Leitstand, … – kein eigener „FA-Struktur“ | `C:\Users\GERALD~1.WEI\AppData\Local\Temp\claude-chrome-screenshots-ZoOUCf\screenshot-1795460828144-16.png` | OK |
+| 185.2 | IDEAL 8082 | Dropdown: FA-Liste, FA-Struktur (FA-Vervollständigen/Abarbeitungsliste dort nicht freigeschaltet) | wie 185.1 | OK |
+| 185.3 | IDEAL 8082 | `/FaHierarchy` öffnet „FA-Struktur (IDEAL)“, „Fertigungsaufträge“ hervorgehoben | `…\screenshot-1795460834132-17.png` | OK |
+| 185.4 | IDEAL 8082 | Kachel „FA-Struktur“ im Bereich Produktion/BDE nach FA-Liste | `…\screenshot-1795460845988-18.jpg` | OK |
+| 185.1/185.2 | AKE 8081 | Kein eigener Punkt; Dropdown: FA-Liste, FA-Struktur, FA-Vervollständigen, FA-Abarbeitungsliste | `…\screenshot-1795460860052-19.png` | OK |
+| 185.3 | AKE 8081 | `/FaHierarchy` öffnet, „Fertigungsaufträge“ hervorgehoben (Seite leer, H-1) | `…\screenshot-1795460866544-20.jpg` | OK |
+| 185.4 | AKE 8081 | Kachel „FA-Struktur“ im Reiter „Alle“ vorhanden (Accessibility-Baum) | – | OK |
+| 185.5 | beide | Kein Benutzer ohne Recht genutzt; per Code: gleiche Regel `faLesen` wie FA-Liste, Dropdown nur bei `ZeigtEines(...)`, `/FaHierarchy` hinter `RequirePickingOrTrackingOrLeitstandAccess` | – | OK (Code-Beleg), Browser NICHT MOEGLICH |
+
+**7 Publish:** laut Auftrag nicht ausgeführt. Deploy-Umfang: nur Web (Layout, Changelog), keine Migration.
+
+**Manuell offen (Mensch):**
+1. TS-185.5 mit einem Benutzer ohne FA-Leserecht im Browser.
+2. B-1: TS-185 in `secondbrain/tests/testszenarien-index.md` aufnehmen.
+3. TS-185.1–185.4 auf dem Testsystem.
