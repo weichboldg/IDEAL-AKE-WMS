@@ -2206,3 +2206,33 @@ Code: `hardware-scanner.js` Block „Scannen ohne Feld“, CSS `.hw-scan-bereit`
   Wächter `JsonImAttributWaechterTests`.
 - **Warum:** Kein Controller-/InMemory-Test rendert die View; der Fehler ist nur im Browser sichtbar. Gefunden erst im QA-Lauf auf DEV
   (Konsole: `SyntaxError … in JSON at position 1`).
+
+## 60. Stern/Knopf in einer Link-Karte: nie ein interaktives Element im `<a>` (v1.99.51, [[2026-11-23-dashboard-favoriten-reiter-spec]])
+
+- **Problem:** Die Startseiten-Kachel war ein `<a>` um die ganze Karte. Ein Favoriten-Stern (Formular + Knopf) darin wäre ungültiges HTML;
+  Tastatur und Screenreader springen falsch, ein Klick auf den Stern öffnet die Seite.
+- **Regel:** Link als `stretched-link` im Titel, Formular/Knopf als **Geschwister** mit `position:absolute` und `z-index` > 1. Der Fokusring
+  der Karte sitzt dann auf `.dashboard-link:focus-visible::after`, weil der Link die Karte nicht mehr umschließt. Favoriten nur über
+  `nav.Favoriten(keys)` rendern (nie an `NavigationSicht` vorbei), sonst zeigt ein Favorit nach Rechte- oder Modulentzug mehr als die Startseite.
+  Wächter `Startseite_KeinFormularOderKnopfInnerhalbEinesLinks`.
+- **Nebenbei:** Razor-Funktionen in `@{ }`, die einen TagHelper (z. B. `<form asp-…>`) enthalten, müssen `async Task` sein und mit `await`
+  aufgerufen werden (Compiler-Fehler MVC1006).
+- **Warum:** Kein Controller-Test rendert die View; die Verschachtelung fällt nur im Browser oder per Quelltext-Wächter auf.
+
+## 61. Markierung an Bootstrap-Tabellenzeilen: über `--bs-table-bg-state`, nicht über `background-color` (v1.99.52, [[2026-11-23-wareneingang-zu-bestellung-bedienung-spec]])
+
+- **Problem:** Bootstrap 5 malt den Zellhintergrund als `box-shadow` (`--bs-table-bg-state`/`-type`). Eine eigene `background-color` oder ein
+  eigener `box-shadow` an der Zelle überdeckt `table-danger`, Streifen und Hover – Fehlerzeilen wären nicht mehr rot.
+- **Regel:** Aktiv-/Fokus-Zeile über `--bs-table-bg-state` setzen; ein zusätzlicher Balken als zweiter Schatten **zusammen mit** dem
+  Bootstrap-Hintergrund-Schatten. Balkenfarbe `--bs-primary-text-emphasis` (#052c65): `--bs-primary` erreicht auf der aktiven
+  `table-danger`-Zeile nur ca. 2,7:1 (< 3:1 für Bedienelemente).
+- **Warum:** Der Wareneingang zeigt Fehlerzeilen rot; die neue Fokus-Zeile (v1.99.52) darf diese Bedeutung nicht wegnehmen.
+
+## 62. WMS-Ausbuchung auf einem Sage-Platz ohne Sage-Übergabe wird vom Lagerbestand-Abgleich zurückgebucht (v1.99.53, [[2026-11-23-lagerbestellung-verbrauchsbuchung-bei-lieferung-spec]])
+
+- **Problem:** Plätze mit `Source = Sage` setzt der Lagerbestand-Abgleich auf den Sage-Bestand (`LagerbestandSyncService`). Eine WMS-`Ausbuchung`
+  dort, deren Entnahme nicht an Sage geht (ServiceSetting `SageLagerbuchungAktiv` aus, oder Platz ohne `SageBuchungErlaubt`/Sage-Referenz laut
+  `SageWareneingang.IstSageWePlatz`), ist nach dem nächsten Lauf still verschwunden.
+- **Regel:** WMS-seitige Verbrauchs-/Entnahmebuchungen (Lagerbestellung v1.99.53) bieten Sage-Plätze nur an, wenn die Entnahme an Sage geht
+  (`WarehousePickingController.EntnahmeErlaubt`), und weisen sie serverseitig mit klarer Meldung ab. Gilt für jeden neuen Buchungsweg.
+- **Warum:** Sage bleibt die Quelle für Sage-Plätze; sonst stimmen WMS-Bestand und Bewegungshistorie nicht mehr überein, ohne dass es jemand merkt.

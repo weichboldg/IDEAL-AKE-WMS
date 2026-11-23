@@ -516,3 +516,12 @@ Quellen-Weiche je Abgleich: [[0019-quellen-weiche-view-sdata-je-abgleich]]. Ordn
   - `SageArbeitsplatzReader` (Tabellen-SQL)
   - `SdataFaStrukturReader` (Präfix `KHKPpsFaBelege_` + Artikel)
 - **404-Behandlung:** `SyncWorker.RunResilientAsync` erkennt HTTP 404 (`SdataLeseException.Status`) irgendwo in der Ausnahme-Kette, meldet es und überspringt den Schritt 24 h (`ResourceFehltPause`).
+
+## Entnahme-Platz und Bestandsregel (v1.99.53, [[2026-11-23-lagerbestellung-verbrauchsbuchung-bei-lieferung-spec]])
+
+- `Services/QuellLagerplatzVorschlag.Waehle` – unverändert aus `PickingController.QuellVorschlag` verschoben: Hauptlagerplatz mit Bestand > 0,
+  sonst Platz mit dem meisten Bestand, ohne Bestand `NAN`. Genutzt von Kommissionierung und Lagerbestellung. **Nicht** für den Wareneingang
+  (dort immer Hauptlagerplatz, v1.99.52).
+- `Services/AusbuchungBestandsregel.PruefeAsync` – eine Regel für Warenausgang und Lagerbestellung: `NegativeBuchungErlaubt` → Fehlbestand auf
+  `NegativeBuchungLagerplatz`, sonst Zeile abweisen.
+- Kein Dienst-Code geändert; die Sage-Entnahme läuft über den bestehenden Decorator → Queue → `SageBookingWorker`.

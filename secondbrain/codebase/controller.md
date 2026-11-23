@@ -234,3 +234,18 @@ Beschichtungsauftrag-Muster); Zuweisung an den Einkauf ist Hand-Schritt unter `/
   `Index` (GET, Vorschau, `pruefen=true` liest Sage per SData-GET, höchstens 500 FAs), `Anlegen` (POST, Antiforgery): Schalter
   `SageFaArbeitsgaengeAnlegenAktiv` + Ziel-Stand (ADR 0026: übergebene Sage-AGs müssen Teilmenge der serverseitigen Vorschau sein) am
   Schreibort, dann `ISageFaArbeitsgangAnlageRepository.EinreihenAsync`. Kein Sage-Aufruf beim Einreihen. Keine neue Rolle.
+
+## Startseite-Favoriten, Wareneingang-Bedienung, Lagerbestellung-Entnahme (v1.99.51–1.99.53, /goal-Lauf 2026-11-23)
+
+- `HomeController` (v1.99.51, [[2026-11-23-dashboard-favoriten-reiter-spec]]): `Index(string? reiter)` + POST `FavoritUmschalten(key, reiter)`,
+  POST `FavoritenBereinigen()`, beide `[ValidateAntiForgeryToken]`, ohne Rollen-Filter, nur die eigene Zeile (Benutzer-Id aus der Session).
+  Hinzufügen nur, wenn die Kachel laut `NavigationSicht` sichtbar ist. Server-ViewKey `Startseite.Favoriten` bewusst **nicht** in
+  `ColumnDefinitions` – die API `PUT api/user-view-preferences/{key}` antwortet dafür 400.
+- `PurchaseOrdersController` (v1.99.52, [[2026-11-23-wareneingang-zu-bestellung-bedienung-spec]]): zusätzliche Ctor-Abhängigkeit
+  `IArticleRepository`; Ziel-Vorschlag in `ZielVorschlaegeAsync` (Sage-Platz-Vorrang, sonst `Article.PrimaryStorageLocationId` ohne
+  Bestandsbedingung, bei Sage-WE nur `IstSageWePlatz`). Bestellnummer nur aus Ziffern = Endungssuche `-<Eingabe>`.
+- `WarehousePickingController` (v1.99.53, [[2026-11-23-lagerbestellung-verbrauchsbuchung-bei-lieferung-spec]]): Ctor zusätzlich
+  `IArticleRepository`, `IStorageLocationRepository`, `IAppSettingRepository`, `IServiceSettingRepository`, `ApplicationDbContext`.
+  `Close`/`PrintAndClose` nehmen optional `int?[] storageLocationIds` und laufen über `AbschliessenAsync`: Status-Guard (nur
+  Submitted/PartiallyDelivered, auch bei Schalter aus), Abschluss + Ausbuchungen in einer Transaktion. Keine neue Rolle
+  (`RequireLagerProcessingAccess`: admin, stock, stock_keyuser).
